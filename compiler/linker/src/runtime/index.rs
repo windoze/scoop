@@ -29,7 +29,7 @@ impl RuntimeObjectSet {
         toolchain: &CBridgeToolchainProfileV1,
     ) -> Result<Self, LinkError> {
         let index: Index = decode_canonical(&std::fs::read(path).map_err(error)?).map_err(error)?;
-        if index.schema != 2
+        if index.schema != 3
             || index.target != encode(&target.wire_id()).map_err(error)?
             || index.abi.as_array() != RuntimeAbiContract.fingerprint().map_err(error)?.as_array()
             || index.toolchain != encode(toolchain.contract()).map_err(error)?
@@ -87,7 +87,7 @@ impl RuntimeObjectSet {
             })
             .collect::<Result<_, LinkError>>()?;
         let index = Index {
-            schema: 2,
+            schema: 3,
             target: encode(&self.target.wire_id()).map_err(error)?,
             toolchain: self.toolchain.clone(),
             configuration: self.configuration.clone(),

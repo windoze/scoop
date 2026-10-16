@@ -5,12 +5,10 @@ use scoop_lir::ExternalStrongShapeSubjectV1;
 
 use super::CanonicalObjectDefinitionRequirementV1;
 use crate::link_object::{
-    CanonicalUndefinedRelocationUseV1, CanonicalUndefinedSymbolRequirementSetV1,
-    SealedBuiltinObjectExternalRequirementClosureV1, StrongRelocationResolutionV1,
-    UndefinedSymbolRequirementFinalizationError, VerifiedCrossConeStrongRequirementClosureV1,
-    VerifiedCurrentConeStrongRelocationClosureV1, VerifiedCurrentConeUndefinedRequirementClosureV1,
-    VerifiedExternalShapeRequirementClosureV1,
-    finalize_partitioned_undefined_symbol_requirements_with_additional_uses_inner, use_key,
+    BuiltinExternalRequirementsV1, CanonicalUndefinedRelocationUseV1,
+    CanonicalUndefinedSymbolRequirementSetV1, UndefinedSymbolRequirementFinalizationError,
+    VerifiedCrossConeStrongRequirementClosureV1, VerifiedCurrentConeUndefinedRequirementClosureV1,
+    VerifiedExternalShapeRequirementClosureV1, finalize_undefined_symbol_requirements_v1,
 };
 
 /// One general-shape use projected from the verified Link closure.
@@ -68,78 +66,6 @@ impl FinalizedLayoutUndefinedSymbolRequirementPartitionsV1 {
         (self.legacy, self.cross_cone, self.external_shape)
     }
 
-    pub(in crate::link_object) fn matches_strong_closure(
-        &self,
-        closure: &VerifiedCurrentConeStrongRelocationClosureV1,
-    ) -> bool {
-        if self.legacy.producer() != closure.producer()
-            || self.cross_cone.producer() != closure.producer()
-            || self.legacy.selection().target() != closure.target()
-            || self.cross_cone.target() != closure.target()
-        {
-            return false;
-        }
-
-        let mut expected = closure
-            .bindings()
-            .iter()
-            .filter(|binding| {
-                !matches!(
-                    binding.resolution(),
-                    StrongRelocationResolutionV1::ObjectLocalStrong { .. }
-                )
-            })
-            .map(CanonicalUndefinedRelocationUseV1::from)
-            .collect::<Vec<_>>();
-        expected.sort_unstable_by_key(use_key);
-
-        let mut actual = self
-            .legacy
-            .requirements()
-            .iter()
-            .map(|requirement| requirement.use_site().clone())
-            .chain(
-                self.cross_cone
-                    .requirements()
-                    .iter()
-                    .map(|requirement| requirement.use_site().clone()),
-            )
-            .chain(
-                self.external_shape
-                    .iter()
-                    .map(|requirement| requirement.use_site().clone()),
-            )
-            .collect::<Vec<_>>();
-        actual.sort_unstable_by_key(use_key);
-        actual == expected
-    }
-
-    pub(in crate::link_object) fn matches_external_shape_closure(
-        &self,
-        closure: &VerifiedExternalShapeRequirementClosureV1<'_>,
-    ) -> bool {
-        if &self.cross_cone != closure.legacy_closure()
-            || self.external_shape.len() != closure.requirements().len()
-        {
-            return false;
-        }
-        self.external_shape
-            .iter()
-            .zip(closure.requirements())
-            .all(|(finalized, classified)| {
-                let Some(import) = closure
-                    .semantic_imports()
-                    .records()
-                    .get(classified.import_index() as usize)
-                else {
-                    return false;
-                };
-                finalized.use_site() == classified.use_site()
-                    && finalized.provider() == import.provider()
-                    && finalized.subject() == import.subject()
-            })
-    }
-
     pub(in crate::link_object) fn shape_requirement_for(
         &self,
         use_site: &CanonicalUndefinedRelocationUseV1,
@@ -160,16 +86,12 @@ impl FinalizedLayoutUndefinedSymbolRequirementPartitionsV1 {
 /// Finalizes all three M23-6 partitions against the same relocation closure.
 pub fn finalize_layout_partitioned_undefined_symbol_requirements_v1(
     current_cone: VerifiedCurrentConeUndefinedRequirementClosureV1,
-    external: SealedBuiltinObjectExternalRequirementClosureV1,
+    external: BuiltinExternalRequirementsV1,
     external_shape: &VerifiedExternalShapeRequirementClosureV1<'_>,
 ) -> Result<
     FinalizedLayoutUndefinedSymbolRequirementPartitionsV1,
     UndefinedSymbolRequirementFinalizationError,
 > {
-    if external.cross_cone_closure() != external_shape.legacy_closure() {
-        return Err(UndefinedSymbolRequirementFinalizationError::ExternalShapeClosureMismatch);
-    }
-
     let mut shape_requirements = Vec::with_capacity(external_shape.requirements().len());
     for requirement in external_shape.requirements() {
         let import_index = requirement.import_index();
@@ -189,16 +111,8 @@ pub fn finalize_layout_partitioned_undefined_symbol_requirements_v1(
             subject: import.subject(),
         });
     }
-    let shape_uses = shape_requirements
-        .iter()
-        .map(|requirement| requirement.use_site().clone())
-        .collect::<Vec<_>>();
     let cross_cone = external.cross_cone_closure().clone();
-    let legacy = finalize_partitioned_undefined_symbol_requirements_with_additional_uses_inner(
-        current_cone,
-        external,
-        &shape_uses,
-    )?;
+    let legacy = finalize_undefined_symbol_requirements_v1(current_cone, external);
     Ok(FinalizedLayoutUndefinedSymbolRequirementPartitionsV1 {
         legacy,
         cross_cone,

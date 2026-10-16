@@ -33,26 +33,6 @@ claim_storage(const ScoopImageRegistry *registry,
     return entry;
 }
 
-static const ScoopCallableRegistrationDescriptorV1 *check_callable(
-    const ScoopImageRegistry *registry, const ScoopMetadataCheck *check,
-    const ScoopRegisteredRecord *owner, const ScoopDigest256V1 *identity,
-    ScoopCallableAddressV1 address, const ScoopDigest256V1 *fingerprint) {
-    const ScoopRegisteredRecord *entry =
-        scoop_record_by_id(registry, SCOOP_RECORD_CALLABLE, identity);
-    if (entry == NULL ||
-        (owner != NULL && !scoop_records_same_owner(owner, entry))) {
-        scoop_metadata_fatal(check, "callable identity or producer");
-    }
-    const ScoopCallableRegistrationDescriptorV1 *callable = entry->record;
-    if (callable->entry != address ||
-        (fingerprint != NULL &&
-         !scoop_digest_equal(&callable->body_definition_fingerprint,
-                             fingerprint))) {
-        scoop_metadata_fatal(check, "callable address or fingerprint mirror");
-    }
-    return callable;
-}
-
 static void check_unit(const ScoopImageRegistry *registry, size_t index,
                        bool *claimed) {
     const ScoopRegisteredRecord *entry =
@@ -64,31 +44,17 @@ static void check_unit(const ScoopImageRegistry *registry, size_t index,
         scoop_metadata_fatal(&check, "reserved field or empty diagnostic");
     }
     scoop_metadata_bytes(&check, unit->diagnostic_path, "diagnostic path span");
-    scoop_metadata_writable(&check, unit->cell, sizeof *unit->cell, 8,
-                            "cell writable range");
-    if (unit->cell->state != 0 || unit->cell->owner_thread != NULL) {
-        scoop_metadata_fatal(&check, "nonzero initial cell");
-    }
+    scoop_metadata_range(&check, unit->cell, 1, sizeof *unit->cell, 8, "cell writable range");
     claim_storage(registry, &check, unit->storage, entry, claimed, false);
     claim_storage(registry, &check, unit->failure_root, entry, claimed, true);
-    check_callable(registry, &check, entry, &unit->initializer_callable_id,
-                   unit->initializer_entry, NULL);
-    check_callable(registry, &check, entry, &unit->ensure_callable_id,
-                   unit->ensure_entry, NULL);
     if (unit->schedule_kind == SCOOP_INITIALIZATION_EAGER_STARTUP_V1) {
         if (entry->identity->linkage_kind !=
             SCOOP_REGISTRATION_LINKAGE_STRONG_V1) {
             scoop_metadata_fatal(&check,
                                  "eager unit must have a defining Cone");
         }
-        check_callable(registry, &check, entry,
-                       &unit->startup_gateway_callable_id,
-                       (ScoopCallableAddressV1)unit->startup_gateway,
-                       &unit->startup_gateway_definition_fingerprint);
     } else if (unit->schedule_kind == SCOOP_INITIALIZATION_LAZY_ACCESS_V1) {
-        if (unit->startup_gateway != NULL ||
-            !scoop_digest_zero(&unit->startup_gateway_callable_id) ||
-            !scoop_digest_zero(&unit->startup_gateway_definition_fingerprint)) {
+        if (unit->startup_gateway != NULL) {
             scoop_metadata_fatal(&check, "lazy unit has a startup gateway");
         }
     } else {
@@ -107,9 +73,6 @@ static void check_root(const ScoopImageRegistry *registry, bool *claimed) {
                             &root->owner_cone_identity)) {
         scoop_metadata_fatal(&check, "source callable owner");
     }
-    check_callable(registry, &check, body, &root->gateway_callable_id,
-                   (ScoopCallableAddressV1)root->gateway,
-                   &root->gateway_definition_fingerprint);
     claim_storage(registry, &check, root->failure_root, body, claimed, true);
 }
 

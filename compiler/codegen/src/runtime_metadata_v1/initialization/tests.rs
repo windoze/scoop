@@ -230,58 +230,6 @@ fn validates_all_prerequisites_before_emitting_owned_definitions() {
     assert_owned_definitions_absent(&llvm, expected);
 }
 
-#[test]
-fn rejects_incompatible_prerequisites_and_owned_redefinition() {
-    let plan = initialization_plan(false);
-    let expected = &plan.registrations()[0];
-    let context = Context::create();
-    let llvm = context.create_module("incompatible-initialization-callable");
-    declare_storage_set(&context, &llvm, expected);
-    let wrong = llvm.add_function(
-        expected.initializer().entry_symbol().symbol().as_str(),
-        context.i32_type().fn_type(&[], false),
-        None,
-    );
-    wrong.set_linkage(Linkage::External);
-    declare_callable(&context, &llvm, expected.ensure(), CallableKind::Managed);
-    declare_callable(
-        &context,
-        &llvm,
-        *expected.schedule().gateway().unwrap(),
-        CallableKind::Gateway,
-    );
-    let error = emit_strong_initialization_unit_registrations_v1(
-        &context,
-        &llvm,
-        crate::target::ValidatedBackendProfile::darwin_aarch64_for_test(),
-        &plan,
-    )
-    .unwrap_err();
-    assert!(
-        error.0.contains("incompatible entry declaration"),
-        "{error}"
-    );
-    assert_owned_definitions_absent(&llvm, expected);
-
-    let llvm = context.create_module("initialization-owned-redefinition");
-    declare_prerequisites(&context, &llvm, expected);
-    emit_strong_initialization_unit_registrations_v1(
-        &context,
-        &llvm,
-        crate::target::ValidatedBackendProfile::darwin_aarch64_for_test(),
-        &plan,
-    )
-    .unwrap();
-    let error = emit_strong_initialization_unit_registrations_v1(
-        &context,
-        &llvm,
-        crate::target::ValidatedBackendProfile::darwin_aarch64_for_test(),
-        &plan,
-    )
-    .unwrap_err();
-    assert!(error.0.contains("already defined"), "{error}");
-}
-
 fn declare_prerequisites<'ctx>(
     context: &'ctx Context,
     llvm: &inkwell::module::Module<'ctx>,

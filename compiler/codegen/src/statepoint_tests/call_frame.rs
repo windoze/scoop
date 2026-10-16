@@ -60,8 +60,8 @@ fn amd64_byval_calls_preserve_the_fixed_managed_frame() {
                 .collect(),
             functions: BTreeMap::from([("f".into(), GcEffect::Managed)]),
         };
-        let plan = crate::statepoint::rewrite(&llvm, &machine, &expected, profile).unwrap();
-        verify_rewritten_with_profile(&llvm, &plan, profile).unwrap();
+        crate::statepoint::rewrite(&llvm, &machine, &expected, profile).unwrap();
+
         let assembly = machine
             .write_to_memory_buffer(&llvm, FileType::Assembly)
             .unwrap();

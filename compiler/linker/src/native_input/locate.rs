@@ -73,10 +73,9 @@ fn read_bytes(
             NativeContent::Archive(archive::read(&bytes, id, &slice, profile)?)
         }
         NativeFileKind::Object => {
-            let index = NativeObjectIndex::read_with_toolchain(
+            let index = NativeObjectInfo::read_with_toolchain(
                 &bytes[slice.clone()],
                 profile.startup_toolchain().profile(),
-                profile.cxx(),
             )?;
             NativeContent::Object(index)
         }

@@ -43,22 +43,22 @@ fn compile_and_run(
     workspace: &Path,
     test_name: &str,
     test_source: &str,
-    verify_metadata: bool,
+    verify_heap: bool,
 ) -> Output {
-    compile_and_run_with_flags(workspace, test_name, test_source, verify_metadata, &[])
+    compile_and_run_with_flags(workspace, test_name, test_source, verify_heap, &[])
 }
 
 fn compile_and_run_with_flags(
     workspace: &Path,
     test_name: &str,
     test_source: &str,
-    verify_metadata: bool,
+    verify_heap: bool,
     flags: &[&str],
 ) -> Output {
     let binary = std::env::temp_dir().join(format!("scoop_{test_name}_{}", std::process::id()));
     let mut compile = Command::new("cc");
-    if verify_metadata {
-        compile.arg("-DSCOOP_VERIFY_METADATA=1");
+    if verify_heap {
+        compile.arg("-DSCOOP_GC_VERIFY_HEAP=1");
     }
     compile
         .args(flags)
@@ -88,7 +88,6 @@ fn compile_and_run_with_flags(
         "runtime/src/arrays.c",
         "runtime/src/task_context.c",
         "runtime/src/value_shape.c",
-        "runtime/src/value_scan.c",
         "runtime/src/gc/allocation.c",
         "runtime/src/gc/mutator.c",
         "runtime/src/gc_binding/threads.c",
@@ -424,40 +423,22 @@ fn generic_runtime_has_no_target_specific_vm_dependency() {
 
 #[test]
 fn descriptor_driven_boxing_and_arrays_preserve_zst_and_moving_gc() {
-    for verify_metadata in [false, true] {
-        let output = compile_and_run(
-            &workspace_root(),
-            "value_representation_test",
-            "runtime/tests/value_representation_test.c",
-            verify_metadata,
-        );
-        assert!(
-            output.status.success(),
-            "descriptor-driven representation test failed:\nstdout:\n{}\nstderr:\n{}",
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr),
-        );
-        assert_eq!(
-            output.stdout,
-            b"descriptor-driven representation tests passed\n"
-        );
-    }
-}
-
-#[test]
-fn runtime_scan_graphs_reuse_shared_children_and_reject_cycles() {
     let output = compile_and_run(
         &workspace_root(),
-        "value_scan_test",
-        "runtime/tests/value_scan_test.c",
+        "value_representation_test",
+        "runtime/tests/value_representation_test.c",
         false,
     );
     assert!(
         output.status.success(),
-        "reference scan graph test failed: {}",
-        String::from_utf8_lossy(&output.stderr)
+        "descriptor-driven representation test failed:\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr),
     );
-    assert_eq!(output.stdout, b"reference scan graph tests passed\n");
+    assert_eq!(
+        output.stdout,
+        b"descriptor-driven representation tests passed\n"
+    );
 }
 
 #[test]

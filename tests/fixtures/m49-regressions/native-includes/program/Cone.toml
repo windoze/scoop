@@ -5,7 +5,7 @@ name = "native-includes"
 version = "0.1.0"
 kind = "executable"
 [native]
-include = ["../shared"]
-c_flags = ["-include", "../shared/prefix.h"]
+include = ["../absent", "../shared"]
+c_flags = ["-iquote", "../absent-quote", "-include", "../shared/prefix.h"]
 [[native.sources]]
 path = "answer.c"

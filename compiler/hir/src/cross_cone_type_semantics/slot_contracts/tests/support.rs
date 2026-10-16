@@ -121,9 +121,7 @@ impl Fixture {
         } else {
             DispatchSlotKey::virtual_method(id)
         };
-        let slot = self.slot(slot_key);
-        self.declare(owner, slot);
-        slot
+        self.slot(slot_key)
     }
     pub fn schema(&mut self, owner: Node, slots: &[PersistentDispatchSlotId]) {
         let role = if self.inheritance.records[&owner.exact].modality()

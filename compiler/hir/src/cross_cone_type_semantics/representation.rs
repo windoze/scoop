@@ -12,19 +12,16 @@ use super::{
     NominalIntrinsicRepresentationV1, StructRepresentationFieldV1, wire,
 };
 use crate::{
-    IntrinsicTypeParameters, IntrinsicTypeTarget, NominalSourceShapeV1, SignatureBinderScopeV1,
-    SourceNominalId,
+    IntrinsicTypeParameters, IntrinsicTypeTarget, SignatureBinderScopeV1, SourceNominalId,
 };
 
 mod decode;
 mod error;
-mod semantics;
 mod table;
 #[cfg(test)]
 mod tests;
 pub use decode::*;
 pub use error::*;
-pub use semantics::*;
 pub use table::*;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -323,83 +320,6 @@ impl NominalRepresentationSupportV1 {
     }
     pub const fn shape(&self) -> &NominalRepresentationShapeV1 {
         &self.shape
-    }
-
-    /// Layout support must reproduce the public source field/variant sequences
-    /// and the declared CLayout policy exactly.
-    pub fn validate_public_source_shape(
-        &self,
-        source: &NominalSourceShapeV1,
-    ) -> Result<(), NominalRepresentationBuildError> {
-        let agrees = match (&self.shape, source) {
-            (
-                NominalRepresentationShapeV1::Struct {
-                    fields,
-                    c_layout_policy,
-                },
-                NominalSourceShapeV1::Struct(source),
-            ) => {
-                *c_layout_policy == source.c_layout_policy()
-                    && fields.len() == source.fields().len()
-                    && fields.iter().zip(source.fields()).all(|(field, source)| {
-                        field.field() == source.field() && field.value_type() == source.value_type()
-                    })
-            }
-            (
-                NominalRepresentationShapeV1::Enum {
-                    variants,
-                    representation,
-                },
-                NominalSourceShapeV1::Enum(source),
-            ) => {
-                representation == source.representation()
-                    && variants.len() == source.variants().len()
-                    && variants
-                        .iter()
-                        .zip(source.variants())
-                        .all(|(variant, source)| {
-                            variant.variant() == source.variant()
-                                && variant.fields().len() == source.fields().len()
-                                && variant.fields().iter().zip(source.fields()).all(
-                                    |(field, source)| {
-                                        field.field() == source.field()
-                                            && field.value_type() == source.value_type()
-                                    },
-                                )
-                        })
-            }
-            (
-                NominalRepresentationShapeV1::Class {
-                    declared_fields, ..
-                },
-                NominalSourceShapeV1::Class(_),
-            )
-            | (
-                NominalRepresentationShapeV1::Object {
-                    declared_fields, ..
-                },
-                NominalSourceShapeV1::Object(_),
-            ) => {
-                declared_fields.len() == source.declared_fields().len()
-                    && declared_fields.iter().zip(source.declared_fields()).all(
-                        |(field, source)| {
-                            field.field() == source.field()
-                                && field.value_type() == source.value_type()
-                        },
-                    )
-            }
-            (NominalRepresentationShapeV1::Interface, NominalSourceShapeV1::Interface) => true,
-            (
-                NominalRepresentationShapeV1::Intrinsic { representation },
-                NominalSourceShapeV1::Intrinsic(source),
-            ) => representation == source,
-            _ => false,
-        };
-        if agrees {
-            Ok(())
-        } else {
-            Err(NominalRepresentationBuildError::PublicSourceShape)
-        }
     }
 }
 

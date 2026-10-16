@@ -1,8 +1,0 @@
-schema = 1
-[cone]
-group = "dev.m33"
-name = "cxx-config"
-version = "0.1.0"
-kind = "executable"
-[native]
-cxx = true

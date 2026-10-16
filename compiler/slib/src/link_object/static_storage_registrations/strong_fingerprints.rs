@@ -7,7 +7,7 @@ use scoop_lir::{
 };
 use scoop_wire::{HashError, RuntimeEncode, RuntimeEncodeError, RuntimeEncoder};
 
-use super::VerifiedStrongStaticStorageShapeFingerprintSetV1;
+use super::StaticStorageShapeFingerprintSetV1;
 use crate::link_object::{
     LayoutFingerprintV1, OdrMemberAbiV1, RegistrationAbiV1, ScanFingerprintV1,
 };
@@ -18,7 +18,7 @@ const EMPTY_SCAN_CHOICE: u32 = 0;
 const SCAN_PROGRAM_CHOICE: u32 = 1;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct VerifiedStrongStaticStorageFingerprintV1 {
+pub struct StaticStorageFingerprintV1 {
     storage: PersistentStaticStorageId,
 
     layout_node: DigestNodeId,
@@ -29,7 +29,7 @@ pub struct VerifiedStrongStaticStorageFingerprintV1 {
     registration: RegistrationAbiV1,
 }
 
-impl VerifiedStrongStaticStorageFingerprintV1 {
+impl StaticStorageFingerprintV1 {
     pub const fn storage(self) -> PersistentStaticStorageId {
         self.storage
     }
@@ -55,15 +55,15 @@ impl VerifiedStrongStaticStorageFingerprintV1 {
     }
 }
 
-/// Layout/scan fingerprints and shared ABIs of verified static storages.
+/// Layout/scan fingerprints and shared ABIs of static storages.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct VerifiedStrongStaticStorageFingerprintSetV1 {
-    shapes: VerifiedStrongStaticStorageShapeFingerprintSetV1,
-    fingerprints: Vec<VerifiedStrongStaticStorageFingerprintV1>,
+pub struct StaticStorageFingerprintSetV1 {
+    shapes: StaticStorageShapeFingerprintSetV1,
+    fingerprints: Vec<StaticStorageFingerprintV1>,
     odr_definitions: Vec<OdrMemberAbiV1>,
 }
 
-impl VerifiedStrongStaticStorageFingerprintSetV1 {
+impl StaticStorageFingerprintSetV1 {
     pub fn odr_definitions(&self) -> &[OdrMemberAbiV1] {
         &self.odr_definitions
     }
@@ -71,46 +71,25 @@ impl VerifiedStrongStaticStorageFingerprintSetV1 {
         self.shapes.producer()
     }
 
-    pub const fn shapes(&self) -> &VerifiedStrongStaticStorageShapeFingerprintSetV1 {
+    pub const fn shapes(&self) -> &StaticStorageShapeFingerprintSetV1 {
         &self.shapes
     }
 
-    pub fn fingerprints(&self) -> &[VerifiedStrongStaticStorageFingerprintV1] {
+    pub fn fingerprints(&self) -> &[StaticStorageFingerprintV1] {
         &self.fingerprints
     }
 }
 
 pub fn compute_strong_static_storage_fingerprints_v1(
-    shapes: VerifiedStrongStaticStorageShapeFingerprintSetV1,
+    shapes: StaticStorageShapeFingerprintSetV1,
     canonical: &scoop_lir::CanonicalShapeAbisV1,
-) -> Result<VerifiedStrongStaticStorageFingerprintSetV1, StrongStaticStorageFingerprintError> {
+) -> Result<StaticStorageFingerprintSetV1, StrongStaticStorageFingerprintError> {
     let registrations = shapes.registrations();
-    let verified = registrations.registrations();
     let planned = registrations.plan().registrations();
-    if verified.len() != planned.len() || verified.len() != shapes.fingerprints().len() {
-        return Err(StrongStaticStorageFingerprintError::ProofCoverageMismatch);
-    }
-
-    let mut fingerprints = Vec::with_capacity(verified.len());
+    let mut fingerprints = Vec::with_capacity(planned.len());
     let mut odr_definitions = Vec::new();
-    for ((verified, plan), shape) in verified.iter().zip(planned).zip(shapes.fingerprints()) {
+    for (plan, shape) in planned.iter().zip(shapes.fingerprints()) {
         let storage = plan.semantic().storage();
-        if verified.storage() != storage {
-            return Err(
-                StrongStaticStorageFingerprintError::RegistrationObjectMismatch { storage },
-            );
-        }
-        if shape.storage() != storage
-            || shape.layout() != plan.semantic().layout()
-            || shape.layout_node() != plan.layout_fingerprint_node()
-        {
-            return Err(StrongStaticStorageFingerprintError::LayoutMismatch { storage });
-        }
-        if shape.scan() != plan.semantic().scan()
-            || shape.scan_node() != plan.scan_fingerprint_node()
-        {
-            return Err(StrongStaticStorageFingerprintError::ScanMismatch { storage });
-        }
         if let scoop_lir::RegistrationDefinitionOwner::Odr { group, .. } = plan.definition_owner() {
             let content = canonical
                 .definitions()
@@ -132,7 +111,7 @@ pub fn compute_strong_static_storage_fingerprints_v1(
             scoop_lir::RegistrationTableV1::StaticStorage,
         )
         .map_err(|source| StrongStaticStorageFingerprintError::Hash { storage, source })?;
-        fingerprints.push(VerifiedStrongStaticStorageFingerprintV1 {
+        fingerprints.push(StaticStorageFingerprintV1 {
             storage,
 
             layout_node: shape.layout_node(),
@@ -144,7 +123,7 @@ pub fn compute_strong_static_storage_fingerprints_v1(
         });
     }
 
-    Ok(VerifiedStrongStaticStorageFingerprintSetV1 {
+    Ok(StaticStorageFingerprintSetV1 {
         shapes,
         fingerprints,
         odr_definitions,
@@ -198,17 +177,7 @@ pub(in crate::link_object) fn runtime_encode_strong_static_storage_record_v1(
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StrongStaticStorageFingerprintError {
-    ProofCoverageMismatch,
-    RegistrationObjectMismatch {
-        storage: PersistentStaticStorageId,
-    },
     StorageDefinitionMismatch {
-        storage: PersistentStaticStorageId,
-    },
-    LayoutMismatch {
-        storage: PersistentStaticStorageId,
-    },
-    ScanMismatch {
         storage: PersistentStaticStorageId,
     },
     Hash {

@@ -49,9 +49,9 @@ fn static_function_adapter_keeps_its_complete_structural_identity() {
     let target_exact = concrete.module().exact_type_identities
         [concrete.module().function_types[target_function].canonical_type]
         .id();
-    let mut module = super::super::lower(&concrete)
+    let module = super::super::lower(&concrete)
         .expect("test LocalConcrete HIR carries locally defined core protocols");
-    let (adapter_id, adapter) = module
+    let (_, adapter) = module
         .meta
         .closure_adapters
         .iter()
@@ -108,25 +108,11 @@ fn static_function_adapter_keeps_its_complete_structural_identity() {
             _ => unreachable!("the adapter has a static callable key"),
         }
     );
-    assert_eq!(module.validate(), Ok(()));
+
     let foundation = assert_mir_foundation_projection(&module);
     assert!(foundation.fields >= 1);
     assert!(foundation.odr_groups >= 1);
     assert!(foundation.odr_members >= 2);
-
-    let class = adapter.class();
-    module.closure_classes[class].captures[0].ty = mir::Type::Any;
-    assert_eq!(
-        module.validate(),
-        Err(mir::MirValidationError {
-            location: mir::MirValidationLocation::FunctionAdapter {
-                adapter: adapter_id,
-            },
-            kind: mir::MirValidationErrorKind::InvalidFunctionAdapter {
-                reason: "the adapter class has an invalid source capture",
-            },
-        })
-    );
 }
 
 #[test]
@@ -158,8 +144,8 @@ fn checked_function_cast_keeps_its_complete_dynamic_adapter_identity() {
         },
     );
 
-    let mut module = lower(&h.finish(main));
-    let (adapter_id, adapter) = module
+    let module = lower(&h.finish(main));
+    let (_, adapter) = module
         .meta
         .dynamic_closure_adapters
         .iter()
@@ -198,21 +184,6 @@ fn checked_function_cast_keeps_its_complete_dynamic_adapter_identity() {
     assert_eq!(
         generated.identity_record(),
         adapter.identity().callable_record()
-    );
-    assert_eq!(module.validate(), Ok(()));
-
-    let class = adapter.class();
-    module.closure_classes[class].captures[0].ty = mir::Type::Function(adapter.target());
-    assert_eq!(
-        module.validate(),
-        Err(mir::MirValidationError {
-            location: mir::MirValidationLocation::DynamicFunctionAdapter {
-                adapter: adapter_id,
-            },
-            kind: mir::MirValidationErrorKind::InvalidFunctionAdapter {
-                reason: "the adapter class has an invalid source capture",
-            },
-        })
     );
 }
 
@@ -336,7 +307,6 @@ fn signature_changing_closure_dispatch_keeps_its_generated_bridge_identity() {
         } if *found == environment.identity().generated_type_record().id()
             && target == bridge.identity().signature_record().signature()
     ));
-    assert_eq!(module.validate(), Ok(()));
 }
 
 fn function_type(

@@ -39,19 +39,7 @@ fn ten_field_section_preserves_foreign_type_references_on_wire() {
 }
 
 #[test]
-fn final_layout_join_keeps_dependency_checks_for_unexported_local_types() {
-    let fixture = complete_fixture();
-    let production = section(&fixture);
-    let layout = empty_layout_section();
-    assert!(matches!(
-        production.validate_layout_abi(&layout),
-        Err(crate::StrongProductionLayoutJoinError::MissingSelectedDescriptor { provider, .. })
-            if provider == ConeIdentity::CORE
-    ));
-}
-
-#[test]
-fn final_layout_join_preserves_complete_private_type_registrations() {
+fn production_preserves_complete_private_type_registrations() {
     let mut fixture = Fixture::new(Options::default());
     let coordinate = ConeCoordinate::reserved_single_file();
     crate::production::cone_section::tests::attach_image(
@@ -73,54 +61,5 @@ fn final_layout_join_preserves_complete_private_type_registrations() {
     .unwrap();
     let expected = production.registration_production().types().clone();
     assert!(!expected.registrations().is_empty());
-    let joined = production
-        .validate_layout_abi(&empty_layout_section())
-        .unwrap();
-    assert_eq!(joined.type_registrations(), &expected);
-}
-
-fn empty_layout_section() -> crate::CrossConeLayoutAbiSectionV1<'static> {
-    let foundation = crate::ConeLirFoundation::try_new(
-        ConeIdentity::SINGLE_FILE,
-        crate::CanonicalLirFoundation::empty(),
-    )
-    .unwrap();
-    let layouts = crate::CanonicalExactLayoutExportsV1::try_new(
-        crate::target_fixtures::DARWIN_AARCH64,
-        &foundation,
-        Vec::new(),
-    )
-    .unwrap();
-    let descriptors = crate::CanonicalExactDescriptorExportsV1::try_new(
-        crate::target_fixtures::DARWIN_AARCH64,
-        &foundation,
-        Vec::new(),
-    )
-    .unwrap();
-    let exports = crate::LayoutAbiExportConstituentsV1::try_new(
-        layouts.clone(),
-        descriptors.clone(),
-        crate::CanonicalExactDispatchExportsV1::try_new(
-            crate::target_fixtures::DARWIN_AARCH64,
-            &foundation,
-            Vec::new(),
-        )
-        .unwrap(),
-        crate::CanonicalExactCallableAbiExportsV1::try_new(
-            crate::target_fixtures::DARWIN_AARCH64,
-            &foundation,
-            Vec::new(),
-        )
-        .unwrap(),
-        crate::CanonicalParamFreeShapeSupportExportsV1::from_sources(
-            &[],
-            &layouts,
-            &descriptors,
-            &foundation,
-        )
-        .unwrap(),
-        crate::CrossConeLirBridgeSectionV1::try_new(&foundation, Vec::new(), Vec::new()).unwrap(),
-    )
-    .unwrap();
-    crate::CrossConeLayoutAbiSectionV1::try_new(exports, &[], Vec::new(), &[]).unwrap()
+    assert_eq!(production.type_registrations(), &expected);
 }

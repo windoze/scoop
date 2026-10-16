@@ -160,13 +160,6 @@ pub(in super::super) fn check(
     )
     .unwrap();
     assert_eq!(objects.members().len(), cases.len() + 1);
-    rejections::codegen(
-        output.into_module(),
-        &coordinate,
-        layout.provider(),
-        profile,
-        cases[1].1,
-    );
 }
 
 fn shape<'a>(

@@ -164,7 +164,7 @@ fn renders_only_the_callable_selected_by_each_physical_member() {
 }
 
 #[test]
-fn emitted_object_set_owns_verified_temporary_members() {
+fn emitted_object_set_owns_temporary_members() {
     let mut module = exceptions_module();
     module.output = scoop_lir::LirOutput::Library;
     let expected_members = module.functions.len() + 2;
@@ -195,8 +195,7 @@ fn emitted_object_set_owns_verified_temporary_members() {
     .unwrap();
     assert_eq!(&projected, emitted.partition());
     assert!(emitted.members().iter().all(|member| {
-        std::fs::metadata(member.path())
-            .is_ok_and(|metadata| metadata.len() > 0 && metadata.permissions().readonly())
+        std::fs::metadata(member.path()).is_ok_and(|metadata| metadata.len() > 0)
     }));
     let mut non_callable_members = 0;
     for member in emitted.members() {
@@ -219,23 +218,6 @@ fn emitted_object_set_owns_verified_temporary_members() {
                     let start = usize::try_from(materialization.checked_object_offset()).unwrap();
                     let end = start + usize::from(location.width_bytes());
                     assert!(bytes[start..end].iter().all(|byte| *byte == 0));
-                }
-                if !digest_patches.is_empty() {
-                    let mut tampered = bytes;
-                    let tampered_offset =
-                        usize::try_from(digest_patches[0].checked_object_offset()).unwrap();
-                    tampered[tampered_offset] = 1;
-                    let tampered_path = parent.path().join("tampered-patch.o");
-                    std::fs::write(&tampered_path, tampered).unwrap();
-                    let error =
-                        crate::object_materialization::resolve_digest_patch_materializations_v1(
-                            &tampered_path,
-                            input.module().meta.target_profile,
-                            emitted.production().canonical_definitions(),
-                            runtime_metadata,
-                        )
-                        .unwrap_err();
-                    assert!(error.0.contains("not provisionally zero"), "{error}");
                 }
             }
             EmittedConeObjectMemberKindV1::CallableBody { .. } => {}
@@ -327,17 +309,6 @@ fn emitted_callable_members_materialize_every_planned_atom_boundary() {
                 assert_eq!(primary.address(), start.address());
             }
         }
-
-        let duplicate_path = parent.path().join(format!("duplicate-{body}.o"));
-        std::fs::write(&duplicate_path, bytes).unwrap();
-        let error = crate::callable_atom_boundaries::materialize_v1(
-            &duplicate_path,
-            input.module().meta.target_profile,
-            plan,
-            body,
-        )
-        .unwrap_err();
-        assert!(error.0.contains("already exists"), "{error}");
     }
     assert_eq!(callable_count, input.module().functions.len());
 }

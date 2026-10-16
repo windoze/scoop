@@ -15,11 +15,6 @@ pub(crate) struct Fixture {
     pub library_paths: Vec<PathBuf>,
 }
 
-#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
-pub(crate) fn fixture() -> Fixture {
-    build_fixture("basic-root.scoop", false)
-}
-
 pub(crate) fn native_fixture() -> Fixture {
     build_fixture("../m23-native-link/final/root.scoop", true)
 }

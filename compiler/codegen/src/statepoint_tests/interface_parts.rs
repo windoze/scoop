@@ -69,7 +69,7 @@ fn interface_parts_call_invoke_and_relocation_survive_target_codegen() {
                 llvm.set_data_layout(&machine.get_target_data().get_data_layout());
                 let plan = crate::statepoint::rewrite(&llvm, &machine, &expected(), profile)
                     .unwrap_or_else(|error| panic!("{target:?}/{mode:?}: {error}"));
-                verify_rewritten_with_profile(&llvm, &plan, profile).unwrap();
+
                 llvm.run_passes(
                     "function(verify<safepoint-ir>),verify",
                     &machine,

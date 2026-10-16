@@ -1,0 +1,6 @@
+@Extern(name = "native_answer")
+fun nativeAnswer(): Int
+
+fun main() {
+    @Unsafe { println(nativeAnswer()) }
+}

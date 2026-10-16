@@ -1,6 +1,5 @@
 use inkwell::context::Context;
 use inkwell::module::Linkage;
-use inkwell::targets::TargetData;
 use scoop_identity::DefinitionAtomRole;
 use scoop_lir::{ObjectSymbolSurfaceV1, StrongDefinitionRole};
 
@@ -25,7 +24,7 @@ fn reference_array_scan_children_belong_to_their_primary_atom() {
         "scoop_codegen_array_scan_atoms_{}.o",
         std::process::id()
     ));
-    write_verified_test_object(&module, &output);
+    write_test_object(&module, &output);
     std::fs::remove_file(output).unwrap();
 }
 
@@ -38,8 +37,6 @@ fn emits_every_canonical_global_shape_atom_and_boundary() {
         .expect("test module has a canonical symbol surface");
     let context = Context::create();
     let llvm = context.create_module("strong-shapes");
-    let target_data =
-        TargetData::create(scoop_target_data::DARWIN_AARCH64.canonical_llvm_data_layout());
     let descriptor_type =
         runtime_metadata_v1::RuntimeMetadataV1Types::new(&context).type_descriptor();
     let type_globals = module
@@ -82,7 +79,6 @@ fn emits_every_canonical_global_shape_atom_and_boundary() {
     shape_definitions::emit_strong_shape_definitions_v1(
         &context,
         &llvm,
-        &target_data,
         &surface,
         &module,
         TypeDescriptorGlobals {
@@ -115,7 +111,7 @@ fn emits_every_canonical_global_shape_atom_and_boundary() {
             assert_eq!(
                 global.unwrap().get_alignment(),
                 8,
-                "layout definition `{symbol}` must carry its verifier-required alignment"
+                "layout definition `{symbol}` must carry its ABI alignment"
             );
         }
         for boundary in plan.atom_boundaries() {
@@ -159,15 +155,6 @@ fn rejects_array_descriptor_without_its_exact_element_scan_definition() {
         scoop_lir::ArrayElementStorageV1::inline(8, 8, RefScan::None).unwrap(),
     )
     .unwrap();
-
-    let validation_error = validation::validate_module(&module)
-        .expect_err("array metadata and descriptor shape must agree before emission");
-    assert!(
-        validation_error
-            .0
-            .contains("does not match its closed element size, alignment, and scan shape"),
-        "{validation_error}"
-    );
 
     let error = try_strong_shape_ir_of(&module)
         .expect_err("descriptor inline scans require a nonempty typed LIR scan definition");

@@ -271,7 +271,6 @@ static void test_arrays(void) {
     scoop_rt_pop_native_roots(&roots);
 }
 
-static void validate_bad_shape(void *td) { scoop_shape_validate(td); }
 static void overflow_string(void *unused) {
     (void)unused;
     (void)scoop_shape_allocation_size(&bytes_td, INT64_MAX);
@@ -286,25 +285,7 @@ static void abstract_allocation(void *unused) {
         .instance_shape = {.instance_kind = SCOOP_TYPE_INSTANCE_ABSTRACT_REF_V1}};
     (void)allocate(&td, 16);
 }
-static void test_shape_failures(void) {
-    ScoopTypeDescriptor malformed = zst_array_td;
-    malformed.instance_shape.inline_scan = value_scan;
-    expect_abort(validate_bad_shape, &malformed);
-    malformed = ref_array_td;
-    uint64_t scan[5];
-    memcpy(scan, array_scan, sizeof scan);
-    malformed.object_scan = scan;
-    for (size_t field = 1; field <= 3; field++) {
-        scan[field] += 8;
-        expect_abort(validate_bad_shape, &malformed);
-        scan[field] -= 8;
-    }
-    malformed = ref_box_td;
-    malformed.object_scan = value_scan;
-    expect_abort(validate_bad_shape, &malformed);
-    malformed = zst_box_td;
-    malformed.instance_shape.inline_alignment = 32;
-    expect_abort(validate_bad_shape, &malformed);
+static void test_allocation_bounds(void) {
     expect_abort(overflow_string, NULL);
     expect_abort(overflow_array, NULL);
     expect_abort(abstract_allocation, NULL);
@@ -329,7 +310,7 @@ static void run_mode(bool stress) {
     scoop_thread_enter_managed(&boundary);
     test_boxing(stress);
     test_arrays();
-    test_shape_failures();
+    test_allocation_bounds();
     scoop_thread_leave_managed();
     scoop_thread_prepare_shutdown();
     scoop_thread_detach_main();

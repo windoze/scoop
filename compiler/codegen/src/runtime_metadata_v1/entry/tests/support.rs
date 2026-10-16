@@ -1,9 +1,5 @@
 use super::*;
 
-pub(super) fn executable_plan() -> EntryProductionPlanV1 {
-    plan_for_entry(executable_source_entry())
-}
-
 pub(super) fn plan_for_entry(source: ExecutableEntryIdentity) -> EntryProductionPlanV1 {
     let producer = source.root_cone();
     let main = source.main();

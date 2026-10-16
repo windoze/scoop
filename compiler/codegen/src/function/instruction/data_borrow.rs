@@ -108,13 +108,6 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .builder
             .build_address_space_cast(data, ptr_ty(self.context), "borrow_raw")
             .map_err(|error| CodegenError(format!("borrow data address: {error}")))?;
-        if let Some(instruction) = raw.as_instruction_value() {
-            mark_typed_managed_pointer_boundary(
-                self.context,
-                instruction,
-                statepoint::TypedManagedPointerBoundary::ScopedDataBorrow,
-            )?;
-        }
         self.temps.insert(out, raw.into());
         Ok(())
     }

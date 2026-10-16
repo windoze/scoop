@@ -45,11 +45,6 @@ pub(super) fn emit<'ctx>(
     for cell in plan.context_keys() {
         let symbol = boundary(cell.atom)?.start();
         let name = symbol.symbol();
-        if llvm.get_global(name.as_str()).is_some() || llvm.get_function(name.as_str()).is_some() {
-            return Err(CodegenError(format!(
-                "Context slot cell `{name}` is already declared"
-            )));
-        }
         let global = llvm.add_global(i64, None, name.as_str());
         global.set_initializer(&i64.const_zero());
         global.set_alignment(8);
@@ -72,11 +67,6 @@ pub(super) fn emit<'ctx>(
         .map_err(|error| CodegenError(error.to_string()))?;
     let symbol = boundary(atom)?.start();
     let name = symbol.symbol();
-    if llvm.get_global(name.as_str()).is_some() || llvm.get_function(name.as_str()).is_some() {
-        return Err(CodegenError(format!(
-            "Context key table `{name}` is already declared"
-        )));
-    }
     let value = entry.const_array(&entries);
     let table = llvm.add_global(value.get_type(), None, name.as_str());
     table.set_initializer(&value);

@@ -2631,6 +2631,8 @@ manifest Cone 可在 `[native]` 中配置 `include`、`c_flags`、`cxx_flags` �
 
 native 预处理除编译器的目标宏外，还定义当前 target 对应的 `SCOOP_TARGET_OS_DARWIN`／`SCOOP_TARGET_OS_LINUX`、`SCOOP_TARGET_ARCH_AARCH64`／`SCOOP_TARGET_ARCH_X86_64` 及 `SCOOP_TARGET_ENV_NONE`／`SCOOP_TARGET_ENV_GNU`／`SCOOP_TARGET_ENV_MUSL`；每组只定义匹配项，值为 `1`。
 
+include 搜索目录允许不存在，直接交给所选 C/C++ 编译器按搜索顺序处理；这不影响实际源码、被引用头文件及显式 forced include 缺失时的正常诊断。
+
 编译选项按 argv 元素传递，不作 shell 展开。`-I`、`-iquote`、`-isystem`、`-idirafter`、`-include` 和 `-imacros` 中的路径采用同一普通文件系统路径规则，在实际 native 编译时解析；空路径与 NUL 非法，不按路径是否越出 Cone 根拒绝头文件输入。响应文件、额外 compiler plugin/specs、编译器搜索前缀以及 linker 参数不由 `c_flags`／`cxx_flags` 接收；target、sysroot、输入语言、编译阶段、依赖输出和产物路径由 driver 管理。头文件按实际 include 搜索规则读取，不限制物理归属或审计符号链接来源；runtime 内部头文件不属于公开支持的 API。driver 自动提供公开 FFI 头 `scoop_rt.h` 及其公开依赖，输入与缓存契约见实现规范 2.7。
 
 manifest Cone 通过 `[native]` 中的 Boolean 字段 `cxx` 显式启用 C++，省略时为 `false`。例如：
@@ -2643,7 +2645,7 @@ cxx_flags = ["-std=c++20"]
 
 - `cxx = true` 声明当前 Cone 需要 C++ 编译／链接支持；不能仅凭文件后缀、编译参数或待解析的符号隐式开启。选中的 `.cc`、`.cpp`、`.cxx` 或 `.C` native 源码要求该开关为 `true`，否则在 native 编译前报错。
 - `.c` 文件仍按 C 编译；开启 C++ 不改变 C 文件的语言。`c_flags` 与 `cxx_flags` 是字符串数组，分别传给当前 Cone 的 native C 与 C++ 编译器，不向依赖者传播，也不改变 Scoop、generated-C bridge 或 runtime 的编译配置。参数不能覆盖 driver 管理的 target、sysroot、输入语言、编译阶段和输出位置。
-- C++ 编译使用所选 target 的配套 C++ driver，例如 GNU 工具链的 `g++` 或 Darwin Apple Clang 的 `clang++`。缺少匹配的 C++ 编译器或运行库时报错，不能使用其他 target 或宿主机的工具链代替。
+- C++ 编译使用所选 target 的配套 C++ driver，例如 GNU 工具链的 `g++` 或 Darwin Apple Clang 的 `clang++`。缺少可用的 C++ 编译器或运行库时报错，不能使用其他 target 或宿主机的工具链代替。不要求 C/C++ driver 的完整版本号或目标名称字符串相等；兼容性由实际目标输入、编译和链接操作确定。
 - C++ 链接需求写入 `.slib`，并沿最终程序的完整依赖闭包传递。即使 root Cone 自己没有 C++ 源码或未开启 `cxx`，只要闭包需要 C++，最终链接就必须使用配套的 C++ driver 与 C++ 运行库配置；`cxx = false` 不能取消依赖的要求。
 - **当前不支持 C++ 与 musl target 的组合**，包括 musl 的静态和动态链接模式。当前 Scoop musl 工具链没有配套的 C++ 标准库与 C++ ABI 运行库；musl 提供 libc 本身，不包含这些库。这是当前工具链集成范围的限制，不是 musl 原理上不能支持 C++。musl 下当前 Cone 开启 `cxx`，或依赖闭包要求 C++，都必须给出明确的不支持诊断。
 - C++ 支持目前覆盖 Darwin/AArch64 与 Linux/amd64 GNU。Scoop 与 C++ 之间通过现有 C ABI 和 `extern "C"` 包装函数互操作；C++ 异常必须在 native 一侧处理，不能穿越 Scoop 的 FFI 边界。工具链、产物与链接细则见实现规范 2.7～2.8，异常边界见运行时规范 5.5。

@@ -1,6 +1,6 @@
 #[cfg(target_os = "macos")]
 #[test]
-fn loaded_image_ranges_use_current_vm_permissions() {
+fn loaded_image_ranges_use_loader_segment_bounds() {
     let workspace = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .and_then(std::path::Path::parent)

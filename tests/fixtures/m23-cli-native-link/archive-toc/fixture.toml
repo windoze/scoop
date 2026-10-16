@@ -2,7 +2,7 @@ schema = 1
 name = "native-link-archive-toc"
 inputs = ["cone", "../../m23-native-link/direct/root.scoop", "../../m23-native-link/direct/native.c"]
 tools = ["scoop", "scoopc", "cc", "ar"]
-# This fixture mutates the Mach-O/BSD archive table of contents emitted by Darwin ar.
+# Exercise long BSD member names and the normal table of contents.
 targets = ["aarch64-apple-darwin"]
 tags = ["native-link", "program-link"]
 
@@ -72,23 +72,3 @@ argv = ["${link.result.output}"]
 exit = 0
 stdout = "42\n"
 stderr = ""
-
-[[steps]]
-name = "corrupt_toc"
-files = [{"patch" = {"path" = "${work}/native/libm23_math.a", "offset" = 104, "hex" = "5f6d32335f626164"}}]
-checks = []
-
-[[steps]]
-name = "previous_reject_toc"
-files = [{"write" = {"path" = "${work}/program", "data" = "previous executable"}}]
-checks = []
-
-[[steps]]
-name = "reject_toc"
-argv = ["${scoop}", "link", {"each" = "${link_args}"}, "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native", "--cache-dir", "${cache}"]
-exit = 1
-stdout = ""
-stderr = ""
-json = "stderr"
-diagnostics = {"file" = "reject_toc.json"}
-checks = [{"file" = "${work}/program", "equals" = "previous executable"}]

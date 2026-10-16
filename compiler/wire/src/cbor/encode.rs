@@ -4,7 +4,7 @@ use sha2::{Digest, Sha256};
 
 use crate::{WireError, WireErrorKind, WirePath};
 
-/// A trusted producer for the Wire CBOR v1 subset.
+/// An encoder for the Wire CBOR v1 subset.
 ///
 /// Only definite arrays/maps, unsigned integers, byte strings, and UTF-8 text
 /// are exposed. This makes forbidden CBOR types unrepresentable at call sites.
@@ -14,15 +14,8 @@ pub struct Encoder {
 
 impl Encoder {
     pub fn new() -> Self {
-        Self::with_max_length(None)
-    }
-
-    pub(crate) fn with_max_length(max_length: Option<usize>) -> Self {
         Self {
-            inner: minicbor::Encoder::new(EncodingSink::Bytes(FallibleVec {
-                bytes: Vec::new(),
-                max_length,
-            })),
+            inner: minicbor::Encoder::new(EncodingSink::Bytes(FallibleVec { bytes: Vec::new() })),
         }
     }
 
@@ -116,18 +109,6 @@ pub fn encode_canonical_temporary(
     })
 }
 
-pub(crate) fn encode_with_limit(
-    value: &impl WireEncode,
-    max_length: usize,
-) -> Result<Vec<u8>, EncodeError> {
-    let mut encoder = Encoder::with_max_length(Some(max_length));
-    value.encode(&mut encoder)?;
-    match encoder.into_sink() {
-        EncodingSink::Bytes(output) => Ok(output.bytes),
-        EncodingSink::Hash(_) | EncodingSink::Length(_) => Err(EncodeError::OutputSinkMismatch),
-    }
-}
-
 pub(crate) fn encode_into_hasher(
     value: &impl WireEncode,
     hasher: Sha256,
@@ -176,7 +157,6 @@ enum OutputError {
 
 struct FallibleVec {
     bytes: Vec<u8>,
-    max_length: Option<usize>,
 }
 
 enum EncodingSink {
@@ -210,14 +190,6 @@ impl minicbor::encode::Write for FallibleVec {
     type Error = OutputError;
 
     fn write_all(&mut self, bytes: &[u8]) -> Result<(), Self::Error> {
-        let new_length = self
-            .bytes
-            .len()
-            .checked_add(bytes.len())
-            .ok_or(OutputError::LengthLimit)?;
-        if self.max_length.is_some_and(|limit| new_length > limit) {
-            return Err(OutputError::LengthLimit);
-        }
         self.bytes
             .try_reserve_exact(bytes.len())
             .map_err(|_| OutputError::Allocation)?;

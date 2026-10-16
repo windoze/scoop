@@ -1,9 +1,8 @@
 use std::fmt;
 
 use super::VerifiedRuntimeImageFingerprintV1;
-use super::record::{IMAGE_DESCRIPTOR_SIZE, expected_final_image_record};
 use crate::SlibMemberId;
-use crate::link_object::{ValidatedScoopLirObjectEnvelopeV1, VerifiedMaterializedPatchSiteV1};
+use crate::link_object::{DigestPatchSiteV1, ValidatedScoopLirObjectEnvelopeV1};
 
 const DIGEST_WIDTH: usize = 32;
 
@@ -77,47 +76,22 @@ where
     let source_objects = fingerprint.registrations().objects();
     let image_member = image.member();
     let image_patch = image.image_patch();
-    if image_patch.member() != image_member {
-        return Err(RuntimeImagePatchError::PatchMemberMismatch {
-            image: image_member,
-            patch: image_patch.member(),
-        });
-    }
-
     let mut objects = source_objects
         .iter()
         .map(|object| (object.member(), object.bytes().to_vec()))
         .collect::<Vec<_>>();
-    let image_object_count = objects
-        .iter()
-        .filter(|(member, _)| *member == image_member)
-        .count();
-    if image_object_count != 1 {
-        return Err(RuntimeImagePatchError::ImageObjectCount {
-            member: image_member,
-            actual: image_object_count,
-        });
-    }
     let image_object = objects
         .iter_mut()
         .find(|(member, _)| *member == image_member)
-        .expect("the exact image object count was validated");
+        .ok_or(RuntimeImagePatchError::MissingImageObject(image_member))?;
     write_runtime_image_digest(
         &mut image_object.1,
         image_patch,
         fingerprint.fingerprint().as_array(),
     )?;
-    validate_final_image_record(
-        &image_object.1,
-        image.primary().checked_offset(),
-        &expected_final_image_record(image.plan(), fingerprint.fingerprint().as_array()),
-    )?;
 
     let mut finalized = Vec::with_capacity(objects.len());
     for ((member, bytes), source) in objects.into_iter().zip(source_objects) {
-        if member != source.member() {
-            return Err(RuntimeImagePatchError::ObjectOrderMismatch);
-        }
         let envelope = if member == image_member {
             ValidatedScoopLirObjectEnvelopeV1::after_digest_patch(
                 source.envelope().sections().clone(),
@@ -139,17 +113,12 @@ where
     })
 }
 
-fn write_runtime_image_digest(
+pub(super) fn write_runtime_image_digest(
     object: &mut [u8],
-    patch: VerifiedMaterializedPatchSiteV1,
+    patch: DigestPatchSiteV1,
     fingerprint: &[u8; DIGEST_WIDTH],
 ) -> Result<(), RuntimeImagePatchError> {
     let slot = digest_slot_mut(object, patch.checked_offset())?;
-    if let Some(offset) = slot.iter().position(|byte| *byte != 0) {
-        return Err(RuntimeImagePatchError::NonZeroPatchSlot {
-            offset: u8::try_from(offset).expect("digest width fits u8"),
-        });
-    }
     slot.copy_from_slice(fingerprint);
     Ok(())
 }
@@ -167,54 +136,10 @@ fn digest_slot_mut(
         .ok_or(RuntimeImagePatchError::PatchRange)
 }
 
-fn validate_final_image_record(
-    object: &[u8],
-    checked_offset: u64,
-    expected: &[u8; IMAGE_DESCRIPTOR_SIZE],
-) -> Result<(), RuntimeImagePatchError> {
-    let start =
-        usize::try_from(checked_offset).map_err(|_| RuntimeImagePatchError::FinalRecordRange)?;
-    let end = start
-        .checked_add(IMAGE_DESCRIPTOR_SIZE)
-        .ok_or(RuntimeImagePatchError::FinalRecordRange)?;
-    let actual = object
-        .get(start..end)
-        .ok_or(RuntimeImagePatchError::FinalRecordRange)?;
-    if let Some(offset) = actual
-        .iter()
-        .zip(expected)
-        .position(|(actual, expected)| actual != expected)
-    {
-        return Err(RuntimeImagePatchError::FinalRecordMismatch {
-            offset: u16::try_from(offset).expect("image descriptor size fits u16"),
-            expected: expected[offset],
-            actual: actual[offset],
-        });
-    }
-    Ok(())
-}
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum RuntimeImagePatchError {
-    PatchMemberMismatch {
-        image: SlibMemberId,
-        patch: SlibMemberId,
-    },
-    ImageObjectCount {
-        member: SlibMemberId,
-        actual: usize,
-    },
-    ObjectOrderMismatch,
+    MissingImageObject(SlibMemberId),
     PatchRange,
-    NonZeroPatchSlot {
-        offset: u8,
-    },
-    FinalRecordRange,
-    FinalRecordMismatch {
-        offset: u16,
-        expected: u8,
-        actual: u8,
-    },
 }
 
 impl fmt::Display for RuntimeImagePatchError {
@@ -227,15 +152,3 @@ impl fmt::Display for RuntimeImagePatchError {
 }
 
 impl std::error::Error for RuntimeImagePatchError {}
-
-#[cfg(test)]
-pub(in crate::link_object::cone_image) fn patch_image_bytes_for_test(
-    object: &mut [u8],
-    image_offset: u64,
-    patch: VerifiedMaterializedPatchSiteV1,
-    fingerprint: &[u8; 32],
-    expected: &[u8; IMAGE_DESCRIPTOR_SIZE],
-) -> Result<(), RuntimeImagePatchError> {
-    write_runtime_image_digest(object, patch, fingerprint)?;
-    validate_final_image_record(object, image_offset, expected)
-}

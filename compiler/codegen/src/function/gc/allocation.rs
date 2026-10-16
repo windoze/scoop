@@ -201,13 +201,6 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let object = builder
             .build_int_to_ptr(object_int, managed_ptr, "tlab_object")
             .map_err(|error| CodegenError(format!("materialize TLAB object: {error}")))?;
-        mark_typed_managed_pointer_boundary(
-            context,
-            object
-                .as_instruction_value()
-                .expect("a non-constant inttoptr is an instruction"),
-            statepoint::TypedManagedPointerBoundary::AllocationResult,
-        )?;
         let next = builder
             .build_int_to_ptr(next_int, ptr, "tlab_next")
             .map_err(|error| CodegenError(format!("materialize TLAB cursor: {error}")))?;

@@ -11,11 +11,11 @@ use encoding::{
     TypeDescriptorITableDirectoryFingerprintInputV1, descriptor_fingerprint, layout_fingerprint,
 };
 
-mod validation;
-use validation::{TYPE_DESCRIPTOR_SIZE, exact_bytes, validate_descriptor};
+mod reading;
+use reading::atom_bytes;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct VerifiedStrongTypeDependencyFingerprintV1 {
+pub struct TypeDependencyFingerprintV1 {
     exact_type: PersistentExactTypeId,
     descriptor_definition_node: DigestNodeId,
     descriptor_definition: ObjectDefinitionFingerprintV1,
@@ -23,7 +23,7 @@ pub struct VerifiedStrongTypeDependencyFingerprintV1 {
     layout: LayoutFingerprintV1,
 }
 
-impl VerifiedStrongTypeDependencyFingerprintV1 {
+impl TypeDependencyFingerprintV1 {
     pub const fn exact_type(self) -> PersistentExactTypeId {
         self.exact_type
     }
@@ -46,99 +46,43 @@ impl VerifiedStrongTypeDependencyFingerprintV1 {
 }
 
 pub(super) fn compute<D, C>(
-    registrations: &super::VerifiedStrongTypeRegistrationSetV1<D, C>,
+    registrations: &super::TypeRegistrationDataV1<D, C>,
     objects: &std::collections::BTreeMap<SlibMemberId, &[u8]>,
-) -> Result<Vec<VerifiedStrongTypeDependencyFingerprintV1>, StrongTypeDependencyFingerprintError>
+) -> Result<Vec<TypeDependencyFingerprintV1>, StrongTypeDependencyFingerprintError>
 where
     D: super::LinkDescriptorReference,
     C: super::LinkDispatchCallableReference + Clone,
 {
-    let definitions = registrations
-        .patch_sites()
-        .builtins()
-        .strong_relocations()
-        .members()
-        .iter()
-        .flat_map(|member| member.definitions().symbols())
-        .filter_map(|symbol| match symbol.role() {
-            crate::link_object::PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
-                definition,
-                owner,
-                definition_role,
-                ..
-            } => Some((definition, (owner, definition_role))),
-            _ => None,
-        })
-        .collect();
-    let verified = registrations.registrations();
+    let builtins = registrations.patch_sites().builtins();
     let planned = registrations.plan().registrations();
-    let mut fingerprints = Vec::with_capacity(verified.len());
-    for (verified, plan) in verified.iter().zip(planned) {
+    let mut fingerprints = Vec::with_capacity(planned.len());
+    for plan in planned {
         let exact_type = plan.exact_type();
-        let descriptor_proof = verified.descriptor();
-        let object = objects.get(&descriptor_proof.member()).copied().ok_or(
-            StrongTypeDependencyFingerprintError::MissingObject(descriptor_proof.member()),
+        let definition = plan.descriptor_definition_plan();
+        let member_id = builtins
+            .member_plan()
+            .member_for_definition(definition)
+            .ok_or(StrongTypeDependencyFingerprintError::MissingDefinition(
+                definition,
+            ))?;
+        let member = builtins.member(member_id).ok_or(
+            StrongTypeDependencyFingerprintError::MissingMember(member_id),
         )?;
-        let descriptor_bytes = exact_bytes(
-            object,
-            descriptor_proof.checked_offset(),
-            TYPE_DESCRIPTOR_SIZE + plan.semantic().relations().related_types().len() * 8,
-            exact_type,
-            TypeDependencyArtifactV1::Descriptor,
+        let object = objects.get(&member_id).copied().ok_or(
+            StrongTypeDependencyFingerprintError::MissingObject(member_id),
         )?;
-        validate_descriptor(
-            descriptor_bytes,
-            registrations.patch_sites().builtins(),
-            verified,
-            plan,
-            &definitions,
-        )?;
-        let diagnostic_bytes = exact_bytes(
-            object,
-            descriptor_proof.diagnostic_checked_offset(),
-            usize::try_from(descriptor_proof.diagnostic_size()).map_err(|_| {
-                StrongTypeDependencyFingerprintError::Range {
-                    exact_type,
-                    artifact: TypeDependencyArtifactV1::Diagnostic,
+        let descriptor_bytes =
+            atom_bytes(member, object, definition, plan.descriptor_primary_atom())?;
+        let diagnostic_bytes = atom_bytes(member, object, definition, plan.diagnostic_atom())?;
+        let itable_directory = match plan.itable_directory() {
+            scoop_lir::TypeDescriptorITableDirectoryV1::Null => {
+                TypeDescriptorITableDirectoryFingerprintInputV1::Null
+            }
+            scoop_lir::TypeDescriptorITableDirectoryV1::Defined(atom) => {
+                TypeDescriptorITableDirectoryFingerprintInputV1::Defined {
+                    atom,
+                    bytes: atom_bytes(member, object, definition, atom)?,
                 }
-            })?,
-            exact_type,
-            TypeDependencyArtifactV1::Diagnostic,
-        )?;
-        let itable_directory = match (plan.itable_directory(), descriptor_proof.itable_directory())
-        {
-            (
-                scoop_lir::TypeDescriptorITableDirectoryV1::Null,
-                super::VerifiedTypeDescriptorITableDirectoryV1::Null,
-            ) => TypeDescriptorITableDirectoryFingerprintInputV1::Null,
-            (
-                scoop_lir::TypeDescriptorITableDirectoryV1::Defined(atom),
-                super::VerifiedTypeDescriptorITableDirectoryV1::Defined {
-                    checked_offset,
-                    byte_size,
-                    ..
-                },
-            ) => TypeDescriptorITableDirectoryFingerprintInputV1::Defined {
-                atom,
-                bytes: exact_bytes(
-                    object,
-                    *checked_offset,
-                    usize::try_from(*byte_size).map_err(|_| {
-                        StrongTypeDependencyFingerprintError::Range {
-                            exact_type,
-                            artifact: TypeDependencyArtifactV1::ITableDirectory,
-                        }
-                    })?,
-                    exact_type,
-                    TypeDependencyArtifactV1::ITableDirectory,
-                )?,
-            },
-            _ => {
-                return Err(
-                    StrongTypeDependencyFingerprintError::ITableDirectoryProofMismatch {
-                        exact_type,
-                    },
-                );
             }
         };
         let descriptor_definition =
@@ -152,7 +96,7 @@ where
         let layout = layout_fingerprint(plan).map_err(|source| {
             StrongTypeDependencyFingerprintError::LayoutHash { exact_type, source }
         })?;
-        fingerprints.push(VerifiedStrongTypeDependencyFingerprintV1 {
+        fingerprints.push(TypeDependencyFingerprintV1 {
             exact_type,
             descriptor_definition_node: plan.descriptor_definition_node(),
             descriptor_definition,
@@ -164,37 +108,14 @@ where
     Ok(fingerprints)
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum TypeDependencyArtifactV1 {
-    Descriptor,
-    Diagnostic,
-    ITableDirectory,
-}
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StrongTypeDependencyFingerprintError {
-    ITableDirectoryProofMismatch {
-        exact_type: PersistentExactTypeId,
-    },
+    MissingDefinition(scoop_identity::ObjectDefinitionPlanId),
+    MissingMember(SlibMemberId),
     MissingObject(SlibMemberId),
+    MissingAtom(scoop_identity::ObjectDefinitionAtomId),
     Range {
-        exact_type: PersistentExactTypeId,
-        artifact: TypeDependencyArtifactV1,
-    },
-    DescriptorByteMismatch {
-        exact_type: PersistentExactTypeId,
-        offset_within_descriptor: u64,
-        expected: u8,
-        actual: u8,
-    },
-    DescriptorRelocationSetMismatch {
-        exact_type: PersistentExactTypeId,
-        expected: Vec<u64>,
-        actual: Vec<u64>,
-    },
-    DescriptorRelocationMismatch {
-        exact_type: PersistentExactTypeId,
-        offset_within_descriptor: u64,
+        atom: scoop_identity::ObjectDefinitionAtomId,
     },
     DescriptorHash {
         exact_type: PersistentExactTypeId,

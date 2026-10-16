@@ -65,7 +65,6 @@ pub(super) fn check(
                     dependencies,
                     &exports,
                     &source,
-                    physical,
                 )
                 .unwrap();
                 let layout = lir::CrossConeLayoutAbiSectionV1::try_new(
@@ -90,11 +89,7 @@ pub(super) fn check(
                     &mir,
                     &layout,
                     owners,
-                    input
-                        .registration
-                        .clone()
-                        .validate_layout_abi(&layout)
-                        .unwrap(),
+                    input.registration.clone(),
                 );
                 reader::check(core, &artifact, &layout);
             },

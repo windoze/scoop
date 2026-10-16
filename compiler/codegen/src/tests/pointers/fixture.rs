@@ -76,10 +76,3 @@ pub(super) fn raw_module() -> Module {
         Value::Temp(out),
     )
 }
-
-pub(super) fn rejected(module: &Module, expected: &str) {
-    let machine = host_target_machine().unwrap();
-    let context = Context::create();
-    let error = emit_llvm_module(&context, module, &machine, host_profile()).unwrap_err();
-    assert!(error.0.contains(expected), "{error}");
-}

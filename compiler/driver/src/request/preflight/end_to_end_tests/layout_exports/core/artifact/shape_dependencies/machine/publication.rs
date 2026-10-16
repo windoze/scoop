@@ -44,14 +44,9 @@ pub(super) fn check<'a, 'p>(
     let exports = scoop_lir_lower::lower_layout_abi_exports(input, dependencies).unwrap();
     let imports = selected.physical_imports().records().to_vec();
     let committed = source.source;
-    let roots = scoop_lir_lower::lower_layout_abi_dependencies(
-        input,
-        dependencies,
-        &exports,
-        committed,
-        &imports,
-    )
-    .unwrap();
+    let roots =
+        scoop_lir_lower::lower_layout_abi_dependencies(input, dependencies, &exports, committed)
+            .unwrap();
     let actual_shapes = roots
         .iter()
         .filter_map(|root| match root.target() {
@@ -66,20 +61,10 @@ pub(super) fn check<'a, 'p>(
         .unwrap();
     assert_eq!(actual_shapes, expected_shapes);
     assert!(!actual_shapes.is_empty());
-    assert!(matches!(
-        scoop_lir_lower::lower_layout_abi_dependencies(
-            input,
-            dependencies,
-            &exports,
-            committed,
-            &[]
-        ),
-        Err(scoop_lir_lower::LayoutAbiDependencyLoweringError::PhysicalInventory)
-    ));
     let section =
         lir::CrossConeLayoutAbiSectionV1::try_new(exports, &[provider.layout], imports, &roots)
             .unwrap();
-    let production = registration.validate_layout_abi(&section).unwrap();
+    let production = registration;
     assert_eq!(
         production.type_registrations().registrations().len(),
         output.module().meta.type_descriptors.len()

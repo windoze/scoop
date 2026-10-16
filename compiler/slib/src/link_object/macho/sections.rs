@@ -1,202 +1,57 @@
-//! Closed section and flag matrices for the two built-in object capabilities.
-
-use std::collections::BTreeSet;
-use std::fmt;
-
-use object::macho;
+//! Classify sections needed by object consumers without producer allowlists.
 
 use super::ValidatedDarwinArm64ObjectEnvelopeV1;
-
 use crate::link_object::object_sections::*;
+use object::macho;
 
-pub fn validate_builtin_object_section_inventory_v1(
+pub fn read_builtin_object_sections_v1(
     envelope: ValidatedDarwinArm64ObjectEnvelopeV1,
-    profile: BuiltinLinkObjectSectionProfileV1,
-) -> Result<ValidatedBuiltinObjectSectionInventoryV1, BuiltinObjectSectionValidationError> {
-    if envelope.sections().is_empty() {
-        return Err(BuiltinObjectSectionValidationError::EmptySectionTable);
-    }
-    let mut names = BTreeSet::new();
-    let mut roles = Vec::with_capacity(envelope.sections().len());
-    for (section_index, section) in envelope.sections().iter().enumerate() {
-        let name = (section.segment_name(), section.section_name());
-        if !names.insert((name.0.to_vec(), name.1.to_vec())) {
-            return Err(BuiltinObjectSectionValidationError::DuplicateSectionName);
-        }
-        let Some((role, expected_flags)) = classify_section(profile, name.0, name.1) else {
-            return Err(
-                BuiltinObjectSectionValidationError::UnsupportedSectionName {
-                    segment: name.0.to_vec(),
-                    section: name.1.to_vec(),
-                    symbols: envelope
-                        .symbols()
-                        .iter()
-                        .filter(|symbol| {
-                            symbol
-                                .section_ordinal()
-                                .map(|ordinal| usize::from(ordinal.get()))
-                                == Some(section_index + 1)
-                        })
-                        .map(|symbol| symbol.name().to_vec())
-                        .collect(),
-                },
-            );
-        };
-        if !section_flags_match(role, expected_flags, section.flags()) {
-            return Err(BuiltinObjectSectionValidationError::SectionFlagsMismatch {
-                role,
-                expected: expected_flags,
-                actual: section.flags(),
-            });
-        }
-        if !profile_accepts(profile, role) {
-            return Err(
-                BuiltinObjectSectionValidationError::UnsupportedSectionForProfile { profile, role },
-            );
-        }
-        roles.push(role);
-    }
-    if profile == BuiltinLinkObjectSectionProfileV1::GeneratedCBridge
-        && !roles.contains(&BuiltinObjectSectionRoleV1::Text)
-    {
-        return Err(BuiltinObjectSectionValidationError::MissingGeneratedBridgeText);
-    }
-    Ok(ValidatedBuiltinObjectSectionInventoryV1 {
+) -> ValidatedBuiltinObjectSectionInventoryV1 {
+    let roles = envelope
+        .sections()
+        .iter()
+        .map(|section| {
+            classify_section(
+                section.segment_name(),
+                section.section_name(),
+                section.flags(),
+            )
+        })
+        .collect();
+    ValidatedBuiltinObjectSectionInventoryV1 {
         envelope: envelope.into(),
-        profile,
         roles,
-    })
+    }
 }
 
-fn section_flags_match(role: BuiltinObjectSectionRoleV1, expected: u32, actual: u32) -> bool {
-    actual == expected
-        || (role == BuiltinObjectSectionRoleV1::Text
-            && actual == macho::S_REGULAR | macho::S_ATTR_PURE_INSTRUCTIONS)
-}
-
-fn classify_section(
-    profile: BuiltinLinkObjectSectionProfileV1,
-    segment: &[u8],
-    section: &[u8],
-) -> Option<(BuiltinObjectSectionRoleV1, u32)> {
+fn classify_section(segment: &[u8], section: &[u8], flags: u32) -> BuiltinObjectSectionRoleV1 {
+    use BuiltinObjectSectionRoleV1 as Role;
     match (segment, section) {
-        (b"__TEXT", b"__text") => Some((
-            BuiltinObjectSectionRoleV1::Text,
-            macho::S_REGULAR | macho::S_ATTR_PURE_INSTRUCTIONS | macho::S_ATTR_SOME_INSTRUCTIONS,
-        )),
-        (b"__TEXT", b"__const")
-        | (b"__DATA", b"__const")
-        | (b"__DATA_CONST", b"__const")
-        | (b"__DATA_CONST", b"__scoop_const") => {
-            Some((BuiltinObjectSectionRoleV1::ReadOnlyData, macho::S_REGULAR))
+        (b"__LLVM_STACKMAPS", b"__llvm_stackmaps") => return Role::LlvmStackmaps,
+        (b"__LD", b"__compact_unwind") => return Role::CompactUnwind,
+        (b"__TEXT", b"__eh_frame") => return Role::EhFrame,
+        (b"__TEXT", b"__gcc_except_tab") => return Role::GccExceptionTable,
+        _ => {}
+    }
+    match flags & macho::SECTION_TYPE {
+        macho::S_ZEROFILL | macho::S_GB_ZEROFILL => Role::ZeroFill,
+        macho::S_THREAD_LOCAL_REGULAR => Role::ThreadLocalData,
+        macho::S_THREAD_LOCAL_ZEROFILL => Role::ThreadLocalZeroFill,
+        macho::S_THREAD_LOCAL_VARIABLES => Role::ThreadLocalVariables,
+        macho::S_CSTRING_LITERALS => Role::CString,
+        macho::S_4BYTE_LITERALS | macho::S_8BYTE_LITERALS | macho::S_16BYTE_LITERALS => {
+            Role::ReadOnlyData
         }
-        (b"__TEXT", b"__literal4") => Some((
-            BuiltinObjectSectionRoleV1::ReadOnlyData,
-            macho::S_4BYTE_LITERALS,
-        )),
-        (b"__TEXT", b"__literal8") => Some((
-            BuiltinObjectSectionRoleV1::ReadOnlyData,
-            macho::S_8BYTE_LITERALS,
-        )),
-        (b"__TEXT", b"__literal16") => Some((
-            BuiltinObjectSectionRoleV1::ReadOnlyData,
-            macho::S_16BYTE_LITERALS,
-        )),
-        (b"__TEXT", b"__scoop_sig") | (b"__TEXT", b"__scoop_ctx")
-            if profile == BuiltinLinkObjectSectionProfileV1::GeneratedCBridge =>
-        {
-            Some((BuiltinObjectSectionRoleV1::ReadOnlyData, macho::S_REGULAR))
+        _ if flags & (macho::S_ATTR_PURE_INSTRUCTIONS | macho::S_ATTR_SOME_INSTRUCTIONS) != 0 => {
+            Role::Text
         }
-        (b"__TEXT", b"__cstring") => Some((
-            BuiltinObjectSectionRoleV1::CString,
-            macho::S_CSTRING_LITERALS,
-        )),
-        (b"__DATA", b"__data") => {
-            Some((BuiltinObjectSectionRoleV1::WritableData, macho::S_REGULAR))
+        _ if flags & macho::S_ATTR_DEBUG != 0 => Role::ObjectMetadata,
+        _ if segment == b"__TEXT" || segment == b"__DATA_CONST" || section == b"__const" => {
+            Role::ReadOnlyData
         }
-        (b"__DATA", b"__bss") => Some((BuiltinObjectSectionRoleV1::ZeroFill, macho::S_ZEROFILL)),
-        (b"__DATA", b"__thread_data") => Some((
-            BuiltinObjectSectionRoleV1::ThreadLocalData,
-            macho::S_THREAD_LOCAL_REGULAR,
-        )),
-        (b"__DATA", b"__thread_bss") => Some((
-            BuiltinObjectSectionRoleV1::ThreadLocalZeroFill,
-            macho::S_THREAD_LOCAL_ZEROFILL,
-        )),
-        (b"__DATA", b"__thread_vars") => Some((
-            BuiltinObjectSectionRoleV1::ThreadLocalVariables,
-            macho::S_THREAD_LOCAL_VARIABLES,
-        )),
-        (b"__TEXT", b"__gcc_except_tab") => Some((
-            BuiltinObjectSectionRoleV1::GccExceptionTable,
-            macho::S_REGULAR,
-        )),
-        (b"__LLVM_STACKMAPS", b"__llvm_stackmaps") => {
-            Some((BuiltinObjectSectionRoleV1::LlvmStackmaps, macho::S_REGULAR))
-        }
-        (b"__LD", b"__compact_unwind") => Some((
-            BuiltinObjectSectionRoleV1::CompactUnwind,
-            macho::S_REGULAR | macho::S_ATTR_DEBUG,
-        )),
-        (b"__TEXT", b"__eh_frame") => Some((
-            BuiltinObjectSectionRoleV1::EhFrame,
-            macho::S_COALESCED
-                | macho::S_ATTR_NO_TOC
-                | macho::S_ATTR_STRIP_STATIC_SYMS
-                | macho::S_ATTR_LIVE_SUPPORT,
-        )),
-        _ => None,
+        _ => Role::WritableData,
     }
 }
-
-fn profile_accepts(
-    profile: BuiltinLinkObjectSectionProfileV1,
-    role: BuiltinObjectSectionRoleV1,
-) -> bool {
-    match profile {
-        BuiltinLinkObjectSectionProfileV1::ScoopLir => true,
-        BuiltinLinkObjectSectionProfileV1::GeneratedCBridge => matches!(
-            role,
-            BuiltinObjectSectionRoleV1::Text
-                | BuiltinObjectSectionRoleV1::ReadOnlyData
-                | BuiltinObjectSectionRoleV1::CString
-                | BuiltinObjectSectionRoleV1::CompactUnwind
-                | BuiltinObjectSectionRoleV1::EhFrame
-        ),
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum BuiltinObjectSectionValidationError {
-    EmptySectionTable,
-    DuplicateSectionName,
-    UnsupportedSectionName {
-        segment: Vec<u8>,
-        section: Vec<u8>,
-        symbols: Vec<Vec<u8>>,
-    },
-    SectionFlagsMismatch {
-        role: BuiltinObjectSectionRoleV1,
-        expected: u32,
-        actual: u32,
-    },
-    UnsupportedSectionForProfile {
-        profile: BuiltinLinkObjectSectionProfileV1,
-        role: BuiltinObjectSectionRoleV1,
-    },
-    MissingGeneratedBridgeText,
-}
-
-impl fmt::Display for BuiltinObjectSectionValidationError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            formatter,
-            "invalid built-in object section inventory: {self:?}"
-        )
-    }
-}
-
-impl std::error::Error for BuiltinObjectSectionValidationError {}
 
 #[cfg(test)]
 mod tests;

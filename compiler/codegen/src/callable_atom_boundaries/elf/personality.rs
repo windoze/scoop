@@ -3,6 +3,7 @@
 use object::{Object, ObjectSymbol, SectionIndex, SymbolKind};
 use scoop_lir::{
     AtomBoundarySymbolsV1, DefinitionAtomSubkey, ObjectDefinitionAtomId, ObjectDefinitionAtomKey,
+    StrongDefinitionEntityKind,
 };
 
 use super::*;

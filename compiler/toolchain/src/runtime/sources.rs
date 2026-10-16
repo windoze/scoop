@@ -18,7 +18,6 @@ pub(super) const COMMON: &[&str] = &[
     "runtime/src/arrays.c",
     "runtime/src/task_context.c",
     "runtime/src/value_shape.c",
-    "runtime/src/value_scan.c",
     "runtime/src/eh.c",
     "runtime/src/eh_personality.c",
     "runtime/src/eh/lsda.c",
@@ -36,7 +35,6 @@ pub(super) const COMMON: &[&str] = &[
     "runtime/src/image/type_relations.c",
     "runtime/src/image/storage.c",
     "runtime/src/image/immortals.c",
-    "runtime/src/image/static_values.c",
     "runtime/src/image/units.c",
     "runtime/src/image/allocation_ranges.c",
     "runtime/src/image/stackmaps.c",
@@ -75,7 +73,7 @@ pub(super) const COMMON: &[&str] = &[
     "runtime/src/gc_binding/stackmap.c",
     "runtime/src/gc_binding/stackmap/parser.c",
     "runtime/src/gc_binding/stackmap/records.c",
-    "runtime/src/gc_binding/stackmap/fingerprint.c",
+    "runtime/src/gc_binding/stackmap/payload.c",
     "runtime/src/gc_binding/stack_roots.c",
     "runtime/src/thread.c",
     "runtime/src/thread/collection.c",
@@ -88,16 +86,8 @@ pub(super) const COMMON: &[&str] = &[
 
 pub(super) const DARWIN_OS: &[&str] = &["runtime/src/platform/os/darwin.c"];
 pub(super) const LINUX_OS: &[&str] = &["runtime/src/platform/os/linux.c"];
-pub(super) const MACHO_IMAGE: &[&str] = &[
-    "runtime/src/platform/image/macho.c",
-    "runtime/src/platform/image/darwin_sha256.c",
-];
-pub(super) const ELF_IMAGE: &[&str] = &[
-    "runtime/src/platform/image/elf.c",
-    "runtime/src/platform/image/portable_sha256.c",
-    "runtime/third_party/mbedtls/library/sha256.c",
-    "runtime/third_party/mbedtls/library/platform_util.c",
-];
+pub(super) const MACHO_IMAGE: &[&str] = &["runtime/src/platform/image/macho.c"];
+pub(super) const ELF_IMAGE: &[&str] = &["runtime/src/platform/image/elf.c"];
 pub(super) const AARCH64: &[&str] = &[
     "runtime/src/platform/arch/aarch64.c",
     "runtime/src/platform/arch/aarch64_anchor.S",

@@ -80,10 +80,9 @@ static void setup(Fixture *fixture) {
         if (address > high)
             high = address;
     }
-    fixture->ranges[0] = (ScoopPlatformImageRange){
-        (uintptr_t)data, (uintptr_t)data + fixture->size, SCOOP_IMAGE_READ};
-    fixture->ranges[1] = (ScoopPlatformImageRange){
-        low, high + 4, SCOOP_IMAGE_READ | SCOOP_IMAGE_EXECUTE};
+    fixture->ranges[0] =
+        (ScoopPlatformImageRange){(uintptr_t)data, (uintptr_t)data + fixture->size};
+    fixture->ranges[1] = (ScoopPlatformImageRange){low, high + 4};
     qsort(fixture->ranges, 2, sizeof *fixture->ranges, range_order);
     fixture->loaded = (ScoopPlatformMetadataImages){.ranges = fixture->ranges,
                                                     .range_count = 2};
@@ -163,13 +162,7 @@ static void setup(Fixture *fixture) {
             .entry = bodies[index]};
         data->callable_table[index] = &data->callables[index];
     }
-    /* Fixed vector for the exact type ID {1, 0, ...} and body-v2 tag 5. */
-    static const ScoopDigest256V1 release_id = {
-        {0x57, 0x11, 0x36, 0xa6, 0x01, 0xe0, 0x19, 0x2d, 0x1c, 0x3e, 0x15,
-         0x9c, 0x26, 0x77, 0x92, 0x76, 0x9b, 0x7b, 0x8a, 0xab, 0xa6, 0x7c,
-         0x73, 0xf7, 0x48, 0x89, 0x16, 0x8e, 0x21, 0x0b, 0xec, 0x53}};
     td(data, 0)->release_hook = release0;
-    data->callables[2].registration.semantic_id = release_id;
     for (size_t index = 0; index < 2; index++) {
         data->sites[index] = (ScoopSafepointRegistrationDescriptorV1){
             .prefix = prefix(SCOOP_SAFEPOINT_REGISTRATION_DESCRIPTOR_MAGIC_V1,
@@ -214,77 +207,45 @@ static const char *corrupt(Fixture *fixture, unsigned test) {
         data->object_scan[4] = (uintptr_t)data->object_scan;
         return "cyclic scan child";
     case 7:
-        data->object_scan[1] = 24;
-        return "reference scan exceeds its storage";
-    case 8:
-        data->object_scan[1] = 17;
-        return "reference scan offsets are not canonical";
-    case 9:
-        td(data, 0)->parent = td(data, 0);
-        return "cyclic type inheritance";
-    case 10:
-        td(data, 3)->related_type_count = 1;
-        td(data, 3)->related_types[0] = td(data, 3);
-        return "cyclic type inheritance";
-    case 11:
         data->callables[1].entry = body0;
         return "different callable bodies share an entry address";
-    case 12:
+    case 8:
         data->sites[1].safepoint_id = 1;
         return "64-bit safepoint ID collision";
-    case 13:
+    case 9:
         data->sites[1].owner_callable_id.bytes[0] = 200;
         return "owner callable identity or producer";
-    case 14:
+    case 10:
         data->sites[0].site_role = 0;
         return "site ID, role";
-    case 15:
+    case 11:
         data->itable.interface = guard;
         return "unregistered TypeDescriptor";
-    case 16:
+    case 12:
         data->itable.slots = guard;
         return "itable slots range";
-    case 17:
+    case 13:
         td(data, 0)->itables = guard;
         return "itable entries range";
-    case 18:
+    case 14:
         data->types[0].reserved_zero = 1;
         return "reserved field";
-    case 19:
-        data->callables[0].entry = (ScoopCallableAddressV1)(uintptr_t)data;
-        return "entry executable range";
-    case 20:
-        td(data, 1)->instance_shape = (ScoopTypeInstanceShapeV1){
-            .instance_kind = SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1,
-            .minimum_size = 16,
-            .instance_alignment = 8};
-        return "reference scan exceeds its storage";
-    case 21:
+    case 15:
+        data->callables[0].entry = (ScoopCallableAddressV1)(uintptr_t)guard;
+        return "entry range";
+    case 16:
         td(data, 3)->related_type_count = 1;
         td(data, 3)->related_types[0] = NULL;
         return "unregistered TypeDescriptor";
-    case 22:
-        data->callables[2].registration.semantic_id.bytes[0] ^= 0xff;
-        return "release hook callable registration";
-    case 23:
-        td(data, 0)->release_hook = (ScoopReleaseHookV1)body0;
-        return "release hook entry disagrees with exact owner";
-    case 24:
-        td(data, 1)->release_hook = release0;
-        return "release hook requires a fixed object";
-    case 25:
-        data->types[0].registration.semantic_id.bytes[0] = 250;
-        return "release hook callable registration";
-    case 26:
-        data->callables[2].entry = (ScoopCallableAddressV1)(uintptr_t)data;
-        return "entry executable range";
+    case 17:
+        data->callables[2].entry = (ScoopCallableAddressV1)(uintptr_t)guard;
+        return "entry range";
     default:
         abort();
     }
 }
 
 static void check(Fixture *fixture) {
-    assert(mprotect(fixture->data, fixture->size, PROT_READ) == 0);
     ScoopImageRegistry *registry = scoop_image_collect(
         &fixture->loaded, fixture->data->input, 1, &fixture->data->root);
     scoop_image_validate_code_and_types(registry);
@@ -344,7 +305,7 @@ int main(void) {
         assert(munmap(fixture.data,
                       fixture.size + (size_t)sysconf(_SC_PAGESIZE)) == 0);
     }
-    for (unsigned test = 0; test < 27; test++)
+    for (unsigned test = 0; test < 18; test++)
         negative(test);
     puts("image type and scan tests passed");
 }

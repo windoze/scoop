@@ -163,7 +163,7 @@ pub fn emit_object_set(
     temporary_parent: &Path,
     profile: ValidatedBackendProfile,
 ) -> Result<EmittedConeObjectSetV1, CodegenError> {
-    validate_object_set_input(input, profile)?;
+    profile.validate_lir_target_profile(input.module().meta.target_profile)?;
     let production = input
         .build_production_section(coordinate.clone(), direct_dependencies, entry_source)
         .map_err(|error| {
@@ -179,20 +179,6 @@ pub fn emit_object_set_v2(
     temporary_parent: &Path,
     profile: ValidatedBackendProfile,
 ) -> Result<EmittedConeObjectSetV2, CodegenError> {
-    validate_object_set_input(input, profile)?;
-    if production.image_plan().cone().identity() != input.module().cone {
-        return Err(CodegenError(
-            "strong production belongs to a different Cone than the emitted LIR".to_owned(),
-        ));
-    }
-    emit_object_set_with_production(input, production, temporary_parent, profile)
-}
-
-fn validate_object_set_input(
-    input: &scoop_lir::ConeLirOutput,
-    profile: ValidatedBackendProfile,
-) -> Result<(), CodegenError> {
-    validation::validate_module(input.module())?;
     profile.validate_lir_target_profile(input.module().meta.target_profile)?;
-    Ok(())
+    emit_object_set_with_production(input, production, temporary_parent, profile)
 }

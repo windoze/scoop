@@ -3,8 +3,8 @@ use std::fmt;
 use scoop_identity::PersistentImmortalObjectId;
 use scoop_wire::{HashError, RuntimeEncodeError, RuntimeEncoder};
 
-use super::VerifiedStrongImmortalObjectRegistrationSetV1;
 use crate::link_object::{OdrMemberAbiV1, RegistrationAbiV1};
+use scoop_lir::StrongImmortalObjectRegistrationPlanSetV1;
 
 const IMMORTAL_OBJECT_REGISTRATION_RECORD_KIND: u32 = 2;
 const OWN_IMMORTAL_ATOM_ROLE: u32 = 2;
@@ -16,7 +16,7 @@ pub enum ImmortalObjectDefinitionAbiV1 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct VerifiedStrongImmortalObjectFingerprintV1 {
+pub struct ImmortalObjectFingerprintV1 {
     object: PersistentImmortalObjectId,
 
     definition: ImmortalObjectDefinitionAbiV1,
@@ -24,7 +24,7 @@ pub struct VerifiedStrongImmortalObjectFingerprintV1 {
     registration: RegistrationAbiV1,
 }
 
-impl VerifiedStrongImmortalObjectFingerprintV1 {
+impl ImmortalObjectFingerprintV1 {
     pub const fn object(self) -> PersistentImmortalObjectId {
         self.object
     }
@@ -38,72 +38,53 @@ impl VerifiedStrongImmortalObjectFingerprintV1 {
     }
 }
 
-/// Shared object and registration ABIs bound to verified immortal records.
+/// Object and registration ABIs computed from the generated registration plan.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct VerifiedStrongImmortalObjectFingerprintSetV1 {
-    registrations: VerifiedStrongImmortalObjectRegistrationSetV1,
-    fingerprints: Vec<VerifiedStrongImmortalObjectFingerprintV1>,
+pub struct ImmortalObjectFingerprintSetV1 {
+    plan: StrongImmortalObjectRegistrationPlanSetV1,
+    fingerprints: Vec<ImmortalObjectFingerprintV1>,
 }
 
-impl VerifiedStrongImmortalObjectFingerprintSetV1 {
+impl ImmortalObjectFingerprintSetV1 {
     pub const fn producer(&self) -> scoop_identity::ConeIdentity {
-        self.registrations.producer()
+        self.plan.producer()
     }
 
-    pub const fn registrations(&self) -> &VerifiedStrongImmortalObjectRegistrationSetV1 {
-        &self.registrations
+    pub const fn plan(&self) -> &StrongImmortalObjectRegistrationPlanSetV1 {
+        &self.plan
     }
 
-    pub fn fingerprints(&self) -> &[VerifiedStrongImmortalObjectFingerprintV1] {
+    pub fn fingerprints(&self) -> &[ImmortalObjectFingerprintV1] {
         &self.fingerprints
     }
 }
 
 pub fn compute_strong_immortal_object_fingerprints_v1(
-    registrations: VerifiedStrongImmortalObjectRegistrationSetV1,
+    plan: StrongImmortalObjectRegistrationPlanSetV1,
     canonical: &scoop_lir::CanonicalShapeAbisV1,
-) -> Result<VerifiedStrongImmortalObjectFingerprintSetV1, StrongImmortalObjectFingerprintError> {
-    let verified = registrations.registrations();
-    let planned = registrations.plan().registrations();
-    if verified.len() != planned.len() {
-        return Err(StrongImmortalObjectFingerprintError::ProofCoverageMismatch);
-    }
-
-    let mut fingerprints = Vec::with_capacity(verified.len());
-    for plan in planned {
+) -> Result<ImmortalObjectFingerprintSetV1, StrongImmortalObjectFingerprintError> {
+    let mut fingerprints = Vec::with_capacity(plan.registrations().len());
+    for plan in plan.registrations() {
         let object = plan.object();
-        let definition = match (plan.object_definition_owner(), plan.definition_owner()) {
-            (
-                scoop_identity::ObjectDefinitionPlanOwner::Strong { .. },
-                scoop_lir::RegistrationDefinitionOwner::Strong,
-            ) => ImmortalObjectDefinitionAbiV1::Strong,
-            (
-                scoop_identity::ObjectDefinitionPlanOwner::Odr { member },
-                scoop_lir::RegistrationDefinitionOwner::Odr { group, .. },
-            ) => {
-                let content = canonical
-                    .get(member)
-                    .filter(|content| {
-                        content.group() == group
-                            && content.role() == scoop_identity::OdrMemberRole::ImmortalObject
-                            && content.definition() == plan.object_definition_plan()
-                            && content.primary_atom() == plan.object_primary_atom()
-                            && content.entity()
-                                == scoop_identity::StrongDefinitionEntity::immortal_object(object)
-                    })
-                    .ok_or(StrongImmortalObjectFingerprintError::DefinitionMismatch { object })?;
+        let definition = match plan.object_definition_owner() {
+            scoop_identity::ObjectDefinitionPlanOwner::Strong { .. } => {
+                ImmortalObjectDefinitionAbiV1::Strong
+            }
+            scoop_identity::ObjectDefinitionPlanOwner::Odr { member } => {
+                let content = canonical.get(member).ok_or(
+                    StrongImmortalObjectFingerprintError::MissingCanonicalDefinition { member },
+                )?;
                 ImmortalObjectDefinitionAbiV1::Odr(
                     crate::link_object::odr_member_fingerprints::shape_definition(*content),
                 )
             }
-            _ => return Err(StrongImmortalObjectFingerprintError::DefinitionMismatch { object }),
         };
         let registration = RegistrationAbiV1::from_owner(
             plan.definition_owner(),
             scoop_lir::RegistrationTableV1::ImmortalObject,
         )
         .map_err(|source| StrongImmortalObjectFingerprintError::Hash { object, source })?;
-        fingerprints.push(VerifiedStrongImmortalObjectFingerprintV1 {
+        fingerprints.push(ImmortalObjectFingerprintV1 {
             object,
 
             definition,
@@ -112,10 +93,7 @@ pub fn compute_strong_immortal_object_fingerprints_v1(
         });
     }
 
-    Ok(VerifiedStrongImmortalObjectFingerprintSetV1 {
-        registrations,
-        fingerprints,
-    })
+    Ok(ImmortalObjectFingerprintSetV1 { plan, fingerprints })
 }
 
 pub(in crate::link_object) fn runtime_encode_strong_immortal_object_record_v1(
@@ -141,15 +119,8 @@ pub(in crate::link_object) fn runtime_encode_strong_immortal_object_record_v1(
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StrongImmortalObjectFingerprintError {
-    DefinitionMismatch {
-        object: PersistentImmortalObjectId,
-    },
-    ProofCoverageMismatch,
-    RegistrationObjectMismatch {
-        object: PersistentImmortalObjectId,
-    },
-    ObjectDefinitionMismatch {
-        object: PersistentImmortalObjectId,
+    MissingCanonicalDefinition {
+        member: scoop_identity::OdrMemberId,
     },
     Hash {
         object: PersistentImmortalObjectId,

@@ -1,11 +1,6 @@
-//! Exact provisional-object verification for the per-Cone runtime image.
-
-mod error;
-pub use error::*;
+//! Runtime image data, fingerprint encoding and digest patching.
 
 mod fingerprint;
-mod physical;
-mod record;
 pub use fingerprint::*;
 mod finalization;
 pub use finalization::*;

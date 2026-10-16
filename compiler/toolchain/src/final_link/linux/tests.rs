@@ -57,8 +57,6 @@ fn linux_final_profiles_link_and_run_with_the_selected_libc_and_llvm_unwinder() 
         command.arg(object);
         linux.append_system_libraries(&mut command);
         probe::run(&mut command).unwrap();
-        let bytes = std::fs::read(&binary).unwrap();
-        linux.check_image(&bytes).unwrap();
         let output = probe::run(&mut Command::new(binary)).unwrap();
         assert_eq!(
             output.stdout,

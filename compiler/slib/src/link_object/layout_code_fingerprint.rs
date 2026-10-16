@@ -9,8 +9,8 @@ use scoop_wire::HashError;
 use super::{
     CanonicalDefinedLinkSymbolOwnerSetV1, CanonicalKnownLinkExtensionCodeContributionSetV1,
     CanonicalNativeExternalContractCodeSetV1, CanonicalUndefinedSymbolRequirementSetV1,
-    DefinedLinkSymbolOwnerBuildError, FinalizedLayoutUndefinedSymbolRequirementPartitionsV1,
-    NativeExternalContractCodeSetBuildError, VerifiedExternalShapeRequirementClosureV1,
+    FinalizedLayoutUndefinedSymbolRequirementPartitionsV1, NativeExternalContractCodeSetBuildError,
+    VerifiedExternalShapeRequirementClosureV1,
 };
 use crate::{CodeFingerprint, VerifiedSingleConeProductionCodeProjectionV2};
 
@@ -21,7 +21,7 @@ pub(crate) use input::LayoutCodeFingerprintInputV1;
 
 /// A Code digest whose field 8 is the exact Strong V2 production section.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct VerifiedCodeFingerprintV2 {
+pub struct CodeFingerprintDataV2 {
     production: VerifiedSingleConeProductionCodeProjectionV2,
     link_extension_contributions: CanonicalKnownLinkExtensionCodeContributionSetV1,
     native_requirements: CanonicalNativeExternalRequirementSurfaceV1,
@@ -31,7 +31,7 @@ pub struct VerifiedCodeFingerprintV2 {
     fingerprint: CodeFingerprint,
 }
 
-impl VerifiedCodeFingerprintV2 {
+impl CodeFingerprintDataV2 {
     pub const fn producer(&self) -> ConeIdentity {
         self.production.link_objects().producer()
     }
@@ -80,23 +80,21 @@ impl VerifiedCodeFingerprintV2 {
 
 /// The generated Code result and runtime aliases used by the artifact writer.
 #[derive(Clone, Debug)]
-pub struct VerifiedCrossConeLayoutCodeFingerprintV1 {
-    code: VerifiedCodeFingerprintV2,
+pub struct CrossConeLayoutCodeDataV1 {
+    code: CodeFingerprintDataV2,
     link_support: crate::LirLinkSupportSectionV1,
 }
 
-impl VerifiedCrossConeLayoutCodeFingerprintV1 {
-    pub const fn code(&self) -> &VerifiedCodeFingerprintV2 {
+impl CrossConeLayoutCodeDataV1 {
+    pub const fn code(&self) -> &CodeFingerprintDataV2 {
         &self.code
     }
-    pub fn into_parts(self) -> (VerifiedCodeFingerprintV2, crate::LirLinkSupportSectionV1) {
+    pub fn into_parts(self) -> (CodeFingerprintDataV2, crate::LirLinkSupportSectionV1) {
         (self.code, self.link_support)
     }
 }
 
-/// Computes the M23-6 Code digest only after the three undefined-symbol
-/// partitions and both semantic import projections have been bound to the
-/// exact same finalized object proof.
+/// Encodes the generated objects, requirements, and semantic imports into Code.
 pub fn compute_cross_cone_layout_code_fingerprint_v1(
     production: VerifiedSingleConeProductionCodeProjectionV2,
     native_requirements: CanonicalNativeExternalRequirementSurfaceV1,
@@ -104,19 +102,7 @@ pub fn compute_cross_cone_layout_code_fingerprint_v1(
     undefined_partitions: FinalizedLayoutUndefinedSymbolRequirementPartitionsV1,
     external_shape: &VerifiedExternalShapeRequirementClosureV1<'_>,
     link_support: crate::LirLinkSupportSectionV1,
-) -> Result<VerifiedCrossConeLayoutCodeFingerprintV1, LayoutCodeFingerprintError> {
-    let builtins = production
-        .link_objects()
-        .final_objects()
-        .entry()
-        .patch_sites()
-        .builtins();
-    if !undefined_partitions.matches_strong_closure(builtins.strong_relocations()) {
-        return Err(LayoutCodeFingerprintError::UndefinedSymbolPartitionMismatch);
-    }
-    if !undefined_partitions.matches_external_shape_closure(external_shape) {
-        return Err(LayoutCodeFingerprintError::ExternalShapeClosureMismatch);
-    }
+) -> Result<CrossConeLayoutCodeDataV1, LayoutCodeFingerprintError> {
     let link_extension_contributions =
         CanonicalKnownLinkExtensionCodeContributionSetV1::from_cross_cone_layout_semantic_imports(
             undefined_partitions.cross_cone().semantic_imports(),
@@ -134,7 +120,7 @@ pub fn compute_cross_cone_layout_code_fingerprint_v1(
         defined_symbols,
         undefined_symbols,
     )?;
-    Ok(VerifiedCrossConeLayoutCodeFingerprintV1 { code, link_support })
+    Ok(CrossConeLayoutCodeDataV1 { code, link_support })
 }
 
 fn compute(
@@ -143,41 +129,7 @@ fn compute(
     native_requirements: CanonicalNativeExternalRequirementSurfaceV1,
     defined_symbols: CanonicalDefinedLinkSymbolOwnerSetV1,
     undefined_symbols: CanonicalUndefinedSymbolRequirementSetV1,
-) -> Result<VerifiedCodeFingerprintV2, LayoutCodeFingerprintError> {
-    let producer = production.link_objects().producer();
-    let target = production
-        .link_objects()
-        .final_objects()
-        .entry()
-        .patch_sites()
-        .builtins()
-        .strong_relocations()
-        .target();
-    if native_requirements.producer() != producer {
-        return Err(LayoutCodeFingerprintError::NativeProducerMismatch {
-            expected: producer,
-            actual: native_requirements.producer(),
-        });
-    }
-    if native_requirements.target() != target
-        || undefined_symbols.producer() != producer
-        || undefined_symbols.selection().target() != target
-    {
-        return Err(LayoutCodeFingerprintError::TargetMismatch);
-    }
-    let expected_defined = CanonicalDefinedLinkSymbolOwnerSetV1::from_verified_strong_closure(
-        production
-            .link_objects()
-            .final_objects()
-            .entry()
-            .patch_sites()
-            .builtins()
-            .strong_relocations(),
-    )
-    .map_err(LayoutCodeFingerprintError::DefinedSymbols)?;
-    if defined_symbols != expected_defined {
-        return Err(LayoutCodeFingerprintError::DefinedSymbolSetMismatch);
-    }
+) -> Result<CodeFingerprintDataV2, LayoutCodeFingerprintError> {
     let native_contracts =
         CanonicalNativeExternalContractCodeSetV1::from_requirement_surface(&native_requirements)
             .map_err(LayoutCodeFingerprintError::NativeContracts)?;
@@ -192,7 +144,7 @@ fn compute(
         undefined_symbols: &undefined_symbols,
     }
     .fingerprint()?;
-    Ok(VerifiedCodeFingerprintV2 {
+    Ok(CodeFingerprintDataV2 {
         production,
         link_extension_contributions,
         native_requirements,

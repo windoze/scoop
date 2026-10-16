@@ -31,7 +31,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let operand_ty = function.value_ty(self.globals_arena, *operand);
                 if function.temps[*out].ty != scoop_lir::MANAGED_PTR
                     || operand_ty != scoop_lir::MANAGED_PTR
-                    || validation::contains_machine_scalar(self.structs, self.enums, &element)
+                    || machine_types::contains_machine_scalar(self.structs, self.enums, &element)
                 {
                     return Err(CodegenError(format!(
                         "array_clone @{} requires a machine-scalar-free managed array -> managed array",

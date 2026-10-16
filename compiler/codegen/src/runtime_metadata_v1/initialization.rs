@@ -1,14 +1,11 @@
 mod declarations;
 
-use declarations::{
-    CallableEntryRoleV1, declare_global, define_global, digest_value, prepare_global_declaration,
-    require_callable_entry,
-};
+use declarations::{declare_global, define_global, digest_value, require_callable_entry};
 
 use inkwell::context::Context;
 use inkwell::module::{Linkage, Module as LlvmModule};
-use inkwell::types::{AnyType, StructType};
-use inkwell::values::{FunctionValue, GlobalValue, StructValue, UnnamedAddress};
+use inkwell::types::StructType;
+use inkwell::values::{FunctionValue, GlobalValue, StructValue};
 use scoop_lir::{
     ConeIdentity, DigestPatchIntentId, ObjectDefinitionAtomId, ObjectDefinitionPlanId,
     PersistentInitializationUnitId, PersistentSymbolRequest, StrongInitializationCallableRefPlanV1,
@@ -126,110 +123,14 @@ pub(crate) fn emit_strong_initialization_unit_registrations_v1<'ctx, D: Clone>(
     plan: &StrongInitializationUnitRegistrationPlanSet<D>,
 ) -> Result<EmittedStrongInitializationUnitRegistrationSetV1<'ctx>, CodegenError> {
     let types = RuntimeMetadataV1Types::new(context);
-    let prepared = plan
+    let registrations = plan
         .registrations()
         .iter()
-        .map(|registration| prepare_registration(context, llvm, &types, registration))
-        .collect::<Result<Vec<_>, _>>()?;
-    let registrations = prepared
-        .into_iter()
-        .map(|prepared| emit_registration(context, llvm, profile, &types, prepared))
+        .map(|registration| emit_registration(context, llvm, profile, &types, registration))
         .collect::<Result<Vec<_>, _>>()?;
     Ok(EmittedStrongInitializationUnitRegistrationSetV1 {
         producer: plan.producer(),
         registrations,
-    })
-}
-
-struct PreparedInitializationRegistrationV1<'ctx, D> {
-    plan: StrongInitializationUnitRegistrationPlan<D>,
-    storage_registration: Option<GlobalValue<'ctx>>,
-    failure_registration: Option<GlobalValue<'ctx>>,
-    initializer: FunctionValue<'ctx>,
-    ensure: FunctionValue<'ctx>,
-    gateway: Option<FunctionValue<'ctx>>,
-    cell: Option<GlobalValue<'ctx>>,
-    registration: Option<GlobalValue<'ctx>>,
-    diagnostic_symbol: String,
-}
-
-fn prepare_registration<'ctx, D: Clone>(
-    context: &'ctx Context,
-    llvm: &LlvmModule<'ctx>,
-    types: &RuntimeMetadataV1Types<'ctx>,
-    plan: &StrongInitializationUnitRegistrationPlan<D>,
-) -> Result<PreparedInitializationRegistrationV1<'ctx, D>, CodegenError> {
-    let storage_registration = prepare_global_declaration(
-        llvm,
-        plan.storage().registration_symbol(),
-        types.static_storage_descriptor,
-        "initialization value-storage registration",
-        false,
-    )?;
-    let failure_registration = prepare_global_declaration(
-        llvm,
-        plan.failure_root().registration_symbol(),
-        types.static_storage_descriptor,
-        "initialization failure-root registration",
-        false,
-    )?;
-    let initializer = require_callable_entry(
-        context,
-        llvm,
-        plan.initializer(),
-        CallableEntryRoleV1::ManagedUnit,
-    )?;
-    let ensure = require_callable_entry(
-        context,
-        llvm,
-        plan.ensure(),
-        CallableEntryRoleV1::ManagedUnit,
-    )?;
-    let gateway = match plan.schedule() {
-        StrongInitializationRegistrationSchedulePlanV1::EagerStartup { gateway, .. } => {
-            Some(require_callable_entry(
-                context,
-                llvm,
-                **gateway,
-                CallableEntryRoleV1::StartupGateway,
-            )?)
-        }
-        StrongInitializationRegistrationSchedulePlanV1::LazyAccess => None,
-    };
-
-    let cell = prepare_global_declaration(
-        llvm,
-        plan.cell_symbol(),
-        types.initialization_cell,
-        "initialization cell",
-        true,
-    )?;
-    let registration = prepare_global_declaration(
-        llvm,
-        plan.registration_symbol(),
-        types.initialization_unit_descriptor,
-        "initialization registration",
-        true,
-    )?;
-    let diagnostic_symbol = format!("{}.diagnostic", plan.registration_symbol().symbol());
-    if llvm.get_global(&diagnostic_symbol).is_some()
-        || llvm.get_function(&diagnostic_symbol).is_some()
-    {
-        return Err(CodegenError(format!(
-            "initialization diagnostic bytes `{diagnostic_symbol}` are already declared"
-        )));
-    }
-
-    Ok(PreparedInitializationRegistrationV1 {
-        plan: plan.clone(),
-        storage_registration,
-        failure_registration,
-        initializer,
-        ensure,
-        gateway,
-        cell,
-        registration,
-        diagnostic_symbol,
     })
 }
 
@@ -238,39 +139,39 @@ fn emit_registration<'ctx, D>(
     llvm: &LlvmModule<'ctx>,
     profile: ValidatedBackendProfile,
     types: &RuntimeMetadataV1Types<'ctx>,
-    prepared: PreparedInitializationRegistrationV1<'ctx, D>,
+    plan: &StrongInitializationUnitRegistrationPlan<D>,
 ) -> Result<EmittedStrongInitializationUnitRegistrationV1<'ctx>, CodegenError> {
-    let plan = prepared.plan;
+    let initializer = require_callable_entry(llvm, plan.initializer())?;
+    let ensure = require_callable_entry(llvm, plan.ensure())?;
     let semantic = plan.semantic();
     let cell = define_global(
         llvm,
         plan.cell_symbol(),
         types.initialization_cell,
-        prepared.cell,
+        llvm.get_global(plan.cell_symbol().symbol().as_str()),
         false,
         types.initialization_cell.const_zero().into(),
     );
     // The mutable coordinator cell is also a primary definition atom. Keep
-    // its zero initializer file-backed so object verification and definition
-    // fingerprinting observe canonical bytes rather than a virtual BSS range.
+    // its zero initializer file-backed for the definition fingerprint.
     crate::metadata_sections::set_section(cell, profile.writable_storage_section());
     let storage_registration = declare_global(
         llvm,
         plan.storage().registration_symbol(),
         types.static_storage_descriptor,
-        prepared.storage_registration,
+        llvm.get_global(plan.storage().registration_symbol().symbol().as_str()),
     );
     let failure_registration = declare_global(
         llvm,
         plan.failure_root().registration_symbol(),
         types.static_storage_descriptor,
-        prepared.failure_registration,
+        llvm.get_global(plan.failure_root().registration_symbol().symbol().as_str()),
     );
     let diagnostic_initializer = context.const_string(semantic.diagnostic_path().as_bytes(), true);
     let diagnostic = llvm.add_global(
         diagnostic_initializer.get_type(),
         None,
-        &prepared.diagnostic_symbol,
+        &format!("{}.diagnostic", plan.registration_symbol().symbol()),
     );
     diagnostic.set_linkage(Linkage::Private);
     diagnostic.set_constant(true);
@@ -298,25 +199,19 @@ fn emit_registration<'ctx, D>(
         i64.const_int(semantic.diagnostic_path().len() as u64, false)
             .into(),
     ]);
-    let (gateway_id, gateway_entry) = match (plan.schedule(), prepared.gateway) {
-        (
-            StrongInitializationRegistrationSchedulePlanV1::EagerStartup { gateway, .. },
-            Some(entry),
-        ) => (
+    let (gateway_id, gateway_entry) = match plan.schedule() {
+        StrongInitializationRegistrationSchedulePlanV1::EagerStartup { gateway, .. } => (
             digest_value(context, types.digest, gateway.body().as_array()),
-            entry.as_global_value().as_pointer_value(),
+            require_callable_entry(llvm, **gateway)?
+                .as_global_value()
+                .as_pointer_value(),
         ),
-        (StrongInitializationRegistrationSchedulePlanV1::LazyAccess, None) => (
+        StrongInitializationRegistrationSchedulePlanV1::LazyAccess => (
             zero_digest,
             context
                 .ptr_type(inkwell::AddressSpace::default())
                 .const_null(),
         ),
-        _ => {
-            return Err(CodegenError(
-                "initialization schedule and prepared gateway disagree".to_string(),
-            ));
-        }
     };
     let registration_value = types.initialization_unit_descriptor.const_named_struct(&[
         prefix.into(),
@@ -330,12 +225,8 @@ fn emit_registration<'ctx, D>(
         failure_registration.as_pointer_value().into(),
         digest_value(context, types.digest, semantic.initializer().as_array()).into(),
         digest_value(context, types.digest, semantic.ensure().as_array()).into(),
-        prepared
-            .initializer
-            .as_global_value()
-            .as_pointer_value()
-            .into(),
-        prepared.ensure.as_global_value().as_pointer_value().into(),
+        initializer.as_global_value().as_pointer_value().into(),
+        ensure.as_global_value().as_pointer_value().into(),
         gateway_id.into(),
         zero_digest.into(),
         gateway_entry.into(),
@@ -344,7 +235,7 @@ fn emit_registration<'ctx, D>(
         llvm,
         plan.registration_symbol(),
         types.initialization_unit_descriptor,
-        prepared.registration,
+        llvm.get_global(plan.registration_symbol().symbol().as_str()),
         true,
         registration_value.into(),
     );

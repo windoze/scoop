@@ -99,7 +99,7 @@ Array      = u32(3) || u64(length_offset) || u64(first_element_offset)
 
 scan fingerprint 为 `SHA-256(ByteSpan("scoop-scan-v1") || canonical_scan_bytes)`，ByteSpan 为 `u64 length + bytes`。共享 child 的物理地址不改变其语义编码。
 
-消费边界必须检查 scan 的格式、引用、循环、对齐和范围。动态 Array 的 length 与乘加在扫描时也必须落入本次 region 的 extent；已验证且不变的静态结构可复用。
+编译器完成 scan 的静态格式、类型布局、对齐和引用规则。runtime 登记实际 scan 的可读地址范围和 child 引用，直接使用已生成的布局，不重新比较 inline/object scan、重算类型形状或另设完整 metadata 复核模式。动态 Array 的 length 与乘加、实际分配及对象访问继续遵守相应范围。
 
 `parent`、itable 和相关类型引用必须解析到实际登记的 TypeDescriptor。空 vtable 为 null；空接口仍保留以其真实 TD 为键的 itable entry，slot table 可以为 null。slot 与 callable ABI 由产物合同确定。
 
@@ -228,13 +228,13 @@ root gateway 的返回值只表示调用状态：`0` 为成功，`1` 为失败�
 
 正常调用及 shutdown 完成后，`scoop_rt_run_program` 将该完整退出码返回生成的 C main，由 C main 返回给目标进程退出机制；当前 target 的 C `int` 为 32-bit，不作额外的低 8 位截断或范围拒绝。POSIX 向父进程呈现的正常退出状态仍遵守其低 8 位规则。启动或 main 的未捕获异常使用第 7 章的诊断与退出码 `1` 路径，不将异常展开到 C，也不把 gateway status 直接当作用户返回值。
 
-所有 image、类型、scan、静态根、初始化单元、callable 和 safepoint 必须在首个 managed initializer 前登记。runtime 验证当前加载边界的格式、引用、实际地址、权限、唯一性和 GC 契约，复用编译与链接边界已完成且未变化的语义、布局和 ODR 结果。
+所有 image、类型、scan、静态根、初始化单元、callable 和 safepoint 必须在首个 managed initializer 前登记。runtime 验证当前加载边界的格式、引用、实际地址范围、唯一性和 GC 契约，复用编译与链接边界已完成且未变化的语义、布局和 ODR 结果；不重新检查继承图、boxed payload 与 parent 的布局等语言规则。
 
 登记建立完整 typed ID 与 record/address 的对应关系。runtime type ID 与 exact type、非零 SafepointId 与完整 site identity 都必须全程序一一对应；不同完整 identity 的固定宽度碰撞必须在使用前报错。不同 body ID 不得共用 callable entry；同一共享实体不得有多个实际地址。
 
 callable 正文、EH、stackmap、callable/safepoint registration 与其 Context cells 必须来自同一被选实现。独立 helper 可来自不同 provider；所有共享 TD、storage、cell 和初始化状态仍唯一。没有 safepoint 的 Scoop body 也登记 callable；普通 native extern 和 runtime C body 按各自 ABI 消费。
 
-非空 pointer/count span 的范围、乘加、对齐和权限必须有效。既有 image/registration 空 span 使用类型正确的 addressable sentinel；`context_key_count == 0` 时 context_keys 为 null。descriptor、字符串、scan、template 与 relocation metadata 为只读；callable entry 位于可读、可执行且不可写的映射；storage 的完整 allocation range 可写。权限按实际加载映射判断。
+非空 pointer/count span 的范围、乘加和对齐必须有效。既有 image/registration 空 span 使用类型正确的 addressable sentinel；`context_key_count == 0` 时 context_keys 为 null。descriptor、字符串、scan、template 与 relocation metadata 按不可变数据使用；callable entry 与 storage 分别按代码与可写存储发射。runtime 从平台装载段取得地址范围，不另查 VM region、`/proc/self/maps` 或审计读写／执行权限。
 
 storage 的 `allocation_extent == max(byte_size, 1)`。ZST storage 使用独立的 1-byte writable token、None scan 与 canonical 空 scan。不同 storage 的 allocation range 不重叠，只有同一 ODR member 的重复引用可指向同一存储。
 
@@ -243,11 +243,11 @@ storage 的 `allocation_extent == max(byte_size, 1)`。ZST storage 使用独立�
 - `ZeroedForRuntimeUnit=1`：完整 allocation extent 初始为零，template 与 relocation 为空；用于初始化单元的 storage/published root，以及 unit/root-entry failure root。
 - `EncodedStaticValue=2`：template 长度等于 allocation extent，padding、ZST token 和 managed-pointer leaf 为零；实际非 pointer 初值与 template 相同。该 storage 不再作为 runtime unit 的 storage 或 failure root。即使 template 全零，也保持此 tag。
 
-Encoded relocation 按 pointer offset 严格递增，无重复；offset 8-byte 对齐、位于 logical byte size 内且恰为 Recursive scan 的一个 leaf。每个非 null leaf 必须且只能对应一项 relocation，指向已登记、只读 immutable immortal object 的精确 object start；其余 leaf 为 null。None scan 不允许 relocation，immortal 不含可移动引用。产物边界验证初值和 relocation 内容，runtime 核对加载后的实际引用及 root 关系。
+Encoded relocation 按 pointer offset 严格递增，无重复；offset 8-byte 对齐、位于 logical byte size 内且恰为 Recursive scan 的一个 leaf。每个非 null leaf 必须且只能对应一项 relocation，指向已登记、只读 immutable immortal object 的精确 object start；其余 leaf 为 null。None scan 不允许 relocation，immortal 不含可移动引用。编译器生成初值与 relocation，链接器完成实际地址绑定；runtime 直接登记静态根，不遍历初值、重建 scan leaf 集合或逐项比较 relocation 副本。GC 在实际访问对象和根时处理必要的内存边界。
 
-failure root 必须是独占的 8-byte、8-aligned Recursive storage，scan 为 `[1, 0]`，初值为 ZeroedForRuntimeUnit；不能兼作普通属性或另一 unit/root 的失败槽。cell 初值为 `{0, null}`，不同 unit 的 cell 互不重叠，也不与 storage 重叠。所有引用与初态验证完成后，才允许 coordinator 或 gateway 修改它们。
+failure root 必须是独占的 8-byte、8-aligned Recursive storage，scan 为 `[1, 0]`，初值为 ZeroedForRuntimeUnit；不能兼作普通属性或另一 unit/root 的失败槽。cell 初值为 `{0, null}`，不同 unit 的 cell 互不重叠，也不与 storage 重叠。初态由编译器发射和链接装载保证；runtime 不在启动时扫描初值或重查 cell 零状态。登记完成后，coordinator 或 gateway 按运行契约修改它们。
 
-eager schedule=1，含已登记 startup gateway；lazy schedule=2，gateway ID、fingerprint 与 pointer 分别为全零、全零、null。initializer/ensure 的 ID 与 entry 必须解析到同一实际 callable。eager gateway 的 fingerprint 等于对应 callable body fingerprint，entry 地址逐 bit 相同；root gateway 遵守同样规则。
+eager schedule=1，含已登记 startup gateway；lazy schedule=2，gateway ID、fingerprint 与 pointer 分别为全零、全零、null。initializer/ensure 的 ID 与 entry 必须解析到同一实际 callable。eager gateway 的 fingerprint 与 entry 来自对应 callable；root gateway 遵守同样生成规则。runtime 直接调用已登记的 gateway，不再比较 callable 的地址与指纹副本。
 
 eager startup gateway 继续使用独立的 `uint32_t(void)` C ABI，成功返回 0、失败返回 1、其他状态非法；runtime 分别按精确原型调用 eager 和 root gateway，不将它们视为同一函数指针类型。root gateway 的 managed catch 覆盖 argv 构造与 main 调用，将原 Throwable 写入 root-entry failure root 并 EndCatch 后返回状态 1；eager gateway 使用 ensure 已发布的 Failed 与 failure root，不复制或覆盖异常。静态失败槽保存普通 managed 引用，不得保存 native unwind record。
 
@@ -279,19 +279,21 @@ scan kind 为 None=0 或 Recursive=1；scan choice 为 `Empty=0 | Program=1 { sc
 
 `RuntimeImageFingerprint = SHA-256(ByteSpan("scoop-runtime-image-v2") || RuntimeAbiFingerprint || TargetProfileFingerprint || canonical Cone record || sorted direct dependencies || six canonical record sequences)`。两个输入 fingerprint 各为 32 bytes；canonical Cone record 依次编码 group、name、version ByteSpan 和 ConeIdentity。自身 fingerprint slot、物理对象分片和 ASLR 地址不进入此编码。body、descriptor、layout、scan 与 stackmap fingerprints 的产物规则见编译器与产物规范 2.6。
 
-`PersistentCallableBodyId = SHA-256(ByteSpan("scoop-callable-body-v2") || canonical(CallableBodyKey))`。key 的 u32 tag 与字段为 Strong=1 `{owner}`、Odr=2 `{member}`、RootGateway=3 `{root_cone, main_body_id}`、InitializationStartupGateway=4 `{unit_id}`、ReleaseHook=5 `{owner_exact_type_id}`。这些 body 的身份不能互换。
+`PersistentCallableBodyId = SHA-256(ByteSpan("scoop-callable-body-v2") || canonical(CallableBodyKey))`。key 的 u32 tag 与字段为 Strong=1 `{owner}`、Odr=2 `{member}`、RootGateway=3 `{root_cone, main_body_id}`、InitializationStartupGateway=4 `{unit_id}`、ReleaseHook=5 `{owner_exact_type_id}`。这些 body 的身份不能互换。身份与内容摘要由编译、链接过程生成；runtime 使用实际登记记录及引用，不重新生成摘要，也不以摘要非零断言替代实际索引和引用处理。
 
 stackmap 使用 LLVM v3 record。规范化内容依次为 `{format_version=3, site_id, safepoint_id:u64, owner_callable_id, site_role:u32, root_pair_count:u32, instruction_offset:u32, stack_size:u64, locations, live_outs}`。location tag 为 Register=1 `{size:u32, dwarf_register:u32}`、Direct=2 或 Indirect=3 `{size, dwarf_register, signed_offset_bits:u64}`、Constant=4 `{size, value_bits:u64}`；live-out 为 `{dwarf_register:u32, size:u32}`。保留原 sequence 顺序和数量，i32 offset/constant 符号扩展到 i64 bits，ConstantIndex 解析为 pool 中的 u64 Constant；reserved/flags/padding 为零。
 
-`normalized_stackmap_fingerprint = SHA-256(ByteSpan("scoop-stackmap-record-v1") || canonical(record))`。ASLR function address 不入 hash，但必须等于 owner callable entry；instruction offset 与 stack size 入 hash。site role 为 ManagedPoll=1、ManagedCall=2、ManagedInvoke=3、NativeSafeTransition=4、NativeBorrowedTransition=5。实际 record 与 registration 的 site、owner、role、root count 一致。
+`normalized_stackmap_fingerprint = SHA-256(ByteSpan("scoop-stackmap-record-v1") || canonical(record))`。该摘要由编译器按实际记录生成，runtime 直接使用已解析的记录，不重新编码或计算摘要。ASLR function address 不入 hash，但必须等于 owner callable entry；instruction offset 与 stack size 入 hash。site role 为 ManagedPoll=1、ManagedCall=2、ManagedInvoke=3、NativeSafeTransition=4、NativeBorrowedTransition=5。实际 record 与 registration 的 site、owner、role、root count 一致。
 
 受支持目标要求 location 数为 `3 + 2 * root_pair_count`，前三项是 8-byte Constant，每对 root 为相同的 8-byte SP/FP Indirect 可写 slot。root count 是实际机器表示中的 relocation pair 数，不必等于源级逻辑 leaf 数；invoke 与 native transition 使用显式 root frame，gc-live 为零。
 
-stackmap 范围可以包含多个完整 v3 blob，必须解析到范围末尾。registration 与 raw record 完整对应，return PC 使用实际原始地址，不作减指令宽度、邻近符号或范围猜测。不同完整 site key 不能复用 SafepointId 或 return PC；同一 ODR site 的重复记录只在 owner、最终地址、location/live-out 与 fingerprint 全等时合并。
+stackmap 范围可以包含多个完整 v3 blob，必须解析到范围末尾。registration 与 raw record 完整对应，return PC 使用实际原始地址，不作减指令宽度、邻近符号或范围猜测。不同完整 site key 不能复用 SafepointId 或 return PC；同一 ODR site 的重复记录只在 owner、最终地址和实际 location/live-out 等 payload 全等时合并；这一比较用于合并实际重复记录，不复核记录与登记指纹的对应关系。
 
-Darwin 的不可变 metadata 与 stackmap 在 relocation 后必须只读；Linux 按实际加载映射验证，包括已生效的 RELRO。native DSO 不构成 Scoop logical image。String 使用实际声明的唯一 TD，`scoop_td_String` 与其地址相同。运行期不新增或卸载 Cone，Scoop runtime 也不执行 managed global destructor；native C／C++ 初始化／析构边界见第 7 章。
+不可变 metadata 与 stackmap 的段放置、relocation 和 RELRO 由目标工具链与 loader 处理，runtime 直接使用装载结果。native DSO 不构成 Scoop logical image。String 使用实际声明的唯一 TD，`scoop_td_String` 与其地址相同。运行期不新增或卸载 Cone，Scoop runtime 也不执行 managed global destructor；native C／C++ 初始化／析构边界见第 7 章。
 
 ## 3. GC 契约
+
+GC 合同由实际代码生成与 runtime 操作实现；不要求在生产编译中重复验证 LLVM 工具链的成功输出，也不在 runtime 补做产物来源或生产过程证明。专门回归测试继续覆盖根、relocation、屏障与运行结果。
 
 GC 支持多个 mutator，collection 在 stop-the-world 协调下执行，使用精确根与对象 scan，不保守猜测整数或 C 栈中的地址。minor 与 full collection 均可移动对象，pin 之外的裸地址不跨 safepoint 稳定。
 
@@ -459,7 +461,7 @@ full collection 按回收收益选择低存活、无 pin 的 region 为 source�
 
 ### 3.8 GC-free release hook
 
-release hook 仅属于符合语言规范 9.1.6 的 FixedObject 类型。启动时其函数地址必须解析到该 exact type 对应的 ReleaseHook callable；随后 GC 使用已登记的合同。
+release hook 仅属于符合语言规范 9.1.6 的 FixedObject 类型。编译器为该 exact type 生成 ReleaseHook callable 并绑定 descriptor 入口；GC 直接使用已登记的入口，不在启动时重新编码 body ID、计算 hash 或比较另一份 callable 地址。
 
 正常 collection 决定回收 ready 对象时，在 storage 失效前清除 ready 并尝试调用一次 hook。未完成构造的对象不调用；移动副本和旧地址回收不额外调用。ready 的 release/acquire 配对保证构造写入可见，显式 close 的 inert-state 写入也必须在 park 前完成；hook 不为有数据竞争的程序补充同步。
 
@@ -487,7 +489,7 @@ roots／remembered 扫描先由 coordinator 发布初始工作，随后参与同
 
 mark 结束后复用首次标记的存活对象集合规划搬迁；实际有搬迁时，使用该集合更新存活副本的出站引用，不在 full 更新阶段再次用 worklist 发现可达图。此时 full 的 roots 全部更新；minor 更新精确 roots、年轻集合及 remembered set。没有搬迁时按 3.7 跳过 relocation。首版复制、引用回写、release hook、reclaim 和 VM 归还均由 coordinator 执行，worker 全部结束前不移动或释放 metadata；shutdown 停止并 join worker。
 
-存活性由 mark 与搬迁关系决定，不由 relocation 的 scanned 状态定义。显式 metadata 验证和 moving stress 在零搬迁时仍检查根、当前存活对象及引用合法性，但不要求或伪造 relocation 覆盖状态；有搬迁时对含引用对象的当前副本保留相应覆盖检查。object_scan 为 null 的无引用对象仍参与存活清单、统计、规划、搬迁和回收，但不为出站引用扫描再解析位置、claim scanned 状态或调用扫描解释器；指向它们的引用仍正常更新。未执行 update 的轮次不累计 update 扫描时间。存活清单保留至规划、必要更新和验证结束。
+存活性由 mark 与搬迁关系决定，不由 relocation 的 scanned 状态定义。显式 GC heap 验证和 moving stress 在零搬迁时仍检查根、当前存活对象及引用合法性，但不要求或伪造 relocation 覆盖状态；有搬迁时对含引用对象的当前副本保留相应覆盖检查。object_scan 为 null 的无引用对象仍参与存活清单、统计、规划、搬迁和回收，但不为出站引用扫描再解析位置、claim scanned 状态或调用扫描解释器；指向它们的引用仍正常更新。未执行 update 的轮次不累计 update 扫描时间。存活清单保留至规划、必要更新和验证结束。
 
 诊断分别记录停稳等待、roots、remembered、mark、plan、copy、reference update、reclaim 与 VM 归还的墙钟时间，以及各 marker 的线程 CPU／标记对象数、数组任务和窃取次数。mark 阶段加速与总停顿分开报告；root producer 的工作计入 roots／remembered 阶段，不把重叠时间相加成停顿。所有阶段计数在 worker 完成后由 coordinator 归并，release hook 不在 marker 上执行。
 

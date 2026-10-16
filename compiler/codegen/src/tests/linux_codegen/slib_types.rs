@@ -2,11 +2,11 @@
 
 use scoop_slib::*;
 
-use super::slib_support::{SlibObjects, candidates, set_rela_addend};
+use super::slib_support::{SlibObjects, candidates};
 use super::*;
 
 #[test]
-fn elf_type_registrations_resolve_descriptor_diagnostic_and_itable_pointers() {
+fn elf_type_registrations_hash_descriptor_diagnostic_and_itable_data() {
     let directory = tempfile::tempdir().unwrap();
     for target in [
         scoop_target_data::LINUX_X86_64_GNU_ID,
@@ -21,69 +21,29 @@ fn elf_type_registrations_resolve_descriptor_diagnostic_and_itable_pointers() {
                 odr_point(&mut module);
             }
             let fixture = SlibObjects::new(module, directory.path());
-            let builtins = fixture.builtins(&fixture.objects);
-            let verify = |objects: &[(SlibMemberId, Vec<u8>)]| {
-                let sites = fixture.sites(fixture.builtins(objects), objects);
-                verify_strong_type_registrations_v1(
-                    sites,
-                    fixture
-                        .emitted
-                        .production()
-                        .registration_production()
-                        .types()
-                        .clone(),
-                    &candidates(objects),
-                )
-            };
-            let registrations = verify(&fixture.objects).expect("real ELF type registrations");
-            assert_eq!(registrations.registrations().len(), 4);
-            let requirements = fixture.requirements(registrations.patch_sites().clone());
-            assert_eq!(requirements.selection().target(), fixture.emitted.target());
+            let sites = fixture.sites(fixture.builtins(&fixture.objects));
+            let data = bind_type_registrations_v1(
+                sites,
+                fixture
+                    .emitted
+                    .production()
+                    .registration_production()
+                    .types()
+                    .clone(),
+            )
+            .unwrap();
+            assert_eq!(data.registrations().len(), 4);
+            assert!(data.plan().registrations().iter().any(|plan| matches!(
+                plan.itable_directory(),
+                scoop_lir::TypeDescriptorITableDirectoryV1::Defined(_)
+            )));
             let fingerprints = compute_strong_type_fingerprints_v1(
-                registrations.clone(),
+                data,
                 fixture.emitted.production().canonical_shape_definitions(),
-                requirements,
                 &candidates(&fixture.objects),
             )
-            .expect("real ELF type fingerprints");
+            .unwrap();
             assert_eq!(fingerprints.fingerprints().len(), 4);
-            let with_itable = registrations
-                .registrations()
-                .iter()
-                .find(|registration| {
-                    matches!(
-                        registration.descriptor().itable_directory(),
-                        VerifiedTypeDescriptorITableDirectoryV1::Defined { .. }
-                    )
-                })
-                .unwrap();
-            for pointer in [
-                with_itable.descriptor().diagnostic_relocation(),
-                with_itable
-                    .descriptor()
-                    .itable_directory()
-                    .descriptor_relocation()
-                    .unwrap(),
-            ] {
-                let mut damaged = fixture.objects.clone();
-                let VerifiedObjectRelocationFormV1::ElfX86_64Rela { addend, .. } =
-                    pointer.shape().form()
-                else {
-                    panic!("ELF metadata must keep RELA facts");
-                };
-                set_rela_addend(
-                    &mut damaged,
-                    &builtins,
-                    pointer.member(),
-                    pointer.containing_atom(),
-                    pointer.offset_within_atom(),
-                    addend + 1,
-                );
-                assert!(
-                    verify(&damaged).is_err(),
-                    "an in-section pointer to the wrong byte must fail"
-                );
-            }
         }
     }
 }

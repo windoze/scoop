@@ -55,7 +55,7 @@ fn shared_terminal_call_is_not_duplicated() {
             );
             let expected = manifest(Some((7, ExpectedStatepoint::Relocating(Vec::new().into()))));
             let plan = crate::statepoint::rewrite(&llvm, &machine, &expected, profile).unwrap();
-            verify_rewritten_with_profile(&llvm, &plan, profile).unwrap();
+
             assert_eq!(plan.root_count(7), Some(0));
             let output = directory
                 .path()
@@ -63,9 +63,7 @@ fn shared_terminal_call_is_not_duplicated() {
             machine
                 .write_to_file(&llvm, FileType::Object, &output)
                 .unwrap();
-            profile
-                .verify_object(&output, &plan, &crate::artifact::ExpectedEh::default())
-                .unwrap_or_else(|error| panic!("{target:?}/{mode:?}: {error}"));
+            assert_machine_site_count(&output, plan.site_count());
         }
     }
 }

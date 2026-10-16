@@ -2,6 +2,8 @@
 
 状态：已完成并验收（2026-10-02）。前置条件为已验收的 [M23-6a](../stage6a/ACCEPTANCE.md) 与 [M23-7](../stage7/ACCEPTANCE.md)。实际交付、运行矩阵和完整回归见 [验收记录](ACCEPTANCE.md)，逐功能实施证据见 [进度记录](PROGRESS.md)。
 
+M50 已同步本文的验证职责：删除静态布局／初值／摘要重放和权限审计，历史 ABI 版本与当时的启动签名仅描述原阶段，现行合同以三份规范为准。
+
 本阶段使多个独立 `.slib` 的实际机器产物共同启动：先登记完整静态元数据，再按确定顺序执行 eager initialization，最后经 no-throw gateway 调用 `main`。所有 Cone 共用实际 TypeDescriptor、ODR 实例、静态根与初始化状态，移动 GC 和异常可以穿过跨 Cone 调用链。
 
 权威合同为 [语言规范](../../specs/SCOOP-SPEC.md) 9.1.3、11.7、12.3、12.5，[运行时规范](../../specs/SCOOP-RUNTIME-SPEC.md) 2.2、2.7、2.8、3.3、3.5、7，以及 [实现规范](../../specs/SCOOP-IMPL-SPEC.md) 2.14。本文细化 [M23 总设计](../DESIGN.md) 第 6 章；同步撤销其中尚未实现的 program/core descriptor、Graph hash 重放和第二份初始化描述符要求。
@@ -35,7 +37,7 @@ M23-9 负责正式 `compiler/linker`、runtime-build 与启动对象生产；M23
 | [`gc.c`](../../../runtime/src/gc_binding/entries.c)、[`gc_binding/roots.c`](../../../runtime/src/gc_binding/roots.c) | 单表 roots/immortals、动态 roots、真实 moving collector | 使用完整 registry 的去重结果；heap 初始化不再读取固定单表 |
 | [`gc_binding/stackmap.c`](../../../runtime/src/gc_binding/stackmap.c) | 连续 LLVM v3 blob、精确 PC、当前无条件拒绝重复 site | 保留规范化字段，结合 registration 判定合法 ODR 重复 |
 | [`thread/`](../../../runtime/src/thread/transitions.c) | mutex/epoch 握手、native-safe/borrowed 与 callback 栈段 | 主线程 native-safe attach；明确 EntryPending；每次 gateway 独立边界 |
-| [`platform/image/macho.c`](../../../runtime/src/platform/image/macho.c) | 主 Mach-O 的 stackmap/text section | 提供加载后 metadata 范围与权限，供通用登记代码使用 |
+| [`platform/image/macho.c`](../../../runtime/src/platform/image/macho.c) | 主 Mach-O 的 stackmap/text section | 提供加载后 metadata 地址范围，供实际登记和访问使用 |
 | [`rt.c`](../../../runtime/src/rt.c) | 固定 `scoop_main` 与 `scoop_image_*` 的历史启动 | 通用 runtime 不再拥有这个 `main`；新增生产 startup 函数 |
 | [实际产物运行辅助](../../../compiler/driver/src/request/preflight/end_to_end_tests/imported_classes/runtime/execution.rs) | 从真实 Link 数据提取对象，再生成旧 root/immortal 表 | 新测试只生成 image/root 引用和 C 启动调用，直接消费原 registration |
 
@@ -66,12 +68,12 @@ M23-8 的测试胶合代码从共有 Link 结果取得 image/root 的实际 symb
 | --- | --- |
 | compiler / `.slib` reader | typed identity/key、语言与 ABI、完整 canonical 定义、静态初值、ODR member 内容和对象 relocation |
 | 本阶段的实际对象链接 | 使用 reader 返回的完整对象及 ODR 合并结果，保留 image/root/stackmap；不补缺失定义 |
-| runtime 加载边界 | prefix/span、实际加载地址与权限、跨记录引用、地址唯一性、静态 GC/初始化关系、最终 stackmap |
+| runtime 加载边界 | prefix/span、实际加载地址范围、跨记录引用、地址唯一性、GC／初始化所需索引及最终 stackmap |
 | 运行中的 GC/初始化 | 当前对象范围、动态长度、root 生命周期、cell 状态、线程握手与实际操作要求 |
 
 runtime 没有完整 exact-type key、源码可见性、函数签名或 vtable slot count，不能声称从 digest、类型名、地址区间反推出这些语义。它使用带 kind 的 ID 和实际登记关系；reader 验证过的函数 ABI、slot 组成、canonical 诊断名称及 ODR 机器内容不在 C 中实现第二遍。
 
-`RuntimeImageFingerprint`、record definition、layout、scan 和 callable body fingerprint 保留原有字段及用途；runtime 比较需要一致的镜像字段，但不重算 RuntimeImage、Graph、ObjectDefinition 或 ODR 全图。链接后 stackmap 的规范化摘要是本阶段实际消费的机器格式检查，见第 6 节。
+`RuntimeImageFingerprint`、record definition、layout、scan 和 callable body fingerprint 仍供实际编译／链接编码与 ODR 使用；runtime 直接消费已选记录，不比较未使用的镜像摘要或复算 stackmap 摘要。实际 PC、root payload 和登记关联见第 6 节。
 
 ### 2.3 String 与其他 runtime 依赖
 
@@ -83,9 +85,9 @@ runtime 没有完整 exact-type key、源码可见性、函数签名或 vtable s
 
 ### 3.1 先有实际内存范围，再读记录
 
-Mach-O 处理只位于现有 platform image component。它提供主 executable 的静态映射范围、只读/可写/可执行属性和 stackmap section。slide 使用 dyld 已加载地址；header/load-command/span 算术须受实际映射边界约束。
+Mach-O 处理只位于现有 platform image component。它从 dyld 已加载的 segment 取得主 executable 的地址范围和 stackmap section，按实际 slide 计算地址并检查所用大小／地址溢出，不另查询 VM region 权限。
 
-含 relocation 的常量可能位于 `__DATA_CONST`，不能只按 section 名或原 `initprot` 推断当前可写性；Darwin adapter 必须结合加载后的 VM protection。codegen/target section placement 应使完成 relocation 的 descriptor、pointer table、scan、diagnostic 和 template 实际只读。callable 位于 executable range；storage/cell 的完整 extent 位于 writable range。Darwin final-link 使用 `-rename_section __LLVM_STACKMAPS __llvm_stackmaps __DATA_CONST __llvm_stackmaps`，保留完整 blob 并在 dyld 地址修正后使 stackmap 段只读；含指针的不可变 metadata 放入 `__DATA_CONST,__const`。
+codegen/target 按正常目标布局将 descriptor、pointer table、scan、diagnostic 和 template 放入不可变数据，将 callable 与 storage/cell 分别放入代码和可写数据；runtime 不审计其读写／执行权限。Darwin final-link 仍使用 `-rename_section __LLVM_STACKMAPS __llvm_stackmaps __DATA_CONST __llvm_stackmaps` 保留完整 blob；含指针的不可变 metadata 放入 `__DATA_CONST,__const`。
 
 检查顺序固定为：
 
@@ -101,7 +103,7 @@ Mach-O 处理只位于现有 platform image component。它提供主 executable 
 登记按三个内部步骤完成，不新增对外验证状态机：
 
 1. 从全部 image 收集 coordinate/dependencies 与六类 record，形成尚未对 GC 可见的 native 索引。
-2. 在完整索引上解析引用、验证地址关系、初始化初态、scan/shape 及所有 stackmap；构造 canonical eager 调用序列。
+2. 在完整索引上解析实际引用、地址关系及 stackmap，登记静态根并构造 canonical eager 调用序列；初态与静态 shape 使用编译／链接结果。
 3. 全部成功后一次性把不可变索引交给 GC/初始化，建立 heap/handle 状态并 attach 主线程。
 
 第一步不能执行某个 image 的 initializer。失败时丢弃临时索引并 fatal，cell/storage 尚未被 coordinator 修改，也没有 managed 对象或用户副作用。索引使用普通 C 数据结构，按实际查询需要采用排序数组和二分查找；不引入通用 registry 插件或发布凭证。
@@ -139,27 +141,27 @@ Mach-O 处理只位于现有 platform image component。它提供主 executable 
 
 使用 M23-7 的 TD：固定部分 144 bytes，尾部为 `related_type_count * 8`。`relation_kind` 0/1/2/3 继续表示无关系、ordinary function、suspend function、interface；计数、结果与空引用遵守现有合同，function 参数/结果中的 null 明确表示 Any。M24 的 release hook 不在本阶段。
 
-登记一次核对 TD 的实际范围、runtime type ID、shape 合法矩阵、layout/descriptor fingerprint 镜像和已登记的 parent/interface/function type 引用。parent 与 interface 继承边检查非法环；不能把所有函数签名、字段类型关系当作必须无环的继承图。vtable/itable 的已知范围与 interface key 需要有效，但没有 slot count 的数组不能靠扫描到 null 来重建；slot 数和逐槽 ABI 已由编译器/对象 reader 负责。
+登记 TD 的实际范围、runtime type ID、已登记的 parent/interface/function type 引用，建立类型和地址索引。继承语义、静态 shape、scan、dispatch slot 及 ABI 由编译器完成，runtime 不重放继承图或比较布局／摘要副本。
 
-空接口保留完整 itable entry，slots 与空 vtable 沿原 codegen 表示为 null。对非空 dispatch pointer 验证只读起点；runtime 不因没有槽位而删除接口关系，也不要求空表额外分配 sentinel。image 的空 registration span 继续遵守第 2 节自己的 sentinel 合同。
+空接口保留完整 itable entry，slots 与空 vtable 沿原 codegen 表示为 null。runtime 访问实际 dispatch 数据时处理所需范围；不因没有槽位而删除接口关系，也不要求空表额外分配 sentinel。image 的空 registration span 继续遵守第 2 节自己的 sentinel 合同。
 
-scan 复用 `value_shape.c` / `value_scan.c` 的实际格式与 shape 算法。所有节点先验证 readable readonly 范围，再读取 count/child；active path 检查环，共享 child 用访问记录避免重复展开。结构检查按 node address 复用，涉及 extent/translation 的检查按相应上下文复用，不能把一次小对象检查误当成另一布局的结果。
+scan 直接使用编译器生成的程序。实际遍历节点时先处理地址范围、count/child、对象 extent、translation 和局部环；动态 array 的乘加与实际分配范围始终检查。不另保留完整静态 scan 结构／shape 比较器，也不重建全图来证明已有布局。
 
 References 检查 alignment、offset 与实际 extent；Sequence 按已有完整 scan 组合；Array 检查 length header、first offset、非零 stride 和 element scan。variable object 的实际 count/size 仍在分配和扫描该对象时核对。ZST/GC-free array 无 element scan，不因 logical length 很大而遍历空元素。
 
-登记之后，普通分配、装箱、数组与 GC 消费同一 TD/scan，仅保留注册地址与本次对象、length、alignment/root 等动态检查。`SCOOP_VERIFY_METADATA=1` 继续提供显式重型核对，不成为每次分配的默认开销。
+登记之后，普通分配、装箱、数组与 GC 消费同一 TD/scan，仅保留注册地址与本次对象、length、alignment/root 等动态检查。M50 已删除完整静态 metadata 复核模式；`SCOOP_GC_VERIFY_HEAP=1` 单独验证动态堆和实际引用。
 
 ### 4.2 StaticStorage
 
 `allocation_extent == max(byte_size, 1)`；logical ZST 保留独立 1-byte token、None scan 和零初值，不加入 GC root 列表。其他 None storage 参与身份/初始化检查；Recursive storage 才以可更新 region 加入静态根。
 
-`ZeroedForRuntimeUnit` 只用于已有 unit storage 和 unit/root failure storage。登记时在任何写入前检查完整 extent 为零、cell 为 `{Uninitialized, null}`，以及封闭角色和 owner 关系；冻结后绝不重复检查这些会改变的初态。
+`ZeroedForRuntimeUnit` 只用于已有 unit storage 和 unit/root failure storage；完整 extent 初始为零，cell 初态为 `{Uninitialized, null}`。这些初值由编译器发射和链接装载保证，runtime 登记实际存储及角色引用，不扫描初值或重查 cell 零状态。
 
-`EncodedStaticValue` 没有初始化 unit。compiler/reader 验证 template 的值、padding、canonical bytes 和对象 relocation；runtime 验证加载后 template/relocation span 与实际 GC leaf：每个非零 leaf 恰好对应一条 relocation，目标为已登记只读 immortal 的精确 object start，其余 leaf 为 null。offset 对齐、严格递增、不重复、落在 byte_size 内且命中实际 scan leaf。不得把 interior pointer、任意静态地址或 heap pointer 当初值。runtime 不重建值类型或重新逐字节证明非引用 payload/padding。
+`EncodedStaticValue` 没有初始化 unit。编译器生成 template、padding 和实际 relocation，链接器绑定目标地址；每个非零 managed leaf 指向已登记 immortal 的精确 object start，其余 leaf 为 null。runtime 直接登记实际静态根，不遍历初值或重建 scan leaf、template 与 relocation 副本；GC 在实际访问时保留必要边界。
 
 ### 4.3 Immortal 与失败根
 
-先收集全部 immortal，再解析静态初值的目标，允许 provider 和 consumer 的枚举顺序任意。immortal 的完整 range 必须只读、size/alignment 符合 TD、对象头指向同一个已登记 TD，且 object scan 为空。可变长 String 的实际 length 与完整 size 仍需 checked 核对。
+先收集全部 immortal，再解析静态初值的目标，允许 provider 和 consumer 的枚举顺序任意。immortal 的完整 range 必须可访问、size/alignment 符合 TD、对象头指向同一个已登记 TD，且 object scan 为空。可变长 String 的实际 length 与完整 size 仍需 checked 核对。
 
 unit/root failure root 是专用 storage：8-byte size/extent/alignment、Recursive `[1, 0]`、Zeroed 初态；不能兼作 property/published slot、ZST token 或另一 unit 的失败槽。同一已 coalesced ODR unit 可以被多个 image 引用；不同 unit 不共享 failure slot。
 
@@ -201,14 +203,14 @@ lazy object/companion/generic delegate 只登记。eager 执行中可以通过�
 
 先有 callable/site registry，再关联 raw record。原始 function address 必须等于 owner callable 的 entry；`return_pc = function_address + instruction_offset` checked 计算并保留原值。Darwin/AArch64 roots 继续是 `3 + 2 * root_pair_count` locations，前三项为规定 constant，root pair 为规定的 8-byte SP/FP Indirect。
 
-ConstantIndex 从实际 pool 解析成 Constant，signed offset 按现有规则编码；locations 和 live-outs 的顺序、数量均保留。按运行时规范 2.8 与已有 [产物规范化实现](../../../compiler/slib/src/link_object/stackmap_normalization.rs) 的 runtime scalar/count 编码计算 `SHA-256(u64_le(domain.length) || domain || RuntimeEncode(record))`，domain 为 `scoop-stackmap-record-v1`，与对应 registration 的 normalized fingerprint 核对；此记录不使用 Wire CBOR。SHA-256 使用成熟系统实现；当前 Darwin 可在其平台支持代码中封装 CommonCrypto，不手写算法、不引入加密授权或通用 hash-provider 框架。
+ConstantIndex 从实际 pool 解析成 Constant，signed offset、locations 和 live-outs 的顺序／数量保留在实际记录中。规范化摘要仍由编译／链接阶段按运行时规范 2.8 编码；runtime 不重编码或复算 SHA-256，直接建立 PC／root 索引，并比较真实 ODR 重复记录的 payload。
 
 ### 6.2 覆盖与去重
 
 | 输入关系 | 处理 |
 | --- | --- |
-| 一个 Strong site 对应一个 raw record | 核对 owner、payload、fingerprint，接受 |
-| 同一 ODR site 的多个 blob record | 仅当完整 site ID、group/member、body、最终原始 PC、canonical locations/live-outs 和 fingerprint 全同才合并 |
+| 一个 Strong site 对应一个 raw record | 关联 owner、实际 PC 与 root payload，接受 |
+| 同一 ODR site 的多个 blob record | 仅当完整 site ID、group/member、body、最终原始 PC 和 canonical locations/live-outs 相同才合并 |
 | 同一 site 的 PC 或 payload 不同 | fatal，不能选择其中一份 |
 | 不同完整 site 共用 64-bit ID 或 PC | fatal，即使 body/代码一样 |
 | raw record 找不到登记，或登记的 site 没有 raw record | fatal，指出 site 或 blob offset |
@@ -294,7 +296,7 @@ HIR `/43`、MIR type bridge `/6`、LIR layout ABI `/5`、manifest production `/2
 
 ### 9.1 独立与组合场景
 
-在 `tests/fixtures/m23-runtime-images/` 组织 manifest-backed Cone。至少使用 core、普通 provider、consumer/root 三个实际 image；diamond/ODR 场景增加 left/right sibling。provider 源码产生 `.slib` 后移走，再仅凭产物编译 consumer；已有 Stage 7 generic/delegate/function/coroutine fixture 应复用。
+在 `tests/fixtures/m23-runtime-images/` 组织 manifest-backed Cone。至少使用 core、普通 provider、consumer/root 三个实际 image；diamond/ODR 场景增加 left/right sibling。provider 先产生 `.slib`，保持源码和工具存在，再按正常依赖路径编译 consumer；已有 Stage 7 generic/delegate/function/coroutine fixture 应复用。
 
 | fixture 组 | 必须观察到的行为 |
 | --- | --- |
@@ -309,23 +311,22 @@ HIR `/43`、MIR type bridge `/6`、LIR layout ABI `/5`、manifest production `/2
 | rebuilt core | 实际重建 core 后，String 与新增普通/泛型类型使用真实 TD、接口表和引用路径 |
 | multi-object stackmaps | 同一及不同 Cone 的多个对象贡献完整 blob，零 root site、ODR 重复、真实 nested managed 调用均命中精确 PC |
 
-每组运行适用的普通模式和 `SCOOP_GC_STRESS_MOVE=1`。typed HIR/MIR golden 锁定既有语义；LIR/object golden 明确锁定唯一 unit registration、真实外来 relocation、gateway poll、root 异常物化和新增 site，不能只断言文件能解码。
+每组运行适用的普通模式和 `SCOOP_GC_STRESS_MOVE=1`。普通功能 fixture 验证诊断和运行；少量 typed IR／对象专测直接断言唯一 unit registration、真实外来引用、gateway poll、异常物化与所需 site，不保存无关完整输出。
 
 ### 9.2 损坏与错误边界
 
 | 输入 | 应拒绝的边界 |
 | --- | --- |
-| 旧 ABI/profile、缺失 prefix、错 size/tag、非零 reserved、null/越界/错对齐 span、count 溢出、metadata 可写 | reader 或 runtime prefix/range 边界，访问损坏 nested pointer 前结束 |
+| 旧 ABI/profile、缺失 prefix、错 size/tag、非零 reserved、null/越界/错对齐 span、count 溢出 | reader 或 runtime prefix/range 边界，访问损坏 nested pointer 前结束 |
 | 缺失 dependency、环、重复/额外 image、root owner 缺失、同名多版本 | 完整登记，任何 managed 副作用之前 |
 | Strong 重复；同 ODR member 不同 record/TD/entry/storage/cell 地址；不同 ID 共址 | registry 身份/地址关联 |
 | runtime type/site 的 64-bit collision | 关联 raw stackmap 或运行类型查询之前 |
-| 非零初始 cell/failure、复用 failure slot、重叠 storage/token/cell、坏 scan child/环/offset | 静态 GC 与 init 关联，任何 initializer 之前 |
-| 初值 ref 指向 immortal 内部、未登记目标，TD/header/size 不符 | 加载后的静态 root/immortal 关联 |
-| non-reference template/padding 或 canonical body 损坏 | 现有 object/reader 检查；不增加 runtime 全量内容重放 |
-| 丢失第二 blob、额外/缺失 site、错误 owner/PC/location/live-out/fingerprint、非法 ODR 重复 | stackmap 登记，heap 和 managed startup 之前 |
+| 复用 failure slot、重叠 storage/token/cell、实际 scan 访问越界或环 | 实际 GC／init 关联及访问边界 |
+| 实际访问未登记对象或 TD/header/size 不符 | GC／immortal 关联与实际对象访问 |
+| 丢失第二 blob、额外/缺失 site、错误 owner/PC/location/live-out、非法 ODR 重复 | stackmap 登记，heap 和 managed startup 之前 |
 | 活动段缺 anchor、status 非 0/1、失败状态无 failure root | 本次运行期 invariant 边界，不能声称都能在 startup 静态判定 |
 
-runtime C 单测可直接构造所需错误输入或使用已有 fake platform；真实产物故障注入只改已知对象字段/relocation 并运行同一 consumer，不新增通用 program descriptor 生产工厂。断言稳定的错误类别、record kind/ID、字段或 blob offset；没有源码位置的错误不能伪造 source span。
+runtime C 单测直接覆盖所用范围、引用、GC root 和运行期状态的必要错误出口；不为已经退役的初值／摘要／权限复核继续构造破坏输入或保留专用 helper。真实程序回归验证实际编译、链接和运行，无源码位置的错误不伪造 source span。
 
 ### 9.3 线程竞争与验证方式
 
@@ -333,7 +334,7 @@ runtime C 单测可直接构造所需错误输入或使用已有 fake platform�
 
 并发 exactly-once 测试覆盖一名 winner、多名 waiter、成功/失败发布和跨线程 cycle；移动 GC 发生在等待和失败后的再访问之间。C 探针只持有正确登记的 managed roots 或静态 TD/entry 地址，不能让测试自身违反 GC 契约。
 
-每批实现先 `cargo fmt --all` 与 `cargo clippy --workspace --all-targets`，再执行受影响的 compiler/runtime 测试。最终完成实际配套 `scoopc` 构建、全 workspace 回归及本节多 image 运行矩阵，关闭自动更新 golden 的环境变量。新增 C 文件沿现有 target flags 和测试入口编译；实际 metadata C/LLVM `sizeof/offsetof`、新旧版本拒绝与 target section 权限检查一并覆盖。
+每批实现先 `cargo fmt --all` 与 `cargo clippy --workspace --all-targets`，再执行受影响的 compiler/runtime 测试。最终完成实际配套 `scoopc` 构建、全 workspace 回归及本节多 image 运行矩阵，关闭自动更新 golden 的环境变量。新增 C 文件沿现有 target flags 和测试入口编译；实际 metadata C/LLVM `sizeof/offsetof`、实际格式版本拒绝和 target section 发射一并覆盖。
 
 ## 10. 实现顺序与完成门
 

@@ -29,10 +29,9 @@ impl NativeInputs {
                     artifact.manifest().cone().coordinate(),
                     object.source().as_str()
                 ));
-                let index = NativeObjectIndex::read_with_toolchain(
+                let index = NativeObjectInfo::read_with_toolchain(
                     object.bytes(),
                     profile.startup_toolchain().profile(),
-                    artifact.native_cxx(),
                 )
                 .map_err(|err| error(format!("{}: {err}", locator.display())))?;
                 self.files.insert(

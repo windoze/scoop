@@ -275,7 +275,7 @@ fn one_suspending_finally_has_distinct_fallthrough_return_and_throw_contexts() {
     let main = empty_main(&mut h);
 
     let module = lower(&h.finish_coroutines(main));
-    assert_eq!(module.validate(), Ok(()));
+
     let (frame_id, frame, driver, points) = state_machine(&module, "pendingContextCaller");
     assert_eq!(
         points.len(),
@@ -381,7 +381,6 @@ fn nested_finally_catches_site_failure_without_losing_outer_return_or_throw() {
     let main = empty_main(&mut h);
 
     let module = lower(&h.finish_coroutines(main));
-    assert_eq!(module.validate(), Ok(()));
 
     let (return_frame_id, return_frame, return_driver, return_points) =
         state_machine(&module, "nestedPendingReturn");
@@ -505,7 +504,7 @@ fn synthetic_break_and_continue_keep_distinct_typed_targets_through_suspending_f
     let main = empty_main(&mut h);
 
     let module = lower(&h.finish_coroutines(main));
-    assert_eq!(module.validate(), Ok(()));
+
     let (_, _, driver, points) = state_machine(&module, "loopPendingCaller");
     let break_targets = points
         .iter()

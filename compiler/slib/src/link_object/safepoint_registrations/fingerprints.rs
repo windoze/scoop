@@ -1,6 +1,6 @@
 use std::fmt;
 
-use super::VerifiedStrongSafepointRegistrationSetV1;
+use super::SafepointRegistrationDataV1;
 use crate::link_object::{RegistrationAbiV1, StackmapRecordFingerprintV1};
 use scoop_identity::{DigestNodeId, PersistentSafepointSiteId};
 use scoop_wire::{HashError, RuntimeEncodeError, RuntimeEncoder};
@@ -38,7 +38,7 @@ impl VerifiedStrongSafepointFingerprintV1 {
 /// Stackmap fingerprints and registration ABIs from already verified records.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VerifiedStrongSafepointFingerprintSetV1 {
-    registrations: VerifiedStrongSafepointRegistrationSetV1,
+    registrations: SafepointRegistrationDataV1,
     fingerprints: Vec<VerifiedStrongSafepointFingerprintV1>,
 }
 
@@ -47,7 +47,7 @@ impl VerifiedStrongSafepointFingerprintSetV1 {
         self.registrations.producer()
     }
 
-    pub const fn registrations(&self) -> &VerifiedStrongSafepointRegistrationSetV1 {
+    pub const fn registrations(&self) -> &SafepointRegistrationDataV1 {
         &self.registrations
     }
 
@@ -57,17 +57,18 @@ impl VerifiedStrongSafepointFingerprintSetV1 {
 }
 
 pub fn compute_strong_safepoint_fingerprints_v1(
-    registrations: VerifiedStrongSafepointRegistrationSetV1,
+    registrations: SafepointRegistrationDataV1,
 ) -> Result<VerifiedStrongSafepointFingerprintSetV1, StrongSafepointFingerprintError> {
-    let verified = registrations.registrations();
     let planned = registrations.plan().registrations();
     let stackmaps = registrations.stackmaps().records();
-    if verified.len() != planned.len() || verified.len() != stackmaps.len() {
-        return Err(StrongSafepointFingerprintError::ProofCoverageMismatch);
-    }
-
-    let mut fingerprints = Vec::with_capacity(verified.len());
-    for ((_verified, plan), stackmap) in verified.iter().zip(planned).zip(stackmaps) {
+    let mut fingerprints = Vec::with_capacity(planned.len());
+    for plan in planned {
+        let index = stackmaps
+            .binary_search_by_key(&plan.site(), |record| {
+                record.normalized().canonical().site()
+            })
+            .map_err(|_| StrongSafepointFingerprintError::MissingStackmap(plan.site()))?;
+        let stackmap = &stackmaps[index];
         let stackmap_fingerprint = stackmap.normalized().fingerprint();
         let registration = RegistrationAbiV1::from_owner(
             plan.definition_owner(),
@@ -112,7 +113,7 @@ pub(in crate::link_object) fn runtime_encode_safepoint_record_v1(
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StrongSafepointFingerprintError {
-    ProofCoverageMismatch,
+    MissingStackmap(PersistentSafepointSiteId),
     Hash {
         site: PersistentSafepointSiteId,
         source: HashError,

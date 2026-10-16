@@ -1,0 +1,10 @@
+@Extern(name = "first")
+fun first(): Int
+@Extern(name = "second")
+fun second(): Int
+fun main() {
+    @Unsafe {
+        first()
+        println(second())
+    }
+}

@@ -28,7 +28,6 @@ pub enum NominalRepresentationBuildError {
     GenericTemplate,
     GenericIntrinsicFamily,
     SourceKind,
-    PublicSourceShape,
 }
 
 impl fmt::Display for NominalRepresentationBuildError {
@@ -76,9 +75,6 @@ impl fmt::Display for NominalRepresentationBuildError {
             Self::SourceKind => {
                 f.write_str("representation kind differs from the source nominal kind")
             }
-            Self::PublicSourceShape => f.write_str(
-                "representation support differs from the public source field/variant sequence",
-            ),
         }
     }
 }

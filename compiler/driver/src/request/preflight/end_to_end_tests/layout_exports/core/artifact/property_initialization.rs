@@ -4,7 +4,6 @@ use super::lir_dependencies::{assembly, reader};
 use super::*;
 
 mod physical;
-mod registration_edges;
 mod rejections;
 
 pub(super) fn check(
@@ -124,20 +123,11 @@ pub(super) fn check(
                 };
                 let exports =
                     scoop_lir_lower::lower_layout_abi_exports(input_lir, dependencies).unwrap();
-                registration_edges::check(
-                    input_lir,
-                    dependencies,
-                    &projected,
-                    &exports,
-                    &selected,
-                    &initialization,
-                );
                 let source = scoop_lir_lower::lower_layout_abi_dependencies(
                     input_lir,
                     dependencies,
                     &exports,
                     &projected,
-                    selected.physical_imports().records(),
                 )
                 .unwrap();
                 let layout = lir::CrossConeLayoutAbiSectionV1::try_new(
@@ -147,7 +137,7 @@ pub(super) fn check(
                     &source,
                 )
                 .unwrap();
-                let production = registration.validate_layout_abi(&layout).unwrap();
+                let production = registration;
                 let objects = tempfile::tempdir().unwrap();
                 let artifact = assembly::assemble_with_production(
                     objects.path(),

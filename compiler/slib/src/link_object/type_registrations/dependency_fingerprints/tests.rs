@@ -1,14 +1,13 @@
-use super::*;
 use crate::link_object::stackmap_normalization::verification::tests::support::{
     Corruption, Fixture,
 };
 use crate::link_object::{
-    ScoopLirObjectCandidateV1, StrongTypeFingerprintError, VerifiedStrongTypeFingerprintSetV1,
-    compute_strong_type_fingerprints_v1, verify_strong_type_registrations_v1,
+    ScoopLirObjectCandidateV1, StrongTypeFingerprintError, TypeFingerprintSetV1,
+    bind_type_registrations_v1, compute_strong_type_fingerprints_v1,
 };
 
 #[test]
-fn computes_descriptor_and_managed_layout_from_the_closed_proof() {
+fn computes_descriptor_and_managed_layout_from_object_atoms_and_the_plan() {
     let fixture = Fixture::new(Corruption::None);
     let objects = [ScoopLirObjectCandidateV1::new(
         fixture.member,
@@ -36,39 +35,14 @@ fn computes_descriptor_and_managed_layout_from_the_closed_proof() {
     );
 }
 
-#[test]
-fn rejects_descriptor_scalars_that_disagree_with_the_lir_shape() {
-    let fixture = Fixture::new(Corruption::TypeDescriptorScalar);
-    let objects = [ScoopLirObjectCandidateV1::new(
-        fixture.member,
-        &fixture.object_bytes,
-    )];
-    let exact_type = fixture.type_registration_plan.registrations()[0].exact_type();
-
-    assert!(matches!(
-        fingerprints(&fixture, &objects),
-        Err(StrongTypeFingerprintError::Dependencies(StrongTypeDependencyFingerprintError::DescriptorByteMismatch {
-            exact_type: actual,
-            offset_within_descriptor: 16,
-            ..
-        })) if actual == exact_type
-    ));
-}
-
 fn fingerprints(
     fixture: &Fixture,
     objects: &[ScoopLirObjectCandidateV1<'_>],
-) -> Result<VerifiedStrongTypeFingerprintSetV1, StrongTypeFingerprintError> {
-    let registrations = verify_strong_type_registrations_v1(
+) -> Result<TypeFingerprintSetV1, StrongTypeFingerprintError> {
+    let registrations = bind_type_registrations_v1(
         fixture.verified_patch_sites(),
         fixture.type_registration_plan.clone(),
-        objects,
     )
     .unwrap();
-    compute_strong_type_fingerprints_v1(
-        registrations,
-        &fixture.canonical_shapes,
-        fixture.undefined_requirements(),
-        objects,
-    )
+    compute_strong_type_fingerprints_v1(registrations, &fixture.canonical_shapes, objects)
 }

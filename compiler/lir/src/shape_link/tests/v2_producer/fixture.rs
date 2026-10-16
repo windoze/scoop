@@ -123,9 +123,6 @@ impl Provider {
         let ordinary =
             CrossConeLirBridgeSectionV1::try_new(output.foundation(), Vec::new(), Vec::new())
                 .unwrap();
-        let layout_section =
-            provider_layout_section(&output, &layouts, &descriptors, &dispatch, &callables);
-        let section = section.validate_layout_abi(&layout_section).unwrap();
         Self {
             coordinate,
             identity,
@@ -203,108 +200,4 @@ fn provider_layout_section(
     )
     .unwrap();
     CrossConeLayoutAbiSectionV1::try_new(exports, &[], Vec::new(), &[]).unwrap()
-}
-
-pub(super) fn consumer_layout_section<'a>(
-    coordinate: &ConeCoordinate,
-    output: &ConeLirOutput,
-    registrations: &StrongRegistrationProductionSurfaceV2,
-    provider: &'a Provider,
-    dependencies: &[&'a LayoutAbiExportConstituentsV1],
-    imports: Vec<ExternalShapeLinkImportV1>,
-) -> CrossConeLayoutAbiSectionV1<'a> {
-    let source = nominal(output.foundation().producer(), "Child");
-    let exact_record = exact(&source);
-    let exact = exact_record.id();
-    let diagnostics = DiagnosticGraph::new(coordinate.clone(), source, exact_record.clone());
-    let (layouts, _) = exact_layouts(output.foundation(), exact_record);
-    let descriptor = ExactDescriptorExportV1::replay(
-        TARGET,
-        &layouts,
-        &registrations.types().registrations()[0],
-        &diagnostics,
-        output.foundation(),
-    )
-    .unwrap();
-    let descriptors =
-        CanonicalExactDescriptorExportsV1::try_new(TARGET, output.foundation(), vec![descriptor])
-            .unwrap();
-    let StrongCallableDefinitionOwner::Function(function) = provider.callable else {
-        unreachable!()
-    };
-    let input = ExactDispatchEntryInputV1 {
-        position: ExactDispatchPositionV1::from_u32(0),
-        slot: PersistentDispatchSlotId::from_key(&DispatchSlotKey::virtual_method(function))
-            .unwrap(),
-        slot_signature: ExactDispatchSlotSignatureV1::new(
-            ExactCallableSignature::new(Effect::Ordinary, None, Vec::new(), provider.exact),
-            scoop_identity::GcEffect::Managed,
-        ),
-        implementation: ExactDispatchImplementationV1::DirectStrongTarget {
-            target: scoop_identity::CallableDefinitionOwner::Strong(provider.callable),
-            receiver: ExactDispatchReceiverAdaptationV1::Identity,
-        },
-        abi: DispatchCallableAbiV1::Exact {
-            record: &provider.callables.records()[0],
-            receiver: CallableAbiReceiverInputV1::NoReceiver,
-        },
-        slot_receiver_layout: None,
-    };
-    let expected = StrongTypeDispatchCallableRefV2::DependencyExternal {
-        provider: provider.identity,
-        body: provider.callable_body,
-    };
-    let mut resolver =
-        |callable: CallableRef| -> Result<Option<StrongTypeDispatchCallableRefV2>, WireError> {
-            Ok(match callable {
-                CallableRef::External(id)
-                    if output.module().meta.external_callables[id].body()
-                        == provider.callable_body =>
-                {
-                    Some(expected)
-                }
-                _ => None,
-            })
-        };
-    let table = &output
-        .module()
-        .meta
-        .type_descriptors
-        .iter()
-        .next()
-        .unwrap()
-        .1
-        .vtable;
-    let dispatch = ExactDispatchExportV1::replay(
-        TARGET,
-        table.into(),
-        &[input],
-        output.foundation(),
-        &mut resolver,
-    )
-    .unwrap();
-    assert_eq!(dispatch.owner_exact(), exact);
-    let dispatch =
-        CanonicalExactDispatchExportsV1::try_new(TARGET, output.foundation(), vec![dispatch])
-            .unwrap();
-    let callables =
-        CanonicalExactCallableAbiExportsV1::try_new(TARGET, output.foundation(), Vec::new())
-            .unwrap();
-    let shape_support = CanonicalParamFreeShapeSupportExportsV1::from_sources(
-        &[],
-        &layouts,
-        &descriptors,
-        output.foundation(),
-    )
-    .unwrap();
-    let exports = LayoutAbiExportConstituentsV1::try_new(
-        layouts,
-        descriptors,
-        dispatch,
-        callables,
-        shape_support,
-        CrossConeLirBridgeSectionV1::try_new(output.foundation(), Vec::new(), Vec::new()).unwrap(),
-    )
-    .unwrap();
-    CrossConeLayoutAbiSectionV1::try_new(exports, dependencies, imports, &[]).unwrap()
 }

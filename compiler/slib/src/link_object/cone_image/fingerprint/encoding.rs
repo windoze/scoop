@@ -3,7 +3,7 @@
 use super::*;
 
 pub(super) struct RuntimeImageFingerprintInputV1<'proof, D, C, I> {
-    pub(super) image: &'proof VerifiedConeImageV1,
+    pub(super) image: &'proof ConeImageDataV1,
     pub(super) registrations: &'proof VerifiedStrongRegistrationPatchSetV1<D, C, I>,
     pub(super) runtime_abi: RuntimeAbiFingerprint,
     pub(super) target_profile: TargetProfileFingerprint,
@@ -58,7 +58,7 @@ where
         output: &mut crate::RuntimeImageRecords,
     ) -> Result<(), RuntimeEncodeError> {
         let fingerprints = self.registrations.immortal_objects();
-        let plans = fingerprints.registrations().plan().registrations();
+        let plans = fingerprints.plan().registrations();
         let records = plans.iter().zip(fingerprints.fingerprints());
         for (plan, _fingerprint) in records {
             let mut encoder = RuntimeEncoder::new();

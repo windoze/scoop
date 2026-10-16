@@ -1,4 +1,4 @@
-//! Closed symbol forms for built-in Darwin/AArch64 object capabilities.
+//! Read symbol names, locations and binding attributes for Darwin/AArch64 objects.
 
 use std::fmt;
 use std::num::NonZeroU8;
@@ -10,6 +10,7 @@ use super::ObservedMachOSectionV1;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DarwinArm64SymbolKindV1 {
+    FileMetadata,
     LocalSectionDefinition,
     ExternalStrongDefinition,
     ExternalWeakDefinition,
@@ -59,7 +60,6 @@ impl ObservedMachOSymbolV1 {
 
 pub(super) fn validate_darwin_arm64_symbol_inventory_v1(
     symtab: &macho::SymtabCommand<Endianness>,
-    dysymtab: &macho::DysymtabCommand<Endianness>,
     endian: Endianness,
     bytes: &[u8],
     sections: &[ObservedMachOSectionV1],
@@ -74,11 +74,6 @@ pub(super) fn validate_darwin_arm64_symbol_inventory_v1(
         let name = symbol.name(endian, table.strings()).map_err(|_| {
             DarwinArm64SymbolInventoryValidationError::InvalidSymbolName { index: table_index }
         })?;
-        if name.is_empty() {
-            return Err(
-                DarwinArm64SymbolInventoryValidationError::InvalidSymbolName { index: table_index },
-            );
-        }
         symbols.push(classify_symbol(
             table_index,
             name,
@@ -87,7 +82,6 @@ pub(super) fn validate_darwin_arm64_symbol_inventory_v1(
             sections,
         )?);
     }
-    validate_partition(dysymtab, endian, &symbols)?;
     Ok(symbols)
 }
 
@@ -101,47 +95,21 @@ fn classify_symbol(
     let symbol_type = symbol.n_type;
     let description = symbol.n_desc.get(endian);
     let value = symbol.n_value.get(endian);
-    let (kind, section_ordinal, no_dead_strip, private_external) = match symbol_type {
-        macho::N_SECT => (
-            DarwinArm64SymbolKindV1::LocalSectionDefinition,
-            validate_definition_location(table_index, symbol.n_sect, value, sections)?,
-            validate_definition_description(table_index, description)?,
-            false,
-        ),
-        symbol_type if symbol_type == (macho::N_SECT | macho::N_EXT) => (
-            external_definition_kind(description),
-            validate_definition_location(table_index, symbol.n_sect, value, sections)?,
-            validate_definition_description(table_index, description & !macho::N_WEAK_DEF)?,
-            false,
-        ),
-        symbol_type if symbol_type == (macho::N_SECT | macho::N_EXT | macho::N_PEXT) => (
-            external_definition_kind(description),
-            validate_definition_location(table_index, symbol.n_sect, value, sections)?,
-            validate_definition_description(table_index, description & !macho::N_WEAK_DEF)?,
-            true,
-        ),
-        symbol_type if symbol_type == (macho::N_UNDF | macho::N_EXT) => {
-            if symbol.n_sect != macho::NO_SECT || value != 0 || description != 0 {
-                return Err(
-                    DarwinArm64SymbolInventoryValidationError::InvalidUndefinedSymbol {
-                        index: table_index,
-                    },
-                );
-            }
-            (
-                DarwinArm64SymbolKindV1::ExternalUndefined,
-                None,
-                false,
-                false,
-            )
-        }
-        _ => {
-            return Err(
-                DarwinArm64SymbolInventoryValidationError::UnsupportedSymbolType {
-                    index: table_index,
-                    actual: symbol_type,
+    let (kind, section_ordinal) = if symbol_type & macho::N_STAB != 0 {
+        (DarwinArm64SymbolKindV1::FileMetadata, None)
+    } else {
+        match symbol_type & macho::N_TYPE {
+            macho::N_SECT => (
+                if symbol_type & macho::N_EXT != 0 {
+                    external_definition_kind(description)
+                } else {
+                    DarwinArm64SymbolKindV1::LocalSectionDefinition
                 },
-            );
+                validate_definition_location(table_index, symbol.n_sect, value, sections)?,
+            ),
+            macho::N_UNDF if value == 0 => (DarwinArm64SymbolKindV1::ExternalUndefined, None),
+            macho::N_UNDF | macho::N_ABS => (external_definition_kind(description), None),
+            _ => (DarwinArm64SymbolKindV1::FileMetadata, None),
         }
     };
     Ok(ObservedMachOSymbolV1 {
@@ -150,8 +118,8 @@ fn classify_symbol(
         kind,
         section_ordinal,
         value,
-        no_dead_strip,
-        private_external,
+        no_dead_strip: description & macho::N_NO_DEAD_STRIP != 0,
+        private_external: symbol_type & macho::N_PEXT != 0,
     })
 }
 
@@ -193,88 +161,15 @@ fn external_definition_kind(description: u16) -> DarwinArm64SymbolKindV1 {
     }
 }
 
-fn validate_definition_description(
-    index: u32,
-    description: u16,
-) -> Result<bool, DarwinArm64SymbolInventoryValidationError> {
-    match description {
-        0 | macho::N_ALT_ENTRY => Ok(false),
-        macho::N_NO_DEAD_STRIP => Ok(true),
-        description if description == macho::N_NO_DEAD_STRIP | macho::N_ALT_ENTRY => Ok(true),
-        actual => Err(
-            DarwinArm64SymbolInventoryValidationError::UnsupportedSymbolDescription {
-                index,
-                actual,
-            },
-        ),
-    }
-}
-
-fn validate_partition(
-    record: &macho::DysymtabCommand<Endianness>,
-    endian: Endianness,
-    symbols: &[ObservedMachOSymbolV1],
-) -> Result<(), DarwinArm64SymbolInventoryValidationError> {
-    let local_end = record.nlocalsym.get(endian);
-    let external_end = local_end
-        .checked_add(record.nextdefsym.get(endian))
-        .ok_or(DarwinArm64SymbolInventoryValidationError::MalformedSymbolTable)?;
-    for symbol in symbols {
-        let expected = if symbol.table_index < local_end {
-            DarwinArm64SymbolKindV1::LocalSectionDefinition
-        } else if symbol.table_index < external_end {
-            DarwinArm64SymbolKindV1::ExternalStrongDefinition
-        } else {
-            DarwinArm64SymbolKindV1::ExternalUndefined
-        };
-        let actual = match symbol.kind {
-            DarwinArm64SymbolKindV1::ExternalWeakDefinition => {
-                DarwinArm64SymbolKindV1::ExternalStrongDefinition
-            }
-            kind => kind,
-        };
-        if actual != expected {
-            return Err(
-                DarwinArm64SymbolInventoryValidationError::DynamicPartitionKindMismatch {
-                    index: symbol.table_index,
-                    expected,
-                    actual: symbol.kind,
-                },
-            );
-        }
-    }
-    Ok(())
-}
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DarwinArm64SymbolInventoryValidationError {
     MalformedSymbolTable,
-    InvalidSymbolName {
-        index: u32,
-    },
-    UnsupportedSymbolType {
-        index: u32,
-        actual: u8,
-    },
-    InvalidDefinitionSection {
-        index: u32,
-        section_ordinal: u8,
-    },
-    DefinitionValueOutOfBounds {
-        index: u32,
-    },
-    UnsupportedSymbolDescription {
-        index: u32,
-        actual: u16,
-    },
-    InvalidUndefinedSymbol {
-        index: u32,
-    },
-    DynamicPartitionKindMismatch {
-        index: u32,
-        expected: DarwinArm64SymbolKindV1,
-        actual: DarwinArm64SymbolKindV1,
-    },
+    InvalidSymbolName { index: u32 },
+    UnsupportedSymbolType { index: u32, actual: u8 },
+    InvalidDefinitionSection { index: u32, section_ordinal: u8 },
+    DefinitionValueOutOfBounds { index: u32 },
+    UnsupportedSymbolDescription { index: u32, actual: u16 },
+    InvalidUndefinedSymbol { index: u32 },
 }
 
 impl fmt::Display for DarwinArm64SymbolInventoryValidationError {

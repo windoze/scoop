@@ -10,8 +10,8 @@ pub(super) struct SlibObjects {
     pub objects: Vec<(SlibMemberId, Vec<u8>)>,
     plans: PlannedLinkObjectMemberSetV1,
     symbols: PlannedStrongObjectSymbolSetV1,
-    bridge_objects: VerifiedCBridgeProductionEnvelopeSetV1,
-    patches: Vec<ProvisionalDigestPatchSiteV1>,
+    bridge_objects: GeneratedCObjectSetV1,
+    patches: Vec<DigestPatchSiteV1>,
     profile: scoop_lir::CBridgeToolchainProfileV1,
     c_objects: Vec<(SlibMemberId, Vec<u8>)>,
 }
@@ -91,11 +91,9 @@ impl SlibObjects {
             &bridges,
             invocation.profile(),
         );
-        let bridge_objects = verify_c_bridge_production_envelopes_v1(
-            bridges,
+        let bridge_objects = read_generated_c_objects_v1(
             production,
             invocation.profile(),
-            &plans,
             &c_candidates(&c_objects),
         )
         .unwrap();
@@ -120,11 +118,10 @@ impl SlibObjects {
                     .member_for_definition(member.units().definition_plans()[0])
                     .unwrap();
                 member.digest_patches().iter().map(move |patch| {
-                    ProvisionalDigestPatchSiteV1::new(
+                    DigestPatchSiteV1::new(
                         patch.location().intent(),
                         id,
                         patch.checked_object_offset(),
-                        patch.location().width_bytes(),
                     )
                 })
             })
@@ -168,16 +165,8 @@ impl SlibObjects {
     pub fn sites(
         &self,
         builtins: VerifiedBuiltinObjectStrongRelocationSetV1,
-        objects: &[(SlibMemberId, Vec<u8>)],
-    ) -> VerifiedScoopLirDigestPatchSiteSetV1 {
-        verify_scoop_lir_digest_patch_sites_v1(
-            builtins,
-            self.emitted.foundation(),
-            self.emitted.production().digest_finalization_plan().clone(),
-            &candidates(objects),
-            &self.patches,
-        )
-        .unwrap()
+    ) -> ScoopLirDigestPatchSitesV1 {
+        ScoopLirDigestPatchSitesV1::new(builtins, (self.patches).to_vec())
     }
 }
 
@@ -188,54 +177,6 @@ pub(super) fn candidates(
         .iter()
         .map(|(member, bytes)| ScoopLirObjectCandidateV1::new(*member, bytes))
         .collect()
-}
-
-pub(super) fn set_rela_addend(
-    objects: &mut [(SlibMemberId, Vec<u8>)],
-    builtins: &VerifiedBuiltinObjectStrongRelocationSetV1,
-    member_id: SlibMemberId,
-    atom_id: scoop_identity::ObjectDefinitionAtomId,
-    offset_within_atom: u64,
-    addend: i64,
-) {
-    use object::read::elf::SectionHeader;
-    let member = builtins
-        .strong_relocations()
-        .members()
-        .iter()
-        .find(|member| member.member() == member_id)
-        .unwrap();
-    let atom = member
-        .definitions()
-        .definitions()
-        .iter()
-        .flat_map(|definition| definition.atoms())
-        .find(|atom| atom.atom() == atom_id)
-        .unwrap();
-    let (_, bytes) = objects
-        .iter_mut()
-        .find(|(member, _)| *member == member_id)
-        .unwrap();
-    let file = object::read::elf::ElfFile64::<object::Endianness>::parse(bytes.as_slice()).unwrap();
-    let endian = file.endian();
-    let mut field = None;
-    for (_, section) in file.elf_section_table().enumerate() {
-        if section.sh_type(endian) != object::elf::SHT_RELA
-            || section.sh_info(endian) != atom.section_ordinal().get()
-        {
-            continue;
-        }
-        let start = section.sh_offset(endian) as usize;
-        for offset in (start..start + section.sh_size(endian) as usize).step_by(24) {
-            if u64::from_le_bytes(bytes[offset..offset + 8].try_into().unwrap())
-                == atom.start() + offset_within_atom
-            {
-                field = Some(offset + 16);
-            }
-        }
-    }
-    let field = field.expect("metadata pointer RELA");
-    bytes[field..field + 8].copy_from_slice(&addend.to_le_bytes());
 }
 
 fn c_candidates(objects: &[(SlibMemberId, Vec<u8>)]) -> Vec<GeneratedCBridgeObjectCandidateV1<'_>> {

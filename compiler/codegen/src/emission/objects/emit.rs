@@ -20,7 +20,6 @@ pub(super) fn emit_object_set_with_production<
 ) -> Result<EmittedConeObjectSet<scoop_lir::ConeProductionSection<D, C, I>>, CodegenError> {
     let module = input.module();
     let expected_safepoints = statepoint::expectations(module)?;
-    let expected_eh = artifact::eh_expectations(module)?;
     let machine = profile.create_target_machine()?;
     std::fs::create_dir_all(temporary_parent).map_err(|error| {
         CodegenError(format!(
@@ -33,7 +32,7 @@ pub(super) fn emit_object_set_with_production<
         .tempdir_in(temporary_parent)
         .map_err(|error| {
             CodegenError(format!(
-                "cannot create immutable object backing under {}: {error}",
+                "cannot create object backing under {}: {error}",
                 temporary_parent.display()
             ))
         })?;
@@ -43,7 +42,6 @@ pub(super) fn emit_object_set_with_production<
         let context = Context::create();
         let body = function.callable_body.id();
         let selected_safepoints = expected_safepoints.for_function(function.symbol())?;
-        let selected_eh = expected_eh.for_function(function.symbol());
         let prepared = prepare_callable_strong_llvm_module(
             &context,
             module,
@@ -51,7 +49,7 @@ pub(super) fn emit_object_set_with_production<
             &elf_symbols,
             &machine,
             profile,
-            (&selected_safepoints, &selected_eh),
+            &selected_safepoints,
             body,
         )?;
         let path = backing.path().join(format!("{body}.o"));
@@ -103,8 +101,6 @@ pub(super) fn emit_object_set_with_production<
             let path = backing
                 .path()
                 .join(format!("{}.o", units.definition_plans()[0]));
-            let selected_safepoints = expected_safepoints.without_body_sites();
-            let selected_eh = expected_eh.without_body_metadata();
             write_object(&machine, &llvm, &path)?;
             atom_boundaries::materialize_global_linkages_v1(
                 &path,
@@ -112,7 +108,6 @@ pub(super) fn emit_object_set_with_production<
                 production.canonical_definitions(),
                 units.definition_plans(),
             )?;
-            verify_and_seal_object(&path, profile, &selected_safepoints, &selected_eh)?;
             let digest_patches = object_materialization::resolve_digest_patch_materializations_v1(
                 &path,
                 module.meta.target_profile,
@@ -156,7 +151,6 @@ pub(super) fn emit_object_set_with_production<
         .map(|patch| patch.location())
         .collect::<Vec<_>>();
     patches.sort_unstable_by_key(|patch| patch.intent());
-    runtime_metadata_v1::validate_patch_coverage(&production, &patches)?;
     Ok(EmittedConeObjectSet {
         optimization: profile.optimization(),
         target_selection: profile.lir_target_selection(),
@@ -178,7 +172,7 @@ fn finish_callable_object(
     let PreparedCallableObject {
         path,
         runtime_metadata,
-        plan,
+        plan: _,
         backend_constants: _,
     } = prepared;
     let definition = units
@@ -195,7 +189,6 @@ fn finish_callable_object(
         &path,
         profile.lir_target_profile(),
         definition,
-        body,
     ) {
         return Err(discard_invalid_object(&path, error));
     }
@@ -211,7 +204,6 @@ fn finish_callable_object(
         surface,
         &registrations,
     )?;
-    verify_and_seal_object(&path, profile, &plan.safepoints, &plan.eh)?;
     let digest_patches = object_materialization::resolve_digest_patch_materializations_v1(
         &path,
         profile.lir_target_profile(),

@@ -2,7 +2,7 @@ use scoop_lir::GeneratedBridgePlanSetV1;
 use scoop_wire::encode;
 
 use super::*;
-use crate::link_object::c_bridge_production::tests::{fixture, member_plan};
+use crate::link_object::generated_c_objects::tests::{fixture, member_plan};
 
 #[test]
 fn materializations_are_sorted_by_member_and_keep_producer_kinds_distinct() {

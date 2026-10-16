@@ -11,8 +11,6 @@ pub(super) fn produced_provider(provider: &Provider) -> ConeProductionSectionV2 
             &[],
         )
         .unwrap()
-        .validate_layout_abi(&provider.layout_section())
-        .unwrap()
 }
 
 pub(super) fn view<'a>(

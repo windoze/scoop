@@ -11,7 +11,6 @@ pub(super) fn check(
         scoop_lir_lower::LayoutAbiExportDependenciesV1::default(),
         &exports,
         &mir_source,
-        &[],
     )
     .unwrap();
     let section = lir::CrossConeLayoutAbiSectionV1::try_new(exports, &[], vec![], &roots).unwrap();

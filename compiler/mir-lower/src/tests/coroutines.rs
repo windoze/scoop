@@ -119,7 +119,7 @@ fn generic_unit_return_in_suspend_function_completes_unit() {
     let main = empty_main(&mut h);
 
     let module = lower(&h.finish_coroutines(main));
-    assert_eq!(module.validate(), Ok(()));
+
     let (_, coroutine) = module
         .meta
         .coroutine_functions

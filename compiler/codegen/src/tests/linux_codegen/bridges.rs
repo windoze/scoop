@@ -21,7 +21,7 @@ fn linux_generated_c_requirements_cover_native_tls_and_callback_contracts() {
         let (module, _) = fixture(target);
         let fixture = super::slib_support::SlibObjects::new(module, directory.path());
         let builtins = fixture.builtins(&fixture.objects);
-        let sites = fixture.sites(builtins, &fixture.objects);
+        let sites = fixture.sites(builtins);
         let requirements = fixture.requirements(sites);
         assert_eq!(requirements.selection().target().id(), target);
         assert!(requirements.requirements().iter().any(|requirement| {
@@ -89,17 +89,17 @@ fn linux_generated_c_functions_tls_and_callback_link_and_run() {
         .unwrap();
         for member in emitted.members() {
             let bytes = std::fs::read(member.object_path()).unwrap();
-            let envelope = scoop_slib::validate_generated_c_object_for_profile_v1(
+            let envelope = scoop_slib::read_generated_c_object_sections_v1(
                 &bytes,
-                invocation.profile(),
+                invocation.profile().contract().target().id(),
             )
             .unwrap();
             let member_id = members
                 .member_for_generated_bridge_unit(member.unit())
                 .unwrap();
-            let definitions = scoop_slib::verify_member_strong_object_definitions_v1(
+            let definitions = scoop_slib::read_member_object_definitions_v1(
                 &bytes,
-                envelope.into_sections(),
+                envelope,
                 symbols.member(member_id).unwrap(),
             )
             .unwrap();

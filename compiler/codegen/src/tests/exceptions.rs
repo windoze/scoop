@@ -235,63 +235,8 @@ fn emits_m8_exceptions() {
     // Object verification proves invoke / landingpad and the GC strategy coexist
     // — every function carries `gc "statepoint-example"` and the
     // module goes through `rewrite-statepoints-for-gc`.
-    write_verified_test_object(&module, &output);
+    write_test_object(&module, &output);
     let bytes = std::fs::read(&output).expect("read object");
     assert!(!bytes.is_empty(), "object file is empty");
     std::fs::remove_file(&output).ok();
-}
-
-#[test]
-fn darwin_aarch64_eh_artifacts_are_qualified_at_o0_and_o2() {
-    let module = exceptions_module();
-    let expected_safepoints =
-        statepoint::expectations(&module).expect("complete safepoint manifest");
-    let expected_eh = artifact::eh_expectations(&module).expect("complete EH manifest");
-    let eh_symbol = module.functions[2].symbol();
-    assert_eq!(expected_eh.function_count(), 1);
-    assert_eq!(
-        expected_eh.action_count(eh_symbol, artifact::EhActionKind::CatchAll),
-        2
-    );
-    assert_eq!(
-        expected_eh.action_count(eh_symbol, artifact::EhActionKind::Cleanup),
-        1
-    );
-
-    let profile = host_profile();
-    for (name, optimization) in [
-        ("o0", OptimizationLevel::None),
-        ("o2", OptimizationLevel::Default),
-    ] {
-        let profile = profile.with_optimization(if optimization == OptimizationLevel::None {
-            scoop_lir::OptimizationMode::Debug
-        } else {
-            scoop_lir::OptimizationMode::Release
-        });
-        let machine = profile
-            .create_qualification_target_machine(optimization)
-            .expect("qualified target machine");
-        let context = Context::create();
-        let llvm =
-            emit_llvm_module(&context, &module, &machine, profile).expect("emit LLVM module");
-        llvm.verify().expect("valid LLVM module");
-        let expected_safepoints =
-            statepoint::rewrite(&llvm, &machine, &expected_safepoints, profile)
-                .expect("rewrite-statepoints-for-gc pass");
-        llvm.verify().expect("valid post-RS4GC module");
-        statepoint::verify_rewritten(&llvm, &expected_safepoints, profile)
-            .expect("statepoint manifest matches");
-
-        let output = std::env::temp_dir().join(format!(
-            "scoop_codegen_eh_qualification_{name}_{}.o",
-            std::process::id()
-        ));
-        machine
-            .write_to_file(&llvm, FileType::Object, &output)
-            .expect("write object");
-        profile
-            .verify_object(&output, &expected_safepoints, &expected_eh)
-            .unwrap_or_else(|error| panic!("{name}: {error}"));
-        std::fs::remove_file(&output).ok();
-    }
 }

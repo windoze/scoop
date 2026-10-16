@@ -58,7 +58,7 @@ pub(super) fn finalize_production<'a, D, C, I>(
         if plan.safepoints.site_count() == 0 {
             roles.push(DefinitionAtomRole::Stackmap);
         }
-        if plan.eh.function_count() == 0 {
+        if !plan.has_unwind {
             roles.push(DefinitionAtomRole::Lsda);
             roles.push(match format {
                 scoop_lir::NativeObjectFormat::MachO64 => DefinitionAtomRole::EhFrame,

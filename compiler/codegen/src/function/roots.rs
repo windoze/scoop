@@ -50,7 +50,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         source: scoop_lir::CallerRootSource,
     ) -> Result<RootStorage<'ctx>, CodegenError> {
         let source_ty = self.statepoint_source_type(source)?;
-        if validation::contains_machine_scalar(self.structs, self.enums, source_ty) {
+        if machine_types::contains_machine_scalar(self.structs, self.enums, source_ty) {
             return Err(CodegenError(format!(
                 "root source in @{} cannot contain an internal machine scalar",
                 self.function.symbol()
@@ -94,7 +94,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     safepoint.get()
                 )));
             }
-            if validation::contains_machine_scalar(self.structs, self.enums, &item.ty) {
+            if machine_types::contains_machine_scalar(self.structs, self.enums, &item.ty) {
                 return Err(CodegenError(format!(
                     "statepoint {} cannot treat an internal machine scalar as a managed root",
                     safepoint.get()

@@ -58,11 +58,4 @@ impl LinuxTarget {
         };
         Ok(Self { machine, libc })
     }
-
-    pub(crate) fn interpreter_name(self) -> &'static str {
-        match (self.machine, self.libc) {
-            (LinuxMachine::X86_64, LinuxLibc::Gnu) => "ld-linux-x86-64.so.2",
-            (LinuxMachine::X86_64, LinuxLibc::Musl) => "ld-musl-x86_64.so.1",
-        }
-    }
 }

@@ -1,8 +1,8 @@
 use super::*;
 use scoop_identity::PersistentSafepointSiteId;
 use scoop_slib::{
-    CallableDefinitionAbiV1, ObjectDefinitionFingerprintV1, OdrMemberAbiV1, RegistrationAbiV1,
-    VerifiedEntryPatchSetV2, VerifiedMaterializedPatchSiteV1,
+    CallableDefinitionAbiV1, DigestPatchSiteV1, ObjectDefinitionFingerprintV1, OdrMemberAbiV1,
+    RegistrationAbiV1, VerifiedEntryPatchSetV2,
 };
 
 #[derive(Debug, Eq, PartialEq)]
@@ -147,11 +147,7 @@ fn check_identity(owner: RegistrationDefinitionOwner, fingerprint: RegistrationA
     }
 }
 
-fn check_patch(
-    finalized: &VerifiedEntryPatchSetV2,
-    patch: VerifiedMaterializedPatchSiteV1,
-    expected: &[u8; 32],
-) {
+fn check_patch(finalized: &VerifiedEntryPatchSetV2, patch: DigestPatchSiteV1, expected: &[u8; 32]) {
     let object = finalized
         .objects()
         .iter()

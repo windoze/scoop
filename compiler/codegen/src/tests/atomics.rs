@@ -86,8 +86,8 @@ fn source_atomic_instructions_preserve_orders_widths_and_pointer_values() {
                 5
             );
             let expected = statepoint::expectations(&module).unwrap();
-            let expected = statepoint::rewrite(&llvm, &machine, &expected, profile).unwrap();
-            statepoint::verify_rewritten(&llvm, &expected, profile).unwrap();
+            statepoint::rewrite(&llvm, &machine, &expected, profile).unwrap();
+
             llvm.verify().unwrap();
             let optimized = llvm.print_to_string().to_string();
             assert_eq!(optimized.matches("cmpxchg ").count(), 72);

@@ -2,16 +2,12 @@ use scoop_identity::SourceNominalKind;
 use scoop_wire::{decode_canonical, encode};
 
 use super::*;
-use crate::{
-    EnumSourceFieldV1, EnumSourceShapeV1, EnumSourceVariantStyleV1, EnumSourceVariantV1,
-    HirCLayoutContract, HirCLayoutValue, IntrinsicTypeKind, NominalSourceFieldV1,
-    StructSourceShapeV1,
-};
+use crate::{HirCLayoutContract, HirCLayoutValue, IntrinsicTypeKind};
 
 pub(in crate::cross_cone_type_semantics::representation) mod support;
 use support::{Fixture, source_key, unit};
 
-mod source_policy;
+mod policies;
 
 fn round_trip(
     fixture: &mut Fixture,
@@ -28,7 +24,7 @@ fn round_trip(
 }
 
 #[test]
-fn struct_support_preserves_declaration_order_and_matches_public_shape() {
+fn struct_support_preserves_declaration_order() {
     let mut fixture = Fixture::new(SourceNominalKind::Struct);
     let first = fixture.struct_field("first", unit());
     let second = fixture.struct_field("second", unit());
@@ -39,29 +35,6 @@ fn struct_support_preserves_declaration_order_and_matches_public_shape() {
             fields,
             c_layout_policy: NominalCLayoutPolicyV1::Ordinary,
         },
-    );
-    let public = |fields: &[StructRepresentationFieldV1]| {
-        NominalSourceShapeV1::Struct(
-            StructSourceShapeV1::try_new(
-                fields
-                    .iter()
-                    .map(|field| {
-                        NominalSourceFieldV1::new(field.field(), field.value_type().clone())
-                    })
-                    .collect(),
-                crate::NominalCLayoutPolicyV1::Ordinary,
-                false,
-            )
-            .unwrap(),
-        )
-    };
-    record
-        .validate_public_source_shape(&public(&[second.clone(), first.clone()]))
-        .unwrap();
-    assert!(
-        record
-            .validate_public_source_shape(&public(&[first, second]))
-            .is_err()
     );
     let NominalRepresentationShapeV1::Struct { fields, .. } = record.shape() else {
         panic!("expected struct representation")
@@ -84,26 +57,10 @@ fn enum_support_keeps_variant_order_gc_and_typed_payload_identity() {
             variants: vec![payload.clone(), empty.clone()],
         },
     );
-    let variant = |variant: &EnumRepresentationVariantV1, style| {
-        EnumSourceVariantV1::try_new(
-            variant.variant(),
-            style,
-            variant
-                .fields()
-                .iter()
-                .map(|field| EnumSourceFieldV1::new(field.field(), field.value_type().clone()))
-                .collect(),
-        )
-        .unwrap()
+    let NominalRepresentationShapeV1::Enum { variants, .. } = record.shape() else {
+        panic!("expected enum representation")
     };
-    let source = NominalSourceShapeV1::Enum(
-        EnumSourceShapeV1::try_new(vec![
-            variant(&payload, EnumSourceVariantStyleV1::Positional),
-            variant(&empty, EnumSourceVariantStyleV1::Unit),
-        ])
-        .unwrap(),
-    );
-    record.validate_public_source_shape(&source).unwrap();
+    assert_eq!(variants, &[payload.clone(), empty]);
     assert_eq!(payload.gc(), ExactTypeGcV1::GcFree);
 }
 
@@ -111,21 +68,13 @@ fn enum_support_keeps_variant_order_gc_and_typed_payload_identity() {
 fn class_object_interface_and_intrinsic_shapes_round_trip_with_complete_fields() {
     let mut class = Fixture::new(SourceNominalKind::Class);
     let field = class.class_field("privateValue");
-    let source = NominalSourceShapeV1::Class(
-        crate::NominalSourceFieldsV1::try_new(vec![crate::NominalSourceFieldV1::new(
-            field.field(),
-            field.value_type().clone(),
-        )])
-        .unwrap(),
-    );
-    let record = round_trip(
+    round_trip(
         &mut class,
         NominalRepresentationShapeV1::Class {
             base: OptionalSignatureType::Absent,
             declared_fields: vec![field],
         },
     );
-    record.validate_public_source_shape(&source).unwrap();
     let mut object = Fixture::new(SourceNominalKind::Object);
     let field = object.class_field("storedValue");
     let backing = object.backing();

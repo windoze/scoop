@@ -1,12 +1,10 @@
 use super::*;
 use crate::link_object::{
-    VerifiedCurrentConeStrongRelocationClosureV1, VerifiedDefinitionAtomRangeV1,
-    VerifiedMemberObjectRelocationIndexV1, VerifiedStrongObjectDefinitionV1,
+    DefinitionAtomRangeV1, ObjectDefinitionV1, VerifiedCurrentConeStrongRelocationClosureV1,
+    VerifiedMemberObjectRelocationIndexV1,
 };
 
-pub(super) fn ranges(
-    definition: &VerifiedStrongObjectDefinitionV1,
-) -> Vec<VerifiedDefinitionAtomRangeV1> {
+pub(super) fn ranges(definition: &ObjectDefinitionV1) -> Vec<DefinitionAtomRangeV1> {
     let mut ranges: Vec<_> = definition
         .atoms()
         .iter()
@@ -17,8 +15,9 @@ pub(super) fn ranges(
             | DefinitionAtomRole::Stackmap
             | DefinitionAtomRole::AddressTakenConstant
             | DefinitionAtomRole::ContextKeyCell
-            | DefinitionAtomRole::ContextKeyTable => true,
-            DefinitionAtomRole::Primary | DefinitionAtomRole::RuntimeRecord => false,
+            | DefinitionAtomRole::ContextKeyTable
+            | DefinitionAtomRole::RuntimeRecord => true,
+            DefinitionAtomRole::Primary => false,
         })
         .copied()
         .collect();
@@ -29,8 +28,8 @@ pub(super) fn ranges(
 pub(super) fn fingerprint_atoms(
     object: &[u8],
     member: &VerifiedMemberObjectRelocationIndexV1,
-    ranges: &[VerifiedDefinitionAtomRangeV1],
-    associated: &[VerifiedDefinitionAtomRangeV1],
+    ranges: &[DefinitionAtomRangeV1],
+    associated: &[DefinitionAtomRangeV1],
     closure: &VerifiedCurrentConeStrongRelocationClosureV1,
     requirements: &VerifiedObjectDefinitionRequirementSetV1,
     body: PersistentCallableBodyId,
@@ -41,35 +40,10 @@ pub(super) fn fingerprint_atoms(
             body,
             atom: range.atom(),
         };
-        let (section, start, end) = atom_file_range(member, *range).map_err(|_| invalid())?;
-        let correct_section = match range.atom_role() {
-            DefinitionAtomRole::Lsda => section == BuiltinObjectSectionRoleV1::GccExceptionTable,
-            DefinitionAtomRole::EhFrame => section == BuiltinObjectSectionRoleV1::EhFrame,
-            DefinitionAtomRole::CompactUnwind => {
-                section == BuiltinObjectSectionRoleV1::CompactUnwind
-            }
-            DefinitionAtomRole::Stackmap => section == BuiltinObjectSectionRoleV1::LlvmStackmaps,
-            DefinitionAtomRole::AddressTakenConstant => matches!(
-                section,
-                BuiltinObjectSectionRoleV1::ReadOnlyData | BuiltinObjectSectionRoleV1::CString
-            ),
-            DefinitionAtomRole::ContextKeyCell => {
-                section == BuiltinObjectSectionRoleV1::WritableData
-            }
-            DefinitionAtomRole::ContextKeyTable => {
-                section == BuiltinObjectSectionRoleV1::ReadOnlyData
-            }
-            DefinitionAtomRole::Primary | DefinitionAtomRole::RuntimeRecord => false,
-        };
-        if !correct_section {
-            return Err(invalid());
-        }
+        let (_, start, end) = atom_file_range(member, *range).map_err(|_| invalid())?;
         let start = usize::try_from(start).map_err(|_| invalid())?;
         let end = usize::try_from(end).map_err(|_| invalid())?;
-        let bytes = object
-            .get(start..end)
-            .filter(|bytes| !bytes.is_empty())
-            .ok_or_else(invalid)?;
+        let bytes = object.get(start..end).ok_or_else(invalid)?;
         let relocations = canonicalize_relocations_with_associated_atoms(
             bytes,
             member,

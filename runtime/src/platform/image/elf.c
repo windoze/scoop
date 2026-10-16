@@ -1,9 +1,6 @@
 #define _GNU_SOURCE
-#include <inttypes.h>
 #include <link.h>
-#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include "../platform.h"
 
@@ -18,8 +15,6 @@ extern const uint8_t __scoop_stackmaps_end[]
 
 typedef struct ElfImageQuery {
     ScoopPlatformMetadataImages *images;
-    ScoopPlatformImageRange *mappings;
-    size_t mapping_count;
     ScoopStackMapImage stackmaps;
     bool found;
     bool valid;
@@ -28,8 +23,8 @@ typedef struct ElfImageQuery {
 static bool elf_loaded_images(ScoopPlatformMetadataImages *images,
                               ScoopPlatformError *error);
 
-static bool append_range(ScoopPlatformImageRange **ranges, size_t *count,
-                         uintptr_t start, uintptr_t end, uint32_t permissions) {
+static bool append_range(ScoopPlatformImageRange **ranges, size_t *count, uintptr_t start,
+                         uintptr_t end) {
     if (*count == SIZE_MAX / sizeof **ranges) {
         return false;
     }
@@ -39,42 +34,8 @@ static bool append_range(ScoopPlatformImageRange **ranges, size_t *count,
         return false;
     }
     *ranges = next;
-    next[(*count)++] = (ScoopPlatformImageRange){start, end, permissions};
+    next[(*count)++] = (ScoopPlatformImageRange){start, end};
     return true;
-}
-
-static bool read_mappings(ElfImageQuery *query) {
-    FILE *file = fopen("/proc/self/maps", "r");
-    if (file == NULL) {
-        return false;
-    }
-    char *line = NULL;
-    size_t capacity = 0;
-    bool valid = true;
-    while (getline(&line, &capacity, file) != -1) {
-        uintptr_t start, end;
-        char permissions[5];
-        if (sscanf(line, "%" SCNxPTR "-%" SCNxPTR " %4s", &start, &end,
-                   permissions) != 3 ||
-            strlen(permissions) != 4 || start >= end ||
-            (query->mapping_count != 0 &&
-             query->mappings[query->mapping_count - 1].end > start)) {
-            valid = false;
-            break;
-        }
-        uint32_t flags = (permissions[0] == 'r' ? SCOOP_IMAGE_READ : 0) |
-                         (permissions[1] == 'w' ? SCOOP_IMAGE_WRITE : 0) |
-                         (permissions[2] == 'x' ? SCOOP_IMAGE_EXECUTE : 0);
-        if (!append_range(&query->mappings, &query->mapping_count, start, end,
-                          flags)) {
-            valid = false;
-            break;
-        }
-    }
-    valid = valid && feof(file) && query->mapping_count != 0;
-    free(line);
-    fclose(file);
-    return valid;
 }
 
 static bool loaded_range(const struct dl_phdr_info *info,
@@ -91,29 +52,12 @@ static bool loaded_range(const struct dl_phdr_info *info,
     return true;
 }
 
-static bool append_segment(ElfImageQuery *query, uintptr_t cursor,
-                           uintptr_t limit) {
+static bool append_segment(ElfImageQuery *query, uintptr_t start, uintptr_t end) {
     ScoopPlatformMetadataImages *images = query->images;
-    for (size_t index = 0; index < query->mapping_count && cursor < limit;
-         ++index) {
-        const ScoopPlatformImageRange *mapping = &query->mappings[index];
-        if (mapping->end <= cursor) {
-            continue;
-        }
-        if (mapping->start > cursor) {
-            return false;
-        }
-        uintptr_t end = mapping->end < limit ? mapping->end : limit;
-        ScoopPlatformImageRange *ranges = (void *)images->ranges;
-        bool ok = append_range(&ranges, &images->range_count, cursor, end,
-                               mapping->permissions);
-        images->ranges = ranges;
-        if (!ok) {
-            return false;
-        }
-        cursor = end;
-    }
-    return cursor == limit;
+    ScoopPlatformImageRange *ranges = (void *)images->ranges;
+    bool ok = append_range(&ranges, &images->range_count, start, end);
+    images->ranges = ranges;
+    return ok;
 }
 
 static int collect_image(struct dl_phdr_info *info, size_t size, void *data) {
@@ -173,12 +117,7 @@ static void elf_dispose_images(ScoopPlatformMetadataImages *images) {
 
 static bool collect(ScoopPlatformMetadataImages *images) {
     ElfImageQuery query = {.images = images, .valid = true};
-    if (!read_mappings(&query)) {
-        free(query.mappings);
-        return false;
-    }
     dl_iterate_phdr(collect_image, &query);
-    free(query.mappings);
     if (!query.found || !query.valid || images->range_count == 0) {
         return false;
     }
@@ -192,9 +131,7 @@ static bool collect(ScoopPlatformMetadataImages *images) {
     ScoopStackMapImage image = query.stackmaps;
     if (image.text_start == 0 || image.text_end <= image.text_start ||
         !scoop_image_range_contains(images, (const void *)image.text_start,
-                                    image.text_end - image.text_start, 1,
-                                    SCOOP_IMAGE_READ | SCOOP_IMAGE_EXECUTE,
-                                    SCOOP_IMAGE_WRITE)) {
+                                    image.text_end - image.text_start, 1)) {
         return false;
     }
     uintptr_t start = (uintptr_t)__scoop_stackmaps_start;
@@ -207,8 +144,7 @@ static bool collect(ScoopPlatformMetadataImages *images) {
     }
     image.section = (const uint8_t *)start;
     image.section_size = end - start;
-    if (!scoop_image_range_contains(images, image.section, image.section_size,
-                                    8, SCOOP_IMAGE_READ, SCOOP_IMAGE_WRITE)) {
+    if (!scoop_image_range_contains(images, image.section, image.section_size, 8)) {
         return false;
     }
     ScoopStackMapImage *owned = malloc(sizeof *owned);

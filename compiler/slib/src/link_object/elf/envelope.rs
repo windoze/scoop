@@ -1,6 +1,6 @@
 use std::num::NonZeroU32;
 
-use object::read::elf::{FileHeader, SectionHeader, Sym};
+use object::read::elf::{SectionHeader, Sym};
 use object::{ObjectSection, ObjectSymbol, elf};
 
 use super::*;
@@ -13,26 +13,9 @@ pub fn validate_linux_elf_object_envelope_v1(
     let object = ValidatedElfObject::read(bytes, target)?;
     let file = object.file();
     let endian = file.endian();
-    let mut groups = Vec::new();
     let mut sections = Vec::new();
     for section in file.sections() {
         let header = section.elf_section_header();
-        if section.index().0 != sections.len() + 1 {
-            return Err(error("ELF section inventory is not contiguous"));
-        }
-        if let Some((flags, members)) = header.group(endian, bytes).map_err(error)? {
-            groups.push(ObservedElfGroupV1 {
-                signature_symbol: header.sh_info(endian),
-                flags,
-                sections: members
-                    .iter()
-                    .map(|s| {
-                        NonZeroU32::new(s.get(endian))
-                            .ok_or_else(|| error("null section group member"))
-                    })
-                    .collect::<Result<_, _>>()?,
-            });
-        }
         sections.push(ObservedObjectSectionV1 {
             segment_name: Vec::new(),
             section_name: section.name_bytes().map_err(error)?.to_vec(),
@@ -51,15 +34,6 @@ pub fn validate_linux_elf_object_envelope_v1(
         // object intentionally excludes ELF's null entry from symbol_by_index.
         // Retain it here so every relocation keeps its original table index.
         if index.0 == 0 {
-            if raw.st_name(endian) != 0
-                || raw.st_info() != 0
-                || raw.st_other() != 0
-                || raw.st_shndx(endian) != 0
-                || raw.st_value(endian) != 0
-                || raw.st_size(endian) != 0
-            {
-                return Err(error("ELF null symbol entry is not zero"));
-            }
             symbols.push(ObservedObjectSymbolV1 {
                 table_index: 0,
                 name: Vec::new(),
@@ -89,7 +63,7 @@ pub fn validate_linux_elf_object_envelope_v1(
             raw.st_info(),
             symbol.is_undefined(),
             section_ordinal,
-        )?;
+        );
         symbols.push(ObservedObjectSymbolV1 {
             table_index: u32::try_from(index.0).map_err(error)?,
             name,
@@ -141,11 +115,7 @@ pub fn validate_linux_elf_object_envelope_v1(
     Ok(ValidatedObjectEnvelopeV1 {
         byte_length: bytes.len() as u64,
         content_digest: scoop_wire::sha256(bytes),
-        format: ObjectEnvelopeFormatV1::Elf64 {
-            target,
-            flags: file.elf_header().e_flags(endian),
-            groups,
-        },
+        format: ObjectEnvelopeFormatV1::Elf64 { target },
         sections,
         symbols,
         relocations,
@@ -157,36 +127,21 @@ fn classify_symbol(
     info: u8,
     undefined: bool,
     section: Option<NonZeroU32>,
-) -> Result<ObjectSymbolKindV1, ElfObjectError> {
+) -> ObjectSymbolKindV1 {
     let (binding, kind) = (info >> 4, info & 15);
     if index == 0 || (binding == elf::STB_LOCAL && kind == elf::STT_FILE) {
-        return Ok(ObjectSymbolKindV1::FileMetadata);
+        return ObjectSymbolKindV1::FileMetadata;
     }
     if binding == elf::STB_LOCAL && kind == elf::STT_SECTION && section.is_some() {
-        return Ok(ObjectSymbolKindV1::SectionBase);
-    }
-    if !matches!(
-        kind,
-        elf::STT_NOTYPE | elf::STT_OBJECT | elf::STT_FUNC | elf::STT_TLS
-    ) {
-        return Err(error(format!("unsupported builtin ELF symbol type {kind}")));
+        return ObjectSymbolKindV1::SectionBase;
     }
     if undefined {
-        return if binding == elf::STB_GLOBAL {
-            Ok(ObjectSymbolKindV1::ExternalUndefined)
-        } else {
-            Err(error(
-                "builtin ELF undefined symbol must have global binding",
-            ))
-        };
-    }
-    if section.is_none() {
-        return Err(error("builtin ELF definition has no section"));
+        return ObjectSymbolKindV1::ExternalUndefined;
     }
     match binding {
-        elf::STB_LOCAL => Ok(ObjectSymbolKindV1::LocalSectionDefinition),
-        elf::STB_GLOBAL => Ok(ObjectSymbolKindV1::ExternalStrongDefinition),
-        elf::STB_WEAK => Ok(ObjectSymbolKindV1::ExternalWeakDefinition),
-        _ => Err(error(format!("unsupported ELF symbol binding {binding}"))),
+        elf::STB_LOCAL => ObjectSymbolKindV1::LocalSectionDefinition,
+        elf::STB_GLOBAL | elf::STB_GNU_UNIQUE => ObjectSymbolKindV1::ExternalStrongDefinition,
+        elf::STB_WEAK => ObjectSymbolKindV1::ExternalWeakDefinition,
+        _ => ObjectSymbolKindV1::FileMetadata,
     }
 }

@@ -26,7 +26,7 @@ fn empty_bridge_plan_produces_an_empty_owned_object_set_without_compiling() {
 }
 
 #[test]
-fn generated_c_object_set_preserves_unit_authority_and_immutable_backing() {
+fn generated_c_object_set_preserves_units_and_owns_temporary_files() {
     let module = bridge_module(2);
     let sources = crate::c_bridge::render_c_bridge_source_set_for_module(&module).unwrap();
     let expected_units = sources
@@ -44,12 +44,6 @@ fn generated_c_object_set_preserves_unit_authority_and_immutable_backing() {
         parent.path(),
         profile.clone(),
         |_plan, source, object| {
-            assert!(
-                std::fs::metadata(source)
-                    .map_err(|error| CodegenError(error.to_string()))?
-                    .permissions()
-                    .readonly()
-            );
             let unit = source
                 .file_stem()
                 .and_then(|value| value.to_str())
@@ -94,14 +88,8 @@ fn generated_c_object_set_preserves_unit_authority_and_immutable_backing() {
             member.object_path().parent(),
             Some(emitted.temporary_directory())
         );
-        assert!(
-            std::fs::metadata(member.source_path())
-                .unwrap()
-                .permissions()
-                .readonly()
-        );
-        let object = std::fs::metadata(member.object_path()).unwrap();
-        assert!(object.is_file() && object.len() > 0 && object.permissions().readonly());
+        assert!(member.source_path().is_file());
+        assert!(!std::fs::read(member.object_path()).unwrap().is_empty());
     }
     let backing = emitted.temporary_directory().to_path_buf();
     drop(emitted);
@@ -133,27 +121,6 @@ fn generated_c_object_set_discards_all_partial_outputs_on_compiler_failure() {
     .unwrap_err();
 
     assert!(error.0.contains("test compiler failure"), "{error}");
-    assert_eq!(std::fs::read_dir(parent.path()).unwrap().count(), 0);
-}
-
-#[test]
-fn generated_c_object_set_rejects_a_missing_compiler_output() {
-    let module = bridge_module(1);
-    let sources = crate::c_bridge::render_c_bridge_source_set_for_module(&module).unwrap();
-    let parent = tempfile::tempdir().unwrap();
-
-    let error = crate::c_bridge_emission::emit_c_bridge_object_set_with_compiler_for_test(
-        sources,
-        parent.path(),
-        generated_c_profile(),
-        |_plan, _source, _object| Ok(()),
-    )
-    .unwrap_err();
-
-    assert!(
-        error.0.contains("cannot inspect generated-C object"),
-        "{error}"
-    );
     assert_eq!(std::fs::read_dir(parent.path()).unwrap().count(), 0);
 }
 

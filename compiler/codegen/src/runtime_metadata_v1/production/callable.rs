@@ -5,7 +5,6 @@ use super::*;
 pub(crate) fn emit_callable_metadata_v1<'ctx, D, C, I>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
-    target_data: &TargetData,
     profile: ValidatedBackendProfile,
     production: &scoop_lir::ConeProductionSection<D, C, I>,
     body: scoop_lir::PersistentCallableBodyId,
@@ -30,7 +29,7 @@ pub(crate) fn emit_callable_metadata_v1<'ctx, D, C, I>(
             registration.descriptor(),
         ));
     }
-    emit_global_atom_boundaries_v1(llvm, target_data, production.canonical_definitions(), atoms)?;
+    emit_global_atom_boundaries_v1(llvm, production.canonical_definitions(), atoms)?;
     patches.sort_unstable_by_key(|patch| patch.intent);
     Ok(EmittedStrongRuntimeMetadataV1 {
         producer: callables.producer(),
@@ -41,7 +40,6 @@ pub(crate) fn emit_callable_metadata_v1<'ctx, D, C, I>(
 pub(crate) fn emit_callable_safepoints<'ctx, D, C, I>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
-    target_data: &TargetData,
     production: &scoop_lir::ConeProductionSection<D, C, I>,
     body: scoop_lir::PersistentCallableBodyId,
     expected: &crate::statepoint::ExpectedSafepoints,
@@ -66,7 +64,7 @@ pub(crate) fn emit_callable_safepoints<'ctx, D, C, I>(
             registration.descriptor(),
         ));
     }
-    emit_global_atom_boundaries_v1(llvm, target_data, production.canonical_definitions(), atoms)?;
+    emit_global_atom_boundaries_v1(llvm, production.canonical_definitions(), atoms)?;
     metadata.patch_locations.extend(patches);
     metadata
         .patch_locations

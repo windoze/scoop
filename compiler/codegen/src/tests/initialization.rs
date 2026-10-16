@@ -229,7 +229,6 @@ fn initialization_values_follow_typed_unit_ids_in_lir_arena_order() {
 fn storage_global_rejects_machine_scalar_type() {
     let mut module = values_module();
     let identity = static_storage_identity("machineGlobal");
-    let symbol = identity.symbol().to_string();
     module.globals.alloc(Global {
         address_kind: PointerKind::Raw,
         scan: RefScan::None,
@@ -250,8 +249,8 @@ fn storage_global_rejects_machine_scalar_type() {
     let error = emit_llvm_module(&context, &module, &machine, host_profile())
         .expect_err("compiler-only scalar domains must not acquire global storage");
     assert!(
-        error.0.contains(&format!("storage global `{symbol}`"))
-            && error.0.contains("machine<initialization-outcome>"),
+        error.0.contains("invalid strong static-storage semantics")
+            && error.0.contains("kind: MachineScalar"),
         "unexpected error: {error}"
     );
 }

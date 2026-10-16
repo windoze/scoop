@@ -94,6 +94,7 @@ bool scoop_stackmap_build_index(const ScoopStackMapImage *images, size_t image_c
  * The returned records are not yet sorted for PC lookup. */
 bool scoop_stackmap_read_records(const ScoopStackMapImage *images, size_t image_count,
                                  ScoopStackMapIndex *index, ScoopStackMapError *error);
+bool scoop_stackmap_same_payload(const ScoopStackMapRecord *left, const ScoopStackMapRecord *right);
 bool scoop_stackmap_finish_index(ScoopStackMapIndex *index, ScoopStackMapError *error);
 void scoop_stackmap_dispose_record(ScoopStackMapRecord *record);
 void scoop_stackmap_dispose_index(ScoopStackMapIndex *index);

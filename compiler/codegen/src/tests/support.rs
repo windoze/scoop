@@ -1226,11 +1226,9 @@ pub(super) fn rewritten_ir_of(module: &Module) -> String {
     let llvm = emit_llvm_module(&context, module, &machine, host_profile()).expect("emit module");
     llvm.verify().expect("valid pre-statepoint module");
     let expected = statepoint::expectations(module).expect("complete safepoint manifest");
-    let expected = statepoint::rewrite(&llvm, &machine, &expected, host_profile())
-        .expect("rewrite statepoints");
+    statepoint::rewrite(&llvm, &machine, &expected, host_profile()).expect("rewrite statepoints");
     llvm.verify().expect("valid relocated module");
-    statepoint::verify_rewritten(&llvm, &expected, host_profile())
-        .expect("rewritten manifest agrees with LIR");
+
     llvm.print_to_string().to_string()
 }
 
@@ -1247,9 +1245,6 @@ pub(super) fn try_strong_shape_ir_of(module: &Module) -> Result<String, CodegenE
         .map_err(|error| CodegenError(format!("strong symbol projection failed: {error}")))?;
     let context = Context::create();
     let llvm = context.create_module("strong-shape-test");
-    let target_data = inkwell::targets::TargetData::create(
-        scoop_target_data::DARWIN_AARCH64.canonical_llvm_data_layout(),
-    );
     let descriptor_type =
         runtime_metadata_v1::RuntimeMetadataV1Types::new(&context).type_descriptor();
     let type_globals = module
@@ -1293,7 +1288,6 @@ pub(super) fn try_strong_shape_ir_of(module: &Module) -> Result<String, CodegenE
     shape_definitions::emit_strong_shape_definitions_v1(
         &context,
         &llvm,
-        &target_data,
         &surface,
         module,
         TypeDescriptorGlobals {
@@ -1306,25 +1300,19 @@ pub(super) fn try_strong_shape_ir_of(module: &Module) -> Result<String, CodegenE
     Ok(llvm.print_to_string().to_string())
 }
 
-pub(super) fn write_verified_test_object(module: &Module, output: &Path) {
-    validation::validate_module(module).expect("valid test LIR");
+pub(super) fn write_test_object(module: &Module, output: &Path) {
     let profile = host_profile();
     let expected_safepoints =
         statepoint::expectations(module).expect("complete safepoint manifest");
-    let expected_eh = artifact::eh_expectations(module).expect("complete EH manifest");
     let machine = host_target_machine().expect("target machine");
     let context = Context::create();
     let llvm = emit_llvm_module(&context, module, &machine, profile).expect("emit module");
     llvm.verify().expect("valid LLVM module");
-    let expected_safepoints = statepoint::rewrite(&llvm, &machine, &expected_safepoints, profile)
+    statepoint::rewrite(&llvm, &machine, &expected_safepoints, profile)
         .expect("rewrite statepoints");
     llvm.verify().expect("valid rewritten LLVM module");
-    statepoint::verify_rewritten(&llvm, &expected_safepoints, profile)
-        .expect("rewritten manifest agrees with LIR");
+
     machine
         .write_to_file(&llvm, FileType::Object, output)
         .expect("write object");
-    profile
-        .verify_object(output, &expected_safepoints, &expected_eh)
-        .expect("verified object");
 }

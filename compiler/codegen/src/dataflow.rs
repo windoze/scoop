@@ -1,4 +1,4 @@
-//! Protocol-neutral use/def and CFG facts shared by validation and emission.
+//! Use/def facts for local storage emission.
 
 use super::*;
 
@@ -26,22 +26,6 @@ impl LiveValue {
             | Value::ContextKeyCell(_)
             | Value::Global(_)
             | Value::InitializationUnit(_) => None,
-        }
-    }
-
-    pub(super) fn source(self) -> scoop_lir::CallerRootSource {
-        match self {
-            Self::Param(index) => scoop_lir::CallerRootSource::Param(index),
-            Self::Local(id) => scoop_lir::CallerRootSource::Local(id),
-            Self::Temp(id) => scoop_lir::CallerRootSource::Temp(id),
-        }
-    }
-
-    pub(super) fn sort_key(self) -> (u8, u32) {
-        match self {
-            Self::Param(index) => (0, index),
-            Self::Local(id) => (1, id.into_raw().into_u32()),
-            Self::Temp(id) => (2, id.into_raw().into_u32()),
         }
     }
 }
@@ -302,29 +286,6 @@ pub(super) fn terminator_uses(terminator: &Terminator, mut use_value: impl FnMut
         Terminator::Resume { exception } => use_value(*exception),
         Terminator::Br(_) | Terminator::Return { value: None } | Terminator::Unreachable => {}
     }
-}
-
-pub(super) fn block_successors(block: &scoop_lir::BasicBlock) -> Vec<scoop_lir::BlockId> {
-    let mut successors = match block.terminator {
-        Terminator::Br(target) => vec![target],
-        Terminator::CondBr {
-            then_block,
-            else_block,
-            ..
-        } => vec![then_block, else_block],
-        Terminator::Return { .. } | Terminator::Resume { .. } | Terminator::Unreachable => {
-            Vec::new()
-        }
-    };
-    if let Some(Instruction::Invoke { site }) = block.instructions.last() {
-        if !successors.contains(&site.normal()) {
-            successors.push(site.normal());
-        }
-        if !successors.contains(&site.unwind()) {
-            successors.push(site.unwind());
-        }
-    }
-    successors
 }
 
 #[cfg(test)]

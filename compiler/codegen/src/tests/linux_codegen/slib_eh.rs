@@ -21,12 +21,10 @@ fn elf_exception_personality_pointer_belongs_to_its_callable() {
             }
             let semantics =
                 scoop_lir::StrongSafepointSemanticPlanSetV1::from_module(&module).unwrap();
-            let expected = statepoint::expectations(&module).unwrap();
-            let eh = artifact::eh_expectations(&module).unwrap();
             let fixture = SlibObjects::new(module, directory.path());
             let builtins = fixture.builtins(&fixture.objects);
             let stackmaps =
-                verify_scoop_lir_stackmaps_v1(builtins, semantics, &candidates(&fixture.objects))
+                read_scoop_stackmaps_v1(builtins, semantics, &candidates(&fixture.objects))
                     .unwrap();
             let callables = fixture.callables(stackmaps);
             assert!(!callables.fingerprints().is_empty());
@@ -71,15 +69,6 @@ fn elf_exception_personality_pointer_belongs_to_its_callable() {
                             symbol.kind() == object::SymbolKind::Text && symbol.size() != 0
                         })
                         .unwrap();
-                    let symbol = function.name().unwrap();
-                    ValidatedBackendProfile::from_selection(fixture.emitted.target_selection())
-                        .unwrap()
-                        .verify_object(
-                            &linked,
-                            &expected.for_function(symbol).unwrap(),
-                            &eh.for_function(symbol),
-                        )
-                        .expect("coalesced EH and stackmap references remain complete");
                     assert_eq!(
                         merged
                             .symbols()

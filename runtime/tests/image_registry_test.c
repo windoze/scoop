@@ -71,8 +71,7 @@ static void setup(Fixture *fixture) {
     assert(mprotect((uint8_t *)fixture->metadata + fixture->size, page,
                     PROT_NONE) == 0);
     Metadata *data = fixture->metadata;
-    fixture->range = (ScoopPlatformImageRange){
-        (uintptr_t)data, (uintptr_t)data + fixture->size, SCOOP_IMAGE_READ};
+    fixture->range = (ScoopPlatformImageRange){(uintptr_t)data, (uintptr_t)data + fixture->size};
     fixture->loaded = (ScoopPlatformMetadataImages){.ranges = &fixture->range,
                                                     .range_count = 1};
     strcpy(data->group, "test");
@@ -147,10 +146,6 @@ static void setup(Fixture *fixture) {
 #undef SINGLE_RECORD
 }
 
-static void freeze(Fixture *fixture) {
-    assert(mprotect(fixture->metadata, fixture->size, PROT_READ) == 0);
-}
-
 static ScoopImageRegistry *collect(Fixture *fixture) {
     return scoop_image_collect(&fixture->loaded, fixture->metadata->input,
                                IMAGE_COUNT, &fixture->metadata->root);
@@ -165,7 +160,6 @@ static void positive(bool reversed) {
             data->input[i] = &data->images[IMAGE_COUNT - i - 1];
         }
     }
-    freeze(&fixture);
     ScoopImageRegistry *registry = collect(&fixture);
     const size_t order[] = {A, B, C, Z, ROOT};
     for (size_t i = 0; i < IMAGE_COUNT; i++) {
@@ -206,66 +200,63 @@ static const char *corrupt(Fixture *fixture, unsigned test) {
         data->storage.registration.reserved_zero = 1;
         return "reserved field";
     case 4:
-        fixture->range.permissions |= SCOOP_IMAGE_WRITE;
-        return "prefix range";
-    case 5:
         data->images[0].static_storages = NULL;
         return "producer pointer span";
-    case 6:
+    case 5:
         data->images[0].static_storage_count = UINT64_MAX;
         return "producer pointer span";
-    case 7:
+    case 6:
         data->images[0].dependencies = (const void *)(UINTPTR_MAX - 8);
         return "dependency span";
-    case 8:
+    case 7:
         data->dependencies[ROOT][0].bytes[0] = 200;
         return "dependency or root owner is absent";
-    case 9:
+    case 8:
         data->input[1] = data->input[0];
         return "duplicate identity";
-    case 10:
+    case 9:
         data->images[ROOT].dependency_count = 1;
         return "outside the root dependency closure";
-    case 11:
+    case 10:
         data->images[A].dependency_count = 1;
         data->dependencies[A][0] = data->images[C].cone.identity;
         return "cyclic image dependencies";
-    case 12:
+    case 11:
         data->dependencies[B][0] = data->images[B].cone.identity;
         return "image self dependency";
-    case 13:
+    case 12:
         data->images[A].cone.name = data->images[B].cone.name;
         return "duplicate group/name or multiple versions";
-    case 14:
+    case 13:
         data->images[Z].static_storages = data->storages;
         data->images[Z].static_storage_count = 1;
         return "duplicate Strong producer";
-    case 15:
+    case 14:
         data->callables[3] = data->callables[0];
         data->callable_tables[C][0] = &data->callables[3];
         return "ODR record address was not coalesced";
-    case 16:
+    case 15:
         data->storage.registration = data->callables[0].registration;
         return "group/member names different records or kinds";
-    case 17:
+    case 16:
         data->storage.registration.odr_group_id.bytes[0] = 1;
         return "linkage or ODR group/member fields";
-    case 18:
+    case 17:
         data->root.owner_cone_identity.bytes[0] = 200;
         return "dependency or root owner is absent";
-    case 19:
+    case 18:
         data->images[ROOT].dependency_count = 3;
         data->dependencies[ROOT][2] = data->dependencies[ROOT][0];
         return "duplicate image dependency";
-    case 20:
+    case 19:
         data->storages[0] =
             (const void *)((const uint8_t *)data + fixture->size);
         return "prefix range";
-    case 21:
+    case 20:
         data->images[ROOT].cone.name.data =
             (const void *)((const uint8_t *)data + fixture->size);
         return "name span";
-    case 22:
+    case 21:
         data->images[ROOT].static_storages =
             (const void *)((const uint8_t *)data->storages + 1);
         return "producer pointer span";
@@ -278,7 +269,6 @@ static void negative(unsigned test) {
     Fixture fixture = {0};
     setup(&fixture);
     const char *expected = corrupt(&fixture, test);
-    freeze(&fixture);
     int output[2];
     assert(pipe(output) == 0);
     pid_t child = fork();
@@ -316,7 +306,7 @@ static void negative(unsigned test) {
 int main(void) {
     positive(false);
     positive(true);
-    for (unsigned test = 0; test < 23; test++) {
+    for (unsigned test = 0; test < 22; test++) {
         negative(test);
     }
     puts("image registry collection tests passed");

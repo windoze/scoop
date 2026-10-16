@@ -2,13 +2,11 @@
 
 use super::{
     CanonicalUndefinedRelocationUseV1, CanonicalUndefinedSymbolRequirementSetV1,
-    FinalUndefinedSymbolRequirementV1, StrongRelocationResolutionV1,
-    UndefinedSymbolRequirementFinalizationError,
-    finalize_partitioned_undefined_symbol_requirements_inner, use_key,
+    FinalUndefinedSymbolRequirementV1, finalize_undefined_symbol_requirements_v1,
 };
 use crate::link_object::{
-    SealedBuiltinObjectExternalRequirementClosureV1, VerifiedCrossConeStrongRequirementClosureV1,
-    VerifiedCurrentConeStrongRelocationClosureV1, VerifiedCurrentConeUndefinedRequirementClosureV1,
+    BuiltinExternalRequirementsV1, VerifiedCrossConeStrongRequirementClosureV1,
+    VerifiedCurrentConeUndefinedRequirementClosureV1,
 };
 use scoop_identity::{ConeIdentity, StrongCallableDefinitionOwner};
 use scoop_lir::ExternalStrongShapeSubjectV1;
@@ -73,23 +71,6 @@ impl VerifiedObjectDefinitionRequirementSetV1 {
             ObjectDefinitionRequirementModeV1::Layout(partitions) => Some(partitions),
             ObjectDefinitionRequirementModeV1::SingleCone(_)
             | ObjectDefinitionRequirementModeV1::CrossCone(_) => None,
-        }
-    }
-
-    pub(in crate::link_object) fn matches_strong_closure(
-        &self,
-        closure: &VerifiedCurrentConeStrongRelocationClosureV1,
-    ) -> bool {
-        match &self.mode {
-            ObjectDefinitionRequirementModeV1::SingleCone(requirements) => {
-                requirements.matches_strong_closure(closure)
-            }
-            ObjectDefinitionRequirementModeV1::CrossCone(partitions) => {
-                partitions.matches_strong_closure(closure)
-            }
-            ObjectDefinitionRequirementModeV1::Layout(partitions) => {
-                partitions.matches_strong_closure(closure)
-            }
         }
     }
 
@@ -171,57 +152,13 @@ impl FinalizedUndefinedSymbolRequirementPartitionsV1 {
     ) {
         (self.legacy, self.cross_cone)
     }
-
-    pub(in crate::link_object) fn matches_strong_closure(
-        &self,
-        closure: &VerifiedCurrentConeStrongRelocationClosureV1,
-    ) -> bool {
-        if self.legacy.producer() != closure.producer()
-            || self.cross_cone.producer() != closure.producer()
-            || self.legacy.selection().target() != closure.target()
-            || self.cross_cone.target() != closure.target()
-        {
-            return false;
-        }
-
-        let mut expected = closure
-            .bindings()
-            .iter()
-            .filter(|binding| {
-                !matches!(
-                    binding.resolution(),
-                    StrongRelocationResolutionV1::ObjectLocalStrong { .. }
-                )
-            })
-            .map(CanonicalUndefinedRelocationUseV1::from)
-            .collect::<Vec<_>>();
-        expected.sort_unstable_by_key(use_key);
-
-        let mut actual = self
-            .legacy
-            .requirements()
-            .iter()
-            .map(|requirement| requirement.use_site().clone())
-            .chain(
-                self.cross_cone
-                    .requirements()
-                    .iter()
-                    .map(|requirement| requirement.use_site().clone()),
-            )
-            .collect::<Vec<_>>();
-        actual.sort_unstable_by_key(use_key);
-        actual == expected
-    }
 }
 
 pub fn finalize_partitioned_undefined_symbol_requirements_v1(
     current_cone: VerifiedCurrentConeUndefinedRequirementClosureV1,
-    external: SealedBuiltinObjectExternalRequirementClosureV1,
-) -> Result<
-    FinalizedUndefinedSymbolRequirementPartitionsV1,
-    UndefinedSymbolRequirementFinalizationError,
-> {
+    external: BuiltinExternalRequirementsV1,
+) -> FinalizedUndefinedSymbolRequirementPartitionsV1 {
     let cross_cone = external.cross_cone_closure().clone();
-    let legacy = finalize_partitioned_undefined_symbol_requirements_inner(current_cone, external)?;
-    Ok(FinalizedUndefinedSymbolRequirementPartitionsV1 { legacy, cross_cone })
+    let legacy = finalize_undefined_symbol_requirements_v1(current_cone, external);
+    FinalizedUndefinedSymbolRequirementPartitionsV1 { legacy, cross_cone }
 }

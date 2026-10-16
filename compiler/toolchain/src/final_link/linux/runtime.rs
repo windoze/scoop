@@ -1,24 +1,6 @@
 use super::*;
 use crate::ValidatedCxxToolchain;
 
-impl LinuxFinalLinkProfile {
-    pub fn check_unwind_map(&self, map: &str) -> Result<(), ToolchainError> {
-        if map.contains("libgcc_eh.a") || (!self.cxx() && map.contains("libgcc_s.so")) {
-            return Err(error("ELF linker selected a second EH provider"));
-        }
-        if self.cxx()
-            && (map.contains("libunwind.a")
-                || map.contains("libunwind.so")
-                || !map.contains("libgcc_s.so"))
-        {
-            return Err(error(
-                "GNU C++ linking requires libgcc_s as its sole unwind provider",
-            ));
-        }
-        Ok(())
-    }
-}
-
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub(super) enum RuntimeLibraries {
     C {

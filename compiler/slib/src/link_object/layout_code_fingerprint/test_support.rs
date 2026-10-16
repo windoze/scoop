@@ -14,7 +14,7 @@ use crate::link_object::undefined_requirements::tests::empty_bridge_plan;
 use crate::{
     ConeKind, ConeRecord, ConeSourceForm, DependencyRecord, HirFingerprint, LirFingerprint,
     MirFingerprint, SlibMember, finalize_layout_partitioned_undefined_symbol_requirements_v1,
-    seal_builtin_object_external_requirements_v1, verify_current_cone_undefined_requirements_v1,
+    finish_builtin_external_requirements_v1, verify_current_cone_undefined_requirements_v1,
     verify_dependency_strong_requirements_v1, verify_external_shape_requirements_v1,
     verify_runtime_and_eh_requirements_v1,
     verify_source_external_requirements_after_external_shape_v1,
@@ -26,7 +26,7 @@ pub(crate) struct EmptyLayoutCodeFixture<'a> {
     pub foundation: &'a ConeLirFoundation,
     pub ordinary: &'a CrossConeLirBridgeSectionV1,
     pub layout: &'a CrossConeLayoutAbiSectionV1<'a>,
-    pub code: VerifiedCrossConeLayoutCodeFingerprintV1,
+    pub code: CrossConeLayoutCodeDataV1,
     pub link_objects: Vec<SlibMember>,
 }
 
@@ -75,8 +75,6 @@ pub(crate) fn with_empty_layout_code_fixture<R>(
         v1.canonical_callable_definitions().clone(),
         scoop_lir::CanonicalShapeAbisV1::new(Vec::new(), &foundation).unwrap(),
     )
-    .unwrap()
-    .validate_layout_abi(&layout)
     .unwrap();
     let dependencies = vec![
         DependencyRecord::new(
@@ -123,8 +121,8 @@ pub(crate) fn with_empty_layout_code_fixture<R>(
     let runtime =
         verify_runtime_and_eh_requirements_v1(source, scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
             .unwrap();
-    let external = seal_builtin_object_external_requirements_v1(
-        crate::link_object::without_generated_bridge_semantics_for_test(runtime),
+    let external = finish_builtin_external_requirements_v1(
+        crate::link_object::without_target_support_for_test(runtime),
     )
     .unwrap();
     let partitions =

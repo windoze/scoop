@@ -74,8 +74,8 @@ static void collect_table(ScoopImageRegistry *registry, ScoopRecordKind kind) {
     for (size_t index = 0; index < registry->image_count; index++) {
         RecordSpan span = record_span(registry->images[index], kind);
         ScoopMetadataCheck check = {.loaded = registry->loaded, .kind = span.name};
-        scoop_metadata_readonly(&check, span.pointers, span.count, sizeof(void *), 8,
-                                "producer pointer span");
+        scoop_metadata_range(&check, span.pointers, span.count, sizeof(void *), 8,
+                             "producer pointer span");
         if (span.count > SIZE_MAX - count) {
             scoop_metadata_fatal(&check, "producer count overflow");
         }

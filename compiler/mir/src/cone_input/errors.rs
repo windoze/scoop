@@ -1,12 +1,11 @@
 use std::fmt;
 
 use scoop_identity::{
-    CallableOwner, ConeIdentity, PersistentExactTypeId, PersistentTypeId,
-    SourceDeclarationIdentityError,
+    ConeIdentity, PersistentExactTypeId, PersistentTypeId, SourceDeclarationIdentityError,
 };
 use scoop_wire::HashError;
 
-use crate::{CallableSignatureSubject, FunctionId, GeneratedExactTypeLocation};
+use crate::{FunctionId, GeneratedExactTypeLocation};
 
 #[derive(Debug)]
 pub enum ConeMirInputError {
@@ -28,8 +27,6 @@ pub enum ConeMirInputError {
         bridge: crate::CallbackBridgeId,
     },
     Initialization(super::StrongInitializationUnitError),
-    Production(crate::MirProductionBuildError),
-    StrongCallableSurfaceMismatch,
     NonCanonicalShapeSupportSource {
         index: usize,
         previous: PersistentTypeId,
@@ -63,12 +60,6 @@ pub enum ConeMirInputError {
     MissingBoxedValue(PersistentExactTypeId),
     MissingCoroutineStep(PersistentExactTypeId),
     MissingCoroutineSlot(PersistentExactTypeId),
-    OutputMismatch,
-    MissingEntryRoot(FunctionId),
-    EntryImplementationMismatch {
-        expected: CallableOwner,
-        actual: CallableSignatureSubject,
-    },
 }
 
 impl fmt::Display for ConeMirInputError {
@@ -81,7 +72,6 @@ impl std::error::Error for ConeMirInputError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Initialization(source) => Some(source),
-            Self::Production(source) => Some(source),
             Self::ShapeSupportSourceIdentity { error, .. } => Some(error),
             Self::ShapeSupportExactIdentity { error, .. } => Some(error),
             Self::ForeignExternalCallableSelection { .. }
@@ -89,7 +79,6 @@ impl std::error::Error for ConeMirInputError {
             | Self::ForeignExternalCallable { .. }
             | Self::DuplicateExternalImplementation { .. }
             | Self::ExternalCallbackSignatureMismatch { .. }
-            | Self::StrongCallableSurfaceMismatch
             | Self::NonCanonicalShapeSupportSource { .. }
             | Self::InvalidShapeSupportSource { .. }
             | Self::MissingCallableSubject(_)
@@ -99,10 +88,7 @@ impl std::error::Error for ConeMirInputError {
             | Self::MissingShapeSupportSource { .. }
             | Self::MissingBoxedValue(_)
             | Self::MissingCoroutineStep(_)
-            | Self::MissingCoroutineSlot(_)
-            | Self::OutputMismatch
-            | Self::MissingEntryRoot(_)
-            | Self::EntryImplementationMismatch { .. } => None,
+            | Self::MissingCoroutineSlot(_) => None,
         }
     }
 }

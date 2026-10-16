@@ -5,11 +5,11 @@ use scoop_identity::{
 
 use crate::link_object::{
     CanonicalObjectDefinitionRequirementV1, CanonicalUndefinedRelocationUseV1,
-    FinalUndefinedSymbolRequirementV1, LinkDefinitionOwnerV1, RelocationTargetSlotV1,
-    StrongDefinitionOwnerV1, StrongRelocationResolutionV1,
-    VerifiedCurrentConeStrongRelocationClosureV1, VerifiedDefinitionAtomRangeV1,
-    VerifiedMemberObjectRelocationIndexV1, VerifiedObjectDefinitionRequirementSetV1,
-    VerifiedObjectRelocationFormV1, VerifiedObjectRelocationShapeV1, VerifiedRelocationTargetV1,
+    DefinitionAtomRangeV1, FinalUndefinedSymbolRequirementV1, LinkDefinitionOwnerV1,
+    RelocationTargetSlotV1, StrongDefinitionOwnerV1, StrongRelocationResolutionV1,
+    VerifiedCurrentConeStrongRelocationClosureV1, VerifiedMemberObjectRelocationIndexV1,
+    VerifiedObjectDefinitionRequirementSetV1, VerifiedObjectRelocationFormV1,
+    VerifiedObjectRelocationShapeV1, VerifiedRelocationTargetV1,
 };
 
 const PRIMARY_ATOM_ROLE: u32 = 1;
@@ -26,7 +26,6 @@ pub enum ObjectDefinitionRelocationFailureV1 {
     UnsupportedObjectLocalOwner,
     MissingUndefinedRequirement,
     Range,
-    EncodedValue,
 }
 
 pub(in crate::link_object) struct ObjectDefinitionFingerprintInputV1<'a> {
@@ -58,7 +57,6 @@ pub(in crate::link_object) struct CanonicalDigestInputV1 {
 pub(in crate::link_object) struct CanonicalObjectRelocationV1 {
     offset_within_atom: u64,
     form: VerifiedObjectRelocationFormV1,
-    encoded_value: u64,
     canonical_value: u64,
     targets: Vec<CanonicalRelocationTargetV1>,
 }
@@ -87,7 +85,6 @@ impl CanonicalObjectRelocationV1 {
         Self {
             offset_within_atom,
             form: VerifiedObjectRelocationFormV1::Unsigned64,
-            encoded_value: 0,
             canonical_value: 0,
             targets: vec![CanonicalRelocationTargetV1 {
                 slot: RelocationTargetSlotV1::Single,
@@ -123,7 +120,6 @@ impl CanonicalObjectRelocationV1 {
         Self {
             offset_within_atom,
             form: VerifiedObjectRelocationFormV1::Unsigned64,
-            encoded_value: 0,
             canonical_value: 0,
             targets: vec![CanonicalRelocationTargetV1 {
                 slot: RelocationTargetSlotV1::Single,
@@ -143,7 +139,6 @@ impl CanonicalObjectRelocationV1 {
         Self {
             offset_within_atom,
             form: VerifiedObjectRelocationFormV1::Unsigned64,
-            encoded_value: 0,
             canonical_value: 0,
             targets: vec![CanonicalRelocationTargetV1 {
                 slot: RelocationTargetSlotV1::Single,
@@ -167,9 +162,6 @@ impl CanonicalObjectRelocationV1 {
                 let slot = bytes
                     .get_mut(start..start + usize::from(width))
                     .ok_or(ObjectDefinitionRelocationFailureV1::Range)?;
-                if slot != &self.encoded_value.to_le_bytes()[..usize::from(width)] {
-                    return Err(ObjectDefinitionRelocationFailureV1::EncodedValue);
-                }
                 slot.fill(0);
             }
             VerifiedObjectRelocationFormV1::Unsigned64
@@ -177,55 +169,26 @@ impl CanonicalObjectRelocationV1 {
                 let slot = bytes
                     .get_mut(start..start + 8)
                     .ok_or(ObjectDefinitionRelocationFailureV1::Range)?;
-                let actual = u64::from_le_bytes(slot.try_into().expect("eight-byte slot"));
-                if actual != self.encoded_value {
-                    return Err(ObjectDefinitionRelocationFailureV1::EncodedValue);
-                }
                 slot.fill(0);
             }
             VerifiedObjectRelocationFormV1::Branch26 => {
-                normalize_u32(bytes, start, self.encoded_value, 0xfc00_0000)?;
+                normalize_u32(bytes, start, 0xfc00_0000)?;
             }
             VerifiedObjectRelocationFormV1::Page21 { .. }
             | VerifiedObjectRelocationFormV1::GotLoadPage21
             | VerifiedObjectRelocationFormV1::TlvpLoadPage21 => {
-                normalize_u32(bytes, start, self.encoded_value, 0x9f00_001f)?;
+                normalize_u32(bytes, start, 0x9f00_001f)?;
             }
             VerifiedObjectRelocationFormV1::PageOffset12 { .. }
             | VerifiedObjectRelocationFormV1::GotLoadPageOffset12
             | VerifiedObjectRelocationFormV1::TlvpLoadPageOffset12 => {
-                normalize_u32(bytes, start, self.encoded_value, 0xffc0_03ff)?;
+                normalize_u32(bytes, start, 0xffc0_03ff)?;
             }
             VerifiedObjectRelocationFormV1::PointerToGot32 => {
-                normalize_u32(bytes, start, self.encoded_value, 0)?;
+                normalize_u32(bytes, start, 0)?;
             }
         }
         Ok(())
-    }
-
-    pub(in crate::link_object) fn is_owning_associated_unsigned64(
-        &self,
-        offset_within_atom: u64,
-        atom: ObjectDefinitionAtomId,
-        role: DefinitionAtomRole,
-        target_offset_within_atom: u64,
-    ) -> bool {
-        self.offset_within_atom == offset_within_atom
-            && self.form == VerifiedObjectRelocationFormV1::Unsigned64
-            && self.canonical_value == 0
-            && matches!(
-                self.targets.as_slice(),
-                [CanonicalRelocationTargetV1 {
-                    slot: RelocationTargetSlotV1::Single,
-                    target: CanonicalRelocationTargetKindV1::OwningAssociatedAtomOffset {
-                        atom: actual_atom,
-                        role: actual_role,
-                        offset_within_atom: actual_offset,
-                    },
-                }] if *actual_atom == atom
-                    && *actual_role == role
-                    && *actual_offset == target_offset_within_atom
-            )
     }
 }
 
@@ -249,16 +212,12 @@ enum CanonicalRelocationTargetKindV1 {
 fn normalize_u32(
     bytes: &mut [u8],
     start: usize,
-    expected: u64,
     keep_mask: u32,
 ) -> Result<(), ObjectDefinitionRelocationFailureV1> {
     let slot = bytes
         .get_mut(start..start + 4)
         .ok_or(ObjectDefinitionRelocationFailureV1::Range)?;
     let actual = u32::from_le_bytes(slot.try_into().expect("four-byte slot"));
-    if u64::from(actual) != expected {
-        return Err(ObjectDefinitionRelocationFailureV1::EncodedValue);
-    }
     slot.copy_from_slice(&(actual & keep_mask).to_le_bytes());
     Ok(())
 }

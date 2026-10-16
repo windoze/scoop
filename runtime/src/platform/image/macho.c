@@ -1,7 +1,5 @@
 #include <mach-o/dyld.h>
 #include <mach-o/loader.h>
-#include <mach/mach.h>
-#include <mach/mach_vm.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -10,46 +8,6 @@
 #if !defined(__APPLE__) || !defined(__LP64__)
 #error "the Mach-O image component requires 64-bit Darwin"
 #endif
-
-static bool region_at(uintptr_t cursor, uintptr_t *end, uint32_t *permissions) {
-    mach_vm_address_t address = cursor;
-    mach_vm_size_t size = 0;
-    vm_region_basic_info_data_64_t info;
-    mach_msg_type_number_t count = VM_REGION_BASIC_INFO_COUNT_64;
-    mach_port_t object = MACH_PORT_NULL;
-    kern_return_t result =
-        mach_vm_region(mach_task_self(), &address, &size, VM_REGION_BASIC_INFO_64,
-                       (vm_region_info_t)&info, &count, &object);
-    if (MACH_PORT_VALID(object)) {
-        mach_port_deallocate(mach_task_self(), object);
-    }
-    if (result != KERN_SUCCESS || address > cursor || size == 0 ||
-        size > UINTPTR_MAX - address || address + size <= cursor) {
-        return false;
-    }
-    *end = (uintptr_t)(address + size);
-    *permissions = ((info.protection & VM_PROT_READ) ? SCOOP_IMAGE_READ : 0) |
-                   ((info.protection & VM_PROT_WRITE) ? SCOOP_IMAGE_WRITE : 0) |
-                   ((info.protection & VM_PROT_EXECUTE) ? SCOOP_IMAGE_EXECUTE : 0);
-    return true;
-}
-
-static bool readable(uintptr_t address, uint64_t size) {
-    if (address == 0 || size > UINTPTR_MAX - address) {
-        return false;
-    }
-    uintptr_t limit = address + (uintptr_t)size;
-    while (address < limit) {
-        uintptr_t end;
-        uint32_t permissions;
-        if (!region_at(address, &end, &permissions) ||
-            !(permissions & SCOOP_IMAGE_READ)) {
-            return false;
-        }
-        address = end;
-    }
-    return true;
-}
 
 static bool slid_address(uint64_t address, intptr_t slide, uintptr_t *result) {
     uint64_t amount = slide < 0 ? (uint64_t)(-(slide + 1)) + 1 : (uint64_t)slide;
@@ -72,28 +30,18 @@ static bool append_segment(ScoopPlatformMetadataImages *images,
         segment->vmsize > UINTPTR_MAX - cursor) {
         return false;
     }
-    uintptr_t limit = cursor + (uintptr_t)segment->vmsize;
-    while (cursor < limit) {
-        size_t length = images->range_count;
-        uintptr_t end;
-        uint32_t permissions;
-        if (!region_at(cursor, &end, &permissions) ||
-            length == SIZE_MAX / sizeof(ScoopPlatformImageRange)) {
-            return false;
-        }
-        if (end > limit) {
-            end = limit;
-        }
-        ScoopPlatformImageRange *ranges =
-            realloc((void *)images->ranges, (length + 1) * sizeof *ranges);
-        if (ranges == NULL) {
-            return false;
-        }
-        images->ranges = ranges;
-        ranges[images->range_count++] =
-            (ScoopPlatformImageRange){cursor, end, permissions};
-        cursor = end;
+    size_t length = images->range_count;
+    if (length == SIZE_MAX / sizeof(ScoopPlatformImageRange)) {
+        return false;
     }
+    ScoopPlatformImageRange *ranges =
+        realloc((void *)images->ranges, (length + 1) * sizeof *ranges);
+    if (ranges == NULL) {
+        return false;
+    }
+    images->ranges = ranges;
+    ranges[images->range_count++] =
+        (ScoopPlatformImageRange){cursor, cursor + (uintptr_t)segment->vmsize};
     return true;
 }
 
@@ -151,13 +99,12 @@ static void macho_dispose_images(ScoopPlatformMetadataImages *images) {
 static bool collect(ScoopPlatformMetadataImages *images) {
     const struct mach_header_64 *header =
         (const struct mach_header_64 *)_dyld_get_image_header(0);
-    if (!readable((uintptr_t)header, sizeof *header) || header->magic != MH_MAGIC_64 ||
-        header->filetype != MH_EXECUTE || header->reserved != 0 ||
-        header->ncmds > header->sizeofcmds / sizeof(struct load_command)) {
+    if (header == NULL || header->magic != MH_MAGIC_64 || header->filetype != MH_EXECUTE ||
+        header->reserved != 0 || header->ncmds > header->sizeofcmds / sizeof(struct load_command)) {
         return false;
     }
     uintptr_t cursor = (uintptr_t)(header + 1);
-    if (!readable(cursor, header->sizeofcmds)) {
+    if (header->sizeofcmds > UINTPTR_MAX - cursor) {
         return false;
     }
     uintptr_t limit = cursor + header->sizeofcmds;
@@ -192,16 +139,14 @@ static bool collect(ScoopPlatformMetadataImages *images) {
             return false;
         }
     }
-    if (!scoop_image_range_contains(
-            images, (const void *)image.text_start, image.text_end - image.text_start,
-            1, SCOOP_IMAGE_READ | SCOOP_IMAGE_EXECUTE, SCOOP_IMAGE_WRITE)) {
+    if (!scoop_image_range_contains(images, (const void *)image.text_start,
+                                    image.text_end - image.text_start, 1)) {
         return false;
     }
     if (image.section_size == 0) {
         return true;
     }
-    if (!scoop_image_range_contains(images, image.section, image.section_size, 8,
-                                    SCOOP_IMAGE_READ, SCOOP_IMAGE_WRITE)) {
+    if (!scoop_image_range_contains(images, image.section, image.section_size, 8)) {
         return false;
     }
     ScoopStackMapImage *owned = malloc(sizeof *owned);

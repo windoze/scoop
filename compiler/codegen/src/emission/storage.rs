@@ -123,7 +123,6 @@ impl<'ctx> StorageEmitter<'_, 'ctx> {
             } else {
                 atom_boundaries::emit_global_atom_boundaries_v1(
                     self.llvm,
-                    self.target_data,
                     self.surface,
                     [atom_boundaries::GlobalAtomMaterializationV1::new(
                         definition.primary_atom(),

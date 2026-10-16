@@ -24,14 +24,10 @@ void scoop_image_context_keys(ScoopImageRegistry *registry) {
         const ScoopCallableRegistrationDescriptorV1 *body =
             table->entries[index].record;
         if (body->context_key_count == 0) {
-            if (body->context_keys != NULL) {
-                scoop_metadata_fatal(&check, "non-null empty Context key table");
-            }
             continue;
         }
-        scoop_metadata_readonly(&check, body->context_keys, body->context_key_count,
-                                sizeof *body->context_keys, 8,
-                                "Context key table range");
+        scoop_metadata_range(&check, body->context_keys, body->context_key_count,
+                             sizeof *body->context_keys, 8, "Context key table range");
         if (body->context_key_count > SIZE_MAX - count) {
             scoop_metadata_fatal(&check, "Context key table size overflow");
         }
@@ -48,16 +44,8 @@ void scoop_image_context_keys(ScoopImageRegistry *registry) {
             table->entries[index].record;
         for (uint64_t key = 0; key < body->context_key_count; key++) {
             const ScoopContextKeyUseV1 *use = &body->context_keys[key];
-            scoop_metadata_writable(&check, use->slot_cell, sizeof *use->slot_cell, 8,
-                                    "Context slot cell range");
-            if (*use->slot_cell != 0 || scoop_digest_zero(&use->exact_key)) {
-                scoop_metadata_fatal(&check, "Context cell initial value or exact key");
-            }
-            if (key != 0 && memcmp(body->context_keys[key - 1].exact_key.bytes,
-                                   use->exact_key.bytes, 32) >= 0) {
-                scoop_metadata_fatal(&check,
-                                     "Context keys are not distinct and ordered");
-            }
+            scoop_metadata_range(&check, use->slot_cell, 1, sizeof *use->slot_cell, 8,
+                                 "Context slot cell range");
             registry->context_cells[next++] = (ScoopContextCell){use, index, 0};
         }
     }

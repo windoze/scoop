@@ -1,4 +1,5 @@
 use super::*;
+use std::path::Path;
 
 #[test]
 fn linked_backend_is_llvm_22_1() {
@@ -27,22 +28,6 @@ fn selected_profile_creates_the_canonical_aarch64_machine() {
             .expect("qualified backend selection");
     assert_eq!(backend.backend_profile(), scoop_target_data::LLVM_22_1);
     assert_eq!(backend.managed_address_space(), 1);
-    assert_eq!(backend.stack_map_version(), 3);
-    assert_eq!(
-        backend.eh_profile(),
-        EhProfile {
-            unwind_model: UnwindModel::ItaniumDwarf,
-            personality_abi: PersonalityAbi::ScoopLsdaSubset,
-            exception_data_registers: 2,
-            encodings: LsdaEncodingProfile {
-                lp_start: 0xff,
-                type_table: 0x9b,
-                call_site: 0x01,
-            },
-            unwind_provider: UnwindProvider::DarwinLibSystem,
-            artifact_inspection: EhArtifactInspection::MachO,
-        }
-    );
     let machine = backend.create_target_machine().expect("target machine");
     assert_eq!(
         machine

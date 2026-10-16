@@ -174,7 +174,7 @@ fn runtime_cache_tracks_sources_headers_candidates_and_flags() {
     assert!(!build(RuntimeOptimization::None).cache_hit());
     assert!(!build(RuntimeOptimization::Optimized).cache_hit());
     let records = || {
-        std::fs::read_dir(cache.join("runtime-v2"))
+        std::fs::read_dir(cache.join("runtime-v3"))
             .unwrap()
             .map(|e| e.unwrap().path())
             .filter(|p| p.extension().is_some_and(|e| e == "json"))

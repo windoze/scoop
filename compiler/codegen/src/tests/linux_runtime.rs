@@ -9,7 +9,6 @@ use inkwell::targets::{
 };
 
 mod images;
-mod sha256;
 
 fn workspace() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -57,7 +56,7 @@ fn emit_frame_probe(workspace: &Path, object: &Path, triple: &str, opt: Optimiza
         .write_to_file(&module, FileType::Object, object)
         .unwrap();
     // Function addresses require loader relocations in PIE. This test retains
-    // the stackmap blob in writable data; image-permission tests use RELRO.
+    // the stackmap blob in writable data; image tests use the normal linker script.
     checked(
         Command::new("objcopy")
             .args([

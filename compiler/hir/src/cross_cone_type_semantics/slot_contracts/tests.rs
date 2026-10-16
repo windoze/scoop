@@ -3,9 +3,7 @@ use scoop_identity::{Effect, ExactCallableSignature, GcEffect, SourceNominalKind
 use super::*;
 use crate::*;
 
-mod access;
 mod defaults;
-mod semantics;
 pub(in crate::cross_cone_type_semantics) mod support;
 mod wire;
 

@@ -38,18 +38,9 @@ impl ValidatedRuntimeBuildProfile {
                     os: sources::LINUX_OS,
                     image: sources::ELF_IMAGE,
                     arch: sources::X86_64,
-                    image_flags: &[
-                        "-fvisibility=hidden",
-                        "-DMBEDTLS_CONFIG_FILE=\"scoop_sha256_config.h\"",
-                    ],
+                    image_flags: &["-fvisibility=hidden"],
                     arch_flags: &["-mno-red-zone"],
-                    includes: &[
-                        "include",
-                        "src",
-                        "third_party/ryu",
-                        "third_party/mbedtls",
-                        "third_party/mbedtls/include",
-                    ],
+                    includes: &["include", "src", "third_party/ryu"],
                 }
             }
             _ => {

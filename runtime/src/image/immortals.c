@@ -22,9 +22,8 @@ void scoop_image_immortals(ScoopImageRegistry *registry) {
             td->object_scan != NULL) {
             scoop_metadata_fatal(&check, "object size, alignment or reference scan");
         }
-        scoop_metadata_readonly(&check, object->object_start, object->object_size, 1,
-                                (size_t)object->required_alignment,
-                                "object readonly range");
+        scoop_metadata_range(&check, object->object_start, object->object_size, 1,
+                             (size_t)object->required_alignment, "object range");
         const ScoopObjectHeader *header = object->object_start;
         if (header->td != td || header->gc_word != 0) {
             scoop_metadata_fatal(&check, "object header TypeDescriptor or GC word");

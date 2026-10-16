@@ -5,7 +5,6 @@
 #include "../../src/gc/gc_internal.h"
 #include "../../src/gc_binding/internal.h"
 #include "../../src/image/internal.h"
-#include "../../src/value_shape.h"
 #include "image_fixture.h"
 
 void scoop_test_image_init(const ScoopTypeDescriptor *const *types, size_t type_count,
@@ -22,7 +21,6 @@ void scoop_test_image_init(const ScoopTypeDescriptor *const *types, size_t type_
     assert(registrations && type_table->entries && registry.type_addresses);
     type_table->count = type_count;
     for (size_t index = 0; index < type_count; index++) {
-        scoop_shape_validate(types[index]);
         registrations[index].descriptor = types[index];
         type_table->entries[index].record = &registrations[index];
         registry.type_addresses[index] =

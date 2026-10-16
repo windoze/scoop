@@ -4,12 +4,11 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use inkwell::context::Context;
 use inkwell::module::Module as LlvmModule;
-use inkwell::targets::TargetData;
 use inkwell::values::{GlobalValue, PointerValue};
 use scoop_lir::{
     DefinitionAtomRole, LayoutKind, ObjectDefinitionAtomId, ObjectSymbolSurfaceV1,
     PersistentDispatchTableId, PersistentLayoutId, PersistentScanId, RefScan,
-    StrongDefinitionEntity, StrongDefinitionEntityKind, StrongDefinitionRole,
+    StrongDefinitionEntity, StrongDefinitionRole,
 };
 
 use crate::atom_boundaries::{GlobalAtomMaterializationV1, emit_global_atom_boundaries_v1};
@@ -75,18 +74,16 @@ impl<'ctx> EmittedStrongShapeDefinitionsV1<'ctx> {
 
 /// Emit every address-significant shape definition from the closed production
 /// surface. Static-storage scans may already have been defined by their
-/// registration emitter; those definitions are validated and reused.
+/// registration emitter; those definitions are reused.
 pub(super) fn emit_strong_shape_definitions_v1<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
-    target_data: &TargetData,
     surface: &ObjectSymbolSurfaceV1,
     module: &Module,
     type_globals: crate::type_descriptors::TypeDescriptorGlobals<'_, 'ctx>,
 ) -> Result<(), CodegenError> {
-    let layouts = collect_layouts(module)?;
-    let scans = collect_scans(module)?;
-    validate_shape_plan_coverage(surface, &layouts, &scans, module)?;
+    let layouts = collect_layouts(module);
+    let scans = collect_scans(module);
 
     let mut emitted = EmittedStrongShapeDefinitionsV1 {
         scans: BTreeMap::new(),
@@ -100,7 +97,7 @@ pub(super) fn emit_strong_shape_definitions_v1<'ctx>(
             StrongDefinitionRole::Layout,
         )?;
         let symbol = definition.primary_symbol().symbol();
-        require_absent_value(llvm, symbol.as_str(), "layout definition")?;
+
         let global = llvm.add_global(context.i8_type(), None, symbol.as_str());
         global.set_constant(true);
         global.set_alignment(8);
@@ -140,7 +137,7 @@ pub(super) fn emit_strong_shape_definitions_v1<'ctx>(
         module,
         &mut emitted,
     )?;
-    emit_global_atom_boundaries_v1(llvm, target_data, surface, emitted.atoms)
+    emit_global_atom_boundaries_v1(llvm, surface, emitted.atoms)
 }
 
 pub(super) fn emit_dispatch_definition_v1<'ctx>(
@@ -157,7 +154,7 @@ pub(super) fn emit_dispatch_definition_v1<'ctx>(
         StrongDefinitionRole::DispatchTable,
     )?;
     let symbol = definition.primary_symbol().symbol();
-    require_absent_value(llvm, symbol.as_str(), "dispatch-table definition")?;
+
     let (global, is_empty) = if values.is_empty() {
         let global = llvm.add_global(context.i8_type(), None, symbol.as_str());
         global.set_initializer(&context.i8_type().const_zero());
@@ -182,7 +179,7 @@ pub(super) fn emit_dispatch_definition_v1<'ctx>(
     Ok(result)
 }
 
-fn collect_layouts(module: &Module) -> Result<BTreeSet<PersistentLayoutId>, CodegenError> {
+fn collect_layouts(module: &Module) -> BTreeSet<PersistentLayoutId> {
     let mut layouts = BTreeSet::new();
     for identity in module
         .meta
@@ -212,36 +209,31 @@ fn collect_layouts(module: &Module) -> Result<BTreeSet<PersistentLayoutId>, Code
     {
         layouts.insert(identity.layout_record().id());
     }
-    if layouts.is_empty() && !module.meta.type_descriptors.is_empty() {
-        return Err(CodegenError(
-            "local TypeDescriptors have no persistent layout definitions".to_string(),
-        ));
-    }
-    Ok(layouts)
+    layouts
 }
 
-fn collect_scans(module: &Module) -> Result<BTreeMap<PersistentScanId, RefScan>, CodegenError> {
+fn collect_scans(module: &Module) -> BTreeMap<PersistentScanId, RefScan> {
     let mut scans = BTreeMap::new();
     for (_, layout) in module.meta.layouts.iter() {
         let payload = match &layout.kind {
             LayoutKind::Plain { scan } | LayoutKind::Enum { scan } => scan.clone(),
             LayoutKind::Intrinsic(_) => RefScan::None,
         };
-        insert_scan(&mut scans, layout.identity.scan_record().id(), payload)?;
+        insert_scan(&mut scans, layout.identity.scan_record().id(), payload);
     }
     for (_, array) in module.meta.arrays.iter() {
         insert_scan(
             &mut scans,
             array.identity.scan_record().id(),
             array.layout.instance().inline_scan().clone(),
-        )?;
+        );
     }
     for (_, descriptor) in module.meta.type_descriptors.iter() {
         insert_scan(
             &mut scans,
             descriptor.instance_layout.scan_record().id(),
             descriptor.instance_shape.object_scan().clone(),
-        )?;
+        );
     }
     for (_, global) in module.globals.iter() {
         if let scoop_lir::GlobalInit::Storage {
@@ -249,83 +241,18 @@ fn collect_scans(module: &Module) -> Result<BTreeMap<PersistentScanId, RefScan>,
             ..
         } = &global.init
         {
-            insert_scan(&mut scans, layout.scan_record().id(), global.scan.clone())?;
+            insert_scan(&mut scans, layout.scan_record().id(), global.scan.clone());
         }
     }
-    Ok(scans)
+    scans
 }
 
 fn insert_scan(
     scans: &mut BTreeMap<PersistentScanId, RefScan>,
     id: PersistentScanId,
     payload: RefScan,
-) -> Result<(), CodegenError> {
-    match scans.entry(id) {
-        std::collections::btree_map::Entry::Vacant(entry) => {
-            entry.insert(payload);
-            Ok(())
-        }
-        std::collections::btree_map::Entry::Occupied(entry) if entry.get() == &payload => Ok(()),
-        std::collections::btree_map::Entry::Occupied(_) => Err(CodegenError(format!(
-            "persistent scan {id} has conflicting LIR payloads"
-        ))),
-    }
-}
-
-fn validate_shape_plan_coverage(
-    surface: &ObjectSymbolSurfaceV1,
-    layouts: &BTreeSet<PersistentLayoutId>,
-    scans: &BTreeMap<PersistentScanId, RefScan>,
-    module: &Module,
-) -> Result<(), CodegenError> {
-    let expected_layouts = surface
-        .plans()
-        .iter()
-        .filter_map(|plan| match (plan.owner().kind(), plan.definition_role()) {
-            (StrongDefinitionEntityKind::Layout(id), StrongDefinitionRole::Layout) => Some(id),
-            _ => None,
-        })
-        .collect::<BTreeSet<_>>();
-    let expected_scans = surface
-        .plans()
-        .iter()
-        .filter_map(|plan| match (plan.owner().kind(), plan.definition_role()) {
-            (StrongDefinitionEntityKind::Scan(id), StrongDefinitionRole::ScanProgram) => Some(id),
-            _ => None,
-        })
-        .collect::<BTreeSet<_>>();
-    let actual_scans = scans.keys().copied().collect::<BTreeSet<_>>();
-    if &expected_layouts != layouts {
-        return Err(CodegenError(format!(
-            "strong layout definition coverage mismatch: planned {}, LIR {}",
-            expected_layouts.len(),
-            layouts.len()
-        )));
-    }
-    if expected_scans != actual_scans {
-        return Err(CodegenError(format!(
-            "strong scan definition coverage mismatch: planned {}, LIR {}",
-            expected_scans.len(),
-            actual_scans.len()
-        )));
-    }
-    let expected_dispatch = surface
-        .plans()
-        .iter()
-        .filter(|plan| plan.definition_role() == StrongDefinitionRole::DispatchTable)
-        .count();
-    let actual_dispatch = module
-        .meta
-        .type_descriptors
-        .iter()
-        .map(|(_, descriptor)| 1 + descriptor.itables.len())
-        .sum::<usize>();
-    if expected_dispatch != actual_dispatch {
-        return Err(CodegenError(format!(
-            "strong dispatch-table definition coverage mismatch: planned {expected_dispatch}, LIR {actual_dispatch}"
-        )));
-    }
-    Ok(())
+) {
+    scans.entry(id).or_insert(payload);
 }
 
 fn require_definition(
@@ -348,20 +275,6 @@ fn require_definition(
         )));
     }
     Ok(definition)
-}
-
-fn require_absent_value(
-    llvm: &LlvmModule<'_>,
-    symbol: &str,
-    role: &str,
-) -> Result<(), CodegenError> {
-    if llvm.get_global(symbol).is_some() || llvm.get_function(symbol).is_some() {
-        Err(CodegenError(format!(
-            "{role} `{symbol}` collides with an existing LLVM value"
-        )))
-    } else {
-        Ok(())
-    }
 }
 
 pub(super) fn descriptor_diagnostic_atom(

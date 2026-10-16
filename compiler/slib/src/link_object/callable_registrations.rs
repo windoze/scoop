@@ -1,11 +1,7 @@
-//! Exact provisional-object verification for strong callable registrations.
-
-mod error;
-pub use error::*;
+//! Callable registration data and fingerprint calculation.
 
 pub(in crate::link_object) mod object_definition;
 pub use object_definition::ObjectDefinitionRelocationFailureV1;
-mod physical;
 pub(in crate::link_object) mod record;
 
 mod body_fingerprints;

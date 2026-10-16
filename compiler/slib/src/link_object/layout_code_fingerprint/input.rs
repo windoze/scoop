@@ -1,13 +1,13 @@
 //! One canonical Code encoding shared by the producer and immutable byte reader.
 
 use super::*;
-use crate::{SingleConeProductionCodeProjectionV1, VerifiedCodeLinkObjectMemberSetV2};
+use crate::{FinalCodeObjectSetV2, SingleConeProductionCodeProjectionV1};
 use scoop_wire::{Encoder, WireEncode, domain_separated_cbor_hash};
 
 const CODE_FINGERPRINT_DOMAIN: &str = "scoop-code-v1";
 
 pub(crate) struct LayoutCodeFingerprintInputV1<'a, S> {
-    pub objects: &'a VerifiedCodeLinkObjectMemberSetV2,
+    pub objects: &'a FinalCodeObjectSetV2,
     pub production: &'a SingleConeProductionCodeProjectionV1,
     pub strong: &'a S,
     pub link_extension_contributions: &'a CanonicalKnownLinkExtensionCodeContributionSetV1,

@@ -2,8 +2,8 @@
 
 use super::{
     CanonicalDefinedLinkSymbolOwnerSetV1, CanonicalScoopLirObjectUnitSetV1,
-    CanonicalUndefinedSymbolRequirementSetV1, PlannedLinkObjectMemberSetV1,
-    VerifiedCodeFingerprintV1, VerifiedCodeFingerprintV2, VerifiedCodeLinkObjectMemberSetV1,
+    CanonicalUndefinedSymbolRequirementSetV1, CodeFingerprintDataV1, CodeFingerprintDataV2,
+    FinalCodeObjectSetV1, PlannedLinkObjectMemberSetV1,
 };
 use crate::SlibMemberId;
 use scoop_wire::{Encoder, WireEncode};
@@ -83,7 +83,7 @@ impl LinkIdentityClosureSectionV1 {
         &self.undefined_symbols
     }
 
-    pub fn from_verified_code(code: &VerifiedCodeFingerprintV1) -> Self {
+    pub fn from_verified_code(code: &CodeFingerprintDataV1) -> Self {
         Self::from_code_parts(
             code.production().link_objects(),
             code.defined_symbols(),
@@ -91,7 +91,7 @@ impl LinkIdentityClosureSectionV1 {
         )
     }
 
-    pub fn from_verified_layout_code(code: &VerifiedCodeFingerprintV2) -> Self {
+    pub fn from_verified_layout_code(code: &CodeFingerprintDataV2) -> Self {
         Self::from_code_parts(
             code.production().link_objects(),
             code.defined_symbols(),
@@ -100,7 +100,7 @@ impl LinkIdentityClosureSectionV1 {
     }
 
     fn from_code_parts<D, C, I>(
-        objects: &VerifiedCodeLinkObjectMemberSetV1<D, C, I>,
+        objects: &FinalCodeObjectSetV1<D, C, I>,
         defined_symbols: &CanonicalDefinedLinkSymbolOwnerSetV1,
         undefined_symbols: &CanonicalUndefinedSymbolRequirementSetV1,
     ) -> Self

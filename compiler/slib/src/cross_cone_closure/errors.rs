@@ -8,8 +8,6 @@ use scoop_lir::ValidatedLirTargetSelection;
 
 use crate::{ConeKind, DependencyRecord, StrongProfileFoundationError};
 
-use super::CrossConeSourceProvenanceError;
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CrossConeClosureGraphError {
     NonCanonicalDirectProviders {
@@ -153,10 +151,6 @@ pub enum CrossConeClosureFoundationError {
         identity: ConeIdentity,
         source: Box<StrongProfileFoundationError>,
     },
-    SourceProvenance {
-        identity: ConeIdentity,
-        source: CrossConeSourceProvenanceError,
-    },
 }
 
 impl fmt::Display for CrossConeClosureFoundationError {
@@ -172,10 +166,6 @@ impl fmt::Display for CrossConeClosureFoundationError {
                     "invalid cross-Cone foundations for {identity}: {source}"
                 )
             }
-            Self::SourceProvenance { identity, source } => write!(
-                formatter,
-                "invalid imported source metadata for {identity}: {source}"
-            ),
         }
     }
 }
@@ -184,7 +174,6 @@ impl std::error::Error for CrossConeClosureFoundationError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Artifact { source, .. } => Some(source),
-            Self::SourceProvenance { source, .. } => Some(source),
             Self::Allocation { .. } => None,
         }
     }

@@ -10,15 +10,7 @@ pub use artifact_production::{
     CrossConeArtifactMetadataInputV1, CrossConeLayoutArtifactMetadataInputV1,
     LayoutArtifactProductionError,
 };
-pub use object_production::{
-    BuiltinObjectProducerV1, BuiltinObjectProductionError,
-    CBridgeEnvelopeVerifiedObjectProductionV1, CodeFingerprintedObjectProductionV1,
-    DigestPatchVerifiedObjectProductionV1, FinalizedStrongObjectProductionV1,
-    LinkSymbolVerifiedObjectProductionV1, PlannedBuiltinObjectProductionV1,
-    RegistrationDependencyFingerprintedProductionV1,
-    RegistrationObjectLeafFingerprintedProductionV1, RegistrationObjectVerifiedObjectProductionV1,
-    StackmapVerifiedObjectProductionV1, StrongRelocationVerifiedObjectProductionV1,
-};
+pub use object_production::{BuiltinObjectProducerV1, BuiltinObjectProductionError};
 pub use request::{
     BuildRequestNormalizationError, CurrentConeDiagnosticSet, CurrentConeDiagnosticSetError,
     CurrentConeHirStageError, CurrentConeInput, CurrentConeLirStageError, CurrentConeMirStageError,

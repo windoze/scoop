@@ -174,23 +174,6 @@ fn retains_declared_contracts_that_have_no_object_use() {
     assert_eq!(verified.native_requirements().contracts().len(), 1);
 }
 
-#[test]
-fn rejects_a_native_surface_from_another_producer() {
-    let producer = ConeIdentity::SINGLE_FILE;
-    let object = fixture_for_producer(producer, "producerMismatch");
-    let member = verified_member_without_relocations(&object);
-    let core = dependency_closure(member);
-    let native = native_surface(ConeIdentity::CORE, Vec::new(), Vec::new());
-
-    assert_eq!(
-        verify_source_external_requirements_v1(core, native),
-        Err(SourceExternalRequirementValidationError::ProducerMismatch {
-            object: producer,
-            native: ConeIdentity::CORE,
-        })
-    );
-}
-
 pub(in crate::link_object) fn dependency_closure(
     member: crate::VerifiedMemberObjectRelocationIndexV1,
 ) -> VerifiedCrossConeStrongRequirementClosureV1 {

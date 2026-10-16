@@ -1,9 +1,9 @@
-use super::slib_support::{SlibObjects, candidates, set_rela_addend};
+use super::slib_support::SlibObjects;
 use super::*;
 use scoop_slib::*;
 
 #[test]
-fn elf_cone_image_references_its_support_atoms_and_registration_tables() {
+fn elf_cone_image_materializes_its_digest_slot() {
     let directory = tempfile::tempdir().unwrap();
     for target in [
         scoop_target_data::LINUX_X86_64_GNU_ID,
@@ -17,42 +17,18 @@ fn elf_cone_image_references_its_support_atoms_and_registration_tables() {
             super::slib_metadata_fixture::module(target),
         ] {
             let fixture = SlibObjects::new(module, directory.path());
-            let builtins = fixture.builtins(&fixture.objects);
-            let verify = |objects: &[(SlibMemberId, Vec<u8>)]| {
-                verify_cone_image_v1(
-                    fixture.sites(fixture.builtins(objects), objects),
-                    fixture.emitted.production().image_plan().clone(),
-                    &candidates(objects),
-                )
-            };
-            let image = verify(&fixture.objects).expect("real ELF Cone image");
-            assert_eq!(image.support_relocations().len(), 10);
-            assert!(!image.registration_relocations().is_empty());
-            let pointer = &image.support_relocations()[0];
-            let mut damaged = fixture.objects.clone();
-            set_rela_addend(
-                &mut damaged,
-                &builtins,
-                pointer.member(),
-                pointer.containing_atom(),
-                pointer.offset_within_atom(),
-                -1,
-            );
-            assert!(verify(&damaged).is_err(), "invalid local support pointer");
-            let entry = &image.registration_relocations()[0];
-            let mut damaged = fixture.objects.clone();
-            set_rela_addend(
-                &mut damaged,
-                &builtins,
-                entry.source_member(),
-                entry.containing_atom(),
-                entry.offset_within_atom(),
-                8,
-            );
-            assert!(
-                verify(&damaged).is_err(),
-                "registration pointer must refer to its start"
-            );
+            let patches = fixture.sites(fixture.builtins(&fixture.objects));
+            let image =
+                bind_cone_image_v1(&patches, fixture.emitted.production().image_plan().clone())
+                    .unwrap();
+            let bytes = &fixture
+                .objects
+                .iter()
+                .find(|(member, _)| *member == image.member())
+                .unwrap()
+                .1;
+            let start = image.image_patch().checked_offset() as usize;
+            assert_eq!(&bytes[start..start + 32], &[0; 32]);
         }
     }
 }

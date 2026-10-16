@@ -15,13 +15,6 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let address = builder
             .build_ptr_to_int(addr, i64_ty, "card_addr")
             .map_err(card_error)?;
-        mark_typed_managed_pointer_boundary(
-            context,
-            address
-                .as_instruction_value()
-                .expect("heap ptrtoint is an instruction"),
-            statepoint::TypedManagedPointerBoundary::CardAddress,
-        )?;
         let mut node = root.as_pointer_value();
         for shift in [52, 40, 28, 16] {
             let shifted = builder

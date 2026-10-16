@@ -13,7 +13,6 @@ pub(super) fn push_relocations(
     local_symbol_count: usize,
     static_local_symbol_count: usize,
     registration_relocation_count: u32,
-    corruption: Corruption,
 ) {
     let planned_index = |index: usize| u32::try_from(local_symbol_count + index).unwrap();
     let target = symbols
@@ -41,34 +40,13 @@ pub(super) fn push_relocations(
     push_u32(bytes, 16);
     push_u32(bytes, planned_index(target) | 3 << 25 | 1 << 27);
     if registration_relocation_count != 0 {
-        if matches!(corruption, Corruption::RelocatedRegistration) {
-            push_u32(bytes, 56);
-            push_u32(bytes, planned_index(target) | 3 << 25 | 1 << 27);
-        }
         for (index, _) in callable_registrations.registrations().iter().enumerate() {
             let safepoint_bytes = u32::try_from(registrations.registrations().len()).unwrap()
                 * u32::try_from(SAFEPOINT_REGISTRATION_SIZE).unwrap();
             let callable_bytes =
                 u32::try_from(index).unwrap() * u32::try_from(CALLABLE_REGISTRATION_SIZE).unwrap();
             push_u32(bytes, safepoint_bytes + callable_bytes + 152);
-            let relocation_target =
-                if matches!(corruption, Corruption::CallableEntryRelocationTarget) {
-                    symbols
-                        .symbols()
-                        .iter()
-                        .position(|symbol| {
-                            matches!(
-                                symbol.role(),
-                                PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
-                                    definition_role: StrongDefinitionRole::CallableRegistration,
-                                    ..
-                                }
-                            )
-                        })
-                        .unwrap()
-                } else {
-                    target
-                };
+            let relocation_target = target;
             push_u32(bytes, planned_index(relocation_target) | 3 << 25 | 1 << 27);
         }
         for (index, registration) in type_registrations.registrations().iter().enumerate() {
@@ -86,32 +64,10 @@ pub(super) fn push_relocations(
                 )
                 .unwrap(),
             );
-            let diagnostic_target = if matches!(
-                corruption,
-                Corruption::TypeDescriptorDiagnosticRelocationTarget
-            ) && index == 0
-            {
-                symbols
-                    .symbols()
-                    .iter()
-                    .position(|symbol| {
-                        matches!(
-                            symbol.role(),
-                            PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
-                                definition_role: StrongDefinitionRole::TypeDescriptor,
-                                definition,
-                                ..
-                            } if definition == registration.descriptor_definition_plan()
-                        )
-                    })
-                    .map(planned_index)
-                    .unwrap()
-            } else {
-                u32::try_from(static_local_symbol_count + index).unwrap()
-            };
+            let diagnostic_target = u32::try_from(static_local_symbol_count + index).unwrap();
             push_u32(bytes, diagnostic_target | 3 << 25 | 1 << 27);
         }
-        for (index, registration) in type_registrations.registrations().iter().enumerate() {
+        for registration in type_registrations.registrations() {
             let type_start = type_registration_start(
                 registration.definition_plan(),
                 stackmap.len(),
@@ -126,40 +82,20 @@ pub(super) fn push_relocations(
                 )
                 .unwrap(),
             );
-            let descriptor_target =
-                if matches!(corruption, Corruption::TypeDescriptorRelocationTarget) && index == 0 {
-                    symbols
-                        .symbols()
-                        .iter()
-                        .position(|symbol| {
-                            matches!(
-                                symbol.role(),
-                                PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
-                                    definition_role: StrongDefinitionRole::TypeRegistration,
-                                    ..
-                                }
-                            )
-                        })
-                        .unwrap()
-                } else {
-                    symbols
-                        .symbols()
-                        .iter()
-                        .position(|symbol| {
-                            matches!(
-                                symbol.role(),
-                                PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
-                                    definition_role: StrongDefinitionRole::TypeDescriptor,
-                                    definition,
-                                    ..
-                                } if definition == registration.descriptor_definition_plan()
-                            )
-                        })
-                        .unwrap()
-                };
+            let descriptor_target = symbols
+                .symbols()
+                .iter()
+                .position(|symbol| {
+                    matches!(symbol.role(),
+                        PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
+                            definition_role: StrongDefinitionRole::TypeDescriptor, definition, ..
+                        } if definition == registration.descriptor_definition_plan()
+                    )
+                })
+                .unwrap();
             push_u32(bytes, planned_index(descriptor_target) | 3 << 25 | 1 << 27);
         }
-        for (index, registration) in immortal_registrations.registrations().iter().enumerate() {
+        for registration in immortal_registrations.registrations() {
             let object_start = immortal_object_start(
                 registration.object_definition_plan(),
                 stackmap.len(),
@@ -178,24 +114,6 @@ pub(super) fn push_relocations(
             );
             let section_base = TEXT_SIZE + u64::try_from(stackmap.len()).unwrap();
             let descriptor_target = if matches!(
-                corruption,
-                Corruption::ImmortalObjectDescriptorRelocationTarget
-            ) && index == 0
-            {
-                symbols
-                    .symbols()
-                    .iter()
-                    .position(|symbol| {
-                        matches!(
-                            symbol.role(),
-                            PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
-                                definition_role: StrongDefinitionRole::ImmortalRegistration,
-                                ..
-                            }
-                        )
-                    })
-                    .unwrap()
-            } else if matches!(
                 registration.semantic().type_registration_ref(),
                 scoop_lir::ImmortalObjectTypeRegistrationRefV1::DependencyExternal { .. }
             ) {
@@ -218,37 +136,15 @@ pub(super) fn push_relocations(
             push_u32(bytes, u32::try_from(object_start - section_base).unwrap());
             push_u32(bytes, planned_index(descriptor_target) | 3 << 25 | 1 << 27);
 
-            let object_target =
-                if matches!(corruption, Corruption::ImmortalObjectRelocationTarget) && index == 0 {
-                    symbols
-                        .symbols()
-                        .iter()
-                        .position(|symbol| {
-                            matches!(
-                                symbol.role(),
-                                PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
-                                    definition_role: StrongDefinitionRole::ImmortalRegistration,
-                                    ..
-                                }
-                            )
-                        })
-                        .unwrap()
-                } else {
-                    symbols
-                        .symbols()
-                        .iter()
-                        .position(|symbol| {
-                            matches!(
-                                symbol.role(),
-                                PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
-                                    definition_role: StrongDefinitionRole::ImmortalObject,
-                                    definition,
-                                    ..
-                                } if definition == registration.object_definition_plan()
-                            )
-                        })
-                        .unwrap()
-                };
+            let object_target = symbols
+                .symbols()
+                .iter()
+                .position(|symbol| {
+                    matches!(symbol.role(), PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
+                    definition_role: StrongDefinitionRole::ImmortalObject, definition, ..
+                } if definition == registration.object_definition_plan())
+                })
+                .unwrap();
             push_u32(
                 bytes,
                 u32::try_from(record_start - section_base + 120).unwrap(),
@@ -260,12 +156,6 @@ pub(super) fn push_relocations(
                 scoop_lir::ImmortalObjectTypeRegistrationRefV1::DependencyExternal { .. }
             ) {
                 symbols.symbols().len() + 1
-            } else if matches!(
-                corruption,
-                Corruption::ImmortalTypeRegistrationRelocationTarget
-            ) && index == 0
-            {
-                object_target
             } else {
                 symbols
                     .symbols()
@@ -306,26 +196,14 @@ pub(super) fn push_relocations(
                 .symbols()
                 .iter()
                 .position(|symbol| {
-                    if matches!(corruption, Corruption::StaticStorageRelocationTarget) && index == 0
-                    {
-                        matches!(
-                            symbol.role(),
-                            PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
-                                definition,
-                                definition_role: StrongDefinitionRole::RootRegistration,
-                                ..
-                            } if definition == registration.registration_definition_plan()
-                        )
-                    } else {
-                        matches!(
-                            symbol.role(),
-                            PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
-                                definition,
-                                definition_role: StrongDefinitionRole::StaticStorage,
-                                ..
-                            } if definition == registration.storage_definition_plan()
-                        )
-                    }
+                    matches!(
+                        symbol.role(),
+                        PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
+                            definition,
+                            definition_role: StrongDefinitionRole::StaticStorage,
+                            ..
+                        } if definition == registration.storage_definition_plan()
+                    )
                 })
                 .unwrap();
             let scan_target = symbols
@@ -346,17 +224,7 @@ pub(super) fn push_relocations(
                 (128, planned_index(storage_target)),
                 (160, planned_index(scan_target)),
                 (232, u32::try_from(index * 2).unwrap()),
-                (
-                    248,
-                    u32::try_from(
-                        if matches!(corruption, Corruption::StaticAliasedSentinels) {
-                            index * 2
-                        } else {
-                            index * 2 + 1
-                        },
-                    )
-                    .unwrap(),
-                ),
+                (248, u32::try_from(index * 2 + 1).unwrap()),
             ] {
                 push_u32(
                     bytes,
@@ -390,27 +258,14 @@ pub(super) fn push_relocations(
                     .symbols()
                     .iter()
                     .position(|symbol| {
-                        if matches!(corruption, Corruption::StaticInitialTableRelocationTarget)
-                            && index == 0
-                            && relocation_index == 0
-                        {
-                            matches!(
-                                symbol.role(),
-                                PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
-                                    definition_role: StrongDefinitionRole::ImmortalObject,
-                                    ..
-                                }
-                            )
-                        } else {
-                            matches!(
-                                symbol.role(),
-                                PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
-                                    definition,
-                                    definition_role: StrongDefinitionRole::ImmortalRegistration,
-                                    ..
-                                } if definition == immortal_registration_definition
-                            )
-                        }
+                        matches!(
+                            symbol.role(),
+                            PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
+                                definition,
+                                definition_role: StrongDefinitionRole::ImmortalRegistration,
+                                ..
+                            } if definition == immortal_registration_definition
+                        )
                     })
                     .unwrap();
                 push_u32(
@@ -427,11 +282,7 @@ pub(super) fn push_relocations(
         }
     }
     let mut storage_base = 0_u64;
-    for (static_index, registration) in static_storage_registrations
-        .registrations()
-        .iter()
-        .enumerate()
-    {
+    for registration in static_storage_registrations.registrations() {
         for relocation in registration
             .semantic()
             .initial_state()
@@ -447,26 +298,14 @@ pub(super) fn push_relocations(
                 .symbols()
                 .iter()
                 .position(|symbol| {
-                    if matches!(corruption, Corruption::StaticInitialStorageRelocationTarget)
-                        && static_index == 0
-                    {
-                        matches!(
-                            symbol.role(),
-                            PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
-                                definition_role: StrongDefinitionRole::ImmortalRegistration,
-                                ..
-                            }
-                        )
-                    } else {
-                        matches!(
-                            symbol.role(),
-                            PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
-                                definition,
-                                definition_role: StrongDefinitionRole::ImmortalObject,
-                                ..
-                            } if definition == immortal_object_definition
-                        )
-                    }
+                    matches!(
+                        symbol.role(),
+                        PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
+                            definition,
+                            definition_role: StrongDefinitionRole::ImmortalObject,
+                            ..
+                        } if definition == immortal_object_definition
+                    )
                 })
                 .unwrap();
             push_u32(

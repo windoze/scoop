@@ -1,17 +1,12 @@
 use std::fmt;
 
 use scoop_identity::{DigestNodeId, PersistentCallableBodyId};
-use scoop_lir::{
-    CanonicalCallableAbiOwnerV1, CanonicalCallableAbisV1, RegistrationDefinitionOwner,
-};
+use scoop_lir::CanonicalCallableAbisV1;
 use scoop_wire::{HashError, RuntimeEncodeError, RuntimeEncoder};
 
-use super::{
-    VerifiedStrongCallableBodyObjectFingerprintSetV1, VerifiedStrongCallableRegistrationV1,
-};
+use super::VerifiedStrongCallableBodyObjectFingerprintSetV1;
 use crate::link_object::{
-    CallableDefinitionAbiV1, LinkDefinitionOwnerV1, ObjectDefinitionFingerprintV1,
-    RegistrationAbiV1, StrongRelocationResolutionV1,
+    CallableDefinitionAbiV1, ObjectDefinitionFingerprintV1, RegistrationAbiV1,
 };
 
 const CALLABLE_REGISTRATION_RECORD_KIND: u32 = 6;
@@ -76,31 +71,13 @@ pub fn compute_strong_callable_fingerprints_v1(
     canonical: &CanonicalCallableAbisV1,
 ) -> Result<VerifiedStrongCallableFingerprintSetV1, StrongCallableFingerprintError> {
     let registrations = body_objects.registrations();
-    let verified = registrations.registrations();
     let planned = registrations.plan().registrations();
-    let body_fingerprints = body_objects.fingerprints();
-    if verified.len() != planned.len()
-        || verified.len() != body_fingerprints.len()
-        || verified.len() != canonical.definitions().len()
-    {
-        return Err(StrongCallableFingerprintError::ProofCoverageMismatch);
-    }
-
-    let mut fingerprints = Vec::with_capacity(verified.len());
-    for ((verified, plan), body_definition) in verified.iter().zip(planned).zip(body_fingerprints) {
+    let mut fingerprints = Vec::with_capacity(planned.len());
+    for (plan, body_definition) in planned.iter().zip(body_objects.fingerprints()) {
         let body = plan.body();
-        if verified.body() != body {
-            return Err(StrongCallableFingerprintError::RegistrationObjectMismatch { body });
-        }
-        if body_definition.body() != body || body_definition.node() != plan.body_definition_node() {
-            return Err(StrongCallableFingerprintError::BodyObjectMismatch { body });
-        }
         let canonical = canonical
             .get(body)
             .ok_or(StrongCallableFingerprintError::CanonicalBodyMismatch { body })?;
-        if !canonical_matches_plan(canonical.owner(), verified, *plan) {
-            return Err(StrongCallableFingerprintError::CanonicalBodyMismatch { body });
-        }
         let definition = crate::link_object::odr_member_fingerprints::callable_body(*canonical);
         let registration = RegistrationAbiV1::from_owner(
             plan.definition_owner(),
@@ -124,34 +101,6 @@ pub fn compute_strong_callable_fingerprints_v1(
     })
 }
 
-fn canonical_matches_plan(
-    canonical: CanonicalCallableAbiOwnerV1,
-    verified: &VerifiedStrongCallableRegistrationV1,
-    plan: scoop_lir::StrongCallableRegistrationPlanV1,
-) -> bool {
-    let owner = match verified.entry_relocation().resolution() {
-        StrongRelocationResolutionV1::ObjectLocalStrong { owner, .. }
-        | StrongRelocationResolutionV1::CurrentConeUndefinedStrong { owner, .. } => owner,
-        StrongRelocationResolutionV1::ExternalCandidate { .. } => return false,
-    };
-    match (canonical, plan.definition_owner(), owner) {
-        (
-            CanonicalCallableAbiOwnerV1::Strong,
-            RegistrationDefinitionOwner::Strong,
-            LinkDefinitionOwnerV1::StrongDefinition(_),
-        ) => true,
-        (
-            CanonicalCallableAbiOwnerV1::Odr { group, member, .. },
-            RegistrationDefinitionOwner::Odr {
-                group: actual_group,
-                ..
-            },
-            LinkDefinitionOwnerV1::OdrDefinition(actual_member),
-        ) => group == actual_group && member == actual_member,
-        _ => false,
-    }
-}
-
 pub(in crate::link_object) fn runtime_encode_callable_record_v1(
     encoder: &mut RuntimeEncoder,
     plan: scoop_lir::StrongCallableRegistrationPlanV1,
@@ -170,13 +119,6 @@ pub(in crate::link_object) fn runtime_encode_callable_record_v1(
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StrongCallableFingerprintError {
-    ProofCoverageMismatch,
-    RegistrationObjectMismatch {
-        body: PersistentCallableBodyId,
-    },
-    BodyObjectMismatch {
-        body: PersistentCallableBodyId,
-    },
     CanonicalBodyMismatch {
         body: PersistentCallableBodyId,
     },

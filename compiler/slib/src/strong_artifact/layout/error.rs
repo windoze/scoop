@@ -1,7 +1,6 @@
 use std::fmt;
 
 use scoop_hir::CrossConeHirInterfaceIndexError;
-use scoop_identity::ConeIdentity;
 use scoop_wire::HashError;
 
 use super::super::{StrongArtifactAssemblyError, StrongArtifactSectionV1};
@@ -12,12 +11,6 @@ use crate::{
 
 #[derive(Debug)]
 pub enum CrossConeLayoutArtifactWriteError {
-    ComponentProducerMismatch {
-        component: &'static str,
-        expected: ConeIdentity,
-        actual: ConeIdentity,
-    },
-    TargetMismatch,
     TestDirectory(crate::TestDirectoryError),
     Compatibility(HashError),
     HirInterfaceIndex(CrossConeHirInterfaceIndexError),
@@ -93,7 +86,6 @@ impl std::error::Error for CrossConeLayoutArtifactWriteError {
             Self::Manifest(source) => Some(source),
             Self::Archive(source) => Some(source),
             Self::TestDirectory(source) => Some(source),
-            Self::ComponentProducerMismatch { .. } | Self::TargetMismatch => None,
         }
     }
 }

@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../gc_binding/stackmap/fingerprint.h"
 #include "internal.h"
 
 static _Noreturn void parse_fatal(ScoopStackMapError error) {
@@ -43,13 +42,6 @@ static size_t resolve_site(const ScoopImageRegistry *registry,
                 (unsigned)platform_error.root_index, (unsigned)platform_error.code);
         record_fatal(record, "invalid managed frame or root location");
     }
-    ScoopDigest256V1 fingerprint;
-    if (!scoop_stackmap_fingerprint(record, site, &fingerprint)) {
-        record_fatal(record, "cannot normalize or hash record");
-    }
-    if (!scoop_digest_equal(&fingerprint, &site->normalized_stackmap_fingerprint)) {
-        record_fatal(record, "normalized fingerprint mismatch");
-    }
     return index;
 }
 
@@ -63,8 +55,8 @@ void scoop_image_stackmaps(ScoopImageRegistry *registry,
     ScoopMetadataCheck check = {.loaded = registry->loaded, .kind = "stackmap"};
     for (size_t index = 0; index < registry->loaded->count; index++) {
         const ScoopStackMapImage *image = &registry->loaded->images[index];
-        scoop_metadata_readonly(&check, image->section, image->section_size, 1, 8,
-                                "complete section readonly range");
+        scoop_metadata_range(&check, image->section, image->section_size, 1, 8,
+                             "complete section range");
     }
     ScoopStackMapIndex raw;
     ScoopStackMapError error;

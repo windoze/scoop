@@ -110,9 +110,6 @@ pub(super) fn read<'a>(
                 {
                     return Err(error("duplicate native export trie"));
                 }
-                if info.weak_bind_size.get(endian) != 0 {
-                    return Err(error("native dylib requires cross-provider weak lookup"));
-                }
             }
             macho::LC_SEGMENT_64 => {
                 let (segment, _) = command

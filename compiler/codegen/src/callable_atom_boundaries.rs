@@ -1,12 +1,8 @@
 //! Materialize stable symbols for LLVM-owned callable atoms in Mach-O.
 
-use std::collections::BTreeSet;
 use std::path::Path;
 
-use scoop_lir::{
-    DefinitionAtomRole, DefinitionSymbolPlanV1, LirTargetProfile, PersistentCallableBodyId,
-    StrongDefinitionEntityKind,
-};
+use scoop_lir::{DefinitionAtomRole, DefinitionSymbolPlanV1, LirTargetProfile};
 
 pub(crate) use self::macho::{BoundaryDefinitionV1, MachOLayout};
 use crate::CodegenError;
@@ -18,17 +14,7 @@ pub(crate) fn materialize_v1(
     path: &Path,
     target: LirTargetProfile,
     plan: &DefinitionSymbolPlanV1,
-    expected_body: PersistentCallableBodyId,
 ) -> Result<(), CodegenError> {
-    if plan.definition_role() != scoop_lir::StrongDefinitionRole::CallableBody
-        || plan.owner().kind() != StrongDefinitionEntityKind::CallableBody(expected_body)
-    {
-        return Err(CodegenError(format!(
-            "definition {} is not the selected callable body {expected_body}",
-            plan.definition_plan()
-        )));
-    }
-
     if target.native_object_format() == scoop_lir::NativeObjectFormat::Elf64 {
         return elf::materialize(path, plan);
     }
@@ -45,16 +31,9 @@ pub(crate) fn materialize_v1(
         .compiler_generated_object_symbol(plan.primary_symbol().symbol().as_str())
         .into_bytes();
     let primary = layout.require_external_definition(&primary_name)?;
-    let text = layout.require_section(b"__TEXT", b"__text")?;
-    if primary.section_ordinal() != text.ordinal() || primary.value() != text.address() {
-        return Err(CodegenError(format!(
-            "callable primary `{}` does not start its unique __text section",
-            String::from_utf8_lossy(&primary_name)
-        )));
-    }
+    let text = layout.require_section_ordinal(primary.section_ordinal())?;
 
     let mut additions = Vec::new();
-    let mut planned_backend_sections = BTreeSet::new();
     let constants_atom = crate::callable_constants::atom(plan)?;
     for boundary in plan.atom_boundaries() {
         let start_name = normalization
@@ -82,16 +61,10 @@ pub(crate) fn materialize_v1(
         }
         match boundary.atom_role() {
             DefinitionAtomRole::Primary => {
-                if boundary.atom() != plan.primary_atom() {
-                    return Err(CodegenError(format!(
-                        "callable definition {} assigns Primary to a non-primary atom",
-                        plan.definition_plan()
-                    )));
-                }
                 additions.push(BoundaryDefinitionV1::new(
                     start_name,
                     text.ordinal(),
-                    text.address(),
+                    primary.value(),
                     boundary.start().linkage(),
                 ));
                 additions.push(BoundaryDefinitionV1::new(
@@ -107,7 +80,6 @@ pub(crate) fn materialize_v1(
             | DefinitionAtomRole::CompactUnwind) => {
                 let (segment, section) = backend_section(role)?;
                 let physical = layout.require_section(segment, section)?;
-                planned_backend_sections.insert((segment, section));
                 additions.push(BoundaryDefinitionV1::new(
                     start_name,
                     physical.ordinal(),
@@ -129,27 +101,7 @@ pub(crate) fn materialize_v1(
                     layout.materialize_odr_definition(&mut bytes, &start_name)?;
                     layout.materialize_odr_definition(&mut bytes, &end_name)?;
                 }
-                layout
-                    .require_existing_boundary_pair(&start_name, &end_name)
-                    .map_err(|error| {
-                        CodegenError(format!(
-                            "callable atom {} ({:?}) has invalid materialized boundaries: {error}",
-                            boundary.atom(),
-                            boundary.atom_role()
-                        ))
-                    })?;
             }
-        }
-    }
-    for (segment, section) in BACKEND_SECTIONS {
-        if layout.find_section(segment, section)?.is_some()
-            && !planned_backend_sections.contains(&(segment, section))
-        {
-            return Err(CodegenError(format!(
-                "callable object contains unplanned backend section {},{}",
-                String::from_utf8_lossy(segment),
-                String::from_utf8_lossy(section)
-            )));
         }
     }
     layout.add_external_definitions(&mut bytes, additions)?;

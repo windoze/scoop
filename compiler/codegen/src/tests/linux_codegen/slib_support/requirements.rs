@@ -5,19 +5,18 @@ use super::*;
 impl SlibObjects {
     pub fn callables(
         &self,
-        stackmaps: VerifiedScoopLirStackmapSetV1,
+        stackmaps: ScoopStackmapSetV1,
     ) -> VerifiedStrongCallableFingerprintSetV1 {
-        let sites = self.sites(stackmaps.builtins().clone(), &self.objects);
+        let sites = self.sites(stackmaps.builtins().clone());
         let requirements = self.requirements(sites.clone());
         let objects = candidates(&self.objects);
-        let registrations = verify_strong_callable_registrations_v1(
+        let registrations = bind_callable_registrations_v1(
             sites,
             self.emitted
                 .production()
                 .registration_production()
                 .callables()
                 .clone(),
-            &objects,
         )
         .unwrap();
         let bodies = compute_strong_callable_body_object_fingerprints_v1(
@@ -36,7 +35,7 @@ impl SlibObjects {
 
     pub fn requirements(
         &self,
-        sites: VerifiedScoopLirDigestPatchSiteSetV1,
+        sites: ScoopLirDigestPatchSitesV1,
     ) -> CanonicalUndefinedSymbolRequirementSetV1 {
         let strong = sites.builtins().strong_relocations().clone();
         let bridges = self.emitted.production().generated_bridge_plan().clone();
@@ -56,14 +55,11 @@ impl SlibObjects {
         let runtime =
             verify_runtime_and_eh_requirements_v1(source, self.emitted.target_selection())
                 .expect("runtime and EH requirements");
-        let semantics =
-            verify_generated_c_bridge_semantics_v1(sites, bridges, native, &self.profile)
-                .expect("generated bridge requirements");
-        let external = verify_c_bridge_target_support_requirements_v1(runtime, semantics)
-            .expect("target support requirements");
-        let external = seal_builtin_object_external_requirements_v1(external)
+        let external =
+            classify_c_bridge_target_support_requirements_v1(runtime, &bridges, &self.profile)
+                .expect("target support requirements");
+        let external = finish_builtin_external_requirements_v1(external)
             .expect("all external references classified");
         finalize_undefined_symbol_requirements_v1(current, external)
-            .expect("complete undefined requirements")
     }
 }

@@ -3,7 +3,6 @@ use crate::linux_target::{LinuxLibc, LinuxTarget};
 use scoop_process::CommandExt;
 use scoop_wire::sha256;
 
-mod image;
 mod probe;
 mod runtime;
 use runtime::RuntimeLibraries;
@@ -172,10 +171,6 @@ impl LinuxFinalLinkProfile {
                 .arg(prefix.join("lib/libunwind.a"))
                 .args(["-lc", "-lm", "-lpthread", "-lgcc", "-Wl,--end-group"]);
         }
-    }
-
-    pub fn check_image(&self, bytes: &[u8]) -> Result<(), ToolchainError> {
-        image::check(self, bytes)
     }
 
     fn metadata_script(&self) -> &'static str {

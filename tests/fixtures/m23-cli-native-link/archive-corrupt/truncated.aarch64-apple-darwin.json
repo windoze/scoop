@@ -1,7 +1,7 @@
 [
   {
     "code": "SCOOP_LINK_FAILED",
-    "message": "native candidate ${work}/native/libm23_math.a: archive member payload/padding exceeds file; requirement db3dcf42fa4d2363eddc5c56a0df56140b61934085593f5c3bcaf72307e37343; origins: dev.programlink:archive:0.1.0",
+    "message": "native candidate ${work}/native/libm23_math.a: Archive member size is too large; requirement db3dcf42fa4d2363eddc5c56a0df56140b61934085593f5c3bcaf72307e37343; origins: dev.programlink:archive:0.1.0",
     "notes": [],
     "origin": {
       "kind": "none"

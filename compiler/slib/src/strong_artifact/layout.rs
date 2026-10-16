@@ -4,7 +4,6 @@ use scoop_hir::{
     CoreBootstrapInterfaceSectionV1, CrossConeHirInterfaceSectionV1,
     CrossConeTypeSemanticsSectionV1,
 };
-use scoop_identity::ConeIdentity;
 use scoop_lir::{
     ConeLirFoundation, CrossConeLayoutAbiSectionV1, CrossConeLirBridgeSectionV1,
     ValidatedLirTargetSelection,
@@ -17,10 +16,10 @@ use scoop_wire::encode;
 use super::StrongArtifactSectionV1;
 use crate::{
     ArtifactCapabilityProfile, ArtifactFingerprint, BootstrapManifest, CanonicalSlibArchive,
-    CompatibilityRecord, ConeRecord, CrossConeLayoutProductionManifestV1, DependencyRecord,
-    LinkIdentityClosureSectionV1, ManifestSection, MemberPurposeSet, ProducerRecord,
-    SemanticFingerprintRecord, SlibMember, VerifiedCodeFingerprintV2,
-    VerifiedCrossConeLayoutCodeFingerprintV1, manifest_single_cone_production_capability,
+    CompatibilityRecord, ConeRecord, CrossConeLayoutCodeDataV1,
+    CrossConeLayoutProductionManifestV1, DependencyRecord, LinkIdentityClosureSectionV1,
+    ManifestSection, MemberPurposeSet, ProducerRecord, SemanticFingerprintRecord, SlibMember,
+    manifest_single_cone_production_capability,
 };
 
 mod error;
@@ -47,7 +46,7 @@ pub struct CrossConeLayoutArtifactInputV1<'ir> {
     lir_foundation: &'ir ConeLirFoundation,
     lir_cross_cone: &'ir CrossConeLirBridgeSectionV1,
     lir_layout_abi: &'ir CrossConeLayoutAbiSectionV1<'ir>,
-    layout_code: VerifiedCrossConeLayoutCodeFingerprintV1,
+    layout_code: CrossConeLayoutCodeDataV1,
     link_objects: Vec<SlibMember>,
     test_directory: Option<crate::TestDirectory>,
 }
@@ -74,7 +73,7 @@ impl<'ir> CrossConeLayoutArtifactInputV1<'ir> {
         lir_foundation: &'ir ConeLirFoundation,
         lir_cross_cone: &'ir CrossConeLirBridgeSectionV1,
         lir_layout_abi: &'ir CrossConeLayoutAbiSectionV1<'ir>,
-        layout_code: VerifiedCrossConeLayoutCodeFingerprintV1,
+        layout_code: CrossConeLayoutCodeDataV1,
         link_objects: Vec<SlibMember>,
     ) -> Self {
         Self {
@@ -132,20 +131,7 @@ impl AssembledCrossConeLayoutArtifactV1 {
         let identity = cone.identity();
         let (code, link_support) = layout_code.into_parts();
 
-        validate_producers(
-            identity,
-            &code,
-            mir_cross_cone,
-            mir_type_bridge,
-            lir_foundation,
-            lir_cross_cone,
-            lir_layout_abi,
-        )?;
-
         let target_selection = code.undefined_symbols().selection();
-        if lir_layout_abi.target_profile() != target_selection.target() {
-            return Err(CrossConeLayoutArtifactWriteError::TargetMismatch);
-        }
         let compatibility = CompatibilityRecord::new(
             target_selection,
             ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
@@ -256,37 +242,6 @@ impl AssembledCrossConeLayoutArtifactV1 {
     pub fn object_payloads(&self) -> impl Iterator<Item = (scoop_wire::Digest256, &[u8])> {
         self.archive.object_payloads()
     }
-}
-
-#[allow(clippy::too_many_arguments)]
-fn validate_producers(
-    expected: ConeIdentity,
-    code: &VerifiedCodeFingerprintV2,
-    mir_cross_cone: &CrossConeMirBridgeSectionV1,
-    mir_type_bridge: &CrossConeMirTypeBridgeSectionV1<'_>,
-    lir_foundation: &ConeLirFoundation,
-    lir_cross_cone: &CrossConeLirBridgeSectionV1,
-    lir_layout_abi: &CrossConeLayoutAbiSectionV1<'_>,
-) -> Result<(), CrossConeLayoutArtifactWriteError> {
-    for (component, actual) in [
-        ("Code", code.producer()),
-        ("MIR bridge", mir_cross_cone.artifact()),
-        ("MIR type bridge", mir_type_bridge.provider()),
-        ("LIR foundation", lir_foundation.producer()),
-        ("LIR bridge", lir_cross_cone.artifact()),
-        ("LIR layout ABI", lir_layout_abi.provider()),
-    ] {
-        if actual != expected {
-            return Err(
-                CrossConeLayoutArtifactWriteError::ComponentProducerMismatch {
-                    component,
-                    expected,
-                    actual,
-                },
-            );
-        }
-    }
-    Ok(())
 }
 
 #[cfg(test)]

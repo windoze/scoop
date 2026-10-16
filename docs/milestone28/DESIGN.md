@@ -50,7 +50,7 @@
 | `compiler/scoop/src/runtime_build/` | SDK/Clang resource 和 Darwin 源文件 | 目标 libc 的编译输入、依赖及独立 runtime 缓存 |
 | Rust 集成测试、`tests/fixture_runner/cli.py` | host gate、xcrun、Darwin flags/golden | 显式 target 测试矩阵和对应 native 工具 |
 
-尤其不能仅打开 Linux target gate。现有 ELF 不可用的地方还包括 startup C 的 `__DATA_CONST`、`_main`、native library 文件后缀、String 间接返回 shim、CommonCrypto SHA-256 和 runtime 注册时保存的线程栈边界。
+尤其不能仅打开 Linux target gate。现有 ELF 不可用的地方还包括 startup C 的 `__DATA_CONST`、`_main`、native library 文件后缀、String 间接返回 shim、当时的 CommonCrypto SHA-256（M50 已退役）和 runtime 注册时保存的线程栈边界。
 
 ## 3. 平台结构
 
@@ -83,7 +83,7 @@ runtime:   platform/image/{elf,macho}.c
 
 `runtime_sources` 拆为共有源文件清单和实际 platform 组件清单。glibc/musl 共用 Linux/amd64 runtime 源码，区别主要由编译输入和最终链接表达。通用 collector、thread、callback 和 Context 不散布 arch/libc 条件编译。
 
-实际实现入口见 [runtime 源文件组合](../../compiler/toolchain/src/runtime.rs)、[Linux platform bundle](../../runtime/src/platform/profiles/linux_x86_64.c)、[ELF 共有 reader](../../compiler/slib/src/link_object/elf.rs)、[amd64 relocation](../../compiler/slib/src/link_object/elf/x86_64.rs)、[codegen 机器帧检查](../../compiler/codegen/src/artifact/x86_64.rs)及 [ELF 链接动作](../../compiler/linker/src/link/elf.rs)。这些边界由当前 Darwin 和两种 Linux libc 的实现共用；未为未来 arm64 添加空 profile 或占位实现。
+实际实现入口见 [runtime 源文件组合](../../compiler/toolchain/src/runtime.rs)、[Linux platform bundle](../../runtime/src/platform/profiles/linux_x86_64.c)、[ELF 共有 reader](../../compiler/slib/src/link_object/elf.rs)、[amd64 relocation](../../compiler/slib/src/link_object/elf/x86_64.rs)及 [ELF 链接动作](../../compiler/linker/src/link/elf.rs)。原 codegen 机器帧复核已在 M50 中删除。这些边界由当前 Darwin 和两种 Linux libc 的实现共用；未为未来 arm64 添加空 profile 或占位实现。
 
 现有 `scoop_darwin_aarch64_managed_frame_ops` 等名称在确有跨 OS 复用时改为相应架构/ABI 名称；Darwin 与 ELF 的汇编符号拼写留在格式适配处。不能假定 Darwin AArch64 的每个过程 ABI 细节都等同于 Linux AAPCS64。
 
@@ -157,11 +157,11 @@ Linux OS 层使用 `pthread_getattr_np` + `pthread_attr_getstack` 获取当前�
 
 ### 5.3 已加载 ELF 与 metadata
 
-ELF image adapter 使用 `dl_iterate_phdr` 获取主 executable 的 load bias、`PT_LOAD` 和权限。stackmap 的起止地址由 final link 定义的 hidden linker symbols 直接提供；不依赖运行时存在 ELF section header、磁盘上的 executable 或 `.symtab`。Scoop Cone image 仍是一个最终 executable 内的 logical image，不新增 DSO 注册协议。
+ELF image adapter 使用 `dl_iterate_phdr` 获取主 executable 的 load bias 与 `PT_LOAD` 地址范围。stackmap 的起止地址由 final link 定义的 hidden linker symbols 直接提供；不依赖运行时存在 ELF section header、磁盘上的 executable 或 `.symtab`。Scoop Cone image 仍是一个最终 executable 内的 logical image，不新增 DSO 注册协议。
 
-动态 PIE 下，含 relocation 的不可变 metadata 在 loader 修正后必须只读；Linux adapter 用加载段和实际 VM 映射权限核对范围，不能只凭 section 名或 `PT_GNU_RELRO` 宣称只读。Linux 的 `/proc/self/maps` 查询只发生于已有启动 image 检查边界，不进入 GC 热路径；缺少所需映射信息须明确诊断，作为本阶段 Linux 运行环境要求记录。
+动态 PIE 下，含 relocation 的不可变 metadata 仍按目标链接规则放入 RELRO；Linux adapter 直接使用已加载的 `PT_LOAD` 范围处理实际访问边界。M50 已删除 `/proc/self/maps` 和 VM 权限审计，不将 proc 映射信息作为 runtime 的额外运行要求。
 
-stackmap parser 继续支持同一输出段中串接的完整 v3 blob，保留精确 PC 和登记关系检查。现有 CommonCrypto SHA-256 调用需提供可移植实现；优先采用维护中的上游 C SHA-256 模块，例如 [Mbed TLS 的 SHA-256 模块](https://github.com/Mbed-TLS/mbedtls/blob/mbedtls-3.6/library/sha256.c)及其最小配置，固定版本并保留许可证，只编入所需源文件。它仅服务已有 canonical stackmap fingerprint，不引入完整 TLS 库、新摘要协议或额外来源检查。
+stackmap parser 继续支持同一输出段中串接的完整 v3 blob，保留精确 PC、GC root 和登记关系。编译／链接阶段仍计算所需内容摘要；runtime 直接索引实际记录，并比较 ODR 重复记录的 PC 与 payload，不重编码或复算规范化摘要。M50 已删除仅为这次复算引入的 CommonCrypto／Mbed TLS SHA-256 后备及专属测试。
 
 ## 6. ELF 发射、ODR 和 TLS
 
@@ -188,9 +188,9 @@ LLVM 原始 stackmap 含函数地址 relocation。PIE 不能把它作为只读�
 
 对象格式负责 section、symbol size/binding/visibility、group 和 RELA 表；架构模块解释具体 relocation，包括符号目标、signed addend、写入宽度及 PC-relative 语义。覆盖实际 LLVM 和所选 C compiler 发出的绝对、PC-relative、PLT/GOT 与 TLS relocation；不把所有 relocation 当 64-bit pointer，不给 debug section 套用 loadable metadata 规则。
 
-ELF atom boundary 优先使用真实 symbol/section extent 和现有 typed definition，必要边界标签由 ELF 发射模块提供。不要复制 Mach-O 的 nlist 重写、underscore 拼接及固定 TLV extent。对象物化、指纹补丁之后按最终字节检查一次相关对象事实；后续 consumer 复用读取结果。
+ELF atom boundary 优先使用真实 symbol/section extent 和现有 typed definition，必要边界标签由 ELF 发射模块提供。不要复制 Mach-O 的 nlist 重写、underscore 拼接及固定 TLV extent。对象物化和指纹补丁直接使用既有 atom 范围与实际槽位，后续 consumer 复用所需读取结果，不在写入后重建整份对象进行比较。
 
-只读数据 section 可以在第一个 atom 之前包含 canonical zero 字节，供共享空 template/relocation 哨兵使用；不能假定 LLVM 总把哨兵排在已命名 atom 后面。前缀逐字节检查为零，不能包含 relocation 来源；普通 atom 仍不重叠，哨兵引用仍按实际范围、对齐和非 atom 区域验证。可写数据与代码 section 继续要求从已归属 atom 开始。
+只读数据 section 可以在第一个 atom 之前包含共享空 template／relocation 哨兵，发射不要求它们排在已命名 atom 后面。reader 按实际 symbol／section extent 提取所需范围，不扫描未使用前缀、padding 或 relocation 来证明整段已被 atom 覆盖。
 
 ### 6.3 ODR
 
@@ -251,7 +251,7 @@ LLVM landingpad/LSDA 和 `_Unwind_Exception` 的大小、对齐、exception data
 
 实测还发现一个需要修订的封闭 LSDA 条件：当前 personality 固定要求 type-table encoding 为 `0x9b`，LLVM 的 cleanup-only 函数正常会输出 `0xff`（省略 type table）。M28 在 spec、对象 decoder 和 runtime decoder 中加入这种实际形态：没有 type table 时只接受对应 cleanup/no-action 记录，不能读不存在的 type-table offset；catch-all 继续按现有 `0x9b` 规则。范围只覆盖 Scoop 使用的 catch/cleanup，不扩展为任意 C++ type/filter decoder。
 
-Linux CRT 可能带有普通的 weak `__cxa_finalize` 引用，探针在 glibc/musl PIE 中均观察到；glibc 的 C `atexit` 实现还会引入 `__cxa_atexit`。这两个退出清理入口不表示 Scoop 使用 C++ 异常 ABI。生成的 Scoop/runtime 对象继续不导入 C++ EH 接口；最终产物检查区分 CRT 正常引用与 `__cxa_throw`、`__cxa_begin_catch`、C++ personality 等异常依赖，不能把 Darwin 的全前缀禁止规则机械套到 Linux CRT。
+Linux CRT 可能带有普通的 weak `__cxa_finalize` 引用，探针在 glibc/musl PIE 中均观察到；glibc 的 C `atexit` 实现还会引入 `__cxa_atexit`。这两个退出清理入口不表示 Scoop 使用 C++ 异常 ABI。Scoop/runtime 自身不生成 C++ EH 调用，native C++ 按所选模式使用配套运行库。M50 删除工具链探测输出的 EH 前缀扫描、ELF 整体复核和 unwind map 比对；实际链接参数选择运行库，编译／链接失败正常传播，运行测试覆盖 unwinder 与 libc 行为。
 
 原生库查找延续显式 search roots 和歧义诊断：Linux 查找 `L.o`、`libL.a`、动态模式下的 `libL.so`；framework/TBD 是 Darwin 专属。用户输入与系统 libc 的 linker script 分开处理：CRT/libc 开发包的标准脚本交由所选 compiler/linker 处理，不为 Scoop 实现通用 linker-script 解释器。
 
@@ -259,7 +259,7 @@ ELF 动态符号按实际 SONAME、`DT_NEEDED`、symbol version 和 TLS 类型�
 
 显式 `lib` 约束仍须由该库自身提供匹配定义。如果已选 DSO 的同名默认导出使 ELF 链接顺序无法实现这组源声明的库绑定，报告原生符号冲突；不为它生成两级命名空间或运行时符号查找包装。DSO 的实际依赖闭包以普通动态输入交给 linker，并将原库目录写入 RUNPATH；共享库在运行时仍由系统 loader 加载。
 
-最终验证只检查链接产生的新事实：目标/文件类型、loader/库依赖、实际符号闭合和所需地址唯一性、metadata 范围/权限、stackmap/EH 的保留、startup 引用。不重放 HIR/MIR 语义，也不为 ELF 新写一套全程序指令/来源证明系统。保留现有失败不覆盖旧输出的原子发布行为。
+最终链接完成目标、loader／库依赖、真实符号闭合、ODR 选择、metadata／stackmap／EH 的正常发射及 startup 引用。链接成功后使用工具输出，不追加全对象或内容证明；必要格式读取和实际引用检查在消费边界完成。失败不覆盖旧输出的原子发布行为保留。
 
 ## 8. 产物与缓存
 

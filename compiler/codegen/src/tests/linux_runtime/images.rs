@@ -2,7 +2,7 @@ use super::{checked, workspace};
 use std::process::Command;
 
 #[test]
-fn elf_images_use_loaded_segments_and_actual_read_only_mappings() {
+fn elf_images_use_loaded_segments_and_stackmap_bounds() {
     let workspace = workspace();
     let root = workspace.join("target/linux-runtime-tests");
     std::fs::create_dir_all(&root).unwrap();
@@ -47,7 +47,7 @@ fn elf_images_use_loaded_segments_and_actual_read_only_mappings() {
         if mode == "static" {
             assert!(!headers.contains("NEEDED"));
         }
-        let expected = b"ELF load bias, stackmap bounds and actual metadata permissions passed\n";
+        let expected = b"ELF load bias, stackmap bounds and metadata ranges passed\n";
         assert_eq!(checked(&mut Command::new(&binary)).stdout, expected);
         // The kernel and runtime need program headers only. Remove the section
         // table locator to exercise this on the same executable without a reader.

@@ -253,7 +253,7 @@ fn check_core_layout_exports(names: &[&str]) {
         ) {
             continue;
         }
-        let production = registration.validate_layout_abi(&layout_section).unwrap();
+        let production = registration;
         assert_eq!(
             production.type_registrations().registrations().len(),
             lir.module().meta.type_descriptors.len()

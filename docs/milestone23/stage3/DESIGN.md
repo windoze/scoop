@@ -924,68 +924,11 @@ foundation已经验证的完整`CborIdentityRecord<Id, Key>` authority；wire仍
 
 ### 9.4 Link identity closure
 
-`LinkIdentityClosureSectionV1`由packager在object verification之后构造：
+`LinkIdentityClosureSectionV1` 保存 program linking 实际需要的成员分配、定义与未定义符号。wire map 使用 field 1 materializations、field 4 defined symbols、field 5 undefined symbols。materializations 按 member id 排序，元素 tag 为 `ScoopLir=1 | GeneratedCBridge=2`，两者均保存 field 1 member；ScoopLir 另保存 field 2 units。generated-C 成员直接使用实际生成记录。
 
-```text
-LinkIdentityClosureSectionV1 {
-    materializations: CanonicalVec<MemberMaterialization>,
-    definition_indexes: CanonicalVec<VerifiedObjectDefinitionIndex>,
-    patch_sites: CanonicalVec<MaterializedPatchSite>,
-    defined_symbols: CanonicalDefinedLinkSymbolOwnerSet,
-    undefined_symbols: CanonicalUndefinedSymbolRequirementSet,
-    verified_link_objects: CanonicalVec<VerifiedLinkObjectSummary>,
-    image_owner: VerifiedImageOwnerProjection,
-    entry_owner: Library | Executable(VerifiedEntryOwnerProjection),
-}
-```
+writer 投影已有生产数据；reader 读取本次链接需要的引用和字段，不重建八字段证明、不进行整段 canonical-byte 比较。旧 definition indexes、patch sites、image／entry owner 与 verified object summary 资格字段已移除。
 
-上述伪类型在M23-3精确化如下。field 1为按member id严格递增的
-`LinkObjectMaterializationV1` array；元素sum tag为`ScoopLir=1`、`GeneratedCBridge=2`，两个variant
-均固定为`1=member: SlibMemberId`、`2=units`，units分别使用
-`CanonicalScoopLirObjectUnitSetV1`与`CanonicalGeneratedBridgeObjectUnitSetV1`。field 2为按
-`(member, definition)`严格递增的`VerifiedObjectDefinitionIndexV1` array；每项固定为
-`1=member`、`2=definition`、`3=primary_atom`、`4=primary_symbol_table_index`、`5=atoms`，atom范围
-固定为`1=atom`、`2=atom_role`、`3=section_ordinal`、`4=start`、`5=end`、`6=padding_end`并按atom id
-严格递增。section role从同一verified object inventory的ordinal唯一重建，不在wire重复。
-
-field 3精确复用按intent id严格递增的`VerifiedMaterializedPatchSiteV1` array，其wire仍是已冻结的
-`1=intent`、`2=member`、`3=checked_offset`；其余source/definition/atom/role/width只能从strong digest
-plan、field 1--2及actual object重建。fields 4--5精确复用
-`CanonicalDefinedLinkSymbolOwnerSetV1`和`CanonicalUndefinedSymbolRequirementSetV1`。field 6精确复用
-`CodeLinkObjectMemberSetV1`，不是另一套object digest摘要。
-
-field 7 `VerifiedImageOwnerProjectionV1`固定为`1=member`、`2=definition`、`3=primary_atom`、
-`4=primary_symbol_table_index`、`5=checked_offset`、`6=byte_size`。field 8的sum tag仍为
-`Library=1`、`Executable=2`；Executable payload `VerifiedEntryOwnerProjectionV1`固定为
-`1=member`、`2=definition`、`3=checked_offset`。definition/atom来自strong section的image/entry plan，
-物理位置来自相同最终object proof。整个section只能从`VerifiedCodeFingerprintV1`持有的proof链投影；
-writer不接受上述八段裸值，reader重建完整expected section并逐byte比较。
-
-为启动object reader，Link可以先消费decoded field 1形成
-`MaterializationCheckedLinkIdentityClosureSectionV1`，但该中间证明必须把每个decoded unit id逐项匹配到
-同producer的`ProducerUnitPartitionV1` typed id，重建canonical unit set、member stable key与
-member id，并对完整materialization array做canonical byte等值。它必须继续拥有其余未验证closure字段；
-不能把field 1中的裸id/member bytes直接提升，也不能用该中间状态冒充完整closure proof。最终仍以
-`VerifiedCodeFingerprintV1`重建并核对全部八个字段。
-
-物理digest slot验证前，reader再把decoded field 3收窄为
-`DigestPatchInputCheckedLinkIdentityClosureSectionV1`。该转换只能从已经验证的
-`DigestFinalizationPlanV1`枚举完整intent集合，并沿每个intent的target definition在上述
-`PlannedLinkObjectMemberSetV1`中取得唯一Scoop LIR member；decoded intent与member都必须逐byte匹配这些
-typed expected值，数组必须按intent严格递增、无重复且完整覆盖plan。wire只贡献`checked_offset`；slot宽度
-固定由v1协议派生为32，source、semantic role、definition、atom及atom role继续由digest plan与foundation
-派生，不能由decoded字段或调用者补入。该中间状态只授权把这些受限输入交给actual-object digest patch
-verifier，并继续拥有其余未验证closure字段；只有物理range、零值与relocation检查完成后，才产生
-`VerifiedScoopLirDigestPatchSiteSetV1`。最终仍从同一Code proof重建并核对完整八字段closure。
-
-同一物理证明完成后，reader必须从
-`VerifiedBuiltinObjectStrongRelocationSetV1`重建完整field 2 definition index，并从
-`VerifiedScoopLirDigestPatchSiteSetV1`重建完整field 3 patch site projection，对两个array分别做canonical
-byte等值后才形成`ObjectProjectionCheckedLinkIdentityClosureSectionV1`。该状态连同前述materialization
-证明一起只授权closure fields 1--3；definition range、symbol-table index、member或offset不允许从decoded
-carrier直接提升，其余fields 4--8仍保持未验证，最终完整八字段比较不能省略。
-
-它不贡献新的LIR semantic bytes。reader从`ConeProductionSectionV1`、manifest directory和实际object重新计算全部字段后逐byte比较；range/offset/member id只出现在本section与Code/Artifact proof中，不进入LIR own-layer fingerprint。
+对象生成中的 digest 槽位是普通 `DigestPatchSiteV1 { intent, member, checked_offset }`，宽度固定为 32 bytes。`ScoopLirDigestPatchSitesV1` 按 intent 排序以供 registration、image 与 entry 查询，直接使用 codegen 的物化结果；不重放 digest plan、不读回零槽、不扫描 relocation 或完整覆盖来取得资格。实际写入保留范围检查，缺少当前需要的 intent 按普通引用错误报告。
 
 ### 9.5 manifest production section
 
@@ -1038,28 +981,7 @@ writer先从strong/object/image/entry proof构造这六个字段并计算Code fi
 byte比较。不存在含`Option<CodeFingerprint>`的中间manifest、全零占位digest或“encode时临时忽略field
 7”的入口。
 
-writer侧`SingleConeProductionManifestV1`拥有`VerifiedCodeFingerprintV1`，十个getter与wire字段都从
-这条proof链派生，不复制出可分别修改的第二套状态。bootstrap `SemanticFingerprintRecordV1`的production
-构造入口接收该manifest proof并同时写入Code/RuntimeImage两个`Available`槽；不提供接收两个裸digest的
-production构造器。
-
-manifest field 8的精确类型是去除source/diagnostic provenance的
-`CanonicalNativeExternalContractCodeSetV1`；field 9是按`NativeLinkRequirementId`严格递增的
-`CanonicalVec<CborIdentityRecord<NativeLinkRequirementId, NativeLinkRequirementKey>>`；field 10的
-精确类型是`CBridgeProductionSetV1`。三者都从同一个已经验证的native/C-bridge production proof
-重建，decoded payload不能直接提升为authority。
-
-为打破generated-C envelope验证与完整Code proof之间的依赖环，reader可以先把decoded field 10收窄为
-`CBridgeCheckedSingleConeProductionManifestV1`：它只能用已验证的`GeneratedBridgePlanSetV1`和请求级
-`CBridgeToolchainProfileV1`重建expected `CBridgeProductionSetV1`并做canonical byte等值，同时继续拥有
-其余九个未验证字段。该状态只授权C-bridge object envelope验证，不授权读取其他manifest语义；最终仍
-必须从同一`VerifiedCodeFingerprintV1`重建并核对完整十字段manifest。
-
-`VerifiedCBridgeProductionEnvelopeSetV1`必须拥有它已经验证的
-`GeneratedBridgePlanSetV1`和`CBridgeProductionSetV1`，不能只留下producer摘要；验证入口消费这两个
-值，成功后由proof独占保存。这样manifest/Code构造器才能把C bridge envelopes逐byte绑定回
-`ConeProductionSectionV1.generated_bridge_plan`。旧的借用后丢弃plan的proof结构和构造签名直接
-删除，不提供兼容重载。
+writer 从同一编译的 Code、RuntimeImage、native contract、library requirement 和 C bridge 生成记录构造完整 manifest。字段直接采用已有结果，不建立 source/profile 凭证或中间授权状态。字段 8～10 分别保存 native contract、library requirement 与 `CBridgeProductionSetV1`；消费者按实际用途读取，不重建 production 证明。
 
 ### 9.6 wire字段与tag冻结
 
@@ -1160,28 +1082,13 @@ layout definition/assertion；不得扫描整Cone后把其他unit的declaration�
 进来。空plan产生空source/object set；不存在单体`bridge.c`、多unit generated-C object或把同一unit再次
 按source declaration拆分的入口。临时source/object文件名只由unit id派生且不承担语义。
 
-generated C producer必须原子地接收sealed strong LIR、请求级
-`ValidatedCBridgeToolchainProfile`与临时目录父路径：先生成上述canonical source set，再只通过该profile的
-canonical object command逐unit编译。其typed结果必须同时保留完整`GeneratedBridgePlanSetV1`、精确
-`CBridgeToolchainProfileV1`、从二者唯一派生的`CBridgeProductionSetV1`、每个unit的authority plan及其
-source/object path映射，并拥有覆盖全部临时source/object的immutable backing；每个成功object必须存在、
-为非空普通文件且在返回前标记只读。driver只
-能在该结果存活期间借用object path交给linker，不能自行写source、调用compiler、按文件名重建unit、重新配对
-plan/source/object或接收裸`Vec<PathBuf>`作为producer结果。任一unit的source写入、compiler执行、object
-检查或封存失败都使整个object set构造失败并随backing一并丢弃，不返回部分结果。
+generated C producer 接收完整 LIR、选中的 C bridge profile 和临时目录父路径，生成各 unit 的源码，
+由 driver 执行实际 C 编译。结果保存 unit plan、source/object path 及管理临时文件生命周期的目录。
+源码写入或工具执行失败时清理本批临时结果；成功对象按后续实际读取所需处理，不做只读封存、
+权限审计或生产过程认证。此处及后文的生产职责以现行实现规范 2.5 与 M50 为准。
 
-canonical generated-C object command必须显式关闭stack protector、同步unwind table与异步unwind table；这些
-选项进入`CanonicalCBridgeFlagContractV1`及其fingerprint，不允许依赖compiler默认值。桥接wrapper不允许C/C++
-异常跨越Scoop native boundary，GC也不扫描native frame，因此generated-C member不得产生未计划的stack-check、
-compact-unwind或EH support定义/引用。编译成功后、object封存前，producer必须按同一unit的typed atom authority
-原子物化boundary：`PrimaryEntry`必须是从`__TEXT,__text`起点开始的唯一bridge body，其range恰为该非空section；
-`SignatureDescriptor`与`ContextDescriptor`分别是专用`__TEXT,__scoop_sig`与
-`__TEXT,__scoop_ctx` section中唯一的1-byte marker，range恰为该section。producer复用共同的Mach-O symbol-table
-重建器加入external start/end definition并同步修正被后移的undefined relocation index；任一primary symbol、
-section、extent、atom/definition plan或边界冲突都必须在写回前失败。不得按相邻symbol、nlist size、普通
-`__const` section整体或编译器临时label猜测range，也不得保留未带boundary的旧object路径。
-canonical source只用`__builtin_memcpy`表达storage copy且不包含`<string.h>`；toolchain可把它内联或降为已登记的
-`memcpy` target support，但`__memcpy_chk`等fortify派生symbol不在闭包内并必须失败。
+generated-C object command 显式选择 stack protector 和 unwind 等编译选项，并将有效选项纳入工具输入指纹。C 编译成功后直接读取本 unit 的主符号与实际 section／extent，物化计划中的 start/end 符号。Mach-O 重建器同步修正后移的 undefined relocation index；ELF 使用符号大小。缺失符号与本次读写范围正常报错，不重新检查 bridge body、marker 的模板位置／大小或允许的 support 段全集。
+canonical source 使用 `__builtin_memcpy` 表达 storage copy；toolchain 可内联或降为 helper。实际未定义引用按普通 source extern、runtime、EH 与 target-support 规则分类。
 
 本阶段Scoop LLVM producer采用确定性的强对象分片策略：每个`CallableBody` definition plan连同其全部
 associated atom独占一个provisional object，其余Scoop LIR definition plan进入恰一个non-callable object。
@@ -1192,26 +1099,10 @@ module-level backend section不会把多个callable atom混成需要事后猜测
 必须逐项等于`ProducerUnitPartitionV1`中的Scoop LIR definition集合且互不重叠；generated bridge
 definition只能由generated C producer分片，不得混入LLVM对象。
 
-Scoop LLVM producer在返回member前，必须把runtime-metadata emitter给出的每个typed
-`{intent, definition, atom, owner symbol, offset-within-owner, width}`定位到刚写出的同一Mach-O：owner必须是
-该对象中的真实definition，symbol范围与section file range都必须完整包含32-byte slot，初值必须全零，
-全部slot不得重复或相交。成功materialization保留上述typed位置和checked object file offset；packager只把
-随后确定的member id附加到该记录并由完整object verifier复核，不能重新扫描descriptor内容寻找零串。
+Scoop LLVM producer 返回 member 前，将 runtime metadata 的 typed digest 位置解析为实际文件 offset，保留 owner／section／文件范围的局部计算。槽宽固定 32，不扫描初值零值，不重新比较槽位全集或证明其互不重叠；packager 绑定 member id 后直接使用这些位置完成回填。
 
-每个callable object仅含一个body，因此该body的`Primary`精确覆盖唯一`__text`，
-`Stackmap`/`Lsda`/`EhFrame`/`CompactUnwind`分别精确覆盖同对象的
-`__llvm_stackmaps`/`__gcc_except_tab`/`__eh_frame`/`__compact_unwind`。LLVM完成object
-写出后、对象被标记只读前，producer必须为这些已计划atom向Mach-O加入真实的external
-section-definition start/end symbol；不得使用`nlist` size、相邻symbol或文件顺序推测边界。重建symbol
-table时必须保留local/extdef/undefined分区，并同步修正所有指向被后移undefined symbol的external
-relocation index。缺失/多余backend section、符号冲突、越界、scattered relocation或非canonical table
-布局都必须在改写前失败；callable-owned C string的`AddressTakenConstant`边界仍由LLVM global
-alias直接发射；callable-owned recursive scan的`RuntimeRecord`也必须已有同样的精确global boundary，两者均在
-此门禁复核为同section的非空范围，不能由section整体或临近local symbol代替。
-LLVM/Mach-O可把与相邻定义同地址的end alias标为`N_ALT_ENTRY`，也可把hidden primary或global alias标为
-`N_PEXT`；object envelope必须显式保留这两个属性，只允许它们出现在section definition，不能把weak/reference
-flags一并放宽。`__TEXT,__text`必须含`S_ATTR_PURE_INSTRUCTIONS`，`S_ATTR_SOME_INSTRUCTIONS`是LLVM可省略的
-冗余提示位；其余flag仍按封闭section矩阵精确匹配。
+每个 callable object 独占一个 body，producer 为计划中的 Primary、Stackmap、Lsda、EhFrame、CompactUnwind 读取实际 symbol／backend section extent 并加入 external start/end 符号。global、常量和 runtime record alias 由 LLVM 直接发射，后续仅按目标需要调整 linkage／COMDAT。重建符号表保留本次写入所需的索引关系，不扫描未消费的 backend section 证明计划全集，不再次核对已有 alias 范围与语言计划。
+LLVM/Mach-O 的 symbol flags 按实际位读取；section 根据实际属性和所需特殊名称分类。Scoop LIR 与 generated-C 不设来源专属段矩阵，不要求 header／section flags 精确等于某套 producer 模板。读取 section、symbol 与 relocation 所需的局部边界仍由实际 reader 处理；未消费的 deployment、linker hints、动态符号分区与其他元数据交给目标工具链，不另作资格审查。
 
 ### 11.2 member id在finalization前确定
 
@@ -1250,7 +1141,7 @@ unit set、重新配对其中任意部分或把两次独立adapter结果事后�
 - capability允许的section/flags/relocation/symbol kind closed allowlist；
 - 明确拒绝`LC_LINKER_OPTION`、autolink directive、embedded linker option/script、dylib load command、unexpected constructor/destructor与target不允许的debug/linkedit输入；
 - `MH_SUBSECTIONS_VIA_SYMBOLS`与每个受检atom的stable start/end boundary；
-- boundary同section、有序、不重叠，padding为canonical zero并归前一atom；
+- 按实际需要读取同 section、有序且可用于引用归属的 atom boundary；不扫描 padding 或未归属 section 证明零值，也不把 padding 归入 definition；
 - 每个受检relocation完全落入一个typed atom，width/kind/addend/target满足plan；
 - 所有linker-visibledefinition和undefined symbol use都有唯一typed解释；
 - provisional digest slot初始全零，非patch byte与canonical plan相符。
@@ -1382,124 +1273,11 @@ environment product固定为`1=inherited_names=[]`、`2=locale="C"`、`3=timezon
 `GeneratedBridgePlanSet`，非空并按`GeneratedBridgeUnitId`严格递增；没有任意units构造入口，
 producer不能自行排序、删减或补造unit。
 
-packager在进入generated-C symbol/relocation验证前，先原子构造
-`VerifiedCBridgeProductionEnvelopeSetV1`。该proof同时接收请求级
-`CBridgeToolchainProfileV1`、`GeneratedBridgePlanSetV1`、已经冻结member id的
-`PlannedLinkObjectMemberSetV1`、manifest中的`CBridgeProductionSetV1`以及按member id严格递增的
-actual object bytes，并按以下顺序fail closed：
+packager 直接读取本次 codegen 与 generated-C 对象的必要 section、定义和引用，复用成员分配、digest patch 与实际 stackmap 数据。C bridge 生成记录参与 Code 指纹，不与 compiler profile、template、flags、unit 或对象 SDK/version 重复比对。
 
-1. bridge plan与member plan的producer逐值相等；
-2. plan为空时production只能是`NotUsed`且actual generated-C member为空；plan非空时production只能
-   是`Used`，其中profile id/fingerprint、source-template fingerprint、canonical-flag fingerprint与
-   请求profile逐值相等，unit array与bridge plan逐值相等；
-3. 全部planned generated-C member的unit并集与bridge plan相等，既不重复也不缺失/多出；
-4. actual member id集合与planned generated-C member id集合相等，输入中重复、错序、缺失或额外member
-   均失败；
-5. 每个actual bytes使用同一个请求profile的deployment contract通过generated-C Mach-O envelope
-   qualifier，proof保留该member plan与包含byte length/content digest的envelope。
+普通对象处理解析定义与引用、计算实际 ABI/ODR 和 runtime 所需摘要、回填局部槽位，然后用已生成的成员目录构造 Code 投影。目录不与另建的预期目录或对象摘要副本反向互证，production 投影不深比较同一次计划与最终结果的副本。
 
-driver adapter必须以消耗完整planned built-in production的单一typed转换调用这一入口，并把返回proof与原
-production绑定；不能公开裸generated-C candidate builder、object bytes accessor或一组可由caller重新组合的
-参数来旁路该转换。
-
-这一步只产生profile/unit/member/envelope绑定证明，不冒充完整generated-C object verifier；随后仍须
-按本节其余规则验证atom、symbol、relocation与requirement。不得先用某个deployment验证object，再把
-另一个compiler/template/flags profile写入manifest。
-
-producer侧的provisional member随后由单一
-`VerifiedBuiltinObjectStrongRelocationSetV1`入口闭合。输入必须分别是按member id严格递增且完整覆盖
-member plan的`ScoopLirObjectCandidateV1`与`GeneratedCBridgeObjectCandidateV1`；strong symbol plan也
-必须完整覆盖两类member，三者producer相同。Scoop candidate只能通过无deployment的LLVM 22.1
-qualifier，generated-C candidate只能复用上述C-bridge production envelope proof；不能把同一bytes换
-一个capability重试。每个member随后依次完成expected external strong symbol、atom range/zero padding、
-relocation shape/atom owner验证，最后在全部member的联合定义空间解析current-Cone strong target。
-该proof止于provisional strong-relocation closure；digest patch、stackmap leaf、requirement finalization与
-final bytes re-verification仍由后续typed阶段完成。
-
-driver中的`CBridgeEnvelopeVerifiedObjectProductionV1`必须被消耗后才能进入该统一入口：adapter从Scoop
-producer保留的精确`LirTargetProfile`、同一strong production的canonical symbol surface及统一member plan
-内部构造`PlannedStrongObjectSymbolSetV1`，再从私有immutable bytes生成两类candidate。成功状态必须同时
-拥有原planned production、完整symbol plan与`VerifiedBuiltinObjectStrongRelocationSetV1`；不得由caller传入
-target、symbol plan或任一类candidate，也不存在只验证Scoop member或只验证generated-C member的分支。
-
-发布后Link reader面对的是archive中的final bytes，不得把它直接冒充上述provisional输入。reader先以
-identity-closure中已经完成intent/member/coverage检查的完整32-byte site集合构造
-`VerifiedNormalizedProvisionalScoopLirObjectSetV1`：逐member复制final bytes，只归零这些互不重叠且边界合法的
-site，并同时保留原始final副本。全部object/registration/image/entry verifier只消费该proof生成的provisional
-candidate；finalizer重建全部digest后必须与保留的archive副本逐member、逐byte相等。不存在接受final/provisional
-裸bytes混用的重载或兼容分支。
-
-Scoop producer的digest落槽先由`VerifiedScoopLirDigestPatchSiteSetV1`收窄。输入是上述联合object
-proof、同producer的`OdrFreeLirFoundation`、已经对该foundation闭合的
-`DigestFinalizationPlanV1`、同一批按member id严格递增的Scoop object bytes，以及按
-`DigestPatchIntentId`严格递增的`ProvisionalDigestPatchSiteV1`。foundation只通过窄的
-`resolve_definition_atom(definition_plan, atom_role)`查询暴露唯一target，不向slib开放内部authority table。
-verifier要求每个intent恰一个site、site member等于definition plan的既定Scoop member、width精确32、
-checked file offset完整位于目标atom的非padding范围内、原始object length/digest仍等于前序proof、槽内
-32 bytes全零，且没有任何relocation或其他patch site与该范围相交。zero-fill/non-file-backed atom、
-generated-C member落槽、错序/重复/漏项/额外intent、错member/offset/width及验后换bytes全部失败。
-验证结果保留member-independent source node/semantic field与物理member/definition/atom/section/offset的
-完整关联，但wire投影仍只编码`{1=intent, 2=member, 3=checked_offset}`；固定width与其余字段由reader重建。
-这一步只闭合digest slot的物理materialization，不替代后续对registration/image/entry canonical record
-非patch bytes以及stackmap语义的独立验证。
-
-producer adapter的对应转换必须消耗`StrongRelocationVerifiedObjectProductionV1`，从Scoop emitted set一直
-保留的同一`OdrFreeLirFoundation`、strong production内的digest plan、私有Scoop bytes和已绑定typed patch
-sites原子调用上述入口。成功的`DigestPatchVerifiedObjectProductionV1`继续拥有原planned production、symbol
-plan与`VerifiedScoopLirDigestPatchSiteSetV1`；不得公开provisional patch array或允许caller替换foundation、
-digest plan、candidate bytes。
-
-随后`DigestPatchVerifiedObjectProductionV1`必须以同一批私有Scoop bytes和strong production中重建的
-`StrongSafepointSemanticPlanSetV1`验证完整LLVM v3 stackmap集合；object proof只能从digest-site proof内部
-取得，caller不能传入另一份。成功状态同时保留digest-site proof与`VerifiedScoopLirStackmapSetV1`，供
-safepoint registration验证逐项交叉核对。
-
-`StackmapVerifiedObjectProductionV1`随后必须被一个原子转换消耗，内部从同一strong production取得
-safepoint、callable、type、immortal-object、static-storage与initialization六类registration plan，并以
-同一批私有Scoop bytes和同一digest-site proof依次完成六类object验证。safepoint验证必须消费前一步的
-stackmap proof；其余五类分别消费从同一proof克隆出的typed patch authority，最后一类消费原proof。
-成功的`RegistrationObjectVerifiedObjectProductionV1`必须同时拥有原planned production、symbol plan和
-六份registration proof；任一类失败都不产生可继续使用的部分状态，也不公开单类验证入口、裸candidate、
-patch proof或可由caller重新组合的兼容路径。
-
-该状态再由单一consuming转换以同一批私有Scoop bytes依次计算safepoint完整叶子集合，以及callable、type、
-immortal-object、static-storage、initialization五类registration object leaf集合。成功的
-`RegistrationObjectLeafFingerprintedProductionV1`拥有六份fingerprint proof及原production/symbol plan，
-原始registration proof只作为各自fingerprint proof的内部authority继续存在；任一叶子计算失败时不返回部分
-结果，也不存在逐类公开转换或接受caller外送digest的旧路径。
-
-registration依赖指纹计算前，producer adapter必须消耗上述叶子状态并闭合全部link symbol requirement。
-Scoop codegen输出保留完整`ValidatedLirTargetSelection`而不只保留LIR target，使runtime/EH registry验证使用
-发射该object的同一backend选择。adapter只额外接收已经验证的core defined-owner authority；current-Cone、
-source-native、runtime/EH、generated-C semantic与target-support requirement都从私有strong-relocation proof、
-foundation、production、C-bridge profile和同一patch-site proof内部重建，随后拒绝未分类external relocation并
-形成唯一canonical undefined-symbol集合。成功的`LinkSymbolVerifiedObjectProductionV1`同时拥有defined/undefined
-集合、六份registration leaf proof、原production和symbol plan；不允许caller替换target、backend、bridge
-profile、native requirement surface或任一中间closure。
-
-`LinkSymbolVerifiedObjectProductionV1`再以一个原子转换计算全部registration依赖与最终strong指纹：callable
-body绑定同一stackmap及final undefined-requirement proof，type闭合descriptor/layout，immortal object闭合
-实际对象definition，static storage闭合storage/scan/layout，initialization闭合cell/descriptor/gateway并引用
-同一callable-body proof。输出`RegistrationDependencyFingerprintedProductionV1`只保留六类最终fingerprint
-proof、defined/undefined集合及原production/symbol plan；中间依赖proof不形成可重排或可跳过的公开状态，
-任一类失败不返回部分结果。
-
-最终对象事务消耗上述dependency-fingerprinted状态：先以共享patch-site proof和私有provisional Scoop bytes
-验证Cone image与entry record，再原子写入六类registration digest。runtime image fingerprint所需
-compatibility必须在adapter内部由retained `ValidatedLirTargetSelection`与唯一
-`SingleConeStrongProfile`重建，不能由caller送入；随后只经typed image writer与entry writer逐层复制、写槽、
-重验record、Mach-O envelope及未修改bytes。成功的`FinalizedStrongObjectProductionV1`拥有最终Scoop object
-proof、defined/undefined集合及原production/symbol plan，所有可写中间状态均已被消费，不保留旧的裸bytes
-patch入口或未验证final object分支。
-
-Code阶段消耗final-object状态并直接构造正式`SlibMember`集合：Scoop payload只取
-`VerifiedEntryPatchSetV1`的final bytes，generated-C payload只取同一planned production中已通过完整envelope
-与relocation closure的immutable bytes；两类stable key与role都只取统一member plan。构造出的member id必须
-逐项回等plan，完整directory再由`verify_code_link_object_members_v1`与final proof反向互证。随后以调用请求中
-的typed Cone/dependency/source-count投影重建production code projection，并从retained foundation重建native
-requirement surface后计算唯一Code fingerprint。`CodeFingerprintedObjectProductionV1`只保留target selection、
-LIR foundation、C-bridge profile、final members和拥有完整code proof的production manifest；provisional bytes、
-symbol plan及各中间proof全部被消费，不存在从临时路径或未finalize bytes直接打包的旧入口。
+旧 driver 的 `PlannedBuiltinObjectProductionV1`、分级 `...VerifiedObjectProductionV1`、逐级消费 proof 和 Strong-only 指纹流水线已退役。当前 layout 生产路径直接传递完整数据；Link reader 不复制 final bytes、清零槽位、重算并比较 provisional/final 结果。不公开或保留另一套资格 API 来承接退役职责。
 
 M23-3 的 Strong-only 打包入口已经由 M23-7 的共同生产路径替代。现行归档由
 `CrossConeLayoutArtifactInputV1` 进入 `AssembledCrossConeLayoutArtifactV1::write`，消费同一份
@@ -1542,39 +1320,11 @@ CBridgeTargetSupportRequirementId =
                             CBridgeTargetSupportRequirementV1)
 ```
 
-`Memcpy`的logical symbol固定为`memcpy`，object symbol只能经同一target的
-`NativeSymbolNormalization`得到。registry由请求级完整toolchain profile构造；profile的target id或
-fingerprint与请求target不相等即失败。只有同一个`VerifiedCBridgeProductionEnvelopeSetV1`证明的
-generated-C member可以产生该requirement，Scoop LIR member中的同名use不得借用它；改变compiler、
-template、flags、deployment或environment都会改变profile fingerprint以及本requirement id。当前registry
-只含`Memcpy`，未知helper保持未分类并使artifact失败。
+target helper 的逻辑符号经目标的 `NativeSymbolNormalization` 转为对象符号，registry 按当前目标工具链建立；Memcpy、Memset、TLS、浮点与 errno 等支持项采用现行 LIR registry。generated-C 和 Scoop LIR 产生的实际辅助引用均可使用这些合同，不要求来源资格。
 
-完整producer-specific proof为`VerifiedGeneratedCBridgeSemanticSetV1`，只能消费已经闭合全部Scoop
-digest zero slot的`VerifiedScoopLirDigestPatchSiteSetV1`，不能从裸联合strong-relocation proof直接构造。
-它从validated bridge plan保留的full
-unit/atom key重建每个materialized atom的`GeneratedBridge` definition plan与singleton primary object
-atom，要求它们全部出现在unit被分配的generated-C member中，并要求这些member不存在额外definition、
-额外object atom或由associated descriptor发起的relocation。object-local machine symbol只允许回指同一
-object atom；跨atom local与无法归属到typed atom的section-base relocation失败。
+source extern、runtime 与 EH 先按实际符号分类。bridge 计划用于同名歧义：当前 unit 直接调用自己的 source extern 时保留该合同；同 unit 的其他 helper 按 registry 分类。这样源码 extern 名为 `memcpy` 时仍使用其源合同，其他 bridge 的编译器 memcpy 调用不会被无关源声明覆盖。
 
-每个primary atom的semantic relocation按unit kind闭合：outbound function只能以call relocation命中同一
-fingerprint的C-function source contract；global read/address只能命中data/TLS contract，write只能命中
-mutable data/TLS contract；managed callback必须同时命中`CallbackInvoke` runtime contract和自己的
-signature descriptor definition；static callback必须命中由`StaticNoGcCallbackStorageBridgeId`重建的
-strong callable-body definition。每个unit的必需target至少出现一次，其他external/strong target失败。
-profile target support只在未命中当前unit的typed semantic target后分类，因此源码extern本身名为
-`memcpy`时仍归入该extern contract，不能被同名support抢先吞掉。proof按physical use保留unit、完整
-member/atom/offset/relocation form/symbol及上述typed semantic分类，供后续requirement closure逐项复用。
-
-`VerifiedCBridgeTargetSupportRequirementClosureV1`同时消费上述semantic proof与完成source extern、
-runtime/EH分类的closure，并要求两者来自逐字段相等的同一strong relocation closure且target相同。它按
-`(member, containing atom, offset, target slot)`逐条对齐：`NativeExternal`必须已经归入同一contract的
-`SourceExtern`，`RuntimeCallbackInvoke`必须已经归入同一runtime contract，strong descriptor/body use
-不得出现在external分类中；`TargetSupport`则从未分类集合或generic SourceExtern同名命中中取回，并以
-semantic proof保留的完整registry record形成typed requirement。后一分支只修正该generated-C physical
-use，因此其他unit真正以`memcpy`为源码extern target时仍保持`SourceExtern`。generated-C member中缺少
-semantic use、proof closure混用或对齐后仍有external candidate都会失败；finalizer只能消费封口后的
-重整集合，并从中发射第7类final requirement。
+后续直接消费既有定义、引用和 registry，不重建 bridge 定义全集、检查必需调用覆盖或回放所有机器 relocation，也不比较两份生产闭包或 semantic proof。未知引用继续报告普通未分类符号错误。
 
 ### 11.6 finalization顺序
 
@@ -1735,11 +1485,10 @@ strong relocation closure中除object-local strong以外的全部use；两个不
   `Requirement(id)`则必须在同target的canonical native library requirement集中唯一存在，
   不得为default namespace伪造requirement id；
 - runtime/EH requirement只验证为当前target/runtime ABI的known contract，不构建runtime；
-- C-bridge target support只接受由同一production envelope、请求profile与target共同产生的typed
-  requirement，并且use的source member必须属于该generated-C member全集；
+- C-bridge target support 按当前目标工具链 registry 与实际辅助符号归类，generated-C 和 Scoop LIR 均可产生这些需求；
 - M23-9/M23-10在完整closure/final input上解析后五类实际provider。
 
-任何undefined symbol没有requirement、一个use命中多个requirement、requirement symbol与object不符或外部contract只剩library名字都使Link proof失败。root Cone没有直接使用某个上游extern也不能在以后丢弃该requirement。
+实际 undefined symbol 必须有普通符号／native／runtime／target requirement，真实缺失引用照常报错；root Cone 没有直接使用某个上游 extern 也不能丢弃该 requirement。已分类数据直接合并、排序，并保留 callable／shape 分区，不重建 use 全集来比较 coverage、重叠或生产闭包副本，不增加封口资格包装。
 
 object-local strong relocation已经在member verifier内完成解析，不进入undefined requirement集合；
 只有以undefined symbol形式跨member命中当前artifact定义的use才形成`IntraConeStrong`或
@@ -1840,54 +1589,11 @@ typed sentinel。descriptor的RegistrationDefinition、Scan、Layout三个32-byt
 120、200、232的typed patch site；发射前先验证完整storage集合及所有既有声明，因此任一错误不得留下部分
 descriptor、scan或initial-state support global。
 
-Link侧唯一经`verify_strong_static_storage_registrations_v1`消费完整static-storage生产计划、全量digest patch
-proof与同一批content-digest绑定的Scoop LIR object bytes。验证器逐项重建registration、storage、layout、scan及
-initial-state associated atom，重验296-byte provisional descriptor、物理section/extent/effective alignment、
-canonical scan words、template/table exact bytes、writable storage初值，以及descriptor offset 160/192/264/280
-和全部初值/table relocation的精确target、owner、member、symbol与形状；offset 120/200/232只接受计划中的三项
-typed patch。digest graph必须仍由registration/storage两个ObjectDefinition leaf、Layout、Scan和
-StrongRegistration五类节点按既定edge/writer关系闭合，调用方不能自报byte、target或digest关系。
+静态存储登记通过 `bind_static_storage_registrations_v1` 将既有计划关联到 scan／layout digest 槽位。直接复用生产数据，不重建登记、storage、scan、template 或 relocation table，不重复读取初值、空哨兵和全部指针来证明生成正确。
 
-两个typed empty sentinel不是definition atom：它们只允许由section-base relocation或`owner_atom=None`的
-object-local definition relocation解析到当前member的只读、全零、未被任何计划atom占用的exact extent，template
-sentinel固定1-byte/align 1，relocation sentinel固定16-byte/align 8；同一typed sentinel在整个Cone中必须共享，
-两种sentinel不得重叠或互相冒充。底层`VerifiedRelocationTargetV1::LocalDefinition`因此直接以可选atom owner表达
-物理事实；`None`只是一条“尚未被typed atom认领”的证据，不构成消费授权，必须由本专用验证器认领，generated
-bridge等其他consumer继续显式拒绝。原先“所有local definition都必须伪装成atom owner”的模型直接删除，不保留
-alias、兼容构造器或双路径验证。
+LayoutFingerprint 使用 `scoop-layout-v1`，编码 static-value kind 1、layout id、byte size 与 alignment。ScanFingerprint 使用 `scoop-scan-v1`，编码 `None=0 | References=1 { count, offsets }`。结果对应计划中的 Layout／Scan node；ODR 定义查询现有 canonical shape ABI，不要求物理 proof 作为计算资格。
 
-static-storage registration自身的ObjectDefinition leaf只能经
-`compute_strong_static_storage_registration_object_fingerprints_v1`消费上述完整registration proof与再次匹配
-content digest的object全集产生。计算器把descriptor的四个pointer载荷按verified relocation清零，再以通用
-`scoop-object-definition-v1`编码精确296-byte provisional record、四条offset 160/192/264/280的canonical
-`Unsigned64` relocation和零direct input。storage/scan target使用`IntraConeStrong`；有定义的template/table
-分别使用canonical target tag 8下的typed role 1/2与storage id，共享空template/table则使用tag 9下的typed
-sentinel role 1/2。物理member、atom id、symbol-table index、section-base addend与sentinel地址均不进入hash；
-调用方不能传入裸target或自行选择local target种类。
-
-storage本体的ObjectDefinition leaf只能经
-`compute_strong_static_storage_definition_fingerprints_v1`继续消费registration-object proof与再次匹配
-content digest的object全集产生。计算器从proof持有的精确writable Primary range读取
-`allocation_extent` bytes，逐项核对并清零managed pointer载荷，再把每项按offset排序编码为
-`Unsigned64 + IntraConeStrong ImmortalObject(target)` relocation；零/非零 relocation 集合都显式编码count，
-direct input固定为空。registration verifier已经把template、relocation table及storage初值逐byte绑定到同一
-semantic plan，因此该leaf不能脱离完整initial-state artifact proof单独从裸writable bytes构造。
-
-本阶段static storage所需的两个semantic leaf由
-`compute_strong_static_storage_shape_fingerprints_v1`继续消费上述storage-definition proof产生，不开放裸
-layout/scan输入。LayoutFingerprint使用domain `scoop-layout-v1`，依次编码static-value layout kind tag 1、
-`PersistentLayoutId`、logical `byte_size`与`required_alignment`；identity已经封闭exact type、target与
-representation。ScanFingerprint使用domain `scoop-scan-v1`和总设计的`None=0 | References=1 { count,
-offsets }` runtime encoding；static plan已拒绝Sequence及非canonical offsets。输出把两个digest分别绑定到
-plan中的Layout/Scan node id，并继续拥有同一完整物理proof。
-
-static storage的StrongRegistration只能经`compute_strong_static_storage_fingerprints_v1`消费上述完整shape
-proof产生。canonical record严格使用record-kind `StaticStorage=1`一次，随后编码Strong registration identity、
-`OwnStorageAtom=1`、size/extent/alignment、`EmptyScan=0 | ScanProgram=1 { scan fingerprint }`、独立scan/layout
-fingerprint，以及`ZeroedForRuntimeUnit=1 | EncodedStaticValue=2 { template byte span, sorted
-{pointer_offset, immortal object id} sequence }`。own definition槽与ODR字段固定为零；四项direct input精确为
-registration/storage ObjectDefinition、Layout、Scan并按`(kind,node id)`排序。initial-state物理support地址、
-member和symbol不进入hash，任一输入proof owner/node不一致都在hash前失败。
+RuntimeImage 的 static storage record 编码 kind 1、登记身份、scan kind、OwnStorageAtom、size／extent／alignment、scan／layout fingerprint 和初始状态。初始状态为 `ZeroedForRuntimeUnit=1 | EncodedStaticValue=2 { template byte span, sorted {pointer_offset, immortal object id} sequence }`。物理支持数据地址、member 与 symbol 不进入该编码；实际对象仍由 codegen 正常生成并参与 Code 指纹和链接。
 
 initialization unit先由唯一、非wire入口`StrongInitializationUnitSemanticPlanSetV1::from_module(module)`
 从最终LIR闭合。入口按`PersistentInitializationUnitId`排序且拒绝重复，逐项重算`Initializer`/`Ensure`
@@ -1931,39 +1637,9 @@ typed callable id与entry relocation进入canonical record，并不因为被引�
 同理由typed static-registration identity进入。完整计划按unit id排序并保留全部definition/atom/node/patch id，后端
 不得按owner、符号前缀或arena ordinal二次推断。
 
-initialization registration自身的ObjectDefinition leaf只能经
-`compute_strong_initialization_registration_object_fingerprints_v1`消费上述完整registration proof与再次匹配
-content digest的object全集产生。其`scoop-object-definition-v1`编码依次写Primary role tag 1、精确352-byte
-provisional record、按atom offset排序的六条Lazy或七条Eager canonical `Unsigned64` relocation及direct-input
-count 0；全部pointer载荷在hash前按verified encoded value归零。cell、storage registration、failure-root
-registration与initializer/ensure/gateway分别编码为精确typed `IntraConeStrong` owner。diagnostic path relocation
-不得伪装成strong definition target，而以canonical target tag 10编码`OwningAssociatedAtomOffset`，随后写
-associated atom id、`AddressTakenConstant` role tag 7及atom内offset 0；member、section ordinal、symbol-table
-index、Mach-O symbol spelling与最终地址均不进入hash。该target tag只授权同一ObjectDefinition plan拥有的
-associated atom，不能用于跨definition引用、无owner section或任意local symbol；不保留忽略diagnostic relocation
-或把它降格为物理索引的旧hash路径。
+初始化登记的 ABI 与 gateway 指纹直接消费已有计划、canonical shape ABI 和已计算的 callable body 指纹。ODR cell 按 definition 查询 canonical ABI；Eager gateway 按 typed body id 查询实际指纹，Lazy 没有 gateway。body、node 和指纹作为同一个完整值保存，不为计算建立物理资格包装或比较重复的生产数据。
 
-initialization cell与coordinator descriptor的ObjectDefinition leaf只能经
-`compute_strong_initialization_definition_fingerprints_v1`继续消费registration-object proof与再次匹配content
-digest的object全集成对产生。cell使用通用单Primary编码，内容固定为16-byte zero cell、relocation count 0和
-direct-input count 0。descriptor先编码Primary role tag 1、精确88-byte provisional coordinator、六条canonical
-`Unsigned64` relocation与direct-input count 0，再追加associated-atom sequence count 1；唯一元素依次编码
-diagnostic atom id、`AddressTakenConstant` role tag 7、`diagnostic_path || NUL` byte span和relocation count 0。
-Primary中的diagnostic/cell/storage/failure-root/initializer/ensure relocation分别规范化为同一associated atom、
-`InitializationCell`、两个`StaticStorage`与两个`CallableBody` typed target。associated atom序列是该descriptor
-leaf的专用、不可省略后缀；不能把path bytes并入Primary byte span、只靠StrongRegistration间接承诺、另算
-无graph node的辅助digest或继续接受只hash Primary的旧格式。
-
-initialization的StrongRegistration只能经`compute_strong_initialization_fingerprints_v1`消费上述成对definition
-proof，并借用同一完整object/patch/stackmap/undefined-requirement闭包产生的callable-body ObjectDefinition proof。
-canonical record依次编码record-kind `InitializationUnit=3`、Strong linkage、unit id、三个零own/ODR digest、
-schedule、无NUL的diagnostic path byte span、`OwnInitializationCell=3`及unit id、storage/failure storage id、
-`CallableEntry=4`及initializer body id、`CallableEntry=4`及ensure body id，最后编码
-`None=0 | Unit=1 { UnitGateway=5, startup gateway body id, gateway ObjectDefinition fingerprint }`。三项
-registration/cell/descriptor ObjectDefinition direct input始终存在；Eager再加入gateway body ObjectDefinition，
-Lazy固定只有三项，全部按`(kind, node id)`排序。Eager gateway digest必须从typed callable-body proof中按精确
-body/node取得，且同时进入record字段与direct input；不能接受裸digest、仅按body id自报映射、缺少完整callable
-proof的临时body hash或保留不承诺gateway实现的旧Eager key。
+RuntimeImage 编码 record kind 3、登记身份、schedule、diagnostic path byte span、OwnInitializationCell 及 unit id、storage／failure storage id、initializer／ensure callable id，最后编码 `None=0 | Unit=1 { UnitGateway=5, body id, gateway fingerprint }`。Eager 的实际 gateway 指纹同时用于登记槽位回填。诊断数据与对象由现有 emitter 生成，不通过重建对象、读回字节或再次遍历 digest 图证明生成正确。
 
 writer侧另从最终`Module`一次性构造不独立序列化的`StrongSafepointSemanticPlanSetV1`。每项完整保留
 `PersistentSafepointSiteId`、派生的非零`SafepointId`、owner callable、site role与`root_pair_count`，
@@ -2094,14 +1770,7 @@ definition、Primary atom、LLVM owner、offset和width；已有同type external
 直接失败。不保留`scoop.init.cell.<arena-index>`、`scoop.init.descriptor.<arena-index>`、连续
 `scoop_image_initialization_units`或接受裸unit/address/offset的旧发射路径。
 
-Link侧唯一经`verify_strong_initialization_registrations_v1`消费完整初始化计划、全量digest patch proof与同一批
-content-digest绑定的Scoop LIR object bytes。验证器逐unit重建16-byte可写全零cell、88-byte只读coordinator、
-352-byte provisional registration及`diagnostic_path + NUL` CString associated atom；两条diagnostic relocation
-必须指向该atom起点，coordinator其余五条与registration的五条或Eager六条pointer relocation必须逐项命中计划中的
-cell、实际storage、static-storage registration、callable entry与gateway entry，且target definition、owner、
-member、symbol、`Unsigned64`形状和零encoded value全部一致。offset 120及Eager offset 312只接受对应typed patch，
-三项ObjectDefinition leaf、StrongRegistration direct input和schedule-specific gateway writer集合必须保持精确；
-调用方不能用裸地址、私有diagnostic副本、额外relocation或自报digest关系绕过验证。
+Link 通过 `bind_initialization_registrations_v1` 关联初始化计划和已经物化的 Eager gateway 槽位。实际写入保留范围检查，Lazy 不执行 gateway 回填。不再次核对 cell、coordinator、诊断字符串、登记字节及全部 relocation，也不重数生产 coverage 或重放 digest graph。
 
 type registration唯一经`emit_strong_type_registrations_v1`消费完整type plan set。入口先对全集做无副作用
 预检，再发射任一record；每条record使用`ConeStrong`外部linkage、magic、ABI version 1、size 240、Strong
@@ -2133,105 +1802,15 @@ ODR字段和object semantic id；offset 152写入从managed pointer显式转换�
 typed intent、LLVM owner、offset与width。已有同type image-table声明可以补全；不开放接受裸object id、
 object pointer、size/alignment、type-registration pointer或patch offset的旧入口，也不发射兼容alias。
 
-Link侧唯一经`verify_strong_type_registrations_v1`消费完整type plan、全量digest patch proof与同一批精确object
-bytes；它重验240-byte provisional record、只读Primary atom、offset 168处唯一8-byte unsigned
-TypeDescriptor relocation及offset 120/176/208处三项typed patch。relocation必须解析到同一exact type的
-`TypeDescriptor` strong definition/Primary symbol；该descriptor必须是精确128-byte只读Primary，并精确拥有plan
-指定的只读diagnostic associated atom，其bytes必须等于LIR中的UTF-8 diagnostic name；非空itable分支还必须精确
-拥有plan指定的只读itable-directory associated atom。descriptor offset 112必须
-恰有一条8-byte、zero-addend、`Unsigned64` relocation，解析到该diagnostic atom起点的object-local symbol；用其他
-local atom、section base、boundary symbol或任意合法strong定义代替都失败。验证结果直接携带descriptor Primary与
-diagnostic atom的member、checked file range及已验证relocation，后续专用fingerprint计算器不得重新按物理邻接或
-symbol拼写反查。descriptor offset 64在semantic为`Defined(scan)`时必须恰好解析到该scan的
-`ScanProgram` definition plan，在`Null`时不得出现；相同payload的其他scan、任意本地constant或其他合法
-strong definition均不能替代。layout definition也必须由既定Scoop member物化；record指向其他合法strong定义、错owner/member/
-symbol、额外relocation、错patch或验后换bytes均失败。验证器再从
-digest plan重建registration object、descriptor ObjectDefinition、Layout与StrongRegistration四个节点及精确
-edge/writer集合，不接受record bytes或调用方自报digest关系。
+Type registration 通过 `bind_type_registrations_v1` 关联已有计划与 descriptor／layout digest 槽位。发布不重复核对登记记录、descriptor scalar、诊断文字、itable 指针全集或 digest 图。所需实际对象数据依据已有 definition／atom 索引读取，局部范围和缺失引用正常报错。
 
-immortal-object registration的Link侧唯一入口是
-`verify_strong_immortal_object_registrations_v1`，其输入固定为完整immortal plan、全量digest patch proof及同一批
-经content digest绑定的Scoop LIR object bytes。验证器重验只读Primary atom与精确184-byte provisional record；
-该atom必须恰有offset 152和176两条8-byte、zero-addend、`Unsigned64` relocation。前者必须解析到plan中同一
-immortal object definition/Primary symbol；后者在typed local分支必须解析到当前Cone同一exact type的
-TypeRegistration definition/Primary symbol，在 typed external 分支则必须保持为实际 provider 的 external
-candidate，不能用任意本地strong定义冒充。offset 120只允许同一registration definition/Primary atom的
-`RegistrationDefinition` patch，额外patch、relocation或验后换bytes均失败。验证器同时从digest plan重建
-registration object leaf、实际immortal object ObjectDefinition与StrongRegistration节点，重验leaf闭包、
-两项direct input和唯一writer；不接受调用方自报target、node、digest或兼容record格式。
+immortal object 的登记直接消费 `StrongImmortalObjectRegistrationPlanSetV1`。Strong 定义使用既有实体身份，ODR 定义按 member 查询 canonical shape ABI；登记 ABI 由同一计划中的 owner 与表种类计算。RuntimeImage 编码 record kind 2、对象身份、大小、对齐及 type registration 引用。
 
-外部 exact type 的 descriptor 与 type registration 分别通过实际 provider 和 typed target 查询已有定义，二者指向同一 exact type。String immortal metadata 使用同一共有关系；实际 relocation 按其真实目标进入 requirement 集合，不附加 descriptor bridge 授权、固定 core owner 或来源证明。
+外部 exact type 的 descriptor 与 type registration 通过实际 provider 和 typed target 查询已有定义；实际 relocation 进入普通 requirement 集合。不附加 core 来源授权，也不再次读取 String payload、重建登记字节、比较指针目标或重放 digest 依赖图以证明生产正确。对象由 codegen 正常生成，实际对象内容与规范化 relocation 仍进入需要它们的 Code／ODR 计算。
 
-immortal registration自身的ObjectDefinition leaf只能经
-`compute_strong_immortal_object_registration_object_fingerprints_v1`消费上述完整registration proof和再次
-匹配content digest的object全集产生。其`scoop-object-definition-v1`编码依次写Primary role tag 1、精确
-184-byte provisional record、relocation count 2、offset 152的immortal-object relocation、offset 176的
-type-registration relocation及direct-input count 0。前者规范化为同一object id的`IntraConeStrong
-ImmortalObject` owner；后者由 plan 中的实际 provider 与 typed type-registration 引用编码，同一 exact type 的 local 与 external 定义按共有对象关系区分。member、section、symbol-table index、Mach-O symbol spelling和最终地址均不进入hash；
-typed target、实际 provider 和 relocation 必须来自同一完整对象检查结果。
+descriptor fingerprint 使用 `scoop-object-definition-v1`：读取实际 Primary、diagnostic 和非空 itable directory atom；指针载荷按既有 typed 目标归一化，编码关联 atom 与其 canonical relocations。随后编码 descriptor-semantic kind 1、exact type、runtime type、instance Layout／Scan id、TypeInstanceShape、诊断名、parent、vtable 与 itable 的 typed slots、函数关系和 release policy。物理地址及 symbol index 不进入语义编码。
 
-实际immutable String object的ObjectDefinition只能经
-`compute_strong_immortal_object_definition_fingerprints_v1`消费registration-object proof、完整最终undefined
-requirement proof和再次匹配content digest的object全集产生。计算器反查plan指定的`ImmortalObject` definition与
-只读Primary atom，要求范围精确等于plan的object size；对象必须是`{ TypeDescriptor*; zero GC word; u64 UTF-8
-length; exact UTF-8 bytes; zero alignment padding }`，且atom中只有offset 0的一条8-byte、zero-addend、
-`Unsigned64` relocation。local分支必须解析到当前Cone同一exact type的`TypeDescriptor` strong owner；
-external 分支保留实际 provider 的 descriptor 引用，并在该 provider 的定义表中解析到同一 exact type。哈希前将指针载荷归零，并用通用canonical relocation schema连同精确对象bytes编码；
-不接受长度不闭合、非法UTF-8、非零padding、错owner或未分类external，也不从String显示值重建另一份旁路hash。
-
-immortal object的StrongRegistration只能经`compute_strong_immortal_object_fingerprints_v1`消费上述实际对象
-ObjectDefinition proof（它继续拥有同一registration-object proof）。canonical record依次编码record kind 2、
-Strong linkage、object semantic id、三个零own/ODR digest、`OwnImmortalAtom` role tag 2与同一object id、object
-size、required alignment和target exact type-registration id；最后编码registration object与实际immortal object
-两个按`(kind, node id)`排序的ObjectDefinition direct input。公共入口不接受裸digest、裸node或调用方拼装的
-direct-input数组；proof coverage、object identity或两个node任一不一致均在hash前失败。
-
-type registration自身的ObjectDefinition leaf只能经
-`compute_strong_type_registration_object_fingerprints_v1`消费上述完整registration proof和再次匹配content
-digest的object全集产生。其`scoop-object-definition-v1`编码依次写Primary role tag 1、精确240-byte
-provisional record、relocation count 1、offset 168的`Unsigned64` relocation及direct-input count 0；
-relocation target使用通用canonical schema编码为同一exact type的`IntraConeStrong TypeDescriptor` owner。
-member、section、symbol-table index、Mach-O symbol spelling和最终地址均不进入hash；不保留按物理target
-索引或登记专用target格式计算的旧路径。
-
-descriptor ObjectDefinition与managed-instance Layout两个typed dependency只能经
-`compute_strong_type_dependency_fingerprints_v1`继续消费上述registration-object proof和再次匹配content digest
-的object全集产生。计算器从proof持有的checked range读取精确128-byte descriptor，逐byte重建runtime type、
-instance/inline kind、六个size/alignment scalar、itable count与diagnostic length；全部pointer载荷必须是
-zero-addend relocation占位。Primary内relocation offset集合由非空inline/object scan、parent、非空vtable、非空
-itables及必有的diagnostic span机械导出，严格为相应的64/72/80/88/96/112子集；每项必须是只读Primary内的
-8-byte `Unsigned64`且encoded value为零，112项继续复用前述精确diagnostic-atom proof，不能出现额外pointer。
-
-descriptor fingerprint仍使用`scoop-object-definition-v1`：先编码通用Primary bytes、offset 112指向owning
-`AddressTakenConstant` atom起点的canonical relocation、零direct input及完整associated atom集合：必有diagnostic
-atom，非空itable分支另有itable-directory atom。目录extent必须精确为`16 * itable_count`，每个pointer slot的
-provisional bytes为零；每项interface relocation必须命中semantic指定的local/core-external TypeDescriptor，每项
-非空slots relocation必须命中同一itable identity的`DispatchTable` strong definition，空slots不得出现relocation。
-descriptor offset 96必须恰好指向上述目录atom起点；目录bytes与canonical relocations一并进入descriptor
-ObjectDefinition fingerprint。随后
-编码descriptor-semantic kind tag 1、exact type、runtime type、instance Layout/Scan id、完整`TypeInstanceShape`
-（两个scan均用`None=0 | References=1 | Sequence=2 | Array=3`递归编码）、diagnostic byte span、typed parent、
-vtable identity/typed callable slots及按plan顺序的itable identity/interface/typed callable slots。descriptor中的
-scan/table pointer物理地址不进入hash，其完整typed content由同一尾部semantic payload承诺；member、local symbol
-index及地址同样不进入hash。
-
-managed-instance LayoutFingerprint使用domain `scoop-layout-v1`，依次编码managed-instance layout kind tag 2、
-`PersistentLayoutId`、`PersistentExactTypeId`、`PersistentScanId`及同一完整`TypeInstanceShape`；它与
-static-value kind tag 1直接互斥。该入口直接构造字段私有的
-`VerifiedStrongTypeDependencyFingerprintSetV1`，外部不能传入裸digest、替换node或手工拼装proof；原先测试和
-finalizer中直接写入`[7; 32]`/`[11; 32]`的路径删除，不保留兼容构造器。
-
-type的StrongRegistration只能经`compute_strong_type_fingerprints_v1`消费registration object proof以及由
-专用计算器产生、绑定同一exact type/node的descriptor ObjectDefinition与Layout typed proof。canonical
-record依次编码record kind 4、Strong linkage、exact-type semantic id、三个零own/ODR digest、runtime type
-id、`TypeDescriptorAtom` role tag 6与同一exact type、descriptor fingerprint、layout fingerprint；最后编码
-registration object、descriptor ObjectDefinition和Layout三个按`(kind, node id)`排序的direct input。公共
-入口不接受裸digest、裸node或调用方拼装的direct-input数组；proof coverage、exact type及三个node任一不一致
-均在hash前失败。
-
-Link reader的registration dependency完成态直接持有`VerifiedStrongTypeFingerprintSetV1`；它在同一状态转换中
-依次调用专用dependency计算器与type StrongRegistration计算器。该完成态不再暴露未完成的type
-registration-object leaf，也不存在跳过descriptor/layout而进入六表patch的兼容分支。
+managed-instance LayoutFingerprint 使用 `scoop-layout-v1`，编码 kind 2、layout id、exact type id、scan id 与 TypeInstanceShape。计算直接使用现有计划，不重建 descriptor byte image 或重新验证全部 relocation。Strong／ODR registration ABI 复用登记身份与 canonical shape ABI；RuntimeImage 的 type record 编码 kind 4、登记身份、runtime type、TypeDescriptorAtom role 6、exact type、descriptor fingerprint 和 layout fingerprint。结果直接交给实际槽位回填，不建立物理 proof 资格链，也不比较已经消费过的 undefined-requirement 副本。
 
 LLVM v3 raw record在绑定物理section前先经
 `normalize_darwin_aarch64_stackmap_record_v1(StrongSafepointSemanticPlanV1, &[u64], ProvisionalLlvmStackmapRecordV3)`
@@ -2246,120 +1825,39 @@ little-endian scalar/count encoder，typed `StackmapRecordFingerprintV1`只能�
 字节下界，检查version、function/constant/record count及function record总数、所有reserved byte/word、
 8-byte alignment padding与精确EOF；它保留原始location kind、section级constant pool、function address
 slot offset和record offset，不把结构成功误当成Scoop profile成功。结构合法的空v3 blob可由parser表示，
-但后续object coverage verifier依据LIR proof决定section应缺失、必须非空或记录全集是否吻合。
+读取结果直接用于实际 GC 元数据，不另建 section 覆盖证明。
 
-`verify_darwin_arm64_stackmap_section_v3`只接受与已验证Scoop LIR envelope的length/content digest完全
-相同的object bytes。若section存在，它必须是inventory中唯一的`LlvmStackmaps` role；每个function
-address slot在relocatable input中为零，并在该slot恰有一个`ARM64_RELOC_UNSIGNED64`指向symbol table中
-的external strong definition，section中不得有其他relocation。输出同时封装section ordinal、原始function
-分组及target symbol table index；尚未与strong definition/LIR owner互证前不能提升为normalized record。
+`read_object_stackmap_section_v3` 从同次生产共享的 section／relocation 数据读取 LLVM stackmap，
+将实际 function-address relocation 关联到 callable 符号。读取处理字段长度、偏移、引用和地址溢出，
+不比较对象内容摘要或复核 producer profile。
 
-最终提升只能经
-`verify_scoop_lir_stackmaps_v1(VerifiedBuiltinObjectStrongRelocationSetV1, StrongSafepointSemanticPlanSetV1, &[ScoopLirObjectCandidateV1])`
-完成。入口要求Scoop object candidate与member plan按`SlibMemberId`严格递增且全集相等，并以每个site
-的`CallableBody` strong definition plan从member assignment反查唯一producer member；有site的member
-必须存在非空stackmap section，无site的member不得夹带该section。section的全部已验证atom必须是
-`DefinitionAtomRole::Stackmap`。每个function-address relocation只能绑定该member中role与entity均为
-`CallableBody`的primary definition symbol，且function owner、record count、SafepointId与LIR site全集
-逐项闭合。Darwin/AArch64 verifier以`function symbol value + instruction offset`得到relocatable object
-内的原始return PC，要求它4-byte对齐、落在primary text atom内并紧随`bl`/`blr`，且首个site前已经保存
-x29/x30 frame record并建立x29 frame pointer。输出`VerifiedScoopLirStackmapSetV1`同时持有完整built-in
-object proof与LIR semantic proof；record按persistent site id排序，保留member、function symbol table
-index和已验证的object-relative return PC。该PC是link-time provenance，不进入跨链接/ASLR稳定的
-normalized fingerprint；最终链接后的原始PC仍由M23-9 artifact verifier从相同function relocation与
-instruction offset重建，runtime不得改用`PC-4`。
+`read_scoop_stackmaps_v1` 直接归一化实际记录，以函数符号地址加 LLVM instruction offset 计算返回地址。
+输出保存 member、function symbol index、返回地址与归一化记录，供后续 GC 数据和内容指纹使用。
+不另建 member/function/site 全集覆盖证明，不反汇编检查 call 指令或 frame chain；这些机器行为由
+codegen 与运行回归覆盖。返回地址不进入跨链接／ASLR 稳定的归一化 stackmap fingerprint。
 
-safepoint registration的object级最终提升只能经
-`verify_strong_safepoint_registrations_v1(VerifiedScoopLirStackmapSetV1, VerifiedScoopLirDigestPatchSiteSetV1, StrongSafepointRegistrationPlanSetV1, &[ScoopLirObjectCandidateV1])`
-完成。stackmap与patch proof必须封装完全相同的built-in object proof，三者producer与site全集必须一致；
-入口再次按member全集和content digest绑定实际object bytes，不能让先前验证后的替换bytes进入后续hash。
-每条registration definition必须由member plan分配给Scoop LIR member，其planned `Primary` atom必须与
-verified definition一致、位于`ReadOnlyData`、范围精确为232 bytes，且整个atom不得含任何relocation或
-两个声明slot之外的digest patch。`RegistrationDefinition`与`NormalizedStackmap` patch分别必须位于
-atom内offset 120和200、宽度32，并逐项匹配plan中的intent/source/definition/atom/semantic role。
+`bind_safepoint_registrations_v1` 与 `bind_callable_registrations_v1` 将计划关联到已物化 digest 槽位。
+它们不读取或重建 registration record，不重数对象覆盖、不比对 producer／计划副本，不复查 context keys
+或 entry relocation。后续直接复用实际 stackmap 与 canonical ABI；缺少实际需要的 typed 引用正常报错。
 
-verifier按little-endian共享ABI重建完整provisional record并逐byte比较：magic、version、size、Strong
-linkage、semantic/runtime/owner identity、site role和root count取自完整registration plan，reserved、
-ODR group/member及两个fingerprint slot必须为零。输出
-`VerifiedStrongSafepointRegistrationSetV1`同时拥有stackmap、patch与production plan三份前置proof，并按
-persistent site id保留实际member、primary symbol table index、record file offset及两个typed patch site；
-其中还会在patch proof自身持有的digest plan中重建每个ObjectDefinition/StackmapRecord/
-StrongRegistration节点、精确direct input与单writer patch集合，防止同producer的另一张digest graph
-借用相同object proof。不存在接受裸record bytes、外送fingerprint或仅按符号名前缀扫描的替代入口。
+callable body 指纹读取实际 Primary 与 associated atoms，按既有 relocation 信息归一化地址字段。
+Runtime scan 与 EH、常量、Context cells 同属 associated atoms，按 atom id 排序进入摘要；不从计划重建
+scan 字节或指针树，也不重放 semantic/physical 全集闭合。直接输入为该 body 已读取的 normalized
+stackmap fingerprints，按 digest node id 排序。
 
-callable registration的object级最终提升只能经
-`verify_strong_callable_registrations_v1(VerifiedScoopLirDigestPatchSiteSetV1, StrongCallableRegistrationPlanSetV1, &[ScoopLirObjectCandidateV1])`
-完成。patch proof、plan与built-in object proof的producer必须一致，入口再次核对严格递增的Scoop member
-全集及每个object的长度/content digest。每条registration definition必须分配给Scoop LIR member，实际
-`Primary`与plan一致、位于`ReadOnlyData`且范围精确为192 bytes；offset 120的
-`RegistrationDefinition`和offset 152的`CallableBodyDefinition`必须是该atom内仅有的两个32-byte零patch。
-该atom还必须恰有一个offset 184、宽8、encoded value为零的`ARM64_RELOC_UNSIGNED64`，其strong relocation
-closure resolution必须精确落到plan指定的`CallableBody` definition、producer member、owner及实际primary
-symbol，不能接受普通external candidate、同owner下的registration definition或其他地址来源。
+`Unsigned64/Subtractor64/PointerToGot32` 清零地址载荷，AArch64 Branch/Page/GOT/TLVP 形式保留
+opcode/register 与寻址形状；归一化保留局部写入范围检查，不重复核对已解析的 encoded value。
+指纹继续保存实际 relocation 的 typed target 与 direct inputs，不以物理 member、符号表索引或 raw 地址
+代替稳定语义身份。canonical ABI 直接复用 LIR 完整结果，不重新与 registration object 互证。
 
-verifier从callable plan逐byte重建magic、version、size、Strong linkage、body semantic id、全部reserved、
-ODR与digest零槽以及零地址占位；并在patch proof持有的digest plan中重新闭合registration object leaf、body
-ObjectDefinition、StrongRegistration的精确direct inputs及两个typed writer intent。输出
-`VerifiedStrongCallableRegistrationSetV1`拥有patch proof与production plan，并按body id保留member、primary
-symbol table index、record file offset、已解析entry relocation和两处typed patch site；不存在接受裸记录、
-裸重定位或按符号名前缀扫描的第二入口。
+`compute_strong_safepoint_fingerprints_v1` 使用实际归一化 stackmap 与 registration 计划计算后续所需摘要。
+`patch_strong_registration_fingerprints_v1/v2` 按已物化的槽位回填 safepoint normalized-stackmap、
+callable body-definition、type descriptor-definition/layout、static storage scan/layout 和 eager
+initialization gateway-definition。immortal registration 无需 digest 写入。
 
-callable registration自身的ObjectDefinition leaf只能经
-`compute_strong_callable_registration_object_fingerprints_v1`从上述完整registration proof与再次匹配
-content digest的object全集产生。其`scoop-object-definition-v1` RuntimeEncode依次写Primary role tag 1、
-精确192-byte provisional record、relocation count 1、唯一entry relocation和direct-input count 0；entry
-relocation使用与普通object definition完全相同的canonical relocation schema，固定编码atom内offset 184、
-`Unsigned64` form tag 1、verified encoded value 0、target count 1、`Single` slot tag 1，以及
-`IntraConeStrong` requirement tag 1；requirement内的owner固定为`CallableBody(body)` entity tag 1、body id和
-`CallableBody` role tag 1。member、section、symbol-table index、Mach-O名字与最终地址均不进入hash，不再保留
-旧的registration专用target编码。该入口只计算registration object leaf；body
-ObjectDefinition必须等完整machine body/associated record/undefined requirement归一化证明闭合后再算，不能
-用只支持无relocation body的临时算法或把registration leaf误作body fingerprint。
-
-callable body Primary的ObjectDefinition leaf经
-`compute_strong_callable_body_object_fingerprints_v1`消费同一对象集合的registration、完整Scoop stackmap、
-最终`CanonicalUndefinedSymbolRequirementSetV1`与实际object数据。undefined requirement的use-site序列
-必须与同一strong relocation closure中除object-local以外的全部binding逐项相等。后续profile可以按typed用途
-分类实际relocation；每条relocation只分类一次，联合后仍精确覆盖同一对象集合。不同用途可以引用同一实际
-callable，已解析的provider、定义和ABI直接复用，不建立额外分区proof或排斥目标交集。每个body definition/Primary
-atom从callable plan反查实际member与range，section
-role固定为`Text`。本阶段body ObjectDefinition的direct input必须精确等于owner为该body的全部
-`StackmapRecord` node并按node id排序；出现尚未有typed计算proof的其他input kind直接fail closed，不接受
-调用者传入裸digest。
-
-body bytes按已验证relocation逐项归一化：`Unsigned64/Subtractor64/PointerToGot32`清零地址载荷，AArch64
-`Branch26/Page21/PageOffset12`、GOT及TLVP对应form只清零立即数字段、保留opcode/register/寻址形状；归一化前必须
-逐项复核object bytes中的encoded value。随后`scoop-object-definition-v1` RuntimeEncode依次写Primary tag、
-normalized byte span、按atom offset排序的relocation sequence及canonical direct-input sequence。每条
-relocation固定写offset、form tag及其optional explicit addend、原始checked encoded value、target count和
-按Single/Minuend/Subtrahend排序的target；target只允许由strong relocation closure与最终requirement proof
-对应 `IntraConeStrong/GeneratedBridge/SourceExtern/RuntimeAbi/TargetEhSupport/CBridgeTargetSupport`，或已有共有 callable/layout import 中的实际 provider 与 typed target，或在物理target精确落入同一body已计划associated atom时提升为
-`OwningAssociatedAtomOffset { atom, role, offset_within_atom }`。每个callable runtime-scan atom的bytes与其中指向
-child scan atom的canonical relocation按plan顺序作为associated-atom sequence进入同一个body ObjectDefinition
-fingerprint；body Primary指向top-level scan的Page/GOT/Unsigned relocation也使用同一owner-relative target。
-member、section ordinal、symbol table index与raw symbol spelling均不进入hash；未命中已计划associated atom的
-local/section-base target仍直接拒绝，不能退回hash物理索引。
-
-`compute_strong_safepoint_fingerprints_v1`只能消费上述完整proof与同一member全集的exact object bytes；
-入口先再次核对每个member的长度与content digest，再按site一次性产生typed
-`ObjectDefinitionFingerprintV1`、既有`StackmapRecordFingerprintV1`和
-`StrongRegistrationFingerprintV1`。输出继续拥有输入proof，后续patch writer不能从三份互不关联的
-digest或裸bytes重新拼装写入计划。
-
-`patch_strong_registration_fingerprints_v1`是当前已实现strong registration slot的唯一writer入口，必须
-同时消费完整safepoint、callable、type、immortal-object、static-storage与initialization fingerprint proof；旧的较少参数公开
-patch入口不存在。六份proof必须拥有逐项相等的完整patch-site proof，且safepoint/callable共享同一stackmap proof，从而绑定
-同一built-in object closure和digest graph。
-入口再次匹配provisional content digest的完整Scoop object member集合，先复制bytes，再只按proof中的
-`VerifiedMaterializedPatchSiteV1`写入：safepoint的normalized-stackmap/registration digest，以及callable的
-body-definition/registration digest、type的descriptor-definition/layout/registration digest与immortal-object
-的registration digest、static storage的scan/layout/registration digest，以及initialization的registration digest
-和Eager专属gateway-definition镜像；不暴露接受
-裸member、offset或digest的公共写函数。写后分别逐record重建最终232-byte safepoint、192-byte callable与
-240-byte type、184-byte immortal-object、296-byte static-storage与352-byte initialization ABI并比较，同时把全部已写slot归零后要求member
-长度/content digest精确回到provisional envelope，再重新解析Mach-O并要求section、symbol、relocation及
-deployment形状逐项未变。输出拥有六份fingerprint proof和final object副本，明确仍是当前registration
-覆盖面的typed中间proof，不冒充完成其余registration kind与整个digest graph后的`VerifiedLinkObjectMember`。
+writer 保留本次写入的范围检查，复用已解析对象结构并更新内容摘要。不比较前置结果副本、重数覆盖、
+重建完整最终 registration 字节或重复检查已处理的零槽状态；不清零整包回放或重新解析对象。
+RuntimeImage 与 executable entry 回填同样直接使用实际计划、摘要和槽位，不增加完成资格链。
 
 ### 13.3 registration完备性
 
@@ -2367,7 +1865,7 @@ deployment形状逐项未变。输出拥有六份fingerprint proof和final objec
 - 每个只读immortal object恰一条immortal registration并引用当前/允许external type registration；
 - 每个M21 initialization unit恰一条init registration，cell/storage/failure root/initializer/ensure及Eager gateway完整；
 - 每个runtime-materialized exact type恰一条type registration，TD/runtime type/layout/descriptor fingerprint一致；
-- 每个LIR safepoint site恰一条safepoint registration并由normalized LLVM v3 record反证；
+- 每个LIR safepoint site恰一条safepoint registration并使用实际 normalized LLVM v3 record；
 - 每个`RegisteredCallableBody`恰一条callable registration，即使没有safepoint；native extern/runtime函数不因有地址而混入；
 - root gateway、initialization startup gateway和compiler adapter只要是Scoop machine body，同样登记callable/safepoint；
 - 所有record由实际producer member拥有；普通external reference不在consumer image重复登记。
@@ -2426,14 +1924,9 @@ node的全部`StrongRegistration` direct input必须与六表中的fingerprint n
 
 core bootstrap的dependencies为空；普通manifest/single-file当前恰为`[core]`。它们按identity bytes编码，不从manifest声明顺序取得。image symbol hidden strong且只能由一个member定义。image中的pointer table只列当前Cone实际生产的strong record；外部core record不复制进来。
 
-全部LinkObject联合验证后必须：
-
-- image definition恰好一个；
-- manifest `image_owner_member`指向该member；
-- 其余member没有任何当前或其他Cone image descriptor；
-- coordinate bytes/identity/dependency table/六张pointer table与plan逐项一致；
-- 每个pointer relocation命中正确registration record symbol；
-- runtime image slot是唯一32-byte patch并与manifest Available值相等。
+image 使用 codegen 的成功产出及已物化 `RuntimeImage` patch，member 直接取自该 patch。
+不重新读取 coordinate、诊断文字、依赖和六张指针表与同一计划比较，也不另建 image owner 资格证明。
+生成布局、实际符号／引用连接和 runtime image 编码继续负责各自的转换。
 
 ### 13.5 executable entry plan
 
@@ -2477,10 +1970,9 @@ descriptor的Primary atom；gateway body Primary atom的`ObjectDefinition` node�
 `GatewayDefinition`语义字段写入同一atom。两个patch intent id都从这些完整typed key
 重算，不保存offset或member。
 
-reader不单项提升decoded id；它从expected source、foundation、registration surface和digest
-plan独立重建整个branch并逐byte比较。Library分支要求foundation中同时不存在
-root-entry failure storage、root gateway body、`re`符号或RootEntryDescriptor definition plan；
-Executable分支要求这四类root-only实体各恰一个且全部属于当前Cone/main。
+对象生产直接将 entry 计划与两个实际 patch 关联；Library 与 Executable 采用单一枚举，
+Executable 同时保存完整计划及 source-signature／gateway-definition 槽位，不再存两份独立分支。
+不重建 root descriptor 字节、failure-root／gateway relocation 或 root-only 实体全集进行资格复核。
 
 ## 14. digest与fingerprint
 
@@ -2611,16 +2103,11 @@ source/diagnostic provenance。它编码为array，元素`NativeExternalContract
 `CborIdentityRecord<NativeLinkRequirementId, NativeLinkRequirementKey>`另由native library
 requirement array按requirement id严格递增编码。多个source声明归并为同一contract时，增删或重排
 其source identity不改变Code fingerprint；symbol key、contract fingerprint、contract payload或
-library requirement任一变化都必须改变Code fingerprint。reader从已验证LIR native requirement
-surface重建该集合，不从hash input提升decoded identity。
+library requirement 任一变化都必须改变 Code fingerprint。writer 从现有 LIR native requirements 构造实际编码，直接消费已有定义、引用和 imports，不重建集合或闭包来比较副本。
 
 `CodeLinkObjectMemberSetV1`编码为按`SlibMemberId`严格递增的
 `LinkMemberFingerprint` array；排序key不另行编码，因为每个fingerprint已经覆盖完整
-`SlibMemberRecord`（包括member id、stable key、role、byte length与content digest）。构造该集合前，
-packager必须把directory中的全部`LinkObject`与最终`VerifiedEntryPatchSetV1`逐member一一对应：Scoop
-LIR member使用完成全部registration/image/entry patch并重验后的bytes，generated-C member使用同一
-`CBridgeProductionSet`已经验证的最终envelope。缺失、额外、重复member，stable key/role不等，或
-directory length/digest与最终proof不等都失败。M23-3没有known Link-required extension handler；
+`SlibMemberRecord`（包括 member id、stable key、role、byte length 与 content digest）。packager 直接投影最终成员目录，Scoop LIR member 使用完成 registration/image/entry patch 的 bytes，generated-C 使用本次成功产出的 bytes；不逐 member 比较另一份生产记录或重验其摘要。归档组装直接编码已有 metadata，不重复核对各组件 producer／target。M23-3 没有 known Link-required extension handler；
 directory出现任一`ExtensionBlob(requirement=Link)`直接失败，不能把它当optional blob忽略。
 
 domain固定为`scoop-code-v1`。optional blob、diagnostic attachment、physical ar name、host path和producer临时目录不进入。只改object分片会改变member/Code fingerprint但不改变LIR semantic fingerprint；只改optional附件只改变Artifact fingerprint。
@@ -2847,8 +2334,8 @@ slib reader错误继续使用M23-2的typed `WirePath`、member/capability/typed 
 - 任意物理basename/无`.o`后缀的LinkObject仍验证；同bytes登记为opaque blob绝不进入Link；
 - non-Mach-O、wrong arch/filetype/profile、truncated table、overlap/overflow；
 - `LC_LINKER_OPTION`、autolink、constructor/destructor、unexpected section/symbol/relocation；
-- boundary错section/顺序/重叠、nonzero padding、orphan relocation；
-- weak/linkonce/ODR symbol与未认领strong definition；
+- 实际读取的 boundary section／范围／重叠和 relocation 引用错误；
+- 普通 Strong／ODR 定义读取和链接选择，不把多余符号或预期 linkage 副本比较作为生产门禁；
 - generated bridge缺/multiple primary、跨producer atom、signature/context/contract错配、伪StaticAssert atom；
 - provisional patch非零、错width/offset/member、双writer；final patch后再次验证成功。
 
@@ -2903,7 +2390,7 @@ slib reader错误继续使用M23-2的typed `WirePath`、member/capability/typed 
 5. 在 HIR/MIR/LIR crate 保存三层完整声明、typed 引用、Strong production 与 entry 数据；
 6. 在LIR形成strong definition、registration、image、entry与digest plan，并加入四层ODR拒绝；
 7. 生成共享runtime metadata v1 header，改造codegen输出per-Cone image、六表、root descriptor、boundary与zero patch；
-8. 实现Scoop LIR/generated C两种LinkObject verifier、member-awareowner/requirement及C-bridge production proof；
+8. 实现Scoop LIR/generated C两种LinkObject verifier、member-awareowner/requirement及 C bridge 实际生成记录；
 9. 实现digest finalizer、final re-verification、Code/RuntimeImage fingerprint和Link closure/manifest section；
 10. 注册完整 production profile，读取实际 Link 对象，并直接原子发布同次完成的归档；
 11. 切换正式`scoopc build`只产`.slib`，移除其runtime/link依赖，并在同一批变更中删除旧直编直链入口及其专用fixture；

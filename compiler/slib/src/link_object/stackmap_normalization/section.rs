@@ -10,17 +10,17 @@ use super::{
     LlvmStackmapSectionParseError, ParsedLlvmStackmapFunctionV3, parse_llvm_stackmap_section_v3,
 };
 use crate::link_object::{
-    BuiltinLinkObjectSectionProfileV1, BuiltinObjectSectionRoleV1, DarwinArm64RelocationShapeV1,
-    DarwinArm64RelocationTargetV1, ObjectSymbolKindV1, ValidatedBuiltinObjectSectionInventoryV1,
+    BuiltinObjectSectionRoleV1, DarwinArm64RelocationShapeV1, DarwinArm64RelocationTargetV1,
+    ObjectSymbolKindV1, ValidatedBuiltinObjectSectionInventoryV1,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct VerifiedObjectStackmapFunctionV3 {
+pub struct ObjectStackmapFunctionV3 {
     parsed: ParsedLlvmStackmapFunctionV3,
     target_symbol_table_index: u32,
 }
 
-impl VerifiedObjectStackmapFunctionV3 {
+impl ObjectStackmapFunctionV3 {
     pub const fn parsed(&self) -> &ParsedLlvmStackmapFunctionV3 {
         &self.parsed
     }
@@ -31,13 +31,13 @@ impl VerifiedObjectStackmapFunctionV3 {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct VerifiedObjectStackmapSectionV3 {
+pub struct ObjectStackmapSectionV3 {
     section_ordinal: NonZeroU32,
     constants: Vec<u64>,
-    functions: Vec<VerifiedObjectStackmapFunctionV3>,
+    functions: Vec<ObjectStackmapFunctionV3>,
 }
 
-impl VerifiedObjectStackmapSectionV3 {
+impl ObjectStackmapSectionV3 {
     pub const fn section_ordinal(&self) -> NonZeroU32 {
         self.section_ordinal
     }
@@ -46,7 +46,7 @@ impl VerifiedObjectStackmapSectionV3 {
         &self.constants
     }
 
-    pub fn functions(&self) -> &[VerifiedObjectStackmapFunctionV3] {
+    pub fn functions(&self) -> &[ObjectStackmapFunctionV3] {
         &self.functions
     }
 
@@ -58,16 +58,11 @@ impl VerifiedObjectStackmapSectionV3 {
     }
 }
 
-pub fn verify_object_stackmap_section_v3(
+pub fn read_object_stackmap_section_v3(
     object_bytes: &[u8],
     sections: &ValidatedBuiltinObjectSectionInventoryV1,
-) -> Result<Option<VerifiedObjectStackmapSectionV3>, ObjectStackmapSectionError> {
+) -> Result<Option<ObjectStackmapSectionV3>, ObjectStackmapSectionError> {
     let envelope = sections.envelope();
-    if sections.profile() != BuiltinLinkObjectSectionProfileV1::ScoopLir {
-        return Err(ObjectStackmapSectionError::WrongSectionProfile(
-            sections.profile(),
-        ));
-    }
     let Some(section_index) = sections
         .roles()
         .iter()
@@ -153,7 +148,7 @@ pub fn verify_object_stackmap_section_v3(
                 table_index: target_symbol_table_index,
             });
         }
-        functions.push(VerifiedObjectStackmapFunctionV3 {
+        functions.push(ObjectStackmapFunctionV3 {
             parsed,
             target_symbol_table_index,
         });
@@ -161,7 +156,7 @@ pub fn verify_object_stackmap_section_v3(
     if let Some((offset, _)) = relocations.first_key_value() {
         return Err(ObjectStackmapSectionError::UnexpectedRelocation { offset: *offset });
     }
-    Ok(Some(VerifiedObjectStackmapSectionV3 {
+    Ok(Some(ObjectStackmapSectionV3 {
         section_ordinal,
         constants,
         functions,
@@ -170,7 +165,6 @@ pub fn verify_object_stackmap_section_v3(
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ObjectStackmapSectionError {
-    WrongSectionProfile(BuiltinLinkObjectSectionProfileV1),
     SectionOrdinalOverflow,
     SectionNotFileBacked,
     SectionRangeOverflow,

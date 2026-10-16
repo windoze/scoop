@@ -41,26 +41,3 @@ impl<E: fmt::Display> fmt::Display for InheritanceInterfaceResolutionError<E> {
     }
 }
 impl<E: std::error::Error + 'static> std::error::Error for InheritanceInterfaceResolutionError<E> {}
-
-#[derive(Debug)]
-pub enum InheritanceInterfaceSemanticError<E> {
-    Foundation(E),
-    Slot(InheritanceSlotContractSemanticError<E>),
-    SourceContract,
-    SlotSelection,
-}
-impl<E: fmt::Display> fmt::Display for InheritanceInterfaceSemanticError<E> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(match self {
-            Self::Foundation(error) => return error.fmt(f),
-            Self::Slot(error) => return error.fmt(f),
-            Self::SourceContract => {
-                "inheritance callable contract differs from the actual source declaration"
-            }
-            Self::SlotSelection => {
-                "inheritance slot implementation differs from the actual resolved selection"
-            }
-        })
-    }
-}
-impl<E: std::error::Error + 'static> std::error::Error for InheritanceInterfaceSemanticError<E> {}

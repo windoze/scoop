@@ -1,8 +1,7 @@
 use super::*;
 use crate::link_object::{
-    BuiltinLinkObjectSectionProfileV1, ObjectEnvelopeFormatV1, ObjectSectionFlagsV1,
-    ObjectSymbolAttributesV1, ObservedObjectRelocationV1, ObservedObjectSymbolV1,
-    ValidatedObjectEnvelopeV1,
+    ObjectEnvelopeFormatV1, ObjectSectionFlagsV1, ObjectSymbolAttributesV1,
+    ObservedObjectRelocationV1, ObservedObjectSymbolV1, ValidatedObjectEnvelopeV1,
 };
 
 #[test]
@@ -10,8 +9,6 @@ fn local_table_preserves_the_complete_referenced_byte_span() {
     let (bytes, sections) = table();
     let pools = LiteralPools::read(&bytes, &sections, &[]).unwrap();
     let ordinal = NonZeroU32::new(2).unwrap();
-    assert!(pools.contains_range(ordinal, 4, 24));
-    assert!(!pools.contains_range(ordinal, 4, 25));
     assert_eq!(pools.at(ordinal, 4).unwrap().bytes(), &bytes[4..]);
     assert!(pools.at(ordinal, 5).is_none());
     assert!(pools.at(ordinal, 24).is_none());
@@ -77,10 +74,7 @@ fn table() -> (Vec<u8>, ValidatedBuiltinObjectSectionInventoryV1) {
     let envelope = ValidatedObjectEnvelopeV1 {
         byte_length: bytes.len() as u64,
         content_digest: scoop_wire::sha256(&bytes),
-        format: ObjectEnvelopeFormatV1::DarwinArm64 {
-            load_command_count: 1,
-            deployment: None,
-        },
+        format: ObjectEnvelopeFormatV1::DarwinArm64,
         sections,
         symbols: vec![ObservedObjectSymbolV1 {
             table_index: 0,
@@ -107,7 +101,6 @@ fn table() -> (Vec<u8>, ValidatedBuiltinObjectSectionInventoryV1) {
         bytes,
         ValidatedBuiltinObjectSectionInventoryV1 {
             envelope,
-            profile: BuiltinLinkObjectSectionProfileV1::ScoopLir,
             roles: vec![
                 BuiltinObjectSectionRoleV1::Text,
                 BuiltinObjectSectionRoleV1::ReadOnlyData,

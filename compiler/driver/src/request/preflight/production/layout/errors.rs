@@ -10,7 +10,6 @@ pub enum LayoutProductionError {
     Registration(Box<scoop_lir::ConeProductionWriterError>),
     LayoutExports(scoop_lir_lower::LayoutAbiExportLoweringError),
     LayoutUses(scoop_lir_lower::LayoutAbiDependencyLoweringError),
-    LayoutJoin(scoop_lir::StrongProductionLayoutJoinError),
     Codegen(scoop_codegen::CodegenError),
     Artifact(crate::LayoutArtifactProductionError),
 }
@@ -39,7 +38,6 @@ impl std::error::Error for LayoutProductionError {
             Self::Registration(error) => error.as_ref(),
             Self::LayoutExports(error) => error,
             Self::LayoutUses(error) => error,
-            Self::LayoutJoin(error) => error,
             Self::Codegen(error) => error,
             Self::Artifact(error) => error,
         })

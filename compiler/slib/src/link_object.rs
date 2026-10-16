@@ -15,6 +15,7 @@ use crate::{
 
 mod wire;
 pub(crate) use wire::DecodedFixedBytesV1;
+mod atom_range;
 mod registration_identity;
 
 const SCOOP_LIR_UNIT_SET_DOMAIN: &str = "scoop-lir-object-unit-set-v1";
@@ -26,8 +27,8 @@ const GENERATED_BRIDGE_UNIT_SET_DOMAIN: &str = "scoop-generated-bridge-object-un
 mod planning;
 pub use planning::*;
 
-mod c_bridge_production;
-pub use c_bridge_production::*;
+mod generated_c_objects;
+pub use generated_c_objects::*;
 
 mod builtin_object_set;
 pub use builtin_object_set::*;
@@ -73,9 +74,6 @@ pub use entry_production::*;
 
 mod strong_registration_finalization;
 pub use strong_registration_finalization::*;
-
-mod generated_bridge_semantics;
-pub use generated_bridge_semantics::*;
 
 mod symbol_planning;
 pub use symbol_planning::*;

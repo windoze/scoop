@@ -90,7 +90,7 @@ fn exports(bytes: &[u8]) -> Result<BTreeMap<String, NativeSymbolDefinition>, Lin
             NativeSymbolDefinition {
                 kind,
                 read_only,
-                weak: symbol.is_weak(),
+                binding: crate::NativeSymbolBinding::from_weak(symbol.is_weak()),
             },
         );
     }

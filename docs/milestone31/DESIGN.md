@@ -112,7 +112,7 @@ Scoop 局部变换安排在 MIR 或 LIR root-plan 定稿前的已有入口。仅
 1. 完成语言 lowering 与 Scoop 的调用/CFG 清理，形成完整 typed LIR 和根需求。
 2. 生成 LLVM IR，运行选定的普通函数内优化。首批从 SROA/mem2reg、指令简化、CSE 和死代码/死存储消除的组合验证；CFG 简化只允许已具备正确 site 处理的规则。
 3. 在最后一次普通 IR 变换之后，复用 LIR typed facts、实际保留的 site 与 managed SSA leaf，形成当前实现的最终 ExpectedSafepoints/GC 发射计划。
-4. 执行 RS4GC，再做既有 relocation/use、invoke/native transition 检查。
+4. 执行 RS4GC，使用其成功输出；真实 relocation、invoke/native transition 与根恢复由专测和运行回归覆盖。
 5. 运行标准 TargetMachine pipeline，检查实际 object、EH 和 stackmap，随后打包。
 
 最终计划是实际代码的 metadata，不是跨 Cone ABI 或 ODR 判等信息。LIR 自身仍须完整且正确；普通优化已证明不可达的 site 不再出现在发射清单，活跃站点必须具有准确 owner/role 与完整根。不能先让 LLVM 随意删除/复制调用，再以旧 LIR 清单不匹配为由拒绝一切优化，也不能从生成出的 stackmap 倒推“应该有几个根”。
@@ -121,7 +121,7 @@ Scoop 局部变换安排在 MIR 或 LIR root-plan 定稿前的已有入口。仅
 
 NoGC invoke 使用标准 `nomerge` call-site 属性防止 machine O2 合并多个受保护调用，维持最终 EH 清单的对应关系；不可达删除继续按实际 LLVM 结果投影，不把 NoGC 当作 nounwind。
 
-InstCombine 沿用默认的一轮处理，以 `no-verify-fixpoint` 关闭仅检查是否仍有优化机会的内部断言；不要求首批优化达到全局固定点，LLVM IR、GC/EH 和对象 verifier 继续运行。
+InstCombine 沿用默认的一轮处理，以 `no-verify-fixpoint` 关闭仅检查是否仍有优化机会的内部断言；不要求首批优化达到全局固定点，生产编译不因此附加 LLVM IR 或 post-RS4GC 复核；具体 GC/EH 转换继续测试。
 
 首批不启用会复制/合并 GC site 的 inlining、loop unroll、vectorization 或 tail duplication。具体 pass 名称、顺序和 CFG 选项由 LLVM 22.1 的三 target qualification 冻结；这是一项有限的实现选择，不改变上述完成范围。未经验证不直接接入完整 `default<O2>`；如果某个 pass 无法满足 site 约束，使用能完成同类局部优化的受限组合，并在实施记录解释实际配置。
 

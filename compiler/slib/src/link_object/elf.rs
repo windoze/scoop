@@ -7,7 +7,6 @@ mod architecture;
 pub use architecture::ElfArchitecture;
 mod envelope;
 mod relocations;
-mod sections;
 mod x86_64;
 pub use envelope::validate_linux_elf_object_envelope_v1;
 pub(super) mod builtin;
@@ -44,7 +43,6 @@ impl<'data> ValidatedElfObject<'data> {
             ));
         }
         architecture.check_flags(file.elf_header().e_flags(file.endian()))?;
-        sections::check(&file)?;
         let relocations = relocations::read(&file, architecture)?;
         Ok(Self {
             architecture,

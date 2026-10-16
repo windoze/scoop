@@ -132,7 +132,6 @@ fn emit_llvm_module_with_surface<'ctx, R>(
     let bounds_message = emit_cone_trap_message(
         context,
         &llvm,
-        &target_data,
         surface,
         module.cone,
         (
@@ -144,7 +143,6 @@ fn emit_llvm_module_with_surface<'ctx, R>(
     let array_size_message = emit_cone_trap_message(
         context,
         &llvm,
-        &target_data,
         surface,
         module.cone,
         (
@@ -262,7 +260,6 @@ fn emit_llvm_module_with_surface<'ctx, R>(
     }
     atom_boundaries::emit_global_atom_boundaries_v1(
         &llvm,
-        &target_data,
         surface,
         module.globals.iter().filter_map(|(_, global)| {
             let GlobalInit::CString { identity, .. } = &global.init else {
@@ -350,7 +347,6 @@ fn emit_llvm_module_with_surface<'ctx, R>(
         shape_definitions::emit_strong_shape_definitions_v1(
             context,
             &llvm,
-            &target_data,
             surface,
             module,
             type_descriptor_globals,
@@ -425,7 +421,6 @@ fn emit_llvm_module_with_surface<'ctx, R>(
 pub(crate) fn emit_cone_trap_message<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
-    target_data: &inkwell::targets::TargetData,
     surface: &scoop_lir::ObjectSymbolSurfaceV1,
     producer: scoop_lir::ConeIdentity,
     message: (scoop_lir::ConeImageSupportRole, &[u8]),
@@ -470,7 +465,6 @@ pub(crate) fn emit_cone_trap_message<'ctx>(
         global.set_initializer(&context.const_string(bytes, true));
         atom_boundaries::emit_global_atom_boundaries_v1(
             llvm,
-            target_data,
             surface,
             [atom_boundaries::GlobalAtomMaterializationV1::new(
                 atom, global,
@@ -487,7 +481,6 @@ pub(crate) fn emit_llvm_module<'ctx>(
     machine: &TargetMachine,
     profile: ValidatedBackendProfile,
 ) -> Result<LlvmModule<'ctx>, CodegenError> {
-    validation::validate_module(module)?;
     profile.validate_lir_target_profile(module.meta.target_profile)?;
     if !module.initialization_units.is_empty() {
         return Err(CodegenError(

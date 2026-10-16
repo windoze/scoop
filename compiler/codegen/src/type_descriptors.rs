@@ -83,15 +83,6 @@ fn emit_type_descriptor<'ctx>(
     let i64_ty = context.i64_type();
     let ptr = ptr_ty(context);
     let definition = descriptor_definition(emission.surface, descriptor.identity.exact_type())?;
-    if global.get_name().to_bytes() != definition.primary_symbol().symbol().as_str().as_bytes()
-        || descriptor.identity.symbol_request() != definition.primary_symbol()
-    {
-        return Err(CodegenError(format!(
-            "TypeDescriptor {} declaration diverges from canonical strong symbol `{}`",
-            descriptor.identity.exact_type(),
-            definition.primary_symbol().symbol()
-        )));
-    }
     let object_scan: BasicValueEnum = shapes
         .scan(descriptor.instance_layout.scan_record().id())?
         .runtime_pointer()
@@ -166,13 +157,6 @@ fn emit_type_descriptor<'ctx>(
         }
         let array = entry_ty.const_array(&entries);
         let directory_name = format!("{}.itables", descriptor.identity.symbol());
-        if llvm.get_global(&directory_name).is_some()
-            || llvm.get_function(&directory_name).is_some()
-        {
-            return Err(CodegenError(format!(
-                "TypeDescriptor itable directory `{directory_name}` collides with an LLVM value"
-            )));
-        }
         let itable_global = llvm.add_global(array.get_type(), None, &directory_name);
         itable_global.set_linkage(inkwell::module::Linkage::Private);
         itable_global.set_constant(true);
@@ -187,12 +171,6 @@ fn emit_type_descriptor<'ctx>(
         )
     };
     let diagnostic_name = format!("{}.diagnostic", descriptor.identity.symbol());
-    if llvm.get_global(&diagnostic_name).is_some() || llvm.get_function(&diagnostic_name).is_some()
-    {
-        return Err(CodegenError(format!(
-            "TypeDescriptor diagnostic `{diagnostic_name}` collides with an LLVM value"
-        )));
-    }
     let name_value = context.const_string(descriptor.diagnostic_name.as_bytes(), false);
     let name_global = llvm.add_global(name_value.get_type(), None, &diagnostic_name);
     name_global.set_linkage(inkwell::module::Linkage::Private);

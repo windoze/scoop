@@ -1,29 +1,18 @@
 //! Reconciliation and closure of generated-C target-support requirements.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::fmt;
 
 use scoop_identity::ConeIdentity;
-use scoop_lir::{
-    CBridgeTargetSupportRequirementV1, RuntimeSymbolContractId, TargetEhRequirementId,
-    ValidatedLirTargetSelection,
-};
+use scoop_lir::{CBridgeTargetSupportRequirementV1, ValidatedLirTargetSelection};
 
 use super::{
-    CanonicalUndefinedRelocationUseV1, GeneratedBridgeRelocationSemanticV1, RelocationTargetSlotV1,
-    RuntimeAbiRequirementUseV1, SourceExternalRequirementUseV1, StrongRelocationBindingV1,
-    TargetEhRequirementUseV1, VerifiedCrossConeStrongRequirementClosureV1,
-    VerifiedCurrentConeStrongRelocationClosureV1, VerifiedGeneratedCBridgeSemanticSetV1,
+    CanonicalUndefinedRelocationUseV1, RuntimeAbiRequirementUseV1, SourceExternalRequirementUseV1,
+    StrongRelocationBindingV1, TargetEhRequirementUseV1,
+    VerifiedCrossConeStrongRequirementClosureV1, VerifiedCurrentConeStrongRelocationClosureV1,
     VerifiedRuntimeAndEhRequirementClosureV1,
 };
 use crate::SlibMemberId;
-
-type UseKey = (
-    SlibMemberId,
-    scoop_identity::ObjectDefinitionAtomId,
-    u64,
-    RelocationTargetSlotV1,
-);
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CBridgeTargetSupportRequirementUseV1 {
@@ -42,7 +31,7 @@ impl CBridgeTargetSupportRequirementUseV1 {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct VerifiedCBridgeTargetSupportRequirementClosureV1 {
+pub struct BuiltinExternalRequirementsV1 {
     runtime_and_eh: VerifiedRuntimeAndEhRequirementClosureV1,
     source_external_requirements: Vec<SourceExternalRequirementUseV1>,
     runtime_requirements: Vec<RuntimeAbiRequirementUseV1>,
@@ -51,7 +40,7 @@ pub struct VerifiedCBridgeTargetSupportRequirementClosureV1 {
     remaining_external_candidates: Vec<StrongRelocationBindingV1>,
 }
 
-impl VerifiedCBridgeTargetSupportRequirementClosureV1 {
+impl BuiltinExternalRequirementsV1 {
     pub const fn producer(&self) -> ConeIdentity {
         self.runtime_and_eh.producer()
     }
@@ -92,240 +81,112 @@ impl VerifiedCBridgeTargetSupportRequirementClosureV1 {
     }
 }
 
-pub fn verify_c_bridge_target_support_requirements_v1(
+pub fn classify_c_bridge_target_support_requirements_v1(
     runtime_and_eh: VerifiedRuntimeAndEhRequirementClosureV1,
-    bridge_semantics: VerifiedGeneratedCBridgeSemanticSetV1,
-) -> Result<
-    VerifiedCBridgeTargetSupportRequirementClosureV1,
-    CBridgeTargetSupportRequirementValidationError,
-> {
-    let strong = runtime_and_eh
-        .source_closure()
-        .cross_cone_closure()
-        .strong_closure();
-    if strong
-        != bridge_semantics
-            .scoop_patch_sites()
-            .builtins()
-            .strong_relocations()
-    {
-        return Err(CBridgeTargetSupportRequirementValidationError::StrongClosureMismatch);
-    }
-    if runtime_and_eh.selection().target() != bridge_semantics.target() {
-        return Err(CBridgeTargetSupportRequirementValidationError::TargetMismatch);
-    }
-
-    let mut existing = BTreeMap::new();
-    for requirement in runtime_and_eh
-        .source_closure()
-        .source_external_requirements()
-    {
-        insert_existing(
-            &mut existing,
-            requirement.use_site(),
-            ExistingExternalRequirement::SourceExtern(requirement.requirement().fingerprint()),
-        )?;
-    }
-    for requirement in runtime_and_eh.runtime_requirements() {
-        insert_existing(
-            &mut existing,
-            requirement.use_site(),
-            ExistingExternalRequirement::RuntimeAbi(requirement.contract().id()),
-        )?;
-    }
-    for requirement in runtime_and_eh.target_eh_requirements() {
-        insert_existing(
-            &mut existing,
-            requirement.use_site(),
-            ExistingExternalRequirement::TargetEhSupport(requirement.requirement().id()),
-        )?;
-    }
-    for binding in runtime_and_eh.remaining_external_candidates() {
-        let use_site = CanonicalUndefinedRelocationUseV1::from(binding);
-        insert_existing(
-            &mut existing,
-            &use_site,
-            ExistingExternalRequirement::Unclassified,
-        )?;
-    }
-
-    let generated_members = bridge_semantics
-        .scoop_patch_sites()
-        .builtins()
-        .member_plan()
-        .generated_bridge_members()
-        .iter()
-        .map(|member| member.member_id())
-        .collect::<BTreeSet<_>>();
-    let mut semantic_keys = BTreeSet::new();
-    let mut target_support_keys = BTreeSet::new();
+    bridge_plan: &scoop_lir::GeneratedBridgePlanSetV1,
+    profile: &scoop_lir::CBridgeToolchainProfileV1,
+) -> Result<BuiltinExternalRequirementsV1, scoop_lir::CBridgeTargetSupportRegistryError> {
+    let target = runtime_and_eh.selection().target();
+    let registry = scoop_lir::CBridgeTargetSupportRegistryV1::current(target, profile)?;
+    let bridges = bridge_native_contracts(&runtime_and_eh, bridge_plan);
+    let mut source_external_requirements = Vec::new();
     let mut target_support_requirements = Vec::new();
-    for semantic_use in bridge_semantics.uses() {
-        let key = use_key(semantic_use.use_site());
-        if !semantic_keys.insert(key) {
-            return Err(
-                CBridgeTargetSupportRequirementValidationError::DuplicateSemanticUse {
-                    member: key.0,
-                    atom: key.1,
-                    offset: key.2,
-                    target_slot: key.3,
-                },
-            );
-        }
-        let classified = existing.get(&key);
-        match semantic_use.semantic() {
-            GeneratedBridgeRelocationSemanticV1::NativeExternal { contract } => {
-                require_existing(
-                    semantic_use.use_site(),
-                    classified,
-                    ExistingExternalRequirement::SourceExtern(contract),
-                )?;
-            }
-            GeneratedBridgeRelocationSemanticV1::RuntimeCallbackInvoke { contract } => {
-                require_existing(
-                    semantic_use.use_site(),
-                    classified,
-                    ExistingExternalRequirement::RuntimeAbi(contract),
-                )?;
-            }
-            GeneratedBridgeRelocationSemanticV1::TargetSupport { contract } => {
-                let Some(existing) = classified else {
-                    return Err(semantic_mismatch(semantic_use.use_site()));
-                };
-                if !matches!(
-                    existing.requirement,
-                    ExistingExternalRequirement::SourceExtern(_)
-                        | ExistingExternalRequirement::Unclassified
-                ) {
-                    return Err(semantic_mismatch(semantic_use.use_site()));
-                }
-                let requirement = bridge_semantics
-                    .target_support()
-                    .requirements()
-                    .find(|requirement| requirement.id() == contract)
-                    .ok_or(
-                        CBridgeTargetSupportRequirementValidationError::MissingTargetSupportContract(
-                            contract,
-                        ),
-                    )?;
-                if existing.use_site != *semantic_use.use_site()
-                    || requirement.object_symbol(bridge_semantics.target())
-                        != semantic_use.use_site().symbol()
-                {
-                    return Err(semantic_mismatch(semantic_use.use_site()));
-                }
-                target_support_keys.insert(key);
-                target_support_requirements.push(CBridgeTargetSupportRequirementUseV1 {
-                    use_site: semantic_use.use_site().clone(),
-                    requirement: requirement.clone(),
-                });
-            }
-            GeneratedBridgeRelocationSemanticV1::StaticCallbackStorageBridge { .. }
-            | GeneratedBridgeRelocationSemanticV1::SignatureDescriptor { .. } => {
-                if classified.is_some() {
-                    return Err(semantic_mismatch(semantic_use.use_site()));
-                }
-            }
-        }
-    }
-    if let Some((key, _)) = existing
-        .iter()
-        .find(|(key, _)| generated_members.contains(&key.0) && !semantic_keys.contains(key))
-    {
-        return Err(
-            CBridgeTargetSupportRequirementValidationError::MissingGeneratedBridgeSemanticUse {
-                member: key.0,
-                atom: key.1,
-                offset: key.2,
-                target_slot: key.3,
-            },
-        );
-    }
-
-    for binding in runtime_and_eh.remaining_external_candidates() {
-        let Some(requirement) = bridge_semantics
-            .target_support()
-            .requirement_for_object_symbol(binding.symbol())
-        else {
-            continue;
-        };
-        let valid_form = match requirement.support() {
-            scoop_lir::CBridgeTargetSupportV1::TlvBootstrap => {
-                binding.section_role() == super::BuiltinObjectSectionRoleV1::ThreadLocalVariables
-                    && binding.offset_within_atom() == 0
-                    && binding.relocation_form()
-                        == super::VerifiedObjectRelocationFormV1::Unsigned64
-            }
-            scoop_lir::CBridgeTargetSupportV1::TlsGetAddr
-            | scoop_lir::CBridgeTargetSupportV1::Memcpy
-            | scoop_lir::CBridgeTargetSupportV1::Memset
-            | scoop_lir::CBridgeTargetSupportV1::Fmodf
-            | scoop_lir::CBridgeTargetSupportV1::DarwinErrno
-            | scoop_lir::CBridgeTargetSupportV1::LinuxErrno
-            | scoop_lir::CBridgeTargetSupportV1::Fmod => {
-                binding.section_role() == super::BuiltinObjectSectionRoleV1::Text
-                    && binding
-                        .relocation_form()
-                        .is_direct_call(runtime_and_eh.selection().target())
-            }
-        };
-        if valid_form
-            && binding.containing_atom_role() == scoop_identity::DefinitionAtomRole::Primary
-        {
-            let use_site = CanonicalUndefinedRelocationUseV1::from(binding);
-            if target_support_keys.insert(use_key(&use_site)) {
-                target_support_requirements.push(CBridgeTargetSupportRequirementUseV1 {
-                    use_site,
-                    requirement: requirement.clone(),
-                });
-            }
-        }
-    }
-
-    let source_external_requirements = runtime_and_eh
+    for source in runtime_and_eh
         .source_closure()
         .source_external_requirements()
-        .iter()
-        .filter(|requirement| !target_support_keys.contains(&use_key(requirement.use_site())))
-        .cloned()
-        .collect();
-    let runtime_requirements = runtime_and_eh
-        .runtime_requirements()
-        .iter()
-        .filter(|requirement| !target_support_keys.contains(&use_key(requirement.use_site())))
-        .cloned()
-        .collect();
-    let target_eh_requirements = runtime_and_eh
-        .target_eh_requirements()
-        .iter()
-        .filter(|requirement| !target_support_keys.contains(&use_key(requirement.use_site())))
-        .cloned()
-        .collect();
-    let remaining_external_candidates = runtime_and_eh
-        .remaining_external_candidates()
-        .iter()
-        .filter(|binding| {
-            !target_support_keys
-                .contains(&use_key(&CanonicalUndefinedRelocationUseV1::from(*binding)))
-        })
-        .cloned()
-        .collect();
-
-    Ok(VerifiedCBridgeTargetSupportRequirementClosureV1 {
-        runtime_and_eh,
+    {
+        let use_site = source.use_site();
+        let helper = bridges
+            .get(&use_site.containing_atom())
+            .is_some_and(|native| *native != Some(source.requirement().fingerprint()));
+        if let Some(requirement) = helper
+            .then(|| registry.requirement_for_object_symbol(use_site.symbol()))
+            .flatten()
+        {
+            target_support_requirements.push(CBridgeTargetSupportRequirementUseV1 {
+                use_site: use_site.clone(),
+                requirement: requirement.clone(),
+            });
+        } else {
+            source_external_requirements.push(source.clone());
+        }
+    }
+    let mut remaining_external_candidates = Vec::new();
+    for binding in runtime_and_eh.remaining_external_candidates() {
+        if let Some(requirement) = registry.requirement_for_object_symbol(binding.symbol()) {
+            target_support_requirements.push(CBridgeTargetSupportRequirementUseV1 {
+                use_site: CanonicalUndefinedRelocationUseV1::from(binding),
+                requirement: requirement.clone(),
+            });
+        } else {
+            remaining_external_candidates.push(binding.clone());
+        }
+    }
+    Ok(BuiltinExternalRequirementsV1 {
         source_external_requirements,
-        runtime_requirements,
-        target_eh_requirements,
+        runtime_requirements: runtime_and_eh.runtime_requirements().to_vec(),
+        target_eh_requirements: runtime_and_eh.target_eh_requirements().to_vec(),
         target_support_requirements,
         remaining_external_candidates,
+        runtime_and_eh,
     })
 }
 
+/// Identify a bridge's native target to resolve helper/source name collisions.
+fn bridge_native_contracts(
+    runtime: &VerifiedRuntimeAndEhRequirementClosureV1,
+    plan: &scoop_lir::GeneratedBridgePlanSetV1,
+) -> BTreeMap<
+    scoop_identity::ObjectDefinitionAtomId,
+    Option<scoop_identity::NativeExternalContractFingerprint>,
+> {
+    use scoop_identity::GeneratedBridgeUnitKey;
+    let recipes = plan
+        .units()
+        .iter()
+        .map(|unit| {
+            let native = match *unit.unit_authority().key() {
+                GeneratedBridgeUnitKey::OutboundFunction(contract, _)
+                | GeneratedBridgeUnitKey::GlobalRead(contract)
+                | GeneratedBridgeUnitKey::GlobalWrite(contract)
+                | GeneratedBridgeUnitKey::GlobalAddress(contract) => Some(contract),
+                GeneratedBridgeUnitKey::CallbackTrampoline { .. }
+                | GeneratedBridgeUnitKey::StaticCallbackTrampoline { .. } => None,
+            };
+            (unit.primary_atom(), native)
+        })
+        .collect::<BTreeMap<_, _>>();
+    runtime
+        .source_closure()
+        .cross_cone_closure()
+        .strong_closure()
+        .members()
+        .iter()
+        .flat_map(|member| member.definitions().symbols())
+        .filter_map(|symbol| {
+            let super::PlannedStrongObjectSymbolRoleV1::PrimaryDefinition {
+                owner,
+                primary_atom,
+                ..
+            } = symbol.role()
+            else {
+                return None;
+            };
+            let scoop_identity::StrongDefinitionEntityKind::GeneratedBridgeAtom(atom) =
+                owner.kind()
+            else {
+                return None;
+            };
+            recipes.get(&atom).map(|native| (primary_atom, *native))
+        })
+        .collect()
+}
+
 #[cfg(test)]
-pub(in crate::link_object) fn without_generated_bridge_semantics_for_test(
+pub(in crate::link_object) fn without_target_support_for_test(
     runtime_and_eh: VerifiedRuntimeAndEhRequirementClosureV1,
-) -> VerifiedCBridgeTargetSupportRequirementClosureV1 {
-    VerifiedCBridgeTargetSupportRequirementClosureV1 {
+) -> BuiltinExternalRequirementsV1 {
+    BuiltinExternalRequirementsV1 {
         source_external_requirements: runtime_and_eh
             .source_closure()
             .source_external_requirements()
@@ -338,31 +199,9 @@ pub(in crate::link_object) fn without_generated_bridge_semantics_for_test(
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct SealedBuiltinObjectExternalRequirementClosureV1 {
-    verified: VerifiedCBridgeTargetSupportRequirementClosureV1,
-}
-
-impl SealedBuiltinObjectExternalRequirementClosureV1 {
-    pub const fn producer(&self) -> ConeIdentity {
-        self.verified.producer()
-    }
-
-    pub const fn verified(&self) -> &VerifiedCBridgeTargetSupportRequirementClosureV1 {
-        &self.verified
-    }
-
-    pub const fn cross_cone_closure(&self) -> &VerifiedCrossConeStrongRequirementClosureV1 {
-        self.verified.cross_cone_closure()
-    }
-}
-
-pub fn seal_builtin_object_external_requirements_v1(
-    verified: VerifiedCBridgeTargetSupportRequirementClosureV1,
-) -> Result<
-    SealedBuiltinObjectExternalRequirementClosureV1,
-    BuiltinObjectExternalRequirementClosureError,
-> {
+pub fn finish_builtin_external_requirements_v1(
+    verified: BuiltinExternalRequirementsV1,
+) -> Result<BuiltinExternalRequirementsV1, BuiltinObjectExternalRequirementClosureError> {
     if let Some(binding) = verified.remaining_external_candidates().first() {
         return Err(
             BuiltinObjectExternalRequirementClosureError::UnclassifiedExternalRelocation {
@@ -372,126 +211,8 @@ pub fn seal_builtin_object_external_requirements_v1(
             },
         );
     }
-    Ok(SealedBuiltinObjectExternalRequirementClosureV1 { verified })
+    Ok(verified)
 }
-
-#[derive(Clone)]
-struct ExistingExternalUse {
-    use_site: CanonicalUndefinedRelocationUseV1,
-    requirement: ExistingExternalRequirement,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum ExistingExternalRequirement {
-    SourceExtern(scoop_identity::NativeExternalContractFingerprint),
-    RuntimeAbi(RuntimeSymbolContractId),
-    TargetEhSupport(TargetEhRequirementId),
-    Unclassified,
-}
-
-fn insert_existing(
-    existing: &mut BTreeMap<UseKey, ExistingExternalUse>,
-    use_site: &CanonicalUndefinedRelocationUseV1,
-    requirement: ExistingExternalRequirement,
-) -> Result<(), CBridgeTargetSupportRequirementValidationError> {
-    let key = use_key(use_site);
-    if existing
-        .insert(
-            key,
-            ExistingExternalUse {
-                use_site: use_site.clone(),
-                requirement,
-            },
-        )
-        .is_some()
-    {
-        return Err(
-            CBridgeTargetSupportRequirementValidationError::OverlappingExternalClassification {
-                member: key.0,
-                atom: key.1,
-                offset: key.2,
-                target_slot: key.3,
-            },
-        );
-    }
-    Ok(())
-}
-
-fn require_existing(
-    semantic_use: &CanonicalUndefinedRelocationUseV1,
-    existing: Option<&ExistingExternalUse>,
-    expected: ExistingExternalRequirement,
-) -> Result<(), CBridgeTargetSupportRequirementValidationError> {
-    if !matches!(
-        existing,
-        Some(actual) if actual.use_site == *semantic_use && actual.requirement == expected
-    ) {
-        return Err(semantic_mismatch(semantic_use));
-    }
-    Ok(())
-}
-
-fn semantic_mismatch(
-    use_site: &CanonicalUndefinedRelocationUseV1,
-) -> CBridgeTargetSupportRequirementValidationError {
-    CBridgeTargetSupportRequirementValidationError::SemanticRequirementMismatch {
-        member: use_site.source_member(),
-        atom: use_site.containing_atom(),
-        offset: use_site.offset_within_atom(),
-        target_slot: use_site.target_slot(),
-    }
-}
-
-fn use_key(use_site: &CanonicalUndefinedRelocationUseV1) -> UseKey {
-    (
-        use_site.source_member(),
-        use_site.containing_atom(),
-        use_site.offset_within_atom(),
-        use_site.target_slot(),
-    )
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum CBridgeTargetSupportRequirementValidationError {
-    StrongClosureMismatch,
-    TargetMismatch,
-    OverlappingExternalClassification {
-        member: SlibMemberId,
-        atom: scoop_identity::ObjectDefinitionAtomId,
-        offset: u64,
-        target_slot: RelocationTargetSlotV1,
-    },
-    DuplicateSemanticUse {
-        member: SlibMemberId,
-        atom: scoop_identity::ObjectDefinitionAtomId,
-        offset: u64,
-        target_slot: RelocationTargetSlotV1,
-    },
-    SemanticRequirementMismatch {
-        member: SlibMemberId,
-        atom: scoop_identity::ObjectDefinitionAtomId,
-        offset: u64,
-        target_slot: RelocationTargetSlotV1,
-    },
-    MissingGeneratedBridgeSemanticUse {
-        member: SlibMemberId,
-        atom: scoop_identity::ObjectDefinitionAtomId,
-        offset: u64,
-        target_slot: RelocationTargetSlotV1,
-    },
-    MissingTargetSupportContract(scoop_lir::CBridgeTargetSupportRequirementId),
-}
-
-impl fmt::Display for CBridgeTargetSupportRequirementValidationError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            formatter,
-            "invalid C-bridge target-support requirement closure: {self:?}"
-        )
-    }
-}
-
-impl std::error::Error for CBridgeTargetSupportRequirementValidationError {}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum BuiltinObjectExternalRequirementClosureError {

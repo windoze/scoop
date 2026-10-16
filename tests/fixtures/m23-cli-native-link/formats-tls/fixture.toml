@@ -1,8 +1,8 @@
 schema = 1
 name = "native-link-formats-tls"
-inputs = ["cone", "../../m23-native-link/final/root.scoop", "../../m23-native-link/final/native.c", "../../m23-native-link/final/tls.c", "native-sources/compile_m23_final.c"]
+inputs = ["cone", "../../m23-native-link/final/root.scoop", "native-sources/compile_m23_final.c"]
 tools = ["scoop", "scoopc", "cc"]
-# This fixture mutates the Mach-O TLV descriptor and template symbol.
+# Exercise the target toolchain's normal TLV storage.
 targets = ["aarch64-apple-darwin"]
 tags = ["native-link", "program-link"]
 
@@ -43,58 +43,3 @@ argv = ["${build.result.output}"]
 exit = 0
 stdout = "42\n"
 stderr = ""
-
-[[steps]]
-name = "prepare_link_inputs_isolate"
-files = [
-  {"copy" = {"from" = "${build.result.root.path}", "to" = "${work}/artifacts/root.slib"}},
-  {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/0.slib"}},
-]
-checks = []
-
-[[steps]]
-name = "save_object"
-files = [{"copy" = {"from" = "${work}/native/m23_final.o", "to" = "${work}/original.o"}}]
-checks = []
-
-[[steps]]
-name = "corrupt_key"
-files = [{"copy" = {"from" = "${work}/original.o", "to" = "${work}/native/m23_final.o"}}, {"patch" = {"path" = "${work}/native/m23_final.o", "offset" = 796, "hex" = "01"}}]
-checks = []
-
-[[steps]]
-name = "previous_reject_key"
-files = [{"write" = {"path" = "${work}/program", "data" = "previous executable"}}]
-checks = []
-
-[[steps]]
-name = "reject_key"
-diagnostics_normalize = ["native-digests"]
-argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", {"each" = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native", "--cache-dir", "${cache}"]
-exit = 1
-stdout = ""
-stderr = ""
-json = "stderr"
-diagnostics = {"file" = "reject_key.json"}
-checks = [{"file" = "${work}/program", "equals" = "previous executable"}]
-
-[[steps]]
-name = "corrupt_template"
-files = [{"copy" = {"from" = "${work}/original.o", "to" = "${work}/native/m23_final.o"}}, {"patch" = {"path" = "${work}/native/m23_final.o", "offset" = 972, "hex" = "0900000e"}}]
-checks = []
-
-[[steps]]
-name = "previous_reject_template"
-files = [{"write" = {"path" = "${work}/program", "data" = "previous executable"}}]
-checks = []
-
-[[steps]]
-name = "reject_template"
-diagnostics_normalize = ["native-digests"]
-argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", {"each" = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native", "--cache-dir", "${cache}"]
-exit = 1
-stdout = ""
-stderr = ""
-json = "stderr"
-diagnostics = {"file" = "reject_template.json"}
-checks = [{"file" = "${work}/program", "equals" = "previous executable"}]

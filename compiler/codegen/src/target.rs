@@ -4,7 +4,6 @@
 //! discover a host platform or silently inherit LLVM defaults.
 
 use std::fmt;
-use std::path::Path;
 
 use inkwell::llvm_sys::core::LLVMGetVersion;
 use inkwell::targets::{CodeModel, RelocMode, Target, TargetMachine, TargetTriple};
@@ -12,15 +11,10 @@ use inkwell::{AddressSpace, OptimizationLevel};
 pub use scoop_lir::TargetProfileId;
 use scoop_lir::{BackendProfile, LirTargetProfile, ValidatedLirTargetSelection};
 
-use crate::statepoint::ExpectedSafepoints;
-use crate::{CodegenError, artifact};
+use crate::CodegenError;
 
-mod eh;
 mod machine;
 mod qualification;
-#[cfg(test)]
-use eh::{EhArtifactInspection, PersonalityAbi, UnwindModel, UnwindProvider};
-pub(crate) use eh::{EhProfile, LsdaEncodingProfile};
 
 const REQUIRED_LLVM_MAJOR: u32 = 22;
 const REQUIRED_LLVM_MINOR: u32 = 1;
@@ -88,11 +82,6 @@ impl MachinePipeline {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum StatepointRootPolicy {
-    StackIndirectOnly,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum FramePointerPolicy {
     All,
 }
@@ -157,12 +146,9 @@ pub struct ValidatedBackendProfile {
     writable_storage_section: &'static str,
     zero_fill_storage_section: &'static str,
     c_string_section: &'static str,
-    eh: EhProfile,
     llvm_target_backend: CodeArchitecture,
     machine_pipeline: MachinePipeline,
     managed_address_space: ManagedAddressSpace,
-    stack_map_version: u8,
-    statepoint_roots: StatepointRootPolicy,
     frame_pointers: FramePointerPolicy,
     tail_calls: TailCallPolicy,
 }
@@ -182,12 +168,9 @@ impl ValidatedBackendProfile {
         writable_storage_section: "__DATA,__data",
         zero_fill_storage_section: "__DATA,__bss",
         c_string_section: "__TEXT,__cstring,cstring_literals",
-        eh: EhProfile::DARWIN_AARCH64,
         llvm_target_backend: CodeArchitecture::Aarch64,
         machine_pipeline: MachinePipeline::Llvm22SelectionDagStandard,
         managed_address_space: ManagedAddressSpace::MOVING_GC,
-        stack_map_version: 3,
-        statepoint_roots: StatepointRootPolicy::StackIndirectOnly,
         frame_pointers: FramePointerPolicy::All,
         tail_calls: TailCallPolicy::Disabled,
     };
@@ -212,7 +195,6 @@ impl ValidatedBackendProfile {
                     writable_storage_section: ".data",
                     zero_fill_storage_section: ".bss",
                     c_string_section: ".rodata.str1.1",
-                    eh: EhProfile::LINUX_X86_64,
                     llvm_target_backend: CodeArchitecture::X86_64,
                     ..Self::DARWIN_AARCH64
                 }
@@ -295,14 +277,6 @@ impl ValidatedBackendProfile {
         Self::DARWIN_AARCH64
     }
 
-    pub(crate) fn eh_profile(self) -> EhProfile {
-        self.eh
-    }
-
-    pub(crate) fn architecture(self) -> CodeArchitecture {
-        self.llvm_target_backend
-    }
-
     pub(crate) fn disable_red_zone(self) -> bool {
         self.llvm_target_backend == CodeArchitecture::X86_64
     }
@@ -325,10 +299,6 @@ impl ValidatedBackendProfile {
         self
     }
 
-    pub fn stack_map_version(self) -> u8 {
-        self.stack_map_version
-    }
-
     pub(crate) fn create_target_machine(self) -> Result<TargetMachine, CodegenError> {
         self.create_target_machine_with_optimization(match self.optimization {
             scoop_lir::OptimizationMode::Debug => OptimizationLevel::None,
@@ -348,31 +318,6 @@ impl ValidatedBackendProfile {
             actual.id().canonical_name(),
             self.id().canonical_name(),
         )))
-    }
-
-    /// Validate the emitted object through the artifact contract selected by
-    /// this backend projection. Generic codegen never chooses an object format
-    /// or stack-map decoder on its own.
-    pub(crate) fn verify_object(
-        self,
-        path: &Path,
-        expected_safepoints: &ExpectedSafepoints,
-        expected_eh: &artifact::ExpectedEh,
-    ) -> Result<(), CodegenError> {
-        match (self.object_format, self.statepoint_roots) {
-            (ObjectFormat::MachO64, StatepointRootPolicy::StackIndirectOnly) => {
-                artifact::verify_macho_artifact(
-                    path,
-                    expected_safepoints,
-                    expected_eh,
-                    self.stack_map_version,
-                    self.eh.encodings(),
-                )
-            }
-            (ObjectFormat::Elf64, StatepointRootPolicy::StackIndirectOnly) => {
-                artifact::verify_elf_artifact(path, expected_safepoints, expected_eh, self)
-            }
-        }
     }
 
     #[cfg(test)]

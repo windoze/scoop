@@ -5,28 +5,14 @@ use std::num::NonZeroU32;
 use scoop_identity::TargetProfileId;
 use scoop_wire::Digest256;
 
-use super::{DarwinArm64RelocationShapeV1, DarwinDeploymentCommandV1};
+use super::DarwinArm64RelocationShapeV1;
 
 mod macho;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ObjectEnvelopeFormatV1 {
-    DarwinArm64 {
-        load_command_count: u32,
-        deployment: Option<DarwinDeploymentCommandV1>,
-    },
-    Elf64 {
-        target: TargetProfileId,
-        flags: u32,
-        groups: Vec<ObservedElfGroupV1>,
-    },
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ObservedElfGroupV1 {
-    pub signature_symbol: u32,
-    pub flags: u32,
-    pub sections: Vec<NonZeroU32>,
+    DarwinArm64,
+    Elf64 { target: TargetProfileId },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -51,7 +37,7 @@ impl ValidatedObjectEnvelopeV1 {
     }
     pub const fn target(&self) -> TargetProfileId {
         match self.format {
-            ObjectEnvelopeFormatV1::DarwinArm64 { .. } => scoop_target_data::DARWIN_AARCH64_ID,
+            ObjectEnvelopeFormatV1::DarwinArm64 => scoop_target_data::DARWIN_AARCH64_ID,
             ObjectEnvelopeFormatV1::Elf64 { target, .. } => target,
         }
     }

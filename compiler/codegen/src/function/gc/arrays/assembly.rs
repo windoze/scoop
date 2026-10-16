@@ -19,7 +19,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             } => {
                 let (array_metadata, td) = self.array_type(*array_type);
                 if function.temps[*out].ty != scoop_lir::MANAGED_PTR
-                    || validation::contains_machine_scalar(
+                    || machine_types::contains_machine_scalar(
                         self.structs,
                         self.enums,
                         &array_metadata.element,

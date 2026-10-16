@@ -1,7 +1,7 @@
 use super::*;
 use crate::{NativeSymbolKind, macho_exports::ExportTarget};
 mod commands;
-use object::{Object, ObjectKind, ObjectSection, ObjectSymbol, macho, read::macho::MachOFile64};
+use object::{Object, ObjectKind, ObjectSection, macho, read::macho::MachOFile64};
 
 pub(crate) fn read(
     bytes: &[u8],
@@ -54,11 +54,6 @@ pub(crate) fn read(
             "native dynamic input must be a little-endian arm64 MH_DYLIB",
         ));
     }
-    if file.macho_header().flags.get(endian) & macho::MH_TWOLEVEL == 0 {
-        return Err(error(
-            "native dylib uses flat namespace instead of two-level binding",
-        ));
-    }
     let commands = commands::read(&file, bytes, profile)?;
     let mut exports = BTreeMap::new();
     for (name, export) in crate::macho_exports::read(commands.trie)? {
@@ -102,7 +97,7 @@ pub(crate) fn read(
                                 | object::SectionKind::ReadOnlyString
                         ) || section.segment_name().map_err(error)?
                             == Some("__DATA_CONST"),
-                        weak: export.weak,
+                        binding: crate::NativeSymbolBinding::from_weak(export.weak),
                     })
                 } else if thread_local {
                     ExportStorage::InterfaceOnly
@@ -128,23 +123,6 @@ pub(crate) fn read(
             }
         };
         exports.insert(name, value);
-    }
-    for symbol in file.symbols().filter(|symbol| symbol.is_undefined()) {
-        let name = symbol.name().map_err(error)?;
-        if (name.starts_with("___cxa_") && !matches!(name, "___cxa_atexit" | "___cxa_finalize"))
-            || name.starts_with("___gxx_personality")
-            || name.starts_with("___gcc_personality")
-        {
-            return Err(error(format!(
-                "native dylib has forbidden C++ ABI dependency {name}"
-            )));
-        }
-        let ordinal = ((symbol.macho_symbol().n_desc.get(endian) >> 8) & 255) as usize;
-        if ordinal == 0 || ordinal > commands.dependencies.len() {
-            return Err(error(format!(
-                "native dylib import {name} has no explicit dependency ordinal"
-            )));
-        }
     }
     let id = DynamicProvider::id(input, &commands.name, profile)?;
     Ok(vec![Arc::new(DynamicProvider {

@@ -52,7 +52,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             Instruction::LocalAddress { out, local } => {
                 let local_ty = function.locals[*local].ty();
                 if function.temps[*out].ty != scoop_lir::RAW_PTR
-                    || validation::contains_machine_scalar(self.structs, self.enums, local_ty)
+                    || machine_types::contains_machine_scalar(self.structs, self.enums, local_ty)
                 {
                     return Err(CodegenError(format!(
                         "local_address @{} cannot expose {} as a raw pointer",
@@ -139,7 +139,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 };
                 if function.temps[*out].ty != scoop_lir::RAW_PTR
                     || global_def.address_kind != PointerKind::Raw
-                    || validation::contains_machine_scalar(self.structs, self.enums, ty)
+                    || machine_types::contains_machine_scalar(self.structs, self.enums, ty)
                 {
                     return Err(CodegenError(format!(
                         "global_address @{} cannot expose global `{}` of type {} as a raw pointer",
@@ -233,7 +233,11 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let native = &self.native_globals[*global];
                 let storage_type = native.storage_type();
                 if function.temps[*out].ty != scoop_lir::RAW_PTR
-                    || validation::contains_machine_scalar(self.structs, self.enums, &storage_type)
+                    || machine_types::contains_machine_scalar(
+                        self.structs,
+                        self.enums,
+                        &storage_type,
+                    )
                 {
                     return Err(CodegenError(format!(
                         "native_global_address @{} cannot expose `{}` of type {}",

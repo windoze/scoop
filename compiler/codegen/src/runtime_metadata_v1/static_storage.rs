@@ -2,7 +2,6 @@ use std::collections::BTreeMap;
 
 use inkwell::context::Context;
 use inkwell::module::{Linkage, Module as LlvmModule};
-use inkwell::targets::TargetData;
 use inkwell::types::ArrayType;
 use inkwell::values::GlobalValue;
 use scoop_lir::{
@@ -19,11 +18,6 @@ pub use initial_state::{
     EmittedStaticStorageInitialStateV1, EmittedStaticStorageRelocationTableV1,
 };
 use initial_state::{emit_initial_state, emit_private_constant};
-
-mod validation;
-use validation::{
-    PreparedStaticStorageRegistrationV1, prepare_registration, validate_shared_names,
-};
 
 const METADATA_ABI_VERSION: u64 = scoop_lir::RUNTIME_METADATA_ABI_VERSION_V1 as u64;
 const STATIC_STORAGE_DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5053_544f;
@@ -136,18 +130,10 @@ impl<'ctx> EmittedStrongStaticStorageRegistrationSetV1<'ctx> {
 pub(crate) fn emit_strong_static_storage_registrations_v1<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
-    target_data: &TargetData,
     plan: &StrongStaticStorageRegistrationPlanSetV1,
 ) -> Result<EmittedStrongStaticStorageRegistrationSetV1<'ctx>, CodegenError> {
     let types = RuntimeMetadataV1Types::new(context);
-    let prepared = plan
-        .registrations()
-        .iter()
-        .map(|registration| prepare_registration(context, llvm, target_data, &types, registration))
-        .collect::<Result<Vec<_>, _>>()?;
-    validate_shared_names(llvm, &prepared)?;
-
-    if prepared.is_empty() {
+    if plan.registrations().is_empty() {
         return Ok(EmittedStrongStaticStorageRegistrationSetV1 {
             producer: plan.producer(),
             registrations: Vec::new(),
@@ -170,9 +156,10 @@ pub(crate) fn emit_strong_static_storage_registrations_v1<'ctx>(
         scans: BTreeMap::new(),
         immortal_registrations: BTreeMap::new(),
     };
-    let registrations = prepared
-        .into_iter()
-        .map(|prepared| emit_registration(context, llvm, &types, prepared, &mut state))
+    let registrations = plan
+        .registrations()
+        .iter()
+        .map(|registration| emit_registration(context, llvm, &types, registration, &mut state))
         .collect::<Result<Vec<_>, _>>()?;
     Ok(EmittedStrongStaticStorageRegistrationSetV1 {
         producer: plan.producer(),
@@ -191,15 +178,20 @@ fn emit_registration<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
     types: &RuntimeMetadataV1Types<'ctx>,
-    prepared: PreparedStaticStorageRegistrationV1<'ctx>,
+    plan: &StrongStaticStorageRegistrationPlanV1,
     state: &mut StaticStorageEmissionStateV1<'ctx>,
 ) -> Result<EmittedStrongStaticStorageRegistrationV1<'ctx>, CodegenError> {
-    let plan = prepared.plan;
     let semantic = plan.semantic();
+    let symbol = semantic.symbol().symbol();
+    let storage_value = llvm.get_global(symbol.as_str()).ok_or_else(|| {
+        CodegenError(format!(
+            "static storage `{symbol}` is not defined in the LLVM module"
+        ))
+    })?;
     let scan_program = if let Some(global) = state.scans.get(&semantic.scan()).copied() {
         global
     } else {
-        let global = emit_scan_program(context, llvm, &plan)?;
+        let global = emit_scan_program(context, llvm, plan)?;
         state.scans.insert(semantic.scan(), global);
         global
     };
@@ -207,20 +199,22 @@ fn emit_registration<'ctx>(
         context,
         llvm,
         types,
-        &plan,
+        plan,
         state.empty_template,
         state.empty_relocations,
         &mut state.immortal_registrations,
     )?;
-    let descriptor = prepared.prior_registration.unwrap_or_else(|| {
-        let global = llvm.add_global(
-            types.static_storage_descriptor,
-            None,
-            plan.registration_symbol().symbol().as_str(),
-        );
-        global.set_linkage(Linkage::External);
-        global
-    });
+    let descriptor = llvm
+        .get_global(plan.registration_symbol().symbol().as_str())
+        .unwrap_or_else(|| {
+            let global = llvm.add_global(
+                types.static_storage_descriptor,
+                None,
+                plan.registration_symbol().symbol().as_str(),
+            );
+            global.set_linkage(Linkage::External);
+            global
+        });
 
     let i32 = context.i32_type();
     let i64 = context.i64_type();
@@ -251,7 +245,7 @@ fn emit_registration<'ctx>(
             .into(),
         i32.const_int(u64::from(semantic.initial_state().tag()), false)
             .into(),
-        prepared.storage_value.as_pointer_value().into(),
+        storage_value.as_pointer_value().into(),
         i64.const_int(semantic.byte_size(), false).into(),
         i64.const_int(semantic.allocation_extent(), false).into(),
         i64.const_int(semantic.required_alignment(), false).into(),
@@ -286,7 +280,7 @@ fn emit_registration<'ctx>(
     Ok(EmittedStrongStaticStorageRegistrationV1 {
         storage: semantic.storage(),
         descriptor,
-        storage_value: prepared.storage_value,
+        storage_value,
         scan_program,
         initial_state,
 

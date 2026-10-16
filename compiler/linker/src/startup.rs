@@ -102,11 +102,13 @@ impl StartupObject {
             || info.definitions.len() != 1 + definitions.len()
             || definitions.iter().any(|name| {
                 !info.definitions.get(name).is_some_and(|definition| {
-                    definition.kind == NativeSymbolKind::Data && !definition.weak
+                    definition.kind == NativeSymbolKind::Data
+                        && definition.binding == crate::NativeSymbolBinding::Strong
                 })
             })
             || !info.definitions.get(&main).is_some_and(|definition| {
-                definition.kind == NativeSymbolKind::Function && !definition.weak
+                definition.kind == NativeSymbolKind::Function
+                    && definition.binding == crate::NativeSymbolBinding::Strong
             })
         {
             return Err(error(

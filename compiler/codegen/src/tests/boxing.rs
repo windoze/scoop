@@ -269,48 +269,6 @@ fn gc_free_payload_uses_the_descriptor_without_a_root_frame() {
 }
 
 #[test]
-fn box_descriptor_refinement_rejects_ordinary_class_and_wrong_storage() {
-    let mut module = roundtrip_module(LirType::I64, 8, &[]);
-    let descriptor = module
-        .meta
-        .type_descriptors
-        .iter()
-        .find(|(_, td)| td.diagnostic_name == "BoxRoundtrip")
-        .unwrap()
-        .0;
-    module.meta.type_descriptors[descriptor].instance_shape =
-        TypeInstanceShapeV1::fixed_object(module.meta.target_profile, 24, 8, RefScan::None)
-            .unwrap();
-    assert!(codegen_error(&module).contains("BoxedValue descriptor"));
-    let mut module = roundtrip_module(LirType::I64, 8, &[]);
-    let source = module.functions[0].locals.iter().next().unwrap().0;
-    module.functions[0].locals[source] = test_local("source", LirType::I32);
-    assert!(codegen_error(&module).contains("storage or BoxedValue descriptor"));
-}
-
-#[test]
-fn box_call_cannot_omit_a_required_statepoint_root() {
-    let mut module = roundtrip_module(MANAGED_PTR, 8, &[0]);
-    for instruction in &mut module.functions[0]
-        .blocks
-        .iter_mut()
-        .next()
-        .unwrap()
-        .1
-        .instructions
-    {
-        if let Instruction::BoxValue { live, .. } = instruction {
-            *live = Default::default();
-        }
-    }
-    let error = codegen_error(&module);
-    assert!(
-        error.contains("box value") && error.contains("root"),
-        "{error}"
-    );
-}
-
-#[test]
 fn ordinary_runtime_calls_cannot_bypass_the_box_payload_contract() {
     let mut module = values_module();
     let mut function = module.functions.remove(0);

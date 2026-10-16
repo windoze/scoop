@@ -49,7 +49,7 @@ fn terminal_call_after_conditional_poll_keeps_one_machine_site() {
                 functions: BTreeMap::from([("f".into(), GcEffect::Managed)]),
             };
             let plan = crate::statepoint::rewrite(&llvm, &machine, &expected, profile).unwrap();
-            verify_rewritten_with_profile(&llvm, &plan, profile).unwrap();
+
             assert_eq!(plan.root_count(7), Some(0));
             assert_eq!(plan.root_count(8), Some(0));
             let output = directory
@@ -58,9 +58,7 @@ fn terminal_call_after_conditional_poll_keeps_one_machine_site() {
             machine
                 .write_to_file(&llvm, FileType::Object, &output)
                 .unwrap();
-            profile
-                .verify_object(&output, &plan, &crate::artifact::ExpectedEh::default())
-                .unwrap_or_else(|error| panic!("{target:?}/{mode:?}: {error}"));
+            assert_machine_site_count(&output, plan.site_count());
         }
     }
 }

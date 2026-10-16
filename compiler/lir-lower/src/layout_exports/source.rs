@@ -3,7 +3,6 @@
 use super::*;
 use LayoutAbiDependencyLoweringError as Error;
 
-mod physical;
 mod uses;
 
 pub fn lower_layout_abi_dependencies(
@@ -11,21 +10,7 @@ pub fn lower_layout_abi_dependencies(
     dependencies: LayoutAbiExportDependenciesV1<'_>,
     exports: &lir::LayoutAbiExportConstituentsV1,
     committed: &[mir::MirTypeBridgeDependencyV1],
-    imports: &[lir::ExternalShapeLinkImportV1],
 ) -> Result<Vec<lir::LayoutAbiDependencyV1>, Error> {
-    input
-        .bridge
-        .initialization_uses()
-        .validate_registration_edges(
-            input
-                .registration
-                .registration_production()
-                .initialization_units()
-                .external_dependency_edges()?,
-        )
-        .map_err(|error| Error::InitializationEdges(Box::new(error)))?;
-    let physical = physical::project(input)?;
-    physical::validate(&physical, imports)?;
     uses::project(input, dependencies, exports, committed)
 }
 
@@ -37,7 +22,6 @@ fn push<T>(values: &mut Vec<T>, value: T) -> Result<(), Error> {
 
 #[derive(Debug)]
 pub enum LayoutAbiDependencyLoweringError {
-    InitializationEdges(Box<mir::MirObjectBridgeError>),
     Production(LayoutAbiExportLoweringError),
     Resource(WireError),
     TypeProvider {
@@ -46,11 +30,6 @@ pub enum LayoutAbiDependencyLoweringError {
         actual: ConeIdentity,
     },
     LocalDependency(mir::MirTypeBridgeTargetV1),
-    PhysicalInventory,
-    PhysicalDefinition {
-        provider: ConeIdentity,
-        subject: lir::ExternalStrongShapeSubjectV1,
-    },
 }
 impl From<LayoutAbiExportLoweringError> for Error {
     fn from(value: LayoutAbiExportLoweringError) -> Self {
@@ -70,13 +49,9 @@ impl std::fmt::Display for Error {
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::InitializationEdges(error) => Some(error.as_ref()),
             Self::Production(error) => Some(error),
             Self::Resource(error) => Some(error),
-            Self::TypeProvider { .. }
-            | Self::LocalDependency(_)
-            | Self::PhysicalInventory
-            | Self::PhysicalDefinition { .. } => None,
+            Self::TypeProvider { .. } | Self::LocalDependency(_) => None,
         }
     }
 }

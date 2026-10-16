@@ -30,7 +30,6 @@ use scoop_lir::{
 pub(super) struct SemanticInputs {
     pub(super) foundation: ConeLirFoundation,
     pub(super) definitions: Vec<ObjectDefinitionPlanId>,
-    pub(super) digest_plan: DigestFinalizationPlanV1,
     pub(super) plan: StrongInitializationUnitRegistrationPlanSetV1,
     pub(super) callable_plan: StrongCallableRegistrationPlanSetV1,
     pub(super) safepoints: StrongSafepointSemanticPlanSetV1,
@@ -217,7 +216,6 @@ pub(super) fn inputs(lazy: bool) -> SemanticInputs {
     SemanticInputs {
         foundation,
         definitions,
-        digest_plan,
         plan,
         callable_plan,
         safepoints,

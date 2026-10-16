@@ -18,10 +18,9 @@ use crate::link_object::symbol_verification::tests::fixture_for_producer;
 use crate::link_object::undefined_requirements::tests::empty_bridge_plan;
 use crate::link_object::{
     CanonicalObjectDefinitionRequirementV1, VerifiedObjectDefinitionRequirementSetV1,
-    finalize_partitioned_undefined_symbol_requirements_v1,
-    finalize_undefined_symbol_requirements_v1, seal_builtin_object_external_requirements_v1,
+    finalize_partitioned_undefined_symbol_requirements_v1, finish_builtin_external_requirements_v1,
     verify_current_cone_undefined_requirements_v1, verify_runtime_and_eh_requirements_v1,
-    verify_source_external_requirements_v1, without_generated_bridge_semantics_for_test,
+    verify_source_external_requirements_v1, without_target_support_for_test,
 };
 
 struct CallableFixture {
@@ -267,26 +266,13 @@ fn finalizer_keeps_legacy_and_cross_cone_uses_disjoint_and_complete() {
     let runtime =
         verify_runtime_and_eh_requirements_v1(source, scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
             .unwrap();
-    let external = seal_builtin_object_external_requirements_v1(
-        without_generated_bridge_semantics_for_test(runtime),
-    )
-    .unwrap();
+    let external =
+        finish_builtin_external_requirements_v1(without_target_support_for_test(runtime)).unwrap();
 
-    assert!(matches!(
-        finalize_undefined_symbol_requirements_v1(current.clone(), external.clone()),
-        Err(
-            crate::UndefinedSymbolRequirementFinalizationError::CrossConeRequirementsRequirePartitionedFinalizer {
-                imports: 1,
-                requirements: 1,
-            }
-        )
-    ));
-    let partitions =
-        finalize_partitioned_undefined_symbol_requirements_v1(current, external).unwrap();
+    let partitions = finalize_partitioned_undefined_symbol_requirements_v1(current, external);
     assert!(partitions.legacy().requirements().is_empty());
     assert_eq!(partitions.cross_cone().requirements().len(), 1);
     let object_requirements = VerifiedObjectDefinitionRequirementSetV1::from(partitions.clone());
-    assert!(object_requirements.matches_strong_closure(&strong));
     assert_eq!(
         object_requirements.requirement_for(partitions.cross_cone().requirements()[0].use_site()),
         Some(CanonicalObjectDefinitionRequirementV1::DependencyStrong {

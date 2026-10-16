@@ -49,7 +49,6 @@ attributes #1 = {{ "statepoint-id"="7" }}
                 )));
                 let plan = crate::statepoint::rewrite(&llvm, &machine, &initial, profile).unwrap();
                 assert_eq!(plan.root_count(7), Some(usize::from(dynamic)));
-                verify_rewritten_with_profile(&llvm, &plan, profile).unwrap();
             }
         }
     }

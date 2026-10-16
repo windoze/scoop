@@ -11,7 +11,6 @@ pub(super) fn macho_object(
     type_registrations: &StrongTypeRegistrationPlanSetV1,
     immortal_registrations: &StrongImmortalObjectRegistrationPlanSetV1,
     static_storage_registrations: &StrongStaticStorageRegistrationPlanSetV1,
-    corruption: Corruption,
 ) -> ObjectFixture {
     let segment_size = 72_u32 + 4 * 80;
     let command_bytes = segment_size + 24 + 80;
@@ -57,22 +56,16 @@ pub(super) fn macho_object(
             .sum::<usize>(),
     )
     .unwrap();
-    let storage_is_zero_fill = if matches!(corruption, Corruption::StaticZeroedWritableSection) {
-        false
-    } else if matches!(corruption, Corruption::StaticEncodedZeroFillSection) {
-        true
-    } else {
-        !static_storage_registrations.registrations().is_empty()
-            && static_storage_registrations
-                .registrations()
-                .iter()
-                .all(|registration| {
-                    matches!(
-                        registration.initial_artifacts(),
-                        StrongStaticStorageInitialArtifactPlanV1::ZeroedForRuntimeUnit
-                    )
-                })
-    };
+    let storage_is_zero_fill = !static_storage_registrations.registrations().is_empty()
+        && static_storage_registrations
+            .registrations()
+            .iter()
+            .all(|registration| {
+                matches!(
+                    registration.initial_artifacts(),
+                    StrongStaticStorageInitialArtifactPlanV1::ZeroedForRuntimeUnit
+                )
+            });
     let writable_file_size = if storage_is_zero_fill {
         0
     } else {
@@ -96,8 +89,7 @@ pub(super) fn macho_object(
                 )
                 .unwrap()
             })
-            .sum::<u32>()
-        + u32::from(matches!(corruption, Corruption::RelocatedRegistration));
+            .sum::<u32>();
     let writable_relocation_count = static_storage_registrations
         .registrations()
         .iter()
@@ -243,11 +235,7 @@ pub(super) fn macho_object(
         macho::S_REGULAR,
     );
     let (registration_section, registration_segment) =
-        if matches!(corruption, Corruption::WritableRegistrationSection) {
-            (b"__data".as_slice(), b"__DATA".as_slice())
-        } else {
-            (b"__const".as_slice(), b"__DATA_CONST".as_slice())
-        };
+        (b"__const".as_slice(), b"__DATA_CONST".as_slice());
     push_section(
         &mut bytes,
         registration_section,
@@ -264,29 +252,22 @@ pub(super) fn macho_object(
         registration_relocation_count,
         macho::S_REGULAR,
     );
-    let (storage_section, storage_segment, storage_offset, storage_flags) =
-        if matches!(corruption, Corruption::WritableRegistrationSection) {
-            (
-                b"__const".as_slice(),
-                b"__DATA_CONST".as_slice(),
-                writable_offset,
-                macho::S_REGULAR,
-            )
-        } else if storage_is_zero_fill {
-            (
-                b"__bss".as_slice(),
-                b"__DATA".as_slice(),
-                0,
-                macho::S_ZEROFILL,
-            )
-        } else {
-            (
-                b"__data".as_slice(),
-                b"__DATA".as_slice(),
-                writable_offset,
-                macho::S_REGULAR,
-            )
-        };
+    let (storage_section, storage_segment, storage_offset, storage_flags) = if storage_is_zero_fill
+    {
+        (
+            b"__bss".as_slice(),
+            b"__DATA".as_slice(),
+            0,
+            macho::S_ZEROFILL,
+        )
+    } else {
+        (
+            b"__data".as_slice(),
+            b"__DATA".as_slice(),
+            writable_offset,
+            macho::S_REGULAR,
+        )
+    };
     push_section(
         &mut bytes,
         storage_section,
@@ -320,16 +301,13 @@ pub(super) fn macho_object(
     push_sections(
         &mut bytes,
         module,
-        stackmap,
         registrations,
         callable_registrations,
         type_registrations,
         immortal_registrations,
         static_storage_registrations,
-        registration_offset,
         relocation_offset,
         storage_is_zero_fill,
-        corruption,
     );
     push_relocations(
         &mut bytes,
@@ -343,7 +321,6 @@ pub(super) fn macho_object(
         local_symbol_count,
         static_local_symbol_count,
         registration_relocation_count,
-        corruption,
     );
     let (static_local_string_indexes, diagnostic_local_string_indexes) =
         local_string_indexes.split_at(static_local_symbol_count);

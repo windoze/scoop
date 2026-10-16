@@ -15,7 +15,7 @@ fn original_strong_wire_recomputes_the_exact_producer_code() {
 }
 
 fn replay_input<'a>(
-    code: &'a VerifiedCodeFingerprintV2,
+    code: &'a CodeFingerprintDataV2,
     strong: &'a DecodedConeProductionSectionV2,
 ) -> LayoutCodeFingerprintInputV1<'a, DecodedConeProductionSectionV2> {
     LayoutCodeFingerprintInputV1 {

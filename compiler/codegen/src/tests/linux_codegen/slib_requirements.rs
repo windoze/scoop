@@ -14,7 +14,7 @@ fn elf_allocation_tls_is_a_runtime_requirement_with_a_platform_resolver() {
         let module = super::super::objects::heap_module_for(target);
         let semantics = scoop_lir::StrongSafepointSemanticPlanSetV1::from_module(&module).unwrap();
         let fixture = SlibObjects::new(module, directory.path());
-        let stackmaps = verify_scoop_lir_stackmaps_v1(
+        let stackmaps = read_scoop_stackmaps_v1(
             fixture.builtins(&fixture.objects),
             semantics,
             &super::slib_support::candidates(&fixture.objects),

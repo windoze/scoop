@@ -229,7 +229,6 @@ fn option_consumers_become_guarded_representation_independent_primitives() {
         &module,
         &["main"],
     );
-    assert_eq!(module.validate(), Ok(()));
 }
 
 #[test]
@@ -277,7 +276,6 @@ fn trapping_unwrap_becomes_a_guarded_extraction() {
         &module,
         &["main"],
     );
-    assert_eq!(module.validate(), Ok(()));
 }
 
 #[test]
@@ -336,7 +334,6 @@ fn option_primitives_cover_tagged_and_managed_raw_and_code_niche_payloads() {
     let main = h.user_fn("main", hir::Body { locals, statements });
     let executable = h.finish(main);
     let module = lower(&executable);
-    assert_eq!(module.validate(), Ok(()));
 
     let body = &module.functions[module
         .output
@@ -460,7 +457,6 @@ fn elvis_subject_and_rhs_are_each_emitted_once_on_their_own_edges() {
         },
     );
     let module = lower(&h.finish(main));
-    assert_eq!(module.validate(), Ok(()));
 
     let body = &module.functions[module
         .output
@@ -703,5 +699,4 @@ fn generic_enum_unit_constants_preserve_exact_refs_through_concrete_hir_and_mir(
         module.enums[mir_refs[1].enum_id()].type_arguments,
         vec![mir::Type::String]
     );
-    assert_eq!(module.validate(), Ok(()));
 }

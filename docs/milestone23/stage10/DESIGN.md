@@ -112,34 +112,31 @@ native object 的普通 undefined 不携带可恢复的完整函数类型。已�
 
 | 内容 | 本阶段处理 |
 | --- | --- |
-| target/deployment、section/symbol/string table、relocation | 检查真实边界、类型、对齐、引用及整数运算；复用同次解析结果 |
-| ordinary code/data/rodata/BSS | 允许；定义关联实际对象、symbol 和 section，不重建 Scoop entity |
-| C unwind | 允许实际 `__compact_unwind`/`__eh_frame`；检查结构和引用，保持已有 FFI 不跨 native frame 展开规则 |
-| 静态／零初始化 TLS | 允许 Darwin TLV descriptor、template/BSS 和实际 bootstrap 引用；按 TLS kind 解析 |
-| native constructor/destructor、动态 TLS initializer | 对实际纳入对象拒绝；不把它们接入 Scoop eager/lazy coordinator |
-| autolink、embedded linker options、bitcode/LTO | 拒绝；不能产生额外未列入解析的输入 |
-| Objective-C/Swift metadata、C++ ABI/personality 依赖 | 当前输入范围拒绝；不增加对应语言 runtime 或 handler |
-| common/tentative definition | 对实际纳入对象报明确输入错误，要求库提供实际定义；不建立新的 common storage 合并器 |
+| target/deployment、symbol kind、可写性 | 读取实际符号选择与 FFI 绑定所需字段及边界 |
+| ordinary code/data/rodata/BSS、C unwind、TLS | 正常读取；实际 relocation、unwind 与 TLS 由目标工具链处理 |
+| native constructor/destructor、动态 TLS initializer | 由目标 CRT 执行，不接入 Scoop eager/lazy coordinator |
+| autolink、embedded linker options、特殊段名、C++ 符号 | 不另设黑名单；实际工具链决定可用性和链接结果 |
+| common/tentative definition | 普通 Common 绑定；大小与对齐合并由 native linker 完成 |
 
 `@Extern val` 是只读使用，允许绑定实际可写 native storage；`var` 必须绑定可写 storage。同 symbol 的 `val`/`var` 声明合同差异仍按 13.4 拒绝。TLS 与普通 data 不可互换；symbol 类型不可从名称或 `@ThreadLocal` 声明单方面推断。可取得的对象大小／对齐与 ABI storage 要一致，但 Mach-O symbol table 不可靠提供完整 C object extent 时，不能以“下一个 symbol 的距离”伪造完整布局证明。
 
-单一 native weak definition 可以使用；两个已纳入对象提供同一 non-local definition 时报告冲突，不按代码 bytes 相同宣称 ODR，也不以 weak/strong 优先级消除冲突。只保留已有 Scoop ODR 的逐 member 合并规则。native direct/member 不得定义 C main、Scoop image/root、String alias 或占用已有 Scoop/runtime/generated bridge 定义；普通 native helper 的名称使用正常符号规则。
+native Strong 覆盖 Common 和 Weak；Mach-O 已有 Weak 定义覆盖 Common（ELF 相反），同名 Common 正常合并，两个同名 Strong 报冲突；不按代码 bytes 相同宣称 ODR。只保留已有 Scoop ODR 的逐 member 合并规则。native direct/member 不得定义 C main、Scoop image/root、String alias 或占用已有 Scoop/runtime/generated bridge 定义；普通 native helper 的名称使用正常符号规则。
 
 ### 3.2 检查职责
 
 外部 bytes 新读入时检查一次格式与实际引用。native object 不是 runtime-index record，也不是新的 `.slib` profile；共用底层 Mach-O 读取，按其实际用途执行必要检查。runtime/startup 的已有要求保持，不能为了支持普通 native input 放宽它们的定义或入口集合。
 
-archive 索引只需要读取容器、成员格式、target 和定义符号；选中成员时从同一不可变记录完成余下对象检查。direct object 必然进入本次链接，立即完成检查。dynamic provider 读取的是装载/export 接口，不将整个 DSO 当成 relocatable object，亦不逐函数反汇编验证 FFI 作者的实现。
+archive 与 direct object 只读取实际选择所需的格式、target 和定义／引用符号，不在选中后另做完整对象验证。dynamic provider 读取的是装载/export 接口，不将整个 DSO 当成 relocatable object，亦不逐函数反汇编验证 FFI 作者的实现。
 
 ## 4. Archive 成员选择与静态闭包
 
 ### 4.1 普通归档与候选
 
-使用 `object::read::archive::ArchiveFile` 读取 normal ar，包括实际 BSD/GNU long-name 和 symbol-table 形式；native archive 不要求 `.slib` 的 canonical header/member 命名。symbol table 的 offset 必须指向实际成员；候选定义以成员自身的 symbol table 为准，不仅信任 archive TOC。
+使用 `object::read::archive::ArchiveFile` 读取 normal ar，包括实际 BSD/GNU long-name 和 symbol-table 形式；native archive 不要求 `.slib` 的 canonical header/member 命名。候选定义直接以成员自身的 symbol table 为准，不另核对 archive TOC 与各成员的副本。
 
 拒绝 thin/external-member、nested archive、越界／重叠记录、未知 special member、普通成员不是支持对象以及损坏的名称／索引。成员名仅用于诊断，绝不拼接为提取路径；普通归档中含路径形状的成员名也不被用于打开外部文件。两个 `same.o` 或两个完全相同 bytes 的成员由 parent+ordinal+offset 区分。
 
-不再要求“每个永远不被抽取的成员都先通过完整 EH/TLS/constructor/autolink 检查”。本设计不会把原 archive 交给系统 linker；只有已选对象才能影响输出，检查这些成员即可。未选成员仍必须能构成有效候选索引，不能借此接受损坏容器或 bitcode 作为普通 Mach-O。
+只将已选对象交给系统 linker；所有候选读取符号索引，选中后直接使用同一份数据。不能为选中成员延续完整 EH/TLS/constructor/autolink 复查。
 
 ### 4.2 单一解析器中的有限工作集
 
@@ -170,7 +167,7 @@ load edge 与 re-export edge 必须区分：A 普通依赖 B 不使 B 的符号�
 
 相同 install name 对应不同内容或装载合同是冲突。不同 provider 的未使用同名 exports可以共存；实际显式 library binding 选择确定 provider，默认／无 library 归属的引用在多个可用 provider 之间报歧义。普通 `.tbd` 只区分 symbol/TLS，不能由其 `Symbol` 分支虚构 function/data/mutability 信息；有实际 Mach-O 可观察事实时才增加这些检查。
 
-一般 provider 的必需依赖须闭合到本次明确输入或已选 SDK 系统目录；不可见的依赖、弱库可缺失／upward／flat-namespace／dynamic-lookup 等未提供的装载模式报输入错误。weak export 的属性须保留，不能自动变成 weak import，也不能通过 stub 去掉属性来掩盖需要跨 provider weak-lookup 的输入；无法形成确定 provider binding 的情形明确拒绝。对普通 native 库不添加 C++/Objective-C/Swift runtime；现有 M25 约束保持。SDK 系统接口按其已有平台 ABI 使用，不递归证明 OS 内部实现。
+一般 provider 的必需依赖须闭合到本次明确输入或已选 SDK 系统目录，实际依赖缺失正常报错。weak export 的属性保留在所选接口中，不能自动变成 weak import；Scoop 的显式 library binding 仍必须形成确定 provider。动态库内部的 flat namespace、dynamic lookup、weak coalescing 和 C++ ABI 导入由库自身及实际 loader 处理，不以内部符号前缀、undefined ordinal 或 weak binding 表非空拒绝输入。所选 C/C++ 工具链与 native 库按正常配置提供运行库；SDK 系统接口按其已有平台 ABI 使用，不递归证明 OS 内部实现。
 
 ### 5.2 定位与装载位置
 

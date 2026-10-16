@@ -21,38 +21,21 @@ fn run_image_test(fixture: &str, expected: &str) {
         "runtime/src/image/type_relations.c",
         "runtime/src/image/storage.c",
         "runtime/src/image/immortals.c",
-        "runtime/src/image/static_values.c",
         "runtime/src/image/units.c",
         "runtime/src/image/allocation_ranges.c",
         "runtime/src/image/stackmaps.c",
         "runtime/src/gc_binding/stackmap.c",
         "runtime/src/gc_binding/stackmap/parser.c",
         "runtime/src/gc_binding/stackmap/records.c",
-        "runtime/src/gc_binding/stackmap/fingerprint.c",
+        "runtime/src/gc_binding/stackmap/payload.c",
         "runtime/src/platform/arch/aarch64.c",
         "runtime/src/value_shape.c",
-        "runtime/src/value_scan.c",
     ] {
         command.arg(workspace.join(source));
-    }
-    if cfg!(target_os = "macos") {
-        command.arg(workspace.join("runtime/src/platform/image/darwin_sha256.c"));
-    } else {
-        let vendor = workspace.join("runtime/third_party/mbedtls");
-        command
-            .arg("-DMBEDTLS_CONFIG_FILE=\"scoop_sha256_config.h\"")
-            .arg("-I")
-            .arg(&vendor)
-            .arg("-I")
-            .arg(vendor.join("include"))
-            .arg(vendor.join("library/sha256.c"))
-            .arg(vendor.join("library/platform_util.c"))
-            .arg(workspace.join("runtime/src/platform/image/portable_sha256.c"));
     }
     let compile = command
         .arg(workspace.join("runtime/tests/image_storage_fixture.c"))
         .arg(workspace.join("runtime/tests/image_stackmap_fixture.c"))
-        .arg(workspace.join("runtime/tests/stackmap_fingerprint_test.c"))
         .arg(workspace.join(format!("runtime/tests/{fixture}.c")))
         .arg("-o")
         .arg(&binary)

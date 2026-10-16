@@ -78,7 +78,7 @@ pub(crate) fn read_symbols(file: &ElfFile64<'_>) -> Result<ElfSymbols, LinkError
             definition: NativeSymbolDefinition {
                 kind,
                 read_only: sh_flags & u64::from(elf::SHF_WRITE) == 0 || relro,
-                weak: symbol.is_weak(),
+                binding: crate::NativeSymbolBinding::from_weak(symbol.is_weak()),
             },
             version,
             default,

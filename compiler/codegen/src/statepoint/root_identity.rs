@@ -112,7 +112,7 @@ pub(super) fn restored_value<'ctx>(
 ) -> Result<PointerValue<'ctx>, CodegenError> {
     // SAFETY: read() only accepts a verified llvm.fake.use with one argument.
     let value = unsafe { LLVMGetOperand(instruction.as_value_ref(), 0) };
-    if !provenance::is_managed_pointer(value, space) {
+    if !is_managed_pointer(value, space) {
         return Err(CodegenError(format!(
             "root restoration is not an AS{} managed pointer",
             space.llvm()
@@ -128,4 +128,23 @@ fn constant(value: inkwell::values::IntValue<'_>) -> Result<u64, CodegenError> {
         ));
     }
     Ok(unsafe { LLVMConstIntGetZExtValue(value.as_value_ref()) })
+}
+
+fn is_managed_pointer(
+    value: inkwell::llvm_sys::prelude::LLVMValueRef,
+    managed_address_space: ManagedAddressSpace,
+) -> bool {
+    use inkwell::llvm_sys::LLVMTypeKind;
+    use inkwell::llvm_sys::core::{LLVMGetPointerAddressSpace, LLVMGetTypeKind, LLVMTypeOf};
+
+    if value.is_null() {
+        return false;
+    }
+    // SAFETY: LLVM values always have a type. Pointer address-space access is
+    // only valid after checking the type kind.
+    let ty = unsafe { LLVMTypeOf(value) };
+    unsafe {
+        LLVMGetTypeKind(ty) == LLVMTypeKind::LLVMPointerTypeKind
+            && LLVMGetPointerAddressSpace(ty) == managed_address_space.llvm()
+    }
 }

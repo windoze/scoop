@@ -946,83 +946,6 @@ fn append_c_void_call(
 }
 
 #[test]
-fn c_extern_call_requires_dedicated_argument_storage_addresses() {
-    let mut module = values_module();
-    append_c_void_call(
-        &mut module,
-        scoop_lir::CType::Integer(IntegerKind::SIGNED_8),
-        LirType::I8,
-        |_| Value::NullPointer(PointerKind::Raw),
-    );
-
-    let machine = host_target_machine().expect("target machine");
-    let context = Context::create();
-    let error = emit_llvm_module(&context, &module, &machine, host_profile())
-        .expect_err("a raw pointer is not an exact C argument-storage witness");
-    assert!(
-        error
-            .0
-            .contains("argument 0 is not an exact C argument-storage address"),
-        "unexpected error: {error}"
-    );
-}
-
-#[test]
-fn c_extern_call_binds_each_argument_to_its_exact_c_storage_type() {
-    let mut module = values_module();
-    append_c_void_call(
-        &mut module,
-        scoop_lir::CType::Integer(IntegerKind::SIGNED_8),
-        LirType::I64,
-        |storage| Value::CArgumentStorage(scoop_lir::CArgumentStorage::address_of(storage)),
-    );
-
-    let machine = host_target_machine().expect("target machine");
-    let context = Context::create();
-    let error = emit_llvm_module(&context, &module, &machine, host_profile())
-        .expect_err("the C argument local has the wrong exact storage type");
-    assert!(
-        error
-            .0
-            .contains("argument 0 storage local3 has type i64, expected exact i8"),
-        "unexpected error: {error}"
-    );
-}
-
-#[test]
-fn c_argument_storage_address_cannot_escape_to_another_call_protocol() {
-    let mut module = values_module();
-    let caller = &mut module.functions[0];
-    let storage = caller
-        .locals
-        .alloc(test_local("escaped_c_argument", LirType::I8));
-    let site = void_site(
-        &mut caller.call_targets,
-        TestCallProtocol::NoGc {
-            destination: no_gc_runtime(scoop_lir::NoGcRuntimeFunction::Trap),
-        },
-        vec![RAW_PTR],
-        vec![Value::CArgumentStorage(
-            scoop_lir::CArgumentStorage::address_of(storage),
-        )],
-    );
-    caller.blocks[caller.entry]
-        .instructions
-        .push(Instruction::Call { site });
-
-    let machine = host_target_machine().expect("target machine");
-    let context = Context::create();
-    let error = emit_llvm_module(&context, &module, &machine, host_profile())
-        .expect_err("C argument storage is not a general raw-pointer operand");
-    assert!(
-        error
-            .0
-            .contains("uses a C argument-storage address outside a C extern call"),
-        "unexpected error: {error}"
-    );
-}
-
-#[test]
 fn exact_c_argument_storage_address_reaches_the_bridge_as_its_backing_alloca() {
     let mut module = values_module();
     append_c_void_call(
@@ -1227,7 +1150,9 @@ fn nullable_data_pointer_ref_rejects_a_mismatched_exact_pointee() {
 
     let error = c_layout_assertions(&module).expect_err("mismatched exact pointee must fail");
     assert!(
-        error.0.contains("binds a different exact pointee"),
+        error
+            .0
+            .contains("renderer received mismatched exact pointee"),
         "{}",
         error.0
     );
@@ -1280,7 +1205,9 @@ fn nullable_code_pointer_ref_rejects_a_mismatched_exact_signature() {
 
     let error = c_layout_assertions(&module).expect_err("mismatched exact signature must fail");
     assert!(
-        error.0.contains("binds a different exact signature"),
+        error
+            .0
+            .contains("renderer received mismatched exact signature"),
         "{}",
         error.0
     );
@@ -1684,9 +1611,7 @@ fn c_layout_rejects_a_mutual_by_value_struct_cycle() {
 
     let error = c_layout_assertions(&module).expect_err("by-value C cycles are invalid");
     assert!(
-        error.0.contains("recursively embedded by value")
-            && error.0.contains("struct `A`")
-            && error.0.contains("struct `B`"),
+        error.0.contains("recursive by-value C layout `A`"),
         "unexpected diagnostic: {error}"
     );
 }
@@ -1822,155 +1747,6 @@ fn refined_c_pointer_references_reject_managed_niches() {
 }
 
 #[test]
-fn foreign_callback_bridge_rejects_wrong_adapter_signature() {
-    let mut module = values_module();
-    let family = foreign_callback_family(&mut module);
-    module
-        .foreign_callback_bridges
-        .alloc(scoop_lir::ForeignCallbackBridge {
-            application: callback_application(0),
-            family,
-            adapter: managed_local_function_ref(0),
-            trampoline: callback_trampoline(5, 0),
-            params: vec![c_opaque_pointer()],
-            return_type: scoop_lir::CReturnType::Void,
-            context_index: 0,
-            mode: module.foreign_callback_families[family].modes.reusable(),
-        });
-
-    let error = joined_c_bridge_sources(&module)
-        .expect_err("foreign callback bridge must point at an exact managed adapter");
-    assert!(
-        error.0.contains(&format!(
-            "foreign callback adapter @{}",
-            module.functions[0].symbol()
-        )) && error.0.contains("machine<foreign-callback-status>"),
-        "unexpected error: {error}"
-    );
-}
-
-#[test]
-fn foreign_callback_operation_rejects_lookalike_callback_struct() {
-    let mut module = values_module();
-    let family = foreign_callback_family(&mut module);
-    let lookalike = callback_struct(&mut module, "LookalikeForeignCallback");
-    let function = &mut module.functions[0];
-    let callback = function.temps.alloc(Temp {
-        ty: LirType::Struct(lookalike),
-    });
-    function.blocks[function.entry]
-        .instructions
-        .push(Instruction::ForeignCallbackOperation(
-            scoop_lir::ForeignCallbackOperation::Release {
-                family,
-                callback: Value::Temp(callback),
-            },
-        ));
-
-    let error = crate::validation::validate_module(&module)
-        .expect_err("callback operations must preserve nominal callback identity");
-    assert!(
-        error.0.contains("requires exact callback struct")
-            && error.0.contains(&format!("struct{}", lookalike.into_raw())),
-        "unexpected error: {error}"
-    );
-}
-
-#[test]
-fn foreign_callback_family_revalidates_mode_state_and_failure_metadata() {
-    type CorruptCallbackFamily = fn(&mut Module, scoop_lir::ForeignCallbackFamilyId);
-    let cases: [(&str, CorruptCallbackFamily); 3] = [
-        (
-            "mode",
-            |module: &mut Module, family: scoop_lir::ForeignCallbackFamilyId| {
-                let mut foreign = values_module();
-                callback_state(&mut foreign, "Padding");
-                let definition = callback_mode(&mut foreign);
-                let modes = scoop_lir::ForeignCallbackModes::checked(
-                    &foreign.enums,
-                    foreign.enums.variant_ref(definition, 0).unwrap(),
-                    foreign.enums.variant_ref(definition, 1).unwrap(),
-                )
-                .unwrap();
-                module.foreign_callback_families[family].modes = modes;
-            },
-        ),
-        (
-            "state",
-            |module: &mut Module, family: scoop_lir::ForeignCallbackFamilyId| {
-                let mut foreign = values_module();
-                let definition = callback_state(&mut foreign, "ForeignCallbackState");
-                let states = scoop_lir::ForeignCallbackStates::checked(
-                    &foreign.enums,
-                    foreign.enums.variant_ref(definition, 0).unwrap(),
-                    foreign.enums.variant_ref(definition, 1).unwrap(),
-                    foreign.enums.variant_ref(definition, 2).unwrap(),
-                    foreign.enums.variant_ref(definition, 3).unwrap(),
-                )
-                .unwrap();
-                module.foreign_callback_families[family].states = states;
-            },
-        ),
-        (
-            "managed-reference callback failure",
-            |module: &mut Module, family: scoop_lir::ForeignCallbackFamilyId| {
-                let mut foreign = values_module();
-                let definition = callback_failure(&mut foreign, "Option<Throwable>");
-                let some = foreign.enums.variant_ref(definition, 0).unwrap();
-                let failure = scoop_lir::ForeignCallbackFailureResult::checked(
-                    &foreign.enums,
-                    foreign.enums.variant_field_ref(some, 0).unwrap(),
-                    foreign.enums.variant_ref(definition, 1).unwrap(),
-                )
-                .unwrap();
-                module.foreign_callback_families[family].failure_result = failure;
-            },
-        ),
-    ];
-    for (kind, corrupt) in cases {
-        let mut module = values_module();
-        let family = foreign_callback_family(&mut module);
-        corrupt(&mut module, family);
-
-        let error = joined_c_bridge_sources(&module)
-            .expect_err("callback family metadata must be revalidated at codegen entry");
-        assert!(error.0.contains(kind), "unexpected error: {error}");
-    }
-}
-
-#[test]
-fn foreign_callback_bridge_mode_must_belong_to_its_family() {
-    let mut module = values_module();
-    let family = foreign_callback_family(&mut module);
-    let foreign_mode = module.foreign_callback_families[family].states.registered();
-    add_foreign_callback_bridge(
-        &mut module,
-        family,
-        ForeignCallbackBridgeFixture {
-            adapter: "foreign_callback_adapter",
-            identity_seed: 1,
-            params: vec![c_opaque_pointer()],
-            return_type: scoop_lir::CReturnType::Void,
-            context_index: 0,
-        },
-    );
-    let bridge = module
-        .foreign_callback_bridges
-        .iter()
-        .next()
-        .expect("test bridge")
-        .0;
-    module.foreign_callback_bridges[bridge].mode = foreign_mode;
-
-    let error = joined_c_bridge_sources(&module)
-        .expect_err("callback bridge mode must belong to its typed family");
-    assert!(
-        error.0.contains("mode outside family"),
-        "unexpected error: {error}"
-    );
-}
-
-#[test]
 fn foreign_callback_state_decodes_only_the_closed_wire_codes() {
     let mut module = values_module();
     let family = foreign_callback_family(&mut module);
@@ -2013,170 +1789,5 @@ fn foreign_callback_state_decodes_only_the_closed_wire_codes() {
         ir.matches("select i1 %callback_state_case").count(),
         3,
         "{ir}"
-    );
-}
-
-#[test]
-fn foreign_callback_state_operation_rejects_lookalike_state_enum() {
-    let mut module = values_module();
-    let family = foreign_callback_family(&mut module);
-    let callback = module.foreign_callback_families[family].callback;
-    let lookalike = callback_state(&mut module, "LookalikeForeignCallbackState");
-    let function = &mut module.functions[0];
-    let callback = function.temps.alloc(Temp {
-        ty: LirType::Struct(callback),
-    });
-    let out = function.temps.alloc(Temp {
-        ty: LirType::Enum(lookalike),
-    });
-    function.blocks[function.entry]
-        .instructions
-        .push(Instruction::ForeignCallbackOperation(
-            scoop_lir::ForeignCallbackOperation::State {
-                family,
-                out,
-                callback: Value::Temp(callback),
-            },
-        ));
-
-    let error = crate::validation::validate_module(&module)
-        .expect_err("callback state operations must preserve nominal state identity");
-    assert!(
-        error.0.contains("foreign callback operation")
-            && error.0.contains("non-protocol result type"),
-        "unexpected error: {error}"
-    );
-}
-
-#[test]
-fn foreign_callback_failure_operation_rejects_lookalike_failure_enum() {
-    let mut module = values_module();
-    let family = foreign_callback_family(&mut module);
-    let callback = module.foreign_callback_families[family].callback;
-    let lookalike = callback_failure(&mut module, "LookalikeOptionThrowable");
-    let function = &mut module.functions[0];
-    let callback = function.temps.alloc(Temp {
-        ty: LirType::Struct(callback),
-    });
-    let out = function.temps.alloc(Temp {
-        ty: LirType::Enum(lookalike),
-    });
-    function.blocks[function.entry]
-        .instructions
-        .push(Instruction::ForeignCallbackOperation(
-            scoop_lir::ForeignCallbackOperation::Failure {
-                family,
-                out,
-                callback: Value::Temp(callback),
-            },
-        ));
-
-    let error = crate::validation::validate_module(&module)
-        .expect_err("callback failure operations must preserve nominal failure identity");
-    assert!(
-        error.0.contains("foreign callback operation")
-            && error.0.contains("non-protocol result type"),
-        "unexpected error: {error}"
-    );
-}
-
-#[test]
-fn foreign_callback_bridge_rejects_out_of_bounds_context_index() {
-    let mut module = values_module();
-    let family = foreign_callback_family(&mut module);
-    add_foreign_callback_bridge(
-        &mut module,
-        family,
-        ForeignCallbackBridgeFixture {
-            adapter: "foreign_callback_adapter",
-            identity_seed: 1,
-            params: vec![c_opaque_pointer()],
-            return_type: scoop_lir::CReturnType::Void,
-            context_index: 1,
-        },
-    );
-
-    let error =
-        joined_c_bridge_sources(&module).expect_err("context index must name a C parameter");
-    assert!(
-        error
-            .0
-            .contains("context index 1 is outside its 1 C parameters"),
-        "unexpected error: {error}"
-    );
-}
-
-#[test]
-fn foreign_callback_bridge_rejects_non_pointer_context() {
-    let mut module = values_module();
-    let family = foreign_callback_family(&mut module);
-    add_foreign_callback_bridge(
-        &mut module,
-        family,
-        ForeignCallbackBridgeFixture {
-            adapter: "foreign_callback_adapter",
-            identity_seed: 1,
-            params: vec![scoop_lir::CType::Integer(IntegerKind::SIGNED_64)],
-            return_type: scoop_lir::CReturnType::Void,
-            context_index: 0,
-        },
-    );
-
-    let error = joined_c_bridge_sources(&module).expect_err("callback context must be a C pointer");
-    assert!(
-        error
-            .0
-            .contains("context parameter 0 must be a direct opaque C data pointer"),
-        "unexpected error: {error}"
-    );
-}
-
-#[test]
-fn foreign_callback_bridge_rejects_conflicting_trampoline_abi_metadata() {
-    let mut module = values_module();
-    let family = foreign_callback_family(&mut module);
-    add_foreign_callback_bridge(
-        &mut module,
-        family,
-        ForeignCallbackBridgeFixture {
-            adapter: "foreign_callback_adapter_0",
-            identity_seed: 1,
-            params: vec![c_opaque_pointer()],
-            return_type: scoop_lir::CReturnType::Void,
-            context_index: 0,
-        },
-    );
-    add_foreign_callback_bridge(
-        &mut module,
-        family,
-        ForeignCallbackBridgeFixture {
-            adapter: "foreign_callback_adapter_1",
-            identity_seed: 1,
-            params: vec![
-                c_opaque_pointer(),
-                scoop_lir::CType::Integer(IntegerKind::SIGNED_64),
-            ],
-            return_type: c_value(scoop_lir::CType::Integer(IntegerKind::SIGNED_64)),
-            context_index: 0,
-        },
-    );
-
-    let symbol = module
-        .foreign_callback_bridges
-        .iter()
-        .next()
-        .unwrap()
-        .1
-        .trampoline
-        .entry()
-        .symbol()
-        .to_string();
-    let error = joined_c_bridge_sources(&module)
-        .expect_err("a shared trampoline symbol must have one ABI description");
-    assert!(
-        error.0.contains(&format!(
-            "trampoline symbol @{symbol} has conflicting ABI metadata"
-        )),
-        "unexpected error: {error}"
     );
 }

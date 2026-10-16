@@ -48,7 +48,7 @@ pub(super) fn resolve(
             match candidate {
                 selection::Candidate::Object(id) => {
                     let (index, _) = inputs.native.object(id)?;
-                    check_kind(symbol, declaration.contract, index.info.definitions[symbol])?;
+                    check_kind(symbol, declaration.contract, index.definitions[symbol])?;
                 }
                 selection::Candidate::Definition => {
                     let definition =

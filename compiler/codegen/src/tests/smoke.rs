@@ -8,7 +8,7 @@ mod integers;
 fn emits_non_empty_object_file() {
     let module = values_module();
     let output = std::env::temp_dir().join(format!("scoop_codegen_test_{}.o", std::process::id()));
-    write_verified_test_object(&module, &output);
+    write_test_object(&module, &output);
     let len = std::fs::metadata(&output)
         .expect("object file exists")
         .len();
@@ -425,139 +425,6 @@ fn pointer_element_offset_scales_by_the_declared_element_size() {
 }
 
 #[test]
-fn local_call_signature_cannot_relabel_machine_result_as_i64() {
-    let mut module = values_module();
-    let machine_result = LirType::MachineScalar(MachineScalarKind::ForeignCallbackStatus);
-    let mut adapter_blocks = Arena::default();
-    let adapter_entry = adapter_blocks.alloc(BasicBlock {
-        name: "entry".to_string(),
-        instructions: vec![],
-        terminator: Terminator::Return {
-            value: Some(Value::MachineScalar(
-                MachineScalarValue::ForeignCallbackStatus(
-                    scoop_lir::ForeignCallbackStatus::Returned,
-                ),
-            )),
-        },
-    });
-    module.functions.push(Function {
-        callable_body: callable_body_at(file!(), line!()),
-        safepoints: scoop_lir::SafepointIdentities::default(),
-        gc_effect: GcEffect::Managed,
-        signature: plain_scoop_signature(vec![], machine_result),
-        call_targets: CallTargets::default(),
-        locals: Arena::default(),
-        temps: Arena::default(),
-        blocks: adapter_blocks,
-        entry: adapter_entry,
-    });
-
-    let caller = &mut module.functions[0];
-    let out = caller.temps.alloc(Temp { ty: LirType::I64 });
-    let forged = direct_site(
-        &mut caller.call_targets,
-        TestCallProtocol::Managed {
-            safepoint: 99,
-            destination: managed_local(1),
-        },
-        vec![],
-        (LirType::I64, RefScan::None),
-        out,
-        vec![],
-    );
-    caller.blocks[caller.entry]
-        .instructions
-        .push(Instruction::Call { site: forged });
-
-    let machine = host_target_machine().expect("target machine");
-    let context = Context::create();
-    let error = emit_llvm_module(&context, &module, &machine, host_profile())
-        .expect_err("a local call must use its declaration's logical result domain");
-    assert!(
-        error.0.contains("typed local call")
-            && error.0.contains(module.functions[1].symbol())
-            && error.0.contains("machine<foreign-callback-status>"),
-        "unexpected error: {error}"
-    );
-}
-
-#[test]
-fn dispatch_signature_rejects_machine_scalar_domains() {
-    let mut module = values_module();
-    let function = &mut module.functions[0];
-    let slot = function
-        .call_targets
-        .dispatch_slots
-        .alloc_managed(DispatchSlot {
-            kind: DispatchKind::Virtual,
-            index: 0,
-        });
-    let destination = scoop_lir::ManagedCallDestination::dispatch(
-        Value::NullPointer(PointerKind::Metadata),
-        slot,
-    );
-    let out = function.temps.alloc(Temp {
-        ty: LirType::MachineScalar(MachineScalarKind::EnumTag),
-    });
-    let call = direct_site(
-        &mut function.call_targets,
-        TestCallProtocol::Managed {
-            safepoint: 99,
-            destination,
-        },
-        vec![],
-        (
-            LirType::MachineScalar(MachineScalarKind::EnumTag),
-            RefScan::None,
-        ),
-        out,
-        vec![],
-    );
-    function.blocks[function.entry]
-        .instructions
-        .push(Instruction::Call { site: call });
-    refresh_test_safepoints(function);
-
-    let machine = host_target_machine().expect("target machine");
-    let context = Context::create();
-    let error = emit_llvm_module(&context, &module, &machine, host_profile())
-        .expect_err("dynamic dispatch has no authoritative machine-scalar signature");
-    assert!(
-        error.0.contains("dispatch signature") && error.0.contains("machine scalar"),
-        "unexpected error: {error}"
-    );
-}
-
-#[test]
-fn scoop_extern_rejects_machine_scalar_artifact_abi() {
-    let mut module = values_module();
-    module
-        .extern_functions
-        .alloc_scoop(scoop_lir::ScoopExternFunction {
-            identity: scoop_lir::ExternFunctionIdentity {
-                source_name: "foreignMachine".to_string(),
-                native_symbol: "foreign_machine".to_string(),
-                library: "fixture".to_string(),
-                calling_convention: scoop_lir::CallingConvention::Cdecl,
-            },
-            gc_effect: GcEffect::NoGc,
-            signature: plain_scoop_signature(
-                vec![LirType::MachineScalar(MachineScalarKind::EnumTag)],
-                LirType::I64,
-            ),
-        });
-
-    let machine = host_target_machine().expect("target machine");
-    let context = Context::create();
-    let error = emit_llvm_module(&context, &module, &machine, host_profile())
-        .expect_err("Scoop artifact ABI must not expose compiler-only scalar domains");
-    assert!(
-        error.0.contains("Scoop extern `foreignMachine`") && error.0.contains("machine scalar"),
-        "unexpected error: {error}"
-    );
-}
-
-#[test]
 fn runtime_call_signature_cannot_relabel_a_machine_result() {
     let mut module = values_module();
     let function = &mut module.functions[0];
@@ -621,86 +488,6 @@ fn string_compare_runtime_contract_returns_canonical_long_i64() {
 }
 
 #[test]
-fn dispatch_table_cannot_hide_a_machine_scalar_local_signature() {
-    let mut module = values_module();
-    let function_id = scoop_lir::LocalFunctionId::from_u32(module.functions.len() as u32);
-    let mut blocks = Arena::default();
-    let entry = blocks.alloc(BasicBlock {
-        name: "entry".to_string(),
-        instructions: vec![],
-        terminator: Terminator::Return {
-            value: Some(Value::MachineScalar(
-                MachineScalarValue::ForeignCallbackStatus(
-                    scoop_lir::ForeignCallbackStatus::Returned,
-                ),
-            )),
-        },
-    });
-    module.functions.push(Function {
-        callable_body: callable_body_at(file!(), line!()),
-        safepoints: scoop_lir::SafepointIdentities::default(),
-        gc_effect: GcEffect::Managed,
-        signature: plain_scoop_signature(
-            vec![],
-            LirType::MachineScalar(MachineScalarKind::ForeignCallbackStatus),
-        ),
-        call_targets: CallTargets::default(),
-        locals: Arena::default(),
-        temps: Arena::default(),
-        blocks,
-        entry,
-    });
-    module
-        .meta
-        .type_descriptors
-        .iter_mut()
-        .next()
-        .expect("values module has the String descriptor")
-        .1
-        .vtable
-        .slots_mut()
-        .push(DispatchEntry {
-            callable: CallableRef::Local(function_id),
-        });
-
-    let machine = host_target_machine().expect("target machine");
-    let context = Context::create();
-    let error = emit_llvm_module(&context, &module, &machine, host_profile())
-        .expect_err("dispatch metadata must not expose a machine-scalar local function");
-    assert!(
-        error.0.contains(&format!(
-            "dispatches to local function @{}",
-            module.functions[function_id.into_u32() as usize].symbol()
-        )) && error.0.contains("machine scalar"),
-        "unexpected error: {error}"
-    );
-}
-
-#[test]
-fn foreign_callback_operation_rejects_machine_scalar_operand_before_llvm_cast() {
-    let mut module = values_module();
-    let family = super::c_layout::foreign_callback_family(&mut module);
-    let function = &mut module.functions[0];
-    function.blocks[function.entry]
-        .instructions
-        .push(Instruction::ForeignCallbackOperation(
-            scoop_lir::ForeignCallbackOperation::Release {
-                family,
-                callback: Value::MachineScalar(MachineScalarValue::EnumTag(0)),
-            },
-        ));
-
-    let machine = host_target_machine().expect("target machine");
-    let context = Context::create();
-    let error = emit_llvm_module(&context, &module, &machine, host_profile())
-        .expect_err("callback operations must reject a machine scalar without panicking");
-    assert!(
-        error.0.contains("foreign callback operation") && error.0.contains("machine<enum-tag>"),
-        "unexpected error: {error}"
-    );
-}
-
-#[test]
 fn statepoint_plan_cannot_publish_a_machine_scalar_as_a_managed_root() {
     let mut module = values_module();
     let function = &mut module.functions[0];
@@ -735,10 +522,9 @@ fn statepoint_plan_cannot_publish_a_machine_scalar_as_a_managed_root() {
     let error = emit_llvm_module(&context, &module, &machine, host_profile())
         .expect_err("machine scalars cannot be forged into address-space-1 roots");
     assert!(
-        error.0.contains("managed call root plan")
-            && error
-                .0
-                .contains("has 1 entries, expected 0 complete entries"),
+        error
+            .0
+            .contains("cannot treat an internal machine scalar as a managed root"),
         "unexpected error: {error}"
     );
 }

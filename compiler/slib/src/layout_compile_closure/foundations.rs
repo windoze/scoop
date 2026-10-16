@@ -3,7 +3,6 @@
 use super::*;
 use crate::{
     CrossConeClosureFoundationError, CrossConeClosureIdentityError,
-    cross_cone_closure::source_provenance::validate_imported_source_metadata,
     cross_cone_closure::transitive_dependency_positions,
 };
 
@@ -65,8 +64,7 @@ impl<'input> ProfileValidatedCrossConeLayoutCompileClosure<'input> {
 }
 
 impl<'input> IdentityRegisteredCrossConeLayoutCompileClosure<'input> {
-    /// Validates each foundation against its template providers and checks
-    /// copied source metadata against the already validated dependency records.
+    /// Connects each foundation to its template providers.
     pub fn validate_foundation_structure(
         self,
     ) -> Result<
@@ -110,17 +108,6 @@ impl<'input> IdentityRegisteredCrossConeLayoutCompileClosure<'input> {
                         identity,
                         source: Box::new(source),
                     })?;
-            validate_imported_source_metadata(identity, artifact.hir_foundation(), |provider| {
-                positions
-                    .get(&provider)
-                    .copied()
-                    .filter(|provider_position| *provider_position < position)
-                    .map(|provider_position| validated[provider_position].hir_foundation())
-            })
-            .map_err(|source| CrossConeClosureFoundationError::SourceProvenance {
-                identity,
-                source,
-            })?;
             validated.push(artifact);
         }
 

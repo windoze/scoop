@@ -16,7 +16,9 @@ mod test_support;
 
 pub use artifacts::{ArtifactLinkRequest, read_program_artifacts, resolve_program_link_profile};
 pub use link::{ProgramLinkOutput, ResolvedLinkPlanFingerprint, link_program};
-pub use native_object::{NativeObjectInfo, NativeSymbolDefinition, NativeSymbolKind};
+pub use native_object::{
+    NativeObjectInfo, NativeSymbolBinding, NativeSymbolDefinition, NativeSymbolKind,
+};
 pub use runtime::*;
 
 #[derive(Debug)]

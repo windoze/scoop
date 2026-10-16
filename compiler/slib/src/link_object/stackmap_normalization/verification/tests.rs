@@ -4,7 +4,7 @@ pub(crate) mod support;
 use support::{Corruption, Fixture};
 
 #[test]
-fn closes_full_lir_member_symbol_record_and_machine_code_proofs() {
+fn reads_actual_stackmap_records_and_return_addresses() {
     let fixture = Fixture::new(Corruption::None);
     let objects = [ScoopLirObjectCandidateV1::new(
         fixture.member,
@@ -12,7 +12,7 @@ fn closes_full_lir_member_symbol_record_and_machine_code_proofs() {
     )];
 
     let verified =
-        verify_scoop_lir_stackmaps_v1(fixture.builtins, fixture.semantic_plan, &objects).unwrap();
+        read_scoop_stackmaps_v1(fixture.builtins, fixture.semantic_plan, &objects).unwrap();
 
     assert_eq!(
         verified.producer(),
@@ -47,14 +47,14 @@ fn closes_full_lir_member_symbol_record_and_machine_code_proofs() {
     let mut return_pcs = verified
         .records()
         .iter()
-        .map(VerifiedScoopLirStackmapRecordV1::object_return_pc)
+        .map(ScoopStackmapRecordV1::object_return_pc)
         .collect::<Vec<_>>();
     return_pcs.sort_unstable();
     assert_eq!(return_pcs, [12, 16]);
 }
 
 #[test]
-fn rejects_a_record_not_present_in_the_lir_semantic_proof() {
+fn reports_an_unknown_safepoint_reference() {
     let fixture = Fixture::new(Corruption::UnknownSafepoint);
     let member = fixture.member;
     let objects = [ScoopLirObjectCandidateV1::new(
@@ -63,66 +63,9 @@ fn rejects_a_record_not_present_in_the_lir_semantic_proof() {
     )];
 
     assert!(matches!(
-        verify_scoop_lir_stackmaps_v1(fixture.builtins, fixture.semantic_plan, &objects),
-        Err(ScoopLirStackmapValidationError::UnexpectedSafepointId {
+        read_scoop_stackmaps_v1(fixture.builtins, fixture.semantic_plan, &objects),
+        Err(ScoopStackmapReadError::UnexpectedSafepointId {
             member: actual,
-            ..
-        }) if actual == member
-    ));
-}
-
-#[test]
-fn rejects_a_non_stackmap_atom_owning_the_physical_stackmap_section() {
-    let fixture = Fixture::new(Corruption::WrongStackmapAtomRole);
-    let member = fixture.member;
-    let objects = [ScoopLirObjectCandidateV1::new(
-        member,
-        &fixture.object_bytes,
-    )];
-
-    assert!(matches!(
-        verify_scoop_lir_stackmaps_v1(fixture.builtins, fixture.semantic_plan, &objects),
-        Err(ScoopLirStackmapValidationError::NonStackmapAtomInSection {
-            member: actual,
-            actual: scoop_identity::DefinitionAtomRole::AddressTakenConstant,
-            ..
-        }) if actual == member
-    ));
-}
-
-#[test]
-fn rejects_return_pcs_that_do_not_immediately_follow_aarch64_calls() {
-    let fixture = Fixture::new(Corruption::NonCallReturnPc);
-    let member = fixture.member;
-    let objects = [ScoopLirObjectCandidateV1::new(
-        member,
-        &fixture.object_bytes,
-    )];
-
-    assert!(matches!(
-        verify_scoop_lir_stackmaps_v1(fixture.builtins, fixture.semantic_plan, &objects),
-        Err(ScoopLirStackmapValidationError::MachineCode {
-            member: actual,
-            source: StackmapMachineCodeError::Aarch64(DarwinAarch64StackmapMachineCodeError::ReturnPcDoesNotFollowCall { .. }),
-            ..
-        }) if actual == member
-    ));
-}
-
-#[test]
-fn rejects_managed_functions_without_an_aarch64_frame_chain() {
-    let fixture = Fixture::new(Corruption::MissingFrameChain);
-    let member = fixture.member;
-    let objects = [ScoopLirObjectCandidateV1::new(
-        member,
-        &fixture.object_bytes,
-    )];
-
-    assert!(matches!(
-        verify_scoop_lir_stackmaps_v1(fixture.builtins, fixture.semantic_plan, &objects),
-        Err(ScoopLirStackmapValidationError::MachineCode {
-            member: actual,
-            source: StackmapMachineCodeError::Aarch64(DarwinAarch64StackmapMachineCodeError::MissingManagedFrameChain { .. }),
             ..
         }) if actual == member
     ));

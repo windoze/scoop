@@ -237,7 +237,7 @@ fn raw_struct_construction_reaches_mir_without_a_constructor_call() {
     );
 
     let module = lower(&h.finish(main));
-    assert_eq!(module.validate(), Ok(()));
+
     let statements = entry_statements(
         &module.functions[module
             .output

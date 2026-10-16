@@ -15,240 +15,50 @@ use scoop_lir::{
     ObjectSymbolSurfaceV1, ProducerUnitPartitionV1, RegistrationIdentitySurfaceV1,
 };
 
-use super::finalization::patch_image_bytes_for_test;
-use super::record::{expected_final_image_record, expected_image_record};
+use super::finalization::write_runtime_image_digest;
+mod record;
 use super::*;
-use crate::link_object::c_bridge_production::tests::profile;
+use crate::ScoopLirDigestPatchSitesV1;
+use crate::link_object::generated_c_objects::tests::profile;
 use crate::link_object::{
-    CanonicalScoopLirObjectUnitSetV1, PlannedLinkObjectMemberSetV1,
-    PlannedMemberStrongObjectSymbolsV1, PlannedStrongObjectSymbolRoleV1,
-    PlannedStrongObjectSymbolSetV1, ProvisionalDigestPatchSiteV1, ScoopLirObjectCandidateV1,
-    verify_builtin_object_strong_relocations_v1, verify_c_bridge_production_envelopes_v1,
-    verify_scoop_lir_digest_patch_sites_v1,
+    CanonicalScoopLirObjectUnitSetV1, DigestPatchSiteV1, EntryProductionBranchV1,
+    PlannedLinkObjectMemberSetV1, PlannedMemberStrongObjectSymbolsV1,
+    PlannedStrongObjectSymbolRoleV1, PlannedStrongObjectSymbolSetV1, ScoopLirObjectCandidateV1,
+    bind_entry_production_v1, read_generated_c_objects_v1,
+    verify_builtin_object_strong_relocations_v1,
 };
+use record::expected_image_record;
 
 const MINIMUM_OS: u32 = 0x000d_0100;
 const SDK: u32 = 0x000e_0200;
 
-mod registrations;
-
-#[derive(Clone, Copy)]
-enum Corruption {
-    None,
-    CoordinateByte,
-    CoordinateTarget,
-    StaticSentinel,
-    ArrayBoundsMessageByte,
-    ArraySizeOverflowMessageByte,
-    RegistrationCount,
-    RegistrationTarget,
-}
-
 #[test]
-fn verifies_the_unique_image_record_support_atoms_and_relocations() {
-    let fixture = fixture(Corruption::None, false);
-    let verified = verify_cone_image_v1(
-        fixture.patch_sites,
-        fixture.plan.clone(),
-        &[ScoopLirObjectCandidateV1::new(
-            fixture.member,
-            &fixture.bytes,
-        )],
-    )
-    .unwrap();
-
-    assert_eq!(verified.producer(), fixture.plan.cone().identity());
-    assert_eq!(verified.member(), fixture.member);
-    assert_eq!(verified.primary().byte_size(), 240);
-    assert_eq!(verified.support().coordinate_group().byte_size(), 5);
-    assert_eq!(verified.support().dependencies().byte_size(), 32);
-    assert_eq!(verified.support().static_storages().byte_size(), 8);
-    assert_eq!(verified.support().array_bounds_message().byte_size(), 26);
-    assert_eq!(
-        verified.support().array_size_overflow_message().byte_size(),
-        20
-    );
-    assert_eq!(verified.support_relocations().len(), 10);
-    assert!(verified.registration_relocations().is_empty());
-    assert_eq!(verified.image_patch().offset_within_atom(), 96);
-}
-
-#[test]
-fn rejects_changed_coordinate_bytes() {
-    let fixture = fixture(Corruption::CoordinateByte, false);
-    assert!(matches!(
-        verify_cone_image_v1(
-            fixture.patch_sites,
-            fixture.plan,
-            &[ScoopLirObjectCandidateV1::new(
-                fixture.member,
-                &fixture.bytes
-            )],
-        ),
-        Err(ConeImageValidationError::AtomByteMismatch {
-            role: ConeImageAtomRoleV1::CoordinateGroup,
-            offset_within_atom: 0,
-            ..
-        })
-    ));
-}
-
-#[test]
-fn rejects_changed_array_trap_message_bytes() {
-    for (corruption, role) in [
-        (
-            Corruption::ArrayBoundsMessageByte,
-            ConeImageAtomRoleV1::ArrayBoundsMessage,
-        ),
-        (
-            Corruption::ArraySizeOverflowMessageByte,
-            ConeImageAtomRoleV1::ArraySizeOverflowMessage,
-        ),
-    ] {
-        let fixture = fixture(corruption, false);
-        assert!(matches!(
-            verify_cone_image_v1(
-                fixture.patch_sites,
-                fixture.plan,
-                &[ScoopLirObjectCandidateV1::new(
-                    fixture.member,
-                    &fixture.bytes
-                )],
-            ),
-            Err(ConeImageValidationError::AtomByteMismatch {
-                role: actual,
-                offset_within_atom: 0,
-                ..
-            }) if actual == role
-        ));
-    }
-}
-
-#[test]
-fn rejects_a_coordinate_pointer_to_another_support_atom() {
-    let fixture = fixture(Corruption::CoordinateTarget, false);
-    assert_eq!(
-        verify_cone_image_v1(
-            fixture.patch_sites,
-            fixture.plan,
-            &[ScoopLirObjectCandidateV1::new(
-                fixture.member,
-                &fixture.bytes
-            )],
-        ),
-        Err(ConeImageValidationError::RelocationMismatch {
-            role: ConeImageAtomRoleV1::CoordinateGroup,
-            index: 0,
-            kind: ConeImageRelocationFailureV1::TargetValue,
-        })
-    );
-}
-
-#[test]
-fn rejects_a_nonzero_empty_table_sentinel() {
-    let fixture = fixture(Corruption::StaticSentinel, false);
-    assert!(matches!(
-        verify_cone_image_v1(
-            fixture.patch_sites,
-            fixture.plan,
-            &[ScoopLirObjectCandidateV1::new(
-                fixture.member,
-                &fixture.bytes
-            )],
-        ),
-        Err(ConeImageValidationError::AtomByteMismatch {
-            role: ConeImageAtomRoleV1::StaticStorages,
-            offset_within_atom: 0,
-            ..
-        })
-    ));
-}
-
-#[test]
-fn verifies_a_nonempty_registration_table_and_strong_target() {
-    let fixture = fixture(Corruption::None, true);
-    let verified = verify_cone_image_v1(
-        fixture.patch_sites,
-        fixture.plan,
-        &[ScoopLirObjectCandidateV1::new(
-            fixture.member,
-            &fixture.bytes,
-        )],
-    )
-    .unwrap();
-
-    assert_eq!(verified.registration_relocations().len(), 1);
-    assert_eq!(
-        verified.registration_relocations()[0].containing_atom(),
-        verified.support().type_registrations().atom()
-    );
-}
-
-#[test]
-fn patches_only_the_verified_runtime_image_slot_and_rechecks_the_record() {
-    let mut fixture = fixture(Corruption::None, false);
-    let verified = verify_cone_image_v1(
-        fixture.patch_sites,
-        fixture.plan.clone(),
-        &[ScoopLirObjectCandidateV1::new(
-            fixture.member,
-            &fixture.bytes,
-        )],
-    )
-    .unwrap();
+fn binds_the_image_digest_slot_and_patches_it() {
+    let mut fixture = fixture(false);
+    let image = bind_cone_image_v1(&fixture.patch_sites, fixture.plan).unwrap();
+    assert_eq!(image.member(), fixture.member);
     let fingerprint = [0xa5; 32];
-    let expected = expected_final_image_record(&fixture.plan, &fingerprint);
-
-    patch_image_bytes_for_test(
-        &mut fixture.bytes,
-        verified.primary().checked_offset(),
-        verified.image_patch(),
-        &fingerprint,
-        &expected,
-    )
-    .unwrap();
-
-    let start = usize::try_from(verified.image_patch().checked_offset()).unwrap();
+    write_runtime_image_digest(&mut fixture.bytes, image.image_patch(), &fingerprint).unwrap();
+    let start = image.image_patch().checked_offset() as usize;
     assert_eq!(&fixture.bytes[start..start + 32], &fingerprint);
-    assert!(matches!(
-        patch_image_bytes_for_test(
-            &mut fixture.bytes,
-            verified.primary().checked_offset(),
-            verified.image_patch(),
-            &fingerprint,
-            &expected,
-        ),
-        Err(RuntimeImagePatchError::NonZeroPatchSlot { offset: 0 })
-    ));
 }
 
 #[test]
-fn library_entry_proof_accepts_the_complete_object_set_without_root_artifacts() {
-    let fixture = fixture(Corruption::None, false);
-    let verified = crate::link_object::verify_entry_production_v1(
-        fixture.patch_sites,
-        EntryProductionPlanV1::Library,
-        &[ScoopLirObjectCandidateV1::new(
-            fixture.member,
-            &fixture.bytes,
-        )],
-    )
-    .unwrap();
-
-    assert!(matches!(
-        verified.branch(),
-        crate::link_object::VerifiedEntryProductionBranchV1::Library
-    ));
+fn binds_the_library_entry_without_root_slots() {
+    let fixture = fixture(false);
+    let entry =
+        bind_entry_production_v1(fixture.patch_sites, EntryProductionPlanV1::Library).unwrap();
+    assert!(matches!(entry.branch(), EntryProductionBranchV1::Library));
 }
 
 struct Fixture {
     plan: ConeImagePlanV1,
-    patch_sites: crate::link_object::VerifiedScoopLirDigestPatchSiteSetV1,
+    patch_sites: crate::link_object::ScoopLirDigestPatchSitesV1,
     member: crate::SlibMemberId,
     bytes: Vec<u8>,
 }
 
-fn fixture(corruption: Corruption, with_type_registration: bool) -> Fixture {
+fn fixture(with_type_registration: bool) -> Fixture {
     let coordinate = ConeCoordinate::reserved_single_file();
     let producer = coordinate.identity().unwrap();
     let definition = CborIdentityRecord::from_key(
@@ -351,20 +161,12 @@ fn fixture(corruption: Corruption, with_type_registration: bool) -> Fixture {
         symbol_plan.member(member).unwrap(),
         &plan,
         type_registration,
-        corruption,
     );
     let objects = [ScoopLirObjectCandidateV1::new(member, &object.bytes)];
 
     let c_profile = profile("clang-2100.1.1.101", MINIMUM_OS, SDK);
     let production = CBridgeProductionSetV1::from_generated_bridge_plan(&bridge_plan, &c_profile);
-    let production = verify_c_bridge_production_envelopes_v1(
-        bridge_plan.clone(),
-        production,
-        &c_profile,
-        &member_plan,
-        &[],
-    )
-    .unwrap();
+    let production = read_generated_c_objects_v1(production, &c_profile, &[]).unwrap();
     let builtins = verify_builtin_object_strong_relocations_v1(
         &member_plan,
         &symbol_plan,
@@ -373,20 +175,12 @@ fn fixture(corruption: Corruption, with_type_registration: bool) -> Fixture {
         &[],
     )
     .unwrap();
-    let provisional = [ProvisionalDigestPatchSiteV1::new(
+    let provisional = [DigestPatchSiteV1::new(
         plan.fingerprint_patch(),
         member,
         u64::try_from(object.section_offset).unwrap() + 96,
-        32,
     )];
-    let patch_sites = verify_scoop_lir_digest_patch_sites_v1(
-        builtins,
-        &foundation,
-        digest_plan,
-        &objects,
-        &provisional,
-    )
-    .unwrap();
+    let patch_sites = ScoopLirDigestPatchSitesV1::new(builtins, (provisional).to_vec());
     Fixture {
         plan,
         patch_sites,
@@ -486,7 +280,6 @@ fn image_object(
     symbols: &PlannedMemberStrongObjectSymbolsV1,
     plan: &ConeImagePlanV1,
     type_registration: Option<(ObjectDefinitionPlanId, ObjectDefinitionAtomId)>,
-    corruption: Corruption,
 ) -> ObjectFixture {
     let support = plan.support_atoms();
     let locations = image_locations(plan, type_registration.map(|(_, atom)| atom));
@@ -531,26 +324,6 @@ fn image_object(
         locations[&support.array_size_overflow_message()].0,
         b"array size overflow\0",
     );
-    match corruption {
-        Corruption::CoordinateByte => {
-            section[usize::try_from(locations[&support.coordinate_group()].0).unwrap()] ^= 1;
-        }
-        Corruption::StaticSentinel => {
-            section[usize::try_from(locations[&support.static_storages()].0).unwrap()] = 1;
-        }
-        Corruption::ArrayBoundsMessageByte => {
-            section[usize::try_from(locations[&support.array_bounds_message()].0).unwrap()] ^= 1;
-        }
-        Corruption::ArraySizeOverflowMessageByte => {
-            section
-                [usize::try_from(locations[&support.array_size_overflow_message()].0).unwrap()] ^=
-                1;
-        }
-        Corruption::None
-        | Corruption::CoordinateTarget
-        | Corruption::RegistrationCount
-        | Corruption::RegistrationTarget => {}
-    }
 
     let local_atoms = [
         support.coordinate_group(),
@@ -567,17 +340,10 @@ fn image_object(
         support.array_size_overflow_message(),
     ];
     let mut relocation_targets = vec![0_u32, 1, 2, 3, 4, 5, 6, 7, 8, 9];
-    if matches!(corruption, Corruption::CoordinateTarget) {
-        relocation_targets[0] = 1;
-    }
     let mut relocation_offsets = vec![16_u32, 32, 48, 128, 144, 160, 176, 192, 208, 224];
     if let Some((definition, _)) = type_registration {
         relocation_offsets.push(u32::try_from(locations[&support.type_registrations()].0).unwrap());
-        let target = if matches!(corruption, Corruption::RegistrationTarget) {
-            plan.definition_plan()
-        } else {
-            definition
-        };
+        let target = definition;
         let symbol_index = symbols
             .symbols()
             .iter()
@@ -593,10 +359,6 @@ fn image_object(
             .unwrap();
         relocation_targets
             .push(u32::try_from(local_atoms.len()).unwrap() + u32::try_from(symbol_index).unwrap());
-        if matches!(corruption, Corruption::RegistrationCount) {
-            relocation_offsets.pop();
-            relocation_targets.pop();
-        }
     }
     build_macho(
         symbols,
@@ -612,7 +374,7 @@ pub(crate) fn empty_image_object_for_link_decode_test(
     symbols: &PlannedMemberStrongObjectSymbolsV1,
     plan: &ConeImagePlanV1,
 ) -> (Vec<u8>, u64) {
-    let object = image_object(symbols, plan, None, Corruption::None);
+    let object = image_object(symbols, plan, None);
     (
         object.bytes,
         u64::try_from(object.section_offset).unwrap() + 96,

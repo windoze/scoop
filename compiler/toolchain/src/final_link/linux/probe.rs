@@ -83,20 +83,11 @@ pub(super) fn check(
         &compiled.stderr,
     )?);
     let binary = directory.path().join("probe");
-    let map = directory.path().join("probe.map");
     let mut command = profile.command(directory.path(), &binary)?;
-    command
-        .args(["-Xlinker", "-Map", "-Xlinker"])
-        .arg(&map)
-        .arg("-Wl,-t")
-        .arg(object);
+    command.arg("-Wl,-t").arg(object);
     profile.append_system_libraries(&mut command);
     let result = run(&mut command)?;
-    let bytes = std::fs::read(&binary).map_err(error)?;
-    profile.check_image(&bytes)?;
     let trace = String::from_utf8(result.stdout).map_err(error)?;
-    let map = std::fs::read_to_string(map).map_err(error)?;
-    profile.check_unwind_map(&map)?;
     let mut paths = BTreeSet::from([
         profile.data.linker.clone(),
         driver_program(&profile.startup, "collect2", observed)?,
