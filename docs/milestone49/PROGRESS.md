@@ -68,3 +68,9 @@ manifest／toolchain 共九十项 Rust 测试及三项 manifest cache 测试通�
 open／顺序 read、write／sync／close 复用 platform 原始 helper，经实际 libuv worker 执行。一个文件只允许一个活动操作；关闭先请求取消并等待 worker 与 buffer 借用结束，再提交一次 raw close。open 预留关闭请求，迟到成功在报告取消前释放 fd；路径和原始 errno 随异常保留。实现文件最长 96 行。
 
 新增八项同 Cone scoop.test，本机定向全部通过；完整三十七项 asyncio 在 release 和 moving GC 全部通过，也闭合 DNS 的对应 profile。覆盖 append／EOF／sync／原始路径与失败、文件到 TCP 的短 buffer copy、并发关闭、取消 finally、真实排队请求和阻塞 FIFO 执行中取消、迟到 open 的 fd 清理。工作线程占位器只存在于普通 test-dependency，使用实际 uv_queue_work 与 syscall 建立确定顺序，不增加生产后端。C11 警告检查、workspace clippy 和差异检查通过。target 约 1.9 GB；Linux 完整验证仍留在 UDP 完成后。
+
+## 共享常量段前置修复
+
+UDP 的 debug 测试通过后，release 对象暴露已有边界缺口：LLVM 数值跳转表与已命名字符串共享 __TEXT,__const，原 literal reader 仅接受整段独占表。以普通多分支算术和数组构造建立 17 行最小复现，先修订实现规范，再让表的实际范围止于首个已有 atom；保留表内无 relocation、代码实际引用及既有 atom 边界检查，不忽略未知段或关闭优化。
+
+九项相关 Rust 测试、workspace clippy，以及独立 CLI fixture 的 debug／release 两变体、四个进程通过。诊断用对象提取代码已移除。该修复不修改格式或 runtime ABI，作为独立底层提交；随后继续 UDP 组合验收。
