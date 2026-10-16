@@ -1,0 +1,41 @@
+package scoop.platform.fs
+
+import scoop.platform.system.OsString
+import scoop.test.*
+
+@Test
+private class NativePathHelperTest {
+    @Test
+    fun `public native strings keep raw bytes terminated and reject embedded NUL`() {
+        val bytes: Array<Byte> = [97, -1, 98]
+        val text = OsString.fromBytes(bytes)
+        @Unsafe {
+            val last = text.withNativeString { pointer ->
+                @Unsafe {
+                    gcCollect()
+                    assertEquals(-1.toInt8(), pointer.load(1L))
+                    assertEquals(0.toInt8(), pointer.load(3L))
+                    return@withNativeString pointer.load(2L)
+                }
+            }
+            assertEquals(98.toInt8(), last)
+            Path.fromOsString(text).withNativePath { pointer -> @Unsafe {
+                assertEquals(97.toInt8(), pointer.load())
+            } }
+        }
+        val invalid: Array<Byte> = [97, 0, 98]
+        assertFailsWith<IllegalArgumentException> {
+            @Unsafe { OsString.fromBytes(invalid).withNativeString { _ -> fail(Some("NUL reached native callback")) } }
+        }
+    }
+
+    @Test
+    fun `open options expose the validated helper flags`() {
+        assertEquals(1, OpenOptions().nativeFlags())
+        assertEquals(27, OpenOptions(write = true, create = true, createNew = true).nativeFlags())
+        assertEquals(6, OpenOptions(read = false, write = true, append = true).nativeFlags())
+        assertFailsWith<IllegalArgumentException> { OpenOptions(read = false).nativeFlags() }
+        assertFailsWith<IllegalArgumentException> { OpenOptions(write = true, append = true, truncate = true).nativeFlags() }
+        assertFailsWith<IllegalArgumentException> { OpenOptions(mode = 0x1000).nativeFlags() }
+    }
+}

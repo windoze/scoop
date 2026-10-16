@@ -1,0 +1,10 @@
+package scoop.asyncio
+
+import scoop.platform.net.*
+
+internal suspend fun tcpPair(loop: EventLoop, scope: CoroutineScope): (AsyncTcpListener, AsyncTcpStream, AsyncTcpStream) {
+    val listener = loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
+    val connecting = scope.async<AsyncTcpStream> suspend { loop.connectTcp(listener.localAddress) }
+    val server = listener.accept()
+    return (listener, connecting.await(), server)
+}

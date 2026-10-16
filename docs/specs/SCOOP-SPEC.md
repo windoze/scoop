@@ -21,7 +21,7 @@ Scoop 的泛型采用**单态化（monomorphization）**，不进行类型擦除
 - Scoop 的核心语法；
 - 支撑核心语法所需的**最小核心库**（见第 11 章）。
 
-除 11.10 为字符串构建及公共容器访问提供的最小集合协议和 11.14 的原子类型外，标准库的其他部分不在本文件展开。M42 的平台无关标准基础库见 [标准基础库规范](SCOOP-STDLIB-SPEC.md)；它是显式依赖的普通 Scoop Cone，不扩展语言语法、编译器角色或 runtime ABI。IO、系统取时、系统熵和高层并发工具另行设计。
+除 11.10 为字符串构建及公共容器访问提供的最小集合协议和 11.14 的原子类型外，标准库的其他部分不在本文件展开。M42 的平台无关标准基础库见 [标准基础库规范](SCOOP-STDLIB-SPEC.md)；它是显式依赖的普通 Scoop Cone，不扩展语言语法、编译器角色或 runtime ABI。同步 IO、系统取时及系统熵见[平台库规范](SCOOP-PLATFORM-SPEC.md)，事件循环与异步 IO 见[异步 I/O 库规范](SCOOP-ASYNCIO-SPEC.md)；结构化任务树见 11.9.1～11.9.2。
 
 ### 1.2 并发安全与数据竞争
 
@@ -880,9 +880,9 @@ fun references() {
 - 调用挂起函数可能在当前调用栈内立即产生 `R`，也可能保存当前计算并返回到协程启动者，随后经 `Continuation` 恢复。无论采用哪条路径，源码都只观察到一次普通的 `R` 结果或一次在该调用点抛出的异常；挂起本身不是返回、异常或 `finally` 的退出原因。
 - 调用点之前已经完成的实参和子表达式只求值一次；恢复后从调用点之后继续，源码从左到右求值顺序不变。跨挂起点仍存活的局部变量、参数及待执行的控制转移必须被保留。
 - `try`/`catch`/`finally`的语义跨挂起点保持不变：恢复失败等价于在原挂起调用点`throw`；仅仅挂起不会执行`finally`；跨挂起保存的待执行动作包括正常继续、return、throw以及8.7的break/continue。finally正常结束后恢复原动作；只有实际从当前finally向外离开的新控制转移才覆盖原动作，finally内部被catch或只退出其内层loop的转移不覆盖。每个被退出的finally仍恰好执行一次。
-- `Continuation` 是单次完成协议：一个挂起点只能由 `resume` 或 `resumeWithException` 中的一个成功完成一次；编译器生成的 continuation 对重复完成抛出 `IllegalStateException`。本规范不定义协程取消；放弃且永不恢复一个 continuation 不会隐式执行 `finally`。
+- `Continuation` 是单次完成协议：一个挂起点只能由 `resume` 或 `resumeWithException` 中的一个成功完成一次；编译器生成的 continuation 对重复完成抛出 `IllegalStateException`。取消由 11.9.1 的普通 core 库表达，不是所有 suspend 调用的隐式行为；放弃且永不恢复一个 continuation 不会隐式执行 `finally`。
 - 不支持 suspend FFI：挂起函数不得带 `@Extern`，其声明引用也不得在 `FunPtr` 上下文中解析为原生地址； hidden continuation ABI 只用于编译器生成的 Scoop 托管调用，不是任何 FFI ABI。具体约束见 13.4、13.10 与 14.2。
-- 具体的协程构建器（`launch`、`async` 等）、调度器与取消策略属于标准库，不在最小核心库范围内。最小核心库只提供 11.9 的启动、挂起与恢复原语。
+- core 在 11.9 原语之上提供 11.9.1 的结构化任务树、`launch`、`async` 与协作取消；具体线程、调度器和 I/O 事件循环属于独立库。
 
 ### 8.3 Task-local Context
 
@@ -2079,8 +2079,64 @@ suspend fun <T> suspendCoroutine(
 - `suspendCoroutine` 调用 `registration.register(continuation)`。registration 可以同步恢复 continuation，也可以保存它并在 `register` 返回后恢复；前者使 `suspendCoroutine` 在当前调用栈内继续，后者使其真正挂起。`register` 在尚未完成 continuation 时抛出的异常等价于 `suspendCoroutine` 在调用点抛出该异常。
 - `register` 已同步完成 continuation 后又抛出属于状态协议错误，`suspendCoroutine` 以 `IllegalStateException` 失败；该 continuation 随即失效，之后不能再次成功完成。
 - `SuspendTask` / `SuspendRegistration` 是不依赖 lambda 与函数引用的最小协议。函数类型 overload 由 core 中的普通 Scoop 适配器包装为这两个 interface 后调用同一底层原语，不另建 continuation 状态机；两种入口具有完全相同的同步完成、真实挂起、异常与单次完成语义。
-- `launch`、`async`、dispatcher 等高层 API 可以在这些原语上由标准库提供，但不得改变 8.2 的单次完成与异常语义。
-- core 原语不提供队列、线程切换或事件循环；调度器与取消不属于核心库。
+- 11.9.1 的普通库构建器复用这些原语，不改变 8.2 的单次完成与异常语义。
+- core 原语不提供线程切换或事件循环；结构化并发不承诺线程调度。
+
+#### 11.9.1 结构化并发
+
+以下声明位于 core 根 package，均为普通 Scoop 库声明。Job 与 Deferred 的构造器仅供 core 使用，不开放无归属任务或用户继承；公开 Job 类型用于句柄、参数及精确 Context key。
+
+```scoop
+public open class Job internal constructor(parent: Job?) {
+    public val isCompleted: Boolean
+    public val isCancelled: Boolean
+    public fun cancel()
+    public fun ensureActive()
+    public suspend fun join()
+    public fun invokeOnCancellation(handler: (CancellationException) -> Unit): Disposable
+}
+public class Deferred<T> internal constructor(parent: Job?) : Job(parent) {
+    public suspend fun await(): T
+}
+public class CoroutineScope internal constructor(job: Job) {
+    public val job: Job
+    public fun launch(block: suspend () -> Unit): Job
+    public fun <T> async(block: suspend () -> T): Deferred<T>
+}
+public class CancellationException public constructor() : Exception
+public fun currentJobOrNull(): Job?
+public fun ensureActive()
+public suspend fun <T> coroutineScope(block: suspend (CoroutineScope) -> T): T
+```
+
+coroutineScope 建立属于当前 Job 的子作用域；当前没有 Job 时建立有调用方的根作用域。子任务先登记到父任务，再通过 startCoroutine 启动，允许在构建器返回前同步完成。启动时以精确静态类型 Job 安装自己的绑定，并继承其他有效 Context。原始 startCoroutine 只传播 Context，不自动登记新 Job。currentJobOrNull 返回当前精确 Job binding；无绑定时返回 None，顶层 ensureActive 此时无操作。
+
+正文退出后关闭直接子任务登记，已关闭 CoroutineScope 的 launch／async 抛 IllegalStateException。Job 仅在正文及所有已登记子任务完成后发布最终结果；完成前取消不等于已完成。父子及等待者引用在不再需要时解除。join 可多次、多等待者调用，只等待目标结束；await 同样可重复，返回保存的类型化结果或抛该任务的最终异常。coroutineScope 内部等待不被调用方的取消提前中断，必须等子树完成收尾。
+
+正文或任一子任务的非取消失败立即向父任务传播，并向其他活动后代请求取消，最终在整棵相关子树收尾后传播原失败。async 未被 await 的失败同样传播；捕获 await 不撤销父任务的失败。单独取消子任务不自动取消父任务；取消过程中的非取消失败仍传播。每个 Job 保留首先记录的非取消失败；后续独立失败不覆盖它，也不增加 Throwable 聚合字段。正文内 finally 的异常覆盖仍按 8.2 执行。
+
+cancel 幂等、协作式向下传播，ensureActive 抛普通 CancellationException。原始 suspendCoroutine 不自动观察取消。join／await 的公开等待可以被等待者自身的取消撤销，不直接取消被等待任务；树关系的正常取消传播仍有效。取消通过恢复异常进入原挂起点并执行正常 finally，不丢弃 continuation。
+
+invokeOnCancellation 在首次取消时于内部锁外调用 handler 一次；登记时已经取消则同步调用，正常完成后登记则不调用。返回的 Disposable 撤销尚未开始的通知，dispose 与已开始的 handler 可以竞争，不承诺等待 handler 结束。通知结束或撤销后释放 handler 引用。handler 抛出的非取消异常在 Job 未完成时按其失败记录并传播，其他通知及子任务取消仍继续；已取消且已完成后新登记的 handler 同步执行，其异常直接向登记方抛出，不改写已发布的结果。状态、登记和结果使用现有原子同步协调；用户回调、子任务通知及 continuation 恢复均在内部临界区外执行。
+
+#### 11.9.2 可取消挂起
+
+```scoop
+public class CancellableContinuation<T> {
+    public fun tryResume(value: T): Boolean
+    public fun tryResumeWithException(exception: Throwable): Boolean
+    public fun invokeOnCancellation(handler: (CancellationException) -> Unit): Disposable
+}
+public suspend fun <T> suspendCancellableCoroutine(
+    registration: (CancellableContinuation<T>) -> Unit
+): T
+```
+
+此普通 Scoop 适配在 suspendCoroutine 上协调一次结果选择。登记前已取消则不调用 registration；同步完成可以立即继续。成功、失败与所属 Job 取消只有一个获胜方，只向原 continuation 提交一次。迟到 tryResume／tryResumeWithException 返回 false，不重复恢复；登记与取消竞争不能遗漏通知。结束后移除 Job 取消登记并释放不再使用的 frame 引用。成功已经获胜后，随后取消不覆盖成功。
+
+registration 尚未完成时抛出作为本次失败；已经同步完成又抛出时遵守 11.9 的 IllegalStateException 协议错误。invokeOnCancellation 的通知与撤销规则同 Job，但只观察这次等待的取消；完成后登记不持续保活 handler。
+
+该入口的取消结束等待，不承诺外部操作已停止。借用调用方存储的异步 I/O 必须使用普通 suspendCoroutine 与 Job.invokeOnCancellation 协调结果及 native 收尾两个事实，直到提交实际进度、解除借用后才恢复；不能将本入口的立即取消直接用于尚在使用调用方 buffer 的请求。两者均不改变底层 continuation 的单次完成合同。
 
 ### 11.10 数组与 List
 
@@ -2524,7 +2580,7 @@ use 以 receiver 调用 block 恰好一次，正文正常返回或抛出后调�
 
 成功路径的清理异常不能再次进入正文失败分支而重复清理。ResourceUseException 直接继承 Throwable，不归入仅捕获 Exception 的分支；嵌套 use 按内到外的普通调用展开顺序清理，多层双失败可以自然嵌套。use 不检查统一关闭状态，不赋予接口线程安全，也不在任意词法作用域退出时自动释放；receiver／block 实参在进入 use 之前的求值失败由获取方负责回滚。
 
-挂起重载在正文真实挂起期间保活 receiver，挂起本身不执行 dispose；恢复后的正常或异常退出才清理。dispose 在恢复线程同步执行。普通 lambda 不隐式变成 suspend lambda，挂起重载只能在允许挂起的上下文调用。当前没有取消合同，丢弃且永不恢复 continuation 不承诺自动执行清理。use 是普通调用，不提供非局部 return，不延长裸 pointer 的同步借用期限。
+挂起重载在正文真实挂起期间保活 receiver，挂起本身不执行 dispose；恢复后的正常或异常退出才清理。dispose 在恢复线程同步执行。普通 lambda 不隐式变成 suspend lambda，挂起重载只能在允许挂起的上下文调用。11.9.1 的取消异常按普通异常执行清理；丢弃且永不恢复 continuation 不承诺自动执行清理。use 是普通调用，不提供非局部 return，不延长裸 pointer 的同步借用期限。
 
 这些声明经普通 core public prelude 和 `.slib` 泛型模板提供，不新增语法、compiler-known 角色、MIR cleanup 节点或 runtime 释放机制。拥有 native 资源的平台库按[平台库规范](SCOOP-PLATFORM-SPEC.md)实现具体所有权合同。
 
@@ -2571,11 +2627,11 @@ kind = "library" # 或 "executable"
 
 #### 12.2.1 Native C/C++ 源码
 
-manifest Cone 可在 `[native]` 中配置 `include`、`c_flags`、`cxx_flags` 与 `cxx`，并以 `[[native.sources]]` 的 `path` 和可选 `when` 列出源码。`native.sources` 只选择单个 regular file；`.c` 按 C 编译，`.cc`、`.cpp`、`.cxx` 和 `.C` 按 C++ 编译，不递归发现其他 native 源码。省略的数组为空；`include` 是 Cone 相对的头文件搜索目录，源码与 include 路径使用 12.2.2 的归一化规则。条件筛选先于选中文件的存在性、后缀与语言开关检查。native 源码以声明的归一化路径区分 translation unit，不比较 inode 或将指向同一物理文件的不同路径合并。
+manifest Cone 可在 `[native]` 中配置 `include`、`c_flags`、`cxx_flags` 与 `cxx`，并以 `[[native.sources]]` 的 `path` 和可选 `when` 列出源码。`native.sources` 只选择单个 regular file；`.c` 按 C 编译，`.cc`、`.cpp`、`.cxx` 和 `.C` 按 C++ 编译，不递归发现其他 native 源码。省略的数组为空；`include` 是头文件搜索目录，允许普通相对路径（含 `..`）或绝对路径；相对路径以 Cone 根为基准，保留路径分量供实际文件系统解析。native.sources 路径使用 12.2.2 的归一化规则。条件筛选先于选中文件的存在性、后缀与语言开关检查。native 源码以声明的归一化路径区分 translation unit，不比较 inode 或将指向同一物理文件的不同路径合并。
 
 native 预处理除编译器的目标宏外，还定义当前 target 对应的 `SCOOP_TARGET_OS_DARWIN`／`SCOOP_TARGET_OS_LINUX`、`SCOOP_TARGET_ARCH_AARCH64`／`SCOOP_TARGET_ARCH_X86_64` 及 `SCOOP_TARGET_ENV_NONE`／`SCOOP_TARGET_ENV_GNU`／`SCOOP_TARGET_ENV_MUSL`；每组只定义匹配项，值为 `1`。
 
-编译选项按 argv 元素传递，不作 shell 展开。`-I`、`-iquote`、`-isystem`、`-idirafter`、`-include` 和 `-imacros` 中的路径也必须是 Cone 相对路径，在实际 native 编译时解析。响应文件、额外 compiler plugin/specs、编译器搜索前缀以及 linker 参数不由 `c_flags`／`cxx_flags` 接收；target、sysroot、输入语言、编译阶段、依赖输出和产物路径由 driver 管理。头文件按实际 include 搜索规则读取，不限制物理归属或审计符号链接来源；runtime 内部头文件不属于公开支持的 API。driver 自动提供公开 FFI 头 `scoop_rt.h` 及其公开依赖，输入与缓存契约见实现规范 2.7。
+编译选项按 argv 元素传递，不作 shell 展开。`-I`、`-iquote`、`-isystem`、`-idirafter`、`-include` 和 `-imacros` 中的路径采用同一普通文件系统路径规则，在实际 native 编译时解析；空路径与 NUL 非法，不按路径是否越出 Cone 根拒绝头文件输入。响应文件、额外 compiler plugin/specs、编译器搜索前缀以及 linker 参数不由 `c_flags`／`cxx_flags` 接收；target、sysroot、输入语言、编译阶段、依赖输出和产物路径由 driver 管理。头文件按实际 include 搜索规则读取，不限制物理归属或审计符号链接来源；runtime 内部头文件不属于公开支持的 API。driver 自动提供公开 FFI 头 `scoop_rt.h` 及其公开依赖，输入与缓存契约见实现规范 2.7。
 
 manifest Cone 通过 `[native]` 中的 Boolean 字段 `cxx` 显式启用 C++，省略时为 `false`。例如：
 

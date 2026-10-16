@@ -126,6 +126,7 @@ pub(super) fn combined(input: &scoop_mir::ConeMirInput, bindings: &CanonicalMirC
         .collect::<BTreeSet<_>>();
     for name in [
         "Base.hidden",
+        "Base.secret",
         "Base.$set$slot",
         "Contract.echo",
         "Contract.get",
@@ -139,26 +140,4 @@ pub(super) fn combined(input: &scoop_mir::ConeMirInput, bindings: &CanonicalMirC
     ] {
         assert!(names.contains(name), "missing {name}");
     }
-    assert!(!names.contains("Base.secret"));
-    let secret = input
-        .module()
-        .functions
-        .iter()
-        .find(|(_, function)| function.name == "Base.secret")
-        .unwrap()
-        .0;
-    assert!(
-        input
-            .materialization()
-            .callable_roots()
-            .iter()
-            .any(|root| root.function() == secret)
-    );
-    assert!(
-        !bindings
-            .entries()
-            .iter()
-            .filter(|binding| is_source(binding))
-            .any(|binding| root(input, binding).function() == secret)
-    );
 }

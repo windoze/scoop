@@ -1,0 +1,42 @@
+package scoop.asyncio
+
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.SocketAddress
+
+private class SendProgress { var count: Long = 0L }
+
+internal suspend fun sendUdp(owner: OwnedSocket, buffer: NativeByteBuffer, destination: SocketAddress, count: Long): Long {
+    val job = owner.loop.requireJob()
+    val reservation = owner.reserve(true)
+    try {
+        @Unsafe { return sendBorrowed(owner, buffer, destination, count, job) }
+    } finally { reservation.dispose() }
+}
+
+@Unsafe
+private suspend fun sendBorrowed(owner: OwnedSocket, buffer: NativeByteBuffer,
+    destination: SocketAddress, count: Long, job: Job): Long {
+    val target = ioAddress(destination)
+    val borrowed = buffer.borrowReadable(count)
+    val progress = SendProgress()
+    try {
+        return suspendCoroutine<Long> { continuation ->
+            val operation = LoopOperation(owner.loop.state, owner.loop.state.nextOperation(),
+                { _, id -> @Unsafe {
+                    return@LoopOperation nativeStatus(id, nativeUdpSend(owner.pointer, id, borrowed.pointer(), borrowed.length, target))
+                } },
+                // uv_udp_send cannot be cancelled; its callback ends the borrow.
+                { _, _ -> },
+                { event, selected ->
+                    progress.count = resultProgress(event.result)
+                    when (completionFailure("UDP send", event.result, selected)) {
+                        case Some(error) -> continuation.resumeWithException(error)
+                        case None -> continuation.resume(progress.count)
+                    }
+                })
+            operation.subscribe(job)
+            owner.attach(operation, true)
+            owner.loop.state.submit(operation)
+        }
+    } finally { borrowed.complete(progress.count) }
+}

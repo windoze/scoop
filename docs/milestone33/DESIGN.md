@@ -540,7 +540,7 @@ kind = "framework"
 when = { os = "darwin" }
 ```
 
-- `native.sources` 始终是带 `path` 和可选 `when` 的表数组，不再与字符串数组混用；`path` 和 `include` 都是 Cone 相对路径，不能越出 Cone 根目录。
+- `native.sources` 始终是带 `path` 和可选 `when` 的表数组，不再与字符串数组混用；`path` 使用 Scoop source 的 Cone 相对选择规则。M49 修订：`include` 及 C flags 中的头文件路径采用普通文件系统路径，可含 `..` 或使用绝对路径；相对路径以 Cone 根为基准，不限制头文件归属。
 - `cxx` 是默认 `false` 的 Boolean 开关，显式声明当前 Cone 需要 C++ 支持；仅出现 C++ 后缀或 `cxx_flags` 不会隐式开启。选中 C++ 源码而未启用时，在 native 编译前报错。C++ 工具链和支持矩阵见 7.4。
 - `c_flags` 和 `cxx_flags` 是 argv 字符串数组，分别作用于本 Cone 的 C 和 C++ 源码，保持声明顺序，不做 shell 展开，不向依赖者传播。允许语言标准、宏定义和常规编译选项；不能覆盖 driver 管理的 target、sysroot、输入语言、编译阶段和输出位置，也不改变 generated-C bridge 或 runtime 的编译配置。
 - `native.libraries` 按第 8 节的 `when` 筛选后进入 `.slib` 的逻辑 native library requirement，沿依赖闭包传递，与 `@Extern(lib = ...)` 共用合并和冲突规则。D6 已确定允许从所选 target 的系统目录/SDK 解析，细则见 7.3；C++ 开关产生的运行库需求也进入产物。

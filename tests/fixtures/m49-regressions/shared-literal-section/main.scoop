@@ -1,0 +1,16 @@
+fun select(index: Int, value: Long): Long = when (index) {
+    case 0 -> value + 2L
+    case 1 -> value * 3L
+    case 2 -> value / 5L
+    case 3 -> value % 7L
+    case 4 -> value shl 2L
+    case 5 -> value shr 3L
+    case 6 -> value xor 41L
+    case 7 -> value and 13L
+    case 8 -> value or 91L
+    case 9 -> -value
+    case 10 -> Array<Long>(value) { it }.size
+    case 11 -> value * value
+    else -> value
+}
+fun main() { for (index in 0..<13) println(select(index, 10L)) }

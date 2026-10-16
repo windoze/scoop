@@ -138,11 +138,10 @@ Module
     local %90 $new.2: ptr<managed>
     local %91 $call.3: struct0
     local %92 $call.4: struct0
-    local %93 $catch.5: ptr<managed>
-    local %94 $sc.1: struct0
-    local %95 $sc.2: exception_record
-    local %96 $sc.3: ptr<raw>
-    local %97 $sc.4: ptr<managed>
+    local %93 $sc.1: struct0
+    local %94 $sc.2: exception_record
+    local %95 $sc.3: ptr<raw>
+    local %96 $sc.4: ptr<managed>
   block entry
     poll managed-void-target8 sp<managed-poll:0> live=[]
     store f64(0x3ff4000000000000) -> local0
@@ -264,8 +263,8 @@ Module
     store local59 -> local67
     store local60 -> local68
     store local61 -> local69
-    store local68 -> local94
-    call managed-direct-target5 sp<managed-call:10> live=[] t27 = sig=direct7 (i64, i64, i64, i64, i64, i64, indirect<struct0 size=16 align=8 scan=none>, f64) -> struct0 external-fn8(local62, local63, local64, local65, local66, local67, indirect local94, local69)
+    store local68 -> local93
+    call managed-direct-target5 sp<managed-call:10> live=[] t27 = sig=direct7 (i64, i64, i64, i64, i64, i64, indirect<struct0 size=16 align=8 scan=none>, f64) -> struct0 external-fn8(local62, local63, local64, local65, local66, local67, indirect local93, local69)
     store t27 -> local70
     t28 = extract local70, 0 : f64
     store t28 -> local71
@@ -296,43 +295,41 @@ Module
     br @try.body.17
   block try.unwind.10
     (t35, t36) = landingpad : (exception_record, ptr<raw>)
-    store t35 -> local95
-    store t36 -> local96
+    store t35 -> local94
+    store t36 -> local95
     br @try.dispatch.11
   block try.dispatch.11
-    t37 = begin_catch local96 : ptr<managed>
-    store t37 -> local97
-    call no-gc-direct-target2 t38 = sig=direct9 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local97, external-td10)
+    t37 = begin_catch local95 : ptr<managed>
+    store t37 -> local96
+    call no-gc-direct-target2 t38 = sig=direct9 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local96, external-td10)
     cbr t38 then @try.catch.18 else @try.next.19
   block try.handler_pad.12
     (t39, t40) = cleanup_pad : (exception_record, ptr<raw>)
-    store t39 -> local95
-    store t40 -> local96
+    store t39 -> local94
+    store t40 -> local95
     br @try.handler_cleanup.13
   block try.handler_cleanup.13
     end_catch
-    resume local95
+    resume local94
   block try.exit_pad.14
     (t41, t42) = cleanup_pad : (exception_record, ptr<raw>)
-    store t41 -> local95
-    store t42 -> local96
+    store t41 -> local94
+    store t42 -> local95
     br @try.exit_cleanup.15
   block try.exit_cleanup.15
     end_catch
-    resume local95
+    resume local94
   block try.end.16
     store global1 -> local87
     store local87 -> local88
-    call managed-void-target6 sp<managed-call:14> live=[local88:ptr<managed>@0] sig=void6 (ptr<managed>) local-fn4(local88)
+    call managed-void-target6 sp<managed-call:13> live=[local88:ptr<managed>@0] sig=void6 (ptr<managed>) local-fn4(local88)
     t43 = aggregate () : {}
     ret
   block try.body.17
     invoke managed-direct-target7 sp<managed-invoke:0> roots=[local80:argument] t44 = sig=direct10 (ptr<managed>, parts<struct0 [f64@0+8/8,i64@8+8/8]>) -> struct0 dispatch[Closure:2] local80(local80, local4) normal @invoke.normal.1 unwind @try.unwind.10
     br @invoke.normal.1
   block try.catch.18
-    call managed-direct-target8 sp<managed-call:13> live=[local97:ptr<managed>@0] t48 = sig=direct11 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local97)
-    store t48 -> local93
-    store local93 -> local86
+    store local96 -> local86
     br @scope.20
   block try.next.19
     invoke no-gc-void-target0 sig=void8 () runtime @scoop_rt_rethrow() normal @rethrow.normal.3 unwind @try.exit_pad.14
@@ -360,11 +357,10 @@ Module
     unreachable
   fun @scoop$1$cb$2ff6134ce89bc620ccb7880f2e47065a333ae7e60ffc9b186fda47f102fcd769(parts<struct0 [f64@0+8/8,i64@8+8/8]>) -> parts<struct0 [f64@0+8/8,i64@8+8/8]>
     local %0 $dependency.local.1: ptr<managed>
-    local %1 $catch.1: ptr<managed>
-    local %2 $return.2: struct0
-    local %3 $sc.1: exception_record
-    local %4 $sc.2: ptr<raw>
-    local %5 $sc.3: ptr<managed>
+    local %1 $return.1: struct0
+    local %2 $sc.1: exception_record
+    local %3 $sc.2: ptr<raw>
+    local %4 $sc.3: ptr<managed>
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     br @try.body.8
@@ -413,7 +409,7 @@ Module
   fun @scoop$1$cb$caf85df90a88c939f8093503ddfd21a486f1bf55e87677cffeefb5c544e2e28f(i32, ptr<raw>, ptr<raw>) -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
-    call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(external-td4)
+    call managed-direct-target0 sp<managed-call:0> live=[] t3 = sig=direct0 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(external-td4)
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn2() normal @success unwind @failure
     br @success
   block success
@@ -422,8 +418,7 @@ Module
   block failure
     (t0, t1) = landingpad : (exception_record, ptr<raw>)
     t2 = begin_catch t1 : ptr<managed>
-    call managed-direct-target0 sp<managed-call:1> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
-    global_store global3, t3
+    global_store global3, t2
     end_catch
     ret integer<UInt>(0x00000001)
   td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Compare);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Double)]) @scoop$1$td$f8665cd8a65b277b1e26f49d9dfc76d6fc084e5aec27044b7cd0c00038b19953 type-id=4622460905777130009 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]

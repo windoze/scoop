@@ -102,7 +102,7 @@ fn invalid_or_missing_manifest_is_an_input_error_and_does_not_publish_a_record()
         ManifestRootErrorKind::Parse(_)
     ));
     assert!(
-        std::fs::read_dir(cache.as_path().join("manifests-v1"))
+        std::fs::read_dir(cache.as_path().join("manifests-v2"))
             .unwrap()
             .all(|entry| entry.unwrap().path().extension().unwrap() == "lock")
     );

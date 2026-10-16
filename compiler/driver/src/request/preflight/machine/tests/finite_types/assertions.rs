@@ -59,16 +59,32 @@ pub(super) fn materializations(
                     assert_eq!(actual.fields.len(), produced.fields.len());
                     for (actual, produced) in actual.fields.iter().zip(&produced.fields) {
                         assert_eq!(actual.identity, produced.field);
-                        assert_eq!(
-                            module
-                                .meta
-                                .source_exact_types
-                                .get(&actual.ty)
-                                .unwrap()
-                                .identity_record()
-                                .id(),
-                            produced.value
-                        );
+                        let exact = module
+                            .meta
+                            .source_exact_types
+                            .get(&actual.ty)
+                            .map(|identity| identity.identity_record().id())
+                            .unwrap_or_else(|| {
+                                let location = match actual.ty {
+                                    scoop_mir::Type::Context(storage) => {
+                                        scoop_mir::GeneratedExactTypeLocation::Context(storage)
+                                    }
+                                    scoop_mir::Type::Class(class) => {
+                                        scoop_mir::GeneratedExactTypeLocation::Class(class)
+                                    }
+                                    _ => {
+                                        panic!("a finite field has a source or generated identity")
+                                    }
+                                };
+                                module
+                                    .meta
+                                    .generated_exact_types
+                                    .get(location)
+                                    .unwrap()
+                                    .exact_record()
+                                    .id()
+                            });
+                        assert_eq!(exact, produced.value);
                     }
                 }
             }

@@ -125,20 +125,26 @@ files = [{"copy" = {"from" = "${work}/objects/m23_math.o", "to" = "${work}/nativ
 checks = []
 
 [[steps]]
-name = "previous_reject_constructor"
+name = "previous_link_constructor"
 files = [{"write" = {"path" = "${work}/program", "data" = "previous executable"}}]
 checks = []
 
 [[steps]]
-name = "reject_constructor"
-diagnostics_normalize = ["native-digests"]
+name = "link_constructor"
 argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native", "--cache-dir", "${cache}"]
-exit = 1
+exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
-diagnostics = {"file" = "reject_constructor.json"}
-checks = [{"file" = "${work}/program", "equals" = "previous executable"}]
+diagnostics = []
+checks = [{"actual" = "${link_constructor.result.kind}", "equals" = "link"}]
+
+[[steps]]
+name = "run_constructor"
+argv = ["${work}/program"]
+exit = 0
+stdout = "43\n"
+stderr = ""
 
 [[steps]]
 name = "prepare_input_common"

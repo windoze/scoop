@@ -1,0 +1,36 @@
+package asyncio.consumer
+
+import scoop.asyncio.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.*
+import scoop.test.*
+
+private class PacketValue(val value: Int)
+
+@Test
+private class AsyncioConsumerTest {
+    @Test
+    fun `production artifacts expose generic results resource use and native IO`() {
+        val loop: EventLoop = LibuvEventLoop()
+        val result = loop.runWithResult<PacketValue> suspend { scope ->
+            assertSame(loop, currentEventLoop())
+            val socket = loop.bindUdp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
+            val value = socket.useAsync<AsyncUdpSocket, Int> suspend { owned ->
+                NativeByteBuffer.allocate(1L).use suspend { input ->
+                    val receiving = scope.async<Datagram> suspend { owned.receiveFrom(input, 1L) }
+                    NativeByteBuffer.allocate(1L).use suspend { output ->
+                        output.writeByte(42)
+                        assertEquals(1L, owned.sendTo(output, owned.localAddress, 1L))
+                    }
+                    gcCollect()
+                    val packet = receiving.await()
+                    assertEquals(1L, packet.count)
+                    assertEquals(owned.localAddress, packet.source)
+                    input.readByte().toInt32()
+                }
+            }
+            PacketValue(value)
+        }
+        assertEquals(42, result.value)
+    }
+}

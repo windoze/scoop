@@ -1,0 +1,79 @@
+package scoop.asyncio
+
+import scoop.platform.fs.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.system.*
+
+public interface AsyncFile : AsyncByteSource, AsyncByteSink, AsyncCloseable {
+    public suspend fun syncData()
+    public suspend fun syncAll()
+}
+
+internal class WorkerFile(private val owner: OwnedFile) : AsyncFile {
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long =
+        transferFile(owner, buffer, count, false)
+    public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long =
+        transferFile(owner, buffer, count, true)
+    public override suspend fun close() { owner.close() }
+    public override suspend fun flush() { owner.loop.requireJob(); owner.reserve().dispose() }
+    public override suspend fun syncData() { sync(true) }
+    public override suspend fun syncAll() { sync(false) }
+
+    private suspend fun sync(dataOnly: Boolean) {
+        val job = owner.loop.requireJob()
+        val reservation = owner.reserve()
+        try {
+            suspendCoroutine<Unit> { continuation ->
+                val operation = LoopOperation(owner.loop.state, owner.loop.state.nextOperation(),
+                    { _, id -> @Unsafe { return@LoopOperation nativeStatus(id, nativeFileSync(owner.pointer, id, dataOnly)) } },
+                    { native, id -> @Unsafe { nativeWorkCancel(native, id) } },
+                    { event, selected -> finishUnit(continuation,
+                        completionFailure("file sync", event.result, selected, Some(owner.context))) })
+                operation.subscribe(job)
+                owner.attach(operation)
+                owner.loop.state.submit(operation)
+            }
+        } finally { reservation.dispose() }
+    }
+}
+
+internal suspend fun openFileOnLoop(loop: LibuvEventLoop, path: Path, options: OpenOptions): AsyncFile {
+    val job = loop.requireJob()
+    val flags = options.nativeFlags()
+    val context = path.toOsString()
+    return suspendCoroutine<AsyncFile> { continuation ->
+        val operation = LoopOperation(loop.state, loop.state.nextOperation(),
+            { native, id -> @Unsafe {
+                return@LoopOperation path.withNativePath { pointer -> @Unsafe {
+                    return@withNativePath nativeStatus(id, nativeFileOpen(native, id, pointer, flags, options.mode))
+                } }
+            } },
+            { native, id -> @Unsafe { nativeWorkCancel(native, id) } },
+            { event, selected ->
+                when (event.result) {
+                    case Created(pointer) -> {
+                        val owner = OwnedFile(loop, pointer, context)
+                        loop.state.retain(owner)
+                        when (selected) {
+                            case None -> continuation.resume(WorkerFile(owner))
+                            case Some(error) -> owner.closeOnLoop { cleanup ->
+                                continuation.resumeWithException(when (cleanup) {
+                                    case Some(value) -> ResourceUseException(error, value)
+                                    case None -> error
+                                })
+                            }
+                        }
+                    }
+                    case _ -> continuation.resumeWithException(completionFailure("file open", event.result, selected, Some(context))
+                        ?: IllegalStateException(Some("open returned no file")))
+                }
+            })
+        operation.subscribe(job)
+        loop.state.submit(operation)
+    }
+}
+
+@Extern(name = "scoop_io_file_open")
+private fun nativeFileOpen(loop: Ptr<Unit>, id: Long, path: Ptr<Byte>, flags: Int, mode: Int): Int
+@Extern(name = "scoop_io_file_sync")
+private fun nativeFileSync(file: Ptr<Unit>, id: Long, dataOnly: Boolean): Int

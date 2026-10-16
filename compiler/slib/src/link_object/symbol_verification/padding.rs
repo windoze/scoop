@@ -32,15 +32,15 @@ pub(super) fn validate_and_assign_zero_padding(
                     index: u32::try_from(ordinal_index).unwrap_or(u32::MAX),
                 },
             )?;
-        if literal_pools.contains_section(ordinal) {
-            continue;
-        }
         let section_end = section
             .virtual_address()
             .checked_add(section.byte_size())
             .ok_or(
                 StrongObjectDefinitionValidationError::InvalidSectionByteRange { section: ordinal },
             )?;
+        if literal_pools.contains_range(ordinal, section.virtual_address(), section_end) {
+            continue;
+        }
         let Some(ranges) = ranges_by_section.get_mut(&ordinal) else {
             if section.byte_size() != 0
                 && (sections.roles()[index] != BuiltinObjectSectionRoleV1::ReadOnlyData
@@ -72,6 +72,7 @@ pub(super) fn validate_and_assign_zero_padding(
         };
         ranges.sort_unstable_by_key(|range| (range.start, range.end, range.atom));
         if ranges[0].start != section.virtual_address()
+            && !literal_pools.contains_range(ordinal, section.virtual_address(), ranges[0].start)
             && (sections.roles()[index] != BuiltinObjectSectionRoleV1::ReadOnlyData
                 || padding_bytes(
                     bytes,

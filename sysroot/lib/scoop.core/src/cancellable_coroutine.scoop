@@ -1,0 +1,94 @@
+public class CancellableContinuation<T> internal constructor(continuation: Continuation<T>) {
+    private val lock: CoroutineLock = CoroutineLock()
+    private var continuation: Continuation<T>? = Some(continuation)
+    private var jobRegistration: Disposable? = None
+    private var cancellation: CancellationException? = None
+    private val listeners: CoroutineListeners = CoroutineListeners()
+
+    internal fun bind(job: Job) {
+        val registration = job.invokeOnCancellation { error -> cancel(error) }
+        val finished = lock.withLock {
+            if (coroutineAbsent(continuation)) return@withLock true
+            jobRegistration = Some(registration)
+            false
+        }
+        if (finished) registration.dispose()
+    }
+
+    internal val isCompleted: Boolean get() = lock.withLock { coroutineAbsent(continuation) }
+
+    private fun take(reason: CancellationException?): Continuation<T>? = lock.withLock {
+        val target = continuation
+        if (coroutineAbsent(target)) return@withLock None
+        continuation = None
+        cancellation = reason
+        when (jobRegistration) {
+            case Some(registration) -> registration.dispose()
+            case None -> {}
+        }
+        jobRegistration = None
+        target
+    }
+
+    private fun discardListeners() {
+        for (listener in listeners.take()) listener.dispose()
+    }
+
+    public fun tryResume(value: T): Boolean {
+        when (take(None)) {
+            case None -> return false
+            case Some(target) -> {
+                discardListeners()
+                target.resume(value)
+                return true
+            }
+        }
+    }
+
+    public fun tryResumeWithException(exception: Throwable): Boolean {
+        when (take(None)) {
+            case None -> return false
+            case Some(target) -> {
+                discardListeners()
+                target.resumeWithException(exception)
+                return true
+            }
+        }
+    }
+
+    private fun cancel(error: CancellationException) {
+        when (take(Some(error))) {
+            case None -> {}
+            case Some(target) -> {
+                try { notifyCoroutineListeners(listeners.take()) }
+                finally { target.resumeWithException(error) }
+            }
+        }
+    }
+
+    public fun invokeOnCancellation(handler: (CancellationException) -> Unit): Disposable {
+        val listener = lock.withLock {
+            val entry = listeners.add { handler(cancellation!!) }
+            if (coroutineAbsent(continuation) && coroutineAbsent(cancellation)) entry.dispose()
+            entry
+        }
+        val cancelled = lock.withLock { !coroutineAbsent(cancellation) }
+        if (cancelled) listener.fire()
+        return listener
+    }
+}
+
+public suspend fun <T> suspendCancellableCoroutine(registration: (CancellableContinuation<T>) -> Unit): T =
+    suspendCoroutine<T> { raw ->
+        val continuation = CancellableContinuation<T>(raw)
+        when (currentJobOrNull()) {
+            case Some(job) -> continuation.bind(job)
+            case None -> {}
+        }
+        if (!continuation.isCompleted) {
+            try { registration(continuation) }
+            catch (error: Throwable) {
+                if (!continuation.tryResumeWithException(error)) throw error
+            }
+        }
+    }

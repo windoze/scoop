@@ -9,7 +9,6 @@ fun action(trace: Trace, phase: Int, failing: Int, cleanupFails: Boolean): TestA
         trace.events = trace.events * 10 + phase
         try {
             if (phase == failing || (phase == 4 && cleanupFails)) throw PhaseFailure(phase)
-            Unit
         } finally { trace.finalized += 1 }
     }, SourceLocation("phase.scoop", phase.toInt64(), 1, "action", ""))
 }

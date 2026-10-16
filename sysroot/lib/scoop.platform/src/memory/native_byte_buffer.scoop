@@ -10,21 +10,28 @@ public class NativeByteBuffer private constructor() : Disposable {
     private var writer: Long = 0L
     private var disposed: Boolean = false
     private var borrowed: Boolean = false
+    private val stateLock: AtomicBoolean = AtomicBoolean(false)
 
-    public val capacity: Long get() { requireOpen(); return storageCapacity }
-    public val readPosition: Long get() { requireOpen(); return reader }
-    public val writePosition: Long get() { requireOpen(); return writer }
-    public val readableBytes: Long get() { requireOpen(); return writer - reader }
-    public val writableBytes: Long get() { requireOpen(); return storageCapacity - writer }
-    public val isDisposed: Boolean get() = disposed
+    public val capacity: Long get() = withState { requireOpen(); storageCapacity }
+    public val readPosition: Long get() = withState { requireOpen(); reader }
+    public val writePosition: Long get() = withState { requireOpen(); writer }
+    public val readableBytes: Long get() = withState { requireOpen(); writer - reader }
+    public val writableBytes: Long get() = withState { requireOpen(); storageCapacity - writer }
+    public val isDisposed: Boolean get() = withState { disposed }
 
     public companion object {
         public fun allocate(capacity: Long = 0L): NativeByteBuffer {
             requireCount(capacity)
             val result = NativeByteBuffer()
-            if (capacity > 0L) result.resize(capacity)
+            if (capacity > 0L) result.ensureWritable(capacity)
             return result
         }
+    }
+
+    private fun <T> withState(block: () -> T): T {
+        while (!stateLock.compareAndSet(false, true, MemoryOrder.Acquire, MemoryOrder.Relaxed)) {}
+        try { return block() }
+        finally { stateLock.store(false, MemoryOrder.Release) }
     }
 
     private fun requireOpen() {
@@ -68,117 +75,141 @@ public class NativeByteBuffer private constructor() : Disposable {
     }
 
     public fun ensureWritable(count: Long) {
-        requireMutable()
-        requireCount(count)
-        if (count <= storageCapacity - writer) return
-        if (count > Long.MAX_VALUE - writer) throw ArithmeticException()
-        val needed = writer + count
-        val grown = if (storageCapacity <= Long.MAX_VALUE / 2L) storageCapacity * 2L else Long.MAX_VALUE
-        resize(if (grown > needed) grown else needed)
+        withState {
+            requireMutable()
+            requireCount(count)
+            if (count <= storageCapacity - writer) return@withState
+            if (count > Long.MAX_VALUE - writer) throw ArithmeticException()
+            val needed = writer + count
+            val grown = if (storageCapacity <= Long.MAX_VALUE / 2L) storageCapacity * 2L else Long.MAX_VALUE
+            resize(if (grown > needed) grown else needed)
+        }
     }
 
     public fun clear() {
-        requireMutable()
-        reader = 0L
-        writer = 0L
+        withState {
+            requireMutable()
+            reader = 0L
+            writer = 0L
+        }
     }
 
     public fun compact() {
-        requireMutable()
-        val count = writer - reader
-        if (count > 0L && reader > 0L) {
-            @Unsafe { nativeMemoryMove(memory!!, memory!! + reader, count) }
+        withState {
+            requireMutable()
+            val count = writer - reader
+            if (count > 0L && reader > 0L) {
+                @Unsafe { nativeMemoryMove(memory!!, memory!! + reader, count) }
+            }
+            reader = 0L
+            writer = count
         }
-        reader = 0L
-        writer = count
     }
 
     public fun skip(count: Long) {
-        requireReadable(count)
-        reader += count
+        withState {
+            requireReadable(count)
+            reader += count
+        }
     }
 
     public fun getByte(index: Long): Byte {
-        requireIndex(index)
-        @Unsafe { return memory!!.load(index) }
+        return withState {
+            requireIndex(index)
+            @Unsafe { return@withState memory!!.load(index) }
+        }
     }
 
     public fun setByte(index: Long, value: Byte) {
-        requireMutable()
-        requireIndex(index)
-        @Unsafe { memory!!.store(index, value) }
+        withState {
+            requireMutable()
+            requireIndex(index)
+            @Unsafe { memory!!.store(index, value) }
+        }
     }
 
     public fun readByte(): Byte = readInt8()
     public fun writeByte(value: Byte) { writeInt8(value) }
 
     public fun readBytes(count: Long): Array<Byte> {
-        requireReadable(count)
-        val start = reader
-        val result = Array<Byte>(count) { index -> @Unsafe { return@Array memory!!.load(start + index) } }
-        reader += count
-        return result
+        return withState {
+            requireReadable(count)
+            val start = reader
+            val result = Array<Byte>(count) { index -> @Unsafe { return@Array memory!!.load(start + index) } }
+            reader += count
+            return@withState result
+        }
     }
 
     public fun readInto(array: MutableArray<Byte>, offset: Long = 0L, count: Long = array.size - offset) {
-        requireReadable(count)
-        requireArrayRange(array.size, offset, count)
-        if (count > 0L) {
-            @Unsafe {
-                array.withDataPointer { pointer, _ -> @Unsafe { nativeMemoryMove(pointer + offset, memory!! + reader, count) } }
+        withState {
+            requireReadable(count)
+            requireArrayRange(array.size, offset, count)
+            if (count > 0L) {
+                @Unsafe {
+                    array.withDataPointer { pointer, _ -> @Unsafe { nativeMemoryMove(pointer + offset, memory!! + reader, count) } }
+                }
             }
+            reader += count
         }
-        reader += count
     }
 
     public fun writeBytes(array: Array<Byte>, offset: Long = 0L, count: Long = array.size - offset) {
-        requireWritable(count)
-        requireArrayRange(array.size, offset, count)
-        if (count > 0L) {
-            @Unsafe {
-                array.withDataPointer { pointer, _ -> @Unsafe { nativeMemoryMove(memory!! + writer, pointer + offset, count) } }
+        withState {
+            requireWritable(count)
+            requireArrayRange(array.size, offset, count)
+            if (count > 0L) {
+                @Unsafe {
+                    array.withDataPointer { pointer, _ -> @Unsafe { nativeMemoryMove(memory!! + writer, pointer + offset, count) } }
+                }
             }
+            writer += count
         }
-        writer += count
     }
 
     public fun writeBytes(array: MutableArray<Byte>, offset: Long = 0L, count: Long = array.size - offset) {
-        requireWritable(count)
-        requireArrayRange(array.size, offset, count)
-        if (count > 0L) {
-            @Unsafe {
-                array.withDataPointer { pointer, _ -> @Unsafe { nativeMemoryMove(memory!! + writer, pointer + offset, count) } }
+        withState {
+            requireWritable(count)
+            requireArrayRange(array.size, offset, count)
+            if (count > 0L) {
+                @Unsafe {
+                    array.withDataPointer { pointer, _ -> @Unsafe { nativeMemoryMove(memory!! + writer, pointer + offset, count) } }
+                }
             }
+            writer += count
         }
-        writer += count
     }
 
     private fun read(width: Long, order: ByteOrder): ULong {
-        requireReadable(width)
-        var value = 0uL
-        var index = 0L
-        @Unsafe {
-            while (index < width) {
-                val offset = if (order == ByteOrder.BIG_ENDIAN) index else width - index - 1L
-                value = (value shl 8L) or memory!!.load(reader + offset).toUInt8().toUInt64()
-                index += 1L
+        return withState {
+            requireReadable(width)
+            var value = 0uL
+            var index = 0L
+            @Unsafe {
+                while (index < width) {
+                    val offset = if (order == ByteOrder.BIG_ENDIAN) index else width - index - 1L
+                    value = (value shl 8L) or memory!!.load(reader + offset).toUInt8().toUInt64()
+                    index += 1L
+                }
             }
+            reader += width
+            return@withState value
         }
-        reader += width
-        return value
     }
 
     private fun write(value: ULong, width: Long, order: ByteOrder) {
-        requireWritable(width)
-        var index = 0L
-        @Unsafe {
-            while (index < width) {
-                val shift = (if (order == ByteOrder.BIG_ENDIAN) width - index - 1L else index) * 8L
-                memory!!.store(writer + index, (value shr shift).toInt8())
-                index += 1L
+        withState {
+            requireWritable(width)
+            var index = 0L
+            @Unsafe {
+                while (index < width) {
+                    val shift = (if (order == ByteOrder.BIG_ENDIAN) width - index - 1L else index) * 8L
+                    memory!!.store(writer + index, (value shr shift).toInt8())
+                    index += 1L
+                }
             }
+            writer += width
         }
-        writer += width
     }
 
     public fun readInt8(): Int8 = read(1L, ByteOrder.BIG_ENDIAN).toInt8()
@@ -205,41 +236,64 @@ public class NativeByteBuffer private constructor() : Disposable {
 
     @Unsafe
     public fun <R> withReadableBytes(block: (Ptr<Byte>?, Long) -> R): R {
-        requireMutable()
-        val count = writer - reader
-        val pointer = if (count == 0L) None else Some(memory!! + reader)
-        borrowed = true
-        try { return block(pointer, count) }
-        finally { borrowed = false }
+        val borrow = beginBorrow(None, false)
+        try { return block(borrow.pointer(), borrow.length) }
+        finally { borrow.complete(0L) }
     }
 
     @Unsafe
     public fun withWritableBytes(block: (Ptr<Byte>?, Long) -> Long): Long {
+        val borrow = beginBorrow(None, true)
+        val count = try { block(borrow.pointer(), borrow.length) }
+        catch (error: Throwable) { borrow.complete(0L); throw error }
+        borrow.complete(count)
+        return count
+    }
+
+    @Unsafe
+    public fun borrowReadable(count: Long): NativeByteBorrow = beginBorrow(Some(count), false)
+
+    @Unsafe
+    public fun borrowWritable(count: Long): NativeByteBorrow = beginBorrow(Some(count), true)
+
+    private fun beginBorrow(count: Long?, writable: Boolean): NativeByteBorrow = withState {
         requireMutable()
-        val available = storageCapacity - writer
-        val pointer = if (available == 0L) None else Some(memory!! + writer)
-        borrowed = true
-        try {
-            val count = block(pointer, available)
-            if (count < 0L || count > available) throw IllegalArgumentException(Some("invalid written byte count"))
-            writer += count
-            return count
-        } finally { borrowed = false }
+        val available = if (writable) storageCapacity - writer else writer - reader
+        val length = count ?: available
+        requireCount(length)
+        if (length > available) throw IndexOutOfBoundsException()
+        val offset = if (writable) writer else reader
+        @Unsafe {
+            val pointer: Ptr<Byte>? = if (length == 0L) None else Some(memory!! + offset)
+            val borrow = NativeByteBorrow(this, pointer, length, writable)
+            borrowed = true
+            return@withState borrow
+        }
+    }
+
+    internal fun finishBorrow(count: Long, length: Long, writable: Boolean) {
+        withState {
+            borrowed = false
+            if (count < 0L || count > length) throw IllegalArgumentException(Some("invalid borrowed byte count"))
+            if (writable) writer += count else reader += count
+        }
     }
 
     public override fun dispose() {
-        if (disposed) return
-        requireMutable()
-        val owned = memory
-        val capacity = storageCapacity
-        memory = None
-        storageCapacity = 0L
-        reader = 0L
-        writer = 0L
-        disposed = true
-        when (owned) {
-            case Some(pointer) -> @Unsafe { nativeMemoryFree(pointer); gcAdjustPressure(-capacity) }
-            case None -> {}
+        withState {
+            if (disposed) return@withState
+            requireMutable()
+            val owned = memory
+            val capacity = storageCapacity
+            memory = None
+            storageCapacity = 0L
+            reader = 0L
+            writer = 0L
+            disposed = true
+            when (owned) {
+                case Some(pointer) -> @Unsafe { nativeMemoryFree(pointer); gcAdjustPressure(-capacity) }
+                case None -> {}
+            }
         }
     }
 

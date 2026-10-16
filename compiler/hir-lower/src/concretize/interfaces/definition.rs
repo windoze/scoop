@@ -7,6 +7,7 @@ pub(super) struct ResolvedInterfaceDefinition<'a> {
     pub parents: &'a [export::TypeId],
     pub members: export::TypeId,
     pub automatic_methods: &'a [export::InterfaceMethodId],
+    pub automatic_private_methods: &'a [export::FunctionId],
     pub span: scoop_ast::Span,
 }
 

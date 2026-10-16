@@ -6,13 +6,17 @@ public enum PlatformErrorKind {
     AddressInUse, AddressUnavailable, TimedOut, Interrupted, WouldBlock, Unsupported, Other
 }
 
-public enum NativeErrorDomain { PosixErrno, AddressResolution }
+public enum NativeErrorDomain { PosixErrno, AddressResolution, Libuv }
 
 public struct NativeError(val domain: NativeErrorDomain, val code: Int, val systemCode: Int? = None) {
     public val kind: PlatformErrorKind get() {
         @Unsafe {
-            val category = nativeErrorKind(if (domain == NativeErrorDomain.PosixErrno) 0 else 1,
-                code, systemCode ?: 0)
+            val domainCode = when (domain) {
+                case PosixErrno -> 0
+                case AddressResolution -> 1
+                case Libuv -> 2
+            }
+            val category = nativeErrorKind(domainCode, code, systemCode ?: 0)
             return errorKind(category)
         }
     }

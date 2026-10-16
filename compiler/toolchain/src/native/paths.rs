@@ -2,9 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use super::{ToolchainError, error};
-use scoop_manifest::{
-    ConeRelativePath, NativeCompileFlag, NativeConfig, NativeIncludeFlag, NativeSourceLanguage,
-};
+use scoop_manifest::{NativeCompileFlag, NativeConfig, NativeIncludeFlag, NativeSourceLanguage};
 
 pub(super) struct InputRoots {
     pub(super) cone: PathBuf,
@@ -15,10 +13,10 @@ pub(super) struct InputRoots {
 impl InputRoots {
     pub(super) fn checked_path(
         &self,
-        relative: &ConeRelativePath,
+        relative: &Path,
         directory: bool,
     ) -> Result<PathBuf, ToolchainError> {
-        let path = self.cone.join(relative.as_path());
+        let path = self.cone.join(relative);
         let resolved = path
             .canonicalize()
             .map_err(|e| error(format!("{}: {e}", path.display())))?;
@@ -26,7 +24,7 @@ impl InputRoots {
         if (directory && !metadata.is_dir()) || (!directory && !metadata.is_file()) {
             return Err(error(format!(
                 "{} must be a {}",
-                relative.as_str(),
+                relative.display(),
                 if directory {
                     "directory"
                 } else {

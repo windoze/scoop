@@ -1,0 +1,14 @@
+#ifndef SCOOP_ASYNCIO_CONFIG_H
+#define SCOOP_ASYNCIO_CONFIG_H
+
+#define _FILE_OFFSET_BITS 64
+#define _LARGEFILE_SOURCE 1
+#if defined(__APPLE__)
+#define _DARWIN_UNLIMITED_SELECT 1
+#define _DARWIN_USE_64_BIT_INODE 1
+#else
+#define _GNU_SOURCE 1
+#define _POSIX_C_SOURCE 200112
+#endif
+
+#endif

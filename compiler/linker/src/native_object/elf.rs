@@ -21,22 +21,16 @@ pub(super) fn index(
     let mut rejection = None;
     for section in file.sections() {
         let name = section.name().map_err(error)?;
-        let kind = section.elf_section_header().sh_type(file.endian());
-        if (!cxx
-            && (matches!(
-                kind,
-                elf::SHT_INIT_ARRAY | elf::SHT_FINI_ARRAY | elf::SHT_PREINIT_ARRAY
-            ) || matches!(name, ".init" | ".fini" | ".ctors" | ".dtors")))
-            || name == ".llvm.lto"
+        if name == ".llvm.lto"
             || name.starts_with(".gnu.lto_")
             || (name == ".note.GNU-stack"
                 && section.elf_section_header().sh_flags(file.endian())
                     & u64::from(elf::SHF_EXECINSTR)
                     != 0)
         {
-            rejection.get_or_insert_with(|| format!(
-                "native object contains unsupported initialization, LTO or executable-stack section {name}"
-            ));
+            rejection.get_or_insert_with(|| {
+                format!("native object contains unsupported LTO or executable-stack section {name}")
+            });
         }
     }
     for symbol in file.symbols().filter(|symbol| symbol.is_global()) {

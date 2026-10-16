@@ -2,7 +2,8 @@ use serde::Deserialize;
 use toml::Spanned;
 
 use super::{NativeCompileFlag, NativeConfig, NativeIncludeFlag, flags};
-use crate::{ConeRelativePath, ManifestParseError, ManifestParseErrorKind};
+use crate::{ManifestParseError, ManifestParseErrorKind};
+use std::path::PathBuf;
 
 #[derive(Deserialize, Default)]
 #[serde(deny_unknown_fields)]
@@ -49,8 +50,18 @@ impl RawNativeConfig {
     }
 }
 
-fn parse_path(value: Spanned<String>) -> Result<ConeRelativePath, ManifestParseError> {
-    ConeRelativePath::new(value.get_ref()).map_err(|reason| error(&value, reason))
+fn parse_path(value: Spanned<String>) -> Result<PathBuf, ManifestParseError> {
+    native_path(value.get_ref()).map_err(|reason| error(&value, reason))
+}
+
+fn native_path(value: &str) -> Result<PathBuf, &'static str> {
+    if value.is_empty() {
+        return Err("path must not be empty");
+    }
+    if value.contains('\0') {
+        return Err("path must not contain NUL");
+    }
+    Ok(PathBuf::from(value))
 }
 
 fn parse_flags(flags: Vec<Spanned<String>>) -> Result<Vec<NativeCompileFlag>, ManifestParseError> {
@@ -72,7 +83,7 @@ fn parse_flags(flags: Vec<Spanned<String>>) -> Result<Vec<NativeCompileFlag>, Ma
                         .ok_or_else(|| error(&flag, "include option requires a path"))?,
                 )?
             } else {
-                ConeRelativePath::new(suffix).map_err(|reason| error(&flag, reason))?
+                native_path(suffix).map_err(|reason| error(&flag, reason))?
             };
             result.push(NativeCompileFlag::Include { kind, path });
         } else if matches!(argument.as_str(), "-D" | "-U") {

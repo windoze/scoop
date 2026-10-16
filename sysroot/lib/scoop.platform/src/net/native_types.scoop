@@ -4,7 +4,7 @@ import scoop.platform.fs.File
 import scoop.platform.io.failNative
 
 @CLayout
-internal struct NativeSocketAddress(
+public struct NativeSocketAddress(
     val family: Int, val port: Int, val scopeId: UInt,
     val a: UInt, val b: UInt, val c: UInt, val d: UInt
 )

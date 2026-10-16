@@ -1,0 +1,75 @@
+public class Deferred<T> internal constructor(parent: Job?) : Job(parent) {
+    private var result: MaybeUninit<T> = MaybeUninit<T>.uninit()
+
+    internal fun succeed(value: T) {
+        result = MaybeUninit<T>.initialized(value)
+        finishBody(None)
+    }
+
+    internal fun getCompleted(): T {
+        when (finalFailure()) {
+            case Some(error) -> throw error
+            case None -> @Unsafe { return result.assumeInit() }
+        }
+    }
+
+    public suspend fun await(): T {
+        join()
+        return getCompleted()
+    }
+}
+
+public class CoroutineScope internal constructor(public val job: Job) {
+    public fun launch(block: suspend () -> Unit): Job = async(block)
+
+    public fun <T> async(block: suspend () -> T): Deferred<T> = startStructuredTask(Some(job), block)
+}
+
+context(job: Job)
+private fun boundCoroutineJob(): Job = job
+
+public fun currentJobOrNull(): Job? {
+    try { return Some(boundCoroutineJob()) }
+    catch (_: MissingContextException) { return None }
+}
+
+public fun ensureActive() {
+    when (currentJobOrNull()) {
+        case Some(job) -> job.ensureActive()
+        case None -> {}
+    }
+}
+
+internal fun <T> startStructuredTask(parent: Job?, block: suspend () -> T): Deferred<T> {
+    val task = Deferred<T>(parent)
+    when (parent) {
+        case Some(owner) -> owner.attach(task)
+        case None -> {}
+    }
+    val job: Job = task
+    context(job) {
+        startCoroutine<T>(suspend { job.ensureActive(); block() }, StructuredCompletion<T>(task))
+    }
+    return task
+}
+
+private class StructuredCompletion<T>(val task: Deferred<T>) : Continuation<T> {
+    public override fun resume(value: T) { task.succeed(value) }
+    public override fun resumeWithException(exception: Throwable) { task.finishBody(Some(exception)) }
+}
+
+public suspend fun <T> coroutineScope(block: suspend (CoroutineScope) -> T): T {
+    val parent = currentJobOrNull()
+    val task = Deferred<T>(parent)
+    when (parent) {
+        case Some(owner) -> owner.attach(task)
+        case None -> {}
+    }
+    val job: Job = task
+    val scope = CoroutineScope(job)
+    context(job) {
+        startCoroutine<T>(suspend { job.ensureActive(); block(scope) }, StructuredCompletion<T>(task))
+    }
+    task.joinUncancelled()
+    return task.getCompleted()
+}

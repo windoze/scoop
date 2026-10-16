@@ -1,0 +1,94 @@
+fun <T> absent(value: T?): Boolean = when (value) { case None -> true; case Some(_) -> false }
+
+fun check(value: Boolean) { if (!value) throw IllegalStateException(Some("registration assertion")) }
+
+class Completion<T> : Continuation<T> {
+    var done: Boolean = false
+    var error: Throwable? = None
+    public override fun resume(value: T) { check(!done); done = true }
+    public override fun resumeWithException(value: Throwable) { check(!done); error = Some(value); done = true }
+}
+
+class State {
+    var job: Job? = None
+    var pending: CancellableContinuation<Int>? = None
+    var count: Int = 0
+}
+
+fun cancellationHandlerFailures() {
+    val state = State()
+    val failure = Throwable()
+    val done = Completion<Unit>()
+    startCoroutine<Unit>(suspend {
+        coroutineScope<Unit> suspend { scope ->
+            state.job = Some(scope.job)
+            scope.job.invokeOnCancellation { _ -> throw failure }
+            scope.job.invokeOnCancellation { _ -> state.count += 1 }
+            try { suspendCancellableCoroutine<Int> { next -> state.pending = Some(next) } }
+            finally { state.count += 1 }
+        }
+    }, done)
+    state.job!!.cancel()
+    check(done.done && done.error!! === failure && state.count == 2)
+    var caught = false
+    try { state.job!!.invokeOnCancellation { _ -> throw failure } }
+    catch (error: Throwable) { check(error === failure); caught = true }
+    check(caught)
+    check(done.error!! === failure)
+}
+
+fun main() {
+    cancellationHandlerFailures()
+    val synchronous = Completion<Int>()
+    startCoroutine<Int>(suspend { suspendCancellableCoroutine<Int> { next -> check(next.tryResume(7)); check(!next.tryResume(8)) } }, synchronous)
+    check(synchronous.done && absent(synchronous.error))
+
+    val failure = Throwable()
+    val throwing = Completion<Int>()
+    startCoroutine<Int>(suspend { suspendCancellableCoroutine<Int> { _ -> throw failure } }, throwing)
+    check(throwing.error!! === failure)
+
+    val protocol = Completion<Int>()
+    startCoroutine<Int>(suspend { suspendCancellableCoroutine<Int> { next -> next.tryResume(7); throw failure } }, protocol)
+    check(protocol.error!! is IllegalStateException)
+
+    val state = State()
+    val cancelled = Completion<Unit>()
+    startCoroutine<Unit>(suspend {
+        coroutineScope<Unit> suspend { scope ->
+            state.job = Some(scope.job)
+            try {
+                suspendCancellableCoroutine<Int> { next ->
+                    state.pending = Some(next)
+                    scope.job.cancel()
+                    next.invokeOnCancellation { _ -> state.count += 1 }
+                    check(!next.tryResume(42))
+                }
+                check(false)
+            } finally { state.count += 1 }
+        }
+    }, cancelled)
+    check(cancelled.error!! is CancellationException)
+    check(state.count == 2)
+    check(!state.pending!!.tryResumeWithException(failure))
+
+    val completed = Completion<Unit>()
+    val late = State()
+    startCoroutine<Unit>(suspend {
+        coroutineScope<Unit> suspend { scope ->
+            late.job = Some(scope.job)
+            val value = suspendCancellableCoroutine<Int> { next ->
+                late.pending = Some(next)
+                next.tryResume(19)
+                scope.job.cancel()
+            }
+            check(value == 19)
+            try {
+                suspendCancellableCoroutine<Int> { _ -> late.count += 100 }
+                check(false)
+            } catch (_: CancellationException) { late.count += 1 }
+        }
+    }, completed)
+    check(late.count == 1 && completed.error!! is CancellationException)
+    println("registration ok")
+}

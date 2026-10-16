@@ -1,0 +1,17 @@
+package support
+
+private suspend fun next(): Int = suspendCoroutine<Int> { continuation -> continuation.resume(1) }
+
+public class Counter public constructor() {
+    internal suspend fun read(): Int = next()
+}
+
+public suspend fun <T> after(counter: Counter, value: T): T {
+    if (counter.read() != 1) throw IllegalStateException()
+    return value
+}
+
+public suspend fun <T> direct(value: T): T {
+    if (next() != 1) throw IllegalStateException()
+    return value
+}

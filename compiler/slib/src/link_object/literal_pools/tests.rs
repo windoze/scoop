@@ -10,7 +10,8 @@ fn local_table_preserves_the_complete_referenced_byte_span() {
     let (bytes, sections) = table();
     let pools = LiteralPools::read(&bytes, &sections, &[]).unwrap();
     let ordinal = NonZeroU32::new(2).unwrap();
-    assert!(pools.contains_section(ordinal));
+    assert!(pools.contains_range(ordinal, 4, 24));
+    assert!(!pools.contains_range(ordinal, 4, 25));
     assert_eq!(pools.at(ordinal, 4).unwrap().bytes(), &bytes[4..]);
     assert!(pools.at(ordinal, 5).is_none());
     assert!(pools.at(ordinal, 24).is_none());

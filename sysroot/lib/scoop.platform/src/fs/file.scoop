@@ -9,7 +9,7 @@ public struct OpenOptions(
     val create: Boolean = false, val createNew: Boolean = false, val truncate: Boolean = false,
     val mode: Int = 0x1b6
 ) {
-    internal fun nativeFlags(): Int {
+    public fun nativeFlags(): Int {
         if ((!read && !write) || ((append || truncate || create || createNew) && !write) || (append && truncate)) {
             throw IllegalArgumentException(Some("conflicting file open options"))
         }

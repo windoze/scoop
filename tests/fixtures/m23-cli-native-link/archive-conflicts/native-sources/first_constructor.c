@@ -1,1 +1,5 @@
-extern int helper(void); int m23_add(int x, int y) { return x + y + helper(); }
+extern int helper(void);
+
+int m23_add(int x, int y) {
+    return x + y + helper();
+}

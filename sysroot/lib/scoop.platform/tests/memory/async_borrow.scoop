@@ -1,0 +1,126 @@
+package scoop.platform.memory
+
+import scoop.platform.concurrent.Thread
+import scoop.platform.concurrent.yield
+import scoop.test.*
+
+private fun writableBorrow(buffer: NativeByteBuffer, count: Long): NativeByteBorrow {
+    @Unsafe { return buffer.borrowWritable(count) }
+}
+
+private fun readableBorrow(buffer: NativeByteBuffer, count: Long): NativeByteBorrow {
+    @Unsafe { return buffer.borrowReadable(count) }
+}
+
+private class BorrowGate : Continuation<Unit> {
+    var continuation: Continuation<Unit>? = None
+    var borrow: NativeByteBorrow? = None
+    var done: Boolean = false
+    public override fun resume(value: Unit) { done = true }
+    public override fun resumeWithException(error: Throwable) { throw error }
+}
+
+@Test
+private class NativeByteBufferAsyncBorrowTest {
+    @Test
+    fun `borrow keeps storage live across suspension and commits the initialized prefix`() {
+        NativeByteBuffer.allocate(4L).use { buffer ->
+            val gate = BorrowGate()
+            startCoroutine<Unit>(suspend {
+                val borrow = writableBorrow(buffer, 4L)
+                gate.borrow = Some(borrow)
+                suspendCoroutine<Unit> { next -> gate.continuation = Some(next) }
+                @Unsafe { borrow.complete(2L) }
+            }, gate)
+            assertFalse(gate.done)
+            assertEquals(0L, buffer.writePosition)
+            assertFailsWith<IndexOutOfBoundsException> { buffer.getByte(0L) }
+            assertFailsWith<IllegalStateException> { buffer.close() }
+            val borrow = gate.borrow!!
+            @Unsafe {
+                val pointer = borrow.pointer()!!
+                pointer.store(0L, 8.toInt8())
+                gcCollect()
+                pointer.store(1L, 9.toInt8())
+            }
+            gate.continuation!!.resume(Unit)
+            assertTrue(gate.done)
+            assertEquals(2L, buffer.writePosition)
+            assertEquals(8.toInt8(), buffer.readByte())
+            assertEquals(9.toInt8(), buffer.readByte())
+            assertFailsWith<IllegalStateException> { @Unsafe { borrow.pointer() } }
+            assertFailsWith<IllegalStateException> { @Unsafe { borrow.complete(0L) } }
+        }
+    }
+
+    @Test
+    fun `borrow rejects every mutation from another thread and records partial reads`() {
+        NativeByteBuffer.allocate(8L).use { buffer ->
+            buffer.writeBytes(Array<Byte>(4L) { it.toInt8() })
+            val borrow = readableBorrow(buffer, 3L)
+            Thread.start {
+                assertEquals(4L, buffer.writePosition)
+                assertEquals(2.toInt8(), buffer.getByte(2L))
+                assertFailsWith<IllegalStateException> { buffer.close() }
+                assertFailsWith<IllegalStateException> { buffer.ensureWritable(0L) }
+                assertFailsWith<IllegalStateException> { buffer.clear() }
+                assertFailsWith<IllegalStateException> { buffer.compact() }
+                assertFailsWith<IllegalStateException> { buffer.skip(0L) }
+                assertFailsWith<IllegalStateException> { buffer.setByte(0L, 1.toInt8()) }
+                assertFailsWith<IllegalStateException> { buffer.readByte() }
+                assertFailsWith<IllegalStateException> { buffer.writeByte(1.toInt8()) }
+                assertFailsWith<IllegalStateException> { @Unsafe { buffer.borrowReadable(0L) } }
+                assertFailsWith<IllegalStateException> { @Unsafe { buffer.borrowWritable(0L) } }
+                assertFailsWith<IllegalStateException> { @Unsafe { buffer.withReadableBytes { _, _ -> Unit } } }
+                gcCollect()
+                @Unsafe { assertEquals(1.toInt8(), borrow.pointer()!!.load(1L)); borrow.complete(2L) }
+            }.use { worker -> worker.join() }
+            assertEquals(2L, buffer.readPosition)
+            assertEquals(2.toInt8(), buffer.readByte())
+        }
+    }
+
+    @Test
+    fun `invalid counts release the borrow without publishing progress`() {
+        NativeByteBuffer.allocate(2L).use { buffer ->
+            assertFailsWith<IllegalArgumentException> { @Unsafe { buffer.borrowWritable(-1L) } }
+            assertFailsWith<IndexOutOfBoundsException> { @Unsafe { buffer.borrowWritable(3L) } }
+            val borrow = writableBorrow(buffer, 2L)
+            assertFailsWith<IllegalArgumentException> { @Unsafe { borrow.complete(3L) } }
+            assertEquals(0L, buffer.writePosition)
+            buffer.writeByte(7.toInt8())
+            val empty = writableBorrow(buffer, 0L)
+            @Unsafe { assertTrue(empty.pointer() == None); empty.complete(0L) }
+            assertEquals(1L, buffer.writePosition)
+        }
+    }
+
+    @Test
+    fun `concurrent borrowing has exactly one owner until both attempts finish`() {
+        NativeByteBuffer.allocate(1L).use { buffer ->
+            val ready = AtomicInt(0)
+            val attempted = AtomicInt(0)
+            val accepted = AtomicInt(0)
+            val rejected = AtomicInt(0)
+            val workers = Array<Thread>(2L) { _ -> Thread.start {
+                ready.fetchAdd(1)
+                while (ready.load() != 2) yield()
+                val borrow: NativeByteBorrow? = try {
+                    val result = writableBorrow(buffer, 1L)
+                    accepted.fetchAdd(1)
+                    Some(result)
+                } catch (_: IllegalStateException) { rejected.fetchAdd(1); None }
+                attempted.fetchAdd(1)
+                while (attempted.load() != 2) yield()
+                when (borrow) {
+                    case Some(owner) -> @Unsafe { owner.complete(0L) }
+                    case None -> {}
+                }
+            } }
+            for (worker in workers) worker.use { it.join() }
+            assertEquals(1, accepted.load())
+            assertEquals(1, rejected.load())
+            buffer.writeByte(1.toInt8())
+        }
+    }
+}

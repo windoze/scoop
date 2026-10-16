@@ -153,8 +153,8 @@ Module
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
-      call $exception: Throwable = @scoop_rt_materialize_exception direct
-        Type Any
+      val $exception: Throwable
+        Type Throwable
         CaughtException
       end_catch
       goto bb4
@@ -240,8 +240,8 @@ Module
     bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
-      call $exception: Throwable = @scoop_rt_materialize_exception direct
-        Type Any
+      val $exception: Throwable
+        Type Throwable
         CaughtException
       end_catch
       goto bb4

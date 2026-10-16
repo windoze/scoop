@@ -5,10 +5,10 @@ use scoop_identity::{
 };
 
 #[test]
-fn shared_callable_selection_uses_source_owners_signatures_visibility_and_abstract_overrides() {
+fn shared_callable_selection_includes_support_bodies_and_abstract_overrides() {
     let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../tests/fixtures/m23-core-layout-exports");
-    for (case, count) in [("standalone", 2), ("combined", 14)] {
+    for (case, count) in [("standalone", 3), ("combined", 15)] {
         let source =
             std::fs::read_to_string(directory.join(format!("shared-callables-{case}.scoop")))
                 .unwrap();
@@ -48,11 +48,7 @@ fn shared_callable_selection_uses_source_owners_signatures_visibility_and_abstra
                     _ => continue,
                 };
                 let generic = matches!(source.declaration(), Origin::GenericFunction(_));
-                assert_eq!(
-                    included,
-                    !generic && source.declared_visibility() != hir::DeclaredVisibilityV1::Private,
-                    "{case}: {key:?}",
-                );
+                assert_eq!(included, !generic, "{case}: {key:?}",);
                 assert_eq!(
                     old,
                     !generic && source.modality() != hir::CallableModalityV1::Abstract,

@@ -1,0 +1,120 @@
+package scoop.asyncio
+
+internal enum SocketKind { Tcp, Udp }
+internal enum SocketPhase { Open, Closing, Closed }
+internal interface LoopResource { public fun closeFromLoop() }
+
+internal class OwnedSocket(val loop: LibuvEventLoop, val pointer: Ptr<Unit>, val kind: SocketKind) : LoopResource {
+    private val lock: IoLock = IoLock()
+    private var phase: SocketPhase = SocketPhase.Open
+    private var inputBusy: Boolean = false
+    private var outputBusy: Boolean = false
+    private var input: LoopOperation? = None
+    private var output: LoopOperation? = None
+    private var outputEnded: Boolean = false
+    private var nativeClosed: Boolean = false
+    private var closeFailure: Throwable? = None
+    private var waiters: ArrayList<(Throwable?) -> Unit> = ArrayList<(Throwable?) -> Unit>()
+
+    val isClosed: Boolean get() = lock.withLock { phase == SocketPhase.Closed }
+    val isClosing: Boolean get() = lock.withLock { phase != SocketPhase.Open }
+
+    fun reserve(writing: Boolean): SocketReservation {
+        lock.withLock {
+            if (phase != SocketPhase.Open) throw IoClosedException()
+            if (if (writing) outputBusy else inputBusy) throw IllegalStateException(Some("socket direction is busy"))
+            if (writing && outputEnded) throw IllegalStateException(Some("TCP output was shut down"))
+            if (writing) outputBusy = true else inputBusy = true
+        }
+        return SocketReservation(this, writing)
+    }
+
+    fun attach(operation: LoopOperation, writing: Boolean) {
+        val closing = lock.withLock {
+            if (writing) output = Some(operation) else input = Some(operation)
+            phase != SocketPhase.Open
+        }
+        if (closing) operation.selectFailure(IoClosedException())
+    }
+
+    fun releaseDirection(writing: Boolean) {
+        lock.withLock {
+            if (writing) { outputBusy = false; output = None }
+            else { inputBusy = false; input = None }
+        }
+        loop.state.post { finishClose() }
+    }
+
+    fun markOutputEnded() { lock.withLock { outputEnded = true } }
+
+    suspend fun close() {
+        if (isClosed) return
+        loop.requireJob(false)
+        suspendCoroutine<Unit> { continuation ->
+            loop.state.post { closeOnLoop { error ->
+                when (error) {
+                    case Some(value) -> continuation.resumeWithException(value)
+                    case None -> continuation.resume(Unit)
+                }
+            } }
+        }
+    }
+
+    fun closeOnLoop(waiter: (Throwable?) -> Unit) {
+        val previous = lock.withLock {
+            val old = phase
+            if (old != SocketPhase.Closed) waiters.add(waiter)
+            if (old == SocketPhase.Open) phase = SocketPhase.Closing
+            old
+        }
+        if (previous == SocketPhase.Closed) { loop.state.ready.add { waiter(None) }; return }
+        if (previous == SocketPhase.Closing) return
+        val active = lock.withLock { (input, output) }
+        when (active._1) { case Some(operation) -> operation.selectFailure(IoClosedException()); case None -> {} }
+        when (active._2) { case Some(operation) -> operation.selectFailure(IoClosedException()); case None -> {} }
+        val closing = LoopOperation(loop.state, loop.state.nextOperation(),
+            { _, id -> @Unsafe { return@LoopOperation nativeStatus(id, when (kind) {
+                case Tcp -> nativeTcpClose(pointer, id)
+                case Udp -> nativeUdpClose(pointer, id)
+            }) } },
+            { _, _ -> },
+            { event, selected ->
+                lock.withLock {
+                    nativeClosed = true
+                    closeFailure = completionFailure("socket close", event.result, selected)
+                }
+                finishClose()
+            })
+        loop.state.submit(closing)
+    }
+
+    private fun finishClose() {
+        val completed: ArrayList<(Throwable?) -> Unit>? = lock.withLock {
+            if (phase != SocketPhase.Closing || !nativeClosed || inputBusy || outputBusy) return@withLock None
+            phase = SocketPhase.Closed
+            val callbacks = waiters
+            waiters = ArrayList<(Throwable?) -> Unit>()
+            Some(callbacks)
+        }
+        when (completed) {
+            case Some(callbacks) -> {
+                loop.state.forget(this)
+                for (callback in callbacks) loop.state.ready.add { callback(closeFailure) }
+            }
+            case None -> {}
+        }
+    }
+
+    public override fun closeFromLoop() {
+        closeOnLoop { error ->
+            when (error) { case Some(value) -> loop.state.cleanupFailed(value); case None -> {} }
+        }
+    }
+}
+
+internal class SocketReservation(private val owner: OwnedSocket, private val writing: Boolean) : Disposable {
+    private val released: AtomicBoolean = AtomicBoolean(false)
+    public override fun dispose() {
+        if (released.compareAndSet(false, true)) owner.releaseDirection(writing)
+    }
+}

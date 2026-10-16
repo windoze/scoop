@@ -3,6 +3,7 @@ use scoop_mir::{CanonicalMirCallableBindingsV1, MirTypeBridgeTypeIndexV1};
 use scoop_mir_lower::{SourceMirCallableProductionError as Error, lower_source_callable_bindings};
 
 mod assertions;
+mod private_interfaces;
 mod rejections;
 
 #[test]

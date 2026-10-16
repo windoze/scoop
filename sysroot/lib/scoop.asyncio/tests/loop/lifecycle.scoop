@@ -1,0 +1,59 @@
+package scoop.asyncio
+
+import scoop.test.*
+import scoop.time.Duration
+
+private class LoopMarker public constructor(val value: Int)
+
+@Test
+private class EventLoopLifecycleTest {
+    @Test
+    fun `interface run installs context and returns typed values after children`() {
+        val loop: EventLoop = LibuvEventLoop()
+        val completed = AtomicLong(0L)
+        val answer = loop.runWithResult<Int> suspend { scope ->
+            assertSame(loop, currentEventLoop())
+            assertSame(scope.job, currentJobOrNull()!!)
+            scope.launch suspend { loop.sleep(Duration.nanoseconds(1L)); completed.fetchAdd(1L) }
+            42
+        }
+        assertEquals(42, answer)
+        assertEquals(1L, completed.load())
+        assertFailsWith<MissingContextException> { currentEventLoop() }
+        assertFailsWith<IllegalStateException> { loop.run suspend { _ -> } }
+        val marker = LoopMarker(7)
+        val second: EventLoop = LibuvEventLoop()
+        assertSame(marker, second.runWithResult<LoopMarker> suspend { _ -> marker })
+    }
+
+    @Test
+    fun `root and unawaited child failures prevent returning a value`() {
+        val problem = IllegalArgumentException(Some("root failure"))
+        val first: EventLoop = LibuvEventLoop()
+        assertSame(problem, assertFailsWith<IllegalArgumentException> {
+            first.run suspend { _ -> throw problem }
+        })
+        val second: EventLoop = LibuvEventLoop()
+        assertSame(problem, assertFailsWith<IllegalArgumentException> {
+            second.runWithResult<Int> suspend { scope ->
+                scope.launch suspend { second.sleep(Duration.nanoseconds(1L)); throw problem }
+                42
+            }
+        })
+    }
+
+    @Test
+    fun `nested runs and wrong loop calls are rejected without consuming a new loop`() {
+        val outer: EventLoop = LibuvEventLoop()
+        val inner: EventLoop = LibuvEventLoop()
+        outer.run suspend { _ ->
+            assertFailsWith<IllegalStateException> { inner.run suspend { _ -> } }
+            try { inner.sleep(Duration.ZERO); fail(Some("wrong loop accepted")) }
+            catch (_: IllegalStateException) {}
+            try { outer.sleep(Duration.seconds(-1L)); fail(Some("negative duration accepted")) }
+            catch (_: IllegalArgumentException) {}
+            outer.sleep(Duration.ZERO)
+        }
+        inner.run suspend { _ -> }
+    }
+}

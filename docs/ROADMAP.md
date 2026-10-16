@@ -632,6 +632,12 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 2026-10-04 M27 设计修订并同步三份规范：替换旧 8.3 的 Kotlin 静态解析，采用 exact-type 动态 Context；以 scope 保存旧 root、callable 内 cell 列表和现有 managed gateway 完成恢复、链接与启动，删除旧草案的独立 undo/key-use/program support 机制。实现与功能验收尚未开始。
 - 2026-09-07 新增M27“Task-local Context”：保留Kotlin-like的`context(name: T)`/`context(value) { ... }`表面，以canonical exact static type为key，结合结构化动态binding和logical-task传播重写原spec 8.3 context parameters。首版不做子类型兼容解析或静态effect row；ordinary ABI保持不变。实现细节区分架构不变量与参考方案，物理索引布局不作为长期契约。
 
+### M49 异步 I/O 与结构化并发基础（已完成，[设计](milestone49/DESIGN.md)、[规范](specs/SCOOP-ASYNCIO-SPEC.md)、[验收](milestone49/ACCEPTANCE.md)）
+
+- 在普通 core 源码中实现 Job、Deferred、CoroutineScope、失败传播与协作取消，复用既有 continuation、Context 和原子能力。
+- 先补齐 platform 的跨挂起 buffer 借用和 Libuv 错误域，再以独立 `scoop.asyncio` Cone 接入 libuv 的事件循环、定时等待、TCP、UDP、DNS 和文件操作。
+- 显式关闭、实际进度、取消后收尾及普通跨 Cone 消费组成验收闭环；TLS／HTTP 不在本期范围内。发现底层缺陷先独立修复和回归。
+
 ## 4. 待补齐清单（backlog）
 
 各里程碑"涵盖但只实现了部分"的事项，按来源里程碑整理。标注→的为目标里程碑（已知时）；未标注的待排期。

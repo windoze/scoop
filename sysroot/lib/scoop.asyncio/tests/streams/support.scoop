@@ -1,0 +1,51 @@
+package scoop.asyncio
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.platform.memory.NativeByteBuffer
+import scoop.time.Duration
+
+internal class ShortSource(val bytes: Array<Byte>) : AsyncByteSource {
+    var position: Long = 0L
+    var calls: Int = 0
+    var failAfter: Long = Long.MAX_VALUE
+    val failure: Throwable = Throwable()
+
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long {
+        calls += 1
+        currentEventLoop().sleep(Duration.nanoseconds(1L))
+        if (position >= failAfter) throw failure
+        var size = if (count < 2L) count else 2L
+        if (size > bytes.size - position) size = bytes.size - position
+        buffer.writeBytes(bytes, position, size)
+        position += size
+        return size
+    }
+}
+
+internal class ShortSink : AsyncByteSink, AsyncCloseable {
+    val bytes: ByteArrayBuilder = ByteArrayBuilder()
+    var failAfter: Long = Long.MAX_VALUE
+    var zero: Boolean = false
+    var flushes: Int = 0
+    var closes: Int = 0
+    var failClose: Boolean = false
+    val failure: Throwable = Throwable()
+    val cleanup: Throwable = Throwable()
+
+    public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long {
+        currentEventLoop().sleep(Duration.nanoseconds(1L))
+        if (bytes.size >= failAfter) throw failure
+        if (zero) return 0L
+        val size = if (count < 2L) count else 2L
+        bytes.append(buffer.readBytes(size))
+        return size
+    }
+
+    public override suspend fun flush() { flushes += 1 }
+    public override suspend fun close() { closes += 1; if (failClose) throw cleanup }
+}
+
+internal class ForwardSink(val destination: AsyncByteSink) : AsyncByteSink {
+    public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long = destination.writeFrom(buffer, count)
+    public override suspend fun flush() { destination.flush() }
+}

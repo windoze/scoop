@@ -1,11 +1,11 @@
-use crate::ConeRelativePath;
+use std::path::PathBuf;
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum NativeCompileFlag {
     Argument(String),
     Include {
         kind: NativeIncludeFlag,
-        path: ConeRelativePath,
+        path: PathBuf,
     },
 }
 

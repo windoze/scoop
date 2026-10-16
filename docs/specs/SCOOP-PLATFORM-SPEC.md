@@ -45,7 +45,9 @@ OsString 可以保存任意字节，包括 NUL。实际进入 C 字符串位置�
 
 `scoop.platform.system.PlatformErrorKind` 包含 NotFound、AlreadyExists、PermissionDenied、NotDirectory、IsDirectory、InvalidInput、NoMemory、NoSpace、BrokenPipe、ConnectionRefused、ConnectionReset、AddressInUse、AddressUnavailable、TimedOut、Interrupted、WouldBlock、Unsupported、Other。未知错误归 Other，必须保留原始错误数据；Unsupported 仅用于 OS 实际报告不支持。
 
-`NativeErrorDomain` 区分 PosixErrno 与 AddressResolution。普通值类型 `NativeError(domain, code, systemCode: Int? = None)` 保存原始 Int 错误码；AddressResolution 的 EAI_SYSTEM 还保存同次失败的 errno。只读属性 `kind` 依据目标系统的实际常量分类，不假设两个 target 的 errno／EAI 数值相同。pthread 直接返回的 errno 风格错误属于 PosixErrno，不能改读线程 errno。
+`NativeErrorDomain` 区分 PosixErrno、AddressResolution 与 Libuv。普通值类型 `NativeError(domain, code, systemCode: Int? = None)` 保存原始 Int 错误码；AddressResolution 的 EAI_SYSTEM 还保存同次失败的 errno。只读属性 `kind` 依据目标系统的实际常量分类，不假设两个 target 的 errno／EAI 数值相同。pthread 直接返回的 errno 风格错误属于 PosixErrno，不能改读线程 errno。
+
+Libuv 保存库返回的原始负错误码，不读取当前 errno。三个现有 Unix 目标的标准错误按 libuv 1.53.0 的负 errno 映射已有 kind；未知或库专有状态保持 Other，EOF 与主动取消／关闭由 I/O 协议解释。platform 本身不链接或包含 libuv，该域仅保存和分类错误，asyncio 才依赖具体驱动。[错误码定义](https://github.com/libuv/libuv/blob/v1.53.0/include/uv/errno.h)。
 
 `PlatformException(operation: String, kind: PlatformErrorKind, nativeError: NativeError? = None, context: OsString? = None)` 继承 Exception，以上四项为只读字段。调用方按结构字段处理错误；message 只供诊断，不作为可解析协议。context 用于保存实际路径或端点文本等调用上下文，不覆盖原始 code。
 
@@ -86,13 +88,23 @@ writable block 必须初始化返回值 n 指定的完整前缀；仅正常返�
 
 block 是普通非 suspend callback，可分配 managed 对象、抛异常及进行同步 C 调用。owner 跨 callback 与 finally 保持 live root，GC 可移动 wrapper；native 地址保持稳定，不 pin wrapper。finally 清除借用状态。借用中拒绝 dispose、ensureWritable、clear、compact、skip、顺序读写、绝对写和嵌套借用，修改前抛 IllegalStateException；只读属性及 getByte 仍可用。
 
-pointer 不得逃出 callback、保留给异步操作或跨挂起使用；writable callback 不读取未初始化尾部或改写借用区外字节。借用标志只处理重入，不是跨线程锁；共享对象由调用方同步。不增加逃逸分析、静态 borrow checker 或 managed ownership 类型。
+pointer 不得逃出 callback、保留给异步操作或跨挂起使用；writable callback 不读取未初始化尾部或改写借用区外字节。同步与异步借用共同使用 4.5 的状态同步边界；callback 在状态锁外执行。不增加逃逸分析、静态 borrow checker 或 managed ownership 类型。
 
 ### 4.4 GC pressure
 
 成功提交容量 c 后通过 core `gcAdjustPressure(+c)` 提示，增长只报告 new-old；实际释放后报告 -c。失败、clear、compact、读写和借用不报告变化；同一份所有权不得重复扣减。显式关闭先清空字段，hook 只读字段并在 collector reclaim 路径释放，二者共用同一个 GC-free 入口。
 
 提示遵守语言规范 14.1 与运行时规范 3.1；首版 GC 完全忽略提示是合法实现。buffer 不触发 GC，也不在 malloc/realloc 失败后收集重试，不维护 RSS、分配峰值、通用预算或资源账本。
+
+### 4.5 跨挂起 native 借用
+
+NativeByteBuffer 新增普通公开 `@Unsafe borrowReadable(count: Long): NativeByteBorrow` 和 `@Unsafe borrowWritable(count: Long): NativeByteBorrow`。count 非负且不超过当前可读／可写区间；登记与所有同步访问使用同一状态锁。登记成功后锁定整个 owner 的借用状态，禁止另一借用及 4.3 列出的所有变更，包含零长度变更和 close；查询与已初始化字节的只读访问继续允许。状态锁不跨 callback 或挂起持有，复合的多个用户操作仍需调用方自行同步。
+
+`NativeByteBorrow` 是不可由调用方构造的普通 final class，持有 owner、独立 native allocation 的稳定地址、方向及公开只读 `length: Long`。`@Unsafe pointer(): Ptr<Byte>?` 返回本次区间的首地址，零长度返回 None；在借用结束后调用抛 IllegalStateException。它可以跨挂起保活 owner，不 pin 可移动的 managed wrapper。readable 调用方只能读取已初始化前缀，writable 调用方只写借用的尾部。
+
+`@Unsafe complete(count: Long): Unit` 表示 native 已不再使用该地址，提交实际进度后解除借用；readable 推进 reader，writable 推进 writer。writable 的 count 前缀必须已被初始化。取消或其他异常也先按实际已知进度完成借用再向调用方结束等待；complete 本身不取消 native 操作。只有一个 complete 调用能消费本次借用，再次或并发重复调用抛 IllegalStateException。count 不在 `0..length` 时不提交进度、解除借用并抛 IllegalArgumentException；失败后不可重试同一借用。
+
+取得借用后，调用方必须持有它直到 native 收尾完成，并在全部出口恰好消费一次；不能在 complete 后继续使用先前取得的指针。丢弃借用不执行隐式异步清理。分配或登记失败不改变 owner 的借用状态。同步 4.3 入口保持原签名与游标合同；它们通过同一借用机制在 callback 的正常／异常出口完成收尾。
 
 ## 5. 同步字节流、缓冲与 UTF-8
 
@@ -245,3 +257,13 @@ receiveFrom(buffer: NativeByteBuffer, count: Long = buffer.writableBytes): Datag
 socket 输出在 Linux 使用 MSG_NOSIGNAL，Darwin 在新建／accept 后设置 SO_NOSIGPIPE；错误路径不安装或修改全局 signal handler。pipe/fd 的既有策略不变。DNS、连接、accept、传输和可能阻塞的操作使用 NativeSafe，复用已有精确根、借用与 FFI ABI。地址的 C 对应结构只是普通 @CLayout 值，不新增 compiler/runtime 协议、连接池、异步调度或网络安全框架。
 
 依据：[getaddrinfo](https://man7.org/linux/man-pages/man3/getaddrinfo.3.html)、[recvmsg／MSG_TRUNC 与空包](https://man7.org/linux/man-pages/man2/recvmsg.2.html) 及目标 socket headers。验收使用 loopback、动态端口与显式线程同步。
+
+### 12.4 普通 native helper 复用
+
+`native/socket_native.h` 是本库网络 helper 的 C11 声明边界，供 asyncio 等显式依赖者复用。Scoop 对应的公开 `@CLayout NativeSocketAddress(family: Int, port: Int, scopeId: UInt, a: UInt, b: UInt, c: UInt, d: UInt)` 由 platform 定义，复用同一 C 符号的 Scoop 声明使用该类型身份，不自行重声明同形 nominal。ScoopSocketAddress 的字段及 encode／decode、socket_bind 均保持现有 C ABI；family 为 4／6，port 为主机序 0..65535，地址 a～d 为按网络字节顺序组装的主机 UInt32 值，scope 为 IPv6 scope id。socket_bind 返回 owned close-on-exec fd，reuse 精确配置 SO_REUSEADDR，TCP 在返回前完成 bind/listen；失败返回 -1 并保留 errno，内部未交付 fd 已关闭。
+
+这是普通 GC-free C helper 边界，不提供 managed File／TcpStream 的私有句柄访问。使用者自行拥有新获得的 fd，可交给其事件后端；只能移交一次。native 头文件作为实际 include 输入参与普通构建，预编译 `.slib` 消费不再次编译这些 helper。错误、对象身份与缓存沿既有合同处理，不增加 runtime API 或特殊 native dependency 机制。
+
+`OsString.withNativeString<R>((Ptr<Byte>) -> R)` 与 `Path.withNativePath<R>((Ptr<Byte>) -> R)` 是 fs package 的公开 Unsafe 同步扩展：检查 NUL、保持原始字节并追加终止 NUL，指针只在 callback 内有效，不得保留或交给尚未完成的异步操作；异步使用者须在 callback 内复制到自己的 native 存储。`OpenOptions.nativeFlags(): Int` 公开复用 6.1 的参数检查，返回 file_open helper 的稳定位组合（read=1、write=2、append=4、create=8、createNew=16、truncate=32），不是系统 O_* 值。
+
+`native/io.h` 声明 fd_read／fd_write／fd_close；`native/files.h` 声明 file_open／file_sync。read／write 使用 4～6 章的短传输及 EINTR 规则，close 只调用一次 raw close，syncData 在 Darwin 可用 fsync 实现。`socket_native.h` 还声明 resolve／resolve_next／resolve_address／resolve_free；ScoopResolution 保存 owned addrinfo 链、原始 EAI code、可选的同次 errno。以上函数不进入 managed 代码，可直接从工作线程调用；错误必须在返回时立即保存，资源只能释放一次。

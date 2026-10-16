@@ -1,0 +1,72 @@
+package scoop.asyncio
+
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.*
+import scoop.platform.system.*
+import scoop.test.*
+
+@Test
+private class AsyncUdpLifecycleTest {
+    @Test
+    fun `duplex operations reject same direction overlap and close drains both borrows`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val socket = loop.bindUdp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
+            val peer = loop.bindUdp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
+            NativeByteBuffer.allocate(1L).use suspend { input ->
+                NativeByteBuffer.allocate(1L).use suspend { output ->
+                    output.writeByte(42)
+                    val reading = scope.launch suspend {
+                        try { socket.receiveFrom(input, 1L); fail() } catch (_: IoClosedException) {}
+                    }
+                    val writing = scope.launch suspend {
+                        try { socket.sendTo(output, peer.localAddress, 1L); fail() } catch (_: IoClosedException) {}
+                    }
+                    try { socket.receiveFrom(output, 1L); fail() } catch (_: IllegalStateException) {}
+                    try { socket.sendTo(input, peer.localAddress, 0L); fail() } catch (_: IllegalStateException) {}
+                    val first = scope.launch suspend { socket.close() }
+                    val second = scope.launch suspend { socket.close() }
+                    first.join()
+                    second.join()
+                    assertTrue(reading.isCompleted && writing.isCompleted)
+                    assertEquals(0L, input.writePosition)
+                    assertTrue(output.readPosition == 0L || output.readPosition == 1L)
+                    input.clear()
+                    output.clear()
+                    socket.close()
+                    try { socket.sendTo(output, peer.localAddress, 0L); fail() } catch (_: IoClosedException) {}
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `bind conflicts preserve reuse false and cancelled bind releases its port`() {
+        val backend = LibuvEventLoop()
+        val loop: EventLoop = backend
+        val escaped = loop.runWithResult<AsyncUdpSocket> suspend { scope ->
+            val original = loop.bindUdp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
+            val address = original.localAddress
+            try { loop.bindUdp(address, true); fail(Some("exclusive binding acquired twice")) }
+            catch (error: PlatformException) {
+                assertTrue(error.nativeError!!.domain == NativeErrorDomain.PosixErrno)
+                assertTrue(error.kind == PlatformErrorKind.AddressInUse)
+            }
+            original.close()
+            val binding = scope.launch suspend { loop.bindUdp(address) }
+            backend.state.post { binding.cancel() }
+            binding.join()
+            assertTrue(binding.isCancelled)
+            val socket = loop.bindUdp(address)
+            val closing = scope.launch suspend {
+                try { currentJobOrNull()!!.cancel(); ensureActive() }
+                finally { socket.close() }
+            }
+            closing.join()
+            assertTrue(closing.isCancelled)
+            loop.bindUdp(address)
+        }
+        val next: EventLoop = LibuvEventLoop()
+        next.run suspend { _ -> escaped.close(); escaped.close() }
+    }
+}

@@ -36,7 +36,7 @@ pub fn select_param_free_source_callables<'a>(
         required: BTreeMap::new(),
         properties: BTreeSet::new(),
     };
-    for source in public.callable_interfaces().records() {
+    for source in public.callable_interfaces().all_declarations() {
         selection.insert(source.declaration())?;
     }
     for nominal in types.inheritance().records() {

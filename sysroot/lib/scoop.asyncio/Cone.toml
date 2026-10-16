@@ -1,0 +1,209 @@
+schema = 1
+
+[cone]
+group = "scoop"
+name = "scoop.asyncio"
+version = "0.1.0"
+kind = "library"
+
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"scoop:scoop.std" = "0.1.0"
+"scoop:scoop.platform" = "0.1.0"
+
+[test-dependencies]
+"scoop:scoop.test" = "0.1.0"
+"scoop.tests:asyncio-native" = { version = "0.1.0", path = "test-native" }
+
+[native]
+include = ["vendor/libuv/include", "vendor/libuv/src"]
+c_flags = ["-std=c11", "-Wall", "-Wextra", "-Wno-unused-parameter", "-fno-strict-aliasing", "-include", "native/config.h"]
+
+[[native.sources]]
+path = "native/loop.c"
+
+[[native.sources]]
+path = "native/timer.c"
+
+[[native.sources]]
+path = "native/work.c"
+
+[[native.sources]]
+path = "native/file_open.c"
+
+[[native.sources]]
+path = "native/file_io.c"
+
+[[native.sources]]
+path = "native/resolve.c"
+
+[[native.sources]]
+path = "native/tcp.c"
+
+[[native.sources]]
+path = "native/tcp_connect.c"
+
+[[native.sources]]
+path = "native/tcp_accept.c"
+
+[[native.sources]]
+path = "native/tcp_read.c"
+
+[[native.sources]]
+path = "native/tcp_write.c"
+
+[[native.sources]]
+path = "native/udp.c"
+
+[[native.sources]]
+path = "native/udp_receive.c"
+
+[[native.sources]]
+path = "native/udp_send.c"
+
+[[native.sources]]
+path = "vendor/libuv/src/fs-poll.c"
+
+[[native.sources]]
+path = "vendor/libuv/src/idna.c"
+
+[[native.sources]]
+path = "vendor/libuv/src/inet.c"
+
+[[native.sources]]
+path = "vendor/libuv/src/random.c"
+
+[[native.sources]]
+path = "vendor/libuv/src/strscpy.c"
+
+[[native.sources]]
+path = "vendor/libuv/src/strtok.c"
+
+[[native.sources]]
+path = "vendor/libuv/src/thread-common.c"
+
+[[native.sources]]
+path = "vendor/libuv/src/threadpool.c"
+
+[[native.sources]]
+path = "vendor/libuv/src/timer.c"
+
+[[native.sources]]
+path = "vendor/libuv/src/uv-common.c"
+
+[[native.sources]]
+path = "vendor/libuv/src/uv-data-getter-setters.c"
+
+[[native.sources]]
+path = "vendor/libuv/src/version.c"
+
+[[native.sources]]
+path = "vendor/libuv/src/unix/async.c"
+
+[[native.sources]]
+path = "vendor/libuv/src/unix/core.c"
+
+[[native.sources]]
+path = "vendor/libuv/src/unix/dl.c"
+
+[[native.sources]]
+path = "vendor/libuv/src/unix/fs.c"
+
+[[native.sources]]
+path = "vendor/libuv/src/unix/getaddrinfo.c"
+
+[[native.sources]]
+path = "vendor/libuv/src/unix/getnameinfo.c"
+
+[[native.sources]]
+path = "vendor/libuv/src/unix/loop-watcher.c"
+
+[[native.sources]]
+path = "vendor/libuv/src/unix/loop.c"
+
+[[native.sources]]
+path = "vendor/libuv/src/unix/pipe.c"
+
+[[native.sources]]
+path = "vendor/libuv/src/unix/poll.c"
+
+[[native.sources]]
+path = "vendor/libuv/src/unix/process.c"
+
+[[native.sources]]
+path = "vendor/libuv/src/unix/random-devurandom.c"
+
+[[native.sources]]
+path = "vendor/libuv/src/unix/signal.c"
+
+[[native.sources]]
+path = "vendor/libuv/src/unix/stream.c"
+
+[[native.sources]]
+path = "vendor/libuv/src/unix/tcp.c"
+
+[[native.sources]]
+path = "vendor/libuv/src/unix/thread.c"
+
+[[native.sources]]
+path = "vendor/libuv/src/unix/tty.c"
+
+[[native.sources]]
+path = "vendor/libuv/src/unix/udp.c"
+
+[[native.sources]]
+path = "vendor/libuv/src/unix/proctitle.c"
+
+[[native.sources]]
+path = "vendor/libuv/src/unix/bsd-ifaddrs.c"
+when = { os = "darwin" }
+
+[[native.sources]]
+path = "vendor/libuv/src/unix/kqueue.c"
+when = { os = "darwin" }
+
+[[native.sources]]
+path = "vendor/libuv/src/unix/random-getentropy.c"
+when = { os = "darwin" }
+
+[[native.sources]]
+path = "vendor/libuv/src/unix/darwin-proctitle.c"
+when = { os = "darwin" }
+
+[[native.sources]]
+path = "vendor/libuv/src/unix/darwin.c"
+when = { os = "darwin" }
+
+[[native.sources]]
+path = "vendor/libuv/src/unix/fsevents.c"
+when = { os = "darwin" }
+
+[[native.sources]]
+path = "vendor/libuv/src/unix/linux.c"
+when = { os = "linux" }
+
+[[native.sources]]
+path = "vendor/libuv/src/unix/procfs-exepath.c"
+when = { os = "linux" }
+
+[[native.sources]]
+path = "vendor/libuv/src/unix/random-getrandom.c"
+when = { os = "linux" }
+
+[[native.sources]]
+path = "vendor/libuv/src/unix/random-sysctl-linux.c"
+when = { os = "linux" }
+
+[[native.libraries]]
+name = "pthread"
+
+[[native.libraries]]
+name = "m"
+
+[[native.libraries]]
+name = "dl"
+when = { os = "linux" }
+
+[[native.libraries]]
+name = "rt"
+when = { os = "linux" }

@@ -1,0 +1,82 @@
+package scoop.asyncio
+
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.*
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class AsyncTcpLifecycleTest {
+    @Test
+    fun `cancelled accept preserves pending connections and listener close preserves streams`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val listener = loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
+            val waiting = scope.launch suspend { listener.accept() }
+            loop.sleep(Duration.nanoseconds(1L))
+            waiting.cancel()
+            waiting.join()
+            val client = loop.connectTcp(listener.localAddress)
+            val server = listener.accept()
+            val closedWait = scope.launch suspend {
+                try { listener.accept(); fail(Some("closed listener accepted")) }
+                catch (_: IoClosedException) {}
+            }
+            listener.close()
+            closedWait.join()
+            NativeByteBuffer.allocate(1L).use suspend { output ->
+                output.writeByte(42)
+                server.writeFully(output)
+            }
+            NativeByteBuffer.allocate(1L).use suspend { input ->
+                client.readFully(input)
+                assertEquals(42.toInt8(), input.readByte())
+            }
+        }
+    }
+
+    @Test
+    fun `cancelled creations and loop exit close all unreturned or escaping resources`() {
+        val backend = LibuvEventLoop()
+        val loop: EventLoop = backend
+        val escaped = loop.runWithResult<AsyncTcpStream> suspend { scope ->
+            val listener = loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
+            val connecting = scope.async<AsyncTcpStream> suspend { loop.connectTcp(listener.localAddress) }
+            // The connect command is ahead of this cancellation, before polling.
+            backend.state.post { connecting.cancel() }
+            connecting.join()
+            assertTrue(connecting.isCancelled)
+            // Cancellation can abort the handshake before the peer can accept it.
+            listener.close()
+            val listening = scope.async<AsyncTcpListener> suspend {
+                loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
+            }
+            // Listen completes natively in its submission command, before this cancellation.
+            backend.state.post { listening.cancel() }
+            listening.join()
+            assertTrue(listening.isCancelled)
+            val (_, _, server) = tcpPair(loop, scope)
+            server
+        }
+        val next: EventLoop = LibuvEventLoop()
+        next.run suspend { _ -> escaped.close(); escaped.close() }
+    }
+
+    @Test
+    fun `cancellation selected after shutdown submission terminates the stream`() {
+        val backend = LibuvEventLoop()
+        val loop: EventLoop = backend
+        loop.run suspend { scope ->
+            val (_, _, server) = tcpPair(loop, scope)
+            val shutdown = scope.launch suspend { server.shutdownOutput() }
+            backend.state.post { shutdown.cancel() }
+            shutdown.join()
+            assertTrue(shutdown.isCancelled)
+            NativeByteBuffer.allocate(1L).use suspend { input ->
+                try { server.readInto(input, 1L); fail(Some("cancelled shutdown retained an open stream")) }
+                catch (_: IoClosedException) {}
+            }
+            server.close()
+        }
+    }
+}

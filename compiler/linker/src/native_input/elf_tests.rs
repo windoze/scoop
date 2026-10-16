@@ -3,7 +3,7 @@ use scoop_process::CommandExt;
 use std::process::Command;
 
 #[test]
-fn elf_native_files_and_archives_defer_unselected_initializers() {
+fn elf_native_files_and_archives_defer_unselected_cpp_eh() {
     let mut input_ids = std::collections::BTreeSet::new();
     for triple in ["x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"] {
         let profile = ValidatedFinalLinkProfile::resolve(triple).unwrap();
@@ -26,7 +26,11 @@ fn elf_native_files_and_archives_defer_unselected_initializers() {
             crate::NativeSymbolKind::Function
         );
 
-        std::fs::write(&source, "static volatile int initialized;\n__attribute__((constructor)) static void init(void) { initialized = 1; }\nint unused(void) { return 2; }\n").unwrap();
+        std::fs::write(
+            &source,
+            "extern void __cxa_throw(void);\nint unused(void) { __cxa_throw(); return 2; }\n",
+        )
+        .unwrap();
         let unused = path.join("unused.o");
         checked(
             &mut profile
@@ -56,7 +60,7 @@ fn elf_native_files_and_archives_defer_unselected_initializers() {
                 .err()
                 .unwrap()
                 .to_string()
-                .contains("initialization")
+                .contains("C++ EH")
         );
         let thin = path.join("libthin.a");
         checked(Command::new("ar").arg("crsT").arg(&thin).arg(&object));

@@ -1,0 +1,33 @@
+package scoop.asyncio
+
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.*
+
+public interface AsyncUdpSocket : AsyncCloseable {
+    public val localAddress: SocketAddress
+    public suspend fun sendTo(buffer: NativeByteBuffer, destination: SocketAddress, count: Long): Long
+    public suspend fun receiveFrom(buffer: NativeByteBuffer, count: Long): Datagram
+}
+
+internal class UdpSocket(private val owner: OwnedSocket,
+    public override val localAddress: SocketAddress) : AsyncUdpSocket {
+    public override suspend fun sendTo(buffer: NativeByteBuffer, destination: SocketAddress, count: Long): Long =
+        sendUdp(owner, buffer, destination, count)
+    public override suspend fun receiveFrom(buffer: NativeByteBuffer, count: Long): Datagram =
+        receiveUdp(owner, buffer, count)
+    public override suspend fun close() { owner.close() }
+}
+
+internal suspend fun bindUdpOnLoop(loop: LibuvEventLoop, address: SocketAddress, reuse: Boolean): AsyncUdpSocket {
+    val job = loop.requireJob()
+    val target = ioAddress(address)
+    return suspendCoroutine<AsyncUdpSocket> { continuation ->
+        val operation = LoopOperation(loop.state, loop.state.nextOperation(),
+            { native, id -> @Unsafe { return@LoopOperation nativeStatus(id, nativeUdpBind(native, id, target, reuse)) } },
+            { _, _ -> },
+            { event, selected -> finishSocketCreation<AsyncUdpSocket>(loop, SocketKind.Udp, event.result, selected,
+                continuation, { owner -> UdpSocket(owner, udpAddress(owner.pointer)) }) })
+        operation.subscribe(job)
+        loop.state.submit(operation)
+    }
+}

@@ -1,0 +1,106 @@
+package scoop.asyncio
+
+import scoop.platform.fs.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.*
+import scoop.platform.system.*
+import scoop.test.*
+
+@Test
+private class AsyncFileTransferTest {
+    @Test
+    fun `files preserve raw paths append sync and sequential positions`() {
+        IoTestDirectory().use { tree ->
+            val rawName: Array<Byte> = [100, -1, 97]
+            val name = if (operatingSystem == OperatingSystem.Linux) OsString.fromBytes(rawName) else OsString.fromString("名字")
+            val path = tree.path.resolve(Path.fromOsString(name))
+            val loop: EventLoop = LibuvEventLoop()
+            loop.run suspend { _ ->
+                loop.openFile(path, OpenOptions(write = true, createNew = true)).useAsync suspend { file ->
+                    NativeByteBuffer.allocate(3L).use suspend { bytes ->
+                        val values: Array<Byte> = [1, 2, 3]
+                        bytes.writeBytes(values)
+                        file.writeFully(bytes)
+                        assertEquals(3L, bytes.readPosition)
+                    }
+                    file.flush()
+                    file.syncData()
+                    file.syncAll()
+                }
+                loop.openFile(path, OpenOptions(read = false, write = true, append = true)).useAsync suspend { file ->
+                    NativeByteBuffer.allocate(1L).use suspend { bytes -> bytes.writeByte(4); file.writeFully(bytes) }
+                }
+                loop.openFile(path).useAsync suspend { file ->
+                    NativeByteBuffer.allocate(5L).use suspend { bytes ->
+                        file.readFully(bytes, 2L)
+                        file.readFully(bytes, 2L)
+                        assertEquals(0L, file.readInto(bytes, 1L))
+                        assertEquals(0L, file.readInto(bytes, 1L))
+                        for (index in 0L..<4L) assertEquals((index + 1L).toInt8(), bytes.getByte(index))
+                    }
+                }
+            }
+            assertEquals(4L, Files.metadata(path).size)
+        }
+    }
+
+    @Test
+    fun `file copying composes with DNS TCP and concurrent network reads`() {
+        IoTestDirectory().use { tree ->
+            val path = tree.child("source")
+            Files.writeText(path, "ordinary asynchronous I/O")
+            val loop: EventLoop = LibuvEventLoop()
+            loop.run suspend { scope ->
+                val listener = loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
+                val addresses = loop.resolve(OsString.fromString("127.0.0.1"), listener.localAddress.port)
+                val connecting = scope.async<AsyncTcpStream> suspend { loop.connectTcp(addresses[0L]) }
+                val server = listener.accept()
+                val client = connecting.await()
+                val sending = scope.async<Long> suspend {
+                    val copied = loop.openFile(path).useAsync suspend { file -> file.copyTo(server, 3L) }
+                    server.shutdownOutput()
+                    copied
+                }
+                NativeByteBuffer.allocate(32L).use suspend { bytes ->
+                    client.readFully(bytes, 25L)
+                    assertEquals(0L, client.readInto(bytes, 1L))
+                    assertEquals("ordinary asynchronous I/O", OsString.fromBytes(bytes.readBytes(25L)).decodeUtf8())
+                }
+                assertEquals(25L, sending.await())
+            }
+        }
+    }
+
+    @Test
+    fun `file option and native errors preserve path errno and released borrows`() {
+        IoTestDirectory().use { tree ->
+            val path = tree.child("data")
+            val loop: EventLoop = LibuvEventLoop()
+            loop.run suspend { _ ->
+                try { loop.openFile(path, OpenOptions(read = false)); fail(Some("invalid options accepted")) }
+                catch (_: IllegalArgumentException) {}
+                try { loop.openFile(path); fail(Some("missing path opened")) }
+                catch (error: PlatformException) {
+                    assertTrue(error.kind == PlatformErrorKind.NotFound)
+                    assertTrue(error.nativeError!!.domain == NativeErrorDomain.PosixErrno)
+                    assertEquals(path.toOsString(), error.context!!)
+                }
+                Files.writeText(path, "x")
+                try { loop.openFile(path, OpenOptions(write = true, createNew = true)); fail(Some("createNew replaced file")) }
+                catch (error: PlatformException) { assertTrue(error.kind == PlatformErrorKind.AlreadyExists) }
+                loop.openFile(path).useAsync suspend { file ->
+                    NativeByteBuffer.allocate(1L).use suspend { bytes ->
+                        bytes.writeByte(1)
+                        try { file.writeFrom(bytes, 1L); fail(Some("read only file written")) }
+                        catch (error: PlatformException) { assertTrue(error.nativeError!!.domain == NativeErrorDomain.PosixErrno) }
+                        assertEquals(0L, bytes.readPosition)
+                        bytes.clear()
+                        assertEquals(0L, file.readInto(bytes, 0L))
+                        file.readFully(bytes)
+                        assertEquals(120.toInt8(), bytes.readByte())
+                    }
+                }
+            }
+        }
+    }
+}

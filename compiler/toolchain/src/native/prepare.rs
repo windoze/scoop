@@ -67,7 +67,7 @@ pub(super) fn prepare(
     };
     roots.validate_includes(config, &languages)?;
     for (source, _) in &sources {
-        roots.checked_path(source.path(), false)?;
+        roots.checked_path(source.path().as_path(), false)?;
     }
     let directory = tempfile::Builder::new()
         .prefix("scoop-preprocess-")
@@ -185,11 +185,14 @@ fn flags(config: &NativeConfig, language: NativeSourceLanguage) -> Vec<String> {
     config
         .include()
         .iter()
-        .flat_map(|path| ["-I".to_owned(), path.as_str().to_owned()])
+        .flat_map(|path| ["-I".to_owned(), path.to_string_lossy().into_owned()])
         .chain(config.flags(language).iter().flat_map(|flag| match flag {
             NativeCompileFlag::Argument(argument) => vec![argument.clone()],
             NativeCompileFlag::Include { kind, path } => {
-                vec![kind.argument().to_owned(), path.as_str().to_owned()]
+                vec![
+                    kind.argument().to_owned(),
+                    path.to_string_lossy().into_owned(),
+                ]
             }
         }))
         .collect()

@@ -1,0 +1,21 @@
+package scoop.asyncio
+
+public interface AsyncCloseable { public suspend fun close() }
+
+public suspend fun <R : AsyncCloseable, T> R.useAsync(block: suspend (R) -> T): T {
+    val result = try { block(this) }
+    catch (primary: Throwable) {
+        try { close() }
+        catch (cleanup: Throwable) { throw ResourceUseException(primary, cleanup) }
+        throw primary
+    }
+    close()
+    return result
+}
+
+internal fun finishUnit(continuation: Continuation<Unit>, failure: Throwable?) {
+    when (failure) {
+        case Some(error) -> continuation.resumeWithException(error)
+        case None -> continuation.resume(Unit)
+    }
+}

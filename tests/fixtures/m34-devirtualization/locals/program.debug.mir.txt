@@ -565,14 +565,11 @@ Module
         Local $parameter.early
       goto bb7
     bb9 try.catch.9
-      call $catch.3: Any = @scoop_rt_materialize_exception direct
-        Type Any
-        CaughtException
       val error: IllegalStateException
         Type IllegalStateException
         Retype IllegalStateException
           Type Any
-          Local $catch.3
+          CaughtException
       goto bb11
     bb10 try.next.10
       rethrow unwind bb5
@@ -580,18 +577,18 @@ Module
       val $receiver: Value
         Type Value
         Local value
-      call $call.4: Int = @fn21 interface Value[0]
+      call $call.3: Int = @fn21 interface Value[0]
         Type Value
         Local $receiver
-      val $return.5: Int
+      val $return.4: Int
         Type Int
-        Local $call.4
+        Local $call.3
       end_catch
       goto bb12
     bb12 scope.12
       return
         Type Int
-        Local $return.5
+        Local $return.4
   fun mutableField @fn16() -> Int
     bb0 entry
       assign $new.1
