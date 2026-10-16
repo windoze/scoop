@@ -388,6 +388,8 @@ immortal object 的登记身份与 ODR ABI 直接消费现有登记计划及 can
 
 Type registration 直接关联 descriptor／layout 槽位。descriptor 指纹按已解析 atom 范围读取实际 descriptor、诊断数据及 itable directory，并使用现有 typed 语义归一化指针；layout 指纹消费现有 instance shape。保留读取范围和缺失引用诊断，不再重建预期字节、重验 relocation 全集、对照计划副本或比较 undefined-requirement 闭包来取得计算资格。
 
+digest 槽位直接保存 codegen 返回的 intent、member 和对象偏移，宽度固定为 32 bytes。集合按 intent 建立查询索引；不重新验证 digest plan、重数完整覆盖、读回零槽或扫描重定位来证明物化正确。已不参与生产的 source／definition／atom／role 副本随资格包装删除；实际写入仍检查当前对象范围。
+
 ### 2.6 `.slib` 格式与指纹
 
 `.slib` 是 target-specific、bitwise reproducible 的 normal、self-contained ar archive。容器 schema、manifest schema、persistent identity schema 与 mangling schema 的格式版本为 1；HIR/MIR/LIR metadata outer schema 为 2。它不允许 thin archive、外部成员引用或相邻文件 payload。

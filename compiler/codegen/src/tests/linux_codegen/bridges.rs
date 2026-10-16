@@ -21,7 +21,7 @@ fn linux_generated_c_requirements_cover_native_tls_and_callback_contracts() {
         let (module, _) = fixture(target);
         let fixture = super::slib_support::SlibObjects::new(module, directory.path());
         let builtins = fixture.builtins(&fixture.objects);
-        let sites = fixture.sites(builtins, &fixture.objects);
+        let sites = fixture.sites(builtins);
         let requirements = fixture.requirements(sites);
         assert_eq!(requirements.selection().target().id(), target);
         assert!(requirements.requirements().iter().any(|requirement| {

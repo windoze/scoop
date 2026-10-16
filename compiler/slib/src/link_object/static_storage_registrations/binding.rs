@@ -1,15 +1,13 @@
 use crate::SlibMemberId;
-use crate::link_object::{
-    MissingDigestPatchSiteV1, VerifiedMaterializedPatchSiteV1, VerifiedScoopLirDigestPatchSiteSetV1,
-};
+use crate::link_object::{DigestPatchSiteV1, MissingDigestPatchSiteV1, ScoopLirDigestPatchSitesV1};
 use scoop_identity::PersistentStaticStorageId;
 use scoop_lir::StrongStaticStorageRegistrationPlanSetV1;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StaticStorageRegistrationPatchV1 {
     storage: PersistentStaticStorageId,
-    scan_fingerprint_patch: VerifiedMaterializedPatchSiteV1,
-    layout_fingerprint_patch: VerifiedMaterializedPatchSiteV1,
+    scan_fingerprint_patch: DigestPatchSiteV1,
+    layout_fingerprint_patch: DigestPatchSiteV1,
 }
 impl StaticStorageRegistrationPatchV1 {
     pub const fn storage(&self) -> PersistentStaticStorageId {
@@ -18,10 +16,10 @@ impl StaticStorageRegistrationPatchV1 {
     pub const fn member(&self) -> SlibMemberId {
         self.scan_fingerprint_patch.member()
     }
-    pub const fn scan_fingerprint_patch(&self) -> VerifiedMaterializedPatchSiteV1 {
+    pub const fn scan_fingerprint_patch(&self) -> DigestPatchSiteV1 {
         self.scan_fingerprint_patch
     }
-    pub const fn layout_fingerprint_patch(&self) -> VerifiedMaterializedPatchSiteV1 {
+    pub const fn layout_fingerprint_patch(&self) -> DigestPatchSiteV1 {
         self.layout_fingerprint_patch
     }
 }
@@ -44,7 +42,7 @@ impl StaticStorageRegistrationDataV1 {
 }
 
 pub fn bind_static_storage_registrations_v1(
-    patch_sites: &VerifiedScoopLirDigestPatchSiteSetV1,
+    patch_sites: &ScoopLirDigestPatchSitesV1,
     plan: StrongStaticStorageRegistrationPlanSetV1,
 ) -> Result<StaticStorageRegistrationDataV1, MissingDigestPatchSiteV1> {
     let registrations = plan

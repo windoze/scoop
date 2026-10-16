@@ -12,7 +12,6 @@ pub enum BuiltinObjectProductionError {
     CBridgeEnvelopes(GeneratedCObjectReadError),
     StrongSymbolPlan(StrongObjectSymbolPlanningError),
     StrongRelocations(BuiltinObjectSetValidationError),
-    DigestPatchSites(DigestPatchSiteValidationError),
     Stackmaps(ScoopStackmapReadError),
     SafepointRegistrations(MissingDigestPatchSiteV1),
     CallableRegistrations(MissingDigestPatchSiteV1),
@@ -65,14 +64,6 @@ pub enum BuiltinObjectProductionError {
     UnassignedGeneratedBridgeUnit(GeneratedBridgeUnitId),
     SplitObjectUnits(SlibMemberId),
     MissingPlannedMember(SlibMemberId),
-    UnassignedPatchDefinition(ObjectDefinitionPlanId),
-    PatchMemberMismatch {
-        definition: ObjectDefinitionPlanId,
-        expected: SlibMemberId,
-        actual: SlibMemberId,
-    },
-    DuplicateDigestIntent(scoop_identity::DigestPatchIntentId),
-    EmptyDigestMaterializationSet,
 }
 
 impl fmt::Display for BuiltinObjectProductionError {
@@ -88,7 +79,6 @@ impl std::error::Error for BuiltinObjectProductionError {
             Self::CBridgeEnvelopes(source) => Some(source),
             Self::StrongSymbolPlan(source) => Some(source),
             Self::StrongRelocations(source) => Some(source),
-            Self::DigestPatchSites(source) => Some(source),
             Self::Stackmaps(source) => Some(source),
             Self::SafepointRegistrations(source) => Some(source),
             Self::CallableRegistrations(source) => Some(source),

@@ -14,7 +14,7 @@ fn elf_static_immortal_and_initialization_registrations() {
             directory.path(),
         );
         let builtins = fixture.builtins(&fixture.objects);
-        let sites = fixture.sites(builtins.clone(), &fixture.objects);
+        let sites = fixture.sites(builtins.clone());
         let production = fixture.emitted.production().registration_production();
         let immortals = compute_strong_immortal_object_fingerprints_v1(
             production.immortal_objects().clone(),
@@ -83,7 +83,7 @@ fn elf_partitioned_zeroed_storage_digest_slots() {
 }
 
 fn check_storage_slots(fixture: &SlibObjects) {
-    let sites = fixture.sites(fixture.builtins(&fixture.objects), &fixture.objects);
+    let sites = fixture.sites(fixture.builtins(&fixture.objects));
     let data = bind_static_storage_registrations_v1(
         &sites,
         fixture

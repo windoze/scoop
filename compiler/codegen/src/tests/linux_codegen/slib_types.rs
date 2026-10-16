@@ -21,7 +21,7 @@ fn elf_type_registrations_hash_descriptor_diagnostic_and_itable_data() {
                 odr_point(&mut module);
             }
             let fixture = SlibObjects::new(module, directory.path());
-            let sites = fixture.sites(fixture.builtins(&fixture.objects), &fixture.objects);
+            let sites = fixture.sites(fixture.builtins(&fixture.objects));
             let data = bind_type_registrations_v1(
                 sites,
                 fixture

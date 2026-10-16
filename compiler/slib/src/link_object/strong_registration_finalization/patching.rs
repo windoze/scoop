@@ -184,7 +184,7 @@ pub(in crate::link_object) fn patch_initializations_for_test(
 
 pub(super) fn write_digest(
     object: &mut [u8],
-    patch: VerifiedMaterializedPatchSiteV1,
+    patch: DigestPatchSiteV1,
     digest: &[u8; DIGEST_WIDTH],
     owner: StrongRegistrationPatchOwnerV1,
     field: StrongRegistrationPatchFieldV1,

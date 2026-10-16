@@ -35,7 +35,7 @@ impl SlibObjects {
 
     pub fn requirements(
         &self,
-        sites: VerifiedScoopLirDigestPatchSiteSetV1,
+        sites: ScoopLirDigestPatchSitesV1,
     ) -> CanonicalUndefinedSymbolRequirementSetV1 {
         let strong = sites.builtins().strong_relocations().clone();
         let bridges = self.emitted.production().generated_bridge_plan().clone();

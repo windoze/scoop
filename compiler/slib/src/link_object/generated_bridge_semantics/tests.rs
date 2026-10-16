@@ -15,16 +15,15 @@ use scoop_identity::{
     StrongDefinitionRole,
 };
 use scoop_lir::{
-    CBridgeProductionSetV1, DigestFinalizationPlanV1, DigestNodeV1, GeneratedBridgePlanSetV1,
-    ObjectSymbolSurfaceV1,
+    CBridgeProductionSetV1, DigestNodeV1, GeneratedBridgePlanSetV1, ObjectSymbolSurfaceV1,
 };
 
 use super::*;
 use crate::{
-    GeneratedCBridgeObjectCandidateV1, PlannedStrongObjectSymbolRoleV1,
-    PlannedStrongObjectSymbolSetV1, ProvisionalDigestPatchSiteV1, ScoopLirObjectCandidateV1,
-    StrongRelocationResolutionV1, VerifiedObjectRelocationFormV1, read_generated_c_objects_v1,
-    verify_builtin_object_strong_relocations_v1, verify_scoop_lir_digest_patch_sites_v1,
+    DigestPatchSiteV1, GeneratedCBridgeObjectCandidateV1, PlannedStrongObjectSymbolRoleV1,
+    PlannedStrongObjectSymbolSetV1, ScoopLirObjectCandidateV1, StrongRelocationResolutionV1,
+    VerifiedObjectRelocationFormV1, read_generated_c_objects_v1,
+    verify_builtin_object_strong_relocations_v1,
 };
 
 use super::super::generated_c_objects::tests::{fixture, member_plan, profile};
@@ -354,7 +353,7 @@ fn classifies_static_callback_only_to_its_typed_storage_bridge() {
 }
 
 pub(in crate::link_object) struct SemanticFixture {
-    pub(in crate::link_object) scoop_patch_sites: VerifiedScoopLirDigestPatchSiteSetV1,
+    pub(in crate::link_object) scoop_patch_sites: ScoopLirDigestPatchSitesV1,
     pub(in crate::link_object) bridge_plan: GeneratedBridgePlanSetV1,
     pub(in crate::link_object) native_requirements: CanonicalNativeExternalRequirementSurfaceV1,
     pub(in crate::link_object) profile: CBridgeToolchainProfileV1,
@@ -444,21 +443,12 @@ pub(in crate::link_object) fn semantic_fixture_with_additional_contracts(
     );
     let image_node = DigestNodeV1::new(image_key, Vec::new(), vec![image_patch]).unwrap();
     let image_intent = image_node.patch_intents()[0].id();
-    let digest_plan = DigestFinalizationPlanV1::new(vec![image_node], &fixture.foundation).unwrap();
-    let patch_sites = [ProvisionalDigestPatchSiteV1::new(
+    let patch_sites = [DigestPatchSiteV1::new(
         image_intent,
         scoop_member,
         u64::try_from(scoop_object.section_offset).unwrap() + 16,
-        32,
     )];
-    let scoop_patch_sites = verify_scoop_lir_digest_patch_sites_v1(
-        builtins,
-        &fixture.foundation,
-        digest_plan,
-        &scoop_objects,
-        &patch_sites,
-    )
-    .unwrap();
+    let scoop_patch_sites = ScoopLirDigestPatchSitesV1::new(builtins, (patch_sites).to_vec());
     let mut contracts = vec![contract_record(
         ConeIdentity::CORE,
         "nativeBridgeDeclaration",

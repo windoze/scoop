@@ -1,19 +1,17 @@
-use crate::link_object::{
-    MissingDigestPatchSiteV1, VerifiedMaterializedPatchSiteV1, VerifiedScoopLirDigestPatchSiteSetV1,
-};
+use crate::link_object::{DigestPatchSiteV1, MissingDigestPatchSiteV1, ScoopLirDigestPatchSitesV1};
 use scoop_identity::PersistentInitializationUnitId;
 use scoop_lir::StrongInitializationUnitRegistrationPlanSet;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InitializationRegistrationPatchV1 {
     unit: PersistentInitializationUnitId,
-    gateway_definition_patch: Option<VerifiedMaterializedPatchSiteV1>,
+    gateway_definition_patch: Option<DigestPatchSiteV1>,
 }
 impl InitializationRegistrationPatchV1 {
     pub const fn unit(&self) -> PersistentInitializationUnitId {
         self.unit
     }
-    pub const fn gateway_definition_patch(&self) -> Option<VerifiedMaterializedPatchSiteV1> {
+    pub const fn gateway_definition_patch(&self) -> Option<DigestPatchSiteV1> {
         self.gateway_definition_patch
     }
 }
@@ -36,7 +34,7 @@ impl<D> InitializationRegistrationDataV1<D> {
 }
 
 pub fn bind_initialization_registrations_v1<D>(
-    patch_sites: &VerifiedScoopLirDigestPatchSiteSetV1,
+    patch_sites: &ScoopLirDigestPatchSitesV1,
     plan: StrongInitializationUnitRegistrationPlanSet<D>,
 ) -> Result<InitializationRegistrationDataV1<D>, MissingDigestPatchSiteV1> {
     let registrations = plan

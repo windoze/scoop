@@ -43,14 +43,8 @@ pub(crate) fn prepare(
         &bridges,
     )
     .map_err(BuiltinObjectProductionError::StrongRelocations)?;
-    let patch_sites = verify_scoop_lir_digest_patch_sites_v1(
-        relocations,
-        emitted.foundation(),
-        production.digest_finalization_plan().clone(),
-        &candidates,
-        &bindings.digest_patches,
-    )
-    .map_err(BuiltinObjectProductionError::DigestPatchSites)?;
+    let patch_sites =
+        ScoopLirDigestPatchSitesV1::new(relocations, (bindings.digest_patches).to_vec());
     let stackmaps = read_scoop_stackmaps_v1(
         patch_sites.builtins().clone(),
         production.safepoint_semantics(),

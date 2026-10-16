@@ -49,14 +49,10 @@ pub(in crate::object_production) fn plan_codegen_objects(
         });
     }
 
-    let bindings = plan_objects(
+    plan_objects(
         target,
         producer_units,
         scoop_lir_sources,
         generated_c_bridge_sources,
-    )?;
-    if bindings.digest_patches.is_empty() {
-        return Err(BuiltinObjectProductionError::EmptyDigestMaterializationSet);
-    }
-    Ok(bindings)
+    )
 }

@@ -226,7 +226,7 @@ fn verified_fingerprints(
 
 fn verified_initialization_fingerprints(
     fixture: &Fixture,
-    patch_sites: crate::link_object::VerifiedScoopLirDigestPatchSiteSetV1,
+    patch_sites: crate::link_object::ScoopLirDigestPatchSitesV1,
     callable_bodies: &crate::link_object::VerifiedStrongCallableBodyObjectFingerprintSetV1,
 ) -> InitializationFingerprintSetV1 {
     let registrations = bind_initialization_registrations_v1(

@@ -9,9 +9,9 @@ use scoop_identity::{
 use super::VerifiedStrongSafepointFingerprintSetV1;
 use crate::SlibMemberId;
 use crate::link_object::{
-    ImmortalObjectFingerprintSetV1, InitializationFingerprintSetV1, ScoopLirObjectCandidateV1,
-    StaticStorageFingerprintSetV1, TypeFingerprintSetV1, ValidatedScoopLirObjectEnvelopeV1,
-    VerifiedMaterializedPatchSiteV1, VerifiedStrongCallableFingerprintSetV1,
+    DigestPatchSiteV1, ImmortalObjectFingerprintSetV1, InitializationFingerprintSetV1,
+    ScoopLirObjectCandidateV1, StaticStorageFingerprintSetV1, TypeFingerprintSetV1,
+    ValidatedScoopLirObjectEnvelopeV1, VerifiedStrongCallableFingerprintSetV1,
 };
 
 mod patching;

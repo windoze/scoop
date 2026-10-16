@@ -5,28 +5,27 @@ mod semantic;
 use scoop_lir::{
     AppleClangCompilerIdentityV1, CBridgeProductionSetV1, CBridgeToolchainProfileV1,
     ConeLirFoundation, DarwinCBridgeDeploymentContractV1, DarwinPackedVersionV1,
-    DigestFinalizationPlanV1, GeneratedBridgePlanSetV1, ObjectSymbolSurfaceV1,
-    ProducerUnitPartitionV1, StrongCallableRegistrationPlanSetV1,
-    StrongInitializationUnitRegistrationPlanSetV1, StrongSafepointSemanticPlanSetV1,
+    GeneratedBridgePlanSetV1, ObjectSymbolSurfaceV1, ProducerUnitPartitionV1,
+    StrongCallableRegistrationPlanSetV1, StrongInitializationUnitRegistrationPlanSetV1,
+    StrongSafepointSemanticPlanSetV1,
 };
 
 use crate::SlibMemberId;
 use crate::link_object::{
-    CanonicalScoopLirObjectUnitSetV1, CanonicalUndefinedSymbolRequirementSetV1,
-    PlannedLinkObjectMemberSetV1, PlannedStrongObjectSymbolSetV1, ProvisionalDigestPatchSiteV1,
+    CanonicalScoopLirObjectUnitSetV1, CanonicalUndefinedSymbolRequirementSetV1, DigestPatchSiteV1,
+    PlannedLinkObjectMemberSetV1, PlannedStrongObjectSymbolSetV1, ScoopLirDigestPatchSitesV1,
     ScoopLirObjectCandidateV1, ScoopStackmapSetV1, VerifiedBuiltinObjectStrongRelocationSetV1,
-    VerifiedScoopLirDigestPatchSiteSetV1, read_generated_c_objects_v1, read_scoop_stackmaps_v1,
-    verify_builtin_object_strong_relocations_v1, verify_scoop_lir_digest_patch_sites_v1,
+    read_generated_c_objects_v1, read_scoop_stackmaps_v1,
+    verify_builtin_object_strong_relocations_v1,
 };
 
 pub(super) struct Fixture {
     pub(super) builtins: VerifiedBuiltinObjectStrongRelocationSetV1,
     pub(super) foundation: ConeLirFoundation,
-    pub(super) digest_plan: DigestFinalizationPlanV1,
     pub(super) plan: StrongInitializationUnitRegistrationPlanSetV1,
     pub(super) callable_plan: StrongCallableRegistrationPlanSetV1,
     pub(super) safepoints: StrongSafepointSemanticPlanSetV1,
-    pub(super) provisional_patch_sites: Vec<ProvisionalDigestPatchSiteV1>,
+    pub(super) provisional_patch_sites: Vec<DigestPatchSiteV1>,
     pub(super) member: SlibMemberId,
     pub(super) object_bytes: Vec<u8>,
 }
@@ -71,12 +70,11 @@ impl Fixture {
         let provisional_patch_sites = object
             .patch_offsets
             .iter()
-            .map(|(intent, offset)| ProvisionalDigestPatchSiteV1::new(*intent, member, *offset, 32))
+            .map(|(intent, offset)| DigestPatchSiteV1::new(*intent, member, *offset))
             .collect();
         Self {
             builtins,
             foundation: inputs.foundation,
-            digest_plan: inputs.digest_plan,
             plan: inputs.plan,
             callable_plan: inputs.callable_plan,
             safepoints: inputs.safepoints,
@@ -93,15 +91,11 @@ impl Fixture {
         )]
     }
 
-    pub(super) fn verified_patch_sites(&self) -> VerifiedScoopLirDigestPatchSiteSetV1 {
-        verify_scoop_lir_digest_patch_sites_v1(
+    pub(super) fn verified_patch_sites(&self) -> ScoopLirDigestPatchSitesV1 {
+        ScoopLirDigestPatchSitesV1::new(
             self.builtins.clone(),
-            &self.foundation,
-            self.digest_plan.clone(),
-            &self.objects(),
-            &self.provisional_patch_sites,
+            (self.provisional_patch_sites).to_vec(),
         )
-        .unwrap()
     }
 
     pub(super) fn verified_stackmaps(&self) -> ScoopStackmapSetV1 {

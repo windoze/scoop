@@ -2,7 +2,7 @@ use std::fmt;
 
 use super::VerifiedRuntimeImageFingerprintV1;
 use crate::SlibMemberId;
-use crate::link_object::{ValidatedScoopLirObjectEnvelopeV1, VerifiedMaterializedPatchSiteV1};
+use crate::link_object::{DigestPatchSiteV1, ValidatedScoopLirObjectEnvelopeV1};
 
 const DIGEST_WIDTH: usize = 32;
 
@@ -115,7 +115,7 @@ where
 
 pub(super) fn write_runtime_image_digest(
     object: &mut [u8],
-    patch: VerifiedMaterializedPatchSiteV1,
+    patch: DigestPatchSiteV1,
     fingerprint: &[u8; DIGEST_WIDTH],
 ) -> Result<(), RuntimeImagePatchError> {
     let slot = digest_slot_mut(object, patch.checked_offset())?;

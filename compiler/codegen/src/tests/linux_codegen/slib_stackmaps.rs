@@ -41,7 +41,7 @@ fn elf_stackmaps_read_actual_roots_and_bind_digest_slots() {
 
         let verify_callables = |objects: &[(SlibMemberId, Vec<u8>)]| {
             let stackmaps = verify(objects).unwrap();
-            let sites = fixture.sites(stackmaps.builtins().clone(), objects);
+            let sites = fixture.sites(stackmaps.builtins().clone());
             let production = fixture.emitted.production().registration_production();
             bind_safepoint_registrations_v1(
                 stackmaps,

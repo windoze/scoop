@@ -17,7 +17,7 @@ fn elf_cone_image_materializes_its_digest_slot() {
             super::slib_metadata_fixture::module(target),
         ] {
             let fixture = SlibObjects::new(module, directory.path());
-            let patches = fixture.sites(fixture.builtins(&fixture.objects), &fixture.objects);
+            let patches = fixture.sites(fixture.builtins(&fixture.objects));
             let image =
                 bind_cone_image_v1(&patches, fixture.emitted.production().image_plan().clone())
                     .unwrap();

@@ -76,20 +76,13 @@ pub(super) fn finalized_link_object_fixture() -> (
         fixture.plan.scoop_lir_members()[0].member_id(),
         &fixture.bytes,
     )];
-    let provisional_sites = [crate::ProvisionalDigestPatchSiteV1::new(
+    let provisional_sites = [crate::DigestPatchSiteV1::new(
         digest_patch_intent(),
         fixture.plan.scoop_lir_members()[0].member_id(),
         fixture.checked_offset,
-        32,
     )];
-    let patch_sites = crate::verify_scoop_lir_digest_patch_sites_v1(
-        fixture.builtins,
-        &foundation,
-        production.digest_finalization_plan().clone(),
-        &objects,
-        &provisional_sites,
-    )
-    .unwrap();
+    let patch_sites =
+        crate::ScoopLirDigestPatchSitesV1::new(fixture.builtins, (provisional_sites).to_vec());
     let defined_symbols =
         crate::CanonicalDefinedLinkSymbolOwnerSetV1::from_verified_strong_closure(
             patch_sites.builtins().strong_relocations(),
@@ -195,7 +188,7 @@ pub(super) fn finalized_link_object_fixture() -> (
 }
 
 fn empty_undefined_requirements(
-    patch_sites: &crate::VerifiedScoopLirDigestPatchSiteSetV1,
+    patch_sites: &crate::ScoopLirDigestPatchSitesV1,
     foundation: &ConeLirFoundation,
     production: &ConeProductionSectionV1,
 ) -> crate::CanonicalUndefinedSymbolRequirementSetV1 {

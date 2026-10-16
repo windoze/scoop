@@ -18,13 +18,14 @@ use scoop_lir::{
 use super::finalization::write_runtime_image_digest;
 mod record;
 use super::*;
+use crate::ScoopLirDigestPatchSitesV1;
 use crate::link_object::generated_c_objects::tests::profile;
 use crate::link_object::{
-    CanonicalScoopLirObjectUnitSetV1, EntryProductionBranchV1, PlannedLinkObjectMemberSetV1,
-    PlannedMemberStrongObjectSymbolsV1, PlannedStrongObjectSymbolRoleV1,
-    PlannedStrongObjectSymbolSetV1, ProvisionalDigestPatchSiteV1, ScoopLirObjectCandidateV1,
+    CanonicalScoopLirObjectUnitSetV1, DigestPatchSiteV1, EntryProductionBranchV1,
+    PlannedLinkObjectMemberSetV1, PlannedMemberStrongObjectSymbolsV1,
+    PlannedStrongObjectSymbolRoleV1, PlannedStrongObjectSymbolSetV1, ScoopLirObjectCandidateV1,
     bind_entry_production_v1, read_generated_c_objects_v1,
-    verify_builtin_object_strong_relocations_v1, verify_scoop_lir_digest_patch_sites_v1,
+    verify_builtin_object_strong_relocations_v1,
 };
 use record::expected_image_record;
 
@@ -52,7 +53,7 @@ fn binds_the_library_entry_without_root_slots() {
 
 struct Fixture {
     plan: ConeImagePlanV1,
-    patch_sites: crate::link_object::VerifiedScoopLirDigestPatchSiteSetV1,
+    patch_sites: crate::link_object::ScoopLirDigestPatchSitesV1,
     member: crate::SlibMemberId,
     bytes: Vec<u8>,
 }
@@ -174,20 +175,12 @@ fn fixture(with_type_registration: bool) -> Fixture {
         &[],
     )
     .unwrap();
-    let provisional = [ProvisionalDigestPatchSiteV1::new(
+    let provisional = [DigestPatchSiteV1::new(
         plan.fingerprint_patch(),
         member,
         u64::try_from(object.section_offset).unwrap() + 96,
-        32,
     )];
-    let patch_sites = verify_scoop_lir_digest_patch_sites_v1(
-        builtins,
-        &foundation,
-        digest_plan,
-        &objects,
-        &provisional,
-    )
-    .unwrap();
+    let patch_sites = ScoopLirDigestPatchSitesV1::new(builtins, (provisional).to_vec());
     Fixture {
         plan,
         patch_sites,

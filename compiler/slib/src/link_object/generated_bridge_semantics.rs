@@ -13,8 +13,8 @@ use scoop_lir::{
 };
 
 use super::{
-    CanonicalUndefinedRelocationUseV1, VerifiedBuiltinObjectStrongRelocationSetV1,
-    VerifiedScoopLirDigestPatchSiteSetV1,
+    CanonicalUndefinedRelocationUseV1, ScoopLirDigestPatchSitesV1,
+    VerifiedBuiltinObjectStrongRelocationSetV1,
 };
 
 mod classification;
@@ -74,7 +74,7 @@ impl VerifiedGeneratedBridgeRelocationSemanticUseV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VerifiedGeneratedCBridgeSemanticSetV1 {
-    scoop_patch_sites: VerifiedScoopLirDigestPatchSiteSetV1,
+    scoop_patch_sites: ScoopLirDigestPatchSitesV1,
     bridge_plan: GeneratedBridgePlanSetV1,
     native_requirements: CanonicalNativeExternalRequirementSurfaceV1,
     target_support: CBridgeTargetSupportRegistryV1,
@@ -90,7 +90,7 @@ impl VerifiedGeneratedCBridgeSemanticSetV1 {
         self.native_requirements.target()
     }
 
-    pub const fn scoop_patch_sites(&self) -> &VerifiedScoopLirDigestPatchSiteSetV1 {
+    pub const fn scoop_patch_sites(&self) -> &ScoopLirDigestPatchSitesV1 {
         &self.scoop_patch_sites
     }
 
@@ -112,7 +112,7 @@ impl VerifiedGeneratedCBridgeSemanticSetV1 {
 }
 
 pub fn verify_generated_c_bridge_semantics_v1(
-    scoop_patch_sites: VerifiedScoopLirDigestPatchSiteSetV1,
+    scoop_patch_sites: ScoopLirDigestPatchSitesV1,
     bridge_plan: GeneratedBridgePlanSetV1,
     native_requirements: CanonicalNativeExternalRequirementSurfaceV1,
     profile: &CBridgeToolchainProfileV1,

@@ -924,68 +924,11 @@ foundation已经验证的完整`CborIdentityRecord<Id, Key>` authority；wire仍
 
 ### 9.4 Link identity closure
 
-`LinkIdentityClosureSectionV1`由packager在object verification之后构造：
+`LinkIdentityClosureSectionV1` 保存 program linking 实际需要的成员分配、定义与未定义符号。wire map 使用 field 1 materializations、field 4 defined symbols、field 5 undefined symbols。materializations 按 member id 排序，元素 tag 为 `ScoopLir=1 | GeneratedCBridge=2`，两者均保存 field 1 member；ScoopLir 另保存 field 2 units。generated-C 成员直接使用实际生成记录。
 
-```text
-LinkIdentityClosureSectionV1 {
-    materializations: CanonicalVec<MemberMaterialization>,
-    definition_indexes: CanonicalVec<VerifiedObjectDefinitionIndex>,
-    patch_sites: CanonicalVec<MaterializedPatchSite>,
-    defined_symbols: CanonicalDefinedLinkSymbolOwnerSet,
-    undefined_symbols: CanonicalUndefinedSymbolRequirementSet,
-    verified_link_objects: CanonicalVec<VerifiedLinkObjectSummary>,
-    image_owner: VerifiedImageOwnerProjection,
-    entry_owner: Library | Executable(VerifiedEntryOwnerProjection),
-}
-```
+writer 投影已有生产数据；reader 读取本次链接需要的引用和字段，不重建八字段证明、不进行整段 canonical-byte 比较。旧 definition indexes、patch sites、image／entry owner 与 verified object summary 资格字段已移除。
 
-上述伪类型在M23-3精确化如下。field 1为按member id严格递增的
-`LinkObjectMaterializationV1` array；元素sum tag为`ScoopLir=1`、`GeneratedCBridge=2`，两个variant
-均固定为`1=member: SlibMemberId`、`2=units`，units分别使用
-`CanonicalScoopLirObjectUnitSetV1`与`CanonicalGeneratedBridgeObjectUnitSetV1`。field 2为按
-`(member, definition)`严格递增的`VerifiedObjectDefinitionIndexV1` array；每项固定为
-`1=member`、`2=definition`、`3=primary_atom`、`4=primary_symbol_table_index`、`5=atoms`，atom范围
-固定为`1=atom`、`2=atom_role`、`3=section_ordinal`、`4=start`、`5=end`、`6=padding_end`并按atom id
-严格递增。section role从同一verified object inventory的ordinal唯一重建，不在wire重复。
-
-field 3精确复用按intent id严格递增的`VerifiedMaterializedPatchSiteV1` array，其wire仍是已冻结的
-`1=intent`、`2=member`、`3=checked_offset`；其余source/definition/atom/role/width只能从strong digest
-plan、field 1--2及actual object重建。fields 4--5精确复用
-`CanonicalDefinedLinkSymbolOwnerSetV1`和`CanonicalUndefinedSymbolRequirementSetV1`。field 6精确复用
-`CodeLinkObjectMemberSetV1`，不是另一套object digest摘要。
-
-field 7 `VerifiedImageOwnerProjectionV1`固定为`1=member`、`2=definition`、`3=primary_atom`、
-`4=primary_symbol_table_index`、`5=checked_offset`、`6=byte_size`。field 8的sum tag仍为
-`Library=1`、`Executable=2`；Executable payload `VerifiedEntryOwnerProjectionV1`固定为
-`1=member`、`2=definition`、`3=checked_offset`。definition/atom来自strong section的image/entry plan，
-物理位置来自相同最终object proof。整个section只能从`VerifiedCodeFingerprintV1`持有的proof链投影；
-writer不接受上述八段裸值，reader重建完整expected section并逐byte比较。
-
-为启动object reader，Link可以先消费decoded field 1形成
-`MaterializationCheckedLinkIdentityClosureSectionV1`，但该中间证明必须把每个decoded unit id逐项匹配到
-同producer的`ProducerUnitPartitionV1` typed id，重建canonical unit set、member stable key与
-member id，并对完整materialization array做canonical byte等值。它必须继续拥有其余未验证closure字段；
-不能把field 1中的裸id/member bytes直接提升，也不能用该中间状态冒充完整closure proof。最终仍以
-`VerifiedCodeFingerprintV1`重建并核对全部八个字段。
-
-物理digest slot验证前，reader再把decoded field 3收窄为
-`DigestPatchInputCheckedLinkIdentityClosureSectionV1`。该转换只能从已经验证的
-`DigestFinalizationPlanV1`枚举完整intent集合，并沿每个intent的target definition在上述
-`PlannedLinkObjectMemberSetV1`中取得唯一Scoop LIR member；decoded intent与member都必须逐byte匹配这些
-typed expected值，数组必须按intent严格递增、无重复且完整覆盖plan。wire只贡献`checked_offset`；slot宽度
-固定由v1协议派生为32，source、semantic role、definition、atom及atom role继续由digest plan与foundation
-派生，不能由decoded字段或调用者补入。该中间状态只授权把这些受限输入交给actual-object digest patch
-verifier，并继续拥有其余未验证closure字段；只有物理range、零值与relocation检查完成后，才产生
-`VerifiedScoopLirDigestPatchSiteSetV1`。最终仍从同一Code proof重建并核对完整八字段closure。
-
-同一物理证明完成后，reader必须从
-`VerifiedBuiltinObjectStrongRelocationSetV1`重建完整field 2 definition index，并从
-`VerifiedScoopLirDigestPatchSiteSetV1`重建完整field 3 patch site projection，对两个array分别做canonical
-byte等值后才形成`ObjectProjectionCheckedLinkIdentityClosureSectionV1`。该状态连同前述materialization
-证明一起只授权closure fields 1--3；definition range、symbol-table index、member或offset不允许从decoded
-carrier直接提升，其余fields 4--8仍保持未验证，最终完整八字段比较不能省略。
-
-它不贡献新的LIR semantic bytes。reader从`ConeProductionSectionV1`、manifest directory和实际object重新计算全部字段后逐byte比较；range/offset/member id只出现在本section与Code/Artifact proof中，不进入LIR own-layer fingerprint。
+对象生成中的 digest 槽位是普通 `DigestPatchSiteV1 { intent, member, checked_offset }`，宽度固定为 32 bytes。`ScoopLirDigestPatchSitesV1` 按 intent 排序以供 registration、image 与 entry 查询，直接使用 codegen 的物化结果；不重放 digest plan、不读回零槽、不扫描 relocation 或完整覆盖来取得资格。实际写入保留范围检查，缺少当前需要的 intent 按普通引用错误报告。
 
 ### 9.5 manifest production section
 
@@ -1409,8 +1352,7 @@ fingerprint与请求target不相等即失败。实际 generated-C member 的引�
 template、flags、deployment或environment都会改变profile fingerprint以及本requirement id。当前registry
 只含`Memcpy`，未知helper保持未分类并使artifact失败。
 
-完整producer-specific proof为`VerifiedGeneratedCBridgeSemanticSetV1`，只能消费已经闭合全部Scoop
-digest zero slot的`VerifiedScoopLirDigestPatchSiteSetV1`，不能从裸联合strong-relocation proof直接构造。
+generated-C semantic 数据直接使用同次生产的对象和符号索引，不以 Scoop digest 槽位的零值验证作为资格。
 它从validated bridge plan保留的full
 unit/atom key重建每个materialized atom的`GeneratedBridge` definition plan与singleton primary object
 atom，要求它们全部出现在unit被分配的generated-C member中，并要求这些member不存在额外definition、

@@ -3,8 +3,7 @@ use std::fmt;
 use super::{EntryProductionBranchV1, EntryProductionDataV1};
 use crate::SlibMemberId;
 use crate::link_object::{
-    ValidatedScoopLirObjectEnvelopeV1, VerifiedMaterializedPatchSiteV1,
-    VerifiedRuntimeImagePatchSetV1,
+    DigestPatchSiteV1, ValidatedScoopLirObjectEnvelopeV1, VerifiedRuntimeImagePatchSetV1,
 };
 
 const DIGEST_WIDTH: usize = 32;
@@ -151,7 +150,7 @@ fn unique_object_mut(
 
 fn write_digest(
     bytes: &mut [u8],
-    patch: VerifiedMaterializedPatchSiteV1,
+    patch: DigestPatchSiteV1,
     digest: &[u8; DIGEST_WIDTH],
     field: EntryPatchFieldV1,
 ) -> Result<(), EntryPatchError> {

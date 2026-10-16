@@ -29,9 +29,7 @@ pub(super) struct UnboundGeneratedCBridgeObject {
 #[derive(Clone, Copy, Debug)]
 pub(super) struct UnboundDigestPatch {
     pub(in crate::object_production) intent: scoop_identity::DigestPatchIntentId,
-    pub(in crate::object_production) definition: ObjectDefinitionPlanId,
     pub(in crate::object_production) checked_object_offset: u64,
-    pub(in crate::object_production) width_bytes: u8,
 }
 
 impl UnboundDigestPatch {
@@ -41,9 +39,7 @@ impl UnboundDigestPatch {
     ) -> Self {
         Self {
             intent: location.intent(),
-            definition: location.definition(),
             checked_object_offset: offset,
-            width_bytes: location.width_bytes(),
         }
     }
 }
@@ -54,7 +50,7 @@ pub(super) struct PlannedObjectBindings {
     pub(in crate::object_production) scoop_lir_members: Vec<PlannedScoopLirObjectInputV1>,
     pub(in crate::object_production) generated_c_bridge_members:
         Vec<PlannedGeneratedCBridgeObjectInputV1>,
-    pub(in crate::object_production) digest_patches: Vec<ProvisionalDigestPatchSiteV1>,
+    pub(in crate::object_production) digest_patches: Vec<DigestPatchSiteV1>,
 }
 
 pub(super) fn plan_objects(
@@ -92,21 +88,10 @@ pub(super) fn plan_objects(
     for source in scoop_lir_sources {
         let member = scoop_member_for_units(&member_plan, &source.units)?;
         for patch in source.digest_patches {
-            let assigned = member_plan.member_for_definition(patch.definition).ok_or(
-                BuiltinObjectProductionError::UnassignedPatchDefinition(patch.definition),
-            )?;
-            if assigned != member.member_id() {
-                return Err(BuiltinObjectProductionError::PatchMemberMismatch {
-                    definition: patch.definition,
-                    expected: assigned,
-                    actual: member.member_id(),
-                });
-            }
-            digest_patches.push(ProvisionalDigestPatchSiteV1::new(
+            digest_patches.push(DigestPatchSiteV1::new(
                 patch.intent,
                 member.member_id(),
                 patch.checked_object_offset,
-                patch.width_bytes,
             ));
         }
         scoop_lir_members.push(PlannedScoopLirObjectInputV1 {
@@ -126,15 +111,6 @@ pub(super) fn plan_objects(
     }
     generated_c_bridge_members.sort_unstable_by_key(|member| member.plan.member_id());
 
-    digest_patches.sort_unstable_by_key(|patch| patch.intent());
-    if let Some(pair) = digest_patches
-        .windows(2)
-        .find(|pair| pair[0].intent() == pair[1].intent())
-    {
-        return Err(BuiltinObjectProductionError::DuplicateDigestIntent(
-            pair[0].intent(),
-        ));
-    }
     Ok(PlannedObjectBindings {
         member_plan,
         scoop_lir_members,
