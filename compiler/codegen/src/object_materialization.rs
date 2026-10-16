@@ -1,6 +1,5 @@
 //! Resolve typed runtime-metadata patch locations into object file offsets.
 
-use std::collections::BTreeSet;
 use std::path::Path;
 
 use object::{Object, ObjectSection, ObjectSymbol};
@@ -44,7 +43,6 @@ pub(crate) fn resolve_digest_patch_materializations_v1(
         ))
     })?;
     let normalization = target.contract().native_symbol_normalization();
-    let mut offsets = BTreeSet::new();
     let mut materializations = Vec::with_capacity(metadata.patch_locations().len());
     for location in metadata.patch_locations() {
         let owner = location.owner().symbol();
@@ -157,33 +155,15 @@ pub(crate) fn resolve_digest_patch_materializations_v1(
         })?;
         let end = usize::try_from(checked_object_end)
             .map_err(|_| CodegenError(format!("digest patch owner `{owner}` end exceeds usize")))?;
-        let slot = bytes.get(start..end).ok_or_else(|| {
+        bytes.get(start..end).ok_or_else(|| {
             CodegenError(format!(
                 "digest patch in `{owner}` escapes emitted object bytes"
             ))
         })?;
-        if slot.iter().any(|byte| *byte != 0) {
-            return Err(CodegenError(format!(
-                "digest patch in `{owner}` is not provisionally zero"
-            )));
-        }
-        if !offsets.insert((checked_object_offset, checked_object_end)) {
-            return Err(CodegenError(format!(
-                "digest patch in `{owner}` repeats an object byte range"
-            )));
-        }
         materializations.push(EmittedStrongDigestPatchMaterializationV1 {
             location: *location,
             checked_object_offset,
         });
-    }
-    for pair in offsets.iter().copied().collect::<Vec<_>>().windows(2) {
-        if pair[0].1 > pair[1].0 {
-            return Err(CodegenError(format!(
-                "digest patch object ranges {}..{} and {}..{} overlap",
-                pair[0].0, pair[0].1, pair[1].0, pair[1].1
-            )));
-        }
     }
     Ok(materializations)
 }

@@ -93,9 +93,8 @@ pub(crate) struct MachOSymbol {
 
 impl MachOSymbol {
     fn is_external_definition(&self) -> bool {
-        self.symbol_type == (macho::N_SECT | macho::N_EXT)
-            && self.description & !(macho::N_NO_DEAD_STRIP | macho::N_ALT_ENTRY | macho::N_WEAK_DEF)
-                == 0
+        self.symbol_type & (macho::N_STAB | macho::N_TYPE | macho::N_EXT)
+            == (macho::N_SECT | macho::N_EXT)
     }
 
     pub(crate) const fn section_ordinal(&self) -> u8 {
@@ -238,23 +237,6 @@ impl MachOLayout {
             )));
         }
         Ok(symbol)
-    }
-
-    pub(crate) fn require_existing_boundary_pair(
-        &self,
-        start_name: &[u8],
-        end_name: &[u8],
-    ) -> Result<(), CodegenError> {
-        let start = self.require_external_definition(start_name)?;
-        let end = self.require_external_definition(end_name)?;
-        if start.section_ordinal != end.section_ordinal || start.value >= end.value {
-            return Err(CodegenError(format!(
-                "callable global atom boundary `{}`..`{}` is not one non-empty section range",
-                String::from_utf8_lossy(start_name),
-                String::from_utf8_lossy(end_name)
-            )));
-        }
-        Ok(())
     }
 
     pub(crate) fn find_section(

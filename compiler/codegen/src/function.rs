@@ -264,7 +264,6 @@ pub(super) fn emit_function<'ctx>(
     let mut runtime_scans = crate::callable_runtime_scans::CallableRuntimeScanEmitter::new(
         context,
         llvm,
-        module_ctx.target_data,
         surface,
         runtime_scan_plan,
     );

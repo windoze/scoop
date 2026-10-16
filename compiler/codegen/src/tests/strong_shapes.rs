@@ -1,6 +1,5 @@
 use inkwell::context::Context;
 use inkwell::module::Linkage;
-use inkwell::targets::TargetData;
 use scoop_identity::DefinitionAtomRole;
 use scoop_lir::{ObjectSymbolSurfaceV1, StrongDefinitionRole};
 
@@ -38,8 +37,6 @@ fn emits_every_canonical_global_shape_atom_and_boundary() {
         .expect("test module has a canonical symbol surface");
     let context = Context::create();
     let llvm = context.create_module("strong-shapes");
-    let target_data =
-        TargetData::create(scoop_target_data::DARWIN_AARCH64.canonical_llvm_data_layout());
     let descriptor_type =
         runtime_metadata_v1::RuntimeMetadataV1Types::new(&context).type_descriptor();
     let type_globals = module
@@ -82,7 +79,6 @@ fn emits_every_canonical_global_shape_atom_and_boundary() {
     shape_definitions::emit_strong_shape_definitions_v1(
         &context,
         &llvm,
-        &target_data,
         &surface,
         &module,
         TypeDescriptorGlobals {

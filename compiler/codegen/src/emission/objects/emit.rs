@@ -189,7 +189,6 @@ fn finish_callable_object(
         &path,
         profile.lir_target_profile(),
         definition,
-        body,
     ) {
         return Err(discard_invalid_object(&path, error));
     }

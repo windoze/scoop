@@ -29,8 +29,9 @@
 23. 对象格式读取：Scoop／generated-C 共用按实际属性的 section 分类，删除来源专属白名单、flags 模板、deployment／group 副本、动态符号分区与整表布局审计。保留所需表读取、目标与实际引用边界。
 24. 符号属性与引用：读取真实绑定标志，保留未消费符号的普通条目；删除符号描述组合白名单与 undefined 表全集的使用／重名预审，实际引用继续按 table index 解析。
 25. Runtime metadata 发射：直接查询和生成声明／登记／scan，删除 global 类型、布局、linkage、初值、producer 副本和发射数量的预检；digest 直接记录实际位置，删除 coverage 与 owner 回放。移除 preparation 包装和独占断言，拆出 image 测试控制文件长度。
-26. 待完成：其余对象和 runtime 重复证明、同类要求及最终验收。
-27. 最终本机定向回归与 Linux 完整验证尚未开始，不以静态检查宣称验收。
+26. 对象边界物化：使用实际 primary／section extent 写入 callable 和 generated-C 边界；删除 body／marker／backend 覆盖比较、global alias 预检与已发射边界回放。摘要槽保留写入范围计算，删除零值读回和槽位覆盖检查，移除失去消费者的 layout 参数。
+27. 待完成：其余对象和 runtime 重复证明、同类要求及最终验收。
+28. 最终本机定向回归与 Linux 完整验证尚未开始，不以静态检查宣称验收。
 
 ## 验证
 
@@ -87,3 +88,5 @@ LIR 发射后的 CLI 回归：7 项／9 变体／44 进程通过，保留 4 个�
 符号属性批次：格式化、workspace clippy 无警告；release slib link_object 139 项通过，真实弱定义、undefined 引用、atom 归属和定义位置边界继续覆盖。
 
 Runtime metadata 发射批次：格式化、workspace clippy 无警告；release codegen 首轮 222 项通过，2 项旧全量预检断言改为实际缺失引用诊断后定向补跑通过，224 项覆盖均闭合。真实 GC／异常／线程与三目标发射保持通过；未重复执行已通过的其余测试。
+
+对象物化批次：格式化、workspace clippy 无警告；release codegen 全部 224 项通过，覆盖三目标实际符号／边界、metadata 槽位及 GC／异常运行。上一批后已清理 debug target 1.8 GiB，保留 release 工具。

@@ -4,7 +4,6 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use inkwell::context::Context;
 use inkwell::module::Module as LlvmModule;
-use inkwell::targets::TargetData;
 use inkwell::values::{GlobalValue, PointerValue};
 use scoop_lir::{
     DefinitionAtomRole, LayoutKind, ObjectDefinitionAtomId, ObjectSymbolSurfaceV1,
@@ -79,7 +78,6 @@ impl<'ctx> EmittedStrongShapeDefinitionsV1<'ctx> {
 pub(super) fn emit_strong_shape_definitions_v1<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
-    target_data: &TargetData,
     surface: &ObjectSymbolSurfaceV1,
     module: &Module,
     type_globals: crate::type_descriptors::TypeDescriptorGlobals<'_, 'ctx>,
@@ -140,7 +138,7 @@ pub(super) fn emit_strong_shape_definitions_v1<'ctx>(
         module,
         &mut emitted,
     )?;
-    emit_global_atom_boundaries_v1(llvm, target_data, surface, emitted.atoms)
+    emit_global_atom_boundaries_v1(llvm, surface, emitted.atoms)
 }
 
 pub(super) fn emit_dispatch_definition_v1<'ctx>(

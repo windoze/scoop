@@ -1,5 +1,4 @@
 use inkwell::context::Context;
-use inkwell::targets::TargetData;
 use scoop_identity::{
     CborIdentityRecord, ConeCoordinate, ConeImageSupportRole, DefinitionAtomRole,
     DefinitionAtomSubkey, DigestNodeId, DigestNodeKey, DigestPatchIntentKey,
@@ -20,13 +19,10 @@ fn emits_the_closed_runtime_surface_and_exact_patch_sidecar() {
     let (production, definition, primary_atom, patch_intent, symbol) = production();
     let context = Context::create();
     let llvm = context.create_module("strong-runtime-metadata");
-    let target_data =
-        TargetData::create(scoop_target_data::DARWIN_AARCH64.canonical_llvm_data_layout());
     let producer = production.image_plan().cone().identity();
     let bounds_message = crate::emission::emit_cone_trap_message(
         &context,
         &llvm,
-        &target_data,
         production.canonical_definitions(),
         producer,
         (
@@ -39,7 +35,6 @@ fn emits_the_closed_runtime_surface_and_exact_patch_sidecar() {
     let array_size_message = crate::emission::emit_cone_trap_message(
         &context,
         &llvm,
-        &target_data,
         production.canonical_definitions(),
         producer,
         (
@@ -53,7 +48,6 @@ fn emits_the_closed_runtime_surface_and_exact_patch_sidecar() {
     let emitted = emit_strong_runtime_metadata_v1(
         &context,
         &llvm,
-        &target_data,
         crate::target::ValidatedBackendProfile::darwin_aarch64_for_test(),
         &production,
         bounds_message,
@@ -125,13 +119,10 @@ fn v2_production_emits_the_unchanged_runtime_metadata_abi() {
     let (production, definition, primary_atom, patch_intent, symbol) = production_v2();
     let context = Context::create();
     let llvm = context.create_module("strong-runtime-metadata-v2");
-    let target_data =
-        TargetData::create(scoop_target_data::DARWIN_AARCH64.canonical_llvm_data_layout());
     let producer = production.image_plan().cone().identity();
     let bounds_message = crate::emission::emit_cone_trap_message(
         &context,
         &llvm,
-        &target_data,
         production.canonical_definitions(),
         producer,
         (
@@ -144,7 +135,6 @@ fn v2_production_emits_the_unchanged_runtime_metadata_abi() {
     let array_size_message = crate::emission::emit_cone_trap_message(
         &context,
         &llvm,
-        &target_data,
         production.canonical_definitions(),
         producer,
         (
@@ -158,7 +148,6 @@ fn v2_production_emits_the_unchanged_runtime_metadata_abi() {
     let emitted = emit_strong_runtime_metadata_v1(
         &context,
         &llvm,
-        &target_data,
         crate::target::ValidatedBackendProfile::darwin_aarch64_for_test(),
         &production,
         bounds_message,

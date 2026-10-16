@@ -2,7 +2,6 @@
 
 use inkwell::context::Context;
 use inkwell::module::Module as LlvmModule;
-use inkwell::targets::TargetData;
 use inkwell::values::{BasicValueEnum, GlobalValue, PointerValue};
 
 use crate::atom_boundaries::{GlobalAtomMaterializationV1, emit_global_atom_boundaries_v1};
@@ -11,7 +10,6 @@ use crate::{CodegenError, RefScan, SCAN_ARRAY, SCAN_SEQUENCE, ptr_ty};
 pub(crate) struct CallableRuntimeScanEmitter<'a, 'ctx> {
     context: &'ctx Context,
     llvm: &'a LlvmModule<'ctx>,
-    target_data: &'a TargetData,
     surface: &'a scoop_lir::ObjectSymbolSurfaceV1,
     plan: &'a scoop_lir::StrongCallableRuntimeScanPlanV1,
     next: usize,
@@ -22,14 +20,12 @@ impl<'a, 'ctx> CallableRuntimeScanEmitter<'a, 'ctx> {
     pub(crate) fn new(
         context: &'ctx Context,
         llvm: &'a LlvmModule<'ctx>,
-        target_data: &'a TargetData,
         surface: &'a scoop_lir::ObjectSymbolSurfaceV1,
         plan: &'a scoop_lir::StrongCallableRuntimeScanPlanV1,
     ) -> Self {
         Self {
             context,
             llvm,
-            target_data,
             surface,
             plan,
             next: 0,
@@ -175,7 +171,6 @@ impl<'a, 'ctx> CallableRuntimeScanEmitter<'a, 'ctx> {
         }
         emit_global_atom_boundaries_v1(
             self.llvm,
-            self.target_data,
             self.surface,
             self.materializations.iter().copied(),
         )

@@ -1087,18 +1087,8 @@ generated C producer 接收完整 LIR、选中的 C bridge profile 和临时目�
 源码写入或工具执行失败时清理本批临时结果；成功对象按后续实际读取所需处理，不做只读封存、
 权限审计或生产过程认证。此处及后文的生产职责以现行实现规范 2.5 与 M50 为准。
 
-canonical generated-C object command必须显式关闭stack protector、同步unwind table与异步unwind table；这些
-选项进入`CanonicalCBridgeFlagContractV1`及其fingerprint，不允许依赖compiler默认值。桥接wrapper不允许C/C++
-异常跨越Scoop native boundary，GC也不扫描native frame，因此generated-C member不得产生未计划的stack-check、
-compact-unwind或EH support定义/引用。编译成功后，producer按同一unit的typed atom plan
-原子物化boundary：`PrimaryEntry`必须是从`__TEXT,__text`起点开始的唯一bridge body，其range恰为该非空section；
-`SignatureDescriptor`与`ContextDescriptor`分别是专用`__TEXT,__scoop_sig`与
-`__TEXT,__scoop_ctx` section中唯一的1-byte marker，range恰为该section。producer复用共同的Mach-O symbol-table
-重建器加入external start/end definition并同步修正被后移的undefined relocation index；任一primary symbol、
-section、extent、atom/definition plan或边界冲突都必须在写回前失败。不得按相邻symbol、nlist size、普通
-`__const` section整体或编译器临时label猜测range，也不得保留未带boundary的旧object路径。
-canonical source只用`__builtin_memcpy`表达storage copy且不包含`<string.h>`；toolchain可把它内联或降为已登记的
-`memcpy` target support，但`__memcpy_chk`等fortify派生symbol不在闭包内并必须失败。
+generated-C object command 显式选择 stack protector 和 unwind 等编译选项，并将有效选项纳入工具输入指纹。C 编译成功后直接读取本 unit 的主符号与实际 section／extent，物化计划中的 start/end 符号。Mach-O 重建器同步修正后移的 undefined relocation index；ELF 使用符号大小。缺失符号与本次读写范围正常报错，不重新检查 bridge body、marker 的模板位置／大小或允许的 support 段全集。
+canonical source 使用 `__builtin_memcpy` 表达 storage copy；toolchain 可内联或降为 helper。实际未定义引用按普通 source extern、runtime、EH 与 target-support 规则分类。
 
 本阶段Scoop LLVM producer采用确定性的强对象分片策略：每个`CallableBody` definition plan连同其全部
 associated atom独占一个provisional object，其余Scoop LIR definition plan进入恰一个non-callable object。
@@ -1109,22 +1099,9 @@ module-level backend section不会把多个callable atom混成需要事后猜测
 必须逐项等于`ProducerUnitPartitionV1`中的Scoop LIR definition集合且互不重叠；generated bridge
 definition只能由generated C producer分片，不得混入LLVM对象。
 
-Scoop LLVM producer在返回member前，必须把runtime-metadata emitter给出的每个typed
-`{intent, definition, atom, owner symbol, offset-within-owner, width}`定位到刚写出的同一Mach-O：owner必须是
-该对象中的真实definition，symbol范围与section file range都必须完整包含32-byte slot，初值必须全零，
-全部slot不得重复或相交。成功materialization保留上述typed位置和checked object file offset；packager只把
-随后确定的member id附加到该记录并由完整object verifier复核，不能重新扫描descriptor内容寻找零串。
+Scoop LLVM producer 返回 member 前，将 runtime metadata 的 typed digest 位置解析为实际文件 offset，保留 owner／section／文件范围的局部计算。槽宽固定 32，不扫描初值零值，不重新比较槽位全集或证明其互不重叠；packager 绑定 member id 后直接使用这些位置完成回填。
 
-每个callable object仅含一个body，因此该body的`Primary`精确覆盖唯一`__text`，
-`Stackmap`/`Lsda`/`EhFrame`/`CompactUnwind`分别精确覆盖同对象的
-`__llvm_stackmaps`/`__gcc_except_tab`/`__eh_frame`/`__compact_unwind`。LLVM完成object
-写出后、对象被标记只读前，producer必须为这些已计划atom向Mach-O加入真实的external
-section-definition start/end symbol；不得使用`nlist` size、相邻symbol或文件顺序推测边界。重建symbol
-table时必须保留local/extdef/undefined分区，并同步修正所有指向被后移undefined symbol的external
-relocation index。缺失/多余backend section、符号冲突、越界、scattered relocation或非canonical table
-布局都必须在改写前失败；callable-owned C string的`AddressTakenConstant`边界仍由LLVM global
-alias直接发射；callable-owned recursive scan的`RuntimeRecord`也必须已有同样的精确global boundary，两者均在
-此门禁复核为同section的非空范围，不能由section整体或临近local symbol代替。
+每个 callable object 独占一个 body，producer 为计划中的 Primary、Stackmap、Lsda、EhFrame、CompactUnwind 读取实际 symbol／backend section extent 并加入 external start/end 符号。global、常量和 runtime record alias 由 LLVM 直接发射，后续仅按目标需要调整 linkage／COMDAT。重建符号表保留本次写入所需的索引关系，不扫描未消费的 backend section 证明计划全集，不再次核对已有 alias 范围与语言计划。
 LLVM/Mach-O 的 symbol flags 按实际位读取；section 根据实际属性和所需特殊名称分类。Scoop LIR 与 generated-C 不设来源专属段矩阵，不要求 header／section flags 精确等于某套 producer 模板。读取 section、symbol 与 relocation 所需的局部边界仍由实际 reader 处理；未消费的 deployment、linker hints、动态符号分区与其他元数据交给目标工具链，不另作资格审查。
 
 ### 11.2 member id在finalization前确定

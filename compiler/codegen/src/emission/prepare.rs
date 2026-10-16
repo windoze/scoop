@@ -35,11 +35,10 @@ pub(super) fn prepare_non_callable_strong_llvm_module<
         machine,
         profile,
         StrongObjectEmissionSelection::NonCallable,
-        |context, llvm, target_data, bounds_message, array_size_message| {
+        |context, llvm, _, bounds_message, array_size_message| {
             let runtime_metadata = runtime_metadata_v1::emit_strong_runtime_metadata_v1(
                 context,
                 llvm,
-                target_data,
                 profile,
                 production,
                 bounds_message,
@@ -78,15 +77,10 @@ pub(super) fn prepare_callable_strong_llvm_module<'ctx, D, C, I>(
         machine,
         profile,
         StrongObjectEmissionSelection::CallableBody(body),
-        |context, llvm, target_data, _, _| {
+        |context, llvm, _, _, _| {
             Ok((
                 runtime_metadata_v1::emit_callable_metadata_v1(
-                    context,
-                    llvm,
-                    target_data,
-                    profile,
-                    production,
-                    body,
+                    context, llvm, profile, production, body,
                 )?,
                 declare_initialization_unit_globals(context, llvm, module, production)?,
             ))
@@ -98,7 +92,6 @@ pub(super) fn prepare_callable_strong_llvm_module<'ctx, D, C, I>(
     runtime_metadata_v1::emit_callable_safepoints(
         context,
         &llvm,
-        &machine.get_target_data(),
         production,
         body,
         &safepoints,

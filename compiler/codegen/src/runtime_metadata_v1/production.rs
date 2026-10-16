@@ -1,6 +1,5 @@
 use inkwell::context::Context;
 use inkwell::module::Module as LlvmModule;
-use inkwell::targets::TargetData;
 use inkwell::values::GlobalValue;
 use scoop_lir::{
     ConeIdentity, DigestPatchIntentId, ObjectDefinitionAtomId, ObjectDefinitionPlanId,
@@ -137,7 +136,6 @@ pub(crate) fn emit_strong_runtime_metadata_v1<
 >(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
-    target_data: &TargetData,
     profile: ValidatedBackendProfile,
     production: &scoop_lir::ConeProductionSection<D, C, I>,
     array_bounds_message: GlobalValue<'ctx>,
@@ -217,7 +215,6 @@ pub(crate) fn emit_strong_runtime_metadata_v1<
     patches.sort_unstable_by_key(|patch| patch.intent);
     emit_global_atom_boundaries_v1(
         llvm,
-        target_data,
         production.canonical_definitions(),
         runtime_global_atoms(
             production,

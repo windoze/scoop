@@ -1,6 +1,6 @@
 //! Normalize emitted ELF aliases without changing their owning storage.
 
-use object::{Object, ObjectSection, ObjectSymbol, SectionIndex};
+use object::{Object, ObjectSymbol, SectionIndex};
 
 use super::*;
 use crate::elf_object::{ElfObject, error};
@@ -34,21 +34,9 @@ pub(crate) fn existing_pair(
         .file
         .symbol_by_name(start_name.as_str())
         .ok_or_else(|| CodegenError(format!("missing ELF atom start `{start_name}`")))?;
-    let end = output
-        .file
-        .symbol_by_name(end_name.as_str())
-        .ok_or_else(|| CodegenError(format!("missing ELF atom end `{end_name}`")))?;
     let section = start
         .section_index()
-        .filter(|section| Some(*section) == end.section_index())
-        .ok_or_else(|| CodegenError("ELF atom boundaries do not share a defined section".into()))?;
-    if end.address() <= start.address()
-        || end.address() > output.file.section_by_index(section).map_err(error)?.size()
-    {
-        return Err(CodegenError(format!(
-            "ELF atom {start_name}..{end_name} has a non-positive or out-of-section extent"
-        )));
-    }
+        .ok_or_else(|| CodegenError(format!("ELF atom `{start_name}` has no section")))?;
     output.existing_boundary(start_name.as_str(), boundary.start().linkage(), false)?;
     output.existing_boundary(end_name.as_str(), boundary.end().linkage(), true)?;
     Ok(section)

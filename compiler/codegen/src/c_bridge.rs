@@ -10,8 +10,6 @@ pub use layout::c_layout_assertions;
 use layout::render_c_layout_assertions;
 use render::{CBridgeTypeSurface, CTypeRenderer};
 
-pub(crate) const GENERATED_BRIDGE_SIGNATURE_SECTION: (&[u8], &[u8]) = (b"__TEXT", b"__scoop_sig");
-pub(crate) const GENERATED_BRIDGE_CONTEXT_SECTION: (&[u8], &[u8]) = (b"__TEXT", b"__scoop_ctx");
 pub(crate) const ELF_BRIDGE_SIGNATURE_SECTION: &str = ".rodata.scoop_sig";
 
 /// One canonical generated-C translation unit and the bridge unit whose
