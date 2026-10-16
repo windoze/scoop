@@ -1,0 +1,64 @@
+package scoop.platform.random
+
+import scoop.platform.memory.NativeByteBuffer
+import scoop.random.Random
+import scoop.uuid.Uuid
+import scoop.test.*
+
+@Test
+private class SystemRandomTest {
+    @Test
+    fun `random bits and inherited ranges follow the Random contract`() {
+        val random: Random = SystemRandom
+        assertEquals(0, random.nextBits(0))
+        assertFailsWith<IllegalArgumentException> { random.nextBits(-1) }
+        assertFailsWith<IllegalArgumentException> { random.nextBits(33) }
+        var bits = 1
+        while (bits < 32) {
+            val value = random.nextBits(bits)
+            assertTrue(value >= 0 && value.toUInt32() < (1u shl bits.toInt64()))
+            bits += 1
+        }
+        random.nextBits(32)
+        assertEquals(7, random.nextInt(7, 8))
+        val value = random.nextDouble()
+        assertTrue(value >= 0.0 && value < 1.0)
+    }
+
+    @Test
+    fun `batch entropy preserves array bounds and supports multiple native chunks`() {
+        val bytes = MutableArray<Byte>(1030L) { 42.toInt8() }
+        assertSame(bytes, SystemRandom.nextBytes(bytes, 3L, 1027L))
+        for (index in [0L, 1L, 2L, 1027L, 1028L, 1029L]) assertEquals(42.toInt8(), bytes[index])
+        assertSame(bytes, SystemRandom.nextBytes(bytes, 3L, 3L))
+        assertEquals(1024L, SystemRandom.nextBytes(1024L).size)
+        assertEquals(0L, SystemRandom.nextBytes(0L).size)
+        assertFailsWith<IllegalArgumentException> { SystemRandom.nextBytes(-1L) }
+        assertFailsWith<IndexOutOfBoundsException> { SystemRandom.nextBytes(bytes, -1L, 2L) }
+        assertFailsWith<IllegalArgumentException> { SystemRandom.nextBytes(bytes, 4L, 3L) }
+    }
+
+    @Test
+    fun `buffer entropy commits only the requested initialized tail`() {
+        NativeByteBuffer.allocate(1030L).use { buffer ->
+            buffer.writeByte(42.toInt8())
+            assertEquals(1024L, SystemRandom.fill(buffer, 1024L))
+            assertEquals(1025L, buffer.readableBytes)
+            assertEquals(5L, buffer.writableBytes)
+            assertEquals(42.toInt8(), buffer.readByte())
+            assertEquals(0L, SystemRandom.fill(buffer, 0L))
+            assertFailsWith<IllegalArgumentException> { SystemRandom.fill(buffer, -1L) }
+            assertFailsWith<IndexOutOfBoundsException> { SystemRandom.fill(buffer, 6L) }
+            assertEquals(5L, SystemRandom.fill(buffer))
+            assertEquals(0L, buffer.writableBytes)
+        }
+    }
+
+    @Test
+    fun `system entropy can be passed explicitly to UUID generation`() {
+        val value = Uuid.random(SystemRandom)
+        assertEquals(4uL, (value.mostSignificantBits shr 12L) and 15uL)
+        assertEquals(2uL, value.leastSignificantBits shr 62L)
+        assertEquals(value, Uuid.parse(value.toString()))
+    }
+}

@@ -70,4 +70,13 @@ core 增加一个直接 C leaf pressure 提示，适配层接入既有 GC 操作
 - 新 CLI 用例在 debug/release、普通／moving GC 通过；core 资源用例也通过。其余 67 个函数适配、返回标签、尾随参数、M45 推断、系统边界及产物消费用例统一通过（76 variants、231 processes，无新结构 golden），没有重跑全仓库。
 - 首轮回归捕获过度使用普通语句检查而拒绝任意末尾值的问题，已保留其求值后丢弃路径并复验；新增 Boolean when 测试补齐既有穷尽规则。平台库直接使用原本合法的泛型测量调用，没有补显式类型或库侧绕行。
 
-下一批为 M45-6；Linux GNU／musl 仍集中安排在全部本机功能稳定后。所有原始记录在仓库外，docs/validation 未纳入原始输出。
+## M45-6：环境、系统信息、时钟与系统熵
+
+2026-10-16 完成本机实现。原始 argv 复用 runtime 既有查询；环境值、只读快照和目录查询保留字节。系统信息读取实际 OS 值，时钟组合 std Clock／TimeSource／Instant／Duration；sleep 使用 monotonic 截止时间与 NativeSafe 等待。SystemRandom 实现 std Random，批量填充数组和 NativeByteBuffer，逐次提交已初始化尾部，可直接传给 Uuid.random。
+
+- scoop.test 共 69 项在 debug、release、debug moving GC 全部通过，本批新增 11 项，覆盖环境快照／参数错误、实际 cwd、系统信息、时间源／测量／sleep，以及随机位范围、数组边界、buffer 进度和 UUID 格式；不以随机字节差异或统计阈值判定成功。
+- native 系统 fixture 在 debug/release、普通／moving GC 通过：execve 注入空参数、空格、原始非 UTF-8 参数／环境及 HOME；passwd 查询模拟扩容、缺失与系统错误；getentropy 注入 EINTR、成功一块后失败，检查 buffer 游标和数组未写尾部，并从实际 native 调用回调 GC 检查借用／pin。
+- sleep 专测用 condition variable 协调真实 pthread：worker 在实际 nanosleep 边界等待，另一个 mutator 完成 GC 后才放行并注入 EINTR，验证收集与等待同时推进。另覆盖时钟读取失败；无 sleep 猜测线程进度。
+- 下游 `.slib` 组合增加原始环境、系统信息、时钟和随机调用，普通／moving 通过。格式化、workspace all-targets clippy 和 C 严格告警通过。库侧首轮的导入、整数宽度、数组初始化及 argv 可空指针绑定已修正；argv 与既有 native contract 对齐，runtime ABI 不变。
+
+下一批为 M45-7；Linux GNU／musl 仍集中安排在全部本机功能稳定后。Linux getrandom 的实际短读取与其目标 ABI 随最终验收运行。所有原始记录在仓库外，docs/validation 未纳入原始输出。

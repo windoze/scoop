@@ -32,3 +32,11 @@ path = "native/file_metadata.c"
 path = "native/paths.c"
 [[native.sources]]
 path = "native/directory.c"
+[[native.sources]]
+path = "native/environment.c"
+[[native.sources]]
+path = "native/system.c"
+[[native.sources]]
+path = "native/time.c"
+[[native.sources]]
+path = "native/random.c"

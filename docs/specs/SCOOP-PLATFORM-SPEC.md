@@ -143,3 +143,29 @@ EOF 时自动关闭枚举句柄，之后 next 仍返回 None；提前 dispose �
 safe fd 输出不因断开的 pipe/socket 默认杀死进程。Linux 普通 fd 写入仅屏蔽当前线程的 SIGPIPE，保存旧 mask/pending，只消费本次写入新增的 SIGPIPE，再恢复 mask；不消费已有 pending，也不安装进程级 handler。Darwin 内核的普通 fd 写入发出进程定向 SIGPIPE，使用真实 F_SETNOSIGPIPE 选项抑制；该选项属于打开文件描述，同一描述的别名可见，标准输出也在实际写入当前 fd 时设置。socket 专用输出使用对应 MSG_NOSIGNAL/SO_NOSIGPIPE。所有目标保持用户 signal handler，不以成功 no-op 模拟保护。
 
 目标依据：[Linux close](https://man7.org/linux/man-pages/man2/close.2.html)、[Linux rename](https://man7.org/linux/man-pages/man2/rename.2.html)、[Darwin fd 生命周期](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_descrip.c)、[Darwin 写入与 SIGPIPE](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/sys_generic.c)。这些边界按实际 OS 合同实现，不推导新的 compiler/runtime 协议。
+
+## 7. 原始参数、环境与系统信息
+
+`scoop.platform.env.arguments(): Array<OsString>` 复制包括 argv[0] 的原始进程参数，复用 runtime 的只读 argc/argv 入口。无参数 main 可以保留坏 UTF-8 参数；有参数 main 的启动解码规则保持语言／runtime 规范不变。
+
+`environmentVariable(name: OsString): OsString?` 及 String 便利重载区分缺失与空值，名称非空且不含 NUL 或 `=`。`environment(): Map<OsString, OsString>` 返回独立只读快照；按第一个 `=` 拆分，不损坏原始字节。仅包含有非空名称和分隔符的环境项，同名项以第一个为准，与单项查询一致。没有进程全局环境修改 API；调用者不能同时通过外部 native 代码违反 libc 环境访问的线程合同，库内锁不能代替该前提。
+
+currentDirectory(): Path 查询实际 cwd，不读取 PWD；homeDirectory(): Path? 优先使用非空 HOME，否则查询当前真实 uid 的 passwd 目录，没有记录或空目录时返回 None，实际查询错误抛 PlatformException。temporaryDirectory(): Path 使用非空 TMPDIR，否则为 `/tmp`。查询返回字节副本，不保证路径存在、可访问或之后仍可创建文件；不提供全局 chdir。
+
+`scoop.platform.system` 提供 OperatingSystem(Darwin/Linux)、Architecture(Aarch64/X86_64)、operatingSystem 与 architecture 只读值，标识当前构建目标。systemVersion(): String 返回 uname 的系统 release，logicalProcessorCount: Long 返回 OS 报告的在线逻辑 CPU 数；失败照常抛系统错误，不推导容器配额或调度能力。
+
+## 8. 时钟与阻塞 sleep
+
+`scoop.platform.time.SystemClock` 实现 scoop.time.Clock，now 返回实时钟的 Instant；`MonotonicTimeSource` 实现 TimeSource，markNow 返回以自身为 source、以 CLOCK_MONOTONIC 读数构造 Duration 的 TimeMark。实时钟可以回拨，monotonic 不与 epoch 混用，同源比较仍由 std 检查。native 读取失败抛 PlatformException，不伪造零读数；转换遵守 std 的范围规则。
+
+sleep(duration: Duration) 拒绝负值，零直接返回。正值通过 NativeSafe 等待；使用 monotonic 截止时间在 EINTR 后继续，允许调度造成延迟，不承诺精确唤醒。截止时间超出目标表示范围时报告溢出错误；不以通用超时配额限制有效时长。等待不阻止其他 mutator 推进或 GC。
+
+TimeMark.elapsedNow() 为 `source.markNow() - this`。measureTime(source: TimeSource = MonotonicTimeSource, block: () -> Unit) 与 measureTimedValue<T>(source: TimeSource = MonotonicTimeSource, block: () -> T) 同步调用正文一次，后者返回 TimedValue<T>(value, duration)；正文失败直接传播，不额外读取时钟覆盖原异常。不支持 suspend、timer queue 或调度器。
+
+## 9. 系统熵
+
+`scoop.platform.random.SystemRandom` 实现 scoop.random.Random，nextBits 按 0..32 的既有合同返回位值；0 不调用 OS。覆盖 nextBytes(size) 与 nextBytes(MutableArray, fromIndex, toIndex) 的批量路径，不逐字节请求。fill(buffer: NativeByteBuffer, count: Long = buffer.writableBytes) 检查当前尾部容量，返回成功填充数量；零请求不执行 native 操作。
+
+Linux 使用 getrandom、Darwin 使用 getentropy，按目标单次上限分块并重试未产生数据的 EINTR；允许短结果后继续。NativeByteBuffer 每次只提交本次成功的前缀，后续失败保留已提交进度，未初始化尾部仍不可读；数组失败保留已写区间。native 正请求无进度作为 IO 错误处理，不忙循环或退化为 PRNG。所有系统熵操作使用 NativeSafe，可以与 GC 并行。Uuid.random(SystemRandom) 与既有 Random 默认方法沿普通接口组合，不增加隐式随机源或密码学算法。
+
+目标依据：[getentropy](https://man7.org/linux/man-pages/man3/getentropy.3.html)、[nanosleep](https://man7.org/linux/man-pages/man2/nanosleep.2.html)、[clock_nanosleep](https://man7.org/linux/man-pages/man2/clock_nanosleep.2.html) 以及当前目标 SDK。环境、时钟和熵均不新增 runtime ABI。

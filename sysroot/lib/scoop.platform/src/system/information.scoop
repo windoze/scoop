@@ -1,0 +1,45 @@
+package scoop.platform.system
+
+import scoop.platform.fs.copyNativeString
+import scoop.platform.io.checkNative
+import scoop.platform.io.failNative
+import scoop.platform.memory.nativeMemoryFree
+
+public enum OperatingSystem { Darwin, Linux }
+public enum Architecture { Aarch64, X86_64 }
+
+public val operatingSystem: OperatingSystem = currentOperatingSystem()
+public val architecture: Architecture = currentArchitecture()
+
+private fun currentOperatingSystem(): OperatingSystem {
+    @Unsafe { return if (nativeOperatingSystem() == 0) OperatingSystem.Darwin else OperatingSystem.Linux }
+}
+
+private fun currentArchitecture(): Architecture {
+    @Unsafe { return if (nativeArchitecture() == 0) Architecture.Aarch64 else Architecture.X86_64 }
+}
+
+public val logicalProcessorCount: Long get() {
+    @Unsafe {
+        val (count, error) = nativeProcessorCount()
+        return checkNative(count, error, "logical processor count")
+    }
+}
+
+public fun systemVersion(): String {
+    @Unsafe {
+        val (pointer, error) = nativeSystemVersion()
+        if (pointer == None) failNative("system version", error)
+        try { return copyNativeString(pointer!!).decodeUtf8() }
+        finally { nativeMemoryFree(pointer!!) }
+    }
+}
+
+@GCLeaf @Extern(name = "scoop_platform_operating_system")
+private fun nativeOperatingSystem(): Int
+@GCLeaf @Extern(name = "scoop_platform_architecture")
+private fun nativeArchitecture(): Int
+@Extern(name = "scoop_platform_processor_count", captureErrno = true)
+private fun nativeProcessorCount(): (Long, Int)
+@Extern(name = "scoop_platform_system_version", captureErrno = true)
+private fun nativeSystemVersion(): (Ptr<Byte>?, Int)

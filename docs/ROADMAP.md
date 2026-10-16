@@ -593,7 +593,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 
 - 在 M38 完成后实施；首先修复泛型扩展回调的参数／返回类型联合推断，再接入普通 `scoop.platform` Cone。
 - core 提供 Disposable、普通／挂起 use 与 GC-free pressure 提示；platform 提供 native buffer、同步 IO、文件、进程、线程、网络、系统时间与熵。
-- M45-1～5 本机实现与回归完成，已交付推断修复、系统字符串／路径／错误、资源协议、NativeByteBuffer、同步 IO、文件和目录；下一批为环境／系统信息、时钟与系统熵。结果见[实施记录](milestone45/PROGRESS.md)。
+- M45-1～6 本机实现与回归完成，已交付推断修复、系统字符串／路径／错误、资源协议、NativeByteBuffer、同步 IO、文件／目录、环境／系统信息、时钟与系统熵；下一批为线程与同步原语。结果见[实施记录](milestone45/PROGRESS.md)。
 - 库行为优先通过 `scoop.test` 验证，编译器、ABI、GC 与产物边界保留必要专测；本机批次稳定后统一验证 Linux GNU／musl。
 
 ### M46 序列化基础协议与 DTO 合成（已完成，[设计](milestone46/DESIGN.md)）

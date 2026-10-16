@@ -1,0 +1,100 @@
+package scoop.platform.env
+
+import scoop.collections.LinkedHashMap
+import scoop.collections.Map
+import scoop.collections.toMap
+import scoop.platform.fs.*
+import scoop.platform.io.failNative
+import scoop.platform.memory.nativeMemoryFree
+import scoop.platform.system.OsString
+
+public fun arguments(): Array<OsString> {
+    @Unsafe {
+        return Array<OsString>(nativeArgumentCount().toInt64()) { index ->
+            @Unsafe { return@Array copyNativeString(nativeArgument(index.toInt32())!!) }
+        }
+    }
+}
+
+public fun environmentVariable(name: String): OsString? = environmentVariable(OsString.fromString(name))
+
+public fun environmentVariable(name: OsString): OsString? {
+    val bytes = name.toBytes()
+    if (bytes.size == 0L) throw IllegalArgumentException(Some("empty environment name"))
+    for (byte in bytes) {
+        if (byte == 0 || byte == 61) throw IllegalArgumentException(Some("invalid environment name"))
+    }
+    @Unsafe {
+        return name.withNativeString { pointer ->
+            @Unsafe {
+                return@withNativeString when (nativeEnvironmentValue(pointer)) {
+                    case Some(value) -> Some(copyNativeString(value))
+                    case None -> None
+                }
+            }
+        }
+    }
+}
+
+public fun environment(): Map<OsString, OsString> {
+    val result = LinkedHashMap<OsString, OsString>()
+    @Unsafe {
+        val entries = nativeEnvironment()
+        var index = 0L
+        while (entries.load(index) != None) {
+            val bytes = copyNativeString(entries.load(index)!!).toBytes()
+            var separator = 0L
+            while (separator < bytes.size && bytes[separator] != 61) separator += 1L
+            if (separator > 0L && separator < bytes.size) {
+                val split = separator
+                val name = OsString.fromBytes(Array<Byte>(split) { bytes[it] })
+                val value = OsString.fromBytes(Array<Byte>(bytes.size - split - 1L) { bytes[split + 1L + it] })
+                if (!result.containsKey(name)) result.put(name, value)
+            }
+            index += 1L
+        }
+    }
+    return result.toMap()
+}
+
+public fun currentDirectory(): Path {
+    @Unsafe {
+        val (pointer, error) = nativeCurrentDirectory()
+        if (pointer == None) failNative("current directory", error)
+        try { return Path.fromOsString(copyNativeString(pointer!!)) }
+        finally { nativeMemoryFree(pointer!!) }
+    }
+}
+
+public fun homeDirectory(): Path? {
+    when (environmentVariable("HOME")) {
+        case Some(value) -> if (value.toBytes().size != 0L) return Some(Path.fromOsString(value))
+        case None -> {}
+    }
+    @Unsafe {
+        val (pointer, error) = nativeHomeDirectory()
+        if (pointer == None) {
+            if (error != 0) failNative("home directory", error)
+            return None
+        }
+        try { return Some(Path.fromOsString(copyNativeString(pointer!!))) }
+        finally { nativeMemoryFree(pointer!!) }
+    }
+}
+
+public fun temporaryDirectory(): Path {
+    @Unsafe { return Path.fromOsString(copyNativeString(nativeTemporaryDirectory())) }
+}
+
+@GCLeaf @Extern(name = "scoop_rt_program_argc")
+private fun nativeArgumentCount(): Int
+@GCLeaf @Extern(name = "scoop_rt_program_argv")
+private fun nativeArgument(index: Int): Ptr<Byte>?
+@Extern(name = "scoop_platform_environment_value")
+private fun nativeEnvironmentValue(name: Ptr<Byte>): Ptr<Byte>?
+@Extern(name = "scoop_platform_environment")
+private fun nativeEnvironment(): Ptr<Ptr<Byte>?>
+@Extern(name = "scoop_platform_current_directory", captureErrno = true)
+private fun nativeCurrentDirectory(): (Ptr<Byte>?, Int)
+@Extern(name = "scoop_platform_home_directory", captureErrno = true)
+private fun nativeHomeDirectory(): (Ptr<Byte>?, Int)

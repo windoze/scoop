@@ -1,6 +1,9 @@
 import scoop.platform.memory.NativeByteBuffer
 import scoop.platform.fs.*
 import scoop.platform.io.*
+import scoop.platform.env.*
+import scoop.platform.random.SystemRandom
+import scoop.platform.time.*
 import scoop.platform.system.*
 
 fun main() {
@@ -36,4 +39,12 @@ fun main() {
             Unit
         }
     } finally { Files.deleteRecursively(directory) }
+    if (arguments().size == 0L || logicalProcessorCount <= 0L) throw IllegalStateException()
+    if (SystemRandom.nextBytes(32L).size != 32L) throw IllegalStateException()
+    if (SystemClock.now().nanosecondsOfSecond < 0) throw IllegalStateException()
+    val mark = MonotonicTimeSource.markNow()
+    if (MonotonicTimeSource.markNow() < mark) throw IllegalStateException()
+    for ((name, value) in environment()) {
+        if (environmentVariable(name)!! != value) throw IllegalStateException()
+    }
 }
