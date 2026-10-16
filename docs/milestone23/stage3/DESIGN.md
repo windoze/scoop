@@ -1160,20 +1160,15 @@ layout definition/assertion；不得扫描整Cone后把其他unit的declaration�
 进来。空plan产生空source/object set；不存在单体`bridge.c`、多unit generated-C object或把同一unit再次
 按source declaration拆分的入口。临时source/object文件名只由unit id派生且不承担语义。
 
-generated C producer必须原子地接收sealed strong LIR、请求级
-`ValidatedCBridgeToolchainProfile`与临时目录父路径：先生成上述canonical source set，再只通过该profile的
-canonical object command逐unit编译。其typed结果必须同时保留完整`GeneratedBridgePlanSetV1`、精确
-`CBridgeToolchainProfileV1`、从二者唯一派生的`CBridgeProductionSetV1`、每个unit的authority plan及其
-source/object path映射，并拥有覆盖全部临时source/object的immutable backing；每个成功object必须存在、
-为非空普通文件且在返回前标记只读。driver只
-能在该结果存活期间借用object path交给linker，不能自行写source、调用compiler、按文件名重建unit、重新配对
-plan/source/object或接收裸`Vec<PathBuf>`作为producer结果。任一unit的source写入、compiler执行、object
-检查或封存失败都使整个object set构造失败并随backing一并丢弃，不返回部分结果。
+generated C producer 接收完整 LIR、选中的 C bridge profile 和临时目录父路径，生成各 unit 的源码，
+由 driver 执行实际 C 编译。结果保存 unit plan、source/object path 及管理临时文件生命周期的目录。
+源码写入或工具执行失败时清理本批临时结果；成功对象按后续实际读取所需处理，不做只读封存、
+权限审计或生产过程认证。此处及后文的生产职责以现行实现规范 2.5 与 M50 为准。
 
 canonical generated-C object command必须显式关闭stack protector、同步unwind table与异步unwind table；这些
 选项进入`CanonicalCBridgeFlagContractV1`及其fingerprint，不允许依赖compiler默认值。桥接wrapper不允许C/C++
 异常跨越Scoop native boundary，GC也不扫描native frame，因此generated-C member不得产生未计划的stack-check、
-compact-unwind或EH support定义/引用。编译成功后、object封存前，producer必须按同一unit的typed atom authority
+compact-unwind或EH support定义/引用。编译成功后，producer按同一unit的typed atom plan
 原子物化boundary：`PrimaryEntry`必须是从`__TEXT,__text`起点开始的唯一bridge body，其range恰为该非空section；
 `SignatureDescriptor`与`ContextDescriptor`分别是专用`__TEXT,__scoop_sig`与
 `__TEXT,__scoop_ctx` section中唯一的1-byte marker，range恰为该section。producer复用共同的Mach-O symbol-table

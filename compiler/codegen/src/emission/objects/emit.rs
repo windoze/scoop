@@ -33,7 +33,7 @@ pub(super) fn emit_object_set_with_production<
         .tempdir_in(temporary_parent)
         .map_err(|error| {
             CodegenError(format!(
-                "cannot create immutable object backing under {}: {error}",
+                "cannot create object backing under {}: {error}",
                 temporary_parent.display()
             ))
         })?;
@@ -112,7 +112,7 @@ pub(super) fn emit_object_set_with_production<
                 production.canonical_definitions(),
                 units.definition_plans(),
             )?;
-            verify_and_seal_object(&path, profile, &selected_safepoints, &selected_eh)?;
+            verify_object(&path, profile, &selected_safepoints, &selected_eh)?;
             let digest_patches = object_materialization::resolve_digest_patch_materializations_v1(
                 &path,
                 module.meta.target_profile,
@@ -211,7 +211,7 @@ fn finish_callable_object(
         surface,
         &registrations,
     )?;
-    verify_and_seal_object(&path, profile, &plan.safepoints, &plan.eh)?;
+    verify_object(&path, profile, &plan.safepoints, &plan.eh)?;
     let digest_patches = object_materialization::resolve_digest_patch_materializations_v1(
         &path,
         profile.lir_target_profile(),

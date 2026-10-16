@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use super::*;
 
-/// One generated-C object together with the exact bridge-unit authority and
+/// One generated-C object together with its bridge-unit plan and
 /// source path from which it was compiled.
 #[derive(Debug)]
 pub struct EmittedGeneratedCBridgeObjectMemberV1 {
@@ -29,9 +29,8 @@ impl EmittedGeneratedCBridgeObjectMemberV1 {
     }
 }
 
-/// Complete generated-C source/object production for one sealed strong LIR
-/// product. The owned temporary directory keeps all source and object files
-/// immutable and alive for exactly as long as this result.
+/// Complete generated-C source/object production for one LIR product.
+/// The owned temporary directory keeps its files alive until this result drops.
 #[derive(Debug)]
 pub struct EmittedGeneratedCBridgeObjectSetV1 {
     profile: scoop_lir::CBridgeToolchainProfileV1,
@@ -117,7 +116,7 @@ fn emit_source_set_with_compiler(
         .tempdir_in(temporary_parent)
         .map_err(|error| {
             CodegenError(format!(
-                "cannot create immutable generated-C backing under {}: {error}",
+                "cannot create generated-C backing under {}: {error}",
                 temporary_parent.display()
             ))
         })?;
@@ -148,14 +147,12 @@ fn emit_source_set_with_compiler(
                 source_path.display()
             ))
         })?;
-        seal_regular_file(&source_path, "generated-C source", false)?;
         compile(plan, &source_path, &object_path).map_err(|error| {
             CodegenError(format!(
                 "cannot compile generated-C unit {}: {error}",
                 source.unit()
             ))
         })?;
-        seal_regular_file(&object_path, "generated-C object", true)?;
         members.push(EmittedGeneratedCBridgeObjectMemberV1 {
             plan: plan.clone(),
             source_path,
@@ -171,29 +168,6 @@ fn emit_source_set_with_compiler(
         sources,
         members,
         backing,
-    })
-}
-
-fn seal_regular_file(path: &Path, role: &str, require_nonempty: bool) -> Result<(), CodegenError> {
-    let metadata = std::fs::symlink_metadata(path).map_err(|error| {
-        CodegenError(format!("cannot inspect {role} {}: {error}", path.display()))
-    })?;
-    if !metadata.file_type().is_file() {
-        return Err(CodegenError(format!(
-            "{role} {} is not a regular file",
-            path.display()
-        )));
-    }
-    if require_nonempty && metadata.len() == 0 {
-        return Err(CodegenError(format!("{role} {} is empty", path.display())));
-    }
-    let mut permissions = metadata.permissions();
-    permissions.set_readonly(true);
-    std::fs::set_permissions(path, permissions).map_err(|error| {
-        CodegenError(format!(
-            "cannot seal {role} {} read-only: {error}",
-            path.display()
-        ))
     })
 }
 

@@ -128,7 +128,7 @@ pub(super) fn write_object(
         .map_err(|error| CodegenError(format!("failed to write {}: {error}", output.display())))
 }
 
-pub(super) fn verify_and_seal_object(
+pub(super) fn verify_object(
     output: &Path,
     profile: ValidatedBackendProfile,
     expected_safepoints: &statepoint::ExpectedSafepoints,
@@ -137,21 +137,6 @@ pub(super) fn verify_and_seal_object(
     if let Err(error) = profile.verify_object(output, expected_safepoints, expected_eh) {
         return Err(discard_invalid_object(output, error));
     }
-    let mut permissions = std::fs::metadata(output)
-        .map_err(|error| {
-            CodegenError(format!(
-                "cannot inspect verified object {}: {error}",
-                output.display()
-            ))
-        })?
-        .permissions();
-    permissions.set_readonly(true);
-    std::fs::set_permissions(output, permissions).map_err(|error| {
-        CodegenError(format!(
-            "cannot seal verified object {} read-only: {error}",
-            output.display()
-        ))
-    })?;
     Ok(())
 }
 
