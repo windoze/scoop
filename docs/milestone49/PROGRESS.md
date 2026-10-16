@@ -102,3 +102,5 @@ GNU／musl 的完整 asyncio 在 debug／release／moving GC 均为四十五项�
 GNU／musl 的 platform 全库三模式均为一百零六项通过；musl 定向 CLI 四十一项全部通过。GNU 完整 CLI 保留首批一百六十一项通过及二十九项不适用，复用原源码与缓存后以八并发执行剩余三千九百九十八项，结束时按名称合并核对覆盖。
 
 driver 的十九项布局产物测试共用旧描述符分类，只将 closure 视为本地生成类型，误要求新增 core 协程的 frame／恢复适配器进入公开布局表。按实际 GeneratedNominalKey 修正测试分类，保留导出与 ABI 断言；描述符检查拆入 141 行子模块，原文件 168 行。本机格式化、workspace clippy 及独立／组合 alias 回归通过，Linux 该组补验继续执行。生产实现与规范合同不变。
+
+上述十九项 Linux 补验全部通过。有限类型测试另有一项只从源码类型表查找协程槽位字段身份；改为同时使用已有 context／frame 的生成类型身份，继续逐字段精确比较，没有增加生产 API。本机格式化、workspace clippy 和该组两项测试通过，Linux 进行对应补验。
