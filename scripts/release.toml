@@ -1,6 +1,8 @@
 version = "0.0.0-dev"
 llvm = "22.1.8"
 openssl = "3.5.9"
+llhttp = "9.4.3"
+nghttp2 = "1.70.0"
 
 [targets.aarch64-apple-darwin]
 cpu = "generic"

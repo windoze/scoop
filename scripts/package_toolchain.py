@@ -47,6 +47,19 @@ def prepare_targets(args, targets, binaries, environment):
             native = ["--cc", cc]
             openssl += native
         run_script("build_openssl.py", openssl, environment)
+        run_script(
+            "build_nghttp2.py",
+            [
+                "--target",
+                target,
+                "--build-dir",
+                args.work_dir / "nghttp2" / target,
+                "--jobs",
+                args.jobs,
+                *native,
+            ],
+            environment,
+        )
         if "linux" in target:
             unwind = [
                 "--target",
@@ -115,6 +128,7 @@ def assemble(root, targets, binaries, args, release):
         shutil.copytree(source / "runtime", destination / "runtime")
         for component, libraries in (
             ("openssl", ("libcrypto.a", "libssl.a")),
+            ("nghttp2", ("libnghttp2.a",)),
             ("unwind", ("libunwind.a",)),
         ):
             if component == "unwind" and "linux" not in target:
@@ -140,6 +154,8 @@ def assemble(root, targets, binaries, args, release):
         f"host = {json.dumps(args.host)}",
         f"llvm = {json.dumps(release['llvm'])}",
         f"openssl = {json.dumps(release['openssl'])}",
+        f"llhttp = {json.dumps(release['llhttp'])}",
+        f"nghttp2 = {json.dumps(release['nghttp2'])}",
         f"host_libraries = {json.dumps(sorted(path.name for path in native))}",
     ]
     uv = (sysroot / "vendor/libuv/include/uv/version.h").read_text()

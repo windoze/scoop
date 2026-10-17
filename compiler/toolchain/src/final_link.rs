@@ -33,7 +33,11 @@ impl FinalLinkOptions {
         let sysroot = crate::configured_sysroot_root(self.sysroot.clone())?;
         let root =
             crate::target_library_root(&std::path::absolute(sysroot).map_err(error)?, target);
-        Ok(vec![root.clone(), root.join("openssl/lib")])
+        Ok(vec![
+            root.clone(),
+            root.join("openssl/lib"),
+            root.join("nghttp2/lib"),
+        ])
     }
 }
 

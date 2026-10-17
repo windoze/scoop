@@ -1,0 +1,28 @@
+schema = 1
+[cone]
+group = "test.m53"
+name = "http-native"
+version = "0.1.0"
+kind = "executable"
+
+[native]
+include = [
+    "../../../../sysroot/vendor/llhttp/include",
+    {path = "../../../../sysroot/lib/aarch64-apple-darwin/nghttp2/include", when = {os = "darwin"}},
+    {path = "../../../../sysroot/lib/x86_64-unknown-linux-gnu/nghttp2/include", when = {env = "gnu"}},
+    {path = "../../../../sysroot/lib/x86_64-unknown-linux-musl/nghttp2/include", when = {env = "musl"}},
+]
+c_flags = ["-std=c11", "-Wall", "-Wextra", "-Werror", "-Wno-unused-parameter", "-DNGHTTP2_STATICLIB"]
+
+[[native.libraries]]
+name = "nghttp2"
+kind = "static"
+
+[[native.sources]]
+path = "probe.c"
+[[native.sources]]
+path = "../../../../sysroot/vendor/llhttp/src/api.c"
+[[native.sources]]
+path = "../../../../sysroot/vendor/llhttp/src/http.c"
+[[native.sources]]
+path = "../../../../sysroot/vendor/llhttp/src/llhttp.c"

@@ -1,6 +1,6 @@
 # M53 设计：HTTP/1.x 与 HTTP/2 协议库
 
-状态：设计稿，待实施。日期：2026-10-18。本文落实 HTTP 协议层的接口边界、nghttp2 集成方式与本期裁剪范围；不表示相关库已经实现。
+状态：实施中。日期：2026-10-18。本文落实 HTTP 协议层的接口边界、nghttp2 集成方式与本期裁剪范围；公共合同见 [HTTP 规范](../specs/SCOOP-HTTP-SPEC.md)，实际完成情况见[实施记录](PROGRESS.md)。
 
 依据：[语言规范](../specs/SCOOP-SPEC.md)第 12～14 章、[运行时规范](../specs/SCOOP-RUNTIME-SPEC.md)、[实现规范](../specs/SCOOP-IMPL-SPEC.md)第 2.8 节、[库 API 风格](../specs/SCOOP-API-STYLE.md)、[M49 异步 I/O](../specs/SCOOP-ASYNCIO-SPEC.md)、[M51 TLS](../specs/SCOOP-TLS-SPEC.md)、[M52 分发设计](../milestone52/DESIGN.md)及[协议库兼容性调研](../http/INTERFACE-RESEARCH.md)。
 
@@ -26,7 +26,7 @@
 
 HTTP/1 decoder／encoder 与 HTTP/2 session 保持各自实际状态，不建立通用可插拔协议工厂。两者向异步适配提供推进、已消费字节、待发送字节、消息／流事件和终止状态；没有新输入、可写空间或状态变化时等待真实 I/O。
 
-模块使用 M52 的普通 `src/<cone-name>` 布局，第三方源码集中到 `vendor`，目标资源按 canonical target triple 交付。M52 尚未实施时，这些路径属于目标布局，不宣称仓库已经完成迁移。
+模块使用 M52 已迁移的普通 `src/<cone-name>` 布局，第三方源码集中到 `vendor`，目标资源按 canonical target triple 交付。
 
 ## 2. 后端选择与采用条件
 

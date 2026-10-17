@@ -4,7 +4,7 @@ inputs = ["cone", "value.c"]
 tools = ["scoop", "scoopc", "scoop-link", "cc", "ar"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["m52", "native", "cache"]
-variants = [{name = "target", vars = {native_subdir = ""}}, {name = "openssl", vars = {native_subdir = "/openssl/lib"}}]
+variants = [{name = "target", vars = {native_subdir = ""}}, {name = "openssl", vars = {native_subdir = "/openssl/lib"}}, {name = "nghttp2", vars = {native_subdir = "/nghttp2/lib"}}]
 [vars]
 options = ["--sysroot", "${work}/sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json"]
 

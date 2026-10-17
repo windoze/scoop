@@ -23,7 +23,7 @@ Scoop 的泛型采用**单态化（monomorphization）**，不进行类型擦除
 - Scoop 的核心语法；
 - 支撑核心语法所需的**最小核心库**（见第 11 章）。
 
-除 11.10 为字符串构建及公共容器访问提供的最小集合协议和 11.14 的原子类型外，标准库的其他部分不在本文件展开。M42 的平台无关标准基础库见 [标准基础库规范](SCOOP-STDLIB-SPEC.md)；它是显式依赖的普通 Scoop Cone，不扩展语言语法、编译器角色或 runtime ABI。同步 IO、系统取时及系统熵见[平台库规范](SCOOP-PLATFORM-SPEC.md)，事件循环与异步 IO 见[异步 I/O 库规范](SCOOP-ASYNCIO-SPEC.md)；结构化任务树见 11.9.1～11.9.2。
+除 11.10 为字符串构建及公共容器访问提供的最小集合协议和 11.14 的原子类型外，标准库的其他部分不在本文件展开。M42 的平台无关标准基础库见 [标准基础库规范](SCOOP-STDLIB-SPEC.md)；它是显式依赖的普通 Scoop Cone，不扩展语言语法、编译器角色或 runtime ABI。同步 IO、系统取时及系统熵见[平台库规范](SCOOP-PLATFORM-SPEC.md)，事件循环与异步 IO 见[异步 I/O 库规范](SCOOP-ASYNCIO-SPEC.md)；结构化任务树见 11.9.1～11.9.2。HTTP 协议与普通异步流适配见 [HTTP 库规范](SCOOP-HTTP-SPEC.md)。
 
 ### 1.2 并发安全与数据竞争
 
@@ -2697,7 +2697,7 @@ when = { os = "darwin" }
 
 `[[native.libraries]]` 以必需的 `name`、可选的 `kind` 和 12.2.2 的 `when` 声明逻辑 native 库；name 不是文件路径或 linker 参数。kind 可为 `default`（省略时采用）、`dynamic`、`static`、`framework`，分别对应实现规范 2.8 的 TargetDefault、Dynamic、StaticArchive、Framework；本清单不提供 grouping 或任意链接参数。按 target 筛选后的要求写入 `.slib` 并沿依赖闭包传递，与非空 `@Extern(lib = ...)` 使用同一库合并、符号绑定和冲突规则。native 源码可以是库的唯一使用者，不要求另写无用途的 Scoop extern 声明。
 
-库解析先检查全部显式 library roots；没有候选时检查所选 Scoop sysroot 的 `lib/<canonical-target-triple>` 和该目录下的 `openssl/lib`；这一层仍无候选才允许使用所选 target 的平台 provider 默认目录。Linux 使用所选 native toolchain/sysroot 的系统库目录，Darwin 使用所选 SDK 的库和 framework 目录。交叉编译不回退到宿主工具链或宿主系统目录。已选层中的候选损坏、不兼容或歧义仍报错，不能静默改用下一层。只查询实际声明的库；未使用 OpenSSL 的程序不读取或准备它。
+库解析先检查全部显式 library roots；没有候选时检查所选 Scoop sysroot 的 `lib/<canonical-target-triple>` 和该目录下的 `openssl/lib`、`nghttp2/lib`；这一层仍无候选才允许使用所选 target 的平台 provider 默认目录。Linux 使用所选 native toolchain/sysroot 的系统库目录，Darwin 使用所选 SDK 的库和 framework 目录。交叉编译不回退到宿主工具链或宿主系统目录。已选层中的候选损坏、不兼容或歧义仍报错，不能静默改用下一层。只查询实际声明的库；未使用的库不读取或准备。
 
 平台默认查找只解析已经声明的逻辑库需求，不发现相邻 native 源码或任意库；空 lib 的默认 namespace 也不因此扫描系统目录。具体 target、link mode、候选格式、产物绑定和缓存规则见实现规范 2.8。
 

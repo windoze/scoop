@@ -743,7 +743,7 @@ SourceExtern 按实际 target/native symbol 合并完整 library、kind、TLS、
 
 runtime object index schema 4 保存相对索引目录的普通对象路径、生产时已有的对象摘要、合并后的定义／引用及 target/runtime ABI。发布路径为 `objects/<file>.o`，开发缓存使用同一读写入口；相对路径可以包含正常的 `..`，不检查文件系统来源。消费时检查格式、target（含 libc）、runtime ABI 和最低部署要求；Darwin runtime 的最低系统版本不能高于本次链接选择的部署版本。生产时完整 C toolchain 合同保留为生产记录和更新输入，不要求消费方编译器版本、SDK 或工具路径与生产方相同。读取 index 直接采用这些结果，不重读对象、核对 digest、重建符号摘要或重放 runtime ABI 导出检查；首次生成对象时读取所需符号并检查 runtime ABI 导出。定义的绑定区分 Strong、Common 与 Weak；wire tag 分别为 0、2、1。链接器把 index 中的对象路径直接交给 native linker，不重新物化对象。
 
-sysroot 采用同一源码与产物布局：`src/<cone-name>` 保存普通 Cone，`vendor/<project>` 保存共享上游输入，`lib/<canonical-target-triple>` 保存 `.slib`、runtime、OpenSSL 与 Linux unwind。libuv、OpenSSL、Ryu 及 LLVM／libunwind 的上游源码、版本说明、许可证和补丁集中在 vendor，目标生成头与 archive 不写入 vendor。runtime 编排显式接收 runtime source root 和所选 sysroot 的 vendor root；Ryu 源码与 include 从后者取得，按实际 depfile 输入更新，命中不读取源码或复制输入。公开头的发行位置为 `include`。
+sysroot 采用同一源码与产物布局：`src/<cone-name>` 保存普通 Cone，`vendor/<project>` 保存共享上游输入，`lib/<canonical-target-triple>` 保存 `.slib`、runtime、OpenSSL、nghttp2 与 Linux unwind。libuv、OpenSSL、Ryu、llhttp、nghttp2 及 LLVM／libunwind 的上游源码、版本说明、许可证和补丁集中在 vendor，目标生成头与 archive 不写入 vendor。runtime 编排显式接收 runtime source root 和所选 sysroot 的 vendor root；Ryu 源码与 include 从后者取得，按实际 depfile 输入更新，命中不读取源码或复制输入。公开头的发行位置为 `include`。
 
 普通 build／run／test 的 executable 和两个 link 命令默认消费 `lib/<canonical-target-triple>/runtime/index.cbor`，不触发 runtime 源码构建。显式 `--runtime-objects` 选择另一份索引；build／run／test 的 `--runtime-root` 明确请求从源码构建，与对象选项互斥。缺失实际需要的索引时报告目标和所选路径，不补建或改选其他目标；library 构建不读取未使用的 runtime。
 
@@ -751,7 +751,7 @@ runtime 构建使用 `runtime-v5` 普通记录，按实际源码根、选中源�
 
 native linker 成功后直接发布其输出，不重新读取整份 Mach-O／ELF，重放输入对象、重定位、stackmap、EH、动态绑定或代码签名的正确性检查；不通过链接 map／trace 审计实际读取文件。必要的符号选择、对象格式、ABI／GC 数据及工具参数在产生输入与实际链接时完成，工具退出失败正常传播。生成程序的正常运行和专门 ABI／GC 回归承担输出行为验收，不保留修改刚生成的可执行文件后要求发布复核拒绝的测试。
 
-逻辑 native library requirement 沿完整依赖闭包传递，manifest 的 native.libraries 与非空 SourceExtern lib 使用同一解析流程。driver 将选中 manifest 要求合并到既有 LIR foundation native library 表；相同 key 去重，产物不要求每个库都有 Scoop extern 使用者。Code 覆盖完整逻辑要求，Link reader 复用同一份 LIR foundation 表，不从机器符号反推库名。先在全部显式 library roots 中按既有规则收集候选；该层无候选时检查所选 Scoop sysroot 的 `lib/<canonical-target-triple>` 和 `lib/<canonical-target-triple>/openssl/lib`；这一层无候选时，再交给所选 target 的平台 provider 在其默认系统库目录中解析。已选层的候选损坏、target/ABI 不匹配或歧义直接报错，不能用下一层掩盖。默认位置只参与实际要求的库查找，未使用 OpenSSL 的程序不探测或准备它。两个 link 命令采用同一顺序。TargetDefault 与显式 kind/grouping 保持原合同；OrderedGroup 只限制候选顺序，不引入 whole-archive、用户脚本或任意 linker 参数。
+逻辑 native library requirement 沿完整依赖闭包传递，manifest 的 native.libraries 与非空 SourceExtern lib 使用同一解析流程。driver 将选中 manifest 要求合并到既有 LIR foundation native library 表；相同 key 去重，产物不要求每个库都有 Scoop extern 使用者。Code 覆盖完整逻辑要求，Link reader 复用同一份 LIR foundation 表，不从机器符号反推库名。先在全部显式 library roots 中按既有规则收集候选；该层无候选时检查所选 Scoop sysroot 的 `lib/<canonical-target-triple>` 及其 `openssl/lib`、`nghttp2/lib`；这一层无候选时，再交给所选 target 的平台 provider 在其默认系统库目录中解析。已选层的候选损坏、target/ABI 不匹配或歧义直接报错，不能用下一层掩盖。默认位置只参与实际要求的库查找，未使用的库不探测或准备。两个 link 命令采用同一顺序。TargetDefault 与显式 kind/grouping 保持原合同；OrderedGroup 只限制候选顺序，不引入 whole-archive、用户脚本或任意 linker 参数。
 
 Cone native 源码对象使用 `org.scoop-lang.link-object/native/1` LinkObject 类别，logical key 为归一化 Cone 相对 native 源码路径的 UTF-8 字节，允许语言规范 12.2.1 的前置 `..`，member identity 仍包含所属 Cone。native 路径使用独立于 Scoop 逻辑源码路径的类型，产物 writer／reader 不以 Scoop 源码路径规则拒绝共享 vendor 输入。实际 Link fingerprint 按 member ID 排序加入既有 Code 对象投影；这些对象没有 Scoop Strong/ODR 或 generated-C recipe。program-link 从依赖闭包的对应成员读取普通 native 对象，每个成员作为独立输入参与符号解析；不同 Cone 的相同对象内容不能据此合并。对象格式、target、实际定义与引用沿普通 native 对象规则检查。
 
