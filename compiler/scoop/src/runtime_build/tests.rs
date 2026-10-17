@@ -31,7 +31,7 @@ fn missing_runtime_vendor_reports_the_selected_path() {
             .to_string()
             .contains(&format!("vendor source root {}:", missing.display()))
     );
-    assert!(!directory.path().join("runtime-v4").exists());
+    assert!(!directory.path().join("runtime-v5").exists());
 }
 
 #[test]
@@ -210,7 +210,7 @@ fn runtime_cache_tracks_sources_headers_candidates_and_flags() {
     assert!(!build(RuntimeOptimization::None).cache_hit());
     assert!(!build(RuntimeOptimization::Optimized).cache_hit());
     let records = || {
-        std::fs::read_dir(cache.join("runtime-v4"))
+        std::fs::read_dir(cache.join("runtime-v5"))
             .unwrap()
             .map(|e| e.unwrap().path())
             .filter(|p| p.extension().is_some_and(|e| e == "json"))

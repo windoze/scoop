@@ -29,7 +29,7 @@ def main():
     ]
     for libc, mode, cc, flags in modes:
         triple = f"x86_64-unknown-linux-{libc}"
-        prefix = args.sysroot.resolve() / "native" / triple / "unwind"
+        prefix = args.sysroot.resolve() / "lib" / triple / "unwind"
         build = ROOT / "target/unwind-tests" / triple / mode
         build.mkdir(parents=True, exist_ok=True)
         environment = dict(os.environ, TMPDIR=str(build))

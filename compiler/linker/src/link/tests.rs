@@ -6,14 +6,12 @@ fn relocated_runtime_index_links_the_copied_objects() {
     let fixture = test_support::native_fixture();
     let directory = fixture.directory.path().join("relocated runtime");
     std::fs::create_dir(&directory).unwrap();
-    let source = fixture.runtime.objects()[0].path().parent().unwrap();
+    let source = fixture.runtime.input_paths()[0].parent().unwrap();
     std::fs::copy(source.join("index.cbor"), directory.join("index.cbor")).unwrap();
     for object in fixture.runtime.objects() {
-        std::fs::copy(
-            object.path(),
-            directory.join(object.path().file_name().unwrap()),
-        )
-        .unwrap();
+        let destination = directory.join(object.path().strip_prefix(source).unwrap());
+        std::fs::create_dir_all(destination.parent().unwrap()).unwrap();
+        std::fs::copy(object.path(), destination).unwrap();
     }
     let runtime = crate::RuntimeObjectSet::read_index(
         &directory.join("index.cbor"),

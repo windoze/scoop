@@ -2,7 +2,7 @@
 
 基线：`43ff43117`。先完整完成 M52，再继续 M53。
 
-已确认范围：M47 尚未定稿，延后决定；本期分发现有 `scoop`、`scoopc`、`scoop-link` 三个宿主命令，不以 generator 为前置。M53 采用 llhttp 9.4.3，并明确已知方法集合限制。
+已确认范围：M47 尚未定稿，延后决定；本期分发现有 `scoop`、`scoopc`、`scoop-link` 三个宿主命令，不以 generator 为前置。sysroot 准备和发行打包放在仓库脚本，不向命令或 driver 添加一次性维护功能。M53 采用 llhttp 9.4.3，并明确已知方法集合限制。
 
 实施与验收按功能记录；原始日志、构建缓存和发布归档保存在仓库外。M52 总体验收尚未完成。
 
@@ -28,3 +28,10 @@
 - 本机全 workspace 格式化与 lint、Python Ruff 通过；构建编排单元测试 85 项、新增缺失 vendor 诊断 1 项、目标布局 1 项及 fixture runner 规则 50 项通过。
 - 正式 CLI 验证通过：共享 native、C++／泛型、OpenSSL crypto／TLS、显式 core 产物共 5 组、6 个变体；asyncio 的定时器、取消与 UDP 组合 4 项通过。自建 sysroot 缺失 vendor 的首次失败已修复并复验。
 - 本机 OpenSSL 在新目录完成实际构建；LLVM 宿主打包、Linux unwind 新版构建与三目标完整验收尚待后续批次。
+
+## 仓库准备脚本
+
+- `scripts/prepare_sysroot.py` 按实际 manifest 依赖调用现有普通 release 构建，安装公开头和 O2 runtime。独立的脚本内部 Rust 辅助程序只复用 runtime 编译库，不进入主 workspace、driver 或发行 `bin`。
+- runtime 缓存升级为 `runtime-v5`，使用可直接复制的 index／objects 布局；索引仍为 schema 4，不重复解析或哈希对象。
+- 本机 Rust 格式化、相关 crate 和辅助程序 lint、Python Ruff 通过。手动完成十个内置 Cone 与 runtime 的首次准备及重复准备；runtime 构建／更新测试 4 项、搬迁后真实链接运行 1 项通过。
+- 打包脚本保持手工使用，不作为普通 CLI 回归的执行步骤。
