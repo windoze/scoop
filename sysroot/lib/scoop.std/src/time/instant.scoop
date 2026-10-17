@@ -51,7 +51,7 @@ public class Instant private constructor(public val epochSeconds: Long, public v
             if (seconds < MIN.epochSeconds || seconds > MAX.epochSeconds) throw ArithmeticException()
             return Instant(seconds, nanos)
         }
-        internal fun fromDuration(value: Duration): Instant = fromComponents(value.seconds, value.nanosecondsOfSecond)
+        internal fun fromDuration(value: Duration): Instant = fromComponents(value.floorSeconds, value.nanosecondsOfSecond)
         public fun parseOrNull(text: String): Instant? = when (OffsetDateTime.parseOrNull(text)) {
             case Some(value) -> {
                 val seconds = localEpochSeconds(value.dateTime) - value.offset.totalSeconds.toInt64()

@@ -174,7 +174,7 @@ currentDirectory(): Path 查询实际 cwd，不读取 PWD；homeDirectory(): Pat
 
 `scoop.platform.time.SystemClock` 实现 scoop.time.Clock，now 返回实时钟的 Instant；`MonotonicTimeSource` 实现 TimeSource，markNow 返回以自身为 source、以 CLOCK_MONOTONIC 读数构造 Duration 的 TimeMark。实时钟可以回拨，monotonic 不与 epoch 混用，同源比较仍由 std 检查。native 读取失败抛 PlatformException，不伪造零读数；转换遵守 std 的范围规则。
 
-sleep(duration: Duration) 拒绝负值，零直接返回。正值通过 NativeSafe 等待；使用 monotonic 截止时间在 EINTR 后继续，允许调度造成延迟，不承诺精确唤醒。截止时间超出目标表示范围时报告溢出错误；不以通用超时配额限制有效时长。等待不阻止其他 mutator 推进或 GC。
+sleep(duration: Duration) 拒绝负值，零直接返回。sleep 与 ConditionVariable 的 native 时间分量使用 Duration.floorSeconds／nanosecondsOfSecond；toComponents 是面向调用者的趋零分解，不用于替代规范化的 native 分量。正值通过 NativeSafe 等待；使用 monotonic 截止时间在 EINTR 后继续，允许调度造成延迟，不承诺精确唤醒。截止时间超出目标表示范围时报告溢出错误；不以通用超时配额限制有效时长。等待不阻止其他 mutator 推进或 GC。
 
 TimeMark.elapsedNow() 为 `source.markNow() - this`。measureTime(source: TimeSource = MonotonicTimeSource, block: () -> Unit) 与 measureTimedValue<T>(source: TimeSource = MonotonicTimeSource, block: () -> T) 同步调用正文一次，后者返回 TimedValue<T>(value, duration)；正文失败直接传播，不额外读取时钟覆盖原异常。不支持 suspend、timer queue 或调度器。
 

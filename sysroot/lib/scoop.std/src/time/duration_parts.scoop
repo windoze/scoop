@@ -14,9 +14,9 @@ internal fun normalizeDuration(seconds: Long, adjustment: Long): (Long, Int) {
 }
 
 internal fun durationParts(value: Duration): DurationParts {
-    if (value.seconds >= 0L) return DurationParts(false, value.seconds.toUInt64(), value.nanosecondsOfSecond)
-    if (value.nanosecondsOfSecond == 0) return DurationParts(true, -value.seconds.toUInt64(), 0)
-    return DurationParts(true, -(value.seconds + 1L).toUInt64(), 1000000000 - value.nanosecondsOfSecond)
+    if (value.floorSeconds >= 0L) return DurationParts(false, value.floorSeconds.toUInt64(), value.nanosecondsOfSecond)
+    if (value.nanosecondsOfSecond == 0) return DurationParts(true, -value.floorSeconds.toUInt64(), 0)
+    return DurationParts(true, -(value.floorSeconds + 1L).toUInt64(), 1000000000 - value.nanosecondsOfSecond)
 }
 
 internal fun addDurationParts(first: DurationParts, second: DurationParts): DurationParts {

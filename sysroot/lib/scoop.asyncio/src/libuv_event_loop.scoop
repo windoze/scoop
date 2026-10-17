@@ -34,11 +34,11 @@ public class LibuvEventLoop public constructor() : EventLoop {
 
     public override suspend fun sleep(duration: Duration) {
         val job = requireJob()
-        if (duration.seconds < 0L) throw IllegalArgumentException(Some("negative sleep duration"))
+        if (duration.floorSeconds < 0L) throw IllegalArgumentException(Some("negative sleep duration"))
         if (duration == Duration.ZERO) return
         suspendCoroutine<Unit> { continuation ->
             val operation = LoopOperation(state, state.nextOperation(),
-                { native, id -> @Unsafe { return@LoopOperation nativeStatus(id, nativeTimerStart(native, id, duration.seconds, duration.nanosecondsOfSecond)) } },
+                { native, id -> @Unsafe { return@LoopOperation nativeStatus(id, nativeTimerStart(native, id, duration.floorSeconds, duration.nanosecondsOfSecond)) } },
                 { native, id -> @Unsafe { nativeTimerCancel(native, id) } },
                 { event, cancelled ->
                     when (completionFailure("sleep", event.result, cancelled)) {

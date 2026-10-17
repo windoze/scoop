@@ -304,7 +304,7 @@ Clock/TimeSource 为供外部实现的普通接口，只有 `Clock.now(): Instan
 
 ### 8.2 Duration
 
-内部使用 floor-normalized `(seconds: Long, nanosecondsOfSecond: Int)`，后者处于 0..999999999，数学值为 seconds + nanos/10^9 秒。例如 -1ns 为 (-1,999999999)。所有值有限，不提供 Infinity 或 NaN sentinel。
+内部使用 floor-normalized `(floorSeconds: Long, nanosecondsOfSecond: Int)`，后者处于 0..999999999，数学值为 floorSeconds + nanos/10^9 秒。例如 -1ns 为 (-1,999999999)。所有值有限，不提供 Infinity 或 NaN sentinel。
 
 提供 ZERO、seconds/milliseconds/microseconds/nanoseconds 的受检工厂与对应 Int/Long 扩展函数，以及分/时/天单位构造。one day 精确为 86400 秒。交付 plus/minus、unaryMinus、times(Long)、div(Long)、compareTo、absoluteValue、inWholeNanoseconds/Microseconds/Milliseconds/Seconds/Minutes/Hours/Days、toComponents、parse/parseOrNull/toIsoString/toString。
 
@@ -312,7 +312,7 @@ Clock/TimeSource 为供外部实现的普通接口，只有 `Clock.now(): Instan
 
 ISO 文本接受可选整体负号以及按 D/H/M/S 顺序的 `P...DT...H...M...S`，至少一个分量，只有秒允许 1..9 位小数，各整数非负；不接受 years/months/weeks、混合分量符号或空白。输出统一为 `[-]PT<绝对值整秒>[.<去尾零小数>]S`，零为 PT0S。负极值的输出和解析不能先做有符号 abs 导致溢出。
 
-普通 companion 工厂为 `seconds(value: Long, nanosecondAdjustment: Long = 0)`、milliseconds/microseconds/nanoseconds/minutes/hours/days(value: Long)，对应 Int/Long 的同名零参数扩展函数。seconds 工厂先规范化调整量，再检查最终秒值；所有不可表示结果抛 ArithmeticException。公开只读 seconds、nanosecondsOfSecond；`toComponents(): (Long, Int)` 返回这两个 floor-normalized 分量，重建时将纳秒分量显式转为 Long 传给 seconds 工厂。inWholeX 与 absoluteValue 是只读属性。parse 拒绝格式或范围错误（IllegalArgumentException），parseOrNull 返回 None；其它异常不隐藏。文本仅接受大写设计符；存在 T 时其后必须有时间分量，不接受整体加号。
+普通 companion 工厂为 `seconds(value: Long, nanosecondAdjustment: Long = 0)`、milliseconds/microseconds/nanoseconds/minutes/hours/days(value: Long)，对应 Int/Long 的同名零参数扩展函数。seconds 工厂先规范化调整量，再检查最终秒值；所有不可表示结果抛 ArithmeticException。公开只读 floorSeconds、nanosecondsOfSecond，明确表示向下取整的规范化分量。`toComponents(): (Long, Int)` 返回趋零分量：第一项与 inWholeSeconds 相同，第二项为同号纳秒余数，绝对值小于 10^9；例如 -1ns 返回 (0L, -1)，-1.25s 返回 (-1L, -250000000)。两种分量都可重建原时长：将纳秒项显式转为 Long，传给 seconds 工厂。inWholeX 与 absoluteValue 是只读属性。parse 拒绝格式或范围错误（IllegalArgumentException），parseOrNull 返回 None；其它异常不隐藏。文本仅接受大写设计符；存在 T 时其后必须有时间分量，不接受整体加号。
 
 ### 8.3 Instant 与 wall clock
 

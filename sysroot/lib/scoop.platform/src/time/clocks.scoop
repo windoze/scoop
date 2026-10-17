@@ -19,10 +19,10 @@ public object MonotonicTimeSource : TimeSource {
 }
 
 public fun sleep(duration: Duration) {
-    if (duration.seconds < 0L) throw IllegalArgumentException(Some("negative sleep duration"))
+    if (duration.floorSeconds < 0L) throw IllegalArgumentException(Some("negative sleep duration"))
     if (duration == Duration.ZERO) return
     @Unsafe {
-        val (status, error) = nativeSleep(duration.seconds, duration.nanosecondsOfSecond)
+        val (status, error) = nativeSleep(duration.floorSeconds, duration.nanosecondsOfSecond)
         checkNativeStatus(status, error, "sleep")
     }
 }

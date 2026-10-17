@@ -12,7 +12,7 @@
 | R06 | StringBuilder.append/toString 与字节 builder 链式追加 | 已完成；fmt/clippy、配套 CLI 构建及 51 项定向 fixture 通过（迁移遗漏已闭合） |
 | R07 | ValueEncoder/ValueDecoder/ValueInspector 与 Json 边界命名 | 已完成；fmt/clippy、47 项 Rust 测试、181 项本机适用 fixture 通过（诊断与别名迁移遗漏已闭合）；1 项 musl 用例留待 Linux |
 | R08 | 惰性 withIndex 与 copyOfRange 快照 | 已完成；fmt/clippy、12 项迭代、Sequence、有序集合及组合 fixture 通过 |
-| R09 | Duration 趋零分量与 floorSeconds | 待实施 |
+| R09 | Duration 趋零分量与 floorSeconds | 已完成；fmt/clippy、17 项 fixture、7 项平台时间／同步测试、3 项异步计时器测试通过；组合用例发现的聚合临时引用来源问题已修复，3 项 Rust 回归通过 |
 | R10 | 普通整数转换名与二进制位宽命名 | 待实施 |
 | R11 | IndexGet/IndexSet 运算符接口 | 待实施 |
 | R12 | ResourceUseException 继承 Exception | 已完成；fmt/clippy、资源 fixture 的 debug/release 与移动 GC 通过 |

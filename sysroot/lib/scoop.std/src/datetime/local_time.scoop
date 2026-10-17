@@ -43,8 +43,8 @@ public class LocalTime public constructor(
 }
 
 internal fun shiftedTimeOfDay(time: LocalTime, amount: Duration, subtract: Boolean): (Long, Long) {
-    val days = amount.seconds / 86400L
-    val remainder = (amount.seconds % 86400L) * 1000000000L + amount.nanosecondsOfSecond.toInt64()
+    val days = amount.floorSeconds / 86400L
+    val remainder = (amount.floorSeconds % 86400L) * 1000000000L + amount.nanosecondsOfSecond.toInt64()
     val nanos = time.toNanosecondOfDay() + (if (subtract) -remainder else remainder)
     val carry = calendarFloorDiv(nanos, 86400000000000L)
     return ((if (subtract) -days else days) + carry, nanos - carry * 86400000000000L)
