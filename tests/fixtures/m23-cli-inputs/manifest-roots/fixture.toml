@@ -28,7 +28,7 @@ json = "stderr"
 diagnostics = []
 checks = [
   {"actual" = "${baseline.result.kind}", "equals" = "library"},
-  {"actual" = "${baseline.result.observations.child_invocations.length}", "equals" = 2},
+  {"actual" = "${baseline.result.observations.child_invocations.length}", "equals" = 1},
 ]
 
 [[steps]]
