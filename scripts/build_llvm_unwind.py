@@ -75,7 +75,7 @@ def main():
     if not musl and args.musl_include is not None:
         parser.error("--musl-include is only valid for the musl target")
 
-    build = (args.build_dir or Path.home() / ".cache/scoop-unwind" / args.target).resolve()
+    build = (args.build_dir or ROOT / "tmp/unwind" / args.target).resolve()
     prefix = (args.prefix or ROOT / "sysroot/lib" / args.target / "unwind").resolve()
     temporary = build / "scratch"
     temporary.mkdir(parents=True, exist_ok=True)

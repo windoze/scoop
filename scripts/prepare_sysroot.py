@@ -145,7 +145,7 @@ def main():
     args = parser.parse_args()
     args.sysroot = args.sysroot.resolve()
     args.runtime_root = args.runtime_root.resolve()
-    work = (args.work_dir or Path.home() / ".cache/scoop-sysroot" / args.target).resolve()
+    work = (args.work_dir or ROOT / "tmp/sysroot" / args.target).resolve()
     work.mkdir(parents=True, exist_ok=True)
     args.cache_dir = (args.cache_dir or work / "cache").resolve()
     scratch = work / "scratch"

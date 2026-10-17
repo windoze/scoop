@@ -48,7 +48,7 @@ def main():
     if args.jobs < 1:
         parser.error("--jobs must be positive")
     archive = ROOT / f"sysroot/vendor/openssl/openssl-{VERSION}.tar.gz"
-    build = (args.build_dir or Path.home() / ".cache/scoop-openssl" / args.target).resolve()
+    build = (args.build_dir or ROOT / "tmp/openssl" / args.target).resolve()
     prefix = (args.prefix or ROOT / "sysroot/lib" / args.target / "openssl").resolve()
     cc = args.cc or default_cc
     flags = ["-fPIC"]

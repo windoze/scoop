@@ -15,6 +15,7 @@ def main():
     parser.add_argument("--llvm-prefix", type=Path, default=os.environ.get("LLVM_SYS_221_PREFIX"))
     parser.add_argument("--gnu-cc", default="gcc")
     parser.add_argument("--musl-cc", default="musl-gcc")
+    parser.add_argument("--work-dir", type=Path, default=ROOT / "tmp/unwind-tests")
     args = parser.parse_args()
     if args.llvm_prefix is None:
         parser.error("set LLVM_SYS_221_PREFIX or --llvm-prefix to LLVM 22.1")
@@ -30,7 +31,7 @@ def main():
     for libc, mode, cc, flags in modes:
         triple = f"x86_64-unknown-linux-{libc}"
         prefix = args.sysroot.resolve() / "lib" / triple / "unwind"
-        build = ROOT / "target/unwind-tests" / triple / mode
+        build = args.work_dir.resolve() / triple / mode
         build.mkdir(parents=True, exist_ok=True)
         environment = dict(os.environ, TMPDIR=str(build))
         obj, binary, link_map = build / "frames.o", build / "unwind-test", build / "link.map"
