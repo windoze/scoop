@@ -1,0 +1,82 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+// Fixed wire fixtures deliberately bypass the production sender's validation.
+internal fun frame2(type: Int, flags: Int, id: Int, payload: List<Byte>): Array<Byte> {
+    val output = ByteArrayBuilder()
+    output.append((payload.size / 65536L).toByte()).append((payload.size / 256L).toByte()).append(payload.size.toByte())
+        .append(type.toByte()).append(flags.toByte())
+        .append((id / 16777216).toByte()).append((id / 65536).toByte()).append((id / 256).toByte()).append(id.toByte())
+        .append(payload)
+    return output.toByteArray()
+}
+
+private fun literal2(output: ByteArrayBuilder, bytes: Array<Byte>) {
+    if (bytes.size < 127L) output.append(bytes.size.toByte())
+    else {
+        output.append(127.toByte())
+        var length = bytes.size - 127L
+        while (length >= 128L) { output.append((length % 128L + 128L).toByte()); length /= 128L }
+        output.append(length.toByte())
+    }
+    output.append(bytes)
+}
+
+internal fun headerBlock2(fields: List<HttpField>): Array<Byte> {
+    val output = ByteArrayBuilder()
+    for (field in fields) {
+        output.append((if (field.neverIndex) 16 else 0).toByte())
+        literal2(output, field.name)
+        literal2(output, field.value)
+    }
+    return output.toByteArray()
+}
+
+internal fun rawRequestFields2(fields: List<HttpField> = ArrayList<HttpField>()): Array<HttpField> {
+    val all = ArrayList<HttpField>()
+    for (field in [HttpField(":method".toByteArray(), "GET".toByteArray()),
+        HttpField(":scheme".toByteArray(), "https".toByteArray()),
+        HttpField(":authority".toByteArray(), "example.test".toByteArray()),
+        HttpField(":path".toByteArray(), "/".toByteArray())]) all.add(field)
+    for (field in fields) all.add(field)
+    return all.toArray()
+}
+
+internal fun clientPreface2(): Array<Byte> = ByteArrayBuilder()
+    .append("PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n".toByteArray()).append(frame2(4, 0, 0, ArrayList<Byte>())).toByteArray()
+
+internal fun receive2(session: Http2Session, bytes: List<Byte>, chunk: Long = 1L) {
+    val buffer = NativeByteBuffer.allocate(chunk)
+    try {
+        var offset = 0L
+        while (offset < bytes.size) {
+            buffer.clear()
+            val count = if (chunk < bytes.size - offset) chunk else bytes.size - offset
+            buffer.writeBytes(bytes, offset, count)
+            assertEquals(count, session.receive(buffer))
+            offset += count
+        }
+    } finally { buffer.close() }
+}
+
+internal fun output2(session: Http2Session): Array<Byte> {
+    val output = ByteArrayBuilder()
+    val buffer = NativeByteBuffer.allocate(64L)
+    try {
+        while (true) {
+            buffer.clear()
+            val count = session.takeOutput(buffer)
+            if (count == 0L) return output.toByteArray()
+            output.append(buffer.readBytes(count))
+        }
+    } finally { buffer.close() }
+}
+
+internal fun wireRequest2(session: Http2Session, fields: List<HttpField>) {
+    receive2(session, clientPreface2())
+    receive2(session, frame2(1, 5, 1, headerBlock2(rawRequestFields2(fields))))
+    output2(session)
+}

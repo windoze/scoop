@@ -38,3 +38,13 @@ path = "native/data.c"
 path = "native/http1.c"
 [[native.sources]]
 path = "native/http1_callbacks.c"
+[[native.sources]]
+path = "native/http2.c"
+[[native.sources]]
+path = "native/http2_body.c"
+[[native.sources]]
+path = "native/http2_submit.c"
+[[native.sources]]
+path = "native/http2_headers.c"
+[[native.sources]]
+path = "native/http2_events.c"

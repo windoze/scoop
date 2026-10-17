@@ -1,0 +1,74 @@
+package scoop.http
+
+import scoop.test.*
+
+@Test private class Http2OptionTests {
+    @Test fun `invalid regular fields are observable and omitted by default`() {
+        Http2Session.server().use { server ->
+            wireRequest2(server, [HttpField("x-value".toByteArray(), " value\t".toByteArray(), true)])
+            val events = events2(server)
+            assertEquals(0L, requests2(events)[0L].fields.size)
+            var ignored = 0
+            for (event in events) when (event) {
+                case IgnoredField(id, field) -> { assertEquals(1, id); assertEquals(" value\t", String.fromUtf8(field.value)); assertTrue(field.neverIndex); ignored += 1 }
+                else -> {}
+            }
+            assertEquals(1, ignored)
+            assertEquals(1, ends2(events, 1))
+        }
+    }
+
+    @Test fun `edge whitespace option preserves ordinary values`() {
+        Http2Session.server(Http2ReceiveOptions(allowFieldValueEdgeWhitespace = true)).use { server ->
+            wireRequest2(server, [HttpField("x-value".toByteArray(), " value\t".toByteArray())])
+            assertEquals(" value\t", String.fromUtf8(requests2(events2(server))[0L].fields[0L].value))
+        }
+    }
+
+    @Test fun `reject invalid regular fields resets only the affected stream`() {
+        Http2Session.server(Http2ReceiveOptions(invalidRegularField = Http2InvalidRegularField.RejectStream)).use { server ->
+            wireRequest2(server, [HttpField("x-value".toByteArray(), " value".toByteArray())])
+            val events = events2(server)
+            assertEquals(0L, requests2(events).size)
+            assertTrue(closed2(events, 1, 1U))
+            receive2(server, frame2(1, 5, 3, headerBlock2(rawRequestFields2())))
+            assertEquals(1L, requests2(events2(server)).size)
+        }
+    }
+
+    @Test fun `uppercase and invalid pseudo headers cannot be ignored`() {
+        for (field in [HttpField("X-Name".toByteArray(), "value".toByteArray()),
+            HttpField(":unknown".toByteArray(), "value".toByteArray())]) {
+            Http2Session.server(Http2ReceiveOptions(true)).use { server ->
+                wireRequest2(server, [field])
+                val events = events2(server)
+                assertEquals(0L, requests2(events).size)
+                assertTrue(closed2(events, 1, 1U))
+            }
+        }
+    }
+
+    @Test fun `local byte field and count limits terminate the stream`() {
+        for (limits in [HttpHeaderLimits(maxBytes = 32L), HttpHeaderLimits(maxFieldBytes = 16L), HttpHeaderLimits(maxFields = 4L)]) {
+            Http2Session.server(limits = Http2Limits(headers = limits)).use { server ->
+                wireRequest2(server, [HttpField("x-extra".toByteArray(), "value".toByteArray())])
+                val events = events2(server)
+                assertEquals(0L, requests2(events).size)
+                assertTrue(closed2(events, 1, 11U))
+            }
+        }
+    }
+
+    @Test fun `backend filters zero content length on 204 without an ignored callback`() {
+        Http2Session.client().use { client ->
+            client.submitRequest(request2())
+            output2(client)
+            receive2(client, frame2(4, 0, 0, ArrayList<Byte>()))
+            receive2(client, frame2(1, 5, 1, headerBlock2([HttpField(":status".toByteArray(), "204".toByteArray()),
+                HttpField("content-length".toByteArray(), "0".toByteArray())])))
+            val events = events2(client)
+            assertEquals(0L, responses2(events)[0L].fields.size)
+            for (event in events) when (event) { case IgnoredField(_, _) -> fail(Some("built-in filtering must not invent an ignored-field event")); else -> {} }
+        }
+    }
+}

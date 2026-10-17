@@ -1,0 +1,113 @@
+import scoop.bytes.ByteArrayBuilder
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+
+@Extern(name = "http_peer_new") fun peerNew(server: Int): ULong
+@Extern(name = "http_peer_free") fun peerFree(handle: ULong)
+@Extern(name = "http_peer_receive") fun peerReceive(handle: ULong, data: Ptr<Byte>, size: Long): Long
+@Extern(name = "http_peer_output") fun peerOutput(handle: ULong, data: Ptr<Byte>, capacity: Long): Long
+@Extern(name = "http_peer_result") fun peerResult(handle: ULong): Int
+
+fun check(value: Boolean) { if (!value) throw IllegalStateException(Some("HTTP/2 interoperation failed")) }
+
+fun writeBody(session: Http2Session, id: Int, value: String) {
+    NativeByteBuffer.allocate(value.byteLength).use { body ->
+        body.writeBytes(value.toByteArray())
+        check(session.writeBody(id, body) == value.byteLength)
+    }
+    session.finish(id)
+}
+
+fun sendToPeer(session: Http2Session, peer: ULong, buffer: NativeByteBuffer): Long {
+    var total = 0L
+    while (true) {
+        buffer.clear()
+        val count = session.takeOutput(buffer)
+        if (count == 0L) return total
+        @Unsafe {
+            val received = buffer.withReadableBytes { pointer, _ ->
+                @Unsafe { return@withReadableBytes peerReceive(peer, pointer!!, count) }
+            }
+            check(received == count)
+        }
+        total += count
+    }
+}
+
+fun receiveFromPeer(session: Http2Session, peer: ULong, buffer: NativeByteBuffer): Long {
+    var total = 0L
+    while (true) {
+        buffer.clear()
+        @Unsafe {
+            buffer.withWritableBytes { pointer, capacity ->
+                @Unsafe {
+                    val count = peerOutput(peer, pointer!!, capacity)
+                    check(count >= 0L)
+                    return@withWritableBytes count
+                }
+            }
+        }
+        val count = buffer.readableBytes
+        if (count == 0L) return total
+        check(session.receive(buffer) == count)
+        total += count
+    }
+}
+
+fun exchange(session: Http2Session, peer: ULong, serving: Boolean) {
+    val buffer = NativeByteBuffer.allocate(3L)
+    val body = ByteArrayBuilder()
+    val fields = [HttpField("x-value".toByteArray(), [255.toByte()], true)]
+    try {
+        if (!serving) {
+            val id = session.submitRequest(HttpRequestHead(HttpVersion.Http2, "POST".toByteArray(),
+                HttpRequestTarget.Http2("https".toByteArray(), "example.test".toByteArray(), "/peer".toByteArray()), fields), false)
+            writeBody(session, id, "ping")
+        }
+        while (true) {
+            val sent = sendToPeer(session, peer, buffer)
+            val received = receiveFromPeer(session, peer, buffer)
+            var responded = false
+            var draining = true
+            while (draining) {
+                val next = session.nextEvent()
+                when (next) {
+                    case None -> draining = false
+                    case Some(_) -> when (next!!) {
+                        case Data(id, bytes) -> { body.append(bytes); session.consume(id, bytes.size) }
+                        case Response(_, head) -> {
+                            check(head.status == 200U && head.fields.findAll("set-cookie".toByteArray()).size == 2L)
+                            gcCollect()
+                            check(head.fields.findAll("x-value".toByteArray())[0L].value[0L] == 255.toByte())
+                        }
+                        case End(id) -> {
+                            if (serving) {
+                                session.submitResponse(id, HttpResponseHead(HttpVersion.Http2, 200U, None, fields), false)
+                                writeBody(session, id, "42")
+                                responded = true
+                            }
+                        }
+                        case Failure(error) -> throw error
+                        else -> {}
+                    }
+                }
+            }
+            if (sent == 0L && received == 0L && !responded) break
+        }
+        check(String.fromUtf8(body.toByteArray()) == (if (serving) "ping" else "42"))
+        @Unsafe { check(peerResult(peer) == 1) }
+    } finally { buffer.close() }
+}
+
+fun main() {
+    for (serving in [false, true]) {
+        @Unsafe {
+            val peer = peerNew(if (serving) 0 else 1)
+            check(peer != 0UL)
+            val session = if (serving) Http2Session.server() else Http2Session.client()
+            try { exchange(session, peer, serving) }
+            finally { session.close(); peerFree(peer) }
+        }
+    }
+    println(42)
+}

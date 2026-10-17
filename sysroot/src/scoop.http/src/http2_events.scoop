@@ -1,0 +1,47 @@
+package scoop.http
+
+public enum Http2Event {
+    Request(Int, HttpRequestHead), Response(Int, HttpResponseHead),
+    Data(Int, Array<Byte>), Trailers(Int, Array<HttpField>), End(Int),
+    StreamClosed(Int, UInt), GoAway(Int, UInt, Array<Byte>, Boolean),
+    Settings(Array<Http2Setting>, Boolean), IgnoredField(Int, HttpField), Failure(HttpException)
+}
+
+@Unsafe internal fun http2EventRequest(event: ULong, info: NativeHttpEventInfo): HttpRequestHead {
+    val method = httpBytes(httpEventBytes(event, 0))
+    val authority = httpBytes(httpEventBytes(event, 2))
+    val target = if (httpBytesEqual(method, "CONNECT".toByteArray())) HttpRequestTarget.Connect(authority)
+        else HttpRequestTarget.Http2(httpBytes(httpEventBytes(event, 1)), authority, httpBytes(httpEventBytes(event, 3)))
+    val indexing = Http2RequestIndexing((info.flags and 1U) != 0U, (info.flags and 2U) != 0U,
+        (info.flags and 4U) != 0U, (info.flags and 8U) != 0U)
+    return HttpRequestHead(HttpVersion.Http2, method, target, httpEventFields(event), indexing)
+}
+
+internal fun http2EventSettings(bytes: Array<Byte>): Array<Http2Setting> =
+    Array<Http2Setting>(bytes.size / 6L) { index ->
+        val at = index * 6L
+        val id = (bytes[at].toUByte().toUInt() * 256U + bytes[at + 1L].toUByte().toUInt()).toUShort()
+        var value = 0U
+        var offset = 2L
+        while (offset < 6L) { value = value * 256U + bytes[at + offset].toUByte().toUInt(); offset += 1L }
+        Http2Setting(id, value)
+    }
+
+@Unsafe internal fun http2ReadEvent(event: ULong): Http2Event {
+    val info = httpEventInfo(event)
+    return when (info.kind) {
+        case 1 -> Http2Event.Request(info.streamId, http2EventRequest(event, info))
+        case 2 -> Http2Event.Response(info.streamId, HttpResponseHead(HttpVersion.Http2, info.status.toUInt(),
+            None, httpEventFields(event), (info.flags and 16U) != 0U))
+        case 3 -> Http2Event.Data(info.streamId, httpBytes(httpEventBytes(event, 0)))
+        case 4 -> Http2Event.Trailers(info.streamId, httpEventFields(event))
+        case 5 -> Http2Event.End(info.streamId)
+        case 7 -> Http2Event.StreamClosed(info.streamId, info.flags)
+        case 8 -> Http2Event.GoAway(info.streamId, info.flags, httpBytes(httpEventBytes(event, 0)), info.status != 0)
+        case 9 -> Http2Event.Settings(http2EventSettings(httpBytes(httpEventBytes(event, 0))), info.flags != 0U)
+        case 10 -> Http2Event.IgnoredField(info.streamId, httpEventFields(event)[0L])
+        case 11 -> Http2Event.Failure(http2Failure("send HTTP/2 frame", info.code, String.fromUtf8(httpBytes(httpEventBytes(event, 0))),
+            info.streamId, if (info.streamId == 0) HttpFailureScope.Connection else HttpFailureScope.Stream))
+        else -> throw IllegalStateException(Some("invalid native HTTP/2 event"))
+    }
+}

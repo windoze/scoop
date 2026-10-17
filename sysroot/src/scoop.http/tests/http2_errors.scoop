@@ -1,0 +1,96 @@
+package scoop.http
+
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+@Test private class Http2ErrorTests {
+    @Test fun `invalid SETTINGS and HPACK are connection errors with local GOAWAY`() {
+        Http2Session.server().use { server ->
+            receive2(server, clientPreface2())
+            receive2(server, frame2(4, 0, 0, [0.toByte(), 4.toByte(), 128.toByte(), 0.toByte(), 0.toByte(), 0.toByte()]))
+            output2(server)
+            assertTrue(localGoAway2(events2(server), 3U))
+        }
+        Http2Session.server().use { server ->
+            receive2(server, clientPreface2())
+            receive2(server, frame2(1, 5, 1, [128.toByte()]))
+            output2(server)
+            assertTrue(localGoAway2(events2(server), 9U))
+        }
+    }
+
+    @Test fun `CONTINUATION limit reports the backend connection failure`() {
+        Http2Session.server(limits = Http2Limits(maxContinuations = 1L)).use { server ->
+            receive2(server, clientPreface2())
+            receive2(server, frame2(1, 1, 1, [130.toByte()]))
+            receive2(server, frame2(9, 0, 1, [135.toByte()]))
+            val error = assertFailsWith<HttpException> { receive2(server, frame2(9, 4, 1, [132.toByte()])) }
+            assertEquals(-905, error.code)
+            assertTrue(error.scope == HttpFailureScope.Connection)
+            assertEquals("nghttp2 1.70.0", error.backend)
+        }
+    }
+
+    @Test fun `send header limit rejects a stream and the next request still works`() {
+        withHttp2(Http2Session.client(limits = Http2Limits(maxSendHeaderBlockBytes = 256L))) { client, server ->
+            val rejected = client.submitRequest(request2(fields = [HttpField("x-large".toByteArray(), Array<Byte>(1024L) { _ -> 97.toByte() })]))
+            drive2(client, server)
+            var observed = false
+            for (event in events2(client)) when (event) {
+                case Failure(error) -> { assertEquals(rejected, error.streamId); assertTrue(error.scope == HttpFailureScope.Stream); observed = true }
+                else -> {}
+            }
+            assertTrue(observed)
+            val next = client.submitRequest(request2())
+            drive2(client, server)
+            assertEquals(1L, requests2(events2(server)).size)
+            server.submitResponse(next, HttpResponseHead(HttpVersion.Http2, 200U))
+            drive2(client, server)
+            assertEquals(1, ends2(events2(client), next))
+        }
+    }
+
+    @Test fun `outgoing pseudo headers fields and content length reject invalid data`() {
+        withHttp2 { client, server ->
+            assertFailsWith<HttpException> { client.submitRequest(request2("BAD METHOD")) }
+            assertFailsWith<HttpException> { client.submitRequest(request2(path = "/bad path")) }
+            assertFailsWith<IllegalArgumentException> { client.submitRequest(request2(fields = [HttpField(":status".toByteArray(), "200".toByteArray())])) }
+            assertFailsWith<IllegalArgumentException> { client.submitRequest(request2(fields = [HttpField("Connection".toByteArray(), "close".toByteArray())])) }
+            assertFailsWith<HttpException> { client.submitRequest(request2(fields = [HttpField("x-value".toByteArray(), "bad\r\nvalue".toByteArray())])) }
+            val id = client.submitRequest(request2("POST", fields = [HttpField("content-length".toByteArray(), "2".toByteArray())]), false)
+            assertFailsWith<HttpException> { write2(client, id, "long".toByteArray()) }
+            assertEquals(2L, write2(client, id, "ok".toByteArray()))
+            assertFailsWith<IllegalArgumentException> { client.finish(id, [HttpField("content-length".toByteArray(), "0".toByteArray())]) }
+            client.finish(id)
+            drive2(client, server)
+            assertFailsWith<IllegalArgumentException> { server.submitResponse(id, HttpResponseHead(HttpVersion.Http2, 101U)) }
+            assertFailsWith<HttpException> { server.submitResponse(id, HttpResponseHead(HttpVersion.Http2, 103U)) }
+            server.submitResponse(id, HttpResponseHead(HttpVersion.Http2, 204U))
+            drive2(client, server)
+            server.consume(id, 2L)
+        }
+    }
+
+    @Test fun `zero output does not advance settings and close is idempotent`() {
+        val client = Http2Session.client()
+        val buffer = NativeByteBuffer.allocate(0L)
+        try {
+            assertEquals(0L, client.takeOutput(buffer))
+            assertTrue(client.wantsWrite)
+            val error = assertFailsWith<HttpException> { client.endInput() }
+            assertEquals(-507, error.code)
+            assertTrue(error.scope == HttpFailureScope.Connection)
+            client.close()
+            client.close()
+            assertFailsWith<IllegalStateException> { client.takeOutput(buffer) }
+        } finally { buffer.close(); client.close() }
+        assertFailsWith<IllegalArgumentException> { Http2Session.server(settings = Http2Settings(initialWindowSize = 2147483648U)) }
+        assertFailsWith<IllegalArgumentException> { Http2Session.client(settings = Http2Settings(maxFrameSize = 1U)) }
+        assertFailsWith<IllegalArgumentException> { Http2Session.client(limits = Http2Limits(maxPendingBodyBytes = 0L)) }
+    }
+}
+
+private fun localGoAway2(events: List<Http2Event>, code: UInt): Boolean {
+    for (event in events) when (event) { case GoAway(_, value, _, local) -> { if (local && value == code) return true }; else -> {} }
+    return false
+}

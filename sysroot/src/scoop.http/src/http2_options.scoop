@@ -1,0 +1,51 @@
+package scoop.http
+
+public enum Http2InvalidRegularField { Ignore, RejectStream }
+public struct Http2ReceiveOptions(
+    val allowFieldValueEdgeWhitespace: Boolean = false,
+    val invalidRegularField: Http2InvalidRegularField = Http2InvalidRegularField.Ignore
+)
+
+public struct Http2Limits(
+    val headers: HttpHeaderLimits = HttpHeaderLimits(),
+    val maxContinuations: Long = 8L,
+    val maxSendHeaderBlockBytes: Long = 65536L,
+    val maxPendingBodyBytes: Long = 65536L
+)
+
+public struct Http2Settings(
+    val headerTableSize: UInt = 4096U,
+    val maxConcurrentStreams: UInt = 100U,
+    val initialWindowSize: UInt = 65535U,
+    val maxFrameSize: UInt = 16384U,
+    val maxHeaderListSize: UInt = 65536U
+)
+
+public struct Http2Setting(val id: UShort, val value: UInt)
+
+@CLayout internal struct NativeHttp2Config(
+    val headerBytes: Long, val fieldBytes: Long, val fields: Long,
+    val continuations: Long, val sendHeaderBytes: Long, val pendingBodyBytes: Long,
+    val edgeWhitespace: Int, val rejectInvalid: Int
+)
+@CLayout internal struct NativeHttp2Settings(
+    val tableSize: UInt, val concurrentStreams: UInt, val initialWindow: UInt,
+    val frameSize: UInt, val headerSize: UInt
+)
+
+internal fun http2Config(options: Http2ReceiveOptions, limits: Http2Limits): NativeHttp2Config {
+    requireHttpHeaderLimits(limits.headers)
+    if (limits.maxContinuations <= 0L || limits.maxSendHeaderBlockBytes <= 0L || limits.maxPendingBodyBytes <= 0L)
+        throw IllegalArgumentException(Some("HTTP/2 local limits must be positive"))
+    return NativeHttp2Config(limits.headers.maxBytes, limits.headers.maxFieldBytes, limits.headers.maxFields,
+        limits.maxContinuations, limits.maxSendHeaderBlockBytes, limits.maxPendingBodyBytes,
+        if (options.allowFieldValueEdgeWhitespace) 1 else 0,
+        if (options.invalidRegularField == Http2InvalidRegularField.RejectStream) 1 else 0)
+}
+
+internal fun http2Settings(settings: Http2Settings): NativeHttp2Settings {
+    if (settings.initialWindowSize > 2147483647U || settings.maxFrameSize < 16384U || settings.maxFrameSize > 16777215U)
+        throw IllegalArgumentException(Some("invalid HTTP/2 SETTINGS value"))
+    return NativeHttp2Settings(settings.headerTableSize, settings.maxConcurrentStreams, settings.initialWindowSize,
+        settings.maxFrameSize, settings.maxHeaderListSize)
+}

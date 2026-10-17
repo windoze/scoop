@@ -75,11 +75,17 @@ body 定界显式选择无 body、已知长度、chunked 或响应 EOF。Content
 
 Http2Session 的 client／server 工厂固定角色、接收选项、本地限制和初始 SETTINGS。创建后可提交请求、信息／最终响应、body、trailer、RST_STREAM 与 GOAWAY；请求提交返回实际 stream ID。DATA provider 只读取已准备的 native 字节，缺少数据返回 deferred，补充字节后调用 resume_data。不在 C 回调内执行异步 I/O、用户回调或 continuation 恢复。
 
+submitRequest／submitResponse 的 endStream 表示头部后立即结束发送；需要 body 或 trailer 时设为 false，随后 writeBody／finish。信息响应不结束流，必须显式使用 endStream=false。writeBody 只接受每流待发送容量内的前缀；返回零表示等待实际输出或窗口进展。finish 表示没有更多 DATA，可附独立 trailer。接收端通过 Request／Response／Data／Trailers／End 事件区分阶段，End 前没有 trailer 时也交付空 Trailers。StreamClosed 保存实际 HTTP/2 错误码，GoAway 另保存方向、最后 stream ID 与调试字节；不能把正常单向 End 等同于整个流关闭。
+
+Http2Settings 声明 headerTableSize、maxConcurrentStreams、initialWindowSize、maxFrameSize、maxHeaderListSize；客户端另固定 ENABLE_PUSH=0。Http2Limits 使用 HttpHeaderLimits，并分别给出 maxContinuations、maxSendHeaderBlockBytes、maxPendingBodyBytes。伪头的 never-index 标记通过 Http2RequestIndexing(method, scheme, authority, path) 和响应的 neverIndexStatus 保存，普通字段仍使用 HttpField.neverIndex。
+
 receive／takeOutput 使用 NativeByteBuffer 的实际前缀。mem_send2 返回的临时字节必须在下一次可能使指针失效的调用前复制到自有存储；不能跨挂起保存该指针。输出每次可短传输，未取走的输出保持有效。
 
 请求／响应头、trailer、DATA、流结束、RST_STREAM、GOAWAY、SETTINGS 与忽略字段各自可观察。非法头或消息错误按后端真实作用域处理；普通消息接口不暴露 no_http_messaging。发送头根据消息数据生成合法伪头顺序和小写字段名，使用后端公开的名称／值检查；调用者不能把伪头混入普通字段。
 
 DATA 收到后保持为未消费量。调用者实际读取或明确丢弃 body 时才调用 consume，归还相应的流与连接窗口。流已经结束／reset 而仍有未消费数据时，按上游 consume_connection 合同归还连接窗口，不能因单流结束阻塞其他流。不能重复消费或超过实际未消费量。
+
+reset 显式放弃该流尚未消费的 DATA，并归还连接窗口；随后不再对这些字节调用 consume。对端 reset 仍通过实际 StreamClosed 事件交付，由使用者消费或放弃已交付的 DATA。endInput 标记传输 EOF；仍需要协议输入的会话以 nghttp2 的 EOF 错误结束，不通过另写帧解析器猜测被截断的位置。close 释放本地状态，不隐含发送 GOAWAY。
 
 ```scoop
 public enum Http2InvalidRegularField { Ignore, RejectStream }
