@@ -10,11 +10,32 @@ public class Http2Session private constructor(private var handle: ULong, public 
         public fun server(options: Http2ReceiveOptions = Http2ReceiveOptions(), limits: Http2Limits = Http2Limits(),
             settings: Http2Settings = Http2Settings()): Http2Session = create(HttpRole.Server, options, limits, settings)
 
-        private fun create(role: HttpRole, options: Http2ReceiveOptions, limits: Http2Limits, settings: Http2Settings): Http2Session {
+        public fun upgradedClient(requestMethod: List<Byte>, settings: Http2Settings = Http2Settings(),
+            options: Http2ReceiveOptions = Http2ReceiveOptions(), limits: Http2Limits = Http2Limits()): Http2Session =
+            upgrade(HttpRole.Client, requestMethod, http2SettingsPayload(settings), options, limits, settings)
+
+        public fun upgradedServer(requestMethod: List<Byte>, settingsPayload: List<Byte>,
+            options: Http2ReceiveOptions = Http2ReceiveOptions(), limits: Http2Limits = Http2Limits(),
+            settings: Http2Settings = Http2Settings()): Http2Session =
+            upgrade(HttpRole.Server, requestMethod, settingsPayload.toArray(), options, limits, settings)
+
+        private fun upgrade(role: HttpRole, requestMethod: List<Byte>, payload: Array<Byte>,
+            options: Http2ReceiveOptions, limits: Http2Limits, settings: Http2Settings): Http2Session {
+            val method = requestMethod.toArray()
+            requireHttp1Method(method)
+            if (httpBytesEqual(method, "CONNECT".toByteArray()))
+                throw IllegalArgumentException(Some("h2c upgrade cannot use CONNECT"))
+            val session = create(role, options, limits, settings, true)
+            try { session.applyUpgrade(payload, httpBytesEqual(method, "HEAD".toByteArray())); return session }
+            catch (error: Throwable) { session.close(); throw error }
+        }
+
+        private fun create(role: HttpRole, options: Http2ReceiveOptions, limits: Http2Limits,
+            settings: Http2Settings, upgrading: Boolean = false): Http2Session {
             val config = http2Config(options, limits)
             val values = http2Settings(settings)
             @Unsafe {
-                val native = http2New(if (role == HttpRole.Server) 1 else 0, config, values)
+                val native = http2New(if (role == HttpRole.Server) 1 else 0, config, values, if (upgrading) 1 else 0)
                 if (native == 0UL) throw http2Failure("create HTTP/2 session", -901, "cannot allocate HTTP/2 session")
                 return Http2Session(native, role)
             }
@@ -32,6 +53,15 @@ public class Http2Session private constructor(private var handle: ULong, public 
 
     @Unsafe private fun check(code: Int, operation: String, id: Int = 0, scope: HttpFailureScope = HttpFailureScope.Operation) {
         if (code < 0) throw http2Failure(operation, code, String.fromCString(http2Error(nativeHandle())), id, scope)
+    }
+
+    private fun applyUpgrade(payload: Array<Byte>, head: Boolean) {
+        @Unsafe {
+            val code = payload.withDataPointer { pointer, size ->
+                @Unsafe { return@withDataPointer http2Upgrade(nativeHandle(), pointer, size, if (head) 1 else 0) }
+            }
+            check(code, "upgrade HTTP/2 session")
+        }
     }
 
     public fun receive(buffer: NativeByteBuffer, count: Long = buffer.readableBytes): Long {

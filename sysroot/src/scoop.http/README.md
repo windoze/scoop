@@ -12,4 +12,6 @@ HTTP/2 的 Http2Session.client／server 使用 nghttp2 1.70.0，通过 receive�
 
 HTTP/2 事件分别交付初始头、信息响应、DATA、trailer、单向 End、完整 StreamClosed、GOAWAY、SETTINGS 与后端忽略的字段。请求伪头使用 HttpRequestTarget.Http2／Connect，never-index 标记使用 Http2RequestIndexing；响应没有 reason phrase。receive 兼容选项、实际本地限制和向对端声明的 SETTINGS 分开配置，发送字段保持严格校验。客户端声明禁用 push。
 
+selectHttpAlpn 选择已协商的协议；HttpCleartextProbe 保留分段前言和原 buffer 后缀。h2c 使用 prepareHttp2Upgrade／readHttp2UpgradeSettings、http2UpgradeAccepted／http2UpgradeResponse，并在 HTTP/1 请求 body 完成后调用 Http2Session.upgradedClient／upgradedServer。客户端使用与升级请求相同的 SETTINGS；升级后的首个请求为 stream 1，下一条新请求从 stream 3 开始。普通拒绝响应继续按 HTTP/1 处理，不自动重发。
+
 llhttp 固定为 9.4.3。HTTP/1 只支持它的已知方法集合，CUSTOM 等扩展 token 会得到明确的 HttpException；开启接收宽容也不改变这个限制。默认接受合法非 ASCII 字段值。legacyHeaderValues 使用上游较宽的 lenient_headers；不公开存在已知 NUL 不前进路径的 header_value_relaxed。宽容改变的实际定界行为必须按规范解释，不能据其名称推断更强保证。

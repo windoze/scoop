@@ -107,9 +107,15 @@ allowFieldValueEdgeWhitespace 只放宽 nghttp2 允许的普通字段首尾 SP�
 
 TLS 协议选择入口只接收实际 ALPN 字节。`h2` 与 `http/1.1` 必须属于调用者允许的协议；未协商时只有显式允许回退才能选 HTTP/1.1。未知 ALPN 或不允许的结果报协商错误，不通过试解析猜测。
 
+selectHttpAlpn 接收可选 ALPN 字节、允许的 HttpProtocol 列表和显式回退选项。尚未选择协议时使用 HttpNegotiationException 保存操作与说明，不给错误虚构已选 HTTP 版本。HttpCleartextProbe 接收允许的 HttpProtocol 列表，逐前缀识别 prior knowledge；protocol 为已选结果，prefix 为已消费前缀快照，buffer 的其余部分仍归调用者。选择完成后不继续消费输入。
+
 明文客户端明确选择 HTTP/1、H2 prior knowledge 或 h2c；服务端声明允许的入口。H2 前言识别支持任意分段，判别期间保留所有输入，最终仍交给唯一的协议消费者；不能丢失部分匹配后转入 HTTP/1 的字节。没有允许的协议、截断的 H2 前言或文本 HTTP/2 都不能静默回退。
 
 h2c 显式生成／验证 Upgrade、Connection、HTTP2-Settings；HTTP2-Settings 采用无 padding 的 base64url SETTINGS payload。升级请求的 HTTP/1 body 必须完成，随后调用 nghttp2_session_upgrade2，把已发送／收到的请求关联到 stream 1，不重复交付或重发 body。HEAD 标记传给上游。拒绝升级时继续交付真实 HTTP/1 响应，不自动重放请求。
+
+prepareHttp2Upgrade 为普通 HTTP/1.1 请求添加升级字段，显式拒绝 CONNECT、已有 Upgrade／HTTP2-Settings 或 Connection: close 冲突。readHttp2UpgradeSettings 验证对端升级字段并解码 payload，实际 SETTINGS 值由 upgradedServer 的 nghttp2 调用检查。http2UpgradeAccepted 区分有效 101 与普通拒绝响应，http2UpgradeResponse 构造接受响应。upgradedClient 的 settings 必须与准备请求时相同，客户端固定声明 ENABLE_PUSH=0；upgradedServer 另外接收本端 SETTINGS。两个工厂均只在 HTTP/1 请求 body 完成之后调用，stream 1 的请求头与 body 不再次作为 H2 事件交付。
+
+升级 payload 的格式错误可直接从工厂抛出 HttpException；格式完整而数值非法的对端 SETTINGS 仍可能按 nghttp2 的接收合同产生本地 GOAWAY，使用者继续通过会话事件处理连接错误，不把它改写为另一套 SETTINGS 检查。
 
 101、成功 CONNECT 及其他协议切换可移交底层 AsyncByteStream／AsyncCloseable 和未消费后缀。移交后旧连接停止协议处理并释放自己的状态；新拥有者先消费后缀，再读取传输。关闭旧连接不能再次关闭已移交资源。
 

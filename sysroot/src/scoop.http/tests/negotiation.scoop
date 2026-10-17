@@ -1,0 +1,74 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+@Test private class HttpNegotiationTests {
+    @Test fun `ALPN selects exact allowed bytes and fallback is explicit`() {
+        val both = [HttpProtocol.Http1, HttpProtocol.Http2]
+        assertTrue(selectHttpAlpn(Some("h2".toByteArray()), both) == HttpProtocol.Http2)
+        assertTrue(selectHttpAlpn(Some("http/1.1".toByteArray()), both) == HttpProtocol.Http1)
+        assertTrue(selectHttpAlpn(None, both, true) == HttpProtocol.Http1)
+        assertFailsWith<HttpNegotiationException> { selectHttpAlpn(None, both) }
+        assertFailsWith<HttpNegotiationException> { selectHttpAlpn(None, [HttpProtocol.Http2], true) }
+        assertFailsWith<HttpNegotiationException> { selectHttpAlpn(Some("h2".toByteArray()), [HttpProtocol.Http1]) }
+        for (value in ["H2", "http/2", "", " h2"]) assertFailsWith<HttpNegotiationException> { selectHttpAlpn(Some(value.toByteArray()), both) }
+        assertFailsWith<IllegalArgumentException> { selectHttpAlpn(None, ArrayList<HttpProtocol>()) }
+    }
+
+    @Test fun `prior knowledge detection retains fragmented magic and following SETTINGS`() {
+        val probe = HttpCleartextProbe([HttpProtocol.Http1, HttpProtocol.Http2])
+        val bytes = clientPreface2()
+        val input = NativeByteBuffer.allocate(bytes.size)
+        try {
+            input.writeBytes(bytes)
+            var index = 0L
+            while (index < 24L) {
+                assertEquals(1L, probe.receive(input, 1L))
+                index += 1L
+                if (index < 24L) assertTrue(probe.protocol == None)
+            }
+            assertTrue(probe.protocol == Some(HttpProtocol.Http2))
+            assertEquals(0L, probe.receive(input))
+            val original = ByteArrayBuilder().append(probe.prefix).append(input.readBytes(input.readableBytes)).toByteArray()
+            assertTrue(httpBytesEqual(original, bytes))
+            Http2Session.server().use { server -> receive2(server, original); assertTrue(server.wantsRead) }
+        } finally { input.close() }
+    }
+
+    @Test fun `HTTP1 mismatch preserves its prefix and unsupported or truncated prefaces fail`() {
+        val request = "POST / HTTP/1.1\r\nContent-Length: 0\r\n\r\n".toByteArray()
+        val probe = HttpCleartextProbe([HttpProtocol.Http1, HttpProtocol.Http2])
+        val input = NativeByteBuffer.allocate(request.size)
+        try {
+            input.writeBytes(request)
+            assertEquals(2L, probe.receive(input))
+            assertTrue(probe.protocol == Some(HttpProtocol.Http1))
+            val bytes = ByteArrayBuilder().append(probe.prefix).append(input.readBytes(input.readableBytes)).toByteArray()
+            Http1Decoder.server().use { decoder -> assertEquals(1L, http1Requests(collectHttp1(decoder, bytes)).size) }
+            input.clear()
+            input.writeBytes("PRI *".toByteArray())
+            val truncated = HttpCleartextProbe([HttpProtocol.Http1, HttpProtocol.Http2])
+            truncated.receive(input)
+            assertFailsWith<HttpNegotiationException> { truncated.endInput() }
+            input.clear()
+            input.writeBytes(request)
+            assertFailsWith<HttpNegotiationException> { HttpCleartextProbe([HttpProtocol.Http2]).receive(input) }
+            input.clear()
+            input.writeBytes("PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n".toByteArray())
+            assertFailsWith<HttpNegotiationException> { HttpCleartextProbe([HttpProtocol.Http1]).receive(input) }
+        } finally { input.close() }
+    }
+
+    @Test fun `h2c rejection remains a real HTTP1 response and body`() {
+        Http1Decoder.client().use { decoder ->
+            decoder.expectResponse("POST".toByteArray())
+            val events = collectHttp1(decoder, "HTTP/1.0 400 Rejected\r\nContent-Length: 4\r\n\r\ndeny".toByteArray())
+            assertFalse(http2UpgradeAccepted(http1Responses(events)[0L]))
+            assertEquals("deny", String.fromUtf8(http1Data(events)))
+            assertFalse(decoder.isSwitched)
+        }
+        assertFailsWith<HttpNegotiationException> { http2UpgradeAccepted(HttpResponseHead(HttpVersion.Http11, 101U)) }
+    }
+}

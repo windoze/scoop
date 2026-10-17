@@ -8,7 +8,7 @@ HTTP 后端与生命周期合同见 [HTTP 规范](../specs/SCOOP-HTTP-SPEC.md)�
 - 沿用已有 native 静态库解析，将 nghttp2 目标目录加入默认库搜索及手工打包清单。缓存先检查实际输入更新；命中不解包、不运行 CMake、不读回 archive。
 - Darwin 实际构建与重复调用直接复用通过；Rust 格式化、toolchain lint、Python Ruff 及自身 C 代码的格式／严格编译检查通过。toolchain 单测 32 项通过；默认库根、OpenSSL 子目录和新增 nghttp2 子目录的实际更新／覆盖／两个 link 入口共 3 个 fixture 变体通过。
 - 独立 native HTTP 消费者在 debug／release 与 moving GC 下通过，覆盖逐字节 llhttp chunk／trailer、已知方法限制、nghttp2 客户端／服务端 SETTINGS、逐字节帧与 HPACK 输入、请求／响应及重复字段，重复构建无 child 编译调用。首次运行遇到的上游未使用参数警告及 fixture Unsafe 块语法已修正并复验。
-- GNU／musl 的后端构建和 HTTP 消费验证在后续功能批次统一执行；M52 的 Linux 全量回归在独立收尾。
+- GNU／musl 的后端构建和 HTTP 消费验证在后续功能批次统一执行；M52 的 Linux 全量回归已闭合，结果见 [M52 验收](../milestone52/PROGRESS.md)。已结束的 GNU 全量生成目录清理释放约 275.9 GiB，保留报告。
 
 ## HTTP/1 内存编解码
 
@@ -24,3 +24,10 @@ HTTP 后端与生命周期合同见 [HTTP 规范](../specs/SCOOP-HTTP-SPEC.md)�
 - 17 项 HTTP/2 专项测试在 release 与 moving GC 下通过；包含 24 项既有 HTTP/1 测试的 debug 全部 41 项在 moving GC 下通过。覆盖逐字节 HPACK、重复／非 UTF-8 字段、并发流、HEAD／CONNECT、背压、关闭流的窗口归还、reset、接收选项、字段限制、SETTINGS／HPACK／CONTINUATION 连接错误和发送失败作用域。
 - 生产 `.slib` 外部消费者与独立的原生 nghttp2 客户端／服务端双向互操作，在 debug／release、三字节传输、moving GC 下通过；cold 只编译用户 Cone，warm 零 child 调用。自身 C 代码严格编译、Rust 格式及 lint 通过。首次 Scoop 编译中的构造器访问、Unsafe 边界和不可变捕获问题已修正，后续库与外部消费者均复验通过。
 - 协商与异步生命周期尚未完成，三目标 HTTP 集成留到这些功能就绪后统一验证。
+
+## 协商与 h2c
+
+- ALPN 按实际字节与显式允许列表选择；无协商的 HTTP/1 回退必须显式允许。明文前言支持逐字节判别，已消费前缀和 buffer 后缀均保留，截断或不允许的协议给出协商错误。
+- h2c 准备／读取无 padding base64url SETTINGS，处理接受与拒绝响应。两个升级工厂使用 nghttp2_session_upgrade2 关联 stream 1，保留 HEAD 语义，不重复交付已完成的 HTTP/1 请求／body；101 与后续 H2 SETTINGS 同次输入时后缀完整交付。
+- 本机 debug 与 moving GC 的全部 49 项测试通过；release 首轮 48 项通过，唯一预期差异修正后 4 项升级测试复验通过。固定后端对非法 SETTINGS 数值排队产生 GOAWAY 的行为已写入规范，格式错误继续直接诊断。Rust 格式／lint、自身 C 严格编译通过。
+- 生产 `.slib` 消费者的 debug／release、moving GC、三字节 H2 传输、协商异常、前缀保留和 h2c stream 1／3 关联通过，重复构建零 child 调用。异步传输与三目标 HTTP 验收继续实施。

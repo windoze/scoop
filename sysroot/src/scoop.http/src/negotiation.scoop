@@ -1,0 +1,75 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.platform.memory.NativeByteBuffer
+
+public class HttpNegotiationException public constructor(public val operation: String, public val detail: String)
+    : Exception(Some(operation + ": " + detail))
+
+internal fun httpAllows(protocols: List<HttpProtocol>, protocol: HttpProtocol): Boolean {
+    for (value in protocols) if (value == protocol) return true
+    return false
+}
+
+public fun selectHttpAlpn(selected: List<Byte>?, allowed: List<HttpProtocol>, allowHttp1Fallback: Boolean = false): HttpProtocol {
+    if (allowed.size == 0L) throw IllegalArgumentException(Some("no HTTP protocols are allowed"))
+    val protocol = when (selected) {
+        case None -> {
+            if (!allowHttp1Fallback) throw HttpNegotiationException("select ALPN", "peer did not negotiate an HTTP protocol")
+            HttpProtocol.Http1
+        }
+        case Some(bytes) -> {
+            if (httpBytesEqual(bytes, "h2".toByteArray())) HttpProtocol.Http2
+            else if (httpBytesEqual(bytes, "http/1.1".toByteArray())) HttpProtocol.Http1
+            else throw HttpNegotiationException("select ALPN", "peer negotiated an unknown HTTP protocol")
+        }
+    }
+    if (!httpAllows(allowed, protocol)) throw HttpNegotiationException("select ALPN", "negotiated HTTP protocol is not allowed")
+    return protocol
+}
+
+public class HttpCleartextProbe public constructor(allowed: List<HttpProtocol>) {
+    private val http1: Boolean = httpAllows(allowed, HttpProtocol.Http1)
+    private val http2: Boolean = httpAllows(allowed, HttpProtocol.Http2)
+    private val magic: Array<Byte> = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n".toByteArray()
+    private val buffered: ByteArrayBuilder = ByteArrayBuilder()
+    private var selected: HttpProtocol? = None
+    private var failed: Boolean = false
+    init { if (!http1 && !http2) throw IllegalArgumentException(Some("no cleartext HTTP protocols are allowed")) }
+
+    public val protocol: HttpProtocol? get() = selected
+    public val prefix: Array<Byte> get() = buffered.toByteArray()
+
+    public fun receive(buffer: NativeByteBuffer, count: Long = buffer.readableBytes): Long {
+        if (failed) throw IllegalStateException(Some("HTTP protocol probe has failed"))
+        if (count < 0L || count > buffer.readableBytes) throw IllegalArgumentException(Some("invalid HTTP probe input count"))
+        var consumed = 0L
+        while (consumed < count && selected == None) {
+            val byte = buffer.readInt8()
+            val index = buffered.size
+            buffered.append(byte)
+            consumed += 1L
+            if (byte != magic[index]) {
+                if (!http1) reject("cleartext input is not HTTP/2 prior knowledge")
+                selected = Some(HttpProtocol.Http1)
+            } else if (buffered.size == magic.size) {
+                if (!http2) reject("HTTP/2 prior knowledge is not allowed")
+                selected = Some(HttpProtocol.Http2)
+            }
+        }
+        return consumed
+    }
+
+    public fun endInput(): HttpProtocol {
+        if (failed) throw IllegalStateException(Some("HTTP protocol probe has failed"))
+        return when (selected) {
+            case Some(_) -> selected!!
+            case None -> { reject("input ended before the HTTP/2 preface was complete") }
+        }
+    }
+
+    private fun reject(message: String): Nothing {
+        failed = true
+        throw HttpNegotiationException("select cleartext HTTP", message)
+    }
+}

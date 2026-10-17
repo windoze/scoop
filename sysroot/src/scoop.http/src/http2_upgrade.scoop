@@ -1,0 +1,72 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.bytes.ByteOrder
+import scoop.io.encoding.Base64
+
+internal fun http2SettingsPayload(settings: Http2Settings): Array<Byte> {
+    http2Settings(settings)
+    val output = ByteArrayBuilder()
+    for (entry in [Http2Setting(1.toUShort(), settings.headerTableSize),
+        Http2Setting(2.toUShort(), 0U), Http2Setting(3.toUShort(), settings.maxConcurrentStreams),
+        Http2Setting(4.toUShort(), settings.initialWindowSize), Http2Setting(5.toUShort(), settings.maxFrameSize),
+        Http2Setting(6.toUShort(), settings.maxHeaderListSize)]) {
+        output.writeUInt16(entry.id, ByteOrder.BigEndian)
+        output.writeUInt32(entry.value, ByteOrder.BigEndian)
+    }
+    return output.toByteArray()
+}
+
+public fun prepareHttp2Upgrade(request: HttpRequestHead, settings: Http2Settings = Http2Settings()): HttpRequestHead {
+    val ordinary = when (request.target) { case Http1(_) -> true; else -> false }
+    if (request.version != HttpVersion.Http11 || !ordinary || httpBytesEqual(request.method, "CONNECT".toByteArray()))
+        throw IllegalArgumentException(Some("h2c upgrade requires a regular HTTP/1.1 request"))
+    requireHttp1Method(request.method)
+    if (request.fields.findAll("upgrade".toByteArray()).size != 0L || request.fields.findAll("http2-settings".toByteArray()).size != 0L ||
+        httpHasToken(request.fields, "connection", "close")) throw IllegalArgumentException(Some("request already has conflicting upgrade fields"))
+    val fields = ArrayList<HttpField>()
+    for (field in request.fields) fields.add(field)
+    fields.add(HttpField("Connection".toByteArray(), "Upgrade, HTTP2-Settings".toByteArray()))
+    fields.add(HttpField("Upgrade".toByteArray(), "h2c".toByteArray()))
+    val payload = Base64.UrlSafe.withPadding(Base64.PaddingOption.Absent).encode(http2SettingsPayload(settings))
+    fields.add(HttpField("HTTP2-Settings".toByteArray(), payload.toByteArray()))
+    return HttpRequestHead(request.version, request.method, request.target, fields, request.indexing)
+}
+
+private fun hasH2c(fields: List<HttpField>): Boolean {
+    for (field in fields.findAll("upgrade".toByteArray())) {
+        for (part in httpCommaParts(field.value)) if (httpBytesEqual(part, "h2c".toByteArray())) return true
+    }
+    return false
+}
+
+public fun readHttp2UpgradeSettings(request: HttpRequestHead): Array<Byte> {
+    if (request.version != HttpVersion.Http11 || !hasH2c(request.fields) ||
+        !httpHasToken(request.fields, "connection", "upgrade") || !httpHasToken(request.fields, "connection", "http2-settings"))
+        throw HttpNegotiationException("read h2c upgrade", "missing HTTP/1.1 upgrade or connection tokens")
+    val fields = request.fields.findAll("http2-settings".toByteArray())
+    if (fields.size != 1L) throw HttpNegotiationException("read h2c upgrade", "exactly one HTTP2-Settings field is required")
+    for (byte in fields[0L].value) if (byte.toUByte().toInt() > 127)
+        throw HttpNegotiationException("read h2c upgrade", "HTTP2-Settings is not base64url ASCII")
+    val decoded = Base64.UrlSafe.withPadding(Base64.PaddingOption.Absent).decodeOrNone(String.fromUtf8(fields[0L].value))
+    when (decoded) {
+        case None -> throw HttpNegotiationException("read h2c upgrade", "HTTP2-Settings is not unpadded base64url")
+        case Some(_) -> {
+            val payload = decoded!!
+            if (payload.size % 6L != 0L) throw HttpNegotiationException("read h2c upgrade", "incomplete HTTP/2 SETTINGS entry")
+            return payload
+        }
+    }
+}
+
+public fun http2UpgradeAccepted(response: HttpResponseHead): Boolean {
+    if (response.version == HttpVersion.Http2) throw HttpNegotiationException("read h2c response", "expected an HTTP/1 response")
+    if (response.status != 101U) return false
+    if (response.version != HttpVersion.Http11 || !httpHasToken(response.fields, "connection", "upgrade") || !hasH2c(response.fields))
+        throw HttpNegotiationException("read h2c response", "101 response did not accept h2c")
+    return true
+}
+
+public fun http2UpgradeResponse(): HttpResponseHead = HttpResponseHead(HttpVersion.Http11, 101U,
+    Some("Switching Protocols".toByteArray()), [HttpField("Connection".toByteArray(), "Upgrade".toByteArray()),
+        HttpField("Upgrade".toByteArray(), "h2c".toByteArray())])

@@ -90,7 +90,7 @@ import scoop.test.*
     }
 }
 
-private fun localGoAway2(events: List<Http2Event>, code: UInt): Boolean {
+internal fun localGoAway2(events: List<Http2Event>, code: UInt): Boolean {
     for (event in events) when (event) { case GoAway(_, value, _, local) -> { if (local && value == code) return true }; else -> {} }
     return false
 }

@@ -48,3 +48,5 @@ path = "native/http2_submit.c"
 path = "native/http2_headers.c"
 [[native.sources]]
 path = "native/http2_events.c"
+[[native.sources]]
+path = "native/http2_upgrade.c"

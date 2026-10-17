@@ -9,7 +9,7 @@ int http2_result(http2 *h, int code) {
 }
 
 uint64_t scoop_http2_new(int32_t server, http2_config config,
-                         http2_settings settings) {
+                         http2_settings settings, int32_t upgrading) {
   http2 *h = calloc(1, sizeof(*h));
   nghttp2_session_callbacks *callbacks = NULL;
   nghttp2_option *options = NULL;
@@ -39,7 +39,8 @@ uint64_t scoop_http2_new(int32_t server, http2_config config,
       {NGHTTP2_SETTINGS_MAX_FRAME_SIZE, settings.frame_size},
       {NGHTTP2_SETTINGS_MAX_HEADER_LIST_SIZE, settings.header_size},
       {NGHTTP2_SETTINGS_ENABLE_PUSH, 0}};
-  if (nghttp2_submit_settings(h->session, NGHTTP2_FLAG_NONE, entries,
+  if ((server || !upgrading) &&
+      nghttp2_submit_settings(h->session, NGHTTP2_FLAG_NONE, entries,
                               server ? 5 : 6))
     goto fail;
   nghttp2_option_del(options);
