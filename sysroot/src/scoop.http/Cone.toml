@@ -20,7 +20,11 @@ include = [
     {path = "../../lib/x86_64-unknown-linux-gnu/nghttp2/include", when = {env = "gnu"}},
     {path = "../../lib/x86_64-unknown-linux-musl/nghttp2/include", when = {env = "musl"}},
 ]
-c_flags = ["-std=c11", "-Wall", "-Wextra", "-Werror", "-Wno-unused-parameter", "-DNGHTTP2_STATICLIB"]
+# Separate preprocessing removes the upstream's intentional fallthrough comments.
+c_flags = [
+    "-std=c11", "-Wall", "-Wextra", "-Werror", "-Wno-unused-parameter",
+    "-Wno-implicit-fallthrough", "-DNGHTTP2_STATICLIB",
+]
 
 [[native.libraries]]
 name = "nghttp2"

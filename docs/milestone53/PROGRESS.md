@@ -47,3 +47,9 @@ HTTP 后端与生命周期合同见 [HTTP 规范](../specs/SCOOP-HTTP-SPEC.md)�
 - 本机 release 全部 26 项异步库测试在 moving GC 下通过；debug 首轮的 22 项通过及后续 11 项 HTTP/2 复验覆盖全部 26 项。首次发现的 reset 诊断被关闭状态覆盖，以及测试取消线程的自 join 问题均已修复闭合。内存 HTTP 库 debug 全部 50 项通过，Rust 格式／lint 与自身 C 严格编译通过。
 - 真实 loopback 覆盖多流乱序响应、双向背压、短传输、零长度、队列限制、取消／并发关闭、原生协议错误、完整前缀保留、明文判别、h2c stream 1／3、TLS H2／HTTP/1.1 ALPN 及无 ALPN 的显式回退。TLS 上跨线程取消单流后，另一流继续收发且底层连接保持可用。
 - 生产 `.slib` 外部消费者在 debug／release、moving GC 下通过，发送 70,000 字节 body 穿过默认流控窗口，验证乱序响应和 trailer；cold 只编译用户 Cone、warm 零 child 调用，共 2 个变体、6 个进程。GNU／musl 的全部 HTTP 库和外部消费者验证接续执行。
+
+## Linux 目标接入
+
+- GNU／musl 的 nghttp2 静态核心构建及重复调用复用通过，两个目标的 12 个普通 Cone 与 runtime 已完成准备。GNU Rust 格式／workspace lint、三个配套命令构建与 toolchain 的 36 项单测通过。
+- GNU 首次编译发现 llhttp 有意 fallthrough 的注释在单独预处理后被移除，GCC 因此在 `-Werror` 下拒绝编译。HTTP Cone 与独立 native fixture 明确关闭该项告警，上游源码不变；本机 native 消费者两档复验、GNU／musl 生产库编译通过。
+- GNU 内存 HTTP 库的 debug／release 各 50 项在 moving GC 下通过；6 个 HTTP 外部消费者与默认 native 根回归全部通过，共 15 个变体、78 个进程。异步库及 musl 的剩余验证继续进行。发行说明已纳入两个 HTTP Cone、固定后端和方法集合限制。
