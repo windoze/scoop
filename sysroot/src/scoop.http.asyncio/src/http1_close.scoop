@@ -1,0 +1,101 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+
+internal fun terminateH1(state: H1State, primary: Throwable) {
+    if (!state.closing) state.primary = Some(primary)
+    state.closing = true
+}
+
+internal suspend fun closeH1(state: H1State) {
+    if (state.lock.withLock { state.closed }) return
+    httpJob(state.loop, false)
+    suspendCoroutine<Unit> { continuation ->
+        val closed = state.lock.withLock {
+            if (state.closed) true else {
+                state.closeWaiters.add(continuation)
+                terminateH1(state, IoClosedException())
+                false
+            }
+        }
+        if (closed) continuation.resume(Unit) else driveH1Close(state)
+    }
+}
+
+internal fun driveH1Close(state: H1State) {
+    val actions = ArrayList<() -> Unit>()
+    state.lock.withLock {
+        if (state.closed || !state.closing) return@withLock
+        if (!state.transportClosing) {
+            state.transportClosing = true
+            actions.add { startH1Close(state) }
+        }
+        if (state.transportClosed && !state.readBusy && !state.writeBusy) finishH1Close(state, actions)
+        Unit
+    }
+    for (action in actions) action()
+}
+
+private fun startH1Close(state: H1State) {
+    val job = state.ownerJob!!
+    val loop = state.loop
+    context(job) { context(loop) {
+        startCoroutine<Unit>(suspend { state.owner.close() }, H1CloseCompletion(state))
+    } }
+}
+
+private class H1CloseCompletion(val state: H1State) : Continuation<Unit> {
+    public override fun resume(value: Unit) { finish(None) }
+    public override fun resumeWithException(exception: Throwable) { finish(Some(exception)) }
+    private fun finish(failure: Throwable?) {
+        state.lock.withLock {
+            state.transportClosed = true
+            state.closeFailure = failure
+        }
+        driveH1Close(state)
+    }
+}
+
+internal fun finishH1Close(state: H1State, actions: ArrayList<() -> Unit>) {
+    try { releaseH1Buffers(state) }
+    catch (error: Throwable) {
+        state.closeFailure = Some(when (state.closeFailure) {
+            case Some(primary) -> ResourceUseException(primary, error)
+            case None -> error
+        })
+    }
+    state.closed = true
+    if (present(state.incoming)) detachH1Body(state.incoming!!.life, actions)
+    if (present(state.outgoing)) detachH1Body(state.outgoing!!.life, actions)
+    state.incoming = None
+    state.outgoing = None
+    state.events.clear()
+    state.requests.clear()
+    val ownerListener = state.ownerListener
+    val ownerWaiter = state.ownerWaiter
+    state.ownerListener = None
+    state.ownerWaiter = None
+    state.ownerJob = None
+    actions.add {
+        if (present(ownerListener)) ownerListener!!.dispose()
+        if (present(ownerWaiter)) ownerWaiter!!.resume(Unit)
+    }
+    val failure = state.closeFailure
+    for (waiter in state.closeWaiters) actions.add {
+        when (failure) { case Some(error) -> waiter.resumeWithException(error); case None -> waiter.resume(Unit) }
+    }
+    state.closeWaiters.clear()
+}
+
+private fun detachH1Body(life: H1BodyLifetime, actions: ArrayList<() -> Unit>) {
+    val listener = life.listener
+    life.listener = None
+    life.disposed = true
+    if (present(listener)) actions.add { listener!!.dispose() }
+}
+
+internal fun releaseH1Buffers(state: H1State) {
+    try { state.decoder.close() }
+    finally { try { state.encoder.close() }
+        finally { try { state.input.close() } finally { state.output.close() } } }
+}

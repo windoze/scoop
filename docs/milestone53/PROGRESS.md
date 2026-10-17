@@ -31,3 +31,10 @@ HTTP 后端与生命周期合同见 [HTTP 规范](../specs/SCOOP-HTTP-SPEC.md)�
 - h2c 准备／读取无 padding base64url SETTINGS，处理接受与拒绝响应。两个升级工厂使用 nghttp2_session_upgrade2 关联 stream 1，保留 HEAD 语义，不重复交付已完成的 HTTP/1 请求／body；101 与后续 H2 SETTINGS 同次输入时后缀完整交付。
 - 本机 debug 与 moving GC 的全部 49 项测试通过；release 首轮 48 项通过，唯一预期差异修正后 4 项升级测试复验通过。固定后端对非法 SETTINGS 数值排队产生 GOAWAY 的行为已写入规范，格式错误继续直接诊断。Rust 格式／lint、自身 C 严格编译通过。
 - 生产 `.slib` 消费者的 debug／release、moving GC、三字节 H2 传输、协商异常、前缀保留和 h2c stream 1／3 关联通过，重复构建零 child 调用。异步传输与三目标 HTTP 验收继续实施。
+
+## HTTP/1 异步传输
+
+- 新增普通 `scoop.http.asyncio` Cone。连接登记为 scope 子任务，接管已有字节流；按方向串行执行头、body 与 trailer 收发，保留短传输的实际前缀，支持信息响应、HEAD、EOF body、流水线与拒绝升级后继续 HTTP/1。
+- 未完成 body 的关闭或取消关闭连接，不自动 drain。实际 I/O 结束后释放 native buffer；并发 close 等待同一次清理，正文与清理同时失败保留两个异常。接受 CONNECT／101 后可移交传输及已读取后缀，旧连接不再关闭新拥有者。
+- 本机 debug 的首批 11 项测试及新增服务端移交用例通过；release 的全部 12 项在 moving GC 下通过。真实 loopback 覆盖三字节读／五字节写、跨线程取消、等待期间不借用调用者 buffer、并发关闭、提前拒绝升级、前缀保留与异常组合。初次语法推断和负例异常类型差异已修正并复验。
+- 生产 `.slib` 的独立消费者在 debug／release、moving GC 下完成真实 HTTP 通信，cold 只编译用户 Cone、warm 零 child 调用。Rust 格式与 lint 通过。HTTP/2 异步多流及三目标验收继续实施。

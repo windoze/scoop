@@ -1,0 +1,119 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.platform.io.UnexpectedEofException
+
+internal suspend fun nextH1Event(state: H1State): Http1Event? {
+    while (true) {
+        val ready = state.lock.withLock { state.events.removeFirstOrNone() }
+        if (present(ready)) return ready
+        val ended = state.lock.withLock {
+            h1Open(state)
+            if (state.decoder.isSwitched) throw IllegalStateException(Some("HTTP/1 transport has switched protocols"))
+            state.inputEnded
+        }
+        if (ended) return None
+        if (state.input.readableBytes == 0L) {
+            state.input.clear()
+            val requested = state.input.writableBytes
+            val count = state.transport.readInto(state.input, requested)
+            httpProgress(count, requested)
+            state.lock.withLock {
+                h1Open(state)
+                if (count == 0L) { state.inputEnded = true; state.decoder.endInput() }
+                Unit
+            }
+        }
+        state.lock.withLock {
+            h1Open(state)
+            if (state.input.readableBytes != 0L) state.decoder.receive(state.input)
+            while (true) {
+                val event = state.decoder.nextEvent()
+                if (!present(event)) break
+                state.events.addLast(event!!)
+            }
+        }
+    }
+}
+
+internal fun advanceH1End(state: H1State, body: H1Input) {
+    while (true) {
+        val (changed, ended) = state.lock.withLock {
+            if (present(body.bytes) || state.events.size == 0L) return@withLock (false, false)
+            when (state.events.firstOrNone()!!) {
+                case Trailers(fields) -> { state.events.removeFirst(); body.trailers = Some(fields); (true, false) }
+                case End(keepAlive) -> {
+                    state.events.removeFirst()
+                    body.keepAlive = keepAlive
+                    body.life.completed = true
+                    resumeH1AfterRejection(state, body)
+                    state.incoming = None;
+                    (true, true)
+                }
+                else -> (false, false)
+            }
+        }
+        if (ended) { completeH1Body(state, body.life); return }
+        if (!changed) return
+    }
+}
+
+internal fun resumeH1AfterRejection(state: H1State, body: H1Input) {
+    if (!body.responseFinished || !body.life.completed || !state.decoder.isSwitched || state.encoder.isSwitched) return
+    state.decoder.resumeHttp1()
+    if (state.events.size != 0L) {
+        val switched = when (state.events.firstOrNone()!!) { case Switch -> true; else -> false }
+        if (switched) state.events.removeFirst()
+    }
+}
+
+private fun requireH1Head(state: H1State, role: HttpRole) {
+    if (state.decoder.role != role) throw IllegalStateException(Some("wrong HTTP/1 receive role"))
+    if (present(state.incoming)) throw IllegalStateException(Some("previous HTTP/1 body is not complete"))
+    if (role == HttpRole.Client && state.clientPending == 0L) throw IllegalStateException(Some("no HTTP/1 request is awaiting a response"))
+}
+
+private fun incomingH1(state: H1State, finalResponse: Boolean = false): H1Input {
+    val body = H1Input(finalResponse)
+    state.lock.withLock { state.incoming = Some(body) }
+    advanceH1End(state, body)
+    if (!body.life.completed) listenH1Body(state, body.life, httpJob(state.loop, true))
+    return body
+}
+
+internal suspend fun receiveH1Request(state: H1State): Http1IncomingRequest? =
+    h1Operation<Http1IncomingRequest?>(state, true, { requireH1Head(state, HttpRole.Server) }, suspend {
+        val next = nextH1Event(state)
+        if (!present(next)) return@h1Operation None
+        when (next!!) {
+            case Request(head) -> {
+                val body = incomingH1(state)
+                state.lock.withLock { state.requests.addLast(H1RequestContext(head.method, body)) }
+                Some(Http1IncomingRequest(head, AsyncHttp1Body(state, body)))
+            }
+            else -> throw IllegalStateException(Some("expected an HTTP/1 request head"))
+        }
+    })
+
+internal suspend fun receiveH1Response(state: H1State): Http1IncomingResponse =
+    h1Operation<Http1IncomingResponse>(state, true, { requireH1Head(state, HttpRole.Client) }, suspend {
+        val next = nextH1Event(state)
+        if (!present(next)) throw UnexpectedEofException()
+        when (next!!) {
+            case Response(head) -> {
+                if (head.status >= 200U || head.status == 101U) state.lock.withLock { state.clientPending -= 1L }
+                Http1IncomingResponse(head, AsyncHttp1Body(state, incomingH1(state, head.status >= 200U || head.status == 101U)))
+            }
+            else -> throw IllegalStateException(Some("expected an HTTP/1 response head"))
+        }
+    })
+
+internal suspend fun closeAfterH1Input(state: H1State, body: H1Input) {
+    val close = state.lock.withLock {
+        if (state.closed || !body.life.completed || state.decoder.isSwitched) false
+        else if (state.decoder.role == HttpRole.Client) body.finalResponse && (!body.keepAlive || state.encoder.mustClose)
+        else body.responseFinished && !body.keepAlive
+    }
+    if (close) closeH1(state)
+}

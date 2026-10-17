@@ -125,6 +125,8 @@ prepareHttp2Upgrade 为普通 HTTP/1.1 请求添加升级字段，显式拒绝 C
 
 H1 按顺序关联请求与响应，同一方向只允许一个消息 body 操作；未定界完成的 body 不能作为下一条消息。关闭或取消未消费完的 body 关闭连接，不执行无界自动 drain。信息响应不结束对应请求。H2 用 stream ID 分开关联请求、响应和双向 body，单流可以独立结束或取消。
 
+AsyncHttp1Connection 的 takeOwnershipAsClient／takeOwnershipAsServer 接收传输与 CoroutineScope。sendRequest／sendResponse 返回 AsyncHttp1Writer，每条消息用 finish 完成；receiveRequest 在正常 EOF 返回 None，receiveResponse 逐条交付信息／最终响应及 AsyncHttp1Body。body 在消费完数据及结束标记后公开已完成状态和 trailer，之后读取返回零；显式 close 未完成的 body 会关闭连接。服务端按接收顺序使用对应请求方法发送响应，拒绝升级后恢复 HTTP/1；接受切换后通过 takeTransport 移交前缀及传输。H1 的实际读写属于调用操作的 Job，连接另登记一个负责存活与本地关闭的 scope 子任务。
+
 H2 连接所有者作为调用者提供的 CoroutineScope 的子任务登记。共享传输读写使用该所有者的 Job；请求／流等待使用请求自己的 Job。请求取消只发出对应 RST_STREAM、丢弃该流剩余 body 并释放其等待，不取消共享 TLS read／write 的 Job。连接所有者取消关闭整条连接并完成所有流收尾。每次 native 步骤不另建 Job。
 
 同一 native 实例在短临界区中串行推进；底层 I/O、用户代码、Job 通知和 continuation 恢复在锁外。传输每方向至多一个操作；输出背压时仍允许输入推进，以便接收 WINDOW_UPDATE、响应与关闭事件。没有输入、输出空间或状态变化时等待实际事件，不空转。

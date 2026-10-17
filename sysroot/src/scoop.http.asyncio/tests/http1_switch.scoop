@@ -1,0 +1,109 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+@Test
+private class AsyncHttp1SwitchTests {
+    @Test
+    fun `server handoff requires accepting the upgrade and releases both old owners`() {
+        withHttp1 suspend { scope, a, b, client, server ->
+            val release = AsyncGate()
+            val serving = scope.launch suspend {
+                val incoming = server.receiveRequest()!!
+                receiveBytes(incoming.body)
+                try { server.takeTransport(); fail(Some("unaccepted upgrade transferred")) }
+                catch (_: IllegalStateException) { assertFalse(server.isClosed) }
+                server.sendResponse(http2UpgradeResponse()).finish()
+                val tunnel = server.takeTransport()
+                try { sendBytes(tunnel, "raw".toByteArray()); release.await() }
+                finally { tunnel.close() }
+            }
+            client.sendRequest(prepareHttp2Upgrade(request())).finish()
+            val incoming = client.receiveResponse()
+            assertTrue(http2UpgradeAccepted(incoming.head))
+            receiveBytes(incoming.body)
+            val tunnel = client.takeTransport()
+            try {
+                client.close(); server.close()
+                assertEquals(0, a.closes); assertEquals(0, b.closes)
+                NativeByteBuffer.allocate(3L).use suspend { buffer ->
+                    tunnel.readFully(buffer, 3L)
+                    assertEquals("raw", String.fromUtf8(buffer.readBytes(3L)))
+                }
+            } finally { release.signal(); tunnel.close() }
+            serving.join()
+            assertEquals(1, a.closes); assertEquals(1, b.closes)
+        }
+    }
+
+    @Test
+    fun `CONNECT transfers the coalesced suffix and old close does not close the tunnel`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val (a, b) = rawPair(loop, scope)
+            val client = AsyncHttp1Connection.takeOwnershipAsClient(a, scope)
+            try {
+                client.sendRequest(request("CONNECT", "example.test:443")).finish()
+                sendBytes(b, "HTTP/1.1 200 Connection Established\r\n\r\ntunnel".toByteArray())
+                val incoming = client.receiveResponse()
+                assertEquals(0L, receiveBytes(incoming.body).size)
+                val tunnel = client.takeTransport()
+                try {
+                    client.close(); assertEquals(0, a.closes)
+                    NativeByteBuffer.allocate(7L).use suspend { buffer ->
+                        tunnel.readFully(buffer, 6L)
+                        assertEquals("tunnel", String.fromUtf8(buffer.readBytes(6L)))
+                        sendBytes(b, "!".toByteArray())
+                        tunnel.readFully(buffer, 1L)
+                        assertEquals(33.toByte(), buffer.readInt8())
+                    }
+                    assertTrue(client.isClosed)
+                } finally { tunnel.close() }
+                assertEquals(1, a.closes)
+            } finally { client.close(); b.close() }
+        }
+    }
+
+    @Test
+    fun `an early rejected upgrade resumes HTTP1 after its request body ends`() {
+        withHttp1 suspend { scope, _, _, client, server ->
+            val rejected = AsyncGate()
+            val serving = scope.launch suspend {
+                val incoming = server.receiveRequest()!!
+                server.sendResponse(response(400U)).finish()
+                rejected.signal()
+                assertEquals("sent", String.fromUtf8(receiveBytes(incoming.body)))
+                val next = server.receiveRequest()!!
+                assertEquals("GET", String.fromUtf8(next.head.method))
+                receiveBytes(next.body)
+                server.sendResponse(response(204U)).finish()
+            }
+            val offer = prepareHttp2Upgrade(request("POST"))
+            val writer = client.sendRequest(offer, Http1BodyFraming.Length(4L))
+            rejected.await()
+            val answer = client.receiveResponse()
+            assertFalse(http2UpgradeAccepted(answer.head))
+            receiveBytes(answer.body)
+            sendBytes(writer, "sent".toByteArray()); writer.finish()
+            client.sendRequest(request()).finish()
+            assertEquals(204U, client.receiveResponse().head.status)
+            serving.join()
+            assertFalse(client.isClosed || server.isClosed)
+        }
+    }
+
+    @Test
+    fun `closing an unread request body closes the owned transport`() {
+        withHttp1 suspend { _, _, b, client, server ->
+            client.sendRequest(request("POST"), Http1BodyFraming.Length(9L))
+            val incoming = server.receiveRequest()!!
+            assertFalse(incoming.body.isComplete)
+            incoming.body.close()
+            assertTrue(server.isClosed)
+            assertEquals(1, b.closes)
+        }
+    }
+}

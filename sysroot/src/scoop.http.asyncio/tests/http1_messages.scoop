@@ -1,0 +1,118 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+@Test
+private class AsyncHttp1MessageTests {
+    @Test
+    fun `short duplex messages preserve fields body and independent trailers`() {
+        withHttp1 suspend { scope, a, b, client, server ->
+            a.readLimit = 3L; b.readLimit = 3L
+            a.writeLimit = 5L; b.writeLimit = 5L
+            val serving = scope.launch suspend {
+                val incoming = server.receiveRequest()!!
+                assertEquals("POST", String.fromUtf8(incoming.head.method))
+                assertEquals("request body", String.fromUtf8(receiveBytes(incoming.body)))
+                assertTrue(incoming.body.isComplete)
+                assertEquals("yes", String.fromUtf8(incoming.body.trailers!![0L].value))
+                val writer = server.sendResponse(HttpResponseHead(HttpVersion.Http11, 200U,
+                    fields = [field("Set-Cookie", "a=1"), field("Set-Cookie", "b=2")]), Http1BodyFraming.Chunked)
+                sendBytes(writer, "response body".toByteArray())
+                writer.finish([field("X-Finished", "yes")])
+            }
+            val writer = client.sendRequest(request("POST"), Http1BodyFraming.Chunked)
+            sendBytes(writer, "request body".toByteArray())
+            writer.finish([field("X-Finished", "yes")])
+            val incoming = client.receiveResponse()
+            assertEquals(2L, incoming.head.fields.findAll("set-cookie".toByteArray()).size)
+            assertEquals("response body", String.fromUtf8(receiveBytes(incoming.body)))
+            assertEquals(1L, incoming.body.trailers!!.size)
+            assertTrue(writer.isComplete && incoming.body.isComplete)
+            serving.join()
+        }
+    }
+
+    @Test
+    fun `pipelining retains HEAD context through informational responses`() {
+        withHttp1 suspend { scope, _, _, client, server ->
+            val serving = scope.launch suspend {
+                for (method in ["GET", "HEAD", "GET"]) {
+                    val incoming = server.receiveRequest()!!
+                    assertEquals(method, String.fromUtf8(incoming.head.method))
+                    assertEquals(0L, receiveBytes(incoming.body).size)
+                    if (method == "HEAD") {
+                        server.sendResponse(response(103U)).finish()
+                        server.sendResponse(HttpResponseHead(HttpVersion.Http11, 200U,
+                            fields = [field("Content-Length", "900")])).finish()
+                    } else {
+                        val writer = server.sendResponse(response(), Http1BodyFraming.Length(2L))
+                        sendBytes(writer, "ok".toByteArray()); writer.finish()
+                    }
+                }
+            }
+            for (method in ["GET", "HEAD", "GET"]) client.sendRequest(request(method)).finish()
+            assertEquals("ok", String.fromUtf8(receiveBytes(client.receiveResponse().body)))
+            val info = client.receiveResponse()
+            assertEquals(103U, info.head.status)
+            assertEquals(0L, receiveBytes(info.body).size)
+            val head = client.receiveResponse()
+            assertEquals(200U, head.head.status)
+            assertEquals(0L, receiveBytes(head.body).size)
+            assertEquals("ok", String.fromUtf8(receiveBytes(client.receiveResponse().body)))
+            serving.join()
+            assertFalse(client.isClosed || server.isClosed)
+        }
+    }
+
+    @Test
+    fun `EOF response finishes the body and completed reads remain zero`() {
+        withHttp1 suspend { scope, a, b, client, server ->
+            val serving = scope.launch suspend {
+                val incoming = server.receiveRequest()!!
+                receiveBytes(incoming.body)
+                val writer = server.sendResponse(response(), Http1BodyFraming.Eof)
+                sendBytes(writer, "through EOF".toByteArray()); writer.finish()
+                assertTrue(server.isClosed)
+            }
+            client.sendRequest(request()).finish()
+            val incoming = client.receiveResponse()
+            assertEquals("through EOF", String.fromUtf8(receiveBytes(incoming.body)))
+            assertTrue(client.isClosed && incoming.body.isComplete)
+            NativeByteBuffer.allocate(1L).use suspend { buffer -> assertEquals(0L, incoming.body.readInto(buffer, 1L)) }
+            serving.join()
+            assertEquals(1, a.closes); assertEquals(1, b.closes)
+        }
+    }
+
+    @Test
+    fun `body sequencing and zero lengths reject invalid calls without network progress`() {
+        withHttp1 suspend { scope, a, _, client, server ->
+            val writer = client.sendRequest(request("POST"), Http1BodyFraming.Length(3L))
+            NativeByteBuffer.allocate(3L).use suspend { buffer ->
+                val before = a.reads + a.writes
+                assertEquals(0L, writer.writeFrom(buffer, 0L))
+                assertEquals(before, a.reads + a.writes)
+                try { writer.writeFrom(buffer, 1L); fail(Some("unavailable bytes accepted")) }
+                catch (_: IndexOutOfBoundsException) { assertFalse(client.isClosed) }
+                try { writer.finish(); fail(Some("short fixed body accepted")) }
+                catch (_: IllegalStateException) { assertFalse(client.isClosed) }
+                try { client.sendRequest(request()); fail(Some("unfinished output replaced")) }
+                catch (_: IllegalStateException) { assertFalse(client.isClosed) }
+                val serving = scope.launch suspend {
+                    val incoming = server.receiveRequest()!!
+                    try { server.receiveRequest(); fail(Some("unfinished input replaced")) }
+                    catch (_: IllegalStateException) { assertFalse(server.isClosed) }
+                    assertEquals("abc", String.fromUtf8(receiveBytes(incoming.body)))
+                    server.sendResponse(response()).finish()
+                }
+                buffer.writeBytes("abc".toByteArray())
+                writer.writeFully(buffer); writer.finish()
+                receiveBytes(client.receiveResponse().body)
+                serving.join()
+            }
+        }
+    }
+}
