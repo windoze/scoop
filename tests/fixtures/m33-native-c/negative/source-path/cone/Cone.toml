@@ -6,5 +6,5 @@ version = "0.1.0"
 kind = "executable"
 [native]
 [[native.sources]]
-path = "../outside.c"
+path = "../*.c"
 when = {os = []}

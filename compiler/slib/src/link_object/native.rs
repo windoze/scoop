@@ -1,6 +1,6 @@
 //! Ordinary native object members; they have no Scoop Strong or ODR records.
 
-use scoop_identity::{CapabilityId, ConeIdentity, NormalizedSourcePath};
+use scoop_identity::{CapabilityId, ConeIdentity, NormalizedNativeSourcePath};
 
 use crate::{
     LogicalMemberKey, MemberStableKey, SlibMember, SlibMemberRecord, SlibMemberRecordError,
@@ -20,7 +20,7 @@ pub fn is_native_link_object(record: &SlibMemberRecord) -> bool {
 pub fn native_link_object_member(
     cone: ConeIdentity,
     target: scoop_lir::LirTargetProfile,
-    source: &NormalizedSourcePath,
+    source: &NormalizedNativeSourcePath,
     bytes: Vec<u8>,
 ) -> Result<SlibMember, SlibMemberRecordError> {
     SlibMember::new(
@@ -37,7 +37,7 @@ pub fn native_link_object_member(
 
 pub struct NativeLinkObject {
     pub(crate) member: crate::SlibMemberId,
-    pub(crate) source: NormalizedSourcePath,
+    pub(crate) source: NormalizedNativeSourcePath,
     pub(crate) bytes: std::sync::Arc<[u8]>,
     pub(crate) digest: scoop_wire::Digest256,
 }
@@ -49,7 +49,7 @@ impl NativeLinkObject {
     pub fn member(&self) -> crate::SlibMemberId {
         self.member
     }
-    pub fn source(&self) -> &NormalizedSourcePath {
+    pub fn source(&self) -> &NormalizedNativeSourcePath {
         &self.source
     }
     pub fn bytes(&self) -> &std::sync::Arc<[u8]> {

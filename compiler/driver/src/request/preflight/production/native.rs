@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use scoop_identity::{ConeIdentity, NormalizedSourcePath};
+use scoop_identity::{ConeIdentity, NormalizedNativeSourcePath};
 use scoop_toolchain::{NativeToolchain, ToolchainError};
 
 use super::{ValidatedCurrentConeInput, ValidatedSingleConeBuildRequest};
@@ -41,7 +41,8 @@ pub(super) fn compile(
             .iter()
             .zip(objects)
             .map(|(source, object)| {
-                let source = NormalizedSourcePath::new(source.path().as_str()).map_err(error)?;
+                let source =
+                    NormalizedNativeSourcePath::new(source.path().as_str()).map_err(error)?;
                 scoop_slib::native_link_object_member(
                     cone,
                     target.lir_target(),
@@ -78,7 +79,7 @@ pub(super) fn compile(
                 request.optimization(),
                 &output,
             )?;
-            let source = NormalizedSourcePath::new(unit.path().as_str()).map_err(error)?;
+            let source = NormalizedNativeSourcePath::new(unit.path().as_str()).map_err(error)?;
             scoop_slib::native_link_object_member(
                 cone,
                 target.lir_target(),

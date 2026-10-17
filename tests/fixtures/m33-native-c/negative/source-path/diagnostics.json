@@ -1,10 +1,10 @@
 [
   {
     "code": "SCOOP_BUILD_FAILED",
-    "message": "invalid build root: invalid Cone manifest root ${work}/cone/Cone.toml: invalid source path \"../outside.c\": path must not escape the Cone root",
+    "message": "invalid build root: invalid Cone manifest root ${work}/cone/Cone.toml: invalid source path \"../*.c\": path must not contain backslashes, NUL, or glob metacharacters",
     "notes": [],
     "origin": {
-      "end": 148,
+      "end": 142,
       "kind": "host",
       "path": "${work}/cone/Cone.toml",
       "start": 134

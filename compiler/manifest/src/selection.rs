@@ -9,7 +9,7 @@ pub use catalog::SourceTarget;
 mod parse;
 mod path;
 
-pub(crate) use parse::{RawConditionalPath, parse_path, parse_predicate, parse_sources};
+pub(crate) use parse::{RawConditionalPath, parse_native_path, parse_predicate, parse_sources};
 pub use path::ConeRelativePath;
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]

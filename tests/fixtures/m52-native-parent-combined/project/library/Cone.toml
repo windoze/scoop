@@ -1,0 +1,10 @@
+schema = 1
+[cone]
+group = "test.m52"
+name = "vendor-library"
+version = "1.0.0"
+kind = "library"
+[native]
+cxx = true
+[[native.sources]]
+path = "../../vendor/answer.cpp"

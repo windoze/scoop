@@ -97,7 +97,7 @@ pub struct NormalizedSourcePath(String);
 
 impl NormalizedSourcePath {
     pub fn new(value: &str) -> Result<Self, NormalizedSourcePathError> {
-        validate_source_path(value)?;
+        validate_source_path(value, false)?;
         Ok(Self(value.to_owned()))
     }
 
@@ -205,7 +205,10 @@ impl fmt::Display for NormalizedSourcePathError {
 
 impl std::error::Error for NormalizedSourcePathError {}
 
-fn validate_source_path(value: &str) -> Result<(), NormalizedSourcePathError> {
+mod native;
+pub use native::NormalizedNativeSourcePath;
+
+fn validate_source_path(value: &str, allow_parent: bool) -> Result<(), NormalizedSourcePathError> {
     if value.is_empty() {
         return Err(NormalizedSourcePathError::Empty);
     }
@@ -222,12 +225,14 @@ fn validate_source_path(value: &str) -> Result<(), NormalizedSourcePathError> {
     if first.len() >= 2 && first[0].is_ascii_alphabetic() && first[1] == b':' {
         return Err(NormalizedSourcePathError::HostPrefix);
     }
+    let mut leading_parent = allow_parent;
     for segment in value.split('/') {
         match segment {
             "" => return Err(NormalizedSourcePathError::EmptySegment),
             "." => return Err(NormalizedSourcePathError::CurrentSegment),
+            ".." if leading_parent => {}
             ".." => return Err(NormalizedSourcePathError::ParentSegment),
-            _ => {}
+            _ => leading_parent = false,
         }
     }
     Ok(())
