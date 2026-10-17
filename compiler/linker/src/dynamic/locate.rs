@@ -9,10 +9,10 @@ pub(super) fn dependency(
     observed: &mut Vec<PathBuf>,
 ) -> Result<NativeFile, LinkError> {
     let mut paths = BTreeMap::new();
-    let mut add = |path: PathBuf, system: bool| {
+    let mut add = |priority: u8, path: PathBuf, system: bool| {
         let text = path.extension().is_some_and(|extension| extension == "tbd");
         paths.insert(
-            path.clone(),
+            (priority, path.clone()),
             (
                 if text {
                     NativeFileKind::TextStub
@@ -27,13 +27,14 @@ pub(super) fn dependency(
             .is_some_and(|extension| extension == "dylib")
         {
             paths.insert(
-                path.with_extension("tbd"),
+                (priority, path.with_extension("tbd")),
                 (NativeFileKind::TextStub, system),
             );
         }
     };
     if let Some(suffix) = name.strip_prefix("@loader_path/") {
         add(
+            0,
             parent
                 .locator
                 .parent()
@@ -42,25 +43,49 @@ pub(super) fn dependency(
             false,
         );
     } else if let Some(suffix) = name.strip_prefix("@rpath/") {
-        for root in roots {
-            add(root.join(suffix), false);
+        for (priority, group) in [roots, profile.default_library_roots()]
+            .into_iter()
+            .enumerate()
+        {
+            for root in group {
+                add(priority as u8, root.join(suffix), false);
+            }
         }
+        let all_roots: Vec<_> = roots
+            .iter()
+            .chain(profile.default_library_roots())
+            .cloned()
+            .collect();
         for root in &parent.rpaths {
-            add(loader_directory(root, parent, roots)?.join(suffix), false);
+            add(
+                2,
+                loader_directory(root, parent, &all_roots)?.join(suffix),
+                false,
+            );
         }
     } else if name.starts_with('/') {
         let path = Path::new(name);
-        for root in roots {
-            add(root.join(name.trim_start_matches('/')), false);
-            if let Some(basename) = path.file_name() {
-                add(root.join(basename), false);
-            }
-            if let Some((prefix, rest)) = name.split_once(".framework/") {
-                if let Some(framework) = Path::new(prefix).file_name() {
-                    add(
-                        root.join(format!("{}.framework/{rest}", framework.to_string_lossy())),
-                        false,
-                    );
+        for (priority, group) in [roots, profile.default_library_roots()]
+            .into_iter()
+            .enumerate()
+        {
+            for root in group {
+                add(
+                    priority as u8,
+                    root.join(name.trim_start_matches('/')),
+                    false,
+                );
+                if let Some(basename) = path.file_name() {
+                    add(priority as u8, root.join(basename), false);
+                }
+                if let Some((prefix, rest)) = name.split_once(".framework/") {
+                    if let Some(framework) = Path::new(prefix).file_name() {
+                        add(
+                            priority as u8,
+                            root.join(format!("{}.framework/{rest}", framework.to_string_lossy())),
+                            false,
+                        );
+                    }
                 }
             }
         }
@@ -70,7 +95,7 @@ pub(super) fn dependency(
                 .sdk_root()
                 .map_err(error)?
                 .join(name.trim_start_matches('/'));
-            add(path.with_extension("tbd"), true);
+            add(2, path.with_extension("tbd"), true);
         }
     } else {
         return Err(error(format!(
@@ -79,9 +104,14 @@ pub(super) fn dependency(
         )));
     }
     let mut candidates = BTreeMap::new();
-    observed.extend(paths.keys().cloned());
     let mut found = Vec::new();
-    for (path, (kind, system)) in paths {
+    let mut previous_priority = 0;
+    for ((priority, path), (kind, system)) in paths {
+        if priority != previous_priority && !candidates.is_empty() {
+            break;
+        }
+        previous_priority = priority;
+        observed.push(path.clone());
         match std::fs::symlink_metadata(&path) {
             Err(err) if err.kind() == std::io::ErrorKind::NotFound => continue,
             Err(err) => {
@@ -166,6 +196,7 @@ fn loader_directory(
 pub(super) fn runpath(
     provider: &DynamicProvider,
     roots: &[PathBuf],
+    profile: &ValidatedFinalLinkProfile,
 ) -> Result<Option<String>, LinkError> {
     if provider.install_name.starts_with('/') {
         return Ok(None);
@@ -180,7 +211,7 @@ pub(super) fn runpath(
             ))
         })?;
     let mut matching = BTreeSet::new();
-    for root in roots {
+    for root in roots.iter().chain(profile.default_library_roots()) {
         if std::fs::canonicalize(root.join(suffix)).ok().as_ref() == Some(&provider.locator)
             || std::fs::canonicalize(root.join(suffix).with_extension("tbd"))
                 .ok()

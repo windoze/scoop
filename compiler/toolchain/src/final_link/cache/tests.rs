@@ -32,7 +32,7 @@ fn probe_headers_invalidate_discovery_and_failure_does_not_publish() {
     };
     let cache = directory.path().join("cache");
     let cold = resolve(&target, &options, false, &cache).unwrap();
-    let record = std::fs::read_dir(cache.join("final-tools-v1"))
+    let record = std::fs::read_dir(cache.join("final-tools-v2"))
         .unwrap()
         .map(|entry| entry.unwrap().path())
         .find(|path| path.extension().is_some_and(|ext| ext == "json"))

@@ -47,3 +47,9 @@
 - 三个命令按显式参数、环境变量、实际执行文件的安装根选择 sysroot，配套 scoopc 跟随实际宿主命令位置。用户 native 编译读取所选 sysroot 的公开头，protocol 已有 native 对象时不重复准备头文件或源码。
 - build／run／test 及两个 link 命令默认消费目标 runtime 索引，保留显式源码和对象覆盖。相对 index 输入先按调用者 cwd 定位；缺失索引诊断包含目标和路径，library 构建无需该资源。
 - 本机 Rust 格式化、四个相关 crate 的全部 target lint 与配套 release 命令构建通过。正式 CLI 10 组、12 个变体通过，覆盖三个命令的软链接启动、带空格安装根、相对覆盖、真实头文件更新、测试库、泛型、moving GC，以及既有 runtime 源码更新与预编译消费。新增 fixture 的 Unsafe 块语法已修正并复验。
+
+## 默认 native 库搜索
+
+- 已声明的 native 库依次使用显式搜索根、目标 sysroot 及其 OpenSSL 目录、系统 provider；所选层的歧义或无效输入直接诊断。Darwin 动态依赖和 Linux ELF 闭包沿用相同优先级，默认路径只作为本机定位信息。
+- 最终工具缓存切换为 `final-tools-v2`，键包含实际选择的 sysroot 搜索根；命中继续直接复用。
+- 本机 Rust 格式化、相关 crate lint、Python Ruff 及三个 release 命令构建通过。正式 CLI 7 组、10 个变体通过，覆盖默认静态库、OpenSSL、显式覆盖、真实 archive 更新后仅重链、坏候选诊断、动态依赖、预编译 crypto／TLS 的 debug／release 与 moving GC。旧缓存目录 glob 和动态库真实路径预期已更新并定向复验。

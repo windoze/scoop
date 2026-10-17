@@ -6,4 +6,4 @@ dynamic provider $NATIVE_PROVIDER_2 install="@rpath/libm23_facade.dylib" imports
   re-export "@rpath/libm23_leaf.dylib" -> $NATIVE_PROVIDER_0
   load "/usr/lib/libSystem.B.dylib" -> $NATIVE_PROVIDER_1
 dynamic binding _m23_add -> "@rpath/libm23_facade.dylib" source="@rpath/libm23_leaf.dylib":_m23_add kind=Symbol weak=false
-rpath "$WORK/native"
+rpath "$WORK/sysroot/lib/aarch64-apple-darwin"

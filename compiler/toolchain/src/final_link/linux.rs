@@ -29,11 +29,13 @@ struct SystemInput {
 pub struct LinuxFinalLinkProfile {
     startup: ValidatedCBridgeToolchainInvocation,
     target: LinuxTarget,
-    data: Discovery,
+    pub(super) data: Discovery,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub(super) struct Discovery {
+    #[serde(with = "crate::build_record::values::paths")]
+    pub(super) native_roots: Vec<PathBuf>,
     mode: LinkMode,
     #[serde(with = "crate::build_record::values::path")]
     linker: PathBuf,
@@ -67,6 +69,7 @@ impl LinuxFinalLinkProfile {
         startup: ValidatedCBridgeToolchainInvocation,
         options: &FinalLinkOptions,
         cxx: Option<crate::ValidatedCxxToolchain>,
+        native_roots: Vec<PathBuf>,
     ) -> Result<Self, ToolchainError> {
         let target = startup.profile().contract().target().id();
         let selected = LinuxTarget::select(target)?;
@@ -94,6 +97,7 @@ impl LinuxFinalLinkProfile {
             startup,
             target: selected,
             data: Discovery {
+                native_roots,
                 mode,
                 linker,
                 linker_version,

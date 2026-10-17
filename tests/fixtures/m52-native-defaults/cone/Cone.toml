@@ -1,0 +1,6 @@
+schema = 1
+[cone]
+group = "test.m52"
+name = "native-defaults"
+version = "0.1.0"
+kind = "executable"

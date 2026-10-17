@@ -126,10 +126,9 @@ impl ElfNamespace {
         };
         let name_path = PathBuf::from(expand(name));
         let paths: BTreeSet<_> = if name_path.is_absolute() || name.contains('/') {
-            BTreeSet::from([name_path])
+            BTreeSet::from([(0, name_path)])
         } else {
             std::iter::once(parent.to_owned())
-                .chain(roots.iter().cloned())
                 .chain(
                     provider
                         .interface
@@ -143,12 +142,31 @@ impl ElfNamespace {
                         .iter()
                         .filter_map(|path| path.parent().map(PathBuf::from)),
                 )
-                .map(|root| root.join(&name_path))
+                .map(|root| (2, root.join(&name_path)))
+                .chain(roots.iter().map(|root| (0, root.join(&name_path))))
+                .chain(
+                    profile
+                        .default_library_roots()
+                        .iter()
+                        .map(|root| (1, root.join(&name_path))),
+                )
                 .collect()
         };
         let mut candidates = BTreeMap::new();
-        observed.extend(paths.iter().cloned());
-        for path in paths.iter().filter(|path| path.is_file()) {
+        let mut previous_priority = 0;
+        for (priority, path) in &paths {
+            if *priority != previous_priority && !candidates.is_empty() {
+                break;
+            }
+            previous_priority = *priority;
+            observed.push(path.clone());
+            match std::fs::symlink_metadata(path) {
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+                Err(cause) => {
+                    return Err(error(format!("ELF dependency {}: {cause}", path.display())));
+                }
+                Ok(_) => {}
+            }
             let file = crate::native_input::locate::read(
                 path,
                 NativeFileKind::SharedObject,

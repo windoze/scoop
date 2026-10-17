@@ -1,0 +1,15 @@
+import scoop.crypto.*
+import scoop.crypto.x509.*
+import scoop.text.*
+import scoop.tls.*
+
+fun main() {
+    val hash = digest(DigestAlgorithm.Sha256, "abc".toByteArray()).toHexString()
+    if (hash != "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
+        throw IllegalStateException()
+    TrustStore.fromCertificates(ArrayList<Certificate>()).use { store ->
+        val options = TlsOptions(alpn = ["h2".toByteArray().toArray()])
+        TlsClientContext(store, options).use { _ -> gcCollect() }
+    }
+    println("prebuilt crypto and TLS")
+}

@@ -16,14 +16,16 @@ pub(super) fn library(
     profile: &ValidatedFinalLinkProfile,
     observed: &mut Vec<PathBuf>,
 ) -> Result<LibraryResolution, LinkError> {
-    match explicit::find(key, roots, profile, observed)? {
-        Some(file) => Ok(LibraryResolution {
-            files: vec![file],
-            scripts: Vec::new(),
-            system_alias: false,
-        }),
-        None => system::find(key, profile, observed),
+    for roots in [roots, profile.default_library_roots()] {
+        if let Some(file) = explicit::find(key, roots, profile, observed)? {
+            return Ok(LibraryResolution {
+                files: vec![file],
+                scripts: Vec::new(),
+                system_alias: false,
+            });
+        }
     }
+    system::find(key, profile, observed)
 }
 
 pub(crate) fn read(
