@@ -1,6 +1,6 @@
 package scoop.collections
 
-public fun <K, V> SortedMap<K, V>.subMap(
+public fun <K, V> SortedMap<K, V>.copyOfRange(
     fromKey: K, toKey: K, fromInclusive: Boolean = true, toInclusive: Boolean = false
 ): SortedMap<K, V> {
     val order = comparator
@@ -16,7 +16,7 @@ public fun <K, V> SortedMap<K, V>.subMap(
     return SortedMapSnapshot<K, V>(result)
 }
 
-public fun <T> SortedSet<T>.subSet(
+public fun <T> SortedSet<T>.copyOfRange(
     fromElement: T, toElement: T, fromInclusive: Boolean = true, toInclusive: Boolean = false
 ): SortedSet<T> {
     val order = comparator

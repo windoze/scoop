@@ -46,7 +46,7 @@ fun main() {
     val chunks = listOf<Int>(1, 2, 3, 4, 5).chunked(2L)
     check(chunks.size == 3L && chunks[2L].joinToString() == "5")
     check(listOf<Int>(1, 2, 3).windowed(2L).map<List<Int>, String> { window -> window.joinToString() }.joinToString(";") == "1, 2;2, 3")
-    val indexed = listOf<String>("a", "b").withIndex()
+    val indexed = listOf<String>("a", "b").withIndex().toList()
     check(indexed[1L].index == 1L && indexed[1L].value == "b")
     val reads = Reads()
     val zipped = Counting(3L, true, reads).zip<Long, Long>(Counting(1L, false, reads))

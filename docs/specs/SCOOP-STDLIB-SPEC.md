@@ -94,11 +94,11 @@ Hash 的库合同为：key 的 equals 是等价关系，相等 key 有相同 has
 
 `Comparator<T>` 是普通 interface，唯一成员 `compare(left: T, right: T): Long`。`comparatorOf((T,T)->Long)` 提供函数适配；`naturalOrder<T : Compare<T>>()`、`reverseOrder`、`compareBy`、`thenBy`、`reversed` 是普通 generic function/extension。reversed 交换实参，不对任意 Long 结果直接取负。Tree 构造器显式接收 Comparator；自然排序工厂带 Compare bound，不要求构造器拥有独立的类型参数。
 
-SortedMap/Set 暴露 comparator 与 `first/last` entry/element 的 OrNull 形式；另提供 lower/floor/ceiling/higher 查询，分别使用 `<`、`<=`、`>=`、`>` 边界。空容器返回 None。范围筛选返回快照，首版不做共享 subMap/subSet 可写 view。
+SortedMap/Set 暴露 comparator 与 `first/last` entry/element 的 OrNull 形式；另提供 lower/floor/ceiling/higher 查询，分别使用 `<`、`<=`、`>=`、`>` 边界。空容器返回 None。范围筛选使用 copyOfRange 返回快照，不提供共享的可写区间 view。
 
 SortedMap 的具体命名为 firstEntryOrNull/lastEntryOrNull、lowerEntry/floorEntry/ceilingEntry/higherEntry，结果为 Entry?；SortedSet 对应 firstOrNull/lastOrNull、lower/floor/ceiling/higher，结果为 T?。MutableSortedMap/Set 同时继承对应的只读 Sorted 接口与 MutableMap/Set，所有 exact application 保持一致。
 
-范围快照使用 `SortedMap.subMap(fromKey, toKey, fromInclusive = true, toInclusive = false)` 和 `SortedSet.subSet(fromElement, toElement, fromInclusive = true, toInclusive = false)`，返回对应只读 Sorted 接口并保留原 Comparator。两端按 Comparator 顺序解释；from 大于 to 抛 IllegalArgumentException，相等时仅两端都 inclusive 才可能包含该等价类。范围构造不修改来源。sortedMapOf/sortedSetOf 返回新的 TreeMap/TreeSet；toSortedMap/toSortedSet 返回不暴露 Mutable 接口的独立快照。每组均提供显式 Comparator 与要求 Compare bound 的自然顺序重载。
+范围快照使用 `SortedMap.copyOfRange(fromKey, toKey, fromInclusive = true, toInclusive = false)` 和 `SortedSet.copyOfRange(fromElement, toElement, fromInclusive = true, toInclusive = false)`，返回对应只读 Sorted 接口并保留原 Comparator。两端按 Comparator 顺序解释；from 大于 to 抛 IllegalArgumentException，相等时仅两端都 inclusive 才可能包含该等价类。范围构造不修改来源；会顺序扫描来源的全部 n 项，再把命中的 k 项插入独立树，时间为 O(n + k log k)，额外空间为 O(k)。sortedMapOf/sortedSetOf 返回新的 TreeMap/TreeSet；toSortedMap/toSortedSet 返回不暴露 Mutable 接口的独立快照。每组均提供显式 Comparator 与要求 Compare bound 的自然顺序重载。
 
 ### 2.4 工厂、转换与集合运算
 
@@ -150,7 +150,7 @@ PriorityQueue.add 返回 Unit，空队列的 peek/removeFirst 抛 NoSuchElementE
 
 map/filter 等返回新 List；indexed 回调索引和 withIndex 的 index 为 Long。indexOf 无结果返回 -1L；查找的 OrNull 返回外层 Option。single 在零项或多项时分别抛 NoSuchElementException 或 IllegalArgumentException；singleOrNull 在这两种情况下返回 None。reduce 空输入抛 NoSuchElementException。any/all/none/find/first 等遇到确定结果立即停止，不预先遍历或计算 size。
 
-withIndex 使用普通 `IndexedValue<T>(index: Long, value: T)` struct；zip/partition 复用 tuple。flatten 针对 `Iterable<Iterable<T>>`，由于 invariant，不假定 List<List<T>> 能上转为该类型；这类输入可用 flatMap 显式取得内层 Iterable。toCollection/mapTo/filterTo/flatMapTo 为 MutableList 和 MutableSet 分别提供普通重载，返回同一目标接口值，不依赖不存在的 MutableCollection。min/max 空输入返回 None，同值时保留首次结果；sortedBy 的 key selector 每元素求值一次后再排序。
+`Iterable.withIndex(): Iterable<IndexedValue<T>>` 是惰性适配，使用普通 `IndexedValue<T>(index: Long, value: T)` struct。创建适配器不获取或消费源 iterator；每次调用 iterator() 获取一个源 iterator，从 0L 开始逐项编号，不预先遍历。能否重复迭代由来源决定；需要独立快照时显式调用 toList。zip/partition 复用 tuple。flatten 针对 `Iterable<Iterable<T>>`，由于 invariant，不假定 List<List<T>> 能上转为该类型；这类输入可用 flatMap 显式取得内层 Iterable。toCollection/mapTo/filterTo/flatMapTo 为 MutableList 和 MutableSet 分别提供普通重载，返回同一目标接口值，不依赖不存在的 MutableCollection。min/max 空输入返回 None，同值时保留首次结果；sortedBy 的 key selector 每元素求值一次后再排序。
 
 计数参数非负，chunked/windowed 的 size/step 必须正；windowed 默认 step=1、partialWindows=false，窗口结果是独立浅快照。zip 按左后右取值，任一输入耗尽即结束；可能为判断终止从左侧多消费一项，此顺序不隐藏。take(0) 不取得上游 iterator 或调用回调。
 
@@ -160,7 +160,7 @@ groupBy/associate/distinct 默认使用 LinkedHashMap/LinkedHashSet，key 要求
 
 具体调用约定：first/last/single 及其 OrNull 同时提供无参数与 predicate 重载；find 等于 firstOrNull(predicate)。elementAt 的负数或越界 index 抛 IndexOutOfBoundsException，elementAtOrNull 返回 None；负数不取得 iterator。count/any/none 提供无参数与 predicate 重载，all 接收 predicate。onEach 急切执行 action 后返回原 Iterable。fold 使用显式 initial，reduce 使用首元素作为 initial。indexed 回调参数顺序为 `(index: Long, element: T)`；计数无法用 Long 表示时抛 ArithmeticException。
 
-groupBy/groupByTo/associateBy 提供仅 keySelector 与额外 valueTransform 的重载；groupByTo 的目标为 MutableMap<K, MutableList<V>>，使用目标的 key 等价语义，不额外要求 Hash。groupBy 返回只读 Map<K,List<V>>，分组 List 也是独立只读快照；associate 系列同样返回只读独立 Map。withIndex、zip、chunked、windowed 返回独立 List；partition 返回两个独立 List 组成的 tuple，true 组在前。目的地操作 toCollection/mapTo/filterTo/flatMapTo/groupByTo 先取得一次输入快照，再顺序执行回调和写入，支持输入与目标别名；快照失败不改目标，回调／目标写入失败保留成功前缀。flatMapTo 还在每次写入前取得该次 transform 返回的内层 Iterable 快照，允许内层来源与目标相同。
+groupBy/groupByTo/associateBy 提供仅 keySelector 与额外 valueTransform 的重载；groupByTo 的目标为 MutableMap<K, MutableList<V>>，使用目标的 key 等价语义，不额外要求 Hash。groupBy 返回只读 Map<K,List<V>>，分组 List 也是独立只读快照；associate 系列同样返回只读独立 Map。zip、chunked、windowed 返回独立 List；partition 返回两个独立 List 组成的 tuple，true 组在前。目的地操作 toCollection/mapTo/filterTo/flatMapTo/groupByTo 先取得一次输入快照，再顺序执行回调和写入，支持输入与目标别名；快照失败不改目标，回调／目标写入失败保留成功前缀。flatMapTo 还在每次写入前取得该次 transform 返回的内层 Iterable 快照，允许内层来源与目标相同。
 
 joinToString 的参数为 separator=", "、prefix=""、postfix=""、limit=-1、truncated="..."，以及可选的显式 transform（无 transform 重载要求 ToString）。limit 使用 Long，-1 表示不限，其他负数非法；计数参数非负的通常规则不限制此 sentinel。超过 limit 时最多额外读取一项以判断是否添加 truncated，不转换该项；truncated 和普通元素一样由 separator 分隔。所有急切算法在回调异常时直接传播，不吞成 OrNull。
 

@@ -31,17 +31,17 @@ fun main() {
     check(set.size == 3L && set.firstOrNull() == Some(1) && set.lastOrNull() == Some(5), "set")
     check(set.lower(3) == Some(1) && set.floor(3) == Some(3), "set lower")
     check(set.ceiling(3) == Some(3) && set.higher(3) == Some(5), "set upper")
-    val range = set.subSet(1, 5)
+    val range = set.copyOfRange(1, 5)
     check(range.size == 2L && range.lastOrNull() == Some(3) && !(range is MutableSet<Int>), "range snapshot")
     set.clear()
     check(range.size == 2L, "independent range")
     val reverse = sortedMapOf<Int, String>(reverseOrder<Int>(), (1, "a"), (2, "b"), (3, "c"))
     check(reverse.firstEntryOrNull()!!.key == 3 && reverse.lowerEntry(2)!!.key == 3, "reverse order")
-    val slice = reverse.subMap(3, 1, toInclusive = true)
+    val slice = reverse.copyOfRange(3, 1, toInclusive = true)
     check(slice.size == 3L && slice.comparator === reverse.comparator, "reverse range")
-    check(reverse.subMap(2, 2).isEmpty() && reverse.subMap(2, 2, toInclusive = true).size == 1L, "equal bounds")
+    check(reverse.copyOfRange(2, 2).isEmpty() && reverse.copyOfRange(2, 2, toInclusive = true).size == 1L, "equal bounds")
     invalid = false
-    try { reverse.subMap(1, 3) } catch (error: IllegalArgumentException) { invalid = true }
+    try { reverse.copyOfRange(1, 3) } catch (error: IllegalArgumentException) { invalid = true }
     check(invalid, "invalid bounds")
     val snapshot = reverse.toSortedMap()
     reverse.clear()
