@@ -1,0 +1,6 @@
+schema = 1
+[cone]
+group = "test.m52"
+name = "no-runtime-library"
+version = "0.1.0"
+kind = "library"

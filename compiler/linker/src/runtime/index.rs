@@ -29,7 +29,15 @@ impl RuntimeObjectSet {
         target: LirTargetProfile,
         toolchain: &CBridgeToolchainProfileV1,
     ) -> Result<Self, LinkError> {
-        let index: Index = decode_canonical(&std::fs::read(path).map_err(error)?).map_err(error)?;
+        let path = std::path::absolute(path).map_err(error)?;
+        let bytes = std::fs::read(&path).map_err(|cause| {
+            error(format!(
+                "runtime index {} for {}: {cause}",
+                path.display(),
+                target.contract().canonical_triple()
+            ))
+        })?;
+        let index: Index = decode_canonical(&bytes).map_err(error)?;
         if index.schema != 4
             || index.target != encode(&target.wire_id()).map_err(error)?
             || index.abi.as_array() != RuntimeAbiContract.fingerprint().map_err(error)?.as_array()

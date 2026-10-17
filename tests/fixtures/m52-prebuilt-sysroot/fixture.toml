@@ -99,7 +99,7 @@ env = {SCOOP_GC_STRESS_MOVE = "1"}
 
 [[steps]]
 name = "link"
-argv = ["${scoop}", "link", {each = "${link_args}"}, "--sysroot", "${work}/installed resources", "--root-slib", "${updated.result.root.path}", "--runtime-objects", "${updated.result.runtime_index}", "--cache-dir", "${work}/link-cache", "--message-format", "json", "-o", "${work}/linked"]
+argv = ["${scoop}", "link", {each = "${link_args}"}, "--sysroot", "${work}/installed resources", "--root-slib", "${updated.result.root.path}", "--cache-dir", "${work}/link-cache", "--message-format", "json", "-o", "${work}/linked"]
 exit = 0
 stdout = ""
 stderr = ""

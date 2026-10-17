@@ -42,8 +42,9 @@ pub use native::{
     strip_native_include_observations,
 };
 pub use paths::{
-    configured_cache_root, configured_sysroot_root, development_runtime_root,
-    development_workspace_root, target_library_root,
+    configured_cache_root, configured_sysroot_root, default_runtime_index,
+    development_runtime_root, development_workspace_root, installed_executable,
+    target_library_root,
 };
 pub use registry::host_target_triple;
 pub use registry::{CToolchainOptions, ResolvedTargetProfile};

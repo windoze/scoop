@@ -23,7 +23,7 @@ impl RuntimeLibraries {
             target,
             options.sysroot.as_deref(),
             options.unwind_prefix.as_deref(),
-        );
+        )?;
         crate::runtime_unwind_include(target, Some(&prefix))?;
         let unwind_prefix = std::path::absolute(prefix).map_err(error)?;
         let archive = unwind_prefix.join("lib/libunwind.a");

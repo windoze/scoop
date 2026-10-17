@@ -13,7 +13,7 @@ pub struct ArtifactLinkRequest {
     pub cache_dir: PathBuf,
     pub root_slib: PathBuf,
     pub dependency_slibs: Vec<PathBuf>,
-    pub runtime_index: PathBuf,
+    pub runtime_index: Option<PathBuf>,
     pub target: String,
     pub c_toolchain: scoop_toolchain::CToolchainOptions,
     pub final_link: scoop_toolchain::FinalLinkOptions,
@@ -40,8 +40,17 @@ impl ArtifactLinkRequest {
             &self.final_link,
             Some(&self.cache_dir),
         )?;
+        let runtime_index = match &self.runtime_index {
+            Some(index) => index.clone(),
+            None => {
+                let sysroot =
+                    scoop_toolchain::configured_sysroot_root(self.final_link.sysroot.clone())
+                        .map_err(error)?;
+                scoop_toolchain::default_runtime_index(&sysroot, target.lir_target())
+            }
+        };
         let runtime = RuntimeObjectSet::read_index(
-            &self.runtime_index,
+            &runtime_index,
             profile.target(),
             profile.startup_toolchain().profile(),
         )?;

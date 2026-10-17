@@ -4,7 +4,7 @@ use super::*;
 fn probe_headers_invalidate_discovery_and_failure_does_not_publish() {
     let directory = tempfile::tempdir().unwrap();
     let target = ResolvedTargetProfile::resolve("x86_64-unknown-linux-gnu").unwrap();
-    let original = crate::selected_unwind_prefix(target.lir_target(), None, None);
+    let original = crate::selected_unwind_prefix(target.lir_target(), None, None).unwrap();
     let prefix = directory.path().join("unwind");
     std::fs::create_dir_all(prefix.join("include")).unwrap();
     std::fs::create_dir_all(prefix.join("lib")).unwrap();

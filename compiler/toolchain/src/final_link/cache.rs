@@ -31,6 +31,7 @@ pub(super) fn resolve(
                 options.unwind_prefix.as_deref(),
             )
         })
+        .transpose()?
         .as_deref()
         .map(path)
         .transpose()?;

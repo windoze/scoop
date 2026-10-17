@@ -11,6 +11,8 @@ options = ["--sysroot", "${work}/private-sysroot", "--scoopc", "${scoopc}", "--c
 [[steps]]
 name = "prepare"
 files = [
+  {symlink = {from = "${sysroot}/include", to = "${work}/private-sysroot/include"}},
+  {symlink = {from = "${sysroot}/lib/${target}/runtime", to = "${work}/private-sysroot/lib/${target}/runtime"}},
   {"copy" = {"from" = "${sysroot}/src/scoop.core", "to" = "${work}/private-sysroot/src/scoop.core"}},
   {"copy" = {"from" = "${fixture}/../../core-library/extension.scoop", "to" = "${work}/private-sysroot/src/scoop.core/src/extension.scoop"}},
   {"copy" = {"from" = "${fixture}/root", "to" = "${work}/root"}},

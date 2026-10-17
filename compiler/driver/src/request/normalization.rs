@@ -56,11 +56,13 @@ pub fn normalize_direct_build_request(
         }
         CurrentConeInput::SingleFile { .. } => false,
     };
+    let sysroot = scoop_toolchain::configured_sysroot_root(options.sysroot)
+        .map_err(BuildRequestNormalizationError::Target)?;
     let trusted_core = if is_core {
         TrustedCoreInput::BootstrapSelf
     } else {
         TrustedCoreInput::DependenciesOrDefault {
-            sysroot: scoop_toolchain::configured_sysroot_root(options.sysroot),
+            sysroot: sysroot.clone(),
         }
     };
     SingleConeBuildRequest::new(
@@ -74,6 +76,7 @@ pub fn normalize_direct_build_request(
     )
     .and_then(|request| {
         request
+            .with_native_sysroot(sysroot)
             .with_optimization(options.optimization)
             .with_purpose(options.purpose)
     })

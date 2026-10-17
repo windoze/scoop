@@ -1,0 +1,35 @@
+schema = 1
+name = "m52-runtime-missing"
+inputs = ["main.scoop", "library"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m52", "sysroot", "runtime", "negative"]
+[vars]
+options = ["--sysroot", "${work}/sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json"]
+
+[[steps]]
+name = "prepare"
+files = [
+ {copy = {from = "${sysroot}/lib/${target}/scoop.core.slib", to = "${work}/sysroot/lib/${target}/scoop.core.slib"}},
+ {symlink = {from = "${sysroot}/src", to = "${work}/sysroot/src"}},
+ {symlink = {from = "${sysroot}/vendor", to = "${work}/sysroot/vendor"}},
+]
+
+[[steps]]
+name = "library"
+argv = ["${scoop}", "build", "${fixture}/library", {each = "${compile_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "reject"
+argv = ["${scoop}", "build", "${fixture}/main.scoop", {each = "${compile_args}"}, {each = "${options}"}, "-o", "${work}/program"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "diagnostics.json"}
+checks = [{file = "${work}/program", exists = false}]

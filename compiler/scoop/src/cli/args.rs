@@ -157,7 +157,7 @@ pub(super) struct LinkArgs {
     #[command(flatten)]
     pub native: NativeOptions,
     #[arg(long)]
-    pub runtime_objects: PathBuf,
+    pub runtime_objects: Option<PathBuf>,
     #[arg(long)]
     pub library_path: Vec<PathBuf>,
     #[arg(short = 'o')]

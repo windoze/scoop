@@ -17,7 +17,7 @@ struct Cli {
     #[arg(long = "dep-slib")]
     dependencies: Vec<PathBuf>,
     #[arg(long = "runtime-objects")]
-    runtime_index: PathBuf,
+    runtime_index: Option<PathBuf>,
     #[arg(long)]
     target: String,
     /// Linux C compiler driver.
@@ -25,7 +25,7 @@ struct Cli {
     cc: Option<PathBuf>,
     #[arg(long)]
     native_sysroot: Option<PathBuf>,
-    /// Scoop sysroot used to locate the default LLVM unwind prefix.
+    /// Scoop sysroot containing the target runtime and native libraries.
     #[arg(long)]
     sysroot: Option<PathBuf>,
     #[arg(long)]

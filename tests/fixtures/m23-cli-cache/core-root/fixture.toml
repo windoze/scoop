@@ -12,6 +12,8 @@ files = [{symlink = {from = "${sysroot}/vendor", to = "${work}/sysroot/vendor"}}
 [[steps]]
 name = "prepare"
 files = [
+  {symlink = {from = "${sysroot}/include", to = "${work}/sysroot/include"}},
+  {symlink = {from = "${sysroot}/lib/${target}/runtime", to = "${work}/sysroot/lib/${target}/runtime"}},
   {"copy" = {"from" = "${sysroot}/src/scoop.core", "to" = "${work}/sysroot/src/scoop.core"}},
   {"copy" = {"from" = "${fixture}/../../core-library/extension.scoop", "to" = "${work}/sysroot/src/scoop.core/src/extension.scoop"}},
   {"copy" = {"from" = "${fixture}/../../core-library/metadata.scoop", "to" = "${work}/sysroot/src/scoop.core/src/metadata.scoop"}},

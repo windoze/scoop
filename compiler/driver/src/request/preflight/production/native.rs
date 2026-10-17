@@ -29,36 +29,36 @@ pub(super) fn compile(
         .filter(|s| s.predicate().matches(target.id()))
         .collect();
     selected.sort_by_key(|s| s.path());
-    if let NativeInputOrigin::Objects(objects) = &request.request.native_inputs {
-        if selected.len() != objects.len() {
-            return Err(error(format!(
-                "native object count {} does not match {} selected sources",
-                objects.len(),
-                selected.len()
-            )));
+    let sysroot = match &request.request.native_inputs {
+        NativeInputOrigin::Source { sysroot } => sysroot.clone(),
+        NativeInputOrigin::Objects(objects) => {
+            if selected.len() != objects.len() {
+                return Err(error(format!(
+                    "native object count {} does not match {} selected sources",
+                    objects.len(),
+                    selected.len()
+                )));
+            }
+            return selected
+                .iter()
+                .zip(objects)
+                .map(|(source, object)| {
+                    let source =
+                        NormalizedNativeSourcePath::new(source.path().as_str()).map_err(error)?;
+                    scoop_slib::native_link_object_member(
+                        cone,
+                        target.lir_target(),
+                        &source,
+                        std::fs::read(object).map_err(error)?,
+                    )
+                    .map_err(error)
+                })
+                .collect();
         }
-        return selected
-            .iter()
-            .zip(objects)
-            .map(|(source, object)| {
-                let source =
-                    NormalizedNativeSourcePath::new(source.path().as_str()).map_err(error)?;
-                scoop_slib::native_link_object_member(
-                    cone,
-                    target.lir_target(),
-                    &source,
-                    std::fs::read(object).map_err(error)?,
-                )
-                .map_err(error)
-            })
-            .collect();
-    }
+    };
+    let public_include = scoop_toolchain::configured_sysroot_root(sysroot)?.join("include");
     let compiler = NativeToolchain::resolve(target.c_bridge_toolchain(), manifest)?;
-    let prepared = compiler.prepare(
-        manifest,
-        request.optimization(),
-        &scoop_toolchain::development_runtime_root().join("include"),
-    )?;
+    let prepared = compiler.prepare(manifest, request.optimization(), &public_include)?;
     let units = prepared.units();
     if units.is_empty() {
         return Ok(Vec::new());

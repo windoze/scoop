@@ -142,18 +142,21 @@ fn runtime_input(
                 target.lir_target(),
                 target.c_bridge_toolchain().profile(),
             )
-            .map_err(|error| failure(error.to_string()))?;
+            .map_err(|error| failure(error.to_string()).at_host(index))?;
             Ok((objects, index.clone()))
         }
         RuntimeInput::SourceRoot(root) => {
             let unwind = if target.id() == scoop_target_data::DARWIN_AARCH64_ID {
                 final_link.unwind_prefix.clone()
             } else {
-                Some(scoop_toolchain::selected_unwind_prefix(
-                    target.lir_target(),
-                    final_link.sysroot.as_deref(),
-                    final_link.unwind_prefix.as_deref(),
-                ))
+                Some(
+                    scoop_toolchain::selected_unwind_prefix(
+                        target.lir_target(),
+                        final_link.sysroot.as_deref(),
+                        final_link.unwind_prefix.as_deref(),
+                    )
+                    .map_err(|error| failure(error.to_string()))?,
+                )
             };
             let runtime = build_runtime(RuntimeBuildRequest {
                 target,

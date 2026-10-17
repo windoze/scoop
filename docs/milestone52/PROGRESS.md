@@ -41,3 +41,9 @@
 - 默认 core 和其他已声明的 scoop 依赖统一读取 `lib/<canonical-triple>/<name>.slib`；显式 source／artifact／search-root 优先，默认产物缺失时诊断目标、coordinate 和路径。`scoop link` 使用相同的显式优先顺序。
 - 随包源码仍保留；源码变化不影响默认产物消费，显式重建发布后按普通依赖更新。新增带空格 sysroot、独立空缓存、debug／release、泛型、moving GC、默认链接和缺失 core 覆盖。
 - 本机格式化与相关 crate lint、83 项构建编排单元测试通过。默认库正式 CLI 17 组、19 个变体通过；缓存及显式 core 相关 26 组通过，另 2 组仅适用于 Linux，留到最终 Linux 验收。旧用例的默认源码边、core 编译调用数、产物摘要数量和显式路径诊断预期已更新并复验。
+
+## 安装定位、公开头与默认 runtime
+
+- 三个命令按显式参数、环境变量、实际执行文件的安装根选择 sysroot，配套 scoopc 跟随实际宿主命令位置。用户 native 编译读取所选 sysroot 的公开头，protocol 已有 native 对象时不重复准备头文件或源码。
+- build／run／test 及两个 link 命令默认消费目标 runtime 索引，保留显式源码和对象覆盖。相对 index 输入先按调用者 cwd 定位；缺失索引诊断包含目标和路径，library 构建无需该资源。
+- 本机 Rust 格式化、四个相关 crate 的全部 target lint 与配套 release 命令构建通过。正式 CLI 10 组、12 个变体通过，覆盖三个命令的软链接启动、带空格安装根、相对覆盖、真实头文件更新、测试库、泛型、moving GC，以及既有 runtime 源码更新与预编译消费。新增 fixture 的 Unsafe 块语法已修正并复验。
