@@ -36,6 +36,8 @@ core 的结构化并发合同见语言规范 11.9.1～11.9.2；native buffer 的
 
 ### 1.2 命名、类型与失败
 
+`OrNull` 在 Scoop 中表示 Option，仅把入口约定的正常缺失、格式错误或验证不匹配转为 None；用户回调、非法参数、状态与后端错误仍照常抛出。谓词式 verify 返回 Boolean；需要失败载荷时使用已有 Result<T, E>。Map.get、Iterator.next、find、tryWait 等已有明确缺失语义的查询可以直接返回 Option；try 保留给非阻塞尝试和竞争状态转换。
+
 类名、工厂、扩展名尽量采用 Kotlin 的常用拼写，例如 HashMap、LinkedHashMap、mapOf、mapNotNull、getOrNull、sortedWith、Random、Duration、Instant、LocalDate、Uuid。以下 Scoop 规则优先：
 
 - 集合类型保持 invariant，不增加 `in/out/*`、追溯 conformance、SAM 转换或 generic virtual method。需要方法级泛型的操作使用普通泛型扩展或 final method。

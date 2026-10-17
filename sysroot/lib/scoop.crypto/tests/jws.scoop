@@ -13,15 +13,15 @@ private class JwsTests {
             val header = "{ \"kid\": \"interop\", \"alg\": \"HS256\" }"
             val payload = "Scoop JWS interoperability".toByteArray()
             assertEquals(hs256Token(), signCompact(header, payload, JwsAlgorithm.HS256, JwsSigningKey.Mac(key)))
-            val verified = verifyCompact(hs256Token(), JwsAlgorithm.HS256, JwsVerificationKey.Mac(key))!!
+            val verified = verifyCompactOrNull(hs256Token(), JwsAlgorithm.HS256, JwsVerificationKey.Mac(key))!!
             assertEquals(header, verified.protectedHeader)
             assertEquals("interop", verified.keyId!!)
             assertEquals(payload.toHexString(), verified.payload.toHexString())
             val parts = hs256Token().split('.')
-            assertMissing(verifyCompact(parts[0L] + ".Y2hhbmdlZA." + parts[2L], JwsAlgorithm.HS256, JwsVerificationKey.Mac(key)))
-            assertMissing(verifyCompact(urlEncoding.encode("{\"alg\":\"HS256\",\"kid\":\"interop\"}".toByteArray()) + "." + parts[1L] + "." + parts[2L], JwsAlgorithm.HS256, JwsVerificationKey.Mac(key)))
+            assertMissing(verifyCompactOrNull(parts[0L] + ".Y2hhbmdlZA." + parts[2L], JwsAlgorithm.HS256, JwsVerificationKey.Mac(key)))
+            assertMissing(verifyCompactOrNull(urlEncoding.encode("{\"alg\":\"HS256\",\"kid\":\"interop\"}".toByteArray()) + "." + parts[1L] + "." + parts[2L], JwsAlgorithm.HS256, JwsVerificationKey.Mac(key)))
             val empty = signCompact("{\"alg\":\"HS256\",\"b64\":true}", ArrayList<Byte>(), JwsAlgorithm.HS256, JwsSigningKey.Mac(key))
-            assertEquals(0L, verifyCompact(empty, JwsAlgorithm.HS256, JwsVerificationKey.Mac(key))!!.payload.size)
+            assertEquals(0L, verifyCompactOrNull(empty, JwsAlgorithm.HS256, JwsVerificationKey.Mac(key))!!.payload.size)
         } finally { key.close() }
     }
 
@@ -48,7 +48,7 @@ private class JwsTests {
         val jwk = "{\"kty\":\"OKP\",\"crv\":\"Ed25519\",\"x\":\"11qYAYKxCrfVS_7TyWQHOg7hcvPapiMlrwIaaPcHURo\"}"
         val seed = "302e020100300506032b6570042204209d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60".hexToByteArray()
         importJwk(jwk).use { publicKey ->
-            val verified = verifyCompact(token, JwsAlgorithm.EdDSA, JwsVerificationKey.Signature(publicKey))!!
+            val verified = verifyCompactOrNull(token, JwsAlgorithm.EdDSA, JwsVerificationKey.Signature(publicKey))!!
             assertEquals("Example of Ed25519 signing".toByteArray().toHexString(), verified.payload.toHexString())
             PrivateKey.fromDer(seed).use { key ->
                 assertEquals(token, signCompact(verified.protectedHeader, verified.payload, JwsAlgorithm.EdDSA, JwsSigningKey.Signature(key)))
@@ -66,17 +66,17 @@ private class JwsTests {
             for (header in headers) assertFailsWith<JwsException> { signCompact(header, ArrayList<Byte>(), JwsAlgorithm.HS256, JwsSigningKey.Mac(key)) }
             val prefix = hs256Token().split('.')[0L]
             val invalid: Array<String> = ["a.b", "a.b.c.d", "=.e30.AA", "_w.e30.AA", prefix + ".e3=.AA", prefix + ".e30.A+", prefix + ".e30.AB"]
-            for (token in invalid) assertFailsWith<JwsException> { verifyCompact(token, JwsAlgorithm.HS256, JwsVerificationKey.Mac(key)) }
-            assertFailsWith<IllegalArgumentException> { verifyCompact(rs256Token(), JwsAlgorithm.RS256, JwsVerificationKey.Mac(key)) }
+            for (token in invalid) assertFailsWith<JwsException> { verifyCompactOrNull(token, JwsAlgorithm.HS256, JwsVerificationKey.Mac(key)) }
+            assertFailsWith<IllegalArgumentException> { verifyCompactOrNull(rs256Token(), JwsAlgorithm.RS256, JwsVerificationKey.Mac(key)) }
         }
         SecretKey.fromBytes("short".toByteArray()).use { key ->
-            assertFailsWith<IllegalArgumentException> { verifyCompact(hs256Token(), JwsAlgorithm.HS256, JwsVerificationKey.Mac(key)) }
+            assertFailsWith<IllegalArgumentException> { verifyCompactOrNull(hs256Token(), JwsAlgorithm.HS256, JwsVerificationKey.Mac(key)) }
         }
         importJwk(ecJwk()).use { key ->
-            assertFailsWith<IllegalArgumentException> { verifyCompact(hs256Token(), JwsAlgorithm.HS256, JwsVerificationKey.Signature(key)) }
-            assertFailsWith<IllegalArgumentException> { verifyCompact(rs256Token(), JwsAlgorithm.RS256, JwsVerificationKey.Signature(key)) }
+            assertFailsWith<IllegalArgumentException> { verifyCompactOrNull(hs256Token(), JwsAlgorithm.HS256, JwsVerificationKey.Signature(key)) }
+            assertFailsWith<IllegalArgumentException> { verifyCompactOrNull(rs256Token(), JwsAlgorithm.RS256, JwsVerificationKey.Signature(key)) }
             val parts = es256Token().split('.')
-            assertFailsWith<JwsException> { verifyCompact(parts[0L] + "." + parts[1L] + ".AA", JwsAlgorithm.ES256, JwsVerificationKey.Signature(key)) }
+            assertFailsWith<JwsException> { verifyCompactOrNull(parts[0L] + "." + parts[1L] + ".AA", JwsAlgorithm.ES256, JwsVerificationKey.Signature(key)) }
         }
     }
 
@@ -97,7 +97,7 @@ private fun assertMissing(result: VerifiedJws?) {
 }
 
 private fun assertPayload(token: String, algorithm: JwsAlgorithm, key: PublicKey) {
-    val result = verifyCompact(token, algorithm, JwsVerificationKey.Signature(key))!!
+    val result = verifyCompactOrNull(token, algorithm, JwsVerificationKey.Signature(key))!!
     assertEquals("Scoop JWS interoperability".toByteArray().toHexString(), result.payload.toHexString())
 }
 
@@ -106,7 +106,7 @@ private fun roundTripJws(pem: String, algorithm: JwsAlgorithm) {
         val token = signCompact("{\"alg\":\"" + algorithmName(algorithm) + "\"}", "round trip".toByteArray(), algorithm, JwsSigningKey.Signature(key))
         if (algorithm == JwsAlgorithm.ES256) assertEquals(64L, decodePart(token.split('.')[2L]).size)
         key.publicKey().use { publicKey ->
-            assertEquals("round trip".toByteArray().toHexString(), verifyCompact(token, algorithm, JwsVerificationKey.Signature(publicKey))!!.payload.toHexString())
+            assertEquals("round trip".toByteArray().toHexString(), verifyCompactOrNull(token, algorithm, JwsVerificationKey.Signature(publicKey))!!.payload.toHexString())
         }
     }
 }

@@ -2,7 +2,7 @@ fun expect(value: Boolean) { if (!value) { throw IllegalStateException() } }
 
 fun valid(bytes: Array<Byte>, text: String, scalars: Long) {
     val strict = String.fromUtf8(bytes)
-    val optional = String.fromUtf8OrNone(bytes)
+    val optional = String.fromUtf8OrNull(bytes)
     val replaced = String.fromUtf8Lossy(bytes)
     gcCollect()
     expect(strict == text && optional == Some(text) && replaced == text)
@@ -20,7 +20,7 @@ fun invalid(bytes: Array<Byte>, offset: Long, text: String) {
         expect(error.byteOffset == offset)
         caught = true
     }
-    expect(caught && String.fromUtf8OrNone(bytes) == None)
+    expect(caught && String.fromUtf8OrNull(bytes) == None)
     val replaced = String.fromUtf8Lossy(bytes)
     gcCollect()
     expect(replaced == text && replaced.byteLength == text.byteLength)

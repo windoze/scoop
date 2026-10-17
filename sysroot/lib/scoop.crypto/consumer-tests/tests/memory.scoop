@@ -17,7 +17,7 @@ private class CryptoConsumerTests {
         SecretKey.fromBytes(secureRandomBytes(32L)).use { key ->
             val nonce = secureRandomBytes(12L)
             val encrypted: AeadCiphertext = encrypt(AeadAlgorithm.AES256GCM, key, nonce, data)
-            assertEquals(data.toHexString(), decrypt(AeadAlgorithm.AES256GCM, key, nonce, encrypted)!!.toHexString())
+            assertEquals(data.toHexString(), decryptOrNull(AeadAlgorithm.AES256GCM, key, nonce, encrypted)!!.toHexString())
             assertTrue(verifyHmac(DigestAlgorithm.SHA384, key, data, hmac(DigestAlgorithm.SHA384, key, data)))
         }
     }

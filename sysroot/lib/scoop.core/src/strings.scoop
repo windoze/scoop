@@ -69,7 +69,7 @@ public class String : Get<Long, Char>, Compare<String>, Add<String, String>, Equ
         public fun fromUtf8(bytes: List<Byte>): String =
             requireValidUtf8(decodeUtf8(bytes))
 
-        public fun fromUtf8OrNone(bytes: List<Byte>): String? = decodeUtf8(bytes)._1
+        public fun fromUtf8OrNull(bytes: List<Byte>): String? = decodeUtf8(bytes)._1
 
         public fun fromUtf8Lossy(bytes: List<Byte>): String = decodeUtf8Lossy(bytes)
 
