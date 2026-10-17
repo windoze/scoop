@@ -45,6 +45,7 @@ public class Http2Session private constructor(private var handle: ULong, public 
     public val isClosed: Boolean get() = handle == 0UL
     public val wantsRead: Boolean get() { @Unsafe { return http2Wants(nativeHandle(), 0) != 0 } }
     public val wantsWrite: Boolean get() { @Unsafe { return http2Wants(nativeHandle(), 1) != 0 } }
+    public val bufferedOutputBytes: Long get() { @Unsafe { return http2Buffered(nativeHandle()) } }
 
     public fun hasPendingOutput(streamId: Int): Boolean {
         if (streamId <= 0) throw IllegalArgumentException(Some("invalid HTTP/2 stream ID"))

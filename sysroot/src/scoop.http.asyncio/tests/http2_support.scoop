@@ -1,0 +1,48 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.http.*
+
+internal class NoticeLog {
+    private val lock: HttpLock = HttpLock()
+    private val entries: ArrayList<Http2Notice> = ArrayList<Http2Notice>()
+    val settings: AsyncGate = AsyncGate()
+    val closed: AsyncGate = AsyncGate()
+    val goAway: AsyncGate = AsyncGate()
+    fun receive(event: Http2Notice) {
+        lock.withLock { entries.add(event) }
+        when (event) {
+            case Settings(_, ack) -> { if (!ack) settings.signal() }
+            case StreamClosed(_, _) -> closed.signal()
+            case GoAway(_, _, _, _) -> goAway.signal()
+            else -> {}
+        }
+    }
+    fun snapshot(): Array<Http2Notice> = lock.withLock { entries.toArray() }
+}
+
+internal class H2Pair(val client: AsyncHttp2Connection, val server: AsyncHttp2Connection,
+    val clientRaw: ObservedTransport, val serverRaw: ObservedTransport, val clientEvents: NoticeLog, val serverEvents: NoticeLog)
+
+internal fun withHttp2(clientLimits: Http2Limits = Http2Limits(), serverSettings: Http2Settings = Http2Settings(),
+    block: suspend (CoroutineScope, H2Pair) -> Unit) {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { scope ->
+        val (a, b) = rawPair(loop, scope)
+        a.readLimit = 97L; b.readLimit = 101L
+        a.writeLimit = 103L; b.writeLimit = 107L
+        val first = NoticeLog(); val second = NoticeLog()
+        val client = AsyncHttp2Connection.takeOwnershipAsClient(a, scope, limits = clientLimits, onEvent = { event -> first.receive(event) })
+        val server = AsyncHttp2Connection.takeOwnershipAsServer(b, scope, settings = serverSettings, onEvent = { event -> second.receive(event) })
+        try {
+            first.settings.await(); second.settings.await()
+            block(scope, H2Pair(client, server, a, b, first, second))
+        } finally { client.close(); server.close() }
+    }
+}
+
+internal fun request2(method: String = "GET", path: String = "/", fields: List<HttpField> = ArrayList<HttpField>()): HttpRequestHead =
+    HttpRequestHead(HttpVersion.Http2, method.toByteArray(),
+        HttpRequestTarget.Http2("https".toByteArray(), "localhost".toByteArray(), path.toByteArray()), fields)
+
+internal fun response2(status: UInt = 200U): HttpResponseHead = HttpResponseHead(HttpVersion.Http2, status)

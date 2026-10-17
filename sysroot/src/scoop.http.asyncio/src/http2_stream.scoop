@@ -1,0 +1,51 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+
+public class AsyncHttp2Stream internal constructor(internal val state: H2State, internal val stream: H2Stream)
+    : AsyncByteStream, AsyncCloseable {
+    public val id: Int get() = stream.id
+    public val isReadComplete: Boolean get() = state.lock.withLock { stream.inputEnded && stream.data.size == 0L }
+    public val isWriteComplete: Boolean get() = state.lock.withLock { stream.sendEnded }
+    public val trailers: Array<HttpField>? get() = state.lock.withLock {
+        if (stream.inputEnded && stream.data.size == 0L) stream.trailers else None
+    }
+
+    public suspend fun receiveResponse(): HttpResponseHead = receiveH2Response(state, stream)
+
+    public suspend fun sendResponse(head: HttpResponseHead, endStream: Boolean = true) {
+        h2BodyRequest(state, stream, H2BodyKind.Flush, None, 0L) {
+            state.session.submitResponse(stream.id, head, endStream)
+            if (head.status >= 200U) { stream.sendStarted = true; stream.sendEnded = endStream }
+        }
+    }
+
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long =
+        h2BodyRequest(state, stream, H2BodyKind.Read, Some(buffer), count, { })
+
+    public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long =
+        h2BodyRequest(state, stream, H2BodyKind.Write, Some(buffer), count, { })
+
+    public override suspend fun flush() { h2BodyRequest(state, stream, H2BodyKind.Flush, None, 0L, { }) }
+
+    public suspend fun finish(trailers: List<HttpField> = ArrayList<HttpField>()) {
+        h2BodyRequest(state, stream, H2BodyKind.Flush, None, 0L) {
+            state.session.finish(stream.id, trailers)
+            stream.sendEnded = true
+        }
+    }
+
+    public override suspend fun close() {
+        if (state.lock.withLock { stream.disposed }) return
+        httpJob(state.loop, false)
+        val actions = ArrayList<() -> Unit>()
+        state.lock.withLock {
+            if (state.closed) releaseH2Stream(state, stream, IoClosedException(), actions)
+            else resetH2Stream(state, stream, IoClosedException(), 8U, actions)
+        }
+        for (action in actions) action()
+        driveH2(state)
+    }
+}

@@ -1,0 +1,94 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.IoClosedException
+import scoop.collections.toMutableList
+
+internal fun terminateH2(state: H2State, error: Throwable) {
+    if (!state.closing) state.primary = Some(error)
+    state.closing = true
+}
+
+internal suspend fun closeH2(state: H2State) {
+    if (state.lock.withLock { state.closed }) return
+    httpJob(state.loop, false)
+    suspendCoroutine<Unit> { continuation ->
+        val done = state.lock.withLock {
+            if (state.closed) true else {
+                state.closeWaiters.add(continuation)
+                terminateH2(state, IoClosedException())
+                false
+            }
+        }
+        if (done) continuation.resume(Unit) else driveH2(state)
+    }
+}
+
+internal fun advanceH2Close(state: H2State, actions: ArrayList<() -> Unit>): Boolean {
+    if (!state.transportClosing) {
+        state.transportClosing = true
+        actions.add { startH2Close(state) }
+        return true
+    }
+    if (!state.transportClosed || state.inputBusy || state.outputBusy) return false
+    try { releaseH2Buffers(state) }
+    catch (error: Throwable) {
+        state.closeFailure = Some(if (present(state.closeFailure)) ResourceUseException(state.closeFailure!!, error) else error)
+    }
+    state.closed = true
+    val primary = state.primary ?: IoClosedException()
+    val failure = if (present(state.closeFailure)) ResourceUseException(primary, state.closeFailure!!) else primary
+    for (stream in state.streams.values.toMutableList()) {
+        if (stream.closed && stream.inputEnded && !present(stream.failure)) {
+            if (present(stream.reader)) {
+                val entry = stream.reader!!
+                finishH2Body(state, stream, entry, readH2Available(state, stream, entry.buffer!!, entry.count)!!, None, actions)
+            }
+            if (present(stream.responseWaiter) && stream.responses.size != 0L) {
+                val wait = stream.responseWaiter!!
+                stream.responseWaiter = None
+                val head = stream.responses.removeFirst()
+                stream.finalResponseTaken = head.status >= 200U
+                succeedH2Wait(wait, head, actions)
+            }
+            if (present(stream.writer)) finishH2Body(state, stream, stream.writer!!, 0L, Some(failure), actions)
+            detachH2Stream(stream, actions)
+        } else releaseH2Stream(state, stream, failure, actions)
+    }
+    state.streams.clear(); state.requests.clear(); state.upgrade = None
+    if (present(state.accepting)) { failH2Wait(state.accepting!!, failure, actions); state.accepting = None }
+    for (wait in state.connectionFlush) failH2Wait(wait, failure, actions)
+    for (wait in state.flushingConnection) failH2Wait(wait, failure, actions)
+    state.connectionFlush.clear(); state.flushingConnection.clear(); state.flushing.clear()
+    val listener = state.ownerListener
+    val owner = state.ownerWaiter
+    state.ownerListener = None; state.ownerWaiter = None; state.ownerJob = None
+    actions.add { if (present(listener)) listener!!.dispose(); if (present(owner)) owner!!.resume(Unit) }
+    for (waiter in state.closeWaiters) {
+        val cleanup = state.closeFailure
+        actions.add {
+            if (present(cleanup)) waiter.resumeWithException(cleanup!!) else waiter.resume(Unit)
+        }
+    }
+    state.closeWaiters.clear()
+    return true
+}
+
+private fun startH2Close(state: H2State) {
+    val job = state.ownerJob!!
+    val loop = state.loop
+    context(job) { context(loop) { startCoroutine<Unit>(suspend { state.owner.close() }, H2CloseCompletion(state)) } }
+}
+
+private class H2CloseCompletion(val state: H2State) : Continuation<Unit> {
+    public override fun resume(value: Unit) { finish(None) }
+    public override fun resumeWithException(exception: Throwable) { finish(Some(exception)) }
+    private fun finish(failure: Throwable?) {
+        state.lock.withLock { state.transportClosed = true; state.closeFailure = failure }
+        driveH2(state)
+    }
+}
+
+internal fun releaseH2Buffers(state: H2State) {
+    try { state.session.close() }
+    finally { try { state.input.close() } finally { state.output.close() } }
+}

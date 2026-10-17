@@ -12,6 +12,7 @@ kind = "library"
 "scoop:scoop.http" = "0.1.0"
 [test-dependencies]
 "scoop:scoop.test" = "0.1.0"
+"scoop:scoop.crypto" = "0.1.0"
 "scoop:scoop.tls" = "0.1.0"
 "scoop:scoop.tls.asyncio" = "0.1.0"
 "scoop.tests:crypto-certificates" = {version = "0.1.0", path = "../scoop.crypto/test-certificates"}

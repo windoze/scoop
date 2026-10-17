@@ -1,0 +1,72 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.http.*
+
+public class Http2IncomingRequest internal constructor(public val head: HttpRequestHead, public val stream: AsyncHttp2Stream)
+
+public class AsyncHttp2Connection internal constructor(internal val state: H2State) : AsyncCloseable {
+    public companion object {
+        public suspend fun <T> takeOwnershipAsClient(transport: T, scope: CoroutineScope,
+            options: Http2ReceiveOptions = Http2ReceiveOptions(), limits: Http2Limits = Http2Limits(),
+            settings: Http2Settings = Http2Settings(), onEvent: (Http2Notice) -> Unit = { _ -> }): AsyncHttp2Connection
+            where T : AsyncByteStream, T : AsyncCloseable =
+            adoptH2(transport, transport, scope, { Http2Session.client(options, limits, settings) }, settings, onEvent, false)
+
+        public suspend fun <T> takeOwnershipAsServer(transport: T, scope: CoroutineScope,
+            options: Http2ReceiveOptions = Http2ReceiveOptions(), limits: Http2Limits = Http2Limits(),
+            settings: Http2Settings = Http2Settings(), onEvent: (Http2Notice) -> Unit = { _ -> }): AsyncHttp2Connection
+            where T : AsyncByteStream, T : AsyncCloseable =
+            adoptH2(transport, transport, scope, { Http2Session.server(options, limits, settings) }, settings, onEvent, false)
+
+        public suspend fun <T> takeOwnershipAsUpgradedClient(transport: T, scope: CoroutineScope, requestMethod: List<Byte>,
+            settings: Http2Settings = Http2Settings(), options: Http2ReceiveOptions = Http2ReceiveOptions(),
+            limits: Http2Limits = Http2Limits(), onEvent: (Http2Notice) -> Unit = { _ -> }): AsyncHttp2Connection
+            where T : AsyncByteStream, T : AsyncCloseable =
+            adoptH2(transport, transport, scope, { Http2Session.upgradedClient(requestMethod, settings, options, limits) }, settings, onEvent, true)
+
+        public suspend fun <T> takeOwnershipAsUpgradedServer(transport: T, scope: CoroutineScope, requestMethod: List<Byte>,
+            settingsPayload: List<Byte>, options: Http2ReceiveOptions = Http2ReceiveOptions(), limits: Http2Limits = Http2Limits(),
+            settings: Http2Settings = Http2Settings(), onEvent: (Http2Notice) -> Unit = { _ -> }): AsyncHttp2Connection
+            where T : AsyncByteStream, T : AsyncCloseable =
+            adoptH2(transport, transport, scope,
+                { Http2Session.upgradedServer(requestMethod, settingsPayload, options, limits, settings) }, settings, onEvent, true)
+    }
+
+    public val role: HttpRole get() = state.session.role
+    public val isClosed: Boolean get() = state.lock.withLock { state.closed }
+    public val upgradedStream: AsyncHttp2Stream? get() = state.lock.withLock {
+        when (state.upgrade) { case Some(stream) -> Some(AsyncHttp2Stream(state, stream)); case None -> None }
+    }
+
+    public suspend fun openRequest(head: HttpRequestHead, endStream: Boolean = true): AsyncHttp2Stream {
+        val job = httpJob(state.loop, true)
+        val stream = state.lock.withLock {
+            h2Open(state)
+            if (state.acceptingEnded) throw IllegalStateException(Some("HTTP/2 connection received or sent GOAWAY"))
+            val value = H2Stream(state.session.submitRequest(head, endStream))
+            value.sendStarted = true
+            value.sendEnded = endStream
+            state.streams[value.id] = value
+            value
+        }
+        listenH2Stream(state, stream, job)
+        val result = AsyncHttp2Stream(state, stream)
+        try { result.flush(); return result }
+        catch (error: Throwable) { result.close(); throw error }
+    }
+
+    public suspend fun acceptRequest(): Http2IncomingRequest? = acceptH2(state)
+
+    public suspend fun goAway(code: UInt = 0U, debugData: List<Byte> = ArrayList<Byte>(), lastStreamId: Int? = None) {
+        flushH2Connection(state) {
+            if (state.goAwayPending) throw IllegalStateException(Some("HTTP/2 GOAWAY send is busy"))
+            state.session.goAway(code, debugData, lastStreamId)
+            state.goAwayPending = true
+            state.goAwaySerialized = false
+            state.acceptingEnded = true
+        }
+    }
+
+    public override suspend fun close() { closeH2(state) }
+}

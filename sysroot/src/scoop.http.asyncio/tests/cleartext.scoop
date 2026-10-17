@@ -1,0 +1,69 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.bytes.ByteArrayBuilder
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+internal suspend fun detectHttp(raw: ObservedTransport): (HttpProtocol, HttpTransport) =
+    NativeByteBuffer.allocate(31L).use suspend { input ->
+        val probe = HttpCleartextProbe([HttpProtocol.Http1, HttpProtocol.Http2])
+        while (!present(probe.protocol)) {
+            input.clear()
+            if (raw.readInto(input, input.writableBytes) == 0L) probe.endInput()
+            else probe.receive(input)
+        }
+        val prefix = ByteArrayBuilder().append(probe.prefix).append(input.readBytes(input.readableBytes)).toByteArray()
+        (probe.protocol!!, HttpTransport.takeOwnershipWithPrefix(raw, prefix))
+    }
+
+@Test
+private class AsyncHttpCleartextTests {
+    @Test
+    fun `fragmented cleartext selection preserves both the H2 preface and partial HTTP1 match`() {
+        for (protocol in [HttpProtocol.Http1, HttpProtocol.Http2]) {
+            val loop: EventLoop = LibuvEventLoop()
+            loop.run suspend { scope ->
+                val (a, b) = rawPair(loop, scope)
+                b.readLimit = 5L
+                val sending = scope.launch suspend {
+                    if (protocol == HttpProtocol.Http1) {
+                        val client = AsyncHttp1Connection.takeOwnershipAsClient(a, scope)
+                        try {
+                            val writer = client.sendRequest(request("POST"), Http1BodyFraming.Length(4L))
+                            sendBytes(writer, "data".toByteArray()); writer.finish()
+                            val response = client.receiveResponse()
+                            assertEquals(204U, response.head.status); receiveBytes(response.body)
+                        } finally { client.close() }
+                    } else {
+                        val client = AsyncHttp2Connection.takeOwnershipAsClient(a, scope)
+                        try {
+                            val stream = client.openRequest(request2("POST"), false)
+                            sendBytes(stream, "data".toByteArray()); stream.finish()
+                            assertEquals(204U, stream.receiveResponse().status); receiveBytes(stream)
+                        } finally { client.close() }
+                    }
+                }
+                val (selected, transport) = detectHttp(b)
+                assertTrue(protocol == selected)
+                if (selected == HttpProtocol.Http1) {
+                    val server = AsyncHttp1Connection.takeOwnershipAsServer(transport, scope)
+                    try {
+                        val incoming = server.receiveRequest()!!
+                        assertEquals("data", String.fromUtf8(receiveBytes(incoming.body)))
+                        server.sendResponse(response(204U)).finish(); sending.join()
+                    } finally { server.close() }
+                } else {
+                    val server = AsyncHttp2Connection.takeOwnershipAsServer(transport, scope)
+                    try {
+                        val incoming = server.acceptRequest()!!
+                        assertEquals("data", String.fromUtf8(receiveBytes(incoming.stream)))
+                        incoming.stream.sendResponse(response2(204U)); sending.join()
+                    } finally { server.close() }
+                }
+                assertEquals(1, a.closes); assertEquals(1, b.closes)
+            }
+        }
+    }
+}

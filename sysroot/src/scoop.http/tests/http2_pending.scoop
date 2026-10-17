@@ -12,10 +12,12 @@ import scoop.test.*
             NativeByteBuffer.allocate(1L).use { buffer ->
                 assertEquals(1L, client.takeOutput(buffer))
                 assertTrue(client.hasPendingOutput(id))
+                assertTrue(client.bufferedOutputBytes > 0L)
                 assertEquals(1L, server.receive(buffer))
             }
             drive2(client, server)
             assertFalse(client.hasPendingOutput(id))
+            assertEquals(0L, client.bufferedOutputBytes)
             client.finish(id, [HttpField("x-end".toByteArray(), "yes".toByteArray())])
             assertTrue(client.hasPendingOutput(id))
             drive2(client, server)

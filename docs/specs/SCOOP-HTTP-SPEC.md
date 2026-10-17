@@ -81,7 +81,7 @@ Http2Settings 声明 headerTableSize、maxConcurrentStreams、initialWindowSize�
 
 receive／takeOutput 使用 NativeByteBuffer 的实际前缀。mem_send2 返回的临时字节必须在下一次可能使指针失效的调用前复制到自有存储；不能跨挂起保存该指针。输出每次可短传输，未取走的输出保持有效。
 
-hasPendingOutput(streamId) 查询该流尚未序列化的头、已接受的 DATA 和结束标记，以及会话仍持有的输出片段。流窗口为零时即使 wantsWrite 为 false，该流仍可有待发送 body。查询不推进协议、不执行 I/O；takeOutput 已交给调用者的 buffer 仍由调用者负责写完和 flush。
+hasPendingOutput(streamId) 查询该流尚未序列化的头、已接受的 DATA 和结束标记，以及会话仍持有的输出片段。bufferedOutputBytes 单独返回会话已经序列化、尚未取走的片段字节数，供 GOAWAY 等控制输出在其他流继续发送时独立完成 flush。流窗口为零时即使 wantsWrite 为 false，该流仍可有待发送 body。查询不推进协议、不执行 I/O；takeOutput 已交给调用者的 buffer 仍由调用者负责写完和 flush。
 
 请求／响应头、trailer、DATA、流结束、RST_STREAM、GOAWAY、SETTINGS 与忽略字段各自可观察。非法头或消息错误按后端真实作用域处理；普通消息接口不暴露 no_http_messaging。发送头根据消息数据生成合法伪头顺序和小写字段名，使用后端公开的名称／值检查；调用者不能把伪头混入普通字段。
 
@@ -131,6 +131,14 @@ AsyncHttp1Connection 的 takeOwnershipAsClient／takeOwnershipAsServer 接收传
 
 H2 连接所有者作为调用者提供的 CoroutineScope 的子任务登记。共享传输读写使用该所有者的 Job；请求／流等待使用请求自己的 Job。请求取消只发出对应 RST_STREAM、丢弃该流剩余 body 并释放其等待，不取消共享 TLS read／write 的 Job。连接所有者取消关闭整条连接并完成所有流收尾。每次 native 步骤不另建 Job。
 
+AsyncHttp2Connection 的 client／server 所有权工厂接收相同的 HTTP/2 options、limits、settings，以及可选的普通 onEvent 回调。openRequest 返回 AsyncHttp2Stream，acceptRequest 返回请求头与流；客户端流的 receiveResponse 逐条返回信息／最终响应，服务端流用 sendResponse 发送。流实现 AsyncByteStream／AsyncCloseable，readInto 与 writeFrom 允许双向并行，同一方向只能有一个等待；finish 提交结束标记和 trailer，flush 等待该流已接受的输出进入底层传输并完成其 flush，不等待对端确认。close 放弃本流余下数据并提交 CANCEL，不关闭共享连接。
+
+HTTP/2 的 upgraded 所有权工厂另外接收已完成 HTTP/1 请求的方法与协商 SETTINGS，upgradedStream 交付关联的 stream 1；服务端这一流的请求输入已经完成。goAway 提交并发送协议结束通知，关闭仍由独立的 close 负责；停止接收新请求且已无排队请求时 acceptRequest 返回 None。SETTINGS、忽略字段、流关闭、GOAWAY 和后端失败通过 Http2Notice 回调交付，回调在 native 返回后、锁外执行，不可挂起；回调抛出异常会结束连接。
+
+HTTP/2 已正常关闭的流保留尚未被应用取走的完整响应头与 body，即使连接随后结束也可读取；连接已经释放后不再归还无效窗口。未完成或收到错误 reset 的流在关闭时释放排队数据并报告相应异常。
+
+异步服务端待交付请求数量不超过本端 SETTINGS 的 maxConcurrentStreams，超出时拒绝对应流。每流最多暂存 16 条尚未被应用取走的信息／最终响应头，超过时以 ENHANCE_YOUR_CALM 结束该流。DATA 由实际连接／流窗口背压，应用消费或显式放弃后才归还窗口。上述限制仅约束实际消息队列，不扩展为通用资源预算。
+
 同一 native 实例在短临界区中串行推进；底层 I/O、用户代码、Job 通知和 continuation 恢复在锁外。传输每方向至多一个操作；输出背压时仍允许输入推进，以便接收 WINDOW_UPDATE、响应与关闭事件。没有输入、输出空间或状态变化时等待实际事件，不空转。
 
 body readInto／writeFrom 采用既有 NativeByteBuffer 前缀合同，允许短传输。等待到达的数据时无需借用调用者 buffer；实际复制时才同步借用。跨挂起只保留稳定 native allocation，底层借用结束后才复用或释放缓冲。零长度经状态、范围和取消检查后返回零，不推进网络。
@@ -138,6 +146,8 @@ body readInto／writeFrom 采用既有 NativeByteBuffer 前缀合同，允许短
 close 只保证本地收尾，不隐含 flush 或对端确认；先拒绝新操作，关闭接管的传输，等待实际 I/O、native 借用和未交付资源结束，再释放协议状态。并发 close 等待同一次收尾，后续幂等。允许在已取消 Job 的 finally 中完成；清理不能因该取消提前退出。正文和清理同时失败使用 ResourceUseException。
 
 协议优雅结束为独立操作，由应用使用现有 Job／定时器控制等待。GC release hook 不驱动协议、不等待网络，不代替显式 close。所有权移交与关闭都必须解除不再需要的 continuation、Job 监听和 buffer 引用。
+
+HttpTransport.takeOwnershipWithPrefix 接管已有传输与字节前缀快照，支持调用者将 HttpCleartextProbe 消费的前缀和输入 buffer 的后缀一起交给选定的协议连接。这个前缀适配器没有后台任务；读取先返回前缀，之后使用原传输，关闭只收尾本地资源。协议连接仍按上述规则登记自己的 scope 子任务。
 
 ## 8. 构建、交付与验证
 

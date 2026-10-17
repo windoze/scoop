@@ -1,0 +1,126 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.IoClosedException
+import scoop.platform.io.WriteZeroException
+
+internal fun planH2Transfers(state: H2State, actions: ArrayList<() -> Unit>): Boolean {
+    var changed = false
+    if (!state.outputBusy) {
+        if (state.output.readableBytes == 0L && selectH2Flush(state)) {
+            state.outputBusy = true
+            actions.add { startH2Flush(state) }
+        } else {
+            if (state.output.readableBytes == 0L && state.session.wantsWrite) {
+                state.output.clear()
+                changed = state.session.takeOutput(state.output) != 0L
+            }
+            if (state.output.readableBytes != 0L) {
+                state.outputBusy = true
+                val count = state.output.readableBytes
+                actions.add { startH2Transfer(state, false, count) }
+            } else if (state.outputDirty) {
+                state.outputBusy = true
+                actions.add { startH2Flush(state) }
+            }
+        }
+    }
+    if (!state.inputBusy && state.session.wantsRead) {
+        state.input.clear()
+        state.inputBusy = true
+        val count = state.input.writableBytes
+        actions.add { startH2Transfer(state, true, count) }
+    }
+    return changed
+}
+
+private fun selectH2Flush(state: H2State): Boolean {
+    for (stream in state.streams.values) {
+        if (present(stream.writer) && stream.writer!!.kind == H2BodyKind.Flush && !state.session.hasPendingOutput(stream.id))
+            state.flushing.add((stream, stream.writer!!))
+    }
+    if (state.goAwaySerialized && state.session.bufferedOutputBytes == 0L) {
+        for (wait in state.connectionFlush) state.flushingConnection.add(wait)
+        state.connectionFlush.clear()
+    }
+    return state.flushing.size != 0L || state.flushingConnection.size != 0L
+}
+
+private fun startH2Transfer(state: H2State, input: Boolean, count: Long) {
+    val completion = H2TransferCompletion(state, input, count)
+    if (state.lock.withLock { state.closing }) { completion.resume(0L); return }
+    val job = state.ownerJob!!
+    val loop = state.loop
+    context(job) { context(loop) {
+        startCoroutine<Long>(suspend {
+            if (input) state.transport.readInto(state.input, count) else state.transport.writeFrom(state.output, count)
+        }, completion)
+    } }
+}
+
+private class H2TransferCompletion(val state: H2State, val input: Boolean, val requested: Long) : Continuation<Long> {
+    public override fun resume(value: Long) { finish(value, None) }
+    public override fun resumeWithException(exception: Throwable) { finish(0L, Some(exception)) }
+    private fun finish(count: Long, failure: Throwable?) {
+        val actions = ArrayList<() -> Unit>()
+        state.lock.withLock {
+            if (input) state.inputBusy = false else state.outputBusy = false
+            if (!state.closing) {
+                if (state.goAwaySerialized && state.session.bufferedOutputBytes == 0L) state.goAwayPending = false
+                try {
+                    if (present(failure)) throw failure!!
+                    httpProgress(count, requested)
+                    if (input) {
+                        if (count == 0L) { state.session.endInput(); terminateH2(state, IoClosedException()) }
+                        else while (state.input.readableBytes != 0L) {
+                            if (state.session.receive(state.input) == 0L)
+                                throw IllegalStateException(Some("HTTP/2 input made no progress"))
+                        }
+                    } else {
+                        if (count == 0L) throw WriteZeroException()
+                        state.outputDirty = true
+                    }
+                } catch (error: Throwable) {
+                    if (input) {
+                        try { receiveH2Events(state, actions) }
+                        catch (_: Throwable) { terminateH2(state, error) }
+                    }
+                    terminateH2(state, error)
+                }
+            }
+            Unit
+        }
+        for (action in actions) action()
+        driveH2(state)
+    }
+}
+
+private fun startH2Flush(state: H2State) {
+    val completion = H2FlushCompletion(state)
+    if (state.lock.withLock { state.closing }) { completion.resume(Unit); return }
+    val job = state.ownerJob!!
+    val loop = state.loop
+    context(job) { context(loop) { startCoroutine<Unit>(suspend { state.transport.flush() }, completion) } }
+}
+
+private class H2FlushCompletion(val state: H2State) : Continuation<Unit> {
+    public override fun resume(value: Unit) { finish(None) }
+    public override fun resumeWithException(exception: Throwable) { finish(Some(exception)) }
+    private fun finish(failure: Throwable?) {
+        val actions = ArrayList<() -> Unit>()
+        state.lock.withLock {
+            state.outputBusy = false
+            state.outputDirty = false
+            if (!state.closing && present(failure)) terminateH2(state, failure!!)
+            if (!state.closing) {
+                for ((stream, entry) in state.flushing) {
+                    if (!entry.wait.released) finishH2Body(state, stream, entry, 0L, None, actions)
+                }
+                for (wait in state.flushingConnection) succeedH2Wait(wait, Unit, actions)
+                state.flushing.clear(); state.flushingConnection.clear()
+            }
+            Unit
+        }
+        for (action in actions) action()
+        driveH2(state)
+    }
+}

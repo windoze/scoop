@@ -1,0 +1,71 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+
+internal suspend fun adoptH2(transport: AsyncByteStream, owner: AsyncCloseable, scope: CoroutineScope,
+    create: () -> Http2Session, settings: Http2Settings, onEvent: (Http2Notice) -> Unit, upgrading: Boolean): AsyncHttp2Connection {
+    val loop = currentEventLoop()
+    val caller = httpJob(loop, true)
+    if (scope.job.isCompleted) throw IllegalStateException(Some("HTTP connection scope is closed"))
+    scope.job.ensureActive()
+    val state = allocateH2(create(), transport, owner, loop, settings.maxConcurrentStreams.toLong(), onEvent, upgrading)
+    try {
+        scope.launch suspend {
+            val job = httpJob(loop, true)
+            suspendCoroutine<Unit> { continuation ->
+                state.lock.withLock {
+                    caller.ensureActive(); job.ensureActive()
+                    state.ownerJob = Some(job)
+                    state.ownerWaiter = Some(continuation)
+                    state.adopted = true
+                }
+                val listener = job.invokeOnCancellation { error ->
+                    state.lock.withLock { terminateH2(state, error) }
+                    driveH2(state)
+                }
+                val closed = state.lock.withLock {
+                    if (state.closed) true else { state.ownerListener = Some(listener); false }
+                }
+                if (closed) listener.dispose()
+            }
+        }
+        if (!state.lock.withLock { state.adopted }) {
+            caller.ensureActive(); scope.job.ensureActive()
+            throw IllegalStateException(Some("HTTP connection task could not be registered"))
+        }
+        if (present(state.upgrade)) listenH2Stream(state, state.upgrade!!, caller)
+        driveH2(state)
+        caller.ensureActive()
+        state.lock.withLock { h2Open(state) }
+        return AsyncHttp2Connection(state)
+    } catch (error: Throwable) {
+        if (!state.lock.withLock { state.adopted }) {
+            try { releaseH2Buffers(state) }
+            catch (cleanup: Throwable) { throw ResourceUseException(error, cleanup) }
+        } else {
+            val cleanup = try { closeH2(state); state.lock.withLock { state.closeFailure } }
+                catch (failure: Throwable) { Some(failure) }
+            if (present(cleanup)) throw ResourceUseException(error, cleanup!!)
+        }
+        throw error
+    }
+}
+
+private fun allocateH2(session: Http2Session, transport: AsyncByteStream, owner: AsyncCloseable,
+    loop: EventLoop, capacity: Long, onEvent: (Http2Notice) -> Unit, upgrading: Boolean): H2State {
+    val input = try { NativeByteBuffer.allocate(16384L) }
+        catch (error: Throwable) { session.close(); throw error }
+    val output = try { NativeByteBuffer.allocate(16384L) }
+        catch (error: Throwable) { session.close(); input.close(); throw error }
+    val state = H2State(session, transport, owner, loop, input, output, capacity, onEvent)
+    if (upgrading) {
+        val stream = H2Stream(1)
+        if (session.role == HttpRole.Client) { stream.sendStarted = true; stream.sendEnded = true }
+        else { stream.inputEnded = true; stream.trailers = Some(ArrayList<HttpField>().toArray()) }
+        state.streams[1] = stream
+        state.upgrade = Some(stream)
+    }
+    return state
+}

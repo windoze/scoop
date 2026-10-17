@@ -1,0 +1,29 @@
+package scoop.http.asyncio
+
+internal fun driveH2(state: H2State) {
+    val start = state.lock.withLock {
+        if (state.driving) false else { state.driving = true; true }
+    }
+    if (!start) return
+    while (true) {
+        val actions = ArrayList<() -> Unit>()
+        val again = state.lock.withLock {
+            var changed = false
+            if (!state.closed) {
+                if (state.closing) changed = advanceH2Close(state, actions)
+                else {
+                    try {
+                        changed = receiveH2Events(state, actions)
+                        if (!state.closing) changed = finishH2Operations(state, actions) || changed
+                        if (!state.closing) changed = planH2Transfers(state, actions) || changed
+                        if (!state.closing) changed = receiveH2Events(state, actions) || changed
+                    } catch (error: Throwable) { terminateH2(state, error); changed = true }
+                }
+            }
+            if (!changed && actions.size == 0L) state.driving = false
+            changed || actions.size != 0L
+        }
+        if (!again) return
+        for (action in actions) action()
+    }
+}

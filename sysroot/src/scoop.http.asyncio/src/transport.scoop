@@ -7,6 +7,17 @@ public class HttpTransport internal constructor(
     private val stream: AsyncByteStream, private val owner: AsyncCloseable,
     private val loop: EventLoop, private var prefix: Array<Byte>
 ) : AsyncByteStream, AsyncCloseable {
+    public companion object {
+        public fun <T> takeOwnershipWithPrefix(transport: T, prefix: List<Byte>): HttpTransport
+            where T : AsyncByteStream, T : AsyncCloseable {
+            val loop = currentEventLoop()
+            val job = httpJob(loop, true)
+            val bytes = prefix.toArray()
+            job.ensureActive()
+            return HttpTransport(transport, transport, loop, bytes)
+        }
+    }
+
     private val lock: HttpLock = HttpLock()
     private var offset: Long = 0L
     private var closing: Boolean = false

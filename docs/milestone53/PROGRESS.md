@@ -39,3 +39,11 @@ HTTP 后端与生命周期合同见 [HTTP 规范](../specs/SCOOP-HTTP-SPEC.md)�
 - 未完成 body 的关闭或取消关闭连接，不自动 drain。实际 I/O 结束后释放 native buffer；并发 close 等待同一次清理，正文与清理同时失败保留两个异常。接受 CONNECT／101 后可移交传输及已读取后缀，旧连接不再关闭新拥有者。
 - 本机 debug 的首批 11 项测试及新增服务端移交用例通过；release 的全部 12 项在 moving GC 下通过。真实 loopback 覆盖三字节读／五字节写、跨线程取消、等待期间不借用调用者 buffer、并发关闭、提前拒绝升级、前缀保留与异常组合。初次语法推断和负例异常类型差异已修正并复验。
 - 生产 `.slib` 的独立消费者在 debug／release、moving GC 下完成真实 HTTP 通信，cold 只编译用户 Cone、warm 零 child 调用。Rust 格式与 lint 通过。HTTP/2 异步多流及三目标验收继续实施。
+
+## HTTP/2 异步多流与传输组合
+
+- 新增客户端／服务端及 h2c 升级所有权工厂、按流关联的双向 body、信息／最终响应、trailer、流级 flush、RST_STREAM 和独立 GOAWAY。实际复制 body 后归还窗口；流窗口为零时继续推进共享输入，控制帧可独立完成发送。
+- 共享传输使用连接 scope 的 Job，单流取消只重置对应流。连接关闭等待实际读写与底层清理，正常结束流中已完成的头和 body 可继续读取；native 批量输入中先完成的响应不因后续连接错误丢失。通知在锁外交付，异常结束连接；等待与关闭均解除不再需要的 Job 监听和 continuation。
+- 本机 release 全部 26 项异步库测试在 moving GC 下通过；debug 首轮的 22 项通过及后续 11 项 HTTP/2 复验覆盖全部 26 项。首次发现的 reset 诊断被关闭状态覆盖，以及测试取消线程的自 join 问题均已修复闭合。内存 HTTP 库 debug 全部 50 项通过，Rust 格式／lint 与自身 C 严格编译通过。
+- 真实 loopback 覆盖多流乱序响应、双向背压、短传输、零长度、队列限制、取消／并发关闭、原生协议错误、完整前缀保留、明文判别、h2c stream 1／3、TLS H2／HTTP/1.1 ALPN 及无 ALPN 的显式回退。TLS 上跨线程取消单流后，另一流继续收发且底层连接保持可用。
+- 生产 `.slib` 外部消费者在 debug／release、moving GC 下通过，发送 70,000 字节 body 穿过默认流控窗口，验证乱序响应和 trailer；cold 只编译用户 Cone、warm 零 child 调用，共 2 个变体、6 个进程。GNU／musl 的全部 HTTP 库和外部消费者验证接续执行。

@@ -127,6 +127,11 @@ int32_t scoop_http2_pending(uint64_t handle, int32_t id) {
            s->body_offset != s->body.size));
 }
 
+int64_t scoop_http2_buffered(uint64_t handle) {
+  http2 *h = (http2 *)(uintptr_t)handle;
+  return (int64_t)(h->output.size - h->output_offset);
+}
+
 uint64_t scoop_http2_next(uint64_t handle) {
   return (uint64_t)(uintptr_t)http_events_pop(
       &((http2 *)(uintptr_t)handle)->events);

@@ -1,0 +1,79 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.collections.*
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+
+public enum Http2Notice {
+    Settings(Array<Http2Setting>, Boolean), StreamClosed(Int, UInt),
+    GoAway(Int, UInt, Array<Byte>, Boolean), IgnoredField(Int, HttpField), Failure(HttpException)
+}
+
+internal class H2Stream(val id: Int) {
+    val data: ArrayDeque<Array<Byte>> = ArrayDeque<Array<Byte>>()
+    var offset: Long = 0L
+    val responses: ArrayDeque<HttpResponseHead> = ArrayDeque<HttpResponseHead>()
+    var trailers: Array<HttpField>? = None
+    var inputEnded: Boolean = false
+    var finalResponseTaken: Boolean = false
+    var sendStarted: Boolean = false
+    var sendEnded: Boolean = false
+    var closed: Boolean = false
+    var disposed: Boolean = false
+    var failure: Throwable? = None
+    var listener: Disposable? = None
+    var reader: H2BodyOperation? = None
+    var writer: H2BodyOperation? = None
+    var responseWaiter: H2Wait<HttpResponseHead>? = None
+}
+
+internal enum H2BodyKind { Read, Write, Flush }
+internal class H2BodyOperation(val kind: H2BodyKind, val wait: H2Wait<Long>,
+    var buffer: NativeByteBuffer?, val count: Long)
+
+internal class H2State(
+    val session: Http2Session, val transport: AsyncByteStream, val owner: AsyncCloseable,
+    val loop: EventLoop, val input: NativeByteBuffer, val output: NativeByteBuffer,
+    val requestCapacity: Long, val onEvent: (Http2Notice) -> Unit
+) {
+    val lock: HttpLock = HttpLock()
+    val streams: HashMap<Int, H2Stream> = HashMap<Int, H2Stream>()
+    val requests: ArrayList<Http2IncomingRequest> = ArrayList<Http2IncomingRequest>()
+    var accepting: H2Wait<Http2IncomingRequest?>? = None
+    var acceptingEnded: Boolean = false
+    var upgrade: H2Stream? = None
+    var driving: Boolean = false
+    var inputBusy: Boolean = false
+    var outputBusy: Boolean = false
+    var outputDirty: Boolean = false
+    var goAwayPending: Boolean = false
+    var goAwaySerialized: Boolean = false
+    val flushing: ArrayList<(H2Stream, H2BodyOperation)> = ArrayList<(H2Stream, H2BodyOperation)>()
+    val connectionFlush: ArrayList<H2Wait<Unit>> = ArrayList<H2Wait<Unit>>()
+    val flushingConnection: ArrayList<H2Wait<Unit>> = ArrayList<H2Wait<Unit>>()
+    var adopted: Boolean = false
+    var closing: Boolean = false
+    var closed: Boolean = false
+    var primary: Throwable? = None
+    var closeFailure: Throwable? = None
+    var transportClosing: Boolean = false
+    var transportClosed: Boolean = false
+    var ownerJob: Job? = None
+    var ownerWaiter: Continuation<Unit>? = None
+    var ownerListener: Disposable? = None
+    val closeWaiters: ArrayList<Continuation<Unit>> = ArrayList<Continuation<Unit>>()
+}
+
+internal fun h2Open(state: H2State) {
+    if (state.closing) throw (state.primary ?: IoClosedException())
+}
+
+internal fun h2StreamOpen(state: H2State, stream: H2Stream) {
+    h2Open(state)
+    if (present(stream.failure)) throw stream.failure!!
+    if (stream.disposed) throw IoClosedException()
+}
+
+internal fun h2StreamFailure(id: Int, code: UInt, detail: String): HttpException =
+    HttpException("HTTP/2 stream", HttpProtocol.Http2, HttpFailureScope.Stream, id, "nghttp2 1.70.0", code.toInt(), detail)

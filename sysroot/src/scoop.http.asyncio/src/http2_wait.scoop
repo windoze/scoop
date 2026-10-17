@@ -1,0 +1,61 @@
+package scoop.http.asyncio
+
+internal class H2Wait<T>(val job: Job, initial: Continuation<T>) {
+    var continuation: Continuation<T>? = Some(initial)
+    var listener: Disposable? = None
+    var released: Boolean = false
+}
+
+internal fun <T> h2WaitListener(state: H2State, wait: H2Wait<T>, cancel: (CancellationException, ArrayList<() -> Unit>) -> Unit) {
+    val listener = wait.job.invokeOnCancellation { error ->
+        val actions = ArrayList<() -> Unit>()
+        state.lock.withLock { if (!wait.released) cancel(error, actions); Unit }
+        for (action in actions) action()
+        driveH2(state)
+    }
+    val done = state.lock.withLock {
+        if (wait.released) true else { wait.listener = Some(listener); false }
+    }
+    if (done) listener.dispose()
+}
+
+internal fun <T> releaseH2Wait(wait: H2Wait<T>, actions: ArrayList<() -> Unit>): Continuation<T>? {
+    if (wait.released) return None
+    wait.released = true
+    val continuation = wait.continuation
+    val listener = wait.listener
+    wait.continuation = None
+    wait.listener = None
+    if (present(listener)) actions.add { listener!!.dispose() }
+    return continuation
+}
+
+internal fun <T> succeedH2Wait(wait: H2Wait<T>, value: T, actions: ArrayList<() -> Unit>) {
+    val continuation = releaseH2Wait(wait, actions)
+    if (present(continuation)) actions.add { continuation!!.resume(value) }
+}
+
+internal fun <T> failH2Wait(wait: H2Wait<T>, error: Throwable, actions: ArrayList<() -> Unit>) {
+    val continuation = releaseH2Wait(wait, actions)
+    if (present(continuation)) actions.add { continuation!!.resumeWithException(error) }
+}
+
+internal fun listenH2Stream(state: H2State, stream: H2Stream, job: Job) {
+    val listener = job.invokeOnCancellation { error ->
+        val actions = ArrayList<() -> Unit>()
+        state.lock.withLock { resetH2Stream(state, stream, error, 8U, actions) }
+        for (action in actions) action()
+        driveH2(state)
+    }
+    val done = state.lock.withLock {
+        if (stream.disposed || (stream.closed && stream.data.size == 0L && stream.responses.size == 0L)) true
+        else { stream.listener = Some(listener); false }
+    }
+    if (done) listener.dispose()
+}
+
+internal fun detachH2Stream(stream: H2Stream, actions: ArrayList<() -> Unit>) {
+    val listener = stream.listener
+    stream.listener = None
+    if (present(listener)) actions.add { listener!!.dispose() }
+}
