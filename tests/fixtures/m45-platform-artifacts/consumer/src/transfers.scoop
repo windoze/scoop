@@ -36,7 +36,7 @@ fun transferApplication() {
                     stream.shutdownOutput()
                 }
             }.use {
-                TcpStream.connect(listener.localAddress).use { stream ->
+                TcpStream.connect(listener.localAddress()).use { stream ->
                     stream.writeAllBytes(result.stdout)
                     stream.shutdownOutput()
                     if (stream.readLine() != Some(bytes.size.toString()) || stream.readLine() != None) {

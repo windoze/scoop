@@ -1,0 +1,17 @@
+package scoop.platform.native
+
+import scoop.platform.fs.OpenOptions
+import scoop.platform.fs.requireMode
+
+// Maps checked open options to the shared native file helper flags, not OS O_* values.
+public fun fileOpenFlags(options: OpenOptions): Int {
+    if ((!options.read && !options.write) ||
+        ((options.append || options.truncate || options.create || options.createNew) && !options.write) ||
+        (options.append && options.truncate)) {
+        throw IllegalArgumentException(Some("conflicting file open options"))
+    }
+    requireMode(options.mode)
+    return (if (options.read) 1 else 0) or (if (options.write) 2 else 0) or
+        (if (options.append) 4 else 0) or (if (options.create) 8 else 0) or
+        (if (options.createNew) 16 else 0) or (if (options.truncate) 32 else 0)
+}

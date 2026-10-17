@@ -6,10 +6,10 @@ import scoop.platform.memory.NativeByteBuffer
 
 public class TcpStream internal constructor(private val file: File) : ByteSource, ByteSink, Closeable {
     public val isClosed: Boolean get() = file.isClosed
-    public val localAddress: SocketAddress get() = file.socketAddress(false)
-    public val peerAddress: SocketAddress get() = file.socketAddress(true)
-    public val noDelay: Boolean get() = option(true, false, false)
-    public val keepAlive: Boolean get() = option(false, false, false)
+    public fun localAddress(): SocketAddress = file.socketAddress(false)
+    public fun peerAddress(): SocketAddress = file.socketAddress(true)
+    public fun noDelay(): Boolean = option(true, false, false)
+    public fun keepAlive(): Boolean = option(false, false, false)
 
     public companion object {
         public fun connect(address: SocketAddress): TcpStream {
@@ -66,7 +66,7 @@ public class TcpStream internal constructor(private val file: File) : ByteSource
 }
 
 public class TcpListener private constructor(private val file: File) : Closeable {
-    public val localAddress: SocketAddress get() = file.socketAddress(false)
+    public fun localAddress(): SocketAddress = file.socketAddress(false)
     public val isClosed: Boolean get() = file.isClosed
 
     public companion object {

@@ -13,17 +13,17 @@ private class FilesTest {
             val path = tree.child("data")
             File.open(path, OpenOptions(write = true, createNew = true, mode = 0x180)).use { file ->
                 file.writeAllBytes(Array<Byte>(6L) { (it + 1L).toByte() })
-                assertEquals(6L, file.position)
-                assertEquals(6L, file.size)
+                assertEquals(6L, file.position())
+                assertEquals(6L, file.size())
                 file.seek(1L)
                 val bytes = MutableArray<Byte>(4L) { 0.toByte() }
                 assertEquals(2L, file.readInto(bytes, 1L, 2L))
                 assertEquals(2.toByte(), bytes[1L])
                 assertEquals(3.toByte(), bytes[2L])
-                assertEquals(3L, file.position)
+                assertEquals(3L, file.position())
                 file.truncate(2L)
-                assertEquals(3L, file.position)
-                assertEquals(2L, file.size)
+                assertEquals(3L, file.position())
+                assertEquals(2L, file.size())
                 file.syncData()
                 file.syncAll()
                 file.flush()
@@ -61,7 +61,7 @@ private class FilesTest {
             duplicate.close()
             assertTrue(original.isClosed)
             assertTrue(duplicate.isClosed)
-            assertFailsWith<IllegalStateException> { original.position }
+            assertFailsWith<IllegalStateException> { original.position() }
             assertFailsWith<IllegalStateException> { original.metadata() }
             assertFailsWith<IllegalStateException> { original.flush() }
             assertFailsWith<IllegalStateException> { original.truncate(0L) }
@@ -76,7 +76,7 @@ private class FilesTest {
             Files.writeText(path, "abc")
             File.open(path).use { file ->
                 file.withDescriptor { fd ->
-                    assertEquals(3L, file.size)
+                    assertEquals(3L, file.size())
                     assertFailsWith<IllegalStateException> { file.dispose() }
                     assertEquals("abc", file.readText())
                 }
@@ -102,7 +102,7 @@ private class FilesTest {
             File.open(path).use { file ->
                 assertFailsWith<IllegalArgumentException> { file.seek(-1L) }
                 assertFailsWith<IllegalArgumentException> { file.truncate(-1L) }
-                assertEquals(0L, file.position)
+                assertEquals(0L, file.position())
             }
             assertFalse(Files.exists(path.resolve(Path.fromString("child"))))
         }

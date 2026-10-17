@@ -1,6 +1,7 @@
 package scoop.platform.fs
 
 import scoop.platform.io.*
+import scoop.platform.native.fileOpenFlags
 import scoop.platform.memory.NativeByteBuffer
 import scoop.platform.system.OsString
 
@@ -8,30 +9,21 @@ public struct OpenOptions(
     val read: Boolean = true, val write: Boolean = false, val append: Boolean = false,
     val create: Boolean = false, val createNew: Boolean = false, val truncate: Boolean = false,
     val mode: Int = 0x1b6
-) {
-    public fun nativeFlags(): Int {
-        if ((!read && !write) || ((append || truncate || create || createNew) && !write) || (append && truncate)) {
-            throw IllegalArgumentException(Some("conflicting file open options"))
-        }
-        requireMode(mode)
-        return (if (read) 1 else 0) or (if (write) 2 else 0) or (if (append) 4 else 0) or
-            (if (create) 8 else 0) or (if (createNew) 16 else 0) or (if (truncate) 32 else 0)
-    }
-}
+)
 
 public class File private constructor(private val context: OsString?) : ByteSource, ByteSink, Closeable {
     private var descriptor: Int = -1
     private val active: AtomicLong = AtomicLong(0L)
     public val isClosed: Boolean get() = descriptor < 0
-    public val position: Long get() = seekNative(0L, true)
-    public val size: Long get() = metadata().size
+    public fun position(): Long = seekNative(0L, true)
+    public fun size(): Long = metadata().size
 
     public companion object {
         // Pipe/spawn callers allocate all managed owners before acquiring native descriptors.
         internal fun newOwner(): File = File(None)
 
         public fun open(path: Path, options: OpenOptions = OpenOptions()): File {
-            val flags = options.nativeFlags()
+            val flags = fileOpenFlags(options)
             val file = File(Some(path.toOsString()))
             @Unsafe {
                 val (fd, error) = path.withNativePath { pointer ->

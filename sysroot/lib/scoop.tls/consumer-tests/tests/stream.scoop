@@ -22,7 +22,7 @@ private class TlsStreamConsumerTests {
                         }
                     }
                 }.use {
-                    TlsStream.takeOwnershipAsClient(TcpStream.connect(listener.localAddress), clientConfig, TlsPeerName.Dns("localhost")).use { client ->
+                    TlsStream.takeOwnershipAsClient(TcpStream.connect(listener.localAddress()), clientConfig, TlsPeerName.Dns("localhost")).use { client ->
                         NativeByteBuffer.allocate(3L).use { bytes ->
                             bytes.writeBytes("tls".toByteArray())
                             client.writeFully(bytes)

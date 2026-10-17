@@ -9,7 +9,7 @@ public struct Datagram(val source: SocketAddress, val count: Long, val truncated
 private class ReceiveResult { var value: (NativeDatagram, Int)? = None }
 
 public class UdpSocket private constructor(private val file: File) : Closeable {
-    public val localAddress: SocketAddress get() = file.socketAddress(false)
+    public fun localAddress(): SocketAddress = file.socketAddress(false)
     public val isClosed: Boolean get() = file.isClosed
 
     public companion object {

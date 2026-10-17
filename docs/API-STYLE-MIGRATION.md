@@ -17,7 +17,7 @@
 | R11 | IndexGet/IndexSet 运算符接口 | 已完成；fmt/clippy、14 项下标、Map/Set 组合、跨库及重建 core fixture 通过 |
 | R12 | ResourceUseException 继承 Exception | 已完成；fmt/clippy、资源 fixture 的 debug/release 与移动 GC 通过 |
 | R13 | 普通签名算法名称与具体密钥生成工厂 | 已完成；fmt/clippy、crypto 17 项、外部消费者 5 项、OpenSSL 独立验签 1 项通过 |
-| R14 | 枚举、查询、Path 扩展、native helper 与公共文档 | 进行中；公共枚举、转换及 currentSourceLocation 已完成，fmt/clippy、129 项 fixture、54 项 Rust 定向测试、crypto 消费者 5 项及 TLS 13 项通过；查询与 Path 扩展继续实施 |
+| R14 | 枚举、查询、Path 扩展、native helper 与公共文档 | 进行中；公共枚举、转换及 currentSourceLocation 已完成，fmt/clippy、129 项 fixture、54 项 Rust 定向测试、crypto 消费者 5 项及 TLS 13 项通过；查询和 native helper 已完成，platform 110 项、asyncio 文件组合 3 项通过；Path 扩展与公共文档继续实施 |
 
 本轮不保留无实际外部兼容需求的旧名称。普通枚举源名字与编码名字的变化在对应规范中明确；协议算法码保留原拼写。时长单位构造保留函数形式，因为它是可能溢出失败的受检转换。
 

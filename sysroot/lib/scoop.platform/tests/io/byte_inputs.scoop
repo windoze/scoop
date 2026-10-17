@@ -64,8 +64,8 @@ private class ByteInputListTest {
             File.open(tree.child("bytes"), OpenOptions(write = true, createNew = true)).use { file ->
                 file.writeText("A")
                 assertSame(failure, assertFailsWith<IllegalStateException> { file.writeFrom(bytes) })
-                assertEquals(1L, file.position)
-                assertEquals(1L, file.size)
+                assertEquals(1L, file.position())
+                assertEquals(1L, file.size())
             }
         }
     }

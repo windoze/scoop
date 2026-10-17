@@ -34,7 +34,7 @@ private fun rejectUnconsumed(buffered: Boolean) {
                         }
                     } finally { finished.signal() }
                 }.use {
-                    TlsStream.takeOwnershipAsClient(TcpStream.connect(listener.localAddress), clientConfig, TlsPeerName.Dns("localhost")).use { client ->
+                    TlsStream.takeOwnershipAsClient(TcpStream.connect(listener.localAddress()), clientConfig, TlsPeerName.Dns("localhost")).use { client ->
                         client.writeAllBytes("unconsumed".toByteArray())
                         sent.signal()
                         finished.awaitReady()

@@ -11,19 +11,19 @@ private class TcpTest {
     fun `TCP supports both families buffered IO options and independent half close`() {
         for (address in [IpAddress.IPV4_LOOPBACK, IpAddress.IPV6_LOOPBACK]) {
             TcpListener.bind(SocketAddress(address, 0), 8, true).use { listener ->
-                val endpoint = listener.localAddress
+                val endpoint = listener.localAddress()
                 assertTrue(endpoint.port > 0)
                 val bytes = Array<Byte>(65536L) { (it % 251L).toByte() }
                 Thread.start {
                     listener.accept().use { stream ->
-                        assertEquals(endpoint, stream.localAddress)
-                        assertTrue(stream.peerAddress.port > 0)
+                        assertEquals(endpoint, stream.localAddress())
+                        assertTrue(stream.peerAddress().port > 0)
                         stream.setNoDelay(true)
                         stream.setKeepAlive(true)
-                        assertTrue(stream.noDelay && stream.keepAlive)
+                        assertTrue(stream.noDelay() && stream.keepAlive())
                         stream.setNoDelay(false)
                         stream.setKeepAlive(false)
-                        assertFalse(stream.noDelay || stream.keepAlive)
+                        assertFalse(stream.noDelay() || stream.keepAlive())
                         val received = stream.readAllBytes()
                         assertEquals(bytes.size, received.size)
                         for (index in 0L..<bytes.size) assertEquals(bytes[index], received[index])
@@ -34,8 +34,8 @@ private class TcpTest {
                 }.use {
                     gcCollect()
                     TcpStream.connect(endpoint).use { stream ->
-                        assertEquals(endpoint, stream.peerAddress)
-                        assertEquals(address, stream.localAddress.address)
+                        assertEquals(endpoint, stream.peerAddress())
+                        assertEquals(address, stream.localAddress().address)
                         stream.writeAllBytes(bytes)
                         stream.shutdownOutput()
                         assertEquals("response 中", stream.readText())
@@ -49,7 +49,7 @@ private class TcpTest {
     @Test
     fun `listener and stream reject operations after close and bind reports actual conflict`() {
         val listener = TcpListener.bind(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
-        val endpoint = listener.localAddress
+        val endpoint = listener.localAddress()
         val conflict = assertFailsWith<PlatformException> { TcpListener.bind(endpoint) }
         assertTrue(conflict.kind == PlatformErrorKind.AddressInUse)
         Thread.start { listener.accept().use { assertEquals("still writing", it.readText()) } }.use {
@@ -59,9 +59,9 @@ private class TcpTest {
             stream.close()
             stream.close()
             assertTrue(stream.isClosed)
-            assertFailsWith<IllegalStateException> { stream.localAddress }
-            assertFailsWith<IllegalStateException> { stream.peerAddress }
-            assertFailsWith<IllegalStateException> { stream.noDelay }
+            assertFailsWith<IllegalStateException> { stream.localAddress() }
+            assertFailsWith<IllegalStateException> { stream.peerAddress() }
+            assertFailsWith<IllegalStateException> { stream.noDelay() }
             assertFailsWith<IllegalStateException> { stream.setKeepAlive(true) }
             assertFailsWith<IllegalStateException> { stream.shutdownOutput() }
             assertFailsWith<IllegalStateException> { stream.readAllBytes() }
@@ -71,7 +71,7 @@ private class TcpTest {
         listener.dispose()
         assertTrue(listener.isClosed)
         assertFailsWith<IllegalStateException> { listener.accept() }
-        assertFailsWith<IllegalStateException> { listener.localAddress }
+        assertFailsWith<IllegalStateException> { listener.localAddress() }
         assertFailsWith<IllegalArgumentException> { TcpListener.bind(endpoint, 0) }
     }
 
@@ -79,7 +79,7 @@ private class TcpTest {
     fun `writing after output shutdown reports broken pipe and preserves the process`() {
         TcpListener.bind(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).use { listener ->
             Thread.start { listener.accept().use { it.readAllBytes() } }.use {
-                TcpStream.connect(listener.localAddress).use { stream ->
+                TcpStream.connect(listener.localAddress()).use { stream ->
                     stream.shutdownOutput()
                     val failure = assertFailsWith<PlatformException> { stream.writeText("closed") }
                     assertTrue(failure.kind == PlatformErrorKind.BrokenPipe)

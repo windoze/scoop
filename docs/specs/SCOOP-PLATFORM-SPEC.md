@@ -130,9 +130,11 @@ standardInput、standardOutput、standardError 是使用调用时 fd 0/1/2 的�
 
 `scoop.platform.fs.File` 为 final class，实现 ByteSource、ByteSink、Closeable。`File.open(path, options: OpenOptions = OpenOptions())` 创建 close-on-exec fd。OpenOptions 为值类型，默认 read=true，其余 write/append/create/createNew/truncate 标志默认为 false，mode 默认为 0666；至少允许一种读写，append/truncate/create/createNew 要求 write，append 与 truncate 冲突，mode 只允许 POSIX 07777 位。createNew 使用原生排他创建，优先于 create；实际 mode 仍受 umask 影响。
 
-除字节协议外，File 提供 position、size、isClosed，List<Byte> 写入／MutableArray<Byte> 读取重载，以及 seek(position: Long)、truncate(size: Long)、syncData、syncAll、metadata、duplicate、close。seek 为绝对非负偏移，truncate 非负且不改变当前文件位置；append 通过 OS append 标志实现。flush 对原始 fd 无用户态缓冲可提交，但仍检查 open 状态。同步操作都保活 owner 直到 native 返回和退出清理，不能仅保留整数 fd。与关闭不竞争、各次使用独立或已同步 buffer 时，同一 File 允许 OS 支持的并发 IO；共享偏移与数据顺序遵守 OS 行为。活动调用期间重入 close 会拒绝，但关闭／配置改变与 IO 的跨线程竞争仍须调用方同步，不提供通过 close 取消阻塞 IO 的保证。
+除字节协议外，File 提供 position()、size() 外部查询函数与 isClosed 状态属性，List<Byte> 写入／MutableArray<Byte> 读取重载，以及 seek(position: Long)、truncate(size: Long)、syncData、syncAll、metadata、duplicate、close。seek 为绝对非负偏移，truncate 非负且不改变当前文件位置；append 通过 OS append 标志实现。flush 对原始 fd 无用户态缓冲可提交，但仍检查 open 状态。同步操作都保活 owner 直到 native 返回和退出清理，不能仅保留整数 fd。与关闭不竞争、各次使用独立或已同步 buffer 时，同一 File 允许 OS 支持的并发 IO；共享偏移与数据顺序遵守 OS 行为。活动调用期间重入 close 会拒绝，但关闭／配置改变与 IO 的跨线程竞争仍须调用方同步，不提供通过 close 取消阻塞 IO 的保证。
 
 显式关闭先清除 owned fd，再调用一次 close；成功或失败均终结 owner，不无条件重试，包括 EINTR。当前 Linux 的 fd 在 close 错误报告前已被消费；Darwin 的普通 fd 关闭同样沿实际内核消费路径，不能由错误码假定仍可重试。hook 只兜底尝试 raw close，不重放已消费的 fd，不 flush 或等待用户代码。close 结果不能证明远程文件已经持久化，必要时先显式 sync。
+
+File.size()／position() 和同步 socket 的地址／选项查询访问当前 OS 状态，可能失败，因此采用函数。isClosed 只读取对象自身状态，保持属性；FileMetadata.size 等已取得的值也保持属性。
 
 ### 6.2 文件系统操作
 
@@ -240,13 +242,13 @@ communicate(input: List<Byte>? = None): ProcessOutput 收集 stdout/stderr 的�
 
 `scoop.platform.net.AddressFamily { Ipv4, Ipv6 }` 区分 IPv4／IPv6。不可变 IpAddress 保存地址位与 IPv6 scopeId: UInt，实现 Equals、Hash、ToString；fromByteArray 接受 List<Byte> 的 4 或 16 字节快照副本，IPv4 不接受非零 scope。toByteArray 返回独立数组。parse(String) 只解析 IP 字面量，IPv6 可带 `%数字` scope，不解析接口名或域名；toString 输出标准数字文本与非零 scope。提供 IPV4_ANY、IPV4_LOOPBACK、IPV6_ANY、IPV6_LOOPBACK。
 
-SocketAddress(address: IpAddress, port: Int) 检查 0..65535，实现 Equals／Hash／ToString。parse 接受 `IPv4:port` 或 `[IPv6%scope]:port`；端口为十进制数字，不接受缺失、负值或溢出。bind 端口 0 由 OS 分配，返回后的 localAddress 给出实际值。
+SocketAddress(address: IpAddress, port: Int) 检查 0..65535，实现 Equals／Hash／ToString。parse 接受 `IPv4:port` 或 `[IPv6%scope]:port`；端口为十进制数字，不接受缺失、负值或溢出。bind 端口 0 由 OS 分配，返回后的 localAddress() 查询给出实际值。
 
 resolve(host: OsString, port: Int, family: AddressFamily? = None) 与 String 重载使用阻塞 getaddrinfo，返回实际地址数组，不承诺排序或去重。名称与 IP parse 分开，不做 IDNA 或隐式构造器联网；名称字节不含 NUL。错误保存 AddressResolution 的 EAI code；仅 EAI_SYSTEM 另保存同次 errno。native 结果在复制后 freeaddrinfo，包括复制失败路径；不使用外部 DNS 服务作为测试前提。
 
 ### 12.2 TCP 与端点所有权
 
-TcpListener.bind(address, backlog: Int = 128, reuseAddress: Boolean = false) 返回 owned listener；backlog 必须为正，实际队列长度由 OS 决定。提供 localAddress、accept(): TcpStream、isClosed 与 close。TcpStream.connect(address) 返回 owned stream，提供 localAddress、peerAddress、ByteSource／ByteSink、shutdownInput、shutdownOutput、isClosed、close，以及 noDelay／keepAlive 查询和 setNoDelay／setKeepAlive 设置。
+TcpListener.bind(address, backlog: Int = 128, reuseAddress: Boolean = false) 返回 owned listener；backlog 必须为正，实际队列长度由 OS 决定。提供 localAddress()、accept(): TcpStream、isClosed 与 close。TcpStream.connect(address) 返回 owned stream，提供 localAddress()、peerAddress()、ByteSource／ByteSink、shutdownInput、shutdownOutput、isClosed、close，以及 noDelay()／keepAlive() 查询和 setNoDelay(value)／setKeepAlive(value) 设置。
 
 所有 socket 为 close-on-exec。创建、配置、bind/listen/connect 或 accept 后配置失败都会关闭未移交的 fd；显式关闭复用第 6.1 节的单次消费语义，hook 仅 raw close。活动 accept/read/write/地址查询／配置保活 owner，操作与 close／配置改变的竞争由调用方同步。stream 支持 OS 允许的并发读写，但不保证复合操作原子。
 
@@ -254,7 +256,7 @@ TCP 是字节流：允许短读写，正请求读取零表示输入 EOF，写入
 
 ### 12.3 UDP 与 SIGPIPE
 
-UdpSocket.bind(address, reuseAddress: Boolean = false) 返回 owned socket，提供 localAddress、isClosed、close。sendTo(buffer: NativeByteBuffer, destination: SocketAddress, count: Long = buffer.readableBytes): Long 把当前可读前缀作为一个 datagram，零长度合法；一次 syscall 成功才消费相应字节，不拆包、不在失败后自动重发。OS 拒绝过大报文时保留 errno 与未消费游标；异常的短发送先提交实际进度，再报告没有伪造 errno 的 PlatformException。
+UdpSocket.bind(address, reuseAddress: Boolean = false) 返回 owned socket，提供 localAddress()、isClosed、close。sendTo(buffer: NativeByteBuffer, destination: SocketAddress, count: Long = buffer.readableBytes): Long 把当前可读前缀作为一个 datagram，零长度合法；一次 syscall 成功才消费相应字节，不拆包、不在失败后自动重发。OS 拒绝过大报文时保留 errno 与未消费游标；异常的短发送先提交实际进度，再报告没有伪造 errno 的 PlatformException。
 
 receiveFrom(buffer: NativeByteBuffer, count: Long = buffer.writableBytes): Datagram 返回 source: SocketAddress、count: Long、truncated: Boolean。count 参数必须为正且不超过可写尾部。使用 recvmsg 的实际复制长度与 MSG_TRUNC；只提交复制字节，不把截断后的长度称为原包总长。空 datagram 返回 count=0、truncated=false，仍消费该报文，不代表 EOF；不足容量时消费整包并标记截断，下一次接收是下一包。
 
@@ -268,6 +270,6 @@ socket 输出在 Linux 使用 MSG_NOSIGNAL，Darwin 在新建／accept 后设置
 
 这是普通 GC-free C helper 边界，不提供 managed File／TcpStream 的私有句柄访问。使用者自行拥有新获得的 fd，可交给其事件后端；只能移交一次。native 头文件作为实际 include 输入参与普通构建，预编译 `.slib` 消费不再次编译这些 helper。错误、对象身份与缓存沿既有合同处理，不增加 runtime API 或特殊 native dependency 机制。
 
-`OsString.withNativeString<R>((Ptr<Byte>) -> R)` 与 `Path.withNativePath<R>((Ptr<Byte>) -> R)` 是 fs package 的公开 Unsafe 同步扩展：检查 NUL、保持原始字节并追加终止 NUL，指针只在 callback 内有效，不得保留或交给尚未完成的异步操作；异步使用者须在 callback 内复制到自己的 native 存储。`OpenOptions.nativeFlags(): Int` 公开复用 6.1 的参数检查，返回 file_open helper 的稳定位组合（read=1、write=2、append=4、create=8、createNew=16、truncate=32），不是系统 O_* 值。
+`OsString.withNativeString<R>((Ptr<Byte>) -> R)` 与 `Path.withNativePath<R>((Ptr<Byte>) -> R)` 是 fs package 的公开 Unsafe 同步扩展：检查 NUL、保持原始字节并追加终止 NUL，指针只在 callback 内有效，不得保留或交给尚未完成的异步操作；异步使用者须在 callback 内复制到自己的 native 存储。`scoop.platform.native.fileOpenFlags(options: OpenOptions): Int` 供同步 File 与 asyncio 的 native 适配复用 6.1 的参数检查，返回 file_open helper 的稳定位组合（read=1、write=2、append=4、create=8、createNew=16、truncate=32），不是系统 O_* 值。OpenOptions 只表达文件打开配置，不暴露 native 位布局成员；应用通过 File.open 或 EventLoop.openFile 使用配置。
 
 `native/io.h` 声明 fd_read／fd_write／fd_close；`native/files.h` 声明 file_open／file_sync。read／write 使用 4～6 章的短传输及 EINTR 规则，close 只调用一次 raw close，syncData 在 Darwin 可用 fsync 实现。`socket_native.h` 还声明 resolve／resolve_next／resolve_address／resolve_free；ScoopResolution 保存 owned addrinfo 链、原始 EAI code、可选的同次 errno。以上函数不进入 managed 代码，可直接从工作线程调用；错误必须在返回时立即保存，资源只能释放一次。

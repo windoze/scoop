@@ -46,7 +46,7 @@ private class SyncTlsTests {
                         }
                     }
                 }.use {
-                    val transport = ShortTransport(TcpStream.connect(listener.localAddress))
+                    val transport = ShortTransport(TcpStream.connect(listener.localAddress()))
                     val stream = TlsStream.takeOwnershipAsClient(transport, clientConfig, TlsPeerName.Dns("localhost"))
                     ready.awaitReady()
                     NativeByteBuffer.allocate(5L).use { output ->
@@ -88,7 +88,7 @@ private fun exchange(version: TlsVersion) {
                 }
                 assertEquals(1, transport.closes)
             }.use {
-                val transport = ShortTransport(TcpStream.connect(listener.localAddress))
+                val transport = ShortTransport(TcpStream.connect(listener.localAddress()))
                 TlsStream.takeOwnershipAsClient(transport, clientConfig, TlsPeerName.Ip(IpAddress.IPV4_LOOPBACK)).use { stream ->
                     assertTrue(stream.connectionInfo.version == version)
                     assertEquals(protocol.toHexString(), stream.connectionInfo.alpn!!.toHexString())
