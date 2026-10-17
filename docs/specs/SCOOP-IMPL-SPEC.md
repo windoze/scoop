@@ -97,6 +97,8 @@ executable 的入口发现只检查 root Cone，并按语言规范 12.4.4 一次
 
 每个 expression 具有非可选类型和 definition/evaluation origin。已解析调用保存完整逻辑签名、适配前 receiver 类型、实参映射、唯一 typed target 与效果；receiver 和实参的执行顺序遵守语言规范 8.5，不由类型求解顺序决定。
 
+数组／tuple 为保持左到右求值而物化的临时引用使用元素在当前表达式中的源码位置；导入常量的初始化表达式继续保留其定义／求值双来源，不能用定义方 span 与消费方文件拼接来源。
+
 固定元数 intrinsic 的操作种类与必填操作数属于同一分支：一元操作携带 operand，二元操作携带 lhs/rhs；数据借用携带 object、block 及已确定的对象与函数签名信息。函数类型的构造／替换返回 FunctionTypeId，enum variant 保存 enum application 身份；需要通用类型时显式取得对应 canonical type。declared nominal 的字段等数据归属独立 payload，表示专用操作只接收其适用的 payload 或窄引用。
 
 整数表达式的一元／二元分支使用对应的窄操作类别；div/rem 仅属于二元 managed 操作。该完整结构贯穿 Export HIR、LocalConcrete HIR 与绑定默认模板；旧 wire 的操作标签与参数字段在解码绑定处一次组合并检查元数，生产端由完整表达式投影原编码。方法引用生成固定 intrinsic 正文时，按已决议操作直接建立所需形参和值，不将它们重新装成任意参数列表。

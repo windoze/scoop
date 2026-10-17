@@ -10,6 +10,8 @@ use super::{
 };
 use crate::{CurrentConeSources, lower_current_cone};
 
+mod aggregates;
+
 struct DependencyConstantFixture {
     core: TrustedCoreFixture,
     coordinate: ConeCoordinate,
