@@ -1,5 +1,6 @@
 use super::*;
 
+mod index;
 #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
 mod linux;
 
@@ -28,6 +29,7 @@ fn actual_runtime_objects_roundtrip_and_reuse_paths() {
         .compiler_generated_object_symbol("scoop_rt_run_program");
     let first = build();
     assert!(!first.cache_hit());
+    index::check_relocation_and_compatible_toolchains(&first, &target);
     assert_eq!(
         first.objects().objects().len(),
         target.runtime_build().runtime_sources().len()
@@ -174,7 +176,7 @@ fn runtime_cache_tracks_sources_headers_candidates_and_flags() {
     assert!(!build(RuntimeOptimization::None).cache_hit());
     assert!(!build(RuntimeOptimization::Optimized).cache_hit());
     let records = || {
-        std::fs::read_dir(cache.join("runtime-v3"))
+        std::fs::read_dir(cache.join("runtime-v4"))
             .unwrap()
             .map(|e| e.unwrap().path())
             .filter(|p| p.extension().is_some_and(|e| e == "json"))

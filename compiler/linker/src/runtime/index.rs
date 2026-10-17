@@ -12,6 +12,7 @@ struct Index {
     fingerprint: Digest256,
     objects: Vec<IndexObject>,
     merged: NativeObjectInfo,
+    deployment: super::deployment::RuntimeDeployment,
 }
 
 struct IndexObject {
@@ -29,30 +30,39 @@ impl RuntimeObjectSet {
         toolchain: &CBridgeToolchainProfileV1,
     ) -> Result<Self, LinkError> {
         let index: Index = decode_canonical(&std::fs::read(path).map_err(error)?).map_err(error)?;
-        if index.schema != 3
+        if index.schema != 4
             || index.target != encode(&target.wire_id()).map_err(error)?
             || index.abi.as_array() != RuntimeAbiContract.fingerprint().map_err(error)?.as_array()
-            || index.toolchain != encode(toolchain.contract()).map_err(error)?
             || toolchain.contract().target() != &target.wire_id()
         {
             return Err(error(
-                "runtime index schema, target, ABI or C toolchain is incompatible; rebuild runtime",
+                "runtime index schema, target or ABI is incompatible; rebuild runtime",
             ));
         }
+        index.deployment.check(toolchain)?;
+        let directory = path
+            .parent()
+            .ok_or_else(|| error("runtime index has no parent"))?;
         let objects: Vec<_> = index
             .objects
             .into_iter()
             .map(|record| {
+                let relative = record
+                    .locator
+                    .validate()
+                    .map_err(error)?
+                    .to_path_buf()
+                    .map_err(error)?;
+                if relative.is_absolute() {
+                    return Err(error(
+                        "runtime index object path must be relative to the index",
+                    ));
+                }
                 Ok(RuntimeObject {
                     id: record.id,
                     digest: record.digest,
                     info: record.info,
-                    path: record
-                        .locator
-                        .validate()
-                        .map_err(error)?
-                        .to_path_buf()
-                        .map_err(error)?,
+                    path: directory.join(relative),
                 })
             })
             .collect::<Result<_, LinkError>>()?;
@@ -62,6 +72,7 @@ impl RuntimeObjectSet {
         Ok(Self {
             target,
             toolchain: index.toolchain,
+            deployment: index.deployment,
             configuration: index.configuration,
             objects,
             merged: index.merged,
@@ -72,12 +83,18 @@ impl RuntimeObjectSet {
 
     pub fn write_index(&self, directory: &Path) -> Result<PathBuf, LinkError> {
         std::fs::create_dir_all(directory).map_err(error)?;
+        let absolute_directory = std::path::absolute(directory).map_err(error)?;
         let objects = self
             .objects
             .iter()
             .map(|object| {
                 let path = std::path::absolute(&object.path).map_err(error)?;
-                let locator = scoop_protocol::HostPathCarrier::from_path(&path).map_err(error)?;
+                let relative =
+                    pathdiff::diff_paths(path, &absolute_directory).ok_or_else(|| {
+                        error("runtime object and index must use the same filesystem root")
+                    })?;
+                let locator =
+                    scoop_protocol::HostPathCarrier::from_path(&relative).map_err(error)?;
                 Ok(IndexObject {
                     id: object.id,
                     digest: object.digest,
@@ -87,7 +104,7 @@ impl RuntimeObjectSet {
             })
             .collect::<Result<_, LinkError>>()?;
         let index = Index {
-            schema: 3,
+            schema: 4,
             target: encode(&self.target.wire_id()).map_err(error)?,
             toolchain: self.toolchain.clone(),
             configuration: self.configuration.clone(),
@@ -97,6 +114,7 @@ impl RuntimeObjectSet {
             fingerprint: self.fingerprint.0,
             objects,
             merged: self.merged.clone(),
+            deployment: self.deployment,
         };
         let path = directory.join("index.cbor");
         std::fs::write(&path, encode(&index).map_err(error)?).map_err(error)?;
@@ -106,7 +124,7 @@ impl RuntimeObjectSet {
 
 impl WireEncode for Index {
     fn encode(&self, e: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        e.map(9)?;
+        e.map(10)?;
         e.field(1)?;
         e.unsigned(self.schema)?;
         e.field(2)?;
@@ -124,12 +142,14 @@ impl WireEncode for Index {
         for object in &self.objects {
             object.encode(e)?;
         }
-        self.merged.encode_fields(e, 8)
+        self.merged.encode_fields(e, 8)?;
+        e.field(10)?;
+        self.deployment.encode(e)
     }
 }
 impl WireDecode for Index {
     fn decode(d: &mut Decoder<'_>) -> Result<Self, WireError> {
-        d.expect_map(9)?;
+        d.expect_map(10)?;
         Ok(Self {
             schema: d.field(1, Decoder::unsigned)?,
             target: d.field(2, |d| Ok(d.bytes()?.to_vec()))?,
@@ -139,6 +159,7 @@ impl WireDecode for Index {
             fingerprint: d.field(6, Digest256::decode)?,
             objects: d.field(7, |d| d.decode_array(|d, _| IndexObject::decode(d)))?,
             merged: NativeObjectInfo::decode_fields(d, 8)?,
+            deployment: d.field(10, super::deployment::RuntimeDeployment::decode)?,
         })
     }
 }

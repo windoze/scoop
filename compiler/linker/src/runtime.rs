@@ -9,6 +9,7 @@ use scoop_wire::{Digest256, domain_separated_cbor_hash, encode, sha256};
 
 use crate::{LinkError, NativeObjectInfo, NativeSymbolKind, error};
 
+mod deployment;
 mod fingerprint;
 mod index;
 
@@ -71,6 +72,7 @@ impl RuntimeObject {
 pub struct RuntimeObjectSet {
     target: LirTargetProfile,
     toolchain: Vec<u8>,
+    deployment: deployment::RuntimeDeployment,
     configuration: RuntimeBuildConfiguration,
     objects: Vec<RuntimeObject>,
     merged: NativeObjectInfo,
@@ -115,20 +117,17 @@ impl RuntimeObjectSet {
                 info,
             });
         }
-        Self::assemble(
-            target,
-            encode(toolchain.contract()).map_err(error)?,
-            configuration,
-            inputs,
-        )
+        Self::assemble(target, toolchain, configuration, inputs)
     }
 
     fn assemble(
         target: LirTargetProfile,
-        toolchain: Vec<u8>,
+        toolchain: &CBridgeToolchainProfileV1,
         configuration: RuntimeBuildConfiguration,
         mut objects: Vec<RuntimeObject>,
     ) -> Result<Self, LinkError> {
+        let deployment = deployment::RuntimeDeployment::for_toolchain(toolchain);
+        let toolchain = encode(toolchain.contract()).map_err(error)?;
         objects.sort_by_key(|object| object.id);
         if objects.is_empty() || objects.windows(2).any(|pair| pair[0].id == pair[1].id) {
             return Err(error(
@@ -187,6 +186,7 @@ impl RuntimeObjectSet {
         Ok(Self {
             target,
             toolchain,
+            deployment,
             configuration,
             objects,
             merged,

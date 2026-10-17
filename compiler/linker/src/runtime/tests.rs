@@ -119,12 +119,12 @@ fn linux_runtime_sources_compile_and_define_the_complete_runtime_abi() {
             decoded
                 .objects()
                 .iter()
-                .map(|o| o.path())
+                .map(|o| o.path().canonicalize().unwrap())
                 .collect::<Vec<_>>(),
             runtime
                 .objects()
                 .iter()
-                .map(|o| o.path())
+                .map(|o| o.path().canonicalize().unwrap())
                 .collect::<Vec<_>>()
         );
     }
