@@ -8,7 +8,7 @@
 | R02 | spawn(searchPath = false) 明确启动动作 | 已完成；fmt/clippy、CommandsTest 7 项通过 |
 | R03 | IO override 和同步／异步参数名一致 | 已完成；fmt/clippy、BufferedStreamsTest 6 项通过 |
 | R04 | OrNull 失败命名与证书验证 Result | 已完成；fmt/clippy、crypto 17 项、外部消费者 4 项、UTF-8 fixture 3 项通过 |
-| R05 | Closeable、isClosed 与 TLS takeOwnership 工厂 | 待实施 |
+| R05 | Closeable、isClosed 与 TLS takeOwnership 工厂 | 已完成；fmt/clippy、资源 fixture 2 项、platform 110 项、TLS 13 项、async TLS 12 项及外部消费者 3 项通过 |
 | R06 | StringBuilder.append/toString 与字节 builder 链式追加 | 待实施 |
 | R07 | ValueEncoder/ValueDecoder/ValueInspector 与 Json 边界命名 | 待实施 |
 | R08 | 惰性 withIndex 与 copyOfRange 快照 | 待实施 |

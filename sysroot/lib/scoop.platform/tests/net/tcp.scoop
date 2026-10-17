@@ -58,7 +58,7 @@ private class TcpTest {
             stream.writeText("still writing")
             stream.close()
             stream.close()
-            assertTrue(stream.isDisposed)
+            assertTrue(stream.isClosed)
             assertFailsWith<IllegalStateException> { stream.localAddress }
             assertFailsWith<IllegalStateException> { stream.peerAddress }
             assertFailsWith<IllegalStateException> { stream.noDelay }
@@ -69,7 +69,7 @@ private class TcpTest {
         }
         listener.dispose()
         listener.dispose()
-        assertTrue(listener.isDisposed)
+        assertTrue(listener.isClosed)
         assertFailsWith<IllegalStateException> { listener.accept() }
         assertFailsWith<IllegalStateException> { listener.localAddress }
         assertFailsWith<IllegalArgumentException> { TcpListener.bind(endpoint, 0) }

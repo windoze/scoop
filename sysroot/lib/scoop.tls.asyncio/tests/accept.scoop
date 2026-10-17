@@ -18,7 +18,7 @@ private class AsyncTlsAcceptTests {
             val rawServer = ObservedTransport(listener.accept())
             val rawClient = firstConnect.await()
             val stalled = scope.launch suspend {
-                try { asyncTlsServer(rawServer, config); fail(Some("plaintext peer completed TLS")) }
+                try { AsyncTlsStream.takeOwnershipAsServer(rawServer, config); fail(Some("plaintext peer completed TLS")) }
                 catch (_: CancellationException) { assertEquals(1, rawServer.closes) }
             }
             try {

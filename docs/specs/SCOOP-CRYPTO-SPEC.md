@@ -16,7 +16,7 @@
 
 `CryptoException` 保存 operation、OpenSSL 原始 code 与已复制的 detail。后端返回正常验证不匹配时返回 Boolean false 或对应验证结果，非法参数、格式、状态及运行错误各按实际原因报错。错误队列在同一 C 调用中提取并复制，不在返回或切换线程后重读。普通 C ABI 使用 NativeSafe，不标记 GCLeaf。
 
-Digest、SecretKey、PrivateKey、PublicKey、Certificate、TrustStore 均为显式 Disposable；提供幂等 close／dispose，关闭后拒绝使用。使用与关闭同一对象须由调用者串行化；上下文 finish 后不能再次 update／finish。持久 native 引用由接收对象保留，释放原 wrapper 不使引用失效。析构不放进 GC release hook，正确性由 use／try-finally 及显式关闭承担。
+Digest、SecretKey、PrivateKey、PublicKey、Certificate、TrustStore 均为显式 Closeable；提供幂等 close，默认 dispose 桥接到 close，关闭后拒绝使用。使用与关闭同一对象须由调用者串行化；上下文 finish 后不能再次 update／finish。持久 native 引用由接收对象保留，释放原 wrapper 不使引用失效。析构不放进 GC release hook，正确性由 use／try-finally 及显式关闭承担。
 
 ## 3. 摘要、MAC、AEAD 与随机
 

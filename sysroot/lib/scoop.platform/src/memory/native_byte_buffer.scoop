@@ -3,12 +3,12 @@ package scoop.platform.memory
 import scoop.bytes.ByteOrder
 import scoop.platform.system.*
 
-public class NativeByteBuffer private constructor() : Disposable {
+public class NativeByteBuffer private constructor() : Closeable {
     private var memory: Ptr<Byte>? = None
     private var storageCapacity: Long = 0L
     private var reader: Long = 0L
     private var writer: Long = 0L
-    private var disposed: Boolean = false
+    private var closed: Boolean = false
     private var borrowed: Boolean = false
     private val stateLock: AtomicBoolean = AtomicBoolean(false)
 
@@ -17,7 +17,7 @@ public class NativeByteBuffer private constructor() : Disposable {
     public val writePosition: Long get() = withState { requireOpen(); writer }
     public val readableBytes: Long get() = withState { requireOpen(); writer - reader }
     public val writableBytes: Long get() = withState { requireOpen(); storageCapacity - writer }
-    public val isDisposed: Boolean get() = withState { disposed }
+    public val isClosed: Boolean get() = withState { closed }
 
     public companion object {
         public fun allocate(capacity: Long = 0L): NativeByteBuffer {
@@ -35,7 +35,7 @@ public class NativeByteBuffer private constructor() : Disposable {
     }
 
     private fun requireOpen() {
-        if (disposed) throw IllegalStateException(Some("buffer is disposed"))
+        if (closed) throw IllegalStateException(Some("buffer is closed"))
     }
 
     private fun requireMutable() {
@@ -269,9 +269,9 @@ public class NativeByteBuffer private constructor() : Disposable {
         }
     }
 
-    public override fun dispose() {
+    public override fun close() {
         withState {
-            if (disposed) return@withState
+            if (closed) return@withState
             requireMutable()
             val owned = memory
             val capacity = storageCapacity
@@ -279,7 +279,7 @@ public class NativeByteBuffer private constructor() : Disposable {
             storageCapacity = 0L
             reader = 0L
             writer = 0L
-            disposed = true
+            closed = true
             when (owned) {
                 case Some(pointer) -> @Unsafe { nativeMemoryFree(pointer); gcAdjustPressure(-capacity) }
                 case None -> {}
@@ -287,7 +287,6 @@ public class NativeByteBuffer private constructor() : Disposable {
         }
     }
 
-    public fun close() { dispose() }
 
     release {
         when (memory) {

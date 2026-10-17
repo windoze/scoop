@@ -4,6 +4,8 @@
 
 ## 1. 库与 native 边界
 
+IO 端点、文件／进程观察权和 native buffer 使用 core Closeable.close，状态为 isClosed；继承的 dispose 默认转交 close，use 沿用语言规范 11.18。第 10 节的一般同步资源继续使用 Disposable。
+
 `scoop:scoop.platform:0.1.0` 是普通 library Cone，位于 `sysroot/lib/scoop.platform/`，生产依赖为 core 与 std，测试依赖为 scoop.test。应用显式声明依赖与 import；不默认导入，不改变 single-file 的 core-only 规则。公共逻辑用 Scoop 实现，C11 shim 只承担实际 OS、native allocation 与 ABI 操作，通过既有 native sources 发布，不新增 compiler-known role 或平台后端注册框架。
 
 本期目标为 `aarch64-apple-darwin`、`x86_64-unknown-linux-gnu`、`x86_64-unknown-linux-musl`。路径、参数与环境使用 POSIX 原始字节。阻塞操作走 NativeSafe FFI，只有符合语言规范 14 章的短操作才标记 GCLeaf。native 返回的错误在调用边界保存，不能晚些时候重新读取 errno。
@@ -55,11 +57,11 @@ Libuv 保存库返回的原始负错误码，不读取当前 errno。三个现�
 
 ## 4. NativeByteBuffer
 
-`scoop.platform.memory.NativeByteBuffer` 是实现 Disposable 的普通 final class，独占连续 native 字节存储。class 引用复制共享同一 owner、游标和关闭状态，不复制存储。`allocate(capacity: Long = 0L)` 创建精确请求容量、两个游标为零的对象；零容量不分配。负容量抛 IllegalArgumentException，native 分配失败抛 kind 为 NoMemory 的 PlatformException，保留调用边界捕获的 errno。字节区不保存 managed reference，也不承诺清零。
+`scoop.platform.memory.NativeByteBuffer` 是实现 Closeable 的普通 final class，独占连续 native 字节存储。class 引用复制共享同一 owner、游标和关闭状态，不复制存储。`allocate(capacity: Long = 0L)` 创建精确请求容量、两个游标为零的对象；零容量不分配。负容量抛 IllegalArgumentException，native 分配失败抛 kind 为 NoMemory 的 PlatformException，保留调用边界捕获的 errno。字节区不保存 managed reference，也不承诺清零。
 
 ### 4.1 游标、初始化与释放
 
-open 对象保持 `0 <= readPosition <= writePosition <= capacity`，只有 `[0, writePosition)` 已初始化。只读属性为 capacity、readPosition、writePosition、readableBytes、writableBytes 和 isDisposed；不存在扩大 writer 的 safe setter。关闭后仅 isDisposed、dispose 和 close 可调用，其余操作及查询抛 IllegalStateException。
+open 对象保持 `0 <= readPosition <= writePosition <= capacity`，只有 `[0, writePosition)` 已初始化。只读属性为 capacity、readPosition、writePosition、readableBytes、writableBytes 和 isClosed；不存在扩大 writer 的 safe setter。关闭后仅 isClosed、close 可调用，其余操作及查询抛 IllegalStateException。
 
 | 操作 | 合同 |
 | --- | --- |
@@ -67,7 +69,7 @@ open 对象保持 `0 <= readPosition <= writePosition <= capacity`，只有 `[0,
 | compact() | 以 memmove 语义将未读区移到起点，readPosition=0，writePosition=原 readableBytes |
 | skip(count: Long) | 消费可读前缀；负值非法，超出可读区越界 |
 | ensureWritable(count: Long) | 显式保证尾部空间，不隐式 compact；成功增长保留内容和游标，失败保留地址、容量、内容与游标 |
-| dispose()／close() | 幂等；先把 owner 置 inert，再 free；不 flush，不调用用户代码 |
+| close() | 幂等；先把 owner 置 inert，再 free；不 flush，不调用用户代码 |
 
 仅 ensureWritable 会扩容，普通写入在空间不足时越界。增长倍率不是合同，容量至少为 writePosition+count；所有大小运算在地址计算前检查 Long 溢出并抛 ArithmeticException。首版没有缩容、共享 view、slice 或 duplicate。GC-free release hook 只在正常回收时兜底 free；不保证触发时间，不代替显式释放。hook 只读字段，显式关闭后 hook 不重复释放。
 
@@ -86,7 +88,7 @@ open 对象保持 `0 <= readPosition <= writePosition <= capacity`，只有 `[0,
 
 writable block 必须初始化返回值 n 指定的完整前缀；仅正常返回且 `0 <= n <= writableBytes` 时提交 writePosition。无效 n 抛 IllegalArgumentException，抛异常或无效返回都不提交游标，已修改的尾部仍不能 safe 读取。库只检查范围，不证明 native 初始化事实。
 
-block 是普通非 suspend callback，可分配 managed 对象、抛异常及进行同步 C 调用。owner 跨 callback 与 finally 保持 live root，GC 可移动 wrapper；native 地址保持稳定，不 pin wrapper。finally 清除借用状态。借用中拒绝 dispose、ensureWritable、clear、compact、skip、顺序读写、绝对写和嵌套借用，修改前抛 IllegalStateException；只读属性及 getByte 仍可用。
+block 是普通非 suspend callback，可分配 managed 对象、抛异常及进行同步 C 调用。owner 跨 callback 与 finally 保持 live root，GC 可移动 wrapper；native 地址保持稳定，不 pin wrapper。finally 清除借用状态。借用中拒绝 close、ensureWritable、clear、compact、skip、顺序读写、绝对写和嵌套借用，修改前抛 IllegalStateException；只读属性及 getByte 仍可用。
 
 pointer 不得逃出 callback、保留给异步操作或跨挂起使用；writable callback 不读取未初始化尾部或改写借用区外字节。同步与异步借用共同使用 4.5 的状态同步边界；callback 在状态锁外执行。不增加逃逸分析、静态 borrow checker 或 managed ownership 类型。
 
@@ -110,25 +112,25 @@ NativeByteBuffer 新增普通公开 `@Unsafe borrowReadable(count: Long): Native
 
 公开参数名属于库 API：override 保留接口的参数名，同步／异步对应入口使用相同名称与次序。流传输使用 buffer、count；copyTo 使用 destination、bufferSize；数组区间使用 offset、count。命名调用按语言规范 8.5 的静态声明解析，不改变 override 的语言规则。
 
-`scoop.platform.io.ByteSource` 声明 `readInto(buffer: NativeByteBuffer, count: Long): Long`；ByteSink 声明 `writeFrom(buffer: NativeByteBuffer, count: Long): Long` 与 flush()。协议不包含关闭；拥有资源的实现另实现 Disposable。count 非负且不超过当前可写／可读区间，零请求不执行 native IO、返回零，也不表示 EOF。正请求允许短传输；read 返回零表示 EOF，write 无进度抛 WriteZeroException。成功 read 提交 writer，成功 write 提交 reader；失败不撤销之前已经发生的外部进度。
+`scoop.platform.io.ByteSource` 声明 `readInto(buffer: NativeByteBuffer, count: Long): Long`；ByteSink 声明 `writeFrom(buffer: NativeByteBuffer, count: Long): Long` 与 flush()。协议不包含关闭；拥有资源的实现另实现 Closeable。count 非负且不超过当前可写／可读区间，零请求不执行 native IO、返回零，也不表示 EOF。正请求允许短传输；read 返回零表示 EOF，write 无进度抛 WriteZeroException。成功 read 提交 writer，成功 write 提交 reader；失败不撤销之前已经发生的外部进度。
 
 普通扩展提供省略 count 的调用、readFully/writeFully、copyTo、readAllBytes、readText/readTextLossy、readLine/readLineLossy、writeText/writeLine。完整读取遇到 EOF 抛 UnexpectedEofException；两种 IO 异常直接继承 Exception。完整操作逐次提交进度，后续失败保留此前游标，不忙循环。copyTo 返回复制的 Long 字节数；bufferSize 默认 8192，必须为正，不是总数据配额。高层只读字节输入为 List<Byte>，快照输出为 Array<Byte>，可写目标为 MutableArray<Byte>。writeFrom(array, offset, count) 检查区间并取得所选输入区间的快照，用户 getter 失败发生在传输之前；readInto 的数组目标保持可写。writeAllBytes 接收 List<Byte>。flush 只提交用户态缓冲，不等于文件持久化。
 
 UTF-8 在完整结果或整行组装后解码，跨 native 分块的编码序列不会被提前判错。默认严格解码；有损版本显式命名。readLine 去除 LF 及紧邻它的 CR，EOF 前无 LF 的最后一行保留全部字节；仅 EOF 且本行无字节返回 None。writeLine 追加 LF。`Utf8Writer(sink: ByteSink)` 是借用 sink 的 TextWriter 适配器，write 转交 UTF-8 完整写入，flush 转交 sink，不拥有或关闭 sink。
 
-`BufferedSource(source, capacity: Long = 8192L)`、`BufferedSink(sink, capacity: Long = 8192L)` 为 final class 和 Disposable，容量必须为正。默认仅拥有自己的 NativeByteBuffer，借用 endpoint。`takeOwnership<T>(endpoint: T, capacity)` 要求 T 同时符合对应 IO 协议与 Disposable；成功返回才移交逻辑关闭责任。没有共享使用／并发关闭保证，调用方须同步；重入操作在修改前拒绝。关闭后操作抛 IllegalStateException，isDisposed 可查询，dispose/close 幂等。
+`BufferedSource(source, capacity: Long = 8192L)`、`BufferedSink(sink, capacity: Long = 8192L)` 为 final class 和 Closeable，容量必须为正。默认仅拥有自己的 NativeByteBuffer，借用 endpoint。`takeOwnership<T>(endpoint: T, capacity)` 要求 T 同时符合对应 IO 协议与 Closeable；成功返回才移交逻辑关闭责任。没有共享使用／并发关闭保证，调用方须同步；重入操作在修改前拒绝。关闭后操作抛 IllegalStateException，isClosed 可查询，close 幂等。
 
-BufferedSource 不把未读数据交回 endpoint；BufferedSink.dispose 尝试 flush，随后无论是否失败都释放 buffer 并关闭明确接管的 endpoint。多个失败以 ResourceUseException 按发生顺序组合；逻辑关闭后不重复清理或报告旧异常。flush 失败保留尚未输出的缓冲和已发生的外部进度，允许未关闭的 caller 明确重试。GC hook 不 flush 或访问 managed endpoint，内部 buffer 自行兜底释放。
+BufferedSource 不把未读数据交回 endpoint；BufferedSink.close 尝试 flush，随后无论是否失败都释放 buffer 并关闭明确接管的 endpoint。多个失败以 ResourceUseException 按发生顺序组合；逻辑关闭后不重复清理或报告旧异常。flush 失败保留尚未输出的缓冲和已发生的外部进度，允许未关闭的 caller 明确重试。GC hook 不 flush 或访问 managed endpoint，内部 buffer 自行兜底释放。
 
-standardInput、standardOutput、standardError 是使用调用时 fd 0/1/2 的借用视图，不实现 Disposable。duplicateStandardInput/Output/Error 返回独立拥有、close-on-exec 的 File 副本，与原描述符共享 OS 文件位置／状态，关闭副本不关闭标准 fd。标准流重定向后，后续操作使用新 fd；与 core libc stdio 混用时需要显式 flush，不承诺自动排序。
+standardInput、standardOutput、standardError 是使用调用时 fd 0/1/2 的借用视图，不实现 Closeable。duplicateStandardInput/Output/Error 返回独立拥有、close-on-exec 的 File 副本，与原描述符共享 OS 文件位置／状态，关闭副本不关闭标准 fd。标准流重定向后，后续操作使用新 fd；与 core libc stdio 混用时需要显式 flush，不承诺自动排序。
 
 ## 6. 文件与目录
 
 ### 6.1 File 与 OpenOptions
 
-`scoop.platform.fs.File` 为 final class，实现 ByteSource、ByteSink、Disposable。`File.open(path, options: OpenOptions = OpenOptions())` 创建 close-on-exec fd。OpenOptions 为值类型，默认 read=true，其余 write/append/create/createNew/truncate 标志默认为 false，mode 默认为 0666；至少允许一种读写，append/truncate/create/createNew 要求 write，append 与 truncate 冲突，mode 只允许 POSIX 07777 位。createNew 使用原生排他创建，优先于 create；实际 mode 仍受 umask 影响。
+`scoop.platform.fs.File` 为 final class，实现 ByteSource、ByteSink、Closeable。`File.open(path, options: OpenOptions = OpenOptions())` 创建 close-on-exec fd。OpenOptions 为值类型，默认 read=true，其余 write/append/create/createNew/truncate 标志默认为 false，mode 默认为 0666；至少允许一种读写，append/truncate/create/createNew 要求 write，append 与 truncate 冲突，mode 只允许 POSIX 07777 位。createNew 使用原生排他创建，优先于 create；实际 mode 仍受 umask 影响。
 
-除字节协议外，File 提供 position、size、isDisposed，List<Byte> 写入／MutableArray<Byte> 读取重载，以及 seek(position: Long)、truncate(size: Long)、syncData、syncAll、metadata、duplicate、dispose/close。seek 为绝对非负偏移，truncate 非负且不改变当前文件位置；append 通过 OS append 标志实现。flush 对原始 fd 无用户态缓冲可提交，但仍检查 open 状态。同步操作都保活 owner 直到 native 返回和退出清理，不能仅保留整数 fd。与关闭不竞争、各次使用独立或已同步 buffer 时，同一 File 允许 OS 支持的并发 IO；共享偏移与数据顺序遵守 OS 行为。活动调用期间重入 close 会拒绝，但关闭／配置改变与 IO 的跨线程竞争仍须调用方同步，不提供通过 close 取消阻塞 IO 的保证。
+除字节协议外，File 提供 position、size、isClosed，List<Byte> 写入／MutableArray<Byte> 读取重载，以及 seek(position: Long)、truncate(size: Long)、syncData、syncAll、metadata、duplicate、close。seek 为绝对非负偏移，truncate 非负且不改变当前文件位置；append 通过 OS append 标志实现。flush 对原始 fd 无用户态缓冲可提交，但仍检查 open 状态。同步操作都保活 owner 直到 native 返回和退出清理，不能仅保留整数 fd。与关闭不竞争、各次使用独立或已同步 buffer 时，同一 File 允许 OS 支持的并发 IO；共享偏移与数据顺序遵守 OS 行为。活动调用期间重入 close 会拒绝，但关闭／配置改变与 IO 的跨线程竞争仍须调用方同步，不提供通过 close 取消阻塞 IO 的保证。
 
 显式关闭先清除 owned fd，再调用一次 close；成功或失败均终结 owner，不无条件重试，包括 EINTR。当前 Linux 的 fd 在 close 错误报告前已被消费；Darwin 的普通 fd 关闭同样沿实际内核消费路径，不能由错误码假定仍可重试。hook 只兜底尝试 raw close，不重放已消费的 fd，不 flush 或等待用户代码。close 结果不能证明远程文件已经持久化，必要时先显式 sync。
 
@@ -146,9 +148,9 @@ standardInput、standardOutput、standardError 是使用调用时 fd 0/1/2 的�
 
 ### 6.3 DirectoryEntries
 
-`DirectoryEntries` 实现 Iterable<DirectoryEntry>、Iterator<DirectoryEntry> 和 Disposable，是共享 native 枚举状态的单遍对象；由 Files.entries(path) 创建。iterator 返回自身，next 返回 Option；跳过点目录，不排序。DirectoryEntry 保存独立 OsString name 与组合后的 Path path，不把 readdir 临时指针交给调用者。
+`DirectoryEntries` 实现 Iterable<DirectoryEntry>、Iterator<DirectoryEntry> 和 Closeable，是共享 native 枚举状态的单遍对象；由 Files.entries(path) 创建。iterator 返回自身，next 返回 Option；跳过点目录，不排序。DirectoryEntry 保存独立 OsString name 与组合后的 Path path，不把 readdir 临时指针交给调用者。
 
-EOF 时自动关闭枚举句柄，之后 next 仍返回 None；提前 dispose 后再 next 抛 IllegalStateException。提前退出循环或正文失败由 use 清理，for 不自动关闭 iterator。native 枚举和复制名称期间保活 owner；不支持重入／并发枚举或关闭。hook 只兜底 closedir。
+EOF 时自动关闭枚举句柄，之后 next 仍返回 None；提前 close 后再 next 抛 IllegalStateException。提前退出循环或正文失败由 use 清理，for 不自动关闭 iterator。native 枚举和复制名称期间保活 owner；不支持重入／并发枚举或关闭。hook 只兜底 closedir。
 
 ### 6.4 native 传输、信号与错误
 
@@ -204,7 +206,7 @@ ConditionVariable(mutex: Mutex) 保活并绑定一个 Mutex，提供 await()、a
 
 ### 11.1 管道与命令快照
 
-`scoop.platform.io.Pipe.open()` 返回 source: PipeSource 与 sink: PipeSink，分别实现 ByteSource／ByteSink 及 Disposable，各自拥有一个 close-on-exec 描述符。端点提供 isDisposed、dispose/close；sink.flush 只检查状态。关闭最后一个写端后读取返回 EOF；读端全部关闭后写入按第 6.4 节报告 BrokenPipe。端点没有文件定位语义；借用视图只实现 IO 协议，关闭责任由 owner 保持。
+`scoop.platform.io.Pipe.open()` 返回 source: PipeSource 与 sink: PipeSink，分别实现 ByteSource／ByteSink 及 Closeable，各自拥有一个 close-on-exec 描述符。端点提供 isClosed、close；sink.flush 只检查状态。关闭最后一个写端后读取返回 EOF；读端全部关闭后写入按第 6.4 节报告 BrokenPipe。端点没有文件定位语义；借用视图只实现 IO 协议，关闭责任由 owner 保持。
 
 `scoop.platform.process.Command(executable: Path, arguments: Array<OsString> = [], environment: Map<OsString, OsString> = 当前环境快照, workingDirectory: Path = 当前目录, stdin: Stdio = Inherit, stdout: Stdio = Inherit, stderr: Stdio = Inherit, mergeError: Boolean = false)` 保存不可变配置与输入集合的副本。Stdio 区分 Inherit、Null、Pipe 和 Redirect(file: File)；File 只借用至 spawn 完成。mergeError 将 child fd 2 复制为配置后的 fd 1，与非 Inherit 的 stderr 配置冲突。
 
@@ -214,13 +216,13 @@ spawn(searchPath: Boolean = false): ChildProcess 启动进程；默认按明确 
 
 ### 11.2 观察、端点转移与释放
 
-ChildProcess 实现 Disposable，拥有子进程观察／reap 责任和本次创建的父端 pipes。stdin: ByteSink?、stdout/stderr: ByteSource? 返回借用视图；takeStdin/Stdout/Stderr 返回相应 owned 端点并清除 child 的关闭责任，缺失或已取出返回 None。对象操作与配置／关闭由调用方串行化，不提供竞争回收同一 pid 的保证。
+ChildProcess 实现 Closeable，拥有子进程观察／reap 责任和本次创建的父端 pipes。stdin: ByteSink?、stdout/stderr: ByteSource? 返回借用视图；takeStdin/Stdout/Stderr 返回相应 owned 端点并清除 child 的关闭责任，缺失或已取出返回 None。对象操作与配置／关闭由调用方串行化，不提供竞争回收同一 pid 的保证。
 
-等待与发送信号的活动 native 调用保活 ChildProcess 至返回清理完成，不能只保留整数 pid；活动观察期间重入 dispose 会拒绝。GC hook 不得提前回收该观察权，尤其不能在 kill 的 native 调用中先 reap 再让系统复用 pid。
+等待与发送信号的活动 native 调用保活 ChildProcess 至返回清理完成，不能只保留整数 pid；活动观察期间重入 close 会拒绝。GC hook 不得提前回收该观察权，尤其不能在 kill 的 native 调用中先 reap 再让系统复用 pid。
 
 wait(): ExitStatus 等待并回收；tryWait(): ExitStatus? 非阻塞查询。ExitStatus 区分 Exited(code: Int) 和 Signaled(signal: Int)，非零退出不是系统调用失败。成功后缓存结果，重复等待不再次调用 waitpid；terminate/kill 显式请求 SIGTERM/SIGKILL，已回收时无操作，不能对旧 pid 发信号。外部代码不得回收该 child；若 OS 报 ECHILD，则清除观察权并保存该失败，防止后续操作误用复用的 pid。
 
-dispose 逐一关闭仍拥有的父端 pipes，再尝试 wait；关闭失败也不能跳过后续关闭／回收，多个失败按 ResourceUseException 组合。dispose 不隐式终止进程，可能阻塞；成功后重复关闭无操作。hook 最多尝试一次 waitpid(WNOHANG)，不等待、不终止、不启动后台 reap，pipe owners 各自负责 raw close。因此 GC 不能替代显式 wait/use。
+close 逐一关闭仍拥有的父端 pipes，再尝试 wait；关闭失败也不能跳过后续关闭／回收，多个失败按 ResourceUseException 组合。close 不隐式终止进程，可能阻塞；成功后重复关闭无操作。hook 最多尝试一次 waitpid(WNOHANG)，不等待、不终止、不启动后台 reap，pipe owners 各自负责 raw close。因此 GC 不能替代显式 wait/use。
 
 ### 11.3 communicate
 
@@ -244,7 +246,7 @@ resolve(host: OsString, port: Int, family: AddressFamily? = None) 与 String 重
 
 ### 12.2 TCP 与端点所有权
 
-TcpListener.bind(address, backlog: Int = 128, reuseAddress: Boolean = false) 返回 owned listener；backlog 必须为正，实际队列长度由 OS 决定。提供 localAddress、accept(): TcpStream、isDisposed 与 dispose/close。TcpStream.connect(address) 返回 owned stream，提供 localAddress、peerAddress、ByteSource／ByteSink、shutdownInput、shutdownOutput、isDisposed、dispose/close，以及 noDelay／keepAlive 查询和 setNoDelay／setKeepAlive 设置。
+TcpListener.bind(address, backlog: Int = 128, reuseAddress: Boolean = false) 返回 owned listener；backlog 必须为正，实际队列长度由 OS 决定。提供 localAddress、accept(): TcpStream、isClosed 与 close。TcpStream.connect(address) 返回 owned stream，提供 localAddress、peerAddress、ByteSource／ByteSink、shutdownInput、shutdownOutput、isClosed、close，以及 noDelay／keepAlive 查询和 setNoDelay／setKeepAlive 设置。
 
 所有 socket 为 close-on-exec。创建、配置、bind/listen/connect 或 accept 后配置失败都会关闭未移交的 fd；显式关闭复用第 6.1 节的单次消费语义，hook 仅 raw close。活动 accept/read/write/地址查询／配置保活 owner，操作与 close／配置改变的竞争由调用方同步。stream 支持 OS 允许的并发读写，但不保证复合操作原子。
 
@@ -252,7 +254,7 @@ TCP 是字节流：允许短读写，正请求读取零表示输入 EOF，写入
 
 ### 12.3 UDP 与 SIGPIPE
 
-UdpSocket.bind(address, reuseAddress: Boolean = false) 返回 owned socket，提供 localAddress、isDisposed、dispose/close。sendTo(buffer: NativeByteBuffer, destination: SocketAddress, count: Long = buffer.readableBytes): Long 把当前可读前缀作为一个 datagram，零长度合法；一次 syscall 成功才消费相应字节，不拆包、不在失败后自动重发。OS 拒绝过大报文时保留 errno 与未消费游标；异常的短发送先提交实际进度，再报告没有伪造 errno 的 PlatformException。
+UdpSocket.bind(address, reuseAddress: Boolean = false) 返回 owned socket，提供 localAddress、isClosed、close。sendTo(buffer: NativeByteBuffer, destination: SocketAddress, count: Long = buffer.readableBytes): Long 把当前可读前缀作为一个 datagram，零长度合法；一次 syscall 成功才消费相应字节，不拆包、不在失败后自动重发。OS 拒绝过大报文时保留 errno 与未消费游标；异常的短发送先提交实际进度，再报告没有伪造 errno 的 PlatformException。
 
 receiveFrom(buffer: NativeByteBuffer, count: Long = buffer.writableBytes): Datagram 返回 source: SocketAddress、count: Long、truncated: Boolean。count 参数必须为正且不超过可写尾部。使用 recvmsg 的实际复制长度与 MSG_TRUNC；只提交复制字节，不把截断后的长度称为原包总长。空 datagram 返回 count=0、truncated=false，仍消费该报文，不代表 EOF；不足容量时消费整包并标记截断，下一次接收是下一包。
 

@@ -55,7 +55,7 @@ private fun rollback(path: Path) {
     val child = command(path, "exit").spawn()
     @Unsafe { failNativeStep(8) }
     val failure = fails { child.dispose() }
-    verify(failure.kind == PlatformErrorKind.Interrupted && child.isDisposed)
+    verify(failure.kind == PlatformErrorKind.Interrupted && child.isClosed)
     child.dispose()
     @Unsafe { verify(descriptors() == 0); failNativeStep(16) }
     exited(command(path, "exit").spawn().wait())
@@ -81,12 +81,12 @@ private fun observationLost(path: Path) {
 private fun dropExited(path: Path) {
     val child = command(path, "exit").spawn()
     @Unsafe { waitExited() }
-    verify(!child.isDisposed)
+    verify(!child.isClosed)
 }
 private fun dropStopped(path: Path) {
     val child = command(path, "stop").spawn()
     @Unsafe { waitStopped() }
-    verify(!child.isDisposed)
+    verify(!child.isClosed)
 }
 private fun releaseHooks(path: Path) {
     dropExited(path)

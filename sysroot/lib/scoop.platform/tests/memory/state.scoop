@@ -117,7 +117,7 @@ private class NativeByteBufferStateTest {
         buffer.close()
         alias.dispose()
         alias.close()
-        assertTrue(alias.isDisposed)
+        assertTrue(alias.isClosed)
         assertFailsWith<IllegalStateException> { alias.capacity }
         assertFailsWith<IllegalStateException> { alias.readPosition }
         assertFailsWith<IllegalStateException> { alias.writePosition }

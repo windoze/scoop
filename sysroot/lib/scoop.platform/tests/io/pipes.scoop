@@ -18,7 +18,7 @@ private class PipesTest {
                 assertEquals(0L, source.readAllBytes().size)
             }
         }
-        assertTrue(pipe.source.isDisposed && pipe.sink.isDisposed)
+        assertTrue(pipe.source.isClosed && pipe.sink.isClosed)
         pipe.source.dispose()
         pipe.sink.dispose()
         assertFailsWith<IllegalStateException> { pipe.source.readAllBytes() }

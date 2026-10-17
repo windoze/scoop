@@ -2562,14 +2562,22 @@ printer 对实际展示的每个成员或元素调用一次读取函数，忽略
 
 ### 11.18 确定性资源释放
 
-core 根 package 提供普通 public 接口 `Disposable { fun dispose() }` 和两个普通泛型扩展：
+core 根 package 提供普通 public 接口 `Disposable { fun dispose() }`、同步关闭接口 Closeable 和两个普通泛型扩展：
 
 ```scoop
+public interface Closeable : Disposable {
+    public fun close()
+    public override fun dispose() { close() }
+}
 public fun <T : Disposable, R> T.use(block: (T) -> R): R
 public suspend fun <T : Disposable, R> T.use(block: suspend (T) -> R): R
 ```
 
-dispose 是同步方法，可以分配、阻塞或抛异常。实现者只释放自己拥有的资源，完成逻辑释放后重复调用无操作；拒绝尚未满足的释放前置条件时可保留所有权。开始消费 native 句柄时先将共享 owner 置为 inert，再执行实际清理，避免重复释放。GC-free release hook 不调用 dispose，只按 9.1.6 执行其允许的原始清理。
+IO 端点及具有 close 语义的 native owner 实现 Closeable，以 close 为主入口，关闭状态命名为 isClosed。Closeable 的普通默认 dispose 方法调用 close，复用同一个 use 实现；不增加隐式释放或另一套资源框架。取消登记、Mutex、ConditionVariable、Thread 等一般资源继续使用 Disposable.dispose。需要挂起清理的对象使用独立 AsyncCloseable.close 与 useAsync，见异步 IO 规范第 3 节。
+
+资源 API 中 withX 表示作用域借用，takeX 表示取走当前 owner 持有的资源，takeOwnership 工厂接管调用者传入资源，必须说明失败前后的责任转移时点。close 只执行类型规定的本地清理；flush、finish 和协议 shutdown 的含义由对应 API 明确说明。
+
+dispose／close 是同步方法，可以分配、阻塞或抛异常。实现者只释放自己拥有的资源，完成逻辑释放后重复调用无操作；拒绝尚未满足的释放前置条件时可保留所有权。开始消费 native 句柄时先将共享 owner 置为 inert，再执行实际清理，避免重复释放。GC-free release hook 不调用 dispose，只按 9.1.6 执行其允许的原始清理。
 
 use 以 receiver 调用 block 恰好一次，正文正常返回或抛出后调用 dispose 恰好一次。receiver 保留具体 T，lambda 参数按 8.6 推断。结果规则如下：
 

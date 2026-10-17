@@ -2,7 +2,7 @@ package scoop.crypto
 
 import scoop.crypto.native.*
 
-public class SecretKey private constructor(private var handle: ULong) : Disposable {
+public class SecretKey private constructor(private var handle: ULong) : Closeable {
     public val size: Long get() { @Unsafe { return bytesSize(nativeHandle()) } }
 
     public companion object {
@@ -21,12 +21,11 @@ public class SecretKey private constructor(private var handle: ULong) : Disposab
 
     public fun exportBytes(): Array<Byte> { @Unsafe { return cryptoBytes(secretExport(nativeHandle()), "export secret key") } }
 
-    public override fun dispose() {
+    public override fun close() {
         val owned = handle
         handle = 0UL
         if (owned != 0UL) @Unsafe { bytesFree(owned) }
     }
-    public fun close() { dispose() }
 }
 
 public fun hmac(algorithm: DigestAlgorithm, key: SecretKey, data: List<Byte>): Array<Byte> {

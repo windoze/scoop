@@ -2,9 +2,28 @@ package scoop.tls.asyncio
 
 import scoop.asyncio.*
 import scoop.platform.memory.NativeByteBuffer
-import scoop.tls.TlsConnectionInfo
+import scoop.tls.*
+import scoop.tls.native.TlsEngine
 
 public class AsyncTlsStream internal constructor(private val state: TlsConnection) : AsyncByteStream, AsyncCloseable {
+    public companion object {
+        // Completes the handshake; ownership transfers when its request is registered.
+        public suspend fun <T> takeOwnershipAsClient(transport: T, context: TlsClientContext, peer: TlsPeerName): AsyncTlsStream
+            where T : AsyncByteStream, T : AsyncCloseable {
+            val loop = currentEventLoop()
+            val job = requireJob(loop, true)
+            return adoptAsync(TlsEngine.client(context, peer), transport, loop, job)
+        }
+
+        // Completes the handshake; ownership transfers when its request is registered.
+        public suspend fun <T> takeOwnershipAsServer(transport: T, context: TlsServerContext): AsyncTlsStream
+            where T : AsyncByteStream, T : AsyncCloseable {
+            val loop = currentEventLoop()
+            val job = requireJob(loop, true)
+            return adoptAsync(TlsEngine.server(context), transport, loop, job)
+        }
+    }
+
     public val isClosed: Boolean get() = state.lock.withLock { state.closed }
     public val connectionInfo: TlsConnectionInfo get() = state.lock.withLock {
         if (state.closing) throw IoClosedException()
@@ -15,5 +34,6 @@ public class AsyncTlsStream internal constructor(private val state: TlsConnectio
     public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long = request(state, RequestKind.Write, Some(buffer), count)
     public override suspend fun flush() { request(state, RequestKind.Flush, None, 0L) }
     public suspend fun shutdownGracefully() { request(state, RequestKind.Shutdown, None, 0L) }
+    // Waits for local cleanup; use shutdownGracefully for the TLS close handshake.
     public override suspend fun close() { closeConnection(state) }
 }

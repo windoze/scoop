@@ -10,7 +10,7 @@ internal fun digestCode(algorithm: DigestAlgorithm): Int = when (algorithm) {
     case SHA512 -> 2
 }
 
-public class Digest public constructor(algorithm: DigestAlgorithm) : Disposable {
+public class Digest public constructor(algorithm: DigestAlgorithm) : Closeable {
     private var handle: ULong = createDigest(algorithm)
     private var finished: Boolean = false
 
@@ -34,12 +34,11 @@ public class Digest public constructor(algorithm: DigestAlgorithm) : Disposable 
         @Unsafe { return cryptoBytes(digestFinish(handle), "finish digest") }
     }
 
-    public override fun dispose() {
+    public override fun close() {
         val owned = handle
         handle = 0UL
         if (owned != 0UL) @Unsafe { digestFree(owned) }
     }
-    public fun close() { dispose() }
 }
 
 public fun digest(algorithm: DigestAlgorithm, data: List<Byte>): Array<Byte> =

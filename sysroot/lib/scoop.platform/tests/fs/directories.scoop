@@ -19,18 +19,18 @@ private class DirectoriesTest {
                 assertSame(entries, entries.iterator())
                 for (entry in entries) seen.add(entry.name.decodeUtf8())
                 assertEquals(2L, seen.size)
-                assertTrue(entries.isDisposed)
+                assertTrue(entries.isClosed)
                 assertTrue(entries.next() == None)
                 assertTrue(seen[0L] != seen[1L])
             }
             val early = Files.entries(nested)
             early.use { entries -> for (entry in entries) { assertTrue(Files.exists(entry.path)); break } }
-            assertTrue(early.isDisposed)
+            assertTrue(early.isClosed)
             assertFailsWith<IllegalStateException> { early.next() }
             val failed = Files.entries(nested)
             val failure = Throwable()
             assertSame(failure, assertFailsWith<Throwable> { failed.use { throw failure } })
-            assertTrue(failed.isDisposed)
+            assertTrue(failed.isClosed)
             assertFailsWith<PlatformException> { Files.delete(nested) }
         }
     }
@@ -76,7 +76,7 @@ private class DirectoriesTest {
             assertTrue(Files.metadata(first).kind == FileKind.Regular)
             assertTrue(Files.metadata(directory).kind == FileKind.Directory)
             assertEquals(0L, Files.metadata(first).size)
-            File.open(first).use { assertFalse(it.isDisposed) }
+            File.open(first).use { assertFalse(it.isClosed) }
             assertTrue(Files.exists(first))
             assertFailsWith<IllegalArgumentException> { Files.createTempFile(Some(tree.path), "bad/name") }
             assertFailsWith<IllegalArgumentException> { Files.createTempDirectory(Some(tree.path), "bad\u0000") }

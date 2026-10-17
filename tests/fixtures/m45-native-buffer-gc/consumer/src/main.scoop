@@ -68,7 +68,7 @@ private fun explicitLifetime() {
         owner.close()
         gcCollect()
         verify(negative() == -expected && notifications() == 3 && freeCount() == 1)
-        verify(owner.isDisposed)
+        verify(owner.isClosed)
     }
 }
 

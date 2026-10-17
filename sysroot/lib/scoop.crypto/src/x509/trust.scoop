@@ -7,7 +7,7 @@ import scoop.time.Instant
 public enum CertificatePurpose { ServerAuth, ClientAuth, Any }
 public struct CertificateValidationFailure(val code: Long, val depth: Int, val detail: String)
 
-public class TrustStore private constructor(private var handle: ULong) : Disposable {
+public class TrustStore private constructor(private var handle: ULong) : Closeable {
     public companion object {
         public fun fromCertificates(anchors: List<Certificate>): TrustStore {
             @Unsafe {
@@ -15,7 +15,7 @@ public class TrustStore private constructor(private var handle: ULong) : Disposa
                 try {
                     for (anchor in anchors) cryptoValue(storeAdd(store.handle, certificateHandle(anchor)), "add trust anchor")
                     return store
-                } catch (error: Throwable) { store.dispose(); throw error }
+                } catch (error: Throwable) { store.close(); throw error }
             }
         }
     }
@@ -52,10 +52,9 @@ public class TrustStore private constructor(private var handle: ULong) : Disposa
         }
     }
 
-    public override fun dispose() {
+    public override fun close() {
         val owned = handle
         handle = 0UL
         if (owned != 0UL) @Unsafe { storeFree(owned) }
     }
-    public fun close() { dispose() }
 }

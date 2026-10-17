@@ -14,7 +14,7 @@ private class TlsStreamConsumerTests {
         consumerClientContext().use { clientConfig -> consumerServerContext().use { serverConfig ->
             TcpListener.bind(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).use { listener ->
                 Thread.start {
-                    tlsServer(listener.accept(), serverConfig).use { server ->
+                    TlsStream.takeOwnershipAsServer(listener.accept(), serverConfig).use { server ->
                         NativeByteBuffer.allocate(3L).use { input ->
                             server.readFully(input, 3L)
                             server.writeFully(input, 3L)
@@ -22,7 +22,7 @@ private class TlsStreamConsumerTests {
                         }
                     }
                 }.use {
-                    tlsClient(TcpStream.connect(listener.localAddress), clientConfig, TlsPeerName.Dns("localhost")).use { client ->
+                    TlsStream.takeOwnershipAsClient(TcpStream.connect(listener.localAddress), clientConfig, TlsPeerName.Dns("localhost")).use { client ->
                         NativeByteBuffer.allocate(3L).use { bytes ->
                             bytes.writeBytes("tls".toByteArray())
                             client.writeFully(bytes)

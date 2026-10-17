@@ -5,22 +5,22 @@ import scoop.platform.memory.NativeByteBuffer
 public class BufferedSource private constructor(
     private val source: ByteSource,
     private val internalBuffer: NativeByteBuffer,
-    private val owner: Disposable?
-) : ByteSource, Disposable {
-    private var disposed: Boolean = false
+    private val owner: Closeable?
+) : ByteSource, Closeable {
+    private var closed: Boolean = false
     private var active: Boolean = false
     private var eof: Boolean = false
-    public val isDisposed: Boolean get() = disposed
+    public val isClosed: Boolean get() = closed
 
     public constructor(source: ByteSource, capacity: Long = 8192L) : this(source, newIoBuffer(capacity), None) {}
 
     public companion object {
         public fun <T> takeOwnership(source: T, capacity: Long = 8192L): BufferedSource
-            where T : ByteSource, T : Disposable = BufferedSource(source, newIoBuffer(capacity), Some(source))
+            where T : ByteSource, T : Closeable = BufferedSource(source, newIoBuffer(capacity), Some(source))
     }
 
     public override fun readInto(buffer: NativeByteBuffer, count: Long): Long {
-        requireIdle(disposed, active)
+        requireIdle(closed, active)
         requireTransfer(count, buffer.writableBytes)
         if (count == 0L) return 0L
         active = true
@@ -38,34 +38,33 @@ public class BufferedSource private constructor(
         } finally { active = false }
     }
 
-    public override fun dispose() {
-        if (disposed) return
-        requireIdle(disposed, active)
-        disposed = true
-        disposeBufferAndOwner(internalBuffer, owner, None)
+    public override fun close() {
+        if (closed) return
+        requireIdle(closed, active)
+        closed = true
+        closeBufferAndOwner(internalBuffer, owner, None)
     }
 
-    public fun close() { dispose() }
 }
 
 public class BufferedSink private constructor(
     private val sink: ByteSink,
     private val internalBuffer: NativeByteBuffer,
-    private val owner: Disposable?
-) : ByteSink, Disposable {
-    private var disposed: Boolean = false
+    private val owner: Closeable?
+) : ByteSink, Closeable {
+    private var closed: Boolean = false
     private var active: Boolean = false
-    public val isDisposed: Boolean get() = disposed
+    public val isClosed: Boolean get() = closed
 
     public constructor(sink: ByteSink, capacity: Long = 8192L) : this(sink, newIoBuffer(capacity), None) {}
 
     public companion object {
         public fun <T> takeOwnership(sink: T, capacity: Long = 8192L): BufferedSink
-            where T : ByteSink, T : Disposable = BufferedSink(sink, newIoBuffer(capacity), Some(sink))
+            where T : ByteSink, T : Closeable = BufferedSink(sink, newIoBuffer(capacity), Some(sink))
     }
 
     public override fun writeFrom(buffer: NativeByteBuffer, count: Long): Long {
-        requireIdle(disposed, active)
+        requireIdle(closed, active)
         requireTransfer(count, buffer.readableBytes)
         if (count == 0L) return 0L
         active = true
@@ -84,37 +83,37 @@ public class BufferedSink private constructor(
     }
 
     public override fun flush() {
-        requireIdle(disposed, active)
+        requireIdle(closed, active)
         active = true
         try { drain(); sink.flush() }
         finally { active = false }
     }
 
-    public override fun dispose() {
-        if (disposed) return
-        requireIdle(disposed, active)
-        disposed = true
+    // Flushes pending output, then closes owned resources even when flushing fails.
+    public override fun close() {
+        if (closed) return
+        requireIdle(closed, active)
+        closed = true
         var failure: Throwable? = None
         try { drain(); sink.flush() }
         catch (error: Throwable) { failure = Some(error) }
-        disposeBufferAndOwner(internalBuffer, owner, failure)
+        closeBufferAndOwner(internalBuffer, owner, failure)
     }
 
-    public fun close() { dispose() }
 }
 
-private fun requireIdle(disposed: Boolean, active: Boolean) {
-    if (disposed) throw IllegalStateException(Some("stream is disposed"))
+private fun requireIdle(closed: Boolean, active: Boolean) {
+    if (closed) throw IllegalStateException(Some("stream is closed"))
     if (active) throw IllegalStateException(Some("stream operation is active"))
 }
 
-private fun disposeBufferAndOwner(internalBuffer: NativeByteBuffer, owner: Disposable?, initial: Throwable?) {
+private fun closeBufferAndOwner(internalBuffer: NativeByteBuffer, owner: Closeable?, initial: Throwable?) {
     var failure = initial
-    try { internalBuffer.dispose() }
+    try { internalBuffer.close() }
     catch (error: Throwable) { failure = Some(appendCleanupFailure(failure, error)) }
     when (owner) {
         case Some(value) -> {
-            try { value.dispose() }
+            try { value.close() }
             catch (error: Throwable) { failure = Some(appendCleanupFailure(failure, error)) }
         }
         case None -> {}

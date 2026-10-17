@@ -113,7 +113,7 @@ private class CommandsTest {
         exited(child.wait())
         child.dispose()
         child.dispose()
-        assertTrue(child.isDisposed)
+        assertTrue(child.isClosed)
         output.use { assertEquals("owned", it.readText()) }
     }
 
@@ -128,7 +128,7 @@ private class CommandsTest {
                     assertEquals(0L, result.stdout.size)
                     assertEquals(0L, result.stderr.size)
                 }
-                assertFalse(file.isDisposed)
+                assertFalse(file.isClosed)
                 file.seek(0L)
                 assertEquals("outerr", file.readText())
             }

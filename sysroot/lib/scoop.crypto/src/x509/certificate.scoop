@@ -7,7 +7,7 @@ import scoop.time.Instant
 public enum SubjectAlternativeName { Dns(String), Ip(Array<Byte>) }
 public enum PeerIdentity { Dns(String), Ip(Array<Byte>) }
 
-public class Certificate private constructor(private var handle: ULong) : Disposable {
+public class Certificate private constructor(private var handle: ULong) : Closeable {
     public val subject: String get() = textField(0)
     public val issuer: String get() = textField(1)
     public val serialNumber: String get() = textField(2)
@@ -70,10 +70,9 @@ public class Certificate private constructor(private var handle: ULong) : Dispos
         }
     }
 
-    public override fun dispose() {
+    public override fun close() {
         val owned = handle
         handle = 0UL
         if (owned != 0UL) @Unsafe { certificateFree(owned) }
     }
-    public fun close() { dispose() }
 }

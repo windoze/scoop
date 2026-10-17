@@ -110,7 +110,7 @@ private class NativeByteBufferBorrowTest {
         assertEquals(1L, buffer.writePosition)
         assertEquals(1L, buffer.readableBytes)
         assertEquals(3L, buffer.writableBytes)
-        assertFalse(buffer.isDisposed)
+        assertFalse(buffer.isClosed)
         assertEquals(1.toInt8(), buffer.getByte(0L))
         assertFailsWith<IllegalStateException> { buffer.dispose() }
         assertFailsWith<IllegalStateException> { buffer.close() }

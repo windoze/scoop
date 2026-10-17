@@ -7,7 +7,7 @@ import scoop.tls.*
 public enum TlsStepKind { Done, WantRead, WantWrite, Closed }
 public struct TlsStep(val kind: TlsStepKind, val count: Long)
 
-public class TlsEngine private constructor(private var handle: ULong) : Disposable {
+public class TlsEngine private constructor(private var handle: ULong) : Closeable {
     public companion object {
         public fun client(context: TlsClientContext, peer: TlsPeerName): TlsEngine = TlsEngine(context.newSession(peer))
         public fun server(context: TlsServerContext): TlsEngine = TlsEngine(context.newSession())
@@ -72,8 +72,7 @@ public class TlsEngine private constructor(private var handle: ULong) : Disposab
     }
 
     public fun endInput() { @Unsafe { endInput(nativeHandle()) } }
-    public fun close() { dispose() }
-    public override fun dispose() {
+    public override fun close() {
         val owned = handle
         handle = 0UL
         if (owned != 0UL) @Unsafe { sessionFree(owned) }

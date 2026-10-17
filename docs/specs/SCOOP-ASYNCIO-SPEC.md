@@ -49,7 +49,7 @@ public interface AsyncCloseable { public suspend fun close() }
 public suspend fun <R, T> R.useAsync(block: suspend (R) -> T): T where R : AsyncCloseable
 ```
 
-useAsync 与 core use 一样在正文与清理均失败时抛 ResourceUseException。异步关闭不通过 Disposable 表达。GC hook 不承担驱动、取消、恢复、flush 或等待；正常生命周期由 close 与 run 收尾保证。
+useAsync 与 core use 一样在正文与清理均失败时抛 ResourceUseException。同步对应协议为 core Closeable.close；异步关闭继续使用独立 AsyncCloseable，不通过同步 Disposable 表达。GC hook 不承担驱动、取消、恢复、flush 或等待；正常生命周期由 close 与 run 收尾保证。
 
 ## 4. 流、buffer 与组合
 

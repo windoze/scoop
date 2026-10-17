@@ -30,7 +30,7 @@ private fun pythonServer(version: TlsVersion, dns: Boolean) {
             val b = "proto-b".toByteArray().toArray()
             clientContext(TlsOptions(version, version, [a, b])).use { context ->
                 val peer = if (dns) TlsPeerName.Dns("localhost") else TlsPeerName.Ip(IpAddress.IPV4_LOOPBACK)
-                tlsClient(TcpStream.connect(SocketAddress(IpAddress.IPV4_LOOPBACK, port)), context, peer).use { stream ->
+                TlsStream.takeOwnershipAsClient(TcpStream.connect(SocketAddress(IpAddress.IPV4_LOOPBACK, port)), context, peer).use { stream ->
                     assertTrue(stream.connectionInfo.version == version)
                     assertEquals(b.toHexString(), stream.connectionInfo.alpn!!.toHexString())
                     stream.writeAllBytes("tls".toByteArray())

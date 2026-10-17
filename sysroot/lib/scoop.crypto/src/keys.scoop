@@ -4,7 +4,7 @@ import scoop.crypto.native.*
 
 public enum KeyAlgorithm { RSA, P256, Ed25519, Other }
 
-public class PrivateKey private constructor(private var handle: ULong) : Disposable {
+public class PrivateKey private constructor(private var handle: ULong) : Closeable {
     public val algorithm: KeyAlgorithm get() = nativeKeyAlgorithm(nativeHandle())
 
     public companion object {
@@ -31,15 +31,14 @@ public class PrivateKey private constructor(private var handle: ULong) : Disposa
     public fun publicKey(): PublicKey { @Unsafe { return PublicKey(cryptoValue(keyPublic(nativeHandle()), "extract public key")) } }
     public fun toDer(): Array<Byte> { @Unsafe { return cryptoBytes(keyExport(nativeHandle(), 1, 0), "export private key") } }
     public fun toPem(): String { @Unsafe { return String.fromUtf8Unchecked(cryptoBytes(keyExport(nativeHandle(), 1, 1), "export private key")) } }
-    public override fun dispose() {
+    public override fun close() {
         val owned = handle
         handle = 0UL
         if (owned != 0UL) @Unsafe { keyFree(owned) }
     }
-    public fun close() { dispose() }
 }
 
-public class PublicKey internal constructor(private var handle: ULong) : Disposable {
+public class PublicKey internal constructor(private var handle: ULong) : Closeable {
     public val algorithm: KeyAlgorithm get() = nativeKeyAlgorithm(nativeHandle())
 
     public companion object {
@@ -54,12 +53,11 @@ public class PublicKey internal constructor(private var handle: ULong) : Disposa
 
     public fun toDer(): Array<Byte> { @Unsafe { return cryptoBytes(keyExport(nativeHandle(), 0, 0), "export public key") } }
     public fun toPem(): String { @Unsafe { return String.fromUtf8Unchecked(cryptoBytes(keyExport(nativeHandle(), 0, 1), "export public key")) } }
-    public override fun dispose() {
+    public override fun close() {
         val owned = handle
         handle = 0UL
         if (owned != 0UL) @Unsafe { keyFree(owned) }
     }
-    public fun close() { dispose() }
 }
 
 private fun nativeKeyAlgorithm(handle: ULong): KeyAlgorithm {

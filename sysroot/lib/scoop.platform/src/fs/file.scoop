@@ -19,10 +19,10 @@ public struct OpenOptions(
     }
 }
 
-public class File private constructor(private val context: OsString?) : ByteSource, ByteSink, Disposable {
+public class File private constructor(private val context: OsString?) : ByteSource, ByteSink, Closeable {
     private var descriptor: Int = -1
     private val active: AtomicLong = AtomicLong(0L)
-    public val isDisposed: Boolean get() = descriptor < 0
+    public val isClosed: Boolean get() = descriptor < 0
     public val position: Long get() = seekNative(0L, true)
     public val size: Long get() = metadata().size
 
@@ -64,7 +64,7 @@ public class File private constructor(private val context: OsString?) : ByteSour
     }
 
     private fun requireOpen() {
-        if (descriptor < 0) throw IllegalStateException(Some("file is disposed"))
+        if (descriptor < 0) throw IllegalStateException(Some("file is closed"))
     }
 
     public fun duplicate(): File = withDescriptor { fd -> File.duplicateDescriptor(fd, context) }
@@ -154,7 +154,7 @@ public class File private constructor(private val context: OsString?) : ByteSour
 
     public override fun flush() { requireOpen() }
 
-    public override fun dispose() {
+    public override fun close() {
         if (descriptor < 0) return
         if (active.load(MemoryOrder.Relaxed) != 0L) throw IllegalStateException(Some("file operation is active"))
         val owned = descriptor
@@ -165,7 +165,6 @@ public class File private constructor(private val context: OsString?) : ByteSour
         }
     }
 
-    public fun close() { dispose() }
 
     release { if (descriptor >= 0) { @Unsafe { nativeClose(descriptor) } } }
 }

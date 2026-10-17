@@ -7,11 +7,11 @@ import scoop.platform.system.*
 public enum ExitStatus { Exited(val code: Int), Signaled(val signal: Int) }
 public struct ProcessOutput(val stdout: Array<Byte>, val stderr: Array<Byte>, val status: ExitStatus)
 
-public class ChildProcess internal constructor(inputPipe: Boolean, outputPipe: Boolean, errorPipe: Boolean) : Disposable {
+public class ChildProcess internal constructor(inputPipe: Boolean, outputPipe: Boolean, errorPipe: Boolean) : Closeable {
     private var process: Int = -1
     private var result: ExitStatus? = None
     private var waitFailure: Throwable? = None
-    private var disposed: Boolean = false
+    private var closed: Boolean = false
     private val active: AtomicLong = AtomicLong(0L)
     private val configured: Array<Boolean> = [inputPipe, outputPipe, errorPipe]
     private var input: PipeSink? = if (inputPipe) Some(PipeSink(File.newOwner())) else None
@@ -20,7 +20,7 @@ public class ChildProcess internal constructor(inputPipe: Boolean, outputPipe: B
     public val stdin: ByteSink? get() = input?.borrowed()
     public val stdout: ByteSource? get() = output?.borrowed()
     public val stderr: ByteSource? get() = error?.borrowed()
-    public val isDisposed: Boolean get() = disposed
+    public val isClosed: Boolean get() = closed
 
     internal fun adopt(descriptors: MutableArray<Int>) {
         process = descriptors[0L]
@@ -76,14 +76,14 @@ public class ChildProcess internal constructor(inputPipe: Boolean, outputPipe: B
     }
 
     public fun communicate(input: List<Byte>? = None): ProcessOutput {
-        if (disposed) throw IllegalStateException(Some("process is disposed"))
+        if (closed) throw IllegalStateException(Some("process is closed"))
         when (input) {
             case Some(_) -> if (!configured[0L]) throw IllegalArgumentException(Some("input requires stdin pipe"))
             case None -> {}
         }
-        if ((configured[0L] && (this.input?.isDisposed ?: true)) ||
-            (configured[1L] && (output?.isDisposed ?: true)) ||
-            (configured[2L] && (error?.isDisposed ?: true))) {
+        if ((configured[0L] && (this.input?.isClosed ?: true)) ||
+            (configured[1L] && (output?.isClosed ?: true)) ||
+            (configured[2L] && (error?.isClosed ?: true))) {
             throw IllegalStateException(Some("process pipe was already taken or closed"))
         }
         val snapshot: Array<Byte>? = when (input) {
@@ -97,23 +97,23 @@ public class ChildProcess internal constructor(inputPipe: Boolean, outputPipe: B
             return ProcessOutput(stdout, stderr, status)
         } catch (failure: Throwable) {
             var reported = failure
-            try { pipes.dispose() } catch (cleanup: Throwable) { reported = ResourceUseException(reported, cleanup) }
+            try { pipes.close() } catch (cleanup: Throwable) { reported = ResourceUseException(reported, cleanup) }
             try { kill() } catch (cleanup: Throwable) { reported = ResourceUseException(reported, cleanup) }
             try { wait() } catch (cleanup: Throwable) { reported = ResourceUseException(reported, cleanup) }
             throw reported
         }
     }
 
-    public override fun dispose() {
-        if (disposed) return
+    public override fun close() {
+        if (closed) return
         if (active.load(MemoryOrder.Relaxed) != 0L) throw IllegalStateException(Some("process operation is active"))
         var failure: Throwable? = None
         val endpoints: Array<File?> = [takeStdin()?.file, takeStdout()?.file, takeStderr()?.file]
         for (endpoint in endpoints) {
-            try { endpoint?.dispose() }
+            try { endpoint?.close() }
             catch (error: Throwable) { failure = Some(combineProcessFailure(failure, error)) }
         }
-        try { wait(); disposed = true }
+        try { wait(); closed = true }
         catch (error: Throwable) { failure = Some(combineProcessFailure(failure, error)) }
         when (failure) { case Some(error) -> throw error; case None -> {} }
     }

@@ -6,12 +6,12 @@ import scoop.platform.io.*
 import scoop.platform.memory.NativeByteBuffer
 import scoop.platform.system.*
 
-internal class ProcessPipes internal constructor(input: PipeSink?, output: PipeSource?, error: PipeSource?) : Disposable {
+internal class ProcessPipes internal constructor(input: PipeSink?, output: PipeSource?, error: PipeSource?) : Closeable {
     private val files: Array<File?> = [input?.file, output?.file, error?.file]
     private val open: MutableArray<Boolean> = MutableArray<Boolean>(3L) { false }
 
     init {
-        for (index in 0L..<3L) open[index] = !(files[index]?.isDisposed ?: true)
+        for (index in 0L..<3L) open[index] = !(files[index]?.isClosed ?: true)
     }
 
     internal fun transfer(input: Array<Byte>?): (Array<Byte>, Array<Byte>) = use {
@@ -81,10 +81,10 @@ internal class ProcessPipes internal constructor(input: PipeSink?, output: PipeS
     private fun close(index: Long) {
         if (!open[index]) return
         open[index] = false
-        files[index]!!.dispose()
+        files[index]!!.close()
     }
 
-    public override fun dispose() {
+    public override fun close() {
         var failure: Throwable? = None
         for (index in 0L..<3L) {
             try { close(index) }

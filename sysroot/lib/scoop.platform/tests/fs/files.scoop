@@ -59,8 +59,8 @@ private class FilesTest {
                 assertEquals(98.toInt8(), buffer.readByte())
             }
             duplicate.close()
-            assertTrue(original.isDisposed)
-            assertTrue(duplicate.isDisposed)
+            assertTrue(original.isClosed)
+            assertTrue(duplicate.isClosed)
             assertFailsWith<IllegalStateException> { original.position }
             assertFailsWith<IllegalStateException> { original.metadata() }
             assertFailsWith<IllegalStateException> { original.flush() }
@@ -80,7 +80,7 @@ private class FilesTest {
                     assertFailsWith<IllegalStateException> { file.dispose() }
                     assertEquals("abc", file.readText())
                 }
-                assertFalse(file.isDisposed)
+                assertFalse(file.isClosed)
             }
         }
     }

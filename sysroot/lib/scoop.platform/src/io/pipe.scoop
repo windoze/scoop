@@ -3,20 +3,18 @@ package scoop.platform.io
 import scoop.platform.fs.File
 import scoop.platform.memory.NativeByteBuffer
 
-public class PipeSource internal constructor(internal val file: File) : ByteSource, Disposable {
-    public val isDisposed: Boolean get() = file.isDisposed
+public class PipeSource internal constructor(internal val file: File) : ByteSource, Closeable {
+    public val isClosed: Boolean get() = file.isClosed
     public override fun readInto(buffer: NativeByteBuffer, count: Long): Long = file.readInto(buffer, count)
-    public override fun dispose() { file.dispose() }
-    public fun close() { dispose() }
+    public override fun close() { file.close() }
     internal fun borrowed(): ByteSource = BorrowedSource(file)
 }
 
-public class PipeSink internal constructor(internal val file: File) : ByteSink, Disposable {
-    public val isDisposed: Boolean get() = file.isDisposed
+public class PipeSink internal constructor(internal val file: File) : ByteSink, Closeable {
+    public val isClosed: Boolean get() = file.isClosed
     public override fun writeFrom(buffer: NativeByteBuffer, count: Long): Long = file.writeFrom(buffer, count)
     public override fun flush() { file.flush() }
-    public override fun dispose() { file.dispose() }
-    public fun close() { dispose() }
+    public override fun close() { file.close() }
     internal fun borrowed(): ByteSink = BorrowedSink(file)
 }
 

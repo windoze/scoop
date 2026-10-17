@@ -45,7 +45,7 @@ private class BufferedStreamsTest {
         owned.close()
         assertTrue(sink.closed)
         assertEquals(1, sink.closes)
-        assertTrue(owned.isDisposed)
+        assertTrue(owned.isClosed)
         assertFailsWith<IllegalStateException> { owned.flush() }
         NativeByteBuffer.allocate().use { buffer ->
             assertFailsWith<IllegalStateException> { borrowed.readInto(buffer, 0L) }
@@ -85,7 +85,7 @@ private class BufferedStreamsTest {
         assertSame(sink.cleanup, failure.cleanupFailure)
         assertEquals(2L, sink.bytes.size)
         assertEquals(1, sink.closes)
-        assertTrue(buffered.isDisposed)
+        assertTrue(buffered.isClosed)
         buffered.dispose()
         assertEquals(1, sink.closes)
     }

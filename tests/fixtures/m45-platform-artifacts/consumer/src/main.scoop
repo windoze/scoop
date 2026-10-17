@@ -30,7 +30,7 @@ fun main() {
             }
         }
     })
-    println(buffer.isDisposed)
+    println(buffer.isClosed)
     val directory = Files.createTempDirectory(prefix = "scoop-artifact-")
     try {
         val file = directory.resolve(Path.fromString("text"))

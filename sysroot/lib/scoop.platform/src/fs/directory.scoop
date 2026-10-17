@@ -7,11 +7,11 @@ import scoop.platform.system.OsString
 public struct DirectoryEntry(val name: OsString, val path: Path)
 
 public class DirectoryEntries private constructor(private val path: Path)
-    : Iterable<DirectoryEntry>, Iterator<DirectoryEntry>, Disposable {
+    : Iterable<DirectoryEntry>, Iterator<DirectoryEntry>, Closeable {
     private var directory: Ptr<Unit>? = None
     private var finished: Boolean = false
     private var active: Boolean = false
-    public val isDisposed: Boolean get() = directory == None
+    public val isClosed: Boolean get() = directory == None
 
     public companion object {
         internal fun open(path: Path): DirectoryEntries {
@@ -31,7 +31,7 @@ public class DirectoryEntries private constructor(private val path: Path)
 
     public override fun next(): DirectoryEntry? {
         if (finished) return None
-        if (directory == None) throw IllegalStateException(Some("directory is disposed"))
+        if (directory == None) throw IllegalStateException(Some("directory is closed"))
         if (active) throw IllegalStateException(Some("directory operation is active"))
         active = true
         try {
@@ -61,13 +61,12 @@ public class DirectoryEntries private constructor(private val path: Path)
         }
     }
 
-    public override fun dispose() {
+    public override fun close() {
         if (directory == None) return
         if (active) throw IllegalStateException(Some("directory operation is active"))
         closeNative()
     }
 
-    public fun close() { dispose() }
 
     release {
         when (directory) {

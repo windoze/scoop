@@ -28,7 +28,7 @@ private class AsyncTlsConsumerTests {
             val listener = loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
             try {
                 val serving = scope.launch suspend {
-                    asyncTlsServer(listener.accept(), serverConfig).useAsync suspend { server ->
+                    AsyncTlsStream.takeOwnershipAsServer(listener.accept(), serverConfig).useAsync suspend { server ->
                         NativeByteBuffer.allocate(1L).use suspend { bytes ->
                             server.readFully(bytes)
                             server.writeFully(bytes)
@@ -38,7 +38,7 @@ private class AsyncTlsConsumerTests {
                 }
                 val addresses = loop.resolve(OsString.fromString("localhost"), listener.localAddress.port, Some(AddressFamily.IPv4))
                 assertTrue(addresses.size > 0L)
-                asyncTlsClient(loop.connectTcp(addresses[0L]), clientConfig, TlsPeerName.Dns("localhost")).useAsync suspend { client ->
+                AsyncTlsStream.takeOwnershipAsClient(loop.connectTcp(addresses[0L]), clientConfig, TlsPeerName.Dns("localhost")).useAsync suspend { client ->
                     NativeByteBuffer.allocate(1L).use suspend { bytes ->
                         bytes.writeByte(42)
                         client.writeFully(bytes)

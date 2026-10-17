@@ -28,7 +28,7 @@ private fun opensslClient(version: TlsVersion) {
                 val child = peerCommand("openssl", arguments, Stdio.Pipe).spawn(searchPath = true)
                 try {
                     Thread.start {
-                        tlsServer(listener.accept(), context).use { server ->
+                        TlsStream.takeOwnershipAsServer(listener.accept(), context).use { server ->
                             assertEquals(protocol.toHexString(), server.connectionInfo.alpn!!.toHexString())
                             assertEquals("from peer", server.readLine()!!)
                             server.writeText("from scoop\n")

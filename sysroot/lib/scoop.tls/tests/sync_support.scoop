@@ -17,7 +17,7 @@ internal class SyncGate : Disposable {
     public override fun dispose() { condition.dispose(); mutex.dispose() }
 }
 
-internal class ShortTransport(val socket: TcpStream) : ByteSource, ByteSink, Disposable {
+internal class ShortTransport(val socket: TcpStream) : ByteSource, ByteSink, Closeable {
     var reads: Long = 0L
     var writes: Long = 0L
     var closes: Int = 0
@@ -34,18 +34,18 @@ internal class ShortTransport(val socket: TcpStream) : ByteSource, ByteSink, Dis
         return socket.writeFrom(buffer, if (count > 2053L) 2053L else count)
     }
     public override fun flush() { socket.flush() }
-    public override fun dispose() {
+    public override fun close() {
         closes += 1
-        socket.dispose()
+        socket.close()
         if (failClose) throw TestCleanupFailure()
     }
 }
 
-internal class FailingTransport : ByteSource, ByteSink, Disposable {
+internal class FailingTransport : ByteSource, ByteSink, Closeable {
     var closes: Int = 0
     var failClose: Boolean = false
     public override fun readInto(buffer: NativeByteBuffer, count: Long): Long { throw TestTransportFailure() }
     public override fun writeFrom(buffer: NativeByteBuffer, count: Long): Long { buffer.skip(count); return count }
     public override fun flush() { throw TestTransportFailure() }
-    public override fun dispose() { closes += 1; if (failClose) throw TestCleanupFailure() }
+    public override fun close() { closes += 1; if (failClose) throw TestCleanupFailure() }
 }

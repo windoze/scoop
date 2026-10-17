@@ -4,8 +4,8 @@ import scoop.platform.fs.File
 import scoop.platform.io.*
 import scoop.platform.memory.NativeByteBuffer
 
-public class TcpStream internal constructor(private val file: File) : ByteSource, ByteSink, Disposable {
-    public val isDisposed: Boolean get() = file.isDisposed
+public class TcpStream internal constructor(private val file: File) : ByteSource, ByteSink, Closeable {
+    public val isClosed: Boolean get() = file.isClosed
     public val localAddress: SocketAddress get() = file.socketAddress(false)
     public val peerAddress: SocketAddress get() = file.socketAddress(true)
     public val noDelay: Boolean get() = option(true, false, false)
@@ -62,13 +62,12 @@ public class TcpStream internal constructor(private val file: File) : ByteSource
         }
     }
     public override fun flush() { file.flush() }
-    public override fun dispose() { file.dispose() }
-    public fun close() { dispose() }
+    public override fun close() { file.close() }
 }
 
-public class TcpListener private constructor(private val file: File) : Disposable {
+public class TcpListener private constructor(private val file: File) : Closeable {
     public val localAddress: SocketAddress get() = file.socketAddress(false)
-    public val isDisposed: Boolean get() = file.isDisposed
+    public val isClosed: Boolean get() = file.isClosed
 
     public companion object {
         public fun bind(address: SocketAddress, backlog: Int = 128, reuseAddress: Boolean = false): TcpListener {
@@ -94,8 +93,7 @@ public class TcpListener private constructor(private val file: File) : Disposabl
         }
         stream
     }
-    public override fun dispose() { file.dispose() }
-    public fun close() { dispose() }
+    public override fun close() { file.close() }
 }
 
 @Extern(name = "scoop_platform_tcp_connect", captureErrno = true)

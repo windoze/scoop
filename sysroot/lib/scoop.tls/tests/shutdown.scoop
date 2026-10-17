@@ -23,18 +23,18 @@ private fun rejectUnconsumed(buffered: Boolean) {
             TcpListener.bind(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).use { listener ->
                 Thread.start {
                     try {
-                        tlsServer(listener.accept(), serverConfig).use { server ->
+                        TlsStream.takeOwnershipAsServer(listener.accept(), serverConfig).use { server ->
                             sent.awaitReady()
                             NativeByteBuffer.allocate(1L).use { input ->
                                 if (buffered) server.readFully(input, 1L)
                                 val error = assertFailsWith<TlsException> { server.shutdownGracefully() }
                                 assertTrue(error.kind == TlsFailureKind.UnconsumedData)
-                                assertTrue(server.isDisposed)
+                                assertTrue(server.isClosed)
                             }
                         }
                     } finally { finished.signal() }
                 }.use {
-                    tlsClient(TcpStream.connect(listener.localAddress), clientConfig, TlsPeerName.Dns("localhost")).use { client ->
+                    TlsStream.takeOwnershipAsClient(TcpStream.connect(listener.localAddress), clientConfig, TlsPeerName.Dns("localhost")).use { client ->
                         client.writeAllBytes("unconsumed".toByteArray())
                         sent.signal()
                         finished.awaitReady()

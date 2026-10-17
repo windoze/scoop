@@ -66,7 +66,7 @@ private class UdpTest {
         val address = socket.localAddress
         socket.close()
         socket.close()
-        assertTrue(socket.isDisposed)
+        assertTrue(socket.isClosed)
         assertFailsWith<IllegalStateException> { socket.localAddress }
         NativeByteBuffer.allocate(1L).use { buffer ->
             assertFailsWith<IllegalStateException> { socket.sendTo(buffer, address) }
