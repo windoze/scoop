@@ -1,10 +1,10 @@
 # M51 设计：密码、证书与 TLS 集成
 
-状态：实施中；完成范围与验证记录见 [进度](PROGRESS.md)。日期：2026-10-17。
+状态：已完成；完成范围与验证记录见 [进度](PROGRESS.md)和[验收](ACCEPTANCE.md)。日期：2026-10-17。
 
-本设计接入 OpenSSL，交付三个普通 Cone：`scoop.crypto` 提供不承担文件／网络 I/O 的密码、密钥、证书和签名功能；`scoop.tls` 复用这些功能，提供公共 TLS 能力及 platform 同步传输；`scoop.tls.asyncio` 复用前两者并适配 M49 异步传输。调研时的代码基线为 `c64823c28`；M49 的三目标验收已经完成，后续 M50 重构仍在进行，不能将 M49 的历史结果视为当前 HEAD 的完整验收。
+本设计接入 OpenSSL，交付三个普通 Cone：`scoop.crypto` 提供不承担文件／网络 I/O 的密码、密钥、证书和签名功能；`scoop.tls` 复用这些功能，提供公共 TLS 能力及 platform 同步传输；`scoop.tls.asyncio` 复用前两者并适配 M49 异步传输。实现基线为 M50 合并后的 `8dad7d42e`，本期按实际提交重新进行功能与组合验收。
 
-依据：[语言规范](../specs/SCOOP-SPEC.md) 11.9、12.2、13～14 章，[运行时规范](../specs/SCOOP-RUNTIME-SPEC.md) 3.8、8～9 章，[实现规范](../specs/SCOOP-IMPL-SPEC.md) 2.7～2.8，[标准基础库规范](../specs/SCOOP-STDLIB-SPEC.md)第 5 章，[平台库规范](../specs/SCOOP-PLATFORM-SPEC.md) 4～5、12 章，以及[异步 I/O 规范](../specs/SCOOP-ASYNCIO-SPEC.md)。公共 API 与行为须先分别写入密码库和 TLS 库规范，再修改实现；本文件不宣称这些 API 已经存在。
+依据：[语言规范](../specs/SCOOP-SPEC.md) 11.9、12.2、13～14 章，[运行时规范](../specs/SCOOP-RUNTIME-SPEC.md) 3.8、8～9 章，[实现规范](../specs/SCOOP-IMPL-SPEC.md) 2.7～2.8，[标准基础库规范](../specs/SCOOP-STDLIB-SPEC.md)第 5 章，[平台库规范](../specs/SCOOP-PLATFORM-SPEC.md) 4～5、12 章，以及[异步 I/O 规范](../specs/SCOOP-ASYNCIO-SPEC.md)。公共 API 与行为由先行制定的[密码库规范](../specs/SCOOP-CRYPTO-SPEC.md)和 [TLS 规范](../specs/SCOOP-TLS-SPEC.md)规定。
 
 ## 1. 目标与范围
 
@@ -40,7 +40,7 @@ HTTP、DTLS、QUIC、连接池、Happy Eyeballs、代理、自动重连、TLS �
 
 ## 3. 后端选择
 
-首版选用 **OpenSSL 3.5 LTS**，三个目标统一 vendor 同一份固定版本的上游源码，分别构建目标产物。实施时选择该维护分支的稳定补丁版本，将精确版本、源码来源、许可证和构建选项记录到实际依赖中。版本更新按普通依赖维护处理，不由程序运行时寻找或替换系统中的任意 SSL 库。
+首版选用 **OpenSSL 3.5.9 LTS**，三个目标统一 vendor 同一份固定版本的上游源码，分别构建目标产物。精确版本、源码来源、许可证和构建选项记录在实际依赖中。版本更新按普通依赖维护处理，不由程序运行时寻找或替换系统中的任意 SSL 库。
 
 | 候选 | 决定与理由 |
 | --- | --- |
@@ -101,7 +101,7 @@ vendor 包含固定版本的上游源码、许可证和必要的构建说明；�
 1. 保留上游源码与必要许可证，使用其 Configure／生成头文件／汇编生成流程；不手工重写配置宏或密码算法。正常汇编和初始化对象通过普通 native 链接处理，不能默认以 `no-asm` 规避工具链缺陷。
 2. crypto 和 TLS 的 shim include 输入明确指向上述当前目标的 include 目录；crypto 只声明 `crypto` 静态库需求，TLS 声明 `ssl` 并消费 crypto 的传递依赖，异步适配不重复声明另一套后端。需求通过 native.libraries 记录，最终链接使用指向同一目标 lib 目录的现有显式 library roots。只使用 crypto 的程序不要求 libssl；目标、头文件与库来自同一份实际构建。
 3. 目标包必须同时提供这些头文件、archive 和普通路径配置；musl 消费者不需自行寻找或编译另一份 OpenSSL。生产 `.slib` 含 shim 对象及逻辑 native 库需求，不假定 `native.libraries` 会自动把整个第三方 archive 嵌入 `.slib`；native 目标资源是完整交付的一部分。
-4. 源码构建先通过普通依赖准备命令生成所选目标的 OpenSSL 产物；使用发行包时直接消费随包产物。必要输入未准备时报缺失输入并指明准备步骤，不以宿主库或系统 OpenSSL 搜索结果替代。依赖准备不在每次应用构建中重新下载、配置或编译未变化的源码。
+4. 源码构建先通过普通依赖准备命令生成所选目标的 OpenSSL 产物；使用发行包时直接消费随包产物。必要输入未准备时报相应目标路径的缺失输入，准备步骤见 [使用说明](USAGE.md)；按明确的目标头文件和 library roots 构建。依赖准备不在每次应用构建中重新下载、配置或编译未变化的源码。
 5. `scripts/build_openssl.py --target <triple>` 调用上游构建并安装上述目标资源；生成头文件通过普通 `native.include` 条件路径表选择，最终命令传入该目标 lib 目录作为 `--library-path`。发行包包含同一目标目录；不使用目标变量插值或任意构建脚本入口。musl 工具链需要其 libc 开发头和隔离的 Linux UAPI 头目录，具体包装方式见 vendor README。
 6. libc、线程库等系统依赖按所选目标的真实构建声明，与自带 OpenSSL 的选择分开。构造／析构、COMMON、native 线程局部存储与 archive 选择交给现有工具链。缓存继续只判断输入更新，不增加产物复核、来源审计或 OpenSSL 专属链接白名单。
 
@@ -319,7 +319,7 @@ shutdownGracefully 是独占读写方向的显式操作：应用先完成自己�
 - 新的 `SCOOP-CRYPTO-SPEC.md` 承载内存密码 API、算法／签名格式、密钥与证书、独立验证、JWS 及资源生命周期；新的 `SCOOP-TLS-SPEC.md` 承载两个传输 Cone 的公共配置、默认身份验证、所有权、进度、并发、取消和关闭合同。本文保留架构、依据、实施与验收安排。
 - platform／asyncio 规范按需增加 TLS 使用关系的引用，保留已交付的基础流与借用合同；不因新封装层改变原始 TCP 的取消或 EOF 语义。
 - 语言／实现规范仅在新增普通库入口说明或确有构建／FFI 合同变化时更新；runtime 无密码／TLS 专属对象、入口或 ABI 变化。
-- 实施后另建精简进度与验收记录，区分 OpenSSL 实际验证和此前 M49 的历史验收。本次设计不提前创建通过记录。
+- [进度](PROGRESS.md)与[验收](ACCEPTANCE.md)分别记录实际完成批次与验证结果，[使用说明](USAGE.md)提供目标资源准备及公开 API 示例；不继承此前 M49 的历史结果作为本期通过记录。
 
 ## 14. 上游依据
 

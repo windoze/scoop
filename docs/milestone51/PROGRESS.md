@@ -1,6 +1,6 @@
 # M51 实施进度
 
-状态：实施中。开始日期：2026-10-17。基线：`8dad7d42e`（M50 合并）。范围与验收要求见 [设计](DESIGN.md)。
+状态：已完成。开始及完成日期：2026-10-17。基线：`8dad7d42e`（M50 合并）。范围见 [设计](DESIGN.md)，最终验证结果见 [验收](ACCEPTANCE.md)。
 
 ## 分批状态
 
@@ -9,7 +9,7 @@
 3. 证书与 JWS：X.509 解析、属性、签名与链验证、五种 JWS 算法和公钥 JWK 导入已实现。
 4. 共享 TLS 引擎与同步流：已完成配置、上下文、有限 BIO 引擎及同步 ByteSource／ByteSink 适配。
 5. M49 异步 TLS：共享引擎适配、双向协调、取消与确定性关闭已完成。
-6. 三目标组合及外部消费者验收：Darwin 已完成，Linux GNU／musl 与完整回归正在执行。
+6. 三目标组合及外部消费者验收：Darwin／GNU／musl 库与消费者模式组合、Linux 全量 Rust 与 GNU 正式 CLI、musl 相关 CLI 均已通过。
 
 ## 已完成批次
 
@@ -37,8 +37,8 @@
 
 - 验收覆盖补齐：直接验证 TLS 过期证书、错误 IP 的原始验证 code，以及不足一个完整加密记录时的 EOF；新增写请求自身取消，确认已接受的 16384 字节和借用收尾。异步外部消费者增加 M49 名称解析后连接。Darwin 的 debug／release／moving GC 已通过 crypto 17 项、TLS 13 项、async TLS 12 项及外部消费者 4／2／1 项；debug 包含新增路径的定向补验。普通生产构建确认 crypto 仅有 core／std／json 依赖，同步 TLS 加入 crypto／platform，未触发新的 compiler 子调用。使用入口见 [USAGE.md](USAGE.md)。
 
-- 全量验收准备发现既有 M45 native I/O 用例在 C 中写死临时目录，现改用 TMPDIR，未配置时使用用例工作目录。C 格式化、严格告警检查及 Darwin 正式 CLI 1 项／2 进程通过，GNU／musl 由当前完整／相关回归覆盖。其他匹配仅为路径表示或缺省目录查询，不创建临时文件。
+- 全量验收准备发现既有 M45 native I/O 用例在 C 中写死临时目录，现改用 TMPDIR，未配置时使用用例工作目录。C 格式化、严格告警检查及 Darwin 正式 CLI 1 项／2 进程通过，GNU 完整和 musl 相关回归中的该用例也已通过。其他匹配仅为路径表示或缺省目录查询，不创建临时文件。
 
 ## 验证与工作目录
 
-本机逐功能格式化、lint 和定向验证；最后在 nuc12 的 `~/repos/scoop` 执行 Linux 完整验证。日志、报告及工作目录使用两端 `~/.cache/scoop-m51`，临时目录显式设为其中的 `scratch`，不使用 `/tmp`。定期清理无用 target 产物，保留正在复用的 release 工具。M47 文档修改不属于本任务。
+本机逐功能格式化、lint 和定向验证；最后在 nuc12 的 `~/repos/scoop` 完成 Linux 验证。日志、报告及工作目录使用两端 `~/.cache/scoop-m51`，临时目录显式设为其中的 `scratch`，不使用 `/tmp`。定期清理无用 target 产物，保留正在复用的 release 工具。M47 文档修改不属于本任务。
