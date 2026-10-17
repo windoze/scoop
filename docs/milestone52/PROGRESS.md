@@ -71,10 +71,12 @@
 - `package_toolchain.py` 调用仓库准备脚本，组装三个宿主工具、目标资源、实际动态依赖、源码输入和许可证，并生成宿主及 LLVM 源码归档。依赖处理与许可证收集分别放在小模块中；常规 CLI、driver、fixture 和 CI 不调用这些维护操作。
 - Darwin 已实际生成两个归档。手工解压到带空格的新目录后，三个命令版本一致，实际加载包内 LLVM；空缓存下的 native／泛型／moving GC 应用、crypto／TLS、库测试及两个 link 入口均通过，重复构建无编译调用。原源码、工具与产物保持存在。
 - 首次宿主构建因全局动态库路径影响 Rust 自身 LLVM 而失败，已改为仅给产出的命令设置加载路径并完整重跑成功。sysroot 头文件发布保留外置目录 symlink，fixture 复制资源时物化本轮副本；Python Ruff 和 50 项 runner 规则测试通过。
-- GNU 宿主包与完整三目标常规回归仍在本期后续验收中。
+- GNU 宿主包也已生成并解压到带空格的新目录；三个工具、私有 LLVM／GCC 依赖、冷暖 native／泛型／moving GC、crypto／TLS、库测试和两个 link 入口均通过。包内 musl 资源的 static／dynamic 两种链接模式在空缓存及复用后均运行成功。
 
 ## 完整回归收尾
 
-- 本机全 workspace Rust 测试 4,929 项通过。两处输入定位 fixture 改为断言只编译用户 Cone；27 组自定义 core fixture 改为先发布实际消费的版本到目标 sysroot，并移除预编译依赖不再产生的源码警告预期，均已定向复验通过。所发现的旧路径与更新顺序假设已闭合。
-- 本机保留各功能定向验证及已完成的既有 CLI 回归，完整正式 CLI 验收集中在 Linux，避免两个宿主重复全量；Darwin 的平台特有部署、动态链接、安装定位和发布包另有定向覆盖。已结束的本机 dev 构建目录清理释放 2.9 GiB。
-- Darwin 归档第二次解压到另一安装位置后，三个命令版本查询和空缓存 native／泛型／moving GC 编译运行通过。GNU 十个内置 Cone 与 runtime 已完成准备；musl 的 OpenSSL 首次构建因开发环境缺 Linux UAPI 搜索路径失败，使用指向现有内核头的任务内编译器包装脚本后构建成功，继续准备其余目标资源。
+- 全 workspace Rust 测试本机 4,929 项、Linux 4,964 项通过；两端 fixture runner 规则各 50 项通过。两处输入定位 fixture 改为断言只编译用户 Cone；27 组自定义 core fixture 改为先发布实际消费的版本到目标 sysroot，并移除预编译依赖不再产生的源码警告预期，均已定向复验通过。所发现的旧路径与更新顺序假设已闭合。
+- 本机保留各功能定向验证及已完成的既有 CLI 回归，完整正式 CLI 验收集中在 Linux，避免两个宿主重复全量；Darwin 的平台特有部署、动态链接、安装定位和发布包另有定向覆盖。已结束的本机 dev 构建目录清理释放 2.9 GiB，两轮已收尾 fixture 的生成数据清理释放约 102.7 GiB，保留报告。
+- Darwin 归档第二次解压到另一安装位置后，三个命令版本查询和空缓存 native／泛型／moving GC 编译运行通过。GNU／musl 十个内置 Cone 与 runtime 均已完成准备；musl 的 OpenSSL 首次构建因开发环境缺 Linux UAPI 搜索路径失败，使用指向现有内核头的任务内编译器包装脚本后构建成功。
+- 三目标的预编译 crypto／TLS／TLS asyncio 生产消费者分别通过 8 项测试的 debug、release 与 moving GC 组合，合计 48 次执行。musl 相关正式 CLI 覆盖 288 项通过、16 项目标不适用；手工 sysroot 的 native C fixture 缺少公开头的问题已修正，并在三个目标分别通过 debug／release 复验。
+- GNU 正式 CLI 完整回归仍在运行；本节不把已中断的 Darwin 全量任务记为完整通过。
