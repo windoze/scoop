@@ -47,7 +47,9 @@ def save_record(path, inputs, objects):
             raise ValueError(f"invalid compiler depfile: {depfile}")
         for token in re.findall(r"(?:\\.|[^\s])+", prerequisites):
             value = Path(re.sub(r"\\(.)", r"\1", token).replace("$$", "$"))
-            dependencies.add(value if value.is_absolute() else objects / value)
+            value = (value if value.is_absolute() else objects / value).resolve()
+            if not value.is_relative_to(objects.parent.resolve()):
+                dependencies.add(value)
     state = {"inputs": inputs, "dependencies": [metadata(path) for path in sorted(dependencies)]}
     temporary = path.with_suffix(".new")
     temporary.write_text(json.dumps(state, separators=(",", ":")) + "\n")

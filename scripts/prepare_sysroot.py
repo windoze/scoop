@@ -66,6 +66,7 @@ def cone_order(sysroot, work):
 
 def publish_files(source, destination, files, record):
     """Stage known outputs before replacing a prepared directory."""
+    destination = destination.resolve()
     inputs = [metadata(source / relative) for relative in files]
     state = {"inputs": inputs, "destination": str(destination)}
     if (

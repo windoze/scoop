@@ -64,4 +64,11 @@
 
 - `build_llvm.py` 固定 LLVM 22.1.8、AArch64／X86 后端及动态库构建，关闭不需要的外部组件，安装实际 Rust 构建入口；libunwind 准备在更新判断之后才复制／打补丁／探测工具。两个脚本复用源码、工具和实际 depfile 输入的 metadata，不读回命中产物。
 - Linux 的普通 C／C++、runtime、startup、OpenSSL 和 unwind 显式采用 x86-64 CPU 基线。生成的 sysroot 资源可放在仓库外置盘的 tmp 中，以正常 symlink 接入开发树；本任务的构建、缓存、日志及生成资源均已迁到该位置。
-- Rust 格式化、相关 crate lint、Python Ruff 及 C toolchain 合同测试 6 项通过。本机手工构建受控 LLVM 成功，重复调用直接复用；Linux GNU／musl libunwind 首次构建与重复复用成功，GNU dynamic、musl static／dynamic 三种模式的真实 cleanup／catch／delete 测试通过。GNU 宿主 LLVM 与工具包组装尚在本期后续验证中。
+- Rust 格式化、相关 crate lint、Python Ruff 及 C toolchain 合同测试 6 项通过。Darwin 与 GNU 宿主的受控 LLVM 均已实际构建成功，本机重复调用直接复用；Linux GNU／musl libunwind 首次构建与重复复用成功，GNU dynamic、musl static／dynamic 三种模式的真实 cleanup／catch／delete 测试通过。
+
+## 手工打包脚本
+
+- `package_toolchain.py` 调用仓库准备脚本，组装三个宿主工具、目标资源、实际动态依赖、源码输入和许可证，并生成宿主及 LLVM 源码归档。依赖处理与许可证收集分别放在小模块中；常规 CLI、driver、fixture 和 CI 不调用这些维护操作。
+- Darwin 已实际生成两个归档。手工解压到带空格的新目录后，三个命令版本一致，实际加载包内 LLVM；空缓存下的 native／泛型／moving GC 应用、crypto／TLS、库测试及两个 link 入口均通过，重复构建无编译调用。原源码、工具与产物保持存在。
+- 首次宿主构建因全局动态库路径影响 Rust 自身 LLVM 而失败，已改为仅给产出的命令设置加载路径并完整重跑成功。sysroot 头文件发布保留外置目录 symlink，fixture 复制资源时物化本轮副本；Python Ruff 和 50 项 runner 规则测试通过。
+- GNU 宿主包与完整三目标常规回归仍在本期后续验收中。

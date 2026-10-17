@@ -161,7 +161,8 @@ def environment(repo, work, fixtures, args):
             common["deployment"] = darwin_deployment(repo)
         common["llvm_target"] = "aarch64-apple-macosx" + common["deployment"]
     if not (work / "sysroot").exists():
-        shutil.copytree(repo / "sysroot", work / "sysroot", symlinks=True)
+        # Materialize this run's resource copy when development outputs use symlinks.
+        shutil.copytree(repo / "sysroot", work / "sysroot")
     if any("${test_core}" in json.dumps(fixture.data) for fixture in applicable):
         prepare_test_core(repo, work)
     if any("${class_core}" in json.dumps(fixture.data) for fixture in applicable):
