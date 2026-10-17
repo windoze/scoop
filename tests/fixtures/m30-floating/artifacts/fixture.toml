@@ -1,6 +1,6 @@
 schema = 1
 name = "m30-floating-artifacts"
-inputs = ["provider", "facade", "consumer", "native.c", "../../../../sysroot/lib/scoop.json"]
+inputs = ["provider", "facade", "consumer", "native.c", "../../../../sysroot/src/scoop.json"]
 tools = ["scoop", "scoopc", "cc", "ar"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["m30", "floating", "annotation", "reexport", "gc"]
@@ -12,12 +12,12 @@ files = [
   {"copy" = {"from" = "${fixture}/facade", "to" = "${work}/sources/facade"}},
   {"copy" = {"from" = "${fixture}/provider", "to" = "${work}/sources/provider"}},
   {"copy" = {"from" = "${fixture}/consumer", "to" = "${work}/sources/consumer"}},
-  {"copy" = {"from" = "${repo}/sysroot/lib/scoop.json", "to" = "${work}/sources/json"}},
+  {"copy" = {"from" = "${repo}/sysroot/src/scoop.json", "to" = "${work}/sources/json"}},
 ]
 
 [[steps]]
 name = "core"
-argv = ["${scoop}", "build", "--profile", "release", {each = "${link_args}"}, "${sysroot}/lib/scoop.core", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", "--profile", "release", {each = "${link_args}"}, "${sysroot}/src/scoop.core", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""

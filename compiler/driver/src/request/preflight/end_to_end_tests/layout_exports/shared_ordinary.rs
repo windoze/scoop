@@ -10,7 +10,7 @@ fn ordinary_bridge_selects_real_dependency_function_and_getter_calls() {
         fixtures.join("shared-ordinary-standalone.scoop"),
         directory
             .path()
-            .join("lib/scoop.core/src/ordinary_probe.scoop"),
+            .join("src/scoop.core/src/ordinary_probe.scoop"),
     )
     .unwrap();
     let core = bootstrap_core(directory.path(), &target);

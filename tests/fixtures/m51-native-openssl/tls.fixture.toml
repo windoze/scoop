@@ -7,7 +7,7 @@ tags = ["m51", "native", "openssl"]
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/tls", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--library-path", "${repo}/sysroot/native/${target}/openssl/lib", "--message-format", "json"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/tls", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--library-path", "${repo}/sysroot/lib/${target}/openssl/lib", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""

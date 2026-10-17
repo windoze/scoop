@@ -8,7 +8,7 @@ fn imported_atomic_calls_retain_binders_and_default_expressions() {
     use super::m23_ordinary_core_only::support::{parsed_ordinary_text, trusted_core_from_source};
     let source = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../sysroot/lib/scoop.core/src/atomics.scoop"
+        "/../../sysroot/src/scoop.core/src/atomics.scoop"
     ));
     let mut declarations = super::complete_core_file();
     declarations

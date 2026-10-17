@@ -6,10 +6,14 @@ targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-l
 tags = ["core-nominals", "modified-core", "single-file", "moving-gc"]
 
 [[steps]]
+name = "runtime_vendor"
+files = [{symlink = {from = "${sysroot}/vendor", to = "${work}/sysroot/vendor"}}]
+
+[[steps]]
 name = "prepare_core"
 files = [
-  {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}},
-  {"symlink" = {"from" = "${work}/core-source", "to" = "${work}/sysroot/lib/scoop.core"}},
+  {"copy" = {"from" = "${sysroot}/src/scoop.core", "to" = "${work}/core-source"}},
+  {"symlink" = {"from" = "${work}/core-source", "to" = "${work}/sysroot/src/scoop.core"}},
   {"copy" = {"from" = "${fixture}/../../m23-type-source-dispatch/parameter-varargs.scoop", "to" = "${work}/core-source/src/nominals.scoop"}},
 ]
 checks = []

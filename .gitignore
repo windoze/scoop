@@ -1,5 +1,8 @@
 /target
-/sysroot/native/
+/sysroot/lib/
+/sysroot/include/
+/sysroot/vendor/llvm-project/*/*.src/
+/sysroot/vendor/llvm-project/*/*.src.tar.xz
 /tmp/
 .env*
 /.venv

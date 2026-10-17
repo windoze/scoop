@@ -8,7 +8,7 @@ tags = ["imported-classes", "core-rebuild", "moving-gc"]
 [[steps]]
 name = "prepare_core"
 files = [
-  {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}},
+  {"copy" = {"from" = "${sysroot}/src/scoop.core", "to" = "${work}/core-source"}},
   {"copy" = {"from" = "${fixture}/../support/stage3_test.scoop", "to" = "${work}/core-source/src/stage3_test.scoop"}},
   {"mkdir" = {"path" = "${work}/artifacts"}},
 ]

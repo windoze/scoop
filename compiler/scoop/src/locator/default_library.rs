@@ -14,7 +14,7 @@ pub(crate) fn locate_build_dependency(
         {
             let manifest = load_dependency_manifest(
                 coordinate,
-                sysroot.join("lib").join(coordinate.name()),
+                sysroot.join("src").join(coordinate.name()),
                 cache,
             )?;
             Ok(LocatedDependencyClaim::Source(Box::new(

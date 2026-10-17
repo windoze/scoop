@@ -41,11 +41,11 @@ checks = [{"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${buil
 [[steps]]
 name = "prepare_core"
 files = [
-  {copy = {from = "${sysroot}/lib/scoop.core", to = "${work}/core-source"}},
+  {copy = {from = "${sysroot}/src/scoop.core", to = "${work}/core-source"}},
   # Keep the current String body and its root-package runtime helpers.
   {replace = {path = "${work}/core-source/src/strings.scoop", old = '@Intrinsic("core_string")', new = '/* @Intrinsic("core_string")'}},
   {replace = {path = "${work}/core-source/src/strings.scoop", old = '@Extern(name = "scoop_rt_string_eq", abi = "scoop")', new = "*/\npublic typealias String = relocated.String\n\n@Extern(name = \"scoop_rt_string_eq\", abi = \"scoop\")"}},
-  {concat = {path = "${work}/core-source/src/relocated-string.scoop", parts = [{file = "${fixture}/string-prefix.scoop"}, {file = "${sysroot}/lib/scoop.core/src/strings.scoop"}, "\n*/\n"]}},
+  {concat = {path = "${work}/core-source/src/relocated-string.scoop", parts = [{file = "${fixture}/string-prefix.scoop"}, {file = "${sysroot}/src/scoop.core/src/strings.scoop"}, "\n*/\n"]}},
   {replace = {path = "${work}/core-source/src/relocated-string.scoop", old = '@Extern(name = "scoop_rt_string_eq", abi = "scoop")', new = '/* @Extern(name = "scoop_rt_string_eq", abi = "scoop")'}},
   {replace = {path = "${work}/core-source/src/relocated-string.scoop", old = "    public val byteLength:", new = "    public fun rebuiltAnswer(): Int = 42\n\n    public val byteLength:"}},
   {copy = {from = "${fixture}/../../m23-program-link/rebuilt-core-native.scoop", to = "${work}/core-source/src/rebuilt-native.scoop"}},

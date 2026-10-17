@@ -13,7 +13,7 @@ pub fn selected_unwind_prefix(
         sysroot
             .map(Path::to_owned)
             .unwrap_or_else(|| crate::configured_sysroot_root(None))
-            .join("native")
+            .join("lib")
             .join(target.contract().canonical_triple())
             .join("unwind")
     })

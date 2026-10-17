@@ -15,7 +15,7 @@ fn write_manifest(root: &std::path::Path, name: &str, dependencies: &str) {
 }
 
 fn write_core(sysroot: &std::path::Path) {
-    let root = sysroot.join("lib").join("scoop.core");
+    let root = sysroot.join("src").join("scoop.core");
     std::fs::create_dir_all(&root).unwrap();
     std::fs::write(
             root.join("Cone.toml"),
@@ -275,7 +275,7 @@ fn default_core_uses_the_common_dependency_coordinate_check() {
     let root = temp.path().join("root");
     let sysroot = temp.path().join("sysroot");
     write_manifest(&root, "root", "");
-    write_manifest(&sysroot.join("lib/scoop.core"), "different-library", "");
+    write_manifest(&sysroot.join("src/scoop.core"), "different-library", "");
     let error = request(&root, &sysroot, vec![])
         .load_root()
         .unwrap()

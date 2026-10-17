@@ -17,9 +17,9 @@ kind = "library"
 
 [native]
 include = [
-    {path = "../../native/aarch64-apple-darwin/openssl/include", when = {os = "darwin"}},
-    {path = "../../native/x86_64-unknown-linux-gnu/openssl/include", when = {env = "gnu"}},
-    {path = "../../native/x86_64-unknown-linux-musl/openssl/include", when = {env = "musl"}},
+    {path = "../../lib/aarch64-apple-darwin/openssl/include", when = {os = "darwin"}},
+    {path = "../../lib/x86_64-unknown-linux-gnu/openssl/include", when = {env = "gnu"}},
+    {path = "../../lib/x86_64-unknown-linux-musl/openssl/include", when = {env = "musl"}},
 ]
 c_flags = ["-std=c11", "-Wall", "-Wextra", "-Werror"]
 

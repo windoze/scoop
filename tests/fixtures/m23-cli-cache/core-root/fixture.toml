@@ -6,17 +6,21 @@ targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-l
 tags = ["cli", "cache", "core"]
 
 [[steps]]
+name = "runtime_vendor"
+files = [{symlink = {from = "${sysroot}/vendor", to = "${work}/sysroot/vendor"}}]
+
+[[steps]]
 name = "prepare"
 files = [
-  {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/sysroot/lib/scoop.core"}},
-  {"copy" = {"from" = "${fixture}/../../core-library/extension.scoop", "to" = "${work}/sysroot/lib/scoop.core/src/extension.scoop"}},
-  {"copy" = {"from" = "${fixture}/../../core-library/metadata.scoop", "to" = "${work}/sysroot/lib/scoop.core/src/metadata.scoop"}},
+  {"copy" = {"from" = "${sysroot}/src/scoop.core", "to" = "${work}/sysroot/src/scoop.core"}},
+  {"copy" = {"from" = "${fixture}/../../core-library/extension.scoop", "to" = "${work}/sysroot/src/scoop.core/src/extension.scoop"}},
+  {"copy" = {"from" = "${fixture}/../../core-library/metadata.scoop", "to" = "${work}/sysroot/src/scoop.core/src/metadata.scoop"}},
 ]
 checks = []
 
 [[steps]]
 name = "cold"
-argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sysroot/lib/scoop.core", "--sysroot", "${work}/sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json", "--runtime-root", "${runtime}", "-o", "${work}/core.slib"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sysroot/src/scoop.core", "--sysroot", "${work}/sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json", "--runtime-root", "${runtime}", "-o", "${work}/core.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -26,7 +30,7 @@ checks = [{"actual" = "${cold.result.kind}", "equals" = "library"}, {"actual" = 
 
 [[steps]]
 name = "warm"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sysroot/lib/scoop.core", "--sysroot", "${work}/sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json", "--runtime-root", "${runtime}", "-o", "${work}/core.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sysroot/src/scoop.core", "--sysroot", "${work}/sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json", "--runtime-root", "${runtime}", "-o", "${work}/core.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -38,7 +42,7 @@ checks = [{"actual" = "${warm.result.kind}", "equals" = "library"}, {"actual" = 
 name = "prepare_consumer"
 files = [
   {"copy" = {"from" = "${fixture}/../../core-library/call-consumer.scoop", "to" = "${work}/consumer.scoop"}},
-  {"copy" = {"from" = "${cold.result.root.path}", "to" = "${work}/sysroot/artifacts/${target_profile}/scoop.core.slib"}},
+  {"copy" = {"from" = "${cold.result.root.path}", "to" = "${work}/sysroot/lib/${target}/scoop.core.slib"}},
 ]
 checks = []
 

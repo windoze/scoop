@@ -46,7 +46,7 @@ fn build_fixture(root_fixture: &str, native: bool) -> Fixture {
     checked(
         Command::new(&compiler)
             .arg("build")
-            .arg(workspace.join("sysroot/lib/scoop.core"))
+            .arg(workspace.join("sysroot/src/scoop.core"))
             .arg("--out-slib")
             .arg(&core),
     );
@@ -77,6 +77,7 @@ fn build_fixture(root_fixture: &str, native: bool) -> Fixture {
     let runtime_build = build_runtime(RuntimeBuildRequest {
         target: &target,
         runtime_root: &workspace.join("runtime"),
+        vendor_root: &workspace.join("sysroot/vendor"),
         cache_root: &path.join("runtime"),
         optimization: RuntimeOptimization::Optimized,
         unwind_prefix: None,

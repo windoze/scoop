@@ -8,7 +8,7 @@ tags = ["m26", "interpolation", "generics"]
 [[steps]]
 name = "prepare"
 files = [
-  {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}},
+  {"copy" = {"from" = "${sysroot}/src/scoop.core", "to" = "${work}/core-source"}},
   {"copy" = {"from" = "${fixture}/core-extra.scoop", "to" = "${work}/core-source/src/interpolation_fixture.scoop"}},
   {"copy" = {"from" = "${fixture}/provider", "to" = "${work}/provider"}},
   {"copy" = {"from" = "${fixture}/consumer", "to" = "${work}/consumer"}},

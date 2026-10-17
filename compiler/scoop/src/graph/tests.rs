@@ -26,7 +26,7 @@ fn write_manifest(root: &Path, name: &str, version: &str, kind: &str, dependenci
 }
 
 fn write_core(sysroot: &Path) {
-    let root = sysroot.join("lib").join("scoop.core");
+    let root = sysroot.join("src").join("scoop.core");
     std::fs::create_dir_all(&root).unwrap();
     std::fs::write(
         root.join("Cone.toml"),
@@ -514,7 +514,7 @@ fn core_manifest_is_an_ordinary_build_root() {
     let source = temp.path().join("source");
     write_core(&source);
     let root = temp.path().join("edited-core");
-    std::fs::rename(source.join("lib/scoop.core"), &root).unwrap();
+    std::fs::rename(source.join("src/scoop.core"), &root).unwrap();
     write_core(&source);
     let discovered = request(&root, &source)
         .load_root()

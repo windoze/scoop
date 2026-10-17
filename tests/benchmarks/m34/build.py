@@ -79,7 +79,7 @@ base = [
     target,
 ]
 if host == "linux-gnu":
-    base += ["--unwind-prefix", repo / "sysroot/native" / target / "unwind"]
+    base += ["--unwind-prefix", repo / "sysroot/lib" / target / "unwind"]
 
 
 def build(name, path, output, extra=()):

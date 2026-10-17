@@ -8,7 +8,7 @@ variants = [{name = "debug", vars = {profile = "debug"}}, {name = "release", var
 
 [[steps]]
 name = "platform"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "--profile", "${profile}", "${sysroot}/lib/scoop.platform", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-platform", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.platform/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "--profile", "${profile}", "${sysroot}/src/scoop.platform", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-platform", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.platform/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""

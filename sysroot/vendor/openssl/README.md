@@ -26,8 +26,8 @@ and `--jobs` select ordinary build locations and concurrency; `--rebuild` forces
 preparation after changing the compiler or its environment. Unchanged inputs
 and existing outputs return before reading the archive or invoking build tools.
 
-Target packages include `sysroot/native/<triple>/openssl/include` and `lib`.
-Consumers pass `--library-path <sysroot>/native/<triple>/openssl/lib`; Cone
+Target packages include `sysroot/lib/<triple>/openssl/include` and `lib`.
+Consumers pass `--library-path <sysroot>/lib/<triple>/openssl/lib`; Cone
 manifests select matching headers and declare static crypto/ssl requirements.
 The crypto Cone needs only libcrypto. TLS adds libssl. Neither archive is
 implicitly embedded into a `.slib`; both are ordinary target package resources.

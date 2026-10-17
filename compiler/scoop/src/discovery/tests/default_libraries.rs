@@ -24,10 +24,10 @@ fn default_library_expands_new_explicit_dependencies() {
         "[dependencies]\n\"scoop:scoop.platform\" = \"0.1.0\"\n",
     );
     write_platform(
-        &sysroot.join("lib/scoop.platform"),
+        &sysroot.join("src/scoop.platform"),
         "[dependencies]\n\"test:helper\" = { version = \"1.0.0\", path = \"../helper\" }\n",
     );
-    write_manifest(&sysroot.join("lib/helper"), "helper", "");
+    write_manifest(&sysroot.join("src/helper"), "helper", "");
     let graph = request(&root, &sysroot, vec![])
         .load_root()
         .unwrap()
@@ -52,7 +52,7 @@ fn explicit_source_does_not_read_the_default_library() {
     let temp = tempfile::tempdir().unwrap();
     let sysroot = temp.path().join("sysroot");
     write_core(&sysroot);
-    let default = sysroot.join("lib/scoop.platform");
+    let default = sysroot.join("src/scoop.platform");
     std::fs::create_dir_all(&default).unwrap();
     std::fs::write(default.join("Cone.toml"), "invalid manifest").unwrap();
     let root = temp.path().join("root");
@@ -75,7 +75,7 @@ fn explicit_artifact_search_precedes_default_library_source() {
     let temp = tempfile::tempdir().unwrap();
     let sysroot = temp.path().join("sysroot");
     write_core(&sysroot);
-    let default = sysroot.join("lib/scoop.platform");
+    let default = sysroot.join("src/scoop.platform");
     std::fs::create_dir_all(&default).unwrap();
     std::fs::write(default.join("Cone.toml"), "invalid manifest").unwrap();
     let root = temp.path().join("root");
@@ -109,7 +109,7 @@ fn other_groups_do_not_search_the_default_library_directory() {
     let temp = tempfile::tempdir().unwrap();
     let sysroot = temp.path().join("sysroot");
     write_core(&sysroot);
-    write_manifest(&sysroot.join("lib/scoop.platform"), "scoop.platform", "");
+    write_manifest(&sysroot.join("src/scoop.platform"), "scoop.platform", "");
     let root = temp.path().join("root");
     write_manifest(
         &root,

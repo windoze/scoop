@@ -32,6 +32,7 @@ impl RuntimeOptimization {
 pub struct RuntimeBuildRequest<'a> {
     pub target: &'a ResolvedTargetProfile,
     pub runtime_root: &'a Path,
+    pub vendor_root: &'a Path,
     pub cache_root: &'a Path,
     pub optimization: RuntimeOptimization,
     pub unwind_prefix: Option<&'a Path>,

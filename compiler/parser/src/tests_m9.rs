@@ -12,7 +12,7 @@ use crate::tests::{err, ok};
 
 #[test]
 fn generic_struct_single_type_param() {
-    // The motivating case: `sysroot/lib/scoop.core/src/gc.scoop`.
+    // The motivating case: `sysroot/src/scoop.core/src/gc.scoop`.
     let file = ok("struct PinnedPtr<T>(val raw: UInt)");
     let Decl::Struct(decl) = &file.declarations[0] else {
         panic!("expected a struct declaration");

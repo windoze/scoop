@@ -113,7 +113,7 @@ fn check_core_layout_exports(names: &[&str]) {
     for &name in names {
         let directory = tempfile::tempdir().unwrap();
         copy_trusted_core_sources(directory.path());
-        let root = directory.path().join("lib/scoop.core");
+        let root = directory.path().join("src/scoop.core");
         std::fs::copy(
             fixtures.join(format!("{name}.scoop")),
             root.join("src/layout_probe.scoop"),

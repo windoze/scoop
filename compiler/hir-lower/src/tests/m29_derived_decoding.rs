@@ -9,7 +9,7 @@ const LEAF: &str = r#"
 "#;
 
 fn compile(source: &str) -> Result<hir::Output, Vec<ast::Diagnostic>> {
-    let decoding = include_str!("../../../../sysroot/lib/scoop.core/src/decoding.scoop");
+    let decoding = include_str!("../../../../sysroot/src/scoop.core/src/decoding.scoop");
     lower(&[
         complete_core_file(),
         scoop_parser::parse(&format!(
@@ -23,7 +23,7 @@ fn compile(source: &str) -> Result<hir::Output, Vec<ast::Diagnostic>> {
         ))
         .unwrap(),
         scoop_parser::parse(include_str!(
-            "../../../../sysroot/lib/scoop.core/src/serialization_annotations.scoop"
+            "../../../../sysroot/src/scoop.core/src/serialization_annotations.scoop"
         ))
         .unwrap(),
         scoop_parser::parse(&format!("{LEAF}\n{source}\nfun main() {{}}"))

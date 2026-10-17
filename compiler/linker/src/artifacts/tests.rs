@@ -29,7 +29,7 @@ fn artifact_cxx_requirement_rejects_both_musl_final_link_modes() {
     .unwrap();
     std::fs::write(source.join("src/main.scoop"), "fun main() {}\n").unwrap();
     for (input, output, dependencies) in [
-        (workspace.join("sysroot/lib/scoop.core"), &core, vec![]),
+        (workspace.join("sysroot/src/scoop.core"), &core, vec![]),
         (source.clone(), &root, vec![&core]),
     ] {
         let mut command = Command::new(&compiler);

@@ -9,9 +9,9 @@ tags = ["m33", "sysroot", "negative"]
 name = "prepare"
 files = [
  {mkdir = {path = "${work}/sysroot/lib"}},
- {symlink = {from = "${sysroot}/lib/scoop.core", to = "${work}/sysroot/lib/scoop.core"}},
+ {symlink = {from = "${sysroot}/src/scoop.core", to = "${work}/sysroot/src/scoop.core"}},
  {copy = {from = "${fixture}/cone", to = "${work}/cone"}},
- {copy = {from = "${fixture}/platform", to = "${work}/sysroot/lib/scoop.platform"}},
+ {copy = {from = "${fixture}/platform", to = "${work}/sysroot/src/scoop.platform"}},
  {mkdir = {path = "${work}/artifacts/scoop/scoop.platform/0.1.0"}},
  {write = {path = "${work}/artifacts/scoop/scoop.platform/0.1.0/cone.slib", data = "invalid artifact"}},
 ]

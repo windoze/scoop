@@ -11,15 +11,15 @@ options = ["--sysroot", "${work}/private-sysroot", "--scoopc", "${scoopc}", "--c
 [[steps]]
 name = "prepare"
 files = [
-  {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/private-sysroot/lib/scoop.core"}},
-  {"copy" = {"from" = "${fixture}/../../core-library/extension.scoop", "to" = "${work}/private-sysroot/lib/scoop.core/src/extension.scoop"}},
+  {"copy" = {"from" = "${sysroot}/src/scoop.core", "to" = "${work}/private-sysroot/src/scoop.core"}},
+  {"copy" = {"from" = "${fixture}/../../core-library/extension.scoop", "to" = "${work}/private-sysroot/src/scoop.core/src/extension.scoop"}},
   {"copy" = {"from" = "${fixture}/root", "to" = "${work}/root"}},
   {"copy" = {"from" = "${fixture}/../../core-library/library-consumer.scoop", "to" = "${work}/root/src/main.scoop"}},
 ]
 
 [[steps]]
 name = "core"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/private-sysroot/lib/scoop.core", {"each" = "${options}"}, "-o", "${work}/saved-core.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/private-sysroot/src/scoop.core", {"each" = "${options}"}, "-o", "${work}/saved-core.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -32,7 +32,7 @@ checks = [
 [[steps]]
 name = "publish_core"
 files = [
-  {"copy" = {"from" = "${core.result.root.path}", "to" = "${work}/private-sysroot/artifacts/${target_profile}/scoop.core.slib"}},
+  {"copy" = {"from" = "${core.result.root.path}", "to" = "${work}/private-sysroot/lib/${target}/scoop.core.slib"}},
 ]
 
 [[steps]]
@@ -53,13 +53,13 @@ checks = [
 name = "save_previous"
 files = [
   {"copy" = {"from" = "${work}/library.slib", "to" = "${work}/previous.slib"}},
-  {"copy" = {"from" = "${work}/saved-core.slib", "to" = "${work}/private-sysroot/artifacts/${target_profile}/scoop.core.slib"}},
+  {"copy" = {"from" = "${work}/saved-core.slib", "to" = "${work}/private-sysroot/lib/${target}/scoop.core.slib"}},
 ]
 
 [[steps]]
 name = "prepare_invalid_source"
 files = [
-  {"replace" = {"path" = "${work}/private-sysroot/lib/scoop.core/Cone.toml", "old" = "schema = 1", "new" = "schema = true"}},
+  {"replace" = {"path" = "${work}/private-sysroot/src/scoop.core/Cone.toml", "old" = "schema = 1", "new" = "schema = true"}},
 ]
 
 [[steps]]
@@ -77,7 +77,7 @@ checks = [
 [[steps]]
 name = "prepare_missing_manifest"
 files = [
-  {"remove" = {"path" = "${work}/private-sysroot/lib/scoop.core/Cone.toml"}},
+  {"remove" = {"path" = "${work}/private-sysroot/src/scoop.core/Cone.toml"}},
 ]
 
 [[steps]]
@@ -95,8 +95,8 @@ checks = [
 [[steps]]
 name = "prepare_dangling_source"
 files = [
-  {"remove" = {"path" = "${work}/private-sysroot/lib/scoop.core"}},
-  {"symlink" = {"from" = "${work}/absent-core", "to" = "${work}/private-sysroot/lib/scoop.core"}},
+  {"remove" = {"path" = "${work}/private-sysroot/src/scoop.core"}},
+  {"symlink" = {"from" = "${work}/absent-core", "to" = "${work}/private-sysroot/src/scoop.core"}},
 ]
 
 [[steps]]

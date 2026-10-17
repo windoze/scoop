@@ -85,7 +85,7 @@ fn write_manifest_source(root: &Path, name: &str, kind: &str, source: &str, depe
 }
 
 fn write_core(sysroot: &Path) {
-    let root = sysroot.join("lib/scoop.core");
+    let root = sysroot.join("src/scoop.core");
     std::fs::create_dir_all(root.join("src")).unwrap();
     std::fs::write(
         root.join("Cone.toml"),
@@ -301,7 +301,7 @@ fn compile_cache_key_excludes_manifest_presentation() {
     let first = prepare(&root, workspace).unwrap();
     let first_key = first.compile_cache_key(ConeIdentity::CORE, &[]).unwrap();
     std::fs::write(
-        sysroot.join("lib/scoop.core/Cone.toml"),
+        sysroot.join("src/scoop.core/Cone.toml"),
         "# presentation-only comment\nschema=1\n[cone]\ngroup=\"scoop\"\nname=\"scoop.core\"\nversion=\"0.1.0\"\nkind=\"library\"\n",
     ).unwrap();
     let second = prepare(&root, workspace).unwrap();
@@ -310,7 +310,7 @@ fn compile_cache_key_excludes_manifest_presentation() {
         second.compile_cache_key(ConeIdentity::CORE, &[]).unwrap()
     );
     std::fs::write(
-        sysroot.join("lib/scoop.core/src/core.scoop"),
+        sysroot.join("src/scoop.core/src/core.scoop"),
         "class Any { }\n",
     )
     .unwrap();

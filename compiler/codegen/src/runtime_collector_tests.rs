@@ -73,7 +73,7 @@ fn compile_and_run_with_flags(
             "-fno-optimize-sibling-calls",
         ])
         .arg("-I")
-        .arg(workspace.join("runtime/third_party/ryu"))
+        .arg(workspace.join("sysroot/vendor/ryu"))
         .arg("-I")
         .arg(workspace.join("runtime/include"));
     for source in [
@@ -316,7 +316,7 @@ fn initialization_coordinator_is_exactly_once_and_gc_cooperative() {
             "-fno-optimize-sibling-calls",
         ])
         .arg("-I")
-        .arg(workspace.join("runtime/third_party/ryu"))
+        .arg(workspace.join("sysroot/vendor/ryu"))
         .arg("-I")
         .arg(workspace.join("runtime/include"))
         .arg(workspace.join("runtime/src/thread.c"))

@@ -7,7 +7,7 @@ tags = ["m43", "test-purpose", "negative", "source-role"]
 
 [[steps]]
 name = "library"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${sysroot}/lib/scoop.test", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/library", "--message-format", "json"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${sysroot}/src/scoop.test", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/library", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""

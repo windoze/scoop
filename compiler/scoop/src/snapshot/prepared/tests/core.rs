@@ -69,10 +69,10 @@ fn core_source_changes_update_the_compile_key() {
     let initial = prepared.compile_cache_key(ConeIdentity::CORE, &[]).unwrap();
     assert_eq!(
         prepared.source_input_path(ConeIdentity::CORE).unwrap(),
-        sysroot.join("lib/scoop.core").canonicalize().unwrap()
+        sysroot.join("src/scoop.core").canonicalize().unwrap()
     );
     std::fs::write(
-        sysroot.join("lib/scoop.core/src/core.scoop"),
+        sysroot.join("src/scoop.core/src/core.scoop"),
         "class Any\nclass Unit\n",
     )
     .unwrap();

@@ -9,7 +9,7 @@ variants = [{name = "debug", vars = {profile = "debug"}}, {name = "release", var
 [[steps]]
 name = "prepare"
 files = [
-    {copy = {from = "${sysroot}/lib/scoop.platform", to = "${work}/platform"}},
+    {copy = {from = "${sysroot}/src/scoop.platform", to = "${work}/platform"}},
     {copy = {from = "${fixture}/probe.c", to = "${work}/platform/native/probe.c"}},
     {replace = {path = "${work}/platform/native/io.c", old = "#define _GNU_SOURCE 1", new = "#define _GNU_SOURCE 1\n#define read m45_file_read\n#define write m45_file_write\n#define close m45_file_close"}},
     {replace = {path = "${work}/platform/native/directory.c", old = "#define _GNU_SOURCE 1", new = "#define _GNU_SOURCE 1\n#define readdir m45_directory_next\n#define closedir m45_directory_close"}},

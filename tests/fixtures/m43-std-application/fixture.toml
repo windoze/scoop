@@ -11,7 +11,7 @@ variants = [
 
 [[steps]]
 name = "production"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${sysroot}/lib/scoop.std", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${sysroot}/src/scoop.std", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -24,7 +24,7 @@ checks = [
 
 [[steps]]
 name = "build-tests"
-argv = ["${scoop}", "test", {each = "${link_args}"}, "${sysroot}/lib/scoop.std", "--no-run", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${sysroot}/src/scoop.std", "--no-run", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -38,7 +38,7 @@ checks = [
 
 [[steps]]
 name = "run-tests"
-argv = ["${scoop}", "test", {each = "${link_args}"}, "${sysroot}/lib/scoop.std", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${sysroot}/src/scoop.std", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""

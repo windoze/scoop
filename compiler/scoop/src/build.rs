@@ -21,6 +21,7 @@ pub use request::*;
 
 pub fn build(request: BuildRequest) -> BuildResult<BuildOutcome> {
     let target = request.graph.target().clone();
+    let vendor_root = request.graph.sysroot().as_path().join("vendor");
     let cache = request.graph.cache_root().as_path().to_owned();
     let stem = request
         .graph
@@ -80,8 +81,13 @@ pub fn build(request: BuildRequest) -> BuildResult<BuildOutcome> {
                 .map_err(output_error)?;
             return Ok(None);
         }
-        let (runtime, index) =
-            runtime_input(&request.runtime, &target, &cache, &request.final_link)?;
+        let (runtime, index) = runtime_input(
+            &request.runtime,
+            &target,
+            &cache,
+            &request.final_link,
+            &vendor_root,
+        )?;
         let linked = executable::get(executable::Request {
             graph: &graph,
             runtime: &runtime,
@@ -120,6 +126,7 @@ fn runtime_input(
     target: &ResolvedTargetProfile,
     cache: &Path,
     final_link: &scoop_toolchain::FinalLinkOptions,
+    vendor_root: &Path,
 ) -> BuildResult<(RuntimeObjectSet, PathBuf)> {
     let failure = |error| {
         BuildFailure::tool(
@@ -151,6 +158,7 @@ fn runtime_input(
             let runtime = build_runtime(RuntimeBuildRequest {
                 target,
                 runtime_root: root,
+                vendor_root,
                 cache_root: cache,
                 optimization: Default::default(),
                 unwind_prefix: unwind.as_deref(),

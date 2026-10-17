@@ -4,7 +4,7 @@ fn write_core_at(root: &std::path::Path) {
     std::fs::create_dir_all(root).unwrap();
     std::fs::write(
         root.join("Cone.toml"),
-        include_str!("../../../../../sysroot/lib/scoop.core/Cone.toml"),
+        include_str!("../../../../../sysroot/src/scoop.core/Cone.toml"),
     )
     .unwrap();
 }
@@ -195,7 +195,7 @@ fn version_only_core_waits_for_default_libraries_explicit_core_locators() {
     write_core(&sysroot);
     let alternate = sysroot.join("alternate-core");
     write_core_at(&alternate);
-    let helper = sysroot.join("lib/scoop.helper");
+    let helper = sysroot.join("src/scoop.helper");
     std::fs::create_dir_all(&helper).unwrap();
     std::fs::write(helper.join("Cone.toml"), "schema = 1\n[cone]\ngroup = \"scoop\"\nname = \"scoop.helper\"\nversion = \"1.0.0\"\nkind = \"library\"\n[dependencies]\n\"scoop:scoop.core\" = { version = \"0.1.0\", path = \"../../alternate-core\" }\n").unwrap();
     write_manifest(

@@ -47,9 +47,9 @@ def main():
         parser.error(f"prepare {args.target} on a {host} build host")
     if args.jobs < 1:
         parser.error("--jobs must be positive")
-    archive = ROOT / f"sysroot/lib/scoop.crypto/vendor/openssl/openssl-{VERSION}.tar.gz"
+    archive = ROOT / f"sysroot/vendor/openssl/openssl-{VERSION}.tar.gz"
     build = (args.build_dir or Path.home() / ".cache/scoop-openssl" / args.target).resolve()
-    prefix = (args.prefix or ROOT / "sysroot/native" / args.target / "openssl").resolve()
+    prefix = (args.prefix or ROOT / "sysroot/lib" / args.target / "openssl").resolve()
     cc = args.cc or default_cc
     flags = ["-fPIC"]
     if host == "Darwin":

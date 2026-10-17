@@ -18,7 +18,7 @@ class EnvironmentTests(unittest.TestCase):
     def test_shared_language_core_preserves_sysroot_and_reuses_unchanged_sources(self):
         with tempfile.TemporaryDirectory() as directory:
             repo, work = self.prepare(directory)
-            original = work / "sysroot/lib/scoop.core/src"
+            original = work / "sysroot/src/scoop.core/src"
             original.mkdir(parents=True)
             (original / "core.scoop").write_text("public fun coreValue(): Int = 1\n")
             helper = repo / "tests/fixtures/m23-cli-imported-classes/support/stage3_test.scoop"
@@ -71,7 +71,7 @@ class EnvironmentTests(unittest.TestCase):
                 common["compile_args"]
                 + [
                     "--unwind-prefix",
-                    str(repo / "sysroot/native/x86_64-unknown-linux-musl/unwind"),
+                    str(repo / "sysroot/lib/x86_64-unknown-linux-musl/unwind"),
                 ],
             )
             self.assertNotIn("sdk", common)

@@ -14,14 +14,14 @@ pub(super) fn compile(
     for (index, source) in inputs.sources.iter().enumerate() {
         let object = staging.join(format!("runtime-{index}.o"));
         let depfile = temporary.path().join("unit.d");
-        let assembly = source.ends_with(".S");
+        let assembly = source.extension().is_some_and(|extension| extension == "S");
         let preprocessed = temporary
             .path()
             .join(if assembly { "unit.s" } else { "unit.i" });
         let mut preprocess = request
             .target
             .c_bridge_toolchain()
-            .object_compilation_command(&inputs.root.join(source), &preprocessed);
+            .object_compilation_command(source, &preprocessed);
         configure(&mut preprocess, inputs);
         preprocess
             .args(["-E", "-dI", "-v", "-MD", "-MT", "runtime.o", "-MF"])
@@ -66,14 +66,23 @@ fn configure(command: &mut Command, inputs: &inputs::Inputs) {
         .arg(format!(
             "-fmacro-prefix-map={}=runtime",
             inputs.root.display()
+        ))
+        .arg(format!(
+            "-ffile-prefix-map={}=vendor",
+            inputs.vendor.display()
+        ))
+        .arg(format!(
+            "-fmacro-prefix-map={}=vendor",
+            inputs.vendor.display()
         ));
 }
 
-fn run(command: &mut Command, source: &str) -> Result<std::process::Output, RuntimeBuildError> {
+fn run(command: &mut Command, source: &Path) -> Result<std::process::Output, RuntimeBuildError> {
     let output = command.scoop_output().map_err(error)?;
     if !output.status.success() {
         return Err(error(format!(
-            "{source}: C compiler failed: {}",
+            "{}: C compiler failed: {}",
+            source.display(),
             String::from_utf8_lossy(&output.stderr)
         )));
     }

@@ -33,7 +33,10 @@ def prepare_sources(source: Path, build: Path, environment: dict) -> Path:
             "--forward",
             "-p1",
             "-i",
-            str(ROOT / "scripts/patches/llvm-libunwind-eh-index-miss.patch"),
+            str(
+                ROOT
+                / "sysroot/vendor/llvm-project/22.1.8/patches/llvm-libunwind-eh-index-miss.patch"
+            ),
         ],
         cwd=overlay,
         env=environment,
@@ -45,7 +48,11 @@ def prepare_sources(source: Path, build: Path, environment: dict) -> Path:
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--target", choices=TARGETS, required=True)
-    parser.add_argument("--source", type=Path, default=ROOT.parent / "llvm-project-22.1.2.src")
+    parser.add_argument(
+        "--source",
+        type=Path,
+        default=ROOT / "sysroot/vendor/llvm-project/22.1.8/llvm-project-22.1.8.src",
+    )
     parser.add_argument("--build-dir", type=Path)
     parser.add_argument("--prefix", type=Path)
     parser.add_argument("--cc", default="clang", help="Clang C/assembly compiler")
@@ -68,9 +75,9 @@ def main():
     if not musl and args.musl_include is not None:
         parser.error("--musl-include is only valid for the musl target")
 
-    build = (args.build_dir or ROOT / "target/llvm-unwind" / args.target).resolve()
-    prefix = (args.prefix or ROOT / "sysroot/native" / args.target / "unwind").resolve()
-    temporary = build / "tmp"
+    build = (args.build_dir or Path.home() / ".cache/scoop-unwind" / args.target).resolve()
+    prefix = (args.prefix or ROOT / "sysroot/lib" / args.target / "unwind").resolve()
+    temporary = build / "scratch"
     temporary.mkdir(parents=True, exist_ok=True)
     environment = dict(os.environ, TMPDIR=str(temporary))
     prepared = prepare_sources(source, build, environment)

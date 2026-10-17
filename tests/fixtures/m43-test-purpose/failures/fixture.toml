@@ -29,7 +29,7 @@ diagnostics = []
 
 [[steps]]
 name = "library"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${sysroot}/lib/scoop.test", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/library", "--message-format", "json"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${sysroot}/src/scoop.test", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/library", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""

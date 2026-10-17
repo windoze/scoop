@@ -87,7 +87,7 @@ checks = [
 [[steps]]
 name = "manual_core"
 files = [
-  {"copy" = {"from" = "${cold.result.dependencies.0.path}", "to" = "${work}/manual-sysroot/artifacts/${target_profile}/scoop.core.slib"}},
+  {"copy" = {"from" = "${cold.result.dependencies.0.path}", "to" = "${work}/manual-sysroot/lib/${target}/scoop.core.slib"}},
 ]
 
 [[steps]]

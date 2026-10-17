@@ -14,7 +14,7 @@ files = [
   {"copy" = {"from" = "${fixture}/root", "to" = "${work}/sources/root"}},
   {"copy" = {"from" = "${fixture}/runner", "to" = "${work}/sources/runner"}},
   {"copy" = {"from" = "${fixture}/helper", "to" = "${work}/sources/helper"}},
-  {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/sources/core"}},
+  {"copy" = {"from" = "${sysroot}/src/scoop.core", "to" = "${work}/sources/core"}},
   {"copy" = {"from" = "${fixture}/../../core-library/extension.scoop", "to" = "${work}/sources/core/src/extension.scoop"}},
   {"copy" = {"from" = "${fixture}/../../core-library/library-consumer.scoop", "to" = "${work}/sources/root/src/main.scoop"}},
 ]

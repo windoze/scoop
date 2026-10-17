@@ -94,7 +94,7 @@ def environment(repo, work, fixtures, args):
         common["compile_args"] += ["--cc", str(args.cc.resolve())]
     common["link_args"] = list(common["compile_args"])
     if target != "aarch64-apple-darwin":
-        common["link_args"] += ["--unwind-prefix", str(repo / "sysroot/native" / target / "unwind")]
+        common["link_args"] += ["--unwind-prefix", str(repo / "sysroot/lib" / target / "unwind")]
     applicable = [
         fixture
         for fixture in fixtures

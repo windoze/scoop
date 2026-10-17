@@ -8,7 +8,7 @@ fn publication_failure_retains_current_warnings_for_core_and_ordinary_libraries(
     let target = resolved_target().expect("publication warning tests require a supported target");
     let temp = tempfile::tempdir().unwrap();
     copy_trusted_core_sources(temp.path());
-    let core_root = temp.path().join("lib/scoop.core");
+    let core_root = temp.path().join("src/scoop.core");
     std::fs::write(
         core_root.join("src/publication-warning.scoop"),
         WARNING_SOURCE,

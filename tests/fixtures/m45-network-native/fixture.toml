@@ -9,7 +9,7 @@ variants = [{name = "debug", vars = {profile = "debug"}}, {name = "release", var
 [[steps]]
 name = "prepare"
 files = [
-    {copy = {from = "${sysroot}/lib/scoop.platform", to = "${work}/platform"}},
+    {copy = {from = "${sysroot}/src/scoop.platform", to = "${work}/platform"}},
     {copy = {from = "${fixture}/probe.c", to = "${work}/platform/native/network_probe.c"}},
     {copy = {from = "${fixture}/peer.c", to = "${work}/platform/native/network_peer.c"}},
     {replace = {path = "${work}/platform/native/socket_open.c", old = "#define _GNU_SOURCE 1", new = "#define _GNU_SOURCE 1\n#define socket m45_network_socket\n#define close m45_network_close\n#define setsockopt m45_network_setsockopt\n#define bind m45_network_bind\n#define connect m45_network_connect\n#define accept m45_network_accept\n#define accept4 m45_network_accept4"}},

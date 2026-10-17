@@ -462,8 +462,8 @@ fn parsed_bootstrap_request_publishes_one_two_view_core_artifact() {
 }
 
 pub(super) fn copy_trusted_core_sources(sysroot: &Path) {
-    let source = crate::workspace_root().join("sysroot/lib/scoop.core");
-    let destination = sysroot.join("lib/scoop.core");
+    let source = crate::workspace_root().join("sysroot/src/scoop.core");
+    let destination = sysroot.join("src/scoop.core");
     std::fs::create_dir_all(destination.join("src")).unwrap();
     std::fs::copy(source.join("Cone.toml"), destination.join("Cone.toml")).unwrap();
     for entry in std::fs::read_dir(source.join("src")).unwrap() {

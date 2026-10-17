@@ -10,7 +10,7 @@ kind = "library"
 "scoop:scoop.core" = "0.1.0"
 
 [native]
-include = ["../vendor/libuv/include"]
+include = ["../../../vendor/libuv/include"]
 c_flags = ["-std=c11", "-Wall", "-Wextra", "-include", "../native/config.h"]
 
 [[native.sources]]

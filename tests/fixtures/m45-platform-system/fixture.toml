@@ -9,7 +9,7 @@ variants = [{name = "debug", vars = {profile = "debug"}}, {name = "release", var
 [[steps]]
 name = "prepare"
 files = [
-    {copy = {from = "${sysroot}/lib/scoop.platform", to = "${work}/platform"}},
+    {copy = {from = "${sysroot}/src/scoop.platform", to = "${work}/platform"}},
     {copy = {from = "${fixture}/probe.c", to = "${work}/platform/native/probe.c"}},
     {replace = {path = "${work}/platform/native/random.c", old = "#define _GNU_SOURCE 1", new = "#define _GNU_SOURCE 1\n#define getentropy m45_getentropy\n#define getrandom m45_getrandom"}},
     {replace = {path = "${work}/platform/native/time.c", old = "#define _GNU_SOURCE 1", new = "#define _GNU_SOURCE 1\n#define clock_gettime m45_clock_gettime\n#define nanosleep m45_nanosleep"}},

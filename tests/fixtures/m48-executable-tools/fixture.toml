@@ -5,7 +5,7 @@ tools = ["scoop", "scoopc", "cc", "python"]
 targets = ["x86_64-unknown-linux-gnu"]
 tags = ["m48", "executable", "cache", "tool-inputs"]
 [vars]
-options = ["--target", "${target}", "--cc", "${work}/tools/gcc", "--unwind-prefix", "${repo}/sysroot/native/${target}/unwind", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--runtime-root", "${runtime}", "--target-dir", "${work}/target", "--message-format", "json", "-o", "${work}/program"]
+options = ["--target", "${target}", "--cc", "${work}/tools/gcc", "--unwind-prefix", "${repo}/sysroot/lib/${target}/unwind", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--runtime-root", "${runtime}", "--target-dir", "${work}/target", "--message-format", "json", "-o", "${work}/program"]
 
 [[steps]]
 name = "prepare"
