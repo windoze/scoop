@@ -206,7 +206,7 @@ ConditionVariable(mutex: Mutex) 保活并绑定一个 Mutex，提供 await()、a
 
 `scoop.platform.process.Command(executable: Path, arguments: Array<OsString> = [], environment: Map<OsString, OsString> = 当前环境快照, workingDirectory: Path = 当前目录, stdin: Stdio = Inherit, stdout: Stdio = Inherit, stderr: Stdio = Inherit, mergeError: Boolean = false)` 保存不可变配置与输入集合的副本。Stdio 区分 Inherit、Null、Pipe 和 Redirect(file: File)；File 只借用至 spawn 完成。mergeError 将 child fd 2 复制为配置后的 fd 1，与非 Inherit 的 stderr 配置冲突。
 
-spawn(): ChildProcess 按明确 executable 启动；searchPath(): ChildProcess 是显式 PATH 搜索入口。含 `/` 的 executable 仍按路径启动，否则按命令环境中的 PATH 从左至右尝试，空项为 child cwd，缺失 PATH 使用 `/bin:/usr/bin`。NotFound／NotDirectory 继续，PermissionDenied 保留到全部候选失败后报告；其他错误立即报告。argv[0] 保留原始 executable，其余参数逐项传递，不拼接 shell 命令。环境名非空且不含 NUL／`=`，其他系统字符串不含 NUL；空参数与非 UTF-8 字节原样传递。
+spawn(searchPath: Boolean = false): ChildProcess 启动进程；默认按明确 executable 启动，传入 searchPath = true 才启用 PATH 搜索。搜索模式下含 `/` 的 executable 仍按路径启动，否则按命令环境中的 PATH 从左至右尝试，空项为 child cwd，缺失 PATH 使用 `/bin:/usr/bin`。NotFound／NotDirectory 继续，PermissionDenied 保留到全部候选失败后报告；其他错误立即报告。argv[0] 保留原始 executable，其余参数逐项传递，不拼接 shell 命令。环境名非空且不含 NUL／`=`，其他系统字符串不含 NUL；空参数与非 UTF-8 字节原样传递。
 
 使用 posix_spawn 和真实 cwd file action，不在 managed 进程中 fork 后执行 Scoop。输入字符串只在本次同步 native 调用期间借用；pipe、临时 fd、副本、argv/env 指针表及 file actions 在失败时回滚。重定向先复制到非标准 fd，再设置 child 的 0/1/2，避免别名覆盖。Darwin 使用 CLOEXEC_DEFAULT 与显式标准流动作，Linux 使用 O_CLOEXEC 管道；库不提供继承任意 fd 的接口。child 使用空信号屏蔽集与默认 SIGPIPE，父进程 mask／handler 保持原样，不把临时屏蔽传给 child。
 

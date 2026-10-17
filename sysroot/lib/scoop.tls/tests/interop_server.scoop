@@ -25,7 +25,7 @@ private fun opensslClient(version: TlsVersion) {
                     "-CAfile", tree.child("root.pem").decodeUtf8(), "-verify_return_error", "-verify_hostname", "localhost",
                     "-servername", "localhost", "-alpn", "proto-client", "-quiet", "-ign_eof",
                     if (version == TlsVersion.TLS12) "-tls1_2" else "-tls1_3"]
-                val child = peerCommand("openssl", arguments, Stdio.Pipe).searchPath()
+                val child = peerCommand("openssl", arguments, Stdio.Pipe).spawn(searchPath = true)
                 try {
                     Thread.start {
                         tlsServer(listener.accept(), context).use { server ->

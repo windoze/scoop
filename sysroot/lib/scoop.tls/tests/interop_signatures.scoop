@@ -40,5 +40,5 @@ private fun verifyOutput(tree: InteropDirectory, algorithm: SignatureAlgorithm, 
         }
     }
     arguments.add(tree.child("message").decodeUtf8())
-    peerCommand("openssl", arguments).searchPath().use { child -> peerSucceeded(child.communicate()) }
+    peerCommand("openssl", arguments).spawn(searchPath = true).use { child -> peerSucceeded(child.communicate()) }
 }

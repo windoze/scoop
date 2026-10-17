@@ -32,8 +32,8 @@ public class Command public constructor(
         }
     }
 
-    public fun spawn(): ChildProcess = start(false)
-    public fun searchPath(): ChildProcess = start(true)
+    // Starts the process; PATH lookup is opt-in.
+    public fun spawn(searchPath: Boolean = false): ChildProcess = start(searchPath)
 
     private fun start(search: Boolean): ChildProcess {
         val packed = SpawnInput(executable, arguments, environment, workingDirectory)

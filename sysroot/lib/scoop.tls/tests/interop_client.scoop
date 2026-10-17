@@ -23,7 +23,7 @@ private fun pythonServer(version: TlsVersion, dns: Boolean) {
         tree.certificates()
         val arguments: Array<String> = ["-u", "-c", pythonTlsPeer(), tree.child("server.pem").decodeUtf8(),
             tree.child("server-key.pem").decodeUtf8(), tree.child("sni").decodeUtf8(), if (version == TlsVersion.TLS12) "12" else "13"]
-        val child = peerCommand("python3", arguments).searchPath()
+        val child = peerCommand("python3", arguments).spawn(searchPath = true)
         try {
             val port = child.stdout!!.readLine()!!.toIntOrNull()!!
             val a = "proto-a".toByteArray().toArray()

@@ -65,7 +65,9 @@ private class CommandsTest {
             val command = Command(Path.fromString("helper"), environment = environment,
                 workingDirectory = tree.path, stdin = Stdio.Null, stdout = Stdio.Pipe, stderr = Stdio.Pipe)
             environment[os("PATH")] = os("nowhere")
-            command.searchPath().use { child ->
+            val missing = assertFailsWith<PlatformException> { command.spawn() }
+            assertTrue(missing.kind == PlatformErrorKind.NotFound)
+            command.spawn(searchPath = true).use { child ->
                 val result = child.communicate()
                 exited(result.status)
                 assertEquals("searched", text(result.stdout))
@@ -73,7 +75,7 @@ private class CommandsTest {
             Files.writeText(tree.child("bin/blocked"), "not executable")
             val error = assertFailsWith<PlatformException> {
                 Command(Path.fromString("blocked"), environment = mapOf((os("PATH"), os("bin:missing"))),
-                    workingDirectory = tree.path).searchPath()
+                    workingDirectory = tree.path).spawn(searchPath = true)
             }
             assertTrue(error.kind == PlatformErrorKind.PermissionDenied)
         }

@@ -5,7 +5,7 @@
 | 项目 | 实施范围 | 状态 |
 | --- | --- | --- |
 | R01 | 高层字节输入 List<Byte>，只读与可写数组转换分名 | 待实施 |
-| R02 | spawn(searchPath = false) 明确启动动作 | 待实施 |
+| R02 | spawn(searchPath = false) 明确启动动作 | 已完成；fmt/clippy、CommandsTest 7 项通过 |
 | R03 | IO override 和同步／异步参数名一致 | 待实施 |
 | R04 | OrNull 失败命名与证书验证 Result | 待实施 |
 | R05 | Closeable、isClosed 与 TLS takeOwnership 工厂 | 待实施 |
