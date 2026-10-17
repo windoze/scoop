@@ -21,7 +21,7 @@ fun main() {
     check(String.fromUtf8(immutable) == text)
     check(String.fromUtf8(mutable) == text)
     check(String.fromUtf8(Bytes(immutable)) == text)
-    check(String.fromUtf8OrNull(Bytes(immutable)) == Some(text))
+    check(String.fromUtf8OrNone(Bytes(immutable)) == Some(text))
     check(String.fromUtf8Lossy(Bytes(immutable)) == text)
     mutable[0L] = 90.toByte()
     writableChars[0L] = 'Z'
@@ -31,7 +31,7 @@ fun main() {
     check(String.fromChars(writableChars) == "Z\u0000雪🙂")
     val failure = Exception(Some("getter"))
     var caught = false
-    try { String.fromUtf8OrNull(FailingBytes(failure)) }
+    try { String.fromUtf8OrNone(FailingBytes(failure)) }
     catch (error: Exception) { check(error === failure); caught = true }
     check(caught)
     println("byte API round trips passed")

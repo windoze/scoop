@@ -2,10 +2,10 @@ package scoop.sequences
 
 import scoop.random.Random
 import scoop.collections.random
-import scoop.collections.randomOrNull
+import scoop.collections.randomOrNone
 import scoop.collections.shuffled
 
 public fun <T> Sequence<T>.random(random: Random): T = terminalInput<T>().random<T>(random)
-public fun <T> Sequence<T>.randomOrNull(random: Random): T? = terminalInput<T>().randomOrNull<T>(random)
+public fun <T> Sequence<T>.randomOrNone(random: Random): T? = terminalInput<T>().randomOrNone<T>(random)
 public fun <T> Sequence<T>.shuffled(random: Random): Sequence<T> =
     FactorySequence<T> { terminalInput<T>().shuffled<T>(random).iterator() }

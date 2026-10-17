@@ -18,8 +18,8 @@ fun main() {
     val random = Random.seeded(42L)
     val results = rows.map<String, Result<Event, String>> { row -> parseRow(row, random) }
     check(results.count<Result<Event, String>> { result -> result.isSuccess } == 4L)
-    check(results[3L].errorOrNull<Event, String>() == Some("score"))
-    val events = results.mapNotNull<Result<Event, String>, Event> { result -> result.getOrNull<Event, String>() }
+    check(results[3L].errorOrNone<Event, String>() == Some("score"))
+    val events = results.mapNotNone<Result<Event, String>, Event> { result -> result.getOrNone<Event, String>() }
     val copied = frameRoundTrip<Event>(events, Event.Companion, Event.Companion)
     check(copied.size == events.size && !(copied is MutableList<Event>))
     var position = 0L

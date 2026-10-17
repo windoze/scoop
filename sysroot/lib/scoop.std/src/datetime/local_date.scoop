@@ -47,7 +47,7 @@ public class LocalDate public constructor(public val year: Int, public val month
     public companion object : ValueEncoder<LocalDate>, ValueDecoder<LocalDate> {
         public override fun encode(value: LocalDate, encoder: Encoder) { encoder.singleValue().writeString(value.toString()) }
         public override fun decode(decoder: Decoder): LocalDate =
-            decodeTextValue<LocalDate>(decoder, { text -> parseOrNull(text) }, "date")
+            decodeTextValue<LocalDate>(decoder, { text -> parseOrNone(text) }, "date")
 
         public val MIN: LocalDate = LocalDate(-999999999, 1, 1)
         public val MAX: LocalDate = LocalDate(999999999, 12, 31)
@@ -56,11 +56,11 @@ public class LocalDate public constructor(public val year: Int, public val month
             val parts = calendarDateFromDay(value)
             return LocalDate(parts._1, parts._2, parts._3)
         }
-        public fun parseOrNull(text: String): LocalDate? = when (parseCalendarFields(text, true)) {
+        public fun parseOrNone(text: String): LocalDate? = when (parseCalendarFields(text, true)) {
             case Some(parts) -> Some(LocalDate(parts._1, parts._2, parts._3))
             case None -> None
         }
-        public fun parse(text: String): LocalDate = when (parseOrNull(text)) {
+        public fun parse(text: String): LocalDate = when (parseOrNone(text)) {
             case Some(value) -> value
             case None -> throw IllegalArgumentException(Some("invalid date"))
         }

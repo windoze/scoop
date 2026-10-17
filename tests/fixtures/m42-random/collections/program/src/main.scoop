@@ -46,8 +46,8 @@ fun main() {
     val choices = Choices()
     check(list.random<Int>(choices) == 3 && choices.calls == 2L && list.reads == 1L)
     val empty = emptyList<Int>()
-    check(empty.randomOrNull<Int>(choices) == None && listOf<Int>(7).random<Int>(choices) == 7)
-    check(listOf<Int?>(None).randomOrNull<Int?>(choices) == Some(None) && choices.calls == 2L)
+    check(empty.randomOrNone<Int>(choices) == None && listOf<Int>(7).random<Int>(choices) == 7)
+    check(listOf<Int?>(None).randomOrNone<Int?>(choices) == Some(None) && choices.calls == 2L)
     var failed = false
     try { empty.random<Int>(choices) } catch (error: NoSuchElementException) { failed = true }
     check(failed)

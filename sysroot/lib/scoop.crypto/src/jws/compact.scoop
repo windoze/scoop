@@ -48,7 +48,7 @@ public fun signCompact(protectedHeader: String, payload: List<Byte>, algorithm: 
 }
 
 // Verifies the signature and returns the header and payload; a mismatch returns None.
-public fun verifyCompactOrNull(token: String, algorithm: JwsAlgorithm, key: JwsVerificationKey): VerifiedJws? {
+public fun verifyCompactOrNone(token: String, algorithm: JwsAlgorithm, key: JwsVerificationKey): VerifiedJws? {
     val parts = token.split('.')
     if (parts.size != 3L) throw JwsException("compact JWS must contain three segments")
     val header = headerText(decodePart(parts[0L]))

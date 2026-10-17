@@ -16,12 +16,12 @@ public enum Result<T, E> {
     }
 }
 
-public fun <T, E> Result<T, E>.getOrNull(): T? = when (this) {
+public fun <T, E> Result<T, E>.getOrNone(): T? = when (this) {
     case Result.Success(value) -> Some(value)
     case Result.Failure(_) -> None
 }
 
-public fun <T, E> Result<T, E>.errorOrNull(): E? = when (this) {
+public fun <T, E> Result<T, E>.errorOrNone(): E? = when (this) {
     case Result.Success(_) -> None
     case Result.Failure(error) -> Some(error)
 }
@@ -47,4 +47,4 @@ public fun <T> runCatching(block: () -> T): Result<T, Throwable> = try {
     Result.Failure<T, Throwable>(error)
 }
 
-public fun <T, E> Result<T, E>.toOption(): T? = getOrNull<T, E>()
+public fun <T, E> Result<T, E>.toOption(): T? = getOrNone<T, E>()

@@ -17,7 +17,7 @@ public class UtcOffset private constructor(public val totalSeconds: Int)
     public companion object : ValueEncoder<UtcOffset>, ValueDecoder<UtcOffset> {
         public override fun encode(value: UtcOffset, encoder: Encoder) { encoder.singleValue().writeString(value.toString()) }
         public override fun decode(decoder: Decoder): UtcOffset =
-            decodeTextValue<UtcOffset>(decoder, { text -> parseOrNull(text) }, "UTC offset")
+            decodeTextValue<UtcOffset>(decoder, { text -> parseOrNone(text) }, "UTC offset")
 
         public val ZERO: UtcOffset = UtcOffset(0)
         public fun fromTotalSeconds(value: Int): UtcOffset {
@@ -31,7 +31,7 @@ public class UtcOffset private constructor(public val totalSeconds: Int)
             }
             return fromTotalSeconds(hours * 3600 + minutes * 60 + seconds)
         }
-        public fun parseOrNull(text: String): UtcOffset? {
+        public fun parseOrNone(text: String): UtcOffset? {
             if (text == "Z") return Some(ZERO)
             val chars = text.toCharArray()
             if ((chars.size != 6L && chars.size != 9L) || (chars[0L] != '+' && chars[0L] != '-') || chars[3L] != ':') return None
@@ -47,7 +47,7 @@ public class UtcOffset private constructor(public val totalSeconds: Int)
             if (total > 64800) return None
             return Some(UtcOffset(if (chars[0L] == '-') -total else total))
         }
-        public fun parse(text: String): UtcOffset = when (parseOrNull(text)) {
+        public fun parse(text: String): UtcOffset = when (parseOrNone(text)) {
             case Some(value) -> value
             case None -> throw IllegalArgumentException(Some("invalid UTC offset"))
         }

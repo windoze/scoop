@@ -64,7 +64,7 @@ internal class TlsConnection(
 
 internal fun requireJob(loop: EventLoop, active: Boolean): Job {
     if (currentEventLoop() !== loop) throw IllegalStateException(Some("TLS operation belongs to another event loop"))
-    val job = currentJobOrNull() ?: throw IllegalStateException(Some("TLS I/O requires a Job"))
+    val job = currentJobOrNone() ?: throw IllegalStateException(Some("TLS I/O requires a Job"))
     if (job.isCompleted) throw IllegalStateException(Some("TLS I/O requires an active Job"))
     if (active) job.ensureActive()
     return job

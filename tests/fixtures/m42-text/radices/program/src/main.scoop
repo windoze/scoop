@@ -11,9 +11,9 @@ fun main() {
     check("-1y2p0ij32e8e8".toLong(36) == Long.MIN_VALUE && Long.MIN_VALUE.toString(36) == "-1y2p0ij32e8e8", "base36 signed minimum")
     check("1y2p0ij32e8e7".toLong(36) == Long.MAX_VALUE && Long.MAX_VALUE.toString(36) == "1y2p0ij32e8e7", "base36 signed maximum")
     check("1".repeat(64L).toULong(2) == ULong.MAX_VALUE && ULong.MAX_VALUE.toString(2) == "1".repeat(64L), "binary maximum")
-    check("8000000000000000".toLongOrNull(16) == None && "-8000000000000001".toLongOrNull(16) == None && "10000000000000000".toULongOrNull(16) == None, "nondecimal overflow")
-    check("z".toInt(36) == 35 && "Z".toInt(36) == 35 && "z".toIntOrNull(35) == None, "radix digit boundary")
-    check("0x".toInt(36) == 33 && "1u".toInt(36) == 66 && "0x10".toIntOrNull(16) == None, "letters are digits without prefix or suffix parsing")
+    check("8000000000000000".toLongOrNone(16) == None && "-8000000000000001".toLongOrNone(16) == None && "10000000000000000".toULongOrNone(16) == None, "nondecimal overflow")
+    check("z".toInt(36) == 35 && "Z".toInt(36) == 35 && "z".toIntOrNone(35) == None, "radix digit boundary")
+    check("0x".toInt(36) == 33 && "1u".toInt(36) == 66 && "0x10".toIntOrNone(16) == None, "letters are digits without prefix or suffix parsing")
     var radix = 2
     while (radix <= 36) {
         for (value in listOf<Long>(Long.MIN_VALUE, -255L, -1L, 0L, 1L, 255L, Long.MAX_VALUE)) {

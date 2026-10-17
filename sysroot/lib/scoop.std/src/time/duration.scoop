@@ -34,7 +34,7 @@ public class Duration private constructor(public val floorSeconds: Long, public 
     public companion object : ValueEncoder<Duration>, ValueDecoder<Duration> {
         public override fun encode(value: Duration, encoder: Encoder) { encoder.singleValue().writeString(value.toString()) }
         public override fun decode(decoder: Decoder): Duration =
-            decodeTextValue<Duration>(decoder, { text -> parseOrNull(text) }, "duration")
+            decodeTextValue<Duration>(decoder, { text -> parseOrNone(text) }, "duration")
 
         public val ZERO: Duration = Duration(0L, 0)
         public fun seconds(value: Long, nanosecondAdjustment: Long = 0L): Duration {
@@ -47,8 +47,8 @@ public class Duration private constructor(public val floorSeconds: Long, public 
         public fun minutes(value: Long): Duration = seconds(value) * 60L
         public fun hours(value: Long): Duration = seconds(value) * 3600L
         public fun days(value: Long): Duration = seconds(value) * 86400L
-        public fun parseOrNull(text: String): Duration? = parseDuration(text)
-        public fun parse(text: String): Duration = when (parseOrNull(text)) {
+        public fun parseOrNone(text: String): Duration? = parseDuration(text)
+        public fun parse(text: String): Duration = when (parseOrNone(text)) {
             case Some(value) -> value
             case None -> throw IllegalArgumentException(Some("invalid duration"))
         }

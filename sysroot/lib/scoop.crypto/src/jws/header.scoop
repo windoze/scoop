@@ -42,7 +42,7 @@ internal fun parseHeader(text: String, algorithm: JwsAlgorithm): ProtectedHeader
     return header
 }
 
-internal fun decodePart(text: String): Array<Byte> = when (urlEncoding.decodeOrNull(text)) {
+internal fun decodePart(text: String): Array<Byte> = when (urlEncoding.decodeOrNone(text)) {
     case Some(value) -> value
     case None -> throw JwsException("invalid unpadded Base64URL")
 }

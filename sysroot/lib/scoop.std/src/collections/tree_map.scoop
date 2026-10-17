@@ -103,12 +103,12 @@ public class TreeMap<K, V> public constructor(
         return candidate
     }
 
-    public override fun firstEntryOrNull(): Map.Entry<K, V>? {
+    public override fun firstEntryOrNone(): Map.Entry<K, V>? {
         val node = tree.first(tree.root)
         return if (node == None) None else Some(node!!.entry(0L))
     }
 
-    public override fun lastEntryOrNull(): Map.Entry<K, V>? {
+    public override fun lastEntryOrNone(): Map.Entry<K, V>? {
         val node = tree.last(tree.root)
         return if (node == None) None else Some(node!!.entry(node!!.count - 1L))
     }

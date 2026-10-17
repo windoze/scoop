@@ -24,7 +24,7 @@ private class AeadTests {
             val data = "authenticated payload".toByteArray()
             val associated = digest(DigestAlgorithm.Sha384, "context".toByteArray())
             val sealed = encrypt(AeadAlgorithm.Aes256Gcm, key, nonce, data, associated)
-            val opened = decryptOrNull(AeadAlgorithm.Aes256Gcm, key, nonce, sealed, associated)!!
+            val opened = decryptOrNone(AeadAlgorithm.Aes256Gcm, key, nonce, sealed, associated)!!
             assertEquals(data.toHexString(), opened.toHexString())
             assertTrue(verifyHmac(DigestAlgorithm.Sha512, key, opened, hmac(DigestAlgorithm.Sha512, key, data)))
         }
@@ -35,16 +35,16 @@ private fun checkAes128(key: SecretKey, nonce: Array<Byte>, plaintext: Array<Byt
     val result = encrypt(AeadAlgorithm.Aes128Gcm, key, nonce, plaintext)
     assertEquals("0388dace60b6a392f328c2b971b2fe78", result.ciphertext.toHexString())
     assertEquals("ab6e47d42cec13bdf53a67b21257bddf", result.tag.toHexString())
-    assertEquals(plaintext.toHexString(), decryptOrNull(AeadAlgorithm.Aes128Gcm, key, nonce, result)!!.toHexString())
+    assertEquals(plaintext.toHexString(), decryptOrNone(AeadAlgorithm.Aes128Gcm, key, nonce, result)!!.toHexString())
     val broken = result.tag.toMutableArray()
     broken[0L] = (broken[0L].toInt() xor 1).toByte()
-    assertTrue(when (decryptOrNull(AeadAlgorithm.Aes128Gcm, key, nonce,
+    assertTrue(when (decryptOrNone(AeadAlgorithm.Aes128Gcm, key, nonce,
         AeadCiphertext(result.ciphertext, broken.toArray()))) { case None -> true; else -> false })
-    assertTrue(when (decryptOrNull(AeadAlgorithm.Aes128Gcm, key, nonce, result, [1.toByte()])) { case None -> true; else -> false })
+    assertTrue(when (decryptOrNone(AeadAlgorithm.Aes128Gcm, key, nonce, result, [1.toByte()])) { case None -> true; else -> false })
     val empty = encrypt(AeadAlgorithm.Aes128Gcm, key, nonce, Array<Byte>(0L) { _ -> 0.toByte() })
     assertEquals("58e2fccefa7e3061367f1d57a4e7455a", empty.tag.toHexString())
-    assertEquals(0L, decryptOrNull(AeadAlgorithm.Aes128Gcm, key, nonce, empty)!!.size)
+    assertEquals(0L, decryptOrNone(AeadAlgorithm.Aes128Gcm, key, nonce, empty)!!.size)
     assertFailsWith<IllegalArgumentException> { encrypt(AeadAlgorithm.Aes256Gcm, key, nonce, plaintext) }
     assertFailsWith<IllegalArgumentException> { encrypt(AeadAlgorithm.Aes128Gcm, key, Array<Byte>(0L) { _ -> 0.toByte() }, plaintext) }
-    assertFailsWith<IllegalArgumentException> { decryptOrNull(AeadAlgorithm.Aes128Gcm, key, nonce, AeadCiphertext(Array<Byte>(0L) { _ -> 0.toByte() }, Array<Byte>(0L) { _ -> 0.toByte() })) }
+    assertFailsWith<IllegalArgumentException> { decryptOrNone(AeadAlgorithm.Aes128Gcm, key, nonce, AeadCiphertext(Array<Byte>(0L) { _ -> 0.toByte() }, Array<Byte>(0L) { _ -> 0.toByte() })) }
 }

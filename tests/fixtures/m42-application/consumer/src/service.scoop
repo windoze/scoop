@@ -12,11 +12,11 @@ import scoop.uuid.Uuid
 public fun parseRow(line: String, random: Random): Result<Event, String> {
     val fields = line.split('|')
     if (fields.size != 3L) return Result.Failure<Event, String>("shape")
-    val score = when (fields[1L].toIntOrNull()) {
+    val score = when (fields[1L].toIntOrNone()) {
         case Some(value) -> value
         case None -> return Result.Failure<Event, String>("score")
     }
-    val date = when (OffsetDateTime.parseOrNull(fields[0L])) {
+    val date = when (OffsetDateTime.parseOrNone(fields[0L])) {
         case Some(value) -> value
         case None -> return Result.Failure<Event, String>("date")
     }

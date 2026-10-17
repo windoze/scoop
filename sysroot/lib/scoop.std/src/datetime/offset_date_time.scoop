@@ -18,21 +18,21 @@ public class OffsetDateTime public constructor(public val dateTime: LocalDateTim
     public companion object : ValueEncoder<OffsetDateTime>, ValueDecoder<OffsetDateTime> {
         public override fun encode(value: OffsetDateTime, encoder: Encoder) { encoder.singleValue().writeString(value.toString()) }
         public override fun decode(decoder: Decoder): OffsetDateTime =
-            decodeTextValue<OffsetDateTime>(decoder, { text -> parseOrNull(text) }, "offset date-time")
+            decodeTextValue<OffsetDateTime>(decoder, { text -> parseOrNone(text) }, "offset date-time")
 
-        public fun parseOrNull(text: String): OffsetDateTime? {
+        public fun parseOrNone(text: String): OffsetDateTime? {
             val split = text.indexOf('T')
             if (split < 0L) return None
             val chars = text.toCharArray()
             var index = split + 1L
             while (index < chars.size && chars[index] != 'Z' && chars[index] != '+' && chars[index] != '-') index += 1L
             if (index == chars.size) return None
-            val local = LocalDateTime.parseOrNull(text.substring(0L, index))
-            val offset = UtcOffset.parseOrNull(text.substring(index))
+            val local = LocalDateTime.parseOrNone(text.substring(0L, index))
+            val offset = UtcOffset.parseOrNone(text.substring(index))
             if (local == None || offset == None) return None
             return Some(OffsetDateTime(local!!, offset!!))
         }
-        public fun parse(text: String): OffsetDateTime = when (parseOrNull(text)) {
+        public fun parse(text: String): OffsetDateTime = when (parseOrNone(text)) {
             case Some(value) -> value
             case None -> throw IllegalArgumentException(Some("invalid offset date-time"))
         }

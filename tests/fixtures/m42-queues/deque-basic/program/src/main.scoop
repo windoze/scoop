@@ -4,21 +4,21 @@ fun check(value: Boolean, label: String) { if (!value) throw Exception(Some(labe
 
 fun main() {
     val values = ArrayDeque<Int?>()
-    check(values.isEmpty() && values.firstOrNull() == None && values.lastOrNull() == None, "empty")
+    check(values.isEmpty() && values.firstOrNone() == None && values.lastOrNone() == None, "empty")
     val empty = values.iterator()
     values.clear()
-    check(values.removeFirstOrNull() == None && values.removeLastOrNull() == None && empty.next() == None, "empty no-op")
+    check(values.removeFirstOrNone() == None && values.removeLastOrNone() == None && empty.next() == None, "empty no-op")
     values.addFirst(None)
     values.addLast(Some(2))
     values.addFirst(Some(1))
     check(empty.next() == None && values.size == 3L, "permanent exhaustion")
-    check(values.firstOrNull() == Some(Some(1)) && values.lastOrNull() == Some(Some(2)), "ends")
+    check(values.firstOrNone() == Some(Some(1)) && values.lastOrNone() == Some(Some(2)), "ends")
     val iterator = values.iterator()
     check(iterator.next() == Some(Some(1)) && iterator.next() == Some(None), "nested option")
     check(values.removeFirst() == Some(1) && values.removeLast() == Some(2), "two ends")
     var caught = false
     try { iterator.next() } catch (error: ConcurrentModificationException) { caught = true }
-    check(caught && values.removeFirstOrNull() == Some(None), "mutation invalidation")
+    check(caught && values.removeFirstOrNone() == Some(None), "mutation invalidation")
     caught = false
     try { values.removeFirst() } catch (error: NoSuchElementException) { caught = true }
     check(caught, "empty remove first")

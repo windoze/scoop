@@ -25,7 +25,7 @@ private fun pythonServer(version: TlsVersion, dns: Boolean) {
             tree.child("server-key.pem").decodeUtf8(), tree.child("sni").decodeUtf8(), if (version == TlsVersion.Tls12) "12" else "13"]
         val child = peerCommand("python3", arguments).spawn(searchPath = true)
         try {
-            val port = child.stdout!!.readLine()!!.toIntOrNull()!!
+            val port = child.stdout!!.readLine()!!.toIntOrNone()!!
             val a = "proto-a".toByteArray().toArray()
             val b = "proto-b".toByteArray().toArray()
             clientContext(TlsOptions(version, version, [a, b])).use { context ->

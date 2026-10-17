@@ -38,7 +38,7 @@ public fun String.hexToByteArray(): Array<Byte> = when (parseHex(this)) {
     case HexResult.Invalid(index) -> throw IllegalArgumentException(Some("invalid hex at index " + index.toString()))
 }
 
-public fun String.hexToByteArrayOrNull(): Array<Byte>? = when (parseHex(this)) {
+public fun String.hexToByteArrayOrNone(): Array<Byte>? = when (parseHex(this)) {
     case HexResult.Bytes(value) -> Some(value)
     case HexResult.Invalid(_) -> None
 }

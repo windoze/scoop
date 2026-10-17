@@ -34,7 +34,7 @@ public class Instant private constructor(public val epochSeconds: Long, public v
     public companion object : ValueEncoder<Instant>, ValueDecoder<Instant> {
         public override fun encode(value: Instant, encoder: Encoder) { encoder.singleValue().writeString(value.toString()) }
         public override fun decode(decoder: Decoder): Instant =
-            decodeTextValue<Instant>(decoder, { text -> parseOrNull(text) }, "instant")
+            decodeTextValue<Instant>(decoder, { text -> parseOrNone(text) }, "instant")
 
         public val MIN: Instant = Instant(LocalDate.MIN.toEpochDays() * 86400L, 0)
         public val MAX: Instant = Instant(LocalDate.MAX.toEpochDays() * 86400L + 86399L, 999999999)
@@ -52,7 +52,7 @@ public class Instant private constructor(public val epochSeconds: Long, public v
             return Instant(seconds, nanos)
         }
         internal fun fromDuration(value: Duration): Instant = fromComponents(value.floorSeconds, value.nanosecondsOfSecond)
-        public fun parseOrNull(text: String): Instant? = when (OffsetDateTime.parseOrNull(text)) {
+        public fun parseOrNone(text: String): Instant? = when (OffsetDateTime.parseOrNone(text)) {
             case Some(value) -> {
                 val seconds = localEpochSeconds(value.dateTime) - value.offset.totalSeconds.toLong()
                 if (seconds < MIN.epochSeconds || seconds > MAX.epochSeconds) None
@@ -60,7 +60,7 @@ public class Instant private constructor(public val epochSeconds: Long, public v
             }
             case None -> None
         }
-        public fun parse(text: String): Instant = when (parseOrNull(text)) {
+        public fun parse(text: String): Instant = when (parseOrNone(text)) {
             case Some(value) -> value
             case None -> throw IllegalArgumentException(Some("invalid instant"))
         }

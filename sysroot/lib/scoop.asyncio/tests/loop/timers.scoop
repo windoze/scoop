@@ -39,7 +39,7 @@ private class EventLoopTimerTest {
             assertTrue(child.isCompleted)
             loop.sleep(Duration.nanoseconds(1L))
             val alreadyCancelled = scope.launch suspend {
-                currentJobOrNull()!!.cancel()
+                currentJobOrNone()!!.cancel()
                 try { loop.sleep(Duration.ZERO); fail(Some("zero timer ignored cancellation")) }
                 catch (_: CancellationException) { finished.fetchAdd(1L) }
             }

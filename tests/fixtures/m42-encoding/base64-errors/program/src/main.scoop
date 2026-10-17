@@ -2,7 +2,7 @@ import scoop.io.encoding.Base64
 import scoop.io.encoding.Base64.PaddingOption
 
 fun check(ok: Boolean) { if (!ok) throw IllegalStateException() }
-fun accepted(codec: Base64, text: String): Boolean = when (codec.decodeOrNull(text)) {
+fun accepted(codec: Base64, text: String): Boolean = when (codec.decodeOrNone(text)) {
     case None -> false
     case Some(_) -> true
 }

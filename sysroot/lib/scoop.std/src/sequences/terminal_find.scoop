@@ -8,11 +8,11 @@ public fun <T> Sequence<T>.first(): T =
 public fun <T> Sequence<T>.first(predicate: (T) -> Boolean): T =
     terminalInput<T>().first<T>(predicate)
 
-public fun <T> Sequence<T>.firstOrNull(): T? =
-    terminalInput<T>().firstOrNull<T>()
+public fun <T> Sequence<T>.firstOrNone(): T? =
+    terminalInput<T>().firstOrNone<T>()
 
-public fun <T> Sequence<T>.firstOrNull(predicate: (T) -> Boolean): T? =
-    terminalInput<T>().firstOrNull<T>(predicate)
+public fun <T> Sequence<T>.firstOrNone(predicate: (T) -> Boolean): T? =
+    terminalInput<T>().firstOrNone<T>(predicate)
 
 public fun <T> Sequence<T>.last(): T =
     terminalInput<T>().last<T>()
@@ -20,11 +20,11 @@ public fun <T> Sequence<T>.last(): T =
 public fun <T> Sequence<T>.last(predicate: (T) -> Boolean): T =
     terminalInput<T>().last<T>(predicate)
 
-public fun <T> Sequence<T>.lastOrNull(): T? =
-    terminalInput<T>().lastOrNull<T>()
+public fun <T> Sequence<T>.lastOrNone(): T? =
+    terminalInput<T>().lastOrNone<T>()
 
-public fun <T> Sequence<T>.lastOrNull(predicate: (T) -> Boolean): T? =
-    terminalInput<T>().lastOrNull<T>(predicate)
+public fun <T> Sequence<T>.lastOrNone(predicate: (T) -> Boolean): T? =
+    terminalInput<T>().lastOrNone<T>(predicate)
 
 public fun <T> Sequence<T>.single(): T =
     terminalInput<T>().single<T>()
@@ -32,11 +32,11 @@ public fun <T> Sequence<T>.single(): T =
 public fun <T> Sequence<T>.single(predicate: (T) -> Boolean): T =
     terminalInput<T>().single<T>(predicate)
 
-public fun <T> Sequence<T>.singleOrNull(): T? =
-    terminalInput<T>().singleOrNull<T>()
+public fun <T> Sequence<T>.singleOrNone(): T? =
+    terminalInput<T>().singleOrNone<T>()
 
-public fun <T> Sequence<T>.singleOrNull(predicate: (T) -> Boolean): T? =
-    terminalInput<T>().singleOrNull<T>(predicate)
+public fun <T> Sequence<T>.singleOrNone(predicate: (T) -> Boolean): T? =
+    terminalInput<T>().singleOrNone<T>(predicate)
 
 public fun <T> Sequence<T>.find(predicate: (T) -> Boolean): T? =
     terminalInput<T>().find<T>(predicate)
@@ -44,8 +44,8 @@ public fun <T> Sequence<T>.find(predicate: (T) -> Boolean): T? =
 public fun <T> Sequence<T>.elementAt(index: Long): T =
     terminalInput<T>().elementAt<T>(index)
 
-public fun <T> Sequence<T>.elementAtOrNull(index: Long): T? =
-    terminalInput<T>().elementAtOrNull<T>(index)
+public fun <T> Sequence<T>.elementAtOrNone(index: Long): T? =
+    terminalInput<T>().elementAtOrNone<T>(index)
 
 public fun <T : Equals<T>> Sequence<T>.indexOf(element: T): Long =
     terminalInput<T>().indexOf<T>(element)

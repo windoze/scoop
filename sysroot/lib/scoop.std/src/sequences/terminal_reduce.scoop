@@ -14,8 +14,8 @@ public fun <T, R> Sequence<T>.fold(initial: R, operation: (R, T) -> R): R =
 public fun <T> Sequence<T>.reduce(operation: (T, T) -> T): T =
     terminalInput<T>().reduce<T>(operation)
 
-public fun <T> Sequence<T>.reduceOrNull(operation: (T, T) -> T): T? =
-    terminalInput<T>().reduceOrNull<T>(operation)
+public fun <T> Sequence<T>.reduceOrNone(operation: (T, T) -> T): T? =
+    terminalInput<T>().reduceOrNone<T>(operation)
 
 public fun <T> Sequence<T>.all(predicate: (T) -> Boolean): Boolean =
     terminalInput<T>().all<T>(predicate)

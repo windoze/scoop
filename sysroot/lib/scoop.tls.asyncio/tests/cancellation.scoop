@@ -78,7 +78,7 @@ private class AsyncTlsCancellationTests {
                 try { AsyncTlsStream.takeOwnershipAsClient(clientRaw, context, TlsPeerName.Dns("")); fail(Some("empty peer accepted")) }
                 catch (_: IllegalArgumentException) { assertEquals(0, clientRaw.closes) }
                 val cancelled = scope.launch suspend {
-                    currentJobOrNull()!!.cancel()
+                    currentJobOrNone()!!.cancel()
                     try { AsyncTlsStream.takeOwnershipAsClient(clientRaw, context, TlsPeerName.Dns("localhost")); fail(Some("cancelled handshake started")) }
                     catch (_: CancellationException) { assertEquals(0L, clientRaw.reads + clientRaw.writes) }
                 }

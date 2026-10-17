@@ -21,7 +21,7 @@ public fun encrypt(algorithm: AeadAlgorithm, key: SecretKey, nonce: List<Byte>, 
 }
 
 // Authenticates and decrypts; only an authentication mismatch returns None.
-public fun decryptOrNull(algorithm: AeadAlgorithm, key: SecretKey, nonce: List<Byte>, encrypted: AeadCiphertext, aad: List<Byte> = Array<Byte>(0L) { _ -> 0.toByte() }): Array<Byte>? {
+public fun decryptOrNone(algorithm: AeadAlgorithm, key: SecretKey, nonce: List<Byte>, encrypted: AeadCiphertext, aad: List<Byte> = Array<Byte>(0L) { _ -> 0.toByte() }): Array<Byte>? {
     val code = aeadCode(algorithm, key, nonce)
     if (encrypted.tag.size != 16L) throw IllegalArgumentException(Some("AES-GCM tag must contain 16 bytes"))
     return transform(code, false, key, nonce, aad, encrypted.ciphertext, encrypted.tag)

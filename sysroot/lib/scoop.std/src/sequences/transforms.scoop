@@ -22,7 +22,7 @@ private class IndexedMappingIterator<T, R>(private val source: Iterator<T>, priv
     }
 }
 
-private class NullableMappingIterator<T, R>(private val source: Iterator<T>, private val transform: (T) -> R?) : Iterator<R> {
+private class OptionalMappingIterator<T, R>(private val source: Iterator<T>, private val transform: (T) -> R?) : Iterator<R> {
     public override fun next(): R? {
         while (true) {
             when (source.next()) {
@@ -42,14 +42,14 @@ public fun <T, R> Sequence<T>.map(transform: (T) -> R): Sequence<R> =
 public fun <T, R> Sequence<T>.mapIndexed(transform: (Long, T) -> R): Sequence<R> =
     FactorySequence<R> { IndexedMappingIterator<T, R>(iterator(), transform) }
 
-public fun <T, R> Sequence<T>.mapNotNull(transform: (T) -> R?): Sequence<R> =
-    FactorySequence<R> { NullableMappingIterator<T, R>(iterator(), transform) }
+public fun <T, R> Sequence<T>.mapNotNone(transform: (T) -> R?): Sequence<R> =
+    FactorySequence<R> { OptionalMappingIterator<T, R>(iterator(), transform) }
 
 public fun <T> Sequence<T>.filter(predicate: (T) -> Boolean): Sequence<T> =
-    mapNotNull<T, T> { value -> if (predicate(value)) Some(value) else None }
+    mapNotNone<T, T> { value -> if (predicate(value)) Some(value) else None }
 
 public fun <T> Sequence<T>.filterNot(predicate: (T) -> Boolean): Sequence<T> = filter<T> { value -> !predicate(value) }
-public fun <T> Sequence<T?>.filterNotNull(): Sequence<T> = mapNotNull<T?, T> { value -> value }
+public fun <T> Sequence<T?>.filterNotNone(): Sequence<T> = mapNotNone<T?, T> { value -> value }
 public fun <T> Sequence<T>.onEach(action: (T) -> Unit): Sequence<T> = map<T, T> { value -> action(value); value }
 public fun <T> Sequence<T>.withIndex(): Sequence<IndexedValue<T>> =
     mapIndexed<T, IndexedValue<T>> { index, value -> IndexedValue<T>(index, value) }

@@ -39,10 +39,10 @@ fun main() {
     val outside = OffsetDateTime(minimum, UtcOffset.fromTotalSeconds(1))
     check(OffsetDateTime.parse(outside.toString()) == outside)
     overflow { outside.toInstant() }; overflow { outside.withOffsetSameInstant(UtcOffset.ZERO) }
-    check(LocalDateTime.parseOrNull("2024-02-29 23:00:00") == None)
-    check(LocalDateTime.parseOrNull("2024-02-29T23:00:00Z") == None)
-    check(OffsetDateTime.parseOrNull("2024-02-29T23:00:00") == None)
-    check(OffsetDateTime.parseOrNull("2024-02-29T23:00:00ZZ") == None)
-    check(OffsetDateTime.parseOrNull("2024-02-30T23:00:00Z") == None)
+    check(LocalDateTime.parseOrNone("2024-02-29 23:00:00") == None)
+    check(LocalDateTime.parseOrNone("2024-02-29T23:00:00Z") == None)
+    check(OffsetDateTime.parseOrNone("2024-02-29T23:00:00") == None)
+    check(OffsetDateTime.parseOrNone("2024-02-29T23:00:00ZZ") == None)
+    check(OffsetDateTime.parseOrNone("2024-02-30T23:00:00Z") == None)
     println("date-time passed")
 }

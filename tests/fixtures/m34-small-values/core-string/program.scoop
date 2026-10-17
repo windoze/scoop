@@ -18,6 +18,6 @@ fun main() {
     gcCollect()
     check(decoded[1L] == '雪')
     val invalid: List<Byte> = [0xff.toByte()]
-    check(String.fromUtf8OrNull(invalid) == None)
+    check(String.fromUtf8OrNone(invalid) == None)
     println("core string ABI")
 }

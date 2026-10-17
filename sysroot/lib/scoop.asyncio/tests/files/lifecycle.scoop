@@ -45,7 +45,7 @@ private class AsyncFileLifecycleTest {
             val escaped = loop.runWithResult<AsyncFile> suspend { scope ->
                 val file = loop.openFile(path)
                 val child = scope.launch suspend {
-                    try { currentJobOrNull()!!.cancel(); ensureActive() }
+                    try { currentJobOrNone()!!.cancel(); ensureActive() }
                     finally { file.close() }
                 }
                 child.join()

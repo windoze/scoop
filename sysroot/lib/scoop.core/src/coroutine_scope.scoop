@@ -28,13 +28,13 @@ public class CoroutineScope internal constructor(public val job: Job) {
 context(job: Job)
 private fun boundCoroutineJob(): Job = job
 
-public fun currentJobOrNull(): Job? {
+public fun currentJobOrNone(): Job? {
     try { return Some(boundCoroutineJob()) }
     catch (_: MissingContextException) { return None }
 }
 
 public fun ensureActive() {
-    when (currentJobOrNull()) {
+    when (currentJobOrNone()) {
         case Some(job) -> job.ensureActive()
         case None -> {}
     }
@@ -59,7 +59,7 @@ private class StructuredCompletion<T>(val task: Deferred<T>) : Continuation<T> {
 }
 
 public suspend fun <T> coroutineScope(block: suspend (CoroutineScope) -> T): T {
-    val parent = currentJobOrNull()
+    val parent = currentJobOrNone()
     val task = Deferred<T>(parent)
     when (parent) {
         case Some(owner) -> owner.attach(task)

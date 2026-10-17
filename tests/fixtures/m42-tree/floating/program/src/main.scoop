@@ -18,6 +18,6 @@ fun main() {
     val map = sortedMapOf<Float, Int>((Float.NaN, 1), (-Float.NaN, 2), (-0f, 3), (0f, 4))
     check(map.size == 2L && map[Float.NaN] == Some(2) && map[0f] == Some(4), "float map")
     val reversed = values.toSortedSet(reverseOrder<Double>())
-    check(reversed.firstOrNull()!!.isNaN() && reversed.lastOrNull() == Some(-1.0), "reverse floating order")
+    check(reversed.firstOrNone()!!.isNaN() && reversed.lastOrNone() == Some(-1.0), "reverse floating order")
     println("tree floating passed")
 }

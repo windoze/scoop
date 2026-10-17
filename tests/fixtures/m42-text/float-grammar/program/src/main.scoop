@@ -3,7 +3,7 @@ import scoop.text.*
 fun check(value: Boolean, label: String) { if (!value) { println(label); throw Exception(Some(label)) } }
 
 fun invalid(text: String) {
-    check(text.toFloatOrNull() == None && text.toDoubleOrNull() == None, "accepted: " + text)
+    check(text.toFloatOrNone() == None && text.toDoubleOrNone() == None, "accepted: " + text)
     var floatThrown = false
     var doubleThrown = false
     try { text.toFloat() } catch (error: NumberFormatException) { floatThrown = true }

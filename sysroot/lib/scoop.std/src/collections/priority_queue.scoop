@@ -49,8 +49,8 @@ public class PriorityQueue<T> public constructor(public val comparator: Comparat
         return storage.read(0L)
     }
 
-    public fun peekOrNull(): T? = if (elementCount == 0L) None else Some(storage.read(0L))
-    public fun removeFirstOrNull(): T? = if (elementCount == 0L) None else Some(removeFirst())
+    public fun peekOrNone(): T? = if (elementCount == 0L) None else Some(storage.read(0L))
+    public fun removeFirstOrNone(): T? = if (elementCount == 0L) None else Some(removeFirst())
 
     public fun removeFirst(): T {
         if (elementCount == 0L) throw NoSuchElementException("empty priority queue")

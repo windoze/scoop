@@ -27,7 +27,7 @@ private class EncodingTests {
     fun `invalid text has both throwing and optional paths`() {
         assertFailsWith<IllegalArgumentException> { "fg".hexToByteArray() }
         assertFailsWith<IllegalArgumentException> { "f".hexToByteArray() }
-        assertTrue(when ("fg".hexToByteArrayOrNull()) { case None -> true; else -> false })
+        assertTrue(when ("fg".hexToByteArrayOrNone()) { case None -> true; else -> false })
         assertFailsWith<IllegalArgumentException> { Base64.Default.decode("Zg=") }
     }
 }

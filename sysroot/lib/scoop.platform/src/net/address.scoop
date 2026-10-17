@@ -89,7 +89,7 @@ internal fun decimal(text: String): UInt {
     for (byte in text.toByteArray()) {
         if (byte < 48 || byte > 57) throw IllegalArgumentException(Some("invalid address number"))
     }
-    return text.toUIntOrNull() ?: throw IllegalArgumentException(Some("address number overflow"))
+    return text.toUIntOrNone() ?: throw IllegalArgumentException(Some("address number overflow"))
 }
 
 @Extern(name = "scoop_platform_ip_parse")

@@ -37,7 +37,7 @@ fun main() {
         if (left < right) -9223372036854775807L - 1L else if (left == right) 0L else 1L
     }
     val ordered = sortedSetOf<Int>(extreme, 3, 1, 2)
-    check(ordered.firstOrNull() == Some(1) && ordered.lower(3) == Some(2), "extreme compare result")
+    check(ordered.firstOrNone() == Some(1) && ordered.lower(3) == Some(2), "extreme compare result")
     val full = TreeMap<Int, Int>(comparatorOf<Int> { left, right -> hook.action(); left.compareTo(right) })
     var index = 0
     while (index < 15) { full[index] = index; index += 1 }

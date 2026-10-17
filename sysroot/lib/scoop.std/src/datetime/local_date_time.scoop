@@ -39,17 +39,17 @@ public class LocalDateTime public constructor(public val date: LocalDate, public
     public companion object : ValueEncoder<LocalDateTime>, ValueDecoder<LocalDateTime> {
         public override fun encode(value: LocalDateTime, encoder: Encoder) { encoder.singleValue().writeString(value.toString()) }
         public override fun decode(decoder: Decoder): LocalDateTime =
-            decodeTextValue<LocalDateTime>(decoder, { text -> parseOrNull(text) }, "local date-time")
+            decodeTextValue<LocalDateTime>(decoder, { text -> parseOrNone(text) }, "local date-time")
 
-        public fun parseOrNull(text: String): LocalDateTime? {
+        public fun parseOrNone(text: String): LocalDateTime? {
             val split = text.indexOf('T')
             if (split < 0L) return None
-            val date = LocalDate.parseOrNull(text.substring(0L, split))
-            val time = LocalTime.parseOrNull(text.substring(split + 1L))
+            val date = LocalDate.parseOrNone(text.substring(0L, split))
+            val time = LocalTime.parseOrNone(text.substring(split + 1L))
             if (date == None || time == None) return None
             return Some(LocalDateTime(date!!, time!!))
         }
-        public fun parse(text: String): LocalDateTime = when (parseOrNull(text)) {
+        public fun parse(text: String): LocalDateTime = when (parseOrNone(text)) {
             case Some(value) -> value
             case None -> throw IllegalArgumentException(Some("invalid local date-time"))
         }

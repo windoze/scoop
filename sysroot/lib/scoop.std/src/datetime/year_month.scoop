@@ -29,13 +29,13 @@ public class YearMonth public constructor(public val year: Int, public val month
     public companion object : ValueEncoder<YearMonth>, ValueDecoder<YearMonth> {
         public override fun encode(value: YearMonth, encoder: Encoder) { encoder.singleValue().writeString(value.toString()) }
         public override fun decode(decoder: Decoder): YearMonth =
-            decodeTextValue<YearMonth>(decoder, { text -> parseOrNull(text) }, "year-month")
+            decodeTextValue<YearMonth>(decoder, { text -> parseOrNone(text) }, "year-month")
 
-        public fun parseOrNull(text: String): YearMonth? = when (parseCalendarFields(text, false)) {
+        public fun parseOrNone(text: String): YearMonth? = when (parseCalendarFields(text, false)) {
             case Some(parts) -> Some(YearMonth(parts._1, parts._2))
             case None -> None
         }
-        public fun parse(text: String): YearMonth = when (parseOrNull(text)) {
+        public fun parse(text: String): YearMonth = when (parseOrNone(text)) {
             case Some(value) -> value
             case None -> throw IllegalArgumentException(Some("invalid year-month"))
         }

@@ -115,13 +115,13 @@ LinkedHashMap 复用原哈希索引和修改计数，以数组槽中的双向链
 
 ## M42-5 进行中：ArrayDeque 已完成
 
-日期：2026-10-13。ArrayDeque 以普通 typed 环形数组实现两端增删、首尾 OrNull、clear 与头尾顺序迭代。增长只复制有效区间；退出有效范围的 MaybeUninit 槽清零。iterator 持有容器而非旧 backing，结构修改失效、空操作保持有效、首次 None 后永久耗尽。与 PriorityQueue 共用的 ElementBuffer 只封装实际使用的 typed 槽读写和增长容量计算，没有新增集合接口或 native 能力。
+日期：2026-10-13。ArrayDeque 以普通 typed 环形数组实现两端增删、首尾 OrNone、clear 与头尾顺序迭代。增长只复制有效区间；退出有效范围的 MaybeUninit 槽清零。iterator 持有容器而非旧 backing，结构修改失效、空操作保持有效、首次 None 后永久耗尽。与 PriorityQueue 共用的 ElementBuffer 只封装实际使用的 typed 槽读写和增长容量计算，没有新增集合接口或 native 能力。
 
 本机通过 `m42-queue-deque-basic` 与 `m42-queue-deque-model`，正常与 moving GC 均执行：包括嵌套 Option、空队列异常、两端交错操作、1500 步模型对照、多轮环形绕回、扩容，以及与 HashSet 组合的广度优先遍历。证据保留于 `target/m42/queues-functional-report.json`；同轮 PriorityQueue 与组合 GC 验证见后续记录。先完成普通源码构建与 `git diff --check`，无底层宿主改动，不运行全仓库套件。
 
 ### PriorityQueue 已完成
 
-普通数组二叉堆支持显式 Comparator、自然顺序／显式比较器工厂、peek、removeFirst 及 OrNull、clear、size 和失效检测 iterator。插入先查找目标祖先，删除先计算下降路径，全部比较成功后才提交搬移；路径由二叉堆索引保存，无额外路径数组。每次用户比较返回后检查修改计数，异常不提交本次调整，重入修改保留副作用并拒绝继续使用旧状态。有效槽外及时清零；迭代器不保持旧 backing。
+普通数组二叉堆支持显式 Comparator、自然顺序／显式比较器工厂、peek、removeFirst 及 OrNone、clear、size 和失效检测 iterator。插入先查找目标祖先，删除先计算下降路径，全部比较成功后才提交搬移；路径由二叉堆索引保存，无额外路径数组。每次用户比较返回后检查修改计数，异常不提交本次调整，重入修改保留副作用并拒绝继续使用旧状态。有效槽外及时清零；迭代器不保持旧 backing。
 
 本批正式验证共 7 个 fixture 均通过，全部使用 `TMPDIR="$PWD/target/m42/scratch"`、`--work-dir target/m42/foundation`，按以下实际改动范围运行：
 
@@ -133,7 +133,7 @@ LinkedHashMap 复用原哈希索引和修改计数，以数组槽中的双向链
 
 ### 急切转换、遍历、窗口与目的地操作已完成
 
-日期：2026-10-13。交付 map/filter/flatMap/partition 系列、遍历与归约、first/last/single/elementAt 与 OrNull、contains/indexOf、截取与反转、zip/withIndex、chunked/windowed、List/Set 目的地重载及 joinToString。所有操作遵守单次输入遍历；短路后不读取无关后缀，take(0) 与负数 elementAtOrNull 不取得 iterator。目的地操作先快照输入，flatMapTo 还逐次快照内层来源，支持目标别名并保留异常前的成功前缀。新建结果使用只读浅快照。
+日期：2026-10-13。交付 map/filter/flatMap/partition 系列、遍历与归约、first/last/single/elementAt 与 OrNone、contains/indexOf、截取与反转、zip/withIndex、chunked/windowed、List/Set 目的地重载及 joinToString。所有操作遵守单次输入遍历；短路后不读取无关后缀，take(0) 与负数 elementAtOrNone 不取得 iterator。目的地操作先快照输入，flatMapTo 还逐次快照内层来源，支持目标别名并保留异常前的成功前缀。新建结果使用只读浅快照。
 
 本机 `m42-algorithms-transforms`、`terminals`、`windows`、`join` 均已通过普通运行与 moving GC；首轮报告保留为 `target/m42/algorithms-first-report.json`。窗口模型覆盖长度 0..11、窗口 1..5、步长 1..7、两种 partialWindows 共 840 组；其他用例覆盖嵌套 Option、短路读取和回调次数、空输入、非法数量、目的地自身／内层别名、prefix 提交和有限 join 对无限输入的停止。新增 `m42-algorithms-string-bound` 拒绝无 ToString 又未提供 transform 的调用，精确锁定源码位置及诊断。后续定向报告与整个 M42-5 收尾记录见下文。
 
@@ -147,7 +147,7 @@ LinkedHashMap 复用原哈希索引和修改计数，以数组槽中的双向链
 
 ### M42-5 完成：稳定排序、二分与算法组合验收
 
-交付 sorted/sortedDescending/sortedBy/sortedWith、sort/sortWith、binarySearch 和自然／显式 Comparator 的 min/maxOrNull。归并仅索引私有 ArrayList，先遍历复制调用者；相等时取左项，selector 每项执行一次。原地排序完整比较结束才写回，比较失败不改来源，自定义 setter 失败按规范留下写回前缀。二分使用半开区间及防溢出的中点、负插入点计算，默认 toIndex 取 receiver.size。
+交付 sorted/sortedDescending/sortedBy/sortedWith、sort/sortWith、binarySearch 和自然／显式 Comparator 的 min/maxOrNone。归并仅索引私有 ArrayList，先遍历复制调用者；相等时取左项，selector 每项执行一次。原地排序完整比较结束才写回，比较失败不改来源，自定义 setter 失败按规范留下写回前缀。二分使用半开区间及防溢出的中点、负插入点计算，默认 toIndex 取 receiver.size。
 
 `m42-algorithms-sorting` 验证稳定性、只支持顺序遍历的 List、逆序／自然排序、首次并列极值、NaN／正负零、511 项置换模型及 O(n log n) 比较上界；虚拟 Long.MAX_VALUE 大小的 List 覆盖极限命中、空区间与 Long.MIN_VALUE 的未命中编码。`natural-bound` 精确拒绝没有 Compare 的自然排序。`artifacts` 将含引用 struct 的稳定排序、窗口、分组、默认参数二分与 join 组合，删除 core/std/消费者源码后独立 link，并验证链接计划一致及 normal/moving 运行结果。
 
@@ -160,7 +160,7 @@ LinkedHashMap 复用原哈希索引和修改计数，以数组槽中的双向链
 
 ## M42-6 进行中：Result 与 Option 扩展已完成
 
-日期：2026-10-13。普通 invariant Result<T,E> 使用 Success/Failure，E 可为非 Throwable。已交付状态属性、两侧 OrNull、getOrElse/fold、map/mapError/flatMap/recover、onSuccess/onFailure、toOption、受 Throwable bound 约束的 getOrThrow，以及显式捕获 Throwable 的 runCatching。Option 的 map/flatMap/filter/fold/getOrElse/orElse/toResult 保留 Some(None) 层次，缺省 producer 仅在缺失时调用一次。所有普通组合操作直接传播回调异常。codec 随 M42-12 交付。
+日期：2026-10-13。普通 invariant Result<T,E> 使用 Success/Failure，E 可为非 Throwable。已交付状态属性、两侧 OrNone、getOrElse/fold、map/mapError/flatMap/recover、onSuccess/onFailure、toOption、受 Throwable bound 约束的 getOrThrow，以及显式捕获 Throwable 的 runCatching。Option 的 map/flatMap/filter/fold/getOrElse/orElse/toResult 保留 Some(None) 层次，缺省 producer 仅在缺失时调用一次。所有普通组合操作直接传播回调异常。codec 随 M42-12 交付。
 
 本机新增 5 个正式 fixture 全部闭合：basic、option、exceptions、throw-bound、artifacts。覆盖非异常 typed error、成功与失败分支短路、不同结果／错误类型变换、含引用 payload、嵌套 Option、集合组合、Throwable 直接子类与自定义异常子类、精确 bound 负例；artifact-only 用例移除 core/std/消费者源码后独立链接运行。所有运行类均执行普通和 moving GC。
 
@@ -176,7 +176,7 @@ LinkedHashMap 复用原哈希索引和修改计数，以数组槽中的双向链
 
 ### Sequence 惰性算子与排序已完成
 
-交付 map/mapIndexed/mapNotNull、filter/filterNot/filterNotNull、flatMap/flatten、onEach、take/drop/takeWhile/dropWhile、zip/withIndex、distinct/distinctBy、chunked/windowed、sorted/sortedDescending/sortedBy/sortedWith，以及 joinToString。每个算子的状态随 iterator 独立建立；windowed 在下次 next 才滑动或跨过间隙，当前输出不提前消费后续元素，输出窗口为独立只读快照。排序在首次消费时完整收集并稳定排序，后续读取使用本次结果。共用延迟 wrapper 保证回调或上游失败后不重试。
+交付 map/mapIndexed/mapNotNone、filter/filterNot/filterNotNone、flatMap/flatten、onEach、take/drop/takeWhile/dropWhile、zip/withIndex、distinct/distinctBy、chunked/windowed、sorted/sortedDescending/sortedBy/sortedWith，以及 joinToString。每个算子的状态随 iterator 独立建立；windowed 在下次 next 才滑动或跨过间隙，当前输出不提前消费后续元素，输出窗口为独立只读快照。排序在首次消费时完整收集并稳定排序，后续读取使用本次结果。共用延迟 wrapper 保证回调或上游失败后不重试。
 
 `m42-sequences-pipeline/windows/failures/sorting` 全部通过正常与 moving GC：无限 generator 经 filter/drop/take 的精确调用次数；take(0) 不占用上游 once-only iterator；嵌套 Option、空 inner flatten、zip 左侧多读约定、去重保留首项；480 组有限窗口模型、无限重叠窗口与大间隙短路；首个 next 才收集排序、selector 每项一次及相等 key 的稳定性。异常组合覆盖 map/filter、flatMap 内层、zip 右侧、distinct selector、window 上游、Comparator 和排序 selector，每次第一次异常传播、再次 next 不重试。
 
@@ -186,7 +186,7 @@ LinkedHashMap 复用原哈希索引和修改计数，以数组槽中的双向链
 
 Sequence 补齐查找／成员判断、遍历／归约／计数、partition/reversed、极值、分组／关联、List/Set 目的地操作及 List/Set/tuple-entry Map 的只读和可变 materialize。通过内部 Iterable 适配复用 M42-5 的实现，保留短路读取、目标别名快照、只读结果与前缀提交规则；不另写一套算法。binarySearch 和原地排序仍仅属于 List/MutableList。
 
-`m42-sequences-terminals` 验证只能读取一次的无限来源在 first/any/none/all/find/elementAt/contains/indexOf 时正确停止，并覆盖各无参数／predicate 重载、空归约、partition、reversed、极值和有限 join。`destinations` 覆盖 List/Set 的转换及两套目的地重载、flatMapTo 内层别名、两套 groupBy/groupByTo/associateBy 与其他关联操作、分组顺序和重复 tuple key 覆盖。`artifacts` 组合含引用 struct、Result、无限 generator、mapNotNull/windowed/take、跨 Cone generic collect 和 Map materialize；移除 core/std/消费者源码后独立链接，正常与 moving GC 均通过，并检查短路仅处理五个来源元素。
+`m42-sequences-terminals` 验证只能读取一次的无限来源在 first/any/none/all/find/elementAt/contains/indexOf 时正确停止，并覆盖各无参数／predicate 重载、空归约、partition、reversed、极值和有限 join。`destinations` 覆盖 List/Set 的转换及两套目的地重载、flatMapTo 内层别名、两套 groupBy/groupByTo/associateBy 与其他关联操作、分组顺序和重复 tuple key 覆盖。`artifacts` 组合含引用 struct、Result、无限 generator、mapNotNone/windowed/take、跨 Cone generic collect 和 Map materialize；移除 core/std/消费者源码后独立链接，正常与 moving GC 均通过，并检查短路仅处理五个来源元素。
 
 Sequence 的 13 个正式 fixture 全部通过，三个报告分别对应 2 个基础、6 个算子／终结、5 个约束／产物用例；运行类全有 normal/moving 两次执行。报告依次为 `target/m42/sequences-foundation-report.json`（8 个进程）、`sequences-operations-report.json`（24 个进程）、`sequences-artifacts-report.json`（14 个进程）。后两轮命令使用相同 `TMPDIR="$PWD/target/m42/scratch"`、`--suite tests/fixtures/m42-sequences --work-dir target/m42/foundation --jobs 4`；第二轮 exact filter 选择 pipeline/windows/terminals/destinations/failures/sorting，第三轮选择 `m42-sequences-*-bound`、invariant、artifacts。没有重复运行已通过且未修改的基础用例。
 
@@ -204,7 +204,7 @@ Sequence 的 13 个正式 fixture 全部通过，三个报告分别对应 2 个�
 
 ### 定宽整数、radix 格式化与布尔解析已完成
 
-交付八种 canonical 整数及八种 core alias 的 String 转换和 OrNull、八种整数的 toString(radix)、toBooleanStrict/OrNull 与 NumberFormatException。解析先校验 radix，严格处理 ASCII 数字和单一符号，使用目标上限的 quotient/remainder 在乘加前阻止溢出；完整覆盖 Long.MIN_VALUE 和 ULong.MAX_VALUE。signed 格式化使用 unsigned magnitude，不对最小 signed 数直接求绝对值；字母统一小写，无正号或多余前导零。OrNull 不吞非法 radix，unsigned 连 -0 也拒绝；高 radix 下的字母只按数字解释，不启用类型后缀或前缀语法。
+交付八种 canonical 整数及八种 core alias 的 String 转换和 OrNone、八种整数的 toString(radix)、toBooleanStrict/OrNone 与 NumberFormatException。解析先校验 radix，严格处理 ASCII 数字和单一符号，使用目标上限的 quotient/remainder 在乘加前阻止溢出；完整覆盖 Long.MIN_VALUE 和 ULong.MAX_VALUE。signed 格式化使用 unsigned magnitude，不对最小 signed 数直接求绝对值；字母统一小写，无正号或多余前导零。OrNone 不吞非法 radix，unsigned 连 -0 也拒绝；高 radix 下的字母只按数字解释，不启用类型后缀或前缀语法。
 
 本机 integers/radices/parse-errors/artifacts 四个 fixture 全部通过，4 个变体、18 个进程，所有运行类覆盖 normal/moving。证据为 `target/m42/text-integers-report.json`。命令使用相同 `TMPDIR="$PWD/target/m42/scratch"`、`--suite tests/fixtures/m42-text --work-dir target/m42/foundation --jobs 4`，exact filter 只选择本轮四项。覆盖各类型最小／最大值和越界一位、全部 alias、符号／前导零、独立二／八／十六／三十六进制极值向量、2..36 全 radix 代表值往返、四种 radix 的 Int8 全值域、严格布尔／数字语法、无效 radix 与 NumberFormatException。产物用例组合混合换行、Unicode key、split/trim/ASCII 规范化、整数解析／格式化、Sequence 与 Result；删除 core/std/消费者源码后独立 link，链接计划与运行结果正确。
 
@@ -212,13 +212,13 @@ Sequence 的 13 个正式 fixture 全部通过，三个报告分别对应 2 个�
 
 ### M42-7 完成：精确 Float／Double 文本解析
 
-新增 toFloat/toDouble 与 OrNull，完整校验 ASCII 十进制语法、特殊值与指数，保留 signed zero，按目标精度直接最近偶数舍入。有限输入只有舍入到无穷才失败；略大于 MAX_VALUE 但仍舍入到 MAX_VALUE 的文本成功。公开规范同步明确该边界与 +NaN/-NaN 的拒绝行为。
+新增 toFloat/toDouble 与 OrNone，完整校验 ASCII 十进制语法、特殊值与指数，保留 signed zero，按目标精度直接最近偶数舍入。有限输入只有舍入到无穷才失败；略大于 MAX_VALUE 但仍舍入到 MAX_VALUE 的文本成功。公开规范同步明确该边界与 +NaN/-NaN 的拒绝行为。
 
 实现由普通 Scoop 的十进制扫描、指数抵消、UInt limb 整数、精确商／余数舍入与目标类型缩放组成。有效位保留数量由 IEEE 格式中点的有限十进制长度推导，长尾只保存非零标志；全输入继续验证，不添加数值长度配额。没有使用 Double 中转 Float、JSON native parser、Extern/Intrinsic 或宿主 helper。新增库源码单文件最多 81 行。
 
 正式 CLI 验证：
 
-- float-grammar 覆盖合法语法、42 种非法形式、OrNull／NumberFormatException、特殊值、负零与有限溢出；float-long 覆盖 2048 位输入、巨大指数、指数与小数点抵消、远端 sticky、负号及明确的 Double→Float 二次舍入反例。两者普通／moving GC 通过，证据为 `target/m42/text-float-grammar-long-report.json` 的对应通过记录。
+- float-grammar 覆盖合法语法、42 种非法形式、OrNone／NumberFormatException、特殊值、负零与有限溢出；float-long 覆盖 2048 位输入、巨大指数、指数与小数点抵消、远端 sticky、负号及明确的 Double→Float 二次舍入反例。两者普通／moving GC 通过，证据为 `target/m42/text-float-grammar-long-report.json` 的对应通过记录。
 - float32／float64 各有 324 个独立向量，覆盖正负输入、中点两侧与奇偶 tie、零／subnormal／normal 边界、binade 进位、溢出阈值、超过有效位保留范围的长尾和固定种子随机十进制。期望由 `tests/generate_float_text_vectors.py` 以 Fraction 在 IEEE 相邻值间二分并比较精确距离生成；宿主浮点只用于输出已选定位型的字面量。脚本仅离线再生 fixture，不接入 runner 或库实现。
 - 两组向量在 debug／release 下分别以普通／moving GC 运行通过。artifacts 增加 Sequence→浮点解析组合，移除 core／std／应用源码后独立链接运行通过。证据 `target/m42/text-float-vectors-artifacts-report.json`：3 fixture、5 variant、22 process 均通过。
 
@@ -249,7 +249,7 @@ Python 生成脚本经固定版本 Ruff 格式化与 lint；全部改动通过 `
 
 ### M42-8 完成：Hex 与 Base64
 
-新增 List<Byte>.toHexString、String.hexToByteArray／OrNull，以及 Base64.Default／UrlSafe、嵌套 PaddingOption 与不可变 withPadding 配置。Hex 大小写转换、首个非法标量位置和末尾不完整字节均有明确错误行为；Base64 严格检查字母表、符号分组、完整 padding 与零 pad bits，OPTIONAL 只允许完整 padding 或全部省略。编码先检查输出长度，逐个读取输入 byte，结果均为独立快照。源码单文件最多 55 行，没有 native helper 或新增依赖。
+新增 List<Byte>.toHexString、String.hexToByteArray／OrNone，以及 Base64.Default／UrlSafe、嵌套 PaddingOption 与不可变 withPadding 配置。Hex 大小写转换、首个非法标量位置和末尾不完整字节均有明确错误行为；Base64 严格检查字母表、符号分组、完整 padding 与零 pad bits，OPTIONAL 只允许完整 padding 或全部省略。编码先检查输出长度，逐个读取输入 byte，结果均为独立快照。源码单文件最多 55 行，没有 native helper 或新增依赖。
 
 `tests/fixtures/m42-encoding` 的五个正式 fixture 均通过普通／moving GC：
 

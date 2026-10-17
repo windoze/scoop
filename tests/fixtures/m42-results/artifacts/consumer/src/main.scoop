@@ -12,6 +12,6 @@ fun main() {
     val result = Some(value).toResult<Payload, Failure> { Failure(1L) }
     println(describe<Payload, Failure>(result) { payload -> f"${payload.label}:${payload.value!!}" })
     val values = listOf<Result<Payload, Failure>>(result, Result.Failure<Payload, Failure>(Failure(2L)))
-    val selected = values.mapNotNull<Result<Payload, Failure>, Payload> { entry -> entry.toOption() }
+    val selected = values.mapNotNone<Result<Payload, Failure>, Payload> { entry -> entry.toOption() }
     println(selected.size == 1L && runCatching<Int> { selected[0L].value!! }.getOrThrow() == 7)
 }

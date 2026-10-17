@@ -20,7 +20,7 @@ fun main() {
     check(Json.encodeToString(tree, TreeSet<Int>.encoder(Int.Companion)) == "[3,2,1]")
     val deque = Json.decodeFromString("[3,1,2]", ArrayDeque<Int>.decoder(Int.Companion))
     check(Json.encodeToString(deque, ArrayDeque<Int>.encoder(Int.Companion)) == "[3,1,2]")
-    check(deque.removeFirst() == 3 && deque.removeLast() == 2 && deque.firstOrNull() == Some(1))
+    check(deque.removeFirst() == 3 && deque.removeLast() == 2 && deque.firstOrNone() == Some(1))
     val itemDecoder = ValueDecoderFunction<Item> { decoder -> Item(Int.decode(decoder)) }
     val itemEncoder = ValueEncoderFunction<Item> { item, encoder -> Int.encode(item.number, encoder) }
     val order = comparatorOf<Item> { a, b -> a.number.compareTo(b.number) }

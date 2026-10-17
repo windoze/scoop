@@ -10,8 +10,8 @@ public class Base64 private constructor(private val urlSafe: Boolean, public val
 
     public fun withPadding(option: PaddingOption): Base64 = Base64(urlSafe, option)
     public fun encode(source: List<Byte>): String = encodeBase64(source, urlSafe, paddingOption)
-    public fun decodeOrNull(source: String): Array<Byte>? = decodeBase64(source, urlSafe, paddingOption)
-    public fun decode(source: String): Array<Byte> = when (decodeOrNull(source)) {
+    public fun decodeOrNone(source: String): Array<Byte>? = decodeBase64(source, urlSafe, paddingOption)
+    public fun decode(source: String): Array<Byte> = when (decodeOrNone(source)) {
         case Some(value) -> value
         case None -> throw IllegalArgumentException(Some("invalid Base64"))
     }

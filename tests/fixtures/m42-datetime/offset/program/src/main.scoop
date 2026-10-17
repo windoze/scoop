@@ -29,7 +29,7 @@ fun main() {
     bad.add("+18:00:01"); bad.add("-18:01"); bad.add("+19:00"); bad.add("+00:60"); bad.add("+00:00:60")
     bad.add("+00:00:0"); bad.add("+00:00:00.0"); bad.add("+00:00 "); bad.add(" +00:00")
     bad.add("+０0:00"); bad.add("+00:-1"); bad.add("UTC"); bad.add("Z+00:00")
-    for (text in bad) { check(UtcOffset.parseOrNull(text) == None); invalid { UtcOffset.parse(text) } }
+    for (text in bad) { check(UtcOffset.parseOrNone(text) == None); invalid { UtcOffset.parse(text) } }
     invalid { UtcOffset.fromTotalSeconds(-64801) }; invalid { UtcOffset.fromTotalSeconds(64801) }
     invalid { UtcOffset.fromTotalSeconds(Int.MIN_VALUE) }; invalid { UtcOffset.fromTotalSeconds(Int.MAX_VALUE) }
     invalid { UtcOffset.fromHoursMinutesSeconds(1, -1) }; invalid { UtcOffset.fromHoursMinutesSeconds(-1, 0, 1) }

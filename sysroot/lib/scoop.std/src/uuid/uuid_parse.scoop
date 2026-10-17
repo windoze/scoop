@@ -1,6 +1,6 @@
 package scoop.uuid
 
-import scoop.text.hexToByteArrayOrNull
+import scoop.text.hexToByteArrayOrNone
 
 internal fun uuidFromBytes(bytes: List<Byte>): Uuid {
     if (bytes.size != 16L) throw IllegalArgumentException(Some("UUID requires 16 bytes"))
@@ -29,7 +29,7 @@ internal fun parseUuid(text: String): Uuid? {
             chars[index + offset]
         })
     }
-    return when (compact.hexToByteArrayOrNull()) {
+    return when (compact.hexToByteArrayOrNone()) {
         case None -> None
         case Some(bytes) -> Some(uuidFromBytes(bytes))
     }

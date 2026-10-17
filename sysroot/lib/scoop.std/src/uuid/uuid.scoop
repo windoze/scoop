@@ -37,15 +37,15 @@ public struct Uuid(val mostSignificantBits: ULong, val leastSignificantBits: ULo
     public companion object : ValueEncoder<Uuid>, ValueDecoder<Uuid> {
         public override fun encode(value: Uuid, encoder: Encoder) { encoder.singleValue().writeString(value.toString()) }
         public override fun decode(decoder: Decoder): Uuid =
-            decodeTextValue<Uuid>(decoder, { text -> parseOrNull(text) }, "UUID")
+            decodeTextValue<Uuid>(decoder, { text -> parseOrNone(text) }, "UUID")
 
         public val NIL: Uuid = Uuid(0uL, 0uL)
         public val MAX: Uuid = Uuid(ULong.MAX_VALUE, ULong.MAX_VALUE)
         public fun fromLongs(mostSignificantBits: Long, leastSignificantBits: Long): Uuid =
             Uuid(mostSignificantBits.toULong(), leastSignificantBits.toULong())
         public fun fromByteArray(bytes: List<Byte>): Uuid = uuidFromBytes(bytes)
-        public fun parseOrNull(text: String): Uuid? = parseUuid(text)
-        public fun parse(text: String): Uuid = when (parseOrNull(text)) {
+        public fun parseOrNone(text: String): Uuid? = parseUuid(text)
+        public fun parse(text: String): Uuid = when (parseOrNone(text)) {
             case Some(value) -> value
             case None -> throw IllegalArgumentException(Some("invalid UUID"))
         }

@@ -37,7 +37,7 @@ fun main() {
     var before = gcStats()
     removeBatch(deque, heap)
     gcCollect()
-    check(before >= gcStats() + 40uL && heap.peek().rank == 40L && deque.lastOrNull()!!.rank == 40L)
+    check(before >= gcStats() + 40uL && heap.peek().rank == 40L && deque.lastOrNone()!!.rank == 40L)
     before = gcStats()
     deque.clear()
     heap.clear()

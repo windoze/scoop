@@ -51,11 +51,11 @@ Rust 的 Command 把启动行为放在 spawn / status / output，Swift 的 Proce
 
 **R04 · P2：缺失值与可恢复失败的名称没有形成统一规则。**
 
-当前同时存在 [fromUtf8OrNone](/Volumes/Data/home/chenxu/repos/scoop/sysroot/lib/scoop.core/src/strings.scoop:62)、std 的 `parseOrNull` / `getOrNull` / `mapNotNull`，以及返回 Option 的裸 [decrypt](/Volumes/Data/home/chenxu/repos/scoop/sysroot/lib/scoop.crypto/src/cipher.scoop:23) 和 [verifyCompact](/Volumes/Data/home/chenxu/repos/scoop/sysroot/lib/scoop.crypto/src/jws/compact.scoop:50)。同属验证操作，普通 verify 返回 Boolean，TrustStore.verify 返回专有的 `CertificateVerification { Verified, Failed(...) }`。
+评审时同时存在 [fromUtf8OrNone](/Volumes/Data/home/chenxu/repos/scoop/sysroot/lib/scoop.core/src/strings.scoop:62)、std 的 `parseOrNull` / `getOrNull` / `mapNotNull`，以及返回 Option 的裸 [decrypt](/Volumes/Data/home/chenxu/repos/scoop/sysroot/lib/scoop.crypto/src/cipher.scoop:23) 和 [verifyCompact](/Volumes/Data/home/chenxu/repos/scoop/sysroot/lib/scoop.crypto/src/jws/compact.scoop:50)。同属验证操作，普通 verify 返回 Boolean，TrustStore.verify 返回专有的 `CertificateVerification { Verified, Failed(...) }`。
 
 返回 Boolean、Option 和带错误数据的结果各有合理用途；问题是读者无法从统一约定判断具体用途。Rust 常通过 Option / Result 表达，Swift 使用 Optional / throws / Result，Kotlin 常用抛异常版本与 OrNull 版本配对。
 
-建议沿用已经占主流的 `OrNull` 拼写，规定它在 Scoop 表示 Option，将 `fromUtf8OrNone` 改为 `fromUtf8OrNull`。解析／解码的普通入口抛格式错误，OrNull 入口只转换约定的格式或不匹配结果。`decryptOrNull`、`verifyCompactOrNull` 能直接提示当前的返回方式；若验证后还取得 payload，应在文档首句写清该动作。
+建议统一使用与 Scoop 缺失值一致的 `OrNone` 拼写，保留 `fromUtf8OrNone`，将已有的 `parseOrNull`／`getOrNull` 改为 `parseOrNone`／`getOrNone`，`mapNotNull`／`filterNotNull` 改为 `mapNotNone`／`filterNotNone`。Scoop 没有 null，不能只为接近 Kotlin 而让名称与 Option 语义分离。解析／解码的普通入口抛格式错误，OrNone 入口只转换约定的格式或不匹配结果。`decryptOrNone`、`verifyCompactOrNone` 能直接提示当前的返回方式；若验证后还取得 payload，应在文档首句写清该动作。
 
 `verify` / `verifyHmac` 这类纯判定保持 Boolean；需要保留验证失败原因时，建议复用已有 `Result<Unit, CertificateValidationFailure>`。Map.get、Iterator.next、find、tryWait 等有成熟缺失语义的查询可以继续直接返回 Option，不要求所有可选结果一律追加后缀。`try` 保留给 tryLock、tryWait、tryResume 这类非阻塞尝试或竞争状态转换。影响 std 1.2／7、语言规范 11.4 和 crypto 对应章节。
 
@@ -163,7 +163,7 @@ Kotlin use 会保留主异常并记录清理异常；Scoop 使用显式组合对
 | 主题 | Scoop | Rust | Swift | Kotlin | 评审意见 |
 | --- | --- | --- | --- | --- | --- |
 | 迭代终止 | next(): Option<T> | next(): Option<T> | next() -> Element? | hasNext() + next() | Scoop 模型完整，保留；无需补一套 hasNext。 |
-| 可选值层次 | T? 是 Option<T>，Some(None) 与 None 不同 | 嵌套 Option 保留层次 | 嵌套 Optional 可保留层次 | nullable 类型不重复套层 | 保留。mapNotNull 等名称可沿用，但文档说明只去除一层。 |
+| 可选值层次 | T? 是 Option<T>，Some(None) 与 None 不同 | 嵌套 Option 保留层次 | 嵌套 Optional 可保留层次 | nullable 类型不重复套层 | 保留层次。名称使用 mapNotNone／filterNotNone，文档说明只去除一层。 |
 | Result | Result<T,E>，Success / Failure，E 无异常约束 | Result<T,E>，Ok / Err | Result<Success,Failure>，Failure: Error | Result<T>，失败载荷为 Throwable | 当前是自洽的组合；保留 mapError / flatMap / getOrThrow 的明确角色。 |
 | 数组与集合可变性 | Array 只读，MutableArray 可写，List 是只读接口 | 借用与可变性由类型／所有权表达 | 集合为值类型，修改受变量可变性控制 | Array 本身可写，List / MutableList 分接口 | Scoop 的区分合理，重点修复同名转换返回值的不一致。 |
 | 普通相等、打印能力 | 显式 Equals / ToString / Hash；Any 无通用方法 | 显式 trait | 显式协议及部分合成 | Any 提供 equals / hashCode / toString | 保留能力边界，不为模仿 Kotlin 添加 Any 回退。 |
@@ -195,7 +195,7 @@ CLI 的 `parse(arguments)` 与 `parseCommandLine(argv)` 分别处理不含／包
 | 主风格 | lowerCamelCase 函数／属性，UpperCamelCase 类型与普通 enum variant；集合词汇以 Kotlin 为主 |
 | 参数名 | 属于公开 API；override、同步／异步对应入口保持一致；主要操作回调放最后 |
 | 状态与动作 | 廉价、稳定的对象状态用属性；外部查询、IO、分配资源和生命周期变化用函数并写清动作 |
-| 失败 | 解析的普通入口抛出具体异常；OrNull 只转换约定的正常失败；谓词返回 Boolean；需要失败载荷时使用已有 Result |
+| 失败 | 解析的普通入口抛出具体异常；OrNone 只转换约定的正常失败；谓词返回 Boolean；需要失败载荷时使用已有 Result |
 | 复制与适配 | toX 为独立结果；toMutableX 明确可写；asX 表示适配／view；copyOfRange 明确区间复制 |
 | 修改 | sort / sorted、shuffle / shuffled 成对；集合 add，文本／字节 builder append；IO read / write 表达实际传输 |
 | 所有权 | withX 借用，takeX 取走，takeOwnership 接管；文档写清失败前后的责任；finish／协议 shutdown 与本地 close 区分 |

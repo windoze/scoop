@@ -54,7 +54,7 @@ fun main() {
     val bad = ArrayList<String>()
     bad.add("1970-01-01T00:00:00"); bad.add("2016-12-31T23:59:60Z")
     bad.add("-999999999-01-01T00:00:00+00:00:01"); bad.add("+999999999-12-31T23:59:59.999999999-00:00:01")
-    for (text in bad) { check(Instant.parseOrNull(text) == None); invalid { Instant.parse(text) } }
+    for (text in bad) { check(Instant.parseOrNone(text) == None); invalid { Instant.parse(text) } }
     val clock = FakeClock()
     val first = clock.now()
     val second = clock.now()

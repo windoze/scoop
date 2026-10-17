@@ -10,7 +10,7 @@ fun vector(text: String, encoded: String) {
     while (index < bytes.size) { check(decoded[index] == bytes[index]); index += 1L }
 }
 fun invalid(text: String, position: Long) {
-    val missing = when (text.hexToByteArrayOrNull()) { case None -> true; case Some(_) -> false }
+    val missing = when (text.hexToByteArrayOrNone()) { case None -> true; case Some(_) -> false }
     check(missing)
     var failed = false
     try { text.hexToByteArray() } catch (error: IllegalArgumentException) {

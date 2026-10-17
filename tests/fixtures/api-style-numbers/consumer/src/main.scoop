@@ -20,7 +20,7 @@ fun main() {
     check("2147483647".toInt() == Int.MAX_VALUE && "9223372036854775807".toLong() == Long.MAX_VALUE)
     check("255".toUByte() == unsignedByte && "65535".toUShort() == unsignedShort)
     check("4294967295".toUInt() == unsignedInt && "18446744073709551615".toULong() == unsignedLong)
-    check("128".toByteOrNull() == None && "-1".toUByteOrNull() == None)
+    check("128".toByteOrNone() == None && "-1".toUByteOrNone() == None)
     check(12.9.toInt() == 12 && (-12.9).toLong() == -12L)
     check(255.9.toUByte() == 255.toUByte() && (-3.9f).toShort() == (-3).toShort())
 

@@ -2,22 +2,22 @@ package scoop.text
 
 import scoop.map
 
-public fun String.toUByteOrNull(radix: Int = 10): UByte? =
+public fun String.toUByteOrNone(radix: Int = 10): UByte? =
     parseUnsignedInteger(this, radix, UInt8.MAX_VALUE.toULong()).map<ULong, UInt8> { value -> value.toUByte() }
 
-public fun String.toUByte(radix: Int = 10): UByte = requireParsedNumber<UInt8>(toUByteOrNull(radix))
+public fun String.toUByte(radix: Int = 10): UByte = requireParsedNumber<UInt8>(toUByteOrNone(radix))
 
-public fun String.toUShortOrNull(radix: Int = 10): UShort? =
+public fun String.toUShortOrNone(radix: Int = 10): UShort? =
     parseUnsignedInteger(this, radix, UInt16.MAX_VALUE.toULong()).map<ULong, UInt16> { value -> value.toUShort() }
 
-public fun String.toUShort(radix: Int = 10): UShort = requireParsedNumber<UInt16>(toUShortOrNull(radix))
+public fun String.toUShort(radix: Int = 10): UShort = requireParsedNumber<UInt16>(toUShortOrNone(radix))
 
-public fun String.toUIntOrNull(radix: Int = 10): UInt? =
+public fun String.toUIntOrNone(radix: Int = 10): UInt? =
     parseUnsignedInteger(this, radix, UInt.MAX_VALUE.toULong()).map<ULong, UInt> { value -> value.toUInt() }
 
-public fun String.toUInt(radix: Int = 10): UInt = requireParsedNumber<UInt>(toUIntOrNull(radix))
+public fun String.toUInt(radix: Int = 10): UInt = requireParsedNumber<UInt>(toUIntOrNone(radix))
 
-public fun String.toULongOrNull(radix: Int = 10): ULong? =
+public fun String.toULongOrNone(radix: Int = 10): ULong? =
     parseUnsignedInteger(this, radix, ULong.MAX_VALUE.toULong()).map<ULong, ULong> { value -> value.toULong() }
 
-public fun String.toULong(radix: Int = 10): ULong = requireParsedNumber<ULong>(toULongOrNull(radix))
+public fun String.toULong(radix: Int = 10): ULong = requireParsedNumber<ULong>(toULongOrNone(radix))

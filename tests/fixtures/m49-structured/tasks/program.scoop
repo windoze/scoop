@@ -44,7 +44,7 @@ context(label: Label)
 fun labelText(): String = label.text
 
 fun main() {
-    check(absent(currentJobOrNull()))
+    check(absent(currentJobOrNone()))
     ensureActive()
     val gate = Gate()
     val completion = Completion<Int>()
@@ -53,10 +53,10 @@ fun main() {
     context(parentLabel) {
         startCoroutine<Int>(suspend {
             coroutineScope<Int> suspend { scope ->
-                check(currentJobOrNull()!! === scope.job)
+                check(currentJobOrNone()!! === scope.job)
                 state.scope = Some(scope)
                 state.deferred = Some(scope.async<Int> suspend {
-                    check(!(currentJobOrNull()!! === scope.job))
+                    check(!(currentJobOrNone()!! === scope.job))
                     check(labelText() == "parent")
                     coroutineScope<Int> suspend { inner ->
                         inner.launch suspend {
@@ -108,6 +108,6 @@ fun main() {
         }
     }, refResult)
     check(refResult.get() === reference)
-    check(absent(currentJobOrNull()))
+    check(absent(currentJobOrNone()))
     println("tasks ok")
 }

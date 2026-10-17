@@ -27,7 +27,7 @@ fun main() {
     check(nested.orElse { throw Exception(Some("inner None alternative")) } == Some(None), "nested alternative")
     val result = nested.toResult<Int?, String> { throw Exception(Some("inner None error")) }
     check(result.isSuccess && result.toOption() == Some(None), "nested result round trip")
-    check(none.toResult<Int, String> { state.calls += 1; "empty" }.errorOrNull() == Some("empty") && state.calls == 3, "error producer once")
+    check(none.toResult<Int, String> { state.calls += 1; "empty" }.errorOrNone() == Some("empty") && state.calls == 3, "error producer once")
     val marker = Exception(Some("callback"))
     var caught = false
     try { some.map<Int, Int> { _ -> throw marker } } catch (error: Exception) { caught = error.message == Some("callback") }

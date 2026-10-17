@@ -18,7 +18,7 @@
 
 | 返回值与操作 | 约定 |
 | --- | --- |
-| 失败 | 普通解析或转换入口抛具体异常；OrNull 只把约定的正常失败变成 None；谓词返回 Boolean；需要失败载荷时使用 Result<T, E>。无关异常照常传播 |
+| 失败 | 普通解析或转换入口抛具体异常；OrNone 只把约定的正常失败变成 None；谓词返回 Boolean；需要失败载荷时使用 Result<T, E>。无关异常照常传播 |
 | 数组与字节 | 高层只读输入 List<Byte>，独立快照输出 Array<Byte>，可写目标 MutableArray<Byte>；FFI 指针继续按实际 native 元素类型表达 |
 | 转换与适配 | toX 创建与源后续结构修改无关的结果；toMutableX 明确可写；asX 表示适配或 view。容器快照是浅复制，引用元素仍引用原对象 |
 | 集合求值 | 普通集合转换默认急切；Sequence 惰性。Iterable.withIndex() 是明确的惰性例外，需快照时调用 toList()；有序容器 copyOfRange 返回独立快照 |
@@ -27,6 +27,8 @@
 | Codec | ValueEncoder／ValueDecoder／ValueInspector 表达处理 T 的独立对象；Json 的 encodeToString／decodeFromString、encodeToValue／decodeFromValue 明示边界表示 |
 | 资源 | 可关闭资源实现 Closeable；dispose 默认桥接 close。暴露关闭状态时使用 isClosed。一般清理能力仍为 Disposable；use 同时保存正文与清理异常 |
 | 所有权 | 资源回调形式 withX { ... } 表示作用域内借用；takeX 取走，takeOwnership 接管。具体入口说明移交时点与失败责任；finish／shutdownGracefully 与本地 close 各表达实际动作 |
+
+缺失值的命名使用 Scoop 的 `None`：可选结果的配对入口使用 `OrNone`，例如 `toIntOrNone`、`parseOrNone`、`getOrNone`；过滤可选值使用 `mapNotNone`、`filterNotNone`，只去掉外层 None 并提取 Some 的载荷，保留载荷中的 None。Map.get、Iterator.next、find 等已有明确缺失语义的查询无需统一追加后缀。JSON 格式的 null 与 FFI 的空指针按各自领域术语表达，不属于 Option API 的命名。
 
 withPadding 是不可变配置派生，withIndex 是惰性迭代变换，二者均不属于资源回调形式。计时单位保留 `5.seconds()` 等受检函数；它们可能溢出，不能把它们当作免费读取的字段。Duration.floorSeconds 是内部规范化表示的整秒下界，inWholeSeconds 和 toComponents() 的整秒向零截断，分量余数与时长同号。
 
@@ -38,7 +40,7 @@ withPadding 是不可变配置派生，withIndex 是惰性迭代变换，二者�
 | --- | --- |
 | 字符串 | String.length 计 Unicode 标量且为 O(n)，byteLength 计 UTF-8 字节且为 O(1)，整数下标定位为 O(n)。文本 `e` + U+0301 + `😀` 的长度分别是 Scoop 3、Rust str.len() 7 字节、Swift String.count 2 字素簇、Kotlin String.length 4 个 UTF-16 code unit。顺序处理字符优先迭代 |
 | 迭代终止 | Iterator.next(): Option<T>，无需 Kotlin 风格的 hasNext()；返回 None 表示结束 |
-| 嵌套可选值 | T? 是 Option<T>，Some(None) 与 None 不同；mapNotNull 只去掉一层。Map.getOrPut 只把外层 None 视为缺少键，已有 Some(None) 不触发缺省值生成 |
+| 嵌套可选值 | T? 是 Option<T>，Some(None) 与 None 不同；mapNotNone 只去掉一层。Map.getOrPut 只把外层 None 视为缺少键，已有 Some(None) 不触发缺省值生成 |
 | Result | Result<T, E> 使用 Success／Failure，E 无异常上界；mapError、flatMap 与 getOrThrow 各按明确的载荷／异常约束使用 |
 | 数组与能力 | Array 只读、MutableArray 可写；Any 没有通用 equals／hashCode／toString 回退。普通 struct 可派生 ==，但不自动获得 Equals<T> conformance；assertEquals 要求该显式能力，数组内容比较由实际元素规则决定 |
 | 任务执行 | launch／async 可以在返回前同步执行正文，不承诺切换线程；具体 IO 驱动由 EventLoop 提供。CancellableContinuation.tryResume 返回 Boolean，一步选择并提交恢复，不使用 Kotlin 的 tryResume／completeResume 两阶段协议 |

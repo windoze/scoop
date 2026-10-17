@@ -12,6 +12,6 @@ fun main() {
     expect(result.value == "界\u0000" && result.count == 2L)
     expect(failureOffset([65.toByte(), 225.toByte(), 128.toByte()]) == 1L)
     expect(recover([225.toByte(), 128.toByte(), 65.toByte()]) == "�A")
-    expect(String.fromUtf8OrNull([239.toByte(), 191.toByte(), 189.toByte()]) == Some("�"))
+    expect(String.fromUtf8OrNone([239.toByte(), 191.toByte(), 189.toByte()]) == Some("�"))
     println("utf8-artifacts-ok")
 }

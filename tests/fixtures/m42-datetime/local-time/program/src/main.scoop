@@ -31,7 +31,7 @@ fun main() {
     bad.add("01:02:03."); bad.add("01:02:03.1234567890"); bad.add("01:02:03,1")
     bad.add("01:02:03Z"); bad.add("01:02:03+00:00"); bad.add("01:02:03 ")
     bad.add("０1:02:03"); bad.add("01:02:03.1x"); bad.add("2024-01-01T01:02:03")
-    for (text in bad) { check(LocalTime.parseOrNull(text) == None); invalid { LocalTime.parse(text) } }
+    for (text in bad) { check(LocalTime.parseOrNone(text) == None); invalid { LocalTime.parse(text) } }
     invalid { LocalTime(24, 0) }; invalid { LocalTime(-1, 0) }
     invalid { LocalTime(0, -1) }; invalid { LocalTime(0, 60) }
     invalid { LocalTime(0, 0, -1) }; invalid { LocalTime(0, 0, 60) }

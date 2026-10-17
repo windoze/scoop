@@ -26,7 +26,7 @@ public class LocalTime public constructor(
     public companion object : ValueEncoder<LocalTime>, ValueDecoder<LocalTime> {
         public override fun encode(value: LocalTime, encoder: Encoder) { encoder.singleValue().writeString(value.toString()) }
         public override fun decode(decoder: Decoder): LocalTime =
-            decodeTextValue<LocalTime>(decoder, { text -> parseOrNull(text) }, "time")
+            decodeTextValue<LocalTime>(decoder, { text -> parseOrNone(text) }, "time")
 
         public fun fromNanosecondOfDay(value: Long): LocalTime {
             if (value < 0L || value >= 86400000000000L) throw IllegalArgumentException(Some("invalid nanosecond of day"))
@@ -34,8 +34,8 @@ public class LocalTime public constructor(
             return LocalTime((seconds / 3600L).toInt(), (seconds / 60L % 60L).toInt(),
                 (seconds % 60L).toInt(), (value % 1000000000L).toInt())
         }
-        public fun parseOrNull(text: String): LocalTime? = parseLocalTime(text)
-        public fun parse(text: String): LocalTime = when (parseOrNull(text)) {
+        public fun parseOrNone(text: String): LocalTime? = parseLocalTime(text)
+        public fun parse(text: String): LocalTime = when (parseOrNone(text)) {
             case Some(value) -> value
             case None -> throw IllegalArgumentException(Some("invalid time"))
         }

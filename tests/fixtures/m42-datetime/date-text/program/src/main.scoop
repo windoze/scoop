@@ -2,13 +2,13 @@ import scoop.datetime.*
 
 fun check(ok: Boolean) { if (!ok) throw IllegalStateException() }
 fun rejectDate(text: String) {
-    check(LocalDate.parseOrNull(text) == None)
+    check(LocalDate.parseOrNone(text) == None)
     var failed = false
     try { LocalDate.parse(text) } catch (error: IllegalArgumentException) { failed = true }
     check(failed)
 }
 fun rejectMonth(text: String) {
-    check(YearMonth.parseOrNull(text) == None)
+    check(YearMonth.parseOrNone(text) == None)
     var failed = false
     try { YearMonth.parse(text) } catch (error: IllegalArgumentException) { failed = true }
     check(failed)

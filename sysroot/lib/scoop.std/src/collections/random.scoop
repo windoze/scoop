@@ -2,13 +2,13 @@ package scoop.collections
 
 import scoop.random.Random
 
-public fun <T> List<T>.randomOrNull(random: Random): T? {
+public fun <T> List<T>.randomOrNone(random: Random): T? {
     val count = size
     if (count == 0L) return None
     return Some(this[if (count == 1L) 0L else random.nextLong(count)])
 }
 
-public fun <T> Iterable<T>.randomOrNull(random: Random): T? {
+public fun <T> Iterable<T>.randomOrNone(random: Random): T? {
     var selected: T? = None
     var count = 0L
     for (value in this) {
@@ -19,12 +19,12 @@ public fun <T> Iterable<T>.randomOrNull(random: Random): T? {
     return selected
 }
 
-public fun <T> List<T>.random(random: Random): T = when (randomOrNull<T>(random)) {
+public fun <T> List<T>.random(random: Random): T = when (randomOrNone<T>(random)) {
     case Some(value) -> value
     case None -> throw NoSuchElementException("empty collection")
 }
 
-public fun <T> Iterable<T>.random(random: Random): T = when (randomOrNull<T>(random)) {
+public fun <T> Iterable<T>.random(random: Random): T = when (randomOrNone<T>(random)) {
     case Some(value) -> value
     case None -> throw NoSuchElementException("empty iterable")
 }

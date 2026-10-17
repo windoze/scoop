@@ -19,10 +19,10 @@ internal fun <T> requireParsedNumber(value: T?): T = when (value) {
     case None -> throw NumberFormatException("invalid number")
 }
 
-public fun String.toBooleanStrictOrNull(): Boolean? {
+public fun String.toBooleanStrictOrNone(): Boolean? {
     if (this == "true") return Some(true)
     if (this == "false") return Some(false)
     return None
 }
 
-public fun String.toBooleanStrict(): Boolean = requireParsedNumber<Boolean>(toBooleanStrictOrNull())
+public fun String.toBooleanStrict(): Boolean = requireParsedNumber<Boolean>(toBooleanStrictOrNone())
