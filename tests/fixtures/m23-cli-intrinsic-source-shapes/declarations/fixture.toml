@@ -7,7 +7,10 @@ tags = ["intrinsic-source-shapes", "modified-core", "moving-gc"]
 
 [[steps]]
 name = "runtime_vendor"
-files = [{symlink = {from = "${sysroot}/vendor", to = "${work}/sysroot/vendor"}}]
+files = [
+  {symlink = {from = "${sysroot}/vendor", to = "${work}/sysroot/vendor"}},
+  {symlink = {from = "${sysroot}/include", to = "${work}/sysroot/include"}},
+]
 
 [[steps]]
 name = "prepare_core"
@@ -45,6 +48,10 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = []
+
+[[steps]]
+name = "publish_core"
+files = [{copy = {from = "${exposed.result.root.path}", to = "${work}/sysroot/lib/${target}/scoop.core.slib"}}]
 
 [[steps]]
 name = "prepare_program"
