@@ -18,9 +18,9 @@ internal fun algorithmName(algorithm: JwsAlgorithm): String = when (algorithm) {
 }
 
 private fun signatureAlgorithm(algorithm: JwsAlgorithm): SignatureAlgorithm = when (algorithm) {
-    case RS256 -> SignatureAlgorithm.RS256
-    case PS256 -> SignatureAlgorithm.PS256
-    case ES256 -> SignatureAlgorithm.ES256
+    case RS256 -> SignatureAlgorithm.RsaPkcs1Sha256
+    case PS256 -> SignatureAlgorithm.RsaPssSha256
+    case ES256 -> SignatureAlgorithm.EcdsaP256Sha256Der
     case EdDSA -> SignatureAlgorithm.Ed25519
     case HS256 -> throw IllegalArgumentException(Some("HS256 requires a MAC key"))
 }

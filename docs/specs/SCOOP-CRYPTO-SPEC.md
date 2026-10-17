@@ -30,11 +30,11 @@ SecretKey 从字节建立自有 native 副本，支持显式导出及关闭时�
 
 ## 4. 密钥与签名
 
-`KeyAlgorithm { RSA, P256, Ed25519, Other }`。Other 表示证书等输入中的其他正常后端公钥类型，不提供其通用生成／签名操作。PrivateKey.generate 默认 RSA 2048 位，RSA 位数至少 2048 且为 256 的倍数；P256 和 Ed25519 不使用 RSA 位数参数。PEM／DER 私钥使用未加密 PKCS#8，公钥使用 SubjectPublicKeyInfo；导入拒绝口令交互与尾随非空数据。RSA、P-256、Ed25519 公私钥分别表示，PrivateKey.publicKey 返回独立拥有的公钥对象。native public 导出不包含私钥成分。
+`KeyAlgorithm { RSA, P256, Ed25519, Other }`。Other 表示证书等输入中的其他正常后端公钥类型，不提供其通用生成／签名操作。`PrivateKey.generateRsa(bits: Int = 2048)` 要求位数至少 2048 且为 256 的倍数；`generateP256()` 与 `generateEd25519()` 各生成对应类型，无多余位数参数。三个工厂均返回独立拥有的 PrivateKey；没有接收 KeyAlgorithm 的通用生成入口。PEM／DER 私钥使用未加密 PKCS#8，公钥使用 SubjectPublicKeyInfo；导入拒绝口令交互与尾随非空数据。RSA、P-256、Ed25519 公私钥分别表示，PrivateKey.publicKey 返回独立拥有的公钥对象。native public 导出不包含私钥成分。
 
-PrivateKey 与 PublicKey 通过 fromPem(String)／fromDer(List<Byte>) 导入、toPem()／toDer() 导出；algorithm 属性返回上述分类。sign(algorithm, privateKey, data) 与 verify(algorithm, publicKey, data, signature) 均接收原始消息。格式非法为 CryptoException；不匹配算法、未支持的生成类型及不合法 RSA 位数为 IllegalArgumentException。
+PrivateKey 与 PublicKey 通过 fromPem(String)／fromDer(List<Byte>) 导入、toPem()／toDer() 导出；algorithm 属性返回上述分类。sign(algorithm, privateKey, data) 与 verify(algorithm, publicKey, data, signature) 均接收原始消息。格式非法为 CryptoException；不匹配算法及不合法 RSA 位数为 IllegalArgumentException。
 
-`SignatureAlgorithm { RS256, PS256, ES256, Ed25519 }` 显式要求匹配密钥。RS256 为 PKCS#1 v1.5／SHA-256；PS256 为 PSS／SHA-256、MGF1 SHA-256、32 字节 salt；ES256 为 ECDSA P-256／SHA-256，普通签名 API 使用 ASN.1 DER；Ed25519 按纯 Ed25519 对原始消息签名，不额外预哈希。验签不匹配返回 false；密钥类型不匹配抛参数错误。
+`SignatureAlgorithm { RsaPkcs1Sha256, RsaPssSha256, EcdsaP256Sha256Der, Ed25519 }` 显式要求匹配密钥。RsaPkcs1Sha256 为 PKCS#1 v1.5／SHA-256；RsaPssSha256 为 PSS／SHA-256、MGF1 SHA-256、32 字节 salt；EcdsaP256Sha256Der 为 ECDSA P-256／SHA-256，签名使用 ASN.1 DER；Ed25519 按纯 Ed25519 对原始消息签名，不额外预哈希。普通方案名描述算法和签名表示，JWS 的 RS256／PS256／ES256 协议代码只出现在第 6 节的 JwsAlgorithm。验签不匹配返回 false；密钥类型不匹配抛参数错误。
 
 ## 5. X.509
 

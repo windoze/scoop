@@ -83,7 +83,7 @@ private class TlsEngineTests {
             assertFailsWith<IllegalArgumentException> { TlsEngine.client(context, TlsPeerName.Dns("")) }
             assertFailsWith<IllegalArgumentException> { TlsEngine.client(context, TlsPeerName.Dns("local\u{0000}host")) }
         }
-        Certificate.fromPem(serverPem()).use { certificate -> PrivateKey.generate(KeyAlgorithm.P256).use { key ->
+        Certificate.fromPem(serverPem()).use { certificate -> PrivateKey.generateP256().use { key ->
             val error = assertFailsWith<TlsException> { TlsServerContext([certificate], key) }
             assertTrue(error.kind == TlsFailureKind.Configuration)
         } }

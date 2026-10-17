@@ -3,12 +3,14 @@ package crypto.consumer
 import scoop.crypto.*
 import scoop.crypto.jws.*
 import scoop.test.*
+import scoop.io.encoding.Base64
+import scoop.text.split
 
 @Test
 private class JwsConsumerTests {
     @Test
     fun `public JWS enum keys and verified payload cross Cone boundaries`() {
-        PrivateKey.generate(KeyAlgorithm.Ed25519).use { privateKey ->
+        PrivateKey.generateEd25519().use { privateKey ->
             val payload: Array<Byte> = [1.toByte(), 2.toByte(), 3.toByte()]
             val token = signCompact("{\"alg\":\"EdDSA\",\"kid\":\"local\"}", payload, JwsAlgorithm.EdDSA, JwsSigningKey.Signature(privateKey))
             privateKey.publicKey().use { publicKey ->
@@ -16,6 +18,23 @@ private class JwsConsumerTests {
                 assertEquals("local", result.keyId!!)
                 assertEquals(3L, result.payload.size)
                 assertEquals(2.toByte(), result.payload[1L])
+            }
+        }
+    }
+
+    @Test
+    fun `P256 factory and DER signatures compose with fixed width JWS signatures`() {
+        PrivateKey.generateP256().use { privateKey ->
+            val payload = "signature representations".toByteArray()
+            val der = sign(SignatureAlgorithm.EcdsaP256Sha256Der, privateKey, payload)
+            assertEquals(0x30.toByte(), der[0L])
+            val token = signCompact("{\"alg\":\"ES256\"}", payload, JwsAlgorithm.ES256, JwsSigningKey.Signature(privateKey))
+            val raw = Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT).decode(token.split('.')[2L])
+            assertEquals(64L, raw.size)
+            privateKey.publicKey().use { publicKey ->
+                assertTrue(verify(SignatureAlgorithm.EcdsaP256Sha256Der, publicKey, payload, der))
+                val result = verifyCompactOrNull(token, JwsAlgorithm.ES256, JwsVerificationKey.Signature(publicKey))!!
+                assertEquals("signature representations", String.fromUtf8(result.payload))
             }
         }
     }

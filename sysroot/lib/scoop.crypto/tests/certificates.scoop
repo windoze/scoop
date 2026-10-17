@@ -30,7 +30,7 @@ private class CertificateTests {
         publicKey.use { key ->
             PrivateKey.fromPem(serverKeyPem()).use { signer ->
                 val message = "retained public key".toByteArray()
-                assertTrue(verify(SignatureAlgorithm.ES256, key, message, sign(SignatureAlgorithm.ES256, signer, message)))
+                assertTrue(verify(SignatureAlgorithm.EcdsaP256Sha256Der, key, message, sign(SignatureAlgorithm.EcdsaP256Sha256Der, signer, message)))
             }
         }
         assertFailsWith<IllegalStateException> { certificate.toPem() }

@@ -10,16 +10,16 @@ private class OpenSslSignatureTests {
     fun `independent OpenSSL CLI verifies all signature formats produced by crypto`() {
         InteropDirectory().use { tree ->
             Files.writeText(tree.child("message"), "Scoop outbound signature interoperability")
-            verifyOutput(tree, SignatureAlgorithm.RS256, KeyAlgorithm.RSA)
-            verifyOutput(tree, SignatureAlgorithm.PS256, KeyAlgorithm.RSA)
-            verifyOutput(tree, SignatureAlgorithm.ES256, KeyAlgorithm.P256)
-            verifyOutput(tree, SignatureAlgorithm.Ed25519, KeyAlgorithm.Ed25519)
+            verifyOutput(tree, SignatureAlgorithm.RsaPkcs1Sha256) { PrivateKey.generateRsa() }
+            verifyOutput(tree, SignatureAlgorithm.RsaPssSha256) { PrivateKey.generateRsa() }
+            verifyOutput(tree, SignatureAlgorithm.EcdsaP256Sha256Der) { PrivateKey.generateP256() }
+            verifyOutput(tree, SignatureAlgorithm.Ed25519) { PrivateKey.generateEd25519() }
         }
     }
 }
 
-private fun verifyOutput(tree: InteropDirectory, algorithm: SignatureAlgorithm, kind: KeyAlgorithm) {
-    PrivateKey.generate(kind).use { key ->
+private fun verifyOutput(tree: InteropDirectory, algorithm: SignatureAlgorithm, create: () -> PrivateKey) {
+    create().use { key ->
         key.publicKey().use { publicKey -> Files.writeText(tree.child("public.pem"), publicKey.toPem()) }
         Files.writeAllBytes(tree.child("signature"), sign(algorithm, key, Files.readAllBytes(tree.child("message"))))
     }
@@ -33,7 +33,7 @@ private fun verifyOutput(tree: InteropDirectory, algorithm: SignatureAlgorithm, 
         arguments.add("dgst"); arguments.add("-sha256"); arguments.add("-verify")
         arguments.add(tree.child("public.pem").decodeUtf8())
         arguments.add("-signature"); arguments.add(tree.child("signature").decodeUtf8())
-        if (algorithm == SignatureAlgorithm.PS256) {
+        if (algorithm == SignatureAlgorithm.RsaPssSha256) {
             arguments.add("-sigopt"); arguments.add("rsa_padding_mode:pss")
             arguments.add("-sigopt"); arguments.add("rsa_pss_saltlen:32")
             arguments.add("-sigopt"); arguments.add("rsa_mgf1_md:sha256")

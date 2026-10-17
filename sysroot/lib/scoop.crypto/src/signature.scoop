@@ -2,20 +2,20 @@ package scoop.crypto
 
 import scoop.crypto.native.*
 
-public enum SignatureAlgorithm { RS256, PS256, ES256, Ed25519 }
+public enum SignatureAlgorithm { RsaPkcs1Sha256, RsaPssSha256, EcdsaP256Sha256Der, Ed25519 }
 
 private fun signatureCode(algorithm: SignatureAlgorithm, key: KeyAlgorithm): Int {
     val expected = when (algorithm) {
-        case RS256 -> KeyAlgorithm.RSA
-        case PS256 -> KeyAlgorithm.RSA
-        case ES256 -> KeyAlgorithm.P256
+        case RsaPkcs1Sha256 -> KeyAlgorithm.RSA
+        case RsaPssSha256 -> KeyAlgorithm.RSA
+        case EcdsaP256Sha256Der -> KeyAlgorithm.P256
         case Ed25519 -> KeyAlgorithm.Ed25519
     }
     if (key != expected) throw IllegalArgumentException(Some("signature algorithm and key do not match"))
     return when (algorithm) {
-        case RS256 -> 0
-        case PS256 -> 1
-        case ES256 -> 2
+        case RsaPkcs1Sha256 -> 0
+        case RsaPssSha256 -> 1
+        case EcdsaP256Sha256Der -> 2
         case Ed25519 -> 3
     }
 }

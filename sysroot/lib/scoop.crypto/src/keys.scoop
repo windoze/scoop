@@ -8,16 +8,16 @@ public class PrivateKey private constructor(private var handle: ULong) : Closeab
     public val algorithm: KeyAlgorithm get() = nativeKeyAlgorithm(nativeHandle())
 
     public companion object {
-        public fun generate(algorithm: KeyAlgorithm = KeyAlgorithm.RSA, rsaBits: Int = 2048): PrivateKey {
-            if (algorithm == KeyAlgorithm.RSA && (rsaBits < 2048 || rsaBits % 256 != 0))
+        public fun generateRsa(bits: Int = 2048): PrivateKey {
+            if (bits < 2048 || bits % 256 != 0)
                 throw IllegalArgumentException(Some("RSA bits must be a multiple of 256 and at least 2048"))
-            val code = when (algorithm) {
-                case RSA -> 0
-                case P256 -> 1
-                case Ed25519 -> 2
-                case Other -> throw IllegalArgumentException(Some("unsupported key generation algorithm"))
-            }
-            @Unsafe { return PrivateKey(cryptoValue(keyGenerate(code, rsaBits), "generate key")) }
+            return generateKey(0, bits)
+        }
+        public fun generateP256(): PrivateKey = generateKey(1)
+        public fun generateEd25519(): PrivateKey = generateKey(2)
+
+        private fun generateKey(code: Int, bits: Int = 0): PrivateKey {
+            @Unsafe { return PrivateKey(cryptoValue(keyGenerate(code, bits), "generate key")) }
         }
         public fun fromPem(pem: String): PrivateKey = PrivateKey(importKey(pem.toByteArray(), true, true))
         public fun fromDer(der: List<Byte>): PrivateKey = PrivateKey(importKey(der, true, false))
