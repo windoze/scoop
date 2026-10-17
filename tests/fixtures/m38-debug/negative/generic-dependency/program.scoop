@@ -1,2 +1,2 @@
-struct Box<T>(val value: T) { companion object : Inspectable<Box<T>> }
+struct Box<T>(val value: T) { companion object : ValueInspector<Box<T>> }
 fun main() {}

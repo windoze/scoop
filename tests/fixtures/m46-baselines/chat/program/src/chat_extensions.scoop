@@ -2,7 +2,7 @@ import scoop.json.*
 import scoop.collections.*
 
 struct CompletionWithExtensions(val completion: ChatCompletion, val extra: Extensions)
-class CompletionReader(val collect: Boolean, val deny: Boolean) : Decodable<CompletionWithExtensions> {
+class CompletionReader(val collect: Boolean, val deny: Boolean) : ValueDecoder<CompletionWithExtensions> {
     public override fun decode(decoder: Decoder): CompletionWithExtensions {
         val completion = ChatCompletion.Companion.decode(decoder)
         val fields = decoder.keyed()
@@ -18,7 +18,7 @@ class CompletionReader(val collect: Boolean, val deny: Boolean) : Decodable<Comp
         return CompletionWithExtensions(completion, Extensions(extra))
     }
 }
-object CompletionWriter : Encodable<CompletionWithExtensions> {
+object CompletionWriter : ValueEncoder<CompletionWithExtensions> {
     public override fun encode(value: CompletionWithExtensions, encoder: Encoder) {
         ChatCompletion.Companion.encode(value.completion, encoder)
         Extensions.Companion.encode(value.extra, encoder)

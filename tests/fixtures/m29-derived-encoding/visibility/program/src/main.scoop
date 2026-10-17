@@ -6,7 +6,7 @@ public interface Transform<T> {
 }
 
 struct Hidden(val value: Int) {
-    public companion object : Encodable<Hidden>, Decodable<Hidden>
+    public companion object : ValueEncoder<Hidden>, ValueDecoder<Hidden>
 }
 object TransformHidden : Transform<Hidden> {
     public override fun apply(value: Hidden): Hidden = value
@@ -14,7 +14,7 @@ object TransformHidden : Transform<Hidden> {
 }
 
 private struct Local(val value: Int) {
-    public companion object : Transform<Local>, Encodable<Local>, Decodable<Local> {
+    public companion object : Transform<Local>, ValueEncoder<Local>, ValueDecoder<Local> {
         public override fun apply(value: Local): Local = value
         public override val current: Local get() = Local(9)
         public override fun encode(value: Local, encoder: Encoder) { Int.encode(value.value, encoder) }
@@ -30,11 +30,11 @@ fun main() {
     val hidden: Transform<Hidden> = TransformHidden
     val local: Transform<Local> = Local.Companion
     val value = hidden.apply(hidden.current)
-    val text = Json.encode(value, Hidden.Companion)
+    val text = Json.encodeToString(value, Hidden.Companion)
     check(text == "{\"value\":7}")
-    check(Json.decode(text, Hidden.Companion).value == 7)
+    check(Json.decodeFromString(text, Hidden.Companion).value == 7)
     val privateValue = local.apply(local.current)
-    check(Json.encode(privateValue, Local.Companion) == "9")
-    check(Json.decode("11", Local.Companion).value == 11)
+    check(Json.encodeToString(privateValue, Local.Companion) == "9")
+    check(Json.decodeFromString("11", Local.Companion).value == 11)
     println("visibility-ok")
 }

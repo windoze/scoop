@@ -8,29 +8,29 @@ struct MCPItem(
     val output: String? = None,
     val error: MCPError? = None
 ) {
-    companion object : Encodable<MCPItem>, Decodable<MCPItem> {}
+    companion object : ValueEncoder<MCPItem>, ValueDecoder<MCPItem> {}
 }
 struct MCPToolsItem(val id: String, val server_label: String, val tools: Array<MCPTool>) {
-    companion object : Encodable<MCPToolsItem>, Decodable<MCPToolsItem> {}
+    companion object : ValueEncoder<MCPToolsItem>, ValueDecoder<MCPToolsItem> {}
 }
 struct MCPTool(val name: String, val input_schema: JsonValue, val description: String? = None) {
-    companion object : Encodable<MCPTool>, Decodable<MCPTool> {}
+    companion object : ValueEncoder<MCPTool>, ValueDecoder<MCPTool> {}
 }
 struct MCPApprovalItem(val id: String, val server_label: String, val name: String, val arguments: String) {
-    companion object : Encodable<MCPApprovalItem>, Decodable<MCPApprovalItem> {}
+    companion object : ValueEncoder<MCPApprovalItem>, ValueDecoder<MCPApprovalItem> {}
 }
 struct MCPDecisionItem(val approval_request_id: String, val approve: Boolean, val reason: String? = None) {
-    companion object : Encodable<MCPDecisionItem>, Decodable<MCPDecisionItem> {}
+    companion object : ValueEncoder<MCPDecisionItem>, ValueDecoder<MCPDecisionItem> {}
 }
 struct MCPStatusError(val code: Double, val message: String) {
-    companion object : Encodable<MCPStatusError>, Decodable<MCPStatusError> {}
+    companion object : ValueEncoder<MCPStatusError>, ValueDecoder<MCPStatusError> {}
 }
 struct MCPExecutionError(val content: JsonValue) {
-    companion object : Encodable<MCPExecutionError>, Decodable<MCPExecutionError> {}
+    companion object : ValueEncoder<MCPExecutionError>, ValueDecoder<MCPExecutionError> {}
 }
 enum MCPError {
     Protocol(MCPStatusError), Execution(MCPExecutionError), HTTP(MCPStatusError)
-    companion object : Encodable<MCPError>, Decodable<MCPError> {
+    companion object : ValueEncoder<MCPError>, ValueDecoder<MCPError> {
         public override fun encode(value: MCPError, encoder: Encoder) {
             val fields = encoder.keyed()
             when (value) {

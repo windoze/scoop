@@ -15,7 +15,7 @@ public class OffsetDateTime public constructor(public val dateTime: LocalDateTim
     public override fun hash(): Long = dateTime.hash() * 31L + offset.hash()
     public override fun toString(): String = dateTime.toString() + offset.toString()
 
-    public companion object : Encodable<OffsetDateTime>, Decodable<OffsetDateTime> {
+    public companion object : ValueEncoder<OffsetDateTime>, ValueDecoder<OffsetDateTime> {
         public override fun encode(value: OffsetDateTime, encoder: Encoder) { encoder.singleValue().writeString(value.toString()) }
         public override fun decode(decoder: Decoder): OffsetDateTime =
             decodeTextValue<OffsetDateTime>(decoder, { text -> parseOrNull(text) }, "offset date-time")

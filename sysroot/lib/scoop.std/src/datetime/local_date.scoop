@@ -44,7 +44,7 @@ public class LocalDate public constructor(public val year: Int, public val month
     public override fun hash(): Long = (year.hash() * 31L + monthNumber.hash()) * 31L + dayOfMonth.hash()
     public override fun toString(): String = yearMonth.toString() + "-" + calendarTwoDigits(dayOfMonth)
 
-    public companion object : Encodable<LocalDate>, Decodable<LocalDate> {
+    public companion object : ValueEncoder<LocalDate>, ValueDecoder<LocalDate> {
         public override fun encode(value: LocalDate, encoder: Encoder) { encoder.singleValue().writeString(value.toString()) }
         public override fun decode(decoder: Decoder): LocalDate =
             decodeTextValue<LocalDate>(decoder, { text -> parseOrNull(text) }, "date")

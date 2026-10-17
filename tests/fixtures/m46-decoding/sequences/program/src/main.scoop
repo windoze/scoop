@@ -1,6 +1,6 @@
 import scoop.json.Json
 
-object SequenceReader : Decodable<Long> {
+object SequenceReader : ValueDecoder<Long> {
     public override fun decode(decoder: Decoder): Long {
         check(!decoder.singleValue().isNull())
         val first = decoder.unkeyed()
@@ -30,16 +30,16 @@ object SequenceReader : Decodable<Long> {
 }
 
 fun main() {
-    check(Json.decode("[\"first\",7]", SequenceReader) == 7L)
-    val ignoreElements = DecodeFunction<Long>({ decoder ->
+    check(Json.decodeFromString("[\"first\",7]", SequenceReader) == 7L)
+    val ignoreElements = ValueDecoderFunction<Long>({ decoder ->
         val elements = decoder.unkeyed()
         val first = elements.element()
         val second = elements.element()
         elements.end()
         2L
     })
-    check(Json.decode("[{\"unread\":true},[null]]", ignoreElements) == 2L)
-    val empty = DecodeFunction<Boolean>({ decoder ->
+    check(Json.decodeFromString("[{\"unread\":true},[null]]", ignoreElements) == 2L)
+    val empty = ValueDecoderFunction<Boolean>({ decoder ->
         val elements = decoder.unkeyed()
         check(!elements.hasNext)
         elements.end()
@@ -47,6 +47,6 @@ fun main() {
         reject("/0") { elements.element() }
         !elements.hasNext
     })
-    check(Json.decode("[]", empty))
+    check(Json.decodeFromString("[]", empty))
     println("sequences-ok")
 }

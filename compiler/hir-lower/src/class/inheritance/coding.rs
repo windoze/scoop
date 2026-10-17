@@ -42,9 +42,9 @@ impl CodingDirection {
     }
     fn protocol(self) -> &'static str {
         match self {
-            Self::Encode => "Encodable",
-            Self::Decode => "Decodable",
-            Self::Inspect(_) => "Inspectable",
+            Self::Encode => "ValueEncoder",
+            Self::Decode => "ValueDecoder",
+            Self::Inspect(_) => "ValueInspector",
         }
     }
     fn stream(self) -> &'static str {
@@ -63,9 +63,9 @@ impl CodingDirection {
     }
     fn function_codec(self) -> &'static str {
         match self {
-            Self::Encode => "EncodeFunction",
-            Self::Decode => "DecodeFunction",
-            Self::Inspect(_) => "InspectFunction",
+            Self::Encode => "ValueEncoderFunction",
+            Self::Decode => "ValueDecoderFunction",
+            Self::Inspect(_) => "ValueInspectorFunction",
         }
     }
 }

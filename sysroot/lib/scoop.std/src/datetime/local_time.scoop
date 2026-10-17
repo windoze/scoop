@@ -23,7 +23,7 @@ public class LocalTime public constructor(
     public override fun hash(): Long = toNanosecondOfDay().hash()
     public override fun toString(): String = formatLocalTime(this)
 
-    public companion object : Encodable<LocalTime>, Decodable<LocalTime> {
+    public companion object : ValueEncoder<LocalTime>, ValueDecoder<LocalTime> {
         public override fun encode(value: LocalTime, encoder: Encoder) { encoder.singleValue().writeString(value.toString()) }
         public override fun decode(decoder: Decoder): LocalTime =
             decodeTextValue<LocalTime>(decoder, { text -> parseOrNull(text) }, "time")

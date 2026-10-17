@@ -134,7 +134,7 @@ public struct ULong :
 
     public override fun hash(): Long = coreULongHash(this)
 
-    public companion object : Encodable<ULong>, Decodable<ULong>, Inspectable<ULong> {
+    public companion object : ValueEncoder<ULong>, ValueDecoder<ULong>, ValueInspector<ULong> {
         public override fun inspect(value: ULong): ValueView =
             ValueObservation(typeInfo<ULong>().type, None, { ValueShape.Scalar(ScalarValue.Unsigned(value)) })
 

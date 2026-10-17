@@ -4,9 +4,9 @@ import scoop.uuid.Uuid
 import scoop.json.Json
 
 fun check(ok: Boolean) { if (!ok) throw IllegalStateException() }
-fun <T : Equals<T>> roundtrip(value: T, encoder: Encodable<T>, decoder: Decodable<T>, text: String) {
-    check(Json.encode(value, encoder) == text)
-    check(Json.decode(text, decoder) == value)
+fun <T : Equals<T>> roundtrip(value: T, encoder: ValueEncoder<T>, decoder: ValueDecoder<T>, text: String) {
+    check(Json.encodeToString(value, encoder) == text)
+    check(Json.decodeFromString(text, decoder) == value)
 }
 fun main() {
     roundtrip(Uuid.NIL, Uuid.Companion, Uuid.Companion, "\"00000000-0000-0000-0000-000000000000\"")
@@ -27,9 +27,9 @@ fun main() {
     roundtrip(period, DatePeriod.Companion, DatePeriod.Companion, "{\"years\":-2,\"months\":15,\"days\":-9223372036854775808}")
     roundtrip(DateTimePeriod(period, (-1).nanoseconds()), DateTimePeriod.Companion, DateTimePeriod.Companion,
         "{\"date\":{\"years\":-2,\"months\":15,\"days\":-9223372036854775808},\"time\":\"-PT0.000000001S\"}")
-    check(Json.decode("{\"days\":3,\"years\":1,\"months\":2}", DatePeriod.Companion) == DatePeriod(1, 2, 3L))
-    check(Json.encode(Json.decode("\"+00:00\"", UtcOffset.Companion), UtcOffset.Companion) == "\"Z\"")
-    check(Json.encode(Json.decode("\"PT1H\"", Duration.Companion), Duration.Companion) == "\"PT3600S\"")
-    check(Json.encode(Json.decode("\"1970-01-01T01:00:00+01:00\"", Instant.Companion), Instant.Companion) == "\"1970-01-01T00:00:00Z\"")
+    check(Json.decodeFromString("{\"days\":3,\"years\":1,\"months\":2}", DatePeriod.Companion) == DatePeriod(1, 2, 3L))
+    check(Json.encodeToString(Json.decodeFromString("\"+00:00\"", UtcOffset.Companion), UtcOffset.Companion) == "\"Z\"")
+    check(Json.encodeToString(Json.decodeFromString("\"PT1H\"", Duration.Companion), Duration.Companion) == "\"PT3600S\"")
+    check(Json.encodeToString(Json.decodeFromString("\"1970-01-01T01:00:00+01:00\"", Instant.Companion), Instant.Companion) == "\"1970-01-01T00:00:00Z\"")
     println("codecs values passed")
 }

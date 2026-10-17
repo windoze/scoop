@@ -1,9 +1,9 @@
-public interface Inspectable<T> {
+public interface ValueInspector<T> {
     public fun inspect(value: T): ValueView
 }
 
-public class InspectFunction<T> public constructor(private val body: (T) -> ValueView)
-    : Inspectable<T> {
+public class ValueInspectorFunction<T> public constructor(private val body: (T) -> ValueView)
+    : ValueInspector<T> {
     public override fun inspect(value: T): ValueView = body(value)
 }
 
@@ -68,12 +68,12 @@ public struct SequenceView(val size: Long, val elementBody: (Long) -> ValueView)
 public struct OpaqueValue(val description: String)
 
 public class OpaqueInspector<T> public constructor(private val description: String)
-    : Inspectable<T> {
+    : ValueInspector<T> {
     public override fun inspect(value: T): ValueView =
         ValueObservation(typeInfo<T>().type, None, { ValueShape.Opaque(OpaqueValue(description)) })
 }
 
-public object UnitInspector : Inspectable<Unit> {
+public object UnitInspector : ValueInspector<Unit> {
     public override fun inspect(value: Unit): ValueView =
         ValueObservation(typeInfo<Unit>().type, None, { ValueShape.Scalar(ScalarValue.Unit) })
 }

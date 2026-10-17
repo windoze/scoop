@@ -31,7 +31,7 @@ public class Instant private constructor(public val epochSeconds: Long, public v
     }
     public override fun toString(): String = toLocalDateTime(UtcOffset.ZERO).toString() + "Z"
 
-    public companion object : Encodable<Instant>, Decodable<Instant> {
+    public companion object : ValueEncoder<Instant>, ValueDecoder<Instant> {
         public override fun encode(value: Instant, encoder: Encoder) { encoder.singleValue().writeString(value.toString()) }
         public override fun decode(decoder: Decoder): Instant =
             decodeTextValue<Instant>(decoder, { text -> parseOrNull(text) }, "instant")

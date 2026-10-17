@@ -46,8 +46,8 @@ fun floatBits(value: Float): UInt
 @Extern(lib = "fixture_native", name = "double_bits")
 fun doubleBits(value: Double): ULong
 
-fun <T> encode(value: T, codec: Encodable<T>, target: Encoder) { codec.encode(value, target) }
-fun <T> decode(codec: Decodable<T>, source: Decoder): T = codec.decode(source)
+fun <T> encode(value: T, codec: ValueEncoder<T>, target: Encoder) { codec.encode(value, target) }
+fun <T> decode(codec: ValueDecoder<T>, source: Decoder): T = codec.decode(source)
 
 @Unsafe fun main() {
     val storage = Storage(0f, 0.0, "")

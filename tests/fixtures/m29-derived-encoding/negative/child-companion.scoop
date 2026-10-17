@@ -1,5 +1,5 @@
 open class Base {
-    companion object : Encodable<Base> {
+    companion object : ValueEncoder<Base> {
         public override fun encode(value: Base, encoder: Encoder) { encoder.singleValue().writeNull() }
     }
 }

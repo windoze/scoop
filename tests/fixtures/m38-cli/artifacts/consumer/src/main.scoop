@@ -2,9 +2,9 @@ import cli.bridge.*
 import scoop.cli.*
 import scoop.json.Json
 
-object Concrete : Decodable<GenericArguments<Option<String>>>
+object Concrete : ValueDecoder<GenericArguments<Option<String>>>
 struct Flags(@Toggle(names = ["-v"]) val enabled: Boolean = false) {
-    companion object : Decodable<Flags>
+    companion object : ValueDecoder<Flags>
 }
 
 fun scenario() {
@@ -18,7 +18,7 @@ fun scenario() {
     fails("/output", { parser.parse(["input"]) })
     val value = parsed(parser.parse(["input", "-o="]))
     check(value.cache == 42 && value.output == Some("") && value.extra == None)
-    equal(Json.encode(value, Arguments.Companion), "{\"wire-source\":\"input\",\"output\":\"\",\"extra\":null,\"secret\":\"private\"}")
+    equal(Json.encodeToString(value, Arguments.Companion), "{\"wire-source\":\"input\",\"output\":\"\",\"extra\":null,\"secret\":\"private\"}")
     equal(DebugPrinter.format(Arguments.inspect(value)), "Arguments(source=\"input\", cache=42, output=Option<String>.Some(\"\"), extra=Option<String>.None, secret=\"<redacted>\")")
     val classes = Cli.schema(typeInfo<ClassArguments>(), CliConfig("class"))
     check(parsed(CliParser(classes, ClassArguments.Companion).parse([])).code == 3)

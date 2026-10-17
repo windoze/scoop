@@ -1,6 +1,6 @@
 enum Values {
     Text(String), Many(Array<String>)
-    companion object : Encodable<Values>, Decodable<Values> {
+    companion object : ValueEncoder<Values>, ValueDecoder<Values> {
         public override fun encode(value: Values, encoder: Encoder) {
             when (value) {
                 case Values.Text(text) -> String.encode(text, encoder)
@@ -21,7 +21,7 @@ enum Values {
     }
 }
 struct Predicate(val os: Values? = None, val arch: Values? = None, val env: Values? = None) {
-    companion object : Encodable<Predicate>, Decodable<Predicate> {
+    companion object : ValueEncoder<Predicate>, ValueDecoder<Predicate> {
         public override fun decode(decoder: Decoder): Predicate {
             val fields = strict(decoder, ["os", "arch", "env"])
             val value = PredicateFields.decode(decoder)
@@ -35,7 +35,7 @@ struct Predicate(val os: Values? = None, val arch: Values? = None, val env: Valu
     fun matches(os: String, arch: String, env: String): Boolean =
         matchesValue(this.os, os) && matchesValue(this.arch, arch) && matchesValue(this.env, env)
 }
-object PredicateFields : Decodable<Predicate> {}
+object PredicateFields : ValueDecoder<Predicate> {}
 fun matchesValue(values: Values?, value: String): Boolean = when (values) {
     case None -> true
     case Some(_) -> values!!.matches(value)
@@ -56,7 +56,7 @@ fun validateValues(child: Decoder?, value: Values?, allowed: Array<String>) {
 }
 
 struct Selection(val path: String, @Serialize(rename = "when") val predicate: Predicate? = None) {
-    companion object : Encodable<Selection>, Decodable<Selection> {
+    companion object : ValueEncoder<Selection>, ValueDecoder<Selection> {
         public override fun decode(decoder: Decoder): Selection {
             val fields = strict(decoder, ["path", "when"])
             val value = SelectionFields.decode(decoder)
@@ -66,4 +66,4 @@ struct Selection(val path: String, @Serialize(rename = "when") val predicate: Pr
         }
     }
 }
-object SelectionFields : Decodable<Selection> {}
+object SelectionFields : ValueDecoder<Selection> {}

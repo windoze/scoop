@@ -4,6 +4,6 @@ public struct Element(val value: Int) {
     }
 }
 public struct Item(val value: Element)
-public object Reader : Decodable<Item>
+public object Reader : ValueDecoder<Item>
 
 fun main() {}

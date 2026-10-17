@@ -2,7 +2,7 @@ use super::*;
 
 const DATA: &str = r#"
     public open class Base public constructor(public val id: Long) {
-        public companion object : Encodable<Base> {
+        public companion object : ValueEncoder<Base> {
             public override fun encode(value: Base, encoder: Encoder) { Long.encode(value.id, encoder) }
         }
     }
@@ -15,10 +15,10 @@ fn a_child_field_does_not_fall_back_to_the_base_companion() {
         &format!(
             r#"
         {DATA}
-        public struct Holder(val child: Child) {{ public companion object : Encodable<Holder> }}
+        public struct Holder(val child: Child) {{ public companion object : ValueEncoder<Holder> }}
     "#
         ),
-        "has no Encodable<Child>",
+        "has no ValueEncoder<Child>",
     );
 }
 
@@ -31,7 +31,7 @@ fn explicit_base_codec_accepts_the_ordinary_upcast_without_data_conformance() {
             val child = Child(7L, Leaf())
             Base.Companion.encode(child, encoder)
             val erased: Any = child
-            if (erased is Encodable<Base>) {{}}
+            if (erased is ValueEncoder<Base>) {{}}
         }}
     "#
     ))
@@ -40,7 +40,7 @@ fn explicit_base_codec_accepts_the_ordinary_upcast_without_data_conformance() {
         &format!(
             r#"
         {DATA}
-        public fun use(): Encodable<Child> = Base.Companion
+        public fun use(): ValueEncoder<Child> = Base.Companion
     "#
         ),
         "is invariant",
@@ -52,7 +52,7 @@ fn a_companion_can_read_private_storage_and_an_external_codec_cannot() {
     compile(
         r#"
         public class Value(private val value: Leaf) {
-            public companion object : Encodable<Value>
+            public companion object : ValueEncoder<Value>
         }
     "#,
     )
@@ -60,7 +60,7 @@ fn a_companion_can_read_private_storage_and_an_external_codec_cannot() {
     rejects(
         r#"
         public class Value(private val value: Leaf)
-        public object External : Encodable<Value>
+        public object External : ValueEncoder<Value>
     "#,
         "cannot read property `value` from this codec",
     );
@@ -74,7 +74,7 @@ fn an_unrelated_valid_override_does_not_block_derivation() {
             public fun encode(value: Leaf): Leaf
         }
         public struct Item(val value: Leaf) {
-            public companion object : Other, Encodable<Item> {
+            public companion object : Other, ValueEncoder<Item> {
                 public override fun encode(value: Leaf): Leaf = value
             }
         }

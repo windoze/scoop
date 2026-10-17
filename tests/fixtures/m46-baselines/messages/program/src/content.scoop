@@ -2,7 +2,7 @@ import scoop.json.*
 
 enum Block {
     Text(TextBlock), Image(ImageBlock), Document(DocumentBlock), Thinking(ThinkingBlock), Redacted(RedactedBlock), Use(ToolUse), Result(ToolResult), Server(ServerUse), SearchResult(SearchResultBlock), FetchResult(FetchResultBlock), CodeResult(CodeResultBlock), Search(SearchBlock), Upload(UploadBlock), Unknown(JsonValue)
-    companion object : Encodable<Block>, Decodable<Block> {
+    companion object : ValueEncoder<Block>, ValueDecoder<Block> {
         public override fun encode(value: Block, encoder: Encoder) {
             val fields = encoder.keyed()
             when (value) {
@@ -85,7 +85,7 @@ enum Block {
 }
 enum Content {
     Text(String), Blocks(Array<Block>)
-    companion object : Encodable<Content>, Decodable<Content> {
+    companion object : ValueEncoder<Content>, ValueDecoder<Content> {
         public override fun encode(value: Content, encoder: Encoder) {
             when (value) {
                 case Content.Text(text) -> String.encode(text, encoder)

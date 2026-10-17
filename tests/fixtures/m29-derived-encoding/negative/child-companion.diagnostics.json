@@ -7,19 +7,19 @@
         "message": "candidate declared here",
         "origin": {
           "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
-          "end": 191,
+          "end": 194,
           "kind": "source",
           "path": "main.scoop",
-          "start": 171
+          "start": 174
         }
       }
     ],
     "origin": {
       "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
-      "end": 239,
+      "end": 242,
       "kind": "source",
       "path": "main.scoop",
-      "start": 234
+      "start": 237
     },
     "severity": "error"
   }

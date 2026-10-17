@@ -1,4 +1,4 @@
 struct Item(@Serialize(rename = "same") val first: Int?, @Serialize(rename = "same") val second: Int?) {
-    companion object : Encodable<Item>, Decodable<Item> {}
+    companion object : ValueEncoder<Item>, ValueDecoder<Item> {}
 }
 fun main() {}

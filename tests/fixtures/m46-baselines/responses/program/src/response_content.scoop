@@ -1,6 +1,6 @@
 enum ResponsePart {
     Text(TextPart), Image(ResponseImage), File(ResponseFile), Audio(AudioPart), Output(OutputText), Refusal(RefusalPart)
-    companion object : Encodable<ResponsePart>, Decodable<ResponsePart> {
+    companion object : ValueEncoder<ResponsePart>, ValueDecoder<ResponsePart> {
         public override fun encode(value: ResponsePart, encoder: Encoder) {
             val fields = encoder.keyed()
             when (value) {
@@ -47,7 +47,7 @@ enum ResponsePart {
 }
 enum ResponseContent {
     Text(String), Blocks(Array<ResponsePart>)
-    companion object : Encodable<ResponseContent>, Decodable<ResponseContent> {
+    companion object : ValueEncoder<ResponseContent>, ValueDecoder<ResponseContent> {
         public override fun encode(value: ResponseContent, encoder: Encoder) {
             when (value) {
                 case ResponseContent.Text(text) -> String.encode(text, encoder)

@@ -2,7 +2,7 @@ import scoop.json.*
 
 enum MessageEvent {
     Start(MessageStart), Delta(MessageDelta), Stop, BlockStart(BlockStart), BlockDelta(BlockDelta), BlockStop(BlockStop), Ping, Error(ErrorEvent), Unknown(JsonValue)
-    companion object : Encodable<MessageEvent>, Decodable<MessageEvent> {
+    companion object : ValueEncoder<MessageEvent>, ValueDecoder<MessageEvent> {
         public override fun encode(value: MessageEvent, encoder: Encoder) {
             val fields = encoder.keyed()
             when (value) {
@@ -57,32 +57,32 @@ enum MessageEvent {
     }
 }
 struct MessageStart(val message: MessageBody) {
-    companion object : Encodable<MessageStart>, Decodable<MessageStart> {}
+    companion object : ValueEncoder<MessageStart>, ValueDecoder<MessageStart> {}
 }
 struct MessageDelta(val delta: StopDelta, val usage: UsageDelta) {
-    companion object : Encodable<MessageDelta>, Decodable<MessageDelta> {}
+    companion object : ValueEncoder<MessageDelta>, ValueDecoder<MessageDelta> {}
 }
 struct StopDelta(
     @Serialize(required = true) val stop_reason: String?,
     @Serialize(required = true) val stop_sequence: String?
 ) {
-    companion object : Encodable<StopDelta>, Decodable<StopDelta> {}
+    companion object : ValueEncoder<StopDelta>, ValueDecoder<StopDelta> {}
 }
 struct UsageDelta(val output_tokens: Long, val input_tokens: Long? = None) {
-    companion object : Encodable<UsageDelta>, Decodable<UsageDelta> {}
+    companion object : ValueEncoder<UsageDelta>, ValueDecoder<UsageDelta> {}
 }
 struct BlockStart(val index: Long, val content_block: Block) {
-    companion object : Encodable<BlockStart>, Decodable<BlockStart> {}
+    companion object : ValueEncoder<BlockStart>, ValueDecoder<BlockStart> {}
 }
 struct BlockDelta(val index: Long, val delta: Delta) {
-    companion object : Encodable<BlockDelta>, Decodable<BlockDelta> {}
+    companion object : ValueEncoder<BlockDelta>, ValueDecoder<BlockDelta> {}
 }
 struct BlockStop(val index: Long) {
-    companion object : Encodable<BlockStop>, Decodable<BlockStop> {}
+    companion object : ValueEncoder<BlockStop>, ValueDecoder<BlockStop> {}
 }
 struct ErrorEvent(val error: MessageError) {
-    companion object : Encodable<ErrorEvent>, Decodable<ErrorEvent> {}
+    companion object : ValueEncoder<ErrorEvent>, ValueDecoder<ErrorEvent> {}
 }
 struct MessageError(val type: String, val message: String) {
-    companion object : Encodable<MessageError>, Decodable<MessageError> {}
+    companion object : ValueEncoder<MessageError>, ValueDecoder<MessageError> {}
 }

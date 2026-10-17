@@ -1,7 +1,7 @@
 class Item() {
     var value: Int = 1
         set(next) { field = next }
-    companion object : Encodable<Item>
+    companion object : ValueEncoder<Item>
 }
 
 fun main() {}

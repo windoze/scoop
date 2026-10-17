@@ -5,17 +5,17 @@ struct SearchHit(
     val encrypted_content: String,
     val page_age: String? = None
 ) {
-    companion object : Encodable<SearchHit>, Decodable<SearchHit> {}
+    companion object : ValueEncoder<SearchHit>, ValueDecoder<SearchHit> {}
 }
 struct SearchError(val type: String, val error_code: String) {
-    companion object : Encodable<SearchError>, Decodable<SearchError> {}
+    companion object : ValueEncoder<SearchError>, ValueDecoder<SearchError> {}
 }
 struct CodeFile(val type: String, val file_id: String) {
-    companion object : Encodable<CodeFile>, Decodable<CodeFile> {}
+    companion object : ValueEncoder<CodeFile>, ValueDecoder<CodeFile> {}
 }
 enum SearchResults {
     Hits(Array<SearchHit>), Error(SearchError)
-    companion object : Encodable<SearchResults>, Decodable<SearchResults> {
+    companion object : ValueEncoder<SearchResults>, ValueDecoder<SearchResults> {
         public override fun encode(value: SearchResults, encoder: Encoder) {
             when (value) {
                 case SearchResults.Hits(hits) -> Array<SearchHit>.encoder(SearchHit.Companion).encode(hits, encoder)

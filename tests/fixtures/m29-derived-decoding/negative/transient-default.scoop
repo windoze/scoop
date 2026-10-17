@@ -1,4 +1,4 @@
 public struct Item(@Serialize(ignore = true) val value: Int)
-public object Reader : Decodable<Item>
+public object Reader : ValueDecoder<Item>
 
 fun main() {}

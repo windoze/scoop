@@ -1,4 +1,4 @@
 public object Item
-public object Reader : Decodable<Item>
+public object Reader : ValueDecoder<Item>
 
 fun main() {}

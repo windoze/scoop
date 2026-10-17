@@ -14,7 +14,7 @@ public class UtcOffset private constructor(public val totalSeconds: Int)
             calendarTwoDigits(magnitude / 60 % 60)
         return if (magnitude % 60 == 0) base else base + ":" + calendarTwoDigits(magnitude % 60)
     }
-    public companion object : Encodable<UtcOffset>, Decodable<UtcOffset> {
+    public companion object : ValueEncoder<UtcOffset>, ValueDecoder<UtcOffset> {
         public override fun encode(value: UtcOffset, encoder: Encoder) { encoder.singleValue().writeString(value.toString()) }
         public override fun decode(decoder: Decoder): UtcOffset =
             decodeTextValue<UtcOffset>(decoder, { text -> parseOrNull(text) }, "UTC offset")

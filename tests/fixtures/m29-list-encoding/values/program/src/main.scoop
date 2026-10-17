@@ -4,11 +4,11 @@ private fun check(value: Boolean, code: Int) {
     if (!value) { throw IllegalStateException(Some(f"list encoding assertion ${code}")) }
 }
 
-private class SequenceEncoder<T>(private val element: Encodable<T>) : Encodable<List<T>> {
+private class SequenceEncoder<T>(private val element: ValueEncoder<T>) : ValueEncoder<List<T>> {
     public override fun encode(value: List<T>, encoder: Encoder) { encodeList(value, element, encoder) }
 }
-private fun <T> encode(values: List<T>, element: Encodable<T>): String =
-    Json.encode<List<T>>(values, SequenceEncoder<T>(element))
+private fun <T> encode(values: List<T>, element: ValueEncoder<T>): String =
+    Json.encodeToString<List<T>>(values, SequenceEncoder<T>(element))
 
 private class Reversed<T>(private val values: Array<T>) : List<T> {
     public override val size: Long get() = values.size
@@ -19,7 +19,7 @@ private class Reversed<T>(private val values: Array<T>) : List<T> {
 
 private var visits: Int = 0
 private struct Item(val number: Int) {
-    public companion object : Encodable<Item> {
+    public companion object : ValueEncoder<Item> {
         public override fun encode(value: Item, encoder: Encoder) {
             visits += 1
             if (value.number < 0) { throw IllegalStateException(Some("element failure")) }
@@ -27,8 +27,8 @@ private struct Item(val number: Int) {
         }
     }
 }
-private class UsesReference(private val body: (List<Int>, Encodable<Int>, Encoder) -> Unit)
-    : Encodable<List<Int>> {
+private class UsesReference(private val body: (List<Int>, ValueEncoder<Int>, Encoder) -> Unit)
+    : ValueEncoder<List<Int>> {
     public override fun encode(value: List<Int>, encoder: Encoder) {
         body(value, Int.Companion, encoder)
     }
@@ -49,9 +49,9 @@ fun main() {
     check(encode(list, UnitEncoder) == "[]", 6)
     val nested = Array<List<Int>>(2L) { index -> Array<Int>(index) { _ -> 7 } }
     check(encode(nested, SequenceEncoder<Int>(Int.Companion)) == "[[],[7]]", 7)
-    val reference: (List<Int>, Encodable<Int>, Encoder) -> Unit = ::encodeList
+    val reference: (List<Int>, ValueEncoder<Int>, Encoder) -> Unit = ::encodeList
     val numbers = Array<Int>(2L) { index -> index.toInt32() + 4 }
-    check(Json.encode<List<Int>>(numbers, UsesReference(reference)) == "[4,5]", 8)
+    check(Json.encodeToString<List<Int>>(numbers, UsesReference(reference)) == "[4,5]", 8)
     check(encode(Array<Item>(3L) { index -> Item(index.toInt32()) }, Item.Companion) == "[0,1,2]", 9)
     check(visits == 3, 10)
     try {

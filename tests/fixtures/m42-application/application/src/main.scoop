@@ -30,7 +30,7 @@ fun main() {
     check(grouped.size == 2L && grouped[LocalDate(2024, 2, 1)]!!.size == 3L)
     val totals = TreeMap<LocalDate, Int>(naturalOrder<LocalDate>())
     for (entry in grouped) totals.put(entry.key, entry.value.fold<Event, Int>(0) { sum, event -> sum + event.score })
-    val restored = Json.decode(Json.encode(totals, TreeMap<LocalDate, Int>.encoder(LocalDate.Companion, Int.Companion)),
+    val restored = Json.decodeFromString(Json.encodeToString(totals, TreeMap<LocalDate, Int>.encoder(LocalDate.Companion, Int.Companion)),
         TreeMap<LocalDate, Int>.decoder(LocalDate.Companion, Int.Companion, naturalOrder<LocalDate>()))
     check(restored[LocalDate(2024, 2, 1)] == Some(13) && restored[LocalDate(2024, 2, 2)] == Some(5))
     val seen = Visits()

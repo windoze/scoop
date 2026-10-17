@@ -1,9 +1,9 @@
 open class Base(public val id: Int) {
-    companion object : Encodable<Base> {
+    companion object : ValueEncoder<Base> {
         public override fun encode(value: Base, encoder: Encoder) { Int.encode(value.id, encoder) }
     }
 }
 class Child(id: Int, public val extra: String) : Base(id)
-struct Item(val value: Child) { companion object : Encodable<Item> }
+struct Item(val value: Child) { companion object : ValueEncoder<Item> }
 
 fun main() {}

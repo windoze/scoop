@@ -1,4 +1,4 @@
 public class Item { public constructor() {} }
-public object Reader : Decodable<Item>
+public object Reader : ValueDecoder<Item>
 
 fun main() {}

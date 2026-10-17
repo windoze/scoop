@@ -50,7 +50,7 @@ public class String : Get<Long, Char>, Compare<String>, Add<String, String>, Equ
         return MutableArray<Byte>(byteLength) { index -> coreStringByteAt(source, index) }
     }
 
-    public companion object : Encodable<String>, Decodable<String>, Inspectable<String> {
+    public companion object : ValueEncoder<String>, ValueDecoder<String>, ValueInspector<String> {
         public override fun inspect(value: String): ValueView =
             ValueObservation(typeInfo<String>().type, Some(value), { ValueShape.Scalar(ScalarValue.String(value)) })
 

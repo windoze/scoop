@@ -4,7 +4,7 @@ use super::*;
 fn unit_encoding_uses_ordinary_members_and_keeps_builtin_identity() {
     let output = lower_with_sysroot(
         r#"
-            public fun <T> send(value: T, codec: Encodable<T>, encoder: Encoder) {
+            public fun <T> send(value: T, codec: ValueEncoder<T>, encoder: Encoder) {
                 codec.encode(value, encoder)
             }
             public fun use(encoder: Encoder) {
@@ -12,11 +12,11 @@ fn unit_encoding_uses_ordinary_members_and_keeps_builtin_identity() {
                 UnitEncoder.encode((), encoder)
                 send(Unit, UnitEncoder, encoder)
                 val erased: Any = Unit
-                val codec: Encodable<Unit> = UnitEncoder
+                val codec: ValueEncoder<Unit> = UnitEncoder
                 codec.encode(Unit, encoder)
                 val reference = codec::encode
                 reference(Unit, encoder)
-                if (erased is Encodable<Unit>) { erased.encode(Unit, encoder) }
+                if (erased is ValueEncoder<Unit>) { erased.encode(Unit, encoder) }
             }
             fun main() {}
             "#,

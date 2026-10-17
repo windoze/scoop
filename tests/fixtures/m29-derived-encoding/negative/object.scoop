@@ -1,4 +1,4 @@
 object Item { val value: Int = 1 }
-object Codec : Encodable<Item>
+object Codec : ValueEncoder<Item>
 
 fun main() {}

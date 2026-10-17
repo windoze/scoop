@@ -1,6 +1,6 @@
 enum ChatMessage {
     Developer(ChatTextMessage), System(ChatTextMessage), User(ChatTextMessage), Assistant(ChatAssistant), Tool(ChatToolMessage), Function(ChatFunctionMessage)
-    companion object : Encodable<ChatMessage>, Decodable<ChatMessage> {
+    companion object : ValueEncoder<ChatMessage>, ValueDecoder<ChatMessage> {
         public override fun encode(value: ChatMessage, encoder: Encoder) {
             val fields = encoder.keyed()
             when (value) {

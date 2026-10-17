@@ -1,7 +1,7 @@
 package model
 
 public struct Identifier(val value: Long) {
-    public companion object Factory : Encodable<Identifier>, Decodable<Identifier> {
+    public companion object Factory : ValueEncoder<Identifier>, ValueDecoder<Identifier> {
         public override fun encode(value: Identifier, encoder: Encoder) {
             val fields = encoder.keyed()
             Long.encode(value.value, fields.field("id"))
@@ -20,4 +20,4 @@ public struct Identifier(val value: Long) {
     }
 }
 
-public fun <T> reader(body: (Decoder) -> T): Decodable<T> = DecodeFunction<T>(body)
+public fun <T> reader(body: (Decoder) -> T): ValueDecoder<T> = ValueDecoderFunction<T>(body)

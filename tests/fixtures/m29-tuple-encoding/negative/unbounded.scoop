@@ -1,2 +1,2 @@
-class Coding<T> : Encodable<(Int, T)>
+class Coding<T> : ValueEncoder<(Int, T)>
 fun main() {}

@@ -26,7 +26,7 @@ public class YearMonth public constructor(public val year: Int, public val month
     public override fun hash(): Long = year.hash() * 31L + monthNumber.hash()
     public override fun toString(): String = formatCalendarYear(year) + "-" + calendarTwoDigits(monthNumber)
 
-    public companion object : Encodable<YearMonth>, Decodable<YearMonth> {
+    public companion object : ValueEncoder<YearMonth>, ValueDecoder<YearMonth> {
         public override fun encode(value: YearMonth, encoder: Encoder) { encoder.singleValue().writeString(value.toString()) }
         public override fun decode(decoder: Decoder): YearMonth =
             decodeTextValue<YearMonth>(decoder, { text -> parseOrNull(text) }, "year-month")

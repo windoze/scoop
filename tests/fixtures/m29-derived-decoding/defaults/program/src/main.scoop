@@ -14,7 +14,7 @@ private fun check(value: Boolean, code: Int) {
 }
 
 public struct Logged(val value: Int) {
-    public companion object : Decodable<Logged> {
+    public companion object : ValueDecoder<Logged> {
         public override fun decode(decoder: Decoder): Logged {
             Trace.events += decoder.path
             return Logged(Int.Companion.decode(decoder))
@@ -32,74 +32,74 @@ public struct Defaults(
     val second: Logged = defaultValue(first.value + 1, "B"),
     @Serialize(ignore = true) val ignored: Logged = defaultValue(second.value + 1, "T")
 ) {
-    public companion object : Decodable<Defaults>
+    public companion object : ValueDecoder<Defaults>
 }
 
 public struct OptionalField(val value: Option<Int>, val fallback: Option<Int> = Some(8)) {
-    public companion object : Decodable<OptionalField>
+    public companion object : ValueDecoder<OptionalField>
 }
 
 private fun initialize(): Int { Trace.initialized += 1; return 1 }
 public struct Late(val value: Int) {
-    public companion object : Decodable<Late> {
+    public companion object : ValueDecoder<Late> {
         private val initialized: Int = initialize()
         public override fun decode(decoder: Decoder): Late = Late(Int.Companion.decode(decoder))
     }
 }
 public struct LazyDefault(val value: Late = Late(7)) {
-    public companion object : Decodable<LazyDefault>
+    public companion object : ValueDecoder<LazyDefault>
 }
 
 public class UserFailure(message: String) : Exception(Some(message))
 public fun failingDefault(): Int { throw UserFailure("default") }
 public struct Failing(val value: Int = failingDefault()) {
-    public companion object : Decodable<Failing>
+    public companion object : ValueDecoder<Failing>
 }
 public class Constructed public constructor(public val value: Int) {
     init {
         Trace.constructed += 1
         if (value < 0) { throw UserFailure("constructor") }
     }
-    public companion object : Decodable<Constructed>
+    public companion object : ValueDecoder<Constructed>
 }
 
-private fun <T> reject(text: String, codec: Decodable<T>, path: String) {
-    try { Json.decode(text, codec) }
+private fun <T> reject(text: String, codec: ValueDecoder<T>, path: String) {
+    try { Json.decodeFromString(text, codec) }
     catch (error: DecodingException) { check(error.path == path, 90); return }
     throw IllegalStateException(Some("expected a decoding error"))
 }
 
 fun main() {
-    val a = Json.decode("{\"second\":20}", Defaults.Companion)
+    val a = Json.decodeFromString("{\"second\":20}", Defaults.Companion)
     check(Trace.events == "/secondAT" && a.first.value == 10 && a.second.value == 20 && a.ignored.value == 21, 1)
     Trace.events = ""
-    val b = Json.decode("{\"first\":30}", Defaults.Companion)
+    val b = Json.decodeFromString("{\"first\":30}", Defaults.Companion)
     check(Trace.events == "/firstBT" && b.second.value == 31 && b.ignored.value == 32, 2)
     Trace.events = ""
-    val c = Json.decode("{\"second\":2,\"first\":1}", Defaults.Companion)
+    val c = Json.decodeFromString("{\"second\":2,\"first\":1}", Defaults.Companion)
     check(Trace.events == "/first/secondT" && c.ignored.value == 3, 3)
     Trace.events = ""
-    val d = Json.decode("{}", Defaults.Companion)
+    val d = Json.decodeFromString("{}", Defaults.Companion)
     check(Trace.events == "ABT" && d.ignored.value == 12, 4)
     Trace.events = ""
     reject("{\"second\":null}", Defaults.Companion, "/second")
     check(Trace.events == "/second", 5)
-    val none = Json.decode("{\"value\":null}", OptionalField.Companion)
+    val none = Json.decodeFromString("{\"value\":null}", OptionalField.Companion)
     check(none.value == None && none.fallback!! == 8, 6)
-    val provided = Json.decode("{\"value\":3,\"fallback\":null}", OptionalField.Companion)
+    val provided = Json.decodeFromString("{\"value\":3,\"fallback\":null}", OptionalField.Companion)
     check(provided.value!! == 3 && provided.fallback == None, 7)
-    check(Json.decode("{}", OptionalField.Companion).value == None, 91)
-    check(Json.decode("{\"value\":null,\"fallback\":null}", OptionalField.Companion).fallback == None, 92)
-    check(Json.decode("{}", LazyDefault.Companion).value.value == 7 && Trace.initialized == 0, 8)
-    check(Json.decode("{\"value\":9}", LazyDefault.Companion).value.value == 9 && Trace.initialized == 1, 9)
-    check(Json.decode("{}", LazyDefault.Companion).value.value == 7 && Trace.initialized == 1, 10)
-    try { Json.decode("{}", Failing.Companion); check(false, 11) }
+    check(Json.decodeFromString("{}", OptionalField.Companion).value == None, 91)
+    check(Json.decodeFromString("{\"value\":null,\"fallback\":null}", OptionalField.Companion).fallback == None, 92)
+    check(Json.decodeFromString("{}", LazyDefault.Companion).value.value == 7 && Trace.initialized == 0, 8)
+    check(Json.decodeFromString("{\"value\":9}", LazyDefault.Companion).value.value == 9 && Trace.initialized == 1, 9)
+    check(Json.decodeFromString("{}", LazyDefault.Companion).value.value == 7 && Trace.initialized == 1, 10)
+    try { Json.decodeFromString("{}", Failing.Companion); check(false, 11) }
     catch (error: UserFailure) { check(error.message == Some("default"), 12) }
-    check(Json.decode("{\"value\":5}", Failing.Companion).value == 5, 13)
-    check(Json.decode("{\"value\":2}", Constructed.Companion).value == 2 && Trace.constructed == 1, 14)
+    check(Json.decodeFromString("{\"value\":5}", Failing.Companion).value == 5, 13)
+    check(Json.decodeFromString("{\"value\":2}", Constructed.Companion).value == 2 && Trace.constructed == 1, 14)
     reject("{}", Constructed.Companion, "/value")
     check(Trace.constructed == 1, 15)
-    try { Json.decode("{\"value\":-1}", Constructed.Companion); check(false, 16) }
+    try { Json.decodeFromString("{\"value\":-1}", Constructed.Companion); check(false, 16) }
     catch (error: UserFailure) { check(error.message == Some("constructor") && Trace.constructed == 2, 17) }
     checkContainerEnd()
     println("defaults-ok")

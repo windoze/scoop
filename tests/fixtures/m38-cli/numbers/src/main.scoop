@@ -4,7 +4,7 @@ class Inputs {
     val parser: CliParser<Decoder> = CliParser(
         CliSchema(typeInfo<Decoder>(), CliConfig("numbers"), [
             CliEntry("value", "value", CliRole.Option, CliValueShape.Text, ["--value"])
-        ]), DecodeFunction<Decoder>({ decoder -> decoder })
+        ]), ValueDecoderFunction<Decoder>({ decoder -> decoder })
     )
     fun value(text: String): Decoder = parsed(parser.parse(["--value=" + text])).keyed().required("value")
 }

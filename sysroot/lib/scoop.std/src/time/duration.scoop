@@ -30,7 +30,7 @@ public class Duration private constructor(public val seconds: Long, public val n
     public fun toIsoString(): String = formatDuration(durationParts(this))
     public override fun toString(): String = toIsoString()
 
-    public companion object : Encodable<Duration>, Decodable<Duration> {
+    public companion object : ValueEncoder<Duration>, ValueDecoder<Duration> {
         public override fun encode(value: Duration, encoder: Encoder) { encoder.singleValue().writeString(value.toString()) }
         public override fun decode(decoder: Decoder): Duration =
             decodeTextValue<Duration>(decoder, { text -> parseOrNull(text) }, "duration")

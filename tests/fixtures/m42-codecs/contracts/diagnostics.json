@@ -53,14 +53,14 @@
   },
   {
     "code": "SCOOPC_HIR_ERROR",
-    "message": "dependency function `encode`: Companion is not a subtype of Encodable<T>",
+    "message": "dependency function `encodeToString`: Companion is not a subtype of ValueEncoder<T>",
     "notes": [],
     "origin": {
       "cone": "a736750cdc8f142c415062fc046fb4058640fdecf7f452d71f4dcf8d9c1cfee9",
-      "end": 354,
+      "end": 362,
       "kind": "source",
       "path": "src/main.scoop",
-      "start": 338
+      "start": 346
     },
     "severity": "error"
   }

@@ -2,7 +2,7 @@ import scoop.json.*
 
 enum ResponseEvent {
     Created(StateEvent), Progress(StateEvent), Completed(StateEvent), Failed(StateEvent), Incomplete(StateEvent), ItemAdded(ItemEvent), ItemDone(ItemEvent), PartAdded(PartEvent), PartDone(PartEvent), TextDelta(TextDeltaEvent), TextDone(TextDoneEvent), ArgumentsDelta(ArgumentsDeltaEvent), ArgumentsDone(ArgumentsDoneEvent), Error(ResponseErrorEvent), Unknown(JsonValue)
-    companion object : Encodable<ResponseEvent>, Decodable<ResponseEvent> {
+    companion object : ValueEncoder<ResponseEvent>, ValueDecoder<ResponseEvent> {
         public override fun encode(value: ResponseEvent, encoder: Encoder) {
             val fields = encoder.keyed()
             when (value) {

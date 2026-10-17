@@ -7,14 +7,14 @@ public struct Box<T>(
     val empty: String? = None,
     @Serialize(ignore = true) val ignored: T?
 )
-public class BoxEncoder<T> public constructor(private val codec: Encodable<T>) : Encodable<Box<T>>
-public class BoxDecoder<T> public constructor(private val codec: Decodable<T>) : Decodable<Box<T>>
+public class BoxEncoder<T> public constructor(private val codec: ValueEncoder<T>) : ValueEncoder<Box<T>>
+public class BoxDecoder<T> public constructor(private val codec: ValueDecoder<T>) : ValueDecoder<Box<T>>
 
 public class Row public constructor(public val id: Long, public val text: String? = None) {
-    public companion object : Encodable<Row>, Decodable<Row> {}
+    public companion object : ValueEncoder<Row>, ValueDecoder<Row> {}
 }
 
 public enum Choice {
     @Serialize(rename = "item") Named(val text: String? = None)
-    public companion object : Encodable<Choice>, Decodable<Choice> {}
+    public companion object : ValueEncoder<Choice>, ValueDecoder<Choice> {}
 }

@@ -1,24 +1,24 @@
 package observed
 
 public class Secret public constructor(private val token: String) {
-    public companion object : Inspectable<Secret>
+    public companion object : ValueInspector<Secret>
 }
 public struct Pack<T>(val value: T)
-public class PackInspector<T> public constructor(private val element: Inspectable<T>) : Inspectable<Pack<T>>
-public fun <T> observe(value: Pack<T>, element: Inspectable<T>): ValueView = PackInspector<T>(element).inspect(value)
+public class PackInspector<T> public constructor(private val element: ValueInspector<T>) : ValueInspector<Pack<T>>
+public fun <T> observe(value: Pack<T>, element: ValueInspector<T>): ValueView = PackInspector<T>(element).inspect(value)
 public class External public constructor(public val number: Int) {
     public val computed: Int get() { throw IllegalStateException() }
     public val body: String = "body"
 }
 public enum Flow<T> { Empty, Data(val value: T) }
-public class FlowInspector<T> public constructor(private val element: Inspectable<T>) : Inspectable<Flow<T>>
+public class FlowInspector<T> public constructor(private val element: ValueInspector<T>) : ValueInspector<Flow<T>>
 public struct DTO(
     @Serialize(rename = "wire") val id: Int,
     @Serialize(ignore = true) val cache: Int = 9,
     @DebugRedact val secret: String = "secret",
     val option: Int? = None
 ) {
-    public companion object : Encodable<DTO>, Decodable<DTO>, Inspectable<DTO>
+    public companion object : ValueEncoder<DTO>, ValueDecoder<DTO>, ValueInspector<DTO>
 }
 
 public class InternalState public constructor(internal val value: Int)

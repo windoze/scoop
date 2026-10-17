@@ -2,7 +2,7 @@ import scoop.json.*
 
 enum ServerCall {
     Search(SearchUse), Fetch(FetchUse), Code(CodeUse)
-    companion object : Encodable<ServerCall>, Decodable<ServerCall> {
+    companion object : ValueEncoder<ServerCall>, ValueDecoder<ServerCall> {
         public override fun encode(value: ServerCall, encoder: Encoder) {
             val fields = encoder.keyed()
             when (value) {
@@ -33,25 +33,25 @@ enum ServerCall {
     }
 }
 struct SearchUse(val id: String, val input: SearchInput) {
-    companion object : Encodable<SearchUse>, Decodable<SearchUse> {}
+    companion object : ValueEncoder<SearchUse>, ValueDecoder<SearchUse> {}
 }
 struct SearchInput(val query: String) {
-    companion object : Encodable<SearchInput>, Decodable<SearchInput> {}
+    companion object : ValueEncoder<SearchInput>, ValueDecoder<SearchInput> {}
 }
 struct FetchUse(val id: String, val input: FetchInput) {
-    companion object : Encodable<FetchUse>, Decodable<FetchUse> {}
+    companion object : ValueEncoder<FetchUse>, ValueDecoder<FetchUse> {}
 }
 struct FetchInput(val url: String) {
-    companion object : Encodable<FetchInput>, Decodable<FetchInput> {}
+    companion object : ValueEncoder<FetchInput>, ValueDecoder<FetchInput> {}
 }
 struct CodeUse(val id: String, val input: CodeInput) {
-    companion object : Encodable<CodeUse>, Decodable<CodeUse> {}
+    companion object : ValueEncoder<CodeUse>, ValueDecoder<CodeUse> {}
 }
 struct CodeInput(val code: String) {
-    companion object : Encodable<CodeInput>, Decodable<CodeInput> {}
+    companion object : ValueEncoder<CodeInput>, ValueDecoder<CodeInput> {}
 }
 struct ServerUse(val call: ServerCall) {
-    companion object : Encodable<ServerUse>, Decodable<ServerUse> {
+    companion object : ValueEncoder<ServerUse>, ValueDecoder<ServerUse> {
         public override fun encode(value: ServerUse, encoder: Encoder) { ServerCall.Companion.encode(value.call, encoder) }
         public override fun decode(decoder: Decoder): ServerUse = ServerUse(ServerCall.Companion.decode(decoder))
     }

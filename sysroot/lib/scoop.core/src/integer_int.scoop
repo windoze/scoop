@@ -141,7 +141,7 @@ public struct Int :
 
     public override fun hash(): Long = coreLongHash(this.toInt64())
 
-    public companion object : Encodable<Int>, Decodable<Int>, Inspectable<Int> {
+    public companion object : ValueEncoder<Int>, ValueDecoder<Int>, ValueInspector<Int> {
         public override fun inspect(value: Int): ValueView =
             ValueObservation(typeInfo<Int>().type, None, { ValueShape.Scalar(ScalarValue.Signed(value.toInt64())) })
 

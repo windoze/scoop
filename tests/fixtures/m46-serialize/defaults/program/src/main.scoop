@@ -15,21 +15,21 @@ struct Defaults(
     val previous: String? = nonempty,
     val limit: Long = 20L
 ) {
-    companion object : Encodable<Defaults>, Decodable<Defaults> {}
+    companion object : ValueEncoder<Defaults>, ValueDecoder<Defaults> {}
 }
 
 fun main() {
     val value = Defaults(None, nonempty = None, effect = None, previous = None)
-    val text = Json.encode(value, Defaults.Companion)
+    val text = Json.encodeToString(value, Defaults.Companion)
     check(text == "{\"nonempty\":null,\"effect\":null,\"previous\":null,\"limit\":20}")
     check(counter.calls == 0L)
-    check(Json.decode(text, Defaults.Companion) == value)
+    check(Json.decodeFromString(text, Defaults.Companion) == value)
     check(counter.calls == 0L)
-    val missing = Json.decode("{}", Defaults.Companion)
+    val missing = Json.decodeFromString("{}", Defaults.Companion)
     check(missing.plain == None && missing.direct == None && missing.alias == None)
     check(missing.nonempty == Some("guest") && missing.previous == Some("guest"))
     check(counter.calls == 1L)
-    reject("/limit") { Json.decode("{\"limit\":null}", Defaults.Companion) }
+    reject("/limit") { Json.decodeFromString("{\"limit\":null}", Defaults.Companion) }
     check(counter.calls == 1L)
     println("defaults-ok")
 }

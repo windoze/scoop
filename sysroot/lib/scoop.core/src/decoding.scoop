@@ -1,4 +1,4 @@
-public interface Decodable<T> {
+public interface ValueDecoder<T> {
     public fun decode(decoder: Decoder): T
 }
 
@@ -36,12 +36,12 @@ public interface SingleValueDecodingContainer {
 public class DecodingException public constructor(public val path: String, message: String)
     : Exception(Some(message))
 
-public class DecodeFunction<T> public constructor(private val body: (Decoder) -> T)
-    : Decodable<T> {
+public class ValueDecoderFunction<T> public constructor(private val body: (Decoder) -> T)
+    : ValueDecoder<T> {
     public override fun decode(decoder: Decoder): T = body(decoder)
 }
 
-public object UnitDecoder : Decodable<Unit> {
+public object UnitDecoder : ValueDecoder<Unit> {
     public override fun decode(decoder: Decoder): Unit = decoder.singleValue().readNull()
 }
 

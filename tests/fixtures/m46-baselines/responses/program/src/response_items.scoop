@@ -2,7 +2,7 @@ import scoop.json.*
 
 enum ResponseItem {
     Easy(EasyMessage), Input(InputMessage), Message(OutputMessage), Reasoning(ReasoningItem), Function(FunctionItem), Result(FunctionResult), FileSearch(FileSearchItem), WebSearch(WebSearchItem), Computer(ComputerItem), Screenshot(ComputerResult), Image(ImageItem), Code(CodeItem), MCP(MCPItem), MCPTools(MCPToolsItem), MCPApproval(MCPApprovalItem), MCPDecision(MCPDecisionItem), Compaction(CompactionItem), Unknown(JsonValue)
-    companion object : Encodable<ResponseItem>, Decodable<ResponseItem> {
+    companion object : ValueEncoder<ResponseItem>, ValueDecoder<ResponseItem> {
         public override fun encode(value: ResponseItem, encoder: Encoder) {
             when (value) {
                 case ResponseItem.Easy(payload) -> { EasyMessage.Companion.encode(payload, encoder); return }

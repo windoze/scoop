@@ -11,8 +11,8 @@ public enum Result<T, E> {
     public val isFailure: Boolean get() = !isSuccess
 
     public companion object {
-        public fun encoder(success: Encodable<T>, failure: Encodable<E>): Encodable<Result<T, E>> = ResultEncoder<T, E>(success, failure)
-        public fun decoder(success: Decodable<T>, failure: Decodable<E>): Decodable<Result<T, E>> = ResultDecoder<T, E>(success, failure)
+        public fun encoder(success: ValueEncoder<T>, failure: ValueEncoder<E>): ValueEncoder<Result<T, E>> = ResultEncoder<T, E>(success, failure)
+        public fun decoder(success: ValueDecoder<T>, failure: ValueDecoder<E>): ValueDecoder<Result<T, E>> = ResultDecoder<T, E>(success, failure)
     }
 }
 

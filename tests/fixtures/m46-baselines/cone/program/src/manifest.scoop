@@ -2,7 +2,7 @@ struct Manifest(val schema: Long, val cone: Coordinate, val dependencies: Depend
     val sources: Array<Selection>? = None, val test: TestConfig = TestConfig(),
     @Serialize(rename = "test-dependencies") val testDependencies: Dependencies = Dependencies(),
     val native: Native = Native()) {
-    companion object : Encodable<Manifest>, Decodable<Manifest> {
+    companion object : ValueEncoder<Manifest>, ValueDecoder<Manifest> {
         public override fun decode(decoder: Decoder): Manifest {
             val fields = strict(decoder, ["schema", "cone", "dependencies", "sources", "test", "test-dependencies", "native"])
             val value = ManifestFields.decode(decoder)
@@ -17,10 +17,10 @@ struct Manifest(val schema: Long, val cone: Coordinate, val dependencies: Depend
         }
     }
 }
-object ManifestFields : Decodable<Manifest> {}
+object ManifestFields : ValueDecoder<Manifest> {}
 
 struct Coordinate(val group: String, val name: String, val version: String, val kind: String) {
-    companion object : Encodable<Coordinate>, Decodable<Coordinate> {
+    companion object : ValueEncoder<Coordinate>, ValueDecoder<Coordinate> {
         public override fun decode(decoder: Decoder): Coordinate {
             val fields = strict(decoder, ["group", "name", "version", "kind"])
             val value = CoordinateFields.decode(decoder)
@@ -33,10 +33,10 @@ struct Coordinate(val group: String, val name: String, val version: String, val 
         }
     }
 }
-object CoordinateFields : Decodable<Coordinate> {}
+object CoordinateFields : ValueDecoder<Coordinate> {}
 
 struct TestConfig(val sources: Array<Selection>? = None) {
-    companion object : Encodable<TestConfig>, Decodable<TestConfig> {
+    companion object : ValueEncoder<TestConfig>, ValueDecoder<TestConfig> {
         public override fun decode(decoder: Decoder): TestConfig {
             val fields = strict(decoder, ["sources"])
             val value = TestConfigFields.decode(decoder)
@@ -46,4 +46,4 @@ struct TestConfig(val sources: Array<Selection>? = None) {
         }
     }
 }
-object TestConfigFields : Decodable<TestConfig> {}
+object TestConfigFields : ValueDecoder<TestConfig> {}

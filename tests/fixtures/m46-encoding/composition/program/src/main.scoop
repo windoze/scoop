@@ -1,16 +1,16 @@
 import scoop.json.Json
 
 struct Identity(val id: Long) {
-    companion object : Encodable<Identity>, Decodable<Identity> {}
+    companion object : ValueEncoder<Identity>, ValueDecoder<Identity> {}
 }
 
 struct Details(val text: String) {
-    companion object : Encodable<Details>, Decodable<Details> {}
+    companion object : ValueEncoder<Details>, ValueDecoder<Details> {}
 }
 
 struct Flattened<T>(val identity: Identity, val details: T)
 
-class FlattenEncoder<T>(val details: Encodable<T>) : Encodable<Flattened<T>> {
+class FlattenEncoder<T>(val details: ValueEncoder<T>) : ValueEncoder<Flattened<T>> {
     public override fun encode(value: Flattened<T>, encoder: Encoder) {
         String.encode("message", encoder.keyed().field("type"))
         Identity.Companion.encode(value.identity, encoder)
@@ -20,7 +20,7 @@ class FlattenEncoder<T>(val details: Encodable<T>) : Encodable<Flattened<T>> {
     }
 }
 
-object FlattenDecoder : Decodable<Flattened<Details>> {
+object FlattenDecoder : ValueDecoder<Flattened<Details>> {
     public override fun decode(decoder: Decoder): Flattened<Details> {
         check(String.decode(decoder.keyed().required("type")) == "message")
         val identity = Identity.Companion.decode(decoder)
@@ -33,14 +33,14 @@ object FlattenDecoder : Decodable<Flattened<Details>> {
 fun main() {
     val value = Flattened(Identity(7L), Details("payload"))
     val codec = FlattenEncoder<Details>(Details.Companion)
-    val text = Json.encode(value, codec)
+    val text = Json.encodeToString(value, codec)
     check(text == "{\"type\":\"message\",\"id\":7,\"text\":\"payload\",\"done\":true}")
-    val decoded = Json.decode(text, FlattenDecoder)
+    val decoded = Json.decodeFromString(text, FlattenDecoder)
     check(decoded.identity == value.identity && decoded.details == value.details)
-    val collision = EncodeFunction<Unit>({ value, encoder ->
+    val collision = ValueEncoderFunction<Unit>({ value, encoder ->
         Identity.Companion.encode(Identity(1L), encoder)
         Identity.Companion.encode(Identity(2L), encoder)
     })
-    reject("/id", "duplicate object key") { Json.encode(Unit, collision) }
+    reject("/id", "duplicate object key") { Json.encodeToString(Unit, collision) }
     println("composition-ok")
 }

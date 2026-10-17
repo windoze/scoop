@@ -9,7 +9,7 @@ public annotation class Scale(val small: Small = 1.00000005960464477539062500000
 
 @Scale
 public struct Record(@Scale(-0f, NEGATIVE_NAN) val small: Small, val wide: Wide = -0.0) {
-    public companion object : Encodable<Record>, Decodable<Record>
+    public companion object : ValueEncoder<Record>, ValueDecoder<Record>
 }
 public struct Cell<T>(val value: T)
 public fun <T> identity(value: T): T = value

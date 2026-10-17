@@ -1,11 +1,11 @@
 struct TextPart(val text: String) {
-    companion object : Encodable<TextPart>, Decodable<TextPart> {}
+    companion object : ValueEncoder<TextPart>, ValueDecoder<TextPart> {}
 }
 struct RefusalPart(val refusal: String) {
-    companion object : Encodable<RefusalPart>, Decodable<RefusalPart> {}
+    companion object : ValueEncoder<RefusalPart>, ValueDecoder<RefusalPart> {}
 }
 struct ResponseImage(val detail: String = "auto", val file_id: String? = None, val image_url: String? = None) {
-    companion object : Encodable<ResponseImage>, Decodable<ResponseImage> {}
+    companion object : ValueEncoder<ResponseImage>, ValueDecoder<ResponseImage> {}
 }
 struct ResponseFile(
     val file_id: String? = None,
@@ -13,26 +13,26 @@ struct ResponseFile(
     val filename: String? = None,
     val file_url: String? = None
 ) {
-    companion object : Encodable<ResponseFile>, Decodable<ResponseFile> {}
+    companion object : ValueEncoder<ResponseFile>, ValueDecoder<ResponseFile> {}
 }
 struct AudioPart(val input_audio: InputAudio) {
-    companion object : Encodable<AudioPart>, Decodable<AudioPart> {}
+    companion object : ValueEncoder<AudioPart>, ValueDecoder<AudioPart> {}
 }
 struct InputAudio(val data: String, val format: String) {
-    companion object : Encodable<InputAudio>, Decodable<InputAudio> {}
+    companion object : ValueEncoder<InputAudio>, ValueDecoder<InputAudio> {}
 }
 struct OutputText(val text: String, val annotations: Array<ResponseAnnotation> = []) {
-    companion object : Encodable<OutputText>, Decodable<OutputText> {}
+    companion object : ValueEncoder<OutputText>, ValueDecoder<OutputText> {}
 }
 struct URLCitation(val start_index: Long, val end_index: Long, val title: String, val url: String) {
-    companion object : Encodable<URLCitation>, Decodable<URLCitation> {}
+    companion object : ValueEncoder<URLCitation>, ValueDecoder<URLCitation> {}
 }
 struct FileCitation(val file_id: String, val index: Long, val filename: String) {
-    companion object : Encodable<FileCitation>, Decodable<FileCitation> {}
+    companion object : ValueEncoder<FileCitation>, ValueDecoder<FileCitation> {}
 }
 enum ResponseAnnotation {
     URL(URLCitation), File(FileCitation)
-    companion object : Encodable<ResponseAnnotation>, Decodable<ResponseAnnotation> {
+    companion object : ValueEncoder<ResponseAnnotation>, ValueDecoder<ResponseAnnotation> {
         public override fun encode(value: ResponseAnnotation, encoder: Encoder) {
             val fields = encoder.keyed()
             when (value) {

@@ -70,10 +70,10 @@ public class LinkedHashMap<K, V> public constructor() : MutableMap<K, V>
         LinkedIterator<K, V>(storage, structure)
 
     public companion object {
-        public fun encoder(key: Encodable<K>, value: Encodable<V>): Encodable<LinkedHashMap<K, V>> =
-            EncodeFunction<LinkedHashMap<K, V>> { values, encoder -> encodeMap(values, key, value, encoder) }
-        public fun decoder(key: Decodable<K>, value: Decodable<V>): Decodable<LinkedHashMap<K, V>> =
-            DecodeFunction<LinkedHashMap<K, V>> { decoder ->
+        public fun encoder(key: ValueEncoder<K>, value: ValueEncoder<V>): ValueEncoder<LinkedHashMap<K, V>> =
+            ValueEncoderFunction<LinkedHashMap<K, V>> { values, encoder -> encodeMap(values, key, value, encoder) }
+        public fun decoder(key: ValueDecoder<K>, value: ValueDecoder<V>): ValueDecoder<LinkedHashMap<K, V>> =
+            ValueDecoderFunction<LinkedHashMap<K, V>> { decoder ->
                 val result = LinkedHashMap<K, V>()
                 decodeMapInto(decoder, key, value, result)
                 result

@@ -45,9 +45,9 @@ public class TreeSet<T> public constructor(
     }
 
     public companion object {
-        public fun encoder(element: Encodable<T>): Encodable<TreeSet<T>> =
-            EncodeFunction<TreeSet<T>> { values, encoder -> encodeElements(values, element, encoder) }
-        public fun decoder(element: Decodable<T>, comparator: Comparator<T>): Decodable<TreeSet<T>> = DecodeFunction<TreeSet<T>> { decoder ->
+        public fun encoder(element: ValueEncoder<T>): ValueEncoder<TreeSet<T>> =
+            ValueEncoderFunction<TreeSet<T>> { values, encoder -> encodeElements(values, element, encoder) }
+        public fun decoder(element: ValueDecoder<T>, comparator: Comparator<T>): ValueDecoder<TreeSet<T>> = ValueDecoderFunction<TreeSet<T>> { decoder ->
             val result = TreeSet<T>(comparator)
             decodeSetInto(decoder, element, result)
             result

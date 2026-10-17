@@ -1,6 +1,6 @@
 enum Delta {
     Text(TextDelta), JSON(JSONDelta), Thinking(ThinkingDelta), Signature(SignatureDelta), Citation(CitationDelta)
-    companion object : Encodable<Delta>, Decodable<Delta> {
+    companion object : ValueEncoder<Delta>, ValueDecoder<Delta> {
         public override fun encode(value: Delta, encoder: Encoder) {
             val fields = encoder.keyed()
             when (value) {
@@ -41,17 +41,17 @@ enum Delta {
     }
 }
 struct TextDelta(val text: String) {
-    companion object : Encodable<TextDelta>, Decodable<TextDelta> {}
+    companion object : ValueEncoder<TextDelta>, ValueDecoder<TextDelta> {}
 }
 struct JSONDelta(val partial_json: String) {
-    companion object : Encodable<JSONDelta>, Decodable<JSONDelta> {}
+    companion object : ValueEncoder<JSONDelta>, ValueDecoder<JSONDelta> {}
 }
 struct ThinkingDelta(val thinking: String) {
-    companion object : Encodable<ThinkingDelta>, Decodable<ThinkingDelta> {}
+    companion object : ValueEncoder<ThinkingDelta>, ValueDecoder<ThinkingDelta> {}
 }
 struct SignatureDelta(val signature: String) {
-    companion object : Encodable<SignatureDelta>, Decodable<SignatureDelta> {}
+    companion object : ValueEncoder<SignatureDelta>, ValueDecoder<SignatureDelta> {}
 }
 struct CitationDelta(val citation: Citation) {
-    companion object : Encodable<CitationDelta>, Decodable<CitationDelta> {}
+    companion object : ValueEncoder<CitationDelta>, ValueDecoder<CitationDelta> {}
 }

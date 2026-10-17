@@ -1,6 +1,6 @@
 enum ChatPart {
     Text(TextPart), Image(ChatImage), Audio(ChatAudio), File(ChatFile), Refusal(RefusalPart)
-    companion object : Encodable<ChatPart>, Decodable<ChatPart> {
+    companion object : ValueEncoder<ChatPart>, ValueDecoder<ChatPart> {
         public override fun encode(value: ChatPart, encoder: Encoder) {
             val fields = encoder.keyed()
             when (value) {
@@ -43,7 +43,7 @@ enum ChatPart {
 
 enum ChatContent {
     Text(String), Blocks(Array<ChatPart>)
-    companion object : Encodable<ChatContent>, Decodable<ChatContent> {
+    companion object : ValueEncoder<ChatContent>, ValueDecoder<ChatContent> {
         public override fun encode(value: ChatContent, encoder: Encoder) {
             when (value) {
                 case ChatContent.Text(text) -> String.encode(text, encoder)

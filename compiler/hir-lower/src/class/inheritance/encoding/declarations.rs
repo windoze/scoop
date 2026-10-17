@@ -8,7 +8,7 @@ impl Lowerer {
         interfaces: &[TypeId],
         candidates: &[crate::CallableCandidate],
     ) -> Option<FunctionId> {
-        let encodable = self.core_coding_nominal("Encodable")?;
+        let encodable = self.core_coding_nominal("ValueEncoder")?;
         let encoder = self.core_coding_nominal("Encoder")?;
         let signature = &member.signature;
         if signature.name != "encode"

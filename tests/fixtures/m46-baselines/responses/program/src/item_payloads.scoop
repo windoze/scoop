@@ -1,20 +1,20 @@
 struct EasyMessage(val role: String, val content: ResponseContent) {
-    companion object : Encodable<EasyMessage>, Decodable<EasyMessage> {}
+    companion object : ValueEncoder<EasyMessage>, ValueDecoder<EasyMessage> {}
 }
 struct InputMessage(val role: String, val content: Array<ResponsePart>) {
-    companion object : Encodable<InputMessage>, Decodable<InputMessage> {}
+    companion object : ValueEncoder<InputMessage>, ValueDecoder<InputMessage> {}
 }
 struct OutputMessage(val id: String, val role: String, val status: String, val content: Array<ResponsePart>) {
-    companion object : Encodable<OutputMessage>, Decodable<OutputMessage> {}
+    companion object : ValueEncoder<OutputMessage>, ValueDecoder<OutputMessage> {}
 }
 struct ReasoningItem(val id: String, val summary: Array<SummaryPart>, val encrypted_content: String? = None) {
-    companion object : Encodable<ReasoningItem>, Decodable<ReasoningItem> {}
+    companion object : ValueEncoder<ReasoningItem>, ValueDecoder<ReasoningItem> {}
 }
 struct SummaryPart(val type: String, val text: String) {
-    companion object : Encodable<SummaryPart>, Decodable<SummaryPart> {}
+    companion object : ValueEncoder<SummaryPart>, ValueDecoder<SummaryPart> {}
 }
 struct CompactionItem(val encrypted_content: String, val id: String? = None) {
-    companion object : Encodable<CompactionItem>, Decodable<CompactionItem> {}
+    companion object : ValueEncoder<CompactionItem>, ValueDecoder<CompactionItem> {}
 }
 struct FunctionItem(
     val call_id: String,
@@ -23,10 +23,10 @@ struct FunctionItem(
     val id: String? = None,
     val status: String? = None
 ) {
-    companion object : Encodable<FunctionItem>, Decodable<FunctionItem> {}
+    companion object : ValueEncoder<FunctionItem>, ValueDecoder<FunctionItem> {}
 }
 struct FunctionResult(val call_id: String, val output: ResponseContent, val id: String? = None) {
-    companion object : Encodable<FunctionResult>, Decodable<FunctionResult> {}
+    companion object : ValueEncoder<FunctionResult>, ValueDecoder<FunctionResult> {}
 }
 struct FileSearchItem(
     val id: String,
@@ -34,7 +34,7 @@ struct FileSearchItem(
     val queries: Array<String>,
     val results: Array<FileSearchResult>? = None
 ) {
-    companion object : Encodable<FileSearchItem>, Decodable<FileSearchItem> {}
+    companion object : ValueEncoder<FileSearchItem>, ValueDecoder<FileSearchItem> {}
 }
 struct FileSearchResult(
     val file_id: String? = None,
@@ -42,13 +42,13 @@ struct FileSearchResult(
     val score: Double? = None,
     val text: String? = None
 ) {
-    companion object : Encodable<FileSearchResult>, Decodable<FileSearchResult> {}
+    companion object : ValueEncoder<FileSearchResult>, ValueDecoder<FileSearchResult> {}
 }
 struct WebSearchItem(val id: String, val status: String, val action: SearchAction) {
-    companion object : Encodable<WebSearchItem>, Decodable<WebSearchItem> {}
+    companion object : ValueEncoder<WebSearchItem>, ValueDecoder<WebSearchItem> {}
 }
 struct ImageItem(val id: String, val status: String, @Serialize(required = true) val result: String?) {
-    companion object : Encodable<ImageItem>, Decodable<ImageItem> {}
+    companion object : ValueEncoder<ImageItem>, ValueDecoder<ImageItem> {}
 }
 struct CodeItem(
     val id: String,
@@ -57,11 +57,11 @@ struct CodeItem(
     @Serialize(required = true) val code: String?,
     @Serialize(required = true) val outputs: Array<CodeOutput>?
 ) {
-    companion object : Encodable<CodeItem>, Decodable<CodeItem> {}
+    companion object : ValueEncoder<CodeItem>, ValueDecoder<CodeItem> {}
 }
 struct CodeLogs(val logs: String) {
-    companion object : Encodable<CodeLogs>, Decodable<CodeLogs> {}
+    companion object : ValueEncoder<CodeLogs>, ValueDecoder<CodeLogs> {}
 }
 struct CodeImage(val url: String) {
-    companion object : Encodable<CodeImage>, Decodable<CodeImage> {}
+    companion object : ValueEncoder<CodeImage>, ValueDecoder<CodeImage> {}
 }

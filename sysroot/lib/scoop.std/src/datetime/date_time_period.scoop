@@ -7,7 +7,7 @@ public struct DateTimePeriod(val date: DatePeriod = DatePeriod(), val time: Dura
     public override operator fun equals(other: DateTimePeriod): Boolean = date == other.date && time == other.time
     public override fun hash(): Long = date.hash() * 31L + time.hash()
 
-    public companion object : Encodable<DateTimePeriod>, Decodable<DateTimePeriod> {
+    public companion object : ValueEncoder<DateTimePeriod>, ValueDecoder<DateTimePeriod> {
         public override fun encode(value: DateTimePeriod, encoder: Encoder) {
             val fields = encoder.keyed()
             DatePeriod.encode(value.date, fields.field("date"))

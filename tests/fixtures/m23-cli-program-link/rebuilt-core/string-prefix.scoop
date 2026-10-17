@@ -30,10 +30,10 @@ import coreStringSliceBytes
 import coreStringByteAt
 import coreStringFromChars
 import coreStringFromBytes
-import Encodable
+import ValueEncoder
 import Encoder
 import Unit
-import Decodable
+import ValueDecoder
 import Decoder
 
 import Array
@@ -47,7 +47,7 @@ import decodeUtf8Lossy
 import coreStringDecodeUtf8
 import coreCStringLength
 
-import Inspectable
+import ValueInspector
 import ValueView
 import ValueObservation
 import ValueShape

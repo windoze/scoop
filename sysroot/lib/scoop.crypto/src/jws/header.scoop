@@ -8,7 +8,7 @@ public class JwsException public constructor(public val detail: String) : Except
 internal val urlEncoding: Base64 = Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT)
 internal struct ProtectedHeader(val algorithm: String, val keyId: String?)
 
-private object HeaderDecoder : Decodable<ProtectedHeader> {
+private object HeaderDecoder : ValueDecoder<ProtectedHeader> {
     public override fun decode(decoder: Decoder): ProtectedHeader {
         val fields = decoder.keyed()
         val algorithm = fields.required("alg").singleValue().readString()
@@ -31,8 +31,8 @@ internal fun optionalText(fields: KeyedDecodingContainer, name: String): String?
     case None -> None
 }
 
-internal fun <T> decodeJson(text: String, codec: Decodable<T>): T {
-    try { return Json.decode(text, codec) }
+internal fun <T> decodeJson(text: String, codec: ValueDecoder<T>): T {
+    try { return Json.decodeFromString(text, codec) }
     catch (error: DecodingException) { throw JwsException("invalid JWS JSON at " + error.path + ": " + (error.message ?: "decoding failed")) }
 }
 

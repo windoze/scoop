@@ -23,7 +23,7 @@ public fun parseRow(line: String, random: Random): Result<Event, String> {
     return Result.Success<Event, String>(Event(Uuid.random(random), date.toInstant(), score, fields[2L]))
 }
 
-public fun <T> frameRoundTrip(rows: List<T>, encoder: Encodable<T>, decoder: Decodable<T>): List<T> {
+public fun <T> frameRoundTrip(rows: List<T>, encoder: ValueEncoder<T>, decoder: ValueDecoder<T>): List<T> {
     val payload = encodeRows<T>(rows, encoder).toByteArray()
     val builder = ByteArrayBuilder()
     builder.writeInt(42, ByteOrder.BIG_ENDIAN)

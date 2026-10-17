@@ -1,6 +1,6 @@
 enum CacheMiss {
     Model(CacheChanged), System(CacheChanged), Tools(CacheChanged), Messages(CacheChanged), NotFound, Unavailable
-    companion object : Encodable<CacheMiss>, Decodable<CacheMiss> {
+    companion object : ValueEncoder<CacheMiss>, ValueDecoder<CacheMiss> {
         public override fun encode(value: CacheMiss, encoder: Encoder) {
             val fields = encoder.keyed()
             when (value) {
@@ -44,5 +44,5 @@ enum CacheMiss {
     }
 }
 struct CacheChanged(val cache_missed_input_tokens: Long) {
-    companion object : Encodable<CacheChanged>, Decodable<CacheChanged> {}
+    companion object : ValueEncoder<CacheChanged>, ValueDecoder<CacheChanged> {}
 }

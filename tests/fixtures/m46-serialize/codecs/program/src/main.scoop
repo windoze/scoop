@@ -1,7 +1,7 @@
 import scoop.json.Json
 
 class Counter(var encoded: String, var decoded: String)
-class Custom(val counter: Counter) : Encodable<String?>, Decodable<String?> {
+class Custom(val counter: Counter) : ValueEncoder<String?>, ValueDecoder<String?> {
     public override fun encode(value: String?, encoder: Encoder) {
         counter.encoded += encoder.path
         String.encode(value ?: "absent", encoder)
@@ -18,18 +18,18 @@ struct Record(
     @Serialize(emitNull = true) val keep: String?,
     @Serialize(required = true) val must: String?
 )
-class Codec(val writer: Encodable<String?>, val reader: Decodable<String?>)
-    : Encodable<Record>, Decodable<Record>
+class Codec(val writer: ValueEncoder<String?>, val reader: ValueDecoder<String?>)
+    : ValueEncoder<Record>, ValueDecoder<Record>
 
 fun main() {
     val counter = Counter("", "")
     val custom = Custom(counter)
     val codec = Codec(custom, custom)
     val value = Record(None, None, None)
-    check(Json.encode(value, codec) == "{\"keep\":\"absent\",\"must\":\"absent\"}")
+    check(Json.encodeToString(value, codec) == "{\"keep\":\"absent\",\"must\":\"absent\"}")
     check(counter.encoded == "/keep/must")
-    check(Json.decode("{\"keep\":\"absent\",\"must\":\"absent\"}", codec) == value)
+    check(Json.decodeFromString("{\"keep\":\"absent\",\"must\":\"absent\"}", codec) == value)
     check(counter.decoded == "/keep/must")
-    reject("/keep") { Json.decode("{\"keep\":null,\"must\":\"absent\"}", codec) }
+    reject("/keep") { Json.decodeFromString("{\"keep\":null,\"must\":\"absent\"}", codec) }
     println("codecs-ok")
 }

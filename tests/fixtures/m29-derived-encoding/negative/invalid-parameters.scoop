@@ -1,5 +1,5 @@
 struct Item(val value: Any) {
-    companion object : Encodable<Item> {
+    companion object : ValueEncoder<Item> {
         public override fun encode(encoder: Encoder) {}
     }
 }

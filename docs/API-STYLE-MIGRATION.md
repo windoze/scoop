@@ -10,7 +10,7 @@
 | R04 | OrNull 失败命名与证书验证 Result | 已完成；fmt/clippy、crypto 17 项、外部消费者 4 项、UTF-8 fixture 3 项通过 |
 | R05 | Closeable、isClosed 与 TLS takeOwnership 工厂 | 已完成；fmt/clippy、资源 fixture 2 项、platform 110 项、TLS 13 项、async TLS 12 项及外部消费者 3 项通过 |
 | R06 | StringBuilder.append/toString 与字节 builder 链式追加 | 已完成；fmt/clippy、配套 CLI 构建及 51 项定向 fixture 通过（迁移遗漏已闭合） |
-| R07 | ValueEncoder/ValueDecoder/ValueInspector 与 Json 边界命名 | 待实施 |
+| R07 | ValueEncoder/ValueDecoder/ValueInspector 与 Json 边界命名 | 已完成；fmt/clippy、47 项 Rust 测试、181 项本机适用 fixture 通过（诊断与别名迁移遗漏已闭合）；1 项 musl 用例留待 Linux |
 | R08 | 惰性 withIndex 与 copyOfRange 快照 | 待实施 |
 | R09 | Duration 趋零分量与 floorSeconds | 待实施 |
 | R10 | 普通整数转换名与二进制位宽命名 | 待实施 |

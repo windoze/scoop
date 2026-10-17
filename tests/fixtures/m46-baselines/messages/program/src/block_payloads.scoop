@@ -1,10 +1,10 @@
 import scoop.json.*
 
 struct TextBlock(val text: String, val cache_control: CacheControl? = None, val citations: Array<Citation>? = None) {
-    companion object : Encodable<TextBlock>, Decodable<TextBlock> {}
+    companion object : ValueEncoder<TextBlock>, ValueDecoder<TextBlock> {}
 }
 struct ImageBlock(val source: Source) {
-    companion object : Encodable<ImageBlock>, Decodable<ImageBlock> {}
+    companion object : ValueEncoder<ImageBlock>, ValueDecoder<ImageBlock> {}
 }
 struct DocumentBlock(
     val source: Source,
@@ -12,28 +12,28 @@ struct DocumentBlock(
     val context: String? = None,
     val citations: CitationConfig? = None
 ) {
-    companion object : Encodable<DocumentBlock>, Decodable<DocumentBlock> {}
+    companion object : ValueEncoder<DocumentBlock>, ValueDecoder<DocumentBlock> {}
 }
 struct ThinkingBlock(val thinking: String, val signature: String) {
-    companion object : Encodable<ThinkingBlock>, Decodable<ThinkingBlock> {}
+    companion object : ValueEncoder<ThinkingBlock>, ValueDecoder<ThinkingBlock> {}
 }
 struct RedactedBlock(val data: String) {
-    companion object : Encodable<RedactedBlock>, Decodable<RedactedBlock> {}
+    companion object : ValueEncoder<RedactedBlock>, ValueDecoder<RedactedBlock> {}
 }
 struct ToolUse(val id: String, val name: String, val input: JsonValue) {
-    companion object : Encodable<ToolUse>, Decodable<ToolUse> {}
+    companion object : ValueEncoder<ToolUse>, ValueDecoder<ToolUse> {}
 }
 struct ToolResult(val tool_use_id: String, val content: Content? = None, val is_error: Boolean = false) {
-    companion object : Encodable<ToolResult>, Decodable<ToolResult> {}
+    companion object : ValueEncoder<ToolResult>, ValueDecoder<ToolResult> {}
 }
 struct SearchResultBlock(val tool_use_id: String, val content: SearchResults) {
-    companion object : Encodable<SearchResultBlock>, Decodable<SearchResultBlock> {}
+    companion object : ValueEncoder<SearchResultBlock>, ValueDecoder<SearchResultBlock> {}
 }
 struct FetchResultBlock(val tool_use_id: String, val content: FetchResult) {
-    companion object : Encodable<FetchResultBlock>, Decodable<FetchResultBlock> {}
+    companion object : ValueEncoder<FetchResultBlock>, ValueDecoder<FetchResultBlock> {}
 }
 struct CodeResultBlock(val tool_use_id: String, val content: CodeResult) {
-    companion object : Encodable<CodeResultBlock>, Decodable<CodeResultBlock> {}
+    companion object : ValueEncoder<CodeResultBlock>, ValueDecoder<CodeResultBlock> {}
 }
 struct SearchBlock(
     val source: String,
@@ -41,14 +41,14 @@ struct SearchBlock(
     val content: Array<TextOnly>,
     val citations: CitationConfig? = None
 ) {
-    companion object : Encodable<SearchBlock>, Decodable<SearchBlock> {}
+    companion object : ValueEncoder<SearchBlock>, ValueDecoder<SearchBlock> {}
 }
 struct UploadBlock(val file_id: String) {
-    companion object : Encodable<UploadBlock>, Decodable<UploadBlock> {}
+    companion object : ValueEncoder<UploadBlock>, ValueDecoder<UploadBlock> {}
 }
 struct CitationConfig(val enabled: Boolean) {
-    companion object : Encodable<CitationConfig>, Decodable<CitationConfig> {}
+    companion object : ValueEncoder<CitationConfig>, ValueDecoder<CitationConfig> {}
 }
 struct CacheControl(val type: String, val ttl: String? = None) {
-    companion object : Encodable<CacheControl>, Decodable<CacheControl> {}
+    companion object : ValueEncoder<CacheControl>, ValueDecoder<CacheControl> {}
 }

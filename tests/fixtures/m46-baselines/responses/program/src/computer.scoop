@@ -6,32 +6,32 @@ struct ComputerItem(
     val action: ComputerAction? = None,
     val actions: Array<ComputerAction>? = None
 ) {
-    companion object : Encodable<ComputerItem>, Decodable<ComputerItem> {}
+    companion object : ValueEncoder<ComputerItem>, ValueDecoder<ComputerItem> {}
 }
 struct SafetyCheck(val id: String, val code: String? = None, val message: String? = None) {
-    companion object : Encodable<SafetyCheck>, Decodable<SafetyCheck> {}
+    companion object : ValueEncoder<SafetyCheck>, ValueDecoder<SafetyCheck> {}
 }
 struct ComputerResult(val call_id: String, val output: Screenshot) {
-    companion object : Encodable<ComputerResult>, Decodable<ComputerResult> {}
+    companion object : ValueEncoder<ComputerResult>, ValueDecoder<ComputerResult> {}
 }
 struct Screenshot(val type: String, val image_url: String? = None, val file_id: String? = None) {
-    companion object : Encodable<Screenshot>, Decodable<Screenshot> {}
+    companion object : ValueEncoder<Screenshot>, ValueDecoder<Screenshot> {}
 }
 struct ClickAction(val button: String, val x: Double, val y: Double) {
-    companion object : Encodable<ClickAction>, Decodable<ClickAction> {}
+    companion object : ValueEncoder<ClickAction>, ValueDecoder<ClickAction> {}
 }
 struct DragAction(val path: Array<Point>) {
-    companion object : Encodable<DragAction>, Decodable<DragAction> {}
+    companion object : ValueEncoder<DragAction>, ValueDecoder<DragAction> {}
 }
 struct Point(val x: Double, val y: Double) {
-    companion object : Encodable<Point>, Decodable<Point> {}
+    companion object : ValueEncoder<Point>, ValueDecoder<Point> {}
 }
 struct TypeAction(val text: String) {
-    companion object : Encodable<TypeAction>, Decodable<TypeAction> {}
+    companion object : ValueEncoder<TypeAction>, ValueDecoder<TypeAction> {}
 }
 enum ComputerAction {
     Click(ClickAction), Drag(DragAction), Type(TypeAction), Screenshot, Wait
-    companion object : Encodable<ComputerAction>, Decodable<ComputerAction> {
+    companion object : ValueEncoder<ComputerAction>, ValueDecoder<ComputerAction> {
         public override fun encode(value: ComputerAction, encoder: Encoder) {
             val fields = encoder.keyed()
             when (value) {

@@ -1,7 +1,7 @@
 import scoop.cli.*
 
 enum Mode { @Serialize(rename = "fast-wire") Fast, Slow
-    companion object : Decodable<Mode>, Inspectable<Mode>
+    companion object : ValueDecoder<Mode>, ValueInspector<Mode>
 }
 struct Options(
     @CliArgument(position = 0L, help = "Input file", valueName = "FILE") val input: String,
@@ -13,31 +13,31 @@ struct Options(
     val mode: Mode? = None,
     @CliOption val enabled: Boolean = false,
     @Serialize(ignore = true) val ignored: Int = 19
-) { companion object : Decodable<Options>, Inspectable<Options> }
+) { companion object : ValueDecoder<Options>, ValueInspector<Options> }
 
 struct Wrapped(
     val optional: Array<Int>?, val elements: Array<Int?> = [],
     val nested: String??, val mutable: MutableArray<String> = MutableArray<String>(0L) { _ -> "" },
     val list: ArrayList<Int> = ArrayList<Int>()
-) { companion object : Decodable<Wrapped> }
+) { companion object : ValueDecoder<Wrapped> }
 
 class PrivateOptions(private val code: Int = 4) {
     val ignored: Int get() { throw IllegalStateException() }
     fun result(): Int = code
-    companion object : Decodable<PrivateOptions>
+    companion object : ValueDecoder<PrivateOptions>
 }
 
 struct Positionals(
     @CliArgument(position = 0L) val first: Int,
     @CliArgument(position = 1L) val optional: String?,
     @CliArgument(position = 2L) val rest: Array<String> = []
-) { companion object : Decodable<Positionals> }
+) { companion object : ValueDecoder<Positionals> }
 
 object Counts { var defaults: Int = 0; var constructors: Int = 0 }
 fun nextDefault(): Int { Counts.defaults = Counts.defaults + 1; return 7 }
 class Defaults(val first: Int = nextDefault(), val second: Int = first + 1) {
     init { Counts.constructors = Counts.constructors + 1 }
-    companion object : Decodable<Defaults>
+    companion object : ValueDecoder<Defaults>
 }
 class FailingHelp : TextWriter {
     val text: StringWriter = StringWriter()

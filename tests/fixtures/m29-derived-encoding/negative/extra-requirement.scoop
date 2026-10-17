@@ -1,4 +1,4 @@
-interface Extended<T> : Encodable<T> { public fun other(): Int }
+interface Extended<T> : ValueEncoder<T> { public fun other(): Int }
 struct Item(val value: Int) { companion object : Extended<Item> }
 
 fun main() {}

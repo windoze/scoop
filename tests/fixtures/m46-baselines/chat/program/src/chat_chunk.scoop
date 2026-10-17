@@ -6,7 +6,7 @@ struct ChatChunk(
     val choices: Array<ChunkChoice>,
     val usage: ChatUsage? = None
 ) {
-    companion object : Encodable<ChatChunk>, Decodable<ChatChunk> {}
+    companion object : ValueEncoder<ChatChunk>, ValueDecoder<ChatChunk> {}
 }
 struct ChunkChoice(
     val index: Long,
@@ -14,7 +14,7 @@ struct ChunkChoice(
     @Serialize(required = true) val finish_reason: String?,
     val logprobs: ChatLogprobs? = None
 ) {
-    companion object : Encodable<ChunkChoice>, Decodable<ChunkChoice> {}
+    companion object : ValueEncoder<ChunkChoice>, ValueDecoder<ChunkChoice> {}
 }
 struct ChatDelta(
     val role: String? = None,
@@ -22,7 +22,7 @@ struct ChatDelta(
     val refusal: String? = None,
     val tool_calls: Array<CallDelta>? = None
 ) {
-    companion object : Encodable<ChatDelta>, Decodable<ChatDelta> {}
+    companion object : ValueEncoder<ChatDelta>, ValueDecoder<ChatDelta> {}
 }
 struct CallDelta(
     val index: Long,
@@ -30,8 +30,8 @@ struct CallDelta(
     val type: String? = None,
     val function: FunctionDelta? = None
 ) {
-    companion object : Encodable<CallDelta>, Decodable<CallDelta> {}
+    companion object : ValueEncoder<CallDelta>, ValueDecoder<CallDelta> {}
 }
 struct FunctionDelta(val name: String? = None, val arguments: String? = None) {
-    companion object : Encodable<FunctionDelta>, Decodable<FunctionDelta> {}
+    companion object : ValueEncoder<FunctionDelta>, ValueDecoder<FunctionDelta> {}
 }

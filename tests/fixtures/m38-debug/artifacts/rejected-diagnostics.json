@@ -5,10 +5,10 @@
     "notes": [],
     "origin": {
       "cone": "42a328dd882f64c285b93dcfca26f3aa2c2d2caeee56d5a5a70b9c86b15cfc6d",
-      "end": 463,
+      "end": 475,
       "kind": "source",
       "path": "src/main.scoop",
-      "start": 458
+      "start": 470
     },
     "severity": "error"
   },
@@ -18,7 +18,7 @@
     "notes": [],
     "origin": {
       "cone": "42a328dd882f64c285b93dcfca26f3aa2c2d2caeee56d5a5a70b9c86b15cfc6d",
-      "end": 64,
+      "end": 67,
       "kind": "source",
       "path": "src/main.scoop",
       "start": 19
@@ -31,10 +31,10 @@
     "notes": [],
     "origin": {
       "cone": "42a328dd882f64c285b93dcfca26f3aa2c2d2caeee56d5a5a70b9c86b15cfc6d",
-      "end": 118,
+      "end": 124,
       "kind": "source",
       "path": "src/main.scoop",
-      "start": 65
+      "start": 68
     },
     "severity": "error"
   },
@@ -44,10 +44,10 @@
     "notes": [],
     "origin": {
       "cone": "42a328dd882f64c285b93dcfca26f3aa2c2d2caeee56d5a5a70b9c86b15cfc6d",
-      "end": 174,
+      "end": 183,
       "kind": "source",
       "path": "src/main.scoop",
-      "start": 119
+      "start": 125
     },
     "severity": "error"
   }

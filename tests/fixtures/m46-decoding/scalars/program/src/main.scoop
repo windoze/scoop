@@ -1,6 +1,6 @@
 import scoop.json.Json
 
-object TextReader : Decodable<String> {
+object TextReader : ValueDecoder<String> {
     public override fun decode(decoder: Decoder): String {
         val first = decoder.singleValue()
         check(!first.isNull())
@@ -16,7 +16,7 @@ object TextReader : Decodable<String> {
     }
 }
 
-object NullReader : Decodable<Boolean> {
+object NullReader : ValueDecoder<Boolean> {
     public override fun decode(decoder: Decoder): Boolean {
         val scalar = decoder.singleValue()
         check(scalar.isNull())
@@ -27,7 +27,7 @@ object NullReader : Decodable<Boolean> {
     }
 }
 
-object WideReader : Decodable<ULong> {
+object WideReader : ValueDecoder<ULong> {
     public override fun decode(decoder: Decoder): ULong {
         reject("") { Long.decode(decoder) }
         val result = ULong.decode(decoder)
@@ -36,7 +36,7 @@ object WideReader : Decodable<ULong> {
     }
 }
 
-object FloatingReader : Decodable<Double> {
+object FloatingReader : ValueDecoder<Double> {
     public override fun decode(decoder: Decoder): Double {
         reject("") { Long.decode(decoder) }
         reject("") { Float.decode(decoder) }
@@ -45,17 +45,17 @@ object FloatingReader : Decodable<Double> {
 }
 
 fun main() {
-    check(Json.decode("\"stable 雪\"", TextReader) == "stable 雪")
-    check(Json.decode("null", NullReader))
-    check(Json.decode("18446744073709551615", WideReader) == 18446744073709551615UL)
-    check(Json.decode("1e100", FloatingReader) == 1e100)
-    val boolean = DecodeFunction<Boolean>({ decoder ->
+    check(Json.decodeFromString("\"stable 雪\"", TextReader) == "stable 雪")
+    check(Json.decodeFromString("null", NullReader))
+    check(Json.decodeFromString("18446744073709551615", WideReader) == 18446744073709551615UL)
+    check(Json.decodeFromString("1e100", FloatingReader) == 1e100)
+    val boolean = ValueDecoderFunction<Boolean>({ decoder ->
         val scalar = decoder.singleValue()
         check(!scalar.isNull())
         reject("") { scalar.readLong() }
         check(scalar.readBoolean() == scalar.readBoolean())
         scalar.readBoolean()
     })
-    check(Json.decode("true", boolean))
+    check(Json.decodeFromString("true", boolean))
     println("scalars-ok")
 }

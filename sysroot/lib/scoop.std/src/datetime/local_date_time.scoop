@@ -36,7 +36,7 @@ public class LocalDateTime public constructor(public val date: LocalDate, public
     public override fun hash(): Long = date.hash() * 31L + time.hash()
     public override fun toString(): String = date.toString() + "T" + time.toString()
 
-    public companion object : Encodable<LocalDateTime>, Decodable<LocalDateTime> {
+    public companion object : ValueEncoder<LocalDateTime>, ValueDecoder<LocalDateTime> {
         public override fun encode(value: LocalDateTime, encoder: Encoder) { encoder.singleValue().writeString(value.toString()) }
         public override fun decode(decoder: Decoder): LocalDateTime =
             decodeTextValue<LocalDateTime>(decoder, { text -> parseOrNull(text) }, "local date-time")

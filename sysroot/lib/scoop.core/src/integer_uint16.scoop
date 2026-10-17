@@ -134,7 +134,7 @@ public struct UInt16 :
 
     public override fun hash(): Long = coreULongHash(this.toUInt64())
 
-    public companion object : Encodable<UInt16>, Decodable<UInt16>, Inspectable<UInt16> {
+    public companion object : ValueEncoder<UInt16>, ValueDecoder<UInt16>, ValueInspector<UInt16> {
         public override fun inspect(value: UInt16): ValueView =
             ValueObservation(typeInfo<UInt16>().type, None, { ValueShape.Scalar(ScalarValue.Unsigned(value.toUInt64())) })
 

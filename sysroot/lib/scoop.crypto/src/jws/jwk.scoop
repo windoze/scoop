@@ -5,7 +5,7 @@ import scoop.crypto.native.*
 
 internal struct JwkParameters(val kind: Int, val first: Array<Byte>, val second: Array<Byte>)
 
-private object JwkDecoder : Decodable<JwkParameters> {
+private object JwkDecoder : ValueDecoder<JwkParameters> {
     public override fun decode(decoder: Decoder): JwkParameters {
         val fields = decoder.keyed()
         for (name in fields.keys) {

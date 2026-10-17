@@ -10,8 +10,8 @@ struct ChatRequest(
     val stream: Boolean = false,
     val stream_options: StreamOptions? = None
 ) {
-    companion object : Encodable<ChatRequest>, Decodable<ChatRequest> {}
+    companion object : ValueEncoder<ChatRequest>, ValueDecoder<ChatRequest> {}
 }
 struct StreamOptions(val include_usage: Boolean = false) {
-    companion object : Encodable<StreamOptions>, Decodable<StreamOptions> {}
+    companion object : ValueEncoder<StreamOptions>, ValueDecoder<StreamOptions> {}
 }

@@ -47,10 +47,10 @@ import scoop.json.Json
     while (index < count) { values.add(index.toInt32()); index += 1L }
     endPhase(1)
     beginPhase()
-    val text = Json.encode(values, ArrayList<Int>.encoder(Int.Companion))
+    val text = Json.encodeToString(values, ArrayList<Int>.encoder(Int.Companion))
     endPhase(2)
     beginPhase()
-    val decoded = Json.decode(text, ArrayList<Int>.decoder(Int.Companion))
+    val decoded = Json.decodeFromString(text, ArrayList<Int>.decoder(Int.Companion))
     endPhase(3)
     check(decoded.size == count && decoded[count - 1L] == (count - 1L).toInt32())
     return text.length + decoded.size
