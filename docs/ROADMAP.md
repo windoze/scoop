@@ -651,7 +651,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 目标条件 native include 和短路右侧检查在所属层独立实现或修复；使用现有 FFI、buffer、Job 和关闭合同，不增加 runtime 专属入口。
 - 三目标 debug／release／moving GC 均通过 42 项库测试与 7 项生产产物消费者测试；Linux Rust 4,956 项及 2 项 doctest、GNU 完整 CLI 4,164 项、musl 相关 CLI 149 项通过。
 
-### M52 工具链分发与预编译 sysroot（实施中，[设计](milestone52/DESIGN.md)）
+### M52 工具链分发与预编译 sysroot（已完成，[设计](milestone52/DESIGN.md)、[验收](milestone52/PROGRESS.md)）
 
 - 统一安装目录与仓库 sysroot 布局：宿主工具放 bin，内置 Cone 源码迁到 src，libuv／OpenSSL／Ryu／LLVM 等第三方源码集中到 vendor；三个现有目标的 `.slib`、runtime、OpenSSL 和 Linux unwind 资源放入 `lib/<canonical-target-triple>`，公开 C 头独立交付。
 - 普通 build／run／test／link 默认消费预编译目标资源，空缓存首次使用也不重建内置 Cone／runtime；仓库准备脚本复用普通 Cone 构建、runtime 编译库和 M48 缓存，`scoop` 命令与 driver 不承担发行准备或打包编排。

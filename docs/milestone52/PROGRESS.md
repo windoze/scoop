@@ -4,7 +4,7 @@
 
 已确认范围：M47 尚未定稿，延后决定；本期分发现有 `scoop`、`scoopc`、`scoop-link` 三个宿主命令，不以 generator 为前置。sysroot 准备和发行打包放在仓库脚本，不向命令或 driver 添加一次性维护功能。M53 采用 llhttp 9.4.3，并明确已知方法集合限制。
 
-实施与验收按功能记录；原始日志、构建缓存和发布归档保存在外置盘仓库已忽略的 `tmp` 下，不提交原始记录。M52 总体验收尚未完成。
+实施与验收按功能记录；原始日志、构建缓存和发布归档保存在外置盘仓库已忽略的 `tmp` 下，不提交原始记录。M52 实现与本期验收已完成。
 
 ## Runtime 索引
 
@@ -78,6 +78,7 @@
 - 全 workspace Rust 测试本机 4,929 项、Linux 4,964 项通过；两端 fixture runner 规则各 50 项通过。两处输入定位 fixture 改为断言只编译用户 Cone；27 组自定义 core fixture 改为先发布实际消费的版本到目标 sysroot，并移除预编译依赖不再产生的源码警告预期，均已定向复验通过。所发现的旧路径与更新顺序假设已闭合。
 - 本机保留各功能定向验证及已完成的既有 CLI 回归，完整正式 CLI 验收集中在 Linux，避免两个宿主重复全量；Darwin 的平台特有部署、动态链接、安装定位和发布包另有定向覆盖。已结束的本机 dev 构建目录清理释放 2.9 GiB，两轮已收尾 fixture 的生成数据清理释放约 102.7 GiB，保留报告。
 - Darwin 归档第二次解压到另一安装位置后，三个命令版本查询和空缓存 native／泛型／moving GC 编译运行通过。GNU／musl 十个内置 Cone 与 runtime 均已完成准备；musl 的 OpenSSL 首次构建因开发环境缺 Linux UAPI 搜索路径失败，使用指向现有内核头的任务内编译器包装脚本后构建成功。
-- 三目标的预编译 crypto／TLS／TLS asyncio 生产消费者分别通过 8 项测试的 debug、release 与 moving GC 组合，合计 48 次执行。musl 相关正式 CLI 覆盖 288 项通过、16 项目标不适用；手工 sysroot 的 native C fixture 缺少公开头的问题已修正，并在三个目标分别通过 debug／release 复验。
-- GNU 正式 CLI 完整回归仍在运行；本节不把已中断的 Darwin 全量任务记为完整通过。
+- 三目标的预编译 crypto／TLS／TLS asyncio 生产消费者分别通过 8 项测试的 debug、release 与 moving GC 组合，合计 48 次执行。musl 相关正式 CLI 最终覆盖 290 项通过、16 项目标不适用；手工 sysroot 的 native C fixture 缺少公开头的问题已修正，并在三个目标分别通过 debug／release 复验。
+- GNU 正式 CLI 全量覆盖 4,218 项：首轮四项失败均有定向复验闭合，合并后 4,185 项通过、33 项目标不适用，共 4,742 个变体、16,624 次进程执行。本节不把已中断的 Darwin 全量任务记为完整通过。
 - GNU 首轮发现的优化／native GC 用例仍期待源码 core 编译，已改为预编译消费并补齐手工 sysroot 的公开头，在 Darwin 与 GNU 的 debug／release 复验通过。C++ 缺失标准库诊断用例的包装脚本改为在全部参数中识别工具查询，兼容显式 CPU 参数；GNU 复验通过。
+- 最后一项 release-block 缓存用例修正首次编译调用列表，不再包含预编译 core；release body、字段布局、辅助函数更新及失败保留旧产物的检查全部保留，Darwin、GNU、musl 各 20 次进程执行通过。全量结果按用例名合入复验记录，无剩余失败；已结束的 GNU 全量生成目录随后清理，仅保留报告。

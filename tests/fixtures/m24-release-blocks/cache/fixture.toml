@@ -40,7 +40,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {"actual" = "${cold.result.observations.child_invocations}", "equals" = ["${cold.result.dependencies.0.identity}", "${cold.result.dependencies.1.identity}", "${cold.result.root.identity}"]},
+  {"actual" = "${cold.result.observations.child_invocations}", "equals" = ["${cold.result.dependencies.1.identity}", "${cold.result.root.identity}"]},
 ]
 
 [[steps]]
