@@ -128,6 +128,15 @@ static int stream_close(nghttp2_session *session, int32_t id, uint32_t code,
 static int frame_sent(nghttp2_session *session, const nghttp2_frame *frame,
                       void *user_data) {
   (void)session;
+  http2 *h = user_data;
+  http2_stream *s = http2_find(h, frame->hd.stream_id);
+  if (s) {
+    if (frame->hd.type == NGHTTP2_HEADERS && s->pending_headers)
+      s->pending_headers--;
+    if ((frame->hd.type == NGHTTP2_HEADERS || frame->hd.type == NGHTTP2_DATA) &&
+        (frame->hd.flags & NGHTTP2_FLAG_END_STREAM))
+      s->send_end_pending = 0;
+  }
   return frame->hd.type == NGHTTP2_GOAWAY ? goaway(user_data, frame, 1) : 0;
 }
 

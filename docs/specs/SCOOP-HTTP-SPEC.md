@@ -81,6 +81,8 @@ Http2Settings 声明 headerTableSize、maxConcurrentStreams、initialWindowSize�
 
 receive／takeOutput 使用 NativeByteBuffer 的实际前缀。mem_send2 返回的临时字节必须在下一次可能使指针失效的调用前复制到自有存储；不能跨挂起保存该指针。输出每次可短传输，未取走的输出保持有效。
 
+hasPendingOutput(streamId) 查询该流尚未序列化的头、已接受的 DATA 和结束标记，以及会话仍持有的输出片段。流窗口为零时即使 wantsWrite 为 false，该流仍可有待发送 body。查询不推进协议、不执行 I/O；takeOutput 已交给调用者的 buffer 仍由调用者负责写完和 flush。
+
 请求／响应头、trailer、DATA、流结束、RST_STREAM、GOAWAY、SETTINGS 与忽略字段各自可观察。非法头或消息错误按后端真实作用域处理；普通消息接口不暴露 no_http_messaging。发送头根据消息数据生成合法伪头顺序和小写字段名，使用后端公开的名称／值检查；调用者不能把伪头混入普通字段。
 
 DATA 收到后保持为未消费量。调用者实际读取或明确丢弃 body 时才调用 consume，归还相应的流与连接窗口。流已经结束／reset 而仍有未消费数据时，按上游 consume_connection 合同归还连接窗口，不能因单流结束阻塞其他流。不能重复消费或超过实际未消费量。

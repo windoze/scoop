@@ -61,6 +61,7 @@ static nghttp2_ssize body_read(nghttp2_session *session, int32_t stream_id,
         free(nva);
         if (code)
           return NGHTTP2_ERR_CALLBACK_FAILURE;
+        s->pending_headers++;
         *flags |= NGHTTP2_DATA_FLAG_NO_END_STREAM;
         http_fields_clear(&s->trailers);
       }
@@ -113,6 +114,7 @@ int32_t scoop_http2_finish(uint64_t handle, int32_t id, uint64_t fields) {
   s->trailers = *trailers;
   *trailers = (http_fields){0};
   s->send_eof = 1;
+  s->send_end_pending = 1;
   int code = nghttp2_session_resume_data(h->session, id);
   return code == NGHTTP2_ERR_INVALID_ARGUMENT ? 0 : http2_result(h, code);
 }

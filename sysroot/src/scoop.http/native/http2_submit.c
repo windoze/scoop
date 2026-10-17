@@ -80,6 +80,8 @@ int32_t scoop_http2_request(uint64_t handle, uint64_t fields, int32_t end,
     return http2_result(h, id);
   }
   s->id = id;
+  s->pending_headers = 1;
+  s->send_end_pending = end;
   return id;
 }
 
@@ -108,9 +110,12 @@ int32_t scoop_http2_response(uint64_t handle, int32_t id, uint64_t fields,
                  : nghttp2_submit_response2(h->session, id, nva, headers->size,
                                             end ? NULL : &provider);
   free(nva);
+  if (!code)
+    s->pending_headers++;
   if (!code && !informational) {
     s->sent_final = 1;
     s->send_open = !end;
+    s->send_end_pending = end;
     s->remaining = metadata ? -1 : length;
   }
   return http2_result(h, code);

@@ -9,7 +9,9 @@ import scoop.test.*
         withHttp2(Http2Session.client(limits = Http2Limits(maxPendingBodyBytes = 4L)),
             Http2Session.server(settings = Http2Settings(initialWindowSize = 3U))) { client, server ->
             val id = client.submitRequest(request2("POST", fields = [HttpField("content-length".toByteArray(), "8".toByteArray())]), false)
+            assertTrue(client.hasPendingOutput(id))
             drive2(client, server)
+            assertFalse(client.hasPendingOutput(id))
             val input = NativeByteBuffer.allocate(8L)
             try {
                 input.writeBytes("12345678".toByteArray())
@@ -17,6 +19,8 @@ import scoop.test.*
                 drive2(client, server)
                 val bytes = ByteArrayBuilder().append(data2(events2(server), id))
                 assertEquals(3L, bytes.size)
+                assertTrue(client.hasPendingOutput(id))
+                assertFalse(client.wantsWrite)
                 assertEquals(3L, client.writeBody(id, input))
                 assertEquals(0L, client.writeBody(id, input))
                 assertEquals(1L, input.readableBytes)
@@ -26,10 +30,12 @@ import scoop.test.*
                 bytes.append(data2(events2(server), id))
                 assertEquals(1L, client.writeBody(id, input))
                 client.finish(id)
+                assertTrue(client.hasPendingOutput(id))
                 server.consume(id, 3L)
                 drive2(client, server)
                 bytes.append(data2(events2(server), id))
                 assertEquals("12345678", String.fromUtf8(bytes.toByteArray()))
+                assertFalse(client.hasPendingOutput(id))
                 server.consume(id, 2L)
             } finally { input.close() }
         }

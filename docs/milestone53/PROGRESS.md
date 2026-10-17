@@ -23,6 +23,7 @@ HTTP 后端与生命周期合同见 [HTTP 规范](../specs/SCOOP-HTTP-SPEC.md)�
 - 每流待发送容量、对端流窗口和连接窗口分别决定进度；消费或明确 reset 时归还实际窗口，已关闭流仍有未消费 body 时保留必要记录。回调不调用 Scoop、不挂起、不保存 managed 引用。
 - 17 项 HTTP/2 专项测试在 release 与 moving GC 下通过；包含 24 项既有 HTTP/1 测试的 debug 全部 41 项在 moving GC 下通过。覆盖逐字节 HPACK、重复／非 UTF-8 字段、并发流、HEAD／CONNECT、背压、关闭流的窗口归还、reset、接收选项、字段限制、SETTINGS／HPACK／CONTINUATION 连接错误和发送失败作用域。
 - 生产 `.slib` 外部消费者与独立的原生 nghttp2 客户端／服务端双向互操作，在 debug／release、三字节传输、moving GC 下通过；cold 只编译用户 Cone，warm 零 child 调用。自身 C 代码严格编译、Rust 格式及 lint 通过。首次 Scoop 编译中的构造器访问、Unsafe 边界和不可变捕获问题已修正，后续库与外部消费者均复验通过。
+- 为异步 flush 增加实际待输出查询，包含尚未序列化的字段块、受窗口限制的 DATA、结束标记和部分交付片段。18 项 HTTP/2 内存专项测试在 release／moving GC 下通过，覆盖零窗口时 wantsWrite 与实际 body 待发送状态的区别；C 严格编译与 Rust 格式／lint 通过。
 - 协商与异步生命周期尚未完成，三目标 HTTP 集成留到这些功能就绪后统一验证。
 
 ## 协商与 h2c

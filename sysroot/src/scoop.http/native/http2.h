@@ -18,6 +18,8 @@ typedef struct http2_stream {
   int32_t id;
   int closed, reset, head_request, connect_request;
   int received_final, received_trailers, sent_final, send_open, send_eof;
+  int send_end_pending;
+  size_t pending_headers;
   int64_t remaining, unconsumed;
   http_bytes body;
   size_t body_offset;

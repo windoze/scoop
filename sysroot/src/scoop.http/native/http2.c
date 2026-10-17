@@ -118,6 +118,15 @@ int32_t scoop_http2_wants(uint64_t handle, int32_t write) {
                : !h->ended && nghttp2_session_want_read(h->session);
 }
 
+int32_t scoop_http2_pending(uint64_t handle, int32_t id) {
+  http2 *h = (http2 *)(uintptr_t)handle;
+  http2_stream *s = http2_find(h, id);
+  return h->output_offset != h->output.size ||
+         (s && !s->closed && !s->reset &&
+          (s->pending_headers || s->send_end_pending ||
+           s->body_offset != s->body.size));
+}
+
 uint64_t scoop_http2_next(uint64_t handle) {
   return (uint64_t)(uintptr_t)http_events_pop(
       &((http2 *)(uintptr_t)handle)->events);

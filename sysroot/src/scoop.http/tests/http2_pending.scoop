@@ -1,0 +1,34 @@
+package scoop.http
+
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+@Test private class Http2PendingOutputTests {
+    @Test fun `queued headers trailers and partially copied output remain pending`() {
+        withHttp2 { client, server ->
+            drive2(client, server)
+            val id = client.submitRequest(request2("POST"), false)
+            assertTrue(client.hasPendingOutput(id))
+            NativeByteBuffer.allocate(1L).use { buffer ->
+                assertEquals(1L, client.takeOutput(buffer))
+                assertTrue(client.hasPendingOutput(id))
+                assertEquals(1L, server.receive(buffer))
+            }
+            drive2(client, server)
+            assertFalse(client.hasPendingOutput(id))
+            client.finish(id, [HttpField("x-end".toByteArray(), "yes".toByteArray())])
+            assertTrue(client.hasPendingOutput(id))
+            drive2(client, server)
+            assertFalse(client.hasPendingOutput(id))
+            server.submitResponse(id, HttpResponseHead(HttpVersion.Http2, 103U), false)
+            assertTrue(server.hasPendingOutput(id))
+            drive2(client, server)
+            assertFalse(server.hasPendingOutput(id))
+            server.submitResponse(id, HttpResponseHead(HttpVersion.Http2, 204U))
+            assertTrue(server.hasPendingOutput(id))
+            drive2(client, server)
+            assertFalse(server.hasPendingOutput(id))
+            assertFailsWith<IllegalArgumentException> { client.hasPendingOutput(0) }
+        }
+    }
+}
