@@ -13,19 +13,19 @@ import scoop.text.toHexString
 private class SyncTlsTests {
     @Test
     fun `blocking TCP short transfers prefix progress flush and graceful shutdown`() {
-        for (version in [TlsVersion.TLS12, TlsVersion.TLS13]) exchange(version)
+        for (version in [TlsVersion.Tls12, TlsVersion.Tls13]) exchange(version)
     }
 
     @Test
     fun `preflight failures keep ownership and handshake cleanup preserves both errors`() {
         val transport = FailingTransport()
         clientContext().use { context ->
-            assertFailsWith<IllegalArgumentException> { tlsClient(transport, context, TlsPeerName.Dns("")) }
+            assertFailsWith<IllegalArgumentException> { TlsStream.takeOwnershipAsClient(transport, context, TlsPeerName.Dns("")) }
             assertEquals(0, transport.closes)
-            assertFailsWith<TestTransportFailure> { tlsClient(transport, context, TlsPeerName.Dns("localhost")) }
+            assertFailsWith<TestTransportFailure> { TlsStream.takeOwnershipAsClient(transport, context, TlsPeerName.Dns("localhost")) }
             assertEquals(1, transport.closes)
             transport.failClose = true
-            val error = assertFailsWith<ResourceUseException> { tlsClient(transport, context, TlsPeerName.Dns("localhost")) }
+            val error = assertFailsWith<ResourceUseException> { TlsStream.takeOwnershipAsClient(transport, context, TlsPeerName.Dns("localhost")) }
             assertTrue(error.primaryFailure is TestTransportFailure)
             assertTrue(error.cleanupFailure is TestCleanupFailure)
             assertEquals(2, transport.closes)
@@ -37,7 +37,7 @@ private class SyncTlsTests {
         SyncGate().use { ready -> clientContext().use { clientConfig -> serverContext().use { serverConfig ->
             TcpListener.bind(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).use { listener ->
                 Thread.start {
-                    tlsServer(listener.accept(), serverConfig).use { stream ->
+                    TlsStream.takeOwnershipAsServer(listener.accept(), serverConfig).use { stream ->
                         ready.signal()
                         NativeByteBuffer.allocate(1L).use { input ->
                             try { stream.readInto(input, 1L); fail(Some("failed writer delivered plaintext")) }
@@ -46,8 +46,8 @@ private class SyncTlsTests {
                         }
                     }
                 }.use {
-                    val transport = ShortTransport(TcpStream.connect(listener.localAddress))
-                    val stream = tlsClient(transport, clientConfig, TlsPeerName.Dns("localhost"))
+                    val transport = ShortTransport(TcpStream.connect(listener.localAddress()))
+                    val stream = TlsStream.takeOwnershipAsClient(transport, clientConfig, TlsPeerName.Dns("localhost"))
                     ready.awaitReady()
                     NativeByteBuffer.allocate(5L).use { output ->
                         output.writeBytes("hello".toByteArray())
@@ -58,7 +58,7 @@ private class SyncTlsTests {
                         assertTrue(error.cleanupFailure is TestCleanupFailure)
                         assertEquals(5L, output.readPosition)
                         output.clear()
-                        assertTrue(stream.isDisposed)
+                        assertTrue(stream.isClosed)
                         stream.close()
                         assertEquals(1, transport.closes)
                     }
@@ -71,16 +71,16 @@ private class SyncTlsTests {
 private fun exchange(version: TlsVersion) {
     val protocol: Array<Byte> = [1, 0, -1]
     val options = TlsOptions(version, version, [protocol])
-    val bytes = Array<Byte>(40555L) { index -> (index % 239L).toInt8() }
-    val expected = digest(DigestAlgorithm.SHA256, bytes).toHexString()
+    val bytes = Array<Byte>(40555L) { index -> (index % 239L).toByte() }
+    val expected = digest(DigestAlgorithm.Sha256, bytes).toHexString()
     clientContext(options).use { clientConfig -> serverContext(options).use { serverConfig ->
         TcpListener.bind(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).use { listener ->
             Thread.start {
                 val transport = ShortTransport(listener.accept())
-                tlsServer(transport, serverConfig).use { stream ->
+                TlsStream.takeOwnershipAsServer(transport, serverConfig).use { stream ->
                     NativeByteBuffer.allocate(bytes.size).use { input ->
                         stream.readFully(input, bytes.size)
-                        assertEquals(expected, digest(DigestAlgorithm.SHA256, input.readBytes(bytes.size)).toHexString())
+                        assertEquals(expected, digest(DigestAlgorithm.Sha256, input.readBytes(bytes.size)).toHexString())
                         stream.writeAllBytes("reply".toByteArray())
                         stream.flush()
                         stream.shutdownGracefully()
@@ -88,8 +88,8 @@ private fun exchange(version: TlsVersion) {
                 }
                 assertEquals(1, transport.closes)
             }.use {
-                val transport = ShortTransport(TcpStream.connect(listener.localAddress))
-                tlsClient(transport, clientConfig, TlsPeerName.Ip(IpAddress.IPV4_LOOPBACK)).use { stream ->
+                val transport = ShortTransport(TcpStream.connect(listener.localAddress()))
+                TlsStream.takeOwnershipAsClient(transport, clientConfig, TlsPeerName.Ip(IpAddress.IPV4_LOOPBACK)).use { stream ->
                     assertTrue(stream.connectionInfo.version == version)
                     assertEquals(protocol.toHexString(), stream.connectionInfo.alpn!!.toHexString())
                     NativeByteBuffer.allocate(bytes.size).use { output ->
@@ -109,7 +109,7 @@ private fun exchange(version: TlsVersion) {
                         assertEquals("reply".toByteArray().toArray().toHexString(), output.readBytes(5L).toHexString())
                         assertEquals(0L, stream.readInto(output, 1L))
                         stream.shutdownGracefully()
-                        assertTrue(stream.isDisposed)
+                        assertTrue(stream.isClosed)
                         assertFailsWith<IllegalStateException> { stream.flush() }
                     }
                 }

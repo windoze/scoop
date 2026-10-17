@@ -6,7 +6,7 @@ struct ChatCompletion(
     val choices: Array<ChatCompletionChoice>,
     @Serialize(required = true) val usage: ChatUsage?
 ) {
-    companion object : Encodable<ChatCompletion>, Decodable<ChatCompletion> {}
+    companion object : ValueEncoder<ChatCompletion>, ValueDecoder<ChatCompletion> {}
 }
 struct ChatCompletionChoice(
     val index: Long,
@@ -14,7 +14,7 @@ struct ChatCompletionChoice(
     val finish_reason: String,
     @Serialize(required = true) val logprobs: ChatLogprobs?
 ) {
-    companion object : Encodable<ChatCompletionChoice>, Decodable<ChatCompletionChoice> {}
+    companion object : ValueEncoder<ChatCompletionChoice>, ValueDecoder<ChatCompletionChoice> {}
 }
 struct ChatResponseMessage(
     val role: String,
@@ -23,7 +23,7 @@ struct ChatResponseMessage(
     val tool_calls: Array<ChatCall>? = None,
     val annotations: Array<ChatAnnotation> = []
 ) {
-    companion object : Encodable<ChatResponseMessage>, Decodable<ChatResponseMessage> {}
+    companion object : ValueEncoder<ChatResponseMessage>, ValueDecoder<ChatResponseMessage> {}
 }
 struct ChatUsage(
     val prompt_tokens: Long,
@@ -32,10 +32,10 @@ struct ChatUsage(
     val prompt_tokens_details: PromptTokens? = None,
     val completion_tokens_details: CompletionTokens? = None
 ) {
-    companion object : Encodable<ChatUsage>, Decodable<ChatUsage> {}
+    companion object : ValueEncoder<ChatUsage>, ValueDecoder<ChatUsage> {}
 }
 struct PromptTokens(val cached_tokens: Long, val audio_tokens: Long) {
-    companion object : Encodable<PromptTokens>, Decodable<PromptTokens> {}
+    companion object : ValueEncoder<PromptTokens>, ValueDecoder<PromptTokens> {}
 }
 struct CompletionTokens(
     val reasoning_tokens: Long,
@@ -43,10 +43,10 @@ struct CompletionTokens(
     val accepted_prediction_tokens: Long,
     val rejected_prediction_tokens: Long
 ) {
-    companion object : Encodable<CompletionTokens>, Decodable<CompletionTokens> {}
+    companion object : ValueEncoder<CompletionTokens>, ValueDecoder<CompletionTokens> {}
 }
 struct ChatLogprobs(val content: Array<TokenProbability>?, val refusal: Array<TokenProbability>?) {
-    companion object : Encodable<ChatLogprobs>, Decodable<ChatLogprobs> {}
+    companion object : ValueEncoder<ChatLogprobs>, ValueDecoder<ChatLogprobs> {}
 }
 struct TokenProbability(
     val token: String,
@@ -54,26 +54,26 @@ struct TokenProbability(
     val bytes: Array<Long>?,
     val top_logprobs: Array<AlternativeProbability>
 ) {
-    companion object : Encodable<TokenProbability>, Decodable<TokenProbability> {}
+    companion object : ValueEncoder<TokenProbability>, ValueDecoder<TokenProbability> {}
 }
 struct AlternativeProbability(val token: String, val logprob: Double, val bytes: Array<Long>?) {
-    companion object : Encodable<AlternativeProbability>, Decodable<AlternativeProbability> {}
+    companion object : ValueEncoder<AlternativeProbability>, ValueDecoder<AlternativeProbability> {}
 }
 struct ChatCitation(val url_citation: URLCitation) {
-    companion object : Encodable<ChatCitation>, Decodable<ChatCitation> {}
+    companion object : ValueEncoder<ChatCitation>, ValueDecoder<ChatCitation> {}
 }
 struct URLCitation(val start_index: Long, val end_index: Long, val title: String, val url: String) {
-    companion object : Encodable<URLCitation>, Decodable<URLCitation> {}
+    companion object : ValueEncoder<URLCitation>, ValueDecoder<URLCitation> {}
 }
 struct APIError(val message: String, val type: String, val param: String? = None, val code: String? = None) {
-    companion object : Encodable<APIError>, Decodable<APIError> {}
+    companion object : ValueEncoder<APIError>, ValueDecoder<APIError> {}
 }
 struct ErrorEnvelope(val error: APIError) {
-    companion object : Encodable<ErrorEnvelope>, Decodable<ErrorEnvelope> {}
+    companion object : ValueEncoder<ErrorEnvelope>, ValueDecoder<ErrorEnvelope> {}
 }
 enum ChatAnnotation {
     URL(ChatCitation)
-    companion object : Encodable<ChatAnnotation>, Decodable<ChatAnnotation> {
+    companion object : ValueEncoder<ChatAnnotation>, ValueDecoder<ChatAnnotation> {
         public override fun encode(value: ChatAnnotation, encoder: Encoder) {
             val fields = encoder.keyed()
             when (value) {

@@ -1,10 +1,10 @@
 package containers
 
-public fun <T> arrayDecoder(element: Decodable<T>): Decodable<Array<T>> = Array<T>.decoder(element)
+public fun <T> arrayDecoder(element: ValueDecoder<T>): ValueDecoder<Array<T>> = Array<T>.decoder(element)
 
-public fun integers(): Decodable<Array<Int>> = arrayDecoder(Int.Companion)
+public fun integers(): ValueDecoder<Array<Int>> = arrayDecoder(Int.Companion)
 
-public fun <T> nested(element: Decodable<T>): Decodable<Option<MutableArray<ArrayList<T>>>> =
+public fun <T> nested(element: ValueDecoder<T>): ValueDecoder<Option<MutableArray<ArrayList<T>>>> =
     Option<MutableArray<ArrayList<T>>>.decoder(
         MutableArray<ArrayList<T>>.decoder(ArrayList<T>.decoder(element))
     )

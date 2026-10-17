@@ -14,15 +14,15 @@ internal class DecimalMagnitude internal constructor() {
 
     // The caller only accumulates base-ten digits or multiplies by ten.
     internal fun multiplyAdd(multiplier: UInt, digit: UInt) {
-        var carry = digit.toUInt64()
+        var carry = digit.toULong()
         var index = 0L
         while (index < words.size) {
-            val product = words[index].toUInt64() * multiplier.toUInt64() + carry
-            words[index] = product.toUInt32()
+            val product = words[index].toULong() * multiplier.toULong() + carry
+            words[index] = product.toUInt()
             carry = product shr 32L
             index += 1L
         }
-        if (carry != 0uL) words.add(carry.toUInt32())
+        if (carry != 0uL) words.add(carry.toUInt())
     }
 
     internal fun shifted(bits: Long): DecimalMagnitude {
@@ -33,12 +33,12 @@ internal class DecimalMagnitude internal constructor() {
         var carry = 0uL
         index = 0L
         while (index < words.size) {
-            val value = (words[index].toUInt64() shl (bits % 32L)) or carry
-            result.words.add(value.toUInt32())
+            val value = (words[index].toULong() shl (bits % 32L)) or carry
+            result.words.add(value.toUInt())
             carry = value shr 32L
             index += 1L
         }
-        if (carry != 0uL) result.words.add(carry.toUInt32())
+        if (carry != 0uL) result.words.add(carry.toUInt())
         return result
     }
 
@@ -70,9 +70,9 @@ internal class DecimalMagnitude internal constructor() {
         var borrow = 0uL
         var index = 0L
         while (index < words.size) {
-            val left = words[index].toUInt64()
-            val right = other.shiftedWord(index, bits).toUInt64() + borrow
-            words[index] = (left - right).toUInt32()
+            val left = words[index].toULong()
+            val right = other.shiftedWord(index, bits).toULong() + borrow
+            words[index] = (left - right).toUInt()
             borrow = if (left < right) 1uL else 0uL
             index += 1L
         }

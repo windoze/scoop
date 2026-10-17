@@ -1,6 +1,6 @@
 enum ChatCall {
     Function(ChatFunctionCall), Custom(ChatCustomCall)
-    companion object : Encodable<ChatCall>, Decodable<ChatCall> {
+    companion object : ValueEncoder<ChatCall>, ValueDecoder<ChatCall> {
         public override fun encode(value: ChatCall, encoder: Encoder) {
             val fields = encoder.keyed()
             when (value) {

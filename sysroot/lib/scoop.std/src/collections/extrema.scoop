@@ -4,7 +4,7 @@ import scoop.comparisons.Comparator
 import scoop.comparisons.naturalOrder
 import scoop.comparisons.reversed
 
-public fun <T> Iterable<T>.minWithOrNull(comparator: Comparator<T>): T? {
+public fun <T> Iterable<T>.minWithOrNone(comparator: Comparator<T>): T? {
     var result: T? = None
     for (element in this) {
         result = when (result) {
@@ -15,6 +15,6 @@ public fun <T> Iterable<T>.minWithOrNull(comparator: Comparator<T>): T? {
     return result
 }
 
-public fun <T> Iterable<T>.maxWithOrNull(comparator: Comparator<T>): T? = minWithOrNull<T>(comparator.reversed())
-public fun <T : Compare<T>> Iterable<T>.minOrNull(): T? = minWithOrNull<T>(naturalOrder<T>())
-public fun <T : Compare<T>> Iterable<T>.maxOrNull(): T? = maxWithOrNull<T>(naturalOrder<T>())
+public fun <T> Iterable<T>.maxWithOrNone(comparator: Comparator<T>): T? = minWithOrNone<T>(comparator.reversed())
+public fun <T : Compare<T>> Iterable<T>.minOrNone(): T? = minWithOrNone<T>(naturalOrder<T>())
+public fun <T : Compare<T>> Iterable<T>.maxOrNone(): T? = maxWithOrNone<T>(naturalOrder<T>())

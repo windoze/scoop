@@ -30,7 +30,7 @@ fun main() {
     check((minimum + 1.nanoseconds()).reading.nanosecondsOfSecond == 1)
     var overflowed = false
     try { minimum - 1.nanoseconds() } catch (error: ArithmeticException) { overflowed = true }
-    check(overflowed && minimum.reading.seconds == Long.MIN_VALUE)
+    check(overflowed && minimum.reading.floorSeconds == Long.MIN_VALUE)
     check(first.calls == 0L && second.calls == 0L)
     println("time marks passed")
 }

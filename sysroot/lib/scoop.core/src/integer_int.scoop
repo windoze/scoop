@@ -95,35 +95,35 @@ public struct Int :
 
     @NoGC
     @Intrinsic("int_to_int8")
-    public fun toInt8(): Int8
+    public fun toByte(): Byte
 
     @NoGC
     @Intrinsic("int_to_int16")
-    public fun toInt16(): Int16
+    public fun toShort(): Short
 
     @NoGC
     @Intrinsic("int_to_int")
-    public fun toInt32(): Int
+    public fun toInt(): Int
 
     @NoGC
     @Intrinsic("int_to_long")
-    public fun toInt64(): Long
+    public fun toLong(): Long
 
     @NoGC
     @Intrinsic("int_to_uint8")
-    public fun toUInt8(): UInt8
+    public fun toUByte(): UByte
 
     @NoGC
     @Intrinsic("int_to_uint16")
-    public fun toUInt16(): UInt16
+    public fun toUShort(): UShort
 
     @NoGC
     @Intrinsic("int_to_uint")
-    public fun toUInt32(): UInt
+    public fun toUInt(): UInt
 
     @NoGC
     @Intrinsic("int_to_ulong")
-    public fun toUInt64(): ULong
+    public fun toULong(): ULong
 
     public override operator fun rangeTo(endpoint: Int): IntRange =
         IntRange(this, endpoint, 1, false, true)
@@ -137,21 +137,21 @@ public struct Int :
     public infix fun downTo(endpoint: Int): IntRange =
         IntRange(this, endpoint, 1, true, true)
 
-    public override fun toString(): String = coreLongToString(this.toInt64())
+    public override fun toString(): String = coreLongToString(this.toLong())
 
-    public override fun hash(): Long = coreLongHash(this.toInt64())
+    public override fun hash(): Long = coreLongHash(this.toLong())
 
-    public companion object : Encodable<Int>, Decodable<Int>, Inspectable<Int> {
+    public companion object : ValueEncoder<Int>, ValueDecoder<Int>, ValueInspector<Int> {
         public override fun inspect(value: Int): ValueView =
-            ValueObservation(typeInfo<Int>().type, None, { ValueShape.Scalar(ScalarValue.Signed(value.toInt64())) })
+            ValueObservation(typeInfo<Int>().type, None, { ValueShape.Scalar(ScalarValue.Signed(value.toLong())) })
 
         public const val MIN_VALUE: Int = -2147483648
         public const val MAX_VALUE: Int = 2147483647
 
         public override fun encode(value: Int, encoder: Encoder): Unit =
-            encoder.singleValue().writeLong(value.toInt64())
+            encoder.singleValue().writeLong(value.toLong())
 
         public override fun decode(decoder: Decoder): Int =
-            decodeSigned(decoder, -2147483648L, 2147483647L).toInt32()
+            decodeSigned(decoder, -2147483648L, 2147483647L).toInt()
     }
 }

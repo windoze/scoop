@@ -10,7 +10,7 @@ private class AsyncFileLifecycleTest {
     fun `concurrent close drains the active worker and releases its buffer`() {
         IoTestDirectory().use { tree ->
             val path = tree.child("data")
-            Files.writeText(path, "x")
+            path.writeText("x")
             val loop: EventLoop = LibuvEventLoop()
             loop.run suspend { scope ->
                 val file = loop.openFile(path)
@@ -40,12 +40,12 @@ private class AsyncFileLifecycleTest {
     fun `cancelled finally and loop exit close escaped files`() {
         IoTestDirectory().use { tree ->
             val path = tree.child("data")
-            Files.writeText(path, "x")
+            path.writeText("x")
             val loop: EventLoop = LibuvEventLoop()
             val escaped = loop.runWithResult<AsyncFile> suspend { scope ->
                 val file = loop.openFile(path)
                 val child = scope.launch suspend {
-                    try { currentJobOrNull()!!.cancel(); ensureActive() }
+                    try { currentJobOrNone()!!.cancel(); ensureActive() }
                     finally { file.close() }
                 }
                 child.join()

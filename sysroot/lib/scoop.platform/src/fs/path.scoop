@@ -12,7 +12,7 @@ public class Path private constructor(private val bytes: Array<Byte>) : Equals<P
         val end = endWithoutSeparators()
         if (end == 0L) return None
         val start = componentStart(end)
-        val name = OsString.fromBytes(Array<Byte>(end - start) { index -> bytes[start + index] })
+        val name = OsString.fromByteArray(Array<Byte>(end - start) { index -> bytes[start + index] })
         if (name == OsString.fromString(".") || name == OsString.fromString("..")) return None
         return Some(name)
     }
@@ -45,7 +45,7 @@ public class Path private constructor(private val bytes: Array<Byte>) : Equals<P
             if (bytes[cursor] == 47) { cursor += 1L; continue }
             val start = cursor
             while (cursor < bytes.size && bytes[cursor] != 47) cursor += 1L
-            parts.add(OsString.fromBytes(Array<Byte>(cursor - start) { index -> bytes[start + index] }))
+            parts.add(OsString.fromByteArray(Array<Byte>(cursor - start) { index -> bytes[start + index] }))
         }
         return parts.toArray()
     }
@@ -55,7 +55,7 @@ public class Path private constructor(private val bytes: Array<Byte>) : Equals<P
         if (child.bytes.size == 0L) return this
         val result = ByteArrayBuilder()
         result.append(bytes)
-        if (bytes[bytes.size - 1L] != 47) result.append(47.toInt8())
+        if (bytes[bytes.size - 1L] != 47) result.append(47.toByte())
         result.append(child.bytes)
         return Path(result.toByteArray())
     }
@@ -73,17 +73,17 @@ public class Path private constructor(private val bytes: Array<Byte>) : Equals<P
             } else parts.add(part)
         }
         val result = ByteArrayBuilder()
-        if (absolute) result.append(47.toInt8())
+        if (absolute) result.append(47.toByte())
         val prefix = if (absolute) 1L else 0L
         for (part in parts) {
-            if (result.size > prefix) result.append(47.toInt8())
-            result.append(part.toBytes())
+            if (result.size > prefix) result.append(47.toByte())
+            result.append(part.toByteArray())
         }
-        if (result.size == 0L) result.append(46.toInt8())
+        if (result.size == 0L) result.append(46.toByte())
         return Path(result.toByteArray())
     }
 
-    public fun toOsString(): OsString = OsString.fromBytes(bytes)
+    public fun toOsString(): OsString = OsString.fromByteArray(bytes)
     public fun decodeUtf8(): String = toOsString().decodeUtf8()
     public fun decodeUtf8Lossy(): String = toOsString().decodeUtf8Lossy()
     public fun display(): String = decodeUtf8Lossy()
@@ -93,7 +93,7 @@ public class Path private constructor(private val bytes: Array<Byte>) : Equals<P
     public companion object {
         public fun fromString(value: String): Path = fromOsString(OsString.fromString(value))
         public fun fromOsString(value: OsString): Path {
-            val bytes = value.toBytes()
+            val bytes = value.toByteArray()
             for (byte in bytes) {
                 if (byte == 0) throw IllegalArgumentException(Some("path contains NUL"))
             }

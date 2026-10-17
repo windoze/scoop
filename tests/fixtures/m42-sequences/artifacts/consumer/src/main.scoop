@@ -13,7 +13,7 @@ fun stream(state: State): Sequence<Result<Entry, String>> =
 fun <T> collectTwo(source: Sequence<T>): List<T> = source.take(2L).toList()
 fun main() {
     val state = State()
-    val windows = stream(state).mapNotNull<Result<Entry, String>, Entry> { result -> result.toOption() }.windowed(2L)
+    val windows = stream(state).mapNotNone<Result<Entry, String>, Entry> { result -> result.toOption() }.windowed(2L)
     val labels = windows.map<List<Entry>, String> { window -> f"${window[0L].text}:${window[1L].text}" }
     val result = runCatching<List<String>> { collectTwo<String>(labels) }.getOrThrow()
     println(result.joinToString(";"))

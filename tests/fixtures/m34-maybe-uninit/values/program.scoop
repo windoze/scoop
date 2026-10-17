@@ -23,14 +23,14 @@ fun <T> roundTrip(value: MaybeUninit<T>): MaybeUninit<T> {
     val zero = MaybeUninit<Padded>.uninit()
     val bytes = addressOf(zero).cast<Byte>()
     var index = 0L
-    while (index < 16L) { check(bytes.load(index) == 0.toInt8(), 25); index += 1L }
-    var source = Padded(7.toInt8(), 42L)
-    addressOf(source).cast<Byte>().store(3, 99.toInt8())
+    while (index < 16L) { check(bytes.load(index) == 0.toByte(), 25); index += 1L }
+    var source = Padded(7.toByte(), 42L)
+    addressOf(source).cast<Byte>().store(3, 99.toByte())
     val copied = roundTrip(MaybeUninit<Padded>.initialized(source))
-    check(addressOf(copied).cast<Byte>().load(3) == 99.toInt8(), 24)
+    check(addressOf(copied).cast<Byte>().load(3) == 99.toByte(), 24)
     val initialized = copied.assumeInit()
-    check(addressOf(initialized).cast<Byte>().load(3) == 99.toInt8(), 23)
-    check(initialized.first == 7.toInt8() && initialized.second == 42L, 22)
+    check(addressOf(initialized).cast<Byte>().load(3) == 99.toByte(), 23)
+    check(initialized.first == 7.toByte() && initialized.second == 42L, 22)
     var bits = 0xff800123U
     val floating = addressOf(bits).cast<Float>().load()
     val wrapped = roundTrip(MaybeUninit<Float>.initialized(floating))

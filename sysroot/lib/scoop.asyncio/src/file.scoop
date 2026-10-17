@@ -1,6 +1,7 @@
 package scoop.asyncio
 
 import scoop.platform.fs.*
+import scoop.platform.native.fileOpenFlags
 import scoop.platform.memory.NativeByteBuffer
 import scoop.platform.system.*
 
@@ -39,7 +40,7 @@ internal class WorkerFile(private val owner: OwnedFile) : AsyncFile {
 
 internal suspend fun openFileOnLoop(loop: LibuvEventLoop, path: Path, options: OpenOptions): AsyncFile {
     val job = loop.requireJob()
-    val flags = options.nativeFlags()
+    val flags = fileOpenFlags(options)
     val context = path.toOsString()
     return suspendCoroutine<AsyncFile> { continuation ->
         val operation = LoopOperation(loop.state, loop.state.nextOperation(),

@@ -52,8 +52,8 @@ internal suspend fun tlsPair(scope: CoroutineScope, clientRaw: ObservedTransport
     val clientConfig = clientContext(options)
     val serverConfig = serverContext(options)
     try {
-        val accepting = scope.async<AsyncTlsStream> suspend { asyncTlsServer(serverRaw, serverConfig) }
-        val client = asyncTlsClient(clientRaw, clientConfig, TlsPeerName.Dns("localhost"))
+        val accepting = scope.async<AsyncTlsStream> suspend { AsyncTlsStream.takeOwnershipAsServer(serverRaw, serverConfig) }
+        val client = AsyncTlsStream.takeOwnershipAsClient(clientRaw, clientConfig, TlsPeerName.Dns("localhost"))
         try { return (client, accepting.await()) }
         catch (error: Throwable) { client.close(); throw error }
     } finally { clientConfig.close(); serverConfig.close() }

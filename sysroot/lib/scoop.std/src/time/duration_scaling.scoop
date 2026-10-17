@@ -1,20 +1,20 @@
 package scoop.time
 
 internal fun multiplyDurationParts(parts: DurationParts, factor: Long): DurationParts {
-    val magnitude = if (factor < 0L) -factor.toUInt64() else factor.toUInt64()
+    val magnitude = if (factor < 0L) -factor.toULong() else factor.toULong()
     if (magnitude == 0uL) return DurationParts(false, 0uL, 0)
     val limit = 0x8000000000000000uL
     if (parts.seconds > limit / magnitude) throw ArithmeticException()
-    val fraction = parts.nanos.toUInt64() * (magnitude % 1000000000uL)
-    val extra = parts.nanos.toUInt64() * (magnitude / 1000000000uL) + fraction / 1000000000uL
+    val fraction = parts.nanos.toULong() * (magnitude % 1000000000uL)
+    val extra = parts.nanos.toULong() * (magnitude / 1000000000uL) + fraction / 1000000000uL
     val whole = parts.seconds * magnitude
     if (whole > limit - extra) throw ArithmeticException()
-    return DurationParts(parts.negative != (factor < 0L), whole + extra, (fraction % 1000000000uL).toInt32())
+    return DurationParts(parts.negative != (factor < 0L), whole + extra, (fraction % 1000000000uL).toInt())
 }
 
 internal fun divideDurationParts(parts: DurationParts, divisor: Long): DurationParts {
     if (divisor == 0L) throw ArithmeticException()
-    val magnitude = if (divisor < 0L) -divisor.toUInt64() else divisor.toUInt64()
+    val magnitude = if (divisor < 0L) -divisor.toULong() else divisor.toULong()
     val fraction = divideDurationFraction(parts.seconds % magnitude, parts.nanos, magnitude)
     return DurationParts(parts.negative != (divisor < 0L), parts.seconds / magnitude, fraction)
 }
@@ -22,7 +22,7 @@ internal fun divideDurationParts(parts: DurationParts, divisor: Long): DurationP
 // The numerator is (remainder * 1e9 + nanos), at most 94 bits.
 // The quotient is below 1e9; the running remainder is below a divisor <= 2^63.
 private fun divideDurationFraction(remainder: ULong, nanos: Int, divisor: ULong): Int {
-    val bottom = (remainder and 0xffffffffuL) * 1000000000uL + nanos.toUInt64()
+    val bottom = (remainder and 0xffffffffuL) * 1000000000uL + nanos.toULong()
     val top = (remainder shr 32L) * 1000000000uL + (bottom shr 32L)
     val high = top shr 32L
     val low = (top shl 32L) or (bottom and 0xffffffffuL)
@@ -36,5 +36,5 @@ private fun divideDurationFraction(remainder: ULong, nanos: Int, divisor: ULong)
         quotient = quotient shl 1L
         if (rest >= divisor) { rest -= divisor; quotient = quotient or 1uL }
     }
-    return quotient.toInt32()
+    return quotient.toInt()
 }

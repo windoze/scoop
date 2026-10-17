@@ -73,10 +73,10 @@ fun main() {
     println(unsigned8 shr 7L)
     println(minimum8 shr 7L)
 
-    println(minimum8.toUInt64())
-    println(257.toUInt8())
-    println(unsigned64.toInt8())
-    println(unsigned32.toInt64())
+    println(minimum8.toULong())
+    println(257.toUByte())
+    println(unsigned64.toByte())
+    println(unsigned32.toLong())
 
     println(defaultKind(1))
     println(defaultKind(2147483648))
@@ -113,6 +113,6 @@ fun main() {
     val ushort: UShort = 42u
     val uint32: UInt32 = 42u
     val uint64: UInt64 = 42uL
-    println(byte.toInt64() + short.toInt64() + int32.toInt64() + int64)
-    println(ubyte.toUInt64() + ushort.toUInt64() + uint32.toUInt64() + uint64)
+    println(byte.toLong() + short.toLong() + int32.toLong() + int64)
+    println(ubyte.toULong() + ushort.toULong() + uint32.toULong() + uint64)
 }

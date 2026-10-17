@@ -1,6 +1,7 @@
 package scoop.platform.fs
 
 import scoop.platform.io.*
+import scoop.platform.native.fileOpenFlags
 import scoop.platform.memory.NativeByteBuffer
 import scoop.platform.system.OsString
 
@@ -8,30 +9,21 @@ public struct OpenOptions(
     val read: Boolean = true, val write: Boolean = false, val append: Boolean = false,
     val create: Boolean = false, val createNew: Boolean = false, val truncate: Boolean = false,
     val mode: Int = 0x1b6
-) {
-    public fun nativeFlags(): Int {
-        if ((!read && !write) || ((append || truncate || create || createNew) && !write) || (append && truncate)) {
-            throw IllegalArgumentException(Some("conflicting file open options"))
-        }
-        requireMode(mode)
-        return (if (read) 1 else 0) or (if (write) 2 else 0) or (if (append) 4 else 0) or
-            (if (create) 8 else 0) or (if (createNew) 16 else 0) or (if (truncate) 32 else 0)
-    }
-}
+)
 
-public class File private constructor(private val context: OsString?) : ByteSource, ByteSink, Disposable {
+public class File private constructor(private val context: OsString?) : ByteSource, ByteSink, Closeable {
     private var descriptor: Int = -1
     private val active: AtomicLong = AtomicLong(0L)
-    public val isDisposed: Boolean get() = descriptor < 0
-    public val position: Long get() = seekNative(0L, true)
-    public val size: Long get() = metadata().size
+    public val isClosed: Boolean get() = descriptor < 0
+    public fun position(): Long = seekNative(0L, true)
+    public fun size(): Long = metadata().size
 
     public companion object {
         // Pipe/spawn callers allocate all managed owners before acquiring native descriptors.
         internal fun newOwner(): File = File(None)
 
         public fun open(path: Path, options: OpenOptions = OpenOptions()): File {
-            val flags = options.nativeFlags()
+            val flags = fileOpenFlags(options)
             val file = File(Some(path.toOsString()))
             @Unsafe {
                 val (fd, error) = path.withNativePath { pointer ->
@@ -64,7 +56,7 @@ public class File private constructor(private val context: OsString?) : ByteSour
     }
 
     private fun requireOpen() {
-        if (descriptor < 0) throw IllegalStateException(Some("file is disposed"))
+        if (descriptor < 0) throw IllegalStateException(Some("file is closed"))
     }
 
     public fun duplicate(): File = withDescriptor { fd -> File.duplicateDescriptor(fd, context) }
@@ -90,25 +82,14 @@ public class File private constructor(private val context: OsString?) : ByteSour
         }
     }
 
-    public fun writeFrom(array: Array<Byte>, offset: Long = 0L, count: Long = array.size - offset): Long {
+    public fun writeFrom(array: List<Byte>, offset: Long = 0L, count: Long = array.size - offset): Long {
         return withDescriptor { fd ->
             requireArrayTransfer(array.size, offset, count)
             if (count == 0L) return@withDescriptor 0L
+            val snapshot = Array<Byte>(count) { index -> array[offset + index] }
             @Unsafe {
-                return@withDescriptor array.withDataPointer { pointer, _ ->
-                    @Unsafe { return@withDataPointer writeArray(fd, pointer + offset, count) }
-                }
-            }
-        }
-    }
-
-    public fun writeFrom(array: MutableArray<Byte>, offset: Long = 0L, count: Long = array.size - offset): Long {
-        return withDescriptor { fd ->
-            requireArrayTransfer(array.size, offset, count)
-            if (count == 0L) return@withDescriptor 0L
-            @Unsafe {
-                return@withDescriptor array.withDataPointer { pointer, _ ->
-                    @Unsafe { return@withDataPointer writeArray(fd, pointer + offset, count) }
+                return@withDescriptor snapshot.withDataPointer { pointer, _ ->
+                    @Unsafe { return@withDataPointer writeArray(fd, pointer, count) }
                 }
             }
         }
@@ -165,7 +146,7 @@ public class File private constructor(private val context: OsString?) : ByteSour
 
     public override fun flush() { requireOpen() }
 
-    public override fun dispose() {
+    public override fun close() {
         if (descriptor < 0) return
         if (active.load(MemoryOrder.Relaxed) != 0L) throw IllegalStateException(Some("file operation is active"))
         val owned = descriptor
@@ -176,7 +157,6 @@ public class File private constructor(private val context: OsString?) : ByteSour
         }
     }
 
-    public fun close() { dispose() }
 
     release { if (descriptor >= 0) { @Unsafe { nativeClose(descriptor) } } }
 }

@@ -1,7 +1,7 @@
 package scoop.json
 
 public class JsonValue internal constructor(internal val node: JsonNode) {
-    public companion object : Encodable<JsonValue>, Decodable<JsonValue> {
+    public companion object : ValueEncoder<JsonValue>, ValueDecoder<JsonValue> {
         public override fun encode(value: JsonValue, encoder: Encoder) {
             if (encoder !is JsonEncoder) {
                 throw EncodingException(encoder.path, "JsonValue requires a JSON encoder")

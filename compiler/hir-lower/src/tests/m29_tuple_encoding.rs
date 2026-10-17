@@ -5,7 +5,7 @@ fn tuple_codecs_use_ordinary_function_values_and_interface_calls() {
     lower_with_sysroot(
         r#"
         fun use(encoder: Encoder) {
-            val codec = EncodeFunction<(Int, String, Unit)>({ value, sink ->
+            val codec = ValueEncoderFunction<(Int, String, Unit)>({ value, sink ->
                 val fields = sink.unkeyed()
                 Int.Companion.encode(value._1, fields.element())
                 String.Companion.encode(value._2, fields.element())
@@ -16,7 +16,7 @@ fn tuple_codecs_use_ordinary_function_values_and_interface_calls() {
             codec.encode(value, encoder)
             val reference = codec::encode
             reference(value, encoder)
-            val erased: Encodable<(Int, String, Unit)> = codec
+            val erased: ValueEncoder<(Int, String, Unit)> = codec
             erased.encode(value, encoder)
             val array = Array<(Int, String, Unit)>(1L) { _ -> value }
             Array<(Int, String, Unit)>.Companion.encoder(codec).encode(array, encoder)
@@ -39,7 +39,7 @@ fn tuple_erasure_retains_private_element_types_without_codec_conformance() {
             val bad = erase((2, Opaque()))
             val nested = erase(((3, "nested"), Unit))
             val local = LocalOnly()
-            if (good is Encodable<(Int, String)> || bad is Encodable<(Int, Opaque)>) {}
+            if (good is ValueEncoder<(Int, String)> || bad is ValueEncoder<(Int, Opaque)>) {}
         }
     "#,
     )

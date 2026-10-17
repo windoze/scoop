@@ -10,7 +10,7 @@ private class OsStringTest {
         val value = OsString.fromString(text)
         assertEquals(text, value.decodeUtf8())
         assertEquals(text, value.display())
-        assertEquals(value, OsString.fromBytes(value.toBytes()))
+        assertEquals(value, OsString.fromByteArray(value.toByteArray()))
         assertEquals(value.hash(), OsString.fromString(text).hash())
         assertFalse(OsString.fromString("a") == OsString.fromString("A"))
     }
@@ -18,19 +18,19 @@ private class OsStringTest {
     @Test
     fun `input and output arrays are independent snapshots`() {
         val input: MutableArray<Byte> = [65, 66]
-        val value = OsString.fromBytes(input)
+        val value = OsString.fromByteArray(input)
         input[0L] = 67
         assertEquals("AB", value.decodeUtf8())
-        val first = value.toBytes()
-        val second = value.toBytes()
+        val first = value.toByteArray()
+        val second = value.toByteArray()
         assertNotSame(first, second)
-        assertEquals(66.toInt8(), first[1L])
+        assertEquals(66.toByte(), first[1L])
     }
 
     @Test
     fun `invalid UTF8 remains intact and lossy decoding is explicit`() {
-        val value = OsString.fromBytes(Array<Byte>(2L) { index -> if (index == 0L) 65 else -1 })
-        assertEquals(-1.toInt8(), value.toBytes()[1L])
+        val value = OsString.fromByteArray(Array<Byte>(2L) { index -> if (index == 0L) 65 else -1 })
+        assertEquals(-1.toByte(), value.toByteArray()[1L])
         val error = assertFailsWith<CharacterCodingException> { value.decodeUtf8() }
         assertEquals(1L, error.byteOffset)
         assertEquals("A�", value.decodeUtf8Lossy())
@@ -39,9 +39,9 @@ private class OsStringTest {
 
     @Test
     fun `empty strings and NUL are valid raw system strings`() {
-        assertEquals(0L, OsString.fromString("").toBytes().size)
-        val value = OsString.fromBytes(Array<Byte>(1L) { _ -> 0 })
+        assertEquals(0L, OsString.fromString("").toByteArray().size)
+        val value = OsString.fromByteArray(Array<Byte>(1L) { _ -> 0 })
         assertEquals(1L, value.decodeUtf8().byteLength)
-        assertEquals(0.toInt8(), value.toBytes()[0L])
+        assertEquals(0.toByte(), value.toByteArray()[0L])
     }
 }

@@ -1,6 +1,6 @@
 package scoop.tls
 
-import scoop.platform.fs.Files
+import scoop.platform.fs.*
 import scoop.platform.io.*
 import scoop.platform.memory.NativeByteBuffer
 import scoop.platform.net.*
@@ -11,7 +11,7 @@ import scoop.text.*
 private class OpenSslClientTests {
     @Test
     fun `Scoop clients interoperate with independent OpenSSL DNS IP ALPN and shutdown`() {
-        for (version in [TlsVersion.TLS12, TlsVersion.TLS13]) {
+        for (version in [TlsVersion.Tls12, TlsVersion.Tls13]) {
             pythonServer(version, true)
             pythonServer(version, false)
         }
@@ -22,15 +22,15 @@ private fun pythonServer(version: TlsVersion, dns: Boolean) {
     InteropDirectory().use { tree ->
         tree.certificates()
         val arguments: Array<String> = ["-u", "-c", pythonTlsPeer(), tree.child("server.pem").decodeUtf8(),
-            tree.child("server-key.pem").decodeUtf8(), tree.child("sni").decodeUtf8(), if (version == TlsVersion.TLS12) "12" else "13"]
-        val child = peerCommand("python3", arguments).searchPath()
+            tree.child("server-key.pem").decodeUtf8(), tree.child("sni").decodeUtf8(), if (version == TlsVersion.Tls12) "12" else "13"]
+        val child = peerCommand("python3", arguments).spawn(searchPath = true)
         try {
-            val port = child.stdout!!.readLine()!!.toIntOrNull()!!
+            val port = child.stdout!!.readLine()!!.toIntOrNone()!!
             val a = "proto-a".toByteArray().toArray()
             val b = "proto-b".toByteArray().toArray()
             clientContext(TlsOptions(version, version, [a, b])).use { context ->
                 val peer = if (dns) TlsPeerName.Dns("localhost") else TlsPeerName.Ip(IpAddress.IPV4_LOOPBACK)
-                tlsClient(TcpStream.connect(SocketAddress(IpAddress.IPV4_LOOPBACK, port)), context, peer).use { stream ->
+                TlsStream.takeOwnershipAsClient(TcpStream.connect(SocketAddress(IpAddress.IPV4_LOOPBACK, port)), context, peer).use { stream ->
                     assertTrue(stream.connectionInfo.version == version)
                     assertEquals(b.toHexString(), stream.connectionInfo.alpn!!.toHexString())
                     stream.writeAllBytes("tls".toByteArray())
@@ -42,7 +42,7 @@ private fun pythonServer(version: TlsVersion, dns: Boolean) {
                 }
             }
             peerSucceeded(child.communicate())
-            assertEquals(if (dns) "localhost" else "none", Files.readText(tree.child("sni")))
+            assertEquals(if (dns) "localhost" else "none", tree.child("sni").readText())
         } finally { child.kill(); child.wait(); child.dispose() }
     }
 }

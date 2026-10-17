@@ -43,8 +43,8 @@ fun rooted(value: Rooted): Rooted {
     catch (error: IllegalStateException) { return Rooted("empty", 0L) }
 }
 fun packed(value: Packed): Packed {
-    try { check(value.tag > 0.toInt8()); return value }
-    catch (error: IllegalStateException) { return Packed(0.toInt8(), 0.0) }
+    try { check(value.tag > 0.toByte()); return value }
+    catch (error: IllegalStateException) { return Packed(0.toByte(), 0.0) }
 }
 @Unsafe fun replace(value: Pair): Pair {
     try { addressOf(value).store(Pair(7L, 8L)); return value }
@@ -92,8 +92,8 @@ fun fail(value: Pair): Pair { throw IllegalStateException(Some("small value")) }
     val big = large(Large(1L, 2L, 3L))
     val root = rooted(Rooted("retained", 5L))
     check(big.first + big.second + big.third == 6L && root.label == "retained" && root.number == 5L)
-    val p = packed(Packed(7.toInt8(), 1.5))
-    check(p.tag == 7.toInt8() && p.number == 1.5)
+    val p = packed(Packed(7.toByte(), 1.5))
+    check(p.tag == 7.toByte() && p.number == 1.5)
     val r = registers(1L, 2L, 3L, 4L, 5L, 6L, m, 2.5)
     check(r.number == 1.25 && r.tag == 42L && generic(m).tag == 42L)
     val transform = worker()

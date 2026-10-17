@@ -1,7 +1,7 @@
 fun apply(prefix: Int = 1, action: (Int) -> Int): Int = action(prefix)
 fun choose(first: () -> Int = { 2 }, last: () -> Int): Int = first() + last()
 fun jump(first: Int = 1, middle: Int = 2, action: () -> Int): Int = first + middle + action()
-fun visit(vararg values: Int, action: () -> Int): Int = values.size.toInt32() + action()
+fun visit(vararg values: Int, action: () -> Int): Int = values.size.toInt() + action()
 fun defaultVararg(vararg values: Int = [8], action: () -> Int): Int = values[0] + action()
 fun <T> transform(value: T, action: (T) -> T): T = action(value)
 fun <T> execute(action: () -> T): T = action()
@@ -47,5 +47,5 @@ fun main() {
     factory(); { println("separate-block") }
     println(selected { 19 })
     println(overloaded(20) { it + 1 })
-    println(overloaded("abc") { it.length.toInt32() })
+    println(overloaded("abc") { it.length.toInt() })
 }

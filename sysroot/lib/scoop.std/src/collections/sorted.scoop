@@ -4,8 +4,8 @@ import scoop.comparisons.Comparator
 
 public interface SortedMap<K, V> : Map<K, V> {
     public val comparator: Comparator<K>
-    public fun firstEntryOrNull(): Map.Entry<K, V>?
-    public fun lastEntryOrNull(): Map.Entry<K, V>?
+    public fun firstEntryOrNone(): Map.Entry<K, V>?
+    public fun lastEntryOrNone(): Map.Entry<K, V>?
     public fun lowerEntry(key: K): Map.Entry<K, V>?
     public fun floorEntry(key: K): Map.Entry<K, V>?
     public fun ceilingEntry(key: K): Map.Entry<K, V>?
@@ -16,8 +16,8 @@ public interface MutableSortedMap<K, V> : SortedMap<K, V>, MutableMap<K, V> {}
 
 public interface SortedSet<T> : Set<T> {
     public val comparator: Comparator<T>
-    public fun firstOrNull(): T?
-    public fun lastOrNull(): T?
+    public fun firstOrNone(): T?
+    public fun lastOrNone(): T?
     public fun lower(element: T): T?
     public fun floor(element: T): T?
     public fun ceiling(element: T): T?

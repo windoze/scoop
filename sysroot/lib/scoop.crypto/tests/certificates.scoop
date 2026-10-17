@@ -1,5 +1,6 @@
 package scoop.crypto
 
+import scoop.Result
 import scoop.crypto.x509.*
 import scoop.crypto.testdata.*
 import scoop.test.*
@@ -29,7 +30,7 @@ private class CertificateTests {
         publicKey.use { key ->
             PrivateKey.fromPem(serverKeyPem()).use { signer ->
                 val message = "retained public key".toByteArray()
-                assertTrue(verify(SignatureAlgorithm.ES256, key, message, sign(SignatureAlgorithm.ES256, signer, message)))
+                assertTrue(verify(SignatureAlgorithm.EcdsaP256Sha256Der, key, message, sign(SignatureAlgorithm.EcdsaP256Sha256Der, signer, message)))
             }
         }
         assertFailsWith<IllegalStateException> { certificate.toPem() }
@@ -98,17 +99,17 @@ private fun checkChain(store: TrustStore, issuer: Certificate, leaf: Certificate
     }
 }
 
-private fun requireVerified(result: CertificateVerification) {
+private fun requireVerified(result: Result<Unit, CertificateValidationFailure>) {
     when (result) {
-        case Verified -> return
-        case Failed(error) -> fail(Some(error.detail))
+        case Result.Success(_) -> return
+        case Result.Failure(error) -> fail(Some(error.detail))
     }
 }
 
-private fun requireFailure(result: CertificateVerification, code: Long) {
+private fun requireFailure(result: Result<Unit, CertificateValidationFailure>, code: Long) {
     when (result) {
-        case Verified -> fail(Some("unexpected trusted certificate"))
-        case Failed(error) -> {
+        case Result.Success(_) -> fail(Some("unexpected trusted certificate"))
+        case Result.Failure(error) -> {
             assertEquals(code, error.code)
             assertTrue(error.depth >= 0)
             assertTrue(error.detail.length > 0L)

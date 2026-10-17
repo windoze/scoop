@@ -1,2 +1,2 @@
-@Target([AnnotationTarget.FUNCTION]) annotation class A
+@Target([AnnotationTarget.Function]) annotation class A
 fun f(x: FunPtr<@A() (Int) -> Int>) {}

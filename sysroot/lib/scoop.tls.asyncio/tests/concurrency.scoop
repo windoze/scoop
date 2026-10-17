@@ -17,7 +17,7 @@ private class AsyncTlsConcurrencyTests {
             clientRaw.writeStarted = AsyncGate()
             val cancelled = AtomicBoolean(false)
             try {
-                output.writeBytes(Array<Byte>(20000L) { index -> index.toInt8() })
+                output.writeBytes(Array<Byte>(20000L) { index -> index.toByte() })
                 val writing = scope.launch suspend {
                     try { client.writeFrom(output, 20000L); fail(Some("cancelled writer completed")) }
                     catch (_: CancellationException) { cancelled.store(true) }
@@ -48,7 +48,7 @@ private class AsyncTlsConcurrencyTests {
             clientRaw.readStarted = AsyncGate()
             val writerClosed = AtomicBoolean(false)
             try {
-                output.writeBytes(Array<Byte>(20000L) { index -> index.toInt8() })
+                output.writeBytes(Array<Byte>(20000L) { index -> index.toByte() })
                 val writing = scope.launch suspend {
                     try { client.writeFrom(output, 20000L); fail(Some("blocked writer unexpectedly completed")) }
                     catch (_: IoClosedException) { writerClosed.store(true) }

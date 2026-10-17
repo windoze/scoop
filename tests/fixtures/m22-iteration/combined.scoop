@@ -108,7 +108,7 @@ internal class RangeEntryIterator(val inner: Iterator<Int>) : Iterator<Entry<Nod
         val next = inner.next()
         return when (next) {
             case Some(value) -> Some(Entry(
-                value.toInt64(),
+                value.toLong(),
                 (
                     Node("range-node-" + value.toString()),
                     "range-label-" + value.toString()
@@ -247,7 +247,7 @@ class IterationTask(
         // M22 completion chain: fixed-width range through destructuring, recursive
         // matching, copy update, abrupt cleanup, suspension, and moving GC.
         for ({ slot, payload: (node, label) } in RangeEntries(traversal)) {
-            val ordinal = slot.toInt32()
+            val ordinal = slot.toInt()
             val classified = classifyRangeSignal(RangeSignal.Data(
                 payload = RangePatternPayload(
                     Entry(slot, (node, label)),
@@ -270,7 +270,7 @@ class IterationTask(
                     break
                 }
                 println("range-value-" + checkpoint.ordinal.toString())
-                total = total + checkpoint.ordinal.toInt64()
+                total = total + checkpoint.ordinal.toLong()
             } finally {
                 println("range-finally-enter-" + ordinal.toString())
                 if (ordinal == 0) {

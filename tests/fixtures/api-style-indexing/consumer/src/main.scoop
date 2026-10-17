@@ -1,0 +1,27 @@
+import scoop.collections.*
+
+private fun check(value: Boolean) { if (!value) throw IllegalStateException() }
+private fun <I, V, C : IndexGet<I, V>> read(container: C, index: I): V = container[index]
+private fun <I, V, C : IndexSet<I, V>> write(container: C, index: I, value: V) {
+    container[index] = value
+}
+
+fun main() {
+    val elements: Set<String> = setOf("one", "two")
+    val values = mutableMapOf<String, Int>(("one", 1))
+    val getter: IndexGet<String, Int?> = values
+    val setter: IndexSet<String, Int> = values
+    write(setter, "two", 2)
+    check(read(getter, "one") == Some(1) && getter["two"] == Some(2))
+    check(getter["missing"] == None && values.keys.size == elements.size)
+    for (key in elements) check(values.keys.contains(key))
+
+    val array = MutableArray<String>(2L) { index -> "old" }
+    write(array, 1L, "new")
+    check(read(array, 1L) == "new")
+    val text: IndexGet<Long, Char> = "a中b"
+    check(read(text, 1L) == '中')
+    gcCollect()
+    check(setter is IndexSet<String, Int> && elements.contains("two"))
+    println("index access and sets coexist")
+}

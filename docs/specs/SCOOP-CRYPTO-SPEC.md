@@ -16,25 +16,25 @@
 
 `CryptoException` 保存 operation、OpenSSL 原始 code 与已复制的 detail。后端返回正常验证不匹配时返回 Boolean false 或对应验证结果，非法参数、格式、状态及运行错误各按实际原因报错。错误队列在同一 C 调用中提取并复制，不在返回或切换线程后重读。普通 C ABI 使用 NativeSafe，不标记 GCLeaf。
 
-Digest、SecretKey、PrivateKey、PublicKey、Certificate、TrustStore 均为显式 Disposable；提供幂等 close／dispose，关闭后拒绝使用。使用与关闭同一对象须由调用者串行化；上下文 finish 后不能再次 update／finish。持久 native 引用由接收对象保留，释放原 wrapper 不使引用失效。析构不放进 GC release hook，正确性由 use／try-finally 及显式关闭承担。
+Digest、SecretKey、PrivateKey、PublicKey、Certificate、TrustStore 均为显式 Closeable；提供幂等 close，默认 dispose 桥接到 close，关闭后拒绝使用。使用与关闭同一对象须由调用者串行化；上下文 finish 后不能再次 update／finish。持久 native 引用由接收对象保留，释放原 wrapper 不使引用失效。析构不放进 GC release hook，正确性由 use／try-finally 及显式关闭承担。
 
 ## 3. 摘要、MAC、AEAD 与随机
 
-`scoop.crypto` 提供 `DigestAlgorithm { SHA256, SHA384, SHA512 }`；一次性 `digest(algorithm, data)` 与 `Digest(algorithm)` 上连续 update 后调用 finish 的结果相同，允许空输入。update 返回 Unit，finish 返回字节数组并结束上下文的计算状态。
+`scoop.crypto` 提供 `DigestAlgorithm { Sha256, Sha384, Sha512 }`；一次性 `digest(algorithm, data)` 与 `Digest(algorithm)` 上连续 update 后调用 finish 的结果相同，允许空输入。update 返回 Unit，finish 返回字节数组并结束上下文的计算状态。
 
 SecretKey 从字节建立自有 native 副本，支持显式导出及关闭时清除自有存储。`hmac(algorithm, key, data)` 与 `verifyHmac(algorithm, key, data, expected)` 支持以上三种 SHA；校验长度一致时使用 CRYPTO_memcmp，不使用字符串或提前退出的逐字节比较。
 
-`AeadAlgorithm { AES128GCM, AES256GCM }` 分别要求 16／32 字节 key；nonce 固定 12 字节，tag 固定 16 字节，AAD 和数据可空。`encrypt` 返回 `AeadCiphertext(ciphertext, tag)`；`decrypt` 成功返回明文，认证不匹配返回 None，临时明文在失败时清除且不交付。调用者确保同一密钥下 nonce 不重复，库不建立 nonce 分配服务。
+`AeadAlgorithm { Aes128Gcm, Aes256Gcm }` 分别要求 16／32 字节 key；nonce 固定 12 字节，tag 固定 16 字节，AAD 和数据可空。`encrypt` 返回 `AeadCiphertext(ciphertext, tag)`；`decryptOrNone` 成功返回明文，认证不匹配返回 None，临时明文在失败时清除且不交付。调用者确保同一密钥下 nonce 不重复，库不建立 nonce 分配服务。
 
 `secureRandomBytes(count)` 接受非负 Long，使用 RAND_bytes_ex 填满结果；零长度合法，负数为参数错误，分配或熵失败保留错误。
 
 ## 4. 密钥与签名
 
-`KeyAlgorithm { RSA, P256, Ed25519, Other }`。Other 表示证书等输入中的其他正常后端公钥类型，不提供其通用生成／签名操作。PrivateKey.generate 默认 RSA 2048 位，RSA 位数至少 2048 且为 256 的倍数；P256 和 Ed25519 不使用 RSA 位数参数。PEM／DER 私钥使用未加密 PKCS#8，公钥使用 SubjectPublicKeyInfo；导入拒绝口令交互与尾随非空数据。RSA、P-256、Ed25519 公私钥分别表示，PrivateKey.publicKey 返回独立拥有的公钥对象。native public 导出不包含私钥成分。
+`KeyAlgorithm { Rsa, P256, Ed25519, Other }`。Other 表示证书等输入中的其他正常后端公钥类型，不提供其通用生成／签名操作。`PrivateKey.generateRsa(bits: Int = 2048)` 要求位数至少 2048 且为 256 的倍数；`generateP256()` 与 `generateEd25519()` 各生成对应类型，无多余位数参数。三个工厂均返回独立拥有的 PrivateKey；没有接收 KeyAlgorithm 的通用生成入口。PEM／DER 私钥使用未加密 PKCS#8，公钥使用 SubjectPublicKeyInfo；导入拒绝口令交互与尾随非空数据。RSA、P-256、Ed25519 公私钥分别表示，PrivateKey.publicKey 返回独立拥有的公钥对象。native public 导出不包含私钥成分。
 
-PrivateKey 与 PublicKey 通过 fromPem(String)／fromDer(List<Byte>) 导入、toPem()／toDer() 导出；algorithm 属性返回上述分类。sign(algorithm, privateKey, data) 与 verify(algorithm, publicKey, data, signature) 均接收原始消息。格式非法为 CryptoException；不匹配算法、未支持的生成类型及不合法 RSA 位数为 IllegalArgumentException。
+PrivateKey 与 PublicKey 通过 fromPem(String)／fromDer(List<Byte>) 导入、toPem()／toDer() 导出；algorithm 属性返回上述分类。sign(algorithm, privateKey, data) 与 verify(algorithm, publicKey, data, signature) 均接收原始消息。格式非法为 CryptoException；不匹配算法及不合法 RSA 位数为 IllegalArgumentException。
 
-`SignatureAlgorithm { RS256, PS256, ES256, Ed25519 }` 显式要求匹配密钥。RS256 为 PKCS#1 v1.5／SHA-256；PS256 为 PSS／SHA-256、MGF1 SHA-256、32 字节 salt；ES256 为 ECDSA P-256／SHA-256，普通签名 API 使用 ASN.1 DER；Ed25519 按纯 Ed25519 对原始消息签名，不额外预哈希。验签不匹配返回 false；密钥类型不匹配抛参数错误。
+`SignatureAlgorithm { RsaPkcs1Sha256, RsaPssSha256, EcdsaP256Sha256Der, Ed25519 }` 显式要求匹配密钥。RsaPkcs1Sha256 为 PKCS#1 v1.5／SHA-256；RsaPssSha256 为 PSS／SHA-256、MGF1 SHA-256、32 字节 salt；EcdsaP256Sha256Der 为 ECDSA P-256／SHA-256，签名使用 ASN.1 DER；Ed25519 按纯 Ed25519 对原始消息签名，不额外预哈希。普通方案名描述算法和签名表示，JWS 的 RS256／PS256／ES256 协议代码只出现在第 6 节的 JwsAlgorithm。验签不匹配返回 false；密钥类型不匹配抛参数错误。
 
 ## 5. X.509
 
@@ -42,19 +42,19 @@ PrivateKey 与 PublicKey 通过 fromPem(String)／fromDer(List<Byte>) 导入、t
 
 Certificate 使用 fromPem／fromDer 和 toPem／toDer；单次导入恰好一张证书，拒绝尾随非空数据。subject／issuer 使用 RFC 2253 名称文本，serialNumber 使用十六进制文本，notBefore／notAfter 为 Instant。subjectAlternativeNames() 返回 `SubjectAlternativeName { Dns(String), Ip(Array<Byte>) }` 数组，其他 SAN 类别不投影到该数组；publicKey() 返回独立拥有的公钥引用。
 
-`TrustStore.fromCertificates(anchors)` 保留锚的 native 引用，创建后不再修改。`verify(certificate, at, purpose, intermediates, identity)` 要求明确的时间和 `CertificatePurpose { ServerAuth, ClientAuth, Any }`，中间证书默认空数组，identity 默认 None；返回 `CertificateVerification { Verified, Failed(CertificateValidationFailure) }`。失败数据含 code、depth、detail。DNS 身份匹配禁止部分标签通配符，其他链与名称规则由 OpenSSL 执行。
+`TrustStore.fromCertificates(anchors)` 保留锚的 native 引用，创建后不再修改。`verify(certificate, at, purpose, intermediates, identity)` 要求明确的时间和 `CertificatePurpose { ServerAuth, ClientAuth, Any }`，中间证书默认空数组，identity 默认 None；返回 `Result<Unit, CertificateValidationFailure>`，成功为 Success(Unit)，验证失败为 Failure(error)。失败数据含 code、depth、detail。DNS 身份匹配禁止部分标签通配符，其他链与名称规则由 OpenSSL 执行。
 
-Certificate.verifySignature(issuerKey) 只检查证书签名。TrustStore 从显式锚建立，verify 接收叶证书、中间证书、明确 Instant、用途与可选 `PeerIdentity { Dns(String), Ip(Array<Byte>) }`。DNS 必须非空 ASCII／A-label 且无 NUL，IP 必须为 4／16 字节。结果区分 Verified 和 Failed，失败保存验证 code、depth 及原因。上游执行签名、时间、链约束与用途检查；最后提交的证书不隐式成为根，不读取系统信任、不执行 AIA／OCSP／CRL 网络获取。
+Certificate.verifySignature(issuerKey) 只检查证书签名。TrustStore 从显式锚建立，verify 接收叶证书、中间证书、明确 Instant、用途与可选 `PeerIdentity { Dns(String), Ip(Array<Byte>) }`。DNS 必须非空 ASCII／A-label 且无 NUL，IP 必须为 4／16 字节。结果复用 scoop.Result 的 Success(Unit) 和 Failure(error)，失败保存验证 code、depth 及原因。上游执行签名、时间、链约束与用途检查；最后提交的证书不隐式成为根，不读取系统信任、不执行 AIA／OCSP／CRL 网络获取。
 
 ## 6. JWS
 
 `scoop.crypto.jws` 只提供使用普通编码 payload 的 Compact Serialization。支持 HS256／RS256／PS256／ES256／EdDSA；调用者显式给出允许的单一算法和匹配的签名／验证密钥，header alg 必须相同，拒绝 none。
 
-复用 std Base64.UrlSafe 的 ABSENT padding 与普通 scoop.json codec。signCompact 接收 protected header 原文和 payload；verifyCompact 验证原 token 两个编码段组成的 signing input，不重新序列化 header。验证成功返回原 header、payload 与可选 kid，签名不匹配返回 None；格式、编码、算法／密钥错误抛异常。拒绝不支持的 crit 和 b64=false。结果仅表示签名验证，不检查 exp／nbf／iss／aud 或授权。
+复用 std Base64.UrlSafe 的 Absent padding 与普通 scoop.json codec。signCompact 接收 protected header 原文和 payload；verifyCompactOrNone 验证原 token 两个编码段组成的 signing input，不重新序列化 header。验证成功返回原 header、payload 与可选 kid，签名不匹配返回 None；格式、编码、算法／密钥错误抛异常。拒绝不支持的 crit 和 b64=false。结果仅表示签名验证，不检查 exp／nbf／iss／aud 或授权。
 
 ES256 在 JWS 边界转换为固定 64 字节 R || S，普通签名 API 仍使用 DER。PS256 保持第 4 节参数。公钥 JWK 仅支持 RSA n/e、EC P-256 x/y、OKP Ed25519 x，进行正常公钥参数检查；拒绝私钥字段，kid 只作为调用者的选择数据，不按 token 地址取密钥。
 
-公开入口为 `signCompact(protectedHeader, payload, algorithm, key)` 与 `verifyCompact(token, algorithm, key)`。`JwsAlgorithm { HS256, RS256, PS256, ES256, EdDSA }`，签名密钥为 `JwsSigningKey { Mac(SecretKey), Signature(PrivateKey) }`，验证密钥为 `JwsVerificationKey { Mac(SecretKey), Signature(PublicKey) }`。成功值 `VerifiedJws(protectedHeader, payload, keyId)` 保留原 header 文本、独立 payload 数组和可选 kid。HS256 密钥至少 32 字节，其他密钥匹配第 4 节算法。JSON 必须是对象，alg 必须为匹配的字符串；kid 若出现须为字符串。任何 crit 字段均拒绝；b64 若出现须为 true。Compact 必须恰好三段，所有段使用无 padding、规范末尾比特的 Base64URL，允许空 payload。格式、编码和 header 错误为 JwsException，密钥角色或类型错误为 IllegalArgumentException，后端错误保持 CryptoException。
+公开入口为 `signCompact(protectedHeader, payload, algorithm, key)` 与 `verifyCompactOrNone(token, algorithm, key)`。`JwsAlgorithm { HS256, RS256, PS256, ES256, EdDSA }`，签名密钥为 `JwsSigningKey { Mac(SecretKey), Signature(PrivateKey) }`，验证密钥为 `JwsVerificationKey { Mac(SecretKey), Signature(PublicKey) }`。成功值 `VerifiedJws(protectedHeader, payload, keyId)` 保留原 header 文本、独立 payload 数组和可选 kid。HS256 密钥至少 32 字节，其他密钥匹配第 4 节算法。JSON 必须是对象，alg 必须为匹配的字符串；kid 若出现须为字符串。任何 crit 字段均拒绝；b64 若出现须为 true。Compact 必须恰好三段，所有段使用无 padding、规范末尾比特的 Base64URL，允许空 payload。格式、编码和 header 错误为 JwsException，密钥角色或类型错误为 IllegalArgumentException，后端错误保持 CryptoException。
 
 `importJwk(json)` 返回独立 PublicKey；RSA n/e 为非空、无多余前导零的 Base64urlUInt，P-256 x/y 和 Ed25519 x 各为 32 字节。导入只消费公钥参数，不以可选 alg／use／key_ops 元数据选择算法或决定应用策略；调用者仍必须在每次验证中给出算法。拒绝 d、p、q、dp、dq、qi、oth、k 私密参数和不支持的 kty／crv。JSON 解析与重复字段规则复用 scoop.json，不另设解析器。
 

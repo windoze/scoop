@@ -1,16 +1,16 @@
 import scoop.json.*
 
 fun responsesFailures() {
-    reject("/input/0/content") { Json.decode("""{"model":"m","input":[{"role":"user","content":7}]}""", ResponseRequest.Companion) }
-    reject("/status") { Json.decode("""{"type":"message","id":"m","role":"assistant","content":[]}""", ResponseItem.Companion) }
-    reject("/arguments") { Json.decode("""{"type":"function_call","call_id":"c","name":"f","arguments":{}}""", ResponseItem.Companion) }
-    reject("/action/x") { Json.decode("""{"type":"computer_call","id":"c","call_id":"c","status":"completed","pending_safety_checks":[],"action":{"type":"click","button":"left","x":"bad","y":1}}""", ResponseItem.Companion) }
-    reject("/error/code") { Json.decode("""{"type":"mcp_call","id":"m","server_label":"s","name":"f","arguments":"{}","error":{"type":"http_error","code":"bad","message":"failure"}}""", ResponseItem.Companion) }
-    reject("/name") { Json.decode("""{"type":"function","function":{"name":"f"},"parameters":{}}""", ResponseTool.Companion) }
-    reject("/conversation/id") { Json.decode("""{"model":"m","input":"x","conversation":{"id":7}}""", ResponseRequest.Companion) }
-    reject("/instructions") { Json.decode("""{"model":"m","input":"x","instructions":7}""", ResponseRequest.Companion) }
-    reject("/metadata/a") { Json.decode("""{"model":"m","input":"x","metadata":{"a":false}}""", ResponseRequest.Companion) }
-    reject("/variables/image/image_url") { Json.decode("""{"id":"p","variables":{"image":{"type":"input_image","image_url":7}}}""", PromptConfig.Companion) }
-    reject("/response/error/code") { Json.decode("""{"type":"response.failed","sequence_number":0,"response":{"id":"r","created_at":0,"status":"failed","model":"m","output":[],"error":{"code":7,"message":"bad"},"incomplete_details":null,"usage":null}}""", ResponseEvent.Companion) }
-    reject("/delta") { Json.decode("""{"type":"response.function_call_arguments.delta","sequence_number":0,"item_id":"f","output_index":0,"delta":{}}""", ResponseEvent.Companion) }
+    reject("/input/0/content") { Json.decodeFromString("""{"model":"m","input":[{"role":"user","content":7}]}""", ResponseRequest.Companion) }
+    reject("/status") { Json.decodeFromString("""{"type":"message","id":"m","role":"assistant","content":[]}""", ResponseItem.Companion) }
+    reject("/arguments") { Json.decodeFromString("""{"type":"function_call","call_id":"c","name":"f","arguments":{}}""", ResponseItem.Companion) }
+    reject("/action/x") { Json.decodeFromString("""{"type":"computer_call","id":"c","call_id":"c","status":"completed","pending_safety_checks":[],"action":{"type":"click","button":"left","x":"bad","y":1}}""", ResponseItem.Companion) }
+    reject("/error/code") { Json.decodeFromString("""{"type":"mcp_call","id":"m","server_label":"s","name":"f","arguments":"{}","error":{"type":"http_error","code":"bad","message":"failure"}}""", ResponseItem.Companion) }
+    reject("/name") { Json.decodeFromString("""{"type":"function","function":{"name":"f"},"parameters":{}}""", ResponseTool.Companion) }
+    reject("/conversation/id") { Json.decodeFromString("""{"model":"m","input":"x","conversation":{"id":7}}""", ResponseRequest.Companion) }
+    reject("/instructions") { Json.decodeFromString("""{"model":"m","input":"x","instructions":7}""", ResponseRequest.Companion) }
+    reject("/metadata/a") { Json.decodeFromString("""{"model":"m","input":"x","metadata":{"a":false}}""", ResponseRequest.Companion) }
+    reject("/variables/image/image_url") { Json.decodeFromString("""{"id":"p","variables":{"image":{"type":"input_image","image_url":7}}}""", PromptConfig.Companion) }
+    reject("/response/error/code") { Json.decodeFromString("""{"type":"response.failed","sequence_number":0,"response":{"id":"r","created_at":0,"status":"failed","model":"m","output":[],"error":{"code":7,"message":"bad"},"incomplete_details":null,"usage":null}}""", ResponseEvent.Companion) }
+    reject("/delta") { Json.decodeFromString("""{"type":"response.function_call_arguments.delta","sequence_number":0,"item_id":"f","output_index":0,"delta":{}}""", ResponseEvent.Companion) }
 }

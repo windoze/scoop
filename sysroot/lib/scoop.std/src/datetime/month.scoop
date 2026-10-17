@@ -1,26 +1,26 @@
 package scoop.datetime
 
 public enum Month : Equals<Month>, Compare<Month>, Hash, ToString {
-    JANUARY, FEBRUARY, MARCH, APRIL, MAY, JUNE, JULY, AUGUST, SEPTEMBER, OCTOBER, NOVEMBER, DECEMBER
+    January, February, March, April, May, June, July, August, September, October, November, December
 
     public val number: Int get() = when (this) {
-        case JANUARY -> 1; case FEBRUARY -> 2; case MARCH -> 3; case APRIL -> 4
-        case MAY -> 5; case JUNE -> 6; case JULY -> 7; case AUGUST -> 8
-        case SEPTEMBER -> 9; case OCTOBER -> 10; case NOVEMBER -> 11; case DECEMBER -> 12
+        case January -> 1; case February -> 2; case March -> 3; case April -> 4
+        case May -> 5; case June -> 6; case July -> 7; case August -> 8
+        case September -> 9; case October -> 10; case November -> 11; case December -> 12
     }
     public override operator fun equals(other: Month): Boolean = number == other.number
     public override operator fun compareTo(other: Month): Long = number.compareTo(other.number)
     public override fun hash(): Long = number.hash()
     public override fun toString(): String = when (this) {
-        case JANUARY -> "JANUARY"; case FEBRUARY -> "FEBRUARY"; case MARCH -> "MARCH"; case APRIL -> "APRIL"
-        case MAY -> "MAY"; case JUNE -> "JUNE"; case JULY -> "JULY"; case AUGUST -> "AUGUST"
-        case SEPTEMBER -> "SEPTEMBER"; case OCTOBER -> "OCTOBER"; case NOVEMBER -> "NOVEMBER"; case DECEMBER -> "DECEMBER"
+        case January -> "January"; case February -> "February"; case March -> "March"; case April -> "April"
+        case May -> "May"; case June -> "June"; case July -> "July"; case August -> "August"
+        case September -> "September"; case October -> "October"; case November -> "November"; case December -> "December"
     }
     public companion object {
-        public fun of(number: Int): Month = when (number) {
-            case 1 -> JANUARY; case 2 -> FEBRUARY; case 3 -> MARCH; case 4 -> APRIL
-            case 5 -> MAY; case 6 -> JUNE; case 7 -> JULY; case 8 -> AUGUST
-            case 9 -> SEPTEMBER; case 10 -> OCTOBER; case 11 -> NOVEMBER; case 12 -> DECEMBER
+        public fun fromNumber(number: Int): Month = when (number) {
+            case 1 -> January; case 2 -> February; case 3 -> March; case 4 -> April
+            case 5 -> May; case 6 -> June; case 7 -> July; case 8 -> August
+            case 9 -> September; case 10 -> October; case 11 -> November; case 12 -> December
             case _ -> throw IllegalArgumentException(Some("month must be in 1..12"))
         }
     }

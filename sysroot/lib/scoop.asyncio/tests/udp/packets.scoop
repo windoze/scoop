@@ -29,7 +29,7 @@ private class AsyncUdpPacketTest {
                 assertFalse(packet.truncated)
                 assertEquals(0L, input.writePosition)
                 NativeByteBuffer.allocate(5L).use suspend { output ->
-                    for (value in 1L..5L) output.writeByte(value.toInt8())
+                    for (value in 1L..5L) output.writeByte(value.toByte())
                     assertEquals(5L, sender.sendTo(output, receiver.localAddress, 5L))
                     assertEquals(5L, output.readPosition)
                     output.clear()
@@ -40,12 +40,12 @@ private class AsyncUdpPacketTest {
                 assertEquals(3L, truncated.count)
                 assertTrue(truncated.truncated)
                 assertEquals(sender.localAddress, truncated.source)
-                for (index in 0L..<3L) assertEquals((index + 1L).toInt8(), input.getByte(index))
+                for (index in 0L..<3L) assertEquals((index + 1L).toByte(), input.getByte(index))
                 input.clear()
                 val next = receiver.receiveFrom(input, 3L)
                 assertEquals(1L, next.count)
                 assertFalse(next.truncated)
-                assertEquals(42.toInt8(), input.readByte())
+                assertEquals(42.toByte(), input.readByte())
             }
         }
     }
@@ -77,7 +77,7 @@ private class AsyncUdpPacketTest {
                 assertEquals(1L, sender.sendTo(bytes, receiver.localAddress, 1L))
                 bytes.clear()
                 assertEquals(1L, receiver.receiveFrom(bytes, 65536L).count)
-                assertEquals(42.toInt8(), bytes.readByte())
+                assertEquals(42.toByte(), bytes.readByte())
             }
         }
     }

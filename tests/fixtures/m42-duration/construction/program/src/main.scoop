@@ -8,13 +8,13 @@ fun overflow(block: () -> Duration) {
     check(failed)
 }
 fun main() {
-    check(Duration.ZERO.seconds == 0L && Duration.ZERO.nanosecondsOfSecond == 0)
-    check((-1L).nanoseconds().toComponents() == (-1L, 999999999))
+    check(Duration.ZERO.floorSeconds == 0L && Duration.ZERO.nanosecondsOfSecond == 0)
+    check((-1L).nanoseconds().toComponents() == (0L, -1))
     check(Duration.seconds(1L, -1L).toComponents() == (0L, 999999999))
     check(Duration.seconds(-1L, 1000000001L).toComponents() == (0L, 1))
-    check(Duration.seconds(Long.MAX_VALUE, -1000000000L).seconds == Long.MAX_VALUE - 1L)
+    check(Duration.seconds(Long.MAX_VALUE, -1000000000L).floorSeconds == Long.MAX_VALUE - 1L)
     check(Duration.seconds(Long.MIN_VALUE, 999999999L).nanosecondsOfSecond == 999999999)
-    check(Duration.seconds(9223372036L, Long.MIN_VALUE).toComponents() == (-1L, 145224192))
+    check(Duration.seconds(9223372036L, Long.MIN_VALUE).toComponents() == (0L, -854775808))
     check(Duration.seconds(-9223372036L, Long.MAX_VALUE).toComponents() == (0L, 854775807))
     overflow { Duration.seconds(Long.MAX_VALUE, 1000000000L) }
     overflow { Duration.seconds(Long.MIN_VALUE, -1L) }
@@ -25,7 +25,7 @@ fun main() {
     check((-1).days() == (-24L).hours())
     val value = Duration.seconds(-2L, 750000000L)
     val parts = value.toComponents()
-    check(Duration.seconds(parts._1, parts._2.toInt64()) == value)
+    check(Duration.seconds(parts._1, parts._2.toLong()) == value)
     check(value.absoluteValue == Duration.seconds(1L, 250000000L))
     check(-value == value.absoluteValue && Duration.ZERO.absoluteValue == Duration.ZERO)
     overflow { -Duration.seconds(Long.MIN_VALUE) }

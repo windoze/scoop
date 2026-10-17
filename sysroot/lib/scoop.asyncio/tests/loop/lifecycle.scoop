@@ -13,7 +13,7 @@ private class EventLoopLifecycleTest {
         val completed = AtomicLong(0L)
         val answer = loop.runWithResult<Int> suspend { scope ->
             assertSame(loop, currentEventLoop())
-            assertSame(scope.job, currentJobOrNull()!!)
+            assertSame(scope.job, currentJobOrNone()!!)
             scope.launch suspend { loop.sleep(Duration.nanoseconds(1L)); completed.fetchAdd(1L) }
             42
         }

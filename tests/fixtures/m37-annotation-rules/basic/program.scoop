@@ -1,4 +1,4 @@
-@Target([AnnotationTarget.CLASS, AnnotationTarget.ANNOTATION_CLASS, AnnotationTarget.ENUM_VARIANT, AnnotationTarget.FIELD, AnnotationTarget.PROPERTY, AnnotationTarget.FUNCTION, AnnotationTarget.CONSTRUCTOR, AnnotationTarget.VALUE_PARAMETER, AnnotationTarget.PROPERTY_GETTER, AnnotationTarget.PROPERTY_SETTER, AnnotationTarget.TYPEALIAS, AnnotationTarget.TYPE])
+@Target([AnnotationTarget.Class, AnnotationTarget.AnnotationClass, AnnotationTarget.EnumVariant, AnnotationTarget.Field, AnnotationTarget.Property, AnnotationTarget.Function, AnnotationTarget.Constructor, AnnotationTarget.ValueParameter, AnnotationTarget.PropertyGetter, AnnotationTarget.PropertySetter, AnnotationTarget.TypeAlias, AnnotationTarget.Type])
 annotation class Mark(val text: String)
 @Mark("meta") annotation class Meta
 @Mark("alias") typealias Count = Int
@@ -14,7 +14,7 @@ var total: Count = 1
     @Mark("computed") @receiver:Mark("property receiver") val doubled: Count
         @Mark("direct getter") get() = value * 2
     @Mark("method") @receiver:Mark("method receiver") fun read(@Mark("increment") increment: Count): Count = value + increment
-    @Mark("secondary") constructor(@Mark("text") text: String): this(text.length.toInt32(), 0) {}
+    @Mark("secondary") constructor(@Mark("text") text: String): this(text.length.toInt(), 0) {}
 }
 @Mark("struct") struct Pair(@Mark("first field") val first: Count, @param:Mark("second parameter") val second: Count) {
     @Mark("value property") val sum: Count get() = first + second

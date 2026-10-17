@@ -2,7 +2,7 @@ import scoop.json.Json
 
 class Saved(var encoder: Option<Encoder>)
 
-object Children : Encodable<Unit> {
+object Children : ValueEncoder<Unit> {
     public override fun encode(value: Unit, encoder: Encoder) {
         val fields = encoder.keyed()
         val child = fields.field("child")
@@ -29,14 +29,14 @@ object Children : Encodable<Unit> {
 }
 
 fun main() {
-    check(Json.encode(Unit, Children) == "{\"child\":{\"a\":1},\"next\":[2,[]]}")
+    check(Json.encodeToString(Unit, Children) == "{\"child\":{\"a\":1},\"next\":[2,[]]}")
     val saved = Saved(None)
-    val codec = EncodeFunction<Unit>({ value, encoder ->
+    val codec = ValueEncoderFunction<Unit>({ value, encoder ->
         saved.encoder = Some(encoder)
         Long.encode(7L, encoder.keyed().field("value"))
         encoder.keyed().end()
     })
-    val text = Json.encode(Unit, codec)
+    val text = Json.encodeToString(Unit, codec)
     gcCollect()
     reject("", "a value is already committed") { saved.encoder!!.keyed().field("late") }
     reject("", "a value is already committed") { saved.encoder!!.keyed().end() }

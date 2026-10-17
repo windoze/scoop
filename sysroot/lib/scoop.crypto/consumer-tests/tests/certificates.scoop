@@ -1,5 +1,6 @@
 package crypto.consumer
 
+import scoop.Result
 import scoop.crypto.x509.*
 import scoop.crypto.testdata.*
 import scoop.test.*
@@ -15,10 +16,10 @@ private class CertificateConsumerTests {
                     Certificate.fromPem(serverPem()).use { leaf ->
                         val time = Instant.fromEpochSeconds(1800000000L)
                         val result = store.verify(leaf, time, CertificatePurpose.ServerAuth, [intermediate], Some(PeerIdentity.Dns("localhost")))
-                        assertTrue(result == CertificateVerification.Verified)
+                        assertTrue(result.isSuccess)
                         when (store.verify(leaf, time, CertificatePurpose.ServerAuth)) {
-                            case Verified -> fail(Some("missing intermediate accepted"))
-                            case Failed(error) -> assertEquals(20L, error.code)
+                            case Result.Success(_) -> fail(Some("missing intermediate accepted"))
+                            case Result.Failure(error) -> assertEquals(20L, error.code)
                         }
                         leaf.publicKey().use { key -> assertTrue(key.toDer().size > 0L) }
                     }

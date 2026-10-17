@@ -1,4 +1,4 @@
 public struct Item<T>(val value: T)
-public class Reader<T>(private val first: Decodable<T>, private val second: Decodable<T>) : Decodable<Item<T>>
+public class Reader<T>(private val first: ValueDecoder<T>, private val second: ValueDecoder<T>) : ValueDecoder<Item<T>>
 
 fun main() {}

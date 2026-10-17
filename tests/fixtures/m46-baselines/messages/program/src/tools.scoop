@@ -2,7 +2,7 @@ import scoop.json.*
 
 enum Tool {
     User(UserTool), Computer(ComputerConfig), Search(SearchConfig), Fetch(SearchConfig), Code(BasicToolConfig), Bash(BasicToolConfig), Editor(BasicToolConfig), Unknown(JsonValue)
-    companion object : Encodable<Tool>, Decodable<Tool> {
+    companion object : ValueEncoder<Tool>, ValueDecoder<Tool> {
         public override fun encode(value: Tool, encoder: Encoder) {
             when (value) {
                 case Tool.User(payload) -> { UserTool.Companion.encode(payload, encoder); return }

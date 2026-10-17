@@ -1,4 +1,4 @@
-@Target([AnnotationTarget.FIELD, AnnotationTarget.PROPERTY, AnnotationTarget.ENUM_VARIANT])
+@Target([AnnotationTarget.Field, AnnotationTarget.Property, AnnotationTarget.EnumVariant])
 public annotation class Serialize(
     val rename: String = "",
     val required: Boolean = false,
@@ -7,18 +7,18 @@ public annotation class Serialize(
 )
 
 public enum AnnotationTarget: Int {
-    CLASS = 1,
-    ANNOTATION_CLASS = 2,
-    ENUM_VARIANT = 3,
-    FIELD = 4,
-    PROPERTY = 5,
-    FUNCTION = 6,
-    CONSTRUCTOR = 7,
-    VALUE_PARAMETER = 8,
-    PROPERTY_GETTER = 9,
-    PROPERTY_SETTER = 10,
-    TYPEALIAS = 11,
-    TYPE = 12
+    Class = 1,
+    AnnotationClass = 2,
+    EnumVariant = 3,
+    Field = 4,
+    Property = 5,
+    Function = 6,
+    Constructor = 7,
+    ValueParameter = 8,
+    PropertyGetter = 9,
+    PropertySetter = 10,
+    TypeAlias = 11,
+    Type = 12
 }
 
 public annotation class Target(val allowed: Array<AnnotationTarget>)

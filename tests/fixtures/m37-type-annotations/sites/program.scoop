@@ -1,4 +1,4 @@
-@Repeatable @Target([AnnotationTarget.TYPE])
+@Repeatable @Target([AnnotationTarget.Type])
 annotation class Mark(val n: Int)
 interface Read { fun read(): Int }
 class Value(val n: @Mark(1) Int): @Mark(2) Read { override fun read(): @Mark(3) Int = n }
@@ -8,7 +8,7 @@ struct Pair(val left: @Mark(9) Int, val right: @Mark(10) Int)
 enum Choice { Some(val n: @Mark(11) Int) }
 class Box(var n: @Mark(12) Int) {
     val doubled: @Mark(13) Int get() = n * 2
-    constructor(text: @Mark(14) String): this(text.length.toInt32()) {}
+    constructor(text: @Mark(14) String): this(text.length.toInt()) {}
 }
 val global: @Mark(15) Int = 42
 fun main() {

@@ -5,11 +5,11 @@ class Display(val value: String) : ToString {
 }
 fun main() {
     val builder = create("A")
-    val first = builder.build()
-    builder.add('雪').add(42)
+    val first = builder.toString()
+    builder.append('雪').append(42)
     gcCollect()
-    if (first != "A" || builder.build() != "A雪42" || surround(42) != "<42>" ||
+    if (first != "A" || builder.toString() != "A雪42" || surround(42) != "<42>" ||
         surround(Display("value"), '!') != "<value!" || character() != "雪" ||
-        StringBuilder().add('雪').build() != character()) { println("cross-cone"); return }
+        StringBuilder().append('雪').toString() != character()) { println("cross-cone"); return }
     println(42)
 }

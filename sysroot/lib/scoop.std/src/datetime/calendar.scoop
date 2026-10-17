@@ -15,11 +15,11 @@ internal fun validCalendarDate(year: Int, month: Int, day: Int): Boolean =
     day >= 1 && day <= calendarMonthLength(year, month)
 
 internal fun calendarEpochDay(year: Int, month: Int, day: Int): Long {
-    val adjustedYear = year.toInt64() - (if (month <= 2) 1L else 0L)
+    val adjustedYear = year.toLong() - (if (month <= 2) 1L else 0L)
     val era = calendarFloorDiv(adjustedYear, 400L)
     val yearOfEra = adjustedYear - era * 400L
-    val shiftedMonth = month.toInt64() + (if (month > 2) -3L else 9L)
-    val dayOfYear = (153L * shiftedMonth + 2L) / 5L + day.toInt64() - 1L
+    val shiftedMonth = month.toLong() + (if (month > 2) -3L else 9L)
+    val dayOfYear = (153L * shiftedMonth + 2L) / 5L + day.toLong() - 1L
     return era * 146097L + yearOfEra * 365L + yearOfEra / 4L - yearOfEra / 100L + dayOfYear - 719468L
 }
 
@@ -33,17 +33,17 @@ internal fun calendarDateFromDay(day: Long): (Int, Int, Int) {
     val shiftedMonth = (5L * dayOfYear + 2L) / 153L
     val dayOfMonth = dayOfYear - (153L * shiftedMonth + 2L) / 5L + 1L
     val month = shiftedMonth + (if (shiftedMonth < 10L) 3L else -9L)
-    return ((year + (if (month <= 2L) 1L else 0L)).toInt32(), month.toInt32(), dayOfMonth.toInt32())
+    return ((year + (if (month <= 2L) 1L else 0L)).toInt(), month.toInt(), dayOfMonth.toInt())
 }
 
 internal fun shiftedCalendarMonth(year: Int, month: Int, amount: Long): (Int, Int) {
-    val current = year.toInt64() * 12L + month.toInt64() - 1L
+    val current = year.toLong() * 12L + month.toLong() - 1L
     if (amount < -11999999988L - current || amount > 11999999999L - current) throw ArithmeticException()
     val target = current + amount
     val targetYear = calendarFloorDiv(target, 12L)
-    return (targetYear.toInt32(), (target - targetYear * 12L + 1L).toInt32())
+    return (targetYear.toInt(), (target - targetYear * 12L + 1L).toInt())
 }
 
 internal fun checkCalendarYearShift(year: Int, amount: Long) {
-    if (amount < -999999999L - year.toInt64() || amount > 999999999L - year.toInt64()) throw ArithmeticException()
+    if (amount < -999999999L - year.toLong() || amount > 999999999L - year.toLong()) throw ArithmeticException()
 }

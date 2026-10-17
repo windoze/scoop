@@ -20,7 +20,7 @@ private class AsyncTcpDuplexTest {
             val connecting = scope.async<AsyncTcpStream> suspend { loop.connectTcp(listener.localAddress) }
             val server = listener.accept()
             val client = connecting.await()
-            assertTrue(client.peerAddress.address.family == AddressFamily.IPv6)
+            assertTrue(client.peerAddress.address.family == AddressFamily.Ipv6)
             NativeByteBuffer.allocate(1L).use suspend { input ->
                 val reading = scope.launch suspend { client.readFully(input) }
                 NativeByteBuffer.allocate(1L).use suspend { output ->
@@ -33,11 +33,11 @@ private class AsyncTcpDuplexTest {
                     assertTrue(currentThreadId() == ownerThread)
                     output.clear()
                     server.readFully(output)
-                    assertEquals(42.toInt8(), output.getByte(0L))
+                    assertEquals(42.toByte(), output.getByte(0L))
                     server.writeFully(output)
                 }
                 reading.join()
-                assertEquals(42.toInt8(), input.getByte(0L))
+                assertEquals(42.toByte(), input.getByte(0L))
             }
         }
         gate.worker!!.join()

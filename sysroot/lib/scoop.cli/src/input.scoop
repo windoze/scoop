@@ -8,15 +8,15 @@ internal enum CliInputResult { Help, Value(CliInput) }
 internal struct CliAlias(val index: Long, val negative: Boolean)
 
 internal fun childPath(path: String, name: String): String {
-    val result = StringBuilder().add(path).add("/")
+    val result = StringBuilder().append(path).append("/")
     for (character in name) {
         when (character) {
-            case '~' -> { result.add("~0") }
-            case '/' -> { result.add("~1") }
-            else -> { result.add(character) }
+            case '~' -> { result.append("~0") }
+            case '/' -> { result.append("~1") }
+            else -> { result.append(character) }
         }
     }
-    return result.build()
+    return result.toString()
 }
 
 internal fun inputError(path: String, source: Option<CliSource>, message: String): Nothing {

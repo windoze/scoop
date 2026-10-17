@@ -1,2 +1,2 @@
-object Coding : Encodable<(Int, List<Int>)>
+object Coding : ValueEncoder<(Int, List<Int>)>
 fun main() {}

@@ -1,13 +1,13 @@
 package scoop.platform.system
 
 public class OsString private constructor(private val bytes: Array<Byte>) : Equals<OsString>, Hash {
-    public fun toBytes(): Array<Byte> = Array<Byte>(bytes.size) { index -> bytes[index] }
+    public fun toByteArray(): Array<Byte> = Array<Byte>(bytes.size) { index -> bytes[index] }
 
     public fun decodeUtf8(): String =
-        String.fromUtf8(Array<UInt8>(bytes.size) { index -> bytes[index].toUInt8() })
+        String.fromUtf8(bytes)
 
     public fun decodeUtf8Lossy(): String =
-        String.fromUtf8Lossy(Array<UInt8>(bytes.size) { index -> bytes[index].toUInt8() })
+        String.fromUtf8Lossy(bytes)
 
     public fun display(): String = decodeUtf8Lossy()
 
@@ -15,10 +15,9 @@ public class OsString private constructor(private val bytes: Array<Byte>) : Equa
     public override fun hash(): Long = byteContentsHash(bytes)
 
     public companion object {
-        public fun fromString(value: String): OsString = fromBytes(value.toByteArray())
-        public fun fromBytes(value: Array<Byte>): OsString =
+        public fun fromString(value: String): OsString = fromByteArray(value.toByteArray())
+        public fun fromByteArray(value: List<Byte>): OsString =
             OsString(Array<Byte>(value.size) { index -> value[index] })
-        public fun fromBytes(value: MutableArray<Byte>): OsString = OsString(Array<Byte>(value))
     }
 }
 
@@ -34,6 +33,6 @@ internal fun byteContentsEqual(left: Array<Byte>, right: Array<Byte>): Boolean {
 
 internal fun byteContentsHash(bytes: Array<Byte>): Long {
     var result = 1L
-    for (value in bytes) result = result * 31L + value.toInt64()
+    for (value in bytes) result = result * 31L + value.toLong()
     return result
 }

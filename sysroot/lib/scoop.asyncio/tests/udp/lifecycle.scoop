@@ -59,7 +59,7 @@ private class AsyncUdpLifecycleTest {
             assertTrue(binding.isCancelled)
             val socket = loop.bindUdp(address)
             val closing = scope.launch suspend {
-                try { currentJobOrNull()!!.cancel(); ensureActive() }
+                try { currentJobOrNone()!!.cancel(); ensureActive() }
                 finally { socket.close() }
             }
             closing.join()

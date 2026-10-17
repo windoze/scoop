@@ -3,7 +3,7 @@ import scoop.text.*
 
 enum Dependency {
     Short(String), Detailed(DependencyDetail)
-    companion object : Encodable<Dependency>, Decodable<Dependency> {
+    companion object : ValueEncoder<Dependency>, ValueDecoder<Dependency> {
         public override fun encode(value: Dependency, encoder: Encoder) {
             when (value) {
                 case Dependency.Short(text) -> String.encode(text, encoder)
@@ -24,7 +24,7 @@ enum Dependency {
 }
 
 class Dependencies public constructor(val values: LinkedHashMap<String, Dependency> = LinkedHashMap<String, Dependency>()) {
-    companion object : Encodable<Dependencies>, Decodable<Dependencies> {
+    companion object : ValueEncoder<Dependencies>, ValueDecoder<Dependencies> {
         public override fun encode(value: Dependencies, encoder: Encoder) {
             val fields = encoder.keyed()
             for (entry in value.values) { Dependency.Companion.encode(entry.value, fields.field(entry.key)) }
@@ -46,7 +46,7 @@ class Dependencies public constructor(val values: LinkedHashMap<String, Dependen
 }
 
 struct DependencyDetail(val version: String, val path: String? = None, val artifact: String? = None) {
-    companion object : Encodable<DependencyDetail>, Decodable<DependencyDetail> {
+    companion object : ValueEncoder<DependencyDetail>, ValueDecoder<DependencyDetail> {
         public override fun decode(decoder: Decoder): DependencyDetail {
             val fields = strict(decoder, ["version", "path", "artifact"])
             val value = DependencyDetailFields.decode(decoder)
@@ -59,4 +59,4 @@ struct DependencyDetail(val version: String, val path: String? = None, val artif
         }
     }
 }
-object DependencyDetailFields : Decodable<DependencyDetail> {}
+object DependencyDetailFields : ValueDecoder<DependencyDetail> {}

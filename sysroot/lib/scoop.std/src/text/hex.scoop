@@ -8,9 +8,9 @@ public fun List<Byte>.toHexString(uppercase: Boolean = false): String {
     val alphabet = if (uppercase) "0123456789ABCDEF" else "0123456789abcdef"
     var index = 0L
     while (index < length) {
-        val value = this[index].toUInt8().toInt32()
-        chars[index * 2L] = alphabet[(value / 16).toInt64()]
-        chars[index * 2L + 1L] = alphabet[(value % 16).toInt64()]
+        val value = this[index].toUByte().toInt()
+        chars[index * 2L] = alphabet[(value / 16).toLong()]
+        chars[index * 2L + 1L] = alphabet[(value % 16).toLong()]
         index += 1L
     }
     return String.fromChars(chars)
@@ -26,7 +26,7 @@ private fun parseHex(text: String): HexResult {
         val digit = textDigit(character)
         if (digit < 0 || digit >= 16) return HexResult.Invalid(index)
         if (first < 0) first = digit
-        else { output.append((first * 16 + digit).toInt8()); first = -1 }
+        else { output.append((first * 16 + digit).toByte()); first = -1 }
         index += 1L
     }
     if (first >= 0) return HexResult.Invalid(index)
@@ -38,7 +38,7 @@ public fun String.hexToByteArray(): Array<Byte> = when (parseHex(this)) {
     case HexResult.Invalid(index) -> throw IllegalArgumentException(Some("invalid hex at index " + index.toString()))
 }
 
-public fun String.hexToByteArrayOrNull(): Array<Byte>? = when (parseHex(this)) {
+public fun String.hexToByteArrayOrNone(): Array<Byte>? = when (parseHex(this)) {
     case HexResult.Bytes(value) -> Some(value)
     case HexResult.Invalid(_) -> None
 }

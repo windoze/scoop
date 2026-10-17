@@ -5,7 +5,7 @@ fun integerChoice(): Int {
     val wrapped = signed + 1
     val restored = (-wrapped).inv()
     val shifted = (255u shr 31L) + 1u
-    val widened = (-1).toUInt64()
+    val widened = (-1).toULong()
     if (wrapped < 0) {
         if (restored == 127) {
             if (shifted == 1u) {

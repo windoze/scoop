@@ -1,6 +1,6 @@
 package scoop.text
 
-public fun String.toFloatOrNull(): Float? {
+public fun String.toFloatOrNone(): Float? {
     if (this == "NaN") return Some(Float.NaN)
     if (this == "Infinity" || this == "+Infinity") return Some(Float.POSITIVE_INFINITY)
     if (this == "-Infinity") return Some(Float.NEGATIVE_INFINITY)
@@ -17,7 +17,7 @@ public fun String.toFloatOrNull(): Float? {
     return Some(if (rounded.negative) -value else value)
 }
 
-public fun String.toDoubleOrNull(): Double? {
+public fun String.toDoubleOrNone(): Double? {
     if (this == "NaN") return Some(Double.NaN)
     if (this == "Infinity" || this == "+Infinity") return Some(Double.POSITIVE_INFINITY)
     if (this == "-Infinity") return Some(Double.NEGATIVE_INFINITY)
@@ -34,5 +34,5 @@ public fun String.toDoubleOrNull(): Double? {
     return Some(if (rounded.negative) -value else value)
 }
 
-public fun String.toFloat(): Float = requireParsedNumber<Float>(toFloatOrNull())
-public fun String.toDouble(): Double = requireParsedNumber<Double>(toDoubleOrNull())
+public fun String.toFloat(): Float = requireParsedNumber<Float>(toFloatOrNone())
+public fun String.toDouble(): Double = requireParsedNumber<Double>(toDoubleOrNone())

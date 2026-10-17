@@ -4,7 +4,7 @@ fun main() {
     val add = Int::plus
     val divide = Int::div
     val negative = Int::unaryMinus
-    val widen = Int::toInt64
+    val widen = Int::toLong
     val invert = Boolean::not
     val concat = String::plus
     val increment = Int::increment

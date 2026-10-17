@@ -14,32 +14,32 @@ struct MessagesRequest(
     val diagnostics: RequestDiagnostics? = None,
     val metadata: Metadata? = None
 ) {
-    companion object : Encodable<MessagesRequest>, Decodable<MessagesRequest> {}
+    companion object : ValueEncoder<MessagesRequest>, ValueDecoder<MessagesRequest> {}
 }
 struct Turn(val role: String, val content: Content) {
-    companion object : Encodable<Turn>, Decodable<Turn> {}
+    companion object : ValueEncoder<Turn>, ValueDecoder<Turn> {}
 }
 struct RequestDiagnostics(val previous_message_id: String? = None) {
-    companion object : Encodable<RequestDiagnostics>, Decodable<RequestDiagnostics> {}
+    companion object : ValueEncoder<RequestDiagnostics>, ValueDecoder<RequestDiagnostics> {}
 }
 struct Metadata(val user_id: String? = None) {
-    companion object : Encodable<Metadata>, Decodable<Metadata> {}
+    companion object : ValueEncoder<Metadata>, ValueDecoder<Metadata> {}
 }
 struct OutputConfig(val effort: String? = None, val format: OutputFormat? = None) {
-    companion object : Encodable<OutputConfig>, Decodable<OutputConfig> {}
+    companion object : ValueEncoder<OutputConfig>, ValueDecoder<OutputConfig> {}
 }
 struct OutputFormat(val type: String, val schema: JsonValue) {
-    companion object : Encodable<OutputFormat>, Decodable<OutputFormat> {}
+    companion object : ValueEncoder<OutputFormat>, ValueDecoder<OutputFormat> {}
 }
 struct ContainerConfig(val id: String? = None, val skills: Array<Skill>? = None) {
-    companion object : Encodable<ContainerConfig>, Decodable<ContainerConfig> {}
+    companion object : ValueEncoder<ContainerConfig>, ValueDecoder<ContainerConfig> {}
 }
 struct Skill(val type: String, val skill_id: String, val version: String? = None) {
-    companion object : Encodable<Skill>, Decodable<Skill> {}
+    companion object : ValueEncoder<Skill>, ValueDecoder<Skill> {}
 }
 enum Container {
     Text(String), Config(ContainerConfig)
-    companion object : Encodable<Container>, Decodable<Container> {
+    companion object : ValueEncoder<Container>, ValueDecoder<Container> {
         public override fun encode(value: Container, encoder: Encoder) {
             when (value) {
                 case Container.Text(text) -> String.encode(text, encoder)

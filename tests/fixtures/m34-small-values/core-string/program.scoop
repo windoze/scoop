@@ -13,11 +13,11 @@ fun main() {
     badIndex(text, 3L)
     badIndex("", 0L)
     check(text.slice(1L, 3L) == "雪🙂")
-    val bytes: Array<UInt8> = [65u, 0xe9u, 0x9bu, 0xaau]
+    val bytes: List<Byte> = [65.toByte(), 0xe9.toByte(), 0x9b.toByte(), 0xaa.toByte()]
     val decoded = String.fromUtf8(bytes)
     gcCollect()
     check(decoded[1L] == '雪')
-    val invalid: Array<UInt8> = [0xffu]
+    val invalid: List<Byte> = [0xff.toByte()]
     check(String.fromUtf8OrNone(invalid) == None)
     println("core string ABI")
 }

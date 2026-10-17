@@ -1,18 +1,18 @@
 package scoop.cli
 
-@Target([AnnotationTarget.FIELD, AnnotationTarget.PROPERTY])
+@Target([AnnotationTarget.Field, AnnotationTarget.Property])
 public annotation class CliOption(
     val names: Array<String> = [], val help: String = "",
     val valueName: String = "", val defaultText: String = ""
 )
 
-@Target([AnnotationTarget.FIELD, AnnotationTarget.PROPERTY])
+@Target([AnnotationTarget.Field, AnnotationTarget.Property])
 public annotation class CliFlag(
     val names: Array<String> = [], val negativeNames: Array<String> = [],
     val help: String = "", val defaultText: String = ""
 )
 
-@Target([AnnotationTarget.FIELD, AnnotationTarget.PROPERTY])
+@Target([AnnotationTarget.Field, AnnotationTarget.Property])
 public annotation class CliArgument(
     val position: Long, val help: String = "", val valueName: String = "", val defaultText: String = ""
 )

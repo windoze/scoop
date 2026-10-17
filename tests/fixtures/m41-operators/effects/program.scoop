@@ -9,7 +9,7 @@ fun main() {
     val floating: Div<Float, Float> = 1f
     val double: Rem<Double, Double> = 1.0
     check((floating / 0f).isInfinite() && (double % 0.0).isNaN())
-    val overflow: UnaryMinus<Int8> = (-128).toInt8()
-    check(-overflow == (-128).toInt8())
+    val overflow: UnaryMinus<Int8> = (-128).toByte()
+    check(-overflow == (-128).toByte())
     println("operator effects")
 }

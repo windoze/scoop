@@ -1,6 +1,6 @@
 package scoop
 
-internal class ResultEncoder<T, E>(private val success: Encodable<T>, private val failure: Encodable<E>) : Encodable<Result<T, E>> {
+internal class ResultEncoder<T, E>(private val success: ValueEncoder<T>, private val failure: ValueEncoder<E>) : ValueEncoder<Result<T, E>> {
     public override fun encode(value: Result<T, E>, encoder: Encoder) {
         val fields = encoder.keyed()
         when (value) {
@@ -11,7 +11,7 @@ internal class ResultEncoder<T, E>(private val success: Encodable<T>, private va
     }
 }
 
-internal class ResultDecoder<T, E>(private val success: Decodable<T>, private val failure: Decodable<E>) : Decodable<Result<T, E>> {
+internal class ResultDecoder<T, E>(private val success: ValueDecoder<T>, private val failure: ValueDecoder<E>) : ValueDecoder<Result<T, E>> {
     public override fun decode(decoder: Decoder): Result<T, E> {
         val fields = decoder.keyed()
         val names = fields.keys

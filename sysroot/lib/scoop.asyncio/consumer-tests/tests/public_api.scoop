@@ -26,7 +26,7 @@ private class AsyncioConsumerTest {
                     val packet = receiving.await()
                     assertEquals(1L, packet.count)
                     assertEquals(owned.localAddress, packet.source)
-                    input.readByte().toInt32()
+                    input.readByte().toInt()
                 }
             }
             PacketValue(value)

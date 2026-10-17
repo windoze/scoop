@@ -4,12 +4,12 @@ import scoop.platform.system.OsString
 
 @Unsafe
 public fun <R> OsString.withNativeString(block: (Ptr<Byte>) -> R): R {
-    val source = toBytes()
+    val source = toByteArray()
     for (byte in source) {
         if (byte == 0) throw IllegalArgumentException(Some("native string contains NUL"))
     }
     if (source.size == Long.MAX_VALUE) throw ArithmeticException()
-    val bytes = Array<Byte>(source.size + 1L) { index -> if (index == source.size) 0.toInt8() else source[index] }
+    val bytes = Array<Byte>(source.size + 1L) { index -> if (index == source.size) 0.toByte() else source[index] }
     return bytes.withDataPointer { pointer, _ -> block(pointer) }
 }
 
@@ -19,7 +19,7 @@ public fun <R> Path.withNativePath(block: (Ptr<Byte>) -> R): R = toOsString().wi
 @Unsafe
 internal fun copyNativeString(pointer: Ptr<Byte>): OsString {
     val length = nativeStringLength(pointer)
-    return OsString.fromBytes(Array<Byte>(length) { index -> @Unsafe { return@Array pointer.load(index) } })
+    return OsString.fromByteArray(Array<Byte>(length) { index -> @Unsafe { return@Array pointer.load(index) } })
 }
 
 @GCLeaf @Extern(name = "scoop_platform_string_length")

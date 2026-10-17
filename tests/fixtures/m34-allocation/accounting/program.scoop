@@ -4,7 +4,7 @@ fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
 fun fill(values: MutableArray<Node?>) {
     var index = 0L
     while (index < values.size) {
-        values[index] = Some(Node(index.toInt32()))
+        values[index] = Some(Node(index.toInt()))
         index += 1L
     }
 }

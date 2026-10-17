@@ -4,9 +4,9 @@ fun check(value: Boolean) {
     if (!value) { throw IllegalStateException(Some("container codec assertion failed")) }
 }
 
-fun <T> reject(text: String, codec: Decodable<T>, path: String) {
+fun <T> reject(text: String, codec: ValueDecoder<T>, path: String) {
     var rejected: Boolean = false
-    try { val result = Json.decode(text, codec) }
+    try { val result = Json.decodeFromString(text, codec) }
     catch (error: DecodingException) {
         check(error.path == path)
         rejected = true
@@ -15,7 +15,7 @@ fun <T> reject(text: String, codec: Decodable<T>, path: String) {
 }
 
 public struct User(val id: Long, val name: String) {
-    public companion object : Encodable<User>, Decodable<User> {
+    public companion object : ValueEncoder<User>, ValueDecoder<User> {
         public override fun encode(value: User, encoder: Encoder) {
             val fields = encoder.keyed()
             Long.encode(value.id, fields.field("id/~"))
@@ -37,7 +37,7 @@ public struct User(val id: Long, val name: String) {
 }
 
 public struct Numbers(val elements: Array<Long>) {
-    public companion object : Encodable<Numbers>, Decodable<Numbers> {
+    public companion object : ValueEncoder<Numbers>, ValueDecoder<Numbers> {
         public override fun encode(value: Numbers, encoder: Encoder) {
             val sequence = encoder.unkeyed()
             for (element in value.elements) { Long.encode(element, sequence.element()) }
@@ -54,15 +54,15 @@ public struct Numbers(val elements: Array<Long>) {
     }
 }
 
-object Unread : Decodable<Long> {
+object Unread : ValueDecoder<Long> {
     public override fun decode(decoder: Decoder): Long = 42L
 }
 
-object Incomplete : Encodable<Unit> {
+object Incomplete : ValueEncoder<Unit> {
     public override fun encode(value: Unit, encoder: Encoder) { val fields = encoder.keyed() }
 }
 
-object ExtraElement : Decodable<Long> {
+object ExtraElement : ValueDecoder<Long> {
     public override fun decode(decoder: Decoder): Long {
         val elements = decoder.unkeyed()
         val value = Long.decode(elements.element())
@@ -71,7 +71,7 @@ object ExtraElement : Decodable<Long> {
     }
 }
 
-object WrongEncoderContainer : Encodable<Unit> {
+object WrongEncoderContainer : ValueEncoder<Unit> {
     public override fun encode(value: Unit, encoder: Encoder) {
         val fields = encoder.keyed()
         (encoder as SingleValueEncodingContainer).writeLong(1L)
@@ -79,14 +79,14 @@ object WrongEncoderContainer : Encodable<Unit> {
     }
 }
 
-object ScalarView : Decodable<Long> {
+object ScalarView : ValueDecoder<Long> {
     public override fun decode(decoder: Decoder): Long =
         (decoder as SingleValueDecodingContainer).readLong()
 }
 
-fun <T> rejectEncoding(value: T, codec: Encodable<T>) {
+fun <T> rejectEncoding(value: T, codec: ValueEncoder<T>) {
     var rejected: Boolean = false
-    try { val result = Json.encode(value, codec) }
+    try { val result = Json.encodeToString(value, codec) }
     catch (error: EncodingException) {
         check(error.path == "")
         rejected = true
@@ -95,16 +95,16 @@ fun <T> rejectEncoding(value: T, codec: Encodable<T>) {
 }
 
 fun main() {
-    check(Json.encode(User(7L, "雪"), User.Companion) == "{\"id/~\":7,\"name\":\"雪\"}")
-    val user = Json.decode("{\"name\":\"雪\",\"id/~\":7}", User.Companion)
+    check(Json.encodeToString(User(7L, "雪"), User.Companion) == "{\"id/~\":7,\"name\":\"雪\"}")
+    val user = Json.decodeFromString("{\"name\":\"雪\",\"id/~\":7}", User.Companion)
     check(user == User(7L, "雪"))
-    val missing = Json.decode("{\"unknown\":[null,true,{\"a\":-12.3e+4}],\"id/~\":8}", User.Companion)
+    val missing = Json.decodeFromString("{\"unknown\":[null,true,{\"a\":-12.3e+4}],\"id/~\":8}", User.Companion)
     check(missing == User(8L, "anonymous"))
-    check(Json.encode(Numbers([1L, -2L, 3L]), Numbers.Companion) == "[1,-2,3]")
-    val numbers = Json.decode(" [ 4 , 5 , 6 ] ", Numbers.Companion)
+    check(Json.encodeToString(Numbers([1L, -2L, 3L]), Numbers.Companion) == "[1,-2,3]")
+    val numbers = Json.decodeFromString(" [ 4 , 5 , 6 ] ", Numbers.Companion)
     check(numbers.elements.size == 3L && numbers.elements[1L] == 5L)
-    check(Json.encode(Json.decode("[]", Numbers.Companion), Numbers.Companion) == "[]")
-    check(Json.encode(Unit, UnitEncoder) == "null")
+    check(Json.encodeToString(Json.decodeFromString("[]", Numbers.Companion), Numbers.Companion) == "[]")
+    check(Json.encodeToString(Unit, UnitEncoder) == "null")
     reject("{}", User.Companion, "/id~1~0")
     reject("{\"id/~\":null}", User.Companion, "/id~1~0")
     reject("{\"id/~\":1,\"name\":null}", User.Companion, "/name")
@@ -114,27 +114,27 @@ fun main() {
     reject("[1,null]", Numbers.Companion, "/1")
     reject("[]", ExtraElement, "/0")
     reject("[1,2]", ExtraElement, "")
-    check(Json.decode("42", Unread) == 42L)
-    check(Json.decode("42", ScalarView) == 42L)
+    check(Json.decodeFromString("42", Unread) == 42L)
+    check(Json.decodeFromString("42", ScalarView) == 42L)
     rejectEncoding(Unit, Incomplete)
     rejectEncoding(Unit, WrongEncoderContainer)
     val sequence: Array<Option<Long>> = [None, Some(8L)]
     val optionEncoder = Option<Long>.Companion.encoder(Long.Companion)
     val sequenceEncoder = Array<Option<Long>>.Companion.encoder(optionEncoder)
-    check(Json.encode(sequence, sequenceEncoder) == "[null,8]")
+    check(Json.encodeToString(sequence, sequenceEncoder) == "[null,8]")
     val mutable = MutableArray<Long>(2L) { index -> index + 1L }
-    check(Json.encode(mutable, MutableArray<Long>.Companion.encoder(Long.Companion)) == "[1,2]")
+    check(Json.encodeToString(mutable, MutableArray<Long>.Companion.encoder(Long.Companion)) == "[1,2]")
     val list = ArrayList<Long>()
     list.add(3L)
-    check(Json.encode(list, ArrayList<Long>.Companion.encoder(Long.Companion)) == "[3]")
-    val listEncoder = EncodeFunction<List<Long>>({ values, encoder -> encodeList(values, Long.Companion, encoder) })
-    check(Json.encode<List<Long>>(list, listEncoder) == "[3]")
-    val pairEncoder = EncodeFunction<(Long, String)>({ value, encoder ->
+    check(Json.encodeToString(list, ArrayList<Long>.Companion.encoder(Long.Companion)) == "[3]")
+    val listEncoder = ValueEncoderFunction<List<Long>>({ values, encoder -> encodeList(values, Long.Companion, encoder) })
+    check(Json.encodeToString<List<Long>>(list, listEncoder) == "[3]")
+    val pairEncoder = ValueEncoderFunction<(Long, String)>({ value, encoder ->
         val elements = encoder.unkeyed()
         Long.encode(value._1, elements.element())
         String.encode(value._2, elements.element())
         elements.end()
     })
-    check(Json.encode((4L, "pair"), pairEncoder) == "[4,\"pair\"]")
+    check(Json.encodeToString((4L, "pair"), pairEncoder) == "[4,\"pair\"]")
     println("containers-ok")
 }

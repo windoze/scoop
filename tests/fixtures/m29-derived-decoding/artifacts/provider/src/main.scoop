@@ -8,8 +8,8 @@ public struct Packet<T>(
     val count: Int = next(7),
     @Serialize(ignore = true) val ignored: Int = count + 1
 )
-public class PacketDecoder<T> public constructor(private val element: Decodable<T>)
-    : Decodable<Packet<T>>
+public class PacketDecoder<T> public constructor(private val element: ValueDecoder<T>)
+    : ValueDecoder<Packet<T>>
 
 public class Row<T> public constructor(private val id: Int, public val value: T, plain: Int = next(3)) {
     @Serialize(ignore = true) private val cached: Int = id + plain
@@ -24,16 +24,16 @@ public enum Event<T> {
 }
 
 public struct Nest<T>(val values: (T, Option<Array<T>>))
-public class NestDecoder<T> public constructor(private val element: Decodable<T>)
-    : Decodable<Nest<T>>
+public class NestDecoder<T> public constructor(private val element: ValueDecoder<T>)
+    : ValueDecoder<Nest<T>>
 
 public struct Collision(@Serialize(rename = "remote") val value: Int) {
-    public companion object : Decodable<Collision>
+    public companion object : ValueDecoder<Collision>
 }
 public typealias ForeignCollision = Collision
 
 public struct Phantom<T>(val value: Int) {
-    public companion object : Decodable<Phantom<T>>
+    public companion object : ValueDecoder<Phantom<T>>
 }
 
 public struct Batch<T>(val seed: T, vararg val values: T = [seed])

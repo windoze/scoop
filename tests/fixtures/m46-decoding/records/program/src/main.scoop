@@ -1,6 +1,6 @@
 import scoop.json.Json
 
-object RecordReader : Decodable<Long> {
+object RecordReader : ValueDecoder<Long> {
     public override fun decode(decoder: Decoder): Long {
         check(!decoder.singleValue().isNull())
         reject("") { decoder.singleValue().readString() }
@@ -33,11 +33,11 @@ object RecordReader : Decodable<Long> {
 }
 
 fun main() {
-    check(Json.decode("{\"id\":7,\"null\":null,\"text\":\"retained\"}", RecordReader) == 7L)
-    val ignore = DecodeFunction<Long>({ decoder -> 42L })
-    check(Json.decode("{\"unused\":[1,{\"nested\":true}]}", ignore) == 42L)
-    reject("/unused/1") { Json.decode("{\"unused\":[1,]}", ignore) }
-    reject("/unused/x") { Json.decode("{\"unused\":{\"x\":1,\"x\":2}}", ignore) }
-    reject("") { Json.decode("{} true", ignore) }
+    check(Json.decodeFromString("{\"id\":7,\"null\":null,\"text\":\"retained\"}", RecordReader) == 7L)
+    val ignore = ValueDecoderFunction<Long>({ decoder -> 42L })
+    check(Json.decodeFromString("{\"unused\":[1,{\"nested\":true}]}", ignore) == 42L)
+    reject("/unused/1") { Json.decodeFromString("{\"unused\":[1,]}", ignore) }
+    reject("/unused/x") { Json.decodeFromString("{\"unused\":{\"x\":1,\"x\":2}}", ignore) }
+    reject("") { Json.decodeFromString("{} true", ignore) }
     println("records-ok")
 }

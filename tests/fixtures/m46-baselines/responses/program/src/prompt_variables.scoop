@@ -2,7 +2,7 @@ import scoop.collections.*
 
 enum PromptValue {
     Text(String), Image(ResponseImage), File(ResponseFile)
-    companion object : Encodable<PromptValue>, Decodable<PromptValue> {
+    companion object : ValueEncoder<PromptValue>, ValueDecoder<PromptValue> {
         public override fun encode(value: PromptValue, encoder: Encoder) {
             when (value) {
                 case PromptValue.Text(text) -> String.encode(text, encoder)
@@ -32,7 +32,7 @@ enum PromptValue {
     }
 }
 class PromptVariables(val values: LinkedHashMap<String, PromptValue>) {
-    companion object : Encodable<PromptVariables>, Decodable<PromptVariables> {
+    companion object : ValueEncoder<PromptVariables>, ValueDecoder<PromptVariables> {
         public override fun encode(value: PromptVariables, encoder: Encoder) { writeObject(value.values, encoder, PromptValue.Companion) }
         public override fun decode(decoder: Decoder): PromptVariables = PromptVariables(readObject(decoder, PromptValue.Companion))
     }

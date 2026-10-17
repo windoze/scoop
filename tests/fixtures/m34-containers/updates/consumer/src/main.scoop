@@ -5,7 +5,7 @@ fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
 fun tableReceiver(table: Indexed): Indexed { mark(1); return table }
 fun index(): Long { mark(2); return 0L }
 fun right(): Int { mark(5); return 7 }
-fun gridIndex(value: Int): Long { mark(value); return value.toInt64() }
+fun gridIndex(value: Int): Long { mark(value); return value.toLong() }
 
 class UpdateFailure : Exception(None)
 

@@ -1,11 +1,11 @@
 import scoop.json.Json
 
 struct First(val id: Long, val text: Long) {
-    companion object : Decodable<First> {}
+    companion object : ValueDecoder<First> {}
 }
 
 struct Second(val id: Long, val text: String) {
-    companion object : Decodable<Second> {}
+    companion object : ValueDecoder<Second> {}
 }
 
 class Count(var defaults: Long)
@@ -13,10 +13,10 @@ val count = Count(0L)
 fun nextDefault(): Long { count.defaults += 1L; return 9L }
 
 struct Defaults(val id: Long, val limit: Long = nextDefault()) {
-    companion object : Decodable<Defaults> {}
+    companion object : ValueDecoder<Defaults> {}
 }
 
-object RetryRecord : Decodable<Second> {
+object RetryRecord : ValueDecoder<Second> {
     public override fun decode(decoder: Decoder): Second {
         reject("/0/text") { First.Companion.decode(decoder) }
         val result = Second.Companion.decode(decoder)
@@ -25,10 +25,10 @@ object RetryRecord : Decodable<Second> {
     }
 }
 
-object Pair : Decodable<(Long, String)> {}
+object Pair : ValueDecoder<(Long, String)> {}
 
 fun main() {
-    val codec = DecodeFunction<Second>({ decoder ->
+    val codec = ValueDecoderFunction<Second>({ decoder ->
         val values = decoder.unkeyed()
         val child = values.element()
         val result = RetryRecord.decode(child)
@@ -36,18 +36,18 @@ fun main() {
         values.end()
         result
     })
-    check(Json.decode("[{\"id\":7,\"text\":\"ok\"},2]", codec) == Second(7L, "ok"))
-    val defaults = DecodeFunction<Long>({ decoder ->
+    check(Json.decodeFromString("[{\"id\":7,\"text\":\"ok\"},2]", codec) == Second(7L, "ok"))
+    val defaults = ValueDecoderFunction<Long>({ decoder ->
         val first = Defaults.Companion.decode(decoder)
         val second = Defaults.Companion.decode(decoder)
         first.limit + second.limit
     })
-    check(Json.decode("{\"id\":1}", defaults) == 18L)
+    check(Json.decodeFromString("{\"id\":1}", defaults) == 18L)
     check(count.defaults == 2L)
-    reject("/limit") { Json.decode("{\"id\":1,\"limit\":null}", Defaults.Companion) }
+    reject("/limit") { Json.decodeFromString("{\"id\":1,\"limit\":null}", Defaults.Companion) }
     check(count.defaults == 2L)
-    check(Json.decode("[1,\"pair\"]", Pair) == (1L, "pair"))
-    reject("/1") { Json.decode("[1]", Pair) }
-    reject("") { Json.decode("[1,\"pair\",3]", Pair) }
+    check(Json.decodeFromString("[1,\"pair\"]", Pair) == (1L, "pair"))
+    reject("/1") { Json.decodeFromString("[1]", Pair) }
+    reject("") { Json.decodeFromString("[1,\"pair\",3]", Pair) }
     println("composition-ok")
 }

@@ -7,7 +7,7 @@ fun check(value: Boolean, label: String) {
 
 fun main() {
     val map = sortedMapOf<Int, String>((5, "five"), (1, "one"), (3, "three"))
-    check(map.firstEntryOrNull()!!.key == 1 && map.lastEntryOrNull()!!.key == 5, "ends")
+    check(map.firstEntryOrNone()!!.key == 1 && map.lastEntryOrNone()!!.key == 5, "ends")
     check(map.lowerEntry(3)!!.key == 1 && map.floorEntry(3)!!.key == 3, "lower bounds")
     check(map.ceilingEntry(3)!!.key == 3 && map.higherEntry(3)!!.key == 5, "upper bounds")
     check(map.lowerEntry(1) == None && map.higherEntry(5) == None, "absent bounds")
@@ -22,33 +22,33 @@ fun main() {
     try { iterator.next() } catch (error: ConcurrentModificationException) { invalid = true }
     check(invalid, "iterator invalidation")
     val empty = sortedMapOf<Int, String>()
-    check(empty.firstEntryOrNull() == None && empty.ceilingEntry(1) == None, "empty")
+    check(empty.firstEntryOrNone() == None && empty.ceilingEntry(1) == None, "empty")
     val exhausted = empty.iterator()
     check(exhausted.next() == None, "exhaust")
     empty[1] = "new"
     check(exhausted.next() == None, "permanent exhaustion")
     val set = sortedSetOf<Int>(5, 1, 3, 1)
-    check(set.size == 3L && set.firstOrNull() == Some(1) && set.lastOrNull() == Some(5), "set")
+    check(set.size == 3L && set.firstOrNone() == Some(1) && set.lastOrNone() == Some(5), "set")
     check(set.lower(3) == Some(1) && set.floor(3) == Some(3), "set lower")
     check(set.ceiling(3) == Some(3) && set.higher(3) == Some(5), "set upper")
-    val range = set.subSet(1, 5)
-    check(range.size == 2L && range.lastOrNull() == Some(3) && !(range is MutableSet<Int>), "range snapshot")
+    val range = set.copyOfRange(1, 5)
+    check(range.size == 2L && range.lastOrNone() == Some(3) && !(range is MutableSet<Int>), "range snapshot")
     set.clear()
     check(range.size == 2L, "independent range")
     val reverse = sortedMapOf<Int, String>(reverseOrder<Int>(), (1, "a"), (2, "b"), (3, "c"))
-    check(reverse.firstEntryOrNull()!!.key == 3 && reverse.lowerEntry(2)!!.key == 3, "reverse order")
-    val slice = reverse.subMap(3, 1, toInclusive = true)
+    check(reverse.firstEntryOrNone()!!.key == 3 && reverse.lowerEntry(2)!!.key == 3, "reverse order")
+    val slice = reverse.copyOfRange(3, 1, toInclusive = true)
     check(slice.size == 3L && slice.comparator === reverse.comparator, "reverse range")
-    check(reverse.subMap(2, 2).isEmpty() && reverse.subMap(2, 2, toInclusive = true).size == 1L, "equal bounds")
+    check(reverse.copyOfRange(2, 2).isEmpty() && reverse.copyOfRange(2, 2, toInclusive = true).size == 1L, "equal bounds")
     invalid = false
-    try { reverse.subMap(1, 3) } catch (error: IllegalArgumentException) { invalid = true }
+    try { reverse.copyOfRange(1, 3) } catch (error: IllegalArgumentException) { invalid = true }
     check(invalid, "invalid bounds")
     val snapshot = reverse.toSortedMap()
     reverse.clear()
-    check(snapshot.firstEntryOrNull()!!.key == 1 && !(snapshot is MutableMap<Int, String>), "sorted conversion")
+    check(snapshot.firstEntryOrNone()!!.key == 1 && !(snapshot is MutableMap<Int, String>), "sorted conversion")
     val fromEntries = listOf<(Int, String)>((2, "a"), (1, "b"), (2, "c")).toSortedMap(reverseOrder<Int>())
-    check(fromEntries.firstEntryOrNull()!!.key == 2 && fromEntries[2] == Some("c"), "tuple conversion")
+    check(fromEntries.firstEntryOrNone()!!.key == 2 && fromEntries[2] == Some("c"), "tuple conversion")
     val fromList = listOf<Int>(2, 1, 2).toSortedSet()
-    check(fromList.firstOrNull() == Some(1) && !(fromList is MutableSet<Int>), "sorted set snapshot")
+    check(fromList.firstOrNone() == Some(1) && !(fromList is MutableSet<Int>), "sorted set snapshot")
     println("tree basic passed")
 }

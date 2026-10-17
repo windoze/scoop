@@ -13,28 +13,28 @@ private class UdpTest {
                 UdpSocket.bind(SocketAddress(address, 0)).use { sender ->
                     NativeByteBuffer.allocate(16L).use { send ->
                         NativeByteBuffer.allocate(8L).use { receive ->
-                            assertEquals(0L, sender.sendTo(send, receiver.localAddress))
+                            assertEquals(0L, sender.sendTo(send, receiver.localAddress()))
                             val empty = receiver.receiveFrom(receive)
                             assertEquals(0L, empty.count)
                             assertFalse(empty.truncated)
-                            assertEquals(sender.localAddress, empty.source)
+                            assertEquals(sender.localAddress(), empty.source)
                             assertEquals(0L, receive.readableBytes)
-                            send.writeBytes(Array<Byte>(16L) { it.toInt8() })
-                            assertEquals(16L, sender.sendTo(send, receiver.localAddress))
+                            send.writeBytes(Array<Byte>(16L) { it.toByte() })
+                            assertEquals(16L, sender.sendTo(send, receiver.localAddress()))
                             assertEquals(0L, send.readableBytes)
                             val truncated = receiver.receiveFrom(receive)
                             assertEquals(8L, truncated.count)
                             assertTrue(truncated.truncated)
-                            for (index in 0L..<8L) assertEquals(index.toInt8(), receive.readByte())
+                            for (index in 0L..<8L) assertEquals(index.toByte(), receive.readByte())
                             send.clear()
-                            send.writeByte(42.toInt8())
-                            sender.sendTo(send, receiver.localAddress)
+                            send.writeByte(42.toByte())
+                            sender.sendTo(send, receiver.localAddress())
                             receive.clear()
                             gcCollect()
                             val next = receiver.receiveFrom(receive, 1L)
                             assertEquals(1L, next.count)
                             assertFalse(next.truncated)
-                            assertEquals(42.toInt8(), receive.readByte())
+                            assertEquals(42.toByte(), receive.readByte())
                         }
                     }
                 }
@@ -51,11 +51,11 @@ private class UdpTest {
                 assertFailsWith<IndexOutOfBoundsException> { socket.receiveFrom(empty, 1L) }
             }
             NativeByteBuffer.allocate(70000L).use { buffer ->
-                buffer.writeBytes(Array<Byte>(70000L) { 1.toInt8() })
-                assertFailsWith<PlatformException> { socket.sendTo(buffer, socket.localAddress) }
+                buffer.writeBytes(Array<Byte>(70000L) { 1.toByte() })
+                assertFailsWith<PlatformException> { socket.sendTo(buffer, socket.localAddress()) }
                 assertEquals(70000L, buffer.readableBytes)
-                assertFailsWith<IllegalArgumentException> { socket.sendTo(buffer, socket.localAddress, -1L) }
-                assertFailsWith<IndexOutOfBoundsException> { socket.sendTo(buffer, socket.localAddress, 70001L) }
+                assertFailsWith<IllegalArgumentException> { socket.sendTo(buffer, socket.localAddress(), -1L) }
+                assertFailsWith<IndexOutOfBoundsException> { socket.sendTo(buffer, socket.localAddress(), 70001L) }
             }
         }
     }
@@ -63,11 +63,11 @@ private class UdpTest {
     @Test
     fun `UDP close consumes the owner exactly once`() {
         val socket = UdpSocket.bind(SocketAddress(IpAddress.IPV4_LOOPBACK, 0), true)
-        val address = socket.localAddress
+        val address = socket.localAddress()
         socket.close()
         socket.close()
-        assertTrue(socket.isDisposed)
-        assertFailsWith<IllegalStateException> { socket.localAddress }
+        assertTrue(socket.isClosed)
+        assertFailsWith<IllegalStateException> { socket.localAddress() }
         NativeByteBuffer.allocate(1L).use { buffer ->
             assertFailsWith<IllegalStateException> { socket.sendTo(buffer, address) }
             assertFailsWith<IllegalStateException> { socket.receiveFrom(buffer) }

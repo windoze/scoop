@@ -6,11 +6,11 @@ fun exercise(order: ByteOrder) {
     val builder = ByteArrayBuilder()
     val single = Array<Int>(6L) { index -> when (index) {
         case 0L -> 0; case 1L -> Int.MIN_VALUE; case 2L -> 0x7f800001
-        case 3L -> 0xffc01234u.toInt32(); case 4L -> 0x7f800000; case _ -> 1
+        case 3L -> 0xffc01234u.toInt(); case 4L -> 0x7f800000; case _ -> 1
     } }
     val wide = Array<Long>(6L) { index -> when (index) {
         case 0L -> 0L; case 1L -> Long.MIN_VALUE; case 2L -> 0x7ff0000000000001L
-        case 3L -> 0xfff80123456789abuL.toInt64(); case 4L -> 0x7ff0000000000000L; case _ -> 1L
+        case 3L -> 0xfff80123456789abuL.toLong(); case 4L -> 0x7ff0000000000000L; case _ -> 1L
     } }
     var index = 0L
     while (index < 6L) {
@@ -28,21 +28,21 @@ fun exercise(order: ByteOrder) {
     check(reader.remaining == 0L)
 }
 fun main() {
-    exercise(ByteOrder.BIG_ENDIAN)
-    exercise(ByteOrder.LITTLE_ENDIAN)
+    exercise(ByteOrder.BigEndian)
+    exercise(ByteOrder.LittleEndian)
     val builder = ByteArrayBuilder()
-    builder.writeFloat(1f, ByteOrder.BIG_ENDIAN)
-    builder.writeDouble(-0.0, ByteOrder.LITTLE_ENDIAN)
+    builder.writeFloat(1f, ByteOrder.BigEndian)
+    builder.writeDouble(-0.0, ByteOrder.LittleEndian)
     val expected = "3f8000000000000000000080"
     val output = builder.toByteArray()
     var index = 0L
     while (index < output.size) {
-        check(output[index].toUInt8() == expected.substring(index * 2L, index * 2L + 2L).toUInt8(16))
+        check(output[index].toUByte() == expected.substring(index * 2L, index * 2L + 2L).toUByte(16))
         index += 1L
     }
     val signaling = Array<Byte>(4L) { i -> when (i) {
-        case 0L -> 0x7f.toInt8(); case 1L -> 0x80.toInt8(); case 2L -> 0.toInt8(); case _ -> 1.toInt8()
+        case 0L -> 0x7f.toByte(); case 1L -> 0x80.toByte(); case 2L -> 0.toByte(); case _ -> 1.toByte()
     } }
-    check(ByteArrayReader(signaling).readFloat(ByteOrder.BIG_ENDIAN).toBits() == 0x7f800001)
+    check(ByteArrayReader(signaling).readFloat(ByteOrder.BigEndian).toBits() == 0x7f800001)
     println("bytes floating passed")
 }

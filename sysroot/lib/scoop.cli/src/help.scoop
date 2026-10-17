@@ -3,10 +3,10 @@ package scoop.cli
 internal fun joined(values: Array<String>, separator: String): String {
     val result = StringBuilder()
     for (index in 0L until values.size) {
-        if (index != 0L) { result.add(separator) }
-        result.add(values[index])
+        if (index != 0L) { result.append(separator) }
+        result.append(values[index])
     }
-    return result.build()
+    return result.toString()
 }
 
 internal fun choicesText(choices: Array<CliChoice>): String =

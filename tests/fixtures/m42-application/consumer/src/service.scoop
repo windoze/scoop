@@ -12,28 +12,27 @@ import scoop.uuid.Uuid
 public fun parseRow(line: String, random: Random): Result<Event, String> {
     val fields = line.split('|')
     if (fields.size != 3L) return Result.Failure<Event, String>("shape")
-    val score = when (fields[1L].toIntOrNull()) {
+    val score = when (fields[1L].toIntOrNone()) {
         case Some(value) -> value
         case None -> return Result.Failure<Event, String>("score")
     }
-    val date = when (OffsetDateTime.parseOrNull(fields[0L])) {
+    val date = when (OffsetDateTime.parseOrNone(fields[0L])) {
         case Some(value) -> value
         case None -> return Result.Failure<Event, String>("date")
     }
     return Result.Success<Event, String>(Event(Uuid.random(random), date.toInstant(), score, fields[2L]))
 }
 
-public fun <T> frameRoundTrip(rows: List<T>, encoder: Encodable<T>, decoder: Decodable<T>): List<T> {
+public fun <T> frameRoundTrip(rows: List<T>, encoder: ValueEncoder<T>, decoder: ValueDecoder<T>): List<T> {
     val payload = encodeRows<T>(rows, encoder).toByteArray()
     val builder = ByteArrayBuilder()
-    builder.writeInt(42, ByteOrder.BIG_ENDIAN)
-    builder.writeLong(payload.size, ByteOrder.LITTLE_ENDIAN)
+    builder.writeInt32(42, ByteOrder.BigEndian)
+    builder.writeInt64(payload.size, ByteOrder.LittleEndian)
     builder.append(payload)
     val text = Base64.UrlSafe.encode(builder.toByteArray())
     val reader = ByteArrayReader(Base64.UrlSafe.decode(text))
-    if (reader.readInt(ByteOrder.BIG_ENDIAN) != 42) throw IllegalStateException()
-    val restored = reader.readBytes(reader.readLong(ByteOrder.LITTLE_ENDIAN))
+    if (reader.readInt32(ByteOrder.BigEndian) != 42) throw IllegalStateException()
+    val restored = reader.readBytes(reader.readInt64(ByteOrder.LittleEndian))
     if (reader.remaining != 0L) throw IllegalStateException()
-    val utf8 = Array<UInt8>(restored.size) { index -> restored[index].toUInt8() }
-    return decodeRows<T>(String.fromUtf8(utf8), decoder)
+    return decodeRows<T>(String.fromUtf8(restored), decoder)
 }

@@ -1,11 +1,11 @@
 package scoop.platform.io
 
 import scoop.bytes.ByteArrayBuilder
-import scoop.platform.fs.Files
+import scoop.platform.fs.*
 import scoop.platform.fs.Path
 import scoop.platform.memory.NativeByteBuffer
 
-internal class TestSource(private val data: Array<Byte>, private val chunk: Long = 2L) : ByteSource, Disposable {
+internal class TestSource(private val data: Array<Byte>, private val chunk: Long = 2L) : ByteSource, Closeable {
     var position: Long = 0L
     var closed: Boolean = false
     var closes: Int = 0
@@ -28,10 +28,10 @@ internal class TestSource(private val data: Array<Byte>, private val chunk: Long
         return copied
     }
 
-    public override fun dispose() { if (!closed) { closed = true; closes += 1 } }
+    public override fun close() { if (!closed) { closed = true; closes += 1 } }
 }
 
-internal class TestSink(private val chunk: Long = 2L) : ByteSink, Disposable {
+internal class TestSink(private val chunk: Long = 2L) : ByteSink, Closeable {
     val bytes: ByteArrayBuilder = ByteArrayBuilder()
     var closed: Boolean = false
     var closes: Int = 0
@@ -55,7 +55,7 @@ internal class TestSink(private val chunk: Long = 2L) : ByteSink, Disposable {
     }
 
     public override fun flush() { flushes += 1; if (failFlush) throw failure }
-    public override fun dispose() {
+    public override fun close() {
         if (closed) return
         closed = true
         closes += 1
@@ -64,10 +64,10 @@ internal class TestSink(private val chunk: Long = 2L) : ByteSink, Disposable {
 }
 
 internal class TestDirectory : Disposable {
-    val path: Path = Files.createTempDirectory(prefix = "scoop-platform-test-")
+    val path: Path = createTempDirectory(prefix = "scoop-platform-test-")
     private var disposed: Boolean = false
     fun child(name: String): Path = path.resolve(Path.fromString(name))
     public override fun dispose() {
-        if (!disposed) { disposed = true; Files.deleteRecursively(path) }
+        if (!disposed) { disposed = true; path.deleteRecursively() }
     }
 }

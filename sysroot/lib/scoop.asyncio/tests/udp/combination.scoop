@@ -39,11 +39,11 @@ private class AsyncUdpCombinationTest {
                         left.sendTo(output, addresses[0L], 1L)
                     }
                     assertEquals(1L, reply.await().count)
-                    assertEquals(43.toInt8(), input.readByte())
+                    assertEquals(43.toByte(), input.readByte())
                 }
                 collecting.join()
             }
-            assertEquals(42.toInt8(), Files.readAllBytes(path)[0L])
+            assertEquals(42.toByte(), path.readAllBytes()[0L])
         }
     }
 }

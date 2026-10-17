@@ -22,7 +22,7 @@ fun version(value: String): Boolean {
     for (number in numbers) {
         if (number.length == 0L || (number.length > 1L && number[0L] == '0')) { return false }
         for (character in number) { if (!digit(character)) { return false } }
-        if (number.toULongOrNull() == None) { return false }
+        if (number.toULongOrNone() == None) { return false }
     }
     return true
 }

@@ -1,8 +1,6 @@
 package scoop.collections
 
-import Set as IndexSet
-
-public interface Map<K, V> : Get<K, V?>, Contains<K>, Iterable<Map.Entry<K, V>> {
+public interface Map<K, V> : IndexGet<K, V?>, Contains<K>, Iterable<Map.Entry<K, V>> {
     public val size: Long
     public override operator fun get(key: K): V?
     public fun containsKey(key: K): Boolean

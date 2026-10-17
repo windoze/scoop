@@ -8,13 +8,13 @@ struct ResponseBody(
     @Serialize(required = true) val incomplete_details: Incomplete?,
     @Serialize(required = true) val usage: ResponseUsage?
 ) {
-    companion object : Encodable<ResponseBody>, Decodable<ResponseBody> {}
+    companion object : ValueEncoder<ResponseBody>, ValueDecoder<ResponseBody> {}
 }
 struct ResponseError(val code: String, val message: String) {
-    companion object : Encodable<ResponseError>, Decodable<ResponseError> {}
+    companion object : ValueEncoder<ResponseError>, ValueDecoder<ResponseError> {}
 }
 struct Incomplete(val reason: String) {
-    companion object : Encodable<Incomplete>, Decodable<Incomplete> {}
+    companion object : ValueEncoder<Incomplete>, ValueDecoder<Incomplete> {}
 }
 struct ResponseUsage(
     val input_tokens: Long,
@@ -23,11 +23,11 @@ struct ResponseUsage(
     val input_tokens_details: InputTokens,
     val output_tokens_details: OutputTokens
 ) {
-    companion object : Encodable<ResponseUsage>, Decodable<ResponseUsage> {}
+    companion object : ValueEncoder<ResponseUsage>, ValueDecoder<ResponseUsage> {}
 }
 struct InputTokens(val cached_tokens: Long) {
-    companion object : Encodable<InputTokens>, Decodable<InputTokens> {}
+    companion object : ValueEncoder<InputTokens>, ValueDecoder<InputTokens> {}
 }
 struct OutputTokens(val reasoning_tokens: Long) {
-    companion object : Encodable<OutputTokens>, Decodable<OutputTokens> {}
+    companion object : ValueEncoder<OutputTokens>, ValueDecoder<OutputTokens> {}
 }

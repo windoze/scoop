@@ -1,7 +1,7 @@
 class Item() {
     val value: Int = 1
         get() = field
-    companion object : Encodable<Item>
+    companion object : ValueEncoder<Item>
 }
 
 fun main() {}

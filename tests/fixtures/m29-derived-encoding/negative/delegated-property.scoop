@@ -3,7 +3,7 @@ class Slot() {
 }
 class Item() {
     val value: Int by Slot()
-    companion object : Encodable<Item>
+    companion object : ValueEncoder<Item>
 }
 
 fun main() {}

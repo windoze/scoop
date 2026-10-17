@@ -8,11 +8,11 @@ public fun String.repeat(count: Long): String {
     var part = this
     var remaining = count
     while (remaining > 0L) {
-        if (remaining % 2L != 0L) result.add(part)
+        if (remaining % 2L != 0L) result.append(part)
         remaining /= 2L
         if (remaining > 0L) part = part + part
     }
-    return result.build()
+    return result.toString()
 }
 
 private fun String.padding(length: Long, paddingChar: Char): String {

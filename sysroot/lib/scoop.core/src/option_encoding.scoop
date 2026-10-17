@@ -1,4 +1,4 @@
-internal class OptionEncoder<T>(private val element: Encodable<T>) : Encodable<Option<T>> {
+internal class OptionEncoder<T>(private val element: ValueEncoder<T>) : ValueEncoder<Option<T>> {
     public override fun encode(value: Option<T>, encoder: Encoder): Unit {
         when (value) {
             case Option.None -> { encoder.singleValue().writeNull() }

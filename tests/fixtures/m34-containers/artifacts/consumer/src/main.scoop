@@ -16,7 +16,7 @@ fun main() {
     val text = builder("value=")
     append(text, 42)
     gcCollect()
-    check(text.build() == "value=42")
+    check(text.toString() == "value=42")
     records.clear()
     alias.clear()
     check(records.size == 0L && alias.size == 0L && snapshot[2L].value() == 7)

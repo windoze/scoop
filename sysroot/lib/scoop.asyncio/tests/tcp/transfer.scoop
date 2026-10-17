@@ -36,7 +36,7 @@ private class AsyncTcpTransferTest {
                 client.readFully(input, 6L)
                 assertEquals(0L, client.readInto(input, 1L))
                 assertEquals(0L, client.readInto(input, 1L))
-                assertEquals(99.toInt8(), input.getByte(5L))
+                assertEquals(99.toByte(), input.getByte(5L))
             }
             assertEquals(5L, echo.await())
             listener.close()

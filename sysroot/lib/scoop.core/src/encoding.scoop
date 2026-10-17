@@ -1,4 +1,4 @@
-public interface Encodable<T> {
+public interface ValueEncoder<T> {
     public fun encode(value: T, encoder: Encoder): Unit
 }
 
@@ -32,12 +32,12 @@ public interface SingleValueEncodingContainer {
 public class EncodingException public constructor(public val path: String, message: String)
     : Exception(Some(message))
 
-public class EncodeFunction<T> public constructor(private val body: (T, Encoder) -> Unit)
-    : Encodable<T> {
+public class ValueEncoderFunction<T> public constructor(private val body: (T, Encoder) -> Unit)
+    : ValueEncoder<T> {
     public override fun encode(value: T, encoder: Encoder): Unit = body(value, encoder)
 }
 
-public object UnitEncoder : Encodable<Unit> {
+public object UnitEncoder : ValueEncoder<Unit> {
     public override fun encode(value: Unit, encoder: Encoder): Unit =
         encoder.singleValue().writeNull()
 }

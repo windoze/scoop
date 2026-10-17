@@ -8,12 +8,12 @@ public class LocalDate public constructor(public val year: Int, public val month
         if (!validCalendarDate(year, monthNumber, dayOfMonth)) throw IllegalArgumentException(Some("invalid date"))
     }
     public constructor(year: Int, month: Month, dayOfMonth: Int) : this(year, month.number, dayOfMonth) {}
-    public val month: Month get() = Month.of(monthNumber)
+    public val month: Month get() = Month.fromNumber(monthNumber)
     public val yearMonth: YearMonth get() = YearMonth(year, monthNumber)
-    public val dayOfYear: Int get() = (toEpochDays() - calendarEpochDay(year, 1, 1) + 1L).toInt32()
+    public val dayOfYear: Int get() = (toEpochDays() - calendarEpochDay(year, 1, 1) + 1L).toInt()
     public val dayOfWeek: DayOfWeek get() {
         val shifted = toEpochDays() + 3L
-        return DayOfWeek.of((shifted - calendarFloorDiv(shifted, 7L) * 7L + 1L).toInt32())
+        return DayOfWeek.fromIsoDayNumber((shifted - calendarFloorDiv(shifted, 7L) * 7L + 1L).toInt())
     }
     public fun toEpochDays(): Long = calendarEpochDay(year, monthNumber, dayOfMonth)
     public fun plusDays(value: Long): LocalDate = shiftedDays(value, false)
@@ -35,19 +35,19 @@ public class LocalDate public constructor(public val year: Int, public val month
     }
     public fun daysUntil(other: LocalDate): Long = other.toEpochDays() - toEpochDays()
     public override operator fun plus(other: DatePeriod): LocalDate =
-        plusMonths(other.years.toInt64() * 12L + other.months.toInt64()).shiftedDays(other.days, false)
+        plusMonths(other.years.toLong() * 12L + other.months.toLong()).shiftedDays(other.days, false)
     public override operator fun minus(other: DatePeriod): LocalDate =
-        plusMonths(-other.years.toInt64() * 12L - other.months.toInt64()).shiftedDays(other.days, true)
+        plusMonths(-other.years.toLong() * 12L - other.months.toLong()).shiftedDays(other.days, true)
     public override operator fun equals(other: LocalDate): Boolean =
         year == other.year && monthNumber == other.monthNumber && dayOfMonth == other.dayOfMonth
     public override operator fun compareTo(other: LocalDate): Long = toEpochDays().compareTo(other.toEpochDays())
     public override fun hash(): Long = (year.hash() * 31L + monthNumber.hash()) * 31L + dayOfMonth.hash()
     public override fun toString(): String = yearMonth.toString() + "-" + calendarTwoDigits(dayOfMonth)
 
-    public companion object : Encodable<LocalDate>, Decodable<LocalDate> {
+    public companion object : ValueEncoder<LocalDate>, ValueDecoder<LocalDate> {
         public override fun encode(value: LocalDate, encoder: Encoder) { encoder.singleValue().writeString(value.toString()) }
         public override fun decode(decoder: Decoder): LocalDate =
-            decodeTextValue<LocalDate>(decoder, { text -> parseOrNull(text) }, "date")
+            decodeTextValue<LocalDate>(decoder, { text -> parseOrNone(text) }, "date")
 
         public val MIN: LocalDate = LocalDate(-999999999, 1, 1)
         public val MAX: LocalDate = LocalDate(999999999, 12, 31)
@@ -56,11 +56,11 @@ public class LocalDate public constructor(public val year: Int, public val month
             val parts = calendarDateFromDay(value)
             return LocalDate(parts._1, parts._2, parts._3)
         }
-        public fun parseOrNull(text: String): LocalDate? = when (parseCalendarFields(text, true)) {
+        public fun parseOrNone(text: String): LocalDate? = when (parseCalendarFields(text, true)) {
             case Some(parts) -> Some(LocalDate(parts._1, parts._2, parts._3))
             case None -> None
         }
-        public fun parse(text: String): LocalDate = when (parseOrNull(text)) {
+        public fun parse(text: String): LocalDate = when (parseOrNone(text)) {
             case Some(value) -> value
             case None -> throw IllegalArgumentException(Some("invalid date"))
         }

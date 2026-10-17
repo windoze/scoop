@@ -1,4 +1,4 @@
 class Key(val value: Int) : Hash {
-    public override fun hash(): Long = value.toInt64()
+    public override fun hash(): Long = value.toLong()
 }
 fun main() { println(Key(1) == Key(1)) }

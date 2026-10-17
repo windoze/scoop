@@ -2,16 +2,27 @@ package scoop.tls
 
 import scoop.platform.io.*
 import scoop.platform.memory.*
+import scoop.tls.native.TlsEngine
 
-public class TlsStream internal constructor(private val pump: SyncPump, private val owner: Disposable)
-    : ByteSource, ByteSink, Disposable {
-    private var disposed: Boolean = false
+public class TlsStream internal constructor(private val pump: SyncPump, private val owner: Closeable)
+    : ByteSource, ByteSink, Closeable {
+    public companion object {
+        // Completes the handshake; ownership transfers after session creation, before buffer allocation.
+        public fun <T> takeOwnershipAsClient(transport: T, context: TlsClientContext, peer: TlsPeerName): TlsStream
+            where T : ByteSource, T : ByteSink, T : Closeable = adoptSync(TlsEngine.client(context, peer), transport)
+
+        // Completes the handshake; ownership transfers after session creation, before buffer allocation.
+        public fun <T> takeOwnershipAsServer(transport: T, context: TlsServerContext): TlsStream
+            where T : ByteSource, T : ByteSink, T : Closeable = adoptSync(TlsEngine.server(context), transport)
+    }
+
+    private var closed: Boolean = false
     private var active: Boolean = false
-    public val isDisposed: Boolean get() = disposed
+    public val isClosed: Boolean get() = closed
     public val connectionInfo: TlsConnectionInfo get() { requireIdle(); return pump.engine.connectionInfo }
 
     private fun requireIdle() {
-        if (disposed) throw IllegalStateException(Some("TLS stream is closed"))
+        if (closed) throw IllegalStateException(Some("TLS stream is closed"))
         if (active) throw IllegalStateException(Some("TLS stream operation is active"))
     }
 
@@ -67,26 +78,26 @@ public class TlsStream internal constructor(private val pump: SyncPump, private 
     }
 
     private fun closeOwned() {
-        if (disposed) return
-        disposed = true
-        val resources: Array<Disposable> = [owner, pump.engine, pump.input, pump.output]
+        if (closed) return
+        closed = true
+        val resources: Array<Closeable> = [owner, pump.engine, pump.input, pump.output]
         when (closeAll(resources)) {
             case Some(error) -> throw error
             case None -> return
         }
     }
 
-    public override fun dispose() {
+    // Releases local resources; use shutdownGracefully for the TLS close handshake.
+    public override fun close() {
         if (active) throw IllegalStateException(Some("TLS stream operation is active"))
         closeOwned()
     }
-    public fun close() { dispose() }
 }
 
-internal fun closeAll(resources: Array<Disposable>): Throwable? {
+internal fun closeAll(resources: Array<Closeable>): Throwable? {
     var failure: Throwable? = None
     for (resource in resources) {
-        try { resource.dispose() }
+        try { resource.close() }
         catch (error: Throwable) {
             failure = Some(when (failure) {
                 case None -> error

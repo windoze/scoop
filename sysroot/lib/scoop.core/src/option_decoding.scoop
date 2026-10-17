@@ -1,4 +1,4 @@
-internal class OptionDecoder<T>(private val element: Decodable<T>) : Decodable<Option<T>> {
+internal class OptionDecoder<T>(private val element: ValueDecoder<T>) : ValueDecoder<Option<T>> {
     public override fun decode(decoder: Decoder): Option<T> {
         if (decoder.singleValue().isNull()) { return None }
         return Some(element.decode(decoder))

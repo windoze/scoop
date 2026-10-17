@@ -168,14 +168,14 @@ fn integer_methods(kind: hir::IntegerKind) -> Vec<ast::FunctionDecl> {
     }
     for target in hir::IntegerKind::ALL {
         let source_name = match target {
-            hir::IntegerKind::SIGNED_8 => "toInt8",
-            hir::IntegerKind::SIGNED_16 => "toInt16",
-            hir::IntegerKind::SIGNED_32 => "toInt32",
-            hir::IntegerKind::SIGNED_64 => "toInt64",
-            hir::IntegerKind::UNSIGNED_8 => "toUInt8",
-            hir::IntegerKind::UNSIGNED_16 => "toUInt16",
-            hir::IntegerKind::UNSIGNED_32 => "toUInt32",
-            hir::IntegerKind::UNSIGNED_64 => "toUInt64",
+            hir::IntegerKind::SIGNED_8 => "toByte",
+            hir::IntegerKind::SIGNED_16 => "toShort",
+            hir::IntegerKind::SIGNED_32 => "toInt",
+            hir::IntegerKind::SIGNED_64 => "toLong",
+            hir::IntegerKind::UNSIGNED_8 => "toUByte",
+            hir::IntegerKind::UNSIGNED_16 => "toUShort",
+            hir::IntegerKind::UNSIGNED_32 => "toUInt",
+            hir::IntegerKind::UNSIGNED_64 => "toULong",
         };
         methods.push(integer_intrinsic_method(
             source_name,
@@ -188,8 +188,8 @@ fn integer_methods(kind: hir::IntegerKind) -> Vec<ast::FunctionDecl> {
         ));
     }
     let (conversion, to_string_helper, hash_helper) = match kind.signedness() {
-        hir::IntegerSignedness::Signed => ("toInt64", "coreLongToString", "coreLongHash"),
-        hir::IntegerSignedness::Unsigned => ("toUInt64", "coreULongToString", "coreULongHash"),
+        hir::IntegerSignedness::Signed => ("toLong", "coreLongToString", "coreLongHash"),
+        hir::IntegerSignedness::Unsigned => ("toULong", "coreULongToString", "coreULongHash"),
     };
     let carrier = || {
         if matches!(

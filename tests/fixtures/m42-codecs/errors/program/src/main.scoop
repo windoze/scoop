@@ -7,9 +7,9 @@ import scoop.uuid.Uuid
 import scoop.json.Json
 
 fun check(ok: Boolean) { if (!ok) throw IllegalStateException() }
-fun <T> bad(text: String, codec: Decodable<T>, path: String) {
+fun <T> bad(text: String, codec: ValueDecoder<T>, path: String) {
     var failed = false
-    try { Json.decode(text, codec) } catch (error: DecodingException) { check(error.path == path); failed = true }
+    try { Json.decodeFromString(text, codec) } catch (error: DecodingException) { check(error.path == path); failed = true }
     check(failed)
 }
 fun propagates(block: () -> Unit) {
@@ -45,14 +45,14 @@ fun main() {
     bad("{\"years\":0,\"months\":0}", DatePeriod.Companion, "/days")
     bad("{\"years\":2147483648,\"months\":0,\"days\":0}", DatePeriod.Companion, "/years")
     bad("{\"date\":{\"years\":0,\"months\":0,\"days\":0},\"time\":\"bad\"}", DateTimePeriod.Companion, "/time")
-    val failure = DecodeFunction<Int> { decoder -> throw IllegalStateException() }
-    propagates { Json.decode("[1]", listDecoder(failure)) }
-    propagates { Json.decode("{\"success\":1}", Result<Int, Int>.decoder(failure, Int.Companion)) }
-    val key = DecodeFunction<BadKey> { decoder -> Int.decode(decoder); BadKey() }
-    propagates { Json.decode("[[1,2]]", HashMap<BadKey, Int>.decoder(key, Int.Companion)) }
+    val failure = ValueDecoderFunction<Int> { decoder -> throw IllegalStateException() }
+    propagates { Json.decodeFromString("[1]", listDecoder(failure)) }
+    propagates { Json.decodeFromString("{\"success\":1}", Result<Int, Int>.decoder(failure, Int.Companion)) }
+    val key = ValueDecoderFunction<BadKey> { decoder -> Int.decode(decoder); BadKey() }
+    propagates { Json.decodeFromString("[[1,2]]", HashMap<BadKey, Int>.decoder(key, Int.Companion)) }
     val brokenOrder = comparatorOf<Int> { a, b -> throw IllegalStateException() }
-    propagates { Json.decode("[1,2]", TreeSet<Int>.decoder(Int.Companion, brokenOrder)) }
-    val encoder = EncodeFunction<Int> { value, target -> throw IllegalStateException() }
-    propagates { Json.encode(hashMapOf((1, 2)), HashMap<Int, Int>.encoder(Int.Companion, encoder)) }
+    propagates { Json.decodeFromString("[1,2]", TreeSet<Int>.decoder(Int.Companion, brokenOrder)) }
+    val encoder = ValueEncoderFunction<Int> { value, target -> throw IllegalStateException() }
+    propagates { Json.encodeToString(hashMapOf((1, 2)), HashMap<Int, Int>.encoder(Int.Companion, encoder)) }
     println("codecs errors passed")
 }

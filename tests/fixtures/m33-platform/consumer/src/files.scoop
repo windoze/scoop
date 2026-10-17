@@ -12,7 +12,7 @@ fun verifyFile(path: String, expected: Array<UInt8>) {
                 @Unsafe {
                     var offset = 0L
                     while (offset < count) {
-                        val (read, error) = readBytes(fd, pointer + offset, (count - offset).toUInt64())
+                        val (read, error) = readBytes(fd, pointer + offset, (count - offset).toULong())
                         if (read < 0L && error == 4) { continue }
                         check(read > 0L)
                         offset += read
@@ -30,7 +30,7 @@ fun verifyFile(path: String, expected: Array<UInt8>) {
         check(bytes[index] == expected[index % expected.size])
         index += 1L
     }
-    val text = String.fromUtf8(bytes.toArray())
+    val text = String.fromUtf8(Array<Byte>(bytes.size) { bytes[it].toByte() })
     check(text.byteLength == length && text.length == 40L)
     check(text.slice(0L, 5L).equals("A\u0000λ🙂\n"))
 }

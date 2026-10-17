@@ -18,9 +18,9 @@ public class LinkedHashSet<T> public constructor() : MutableSet<T> where T : Equ
     public override fun retainAll(elements: Iterable<T>): Boolean = retainHashed<T>(this, elements)
 
     public companion object {
-        public fun encoder(element: Encodable<T>): Encodable<LinkedHashSet<T>> =
-            EncodeFunction<LinkedHashSet<T>> { values, encoder -> encodeElements(values, element, encoder) }
-        public fun decoder(element: Decodable<T>): Decodable<LinkedHashSet<T>> = DecodeFunction<LinkedHashSet<T>> { decoder ->
+        public fun encoder(element: ValueEncoder<T>): ValueEncoder<LinkedHashSet<T>> =
+            ValueEncoderFunction<LinkedHashSet<T>> { values, encoder -> encodeElements(values, element, encoder) }
+        public fun decoder(element: ValueDecoder<T>): ValueDecoder<LinkedHashSet<T>> = ValueDecoderFunction<LinkedHashSet<T>> { decoder ->
             val result = LinkedHashSet<T>()
             decodeSetInto(decoder, element, result)
             result

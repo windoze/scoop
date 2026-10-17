@@ -35,7 +35,7 @@ fun main() {
     val offset = Offset(41, 7)
     val (raw, _) = offset
     check(raw == 41 && first(offset) == 42)
-    val offsets = Array<Offset>(2L) { index -> Offset(index.toInt32(), 0) }
+    val offsets = Array<Offset>(2L) { index -> Offset(index.toInt(), 0) }
     check(sum(offsets) == 3)
     println("operator components")
 }

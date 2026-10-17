@@ -13,7 +13,7 @@ import scoop.text.toHexString
 private class TlsEngineTests {
     @Test
     fun `TLS versions identity ALPN and retained context references`() {
-        for (version in [TlsVersion.TLS12, TlsVersion.TLS13]) {
+        for (version in [TlsVersion.Tls12, TlsVersion.Tls13]) {
             val a = "proto-a".toByteArray().toArray()
             val b = "proto-b".toByteArray().toArray()
             val clientConfig = clientContext(TlsOptions(version, version, [a, b]))
@@ -76,14 +76,14 @@ private class TlsEngineTests {
 
     @Test
     fun `invalid configuration and mismatched identity fail before any transport`() {
-        assertFailsWith<IllegalArgumentException> { clientContext(TlsOptions(TlsVersion.TLS13, TlsVersion.TLS12)) }
-        assertFailsWith<IllegalArgumentException> { clientContext(TlsOptions(alpn = [Array<Byte>(0L) { 0.toInt8() }])) }
-        assertFailsWith<IllegalArgumentException> { clientContext(TlsOptions(alpn = [Array<Byte>(256L) { 0.toInt8() }])) }
+        assertFailsWith<IllegalArgumentException> { clientContext(TlsOptions(TlsVersion.Tls13, TlsVersion.Tls12)) }
+        assertFailsWith<IllegalArgumentException> { clientContext(TlsOptions(alpn = [Array<Byte>(0L) { 0.toByte() }])) }
+        assertFailsWith<IllegalArgumentException> { clientContext(TlsOptions(alpn = [Array<Byte>(256L) { 0.toByte() }])) }
         clientContext().use { context ->
             assertFailsWith<IllegalArgumentException> { TlsEngine.client(context, TlsPeerName.Dns("")) }
             assertFailsWith<IllegalArgumentException> { TlsEngine.client(context, TlsPeerName.Dns("local\u{0000}host")) }
         }
-        Certificate.fromPem(serverPem()).use { certificate -> PrivateKey.generate(KeyAlgorithm.P256).use { key ->
+        Certificate.fromPem(serverPem()).use { certificate -> PrivateKey.generateP256().use { key ->
             val error = assertFailsWith<TlsException> { TlsServerContext([certificate], key) }
             assertTrue(error.kind == TlsFailureKind.Configuration)
         } }
@@ -102,7 +102,7 @@ private fun transferPlaintext(client: TlsEngine, server: TlsEngine) {
     val output = NativeByteBuffer.allocate(20000L)
     val input = NativeByteBuffer.allocate(16384L)
     try {
-        output.writeBytes(Array<Byte>(20000L) { index -> (index % 251L).toInt8() })
+        output.writeBytes(Array<Byte>(20000L) { index -> (index % 251L).toByte() })
         @Unsafe {
             val written = output.borrowReadable(20000L)
             val read = input.borrowWritable(16384L)
@@ -120,8 +120,8 @@ private fun transferPlaintext(client: TlsEngine, server: TlsEngine) {
             assertEquals(sent, received)
         }
         assertEquals(16384L, output.readPosition)
-        val expected = Array<Byte>(16384L) { index -> (index % 251L).toInt8() }
-        assertEquals(digest(DigestAlgorithm.SHA256, expected).toHexString(),
-            digest(DigestAlgorithm.SHA256, input.readBytes(input.readableBytes)).toHexString())
+        val expected = Array<Byte>(16384L) { index -> (index % 251L).toByte() }
+        assertEquals(digest(DigestAlgorithm.Sha256, expected).toHexString(),
+            digest(DigestAlgorithm.Sha256, input.readBytes(input.readableBytes)).toHexString())
     } finally { output.close(); input.close() }
 }

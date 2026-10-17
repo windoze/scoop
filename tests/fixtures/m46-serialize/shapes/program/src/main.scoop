@@ -4,23 +4,23 @@ enum Choice {
     @Serialize(rename = "empty") Empty,
     Named(val text: String?, @Serialize(required = true) val must: Long?, @Serialize(ignore = true) val local: String?),
     Position(String?)
-    companion object : Encodable<Choice>, Decodable<Choice> {}
+    companion object : ValueEncoder<Choice>, ValueDecoder<Choice> {}
 }
 
 class Record(val id: Long, val text: String?, @Serialize(ignore = true) val cache: String?) {
-    companion object : Encodable<Record>, Decodable<Record> {}
+    companion object : ValueEncoder<Record>, ValueDecoder<Record> {}
 }
 
 fun main() {
-    check(Json.encode(Choice.Empty, Choice.Companion) == "{\"empty\":{}}")
-    check(Json.encode(Choice.Named(None, None, Some("ignored")), Choice.Companion) == "{\"Named\":{\"must\":null}}")
-    val decoded = Json.decode("{\"Named\":{\"must\":null}}", Choice.Companion)
+    check(Json.encodeToString(Choice.Empty, Choice.Companion) == "{\"empty\":{}}")
+    check(Json.encodeToString(Choice.Named(None, None, Some("ignored")), Choice.Companion) == "{\"Named\":{\"must\":null}}")
+    val decoded = Json.decodeFromString("{\"Named\":{\"must\":null}}", Choice.Companion)
     check(decoded == Choice.Named(None, None, None))
-    reject("/Named/must") { Json.decode("{\"Named\":{}}", Choice.Companion) }
-    check(Json.encode(Choice.Position(None), Choice.Companion) == "{\"Position\":[null]}")
-    reject("/Position/0") { Json.decode("{\"Position\":[]}", Choice.Companion) }
-    check(Json.encode(Record(1L, None, Some("cache")), Record.Companion) == "{\"id\":1}")
-    val record = Json.decode("{\"id\":1}", Record.Companion)
+    reject("/Named/must") { Json.decodeFromString("{\"Named\":{}}", Choice.Companion) }
+    check(Json.encodeToString(Choice.Position(None), Choice.Companion) == "{\"Position\":[null]}")
+    reject("/Position/0") { Json.decodeFromString("{\"Position\":[]}", Choice.Companion) }
+    check(Json.encodeToString(Record(1L, None, Some("cache")), Record.Companion) == "{\"id\":1}")
+    val record = Json.decodeFromString("{\"id\":1}", Record.Companion)
     check(record.id == 1L && record.text == None && record.cache == None)
     println("shapes-ok")
 }

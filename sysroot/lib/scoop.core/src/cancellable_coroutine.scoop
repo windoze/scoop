@@ -81,7 +81,7 @@ public class CancellableContinuation<T> internal constructor(continuation: Conti
 public suspend fun <T> suspendCancellableCoroutine(registration: (CancellableContinuation<T>) -> Unit): T =
     suspendCoroutine<T> { raw ->
         val continuation = CancellableContinuation<T>(raw)
-        when (currentJobOrNull()) {
+        when (currentJobOrNone()) {
             case Some(job) -> continuation.bind(job)
             case None -> {}
         }

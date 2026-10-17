@@ -2,7 +2,7 @@ fun main() {
     val values: MutableList<Int> = ArrayList<Int>()
     if (values.size != 0L) { println("empty"); return }
     var index = 0L
-    while (index < 130L) { values.add(index.toInt32()); index = index + 1L }
+    while (index < 130L) { values.add(index.toInt()); index = index + 1L }
     values.add(0L, -1)
     values.add(66L, 42)
     values.add(values.size, 999)
@@ -14,7 +14,7 @@ fun main() {
     }
     index = 0L
     while (index < values.size) {
-        if (values[index] != index.toInt32()) { println("shift"); return }
+        if (values[index] != index.toInt()) { println("shift"); return }
         index = index + 1L
     }
     val view: List<Int> = values

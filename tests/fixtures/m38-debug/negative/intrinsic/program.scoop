@@ -1,2 +1,2 @@
-object Inspector : Inspectable<Int>
+object Inspector : ValueInspector<Int>
 fun main() {}

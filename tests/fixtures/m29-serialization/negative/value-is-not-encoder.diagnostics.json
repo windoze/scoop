@@ -1,14 +1,14 @@
 [
   {
     "code": "SCOOPC_HIR_ERROR",
-    "message": "no applicable candidate for `accept` in current-unit top-level candidate layer:\n  - fun accept(codec: Encodable<Long>): Unit — argument for `codec` has type Long, which is not a subtype of Encodable<Long>",
+    "message": "no applicable candidate for `accept` in current-unit top-level candidate layer:\n  - fun accept(codec: ValueEncoder<Long>): Unit — argument for `codec` has type Long, which is not a subtype of ValueEncoder<Long>",
     "notes": [],
     "origin": {
       "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
-      "end": 84,
+      "end": 87,
       "kind": "source",
       "path": "main.scoop",
-      "start": 82
+      "start": 85
     },
     "severity": "error"
   }

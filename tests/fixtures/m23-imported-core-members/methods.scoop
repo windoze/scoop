@@ -1,5 +1,5 @@
 fun compare(value: Int): Long = value.compareTo(other = 3)
-fun convert(value: Long): Int = value.toInt32()
+fun convert(value: Long): Int = value.toInt()
 fun shift(value: UInt): UInt = value shl 2L
 fun combined(value: Int): Long = (value + 2).inc().compareTo(7)
 fun inferred(): Long = 7.compareTo(3)

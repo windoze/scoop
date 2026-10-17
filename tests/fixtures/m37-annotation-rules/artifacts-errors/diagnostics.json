@@ -1,7 +1,7 @@
 [
   {
     "code": "SCOOPC_HIR_ERROR",
-    "message": "annotation `@OnlyField` is not allowed on FUNCTION",
+    "message": "annotation `@OnlyField` is not allowed on Function",
     "notes": [],
     "origin": {
       "cone": "0ba3a74caa4aa582f830cf329cfac7a37f44057dcbd9f0eb7d01c97cb21e0429",

@@ -1,6 +1,6 @@
 enum Source {
     Base64(Base64Source), URL(URLSource), Text(TextSource), Content(ContentSource)
-    companion object : Encodable<Source>, Decodable<Source> {
+    companion object : ValueEncoder<Source>, ValueDecoder<Source> {
         public override fun encode(value: Source, encoder: Encoder) {
             val fields = encoder.keyed()
             when (value) {
@@ -36,14 +36,14 @@ enum Source {
     }
 }
 struct Base64Source(val media_type: String, val data: String) {
-    companion object : Encodable<Base64Source>, Decodable<Base64Source> {}
+    companion object : ValueEncoder<Base64Source>, ValueDecoder<Base64Source> {}
 }
 struct URLSource(val url: String) {
-    companion object : Encodable<URLSource>, Decodable<URLSource> {}
+    companion object : ValueEncoder<URLSource>, ValueDecoder<URLSource> {}
 }
 struct TextSource(val media_type: String, val data: String) {
-    companion object : Encodable<TextSource>, Decodable<TextSource> {}
+    companion object : ValueEncoder<TextSource>, ValueDecoder<TextSource> {}
 }
 struct ContentSource(val content: Array<Block>) {
-    companion object : Encodable<ContentSource>, Decodable<ContentSource> {}
+    companion object : ValueEncoder<ContentSource>, ValueDecoder<ContentSource> {}
 }

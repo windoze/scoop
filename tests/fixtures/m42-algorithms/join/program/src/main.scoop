@@ -6,7 +6,7 @@ class Source(private val state: State) : Iterable<Int>, Iterator<Int> {
     public override fun next(): Int? {
         state.reads += 1L
         if (state.reads > 3L) throw Exception(Some("excess join read"))
-        return Some(state.reads.toInt32())
+        return Some(state.reads.toInt())
     }
 }
 class Value(val text: String)

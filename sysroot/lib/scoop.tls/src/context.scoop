@@ -5,7 +5,7 @@ import scoop.crypto.native.*
 import scoop.crypto.x509.*
 import scoop.tls.native.*
 
-public class TlsClientContext private constructor(private val state: ContextState) : Disposable {
+public class TlsClientContext private constructor(private val state: ContextState) : Closeable {
     public constructor(trustStore: TrustStore, options: TlsOptions = TlsOptions())
         : this(clientState(trustStore, options)) {}
 
@@ -17,19 +17,17 @@ public class TlsClientContext private constructor(private val state: ContextStat
             } }
         }
     }
-    public fun close() { state.dispose() }
-    public override fun dispose() { close() }
+    public override fun close() { state.dispose() }
 }
 
-public class TlsServerContext private constructor(private val state: ContextState) : Disposable {
+public class TlsServerContext private constructor(private val state: ContextState) : Closeable {
     public constructor(certificates: List<Certificate>, privateKey: PrivateKey, options: TlsOptions = TlsOptions())
         : this(serverState(certificates, privateKey, options)) {}
 
     internal fun newSession(): ULong = state.withHandle { handle ->
         @Unsafe { return@withHandle tlsValue(sessionNew(handle, 1, 0, None, 0L), "create server TLS session") }
     }
-    public fun close() { state.dispose() }
-    public override fun dispose() { close() }
+    public override fun close() { state.dispose() }
 }
 
 private fun clientState(trustStore: TrustStore, options: TlsOptions): ContextState {

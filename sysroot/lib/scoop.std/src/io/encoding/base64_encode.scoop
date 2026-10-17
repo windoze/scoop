@@ -7,7 +7,7 @@ import scoop.text.checkedTextSum
 internal fun encodeBase64(source: List<Byte>, urlSafe: Boolean, padding: PaddingOption): String {
     val length = source.size
     val remainder = length % 3L
-    val tail = if (remainder == 0L) 0L else if (padding == PaddingOption.ABSENT) remainder + 1L else 4L
+    val tail = if (remainder == 0L) 0L else if (padding == PaddingOption.Absent) remainder + 1L else 4L
     val size = checkedTextSum(checkedTextProduct(length / 3L, 4L), tail)
     val output = MutableArray<Char>(size) { _ -> '=' }
     val alphabet = if (urlSafe) "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
@@ -16,13 +16,13 @@ internal fun encodeBase64(source: List<Byte>, urlSafe: Boolean, padding: Padding
     var target = 0L
     while (position < length) {
         val available = length - position
-        val first = source[position].toUInt8().toInt32()
-        val second = if (available > 1L) source[position + 1L].toUInt8().toInt32() else 0
-        val third = if (available > 2L) source[position + 2L].toUInt8().toInt32() else 0
-        output[target] = alphabet[(first / 4).toInt64()]
-        output[target + 1L] = alphabet[((first % 4) * 16 + second / 16).toInt64()]
-        if (available > 1L) output[target + 2L] = alphabet[((second % 16) * 4 + third / 64).toInt64()]
-        if (available > 2L) output[target + 3L] = alphabet[(third % 64).toInt64()]
+        val first = source[position].toUByte().toInt()
+        val second = if (available > 1L) source[position + 1L].toUByte().toInt() else 0
+        val third = if (available > 2L) source[position + 2L].toUByte().toInt() else 0
+        output[target] = alphabet[(first / 4).toLong()]
+        output[target + 1L] = alphabet[((first % 4) * 16 + second / 16).toLong()]
+        if (available > 1L) output[target + 2L] = alphabet[((second % 16) * 4 + third / 64).toLong()]
+        if (available > 2L) output[target + 3L] = alphabet[(third % 64).toLong()]
         if (available <= 3L) break
         position += 3L
         target += 4L

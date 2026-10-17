@@ -2,15 +2,15 @@ package scoop.crypto
 
 import scoop.crypto.native.*
 
-public enum DigestAlgorithm { SHA256, SHA384, SHA512 }
+public enum DigestAlgorithm { Sha256, Sha384, Sha512 }
 
 internal fun digestCode(algorithm: DigestAlgorithm): Int = when (algorithm) {
-    case SHA256 -> 0
-    case SHA384 -> 1
-    case SHA512 -> 2
+    case Sha256 -> 0
+    case Sha384 -> 1
+    case Sha512 -> 2
 }
 
-public class Digest public constructor(algorithm: DigestAlgorithm) : Disposable {
+public class Digest public constructor(algorithm: DigestAlgorithm) : Closeable {
     private var handle: ULong = createDigest(algorithm)
     private var finished: Boolean = false
 
@@ -34,12 +34,11 @@ public class Digest public constructor(algorithm: DigestAlgorithm) : Disposable 
         @Unsafe { return cryptoBytes(digestFinish(handle), "finish digest") }
     }
 
-    public override fun dispose() {
+    public override fun close() {
         val owned = handle
         handle = 0UL
         if (owned != 0UL) @Unsafe { digestFree(owned) }
     }
-    public fun close() { dispose() }
 }
 
 public fun digest(algorithm: DigestAlgorithm, data: List<Byte>): Array<Byte> =

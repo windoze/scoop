@@ -7,7 +7,7 @@ import scoop.time.Instant
 public enum SubjectAlternativeName { Dns(String), Ip(Array<Byte>) }
 public enum PeerIdentity { Dns(String), Ip(Array<Byte>) }
 
-public class Certificate private constructor(private var handle: ULong) : Disposable {
+public class Certificate private constructor(private var handle: ULong) : Closeable {
     public val subject: String get() = textField(0)
     public val issuer: String get() = textField(1)
     public val serialNumber: String get() = textField(2)
@@ -36,7 +36,7 @@ public class Certificate private constructor(private var handle: ULong) : Dispos
     }
 
     private fun timeField(field: Int): Instant {
-        @Unsafe { return Instant.fromEpochSeconds(cryptoValue(certificateTime(nativeHandle(), field), "certificate time").toInt64()) }
+        @Unsafe { return Instant.fromEpochSeconds(cryptoValue(certificateTime(nativeHandle(), field), "certificate time").toLong()) }
     }
 
     public fun toDer(): Array<Byte> { @Unsafe { return cryptoBytes(certificateExport(nativeHandle(), 0), "export certificate") } }
@@ -58,8 +58,7 @@ public class Certificate private constructor(private var handle: ULong) : Dispos
                     when (nameKind(names, index)) {
                         case 0 -> {
                             val bytes = cryptoBytes(nameBytes(names, index), "DNS alternative name")
-                            val utf8 = Array<UInt8>(bytes.size) { offset -> bytes[offset].toUInt8() }
-                            output.add(SubjectAlternativeName.Dns(String.fromUtf8(utf8)))
+                            output.add(SubjectAlternativeName.Dns(String.fromUtf8(bytes)))
                         }
                         case 1 -> output.add(SubjectAlternativeName.Ip(cryptoBytes(nameBytes(names, index), "IP alternative name")))
                         else -> { index += 1; continue }
@@ -71,10 +70,9 @@ public class Certificate private constructor(private var handle: ULong) : Dispos
         }
     }
 
-    public override fun dispose() {
+    public override fun close() {
         val owned = handle
         handle = 0UL
         if (owned != 0UL) @Unsafe { certificateFree(owned) }
     }
-    public fun close() { dispose() }
 }

@@ -6,6 +6,27 @@ import scoop.test.*
 @Test
 private class BufferedStreamsTest {
     @Test
+    fun `named IO parameters agree on concrete and interface receivers`() {
+        val output = TestSink(1L)
+        BufferedSource(TestSource([1, 2, 3, 4]), 2L).use { source ->
+            BufferedSink(output, 2L).use { sink ->
+                val inputView: ByteSource = source
+                val outputView: ByteSink = sink
+                NativeByteBuffer.allocate(2L).use { buffer ->
+                    assertEquals(1L, source.readInto(buffer = buffer, count = 1L))
+                    assertEquals(1L, inputView.readInto(buffer = buffer, count = 1L))
+                    assertEquals(1L, sink.writeFrom(buffer = buffer, count = 1L))
+                    assertEquals(1L, outputView.writeFrom(buffer = buffer, count = 1L))
+                }
+                assertEquals(2L, source.copyTo(destination = sink, bufferSize = 1L))
+            }
+        }
+        assertEquals(4L, output.bytes.size)
+        val bytes = output.bytes.toByteArray()
+        for (index in 0L..<bytes.size) assertEquals((index + 1L).toByte(), bytes[index])
+    }
+
+    @Test
     fun `buffer wrappers borrow by default and owned factories close exactly once`() {
         val source = TestSource([1, 2, 3, 4])
         val borrowed = BufferedSource(source, 3L)
@@ -16,7 +37,7 @@ private class BufferedStreamsTest {
         assertTrue(source.closed)
         assertEquals(1, source.closes)
         val sink = TestSink()
-        BufferedSink(sink, 2L).use { it.writeAllBytes(Array<Byte>(3L) { 7.toInt8() }) }
+        BufferedSink(sink, 2L).use { it.writeAllBytes(Array<Byte>(3L) { 7.toByte() }) }
         assertEquals(3L, sink.bytes.size)
         assertFalse(sink.closed)
         val owned = BufferedSink.takeOwnership(sink)
@@ -24,7 +45,7 @@ private class BufferedStreamsTest {
         owned.close()
         assertTrue(sink.closed)
         assertEquals(1, sink.closes)
-        assertTrue(owned.isDisposed)
+        assertTrue(owned.isClosed)
         assertFailsWith<IllegalStateException> { owned.flush() }
         NativeByteBuffer.allocate().use { buffer ->
             assertFailsWith<IllegalStateException> { borrowed.readInto(buffer, 0L) }
@@ -36,7 +57,7 @@ private class BufferedStreamsTest {
     fun `failed flush retains only the unwritten suffix for an explicit retry`() {
         val sink = TestSink(2L)
         val buffered = BufferedSink(sink, 4L)
-        buffered.writeAllBytes(Array<Byte>(4L) { (it + 1L).toInt8() })
+        buffered.writeAllBytes(Array<Byte>(4L) { (it + 1L).toByte() })
         assertEquals(0L, sink.bytes.size)
         sink.failAfter = 2L
         assertSame(sink.failure, assertFailsWith<Throwable> { buffered.flush() })
@@ -46,7 +67,7 @@ private class BufferedStreamsTest {
         assertEquals(4L, sink.bytes.size)
         var index = 0L
         while (index < 4L) {
-            assertEquals((index + 1L).toInt8(), sink.bytes.toByteArray()[index])
+            assertEquals((index + 1L).toByte(), sink.bytes.toByteArray()[index])
             index += 1L
         }
         buffered.close()
@@ -58,13 +79,13 @@ private class BufferedStreamsTest {
         sink.failFlush = true
         sink.failClose = true
         val buffered = BufferedSink.takeOwnership(sink, 4L)
-        buffered.writeAllBytes(Array<Byte>(2L) { 1.toInt8() })
+        buffered.writeAllBytes(Array<Byte>(2L) { 1.toByte() })
         val failure = assertFailsWith<ResourceUseException> { buffered.dispose() }
         assertSame(sink.failure, failure.primaryFailure)
         assertSame(sink.cleanup, failure.cleanupFailure)
         assertEquals(2L, sink.bytes.size)
         assertEquals(1, sink.closes)
-        assertTrue(buffered.isDisposed)
+        assertTrue(buffered.isClosed)
         buffered.dispose()
         assertEquals(1, sink.closes)
     }
@@ -89,7 +110,7 @@ private class BufferedStreamsTest {
         val sink = ReentrantSink()
         BufferedSink(sink, 1L).use { wrapper ->
             sink.wrapper = Some(wrapper)
-            wrapper.writeAllBytes(Array<Byte>(1L) { 7.toInt8() })
+            wrapper.writeAllBytes(Array<Byte>(1L) { 7.toByte() })
             wrapper.flush()
         }
     }

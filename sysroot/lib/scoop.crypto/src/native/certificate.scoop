@@ -13,7 +13,7 @@ public fun peerIdentityData(identity: PeerIdentity): (Int, Array<Byte>) {
             val bytes = name.toByteArray().toArray()
             if (bytes.size == 0L) throw IllegalArgumentException(Some("DNS identity must not be empty"))
             for (byte in bytes) {
-                val code = byte.toUInt8().toInt32()
+                val code = byte.toUByte().toInt()
                 if (code == 0 || code > 127) throw IllegalArgumentException(Some("DNS identity must be ASCII without NUL"))
             }
             return (0, bytes)

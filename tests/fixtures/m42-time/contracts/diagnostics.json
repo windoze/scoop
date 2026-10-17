@@ -14,11 +14,11 @@
   },
   {
     "code": "SCOOPC_HIR_ERROR",
-    "message": "cannot assign to immutable property `seconds`",
+    "message": "cannot assign to immutable property `floorSeconds`",
     "notes": [],
     "origin": {
       "cone": "519f91398773b20d2f4bc3ea80aa751418b9d23d3fc460d2f4043cee34b7a66c",
-      "end": 161,
+      "end": 166,
       "kind": "source",
       "path": "src/main.scoop",
       "start": 154
@@ -31,10 +31,10 @@
     "notes": [],
     "origin": {
       "cone": "519f91398773b20d2f4bc3ea80aa751418b9d23d3fc460d2f4043cee34b7a66c",
-      "end": 207,
+      "end": 212,
       "kind": "source",
       "path": "src/main.scoop",
-      "start": 183
+      "start": 188
     },
     "severity": "error"
   }

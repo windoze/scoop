@@ -4,14 +4,14 @@ struct Result(val value: String, val count: Long)
 fun expect(value: Boolean) { if (!value) { throw IllegalStateException() } }
 
 fun main() {
-    val result = decodeThen([231u, 149u, 140u, 0u], fun(value: String): Result {
+    val result = decodeThen([231.toByte(), 149.toByte(), 140.toByte(), 0.toByte()], fun(value: String): Result {
         gcCollect()
         return Result(value, value.length)
     })
     gcCollect()
     expect(result.value == "界\u0000" && result.count == 2L)
-    expect(failureOffset([65u, 225u, 128u]) == 1L)
-    expect(recover([225u, 128u, 65u]) == "�A")
-    expect(String.fromUtf8OrNone([239u, 191u, 189u]) == Some("�"))
+    expect(failureOffset([65.toByte(), 225.toByte(), 128.toByte()]) == 1L)
+    expect(recover([225.toByte(), 128.toByte(), 65.toByte()]) == "�A")
+    expect(String.fromUtf8OrNone([239.toByte(), 191.toByte(), 189.toByte()]) == Some("�"))
     println("utf8-artifacts-ok")
 }

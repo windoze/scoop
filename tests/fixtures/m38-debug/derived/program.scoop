@@ -7,37 +7,37 @@ fun equal(actual: String, expected: String) {
 fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
 
 struct Record(val name: String, val pair: (Int, String), val values: Array<Int>, val optional: Int??, val unit: Unit) {
-    companion object : Inspectable<Record>
+    companion object : ValueInspector<Record>
 }
 enum State { Idle, Named(val code: Int, val text: String), Pair(Int, String), Fields { code: Int, text: String }
-    companion object : Inspectable<State>
+    companion object : ValueInspector<State>
 }
 enum Level : Int16 { Low = -3, High = 9
-    companion object : Inspectable<Level>
+    companion object : ValueInspector<Level>
 }
 class Secret(private val token: String) {
     val computed: Int get() { throw IllegalStateException() }
     private val number: Int = 7
-    companion object : Inspectable<Secret>
+    companion object : ValueInspector<Secret>
 }
 class PublicRecord(val number: Int) { val body: String = "body" }
-object PublicInspector : Inspectable<PublicRecord>
-object TupleInspector : Inspectable<(Int, String)>
+object PublicInspector : ValueInspector<PublicRecord>
+object TupleInspector : ValueInspector<(Int, String)>
 struct Box<T>(val value: T)
-class BoxInspector<T>(private val element: Inspectable<T>) : Inspectable<Box<T>>
+class BoxInspector<T>(private val element: ValueInspector<T>) : ValueInspector<Box<T>>
 struct Duo<A, B>(val first: A, val second: B)
-class DuoInspector<A, B>(private val first: Inspectable<A>, private val second: Inspectable<B>) : Inspectable<Duo<A, B>>
-class Offset(val amount: Int) : Inspectable<Int> {
+class DuoInspector<A, B>(private val first: ValueInspector<A>, private val second: ValueInspector<B>) : ValueInspector<Duo<A, B>>
+class Offset(val amount: Int) : ValueInspector<Int> {
     public override fun inspect(value: Int): ValueView = Int.inspect(value + amount)
 }
 class Node(private val name: String) {
     var next: Node? = None
-    companion object : Inspectable<Node>
+    companion object : ValueInspector<Node>
 }
 struct FunctionRecord(val call: () -> Int)
-class FunctionInspector(private val call: Inspectable<() -> Int>) : Inspectable<FunctionRecord>
+class FunctionInspector(private val call: ValueInspector<() -> Int>) : ValueInspector<FunctionRecord>
 class Counts { var reads: Int = 0 }
-class Counting(private val counts: Counts) : Inspectable<Int> {
+class Counting(private val counts: Counts) : ValueInspector<Int> {
     public override fun inspect(value: Int): ValueView {
         counts.reads = counts.reads + 1
         gcCollect()
@@ -45,9 +45,9 @@ class Counting(private val counts: Counts) : Inspectable<Int> {
     }
 }
 struct Filtered(@DebugIgnore val ignored: Int, @DebugRedact val redacted: Int, val kept: Int)
-class FilteredInspector(private val field: Inspectable<Int>) : Inspectable<Filtered>
+class FilteredInspector(private val field: ValueInspector<Int>) : ValueInspector<Filtered>
 open class Open
-interface Custom : Inspectable<Open> {
+interface Custom : ValueInspector<Open> {
     public override fun inspect(value: Open): ValueView = OpaqueInspector<Open>("chosen default").inspect(value)
 }
 object Inherited : Custom

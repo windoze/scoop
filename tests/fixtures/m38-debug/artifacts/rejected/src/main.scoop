@@ -1,13 +1,13 @@
 import observed.*
 
-object PrivateInspector : Inspectable<Secret>
-object InternalInspector : Inspectable<InternalState>
-object ProtectedInspector : Inspectable<ProtectedState>
+object PrivateInspector : ValueInspector<Secret>
+object InternalInspector : ValueInspector<InternalState>
+object ProtectedInspector : ValueInspector<ProtectedState>
 
 class LocalSecret(private val token: String) {
     fun fromInside(): ValueView = IllegalReader.inspect(this)
 }
-object IllegalReader : Inspectable<LocalSecret> {
+object IllegalReader : ValueInspector<LocalSecret> {
     public inline override fun inspect(value: LocalSecret): ValueView {
         if (false) { return String.inspect(value.token) }
         return OpaqueInspector<LocalSecret>("hidden").inspect(value)

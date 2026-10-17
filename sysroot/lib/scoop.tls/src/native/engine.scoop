@@ -7,7 +7,7 @@ import scoop.tls.*
 public enum TlsStepKind { Done, WantRead, WantWrite, Closed }
 public struct TlsStep(val kind: TlsStepKind, val count: Long)
 
-public class TlsEngine private constructor(private var handle: ULong) : Disposable {
+public class TlsEngine private constructor(private var handle: ULong) : Closeable {
     public companion object {
         public fun client(context: TlsClientContext, peer: TlsPeerName): TlsEngine = TlsEngine(context.newSession(peer))
         public fun server(context: TlsServerContext): TlsEngine = TlsEngine(context.newSession())
@@ -24,8 +24,8 @@ public class TlsEngine private constructor(private var handle: ULong) : Disposab
         @Unsafe {
             val owned = nativeHandle()
             val version = when (sessionVersion(owned)) {
-                case 0x0303 -> TlsVersion.TLS12
-                case 0x0304 -> TlsVersion.TLS13
+                case 0x0303 -> TlsVersion.Tls12
+                case 0x0304 -> TlsVersion.Tls13
                 else -> throw IllegalStateException(Some("TLS handshake is incomplete"))
             }
             val alpn = cryptoBytes(sessionAlpn(owned), "read TLS ALPN")
@@ -54,7 +54,7 @@ public class TlsEngine private constructor(private var handle: ULong) : Disposab
         if (count == 0L) return 0L
         @Unsafe {
             val received = buffer.withReadableBytes { pointer, _ ->
-                @Unsafe { return@withReadableBytes tlsValue(ciphertext(nativeHandle(), 1, pointer!!, count), "feed TLS ciphertext").toInt64() }
+                @Unsafe { return@withReadableBytes tlsValue(ciphertext(nativeHandle(), 1, pointer!!, count), "feed TLS ciphertext").toLong() }
             }
             buffer.skip(received)
             return received
@@ -67,13 +67,12 @@ public class TlsEngine private constructor(private var handle: ULong) : Disposab
         val count = if (requested < pending) requested else pending
         if (count == 0L) return 0L
         @Unsafe { return buffer.withWritableBytes { pointer, _ ->
-            @Unsafe { return@withWritableBytes tlsValue(ciphertext(nativeHandle(), 0, pointer!!, count), "drain TLS ciphertext").toInt64() }
+            @Unsafe { return@withWritableBytes tlsValue(ciphertext(nativeHandle(), 0, pointer!!, count), "drain TLS ciphertext").toLong() }
         } }
     }
 
     public fun endInput() { @Unsafe { endInput(nativeHandle()) } }
-    public fun close() { dispose() }
-    public override fun dispose() {
+    public override fun close() {
         val owned = handle
         handle = 0UL
         if (owned != 0UL) @Unsafe { sessionFree(owned) }

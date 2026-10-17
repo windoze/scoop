@@ -14,13 +14,13 @@ import scoop.platform.system.*
 @Extern(name = "m45_network_signal_setup") private fun signalSetup()
 @Extern(name = "m45_network_signal_restore") private fun signalRestore()
 
-private fun verify(value: Boolean, location: SourceLocation = getCurrentSourceLocation()) {
+private fun verify(value: Boolean, location: SourceLocation = currentSourceLocation()) {
     if (!value) {
         eprintln("network assertion failed at line " + location.line.toString())
         throw IllegalStateException()
     }
 }
-private fun fails(location: SourceLocation = getCurrentSourceLocation(), body: () -> Unit): PlatformException {
+private fun fails(location: SourceLocation = currentSourceLocation(), body: () -> Unit): PlatformException {
     try { body() } catch (error: PlatformException) { return error }
     eprintln("expected network failure at line " + location.line.toString())
     throw IllegalStateException(Some("expected network failure"))
@@ -78,7 +78,7 @@ private fun streamOwnership() {
     TcpListener.bind(loopback()).use { listener ->
         Thread.start { listener.accept().use { verify(it.readText() == "short transfer") } }.use {
             @Unsafe { flags(8 + 2048) }
-            temporaryWrite(listener.localAddress)
+            temporaryWrite(listener.localAddress())
             gcCollect()
         }
     }
@@ -86,7 +86,7 @@ private fun streamOwnership() {
     @Unsafe { flags(0); verify(descriptors() == 0) }
     TcpListener.bind(loopback()).use { listener ->
         Thread.start { listener.accept().use { it.readAllBytes() } }.use {
-            TcpStream.connect(listener.localAddress).use { stream ->
+            TcpStream.connect(listener.localAddress()).use { stream ->
                 stream.shutdownOutput()
                 verify(fails { stream.writeText("closed") }.kind == PlatformErrorKind.BrokenPipe)
             }
@@ -98,7 +98,7 @@ private fun temporaryReceive(buffer: NativeByteBuffer) {
     @Unsafe { flags(16 + 256) }
     val packet = UdpSocket.bind(loopback()).receiveFrom(buffer)
     verify(packet.count == 3L && packet.truncated && packet.source.port > 0)
-    verify(OsString.fromBytes(buffer.readBytes(3L)).decodeUtf8() == "abc")
+    verify(OsString.fromByteArray(buffer.readBytes(3L)).decodeUtf8() == "abc")
 }
 private fun temporarySend(address: SocketAddress, buffer: NativeByteBuffer) {
     @Unsafe { flags(8) }
@@ -111,13 +111,13 @@ private fun datagramOwnership() {
         @Unsafe { verify(descriptors() == 0) }
         UdpSocket.bind(loopback()).use { receiver ->
             buffer.clear()
-            buffer.writeBytes(Array<Byte>(3L) { (it + 1L).toInt8() })
-            temporarySend(receiver.localAddress, buffer)
+            buffer.writeBytes(Array<Byte>(3L) { (it + 1L).toByte() })
+            temporarySend(receiver.localAddress(), buffer)
             gcCollect()
             @Unsafe { verify(descriptors() == 1) }
             buffer.clear()
             val packet = receiver.receiveFrom(buffer)
-            verify(packet.count == 3L && !packet.truncated && buffer.readByte() == 1.toInt8())
+            verify(packet.count == 3L && !packet.truncated && buffer.readByte() == 1.toByte())
         }
     }
 }

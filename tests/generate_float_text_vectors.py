@@ -131,7 +131,7 @@ fun expect(text: String, expected: {kind}) {{
     check(value == expected, text)
     if (value == 0{suffix if suffix else ".0"}) check(1{suffix if suffix else ".0"} / value == 1{suffix if suffix else ".0"} / expected, "zero sign: " + text)
 }}
-fun reject(text: String) {{ check(text.to{kind}OrNull() == None, "overflow: " + text) }}
+fun reject(text: String) {{ check(text.to{kind}OrNone() == None, "overflow: " + text) }}
 fun main() {{
 """
     main += "\n".join(f"    {name}()" for name in functions)

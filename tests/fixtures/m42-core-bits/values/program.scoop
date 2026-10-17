@@ -1,9 +1,9 @@
 fun check(ok: Boolean) { if (!ok) throw IllegalStateException() }
 
-@NoGC fun floatPattern(value: Float): UInt = value.toBits().toUInt32()
-@NoGC fun doublePattern(value: Double): ULong = value.toBits().toUInt64()
-fun roundFloat(bits: UInt): UInt = floatPattern(Float.fromBits(bits.toInt32()))
-fun roundDouble(bits: ULong): ULong = doublePattern(Double.fromBits(bits.toInt64()))
+@NoGC fun floatPattern(value: Float): UInt = value.toBits().toUInt()
+@NoGC fun doublePattern(value: Double): ULong = value.toBits().toULong()
+fun roundFloat(bits: UInt): UInt = floatPattern(Float.fromBits(bits.toInt()))
+fun roundDouble(bits: ULong): ULong = doublePattern(Double.fromBits(bits.toLong()))
 
 fun main() {
     check(Float.fromBits(0x3f800000) == 1f && Float.fromBits(1) == Float.MIN_VALUE)
@@ -32,7 +32,7 @@ fun main() {
     var count = 0L
     while (count < 1024L) {
         bits = bits * 6364136223846793005uL + 1uL
-        check(roundFloat(bits.toUInt32()) == bits.toUInt32() && roundDouble(bits) == bits)
+        check(roundFloat(bits.toUInt()) == bits.toUInt() && roundDouble(bits) == bits)
         count += 1L
     }
     val fromFloat: (Int) -> Float = Float.Companion::fromBits

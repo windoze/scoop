@@ -2,7 +2,7 @@ import scoop.collections.*
 
 fun main() {
     val source = sortedMapOf<Int, String>((2, "two"), (1, "one"), (3, "three"))
-    val snapshot = source.subMap(1, 3)
+    val snapshot = source.copyOfRange(1, 3)
     source.clear()
     for ((key, value) in snapshot) println(key)
     println(snapshot.floorEntry(2)!!.value == "two")

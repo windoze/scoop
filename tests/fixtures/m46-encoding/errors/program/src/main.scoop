@@ -1,7 +1,7 @@
 import scoop.json.Json
 
 fun rejectCodec(path: String, message: String, body: (Unit, Encoder) -> Unit) {
-    reject(path, message) { Json.encode(Unit, EncodeFunction<Unit>(body)) }
+    reject(path, message) { Json.encodeToString(Unit, ValueEncoderFunction<Unit>(body)) }
 }
 
 fun main() {

@@ -1,4 +1,4 @@
-internal class OptionInspector<T>(private val element: Inspectable<T>) : Inspectable<Option<T>> {
+internal class OptionInspector<T>(private val element: ValueInspector<T>) : ValueInspector<Option<T>> {
     public override fun inspect(value: Option<T>): ValueView {
         val type = typeInfo<Option<T>>().type
         return ValueObservation(type, None, {

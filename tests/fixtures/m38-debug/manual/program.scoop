@@ -25,7 +25,7 @@ fun observe(value: Node, counts: Counts): ValueView {
             }),
             MemberView(ObservedMember.Property(info.properties[1L]), {
                 counts.reads = counts.reads + 1L
-                Option<Node>.inspector(InspectFunction<Node>({ child -> observe(child, counts) })).inspect(value.next)
+                Option<Node>.inspector(ValueInspectorFunction<Node>({ child -> observe(child, counts) })).inspect(value.next)
             })
         ]))
     })
@@ -57,7 +57,7 @@ fun secrets(value: Secrets, counts: Counts): ValueView {
 class FailingWriter : TextWriter {
     val output: StringWriter = StringWriter()
     public override fun write(text: String) {
-        if (output.build() != "") { throw IllegalStateException() }
+        if (output.toString() != "") { throw IllegalStateException() }
         output.write(text)
         gcCollect()
     }
@@ -110,7 +110,7 @@ fun main() {
     check(counts.shapes == 1L && counts.reads == 1L)
     equal(DebugPrinter.format(view), "Node(name=\"root\", next=Option<Node>.Some(<cycle Node>))")
     check(counts.shapes == 2L && counts.reads == 3L)
-    val sharing = Array<Node>.inspector(InspectFunction<Node>({ item -> observe(item, counts) })).inspect([node, node])
+    val sharing = Array<Node>.inspector(ValueInspectorFunction<Node>({ item -> observe(item, counts) })).inspect([node, node])
     equal(DebugPrinter.format(sharing), "[Node(name=\"root\", next=Option<Node>.Some(<cycle Node>)), Node(name=\"root\", next=Option<Node>.Some(<cycle Node>))]")
     val secretCounts = Counts()
     val secret = secrets(Secrets(1, "password", "both", 7), secretCounts)
@@ -120,10 +120,10 @@ fun main() {
     check(secretCounts.reads == 1L)
     val writer = StringWriter()
     try { DebugPrinter.write(view, writer, DebugOptions(maxItems = -1L)); throw IllegalStateException() }
-    catch (error: IllegalArgumentException) { equal(writer.build(), "") }
+    catch (error: IllegalArgumentException) { equal(writer.toString(), "") }
     val failure = FailingWriter()
     try { DebugPrinter.write(view, failure); throw IllegalArgumentException() }
-    catch (error: IllegalStateException) { equal(failure.output.build(), "Node(") }
+    catch (error: IllegalStateException) { equal(failure.output.toString(), "Node(") }
     equal(DebugPrinter.format(view), "Node(name=\"root\", next=Option<Node>.Some(<cycle Node>))")
     inheritanceAndFailures()
     println("debug-manual-ok")
@@ -131,7 +131,7 @@ fun main() {
 
 open class Ancestor(protected val code: Int) {
     var link: Ancestor? = None
-    companion object : Inspectable<Ancestor> {
+    companion object : ValueInspector<Ancestor> {
         public override fun inspect(value: Ancestor): ValueView {
             val type = typeInfo<Ancestor>().type
             return ValueObservation(type, Some(value), {
@@ -150,7 +150,7 @@ open class Ancestor(protected val code: Int) {
     }
 }
 
-class Descendant(number: Int, val label: String) : Ancestor(number), Inspectable<Descendant> {
+class Descendant(number: Int, val label: String) : Ancestor(number), ValueInspector<Descendant> {
     public override fun inspect(value: Descendant): ValueView {
         val type = typeInfo<Descendant>().type
         return ValueObservation(type, Some(value), {
@@ -184,11 +184,11 @@ fun inheritanceAndFailures() {
     })
     val writer = StringWriter()
     try { DebugPrinter.write(view, writer); throw IllegalStateException() }
-    catch (error: IllegalArgumentException) { equal(error.message!!, "read failed"); equal(writer.build(), "(") }
+    catch (error: IllegalArgumentException) { equal(error.message!!, "read failed"); equal(writer.toString(), "(") }
     for (options in [DebugOptions(maxDepth = -1L), DebugOptions(maxStringLength = -1L)]) {
         val empty = StringWriter()
         try { DebugPrinter.write(view, empty, options); throw IllegalStateException() }
-        catch (error: IllegalArgumentException) { equal(empty.build(), "") }
+        catch (error: IllegalArgumentException) { equal(empty.toString(), "") }
     }
     equal(DebugPrinter.format(Array<Int>.inspector(Int.Companion).inspect([])), "[]")
     equal(DebugPrinter.format(String.inspect("abc"), DebugOptions(maxStringLength = 0L)), "\"…\"")

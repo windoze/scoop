@@ -13,10 +13,10 @@ private class AsyncResolveTest {
         loop.run suspend { scope ->
             val listener = loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
             val ipv4 = scope.async<Array<SocketAddress>> suspend {
-                loop.resolve(OsString.fromString("127.0.0.1"), listener.localAddress.port, Some(AddressFamily.IPv4))
+                loop.resolve(OsString.fromString("127.0.0.1"), listener.localAddress.port, Some(AddressFamily.Ipv4))
             }
             val ipv6 = scope.async<Array<SocketAddress>> suspend {
-                loop.resolve(OsString.fromString("::1"), 4321, Some(AddressFamily.IPv6))
+                loop.resolve(OsString.fromString("::1"), 4321, Some(AddressFamily.Ipv6))
             }
             gcCollect()
             val addresses = ipv4.await()
@@ -32,7 +32,7 @@ private class AsyncResolveTest {
                 peer.writeFully(bytes)
                 bytes.clear()
                 client.readFully(bytes)
-                assertEquals(42.toInt8(), bytes.readByte())
+                assertEquals(42.toByte(), bytes.readByte())
             }
         }
     }
@@ -42,14 +42,14 @@ private class AsyncResolveTest {
         val loop: EventLoop = LibuvEventLoop()
         loop.run suspend { _ ->
             val invalid: Array<Byte> = [49, 0, 50]
-            try { loop.resolve(OsString.fromBytes(invalid), 1); fail(Some("NUL accepted")) }
+            try { loop.resolve(OsString.fromByteArray(invalid), 1); fail(Some("NUL accepted")) }
             catch (_: IllegalArgumentException) {}
             try { loop.resolve(OsString.fromString("127.0.0.1"), -1); fail(Some("negative port accepted")) }
             catch (_: IllegalArgumentException) {}
             try { loop.resolve(OsString.fromString("::1"), 65536); fail(Some("large port accepted")) }
             catch (_: IllegalArgumentException) {}
             val host = OsString.fromString("::1")
-            try { loop.resolve(host, 42, Some(AddressFamily.IPv4)); fail(Some("IPv6 literal resolved as IPv4")) }
+            try { loop.resolve(host, 42, Some(AddressFamily.Ipv4)); fail(Some("IPv6 literal resolved as IPv4")) }
             catch (error: PlatformException) {
                 assertTrue(error.nativeError!!.domain == NativeErrorDomain.AddressResolution)
                 assertTrue(error.nativeError!!.code != 0)

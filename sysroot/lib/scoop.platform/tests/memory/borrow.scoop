@@ -25,7 +25,7 @@ private class NativeByteBufferBorrowTest {
             }
             assertEquals(2, calls[0L])
             buffer.ensureWritable(1L)
-            buffer.writeByte(3.toInt8())
+            buffer.writeByte(3.toByte())
             @Unsafe {
                 buffer.withWritableBytes { pointer, count ->
                     assertTrue(pointer == None)
@@ -39,14 +39,14 @@ private class NativeByteBufferBorrowTest {
     @Test
     fun `native tails commit only the initialized prefix and readable borrows do not consume`() {
         NativeByteBuffer.allocate(8L).use { buffer ->
-            buffer.writeByte(1.toInt8())
+            buffer.writeByte(1.toByte())
             @Unsafe {
                 assertEquals(2L, buffer.withWritableBytes { pointer, count ->
                     assertEquals(7L, count)
                     @Unsafe {
-                        pointer!!.store(0L, 2.toInt8())
+                        pointer!!.store(0L, 2.toByte())
                         gcCollect()
-                        pointer!!.store(1L, 3.toInt8())
+                        pointer!!.store(1L, 3.toByte())
                     }
                     2L
                 })
@@ -55,13 +55,13 @@ private class NativeByteBufferBorrowTest {
                     assertEquals(2L, count)
                     gcCollect()
                     @Unsafe {
-                        return@withReadableBytes pointer!!.load().toInt32() + pointer!!.load(1L).toInt32()
+                        return@withReadableBytes pointer!!.load().toInt() + pointer!!.load(1L).toInt()
                     }
                 })
             }
             assertEquals(1L, buffer.readPosition)
             assertEquals(3L, buffer.writePosition)
-            assertEquals(2.toInt8(), buffer.readByte())
+            assertEquals(2.toByte(), buffer.readByte())
         }
     }
 
@@ -73,7 +73,7 @@ private class NativeByteBufferBorrowTest {
                 assertSame(failure, assertFailsWith<Throwable> {
                     @Unsafe {
                         buffer.withWritableBytes { pointer, _ ->
-                            @Unsafe { pointer!!.store(9.toInt8()) }
+                            @Unsafe { pointer!!.store(9.toByte()) }
                             throw failure
                         }
                     }
@@ -86,20 +86,20 @@ private class NativeByteBufferBorrowTest {
             }
             assertEquals(0L, buffer.writePosition)
             assertFailsWith<IndexOutOfBoundsException> { buffer.getByte(0L) }
-            buffer.writeByte(7.toInt8())
-            assertEquals(7.toInt8(), buffer.readByte())
+            buffer.writeByte(7.toByte())
+            assertEquals(7.toByte(), buffer.readByte())
         }
     }
 
     @Test
     fun `readable and writable borrows reject mutations and nested borrows`() {
         NativeByteBuffer.allocate(4L).use { buffer ->
-            buffer.writeByte(1.toInt8())
+            buffer.writeByte(1.toByte())
             @Unsafe {
                 buffer.withReadableBytes { _, _ -> rejectMutations(buffer) }
                 buffer.withWritableBytes { _, _ -> rejectMutations(buffer); 0L }
             }
-            assertEquals(1.toInt8(), buffer.readByte())
+            assertEquals(1.toByte(), buffer.readByte())
             buffer.clear()
         }
     }
@@ -110,8 +110,8 @@ private class NativeByteBufferBorrowTest {
         assertEquals(1L, buffer.writePosition)
         assertEquals(1L, buffer.readableBytes)
         assertEquals(3L, buffer.writableBytes)
-        assertFalse(buffer.isDisposed)
-        assertEquals(1.toInt8(), buffer.getByte(0L))
+        assertFalse(buffer.isClosed)
+        assertEquals(1.toByte(), buffer.getByte(0L))
         assertFailsWith<IllegalStateException> { buffer.dispose() }
         assertFailsWith<IllegalStateException> { buffer.close() }
         assertFailsWith<IllegalStateException> { buffer.ensureWritable(0L) }
@@ -120,8 +120,8 @@ private class NativeByteBufferBorrowTest {
         assertFailsWith<IllegalStateException> { buffer.skip(0L) }
         assertFailsWith<IllegalStateException> { buffer.readBytes(0L) }
         assertFailsWith<IllegalStateException> { buffer.readByte() }
-        assertFailsWith<IllegalStateException> { buffer.writeByte(2.toInt8()) }
-        assertFailsWith<IllegalStateException> { buffer.setByte(0L, 2.toInt8()) }
+        assertFailsWith<IllegalStateException> { buffer.writeByte(2.toByte()) }
+        assertFailsWith<IllegalStateException> { buffer.setByte(0L, 2.toByte()) }
         @Unsafe {
             assertFailsWith<IllegalStateException> { @Unsafe { buffer.withReadableBytes { _, _ -> 0 } } }
             assertFailsWith<IllegalStateException> { @Unsafe { buffer.withWritableBytes { _, _ -> 0L } } }

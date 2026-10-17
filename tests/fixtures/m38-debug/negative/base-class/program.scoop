@@ -1,4 +1,4 @@
 open class Base
 class Record : Base()
-object Inspector : Inspectable<Record>
+object Inspector : ValueInspector<Record>
 fun main() {}

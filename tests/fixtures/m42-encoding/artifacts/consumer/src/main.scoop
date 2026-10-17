@@ -5,13 +5,13 @@ import scoop.text.*
 
 fun main() {
     val builder = ByteArrayBuilder()
-    builder.writeInt(42, ByteOrder.BIG_ENDIAN)
-    builder.writeDouble(Double.fromBits(0x7ff0000000000123L), ByteOrder.LITTLE_ENDIAN)
+    builder.writeInt32(42, ByteOrder.BigEndian)
+    builder.writeDouble(Double.fromBits(0x7ff0000000000123L), ByteOrder.LittleEndian)
     val hex = builder.toByteArray().toHexString()
-    val codec = Base64.UrlSafe.withPadding(PaddingOption.ABSENT)
+    val codec = Base64.UrlSafe.withPadding(PaddingOption.Absent)
     val frame = codec.encode(hex.hexToByteArray())
     val reader = ByteArrayReader(codec.decode(frame))
-    if (reader.readInt(ByteOrder.BIG_ENDIAN) != 42 ||
-        reader.readDouble(ByteOrder.LITTLE_ENDIAN).toBits() != 0x7ff0000000000123L || reader.remaining != 0L) throw IllegalStateException()
+    if (reader.readInt32(ByteOrder.BigEndian) != 42 ||
+        reader.readDouble(ByteOrder.LittleEndian).toBits() != 0x7ff0000000000123L || reader.remaining != 0L) throw IllegalStateException()
     println("encoded frame passed")
 }

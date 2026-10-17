@@ -42,7 +42,7 @@ impl Lowerer {
             };
             let addition = self.interpolation_member_call(
                 receiver.clone(),
-                "add",
+                "append",
                 &[ast::CallArgument::positional(value)],
                 part_span,
                 sink,
@@ -52,7 +52,7 @@ impl Lowerer {
                 span: part_span,
             });
         }
-        self.interpolation_member_call(receiver, "build", &[], span, sink)
+        self.interpolation_member_call(receiver, "toString", &[], span, sink)
     }
 
     fn construct_interpolation_builder(

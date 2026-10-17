@@ -1,5 +1,5 @@
 struct FetchedDocument(val url: String, val content: FetchedContent, val retrieved_at: String? = None) {
-    companion object : Encodable<FetchedDocument>, Decodable<FetchedDocument> {}
+    companion object : ValueEncoder<FetchedDocument>, ValueDecoder<FetchedDocument> {}
 }
 struct FetchedContent(
     val type: String,
@@ -7,14 +7,14 @@ struct FetchedContent(
     val title: String? = None,
     val citations: CitationConfig? = None
 ) {
-    companion object : Encodable<FetchedContent>, Decodable<FetchedContent> {}
+    companion object : ValueEncoder<FetchedContent>, ValueDecoder<FetchedContent> {}
 }
 struct ServerError(val error_code: String) {
-    companion object : Encodable<ServerError>, Decodable<ServerError> {}
+    companion object : ValueEncoder<ServerError>, ValueDecoder<ServerError> {}
 }
 enum FetchResult {
     Document(FetchedDocument), Error(ServerError)
-    companion object : Encodable<FetchResult>, Decodable<FetchResult> {
+    companion object : ValueEncoder<FetchResult>, ValueDecoder<FetchResult> {
         public override fun encode(value: FetchResult, encoder: Encoder) {
             val fields = encoder.keyed()
             when (value) {
@@ -40,7 +40,7 @@ enum FetchResult {
     }
 }
 struct CodeOutput(val stdout: String, val stderr: String, val return_code: Long, val content: Array<CodeFile>) {
-    companion object : Encodable<CodeOutput>, Decodable<CodeOutput> {}
+    companion object : ValueEncoder<CodeOutput>, ValueDecoder<CodeOutput> {}
 }
 struct EncryptedOutput(
     val encrypted_stdout: String,
@@ -48,11 +48,11 @@ struct EncryptedOutput(
     val return_code: Long,
     val content: Array<CodeFile>
 ) {
-    companion object : Encodable<EncryptedOutput>, Decodable<EncryptedOutput> {}
+    companion object : ValueEncoder<EncryptedOutput>, ValueDecoder<EncryptedOutput> {}
 }
 enum CodeResult {
     Output(CodeOutput), Encrypted(EncryptedOutput), Error(ServerError)
-    companion object : Encodable<CodeResult>, Decodable<CodeResult> {
+    companion object : ValueEncoder<CodeResult>, ValueDecoder<CodeResult> {
         public override fun encode(value: CodeResult, encoder: Encoder) {
             val fields = encoder.keyed()
             when (value) {

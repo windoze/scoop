@@ -1,15 +1,15 @@
 import scoop.json.Json
 
-fun <T> rejectDecoding(text: String, codec: Decodable<T>, path: String) {
+fun <T> rejectDecoding(text: String, codec: ValueDecoder<T>, path: String) {
     var rejected = false
-    try { val result = Json.decode(text, codec) }
+    try { val result = Json.decodeFromString(text, codec) }
     catch (error: DecodingException) { check(error.path == path); rejected = true }
     check(rejected)
 }
 
-fun <T> rejectEncoding(value: T, codec: Encodable<T>, path: String) {
+fun <T> rejectEncoding(value: T, codec: ValueEncoder<T>, path: String) {
     var rejected = false
-    try { val result = Json.encode(value, codec) }
+    try { val result = Json.encodeToString(value, codec) }
     catch (error: EncodingException) { check(error.path == path); rejected = true }
     check(rejected)
 }

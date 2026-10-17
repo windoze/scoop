@@ -4,7 +4,7 @@ public enum TestPhase { Initialization, BeforeTest, Body, AfterTest }
 
 public struct TestAction(
     val call: () -> Unit,
-    val location: SourceLocation = getCurrentSourceLocation()
+    val location: SourceLocation = currentSourceLocation()
 )
 
 public struct TestActions(

@@ -1,20 +1,20 @@
-class Matrix() : Get2<Int, Int, Int>, Set2<Int, Int, Int> {
+class Matrix() : IndexGet2<Int, Int, Int>, IndexSet2<Int, Int, Int> {
     private val values = MutableArray<Int>(4L) { index -> 0 }
     var reads: Int = 0
     var writes: Int = 0
     var evaluations: Int = 0
     public override operator fun get(first: Int, second: Int): Int {
         reads += 1
-        return values[(first * 2 + second).toInt64()]
+        return values[(first * 2 + second).toLong()]
     }
     public override operator fun set(first: Int, second: Int, value: Int) {
         writes += 1
-        values[(first * 2 + second).toInt64()] = value
+        values[(first * 2 + second).toLong()] = value
     }
     fun index(): Int { evaluations += 1; return 1 }
 }
 fun <M> increase(matrix: M, first: Int, second: Int)
-    where M : Get2<Int, Int, Int>, M : Set2<Int, Int, Int> {
+    where M : IndexGet2<Int, Int, Int>, M : IndexSet2<Int, Int, Int> {
     matrix[first, second] += 2
 }
 fun check(ok: Boolean) { if (!ok) { throw IllegalStateException() } }
@@ -24,8 +24,8 @@ fun main() {
     matrix[matrix.index(), matrix.index()]++
     check(matrix.reads == 1 && matrix.writes == 2 && matrix.evaluations == 2)
     increase(matrix, 1, 1)
-    val getter: Get2<Int, Int, Int> = matrix
-    val setter: Set2<Int, Int, Int> = matrix
+    val getter: IndexGet2<Int, Int, Int> = matrix
+    val setter: IndexSet2<Int, Int, Int> = matrix
     check(getter[1, 1] == 43)
     setter[0, 0] = 42
     check(getter[0, 0] == 42)

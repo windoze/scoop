@@ -4,18 +4,12 @@ import scoop.platform.io.*
 import scoop.platform.memory.NativeByteBuffer
 import scoop.tls.native.TlsEngine
 
-public fun <T> tlsClient(transport: T, context: TlsClientContext, peer: TlsPeerName): TlsStream
-    where T : ByteSource, T : ByteSink, T : Disposable = adoptSync(TlsEngine.client(context, peer), transport)
-
-public fun <T> tlsServer(transport: T, context: TlsServerContext): TlsStream
-    where T : ByteSource, T : ByteSink, T : Disposable = adoptSync(TlsEngine.server(context), transport)
-
-private fun <T> adoptSync(engine: TlsEngine, transport: T): TlsStream
-    where T : ByteSource, T : ByteSink, T : Disposable {
-    val owner: Disposable = transport
+internal fun <T> adoptSync(engine: TlsEngine, transport: T): TlsStream
+    where T : ByteSource, T : ByteSink, T : Closeable {
+    val owner: Closeable = transport
     val pump: SyncPump = try { allocatePump(engine, transport, transport) }
     catch (error: Throwable) {
-        val resources: Array<Disposable> = [owner, engine]
+        val resources: Array<Closeable> = [owner, engine]
         when (closeAll(resources)) {
             case Some(cleanup) -> throw ResourceUseException(error, cleanup)
             case None -> throw error

@@ -1,6 +1,6 @@
 enum ResponseTool {
     Function(FunctionSpec), FileSearch(FileSearchTool), WebSearch(WebSearchTool), Computer(ComputerTool), Code(CodeTool), Image(ImageTool), MCP(MCPConfig)
-    companion object : Encodable<ResponseTool>, Decodable<ResponseTool> {
+    companion object : ValueEncoder<ResponseTool>, ValueDecoder<ResponseTool> {
         public override fun encode(value: ResponseTool, encoder: Encoder) {
             val fields = encoder.keyed()
             when (value) {
@@ -52,7 +52,7 @@ enum ResponseTool {
 }
 enum ResponseNamedTool {
     Function(NamedFunction), Web, Code
-    companion object : Encodable<ResponseNamedTool>, Decodable<ResponseNamedTool> {
+    companion object : ValueEncoder<ResponseNamedTool>, ValueDecoder<ResponseNamedTool> {
         public override fun encode(value: ResponseNamedTool, encoder: Encoder) {
             val fields = encoder.keyed()
             when (value) {
@@ -81,14 +81,14 @@ enum ResponseNamedTool {
     }
 }
 struct NamedChoice(val tool: ResponseNamedTool) {
-    companion object : Encodable<NamedChoice>, Decodable<NamedChoice> {
+    companion object : ValueEncoder<NamedChoice>, ValueDecoder<NamedChoice> {
         public override fun encode(value: NamedChoice, encoder: Encoder) { ResponseNamedTool.Companion.encode(value.tool, encoder) }
         public override fun decode(decoder: Decoder): NamedChoice = NamedChoice(ResponseNamedTool.Companion.decode(decoder))
     }
 }
 enum ResponseChoice {
     Text(String), Named(NamedChoice)
-    companion object : Encodable<ResponseChoice>, Decodable<ResponseChoice> {
+    companion object : ValueEncoder<ResponseChoice>, ValueDecoder<ResponseChoice> {
         public override fun encode(value: ResponseChoice, encoder: Encoder) {
             when (value) {
                 case ResponseChoice.Text(text) -> String.encode(text, encoder)

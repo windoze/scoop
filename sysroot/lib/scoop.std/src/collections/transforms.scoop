@@ -16,7 +16,7 @@ public fun <T, R> Iterable<T>.mapIndexed(transform: (Long, T) -> R): List<R> {
     return ListSnapshot<R>(result.toArray())
 }
 
-public fun <T, R> Iterable<T>.mapNotNull(transform: (T) -> R?): List<R> {
+public fun <T, R> Iterable<T>.mapNotNone(transform: (T) -> R?): List<R> {
     val result = ArrayList<R>()
     for (element in this) {
         when (transform(element)) {
@@ -36,7 +36,7 @@ public fun <T> Iterable<T>.filter(predicate: (T) -> Boolean): List<T> {
 public fun <T> Iterable<T>.filterNot(predicate: (T) -> Boolean): List<T> =
     filter<T> { element -> !predicate(element) }
 
-public fun <T> Iterable<T?>.filterNotNull(): List<T> = mapNotNull<T?, T> { element -> element }
+public fun <T> Iterable<T?>.filterNotNone(): List<T> = mapNotNone<T?, T> { element -> element }
 
 public fun <T, R> Iterable<T>.flatMap(transform: (T) -> Iterable<R>): List<R> {
     val result = ArrayList<R>()

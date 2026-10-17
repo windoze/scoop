@@ -9,7 +9,7 @@ private class NetworkAddressTest {
     fun `IP literals and bytes preserve families scope and value identity`() {
         for (literal in ["127.0.0.1", "0.0.0.0", "255.255.255.255", "::1", "2001:db8::1234", "::ffff:127.0.0.1", "fe80::abcd%4294967295"]) {
             val address = IpAddress.parse(literal)
-            val copy = IpAddress.fromBytes(address.toBytes(), address.scopeId)
+            val copy = IpAddress.fromByteArray(address.toByteArray(), address.scopeId)
             assertEquals(address, copy)
             assertEquals(address.hash(), copy.hash())
             assertEquals(address, IpAddress.parse(address.toString()))
@@ -18,8 +18,8 @@ private class NetworkAddressTest {
         assertEquals(IpAddress.IPV6_LOOPBACK, IpAddress.parse("::1"))
         assertEquals("0.0.0.0", IpAddress.IPV4_ANY.toString())
         assertEquals("::", IpAddress.IPV6_ANY.toString())
-        assertTrue(IpAddress.IPV4_ANY.family == AddressFamily.IPv4)
-        assertTrue(IpAddress.IPV6_ANY.family == AddressFamily.IPv6)
+        assertTrue(IpAddress.IPV4_ANY.family == AddressFamily.Ipv4)
+        assertTrue(IpAddress.IPV6_ANY.family == AddressFamily.Ipv6)
         assertEquals(4294967295u, IpAddress.parse("fe80::1%4294967295").scopeId)
     }
 
@@ -42,8 +42,8 @@ private class NetworkAddressTest {
         for (text in ["", "localhost", "127.0.0.256", "127.1", "2001::db8::1", "::1%", "::1%+1", "::1%4294967296", "127.0.0.1%1"]) {
             assertFailsWith<IllegalArgumentException> { IpAddress.parse(text) }
         }
-        assertFailsWith<IllegalArgumentException> { IpAddress.fromBytes(Array<Byte>(5L) { 0.toInt8() }) }
-        assertFailsWith<IllegalArgumentException> { IpAddress.fromBytes(IpAddress.IPV4_ANY.toBytes(), 1u) }
+        assertFailsWith<IllegalArgumentException> { IpAddress.fromByteArray(Array<Byte>(5L) { 0.toByte() }) }
+        assertFailsWith<IllegalArgumentException> { IpAddress.fromByteArray(IpAddress.IPV4_ANY.toByteArray(), 1u) }
     }
 
     @Test
@@ -52,8 +52,8 @@ private class NetworkAddressTest {
         val local = resolve("localhost", 4321)
         assertTrue(local.size > 0L)
         for (address in local) assertEquals(4321, address.port)
-        for (family in [AddressFamily.IPv4, AddressFamily.IPv6]) {
-            val host = if (family == AddressFamily.IPv4) "127.0.0.1" else "::1"
+        for (family in [AddressFamily.Ipv4, AddressFamily.Ipv6]) {
+            val host = if (family == AddressFamily.Ipv4) "127.0.0.1" else "::1"
             val results = resolve(host, 4321, Some(family))
             assertTrue(results.size > 0L)
             for (address in results) {
@@ -63,6 +63,6 @@ private class NetworkAddressTest {
         }
         assertEquals(IpAddress.IPV4_LOOPBACK, resolve(OsString.fromString("127.0.0.1"), 0)[0L].address)
         assertFailsWith<IllegalArgumentException> { resolve("localhost", -1) }
-        assertFailsWith<IllegalArgumentException> { resolve(OsString.fromBytes(Array<Byte>(1L) { 0.toInt8() }), 80) }
+        assertFailsWith<IllegalArgumentException> { resolve(OsString.fromByteArray(Array<Byte>(1L) { 0.toByte() }), 80) }
     }
 }

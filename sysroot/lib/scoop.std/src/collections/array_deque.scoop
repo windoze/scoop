@@ -38,8 +38,8 @@ public class ArrayDeque<T> public constructor() : Collection<T> {
         structure.advance()
     }
 
-    public fun firstOrNull(): T? = if (elementCount == 0L) None else Some(elementAt(0L))
-    public fun lastOrNull(): T? = if (elementCount == 0L) None else Some(elementAt(elementCount - 1L))
+    public fun firstOrNone(): T? = if (elementCount == 0L) None else Some(elementAt(0L))
+    public fun lastOrNone(): T? = if (elementCount == 0L) None else Some(elementAt(elementCount - 1L))
 
     public fun removeFirst(): T {
         if (elementCount == 0L) throw NoSuchElementException("empty deque")
@@ -63,8 +63,8 @@ public class ArrayDeque<T> public constructor() : Collection<T> {
         return value
     }
 
-    public fun removeFirstOrNull(): T? = if (elementCount == 0L) None else Some(removeFirst())
-    public fun removeLastOrNull(): T? = if (elementCount == 0L) None else Some(removeLast())
+    public fun removeFirstOrNone(): T? = if (elementCount == 0L) None else Some(removeFirst())
+    public fun removeLastOrNone(): T? = if (elementCount == 0L) None else Some(removeLast())
 
     public fun clear() {
         if (elementCount == 0L) return
@@ -78,9 +78,9 @@ public class ArrayDeque<T> public constructor() : Collection<T> {
     public override operator fun iterator(): Iterator<T> = DequeIterator<T>(this, structure)
 
     public companion object {
-        public fun encoder(element: Encodable<T>): Encodable<ArrayDeque<T>> =
-            EncodeFunction<ArrayDeque<T>> { values, encoder -> encodeElements(values, element, encoder) }
-        public fun decoder(element: Decodable<T>): Decodable<ArrayDeque<T>> = DecodeFunction<ArrayDeque<T>> { decoder ->
+        public fun encoder(element: ValueEncoder<T>): ValueEncoder<ArrayDeque<T>> =
+            ValueEncoderFunction<ArrayDeque<T>> { values, encoder -> encodeElements(values, element, encoder) }
+        public fun decoder(element: ValueDecoder<T>): ValueDecoder<ArrayDeque<T>> = ValueDecoderFunction<ArrayDeque<T>> { decoder ->
             val result = ArrayDeque<T>()
             decodeElements(decoder, element) { value -> result.addLast(value) }
             result

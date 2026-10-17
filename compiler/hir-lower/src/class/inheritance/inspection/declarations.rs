@@ -8,7 +8,7 @@ impl Lowerer {
         interfaces: &[TypeId],
         candidates: &[crate::CallableCandidate],
     ) -> Option<FunctionId> {
-        let inspectable = self.core_coding_nominal("Inspectable")?;
+        let inspectable = self.core_coding_nominal("ValueInspector")?;
         let view = self.core_coding_nominal("ValueView")?;
         let signature = &member.signature;
         if signature.name != "inspect"

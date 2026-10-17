@@ -3,7 +3,7 @@ import scoop.json.Json
 private object Trace { var events: String = "" }
 
 private struct Payload(val number: Int, val text: String) {
-    public companion object : Encodable<Payload> {
+    public companion object : ValueEncoder<Payload> {
         init { Trace.events += "codec;" }
         public override fun encode(value: Payload, encoder: Encoder) {
             Trace.events += f"value=${value.number}:${value.text};"
@@ -12,7 +12,7 @@ private struct Payload(val number: Int, val text: String) {
     }
 }
 private class Source(public var value: Payload) {
-    public companion object : Encodable<Source>
+    public companion object : ValueEncoder<Source>
 }
 private class TraceEncoder(private val source: Source)
     : Encoder, KeyedEncodingContainer, SingleValueEncodingContainer {
@@ -42,16 +42,16 @@ private class TraceEncoder(private val source: Source)
 }
 
 private struct Unvisited() {
-    public companion object : Encodable<Unvisited> {
+    public companion object : ValueEncoder<Unvisited> {
         init { throw IllegalStateException(Some("an unused codec was initialized")) }
     }
 }
 private struct Skip(@Serialize(ignore = true) val ignored: Unvisited, val value: Int) {
-    public companion object : Encodable<Skip>
+    public companion object : ValueEncoder<Skip>
 }
 private enum Choice {
     Main(Int), Other(Unvisited)
-    public companion object : Encodable<Choice>
+    public companion object : ValueEncoder<Choice>
 }
 
 fun orderingCases() {
@@ -59,6 +59,6 @@ fun orderingCases() {
     Source.Companion.encode(source, TraceEncoder(source))
     check(Trace.events == "keyed;child;codec;value=1:old;write=1:old;end;")
     check(source.value.number == 9 && source.value.text == "new")
-    check(Json.encode(Skip(Unvisited(), 8), Skip.Companion) == "{\"value\":8}")
-    check(Json.encode(Choice.Main(4), Choice.Companion) == "{\"Main\":[4]}")
+    check(Json.encodeToString(Skip(Unvisited(), 8), Skip.Companion) == "{\"value\":8}")
+    check(Json.encodeToString(Choice.Main(4), Choice.Companion) == "{\"Main\":[4]}")
 }

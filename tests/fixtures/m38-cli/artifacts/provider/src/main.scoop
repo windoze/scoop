@@ -2,7 +2,7 @@ package cli.model
 import scoop.cli.*
 import scoop.cli.CliOption as NamedOption
 
-@Target([AnnotationTarget.TYPE])
+@Target([AnnotationTarget.Type])
 private annotation class Marker(val text: String)
 
 public struct Arguments(
@@ -11,16 +11,16 @@ public struct Arguments(
     @Serialize(required = true) @NamedOption(names = ["--output", "-o"], defaultText = "not optional") val output: String? = None,
     @Serialize(emitNull = true) val extra: @Marker("type only") String?,
     @DebugRedact val secret: String = "private"
-) { public companion object : Encodable<Arguments>, Decodable<Arguments>, Inspectable<Arguments> }
+) { public companion object : ValueEncoder<Arguments>, ValueDecoder<Arguments>, ValueInspector<Arguments> }
 
 public class ClassArguments public constructor(public val code: Int = 3) {
-    public companion object : Decodable<ClassArguments>
+    public companion object : ValueDecoder<ClassArguments>
 }
 
 public struct GenericArguments<T>(@NamedOption(names = ["--item", "-i"]) val value: T)
-public class GenericCodec<T> public constructor(private val element: Decodable<T>) : Decodable<GenericArguments<T>>
+public class GenericCodec<T> public constructor(private val element: ValueDecoder<T>) : ValueDecoder<GenericArguments<T>>
 public fun <T> genericSchema(): CliSchema<GenericArguments<T>> = Cli.schema(typeInfo<GenericArguments<T>>(), CliConfig("generic"))
-public fun <T> genericParser(element: Decodable<T>): CliParser<GenericArguments<T>> = CliParser(genericSchema<T>(), GenericCodec<T>(element))
+public fun <T> genericParser(element: ValueDecoder<T>): CliParser<GenericArguments<T>> = CliParser(genericSchema<T>(), GenericCodec<T>(element))
 
 public struct MaybeArguments<T>(val value: T?)
-public class MaybeCodec<T> public constructor(private val element: Decodable<T>) : Decodable<MaybeArguments<T>>
+public class MaybeCodec<T> public constructor(private val element: ValueDecoder<T>) : ValueDecoder<MaybeArguments<T>>

@@ -9,7 +9,7 @@ import scoop.tls.*
 private class AsyncTlsDuplexTests {
     @Test
     fun `pending read permits write and a single handshake drives both transport directions`() {
-        for (version in [TlsVersion.TLS12, TlsVersion.TLS13]) duplex(version)
+        for (version in [TlsVersion.Tls12, TlsVersion.Tls13]) duplex(version)
     }
 }
 
@@ -50,8 +50,8 @@ private fun duplex(version: TlsVersion) {
                 client.flush()
                 assertEquals(3L, reading.await())
                 echo.join()
-                assertEquals(116.toInt8(), input.getByte(0L))
-                assertEquals(115.toInt8(), input.getByte(2L))
+                assertEquals(116.toByte(), input.getByte(0L))
+                assertEquals(115.toByte(), input.getByte(2L))
                 val ending = scope.launch suspend { server.shutdownGracefully() }
                 client.shutdownGracefully()
                 ending.join()

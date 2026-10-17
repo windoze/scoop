@@ -11,25 +11,25 @@ fun oneRead(): Sequence<Int> {
 
 fun main() {
     val values = sequenceOf<Int>(1, 2, 3)
-    check(oneRead().first() == 4 && oneRead().firstOrNull() == Some(4), "first short circuit")
-    check(oneRead().first { value -> value == 4 } == 4 && oneRead().firstOrNull { _ -> true } == Some(4), "predicate first")
+    check(oneRead().first() == 4 && oneRead().firstOrNone() == Some(4), "first short circuit")
+    check(oneRead().first { value -> value == 4 } == 4 && oneRead().firstOrNone { _ -> true } == Some(4), "predicate first")
     check(oneRead().any() && oneRead().any { value -> value == 4 } && !oneRead().none() && !oneRead().none { _ -> true }, "any none short circuit")
     check(!oneRead().all { _ -> false } && oneRead().find { _ -> true } == Some(4), "all find short circuit")
-    check(oneRead().elementAt(0L) == 4 && oneRead().elementAtOrNull(0L) == Some(4) && oneRead().elementAtOrNull(-1L) == None, "indexed lookup")
+    check(oneRead().elementAt(0L) == 4 && oneRead().elementAtOrNone(0L) == Some(4) && oneRead().elementAtOrNone(-1L) == None, "indexed lookup")
     check(oneRead().contains(4) && oneRead().indexOf(4) == 0L, "membership")
-    check(values.last() == 3 && values.lastOrNull() == Some(3) && values.last { value -> value < 3 } == 2 && values.lastOrNull { value -> value < 3 } == Some(2), "last")
-    check(sequenceOf<Int>(4).single() == 4 && sequenceOf<Int>(4).singleOrNull() == Some(4), "single")
-    check(values.single { value -> value == 2 } == 2 && values.singleOrNull { value -> value == 2 } == Some(2) && values.singleOrNull() == None, "predicate single")
+    check(values.last() == 3 && values.lastOrNone() == Some(3) && values.last { value -> value < 3 } == 2 && values.lastOrNone { value -> value < 3 } == Some(2), "last")
+    check(sequenceOf<Int>(4).single() == 4 && sequenceOf<Int>(4).singleOrNone() == Some(4), "single")
+    check(values.single { value -> value == 2 } == 2 && values.singleOrNone { value -> value == 2 } == Some(2) && values.singleOrNone() == None, "predicate single")
     check(values.count() == 3L && values.count { value -> value != 2 } == 2L, "count")
-    check(values.fold<Int, Int>(10) { a, b -> a + b } == 16 && values.reduce { a, b -> a + b } == 6 && values.reduceOrNull { a, b -> a + b } == Some(6), "reductions")
-    check(emptySequence<Int>().none() && emptySequence<Int>().reduceOrNull { a, b -> a + b } == None, "empty terminals")
+    check(values.fold<Int, Int>(10) { a, b -> a + b } == 16 && values.reduce { a, b -> a + b } == 6 && values.reduceOrNone { a, b -> a + b } == Some(6), "reductions")
+    check(emptySequence<Int>().none() && emptySequence<Int>().reduceOrNone { a, b -> a + b } == None, "empty terminals")
     val state = State()
     values.forEach { value -> state.count += value }
-    values.forEachIndexed { index, value -> state.count += index.toInt32() + value }
+    values.forEachIndexed { index, value -> state.count += index.toInt() + value }
     check(state.count == 15, "actions")
     val (yes, no) = values.partition { value -> value == 2 }
     check(yes.joinToString() == "2" && no.joinToString() == "1, 3" && values.reversed().joinToString() == "3, 2, 1", "materialized partitions")
-    check(values.minOrNull() == Some(1) && values.maxOrNull() == Some(3) && values.minWithOrNull(reverseOrder<Int>()) == Some(3) && values.maxWithOrNull(reverseOrder<Int>()) == Some(1), "extrema")
+    check(values.minOrNone() == Some(1) && values.maxOrNone() == Some(3) && values.minWithOrNone(reverseOrder<Int>()) == Some(3) && values.maxWithOrNone(reverseOrder<Int>()) == Some(1), "extrema")
     val joined = generateSequence<Int>(1) { value -> Some(value + 1) }.joinToString(limit = 2L, prefix = "[", postfix = "]") { value -> value.toString() }
     check(joined == "[1, 2, ...]", "infinite join")
     println("sequences terminals passed")

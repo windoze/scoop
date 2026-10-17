@@ -9,7 +9,7 @@ internal fun appendDecimalExponent(value: ULong, digit: ULong): ULong {
 // Cancel the decimal-point offset before reducing to a signed order of magnitude.
 internal fun decimalOrder(exponent: ULong, negative: Boolean, offset: Long): Long {
     val offsetNegative = offset < 0L
-    val offsetMagnitude = if (offsetNegative) (0uL - offset.toUInt64()) else offset.toUInt64()
+    val offsetMagnitude = if (offsetNegative) (0uL - offset.toULong()) else offset.toULong()
     var resultNegative = negative
     var magnitude = exponent
     if (negative == offsetNegative) {
@@ -21,6 +21,6 @@ internal fun decimalOrder(exponent: ULong, negative: Boolean, offset: Long): Lon
         magnitude = offsetMagnitude - exponent
         resultNegative = offsetNegative
     }
-    val bounded = if (magnitude > Long.MAX_VALUE.toUInt64()) Long.MAX_VALUE else magnitude.toInt64()
+    val bounded = if (magnitude > Long.MAX_VALUE.toULong()) Long.MAX_VALUE else magnitude.toLong()
     return if (resultNegative) -bounded else bounded
 }

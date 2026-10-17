@@ -5,18 +5,18 @@ internal fun requireValidUtf8(result: (String?, Long)): String {
     return value!!
 }
 
-internal fun decodeUtf8(bytes: Array<UInt8>): (String?, Long) {
+internal fun decodeUtf8(bytes: List<Byte>): (String?, Long) {
     @Unsafe {
-        return bytes.withDataPointer(fun(pointer: Ptr<UInt8>, length: Long): (String?, Long) {
-            @Unsafe { return coreStringDecodeUtf8(pointer, length) }
+        return bytes.toArray().withDataPointer(fun(pointer: Ptr<Byte>, length: Long): (String?, Long) {
+            @Unsafe { return coreStringDecodeUtf8(pointer.cast<UInt8>(), length) }
         })
     }
 }
 
-internal fun decodeUtf8Lossy(bytes: Array<UInt8>): String {
+internal fun decodeUtf8Lossy(bytes: List<Byte>): String {
     @Unsafe {
-        return bytes.withDataPointer(fun(pointer: Ptr<UInt8>, length: Long): String {
-            @Unsafe { return coreStringDecodeUtf8Lossy(pointer, length) }
+        return bytes.toArray().withDataPointer(fun(pointer: Ptr<Byte>, length: Long): String {
+            @Unsafe { return coreStringDecodeUtf8Lossy(pointer.cast<UInt8>(), length) }
         })
     }
 }

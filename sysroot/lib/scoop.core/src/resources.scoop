@@ -2,10 +2,15 @@ public interface Disposable {
     public fun dispose()
 }
 
+public interface Closeable : Disposable {
+    public fun close()
+    public override fun dispose() { close() }
+}
+
 public class ResourceUseException public constructor(
     public val primaryFailure: Throwable,
     public val cleanupFailure: Throwable
-) : Throwable()
+) : Exception(Some("resource body and cleanup both failed"))
 
 public fun <T : Disposable, R> T.use(block: (T) -> R): R {
     val result = try {

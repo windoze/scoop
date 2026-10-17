@@ -10,7 +10,7 @@ fun rejected(reader: ByteArrayReader, negativeCount: Boolean, action: () -> Unit
     check(failed && reader.position == before)
 }
 fun main() {
-    val reader = ByteArrayReader(Array<Byte>(9L) { index -> index.toInt8() })
+    val reader = ByteArrayReader(Array<Byte>(9L) { index -> index.toByte() })
     reader.seek(2L)
     rejected(reader, false) { reader.seek(-1L) }
     rejected(reader, false) { reader.seek(10L) }
@@ -18,24 +18,24 @@ fun main() {
     rejected(reader, true) { reader.readBytes(-1L) }
     rejected(reader, false) { reader.skip(Long.MAX_VALUE) }
     rejected(reader, false) { reader.readBytes(Long.MAX_VALUE) }
-    rejected(reader, false) { reader.readLong(ByteOrder.BIG_ENDIAN) }
-    rejected(reader, false) { reader.readULong(ByteOrder.LITTLE_ENDIAN) }
-    rejected(reader, false) { reader.readDouble(ByteOrder.BIG_ENDIAN) }
+    rejected(reader, false) { reader.readInt64(ByteOrder.BigEndian) }
+    rejected(reader, false) { reader.readUInt64(ByteOrder.LittleEndian) }
+    rejected(reader, false) { reader.readDouble(ByteOrder.BigEndian) }
     reader.seek(6L)
-    rejected(reader, false) { reader.readInt(ByteOrder.LITTLE_ENDIAN) }
-    rejected(reader, false) { reader.readUInt(ByteOrder.BIG_ENDIAN) }
-    rejected(reader, false) { reader.readFloat(ByteOrder.LITTLE_ENDIAN) }
+    rejected(reader, false) { reader.readInt32(ByteOrder.LittleEndian) }
+    rejected(reader, false) { reader.readUInt32(ByteOrder.BigEndian) }
+    rejected(reader, false) { reader.readFloat(ByteOrder.LittleEndian) }
     reader.seek(8L)
-    rejected(reader, false) { reader.readInt16(ByteOrder.BIG_ENDIAN) }
-    rejected(reader, false) { reader.readUInt16(ByteOrder.LITTLE_ENDIAN) }
-    check(reader.readUInt8() == 8u.toUInt8())
+    rejected(reader, false) { reader.readInt16(ByteOrder.BigEndian) }
+    rejected(reader, false) { reader.readUInt16(ByteOrder.LittleEndian) }
+    check(reader.readUInt8() == 8u.toUByte())
     rejected(reader, false) { reader.readInt8() }
     rejected(reader, false) { reader.readUInt8() }
     check(reader.readBytes(0L).size == 0L)
     reader.skip(0L)
     reader.seek(9L)
     check(reader.remaining == 0L)
-    val empty = ByteArrayReader(Array<Byte>(0L) { _ -> 0.toInt8() })
+    val empty = ByteArrayReader(Array<Byte>(0L) { _ -> 0.toByte() })
     check(empty.size == 0L && empty.readBytes(0L).size == 0L)
     rejected(empty, false) { empty.readInt8() }
     println("bytes bounds passed")

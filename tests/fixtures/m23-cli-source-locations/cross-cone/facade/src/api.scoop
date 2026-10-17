@@ -9,4 +9,4 @@ import locations.provider.trace
 
 public fun <T> relay(value: T, location: SourceLocation = trace()): SourceLocation = location
 
-public fun ordinary(): SourceLocation = getCurrentSourceLocation()
+public fun ordinary(): SourceLocation = currentSourceLocation()

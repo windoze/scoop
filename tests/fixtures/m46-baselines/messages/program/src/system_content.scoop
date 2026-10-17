@@ -1,6 +1,6 @@
 enum SystemContent {
     Text(String), Blocks(Array<TextOnly>)
-    companion object : Encodable<SystemContent>, Decodable<SystemContent> {
+    companion object : ValueEncoder<SystemContent>, ValueDecoder<SystemContent> {
         public override fun encode(value: SystemContent, encoder: Encoder) {
             when (value) {
                 case SystemContent.Text(text) -> String.encode(text, encoder)
@@ -17,7 +17,7 @@ enum SystemContent {
     }
 }
 struct TextOnly(val text: String, val cache_control: CacheControl? = None) {
-    companion object : Encodable<TextOnly>, Decodable<TextOnly> {
+    companion object : ValueEncoder<TextOnly>, ValueDecoder<TextOnly> {
         public override fun encode(value: TextOnly, encoder: Encoder) {
             String.encode("text", encoder.keyed().field("type"))
             TextFields.encode(value, encoder)
@@ -29,4 +29,4 @@ struct TextOnly(val text: String, val cache_control: CacheControl? = None) {
         }
     }
 }
-object TextFields : Encodable<TextOnly>, Decodable<TextOnly> {}
+object TextFields : ValueEncoder<TextOnly>, ValueDecoder<TextOnly> {}

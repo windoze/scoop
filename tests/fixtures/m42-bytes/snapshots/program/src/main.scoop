@@ -16,26 +16,26 @@ class Huge : List<Byte> {
 }
 fun main() {
     val builder = ByteArrayBuilder()
-    builder.append(1.toInt8()); builder.append(2.toInt8()); builder.append(3.toInt8())
+    builder.append(1.toByte()); builder.append(2.toByte()); builder.append(3.toByte())
     val first = builder.toByteArray()
     val mutable = builder.toMutableByteArray()
-    mutable[0L] = 99.toInt8()
-    check(builder.toByteArray()[0L] == 1.toInt8() && first[0L] == 1.toInt8())
+    mutable[0L] = 99.toByte()
+    check(builder.toByteArray()[0L] == 1.toByte() && first[0L] == 1.toByte())
     builder.append(Source(builder, false))
-    check(builder.size == 6L && builder.toByteArray()[3L] == 1.toInt8() && first.size == 3L)
+    check(builder.size == 6L && builder.toByteArray()[3L] == 1.toByte() && first.size == 3L)
     var failed = false
     try { builder.append(Source(builder, true)) } catch (error: IllegalArgumentException) { failed = true }
-    check(failed && builder.size == 6L && builder.toByteArray()[5L] == 3.toInt8())
+    check(failed && builder.size == 6L && builder.toByteArray()[5L] == 3.toByte())
     val reader = ByteArrayReader(mutable)
-    mutable[0L] = 0.toInt8()
-    check(reader.readInt8() == 99.toInt8())
+    mutable[0L] = 0.toByte()
+    check(reader.readInt8() == 99.toByte())
     val slice = reader.readBytes(2L)
     reader.seek(0L)
     builder.clear()
-    check(builder.size == 0L && first.size == 3L && first[2L] == 3.toInt8() && slice[0L] == 2.toInt8())
+    check(builder.size == 0L && first.size == 3L && first[2L] == 3.toByte() && slice[0L] == 2.toByte())
     builder.append(first)
-    builder.append(Array<Byte>(0L) { _ -> 0.toInt8() })
-    check(builder.size == 3L && reader.readInt8() == 99.toInt8())
+    builder.append(Array<Byte>(0L) { _ -> 0.toByte() })
+    check(builder.size == 3L && reader.readInt8() == 99.toByte())
     var constructorFailed = false
     try { ByteArrayReader(Source(builder, true)) } catch (error: IllegalArgumentException) { constructorFailed = true }
     check(constructorFailed)

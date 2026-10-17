@@ -44,7 +44,7 @@ impl Lowerer {
         let function = &self.functions[current];
         let signature = &self.signatures[&current];
         let location_type = self.struct_applications[location_application].canonical_type;
-        let valid_current = function.name == "getCurrentSourceLocation"
+        let valid_current = function.name == "currentSourceLocation"
             && function.method.is_none()
             && matches!(function.genericity, hir::FunctionGenericity::Plain)
             && !signature.is_suspend
@@ -54,7 +54,7 @@ impl Lowerer {
         if !valid_current {
             self.error(
                 function.span,
-                "intrinsic `current_source_location` must be `fun getCurrentSourceLocation(): SourceLocation`"
+                "intrinsic `current_source_location` must be `fun currentSourceLocation(): SourceLocation`"
                     .to_string(),
             );
         }

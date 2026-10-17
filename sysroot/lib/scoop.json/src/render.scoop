@@ -2,56 +2,56 @@ package scoop.json
 
 internal fun writeJsonString(text: String, output: StringBuilder) {
     val hex = "0123456789abcdef"
-    output.add('"')
+    output.append('"')
     for (character in text) {
         when (character) {
-            case '"' -> { output.add("\\\"") }
-            case '\\' -> { output.add("\\\\") }
-            case '\u{8}' -> { output.add("\\b") }
-            case '\u{c}' -> { output.add("\\f") }
-            case '\n' -> { output.add("\\n") }
-            case '\r' -> { output.add("\\r") }
-            case '\t' -> { output.add("\\t") }
+            case '"' -> { output.append("\\\"") }
+            case '\\' -> { output.append("\\\\") }
+            case '\u{8}' -> { output.append("\\b") }
+            case '\u{c}' -> { output.append("\\f") }
+            case '\n' -> { output.append("\\n") }
+            case '\r' -> { output.append("\\r") }
+            case '\t' -> { output.append("\\t") }
             else -> {
                 val code = character.code
                 if (code < 32) {
-                    output.add("\\u00")
-                    output.add(hex[(code / 16).toInt64()])
-                    output.add(hex[(code % 16).toInt64()])
-                } else { output.add(character) }
+                    output.append("\\u00")
+                    output.append(hex[(code / 16).toLong()])
+                    output.append(hex[(code % 16).toLong()])
+                } else { output.append(character) }
             }
         }
     }
-    output.add('"')
+    output.append('"')
 }
 
 internal fun writeJson(value: JsonNode, output: StringBuilder) {
     when (value) {
-        case JsonNode.Null -> { output.add("null") }
-        case JsonNode.BooleanValue(result) -> { output.add(result) }
-        case JsonNode.Number(text) -> { output.add(text) }
+        case JsonNode.Null -> { output.append("null") }
+        case JsonNode.BooleanValue(result) -> { output.append(result) }
+        case JsonNode.Number(text) -> { output.append(text) }
         case JsonNode.Text(text) -> { writeJsonString(text, output) }
         case JsonNode.Record(members) -> {
-            output.add('{')
+            output.append('{')
             var first: Boolean = true
             for (member in members) {
-                if (!first) { output.add(',') }
+                if (!first) { output.append(',') }
                 first = false
                 writeJsonString(member.name, output)
-                output.add(':')
+                output.append(':')
                 writeJson(member.value, output)
             }
-            output.add('}')
+            output.append('}')
         }
         case JsonNode.Sequence(elements) -> {
-            output.add('[')
+            output.append('[')
             var first: Boolean = true
             for (element in elements) {
-                if (!first) { output.add(',') }
+                if (!first) { output.append(',') }
                 first = false
                 writeJson(element, output)
             }
-            output.add(']')
+            output.append(']')
         }
     }
 }
@@ -59,5 +59,5 @@ internal fun writeJson(value: JsonNode, output: StringBuilder) {
 internal fun renderJson(value: JsonNode): String {
     val output = StringBuilder()
     writeJson(value, output)
-    return output.build()
+    return output.toString()
 }

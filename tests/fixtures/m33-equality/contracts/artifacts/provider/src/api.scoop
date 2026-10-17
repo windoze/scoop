@@ -4,7 +4,7 @@ public interface Match<T> : Equals<T> {}
 
 public struct Key<T>(val payload: T, val number: Int) : Match<Key<T>>, Hash {
     public override operator fun equals(other: Key<T>): Boolean = number == other.number
-    public override fun hash(): Long = number.toInt64()
+    public override fun hash(): Long = number.toLong()
 }
 
 public class Number public constructor(public val value: Int) {

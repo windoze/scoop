@@ -3,7 +3,7 @@ interface Same<T> : Equals<T> {}
 struct Key(val value: Int) : Same<Key>, Hash {
     @NoGC
     public override operator fun equals(other: Key): Boolean = value == other.value
-    public override fun hash(): Long = value.toInt64()
+    public override fun hash(): Long = value.toLong()
 }
 
 class Trace(var visits: Int)

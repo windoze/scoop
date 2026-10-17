@@ -10,7 +10,7 @@ public class LibuvEventLoop public constructor() : EventLoop {
     internal val state: LoopState = LoopState()
 
     public override fun run(block: suspend (CoroutineScope) -> Unit) {
-        when (currentJobOrNull()) {
+        when (currentJobOrNone()) {
             case Some(_) -> throw IllegalStateException(Some("run requires a caller outside a Job"))
             case None -> {}
         }
@@ -26,7 +26,7 @@ public class LibuvEventLoop public constructor() : EventLoop {
 
     internal fun requireJob(cancellable: Boolean = true): Job {
         if (!hasEventLoop() || currentEventLoop() !== this) throw IllegalStateException(Some("wrong event loop"))
-        val job = currentJobOrNull() ?: throw IllegalStateException(Some("I/O requires a Job"))
+        val job = currentJobOrNone() ?: throw IllegalStateException(Some("I/O requires a Job"))
         if (job.isCompleted) throw IllegalStateException(Some("I/O requires an active Job"))
         if (cancellable) job.ensureActive()
         return job
@@ -34,11 +34,11 @@ public class LibuvEventLoop public constructor() : EventLoop {
 
     public override suspend fun sleep(duration: Duration) {
         val job = requireJob()
-        if (duration.seconds < 0L) throw IllegalArgumentException(Some("negative sleep duration"))
+        if (duration.floorSeconds < 0L) throw IllegalArgumentException(Some("negative sleep duration"))
         if (duration == Duration.ZERO) return
         suspendCoroutine<Unit> { continuation ->
             val operation = LoopOperation(state, state.nextOperation(),
-                { native, id -> @Unsafe { return@LoopOperation nativeStatus(id, nativeTimerStart(native, id, duration.seconds, duration.nanosecondsOfSecond)) } },
+                { native, id -> @Unsafe { return@LoopOperation nativeStatus(id, nativeTimerStart(native, id, duration.floorSeconds, duration.nanosecondsOfSecond)) } },
                 { native, id -> @Unsafe { nativeTimerCancel(native, id) } },
                 { event, cancelled ->
                     when (completionFailure("sleep", event.result, cancelled)) {

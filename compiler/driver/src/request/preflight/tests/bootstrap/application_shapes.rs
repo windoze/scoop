@@ -70,9 +70,9 @@ pub(super) fn check(
         "Array<String>",
         "ArrayList<String>",
         "Option<String>",
-        "Encodable<Int>",
-        "Decodable<Int>",
-        "Inspectable<Int>",
+        "ValueEncoder<Int>",
+        "ValueDecoder<Int>",
+        "ValueInspector<Int>",
         "TypeInfo<Int>",
         "Equals<TypeRef>",
     ] {

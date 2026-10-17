@@ -7,18 +7,18 @@ import scoop.text.*
 private class MacTests {
     @Test
     fun `RFC 4231 HMAC vectors and mismatch`() {
-        SecretKey.fromBytes(Array<Byte>(20L) { _ -> 11.toInt8() }).use { key ->
+        SecretKey.fromBytes(Array<Byte>(20L) { _ -> 11.toByte() }).use { key ->
             val data = "Hi There".toByteArray()
             assertEquals("b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7",
-                hmac(DigestAlgorithm.SHA256, key, data).toHexString())
+                hmac(DigestAlgorithm.Sha256, key, data).toHexString())
             assertEquals("afd03944d84895626b0825f4ab46907f15f9dadbe4101ec682aa034c7cebc59cfaea9ea9076ede7f4af152e8b2fa9cb6",
-                hmac(DigestAlgorithm.SHA384, key, data).toHexString())
+                hmac(DigestAlgorithm.Sha384, key, data).toHexString())
             assertEquals("87aa7cdea5ef619d4ff0b4241a1d6cb02379f4e2ce4ec2787ad0b30545e17cdedaa833b7d6b8a702038b274eaea3f4e4be9d914eeb61f1702e696c203a126854",
-                hmac(DigestAlgorithm.SHA512, key, data).toHexString())
-            val expected = hmac(DigestAlgorithm.SHA256, key, data)
-            assertTrue(verifyHmac(DigestAlgorithm.SHA256, key, data, expected))
-            assertFalse(verifyHmac(DigestAlgorithm.SHA256, key, "changed".toByteArray(), expected))
-            assertFalse(verifyHmac(DigestAlgorithm.SHA256, key, data, Array<Byte>(0L) { _ -> 0.toInt8() }))
+                hmac(DigestAlgorithm.Sha512, key, data).toHexString())
+            val expected = hmac(DigestAlgorithm.Sha256, key, data)
+            assertTrue(verifyHmac(DigestAlgorithm.Sha256, key, data, expected))
+            assertFalse(verifyHmac(DigestAlgorithm.Sha256, key, "changed".toByteArray(), expected))
+            assertFalse(verifyHmac(DigestAlgorithm.Sha256, key, data, Array<Byte>(0L) { _ -> 0.toByte() }))
         }
     }
 }

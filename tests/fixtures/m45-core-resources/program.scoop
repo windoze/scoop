@@ -20,7 +20,8 @@ fun main() {
     val cleanup = Throwable()
     try {
         FailedResource(cleanup).use { throw primary }
-    } catch (failure: ResourceUseException) {
+    } catch (error: Exception) {
+        val failure = error as ResourceUseException
         println(failure.primaryFailure === primary)
         println(failure.cleanupFailure === cleanup)
     }

@@ -4,7 +4,7 @@ fun runMany(callback: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>, base:
 fun expect(value: Boolean) { if (!value) { throw IllegalStateException() } }
 
 fun main() {
-    val shared = MutableArray<Int>(33L) { index -> index.toInt32() + 91 }
+    val shared = MutableArray<Int>(33L) { index -> index.toInt() + 91 }
     @Unsafe {
         shared.withDataPointer() { outer: Ptr<Int>, length: Long ->
             @Unsafe {

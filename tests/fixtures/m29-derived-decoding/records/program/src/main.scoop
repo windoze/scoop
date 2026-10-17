@@ -8,7 +8,7 @@ private fun check(value: Boolean, code: Int) {
 }
 
 public struct Empty() {
-    public companion object : Encodable<Empty>, Decodable<Empty>
+    public companion object : ValueEncoder<Empty>, ValueDecoder<Empty>
 }
 
 public struct Person(
@@ -16,7 +16,7 @@ public struct Person(
     @Serialize(rename = "n/~") val count: Int,
     @Serialize(ignore = true) val ignored: Int = 7
 ) {
-    public companion object : Encodable<Person>, Decodable<Person>
+    public companion object : ValueEncoder<Person>, ValueDecoder<Person>
 }
 
 public class Row public constructor(
@@ -27,32 +27,32 @@ public class Row public constructor(
 ) {
     @Serialize(ignore = true) private val cached: Int = id + plain
     public val computed: Int get() = cached
-    public companion object : Encodable<Row>, Decodable<Row>
+    public companion object : ValueEncoder<Row>, ValueDecoder<Row>
 }
 
 public class Blank public constructor() {
-    public companion object : Decodable<Blank>
+    public companion object : ValueDecoder<Blank>
 }
 
-private fun <T> reject(text: String, codec: Decodable<T>, path: String) {
-    try { Json.decode(text, codec) }
+private fun <T> reject(text: String, codec: ValueDecoder<T>, path: String) {
+    try { Json.decodeFromString(text, codec) }
     catch (error: DecodingException) { check(error.path == path, 90); return }
     throw IllegalStateException(Some("expected a record decoding error"))
 }
 
 fun main() {
-    check(Json.encode(Json.decode("{\"ignored\":[null,{}]}", Empty.Companion), Empty.Companion) == "{}", 1)
+    check(Json.encodeToString(Json.decodeFromString("{\"ignored\":[null,{}]}", Empty.Companion), Empty.Companion) == "{}", 1)
     val original = Person("seven", 7, 99)
-    val decoded = Json.decode(Json.encode(original, Person.Companion), Person.Companion)
+    val decoded = Json.decodeFromString(Json.encodeToString(original, Person.Companion), Person.Companion)
     check(decoded.name == "seven" && decoded.count == 7 && decoded.ignored == 7, 2)
-    val reordered = Json.decode("{\"n/~\":8,\"unused\":true,\"name\":\"eight\"}", Person.Companion)
+    val reordered = Json.decodeFromString("{\"n/~\":8,\"unused\":true,\"name\":\"eight\"}", Person.Companion)
     check(reordered.name == "eight" && reordered.count == 8, 3)
-    val row = Json.decode("{\"count\":9,\"name\":\"row\",\"id\":4}", Row.Companion)
+    val row = Json.decodeFromString("{\"count\":9,\"name\":\"row\",\"id\":4}", Row.Companion)
     check(row.computed == 7 && row.count == 9L, 4)
     row.count = 10L
-    check(Json.encode(row, Row.Companion) == "{\"id\":4,\"name\":\"row\",\"count\":10}", 5)
-    val blank = Json.decode("{}", Blank.Companion)
-    check(blank !== Json.decode("{}", Blank.Companion), 6)
+    check(Json.encodeToString(row, Row.Companion) == "{\"id\":4,\"name\":\"row\",\"count\":10}", 5)
+    val blank = Json.decodeFromString("{}", Blank.Companion)
+    check(blank !== Json.decodeFromString("{}", Blank.Companion), 6)
     reject("{\"name\":\"missing\"}", Person.Companion, "/n~1~0")
     reject("{\"name\":\"bad\",\"n/~\":2147483648}", Person.Companion, "/n~1~0")
     reject("null", Empty.Companion, "")

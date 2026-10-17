@@ -5,7 +5,7 @@ mod inheritance;
 
 const LEAF: &str = r#"
     public struct Leaf() {
-        public companion object : Encodable<Leaf> {
+        public companion object : ValueEncoder<Leaf> {
             public override fun encode(value: Leaf, encoder: Encoder) {
                 encoder.singleValue().writeLong(7L)
             }
@@ -29,22 +29,22 @@ fn rejects(source: &str, message: &str) {
 fn nominal_encoding_becomes_complete_ordinary_codec_methods() {
     let output = compile(r#"
         public struct Box<T>(val value: T)
-        public class BoxEncoder<T>(private val element: Encodable<T>) : Encodable<Box<T>>
+        public class BoxEncoder<T>(private val element: ValueEncoder<T>) : ValueEncoder<Box<T>>
         public struct Envelope(val value: Box<Leaf>)
-        public class EnvelopeEncoder(private val box: Encodable<Box<Leaf>>) : Encodable<Envelope>
+        public class EnvelopeEncoder(private val box: ValueEncoder<Box<Leaf>>) : ValueEncoder<Envelope>
         public enum Choice {
             Empty,
             Pair(Leaf, Leaf),
             Named(val value: Leaf),
             Record { item: Leaf }
-            public companion object : Encodable<Choice>
+            public companion object : ValueEncoder<Choice>
         }
         public class Row public constructor(public val value: Leaf) {
             public var state: Leaf = value
             public val computed: Any get() = value
-            public companion object : Encodable<Row>
+            public companion object : ValueEncoder<Row>
         }
-        public fun <T> send(value: T, codec: Encodable<T>, encoder: Encoder) {
+        public fun <T> send(value: T, codec: ValueEncoder<T>, encoder: Encoder) {
             codec.encode(value, encoder)
         }
         public fun use(encoder: Encoder) {
@@ -83,15 +83,15 @@ fn nominal_encoding_becomes_complete_ordinary_codec_methods() {
 fn explicit_inherited_and_default_encoding_wins_over_synthesis() {
     compile(r#"
         public struct Explicit(val opaque: Any) {
-            public companion object : Encodable<Explicit> {
+            public companion object : ValueEncoder<Explicit> {
                 public override fun encode(value: Explicit, encoder: Encoder) { encoder.singleValue().writeNull() }
             }
         }
-        public interface Default : Encodable<Any> {
+        public interface Default : ValueEncoder<Any> {
             public override fun encode(value: Any, encoder: Encoder) { encoder.singleValue().writeNull() }
         }
         public object UsesDefault : Default
-        public open class Base public constructor() : Encodable<Any> {
+        public open class Base public constructor() : ValueEncoder<Any> {
             public override fun encode(value: Any, encoder: Encoder) { encoder.singleValue().writeNull() }
         }
         public class Child public constructor() : Base()
@@ -103,7 +103,7 @@ fn unrelated_overload_does_not_block_encoding_synthesis() {
     let output = compile(
         r#"
         public struct Item(val value: Leaf) {
-            public companion object : Encodable<Item> {
+            public companion object : ValueEncoder<Item> {
                 public fun encode(value: Leaf): Leaf = value
                 public fun another(encoder: Encoder) {}
             }
@@ -125,10 +125,10 @@ fn unrelated_overload_does_not_block_encoding_synthesis() {
 #[test]
 fn encoding_requires_a_codec_for_the_declared_field_type() {
     for source in [
-        "public struct Item<T>(val value: T) { public companion object : Encodable<Item<T>> }",
-        "public struct Item(val value: Any) { public companion object : Encodable<Item> }",
+        "public struct Item<T>(val value: T) { public companion object : ValueEncoder<Item<T>> }",
+        "public struct Item(val value: Any) { public companion object : ValueEncoder<Item> }",
     ] {
-        rejects(source, "automatic encode has no Encodable<");
+        rejects(source, "automatic encode has no ValueEncoder<");
     }
 }
 
@@ -137,7 +137,7 @@ fn encoding_annotations_only_affect_participating_fields() {
     compile(
         r#"
         public struct Item(@Serialize(rename = "wire") val value: Leaf, @Serialize(ignore = true) val opaque: Any) {
-            public companion object : Encodable<Item>
+            public companion object : ValueEncoder<Item>
         }
     "#,
     )
@@ -145,7 +145,7 @@ fn encoding_annotations_only_affect_participating_fields() {
     rejects(
         r#"
         public struct Item(@Serialize(rename = "same") val first: Leaf, @Serialize(rename = "same") val second: Leaf) {
-            public companion object : Encodable<Item>
+            public companion object : ValueEncoder<Item>
         }
     "#,
         "automatic encode has duplicate field name `same`",
@@ -159,7 +159,7 @@ fn invalid_explicit_encoding_keeps_ordinary_override_diagnostics() {
         "public override fun encode(encoder: Encoder) {}",
     ] {
         let errors = compile(&format!(
-            "public struct Item(val value: Any) {{ public companion object : Encodable<Item> {{ {implementation} }} }}"
+            "public struct Item(val value: Any) {{ public companion object : ValueEncoder<Item> {{ {implementation} }} }}"
         ))
         .unwrap_err();
         assert!(
@@ -183,7 +183,7 @@ fn custom_stored_accessors_require_an_explicit_codec() {
         public class Item public constructor() {
             public val value: Leaf = Leaf()
                 get() = field
-            public companion object : Encodable<Item>
+            public companion object : ValueEncoder<Item>
         }
     "#,
         "stored property `value` has a custom accessor",
@@ -194,9 +194,9 @@ fn custom_stored_accessors_require_an_explicit_codec() {
 fn a_user_interface_named_encodable_does_not_request_synthesis() {
     rejects(
         r#"
-        public interface Encodable<T> { public fun encode(value: T, encoder: Encoder) }
-        public object Item : Encodable<Leaf>
+        public interface ValueEncoder<T> { public fun encode(value: T, encoder: Encoder) }
+        public object Item : ValueEncoder<Leaf>
     "#,
-        "does not implement interface method `Encodable<Leaf>.encode`",
+        "does not implement interface method `ValueEncoder<Leaf>.encode`",
     );
 }

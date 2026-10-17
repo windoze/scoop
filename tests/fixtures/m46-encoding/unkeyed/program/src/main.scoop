@@ -1,6 +1,6 @@
 import scoop.json.Json
 
-object SharedSequence : Encodable<Unit> {
+object SharedSequence : ValueEncoder<Unit> {
     public override fun encode(value: Unit, encoder: Encoder) {
         val first = encoder.unkeyed()
         first.end()
@@ -18,17 +18,17 @@ object SharedSequence : Encodable<Unit> {
 }
 
 fun main() {
-    check(Json.encode(Unit, SharedSequence) == "[1,\"second\",true]")
-    val empty = EncodeFunction<Unit>({ value, encoder ->
+    check(Json.encodeToString(Unit, SharedSequence) == "[1,\"second\",true]")
+    val empty = ValueEncoderFunction<Unit>({ value, encoder ->
         encoder.unkeyed().end()
         encoder.unkeyed().end()
     })
-    check(Json.encode(Unit, empty) == "[]")
-    val arrays = EncodeFunction<Unit>({ value, encoder ->
+    check(Json.encodeToString(Unit, empty) == "[]")
+    val arrays = ValueEncoderFunction<Unit>({ value, encoder ->
         val codec = Array<Long>.Companion.encoder(Long.Companion)
         codec.encode([1L, 2L], encoder)
         codec.encode([3L], encoder)
     })
-    check(Json.encode(Unit, arrays) == "[1,2,3]")
+    check(Json.encodeToString(Unit, arrays) == "[1,2,3]")
     println("unkeyed-ok")
 }

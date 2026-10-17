@@ -28,7 +28,7 @@ public class ConditionVariable public constructor(public val mutex: Mutex) : Dis
 
     public fun await() { wait(None) }
     public fun await(timeout: Duration): Boolean {
-        if (timeout.seconds < 0L) throw IllegalArgumentException(Some("negative condition timeout"))
+        if (timeout.floorSeconds < 0L) throw IllegalArgumentException(Some("negative condition timeout"))
         return wait(Some(timeout))
     }
 
@@ -36,7 +36,7 @@ public class ConditionVariable public constructor(public val mutex: Mutex) : Dis
         mutex.withNative lockScope@ { lock ->
             @Unsafe {
                 val (status, error) = nativeConditionWait(condition, lock,
-                    timeout != None, timeout?.seconds ?: 0L, timeout?.nanosecondsOfSecond ?: 0)
+                    timeout != None, timeout?.floorSeconds ?: 0L, timeout?.nanosecondsOfSecond ?: 0)
                 checkNativeStatus(status, error, "condition wait")
                 return@lockScope status == 0
             }

@@ -1,2 +1,2 @@
-struct Record(@DebugIgnore val value: () -> Int) { companion object : Inspectable<Record> }
+struct Record(@DebugIgnore val value: () -> Int) { companion object : ValueInspector<Record> }
 fun main() {}

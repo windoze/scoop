@@ -97,7 +97,29 @@ fn synthetic_type(value: &TypeRef) -> TypeRef {
     let ast::TypeRefKind::Named(name) = &value.kind else {
         panic!("numeric core signatures use named scalar types")
     };
-    ty_named(&name.text)
+    // This fixture models scalar operations with canonical types. Public alias
+    // declarations and their source spellings are covered by sysroot fixtures.
+    static ALIASES: std::sync::OnceLock<std::collections::HashMap<String, String>> =
+        std::sync::OnceLock::new();
+    let aliases = ALIASES.get_or_init(|| {
+        scoop_parser::parse(include_str!(
+            "../../../../../sysroot/lib/scoop.core/src/types.scoop"
+        ))
+        .expect("the actual integer aliases parse")
+        .declarations
+        .into_iter()
+        .filter_map(|declaration| {
+            let Decl::TypeAlias(alias) = declaration else {
+                return None;
+            };
+            let ast::TypeRefKind::Named(target) = alias.target.kind else {
+                panic!("integer core aliases name scalar types")
+            };
+            Some((alias.name.text, target.text))
+        })
+        .collect()
+    });
+    ty_named(aliases.get(&name.text).unwrap_or(&name.text))
 }
 
 fn synthetic_annotations(values: Vec<ast::Annotation>) -> Vec<ast::Annotation> {

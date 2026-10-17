@@ -19,7 +19,7 @@ fun verifyPointer(pointer: Ptr<UInt8>, length: Long) {
 
 fun main() {
     @Unsafe {
-        val bytes = MutableArray<UInt8>(2L) { index -> index.toUInt8() }
+        val bytes = MutableArray<UInt8>(2L) { index -> index.toUByte() }
         bytes.withDataPointer<UInt8, Unit>() { pointer: Ptr<UInt8>, length: Long ->
             @Unsafe { verifyPointer(pointer, length) }
         }

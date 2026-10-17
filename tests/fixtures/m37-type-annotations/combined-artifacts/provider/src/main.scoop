@@ -3,7 +3,7 @@ package 组合.提供
 public enum Level : Int { High = 7 }
 public annotation class Nested(val level: Level)
 @Repeatable
-@Target([AnnotationTarget.TYPE, AnnotationTarget.FUNCTION, AnnotationTarget.VALUE_PARAMETER])
+@Target([AnnotationTarget.Type, AnnotationTarget.Function, AnnotationTarget.ValueParameter])
 public annotation class `位置 标记`(
     val value: Nested = Nested(Level.High),
     val levels: Array<Level> = [Level.High, Level.High]

@@ -5,7 +5,7 @@
     "notes": [],
     "origin": {
       "cone": "6b5ad4a123bf57882ae35ee6ccd12133eb6d66c4a02c022eb149afa16625dd5b",
-      "end": 86,
+      "end": 89,
       "kind": "source",
       "path": "src/main.scoop",
       "start": 48
@@ -18,10 +18,10 @@
     "notes": [],
     "origin": {
       "cone": "6b5ad4a123bf57882ae35ee6ccd12133eb6d66c4a02c022eb149afa16625dd5b",
-      "end": 125,
+      "end": 131,
       "kind": "source",
       "path": "src/main.scoop",
-      "start": 87
+      "start": 90
     },
     "severity": "error"
   }

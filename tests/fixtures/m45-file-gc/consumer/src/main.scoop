@@ -16,18 +16,18 @@ private fun temporaryRead(path: Path, buffer: NativeByteBuffer) { File.open(path
 private fun temporaryWrite(path: Path, buffer: NativeByteBuffer) {
     File.open(path, OpenOptions(read = false, write = true)).writeFrom(buffer, 1L)
 }
-private fun temporaryDirectory(path: Path) { verify(Files.entries(path).next() != None) }
+private fun temporaryDirectory(path: Path) { verify(path.entries().next() != None) }
 
 private fun rawName(root: Path) {
     val raw: Array<Byte> = [110, -1]
-    val path = root.resolve(Path.fromOsString(OsString.fromBytes(raw)))
+    val path = root.resolve(Path.fromOsString(OsString.fromByteArray(raw)))
     @Unsafe {
-        val expected = path.toOsString().toBytes().withDataPointer { pointer, count ->
+        val expected = path.toOsString().toByteArray().withDataPointer { pointer, count ->
             @Unsafe { return@withDataPointer nativeRawPath(pointer, count) }
         }
         try {
-            Files.writeText(path, "raw")
-            verify(expected == 0 && Files.readText(path) == "raw")
+            path.writeText("raw")
+            verify(expected == 0 && path.readText() == "raw")
         } catch (error: PlatformException) {
             verify(expected != 0 && error.nativeError!!.code == expected)
             verify(error.context!! == path.toOsString())
@@ -37,7 +37,7 @@ private fun rawName(root: Path) {
 
 private fun lifecycle(root: Path) {
     val path = root.resolve(Path.fromString("data"))
-    Files.writeText(path, "xy")
+    path.writeText("xy")
     @Unsafe {
         val before = closes()
         val directories = directoryCloses()
@@ -48,11 +48,11 @@ private fun lifecycle(root: Path) {
         try {
             NativeByteBuffer.allocate(1L).use { buffer ->
                 temporaryRead(path, buffer)
-                assertByte(buffer.readByte(), 120.toInt8())
+                assertByte(buffer.readByte(), 120.toByte())
                 gcCollect()
                 @Unsafe { verify(closes() == before + 1) }
                 buffer.clear()
-                buffer.writeByte(122.toInt8())
+                buffer.writeByte(122.toByte())
                 temporaryWrite(path, buffer)
                 gcCollect()
                 @Unsafe { verify(closes() == before + 2) }
@@ -66,7 +66,7 @@ private fun lifecycle(root: Path) {
             catch (error: PlatformException) { verify(error.kind == PlatformErrorKind.Interrupted) }
             file.dispose()
             gcCollect()
-            verify(closes() == before + 3 && file.isDisposed)
+            verify(closes() == before + 3 && file.isClosed)
             verify(when (foreignCallbackFailure(callback)) { case None -> true; case Some(_) -> false })
         } finally {
             clearCallback()
@@ -79,14 +79,14 @@ private fun assertByte(actual: Byte, expected: Byte) { verify(actual == expected
 
 private fun concurrentRead(root: Path) {
     val path = root.resolve(Path.fromString("concurrent"))
-    Files.writeText(path, "ab")
+    path.writeText("ab")
     File.open(path).use { file ->
         @Unsafe {
             val callback = foreignCallback<(Int, Ptr<Unit>) -> Int>(
                 { index ->
                     NativeByteBuffer.allocate(1L).use { buffer ->
                         file.readFully(buffer)
-                        buffer.readByte().toInt32()
+                        buffer.readByte().toInt()
                     }
                 }, 1, ForeignCallbackMode.Reusable
             )
@@ -99,9 +99,9 @@ private fun concurrentRead(root: Path) {
 }
 
 fun main() {
-    val root = Files.createTempDirectory(prefix = "scoop-file-gc-")
+    val root = createTempDirectory(prefix = "scoop-file-gc-")
     try { lifecycle(root); rawName(root); concurrentRead(root) }
-    finally { Files.deleteRecursively(root) }
+    finally { root.deleteRecursively() }
     println("file and directory ownership, close consumption and raw paths passed")
     flushOutput()
     verify(!(standardInput is Disposable) && !(standardOutput is Disposable) && !(standardError is Disposable))

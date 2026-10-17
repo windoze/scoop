@@ -1,4 +1,4 @@
 class Record { val value: Int = 1
  get() = field }
-object Inspector : Inspectable<Record>
+object Inspector : ValueInspector<Record>
 fun main() {}

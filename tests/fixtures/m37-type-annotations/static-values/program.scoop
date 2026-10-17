@@ -1,10 +1,10 @@
-@Repeatable @Target([AnnotationTarget.TYPE])
+@Repeatable @Target([AnnotationTarget.Type])
 annotation class Mark(val n: Int)
 enum Level: Int { High = 7 }
 annotation class Nested(val level: Level)
 typealias Items<T> = @Mark(1) Array<@Mark(2) T>
 annotation class Meta(val item: @Mark(3) Nested, val items: Items<@Mark(4) Nested>)
 @Meta(Nested(Level.High), [Nested(Level.High)]) struct Value(val n: Int)
-@Target([AnnotationTarget.TYPE]) annotation class `位置 标记`(val value: Nested = Nested(Level.High))
+@Target([AnnotationTarget.Type]) annotation class `位置 标记`(val value: Nested = Nested(Level.High))
 typealias `值 别名` = @`位置 标记` Int
 fun main() { val n: `值 别名` = Value(42).n; println(n) }

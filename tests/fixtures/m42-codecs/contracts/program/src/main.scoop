@@ -8,5 +8,5 @@ fun main() {
     TreeSet<Int>.decoder(Int.Companion)
     PriorityQueue<Int>.decoder(Int.Companion)
     val markCodec = TimeMark.Companion
-    Json.encode(Random.seeded(1L), Random.Companion)
+    Json.encodeToString(Random.seeded(1L), Random.Companion)
 }

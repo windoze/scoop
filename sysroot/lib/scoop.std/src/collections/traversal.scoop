@@ -28,7 +28,7 @@ public fun <T, R> Iterable<T>.fold(initial: R, operation: (R, T) -> R): R {
     return result
 }
 
-public fun <T> Iterable<T>.reduceOrNull(operation: (T, T) -> T): T? {
+public fun <T> Iterable<T>.reduceOrNone(operation: (T, T) -> T): T? {
     var result: T? = None
     for (element in this) {
         result = when (result) {
@@ -40,7 +40,7 @@ public fun <T> Iterable<T>.reduceOrNull(operation: (T, T) -> T): T? {
 }
 
 public fun <T> Iterable<T>.reduce(operation: (T, T) -> T): T =
-    requireCollectionElement<T>(reduceOrNull<T>(operation))
+    requireCollectionElement<T>(reduceOrNone<T>(operation))
 
 public fun <T> Iterable<T>.count(predicate: (T) -> Boolean): Long {
     var result = 0L

@@ -18,11 +18,11 @@ private class NativeByteBufferStateTest {
             buffer.ensureWritable(0L)
             assertEquals(0L, buffer.readBytes(0L).size)
             assertFailsWith<IndexOutOfBoundsException> { buffer.readByte() }
-            assertFailsWith<IndexOutOfBoundsException> { buffer.writeByte(1.toInt8()) }
+            assertFailsWith<IndexOutOfBoundsException> { buffer.writeByte(1.toByte()) }
             buffer.ensureWritable(3L)
             assertTrue(buffer.capacity >= 3L)
-            buffer.writeByte(7.toInt8())
-            assertEquals(7.toInt8(), buffer.readByte())
+            buffer.writeByte(7.toByte())
+            assertEquals(7.toByte(), buffer.readByte())
         }
     }
 
@@ -31,11 +31,11 @@ private class NativeByteBufferStateTest {
         NativeByteBuffer.allocate(4L).use { buffer ->
             assertEquals(4L, buffer.capacity)
             assertFailsWith<IndexOutOfBoundsException> { buffer.getByte(0L) }
-            assertFailsWith<IndexOutOfBoundsException> { buffer.setByte(0L, 3.toInt8()) }
-            buffer.writeByte(5.toInt8())
-            buffer.setByte(0L, 6.toInt8())
-            assertEquals(6.toInt8(), buffer.readByte())
-            assertEquals(6.toInt8(), buffer.getByte(0L))
+            assertFailsWith<IndexOutOfBoundsException> { buffer.setByte(0L, 3.toByte()) }
+            buffer.writeByte(5.toByte())
+            buffer.setByte(0L, 6.toByte())
+            assertEquals(6.toByte(), buffer.readByte())
+            assertEquals(6.toByte(), buffer.getByte(0L))
             assertFailsWith<IndexOutOfBoundsException> { buffer.getByte(-1L) }
             assertFailsWith<IndexOutOfBoundsException> { buffer.getByte(1L) }
             buffer.clear()
@@ -49,18 +49,18 @@ private class NativeByteBufferStateTest {
     @Test
     fun `growth preserves consumed and unread bytes while compact uses overlap safely`() {
         NativeByteBuffer.allocate(6L).use { buffer ->
-            buffer.writeBytes(Array<Byte>(6L) { (it + 1L).toInt8() })
+            buffer.writeBytes(Array<Byte>(6L) { (it + 1L).toByte() })
             buffer.skip(2L)
             buffer.ensureWritable(1L)
             assertTrue(buffer.capacity >= 7L)
             assertEquals(2L, buffer.readPosition)
             assertEquals(6L, buffer.writePosition)
-            assertEquals(1.toInt8(), buffer.getByte(0L))
+            assertEquals(1.toByte(), buffer.getByte(0L))
             buffer.compact()
             assertEquals(0L, buffer.readPosition)
             assertEquals(4L, buffer.writePosition)
-            assertEquals(3.toInt8(), buffer.getByte(0L))
-            assertEquals(6.toInt8(), buffer.getByte(3L))
+            assertEquals(3.toByte(), buffer.getByte(0L))
+            assertEquals(6.toByte(), buffer.getByte(3L))
             buffer.skip(4L)
             buffer.compact()
             assertEquals(0L, buffer.writePosition)
@@ -70,29 +70,29 @@ private class NativeByteBufferStateTest {
     @Test
     fun `array transfers check both ranges and return independent storage`() {
         val buffer = NativeByteBuffer.allocate(8L)
-        val source = MutableArray<Byte>(4L) { (it + 10L).toInt8() }
+        val source = MutableArray<Byte>(4L) { (it + 10L).toByte() }
         buffer.writeBytes(source, 1L, 2L)
-        source[1L] = 99.toInt8()
-        buffer.writeBytes(Array<Byte>(3L) { (it + 20L).toInt8() }, 1L)
+        source[1L] = 99.toByte()
+        buffer.writeBytes(Array<Byte>(3L) { (it + 20L).toByte() }, 1L)
         val copy = buffer.readBytes(2L)
-        val destination = MutableArray<Byte>(4L) { 0.toInt8() }
+        val destination = MutableArray<Byte>(4L) { 0.toByte() }
         buffer.readInto(destination, 1L, 2L)
-        assertEquals(0.toInt8(), destination[0L])
-        assertEquals(21.toInt8(), destination[1L])
-        assertEquals(22.toInt8(), destination[2L])
-        assertEquals(0.toInt8(), destination[3L])
-        buffer.setByte(0L, 88.toInt8())
+        assertEquals(0.toByte(), destination[0L])
+        assertEquals(21.toByte(), destination[1L])
+        assertEquals(22.toByte(), destination[2L])
+        assertEquals(0.toByte(), destination[3L])
+        buffer.setByte(0L, 88.toByte())
         buffer.close()
-        assertEquals(11.toInt8(), copy[0L])
-        assertEquals(12.toInt8(), copy[1L])
+        assertEquals(11.toByte(), copy[0L])
+        assertEquals(12.toByte(), copy[1L])
     }
 
     @Test
     fun `invalid ranges and overflow leave positions unchanged`() {
         assertFailsWith<IllegalArgumentException> { NativeByteBuffer.allocate(-1L) }
         NativeByteBuffer.allocate(8L).use { buffer ->
-            buffer.writeByte(4.toInt8())
-            val array = MutableArray<Byte>(2L) { 0.toInt8() }
+            buffer.writeByte(4.toByte())
+            val array = MutableArray<Byte>(2L) { 0.toByte() }
             assertFailsWith<IllegalArgumentException> { buffer.ensureWritable(-1L) }
             assertFailsWith<ArithmeticException> { buffer.ensureWritable(Long.MAX_VALUE) }
             assertFailsWith<IllegalArgumentException> { buffer.skip(-1L) }
@@ -106,7 +106,7 @@ private class NativeByteBufferStateTest {
             assertEquals(0L, buffer.readPosition)
             assertEquals(1L, buffer.writePosition)
             assertEquals(8L, buffer.capacity)
-            assertEquals(4.toInt8(), buffer.readByte())
+            assertEquals(4.toByte(), buffer.readByte())
         }
     }
 
@@ -117,7 +117,7 @@ private class NativeByteBufferStateTest {
         buffer.close()
         alias.dispose()
         alias.close()
-        assertTrue(alias.isDisposed)
+        assertTrue(alias.isClosed)
         assertFailsWith<IllegalStateException> { alias.capacity }
         assertFailsWith<IllegalStateException> { alias.readPosition }
         assertFailsWith<IllegalStateException> { alias.writePosition }
@@ -129,8 +129,8 @@ private class NativeByteBufferStateTest {
         assertFailsWith<IllegalStateException> { alias.ensureWritable(0L) }
         assertFailsWith<IllegalStateException> { alias.readBytes(0L) }
         assertFailsWith<IllegalStateException> { alias.getByte(0L) }
-        assertFailsWith<IllegalStateException> { alias.setByte(0L, 0.toInt8()) }
-        assertFailsWith<IllegalStateException> { alias.writeByte(0.toInt8()) }
+        assertFailsWith<IllegalStateException> { alias.setByte(0L, 0.toByte()) }
+        assertFailsWith<IllegalStateException> { alias.writeByte(0.toByte()) }
         @Unsafe {
             assertFailsWith<IllegalStateException> { @Unsafe { alias.withReadableBytes { _, _ -> 0 } } }
             assertFailsWith<IllegalStateException> { @Unsafe { alias.withWritableBytes { _, _ -> 0L } } }

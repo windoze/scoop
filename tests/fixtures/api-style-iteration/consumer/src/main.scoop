@@ -1,0 +1,52 @@
+import scoop.collections.*
+
+private fun check(value: Boolean) { if (!value) throw IllegalStateException() }
+
+private class Counts { var iterators: Long = 0L; var reads: Long = 0L }
+private class Tracking(private val values: Iterable<Int>, private val counts: Counts) : Iterable<Int> {
+    public override operator fun iterator(): Iterator<Int> {
+        counts.iterators += 1L
+        return TrackingIterator(values.iterator(), counts)
+    }
+}
+private class TrackingIterator(private val source: Iterator<Int>, private val counts: Counts) : Iterator<Int> {
+    public override fun next(): Int? {
+        counts.reads += 1L
+        return source.next()
+    }
+}
+
+fun main() {
+    val values = mutableListOf<Int>(10, 20, 30)
+    val counts = Counts()
+    val indexed: Iterable<IndexedValue<Int>> = Tracking(values, counts).withIndex()
+    check(counts.iterators == 0L && counts.reads == 0L)
+    gcCollect()
+    val iterator = indexed.iterator()
+    check(counts.iterators == 1L && counts.reads == 0L)
+    val first = iterator.next()!!
+    check(first.index == 0L && first.value == 10 && counts.reads == 1L)
+    val second = iterator.next()!!
+    check(second.index == 1L && second.value == 20 && counts.reads == 2L)
+    check(indexed.first().value == 10 && counts.iterators == 2L && counts.reads == 3L)
+    values[0L] = 11
+    val snapshot = indexed.toList()
+    check(snapshot.size == 3L && snapshot[0L].value == 11 && snapshot[2L].index == 2L)
+    values[0L] = 42
+    check(indexed.first().value == 42 && snapshot[0L].value == 11)
+    check(emptyList<Int>().withIndex().iterator().next() == None)
+
+    val source = sortedMapOf<Int, String>((1, "one"), (2, "two"), (3, "three"))
+    val range = source.copyOfRange(fromKey = 1, toKey = 3)
+    source[1] = "changed"
+    check(source.entries.withIndex().first().value.value == "changed")
+    check(range.entries.withIndex().first().value.value == "one")
+    source.clear()
+    check(range.size == 2L)
+    val set = sortedSetOf<Int>(1, 2, 3)
+    val setRange = set.copyOfRange(fromElement = 1, toElement = 3, fromInclusive = false, toInclusive = true)
+    set.clear()
+    val numbered = setRange.withIndex().toList()
+    check(numbered.size == 2L && numbered[0L].value == 2 && numbered[1L].index == 1L)
+    println("lazy indexing and range snapshots passed")
+}

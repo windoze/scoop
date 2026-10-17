@@ -1,3 +1,3 @@
 struct Record(val value: Int)
-object Inspector : Inspectable<Record> { override fun inspect(value: Record): String = "invalid" }
+object Inspector : ValueInspector<Record> { override fun inspect(value: Record): String = "invalid" }
 fun main() {}

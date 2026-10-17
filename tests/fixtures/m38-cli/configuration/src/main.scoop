@@ -23,15 +23,15 @@ struct FakeSerialize(@OtherSerialize val value: Int)
 struct Duplicate(@CliOption(names = ["-x"]) val first: Int, @CliOption(names = ["-x"]) val second: Int)
 
 struct Forced(@Serialize(required = true) @CliOption(defaultText = "hidden-default") val value: String? = None) {
-    companion object : Decodable<Forced>
+    companion object : ValueDecoder<Forced>
 }
-struct Optional(@Serialize(emitNull = true) val value: String?) { companion object : Decodable<Optional> }
-struct Ignored(@Serialize(ignore = true) val value: String?) { companion object : Decodable<Ignored> }
+struct Optional(@Serialize(emitNull = true) val value: String?) { companion object : ValueDecoder<Optional> }
+struct Ignored(@Serialize(ignore = true) val value: String?) { companion object : ValueDecoder<Ignored> }
 struct Template<T>(val value: T)
-object Concrete : Decodable<Template<Option<String>>>
-class Generic<T>(private val value: Decodable<T>) : Decodable<Template<T>>
+object Concrete : ValueDecoder<Template<Option<String>>>
+class Generic<T>(private val value: ValueDecoder<T>) : ValueDecoder<Template<T>>
 struct MaybeTemplate<T>(val value: T?)
-class MaybeGeneric<T>(private val value: Decodable<T>) : Decodable<MaybeTemplate<T>>
+class MaybeGeneric<T>(private val value: ValueDecoder<T>) : ValueDecoder<MaybeTemplate<T>>
 
 fun bad(action: () -> Unit) {
     try { action(); throw IllegalStateException() }

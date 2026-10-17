@@ -8,10 +8,10 @@ public struct DebugOptions(
     val maxStringLength: Long = 256L
 )
 
-@Target([AnnotationTarget.FIELD, AnnotationTarget.PROPERTY])
+@Target([AnnotationTarget.Field, AnnotationTarget.Property])
 public annotation class DebugIgnore
 
-@Target([AnnotationTarget.FIELD, AnnotationTarget.PROPERTY])
+@Target([AnnotationTarget.Field, AnnotationTarget.Property])
 public annotation class DebugRedact(val replacement: String = "<redacted>")
 
 public object DebugPrinter {
@@ -25,6 +25,6 @@ public object DebugPrinter {
     public fun format(view: ValueView, options: DebugOptions = DebugOptions()): String {
         val writer = StringWriter()
         write(view, writer, options)
-        return writer.build()
+        return writer.toString()
     }
 }

@@ -3,12 +3,12 @@ fun <T, R> open(start: T, end: T): R where T : RangeUntil<T, R> = start..<end
 fun <E, C : Contains<E>> member(value: E, container: C): Boolean = value in container
 fun check(ok: Boolean) { if (!ok) { throw IllegalStateException() } }
 fun main() {
-    val a: IntRange = closed(1.toInt8(), 3.toInt8())
-    val b: IntRange = open(1.toInt16(), 3.toInt16())
+    val a: IntRange = closed(1.toByte(), 3.toByte())
+    val b: IntRange = open(1.toShort(), 3.toShort())
     val c: IntRange = closed(1, 3)
     val d: LongRange = open(1L, 3L)
-    val e: UIntRange = closed(1.toUInt8(), 3.toUInt8())
-    val f: UIntRange = open(1.toUInt16(), 3.toUInt16())
+    val e: UIntRange = closed(1.toUByte(), 3.toUByte())
+    val f: UIntRange = open(1.toUShort(), 3.toUShort())
     val g: UIntRange = closed(1u, 3u)
     val h: ULongRange = open(1uL, 3uL)
     check(member(3, a) && !member(3, b) && member(2, c) && !member(3L, d))

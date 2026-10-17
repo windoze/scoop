@@ -1,7 +1,7 @@
 [
   {
     "code": "SCOOPC_HIR_ERROR",
-    "message": "annotation `@Ignore` is not allowed on CLASS",
+    "message": "annotation `@Ignore` is not allowed on Class",
     "notes": [],
     "origin": {
       "cone": "a17e2e471e5f964540ffba80e904b816ed7abaaa25546981b8e89aec5d52eacd",

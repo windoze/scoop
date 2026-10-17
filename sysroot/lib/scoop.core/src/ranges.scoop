@@ -29,8 +29,8 @@ public class IntRange internal constructor(
                     return false
                 }
             }
-            val distance = first.toUInt32() - value.toUInt32()
-            return distance % stride.toUInt32() == 0u
+            val distance = first.toUInt() - value.toUInt()
+            return distance % stride.toUInt() == 0u
         }
 
         if (value < first) {
@@ -45,8 +45,8 @@ public class IntRange internal constructor(
                 return false
             }
         }
-        val distance = value.toUInt32() - first.toUInt32()
-        return distance % stride.toUInt32() == 0u
+        val distance = value.toUInt() - first.toUInt()
+        return distance % stride.toUInt() == 0u
     }
 }
 
@@ -91,11 +91,11 @@ internal class IntRangeIterator internal constructor(
 
         val value = current
         val distance = if (descending) {
-            current.toUInt32() - endpoint.toUInt32()
+            current.toUInt() - endpoint.toUInt()
         } else {
-            endpoint.toUInt32() - current.toUInt32()
+            endpoint.toUInt() - current.toUInt()
         }
-        val unsignedStride = stride.toUInt32()
+        val unsignedStride = stride.toUInt()
         if (inclusive) {
             if (unsignedStride <= distance) {
                 if (descending) {
@@ -152,8 +152,8 @@ public class LongRange internal constructor(
                     return false
                 }
             }
-            val distance = first.toUInt64() - value.toUInt64()
-            return distance % stride.toUInt64() == 0uL
+            val distance = first.toULong() - value.toULong()
+            return distance % stride.toULong() == 0uL
         }
 
         if (value < first) {
@@ -168,8 +168,8 @@ public class LongRange internal constructor(
                 return false
             }
         }
-        val distance = value.toUInt64() - first.toUInt64()
-        return distance % stride.toUInt64() == 0uL
+        val distance = value.toULong() - first.toULong()
+        return distance % stride.toULong() == 0uL
     }
 }
 
@@ -214,11 +214,11 @@ internal class LongRangeIterator internal constructor(
 
         val value = current
         val distance = if (descending) {
-            current.toUInt64() - endpoint.toUInt64()
+            current.toULong() - endpoint.toULong()
         } else {
-            endpoint.toUInt64() - current.toUInt64()
+            endpoint.toULong() - current.toULong()
         }
-        val unsignedStride = stride.toUInt64()
+        val unsignedStride = stride.toULong()
         if (inclusive) {
             if (unsignedStride <= distance) {
                 if (descending) {

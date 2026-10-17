@@ -5,20 +5,20 @@
     "notes": [],
     "origin": {
       "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
-      "end": 105,
+      "end": 108,
       "kind": "source",
       "path": "main.scoop",
-      "start": 99
+      "start": 102
     },
     "severity": "error"
   },
   {
     "code": "SCOOPC_HIR_ERROR",
-    "message": "object `Item.Companion` does not implement interface method `Encodable<Item>.encode`",
+    "message": "object `Item.Companion` does not implement interface method `ValueEncoder<Item>.encode`",
     "notes": [],
     "origin": {
       "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
-      "end": 132,
+      "end": 135,
       "kind": "source",
       "path": "main.scoop",
       "start": 34

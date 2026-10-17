@@ -6,7 +6,7 @@ fun expect(text: String, expected: Double) {
     check(value == expected, text)
     if (value == 0.0) check(1.0 / value == 1.0 / expected, "zero sign: " + text)
 }
-fun reject(text: String) { check(text.toDoubleOrNull() == None, "overflow: " + text) }
+fun reject(text: String) { check(text.toDoubleOrNone() == None, "overflow: " + text) }
 fun main() {
     vectors0()
     vectors1()

@@ -88,35 +88,35 @@ public struct ULong :
 
     @NoGC
     @Intrinsic("ulong_to_int8")
-    public fun toInt8(): Int8
+    public fun toByte(): Byte
 
     @NoGC
     @Intrinsic("ulong_to_int16")
-    public fun toInt16(): Int16
+    public fun toShort(): Short
 
     @NoGC
     @Intrinsic("ulong_to_int")
-    public fun toInt32(): Int
+    public fun toInt(): Int
 
     @NoGC
     @Intrinsic("ulong_to_long")
-    public fun toInt64(): Long
+    public fun toLong(): Long
 
     @NoGC
     @Intrinsic("ulong_to_uint8")
-    public fun toUInt8(): UInt8
+    public fun toUByte(): UByte
 
     @NoGC
     @Intrinsic("ulong_to_uint16")
-    public fun toUInt16(): UInt16
+    public fun toUShort(): UShort
 
     @NoGC
     @Intrinsic("ulong_to_uint")
-    public fun toUInt32(): UInt
+    public fun toUInt(): UInt
 
     @NoGC
     @Intrinsic("ulong_to_ulong")
-    public fun toUInt64(): ULong
+    public fun toULong(): ULong
 
     public override operator fun rangeTo(endpoint: ULong): ULongRange =
         ULongRange(this, endpoint, 1uL, false, true)
@@ -134,7 +134,7 @@ public struct ULong :
 
     public override fun hash(): Long = coreULongHash(this)
 
-    public companion object : Encodable<ULong>, Decodable<ULong>, Inspectable<ULong> {
+    public companion object : ValueEncoder<ULong>, ValueDecoder<ULong>, ValueInspector<ULong> {
         public override fun inspect(value: ULong): ValueView =
             ValueObservation(typeInfo<ULong>().type, None, { ValueShape.Scalar(ScalarValue.Unsigned(value)) })
 
@@ -142,7 +142,7 @@ public struct ULong :
         public const val MAX_VALUE: ULong = 18446744073709551615uL
 
         public override fun encode(value: ULong, encoder: Encoder): Unit =
-            encoder.singleValue().writeULong(value.toUInt64())
+            encoder.singleValue().writeULong(value.toULong())
 
         public override fun decode(decoder: Decoder): ULong =
             decoder.singleValue().readULong()

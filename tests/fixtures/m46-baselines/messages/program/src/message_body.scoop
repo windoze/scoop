@@ -10,7 +10,7 @@ struct MessageBody(
     val container: ResponseContainer? = None,
     val diagnostics: Diagnostics? = None
 ) {
-    companion object : Encodable<MessageBody>, Decodable<MessageBody> {}
+    companion object : ValueEncoder<MessageBody>, ValueDecoder<MessageBody> {}
 }
 struct Usage(
     val input_tokens: Long,
@@ -19,14 +19,14 @@ struct Usage(
     val cache_read_input_tokens: Long? = None,
     val server_tool_use: ServerUsage? = None
 ) {
-    companion object : Encodable<Usage>, Decodable<Usage> {}
+    companion object : ValueEncoder<Usage>, ValueDecoder<Usage> {}
 }
 struct ServerUsage(val web_search_requests: Long, val web_fetch_requests: Long) {
-    companion object : Encodable<ServerUsage>, Decodable<ServerUsage> {}
+    companion object : ValueEncoder<ServerUsage>, ValueDecoder<ServerUsage> {}
 }
 struct ResponseContainer(val id: String, val expires_at: String) {
-    companion object : Encodable<ResponseContainer>, Decodable<ResponseContainer> {}
+    companion object : ValueEncoder<ResponseContainer>, ValueDecoder<ResponseContainer> {}
 }
 struct Diagnostics(@Serialize(required = true) val cache_miss_reason: CacheMiss?) {
-    companion object : Encodable<Diagnostics>, Decodable<Diagnostics> {}
+    companion object : ValueEncoder<Diagnostics>, ValueDecoder<Diagnostics> {}
 }

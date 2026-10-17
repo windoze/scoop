@@ -18,9 +18,9 @@ internal fun algorithmName(algorithm: JwsAlgorithm): String = when (algorithm) {
 }
 
 private fun signatureAlgorithm(algorithm: JwsAlgorithm): SignatureAlgorithm = when (algorithm) {
-    case RS256 -> SignatureAlgorithm.RS256
-    case PS256 -> SignatureAlgorithm.PS256
-    case ES256 -> SignatureAlgorithm.ES256
+    case RS256 -> SignatureAlgorithm.RsaPkcs1Sha256
+    case PS256 -> SignatureAlgorithm.RsaPssSha256
+    case ES256 -> SignatureAlgorithm.EcdsaP256Sha256Der
     case EdDSA -> SignatureAlgorithm.Ed25519
     case HS256 -> throw IllegalArgumentException(Some("HS256 requires a MAC key"))
 }
@@ -37,7 +37,7 @@ public fun signCompact(protectedHeader: String, payload: List<Byte>, algorithm: 
     val signature = when (key) {
         case Mac(secret) -> {
             requireMac(algorithm, secret)
-            hmac(DigestAlgorithm.SHA256, secret, bytes)
+            hmac(DigestAlgorithm.Sha256, secret, bytes)
         }
         case Signature(privateKey) -> {
             val der = sign(signatureAlgorithm(algorithm), privateKey, bytes)
@@ -47,7 +47,8 @@ public fun signCompact(protectedHeader: String, payload: List<Byte>, algorithm: 
     return input + "." + urlEncoding.encode(signature)
 }
 
-public fun verifyCompact(token: String, algorithm: JwsAlgorithm, key: JwsVerificationKey): VerifiedJws? {
+// Verifies the signature and returns the header and payload; a mismatch returns None.
+public fun verifyCompactOrNone(token: String, algorithm: JwsAlgorithm, key: JwsVerificationKey): VerifiedJws? {
     val parts = token.split('.')
     if (parts.size != 3L) throw JwsException("compact JWS must contain three segments")
     val header = headerText(decodePart(parts[0L]))
@@ -58,7 +59,7 @@ public fun verifyCompact(token: String, algorithm: JwsAlgorithm, key: JwsVerific
     val valid = when (key) {
         case Mac(secret) -> {
             requireMac(algorithm, secret)
-            verifyHmac(DigestAlgorithm.SHA256, secret, input, signature)
+            verifyHmac(DigestAlgorithm.Sha256, secret, input, signature)
         }
         case Signature(publicKey) -> {
             val selected = signatureAlgorithm(algorithm)

@@ -1,7 +1,7 @@
 import scoop.cli.*
 
 enum Temperature { @Serialize(rename = "hot-wire") Hot, Cold
-    companion object : Decodable<Temperature>
+    companion object : ValueDecoder<Temperature>
 }
 struct Port(val value: Int)
 
@@ -14,7 +14,7 @@ fun main() {
         CliEntry("leftover", "leftover", CliRole.Option, CliValueShape.Text, ["--leftover"]),
         CliEntry("escaped", "key/name~", CliRole.Option, CliValueShape.Text, ["--escaped"])
     ])
-    val parser = CliParser(schema, DecodeFunction<Decoder>({ value -> value }))
+    val parser = CliParser(schema, ValueDecoderFunction<Decoder>({ value -> value }))
     val root = parsed(parser.parse(["--value=auto", "--items=1", "--items=2", "--flag", "--choice=Hot", "--leftover=x", "--escaped=bad"]))
     gcCollect()
     check(!root.singleValue().isNull())
@@ -73,12 +73,12 @@ fun main() {
     val portSchema = CliSchema(typeInfo<Port>(), CliConfig("port"), [
         CliEntry("port", "port", CliRole.Option, CliValueShape.Text, ["--port"])
     ])
-    val portCodec = DecodeFunction<Port>({ decoder -> Port(Int.decode(decoder.keyed().required("port"))) })
+    val portCodec = ValueDecoderFunction<Port>({ decoder -> Port(Int.decode(decoder.keyed().required("port"))) })
     check(parsed(CliParser(portSchema, portCodec).parse(["--port=8080"])).value == 8080)
-    val partial = DecodeFunction<String>({ decoder -> decoder.keyed().required("value").singleValue().readString() })
+    val partial = ValueDecoderFunction<String>({ decoder -> decoder.keyed().required("value").singleValue().readString() })
     val partialSchema = CliSchema(typeInfo<String>(), CliConfig("partial"), schema.entries)
     equal(parsed(CliParser(partialSchema, partial).parse(["--value=kept", "--leftover=unused"])), "kept")
-    val throwing = CliParser(schema, DecodeFunction<Decoder>({ _ -> throw IllegalArgumentException(Some("codec failure")) }))
+    val throwing = CliParser(schema, ValueDecoderFunction<Decoder>({ _ -> throw IllegalArgumentException(Some("codec failure")) }))
     check(when (throwing.parse(["--help"])) { case CliResult.HelpRequested -> true; else -> false })
     try { throwing.parse([]); throw IllegalStateException() }
     catch (error: IllegalArgumentException) { equal(error.message!!, "codec failure") }

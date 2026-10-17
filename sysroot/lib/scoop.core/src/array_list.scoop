@@ -84,11 +84,11 @@ public class ArrayList<T> public constructor(initialCapacity: Long = 0L) : Mutab
     public override operator fun iterator(): Iterator<T> = ListIterator<T>(this, 0L, false)
 
     public companion object {
-        public fun inspector(element: Inspectable<T>): Inspectable<ArrayList<T>> = ArrayListInspector<T>(element)
+        public fun inspector(element: ValueInspector<T>): ValueInspector<ArrayList<T>> = ArrayListInspector<T>(element)
 
-        public fun encoder(element: Encodable<T>): Encodable<ArrayList<T>> = ArrayListEncoder<T>(element)
+        public fun encoder(element: ValueEncoder<T>): ValueEncoder<ArrayList<T>> = ArrayListEncoder<T>(element)
 
-        public fun decoder(element: Decodable<T>): Decodable<ArrayList<T>> = ArrayListDecoder<T>(element)
+        public fun decoder(element: ValueDecoder<T>): ValueDecoder<ArrayList<T>> = ArrayListDecoder<T>(element)
     }
 }
 

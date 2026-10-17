@@ -1,6 +1,6 @@
 enum Citation {
     Char(CharCitation), Page(PageCitation), Block(BlockCitation), Web(WebCitation), Search(SearchCitation)
-    companion object : Encodable<Citation>, Decodable<Citation> {
+    companion object : ValueEncoder<Citation>, ValueDecoder<Citation> {
         public override fun encode(value: Citation, encoder: Encoder) {
             val fields = encoder.keyed()
             when (value) {
@@ -47,7 +47,7 @@ struct CharCitation(
     val start_char_index: Long,
     val end_char_index: Long
 ) {
-    companion object : Encodable<CharCitation>, Decodable<CharCitation> {}
+    companion object : ValueEncoder<CharCitation>, ValueDecoder<CharCitation> {}
 }
 struct PageCitation(
     val cited_text: String,
@@ -56,7 +56,7 @@ struct PageCitation(
     val start_page_number: Long,
     val end_page_number: Long
 ) {
-    companion object : Encodable<PageCitation>, Decodable<PageCitation> {}
+    companion object : ValueEncoder<PageCitation>, ValueDecoder<PageCitation> {}
 }
 struct BlockCitation(
     val cited_text: String,
@@ -65,7 +65,7 @@ struct BlockCitation(
     val start_block_index: Long,
     val end_block_index: Long
 ) {
-    companion object : Encodable<BlockCitation>, Decodable<BlockCitation> {}
+    companion object : ValueEncoder<BlockCitation>, ValueDecoder<BlockCitation> {}
 }
 struct WebCitation(
     val cited_text: String,
@@ -73,7 +73,7 @@ struct WebCitation(
     @Serialize(required = true) val title: String?,
     val url: String
 ) {
-    companion object : Encodable<WebCitation>, Decodable<WebCitation> {}
+    companion object : ValueEncoder<WebCitation>, ValueDecoder<WebCitation> {}
 }
 struct SearchCitation(
     val cited_text: String,
@@ -83,5 +83,5 @@ struct SearchCitation(
     val start_block_index: Long,
     val end_block_index: Long
 ) {
-    companion object : Encodable<SearchCitation>, Decodable<SearchCitation> {}
+    companion object : ValueEncoder<SearchCitation>, ValueDecoder<SearchCitation> {}
 }

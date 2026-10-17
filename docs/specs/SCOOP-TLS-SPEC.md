@@ -10,21 +10,21 @@
 
 ## 2. 配置与身份
 
-TlsClientContext 显式接收 crypto TrustStore；TlsServerContext 接收 Certificate 链和 PrivateKey，创建时检查证书／私钥匹配并保留 native 引用。配置创建后不可变，允许多个连接共享；上下文 close 后禁止新会话，已有 SSL 保留必要引用。单个对象关闭不执行 OPENSSL_cleanup。
+TlsClientContext 显式接收 crypto TrustStore；TlsServerContext 接收 Certificate 链和 PrivateKey，创建时检查证书／私钥匹配并保留 native 引用。配置创建后不可变，允许多个连接共享；上下文实现 Closeable，close 后禁止新会话，已有 SSL 保留必要引用。单个对象关闭不执行 OPENSSL_cleanup。
 
 客户端必须提供 TlsPeerName，DNS 与 IP 分开。DNS 非空、无 NUL、ASCII／A-label，分别设置 SNI 和主机名验证；IP 使用 4／16 字节 SAN 验证，不设置 DNS SNI。默认验证信任链、时间、用途和目标名称，没有跳过验证的高层开关。身份不从实际连接地址推导。TLS 不预先重复执行一次完整 crypto 链验证。
 
 默认 TLS 1.2～1.3，允许显式限定为其中一个版本；使用上游正常密码配置。ALPN 为独立协议字节串列表，每项 1～255 字节，总编码长度至多 65535；服务端按自身顺序选共同项。双方配置 ALPN 而无共同项时报握手错误，未协商返回 None。协商信息提供实际 TLS 版本与可选 ALPN。
 
-`TlsVersion { TLS12, TLS13 }`，`TlsOptions(minimum = TLS12, maximum = TLS13, alpn = 空列表)`。上下文构造为 `TlsClientContext(trustStore, options)` 和 `TlsServerContext(certificates, privateKey, options)`；certificates 非空，顺序为叶证书、其后发送的中间证书，根无需发送。`TlsPeerName { Dns(String), Ip(IpAddress) }` 在 TLS 层将 platform 的地址转成 crypto 的内存身份。`TlsConnectionInfo(version, alpn)` 返回协商数据的独立副本。
+`TlsVersion { Tls12, Tls13 }`，`TlsOptions(minimum = Tls12, maximum = Tls13, alpn = 空列表)`。上下文构造为 `TlsClientContext(trustStore, options)` 和 `TlsServerContext(certificates, privateKey, options)`；certificates 非空，顺序为叶证书、其后发送的中间证书，根无需发送。`TlsPeerName { Dns(String), Ip(IpAddress) }` 在 TLS 层将 platform 的地址转成 crypto 的内存身份。`TlsConnectionInfo(version, alpn)` 返回协商数据的独立副本。
 
 ## 3. 所有权与引擎
 
-同步包装入口要求普通泛型约束 ByteSource、ByteSink、Disposable；异步要求 AsyncByteStream、AsyncCloseable。参数、状态和登记前取消检查成功后、开始握手前接管底层传输。此后的失败负责关闭传输与未交付 TLS 状态；接管前失败仍归调用者。交付后调用者不得绕过包装层使用底层传输。
+同步包装入口要求普通泛型约束 ByteSource、ByteSink、Closeable；异步要求 AsyncByteStream、AsyncCloseable。参数、状态和登记前取消检查成功后、开始握手前接管底层传输。此后的失败负责关闭传输与未交付 TLS 状态；接管前失败仍归调用者。同步工厂在 TlsEngine 会话创建成功后、分配流缓冲前接管，缓冲分配失败也负责关闭传输；异步工厂在握手请求成功登记时接管，登记前失败仍由调用者关闭传输。交付后调用者不得绕过包装层使用底层传输。
 
 每个会话使用固定容量 BIO pair 和独立密文 staging buffer，不使用 SSL_set_fd 或 socket BIO。`scoop.tls.native` 提供有限同步握手、明文读写、shutdown、密文输入输出步骤。结果包含进度、WANT_READ／WANT_WRITE、close_notify 或已复制的错误。
 
-公开 `TlsEngine.client(context, peer)`／`server(context)` 创建显式 Disposable 会话。handshake、read、write、shutdown 返回 `TlsStep(kind, count)`，kind 为 Done／WantRead／WantWrite／Closed；read／write 使用 Unsafe NativeByteBorrow，调用者负责串行与借用有效期。receiveCiphertext／takeCiphertext 消费／填充 NativeByteBuffer 的实际前缀；inputCapacity、pendingOutput 为 BIO 当前可写／可读量，endInput 标记传输 EOF。connectionInfo 仅在完成握手后使用。引擎不执行传输，不保留临时 managed 数据地址。适配器使用的明文前缀上限为 16384 字节，内部 BIO 容量不属于 ABI。
+公开 `TlsEngine.client(context, peer)`／`server(context)` 创建显式 Closeable 会话。handshake、read、write、shutdown 返回 `TlsStep(kind, count)`，kind 为 Done／WantRead／WantWrite／Closed；read／write 使用 Unsafe NativeByteBorrow，调用者负责串行与借用有效期。receiveCiphertext／takeCiphertext 消费／填充 NativeByteBuffer 的实际前缀；inputCapacity、pendingOutput 为 BIO 当前可写／可读量，endInput 标记传输 EOF。connectionInfo 仅在完成握手后使用。引擎不执行传输，不保留临时 managed 数据地址。适配器使用的明文前缀上限为 16384 字节，内部 BIO 容量不属于 ABI。
 
 `TlsException` 保存 operation、kind、OpenSSL code、verifyCode、systemError 和 detail；`TlsFailureKind` 区分 Configuration、Verification、Protocol、Truncated、UnconsumedData。错误数据在同次 C 调用中复制；底层 I/O 异常仍按原类型传播。
 
@@ -42,13 +42,13 @@ readInto 返回已初始化的明文数量并推进 buffer writer，writeFrom �
 
 ## 5. 同步与异步协调
 
-同步 TlsStream 实现 ByteSource、ByteSink、Disposable，调用者串行使用，包括关闭；不创建线程池。DNS、连接和 accept 组合既有 platform API。
+同步 TlsStream 实现 ByteSource、ByteSink、Closeable，调用者串行使用，包括关闭；不创建线程池。DNS、连接和 accept 组合既有 platform API。
 
-同步入口为 `tlsClient(transport, context, peer)` 和 `tlsServer(transport, context)`，握手成功后返回 TlsStream。其 connectionInfo 提供实际协商信息，readInto／writeFrom／flush 采用既有同步协议。状态／范围错误在登记前抛出，连接保持可用；已开始的协议或传输操作失败执行本地收尾。close 幂等，主动 shutdownGracefully 完成后同样处于已关闭状态。
+同步入口为 `TlsStream.takeOwnershipAsClient(transport, context, peer)` 和 `TlsStream.takeOwnershipAsServer(transport, context)`，握手成功后返回 TlsStream。其 isClosed 查询关闭状态，connectionInfo 提供实际协商信息，readInto／writeFrom／flush 采用既有同步协议。状态／范围错误在登记前抛出，连接保持可用；已开始的协议或传输操作失败执行本地收尾。close 幂等，主动 shutdownGracefully 完成后同样处于已关闭状态。
 
 AsyncTlsStream 实现 AsyncByteStream、AsyncCloseable，固定归属建立它的 EventLoop。普通操作检查当前 Job 与所属 Context；允许不同 buffer 各一个应用 read 和 write 在途，同方向并发报状态错误，flush 占输出方向。连接协调底层每方向至多一个操作。通知在状态更新后、锁外执行，无活动请求时不遗留无归属后台任务，不为每次 SSL 步骤创建 Job。
 
-异步入口为 `asyncTlsClient(transport, context, peer)` 和 `asyncTlsServer(transport, context)`；返回的 AsyncTlsStream 提供 connectionInfo、isClosed 和 shutdownGracefully。连接以普通操作记录保留 continuation、所属 Job、进度和借用，每次实际传输通过公开 startCoroutine／Continuation 完成，传输结束后再决定可执行步骤与应用结果；不创建私有调度器、全局服务或逐步骤 Job。WANT_READ 的应用读可让写进入 SSL；待重试写及 WANT_WRITE 的读遵循上游重试次序。SSL 与错误提取在短锁内，实际传输、关闭、取消监听回调和 continuation 通知在锁外。
+异步入口为 `AsyncTlsStream.takeOwnershipAsClient(transport, context, peer)` 和 `AsyncTlsStream.takeOwnershipAsServer(transport, context)`，完成握手后返回；返回的 AsyncTlsStream 提供 connectionInfo、isClosed 和 shutdownGracefully。连接以普通操作记录保留 continuation、所属 Job、进度和借用，每次实际传输通过公开 startCoroutine／Continuation 完成，传输结束后再决定可执行步骤与应用结果；不创建私有调度器、全局服务或逐步骤 Job。WANT_READ 的应用读可让写进入 SSL；待重试写及 WANT_WRITE 的读遵循上游重试次序。SSL 与错误提取在短锁内，实际传输、关闭、取消监听回调和 continuation 通知在锁外。
 
 跨线程取消与第三方恢复使用连接自身的普通同步，不能调用 libuv 私有状态／投递函数；传输等待通过公开异步流。服务端逐连接握手，listener 的后续 accept 不依赖前一握手完成。
 
@@ -56,7 +56,7 @@ AsyncTlsStream 实现 AsyncByteStream、AsyncCloseable，固定归属建立它�
 
 登记前取消不启动／接管；成功已获胜则迟到取消不覆盖。已登记但未完成的握手、读写、flush、shutdown 取消获胜时终止整条 TLS 连接。取消只选结果，仍等 native 步骤、底层操作／关闭、借用和资源收尾完成才恢复。其他活动请求以关闭结束，已选成功／取消保持原结果。
 
-close／dispose 只保证本地释放，不隐含 flush 或对端关闭握手。拒绝新操作后关闭已接管传输并等其借用结束，再释放 SSL／BIO、提交明文进度、解除明文借用、释放 staging buffer。即使一步失败仍继续其他必要清理；正文与清理同时失败使用 ResourceUseException。
+close 只保证本地释放，不隐含 flush 或对端关闭握手。拒绝新操作后关闭已接管传输并等其借用结束，再释放 SSL／BIO、提交明文进度、解除明文借用、释放 staging buffer。即使一步失败仍继续其他必要清理；正文与清理同时失败使用 ResourceUseException。
 
 异步 close 可在已取消 Job 的 finally 中执行，收尾不可被提前取消；并发 close 等待同一次收尾，之后幂等。EventLoop 对原始 socket 的收尾不能代替 TLS wrapper 的 close；正常用法以 use／useAsync／try-finally 显式关闭。GC release hook 不驱动、不等待、不取消，也不调用 OpenSSL 析构链。
 

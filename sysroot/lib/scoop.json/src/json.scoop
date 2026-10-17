@@ -1,19 +1,19 @@
 package scoop.json
 
 public object Json {
-    public fun <T> encode(value: T, codec: Encodable<T>): String =
-        renderJson(encodeValue(value, codec).node)
+    public fun <T> encodeToString(value: T, codec: ValueEncoder<T>): String =
+        renderJson(encodeToValue(value, codec).node)
 
-    public fun <T> decode(text: String, codec: Decodable<T>): T =
-        decodeValue(JsonValue(JsonParser(text).parse()), codec)
+    public fun <T> decodeFromString(text: String, codec: ValueDecoder<T>): T =
+        decodeFromValue(JsonValue(JsonParser(text).parse()), codec)
 
-    public fun <T> encodeValue(value: T, codec: Encodable<T>): JsonValue {
+    public fun <T> encodeToValue(value: T, codec: ValueEncoder<T>): JsonValue {
         val encoder = JsonEncoder("")
         codec.encode(value, encoder)
         return JsonValue(encoder.result())
     }
 
-    public fun <T> decodeValue(value: JsonValue, codec: Decodable<T>): T =
+    public fun <T> decodeFromValue(value: JsonValue, codec: ValueDecoder<T>): T =
         codec.decode(JsonDecoder(value.node, ""))
 }
 
@@ -29,13 +29,13 @@ internal enum JsonNode {
 internal struct JsonMember(val name: String, val value: JsonNode)
 
 internal fun childPath(path: String, name: String): String {
-    val result = StringBuilder().add(path).add("/")
+    val result = StringBuilder().append(path).append("/")
     for (character in name) {
         when (character) {
-            case '~' -> { result.add("~0") }
-            case '/' -> { result.add("~1") }
-            else -> { result.add(character) }
+            case '~' -> { result.append("~0") }
+            case '/' -> { result.append("~1") }
+            else -> { result.append(character) }
         }
     }
-    return result.build()
+    return result.toString()
 }

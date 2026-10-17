@@ -28,14 +28,14 @@ private class AsyncUdpCancellationTest {
                 assertEquals(2L, bytes.readPosition)
                 bytes.clear()
                 assertEquals(2L, receiver.receiveFrom(bytes, 2L).count)
-                assertEquals(11.toInt8(), bytes.readByte())
-                assertEquals(12.toInt8(), bytes.readByte())
+                assertEquals(11.toByte(), bytes.readByte())
+                assertEquals(12.toByte(), bytes.readByte())
                 bytes.clear()
                 bytes.writeByte(42)
                 assertEquals(1L, sender.sendTo(bytes, receiver.localAddress, 1L))
                 bytes.clear()
                 assertEquals(1L, receiver.receiveFrom(bytes, 2L).count)
-                assertEquals(42.toInt8(), bytes.readByte())
+                assertEquals(42.toByte(), bytes.readByte())
             }
         }
     }
@@ -60,7 +60,7 @@ private class AsyncUdpCancellationTest {
                 sender.sendTo(bytes, receiver.localAddress, 1L)
                 bytes.clear()
                 assertEquals(1L, receiver.receiveFrom(bytes, 1L).count)
-                assertEquals(42.toInt8(), bytes.readByte())
+                assertEquals(42.toByte(), bytes.readByte())
             }
         }
     }

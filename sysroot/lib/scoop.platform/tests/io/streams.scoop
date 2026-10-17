@@ -19,7 +19,7 @@ private class ByteStreamsTest {
             sink.writeFully(buffer)
             assertEquals(5L, buffer.readPosition)
             assertEquals(5L, sink.bytes.size)
-            assertEquals(5.toInt8(), sink.bytes.toByteArray()[4L])
+            assertEquals(5.toByte(), sink.bytes.toByteArray()[4L])
         }
     }
 
@@ -50,12 +50,12 @@ private class ByteStreamsTest {
         val sink = TestSink(1L)
         assertEquals(5L, TestSource([1, 2, 3, 4, 5]).copyTo(sink, 3L))
         assertEquals(5L, sink.bytes.size)
-        val destination = MutableArray<Byte>(4L) { 0.toInt8() }
+        val destination = MutableArray<Byte>(4L) { 0.toByte() }
         assertEquals(2L, TestSource([9, 8]).readInto(destination, 1L, 2L))
-        assertEquals(0.toInt8(), destination[0L])
-        assertEquals(9.toInt8(), destination[1L])
-        assertEquals(8.toInt8(), destination[2L])
-        assertEquals(0.toInt8(), destination[3L])
+        assertEquals(0.toByte(), destination[0L])
+        assertEquals(9.toByte(), destination[1L])
+        assertEquals(8.toByte(), destination[2L])
+        assertEquals(0.toByte(), destination[3L])
         assertFailsWith<IllegalArgumentException> { TestSource([]).copyTo(sink, 0L) }
         assertFailsWith<IndexOutOfBoundsException> { TestSource([]).readInto(destination, 4L, 1L) }
         assertFailsWith<IllegalArgumentException> { sink.writeFrom(destination, 0L, -1L) }
@@ -86,7 +86,7 @@ private class ByteStreamsTest {
         val protocol: TextWriter = writer
         protocol.write("中")
         sink.writeLine("😀")
-        assertEquals("中😀\n", OsString.fromBytes(sink.bytes.toByteArray()).decodeUtf8())
+        assertEquals("中😀\n", OsString.fromByteArray(sink.bytes.toByteArray()).decodeUtf8())
         assertEquals(0, sink.flushes)
         writer.flush()
         assertEquals(1, sink.flushes)

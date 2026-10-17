@@ -8,7 +8,7 @@ fun churn(worker: Int): Int {
     val values = MutableArray<Node?>(80L) { index -> None }
     var index = 0L
     while (index < values.size) {
-        values[index] = Some(Node(worker + index.toInt32()))
+        values[index] = Some(Node(worker + index.toInt()))
         if (index % 17L == 0L) { gcCollect() }
         index += 1L
     }

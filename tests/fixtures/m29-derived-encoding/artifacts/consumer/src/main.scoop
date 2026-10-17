@@ -9,11 +9,11 @@ fun check(value: Boolean) {
     if (!value) { throw IllegalStateException(Some("derived artifact assertion failed")) }
 }
 
-class LocalPacketEncoder<T>(private val element: Encodable<T>) : Encodable<Packet<T>>
-class LocalEventEncoder<T>(private val element: Encodable<T>) : Encodable<Event<T>>
-object LocalRowEncoder : Encodable<PublicRow>
+class LocalPacketEncoder<T>(private val element: ValueEncoder<T>) : ValueEncoder<Packet<T>>
+class LocalEventEncoder<T>(private val element: ValueEncoder<T>) : ValueEncoder<Event<T>>
+object LocalRowEncoder : ValueEncoder<PublicRow>
 
-fun <T> encode(value: T, codec: Encodable<T>): String = Json.encode(value, codec)
+fun <T> encode(value: T, codec: ValueEncoder<T>): String = Json.encodeToString(value, codec)
 
 fun main() {
     val packet = Packet<Int>.Companion.encoder(Int.Companion)

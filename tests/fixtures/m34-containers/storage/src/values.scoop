@@ -24,10 +24,10 @@ class Cell(val number: Int) : Read { override fun value(): Int = number }
     options.add(None)
     options.add(Some(7))
     options.add(1L, None)
-    inspectStorage(options, sizeOf<Int?>().toInt64())
+    inspectStorage(options, sizeOf<Int?>().toLong())
     check(options.removeAt(0L) == None && options[0L] == None && options[1L] == Some(7), 4)
     options.clear()
-    inspectStorage(options, sizeOf<Int?>().toInt64())
+    inspectStorage(options, sizeOf<Int?>().toLong())
 }
 
 @Unsafe fun valuesAndInterfaces() {

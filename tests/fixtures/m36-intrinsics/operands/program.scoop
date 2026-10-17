@@ -11,15 +11,15 @@ fun operations() {
     check(-12 == (-12).unaryPlus())
     check(12.inc() == 13 && 12.dec() == 11 && 12.inv() == -13)
     check((3 shl 65L) == 6 && (-8 shr 1L) == -4 && (-1 ushr 31L) == 1)
-    check(255u.toUInt8() + 1u.toUInt8() == 0u.toUInt8())
+    check(255u.toUByte() + 1u.toUByte() == 0u.toUByte())
     val negate: () -> Int = 12::unaryMinus
     val add: (Int) -> Int = 12::plus
     val divide: (Int) -> Int = 12::div
-    val convert: () -> Long = 12::toInt64
+    val convert: () -> Long = 12::toLong
     val bit: () -> Boolean = true::not
     val floating: (Double) -> Double = 1.5::plus
     val code: Int = 'A'.code
-    val narrow: () -> Int = 1.5::toInt32
+    val narrow: () -> Int = 1.5::toInt
     val compare: (Char) -> Long = 'A'::compareTo
     gcCollect()
     check(negate() == -12 && add(3) == 15 && divide(3) == 4)

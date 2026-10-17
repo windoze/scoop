@@ -12,9 +12,9 @@ public fun result(): Int {
     var signed = 0
     var unsigned = 0
     var wideUnsigned = 0
-    for (value in longStart..<longEnd) { signed = signed + value.toInt32() }
-    for (value in uintStart..<uintEnd) { unsigned = unsigned + value.toInt32() }
-    for (value in ulongStart..<ulongEnd) { wideUnsigned = wideUnsigned + value.toInt32() }
+    for (value in longStart..<longEnd) { signed = signed + value.toInt() }
+    for (value in uintStart..<uintEnd) { unsigned = unsigned + value.toInt() }
+    for (value in ulongStart..<ulongEnd) { wideUnsigned = wideUnsigned + value.toInt() }
     return if (signed == 21 && unsigned == 21 && wideUnsigned == 21) { 42 } else { 0 }
 }
 

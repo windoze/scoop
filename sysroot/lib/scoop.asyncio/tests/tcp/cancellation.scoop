@@ -30,7 +30,7 @@ private class AsyncTcpCancellationTest {
                     client.writeFully(output)
                 }
                 assertEquals(1L, server.readInto(input, 1L))
-                assertEquals(42.toInt8(), input.readByte())
+                assertEquals(42.toByte(), input.readByte())
             }
         }
     }

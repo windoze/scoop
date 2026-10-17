@@ -49,7 +49,7 @@ public interface AsyncCloseable { public suspend fun close() }
 public suspend fun <R, T> R.useAsync(block: suspend (R) -> T): T where R : AsyncCloseable
 ```
 
-useAsync 与 core use 一样在正文与清理均失败时抛 ResourceUseException。异步关闭不通过 Disposable 表达。GC hook 不承担驱动、取消、恢复、flush 或等待；正常生命周期由 close 与 run 收尾保证。
+useAsync 与 core use 一样在正文与清理均失败时抛 ResourceUseException。同步对应协议为 core Closeable.close；异步关闭继续使用独立 AsyncCloseable，不通过同步 Disposable 表达。GC hook 不承担驱动、取消、恢复、flush 或等待；正常生命周期由 close 与 run 收尾保证。
 
 ## 4. 流、buffer 与组合
 
@@ -100,7 +100,7 @@ public interface AsyncUdpSocket : AsyncCloseable {
 }
 ```
 
-TCP EOF 不关闭输出。shutdownOutput 属于输出方向，提交后禁止新 write；成功后输入仍可读。真实读错误成为该方向终态，不重启失效的读订阅。listener 同时一个 accept，无等待者时保留后端待 accept 状态，不建立 managed 预接收队列。关闭 listener 不关闭已交付 stream。地址属性是创建时取得的值，不跨线程访问 native handle。
+TCP EOF 不关闭输出。shutdownOutput 属于输出方向，提交后禁止新 write；成功后输入仍可读。真实读错误成为该方向终态，不重启失效的读订阅。listener 同时一个 accept，无等待者时保留后端待 accept 状态，不建立 managed 预接收队列。关闭 listener 不关闭已交付 stream。地址属性是创建时取得的值，不跨线程访问 native handle；这与 platform 同步 socket 每次调用 localAddress()／peerAddress() 查询 OS 状态的合同不同。
 
 listenTcp 的 backlog 必须为正。监听使用 platform 的 socket_bind helper 先按 reuseAddress 配置和绑定新的 owned fd，再移交 uv_tcp_open／uv_listen；这样 false 不被 libuv 的隐式 SO_REUSEADDR 覆盖。移交前失败按 raw close 清理，移交后按 uv_close 清理。helper 错误保留 PosixErrno，libuv 错误使用 Libuv；不接管用户已有 socket。
 

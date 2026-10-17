@@ -5,11 +5,11 @@ import model.reader
 typealias Id = Identifier
 
 fun main() {
-    val text = Json.encode(Identifier(7L), Id.Companion)
+    val text = Json.encodeToString(Identifier(7L), Id.Companion)
     if (text != "{\"id\":7}") { throw IllegalStateException() }
-    val codec: Decodable<Identifier> = Id.Companion
-    val first = Json.decode(text, codec)
-    val second = Json.decode(text, reader<Identifier>({ source -> Id.decode(source) }))
+    val codec: ValueDecoder<Identifier> = Id.Companion
+    val first = Json.decodeFromString(text, codec)
+    val second = Json.decodeFromString(text, reader<Identifier>({ source -> Id.decode(source) }))
     if (first != second || first.value != 7L) { throw IllegalStateException() }
     if (Identifier.Factory.calls != 2L || Id.Companion !== Identifier.Factory) {
         throw IllegalStateException()

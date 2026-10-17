@@ -1,18 +1,18 @@
 package scoop.collections
 
-internal fun <T> encodeElements(values: Iterable<T>, element: Encodable<T>, encoder: Encoder) {
+internal fun <T> encodeElements(values: Iterable<T>, element: ValueEncoder<T>, encoder: Encoder) {
     val elements = encoder.unkeyed()
     for (value in values) element.encode(value, elements.element())
     elements.end()
 }
 
-internal fun <T> decodeElements(decoder: Decoder, element: Decodable<T>, append: (T) -> Unit) {
+internal fun <T> decodeElements(decoder: Decoder, element: ValueDecoder<T>, append: (T) -> Unit) {
     val elements = decoder.unkeyed()
     while (elements.hasNext) append(element.decode(elements.element()))
     elements.end()
 }
 
-internal fun <T> decodeSetInto(decoder: Decoder, element: Decodable<T>, result: MutableSet<T>) {
+internal fun <T> decodeSetInto(decoder: Decoder, element: ValueDecoder<T>, result: MutableSet<T>) {
     val elements = decoder.unkeyed()
     while (elements.hasNext) {
         val source = elements.element()
@@ -21,10 +21,10 @@ internal fun <T> decodeSetInto(decoder: Decoder, element: Decodable<T>, result: 
     elements.end()
 }
 
-public fun <T> listEncoder(element: Encodable<T>): Encodable<List<T>> =
-    EncodeFunction<List<T>> { values, encoder -> encodeList(values, element, encoder) }
+public fun <T> listEncoder(element: ValueEncoder<T>): ValueEncoder<List<T>> =
+    ValueEncoderFunction<List<T>> { values, encoder -> encodeList(values, element, encoder) }
 
-public fun <T> listDecoder(element: Decodable<T>): Decodable<List<T>> = DecodeFunction<List<T>> { decoder ->
+public fun <T> listDecoder(element: ValueDecoder<T>): ValueDecoder<List<T>> = ValueDecoderFunction<List<T>> { decoder ->
     val result = ArrayList<T>()
     decodeElements(decoder, element) { value -> result.add(value) }
     result.toList()

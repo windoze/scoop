@@ -5,21 +5,7 @@ import scoop.platform.memory.NativeByteBuffer
 import scoop.tls.*
 import scoop.tls.native.TlsEngine
 
-public suspend fun <T> asyncTlsClient(transport: T, context: TlsClientContext, peer: TlsPeerName): AsyncTlsStream
-    where T : AsyncByteStream, T : AsyncCloseable {
-    val loop = currentEventLoop()
-    val job = requireJob(loop, true)
-    return adoptAsync(TlsEngine.client(context, peer), transport, loop, job)
-}
-
-public suspend fun <T> asyncTlsServer(transport: T, context: TlsServerContext): AsyncTlsStream
-    where T : AsyncByteStream, T : AsyncCloseable {
-    val loop = currentEventLoop()
-    val job = requireJob(loop, true)
-    return adoptAsync(TlsEngine.server(context), transport, loop, job)
-}
-
-private suspend fun <T> adoptAsync(engine: TlsEngine, transport: T, loop: EventLoop, job: Job): AsyncTlsStream
+internal suspend fun <T> adoptAsync(engine: TlsEngine, transport: T, loop: EventLoop, job: Job): AsyncTlsStream
     where T : AsyncByteStream, T : AsyncCloseable {
     val state = allocateState(engine, transport, transport, loop, job)
     try {

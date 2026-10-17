@@ -16,7 +16,7 @@ fun show(label: String, location: SourceLocation) {
 }
 
 fun main() {
-    show("直接", getCurrentSourceLocation())
+    show("直接", currentSourceLocation())
     show("default", defaultBody(1))
     show("forwarded", relay(1))
     show("generic-body", body("value"))

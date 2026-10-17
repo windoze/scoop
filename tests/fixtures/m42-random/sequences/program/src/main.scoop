@@ -25,8 +25,8 @@ fun main() {
     val second = sequence.toList<Int>()
     check(second[0L] == 2 && second[1L] == 1 && second[2L] == 3 && visits.count == 6L && random.calls == 8L)
     val noCalls = Choices()
-    check(emptySequence<Int>().randomOrNull<Int>(noCalls) == None)
-    check(sequenceOf<Int?>(None).randomOrNull<Int?>(noCalls) == Some(None) && noCalls.calls == 0L)
+    check(emptySequence<Int>().randomOrNone<Int>(noCalls) == None)
+    check(sequenceOf<Int?>(None).randomOrNone<Int?>(noCalls) == Some(None) && noCalls.calls == 0L)
     var failed = false
     try { emptySequence<Int>().random<Int>(noCalls) } catch (error: NoSuchElementException) { failed = true }
     check(failed)

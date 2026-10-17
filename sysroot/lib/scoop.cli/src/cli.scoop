@@ -32,7 +32,7 @@ public class CliSchema<T> public constructor(
     public fun help(): String {
         val writer = StringWriter()
         writeHelp(writer)
-        return writer.build()
+        return writer.toString()
     }
 }
 
@@ -43,7 +43,7 @@ public object Cli {
 
 public enum CliResult<T> { Parsed(T), HelpRequested }
 
-public class CliParser<T> public constructor(private val schema: CliSchema<T>, private val codec: Decodable<T>) {
+public class CliParser<T> public constructor(private val schema: CliSchema<T>, private val codec: ValueDecoder<T>) {
     public fun parse(arguments: Array<String>): CliResult<T> = parseFrom(arguments, 0L)
 
     public fun parseCommandLine(argv: Array<String>): CliResult<T> {

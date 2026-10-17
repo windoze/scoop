@@ -9,17 +9,17 @@ class Value(var number: Int) : ToString {
 fun main() {
     val builder = StringBuilder()
     val value = Value(10)
-    builder.add(value)
+    builder.append(value)
     value.number = 11
     val asInterface: ToString = value
-    builder.add(asInterface)
+    builder.append(asInterface)
     value.number = 99
-    if (value.calls != 2 || builder.build() != "1011") { println("immediate"); return }
-    val result = builder.build()
-    builder.build()
-    builder.add(true).add(255.toUInt8())
+    if (value.calls != 2 || builder.toString() != "1011") { println("immediate"); return }
+    val result = builder.toString()
+    builder.toString()
+    builder.append(true).append(255.toUByte())
     gcCollect()
-    if (value.calls != 2 || result != "1011" || builder.build() != "1011true255") {
+    if (value.calls != 2 || result != "1011" || builder.toString() != "1011true255") {
         println("stable"); return
     }
     println(42)

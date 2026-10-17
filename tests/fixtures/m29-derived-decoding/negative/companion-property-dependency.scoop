@@ -1,8 +1,8 @@
 public class Value public constructor()
-public object ValueDecoder : Decodable<Value>
+public object ValueCodecDecoder : ValueDecoder<Value>
 public struct Item<T>(val value: T) {
-    public companion object : Decodable<Item<T>> {
-        public val irrelevant: Decodable<Value> = ValueDecoder
+    public companion object : ValueDecoder<Item<T>> {
+        public val irrelevant: ValueDecoder<Value> = ValueCodecDecoder
     }
 }
 

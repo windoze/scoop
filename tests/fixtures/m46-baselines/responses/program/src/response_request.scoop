@@ -12,23 +12,23 @@ struct ResponseRequest(
     val previous_response_id: String? = None,
     val metadata: Strings? = None
 ) {
-    companion object : Encodable<ResponseRequest>, Decodable<ResponseRequest> {}
+    companion object : ValueEncoder<ResponseRequest>, ValueDecoder<ResponseRequest> {}
 }
 struct TextConfig(val format: ResponseFormat) {
-    companion object : Encodable<TextConfig>, Decodable<TextConfig> {}
+    companion object : ValueEncoder<TextConfig>, ValueDecoder<TextConfig> {}
 }
 struct SchemaFormat(val name: String, val schema: JsonValue, val strict: Boolean? = None) {
-    companion object : Encodable<SchemaFormat>, Decodable<SchemaFormat> {}
+    companion object : ValueEncoder<SchemaFormat>, ValueDecoder<SchemaFormat> {}
 }
 struct PromptConfig(val id: String, val variables: PromptVariables) {
-    companion object : Encodable<PromptConfig>, Decodable<PromptConfig> {}
+    companion object : ValueEncoder<PromptConfig>, ValueDecoder<PromptConfig> {}
 }
 struct ConversationID(val id: String) {
-    companion object : Encodable<ConversationID>, Decodable<ConversationID> {}
+    companion object : ValueEncoder<ConversationID>, ValueDecoder<ConversationID> {}
 }
 enum ResponseInput {
     Text(String), Items(Array<ResponseItem>)
-    companion object : Encodable<ResponseInput>, Decodable<ResponseInput> {
+    companion object : ValueEncoder<ResponseInput>, ValueDecoder<ResponseInput> {
         public override fun encode(value: ResponseInput, encoder: Encoder) {
             when (value) {
                 case ResponseInput.Text(text) -> String.encode(text, encoder)
@@ -46,7 +46,7 @@ enum ResponseInput {
 }
 enum Conversation {
     Text(String), ID(ConversationID)
-    companion object : Encodable<Conversation>, Decodable<Conversation> {
+    companion object : ValueEncoder<Conversation>, ValueDecoder<Conversation> {
         public override fun encode(value: Conversation, encoder: Encoder) {
             when (value) {
                 case Conversation.Text(text) -> String.encode(text, encoder)
@@ -64,7 +64,7 @@ enum Conversation {
 }
 enum ResponseFormat {
     Text, Object, Schema(SchemaFormat)
-    companion object : Encodable<ResponseFormat>, Decodable<ResponseFormat> {
+    companion object : ValueEncoder<ResponseFormat>, ValueDecoder<ResponseFormat> {
         public override fun encode(value: ResponseFormat, encoder: Encoder) {
             val fields = encoder.keyed()
             when (value) {

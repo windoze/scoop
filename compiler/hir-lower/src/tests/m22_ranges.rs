@@ -262,8 +262,8 @@ fn widened_endpoint(owner: hir::IntegerKind, element: hir::IntegerKind, value: E
         return value;
     }
     let conversion = match element {
-        hir::IntegerKind::SIGNED_32 => "toInt32",
-        hir::IntegerKind::UNSIGNED_32 => "toUInt32",
+        hir::IntegerKind::SIGNED_32 => "toInt",
+        hir::IntegerKind::UNSIGNED_32 => "toUInt",
         _ => unreachable!("only narrow Int8/Int16 and UInt8/UInt16 endpoints widen"),
     };
     method_call(value, conversion, Vec::new())

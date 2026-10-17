@@ -14,9 +14,9 @@ public struct Char : Compare<Char>, Equals<Char>, ToString, Hash {
     public override operator fun compareTo(other: Char): Long
 
     public override fun toString(): String = coreCharToString(this)
-    public override fun hash(): Long = code.toInt64()
+    public override fun hash(): Long = code.toLong()
 
-    public companion object : Encodable<Char>, Decodable<Char>, Inspectable<Char> {
+    public companion object : ValueEncoder<Char>, ValueDecoder<Char>, ValueInspector<Char> {
         public override fun inspect(value: Char): ValueView =
             ValueObservation(typeInfo<Char>().type, None, { ValueShape.Scalar(ScalarValue.Char(value)) })
 

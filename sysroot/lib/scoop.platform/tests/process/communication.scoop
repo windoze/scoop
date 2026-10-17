@@ -11,15 +11,15 @@ private class CommunicationTest {
     fun `communicate drains both outputs while writing input larger than pipe capacity`() {
         val command = shell("dd if=/dev/zero bs=4096 count=32 2>/dev/null; " +
             "(dd if=/dev/zero bs=4096 count=32 2>/dev/null) >&2; cat", Stdio.Pipe)
-        val input = Array<Byte>(131072L) { (it % 251L).toInt8() }
+        val input = Array<Byte>(131072L) { (it % 251L).toByte() }
         command.spawn().use { child ->
             val result = child.communicate(Some(input))
             exited(result.status)
             assertEquals(262144L, result.stdout.size)
             assertEquals(131072L, result.stderr.size)
             for (index in 0L..<131072L) {
-                assertEquals(0.toInt8(), result.stdout[index])
-                assertEquals(0.toInt8(), result.stderr[index])
+                assertEquals(0.toByte(), result.stdout[index])
+                assertEquals(0.toByte(), result.stderr[index])
                 assertEquals(input[index], result.stdout[index + 131072L])
             }
             exited(child.wait())
@@ -44,7 +44,7 @@ private class CommunicationTest {
         shell("exec 0<&-; printf 'ready\\n'; kill -STOP $$", Stdio.Pipe).spawn().use { child ->
             assertEquals("ready", child.stdout!!.readLine()!!)
             val error = assertFailsWith<PlatformException> {
-                child.communicate(Some(Array<Byte>(16384L) { 1.toInt8() }))
+                child.communicate(Some(Array<Byte>(16384L) { 1.toByte() }))
             }
             assertTrue(error.kind == PlatformErrorKind.BrokenPipe)
             when (child.wait()) {

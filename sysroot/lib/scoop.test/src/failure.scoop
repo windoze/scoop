@@ -41,7 +41,7 @@ internal fun comparisonFailure(
 
 public fun fail(
     message: String? = None,
-    location: SourceLocation = getCurrentSourceLocation()
+    location: SourceLocation = currentSourceLocation()
 ): Nothing {
     throw AssertionFailure("fail", message, location)
 }

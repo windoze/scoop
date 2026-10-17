@@ -5,23 +5,23 @@ public struct Packet<T>(
     @Serialize(ignore = true) val ignored: Any
 ) {
     public companion object {
-        public fun encoder(element: Encodable<T>): Encodable<Packet<T>> = PacketEncoder<T>(element)
+        public fun encoder(element: ValueEncoder<T>): ValueEncoder<Packet<T>> = PacketEncoder<T>(element)
     }
 }
-internal class PacketEncoder<T>(private val element: Encodable<T>) : Encodable<Packet<T>>
+internal class PacketEncoder<T>(private val element: ValueEncoder<T>) : ValueEncoder<Packet<T>>
 
 public enum Event<T> {
     Empty,
     Named(@Serialize(rename = "item") val value: T),
     Pair(T, Int)
     public companion object {
-        public fun encoder(element: Encodable<T>): Encodable<Event<T>> = EventEncoder<T>(element)
+        public fun encoder(element: ValueEncoder<T>): ValueEncoder<Event<T>> = EventEncoder<T>(element)
     }
 }
-internal class EventEncoder<T>(private val element: Encodable<T>) : Encodable<Event<T>>
+internal class EventEncoder<T>(private val element: ValueEncoder<T>) : ValueEncoder<Event<T>>
 
 public class Row public constructor(private val id: Int, public val name: String) {
-    public companion object : Encodable<Row>
+    public companion object : ValueEncoder<Row>
 }
 public class PublicRow public constructor(public val id: Int, @Serialize(rename = "label") public val name: String)
 

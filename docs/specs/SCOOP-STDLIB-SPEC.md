@@ -1,5 +1,7 @@
 # Scoop 平台无关标准基础库规范
 
+公共库命名与使用约定见 [Scoop 库 API 风格](SCOOP-API-STYLE.md)。
+
 状态：M42 已实现，三目标定向覆盖见 [验收记录](../milestone42/ACCEPTANCE.md)。日期：2026-10-13。
 
 本文件规定 `scoop.std` 的公共库行为；语法、类型和 core 规则以 [语言规范](SCOOP-SPEC.md) 为准，产物与运行机制分别遵守 [实现规范](SCOOP-IMPL-SPEC.md) 和 [运行时规范](SCOOP-RUNTIME-SPEC.md)。实施次序与验证见 [M42 设计](../milestone42/DESIGN.md)。
@@ -36,14 +38,20 @@ core 的结构化并发合同见语言规范 11.9.1～11.9.2；native buffer 的
 
 ### 1.2 命名、类型与失败
 
-类名、工厂、扩展名尽量采用 Kotlin 的常用拼写，例如 HashMap、LinkedHashMap、mapOf、mapNotNull、getOrNull、sortedWith、Random、Duration、Instant、LocalDate、Uuid。以下 Scoop 规则优先：
+公共函数／属性采用 lowerCamelCase，类型和普通 enum variant 采用 UpperCamelCase；缩写按单词处理，如 Json、Tls、Uuid、Ip、Os、Io。ByteOrder.BigEndian、Month.January、Base64.PaddingOption.Absent、DigestAlgorithm.Sha256、AeadAlgorithm.Aes128Gcm、KeyAlgorithm.Rsa、AddressFamily.Ipv4 和 TlsVersion.Tls12 遵守同一规则。JwsAlgorithm 的标准算法码和 Architecture.X86_64 的标准架构名保留公认拼写；具名配置 Base64.Default／UrlSafe 与常量 Duration.ZERO／Uuid.NIL 分别保留各自类别的拼写。
+
+普通变体的源名字改变时，反射、debug 及未显式指定 wire name 的派生编码使用新名字。Month／DayOfWeek.toString 使用新变体名；日期时间的 ISO 文本、JWS header 算法码、TLS 版本值及 AnnotationTarget 的整数值保持各自已有格式，不从展示名称推导协议数据。
+
+`OrNone` 在 Scoop 中表示 Option，仅把入口约定的正常缺失、格式错误或验证不匹配转为 None；用户回调、非法参数、状态与后端错误仍照常抛出。谓词式 verify 返回 Boolean；需要失败载荷时使用已有 Result<T, E>。Map.get、Iterator.next、find、tryWait 等已有明确缺失语义的查询可以直接返回 Option；try 保留给非阻塞尝试和竞争状态转换。
+
+类名、工厂、扩展名尽量采用 Kotlin 的常用拼写，例如 HashMap、LinkedHashMap、mapOf、sortedWith、Random、Duration、Instant、LocalDate、Uuid。缺失值相关名称使用 Scoop 的 None，采用 mapNotNone、filterNotNone、getOrNone 等拼写。以下 Scoop 规则优先：
 
 - 集合类型保持 invariant，不增加 `in/out/*`、追溯 conformance、SAM 转换或 generic virtual method。需要方法级泛型的操作使用普通泛型扩展或 final method。
 - size、index、容量、计数与比较结果继续使用 Long；日历年月日、纳秒的小范围分量、radix 和 RNG bitCount 使用 Int。`Comparator<T>.compare(a, b): Long` 与 core Compare 的返回口径一致。
-- 缺少值用 `Option<T>`。名称中的 `OrNull` 表示返回 Option，不引入另一种 null；`Some(None)` 与 None 必须区别。
+- 缺少值用 `Option<T>`，对应的缺失值名称为 `None`；可选结果的配对入口使用 `OrNone`。`Some(None)` 与 None 必须区别，mapNotNone／filterNotNone 只提取一层 Some 载荷。
 - 各模块的回调为普通非 suspend 函数值，可以分配和抛异常。需要挂起的 caller 可先求值其输入，但同步库不隐式提供挂起回调或调度。
 - 参数非法抛 IllegalArgumentException，位置越界抛 IndexOutOfBoundsException。`NoSuchElementException`、`ConcurrentModificationException` 由 collections 定义，`NumberFormatException` 由 text 定义；均为普通 Exception 子类，使用 `message: String` 构造并调用既有 `Exception(Some(message))`。
-- `OrNull` 只转换自身描述的缺失／格式失败，不吞用户回调异常、无效参数、分配失败或其他故障。整数和时间运算需要精确结果时显式检查溢出，不能依赖 core 整数 wrapping。
+- `OrNone` 只转换自身描述的缺失／格式失败，不吞用户回调异常、无效参数、分配失败或其他故障。整数和时间运算需要精确结果时显式检查溢出，不能依赖 core 整数 wrapping。
 - 容量只受实际表示和分配限制；不增加固定条目数、步骤数或跨库资源预算。
 
 只读接口约束可调用的操作，不代表对象不可变。`toX` 快照是浅复制：值元素复制值，引用元素保留引用。无元素能力约束的容器不自动获得 Equals、Hash、ToString 或 codec；字符串拼接通过显式 transform 或 ToString bound。
@@ -56,7 +64,7 @@ core 的结构化并发合同见语言规范 11.9.1～11.9.2；native buffer 的
 
 Collection 不要求 T 可比较；`isEmpty/isNotEmpty` 是普通扩展，按值查找的 Iterable 扩展单独要求 `T : Equals<T>`。保留 MutableList 的现有 `add(value): Unit`，M42 不引入与它返回值冲突的 MutableCollection 总父接口。List 的索引、快照与原有 live iterator 语义不变。
 
-新集合名 `scoop.collections.Set<T>` 与 core 的下标赋值接口 `Set<Index, Value>` 是不同实体。core 源码当前使用默认根 package，std 内部通过 `import Set as IndexSet` 区分赋值接口；用户按普通 import 优先级选择，编译器不按类型参数数量消歧。
+core 的下标访问接口统一为 `IndexGet<Index, Value>`／`IndexSet<Index, Value>`，双下标形式为 `IndexGet2<I, J, Value>`／`IndexSet2<I, J, Value>`。方法仍为 operator get/set，`[]` 的语义不变。集合接口使用 `scoop.collections.Set<T>`；二者可以直接同时导入，不需要别名或按类型参数数量消歧。
 
 ### 2.2 Map、Set 与视图
 
@@ -70,7 +78,7 @@ Collection 不要求 T 可比较；`isEmpty/isNotEmpty` 是普通扩展，按值
 | `MutableSet<T> : Set<T>` | `add(value): Boolean`、`remove(value): Boolean`、`clear(): Unit`、`retainAll(elements: Iterable<T>): Boolean` |
 | `Map.Entry<K, V>` | 普通 struct，两个 public val 字段 key/value，按既有 struct 规则解构 |
 
-Map 实现 `Get<K, Option<V>>`、`Iterable<Map.Entry<K,V>>` 与 `Contains<K>`，operator contains 委托 containsKey；MutableMap 另实现 core 的下标赋值接口 `Set<K, V>`（使用上述 IndexSet alias）。Map 的 K/V、Set 的 T 在接口层不要求 Hash/Equals，具体实现确定 key/element 的等价关系。containsValue 是单独要求 `V : Equals<V>` 的扩展。
+Map 实现 `IndexGet<K, Option<V>>`、`Iterable<Map.Entry<K,V>>` 与 `Contains<K>`，operator contains 委托 containsKey；MutableMap 另实现 core 的下标赋值接口 `IndexSet<K, V>`。Map 的 K/V、Set 的 T 在接口层不要求 Hash/Equals，具体实现确定 key/element 的等价关系。containsValue 是单独要求 `V : Equals<V>` 的扩展。
 
 `get/put/remove` 的 None 表示原来没有键；当 V 是 Option<U> 时，原值 None 表示为 Some(None)。`set` 丢弃 put 的旧值。Set.add 仅新增时返回 true，remove 仅确实移除时返回 true。存在等价 key 时 put 替换 value，保留最早存入的 key 对象；Set.add 不替换原元素。
 
@@ -92,11 +100,11 @@ Hash 的库合同为：key 的 equals 是等价关系，相等 key 有相同 has
 
 `Comparator<T>` 是普通 interface，唯一成员 `compare(left: T, right: T): Long`。`comparatorOf((T,T)->Long)` 提供函数适配；`naturalOrder<T : Compare<T>>()`、`reverseOrder`、`compareBy`、`thenBy`、`reversed` 是普通 generic function/extension。reversed 交换实参，不对任意 Long 结果直接取负。Tree 构造器显式接收 Comparator；自然排序工厂带 Compare bound，不要求构造器拥有独立的类型参数。
 
-SortedMap/Set 暴露 comparator 与 `first/last` entry/element 的 OrNull 形式；另提供 lower/floor/ceiling/higher 查询，分别使用 `<`、`<=`、`>=`、`>` 边界。空容器返回 None。范围筛选返回快照，首版不做共享 subMap/subSet 可写 view。
+SortedMap/Set 暴露 comparator 与 `first/last` entry/element 的 OrNone 形式；另提供 lower/floor/ceiling/higher 查询，分别使用 `<`、`<=`、`>=`、`>` 边界。空容器返回 None。范围筛选使用 copyOfRange 返回快照，不提供共享的可写区间 view。
 
-SortedMap 的具体命名为 firstEntryOrNull/lastEntryOrNull、lowerEntry/floorEntry/ceilingEntry/higherEntry，结果为 Entry?；SortedSet 对应 firstOrNull/lastOrNull、lower/floor/ceiling/higher，结果为 T?。MutableSortedMap/Set 同时继承对应的只读 Sorted 接口与 MutableMap/Set，所有 exact application 保持一致。
+SortedMap 的具体命名为 firstEntryOrNone/lastEntryOrNone、lowerEntry/floorEntry/ceilingEntry/higherEntry，结果为 Entry?；SortedSet 对应 firstOrNone/lastOrNone、lower/floor/ceiling/higher，结果为 T?。MutableSortedMap/Set 同时继承对应的只读 Sorted 接口与 MutableMap/Set，所有 exact application 保持一致。
 
-范围快照使用 `SortedMap.subMap(fromKey, toKey, fromInclusive = true, toInclusive = false)` 和 `SortedSet.subSet(fromElement, toElement, fromInclusive = true, toInclusive = false)`，返回对应只读 Sorted 接口并保留原 Comparator。两端按 Comparator 顺序解释；from 大于 to 抛 IllegalArgumentException，相等时仅两端都 inclusive 才可能包含该等价类。范围构造不修改来源。sortedMapOf/sortedSetOf 返回新的 TreeMap/TreeSet；toSortedMap/toSortedSet 返回不暴露 Mutable 接口的独立快照。每组均提供显式 Comparator 与要求 Compare bound 的自然顺序重载。
+范围快照使用 `SortedMap.copyOfRange(fromKey, toKey, fromInclusive = true, toInclusive = false)` 和 `SortedSet.copyOfRange(fromElement, toElement, fromInclusive = true, toInclusive = false)`，返回对应只读 Sorted 接口并保留原 Comparator。两端按 Comparator 顺序解释；from 大于 to 抛 IllegalArgumentException，相等时仅两端都 inclusive 才可能包含该等价类。范围构造不修改来源；会顺序扫描来源的全部 n 项，再把命中的 k 项插入独立树，时间为 O(n + k log k)，额外空间为 O(k)。sortedMapOf/sortedSetOf 返回新的 TreeMap/TreeSet；toSortedMap/toSortedSet 返回不暴露 Mutable 接口的独立快照。每组均提供显式 Comparator 与要求 Compare bound 的自然顺序重载。
 
 ### 2.4 工厂、转换与集合运算
 
@@ -124,9 +132,9 @@ List/ArrayList 原有按索引迭代规则保持语言规范 11.10.3；不同容
 
 ### 2.6 Deque 与优先队列
 
-`ArrayDeque<T>` 为实现 Collection<T> 的普通 final class，提供 size、isEmpty、addFirst/addLast、removeFirst/removeLast、removeFirstOrNull/removeLastOrNull、firstOrNull/lastOrNull、clear 和从头到尾的 iterator。用环形数组实现，两端插入/删除摊还 O(1)。空的非 OrNull remove 抛 NoSuchElementException。栈和队列直接使用这组 API，不增加只有改名意义的 Stack/Queue 实现。
+`ArrayDeque<T>` 为实现 Collection<T> 的普通 final class，提供 size、isEmpty、addFirst/addLast、removeFirst/removeLast、removeFirstOrNone/removeLastOrNone、firstOrNone/lastOrNone、clear 和从头到尾的 iterator。用环形数组实现，两端插入/删除摊还 O(1)。空的非 OrNone remove 抛 NoSuchElementException。栈和队列直接使用这组 API，不增加只有改名意义的 Stack/Queue 实现。
 
-`PriorityQueue<T>` 为实现 Collection<T> 的普通 final class，接收并公开 comparator，提供 add、peek/peekOrNull、removeFirst/removeFirstOrNull、clear、size 和 iterator；自然顺序工厂 `priorityQueueOf(vararg elements)` 要求 Compare bound，另有显式 Comparator 重载。堆顶为最小元素，peek O(1)、add 摊还 O(log n)、remove 最坏 O(log n)；动态数组单次扩容 O(n)。同优先级不保证稳定性。iterator 不保证排序顺序，排序输出须使用显式 sorted 操作或在副本上重复移除。
+`PriorityQueue<T>` 为实现 Collection<T> 的普通 final class，接收并公开 comparator，提供 add、peek/peekOrNone、removeFirst/removeFirstOrNone、clear、size 和 iterator；自然顺序工厂 `priorityQueueOf(vararg elements)` 要求 Compare bound，另有显式 Comparator 重载。堆顶为最小元素，peek O(1)、add 摊还 O(log n)、remove 最坏 O(log n)；动态数组单次扩容 O(n)。同优先级不保证稳定性。iterator 不保证排序顺序，排序输出须使用显式 sorted 操作或在副本上重复移除。
 
 PriorityQueue.add 返回 Unit，空队列的 peek/removeFirst 抛 NoSuchElementException。插入与移除先通过 Comparator 规划 sift 路径，全部比较成功后再提交元素移动；比较失败不留下破坏堆性质的半次 sift。Deque 两端 add 返回 Unit，其非空读取/移除返回 T。
 
@@ -138,17 +146,17 @@ PriorityQueue.add 返回 Unit，空队列的 peek/removeFirst 抛 NoSuchElementE
 
 | 组 | API |
 | --- | --- |
-| 转换 | map、mapIndexed、mapNotNull、filter、filterNot、filterNotNull、flatMap、flatten、partition |
-| 遍历与归约 | forEach、forEachIndexed、onEach、fold、reduce、reduceOrNull、count、any、all、none |
-| 查找 | find、first/firstOrNull、last/lastOrNull、single/singleOrNull、elementAt/elementAtOrNull、contains、indexOf |
+| 转换 | map、mapIndexed、mapNotNone、filter、filterNot、filterNotNone、flatMap、flatten、partition |
+| 遍历与归约 | forEach、forEachIndexed、onEach、fold、reduce、reduceOrNone、count、any、all、none |
+| 查找 | find、first/firstOrNone、last/lastOrNone、single/singleOrNone、elementAt/elementAtOrNone、contains、indexOf |
 | 组合与截取 | zip、withIndex、take、drop、takeWhile、dropWhile、chunked、windowed、reversed |
 | 分组与去重 | groupBy、groupByTo、associate、associateBy、associateWith、distinct、distinctBy |
 | 输出与目的地 | joinToString、mapTo、filterTo、flatMapTo、toCollection |
-| 排序与查找 | sorted、sortedDescending、sortedBy、sortedWith、sort、sortWith、binarySearch、minOrNull、maxOrNull、minWithOrNull、maxWithOrNull |
+| 排序与查找 | sorted、sortedDescending、sortedBy、sortedWith、sort、sortWith、binarySearch、minOrNone、maxOrNone、minWithOrNone、maxWithOrNone |
 
-map/filter 等返回新 List；indexed 回调索引和 withIndex 的 index 为 Long。indexOf 无结果返回 -1L；查找的 OrNull 返回外层 Option。single 在零项或多项时分别抛 NoSuchElementException 或 IllegalArgumentException；singleOrNull 在这两种情况下返回 None。reduce 空输入抛 NoSuchElementException。any/all/none/find/first 等遇到确定结果立即停止，不预先遍历或计算 size。
+map/filter 等返回新 List；indexed 回调索引和 withIndex 的 index 为 Long。indexOf 无结果返回 -1L；查找的 OrNone 返回外层 Option。single 在零项或多项时分别抛 NoSuchElementException 或 IllegalArgumentException；singleOrNone 在这两种情况下返回 None。reduce 空输入抛 NoSuchElementException。any/all/none/find/first 等遇到确定结果立即停止，不预先遍历或计算 size。
 
-withIndex 使用普通 `IndexedValue<T>(index: Long, value: T)` struct；zip/partition 复用 tuple。flatten 针对 `Iterable<Iterable<T>>`，由于 invariant，不假定 List<List<T>> 能上转为该类型；这类输入可用 flatMap 显式取得内层 Iterable。toCollection/mapTo/filterTo/flatMapTo 为 MutableList 和 MutableSet 分别提供普通重载，返回同一目标接口值，不依赖不存在的 MutableCollection。min/max 空输入返回 None，同值时保留首次结果；sortedBy 的 key selector 每元素求值一次后再排序。
+`Iterable.withIndex(): Iterable<IndexedValue<T>>` 是惰性适配，使用普通 `IndexedValue<T>(index: Long, value: T)` struct。创建适配器不获取或消费源 iterator；每次调用 iterator() 获取一个源 iterator，从 0L 开始逐项编号，不预先遍历。能否重复迭代由来源决定；需要独立快照时显式调用 toList。zip/partition 复用 tuple。flatten 针对 `Iterable<Iterable<T>>`，由于 invariant，不假定 List<List<T>> 能上转为该类型；这类输入可用 flatMap 显式取得内层 Iterable。toCollection/mapTo/filterTo/flatMapTo 为 MutableList 和 MutableSet 分别提供普通重载，返回同一目标接口值，不依赖不存在的 MutableCollection。min/max 空输入返回 None，同值时保留首次结果；sortedBy 的 key selector 每元素求值一次后再排序。
 
 计数参数非负，chunked/windowed 的 size/step 必须正；windowed 默认 step=1、partialWindows=false，窗口结果是独立浅快照。zip 按左后右取值，任一输入耗尽即结束；可能为判断终止从左侧多消费一项，此顺序不隐藏。take(0) 不取得上游 iterator 或调用回调。
 
@@ -156,11 +164,11 @@ groupBy/associate/distinct 默认使用 LinkedHashMap/LinkedHashSet，key 要求
 
 排序稳定；非原地版本返回快照。`MutableList.sortWith` 先复制、排序后再顺序写回，比较器抛异常时不写回；自定义 setter 抛异常可以留下写回前缀。实现不以重复 List.get 构造低效的 linked-list 算法。binarySearch 接收 List、半开范围与自然/显式比较器；范围外失败，命中返回任一相等项下标，未命中返回 `-(insertionPoint + 1)`，计算必须正确覆盖 Long 边界。输入已按同一比较器排序是调用方前提，不每次重新验证全序。
 
-具体调用约定：first/last/single 及其 OrNull 同时提供无参数与 predicate 重载；find 等于 firstOrNull(predicate)。elementAt 的负数或越界 index 抛 IndexOutOfBoundsException，elementAtOrNull 返回 None；负数不取得 iterator。count/any/none 提供无参数与 predicate 重载，all 接收 predicate。onEach 急切执行 action 后返回原 Iterable。fold 使用显式 initial，reduce 使用首元素作为 initial。indexed 回调参数顺序为 `(index: Long, element: T)`；计数无法用 Long 表示时抛 ArithmeticException。
+具体调用约定：first/last/single 及其 OrNone 同时提供无参数与 predicate 重载；find 等于 firstOrNone(predicate)。elementAt 的负数或越界 index 抛 IndexOutOfBoundsException，elementAtOrNone 返回 None；负数不取得 iterator。count/any/none 提供无参数与 predicate 重载，all 接收 predicate。onEach 急切执行 action 后返回原 Iterable。fold 使用显式 initial，reduce 使用首元素作为 initial。indexed 回调参数顺序为 `(index: Long, element: T)`；计数无法用 Long 表示时抛 ArithmeticException。
 
-groupBy/groupByTo/associateBy 提供仅 keySelector 与额外 valueTransform 的重载；groupByTo 的目标为 MutableMap<K, MutableList<V>>，使用目标的 key 等价语义，不额外要求 Hash。groupBy 返回只读 Map<K,List<V>>，分组 List 也是独立只读快照；associate 系列同样返回只读独立 Map。withIndex、zip、chunked、windowed 返回独立 List；partition 返回两个独立 List 组成的 tuple，true 组在前。目的地操作 toCollection/mapTo/filterTo/flatMapTo/groupByTo 先取得一次输入快照，再顺序执行回调和写入，支持输入与目标别名；快照失败不改目标，回调／目标写入失败保留成功前缀。flatMapTo 还在每次写入前取得该次 transform 返回的内层 Iterable 快照，允许内层来源与目标相同。
+groupBy/groupByTo/associateBy 提供仅 keySelector 与额外 valueTransform 的重载；groupByTo 的目标为 MutableMap<K, MutableList<V>>，使用目标的 key 等价语义，不额外要求 Hash。groupBy 返回只读 Map<K,List<V>>，分组 List 也是独立只读快照；associate 系列同样返回只读独立 Map。zip、chunked、windowed 返回独立 List；partition 返回两个独立 List 组成的 tuple，true 组在前。目的地操作 toCollection/mapTo/filterTo/flatMapTo/groupByTo 先取得一次输入快照，再顺序执行回调和写入，支持输入与目标别名；快照失败不改目标，回调／目标写入失败保留成功前缀。flatMapTo 还在每次写入前取得该次 transform 返回的内层 Iterable 快照，允许内层来源与目标相同。
 
-joinToString 的参数为 separator=", "、prefix=""、postfix=""、limit=-1、truncated="..."，以及可选的显式 transform（无 transform 重载要求 ToString）。limit 使用 Long，-1 表示不限，其他负数非法；计数参数非负的通常规则不限制此 sentinel。超过 limit 时最多额外读取一项以判断是否添加 truncated，不转换该项；truncated 和普通元素一样由 separator 分隔。所有急切算法在回调异常时直接传播，不吞成 OrNull。
+joinToString 的参数为 separator=", "、prefix=""、postfix=""、limit=-1、truncated="..."，以及可选的显式 transform（无 transform 重载要求 ToString）。limit 使用 Long，-1 表示不限，其他负数非法；计数参数非负的通常规则不限制此 sentinel。超过 limit 时最多额外读取一项以判断是否添加 truncated，不转换该项；truncated 和普通元素一样由 separator 分隔。所有急切算法在回调异常时直接传播，不吞成 OrNone。
 
 binarySearch 的签名为 `List<T>.binarySearch(element, fromIndex=0, toIndex=size)` 与 `List<T>.binarySearch(element, comparator, fromIndex=0, toIndex=size)`；自然顺序要求 Compare。fromIndex>toIndex 抛 IllegalArgumentException，任一端不在 0..size 抛 IndexOutOfBoundsException；半开空范围合法。
 
@@ -170,7 +178,7 @@ binarySearch 的签名为 `List<T>.binarySearch(element, fromIndex=0, toIndex=si
 
 Iterable.asSequence 每次迭代委托原 Iterable，不强行保证来源可重复。Iterator.asSequence 与无 seed 的 generator 为 once-only；第二次取得 iterator 抛 IllegalStateException。带 seed 的 generator 每个 iterator 独立从 seed 起步；初始 seed 不执行 next，之后 None 表示结束。T 自身是 Option 时，Some(None) 是合法元素。
 
-交付惰性 map/mapIndexed/mapNotNull、filter/filterNot/filterNotNull、flatMap/flatten、onEach、take/drop/takeWhile/dropWhile、zip/withIndex、distinct/distinctBy、chunked/windowed，以及第 3.1 节适用的终结操作、toList/toSet/toMap/groupBy/associate/joinToString。`sorted/sortedWith` 在首次消费时收集全部上游并排序；不能用于无限输入。其余算子的内存需求跟随实际行为，distinct 保存已见 key，windowed 保存窗口，不宣传所有 Sequence 都是 O(1) 内存。
+交付惰性 map/mapIndexed/mapNotNone、filter/filterNot/filterNotNone、flatMap/flatten、onEach、take/drop/takeWhile/dropWhile、zip/withIndex、distinct/distinctBy、chunked/windowed，以及第 3.1 节适用的终结操作、toList/toSet/toMap/groupBy/associate/joinToString。`sorted/sortedWith` 在首次消费时收集全部上游并排序；不能用于无限输入。其余算子的内存需求跟随实际行为，distinct 保存已见 key，windowed 保存窗口，不宣传所有 Sequence 都是 O(1) 内存。
 
 Sequence 的 flatten 接收 Sequence<Sequence<T>>；flatMap 的 transform 返回 Sequence<R>，Iterable 来源通过 asSequence 显式适配。不依赖 invariant application 的隐式上转或根据名字合并 Iterable/Sequence 两个协议。
 
@@ -200,37 +208,39 @@ trim(predicate) 先从左向右检查前缀，再从右向左检查剩余后缀�
 
 ### 4.2 数值与布尔解析
 
-交付八种定宽整数的 `toInt8/.../toULong` 及各自 OrNull 形式，另有 `toFloat/toDouble` 与 OrNull、`toBooleanStrict/toBooleanStrictOrNull`。整数支持 `radix: Int = 10`，范围 2..36；字母数字不区分 ASCII 大小写，允许一个前导 `+`，signed 另允许 `-`。不自动 trim，不接受 `_`，也不识别类型后缀或 radix 前缀；数值超出目标范围为解析失败。提供整数 `toString(radix)`，signed 使用负号与绝对值的数学数字，不输出二进制补码文本。
+交付八种定宽整数的 `toByte/.../toULong` 及各自 OrNone 形式，另有 `toFloat/toDouble` 与 OrNone、`toBooleanStrict/toBooleanStrictOrNone`。整数支持 `radix: Int = 10`，范围 2..36；字母数字不区分 ASCII 大小写，允许一个前导 `+`，signed 另允许 `-`。不自动 trim，不接受 `_`，也不识别类型后缀或 radix 前缀；数值超出目标范围为解析失败。提供整数 `toString(radix)`，signed 使用负号与绝对值的数学数字，不输出二进制补码文本。
 
-canonical 解析名为 toInt8/toInt16/toInt/toLong、toUInt8/toUInt16/toUInt/toULong，并提供 core alias 对应的 toByte/toShort/toInt32/toInt64、toUByte/toUShort/toUInt32/toUInt64 转发名，各有 OrNull。unsigned 拒绝包括 -0 在内的负号输入。只有 sign 而无数字时失败；普通字符在指定 radix 下是否合法决定其数字含义，例如 0x 在 radix=36 中是数字 33，radix=16 中失败，不把 x 当作前缀标记。整数 toString(radix) 必须显式传入 radix，字母数字使用小写，零输出 0，无正号和前导零；无参数 toString 仍使用原 core 方法。
+整数文本解析使用 toByte/toShort/toInt/toLong、toUByte/toUShort/toUInt/toULong，与普通数值转换的主拼写一致，各有 OrNone。unsigned 拒绝包括 -0 在内的负号输入。只有 sign 而无数字时失败；普通字符在指定 radix 下是否合法决定其数字含义，例如 0x 在 radix=36 中是数字 33，radix=16 中失败，不把 x 当作前缀标记。整数 toString(radix) 必须显式传入 radix，字母数字使用小写，零输出 0，无正号和前导零；无参数 toString 仍使用原 core 方法。
 
 浮点接受 ASCII 十进制 `[+-]?(digits(\.digits?)?|\.digits)([eE][+-]?digits)?`，以及精确拼写 NaN、Infinity、+Infinity、-Infinity。十进制结果直接按目标 Float/Double 精度最近偶数舍入，不通过 Double 再转 Float；有限输入舍入后成为无穷时为解析失败，略大于 MAX_VALUE 但仍舍入到 MAX_VALUE 的输入成功。underflow 可得到 subnormal 或带符号零。禁止 hex float、后缀、空白、尾随内容和 locale 变体；+NaN/-NaN 也不接受。即使数值明显溢出、下溢或全零，仍检查完整语法。NaN 使用 core NaN 常量位型；显式 Infinity 返回相应无穷。
 
-布尔只接受 true/false。失败的非 OrNull 版本抛 NumberFormatException；无效 radix 仍抛 IllegalArgumentException。解析实现全用 Scoop；不能直接绑定既有 JSON 内部的 runtime 浮点转换 helper。必要的精确十进制到二进制运算是 text 的私有算法，不导出通用 BigInteger/Decimal 或 math 包。
+布尔只接受 true/false。失败的非 OrNone 版本抛 NumberFormatException；无效 radix 仍抛 IllegalArgumentException。解析实现全用 Scoop；不能直接绑定既有 JSON 内部的 runtime 浮点转换 helper。必要的精确十进制到二进制运算是 text 的私有算法，不导出通用 BigInteger/Decimal 或 math 包。
 
 ## 5. 内存字节与基础编码
 
+高层字节接口使用 List<Byte> 作为只读输入、Array<Byte> 作为独立只读快照；可写输出使用明确的 toMutableByteArray 名称。String 的 UTF-8 转换遵循同一规则，结果可直接送入 decoder、builder、文件或密码库。
+
 ### 5.1 字节构建与读取
 
-复用 core Byte（Int8）保存八位 bit pattern，输入采用 List<Byte>，结果采用独立 Array<Byte> 或 MutableArray<Byte>，不引入另一套 intrinsic ByteArray。`ByteArrayBuilder` 是 GC 堆上的 growable final class，提供 size、append(Byte)、append(List<Byte>)、clear、toByteArray、toMutableByteArray，以及 writeInt8/UInt8/Int16/UInt16/Int/UInt/Long/ULong/Float/Double。
+复用 core Byte（Int8）保存八位 bit pattern，输入采用 List<Byte>，结果采用独立 Array<Byte> 或 MutableArray<Byte>，不引入另一套 intrinsic ByteArray。`ByteArrayBuilder` 是 GC 堆上的 growable final class，提供 size、append(Byte)、append(List<Byte>)、clear、toByteArray、toMutableByteArray，以及 writeInt8/UInt8/Int16/UInt16/Int32/UInt32/Int64/UInt64/Float/Double。
 
-`ByteArrayReader` 在构造时取得输入浅快照，持有 position、remaining；提供对应 read 方法、readBytes(count)、skip(count)。position 只能通过受检 seek 改变，范围 0..size。多字节读写显式接收 `ByteOrder.BIG_ENDIAN/LITTLE_ENDIAN`，不设 native-order 默认值；浮点按 toBits/fromBits 保存位型。短输入和非法区间抛 IndexOutOfBoundsException，负数量抛 IllegalArgumentException；失败的单次读取不移动 position。
+`ByteArrayReader` 在构造时取得输入浅快照，持有 position、remaining；提供对应 read 方法、readBytes(count)、skip(count)。position 只能通过受检 seek 改变，范围 0..size。多字节读写显式接收 `ByteOrder.BigEndian/LittleEndian`，不设 native-order 默认值；浮点按 toBits/fromBits 保存位型。短输入和非法区间抛 IndexOutOfBoundsException，负数量抛 IllegalArgumentException；失败的单次读取不移动 position。
 
 builder 输出为独立快照，后续 append/clear 不改变结果；append(List) 先取得本次输入快照，再一次提交，允许同源输入与 getter 抛异常。write 固定位宽操作先保证空间再写入，不对外留下半个数值。容量增长和清零使用普通 core 存储；不提供 direct/off-heap buffer、Ptr、pin、borrow/view、显式 close 或 file/socket stream。
 
-builder 使用无参数构造；size: Long，append／write／clear 返回 Unit，toByteArray 返回 Array<Byte>，toMutableByteArray 返回 MutableArray<Byte>。字节长度相加超出 Long.MAX_VALUE 时抛 ArithmeticException。reader 使用 `ByteArrayReader(input: List<Byte>)` 构造，size、position、remaining 均为只读 Long 属性；seek(position: Long)、skip(count: Long) 返回 Unit，readBytes(count: Long) 返回独立 Array<Byte>。零长度读取和跳过允许位于末尾。read/writeInt8 与 UInt8 无字节序参数，其他定宽方法必须显式传入 order: ByteOrder。
+builder 使用无参数构造；size: Long，append(value: Byte)／append(value: List<Byte>) 返回同一 ByteArrayBuilder 以支持链式追加；write／clear 返回 Unit，toByteArray 返回 Array<Byte>，toMutableByteArray 返回 MutableArray<Byte>。字节长度相加超出 Long.MAX_VALUE 时抛 ArithmeticException。reader 使用 `ByteArrayReader(input: List<Byte>)` 构造，size、position、remaining 均为只读 Long 属性；seek(position: Long)、skip(count: Long) 返回 Unit，readBytes(count: Long) 返回独立 Array<Byte>。零长度读取和跳过允许位于末尾。整数二进制方法成套使用 read/writeInt8、UInt8、Int16、UInt16、Int32、UInt32、Int64、UInt64，以字段位宽命名。Int8 与 UInt8 无字节序参数，其他定宽方法必须显式传入 order: ByteOrder。
 
 ### 5.2 Hex 与 Base64
 
-text 提供 `toHexString`、`hexToByteArray/hexToByteArrayOrNull`；默认输出小写，可显式 uppercase，输入接受大小写 ASCII hex 且长度必须偶数。不接受空白、分隔符和 0x 前缀。空输入合法，错误报告第一个非法标量位置。
+text 提供 `toHexString`、`hexToByteArray/hexToByteArrayOrNone`；默认输出小写，可显式 uppercase，输入接受大小写 ASCII hex 且长度必须偶数。不接受空白、分隔符和 0x 前缀。空输入合法，错误报告第一个非法标量位置。
 
-签名为 `List<Byte>.toHexString(uppercase: Boolean = false): String`、`String.hexToByteArray(): Array<Byte>` 与返回 Array<Byte>? 的 OrNull 版本。非法输入抛 IllegalArgumentException，message 含从零开始的非法标量 index；若只有结尾缺少半个字节，index 为字符串末尾位置。输出大小超出 Long 表示范围时抛 ArithmeticException。
+签名为 `List<Byte>.toHexString(uppercase: Boolean = false): String`、`String.hexToByteArray(): Array<Byte>` 与返回 Array<Byte>? 的 OrNone 版本。非法输入抛 IllegalArgumentException，message 含从零开始的非法标量 index；若只有结尾缺少半个字节，index 为字符串末尾位置。输出大小超出 Long 表示范围时抛 ArithmeticException。
 
-`Base64.Default`、`Base64.UrlSafe` 分别使用 RFC 4648 的标准和 URL-safe 字母表；encode/decode 接收显式输入。`PaddingOption.REQUIRED/ABSENT/OPTIONAL` 控制 padding：encode 在 REQUIRED/OPTIONAL 时写 padding，ABSENT 不写；decode 分别要求规范 padding、禁止 padding、接受二者。默认 REQUIRED。
+`Base64.Default`、`Base64.UrlSafe` 分别使用 RFC 4648 的标准和 URL-safe 字母表；encode/decode 接收显式输入。`PaddingOption.Required/Absent/Optional` 控制 padding：encode 在 Required/Optional 时写 padding，Absent 不写；decode 分别要求规范 padding、禁止 padding、接受二者。默认 Required。
 
-Base64 为不可变 final class，构造私有，通过两个预定义实例和 `withPadding(option: Base64.PaddingOption): Base64` 取得配置。PaddingOption 为 Base64 的嵌套 enum；paddingOption 是只读属性。`encode(source: List<Byte>): String`，`decode(source: String): Array<Byte>`，`decodeOrNull(source: String): Array<Byte>?`。完整三字节分组不需要 `=`，所有模式均接受空输入；OPTIONAL 只接受完整规范 padding 或完全省略，不能省略所需两个 `=` 中的一个。编码结果长度溢出 Long 时抛 ArithmeticException。
+Base64 为不可变 final class，构造私有，通过两个预定义实例和 `withPadding(option: Base64.PaddingOption): Base64` 取得配置。PaddingOption 为 Base64 的嵌套 enum；paddingOption 是只读属性。`encode(source: List<Byte>): String`，`decode(source: String): Array<Byte>`，`decodeOrNone(source: String): Array<Byte>?`。完整三字节分组不需要 `=`，所有模式均接受空输入；Optional 只接受完整规范 padding 或完全省略，不能省略所需两个 `=` 中的一个。编码结果长度溢出 Long 时抛 ArithmeticException。
 
-decode 拒绝混用字母表、非法字符、空白、错误长度、错误位置/数量的 `=` 和非零 pad bits；不增加 MIME 换行模式。非法输入抛 IllegalArgumentException，decodeOrNull 返回 None；所有结果为独立字节快照。实现只读显式数据，不进行 I/O。
+decode 拒绝混用字母表、非法字符、空白、错误长度、错误位置/数量的 `=` 和非零 pad bits；不增加 MIME 换行模式。非法输入抛 IllegalArgumentException，decodeOrNone 返回 None；所有结果为独立字节快照。实现只读显式数据，不进行 I/O。
 
 ## 6. Random 与 Uuid
 
@@ -242,11 +252,11 @@ decode 拒绝混用字母表、非法字符、空白、错误长度、错误位�
 
 有界整数固定使用对应位宽的 unsigned 完整抽样：令 span 为半开区间的 unsigned 长度，threshold 为该位宽 wrapping 的 `(-span) % span`，丢弃小于 threshold 的样本 r，返回 from 加 `r % span` 的目标位型。完整无边界重载直接返回全部随机位。nextBoolean 使用一个随机位；nextInt/UInt 使用一次 32-bit 请求。此规则同时确定拒绝分支的调用次序，避免不同 target 选择不同采样实现。
 
-nextBytes 提供新数组和写入 MutableArray<Byte> 区间两种形式；边界先检查，非法请求不消费 RNG。random/randomOrNull、shuffle/shuffled 接收显式 Random，shuffle 使用无偏 Fisher–Yates。未知大小 Iterable 的单元素选择用 reservoir sampling，不先全量收集；空输入非 OrNull 抛 NoSuchElementException。
+nextBytes 提供新数组和写入 MutableArray<Byte> 区间两种形式；边界先检查，非法请求不消费 RNG。random/randomOrNone、shuffle/shuffled 接收显式 Random，shuffle 使用无偏 Fisher–Yates。未知大小 Iterable 的单元素选择用 reservoir sampling，不先全量收集；空输入非 OrNone 抛 NoSuchElementException。
 
 上述 next 系列作为 Random 的普通 default method 提供。`nextBytes(size: Long): Array<Byte>` 拒绝负 size（IllegalArgumentException）；`nextBytes(array: MutableArray<Byte>, fromIndex: Long = 0, toIndex: Long = array.size): MutableArray<Byte>` 填充半开区间并返回原数组，越界抛 IndexOutOfBoundsException，范围反向抛 IllegalArgumentException，空范围不消费 RNG。RNG 抛异常时保留已写入的前缀，不承诺回滚。
 
-collections 提供 List／Iterable 的 random(random)／randomOrNull(random)、MutableList.shuffle(random): Unit 与 Iterable.shuffled(random): List。List 只抽取一个 Long 下标；Iterable 依次对第 n≥2 个元素请求 nextLong(n)，结果为零时替换候选，计数溢出抛 ArithmeticException。空或单元素选择不消费 RNG，Some(None) 不表示空输入。shuffle 从末尾向前对剩余 n≥2 个元素请求 nextLong(n)，与所选下标交换；异常保留已完成的修改。shuffled 返回独立只读浅快照。sequences 提供 random／randomOrNull 终结操作和惰性 shuffled；后者第一次 next 才收集有限输入和消费 RNG，重迭代按来源与同一 RNG 的当前状态执行，不新增随机源或重置种子。
+collections 提供 List／Iterable 的 random(random)／randomOrNone(random)、MutableList.shuffle(random): Unit 与 Iterable.shuffled(random): List。List 只抽取一个 Long 下标；Iterable 依次对第 n≥2 个元素请求 nextLong(n)，结果为零时替换候选，计数溢出抛 ArithmeticException。空或单元素选择不消费 RNG，Some(None) 不表示空输入。shuffle 从末尾向前对剩余 n≥2 个元素请求 nextLong(n)，与所选下标交换；异常保留已完成的修改。shuffled 返回独立只读浅快照。sequences 提供 random／randomOrNone 终结操作和惰性 shuffled；后者第一次 next 才收集有限输入和消费 RNG，重迭代按来源与同一 RNG 的当前状态执行，不新增随机源或重置种子。
 
 没有 Random.Default、无种子构造、隐式全局生成器、系统熵读取或自动使用时钟播种。后续系统库通过普通 Random 实现接入；M42 不引入 entropy provider registry 或插件层。
 
@@ -260,15 +270,15 @@ collections 提供 List／Iterable 的 random(random)／randomOrNull(random)、M
 
 ### 6.3 Uuid
 
-`Uuid` 是普通 struct，以两个 ULong 保存 128 位，全部位型均合法；显式实现 Equals<Uuid>、Hash、ToString 和 Compare<Uuid>，按高位再低位的 unsigned 字典序比较。提供 NIL、MAX、fromLongs/toLongs、fromByteArray/toByteArray、parse/parseOrNull、toHexString/toHexDashString。字节表示固定 network order，恰好 16 bytes；标准文本为 8-4-4-4-12，parse 同时接受精确 32 hex 和 36 字符带横线形式，接受大小写，不接受前后空白、花括号或 URN 前缀。toString 使用小写带横线形式。
+`Uuid` 是普通 struct，以两个 ULong 保存 128 位，全部位型均合法；显式实现 Equals<Uuid>、Hash、ToString 和 Compare<Uuid>，按高位再低位的 unsigned 字典序比较。提供 NIL、MAX、fromLongs/toLongs、fromByteArray/toByteArray、parse/parseOrNone、toHexString/toHexDashString。字节表示固定 network order，恰好 16 bytes；标准文本为 8-4-4-4-12，parse 同时接受精确 32 hex 和 36 字符带横线形式，接受大小写，不接受前后空白、花括号或 URN 前缀。toString 使用小写带横线形式。
 
-public val 字段名为 mostSignificantBits、leastSignificantBits，类型均为 ULong；普通主构造与副本更新不限制任何位型。companion 的 fromLongs 接收两个 Long，toLongs(): (Long, Long) 返回相同位型的 signed 载体；fromByteArray 接收 List<Byte>，toByteArray 返回独立 Array<Byte>。非法长度与 parse 格式失败抛 IllegalArgumentException；parseOrNull 仅将格式失败转为 None。NIL／MAX 是 companion 的普通 val，分别保存全零／全一位型，不读取时钟或随机源。
+public val 字段名为 mostSignificantBits、leastSignificantBits，类型均为 ULong；普通主构造与副本更新不限制任何位型。companion 的 fromLongs 接收两个 Long，toLongs(): (Long, Long) 返回相同位型的 signed 载体；fromByteArray 接收 List<Byte>，toByteArray 返回独立 Array<Byte>。非法长度与 parse 格式失败抛 IllegalArgumentException；parseOrNone 仅将格式失败转为 None。NIL／MAX 是 companion 的普通 val，分别保存全零／全一位型，不读取时钟或随机源。
 
 `Uuid.random(random: Random)` 生成 RFC 9562 v4，将调用方提供的 16 bytes 设置规定的 version/variant bits。无隐式 RNG，不承诺密码学强度或绝对不碰撞。时间型 UUID、name-based hash UUID 和系统 UUID 服务留待相应库；表示和解析仍允许其他版本的位型。
 
 ## 7. Result 与 Option 扩展
 
-`scoop.Result<T, E>` 是普通 invariant enum，variant 为 `Success(T)`、`Failure(E)`，不限制 E 为异常。提供 isSuccess/isFailure、getOrNull/errorOrNull、getOrElse、fold、map/mapError、flatMap、recover、onSuccess/onFailure。只有被选择的分支调用回调，map 等不自动捕获回调异常；onSuccess/onFailure 返回原结果。
+`scoop.Result<T, E>` 是普通 invariant enum，variant 为 `Success(T)`、`Failure(E)`，不限制 E 为异常。提供 isSuccess/isFailure、getOrNone/errorOrNone、getOrElse、fold、map/mapError、flatMap、recover、onSuccess/onFailure。只有被选择的分支调用回调，map 等不自动捕获回调异常；onSuccess/onFailure 返回原结果。
 
 `getOrThrow` 只适用于 `E : Throwable`；`runCatching(block)` 返回 Result<T,Throwable>，捕获普通可抛出的 Throwable，不捕获 runtime fatal、进程信号或终止。结果方法通过普通模式匹配实现，不改变 try/throw、Option 或 Nothing 的语言规则。采用 Kotlin 的 Result/Success/Failure/getOrThrow 命名，但保留 Scoop 的显式错误类型 E；不新增隐式异常转换。
 
@@ -300,25 +310,25 @@ Clock/TimeSource 为供外部实现的普通接口，只有 `Clock.now(): Instan
 
 ### 8.2 Duration
 
-内部使用 floor-normalized `(seconds: Long, nanosecondsOfSecond: Int)`，后者处于 0..999999999，数学值为 seconds + nanos/10^9 秒。例如 -1ns 为 (-1,999999999)。所有值有限，不提供 Infinity 或 NaN sentinel。
+内部使用 floor-normalized `(floorSeconds: Long, nanosecondsOfSecond: Int)`，后者处于 0..999999999，数学值为 floorSeconds + nanos/10^9 秒。例如 -1ns 为 (-1,999999999)。所有值有限，不提供 Infinity 或 NaN sentinel。
 
-提供 ZERO、seconds/milliseconds/microseconds/nanoseconds 的受检工厂与对应 Int/Long 扩展函数，以及分/时/天单位构造。one day 精确为 86400 秒。交付 plus/minus、unaryMinus、times(Long)、div(Long)、compareTo、absoluteValue、inWholeNanoseconds/Microseconds/Milliseconds/Seconds/Minutes/Hours/Days、toComponents、parse/parseOrNull/toIsoString/toString。
+提供 ZERO、seconds/milliseconds/microseconds/nanoseconds 的受检工厂与对应 Int/Long 扩展函数，以及分/时/天单位构造。one day 精确为 86400 秒。交付 plus/minus、unaryMinus、times(Long)、div(Long)、compareTo、absoluteValue、inWholeNanoseconds/Microseconds/Milliseconds/Seconds/Minutes/Hours/Days、toComponents、parse/parseOrNone/toIsoString/toString。
 
 整数除法按纳秒截断趋零，inWholeX 也向零；除零和结果越界抛 ArithmeticException，不饱和、不 wrapping。中间表达式溢出不能错误拒绝实际可表示的最终结果，不要求底层 128-bit 类型。工厂纳秒调整允许负数和跨秒值，先按数学值规范化再判断范围。
 
 ISO 文本接受可选整体负号以及按 D/H/M/S 顺序的 `P...DT...H...M...S`，至少一个分量，只有秒允许 1..9 位小数，各整数非负；不接受 years/months/weeks、混合分量符号或空白。输出统一为 `[-]PT<绝对值整秒>[.<去尾零小数>]S`，零为 PT0S。负极值的输出和解析不能先做有符号 abs 导致溢出。
 
-普通 companion 工厂为 `seconds(value: Long, nanosecondAdjustment: Long = 0)`、milliseconds/microseconds/nanoseconds/minutes/hours/days(value: Long)，对应 Int/Long 的同名零参数扩展函数。seconds 工厂先规范化调整量，再检查最终秒值；所有不可表示结果抛 ArithmeticException。公开只读 seconds、nanosecondsOfSecond；`toComponents(): (Long, Int)` 返回这两个 floor-normalized 分量，重建时将纳秒分量显式转为 Long 传给 seconds 工厂。inWholeX 与 absoluteValue 是只读属性。parse 拒绝格式或范围错误（IllegalArgumentException），parseOrNull 返回 None；其它异常不隐藏。文本仅接受大写设计符；存在 T 时其后必须有时间分量，不接受整体加号。
+普通 companion 工厂为 `seconds(value: Long, nanosecondAdjustment: Long = 0)`、milliseconds/microseconds/nanoseconds/minutes/hours/days(value: Long)，对应 Int/Long 的同名零参数扩展函数。seconds 工厂先规范化调整量，再检查最终秒值；所有不可表示结果抛 ArithmeticException。公开只读 floorSeconds、nanosecondsOfSecond，明确表示向下取整的规范化分量。`toComponents(): (Long, Int)` 返回趋零分量：第一项与 inWholeSeconds 相同，第二项为同号纳秒余数，绝对值小于 10^9；例如 -1ns 返回 (0L, -1)，-1.25s 返回 (-1L, -250000000)。两种分量都可重建原时长：将纳秒项显式转为 Long，传给 seconds 工厂。inWholeX 与 absoluteValue 是只读属性。parse 拒绝格式或范围错误（IllegalArgumentException），parseOrNone 返回 None；其它异常不隐藏。文本仅接受大写设计符；存在 T 时其后必须有时间分量，不接受整体加号。
 
 ### 8.3 Instant 与 wall clock
 
 Instant 采用 Unix/POSIX epoch seconds 与 0..999999999 nanos：1970-01-01T00:00:00Z 为零，一天按 86400 秒处理，不表示闰秒 23:59:60，也不实施 UTC-SLS smear。可表示范围为第 8.5 节 LocalDate.MIN 的 UTC 零时至 LocalDate.MAX 的 UTC 当日末纳秒。
 
-交付 MIN/MAX、fromEpochSeconds(seconds,nanosecondAdjustment)、fromEpochMilliseconds、epochSeconds、nanosecondsOfSecond、toEpochMilliseconds、plus/minus(Duration)、minus(Instant): Duration、parse/parseOrNull/toString。负 epoch 的秒／毫秒转换向负无穷取整；与 Duration 的整单位截断规则区分。超出 Instant 域或结果表示时失败，不能 wrapping。
+交付 MIN/MAX、fromEpochSeconds(seconds,nanosecondAdjustment)、fromEpochMilliseconds、epochSeconds、nanosecondsOfSecond、toEpochMilliseconds、plus/minus(Duration)、minus(Instant): Duration、parse/parseOrNone/toString。负 epoch 的秒／毫秒转换向负无穷取整；与 Duration 的整单位截断规则区分。超出 Instant 域或结果表示时失败，不能 wrapping。
 
 parse 接受第 8.5 节 ISO 日期和时间，必须携带 Z 或固定 offset；输出转换到 UTC，以 Z 结尾。没有 offset 的 LocalDateTime 不能隐式解释为 UTC 或本地时间。wall clock 可以被校时，不承诺不同 Clock.now 读数单调；求耗时应使用同源 TimeMark。
 
-fromEpochSeconds 的两个参数均为 Long，nanosecondAdjustment 缺省为零；先规范化再检查域，参数无效抛 IllegalArgumentException。fromEpochMilliseconds 接收 Long。plus/minus、toEpochMilliseconds 和与 LocalDateTime 的转换越界抛 ArithmeticException；parse 超出域视为非法文本，parseOrNull 返回 None。
+fromEpochSeconds 的两个参数均为 Long，nanosecondAdjustment 缺省为零；先规范化再检查域，参数无效抛 IllegalArgumentException。fromEpochMilliseconds 接收 Long。plus/minus、toEpochMilliseconds 和与 LocalDateTime 的转换越界抛 ArithmeticException；parse 超出域视为非法文本，parseOrNone 返回 None。
 
 ### 8.4 单调时间与 TimeMark
 
@@ -332,16 +342,16 @@ TimeMark 保存 `source: TimeSource` 与 `reading: Duration`，reading 是相对
 
 ### 8.5 日期、时间与固定偏移
 
-采用 proleptic Gregorian calendar，包含 year 0，year 范围 -999999999..999999999。Month 使用 JANUARY..DECEMBER，DayOfWeek 使用 MONDAY..SUNDAY；monthNumber 为 1..12，ISO weekday 为 1..7。
+采用 proleptic Gregorian calendar，包含 year 0，year 范围 -999999999..999999999。Month 使用 January..December，DayOfWeek 使用 Monday..Sunday；monthNumber 为 1..12，ISO weekday 为 1..7。
 
-Month／DayOfWeek 是普通 enum，分别提供 number／isoDayNumber、of(Int) 受检工厂，以及按上述编号的 Equals/Compare/Hash 和大写变体名称 ToString。LocalDate(year: Int, monthNumber: Int, dayOfMonth: Int) 与 YearMonth(year: Int, monthNumber: Int) 在构造时验证；两者另提供 Month 参数重载、month 和 yearMonth（LocalDate）属性。plusDays/plusMonths/plusYears 接收 Long，fromEpochDays 接收 Long 并拒绝域外参数（IllegalArgumentException）；已有日期的偏移越界为 ArithmeticException。日期减 DatePeriod 直接反向应用总月数及 days，不要求先构造逐字段取负的 period，因此不会因 Long.MIN_VALUE 的中间取负而错误接受 wrapping 结果。
+Month／DayOfWeek 是普通 enum，分别提供 number／isoDayNumber、fromNumber(Int)／fromIsoDayNumber(Int) 受检工厂，以及按上述编号的 Equals/Compare/Hash 和 UpperCamelCase 变体名称 ToString。LocalDate(year: Int, monthNumber: Int, dayOfMonth: Int) 与 YearMonth(year: Int, monthNumber: Int) 在构造时验证；两者另提供 Month 参数重载、month 和 yearMonth（LocalDate）属性。plusDays/plusMonths/plusYears 接收 Long，fromEpochDays 接收 Long 并拒绝域外参数（IllegalArgumentException）；已有日期的偏移越界为 ArithmeticException。日期减 DatePeriod 直接反向应用总月数及 days，不要求先构造逐字段取负的 period，因此不会因 Long.MIN_VALUE 的中间取负而错误接受 wrapping 结果。
 
-- LocalDate：受检 year/month/day 构造，MIN/MAX、year/monthNumber/dayOfMonth/dayOfYear/dayOfWeek、toEpochDays/fromEpochDays、plusDays/plusMonths/plusYears、daysUntil、DatePeriod 加减、parse/parseOrNull/toString。epoch day 0 为 1970-01-01，使用 Long；daysUntil 为 other 减 receiver 的日数。
+- LocalDate：受检 year/month/day 构造，MIN/MAX、year/monthNumber/dayOfMonth/dayOfYear/dayOfWeek、toEpochDays/fromEpochDays、plusDays/plusMonths/plusYears、daysUntil、DatePeriod 加减、parse/parseOrNone/toString。epoch day 0 为 1970-01-01，使用 Long；daysUntil 为 other 减 receiver 的日数。
 - LocalTime：hour 0..23、minute/second 0..59、nanosecond 0..999999999；提供 from/toNanosecondOfDay、分量、比较、加减 Duration（按 24 小时回绕）与 ISO 文本。拒绝 24:00、闰秒和带日期/offset 的输入。
-- LocalDateTime：组合 LocalDate/LocalTime，plus/minus(Duration)、DatePeriod/DateTimePeriod 运算、日期时间分量、与显式 UtcOffset 的 toInstant 转换、parse/parseOrNull/toString。按民用 86400 秒日进行纯值计算，不隐式调用时区规则。
+- LocalDateTime：组合 LocalDate/LocalTime，plus/minus(Duration)、DatePeriod/DateTimePeriod 运算、日期时间分量、与显式 UtcOffset 的 toInstant 转换、parse/parseOrNone/toString。按民用 86400 秒日进行纯值计算，不隐式调用时区规则。
 - UtcOffset：totalSeconds 范围 -64800..64800，即 ±18:00；受检分量工厂与 parse，接受 Z、±HH:MM、±HH:MM:SS，±18 小时时分钟秒必须为零。输出零为 Z，非零省略为零的秒。+00:00/-00:00 均规范化为零，不表示“未知 offset”。
 - OffsetDateTime：LocalDateTime 与 UtcOffset，提供 toInstant、保留 instant 的 offset 转换、保留 local fields 的 offset 替换及 ISO 文本。相等使用 local fields 和 offset，按 instant 比较须显式 toInstant，避免默认排序与相等语义冲突。
-- YearMonth：受检 year/month、lengthOfMonth/isLeapYear、plusMonths/plusYears、atDay、parse/parseOrNull/toString；LocalDate 暴露对应年月。
+- YearMonth：受检 year/month、lengthOfMonth/isLeapYear、plusMonths/plusYears、atDay、parse/parseOrNone/toString；LocalDate 暴露对应年月。
 
 Instant.toLocalDateTime(offset) 与 LocalDateTime.toInstant(offset) 使用相反的 offset 运算并检查结果范围。UtcOffset 只是固定偏移，不是地区时区；M42 不提供 IANA TimeZone、系统本地时区、DST gap/overlap 推断或时区数据库。
 
@@ -351,7 +361,7 @@ DatePeriod 保存 years:Int、months:Int、days:Long，各分量可有符号；�
 
 日期年份的无符号输入必须恰好四位；显式正号要求数值大于 9999，负号要求非零负年且至少四位绝对值数字，拒绝 -0000。YearMonth 使用同一年份规则及两位月份，形式为 year-MM。DatePeriod 的 years/months/days 缺省为零，按原始分量判等和哈希；本期的 period 运算指应用到日期／日期时间，不另提供 period 间的合并或规范化规则。
 
-无效构造参数与文本分别按 IllegalArgumentException／parseOrNull 返回 None；已合法值的算术或转换超出域抛 ArithmeticException。已验证的不变对象不在每个 getter、比较、序列化时重放日期合法性检查。
+无效构造参数与文本分别按 IllegalArgumentException／parseOrNone 返回 None；已合法值的算术或转换超出域抛 ArithmeticException。已验证的不变对象不在每个 getter、比较、序列化时重放日期合法性检查。
 
 LocalTime(hour: Int, minute: Int, second: Int = 0, nanosecond: Int = 0) 的分量只读；fromNanosecondOfDay(Long) 接受 0..<86400000000000，toNanosecondOfDay() 返回同一范围。加减 Duration 在整数运算中按天取余，负极值时长也不能因中间取负而溢出。LocalDateTime(date: LocalDate, time: LocalTime) 另提供 year/monthNumber/dayOfMonth/hour/minute/second/nanosecond 分量构造（秒与纳秒缺省为零），暴露 date/time 与相应只读分量。DateTimePeriod(date: DatePeriod = DatePeriod(), time: Duration = Duration.ZERO) 按两个原始字段判等和哈希；减法与加法一样先日历、后精确时长。
 
@@ -359,9 +369,9 @@ UtcOffset.fromTotalSeconds(Int) 与 fromHoursMinutesSeconds(hours: Int = 0, minu
 
 ## 9. Codec 组合
 
-复用 core 的 Encodable/Decodable 值与容器协议，不引入运行期反射或新条件 conformance。新增容器与 Result 的 companion 工厂显式接收元素/key/value/error codec；无关用途不要求 codec bound。
+复用 core 的 ValueEncoder/ValueDecoder 值与容器协议，不引入运行期反射或新条件 conformance。新增容器与 Result 的 companion 工厂显式接收元素/key/value/error codec；无关用途不要求 codec bound。
 
-既有 Array/MutableArray/ArrayList 的 codec 继续由 core 提供。std 需要 List 接口 codec 时使用普通 top-level `listEncoder/listDecoder` 工厂，返回 Encodable<List<T>>／Decodable<List<T>>；不假定 core List 已有可扩展的 companion，也不使 core codec 依赖 std。listDecoder 返回独立只读快照，listEncoder 可复用公开 encodeList。
+既有 Array/MutableArray/ArrayList 的 codec 继续由 core 提供。std 需要 List 接口 codec 时使用普通 top-level `listEncoder/listDecoder` 工厂，返回 ValueEncoder<List<T>>／ValueDecoder<List<T>>；不假定 core List 已有可扩展的 companion，也不使 core codec 依赖 std。listDecoder 返回独立只读快照，listEncoder 可复用公开 encodeList。
 
 List/Deque/Set/PriorityQueue 编码为 unkeyed 序列，Map 编码为 unkeyed 的二元素 `[key,value]` entry 序列，使非 String key 保持类型。LinkedHash 保存迭代顺序，Tree 按 comparator 顺序，Hash 不保证输出顺序。解码时 Map/Set 的重复等价 key/element 为 DecodingException，不静默丢弃数据。Tree/Queue decoder 显式接收 Comparator，比较器不编码。Sequence 必须先显式 materialize，不自动消费潜在无限输入。
 
@@ -369,9 +379,9 @@ Result 使用一个 keyed 字段 success 或 failure，值交给对应 codec，�
 
 TimeMark、Clock、TimeSource、Random、Iterator 不提供默认 codec；来源对象、执行状态与 RNG state 不作为可移植数据。JSON 通过它现有的显式 codec 入口消费 std codec，不需要识别 std 类型名或改变格式协议。
 
-HashMap／LinkedHashMap／TreeMap 的 companion 提供 encoder(key, value)；decoder(key, value) 对 TreeMap 另有必传的最后一个 comparator 参数。HashSet／LinkedHashSet／TreeSet／ArrayDeque／PriorityQueue 提供 encoder(element) 和 decoder(element)，其中 TreeSet／PriorityQueue 的 decoder 另有必传的最后一个 comparator 参数。工厂返回对应具体容器的 Encodable／Decodable；解码每次创建独立容器。Result<T,E> 的 encoder(success, failure)／decoder(success, failure) 接收两支的显式 codec。这里参数 key/value/element/success/failure 的类型分别为对应 Encodable 或 Decodable，不要求元素本身实现编码接口。
+HashMap／LinkedHashMap／TreeMap 的 companion 提供 encoder(key, value)；decoder(key, value) 对 TreeMap 另有必传的最后一个 comparator 参数。HashSet／LinkedHashSet／TreeSet／ArrayDeque／PriorityQueue 提供 encoder(element) 和 decoder(element)，其中 TreeSet／PriorityQueue 的 decoder 另有必传的最后一个 comparator 参数。工厂返回对应具体容器的 ValueEncoder／ValueDecoder；解码每次创建独立容器。Result<T,E> 的 encoder(success, failure)／decoder(success, failure) 接收两支的显式 codec。这里参数 key/value/element/success/failure 的类型分别为对应 ValueEncoder 或 ValueDecoder，不要求元素本身实现编码接口。
 
-Uuid、Duration、Instant、各日期时间值、UtcOffset、DatePeriod 与 DateTimePeriod 的 companion 直接实现相应 Encodable<T>／Decodable<T>，调用方显式传递该 companion。DatePeriod 的三个字段与 DateTimePeriod 的两个字段在编码时全部写出、解码时全部要求存在；构造器缺省不代表文本字段可省略。未知字段和容器消费边界沿用 core／格式库合同。重复 Map key 的错误 path 指向重复 entry 的 key，重复 Set 元素指向该元素；entry 恰好两项，不能静默接受多余项。格式、元素 codec、hash／equals／comparator 的其它异常照常传播，不被统一转成 DecodingException。
+Uuid、Duration、Instant、各日期时间值、UtcOffset、DatePeriod 与 DateTimePeriod 的 companion 直接实现相应 ValueEncoder<T>／ValueDecoder<T>，调用方显式传递该 companion。DatePeriod 的三个字段与 DateTimePeriod 的两个字段在编码时全部写出、解码时全部要求存在；构造器缺省不代表文本字段可省略。未知字段和容器消费边界沿用 core／格式库合同。重复 Map key 的错误 path 指向重复 entry 的 key，重复 Set 元素指向该元素；entry 恰好两项，不能静默接受多余项。格式、元素 codec、hash／equals／comparator 的其它异常照常传播，不被统一转成 DecodingException。
 
 Scoop 的类型名不是值；传 codec 时写 `LocalDate.Companion`、`Int.Companion` 等实际 singleton，调用工厂则可以按普通 companion 转发写 `HashMap<Int, String>.decoder(Int.Companion, String.Companion)`。
 

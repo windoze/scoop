@@ -32,15 +32,15 @@ private fun exited(status: ExitStatus) {
 }
 
 private fun nativeArguments(path: Path) {
-    val raw = OsString.fromBytes(Array<Byte>(1L) { -1.toInt8() })
-    val environment = mapOf((os("RAW"), OsString.fromBytes(Array<Byte>(1L) { -2.toInt8() })), (os("EMPTY"), os("")))
+    val raw = OsString.fromByteArray(Array<Byte>(1L) { -1.toByte() })
+    val environment = mapOf((os("RAW"), OsString.fromByteArray(Array<Byte>(1L) { -2.toByte() })), (os("EMPTY"), os("")))
     @Unsafe { signalSetup() }
     try {
         Command(path, [os("check"), os(""), os("a ' b"), raw, currentDirectory().toOsString()],
             environment, stdin = Stdio.Null, stdout = Stdio.Pipe, stderr = Stdio.Pipe).spawn().use { child ->
             val output = child.communicate()
             exited(output.status)
-            verify(OsString.fromBytes(output.stdout).decodeUtf8() == "checked\n" && output.stderr.size == 0L)
+            verify(OsString.fromByteArray(output.stdout).decodeUtf8() == "checked\n" && output.stderr.size == 0L)
         }
     } finally { @Unsafe { signalRestore() } }
 }
@@ -55,7 +55,7 @@ private fun rollback(path: Path) {
     val child = command(path, "exit").spawn()
     @Unsafe { failNativeStep(8) }
     val failure = fails { child.dispose() }
-    verify(failure.kind == PlatformErrorKind.Interrupted && child.isDisposed)
+    verify(failure.kind == PlatformErrorKind.Interrupted && child.isClosed)
     child.dispose()
     @Unsafe { verify(descriptors() == 0); failNativeStep(16) }
     exited(command(path, "exit").spawn().wait())
@@ -81,12 +81,12 @@ private fun observationLost(path: Path) {
 private fun dropExited(path: Path) {
     val child = command(path, "exit").spawn()
     @Unsafe { waitExited() }
-    verify(!child.isDisposed)
+    verify(!child.isClosed)
 }
 private fun dropStopped(path: Path) {
     val child = command(path, "stop").spawn()
     @Unsafe { waitStopped() }
-    verify(!child.isDisposed)
+    verify(!child.isClosed)
 }
 private fun releaseHooks(path: Path) {
     dropExited(path)
@@ -100,7 +100,7 @@ private fun releaseHooks(path: Path) {
 private fun temporarySignal(path: Path) { command(path, "exit").spawn().kill() }
 
 private fun communication(path: Path) {
-    val bytes = Array<Byte>(131072L) { (it % 251L).toInt8() }
+    val bytes = Array<Byte>(131072L) { (it % 251L).toByte() }
     command(path, "echo").spawn().use { child ->
         @Unsafe { failNativeStep(32 + 64 + 128) }
         val output = child.communicate(Some(bytes))

@@ -1,7 +1,7 @@
 import scoop.json.*
 
 struct UserTool(val name: String, val input_schema: JsonValue, val description: String? = None) {
-    companion object : Encodable<UserTool>, Decodable<UserTool> {}
+    companion object : ValueEncoder<UserTool>, ValueDecoder<UserTool> {}
 }
 struct ComputerConfig(
     val name: String,
@@ -9,26 +9,26 @@ struct ComputerConfig(
     val display_height_px: Long,
     val display_number: Long? = None
 ) {
-    companion object : Encodable<ComputerConfig>, Decodable<ComputerConfig> {}
+    companion object : ValueEncoder<ComputerConfig>, ValueDecoder<ComputerConfig> {}
 }
 struct SearchConfig(val name: String, val max_uses: Long? = None, val allowed_domains: Array<String>? = None) {
-    companion object : Encodable<SearchConfig>, Decodable<SearchConfig> {}
+    companion object : ValueEncoder<SearchConfig>, ValueDecoder<SearchConfig> {}
 }
 struct BasicToolConfig(val name: String) {
-    companion object : Encodable<BasicToolConfig>, Decodable<BasicToolConfig> {}
+    companion object : ValueEncoder<BasicToolConfig>, ValueDecoder<BasicToolConfig> {}
 }
 struct ChoiceOptions(val disable_parallel_tool_use: Boolean = false) {
-    companion object : Encodable<ChoiceOptions>, Decodable<ChoiceOptions> {}
+    companion object : ValueEncoder<ChoiceOptions>, ValueDecoder<ChoiceOptions> {}
 }
 struct NamedChoice(val name: String, val disable_parallel_tool_use: Boolean = false) {
-    companion object : Encodable<NamedChoice>, Decodable<NamedChoice> {}
+    companion object : ValueEncoder<NamedChoice>, ValueDecoder<NamedChoice> {}
 }
 struct ThinkingBudget(val budget_tokens: Long) {
-    companion object : Encodable<ThinkingBudget>, Decodable<ThinkingBudget> {}
+    companion object : ValueEncoder<ThinkingBudget>, ValueDecoder<ThinkingBudget> {}
 }
 enum ToolChoice {
     Auto(ChoiceOptions), Any(ChoiceOptions), None, Named(NamedChoice)
-    companion object : Encodable<ToolChoice>, Decodable<ToolChoice> {
+    companion object : ValueEncoder<ToolChoice>, ValueDecoder<ToolChoice> {
         public override fun encode(value: ToolChoice, encoder: Encoder) {
             val fields = encoder.keyed()
             when (value) {
@@ -64,7 +64,7 @@ enum ToolChoice {
 }
 enum Thinking {
     Enabled(ThinkingBudget), Disabled, Adaptive
-    companion object : Encodable<Thinking>, Decodable<Thinking> {
+    companion object : ValueEncoder<Thinking>, ValueDecoder<Thinking> {
         public override fun encode(value: Thinking, encoder: Encoder) {
             val fields = encoder.keyed()
             when (value) {

@@ -36,7 +36,7 @@ private class AsyncTcpQueuedWriteTest {
             val (_, client, server) = tcpPair(loop, scope)
             NativeByteBuffer.allocate(67108864L).use suspend { output ->
                 @Unsafe { output.withWritableBytes { pointer, length ->
-                    @Unsafe { fillNative(pointer, 49, length.toUInt64()) }
+                    @Unsafe { fillNative(pointer, 49, length.toULong()) }
                     length
                 } }
                 val writer = scope.launch suspend { client.writeFully(output) }
@@ -58,8 +58,8 @@ private class AsyncTcpQueuedWriteTest {
                         client.writeFully(marker)
                     }
                     server.readFully(input, 1L)
-                    assertEquals(114.toInt8(), input.getByte(sent))
-                    if (sent > 0L) assertEquals(49.toInt8(), input.getByte(sent - 1L))
+                    assertEquals(114.toByte(), input.getByte(sent))
+                    if (sent > 0L) assertEquals(49.toByte(), input.getByte(sent - 1L))
                     Unit
                 }
             }

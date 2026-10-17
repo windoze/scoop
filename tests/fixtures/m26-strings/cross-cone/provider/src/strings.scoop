@@ -7,7 +7,7 @@ public fun middle(value: String, start: Long = 1L): String = value.slice(start, 
 
 public fun walk(value: Iterable<Char>): Long {
     var count = 0L
-    for (character in value) { count = count + character.code.toInt64() }
+    for (character in value) { count = count + character.code.toLong() }
     return count
 }
 

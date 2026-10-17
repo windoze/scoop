@@ -8,7 +8,7 @@ public fun <T> exercise(value: T): Int {
     number = 0
     val negate = 42::unaryMinus
     val compare: (Int) -> Long = 42::compareTo
-    val widen = 42::toInt64
+    val widen = 42::toLong
     val shift: (Long) -> Int = 21::shl
     val divide: (Int) -> Int = 84::div
     val remainder: (Int) -> Int = 85::rem

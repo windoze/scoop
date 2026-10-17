@@ -19,7 +19,7 @@ public fun <T> exercise(seed: T, read: (T) -> Int): Int {
     val second = checked(pointer) as FunPtr<(Long) -> Long>
     @Unsafe {
         if (callScalar(first, 41L) != 41L) { return 1 }
-        return callScalar(second, read(seed).toInt64()).toInt32()
+        return callScalar(second, read(seed).toLong()).toInt()
     }
 }
 

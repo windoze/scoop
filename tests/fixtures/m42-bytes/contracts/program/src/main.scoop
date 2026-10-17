@@ -2,8 +2,8 @@ import scoop.bytes.*
 
 fun main() {
     val builder = ByteArrayBuilder()
-    builder.writeInt(1)
+    builder.writeInt32(1)
     val reader = ByteArrayReader(builder.toByteArray())
-    reader.readLong()
+    reader.readInt64()
     reader.position = 0L
 }

@@ -2,7 +2,7 @@ fun main() {
     val values: MutableArray<Char> = ['A', '雪', '🚀', '\u0000']
     val text = String.fromChars(values)
     values[0L] = 'Z'
-    val chars = text.toCharArray()
+    val chars = text.toMutableCharArray()
     chars[1L] = '好'
     val list = ArrayList<Char>()
     for (character in chars) { list.add(character) }
@@ -11,16 +11,16 @@ fun main() {
     if (text != "A雪🚀\u0000" || copied != "A好🚀\u0000" || chars.size != 4L) {
         println("characters"); return
     }
-    val bytes = text.toByteArray()
+    val bytes = text.toMutableByteArray()
     val second = text.toByteArray()
-    if (bytes.size != 9L || bytes[1L] != (-23).toInt8() || bytes[8L] != 0.toInt8()) {
+    if (bytes.size != 9L || bytes[1L] != (-23).toByte() || bytes[8L] != 0.toByte()) {
         println("byte-encoding"); return
     }
     @Unsafe {
         val decoded = String.fromUtf8Unchecked(bytes)
-        bytes[0L] = 90.toInt8()
+        bytes[0L] = 90.toByte()
         gcCollect()
-        if (decoded != text || second[0L] != 65.toInt8() ||
+        if (decoded != text || second[0L] != 65.toByte() ||
             String.fromUtf8Unchecked(bytes) != "Z雪🚀\u0000") { println("byte-snapshot"); return }
     }
     val many = MutableArray<Char>(120L) { index ->

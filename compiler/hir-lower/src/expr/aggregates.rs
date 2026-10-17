@@ -43,7 +43,7 @@ impl Lowerer {
             })
             .collect();
         let ty = self.intern_type(Type::Tuple(slots));
-        let lowered = self.materialize_aggregate_elements(lowered, element_sinks, sink);
+        let lowered = self.materialize_aggregate_elements(elements, lowered, element_sinks, sink);
         Some(hir::Expr {
             kind: ExprKind::TupleLiteral(lowered),
             ty,
@@ -93,7 +93,8 @@ impl Lowerer {
                 lowered.push(self.adapt_to(element, element_ty));
                 element_sinks.push(setup);
             }
-            let lowered = self.materialize_aggregate_elements(lowered, element_sinks, sink);
+            let lowered =
+                self.materialize_aggregate_elements(elements, lowered, element_sinks, sink);
             return Some(hir::Expr {
                 kind: ExprKind::ArrayLiteral(lowered),
                 ty: array_ty,
@@ -190,7 +191,7 @@ impl Lowerer {
             .into_iter()
             .map(|element| self.adapt_to(element, element_ty))
             .collect();
-        let lowered = self.materialize_aggregate_elements(lowered, element_sinks, sink);
+        let lowered = self.materialize_aggregate_elements(elements, lowered, element_sinks, sink);
         let ty = self.array_type(ArrayKind::Immutable, element_ty);
         Some(hir::Expr {
             kind: ExprKind::ArrayLiteral(lowered),
@@ -203,6 +204,7 @@ impl Lowerer {
     /// Each element completes before the next element's statement expansion.
     fn materialize_aggregate_elements(
         &mut self,
+        source_elements: &[ast::Expr],
         elements: Vec<hir::Expr>,
         setups: Vec<Vec<hir::Statement>>,
         sink: &mut Vec<hir::Statement>,
@@ -216,7 +218,7 @@ impl Lowerer {
             .enumerate()
             .map(|(index, (element, setup))| {
                 sink.extend(setup);
-                let span = element.span;
+                let span = source_elements[index].span();
                 self.materialize_temporary(format!("$aggregate.{index}"), element, span, sink)
             })
             .collect()

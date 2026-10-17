@@ -11,7 +11,7 @@ class Node(val value: Long, var next: Node?) : Value {
 fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
 
 fun worker(seed: Int, count: Long, captured: Value): Int {
-    val values = MutableArray<Value>(count) { index -> Node(index + seed.toInt64(), None) }
+    val values = MutableArray<Value>(count) { index -> Node(index + seed.toLong(), None) }
     var index = 0L
     while (index < count) {
         val node = values[index] as Node
@@ -22,12 +22,12 @@ fun worker(seed: Int, count: Long, captured: Value): Int {
     gcCollect()
     index = 0L
     while (index < count) {
-        check(copied[index].get() == index + seed.toInt64())
+        check(copied[index].get() == index + seed.toLong())
         check((copied[index] as Node).next!! === values[(index + 1L) % count])
         index += 1L
     }
     check(captured.get() == 71L)
-    return count.toInt32() + seed
+    return count.toInt() + seed
 }
 
 @Unsafe fun main() {
@@ -40,7 +40,7 @@ fun worker(seed: Int, count: Long, captured: Value): Int {
     try {
         var round = 0
         while (round < 2) {
-            check(workers(callback.function, callback.context, 1, 4) == count.toInt32() * 4 + 10)
+            check(workers(callback.function, callback.context, 1, 4) == count.toInt() * 4 + 10)
             check(when (foreignCallbackFailure(callback)) { case None -> true; case Some(_) -> false })
             beginMark()
             gcCollect()

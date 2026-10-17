@@ -1,2 +1,2 @@
-fun accept(codec: Decodable<Long>) { println("unreachable") }
+fun accept(codec: ValueDecoder<Long>) { println("unreachable") }
 fun main() { accept(7L) }

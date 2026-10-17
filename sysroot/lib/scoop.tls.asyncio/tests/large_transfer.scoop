@@ -18,8 +18,8 @@ private class AsyncTlsTransferTests {
             val (clientRaw, serverRaw) = rawPair(loop, scope)
             observed.add(clientRaw)
             val (client, server) = tlsPair(scope, clientRaw, serverRaw)
-            val bytes = Array<Byte>(50000L) { index -> (index % 241L).toInt8() }
-            val expected = digest(DigestAlgorithm.SHA256, bytes).toHexString()
+            val bytes = Array<Byte>(50000L) { index -> (index % 241L).toByte() }
+            val expected = digest(DigestAlgorithm.Sha256, bytes).toHexString()
             val input = NativeByteBuffer.allocate(bytes.size)
             val output = NativeByteBuffer.allocate(bytes.size)
             try {
@@ -38,7 +38,7 @@ private class AsyncTlsTransferTests {
                 reading.join(); echo.join()
                 assertEquals(bytes.size, input.writePosition)
                 assertEquals(bytes.size, output.readPosition)
-                assertEquals(expected, digest(DigestAlgorithm.SHA256, input.readBytes(bytes.size)).toHexString())
+                assertEquals(expected, digest(DigestAlgorithm.Sha256, input.readBytes(bytes.size)).toHexString())
                 assertTrue(clientRaw.foreignThread!! != ownerThread)
                 reading.cancel()
                 assertFalse(client.isClosed)

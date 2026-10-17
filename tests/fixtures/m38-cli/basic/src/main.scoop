@@ -1,7 +1,7 @@
 import scoop.cli.*
 
 enum Mode { @Serialize(rename = "fast-wire") Fast, Slow
-    companion object : Decodable<Mode>, Inspectable<Mode>
+    companion object : ValueDecoder<Mode>, ValueInspector<Mode>
 }
 struct Options(
     @CliArgument(position = 0L, help = "Input file", valueName = "FILE") val input: String,
@@ -13,36 +13,36 @@ struct Options(
     val mode: Mode? = None,
     @CliOption val enabled: Boolean = false,
     @Serialize(ignore = true) val ignored: Int = 19
-) { companion object : Decodable<Options>, Inspectable<Options> }
+) { companion object : ValueDecoder<Options>, ValueInspector<Options> }
 
 struct Wrapped(
     val optional: Array<Int>?, val elements: Array<Int?> = [],
     val nested: String??, val mutable: MutableArray<String> = MutableArray<String>(0L) { _ -> "" },
     val list: ArrayList<Int> = ArrayList<Int>()
-) { companion object : Decodable<Wrapped> }
+) { companion object : ValueDecoder<Wrapped> }
 
 class PrivateOptions(private val code: Int = 4) {
     val ignored: Int get() { throw IllegalStateException() }
     fun result(): Int = code
-    companion object : Decodable<PrivateOptions>
+    companion object : ValueDecoder<PrivateOptions>
 }
 
 struct Positionals(
     @CliArgument(position = 0L) val first: Int,
     @CliArgument(position = 1L) val optional: String?,
     @CliArgument(position = 2L) val rest: Array<String> = []
-) { companion object : Decodable<Positionals> }
+) { companion object : ValueDecoder<Positionals> }
 
 object Counts { var defaults: Int = 0; var constructors: Int = 0 }
 fun nextDefault(): Int { Counts.defaults = Counts.defaults + 1; return 7 }
 class Defaults(val first: Int = nextDefault(), val second: Int = first + 1) {
     init { Counts.constructors = Counts.constructors + 1 }
-    companion object : Decodable<Defaults>
+    companion object : ValueDecoder<Defaults>
 }
 class FailingHelp : TextWriter {
     val text: StringWriter = StringWriter()
     public override fun write(value: String) {
-        if (text.build() != "") { throw IllegalStateException(Some("help writer")) }
+        if (text.toString() != "") { throw IllegalStateException(Some("help writer")) }
         text.write(value)
         gcCollect()
     }
@@ -110,12 +110,12 @@ fun main() {
     val help = schema.help()
     val writer = StringWriter()
     schema.writeHelp(writer)
-    equal(writer.build(), help)
+    equal(writer.toString(), help)
     check(contains(help, "Usage: serve") && contains(help, "--port, -p <Int>") && contains(help, "<Fast|Slow>"))
     check(contains(help, "[default: 8080]") && contains(help, "<FILE> (required)  Input file") && help[help.length - 1L] == '\n')
     check(!contains(help, "wire-port") && !contains(help, "ignored") && !contains(help, "fast-wire"))
     val failing = FailingHelp()
     try { schema.writeHelp(failing); throw IllegalArgumentException() }
-    catch (error: IllegalStateException) { check(contains(failing.text.build(), "Usage: serve")); equal(error.message!!, "help writer") }
+    catch (error: IllegalStateException) { check(contains(failing.text.toString(), "Usage: serve")); equal(error.message!!, "help writer") }
     println("cli-basic-ok")
 }

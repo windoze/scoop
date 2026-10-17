@@ -38,7 +38,7 @@ class MemberCollector() {
     final fun count(vararg values: Int): Long = values.size
 }
 
-fun Int.withValues(vararg values: Int): Long = this.toInt64() + values.size
+fun Int.withValues(vararg values: Int): Long = this.toLong() + values.size
 
 fun localCount(): Long {
     fun count(vararg values: Int): Long = values.size

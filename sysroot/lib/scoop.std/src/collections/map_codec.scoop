@@ -1,6 +1,6 @@
 package scoop.collections
 
-internal fun <K, V> encodeMap(values: Map<K, V>, key: Encodable<K>, value: Encodable<V>, encoder: Encoder) {
+internal fun <K, V> encodeMap(values: Map<K, V>, key: ValueEncoder<K>, value: ValueEncoder<V>, encoder: Encoder) {
     val entries = encoder.unkeyed()
     for (entry in values) {
         val pair = entries.element().unkeyed()
@@ -11,7 +11,7 @@ internal fun <K, V> encodeMap(values: Map<K, V>, key: Encodable<K>, value: Encod
     entries.end()
 }
 
-internal fun <K, V> decodeMapInto(decoder: Decoder, key: Decodable<K>, value: Decodable<V>, result: MutableMap<K, V>) {
+internal fun <K, V> decodeMapInto(decoder: Decoder, key: ValueDecoder<K>, value: ValueDecoder<V>, result: MutableMap<K, V>) {
     val entries = decoder.unkeyed()
     while (entries.hasNext) {
         val pair = entries.element().unkeyed()

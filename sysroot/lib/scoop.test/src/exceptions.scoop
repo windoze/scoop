@@ -2,7 +2,7 @@ package scoop.test
 
 public fun <E : Throwable> assertFailsWith(
     message: String? = None,
-    location: SourceLocation = getCurrentSourceLocation(),
+    location: SourceLocation = currentSourceLocation(),
     block: () -> Unit
 ): E {
     val caught: Throwable? = try {

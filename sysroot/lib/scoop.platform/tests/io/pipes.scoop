@@ -9,7 +9,7 @@ private class PipesTest {
     @Test
     fun `pipe endpoints own their descriptors and transfer beyond kernel capacity`() {
         val pipe = Pipe.open()
-        val bytes = Array<Byte>(131072L) { (it % 251L).toInt8() }
+        val bytes = Array<Byte>(131072L) { (it % 251L).toByte() }
         Thread.start { pipe.sink.use { it.writeAllBytes(bytes); gcCollect() } }.use {
             pipe.source.use { source ->
                 val read = source.readAllBytes()
@@ -18,7 +18,7 @@ private class PipesTest {
                 assertEquals(0L, source.readAllBytes().size)
             }
         }
-        assertTrue(pipe.source.isDisposed && pipe.sink.isDisposed)
+        assertTrue(pipe.source.isClosed && pipe.sink.isClosed)
         pipe.source.dispose()
         pipe.sink.dispose()
         assertFailsWith<IllegalStateException> { pipe.source.readAllBytes() }

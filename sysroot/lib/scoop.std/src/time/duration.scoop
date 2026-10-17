@@ -2,15 +2,15 @@ package scoop.time
 
 import scoop.decodeTextValue
 
-public class Duration private constructor(public val seconds: Long, public val nanosecondsOfSecond: Int)
+public class Duration private constructor(public val floorSeconds: Long, public val nanosecondsOfSecond: Int)
     : Equals<Duration>, Compare<Duration>, Hash, ToString, Add<Duration, Duration>, Sub<Duration, Duration>,
       Mul<Long, Duration>, Div<Long, Duration>, UnaryMinus<Duration> {
     public override operator fun equals(other: Duration): Boolean =
-        seconds == other.seconds && nanosecondsOfSecond == other.nanosecondsOfSecond
+        floorSeconds == other.floorSeconds && nanosecondsOfSecond == other.nanosecondsOfSecond
     public override operator fun compareTo(other: Duration): Long =
-        if (seconds != other.seconds) seconds.compareTo(other.seconds)
+        if (floorSeconds != other.floorSeconds) floorSeconds.compareTo(other.floorSeconds)
         else nanosecondsOfSecond.compareTo(other.nanosecondsOfSecond)
-    public override fun hash(): Long = seconds.hash() * 31L + nanosecondsOfSecond.hash()
+    public override fun hash(): Long = floorSeconds.hash() * 31L + nanosecondsOfSecond.hash()
     public override operator fun plus(other: Duration): Duration =
         Duration.fromParts(addDurationParts(durationParts(this), durationParts(other)))
     public override operator fun minus(other: Duration): Duration =
@@ -18,22 +18,23 @@ public class Duration private constructor(public val seconds: Long, public val n
     public override operator fun unaryMinus(): Duration = Duration.fromParts(durationParts(this).negated())
     public override operator fun times(other: Long): Duration = Duration.fromParts(multiplyDurationParts(durationParts(this), other))
     public override operator fun div(other: Long): Duration = Duration.fromParts(divideDurationParts(durationParts(this), other))
-    public val absoluteValue: Duration get() = if (seconds < 0L) -this else this
-    public val inWholeSeconds: Long get() = if (seconds < 0L && nanosecondsOfSecond != 0) seconds + 1L else seconds
+    public val absoluteValue: Duration get() = if (floorSeconds < 0L) -this else this
+    public val inWholeSeconds: Long get() = if (floorSeconds < 0L && nanosecondsOfSecond != 0) floorSeconds + 1L else floorSeconds
     public val inWholeMinutes: Long get() = inWholeSeconds / 60L
     public val inWholeHours: Long get() = inWholeSeconds / 3600L
     public val inWholeDays: Long get() = inWholeSeconds / 86400L
     public val inWholeMilliseconds: Long get() = durationWholeUnits(durationParts(this), 1000uL)
     public val inWholeMicroseconds: Long get() = durationWholeUnits(durationParts(this), 1000000uL)
     public val inWholeNanoseconds: Long get() = durationWholeUnits(durationParts(this), 1000000000uL)
-    public fun toComponents(): (Long, Int) = (seconds, nanosecondsOfSecond)
+    public fun toComponents(): (Long, Int) =
+        (inWholeSeconds, if (floorSeconds < 0L && nanosecondsOfSecond != 0) nanosecondsOfSecond - 1000000000 else nanosecondsOfSecond)
     public fun toIsoString(): String = formatDuration(durationParts(this))
     public override fun toString(): String = toIsoString()
 
-    public companion object : Encodable<Duration>, Decodable<Duration> {
+    public companion object : ValueEncoder<Duration>, ValueDecoder<Duration> {
         public override fun encode(value: Duration, encoder: Encoder) { encoder.singleValue().writeString(value.toString()) }
         public override fun decode(decoder: Decoder): Duration =
-            decodeTextValue<Duration>(decoder, { text -> parseOrNull(text) }, "duration")
+            decodeTextValue<Duration>(decoder, { text -> parseOrNone(text) }, "duration")
 
         public val ZERO: Duration = Duration(0L, 0)
         public fun seconds(value: Long, nanosecondAdjustment: Long = 0L): Duration {
@@ -46,17 +47,17 @@ public class Duration private constructor(public val seconds: Long, public val n
         public fun minutes(value: Long): Duration = seconds(value) * 60L
         public fun hours(value: Long): Duration = seconds(value) * 3600L
         public fun days(value: Long): Duration = seconds(value) * 86400L
-        public fun parseOrNull(text: String): Duration? = parseDuration(text)
-        public fun parse(text: String): Duration = when (parseOrNull(text)) {
+        public fun parseOrNone(text: String): Duration? = parseDuration(text)
+        public fun parse(text: String): Duration = when (parseOrNone(text)) {
             case Some(value) -> value
             case None -> throw IllegalArgumentException(Some("invalid duration"))
         }
         internal fun fromParts(parts: DurationParts): Duration {
             val limit = if (parts.negative) 0x8000000000000000uL else 0x7fffffffffffffffuL
             if (parts.seconds > limit || (parts.seconds == 0x8000000000000000uL && parts.nanos != 0)) throw ArithmeticException()
-            if (!parts.negative) return Duration(parts.seconds.toInt64(), parts.nanos)
-            if (parts.nanos == 0) return Duration((-parts.seconds).toInt64(), 0)
-            return Duration((-parts.seconds - 1uL).toInt64(), 1000000000 - parts.nanos)
+            if (!parts.negative) return Duration(parts.seconds.toLong(), parts.nanos)
+            if (parts.nanos == 0) return Duration((-parts.seconds).toLong(), 0)
+            return Duration((-parts.seconds - 1uL).toLong(), 1000000000 - parts.nanos)
         }
     }
 }

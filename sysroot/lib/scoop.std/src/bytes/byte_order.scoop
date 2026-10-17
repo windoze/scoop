@@ -1,3 +1,3 @@
 package scoop.bytes
 
-public enum ByteOrder { BIG_ENDIAN, LITTLE_ENDIAN }
+public enum ByteOrder { BigEndian, LittleEndian }

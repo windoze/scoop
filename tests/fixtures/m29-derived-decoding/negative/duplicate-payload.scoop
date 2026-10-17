@@ -1,4 +1,4 @@
 public enum Item { V(@Serialize(rename = "same") val first: Int, @Serialize(rename = "same") val second: Int) }
-public object Reader : Decodable<Item>
+public object Reader : ValueDecoder<Item>
 
 fun main() {}

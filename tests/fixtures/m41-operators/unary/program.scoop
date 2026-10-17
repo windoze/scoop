@@ -10,12 +10,12 @@ fun <T> update(value: T): (T, T, T, T)
 fun <T : Not<Boolean>> invert(value: T): Boolean = !value
 fun check(ok: Boolean) { if (!ok) { throw IllegalStateException() } }
 fun main() {
-    check(update(20.toInt8()) == (20.toInt8(), (-20).toInt8(), 20.toInt8(), 20.toInt8()))
-    check(update(20.toInt16()) == (20.toInt16(), (-20).toInt16(), 20.toInt16(), 20.toInt16()))
+    check(update(20.toByte()) == (20.toByte(), (-20).toByte(), 20.toByte(), 20.toByte()))
+    check(update(20.toShort()) == (20.toShort(), (-20).toShort(), 20.toShort(), 20.toShort()))
     check(update(20) == (20, -20, 20, 20))
     check(update(20L) == (20L, -20L, 20L, 20L))
-    check(update(20.toUInt8()) == (20.toUInt8(), 236.toUInt8(), 20.toUInt8(), 20.toUInt8()))
-    check(update(20.toUInt16()) == (20.toUInt16(), 65516.toUInt16(), 20.toUInt16(), 20.toUInt16()))
+    check(update(20.toUByte()) == (20.toUByte(), 236.toUByte(), 20.toUByte(), 20.toUByte()))
+    check(update(20.toUShort()) == (20.toUShort(), 65516.toUShort(), 20.toUShort(), 20.toUShort()))
     check(update(20u) == (20u, 4294967276u, 20u, 20u))
     check(update(20uL) == (20uL, 18446744073709551596uL, 20uL, 20uL))
     check(update(20f) == (20f, -20f, 20f, 20f))

@@ -42,7 +42,7 @@ private class ListTests {
 
     @Test
     fun `internal snapshot follows the list contract`() {
-        val snapshot = ListSnapshot<Int>(Array<Int>(3L) { index -> index.toInt32() })
+        val snapshot = ListSnapshot<Int>(Array<Int>(3L) { index -> index.toInt() })
         assertEquals(3L, snapshot.size)
         assertEquals("0, 1, 2", snapshot.joinToString())
         assertFailsWith<IndexOutOfBoundsException> { snapshot[3L] }

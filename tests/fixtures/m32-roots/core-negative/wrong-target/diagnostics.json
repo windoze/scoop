@@ -18,7 +18,7 @@
     "notes": [],
     "origin": {
       "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
-      "end": 3451,
+      "end": 3469,
       "kind": "source",
       "path": "src/array_list.scoop",
       "start": 0
@@ -57,10 +57,10 @@
     "notes": [],
     "origin": {
       "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
-      "end": 141,
+      "end": 144,
       "kind": "source",
       "path": "src/sequence_inspection.scoop",
-      "start": 135
+      "start": 138
     },
     "severity": "error"
   },
@@ -83,10 +83,10 @@
     "notes": [],
     "origin": {
       "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
-      "end": 1818,
+      "end": 2150,
       "kind": "source",
       "path": "src/strings.scoop",
-      "start": 1813
+      "start": 2145
     },
     "severity": "error"
   }

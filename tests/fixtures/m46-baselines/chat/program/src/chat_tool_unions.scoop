@@ -1,6 +1,6 @@
 enum ChatTool {
     Function(NestedFunction), Custom(NestedCustom)
-    companion object : Encodable<ChatTool>, Decodable<ChatTool> {
+    companion object : ValueEncoder<ChatTool>, ValueDecoder<ChatTool> {
         public override fun encode(value: ChatTool, encoder: Encoder) {
             val fields = encoder.keyed()
             when (value) {
@@ -27,7 +27,7 @@ enum ChatTool {
 }
 enum ChatNamedTool {
     Function(NestedNamedFunction), Custom(NestedCustom), Allowed(AllowedChoice)
-    companion object : Encodable<ChatNamedTool>, Decodable<ChatNamedTool> {
+    companion object : ValueEncoder<ChatNamedTool>, ValueDecoder<ChatNamedTool> {
         public override fun encode(value: ChatNamedTool, encoder: Encoder) {
             val fields = encoder.keyed()
             when (value) {
@@ -59,7 +59,7 @@ enum ChatNamedTool {
 }
 enum ChatChoice {
     Text(String), Named(NamedChatChoice)
-    companion object : Encodable<ChatChoice>, Decodable<ChatChoice> {
+    companion object : ValueEncoder<ChatChoice>, ValueDecoder<ChatChoice> {
         public override fun encode(value: ChatChoice, encoder: Encoder) {
             when (value) {
                 case ChatChoice.Text(text) -> String.encode(text, encoder)
@@ -77,7 +77,7 @@ enum ChatChoice {
 }
 enum ChatFormat {
     Text, Object, Schema(SchemaFormat)
-    companion object : Encodable<ChatFormat>, Decodable<ChatFormat> {
+    companion object : ValueEncoder<ChatFormat>, ValueDecoder<ChatFormat> {
         public override fun encode(value: ChatFormat, encoder: Encoder) {
             val fields = encoder.keyed()
             when (value) {
@@ -107,7 +107,7 @@ enum ChatFormat {
 }
 
 struct NamedChatChoice(val tool: ChatNamedTool) {
-    companion object : Encodable<NamedChatChoice>, Decodable<NamedChatChoice> {
+    companion object : ValueEncoder<NamedChatChoice>, ValueDecoder<NamedChatChoice> {
         public override fun encode(value: NamedChatChoice, encoder: Encoder) { ChatNamedTool.Companion.encode(value.tool, encoder) }
         public override fun decode(decoder: Decoder): NamedChatChoice = NamedChatChoice(ChatNamedTool.Companion.decode(decoder))
     }

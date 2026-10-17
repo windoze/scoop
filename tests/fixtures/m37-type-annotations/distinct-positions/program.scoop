@@ -1,4 +1,4 @@
-@Target([AnnotationTarget.TYPE]) annotation class Once
+@Target([AnnotationTarget.Type]) annotation class Once
 typealias Pair<T> = (T, T)
 typealias Named = @Once Int
 fun same(value: @Once() (@Once Int)?): @Once Int = value!!

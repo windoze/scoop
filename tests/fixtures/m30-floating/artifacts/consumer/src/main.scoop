@@ -43,9 +43,9 @@ fun check(value: Boolean) {
     check(floatBits(cell(-0f).value) == 0x80000000U && floatBits(facadeCell(-0f).value) == 0x80000000U)
     check(remainder(fromFloatBits(0x40b00000U)) == 1.5f)
     check(wideRemainder(fromDoubleBits(0x4016000000000000UL), 2.0) == 1.5)
-    val value = Json.decode("{\"small\":0.1}", Record.Companion)
+    val value = Json.decodeFromString("{\"small\":0.1}", Record.Companion)
     check(value.small == 0.1f && doubleBits(value.wide) == 0x8000000000000000UL)
-    check(Json.encode(value, Record.Companion) == "{\"small\":0.1,\"wide\":-0.0}")
+    check(Json.encodeToString(value, Record.Companion) == "{\"small\":0.1,\"wide\":-0.0}")
     val retained = Record(fromFloatBits(0xff800123U), fromDoubleBits(0x7ff0000000000123UL))
     try { gcCollect(); throw Exception(Some("float unwind")) }
     catch (error: Exception) { gcCollect() }

@@ -1,6 +1,6 @@
 import scoop.json.Json
 
-object SharedRecord : Encodable<Unit> {
+object SharedRecord : ValueEncoder<Unit> {
     public override fun encode(value: Unit, encoder: Encoder) {
         val first = encoder.keyed()
         first.end()
@@ -19,18 +19,18 @@ object SharedRecord : Encodable<Unit> {
 }
 
 fun main() {
-    check(Json.encode(Unit, SharedRecord) == "{\"first\":1,\"second\":\"second\",\"third\":true}")
-    val empty = EncodeFunction<Unit>({ value, encoder ->
+    check(Json.encodeToString(Unit, SharedRecord) == "{\"first\":1,\"second\":\"second\",\"third\":true}")
+    val empty = ValueEncoderFunction<Unit>({ value, encoder ->
         encoder.keyed().end()
         encoder.keyed().end()
     })
-    check(Json.encode(Unit, empty) == "{}")
-    val scalar = EncodeFunction<Long>({ value, encoder ->
+    check(Json.encodeToString(Unit, empty) == "{}")
+    val scalar = ValueEncoderFunction<Long>({ value, encoder ->
         val first = encoder.singleValue()
         val second = encoder.singleValue()
         first.writeLong(value)
         val third = encoder.singleValue()
     })
-    check(Json.encode(7L, scalar) == "7")
+    check(Json.encodeToString(7L, scalar) == "7")
     println("keyed-ok")
 }

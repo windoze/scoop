@@ -9,7 +9,7 @@ public struct Event(val id: Uuid, val moment: Instant, val score: Int, val label
     public override operator fun equals(other: Event): Boolean =
         id == other.id && moment == other.moment && score == other.score && label == other.label
 
-    public companion object : Encodable<Event>, Decodable<Event> {
+    public companion object : ValueEncoder<Event>, ValueDecoder<Event> {
         public override fun encode(value: Event, encoder: Encoder) {
             val fields = encoder.keyed()
             Uuid.encode(value.id, fields.field("id"))
@@ -28,5 +28,5 @@ public struct Event(val id: Uuid, val moment: Instant, val score: Int, val label
     }
 }
 
-public fun <T> encodeRows(rows: List<T>, codec: Encodable<T>): String = Json.encode(rows, listEncoder(codec))
-public fun <T> decodeRows(text: String, codec: Decodable<T>): List<T> = Json.decode(text, listDecoder(codec))
+public fun <T> encodeRows(rows: List<T>, codec: ValueEncoder<T>): String = Json.encodeToString(rows, listEncoder(codec))
+public fun <T> decodeRows(text: String, codec: ValueDecoder<T>): List<T> = Json.decodeFromString(text, listDecoder(codec))

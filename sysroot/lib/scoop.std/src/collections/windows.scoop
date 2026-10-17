@@ -2,8 +2,24 @@ package scoop.collections
 
 public struct IndexedValue<T>(val index: Long, val value: T)
 
-public fun <T> Iterable<T>.withIndex(): List<IndexedValue<T>> =
-    mapIndexed<T, IndexedValue<T>> { index, element -> IndexedValue<T>(index, element) }
+public fun <T> Iterable<T>.withIndex(): Iterable<IndexedValue<T>> = IndexedIterable<T>(this)
+
+private class IndexedIterable<T>(private val source: Iterable<T>) : Iterable<IndexedValue<T>> {
+    public override operator fun iterator(): Iterator<IndexedValue<T>> = IndexedIterator<T>(source.iterator())
+}
+
+private class IndexedIterator<T>(private val source: Iterator<T>) : Iterator<IndexedValue<T>> {
+    private var index: Long = 0L
+
+    public override fun next(): IndexedValue<T>? = when (source.next()) {
+        case None -> None
+        case Some(value) -> {
+            val result = IndexedValue<T>(index, value)
+            index = nextCollectionCount(index)
+            Some(result)
+        }
+    }
+}
 
 public fun <T, R> Iterable<T>.zip(other: Iterable<R>): List<(T, R)> {
     val result = ArrayList<(T, R)>()

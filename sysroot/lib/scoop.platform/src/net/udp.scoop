@@ -8,9 +8,9 @@ import scoop.platform.system.*
 public struct Datagram(val source: SocketAddress, val count: Long, val truncated: Boolean)
 private class ReceiveResult { var value: (NativeDatagram, Int)? = None }
 
-public class UdpSocket private constructor(private val file: File) : Disposable {
-    public val localAddress: SocketAddress get() = file.socketAddress(false)
-    public val isDisposed: Boolean get() = file.isDisposed
+public class UdpSocket private constructor(private val file: File) : Closeable {
+    public fun localAddress(): SocketAddress = file.socketAddress(false)
+    public val isClosed: Boolean get() = file.isClosed
 
     public companion object {
         public fun bind(address: SocketAddress, reuseAddress: Boolean = false): UdpSocket {
@@ -60,8 +60,7 @@ public class UdpSocket private constructor(private val file: File) : Disposable 
             Datagram(socketAddress(packet.source, error), packet.count, packet.truncated)
         }
 
-    public override fun dispose() { file.dispose() }
-    public fun close() { dispose() }
+    public override fun close() { file.close() }
 }
 
 @Extern(name = "scoop_platform_udp_send", captureErrno = true)

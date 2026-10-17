@@ -123,10 +123,10 @@ fn marker_targets_arguments_repetition_and_roles_use_normal_annotation_rules() {
             "@Test class Cases { @Test @Ignore fun check() {} }",
             "missing annotation argument `reason`",
         ),
-        ("@Ignore(\"later\") class Cases", "not allowed on CLASS"),
+        ("@Ignore(\"later\") class Cases", "not allowed on Class"),
         (
             "@Test annotation class Cases",
-            "not allowed on ANNOTATION_CLASS",
+            "not allowed on AnnotationClass",
         ),
         (
             "@Test class Cases { @Test @BeforeTest fun check() {} }",

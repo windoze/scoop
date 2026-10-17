@@ -186,8 +186,8 @@ fun sumTree(node: Node?): Long = when (node) {
         }
     }
     val expected = if (kind == 3) {
-        (count / 16L) * (count / 16L - 1L) / 2L * 16L * graphRounds().toInt64()
-    } else { count * (count - 1L) / 2L * (if (kind == 4) graphRounds().toInt64() else 1L) }
+        (count / 16L) * (count / 16L - 1L) / 2L * 16L * graphRounds().toLong()
+    } else { count * (count - 1L) / 2L * (if (kind == 4) graphRounds().toLong() else 1L) }
     if (checksum != expected) { throw IllegalStateException() }
     println(checksum)
 }

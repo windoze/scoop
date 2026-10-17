@@ -1,1 +1,1 @@
-fun bad(value: Long): Int = value.toInt32(1)
+fun bad(value: Long): Int = value.toInt(1)

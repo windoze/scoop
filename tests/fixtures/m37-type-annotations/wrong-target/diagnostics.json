@@ -1,14 +1,14 @@
 [
   {
     "code": "SCOOPC_HIR_ERROR",
-    "message": "annotation `@A` is not allowed on TYPE",
+    "message": "annotation `@A` is not allowed on Type",
     "notes": [],
     "origin": {
       "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
-      "end": 74,
+      "end": 73,
       "kind": "source",
       "path": "main.scoop",
-      "start": 72
+      "start": 71
     },
     "severity": "error"
   }

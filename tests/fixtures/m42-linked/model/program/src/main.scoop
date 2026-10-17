@@ -11,7 +11,7 @@ fun main() {
     var step = 0
     while (step < 600) {
         val key = (step * 17) % 37
-        val slot = key.toInt64()
+        val slot = key.toLong()
         if (step % 5 == 0) {
             check(map.remove(key) == values[slot], "remove result")
             if (values[slot] != None) {
@@ -28,7 +28,7 @@ fun main() {
         }
         var index = 0L
         for ((actualKey, actualValue) in map) {
-            check(actualKey == order[index] && Some(actualValue) == values[actualKey.toInt64()], "model entry")
+            check(actualKey == order[index] && Some(actualValue) == values[actualKey.toLong()], "model entry")
             index += 1L
         }
         check(map.size == order.size && index == order.size, "model size")

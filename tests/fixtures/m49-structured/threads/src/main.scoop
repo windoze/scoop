@@ -74,7 +74,7 @@ fun begin(): State {
                 } finally {
                     gcCollect()
                     check(labelValue() == 7)
-                    check(currentJobOrNull()!! === scope.job)
+                    check(currentJobOrNone()!! === scope.job)
                     state.cleaned.fetchAdd(1)
                 }
             }

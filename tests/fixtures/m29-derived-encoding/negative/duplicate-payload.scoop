@@ -1,6 +1,6 @@
 enum Item {
     Named(@Serialize(rename = "same") val first: Int, @Serialize(rename = "same") val second: Int)
-    companion object : Encodable<Item>
+    companion object : ValueEncoder<Item>
 }
 
 fun main() {}

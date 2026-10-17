@@ -16,16 +16,16 @@ public class Array<T> : List<T> {
     public override operator fun iterator(): Iterator<T> = ListIterator<T>(this, 0L, false)
 
     public companion object {
-        public fun inspector(element: Inspectable<T>): Inspectable<Array<T>> = ArrayInspector<T>(element)
+        public fun inspector(element: ValueInspector<T>): ValueInspector<Array<T>> = ArrayInspector<T>(element)
 
-        public fun encoder(element: Encodable<T>): Encodable<Array<T>> = ArrayEncoder<T>(element)
+        public fun encoder(element: ValueEncoder<T>): ValueEncoder<Array<T>> = ArrayEncoder<T>(element)
 
-        public fun decoder(element: Decodable<T>): Decodable<Array<T>> = ArrayDecoder<T>(element)
+        public fun decoder(element: ValueDecoder<T>): ValueDecoder<Array<T>> = ArrayDecoder<T>(element)
     }
 }
 
 @Intrinsic("core_mutable_array")
-public class MutableArray<T> : List<T>, Set<Long, T> {
+public class MutableArray<T> : List<T>, IndexSet<Long, T> {
     @Intrinsic("mutable_array_length")
     private fun arrayLength(): Long
 
@@ -47,11 +47,11 @@ public class MutableArray<T> : List<T>, Set<Long, T> {
     public override operator fun iterator(): Iterator<T> = ListIterator<T>(this, 0L, false)
 
     public companion object {
-        public fun inspector(element: Inspectable<T>): Inspectable<MutableArray<T>> = MutableArrayInspector<T>(element)
+        public fun inspector(element: ValueInspector<T>): ValueInspector<MutableArray<T>> = MutableArrayInspector<T>(element)
 
-        public fun encoder(element: Encodable<T>): Encodable<MutableArray<T>> = MutableArrayEncoder<T>(element)
+        public fun encoder(element: ValueEncoder<T>): ValueEncoder<MutableArray<T>> = MutableArrayEncoder<T>(element)
 
-        public fun decoder(element: Decodable<T>): Decodable<MutableArray<T>> =
+        public fun decoder(element: ValueDecoder<T>): ValueDecoder<MutableArray<T>> =
             MutableArrayDecoder<T>(element)
     }
 }

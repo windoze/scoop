@@ -2,7 +2,7 @@ import scoop.json.*
 import scoop.collections.*
 
 struct ExtendedMessage(val message: MessageBody, val extra: LinkedHashMap<String, JsonValue>)
-object ExtendedCodec : Encodable<ExtendedMessage>, Decodable<ExtendedMessage> {
+object ExtendedCodec : ValueEncoder<ExtendedMessage>, ValueDecoder<ExtendedMessage> {
     public override fun encode(value: ExtendedMessage, encoder: Encoder) {
         MessageBody.Companion.encode(value.message, encoder)
         writeObject(value.extra, encoder, JsonValue.Companion)

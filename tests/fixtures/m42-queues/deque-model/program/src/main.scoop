@@ -11,8 +11,8 @@ fun main() {
         else if (step % 7L < 5L) { values.addLast(step); model.add(step) }
         else if (step % 7L == 5L) check(values.removeFirst() == model.removeAt(0L))
         else check(values.removeLast() == model.removeAt(model.size - 1L))
-        check(values.size == model.size && values.firstOrNull() == Some(model[0L]))
-        check(values.lastOrNull() == Some(model[model.size - 1L]))
+        check(values.size == model.size && values.firstOrNone() == Some(model[0L]))
+        check(values.lastOrNone() == Some(model[model.size - 1L]))
         val iterator = values.iterator()
         var index = 0L
         while (index < model.size) { check(iterator.next() == Some(model[index])); index += 1L }

@@ -15,7 +15,7 @@ fn containers_keep_unconstrained_elements_without_implicit_encoding() {
             val g: Option<Int> = Some(7)
             val h: Option<Opaque> = None
             val erased: Any = a
-            if (erased is Encodable<Array<Int>>) {}
+            if (erased is ValueEncoder<Array<Int>>) {}
         }
     "#,
     )
@@ -32,7 +32,7 @@ fn containers_keep_unconstrained_elements_without_implicit_encoding() {
     let encodes = |interfaces: &[hir::concrete::TypeId]| {
         interfaces.iter().any(|ty| {
             matches!(output.local.types[*ty].kind, hir::concrete::TypeKind::Interface(id)
-            if output.local.interfaces[id].name == "Encodable")
+            if output.local.interfaces[id].name == "ValueEncoder")
         })
     };
     let mut checked = 0;
@@ -75,7 +75,7 @@ fn containers_keep_unconstrained_elements_without_implicit_encoding() {
 fn nested_container_codecs_keep_explicit_element_dependencies() {
     lower_with_sysroot(
         r#"
-        fun <T> send(value: Array<Option<T>>, element: Encodable<T>, encoder: Encoder) {
+        fun <T> send(value: Array<Option<T>>, element: ValueEncoder<T>, encoder: Encoder) {
             val options = Option<T>.Companion.encoder(element)
             val codec = Array<Option<T>>.Companion.encoder(options)
             codec.encode(value, encoder)

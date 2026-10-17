@@ -1,4 +1,4 @@
 class Delegate { operator fun getValue(thisRef: Record): Int = 1 }
 class Record { val value: Int by Delegate() }
-object Inspector : Inspectable<Record>
+object Inspector : ValueInspector<Record>
 fun main() {}

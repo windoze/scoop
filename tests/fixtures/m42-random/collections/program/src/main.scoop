@@ -11,7 +11,7 @@ class Stream : Iterable<Int>, Iterator<Int> {
     public override fun next(): Int? {
         if (consumed == 4L) return None
         consumed += 1L
-        return Some(consumed.toInt32())
+        return Some(consumed.toInt())
     }
 }
 class ObservedRandom public constructor(private val stream: Stream) : Random {
@@ -35,7 +35,7 @@ class Choices : Random {
 class Indexed : List<Int> {
     public var reads: Long = 0L
     public override val size: Long get() = 4L
-    public override operator fun get(index: Long): Int { reads += 1L; return index.toInt32() }
+    public override operator fun get(index: Long): Int { reads += 1L; return index.toInt() }
     public override operator fun iterator(): Iterator<Int> { throw IllegalStateException() }
 }
 fun main() {
@@ -46,8 +46,8 @@ fun main() {
     val choices = Choices()
     check(list.random<Int>(choices) == 3 && choices.calls == 2L && list.reads == 1L)
     val empty = emptyList<Int>()
-    check(empty.randomOrNull<Int>(choices) == None && listOf<Int>(7).random<Int>(choices) == 7)
-    check(listOf<Int?>(None).randomOrNull<Int?>(choices) == Some(None) && choices.calls == 2L)
+    check(empty.randomOrNone<Int>(choices) == None && listOf<Int>(7).random<Int>(choices) == 7)
+    check(listOf<Int?>(None).randomOrNone<Int?>(choices) == Some(None) && choices.calls == 2L)
     var failed = false
     try { empty.random<Int>(choices) } catch (error: NoSuchElementException) { failed = true }
     check(failed)

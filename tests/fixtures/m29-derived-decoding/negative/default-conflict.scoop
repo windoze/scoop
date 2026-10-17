@@ -1,8 +1,8 @@
 public struct Item(val value: Int)
-public interface Left : Decodable<Item> {
+public interface Left : ValueDecoder<Item> {
     public override fun decode(decoder: Decoder): Item = Item(Int.Companion.decode(decoder))
 }
-public interface Right : Decodable<Item> {
+public interface Right : ValueDecoder<Item> {
     public override fun decode(decoder: Decoder): Item = Item(Int.Companion.decode(decoder))
 }
 public object Reader : Left, Right
