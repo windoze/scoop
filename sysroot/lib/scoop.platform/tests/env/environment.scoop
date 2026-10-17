@@ -1,7 +1,7 @@
 package scoop.platform.env
 
 import scoop.collections.MutableMap
-import scoop.platform.fs.Files
+import scoop.platform.fs.*
 import scoop.platform.fs.Path
 import scoop.platform.system.OsString
 import scoop.test.*
@@ -29,7 +29,7 @@ private class EnvironmentTest {
 
     @Test
     fun `directory queries use actual cwd and copy configured paths`() {
-        assertEquals(Files.canonicalize(Path.fromString(".")), Files.canonicalize(currentDirectory()))
+        assertEquals(Path.fromString(".").canonicalize(), currentDirectory().canonicalize())
         val configured = environmentVariable("TMPDIR")
         val expected = if (configured != None && configured!!.toByteArray().size != 0L) configured!!
             else OsString.fromString("/tmp")

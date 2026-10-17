@@ -138,19 +138,19 @@ File.size()／position() 和同步 socket 的地址／选项查询访问当前 O
 
 ### 6.2 文件系统操作
 
-`Files` 普通 object 提供 readAllBytes/readText/readTextLossy、writeAllBytes/writeText、copy、move、delete/deleteRecursively、metadata/exists、createDirectory/createDirectories、readSymbolicLink/createSymbolicLink、canonicalize、entries、createTempFile/createTempDirectory。
+`scoop.platform.fs` 提供 Path 扩展 readAllBytes/readText/readTextLossy、writeAllBytes/writeText、copyTo(destination, replaceExisting = false)、moveTo(destination, replaceExisting = false)、delete/deleteRecursively、metadata/exists、createDirectory/createDirectories、readSymbolicLink/createSymbolicLink(target)、canonicalize、entries。接收者是被读取、修改或作为源的 Path；File.open(path, options) 仍负责创建文件句柄。createTempFile/createTempDirectory 是同 package 的顶层工厂。普通 import 即可使用这些入口，不保留 Files 工具 object。
 
-- writeAllBytes/writeText 默认创建或截断，支持显式 append；copy 默认不替换，replaceExisting=true 才允许覆盖。copy 不承诺原子性或复制全部 metadata，不允许把同一 OS 文件作为源与目标后先截断源内容。
-- move 默认不替换，使用 Darwin renamex_np(RENAME_EXCL) 或 Linux renameat2(RENAME_NOREPLACE) 的真实排他操作；replaceExisting=true 使用 rename。跨文件系统与不支持的错误照常报告，不以有竞争的 exists 预检查模拟排他，不暗中 copy+delete。
-- metadata(path, followLinks=true) 返回 FileMetadata。FileKind 区分 Regular、Directory、SymbolicLink、BlockDevice、CharacterDevice、Fifo、Socket、Other；metadata 包含 size、permissions、accessedAt、modifiedAt、changedAt 和可选 createdAt，时间复用 scoop.time.Instant。Darwin 使用 birth time，Linux stat 不提供 birth time 时为 None；不可用时间不以零冒充有效值。
+- writeAllBytes/writeText 默认创建或截断，支持显式 append；copyTo 默认不替换，replaceExisting=true 才允许覆盖。copyTo 不承诺原子性或复制全部 metadata，不允许把同一 OS 文件作为源与目标后先截断源内容。
+- moveTo 默认不替换，使用 Darwin renamex_np(RENAME_EXCL) 或 Linux renameat2(RENAME_NOREPLACE) 的真实排他操作；replaceExisting=true 使用 rename。跨文件系统与不支持的错误照常报告，不以有竞争的 exists 预检查模拟排他，不暗中 copy+delete。
+- Path.metadata(followLinks=true) 返回 FileMetadata。FileKind 区分 Regular、Directory、SymbolicLink、BlockDevice、CharacterDevice、Fifo、Socket、Other；metadata 包含 size、permissions、accessedAt、modifiedAt、changedAt 和可选 createdAt，时间复用 scoop.time.Instant。Darwin 使用 birth time，Linux stat 不提供 birth time 时为 None；不可用时间不以零冒充有效值。
 - exists 仅把 NotFound 和路径组件的 NotDirectory 转为 false，权限与其他 IO 错误继续抛出。查询不消除之后操作的文件系统竞争。
 - createDirectory 默认 mode=0777，受 umask 影响；createDirectories 接受已存在目录，其他类型照常报错。delete 删除单个文件、symlink 或空目录；deleteRecursively 不主动跟随 symlink，调用方须排除并发替换目录树，API 不提供抵抗恶意路径替换的来源审计或安全沙箱。
-- createSymbolicLink(link, target) 保留 target 字节；readSymbolicLink 不解析目标，canonicalize 才解析实际路径与 symlink。所有 Path 都保留原始名称字节；实际文件系统可以拒绝非法编码，库保留该 OS 错误与原始 context，不提前损坏或重新编码路径。
+- Path.createSymbolicLink(target) 保留 target 字节；readSymbolicLink 不解析目标，canonicalize 才解析实际路径与 symlink。所有 Path 都保留原始名称字节；实际文件系统可以拒绝非法编码，库保留该 OS 错误与原始 context，不提前损坏或重新编码路径。
 - createTempFile/createTempDirectory(parent: Path? = None, prefix: String = "scoop-") 使用 OS 排他创建，prefix 不含 NUL 或 `/`。默认 parent 使用系统临时目录查询，失败照常报告；返回实际 Path，不因关闭或 GC 自动删除。临时文件 mode 为 0600，目录为 0700，仍受 umask 约束。
 
 ### 6.3 DirectoryEntries
 
-`DirectoryEntries` 实现 Iterable<DirectoryEntry>、Iterator<DirectoryEntry> 和 Closeable，是共享 native 枚举状态的单遍对象；由 Files.entries(path) 创建。iterator 返回自身，next 返回 Option；跳过点目录，不排序。DirectoryEntry 保存独立 OsString name 与组合后的 Path path，不把 readdir 临时指针交给调用者。
+`DirectoryEntries` 实现 Iterable<DirectoryEntry>、Iterator<DirectoryEntry> 和 Closeable，是共享 native 枚举状态的单遍对象；由 path.entries() 创建。iterator 返回自身，next 返回 Option；跳过点目录，不排序。DirectoryEntry 保存独立 OsString name 与组合后的 Path path，不把 readdir 临时指针交给调用者。
 
 EOF 时自动关闭枚举句柄，之后 next 仍返回 None；提前 close 后再 next 抛 IllegalStateException。提前退出循环或正文失败由 use 清理，for 不自动关闭 iterator。native 枚举和复制名称期间保活 owner；不支持重入／并发枚举或关闭。hook 只兜底 closedir。
 

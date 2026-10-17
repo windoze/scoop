@@ -7,14 +7,14 @@ import scoop.platform.system.OsString
 import scoop.test.*
 
 internal class InteropDirectory : Disposable {
-    val path: Path = Files.createTempDirectory(prefix = "scoop-openssl-peer-")
+    val path: Path = createTempDirectory(prefix = "scoop-openssl-peer-")
     fun child(name: String): Path = path.resolve(Path.fromString(name))
     fun certificates() {
-        Files.writeText(child("root.pem"), rootPem())
-        Files.writeText(child("server.pem"), serverPem() + intermediatePem())
-        Files.writeText(child("server-key.pem"), serverKeyPem())
+        child("root.pem").writeText(rootPem())
+        child("server.pem").writeText(serverPem() + intermediatePem())
+        child("server-key.pem").writeText(serverKeyPem())
     }
-    public override fun dispose() { Files.deleteRecursively(path) }
+    public override fun dispose() { path.deleteRecursively() }
 }
 
 internal fun peerCommand(executable: String, arguments: List<String>, input: Stdio = Stdio.Null): Command = Command(

@@ -1,5 +1,7 @@
 # Scoop 语言规范
 
+公共库命名与使用约定见 [Scoop 库 API 风格](SCOOP-API-STYLE.md)。
+
 本文规定 Scoop 的语法、类型规则、求值行为、核心库接口与 FFI 语义。对象布局和 GC 契约见 [运行时规范](SCOOP-RUNTIME-SPEC.md)，编译阶段与产物契约见 [编译器与产物规范](SCOOP-IMPL-SPEC.md)。
 
 ## 1. 概述

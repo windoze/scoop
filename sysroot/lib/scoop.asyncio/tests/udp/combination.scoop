@@ -43,7 +43,7 @@ private class AsyncUdpCombinationTest {
                 }
                 collecting.join()
             }
-            assertEquals(42.toByte(), Files.readAllBytes(path)[0L])
+            assertEquals(42.toByte(), path.readAllBytes()[0L])
         }
     }
 }

@@ -48,7 +48,7 @@ private class CommandsTest {
             command.spawn().use { child ->
                 val result = child.communicate()
                 exited(result.status)
-                assertEquals("first:x:" + Files.canonicalize(tree.path).decodeUtf8() + "\n", text(result.stdout))
+                assertEquals("first:x:" + tree.path.canonicalize().decodeUtf8() + "\n", text(result.stdout))
             }
         }
     }
@@ -56,7 +56,7 @@ private class CommandsTest {
     @Test
     fun `PATH search uses child environment and resolves relative entries in child cwd`() {
         TestDirectory().use { tree ->
-            Files.createDirectory(tree.child("bin"))
+            tree.child("bin").createDirectory()
             val executable = tree.child("bin/helper")
             File.open(executable, OpenOptions(write = true, createNew = true, mode = 0x1ed)).use {
                 it.writeText("#!/bin/sh\nprintf searched\n")
@@ -72,7 +72,7 @@ private class CommandsTest {
                 exited(result.status)
                 assertEquals("searched", text(result.stdout))
             }
-            Files.writeText(tree.child("bin/blocked"), "not executable")
+            tree.child("bin/blocked").writeText("not executable")
             val error = assertFailsWith<PlatformException> {
                 Command(Path.fromString("blocked"), environment = mapOf((os("PATH"), os("bin:missing"))),
                     workingDirectory = tree.path).spawn(searchPath = true)

@@ -1,6 +1,6 @@
 package scoop.tls
 
-import scoop.platform.fs.Files
+import scoop.platform.fs.*
 import scoop.platform.io.*
 import scoop.platform.memory.NativeByteBuffer
 import scoop.platform.net.*
@@ -42,7 +42,7 @@ private fun pythonServer(version: TlsVersion, dns: Boolean) {
                 }
             }
             peerSucceeded(child.communicate())
-            assertEquals(if (dns) "localhost" else "none", Files.readText(tree.child("sni")))
+            assertEquals(if (dns) "localhost" else "none", tree.child("sni").readText())
         } finally { child.kill(); child.wait(); child.dispose() }
     }
 }

@@ -40,7 +40,7 @@ private class AsyncFileTransferTest {
                     }
                 }
             }
-            assertEquals(4L, Files.metadata(path).size)
+            assertEquals(4L, path.metadata().size)
         }
     }
 
@@ -48,7 +48,7 @@ private class AsyncFileTransferTest {
     fun `file copying composes with DNS TCP and concurrent network reads`() {
         IoTestDirectory().use { tree ->
             val path = tree.child("source")
-            Files.writeText(path, "ordinary asynchronous I/O")
+            path.writeText("ordinary asynchronous I/O")
             val loop: EventLoop = LibuvEventLoop()
             loop.run suspend { scope ->
                 val listener = loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
@@ -85,7 +85,7 @@ private class AsyncFileTransferTest {
                     assertTrue(error.nativeError!!.domain == NativeErrorDomain.PosixErrno)
                     assertEquals(path.toOsString(), error.context!!)
                 }
-                Files.writeText(path, "x")
+                path.writeText("x")
                 try { loop.openFile(path, OpenOptions(write = true, createNew = true)); fail(Some("createNew replaced file")) }
                 catch (error: PlatformException) { assertTrue(error.kind == PlatformErrorKind.AlreadyExists) }
                 loop.openFile(path).useAsync suspend { file ->

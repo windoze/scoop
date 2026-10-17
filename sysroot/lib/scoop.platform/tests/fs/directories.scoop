@@ -10,12 +10,12 @@ private class DirectoriesTest {
     fun `directory creation and single pass iteration handle EOF and early close`() {
         TestDirectory().use { tree ->
             val nested = tree.child("a/b/c")
-            Files.createDirectories(nested)
-            Files.createDirectories(nested)
-            Files.writeText(nested.resolve(Path.fromString("one")), "1")
-            Files.writeText(nested.resolve(Path.fromString("two")), "2")
+            nested.createDirectories()
+            nested.createDirectories()
+            nested.resolve(Path.fromString("one")).writeText("1")
+            nested.resolve(Path.fromString("two")).writeText("2")
             val seen = ArrayList<String>()
-            Files.entries(nested).use { entries ->
+            nested.entries().use { entries ->
                 assertSame(entries, entries.iterator())
                 for (entry in entries) seen.add(entry.name.decodeUtf8())
                 assertEquals(2L, seen.size)
@@ -23,15 +23,15 @@ private class DirectoriesTest {
                 assertTrue(entries.next() == None)
                 assertTrue(seen[0L] != seen[1L])
             }
-            val early = Files.entries(nested)
-            early.use { entries -> for (entry in entries) { assertTrue(Files.exists(entry.path)); break } }
+            val early = nested.entries()
+            early.use { entries -> for (entry in entries) { assertTrue(entry.path.exists()); break } }
             assertTrue(early.isClosed)
             assertFailsWith<IllegalStateException> { early.next() }
-            val failed = Files.entries(nested)
+            val failed = nested.entries()
             val failure = Throwable()
             assertSame(failure, assertFailsWith<Throwable> { failed.use { throw failure } })
             assertTrue(failed.isClosed)
-            assertFailsWith<PlatformException> { Files.delete(nested) }
+            assertFailsWith<PlatformException> { nested.delete() }
         }
     }
 
@@ -39,47 +39,47 @@ private class DirectoriesTest {
     fun `links retain target bytes and recursive deletion does not follow them`() {
         TestDirectory().use { tree ->
             val outside = tree.child("outside")
-            Files.createDirectory(outside)
-            Files.writeText(outside.resolve(Path.fromString("keep")), "kept")
+            outside.createDirectory()
+            outside.resolve(Path.fromString("keep")).writeText("kept")
             val inside = tree.child("inside")
-            Files.createDirectory(inside)
+            inside.createDirectory()
             val link = inside.resolve(Path.fromString("link"))
             val relative = Path.fromString("../outside")
-            Files.createSymbolicLink(link, relative)
-            assertEquals(relative, Files.readSymbolicLink(link))
-            assertTrue(Files.metadata(link, followLinks = false).kind == FileKind.SymbolicLink)
-            assertTrue(Files.metadata(link).kind == FileKind.Directory)
-            assertEquals(Files.canonicalize(outside), Files.canonicalize(link))
-            Files.deleteRecursively(inside)
-            assertEquals("kept", Files.readText(outside.resolve(Path.fromString("keep"))))
+            link.createSymbolicLink(relative)
+            assertEquals(relative, link.readSymbolicLink())
+            assertTrue(link.metadata(followLinks = false).kind == FileKind.SymbolicLink)
+            assertTrue(link.metadata().kind == FileKind.Directory)
+            assertEquals(outside.canonicalize(), link.canonicalize())
+            inside.deleteRecursively()
+            assertEquals("kept", outside.resolve(Path.fromString("keep")).readText())
             val dangling = tree.child("dangling")
-            Files.createSymbolicLink(dangling, Path.fromString("absent"))
-            assertFalse(Files.exists(dangling))
-            assertTrue(Files.exists(dangling, followLinks = false))
-            Files.delete(dangling)
+            dangling.createSymbolicLink(Path.fromString("absent"))
+            assertFalse(dangling.exists())
+            assertTrue(dangling.exists(followLinks = false))
+            dangling.delete()
             val longName = StringBuilder()
             var index = 0
             while (index < 100) { longName.append("part/"); index += 1 }
             val target = Path.fromString(longName.toString())
-            Files.createSymbolicLink(dangling, target)
-            assertEquals(target, Files.readSymbolicLink(dangling))
+            dangling.createSymbolicLink(target)
+            assertEquals(target, dangling.readSymbolicLink())
         }
     }
 
     @Test
     fun `temporary paths are exclusive and require explicit deletion`() {
         TestDirectory().use { tree ->
-            val first = Files.createTempFile(Some(tree.path), "file-")
-            val second = Files.createTempFile(Some(tree.path), "file-")
-            val directory = Files.createTempDirectory(Some(tree.path), "dir-")
+            val first = createTempFile(Some(tree.path), "file-")
+            val second = createTempFile(Some(tree.path), "file-")
+            val directory = createTempDirectory(Some(tree.path), "dir-")
             assertFalse(first == second)
-            assertTrue(Files.metadata(first).kind == FileKind.Regular)
-            assertTrue(Files.metadata(directory).kind == FileKind.Directory)
-            assertEquals(0L, Files.metadata(first).size)
+            assertTrue(first.metadata().kind == FileKind.Regular)
+            assertTrue(directory.metadata().kind == FileKind.Directory)
+            assertEquals(0L, first.metadata().size)
             File.open(first).use { assertFalse(it.isClosed) }
-            assertTrue(Files.exists(first))
-            assertFailsWith<IllegalArgumentException> { Files.createTempFile(Some(tree.path), "bad/name") }
-            assertFailsWith<IllegalArgumentException> { Files.createTempDirectory(Some(tree.path), "bad\u0000") }
+            assertTrue(first.exists())
+            assertFailsWith<IllegalArgumentException> { createTempFile(Some(tree.path), "bad/name") }
+            assertFailsWith<IllegalArgumentException> { createTempDirectory(Some(tree.path), "bad\u0000") }
         }
     }
 }

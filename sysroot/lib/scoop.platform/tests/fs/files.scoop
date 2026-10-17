@@ -36,7 +36,7 @@ private class FilesTest {
                 file.seek(0L)
                 assertEquals(1L, file.writeFrom(Array<Byte>(1L) { 9.toByte() }))
             }
-            val result = Files.readAllBytes(path)
+            val result = path.readAllBytes()
             assertEquals(3L, result.size)
             assertEquals(1.toByte(), result[0L])
             assertEquals(9.toByte(), result[2L])
@@ -47,7 +47,7 @@ private class FilesTest {
     fun `duplicates share file position and close independently`() {
         TestDirectory().use { tree ->
             val path = tree.child("shared")
-            Files.writeText(path, "abc")
+            path.writeText("abc")
             val original = File.open(path)
             val duplicate = original.duplicate()
             NativeByteBuffer.allocate(1L).use { buffer ->
@@ -73,7 +73,7 @@ private class FilesTest {
     fun `overlapping file operations permit reads and reject reentrant close`() {
         TestDirectory().use { tree ->
             val path = tree.child("overlapping")
-            Files.writeText(path, "abc")
+            path.writeText("abc")
             File.open(path).use { file ->
                 file.withDescriptor { fd ->
                     assertEquals(3L, file.size())
@@ -97,14 +97,14 @@ private class FilesTest {
             assertTrue(failure.kind == PlatformErrorKind.NotFound)
             assertEquals(path.toOsString(), failure.context!!)
             assertTrue(failure.nativeError != None)
-            Files.writeText(path, "x")
+            path.writeText("x")
             assertFailsWith<PlatformException> { File.open(path, OpenOptions(write = true, createNew = true)) }
             File.open(path).use { file ->
                 assertFailsWith<IllegalArgumentException> { file.seek(-1L) }
                 assertFailsWith<IllegalArgumentException> { file.truncate(-1L) }
                 assertEquals(0L, file.position())
             }
-            assertFalse(Files.exists(path.resolve(Path.fromString("child"))))
+            assertFalse(path.resolve(Path.fromString("child")).exists())
         }
     }
 
@@ -113,19 +113,19 @@ private class FilesTest {
         TestDirectory().use { tree ->
             val source = tree.child("source")
             val target = tree.child("target")
-            Files.writeText(source, "hello")
-            assertEquals(5L, Files.copy(source, target))
-            assertEquals("hello", Files.readText(target))
-            assertTrue(assertFailsWith<PlatformException> { Files.copy(source, target) }.kind == PlatformErrorKind.AlreadyExists)
-            assertFailsWith<IllegalArgumentException> { Files.copy(source, source, replaceExisting = true) }
-            assertEquals("hello", Files.readText(source))
-            Files.writeText(source, "new")
-            assertEquals(3L, Files.copy(source, target, replaceExisting = true))
-            assertTrue(assertFailsWith<PlatformException> { Files.move(source, target) }.kind == PlatformErrorKind.AlreadyExists)
-            assertTrue(Files.exists(source))
-            Files.move(source, target, replaceExisting = true)
-            assertFalse(Files.exists(source))
-            assertEquals("new", Files.readText(target))
+            source.writeText("hello")
+            assertEquals(5L, source.copyTo(target))
+            assertEquals("hello", target.readText())
+            assertTrue(assertFailsWith<PlatformException> { source.copyTo(target) }.kind == PlatformErrorKind.AlreadyExists)
+            assertFailsWith<IllegalArgumentException> { source.copyTo(source, replaceExisting = true) }
+            assertEquals("hello", source.readText())
+            source.writeText("new")
+            assertEquals(3L, source.copyTo(target, replaceExisting = true))
+            assertTrue(assertFailsWith<PlatformException> { source.moveTo(target) }.kind == PlatformErrorKind.AlreadyExists)
+            assertTrue(source.exists())
+            source.moveTo(target, replaceExisting = true)
+            assertFalse(source.exists())
+            assertEquals("new", target.readText())
         }
     }
 
@@ -134,13 +134,13 @@ private class FilesTest {
         TestDirectory().use { tree ->
             val name = Path.fromString("名字")
             val path = tree.path.resolve(name)
-            Files.writeText(path, "中")
-            Files.writeText(path, "😀", append = true)
-            assertEquals("中😀", Files.readText(path))
-            Files.writeAllBytes(path, Array<Byte>(1L) { -1.toByte() })
-            assertFailsWith<CharacterCodingException> { Files.readText(path) }
-            assertEquals("�", Files.readTextLossy(path))
-            Files.entries(tree.path).use { entries -> assertEquals(name.toOsString(), entries.next()!!.name) }
+            path.writeText("中")
+            path.writeText("😀", append = true)
+            assertEquals("中😀", path.readText())
+            path.writeAllBytes(Array<Byte>(1L) { -1.toByte() })
+            assertFailsWith<CharacterCodingException> { path.readText() }
+            assertEquals("�", path.readTextLossy())
+            tree.path.entries().use { entries -> assertEquals(name.toOsString(), entries.next()!!.name) }
         }
     }
 }

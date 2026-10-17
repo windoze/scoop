@@ -6,7 +6,7 @@ import scoop.platform.net.*
 import scoop.platform.process.*
 
 fun transferApplication() {
-    val directory = Files.createTempDirectory(prefix = "scoop-transfer-")
+    val directory = createTempDirectory(prefix = "scoop-transfer-")
     try {
         val input = directory.resolve(Path.fromString("input bytes"))
         val output = directory.resolve(Path.fromString("received bytes"))
@@ -46,11 +46,11 @@ fun transferApplication() {
                 }
             }
         }
-        val received = Files.readAllBytes(output)
+        val received = output.readAllBytes()
         if (received.size != bytes.size) throw IllegalStateException()
         for (index in 0L..<bytes.size) {
             if (received[index] != bytes[index]) throw IllegalStateException()
         }
-    } finally { Files.deleteRecursively(directory) }
+    } finally { directory.deleteRecursively() }
     println("platform transfers passed")
 }

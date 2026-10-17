@@ -12,7 +12,7 @@ private class AsyncFileQueuedWorkTest {
         IoTestDirectory().use { tree ->
             val existing = tree.child("existing")
             val missing = tree.child("not-created")
-            Files.writeText(existing, "data")
+            existing.writeText("data")
             val backend = LibuvEventLoop()
             val loop: EventLoop = backend
             loop.run suspend { scope ->
@@ -32,7 +32,7 @@ private class AsyncFileQueuedWorkTest {
                     val opening = scope.launch suspend { loop.openFile(missing, OpenOptions(write = true, createNew = true)) }
                     backend.state.post { opening.cancel() }
                     opening.join()
-                    assertFalse(Files.exists(missing))
+                    assertFalse(missing.exists())
                     val resolving = scope.launch suspend { loop.resolve(OsString.fromString("127.0.0.1"), 42) }
                     backend.state.post { resolving.cancel() }
                     resolving.join()

@@ -31,7 +31,7 @@ fun main() {
         }
     })
     println(buffer.isClosed)
-    val directory = Files.createTempDirectory(prefix = "scoop-artifact-")
+    val directory = createTempDirectory(prefix = "scoop-artifact-")
     try {
         val file = directory.resolve(Path.fromString("text"))
         BufferedSink.takeOwnership(File.open(file, OpenOptions(write = true, createNew = true))).use {
@@ -41,7 +41,7 @@ fun main() {
             if (it.readLine()!! != "artifact 中" || it.readLine() != None) throw IllegalStateException()
             Unit
         }
-    } finally { Files.deleteRecursively(directory) }
+    } finally { directory.deleteRecursively() }
     if (arguments().size == 0L || logicalProcessorCount <= 0L) throw IllegalStateException()
     if (SystemRandom.nextBytes(32L).size != 32L) throw IllegalStateException()
     if (SystemClock.now().nanosecondsOfSecond < 0) throw IllegalStateException()

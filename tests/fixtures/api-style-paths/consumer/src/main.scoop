@@ -1,0 +1,45 @@
+import scoop.platform.fs.*
+
+private fun check(value: Boolean) { if (!value) throw IllegalStateException() }
+
+fun main() {
+    val directory = createTempDirectory(prefix = "scoop-api-style-")
+    try {
+        val source = directory.resolve(Path.fromString("source.txt"))
+        source.writeText("hello")
+        source.writeAllBytes("!".toByteArray(), append = true)
+        check(source.readText() == "hello!" && source.metadata().size == 6L)
+        val copy = directory.resolve(Path.fromString("copy.txt"))
+        check(source.copyTo(destination = copy) == 6L)
+        val moved = directory.resolve(Path.fromString("moved.txt"))
+        copy.moveTo(destination = moved)
+        check(!copy.exists() && moved.readText() == "hello!")
+        val link = directory.resolve(Path.fromString("link.txt"))
+        link.createSymbolicLink(target = moved)
+        check(link.readSymbolicLink() == moved && link.canonicalize() == moved.canonicalize())
+        check(link.readText() == "hello!" && link.metadata(followLinks = false).kind == FileKind.SymbolicLink)
+        val file = File.open(source)
+        file.use {
+            check(it.size() == 6L && it.position() == 0L)
+            it.seek(position = 2L)
+            check(it.position() == 2L)
+        }
+        check(file.isClosed)
+        val count = directory.entries().use { entries ->
+            var count = 0L
+            for (entry in entries) { check(entry.path.exists()); count += 1L }
+            count
+        }
+        check(count == 3L)
+        link.delete()
+        check(!link.exists(followLinks = false))
+        val nested = directory.resolve(Path.fromString("one/two"))
+        nested.createDirectories()
+        check(nested.metadata().kind == FileKind.Directory)
+        val temporary = createTempFile(parent = Some(nested), prefix = "child-")
+        temporary.writeText("temporary")
+        check(temporary.readTextLossy() == "temporary")
+    } finally { directory.deleteRecursively() }
+    check(!directory.exists())
+    println("path operations and file queries passed")
+}
