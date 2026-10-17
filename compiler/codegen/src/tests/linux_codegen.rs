@@ -35,7 +35,7 @@ fn for_target(mut module: Module, target: scoop_lir::TargetProfileId) -> Module 
 }
 
 fn emit(module: &Module, optimization: OptimizationLevel, separate_sections: bool, path: &Path) {
-    let profile = ValidatedBackendProfile::from_selection(
+    let profile = ValidatedBackendProfile::for_selection(
         scoop_target_data::selection(module.meta.target_profile.id())
             .expect("implemented target selected by this consumer"),
     )
@@ -106,7 +106,7 @@ fn linux_amd64_requires_noredzone_on_rewritten_functions() {
         moving_gc::qualification::stackmap_qualification_module(),
         scoop_target_data::LINUX_X86_64_GNU_ID,
     );
-    let profile = ValidatedBackendProfile::from_selection(
+    let profile = ValidatedBackendProfile::for_selection(
         scoop_target_data::selection(module.meta.target_profile.id())
             .expect("implemented target selected by this consumer"),
     )

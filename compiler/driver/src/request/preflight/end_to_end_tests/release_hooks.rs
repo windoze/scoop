@@ -9,9 +9,11 @@ fn actual_release_hooks_keep_raw_nounwind_machine_bodies() {
     let target = resolved_target().expect("release machine checks require a target");
     let sysroot = tempfile::tempdir().unwrap();
     bootstrap_core(sysroot.path(), &target);
-    let profile =
-        scoop_codegen::ValidatedBackendProfile::from_selection(target.lir_target_selection())
-            .unwrap();
+    let profile = scoop_codegen::ValidatedBackendProfile::from_selection(
+        target.lir_target_selection(),
+        target.c_bridge_toolchain().profile().contract(),
+    )
+    .unwrap();
     for case in [
         "standalone",
         "native-storage",

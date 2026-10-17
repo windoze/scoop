@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOP_RUNTIME_BUILD",
+    "message": "runtime requires macOS 27.0.1, but the selected deployment is 27.0.0",
+    "notes": [],
+    "origin": {
+      "kind": "host",
+      "path": "${sysroot}/lib/${target}/runtime/index.cbor",
+      "start": null,
+      "end": null
+    },
+    "phase": "RuntimeBuild",
+    "severity": "error"
+  }
+]

@@ -9,7 +9,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 mod child_protocol;
 
 #[derive(Parser)]
-#[command(name = "scoopc", version, about = "The Scoop compiler")]
+#[command(name = "scoopc", version = scoop_toolchain::VERSION, about = "The Scoop compiler")]
 struct Cli {
     #[command(subcommand)]
     command: Command,

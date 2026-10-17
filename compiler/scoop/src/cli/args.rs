@@ -10,7 +10,7 @@ mod tests;
 #[derive(Parser)]
 #[command(
     name = "scoop",
-    version,
+    version = scoop_toolchain::VERSION,
     about = "Build, test, run, and link Scoop programs"
 )]
 pub(super) struct Cli {

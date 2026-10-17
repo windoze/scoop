@@ -40,6 +40,10 @@ class EnvironmentTests(unittest.TestCase):
         repo = Path(directory) / "repo"
         work = Path(directory) / "work"
         (repo / "sysroot").mkdir(parents=True)
+        (repo / "scripts").mkdir()
+        (repo / "scripts/release.toml").write_text(
+            '[targets.aarch64-apple-darwin]\nminimum_os = "15.4"\n'
+        )
         work.mkdir()
         return repo, work
 
@@ -123,9 +127,8 @@ class EnvironmentTests(unittest.TestCase):
             repo, work = self.prepare(directory)
             with (
                 patch("fixture_runner.cli.shutil.which", return_value="/opt/llvm/bin/llc"),
-                patch(
-                    "fixture_runner.cli.tool_output", side_effect=["LLVM version 22.1.8", "15.4"]
-                ),
+                patch("fixture_runner.cli.tool_output", return_value="LLVM version 22.1.8"),
+                patch.dict("os.environ", {}, clear=True),
             ):
                 common = environment(
                     repo,

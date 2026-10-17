@@ -56,7 +56,7 @@ fn interface_parts_call_invoke_and_relocation_survive_target_codegen() {
     ] {
         for mode in [OptimizationMode::Debug, OptimizationMode::Release] {
             for source in [source, selected.as_str()] {
-                let profile = ValidatedBackendProfile::from_selection(
+                let profile = ValidatedBackendProfile::for_selection(
                     scoop_target_data::selection(target)
                         .expect("implemented target selected by this consumer"),
                 )

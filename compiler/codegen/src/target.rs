@@ -13,6 +13,7 @@ use scoop_lir::{BackendProfile, LirTargetProfile, ValidatedLirTargetSelection};
 
 use crate::CodegenError;
 
+mod deployment;
 mod machine;
 mod qualification;
 
@@ -137,6 +138,7 @@ impl ManagedAddressSpace {
 pub struct ValidatedBackendProfile {
     lir_target_selection: ValidatedLirTargetSelection,
     canonical_triple: &'static str,
+    deployment: deployment::ObjectDeployment,
     cpu: &'static str,
     features: &'static str,
     optimization: scoop_lir::OptimizationMode,
@@ -159,6 +161,7 @@ impl ValidatedBackendProfile {
         canonical_triple: scoop_target_data::DARWIN_AARCH64
             .contract()
             .canonical_triple(),
+        deployment: deployment::ObjectDeployment::DARWIN_TEST,
         cpu: scoop_target_data::LLVM_22_1.contract().cpu,
         features: scoop_target_data::LLVM_22_1.contract().features,
         optimization: scoop_lir::OptimizationMode::Debug,
@@ -175,7 +178,29 @@ impl ValidatedBackendProfile {
         tail_calls: TailCallPolicy::Disabled,
     };
 
-    pub fn from_selection(selection: ValidatedLirTargetSelection) -> Result<Self, CodegenError> {
+    pub fn from_selection(
+        selection: ValidatedLirTargetSelection,
+        native: &scoop_lir::CBridgeToolchainContractV1,
+    ) -> Result<Self, CodegenError> {
+        let deployment = deployment::ObjectDeployment::from_contract(selection, native)?;
+        Self::select(selection, deployment)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn for_selection(
+        selection: ValidatedLirTargetSelection,
+    ) -> Result<Self, CodegenError> {
+        let deployment = match selection.target().native_object_format() {
+            scoop_lir::NativeObjectFormat::MachO64 => deployment::ObjectDeployment::DARWIN_TEST,
+            scoop_lir::NativeObjectFormat::Elf64 => deployment::ObjectDeployment::Linux,
+        };
+        Self::select(selection, deployment)
+    }
+
+    fn select(
+        selection: ValidatedLirTargetSelection,
+        deployment: deployment::ObjectDeployment,
+    ) -> Result<Self, CodegenError> {
         if Some(selection) != scoop_target_data::selection(selection.target().id()) {
             return Err(CodegenError(format!(
                 "unsupported target/backend contract for `{}`",
@@ -184,10 +209,14 @@ impl ValidatedBackendProfile {
         }
         validate_linked_llvm()?;
         Ok(match selection.target().id() {
-            scoop_target_data::DARWIN_AARCH64_ID => Self::DARWIN_AARCH64,
+            scoop_target_data::DARWIN_AARCH64_ID => Self {
+                deployment,
+                ..Self::DARWIN_AARCH64
+            },
             scoop_target_data::LINUX_X86_64_GNU_ID | scoop_target_data::LINUX_X86_64_MUSL_ID => {
                 Self {
                     lir_target_selection: selection,
+                    deployment,
                     canonical_triple: selection.target().contract().canonical_triple(),
                     cpu: selection.backend().contract().cpu,
                     features: selection.backend().contract().features,
@@ -334,7 +363,7 @@ impl ValidatedBackendProfile {
     ) -> Result<TargetMachine, CodegenError> {
         machine::initialize_options();
         self.llvm_target_backend.initialize();
-        let triple = TargetTriple::create(self.canonical_triple);
+        let triple = TargetTriple::create(&self.deployment.triple(self.canonical_triple));
         let target = Target::from_triple(&triple).map_err(|error| {
             CodegenError(format!("no target for {}: {error}", self.canonical_triple))
         })?;

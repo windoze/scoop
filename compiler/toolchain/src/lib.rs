@@ -6,6 +6,9 @@
 
 use std::fmt;
 
+pub const VERSION: &str = env!("SCOOP_BUILD_VERSION");
+pub const DARWIN_DEPLOYMENT_BASELINE: &str = env!("SCOOP_MACOS_BASELINE");
+
 mod c_bridge;
 mod c_bridge_invocation;
 pub use c_bridge_invocation::{

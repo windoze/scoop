@@ -9,7 +9,7 @@ use super::{MAXIMUM_COMPILER_BUILD_LENGTH, encode_array, encode_unsigned_field};
 pub struct DarwinPackedVersionV1(u32);
 
 impl DarwinPackedVersionV1 {
-    pub fn new(packed: u32) -> Result<Self, DarwinPackedVersionError> {
+    pub const fn new(packed: u32) -> Result<Self, DarwinPackedVersionError> {
         if packed == 0 {
             return Err(DarwinPackedVersionError::Zero);
         }

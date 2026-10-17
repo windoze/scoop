@@ -18,5 +18,8 @@ serde_json.workspace = true
 fs4.workspace = true
 serde_yaml_ng.workspace = true
 
+[build-dependencies]
+toml.workspace = true
+
 [dev-dependencies]
 scoop-identity.workspace = true

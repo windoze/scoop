@@ -7,6 +7,7 @@ use scoop_linker::ArtifactLinkRequest;
 #[derive(Parser)]
 #[command(
     name = "scoop-link",
+    version = scoop_toolchain::VERSION,
     about = "Link Scoop artifacts into a native executable"
 )]
 struct Cli {

@@ -4,7 +4,11 @@ pub(super) fn resolved_target() -> Option<scoop_toolchain::ResolvedTargetProfile
     // The target resolver owns host Apple-toolchain qualification. A machine
     // blocked by the Xcode license gate cannot enter object production.
     let target = scoop_toolchain::ResolvedTargetProfile::resolve_host().ok()?;
-    scoop_codegen::ValidatedBackendProfile::from_selection(target.lir_target_selection()).ok()?;
+    scoop_codegen::ValidatedBackendProfile::from_selection(
+        target.lir_target_selection(),
+        target.c_bridge_toolchain().profile().contract(),
+    )
+    .ok()?;
     Some(target)
 }
 

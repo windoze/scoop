@@ -18,6 +18,8 @@ Linux 的链接参数包含仓库 `sysroot/lib/<target>/unwind`，供普通程�
 显式 `--cc` 也传给 Linux Scoop 工具；用例保留其实际源码、sysroot 和工具。
 native companion 用 `{each = "${cc_args}"}` 传平台编译参数：Darwin 为实际 target、
 SDK 和 deployment，Linux 为 PIC/pthread；源码自己的标准、优化和告警参数保留。
+Darwin deployment 采用 `MACOSX_DEPLOYMENT_TARGET` 或 `scripts/release.toml` 的明确基线，
+与开发工具保持一致，不读取宿主系统版本。
 `${target_profile}` 是内部 target profile 名称，core artifact 目录使用 canonical `${target}`；`${symbol_prefix}` 是 C/编译器逻辑名字
 在对象符号表中的平台前缀；`${errno_eloop}` 是宿主文件系统的符号链接循环错误码。
 结构／ABI／原生链接专测确有平台差异时，用 `${target}` 选择独立快照；

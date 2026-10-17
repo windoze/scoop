@@ -53,3 +53,9 @@
 - 已声明的 native 库依次使用显式搜索根、目标 sysroot 及其 OpenSSL 目录、系统 provider；所选层的歧义或无效输入直接诊断。Darwin 动态依赖和 Linux ELF 闭包沿用相同优先级，默认路径只作为本机定位信息。
 - 最终工具缓存切换为 `final-tools-v2`，键包含实际选择的 sysroot 搜索根；命中继续直接复用。
 - 本机 Rust 格式化、相关 crate lint、Python Ruff 及三个 release 命令构建通过。正式 CLI 7 组、10 个变体通过，覆盖默认静态库、OpenSSL、显式覆盖、真实 archive 更新后仅重链、坏候选诊断、动态依赖、预编译 crypto／TLS 的 debug／release 与 moving GC。旧缓存目录 glob 和动态库真实路径预期已更新并定向复验。
+
+## 部署配置与工具版本
+
+- `scripts/release.toml` 固定 LLVM 22.1.8、CPU 与实际系统构建基线。Darwin 默认最低版本在构建时写入工具，`MACOSX_DEPLOYMENT_TARGET` 可显式覆盖；不再通过 `sw_vers` 选择。codegen 显式接收已选 native 部署合同，LLVM、generated-C、native、runtime 和最终链接使用相同最低版本。
+- OpenSSL 准备采用同一 Darwin 配置或 Linux x86-64 CPU 参数；目标资源将随本期最终 sysroot 准备统一更新。三个命令的版本输出统一包含发行版本与源码 revision，不在运行时读取 Git 或打包清单。
+- 本机 Rust 格式化、相关 crate 与脚本辅助程序 lint、Python Ruff、三个 release 命令构建通过。工具链单测 32 项、codegen 定向测试 6 项、fixture runner 规则 50 项通过；正式 CLI 6 组、7 个变体通过，覆盖实际对象部署记录、配置更新／命中、非法版本、过低版本消费 runtime、版本输出及既有缓存组合。新增用例的两处 Scoop 语法及 JSON 空值表示已修正并复验。

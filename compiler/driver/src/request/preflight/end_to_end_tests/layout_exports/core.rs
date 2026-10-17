@@ -262,8 +262,11 @@ fn check_core_layout_exports(names: &[&str]) {
             &lir,
             production,
             directory.path(),
-            scoop_codegen::ValidatedBackendProfile::from_selection(target.lir_target_selection())
-                .unwrap(),
+            scoop_codegen::ValidatedBackendProfile::from_selection(
+                target.lir_target_selection(),
+                target.c_bridge_toolchain().profile().contract(),
+            )
+            .unwrap(),
         )
         .unwrap();
         assert!(!objects.members().is_empty());

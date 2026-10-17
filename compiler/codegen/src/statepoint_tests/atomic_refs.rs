@@ -86,7 +86,7 @@ fn atomic_managed_references_survive_rewrite_and_target_codegen() {
         scoop_target_data::LINUX_X86_64_MUSL_ID,
     ] {
         for mode in [OptimizationMode::Debug, OptimizationMode::Release] {
-            let profile = ValidatedBackendProfile::from_selection(
+            let profile = ValidatedBackendProfile::for_selection(
                 scoop_target_data::selection(target)
                     .expect("implemented target selected by this consumer"),
             )

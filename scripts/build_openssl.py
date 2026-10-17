@@ -7,6 +7,7 @@ import os
 import platform
 import subprocess
 import tarfile
+import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -51,9 +52,13 @@ def main():
     build = (args.build_dir or ROOT / "tmp/openssl" / args.target).resolve()
     prefix = (args.prefix or ROOT / "sysroot/lib" / args.target / "openssl").resolve()
     cc = args.cc or default_cc
+    release = tomllib.loads((ROOT / "scripts/release.toml").read_text())
     flags = ["-fPIC"]
     if host == "Darwin":
-        flags.append("-mmacosx-version-min=13.0")
+        baseline = release["targets"][args.target]["minimum_os"]
+        flags.append("-mmacosx-version-min=" + os.environ.get("MACOSX_DEPLOYMENT_TARGET", baseline))
+    else:
+        flags.append("-march=" + release["targets"][args.target]["cpu"])
     inputs = {
         "archive": metadata(archive),
         "script": metadata(Path(__file__).resolve()),
@@ -103,7 +108,7 @@ def main():
     subprocess.run(["make", "install_dev"], cwd=objects, env=environment, check=True)
     record.write_text(json.dumps(inputs, indent=2) + "\n")
     print(f"Installed {args.target} OpenSSL {VERSION}: {prefix}")
-    print(f"Scoop link option: --library-path {prefix / 'lib'}")
+    print(f"Default Scoop library directory: {prefix / 'lib'}")
 
 
 if __name__ == "__main__":

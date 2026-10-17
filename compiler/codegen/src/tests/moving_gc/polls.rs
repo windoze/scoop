@@ -32,7 +32,7 @@ fn conditional_polls_materialize_roots_only_on_the_slow_edge() {
             scoop_target_data::layout(target)
                 .expect("implemented target selected by this consumer"),
         );
-        let profile = ValidatedBackendProfile::from_selection(
+        let profile = ValidatedBackendProfile::for_selection(
             scoop_target_data::selection(target)
                 .expect("implemented target selected by this consumer"),
         )

@@ -228,6 +228,7 @@ fn emit(
 ) -> scoop_codegen::EmittedConeObjectSetV2 {
     let profile = scoop_codegen::ValidatedBackendProfile::from_selection(
         provider.target.lir_target_selection(),
+        provider.target.c_bridge_toolchain().profile().contract(),
     )
     .unwrap();
     let dependencies = [provider.layout.provider()];
