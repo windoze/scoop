@@ -651,12 +651,12 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 目标条件 native include 和短路右侧检查在所属层独立实现或修复；使用现有 FFI、buffer、Job 和关闭合同，不增加 runtime 专属入口。
 - 三目标 debug／release／moving GC 均通过 42 项库测试与 7 项生产产物消费者测试；Linux Rust 4,956 项及 2 项 doctest、GNU 完整 CLI 4,164 项、musl 相关 CLI 149 项通过。
 
-### M52 工具链分发与预编译 sysroot（设计完成，待实施，[设计](milestone52/DESIGN.md)）
+### M52 工具链分发与预编译 sysroot（实施中，[设计](milestone52/DESIGN.md)）
 
 - 统一安装目录与仓库 sysroot 布局：宿主工具放 bin，内置 Cone 源码迁到 src，libuv／OpenSSL／Ryu／LLVM 等第三方源码集中到 vendor；三个现有目标的 `.slib`、runtime、OpenSSL 和 Linux unwind 资源放入 `lib/<canonical-target-triple>`，公开 C 头独立交付。
-- 普通 build／run／test／link 默认消费预编译目标资源，空缓存首次使用也不重建内置 Cone／runtime；增加显式 sysroot 构建入口，复用普通 Cone 图、runtime 编排和 M48 缓存。
+- 普通 build／run／test／link 默认消费预编译目标资源，空缓存首次使用也不重建内置 Cone／runtime；仓库准备脚本复用普通 Cone 构建、runtime 编译库和 M48 缓存，`scoop` 命令与 driver 不承担发行准备或打包编排。
 - 随包提供受控 LLVM 22.1 宿主依赖，保留明确的平台 C 开发环境要求；M47 延后，不作为本期前置。支持安装位置搬迁，收敛 runtime 索引路径和实际 ABI／部署兼容条件。
-- 提供打包脚本，生成 Darwin/AArch64、Linux/GNU amd64 两类宿主包，覆盖 Darwin、GNU、musl 三目标；打包流程只供手工测试和发布，不作为常规验证步骤，也不接入常规 CI、workspace 测试或 fixture runner。常规功能回归使用开发 sysroot，最终归档的解压、搬迁和运行按需手工验证。保留源码和工具，不恢复 M48／M50 已退役的验证机制，原始验收资料放仓库外。本次仅交付设计。
+- 提供打包脚本，生成 Darwin/AArch64、Linux/GNU amd64 两类宿主包，覆盖 Darwin、GNU、musl 三目标；打包流程只供手工测试和发布，不作为常规验证步骤，也不接入常规 CI、workspace 测试或 fixture runner。常规功能回归使用开发 sysroot，最终归档的解压、搬迁和运行按需手工验证。保留源码和工具，不恢复 M48／M50 已退役的验证机制，原始验收资料放仓库外。
 
 ### M53 HTTP/1.x 与 HTTP/2 协议库（设计稿，待实施，[设计](milestone53/DESIGN.md)）
 

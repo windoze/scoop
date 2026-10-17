@@ -593,6 +593,8 @@ MIR `identity-foundation/6` 与 LIR foundation 保存实际实现的实体目录
 
 `scoop` 负责 root input、locator、完整依赖图、构建顺序、全局缓存、runtime 构建和程序链接；`scoopc` 一次只编译指定的一个 Cone，不跟随上游 manifest locator 或读取上游源码。
 
+开发 sysroot 准备、发行组装、安装及打包属于仓库维护脚本，不进入 `scoop` 命令或 driver。脚本调用普通 Cone 构建与已有 runtime 编译库；日常命令只消费选定的 sysroot 和显式指定的构建输入。
+
 ```text
 scoop build [root-input]
 scoop run [root-input] [-- program-arg...]

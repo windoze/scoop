@@ -1,6 +1,6 @@
 # M52 设计：工具链分发与预编译 sysroot
 
-状态：设计完成，待实施。日期：2026-10-17。调研基线：`2a5a8734d`。
+状态：实施中。日期：2026-10-18。调研基线：`2a5a8734d`。
 
 本期把已有编译器、内置 Cone、runtime 和必要的 native 依赖组成可搬迁的二进制工具链。用户解压后将 `bin` 加入 PATH，准备该平台声明的 C 开发环境，即可编译、运行和测试程序；第一次使用空缓存时也直接消费随包的内置 Cone 和 runtime。
 
@@ -13,7 +13,7 @@
 3. 现有三个 Scoop 命令位于 `bin`，随包 LLVM 位于 `libexec`，它们都是宿主组件；各目标目录中的 `.slib`、runtime、OpenSSL 和 unwind 资源属于目标。首批发布 Darwin/AArch64 和 Linux/GNU amd64 两类宿主包，覆盖全部三个既有目标。
 4. 随包提供 LLVM 22.1 后端需要的宿主动态库及非系统依赖。首版保留平台 C 编译器、链接器、SDK／libc 开发文件的明确外部要求，不在本期新增 Clang／LLD 后端或完整跨平台 C SDK。
 5. 每个目标只发布一套 release 内置 Cone 和默认 O2 runtime；应用可继续选择 debug／release。跨 Cone 泛型实例化、内联和正常代码生成仍使用 `.slib` 中的已有数据。
-6. 增加显式的 `scoop sysroot build` 维护入口，复用普通 Cone 构建和既有 runtime 编排。它服务开发环境准备及发布包生产；普通 `build/run/test` 不隐式调用它。
+6. 开发 sysroot 准备与发行打包由仓库脚本负责，复用普通 Cone 构建和既有 runtime 编译库。`scoop` 命令及 driver 只保留日常编译、运行、测试与链接职责，不增加 sysroot 构建、安装或打包子命令，也不承载这些操作的编排。
 7. 保持 M48／M50 的职责边界：缓存先判断更新，命中直接使用已有结果；发布只组装实际需要的文件，不重放自产 IR、对象、产物及生产过程，不增加来源授权或文件系统审计。
 8. 打包流程只提供脚本，供维护者手工测试和发布时显式运行，不作为常规验证步骤，也不接入常规 CI、workspace 测试或 fixture runner。常规回归使用已准备的开发 sysroot；手工测试发布包时才从实际归档解压目录执行。源码、工具和原产物保持存在，通过真实调用与程序结果验证预编译消费、直接复用和输入变化。
 
@@ -24,7 +24,7 @@
 | [sysroot 路径](../../compiler/toolchain/src/paths.rs) | 默认路径来自编译时工作区位置 | 改为执行文件所在安装目录，并保留显式覆盖 |
 | [core 布局](../../compiler/toolchain/src/trusted_core.rs)、[默认 core](../../compiler/scoop/src/locator/default_core.rs) | 先找 `lib/scoop.core` 源码，缺失时才找旧 `artifacts/<target-id>` | 使用统一的目标目录和预编译默认来源 |
 | [其他默认库](../../compiler/scoop/src/locator/default_library.rs) | 已声明的 scoop 依赖默认从 `lib/<name>` 构建 | 从当前目标的 `.slib` 定位普通依赖 |
-| [CLI 构建请求](../../compiler/scoop/src/cli/commands.rs)、[runtime 编排](../../compiler/scoop/src/runtime_build.rs) | runtime 默认从仓库源码构建，已有显式对象索引入口 | 安装环境默认使用目标 runtime；显式维护入口仍可构建源码 |
+| [CLI 构建请求](../../compiler/scoop/src/cli/commands.rs)、[runtime 编排](../../compiler/scoop/src/runtime_build.rs) | runtime 默认从仓库源码构建，已有显式对象索引入口 | 安装环境默认使用目标 runtime；显式 runtime 源码选项继续用于普通程序构建，准备脚本复用编译库 |
 | [runtime 索引](../../compiler/linker/src/runtime/index.rs) | 当前 schema 3 保存绝对对象路径，并比较完整 C toolchain 合同 | 在同一读写入口中使用可搬迁路径及必要的消费兼容条件 |
 | [M49 asyncio](../milestone49/DESIGN.md)、[asyncio manifest](../../sysroot/lib/scoop.asyncio/Cone.toml) | libuv 1.53.0 按 native 源码编进 Cone | 保留其对象在 `.slib` 中的现有交付方式 |
 | [M51 native 交付](../milestone51/DESIGN.md#5-native-构建链接与交付) | OpenSSL 3.5.9 静态库与生成头位于旧 `sysroot/native/<triple>`，消费者显式给 library root | 迁入统一目标目录，接通正常的默认库搜索 |
@@ -221,23 +221,15 @@ Darwin 通过正常 install name／rpath 使用相对于工具和私有库目录
 
 Scoop 新程序的生成 C bridge、native 源码及启动代码仍需要 C 编译器，最终链接仍需要平台 linker／SDK／CRT／libc。Darwin 使用系统开发环境，Linux 沿既有 GCC 和 GNU ld 路径。本期随包 LLVM 解决后端安装依赖，不声称同时提供完整 C/C++ 开发环境；未来更换为 Clang／LLD 或增加跨平台 SDK 应按实际工具链能力另行设计。
 
-## 7. 显式 sysroot 构建与开发流程
+## 7. 仓库中的 sysroot 准备脚本与开发流程
 
-增加维护命令：
+仓库提供 `scripts/prepare_sysroot.py`，接受 sysroot、目标、runtime 源码根、现有 Scoop 工具位置、cache 和实际需要的 native 选项。该脚本是维护源码树与发行包的开发工具，不安装到用户的 `bin`，也不由 `scoop` 或 driver 调用。Scoop 源码取 `<root>/src`，第三方源码取 `<root>/vendor`，后者也作为 runtime 编译的明确输入。一次准备一个现有目标，使用固定的 release 内置库配置和默认 O2 runtime。
 
-```text
-scoop sysroot build --sysroot <root> --target <triple> \
-  --runtime-root <runtime-source-root> \
-  [--scoopc <host-scoopc>] [--cache-dir <cache>] [existing-native-options]
-```
-
-`--sysroot`、`--target` 和 `--runtime-root` 在该入口显式提供；Scoop 源码取 `<root>/src`，第三方源码取 `<root>/vendor`，后者也作为 runtime 编排的明确输入。一次处理一个现有目标，使用固定的 release 内置库配置和默认 O2 runtime；沿用实际需要的 `--cc`、`--native-sysroot`、`--unwind-prefix`。不新增任意构建脚本、manifest 插件或另一套依赖解析器。
-
-调用前准备该目标的 OpenSSL 和 Linux unwind 资源；这些准备由仓库中的普通脚本及其上游构建工具完成。命令本身依次构建 core、按真实依赖顺序构建其余内置 Cone，并复用现有 `build_runtime` 生成 runtime 对象集。每个 Cone 都是普通源码编译请求，已完成依赖通过当前目标的 `.slib` 提供；不拼接 core 源码或复刻 stage pipeline。
+调用前准备该目标的 OpenSSL 和 Linux unwind 资源；这些准备由仓库中的普通脚本及其上游构建工具完成。准备脚本根据实际 manifest 依赖排序，调用已有 `scoop build` 依次构建 core 与其余内置 Cone。每个 Cone 都是普通源码编译请求，已完成依赖通过当前目标的 `.slib` 提供；不拼接 core 源码或复刻 stage pipeline。runtime 由脚本旁的内部 Rust 辅助程序直接调用现有 `build_runtime` 库函数；这个实现细节不成为随包命令或 driver 的新职责。
 
 编译结果写入当前目标的规定位置；源码与 native 文件变化按 M48 的普通构建记录更新，未变化组件直接复用。runtime 准备直接调用已有编排，不通过构建一个虚构应用触发，不重新实现 C 源码清单、对象信息提取或缓存。
 
-开发者在迁移后的仓库里显式准备所需目标，再运行正式 fixture；只测试 parser／HIR 等无关 crate 时不增加 sysroot 准备前置。修改内置库时，可显式构建某个源码 Cone，也可重跑该维护入口更新实际受影响依赖。普通应用构建始终使用已经选定的目标产物。开发 sysroot 准备不要求制作发行归档。
+开发者在迁移后的仓库里显式运行脚本准备所需目标，再运行正式 fixture；只测试 parser／HIR 等无关 crate 时不增加 sysroot 准备前置。修改内置库时，可显式构建某个源码 Cone，也可重跑脚本更新实际受影响依赖。普通应用构建始终使用已经选定的目标产物。开发 sysroot 准备不要求制作发行归档。
 
 ## 8. 发布生产、版本与安装
 
@@ -247,7 +239,7 @@ scoop sysroot build --sysroot <root> --target <triple> \
 
 1. 取得明确的源码 revision、发行版本、Cargo.lock、LLVM／native 依赖版本及已确定的 host／target 部署配置。
 2. 构建该 host 的 release `scoop`、`scoopc`、`scoop-link`，并准备受控 LLVM 动态库集合。
-3. 在新的组装目录中放入完整 `src`、随包的统一 `vendor`、公开 `include` 与宿主工具，按已知发布输入写入版本清单和目标部署配置；为每个目标准备 OpenSSL 和所需 libunwind，调用 `scoop sysroot build` 生成目标资源。
+3. 在新的组装目录中放入完整 `src`、随包的统一 `vendor`、公开 `include` 与宿主工具，按已知发布输入写入版本清单和目标部署配置；为每个目标准备 OpenSSL 和所需 libunwind，由仓库准备脚本生成目标资源。
 4. 设置宿主动态库相对加载路径，补齐安装说明、发行说明和实际组件许可证。
 5. 生成宿主归档及同版本的 LLVM／libunwind vendor 源码归档，供手工测试或发布使用。
 
@@ -269,7 +261,7 @@ scoop sysroot build --sysroot <root> --target <triple> \
 
 另提供共用于两类宿主包的 `scoop-<version>-llvm-sources.tar.xz`，保存发行所用 LLVM／libunwind 上游输入、补丁、版本说明和许可证，按第 2.4 节的 vendor 相对布局组织。普通构建应用及使用预编译 runtime 无需解压该源码归档；维护者准备宿主 LLVM 或目标 libunwind 时显式使用它。
 
-用户解压到新版本目录并选择其 `bin`；原版本可继续使用。缓存沿原有工具／配置／产物输入记录更新，无需将整份用户缓存搬进安装目录或在升级时全部删除。安装目录默认不写入应用缓存、构建输出和测试运行文件；显式维护命令的目标输出另行选择。
+用户解压到新版本目录并选择其 `bin`；原版本可继续使用。缓存沿原有工具／配置／产物输入记录更新，无需将整份用户缓存搬进安装目录或在升级时全部删除。安装目录默认不写入应用缓存、构建输出和测试运行文件；仓库准备脚本的目标输出另行选择。
 
 许可证按最终实际分发的组件收集，包括 Scoop 自身、Rust 依赖、LLVM、Ryu、libuv、OpenSSL 和选中的 LLVM 传递依赖。源码包中已有的许可证保留，`share/licenses` 给出可定位的副本或索引。当前未找到项目根 LICENSE，正式对外分发前需由项目维护者确定 Scoop 的许可；本设计不替维护者选择许可证，也不阻止先完成本地包的构建和功能验收。
 
@@ -293,7 +285,7 @@ scoop sysroot build --sysroot <root> --target <triple> \
 | --- | --- | --- |
 | M52-1 发布配置与兼容条件 | 固定两类 host／三目标的实际系统基线、LLVM 补丁版本和构建选项；同步 target／ABI 与生产配置的区别 | 选定最低环境中的工具／依赖可用性；不同兼容 C 工具／SDK 消费同一预编译 runtime，不因完整版本文本拒绝 |
 | M52-2 源码布局与安装定位 | 迁移十个 Cone 到 src，第三方源码集中到 vendor；接通 native 相对父路径和 runtime vendor 输入；统一工具、公开头及目标目录 | 显式覆盖、默认定位、含空格路径及普通 symlink；集中源码的实际 native 编译、目标筛选和真实缺失源码诊断 |
-| M52-3 显式目标准备 | 实现 `scoop sysroot build`，复用普通 Cone 图和 runtime 编排 | core→其余内置库的真实构建、重复准备直接复用、实际源码／头文件变化更新，失败不发布成功结果 |
+| M52-3 脚本目标准备 | 实现仓库准备脚本，调用普通 Cone 构建和 runtime 编译库，不扩展 `scoop` 命令与 driver | core→其余内置库的真实构建、重复准备直接复用、实际源码／头文件变化更新，失败不发布成功结果 |
 | M52-4 预编译默认消费 | 应用默认使用目标 `.slib` 与 runtime；接通 link 的默认 runtime 和 native roots，修订索引相对路径 | 空缓存首次使用不编译内置 Cone／runtime；显式来源优先、真实缺失输入和目标不匹配；搬迁后链接运行 |
 | M52-5 LLVM 与宿主工具包 | 构建并组装受控宿主 LLVM 依赖，设置相对加载路径，统一版本输出 | 手工测试工具包时，在声明的系统环境运行四个宿主工具和真实编译；没有开发机 LLVM 安装路径的运行依赖 |
 | M52-6 手工打包脚本与说明 | 提供生成宿主／vendor 源码归档的脚本、最小清单、native 前置说明、许可证清单与安装／升级说明 | 手工运行时检查归档布局、cache／输出位置及组装失败保留旧安装；脚本不接入常规验证 |
