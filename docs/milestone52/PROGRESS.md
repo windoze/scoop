@@ -80,3 +80,4 @@
 - Darwin 归档第二次解压到另一安装位置后，三个命令版本查询和空缓存 native／泛型／moving GC 编译运行通过。GNU／musl 十个内置 Cone 与 runtime 均已完成准备；musl 的 OpenSSL 首次构建因开发环境缺 Linux UAPI 搜索路径失败，使用指向现有内核头的任务内编译器包装脚本后构建成功。
 - 三目标的预编译 crypto／TLS／TLS asyncio 生产消费者分别通过 8 项测试的 debug、release 与 moving GC 组合，合计 48 次执行。musl 相关正式 CLI 覆盖 288 项通过、16 项目标不适用；手工 sysroot 的 native C fixture 缺少公开头的问题已修正，并在三个目标分别通过 debug／release 复验。
 - GNU 正式 CLI 完整回归仍在运行；本节不把已中断的 Darwin 全量任务记为完整通过。
+- GNU 首轮发现的优化／native GC 用例仍期待源码 core 编译，已改为预编译消费并补齐手工 sysroot 的公开头，在 Darwin 与 GNU 的 debug／release 复验通过。C++ 缺失标准库诊断用例的包装脚本改为在全部参数中识别工具查询，兼容显式 CPU 参数；GNU 复验通过。

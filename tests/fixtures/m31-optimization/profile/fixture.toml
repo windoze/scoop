@@ -42,7 +42,7 @@ json = "stderr"
 diagnostics = []
 checks = [
   {actual = "${build.result.profile}", equals = "${profile}"},
-  {actual = "${build.result.observations.child_invocations.length}", equals = 2},
+  {actual = "${build.result.observations.child_invocations.length}", equals = 1},
 ]
 
 [[steps]]
@@ -63,6 +63,7 @@ name = "direct_core"
 files = [
   {mkdir = {path = "${work}/direct-sysroot/lib/${target}"}},
   {copy = {from = "${build.result.dependencies.0.path}", to = "${work}/direct-sysroot/lib/${target}/scoop.core.slib"}},
+  {copy = {from = "${sysroot}/include", to = "${work}/direct-sysroot/include"}},
 ]
 
 [[steps]]
