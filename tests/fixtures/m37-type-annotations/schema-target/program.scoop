@@ -1,3 +1,3 @@
-@Target([AnnotationTarget.VALUE_PARAMETER]) annotation class A
+@Target([AnnotationTarget.ValueParameter]) annotation class A
 annotation class Nested
 annotation class Outer(val n: @A Nested)

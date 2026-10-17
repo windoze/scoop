@@ -20,9 +20,9 @@ private fun temporaryDirectory(path: Path) { verify(Files.entries(path).next() !
 
 private fun rawName(root: Path) {
     val raw: Array<Byte> = [110, -1]
-    val path = root.resolve(Path.fromOsString(OsString.fromBytes(raw)))
+    val path = root.resolve(Path.fromOsString(OsString.fromByteArray(raw)))
     @Unsafe {
-        val expected = path.toOsString().toBytes().withDataPointer { pointer, count ->
+        val expected = path.toOsString().toByteArray().withDataPointer { pointer, count ->
             @Unsafe { return@withDataPointer nativeRawPath(pointer, count) }
         }
         try {

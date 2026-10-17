@@ -218,9 +218,9 @@ fn a_lambda_body_establishes_its_own_default_evaluation_boundary() {
 #[test]
 fn current_source_location_reads_the_concrete_evaluation_origin() {
     let source = concat!(
-        "fun trace(location: SourceLocation = getCurrentSourceLocation()): SourceLocation = location\n",
+        "fun trace(location: SourceLocation = currentSourceLocation()): SourceLocation = location\n",
         "fun main() {\n",
-        "    val direct = getCurrentSourceLocation()\n",
+        "    val direct = currentSourceLocation()\n",
         "    val forwarded = trace()\n",
         "}\n",
     );
@@ -228,8 +228,8 @@ fn current_source_location_reads_the_concrete_evaluation_origin() {
         let offset = source[after..].find(needle).expect("source marker") + after;
         ast::Span::new(offset as u32, (offset + needle.len()) as u32)
     };
-    let default_span = span_at("getCurrentSourceLocation()", 0);
-    let direct_span = span_at("getCurrentSourceLocation()", default_span.end as usize);
+    let default_span = span_at("currentSourceLocation()", 0);
+    let direct_span = span_at("currentSourceLocation()", default_span.end as usize);
     let forwarded_span = span_at("trace()", direct_span.end as usize);
     let trace = with_default(
         fun_expr(
@@ -240,7 +240,7 @@ fn current_source_location_reads_the_concrete_evaluation_origin() {
             var("location"),
         ),
         0,
-        call_with_span("getCurrentSourceLocation", default_span),
+        call_with_span("currentSourceLocation", default_span),
     );
     let user = file(vec![
         trace,
@@ -249,7 +249,7 @@ fn current_source_location_reads_the_concrete_evaluation_origin() {
             vec![
                 val(
                     "direct",
-                    call_with_span("getCurrentSourceLocation", direct_span),
+                    call_with_span("currentSourceLocation", direct_span),
                 ),
                 val("forwarded", call_with_span("trace", forwarded_span)),
             ],
@@ -364,7 +364,7 @@ fn source_location_context_distinguishes_member_generic_and_suspend_bodies() {
             "locate",
             vec![],
             Some(ty_named("SourceLocation")),
-            call("getCurrentSourceLocation", vec![]),
+            call("currentSourceLocation", vec![]),
         )],
     );
     let mut suspend_location = fun_sig(
@@ -372,7 +372,7 @@ fn source_location_context_distinguishes_member_generic_and_suspend_bodies() {
         vec![],
         vec![],
         Some(ty_named("SourceLocation")),
-        vec![ret(Some(call("getCurrentSourceLocation", vec![])))],
+        vec![ret(Some(call("currentSourceLocation", vec![])))],
     );
     let Decl::Function(suspend_location_decl) = &mut suspend_location else {
         unreachable!()
@@ -385,7 +385,7 @@ fn source_location_context_distinguishes_member_generic_and_suspend_bodies() {
             vec!["T"],
             vec![("value", ty_named("T"))],
             Some(ty_named("SourceLocation")),
-            call("getCurrentSourceLocation", vec![]),
+            call("currentSourceLocation", vec![]),
         ),
         suspend_location,
         fun(

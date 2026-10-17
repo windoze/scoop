@@ -1545,13 +1545,13 @@ public struct Account(@Description("Stable identifier") val id: Long)
 
 显式 use-site 写作 `@target:Name(...)`。`property` 指向 logical property；`field` 指向已有 backing storage 或值类型字段；`get`/`set` 指向已有 getter/setter；`param` 指向完整普通/构造参数；`setparam` 指向 setter 的值参数；`receiver` 指向声明中的实际 receiver；`delegate` 指向已有 delegate storage。主构造字段/property 可以用 `param` 选择构造参数部分。不同 use-site 分别检查重复，直接标在 accessor 上的注解与对应 `get`/`set` 选择同一目标。声明不存在相应实体时在 use-site 处报错，不能合成存储、setter 或 receiver；默认目标也不按注解内容重新猜测。第 13 章核心注解仍受各自目标和参数契约约束。
 
-core 提供普通的 `annotation class Target(val allowed: Array<AnnotationTarget>)`、无参数 `annotation class Repeatable` 和整型枚举 `AnnotationTarget: Int`。其成员和值依次为 CLASS=1、ANNOTATION_CLASS=2、ENUM_VARIANT=3、FIELD=4、PROPERTY=5、FUNCTION=6、CONSTRUCTOR=7、VALUE_PARAMETER=8、PROPERTY_GETTER=9、PROPERTY_SETTER=10、TYPEALIAS=11、TYPE=12。CLASS 包含 class/struct/enum/interface/object；annotation class 单独属于 ANNOTATION_CLASS；receiver 和 setparam 属于 VALUE_PARAMETER；backing/delegate storage 属于 FIELD；get/set 分别属于 PROPERTY_GETTER/PROPERTY_SETTER；TYPE 表示类型使用位置。
+core 提供普通的 `annotation class Target(val allowed: Array<AnnotationTarget>)`、无参数 `annotation class Repeatable` 和整型枚举 `AnnotationTarget: Int`。其成员和值依次为 Class=1、AnnotationClass=2、EnumVariant=3、Field=4、Property=5、Function=6、Constructor=7、ValueParameter=8、PropertyGetter=9、PropertySetter=10、TypeAlias=11、Type=12。Class 包含 class/struct/enum/interface/object；annotation class 单独属于 AnnotationClass；receiver 和 setparam 属于 ValueParameter；backing/delegate storage 属于 Field；get/set 分别属于 PropertyGetter/PropertySetter；Type 表示类型使用位置。
 
-`@Target` 限定 annotation class 可应用的实际目标类别；未标时允许全部受支持类别，空数组表示不允许任何应用位置。重复或未知目标在源码处报错。Target 和 Repeatable 自身只用于 annotation class，且都不可重复。目标限制不改变默认 use-site；例如只允许 VALUE_PARAMETER 的注解用于主构造 val/var 时，必须显式选择 `param`。
+`@Target` 限定 annotation class 可应用的实际目标类别；未标时允许全部受支持类别，空数组表示不允许任何应用位置。重复或未知目标在源码处报错。Target 和 Repeatable 自身只用于 annotation class，且都不可重复。目标限制不改变默认 use-site；例如只允许 ValueParameter 的注解用于主构造 val/var 时，必须显式选择 `param`。
 
 `@Repeatable` 允许同一实际目标上多次应用该 annotation class，保留源码顺序、相同参数值及各次来源；未标时重复应用在后一处报错。导入别名和 re-export 不改变 annotation identity，不能绕过重复检查。不同实际 use-site 独立检查，不复制或继承应用，也不生成 container annotation。两个核心元注解的固定语义只按真实 core 声明身份识别；同名用户声明没有特殊作用。前向声明使用最终绑定的规则，不因声明顺序改变结果。规则与静态参数只在定义处绑定一次，跨库使用已保存的规则。
 
-类型使用位置可以写注解前缀，包含字段/property/参数/结果、显式局部类型、父类型与 bound、alias 目标及类型实参；完整类型使用树中的泛型实参、tuple 元素、函数 receiver/参数/结果和指针 pointee 分别保留各自位置。类型使用只接受 TYPE 类别，不接受 use-site 选择或第 13 章不适用于类型位置的核心效果注解。局部变量的显式类型可以带注解，变量本体仍不是声明注解目标。
+类型使用位置可以写注解前缀，包含字段/property/参数/结果、显式局部类型、父类型与 bound、alias 目标及类型实参；完整类型使用树中的泛型实参、tuple 元素、函数 receiver/参数/结果和指针 pointee 分别保留各自位置。类型使用只接受 Type 类别，不接受 use-site 选择或第 13 章不适用于类型位置的核心效果注解。局部变量的显式类型可以带注解，变量本体仍不是声明注解目标。
 
 前缀属于紧随其后的完整类型：`@A T?` 标在 Option 根，`(@A T)?` 标在其元素 T；`@F() R.(P) -> Q` 标在函数类型根，`(@R R).(@P P) -> @Q Q` 分别标在 receiver、参数和结果。声明 receiver 同样区分 `fun @A T?.f()` / `val @A T?.p` 的 Option 根与 `fun (@A T)?.f()` / `val (@A T)?.p` 的元素 T。单元素括号不增加类型节点或丢弃内部注解；零参数注解在后续类型以括号开始时可以显式写 `@A()`，避免与注解参数括号混淆。限定名本身不产生另一个运行期类型节点；完整 inner application 的外层/自身类型实参按原 binder 顺序保留，限定符的类型使用不能把其根注解复制给另一个名义类型。
 
@@ -2229,20 +2229,20 @@ struct SourceLocation(
 )
 
 @Intrinsic("current_source_location")
-fun getCurrentSourceLocation(): SourceLocation
+fun currentSourceLocation(): SourceLocation
 ```
 
-- `getCurrentSourceLocation()` 返回所在表达式的标准**求值来源**所指示的源码位置（文件、行、列）与所处函数、类型的名称。该信息在编译期已知，不依赖调试信息；本intrinsic不建立独立的调用处传播机制。
+- `currentSourceLocation()` 返回所在表达式的标准**求值来源**所指示的源码位置（文件、行、列）与所处函数、类型的名称。该信息在编译期已知，不依赖调试信息；本intrinsic不建立独立的调用处传播机制。
 - `file`保存可重现的canonical semantic source path，而不是host绝对路径或CLI operand spelling。manifest Cone中其形式为`group:name:version/<normalized Cone-relative source path>`；默认目录中的文件仍为`group:name:version/src/...`，12.2.2 的显式源码目录不截去其目录前缀。12.2的single-file Cone中恒为`scoop:single-file:0.0.0/main.scoop`。编译诊断可另行显示当次调用路径，但该display locator不改变`SourceLocation`的值。
 - 可与 8.5 的缺省参数规则组合，取得调用者的源码位置：
 
 ```
-fun trace(msg: String, loc: SourceLocation = getCurrentSourceLocation()) {
+fun trace(msg: String, loc: SourceLocation = currentSourceLocation()) {
     // loc 是调用 trace 的位置，而非本函数内部
 }
 ```
 
-- 作为普通表达式出现在缺省参数template中时，它与template内其他表达式一样按8.5取得定义来源和求值来源；随后普通intrinsic语义读取求值来源，因而返回**最外层调用处**的位置，而不是default机制识别并重写本函数。多层函数转发时，每一层都必须以缺省参数继续转发`loc`（`fun warn(msg: String, loc: SourceLocation = getCurrentSourceLocation()) = trace(msg, loc)`），否则记录的是中间层的位置。
+- 作为普通表达式出现在缺省参数template中时，它与template内其他表达式一样按8.5取得定义来源和求值来源；随后普通intrinsic语义读取求值来源，因而返回**最外层调用处**的位置，而不是default机制识别并重写本函数。多层函数转发时，每一层都必须以缺省参数继续转发`loc`（`fun warn(msg: String, loc: SourceLocation = currentSourceLocation()) = trace(msg, loc)`），否则记录的是中间层的位置。
 - 内联等优化（见 8.4）不得改变其结果：结果按源码中的调用处确定，与代码生成决策无关。
 
 ---
@@ -2260,7 +2260,7 @@ public interface ValueDecoder<T> {
     public fun decode(decoder: Decoder): T
 }
 
-@Target([AnnotationTarget.FIELD, AnnotationTarget.PROPERTY, AnnotationTarget.ENUM_VARIANT])
+@Target([AnnotationTarget.Field, AnnotationTarget.Property, AnnotationTarget.EnumVariant])
 public annotation class Serialize(
     val rename: String = "",
     val required: Boolean = false,
@@ -2554,7 +2554,7 @@ Boolean、八种整数、Float／Double、Char、String 的 companion 实现 Val
 
 Compact 格式使用 `Type(field=value)`、`Type.Variant`／`Type.Variant(payload)`、`Type.Variant(integer)`、`(tuple elements)`、`[sequence elements]`、`Unit` 与 `<opaque description>`；单元素 tuple 保留尾逗号。名称取 TypeRef 及实际成员／variant；String／Char 分别使用双／单引号，转义引号、反斜杠、换行、制表符和控制字符。数值沿用 core ToString，保留浮点负零。Pretty 在同一成员序列上换行并缩进，不改变选择或读取次数，不自动换行结束、flush 或 close。
 
-普通注解 DebugIgnore 与 DebugRedact(val replacement: String = "<redacted>") 仅允许 FIELD／PROPERTY target。printer 先按实际 annotationKey 检查：Ignore 优先并不占展示项；否则 Redact 保留名称、输出带转义的 replacement 并占一项；两者均不调用 read。logical property 不自动取得 backing field、accessor 或 constructor parameter 的注解。注解及截断不能豁免生成读取正文时的类型／权限检查。
+普通注解 DebugIgnore 与 DebugRedact(val replacement: String = "<redacted>") 仅允许 Field／Property target。printer 先按实际 annotationKey 检查：Ignore 优先并不占展示项；否则 Redact 保留名称、输出带转义的 replacement 并占一项；两者均不调用 read。logical property 不自动取得 backing field、accessor 或 constructor parameter 的注解。注解及截断不能豁免生成读取正文时的类型／权限检查。
 
 printer 对实际展示的每个成员或元素调用一次读取函数，忽略或截断的节点不读取；不承诺并发快照。它在当前递归路径保存原对象引用并以 `===` 检查循环，遇到祖先输出 `<cycle Type>`；非祖先的共享对象仍可展开。显式 base 是同一对象的投影，在已进入节点内展示而不重复进行对象进入检查；base 字段回指原对象仍检测循环。读取和 writer 异常按普通调用传播，已写文本保留；每次打印使用独立路径状态。
 
@@ -2855,7 +2855,7 @@ core 是可修改、扩展和重建的普通 library Cone。intrinsic 与脱糖�
 
 `Cli.schema<T>(info: TypeInfo<T>, config: CliConfig): CliSchema<T>` 生成默认 record schema；`CliSchema<T>(info, config, entries: Array<CliEntry>)` 提供相同已检查模型的显式入口。CliConfig 保存 programName 与 summary（默认空串）。schema 只在构造边界检查配置，之后只读；CliParser<T>(schema, codec: ValueDecoder<T>) 不重放验证。parse(arguments: Array<String>) 接收不含程序项的参数；parseCommandLine(argv) 跳过 argv[0]，空完整 argv 报输入错误。两者返回 CliResult.Parsed(T) 或 HelpRequested。schema.help() 与 writeHelp(TextWriter) 生成相同、以换行结束的纯文本；不执行 codec、constructor、default 或 getter，也不绑定 stdout、终端或进程退出。
 
-CliOption(names = [], help = "", valueName = "", defaultText = "")、CliFlag(names = [], negativeNames = [], help = "", defaultText = "")、CliArgument(position: Long, help = "", valueName = "", defaultText = "") 是 FIELD／PROPERTY 上的普通不可重复注解，三个 role 互斥。无 role 时 exact Boolean 为 flag，其余为带值 option；无 names 时使用完整源码名的 --name。长名以 -- 起始且后续非空，不能含 =、空白或控制字符；短名为 - 加一个 ASCII 字母。所有正负 alias 唯一，-h／--help 保留；negativeNames 显式指定，不自动生成。flag 只适用于 exact Boolean，Option<Boolean> 和序列使用文本 true／false。
+CliOption(names = [], help = "", valueName = "", defaultText = "")、CliFlag(names = [], negativeNames = [], help = "", defaultText = "")、CliArgument(position: Long, help = "", valueName = "", defaultText = "") 是 Field／Property 上的普通不可重复注解，三个 role 互斥。无 role 时 exact Boolean 为 flag，其余为带值 option；无 names 时使用完整源码名的 --name。长名以 -- 起始且后续非空，不能含 =、空白或控制字符；短名为 - 加一个 ASCII 字母。所有正负 alias 唯一，-h／--help 保留；negativeNames 显式指定，不自动生成。flag 只适用于 exact Boolean，Option<Boolean> 和序列使用文本 true／false。
 
 CliEntry 保存 sourceName、wireKey、CliRole（Option、Flag、Argument(Long)）、CliValueShape、names／negativeNames、help、valueName、defaultText、required、hasDefault 与可选 ObservedMember。CliValueShape 为 Text、Flag、Choice(Array<CliChoice>)、Repeated(CliElementShape)；CliElementShape 只含 Text 与 Choice，从数据结构排除嵌套序列和重复 flag。CliChoice 保存文本 spelling 与 variant wireName。显式 schema 与自动 schema 使用同一 parser／Decoder；显式模型可以与普通手写 codec 配合，不分析 codec 正文。
 
@@ -3427,21 +3427,21 @@ M43 只提供同 Cone 单元测试；独立 Cone 的 integration-test 留待 mul
 
 ```scoop
 public fun assertTrue(condition: Boolean, message: String? = None,
-    location: SourceLocation = getCurrentSourceLocation())
+    location: SourceLocation = currentSourceLocation())
 public fun assertFalse(condition: Boolean, message: String? = None,
-    location: SourceLocation = getCurrentSourceLocation())
+    location: SourceLocation = currentSourceLocation())
 public fun <T : Equals<T>> assertEquals(expected: T, actual: T, message: String? = None,
-    location: SourceLocation = getCurrentSourceLocation())
+    location: SourceLocation = currentSourceLocation())
 public fun <T : Equals<T>> assertNotEquals(expected: T, actual: T, message: String? = None,
-    location: SourceLocation = getCurrentSourceLocation())
+    location: SourceLocation = currentSourceLocation())
 public fun <T : ref> assertSame(expected: T, actual: T, message: String? = None,
-    location: SourceLocation = getCurrentSourceLocation())
+    location: SourceLocation = currentSourceLocation())
 public fun <T : ref> assertNotSame(expected: T, actual: T, message: String? = None,
-    location: SourceLocation = getCurrentSourceLocation())
+    location: SourceLocation = currentSourceLocation())
 public fun <E : Throwable> assertFailsWith(message: String? = None,
-    location: SourceLocation = getCurrentSourceLocation(), block: () -> Unit): E
+    location: SourceLocation = currentSourceLocation(), block: () -> Unit): E
 public fun fail(message: String? = None,
-    location: SourceLocation = getCurrentSourceLocation()): Nothing
+    location: SourceLocation = currentSourceLocation()): Nothing
 ```
 
 assertTrue/assertFalse 检查 Boolean；assertEquals/assertNotEquals 调用一次 `expected.equals(actual)`，使用普通 `Equals<T>` 契约及 11.11 的浮点默认相等。结构可比较不隐含 Equals conformance；struct/enum/tuple 可用 `assertTrue(actual == expected)`，不增加结构型 bound 或 Any.equals。assertSame/assertNotSame 使用普通引用身份比较，不接受值类型。比较函数抛出的异常原样传播，不转换成断言失败。
@@ -3454,7 +3454,7 @@ assertFailsWith 同步调用 block 一次，捕获 Throwable 后按普通 `is E`
 
 ### 16.3 测试标记与声明
 
-测试库在 `scoop.test` package 声明四个公开、不可重复的普通注解：`Test` 的 Target 为 CLASS 与 FUNCTION，`BeforeTest`、`AfterTest`、`Ignore` 的 Target 为 FUNCTION。前三者无参数，Ignore 有一个必需的 `val reason: String` 参数。参数求值、Target、重复应用与 import 沿用 9.4；编译器按 `scoop:scoop.test:0.1.0` 中这些真实声明的 typed annotation identity 识别测试语义，alias 与 re-export 保留作用，同名用户注解不因此变成测试标记。
+测试库在 `scoop.test` package 声明四个公开、不可重复的普通注解：`Test` 的 Target 为 Class 与 Function，`BeforeTest`、`AfterTest`、`Ignore` 的 Target 为 Function。前三者无参数，Ignore 有一个必需的 `val reason: String` 参数。参数求值、Target、重复应用与 import 沿用 9.4；编译器按 `scoop:scoop.test:0.1.0` 中这些真实声明的 typed annotation identity 识别测试语义，alias 与 re-export 保留作用，同名用户注解不因此变成测试标记。
 
 四种标记的应用只允许出现在 12.2.4 的测试源码集合，普通生产源码上的应用是编译错误。声明这些 annotation class 的测试库源码仍属于普通生产输入。标记只产生编译期语义，不物化为运行期注解对象。
 
@@ -3479,13 +3479,13 @@ Test 用例、BeforeTest 和 AfterTest 必须是该容器直接声明、具有�
 ```scoop
 public enum TestPhase { Initialization, BeforeTest, Body, AfterTest }
 public struct TestAction(val call: () -> Unit,
-    val location: SourceLocation = getCurrentSourceLocation())
+    val location: SourceLocation = currentSourceLocation())
 public struct TestActions(val body: TestAction,
     val before: TestAction? = None, val after: TestAction? = None)
 public struct TestFailure(val phase: TestPhase, val cause: Throwable,
     val location: SourceLocation)
 public enum TestResult { Passed, Failed(TestFailure, TestFailure?) }
-public fun runTestCase(location: SourceLocation = getCurrentSourceLocation(),
+public fun runTestCase(location: SourceLocation = currentSourceLocation(),
     initialize: () -> TestActions): TestResult
 public fun isTestSelected(arguments: Array<String>, caseIndex: String,
     ignored: Boolean): Boolean

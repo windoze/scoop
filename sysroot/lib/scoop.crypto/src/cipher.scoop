@@ -2,14 +2,14 @@ package scoop.crypto
 
 import scoop.crypto.native.*
 
-public enum AeadAlgorithm { AES128GCM, AES256GCM }
+public enum AeadAlgorithm { Aes128Gcm, Aes256Gcm }
 public struct AeadCiphertext(val ciphertext: Array<Byte>, val tag: Array<Byte>)
 
 private fun aeadCode(algorithm: AeadAlgorithm, key: SecretKey, nonce: List<Byte>): Int {
-    val size = if (algorithm == AeadAlgorithm.AES128GCM) 16L else 32L
+    val size = if (algorithm == AeadAlgorithm.Aes128Gcm) 16L else 32L
     if (key.size != size) throw IllegalArgumentException(Some("AES-GCM key length does not match algorithm"))
     if (nonce.size != 12L) throw IllegalArgumentException(Some("AES-GCM nonce must contain 12 bytes"))
-    return if (algorithm == AeadAlgorithm.AES128GCM) 0 else 1
+    return if (algorithm == AeadAlgorithm.Aes128Gcm) 0 else 1
 }
 
 public fun encrypt(algorithm: AeadAlgorithm, key: SecretKey, nonce: List<Byte>, plaintext: List<Byte>, aad: List<Byte> = Array<Byte>(0L) { _ -> 0.toByte() }): AeadCiphertext {

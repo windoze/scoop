@@ -7,4 +7,4 @@ public struct SourceLocation(
 )
 
 @Intrinsic("current_source_location")
-public fun getCurrentSourceLocation(): SourceLocation
+public fun currentSourceLocation(): SourceLocation

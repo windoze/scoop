@@ -6,13 +6,13 @@ import scoop.platform.io.checkNativeStatus
 import scoop.platform.system.OsString
 import scoop.text.*
 
-public enum AddressFamily { IPv4, IPv6 }
+public enum AddressFamily { Ipv4, Ipv6 }
 
 public class IpAddress private constructor(internal val native: NativeSocketAddress) : Equals<IpAddress>, Hash, ToString {
-    public val family: AddressFamily get() = if (native.family == 4) AddressFamily.IPv4 else AddressFamily.IPv6
+    public val family: AddressFamily get() = if (native.family == 4) AddressFamily.Ipv4 else AddressFamily.Ipv6
     public val scopeId: UInt get() = native.scopeId
 
-    public fun toBytes(): Array<Byte> = Array<Byte>(if (native.family == 4) 4L else 16L) { index ->
+    public fun toByteArray(): Array<Byte> = Array<Byte>(if (native.family == 4) 4L else 16L) { index ->
         val word = when (index / 4L) {
             case 0L -> native.a
             case 1L -> native.b
@@ -49,7 +49,7 @@ public class IpAddress private constructor(internal val native: NativeSocketAddr
         public val IPV6_ANY: IpAddress = IpAddress(NativeSocketAddress(6, 0, 0u, 0u, 0u, 0u, 0u))
         public val IPV6_LOOPBACK: IpAddress = IpAddress(NativeSocketAddress(6, 0, 0u, 0u, 0u, 0u, 1u))
 
-        public fun fromBytes(bytes: List<Byte>, scopeId: UInt = 0u): IpAddress {
+        public fun fromByteArray(bytes: List<Byte>, scopeId: UInt = 0u): IpAddress {
             if (bytes.size != 4L && bytes.size != 16L) throw IllegalArgumentException(Some("IP address requires 4 or 16 bytes"))
             if (bytes.size == 4L && scopeId != 0u) throw IllegalArgumentException(Some("IPv4 does not have a scope"))
             val snapshot = bytes.toArray()

@@ -7,8 +7,8 @@ import scoop.text.*
 private class KeyTests {
     @Test
     fun `RSA P256 and Ed25519 generation and PEM DER round trips`() {
-        roundTrip(KeyAlgorithm.RSA, SignatureAlgorithm.RsaPkcs1Sha256) { PrivateKey.generateRsa() }
-        roundTrip(KeyAlgorithm.RSA, SignatureAlgorithm.RsaPssSha256) { PrivateKey.generateRsa(bits = 2048) }
+        roundTrip(KeyAlgorithm.Rsa, SignatureAlgorithm.RsaPkcs1Sha256) { PrivateKey.generateRsa() }
+        roundTrip(KeyAlgorithm.Rsa, SignatureAlgorithm.RsaPssSha256) { PrivateKey.generateRsa(bits = 2048) }
         roundTrip(KeyAlgorithm.P256, SignatureAlgorithm.EcdsaP256Sha256Der) { PrivateKey.generateP256() }
         roundTrip(KeyAlgorithm.Ed25519, SignatureAlgorithm.Ed25519) { PrivateKey.generateEd25519() }
     }

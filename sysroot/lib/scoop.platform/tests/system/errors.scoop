@@ -33,7 +33,7 @@ private class PlatformErrorTest {
     @Test
     fun `exceptions retain operation raw context and error snapshot`() {
         val raw = NativeError(NativeErrorDomain.PosixErrno, Int.MAX_VALUE)
-        val context = OsString.fromBytes(Array<Byte>(1L) { _ -> -1 })
+        val context = OsString.fromByteArray(Array<Byte>(1L) { _ -> -1 })
         val error = assertFailsWith<PlatformException> {
             throw PlatformException("open", raw.kind, Some(raw), Some(context))
         }
@@ -41,6 +41,6 @@ private class PlatformErrorTest {
         assertTrue(error.kind == PlatformErrorKind.Other)
         assertEquals(Int.MAX_VALUE, error.nativeError!!.code)
         assertSame(context, error.context!!)
-        assertEquals(-1.toByte(), error.context!!.toBytes()[0L])
+        assertEquals(-1.toByte(), error.context!!.toByteArray()[0L])
     }
 }

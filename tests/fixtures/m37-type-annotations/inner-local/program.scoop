@@ -1,4 +1,4 @@
-@Repeatable @Target([AnnotationTarget.TYPE])
+@Repeatable @Target([AnnotationTarget.Type])
 annotation class Mark(val n: Int)
 class Outer<T>(val first: @Mark(1) T) {
     inner class Inner<U>(val second: @Mark(2) U) {

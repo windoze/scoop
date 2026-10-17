@@ -8,7 +8,7 @@ public class YearMonth public constructor(public val year: Int, public val month
         if (!validCalendarDate(year, monthNumber, 1)) throw IllegalArgumentException(Some("invalid year-month"))
     }
     public constructor(year: Int, month: Month) : this(year, month.number) {}
-    public val month: Month get() = Month.of(monthNumber)
+    public val month: Month get() = Month.fromNumber(monthNumber)
     public val lengthOfMonth: Int get() = calendarMonthLength(year, monthNumber)
     public val isLeapYear: Boolean get() = calendarLeapYear(year)
     public fun atDay(dayOfMonth: Int): LocalDate = LocalDate(year, monthNumber, dayOfMonth)

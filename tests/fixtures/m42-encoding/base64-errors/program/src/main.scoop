@@ -14,8 +14,8 @@ fun rejected(codec: Base64, text: String) {
 }
 fun main() {
     val required = Base64.Default
-    val absent = required.withPadding(PaddingOption.ABSENT)
-    val optional = required.withPadding(PaddingOption.OPTIONAL)
+    val absent = required.withPadding(PaddingOption.Absent)
+    val optional = required.withPadding(PaddingOption.Optional)
     for (text in Array<String>(17L) { index -> when (index) {
         case 0L -> "A"; case 1L -> "="; case 2L -> "=="; case 3L -> "==="
         case 4L -> "A==="; case 5L -> "Zg="; case 6L -> "Zg==="; case 7L -> "Z=g="

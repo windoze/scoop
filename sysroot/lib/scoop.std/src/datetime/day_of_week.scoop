@@ -1,23 +1,23 @@
 package scoop.datetime
 
 public enum DayOfWeek : Equals<DayOfWeek>, Compare<DayOfWeek>, Hash, ToString {
-    MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY
+    Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday
 
     public val isoDayNumber: Int get() = when (this) {
-        case MONDAY -> 1; case TUESDAY -> 2; case WEDNESDAY -> 3; case THURSDAY -> 4
-        case FRIDAY -> 5; case SATURDAY -> 6; case SUNDAY -> 7
+        case Monday -> 1; case Tuesday -> 2; case Wednesday -> 3; case Thursday -> 4
+        case Friday -> 5; case Saturday -> 6; case Sunday -> 7
     }
     public override operator fun equals(other: DayOfWeek): Boolean = isoDayNumber == other.isoDayNumber
     public override operator fun compareTo(other: DayOfWeek): Long = isoDayNumber.compareTo(other.isoDayNumber)
     public override fun hash(): Long = isoDayNumber.hash()
     public override fun toString(): String = when (this) {
-        case MONDAY -> "MONDAY"; case TUESDAY -> "TUESDAY"; case WEDNESDAY -> "WEDNESDAY"
-        case THURSDAY -> "THURSDAY"; case FRIDAY -> "FRIDAY"; case SATURDAY -> "SATURDAY"; case SUNDAY -> "SUNDAY"
+        case Monday -> "Monday"; case Tuesday -> "Tuesday"; case Wednesday -> "Wednesday"
+        case Thursday -> "Thursday"; case Friday -> "Friday"; case Saturday -> "Saturday"; case Sunday -> "Sunday"
     }
     public companion object {
-        public fun of(isoDayNumber: Int): DayOfWeek = when (isoDayNumber) {
-            case 1 -> MONDAY; case 2 -> TUESDAY; case 3 -> WEDNESDAY; case 4 -> THURSDAY
-            case 5 -> FRIDAY; case 6 -> SATURDAY; case 7 -> SUNDAY
+        public fun fromIsoDayNumber(isoDayNumber: Int): DayOfWeek = when (isoDayNumber) {
+            case 1 -> Monday; case 2 -> Tuesday; case 3 -> Wednesday; case 4 -> Thursday
+            case 5 -> Friday; case 6 -> Saturday; case 7 -> Sunday
             case _ -> throw IllegalArgumentException(Some("weekday must be in 1..7"))
         }
     }

@@ -1,7 +1,7 @@
 import Repeatable as Many
 import Target as Places
 import AnnotationTarget as Site
-@Places([Site.FUNCTION, Site.PROPERTY_GETTER, Site.VALUE_PARAMETER, Site.ANNOTATION_CLASS])
+@Places([Site.Function, Site.PropertyGetter, Site.ValueParameter, Site.AnnotationClass])
 @Many
 annotation class Trace(val value: Int)
 @Trace(1) @Trace(1) @Trace(2)

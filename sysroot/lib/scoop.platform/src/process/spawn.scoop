@@ -60,14 +60,14 @@ private fun <R> withRedirect(value: Stdio, block: (Int) -> R): R = when (value) 
 }
 
 private fun appendString(builder: ByteArrayBuilder, value: OsString) {
-    val bytes = value.toBytes()
+    val bytes = value.toByteArray()
     for (byte in bytes) { if (byte == 0) throw IllegalArgumentException(Some("process string contains NUL")) }
     builder.append(bytes)
     builder.append(0.toByte())
 }
 
 private fun packArguments(executable: Path, arguments: Array<OsString>): Array<Byte> {
-    if (executable.toOsString().toBytes().size == 0L) throw IllegalArgumentException(Some("empty executable"))
+    if (executable.toOsString().toByteArray().size == 0L) throw IllegalArgumentException(Some("empty executable"))
     if (arguments.size == Long.MAX_VALUE) throw ArithmeticException()
     val builder = ByteArrayBuilder()
     appendString(builder, executable.toOsString())
@@ -78,7 +78,7 @@ private fun packArguments(executable: Path, arguments: Array<OsString>): Array<B
 private fun packEnvironment(environment: Map<OsString, OsString>): Array<Byte> {
     val builder = ByteArrayBuilder()
     for ((name, value) in environment) {
-        val bytes = name.toBytes()
+        val bytes = name.toByteArray()
         if (bytes.size == 0L) throw IllegalArgumentException(Some("empty environment name"))
         for (byte in bytes) {
             if (byte == 0 || byte == 61) throw IllegalArgumentException(Some("invalid environment name"))

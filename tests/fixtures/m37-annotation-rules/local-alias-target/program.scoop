@@ -1,6 +1,6 @@
 fun main() {
     class Scope {
         @OnlyFunction typealias Number = Int
-        @Target([AnnotationTarget.FUNCTION]) annotation class OnlyFunction
+        @Target([AnnotationTarget.Function]) annotation class OnlyFunction
     }
 }

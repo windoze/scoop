@@ -14,13 +14,13 @@ import scoop.platform.system.*
 @Extern(name = "m45_network_signal_setup") private fun signalSetup()
 @Extern(name = "m45_network_signal_restore") private fun signalRestore()
 
-private fun verify(value: Boolean, location: SourceLocation = getCurrentSourceLocation()) {
+private fun verify(value: Boolean, location: SourceLocation = currentSourceLocation()) {
     if (!value) {
         eprintln("network assertion failed at line " + location.line.toString())
         throw IllegalStateException()
     }
 }
-private fun fails(location: SourceLocation = getCurrentSourceLocation(), body: () -> Unit): PlatformException {
+private fun fails(location: SourceLocation = currentSourceLocation(), body: () -> Unit): PlatformException {
     try { body() } catch (error: PlatformException) { return error }
     eprintln("expected network failure at line " + location.line.toString())
     throw IllegalStateException(Some("expected network failure"))
@@ -98,7 +98,7 @@ private fun temporaryReceive(buffer: NativeByteBuffer) {
     @Unsafe { flags(16 + 256) }
     val packet = UdpSocket.bind(loopback()).receiveFrom(buffer)
     verify(packet.count == 3L && packet.truncated && packet.source.port > 0)
-    verify(OsString.fromBytes(buffer.readBytes(3L)).decodeUtf8() == "abc")
+    verify(OsString.fromByteArray(buffer.readBytes(3L)).decodeUtf8() == "abc")
 }
 private fun temporarySend(address: SocketAddress, buffer: NativeByteBuffer) {
     @Unsafe { flags(8) }

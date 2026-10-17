@@ -20,7 +20,7 @@ internal fun decodeBase64(source: String, urlSafe: Boolean, padding: PaddingOpti
     var pads = 0
     for (character in source) {
         if (character == '=') {
-            if (padding == PaddingOption.ABSENT || pads == 2) return None
+            if (padding == PaddingOption.Absent || pads == 2) return None
             pads += 1
         } else {
             if (pads != 0) return None
@@ -42,7 +42,7 @@ internal fun decodeBase64(source: String, urlSafe: Boolean, padding: PaddingOpti
     if (symbols == 1) return None
     val expectedPads = if (symbols == 0) 0 else 4 - symbols
     if (pads != 0 && pads != expectedPads) return None
-    if (pads == 0 && expectedPads != 0 && padding == PaddingOption.REQUIRED) return None
+    if (pads == 0 && expectedPads != 0 && padding == PaddingOption.Required) return None
     if (symbols == 2) {
         if ((buffer and 15u) != 0u) return None
         output.append((buffer shr 4L).toByte())

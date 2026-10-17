@@ -2,7 +2,7 @@ package cli.model
 import scoop.cli.*
 import scoop.cli.CliOption as NamedOption
 
-@Target([AnnotationTarget.TYPE])
+@Target([AnnotationTarget.Type])
 private annotation class Marker(val text: String)
 
 public struct Arguments(

@@ -1,14 +1,14 @@
 [
   {
     "code": "SCOOPC_HIR_ERROR",
-    "message": "annotation `@Param` is not allowed on PROPERTY",
+    "message": "annotation `@Param` is not allowed on Property",
     "notes": [],
     "origin": {
       "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
-      "end": 83,
+      "end": 82,
       "kind": "source",
       "path": "main.scoop",
-      "start": 77
+      "start": 76
     },
     "severity": "error"
   }

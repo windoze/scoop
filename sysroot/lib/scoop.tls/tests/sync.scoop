@@ -13,7 +13,7 @@ import scoop.text.toHexString
 private class SyncTlsTests {
     @Test
     fun `blocking TCP short transfers prefix progress flush and graceful shutdown`() {
-        for (version in [TlsVersion.TLS12, TlsVersion.TLS13]) exchange(version)
+        for (version in [TlsVersion.Tls12, TlsVersion.Tls13]) exchange(version)
     }
 
     @Test
@@ -72,7 +72,7 @@ private fun exchange(version: TlsVersion) {
     val protocol: Array<Byte> = [1, 0, -1]
     val options = TlsOptions(version, version, [protocol])
     val bytes = Array<Byte>(40555L) { index -> (index % 239L).toByte() }
-    val expected = digest(DigestAlgorithm.SHA256, bytes).toHexString()
+    val expected = digest(DigestAlgorithm.Sha256, bytes).toHexString()
     clientContext(options).use { clientConfig -> serverContext(options).use { serverConfig ->
         TcpListener.bind(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).use { listener ->
             Thread.start {
@@ -80,7 +80,7 @@ private fun exchange(version: TlsVersion) {
                 TlsStream.takeOwnershipAsServer(transport, serverConfig).use { stream ->
                     NativeByteBuffer.allocate(bytes.size).use { input ->
                         stream.readFully(input, bytes.size)
-                        assertEquals(expected, digest(DigestAlgorithm.SHA256, input.readBytes(bytes.size)).toHexString())
+                        assertEquals(expected, digest(DigestAlgorithm.Sha256, input.readBytes(bytes.size)).toHexString())
                         stream.writeAllBytes("reply".toByteArray())
                         stream.flush()
                         stream.shutdownGracefully()

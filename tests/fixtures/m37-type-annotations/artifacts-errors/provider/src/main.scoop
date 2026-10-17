@@ -1,4 +1,4 @@
 package annotated.provider
-@Target([AnnotationTarget.FIELD]) public annotation class OnlyField
+@Target([AnnotationTarget.Field]) public annotation class OnlyField
 public annotation class Once
 public typealias Single = @Once Int

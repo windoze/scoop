@@ -9,8 +9,8 @@ public fun resolve(host: String, port: Int, family: AddressFamily? = None): Arra
 public fun resolve(host: OsString, port: Int, family: AddressFamily? = None): Array<SocketAddress> {
     requirePort(port)
     val selector = when (family) {
-        case Some(AddressFamily.IPv4) -> 4
-        case Some(AddressFamily.IPv6) -> 6
+        case Some(AddressFamily.Ipv4) -> 4
+        case Some(AddressFamily.Ipv6) -> 6
         case None -> 0
     }
     val addresses = ArrayList<SocketAddress>()

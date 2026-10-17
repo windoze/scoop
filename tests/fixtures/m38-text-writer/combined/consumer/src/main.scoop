@@ -2,7 +2,7 @@ import fixtures.writer.writeParts
 import fixtures.writer.deferred
 import fixtures.writer.joined
 
-fun check(condition: Boolean, location: SourceLocation = getCurrentSourceLocation()): Unit {
+fun check(condition: Boolean, location: SourceLocation = currentSourceLocation()): Unit {
     if (!condition) {
         println(location.line)
         throw IllegalStateException()

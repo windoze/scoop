@@ -8,8 +8,8 @@ internal suspend fun resolveOnLoop(loop: LibuvEventLoop, host: OsString, port: I
     val job = loop.requireJob()
     if (port < 0 || port > 65535) throw IllegalArgumentException(Some("port is out of range"))
     val selector = when (family) {
-        case Some(AddressFamily.IPv4) -> 4
-        case Some(AddressFamily.IPv6) -> 6
+        case Some(AddressFamily.Ipv4) -> 4
+        case Some(AddressFamily.Ipv6) -> 6
         case None -> 0
     }
     return suspendCoroutine<Array<SocketAddress>> { continuation ->

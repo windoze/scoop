@@ -1,4 +1,4 @@
-@Repeatable @Target([AnnotationTarget.TYPE])
+@Repeatable @Target([AnnotationTarget.Type])
 annotation class Mark(val n: Int)
 typealias Mix<A, B> = @Mark(1) (@Mark(2) B, @Mark(3) A, A)
 typealias Twice<T> = @Mark(4) Mix<@Mark(5) T, @Mark(6) T>

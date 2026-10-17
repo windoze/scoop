@@ -12,7 +12,7 @@ private class AsyncFileTransferTest {
     fun `files preserve raw paths append sync and sequential positions`() {
         IoTestDirectory().use { tree ->
             val rawName: Array<Byte> = [100, -1, 97]
-            val name = if (operatingSystem == OperatingSystem.Linux) OsString.fromBytes(rawName) else OsString.fromString("名字")
+            val name = if (operatingSystem == OperatingSystem.Linux) OsString.fromByteArray(rawName) else OsString.fromString("名字")
             val path = tree.path.resolve(Path.fromOsString(name))
             val loop: EventLoop = LibuvEventLoop()
             loop.run suspend { _ ->
@@ -64,7 +64,7 @@ private class AsyncFileTransferTest {
                 NativeByteBuffer.allocate(32L).use suspend { bytes ->
                     client.readFully(bytes, 25L)
                     assertEquals(0L, client.readInto(bytes, 1L))
-                    assertEquals("ordinary asynchronous I/O", OsString.fromBytes(bytes.readBytes(25L)).decodeUtf8())
+                    assertEquals("ordinary asynchronous I/O", OsString.fromByteArray(bytes.readBytes(25L)).decodeUtf8())
                 }
                 assertEquals(25L, sending.await())
             }

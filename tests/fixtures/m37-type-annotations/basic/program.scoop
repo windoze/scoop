@@ -1,4 +1,4 @@
-@Repeatable @Target([AnnotationTarget.TYPE])
+@Repeatable @Target([AnnotationTarget.Type])
 annotation class Mark(val n: Int)
 typealias Text = @Mark(1) String
 fun identity(value: @Mark(2) Text): @Mark(3) Text = value

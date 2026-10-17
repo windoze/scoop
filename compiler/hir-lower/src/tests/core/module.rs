@@ -51,7 +51,7 @@ pub(crate) fn core_file() -> SourceFile {
             ],
         ),
         intrinsic_fun(
-            "getCurrentSourceLocation",
+            "currentSourceLocation",
             "current_source_location",
             Vec::new(),
             Some(ty_named("SourceLocation")),

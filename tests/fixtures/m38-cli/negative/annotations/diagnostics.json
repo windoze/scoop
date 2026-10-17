@@ -40,7 +40,7 @@
   },
   {
     "code": "SCOOPC_HIR_ERROR",
-    "message": "annotation `@CliOption` is not allowed on FUNCTION",
+    "message": "annotation `@CliOption` is not allowed on Function",
     "notes": [],
     "origin": {
       "cone": "53bd01ad7cfdb36a897501f0b058085e9172ba57758b3c14ee0e7b21b63d13b7",

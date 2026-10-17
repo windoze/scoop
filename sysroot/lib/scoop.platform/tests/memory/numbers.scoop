@@ -7,8 +7,8 @@ import scoop.test.*
 private class NativeByteBufferNumbersTest {
     @Test
     fun `both byte orders preserve unaligned integers and floating bit patterns`() {
-        roundTrip(ByteOrder.BIG_ENDIAN)
-        roundTrip(ByteOrder.LITTLE_ENDIAN)
+        roundTrip(ByteOrder.BigEndian)
+        roundTrip(ByteOrder.LittleEndian)
     }
 
     private fun roundTrip(order: ByteOrder) {
@@ -46,8 +46,8 @@ private class NativeByteBufferNumbersTest {
     @Test
     fun `byte order determines the physical byte sequence`() {
         NativeByteBuffer.allocate(8L).use { buffer ->
-            buffer.writeInt32(0x01020304, ByteOrder.BIG_ENDIAN)
-            buffer.writeInt32(0x01020304, ByteOrder.LITTLE_ENDIAN)
+            buffer.writeInt32(0x01020304, ByteOrder.BigEndian)
+            buffer.writeInt32(0x01020304, ByteOrder.LittleEndian)
             val expected = Array<Byte>(8L) { (if (it < 4L) it + 1L else 8L - it).toByte() }
             var index = 0L
             while (index < expected.size) {
@@ -61,13 +61,13 @@ private class NativeByteBufferNumbersTest {
     fun `short numeric reads and writes do not partially advance or overwrite`() {
         NativeByteBuffer.allocate(5L).use { buffer ->
             buffer.writeByte(9.toByte())
-            assertFailsWith<IndexOutOfBoundsException> { buffer.writeInt64(1L, ByteOrder.BIG_ENDIAN) }
+            assertFailsWith<IndexOutOfBoundsException> { buffer.writeInt64(1L, ByteOrder.BigEndian) }
             assertEquals(1L, buffer.writePosition)
-            buffer.writeInt32(0x01020304, ByteOrder.BIG_ENDIAN)
-            assertFailsWith<IndexOutOfBoundsException> { buffer.readInt64(ByteOrder.BIG_ENDIAN) }
+            buffer.writeInt32(0x01020304, ByteOrder.BigEndian)
+            assertFailsWith<IndexOutOfBoundsException> { buffer.readInt64(ByteOrder.BigEndian) }
             assertEquals(0L, buffer.readPosition)
             assertEquals(9.toByte(), buffer.readByte())
-            assertEquals(0x01020304, buffer.readInt32(ByteOrder.BIG_ENDIAN))
+            assertEquals(0x01020304, buffer.readInt32(ByteOrder.BigEndian))
         }
     }
 }

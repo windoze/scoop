@@ -19,7 +19,7 @@ public fun arguments(): Array<OsString> {
 public fun environmentVariable(name: String): OsString? = environmentVariable(OsString.fromString(name))
 
 public fun environmentVariable(name: OsString): OsString? {
-    val bytes = name.toBytes()
+    val bytes = name.toByteArray()
     if (bytes.size == 0L) throw IllegalArgumentException(Some("empty environment name"))
     for (byte in bytes) {
         if (byte == 0 || byte == 61) throw IllegalArgumentException(Some("invalid environment name"))
@@ -42,13 +42,13 @@ public fun environment(): Map<OsString, OsString> {
         val entries = nativeEnvironment()
         var index = 0L
         while (entries.load(index) != None) {
-            val bytes = copyNativeString(entries.load(index)!!).toBytes()
+            val bytes = copyNativeString(entries.load(index)!!).toByteArray()
             var separator = 0L
             while (separator < bytes.size && bytes[separator] != 61) separator += 1L
             if (separator > 0L && separator < bytes.size) {
                 val split = separator
-                val name = OsString.fromBytes(Array<Byte>(split) { bytes[it] })
-                val value = OsString.fromBytes(Array<Byte>(bytes.size - split - 1L) { bytes[split + 1L + it] })
+                val name = OsString.fromByteArray(Array<Byte>(split) { bytes[it] })
+                val value = OsString.fromByteArray(Array<Byte>(bytes.size - split - 1L) { bytes[split + 1L + it] })
                 if (!result.containsKey(name)) result.put(name, value)
             }
             index += 1L
@@ -68,7 +68,7 @@ public fun currentDirectory(): Path {
 
 public fun homeDirectory(): Path? {
     when (environmentVariable("HOME")) {
-        case Some(value) -> if (value.toBytes().size != 0L) return Some(Path.fromOsString(value))
+        case Some(value) -> if (value.toByteArray().size != 0L) return Some(Path.fromOsString(value))
         case None -> {}
     }
     @Unsafe {

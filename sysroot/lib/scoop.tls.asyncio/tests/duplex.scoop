@@ -9,7 +9,7 @@ import scoop.tls.*
 private class AsyncTlsDuplexTests {
     @Test
     fun `pending read permits write and a single handshake drives both transport directions`() {
-        for (version in [TlsVersion.TLS12, TlsVersion.TLS13]) duplex(version)
+        for (version in [TlsVersion.Tls12, TlsVersion.Tls13]) duplex(version)
     }
 }
 

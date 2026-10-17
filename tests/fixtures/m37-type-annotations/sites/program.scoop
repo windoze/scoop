@@ -1,4 +1,4 @@
-@Repeatable @Target([AnnotationTarget.TYPE])
+@Repeatable @Target([AnnotationTarget.Type])
 annotation class Mark(val n: Int)
 interface Read { fun read(): Int }
 class Value(val n: @Mark(1) Int): @Mark(2) Read { override fun read(): @Mark(3) Int = n }

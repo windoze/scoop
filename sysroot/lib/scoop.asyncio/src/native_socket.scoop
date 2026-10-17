@@ -7,8 +7,8 @@ internal typealias IoAddress = NativeSocketAddress
 internal struct NativeSocketName(val address: IoAddress, val status: Int)
 
 internal fun ioAddress(address: SocketAddress): IoAddress {
-    val bytes = address.address.toBytes()
-    return IoAddress(if (address.address.family == AddressFamily.IPv4) 4 else 6,
+    val bytes = address.address.toByteArray()
+    return IoAddress(if (address.address.family == AddressFamily.Ipv4) 4 else 6,
         address.port, address.address.scopeId, addressWord(bytes, 0L), addressWord(bytes, 4L),
         addressWord(bytes, 8L), addressWord(bytes, 12L))
 }
@@ -25,5 +25,5 @@ internal fun ioSocketAddress(value: IoAddress): SocketAddress {
         val word = when (index / 4L) { case 0L -> value.a; case 1L -> value.b; case 2L -> value.c; case _ -> value.d }
         ((word shr ((3L - index % 4L) * 8L)) and 255u).toByte()
     }
-    return SocketAddress(IpAddress.fromBytes(bytes, value.scopeId), value.port)
+    return SocketAddress(IpAddress.fromByteArray(bytes, value.scopeId), value.port)
 }

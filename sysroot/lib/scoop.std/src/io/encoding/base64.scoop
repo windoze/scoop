@@ -1,11 +1,11 @@
 package scoop.io.encoding
 
 public class Base64 private constructor(private val urlSafe: Boolean, public val paddingOption: Base64.PaddingOption) {
-    public enum PaddingOption { REQUIRED, ABSENT, OPTIONAL }
+    public enum PaddingOption { Required, Absent, Optional }
 
     public companion object {
-        public val Default: Base64 = Base64(false, PaddingOption.REQUIRED)
-        public val UrlSafe: Base64 = Base64(true, PaddingOption.REQUIRED)
+        public val Default: Base64 = Base64(false, PaddingOption.Required)
+        public val UrlSafe: Base64 = Base64(true, PaddingOption.Required)
     }
 
     public fun withPadding(option: PaddingOption): Base64 = Base64(urlSafe, option)

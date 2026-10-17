@@ -1,10 +1,10 @@
 @Meta(1) @Meta(2) annotation class Item
-@Repeatable @Target([AnnotationTarget.ANNOTATION_CLASS]) annotation class Meta(val value: Int)
+@Repeatable @Target([AnnotationTarget.AnnotationClass]) annotation class Meta(val value: Int)
 fun <T> pass(value: T): T {
     class Scope {
-        @Meta(3) @Target([AnnotationTarget.TYPEALIAS]) public annotation class Alias
+        @Meta(3) @Target([AnnotationTarget.TypeAlias]) public annotation class Alias
         @Alias typealias Element<U> = U
-        @Target([AnnotationTarget.FUNCTION]) public annotation class Method
+        @Target([AnnotationTarget.Function]) public annotation class Method
         @Method fun read(value: Element<T>): Element<T> = value
     }
     return Scope().read(value)

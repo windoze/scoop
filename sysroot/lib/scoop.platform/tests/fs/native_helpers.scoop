@@ -8,7 +8,7 @@ private class NativePathHelperTest {
     @Test
     fun `public native strings keep raw bytes terminated and reject embedded NUL`() {
         val bytes: Array<Byte> = [97, -1, 98]
-        val text = OsString.fromBytes(bytes)
+        val text = OsString.fromByteArray(bytes)
         @Unsafe {
             val last = text.withNativeString { pointer ->
                 @Unsafe {
@@ -25,7 +25,7 @@ private class NativePathHelperTest {
         }
         val invalid: Array<Byte> = [97, 0, 98]
         assertFailsWith<IllegalArgumentException> {
-            @Unsafe { OsString.fromBytes(invalid).withNativeString { _ -> fail(Some("NUL reached native callback")) } }
+            @Unsafe { OsString.fromByteArray(invalid).withNativeString { _ -> fail(Some("NUL reached native callback")) } }
         }
     }
 

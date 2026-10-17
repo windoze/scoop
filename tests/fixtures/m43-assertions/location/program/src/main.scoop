@@ -4,16 +4,16 @@ fun verify(condition: Boolean) {
     if (!condition) throw Exception(Some("location assertion contract"))
 }
 
-fun helper(location: SourceLocation = getCurrentSourceLocation()) {
+fun helper(location: SourceLocation = currentSourceLocation()) {
     assertTrue(false, location = location)
 }
 
 fun main() {
-    val expected = getCurrentSourceLocation()
+    val expected = currentSourceLocation()
     val direct = assertFailsWith<AssertionFailure> { assertTrue(false) }
     verify(direct.location.file == expected.file)
     verify(direct.location.line == expected.line + 1L)
-    val forwarded = getCurrentSourceLocation()
+    val forwarded = currentSourceLocation()
     val indirect = assertFailsWith<AssertionFailure> { helper() }
     verify(indirect.location.file == forwarded.file)
     verify(indirect.location.line == forwarded.line + 1L)

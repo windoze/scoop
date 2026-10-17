@@ -9,16 +9,16 @@ private class CryptoConsumerTests {
     @Test
     fun `production crypto API uses public types default arguments and generic resources`() {
         val data = "external consumer".toByteArray()
-        val encoded = Digest(DigestAlgorithm.SHA256).use { context ->
+        val encoded = Digest(DigestAlgorithm.Sha256).use { context ->
             context.update(data)
             context.finish()
         }
-        assertEquals(digest(DigestAlgorithm.SHA256, data).toHexString(), encoded.toHexString())
+        assertEquals(digest(DigestAlgorithm.Sha256, data).toHexString(), encoded.toHexString())
         SecretKey.fromBytes(secureRandomBytes(32L)).use { key ->
             val nonce = secureRandomBytes(12L)
-            val encrypted: AeadCiphertext = encrypt(AeadAlgorithm.AES256GCM, key, nonce, data)
-            assertEquals(data.toHexString(), decryptOrNull(AeadAlgorithm.AES256GCM, key, nonce, encrypted)!!.toHexString())
-            assertTrue(verifyHmac(DigestAlgorithm.SHA384, key, data, hmac(DigestAlgorithm.SHA384, key, data)))
+            val encrypted: AeadCiphertext = encrypt(AeadAlgorithm.Aes256Gcm, key, nonce, data)
+            assertEquals(data.toHexString(), decryptOrNull(AeadAlgorithm.Aes256Gcm, key, nonce, encrypted)!!.toHexString())
+            assertTrue(verifyHmac(DigestAlgorithm.Sha384, key, data, hmac(DigestAlgorithm.Sha384, key, data)))
         }
     }
 }

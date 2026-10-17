@@ -41,7 +41,7 @@ private class AsyncFileQueuedWorkTest {
                 } finally { fence.close() }
                 NativeByteBuffer.allocate(4L).use suspend { bytes ->
                     file.readFully(bytes)
-                    assertEquals("data", OsString.fromBytes(bytes.readBytes(4L)).decodeUtf8())
+                    assertEquals("data", OsString.fromByteArray(bytes.readBytes(4L)).decodeUtf8())
                 }
                 file.close()
             }

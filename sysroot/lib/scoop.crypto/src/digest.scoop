@@ -2,12 +2,12 @@ package scoop.crypto
 
 import scoop.crypto.native.*
 
-public enum DigestAlgorithm { SHA256, SHA384, SHA512 }
+public enum DigestAlgorithm { Sha256, Sha384, Sha512 }
 
 internal fun digestCode(algorithm: DigestAlgorithm): Int = when (algorithm) {
-    case SHA256 -> 0
-    case SHA384 -> 1
-    case SHA512 -> 2
+    case Sha256 -> 0
+    case Sha384 -> 1
+    case Sha512 -> 2
 }
 
 public class Digest public constructor(algorithm: DigestAlgorithm) : Closeable {

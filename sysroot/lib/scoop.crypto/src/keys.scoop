@@ -2,7 +2,7 @@ package scoop.crypto
 
 import scoop.crypto.native.*
 
-public enum KeyAlgorithm { RSA, P256, Ed25519, Other }
+public enum KeyAlgorithm { Rsa, P256, Ed25519, Other }
 
 public class PrivateKey private constructor(private var handle: ULong) : Closeable {
     public val algorithm: KeyAlgorithm get() = nativeKeyAlgorithm(nativeHandle())
@@ -62,7 +62,7 @@ public class PublicKey internal constructor(private var handle: ULong) : Closeab
 
 private fun nativeKeyAlgorithm(handle: ULong): KeyAlgorithm {
     @Unsafe { return when (keyAlgorithm(handle)) {
-        case 0 -> KeyAlgorithm.RSA
+        case 0 -> KeyAlgorithm.Rsa
         case 1 -> KeyAlgorithm.P256
         case 2 -> KeyAlgorithm.Ed25519
         else -> KeyAlgorithm.Other

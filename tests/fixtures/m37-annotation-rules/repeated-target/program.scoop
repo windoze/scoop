@@ -1,2 +1,2 @@
-@Target([]) @Target([AnnotationTarget.CLASS]) annotation class Mark
+@Target([]) @Target([AnnotationTarget.Class]) annotation class Mark
 fun main() {}

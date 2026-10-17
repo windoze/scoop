@@ -29,7 +29,7 @@ private class JwsConsumerTests {
             val der = sign(SignatureAlgorithm.EcdsaP256Sha256Der, privateKey, payload)
             assertEquals(0x30.toByte(), der[0L])
             val token = signCompact("{\"alg\":\"ES256\"}", payload, JwsAlgorithm.ES256, JwsSigningKey.Signature(privateKey))
-            val raw = Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT).decode(token.split('.')[2L])
+            val raw = Base64.UrlSafe.withPadding(Base64.PaddingOption.Absent).decode(token.split('.')[2L])
             assertEquals(64L, raw.size)
             privateKey.publicKey().use { publicKey ->
                 assertTrue(verify(SignatureAlgorithm.EcdsaP256Sha256Der, publicKey, payload, der))

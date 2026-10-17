@@ -9,22 +9,22 @@ private class DigestTests {
     fun `SHA standard vectors and incremental state`() {
         val data = "abc".toByteArray()
         assertEquals("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
-            digest(DigestAlgorithm.SHA256, data).toHexString())
+            digest(DigestAlgorithm.Sha256, data).toHexString())
         assertEquals("cb00753f45a35e8bb5a03d699ac65007272c32ab0eded1631a8b605a43ff5bed8086072ba1e7cc2358baeca134c825a7",
-            digest(DigestAlgorithm.SHA384, data).toHexString())
+            digest(DigestAlgorithm.Sha384, data).toHexString())
         assertEquals("ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f",
-            digest(DigestAlgorithm.SHA512, data).toHexString())
-        Digest(DigestAlgorithm.SHA256).use { context ->
+            digest(DigestAlgorithm.Sha512, data).toHexString())
+        Digest(DigestAlgorithm.Sha256).use { context ->
             context.update("a".toByteArray())
             context.update(Array<Byte>(0L) { _ -> 0.toByte() })
             context.update("bc".toByteArray())
-            assertEquals(digest(DigestAlgorithm.SHA256, data).toHexString(), context.finish().toHexString())
+            assertEquals(digest(DigestAlgorithm.Sha256, data).toHexString(), context.finish().toHexString())
             assertFailsWith<IllegalStateException> { context.update(data) }
             assertFailsWith<IllegalStateException> { context.finish() }
         }
         assertEquals("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-            digest(DigestAlgorithm.SHA256, Array<Byte>(0L) { _ -> 0.toByte() }).toHexString())
-        val closed = Digest(DigestAlgorithm.SHA512)
+            digest(DigestAlgorithm.Sha256, Array<Byte>(0L) { _ -> 0.toByte() }).toHexString())
+        val closed = Digest(DigestAlgorithm.Sha512)
         closed.close()
         closed.close()
         assertFailsWith<IllegalStateException> { closed.finish() }

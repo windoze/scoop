@@ -48,7 +48,7 @@ public class ByteArrayBuilder public constructor() {
         reserve(width)
         var index = 0L
         while (index < width) {
-            val shift = (if (order == ByteOrder.BIG_ENDIAN) width - index - 1L else index) * 8L
+            val shift = (if (order == ByteOrder.BigEndian) width - index - 1L else index) * 8L
             storage[count + index] = (value shr shift).toByte()
             index += 1L
         }

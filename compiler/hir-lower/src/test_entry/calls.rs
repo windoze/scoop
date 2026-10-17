@@ -73,13 +73,13 @@ impl Lowerer {
         let outer = self.current_source_context;
         self.current_source_context = Some(origin.context);
         let bindings = self
-            .named_call_layers("getCurrentSourceLocation")
+            .named_call_layers("currentSourceLocation")
             .into_iter()
             .find(|layer| layer.kind == ImportLookupLayer::CorePrelude)
             .map(|layer| layer.candidates)
             .unwrap_or_default();
         let result = self.test_call(
-            "getCurrentSourceLocation",
+            "currentSourceLocation",
             &bindings,
             Vec::new(),
             origin.span,

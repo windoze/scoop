@@ -35,7 +35,7 @@ public class ByteArrayReader public constructor(input: List<Byte>) {
         var result = 0uL
         var index = 0L
         while (index < width) {
-            val offset = if (order == ByteOrder.BIG_ENDIAN) index else width - index - 1L
+            val offset = if (order == ByteOrder.BigEndian) index else width - index - 1L
             result = (result shl 8L) or bytes[cursor + offset].toUByte().toULong()
             index += 1L
         }
@@ -43,8 +43,8 @@ public class ByteArrayReader public constructor(input: List<Byte>) {
         return result
     }
 
-    public fun readInt8(): Int8 = read(1L, ByteOrder.BIG_ENDIAN).toByte()
-    public fun readUInt8(): UInt8 = read(1L, ByteOrder.BIG_ENDIAN).toUByte()
+    public fun readInt8(): Int8 = read(1L, ByteOrder.BigEndian).toByte()
+    public fun readUInt8(): UInt8 = read(1L, ByteOrder.BigEndian).toUByte()
     public fun readInt16(order: ByteOrder): Int16 = read(2L, order).toShort()
     public fun readUInt16(order: ByteOrder): UInt16 = read(2L, order).toUShort()
     public fun readInt32(order: ByteOrder): Int32 = read(4L, order).toInt()

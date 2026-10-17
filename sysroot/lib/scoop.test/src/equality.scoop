@@ -4,7 +4,7 @@ public fun <T : Equals<T>> assertEquals(
     expected: T,
     actual: T,
     message: String? = None,
-    location: SourceLocation = getCurrentSourceLocation()
+    location: SourceLocation = currentSourceLocation()
 ) {
     if (!expected.equals(actual)) {
         comparisonFailure("assertEquals", expected, actual, message, location)
@@ -15,7 +15,7 @@ public fun <T : Equals<T>> assertNotEquals(
     expected: T,
     actual: T,
     message: String? = None,
-    location: SourceLocation = getCurrentSourceLocation()
+    location: SourceLocation = currentSourceLocation()
 ) {
     if (expected.equals(actual)) {
         comparisonFailure("assertNotEquals", expected, actual, message, location)

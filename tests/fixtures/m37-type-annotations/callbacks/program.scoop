@@ -1,4 +1,4 @@
-@Repeatable @Target([AnnotationTarget.TYPE]) annotation class Mark(val n: Int)
+@Repeatable @Target([AnnotationTarget.Type]) annotation class Mark(val n: Int)
 @Extern(lib = "m37_receiver", name = "m37_receiver_callback")
 fun callNative(callback: @Mark(1) FunPtr<@Mark(2) (@Mark(3) Int, @Mark(4) Ptr<@Mark(5) Unit>) -> @Mark(6) Int>, context: @Mark(7) Ptr<Unit>, value: @Mark(8) Int): @Mark(9) Int
 class Offset(val value: Int)

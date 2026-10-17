@@ -34,18 +34,18 @@ fun exercise(order: ByteOrder, expected: String) {
     check(reader.readInt32(order) == Int.MIN_VALUE)
 }
 fun main() {
-    exercise(ByteOrder.BIG_ENDIAN, "80ff8000ffff80000000ffffffff8000000000000000ffffffffffffffff")
-    exercise(ByteOrder.LITTLE_ENDIAN, "80ff0080ffff00000080ffffffff0000000000000080ffffffffffffffff")
+    exercise(ByteOrder.BigEndian, "80ff8000ffff80000000ffffffff8000000000000000ffffffffffffffff")
+    exercise(ByteOrder.LittleEndian, "80ff0080ffff00000080ffffffff0000000000000080ffffffffffffffff")
     val builder = ByteArrayBuilder()
-    builder.writeUInt64(0x0123456789abcdefuL, ByteOrder.BIG_ENDIAN)
-    builder.writeUInt64(0x0123456789abcdefuL, ByteOrder.LITTLE_ENDIAN)
+    builder.writeUInt64(0x0123456789abcdefuL, ByteOrder.BigEndian)
+    builder.writeUInt64(0x0123456789abcdefuL, ByteOrder.LittleEndian)
     golden(builder.toByteArray(), "0123456789abcdefefcdab8967452301")
     builder.clear()
     var index = 0L
-    while (index < 512L) { builder.writeInt64(index - 256L, ByteOrder.LITTLE_ENDIAN); index += 1L }
+    while (index < 512L) { builder.writeInt64(index - 256L, ByteOrder.LittleEndian); index += 1L }
     check(builder.size == 4096L)
     val reader = ByteArrayReader(builder.toByteArray())
     index = 0L
-    while (index < 512L) { check(reader.readInt64(ByteOrder.LITTLE_ENDIAN) == index - 256L); index += 1L }
+    while (index < 512L) { check(reader.readInt64(ByteOrder.LittleEndian) == index - 256L); index += 1L }
     println("bytes integers passed")
 }

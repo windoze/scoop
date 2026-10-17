@@ -7,7 +7,7 @@ import scoop.text.checkedTextSum
 internal fun encodeBase64(source: List<Byte>, urlSafe: Boolean, padding: PaddingOption): String {
     val length = source.size
     val remainder = length % 3L
-    val tail = if (remainder == 0L) 0L else if (padding == PaddingOption.ABSENT) remainder + 1L else 4L
+    val tail = if (remainder == 0L) 0L else if (padding == PaddingOption.Absent) remainder + 1L else 4L
     val size = checkedTextSum(checkedTextProduct(length / 3L, 4L), tail)
     val output = MutableArray<Char>(size) { _ -> '=' }
     val alphabet = if (urlSafe) "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"

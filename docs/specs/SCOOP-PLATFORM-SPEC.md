@@ -19,8 +19,8 @@ IO 端点、文件／进程观察权和 native buffer 使用 core Closeable.clos
 `scoop.platform.system.OsString` 是不可变 final class，实现 `Equals<OsString>` 和 `Hash`。内部保存原始字节；相等和 hash 只取决于字节内容，既不 Unicode 归一化，也不读取外部状态。
 
 - `fromString(value: String): OsString` 按 UTF-8 编码。
-- `fromBytes(value: List<Byte>): OsString` 复制完整输入。
-- `toBytes(): Array<Byte>` 返回独立副本。
+- `fromByteArray(value: List<Byte>): OsString` 复制完整输入。
+- `toByteArray(): Array<Byte>` 返回独立副本。
 - `decodeUtf8(): String` 严格解码，非法输入抛 CharacterCodingException，保留相对于整个字节序列的错误位置。
 - `decodeUtf8Lossy(): String` 显式替换坏序列；`display(): String` 使用该有损形式供诊断展示。展示结果不能作为原始系统调用输入的替代品。
 
@@ -238,7 +238,7 @@ communicate(input: List<Byte>? = None): ProcessOutput 收集 stdout/stderr 的�
 
 ### 12.1 地址与解析
 
-`scoop.platform.net.AddressFamily` 区分 IPv4／IPv6。不可变 IpAddress 保存地址位与 IPv6 scopeId: UInt，实现 Equals、Hash、ToString；fromBytes 接受 List<Byte> 的 4 或 16 字节快照副本，IPv4 不接受非零 scope。toBytes 返回独立数组。parse(String) 只解析 IP 字面量，IPv6 可带 `%数字` scope，不解析接口名或域名；toString 输出标准数字文本与非零 scope。提供 IPV4_ANY、IPV4_LOOPBACK、IPV6_ANY、IPV6_LOOPBACK。
+`scoop.platform.net.AddressFamily { Ipv4, Ipv6 }` 区分 IPv4／IPv6。不可变 IpAddress 保存地址位与 IPv6 scopeId: UInt，实现 Equals、Hash、ToString；fromByteArray 接受 List<Byte> 的 4 或 16 字节快照副本，IPv4 不接受非零 scope。toByteArray 返回独立数组。parse(String) 只解析 IP 字面量，IPv6 可带 `%数字` scope，不解析接口名或域名；toString 输出标准数字文本与非零 scope。提供 IPV4_ANY、IPV4_LOOPBACK、IPV6_ANY、IPV6_LOOPBACK。
 
 SocketAddress(address: IpAddress, port: Int) 检查 0..65535，实现 Equals／Hash／ToString。parse 接受 `IPv4:port` 或 `[IPv6%scope]:port`；端口为十进制数字，不接受缺失、负值或溢出。bind 端口 0 由 OS 分配，返回后的 localAddress 给出实际值。
 

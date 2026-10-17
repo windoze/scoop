@@ -6,8 +6,8 @@ public enum SignatureAlgorithm { RsaPkcs1Sha256, RsaPssSha256, EcdsaP256Sha256De
 
 private fun signatureCode(algorithm: SignatureAlgorithm, key: KeyAlgorithm): Int {
     val expected = when (algorithm) {
-        case RsaPkcs1Sha256 -> KeyAlgorithm.RSA
-        case RsaPssSha256 -> KeyAlgorithm.RSA
+        case RsaPkcs1Sha256 -> KeyAlgorithm.Rsa
+        case RsaPssSha256 -> KeyAlgorithm.Rsa
         case EcdsaP256Sha256Der -> KeyAlgorithm.P256
         case Ed25519 -> KeyAlgorithm.Ed25519
     }

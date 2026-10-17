@@ -5,7 +5,7 @@ import scoop.io.encoding.Base64
 
 public class JwsException public constructor(public val detail: String) : Exception(Some(detail))
 
-internal val urlEncoding: Base64 = Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT)
+internal val urlEncoding: Base64 = Base64.UrlSafe.withPadding(Base64.PaddingOption.Absent)
 internal struct ProtectedHeader(val algorithm: String, val keyId: String?)
 
 private object HeaderDecoder : ValueDecoder<ProtectedHeader> {

@@ -37,7 +37,7 @@ public fun signCompact(protectedHeader: String, payload: List<Byte>, algorithm: 
     val signature = when (key) {
         case Mac(secret) -> {
             requireMac(algorithm, secret)
-            hmac(DigestAlgorithm.SHA256, secret, bytes)
+            hmac(DigestAlgorithm.Sha256, secret, bytes)
         }
         case Signature(privateKey) -> {
             val der = sign(signatureAlgorithm(algorithm), privateKey, bytes)
@@ -59,7 +59,7 @@ public fun verifyCompactOrNull(token: String, algorithm: JwsAlgorithm, key: JwsV
     val valid = when (key) {
         case Mac(secret) -> {
             requireMac(algorithm, secret)
-            verifyHmac(DigestAlgorithm.SHA256, secret, input, signature)
+            verifyHmac(DigestAlgorithm.Sha256, secret, input, signature)
         }
         case Signature(publicKey) -> {
             val selected = signatureAlgorithm(algorithm)

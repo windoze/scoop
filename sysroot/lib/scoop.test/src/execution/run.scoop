@@ -13,7 +13,7 @@ private fun execute(action: TestAction, phase: TestPhase): TestFailure? {
 }
 
 public fun runTestCase(
-    location: SourceLocation = getCurrentSourceLocation(),
+    location: SourceLocation = currentSourceLocation(),
     initialize: () -> TestActions
 ): TestResult {
     val actions: TestActions = try {

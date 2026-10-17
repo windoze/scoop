@@ -17,13 +17,13 @@ internal fun exited(status: ExitStatus, expected: Int = 0) {
         case ExitStatus.Signaled(_) -> fail(Some("unexpected signal"))
     }
 }
-internal fun text(bytes: Array<Byte>): String = OsString.fromBytes(bytes).decodeUtf8()
+internal fun text(bytes: Array<Byte>): String = OsString.fromByteArray(bytes).decodeUtf8()
 
 @Test
 private class CommandsTest {
     @Test
     fun `arguments retain empty strings spaces quotes and invalid UTF8 bytes`() {
-        val raw = OsString.fromBytes(Array<Byte>(1L) { -1.toByte() })
+        val raw = OsString.fromByteArray(Array<Byte>(1L) { -1.toByte() })
         val command = Command(Path.fromString("/bin/sh"),
             [os("-c"), os("printf '%s\\n' \"$@\""), os("args"), os(""), os("a ' b"), raw],
             stdin = Stdio.Null, stdout = Stdio.Pipe, stderr = Stdio.Pipe)
@@ -142,7 +142,7 @@ private class CommandsTest {
             Command(Path.fromString("/bin/sh"), stderr = Stdio.Pipe, mergeError = true)
         }
         assertFailsWith<IllegalArgumentException> {
-            Command(Path.fromString("/bin/sh"), [OsString.fromBytes(Array<Byte>(1L) { 0.toByte() })]).spawn()
+            Command(Path.fromString("/bin/sh"), [OsString.fromByteArray(Array<Byte>(1L) { 0.toByte() })]).spawn()
         }
         assertFailsWith<IllegalArgumentException> {
             Command(Path.fromString("/bin/sh"), environment = mapOf((os("bad=name"), os("value")))).spawn()

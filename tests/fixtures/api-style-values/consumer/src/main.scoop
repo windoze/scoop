@@ -1,0 +1,40 @@
+import scoop.bytes.*
+import scoop.datetime.*
+import scoop.io.encoding.Base64
+import scoop.platform.net.*
+import scoop.platform.system.OsString
+
+@Target([AnnotationTarget.Function])
+annotation class EntryMarker
+
+private fun check(value: Boolean) { if (!value) throw IllegalStateException() }
+private fun capture(location: SourceLocation = currentSourceLocation()): SourceLocation = location
+
+@EntryMarker
+fun main() {
+    val expected = currentSourceLocation()
+    val actual = capture()
+    check(actual.file == expected.file && actual.line == expected.line + 1L)
+    check(actual.functionName == "main")
+    check(Month.fromNumber(2) == Month.February && Month.February.toString() == "February")
+    check(DayOfWeek.fromIsoDayNumber(4) == DayOfWeek.Thursday && DayOfWeek.Thursday.toString() == "Thursday")
+    check(LocalDate(2024, Month.February, 29).toString() == "2024-02-29")
+
+    val encoded = ByteArrayBuilder()
+    encoded.writeInt32(0x01020304, ByteOrder.BigEndian)
+    encoded.writeInt32(0x01020304, ByteOrder.LittleEndian)
+    val reader = ByteArrayReader(encoded.toByteArray())
+    check(reader.readInt32(ByteOrder.BigEndian) == reader.readInt32(ByteOrder.LittleEndian))
+    val base64 = Base64.UrlSafe.withPadding(Base64.PaddingOption.Absent)
+    check(base64.encode("f".toByteArray()) == "Zg")
+    check(String.fromUtf8(base64.decode("Zg")) == "f")
+
+    val input = Array<Byte>(4L) { index -> if (index == 0L) 127.toByte() else if (index == 3L) 1.toByte() else 0.toByte() }.toMutableArray()
+    val address = IpAddress.fromByteArray(input)
+    val os = OsString.fromByteArray(input)
+    input[0L] = 1.toByte()
+    gcCollect()
+    check(address.family == AddressFamily.Ipv4 && address.toString() == "127.0.0.1")
+    check(address.toByteArray()[0L] == 127.toByte() && os.toByteArray()[0L] == 127.toByte())
+    println("public value names and factories passed")
+}

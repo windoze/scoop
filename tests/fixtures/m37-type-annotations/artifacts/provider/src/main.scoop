@@ -1,5 +1,5 @@
 package annotated.provider
-@Repeatable @Target([AnnotationTarget.TYPE]) public annotation class Mark(val text: String)
+@Repeatable @Target([AnnotationTarget.Type]) public annotation class Mark(val text: String)
 public annotation class Once
 public typealias Single = @Once Int
 public typealias Flipped<A, B> = @Mark("alias root") (@Mark("B") B, @Mark("A") A)

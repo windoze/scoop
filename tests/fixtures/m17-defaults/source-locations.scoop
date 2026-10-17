@@ -7,26 +7,26 @@ fun printLocation(label: String, location: SourceLocation, expectedFile: String)
     println(location.typeName)
 }
 
-fun trace(location: SourceLocation = getCurrentSourceLocation()): SourceLocation = location
+fun trace(location: SourceLocation = currentSourceLocation()): SourceLocation = location
 
-fun warn(location: SourceLocation = getCurrentSourceLocation()): SourceLocation =
+fun warn(location: SourceLocation = currentSourceLocation()): SourceLocation =
     trace(location)
 
-fun relay(location: SourceLocation = getCurrentSourceLocation()): SourceLocation =
+fun relay(location: SourceLocation = currentSourceLocation()): SourceLocation =
     warn(location)
 
-fun <T> genericBody(value: T): SourceLocation = getCurrentSourceLocation()
+fun <T> genericBody(value: T): SourceLocation = currentSourceLocation()
 
 class Reporter() {
-    final fun bodyLocation(): SourceLocation = getCurrentSourceLocation()
+    final fun bodyLocation(): SourceLocation = currentSourceLocation()
 
     final fun defaultLocation(
-        location: SourceLocation = getCurrentSourceLocation()
+        location: SourceLocation = currentSourceLocation()
     ): SourceLocation = location
 }
 
 class LocationTask() : SuspendTask<SourceLocation> {
-    public final override suspend fun run(): SourceLocation = getCurrentSourceLocation()
+    public final override suspend fun run(): SourceLocation = currentSourceLocation()
 }
 
 class LocationCompletion(val expectedFile: String) : Continuation<SourceLocation> {
@@ -40,7 +40,7 @@ class LocationCompletion(val expectedFile: String) : Continuation<SourceLocation
 }
 
 fun main() {
-    val direct = getCurrentSourceLocation()
+    val direct = currentSourceLocation()
     printLocation("direct", direct, direct.file)
     printLocation("default", trace(), direct.file)
     printLocation("explicit", trace(direct), direct.file)

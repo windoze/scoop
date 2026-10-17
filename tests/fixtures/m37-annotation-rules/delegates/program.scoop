@@ -1,4 +1,4 @@
-@Target([AnnotationTarget.PROPERTY, AnnotationTarget.FIELD, AnnotationTarget.PROPERTY_GETTER, AnnotationTarget.PROPERTY_SETTER, AnnotationTarget.VALUE_PARAMETER])
+@Target([AnnotationTarget.Property, AnnotationTarget.Field, AnnotationTarget.PropertyGetter, AnnotationTarget.PropertySetter, AnnotationTarget.ValueParameter])
 annotation class Mark(val text: String)
 class Slot<T>(var value: T) {
     operator fun getValue(thisRef: Unit) = value

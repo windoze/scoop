@@ -11,7 +11,7 @@ public annotation class Doc(
     val single: Float = -0.0f,
     val double: Double = -0.0
 )
-@Repeatable @Target([AnnotationTarget.TYPE])
+@Repeatable @Target([AnnotationTarget.Type])
 public annotation class Use(val text: String)
 
 @Doc(Detail("first")) @Doc(Detail("second"), [Level.Low])

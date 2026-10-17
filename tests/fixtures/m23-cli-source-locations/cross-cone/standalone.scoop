@@ -1,5 +1,5 @@
 fun main() {
-    val location = getCurrentSourceLocation()
+    val location = currentSourceLocation()
     println(location.file)
     println(location.line)
     println(location.column)

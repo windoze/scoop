@@ -28,11 +28,11 @@ fun exercise(order: ByteOrder) {
     check(reader.remaining == 0L)
 }
 fun main() {
-    exercise(ByteOrder.BIG_ENDIAN)
-    exercise(ByteOrder.LITTLE_ENDIAN)
+    exercise(ByteOrder.BigEndian)
+    exercise(ByteOrder.LittleEndian)
     val builder = ByteArrayBuilder()
-    builder.writeFloat(1f, ByteOrder.BIG_ENDIAN)
-    builder.writeDouble(-0.0, ByteOrder.LITTLE_ENDIAN)
+    builder.writeFloat(1f, ByteOrder.BigEndian)
+    builder.writeDouble(-0.0, ByteOrder.LittleEndian)
     val expected = "3f8000000000000000000080"
     val output = builder.toByteArray()
     var index = 0L
@@ -43,6 +43,6 @@ fun main() {
     val signaling = Array<Byte>(4L) { i -> when (i) {
         case 0L -> 0x7f.toByte(); case 1L -> 0x80.toByte(); case 2L -> 0.toByte(); case _ -> 1.toByte()
     } }
-    check(ByteArrayReader(signaling).readFloat(ByteOrder.BIG_ENDIAN).toBits() == 0x7f800001)
+    check(ByteArrayReader(signaling).readFloat(ByteOrder.BigEndian).toBits() == 0x7f800001)
     println("bytes floating passed")
 }

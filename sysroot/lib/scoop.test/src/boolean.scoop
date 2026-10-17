@@ -3,7 +3,7 @@ package scoop.test
 public fun assertTrue(
     condition: Boolean,
     message: String? = None,
-    location: SourceLocation = getCurrentSourceLocation()
+    location: SourceLocation = currentSourceLocation()
 ) {
     if (!condition) {
         comparisonFailure("assertTrue", true, condition, message, location)
@@ -13,7 +13,7 @@ public fun assertTrue(
 public fun assertFalse(
     condition: Boolean,
     message: String? = None,
-    location: SourceLocation = getCurrentSourceLocation()
+    location: SourceLocation = currentSourceLocation()
 ) {
     if (condition) {
         comparisonFailure("assertFalse", false, condition, message, location)

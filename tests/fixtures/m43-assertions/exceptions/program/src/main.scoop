@@ -32,7 +32,7 @@ fun main() {
         case Some(error) -> error is ParentFailure && error.code == 42 && error.token === token
         case None -> false
     })
-    val supplied = AssertionFailure("supplied", None, getCurrentSourceLocation())
+    val supplied = AssertionFailure("supplied", None, currentSourceLocation())
     verify(assertFailsWith<AssertionFailure> { throw supplied }.kind == "supplied")
     verify(calls.count == 2)
     println("exception assertions passed")

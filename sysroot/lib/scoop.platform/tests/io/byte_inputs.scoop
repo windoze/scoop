@@ -24,7 +24,7 @@ private class ByteInputListTest {
     fun `list inputs compose with strings files native buffers and addresses`() {
         val bytes = ArrayList<Byte>()
         for (byte in "list 中".toByteArray()) bytes.add(byte)
-        assertEquals("list 中", OsString.fromBytes(bytes).decodeUtf8())
+        assertEquals("list 中", OsString.fromByteArray(bytes).decodeUtf8())
         NativeByteBuffer.allocate(bytes.size).use { buffer ->
             buffer.writeBytes(bytes)
             assertEquals("list 中", String.fromUtf8(buffer.readBytes(bytes.size)))
@@ -38,7 +38,7 @@ private class ByteInputListTest {
         }
         val address = ArrayList<Byte>()
         for (byte in [127.toByte(), 0.toByte(), 0.toByte(), 1.toByte()]) address.add(byte)
-        assertEquals(IpAddress.IPV4_LOOPBACK, IpAddress.fromBytes(address))
+        assertEquals(IpAddress.IPV4_LOOPBACK, IpAddress.fromByteArray(address))
     }
 
     @Test

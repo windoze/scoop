@@ -148,7 +148,7 @@ public object Files {
                                     return@withWritableBytes checkNative(read, error, "read symbolic link", Some(path.toOsString()))
                                 }
                             }
-                            if (count < buffer.capacity) return@withNativePath Path.fromOsString(OsString.fromBytes(buffer.readBytes(count)))
+                            if (count < buffer.capacity) return@withNativePath Path.fromOsString(OsString.fromByteArray(buffer.readBytes(count)))
                             if (buffer.capacity == Long.MAX_VALUE) throw ArithmeticException()
                             val needed = buffer.capacity + 1L
                             buffer.clear()
@@ -187,7 +187,7 @@ private fun temporaryPath(parent: Path?, prefix: String, directory: Boolean): Pa
     }
     @Unsafe {
         val base = parent ?: Path.fromOsString(copyNativeString(nativeTemporaryDirectory()))
-        val pattern = base.resolve(Path.fromString(prefix + "XXXXXX")).toOsString().toBytes()
+        val pattern = base.resolve(Path.fromString(prefix + "XXXXXX")).toOsString().toByteArray()
         if (pattern.size == Long.MAX_VALUE) throw ArithmeticException()
         val writable = MutableArray<Byte>(pattern.size + 1L) { index -> if (index == pattern.size) 0.toByte() else pattern[index] }
         return writable.withDataPointer { pointer, _ ->

@@ -177,7 +177,7 @@ public class NativeByteBuffer private constructor() : Closeable {
             var index = 0L
             @Unsafe {
                 while (index < width) {
-                    val offset = if (order == ByteOrder.BIG_ENDIAN) index else width - index - 1L
+                    val offset = if (order == ByteOrder.BigEndian) index else width - index - 1L
                     value = (value shl 8L) or memory!!.load(reader + offset).toUByte().toULong()
                     index += 1L
                 }
@@ -193,7 +193,7 @@ public class NativeByteBuffer private constructor() : Closeable {
             var index = 0L
             @Unsafe {
                 while (index < width) {
-                    val shift = (if (order == ByteOrder.BIG_ENDIAN) width - index - 1L else index) * 8L
+                    val shift = (if (order == ByteOrder.BigEndian) width - index - 1L else index) * 8L
                     memory!!.store(writer + index, (value shr shift).toByte())
                     index += 1L
                 }
@@ -202,8 +202,8 @@ public class NativeByteBuffer private constructor() : Closeable {
         }
     }
 
-    public fun readInt8(): Int8 = read(1L, ByteOrder.BIG_ENDIAN).toByte()
-    public fun readUInt8(): UInt8 = read(1L, ByteOrder.BIG_ENDIAN).toUByte()
+    public fun readInt8(): Int8 = read(1L, ByteOrder.BigEndian).toByte()
+    public fun readUInt8(): UInt8 = read(1L, ByteOrder.BigEndian).toUByte()
     public fun readInt16(order: ByteOrder): Int16 = read(2L, order).toShort()
     public fun readUInt16(order: ByteOrder): UInt16 = read(2L, order).toUShort()
     public fun readInt32(order: ByteOrder): Int32 = read(4L, order).toInt()
@@ -213,8 +213,8 @@ public class NativeByteBuffer private constructor() : Closeable {
     public fun readFloat(order: ByteOrder): Float = Float.fromBits(readInt32(order))
     public fun readDouble(order: ByteOrder): Double = Double.fromBits(readInt64(order))
 
-    public fun writeInt8(value: Int8) { write(value.toULong(), 1L, ByteOrder.BIG_ENDIAN) }
-    public fun writeUInt8(value: UInt8) { write(value.toULong(), 1L, ByteOrder.BIG_ENDIAN) }
+    public fun writeInt8(value: Int8) { write(value.toULong(), 1L, ByteOrder.BigEndian) }
+    public fun writeUInt8(value: UInt8) { write(value.toULong(), 1L, ByteOrder.BigEndian) }
     public fun writeInt16(value: Int16, order: ByteOrder) { write(value.toULong(), 2L, order) }
     public fun writeUInt16(value: UInt16, order: ByteOrder) { write(value.toULong(), 2L, order) }
     public fun writeInt32(value: Int32, order: ByteOrder) { write(value.toULong(), 4L, order) }

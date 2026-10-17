@@ -1,4 +1,4 @@
-@Repeatable @Target([AnnotationTarget.TYPE])
+@Repeatable @Target([AnnotationTarget.Type])
 annotation class Mark(val n: Int)
 class Slot<T>(var value: @Mark(1) T) {
     operator fun getValue(thisRef: Unit): @Mark(2) T = value

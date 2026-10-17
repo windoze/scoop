@@ -68,9 +68,9 @@ internal fun isPipe(value: Stdio): Boolean = when (value) {
 }
 
 private fun searchCandidates(executable: Path, environment: Map<OsString, OsString>): Array<Path> {
-    val name = executable.toOsString().toBytes()
+    val name = executable.toOsString().toByteArray()
     for (byte in name) { if (byte == 47) return [executable] }
-    val path = (environment[OsString.fromString("PATH")] ?: OsString.fromString("/bin:/usr/bin")).toBytes()
+    val path = (environment[OsString.fromString("PATH")] ?: OsString.fromString("/bin:/usr/bin")).toByteArray()
     val result = ArrayList<Path>()
     var start = 0L
     var index = 0L
@@ -78,7 +78,7 @@ private fun searchCandidates(executable: Path, environment: Map<OsString, OsStri
         if (index == path.size || path[index] == 58) {
             val from = start
             val length = index - start
-            val directory = Path.fromOsString(OsString.fromBytes(Array<Byte>(length) { path[from + it] }))
+            val directory = Path.fromOsString(OsString.fromByteArray(Array<Byte>(length) { path[from + it] }))
             result.add(directory.resolve(executable))
             start = index + 1L
         }

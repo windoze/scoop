@@ -7,7 +7,7 @@ public class SocketAddress public constructor(public val address: IpAddress, pub
     public override operator fun equals(other: SocketAddress): Boolean = address == other.address && port == other.port
     public override fun hash(): Long = address.hash() * 31L + port.toLong()
     public override fun toString(): String =
-        (if (address.family == AddressFamily.IPv6) "[" + address.toString() + "]" else address.toString()) + ":" + port.toString()
+        (if (address.family == AddressFamily.Ipv6) "[" + address.toString() + "]" else address.toString()) + ":" + port.toString()
 
     public companion object {
         public fun parse(text: String): SocketAddress {
@@ -15,7 +15,7 @@ public class SocketAddress public constructor(public val address: IpAddress, pub
             val separator = if (bracketed) text.lastIndexOf("]:") else text.lastIndexOf(':')
             if (separator < 1L) throw IllegalArgumentException(Some("invalid socket address"))
             val address = IpAddress.parse(text.slice(if (bracketed) 1L else 0L, separator))
-            if (bracketed != (address.family == AddressFamily.IPv6)) throw IllegalArgumentException(Some("IPv6 endpoint requires brackets"))
+            if (bracketed != (address.family == AddressFamily.Ipv6)) throw IllegalArgumentException(Some("IPv6 endpoint requires brackets"))
             val port = decimal(text.slice(separator + (if (bracketed) 2L else 1L), text.length))
             if (port > 65535u) throw IllegalArgumentException(Some("port is outside 0..65535"))
             return SocketAddress(address, port.toInt())

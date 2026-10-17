@@ -23,7 +23,7 @@ internal fun peerCommand(executable: String, arguments: List<String>, input: Std
 )
 
 internal fun peerSucceeded(output: ProcessOutput) {
-    val details = Some(OsString.fromBytes(output.stderr).decodeUtf8())
+    val details = Some(OsString.fromByteArray(output.stderr).decodeUtf8())
     when (output.status) {
         case Exited(code) -> assertEquals(0, code, details)
         case Signaled(_) -> fail(details)

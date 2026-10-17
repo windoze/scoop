@@ -45,18 +45,18 @@ impl AnnotationTargetKind {
 
     pub const fn name(self) -> &'static str {
         match self {
-            Self::Class => "CLASS",
-            Self::AnnotationClass => "ANNOTATION_CLASS",
-            Self::EnumVariant => "ENUM_VARIANT",
-            Self::Field => "FIELD",
-            Self::Property => "PROPERTY",
-            Self::Function => "FUNCTION",
-            Self::Constructor => "CONSTRUCTOR",
-            Self::ValueParameter => "VALUE_PARAMETER",
-            Self::PropertyGetter => "PROPERTY_GETTER",
-            Self::PropertySetter => "PROPERTY_SETTER",
-            Self::TypeAlias => "TYPEALIAS",
-            Self::Type => "TYPE",
+            Self::Class => "Class",
+            Self::AnnotationClass => "AnnotationClass",
+            Self::EnumVariant => "EnumVariant",
+            Self::Field => "Field",
+            Self::Property => "Property",
+            Self::Function => "Function",
+            Self::Constructor => "Constructor",
+            Self::ValueParameter => "ValueParameter",
+            Self::PropertyGetter => "PropertyGetter",
+            Self::PropertySetter => "PropertySetter",
+            Self::TypeAlias => "TypeAlias",
+            Self::Type => "Type",
         }
     }
 }

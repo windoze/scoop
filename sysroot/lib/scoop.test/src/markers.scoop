@@ -1,13 +1,13 @@
 package scoop.test
 
-@Target([AnnotationTarget.CLASS, AnnotationTarget.FUNCTION])
+@Target([AnnotationTarget.Class, AnnotationTarget.Function])
 public annotation class Test
 
-@Target([AnnotationTarget.FUNCTION])
+@Target([AnnotationTarget.Function])
 public annotation class BeforeTest
 
-@Target([AnnotationTarget.FUNCTION])
+@Target([AnnotationTarget.Function])
 public annotation class AfterTest
 
-@Target([AnnotationTarget.FUNCTION])
+@Target([AnnotationTarget.Function])
 public annotation class Ignore(val reason: String)

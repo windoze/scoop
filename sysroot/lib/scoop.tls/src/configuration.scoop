@@ -5,18 +5,18 @@ import scoop.crypto.native.peerIdentityData
 import scoop.crypto.x509.PeerIdentity
 import scoop.platform.net.IpAddress
 
-public enum TlsVersion { TLS12, TLS13 }
+public enum TlsVersion { Tls12, Tls13 }
 public enum TlsPeerName { Dns(String), Ip(IpAddress) }
 public struct TlsOptions(
-    val minimum: TlsVersion = TlsVersion.TLS12,
-    val maximum: TlsVersion = TlsVersion.TLS13,
+    val minimum: TlsVersion = TlsVersion.Tls12,
+    val maximum: TlsVersion = TlsVersion.Tls13,
     val alpn: List<Array<Byte>> = ArrayList<Array<Byte>>()
 )
 public struct TlsConnectionInfo(val version: TlsVersion, val alpn: Array<Byte>?)
 
 internal fun versionCode(version: TlsVersion): Int = when (version) {
-    case TLS12 -> 0x0303
-    case TLS13 -> 0x0304
+    case Tls12 -> 0x0303
+    case Tls13 -> 0x0304
 }
 
 internal fun encodeOptions(options: TlsOptions): Array<Byte> {
@@ -36,5 +36,5 @@ internal fun encodeOptions(options: TlsOptions): Array<Byte> {
 
 internal fun peerData(peer: TlsPeerName): (Int, Array<Byte>) = when (peer) {
     case Dns(name) -> peerIdentityData(PeerIdentity.Dns(name))
-    case Ip(address) -> peerIdentityData(PeerIdentity.Ip(address.toBytes()))
+    case Ip(address) -> peerIdentityData(PeerIdentity.Ip(address.toByteArray()))
 }

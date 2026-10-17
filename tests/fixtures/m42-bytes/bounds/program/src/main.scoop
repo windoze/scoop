@@ -18,16 +18,16 @@ fun main() {
     rejected(reader, true) { reader.readBytes(-1L) }
     rejected(reader, false) { reader.skip(Long.MAX_VALUE) }
     rejected(reader, false) { reader.readBytes(Long.MAX_VALUE) }
-    rejected(reader, false) { reader.readInt64(ByteOrder.BIG_ENDIAN) }
-    rejected(reader, false) { reader.readUInt64(ByteOrder.LITTLE_ENDIAN) }
-    rejected(reader, false) { reader.readDouble(ByteOrder.BIG_ENDIAN) }
+    rejected(reader, false) { reader.readInt64(ByteOrder.BigEndian) }
+    rejected(reader, false) { reader.readUInt64(ByteOrder.LittleEndian) }
+    rejected(reader, false) { reader.readDouble(ByteOrder.BigEndian) }
     reader.seek(6L)
-    rejected(reader, false) { reader.readInt32(ByteOrder.LITTLE_ENDIAN) }
-    rejected(reader, false) { reader.readUInt32(ByteOrder.BIG_ENDIAN) }
-    rejected(reader, false) { reader.readFloat(ByteOrder.LITTLE_ENDIAN) }
+    rejected(reader, false) { reader.readInt32(ByteOrder.LittleEndian) }
+    rejected(reader, false) { reader.readUInt32(ByteOrder.BigEndian) }
+    rejected(reader, false) { reader.readFloat(ByteOrder.LittleEndian) }
     reader.seek(8L)
-    rejected(reader, false) { reader.readInt16(ByteOrder.BIG_ENDIAN) }
-    rejected(reader, false) { reader.readUInt16(ByteOrder.LITTLE_ENDIAN) }
+    rejected(reader, false) { reader.readInt16(ByteOrder.BigEndian) }
+    rejected(reader, false) { reader.readUInt16(ByteOrder.LittleEndian) }
     check(reader.readUInt8() == 8u.toUByte())
     rejected(reader, false) { reader.readInt8() }
     rejected(reader, false) { reader.readUInt8() }

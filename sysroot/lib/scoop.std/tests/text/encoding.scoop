@@ -16,7 +16,7 @@ private class EncodingTests {
 
     @Test
     fun `url alphabet and absent padding compose`() {
-        val codec = Base64.UrlSafe.withPadding(PaddingOption.ABSENT)
+        val codec = Base64.UrlSafe.withPadding(PaddingOption.Absent)
         val bytes = "ff00fe00".hexToByteArray()
         assertEquals("_wD-AA", codec.encode(bytes))
         assertEquals("ff00fe00", codec.decode("_wD-AA").toHexString())

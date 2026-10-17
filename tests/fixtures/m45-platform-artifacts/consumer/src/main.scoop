@@ -14,8 +14,8 @@ fun main() {
     println(path.decodeUtf8())
     println(path.fileName!!.decodeUtf8())
     println(path.hash() == Path.fromString("/beta").hash())
-    val raw = OsString.fromBytes(Array<Byte>(2L) { index -> if (index == 0L) 97 else -1 })
-    println(Path.fromOsString(raw).toOsString().toBytes()[1L])
+    val raw = OsString.fromByteArray(Array<Byte>(2L) { index -> if (index == 0L) 97 else -1 })
+    println(Path.fromOsString(raw).toOsString().toByteArray()[1L])
     try { raw.decodeUtf8() } catch (error: CharacterCodingException) { println(error.byteOffset) }
     val error = NativeError(NativeErrorDomain.PosixErrno, Int.MAX_VALUE)
     println(error.kind == PlatformErrorKind.Other)
@@ -63,7 +63,7 @@ fun main() {
     Command(Path.fromString("/bin/cat"), stdin = Stdio.Pipe, stdout = Stdio.Pipe,
         stderr = Stdio.Pipe).spawn().use { child ->
         val output = child.communicate(Some("artifact process 中".toByteArray().toArray()))
-        if (OsString.fromBytes(output.stdout).decodeUtf8() != "artifact process 中") throw IllegalStateException()
+        if (OsString.fromByteArray(output.stdout).decodeUtf8() != "artifact process 中") throw IllegalStateException()
         when (output.status) {
             case ExitStatus.Exited(code) -> if (code != 0) throw IllegalStateException()
             case ExitStatus.Signaled(_) -> throw IllegalStateException()

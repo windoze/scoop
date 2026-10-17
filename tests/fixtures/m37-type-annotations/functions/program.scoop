@@ -1,4 +1,4 @@
-@Repeatable @Target([AnnotationTarget.TYPE])
+@Repeatable @Target([AnnotationTarget.Type])
 annotation class Mark(val n: Int)
 fun suspendShape(f: @Mark(1) suspend (@Mark(2) Int) -> @Mark(3) Int) = f
 fun (@Mark(4) String).sizePlus(n: @Mark(5) Int): @Mark(6) Int = this.length.toInt() + n

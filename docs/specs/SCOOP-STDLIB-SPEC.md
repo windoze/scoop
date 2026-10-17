@@ -36,6 +36,10 @@ core 的结构化并发合同见语言规范 11.9.1～11.9.2；native buffer 的
 
 ### 1.2 命名、类型与失败
 
+公共函数／属性采用 lowerCamelCase，类型和普通 enum variant 采用 UpperCamelCase；缩写按单词处理，如 Json、Tls、Uuid、Ip、Os、Io。ByteOrder.BigEndian、Month.January、Base64.PaddingOption.Absent、DigestAlgorithm.Sha256、AeadAlgorithm.Aes128Gcm、KeyAlgorithm.Rsa、AddressFamily.Ipv4 和 TlsVersion.Tls12 遵守同一规则。JwsAlgorithm 的标准算法码和 Architecture.X86_64 的标准架构名保留公认拼写；具名配置 Base64.Default／UrlSafe 与常量 Duration.ZERO／Uuid.NIL 分别保留各自类别的拼写。
+
+普通变体的源名字改变时，反射、debug 及未显式指定 wire name 的派生编码使用新名字。Month／DayOfWeek.toString 使用新变体名；日期时间的 ISO 文本、JWS header 算法码、TLS 版本值及 AnnotationTarget 的整数值保持各自已有格式，不从展示名称推导协议数据。
+
 `OrNull` 在 Scoop 中表示 Option，仅把入口约定的正常缺失、格式错误或验证不匹配转为 None；用户回调、非法参数、状态与后端错误仍照常抛出。谓词式 verify 返回 Boolean；需要失败载荷时使用已有 Result<T, E>。Map.get、Iterator.next、find、tryWait 等已有明确缺失语义的查询可以直接返回 Option；try 保留给非阻塞尝试和竞争状态转换。
 
 类名、工厂、扩展名尽量采用 Kotlin 的常用拼写，例如 HashMap、LinkedHashMap、mapOf、mapNotNull、getOrNull、sortedWith、Random、Duration、Instant、LocalDate、Uuid。以下 Scoop 规则优先：
@@ -218,7 +222,7 @@ trim(predicate) 先从左向右检查前缀，再从右向左检查剩余后缀�
 
 复用 core Byte（Int8）保存八位 bit pattern，输入采用 List<Byte>，结果采用独立 Array<Byte> 或 MutableArray<Byte>，不引入另一套 intrinsic ByteArray。`ByteArrayBuilder` 是 GC 堆上的 growable final class，提供 size、append(Byte)、append(List<Byte>)、clear、toByteArray、toMutableByteArray，以及 writeInt8/UInt8/Int16/UInt16/Int32/UInt32/Int64/UInt64/Float/Double。
 
-`ByteArrayReader` 在构造时取得输入浅快照，持有 position、remaining；提供对应 read 方法、readBytes(count)、skip(count)。position 只能通过受检 seek 改变，范围 0..size。多字节读写显式接收 `ByteOrder.BIG_ENDIAN/LITTLE_ENDIAN`，不设 native-order 默认值；浮点按 toBits/fromBits 保存位型。短输入和非法区间抛 IndexOutOfBoundsException，负数量抛 IllegalArgumentException；失败的单次读取不移动 position。
+`ByteArrayReader` 在构造时取得输入浅快照，持有 position、remaining；提供对应 read 方法、readBytes(count)、skip(count)。position 只能通过受检 seek 改变，范围 0..size。多字节读写显式接收 `ByteOrder.BigEndian/LittleEndian`，不设 native-order 默认值；浮点按 toBits/fromBits 保存位型。短输入和非法区间抛 IndexOutOfBoundsException，负数量抛 IllegalArgumentException；失败的单次读取不移动 position。
 
 builder 输出为独立快照，后续 append/clear 不改变结果；append(List) 先取得本次输入快照，再一次提交，允许同源输入与 getter 抛异常。write 固定位宽操作先保证空间再写入，不对外留下半个数值。容量增长和清零使用普通 core 存储；不提供 direct/off-heap buffer、Ptr、pin、borrow/view、显式 close 或 file/socket stream。
 
@@ -230,9 +234,9 @@ text 提供 `toHexString`、`hexToByteArray/hexToByteArrayOrNull`；默认输出
 
 签名为 `List<Byte>.toHexString(uppercase: Boolean = false): String`、`String.hexToByteArray(): Array<Byte>` 与返回 Array<Byte>? 的 OrNull 版本。非法输入抛 IllegalArgumentException，message 含从零开始的非法标量 index；若只有结尾缺少半个字节，index 为字符串末尾位置。输出大小超出 Long 表示范围时抛 ArithmeticException。
 
-`Base64.Default`、`Base64.UrlSafe` 分别使用 RFC 4648 的标准和 URL-safe 字母表；encode/decode 接收显式输入。`PaddingOption.REQUIRED/ABSENT/OPTIONAL` 控制 padding：encode 在 REQUIRED/OPTIONAL 时写 padding，ABSENT 不写；decode 分别要求规范 padding、禁止 padding、接受二者。默认 REQUIRED。
+`Base64.Default`、`Base64.UrlSafe` 分别使用 RFC 4648 的标准和 URL-safe 字母表；encode/decode 接收显式输入。`PaddingOption.Required/Absent/Optional` 控制 padding：encode 在 Required/Optional 时写 padding，Absent 不写；decode 分别要求规范 padding、禁止 padding、接受二者。默认 Required。
 
-Base64 为不可变 final class，构造私有，通过两个预定义实例和 `withPadding(option: Base64.PaddingOption): Base64` 取得配置。PaddingOption 为 Base64 的嵌套 enum；paddingOption 是只读属性。`encode(source: List<Byte>): String`，`decode(source: String): Array<Byte>`，`decodeOrNull(source: String): Array<Byte>?`。完整三字节分组不需要 `=`，所有模式均接受空输入；OPTIONAL 只接受完整规范 padding 或完全省略，不能省略所需两个 `=` 中的一个。编码结果长度溢出 Long 时抛 ArithmeticException。
+Base64 为不可变 final class，构造私有，通过两个预定义实例和 `withPadding(option: Base64.PaddingOption): Base64` 取得配置。PaddingOption 为 Base64 的嵌套 enum；paddingOption 是只读属性。`encode(source: List<Byte>): String`，`decode(source: String): Array<Byte>`，`decodeOrNull(source: String): Array<Byte>?`。完整三字节分组不需要 `=`，所有模式均接受空输入；Optional 只接受完整规范 padding 或完全省略，不能省略所需两个 `=` 中的一个。编码结果长度溢出 Long 时抛 ArithmeticException。
 
 decode 拒绝混用字母表、非法字符、空白、错误长度、错误位置/数量的 `=` 和非零 pad bits；不增加 MIME 换行模式。非法输入抛 IllegalArgumentException，decodeOrNull 返回 None；所有结果为独立字节快照。实现只读显式数据，不进行 I/O。
 
@@ -336,9 +340,9 @@ TimeMark 保存 `source: TimeSource` 与 `reading: Duration`，reading 是相对
 
 ### 8.5 日期、时间与固定偏移
 
-采用 proleptic Gregorian calendar，包含 year 0，year 范围 -999999999..999999999。Month 使用 JANUARY..DECEMBER，DayOfWeek 使用 MONDAY..SUNDAY；monthNumber 为 1..12，ISO weekday 为 1..7。
+采用 proleptic Gregorian calendar，包含 year 0，year 范围 -999999999..999999999。Month 使用 January..December，DayOfWeek 使用 Monday..Sunday；monthNumber 为 1..12，ISO weekday 为 1..7。
 
-Month／DayOfWeek 是普通 enum，分别提供 number／isoDayNumber、of(Int) 受检工厂，以及按上述编号的 Equals/Compare/Hash 和大写变体名称 ToString。LocalDate(year: Int, monthNumber: Int, dayOfMonth: Int) 与 YearMonth(year: Int, monthNumber: Int) 在构造时验证；两者另提供 Month 参数重载、month 和 yearMonth（LocalDate）属性。plusDays/plusMonths/plusYears 接收 Long，fromEpochDays 接收 Long 并拒绝域外参数（IllegalArgumentException）；已有日期的偏移越界为 ArithmeticException。日期减 DatePeriod 直接反向应用总月数及 days，不要求先构造逐字段取负的 period，因此不会因 Long.MIN_VALUE 的中间取负而错误接受 wrapping 结果。
+Month／DayOfWeek 是普通 enum，分别提供 number／isoDayNumber、fromNumber(Int)／fromIsoDayNumber(Int) 受检工厂，以及按上述编号的 Equals/Compare/Hash 和 UpperCamelCase 变体名称 ToString。LocalDate(year: Int, monthNumber: Int, dayOfMonth: Int) 与 YearMonth(year: Int, monthNumber: Int) 在构造时验证；两者另提供 Month 参数重载、month 和 yearMonth（LocalDate）属性。plusDays/plusMonths/plusYears 接收 Long，fromEpochDays 接收 Long 并拒绝域外参数（IllegalArgumentException）；已有日期的偏移越界为 ArithmeticException。日期减 DatePeriod 直接反向应用总月数及 days，不要求先构造逐字段取负的 period，因此不会因 Long.MIN_VALUE 的中间取负而错误接受 wrapping 结果。
 
 - LocalDate：受检 year/month/day 构造，MIN/MAX、year/monthNumber/dayOfMonth/dayOfYear/dayOfWeek、toEpochDays/fromEpochDays、plusDays/plusMonths/plusYears、daysUntil、DatePeriod 加减、parse/parseOrNull/toString。epoch day 0 为 1970-01-01，使用 Long；daysUntil 为 other 减 receiver 的日数。
 - LocalTime：hour 0..23、minute/second 0..59、nanosecond 0..999999999；提供 from/toNanosecondOfDay、分量、比较、加减 Duration（按 24 小时回绕）与 ISO 文本。拒绝 24:00、闰秒和带日期/offset 的输入。

@@ -34,7 +34,7 @@ fn source(unrelated_prefix: bool) -> ast::SourceFile {
         id: ast::LambdaId(0),
         is_suspend: false,
         parameters: Some(Vec::new()),
-        body: block(vec![stmt(call("getCurrentSourceLocation", Vec::new()))]),
+        body: block(vec![stmt(call("currentSourceLocation", Vec::new()))]),
         span: sp(),
     };
     let mut recorder = class_decl(
@@ -47,7 +47,7 @@ fn source(unrelated_prefix: bool) -> ast::SourceFile {
             "locate",
             Vec::new(),
             Some(ty_named("SourceLocation")),
-            call("getCurrentSourceLocation", Vec::new()),
+            call("currentSourceLocation", Vec::new()),
         )],
     );
     let ast::Decl::Class(recorder_declaration) = &mut recorder else {
@@ -58,7 +58,7 @@ fn source(unrelated_prefix: bool) -> ast::SourceFile {
         unreachable!()
     };
     constructor.parameters[0].syntax = ast::ParameterSyntax::Default {
-        expression: call("getCurrentSourceLocation", Vec::new()),
+        expression: call("currentSourceLocation", Vec::new()),
         equals_span: sp(),
     };
     let mut declarations = vec![
@@ -68,7 +68,7 @@ fn source(unrelated_prefix: bool) -> ast::SourceFile {
             Vec::new(),
             Vec::new(),
             Some(ty_named("SourceLocation")),
-            call("getCurrentSourceLocation", Vec::new()),
+            call("currentSourceLocation", Vec::new()),
         ),
         fun_expr(
             "factory",
@@ -77,7 +77,7 @@ fn source(unrelated_prefix: bool) -> ast::SourceFile {
             Some(ty_function(false, Vec::new(), ty_named("SourceLocation"))),
             callback,
         ),
-        runtime_property("bootLocation", call("getCurrentSourceLocation", Vec::new())),
+        runtime_property("bootLocation", call("currentSourceLocation", Vec::new())),
         fun("main", Vec::new()),
     ];
     if unrelated_prefix {

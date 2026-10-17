@@ -24,8 +24,8 @@ public class TlsEngine private constructor(private var handle: ULong) : Closeabl
         @Unsafe {
             val owned = nativeHandle()
             val version = when (sessionVersion(owned)) {
-                case 0x0303 -> TlsVersion.TLS12
-                case 0x0304 -> TlsVersion.TLS13
+                case 0x0303 -> TlsVersion.Tls12
+                case 0x0304 -> TlsVersion.Tls13
                 else -> throw IllegalStateException(Some("TLS handshake is incomplete"))
             }
             val alpn = cryptoBytes(sessionAlpn(owned), "read TLS ALPN")

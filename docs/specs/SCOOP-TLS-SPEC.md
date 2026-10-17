@@ -16,7 +16,7 @@ TlsClientContext 显式接收 crypto TrustStore；TlsServerContext 接收 Certif
 
 默认 TLS 1.2～1.3，允许显式限定为其中一个版本；使用上游正常密码配置。ALPN 为独立协议字节串列表，每项 1～255 字节，总编码长度至多 65535；服务端按自身顺序选共同项。双方配置 ALPN 而无共同项时报握手错误，未协商返回 None。协商信息提供实际 TLS 版本与可选 ALPN。
 
-`TlsVersion { TLS12, TLS13 }`，`TlsOptions(minimum = TLS12, maximum = TLS13, alpn = 空列表)`。上下文构造为 `TlsClientContext(trustStore, options)` 和 `TlsServerContext(certificates, privateKey, options)`；certificates 非空，顺序为叶证书、其后发送的中间证书，根无需发送。`TlsPeerName { Dns(String), Ip(IpAddress) }` 在 TLS 层将 platform 的地址转成 crypto 的内存身份。`TlsConnectionInfo(version, alpn)` 返回协商数据的独立副本。
+`TlsVersion { Tls12, Tls13 }`，`TlsOptions(minimum = Tls12, maximum = Tls13, alpn = 空列表)`。上下文构造为 `TlsClientContext(trustStore, options)` 和 `TlsServerContext(certificates, privateKey, options)`；certificates 非空，顺序为叶证书、其后发送的中间证书，根无需发送。`TlsPeerName { Dns(String), Ip(IpAddress) }` 在 TLS 层将 platform 的地址转成 crypto 的内存身份。`TlsConnectionInfo(version, alpn)` 返回协商数据的独立副本。
 
 ## 3. 所有权与引擎
 

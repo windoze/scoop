@@ -11,7 +11,7 @@ import scoop.text.*
 private class OpenSslClientTests {
     @Test
     fun `Scoop clients interoperate with independent OpenSSL DNS IP ALPN and shutdown`() {
-        for (version in [TlsVersion.TLS12, TlsVersion.TLS13]) {
+        for (version in [TlsVersion.Tls12, TlsVersion.Tls13]) {
             pythonServer(version, true)
             pythonServer(version, false)
         }
@@ -22,7 +22,7 @@ private fun pythonServer(version: TlsVersion, dns: Boolean) {
     InteropDirectory().use { tree ->
         tree.certificates()
         val arguments: Array<String> = ["-u", "-c", pythonTlsPeer(), tree.child("server.pem").decodeUtf8(),
-            tree.child("server-key.pem").decodeUtf8(), tree.child("sni").decodeUtf8(), if (version == TlsVersion.TLS12) "12" else "13"]
+            tree.child("server-key.pem").decodeUtf8(), tree.child("sni").decodeUtf8(), if (version == TlsVersion.Tls12) "12" else "13"]
         val child = peerCommand("python3", arguments).spawn(searchPath = true)
         try {
             val port = child.stdout!!.readLine()!!.toIntOrNull()!!

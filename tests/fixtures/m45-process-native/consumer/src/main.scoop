@@ -32,15 +32,15 @@ private fun exited(status: ExitStatus) {
 }
 
 private fun nativeArguments(path: Path) {
-    val raw = OsString.fromBytes(Array<Byte>(1L) { -1.toByte() })
-    val environment = mapOf((os("RAW"), OsString.fromBytes(Array<Byte>(1L) { -2.toByte() })), (os("EMPTY"), os("")))
+    val raw = OsString.fromByteArray(Array<Byte>(1L) { -1.toByte() })
+    val environment = mapOf((os("RAW"), OsString.fromByteArray(Array<Byte>(1L) { -2.toByte() })), (os("EMPTY"), os("")))
     @Unsafe { signalSetup() }
     try {
         Command(path, [os("check"), os(""), os("a ' b"), raw, currentDirectory().toOsString()],
             environment, stdin = Stdio.Null, stdout = Stdio.Pipe, stderr = Stdio.Pipe).spawn().use { child ->
             val output = child.communicate()
             exited(output.status)
-            verify(OsString.fromBytes(output.stdout).decodeUtf8() == "checked\n" && output.stderr.size == 0L)
+            verify(OsString.fromByteArray(output.stdout).decodeUtf8() == "checked\n" && output.stderr.size == 0L)
         }
     } finally { @Unsafe { signalRestore() } }
 }

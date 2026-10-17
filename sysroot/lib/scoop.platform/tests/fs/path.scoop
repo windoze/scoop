@@ -54,10 +54,10 @@ private class PathTest {
     @Test
     fun `non Unicode components round trip without filesystem access`() {
         val raw: Array<Byte> = [97, -1, 47, 98]
-        val path = Path.fromOsString(OsString.fromBytes(raw))
-        assertEquals(-1.toByte(), path.toOsString().toBytes()[1L])
+        val path = Path.fromOsString(OsString.fromByteArray(raw))
+        assertEquals(-1.toByte(), path.toOsString().toByteArray()[1L])
         assertEquals("b", path.fileName!!.decodeUtf8())
-        assertEquals(2L, path.parent!!.toOsString().toBytes().size)
+        assertEquals(2L, path.parent!!.toOsString().toByteArray().size)
         assertFailsWith<CharacterCodingException> { path.decodeUtf8() }
         assertEquals("a�/b", path.display())
         assertEquals(path, Path.fromOsString(path.toOsString()))
@@ -67,6 +67,6 @@ private class PathTest {
     @Test
     fun `NUL is rejected before a path can reach native code`() {
         val raw: Array<Byte> = [97, 0, 98]
-        assertFailsWith<IllegalArgumentException> { Path.fromOsString(OsString.fromBytes(raw)) }
+        assertFailsWith<IllegalArgumentException> { Path.fromOsString(OsString.fromByteArray(raw)) }
     }
 }

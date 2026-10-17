@@ -34,8 +34,8 @@ private class TlsEngineConsumerTests {
                     moveCiphertext(server, client, staging)
                 }
             }
-            assertTrue(client.connectionInfo.version == TlsVersion.TLS13)
-            assertTrue(server.connectionInfo.version == TlsVersion.TLS13)
+            assertTrue(client.connectionInfo.version == TlsVersion.Tls13)
+            assertTrue(server.connectionInfo.version == TlsVersion.Tls13)
         } finally { client.close(); server.close() }
     }
 }

@@ -5,13 +5,13 @@ fun main() {
     val text = "雪\u{0}A"
     val payload = text.toByteArray()
     val output = ByteArrayBuilder()
-    output.writeUInt32(payload.size.toUInt(), ByteOrder.BIG_ENDIAN)
+    output.writeUInt32(payload.size.toUInt(), ByteOrder.BigEndian)
     output.append(payload)
-    output.writeDouble(Double.fromBits(0x7ff0000000000123L), ByteOrder.LITTLE_ENDIAN)
+    output.writeDouble(Double.fromBits(0x7ff0000000000123L), ByteOrder.LittleEndian)
     val input = ByteArrayReader(output.toByteArray())
-    val content = input.readBytes(input.readUInt32(ByteOrder.BIG_ENDIAN).toLong())
+    val content = input.readBytes(input.readUInt32(ByteOrder.BigEndian).toLong())
     val decoded = String.fromUtf8(content)
-    if (decoded != text || input.readDouble(ByteOrder.LITTLE_ENDIAN).toBits() != 0x7ff0000000000123L ||
+    if (decoded != text || input.readDouble(ByteOrder.LittleEndian).toBits() != 0x7ff0000000000123L ||
         input.remaining != 0L || "1.25".toFloat() != 1.25f) throw IllegalStateException()
     println("byte frame passed")
 }
