@@ -16,6 +16,8 @@ HttpField 的构造参数为 `List<Byte>`，名称和值各取得独立 `Array<B
 
 方法保留 token 字节。HTTP/1 request-target 保留原有字节；HTTP/2 的 scheme、authority、path 与 CONNECT authority 单独表达。响应有版本、状态码和字段；HTTP/1 保留实际 reason phrase，HTTP/2 没有该数据，不生成默认文本。正常接收的请求／响应头必须具备该消息所需信息，不能把未完成的字段块当作消息交付。
 
+公开 HttpRequestHead 使用 HttpRequestTarget 的 Http1(raw)、Http2(scheme, authority, path)、Connect(authority) 形状；各字节值为 Array 快照。HttpResponseHead 的 reason 是可选字节快照。HttpHeaderLimits 按字段名称和值的合计字节数、单项字节数、字段数量限制接收；Http1Limits 另限制起始行各组成数据的合计字节数，不把分隔符或 OWS 计为字段数据。
+
 body 交付解开 chunked／DATA 定界后的内容字节；不按 Content-Type、Content-Encoding、字符集或百分号编码解释。trailer 独立于初始字段，能够区分未完成、已完成且为空、收到非空字段。信息响应、最终响应、body 结束和协议切换分别可观察。
 
 这些快照表示后端交付的数据，不保证是原始报文镜像。llhttp 可能跳过起始 OWS 或展开接受的折行；nghttp2 会过滤部分字段，HPACK 表示不保留。需要原始报文的应用在原有传输上记录字节，HTTP 不增加另一套记录机制。
@@ -53,6 +55,8 @@ public struct Http1ReceiveOptions(
 
 各布尔值映射到 llhttp 同义开关。legacyHeaderValues 实际使用较宽的 lenient_headers，包括旧式折行；不保证接受冒号前空白或忽略非法行。lenientChunkedLength 同时影响 TE／CL 共存以及没有最终 chunked 的请求，不能解释成单一冲突开关。两个行结束选项各自只放宽后端覆盖的位置，不承诺接受任意裸 CR／LF。
 
+lenientTransferEncoding 接受 `Transfer-Encoding: chunked, gzip` 等非最终 chunked 顺序时，9.4.3 按 EOF body 交付后续字节；看起来像 chunk 的文本也会原样属于 body，不再次按 chunked 解码。
+
 lenientTextVersion 只影响文本起始行的解析；后端接受的数字不扩展 M53 的执行协议。非 1.0／1.1 的文本版本仍报告不支持，文本 `HTTP/2.0` 不能启动二进制 H2。afterClose 的丢弃与继续解析互斥；继续解析不保证传输可复用。
 
 本期不公开或开启 header_value_relaxed：9.4.3 对含 NUL 值的该路径有已复现的不前进循环。不能用 lenient_headers 冒充它。各实际边界见[后端调研](../http/INTERFACE-RESEARCH.md)。
@@ -60,6 +64,8 @@ lenientTextVersion 只影响文本起始行的解析；后端接受的数字不�
 ## 4. HTTP/1 发送
 
 Http1Encoder 生成起始行、字段、body 定界与结束字节，保持调用者字段的相对顺序。发送方法和字段名必须为合法 token；request-target、reason phrase、字段值不能通过 CR、LF、NUL 等非法结构字节注入报文。接收宽容选项不作用于发送。
+
+编码器固定 HttpRole。beginRequest／beginResponse 返回头部字节，后者显式接收对应请求方法；writeBody 消费 NativeByteBuffer 的指定前缀并返回编码字节，finish 返回结束／trailer 字节。每次 begin 都需要 finish，包括空 body。Http1BodyFraming 为 Empty、Length(count)、Chunked、Eof；isMessageOpen、mustClose、isSwitched 分别表示当前消息、连接复用与协议切换状态。编码器实现 Closeable，不执行传输。
 
 body 定界显式选择无 body、已知长度、chunked 或响应 EOF。Content-Length 与 Transfer-Encoding 必须与所选定界一致；缺少所需字段时由编码器添加，不允许冲突的重复定界。chunked 仅用于 HTTP/1.1；EOF 定界不用于请求。发送的字节数不得超过已知长度，完成时检查剩余长度；trailer 只随 chunked 结束交付。
 

@@ -1,0 +1,147 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+@Test
+private class Http1DecodeTests {
+    @Test
+    fun `fragmented fields preserve binary values duplicates targets and trailers`() {
+        val input = ByteArrayBuilder().append("POST /raw%2fpath HTTP/1.1\r\nX-Item: one\r\nx-item: two\r\nX-Raw: ".toByteArray())
+            .append(255.toByte()).append("\r\nTransfer-Encoding: chunked\r\n\r\n4\r\nbody\r\n0\r\nX-End: yes\r\n\r\n".toByteArray())
+        val events = Http1Decoder.server().use { decoder -> collectHttp1(decoder, input.toByteArray()) }
+        val requests = http1Requests(events)
+        assertEquals(1L, requests.size)
+        val head = requests[0L]
+        assertEquals("POST", String.fromUtf8(head.method))
+        when (head.target) {
+            case Http1(bytes) -> assertEquals("/raw%2fpath", String.fromUtf8(bytes))
+            else -> fail(Some("unexpected request target"))
+        }
+        val repeated = head.fields.findAll("X-ITEM".toByteArray())
+        assertEquals(2L, repeated.size)
+        assertEquals("one", String.fromUtf8(repeated[0L].value))
+        assertEquals("two", String.fromUtf8(repeated[1L].value))
+        assertEquals(255.toByte(), head.fields.findAll("x-raw".toByteArray())[0L].value[0L])
+        assertEquals("body", String.fromUtf8(http1Data(events)))
+        var trailers = 0L
+        for (event in events) when (event) {
+            case Trailers(fields) -> {
+                assertEquals(1L, fields.size)
+                assertEquals("yes", String.fromUtf8(fields[0L].value))
+                trailers += 1L
+            }
+            else -> {}
+        }
+        assertEquals(1L, trailers)
+        assertEquals(1L, http1EndCount(events))
+    }
+
+    @Test
+    fun `consecutive messages preserve versions and fixed body bytes`() {
+        val input = "POST / HTTP/1.0\r\nConnection: keep-alive\r\nContent-Length: 3\r\n\r\nabcQUERY /next HTTP/1.1\r\n\r\n"
+        Http1Decoder.server().use { decoder ->
+            val events = collectHttp1(decoder, input.toByteArray(), 7L)
+            val heads = http1Requests(events)
+            assertEquals(2L, heads.size)
+            assertTrue(heads[0L].version == HttpVersion.Http10)
+            assertTrue(heads[1L].version == HttpVersion.Http11)
+            assertEquals("QUERY", String.fromUtf8(heads[1L].method))
+            assertEquals("abc", String.fromUtf8(http1Data(events)))
+            assertEquals(2L, http1EndCount(events))
+        }
+    }
+
+    @Test
+    fun `HEAD context survives informational responses and EOF completes the next response`() {
+        Http1Decoder.client().use { decoder ->
+            decoder.expectResponse("HEAD".toByteArray())
+            decoder.expectResponse("GET".toByteArray())
+            val input = "HTTP/1.1 100 Continue\r\n\r\nHTTP/1.1 103 Early\r\n\r\n" +
+                "HTTP/1.1 200 OK\r\nContent-Length: 99\r\n\r\nHTTP/1.0 200 Fine\r\n\r\ntail"
+            val events = collectHttp1(decoder, input.toByteArray(), 3L)
+            val responses = http1Responses(events)
+            assertEquals(4L, responses.size)
+            assertEquals(103U, responses[1L].status)
+            assertEquals("Fine", String.fromUtf8(responses[3L].reason!!))
+            assertEquals("tail", String.fromUtf8(http1Data(events)))
+            assertEquals(4L, http1EndCount(events))
+        }
+    }
+
+    @Test
+    fun `CONNECT success and 101 leave the same-read tunnel suffix`() {
+        checkSwitch("CONNECT", "HTTP/1.1 201 Connected\r\n\r\n")
+        checkSwitch("GET", "HTTP/1.1 101 Switching\r\nConnection: Upgrade\r\nUpgrade: example\r\n\r\n")
+    }
+
+    @Test
+    fun `declining a request upgrade resumes HTTP1 at the exact suffix`() {
+        Http1Decoder.server().use { decoder ->
+            val first = "GET / HTTP/1.1\r\nConnection: Upgrade\r\nUpgrade: h2c\r\n\r\n"
+            val next = "GET /next HTTP/1.1\r\n\r\n"
+            NativeByteBuffer.allocate(256L).use { buffer ->
+                buffer.writeBytes((first + next).toByteArray())
+                assertEquals(first.byteLength, decoder.receive(buffer))
+                assertTrue(decoder.isSwitched)
+                val events = ArrayList<Http1Event>()
+                drainHttp1(decoder, events)
+                decoder.resumeHttp1()
+                assertFalse(decoder.isSwitched)
+                assertEquals(next.byteLength, decoder.receive(buffer))
+                drainHttp1(decoder, events)
+                assertEquals(2L, http1Requests(events).size)
+            }
+        }
+    }
+
+    @Test
+    fun `truncated framing unknown methods and missing request context report errors`() {
+        for (input in ["POST / HTTP/1.1\r\nContent-Length: 3\r\n\r\na", "POST / HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n4\r\nab"]) {
+            Http1Decoder.server().use { decoder -> assertFailsWith<HttpException> { collectHttp1(decoder, input.toByteArray()) } }
+        }
+        Http1Decoder.server().use { decoder ->
+            val error = assertFailsWith<HttpException> { collectHttp1(decoder, "CUSTOM / HTTP/1.1\r\n\r\n".toByteArray()) }
+            assertEquals("llhttp 9.4.3", error.backend)
+            assertEquals("llhttp 9.4.3 does not support this HTTP/1 method", error.detail)
+        }
+        Http1Decoder.client().use { decoder ->
+            val error = assertFailsWith<HttpException> { collectHttp1(decoder, "HTTP/1.1 200 OK\r\n\r\n".toByteArray()) }
+            assertEquals(-2, error.code)
+        }
+    }
+
+    @Test
+    fun `fields own snapshots and decoder close is explicit and idempotent`() {
+        val name = "x-name".toMutableByteArray()
+        val value = "hello".toMutableByteArray()
+        val field = HttpField(name, value, true)
+        name[0L] = 65.toByte()
+        value[0L] = 65.toByte()
+        assertEquals("x-name", String.fromUtf8(field.name))
+        assertEquals("hello", String.fromUtf8(field.value))
+        assertTrue(field.neverIndex)
+        val decoder = Http1Decoder.server()
+        decoder.close()
+        decoder.close()
+        assertTrue(decoder.isClosed)
+        assertFailsWith<IllegalStateException> { decoder.nextEvent() }
+    }
+}
+
+private fun checkSwitch(method: String, header: String) {
+    Http1Decoder.client().use { decoder ->
+        decoder.expectResponse(method.toByteArray())
+        NativeByteBuffer.allocate(256L).use { input ->
+            input.writeBytes((header + "tunnel").toByteArray())
+            assertEquals(header.byteLength, decoder.receive(input))
+            assertTrue(decoder.isSwitched)
+            assertEquals("tunnel", String.fromUtf8(input.readBytes(input.readableBytes)))
+            val events = ArrayList<Http1Event>()
+            drainHttp1(decoder, events)
+            assertEquals(1L, http1EndCount(events))
+            assertTrue(when (events[events.size - 1L]) { case Switch -> true; else -> false })
+        }
+    }
+}

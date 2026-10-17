@@ -1,0 +1,95 @@
+package scoop.http
+
+import scoop.platform.memory.NativeByteBuffer
+
+public enum Http1Event {
+    Request(HttpRequestHead), Response(HttpResponseHead), Data(Array<Byte>),
+    Trailers(Array<HttpField>), End(Boolean), Switch
+}
+
+public class Http1Decoder private constructor(private var handle: ULong, public val role: HttpRole) : Closeable {
+    public companion object {
+        public fun client(options: Http1ReceiveOptions = Http1ReceiveOptions(), limits: Http1Limits = Http1Limits()): Http1Decoder =
+            create(HttpRole.Client, options, limits)
+
+        public fun server(options: Http1ReceiveOptions = Http1ReceiveOptions(), limits: Http1Limits = Http1Limits()): Http1Decoder =
+            create(HttpRole.Server, options, limits)
+
+        private fun create(role: HttpRole, options: Http1ReceiveOptions, limits: Http1Limits): Http1Decoder {
+            val config = http1Config(options, limits)
+            @Unsafe {
+                val native = http1New(if (role == HttpRole.Server) 1 else 0, config)
+                if (native == 0UL) throw HttpException("create HTTP/1 decoder", HttpProtocol.Http1,
+                    HttpFailureScope.Operation, 0, "llhttp 9.4.3", -1, "cannot allocate HTTP/1 decoder")
+                return Http1Decoder(native, role)
+            }
+        }
+    }
+
+    public val isClosed: Boolean get() = handle == 0UL
+    public val isSwitched: Boolean get() { @Unsafe { return http1Switched(nativeHandle()) != 0 } }
+
+    private fun nativeHandle(): ULong {
+        if (handle == 0UL) throw IllegalStateException(Some("HTTP/1 decoder is closed"))
+        return handle
+    }
+
+    @Unsafe private fun check(code: Int, operation: String, scope: HttpFailureScope = HttpFailureScope.Connection) {
+        if (code != 0) throw HttpException(operation, HttpProtocol.Http1, scope, 0,
+            "llhttp 9.4.3", code, String.fromCString(http1Error(nativeHandle())))
+    }
+
+    public fun expectResponse(method: List<Byte>) {
+        val owned = nativeHandle()
+        @Unsafe {
+            val code = method.toArray().withDataPointer { pointer, count ->
+                @Unsafe { return@withDataPointer http1Expect(owned, pointer, count) }
+            }
+            check(code, "register HTTP/1 response", HttpFailureScope.Operation)
+        }
+    }
+
+    public fun receive(buffer: NativeByteBuffer, count: Long = buffer.readableBytes): Long {
+        val owned = nativeHandle()
+        if (count < 0L || count > buffer.readableBytes) throw IllegalArgumentException(Some("invalid HTTP input count"))
+        if (count == 0L) return 0L
+        @Unsafe {
+            val step = buffer.withReadableBytes { pointer, _ ->
+                @Unsafe { return@withReadableBytes http1Receive(owned, pointer!!, count) }
+            }
+            buffer.skip(step.count)
+            check(step.code, "receive HTTP/1")
+            return step.count
+        }
+    }
+
+    public fun endInput() { @Unsafe { check(http1End(nativeHandle()), "finish HTTP/1 input") } }
+    public fun resumeHttp1() { @Unsafe { check(http1Resume(nativeHandle()), "decline HTTP/1 upgrade", HttpFailureScope.Operation) } }
+
+    public fun nextEvent(): Http1Event? {
+        @Unsafe {
+            val event = http1Next(nativeHandle())
+            if (event == 0UL) return None
+            try {
+                val info = httpEventInfo(event)
+                return Some(when (info.kind) {
+                    case 1 -> Http1Event.Request(HttpRequestHead(httpEventVersion(info), httpBytes(httpEventBytes(event, 0)),
+                        HttpRequestTarget.Http1(httpBytes(httpEventBytes(event, 1))), httpEventFields(event)))
+                    case 2 -> Http1Event.Response(HttpResponseHead(httpEventVersion(info), info.status.toUInt(),
+                        Some(httpBytes(httpEventBytes(event, 0))), httpEventFields(event)))
+                    case 3 -> Http1Event.Data(httpBytes(httpEventBytes(event, 0)))
+                    case 4 -> Http1Event.Trailers(httpEventFields(event))
+                    case 5 -> Http1Event.End(info.flags != 0U)
+                    case 6 -> Http1Event.Switch
+                    else -> throw IllegalStateException(Some("invalid native HTTP/1 event"))
+                })
+            } finally { httpEventFree(event) }
+        }
+    }
+
+    public override fun close() {
+        val owned = handle
+        handle = 0UL
+        if (owned != 0UL) @Unsafe { http1Free(owned) }
+    }
+}

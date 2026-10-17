@@ -3,7 +3,7 @@
 /sysroot/include
 /sysroot/vendor/llvm-project/*/*.src/
 /sysroot/vendor/llvm-project/*/*.src.tar.xz
-/tmp/
+/tmp
 .env*
 /.venv
 __pycache__/
