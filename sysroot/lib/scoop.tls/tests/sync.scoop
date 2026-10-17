@@ -71,7 +71,7 @@ private class SyncTlsTests {
 private fun exchange(version: TlsVersion) {
     val protocol: Array<Byte> = [1, 0, -1]
     val options = TlsOptions(version, version, [protocol])
-    val bytes = Array<Byte>(40555L) { index -> (index % 239L).toInt8() }
+    val bytes = Array<Byte>(40555L) { index -> (index % 239L).toByte() }
     val expected = digest(DigestAlgorithm.SHA256, bytes).toHexString()
     clientContext(options).use { clientConfig -> serverContext(options).use { serverConfig ->
         TcpListener.bind(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).use { listener ->

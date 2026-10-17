@@ -36,14 +36,14 @@ fun expect(value: Boolean) { if (!value) { throw IllegalStateException() } }
 fun main() {
     val cell = Cell(73)
     @Unsafe {
-        expect(leafS8((-101).toInt8()) == (-117).toInt8())
-        expect(safeS8((-101).toInt8()) == (-117).toInt8())
-        expect(leafU8(201.toUInt8()) == 239.toUInt8())
-        expect(safeU8(201.toUInt8()) == 239.toUInt8())
-        expect(leafS16((-30001).toInt16()) == (-32001).toInt16())
-        expect(safeS16((-30001).toInt16()) == (-32001).toInt16())
-        expect(leafU16(50001.toUInt16()) == 65521.toUInt16())
-        expect(safeU16(50001.toUInt16()) == 65521.toUInt16())
+        expect(leafS8((-101).toByte()) == (-117).toByte())
+        expect(safeS8((-101).toByte()) == (-117).toByte())
+        expect(leafU8(201.toUByte()) == 239.toUByte())
+        expect(safeU8(201.toUByte()) == 239.toUByte())
+        expect(leafS16((-30001).toShort()) == (-32001).toShort())
+        expect(safeS16((-30001).toShort()) == (-32001).toShort())
+        expect(leafU16(50001.toUShort()) == 65521.toUShort())
+        expect(safeU16(50001.toUShort()) == 65521.toUShort())
         expect(leafS32(-123456789) == -2147483647)
         expect(safeS32(-123456789) == -2147483647)
         expect(leafU32(0xfedcba98U) == 0xfffffffeU)
@@ -60,7 +60,7 @@ fun main() {
         expect(mixed(
             1L, 0.5, 2L, 1.5, 3L, 2.5, 4L, 3.5, 5L, 4.5,
             6L, 5.5, 7L, 6.5, 8L, 7.5, 9L, 8.5, 10L, 9.5,
-            (-101).toInt8(), true, 60000.toUInt16()
+            (-101).toByte(), true, 60000.toUShort()
         ) == 60648.5)
     }
     gcCollect()

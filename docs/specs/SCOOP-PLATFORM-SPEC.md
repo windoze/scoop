@@ -78,7 +78,7 @@ open 对象保持 `0 <= readPosition <= writePosition <= capacity`，只有 `[0,
 - readByte()/writeByte(Byte) 顺序访问单字节；getByte(index: Long)/setByte(index: Long, value: Byte) 只访问已初始化的绝对下标，不改游标。
 - readBytes(count: Long): Array<Byte> 返回独立副本，分配与复制成功后才消费输入。
 - readInto(array: MutableArray<Byte>, offset: Long = 0L, count: Long = array.size-offset) 复制到受检数组区间；writeBytes(array: List<Byte>, offset: Long = 0L, count: Long = array.size-offset) 接收只读字节列表。先验证两侧区间，在现有 writable 借用内、状态锁外取得所选输入区间的快照后复制，完成后才提交游标；用户 getter 可查询缓冲区，重入修改遵守 4.3 的借用规则；count 为负抛 IllegalArgumentException，数组区间非法抛 IndexOutOfBoundsException。
-- read/writeInt8、UInt8、Int16、UInt16、Int、UInt、Long、ULong、Float、Double 提供相应定宽读写；write 的首参数为 value，除单字节外都必须显式传入 `scoop.bytes.ByteOrder`。浮点按位型编码，包括 NaN 与负零。
+- read/writeInt8、UInt8、Int16、UInt16、Int32、UInt32、Int64、UInt64、Float、Double 提供相应定宽读写；write 的首参数为 value，除单字节外都必须显式传入 `scoop.bytes.ByteOrder`。浮点按位型编码，包括 NaN 与负零。
 
 顺序读写先检查完整宽度，不留下半个数值或半次游标变化。超出可读／可写范围抛 IndexOutOfBoundsException，负数量抛 IllegalArgumentException。任意 byte offset 都合法，不依赖数值自然对齐；实现逐字节组合或复制到对齐局部，禁止对未对齐的 typed pointer 直接 load/store。
 

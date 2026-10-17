@@ -63,7 +63,7 @@ private fun appendString(builder: ByteArrayBuilder, value: OsString) {
     val bytes = value.toBytes()
     for (byte in bytes) { if (byte == 0) throw IllegalArgumentException(Some("process string contains NUL")) }
     builder.append(bytes)
-    builder.append(0.toInt8())
+    builder.append(0.toByte())
 }
 
 private fun packArguments(executable: Path, arguments: Array<OsString>): Array<Byte> {
@@ -84,7 +84,7 @@ private fun packEnvironment(environment: Map<OsString, OsString>): Array<Byte> {
             if (byte == 0 || byte == 61) throw IllegalArgumentException(Some("invalid environment name"))
         }
         builder.append(bytes)
-        builder.append(61.toInt8())
+        builder.append(61.toByte())
         appendString(builder, value)
     }
     return builder.toByteArray()

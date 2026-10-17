@@ -222,7 +222,7 @@ fn const_integer_intrinsics_fold_with_runtime_width_and_shift_semantics() {
         Decl::Global(const_property(
             "narrowed",
             ty_named("UInt8"),
-            method_call(int_lit(257), "toUInt8", Vec::new()),
+            method_call(int_lit(257), "toUByte", Vec::new()),
         )),
         Decl::Global(const_property(
             "negatedUnsigned",
@@ -286,7 +286,7 @@ fn const_integer_no_gc_intrinsics_are_total_for_every_kind() {
         Case {
             name: "int8",
             ty: "Int8",
-            conversion: "toInt8",
+            conversion: "toByte",
             signed: true,
             maximum: signed(0x7f),
             minimum: unary(UnOp::Neg, signed(0x80)),
@@ -296,7 +296,7 @@ fn const_integer_no_gc_intrinsics_are_total_for_every_kind() {
         Case {
             name: "int16",
             ty: "Int16",
-            conversion: "toInt16",
+            conversion: "toShort",
             signed: true,
             maximum: signed(0x7fff),
             minimum: unary(UnOp::Neg, signed(0x8000)),
@@ -306,7 +306,7 @@ fn const_integer_no_gc_intrinsics_are_total_for_every_kind() {
         Case {
             name: "int",
             ty: "Int",
-            conversion: "toInt32",
+            conversion: "toInt",
             signed: true,
             maximum: signed(0x7fff_ffff),
             minimum: unary(UnOp::Neg, long(0x8000_0000)),
@@ -316,7 +316,7 @@ fn const_integer_no_gc_intrinsics_are_total_for_every_kind() {
         Case {
             name: "long",
             ty: "Long",
-            conversion: "toInt64",
+            conversion: "toLong",
             signed: true,
             maximum: long(0x7fff_ffff_ffff_ffff),
             minimum: unary(UnOp::Neg, long(0x8000_0000_0000_0000)),
@@ -326,7 +326,7 @@ fn const_integer_no_gc_intrinsics_are_total_for_every_kind() {
         Case {
             name: "uint8",
             ty: "UInt8",
-            conversion: "toUInt8",
+            conversion: "toUByte",
             signed: false,
             maximum: unsigned(0xff),
             minimum: unsigned(0),
@@ -336,7 +336,7 @@ fn const_integer_no_gc_intrinsics_are_total_for_every_kind() {
         Case {
             name: "uint16",
             ty: "UInt16",
-            conversion: "toUInt16",
+            conversion: "toUShort",
             signed: false,
             maximum: unsigned(0xffff),
             minimum: unsigned(0),
@@ -346,7 +346,7 @@ fn const_integer_no_gc_intrinsics_are_total_for_every_kind() {
         Case {
             name: "uint",
             ty: "UInt",
-            conversion: "toUInt32",
+            conversion: "toUInt",
             signed: false,
             maximum: unsigned(0xffff_ffff),
             minimum: unsigned(0),
@@ -356,7 +356,7 @@ fn const_integer_no_gc_intrinsics_are_total_for_every_kind() {
         Case {
             name: "ulong",
             ty: "ULong",
-            conversion: "toUInt64",
+            conversion: "toULong",
             signed: false,
             maximum: unsigned(0xffff_ffff_ffff_ffff),
             minimum: unsigned(0),
@@ -506,74 +506,74 @@ fn const_integer_conversions_preserve_nontrivial_bits_for_every_pair() {
         Source {
             name: "int8",
             kind: hir::IntegerKind::SIGNED_8,
-            conversion: "toInt8",
+            conversion: "toByte",
             expression: unary(UnOp::Neg, signed(1)),
             raw: 0xff,
         },
         Source {
             name: "int16",
             kind: hir::IntegerKind::SIGNED_16,
-            conversion: "toInt16",
+            conversion: "toShort",
             expression: unary(UnOp::Neg, signed(257)),
             raw: 0xfeff,
         },
         Source {
             name: "int",
             kind: hir::IntegerKind::SIGNED_32,
-            conversion: "toInt32",
+            conversion: "toInt",
             expression: unary(UnOp::Neg, signed(65_537)),
             raw: 0xfffe_ffff,
         },
         Source {
             name: "long",
             kind: hir::IntegerKind::SIGNED_64,
-            conversion: "toInt64",
+            conversion: "toLong",
             expression: unary(UnOp::Neg, long(4_294_967_297)),
             raw: 0xffff_fffe_ffff_ffff,
         },
         Source {
             name: "uint8",
             kind: hir::IntegerKind::UNSIGNED_8,
-            conversion: "toUInt8",
+            conversion: "toUByte",
             expression: unsigned(0xff),
             raw: 0xff,
         },
         Source {
             name: "uint16",
             kind: hir::IntegerKind::UNSIGNED_16,
-            conversion: "toUInt16",
+            conversion: "toUShort",
             expression: unsigned(0xffff),
             raw: 0xffff,
         },
         Source {
             name: "uint",
             kind: hir::IntegerKind::UNSIGNED_32,
-            conversion: "toUInt32",
+            conversion: "toUInt",
             expression: unsigned(0xffff_ffff),
             raw: 0xffff_ffff,
         },
         Source {
             name: "ulong",
             kind: hir::IntegerKind::UNSIGNED_64,
-            conversion: "toUInt64",
+            conversion: "toULong",
             expression: unsigned(0xffff_ffff_ffff_ffff),
             raw: u64::MAX,
         },
     ];
     let targets = [
-        ("int8", "Int8", "toInt8", hir::IntegerKind::SIGNED_8),
-        ("int16", "Int16", "toInt16", hir::IntegerKind::SIGNED_16),
-        ("int", "Int", "toInt32", hir::IntegerKind::SIGNED_32),
-        ("long", "Long", "toInt64", hir::IntegerKind::SIGNED_64),
-        ("uint8", "UInt8", "toUInt8", hir::IntegerKind::UNSIGNED_8),
+        ("int8", "Int8", "toByte", hir::IntegerKind::SIGNED_8),
+        ("int16", "Int16", "toShort", hir::IntegerKind::SIGNED_16),
+        ("int", "Int", "toInt", hir::IntegerKind::SIGNED_32),
+        ("long", "Long", "toLong", hir::IntegerKind::SIGNED_64),
+        ("uint8", "UInt8", "toUByte", hir::IntegerKind::UNSIGNED_8),
         (
             "uint16",
             "UInt16",
-            "toUInt16",
+            "toUShort",
             hir::IntegerKind::UNSIGNED_16,
         ),
-        ("uint", "UInt", "toUInt32", hir::IntegerKind::UNSIGNED_32),
-        ("ulong", "ULong", "toUInt64", hir::IntegerKind::UNSIGNED_64),
+        ("uint", "UInt", "toUInt", hir::IntegerKind::UNSIGNED_32),
+        ("ulong", "ULong", "toULong", hir::IntegerKind::UNSIGNED_64),
     ];
 
     let mut declarations = Vec::new();
@@ -637,7 +637,7 @@ fn const_integer_div_rem_methods_fold_every_kind_and_signed_boundary() {
             name: "int8",
             kind: hir::IntegerKind::SIGNED_8,
             ty: "Int8",
-            conversion: "toInt8",
+            conversion: "toByte",
             dividend: unary(UnOp::Neg, signed(0x80)),
             divisor: unary(UnOp::Neg, signed(1)),
             quotient_raw: 0x80,
@@ -647,7 +647,7 @@ fn const_integer_div_rem_methods_fold_every_kind_and_signed_boundary() {
             name: "int16",
             kind: hir::IntegerKind::SIGNED_16,
             ty: "Int16",
-            conversion: "toInt16",
+            conversion: "toShort",
             dividend: unary(UnOp::Neg, signed(0x8000)),
             divisor: unary(UnOp::Neg, signed(1)),
             quotient_raw: 0x8000,
@@ -657,7 +657,7 @@ fn const_integer_div_rem_methods_fold_every_kind_and_signed_boundary() {
             name: "int",
             kind: hir::IntegerKind::SIGNED_32,
             ty: "Int",
-            conversion: "toInt32",
+            conversion: "toInt",
             dividend: unary(UnOp::Neg, long(0x8000_0000)),
             divisor: unary(UnOp::Neg, signed(1)),
             quotient_raw: 0x8000_0000,
@@ -667,7 +667,7 @@ fn const_integer_div_rem_methods_fold_every_kind_and_signed_boundary() {
             name: "long",
             kind: hir::IntegerKind::SIGNED_64,
             ty: "Long",
-            conversion: "toInt64",
+            conversion: "toLong",
             dividend: unary(UnOp::Neg, long(0x8000_0000_0000_0000)),
             divisor: unary(UnOp::Neg, signed(1)),
             quotient_raw: 0x8000_0000_0000_0000,
@@ -677,7 +677,7 @@ fn const_integer_div_rem_methods_fold_every_kind_and_signed_boundary() {
             name: "uint8",
             kind: hir::IntegerKind::UNSIGNED_8,
             ty: "UInt8",
-            conversion: "toUInt8",
+            conversion: "toUByte",
             dividend: unsigned(0xff),
             divisor: unsigned(2),
             quotient_raw: 0x7f,
@@ -687,7 +687,7 @@ fn const_integer_div_rem_methods_fold_every_kind_and_signed_boundary() {
             name: "uint16",
             kind: hir::IntegerKind::UNSIGNED_16,
             ty: "UInt16",
-            conversion: "toUInt16",
+            conversion: "toUShort",
             dividend: unsigned(0xffff),
             divisor: unsigned(2),
             quotient_raw: 0x7fff,
@@ -697,7 +697,7 @@ fn const_integer_div_rem_methods_fold_every_kind_and_signed_boundary() {
             name: "uint",
             kind: hir::IntegerKind::UNSIGNED_32,
             ty: "UInt",
-            conversion: "toUInt32",
+            conversion: "toUInt",
             dividend: unsigned(0xffff_ffff),
             divisor: unsigned(2),
             quotient_raw: 0x7fff_ffff,
@@ -707,7 +707,7 @@ fn const_integer_div_rem_methods_fold_every_kind_and_signed_boundary() {
             name: "ulong",
             kind: hir::IntegerKind::UNSIGNED_64,
             ty: "ULong",
-            conversion: "toUInt64",
+            conversion: "toULong",
             dividend: unsigned(0xffff_ffff_ffff_ffff),
             divisor: unsigned(2),
             quotient_raw: 0x7fff_ffff_ffff_ffff,
@@ -745,11 +745,11 @@ fn const_integer_div_rem_methods_fold_every_kind_and_signed_boundary() {
 
 #[test]
 fn const_integer_div_rem_methods_report_zero_divisors() {
-    let int8 = |value| converted_integer(int_lit(value), "toInt8");
+    let int8 = |value| converted_integer(int_lit(value), "toByte");
     let ulong = |value| {
         converted_integer(
             integer_with_suffix(value, ast::IntegerSuffix::Unsigned),
-            "toUInt64",
+            "toULong",
         )
     };
     let source = file(vec![

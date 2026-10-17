@@ -2,7 +2,7 @@ fun <I, V, C : Get<I, V>> read(container: C, index: I): V = container[index]
 fun <I, V, C : Set<I, V>> write(container: C, index: I, value: V) { container[index] = value }
 fun check(ok: Boolean) { if (!ok) { throw IllegalStateException() } }
 fun main() {
-    val immutable = Array<Int>(2L) { index -> index.toInt32() + 10 }
+    val immutable = Array<Int>(2L) { index -> index.toInt() + 10 }
     val mutable = MutableArray<String>(2L) { index -> "old" }
     val list = ArrayList<Int>()
     list.add(40)

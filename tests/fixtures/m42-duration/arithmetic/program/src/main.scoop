@@ -1,7 +1,7 @@
 import scoop.time.Duration
 
 fun check(ok: Boolean) { if (!ok) throw IllegalStateException() }
-fun duration(parts: (Long, Int)): Duration = Duration.seconds(parts._1, parts._2.toInt64())
+fun duration(parts: (Long, Int)): Duration = Duration.seconds(parts._1, parts._2.toLong())
 fun verify(expected: (Long, Int)?, operation: () -> Duration) {
     when (expected) {
         case Some(parts) -> {

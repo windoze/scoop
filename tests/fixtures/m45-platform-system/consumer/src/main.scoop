@@ -22,19 +22,19 @@ private fun rawEnvironment() {
     val args = arguments()
     check(args.size == 5L)
     check(args[1L].decodeUtf8() == "" && args[2L].decodeUtf8() == "two words")
-    check(args[3L] == OsString.fromBytes(Array<Byte>(2L) { if (it == 0L) 45.toInt8() else -1.toInt8() }))
+    check(args[3L] == OsString.fromBytes(Array<Byte>(2L) { if (it == 0L) 45.toByte() else -1.toByte() }))
     check(args[4L].decodeUtf8() == "中")
     check(environmentVariable("EMPTY")!!.decodeUtf8() == "")
     check(environmentVariable("M45_ABSENT") == None)
     check(environmentVariable("PAIR")!!.decodeUtf8() == "a=b")
-    val name = OsString.fromBytes(Array<Byte>(2L) { if (it == 0L) 75.toInt8() else -1.toInt8() })
-    val value = OsString.fromBytes(Array<Byte>(2L) { if (it == 0L) 86.toInt8() else -2.toInt8() })
+    val name = OsString.fromBytes(Array<Byte>(2L) { if (it == 0L) 75.toByte() else -1.toByte() })
+    val value = OsString.fromBytes(Array<Byte>(2L) { if (it == 0L) 86.toByte() else -2.toByte() })
     check(environmentVariable(name)!! == value)
     val snapshot = environment()
     check(snapshot[name]!! == value)
     check(snapshot.size == (if (environmentVariable("SCOOP_GC_STRESS_MOVE") == None) 5L else 6L))
     val home = homeDirectory()!!.toOsString()
-    check(home.toBytes()[home.toBytes().size - 1L] == -1.toInt8())
+    check(home.toBytes()[home.toBytes().size - 1L] == -1.toByte())
     check(temporaryDirectory().decodeUtf8() == "/tmp")
     @Unsafe {
         homeMode(1)
@@ -54,23 +54,23 @@ private fun entropyFailures() {
         setCallback(callback.function, callback.context)
         try {
             NativeByteBuffer.allocate(800L).use { buffer ->
-                buffer.writeByte(7.toInt8())
+                buffer.writeByte(7.toByte())
                 @Unsafe {
                     val prefix = entropyMode(1)
                     expectNative { SystemRandom.fill(buffer, 600L) }
                     check(buffer.writePosition == prefix + 1L && buffer.readableBytes == prefix + 1L)
-                    check(buffer.readByte() == 7.toInt8())
-                    for (byte in buffer.readBytes(prefix)) check(byte == 90.toInt8())
+                    check(buffer.readByte() == 7.toByte())
+                    for (byte in buffer.readBytes(prefix)) check(byte == 90.toByte())
                     entropyMode(0)
                     check(SystemRandom.fill(buffer) == 799L - prefix)
                 }
             }
-            val bytes = MutableArray<Byte>(700L) { 42.toInt8() }
+            val bytes = MutableArray<Byte>(700L) { 42.toByte() }
             val prefix = entropyMode(1)
             expectNative { SystemRandom.nextBytes(bytes, 3L, 603L) }
             var index = 0L
             while (index < bytes.size) {
-                check(bytes[index] == (if (index >= 3L && index < prefix + 3L) 90.toInt8() else 42.toInt8()))
+                check(bytes[index] == (if (index >= 3L && index < prefix + 3L) 90.toByte() else 42.toByte()))
                 index += 1L
             }
             entropyMode(0)

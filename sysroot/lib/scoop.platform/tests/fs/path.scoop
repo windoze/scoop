@@ -55,7 +55,7 @@ private class PathTest {
     fun `non Unicode components round trip without filesystem access`() {
         val raw: Array<Byte> = [97, -1, 47, 98]
         val path = Path.fromOsString(OsString.fromBytes(raw))
-        assertEquals(-1.toInt8(), path.toOsString().toBytes()[1L])
+        assertEquals(-1.toByte(), path.toOsString().toBytes()[1L])
         assertEquals("b", path.fileName!!.decodeUtf8())
         assertEquals(2L, path.parent!!.toOsString().toBytes().size)
         assertFailsWith<CharacterCodingException> { path.decodeUtf8() }

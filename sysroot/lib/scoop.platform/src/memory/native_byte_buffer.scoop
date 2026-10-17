@@ -178,7 +178,7 @@ public class NativeByteBuffer private constructor() : Closeable {
             @Unsafe {
                 while (index < width) {
                     val offset = if (order == ByteOrder.BIG_ENDIAN) index else width - index - 1L
-                    value = (value shl 8L) or memory!!.load(reader + offset).toUInt8().toUInt64()
+                    value = (value shl 8L) or memory!!.load(reader + offset).toUByte().toULong()
                     index += 1L
                 }
             }
@@ -194,7 +194,7 @@ public class NativeByteBuffer private constructor() : Closeable {
             @Unsafe {
                 while (index < width) {
                     val shift = (if (order == ByteOrder.BIG_ENDIAN) width - index - 1L else index) * 8L
-                    memory!!.store(writer + index, (value shr shift).toInt8())
+                    memory!!.store(writer + index, (value shr shift).toByte())
                     index += 1L
                 }
             }
@@ -202,27 +202,27 @@ public class NativeByteBuffer private constructor() : Closeable {
         }
     }
 
-    public fun readInt8(): Int8 = read(1L, ByteOrder.BIG_ENDIAN).toInt8()
-    public fun readUInt8(): UInt8 = read(1L, ByteOrder.BIG_ENDIAN).toUInt8()
-    public fun readInt16(order: ByteOrder): Int16 = read(2L, order).toInt16()
-    public fun readUInt16(order: ByteOrder): UInt16 = read(2L, order).toUInt16()
-    public fun readInt(order: ByteOrder): Int = read(4L, order).toInt32()
-    public fun readUInt(order: ByteOrder): UInt = read(4L, order).toUInt32()
-    public fun readLong(order: ByteOrder): Long = read(8L, order).toInt64()
-    public fun readULong(order: ByteOrder): ULong = read(8L, order)
-    public fun readFloat(order: ByteOrder): Float = Float.fromBits(readInt(order))
-    public fun readDouble(order: ByteOrder): Double = Double.fromBits(readLong(order))
+    public fun readInt8(): Int8 = read(1L, ByteOrder.BIG_ENDIAN).toByte()
+    public fun readUInt8(): UInt8 = read(1L, ByteOrder.BIG_ENDIAN).toUByte()
+    public fun readInt16(order: ByteOrder): Int16 = read(2L, order).toShort()
+    public fun readUInt16(order: ByteOrder): UInt16 = read(2L, order).toUShort()
+    public fun readInt32(order: ByteOrder): Int32 = read(4L, order).toInt()
+    public fun readUInt32(order: ByteOrder): UInt32 = read(4L, order).toUInt()
+    public fun readInt64(order: ByteOrder): Int64 = read(8L, order).toLong()
+    public fun readUInt64(order: ByteOrder): UInt64 = read(8L, order)
+    public fun readFloat(order: ByteOrder): Float = Float.fromBits(readInt32(order))
+    public fun readDouble(order: ByteOrder): Double = Double.fromBits(readInt64(order))
 
-    public fun writeInt8(value: Int8) { write(value.toUInt64(), 1L, ByteOrder.BIG_ENDIAN) }
-    public fun writeUInt8(value: UInt8) { write(value.toUInt64(), 1L, ByteOrder.BIG_ENDIAN) }
-    public fun writeInt16(value: Int16, order: ByteOrder) { write(value.toUInt64(), 2L, order) }
-    public fun writeUInt16(value: UInt16, order: ByteOrder) { write(value.toUInt64(), 2L, order) }
-    public fun writeInt(value: Int, order: ByteOrder) { write(value.toUInt64(), 4L, order) }
-    public fun writeUInt(value: UInt, order: ByteOrder) { write(value.toUInt64(), 4L, order) }
-    public fun writeLong(value: Long, order: ByteOrder) { write(value.toUInt64(), 8L, order) }
-    public fun writeULong(value: ULong, order: ByteOrder) { write(value, 8L, order) }
-    public fun writeFloat(value: Float, order: ByteOrder) { writeInt(value.toBits(), order) }
-    public fun writeDouble(value: Double, order: ByteOrder) { writeLong(value.toBits(), order) }
+    public fun writeInt8(value: Int8) { write(value.toULong(), 1L, ByteOrder.BIG_ENDIAN) }
+    public fun writeUInt8(value: UInt8) { write(value.toULong(), 1L, ByteOrder.BIG_ENDIAN) }
+    public fun writeInt16(value: Int16, order: ByteOrder) { write(value.toULong(), 2L, order) }
+    public fun writeUInt16(value: UInt16, order: ByteOrder) { write(value.toULong(), 2L, order) }
+    public fun writeInt32(value: Int32, order: ByteOrder) { write(value.toULong(), 4L, order) }
+    public fun writeUInt32(value: UInt32, order: ByteOrder) { write(value.toULong(), 4L, order) }
+    public fun writeInt64(value: Int64, order: ByteOrder) { write(value.toULong(), 8L, order) }
+    public fun writeUInt64(value: UInt64, order: ByteOrder) { write(value, 8L, order) }
+    public fun writeFloat(value: Float, order: ByteOrder) { writeInt32(value.toBits(), order) }
+    public fun writeDouble(value: Double, order: ByteOrder) { writeInt64(value.toBits(), order) }
 
     @Unsafe
     public fun <R> withReadableBytes(block: (Ptr<Byte>?, Long) -> R): R {

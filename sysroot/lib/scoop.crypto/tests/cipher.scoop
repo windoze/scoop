@@ -7,10 +7,10 @@ import scoop.text.*
 private class AeadTests {
     @Test
     fun `NIST AES GCM vectors and authentication failure`() {
-        val nonce = Array<Byte>(12L) { _ -> 0.toInt8() }
-        val plaintext = Array<Byte>(16L) { _ -> 0.toInt8() }
+        val nonce = Array<Byte>(12L) { _ -> 0.toByte() }
+        val plaintext = Array<Byte>(16L) { _ -> 0.toByte() }
         SecretKey.fromBytes(plaintext).use { key -> checkAes128(key, nonce, plaintext) }
-        SecretKey.fromBytes(Array<Byte>(32L) { _ -> 0.toInt8() }).use { key ->
+        SecretKey.fromBytes(Array<Byte>(32L) { _ -> 0.toByte() }).use { key ->
             val result = encrypt(AeadAlgorithm.AES256GCM, key, nonce, plaintext)
             assertEquals("cea7403d4d606b6e074ec5d3baf39d18", result.ciphertext.toHexString())
             assertEquals("d0d1c8a799996bf0265b98b5d48ab919", result.tag.toHexString())
@@ -37,14 +37,14 @@ private fun checkAes128(key: SecretKey, nonce: Array<Byte>, plaintext: Array<Byt
     assertEquals("ab6e47d42cec13bdf53a67b21257bddf", result.tag.toHexString())
     assertEquals(plaintext.toHexString(), decryptOrNull(AeadAlgorithm.AES128GCM, key, nonce, result)!!.toHexString())
     val broken = result.tag.toMutableArray()
-    broken[0L] = (broken[0L].toInt32() xor 1).toInt8()
+    broken[0L] = (broken[0L].toInt() xor 1).toByte()
     assertTrue(when (decryptOrNull(AeadAlgorithm.AES128GCM, key, nonce,
         AeadCiphertext(result.ciphertext, broken.toArray()))) { case None -> true; else -> false })
-    assertTrue(when (decryptOrNull(AeadAlgorithm.AES128GCM, key, nonce, result, [1.toInt8()])) { case None -> true; else -> false })
-    val empty = encrypt(AeadAlgorithm.AES128GCM, key, nonce, Array<Byte>(0L) { _ -> 0.toInt8() })
+    assertTrue(when (decryptOrNull(AeadAlgorithm.AES128GCM, key, nonce, result, [1.toByte()])) { case None -> true; else -> false })
+    val empty = encrypt(AeadAlgorithm.AES128GCM, key, nonce, Array<Byte>(0L) { _ -> 0.toByte() })
     assertEquals("58e2fccefa7e3061367f1d57a4e7455a", empty.tag.toHexString())
     assertEquals(0L, decryptOrNull(AeadAlgorithm.AES128GCM, key, nonce, empty)!!.size)
     assertFailsWith<IllegalArgumentException> { encrypt(AeadAlgorithm.AES256GCM, key, nonce, plaintext) }
-    assertFailsWith<IllegalArgumentException> { encrypt(AeadAlgorithm.AES128GCM, key, Array<Byte>(0L) { _ -> 0.toInt8() }, plaintext) }
-    assertFailsWith<IllegalArgumentException> { decryptOrNull(AeadAlgorithm.AES128GCM, key, nonce, AeadCiphertext(Array<Byte>(0L) { _ -> 0.toInt8() }, Array<Byte>(0L) { _ -> 0.toInt8() })) }
+    assertFailsWith<IllegalArgumentException> { encrypt(AeadAlgorithm.AES128GCM, key, Array<Byte>(0L) { _ -> 0.toByte() }, plaintext) }
+    assertFailsWith<IllegalArgumentException> { decryptOrNull(AeadAlgorithm.AES128GCM, key, nonce, AeadCiphertext(Array<Byte>(0L) { _ -> 0.toByte() }, Array<Byte>(0L) { _ -> 0.toByte() })) }
 }

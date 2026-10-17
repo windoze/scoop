@@ -36,7 +36,7 @@ private class AsyncTlsAcceptTests {
                         client.writeFully(bytes)
                         bytes.clear()
                         server.readFully(bytes)
-                        assertEquals(42.toInt8(), bytes.getByte(0L))
+                        assertEquals(42.toByte(), bytes.getByte(0L))
                     } finally { bytes.close() }
                 } finally { client.close(); server.close() }
             } finally { stalled.cancel(); rawClient.close(); listener.close(); config.close() }

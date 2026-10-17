@@ -28,8 +28,8 @@ fun main() {
     for (radix in listOf<Int>(2, 10, 16, 36)) {
         var value = -128
         while (value <= 127) {
-            val number = value.toInt8()
-            check(number.toString(radix).toInt8(radix) == number, "all Int8 values")
+            val number = value.toByte()
+            check(number.toString(radix).toByte(radix) == number, "all Int8 values")
             value += 1
         }
     }

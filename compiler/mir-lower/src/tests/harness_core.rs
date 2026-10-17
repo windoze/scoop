@@ -280,7 +280,7 @@ impl Harness {
         id
     }
 
-    /// core's `fun print(message: Int) = write(coreLongToString(message.toInt64()))`.
+    /// core's `fun print(message: Int) = write(coreLongToString(message.toLong()))`.
     pub(super) fn print_int(&mut self) -> hir::FunctionId {
         if let Some(id) = self.print_int {
             return id;
@@ -382,7 +382,7 @@ impl Harness {
         id
     }
 
-    /// core's `fun println(message: Int) = println(coreLongToString(message.toInt64()))`.
+    /// core's `fun println(message: Int) = println(coreLongToString(message.toLong()))`.
     pub(super) fn println_int(&mut self) -> hir::FunctionId {
         if let Some(id) = self.println_int {
             return id;

@@ -10,10 +10,10 @@ public class LocalDate public constructor(public val year: Int, public val month
     public constructor(year: Int, month: Month, dayOfMonth: Int) : this(year, month.number, dayOfMonth) {}
     public val month: Month get() = Month.of(monthNumber)
     public val yearMonth: YearMonth get() = YearMonth(year, monthNumber)
-    public val dayOfYear: Int get() = (toEpochDays() - calendarEpochDay(year, 1, 1) + 1L).toInt32()
+    public val dayOfYear: Int get() = (toEpochDays() - calendarEpochDay(year, 1, 1) + 1L).toInt()
     public val dayOfWeek: DayOfWeek get() {
         val shifted = toEpochDays() + 3L
-        return DayOfWeek.of((shifted - calendarFloorDiv(shifted, 7L) * 7L + 1L).toInt32())
+        return DayOfWeek.of((shifted - calendarFloorDiv(shifted, 7L) * 7L + 1L).toInt())
     }
     public fun toEpochDays(): Long = calendarEpochDay(year, monthNumber, dayOfMonth)
     public fun plusDays(value: Long): LocalDate = shiftedDays(value, false)
@@ -35,9 +35,9 @@ public class LocalDate public constructor(public val year: Int, public val month
     }
     public fun daysUntil(other: LocalDate): Long = other.toEpochDays() - toEpochDays()
     public override operator fun plus(other: DatePeriod): LocalDate =
-        plusMonths(other.years.toInt64() * 12L + other.months.toInt64()).shiftedDays(other.days, false)
+        plusMonths(other.years.toLong() * 12L + other.months.toLong()).shiftedDays(other.days, false)
     public override operator fun minus(other: DatePeriod): LocalDate =
-        plusMonths(-other.years.toInt64() * 12L - other.months.toInt64()).shiftedDays(other.days, true)
+        plusMonths(-other.years.toLong() * 12L - other.months.toLong()).shiftedDays(other.days, true)
     public override operator fun equals(other: LocalDate): Boolean =
         year == other.year && monthNumber == other.monthNumber && dayOfMonth == other.dayOfMonth
     public override operator fun compareTo(other: LocalDate): Long = toEpochDays().compareTo(other.toEpochDays())

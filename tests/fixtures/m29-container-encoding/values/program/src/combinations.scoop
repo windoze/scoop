@@ -23,10 +23,10 @@ private fun <T> capture(element: ValueEncoder<T>): (Array<T>, Encoder) -> Unit {
 private fun <T> coding(element: ValueEncoder<T>): ValueEncoder<Option<T>> = Option<T>.encoder(element)
 
 fun combinedCases() {
-    val data = Array<Option<Item>>(2L) { index -> Some(Item(index.toInt32())) }
+    val data = Array<Option<Item>>(2L) { index -> Some(Item(index.toInt())) }
     check(Json.encodeToString(Record(data), Record.Companion) == "{\"wire\":[0,1]}", 40)
     check(visits == 2, 41)
-    val array = Array<Int>(2L) { index -> index.toInt32() + 3 }
+    val array = Array<Int>(2L) { index -> index.toInt() + 3 }
     check(Json.encodeToString(array, Captured(capture(Int.Companion))) == "[3,4]", 42)
     check(Json.encodeToString(Some(array), coding(Array<Int>.encoder(Int.Companion))) == "[3,4]", 43)
     val maybe: Option<Int> = Some(6)
@@ -40,7 +40,7 @@ fun combinedCases() {
     val listCodec = ArrayList<Int>.encoder(Int.Companion)
     check(Json.encodeToString(list, Captured(listCodec::encode)) == "[10]", 46)
     try {
-        Json.encodeToString(Array<Item>(4L) { index -> Item(1 - index.toInt32()) }, Array<Item>.encoder(Item.Companion))
+        Json.encodeToString(Array<Item>(4L) { index -> Item(1 - index.toInt()) }, Array<Item>.encoder(Item.Companion))
         check(false, 47)
     } catch (error: IllegalStateException) {
         check(error.message == Some("element failure"), 48)

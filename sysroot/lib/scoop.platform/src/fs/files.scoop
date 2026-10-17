@@ -189,7 +189,7 @@ private fun temporaryPath(parent: Path?, prefix: String, directory: Boolean): Pa
         val base = parent ?: Path.fromOsString(copyNativeString(nativeTemporaryDirectory()))
         val pattern = base.resolve(Path.fromString(prefix + "XXXXXX")).toOsString().toBytes()
         if (pattern.size == Long.MAX_VALUE) throw ArithmeticException()
-        val writable = MutableArray<Byte>(pattern.size + 1L) { index -> if (index == pattern.size) 0.toInt8() else pattern[index] }
+        val writable = MutableArray<Byte>(pattern.size + 1L) { index -> if (index == pattern.size) 0.toByte() else pattern[index] }
         return writable.withDataPointer { pointer, _ ->
             @Unsafe {
                 val (status, error) = nativePathTemporary(pointer, directory)

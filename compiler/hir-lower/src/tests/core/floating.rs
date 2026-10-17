@@ -10,6 +10,16 @@ pub(super) fn floating_declarations() -> Vec<Decl> {
                 "../../../../../sysroot/lib/scoop.core/src/floating.scoop"
             ))
             .expect("the actual floating core parses");
+            let integers = scoop_parser::parse(include_str!(
+                "../../../../../sysroot/lib/scoop.core/src/types.scoop"
+            ))
+            .expect("the actual integer aliases parse");
+            source.declarations.extend(
+                integers.declarations.into_iter().filter(|declaration| {
+                    matches!(declaration, Decl::TypeAlias(alias)
+                        if matches!(alias.name.text.as_str(), "Byte" | "Short" | "UByte" | "UShort"))
+                }),
+            );
             source
                 .declarations
                 .drain(..)

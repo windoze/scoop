@@ -19,14 +19,14 @@ public class Instant private constructor(public val epochSeconds: Long, public v
     public override operator fun plus(other: Duration): Instant = Instant.fromDuration(asDuration() + other)
     public override operator fun minus(other: Duration): Instant = Instant.fromDuration(asDuration() - other)
     public operator fun minus(other: Instant): Duration =
-        Duration.seconds(epochSeconds - other.epochSeconds, nanosecondsOfSecond.toInt64() - other.nanosecondsOfSecond.toInt64())
-    private fun asDuration(): Duration = Duration.seconds(epochSeconds, nanosecondsOfSecond.toInt64())
+        Duration.seconds(epochSeconds - other.epochSeconds, nanosecondsOfSecond.toLong() - other.nanosecondsOfSecond.toLong())
+    private fun asDuration(): Duration = Duration.seconds(epochSeconds, nanosecondsOfSecond.toLong())
     public fun toEpochMilliseconds(): Long = instantMilliseconds(epochSeconds, nanosecondsOfSecond)
     public fun toLocalDateTime(offset: UtcOffset): LocalDateTime {
-        val seconds = epochSeconds + offset.totalSeconds.toInt64()
+        val seconds = epochSeconds + offset.totalSeconds.toLong()
         val day = calendarFloorDiv(seconds, 86400L)
         if (day < LocalDate.MIN.toEpochDays() || day > LocalDate.MAX.toEpochDays()) throw ArithmeticException()
-        val nanos = (seconds - day * 86400L) * 1000000000L + nanosecondsOfSecond.toInt64()
+        val nanos = (seconds - day * 86400L) * 1000000000L + nanosecondsOfSecond.toLong()
         return LocalDateTime(LocalDate.fromEpochDays(day), LocalTime.fromNanosecondOfDay(nanos))
     }
     public override fun toString(): String = toLocalDateTime(UtcOffset.ZERO).toString() + "Z"
@@ -44,7 +44,7 @@ public class Instant private constructor(public val epochSeconds: Long, public v
                 throw IllegalArgumentException(Some("instant outside supported range"))
             }
             val remainder = nanosecondAdjustment % 1000000000L
-            return Instant(seconds + extra, (remainder + (if (remainder < 0L) 1000000000L else 0L)).toInt32())
+            return Instant(seconds + extra, (remainder + (if (remainder < 0L) 1000000000L else 0L)).toInt())
         }
         public fun fromEpochMilliseconds(value: Long): Instant = fromEpochSeconds(value / 1000L, (value % 1000L) * 1000000L)
         internal fun fromComponents(seconds: Long, nanos: Int): Instant {
@@ -54,7 +54,7 @@ public class Instant private constructor(public val epochSeconds: Long, public v
         internal fun fromDuration(value: Duration): Instant = fromComponents(value.floorSeconds, value.nanosecondsOfSecond)
         public fun parseOrNull(text: String): Instant? = when (OffsetDateTime.parseOrNull(text)) {
             case Some(value) -> {
-                val seconds = localEpochSeconds(value.dateTime) - value.offset.totalSeconds.toInt64()
+                val seconds = localEpochSeconds(value.dateTime) - value.offset.totalSeconds.toLong()
                 if (seconds < MIN.epochSeconds || seconds > MAX.epochSeconds) None
                 else Some(Instant(seconds, value.dateTime.nanosecond))
             }

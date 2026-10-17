@@ -18,7 +18,7 @@ private class AsyncTlsTransferTests {
             val (clientRaw, serverRaw) = rawPair(loop, scope)
             observed.add(clientRaw)
             val (client, server) = tlsPair(scope, clientRaw, serverRaw)
-            val bytes = Array<Byte>(50000L) { index -> (index % 241L).toInt8() }
+            val bytes = Array<Byte>(50000L) { index -> (index % 241L).toByte() }
             val expected = digest(DigestAlgorithm.SHA256, bytes).toHexString()
             val input = NativeByteBuffer.allocate(bytes.size)
             val output = NativeByteBuffer.allocate(bytes.size)

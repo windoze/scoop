@@ -13,7 +13,7 @@ class BadBytes : List<Byte> {
     public override operator fun get(index: Long): Byte {
         reads += 1L
         if (index == 5L) throw IllegalStateException()
-        return index.toInt8()
+        return index.toByte()
     }
     public override operator fun iterator(): Iterator<Byte> { throw IllegalStateException() }
 }

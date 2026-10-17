@@ -28,8 +28,8 @@ private class TlsStreamConsumerTests {
                             client.writeFully(bytes)
                             bytes.clear()
                             client.readFully(bytes)
-                            assertEquals(116.toInt8(), bytes.getByte(0L))
-                            assertEquals(115.toInt8(), bytes.getByte(2L))
+                            assertEquals(116.toByte(), bytes.getByte(0L))
+                            assertEquals(115.toByte(), bytes.getByte(2L))
                             client.shutdownGracefully()
                         }
                     }

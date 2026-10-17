@@ -14,7 +14,7 @@ private class Captured(private val body: (List<String>, ValueEncoder<String>, En
 }
 
 fun main() {
-    val integers = Array<Int>(3L) { index -> index.toInt32() + 1 }
+    val integers = Array<Int>(3L) { index -> index.toInt() + 1 }
     val integerCodec = sequence<Int>(Int.Companion)
     check(Json.encodeToString<List<Int>>(integers, integerCodec) == "[1,2,3]", 1)
     val mutable = ArrayList<Unit>()

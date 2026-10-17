@@ -3,7 +3,7 @@ import scoop.collections.listOf
 
 fun check(ok: Boolean) { if (!ok) throw IllegalStateException() }
 fun valid(text: String, seconds: Long, nanos: Int, canonical: String) {
-    val value = Duration.seconds(seconds, nanos.toInt64())
+    val value = Duration.seconds(seconds, nanos.toLong())
     check(Duration.parse(text) == value && Duration.parseOrNull(text) == Some(value))
     check(value.toIsoString() == canonical && value.toString() == canonical && Duration.parse(canonical) == value)
 }

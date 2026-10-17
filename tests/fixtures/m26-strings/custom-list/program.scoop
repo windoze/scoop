@@ -12,7 +12,7 @@ class Characters : List<Char> {
 }
 fun <T : Iterable<Char>> scalarSum(value: T): Long {
     var result = 0L
-    for (character in value) { result = result + character.code.toInt64() }
+    for (character in value) { result = result + character.code.toLong() }
     return result
 }
 fun main() {

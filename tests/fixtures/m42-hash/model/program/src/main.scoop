@@ -17,7 +17,7 @@ fun main() {
     var step = 0
     while (step < 600) {
         val key = (step * 17) % 37
-        val slot = key.toInt64()
+        val slot = key.toLong()
         if (step % 5 == 0) {
             check(map.remove(key) == model[slot], "model remove")
             model[slot] = None
@@ -29,7 +29,7 @@ fun main() {
         var count = 0L
         var cursor = 0L
         while (cursor < 37L) {
-            check(lookup<Int, Int?>(map, cursor.toInt32()) == model[cursor], "model get")
+            check(lookup<Int, Int?>(map, cursor.toInt()) == model[cursor], "model get")
             if (model[cursor] != None) count += 1L
             cursor += 1L
         }

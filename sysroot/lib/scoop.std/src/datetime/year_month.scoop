@@ -18,7 +18,7 @@ public class YearMonth public constructor(public val year: Int, public val month
     }
     public fun plusYears(value: Long): YearMonth {
         checkCalendarYearShift(year, value)
-        return YearMonth((year.toInt64() + value).toInt32(), monthNumber)
+        return YearMonth((year.toLong() + value).toInt(), monthNumber)
     }
     public override operator fun equals(other: YearMonth): Boolean = year == other.year && monthNumber == other.monthNumber
     public override operator fun compareTo(other: YearMonth): Long =

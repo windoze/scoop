@@ -81,7 +81,7 @@ public class String : Get<Long, Char>, Compare<String>, Add<String, String>, Equ
 
         @Unsafe
         public fun fromCString(pointer: Ptr<Int8>): String =
-            fromUtf8(pointer.cast<UInt8>(), coreCStringLength(pointer).toInt64())
+            fromUtf8(pointer.cast<UInt8>(), coreCStringLength(pointer).toLong())
     }
 }
 

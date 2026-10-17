@@ -79,7 +79,7 @@ private fun roundTrip(kind: KeyAlgorithm, algorithm: SignatureAlgorithm) {
             assertTrue(verify(algorithm, publicKey, message, signature))
             assertFalse(verify(algorithm, publicKey, "changed".toByteArray(), signature))
             val changed = signature.toMutableArray()
-            changed[changed.size - 1L] = (changed[changed.size - 1L].toInt32() xor 1).toInt8()
+            changed[changed.size - 1L] = (changed[changed.size - 1L].toInt() xor 1).toByte()
             assertFalse(verify(algorithm, publicKey, message, changed))
             PrivateKey.fromDer(key.toDer()).use { imported ->
                 assertTrue(verify(algorithm, publicKey, message, sign(algorithm, imported, message)))

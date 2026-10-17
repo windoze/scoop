@@ -11,13 +11,13 @@ public object SystemRandom : Random {
         if (bitCount == 0) return 0
         val bytes = nextBytes(4L)
         var result = 0u
-        for (byte in bytes) result = (result shl 8) or byte.toUInt8().toUInt32()
-        return (result shr (32L - bitCount.toInt64())).toInt32()
+        for (byte in bytes) result = (result shl 8) or byte.toUByte().toUInt()
+        return (result shr (32L - bitCount.toLong())).toInt()
     }
 
     public override fun nextBytes(size: Long): Array<Byte> {
         if (size < 0L) throw IllegalArgumentException(Some("negative byte count"))
-        val array = MutableArray<Byte>(size) { 0.toInt8() }
+        val array = MutableArray<Byte>(size) { 0.toByte() }
         nextBytes(array)
         return array.toArray()
     }

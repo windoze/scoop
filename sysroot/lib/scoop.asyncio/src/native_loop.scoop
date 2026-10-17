@@ -27,7 +27,7 @@ internal fun decodeEvent(record: NativeRecord): NativeEvent = NativeEvent(record
     case 5 -> IoResult.Failed(NativeError(NativeErrorDomain.PosixErrno, record.code), record.count)
     case 6 -> IoResult.Addresses(record.resource)
     case 7 -> IoResult.Failed(NativeError(NativeErrorDomain.AddressResolution, record.code,
-        if (record.count < 0L) None else Some(record.count.toInt32())), 0L)
+        if (record.count < 0L) None else Some(record.count.toInt())), 0L)
     case 8 -> IoResult.Packet(takeDatagram(record.resource!!))
     else -> throw IllegalStateException(Some("invalid native I/O event"))
 })

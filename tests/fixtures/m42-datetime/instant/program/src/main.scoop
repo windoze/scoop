@@ -15,7 +15,7 @@ fun overflow(block: () -> Unit) {
 }
 class FakeClock : Clock {
     var calls: Int = 0
-    public override fun now(): Instant { calls += 1; return Instant.fromEpochSeconds(-calls.toInt64()) }
+    public override fun now(): Instant { calls += 1; return Instant.fromEpochSeconds(-calls.toLong()) }
 }
 fun main() {
     val epoch = Instant.fromEpochSeconds(0L)

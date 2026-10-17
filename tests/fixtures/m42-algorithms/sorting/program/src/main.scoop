@@ -62,11 +62,11 @@ fun main() {
     try { search.binarySearch(2, fromIndex = -1L) } catch (error: IndexOutOfBoundsException) { rejected += 1 }
     try { search.binarySearch(2, toIndex = 5L) } catch (error: IndexOutOfBoundsException) { rejected += 1 }
     check(rejected == 3, "range errors")
-    val input = Array<Int>(511L) { index -> ((index * 137L) % 511L).toInt32() }
+    val input = Array<Int>(511L) { index -> ((index * 137L) % 511L).toInt() }
     count.value = 0L
     val output = input.sortedWith(comparatorOf<Int> { a, b -> count.value += 1L; a.compareTo(b) })
     var index = 0L
-    while (index < 511L) { check(output[index] == index.toInt32(), "sort model"); index += 1L }
+    while (index < 511L) { check(output[index] == index.toInt(), "sort model"); index += 1L }
     check(count.value < 511L * 10L, "merge complexity")
     println("algorithms sorting passed")
 }

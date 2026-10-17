@@ -4,7 +4,7 @@ struct Result(val text: String, val count: Long)
 fun expect(value: Boolean) { if (!value) { throw IllegalStateException() } }
 
 fun main() {
-    val text = String.fromUtf8([231.toInt8(), 149.toInt8(), 140.toInt8()])
+    val text = String.fromUtf8([231.toByte(), 149.toByte(), 140.toByte()])
     @Unsafe {
         val result = useCString(text, fun(pointer: Ptr<Int8>): Result {
             @Unsafe {

@@ -13,14 +13,14 @@ private class NativePathHelperTest {
             val last = text.withNativeString { pointer ->
                 @Unsafe {
                     gcCollect()
-                    assertEquals(-1.toInt8(), pointer.load(1L))
-                    assertEquals(0.toInt8(), pointer.load(3L))
+                    assertEquals(-1.toByte(), pointer.load(1L))
+                    assertEquals(0.toByte(), pointer.load(3L))
                     return@withNativeString pointer.load(2L)
                 }
             }
-            assertEquals(98.toInt8(), last)
+            assertEquals(98.toByte(), last)
             Path.fromOsString(text).withNativePath { pointer -> @Unsafe {
-                assertEquals(97.toInt8(), pointer.load())
+                assertEquals(97.toByte(), pointer.load())
             } }
         }
         val invalid: Array<Byte> = [97, 0, 98]

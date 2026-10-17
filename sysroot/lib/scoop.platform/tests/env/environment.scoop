@@ -24,7 +24,7 @@ private class EnvironmentTest {
         assertFailsWith<IllegalArgumentException> { environmentVariable("") }
         assertFailsWith<IllegalArgumentException> { environmentVariable("a=b") }
         assertFailsWith<IllegalArgumentException> { environmentVariable("a\u0000b") }
-        assertFailsWith<IllegalArgumentException> { environmentVariable(OsString.fromBytes(Array<Byte>(1L) { 0.toInt8() })) }
+        assertFailsWith<IllegalArgumentException> { environmentVariable(OsString.fromBytes(Array<Byte>(1L) { 0.toByte() })) }
     }
 
     @Test

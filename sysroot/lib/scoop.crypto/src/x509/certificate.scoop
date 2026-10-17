@@ -36,7 +36,7 @@ public class Certificate private constructor(private var handle: ULong) : Closea
     }
 
     private fun timeField(field: Int): Instant {
-        @Unsafe { return Instant.fromEpochSeconds(cryptoValue(certificateTime(nativeHandle(), field), "certificate time").toInt64()) }
+        @Unsafe { return Instant.fromEpochSeconds(cryptoValue(certificateTime(nativeHandle(), field), "certificate time").toLong()) }
     }
 
     public fun toDer(): Array<Byte> { @Unsafe { return cryptoBytes(certificateExport(nativeHandle(), 0), "export certificate") } }

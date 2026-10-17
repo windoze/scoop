@@ -52,7 +52,7 @@ fun wrap7(value: Int): Int = wrap6(value)
 fun wrap8(value: Int): Int = wrap7(value)
 fun narrow(value: Int8): Int8 = value + 1
 fun narrowUnsigned(value: UInt8): UInt8 = value + 1U
-fun widen(value: UInt8): Int = value.toInt32()
+fun widen(value: UInt8): Int = value.toInt()
 fun negative(value: Int8): Boolean = value < 0
 
 fun main() {

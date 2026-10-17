@@ -26,13 +26,13 @@ public fun parseRow(line: String, random: Random): Result<Event, String> {
 public fun <T> frameRoundTrip(rows: List<T>, encoder: ValueEncoder<T>, decoder: ValueDecoder<T>): List<T> {
     val payload = encodeRows<T>(rows, encoder).toByteArray()
     val builder = ByteArrayBuilder()
-    builder.writeInt(42, ByteOrder.BIG_ENDIAN)
-    builder.writeLong(payload.size, ByteOrder.LITTLE_ENDIAN)
+    builder.writeInt32(42, ByteOrder.BIG_ENDIAN)
+    builder.writeInt64(payload.size, ByteOrder.LITTLE_ENDIAN)
     builder.append(payload)
     val text = Base64.UrlSafe.encode(builder.toByteArray())
     val reader = ByteArrayReader(Base64.UrlSafe.decode(text))
-    if (reader.readInt(ByteOrder.BIG_ENDIAN) != 42) throw IllegalStateException()
-    val restored = reader.readBytes(reader.readLong(ByteOrder.LITTLE_ENDIAN))
+    if (reader.readInt32(ByteOrder.BIG_ENDIAN) != 42) throw IllegalStateException()
+    val restored = reader.readBytes(reader.readInt64(ByteOrder.LITTLE_ENDIAN))
     if (reader.remaining != 0L) throw IllegalStateException()
     return decodeRows<T>(String.fromUtf8(restored), decoder)
 }

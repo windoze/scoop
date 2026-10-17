@@ -83,7 +83,7 @@ fn mixed_width_primitive_failure_suggests_the_receivers_exact_conversion() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "no applicable candidate for `plus` in member candidate layer:\n  - fun Int8.plus(other: Int8): Int8 — argument for `other` has type Int16, which is not a subtype of Int8; primitive integer operands require one exact type; convert this operand explicitly with `toInt8()`"
+        "no applicable candidate for `plus` in member candidate layer:\n  - fun Int8.plus(other: Int8): Int8 — argument for `other` has type Int16, which is not a subtype of Int8; primitive integer operands require one exact type; convert this operand explicitly with `toByte()`"
     );
 }
 
@@ -101,6 +101,6 @@ fn mixed_signedness_literal_failure_suggests_an_explicit_conversion() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "no applicable candidate for `plus` in member candidate layer:\n  - fun UInt8.plus(other: UInt8): UInt8 — argument for `other` (expected UInt8): integer literal `2` is not representable as UInt8; primitive integer operands require one exact type; convert this operand explicitly with `toUInt8()`"
+        "no applicable candidate for `plus` in member candidate layer:\n  - fun UInt8.plus(other: UInt8): UInt8 — argument for `other` (expected UInt8): integer literal `2` is not representable as UInt8; primitive integer operands require one exact type; convert this operand explicitly with `toUByte()`"
     );
 }

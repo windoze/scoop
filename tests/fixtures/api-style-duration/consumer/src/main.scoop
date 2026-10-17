@@ -8,8 +8,8 @@ private fun roundTrip(value: Duration) {
     check(seconds == value.inWholeSeconds)
     check(nanos > -1000000000 && nanos < 1000000000)
     check(seconds == 0L || nanos == 0 || (seconds < 0L) == (nanos < 0))
-    check(Duration.seconds(seconds, nanos.toInt64()) == value)
-    check(Duration.seconds(value.floorSeconds, value.nanosecondsOfSecond.toInt64()) == value)
+    check(Duration.seconds(seconds, nanos.toLong()) == value)
+    check(Duration.seconds(value.floorSeconds, value.nanosecondsOfSecond.toLong()) == value)
 }
 
 fun main() {

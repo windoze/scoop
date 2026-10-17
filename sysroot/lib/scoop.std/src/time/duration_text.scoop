@@ -35,7 +35,7 @@ internal fun parseDuration(text: String): Duration? {
         val start = index
         var amount = 0uL
         while (index < chars.size && chars[index] >= '0' && chars[index] <= '9') {
-            val digit = (chars[index].code - '0'.code).toUInt64()
+            val digit = (chars[index].code - '0'.code).toULong()
             if (amount > (limit - digit) / 10uL) return None
             amount = amount * 10uL + digit
             index += 1L

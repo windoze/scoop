@@ -7,7 +7,7 @@ public fun primary(): Counter {
     try {
         val value: UInt = 42u
         val remainder = value % 0u
-        caught = caught + remainder.toInt64()
+        caught = caught + remainder.toLong()
     } catch (failure: ArithmeticException) {
         caught = caught + 10
     } finally {

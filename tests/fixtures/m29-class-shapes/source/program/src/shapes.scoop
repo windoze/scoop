@@ -9,7 +9,7 @@ public class Row<T> public constructor(
     public var count: Int = seed
 ) : Base(seed) {
     @Doc("stored") private val cached: String = "cache"
-    @Doc("computed") public val size: Long get() = cached.length + count.toInt64()
+    @Doc("computed") public val size: Long get() = cached.length + count.toLong()
     public constructor(value: T) : this(3, value) {}
 }
 

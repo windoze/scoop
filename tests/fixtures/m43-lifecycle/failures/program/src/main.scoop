@@ -10,7 +10,7 @@ fun action(trace: Trace, phase: Int, failing: Int, cleanupFails: Boolean): TestA
         try {
             if (phase == failing || (phase == 4 && cleanupFails)) throw PhaseFailure(phase)
         } finally { trace.finalized += 1 }
-    }, SourceLocation("phase.scoop", phase.toInt64(), 1, "action", ""))
+    }, SourceLocation("phase.scoop", phase.toLong(), 1, "action", ""))
 }
 
 fun checkFailure(failing: Int, cleanupFails: Boolean, expectedEvents: Int, expectedCalls: Int) {
@@ -49,7 +49,7 @@ fun checkPrimary(primary: TestFailure, failing: Int) {
     }
     assertTrue(primary.phase == expectedPhase)
     assertEquals("phase.scoop", primary.location.file)
-    assertEquals(failing.toInt64(), primary.location.line)
+    assertEquals(failing.toLong(), primary.location.line)
     val cause = primary.cause
     assertTrue(cause is PhaseFailure && cause.phase == failing)
 }

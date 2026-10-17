@@ -29,7 +29,7 @@ public class LocalDateTime public constructor(public val date: LocalDate, public
     public operator fun plus(other: DateTimePeriod): LocalDateTime = (this + other.date) + other.time
     public operator fun minus(other: DateTimePeriod): LocalDateTime = (this - other.date) - other.time
     public fun toInstant(offset: UtcOffset): Instant =
-        Instant.fromComponents(localEpochSeconds(this) - offset.totalSeconds.toInt64(), nanosecond)
+        Instant.fromComponents(localEpochSeconds(this) - offset.totalSeconds.toLong(), nanosecond)
     public override operator fun equals(other: LocalDateTime): Boolean = date == other.date && time == other.time
     public override operator fun compareTo(other: LocalDateTime): Long =
         if (date != other.date) date.compareTo(other.date) else time.compareTo(other.time)

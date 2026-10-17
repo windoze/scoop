@@ -357,7 +357,7 @@ fn pointer_construction_rejects_every_folded_constant_zero_address() {
                 vec![
                     stmt(construct(ulong(0))),
                     stmt(construct(var("zero"))),
-                    stmt(construct(method_call(uint(0), "toUInt64", Vec::new()))),
+                    stmt(construct(method_call(uint(0), "toULong", Vec::new()))),
                     stmt(construct(integer_infix(ulong(1), "and", ulong(0)))),
                     stmt(construct(integer_infix(ulong(0), "shl", long(1)))),
                 ],

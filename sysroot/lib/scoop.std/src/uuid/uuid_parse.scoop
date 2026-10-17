@@ -8,7 +8,7 @@ internal fun uuidFromBytes(bytes: List<Byte>): Uuid {
     var low = 0uL
     var index = 0L
     while (index < 16L) {
-        val byte = bytes[index].toUInt8().toUInt64()
+        val byte = bytes[index].toUByte().toULong()
         if (index < 8L) high = (high shl 8L) or byte
         else low = (low shl 8L) or byte
         index += 1L

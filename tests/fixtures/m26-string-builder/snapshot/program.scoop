@@ -17,7 +17,7 @@ fun main() {
     if (value.calls != 2 || builder.toString() != "1011") { println("immediate"); return }
     val result = builder.toString()
     builder.toString()
-    builder.append(true).append(255.toUInt8())
+    builder.append(true).append(255.toUByte())
     gcCollect()
     if (value.calls != 2 || result != "1011" || builder.toString() != "1011true255") {
         println("stable"); return

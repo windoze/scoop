@@ -37,15 +37,15 @@ private class AsyncFileRunningWorkTest {
                             reading.cancel()
                             assertFalse(reading.isCompleted)
                             gcCollect()
-                            writer.writeAllBytes(Array<Byte>(1L) { 42.toInt8() })
+                            writer.writeAllBytes(Array<Byte>(1L) { 42.toByte() })
                             supplied = true
                             reading.join()
                             assertTrue(reading.isCancelled)
                             assertEquals(1L, bytes.writePosition)
-                            assertEquals(42.toInt8(), bytes.readByte())
+                            assertEquals(42.toByte(), bytes.readByte())
                             bytes.clear()
                         } finally {
-                            if (!supplied) writer.writeAllBytes(Array<Byte>(1L) { 42.toInt8() })
+                            if (!supplied) writer.writeAllBytes(Array<Byte>(1L) { 42.toByte() })
                             fence.close()
                         }
                     }
@@ -74,7 +74,7 @@ private class AsyncFileRunningWorkTest {
                 assertTrue(opening.isCancelled)
                 output.file!!.use { writer ->
                     val failure = assertFailsWith<PlatformException> {
-                        writer.writeAllBytes(Array<Byte>(1L) { 42.toInt8() })
+                        writer.writeAllBytes(Array<Byte>(1L) { 42.toByte() })
                     }
                     assertTrue(failure.kind == PlatformErrorKind.BrokenPipe)
                 }

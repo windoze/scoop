@@ -19,7 +19,7 @@ import scoop.json.Json
     var index = 0L
     while (index < 64L) {
         bits = bits * 6364136223846793005UL + 1442695040888963407UL
-        val single = fromFloatBits(bits.toUInt32())
+        val single = fromFloatBits(bits.toUInt())
         val wide = fromDoubleBits(bits)
         if (single.isFinite()) {
             check(floatBits(Json.decodeFromString(single.toString(), Float.Companion)) == floatBits(single))

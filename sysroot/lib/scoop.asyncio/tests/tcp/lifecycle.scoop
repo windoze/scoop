@@ -30,7 +30,7 @@ private class AsyncTcpLifecycleTest {
             }
             NativeByteBuffer.allocate(1L).use suspend { input ->
                 client.readFully(input)
-                assertEquals(42.toInt8(), input.readByte())
+                assertEquals(42.toByte(), input.readByte())
             }
         }
     }

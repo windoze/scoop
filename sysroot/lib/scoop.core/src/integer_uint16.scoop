@@ -88,63 +88,63 @@ public struct UInt16 :
 
     @NoGC
     @Intrinsic("uint16_to_int8")
-    public fun toInt8(): Int8
+    public fun toByte(): Byte
 
     @NoGC
     @Intrinsic("uint16_to_int16")
-    public fun toInt16(): Int16
+    public fun toShort(): Short
 
     @NoGC
     @Intrinsic("uint16_to_int")
-    public fun toInt32(): Int
+    public fun toInt(): Int
 
     @NoGC
     @Intrinsic("uint16_to_long")
-    public fun toInt64(): Long
+    public fun toLong(): Long
 
     @NoGC
     @Intrinsic("uint16_to_uint8")
-    public fun toUInt8(): UInt8
+    public fun toUByte(): UByte
 
     @NoGC
     @Intrinsic("uint16_to_uint16")
-    public fun toUInt16(): UInt16
+    public fun toUShort(): UShort
 
     @NoGC
     @Intrinsic("uint16_to_uint")
-    public fun toUInt32(): UInt
+    public fun toUInt(): UInt
 
     @NoGC
     @Intrinsic("uint16_to_ulong")
-    public fun toUInt64(): ULong
+    public fun toULong(): ULong
 
     public override operator fun rangeTo(endpoint: UInt16): UIntRange =
-        UIntRange(this.toUInt32(), endpoint.toUInt32(), 1u, false, true)
+        UIntRange(this.toUInt(), endpoint.toUInt(), 1u, false, true)
 
     public override operator fun rangeUntil(endpoint: UInt16): UIntRange =
-        UIntRange(this.toUInt32(), endpoint.toUInt32(), 1u, false, false)
+        UIntRange(this.toUInt(), endpoint.toUInt(), 1u, false, false)
 
     public infix fun until(endpoint: UInt16): UIntRange =
-        UIntRange(this.toUInt32(), endpoint.toUInt32(), 1u, false, false)
+        UIntRange(this.toUInt(), endpoint.toUInt(), 1u, false, false)
 
     public infix fun downTo(endpoint: UInt16): UIntRange =
-        UIntRange(this.toUInt32(), endpoint.toUInt32(), 1u, true, true)
+        UIntRange(this.toUInt(), endpoint.toUInt(), 1u, true, true)
 
-    public override fun toString(): String = coreULongToString(this.toUInt64())
+    public override fun toString(): String = coreULongToString(this.toULong())
 
-    public override fun hash(): Long = coreULongHash(this.toUInt64())
+    public override fun hash(): Long = coreULongHash(this.toULong())
 
     public companion object : ValueEncoder<UInt16>, ValueDecoder<UInt16>, ValueInspector<UInt16> {
         public override fun inspect(value: UInt16): ValueView =
-            ValueObservation(typeInfo<UInt16>().type, None, { ValueShape.Scalar(ScalarValue.Unsigned(value.toUInt64())) })
+            ValueObservation(typeInfo<UInt16>().type, None, { ValueShape.Scalar(ScalarValue.Unsigned(value.toULong())) })
 
         public const val MIN_VALUE: UInt16 = 0u
         public const val MAX_VALUE: UInt16 = 65535u
 
         public override fun encode(value: UInt16, encoder: Encoder): Unit =
-            encoder.singleValue().writeULong(value.toUInt64())
+            encoder.singleValue().writeULong(value.toULong())
 
         public override fun decode(decoder: Decoder): UInt16 =
-            decodeUnsigned(decoder, 65535UL).toUInt16()
+            decodeUnsigned(decoder, 65535UL).toUShort()
     }
 }

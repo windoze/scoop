@@ -32,8 +32,8 @@ private fun exited(status: ExitStatus) {
 }
 
 private fun nativeArguments(path: Path) {
-    val raw = OsString.fromBytes(Array<Byte>(1L) { -1.toInt8() })
-    val environment = mapOf((os("RAW"), OsString.fromBytes(Array<Byte>(1L) { -2.toInt8() })), (os("EMPTY"), os("")))
+    val raw = OsString.fromBytes(Array<Byte>(1L) { -1.toByte() })
+    val environment = mapOf((os("RAW"), OsString.fromBytes(Array<Byte>(1L) { -2.toByte() })), (os("EMPTY"), os("")))
     @Unsafe { signalSetup() }
     try {
         Command(path, [os("check"), os(""), os("a ' b"), raw, currentDirectory().toOsString()],
@@ -100,7 +100,7 @@ private fun releaseHooks(path: Path) {
 private fun temporarySignal(path: Path) { command(path, "exit").spawn().kill() }
 
 private fun communication(path: Path) {
-    val bytes = Array<Byte>(131072L) { (it % 251L).toInt8() }
+    val bytes = Array<Byte>(131072L) { (it % 251L).toByte() }
     command(path, "echo").spawn().use { child ->
         @Unsafe { failNativeStep(32 + 64 + 128) }
         val output = child.communicate(Some(bytes))

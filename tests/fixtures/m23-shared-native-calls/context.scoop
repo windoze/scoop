@@ -3,8 +3,8 @@ package consumer.nativecalls
 import dependency.nativecalls.*
 
 private fun localApply(action: (Int) -> Int, value: Int = 42): Int = action(value)
-private fun localNarrow(value: Int8): Int = value.toInt32()
-private fun localNarrowAction(action: (Int) -> Int8): Int = action(0).toInt32()
+private fun localNarrow(value: Int8): Int = value.toInt()
+private fun localNarrowAction(action: (Int) -> Int8): Int = action(0).toInt()
 private fun localArrayFirst(values: Array<Int>): Int = if (values.size == 0L) { 42 } else { values[0L] }
 private fun localPack(vararg values: Int): Array<Int> = values
 private fun identity(value: Int): Int = value

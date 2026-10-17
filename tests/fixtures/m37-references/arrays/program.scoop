@@ -2,7 +2,7 @@ fun main() {
     val make: (Long, (Long) -> Int) -> Array<Int> = ::Array
     val mutable: (Array<Int>) -> MutableArray<Int> = ::MutableArray
     val frozen: (MutableArray<Int>) -> Array<Int> = ::Array
-    val values = make(3L, { index -> index.toInt32() + 40 })
+    val values = make(3L, { index -> index.toInt() + 40 })
     val changed = mutable(values)
     changed[0L] = 7
     gcCollect()

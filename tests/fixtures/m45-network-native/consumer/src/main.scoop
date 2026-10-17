@@ -111,13 +111,13 @@ private fun datagramOwnership() {
         @Unsafe { verify(descriptors() == 0) }
         UdpSocket.bind(loopback()).use { receiver ->
             buffer.clear()
-            buffer.writeBytes(Array<Byte>(3L) { (it + 1L).toInt8() })
+            buffer.writeBytes(Array<Byte>(3L) { (it + 1L).toByte() })
             temporarySend(receiver.localAddress, buffer)
             gcCollect()
             @Unsafe { verify(descriptors() == 1) }
             buffer.clear()
             val packet = receiver.receiveFrom(buffer)
-            verify(packet.count == 3L && !packet.truncated && buffer.readByte() == 1.toInt8())
+            verify(packet.count == 3L && !packet.truncated && buffer.readByte() == 1.toByte())
         }
     }
 }

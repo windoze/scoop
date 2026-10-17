@@ -19,7 +19,7 @@ private class ClocksTest {
         val wall: Clock = SystemClock
         val instant = wall.now()
         assertTrue(instant.nanosecondsOfSecond >= 0 && instant.nanosecondsOfSecond < 1000000000)
-        assertEquals(instant, Instant.fromEpochSeconds(instant.epochSeconds, instant.nanosecondsOfSecond.toInt64()))
+        assertEquals(instant, Instant.fromEpochSeconds(instant.epochSeconds, instant.nanosecondsOfSecond.toLong()))
         val monotonic: TimeSource = MonotonicTimeSource
         val first = monotonic.markNow()
         val second = monotonic.markNow()

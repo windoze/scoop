@@ -28,7 +28,7 @@ internal fun encodeOptions(options: TlsOptions): Array<Byte> {
         if (protocol.size < 1L || protocol.size > 255L) throw IllegalArgumentException(Some("ALPN protocol must contain 1 to 255 bytes"))
         total += 1L + protocol.size
         if (total > 65535L) throw IllegalArgumentException(Some("ALPN list exceeds 65535 bytes"))
-        result.append(protocol.size.toInt8())
+        result.append(protocol.size.toByte())
         result.append(protocol)
     }
     return result.toByteArray()

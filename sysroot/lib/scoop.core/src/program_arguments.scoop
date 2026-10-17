@@ -8,10 +8,10 @@ internal fun coreProgramArgv(index: Int): Ptr<Int8>?
 
 internal fun __scoopProgramArguments(): Array<String> {
     @Unsafe {
-        return Array<String>(coreProgramArgc().toInt64(), fun(index: Long): String {
+        return Array<String>(coreProgramArgc().toLong(), fun(index: Long): String {
             @Unsafe {
                 try {
-                    return String.fromCString(coreProgramArgv(index.toInt32())!!)
+                    return String.fromCString(coreProgramArgv(index.toInt())!!)
                 } catch (failure: CharacterCodingException) {
                     eprintln("invalid UTF-8 in argv[" + index.toString() + "]")
                     throw failure

@@ -26,7 +26,7 @@ fun main() {
     check(Json.encodeToString(Json.decodeFromString("[[8,\"nested\"],null]", NestedCodec), NestedCodec) == "[[8,\"nested\"],null]", 6)
     check(Json.encodeToString(Json.decodeFromString("{\"point\":[3,\"field\"]}", Record.Companion), Record.Companion)
         == "{\"point\":[3,\"field\"]}", 7)
-    val data = Array<(Int, String)>(2L) { index -> (index.toInt32(), "array") }
+    val data = Array<(Int, String)>(2L) { index -> (index.toInt(), "array") }
     val arrayCodec = Array<(Int, String)>.encoder(PairCodec)
     check(Json.encodeToString(data, arrayCodec) == "[[0,\"array\"],[1,\"array\"]]", 8)
     val optionCodec = Option<(Int, Unit)>.encoder(PairEncoder(Int.Companion, UnitEncoder))

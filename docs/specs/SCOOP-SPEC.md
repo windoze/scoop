@@ -1799,7 +1799,7 @@ core整数的二元算术、逐bit运算和比较要求两个已定型operand为
 - signed/unsigned比较分别使用数学有符号/无符号次序；`compareTo`统一返回canonical `Long`的`-1L/0L/1L`；
 - const evaluator与运行期使用完全相同的width、wrapping、division和shift语义；const除零是定义错误，普通表达式仍按运行期异常执行。
 
-每种integer提供到八种表示的显式`toInt8`/`toInt16`/`toInt32`/`toInt64`与`toUInt8`/`toUInt16`/`toUInt32`/`toUInt64`，并可提供alias拼写的转发名称。整数之间的转换total且不抛异常：数学源值先模`2^targetWidth`，再按目标signedness解释bit pattern。`toFloat`/`toDouble`遵守11.2.2，不改变上述整数转换规则。每个基本类型显式声明同类型的 `operator fun equals`，并以该成员显式实现 `Equals<该类型>`，同时实现 `ToString`；`Boolean`、`Char`和八种integer另显式实现`Hash`，`Float`/`Double`不实现`Hash`（11.11）。这些实现按owner的完整位宽工作，不经过装箱或`Any`分派。
+每种integer提供到八种表示的显式`toByte`/`toShort`/`toInt`/`toLong`与`toUByte`/`toUShort`/`toUInt`/`toULong`。普通转换以 Byte／Short／Int／Long 及无符号类型的常用拼写命名；透明定宽类型 alias 继续用于 FFI 和二进制字段。整数之间的转换total且不抛异常：数学源值先模`2^targetWidth`，再按目标signedness解释bit pattern。`toFloat`/`toDouble`遵守11.2.2，不改变上述整数转换规则。每个基本类型显式声明同类型的 `operator fun equals`，并以该成员显式实现 `Equals<该类型>`，同时实现 `ToString`；`Boolean`、`Char`和八种integer另显式实现`Hash`，`Float`/`Double`不实现`Hash`（11.11）。这些实现按owner的完整位宽工作，不经过装箱或`Any`分派。
 
 八个canonical integer struct及`Byte`/`Short`/`Int32`/`Int64`/`UByte`/`UShort`/`UInt32`/`UInt64` alias都在core显式声明`public`，用户可调用成员同样显式`public`。`and`/`or`/`xor`/`shl`/`shr`是普通`infix` member，`inv()`是普通零参数member；signed类型另提供infix `ushr`，unsigned的`shr`已经是逻辑右移且不另设`ushr`。这些bit名称不带`operator` modifier，不增加9.3.1的operator约定。
 
@@ -1831,7 +1831,7 @@ core整数的二元算术、逐bit运算和比较要求两个已定型operand为
 
 默认浮点环境为最近偶数舍入、异常 trap 关闭、保留 subnormal；不提供源码可观察的异常标志或动态 rounding mode。编译器不得假设无 NaN/Infinity、消除有语义差异的负零、重结合运算，或把独立乘加自动融合为一次舍入。
 
-八种整数与两种浮点均提供 `toFloat()` / `toDouble()`；Float/Double 另提供到八种整数的 `toInt8`/`toInt16`/`toInt32`/`toInt64` 与 `toUInt8`/`toUInt16`/`toUInt32`/`toUInt64`。这些转换不分配、不抛异常：
+八种整数与两种浮点均提供 `toFloat()` / `toDouble()`；Float/Double 另提供到八种整数的 `toByte`/`toShort`/`toInt`/`toLong` 与 `toUByte`/`toUShort`/`toUInt`/`toULong`。这些转换不分配、不抛异常：
 
 - 整数到浮点从源数学值直接按目标精度最近偶数舍入，不经另一浮点格式；
 - Float 到 Double 对有限值精确，Double 到 Float 最近偶数舍入，允许产生 Infinity 或下溢；同类型转换保持位型，跨格式转换保留零的符号，但不承诺 NaN payload 的映射；

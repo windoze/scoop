@@ -55,7 +55,7 @@ public class Path private constructor(private val bytes: Array<Byte>) : Equals<P
         if (child.bytes.size == 0L) return this
         val result = ByteArrayBuilder()
         result.append(bytes)
-        if (bytes[bytes.size - 1L] != 47) result.append(47.toInt8())
+        if (bytes[bytes.size - 1L] != 47) result.append(47.toByte())
         result.append(child.bytes)
         return Path(result.toByteArray())
     }
@@ -73,13 +73,13 @@ public class Path private constructor(private val bytes: Array<Byte>) : Equals<P
             } else parts.add(part)
         }
         val result = ByteArrayBuilder()
-        if (absolute) result.append(47.toInt8())
+        if (absolute) result.append(47.toByte())
         val prefix = if (absolute) 1L else 0L
         for (part in parts) {
-            if (result.size > prefix) result.append(47.toInt8())
+            if (result.size > prefix) result.append(47.toByte())
             result.append(part.toBytes())
         }
-        if (result.size == 0L) result.append(46.toInt8())
+        if (result.size == 0L) result.append(46.toByte())
         return Path(result.toByteArray())
     }
 

@@ -5,25 +5,25 @@ public interface Random {
 
     public fun nextBoolean(): Boolean = nextBits(1) != 0
     public fun nextInt(): Int = nextBits(32)
-    public fun nextUInt(): UInt = nextBits(32).toUInt32()
+    public fun nextUInt(): UInt = nextBits(32).toUInt()
     public fun nextULong(): ULong {
-        val high = nextBits(32).toUInt32().toUInt64()
-        val low = nextBits(32).toUInt32().toUInt64()
+        val high = nextBits(32).toUInt().toULong()
+        val low = nextBits(32).toUInt().toULong()
         return (high shl 32L) or low
     }
-    public fun nextLong(): Long = nextULong().toInt64()
+    public fun nextLong(): Long = nextULong().toLong()
     public fun nextFloat(): Float = nextBits(24).toFloat() / 16777216f
     public fun nextDouble(): Double {
-        val high = nextBits(26).toUInt64()
-        val low = nextBits(27).toUInt64()
+        val high = nextBits(26).toULong()
+        val low = nextBits(27).toULong()
         return ((high shl 27L) or low).toDouble() / 9007199254740992.0
     }
 
     public fun nextInt(until: Int): Int = nextInt(0, until)
     public fun nextInt(from: Int, until: Int): Int {
         if (from >= until) throw IllegalArgumentException(Some("empty random range"))
-        val offset = sampleUInt(this, until.toUInt32() - from.toUInt32())
-        return (from.toUInt32() + offset).toInt32()
+        val offset = sampleUInt(this, until.toUInt() - from.toUInt())
+        return (from.toUInt() + offset).toInt()
     }
     public fun nextUInt(until: UInt): UInt = nextUInt(0u, until)
     public fun nextUInt(from: UInt, until: UInt): UInt {
@@ -33,8 +33,8 @@ public interface Random {
     public fun nextLong(until: Long): Long = nextLong(0L, until)
     public fun nextLong(from: Long, until: Long): Long {
         if (from >= until) throw IllegalArgumentException(Some("empty random range"))
-        val offset = sampleULong(this, until.toUInt64() - from.toUInt64())
-        return (from.toUInt64() + offset).toInt64()
+        val offset = sampleULong(this, until.toULong() - from.toULong())
+        return (from.toULong() + offset).toLong()
     }
     public fun nextULong(until: ULong): ULong = nextULong(0uL, until)
     public fun nextULong(from: ULong, until: ULong): ULong {
@@ -44,13 +44,13 @@ public interface Random {
 
     public fun nextBytes(size: Long): Array<Byte> {
         if (size < 0L) throw IllegalArgumentException(Some("negative byte count"))
-        return Array<Byte>(size) { _ -> nextBits(8).toInt8() }
+        return Array<Byte>(size) { _ -> nextBits(8).toByte() }
     }
     public fun nextBytes(array: MutableArray<Byte>, fromIndex: Long = 0L, toIndex: Long = array.size): MutableArray<Byte> {
         if (fromIndex < 0L || toIndex < 0L || fromIndex > array.size || toIndex > array.size) throw IndexOutOfBoundsException()
         if (fromIndex > toIndex) throw IllegalArgumentException(Some("reversed byte range"))
         var index = fromIndex
-        while (index < toIndex) { array[index] = nextBits(8).toInt8(); index += 1L }
+        while (index < toIndex) { array[index] = nextBits(8).toByte(); index += 1L }
         return array
     }
 

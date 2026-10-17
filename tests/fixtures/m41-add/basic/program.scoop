@@ -1,12 +1,12 @@
 fun <T : Add<T, T>> add(left: T, right: T): T = left + right
 
 fun main() {
-    if (add(2.toInt8(), 3.toInt8()) != 5.toInt8()) { throw IllegalStateException() }
-    if (add(2.toInt16(), 3.toInt16()) != 5.toInt16()) { throw IllegalStateException() }
+    if (add(2.toByte(), 3.toByte()) != 5.toByte()) { throw IllegalStateException() }
+    if (add(2.toShort(), 3.toShort()) != 5.toShort()) { throw IllegalStateException() }
     if (add(2, 3) != 5) { throw IllegalStateException() }
     if (add(2L, 3L) != 5L) { throw IllegalStateException() }
-    if (add(2.toUInt8(), 3.toUInt8()) != 5.toUInt8()) { throw IllegalStateException() }
-    if (add(2.toUInt16(), 3.toUInt16()) != 5.toUInt16()) { throw IllegalStateException() }
+    if (add(2.toUByte(), 3.toUByte()) != 5.toUByte()) { throw IllegalStateException() }
+    if (add(2.toUShort(), 3.toUShort()) != 5.toUShort()) { throw IllegalStateException() }
     if (add(2u, 3u) != 5u) { throw IllegalStateException() }
     if (add(2uL, 3uL) != 5uL) { throw IllegalStateException() }
     if (add(2f, 3f) != 5f) { throw IllegalStateException() }
@@ -14,8 +14,8 @@ fun main() {
     if (add("ab", "cd") != "abcd") { throw IllegalStateException() }
     val view: Add<Int, Int> = 40
     if (view + 2 != 42) { throw IllegalStateException() }
-    val byteView: Add<UInt8, UInt8> = 250.toUInt8()
-    if (byteView + 10.toUInt8() != 4.toUInt8()) { throw IllegalStateException() }
+    val byteView: Add<UInt8, UInt8> = 250.toUByte()
+    if (byteView + 10.toUByte() != 4.toUByte()) { throw IllegalStateException() }
     val longView: Add<Long, Long> = 40L
     if (longView + 2L != 42L) { throw IllegalStateException() }
     val floatView: Add<Float, Float> = 1.5f

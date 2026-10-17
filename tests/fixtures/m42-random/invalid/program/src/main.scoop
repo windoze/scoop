@@ -10,7 +10,7 @@ class Failing : Random {
     public override fun nextBits(bitCount: Int): Int {
         if (calls == 2L) throw IllegalStateException(Some("random failure"))
         calls += 1L
-        return calls.toInt32()
+        return calls.toInt()
     }
 }
 fun invalid(random: Counter, action: () -> Unit, bounds: Boolean = false) {
@@ -28,7 +28,7 @@ fun main() {
     invalid(random, { random.nextUInt(0u) }); invalid(random, { random.nextUInt(UInt.MAX_VALUE, 0u) })
     invalid(random, { random.nextULong(0uL) }); invalid(random, { random.nextULong(9uL, 9uL) })
     invalid(random, { random.nextBytes(-1L) })
-    val array = MutableArray<Byte>(4L) { _ -> 9.toInt8() }
+    val array = MutableArray<Byte>(4L) { _ -> 9.toByte() }
     invalid(random, { random.nextBytes(array, -1L, 2L) }, true)
     invalid(random, { random.nextBytes(array, 0L, 5L) }, true)
     invalid(random, { random.nextBytes(array, 3L, 2L) })
@@ -39,6 +39,6 @@ fun main() {
     val failing = Failing()
     var failed = false
     try { failing.nextBytes(array) } catch (error: IllegalStateException) { failed = true }
-    check(failed && failing.calls == 2L && array[0L] == 1.toInt8() && array[1L] == 2.toInt8() && array[2L] == 9.toInt8())
+    check(failed && failing.calls == 2L && array[0L] == 1.toByte() && array[1L] == 2.toByte() && array[2L] == 9.toByte())
     println("random invalid passed")
 }

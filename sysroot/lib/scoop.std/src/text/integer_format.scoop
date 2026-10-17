@@ -4,10 +4,10 @@ private fun formatInteger(magnitude: ULong, negative: Boolean, radix: Int): Stri
     requireTextRadix(radix)
     if (magnitude == 0uL) return "0"
     val chars = ArrayList<Char>()
-    val base = radix.toUInt64()
+    val base = radix.toULong()
     var remaining = magnitude
     while (remaining > 0uL) {
-        val digit = (remaining % base).toInt32()
+        val digit = (remaining % base).toInt()
         chars.add((if (digit < 10) 48 + digit else 87 + digit).toChar())
         remaining /= base
     }
@@ -17,15 +17,15 @@ private fun formatInteger(magnitude: ULong, negative: Boolean, radix: Int): Stri
 
 private fun formatSignedInteger(value: Long, radix: Int): String {
     val negative = value < 0L
-    val magnitude = if (negative) 0uL - value.toUInt64() else value.toUInt64()
+    val magnitude = if (negative) 0uL - value.toULong() else value.toULong()
     return formatInteger(magnitude, negative, radix)
 }
 
-public fun Int8.toString(radix: Int): String = formatSignedInteger(toInt64(), radix)
-public fun Int16.toString(radix: Int): String = formatSignedInteger(toInt64(), radix)
-public fun Int.toString(radix: Int): String = formatSignedInteger(toInt64(), radix)
+public fun Int8.toString(radix: Int): String = formatSignedInteger(toLong(), radix)
+public fun Int16.toString(radix: Int): String = formatSignedInteger(toLong(), radix)
+public fun Int.toString(radix: Int): String = formatSignedInteger(toLong(), radix)
 public fun Long.toString(radix: Int): String = formatSignedInteger(this, radix)
-public fun UInt8.toString(radix: Int): String = formatInteger(toUInt64(), false, radix)
-public fun UInt16.toString(radix: Int): String = formatInteger(toUInt64(), false, radix)
-public fun UInt.toString(radix: Int): String = formatInteger(toUInt64(), false, radix)
+public fun UInt8.toString(radix: Int): String = formatInteger(toULong(), false, radix)
+public fun UInt16.toString(radix: Int): String = formatInteger(toULong(), false, radix)
+public fun UInt.toString(radix: Int): String = formatInteger(toULong(), false, radix)
 public fun ULong.toString(radix: Int): String = formatInteger(this, false, radix)

@@ -63,8 +63,8 @@ fun main() {
     try { emptyList<Int>().reduce<Int> { a, b -> a + b } } catch (error: NoSuchElementException) { caught = true }
     check(caught, "reduce empty")
     val state = State()
-    values.forEach<Int> { value -> state.calls += value.toInt64() }
-    values.forEachIndexed<Int> { index, value -> state.calls += index + value.toInt64() }
+    values.forEach<Int> { value -> state.calls += value.toLong() }
+    values.forEachIndexed<Int> { index, value -> state.calls += index + value.toLong() }
     check(values.onEach<Int> { _ -> state.calls += 1L } === values && state.calls == 18L, "actions")
     val zero = Once(values, 0L)
     check(zero.take(0L).isEmpty() && zero.opened == 0L, "take zero")

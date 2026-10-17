@@ -33,11 +33,11 @@ private class AsyncTcpDuplexTest {
                     assertTrue(currentThreadId() == ownerThread)
                     output.clear()
                     server.readFully(output)
-                    assertEquals(42.toInt8(), output.getByte(0L))
+                    assertEquals(42.toByte(), output.getByte(0L))
                     server.writeFully(output)
                 }
                 reading.join()
-                assertEquals(42.toInt8(), input.getByte(0L))
+                assertEquals(42.toByte(), input.getByte(0L))
             }
         }
         gate.worker!!.join()

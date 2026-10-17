@@ -9,7 +9,7 @@ fun compute(count: Int): Long {
     var sum = 0L
     var index = 0
     while (index < count) {
-        sum += index.toInt64() + 1L
+        sum += index.toLong() + 1L
         index += 1
     }
     return sum

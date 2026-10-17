@@ -9,18 +9,18 @@ fun worker(seed: Int, count: Long): Int {
     val roots = MutableArray<Node?>(count) { index -> None }
     var index = 0L
     while (index < count) {
-        roots[index] = Some(Node(index + seed.toInt64(), None))
+        roots[index] = Some(Node(index + seed.toLong(), None))
         if (index > 0L) { roots[index - 1L]!!.next = roots[index] }
         index += 1L
     }
     gcCollect()
     index = 0L
     while (index < count) {
-        check(roots[index]!!.value == index + seed.toInt64())
+        check(roots[index]!!.value == index + seed.toLong())
         if (index + 1L < count) { check(roots[index]!!.next!! === roots[index + 1L]!!) }
         index += 1L
     }
-    return count.toInt32() + seed
+    return count.toInt() + seed
 }
 
 @Unsafe fun main() {
@@ -30,7 +30,7 @@ fun worker(seed: Int, count: Long): Int {
     try {
         var round = 0
         while (round < 2) {
-            check(workers(callback.function, callback.context, 1, 4) == count.toInt32() * 4 + 10)
+            check(workers(callback.function, callback.context, 1, 4) == count.toInt() * 4 + 10)
             check(when (foreignCallbackFailure(callback)) { case None -> true; case Some(_) -> false })
             gcCollect()
             round += 1

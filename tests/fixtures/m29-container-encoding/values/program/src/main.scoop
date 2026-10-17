@@ -7,7 +7,7 @@ fun check(value: Boolean, code: Int) {
 fun main() {
     val integers = Array<Int>.encoder(Int.Companion)
     check(Json.encodeToString(Array<Int>(0L) { _ -> 0 }, integers) == "[]", 1)
-    val array = Array<Int>(3L) { index -> index.toInt32() - 1 }
+    val array = Array<Int>(3L) { index -> index.toInt() - 1 }
     check(Json.encodeToString(array, integers) == "[-1,0,1]", 2)
     val mutable = MutableArray<String>(2L) { index -> if (index == 0L) { "中" } else { "🙂" } }
     val strings = MutableArray<String>.encoder(String.Companion)

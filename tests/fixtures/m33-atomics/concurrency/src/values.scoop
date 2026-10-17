@@ -31,8 +31,8 @@ fun sharedValues() {
             snapshot.store(Snapshot(value, value + 1, node))
             val observed = snapshot.load()
             check(observed.first + 1 == observed.second && observed.payload.value == observed.first)
-            val (a, b, c) = tuple.exchange((value, (value + 1).toInt64(), node))
-            check((a + 1).toInt64() == b && c.value == a)
+            val (a, b, c) = tuple.exchange((value, (value + 1).toLong(), node))
+            check((a + 1).toLong() == b && c.value == a)
             if (index % 2 == 0) {
                 state.store(State.Pair(node, node))
             } else {

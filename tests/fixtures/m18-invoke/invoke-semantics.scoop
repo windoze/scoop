@@ -34,7 +34,7 @@ struct Mapper() {
 
 struct Collector() {
     operator fun invoke(prefix: Int, vararg values: Int): Long =
-        prefix.toInt64() + values.size
+        prefix.toLong() + values.size
 }
 
 fun applyParameter(handler: Handler): String = handler(5)

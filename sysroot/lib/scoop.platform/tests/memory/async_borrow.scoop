@@ -39,15 +39,15 @@ private class NativeByteBufferAsyncBorrowTest {
             val borrow = gate.borrow!!
             @Unsafe {
                 val pointer = borrow.pointer()!!
-                pointer.store(0L, 8.toInt8())
+                pointer.store(0L, 8.toByte())
                 gcCollect()
-                pointer.store(1L, 9.toInt8())
+                pointer.store(1L, 9.toByte())
             }
             gate.continuation!!.resume(Unit)
             assertTrue(gate.done)
             assertEquals(2L, buffer.writePosition)
-            assertEquals(8.toInt8(), buffer.readByte())
-            assertEquals(9.toInt8(), buffer.readByte())
+            assertEquals(8.toByte(), buffer.readByte())
+            assertEquals(9.toByte(), buffer.readByte())
             assertFailsWith<IllegalStateException> { @Unsafe { borrow.pointer() } }
             assertFailsWith<IllegalStateException> { @Unsafe { borrow.complete(0L) } }
         }
@@ -56,27 +56,27 @@ private class NativeByteBufferAsyncBorrowTest {
     @Test
     fun `borrow rejects every mutation from another thread and records partial reads`() {
         NativeByteBuffer.allocate(8L).use { buffer ->
-            buffer.writeBytes(Array<Byte>(4L) { it.toInt8() })
+            buffer.writeBytes(Array<Byte>(4L) { it.toByte() })
             val borrow = readableBorrow(buffer, 3L)
             Thread.start {
                 assertEquals(4L, buffer.writePosition)
-                assertEquals(2.toInt8(), buffer.getByte(2L))
+                assertEquals(2.toByte(), buffer.getByte(2L))
                 assertFailsWith<IllegalStateException> { buffer.close() }
                 assertFailsWith<IllegalStateException> { buffer.ensureWritable(0L) }
                 assertFailsWith<IllegalStateException> { buffer.clear() }
                 assertFailsWith<IllegalStateException> { buffer.compact() }
                 assertFailsWith<IllegalStateException> { buffer.skip(0L) }
-                assertFailsWith<IllegalStateException> { buffer.setByte(0L, 1.toInt8()) }
+                assertFailsWith<IllegalStateException> { buffer.setByte(0L, 1.toByte()) }
                 assertFailsWith<IllegalStateException> { buffer.readByte() }
-                assertFailsWith<IllegalStateException> { buffer.writeByte(1.toInt8()) }
+                assertFailsWith<IllegalStateException> { buffer.writeByte(1.toByte()) }
                 assertFailsWith<IllegalStateException> { @Unsafe { buffer.borrowReadable(0L) } }
                 assertFailsWith<IllegalStateException> { @Unsafe { buffer.borrowWritable(0L) } }
                 assertFailsWith<IllegalStateException> { @Unsafe { buffer.withReadableBytes { _, _ -> Unit } } }
                 gcCollect()
-                @Unsafe { assertEquals(1.toInt8(), borrow.pointer()!!.load(1L)); borrow.complete(2L) }
+                @Unsafe { assertEquals(1.toByte(), borrow.pointer()!!.load(1L)); borrow.complete(2L) }
             }.use { worker -> worker.join() }
             assertEquals(2L, buffer.readPosition)
-            assertEquals(2.toInt8(), buffer.readByte())
+            assertEquals(2.toByte(), buffer.readByte())
         }
     }
 
@@ -88,7 +88,7 @@ private class NativeByteBufferAsyncBorrowTest {
             val borrow = writableBorrow(buffer, 2L)
             assertFailsWith<IllegalArgumentException> { @Unsafe { borrow.complete(3L) } }
             assertEquals(0L, buffer.writePosition)
-            buffer.writeByte(7.toInt8())
+            buffer.writeByte(7.toByte())
             val empty = writableBorrow(buffer, 0L)
             @Unsafe { assertTrue(empty.pointer() == None); empty.complete(0L) }
             assertEquals(1L, buffer.writePosition)
@@ -120,7 +120,7 @@ private class NativeByteBufferAsyncBorrowTest {
             for (worker in workers) worker.use { it.join() }
             assertEquals(1, accepted.load())
             assertEquals(1, rejected.load())
-            buffer.writeByte(1.toInt8())
+            buffer.writeByte(1.toByte())
         }
     }
 }

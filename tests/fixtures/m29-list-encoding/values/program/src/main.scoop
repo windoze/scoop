@@ -36,7 +36,7 @@ private class UsesReference(private val body: (List<Int>, ValueEncoder<Int>, Enc
 
 fun main() {
     check(encode(Array<Int>(0L) { _ -> 0 }, Int.Companion) == "[]", 1)
-    check(encode(Array<Int>(3L) { index -> index.toInt32() - 1 }, Int.Companion) == "[-1,0,1]", 2)
+    check(encode(Array<Int>(3L) { index -> index.toInt() - 1 }, Int.Companion) == "[-1,0,1]", 2)
     val strings = MutableArray<String>(2L) { index -> if (index == 0L) { "中文" } else { "🙂" } }
     check(encode(strings, String.Companion) == "[\"中文\",\"🙂\"]", 3)
     val list = ArrayList<Unit>()
@@ -50,18 +50,18 @@ fun main() {
     val nested = Array<List<Int>>(2L) { index -> Array<Int>(index) { _ -> 7 } }
     check(encode(nested, SequenceEncoder<Int>(Int.Companion)) == "[[],[7]]", 7)
     val reference: (List<Int>, ValueEncoder<Int>, Encoder) -> Unit = ::encodeList
-    val numbers = Array<Int>(2L) { index -> index.toInt32() + 4 }
+    val numbers = Array<Int>(2L) { index -> index.toInt() + 4 }
     check(Json.encodeToString<List<Int>>(numbers, UsesReference(reference)) == "[4,5]", 8)
-    check(encode(Array<Item>(3L) { index -> Item(index.toInt32()) }, Item.Companion) == "[0,1,2]", 9)
+    check(encode(Array<Item>(3L) { index -> Item(index.toInt()) }, Item.Companion) == "[0,1,2]", 9)
     check(visits == 3, 10)
     try {
-        encode(Array<Item>(4L) { index -> Item(1 - index.toInt32()) }, Item.Companion)
+        encode(Array<Item>(4L) { index -> Item(1 - index.toInt()) }, Item.Companion)
         check(false, 11)
     } catch (error: IllegalStateException) {
         check(error.message == Some("element failure"), 12)
     }
     check(visits == 6, 13)
-    val reversed = Reversed(Array<Int>(3L) { index -> index.toInt32() + 1 })
+    val reversed = Reversed(Array<Int>(3L) { index -> index.toInt() + 1 })
     check(encode(reversed, Int.Companion) == "[3,2,1]", 14)
     println("list-encoding-ok")
 }

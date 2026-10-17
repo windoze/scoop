@@ -13,14 +13,14 @@ fun main() {
     }
     val bytes = text.toMutableByteArray()
     val second = text.toByteArray()
-    if (bytes.size != 9L || bytes[1L] != (-23).toInt8() || bytes[8L] != 0.toInt8()) {
+    if (bytes.size != 9L || bytes[1L] != (-23).toByte() || bytes[8L] != 0.toByte()) {
         println("byte-encoding"); return
     }
     @Unsafe {
         val decoded = String.fromUtf8Unchecked(bytes)
-        bytes[0L] = 90.toInt8()
+        bytes[0L] = 90.toByte()
         gcCollect()
-        if (decoded != text || second[0L] != 65.toInt8() ||
+        if (decoded != text || second[0L] != 65.toByte() ||
             String.fromUtf8Unchecked(bytes) != "Z雪🚀\u0000") { println("byte-snapshot"); return }
     }
     val many = MutableArray<Char>(120L) { index ->

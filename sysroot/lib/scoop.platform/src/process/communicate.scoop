@@ -15,7 +15,7 @@ internal class ProcessPipes internal constructor(input: PipeSink?, output: PipeS
     }
 
     internal fun transfer(input: Array<Byte>?): (Array<Byte>, Array<Byte>) = use {
-        val bytes = input ?: Array<Byte>(0L) { 0.toInt8() }
+        val bytes = input ?: Array<Byte>(0L) { 0.toByte() }
         val output = ByteArrayBuilder()
         val error = ByteArrayBuilder()
         for (index in 0L..<3L) {

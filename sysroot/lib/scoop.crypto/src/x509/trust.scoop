@@ -32,7 +32,7 @@ public class TrustStore private constructor(private var handle: ULong) : Closeab
         val usage = when (purpose) { case ServerAuth -> 0; case ClientAuth -> 1; case Any -> 2 }
         val (kind, name) = when (identity) {
             case Some(_) -> peerIdentityData(identity!!)
-            case None -> (-1, Array<Byte>(0L) { _ -> 0.toInt8() })
+            case None -> (-1, Array<Byte>(0L) { _ -> 0.toByte() })
         }
         val chain = Array<ULong>(intermediates.size) { index -> @Unsafe { return@Array certificateHandle(intermediates[index]) } }
         @Unsafe {

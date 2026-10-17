@@ -17,7 +17,7 @@ fun main() {
     val zeroSource = generateSequence<Int> { throw Exception(Some("take zero read source")) }
     check(zeroSource.map<Int, Int> { _ -> throw Exception(Some("take zero callback")) }.take(0L).toList().size == 0L, "take zero")
     val unused = zeroSource.iterator()
-    check(sequenceOf<Int>(1, 2, 3).mapIndexed<Int, Long> { index, value -> index + value.toInt64() }.joinToString() == "1, 3, 5", "indexed")
+    check(sequenceOf<Int>(1, 2, 3).mapIndexed<Int, Long> { index, value -> index + value.toLong() }.joinToString() == "1, 3, 5", "indexed")
     val nested = sequenceOf<Int>(0, 1, 2).mapNotNull<Int, Int?> { value -> if (value == 0) Some(None) else if (value == 1) Some(Some(9)) else None }.toList()
     check(nested.size == 2L && nested[0L] == None && nested[1L] == Some(9), "nested nullable mapping")
     check(sequenceOf<Int?>(Some(1), None, Some(2)).filterNotNull().filterNot { value -> value == 1 }.joinToString() == "2", "nullable filtering")

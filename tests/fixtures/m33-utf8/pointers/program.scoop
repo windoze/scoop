@@ -28,7 +28,7 @@ fun main() {
         }
         expect(invalid)
 
-        val values = MutableArray<UInt8>(3L) { index -> (65L + index).toUInt8() }
+        val values = MutableArray<UInt8>(3L) { index -> (65L + index).toUByte() }
         val copy = values.withDataPointer(fun(pointer: Ptr<UInt8>, length: Long): String {
             @Unsafe {
                 val result = String.fromUtf8(pointer, length)

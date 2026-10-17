@@ -14,7 +14,7 @@ private fun parseIntegerMagnitude(text: String, radix: Int, positiveLimit: ULong
         next = source.next()
     }
     if (next == None) return None
-    val base = radix.toUInt64()
+    val base = radix.toULong()
     val quotient = limit / base
     val remainder = limit % base
     var result = 0uL
@@ -22,7 +22,7 @@ private fun parseIntegerMagnitude(text: String, radix: Int, positiveLimit: ULong
         val character = when (next) { case Some(value) -> value; case None -> break }
         val digit = textDigit(character)
         if (digit < 0 || digit >= radix) return None
-        val unsigned = digit.toUInt64()
+        val unsigned = digit.toULong()
         if (result > quotient || (result == quotient && unsigned > remainder)) return None
         result = result * base + unsigned
         next = source.next()
@@ -33,7 +33,7 @@ private fun parseIntegerMagnitude(text: String, radix: Int, positiveLimit: ULong
 internal fun parseSignedInteger(text: String, radix: Int, maximum: ULong): Long? =
     when (parseIntegerMagnitude(text, radix, maximum, Some(maximum + 1uL))) {
         case None -> None
-        case Some(value) -> Some(if (value._2) -value._1.toInt64() else value._1.toInt64())
+        case Some(value) -> Some(if (value._2) -value._1.toLong() else value._1.toLong())
     }
 
 internal fun parseUnsignedInteger(text: String, radix: Int, maximum: ULong): ULong? =

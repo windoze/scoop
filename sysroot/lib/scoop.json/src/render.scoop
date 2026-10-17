@@ -16,8 +16,8 @@ internal fun writeJsonString(text: String, output: StringBuilder) {
                 val code = character.code
                 if (code < 32) {
                     output.append("\\u00")
-                    output.append(hex[(code / 16).toInt64()])
-                    output.append(hex[(code % 16).toInt64()])
+                    output.append(hex[(code / 16).toLong()])
+                    output.append(hex[(code % 16).toLong()])
                 } else { output.append(character) }
             }
         }

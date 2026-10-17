@@ -11,7 +11,7 @@ struct Score(val value: Int) {
     operator fun rangeTo(other: Score): Score = Score(other.value - value)
     operator fun rangeUntil(other: Score): Score = Score(other.value - value - 1)
     operator fun compareTo(other: Score): Long =
-        value.toInt64() - other.value.toInt64()
+        value.toLong() - other.value.toLong()
 }
 
 operator fun Score.times(scale: Int): Score = Score(value * scale)

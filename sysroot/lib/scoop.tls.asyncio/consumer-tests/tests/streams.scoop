@@ -45,7 +45,7 @@ private class AsyncTlsConsumerTests {
                         client.flush()
                         bytes.clear()
                         client.readFully(bytes)
-                        assertEquals(42.toInt8(), bytes.getByte(0L))
+                        assertEquals(42.toByte(), bytes.getByte(0L))
                         client.shutdownGracefully()
                         assertTrue(client.isClosed)
                     }

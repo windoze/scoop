@@ -36,7 +36,7 @@ private class AsyncFileTransferTest {
                         file.readFully(bytes, 2L)
                         assertEquals(0L, file.readInto(bytes, 1L))
                         assertEquals(0L, file.readInto(bytes, 1L))
-                        for (index in 0L..<4L) assertEquals((index + 1L).toInt8(), bytes.getByte(index))
+                        for (index in 0L..<4L) assertEquals((index + 1L).toByte(), bytes.getByte(index))
                     }
                 }
             }
@@ -97,7 +97,7 @@ private class AsyncFileTransferTest {
                         bytes.clear()
                         assertEquals(0L, file.readInto(bytes, 0L))
                         file.readFully(bytes)
-                        assertEquals(120.toInt8(), bytes.readByte())
+                        assertEquals(120.toByte(), bytes.readByte())
                     }
                 }
             }

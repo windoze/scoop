@@ -13,13 +13,13 @@ fun main() {
     while (step < 2400L) {
         if (step % 3L != 2L || size == 0L) {
             val value = (step * 37L) % 97L
-            values.add(value.toInt32())
+            values.add(value.toInt())
             model[value] += 1L
             size += 1L
         } else {
             var minimum = 0L
             while (model[minimum] == 0L) minimum += 1L
-            check(values.removeFirst() == minimum.toInt32())
+            check(values.removeFirst() == minimum.toInt())
             model[minimum] -= 1L
             size -= 1L
         }
@@ -29,7 +29,7 @@ fun main() {
     var expected = 0L
     while (expected < 97L) {
         while (model[expected] > 0L) {
-            check(values.removeFirst() == expected.toInt32())
+            check(values.removeFirst() == expected.toInt())
             model[expected] -= 1L
         }
         expected += 1L

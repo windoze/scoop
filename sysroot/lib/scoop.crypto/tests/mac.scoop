@@ -7,7 +7,7 @@ import scoop.text.*
 private class MacTests {
     @Test
     fun `RFC 4231 HMAC vectors and mismatch`() {
-        SecretKey.fromBytes(Array<Byte>(20L) { _ -> 11.toInt8() }).use { key ->
+        SecretKey.fromBytes(Array<Byte>(20L) { _ -> 11.toByte() }).use { key ->
             val data = "Hi There".toByteArray()
             assertEquals("b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7",
                 hmac(DigestAlgorithm.SHA256, key, data).toHexString())
@@ -18,7 +18,7 @@ private class MacTests {
             val expected = hmac(DigestAlgorithm.SHA256, key, data)
             assertTrue(verifyHmac(DigestAlgorithm.SHA256, key, data, expected))
             assertFalse(verifyHmac(DigestAlgorithm.SHA256, key, "changed".toByteArray(), expected))
-            assertFalse(verifyHmac(DigestAlgorithm.SHA256, key, data, Array<Byte>(0L) { _ -> 0.toInt8() }))
+            assertFalse(verifyHmac(DigestAlgorithm.SHA256, key, data, Array<Byte>(0L) { _ -> 0.toByte() }))
         }
     }
 }

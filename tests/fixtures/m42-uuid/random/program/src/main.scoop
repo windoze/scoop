@@ -33,9 +33,9 @@ fun main() {
     val raw = second.nextBytes(16L)
     var index = 0L
     while (index < 16L) {
-        val expected = if (index == 6L) (raw[index].toInt32() and 15) or 64
-            else if (index == 8L) (raw[index].toInt32() and 63) or 128 else raw[index].toUInt8().toInt32()
-        check(generated[index].toUInt8().toInt32() == expected)
+        val expected = if (index == 6L) (raw[index].toInt() and 15) or 64
+            else if (index == 8L) (raw[index].toInt() and 63) or 128 else raw[index].toUByte().toInt()
+        check(generated[index].toUByte().toInt() == expected)
         index += 1L
     }
     check(first.nextLong() == second.nextLong())

@@ -41,6 +41,6 @@ private class PlatformErrorTest {
         assertTrue(error.kind == PlatformErrorKind.Other)
         assertEquals(Int.MAX_VALUE, error.nativeError!!.code)
         assertSame(context, error.context!!)
-        assertEquals(-1.toInt8(), error.context!!.toBytes()[0L])
+        assertEquals(-1.toByte(), error.context!!.toBytes()[0L])
     }
 }

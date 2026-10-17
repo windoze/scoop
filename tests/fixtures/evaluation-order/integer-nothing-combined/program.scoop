@@ -20,7 +20,7 @@ fun main() {
     check("equals", { println(before().equals(fail())) })
     check("left", { println((before() + fail()) + after()) })
     check("unary", { println(-(before() + fail())) })
-    check("convert", { println((before() + fail()).toInt64()) })
+    check("convert", { println((before() + fail()).toLong()) })
     check("wide", { println(1L < fail()) })
     check("tuple", { val value: (Int, String) = (fail(), "unused"); println(value._1) })
 }

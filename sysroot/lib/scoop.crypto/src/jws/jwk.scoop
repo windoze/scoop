@@ -21,7 +21,7 @@ private object JwkDecoder : ValueDecoder<JwkParameters> {
             }
             case "OKP" -> {
                 requireCurve(fields, "Ed25519")
-                JwkParameters(2, fixedParameter(fields, "x"), Array<Byte>(0L) { _ -> 0.toInt8() })
+                JwkParameters(2, fixedParameter(fields, "x"), Array<Byte>(0L) { _ -> 0.toByte() })
             }
             else -> throw JwsException("unsupported JWK key type")
         }
@@ -42,7 +42,7 @@ private fun fixedParameter(fields: KeyedDecodingContainer, name: String): Array<
 
 private fun unsignedInteger(fields: KeyedDecodingContainer, name: String): Array<Byte> {
     val value = decodePart(fields.required(name).singleValue().readString())
-    if (value.size == 0L || value[0L] == 0.toInt8()) throw JwsException("invalid JWK unsigned integer")
+    if (value.size == 0L || value[0L] == 0.toByte()) throw JwsException("invalid JWK unsigned integer")
     return value
 }
 

@@ -195,7 +195,7 @@ fn typed_integer_intrinsics_are_encoded_in_static_storage() {
             false,
             ty_named("UInt8"),
             initializer(
-                method_call(int_lit(257), "toUInt8", Vec::new()),
+                method_call(int_lit(257), "toUByte", Vec::new()),
                 ast::AccessorSyntax::default(),
             ),
         )),
@@ -205,7 +205,7 @@ fn typed_integer_intrinsics_are_encoded_in_static_storage() {
             ty_named("Int8"),
             initializer(
                 method_call(
-                    method_call(int_lit(127), "toInt8", Vec::new()),
+                    method_call(int_lit(127), "toByte", Vec::new()),
                     "inc",
                     Vec::new(),
                 ),
@@ -218,9 +218,9 @@ fn typed_integer_intrinsics_are_encoded_in_static_storage() {
             ty_named("Long"),
             initializer(
                 method_call(
-                    method_call(int_lit(1), "toUInt8", Vec::new()),
+                    method_call(int_lit(1), "toUByte", Vec::new()),
                     "compareTo",
-                    vec![method_call(int_lit(2), "toUInt8", Vec::new())],
+                    vec![method_call(int_lit(2), "toUByte", Vec::new())],
                 ),
                 ast::AccessorSyntax::default(),
             ),
@@ -231,9 +231,9 @@ fn typed_integer_intrinsics_are_encoded_in_static_storage() {
             ty_named("Boolean"),
             initializer(
                 method_call(
-                    method_call(int_lit(1), "toInt16", Vec::new()),
+                    method_call(int_lit(1), "toShort", Vec::new()),
                     "equals",
-                    vec![method_call(int_lit(1), "toInt16", Vec::new())],
+                    vec![method_call(int_lit(1), "toShort", Vec::new())],
                 ),
                 ast::AccessorSyntax::default(),
             ),
@@ -244,11 +244,11 @@ fn typed_integer_intrinsics_are_encoded_in_static_storage() {
             ty_named("Int8"),
             initializer(
                 method_call(
-                    method_call(unary(UnOp::Neg, int_lit(128)), "toInt8", Vec::new()),
+                    method_call(unary(UnOp::Neg, int_lit(128)), "toByte", Vec::new()),
                     "div",
                     vec![method_call(
                         unary(UnOp::Neg, int_lit(1)),
-                        "toInt8",
+                        "toByte",
                         Vec::new(),
                     )],
                 ),
@@ -261,9 +261,9 @@ fn typed_integer_intrinsics_are_encoded_in_static_storage() {
             ty_named("ULong"),
             initializer(
                 method_call(
-                    method_call(unsigned(u64::MAX), "toUInt64", Vec::new()),
+                    method_call(unsigned(u64::MAX), "toULong", Vec::new()),
                     "rem",
-                    vec![method_call(unsigned(2), "toUInt64", Vec::new())],
+                    vec![method_call(unsigned(2), "toULong", Vec::new())],
                 ),
                 ast::AccessorSyntax::default(),
             ),
@@ -362,11 +362,11 @@ fn typed_integer_intrinsics_are_encoded_in_static_storage() {
 
 #[test]
 fn static_integer_div_rem_zero_uses_runtime_initialization() {
-    let int8 = |value| method_call(int_lit(value), "toInt8", Vec::new());
+    let int8 = |value| method_call(int_lit(value), "toByte", Vec::new());
     let ulong = |value| {
         method_call(
             integer_with_suffix(value, ast::IntegerSuffix::Unsigned),
-            "toUInt64",
+            "toULong",
             Vec::new(),
         )
     };
@@ -438,49 +438,49 @@ fn static_integer_conversions_encode_width_and_signedness_boundaries() {
         Case {
             name: "int8ToULong",
             ty: "ULong",
-            expression: converted(signed(1), "toInt8", "toUInt64"),
+            expression: converted(signed(1), "toByte", "toULong"),
             expected: hir::HirIntegerConstant::Unsigned64(u64::MAX),
         },
         Case {
             name: "int16ToUInt8",
             ty: "UInt8",
-            expression: converted(signed(257), "toInt16", "toUInt8"),
+            expression: converted(signed(257), "toShort", "toUByte"),
             expected: hir::HirIntegerConstant::Unsigned8(0xff),
         },
         Case {
             name: "intToLong",
             ty: "Long",
-            expression: converted(signed(65_537), "toInt32", "toInt64"),
+            expression: converted(signed(65_537), "toInt", "toLong"),
             expected: hir::HirIntegerConstant::Signed64(0xffff_ffff_fffe_ffff),
         },
         Case {
             name: "longToUInt",
             ty: "UInt",
-            expression: converted(signed_long(4_294_967_297), "toInt64", "toUInt32"),
+            expression: converted(signed_long(4_294_967_297), "toLong", "toUInt"),
             expected: hir::HirIntegerConstant::Unsigned32(0xffff_ffff),
         },
         Case {
             name: "uint8ToLong",
             ty: "Long",
-            expression: converted(unsigned(0xff), "toUInt8", "toInt64"),
+            expression: converted(unsigned(0xff), "toUByte", "toLong"),
             expected: hir::HirIntegerConstant::Signed64(0xff),
         },
         Case {
             name: "uint16ToInt8",
             ty: "Int8",
-            expression: converted(unsigned(0xffff), "toUInt16", "toInt8"),
+            expression: converted(unsigned(0xffff), "toUShort", "toByte"),
             expected: hir::HirIntegerConstant::Signed8(0xff),
         },
         Case {
             name: "uintToULong",
             ty: "ULong",
-            expression: converted(unsigned(0xffff_ffff), "toUInt32", "toUInt64"),
+            expression: converted(unsigned(0xffff_ffff), "toUInt", "toULong"),
             expected: hir::HirIntegerConstant::Unsigned64(0xffff_ffff),
         },
         Case {
             name: "ulongToInt",
             ty: "Int",
-            expression: converted(unsigned(u64::MAX), "toUInt64", "toInt32"),
+            expression: converted(unsigned(u64::MAX), "toULong", "toInt"),
             expected: hir::HirIntegerConstant::Signed32(0xffff_ffff),
         },
     ];

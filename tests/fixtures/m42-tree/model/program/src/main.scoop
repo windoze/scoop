@@ -15,7 +15,7 @@ fun main() {
     var step = 0
     while (step < 600) {
         val selected = (step * 17) % 37
-        val slot = selected.toInt64()
+        val slot = selected.toLong()
         if (step % 5 == 0) {
             check(map.remove(selected) == model[slot], "model remove")
             model[slot] = None
@@ -35,7 +35,7 @@ fun main() {
         while (index < 37L) {
             if (model[index] != None) {
                 val item = iterator.next()!!
-                val k = index.toInt32()
+                val k = index.toInt()
                 check(item.key == k && Some(item.value) == model[index], "sorted model entry")
                 if (k < query) lower = Some(k)
                 if (k <= query) floor = Some(k)

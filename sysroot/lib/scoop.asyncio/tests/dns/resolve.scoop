@@ -32,7 +32,7 @@ private class AsyncResolveTest {
                 peer.writeFully(bytes)
                 bytes.clear()
                 client.readFully(bytes)
-                assertEquals(42.toInt8(), bytes.readByte())
+                assertEquals(42.toByte(), bytes.readByte())
             }
         }
     }

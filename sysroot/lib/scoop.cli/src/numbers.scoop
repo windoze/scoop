@@ -8,7 +8,7 @@ internal fun magnitude(owner: CliDecoder, text: String, start: Long): ULong {
     for (index in start until text.length) {
         val character = text[index]
         if (!digit(character)) { owner.fail("expected a decimal integer") }
-        val value = (character.code - 48).toUInt64()
+        val value = (character.code - 48).toULong()
         if (result > (18446744073709551615uL - value) / 10uL) { owner.fail("integer is out of range") }
         result = result * 10uL + value
     }
@@ -22,10 +22,10 @@ internal fun signedInteger(owner: CliDecoder, text: String): Long {
     val value = magnitude(owner, text, start)
     if (negative) {
         if (value > 9223372036854775808uL) { owner.fail("integer is out of range") }
-        return -value.toInt64()
+        return -value.toLong()
     }
     if (value > 9223372036854775807uL) { owner.fail("integer is out of range") }
-    return value.toInt64()
+    return value.toLong()
 }
 
 internal fun unsignedInteger(owner: CliDecoder, text: String): ULong {

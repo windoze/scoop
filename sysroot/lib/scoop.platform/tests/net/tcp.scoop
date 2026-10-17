@@ -13,7 +13,7 @@ private class TcpTest {
             TcpListener.bind(SocketAddress(address, 0), 8, true).use { listener ->
                 val endpoint = listener.localAddress
                 assertTrue(endpoint.port > 0)
-                val bytes = Array<Byte>(65536L) { (it % 251L).toInt8() }
+                val bytes = Array<Byte>(65536L) { (it % 251L).toByte() }
                 Thread.start {
                     listener.accept().use { stream ->
                         assertEquals(endpoint, stream.localAddress)

@@ -89,28 +89,28 @@ public struct Float :
     }
 
     @NoGC @Intrinsic("float_to_int8")
-    public fun toInt8(): Int8
+    public fun toByte(): Byte
 
     @NoGC @Intrinsic("float_to_int16")
-    public fun toInt16(): Int16
+    public fun toShort(): Short
 
     @NoGC @Intrinsic("float_to_int")
-    public fun toInt32(): Int
+    public fun toInt(): Int
 
     @NoGC @Intrinsic("float_to_long")
-    public fun toInt64(): Long
+    public fun toLong(): Long
 
     @NoGC @Intrinsic("float_to_uint8")
-    public fun toUInt8(): UInt8
+    public fun toUByte(): UByte
 
     @NoGC @Intrinsic("float_to_uint16")
-    public fun toUInt16(): UInt16
+    public fun toUShort(): UShort
 
     @NoGC @Intrinsic("float_to_uint")
-    public fun toUInt32(): UInt
+    public fun toUInt(): UInt
 
     @NoGC @Intrinsic("float_to_ulong")
-    public fun toUInt64(): ULong
+    public fun toULong(): ULong
 
     @NoGC @Intrinsic("float_to_float")
     public fun toFloat(): Float
@@ -212,28 +212,28 @@ public struct Double :
     }
 
     @NoGC @Intrinsic("double_to_int8")
-    public fun toInt8(): Int8
+    public fun toByte(): Byte
 
     @NoGC @Intrinsic("double_to_int16")
-    public fun toInt16(): Int16
+    public fun toShort(): Short
 
     @NoGC @Intrinsic("double_to_int")
-    public fun toInt32(): Int
+    public fun toInt(): Int
 
     @NoGC @Intrinsic("double_to_long")
-    public fun toInt64(): Long
+    public fun toLong(): Long
 
     @NoGC @Intrinsic("double_to_uint8")
-    public fun toUInt8(): UInt8
+    public fun toUByte(): UByte
 
     @NoGC @Intrinsic("double_to_uint16")
-    public fun toUInt16(): UInt16
+    public fun toUShort(): UShort
 
     @NoGC @Intrinsic("double_to_uint")
-    public fun toUInt32(): UInt
+    public fun toUInt(): UInt
 
     @NoGC @Intrinsic("double_to_ulong")
-    public fun toUInt64(): ULong
+    public fun toULong(): ULong
 
     @NoGC @Intrinsic("double_to_float")
     public fun toFloat(): Float

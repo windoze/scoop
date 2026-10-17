@@ -16,7 +16,7 @@ fun unpack(value: Symbol): Char = when (value) {
 }
 
 fun main() {
-    val array = MutableArray<Char>(130L) { i -> (65 + i.toInt32()).toChar() }
+    val array = MutableArray<Char>(130L) { i -> (65 + i.toInt()).toChar() }
     val list = ArrayList<Char>()
     for (value in array) { list.add(value) }
     val tuple = identity((Some('雪'), 'A'))

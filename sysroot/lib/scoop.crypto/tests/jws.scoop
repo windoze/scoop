@@ -8,7 +8,7 @@ import scoop.text.*
 private class JwsTests {
     @Test
     fun `HS256 external vector preserves original header and payload`() {
-        val key = SecretKey.fromBytes(Array<Byte>(32L) { index -> index.toInt8() })
+        val key = SecretKey.fromBytes(Array<Byte>(32L) { index -> index.toByte() })
         try {
             val header = "{ \"kid\": \"interop\", \"alg\": \"HS256\" }"
             val payload = "Scoop JWS interoperability".toByteArray()
@@ -58,7 +58,7 @@ private class JwsTests {
 
     @Test
     fun `format algorithm critical fields and key role failures`() {
-        SecretKey.fromBytes(Array<Byte>(32L) { _ -> 1.toInt8() }).use { key ->
+        SecretKey.fromBytes(Array<Byte>(32L) { _ -> 1.toByte() }).use { key ->
             val headers: Array<String> = ["{}", "[]", "{\"alg\":\"none\"}", "{\"alg\":1}",
                 "{\"alg\":\"HS256\",\"crit\":[]}", "{\"alg\":\"HS256\",\"b64\":false}",
                 "{\"alg\":\"HS256\",\"b64\":1}", "{\"alg\":\"HS256\",\"kid\":null}",

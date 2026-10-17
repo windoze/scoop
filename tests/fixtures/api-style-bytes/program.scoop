@@ -23,10 +23,10 @@ fun main() {
     check(String.fromUtf8(Bytes(immutable)) == text)
     check(String.fromUtf8OrNull(Bytes(immutable)) == Some(text))
     check(String.fromUtf8Lossy(Bytes(immutable)) == text)
-    mutable[0L] = 90.toInt8()
+    mutable[0L] = 90.toByte()
     writableChars[0L] = 'Z'
     gcCollect()
-    check(immutable[0L] == 65.toInt8() && chars[0L] == 'A')
+    check(immutable[0L] == 65.toByte() && chars[0L] == 'A')
     check(String.fromUtf8(mutable) == "Z\u0000雪🙂")
     check(String.fromChars(writableChars) == "Z\u0000雪🙂")
     val failure = Exception(Some("getter"))

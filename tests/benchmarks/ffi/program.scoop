@@ -18,14 +18,14 @@ fun run(worker: FunPtr<(Int, Ptr<Unit>) -> Long>, context: Ptr<Unit>,
 fun scalarSafe(count: Int): Long {
     var sum = 0L
     var index = 0
-    while (index < count) { @Unsafe { sum += safeScalar(index.toInt64()) }; index += 1 }
+    while (index < count) { @Unsafe { sum += safeScalar(index.toLong()) }; index += 1 }
     return sum
 }
 
 fun scalarLeaf(count: Int): Long {
     var sum = 0L
     var index = 0
-    while (index < count) { @Unsafe { sum += leafScalar(index.toInt64()) }; index += 1 }
+    while (index < count) { @Unsafe { sum += leafScalar(index.toLong()) }; index += 1 }
     return sum
 }
 
@@ -34,7 +34,7 @@ fun pairSafe(count: Int): Long {
     var index = 0
     while (index < count) {
         @Unsafe {
-            val value = safePair(Pair(index.toInt64(), index.toInt64()))
+            val value = safePair(Pair(index.toLong(), index.toLong()))
             sum += value.first + value.second
         }
         index += 1
@@ -47,7 +47,7 @@ fun pairLeaf(count: Int): Long {
     var index = 0
     while (index < count) {
         @Unsafe {
-            val value = leafPair(Pair(index.toInt64(), index.toInt64()))
+            val value = leafPair(Pair(index.toLong(), index.toLong()))
             sum += value.first + value.second
         }
         index += 1
@@ -60,8 +60,8 @@ fun errnoSafe(count: Int): Long {
     var index = 0
     while (index < count) {
         @Unsafe {
-            val (value, error) = safeErrno(index.toInt64())
-            sum += value + error.toInt64()
+            val (value, error) = safeErrno(index.toLong())
+            sum += value + error.toLong()
         }
         index += 1
     }
@@ -73,8 +73,8 @@ fun errnoLeaf(count: Int): Long {
     var index = 0
     while (index < count) {
         @Unsafe {
-            val (value, error) = leafErrno(index.toInt64())
-            sum += value + error.toInt64()
+            val (value, error) = leafErrno(index.toLong())
+            sum += value + error.toLong()
         }
         index += 1
     }

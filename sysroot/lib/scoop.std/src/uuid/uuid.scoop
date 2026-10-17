@@ -15,10 +15,10 @@ public struct Uuid(val mostSignificantBits: ULong, val leastSignificantBits: ULo
         else leastSignificantBits.compareTo(other.leastSignificantBits)
 
     public override fun hash(): Long = mostSignificantBits.hash() * 31L + leastSignificantBits.hash()
-    public fun toLongs(): (Long, Long) = (mostSignificantBits.toInt64(), leastSignificantBits.toInt64())
+    public fun toLongs(): (Long, Long) = (mostSignificantBits.toLong(), leastSignificantBits.toLong())
     public fun toByteArray(): Array<Byte> = Array<Byte>(16L) { index ->
         val part = if (index < 8L) mostSignificantBits else leastSignificantBits;
-        (part shr ((7L - index % 8L) * 8L)).toInt8()
+        (part shr ((7L - index % 8L) * 8L)).toByte()
     }
     public fun toHexString(): String = toByteArray().toHexString()
     public fun toHexDashString(): String {
@@ -42,7 +42,7 @@ public struct Uuid(val mostSignificantBits: ULong, val leastSignificantBits: ULo
         public val NIL: Uuid = Uuid(0uL, 0uL)
         public val MAX: Uuid = Uuid(ULong.MAX_VALUE, ULong.MAX_VALUE)
         public fun fromLongs(mostSignificantBits: Long, leastSignificantBits: Long): Uuid =
-            Uuid(mostSignificantBits.toUInt64(), leastSignificantBits.toUInt64())
+            Uuid(mostSignificantBits.toULong(), leastSignificantBits.toULong())
         public fun fromByteArray(bytes: List<Byte>): Uuid = uuidFromBytes(bytes)
         public fun parseOrNull(text: String): Uuid? = parseUuid(text)
         public fun parse(text: String): Uuid = when (parseOrNull(text)) {

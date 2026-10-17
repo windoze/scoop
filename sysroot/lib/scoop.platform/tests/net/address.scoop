@@ -42,7 +42,7 @@ private class NetworkAddressTest {
         for (text in ["", "localhost", "127.0.0.256", "127.1", "2001::db8::1", "::1%", "::1%+1", "::1%4294967296", "127.0.0.1%1"]) {
             assertFailsWith<IllegalArgumentException> { IpAddress.parse(text) }
         }
-        assertFailsWith<IllegalArgumentException> { IpAddress.fromBytes(Array<Byte>(5L) { 0.toInt8() }) }
+        assertFailsWith<IllegalArgumentException> { IpAddress.fromBytes(Array<Byte>(5L) { 0.toByte() }) }
         assertFailsWith<IllegalArgumentException> { IpAddress.fromBytes(IpAddress.IPV4_ANY.toBytes(), 1u) }
     }
 
@@ -63,6 +63,6 @@ private class NetworkAddressTest {
         }
         assertEquals(IpAddress.IPV4_LOOPBACK, resolve(OsString.fromString("127.0.0.1"), 0)[0L].address)
         assertFailsWith<IllegalArgumentException> { resolve("localhost", -1) }
-        assertFailsWith<IllegalArgumentException> { resolve(OsString.fromBytes(Array<Byte>(1L) { 0.toInt8() }), 80) }
+        assertFailsWith<IllegalArgumentException> { resolve(OsString.fromBytes(Array<Byte>(1L) { 0.toByte() }), 80) }
     }
 }

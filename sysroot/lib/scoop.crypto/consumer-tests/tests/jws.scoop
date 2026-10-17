@@ -9,13 +9,13 @@ private class JwsConsumerTests {
     @Test
     fun `public JWS enum keys and verified payload cross Cone boundaries`() {
         PrivateKey.generate(KeyAlgorithm.Ed25519).use { privateKey ->
-            val payload: Array<Byte> = [1.toInt8(), 2.toInt8(), 3.toInt8()]
+            val payload: Array<Byte> = [1.toByte(), 2.toByte(), 3.toByte()]
             val token = signCompact("{\"alg\":\"EdDSA\",\"kid\":\"local\"}", payload, JwsAlgorithm.EdDSA, JwsSigningKey.Signature(privateKey))
             privateKey.publicKey().use { publicKey ->
                 val result = verifyCompactOrNull(token, JwsAlgorithm.EdDSA, JwsVerificationKey.Signature(publicKey))!!
                 assertEquals("local", result.keyId!!)
                 assertEquals(3L, result.payload.size)
-                assertEquals(2.toInt8(), result.payload[1L])
+                assertEquals(2.toByte(), result.payload[1L])
             }
         }
     }

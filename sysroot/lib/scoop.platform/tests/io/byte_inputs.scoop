@@ -37,7 +37,7 @@ private class ByteInputListTest {
             }
         }
         val address = ArrayList<Byte>()
-        for (byte in [127.toInt8(), 0.toInt8(), 0.toInt8(), 1.toInt8()]) address.add(byte)
+        for (byte in [127.toByte(), 0.toByte(), 0.toByte(), 1.toByte()]) address.add(byte)
         assertEquals(IpAddress.IPV4_LOOPBACK, IpAddress.fromBytes(address))
     }
 
@@ -55,10 +55,10 @@ private class ByteInputListTest {
         val failure = IllegalStateException(Some("input getter"))
         val bytes = FailingByteInput(failure)
         NativeByteBuffer.allocate(4L).use { buffer ->
-            buffer.writeByte(65.toInt8())
+            buffer.writeByte(65.toByte())
             assertSame(failure, assertFailsWith<IllegalStateException> { buffer.writeBytes(bytes) })
             assertEquals(1L, buffer.writePosition)
-            assertEquals(65.toInt8(), buffer.readByte())
+            assertEquals(65.toByte(), buffer.readByte())
         }
         TestDirectory().use { tree ->
             File.open(tree.child("bytes"), OpenOptions(write = true, createNew = true)).use { file ->

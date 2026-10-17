@@ -10,7 +10,7 @@ private fun splitMix(value: ULong): ULong {
 
 private fun xoshiroSeed(seed: Long): (ULong, ULong, ULong, ULong) {
     val step = 0x9e3779b97f4a7c15uL
-    val first = seed.toUInt64() + step
+    val first = seed.toULong() + step
     return (splitMix(first), splitMix(first + step), splitMix(first + step * 2uL), splitMix(first + step * 3uL))
 }
 
@@ -36,6 +36,6 @@ public class Xoshiro256StarStar private constructor(state: (ULong, ULong, ULong,
         first = first xor fourth
         third = third xor shifted
         fourth = rotateLeft(fourth, 45L)
-        return (result shr (64L - bitCount.toInt64())).toInt32()
+        return (result shr (64L - bitCount.toLong())).toInt()
     }
 }

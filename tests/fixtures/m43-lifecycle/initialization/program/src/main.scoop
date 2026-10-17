@@ -14,7 +14,7 @@ class FieldFailure(trace: Trace) { val value: Int = broken(trace, 2) }
 class InitFailure(trace: Trace) { init { broken(trace, 3) } }
 
 fun checkConstruction(trace: Trace, part: Int, construct: () -> Unit) {
-    val location = SourceLocation("construction.scoop", part.toInt64(), 1, "Case", "Case")
+    val location = SourceLocation("construction.scoop", part.toLong(), 1, "Case", "Case")
     val result = runTestCase(location) {
         construct()
         TestActions(TestAction({ trace.unexpected += 1 }),

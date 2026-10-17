@@ -23,7 +23,7 @@ fun main() {
     println(failure.operation)
     val buffer = NativeByteBuffer.allocate(2L)
     println(buffer.use { current ->
-        current.writeByte(7.toInt8())
+        current.writeByte(7.toByte())
         @Unsafe {
             return@use current.withReadableBytes { pointer, _ ->
                 @Unsafe { return@withReadableBytes pointer!!.load() }
@@ -73,11 +73,11 @@ fun main() {
     UdpSocket.bind(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).use { receiver ->
         UdpSocket.bind(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).use { sender ->
             NativeByteBuffer.allocate(1L).use { buffer ->
-                buffer.writeByte(7.toInt8())
+                buffer.writeByte(7.toByte())
                 sender.sendTo(buffer, receiver.localAddress)
                 buffer.clear()
                 val packet = receiver.receiveFrom(buffer)
-                if (packet.count != 1L || packet.source != sender.localAddress || buffer.readByte() != 7.toInt8()) {
+                if (packet.count != 1L || packet.source != sender.localAddress || buffer.readByte() != 7.toByte()) {
                     throw IllegalStateException()
                 }
                 Unit

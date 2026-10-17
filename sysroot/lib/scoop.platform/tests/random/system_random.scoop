@@ -16,7 +16,7 @@ private class SystemRandomTest {
         var bits = 1
         while (bits < 32) {
             val value = random.nextBits(bits)
-            assertTrue(value >= 0 && value.toUInt32() < (1u shl bits.toInt64()))
+            assertTrue(value >= 0 && value.toUInt() < (1u shl bits.toLong()))
             bits += 1
         }
         random.nextBits(32)
@@ -27,9 +27,9 @@ private class SystemRandomTest {
 
     @Test
     fun `batch entropy preserves array bounds and supports multiple native chunks`() {
-        val bytes = MutableArray<Byte>(1030L) { 42.toInt8() }
+        val bytes = MutableArray<Byte>(1030L) { 42.toByte() }
         assertSame(bytes, SystemRandom.nextBytes(bytes, 3L, 1027L))
-        for (index in [0L, 1L, 2L, 1027L, 1028L, 1029L]) assertEquals(42.toInt8(), bytes[index])
+        for (index in [0L, 1L, 2L, 1027L, 1028L, 1029L]) assertEquals(42.toByte(), bytes[index])
         assertSame(bytes, SystemRandom.nextBytes(bytes, 3L, 3L))
         assertEquals(1024L, SystemRandom.nextBytes(1024L).size)
         assertEquals(0L, SystemRandom.nextBytes(0L).size)
@@ -41,11 +41,11 @@ private class SystemRandomTest {
     @Test
     fun `buffer entropy commits only the requested initialized tail`() {
         NativeByteBuffer.allocate(1030L).use { buffer ->
-            buffer.writeByte(42.toInt8())
+            buffer.writeByte(42.toByte())
             assertEquals(1024L, SystemRandom.fill(buffer, 1024L))
             assertEquals(1025L, buffer.readableBytes)
             assertEquals(5L, buffer.writableBytes)
-            assertEquals(42.toInt8(), buffer.readByte())
+            assertEquals(42.toByte(), buffer.readByte())
             assertEquals(0L, SystemRandom.fill(buffer, 0L))
             assertFailsWith<IllegalArgumentException> { SystemRandom.fill(buffer, -1L) }
             assertFailsWith<IndexOutOfBoundsException> { SystemRandom.fill(buffer, 6L) }

@@ -16,14 +16,14 @@ private class DigestTests {
             digest(DigestAlgorithm.SHA512, data).toHexString())
         Digest(DigestAlgorithm.SHA256).use { context ->
             context.update("a".toByteArray())
-            context.update(Array<Byte>(0L) { _ -> 0.toInt8() })
+            context.update(Array<Byte>(0L) { _ -> 0.toByte() })
             context.update("bc".toByteArray())
             assertEquals(digest(DigestAlgorithm.SHA256, data).toHexString(), context.finish().toHexString())
             assertFailsWith<IllegalStateException> { context.update(data) }
             assertFailsWith<IllegalStateException> { context.finish() }
         }
         assertEquals("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-            digest(DigestAlgorithm.SHA256, Array<Byte>(0L) { _ -> 0.toInt8() }).toHexString())
+            digest(DigestAlgorithm.SHA256, Array<Byte>(0L) { _ -> 0.toByte() }).toHexString())
         val closed = Digest(DigestAlgorithm.SHA512)
         closed.close()
         closed.close()
@@ -38,10 +38,10 @@ private class DigestTests {
         assertEquals(32L, first.size)
         assertNotEquals(first.toHexString(), second.toHexString())
         assertFailsWith<IllegalArgumentException> { secureRandomBytes(-1L) }
-        val input = MutableArray<Byte>(16L) { _ -> 7.toInt8() }
+        val input = MutableArray<Byte>(16L) { _ -> 7.toByte() }
         val key = SecretKey.fromBytes(input)
-        input[0L] = 8.toInt8()
-        assertEquals(7.toInt8(), key.exportBytes()[0L])
+        input[0L] = 8.toByte()
+        assertEquals(7.toByte(), key.exportBytes()[0L])
         key.dispose()
         key.dispose()
         assertFailsWith<IllegalStateException> { key.exportBytes() }

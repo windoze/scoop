@@ -10,8 +10,8 @@ import scoop.platform.system.OsString
 
 public fun arguments(): Array<OsString> {
     @Unsafe {
-        return Array<OsString>(nativeArgumentCount().toInt64()) { index ->
-            @Unsafe { return@Array copyNativeString(nativeArgument(index.toInt32())!!) }
+        return Array<OsString>(nativeArgumentCount().toLong()) { index ->
+            @Unsafe { return@Array copyNativeString(nativeArgument(index.toInt())!!) }
         }
     }
 }

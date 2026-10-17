@@ -202,9 +202,9 @@ trim(predicate) 先从左向右检查前缀，再从右向左检查剩余后缀�
 
 ### 4.2 数值与布尔解析
 
-交付八种定宽整数的 `toInt8/.../toULong` 及各自 OrNull 形式，另有 `toFloat/toDouble` 与 OrNull、`toBooleanStrict/toBooleanStrictOrNull`。整数支持 `radix: Int = 10`，范围 2..36；字母数字不区分 ASCII 大小写，允许一个前导 `+`，signed 另允许 `-`。不自动 trim，不接受 `_`，也不识别类型后缀或 radix 前缀；数值超出目标范围为解析失败。提供整数 `toString(radix)`，signed 使用负号与绝对值的数学数字，不输出二进制补码文本。
+交付八种定宽整数的 `toByte/.../toULong` 及各自 OrNull 形式，另有 `toFloat/toDouble` 与 OrNull、`toBooleanStrict/toBooleanStrictOrNull`。整数支持 `radix: Int = 10`，范围 2..36；字母数字不区分 ASCII 大小写，允许一个前导 `+`，signed 另允许 `-`。不自动 trim，不接受 `_`，也不识别类型后缀或 radix 前缀；数值超出目标范围为解析失败。提供整数 `toString(radix)`，signed 使用负号与绝对值的数学数字，不输出二进制补码文本。
 
-canonical 解析名为 toInt8/toInt16/toInt/toLong、toUInt8/toUInt16/toUInt/toULong，并提供 core alias 对应的 toByte/toShort/toInt32/toInt64、toUByte/toUShort/toUInt32/toUInt64 转发名，各有 OrNull。unsigned 拒绝包括 -0 在内的负号输入。只有 sign 而无数字时失败；普通字符在指定 radix 下是否合法决定其数字含义，例如 0x 在 radix=36 中是数字 33，radix=16 中失败，不把 x 当作前缀标记。整数 toString(radix) 必须显式传入 radix，字母数字使用小写，零输出 0，无正号和前导零；无参数 toString 仍使用原 core 方法。
+整数文本解析使用 toByte/toShort/toInt/toLong、toUByte/toUShort/toUInt/toULong，与普通数值转换的主拼写一致，各有 OrNull。unsigned 拒绝包括 -0 在内的负号输入。只有 sign 而无数字时失败；普通字符在指定 radix 下是否合法决定其数字含义，例如 0x 在 radix=36 中是数字 33，radix=16 中失败，不把 x 当作前缀标记。整数 toString(radix) 必须显式传入 radix，字母数字使用小写，零输出 0，无正号和前导零；无参数 toString 仍使用原 core 方法。
 
 浮点接受 ASCII 十进制 `[+-]?(digits(\.digits?)?|\.digits)([eE][+-]?digits)?`，以及精确拼写 NaN、Infinity、+Infinity、-Infinity。十进制结果直接按目标 Float/Double 精度最近偶数舍入，不通过 Double 再转 Float；有限输入舍入后成为无穷时为解析失败，略大于 MAX_VALUE 但仍舍入到 MAX_VALUE 的输入成功。underflow 可得到 subnormal 或带符号零。禁止 hex float、后缀、空白、尾随内容和 locale 变体；+NaN/-NaN 也不接受。即使数值明显溢出、下溢或全零，仍检查完整语法。NaN 使用 core NaN 常量位型；显式 Infinity 返回相应无穷。
 
@@ -216,13 +216,13 @@ canonical 解析名为 toInt8/toInt16/toInt/toLong、toUInt8/toUInt16/toUInt/toU
 
 ### 5.1 字节构建与读取
 
-复用 core Byte（Int8）保存八位 bit pattern，输入采用 List<Byte>，结果采用独立 Array<Byte> 或 MutableArray<Byte>，不引入另一套 intrinsic ByteArray。`ByteArrayBuilder` 是 GC 堆上的 growable final class，提供 size、append(Byte)、append(List<Byte>)、clear、toByteArray、toMutableByteArray，以及 writeInt8/UInt8/Int16/UInt16/Int/UInt/Long/ULong/Float/Double。
+复用 core Byte（Int8）保存八位 bit pattern，输入采用 List<Byte>，结果采用独立 Array<Byte> 或 MutableArray<Byte>，不引入另一套 intrinsic ByteArray。`ByteArrayBuilder` 是 GC 堆上的 growable final class，提供 size、append(Byte)、append(List<Byte>)、clear、toByteArray、toMutableByteArray，以及 writeInt8/UInt8/Int16/UInt16/Int32/UInt32/Int64/UInt64/Float/Double。
 
 `ByteArrayReader` 在构造时取得输入浅快照，持有 position、remaining；提供对应 read 方法、readBytes(count)、skip(count)。position 只能通过受检 seek 改变，范围 0..size。多字节读写显式接收 `ByteOrder.BIG_ENDIAN/LITTLE_ENDIAN`，不设 native-order 默认值；浮点按 toBits/fromBits 保存位型。短输入和非法区间抛 IndexOutOfBoundsException，负数量抛 IllegalArgumentException；失败的单次读取不移动 position。
 
 builder 输出为独立快照，后续 append/clear 不改变结果；append(List) 先取得本次输入快照，再一次提交，允许同源输入与 getter 抛异常。write 固定位宽操作先保证空间再写入，不对外留下半个数值。容量增长和清零使用普通 core 存储；不提供 direct/off-heap buffer、Ptr、pin、borrow/view、显式 close 或 file/socket stream。
 
-builder 使用无参数构造；size: Long，append(value: Byte)／append(value: List<Byte>) 返回同一 ByteArrayBuilder 以支持链式追加；write／clear 返回 Unit，toByteArray 返回 Array<Byte>，toMutableByteArray 返回 MutableArray<Byte>。字节长度相加超出 Long.MAX_VALUE 时抛 ArithmeticException。reader 使用 `ByteArrayReader(input: List<Byte>)` 构造，size、position、remaining 均为只读 Long 属性；seek(position: Long)、skip(count: Long) 返回 Unit，readBytes(count: Long) 返回独立 Array<Byte>。零长度读取和跳过允许位于末尾。read/writeInt8 与 UInt8 无字节序参数，其他定宽方法必须显式传入 order: ByteOrder。
+builder 使用无参数构造；size: Long，append(value: Byte)／append(value: List<Byte>) 返回同一 ByteArrayBuilder 以支持链式追加；write／clear 返回 Unit，toByteArray 返回 Array<Byte>，toMutableByteArray 返回 MutableArray<Byte>。字节长度相加超出 Long.MAX_VALUE 时抛 ArithmeticException。reader 使用 `ByteArrayReader(input: List<Byte>)` 构造，size、position、remaining 均为只读 Long 属性；seek(position: Long)、skip(count: Long) 返回 Unit，readBytes(count: Long) 返回独立 Array<Byte>。零长度读取和跳过允许位于末尾。整数二进制方法成套使用 read/writeInt8、UInt8、Int16、UInt16、Int32、UInt32、Int64、UInt64，以字段位宽命名。Int8 与 UInt8 无字节序参数，其他定宽方法必须显式传入 order: ByteOrder。
 
 ### 5.2 Hex 与 Base64
 

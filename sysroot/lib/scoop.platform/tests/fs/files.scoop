@@ -12,14 +12,14 @@ private class FilesTest {
         TestDirectory().use { tree ->
             val path = tree.child("data")
             File.open(path, OpenOptions(write = true, createNew = true, mode = 0x180)).use { file ->
-                file.writeAllBytes(Array<Byte>(6L) { (it + 1L).toInt8() })
+                file.writeAllBytes(Array<Byte>(6L) { (it + 1L).toByte() })
                 assertEquals(6L, file.position)
                 assertEquals(6L, file.size)
                 file.seek(1L)
-                val bytes = MutableArray<Byte>(4L) { 0.toInt8() }
+                val bytes = MutableArray<Byte>(4L) { 0.toByte() }
                 assertEquals(2L, file.readInto(bytes, 1L, 2L))
-                assertEquals(2.toInt8(), bytes[1L])
-                assertEquals(3.toInt8(), bytes[2L])
+                assertEquals(2.toByte(), bytes[1L])
+                assertEquals(3.toByte(), bytes[2L])
                 assertEquals(3L, file.position)
                 file.truncate(2L)
                 assertEquals(3L, file.position)
@@ -34,12 +34,12 @@ private class FilesTest {
             }
             File.open(path, OpenOptions(read = false, write = true, append = true)).use { file ->
                 file.seek(0L)
-                assertEquals(1L, file.writeFrom(Array<Byte>(1L) { 9.toInt8() }))
+                assertEquals(1L, file.writeFrom(Array<Byte>(1L) { 9.toByte() }))
             }
             val result = Files.readAllBytes(path)
             assertEquals(3L, result.size)
-            assertEquals(1.toInt8(), result[0L])
-            assertEquals(9.toInt8(), result[2L])
+            assertEquals(1.toByte(), result[0L])
+            assertEquals(9.toByte(), result[2L])
         }
     }
 
@@ -52,11 +52,11 @@ private class FilesTest {
             val duplicate = original.duplicate()
             NativeByteBuffer.allocate(1L).use { buffer ->
                 original.readFully(buffer)
-                assertEquals(97.toInt8(), buffer.readByte())
+                assertEquals(97.toByte(), buffer.readByte())
                 original.close()
                 buffer.clear()
                 duplicate.readFully(buffer)
-                assertEquals(98.toInt8(), buffer.readByte())
+                assertEquals(98.toByte(), buffer.readByte())
             }
             duplicate.close()
             assertTrue(original.isClosed)
@@ -137,7 +137,7 @@ private class FilesTest {
             Files.writeText(path, "中")
             Files.writeText(path, "😀", append = true)
             assertEquals("中😀", Files.readText(path))
-            Files.writeAllBytes(path, Array<Byte>(1L) { -1.toInt8() })
+            Files.writeAllBytes(path, Array<Byte>(1L) { -1.toByte() })
             assertFailsWith<CharacterCodingException> { Files.readText(path) }
             assertEquals("�", Files.readTextLossy(path))
             Files.entries(tree.path).use { entries -> assertEquals(name.toOsString(), entries.next()!!.name) }

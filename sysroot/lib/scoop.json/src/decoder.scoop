@@ -61,12 +61,12 @@ internal class JsonDecoder(internal val value: JsonNode, public override val pat
             if (magnitude > 9223372036854775808UL) {
                 throw DecodingException(path, "integer is out of range")
             }
-            return -magnitude.toInt64()
+            return -magnitude.toLong()
         }
         if (magnitude > 9223372036854775807UL) {
             throw DecodingException(path, "integer is out of range")
         }
-        return magnitude.toInt64()
+        return magnitude.toLong()
     }
 
     public override fun readULong(): ULong {
@@ -102,7 +102,7 @@ internal fun integerMagnitude(text: String, negative: Boolean, path: String): UL
         if (character < '0' || character > '9') {
             throw DecodingException(path, "expected an integer without fraction or exponent")
         }
-        val digit = (character.code - 48).toUInt64()
+        val digit = (character.code - 48).toULong()
         if (result > (18446744073709551615UL - digit) / 10UL) {
             throw DecodingException(path, "integer is out of range")
         }

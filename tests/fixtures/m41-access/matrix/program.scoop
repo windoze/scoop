@@ -5,11 +5,11 @@ class Matrix() : Get2<Int, Int, Int>, Set2<Int, Int, Int> {
     var evaluations: Int = 0
     public override operator fun get(first: Int, second: Int): Int {
         reads += 1
-        return values[(first * 2 + second).toInt64()]
+        return values[(first * 2 + second).toLong()]
     }
     public override operator fun set(first: Int, second: Int, value: Int) {
         writes += 1
-        values[(first * 2 + second).toInt64()] = value
+        values[(first * 2 + second).toLong()] = value
     }
     fun index(): Int { evaluations += 1; return 1 }
 }

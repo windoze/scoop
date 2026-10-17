@@ -88,35 +88,35 @@ public struct UInt :
 
     @NoGC
     @Intrinsic("uint_to_int8")
-    public fun toInt8(): Int8
+    public fun toByte(): Byte
 
     @NoGC
     @Intrinsic("uint_to_int16")
-    public fun toInt16(): Int16
+    public fun toShort(): Short
 
     @NoGC
     @Intrinsic("uint_to_int")
-    public fun toInt32(): Int
+    public fun toInt(): Int
 
     @NoGC
     @Intrinsic("uint_to_long")
-    public fun toInt64(): Long
+    public fun toLong(): Long
 
     @NoGC
     @Intrinsic("uint_to_uint8")
-    public fun toUInt8(): UInt8
+    public fun toUByte(): UByte
 
     @NoGC
     @Intrinsic("uint_to_uint16")
-    public fun toUInt16(): UInt16
+    public fun toUShort(): UShort
 
     @NoGC
     @Intrinsic("uint_to_uint")
-    public fun toUInt32(): UInt
+    public fun toUInt(): UInt
 
     @NoGC
     @Intrinsic("uint_to_ulong")
-    public fun toUInt64(): ULong
+    public fun toULong(): ULong
 
     public override operator fun rangeTo(endpoint: UInt): UIntRange =
         UIntRange(this, endpoint, 1u, false, true)
@@ -130,21 +130,21 @@ public struct UInt :
     public infix fun downTo(endpoint: UInt): UIntRange =
         UIntRange(this, endpoint, 1u, true, true)
 
-    public override fun toString(): String = coreULongToString(this.toUInt64())
+    public override fun toString(): String = coreULongToString(this.toULong())
 
-    public override fun hash(): Long = coreULongHash(this.toUInt64())
+    public override fun hash(): Long = coreULongHash(this.toULong())
 
     public companion object : ValueEncoder<UInt>, ValueDecoder<UInt>, ValueInspector<UInt> {
         public override fun inspect(value: UInt): ValueView =
-            ValueObservation(typeInfo<UInt>().type, None, { ValueShape.Scalar(ScalarValue.Unsigned(value.toUInt64())) })
+            ValueObservation(typeInfo<UInt>().type, None, { ValueShape.Scalar(ScalarValue.Unsigned(value.toULong())) })
 
         public const val MIN_VALUE: UInt = 0u
         public const val MAX_VALUE: UInt = 4294967295u
 
         public override fun encode(value: UInt, encoder: Encoder): Unit =
-            encoder.singleValue().writeULong(value.toUInt64())
+            encoder.singleValue().writeULong(value.toULong())
 
         public override fun decode(decoder: Decoder): UInt =
-            decodeUnsigned(decoder, 4294967295UL).toUInt32()
+            decodeUnsigned(decoder, 4294967295UL).toUInt()
     }
 }

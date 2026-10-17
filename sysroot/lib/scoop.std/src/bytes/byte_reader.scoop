@@ -36,21 +36,21 @@ public class ByteArrayReader public constructor(input: List<Byte>) {
         var index = 0L
         while (index < width) {
             val offset = if (order == ByteOrder.BIG_ENDIAN) index else width - index - 1L
-            result = (result shl 8L) or bytes[cursor + offset].toUInt8().toUInt64()
+            result = (result shl 8L) or bytes[cursor + offset].toUByte().toULong()
             index += 1L
         }
         cursor += width
         return result
     }
 
-    public fun readInt8(): Int8 = read(1L, ByteOrder.BIG_ENDIAN).toInt8()
-    public fun readUInt8(): UInt8 = read(1L, ByteOrder.BIG_ENDIAN).toUInt8()
-    public fun readInt16(order: ByteOrder): Int16 = read(2L, order).toInt16()
-    public fun readUInt16(order: ByteOrder): UInt16 = read(2L, order).toUInt16()
-    public fun readInt(order: ByteOrder): Int = read(4L, order).toInt32()
-    public fun readUInt(order: ByteOrder): UInt = read(4L, order).toUInt32()
-    public fun readLong(order: ByteOrder): Long = read(8L, order).toInt64()
-    public fun readULong(order: ByteOrder): ULong = read(8L, order)
-    public fun readFloat(order: ByteOrder): Float = Float.fromBits(readInt(order))
-    public fun readDouble(order: ByteOrder): Double = Double.fromBits(readLong(order))
+    public fun readInt8(): Int8 = read(1L, ByteOrder.BIG_ENDIAN).toByte()
+    public fun readUInt8(): UInt8 = read(1L, ByteOrder.BIG_ENDIAN).toUByte()
+    public fun readInt16(order: ByteOrder): Int16 = read(2L, order).toShort()
+    public fun readUInt16(order: ByteOrder): UInt16 = read(2L, order).toUShort()
+    public fun readInt32(order: ByteOrder): Int32 = read(4L, order).toInt()
+    public fun readUInt32(order: ByteOrder): UInt32 = read(4L, order).toUInt()
+    public fun readInt64(order: ByteOrder): Int64 = read(8L, order).toLong()
+    public fun readUInt64(order: ByteOrder): UInt64 = read(8L, order)
+    public fun readFloat(order: ByteOrder): Float = Float.fromBits(readInt32(order))
+    public fun readDouble(order: ByteOrder): Double = Double.fromBits(readInt64(order))
 }

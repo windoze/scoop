@@ -19,7 +19,7 @@ public class IpAddress private constructor(internal val native: NativeSocketAddr
             case 2L -> native.c
             case _ -> native.d
         }
-        ((word shr ((3L - index % 4L) * 8L)) and 255u).toInt8()
+        ((word shr ((3L - index % 4L) * 8L)) and 255u).toByte()
     }
 
     public override operator fun equals(other: IpAddress): Boolean =
@@ -27,10 +27,10 @@ public class IpAddress private constructor(internal val native: NativeSocketAddr
         native.a == other.native.a && native.b == other.native.b && native.c == other.native.c && native.d == other.native.d
 
     public override fun hash(): Long = (((native.a.hash() * 31L + native.b.hash()) * 31L +
-        native.c.hash()) * 31L + native.d.hash()) * 31L + native.scopeId.hash() + native.family.toInt64()
+        native.c.hash()) * 31L + native.d.hash()) * 31L + native.scopeId.hash() + native.family.toLong()
 
     public override fun toString(): String {
-        val bytes = MutableArray<Byte>(46L) { 0.toInt8() }
+        val bytes = MutableArray<Byte>(46L) { 0.toByte() }
         @Unsafe {
             val text = bytes.withDataPointer { pointer, _ ->
                 @Unsafe {
@@ -60,7 +60,7 @@ public class IpAddress private constructor(internal val native: NativeSocketAddr
         public fun parse(text: String): IpAddress {
             val separator = text.indexOf('%')
             val literal = if (separator < 0L) text else text.slice(0L, separator)
-            val scope = if (separator < 0L) 0.toUInt32() else decimal(text.slice(separator + 1L, text.length))
+            val scope = if (separator < 0L) 0.toUInt() else decimal(text.slice(separator + 1L, text.length))
             @Unsafe {
                 val parsed = OsString.fromString(literal).withNativeString { pointer ->
                     @Unsafe { return@withNativeString nativeParse(pointer) }
@@ -80,7 +80,7 @@ public class IpAddress private constructor(internal val native: NativeSocketAddr
 private fun word(bytes: Array<Byte>, offset: Long): UInt {
     if (offset >= bytes.size) return 0u
     var value: UInt = 0u
-    for (index in offset..<offset + 4L) value = (value shl 8L) or bytes[index].toUInt8().toUInt32()
+    for (index in offset..<offset + 4L) value = (value shl 8L) or bytes[index].toUByte().toUInt()
     return value
 }
 

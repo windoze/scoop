@@ -21,7 +21,7 @@ class ItemEncoder<T>(private val element: ValueEncoder<T>) : ValueEncoder<Item<T
 
 fun main() {
     val codec = ItemEncoder<Int>(Contextual)
-    val value = Item<Int>((1, Array<Int>(2L) { index -> index.toInt32() + 2 }))
+    val value = Item<Int>((1, Array<Int>(2L) { index -> index.toInt() + 2 }))
     context(EncodeState(10)) {
         check(Json.encodeToString(value, codec) == "{\"pair\":[11,[12,13]]}")
         context(EncodeState(100)) {

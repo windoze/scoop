@@ -25,7 +25,7 @@ fun checkUnits(pointer: Ptr<Unit>, count: Long) {
     })
 
 fun arrays() {
-    val values = MutableArray<Int>(4L) { index -> index.toInt32() + 1 }
+    val values = MutableArray<Int>(4L) { index -> index.toInt() + 1 }
     @Unsafe {
         val result = values.withDataPointer(fun(pointer: Ptr<Int>, count: Long): (String, Long) {
             @Unsafe {

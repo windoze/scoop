@@ -48,11 +48,11 @@ private fun lifecycle(root: Path) {
         try {
             NativeByteBuffer.allocate(1L).use { buffer ->
                 temporaryRead(path, buffer)
-                assertByte(buffer.readByte(), 120.toInt8())
+                assertByte(buffer.readByte(), 120.toByte())
                 gcCollect()
                 @Unsafe { verify(closes() == before + 1) }
                 buffer.clear()
-                buffer.writeByte(122.toInt8())
+                buffer.writeByte(122.toByte())
                 temporaryWrite(path, buffer)
                 gcCollect()
                 @Unsafe { verify(closes() == before + 2) }
@@ -86,7 +86,7 @@ private fun concurrentRead(root: Path) {
                 { index ->
                     NativeByteBuffer.allocate(1L).use { buffer ->
                         file.readFully(buffer)
-                        buffer.readByte().toInt32()
+                        buffer.readByte().toInt()
                     }
                 }, 1, ForeignCallbackMode.Reusable
             )

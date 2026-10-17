@@ -278,13 +278,13 @@ fn argument_integer_kind(
 
 const fn integer_conversion_name(kind: hir::IntegerKind) -> &'static str {
     match kind {
-        hir::IntegerKind::SIGNED_8 => "toInt8",
-        hir::IntegerKind::SIGNED_16 => "toInt16",
-        hir::IntegerKind::SIGNED_32 => "toInt32",
-        hir::IntegerKind::SIGNED_64 => "toInt64",
-        hir::IntegerKind::UNSIGNED_8 => "toUInt8",
-        hir::IntegerKind::UNSIGNED_16 => "toUInt16",
-        hir::IntegerKind::UNSIGNED_32 => "toUInt32",
-        hir::IntegerKind::UNSIGNED_64 => "toUInt64",
+        hir::IntegerKind::SIGNED_8 => "toByte",
+        hir::IntegerKind::SIGNED_16 => "toShort",
+        hir::IntegerKind::SIGNED_32 => "toInt",
+        hir::IntegerKind::SIGNED_64 => "toLong",
+        hir::IntegerKind::UNSIGNED_8 => "toUByte",
+        hir::IntegerKind::UNSIGNED_16 => "toUShort",
+        hir::IntegerKind::UNSIGNED_32 => "toUInt",
+        hir::IntegerKind::UNSIGNED_64 => "toULong",
     }
 }

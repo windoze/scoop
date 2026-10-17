@@ -13,7 +13,7 @@ import scoop.json.Json
         beginPhase()
         gcCollect()
         endPhase(4)
-        sum += values[0L].number.toInt64()
+        sum += values[0L].number.toLong()
         round += 1
     }
     check(sum == 35L)
@@ -44,7 +44,7 @@ import scoop.json.Json
     reportLayout(values)
     beginPhase()
     var index = 0L
-    while (index < count) { values.add(index.toInt32()); index += 1L }
+    while (index < count) { values.add(index.toInt()); index += 1L }
     endPhase(1)
     beginPhase()
     val text = Json.encodeToString(values, ArrayList<Int>.encoder(Int.Companion))
@@ -52,6 +52,6 @@ import scoop.json.Json
     beginPhase()
     val decoded = Json.decodeFromString(text, ArrayList<Int>.decoder(Int.Companion))
     endPhase(3)
-    check(decoded.size == count && decoded[count - 1L] == (count - 1L).toInt32())
+    check(decoded.size == count && decoded[count - 1L] == (count - 1L).toInt())
     return text.length + decoded.size
 }

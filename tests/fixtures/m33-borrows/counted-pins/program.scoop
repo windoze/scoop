@@ -34,7 +34,7 @@ fun references() {
 
 fun arrays() {
     @Unsafe {
-        val held = twice(MutableArray<UInt8>(257L) { index -> index.toUInt8() })
+        val held = twice(MutableArray<UInt8>(257L) { index -> index.toUByte() })
         gcCollect()
         val first = unpin(held.first)
         first[11L] = 91u

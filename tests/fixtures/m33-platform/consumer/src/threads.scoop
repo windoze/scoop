@@ -9,7 +9,7 @@ fun writer(path: String, bytes: Array<UInt8>, gate: Gate): Int {
         try {
             bytes.withDataPointer() { pointer: Ptr<UInt8>, count: Long ->
                 @Unsafe {
-                    val address = pointer.toULong().toInt64()
+                    val address = pointer.toULong().toLong()
                     val previous = gate.address.compareAndExchange(0L, address)
                     check(previous == 0L || previous == address)
                     gate.ready.fetchAdd(1, MemoryOrder.Release)
@@ -19,14 +19,14 @@ fun writer(path: String, bytes: Array<UInt8>, gate: Gate): Int {
                         gcCollect()
                         var offset = 0L
                         while (offset < count) {
-                            val (written, error) = writeBytes(fd, pointer + offset, (count - offset).toUInt64())
+                            val (written, error) = writeBytes(fd, pointer + offset, (count - offset).toULong())
                             if (written < 0L && error == 4) { continue }
                             check(written > 0L)
                             offset += written
                         }
                         bytes.withDataPointer() { nested: Ptr<UInt8>, length: Long ->
                             @Unsafe {
-                                check(length == count && nested.toULong().toInt64() == address)
+                                check(length == count && nested.toULong().toLong() == address)
                                 check(pointer.load() == 65u && pointer.load(1L) == 0u)
                             }
                         }

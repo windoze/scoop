@@ -24,7 +24,7 @@ internal fun scanDecimal(text: String, digitLimit: Long): ParsedDecimal? {
         } else if (character >= '0' && character <= '9') {
             anyDigit = true
             if (dot) fractional += 1L
-            val digit = (character.code - 48).toUInt32()
+            val digit = (character.code - 48).toUInt()
             if (significant != 0L || digit != 0u) {
                 significant += 1L
                 if (kept < digitLimit) {
@@ -50,7 +50,7 @@ internal fun scanDecimal(text: String, digitLimit: Long): ParsedDecimal? {
         while (true) {
             val character = when (current) { case None -> break; case Some(value) -> value }
             if (character < '0' || character > '9') return None
-            exponent = appendDecimalExponent(exponent, (character.code - 48).toUInt64())
+            exponent = appendDecimalExponent(exponent, (character.code - 48).toULong())
             current = source.next()
         }
     }

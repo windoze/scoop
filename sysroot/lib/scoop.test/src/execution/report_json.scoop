@@ -11,8 +11,8 @@ internal fun testJsonString(value: String): String {
         else if (character == '\\') { result.append("\\\\") }
         else if (code < 32) {
             val digits = "0123456789abcdef"
-            result.append("\\u00").append(digits[(code / 16).toInt64()])
-                .append(digits[(code % 16).toInt64()])
+            result.append("\\u00").append(digits[(code / 16).toLong()])
+                .append(digits[(code % 16).toLong()])
         } else { result.append(character) }
     }
     return result.append("\"").toString()

@@ -54,7 +54,7 @@ public class TlsEngine private constructor(private var handle: ULong) : Closeabl
         if (count == 0L) return 0L
         @Unsafe {
             val received = buffer.withReadableBytes { pointer, _ ->
-                @Unsafe { return@withReadableBytes tlsValue(ciphertext(nativeHandle(), 1, pointer!!, count), "feed TLS ciphertext").toInt64() }
+                @Unsafe { return@withReadableBytes tlsValue(ciphertext(nativeHandle(), 1, pointer!!, count), "feed TLS ciphertext").toLong() }
             }
             buffer.skip(received)
             return received
@@ -67,7 +67,7 @@ public class TlsEngine private constructor(private var handle: ULong) : Closeabl
         val count = if (requested < pending) requested else pending
         if (count == 0L) return 0L
         @Unsafe { return buffer.withWritableBytes { pointer, _ ->
-            @Unsafe { return@withWritableBytes tlsValue(ciphertext(nativeHandle(), 0, pointer!!, count), "drain TLS ciphertext").toInt64() }
+            @Unsafe { return@withWritableBytes tlsValue(ciphertext(nativeHandle(), 0, pointer!!, count), "drain TLS ciphertext").toLong() }
         } }
     }
 

@@ -23,7 +23,7 @@ internal fun text(bytes: Array<Byte>): String = OsString.fromBytes(bytes).decode
 private class CommandsTest {
     @Test
     fun `arguments retain empty strings spaces quotes and invalid UTF8 bytes`() {
-        val raw = OsString.fromBytes(Array<Byte>(1L) { -1.toInt8() })
+        val raw = OsString.fromBytes(Array<Byte>(1L) { -1.toByte() })
         val command = Command(Path.fromString("/bin/sh"),
             [os("-c"), os("printf '%s\\n' \"$@\""), os("args"), os(""), os("a ' b"), raw],
             stdin = Stdio.Null, stdout = Stdio.Pipe, stderr = Stdio.Pipe)
@@ -31,7 +31,7 @@ private class CommandsTest {
             val result = child.communicate()
             exited(result.status)
             assertEquals(9L, result.stdout.size)
-            assertEquals(-1.toInt8(), result.stdout[7L])
+            assertEquals(-1.toByte(), result.stdout[7L])
             assertEquals("\na ' b\n", text(Array<Byte>(7L) { result.stdout[it] }))
             assertEquals(0L, result.stderr.size)
         }
@@ -142,7 +142,7 @@ private class CommandsTest {
             Command(Path.fromString("/bin/sh"), stderr = Stdio.Pipe, mergeError = true)
         }
         assertFailsWith<IllegalArgumentException> {
-            Command(Path.fromString("/bin/sh"), [OsString.fromBytes(Array<Byte>(1L) { 0.toInt8() })]).spawn()
+            Command(Path.fromString("/bin/sh"), [OsString.fromBytes(Array<Byte>(1L) { 0.toByte() })]).spawn()
         }
         assertFailsWith<IllegalArgumentException> {
             Command(Path.fromString("/bin/sh"), environment = mapOf((os("bad=name"), os("value")))).spawn()
@@ -153,7 +153,7 @@ private class CommandsTest {
         }
         assertTrue(missing.kind == PlatformErrorKind.NotFound)
         shell("exit 0").spawn().use { child ->
-            assertFailsWith<IllegalArgumentException> { child.communicate(Some([1.toInt8()])) }
+            assertFailsWith<IllegalArgumentException> { child.communicate(Some([1.toByte()])) }
             exited(child.wait())
         }
     }
