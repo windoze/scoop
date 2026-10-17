@@ -6,10 +6,13 @@ import os
 import shlex
 import shutil
 import subprocess
+import tomllib
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+from build_support import RELEASE_CONFIG, ROOT, metadata, reusable, save_record, source_metadata
+
 TARGETS = ("x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl")
+PATCH = ROOT / "sysroot/vendor/llvm-project/22.1.8/patches/llvm-libunwind-eh-index-miss.patch"
 
 
 def prepare_sources(source: Path, build: Path, environment: dict) -> Path:
@@ -33,10 +36,7 @@ def prepare_sources(source: Path, build: Path, environment: dict) -> Path:
             "--forward",
             "-p1",
             "-i",
-            str(
-                ROOT
-                / "sysroot/vendor/llvm-project/22.1.8/patches/llvm-libunwind-eh-index-miss.patch"
-            ),
+            str(PATCH),
         ],
         cwd=overlay,
         env=environment,
@@ -77,6 +77,32 @@ def main():
 
     build = (args.build_dir or ROOT / "tmp/unwind" / args.target).resolve()
     prefix = (args.prefix or ROOT / "sysroot/lib" / args.target / "unwind").resolve()
+    inputs = {
+        "source": source_metadata(
+            source, ("libunwind", "runtimes", "cmake", "llvm/cmake", "llvm/include", "third-party")
+        ),
+        "tools": [
+            metadata(path)
+            for path in (
+                cc,
+                cxx,
+                __file__,
+                ROOT / "scripts/build_support.py",
+                PATCH,
+                RELEASE_CONFIG,
+            )
+        ],
+        "target": args.target,
+        "prefix": str(prefix),
+        "musl_include": str(args.musl_include.resolve()) if musl else None,
+    }
+    record = build / "inputs.json"
+    outputs = [prefix / "include/unwind.h", prefix / "lib/libunwind.a"]
+    if reusable(record, inputs, outputs):
+        print(f"Reusing {args.target} LLVM libunwind: {prefix}")
+        return
+    release = tomllib.loads(RELEASE_CONFIG.read_text())
+    cpu = "-march=" + release["targets"][args.target]["cpu"]
     temporary = build / "scratch"
     temporary.mkdir(parents=True, exist_ok=True)
     environment = dict(os.environ, TMPDIR=str(temporary))
@@ -113,18 +139,19 @@ def main():
                 f"-DCMAKE_{language}_COMPILER_TARGET={args.target}",
             ]
         )
+    flags = [cpu]
     if musl:
         resource = subprocess.check_output([cc, "-print-resource-dir"], text=True).strip()
-        flags = [
+        flags += [
             "-nostdinc",
             "-isystem",
             str(Path(resource) / "include"),
             "-isystem",
             str(args.musl_include.resolve()),
         ]
-        for language in ("C", "CXX", "ASM"):
-            selected = flags + (["-nostdinc++"] if language == "CXX" else [])
-            configure.append(f"-DCMAKE_{language}_FLAGS={shlex.join(selected)}")
+    for language in ("C", "CXX", "ASM"):
+        selected = flags + (["-nostdinc++"] if musl and language == "CXX" else [])
+        configure.append(f"-DCMAKE_{language}_FLAGS={shlex.join(selected)}")
     subprocess.run(configure, check=True, env=environment)
     subprocess.run(
         [
@@ -139,6 +166,7 @@ def main():
         check=True,
         env=environment,
     )
+    save_record(record, inputs, build / "objects")
     print(f"Installed {args.target} LLVM libunwind in {prefix}")
     print("Verify the target libc with the EH link/run test before using this archive.")
 

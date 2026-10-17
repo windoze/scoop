@@ -59,3 +59,9 @@
 - `scripts/release.toml` 固定 LLVM 22.1.8、CPU 与实际系统构建基线。Darwin 默认最低版本在构建时写入工具，`MACOSX_DEPLOYMENT_TARGET` 可显式覆盖；不再通过 `sw_vers` 选择。codegen 显式接收已选 native 部署合同，LLVM、generated-C、native、runtime 和最终链接使用相同最低版本。
 - OpenSSL 准备采用同一 Darwin 配置或 Linux x86-64 CPU 参数；目标资源将随本期最终 sysroot 准备统一更新。三个命令的版本输出统一包含发行版本与源码 revision，不在运行时读取 Git 或打包清单。
 - 本机 Rust 格式化、相关 crate 与脚本辅助程序 lint、Python Ruff、三个 release 命令构建通过。工具链单测 32 项、codegen 定向测试 6 项、fixture runner 规则 50 项通过；正式 CLI 6 组、7 个变体通过，覆盖实际对象部署记录、配置更新／命中、非法版本、过低版本消费 runtime、版本输出及既有缓存组合。新增用例的两处 Scoop 语法及 JSON 空值表示已修正并复验。
+
+## 受控 LLVM 与 native 准备
+
+- `build_llvm.py` 固定 LLVM 22.1.8、AArch64／X86 后端及动态库构建，关闭不需要的外部组件，安装实际 Rust 构建入口；libunwind 准备在更新判断之后才复制／打补丁／探测工具。两个脚本复用源码、工具和实际 depfile 输入的 metadata，不读回命中产物。
+- Linux 的普通 C／C++、runtime、startup、OpenSSL 和 unwind 显式采用 x86-64 CPU 基线。生成的 sysroot 资源可放在仓库外置盘的 tmp 中，以正常 symlink 接入开发树；本任务的构建、缓存、日志及生成资源均已迁到该位置。
+- Rust 格式化、相关 crate lint、Python Ruff 及 C toolchain 合同测试 6 项通过。本机手工构建受控 LLVM 成功，重复调用直接复用；Linux GNU／musl libunwind 首次构建与重复复用成功，GNU dynamic、musl static／dynamic 三种模式的真实 cleanup／catch／delete 测试通过。GNU 宿主 LLVM 与工具包组装尚在本期后续验证中。

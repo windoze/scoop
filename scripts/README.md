@@ -6,6 +6,18 @@
 
 三个命令的 `--version` 显示相同发行版本与源码 revision。开发构建读取默认版本和当前 Git revision；发行构建显式设置 `SCOOP_RELEASE_VERSION` 与 `SCOOP_SOURCE_REVISION`，不在运行时读取 Git 或发行清单。
 
+`build_llvm.py` 从 [固定的 LLVM 22.1.8 上游输入](../sysroot/vendor/llvm-project/22.1.8/README.md) 构建宿主动态库，仅启用 AArch64／X86 后端，并安装 Rust 构建所需的 llvm-config、头文件和 CMake 资料。关闭未使用的压缩、XML、编辑器、HTTP 和插件依赖，不移除 GC／EH 或 statepoint 后端。默认工作位置为 `tmp/llvm/<host>`，可用 `--source`、`--build-dir`、`--prefix` 选择其他位置。
+
+```sh
+python3 scripts/build_llvm.py --jobs 6
+python3 scripts/build_llvm_unwind.py --target x86_64-unknown-linux-gnu \
+  --cc clang-22 --cxx clang++-22
+python3 scripts/build_llvm_unwind.py --target x86_64-unknown-linux-musl \
+  --cc clang-22 --cxx clang++-22 --musl-include /usr/include/x86_64-linux-musl
+```
+
+两个 LLVM 准备脚本在复制输入、补丁、工具探测和 CMake 之前检查输入 metadata 与所需输出；保存首次构建实际 depfile 中的头文件输入，更新时仍由 CMake 的普通增量构建处理。命中不读回 archive、对象或 LLVM 动态库。libunwind 的三个 Linux 链接模式可按 [M28 说明](../docs/milestone28/BUILDING.md) 单独验证。
+
 先构建配套的 `scoop`、`scoopc`、`scoop-link`，并用 `build_openssl.py` 准备所需目标的 OpenSSL。Linux 还需要按 `build_llvm_unwind.py --help` 准备同目标的 unwind。然后准备开发 sysroot，例如：
 
 ```sh

@@ -52,20 +52,15 @@ def main():
     build = (args.build_dir or ROOT / "tmp/openssl" / args.target).resolve()
     prefix = (args.prefix or ROOT / "sysroot/lib" / args.target / "openssl").resolve()
     cc = args.cc or default_cc
-    release = tomllib.loads((ROOT / "scripts/release.toml").read_text())
-    flags = ["-fPIC"]
-    if host == "Darwin":
-        baseline = release["targets"][args.target]["minimum_os"]
-        flags.append("-mmacosx-version-min=" + os.environ.get("MACOSX_DEPLOYMENT_TARGET", baseline))
-    else:
-        flags.append("-march=" + release["targets"][args.target]["cpu"])
     inputs = {
         "archive": metadata(archive),
         "script": metadata(Path(__file__).resolve()),
         "config": config,
         "cc": cc,
         "prefix": str(prefix),
-        "options": OPTIONS + flags,
+        "options": OPTIONS,
+        "release": metadata(ROOT / "scripts/release.toml"),
+        "deployment": os.environ.get("MACOSX_DEPLOYMENT_TARGET") if host == "Darwin" else None,
     }
     record = build / "inputs.json"
     outputs = [
@@ -80,6 +75,13 @@ def main():
         print(f"Reusing {args.target} OpenSSL {VERSION}: {prefix}")
         return
 
+    release = tomllib.loads((ROOT / "scripts/release.toml").read_text())
+    flags = ["-fPIC"]
+    if host == "Darwin":
+        baseline = release["targets"][args.target]["minimum_os"]
+        flags.append("-mmacosx-version-min=" + os.environ.get("MACOSX_DEPLOYMENT_TARGET", baseline))
+    else:
+        flags.append("-march=" + release["targets"][args.target]["cpu"])
     scratch = build / "scratch"
     scratch.mkdir(parents=True, exist_ok=True)
     environment = dict(os.environ, TMPDIR=str(scratch), CC=cc)
