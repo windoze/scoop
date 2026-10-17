@@ -21,7 +21,10 @@ checks = []
 
 [[steps]]
 name = "manual_core"
-files = [{copy = {from = "${build.result.dependencies.0.path}", to = "${work}/manual-sysroot/lib/${target}/scoop.core.slib"}}]
+files = [
+  {copy = {from = "${build.result.dependencies.0.path}", to = "${work}/manual-sysroot/lib/${target}/scoop.core.slib"}},
+  {copy = {from = "${sysroot}/include", to = "${work}/manual-sysroot/include"}},
+]
 
 [[steps]]
 name = "manual"
