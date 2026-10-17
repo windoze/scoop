@@ -15,5 +15,5 @@ public fun deferred(writer: TextWriter, text: String): () -> Unit = {
 public fun joined(parts: Array<String>): String {
     val writer = StringWriter()
     writeParts(writer, parts)
-    return writer.build()
+    return writer.toString()
 }

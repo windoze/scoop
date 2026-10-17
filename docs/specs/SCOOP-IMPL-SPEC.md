@@ -949,7 +949,7 @@ String 的源码索引和 length 按 Unicode scalar，byteLength 使用物理 UT
 C 字符串接口由普通 core 代码组合：withCString 检查 NUL，复制到带终止符的 MutableArray<UInt8>，再通过语言规范 13.11 借用；fromCString 通过普通 C ABI 的 strlen 取得长度，复用严格 pointer 解码。strlen 按 GCLeaf 合同调用；没有独立的编译器 C 字符串类型、隐式编码转换或栈缓冲优化。
 
 编译器为异常边生成的零参数构造适配器不参加源码构造重载选择；core 自身的函数体也遵守同一规则。源码调用仍选择实际 source constructor，并按普通规则求值缺省实参，泛型／默认模板保存该源码调用。适配器继续由编译器异常边的完整 typed 引用使用。
-f-string 按源码顺序保存 text/expression part 与原位置，绑定实际 core StringBuilder 的构造、add 与 build。表达式与对应 toString 交错执行，保持异常和挂起行为；成功 HIR 正文不留待后端解释的字符串插值或 StringBuilder 指令。
+f-string 按源码顺序保存 text/expression part 与原位置，绑定实际 core StringBuilder 的构造、append 与 toString。表达式与对应 toString 交错执行，保持异常和挂起行为；成功 HIR 正文不留待后端解释的字符串插值或 StringBuilder 指令。
 
 普通容器布局和内部存储策略不属于编译器协议。其模板、接口调用、快照和字符串构建使用普通类型/ABI/GC 合同。
 

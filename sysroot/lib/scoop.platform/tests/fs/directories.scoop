@@ -59,8 +59,8 @@ private class DirectoriesTest {
             Files.delete(dangling)
             val longName = StringBuilder()
             var index = 0
-            while (index < 100) { longName.add("part/"); index += 1 }
-            val target = Path.fromString(longName.build())
+            while (index < 100) { longName.append("part/"); index += 1 }
+            val target = Path.fromString(longName.toString())
             Files.createSymbolicLink(dangling, target)
             assertEquals(target, Files.readSymbolicLink(dangling))
         }

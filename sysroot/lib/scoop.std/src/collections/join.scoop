@@ -6,16 +6,16 @@ public fun <T> Iterable<T>.joinToString(
 ): String {
     if (limit < -1L) throw IllegalArgumentException(Some("invalid join limit"))
     val builder = StringBuilder()
-    builder.add(prefix)
+    builder.append(prefix)
     var count = 0L
     for (element in this) {
-        if (count > 0L) builder.add(separator)
-        if (limit >= 0L && count == limit) { builder.add(truncated); break }
-        builder.add(transform(element))
+        if (count > 0L) builder.append(separator)
+        if (limit >= 0L && count == limit) { builder.append(truncated); break }
+        builder.append(transform(element))
         count = nextCollectionCount(count)
     }
-    builder.add(postfix)
-    return builder.build()
+    builder.append(postfix)
+    return builder.toString()
 }
 
 public fun <T : ToString> Iterable<T>.joinToString(

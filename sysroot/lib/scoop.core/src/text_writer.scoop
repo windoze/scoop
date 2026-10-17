@@ -2,12 +2,12 @@ public interface TextWriter {
     public fun write(text: String): Unit
 }
 
-public class StringWriter public constructor() : TextWriter {
+public class StringWriter public constructor() : TextWriter, ToString {
     private val builder: StringBuilder = StringBuilder()
 
     public override fun write(text: String): Unit {
-        builder.add(text)
+        builder.append(text)
     }
 
-    public fun build(): String = builder.build()
+    public override fun toString(): String = builder.toString()
 }

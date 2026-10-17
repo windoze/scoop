@@ -17,20 +17,22 @@ public class ByteArrayBuilder public constructor() {
         storage = MutableArray<Byte>(capacity) { index -> if (index < length) old[index] else 0.toInt8() }
     }
 
-    public fun append(value: Byte) {
+    public fun append(value: Byte): ByteArrayBuilder {
         reserve(1L)
         storage[count] = value
         count += 1L
+        return this
     }
 
-    public fun append(input: List<Byte>) {
-        val length = input.size
+    public fun append(value: List<Byte>): ByteArrayBuilder {
+        val length = value.size
         if (length > Long.MAX_VALUE - count) throw ArithmeticException()
-        val snapshot = Array<Byte>(length) { index -> input[index] }
+        val snapshot = Array<Byte>(length) { index -> value[index] }
         reserve(snapshot.size)
         var index = 0L
         while (index < snapshot.size) { storage[count + index] = snapshot[index]; index += 1L }
         count += snapshot.size
+        return this
     }
 
     public fun clear() {

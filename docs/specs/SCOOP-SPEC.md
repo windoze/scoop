@@ -686,20 +686,20 @@ this is the second line and the number is ${n+1}"""
 
 ```
 val n = 42
-val s = StringBuilder().add("the number is ").add(n).build()
-val s1 = StringBuilder().add("""this is a multi-line string,
-this is the second line and the number is """).add(n + 1).build()
+val s = StringBuilder().append("the number is ").append(n).toString()
+val s1 = StringBuilder().append("""this is a multi-line string,
+this is the second line and the number is """).append(n + 1).toString()
 ```
 
 规则：
 
 - 脱糖在编译早期完成；`${...}` 中的表达式按普通代码类型检查。
-- 按源码顺序交错执行每段表达式与对应 `add`：前一表达式及其 `toString()` 完成后，才开始下一表达式。表达式或 `toString()` 抛出时，后续段和最终 build 不执行；挂起表达式仅在原上下文允许时合法，builder 按普通 managed local 跨挂起保活。
-- 脱糖引用实际 core `StringBuilder` 声明及普通构造、add、build callable，使用 hygienic temporary；用户同名声明、alias 或 import 不替换脱糖目标，普通用户书写的调用仍遵守名称查找。通用 add 使用普通 `T : ToString` bound，不为插值增加 Any 字符串化回退。
+- 按源码顺序交错执行每段表达式与对应 `append`：前一表达式及其 `toString()` 完成后，才开始下一表达式。表达式或 `toString()` 抛出时，后续段和最终 toString 不执行；挂起表达式仅在原上下文允许时合法，builder 按普通 managed local 跨挂起保活。
+- 脱糖引用实际 core `StringBuilder` 声明及普通构造、append、toString callable，使用 hygienic temporary；用户同名声明、alias 或 import 不替换脱糖目标，普通用户书写的调用仍遵守名称查找。通用 append 使用普通 `T : ToString` bound，不为插值增加 Any 字符串化回退。
 - f-string 不属于 `const val` 的常量表达式，即使只有文本段；普通字符串和 raw 字符串仍可作为 String 常量。实现可以在合法性检查后优化纯文本结果，但不改变其 const 可用性。
 
 支持普通 `"""..."""` 与 `f"""..."""` 的 raw 多行字面量。普通单行字符串、单行 f-string 的文本段与字符字面量共用转义集合：`\t`、`\b`、`\n`、`\r`、`\'`、`\"`、`\\`、`\$`、四位十六进制 `\uXXXX` 和一至六位十六进制 `\u{...}`。每个 Unicode 转义必须是合法标量值；surrogate code point、超过 U+10FFFF、缺失数字/终止符及未知转义都在原 source span 诊断。raw 字面量不解释反斜杠转义。转义解码产生的美元符号始终是文本，不重新识别为插值起点。`${...}` 内的嵌套括号、字符串和注释遵守普通表达式词法规则。
-- `add` 对实现 `ToString` 的类型可用（见 11.6 与 11.11），插入其 `toString()` 结果。
+- `append` 对实现 `ToString` 的类型可用（见 11.6 与 11.11），插入其 `toString()` 结果。
 
 ---
 
@@ -1935,18 +1935,18 @@ enum Option<T> {
 字符串插值（第 6 章）的脱糖目标，提供以下公开接口：
 
 ```
-public class StringBuilder {
-    public fun add(part: String): StringBuilder
-    public fun <T : ToString> add(part: T): StringBuilder
-    public fun build(): String
+public class StringBuilder : ToString {
+    public fun append(value: String): StringBuilder
+    public fun <T : ToString> append(value: T): StringBuilder
+    public override fun toString(): String
 }
 ```
 
-公开零参数构造创建空 builder，也可由用户代码直接使用。两种 add 都追加到当前末尾并返回同一 builder；generic add 在本次调用中恰好执行一次 `part.toString()`，完成后才追加结果，不保存原始对象或延迟转换。转换失败不追加该 part，已发生的用户副作用不回滚；转换期间对同一 builder 的重入修改按普通调用顺序生效。
+公开零参数构造创建空 builder，也可由用户代码直接使用。两种 append 都追加到当前末尾并返回同一 builder；generic append 在本次调用中恰好执行一次 `value.toString()`，完成后才追加结果，不保存原始对象或延迟转换。转换失败不追加该值，已发生的用户副作用不回滚；转换期间对同一 builder 的重入修改按普通调用顺序生效。
 
-build 返回当前所有 parts 按顺序连接的 String 内容快照，空 builder 返回空串；它不清空、关闭或冻结 builder。重复 build 的内容相同，后续 add 不影响既有结果，不承诺结果引用身份不同。parts 不以固定槽数限制追加次数；增长、总 UTF-8 字节数与最终分配大小只受 10.6 的真实表示/分配边界限制。
+toString 返回当前所有 parts 按顺序连接的 String 内容快照，空 builder 返回空串；它不清空、关闭或冻结 builder。重复 toString 的内容相同，后续 append 不影响既有结果，不承诺结果引用身份不同。parts 不以固定槽数限制追加次数；增长、总 UTF-8 字节数与最终分配大小只受 10.6 的真实表示/分配边界限制。
 
-`build` 的时间复杂度为 O(partCount + totalByteLength)。builder 不要求显式 close，不提供 off-heap 存储或 release hook 接口。
+`toString` 的时间复杂度为 O(partCount + totalByteLength)。builder 不要求显式 close，不提供 off-heap 存储或 release hook 接口。
 
 实现复用普通 `ArrayList<String>` 保存 parts 和扩容；拼接后备仅消费 backing 中由列表保证已初始化的前缀，不另建容量管理或复制临时 String 数组。
 
@@ -2521,20 +2521,20 @@ public interface TextWriter {
     public fun write(text: String): Unit
 }
 
-public class StringWriter public constructor() : TextWriter {
+public class StringWriter public constructor() : TextWriter, ToString {
     private val builder: StringBuilder = StringBuilder()
 
     public override fun write(text: String): Unit {
-        builder.add(text)
+        builder.append(text)
     }
 
-    public fun build(): String = builder.build()
+    public override fun toString(): String = builder.toString()
 }
 ```
 
 `write` 是普通同步接口调用，只接收 String，不隐式调用其他值的 ToString。具体 writer 可以分配或抛异常，异常原样沿普通调用栈传播；此前已写出的内容不回滚。
 
-StringWriter 按 write 顺序累积文本，保留空字符串、Unicode scalar 和嵌入的零字符，不自动添加换行。build 返回当前文本的不可变 String；重复 build 不清空累积内容，后续 write 不改变此前返回的 String。存储和构建复用 11.6 的 StringBuilder，按普通 GC 合同保活。
+StringWriter 按 write 顺序累积文本，保留空字符串、Unicode scalar 和嵌入的零字符，不自动添加换行。toString 返回当前文本的不可变 String；重复 toString 不清空累积内容，后续 write 不改变此前返回的 String。存储和构建复用 11.6 的 StringBuilder，按普通 GC 合同保活。
 
 本接口不指定 write 的分块方式，不承诺跨多次调用的原子性，也不附带 flush、close、stdout、stderr 或线程同步。文件、终端和日志 writer 由对应库或应用提供；需要换行时显式写入 `"\n"`。
 

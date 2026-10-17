@@ -15,7 +15,7 @@ fun main() {
     }
     check("".isBlank() && "".trim() == "" && " \t\r\n".trim() == "", "empty and all blank")
     val state = State()
-    check("xxAy".trim { value -> state.order.add(value); value == 'x' || value == 'y' } == "A" && state.order.build() == "xxAyA", "trim direction")
+    check("xxAy".trim { value -> state.order.append(value); value == 'x' || value == 'y' } == "A" && state.order.toString() == "xxAyA", "trim direction")
     check("xxAx".trimStart { value -> value == 'x' } == "Ax" && "xAxx".trimEnd { value -> value == 'x' } == "xA", "predicate trim sides")
     check(!"a b".isBlank { value -> state.calls += 1; value == ' ' } && state.calls == 1, "blank short circuit")
     check("xxx".isNotBlank { value -> value == 'x' } == false, "predicate not blank")

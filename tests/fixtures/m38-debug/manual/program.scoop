@@ -57,7 +57,7 @@ fun secrets(value: Secrets, counts: Counts): ValueView {
 class FailingWriter : TextWriter {
     val output: StringWriter = StringWriter()
     public override fun write(text: String) {
-        if (output.build() != "") { throw IllegalStateException() }
+        if (output.toString() != "") { throw IllegalStateException() }
         output.write(text)
         gcCollect()
     }
@@ -120,10 +120,10 @@ fun main() {
     check(secretCounts.reads == 1L)
     val writer = StringWriter()
     try { DebugPrinter.write(view, writer, DebugOptions(maxItems = -1L)); throw IllegalStateException() }
-    catch (error: IllegalArgumentException) { equal(writer.build(), "") }
+    catch (error: IllegalArgumentException) { equal(writer.toString(), "") }
     val failure = FailingWriter()
     try { DebugPrinter.write(view, failure); throw IllegalArgumentException() }
-    catch (error: IllegalStateException) { equal(failure.output.build(), "Node(") }
+    catch (error: IllegalStateException) { equal(failure.output.toString(), "Node(") }
     equal(DebugPrinter.format(view), "Node(name=\"root\", next=Option<Node>.Some(<cycle Node>))")
     inheritanceAndFailures()
     println("debug-manual-ok")
@@ -184,11 +184,11 @@ fun inheritanceAndFailures() {
     })
     val writer = StringWriter()
     try { DebugPrinter.write(view, writer); throw IllegalStateException() }
-    catch (error: IllegalArgumentException) { equal(error.message!!, "read failed"); equal(writer.build(), "(") }
+    catch (error: IllegalArgumentException) { equal(error.message!!, "read failed"); equal(writer.toString(), "(") }
     for (options in [DebugOptions(maxDepth = -1L), DebugOptions(maxStringLength = -1L)]) {
         val empty = StringWriter()
         try { DebugPrinter.write(view, empty, options); throw IllegalStateException() }
-        catch (error: IllegalArgumentException) { equal(empty.build(), "") }
+        catch (error: IllegalArgumentException) { equal(empty.toString(), "") }
     }
     equal(DebugPrinter.format(Array<Int>.inspector(Int.Companion).inspect([])), "[]")
     equal(DebugPrinter.format(String.inspect("abc"), DebugOptions(maxStringLength = 0L)), "\"…\"")

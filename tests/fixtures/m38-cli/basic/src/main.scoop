@@ -42,7 +42,7 @@ class Defaults(val first: Int = nextDefault(), val second: Int = first + 1) {
 class FailingHelp : TextWriter {
     val text: StringWriter = StringWriter()
     public override fun write(value: String) {
-        if (text.build() != "") { throw IllegalStateException(Some("help writer")) }
+        if (text.toString() != "") { throw IllegalStateException(Some("help writer")) }
         text.write(value)
         gcCollect()
     }
@@ -110,12 +110,12 @@ fun main() {
     val help = schema.help()
     val writer = StringWriter()
     schema.writeHelp(writer)
-    equal(writer.build(), help)
+    equal(writer.toString(), help)
     check(contains(help, "Usage: serve") && contains(help, "--port, -p <Int>") && contains(help, "<Fast|Slow>"))
     check(contains(help, "[default: 8080]") && contains(help, "<FILE> (required)  Input file") && help[help.length - 1L] == '\n')
     check(!contains(help, "wire-port") && !contains(help, "ignored") && !contains(help, "fast-wire"))
     val failing = FailingHelp()
     try { schema.writeHelp(failing); throw IllegalArgumentException() }
-    catch (error: IllegalStateException) { check(contains(failing.text.build(), "Usage: serve")); equal(error.message!!, "help writer") }
+    catch (error: IllegalStateException) { check(contains(failing.text.toString(), "Usage: serve")); equal(error.message!!, "help writer") }
     println("cli-basic-ok")
 }

@@ -9,26 +9,26 @@ internal fun isJsonDigit(character: Option<Char>): Boolean {
 
 internal fun appendJsonDigits(parser: JsonParser, result: StringBuilder, path: String) {
     if (!isJsonDigit(parser.peek())) { throw parser.error(path, "expected a digit") }
-    while (isJsonDigit(parser.peek())) { result.add(parser.take(path)) }
+    while (isJsonDigit(parser.peek())) { result.append(parser.take(path)) }
 }
 
 internal fun readJsonNumber(parser: JsonParser, path: String): String {
     val result = StringBuilder()
-    if (parser.accept('-')) { result.add('-') }
+    if (parser.accept('-')) { result.append('-') }
     if (parser.accept('0')) {
-        result.add('0')
+        result.append('0')
         if (isJsonDigit(parser.peek())) { throw parser.error(path, "leading zero in number") }
     } else { appendJsonDigits(parser, result, path) }
     if (parser.accept('.')) {
-        result.add('.')
+        result.append('.')
         appendJsonDigits(parser, result, path)
     }
     if (parser.peek() == Some('e') || parser.peek() == Some('E')) {
-        result.add(parser.take(path))
+        result.append(parser.take(path))
         if (parser.peek() == Some('+') || parser.peek() == Some('-')) {
-            result.add(parser.take(path))
+            result.append(parser.take(path))
         }
         appendJsonDigits(parser, result, path)
     }
-    return result.build()
+    return result.toString()
 }

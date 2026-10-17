@@ -12,5 +12,5 @@ public fun <T> list(first: T, last: T): ArrayList<T> {
     return result
 }
 public fun views(): ArrayList<Read> = list<Read>(Cell(3), Cell(7))
-public fun builder(prefix: String): StringBuilder = StringBuilder().add(prefix)
-public fun <T : ToString> append(builder: StringBuilder, value: T): StringBuilder = builder.add(value)
+public fun builder(prefix: String): StringBuilder = StringBuilder().append(prefix)
+public fun <T : ToString> append(builder: StringBuilder, value: T): StringBuilder = builder.append(value)

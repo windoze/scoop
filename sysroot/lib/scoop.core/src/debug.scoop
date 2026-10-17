@@ -25,6 +25,6 @@ public object DebugPrinter {
     public fun format(view: ValueView, options: DebugOptions = DebugOptions()): String {
         val writer = StringWriter()
         write(view, writer, options)
-        return writer.build()
+        return writer.toString()
     }
 }

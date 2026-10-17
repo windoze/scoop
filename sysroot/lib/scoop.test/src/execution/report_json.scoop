@@ -4,18 +4,18 @@ import scoop.test.AssertionFailure
 import scoop.test.AssertionValue
 
 internal fun testJsonString(value: String): String {
-    val result = StringBuilder().add("\"")
+    val result = StringBuilder().append("\"")
     for (character in value) {
         val code = character.code
-        if (character == '"') { result.add("\\\"") }
-        else if (character == '\\') { result.add("\\\\") }
+        if (character == '"') { result.append("\\\"") }
+        else if (character == '\\') { result.append("\\\\") }
         else if (code < 32) {
             val digits = "0123456789abcdef"
-            result.add("\\u00").add(digits[(code / 16).toInt64()])
-                .add(digits[(code % 16).toInt64()])
-        } else { result.add(character) }
+            result.append("\\u00").append(digits[(code / 16).toInt64()])
+                .append(digits[(code % 16).toInt64()])
+        } else { result.append(character) }
     }
-    return result.add("\"").build()
+    return result.append("\"").toString()
 }
 
 private fun optionalText(value: String?): String = when (value) {
