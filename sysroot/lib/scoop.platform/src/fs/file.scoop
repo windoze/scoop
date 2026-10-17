@@ -90,25 +90,14 @@ public class File private constructor(private val context: OsString?) : ByteSour
         }
     }
 
-    public fun writeFrom(array: Array<Byte>, offset: Long = 0L, count: Long = array.size - offset): Long {
+    public fun writeFrom(array: List<Byte>, offset: Long = 0L, count: Long = array.size - offset): Long {
         return withDescriptor { fd ->
             requireArrayTransfer(array.size, offset, count)
             if (count == 0L) return@withDescriptor 0L
+            val snapshot = Array<Byte>(count) { index -> array[offset + index] }
             @Unsafe {
-                return@withDescriptor array.withDataPointer { pointer, _ ->
-                    @Unsafe { return@withDataPointer writeArray(fd, pointer + offset, count) }
-                }
-            }
-        }
-    }
-
-    public fun writeFrom(array: MutableArray<Byte>, offset: Long = 0L, count: Long = array.size - offset): Long {
-        return withDescriptor { fd ->
-            requireArrayTransfer(array.size, offset, count)
-            if (count == 0L) return@withDescriptor 0L
-            @Unsafe {
-                return@withDescriptor array.withDataPointer { pointer, _ ->
-                    @Unsafe { return@withDataPointer writeArray(fd, pointer + offset, count) }
+                return@withDescriptor snapshot.withDataPointer { pointer, _ ->
+                    @Unsafe { return@withDataPointer writeArray(fd, pointer, count) }
                 }
             }
         }

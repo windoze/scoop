@@ -1,0 +1,72 @@
+package scoop.platform.io
+
+import scoop.platform.fs.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.IpAddress
+import scoop.platform.system.OsString
+import scoop.test.*
+
+private class FailingByteInput(private val failure: Throwable) : List<Byte> {
+    public override val size: Long get() = 2L
+    public override operator fun get(index: Long): Byte { throw failure }
+    public override operator fun iterator(): Iterator<Byte> { throw failure }
+}
+
+private class BufferByteInput(private val buffer: NativeByteBuffer) : List<Byte> {
+    public override val size: Long get() = buffer.readableBytes
+    public override operator fun get(index: Long): Byte = buffer.getByte(buffer.readPosition + index)
+    public override operator fun iterator(): Iterator<Byte> = Array<Byte>(size) { get(it) }.iterator()
+}
+
+@Test
+private class ByteInputListTest {
+    @Test
+    fun `list inputs compose with strings files native buffers and addresses`() {
+        val bytes = ArrayList<Byte>()
+        for (byte in "list 中".toByteArray()) bytes.add(byte)
+        assertEquals("list 中", OsString.fromBytes(bytes).decodeUtf8())
+        NativeByteBuffer.allocate(bytes.size).use { buffer ->
+            buffer.writeBytes(bytes)
+            assertEquals("list 中", String.fromUtf8(buffer.readBytes(bytes.size)))
+        }
+        TestDirectory().use { tree ->
+            File.open(tree.child("bytes"), OpenOptions(write = true, createNew = true)).use { file ->
+                assertEquals(bytes.size, file.writeFrom(bytes))
+                file.seek(0L)
+                assertEquals("list 中", file.readText())
+            }
+        }
+        val address = ArrayList<Byte>()
+        for (byte in [127.toInt8(), 0.toInt8(), 0.toInt8(), 1.toInt8()]) address.add(byte)
+        assertEquals(IpAddress.IPV4_LOOPBACK, IpAddress.fromBytes(address))
+    }
+
+    @Test
+    fun `list getters can query the destination buffer while its write is borrowed`() {
+        NativeByteBuffer.allocate(4L).use { buffer ->
+            buffer.writeBytes("AB".toByteArray())
+            buffer.writeBytes(BufferByteInput(buffer))
+            assertEquals("ABAB", String.fromUtf8(buffer.readBytes(4L)))
+        }
+    }
+
+    @Test
+    fun `input getter failure does not commit buffer or file progress`() {
+        val failure = IllegalStateException(Some("input getter"))
+        val bytes = FailingByteInput(failure)
+        NativeByteBuffer.allocate(4L).use { buffer ->
+            buffer.writeByte(65.toInt8())
+            assertSame(failure, assertFailsWith<IllegalStateException> { buffer.writeBytes(bytes) })
+            assertEquals(1L, buffer.writePosition)
+            assertEquals(65.toInt8(), buffer.readByte())
+        }
+        TestDirectory().use { tree ->
+            File.open(tree.child("bytes"), OpenOptions(write = true, createNew = true)).use { file ->
+                file.writeText("A")
+                assertSame(failure, assertFailsWith<IllegalStateException> { file.writeFrom(bytes) })
+                assertEquals(1L, file.position)
+                assertEquals(1L, file.size)
+            }
+        }
+    }
+}

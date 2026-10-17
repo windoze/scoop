@@ -48,6 +48,6 @@ internal fun decodePart(text: String): Array<Byte> = when (urlEncoding.decodeOrN
 }
 
 internal fun headerText(bytes: Array<Byte>): String {
-    try { return String.fromUtf8(Array<UInt8>(bytes.size) { index -> bytes[index].toUInt8() }) }
+    try { return String.fromUtf8(bytes) }
     catch (error: CharacterCodingException) { throw JwsException("protected header is not UTF-8") }
 }

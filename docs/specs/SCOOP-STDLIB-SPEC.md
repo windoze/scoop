@@ -210,6 +210,8 @@ canonical 解析名为 toInt8/toInt16/toInt/toLong、toUInt8/toUInt16/toUInt/toU
 
 ## 5. 内存字节与基础编码
 
+高层字节接口使用 List<Byte> 作为只读输入、Array<Byte> 作为独立只读快照；可写输出使用明确的 toMutableByteArray 名称。String 的 UTF-8 转换遵循同一规则，结果可直接送入 decoder、builder、文件或密码库。
+
 ### 5.1 字节构建与读取
 
 复用 core Byte（Int8）保存八位 bit pattern，输入采用 List<Byte>，结果采用独立 Array<Byte> 或 MutableArray<Byte>，不引入另一套 intrinsic ByteArray。`ByteArrayBuilder` 是 GC 堆上的 growable final class，提供 size、append(Byte)、append(List<Byte>)、clear、toByteArray、toMutableByteArray，以及 writeInt8/UInt8/Int16/UInt16/Int/UInt/Long/ULong/Float/Double。

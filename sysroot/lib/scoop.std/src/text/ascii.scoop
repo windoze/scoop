@@ -1,7 +1,7 @@
 package scoop.text
 
 private fun String.convertAscii(uppercase: Boolean): String {
-    val chars = toCharArray()
+    val chars = toMutableCharArray()
     var index = 0L
     while (index < chars.size) {
         val code = chars[index].code

@@ -1,7 +1,7 @@
 package scoop.text
 
 internal class TextPattern(value: String) {
-    private val chars: MutableArray<Char> = value.toCharArray()
+    private val chars: Array<Char> = value.toCharArray()
     private val prefix: MutableArray<Long> = MutableArray<Long>(chars.size) { _ -> 0L }
     internal val size: Long get() = chars.size
 

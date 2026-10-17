@@ -10,12 +10,9 @@ public object Files {
     public fun readText(path: Path): String = File.open(path).use { it.readText() }
     public fun readTextLossy(path: Path): String = File.open(path).use { it.readTextLossy() }
 
-    public fun writeAllBytes(path: Path, bytes: Array<Byte>, append: Boolean = false) {
-        File.open(path, outputOptions(append)).use { it.writeAllBytes(bytes) }
-    }
-
-    public fun writeAllBytes(path: Path, bytes: MutableArray<Byte>, append: Boolean = false) {
-        File.open(path, outputOptions(append)).use { it.writeAllBytes(bytes) }
+    public fun writeAllBytes(path: Path, bytes: List<Byte>, append: Boolean = false) {
+        val input = bytes.toArray()
+        File.open(path, outputOptions(append)).use { it.writeAllBytes(input) }
     }
 
     public fun writeText(path: Path, text: String, append: Boolean = false) {

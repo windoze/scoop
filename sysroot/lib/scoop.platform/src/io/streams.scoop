@@ -82,7 +82,7 @@ public fun ByteSource.readInto(array: MutableArray<Byte>, offset: Long = 0L, cou
     }
 }
 
-public fun ByteSink.writeFrom(array: Array<Byte>, offset: Long = 0L, count: Long = array.size - offset): Long {
+public fun ByteSink.writeFrom(array: List<Byte>, offset: Long = 0L, count: Long = array.size - offset): Long {
     requireArrayTransfer(array.size, offset, count)
     if (count == 0L) return 0L
     return NativeByteBuffer.allocate(count).use { buffer ->
@@ -94,23 +94,7 @@ public fun ByteSink.writeFrom(array: Array<Byte>, offset: Long = 0L, count: Long
     }
 }
 
-public fun ByteSink.writeFrom(array: MutableArray<Byte>, offset: Long = 0L, count: Long = array.size - offset): Long {
-    requireArrayTransfer(array.size, offset, count)
-    if (count == 0L) return 0L
-    return NativeByteBuffer.allocate(count).use { buffer ->
-        buffer.writeBytes(array, offset, count)
-        val written = writeFrom(buffer, count)
-        requireProgress(written, count)
-        if (written == 0L) throw WriteZeroException()
-        written
-    }
-}
-
-public fun ByteSink.writeAllBytes(bytes: Array<Byte>) {
-    NativeByteBuffer.allocate(bytes.size).use { buffer -> buffer.writeBytes(bytes); writeFully(buffer) }
-}
-
-public fun ByteSink.writeAllBytes(bytes: MutableArray<Byte>) {
+public fun ByteSink.writeAllBytes(bytes: List<Byte>) {
     NativeByteBuffer.allocate(bytes.size).use { buffer -> buffer.writeBytes(bytes); writeFully(buffer) }
 }
 

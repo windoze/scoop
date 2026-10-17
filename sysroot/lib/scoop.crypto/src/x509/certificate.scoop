@@ -58,8 +58,7 @@ public class Certificate private constructor(private var handle: ULong) : Dispos
                     when (nameKind(names, index)) {
                         case 0 -> {
                             val bytes = cryptoBytes(nameBytes(names, index), "DNS alternative name")
-                            val utf8 = Array<UInt8>(bytes.size) { offset -> bytes[offset].toUInt8() }
-                            output.add(SubjectAlternativeName.Dns(String.fromUtf8(utf8)))
+                            output.add(SubjectAlternativeName.Dns(String.fromUtf8(bytes)))
                         }
                         case 1 -> output.add(SubjectAlternativeName.Ip(cryptoBytes(nameBytes(names, index), "IP alternative name")))
                         else -> { index += 1; continue }

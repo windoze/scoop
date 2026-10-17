@@ -154,29 +154,19 @@ public class NativeByteBuffer private constructor() : Disposable {
         }
     }
 
-    public fun writeBytes(array: Array<Byte>, offset: Long = 0L, count: Long = array.size - offset) {
-        withState {
-            requireWritable(count)
-            requireArrayRange(array.size, offset, count)
-            if (count > 0L) {
-                @Unsafe {
-                    array.withDataPointer { pointer, _ -> @Unsafe { nativeMemoryMove(memory!! + writer, pointer + offset, count) } }
+    public fun writeBytes(array: List<Byte>, offset: Long = 0L, count: Long = array.size - offset) {
+        requireArrayRange(array.size, offset, count)
+        @Unsafe {
+            withWritableBytes { destination, available ->
+                if (count > available) throw IndexOutOfBoundsException()
+                if (count > 0L) {
+                    val snapshot = Array<Byte>(count) { index -> array[offset + index] }
+                    @Unsafe {
+                        snapshot.withDataPointer { pointer, _ -> @Unsafe { nativeMemoryMove(destination!!, pointer, count) } }
+                    }
                 }
+                count
             }
-            writer += count
-        }
-    }
-
-    public fun writeBytes(array: MutableArray<Byte>, offset: Long = 0L, count: Long = array.size - offset) {
-        withState {
-            requireWritable(count)
-            requireArrayRange(array.size, offset, count)
-            if (count > 0L) {
-                @Unsafe {
-                    array.withDataPointer { pointer, _ -> @Unsafe { nativeMemoryMove(memory!! + writer, pointer + offset, count) } }
-                }
-            }
-            writer += count
         }
     }
 

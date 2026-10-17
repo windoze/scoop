@@ -1,0 +1,38 @@
+private fun check(value: Boolean) { if (!value) throw IllegalStateException() }
+
+private class Bytes(private val source: List<Byte>) : List<Byte> {
+    public override val size: Long get() = source.size
+    public override operator fun get(index: Long): Byte = source[index]
+    public override operator fun iterator(): Iterator<Byte> = source.iterator()
+}
+
+private class FailingBytes(private val failure: Throwable) : List<Byte> {
+    public override val size: Long get() = 1L
+    public override operator fun get(index: Long): Byte { throw failure }
+    public override operator fun iterator(): Iterator<Byte> { throw failure }
+}
+
+fun main() {
+    val text = "A\u0000雪🙂"
+    val immutable: Array<Byte> = text.toByteArray()
+    val mutable: MutableArray<Byte> = text.toMutableByteArray()
+    val chars: Array<Char> = text.toCharArray()
+    val writableChars: MutableArray<Char> = text.toMutableCharArray()
+    check(String.fromUtf8(immutable) == text)
+    check(String.fromUtf8(mutable) == text)
+    check(String.fromUtf8(Bytes(immutable)) == text)
+    check(String.fromUtf8OrNone(Bytes(immutable)) == Some(text))
+    check(String.fromUtf8Lossy(Bytes(immutable)) == text)
+    mutable[0L] = 90.toInt8()
+    writableChars[0L] = 'Z'
+    gcCollect()
+    check(immutable[0L] == 65.toInt8() && chars[0L] == 'A')
+    check(String.fromUtf8(mutable) == "Z\u0000雪🙂")
+    check(String.fromChars(writableChars) == "Z\u0000雪🙂")
+    val failure = Exception(Some("getter"))
+    var caught = false
+    try { String.fromUtf8OrNone(FailingBytes(failure)) }
+    catch (error: Exception) { check(error === failure); caught = true }
+    check(caught)
+    println("byte API round trips passed")
+}

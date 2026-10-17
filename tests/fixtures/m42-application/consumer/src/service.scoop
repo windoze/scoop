@@ -34,6 +34,5 @@ public fun <T> frameRoundTrip(rows: List<T>, encoder: Encodable<T>, decoder: Dec
     if (reader.readInt(ByteOrder.BIG_ENDIAN) != 42) throw IllegalStateException()
     val restored = reader.readBytes(reader.readLong(ByteOrder.LITTLE_ENDIAN))
     if (reader.remaining != 0L) throw IllegalStateException()
-    val utf8 = Array<UInt8>(restored.size) { index -> restored[index].toUInt8() }
-    return decodeRows<T>(String.fromUtf8(utf8), decoder)
+    return decodeRows<T>(String.fromUtf8(restored), decoder)
 }

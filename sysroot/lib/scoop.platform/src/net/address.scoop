@@ -49,11 +49,12 @@ public class IpAddress private constructor(internal val native: NativeSocketAddr
         public val IPV6_ANY: IpAddress = IpAddress(NativeSocketAddress(6, 0, 0u, 0u, 0u, 0u, 0u))
         public val IPV6_LOOPBACK: IpAddress = IpAddress(NativeSocketAddress(6, 0, 0u, 0u, 0u, 0u, 1u))
 
-        public fun fromBytes(bytes: Array<Byte>, scopeId: UInt = 0u): IpAddress {
+        public fun fromBytes(bytes: List<Byte>, scopeId: UInt = 0u): IpAddress {
             if (bytes.size != 4L && bytes.size != 16L) throw IllegalArgumentException(Some("IP address requires 4 or 16 bytes"))
             if (bytes.size == 4L && scopeId != 0u) throw IllegalArgumentException(Some("IPv4 does not have a scope"))
-            return IpAddress(NativeSocketAddress(if (bytes.size == 4L) 4 else 6, 0, scopeId,
-                word(bytes, 0L), word(bytes, 4L), word(bytes, 8L), word(bytes, 12L)))
+            val snapshot = bytes.toArray()
+            return IpAddress(NativeSocketAddress(if (snapshot.size == 4L) 4 else 6, 0, scopeId,
+                word(snapshot, 0L), word(snapshot, 4L), word(snapshot, 8L), word(snapshot, 12L)))
         }
 
         public fun parse(text: String): IpAddress {

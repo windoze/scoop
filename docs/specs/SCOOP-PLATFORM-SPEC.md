@@ -17,7 +17,7 @@
 `scoop.platform.system.OsString` 是不可变 final class，实现 `Equals<OsString>` 和 `Hash`。内部保存原始字节；相等和 hash 只取决于字节内容，既不 Unicode 归一化，也不读取外部状态。
 
 - `fromString(value: String): OsString` 按 UTF-8 编码。
-- `fromBytes(value: Array<Byte>): OsString` 与 MutableArray 重载都复制输入。
+- `fromBytes(value: List<Byte>): OsString` 复制完整输入。
 - `toBytes(): Array<Byte>` 返回独立副本。
 - `decodeUtf8(): String` 严格解码，非法输入抛 CharacterCodingException，保留相对于整个字节序列的错误位置。
 - `decodeUtf8Lossy(): String` 显式替换坏序列；`display(): String` 使用该有损形式供诊断展示。展示结果不能作为原始系统调用输入的替代品。
@@ -75,7 +75,7 @@ open 对象保持 `0 <= readPosition <= writePosition <= capacity`，只有 `[0,
 
 - readByte()/writeByte(Byte) 顺序访问单字节；getByte(index: Long)/setByte(index: Long, value: Byte) 只访问已初始化的绝对下标，不改游标。
 - readBytes(count: Long): Array<Byte> 返回独立副本，分配与复制成功后才消费输入。
-- readInto(array: MutableArray<Byte>, offset: Long = 0L, count: Long = array.size-offset) 复制到受检数组区间；writeBytes 提供 Array<Byte> 与 MutableArray<Byte> 两个同形重载。先验证两侧区间，完成后才提交游标；count 为负抛 IllegalArgumentException，数组区间非法抛 IndexOutOfBoundsException。
+- readInto(array: MutableArray<Byte>, offset: Long = 0L, count: Long = array.size-offset) 复制到受检数组区间；writeBytes(array: List<Byte>, offset: Long = 0L, count: Long = array.size-offset) 接收只读字节列表。先验证两侧区间，在现有 writable 借用内、状态锁外取得所选输入区间的快照后复制，完成后才提交游标；用户 getter 可查询缓冲区，重入修改遵守 4.3 的借用规则；count 为负抛 IllegalArgumentException，数组区间非法抛 IndexOutOfBoundsException。
 - read/writeInt8、UInt8、Int16、UInt16、Int、UInt、Long、ULong、Float、Double 提供相应定宽读写；write 的首参数为 value，除单字节外都必须显式传入 `scoop.bytes.ByteOrder`。浮点按位型编码，包括 NaN 与负零。
 
 顺序读写先检查完整宽度，不留下半个数值或半次游标变化。超出可读／可写范围抛 IndexOutOfBoundsException，负数量抛 IllegalArgumentException。任意 byte offset 都合法，不依赖数值自然对齐；实现逐字节组合或复制到对齐局部，禁止对未对齐的 typed pointer 直接 load/store。
@@ -110,7 +110,7 @@ NativeByteBuffer 新增普通公开 `@Unsafe borrowReadable(count: Long): Native
 
 `scoop.platform.io.ByteSource` 声明 `readInto(buffer: NativeByteBuffer, count: Long): Long`；ByteSink 声明 `writeFrom(buffer: NativeByteBuffer, count: Long): Long` 与 flush()。协议不包含关闭；拥有资源的实现另实现 Disposable。count 非负且不超过当前可写／可读区间，零请求不执行 native IO、返回零，也不表示 EOF。正请求允许短传输；read 返回零表示 EOF，write 无进度抛 WriteZeroException。成功 read 提交 writer，成功 write 提交 reader；失败不撤销之前已经发生的外部进度。
 
-普通扩展提供省略 count 的调用、readFully/writeFully、copyTo、readAllBytes、readText/readTextLossy、readLine/readLineLossy、writeText/writeLine。完整读取遇到 EOF 抛 UnexpectedEofException；两种 IO 异常直接继承 Exception。完整操作逐次提交进度，后续失败保留此前游标，不忙循环。copyTo 返回复制的 Long 字节数；bufferSize 默认 8192，必须为正，不是总数据配额。Array/MutableArray 字节直接传输重载检查数组区间，File 的实现直接借用数组。flush 只提交用户态缓冲，不等于文件持久化。
+普通扩展提供省略 count 的调用、readFully/writeFully、copyTo、readAllBytes、readText/readTextLossy、readLine/readLineLossy、writeText/writeLine。完整读取遇到 EOF 抛 UnexpectedEofException；两种 IO 异常直接继承 Exception。完整操作逐次提交进度，后续失败保留此前游标，不忙循环。copyTo 返回复制的 Long 字节数；bufferSize 默认 8192，必须为正，不是总数据配额。高层只读字节输入为 List<Byte>，快照输出为 Array<Byte>，可写目标为 MutableArray<Byte>。writeFrom(array, offset, count) 检查区间并取得所选输入区间的快照，用户 getter 失败发生在传输之前；readInto 的数组目标保持可写。writeAllBytes 接收 List<Byte>。flush 只提交用户态缓冲，不等于文件持久化。
 
 UTF-8 在完整结果或整行组装后解码，跨 native 分块的编码序列不会被提前判错。默认严格解码；有损版本显式命名。readLine 去除 LF 及紧邻它的 CR，EOF 前无 LF 的最后一行保留全部字节；仅 EOF 且本行无字节返回 None。writeLine 追加 LF。`Utf8Writer(sink: ByteSink)` 是借用 sink 的 TextWriter 适配器，write 转交 UTF-8 完整写入，flush 转交 sink，不拥有或关闭 sink。
 
@@ -126,7 +126,7 @@ standardInput、standardOutput、standardError 是使用调用时 fd 0/1/2 的�
 
 `scoop.platform.fs.File` 为 final class，实现 ByteSource、ByteSink、Disposable。`File.open(path, options: OpenOptions = OpenOptions())` 创建 close-on-exec fd。OpenOptions 为值类型，默认 read=true，其余 write/append/create/createNew/truncate 标志默认为 false，mode 默认为 0666；至少允许一种读写，append/truncate/create/createNew 要求 write，append 与 truncate 冲突，mode 只允许 POSIX 07777 位。createNew 使用原生排他创建，优先于 create；实际 mode 仍受 umask 影响。
 
-除字节协议外，File 提供 position、size、isDisposed，只读／写数组重载，以及 seek(position: Long)、truncate(size: Long)、syncData、syncAll、metadata、duplicate、dispose/close。seek 为绝对非负偏移，truncate 非负且不改变当前文件位置；append 通过 OS append 标志实现。flush 对原始 fd 无用户态缓冲可提交，但仍检查 open 状态。同步操作都保活 owner 直到 native 返回和退出清理，不能仅保留整数 fd。与关闭不竞争、各次使用独立或已同步 buffer 时，同一 File 允许 OS 支持的并发 IO；共享偏移与数据顺序遵守 OS 行为。活动调用期间重入 close 会拒绝，但关闭／配置改变与 IO 的跨线程竞争仍须调用方同步，不提供通过 close 取消阻塞 IO 的保证。
+除字节协议外，File 提供 position、size、isDisposed，List<Byte> 写入／MutableArray<Byte> 读取重载，以及 seek(position: Long)、truncate(size: Long)、syncData、syncAll、metadata、duplicate、dispose/close。seek 为绝对非负偏移，truncate 非负且不改变当前文件位置；append 通过 OS append 标志实现。flush 对原始 fd 无用户态缓冲可提交，但仍检查 open 状态。同步操作都保活 owner 直到 native 返回和退出清理，不能仅保留整数 fd。与关闭不竞争、各次使用独立或已同步 buffer 时，同一 File 允许 OS 支持的并发 IO；共享偏移与数据顺序遵守 OS 行为。活动调用期间重入 close 会拒绝，但关闭／配置改变与 IO 的跨线程竞争仍须调用方同步，不提供通过 close 取消阻塞 IO 的保证。
 
 显式关闭先清除 owned fd，再调用一次 close；成功或失败均终结 owner，不无条件重试，包括 EINTR。当前 Linux 的 fd 在 close 错误报告前已被消费；Darwin 的普通 fd 关闭同样沿实际内核消费路径，不能由错误码假定仍可重试。hook 只兜底尝试 raw close，不重放已消费的 fd，不 flush 或等待用户代码。close 结果不能证明远程文件已经持久化，必要时先显式 sync。
 
@@ -222,7 +222,7 @@ dispose 逐一关闭仍拥有的父端 pipes，再尝试 wait；关闭失败也�
 
 ### 11.3 communicate
 
-communicate(input: Array<Byte>? = None): ProcessOutput 收集 stdout/stderr 的独立字节数组及 ExitStatus。提供输入要求配置 stdin Pipe，已经 take 的配置 pipe 拒绝自动通信；错误发生在消费任何端点之前。未配置输出 pipe 时对应数组为空，合并 stderr 时只收集 stdout。
+communicate(input: List<Byte>? = None): ProcessOutput 收集 stdout/stderr 的独立字节数组及 ExitStatus。提供输入要求配置 stdin Pipe，已经 take 的配置 pipe 拒绝自动通信；输入列表的快照与参数检查发生在消费任何端点之前，getter 失败照常传播。未配置输出 pipe 时对应数组为空，合并 stderr 时只收集 stdout。
 
 通信接管仍拥有的 pipes，用 poll 与 nonblocking fd 同时推进 stdin 写入、stdout/stderr 排空，写完立即关闭 stdin，读至 EOF 分别关闭输出，最后 wait。该驱动只服务当前通信，不引入事件循环或异步框架；等待通过 NativeSafe，EINTR 重试，EAGAIN 回到 poll，不忙循环。所有数据在 Scoop 中积累，C shim 只封装系统调用，不预计算业务结果。
 
@@ -234,7 +234,7 @@ communicate(input: Array<Byte>? = None): ProcessOutput 收集 stdout/stderr 的�
 
 ### 12.1 地址与解析
 
-`scoop.platform.net.AddressFamily` 区分 IPv4／IPv6。不可变 IpAddress 保存地址位与 IPv6 scopeId: UInt，实现 Equals、Hash、ToString；fromBytes 接受 4 或 16 字节副本，IPv4 不接受非零 scope。toBytes 返回独立数组。parse(String) 只解析 IP 字面量，IPv6 可带 `%数字` scope，不解析接口名或域名；toString 输出标准数字文本与非零 scope。提供 IPV4_ANY、IPV4_LOOPBACK、IPV6_ANY、IPV6_LOOPBACK。
+`scoop.platform.net.AddressFamily` 区分 IPv4／IPv6。不可变 IpAddress 保存地址位与 IPv6 scopeId: UInt，实现 Equals、Hash、ToString；fromBytes 接受 List<Byte> 的 4 或 16 字节快照副本，IPv4 不接受非零 scope。toBytes 返回独立数组。parse(String) 只解析 IP 字面量，IPv6 可带 `%数字` scope，不解析接口名或域名；toString 输出标准数字文本与非零 scope。提供 IPV4_ANY、IPV4_LOOPBACK、IPV6_ANY、IPV6_LOOPBACK。
 
 SocketAddress(address: IpAddress, port: Int) 检查 0..65535，实现 Equals／Hash／ToString。parse 接受 `IPv4:port` 或 `[IPv6%scope]:port`；端口为十进制数字，不接受缺失、负值或溢出。bind 端口 0 由 OS 分配，返回后的 localAddress 给出实际值。
 

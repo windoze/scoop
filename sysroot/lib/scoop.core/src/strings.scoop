@@ -30,12 +30,22 @@ public class String : Get<Long, Char>, Compare<String>, Add<String, String>, Equ
 
     public override operator fun iterator(): Iterator<Char> = StringIterator(this)
 
-    public fun toCharArray(): MutableArray<Char> {
+    public fun toCharArray(): Array<Char> {
+        val source = iterator()
+        return Array<Char>(length) { _ -> source.next()!! }
+    }
+
+    public fun toMutableCharArray(): MutableArray<Char> {
         val source = iterator()
         return MutableArray<Char>(length) { _ -> source.next()!! }
     }
 
-    public fun toByteArray(): MutableArray<Byte> {
+    public fun toByteArray(): Array<Byte> {
+        val source = this
+        return Array<Byte>(byteLength) { index -> coreStringByteAt(source, index) }
+    }
+
+    public fun toMutableByteArray(): MutableArray<Byte> {
         val source = this
         return MutableArray<Byte>(byteLength) { index -> coreStringByteAt(source, index) }
     }
@@ -56,12 +66,12 @@ public class String : Get<Long, Char>, Compare<String>, Add<String, String>, Equ
         public fun fromUtf8Unchecked(bytes: List<Byte>): String =
             coreStringFromBytes(bytes.toArray())
 
-        public fun fromUtf8(bytes: Array<UInt8>): String =
+        public fun fromUtf8(bytes: List<Byte>): String =
             requireValidUtf8(decodeUtf8(bytes))
 
-        public fun fromUtf8OrNone(bytes: Array<UInt8>): String? = decodeUtf8(bytes)._1
+        public fun fromUtf8OrNone(bytes: List<Byte>): String? = decodeUtf8(bytes)._1
 
-        public fun fromUtf8Lossy(bytes: Array<UInt8>): String = decodeUtf8Lossy(bytes)
+        public fun fromUtf8Lossy(bytes: List<Byte>): String = decodeUtf8Lossy(bytes)
 
         @Unsafe
         public fun fromUtf8(pointer: Ptr<UInt8>, length: Long): String {

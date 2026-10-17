@@ -16,8 +16,7 @@ public class Utf8Writer public constructor(private val sink: ByteSink) : TextWri
 }
 
 internal fun decodeBytes(bytes: Array<Byte>, lossy: Boolean): String {
-    val unsigned = Array<UInt8>(bytes.size) { index -> bytes[index].toUInt8() }
-    return if (lossy) String.fromUtf8Lossy(unsigned) else String.fromUtf8(unsigned)
+    return if (lossy) String.fromUtf8Lossy(bytes) else String.fromUtf8(bytes)
 }
 
 private fun readLineBytes(source: ByteSource, lossy: Boolean): String? {

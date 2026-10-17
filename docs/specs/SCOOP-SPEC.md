@@ -1882,13 +1882,15 @@ String 是 immutable 引用类型，持有合法 UTF-8 编码的 Unicode 标量�
 | `operator get(index: Long): Char` | 第 index 个标量值 |
 | `slice(start: Long, endExclusive: Long): String` | 按标量索引取半开区间 |
 | `iterator(): Iterator<Char>` | 按标量顺序迭代，普通 `Iterable<Char>` conformance |
-| `toCharArray(): MutableArray<Char>` | 独立、可写的字符数组快照 |
+| `toCharArray(): Array<Char>` | 独立、只读的字符数组快照 |
+| `toMutableCharArray(): MutableArray<Char>` | 独立、可写的字符数组快照 |
 | `String.fromChars(chars: List<Char>): String` | 普通 companion 方法；将字符序列编码为独立 String |
-| `toByteArray(): MutableArray<Byte>` | safe 的 UTF-8 字节快照，Byte 按原始八位 bit pattern 保存 |
+| `toByteArray(): Array<Byte>` | safe 的只读 UTF-8 字节快照，Byte 按原始八位 bit pattern 保存 |
+| `toMutableByteArray(): MutableArray<Byte>` | safe 的可写 UTF-8 字节快照 |
 | `String.fromUtf8Unchecked(bytes: List<Byte>): String` | 标注 `@Unsafe` 的 companion 方法；复制调用方保证合法的 UTF-8 字节序列 |
-| `String.fromUtf8(bytes: Array<UInt8>): String` | 严格解码；非法 UTF-8 抛出 `CharacterCodingException` |
-| `String.fromUtf8OrNone(bytes: Array<UInt8>): String?` | 严格解码；非法 UTF-8 返回 `None`，成功返回 `Some(String)` |
-| `String.fromUtf8Lossy(bytes: Array<UInt8>): String` | 将每个非法 UTF-8 子序列替换为 U+FFFD，保留合法内容 |
+| `String.fromUtf8(bytes: List<Byte>): String` | 严格解码；非法 UTF-8 抛出 `CharacterCodingException` |
+| `String.fromUtf8OrNone(bytes: List<Byte>): String?` | 严格解码；非法 UTF-8 返回 `None`，成功返回 `Some(String)` |
+| `String.fromUtf8Lossy(bytes: List<Byte>): String` | 将每个非法 UTF-8 子序列替换为 U+FFFD，保留合法内容 |
 | `String.fromUtf8(pointer: Ptr<UInt8>, length: Long): String` | `@Unsafe` 的严格解码重载；读取指定长度的 native 字节 |
 | `String.withCString<R>(block: (Ptr<Int8>) -> R): R` | `@Unsafe` 的作用域 C 字符串副本，补结尾 NUL；原内容含 U+0000 时抛出 IllegalArgumentException |
 | `String.fromCString(pointer: Ptr<Int8>): String` | `@Unsafe`；读取到首个 NUL，按相同严格 UTF-8 规则复制为 String |

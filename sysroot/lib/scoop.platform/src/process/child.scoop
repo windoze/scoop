@@ -75,7 +75,7 @@ public class ChildProcess internal constructor(inputPipe: Boolean, outputPipe: B
         }
     }
 
-    public fun communicate(input: Array<Byte>? = None): ProcessOutput {
+    public fun communicate(input: List<Byte>? = None): ProcessOutput {
         if (disposed) throw IllegalStateException(Some("process is disposed"))
         when (input) {
             case Some(_) -> if (!configured[0L]) throw IllegalArgumentException(Some("input requires stdin pipe"))
@@ -86,9 +86,13 @@ public class ChildProcess internal constructor(inputPipe: Boolean, outputPipe: B
             (configured[2L] && (error?.isDisposed ?: true))) {
             throw IllegalStateException(Some("process pipe was already taken or closed"))
         }
+        val snapshot: Array<Byte>? = when (input) {
+            case Some(bytes) -> Some(bytes.toArray())
+            case None -> None
+        }
         val pipes = ProcessPipes(takeStdin(), takeStdout(), takeStderr())
         try {
-            val (stdout, stderr) = pipes.transfer(input)
+            val (stdout, stderr) = pipes.transfer(snapshot)
             val status = wait()
             return ProcessOutput(stdout, stderr, status)
         } catch (failure: Throwable) {

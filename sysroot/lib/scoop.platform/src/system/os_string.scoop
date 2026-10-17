@@ -4,10 +4,10 @@ public class OsString private constructor(private val bytes: Array<Byte>) : Equa
     public fun toBytes(): Array<Byte> = Array<Byte>(bytes.size) { index -> bytes[index] }
 
     public fun decodeUtf8(): String =
-        String.fromUtf8(Array<UInt8>(bytes.size) { index -> bytes[index].toUInt8() })
+        String.fromUtf8(bytes)
 
     public fun decodeUtf8Lossy(): String =
-        String.fromUtf8Lossy(Array<UInt8>(bytes.size) { index -> bytes[index].toUInt8() })
+        String.fromUtf8Lossy(bytes)
 
     public fun display(): String = decodeUtf8Lossy()
 
@@ -16,9 +16,8 @@ public class OsString private constructor(private val bytes: Array<Byte>) : Equa
 
     public companion object {
         public fun fromString(value: String): OsString = fromBytes(value.toByteArray())
-        public fun fromBytes(value: Array<Byte>): OsString =
+        public fun fromBytes(value: List<Byte>): OsString =
             OsString(Array<Byte>(value.size) { index -> value[index] })
-        public fun fromBytes(value: MutableArray<Byte>): OsString = OsString(Array<Byte>(value))
     }
 }
 
