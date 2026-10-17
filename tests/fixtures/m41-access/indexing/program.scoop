@@ -1,5 +1,5 @@
-fun <I, V, C : Get<I, V>> read(container: C, index: I): V = container[index]
-fun <I, V, C : Set<I, V>> write(container: C, index: I, value: V) { container[index] = value }
+fun <I, V, C : IndexGet<I, V>> read(container: C, index: I): V = container[index]
+fun <I, V, C : IndexSet<I, V>> write(container: C, index: I, value: V) { container[index] = value }
 fun check(ok: Boolean) { if (!ok) { throw IllegalStateException() } }
 fun main() {
     val immutable = Array<Int>(2L) { index -> index.toInt() + 10 }
@@ -10,13 +10,13 @@ fun main() {
     write(mutable, 1L, "new")
     write(list, 0L, 42)
     check(read(mutable, 1L) == "new" && read(list, 0L) == 42)
-    val getter: Get<Long, String> = mutable
-    val setter: Set<Long, String> = mutable
+    val getter: IndexGet<Long, String> = mutable
+    val setter: IndexSet<Long, String> = mutable
     setter[0L] = "view"
     check(getter[0L] == "view")
-    val text: Get<Long, Char> = "a中b"
+    val text: IndexGet<Long, Char> = "a中b"
     check(text[1L] == '中')
-    check((immutable as Any) is Get<Long, Int>)
-    check((list as Any) is Set<Long, Int>)
+    check((immutable as Any) is IndexGet<Long, Int>)
+    check((list as Any) is IndexSet<Long, Int>)
     println("operator indexing")
 }

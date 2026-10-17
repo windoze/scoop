@@ -3,7 +3,7 @@ package relocated
 import Equals
 import Add
 import Compare
-import Get
+import IndexGet
 import ToString
 import Hash
 import Int

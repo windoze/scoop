@@ -1,5 +1,5 @@
 @Intrinsic("core_string")
-public class String : Get<Long, Char>, Compare<String>, Add<String, String>, Equals<String>, ToString, Hash, Iterable<Char> {
+public class String : IndexGet<Long, Char>, Compare<String>, Add<String, String>, Equals<String>, ToString, Hash, Iterable<Char> {
     public val byteLength: Long get() = coreStringByteLength(this)
     public val length: Long get() = coreStringLength(this)
 

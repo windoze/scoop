@@ -25,7 +25,7 @@ public class Array<T> : List<T> {
 }
 
 @Intrinsic("core_mutable_array")
-public class MutableArray<T> : List<T>, Set<Long, T> {
+public class MutableArray<T> : List<T>, IndexSet<Long, T> {
     @Intrinsic("mutable_array_length")
     private fun arrayLength(): Long
 

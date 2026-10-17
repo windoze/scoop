@@ -1,16 +1,16 @@
-public interface Get<Index, Value> {
+public interface IndexGet<Index, Value> {
     public operator fun get(index: Index): Value
 }
 
-public interface Set<Index, Value> {
+public interface IndexSet<Index, Value> {
     public operator fun set(index: Index, value: Value): Unit
 }
 
-public interface Get2<I, J, Value> {
+public interface IndexGet2<I, J, Value> {
     public operator fun get(first: I, second: J): Value
 }
 
-public interface Set2<I, J, Value> {
+public interface IndexSet2<I, J, Value> {
     public operator fun set(first: I, second: J, value: Value): Unit
 }
 

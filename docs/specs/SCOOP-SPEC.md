@@ -1497,10 +1497,10 @@ Increment/Decrement 的递归上界使声明的结果符合 9.3.1 的 receiver �
 
 | 接口 | 方法签名 |
 | --- | --- |
-| `Get<Index, Value>` | `get(index: Index): Value` |
-| `Set<Index, Value>` | `set(index: Index, value: Value): Unit` |
-| `Get2<I, J, Value>` | `get(first: I, second: J): Value` |
-| `Set2<I, J, Value>` | `set(first: I, second: J, value: Value): Unit` |
+| `IndexGet<Index, Value>` | `get(index: Index): Value` |
+| `IndexSet<Index, Value>` | `set(index: Index, value: Value): Unit` |
+| `IndexGet2<I, J, Value>` | `get(first: I, second: J): Value` |
+| `IndexSet2<I, J, Value>` | `set(first: I, second: J, value: Value): Unit` |
 | `Invoke0<Result>` | `invoke(): Result` |
 | `Invoke<Arg, Result>` | `invoke(argument: Arg): Result` |
 | `Invoke2<A, B, Result>` | `invoke(first: A, second: B): Result` |
@@ -1512,7 +1512,7 @@ Increment/Decrement 的递归上界使声明的结果符合 9.3.1 的 receiver �
 | `Component1<Result>` | `component1(): Result` |
 | `Component2<Result>` | `component2(): Result` |
 
-List<T> 继承 Get<Long, T> 并保留自己的 override get；MutableList<T> 另继承 Set<Long, T> 并保留 override set。Array<T>、MutableArray<T> 与 ArrayList<T> 通过原有 List/MutableList 关系获得 Get；MutableArray<T> 另外显式实现 Set<Long, T>；String 显式实现 Get<Long, Char>。MutableArray 的公开 set 使用普通源码正文调用私有存储 intrinsic，与已有 arrayRead/get 分层相同。
+List<T> 继承 IndexGet<Long, T> 并保留自己的 override get；MutableList<T> 另继承 IndexSet<Long, T> 并保留 override set。Array<T>、MutableArray<T> 与 ArrayList<T> 通过原有 List/MutableList 关系获得 IndexGet；MutableArray<T> 另外显式实现 IndexSet<Long, T>；String 显式实现 IndexGet<Long, Char>。MutableArray 的公开 set 使用普通源码正文调用私有存储 intrinsic，与已有 arrayRead/get 分层相同。
 
 其余表中接口由需要这些操作的用户类型显式实现。函数值、FunPtr、struct/tuple 的内建解构和只有同名方法的对象均不自动获得对应接口。Component1/2 为前两个位置提供独立约束，不改变 struct/tuple 的内建解构；class、interface 及有对应成员上界的泛型使用既有 componentN 决议。迭代能力继续由 11.8 的 Iterable<T>/Iterator<T> 表达，不增加平行迭代协议。标准接口覆盖这些固定签名；其他参数数量、component 位置以及 generic、suspend、unsafe、default、vararg 形式继续按 9.3.1～9.3.4 合法声明和调用，需要名义 bound 时可声明普通用户接口。接口列表不成为运算符可用性的前置条件。
 
@@ -1729,7 +1729,7 @@ val good: Array<I> = [j, S(10) as I]     // 显式装箱
 
 - 下标访问 `a[i]`通过普通成员`operator fun get(index: Long): T`；`MutableArray`通过`operator fun set(index: Long, value: T): Unit`支持下标赋值`m[i] = v`。这些声明可以由intrinsic提供表示级实现，但候选选择、泛型实例化与operator identity遵守9.3，不建立按`Array`类型名放行的第二套解析规则。
 - `vararg T`的spread和普通形参`Array<T>`都要求exact `Array<T>`；需要改变element type时，调用方显式逐元素构造/转换目标array。
-- `size: Long` 属性；通过普通 `List<T>` conformance 继承 `Iterable<T>`，可用于 `for` 循环。`Array<T>` 和 `MutableArray<T>` 都实现 `List<T>`，MutableArray<T> 另实现 Set<Long, T>；二者均不实现要求可增删元素的 `MutableList<T>`（11.10）。`MutableArray` 自身仍提供 `set`；定长数组不提供以运行期失败代替实现的 `add` / `removeAt`。
+- `size: Long` 属性；通过普通 `List<T>` conformance 继承 `Iterable<T>`，可用于 `for` 循环。`Array<T>` 和 `MutableArray<T>` 都实现 `List<T>`，MutableArray<T> 另实现 IndexSet<Long, T>；二者均不实现要求可增删元素的 `MutableList<T>`（11.10）。`MutableArray` 自身仍提供 `set`；定长数组不提供以运行期失败代替实现的 `add` / `removeAt`。
 
 ### 10.6 按长度初始化
 

@@ -4,8 +4,8 @@ fun main() {
     val cell = Cell<String>("before")
     check(update(cell, "after") == "before")
     check(read(cell) == "after")
-    val writer: Set<Long, String> = cell
-    val reader: Get<Long, String> = cell
+    val writer: IndexSet<Long, String> = cell
+    val reader: IndexGet<Long, String> = cell
     val invoke: Invoke0<String> = cell
     writer[0L] = "interface"
     check(reader[0L] == "interface" && invoke() == "interface")

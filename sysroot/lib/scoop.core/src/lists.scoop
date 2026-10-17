@@ -2,11 +2,11 @@ public interface Collection<T> : Iterable<T> {
     public val size: Long
 }
 
-public interface List<T> : Collection<T>, Get<Long, T> {
+public interface List<T> : Collection<T>, IndexGet<Long, T> {
     public override operator fun get(index: Long): T
 }
 
-public interface MutableList<T> : List<T>, Set<Long, T> {
+public interface MutableList<T> : List<T>, IndexSet<Long, T> {
     public override operator fun set(index: Long, value: T): Unit
     public fun add(value: T): Unit
     public fun add(index: Long, value: T): Unit

@@ -58,7 +58,7 @@ core 的结构化并发合同见语言规范 11.9.1～11.9.2；native buffer 的
 
 Collection 不要求 T 可比较；`isEmpty/isNotEmpty` 是普通扩展，按值查找的 Iterable 扩展单独要求 `T : Equals<T>`。保留 MutableList 的现有 `add(value): Unit`，M42 不引入与它返回值冲突的 MutableCollection 总父接口。List 的索引、快照与原有 live iterator 语义不变。
 
-新集合名 `scoop.collections.Set<T>` 与 core 的下标赋值接口 `Set<Index, Value>` 是不同实体。core 源码当前使用默认根 package，std 内部通过 `import Set as IndexSet` 区分赋值接口；用户按普通 import 优先级选择，编译器不按类型参数数量消歧。
+core 的下标访问接口统一为 `IndexGet<Index, Value>`／`IndexSet<Index, Value>`，双下标形式为 `IndexGet2<I, J, Value>`／`IndexSet2<I, J, Value>`。方法仍为 operator get/set，`[]` 的语义不变。集合接口使用 `scoop.collections.Set<T>`；二者可以直接同时导入，不需要别名或按类型参数数量消歧。
 
 ### 2.2 Map、Set 与视图
 
@@ -72,7 +72,7 @@ Collection 不要求 T 可比较；`isEmpty/isNotEmpty` 是普通扩展，按值
 | `MutableSet<T> : Set<T>` | `add(value): Boolean`、`remove(value): Boolean`、`clear(): Unit`、`retainAll(elements: Iterable<T>): Boolean` |
 | `Map.Entry<K, V>` | 普通 struct，两个 public val 字段 key/value，按既有 struct 规则解构 |
 
-Map 实现 `Get<K, Option<V>>`、`Iterable<Map.Entry<K,V>>` 与 `Contains<K>`，operator contains 委托 containsKey；MutableMap 另实现 core 的下标赋值接口 `Set<K, V>`（使用上述 IndexSet alias）。Map 的 K/V、Set 的 T 在接口层不要求 Hash/Equals，具体实现确定 key/element 的等价关系。containsValue 是单独要求 `V : Equals<V>` 的扩展。
+Map 实现 `IndexGet<K, Option<V>>`、`Iterable<Map.Entry<K,V>>` 与 `Contains<K>`，operator contains 委托 containsKey；MutableMap 另实现 core 的下标赋值接口 `IndexSet<K, V>`。Map 的 K/V、Set 的 T 在接口层不要求 Hash/Equals，具体实现确定 key/element 的等价关系。containsValue 是单独要求 `V : Equals<V>` 的扩展。
 
 `get/put/remove` 的 None 表示原来没有键；当 V 是 Option<U> 时，原值 None 表示为 Some(None)。`set` 丢弃 put 的旧值。Set.add 仅新增时返回 true，remove 仅确实移除时返回 true。存在等价 key 时 put 替换 value，保留最早存入的 key 对象；Set.add 不替换原元素。
 
