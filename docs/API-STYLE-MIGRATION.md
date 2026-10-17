@@ -15,7 +15,7 @@
 | R09 | Duration 趋零分量与 floorSeconds | 待实施 |
 | R10 | 普通整数转换名与二进制位宽命名 | 待实施 |
 | R11 | IndexGet/IndexSet 运算符接口 | 待实施 |
-| R12 | ResourceUseException 继承 Exception | 待实施 |
+| R12 | ResourceUseException 继承 Exception | 已完成；fmt/clippy、资源 fixture 的 debug/release 与移动 GC 通过 |
 | R13 | 普通签名算法名称与具体密钥生成工厂 | 待实施 |
 | R14 | 枚举、查询、Path 扩展、native helper 与公共文档 | 待实施 |
 

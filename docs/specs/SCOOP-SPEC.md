@@ -1958,7 +1958,7 @@ throw 与 catch 传递同一个 Throwable 对象，保持引用身份、动态�
   - `ClassCastException`：`as` 失败时抛出；
   - `ArithmeticException`：整数除零等算术错误；
   - `CharacterCodingException(public val byteOffset: Long)`：严格 UTF-8 解码失败，保存首个非法子序列的零基字节偏移（11.4）；
-  - `ResourceUseException(public val primaryFailure: Throwable, public val cleanupFailure: Throwable)`：直接继承 Throwable，保存 use 正文与清理的两次失败，见 11.18；
+  - `ResourceUseException(public val primaryFailure: Throwable, public val cleanupFailure: Throwable)`：继承 Exception，保存 use 正文与清理的两次失败，见 11.18；
   - `MissingContextException(message: String?)`：final 异常，contextual declaration 入口缺少精确类型 binding 时抛出（8.3）；
   - `IndexOutOfBoundsException`：数组下标越界（见 10.5）；
   - `IllegalArgumentException(message: String? = Some("illegal argument"))`：实参值违反普通core API的运行期前置条件；11.8的非正range step使用该异常；
@@ -2578,7 +2578,7 @@ use 以 receiver 调用 block 恰好一次，正文正常返回或抛出后调�
 | 返回 R | 抛 cleanup | 抛同一 cleanup |
 | 抛 primary | 抛 cleanup | 抛 ResourceUseException(primary, cleanup)，两个字段保留原对象 |
 
-成功路径的清理异常不能再次进入正文失败分支而重复清理。ResourceUseException 直接继承 Throwable，不归入仅捕获 Exception 的分支；嵌套 use 按内到外的普通调用展开顺序清理，多层双失败可以自然嵌套。use 不检查统一关闭状态，不赋予接口线程安全，也不在任意词法作用域退出时自动释放；receiver／block 实参在进入 use 之前的求值失败由获取方负责回滚。
+成功路径的清理异常不能再次进入正文失败分支而重复清理。ResourceUseException 继承 Exception，message 为 Some("resource body and cleanup both failed")，可由 catch Exception 捕获；两个失败字段保留原对象和类型，不要求其属于 Exception。嵌套 use 按内到外的普通调用展开顺序清理，多层双失败可以自然嵌套。use 不检查统一关闭状态，不赋予接口线程安全，也不在任意词法作用域退出时自动释放；receiver／block 实参在进入 use 之前的求值失败由获取方负责回滚。
 
 挂起重载在正文真实挂起期间保活 receiver，挂起本身不执行 dispose；恢复后的正常或异常退出才清理。dispose 在恢复线程同步执行。普通 lambda 不隐式变成 suspend lambda，挂起重载只能在允许挂起的上下文调用。11.9.1 的取消异常按普通异常执行清理；丢弃且永不恢复 continuation 不承诺自动执行清理。use 是普通调用，不提供非局部 return，不延长裸 pointer 的同步借用期限。
 

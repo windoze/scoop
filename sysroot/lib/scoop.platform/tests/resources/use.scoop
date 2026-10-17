@@ -53,15 +53,16 @@ private class ResourceUseTest {
     }
 
     @Test
-    fun `double failure retains both objects and is not an Exception`() {
+    fun `double failure is caught as Exception and retains both objects`() {
         val primary = Throwable()
         val cleanup = IllegalStateException()
         val resource = RecordingResource("close", ArrayList<String>(), Some(cleanup))
-        val caught = assertFailsWith<ResourceUseException> { resource.use { throw primary } }
+        val exception = assertFailsWith<Exception> { resource.use { throw primary } }
+        val caught = exception as ResourceUseException
         assertSame(primary, caught.primaryFailure)
         assertSame(cleanup, caught.cleanupFailure)
         val root: Throwable = caught
-        assertFalse(root is Exception)
+        assertTrue(root is Exception)
         assertEquals(1, resource.calls)
     }
 
