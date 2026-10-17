@@ -1,0 +1,127 @@
+package scoop.tls
+
+import scoop.crypto.*
+import scoop.crypto.testdata.*
+import scoop.crypto.x509.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.IpAddress
+import scoop.tls.native.*
+import scoop.test.*
+import scoop.text.toHexString
+
+@Test
+private class TlsEngineTests {
+    @Test
+    fun `TLS versions identity ALPN and retained context references`() {
+        for (version in [TlsVersion.TLS12, TlsVersion.TLS13]) {
+            val a = "proto-a".toByteArray().toArray()
+            val b = "proto-b".toByteArray().toArray()
+            val clientConfig = clientContext(TlsOptions(version, version, [a, b]))
+            val serverConfig = serverContext(TlsOptions(version, version, [b, a]))
+            val client = TlsEngine.client(clientConfig, TlsPeerName.Dns("localhost"))
+            val server = TlsEngine.server(serverConfig)
+            clientConfig.close()
+            serverConfig.close()
+            try {
+                assertFailsWith<IllegalStateException> { client.connectionInfo }
+                handshake(client, server, 37L)
+                assertTrue(client.connectionInfo.version == version)
+                assertEquals(b.toHexString(), client.connectionInfo.alpn!!.toHexString())
+                assertEquals(b.toHexString(), server.connectionInfo.alpn!!.toHexString())
+                transferPlaintext(client, server)
+            } finally { client.close(); server.close() }
+            assertFailsWith<IllegalStateException> { TlsEngine.server(serverConfig) }
+        }
+    }
+
+    @Test
+    fun `IP identity without ALPN and unexpected transport EOF`() {
+        clientContext().use { clientConfig -> serverContext().use { serverConfig ->
+            TlsEngine.client(clientConfig, TlsPeerName.Ip(IpAddress.IPV4_LOOPBACK)).use { client ->
+                TlsEngine.server(serverConfig).use { server ->
+                    handshake(client, server)
+                    assertTrue(when (client.connectionInfo.alpn) { case None -> true; case Some(_) -> false })
+                    NativeByteBuffer.allocate(1L).use { buffer ->
+                        @Unsafe {
+                            val borrow = buffer.borrowWritable(1L)
+                            try {
+                                client.endInput()
+                                val failure = assertFailsWith<TlsException> { @Unsafe { client.read(borrow) } }
+                                assertTrue(failure.kind == TlsFailureKind.Truncated)
+                                assertTrue(failure.code != 0UL)
+                            } finally { borrow.complete(0L) }
+                        }
+                        buffer.clear()
+                    }
+                }
+            }
+        } }
+    }
+
+    @Test
+    fun `handshake rejects incorrect names incompatible ALPN and missing trust`() {
+        val wrongName = handshakeFailure(clientContext(), serverContext(), TlsPeerName.Dns("wrong.test"))
+        assertTrue(wrongName.kind == TlsFailureKind.Verification)
+        assertEquals(62L, wrongName.verifyCode)
+        val a = "one".toByteArray().toArray()
+        val b = "two".toByteArray().toArray()
+        val alpn = handshakeFailure(clientContext(TlsOptions(alpn = [a])), serverContext(TlsOptions(alpn = [b])), TlsPeerName.Dns("localhost"))
+        assertTrue(alpn.kind == TlsFailureKind.Protocol)
+        TrustStore.fromCertificates(ArrayList<Certificate>()).use { store ->
+            val trust = handshakeFailure(TlsClientContext(store), serverContext(), TlsPeerName.Dns("localhost"))
+            assertTrue(trust.kind == TlsFailureKind.Verification)
+            assertTrue(trust.verifyCode != 0L)
+        }
+    }
+
+    @Test
+    fun `invalid configuration and mismatched identity fail before any transport`() {
+        assertFailsWith<IllegalArgumentException> { clientContext(TlsOptions(TlsVersion.TLS13, TlsVersion.TLS12)) }
+        assertFailsWith<IllegalArgumentException> { clientContext(TlsOptions(alpn = [Array<Byte>(0L) { 0.toInt8() }])) }
+        assertFailsWith<IllegalArgumentException> { clientContext(TlsOptions(alpn = [Array<Byte>(256L) { 0.toInt8() }])) }
+        clientContext().use { context ->
+            assertFailsWith<IllegalArgumentException> { TlsEngine.client(context, TlsPeerName.Dns("")) }
+            assertFailsWith<IllegalArgumentException> { TlsEngine.client(context, TlsPeerName.Dns("local\u{0000}host")) }
+        }
+        Certificate.fromPem(serverPem()).use { certificate -> PrivateKey.generate(KeyAlgorithm.P256).use { key ->
+            val error = assertFailsWith<TlsException> { TlsServerContext([certificate], key) }
+            assertTrue(error.kind == TlsFailureKind.Configuration)
+        } }
+    }
+}
+
+internal fun handshakeFailure(clientConfig: TlsClientContext, serverConfig: TlsServerContext, name: TlsPeerName): TlsException {
+    try {
+        return TlsEngine.client(clientConfig, name).use { client ->
+            TlsEngine.server(serverConfig).use { server -> assertFailsWith<TlsException> { handshake(client, server) } }
+        }
+    } finally { clientConfig.close(); serverConfig.close() }
+}
+
+private fun transferPlaintext(client: TlsEngine, server: TlsEngine) {
+    val output = NativeByteBuffer.allocate(20000L)
+    val input = NativeByteBuffer.allocate(16384L)
+    try {
+        output.writeBytes(Array<Byte>(20000L) { index -> (index % 251L).toInt8() })
+        @Unsafe {
+            val written = output.borrowReadable(20000L)
+            val read = input.borrowWritable(16384L)
+            var sent = 0L
+            var received = 0L
+            val staging = NativeByteBuffer.allocate(513L)
+            try {
+                while (sent == 0L || received == 0L) {
+                    if (sent == 0L) { sent = client.write(written).count }
+                    transfer(client, server, staging)
+                    if (received == 0L) { received = server.read(read).count }
+                }
+            } finally { staging.close(); written.complete(sent); read.complete(received) }
+            assertEquals(16384L, sent)
+            assertEquals(sent, received)
+        }
+        assertEquals(16384L, output.readPosition)
+        val expected = Array<Byte>(16384L) { index -> (index % 251L).toInt8() }
+        assertEquals(digest(DigestAlgorithm.SHA256, expected).toHexString(),
+            digest(DigestAlgorithm.SHA256, input.readBytes(input.readableBytes)).toHexString())
+    } finally { output.close(); input.close() }
+}

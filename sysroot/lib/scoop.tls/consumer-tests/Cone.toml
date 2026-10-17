@@ -1,0 +1,17 @@
+schema = 1
+[cone]
+group = "scoop.tests"
+name = "tls-consumer"
+version = "0.1.0"
+kind = "library"
+
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"scoop:scoop.std" = "0.1.0"
+"scoop:scoop.crypto" = "0.1.0"
+"scoop:scoop.tls" = "0.1.0"
+"scoop:scoop.platform" = "0.1.0"
+
+[test-dependencies]
+"scoop:scoop.test" = "0.1.0"
+"scoop.tests:crypto-certificates" = { version = "0.1.0", path = "../../scoop.crypto/test-certificates" }

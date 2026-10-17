@@ -1,0 +1,46 @@
+package scoop.tls
+
+import scoop.platform.concurrent.Thread
+import scoop.platform.io.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.*
+import scoop.test.*
+
+@Test
+private class TlsShutdownTests {
+    @Test
+    fun `graceful shutdown rejects buffered and unread application data`() {
+        rejectUnconsumed(true)
+        rejectUnconsumed(false)
+    }
+}
+
+private fun rejectUnconsumed(buffered: Boolean) {
+    val sent = SyncGate()
+    val finished = SyncGate()
+    try {
+        clientContext().use { clientConfig -> serverContext().use { serverConfig ->
+            TcpListener.bind(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).use { listener ->
+                Thread.start {
+                    try {
+                        tlsServer(listener.accept(), serverConfig).use { server ->
+                            sent.awaitReady()
+                            NativeByteBuffer.allocate(1L).use { input ->
+                                if (buffered) server.readFully(input, 1L)
+                                val error = assertFailsWith<TlsException> { server.shutdownGracefully() }
+                                assertTrue(error.kind == TlsFailureKind.UnconsumedData)
+                                assertTrue(server.isDisposed)
+                            }
+                        }
+                    } finally { finished.signal() }
+                }.use {
+                    tlsClient(TcpStream.connect(listener.localAddress), clientConfig, TlsPeerName.Dns("localhost")).use { client ->
+                        client.writeAllBytes("unconsumed".toByteArray())
+                        sent.signal()
+                        finished.awaitReady()
+                    }
+                }
+            }
+        } }
+    } finally { sent.dispose(); finished.dispose() }
+}

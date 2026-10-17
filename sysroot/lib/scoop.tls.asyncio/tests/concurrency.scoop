@@ -1,0 +1,80 @@
+package scoop.tls.asyncio
+
+import scoop.asyncio.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+@Test
+private class AsyncTlsConcurrencyTests {
+    @Test
+    fun `cancelling the writer retains the accepted prefix and releases its borrow`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val (clientRaw, serverRaw) = rawPair(loop, scope)
+            val (client, server) = tlsPair(scope, clientRaw, serverRaw)
+            val output = NativeByteBuffer.allocate(20000L)
+            clientRaw.writeGate = Some(AsyncGate())
+            clientRaw.writeStarted = AsyncGate()
+            val cancelled = AtomicBoolean(false)
+            try {
+                output.writeBytes(Array<Byte>(20000L) { index -> index.toInt8() })
+                val writing = scope.launch suspend {
+                    try { client.writeFrom(output, 20000L); fail(Some("cancelled writer completed")) }
+                    catch (_: CancellationException) { cancelled.store(true) }
+                }
+                clientRaw.writeStarted.await()
+                assertFailsWith<IllegalStateException> { output.clear() }
+                writing.cancel(); writing.join()
+                assertTrue(cancelled.load())
+                assertEquals(16384L, output.readPosition)
+                output.clear()
+                assertTrue(client.isClosed)
+                assertEquals(1, clientRaw.closes)
+            } finally { clientRaw.writeGate!!.signal(); client.close(); server.close(); output.close() }
+        }
+    }
+
+    @Test
+    fun `directions are exclusive and cancelling read closes an accepted blocked write`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val (clientRaw, serverRaw) = rawPair(loop, scope)
+            val (client, server) = tlsPair(scope, clientRaw, serverRaw)
+            val output = NativeByteBuffer.allocate(20000L)
+            val input = NativeByteBuffer.allocate(1L)
+            val other = NativeByteBuffer.allocate(1L)
+            clientRaw.writeGate = Some(AsyncGate())
+            clientRaw.writeStarted = AsyncGate()
+            clientRaw.readStarted = AsyncGate()
+            val writerClosed = AtomicBoolean(false)
+            try {
+                output.writeBytes(Array<Byte>(20000L) { index -> index.toInt8() })
+                val writing = scope.launch suspend {
+                    try { client.writeFrom(output, 20000L); fail(Some("blocked writer unexpectedly completed")) }
+                    catch (_: IoClosedException) { writerClosed.store(true) }
+                }
+                clientRaw.writeStarted.await()
+                try { client.writeFrom(other, 0L); fail(Some("parallel write accepted")) }
+                catch (_: IllegalStateException) { assertFalse(client.isClosed) }
+                try { client.flush(); fail(Some("parallel flush accepted")) }
+                catch (_: IllegalStateException) { assertFalse(client.isClosed) }
+                val reading = scope.launch suspend {
+                    try { client.readInto(input, 1L); fail(Some("cancelled read completed")) }
+                    catch (_: CancellationException) { input.clear() }
+                }
+                clientRaw.readStarted.await()
+                try { client.readInto(other, 1L); fail(Some("parallel read accepted")) }
+                catch (_: IllegalStateException) { assertFalse(client.isClosed) }
+                try { client.shutdownGracefully(); fail(Some("shutdown during active transfers accepted")) }
+                catch (_: IllegalStateException) { assertFalse(client.isClosed) }
+                reading.cancel()
+                reading.join(); writing.join()
+                assertTrue(writerClosed.load())
+                assertEquals(16384L, output.readPosition)
+                output.clear(); input.clear()
+                assertTrue(client.isClosed)
+                assertEquals(1, clientRaw.closes)
+            } finally { clientRaw.writeGate!!.signal(); client.close(); server.close(); output.close(); input.close(); other.close() }
+        }
+    }
+}

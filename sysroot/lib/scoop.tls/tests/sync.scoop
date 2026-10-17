@@ -1,0 +1,120 @@
+package scoop.tls
+
+import scoop.crypto.*
+import scoop.platform.concurrent.Thread
+import scoop.platform.io.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.*
+import scoop.platform.system.*
+import scoop.test.*
+import scoop.text.toHexString
+
+@Test
+private class SyncTlsTests {
+    @Test
+    fun `blocking TCP short transfers prefix progress flush and graceful shutdown`() {
+        for (version in [TlsVersion.TLS12, TlsVersion.TLS13]) exchange(version)
+    }
+
+    @Test
+    fun `preflight failures keep ownership and handshake cleanup preserves both errors`() {
+        val transport = FailingTransport()
+        clientContext().use { context ->
+            assertFailsWith<IllegalArgumentException> { tlsClient(transport, context, TlsPeerName.Dns("")) }
+            assertEquals(0, transport.closes)
+            assertFailsWith<TestTransportFailure> { tlsClient(transport, context, TlsPeerName.Dns("localhost")) }
+            assertEquals(1, transport.closes)
+            transport.failClose = true
+            val error = assertFailsWith<ResourceUseException> { tlsClient(transport, context, TlsPeerName.Dns("localhost")) }
+            assertTrue(error.primaryFailure is TestTransportFailure)
+            assertTrue(error.cleanupFailure is TestCleanupFailure)
+            assertEquals(2, transport.closes)
+        }
+    }
+
+    @Test
+    fun `accepted plaintext remains consumed when ciphertext output fails`() {
+        SyncGate().use { ready -> clientContext().use { clientConfig -> serverContext().use { serverConfig ->
+            TcpListener.bind(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).use { listener ->
+                Thread.start {
+                    tlsServer(listener.accept(), serverConfig).use { stream ->
+                        ready.signal()
+                        NativeByteBuffer.allocate(1L).use { input ->
+                            try { stream.readInto(input, 1L); fail(Some("failed writer delivered plaintext")) }
+                            catch (error: TlsException) { assertTrue(error.kind == TlsFailureKind.Truncated) }
+                            catch (error: PlatformException) { assertTrue(error.kind == PlatformErrorKind.ConnectionReset) }
+                        }
+                    }
+                }.use {
+                    val transport = ShortTransport(TcpStream.connect(listener.localAddress))
+                    val stream = tlsClient(transport, clientConfig, TlsPeerName.Dns("localhost"))
+                    ready.awaitReady()
+                    NativeByteBuffer.allocate(5L).use { output ->
+                        output.writeBytes("hello".toByteArray())
+                        transport.failWrite = true
+                        transport.failClose = true
+                        val error = assertFailsWith<ResourceUseException> { stream.writeFrom(output, 5L) }
+                        assertTrue(error.primaryFailure is TestTransportFailure)
+                        assertTrue(error.cleanupFailure is TestCleanupFailure)
+                        assertEquals(5L, output.readPosition)
+                        output.clear()
+                        assertTrue(stream.isDisposed)
+                        stream.close()
+                        assertEquals(1, transport.closes)
+                    }
+                }
+            }
+        } } }
+    }
+}
+
+private fun exchange(version: TlsVersion) {
+    val protocol: Array<Byte> = [1, 0, -1]
+    val options = TlsOptions(version, version, [protocol])
+    val bytes = Array<Byte>(40555L) { index -> (index % 239L).toInt8() }
+    val expected = digest(DigestAlgorithm.SHA256, bytes).toHexString()
+    clientContext(options).use { clientConfig -> serverContext(options).use { serverConfig ->
+        TcpListener.bind(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).use { listener ->
+            Thread.start {
+                val transport = ShortTransport(listener.accept())
+                tlsServer(transport, serverConfig).use { stream ->
+                    NativeByteBuffer.allocate(bytes.size).use { input ->
+                        stream.readFully(input, bytes.size)
+                        assertEquals(expected, digest(DigestAlgorithm.SHA256, input.readBytes(bytes.size)).toHexString())
+                        stream.writeAllBytes("reply".toByteArray())
+                        stream.flush()
+                        stream.shutdownGracefully()
+                    }
+                }
+                assertEquals(1, transport.closes)
+            }.use {
+                val transport = ShortTransport(TcpStream.connect(listener.localAddress))
+                tlsClient(transport, clientConfig, TlsPeerName.Ip(IpAddress.IPV4_LOOPBACK)).use { stream ->
+                    assertTrue(stream.connectionInfo.version == version)
+                    assertEquals(protocol.toHexString(), stream.connectionInfo.alpn!!.toHexString())
+                    NativeByteBuffer.allocate(bytes.size).use { output ->
+                        val calls = transport.reads + transport.writes
+                        assertEquals(0L, stream.readInto(output, 0L))
+                        assertEquals(0L, stream.writeFrom(output, 0L))
+                        assertEquals(calls, transport.reads + transport.writes)
+                        assertFailsWith<IllegalArgumentException> { stream.readInto(output, -1L) }
+                        assertFailsWith<IndexOutOfBoundsException> { stream.writeFrom(output, 1L) }
+                        output.writeBytes(bytes)
+                        assertEquals(16384L, stream.writeFrom(output, bytes.size))
+                        assertEquals(16384L, output.readPosition)
+                        stream.writeFully(output)
+                        stream.flush()
+                        output.clear()
+                        stream.readFully(output, 5L)
+                        assertEquals("reply".toByteArray().toArray().toHexString(), output.readBytes(5L).toHexString())
+                        assertEquals(0L, stream.readInto(output, 1L))
+                        stream.shutdownGracefully()
+                        assertTrue(stream.isDisposed)
+                        assertFailsWith<IllegalStateException> { stream.flush() }
+                    }
+                }
+                assertEquals(1, transport.closes)
+            }
+        }
+    } }
+}

@@ -66,8 +66,42 @@ impl BodyLowerer<'_> {
         rhs: &hir::Expr,
     ) -> smir::Expr {
         let lhs = self.lower_expr(lhs);
+        let prelude_start = self.prelude.len();
+        let span = rhs.span;
         let rhs = self.lower_expr(rhs);
-        logic(op, lhs, rhs)
+        let setup = self.prelude.split_off(prelude_start);
+        if setup.is_empty() {
+            return logic(op, lhs, rhs);
+        }
+
+        // Runtime checks expanded while lowering the RHS must be guarded by
+        // the same short-circuit edge as the expression that uses their values.
+        let result = self.new_hidden("logic", mir::Type::Boolean, true);
+        let assign = |value| smir::Statement {
+            kind: smir::StatementKind::Assign {
+                local: result,
+                value,
+            },
+            span,
+        };
+        let mut rhs_body: Vec<_> = setup
+            .into_iter()
+            .map(|kind| smir::Statement { kind, span })
+            .collect();
+        rhs_body.push(assign(rhs));
+        let short_value = matches!(op, smir::LogicOp::Or);
+        let short_body = vec![assign(smir::Expr::bool(short_value))];
+        let (then_body, else_body) = if short_value {
+            (short_body, rhs_body)
+        } else {
+            (rhs_body, short_body)
+        };
+        self.prelude.push(smir::StatementKind::If {
+            cond: lhs,
+            then_body,
+            else_body: Some(else_body),
+        });
+        smir::Expr::local(result, mir::Type::Boolean)
     }
 
     /// Produce a pattern subject's nested value. Variant payload projections

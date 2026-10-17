@@ -1,0 +1,12 @@
+package scoop.tls
+
+public enum TlsFailureKind { Configuration, Verification, Protocol, Truncated, UnconsumedData }
+
+public class TlsException public constructor(
+    public val operation: String,
+    public val kind: TlsFailureKind,
+    public val code: ULong,
+    public val verifyCode: Long,
+    public val systemError: Int,
+    public val detail: String
+) : Exception(Some(operation + ": " + detail))

@@ -644,6 +644,13 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 恢复普通 native 对象、C++ 动态库、COMMON、初始化和归档成员的目标工具链行为；runtime 直接使用已生成的静态数据，保留实际 GC／内存访问和链接所需的引用、身份、范围。
 - 同步旧设计与测试；Darwin 逐批定向验证，Linux Rust 4,956 项、GNU 完整 CLI 4,160 项与 musl 专项 88 项通过，收尾改动和首轮失败均已定向闭合。
 
+### M51 密码、证书与 TLS 集成（已完成，[设计](milestone51/DESIGN.md)、[进度](milestone51/PROGRESS.md)、[验收](milestone51/ACCEPTANCE.md)）
+
+- 以固定 OpenSSL 3.5.9 LTS 源码和三目标静态资源交付普通 `scoop.crypto`、`scoop.tls`、`scoop.tls.asyncio` Cone。
+- 完成内存密码与密钥、X.509 与 JWS／JWK、有限 BIO 共享 TLS 引擎、同步流和 M49 异步适配，支持 TLS 1.2／1.3、双向背压、取消与显式关闭。
+- 目标条件 native include 和短路右侧检查在所属层独立实现或修复；使用现有 FFI、buffer、Job 和关闭合同，不增加 runtime 专属入口。
+- 三目标 debug／release／moving GC 均通过 42 项库测试与 7 项生产产物消费者测试；Linux Rust 4,956 项及 2 项 doctest、GNU 完整 CLI 4,164 项、musl 相关 CLI 149 项通过。
+
 ## 4. 待补齐清单（backlog）
 
 各里程碑"涵盖但只实现了部分"的事项，按来源里程碑整理。标注→的为目标里程碑（已知时）；未标注的待排期。

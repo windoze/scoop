@@ -1,0 +1,60 @@
+package scoop.tls
+
+import scoop.crypto.testdata.expiredPem
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.IpAddress
+import scoop.test.*
+import scoop.tls.native.*
+
+@Test
+private class TlsEngineFailureTests {
+    @Test
+    fun `handshake validates certificate expiration and exact IP SAN`() {
+        val expired = handshakeFailure(clientContext(), serverContext(leaf = expiredPem()), TlsPeerName.Dns("localhost"))
+        assertTrue(expired.kind == TlsFailureKind.Verification)
+        assertEquals(10L, expired.verifyCode)
+        val wrongIp = handshakeFailure(clientContext(), serverContext(), TlsPeerName.Ip(IpAddress.parse("127.0.0.2")))
+        assertTrue(wrongIp.kind == TlsFailureKind.Verification)
+        assertEquals(64L, wrongIp.verifyCode)
+    }
+
+    @Test
+    fun `EOF in an incomplete encrypted record reports truncation without plaintext`() {
+        clientContext().use { clientConfig -> serverContext().use { serverConfig ->
+            TlsEngine.client(clientConfig, TlsPeerName.Dns("localhost")).use { client ->
+                TlsEngine.server(serverConfig).use { server ->
+                    handshake(client, server)
+                    truncatedRecord(client, server)
+                }
+            }
+        } }
+    }
+}
+
+private fun truncatedRecord(client: TlsEngine, server: TlsEngine) {
+    val output = NativeByteBuffer.allocate(1L)
+    val fragment = NativeByteBuffer.allocate(1L)
+    val input = NativeByteBuffer.allocate(1L)
+    try {
+        output.writeByte(42)
+        @Unsafe {
+            val written = output.borrowReadable(1L)
+            var sent = 0L
+            try { sent = server.write(written).count }
+            finally { written.complete(sent) }
+            assertEquals(1L, sent)
+        }
+        assertTrue(server.pendingOutput > 1L)
+        assertEquals(1L, server.takeCiphertext(fragment))
+        assertEquals(1L, client.receiveCiphertext(fragment))
+        client.endInput()
+        @Unsafe {
+            val read = input.borrowWritable(1L)
+            try {
+                val error = assertFailsWith<TlsException> { @Unsafe { client.read(read) } }
+                assertTrue(error.kind == TlsFailureKind.Truncated)
+            } finally { read.complete(0L) }
+        }
+        assertEquals(0L, input.readableBytes)
+    } finally { output.close(); fragment.close(); input.close() }
+}

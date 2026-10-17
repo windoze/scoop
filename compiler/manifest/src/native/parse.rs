@@ -11,7 +11,7 @@ pub(crate) struct RawNativeConfig {
     #[serde(default)]
     sources: Vec<crate::selection::RawConditionalPath>,
     #[serde(default)]
-    include: Vec<Spanned<String>>,
+    include: Vec<Spanned<super::include::RawInclude>>,
     #[serde(default)]
     c_flags: Vec<Spanned<String>>,
     #[serde(default)]
@@ -36,7 +36,7 @@ impl RawNativeConfig {
             include: self
                 .include
                 .into_iter()
-                .map(parse_path)
+                .map(|raw| super::include::parse(raw, catalog))
                 .collect::<Result<_, _>>()?,
             c_flags: parse_flags(self.c_flags)?,
             cxx_flags: parse_flags(self.cxx_flags)?,
@@ -54,7 +54,7 @@ fn parse_path(value: Spanned<String>) -> Result<PathBuf, ManifestParseError> {
     native_path(value.get_ref()).map_err(|reason| error(&value, reason))
 }
 
-fn native_path(value: &str) -> Result<PathBuf, &'static str> {
+pub(super) fn native_path(value: &str) -> Result<PathBuf, &'static str> {
     if value.is_empty() {
         return Err("path must not be empty");
     }

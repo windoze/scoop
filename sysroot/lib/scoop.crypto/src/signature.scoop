@@ -1,0 +1,42 @@
+package scoop.crypto
+
+import scoop.crypto.native.*
+
+public enum SignatureAlgorithm { RS256, PS256, ES256, Ed25519 }
+
+private fun signatureCode(algorithm: SignatureAlgorithm, key: KeyAlgorithm): Int {
+    val expected = when (algorithm) {
+        case RS256 -> KeyAlgorithm.RSA
+        case PS256 -> KeyAlgorithm.RSA
+        case ES256 -> KeyAlgorithm.P256
+        case Ed25519 -> KeyAlgorithm.Ed25519
+    }
+    if (key != expected) throw IllegalArgumentException(Some("signature algorithm and key do not match"))
+    return when (algorithm) {
+        case RS256 -> 0
+        case PS256 -> 1
+        case ES256 -> 2
+        case Ed25519 -> 3
+    }
+}
+
+public fun sign(algorithm: SignatureAlgorithm, key: PrivateKey, data: List<Byte>): Array<Byte> {
+    val code = signatureCode(algorithm, key.algorithm)
+    val handle = key.nativeHandle()
+    val bytes = data.toArray()
+    @Unsafe { return bytes.withDataPointer { pointer, count ->
+        @Unsafe { return@withDataPointer cryptoBytes(keySign(code, handle, pointer, count), "sign") }
+    } }
+}
+
+public fun verify(algorithm: SignatureAlgorithm, key: PublicKey, data: List<Byte>, signature: List<Byte>): Boolean {
+    val code = signatureCode(algorithm, key.algorithm)
+    val handle = key.nativeHandle()
+    val bytes = data.toArray()
+    val signed = signature.toArray()
+    @Unsafe { return bytes.withDataPointer { pointer, count ->
+        @Unsafe { return@withDataPointer signed.withDataPointer { signaturePointer, size ->
+            @Unsafe { return@withDataPointer cryptoValue(keyVerify(code, handle, pointer, count, signaturePointer, size), "verify signature") == 1UL }
+        } }
+    } }
+}

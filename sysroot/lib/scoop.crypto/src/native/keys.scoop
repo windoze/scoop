@@ -1,0 +1,16 @@
+package scoop.crypto.native
+
+import scoop.crypto.PrivateKey
+import scoop.crypto.PublicKey
+
+@Unsafe public fun privateKeyHandle(key: PrivateKey): ULong = key.nativeHandle()
+@Unsafe public fun publicKeyHandle(key: PublicKey): ULong = key.nativeHandle()
+
+@Extern(name = "scoop_crypto_key_generate") internal fun keyGenerate(algorithm: Int, bits: Int): CryptoResult
+@Extern(name = "scoop_crypto_key_algorithm") internal fun keyAlgorithm(handle: ULong): Int
+@Extern(name = "scoop_crypto_key_import") internal fun keyImport(privateKey: Int, pem: Int, data: Ptr<Byte>, count: Long): CryptoResult
+@Extern(name = "scoop_crypto_key_export") internal fun keyExport(handle: ULong, privateKey: Int, pem: Int): CryptoResult
+@Extern(name = "scoop_crypto_public_key") internal fun keyPublic(handle: ULong): CryptoResult
+@Extern(name = "scoop_crypto_key_free") internal fun keyFree(handle: ULong)
+@Extern(name = "scoop_crypto_sign") internal fun keySign(algorithm: Int, key: ULong, data: Ptr<Byte>, count: Long): CryptoResult
+@Extern(name = "scoop_crypto_verify") internal fun keyVerify(algorithm: Int, key: ULong, data: Ptr<Byte>, count: Long, signature: Ptr<Byte>, size: Long): CryptoResult

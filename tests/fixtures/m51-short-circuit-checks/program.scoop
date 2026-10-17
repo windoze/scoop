@@ -1,0 +1,26 @@
+class Entry(val accepted: Boolean)
+class Holder(var current: Entry? = None)
+class Counter {
+    var calls: Long = 0L
+    fun empty(): Entry? { calls += 1L; return None }
+    fun wrong(): Any { calls += 1L; return "wrong type" }
+    fun left(): Boolean { calls += 1L; return true }
+}
+fun <T> present(value: T?): Boolean = when (value) { case Some(_) -> true; case None -> false }
+
+fun main() {
+    val holder = Holder()
+    val counter = Counter()
+    if (false) println("unreachable")
+    else if (present(holder.current) && holder.current!!.accepted && !holder.current!!.accepted) println("unreachable")
+    println(false && counter.empty()!!.accepted)
+    println(true || (counter.wrong() as Entry).accepted)
+    println(false && present(counter.wrong() as? Entry))
+    val bytes: Array<Int> = [42]
+    println(true || bytes[10L] == 42)
+    println(counter.calls)
+    holder.current = Some(Entry(true))
+    println(present(holder.current) && holder.current!!.accepted)
+    try { println(counter.left() && counter.empty()!!.accepted) }
+    catch (_: UnwrapException) { println(counter.calls) }
+}

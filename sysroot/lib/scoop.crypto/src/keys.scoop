@@ -1,0 +1,79 @@
+package scoop.crypto
+
+import scoop.crypto.native.*
+
+public enum KeyAlgorithm { RSA, P256, Ed25519, Other }
+
+public class PrivateKey private constructor(private var handle: ULong) : Disposable {
+    public val algorithm: KeyAlgorithm get() = nativeKeyAlgorithm(nativeHandle())
+
+    public companion object {
+        public fun generate(algorithm: KeyAlgorithm = KeyAlgorithm.RSA, rsaBits: Int = 2048): PrivateKey {
+            if (algorithm == KeyAlgorithm.RSA && (rsaBits < 2048 || rsaBits % 256 != 0))
+                throw IllegalArgumentException(Some("RSA bits must be a multiple of 256 and at least 2048"))
+            val code = when (algorithm) {
+                case RSA -> 0
+                case P256 -> 1
+                case Ed25519 -> 2
+                case Other -> throw IllegalArgumentException(Some("unsupported key generation algorithm"))
+            }
+            @Unsafe { return PrivateKey(cryptoValue(keyGenerate(code, rsaBits), "generate key")) }
+        }
+        public fun fromPem(pem: String): PrivateKey = PrivateKey(importKey(pem.toByteArray(), true, true))
+        public fun fromDer(der: List<Byte>): PrivateKey = PrivateKey(importKey(der, true, false))
+    }
+
+    internal fun nativeHandle(): ULong {
+        if (handle == 0UL) throw IllegalStateException(Some("private key is closed"))
+        return handle
+    }
+
+    public fun publicKey(): PublicKey { @Unsafe { return PublicKey(cryptoValue(keyPublic(nativeHandle()), "extract public key")) } }
+    public fun toDer(): Array<Byte> { @Unsafe { return cryptoBytes(keyExport(nativeHandle(), 1, 0), "export private key") } }
+    public fun toPem(): String { @Unsafe { return String.fromUtf8Unchecked(cryptoBytes(keyExport(nativeHandle(), 1, 1), "export private key")) } }
+    public override fun dispose() {
+        val owned = handle
+        handle = 0UL
+        if (owned != 0UL) @Unsafe { keyFree(owned) }
+    }
+    public fun close() { dispose() }
+}
+
+public class PublicKey internal constructor(private var handle: ULong) : Disposable {
+    public val algorithm: KeyAlgorithm get() = nativeKeyAlgorithm(nativeHandle())
+
+    public companion object {
+        public fun fromPem(pem: String): PublicKey = PublicKey(importKey(pem.toByteArray(), false, true))
+        public fun fromDer(der: List<Byte>): PublicKey = PublicKey(importKey(der, false, false))
+    }
+
+    internal fun nativeHandle(): ULong {
+        if (handle == 0UL) throw IllegalStateException(Some("public key is closed"))
+        return handle
+    }
+
+    public fun toDer(): Array<Byte> { @Unsafe { return cryptoBytes(keyExport(nativeHandle(), 0, 0), "export public key") } }
+    public fun toPem(): String { @Unsafe { return String.fromUtf8Unchecked(cryptoBytes(keyExport(nativeHandle(), 0, 1), "export public key")) } }
+    public override fun dispose() {
+        val owned = handle
+        handle = 0UL
+        if (owned != 0UL) @Unsafe { keyFree(owned) }
+    }
+    public fun close() { dispose() }
+}
+
+private fun nativeKeyAlgorithm(handle: ULong): KeyAlgorithm {
+    @Unsafe { return when (keyAlgorithm(handle)) {
+        case 0 -> KeyAlgorithm.RSA
+        case 1 -> KeyAlgorithm.P256
+        case 2 -> KeyAlgorithm.Ed25519
+        else -> KeyAlgorithm.Other
+    } }
+}
+
+private fun importKey(input: List<Byte>, privateKey: Boolean, pem: Boolean): ULong {
+    val data = input.toArray()
+    @Unsafe { return data.withDataPointer { pointer, count ->
+        @Unsafe { return@withDataPointer cryptoValue(keyImport(if (privateKey) 1 else 0, if (pem) 1 else 0, pointer, count), "import key") }
+    } }
+}

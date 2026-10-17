@@ -1,0 +1,47 @@
+package tls.consumer
+
+import scoop.crypto.*
+import scoop.crypto.x509.*
+import scoop.crypto.testdata.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.tls.*
+import scoop.tls.native.*
+import scoop.test.*
+
+@Test
+private class TlsEngineConsumerTests {
+    @Test
+    fun `published TLS engine and crypto types perform a verified handshake`() {
+        val root = Certificate.fromPem(rootPem())
+        val leaf = Certificate.fromPem(serverPem())
+        val intermediate = Certificate.fromPem(intermediatePem())
+        val key = PrivateKey.fromPem(serverKeyPem())
+        val store = TrustStore.fromCertificates([root])
+        val clientConfig = TlsClientContext(store)
+        val serverConfig = TlsServerContext([leaf, intermediate], key)
+        root.close(); leaf.close(); intermediate.close(); key.close(); store.close()
+        val client = TlsEngine.client(clientConfig, TlsPeerName.Dns("localhost"))
+        val server = TlsEngine.server(serverConfig)
+        clientConfig.close(); serverConfig.close()
+        try {
+            NativeByteBuffer.allocate(4096L).use { staging ->
+                var a = false
+                var b = false
+                while (!a || !b) {
+                    if (!a) a = client.handshake().kind == TlsStepKind.Done
+                    if (!b) b = server.handshake().kind == TlsStepKind.Done
+                    moveCiphertext(client, server, staging)
+                    moveCiphertext(server, client, staging)
+                }
+            }
+            assertTrue(client.connectionInfo.version == TlsVersion.TLS13)
+            assertTrue(server.connectionInfo.version == TlsVersion.TLS13)
+        } finally { client.close(); server.close() }
+    }
+}
+
+private fun moveCiphertext(from: TlsEngine, to: TlsEngine, buffer: NativeByteBuffer) {
+    buffer.clear()
+    from.takeCiphertext(buffer)
+    to.receiveCiphertext(buffer)
+}

@@ -1,0 +1,77 @@
+package scoop.crypto
+
+// OpenSSL 3.6.5 CLI generated these fixed interoperability inputs.
+
+internal fun rsaPrivatePem(): String =
+    "-----BEGIN PRIVATE KEY-----\n" +
+    "MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQChB3yM3JJi2pWU\n" +
+    "V2Xtc835Mk+071iXjCcfUtF5UfL/oh84zN9By69JHovittgFbxnBAWMoKm+ACiBZ\n" +
+    "qXwht8uGOqkOKExVS6YW8wvar4phwo3XidI6LTxQ7jucpbqlniEsOgP8j60QG3Z0\n" +
+    "/ZamUqm51yy84bbuWkWZ6sAMiizZYm4Fz83JyLx6ADVJmkCyQJyw7GgPtYDNmnWu\n" +
+    "XqXwJcQs5hHoV8JHDg/lKkcHLJCOJwDoOKWPP9NBfCadV5yj90g//efqYju0t4zd\n" +
+    "lzJ1eK6tCyCe0CLO3FfmwWiHNo4/mtz65VjiMevCdLghIQ9DtJbNPR2lHW/Dt/Pn\n" +
+    "e7SzUWqFAgMBAAECggEADUnLs+jB0GmJqBem6szrJZIgH2YURqaYqzjk3guZWhIR\n" +
+    "XIO/irOZxUFsOWsYRtPaaWHJbSJErZQTA63STLVY6hHuKyO/2iwSH9kHqeYMLTFm\n" +
+    "Y2/VStq6cafvKxKcD+24KWj835B7BMDCFOPA/6cDqDktpm/umMXB8kfRIwJwsrGP\n" +
+    "WhBUzX8o6dgZw5tKfIogQCewjjYGSaF+WxlPuduQdri0OBQbnrzygZjpdmDJK34K\n" +
+    "nR9aB8I0fJW2oueQqSNXdBS1BkkxVG/chNB74TYycQqbtKfeK9poVGNdDUZETcaz\n" +
+    "zaS3FJ/l0krIDaWvzWO8/mlwiDH5PB1PnqfNLqgH8wKBgQDOZVhd44DGtDLhtzO8\n" +
+    "IsnTvASea0KU0FeGgQ4iJsAAWO/Qms6X73Nfsjl4tx+5M1AcGNXEUUguwcxAf4JK\n" +
+    "/r/udmmsKei1UZW6qkWijnQwn1pZEJHxmEAQtc4E1elkcDXJO62xm0+Fj9W3zD3y\n" +
+    "xJKlGNCC0nmyfzkao5lUqyg3FwKBgQDHuu0u8njKjAcscGMW5jOaCpyZvD9FR+2k\n" +
+    "xsj8H0RIhz8NcOVdvYvwgq6EZFhxMOPPuuIyta0n67zHkEYb9PoaC6b5MKyKIut/\n" +
+    "WLi+uVvHwH/OinvxLmDQzl1gjdLsOWUtChoO1OKNOZsspjDa2p937yXA6/jOG2fl\n" +
+    "QCgHkjSswwKBgQCu6ykG+SZMQK/Wp6MK0RjnfzMS56hX4nIrJfjKbLjQEo+75Vct\n" +
+    "YNwQwEUAz4HtPVWpWkrgxFo+djQafXX5BQm4mVZZeHMmJ+yTdHbrm3tRMdwqG2b0\n" +
+    "r6mr/8iIRJo2avrKfu9n1E6CzTG9QTVHJ914Wh1soeBNrJDCyN/L5/p/JQKBgFr3\n" +
+    "tzlPtFZEKqxBz8/JLy10sdiPVZ3fYcxPwZCbSQVjnAMqLT1hrE/xpTylW2bKZqfh\n" +
+    "LU79Ug1BoCygeF4ZWKPuNLGASsVrnCjXJuWvFK9I7K0Mg+DYR74yj3L/hVaT2ZIG\n" +
+    "7NFegoTh/Nv8IXo8Yq9EW8SfdSWic9KFQvYX0CfzAoGBAJByZcEm4KukInJtBKV5\n" +
+    "asgznyt2o33lzT8G9fCguadliKmaDTkDatUqTzx75guKnsX71ocZ6SF2BRkKUsjN\n" +
+    "ifjjKTRM+nUIDLpy6RyvTlqOFewHtOuM3PP1UuVuKZATcnl+avL1G4pvNmkJw+eG\n" +
+    "6IYXszD49UDy3IvaMhFkxxQz\n" +
+    "-----END PRIVATE KEY-----\n"
+
+internal fun rsaPublicPem(): String =
+    "-----BEGIN PUBLIC KEY-----\n" +
+    "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoQd8jNySYtqVlFdl7XPN\n" +
+    "+TJPtO9Yl4wnH1LReVHy/6IfOMzfQcuvSR6L4rbYBW8ZwQFjKCpvgAogWal8IbfL\n" +
+    "hjqpDihMVUumFvML2q+KYcKN14nSOi08UO47nKW6pZ4hLDoD/I+tEBt2dP2WplKp\n" +
+    "udcsvOG27lpFmerADIos2WJuBc/Nyci8egA1SZpAskCcsOxoD7WAzZp1rl6l8CXE\n" +
+    "LOYR6FfCRw4P5SpHByyQjicA6Diljz/TQXwmnVeco/dIP/3n6mI7tLeM3ZcydXiu\n" +
+    "rQsgntAiztxX5sFohzaOP5rc+uVY4jHrwnS4ISEPQ7SWzT0dpR1vw7fz53u0s1Fq\n" +
+    "hQIDAQAB\n" +
+    "-----END PUBLIC KEY-----\n"
+
+internal fun ecPrivatePem(): String =
+    "-----BEGIN PRIVATE KEY-----\n" +
+    "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgcYfpU43Cxp9cOpsb\n" +
+    "ZCGtEh0A2RmZliQLoCqiB1u1epmhRANCAATWWOvJWGEVJBoq/UDFPdUlz34BXigN\n" +
+    "0bTqtIOcvhpSyTqTBMq4ktltSBgS+lrt3OruD+lBZQNynWuWvU/K/SHQ\n" +
+    "-----END PRIVATE KEY-----\n"
+
+internal fun ecPublicPem(): String =
+    "-----BEGIN PUBLIC KEY-----\n" +
+    "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE1ljryVhhFSQaKv1AxT3VJc9+AV4o\n" +
+    "DdG06rSDnL4aUsk6kwTKuJLZbUgYEvpa7dzq7g/pQWUDcp1rlr1Pyv0h0A==\n" +
+    "-----END PUBLIC KEY-----\n"
+
+internal fun rs256Signature(): String =
+    "4979859a6e2f20d3f6ea69db442e9efd240f00c7178c75c6336524b266e3a4d2900983bc64cfa38e63e0867fe970b50a" +
+    "c881fd9d40f7af3adfe5cb99e368bb440faa3314b42e08b3896fb26022720184e1fb86c97d72ec401a6b7dd64199b8f5" +
+    "9ece57c473d34a1c379277a0ddf84e8ba2a8c2973854d8f84238b9febec36057ef04c6e2758b8a42b4e1cdbd45a8f73a" +
+    "1853a32998880834278e1006aa3a9a9a66fbb6574485a6368822321e9adc427a3d47e943c2e0d5275af4aa2fa59a1aea" +
+    "53581a1cadbc2fe6914c7a4cbc4d088ddbe85d0501eed1bf177f469fa6a1a5adf6ec97debe373e0f911e4f26773b23d0" +
+    "e0e71b8c28dad0304325c2897938e11e"
+
+internal fun ps256Signature(): String =
+    "2e2516015ecdde656b1e401c30325627120d5979e1de704a318c0498a6fb78f327785b03322f138aca1668a061d2e333" +
+    "735565a57436a718d338655f8e36659fee56dcca5eaf2d3b8640a7ac6380d703cb000968cc18900b06eef148e466261b" +
+    "85de6136d5dbe4641a82b63c0269ad284e7359fa17b3b14ccecd51d555b9251b8fe5739ee993d2911930dc2d4535c7c5" +
+    "56f2917bc4e7f802770777ddb66a91e3ced4a081ffbf227bf76492005140e7cdd6c06e02ac458946f5801eca150210bb" +
+    "63bf81e0ae357b42616cb17125a3af2df12daef6f86d8d60fe8cb41c47e178f9b0e2fd91877cfa4756969e81a177db37" +
+    "af68d303f23a2a8882be3f752b0fdced"
+
+internal fun es256Signature(): String =
+    "304502205e18738620d4577788e01973fa8fbac13211a1f31d53a419d731fbac55f82635022100f88de17e28b8498cee" +
+    "e8daefb3f651a42b296d3f329e79828fabd41e411bf622"

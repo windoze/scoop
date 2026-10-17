@@ -26,6 +26,8 @@ Native C++ 支持由语言规范 12.2.1 的 `native.cxx` 显式选择，仅支�
 
 ## 2. 编译阶段与产物契约
 
+M51 的普通 native include 支持语言规范 12.2.1 的路径字符串或条件路径表。预处理搜索目录、选项投影与 native 对象更新判断只使用当前目标选中的路径，并保持声明顺序；复用现有目标谓词，不引入依赖准备回调或目标变量插值。manifest 本机解析记录升级为 `manifests-v3`，旧记录重建；语言实体、`.slib` 与 runtime ABI 不变。
+
 | 阶段 | 输入 | 输出与责任边界 |
 | --- | --- | --- |
 | parser | 当前 Cone 的完整源码集合 | 带准确源码位置的 AST 与语法诊断。 |
@@ -192,6 +194,8 @@ return/throw 与 Elvis 复用正常值和终止路径的封闭表示；只有正
 MIR 只接收 LocalConcreteHir 和实际选用的依赖 MIR metadata，不接受 ExportHir 模板或执行泛型推断。每个 expression 具有本层 exact type；GC-free、ZST、字段和 variant 身份完整保留，synthetic 类型在产生时也完整定义。foundation 从已生成的 Module 提取实际身份记录，不先完整重放类型、CFG、ABI、coroutine、callback、release、constant image 或 GC 语义检查；IR/meta crate 不保留独立的语言验证器及其测试专用入口。具体转换的查询与格式／引用边界继续在实际使用处处理。MIR 输入组装直接复用同次生产的 foundation、entry bridge 与 Module；初始化物化从实际 unit 及 callable 索引取得 initializer／ensure，不再重建 generated ID、ODR key、物理／逻辑签名或比较两份 callable surface。
 
 调用与短路控制流从表达式提取为 CFG 时，必须先完成并保存此前操作数的取值，再执行后续操作数的调用或分支。没有显式调用的表达式仍可能读取可变字段、全局、指针或原子存储，或执行分配；不能因此延后其求值。聚合元素、调用实参和其他多操作数节点共享这一顺序规则，提前终止的操作数保留此前副作用并阻止后续求值。
+
+私有正文构造为短路右操作数展开的 `!!`、cast、数组边界检查及其临时值必须留在右侧分支；不能并入包围整条语句的 prelude。左操作数按原顺序执行一次，右侧异常和副作用仅在该分支实际进入时发生。此规则复用普通结构化条件与 CFG，不新增产物或 runtime 机制。
 
 `Nothing` 操作数没有正常结果。MIR 的私有构造表示须在建立整数算术、比较、移位或转换节点前传播这一控制流事实；此前操作数仍按顺序求值，终止后的操作数及整数运算本身不执行。不能将 `Nothing` 当作整数值送入要求精确位宽的构造器，也不能用虚构的零值代替；CFG 保留原调用的异常边及 catch/finally 清理。
 
@@ -607,7 +611,7 @@ manifest 字段、路径形式及 `when` 的合法性先于 target 筛选检查�
 
 SingleFile 的 coordinate 为保留值 `scoop:single-file:0.0.0`，kind 为 Executable，只依赖 core；用户 manifest 不能声明该 coordinate。build/run 此时拒绝 cone-path，scoopc 拒绝 direct/support slib 参数。其 `.slib` 可作为本次构建、缓存或显式 link 的 executable root，不能作为依赖或 manifest locator 指向的可分发 Cone。
 
-测试配置遵守语言规范 12.2.4。manifest 解码保留独立的测试源码清单、测试依赖及其 locator/span；生产语义投影仅含生产字段。普通 build/run 与生产用途的 scoopc 不发现测试文件或展开测试依赖，缓存键不包含测试配置或测试文件摘要。manifest 未变化时使用记录的解析结果；变化时解析一次并按有效配置判断相应用途是否更新。原始文本供实际需要的诊断与编译使用，文本变化本身不等于生产语义变化。父进程的根、显式源码依赖与默认标准库使用同一 `manifests-v2` 解析记录：按实际 manifest 路径、mtime、大小和解析器 target catalog 判断更新，保存已解析的生产／测试／native 配置、locator、诊断区间及对应文本。命中不打开原 manifest 或重跑 TOML parser；缺失输入仍先报告普通定位错误。记录格式或解析规则改变时升级 namespace，不迁移旧记录或重放语言规则。实际编译的 scoopc 仍读取本次自己的 manifest 输入。
+测试配置遵守语言规范 12.2.4。manifest 解码保留独立的测试源码清单、测试依赖及其 locator/span；生产语义投影仅含生产字段。普通 build/run 与生产用途的 scoopc 不发现测试文件或展开测试依赖，缓存键不包含测试配置或测试文件摘要。manifest 未变化时使用记录的解析结果；变化时解析一次并按有效配置判断相应用途是否更新。原始文本供实际需要的诊断与编译使用，文本变化本身不等于生产语义变化。父进程的根、显式源码依赖与默认标准库使用同一 `manifests-v3` 解析记录：按实际 manifest 路径、mtime、大小和解析器 target catalog 判断更新，保存已解析的生产／测试／native 配置、locator、诊断区间及对应文本。命中不打开原 manifest 或重跑 TOML parser；缺失输入仍先报告普通定位错误。记录格式或解析规则改变时升级 namespace，不迁移旧记录或重放语言规则。实际编译的 scoopc 仍读取本次自己的 manifest 输入。
 
 single-Cone 编译请求显式携带 Production 或 Test 用途，默认 Production；直接调用 `scoopc build --test` 选择 Test，且输入必须是 manifest Cone。测试用途在解析源码前将 manifest 的生产依赖与测试依赖并为所需 direct artifact 集合，support 仍恰为其余传递闭包；scoopc 不定位或补建缺失的测试依赖。解析时使用同一 manifest 的生产／测试源码选择规则，将仅用于测试的依赖身份交给前端，并以原 ConeIdentity 产生具有 TestEntry 的 executable `.slib`，不要求改写源码 manifest kind。该字段自 machine protocol 6 加入；当前协议版本见下文，旧版本拒绝协商；普通生产请求的用途必须显式编码，不能靠源码目录或输出名推断。
 

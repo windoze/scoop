@@ -1,0 +1,15 @@
+schema = 1
+[cone]
+group = "test.m51"
+name = "native-includes"
+version = "0.1.0"
+kind = "executable"
+[native]
+include = [
+    "../absent",
+    {path = "../headers/darwin", when = {os = "darwin"}},
+    {path = "../headers/gnu", when = {env = "gnu"}},
+    {path = "../headers/musl", when = {env = "musl"}},
+]
+[[native.sources]]
+path = "answer.c"

@@ -1,0 +1,61 @@
+package scoop.crypto.x509
+
+import scoop.crypto.native.*
+import scoop.time.Instant
+
+public enum CertificatePurpose { ServerAuth, ClientAuth, Any }
+public struct CertificateValidationFailure(val code: Long, val depth: Int, val detail: String)
+public enum CertificateVerification { Verified, Failed(CertificateValidationFailure) }
+
+public class TrustStore private constructor(private var handle: ULong) : Disposable {
+    public companion object {
+        public fun fromCertificates(anchors: List<Certificate>): TrustStore {
+            @Unsafe {
+                val store = TrustStore(cryptoValue(storeNew(), "create trust store"))
+                try {
+                    for (anchor in anchors) cryptoValue(storeAdd(store.handle, certificateHandle(anchor)), "add trust anchor")
+                    return store
+                } catch (error: Throwable) { store.dispose(); throw error }
+            }
+        }
+    }
+
+    internal fun nativeHandle(): ULong {
+        if (handle == 0UL) throw IllegalStateException(Some("trust store is closed"))
+        return handle
+    }
+
+    public fun verify(certificate: Certificate, at: Instant, purpose: CertificatePurpose,
+        intermediates: List<Certificate> = ArrayList<Certificate>(),
+        identity: PeerIdentity? = None): CertificateVerification {
+        val store = nativeHandle()
+        val usage = when (purpose) { case ServerAuth -> 0; case ClientAuth -> 1; case Any -> 2 }
+        val (kind, name) = when (identity) {
+            case Some(_) -> peerIdentityData(identity!!)
+            case None -> (-1, Array<Byte>(0L) { _ -> 0.toInt8() })
+        }
+        val chain = Array<ULong>(intermediates.size) { index -> @Unsafe { return@Array certificateHandle(intermediates[index]) } }
+        @Unsafe {
+            val leaf = certificateHandle(certificate)
+            return chain.withDataPointer { chainPointer, count ->
+                @Unsafe { return@withDataPointer name.withDataPointer { namePointer, size ->
+                    @Unsafe {
+                        val result = certificateVerify(leaf, store, chainPointer, count, at.epochSeconds, usage,
+                            kind, if (kind < 0) None else Some(namePointer), size)
+                        cryptoValue(CryptoResult(0UL, result.error), "verify certificate")
+                        if (result.code == 0L) return@withDataPointer CertificateVerification.Verified
+                        return@withDataPointer CertificateVerification.Failed(CertificateValidationFailure(
+                            result.code, result.depth, String.fromCString(verifyMessage(result.code))))
+                    }
+                } }
+            }
+        }
+    }
+
+    public override fun dispose() {
+        val owned = handle
+        handle = 0UL
+        if (owned != 0UL) @Unsafe { storeFree(owned) }
+    }
+    public fun close() { dispose() }
+}

@@ -1,0 +1,45 @@
+package scoop.tls.native
+
+import scoop.crypto.CryptoException
+import scoop.crypto.native.*
+import scoop.tls.*
+
+@CLayout internal struct NativeTlsStep(val status: Int, val systemError: Int, val count: Long, val verifyCode: Long, val error: ULong)
+
+@Unsafe internal fun tlsValue(result: CryptoResult, operation: String): ULong {
+    try { return cryptoValue(result, operation) }
+    catch (error: CryptoException) { throw TlsException(operation, TlsFailureKind.Configuration, error.code, 0L, 0, error.detail) }
+}
+
+@Unsafe internal fun checkedStep(result: NativeTlsStep, operation: String): TlsStep {
+    if (result.error != 0UL) {
+        val kind = when (result.status) {
+            case -2 -> TlsFailureKind.Truncated
+            case -3 -> TlsFailureKind.Verification
+            case -4 -> TlsFailureKind.UnconsumedData
+            else -> TlsFailureKind.Protocol
+        }
+        try { cryptoValue(CryptoResult(0UL, result.error), operation) }
+        catch (error: CryptoException) { throw TlsException(operation, kind, error.code, result.verifyCode, result.systemError, error.detail) }
+    }
+    return TlsStep(when (result.status) {
+        case 0 -> TlsStepKind.Done
+        case 1 -> TlsStepKind.WantRead
+        case 2 -> TlsStepKind.WantWrite
+        case 3 -> TlsStepKind.Closed
+        else -> throw IllegalStateException(Some("invalid TLS step status"))
+    }, result.count)
+}
+
+@Extern(name = "scoop_tls_context_new") internal fun contextNew(server: Int, minimum: Int, maximum: Int, alpn: Ptr<Byte>, size: Long, store: ULong): CryptoResult
+@Extern(name = "scoop_tls_context_identity") internal fun contextIdentity(handle: ULong, key: ULong, chain: Ptr<ULong>, count: Long): CryptoResult
+@Extern(name = "scoop_tls_context_free") internal fun contextFree(handle: ULong)
+@Extern(name = "scoop_tls_session_new") internal fun sessionNew(context: ULong, server: Int, nameKind: Int, name: Ptr<Byte>?, size: Long): CryptoResult
+@Extern(name = "scoop_tls_session_free") internal fun sessionFree(handle: ULong)
+@Extern(name = "scoop_tls_step") internal fun sessionStep(handle: ULong, operation: Int, data: Ptr<Byte>?, count: Long): NativeTlsStep
+@Extern(name = "scoop_tls_version") internal fun sessionVersion(handle: ULong): Int
+@Extern(name = "scoop_tls_alpn") internal fun sessionAlpn(handle: ULong): CryptoResult
+@Extern(name = "scoop_tls_input_capacity") internal fun inputCapacity(handle: ULong): Long
+@Extern(name = "scoop_tls_pending_output") internal fun pendingOutput(handle: ULong): Long
+@Extern(name = "scoop_tls_ciphertext") internal fun ciphertext(handle: ULong, input: Int, data: Ptr<Byte>, count: Long): CryptoResult
+@Extern(name = "scoop_tls_end_input") internal fun endInput(handle: ULong)

@@ -1,0 +1,69 @@
+package scoop.tls
+
+import scoop.platform.io.*
+import scoop.platform.memory.*
+import scoop.tls.native.*
+
+internal class SyncPump(
+    val engine: TlsEngine,
+    val source: ByteSource,
+    val sink: ByteSink,
+    val input: NativeByteBuffer,
+    val output: NativeByteBuffer
+) {
+    var progress: Long = 0L
+
+    fun drive(operation: Int, borrow: NativeByteBorrow?): Long {
+        progress = 0L
+        while (true) {
+            val step = nextStep(operation, borrow)
+            progress = step.count
+            val sent = drain()
+            when (step.kind) {
+                case Done -> return progress
+                case Closed -> {
+                    if (operation == 1) return 0L
+                    throw TlsException("TLS protocol", TlsFailureKind.Protocol, 0UL, 0L, 0, "unexpected close_notify")
+                }
+                case WantRead -> receive()
+                case WantWrite -> if (sent == 0L) throw IllegalStateException(Some("TLS output retry has no pending ciphertext"))
+            }
+        }
+    }
+
+    private fun nextStep(operation: Int, borrow: NativeByteBorrow?): TlsStep {
+        @Unsafe { return when (operation) {
+            case 0 -> engine.handshake()
+            case 1 -> engine.read(borrow!!)
+            case 2 -> engine.write(borrow!!)
+            case 3 -> engine.shutdown()
+            else -> throw IllegalArgumentException(Some("invalid TLS operation"))
+        } }
+    }
+
+    fun drain(): Long {
+        var total = 0L
+        while (output.readableBytes > 0L || engine.pendingOutput > 0L) {
+            if (output.readableBytes == 0L) {
+                output.clear()
+                engine.takeCiphertext(output)
+            }
+            val requested = output.readableBytes
+            val sent = sink.writeFrom(output, requested)
+            if (sent < 0L || sent > requested) throw IllegalStateException(Some("invalid TLS transport write progress"))
+            if (sent == 0L) throw WriteZeroException()
+            total += sent
+        }
+        return total
+    }
+
+    private fun receive() {
+        input.clear()
+        val available = engine.inputCapacity
+        if (available == 0L) throw IllegalStateException(Some("TLS input retry has no BIO space"))
+        val count = source.readInto(input, available)
+        if (count < 0L || count > available) throw IllegalStateException(Some("invalid TLS transport read progress"))
+        if (count == 0L) engine.endInput()
+        else engine.receiveCiphertext(input)
+    }
+}

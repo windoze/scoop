@@ -1,0 +1,24 @@
+package scoop.crypto.testdata
+
+// Fixed OpenSSL 3.6.5 CLI test input; dates and extensions are intentional.
+
+public fun serverPem(): String =
+    "-----BEGIN CERTIFICATE-----\n" +
+    "MIIByTCCAXCgAwIBAgICEAIwCgYIKoZIzj0EAwIwITEfMB0GA1UEAwwWU2Nvb3Ag\n" +
+    "TTUxIEludGVybWVkaWF0ZTAeFw0yNDAxMDEwMDAwMDBaFw0zNDAxMDEwMDAwMDBa\n" +
+    "MBQxEjAQBgNVBAMMCWxvY2FsaG9zdDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IA\n" +
+    "BHCYaYKtSeyChRhAFcg+z3DnesEKKl5HsCDLMTEOi/fT9nZl+Xrb0LsZ+9+5BKob\n" +
+    "+mBRkwdOU2m3EC3dErYvHMijgaQwgaEwDAYDVR0TAQH/BAIwADAOBgNVHQ8BAf8E\n" +
+    "BAMCB4AwEwYDVR0lBAwwCgYIKwYBBQUHAwEwLAYDVR0RBCUwI4IJbG9jYWxob3N0\n" +
+    "hwR/AAABhxAAAAAAAAAAAAAAAAAAAAABMB0GA1UdDgQWBBTTRIyKAvg3MKv79lcl\n" +
+    "ODEw/IAsqTAfBgNVHSMEGDAWgBT6FL1X6RDBKiQ16AfJWtEEEybFUTAKBggqhkjO\n" +
+    "PQQDAgNHADBEAiBTEDW320iV+G4Xl3zzD9xfwudmUVct3JS35t9OHPKiigIgLmeV\n" +
+    "TKzmi5ZM7yEQkpzwvLxEzgxcVrfVvb0hcAmhog0=\n" +
+    "-----END CERTIFICATE-----\n"
+
+public fun serverKeyPem(): String =
+    "-----BEGIN PRIVATE KEY-----\n" +
+    "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg4J7bsjg1SuxLJd5M\n" +
+    "Nm1a+Wet4x+34Ihqjq3GRmsBeryhRANCAARwmGmCrUnsgoUYQBXIPs9w53rBCipe\n" +
+    "R7AgyzExDov30/Z2Zfl629C7GfvfuQSqG/pgUZMHTlNptxAt3RK2LxzI\n" +
+    "-----END PRIVATE KEY-----\n"

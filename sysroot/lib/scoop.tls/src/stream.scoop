@@ -1,0 +1,98 @@
+package scoop.tls
+
+import scoop.platform.io.*
+import scoop.platform.memory.*
+
+public class TlsStream internal constructor(private val pump: SyncPump, private val owner: Disposable)
+    : ByteSource, ByteSink, Disposable {
+    private var disposed: Boolean = false
+    private var active: Boolean = false
+    public val isDisposed: Boolean get() = disposed
+    public val connectionInfo: TlsConnectionInfo get() { requireIdle(); return pump.engine.connectionInfo }
+
+    private fun requireIdle() {
+        if (disposed) throw IllegalStateException(Some("TLS stream is closed"))
+        if (active) throw IllegalStateException(Some("TLS stream operation is active"))
+    }
+
+    internal fun handshake() {
+        requireIdle()
+        active = true
+        try { pump.drive(0, None) }
+        catch (error: Throwable) { abort(error) }
+        finally { active = false }
+    }
+
+    public override fun readInto(buffer: NativeByteBuffer, count: Long): Long = transfer(buffer, count, true)
+    public override fun writeFrom(buffer: NativeByteBuffer, count: Long): Long = transfer(buffer, count, false)
+
+    private fun transfer(buffer: NativeByteBuffer, count: Long, read: Boolean): Long {
+        requireIdle()
+        val available = if (read) buffer.writableBytes else buffer.readableBytes
+        if (count < 0L) throw IllegalArgumentException(Some("negative TLS transfer count"))
+        if (count > available) throw IndexOutOfBoundsException()
+        if (count == 0L) return 0L
+        val prefix = if (!read && count > 16384L) 16384L else count
+        @Unsafe {
+            val borrow = if (read) buffer.borrowWritable(prefix) else buffer.borrowReadable(prefix)
+            active = true
+            try { return pump.drive(if (read) 1 else 2, Some(borrow)) }
+            catch (error: Throwable) { abort(error) }
+            finally { active = false; borrow.complete(pump.progress) }
+        }
+    }
+
+    public override fun flush() {
+        requireIdle()
+        active = true
+        try { pump.drain(); pump.sink.flush() }
+        catch (error: Throwable) { abort(error) }
+        finally { active = false }
+    }
+
+    public fun shutdownGracefully() {
+        requireIdle()
+        active = true
+        try { pump.drive(3, None) }
+        catch (error: Throwable) { abort(error) }
+        finally { active = false }
+        closeOwned()
+    }
+
+    private fun abort(error: Throwable): Nothing {
+        active = false
+        try { closeOwned() }
+        catch (cleanup: Throwable) { throw ResourceUseException(error, cleanup) }
+        throw error
+    }
+
+    private fun closeOwned() {
+        if (disposed) return
+        disposed = true
+        val resources: Array<Disposable> = [owner, pump.engine, pump.input, pump.output]
+        when (closeAll(resources)) {
+            case Some(error) -> throw error
+            case None -> return
+        }
+    }
+
+    public override fun dispose() {
+        if (active) throw IllegalStateException(Some("TLS stream operation is active"))
+        closeOwned()
+    }
+    public fun close() { dispose() }
+}
+
+internal fun closeAll(resources: Array<Disposable>): Throwable? {
+    var failure: Throwable? = None
+    for (resource in resources) {
+        try { resource.dispose() }
+        catch (error: Throwable) {
+            failure = Some(when (failure) {
+                case None -> error
+                case Some(primary) -> ResourceUseException(primary, error)
+            })
+        }
+    }
+    return failure
+}

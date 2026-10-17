@@ -1,0 +1,55 @@
+package scoop.crypto
+
+import scoop.crypto.native.*
+
+public enum DigestAlgorithm { SHA256, SHA384, SHA512 }
+
+internal fun digestCode(algorithm: DigestAlgorithm): Int = when (algorithm) {
+    case SHA256 -> 0
+    case SHA384 -> 1
+    case SHA512 -> 2
+}
+
+public class Digest public constructor(algorithm: DigestAlgorithm) : Disposable {
+    private var handle: ULong = createDigest(algorithm)
+    private var finished: Boolean = false
+
+    private fun requireActive() {
+        if (handle == 0UL || finished) throw IllegalStateException(Some("digest is closed or finished"))
+    }
+
+    public fun update(data: List<Byte>) {
+        requireActive()
+        val bytes = data.toArray()
+        try {
+            @Unsafe { bytes.withDataPointer { pointer, count ->
+                @Unsafe { cryptoValue(digestUpdate(handle, pointer, count), "update digest") }
+            } }
+        } catch (error: Throwable) { finished = true; throw error }
+    }
+
+    public fun finish(): Array<Byte> {
+        requireActive()
+        finished = true
+        @Unsafe { return cryptoBytes(digestFinish(handle), "finish digest") }
+    }
+
+    public override fun dispose() {
+        val owned = handle
+        handle = 0UL
+        if (owned != 0UL) @Unsafe { digestFree(owned) }
+    }
+    public fun close() { dispose() }
+}
+
+public fun digest(algorithm: DigestAlgorithm, data: List<Byte>): Array<Byte> =
+    Digest(algorithm).use { context -> context.update(data); context.finish() }
+
+public fun secureRandomBytes(count: Long): Array<Byte> {
+    if (count < 0L) throw IllegalArgumentException(Some("negative random byte count"))
+    @Unsafe { return cryptoBytes(nativeRandom(count), "secure random") }
+}
+
+private fun createDigest(algorithm: DigestAlgorithm): ULong {
+    @Unsafe { return cryptoValue(digestNew(digestCode(algorithm)), "create digest") }
+}

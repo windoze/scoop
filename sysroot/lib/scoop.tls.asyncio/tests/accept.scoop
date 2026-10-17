@@ -1,0 +1,45 @@
+package scoop.tls.asyncio
+
+import scoop.asyncio.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.*
+import scoop.test.*
+import scoop.tls.*
+
+@Test
+private class AsyncTlsAcceptTests {
+    @Test
+    fun `a stalled handshake does not block another accept and cancellation closes its transport`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val listener = loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
+            val config = serverContext(TlsOptions())
+            val firstConnect = scope.async<AsyncTcpStream> suspend { loop.connectTcp(listener.localAddress) }
+            val rawServer = ObservedTransport(listener.accept())
+            val rawClient = firstConnect.await()
+            val stalled = scope.launch suspend {
+                try { asyncTlsServer(rawServer, config); fail(Some("plaintext peer completed TLS")) }
+                catch (_: CancellationException) { assertEquals(1, rawServer.closes) }
+            }
+            try {
+                rawServer.readStarted.await()
+                val secondConnect = scope.async<AsyncTcpStream> suspend { loop.connectTcp(listener.localAddress) }
+                val secondServer = ObservedTransport(listener.accept())
+                val secondClient = ObservedTransport(secondConnect.await())
+                val (client, server) = tlsPair(scope, secondClient, secondServer)
+                try {
+                    stalled.cancel(); stalled.join()
+                    assertEquals(1, rawServer.closes)
+                    val bytes = NativeByteBuffer.allocate(1L)
+                    try {
+                        bytes.writeByte(42)
+                        client.writeFully(bytes)
+                        bytes.clear()
+                        server.readFully(bytes)
+                        assertEquals(42.toInt8(), bytes.getByte(0L))
+                    } finally { bytes.close() }
+                } finally { client.close(); server.close() }
+            } finally { stalled.cancel(); rawClient.close(); listener.close(); config.close() }
+        }
+    }
+}

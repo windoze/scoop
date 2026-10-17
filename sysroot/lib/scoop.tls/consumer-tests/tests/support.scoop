@@ -1,0 +1,18 @@
+package tls.consumer
+
+import scoop.crypto.*
+import scoop.crypto.x509.*
+import scoop.crypto.testdata.*
+import scoop.tls.*
+
+internal fun consumerClientContext(): TlsClientContext {
+    return Certificate.fromPem(rootPem()).use { root ->
+        TrustStore.fromCertificates([root]).use { store -> TlsClientContext(store) }
+    }
+}
+
+internal fun consumerServerContext(): TlsServerContext {
+    return Certificate.fromPem(serverPem()).use { leaf -> Certificate.fromPem(intermediatePem()).use { intermediate ->
+        PrivateKey.fromPem(serverKeyPem()).use { key -> TlsServerContext([leaf, intermediate], key) }
+    } }
+}

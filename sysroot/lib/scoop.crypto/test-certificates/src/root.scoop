@@ -1,0 +1,23 @@
+package scoop.crypto.testdata
+
+// Fixed OpenSSL 3.6.5 CLI test input; dates and extensions are intentional.
+
+public fun rootPem(): String =
+    "-----BEGIN CERTIFICATE-----\n" +
+    "MIIBkTCCATigAwIBAgICEAAwCgYIKoZIzj0EAwIwHjEcMBoGA1UEAwwTU2Nvb3Ag\n" +
+    "TTUxIFRlc3QgUm9vdDAeFw0yNDAxMDEwMDAwMDBaFw0zNjAxMDEwMDAwMDBaMB4x\n" +
+    "HDAaBgNVBAMME1Njb29wIE01MSBUZXN0IFJvb3QwWTATBgcqhkjOPQIBBggqhkjO\n" +
+    "PQMBBwNCAAQv0jOGiFGQ3XRlvN2Ld9Kxw2/SIKr3UWJGf2mkIqYyocLmQQ4tQiQG\n" +
+    "AjjxM8pOJreEqWSkWh74FrhZGEEB0j07o2YwZDASBgNVHRMBAf8ECDAGAQH/AgEB\n" +
+    "MA4GA1UdDwEB/wQEAwIBBjAdBgNVHQ4EFgQU5iGKS+jgQYEqd7ZKCafvNqM95N8w\n" +
+    "HwYDVR0jBBgwFoAU5iGKS+jgQYEqd7ZKCafvNqM95N8wCgYIKoZIzj0EAwIDRwAw\n" +
+    "RAIgYKl1m3OMRFN2tpDQtQZC9eeKBSUFms3lA8N0nXALjiACIG/qnfZHJMKqM6fD\n" +
+    "yclPZDx5oQ6Hy6cYjE3VwHq11c4c\n" +
+    "-----END CERTIFICATE-----\n"
+
+public fun rootKeyPem(): String =
+    "-----BEGIN PRIVATE KEY-----\n" +
+    "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgrMuj90htS5ZyNmJv\n" +
+    "8/gZl/DAUM2pKIwbEL57wH2K0PKhRANCAAQv0jOGiFGQ3XRlvN2Ld9Kxw2/SIKr3\n" +
+    "UWJGf2mkIqYyocLmQQ4tQiQGAjjxM8pOJreEqWSkWh74FrhZGEEB0j07\n" +
+    "-----END PRIVATE KEY-----\n"

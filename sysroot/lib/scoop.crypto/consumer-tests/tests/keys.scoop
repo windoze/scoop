@@ -1,0 +1,21 @@
+package crypto.consumer
+
+import scoop.crypto.*
+import scoop.test.*
+
+@Test
+private class PublicKeyConsumerTests {
+    @Test
+    fun `public key remains valid after private key closes across Cone boundaries`() {
+        val signer = PrivateKey.generate(KeyAlgorithm.Ed25519)
+        val publicKey: PublicKey = signer.publicKey()
+        val message = "external signature".toByteArray()
+        val signature = sign(SignatureAlgorithm.Ed25519, signer, message)
+        signer.close()
+        publicKey.use { key ->
+            PublicKey.fromPem(key.toPem()).use { imported ->
+                assertTrue(verify(SignatureAlgorithm.Ed25519, imported, message, signature))
+            }
+        }
+    }
+}

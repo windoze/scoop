@@ -2631,7 +2631,9 @@ manifest Cone 可在 `[native]` 中配置 `include`、`c_flags`、`cxx_flags` �
 
 native 预处理除编译器的目标宏外，还定义当前 target 对应的 `SCOOP_TARGET_OS_DARWIN`／`SCOOP_TARGET_OS_LINUX`、`SCOOP_TARGET_ARCH_AARCH64`／`SCOOP_TARGET_ARCH_X86_64` 及 `SCOOP_TARGET_ENV_NONE`／`SCOOP_TARGET_ENV_GNU`／`SCOOP_TARGET_ENV_MUSL`；每组只定义匹配项，值为 `1`。
 
-include 搜索目录允许不存在，直接交给所选 C/C++ 编译器按搜索顺序处理；这不影响实际源码、被引用头文件及显式 forced include 缺失时的正常诊断。
+`native.include` 的每个元素可为路径字符串，或 `{ path = "...", when = { ... } }` 表；表中的 `path` 必需，`when` 使用 12.2.2 的现有目标条件，省略时无条件。全部条目先检查字段、路径和条件，选中条目按声明顺序交给所选 C/C++ 编译器。字符串等价于只有 `path` 的表；路径仍按普通文件系统规则解析，不作变量展开。这样多个目标可分别使用匹配的生成配置头文件。
+
+include 搜索目录允许不存在，直接交给所选 C/C++ 编译器按搜索顺序处理；这不影响实际源码、被引用头文件及显式 forced include 缺失时的正常诊断。未选中的 include 不参与当前目标的搜索和 native 对象更新判断。
 
 编译选项按 argv 元素传递，不作 shell 展开。`-I`、`-iquote`、`-isystem`、`-idirafter`、`-include` 和 `-imacros` 中的路径采用同一普通文件系统路径规则，在实际 native 编译时解析；空路径与 NUL 非法，不按路径是否越出 Cone 根拒绝头文件输入。响应文件、额外 compiler plugin/specs、编译器搜索前缀以及 linker 参数不由 `c_flags`／`cxx_flags` 接收；target、sysroot、输入语言、编译阶段、依赖输出和产物路径由 driver 管理。头文件按实际 include 搜索规则读取，不限制物理归属或审计符号链接来源；runtime 内部头文件不属于公开支持的 API。driver 自动提供公开 FFI 头 `scoop_rt.h` 及其公开依赖，输入与缓存契约见实现规范 2.7。
 

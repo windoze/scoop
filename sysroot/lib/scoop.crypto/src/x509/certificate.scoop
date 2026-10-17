@@ -1,0 +1,80 @@
+package scoop.crypto.x509
+
+import scoop.crypto.PublicKey
+import scoop.crypto.native.*
+import scoop.time.Instant
+
+public enum SubjectAlternativeName { Dns(String), Ip(Array<Byte>) }
+public enum PeerIdentity { Dns(String), Ip(Array<Byte>) }
+
+public class Certificate private constructor(private var handle: ULong) : Disposable {
+    public val subject: String get() = textField(0)
+    public val issuer: String get() = textField(1)
+    public val serialNumber: String get() = textField(2)
+    public val notBefore: Instant get() = timeField(0)
+    public val notAfter: Instant get() = timeField(1)
+
+    public companion object {
+        public fun fromPem(pem: String): Certificate = importCertificate(pem.toByteArray(), true)
+        public fun fromDer(der: List<Byte>): Certificate = importCertificate(der, false)
+
+        private fun importCertificate(input: List<Byte>, pem: Boolean): Certificate {
+            val bytes = input.toArray()
+            @Unsafe { return bytes.withDataPointer { pointer, count ->
+                @Unsafe { return@withDataPointer Certificate(cryptoValue(certificateImport(if (pem) 1 else 0, pointer, count), "parse certificate")) }
+            } }
+        }
+    }
+
+    internal fun nativeHandle(): ULong {
+        if (handle == 0UL) throw IllegalStateException(Some("certificate is closed"))
+        return handle
+    }
+
+    private fun textField(field: Int): String {
+        @Unsafe { return String.fromUtf8Unchecked(cryptoBytes(certificateText(nativeHandle(), field), "certificate field")) }
+    }
+
+    private fun timeField(field: Int): Instant {
+        @Unsafe { return Instant.fromEpochSeconds(cryptoValue(certificateTime(nativeHandle(), field), "certificate time").toInt64()) }
+    }
+
+    public fun toDer(): Array<Byte> { @Unsafe { return cryptoBytes(certificateExport(nativeHandle(), 0), "export certificate") } }
+    public fun toPem(): String { @Unsafe { return String.fromUtf8Unchecked(cryptoBytes(certificateExport(nativeHandle(), 1), "export certificate")) } }
+    public fun publicKey(): PublicKey { @Unsafe { return PublicKey(cryptoValue(certificateKey(nativeHandle()), "certificate public key")) } }
+
+    public fun verifySignature(issuer: PublicKey): Boolean {
+        @Unsafe { return cryptoValue(certificateSignature(nativeHandle(), publicKeyHandle(issuer)), "certificate signature") == 1UL }
+    }
+
+    public fun subjectAlternativeNames(): Array<SubjectAlternativeName> {
+        @Unsafe {
+            val names = cryptoValue(certificateNames(nativeHandle()), "certificate names")
+            try {
+                val output = ArrayList<SubjectAlternativeName>()
+                var index = 0
+                val count = namesCount(names)
+                while (index < count) {
+                    when (nameKind(names, index)) {
+                        case 0 -> {
+                            val bytes = cryptoBytes(nameBytes(names, index), "DNS alternative name")
+                            val utf8 = Array<UInt8>(bytes.size) { offset -> bytes[offset].toUInt8() }
+                            output.add(SubjectAlternativeName.Dns(String.fromUtf8(utf8)))
+                        }
+                        case 1 -> output.add(SubjectAlternativeName.Ip(cryptoBytes(nameBytes(names, index), "IP alternative name")))
+                        else -> { index += 1; continue }
+                    }
+                    index += 1
+                }
+                return output.toArray()
+            } finally { namesFree(names) }
+        }
+    }
+
+    public override fun dispose() {
+        val owned = handle
+        handle = 0UL
+        if (owned != 0UL) @Unsafe { certificateFree(owned) }
+    }
+    public fun close() { dispose() }
+}

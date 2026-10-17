@@ -1,0 +1,16 @@
+package scoop.crypto.testdata
+
+// Fixed OpenSSL 3.6.5 CLI test input; dates and extensions are intentional.
+
+public fun intermediatePem(): String =
+    "-----BEGIN CERTIFICATE-----\n" +
+    "MIIBlTCCATugAwIBAgICEAEwCgYIKoZIzj0EAwIwHjEcMBoGA1UEAwwTU2Nvb3Ag\n" +
+    "TTUxIFRlc3QgUm9vdDAeFw0yNDAxMDEwMDAwMDBaFw0zNTAxMDEwMDAwMDBaMCEx\n" +
+    "HzAdBgNVBAMMFlNjb29wIE01MSBJbnRlcm1lZGlhdGUwWTATBgcqhkjOPQIBBggq\n" +
+    "hkjOPQMBBwNCAAQoyWIakLTfmD4GJLKxj9yXWNdrJpnijBLvnY6Ie3S5fFcIISAa\n" +
+    "bDNvhe09R2C6CdFPmy/auWD0pWdCEIc7XyZ3o2YwZDASBgNVHRMBAf8ECDAGAQH/\n" +
+    "AgEAMA4GA1UdDwEB/wQEAwIBBjAdBgNVHQ4EFgQU+hS9V+kQwSokNegHyVrRBBMm\n" +
+    "xVEwHwYDVR0jBBgwFoAU5iGKS+jgQYEqd7ZKCafvNqM95N8wCgYIKoZIzj0EAwID\n" +
+    "SAAwRQIhAI/3XkpbH2Lg5DG2nGNcneIHjhw5c4soRQlOIgdnyCVIAiBoTglAQPqI\n" +
+    "P2fu4Y4rN4cqgMPAKGeMxmWJFMyTs5BoEw==\n" +
+    "-----END CERTIFICATE-----\n"

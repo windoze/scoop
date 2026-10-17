@@ -1,0 +1,87 @@
+package scoop.tls
+
+import scoop.crypto.PrivateKey
+import scoop.crypto.native.*
+import scoop.crypto.x509.*
+import scoop.tls.native.*
+
+public class TlsClientContext private constructor(private val state: ContextState) : Disposable {
+    public constructor(trustStore: TrustStore, options: TlsOptions = TlsOptions())
+        : this(clientState(trustStore, options)) {}
+
+    internal fun newSession(peer: TlsPeerName): ULong {
+        val (kind, bytes) = peerData(peer)
+        return state.withHandle { handle ->
+            @Unsafe { return@withHandle bytes.withDataPointer { pointer, count ->
+                @Unsafe { return@withDataPointer tlsValue(sessionNew(handle, 0, kind, Some(pointer), count), "create client TLS session") }
+            } }
+        }
+    }
+    public fun close() { state.dispose() }
+    public override fun dispose() { close() }
+}
+
+public class TlsServerContext private constructor(private val state: ContextState) : Disposable {
+    public constructor(certificates: List<Certificate>, privateKey: PrivateKey, options: TlsOptions = TlsOptions())
+        : this(serverState(certificates, privateKey, options)) {}
+
+    internal fun newSession(): ULong = state.withHandle { handle ->
+        @Unsafe { return@withHandle tlsValue(sessionNew(handle, 1, 0, None, 0L), "create server TLS session") }
+    }
+    public fun close() { state.dispose() }
+    public override fun dispose() { close() }
+}
+
+private fun clientState(trustStore: TrustStore, options: TlsOptions): ContextState {
+    val alpn = encodeOptions(options)
+    @Unsafe { return ContextState(newContext(false, options, alpn, trustStoreHandle(trustStore))) }
+}
+
+private fun serverState(certificates: List<Certificate>, privateKey: PrivateKey, options: TlsOptions): ContextState {
+    val alpn = encodeOptions(options)
+    if (certificates.size == 0L) throw IllegalArgumentException(Some("TLS server requires a certificate chain"))
+    @Unsafe {
+        val key = privateKeyHandle(privateKey)
+        val chain = Array<ULong>(certificates.size) { index -> @Unsafe { return@Array certificateHandle(certificates[index]) } }
+        val handle = newContext(true, options, alpn, 0UL)
+        try {
+            chain.withDataPointer { pointer, count ->
+                @Unsafe { tlsValue(contextIdentity(handle, key, pointer, count), "configure TLS server identity") }
+            }
+            return ContextState(handle)
+        } catch (error: Throwable) {
+            contextFree(handle)
+            throw error
+        }
+    }
+}
+
+private fun newContext(server: Boolean, options: TlsOptions, alpn: Array<Byte>, store: ULong): ULong {
+    @Unsafe { return alpn.withDataPointer { pointer, count ->
+        @Unsafe { return@withDataPointer tlsValue(contextNew(if (server) 1 else 0, versionCode(options.minimum), versionCode(options.maximum), pointer, count, store), "create TLS context") }
+    } }
+}
+
+private class ContextState(private var handle: ULong) : Disposable {
+    private val held: AtomicBoolean = AtomicBoolean(false)
+
+    private fun <T> locked(block: () -> T): T {
+        while (!held.compareAndSet(false, true, MemoryOrder.Acquire, MemoryOrder.Relaxed)) { }
+        try { return block() }
+        finally { held.store(false, MemoryOrder.Release) }
+    }
+
+    fun <T> withHandle(block: (ULong) -> T): T = locked {
+        if (handle == 0UL) throw IllegalStateException(Some("TLS context is closed"))
+        block(handle)
+    }
+
+    public override fun dispose() {
+        locked {
+            val owned = handle
+            handle = 0UL
+            if (owned != 0UL) @Unsafe { contextFree(owned) }
+            Unit
+        }
+    }
+}

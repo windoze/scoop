@@ -1,0 +1,76 @@
+package scoop.tls.asyncio
+
+import scoop.asyncio.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+import scoop.tls.*
+
+@Test
+private class AsyncTlsShutdownTests {
+    @Test
+    fun `only close_notify yields a zero read and shutdown waits for both peers`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val (a, b) = rawPair(loop, scope)
+            val (client, server) = tlsPair(scope, a, b)
+            val input = NativeByteBuffer.allocate(1L)
+            try {
+                val ending = scope.launch suspend { server.shutdownGracefully() }
+                assertEquals(0L, client.readInto(input, 1L))
+                assertFalse(ending.isCompleted)
+                client.shutdownGracefully()
+                ending.join()
+                assertTrue(client.isClosed && server.isClosed)
+            } finally { client.close(); server.close(); input.close() }
+        }
+    }
+
+    @Test
+    fun `raw EOF is truncated and unread plaintext prevents graceful shutdown`() {
+        rejectEnd(false)
+        rejectEnd(true)
+    }
+
+    @Test
+    fun `cancelling graceful shutdown terminates and completes local cleanup`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val (a, b) = rawPair(loop, scope)
+            val (client, server) = tlsPair(scope, a, b)
+            a.readStarted = AsyncGate()
+            try {
+                val ending = scope.launch suspend {
+                    try { client.shutdownGracefully(); fail(Some("peer did not send close_notify")) }
+                    catch (_: CancellationException) { assertTrue(client.isClosed) }
+                }
+                a.readStarted.await()
+                ending.cancel()
+                ending.join()
+                assertTrue(client.isClosed)
+                assertEquals(1, a.closes)
+            } finally { client.close(); server.close() }
+        }
+    }
+}
+
+private fun rejectEnd(unread: Boolean) {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { scope ->
+        val (a, b) = rawPair(loop, scope)
+        val (client, server) = tlsPair(scope, a, b)
+        val buffer = NativeByteBuffer.allocate(9L)
+        try {
+            if (unread) {
+                buffer.writeBytes("remaining".toByteArray())
+                server.writeFully(buffer)
+                try { client.shutdownGracefully(); fail(Some("unread plaintext was discarded")) }
+                catch (error: TlsException) { assertTrue(error.kind == TlsFailureKind.UnconsumedData) }
+            } else {
+                b.inner.shutdownOutput()
+                try { client.readInto(buffer, 1L); fail(Some("raw EOF reported as close_notify")) }
+                catch (error: TlsException) { assertTrue(error.kind == TlsFailureKind.Truncated) }
+            }
+            assertTrue(client.isClosed)
+        } finally { client.close(); server.close(); buffer.close() }
+    }
+}

@@ -1,0 +1,47 @@
+package scoop.tls
+
+import scoop.crypto.PrivateKey
+import scoop.crypto.testdata.*
+import scoop.crypto.x509.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.tls.native.*
+import scoop.test.*
+
+internal fun clientContext(options: TlsOptions = TlsOptions()): TlsClientContext {
+    return Certificate.fromPem(rootPem()).use { root ->
+        TrustStore.fromCertificates([root]).use { store -> TlsClientContext(store, options) }
+    }
+}
+
+internal fun serverContext(options: TlsOptions = TlsOptions(), leaf: String = serverPem()): TlsServerContext {
+    return Certificate.fromPem(leaf).use { server ->
+        Certificate.fromPem(intermediatePem()).use { intermediate ->
+            PrivateKey.fromPem(serverKeyPem()).use { key -> TlsServerContext([server, intermediate], key, options) }
+        }
+    }
+}
+
+internal fun transfer(from: TlsEngine, to: TlsEngine, buffer: NativeByteBuffer): Long {
+    buffer.clear()
+    val count = if (from.pendingOutput < to.inputCapacity) from.pendingOutput else to.inputCapacity
+    if (count == 0L) return 0L
+    val taken = from.takeCiphertext(buffer, if (count < buffer.capacity) count else buffer.capacity)
+    var fed = 0L
+    while (buffer.readableBytes > 0L) fed += to.receiveCiphertext(buffer)
+    assertEquals(taken, fed)
+    return fed
+}
+
+internal fun handshake(client: TlsEngine, server: TlsEngine, fragment: Long = 1024L) {
+    NativeByteBuffer.allocate(fragment).use { staging ->
+        var clientDone = false
+        var serverDone = false
+        while (!clientDone || !serverDone) {
+            if (!clientDone) clientDone = client.handshake().kind == TlsStepKind.Done
+            if (!serverDone) serverDone = server.handshake().kind == TlsStepKind.Done
+            val moved = transfer(client, server, staging) + transfer(server, client, staging)
+            if (!clientDone || !serverDone) assertTrue(moved > 0L, Some("TLS engines stopped making handshake progress"))
+        }
+        while (server.pendingOutput > 0L) transfer(server, client, staging)
+    }
+}

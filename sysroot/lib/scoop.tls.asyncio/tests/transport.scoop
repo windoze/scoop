@@ -1,0 +1,65 @@
+package scoop.tls.asyncio
+
+import scoop.asyncio.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.concurrent.*
+
+internal class TransportFailure : Exception(Some("test TLS transport failure"))
+internal class CleanupFailure : Exception(Some("test TLS transport cleanup failure"))
+
+internal class ObservedTransport(val inner: AsyncTcpStream) : AsyncByteStream, AsyncCloseable {
+    var reads: Long = 0L
+    var writes: Long = 0L
+    var closes: Int = 0
+    var gateFirstWrite: Boolean = false
+    var failWrite: Boolean = false
+    var failClose: Boolean = false
+    var foreignRead: Boolean = false
+    var worker: Thread? = None
+    var foreignThread: ThreadId? = None
+    var writeGate: AsyncGate? = None
+    var flushGate: AsyncGate? = None
+    val flushStarted: AsyncGate = AsyncGate()
+    private val closing: AtomicBoolean = AtomicBoolean(false)
+    var readStarted: AsyncGate = AsyncGate()
+    var writeStarted: AsyncGate = AsyncGate()
+    val closeStarted: AsyncGate = AsyncGate()
+    var closeGate: AsyncGate? = None
+
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long {
+        reads += 1L
+        readStarted.signal()
+        val received = inner.readInto(buffer, if (count > 4093L) 4093L else count)
+        if (foreignRead) {
+            foreignRead = false
+            suspendCoroutine<Unit> { continuation -> worker = Some(Thread.start { continuation.resume(Unit) }) }
+            foreignThread = Some(currentThreadId())
+        }
+        return received
+    }
+    public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long {
+        writes += 1L
+        writeStarted.signal()
+        if (gateFirstWrite && writes == 1L) readStarted.await()
+        if (present(writeGate)) writeGate!!.await()
+        if (closing.load()) throw IoClosedException()
+        if (failWrite) throw TransportFailure()
+        return inner.writeFrom(buffer, if (count > 2053L) 2053L else count)
+    }
+    public override suspend fun flush() {
+        flushStarted.signal()
+        if (present(flushGate)) flushGate!!.await()
+        if (closing.load()) throw IoClosedException()
+        inner.flush()
+    }
+    public override suspend fun close() {
+        closes += 1
+        closing.store(true)
+        if (present(writeGate)) writeGate!!.signal()
+        if (present(flushGate)) flushGate!!.signal()
+        closeStarted.signal()
+        if (present(closeGate)) closeGate!!.await()
+        inner.close()
+        if (failClose) throw CleanupFailure()
+    }
+}

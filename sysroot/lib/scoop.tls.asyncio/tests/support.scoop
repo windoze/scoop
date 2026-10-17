@@ -1,0 +1,60 @@
+package scoop.tls.asyncio
+
+import scoop.asyncio.*
+import scoop.crypto.*
+import scoop.crypto.x509.*
+import scoop.crypto.testdata.*
+import scoop.platform.net.*
+import scoop.tls.*
+
+internal class AsyncGate {
+    private val lock: TlsLock = TlsLock()
+    private var open: Boolean = false
+    private val waiting: ArrayList<Continuation<Unit>> = ArrayList<Continuation<Unit>>()
+    fun signal() {
+        val ready = lock.withLock {
+            open = true
+            val result = waiting.toArray()
+            waiting.clear()
+            result
+        }
+        for (continuation in ready) continuation.resume(Unit)
+    }
+    suspend fun await() {
+        suspendCoroutine<Unit> { continuation ->
+            val done = lock.withLock { if (open) true else { waiting.add(continuation); false } }
+            if (done) continuation.resume(Unit)
+        }
+    }
+}
+
+internal fun clientContext(options: TlsOptions): TlsClientContext = Certificate.fromPem(rootPem()).use { root ->
+    TrustStore.fromCertificates([root]).use { store -> TlsClientContext(store, options) }
+}
+
+internal fun serverContext(options: TlsOptions): TlsServerContext = Certificate.fromPem(serverPem()).use { leaf ->
+    Certificate.fromPem(intermediatePem()).use { intermediate ->
+        PrivateKey.fromPem(serverKeyPem()).use { key -> TlsServerContext([leaf, intermediate], key, options) }
+    }
+}
+
+internal suspend fun rawPair(loop: EventLoop, scope: CoroutineScope): (ObservedTransport, ObservedTransport) {
+    val listener = loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
+    try {
+        val connecting = scope.async<AsyncTcpStream> suspend { loop.connectTcp(listener.localAddress) }
+        val server = listener.accept()
+        return (ObservedTransport(connecting.await()), ObservedTransport(server))
+    } finally { listener.close() }
+}
+
+internal suspend fun tlsPair(scope: CoroutineScope, clientRaw: ObservedTransport, serverRaw: ObservedTransport,
+    options: TlsOptions = TlsOptions()): (AsyncTlsStream, AsyncTlsStream) {
+    val clientConfig = clientContext(options)
+    val serverConfig = serverContext(options)
+    try {
+        val accepting = scope.async<AsyncTlsStream> suspend { asyncTlsServer(serverRaw, serverConfig) }
+        val client = asyncTlsClient(clientRaw, clientConfig, TlsPeerName.Dns("localhost"))
+        try { return (client, accepting.await()) }
+        catch (error: Throwable) { client.close(); throw error }
+    } finally { clientConfig.close(); serverConfig.close() }
+}

@@ -1,0 +1,59 @@
+package scoop.tls
+
+import scoop.crypto.testdata.*
+import scoop.platform.fs.*
+import scoop.platform.process.*
+import scoop.platform.system.OsString
+import scoop.test.*
+
+internal class InteropDirectory : Disposable {
+    val path: Path = Files.createTempDirectory(prefix = "scoop-openssl-peer-")
+    fun child(name: String): Path = path.resolve(Path.fromString(name))
+    fun certificates() {
+        Files.writeText(child("root.pem"), rootPem())
+        Files.writeText(child("server.pem"), serverPem() + intermediatePem())
+        Files.writeText(child("server-key.pem"), serverKeyPem())
+    }
+    public override fun dispose() { Files.deleteRecursively(path) }
+}
+
+internal fun peerCommand(executable: String, arguments: List<String>, input: Stdio = Stdio.Null): Command = Command(
+    Path.fromString(executable), Array<OsString>(arguments.size) { index -> OsString.fromString(arguments[index]) },
+    stdin = input, stdout = Stdio.Pipe, stderr = Stdio.Pipe
+)
+
+internal fun peerSucceeded(output: ProcessOutput) {
+    val details = Some(OsString.fromBytes(output.stderr).decodeUtf8())
+    when (output.status) {
+        case Exited(code) -> assertEquals(0, code, details)
+        case Signaled(_) -> fail(details)
+    }
+}
+
+internal fun pythonTlsPeer(): String =
+    "import socket, ssl, sys\n" +
+    "certificate, key, report, version = sys.argv[1:]\n" +
+    "context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)\n" +
+    "selected = ssl.TLSVersion.TLSv1_2 if version == '12' else ssl.TLSVersion.TLSv1_3\n" +
+    "context.minimum_version = context.maximum_version = selected\n" +
+    "context.load_cert_chain(certificate, key)\n" +
+    "context.set_alpn_protocols(['proto-b', 'proto-a'])\n" +
+    "def server_name(connection, name, initial):\n" +
+    "    with open(report, 'w') as output:\n" +
+    "        output.write(name if name is not None else 'none')\n" +
+    "context.set_servername_callback(server_name)\n" +
+    "with socket.socket() as listener:\n" +
+    "    listener.bind(('127.0.0.1', 0))\n" +
+    "    listener.listen(1)\n" +
+    "    print(listener.getsockname()[1], flush=True)\n" +
+    "    raw, _ = listener.accept()\n" +
+    "    with context.wrap_socket(raw, server_side=True) as connection:\n" +
+    "        data = b''\n" +
+    "        while len(data) < 3:\n" +
+    "            part = connection.recv(3 - len(data))\n" +
+    "            if not part: raise RuntimeError('missing application data')\n" +
+    "            data += part\n" +
+    "        assert data == b'tls'\n" +
+    "        assert connection.selected_alpn_protocol() == 'proto-b'\n" +
+    "        connection.sendall(b'peer')\n" +
+    "        connection.unwrap().close()\n"

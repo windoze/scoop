@@ -4,6 +4,7 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -111,9 +112,14 @@ static void broken_pipe(void) {
 int main(void) {
     byte_transfers();
     broken_pipe();
-    char temporary[] = "/tmp/scoop-native-io-XXXXXX";
+    const char *directory = getenv("TMPDIR");
+    if (directory == NULL || directory[0] == '\0')
+        directory = ".";
+    char *temporary = NULL;
+    assert(asprintf(&temporary, "%s/scoop-native-io-XXXXXX", directory) > 0);
     assert(scoop_platform_path_temporary(temporary, false) == 0);
     assert(temporary_creates == 1);
     assert(unlink(temporary) == 0);
+    free(temporary);
     return 0;
 }

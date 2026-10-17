@@ -1,0 +1,96 @@
+package scoop.tls.asyncio
+
+import scoop.asyncio.*
+import scoop.platform.memory.*
+
+internal suspend fun request(state: TlsConnection, kind: RequestKind, buffer: NativeByteBuffer?, count: Long): Long {
+    val job = requireJob(state.loop, true)
+    return suspendCoroutine<Long> { continuation ->
+        val operation = state.lock.withLock { register(state, kind, job, continuation, buffer, count) }
+        when (operation) {
+            case None -> continuation.resume(0L)
+            case Some(entry) -> {
+                val listener = job.invokeOnCancellation { error -> cancelRequest(state, entry, error) }
+                val finished = state.lock.withLock {
+                    if (entry.released) true else { entry.listener = Some(listener); false }
+                }
+                if (finished) listener.dispose()
+                drive(state)
+            }
+        }
+    }
+}
+
+private fun register(state: TlsConnection, kind: RequestKind, job: Job, continuation: Continuation<Long>, buffer: NativeByteBuffer?, count: Long): TlsRequest? {
+    job.ensureActive()
+    if (state.closing) throw IoClosedException()
+    val both = kind == RequestKind.Handshake || kind == RequestKind.Shutdown
+    val reading = kind == RequestKind.Read
+    if (present(state.exclusive) || (both && (present(state.reader) || present(state.writer))) ||
+        (!both && (if (reading) present(state.reader) else present(state.writer))))
+        throw IllegalStateException(Some("TLS direction is busy"))
+    var borrow: NativeByteBorrow? = None
+    if (kind == RequestKind.Read || kind == RequestKind.Write) {
+        val bytes = buffer!!
+        val available = if (reading) bytes.writableBytes else bytes.readableBytes
+        if (count < 0L) throw IllegalArgumentException(Some("negative TLS transfer count"))
+        if (count > available) throw IndexOutOfBoundsException()
+        if (count == 0L) return None
+        val prefix = if (!reading && count > 16384L) 16384L else count
+        @Unsafe { borrow = Some(if (reading) bytes.borrowWritable(prefix) else bytes.borrowReadable(prefix)) }
+    }
+    val entry = TlsRequest(kind, job, continuation, borrow)
+    if (both) state.exclusive = Some(entry)
+    else if (reading) state.reader = Some(entry)
+    else state.writer = Some(entry)
+    if (kind == RequestKind.Handshake) state.adopted = true
+    return Some(entry)
+}
+
+private fun cancelRequest(state: TlsConnection, entry: TlsRequest, error: CancellationException) {
+    state.lock.withLock {
+        if (!entry.selected && !entry.released) terminate(state, Some(entry), error)
+        Unit
+    }
+    drive(state)
+}
+
+internal fun terminate(state: TlsConnection, origin: TlsRequest?, error: Throwable) {
+    if (!state.closing && present(origin)) state.closeJob = origin!!.job
+    state.closing = true
+    for (entry in requests(state)) {
+        if (!entry.selected) {
+            entry.selected = true
+            entry.failure = Some(if (present(origin) && entry === origin!!) error else IoClosedException())
+        }
+    }
+}
+
+internal fun releaseRequest(state: TlsConnection, entry: TlsRequest, actions: ArrayList<() -> Unit>) {
+    finishBorrow(entry)
+    entry.released = true
+    when (entry.kind) {
+        case Read -> state.reader = None
+        case Write -> state.writer = None
+        case Flush -> state.writer = None
+        case Handshake -> state.exclusive = None
+        case Shutdown -> state.exclusive = None
+    }
+    val listener = entry.listener
+    entry.listener = None
+    val failure = entry.failure
+    actions.add {
+        if (present(listener)) listener!!.dispose()
+        when (failure) {
+            case Some(error) -> entry.continuation.resumeWithException(error)
+            case None -> entry.continuation.resume(entry.progress)
+        }
+    }
+}
+
+internal fun finishBorrow(entry: TlsRequest) {
+    @Unsafe {
+        if (present(entry.borrow)) entry.borrow!!.complete(entry.progress)
+    }
+    entry.borrow = None
+}

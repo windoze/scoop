@@ -1,0 +1,29 @@
+package crypto.consumer
+
+import scoop.crypto.x509.*
+import scoop.crypto.testdata.*
+import scoop.test.*
+import scoop.time.Instant
+
+@Test
+private class CertificateConsumerTests {
+    @Test
+    fun `production certificate types trust and default arguments`() {
+        Certificate.fromPem(rootPem()).use { root ->
+            TrustStore.fromCertificates([root]).use { store ->
+                Certificate.fromPem(intermediatePem()).use { intermediate ->
+                    Certificate.fromPem(serverPem()).use { leaf ->
+                        val time = Instant.fromEpochSeconds(1800000000L)
+                        val result = store.verify(leaf, time, CertificatePurpose.ServerAuth, [intermediate], Some(PeerIdentity.Dns("localhost")))
+                        assertTrue(result == CertificateVerification.Verified)
+                        when (store.verify(leaf, time, CertificatePurpose.ServerAuth)) {
+                            case Verified -> fail(Some("missing intermediate accepted"))
+                            case Failed(error) -> assertEquals(20L, error.code)
+                        }
+                        leaf.publicKey().use { key -> assertTrue(key.toDer().size > 0L) }
+                    }
+                }
+            }
+        }
+    }
+}

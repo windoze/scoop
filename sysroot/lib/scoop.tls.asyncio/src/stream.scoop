@@ -1,0 +1,19 @@
+package scoop.tls.asyncio
+
+import scoop.asyncio.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.tls.TlsConnectionInfo
+
+public class AsyncTlsStream internal constructor(private val state: TlsConnection) : AsyncByteStream, AsyncCloseable {
+    public val isClosed: Boolean get() = state.lock.withLock { state.closed }
+    public val connectionInfo: TlsConnectionInfo get() = state.lock.withLock {
+        if (state.closing) throw IoClosedException()
+        state.engine.connectionInfo
+    }
+
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long = request(state, RequestKind.Read, Some(buffer), count)
+    public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long = request(state, RequestKind.Write, Some(buffer), count)
+    public override suspend fun flush() { request(state, RequestKind.Flush, None, 0L) }
+    public suspend fun shutdownGracefully() { request(state, RequestKind.Shutdown, None, 0L) }
+    public override suspend fun close() { closeConnection(state) }
+}
