@@ -4,7 +4,7 @@ import scoop.platform.memory.NativeByteBuffer
 
 public class BufferedSource private constructor(
     private val source: ByteSource,
-    private val buffer: NativeByteBuffer,
+    private val internalBuffer: NativeByteBuffer,
     private val owner: Disposable?
 ) : ByteSource, Disposable {
     private var disposed: Boolean = false
@@ -19,21 +19,21 @@ public class BufferedSource private constructor(
             where T : ByteSource, T : Disposable = BufferedSource(source, newIoBuffer(capacity), Some(source))
     }
 
-    public override fun readInto(destination: NativeByteBuffer, count: Long): Long {
+    public override fun readInto(buffer: NativeByteBuffer, count: Long): Long {
         requireIdle(disposed, active)
-        requireTransfer(count, destination.writableBytes)
+        requireTransfer(count, buffer.writableBytes)
         if (count == 0L) return 0L
         active = true
         try {
-            if (buffer.readableBytes == 0L && !eof) {
-                buffer.clear()
-                val received = source.readInto(buffer)
-                requireProgress(received, buffer.capacity)
+            if (internalBuffer.readableBytes == 0L && !eof) {
+                internalBuffer.clear()
+                val received = source.readInto(internalBuffer)
+                requireProgress(received, internalBuffer.capacity)
                 eof = received == 0L
             }
-            val available = buffer.readableBytes
+            val available = internalBuffer.readableBytes
             val copied = if (count < available) count else available
-            transferBytes(buffer, destination, copied)
+            transferBytes(internalBuffer, buffer, copied)
             return copied
         } finally { active = false }
     }
@@ -42,7 +42,7 @@ public class BufferedSource private constructor(
         if (disposed) return
         requireIdle(disposed, active)
         disposed = true
-        disposeBufferAndOwner(buffer, owner, None)
+        disposeBufferAndOwner(internalBuffer, owner, None)
     }
 
     public fun close() { dispose() }
@@ -50,7 +50,7 @@ public class BufferedSource private constructor(
 
 public class BufferedSink private constructor(
     private val sink: ByteSink,
-    private val buffer: NativeByteBuffer,
+    private val internalBuffer: NativeByteBuffer,
     private val owner: Disposable?
 ) : ByteSink, Disposable {
     private var disposed: Boolean = false
@@ -64,23 +64,23 @@ public class BufferedSink private constructor(
             where T : ByteSink, T : Disposable = BufferedSink(sink, newIoBuffer(capacity), Some(sink))
     }
 
-    public override fun writeFrom(source: NativeByteBuffer, count: Long): Long {
+    public override fun writeFrom(buffer: NativeByteBuffer, count: Long): Long {
         requireIdle(disposed, active)
-        requireTransfer(count, source.readableBytes)
+        requireTransfer(count, buffer.readableBytes)
         if (count == 0L) return 0L
         active = true
         try {
-            if (buffer.writableBytes == 0L) drain()
-            val available = buffer.writableBytes
+            if (internalBuffer.writableBytes == 0L) drain()
+            val available = internalBuffer.writableBytes
             val copied = if (count < available) count else available
-            transferBytes(source, buffer, copied)
+            transferBytes(buffer, internalBuffer, copied)
             return copied
         } finally { active = false }
     }
 
     private fun drain() {
-        try { sink.writeFully(buffer) }
-        finally { buffer.compact() }
+        try { sink.writeFully(internalBuffer) }
+        finally { internalBuffer.compact() }
     }
 
     public override fun flush() {
@@ -97,7 +97,7 @@ public class BufferedSink private constructor(
         var failure: Throwable? = None
         try { drain(); sink.flush() }
         catch (error: Throwable) { failure = Some(error) }
-        disposeBufferAndOwner(buffer, owner, failure)
+        disposeBufferAndOwner(internalBuffer, owner, failure)
     }
 
     public fun close() { dispose() }
@@ -108,9 +108,9 @@ private fun requireIdle(disposed: Boolean, active: Boolean) {
     if (active) throw IllegalStateException(Some("stream operation is active"))
 }
 
-private fun disposeBufferAndOwner(buffer: NativeByteBuffer, owner: Disposable?, initial: Throwable?) {
+private fun disposeBufferAndOwner(internalBuffer: NativeByteBuffer, owner: Disposable?, initial: Throwable?) {
     var failure = initial
-    try { buffer.dispose() }
+    try { internalBuffer.dispose() }
     catch (error: Throwable) { failure = Some(appendCleanupFailure(failure, error)) }
     when (owner) {
         case Some(value) -> {

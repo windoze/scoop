@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | R01 | 高层字节输入 List<Byte>，只读与可写数组转换分名 | 已完成；fmt/clippy、23 项定向 fixture（失败已闭合）、3 项平台组合测试通过 |
 | R02 | spawn(searchPath = false) 明确启动动作 | 已完成；fmt/clippy、CommandsTest 7 项通过 |
-| R03 | IO override 和同步／异步参数名一致 | 待实施 |
+| R03 | IO override 和同步／异步参数名一致 | 已完成；fmt/clippy、BufferedStreamsTest 6 项通过 |
 | R04 | OrNull 失败命名与证书验证 Result | 待实施 |
 | R05 | Closeable、isClosed 与 TLS takeOwnership 工厂 | 待实施 |
 | R06 | StringBuilder.append/toString 与字节 builder 链式追加 | 待实施 |

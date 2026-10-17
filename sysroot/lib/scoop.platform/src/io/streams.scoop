@@ -41,7 +41,7 @@ public fun ByteSink.writeFully(buffer: NativeByteBuffer, count: Long = buffer.re
     }
 }
 
-public fun ByteSource.copyTo(sink: ByteSink, bufferSize: Long = 8192L): Long {
+public fun ByteSource.copyTo(destination: ByteSink, bufferSize: Long = 8192L): Long {
     return newIoBuffer(bufferSize).use { buffer ->
         var total = 0L
         while (true) {
@@ -50,7 +50,7 @@ public fun ByteSource.copyTo(sink: ByteSink, bufferSize: Long = 8192L): Long {
             requireProgress(count, buffer.capacity)
             if (count == 0L) break
             if (count > Long.MAX_VALUE - total) throw ArithmeticException()
-            sink.writeFully(buffer, count)
+            destination.writeFully(buffer, count)
             total += count
         }
         total

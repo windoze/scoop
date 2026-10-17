@@ -6,6 +6,27 @@ import scoop.test.*
 @Test
 private class BufferedStreamsTest {
     @Test
+    fun `named IO parameters agree on concrete and interface receivers`() {
+        val output = TestSink(1L)
+        BufferedSource(TestSource([1, 2, 3, 4]), 2L).use { source ->
+            BufferedSink(output, 2L).use { sink ->
+                val inputView: ByteSource = source
+                val outputView: ByteSink = sink
+                NativeByteBuffer.allocate(2L).use { buffer ->
+                    assertEquals(1L, source.readInto(buffer = buffer, count = 1L))
+                    assertEquals(1L, inputView.readInto(buffer = buffer, count = 1L))
+                    assertEquals(1L, sink.writeFrom(buffer = buffer, count = 1L))
+                    assertEquals(1L, outputView.writeFrom(buffer = buffer, count = 1L))
+                }
+                assertEquals(2L, source.copyTo(destination = sink, bufferSize = 1L))
+            }
+        }
+        assertEquals(4L, output.bytes.size)
+        val bytes = output.bytes.toByteArray()
+        for (index in 0L..<bytes.size) assertEquals((index + 1L).toInt8(), bytes[index])
+    }
+
+    @Test
     fun `buffer wrappers borrow by default and owned factories close exactly once`() {
         val source = TestSource([1, 2, 3, 4])
         val borrowed = BufferedSource(source, 3L)

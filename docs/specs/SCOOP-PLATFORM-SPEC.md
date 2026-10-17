@@ -108,6 +108,8 @@ NativeByteBuffer 新增普通公开 `@Unsafe borrowReadable(count: Long): Native
 
 ## 5. 同步字节流、缓冲与 UTF-8
 
+公开参数名属于库 API：override 保留接口的参数名，同步／异步对应入口使用相同名称与次序。流传输使用 buffer、count；copyTo 使用 destination、bufferSize；数组区间使用 offset、count。命名调用按语言规范 8.5 的静态声明解析，不改变 override 的语言规则。
+
 `scoop.platform.io.ByteSource` 声明 `readInto(buffer: NativeByteBuffer, count: Long): Long`；ByteSink 声明 `writeFrom(buffer: NativeByteBuffer, count: Long): Long` 与 flush()。协议不包含关闭；拥有资源的实现另实现 Disposable。count 非负且不超过当前可写／可读区间，零请求不执行 native IO、返回零，也不表示 EOF。正请求允许短传输；read 返回零表示 EOF，write 无进度抛 WriteZeroException。成功 read 提交 writer，成功 write 提交 reader；失败不撤销之前已经发生的外部进度。
 
 普通扩展提供省略 count 的调用、readFully/writeFully、copyTo、readAllBytes、readText/readTextLossy、readLine/readLineLossy、writeText/writeLine。完整读取遇到 EOF 抛 UnexpectedEofException；两种 IO 异常直接继承 Exception。完整操作逐次提交进度，后续失败保留此前游标，不忙循环。copyTo 返回复制的 Long 字节数；bufferSize 默认 8192，必须为正，不是总数据配额。高层只读字节输入为 List<Byte>，快照输出为 Array<Byte>，可写目标为 MutableArray<Byte>。writeFrom(array, offset, count) 检查区间并取得所选输入区间的快照，用户 getter 失败发生在传输之前；readInto 的数组目标保持可写。writeAllBytes 接收 List<Byte>。flush 只提交用户态缓冲，不等于文件持久化。
