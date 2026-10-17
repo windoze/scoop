@@ -63,7 +63,7 @@ stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{"actual" = "${consumer.result.kind}", "equals" = "executable"}, {"actual" = "${consumer.result.dependencies.length}", "equals" = 1}, {"actual" = "${consumer.result.dependencies.0.identity}", "equals" = "${cold.result.root.identity}"}, {"actual" = "${consumer.result.dependencies.0.artifact_fingerprint}", "equals" = "${cold.result.root.artifact_fingerprint}"}, {"actual" = "${consumer.result.observations.nodes.0.origin}", "equals" = "cache"}, {"actual" = "${consumer.result.observations.child_invocations}", "equals" = ["${consumer.result.root.identity}"]}, {"file" = "${consumer.result.root.path}", "same_as" = "${work}/manual-consumer.slib"}]
+checks = [{"actual" = "${consumer.result.kind}", "equals" = "executable"}, {"actual" = "${consumer.result.dependencies.length}", "equals" = 1}, {"actual" = "${consumer.result.dependencies.0.identity}", "equals" = "${cold.result.root.identity}"}, {"actual" = "${consumer.result.dependencies.0.artifact_fingerprint}", "equals" = "${cold.result.root.artifact_fingerprint}"}, {"actual" = "${consumer.result.observations.nodes.0.origin}", "equals" = "prebuilt"}, {"actual" = "${consumer.result.observations.child_invocations}", "equals" = ["${consumer.result.root.identity}"]}, {"file" = "${consumer.result.root.path}", "same_as" = "${work}/manual-consumer.slib"}]
 
 [[steps]]
 name = "run"

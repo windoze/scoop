@@ -1,18 +1,16 @@
-use std::fmt;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use scoop_identity::{ConeCoordinate, ConeIdentity, RequestedConeKind};
 use scoop_manifest::{
-    DependencyCoordinateKey, DependencyLocator, LoadedConeManifest, ManifestRootError,
-    ManifestRootLocator,
+    DependencyCoordinateKey, DependencyLocator, LoadedConeManifest, ManifestRootLocator,
 };
-use scoop_slib::{
-    ArtifactFingerprint, ArtifactManifestSummaryError, ArtifactManifestSummaryV1, ConeKind,
-    ConeSourceForm,
-};
+use scoop_slib::{ArtifactFingerprint, ArtifactManifestSummaryV1, ConeKind, ConeSourceForm};
 
 use crate::{ArtifactCacheRoot, ArtifactSearchRoot, BuildArtifact};
+
+mod error;
+pub use error::{DependencyLocatorError, LocatorIoOperation};
 
 mod default_core;
 pub(crate) use default_core::locate_default_core;
@@ -377,167 +375,6 @@ fn canonicalize(path: &Path) -> Result<PathBuf, DependencyLocatorError> {
         path: path.to_path_buf(),
         source,
     })
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum LocatorIoOperation {
-    Inspect,
-    Canonicalize,
-    Open,
-    Read,
-    Write,
-    Lock,
-}
-
-impl fmt::Display for LocatorIoOperation {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(match self {
-            Self::Inspect => "inspect",
-            Self::Canonicalize => "canonicalize",
-            Self::Open => "open",
-            Self::Read => "read",
-            Self::Write => "write",
-            Self::Lock => "lock",
-        })
-    }
-}
-
-#[derive(Debug)]
-pub enum DependencyLocatorError {
-    UndeclaredDependency(DependencyCoordinateKey),
-    MissingLocatorProjection(DependencyCoordinateKey),
-    Manifest(ManifestRootError),
-    Io {
-        operation: LocatorIoOperation,
-        path: PathBuf,
-        source: std::io::Error,
-    },
-    Summary {
-        path: PathBuf,
-        source: ArtifactManifestSummaryError,
-    },
-
-    CoordinateMismatch {
-        expected: Box<ConeCoordinate>,
-        actual: Box<ConeCoordinate>,
-        path: PathBuf,
-    },
-    ExecutableDependency {
-        coordinate: ConeCoordinate,
-        path: PathBuf,
-    },
-    InvalidArtifactSourceForm {
-        coordinate: ConeCoordinate,
-        path: PathBuf,
-        actual: ConeSourceForm,
-    },
-    ReservedArtifact {
-        coordinate: ConeCoordinate,
-        path: PathBuf,
-    },
-    SelfSourceLocator {
-        coordinate: ConeCoordinate,
-        root: PathBuf,
-    },
-    ArtifactNotFound {
-        coordinate: ConeCoordinate,
-        checked: Vec<PathBuf>,
-    },
-    AmbiguousArtifact {
-        coordinate: ConeCoordinate,
-        candidates: Vec<(PathBuf, ArtifactFingerprint)>,
-    },
-}
-
-impl fmt::Display for DependencyLocatorError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::UndeclaredDependency(key) => {
-                write!(formatter, "manifest does not declare dependency {key}")
-            }
-            Self::MissingLocatorProjection(key) => {
-                write!(
-                    formatter,
-                    "manifest dependency {key} has no locator projection"
-                )
-            }
-            Self::Manifest(error) => error.fmt(formatter),
-            Self::Io {
-                operation,
-                path,
-                source,
-            } => write!(formatter, "cannot {operation} {}: {source}", path.display()),
-            Self::Summary { path, source } => {
-                write!(
-                    formatter,
-                    "invalid artifact summary {}: {source}",
-                    path.display()
-                )
-            }
-
-            Self::CoordinateMismatch {
-                expected,
-                actual,
-                path,
-            } => write!(
-                formatter,
-                "dependency at {} declares {actual}, expected {expected}",
-                path.display()
-            ),
-            Self::ExecutableDependency { coordinate, path } => write!(
-                formatter,
-                "dependency {coordinate} at {} is executable; dependencies must be libraries",
-                path.display()
-            ),
-            Self::InvalidArtifactSourceForm {
-                coordinate,
-                path,
-                actual,
-            } => write!(
-                formatter,
-                "dependency {coordinate} at {} has invalid source form {actual:?}",
-                path.display()
-            ),
-            Self::ReservedArtifact { coordinate, path } => write!(
-                formatter,
-                "dependency {coordinate} at {} uses a reserved artifact identity",
-                path.display()
-            ),
-            Self::SelfSourceLocator { coordinate, root } => write!(
-                formatter,
-                "dependency {coordinate} resolves to its declaring source root {}",
-                root.display()
-            ),
-            Self::ArtifactNotFound {
-                coordinate,
-                checked,
-            } => write!(
-                formatter,
-                "artifact {coordinate} was not found in {} checked search roots",
-                checked.len()
-            ),
-            Self::AmbiguousArtifact {
-                coordinate,
-                candidates,
-            } => write!(
-                formatter,
-                "artifact {coordinate} has {} candidates with different fingerprints",
-                candidates.len()
-            ),
-        }
-    }
-}
-
-impl std::error::Error for DependencyLocatorError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Manifest(error) => Some(error),
-            Self::Io { source, .. } => Some(source),
-            Self::Summary { source, .. } => Some(source),
-
-            _ => None,
-        }
-    }
 }
 
 #[cfg(test)]

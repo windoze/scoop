@@ -25,7 +25,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {actual = "${cold.result.observations.child_invocations.length}", equals = 2},
+  {actual = "${cold.result.observations.child_invocations.length}", equals = 1},
   {file = "${work}/versions.log", equals = "probe\n"},
 ]
 
@@ -59,7 +59,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {actual = "${changed.result.observations.child_invocations.length}", equals = 2},
+  {actual = "${changed.result.observations.child_invocations.length}", equals = 1},
   {file = "${work}/calls.log", different_from = "${work}/cold.log"},
   {file = "${work}/versions.log", equals = "probe\nprobe\n"},
 ]

@@ -211,7 +211,7 @@ impl ClassifyBuildFailure for BuildGraphDiscoveryError {
 impl ClassifyBuildFailure for DependencyLocatorError {
     fn classification(&self) -> BuildFailureClassification {
         match self {
-            Self::ArtifactNotFound { .. } => classified(
+            Self::ArtifactNotFound { .. } | Self::SysrootArtifactNotFound { .. } => classified(
                 BuildFailurePhase::Locator,
                 BuildDiagnosticCode::LOCATOR_NOT_FOUND,
             ),

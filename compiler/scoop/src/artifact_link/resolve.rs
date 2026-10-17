@@ -106,39 +106,47 @@ fn locate(
         .iter()
         .map(|root| crate::locator::artifact_candidate_path(root, coordinate))
         .collect::<Vec<_>>();
-    if coordinate == &ConeCoordinate::reserved_core() {
-        paths.push(
-            scoop_toolchain::TrustedCoreSlotLayoutV1::new(&request.sysroot, selection)
-                .artifact()
-                .to_owned(),
-        );
-    }
     paths.sort();
     paths.dedup();
-    let mut candidates = BTreeMap::new();
-    for path in paths {
-        match std::fs::symlink_metadata(&path) {
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
-            Err(error) => {
-                return Err(failure(format!("artifact {}: {error}", path.display()))
-                    .at_artifact(&path, "container:$"));
+    let default = (coordinate.group() == "scoop").then(|| {
+        scoop_toolchain::target_library_root(&request.sysroot, selection.target())
+            .join(format!("{}.slib", coordinate.name()))
+    });
+    for paths in [paths, default.iter().cloned().collect()] {
+        let mut candidates = BTreeMap::new();
+        for path in paths {
+            match std::fs::symlink_metadata(&path) {
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+                Err(error) => {
+                    return Err(failure(format!("artifact {}: {error}", path.display()))
+                        .at_artifact(&path, "container:$"));
+                }
+                Ok(_) => {}
             }
-            Ok(_) => {}
+            let artifact = read(&path, selection)?;
+            if artifact.summary.cone().coordinate() != coordinate {
+                return Err(failure(format!(
+                    "artifact {} has coordinate {}, expected {coordinate}",
+                    path.display(),
+                    artifact.summary.cone().coordinate()
+                ))
+                .at_artifact(&path, "manifest:cone.coordinate"));
+            }
+            insert(&mut candidates, artifact)?;
         }
-        let artifact = read(&path, selection)?;
-        if artifact.summary.cone().coordinate() != coordinate {
-            return Err(failure(format!(
-                "artifact {} has coordinate {}, expected {coordinate}",
-                path.display(),
-                artifact.summary.cone().coordinate()
-            ))
-            .at_artifact(&path, "manifest:cone.coordinate"));
+        if let Some(artifact) = candidates.into_values().next() {
+            return Ok(artifact);
         }
-        insert(&mut candidates, artifact)?;
     }
-    candidates.into_values().next().ok_or_else(|| {
-        failure(format!(
+    Err(match default {
+        Some(path) => failure(crate::DependencyLocatorError::SysrootArtifactNotFound {
+            coordinate: coordinate.clone(),
+            target: selection.target().contract().canonical_triple(),
+            path: path.clone(),
+        })
+        .at_host(&path),
+        None => failure(format!(
             "artifact not found for {coordinate}; provide --dependency-slib or --cone-path"
-        ))
+        )),
     })
 }

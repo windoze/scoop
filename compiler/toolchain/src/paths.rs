@@ -42,3 +42,9 @@ pub fn configured_sysroot_root(explicit: Option<PathBuf>) -> PathBuf {
 pub fn development_runtime_root() -> PathBuf {
     development_workspace_root().join("runtime")
 }
+
+pub fn target_library_root(sysroot: &Path, target: scoop_lir::LirTargetProfile) -> PathBuf {
+    sysroot
+        .join("lib")
+        .join(target.contract().canonical_triple())
+}

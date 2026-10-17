@@ -18,7 +18,7 @@ checks = [
   {"actual" = "${build.result.kind}", "equals" = "executable"},
   {"actual" = "${build.result.profile}", "equals" = "debug"},
   {"actual" = "${build.result.output}", "equals" = "${work}/target/${target}/debug/hello"},
-  {"actual" = "${build.result.observations.child_invocations.length}", "equals" = 2},
+  {"actual" = "${build.result.observations.child_invocations.length}", "equals" = 1},
   {"file" = "${work}/dump/${build.result.root.identity}/ast.txt", "exists" = true},
   {"file" = "${work}/dump/${build.result.root.identity}/hir.txt", "exists" = true},
   {"file" = "${work}/dump/${build.result.root.identity}/mir.txt", "exists" = true},
@@ -34,7 +34,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {actual = "${warm.result.observations.child_invocations.length}", equals = 2},
+  {actual = "${warm.result.observations.child_invocations.length}", equals = 1},
   {actual = "${warm.result.root.artifact_fingerprint}", not_equals = "${build.result.root.artifact_fingerprint}"},
   {actual = "${warm.result.output}", equals = "${work}/target/${target}/release/hello"},
   {file = "${warm.result.root.path}", different_from = "${build.result.root.path}"},

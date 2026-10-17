@@ -13,7 +13,7 @@ fn write_platform(root: &std::path::Path, dependencies: &str) {
 }
 
 #[test]
-fn default_library_expands_new_explicit_dependencies() {
+fn default_library_uses_artifacts_and_keeps_sources_outside_the_graph() {
     let temp = tempfile::tempdir().unwrap();
     let sysroot = temp.path().join("sysroot");
     write_core(&sysroot);
@@ -28,21 +28,46 @@ fn default_library_expands_new_explicit_dependencies() {
         "[dependencies]\n\"test:helper\" = { version = \"1.0.0\", path = \"../helper\" }\n",
     );
     write_manifest(&sysroot.join("src/helper"), "helper", "");
+    let selection = crate::test_artifacts::host_target();
+    let directory = scoop_toolchain::target_library_root(&sysroot, selection.target());
+    let core = scoop_slib::read_artifact_manifest_summary(
+        &std::fs::read(directory.join("scoop.core.slib")).unwrap(),
+        selection,
+    )
+    .unwrap()
+    .semantic_fingerprints();
+    let coordinate = ConeCoordinate::new("scoop", "scoop.platform", "0.1.0").unwrap();
+    let artifact = crate::test_artifacts::manifest_archive(
+        selection,
+        scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
+        ConeRecord::new(
+            coordinate.clone(),
+            ConeKind::Library,
+            ConeSourceForm::Manifest,
+        )
+        .unwrap(),
+        "precompiled-platform",
+        vec![
+            scoop_slib::DependencyRecord::new(
+                ConeCoordinate::reserved_core(),
+                core.hir(),
+                core.mir(),
+                core.lir(),
+            )
+            .unwrap(),
+        ],
+    );
+    std::fs::write(directory.join("scoop.platform.slib"), artifact.as_bytes()).unwrap();
     let graph = request(&root, &sysroot, vec![])
         .load_root()
         .unwrap()
         .discover()
         .unwrap();
-    assert_eq!(graph.node_count(), 4);
-    assert_eq!(graph.edge_count(), 5);
+    assert_eq!(graph.node_count(), 3);
+    assert_eq!(graph.edge_count(), 3);
     assert_eq!(
-        graph.node_representation(
-            ConeCoordinate::new("test", "helper", "1.0.0")
-                .unwrap()
-                .identity()
-                .unwrap()
-        ),
-        Some(DiscoveredNodeRepresentation::ManifestSource)
+        graph.node_representation(coordinate.identity().unwrap()),
+        Some(DiscoveredNodeRepresentation::PrebuiltArtifact)
     );
     graph.resolve().unwrap();
 }
@@ -71,7 +96,7 @@ fn explicit_source_does_not_read_the_default_library() {
 }
 
 #[test]
-fn explicit_artifact_search_precedes_default_library_source() {
+fn explicit_artifact_search_precedes_default_library_artifact() {
     let temp = tempfile::tempdir().unwrap();
     let sysroot = temp.path().join("sysroot");
     write_core(&sysroot);
@@ -85,6 +110,15 @@ fn explicit_artifact_search_precedes_default_library_source() {
         "[dependencies]\n\"scoop:scoop.platform\" = \"0.1.0\"\n",
     );
     let coordinate = ConeCoordinate::new("scoop", "scoop.platform", "0.1.0").unwrap();
+    let directory = scoop_toolchain::target_library_root(
+        &sysroot,
+        crate::test_artifacts::host_target().target(),
+    );
+    std::fs::write(
+        directory.join("scoop.platform.slib"),
+        manifest_artifact(coordinate.clone(), "default"),
+    )
+    .unwrap();
     let search = temp.path().join("artifacts");
     let artifact = crate::locator::artifact_candidate_path(&search, &coordinate);
     std::fs::create_dir_all(artifact.parent().unwrap()).unwrap();
@@ -101,6 +135,33 @@ fn explicit_artifact_search_precedes_default_library_source() {
     assert_eq!(
         graph.node_representation(coordinate.identity().unwrap()),
         Some(DiscoveredNodeRepresentation::PrebuiltArtifact)
+    );
+}
+
+#[test]
+fn missing_default_artifact_reports_target_coordinate_and_path_with_sources_present() {
+    let temp = tempfile::tempdir().unwrap();
+    let sysroot = temp.path().join("sysroot");
+    write_core(&sysroot);
+    write_platform(&sysroot.join("src/scoop.platform"), "");
+    let root = temp.path().join("root");
+    write_manifest(
+        &root,
+        "root",
+        "[dependencies]\n\"scoop:scoop.platform\" = \"0.1.0\"\n",
+    );
+    let failure = request(&root, &sysroot, vec![])
+        .load_root()
+        .unwrap()
+        .discover()
+        .unwrap_err();
+    let message = failure.to_string();
+    assert!(message.contains("scoop:scoop.platform:0.1.0"));
+    assert!(message.contains(scoop_toolchain::host_target_triple().unwrap()));
+    assert!(message.contains("scoop.platform.slib"));
+    assert_eq!(
+        crate::ClassifyBuildFailure::classification(&failure).code(),
+        Some(crate::BuildDiagnosticCode::LOCATOR_NOT_FOUND),
     );
 }
 

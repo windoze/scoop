@@ -12,6 +12,10 @@ options = ["--sysroot", "${work}/sysroot", "--cache-dir", "${cache}", "--target-
 name = "prepare"
 files = [
  {mkdir = {path = "${work}/sysroot/lib"}},
+ {copy = {from = "${sysroot}/lib/${target}/scoop.core.slib", to = "${work}/sysroot/lib/${target}/scoop.core.slib"}},
+ {symlink = {from = "${sysroot}/vendor", to = "${work}/sysroot/vendor"}},
+ {symlink = {from = "${sysroot}/include", to = "${work}/sysroot/include"}},
+ {symlink = {from = "${sysroot}/lib/${target}/runtime", to = "${work}/sysroot/lib/${target}/runtime"}},
  {symlink = {from = "${sysroot}/src/scoop.core", to = "${work}/sysroot/src/scoop.core"}},
  {copy = {from = "${fixture}/cone", to = "${work}/cone"}},
  {copy = {from = "${fixture}/platform", to = "${work}/sysroot/src/scoop.platform"}},
@@ -19,8 +23,17 @@ files = [
 ]
 
 [[steps]]
+name = "helper"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sysroot/src/scoop.helper", {each = "${options}"}, "--profile", "${profile}", "-o", "${work}/sysroot/lib/${target}/scoop.helper.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
 name = "platform"
-argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sysroot/src/scoop.platform", {"each" = "${options}"}, "--profile", "${profile}"]
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sysroot/src/scoop.platform", {"each" = "${options}"}, "--profile", "${profile}", "-o", "${work}/sysroot/lib/${target}/scoop.platform.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -77,6 +90,25 @@ name = "edit_library"
 files = [{replace = {path = "${work}/sysroot/src/scoop.platform/native/value.h", old = "M33_DELTA 2", new = "M33_DELTA 3"}}]
 
 [[steps]]
+name = "source_only"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/cone", {each = "${options}"}, "--profile", "${profile}"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${source_only.result.observations.child_invocations}", equals = []}, {actual = "${source_only.result.root.artifact_fingerprint}", equals = "${build.result.root.artifact_fingerprint}"}]
+
+[[steps]]
+name = "rebuild_library"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sysroot/src/scoop.platform", {each = "${options}"}, "--profile", "${profile}", "-o", "${work}/sysroot/lib/${target}/scoop.platform.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
 name = "changed"
 argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/cone", {each = "${options}"}, "--profile", "${profile}"]
 exit = 0
@@ -95,13 +127,20 @@ stdout = "sysroot library 43\n"
 stderr = ""
 
 [[steps]]
-name = "missing_artifact"
+name = "sysroot_link"
 argv = ["${scoop}", "link", {"each" = "${link_args}"}, "--sysroot", "${work}/sysroot", "--root-slib", "${changed.result.root.path}", {"each" = "${platform.result.dependencies}", "field" = "path", "prefix" = "--dependency-slib"}, "--runtime-objects", "${changed.result.runtime_index}", "-o", "${work}/missing", "--message-format", "json", "--cache-dir", "${cache}"]
-exit = 1
+exit = 0
 stdout = ""
 stderr = ""
 json = "stderr"
-diagnostics = {file = "missing-link.diagnostics.json"}
+diagnostics = []
+
+[[steps]]
+name = "run_sysroot_link"
+argv = ["${sysroot_link.result.output}"]
+exit = 0
+stdout = "sysroot library 43\n"
+stderr = ""
 
 [[steps]]
 name = "link"

@@ -3,7 +3,6 @@ use std::path::{Path, PathBuf};
 use scoop_lir::ValidatedLirTargetSelection;
 
 const CORE_SOURCE_RELATIVE_PATH: &str = "src/scoop.core";
-const CORE_ARTIFACTS_RELATIVE_PATH: &str = "lib";
 const CORE_ARTIFACT_FILE_NAME: &str = "scoop.core.slib";
 /// Pure target-qualified sysroot layout shared by the orchestration parent and
 /// the paired single-Cone compiler. This type grants no filesystem authority.
@@ -16,9 +15,7 @@ pub struct TrustedCoreSlotLayoutV1 {
 
 impl TrustedCoreSlotLayoutV1 {
     pub fn new(sysroot: &Path, target: ValidatedLirTargetSelection) -> Self {
-        let artifact_root = sysroot
-            .join(CORE_ARTIFACTS_RELATIVE_PATH)
-            .join(target.target().contract().canonical_triple());
+        let artifact_root = crate::target_library_root(sysroot, target.target());
         Self {
             source_root: sysroot.join(CORE_SOURCE_RELATIVE_PATH),
             artifact: artifact_root.join(CORE_ARTIFACT_FILE_NAME),

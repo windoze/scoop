@@ -35,3 +35,9 @@
 - runtime 缓存升级为 `runtime-v5`，使用可直接复制的 index／objects 布局；索引仍为 schema 4，不重复解析或哈希对象。
 - 本机 Rust 格式化、相关 crate 和辅助程序 lint、Python Ruff 通过。手动完成十个内置 Cone 与 runtime 的首次准备及重复准备；runtime 构建／更新测试 4 项、搬迁后真实链接运行 1 项通过。
 - 打包脚本保持手工使用，不作为普通 CLI 回归的执行步骤。
+
+## 默认预编译 Cone
+
+- 默认 core 和其他已声明的 scoop 依赖统一读取 `lib/<canonical-triple>/<name>.slib`；显式 source／artifact／search-root 优先，默认产物缺失时诊断目标、coordinate 和路径。`scoop link` 使用相同的显式优先顺序。
+- 随包源码仍保留；源码变化不影响默认产物消费，显式重建发布后按普通依赖更新。新增带空格 sysroot、独立空缓存、debug／release、泛型、moving GC、默认链接和缺失 core 覆盖。
+- 本机格式化与相关 crate lint、83 项构建编排单元测试通过。默认库正式 CLI 17 组、19 个变体通过；缓存及显式 core 相关 26 组通过，另 2 组仅适用于 Linux，留到最终 Linux 验收。旧用例的默认源码边、core 编译调用数、产物摘要数量和显式路径诊断预期已更新并复验。

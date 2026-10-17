@@ -19,7 +19,7 @@ stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{actual = "${cold.result.observations.child_invocations.length}", equals = 3}]
+checks = [{actual = "${cold.result.observations.child_invocations.length}", equals = 2}]
 
 [[steps]]
 name = "run_cold"

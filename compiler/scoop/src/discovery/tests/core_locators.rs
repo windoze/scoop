@@ -188,7 +188,7 @@ fn version_only_core_uses_the_default_slot_in_production_and_test_graphs() {
 }
 
 #[test]
-fn version_only_core_waits_for_default_libraries_explicit_core_locators() {
+fn version_only_core_waits_for_selected_sources_explicit_core_locators() {
     let temp = tempfile::tempdir().unwrap();
     let root = temp.path().join("root");
     let sysroot = temp.path().join("sysroot");
@@ -201,7 +201,7 @@ fn version_only_core_waits_for_default_libraries_explicit_core_locators() {
     write_manifest(
         &root,
         "root",
-        "[dependencies]\n\"scoop:scoop.core\" = \"0.1.0\"\n\"scoop:scoop.helper\" = \"1.0.0\"\n",
+        "[dependencies]\n\"scoop:scoop.core\" = \"0.1.0\"\n\"scoop:scoop.helper\" = { version = \"1.0.0\", path = \"../sysroot/src/scoop.helper\" }\n",
     );
     let graph = request(&root, &sysroot, vec![])
         .load_root()

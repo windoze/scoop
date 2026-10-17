@@ -33,6 +33,22 @@ fn write_core(sysroot: &Path) {
         "schema = 1\n[cone]\ngroup = \"scoop\"\nname = \"scoop.core\"\nversion = \"0.1.0\"\nkind = \"library\"\n",
     )
     .unwrap();
+    let selection = crate::test_artifacts::host_target();
+    let directory = scoop_toolchain::target_library_root(sysroot, selection.target());
+    std::fs::create_dir_all(&directory).unwrap();
+    let artifact = crate::test_artifacts::manifest_archive(
+        selection,
+        scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
+        ConeRecord::new(
+            ConeCoordinate::reserved_core(),
+            ConeKind::Library,
+            ConeSourceForm::Manifest,
+        )
+        .unwrap(),
+        "graph-test-seed",
+        Vec::new(),
+    );
+    std::fs::write(directory.join("scoop.core.slib"), artifact.as_bytes()).unwrap();
 }
 
 fn request(root: &Path, sysroot: &Path) -> BuildGraphRequest {

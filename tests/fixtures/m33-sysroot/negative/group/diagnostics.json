@@ -1,12 +1,12 @@
 [
   {
     "code": "SCOOP_LOCATOR_COORDINATE_MISMATCH",
-    "message": "dependency at ${work}/sysroot/src/scoop.platform/Cone.toml declares different:scoop.platform:0.1.0, expected scoop:scoop.platform:0.1.0",
+    "message": "dependency at ${work}/sysroot/lib/${target}/scoop.platform.slib declares different:scoop.platform:0.1.0, expected scoop:scoop.platform:0.1.0",
     "notes": [],
     "origin": {
       "end": null,
       "kind": "host",
-      "path": "${work}/sysroot/src/scoop.platform/Cone.toml",
+      "path": "${work}/sysroot/lib/${target}/scoop.platform.slib",
       "start": null
     },
     "phase": "Locator",

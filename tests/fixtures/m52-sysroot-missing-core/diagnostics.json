@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOP_LOCATOR_NOT_FOUND",
+    "message": "sysroot artifact scoop:scoop.core:0.1.0 for ${target} was not found at ${work}/sysroot/lib/${target}/scoop.core.slib",
+    "notes": [],
+    "origin": {
+      "end": null,
+      "kind": "host",
+      "path": "${work}/sysroot/lib/${target}/scoop.core.slib",
+      "start": null
+    },
+    "phase": "Locator",
+    "severity": "error"
+  }
+]

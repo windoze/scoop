@@ -5,7 +5,7 @@ tools = ["scoop", "scoopc", "scoop-link"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["m33", "sysroot", "resolver"]
 variants = [
- {name = "source", vars = {dependency = "{version = \"0.1.0\", path = \"../sysroot/lib/selected\"}", expected = "45"}},
+ {name = "source", vars = {dependency = "{version = \"0.1.0\", path = \"../sysroot/src/selected\"}", expected = "45"}},
  {name = "artifact", vars = {dependency = "\"0.1.0\"", expected = "42"}},
 ]
 [vars]
@@ -15,11 +15,24 @@ options = ["--sysroot", "${work}/sysroot", "--cache-dir", "${cache}", "--target-
 name = "prepare"
 files = [
  {mkdir = {path = "${work}/sysroot/lib"}},
+ {copy = {from = "${sysroot}/lib/${target}/scoop.core.slib", to = "${work}/sysroot/lib/${target}/scoop.core.slib"}},
+ {symlink = {from = "${sysroot}/vendor", to = "${work}/sysroot/vendor"}},
+ {symlink = {from = "${sysroot}/include", to = "${work}/sysroot/include"}},
+ {symlink = {from = "${sysroot}/lib/${target}/runtime", to = "${work}/sysroot/lib/${target}/runtime"}},
  {symlink = {from = "${sysroot}/src/scoop.core", to = "${work}/sysroot/src/scoop.core"}},
  {copy = {from = "${fixture}/cone", to = "${work}/cone"}},
  {copy = {from = "${fixture}/platform", to = "${work}/sysroot/src/scoop.platform"}},
  {copy = {from = "${fixture}/helper", to = "${work}/sysroot/src/scoop.helper"}},
 ]
+
+[[steps]]
+name = "helper"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sysroot/src/scoop.helper", {each = "${options}"}, "-o", "${work}/sysroot/lib/${target}/scoop.helper.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
 
 [[steps]]
 name = "platform"
@@ -34,11 +47,20 @@ diagnostics = []
 [[steps]]
 name = "select"
 files = [
- {copy = {from = "${work}/sysroot/src/scoop.platform", to = "${work}/sysroot/lib/selected"}},
- {replace = {path = "${work}/sysroot/lib/selected/native/value.h", old = "M33_DELTA 2", new = "M33_DELTA 5"}},
+ {copy = {from = "${work}/sysroot/src/scoop.platform", to = "${work}/sysroot/src/selected"}},
+ {replace = {path = "${work}/sysroot/src/selected/native/value.h", old = "M33_DELTA 2", new = "M33_DELTA 5"}},
  {replace = {path = "${work}/cone/Cone.toml", old = "\"scoop:scoop.platform\" = \"0.1.0\"", new = "\"scoop:scoop.platform\" = ${dependency}"}},
- {write = {path = "${work}/sysroot/src/scoop.platform/Cone.toml", data = "this default source must not be parsed"}},
+ {replace = {path = "${work}/sysroot/src/scoop.platform/native/value.h", old = "M33_DELTA 2", new = "M33_DELTA 9"}},
 ]
+
+[[steps]]
+name = "default_artifact"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sysroot/src/selected", {each = "${options}"}, "-o", "${work}/sysroot/lib/${target}/scoop.platform.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
 
 [[steps]]
 name = "build"

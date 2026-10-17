@@ -1,12 +1,12 @@
 [
   {
-    "code": "SCOOP_BUILD_FAILED",
-    "message": "invalid Cone manifest root ${work}/sysroot/src/scoop.platform: cannot inspect: No such file or directory (os error 2)",
+    "code": "SCOOP_LOCATOR_NOT_FOUND",
+    "message": "sysroot artifact scoop:scoop.platform:0.1.0 for ${target} was not found at ${work}/sysroot/lib/${target}/scoop.platform.slib",
     "notes": [],
     "origin": {
       "end": null,
       "kind": "host",
-      "path": "${work}/sysroot/src/scoop.platform",
+      "path": "${work}/sysroot/lib/${target}/scoop.platform.slib",
       "start": null
     },
     "phase": "Locator",

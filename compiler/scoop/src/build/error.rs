@@ -164,6 +164,7 @@ fn locator_location(error: &DependencyLocatorError) -> BuildFailureLocation {
             member: "manifest:cone.identity".to_owned(),
         },
         Error::Io { path, .. }
+        | Error::SysrootArtifactNotFound { path, .. }
         | Error::CoordinateMismatch { path, .. }
         | Error::ExecutableDependency { path, .. }
         | Error::SelfSourceLocator { root: path, .. } => BuildFailureLocation::Host {

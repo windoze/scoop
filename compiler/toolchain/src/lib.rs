@@ -43,7 +43,7 @@ pub use native::{
 };
 pub use paths::{
     configured_cache_root, configured_sysroot_root, development_runtime_root,
-    development_workspace_root,
+    development_workspace_root, target_library_root,
 };
 pub use registry::host_target_triple;
 pub use registry::{CToolchainOptions, ResolvedTargetProfile};
