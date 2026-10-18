@@ -1,0 +1,28 @@
+enum Kind { First, Second, Third, Fourth, Fifth, Sixth }
+class Packet(val kind: Kind, val bytes: Array<Byte>)
+
+fun readPacket(code: Int, length: Long): Packet {
+    val kind = when (code and 15) {
+        case 0 -> Kind.First
+        case 1 -> Kind.Second
+        case 2 -> Kind.Third
+        case 8 -> Kind.Fourth
+        case 9 -> Kind.Fifth
+        case 10 -> Kind.Sixth
+        else -> throw IllegalArgumentException()
+    }
+    return Packet(kind, Array<Byte>(length) { index -> index.toByte() })
+}
+
+fun main() {
+    val codes = [0, 1, 2, 8, 9, 10]
+    val expected = [Kind.First, Kind.Second, Kind.Third, Kind.Fourth, Kind.Fifth, Kind.Sixth]
+    for (index in 0L..<codes.size) {
+        val value = readPacket(codes[index], index + 1L)
+        gcCollect()
+        if (value.kind != expected[index] || value.bytes.size != index + 1L || value.bytes[index] != index.toByte())
+            throw IllegalStateException()
+    }
+    try { readPacket(7, 0L); throw IllegalStateException() } catch (_: IllegalArgumentException) {}
+    println("local lookup tables retain their constant section boundaries")
+}

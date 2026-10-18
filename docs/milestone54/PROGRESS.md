@@ -33,6 +33,7 @@
 | Multipart 异步读取 | MultipartSource／MultipartBody 复用内存 decoder，按消费推进 part，支持有限 discard、明确接管与借用；与 SSE 共用结构化操作及真实 I/O 完成后的清理 | Darwin debug／release：8 项新测试与 HTTP asyncio 全部 43 项通过；新增测试和 9 项 SSE 回归通过两种构建的 moving GC，覆盖短读、未读完关闭、截断、实际进度、并发、取消和双失败 |
 | Multipart 异步写入 | MultipartSink／MultipartPartWriter 复用内存 encoder，按有限前缀输出字段、正文及 delimiter；明确 part／消息 finish 与本地 close，沿用共享结构化 I/O 收尾 | Darwin debug／release：10 项新测试与 HTTP asyncio 全部 53 项通过；新增测试通过两种构建的 moving GC，覆盖短写、已知长度、真实消费量、零进度、同向并发、借用／接管、取消及双失败 |
 | WebSocket 升级握手 | WebSocketHandshake 生成／解析 HTTP/1.1 请求并绑定本次 key 校验 101；扩展字段及 permessage-deflate 提议／响应保存原始选择和最终双向配置，复用 URL、crypto 与 HTTP 字段 parser | Darwin debug／release：16 项新测试与 HTTP 全部 182 项通过；新增测试通过两种构建的 moving GC，另与 websockets 17.2 对照 2369 组输入、916 条重新生成的响应及真实 TCP 对端 |
+| Mach-O 局部数值表 | 对象读取器按实际局部引用处理位于既有常量之前、之间或之后的数值表；相邻表与已有 atom 分别定界，继续按实际 bytes 计算内容指纹 | 3 项新增范围回归与全部 140 项 link_object 测试、workspace clippy 通过；新 CLI 用例在修复前复现，修复后 debug／release、moving GC 与缓存复用通过，两个既有表用例同时回归 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -115,6 +116,10 @@ Multipart 的通用字段保留扩展参数，form-data 工厂遵守 RFC 7578，
 异步消息清理的嵌套闭包暴露了构造参数捕获缺口：进入下一 callable 后仍保留构造器的直接参数作用域，使传递捕获丢失，泛型导出或 MIR 生成失败。HIR lowering 现在在 lambda、匿名函数和局部函数边界保存并移开这组直接参数，普通捕获继续保存原 BindingId；没有改变初始化 receiver 限制或在 HTTP 中改写调用来绕过问题。两项回归在修复前失败，修复后全部 1476 项 HIR lowering 测试与 workspace clippy 通过。
 
 `m54-constructor-captures` 的 Darwin debug／release 两个变体通过，共 6 个进程；真实跨 Cone 消费者组合多层闭包、匿名函数、局部泛型函数、名称遮蔽、引用／值类型、moving GC 和正常构建复用。
+
+WebSocket 帧的 release 构建暴露了只识别 __TEXT,__const 段首数值表的缺口：LLVM 将 opcode 查找表放在已有字符串常量之后，合法局部引用被内容指纹处理拒绝。对象读取器现在按被代码引用的局部符号确定表起点，在下一张表、已有 atom 或段尾结束，保持表内容与既有常量分离；未修改 HTTP 算法或关闭 LLVM 优化。
+
+`m54-local-table-after-constant` 的 Darwin debug／release 两个变体通过，共 6 个进程，覆盖普通 enum 分支与动态数组分配、moving GC 和缓存复用。同一小程序在修复前独立复现错误。`m49-shared-literal-section` 与 `m42-switch-reference-table` 同时回归通过，三个 fixture 共 6 个变体、18 个进程；固定宽度常量池、段首数值跳转表和包含引用的已归属查找表继续使用各自实际对象表示。
 
 ## 后续工作
 
