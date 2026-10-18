@@ -1,0 +1,74 @@
+package scoop.url
+
+import scoop.collections.emptyList
+
+public class Url internal constructor(
+    public val scheme: String?, public val authority: UrlAuthority?,
+    public val encodedPath: String, public val encodedQuery: String?, public val encodedFragment: String?,
+    private val serialized: String
+) : Equals<Url>, Compare<Url>, Hash, ToString {
+    public override fun toString(): String = serialized
+    public override operator fun equals(other: Url): Boolean = serialized == other.serialized
+    public override operator fun compareTo(other: Url): Long = serialized.compareTo(other.serialized)
+    public override fun hash(): Long = serialized.hash()
+
+    public fun resolve(reference: String): Url = resolve(Url.parse(reference))
+    public fun resolve(reference: Url): Url = resolveNativeUrl(this, reference)
+    public fun toBuilder(): UrlBuilder = UrlBuilder.from(this)
+
+    public fun httpOrigin(): UrlOrigin {
+        if (!isNetworkScheme(scheme)) urlError(UrlComponent.Scheme, "HTTP target requires http, https, ws or wss")
+        if (authority == None) urlError(UrlComponent.Authority, "HTTP target requires an authority")
+        val value = authority!!
+        val port = if (value.port == None) defaultUrlPort(scheme!!) else value.port!!
+        if (port == 0) urlError(UrlComponent.Port, "HTTP target port cannot be zero")
+        return UrlOrigin(scheme!!, value.networkHost(), port)
+    }
+
+    public fun httpRequestTarget(): String {
+        httpOrigin()
+        return (if (encodedPath.length == 0L) "/" else encodedPath) +
+            (if (encodedQuery == None) "" else "?" + encodedQuery!!)
+    }
+
+    public fun httpAbsoluteTarget(): String {
+        val target = httpRequestTarget()
+        return scheme!! + "://" + authority!!.render(false, false) + target
+    }
+
+    public fun queryParameters(): UrlQuery = UrlQuery.parse(if (encodedQuery == None) "" else encodedQuery!!)
+
+    public fun toIriString(): String {
+        val output = StringBuilder()
+        if (scheme != None) output.append(scheme!!).append(":")
+        if (authority != None) output.append("//").append(authority!!.render(true, true))
+        output.append(iriDisplay(encodedPath))
+        if (encodedQuery != None) output.append("?").append(iriDisplay(encodedQuery!!, true))
+        if (encodedFragment != None) output.append("#").append(iriDisplay(encodedFragment!!))
+        return output.toString()
+    }
+
+    public fun redacted(queryNames: List<String> = emptyList<String>()): String {
+        val builder = toBuilder().setEncodedUserInfo(None)
+        if (encodedQuery != None && queryNames.size > 0L) {
+            val entries = ArrayList<UrlQueryParameter>()
+            for (entry in queryParameters().entries) {
+                var hide = false
+                for (name in queryNames) { if (urlBytesEqual(entry.nameBytes, name.toByteArray())) hide = true }
+                entries.add(if (hide && hasUrlValue(entry.valueBytes))
+                    UrlQueryParameter(entry.nameBytes, Some<List<Byte>>("[redacted]".toByteArray())) else entry)
+            }
+            builder.setEncodedQuery(Some(UrlQuery(entries).toString()))
+        }
+        return builder.build().toString()
+    }
+
+    public companion object {
+        public fun parse(text: String): Url = parseNativeUrl(prepareIri(text))
+        public fun parseOrNone(text: String): Url? {
+            try { return Some(parse(text)) }
+            catch (_: UrlParseException) { return None }
+        }
+        public val backendVersion: String get() { @Unsafe { return String.fromCString(urlVersion()) } }
+    }
+}

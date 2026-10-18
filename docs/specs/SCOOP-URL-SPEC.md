@@ -1,6 +1,6 @@
 # Scoop URL 库规范
 
-版本：M54 设计，尚未实施。提供独立普通 Cone `scoop:scoop.url:0.1.0`，依赖 core、std 和 [IDNA](SCOOP-IDNA-SPEC.md)。本库负责 URL 的解析、相对引用解析、组件修改与拼装，不执行 DNS、文件或网络 I/O。客户端行为另见 [HTTP client 规范](SCOOP-HTTP-CLIENT-SPEC.md)。
+版本：M54。提供独立普通 Cone `scoop:scoop.url:0.1.0`，依赖 core、std 和 [IDNA](SCOOP-IDNA-SPEC.md)。本库负责 URL 的解析、相对引用解析、组件修改与拼装，不执行 DNS、文件或网络 I/O。客户端行为另见 [HTTP client 规范](SCOOP-HTTP-CLIENT-SPEC.md)；实际目标验证范围见 [M54 进度](../milestone54/PROGRESS.md)。
 
 ## 1. 语法选择与实现
 
@@ -10,7 +10,7 @@
 
 Unicode 输入先按 IRI 规则把非 ASCII 标量编码为 UTF-8 百分号字节，再交给同一 URI parser；ASCII 结构分隔符保持不变。解析出的网络 host 在明确边界进行百分号解码、严格 UTF-8 和 IDNA 转换。此适配不重写 URI 状态机，不把整个输入先解码后再寻找分隔符。
 
-`Url` 表示绝对或相对引用；允许无 authority 的绝对 URI 和非 HTTP scheme。通用 URI 的 registered-name 按组件保留；只有转换为网络 origin 时才要求 DNS 名或 IP。opaque 部分不被当作目录路径解析，HTTP client 只接受绝对 `http`／`https` URL，WebSocket 入口接受 `ws`／`wss`。
+`Url` 表示绝对或相对引用；允许无 authority 的绝对 URI 和非 HTTP scheme。通用 URI 的 registered-name 按组件保留；只有转换为网络 origin 时才要求 DNS 名或 IP。本库不猜测 scheme 专属语义，rootless path 也按 RFC 3986 的通用相对解析规则处理。HTTP client 只接受绝对 `http`／`https` URL，WebSocket 入口接受 `ws`／`wss`。
 
 ## 2. 值与公共入口
 
@@ -26,20 +26,25 @@ Url 为不可变、可比较与 hash 的普通值对象，持有 Scoop 组件快
 | `scheme`、`authority`、`encodedPath`、`encodedQuery`、`encodedFragment` | 保存是否存在及编码后的独立组件；缺失和空串不同 |
 | `httpOrigin()` | 验证 HTTP／WebSocket 网络目标并返回规范化 scheme、host、有效端口 |
 | `httpRequestTarget()` | 返回 path 与可选 query；空 path 变为 `/`，不包含 fragment 或 userinfo |
+| `httpAbsoluteTarget()` | 返回代理请求所需的绝对形式；使用相同网络目标校验并排除 userinfo 与 fragment |
 
 authority 区分 userinfo、host 和显式 port。网络 host 用 `UrlHost { Dns(String), Ipv4(Array<Byte>), Ipv6(Array<Byte>) }` 表示，DNS 值为已经校验的小写 A-label，IP 为网络序字节快照。通用 registered-name 不能未经验证直接变成 Dns。IPv6 在 URI authority 中使用方括号，交给 DNS／TLS 时使用实际地址或不带括号的名称。
 
-IPv4 只接受四段十进制的规范地址范围，拒绝十六进制、八进制和少段数字地址的浏览器兼容写法；不得在 URL 校验后让系统 resolver 将被当成域名的输入重新解释为另一种数字地址。IPv6 zone identifier 和 IPvFuture 可以作为通用 URI 数据解析，但 M54 HTTP 网络目标不接受这两种地址形状，给出明确的目标错误。
+IPv4 只接受四段十进制的规范地址范围，拒绝十六进制、八进制和少段数字地址的浏览器兼容写法；不得在 URL 校验后让系统 resolver 将被当成域名的输入重新解释为另一种数字地址。IPvFuture 可以作为通用 URI 数据解析，M54 HTTP 网络目标不接受它。带 IPv6 zone identifier 的文本不属于本期 RFC 3986 profile，解析明确报错；不在 client 中去掉 zone 后继续连接。
 
 port 必须为十进制 `0..65535`，显式空端口为格式错误；HTTP client 连接目标另拒绝零。origin 按 scheme、DNS A-label／IP 字节和有效端口比较，默认 HTTP／WS 为 80、HTTPS／WSS 为 443。省略默认端口与显式默认端口属于同一 origin；ws／http 等不同 scheme 不因此自动相等。userinfo、path、query、fragment 不属于 origin。
 
 网络 DNS 名可保留表示绝对名称的末尾根点用于序列化和解析。证书名称比较使用去掉该根点的 A-label；origin、Cookie 和连接池统一使用去掉根点后的 DNS 名，禁止各层各自选择规范化方式。根域本身、空 host 和非 DNS registered-name 不能成为 HTTP 连接目标。
 
+authority 保存 host 的网络解释结果与失败原因。DNS 同时需要传输和展示表示时调用 `Idna.parse`，复用 `IdnaName` 的两种快照；origin、展示和字段访问不重新执行 IDNA。通用 registered-name 的网络解释失败不使 URI 本身失效，`httpOrigin` 才报告对应 host 错误。支持的网络 scheme 在序列化时采用已取得的规范 A-label。
+
 ## 3. 编码、参数与拼装
 
-builder 分开提供接收原文与接收已编码组件的入口：`appendPathSegment` 按 UTF-8 编码单段，`appendEncodedPathSegment` 校验百分号格式但不二次编码；query 和 fragment 同理。原文中的 `/`、`?`、`#` 作为所在组件的数据编码，不能被当成新结构。
+builder 分开提供接收原文与接收已编码组件的入口：`appendPathSegment` 按 UTF-8 编码单段，`appendEncodedPathSegment` 校验百分号格式但不二次编码；query 和 fragment 同理。原文单段中的 `/`、`?`、`#` 作为数据编码，不能被当成新结构；整体 `setPath` 则保留 `/` 作为路径分隔符。
 
 `UrlQuery` 使用有序重复项，参数值为可选文本或字节，区分 `a`、`a=`、缺少 a；保留重复 key 的顺序。原始 query 无须符合键值形式，只有调用参数接口时才按明确的 `&` 与 `=` 规则解释。设置／删除参数和整体替换 encodedQuery 是不同操作。
+
+参数操作返回新快照：`add` 在末尾追加，`remove` 删除所有同名项，`set` 删除所有同名项后在末尾追加新值；`getAll` 保留匹配项的原顺序。文本 getter 严格按 UTF-8 解码，任意字节可通过 `nameBytes`／`valueBytes` 访问。
 
 通用百分号 codec 提供字节输入／输出和明确的 UTF-8 文本入口，解码结果不必是合法 UTF-8。`+` 在普通 URL query 中保持加号；只有 `FormUrlEncoded` 明确按表单规则将空格编码为加号、将加号编码为 `%2B`。表单编码与解析在 URL 库中复用，HTTP 库只负责 application/x-www-form-urlencoded 的媒体类型和消息 body。
 

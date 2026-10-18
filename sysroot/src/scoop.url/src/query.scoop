@@ -1,0 +1,76 @@
+package scoop.url
+
+import scoop.text.*
+import scoop.collections.emptyList
+
+public class UrlQueryParameter public constructor(name: List<Byte>, value: List<Byte>?) {
+    public val nameBytes: Array<Byte> = name.toArray()
+    public val valueBytes: Array<Byte>? = when (value) { case None -> None; case Some(bytes) -> Some(bytes.toArray()) }
+    public val name: String get() = urlUtf8(nameBytes, UrlComponent.Query)
+    public val value: String? get() = when (valueBytes) { case None -> None; case Some(bytes) -> Some(urlUtf8(bytes, UrlComponent.Query)) }
+}
+
+public class UrlQuery public constructor(entries: List<UrlQueryParameter> = emptyList<UrlQueryParameter>()) : ToString {
+    public val entries: Array<UrlQueryParameter> = entries.toArray()
+
+    public fun add(name: String, value: String? = None): UrlQuery =
+        addBytes(name.toByteArray(), if (value == None) None else Some<List<Byte>>(value!!.toByteArray()))
+
+    public fun addBytes(name: List<Byte>, value: List<Byte>? = None): UrlQuery {
+        val next = ArrayList<UrlQueryParameter>()
+        for (entry in entries) next.add(entry)
+        next.add(UrlQueryParameter(name, value))
+        return UrlQuery(next)
+    }
+
+    public fun remove(name: String): UrlQuery {
+        val bytes = name.toByteArray()
+        val next = ArrayList<UrlQueryParameter>()
+        for (entry in entries) { if (!urlBytesEqual(entry.nameBytes, bytes)) next.add(entry) }
+        return UrlQuery(next)
+    }
+
+    public fun set(name: String, value: String? = None): UrlQuery = remove(name).add(name, value)
+
+    public fun getAll(name: String): List<String?> {
+        val bytes = name.toByteArray()
+        val result = ArrayList<String?>()
+        for (entry in entries) { if (urlBytesEqual(entry.nameBytes, bytes)) result.add(entry.value) }
+        return result.toArray()
+    }
+
+    public override fun toString(): String = render(false)
+
+    internal fun render(form: Boolean): String {
+        val output = StringBuilder()
+        var first = true
+        for (entry in entries) {
+            if (!first) output.append("&")
+            first = false
+            output.append(encodeUrlBytes(entry.nameBytes, form, ""))
+            if (hasUrlValue(entry.valueBytes)) output.append("=").append(encodeUrlBytes(entry.valueBytes!!, form, ""))
+        }
+        return output.toString()
+    }
+
+    public companion object {
+        public fun parse(encodedQuery: String): UrlQuery = parseQuery(encodedQuery, false)
+    }
+}
+
+public object FormUrlEncoded {
+    public fun encode(parameters: UrlQuery): String = parameters.render(true)
+    public fun parse(text: String): UrlQuery = parseQuery(text, true)
+}
+
+private fun parseQuery(text: String, form: Boolean): UrlQuery {
+    val items = ArrayList<UrlQueryParameter>()
+    if (text.length == 0L) return UrlQuery(items)
+    for (part in text.split('&')) {
+        val equal = part.indexOf('=')
+        val name = if (equal < 0L) part else part.slice(0L, equal)
+        val value: List<Byte>? = if (equal < 0L) None else Some<List<Byte>>(decodeUrlBytes(part.slice(equal + 1L, part.length), form))
+        items.add(UrlQueryParameter(decodeUrlBytes(name, form), value))
+    }
+    return UrlQuery(items)
+}

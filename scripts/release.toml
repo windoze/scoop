@@ -6,6 +6,7 @@ nghttp2 = "1.70.0"
 libidn2 = "2.3.8"
 libunistring = "1.4.2"
 libiconv = "1.19"
+uriparser = "1.0.2"
 
 [targets.aarch64-apple-darwin]
 cpu = "generic"

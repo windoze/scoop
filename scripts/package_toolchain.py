@@ -74,6 +74,19 @@ def prepare_targets(args, targets, binaries, environment):
             ],
             environment,
         )
+        run_script(
+            "build_uriparser.py",
+            [
+                "--target",
+                target,
+                "--build-dir",
+                args.work_dir / "uriparser" / target,
+                "--jobs",
+                args.jobs,
+                *native,
+            ],
+            environment,
+        )
         if "linux" in target:
             unwind = [
                 "--target",
@@ -143,6 +156,7 @@ def assemble(root, targets, binaries, args, release):
         for _, _, _, libraries, _ in TEXT_PACKAGES:
             for library in libraries:
                 shutil.copy2(source / library, destination / library)
+        shutil.copy2(source / "liburiparser.a", destination / "liburiparser.a")
         shutil.copytree(source / "runtime", destination / "runtime")
         for component, libraries in (
             ("openssl", ("libcrypto.a", "libssl.a")),
@@ -174,6 +188,7 @@ def assemble(root, targets, binaries, args, release):
         f"openssl = {json.dumps(release['openssl'])}",
         f"llhttp = {json.dumps(release['llhttp'])}",
         f"nghttp2 = {json.dumps(release['nghttp2'])}",
+        f"uriparser = {json.dumps(release['uriparser'])}",
         f"host_libraries = {json.dumps(sorted(path.name for path in native))}",
     ]
     manifest += [f"{name} = {json.dumps(release[name])}" for name, *_ in TEXT_PACKAGES]

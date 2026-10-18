@@ -1,0 +1,48 @@
+package scoop.url
+
+import scoop.test.*
+import scoop.collections.listOf
+
+@Test
+private class UrlBuilderTests {
+    @Test
+    fun `raw and encoded component setters do not inject structure or double encode`() {
+        val url = UrlBuilder().setScheme(Some("https")).setHost("bücher.example").setPort(Some(443))
+            .appendPathSegment("a/b?#%").appendEncodedPathSegment("x%2fy").appendPathSegment("..")
+            .setQueryParameters(UrlQuery().add("a", Some("x+y&z")))
+            .setFragment(Some("#片段")).build()
+        assertEquals("https://xn--bcher-kva.example:443/a%2Fb%3F%23%25/x%2Fy/%2E%2E?a=x%2By%26z#%23%E7%89%87%E6%AE%B5", url.toString())
+        assertEquals(url, Url.parse(url.toString()))
+        val builder = url.toBuilder().setEncodedQuery(Some(""))
+        val changed = builder.build()
+        builder.appendPathSegment("later")
+        assertEquals("a=x%2By%26z", url.encodedQuery!!)
+        assertEquals("", changed.encodedQuery!!)
+        assertEquals(url.encodedPath, changed.encodedPath)
+        assertEquals("http://[0000:0000:0000:0000:0000:0000:0000:0001]/", UrlBuilder().setScheme(Some("http")).setHost("::1").setPath("/").build().toString())
+    }
+
+    @Test
+    fun `redaction and request targets omit credentials and fragments explicitly`() {
+        val url = Url.parse("https://user:pass@example/a?token=secret&x=1&token=second#fragment")
+        assertEquals("https://example/a?token=%5Bredacted%5D&x=1&token=%5Bredacted%5D#fragment", url.redacted(listOf("token")))
+        assertEquals("/a?token=secret&x=1&token=second", url.httpRequestTarget())
+        assertEquals("https://example/a?token=secret&x=1&token=second", url.httpAbsoluteTarget())
+        assertEquals("user:pass", url.authority!!.encodedUserInfo!!)
+        assertEquals("https://example/a?token=secret&x=1&token=second#fragment", url.redacted())
+    }
+
+    @Test
+    fun `component validation catches authority path and port mistakes`() {
+        assertFailsWith<UrlParseException> { UrlBuilder().setEncodedAuthority(Some("a/b")) }
+        assertFailsWith<UrlParseException> { UrlBuilder().setEncodedHost(Some("a/b")).build() }
+        assertFailsWith<UrlParseException> { UrlBuilder().setScheme(Some("1http")).build() }
+        assertFailsWith<UrlParseException> { UrlBuilder().setPort(Some(65536)) }
+        assertFailsWith<UrlParseException> { UrlBuilder().setPort(Some(80)).build() }
+        assertFailsWith<UrlParseException> { UrlBuilder().setHost("example").setEncodedPath("relative").build() }
+        assertFailsWith<UrlParseException> { UrlBuilder().appendEncodedPathSegment("a/b") }
+        assertFailsWith<UrlParseException> { UrlBuilder().setEncodedQuery(Some("%XY")) }
+        assertEquals("./a:b", UrlBuilder().setEncodedPath("a:b").build().toString())
+        assertEquals("//", UrlBuilder().setEncodedHost(Some("")).build().toString())
+    }
+}
