@@ -6,7 +6,7 @@
 
 ## 0. 目标与范围
 
-M56 改善普通 Scoop 程序的计算吞吐、分配成本和 GC 停顿，并关注这些优化带来的编译时间与代码体积。优先处理可以从现有代码定位、可用独立 fixture 验证的成本。
+M56 面向以 PC／桌面应用为主的 Scoop 程序，含 60 fps GUI，并兼顾低配置个人电脑。优先降低分配成本和 GC 暂停尾延迟，其次控制实际内存占用，再考虑大批量 GC 吞吐；同时关注编译时间与代码体积。优先处理可以从现有代码定位、可用独立 fixture 验证的成本。桌面场景的时间口径、局部优化顺序与增量 GC 取舍见[短暂停补充设计](DESKTOP-GC.md)。
 
 范围包括 MIR／LIR／LLVM 优化、safepoint、对象与值表示操作、runtime 小操作、分配、写屏障及现有分代 Immix collector。String 表示操作属于本范围；JSON、集合算法、HTTP、TLS、异步 I/O 的库级重构不纳入本期，它们只可作为组合工作负载。M55 泛型约束设计不作为前置条件。
 
@@ -16,17 +16,17 @@ M56 改善普通 Scoop 程序的计算吞吐、分配成本和 GC 停顿，并�
 
 ## 1. 证据与优先级
 
-“代码确认”表示成本路径确实存在，不等于已证明它支配真实应用。只有第 2 节是本次新测量；M34／M44 数字均为历史记录，不能充当当前版本基线。
+“代码确认”表示成本路径确实存在，不等于已证明它支配真实应用。下表保留实施前定位；第 2 节是原始调研实验，实施期补测与已落地结果见对应章节及 PROGRESS。M34／M44 数字均为历史记录，不能充当当前版本基线。
 
 | 优先级 | 已定位的成本 | 影响场景与证据 | 方案入口 |
 | --- | --- | --- | --- |
-| P0 | release 的 LLVM IR pass 主要为局部化简，没有一般循环优化／向量化管线 | 数值计算；[policy.rs](../../compiler/codegen/src/statepoint/policy.rs)，本次机制实验 | 第 3.1 节，先区分无 site 与 Managed 代码 |
+| P1 | release 的 LLVM IR pass 主要为局部化简，没有一般循环优化／向量化管线 | 数值计算；[policy.rs](../../compiler/codegen/src/statepoint/policy.rs)，本次机制实验 | 第 3.1 节，先区分无 site 与 Managed 代码 |
 | P0 | 每条 Managed 回边执行四次 acquire load 和条件慢路径 | 很短的热循环；[poll.rs](../../compiler/codegen/src/function/gc/poll.rs)，本次机制实验 | 第 3.2 节，保留握手合同，批量 poll 单独评估 |
 | P0 | 分配尺寸查询重复执行 TD 地址成员查找；TLAB 完成路径也经过它 | 小对象高频分配；[value_shape.c](../../runtime/src/value_shape.c)、[allocation.c](../../runtime/src/gc/allocation.c)，本次子操作实验 | 第 4.1 节，复用已验证的不可变 shape |
 | P0 | `String.byteLength` 等常数时间操作经过 Scoop native transition | String／UTF-8 热路径；[strings.scoop](../../sysroot/src/scoop.core/src/strings.scoop)、[strings.c](../../runtime/src/strings.c)、[native.rs](../../compiler/codegen/src/function/call/native.rs)，代码确认，未测当前端到端占比 | 第 4.2 节，有限、类型化的表示 intrinsic |
 | P1 | unbox／clone 检查中，锁内重复查询对象起点、大小与 TD | Any／interface／装箱值密集代码；[values.c](../../runtime/src/gc_binding/values.c)、[heap_objects.c](../../runtime/src/gc/heap_objects.c)，代码确认 | 第 4.3 节，单次定位及局部表示优化 |
-| P1 | 1 MiB 共享 nursery、32 KiB TLAB block refill 取得 heap lock；release 对象走旧代分配锁 | 多 mutator 与短命对象；[allocation.c](../../runtime/src/gc/allocation.c)、[heap_internal.h](../../runtime/src/gc/heap_internal.h)，代码确认 | 第 5 节，先分解成本，再选择容量与 refill 改动 |
-| P1 | mark 可并行，但 plan／copy／reference update／reclaim 仍串行 | 有大量搬迁的 full GC；[collector.c](../../runtime/src/gc/collector.c)，M44 历史 update 约 11.6 ms | 第 6 节，先并行化稳定 forwarding 之后的对象槽回写 |
+| P0 | 1 MiB 共享 nursery、32 KiB TLAB block refill 取得 heap lock；release 对象走旧代分配锁 | 多 mutator 与短命对象；[allocation.c](../../runtime/src/gc/allocation.c)、[heap_internal.h](../../runtime/src/gc/heap_internal.h)，代码确认 | 第 5 节，优先分配成本与短暂停，已测后保留 1 MiB |
+| P0 | mark 可并行，但 plan／copy／reference update／reclaim 仍串行 | 有大量搬迁的 full GC；[collector.c](../../runtime/src/gc/collector.c)，M44 历史 update 约 11.6 ms | 第 6 节，D2 已并行 update；桌面调研继续分解其余串行成本 |
 | P1 | 普通 card mark 每次四级 page-map acquire 查找再执行原子 OR | 密集引用写入；[card.rs](../../compiler/codegen/src/function/gc/card.rs)，代码确认 | 第 5.3 节，无 safepoint 区间内复用与去重 |
 | P2 | 每个 callable 独立创建 LLVM context／module，重新声明全 Cone 类型、global 和 callable | 大 Cone 的冷编译；[emit.rs](../../compiler/codegen/src/emission/objects/emit.rs)、[emission.rs](../../compiler/codegen/src/emission.rs)，尚无阶段耗时测量 | 第 3.3 节，按实际引用构造声明 |
 | P2 | 普通外来 strong callable 不进入现有 MIR 内联候选，逐 callable LLVM module 也看不到其正文 | 小库函数层层包装；[inline/policy.rs](../../compiler/mir-lower/src/optimization/inline/policy.rs)、[prepare.rs](../../compiler/codegen/src/emission/prepare.rs)，代码确认 | 第 7.1 节，有限正文导入候选 |
@@ -163,6 +163,8 @@ N 是局部优化参数，可从少量候选中按循环体形态选择，再以
 
 保留逐 callable object 的物理定义／ODR／链接选择合同，不为避免重复工作先改成全 Cone 单一 object。只在声明重复消除后再评估有限并行 codegen；LLVM Context 不跨 worker 共享，峰值 RSS 与确定性要同时测量。缓存命中仍在读取源码、探测工具和准备链接前返回，不恢复命中产物审计。
 
+本机补测已确认声明构建随小函数数量快速增长：1000／5000 个简单 NoGC 函数约花 1.20／31.25 s 构造声明。C1 新管线与原管线的完整冷编译时间在样本波动范围内接近；详见[实施记录 E](PROGRESS.md#e有条件优化的进入调查)。声明裁剪作为有证据的独立后续改进，先限当前 callable 实际需要的函数声明，再处理 TD／global 闭包；不把全面 emitter 重写加入本期 A–D 的完成门槛。
+
 ## 4. Runtime 热路径
 
 ### 4.1 将不可变 TD 验证留在真实边界
@@ -259,6 +261,10 @@ M56 优先评估 **copy 完成后，对存活副本的出站引用并行更新**
 持续区分无搬迁 full、有搬迁 full、minor、长链、大数组、宽图、pin 与 release。已存在的零搬迁跳过、无引用对象跳过、stable live set 和显式 heap 验证保持；普通运行不启用全堆重型交叉验证。
 
 沿用运行时规范 3.5／3.9 的时间边界：stop wait、已停稳阶段、请求到 RUNNING、业务实际进度分别报告。阶段可能重叠，阶段和或中位数差不能代替整体停顿；mark 扩展性不代表总 GC 扩展性。诊断开关、worker 数与 stress 状态必须随样本记录。
+
+### 6.4 桌面交互与低配置机器
+
+按用户补充的桌面用途，短暂停和分配速度优先于批量 GC 吞吐；不能仅靠扩大 nursery、长期推迟 full 或增加 worker 换取表面成绩。新增[补充设计](DESKTOP-GC.md)分解 minor 回收、旧堆遍历、side metadata、VM 归还、首次 worker 创建及 native／release 停顿，给出低复杂性候选、实验边界与是否进入增量 major 的条件。现有 runtime 合同保持，新增调研不自动启用增量／并发 collector。
 
 ## 7. 有条件进入的编译优化
 

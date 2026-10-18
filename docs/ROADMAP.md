@@ -667,6 +667,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 
 ### M56 生成代码、GC 与 runtime 性能（实施中，[设计与调研](milestone56/DESIGN.md)、[进度](milestone56/PROGRESS.md)）
 
+- 面向 PC／桌面与 60 fps GUI，分配速度、短暂停尾部和低配置机器的 footprint 优先于 GC 批量吞吐；局部改进与增量 collector 取舍见[补充设计](milestone56/DESKTOP-GC.md)。
 - 优先复用 TD／对象表示操作的已有验证结果，以 typed intrinsic 消除常数时间 runtime 操作的 native transition，并扩展满足精确根与 site identity 合同的 release 优化。
 - 对 nursery／TLAB、局部 card mark 和有搬迁 GC 的引用回写做真实工作负载对照；吞吐、GC 响应、内存、编译耗时与代码体积共同决定方案取舍。
 - 记录编译声明重复、跨 Cone 小函数内联、装箱与协程对象消除的候选边界；分块 poll 等合同变更需单独验证，不作为首版前置。实现按功能提交，先本机聚焦验证，再做 Linux 完整验收。
