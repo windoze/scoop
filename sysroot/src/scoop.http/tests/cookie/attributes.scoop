@@ -1,0 +1,71 @@
+package scoop.http
+
+import scoop.test.*
+import scoop.time.Instant
+
+@Test
+private class HttpCookieAttributeTests {
+    @Test
+    fun `standard attributes keep the last valid value without discarding unknown fields`() {
+        val cookie = HttpSetCookie.parse("sid=x; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Expires=bad; " +
+            "Max-Age=15; Max-Age=bad; Domain=.EXAMPLE.com; Domain=.SUB.EXAMPLE.com; Path=/one; Path=relative; " +
+            "Secure=unused; HttpOnly=unused; SameSite=LaX; Extension=a=b")
+        assertEquals(Instant.fromEpochSeconds(0L), cookie.expires!!)
+        assertEquals(15L, cookie.maxAgeSeconds!!)
+        assertEquals("sub.example.com", String.fromUtf8(cookie.domain!!))
+        assertEquals("relative", String.fromUtf8(cookie.path!!))
+        assertTrue(cookie.secure && cookie.httpOnly)
+        assertTrue(cookie.sameSite == HttpCookieSameSite.Lax)
+        assertEquals("a=b", String.fromUtf8(cookie.attributes[cookie.attributes.size - 1L].value!!))
+        assertTrue(HttpSetCookie.parse("a=b; SameSite=Strict; SameSite=unknown").sameSite == HttpCookieSameSite.Default)
+        assertTrue(HttpSetCookie.parse("a=b; Secure; Secure=").secure)
+    }
+
+    @Test
+    fun `Max Age validates the whole number and saturates both signed boundaries`() {
+        for ((text, expected) in [("0", 0L), ("-0", 0L), ("00015", 15L), ("-2", -2L),
+            ("9223372036854775807", Long.MAX_VALUE), ("9223372036854775808", Long.MAX_VALUE),
+            ("-9223372036854775807", -Long.MAX_VALUE), ("-9223372036854775808", Long.MIN_VALUE),
+            ("-99999999999999999999999999999999", Long.MIN_VALUE)]) {
+            assertEquals(expected, HttpSetCookie.parse("a=b; Max-Age=" + text).maxAgeSeconds!!)
+        }
+        for (text in ["", "-", "+1", "1.0", "\"1\"", "1x", "1 2", "999999999999999999999999999999999x"]) {
+            assertEquals(7L, HttpSetCookie.parse("a=b; Max-Age=7; Max-Age=" + text).maxAgeSeconds!!)
+        }
+        assertTrue(HttpSetCookie.parse("a=b; Max-Age=bad").maxAgeSeconds == None)
+    }
+
+    @Test
+    fun `expiry uses explicit time precedence lifetime caps and Instant saturation`() {
+        val now = Instant.fromEpochSeconds(0L, 123L)
+        assertEquals(Instant.fromEpochSeconds(15L, 123L), HttpSetCookie.parse("a=b; Max-Age=15; Expires=1 Jan 1970 0:0:0").expiryFrom(now)!!)
+        assertEquals(Instant.MIN, HttpSetCookie.parse("a=b; Max-Age=0").expiryFrom(now)!!)
+        assertEquals(Instant.MIN, HttpSetCookie.parse("a=b; Max-Age=-1").expiryFrom(now)!!)
+        val far = HttpSetCookie.parse("a=b; Max-Age=99999999999999999999999999999")
+        assertEquals(Instant.fromEpochSeconds(34560000L, 123L), far.expiryFrom(now)!!)
+        assertEquals(Instant.MAX, far.expiryFrom(now, Long.MAX_VALUE)!!)
+        assertEquals(now, far.expiryFrom(now, 0L)!!)
+        assertEquals(Instant.MAX, HttpSetCookie.parse("a=b; Max-Age=2").expiryFrom(Instant.fromEpochSeconds(Instant.MAX.epochSeconds - 1L))!!)
+        val expires = HttpSetCookie.parse("a=b; Expires=31 Dec 9999 23:59:59")
+        assertEquals(Instant.fromEpochSeconds(60L, 123L), expires.expiryFrom(now, 60L)!!)
+        assertTrue(HttpSetCookie.parse("a=b").expiryFrom(now) == None)
+        assertFailsWith<IllegalArgumentException> { HttpSetCookie.parse("a=b").expiryFrom(now, -1L) }
+        assertEquals(Instant.fromEpochSeconds(0L, 999999999L), HttpSetCookie.parse("a=b; Max-Age=1").expiryFrom(Instant.fromEpochSeconds(-1L, 999999999L))!!)
+    }
+
+    @Test
+    fun `oversize attribute values remain visible without overriding usable attributes`() {
+        val large = Array<Byte>(1025L) { _ -> 97.toByte() }
+        val attrs = [HttpCookieAttribute("Max-Age", "10"), HttpCookieAttribute("Max-Age", Some<List<Byte>>(large)),
+            HttpCookieAttribute("Domain", "example.com"), HttpCookieAttribute("Domain", Some<List<Byte>>(large)),
+            HttpCookieAttribute("Secure", Some<List<Byte>>(large)), HttpCookieAttribute("SameSite", "Strict"),
+            HttpCookieAttribute("SameSite", Some<List<Byte>>(large)), HttpCookieAttribute("Extension", Some<List<Byte>>(large))]
+        val cookie = HttpSetCookie.parse(HttpSetCookie(HttpCookiePair("a", "b"), attrs).toByteArray())
+        assertEquals(8L, cookie.attributes.size)
+        assertEquals(1025L, cookie.attributes[7L].value!!.size)
+        assertEquals(10L, cookie.maxAgeSeconds!!)
+        assertEquals("example.com", String.fromUtf8(cookie.domain!!))
+        assertFalse(cookie.secure)
+        assertTrue(cookie.sameSite == HttpCookieSameSite.Strict)
+    }
+}

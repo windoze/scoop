@@ -112,6 +112,34 @@ PSL 数据访问是普通库逻辑，不生成 compiler-known 表或额外产物
 
 规则匹配用普通 Scoop 集合和字符串实现。原始 PSL 与 MPL-2.0 许可随 vendor 交付，维护脚本将相同规则和分区嵌入本 Cone 的普通静态数据；本地构建和每次请求不下载数据，不引入新的编译器资源机制。每个 PublicSuffixList 对象构造一次索引，之后只读，可在独立请求与线程间复用。version、revision 与 ruleCount 记录实际加载的快照；这些信息仅用于维护和诊断。
 
+### 2.2 Cookie 字节与日期
+
+接收算法以 RFC 6265 §5 为基础，采用 [draft-ietf-httpbis-rfc6265bis-22](https://www.ietf.org/archive/id/draft-ietf-httpbis-rfc6265bis-22.html) 的控制字符、无名称值、4096 字节名称／值上限、1024 字节属性值上限、SameSite 和前缀规则。该草案是本期明确选择的兼容基线，不把它称为已发布 RFC；浏览器文档、worker 和非 HTTP 脚本 API 不属于本库。
+
+`HttpCookiePair(name, value)` 保存不可变字节；构造器另接受 String 并显式按 UTF-8 编码。名称保持大小写，值保留双引号、反斜杠和百分号字节，不执行 quoted-pair、百分号或字符集解码。名称不得含等号，名称和值不得含分号或除 HTAB 外的控制字节；普通构造不接受两端 WSP，以免发送时产生与构造值不同的意义。接收端按算法去除两端 WSP，允许内部空白和 obs-text；无等号时表示空名称及完整值。名称与值合计不得超过 4096 字节，空名称与空值可作为解析数据表达，但不能成为被接纳的 Cookie。
+
+`HttpCookieHeader(pairs)` 保留 Cookie 请求字段中的顺序与重复名称。parse／parseOrNone 解析分号分隔的字节／String 字段，忽略空项；parseFields 将多条 Cookie 按 Cookie 自身的分号规则处理。`toByteArray()`／`toHttpField()` 按原顺序输出 `; ` 分隔的 cookie-string，空名称时只输出值；不合并或去重。Cookie 的生成字段设置 neverIndex。空名称序列化遵循接收算法的表示，不能据此承诺所有非规范 Cookie 均能解析回相同的名称／值分界。
+
+`HttpCookieAttribute(name, value = None)` 保存属性名和值的独立字节，None 与空值不同；未知属性、重复属性和顺序保留。`HttpSetCookie(pair, attributes)` 表示一条完整 Set-Cookie，配套 parse／parseOrNone、originalValue、toByteArray／toHttpField。属性以分号分隔，等号只分隔第一次；属性引号不赋予转义语义。解析时拒绝整条字段中的禁止控制字节；超过 1024 字节的属性值仍可从原属性列表观察，但不参与标准属性解释。Set-Cookie 输出也设置 neverIndex，各条字段始终独立处理。
+
+`HttpCookieDate.parse`／`parseOrNone` 按 Cookie 日期 token 算法接收字节或 String，无需参考时刻：忽略星期、分隔符与未识别 token，按规定顺序选择首次出现的时分秒、日、月、年，接受各 token 的规定尾部。两位年份 70～99 映射到 1970～1999，00～69 映射到 2000～2069；年份限 1601～9999，日历日期必须存在，秒最大 59。不能复用 HTTP-date 的三种严格形状或 50 年参考窗口。格式错误报告 Expires 字段及字节位置；format 生成 UTC 的 IMF-fixdate 形状，支持同样的 Cookie 年限。UTC、日历和最终日期构造复用 std。
+
+### 2.3 标准属性与作用域
+
+HttpSetCookie 的 expires、maxAgeSeconds、domain、path、secure、httpOnly 和 sameSite 在构造／解析时解释一次。无效 Expires／Max-Age 仅忽略本项，不覆盖较早的有效属性；其余重复标准属性采用最后一个可用项，Secure／HttpOnly 只判断属性是否存在。Max-Age 接受完整的可选负号十进制，数值溢出饱和到 Long 边界后仍检查剩余数字。Domain 去掉一个前导点并进行 ASCII 小写转换，Path 保留字节；二者仍须在具体 URL 上决定作用域。SameSite 为 Default／Strict／Lax／None，缺失或未知值为 Default，参数匹配不区分 ASCII 大小写。
+
+`expiryFrom(now, maxLifetimeSeconds = 34560000): Instant?` 使用显式 now 计算过期：Max-Age 优先，零或负值表示立即过期，缺少两种有效属性表示会话 Cookie（None）。持久期限最多为配置的相对上限，默认 400 天；配置必须非负。所有加法受检并在 std Instant.MAX 饱和，不先把大秒数转换成纳秒，也不查询时钟。
+
+`resolve(url, now, suffixes, maxLifetimeSeconds = 34560000)` 返回标准库的 `Result<HttpCookie, HttpCookieRejection>`，Success 表示接纳，Failure 表示正常拒绝。结果 HttpCookie 保存 pair、规范 host、hostOnly、path、expiresAt、secure、httpOnly 与 sameSite；该操作无全局状态。缺失／空 Domain 产生 host-only；非空 Domain 必须是 ASCII，并由 idna 或 platform 的 IP parser 验证及规范化，禁止尾随根点。域名按完整标签边界匹配，IP 按地址精确匹配；Domain 为公共后缀时，只有它等于当前 DNS host 才退化为 host-only，否则拒绝。PSL 同时使用 ICANN 与 PRIVATE 部分。
+
+没有以 `/` 开头的 Path 使用 URL 已编码路径的默认目录；路径匹配不做百分号解码或目录规范化。只有 https／wss 被本工具视为安全传输。Secure Cookie 不从明文 URL 接纳，SameSite=None 还要求 Secure。`__Secure-`／`__Host-` 按接收算法不区分 ASCII 大小写检查，但名称本身保持原大小写；前者要求 Secure，后者还要求解析后的 host-only、Path 属性存在且最终路径为 `/`。空名称的值不得冒充这两种前缀。拒绝原因区分空名称／值、非法域名、域名不匹配、公共后缀、不安全传输、SameSite 和前缀问题，不把正常拒绝变成网络失败。
+
+### 2.4 发送与 SameSite 的无状态判断
+
+`HttpCookie.isExpired(now)` 和 `matches(url, now)` 判断期限、主机／域名、路径和 Secure。`HttpCookieRules.domainMatches`、`defaultPath`、`pathMatches` 是相同算法的独立入口；domainMatches 使用已规范化 UrlHost，defaultPath／pathMatches 使用已编码路径字节。它们不读取 DNS、Cookie jar 或文件。
+
+`allowsSameSite(isSameSiteRequest, isTopLevelNavigation, isSafeMethod)` 在 Strict 时只接受同站请求，在 Lax／Default 时另接受使用安全方法的顶层导航，None 不限制。`allowsSetting(isSameSiteRequest, isTopLevelNavigation)` 表达对应的设置规则。调用者必须传入真实的站点与导航判断；本层不将“同一个连接”解释为同站，不提供 Lax-Allowing-Unsafe 的时间例外。没有浏览器上下文时，client 按其显式 Cookie 策略提供限制性的输入。Cookie 的存储键、排序、替换、持久化及明文覆盖既有 Secure Cookie 的检查仍属于有状态 Cookie jar。
+
 ## 3. 表单与 multipart
 
 application/x-www-form-urlencoded 使用 URL 库的 FormUrlEncoded，保留重复项和顺序，按明确 charset 编码。HTTP 层提供 Content-Type 与 RequestBody 所需的元数据，不重新定义加号、百分号或空值规则。

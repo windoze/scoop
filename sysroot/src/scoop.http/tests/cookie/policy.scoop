@@ -1,0 +1,54 @@
+package scoop.http
+
+import scoop.test.*
+import scoop.time.Instant
+import scoop.url.Url
+
+@Test
+private class HttpCookiePolicyTests {
+    @Test
+    fun `prefixes require their resolved scope and are checked case insensitively`() {
+        val url = Url.parse("https://example.com/")
+        val scope = cookieRuleList()
+        for (text in ["__Secure-SID=x", "__SeCuRe-SID=x", "__Host-SID=x; Secure", "__Host-SID=x; Path=/",
+            "__Host-SID=x; Secure; Path=/; Domain=example.com", "__Host-SID=x; Secure; Path=/dir", "=__Secure-SID=x", "=__hOsT-SID=x"]) {
+            assertCookieRejected(text, url, scope, HttpCookieRejection.InvalidPrefix)
+        }
+        val secure = acceptedTestCookie("__SeCuRe-SID=x; Secure", url, scope)
+        assertEquals("__SeCuRe-SID", String.fromUtf8(secure.pair.name))
+        assertTrue(acceptedTestCookie("__Host-SID=x; Secure; Path=/", url, scope).hostOnly)
+        assertCookieRejected("a=b; Secure", Url.parse("http://example.com/"), scope, HttpCookieRejection.InsecureTransport)
+        assertCookieRejected("a=b; SameSite=None", url, scope, HttpCookieRejection.SameSiteWithoutSecure)
+        assertCookieRejected("=", url, scope, HttpCookieRejection.EmptyPair)
+        assertTrue(acceptedTestCookie("a=b; Secure; SameSite=None", Url.parse("wss://example.com/"), scope).secure)
+    }
+
+    @Test
+    fun `SameSite and setting checks require explicit request and navigation facts`() {
+        val url = Url.parse("https://example.com/")
+        val scope = cookieRuleList()
+        for (mode in ["Strict", "Lax", "None", "unknown"]) {
+            val cookie = acceptedTestCookie("a=b; Secure; SameSite=" + mode, url, scope)
+            for (same in [true, false]) for (navigation in [true, false]) for (safe in [true, false]) {
+                val expected = mode == "None" || same || (mode != "Strict" && navigation && safe)
+                assertEquals(expected, cookie.allowsSameSite(same, navigation, safe))
+                assertEquals(mode == "None" || same || navigation, cookie.allowsSetting(same, navigation))
+            }
+        }
+    }
+
+    @Test
+    fun `expiry and Secure matching never infer transport or change encoded paths`() {
+        val scope = cookieRuleList()
+        val cookie = acceptedTestCookie("sid=x; Max-Age=1; Secure; Path=/a%2Fb", Url.parse("https://example.com/a%2Fb/item"), scope)
+        val now = cookieTestNow()
+        assertFalse(cookie.isExpired(now))
+        assertTrue(cookie.isExpired(Instant.fromEpochSeconds(now.epochSeconds + 1L)))
+        assertTrue(cookie.matches(Url.parse("https://example.com/a%2Fb/next"), now))
+        assertFalse(cookie.matches(Url.parse("https://example.com/a/b/next"), now))
+        assertFalse(cookie.matches(Url.parse("http://example.com/a%2Fb/next"), now))
+        assertFalse(cookie.matches(Url.parse("https://example.com/a%2Fb/next"), Instant.fromEpochSeconds(now.epochSeconds + 1L)))
+        val session = acceptedTestCookie("a=b", Url.parse("https://example.com/"), scope)
+        assertFalse(session.isExpired(Instant.MAX))
+    }
+}

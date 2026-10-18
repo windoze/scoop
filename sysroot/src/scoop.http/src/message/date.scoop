@@ -4,13 +4,7 @@ import scoop.datetime.UtcOffset
 import scoop.time.Instant
 
 public object HttpDate {
-    public fun format(value: Instant): String {
-        val time = value.toLocalDateTime(UtcOffset.ZERO)
-        if (time.year < 1900 || time.year > 9999) throw IllegalArgumentException(Some("HTTP date year must be 1900..9999"))
-        val weekday = httpDateWeekdays[time.date.dayOfWeek.isoDayNumber.toLong() - 1L]
-        return weekday + ", " + dateTwoDigits(time.dayOfMonth) + " " + httpDateMonths[time.monthNumber.toLong() - 1L] + " " +
-            time.year.toString() + " " + dateTwoDigits(time.hour) + ":" + dateTwoDigits(time.minute) + ":" + dateTwoDigits(time.second) + " GMT"
-    }
+    public fun format(value: Instant): String = httpDateText(value, 1900, "HTTP date")
 
     public fun parse(value: List<Byte>, reference: Instant, caseInsensitive: Boolean = false): Instant =
         parseHttpDate(HttpFieldReader("HTTP-date", value), reference, caseInsensitive)
@@ -22,6 +16,15 @@ public object HttpDate {
     }
     public fun parseOrNone(value: String, reference: Instant, caseInsensitive: Boolean = false): Instant? =
         parseOrNone(value.toByteArray(), reference, caseInsensitive)
+}
+
+internal fun httpDateText(value: Instant, minimumYear: Int, field: String): String {
+    val time = value.toLocalDateTime(UtcOffset.ZERO)
+    if (time.year < minimumYear || time.year > 9999)
+        throw IllegalArgumentException(Some(field + " year must be " + minimumYear.toString() + "..9999"))
+    val weekday = httpDateWeekdays[time.date.dayOfWeek.isoDayNumber.toLong() - 1L]
+    return weekday + ", " + dateTwoDigits(time.dayOfMonth) + " " + httpDateMonths[time.monthNumber.toLong() - 1L] + " " +
+        time.year.toString() + " " + dateTwoDigits(time.hour) + ":" + dateTwoDigits(time.minute) + ":" + dateTwoDigits(time.second) + " GMT"
 }
 
 private fun dateTwoDigits(value: Int): String = if (value < 10) "0" + value.toString() else value.toString()

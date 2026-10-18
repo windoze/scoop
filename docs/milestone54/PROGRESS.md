@@ -24,6 +24,7 @@
 | ETag 与条件列表 | HttpEntityTag 保留 opaque 字节，提供弱／强比较；HttpEntityTagCondition 区分通配符与有序列表，并生成 If-Match／If-None-Match 字段 | Darwin debug／release 与 moving GC：6 项新增测试；HTTP 全部 91 项 debug／release 回归通过，覆盖 RFC 比较矩阵、字面反斜杠、非 UTF-8 字节、空标签／空列表、逗号和原始位置 |
 | HTTP 认证字段 | HttpAuthChallenge、HttpCredentials 与 HttpAuthenticationInfo 共用字节语法，合并同名字段，保留未知方案、quoted 参数和 token68；HttpParameter 支持显式输出引号 | Darwin debug／release 与 moving GC：11 项新增测试；HTTP 全部 102 项 debug／release 回归通过，覆盖多方案与跨行参数、重复名、padding、非 UTF-8、字段方向及错误偏移 |
 | 公共后缀 | PublicSuffixList 提供不可变 PSL 索引、普通／通配／例外匹配、ICANN／PRIVATE 选择和域名边界结果，直接复用 URL／IDNA 的规范名称；随库交付 2026-10-17 固定快照及许可 | Darwin debug／release：5 项新测试和 HTTP 全部 107 项通过；10398 条规则、77 个官方向量通过，4 项代表性规则测试通过 full moving，完整快照通过 minor moving |
+| Cookie 消息与规则 | HttpCookiePair／Header／Attribute／SetCookie 保存有序字节数据；独立 Cookie 日期、标准属性、作用域、前缀、过期与显式 SameSite 判断，复用 URL／IDNA／PSL 和标准 Result | Darwin debug／release 与 moving GC：18 项新测试；HTTP 全部 125 项 debug／release 通过，覆盖无名值、重复与未知属性、控制字节／长度、溢出、IP／编码路径、公共后缀和拒绝原因 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -72,6 +73,8 @@ HTTP 日期的 release 编译暴露了跨无写入分支的同槽根加载直到
 `m54-public-suffix` 的 debug／release 两个变体通过，共 8 个进程；生产 `.slib` 在两个 native 线程和主线程之间复用同一个只读规则索引，组合 Unicode URL、已验证 IDNA 名称、IP 排除、通配／例外和私有后缀。完整快照在 minor moving 下验证，包含所有规则类型的小列表在 full moving 下验证，随后正常复用构建缓存。消费者直接声明其使用的 idna／url 依赖，未改变语言的直接依赖可见性规则。
 
 完整 PSL 的逐分配 full moving 试跑因该诊断模式的全堆搬迁及永久隔离开销而主动终止；正式 GC 覆盖采用上述两种既有模式。没有修改 runtime、缩减内置 PSL 或以自生成结果替代官方向量。静态数据生成脚本通过固定版本 Ruff，C 数据接口通过格式化和严格警告检查；分发复用既有 vendor／license 收集路径。
+
+`m54-http-cookies` 的 debug／release 两个变体通过，共 6 个进程；生产 `.slib` 逐字节接收八条独立 Set-Cookie，组合显式时间、规范 URL 和小型 PSL，检查过期、公共后缀、SameSite、编码路径，再生成并解析 Cookie 请求。日期中的逗号、同名值顺序、非 UTF-8 字节、快照、moving GC 与缓存复用均通过。接收兼容基线明确采用 RFC 6265 与 6265bis-22 草案规则，Cookie 日期不复用 HTTP-date 的严格形状；Cookie jar 的存储、替换和发送策略仍待 client 实现。
 
 ## 后续工作
 

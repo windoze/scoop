@@ -1,0 +1,43 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+
+public class HttpCookieHeader private constructor(public val pairs: Array<HttpCookiePair>) {
+    public constructor(pairs: List<HttpCookiePair>) : this(pairs.toArray()) {}
+
+    public fun toByteArray(): Array<Byte> {
+        val output = ByteArrayBuilder()
+        var first = true
+        for (pair in pairs) {
+            if (!first) output.append("; ".toByteArray())
+            output.append(pair.toByteArray())
+            first = false
+        }
+        return output.toByteArray()
+    }
+    public fun toHttpField(): HttpField = HttpField("Cookie".toByteArray(), toByteArray(), neverIndex = true)
+
+    public companion object {
+        public fun parse(value: List<Byte>): HttpCookieHeader {
+            val reader = cookieFieldReader("Cookie", value)
+            val pairs = ArrayList<HttpCookiePair>()
+            while (!reader.ended) {
+                val pair = HttpCookiePair.read(reader)
+                if (pair.name.size > 0L || pair.value.size > 0L) pairs.add(pair)
+                if (!reader.ended) reader.expect(59)
+            }
+            return HttpCookieHeader(pairs.toArray())
+        }
+        public fun parse(value: String): HttpCookieHeader = parse(value.toByteArray())
+        public fun parseOrNone(value: List<Byte>): HttpCookieHeader? {
+            try { return Some(parse(value)) }
+            catch (_: HttpFieldParseException) { return None }
+        }
+        public fun parseOrNone(value: String): HttpCookieHeader? = parseOrNone(value.toByteArray())
+        public fun parseFields(fields: List<HttpField>): HttpCookieHeader {
+            val pairs = ArrayList<HttpCookiePair>()
+            for (field in fields.findAll("cookie".toByteArray())) for (pair in parse(field.value).pairs) pairs.add(pair)
+            return HttpCookieHeader(pairs.toArray())
+        }
+    }
+}

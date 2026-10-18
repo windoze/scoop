@@ -1,0 +1,60 @@
+package scoop.http
+
+internal fun checkedCookieBytes(value: List<Byte>, name: Boolean): Array<Byte> {
+    val bytes = value.toArray()
+    for (byte in bytes) {
+        val c = byte.toUByte().toInt()
+        if (!httpQuotedByte(c) || c == 59 || (name && c == 61))
+            throw IllegalArgumentException(Some("invalid Cookie byte"))
+    }
+    if (bytes.size > 0L && (cookieWsp(bytes[0L]) || cookieWsp(bytes[bytes.size - 1L])))
+        throw IllegalArgumentException(Some("Cookie component has surrounding whitespace"))
+    return bytes
+}
+
+internal fun checkedCookieOptional(value: List<Byte>?): Array<Byte>? = when (value) {
+    case None -> None
+    case Some(bytes) -> Some(checkedCookieBytes(bytes, false))
+}
+
+internal fun cookieWsp(value: Byte): Boolean = value == 32.toByte() || value == 9.toByte()
+
+internal fun cookieFieldReader(field: String, value: List<Byte>): HttpFieldReader {
+    val reader = HttpFieldReader(field, value)
+    for (index in 0L..<reader.bytes.size) if (!httpQuotedByte(reader.bytes[index].toUByte().toInt()))
+        reader.failAt(index, "invalid Cookie control byte")
+    return reader
+}
+
+internal fun readCookiePart(reader: HttpFieldReader): (Array<Byte>, Array<Byte>, Boolean) {
+    val start = reader.position
+    var equals = -1L
+    while (!reader.ended && reader.peek() != 59) {
+        if (equals < 0L && reader.peek() == 61) equals = reader.position
+        reader.position += 1L
+    }
+    val end = reader.position
+    val name = trimmedCookieBytes(reader, start, if (equals < 0L) end else equals)
+    val value = if (equals < 0L) Array<Byte>(0L) { _ -> 0.toByte() }
+        else trimmedCookieBytes(reader, equals + 1L, end)
+    return (name, value, equals >= 0L)
+}
+
+private fun trimmedCookieBytes(reader: HttpFieldReader, first: Long, last: Long): Array<Byte> {
+    var start = first
+    var end = last
+    while (start < end && cookieWsp(reader.bytes[start])) start += 1L
+    while (end > start && cookieWsp(reader.bytes[end - 1L])) end -= 1L
+    return reader.slice(start, end)
+}
+
+internal fun cookiePrefix(value: List<Byte>, prefix: String): Boolean {
+    val bytes = prefix.toByteArray()
+    if (value.size < bytes.size) return false
+    for (index in 0L..<bytes.size) {
+        var c = value[index].toUByte().toInt()
+        if (c >= 65 && c <= 90) c += 32
+        if (c != bytes[index].toUByte().toInt()) return false
+    }
+    return true
+}
