@@ -1,0 +1,49 @@
+import scoop.http.*
+import scoop.bytes.ByteArrayBuilder
+import scoop.platform.memory.NativeByteBuffer
+
+fun main() {
+    val expected = "报告 2026.pdf"
+    val disposition = HttpContentDisposition("attachment", [HttpParameter("filename", "report.pdf".toByteArray()),
+        HttpParameter.extended("filename", expected, "zh-Hans")])
+    val field = disposition.toHttpField()
+    val wire = ByteArrayBuilder()
+    wire.append("HTTP/1.1 200 OK\r\n".toByteArray())
+    wire.append(field.name); wire.append(": ".toByteArray()); wire.append(field.value)
+    wire.append("\r\nContent-Length: 4\r\n\r\ndata".toByteArray())
+    wire.append("HTTP/1.1 200 OK\r\nContent-Disposition: attachment; filename*=UTF-8''%FF; filename=fallback.pdf\r\nContent-Length: 0\r\n\r\n".toByteArray())
+    val data = wire.toByteArray()
+    val heads = ArrayList<HttpResponseHead>()
+    val body = ByteArrayBuilder()
+    Http1Decoder.client().use { decoder ->
+        decoder.expectResponse("GET".toByteArray()); decoder.expectResponse("GET".toByteArray())
+        NativeByteBuffer.allocate(1L).use { input ->
+            for (byte in data) {
+                input.clear(); input.writeByte(byte)
+                if (decoder.receive(input) != 1L) throw IllegalStateException()
+                while (true) {
+                    val next = decoder.nextEvent()
+                    when (next) {
+                        case None -> break
+                        case Some(_) -> when (next!!) {
+                            case Response(head) -> heads.add(head)
+                            case Data(bytes) -> body.append(bytes)
+                            else -> {}
+                        }
+                    }
+                }
+            }
+            decoder.endInput()
+        }
+        Unit
+    }
+    if (heads.size != 2L || String.fromUtf8(body.toByteArray()) != "data") throw IllegalStateException()
+    gcCollect()
+    val first = HttpContentDisposition.parse(heads[0L].fields.findAll("content-disposition".toByteArray())[0L].value).filename()
+    val second = HttpContentDisposition.parse(heads[1L].fields.findAll("content-disposition".toByteArray())[0L].value).filename()
+    if (first.text!! != expected || first.language!! != "zh-Hans") throw IllegalStateException()
+    if (second.text!! != "fallback.pdf" || second.extendedFailure!!.field != "Content-Disposition") throw IllegalStateException()
+    gcCollect()
+    if (second.extendedFailure!!.detail.length == 0L) throw IllegalStateException()
+    println("HTTP extended filenames and fallback diagnostics")
+}

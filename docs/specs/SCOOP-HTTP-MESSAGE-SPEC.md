@@ -28,6 +28,16 @@
 
 `toByteArray()` 生成可发送的规范字段值；保留参数次序，必要时加引号并转义引号／反斜杠，已解析的 quoted 参数继续使用引号。`toHttpField()` 生成 Content-Type 字段。两者不隐式解释 charset 参数，也不把 obs-text 转成展示字符串；字符解码由显式 charset 操作完成。
 
+### 1.2 Content-Disposition 与扩展参数
+
+`HttpContentDisposition(disposition, parameters)` 与配对的字节／String parse、parseOrNone、parameter、toByteArray、toHttpField 遵守同样的不可变值合同。disposition 和参数名按 ASCII 小写保存；参数顺序和原始字段保留，重复名报错。按 RFC 6266 接收参数等号两侧 OWS，不接收空分号项。未知 disposition 与参数只保存，不猜测业务含义。
+
+`HttpParameter.extended(name, text, language = "")` 生成 RFC 8187 的 `name*` 参数：name 是未加星号的非空 attr-char 序列，编码固定为 UTF-8，值由 URL 百分号 codec 编码。`decodeExtended(allowIso88591 = false)` 返回含 text、language 和实际 Charset 的 `HttpExtendedValue`；接收端默认只接受 UTF-8，显式开启兼容后另接受 ISO-8859-1。禁止 quoted-string 形式、缺失 charset／分隔符、非法 attr-char、坏百分号或无效编码，不做 RFC 2231 continuation 拼接。语言标签检查 RFC 5646 的结构、重复 variant／extension 和固定 grandfathered 形式，不查语言注册表，也不改变原大小写；空语言合法。
+
+扩展参数先按 HTTP 语法分离 charset、language 和编码字节，再调用 url／charset；UTF-8 BOM 作为实际文字保留。`HttpFieldParseException.cause` 可保留原 URL／charset 格式错误；解析得到的参数诊断使用原字段及原始字节偏移，普通构造参数的诊断相对其 value 字节。不吸收内存、后端等非格式错误。
+
+`HttpContentDisposition.filename(allowIso88591 = false)` 返回 `HttpFilename`：text 是可用建议名或 None，language 在有效扩展名被选中时为 Some（可含空字符串），extendedFailure 保存被忽略的无效 filename* 原因。有效 filename* 优先；其缺失或无效时使用普通 filename，普通值按 RFC 6266 的 ISO-8859-1 解码，不猜 UTF-8、不额外百分号解码。仅有无效扩展名时 text 为 None，失败原因仍存在。此结果不转换或清理操作系统路径，下载目标仍由调用者显式选择。
+
 ## 2. Cookie 与公共后缀
 
 Cookie parser 接收单个 Set-Cookie 字段，按 RFC 6265 及现代 SameSite／前缀规则返回名称、值、Domain、Path、Expires、Max-Age、Secure、HttpOnly、SameSite 和未知属性。Cookie 请求字段的组装独立处理，不把多个 Set-Cookie 用逗号连接。域名使用 url／idna 的同一规范值。

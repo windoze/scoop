@@ -5,7 +5,8 @@ import scoop.collections.HashSet
 import scoop.text.lowercaseAscii
 
 public class HttpFieldParseException public constructor(
-    public val field: String, public val byteOffset: Long, public val detail: String
+    public val field: String, public val byteOffset: Long, public val detail: String,
+    public val cause: Throwable? = None
 ) : Exception(Some(field + " at byte " + byteOffset.toString() + ": " + detail))
 
 internal class HttpFieldReader(val field: String, data: List<Byte>) {
@@ -62,7 +63,7 @@ internal class HttpFieldReader(val field: String, data: List<Byte>) {
             if (allowBws) skipOws()
             val offset = position
             val (value, quoted) = parameterValue()
-            result.add(HttpParameter(name, value, quoted, offset))
+            result.add(HttpParameter(name, value, quoted, offset, field))
             skipOws()
         }
         return result.toArray()

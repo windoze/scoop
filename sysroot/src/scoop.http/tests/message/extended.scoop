@@ -1,0 +1,68 @@
+package scoop.http
+
+import scoop.charset.Charset
+import scoop.charset.CharsetException
+import scoop.url.UrlParseException
+import scoop.text.*
+import scoop.test.*
+
+@Test
+private class HttpExtendedParameterTests {
+    @Test
+    fun `invalid extensions preserve fallback diagnostics and original encoded offsets`() {
+        val raw = "attachment; filename*=UTF-8''a%GG; filename=plain.txt"
+        val selected = HttpContentDisposition.parse(raw).filename()
+        assertEquals("plain.txt", selected.text!!)
+        assertTrue(when (selected.language) { case None -> true; else -> false })
+        val failure = selected.extendedFailure!!
+        assertEquals("Content-Disposition", failure.field)
+        assertEquals(raw.indexOf('%'), failure.byteOffset)
+        assertTrue(failure.cause!! is UrlParseException)
+        val badUtf8 = "attachment; filename*=UTF-8''ok%20%C3"
+        val missing = HttpContentDisposition.parse(badUtf8).filename()
+        assertTrue(when (missing.text) { case None -> true; else -> false })
+        assertEquals(badUtf8.indexOf("%C3"), missing.extendedFailure!!.byteOffset)
+        assertTrue(missing.extendedFailure!!.cause!! is CharsetException)
+        gcCollect()
+        assertTrue(failure.detail.length > 0L)
+        for (value in ["UTF-8'", "''name", "UTF-8''%", "UTF-8''%E0%80%80", "UTF-8''a*b", "UTF-8''a'b", "UTF-16''abc"]) {
+            val result = HttpContentDisposition.parse("attachment; filename=plain; filename*=" + value).filename()
+            assertEquals("plain", result.text!!)
+            assertTrue(result.extendedFailure!!.detail.length > 0L)
+        }
+        val quoted = HttpContentDisposition.parse("attachment; filename*=\"UTF-8''name\"; filename=plain").filename()
+        assertEquals("plain", quoted.text!!)
+        assertTrue(quoted.extendedFailure!!.detail.contains("quoted-string"))
+    }
+
+    @Test
+    fun `legacy ISO88591 is an explicit receiving option while producers use UTF8`() {
+        val disposition = HttpContentDisposition.parse("attachment; filename*=ISO-8859-1'en'%A3%20rates; filename=fallback")
+        assertEquals("fallback", disposition.filename().text!!)
+        val compatible = disposition.filename(allowIso88591 = true)
+        assertEquals("£ rates", compatible.text!!)
+        assertEquals("en", compatible.language!!)
+        val decoded = disposition.parameter("filename*")!!.decodeExtended(allowIso88591 = true)
+        assertTrue(decoded.charset == Charset.Iso8859_1)
+        val generated = HttpParameter.extended("title", "£ rates", "en")
+        assertEquals("UTF-8'en'%C2%A3%20rates", String.fromUtf8(generated.value))
+        assertTrue(generated.decodeExtended().charset == Charset.Utf8)
+    }
+
+    @Test
+    fun `language syntax supports normal private and grandfathered tags without registry lookup`() {
+        for (language in ["", "en", "EN-us", "zh-Hant-TW", "zh-cmn-Hans-CN", "es-419", "de-CH-1901",
+            "sl-rozaj-biske-1994", "en-US-u-ca-gregory-x-scoop", "en-a-test-b-next", "x-private", "i-klingon",
+            "en-GB-oed", "sgn-BE-FR", "abcd", "abcde"]) {
+            val decoded = HttpParameter.extended("title", "ok", language).decodeExtended()
+            assertEquals("ok", decoded.text)
+            assertEquals(language, decoded.language)
+        }
+        for (language in ["x", "a", "123", "en_Us", "en--US", "-en", "en-", "en-abcdefghi", "en-a",
+            "en-x", "sl-rozaj-ROZAJ", "en-u-ca-u-nu", "en-US-ABCD", "en-a-x-private", "日本"]) {
+            assertFailsWith<IllegalArgumentException> { HttpParameter.extended("title", "ok", language) }
+            val parameter = HttpParameter("title*", ("UTF-8'" + language + "'ok").toByteArray())
+            assertFailsWith<HttpFieldParseException> { parameter.decodeExtended() }
+        }
+    }
+}

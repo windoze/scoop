@@ -17,6 +17,7 @@
 | 压缩异步流 | 同一 Cone 的 AsyncCompressionSource／Sink、AsyncDecompressionSource／Sink 与复制扩展；结构化操作、有限背压、取消后真实收尾和并发 close，共享同步流的格式状态 | Darwin debug／release 与 moving GC：12 项新增测试；五种格式、短读写、EOF／限制、所有权、失败隔离、延迟取消和取消 finally 清理全部通过 |
 | DEFLATE 消息 | 同一 Cone 的 DeflateMessageEncoder／Decoder 负责 RFC 7692 的同步尾部、消息结束、协商窗口与 context takeover；HTTP 无须改写压缩字节 | Darwin debug／release 与 moving GC：6 项新增测试；504 组独立 zlib 消息互操作对照；现有全部 40 项 debug／release 测试及 384 组普通压缩对照回归通过 |
 | HTTP 媒体类型 | `scoop.http` 提供 HttpMediaType、HttpParameter、原始字节快照、quoted-string 解析和可发送字段；格式异常保留字段名与原始字节位置 | Darwin debug／release 与 moving GC：4 项新增测试；HTTP 全部 58 项 debug／release 回归通过，涵盖大小写、空参数项、转义、重复、非法结构和非 UTF-8 字节 |
+| HTTP 扩展文件名 | HttpContentDisposition、RFC 8187 参数编码／解码与 HttpFilename 选择结果；复用 url／charset，保留原始字段、失败原因及字节位置，ISO-8859-1 扩展兼容显式开启 | Darwin debug／release 与 moving GC：7 项新增测试；HTTP 全部 65 项 debug／release 回归通过，覆盖 UTF-8、BOM、普通 filename、回退、坏编码及语言标签结构 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -47,6 +48,8 @@ DEFLATE 消息对照包含编码窗口 9～15、解码窗口 8～15、两种 con
 `m54-deflate-messages` 的 debug／release 两个变体通过，共 6 个进程；正式 `.slib` 的两个 native 线程和主线程分别推进保留／丢弃历史的消息，组合非 ASCII 文本、短输出、重复空消息、独立压缩向量、BFINAL、moving GC 与缓存复用。
 
 `m54-http-media-type` 的 debug／release 两个变体通过，共 6 个进程；生产 HTTP 与 charset `.slib` 组合 Content-Type、ISO-8859-1 正文和非 UTF-8 参数，按 7 字节输入推进 HTTP/1，覆盖 moving GC 和缓存复用。初次消费者误捕获可变局部变量并产生 enum catch-all 警告，改用显式集合及精确模式后全部通过。
+
+`m54-content-disposition` 的 debug／release 两个变体通过，共 6 个进程；消费者只声明 HTTP 依赖，经其正式依赖取得 URL／charset，在逐字节的两条 HTTP/1 响应中处理中文扩展文件名、普通回退和解码失败原因，覆盖 moving GC 与缓存复用。UTF-8 与百分号错误保留底层原因并映射到原始字段字节位置；文件名仅为元数据，不选择文件路径。
 
 ## 后续工作
 

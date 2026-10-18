@@ -1,0 +1,78 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.charset.Charset
+import scoop.text.*
+import scoop.test.*
+
+@Test
+private class HttpContentDispositionTests {
+    @Test
+    fun `RFC filenames prefer the valid extended value and retain language`() {
+        val plain = HttpContentDisposition.parse("Attachment ; filename = \"an example.html\"")
+        assertEquals("attachment", plain.disposition)
+        assertEquals("an example.html", plain.filename().text!!)
+        for (value in ["attachment; filename=\"EURO rates\"; filename*=utf-8''%e2%82%ac%20rates",
+            "attachment; filename*=UTF-8''%E2%82%AC%20rates; filename=\"EURO rates\""]) {
+            val disposition = HttpContentDisposition.parse(value)
+            val selected = disposition.filename()
+            assertEquals("€ rates", selected.text!!)
+            assertEquals("", selected.language!!)
+            assertTrue(when (selected.extendedFailure) { case None -> true; else -> false })
+            assertEquals(value, String.fromUtf8(disposition.originalValue!!))
+        }
+        val british = HttpContentDisposition.parse("attachment; filename*=UTF-8'en'%C2%A3%20rates").filename()
+        assertEquals("£ rates", british.text!!)
+        assertEquals("en", british.language!!)
+        assertEquals("a+b", HttpContentDisposition.parse("attachment; filename*=UTF-8''a+b").filename().text!!)
+        assertEquals("", HttpContentDisposition.parse("attachment; filename*=UTF-8''").filename().text!!)
+    }
+
+    @Test
+    fun `ordinary filenames retain byte semantics without URL or path interpretation`() {
+        val wire = ByteArrayBuilder()
+        wire.append("inline; filename=\"".toByteArray())
+        wire.append(Charset.Iso8859_1.encode("été.txt"))
+        wire.append("\"; unknown=\"a;b,c\"".toByteArray())
+        val disposition = HttpContentDisposition.parse(wire.toByteArray())
+        assertEquals("été.txt", disposition.filename().text!!)
+        assertEquals("a;b,c", String.fromUtf8(disposition.parameter("unknown")!!.value))
+        assertEquals("../a%20b.txt", HttpContentDisposition.parse("attachment; filename=\"../a%20b.txt\"").filename().text!!)
+        assertEquals("dir\\a.txt", HttpContentDisposition.parse("attachment; filename=\"dir\\\\a.txt\"").filename().text!!)
+        assertEquals("cafÃ©.txt", HttpContentDisposition.parse("attachment; filename=\"café.txt\"").filename().text!!)
+        assertEquals("custom", HttpContentDisposition.parse("CUSTOM; x=a").disposition)
+        assertTrue(when (HttpContentDisposition.parse("attachment").filename().text) { case None -> true; else -> false })
+    }
+
+    @Test
+    fun `construction generates UTF8 parameters and copies the parameter list`() {
+        val values = MutableArray<HttpParameter>(1L) { _ -> HttpParameter.extended("FILENAME", "日本 文件.txt", "ja") }
+        val disposition = HttpContentDisposition("ATTACHMENT", values)
+        values[0L] = HttpParameter("filename", "different".toByteArray())
+        val field = disposition.toHttpField()
+        assertEquals("Content-Disposition", String.fromUtf8(field.name))
+        assertEquals("attachment; filename*=UTF-8'ja'%E6%97%A5%E6%9C%AC%20%E6%96%87%E4%BB%B6.txt", String.fromUtf8(field.value))
+        val selected = HttpContentDisposition.parse(field.value).filename()
+        gcCollect()
+        assertEquals("日本 文件.txt", selected.text!!)
+        assertEquals("ja", selected.language!!)
+        assertEquals("\u{feff}name.txt", HttpParameter.extended("filename", "\u{feff}name.txt").decodeExtended().text)
+        for (name in ["", "file*", "file%", "文件"]) {
+            assertFailsWith<IllegalArgumentException> { HttpParameter.extended(name, "x") }
+        }
+        assertFailsWith<IllegalArgumentException> { HttpParameter("filename", "x".toByteArray()).decodeExtended() }
+    }
+
+    @Test
+    fun `disposition syntax rejects duplicates empty items and bad quoting`() {
+        for (value in ["", "attachment;", "attachment;;filename=a", "attachment;filename", "attachment;filename=",
+            "attachment;filename=\"open", "attachment,inline", "attachment;filename=a;FILENAME=b",
+            "attachment;filename*=UTF-8''a;FILENAME*=UTF-8''a", "attachment;filename=\"a\rb\""]) {
+            val error = assertFailsWith<HttpFieldParseException> { HttpContentDisposition.parse(value) }
+            assertEquals("Content-Disposition", error.field)
+            assertTrue(when (HttpContentDisposition.parseOrNone(value)) { case None -> true; else -> false })
+        }
+        assertFailsWith<IllegalArgumentException> { HttpContentDisposition("bad value") }
+        assertFailsWith<IllegalArgumentException> { HttpContentDisposition("attachment", [HttpParameter("a", "1".toByteArray()), HttpParameter("A", "2".toByteArray())]) }
+    }
+}
