@@ -2,6 +2,7 @@
 
 #include "parallel_mark_fixture.h"
 
+#undef stress_move
 #undef pthread_create
 #undef pthread_join
 extern int pthread_create(pthread_t *, const pthread_attr_t *, void *(*)(void *), void *);
@@ -28,7 +29,10 @@ int scoop_test_gc_pthread_join(pthread_t thread, void **result) {
 int main(void) {
     ParallelFixture fixture = {0};
     parallel_start(&fixture, 8);
+    scoop_gc_heap_state.stress_move = true;
     parallel_check_full(1, PARALLEL_NODE_COUNT + 4, PARALLEL_NODE_COUNT / 1024);
+    scoop_gc_heap_state.stress_move = false;
+    assert(scoop_rt_gc_debug_last_moved_count() == PARALLEL_NODE_COUNT + 4);
     assert(attempted == 3 && created == 2 && joined == 2);
     assert(nursery_metrics().worker_creation_failures == 1);
     parallel_check_full(1, PARALLEL_NODE_COUNT + 4, PARALLEL_NODE_COUNT / 1024);

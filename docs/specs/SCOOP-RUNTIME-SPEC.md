@@ -495,7 +495,9 @@ collector 持有 heap／roots 的独占阶段后，发布不可变的 region、�
 
 roots／remembered 扫描先由 coordinator 发布初始工作，随后参与同一任务循环。普通对象每个任务最多扫描 64 个，可以在该批次内继续处理本 worker 刚发现的后继，避免长链每个对象都经过队列；大数组每个任务最多 1024 个元素，嵌套值仍执行已有精确 scan。未扫描的剩余子工作在当前任务完成前发布。仅一个在途父任务和一个后继时无需唤醒其他 worker，最后一项完成必须唤醒终止等待者；这不改变全局未完成任务数的含义。首次成功标记但不含引用的对象仍进入存活清单与统计，无需扫描任务。活跃 block 总容量不足 4 MiB 的小堆和现有 1 MiB nursery 的 minor 默认仅使用 coordinator，其余按在线 CPU 数选择最多 4 个 worker；在线 CPU 数通过私有 ThreadVmOps 查询。`SCOOP_GC_WORKERS=1..8` 可显式选择本轮 worker 数以验证同义性和测量，worker 数包含 coordinator，属于 runtime 策略参数，不影响程序或产物合法性。
 
-mark 结束后复用首次标记的存活对象集合规划搬迁；实际有搬迁时，使用该集合更新存活副本的出站引用，不在 full 更新阶段再次用 worklist 发现可达图。此时 full 的 roots 全部更新；minor 更新精确 roots、年轻集合及 remembered set。没有搬迁时按 3.7 跳过 relocation。首版复制、引用回写、release hook、reclaim 和 VM 归还均由 coordinator 执行，worker 全部结束前不移动或释放 metadata；shutdown 停止并 join worker。
+mark 结束后复用首次标记的存活对象集合规划搬迁；实际有搬迁时，使用该集合更新存活副本的出站引用，不在 full 更新阶段再次用 worklist 发现可达图。此时 full 的 roots 全部更新；minor 更新精确 roots、年轻集合及 remembered set。没有搬迁时按 3.7 跳过 relocation。复制、release hook、reclaim 和 VM 归还仍由 coordinator 执行；shutdown 停止并 join worker。
+
+引用回写复用本轮 mark 的 worker pool。coordinator 先串行更新 roots 与 minor remembered slots，再串行定位每个含引用存活对象的当前副本并 claim relocation 覆盖状态；普通 `scanned` bitmap 不允许多个 worker 并发置位。随后普通对象按至多 64 个分批、大引用数组按至多 1024 个完整元素拆成互不重叠的槽区间。任务复用稳定的存活清单和既有精确 scan 解释器，forwarding、对象和扫描元数据在整个 update 阶段保持稳定；worker 只读这些元数据并更新各自的引用槽，不重新发现存活对象、修改 roots、执行用户代码或取得 coordinator 持有的 heap／roots 锁。根与对象槽即使别名，也已由前述串行边界隔开。全部 update worker 完成后才允许验证、退休存活清单、释放 source／metadata、执行 release、reclaim、VM 归还及恢复 mutator。单 worker 直接使用相同转发与扫描规则串行更新，不先建立任务队列；创建 worker 失败沿用既有串行回退。
 
 存活性由 mark 与搬迁关系决定，不由 relocation 的 scanned 状态定义。显式 GC heap 验证和 moving stress 在零搬迁时仍检查根、当前存活对象及引用合法性，但不要求或伪造 relocation 覆盖状态；有搬迁时对含引用对象的当前副本保留相应覆盖检查。object_scan 为 null 的无引用对象仍参与存活清单、统计、规划、搬迁和回收，但不为出站引用扫描再解析位置、claim scanned 状态或调用扫描解释器；指向它们的引用仍正常更新。未执行 update 的轮次不累计 update 扫描时间。存活清单保留至规划、必要更新和验证结束。
 

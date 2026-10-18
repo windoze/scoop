@@ -248,6 +248,8 @@ M56 优先评估 **copy 完成后，对存活副本的出站引用并行更新**
 
 分别测量 claim／任务发布、槽扫描、等待和整个请求到 RUNNING；串行 claim 可能成为下一上限，不能仅报告 worker scan 加速。全程复用同一 scan 解释器与转发规则，后续并行 copy 需要单独论证空间预留、目标分配与 forwarding 发布，不顺带加入。
 
+本机原型及最终实现已验证该取舍：4 worker 的普通稀疏 region full 整体中位从 41.874 ms 降到 34.297 ms，单 worker 未测到明确退化；详细工作集、时间边界和限制见 [实施记录 D2](PROGRESS.md#d2搬迁后的并行引用回写)。因此采用上述专用 update phase，沿用本轮 mark 的 worker 数，不新增独立调参策略；Linux 仍需复验。
+
 ### 6.3 扫描量与停顿口径
 
 容量很大的引用 backing array，即使上层容器 size 很小，GC 仍按数组自身的真实 length 扫描。运行时不知道某个容器的逻辑 size；不能按 `ArrayList` 等类型名字跳过数组尾部。若要 live-prefix 表示，须由对应库与对象 scan 合同共同维护，本期只用此类输入观察扫描成本。

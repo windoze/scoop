@@ -82,6 +82,9 @@ typedef struct ScoopGcMarker {
     bool initialized;
     bool forced;
     bool stopping;
+    bool updating;
+    ScoopGcSlotVisitor update_visitor;
+    void *update_context;
     ScoopGcMarkWorker workers[GC_MARK_MAX_WORKERS];
 } ScoopGcMarker;
 
@@ -107,5 +110,7 @@ void scoop_gc_mark_task_done(void);
 void scoop_gc_mark_flush(ScoopGcMarkWorker *worker);
 void scoop_gc_mark_slot(void **slot, void *context);
 void scoop_gc_mark_run_task(ScoopGcMarkWorker *worker, ScoopGcMarkTask task);
+
+void scoop_gc_update_run_task(ScoopGcMarkTask task);
 
 #endif

@@ -14,7 +14,7 @@
 | C2：局部 card 查询／mark 复用 | 本机通过 | 同对象复用 region，精确槽重复 mark 消除；跨 card／调用／原子／GC 边界覆盖 |
 | 分块 poll 候选调研 | 机制实验完成 | 设计 3.2 补充有界内层、CFG／roots 接入要求与真实移动握手对照；尚未启用自动变换 |
 | D1：nursery／refill 对照与策略取舍 | 待完成 | 1／4／8／16 MiB，存活率与 1–8 mutator；吞吐／内存／停顿 |
-| D2：有搬迁 GC 并行 update 候选 | 待完成 | 串行 claim、槽分区、完整阶段屏障；单／多 worker 同义性及净收益 |
+| D2：有搬迁 GC 并行 update | 本机通过 | 复用 marker pool；串行 claim 与根更新、槽分区、完成屏障，单 worker 直接串行 |
 | E：声明构建、局部 box／协程消除、跨 Cone 内联 | 待评估 | 逐项记录设计规定的进入条件与实测，不以无依据延期替代调查 |
 | 本机阶段验证 | 待完成 | 每批先格式化／lint，相关 crate／runtime 与正式 CLI fixtures |
 | Linux 完整验收 | 待完成 | nuc12 独立 worktree：workspace、fixture runner 规则和完整 CLI；GNU／musl 合同 |
@@ -95,3 +95,21 @@ NoGC kernel 时间约减少 79.4%；反汇编在对应 callable 确认两条 `ml
 格式化与 workspace clippy 通过；moving_gc 相关 16 项、原子 3 项通过，最终局部屏障 5 项专测再次通过。专测断言同槽、相邻槽与跨 card 的查询／mark 数、receiver 变化、NoGc／Managed 调用、原子和 block 边界。新增 2 个 fixture 的 8 个变体、现有 aggregate／array／clone 写入 2 个变体／12 个进程，以及四 mutator 原子并发 2 个变体／12 个进程全部通过；含正常、moving、minor、跨 card 大字段、成功／失败 CAS。
 
 真实程序先将 Holder 提升为旧对象，再循环两百万轮，每轮写四个引用字段，末尾 checksum `10`。一轮预热、七轮交替独立进程，C1 中位 27.796 ms [25.905, 30.051]，C2 25.378 ms [24.917, 25.975]，约减少 8.7%。对应热 callable 的 acquire 指令静态数从 40 降为 16，构造函数从 20 降为 8；四个不同字段仍分别标记。所有样本均 allocated bytes 328、minor 0／full 1、root slots 41、copied bytes 0，唯一 full 在计时前。该无 GC 热循环的有限收益需与上述实际 GC 正确性覆盖一起理解；Linux 最终复验。
+
+### D2：搬迁后的并行引用回写
+
+仓库外原型先比较 1／2／4／8 worker，确认整体收集收益后同步运行时规范 3.9，再接入现有 pool。新增独立 `update.c`：coordinator 串行更新 roots／remembered，定位当前副本并 claim 普通 scanned bitmap；稳定 live chunks 保存当前副本地址，普通对象按 64 个一批、数组按 1024 个元素分区。worker 只更新各自的槽，复用原 scan 与 forwarding 规则，完成屏障之后才验证／释放／reclaim／恢复。单 worker 直接串行，不建立 update 队列；没有新增线程池、公开 ABI、生产时钟或调参开关。
+
+格式化、workspace clippy、31 项 collector 专测全部通过。新增 C 用例在 1／2／4／8 worker 下反复搬迁，覆盖 pinned 对象字段与 native root 槽别名、minor remembered 更新、嵌套值数组与完成后 shutdown；worker 创建失败用例增加了实际搬迁后的串行 update。runtime 的正式预编译资源已重新准备。新增真实 Scoop fixture 的 13 个变体通过，覆盖 debug／release、各 worker 数、moving／minor、空数组、大引用数组、pin、旧到年轻引用与 AtomicRef；现有四 mutator 原子并发和 aggregate／array／clone 写入各 2 个变体、12 个进程也在显式 4 worker 下通过。fixture 最初误用 GC-free pointee 才支持的 `withDataPointer`，改为既有 `pin`／`unpin` 后通过，未放宽语言规则。
+
+性能使用 C 驱动真实 collector、宿主线程／VM 和合成 stack map，先构建正常堆并预热 pool，再计时一次完整 `gcCollect` 调用；计时包括返回 RUNNING 和返回调用者，不以阶段和代替。每例一轮预热、七轮交替独立进程；原型另测 claim／发布与 worker 扫描／等待，最终生产实现去掉诊断后重新与 C2 基线对照：
+
+| 工作集，4 worker | C2 整体中位 [最小, 最大] ms | D2 整体中位 [最小, 最大] ms | update 中位 ms，C2 → D2 |
+| --- | ---: | ---: | ---: |
+| 16,384 节点＋共享环＋引用值数组，强制搬迁 | 3.164 [2.972, 3.349] | 2.560 [2.496, 2.742] | 1.064 → 0.517 |
+| 262,144 节点＋共享环＋引用值数组，强制搬迁 | 47.779 [46.039, 49.087] | 38.543 [37.665, 39.308] | 16.234 → 7.366 |
+| 1,048,576 个数组元素，保留 1/8 节点，普通稀疏 region full | 41.874 [41.052, 42.842] | 34.297 [33.875, 35.689] | 17.250 → 10.460 |
+
+整体耗时分别约减少 19.1%、19.3%、18.1%。单 worker 对应整体中位为 3.401→3.419、53.700→52.682、48.596→49.154 ms，区间重叠，没有测到明确退化或加速。两版大图峰值 RSS 中位均约 67.3 MiB，普通稀疏图约 123.9 MiB；每次检查全部存活节点的值、共享与链关系，checksum 一致。强制搬迁组包含 stress 自身的验证／quarantine 成本，普通稀疏组未启用 stress，不能把这些阶段成绩外推为全部应用吞吐。
+
+原型的 2／4／8 worker 均有净收益；4 worker 大图的 claim／任务发布约 4.1 ms、扫描及等待约 3.1 ms，稀疏大数组约 6.5 ms 和 2.9 ms，串行准备已成为进一步扩展的明显限制。当前按已有 mark 策略选择 worker，保留默认小 minor／小堆串行；不为了局部扫描加速继续增加线程。Linux 性能与完整验收待复验，原始日志与实验副本在仓库外。

@@ -1,4 +1,4 @@
-/* STW phases: parallel mark, serial plan/copy, retained-set update and reclaim. */
+/* STW phases: parallel mark/update, serial plan/copy and reclaim. */
 #include <stdint.h>
 
 #include "../gc_binding/object.h"
@@ -51,15 +51,6 @@ static void scan_roots(ScoopGcVisitContext *context) {
 static void visit_dirty_object(void *object, uintptr_t begin, uintptr_t end, void *context) {
     const uint64_t *scan = scoop_gc_object_scan(object);
     scoop_gc_scan_descriptor(object, scan, visit_managed_slot, context, begin, end);
-}
-
-static void relocate_live_object(void *object, void *context) {
-    const uint64_t *scan = scoop_gc_object_scan(object);
-    if (scan == NULL) {
-        return;
-    }
-    void *current = scoop_heap_claim_relocated_object(object);
-    scoop_gc_scan_descriptor(current, scan, visit_managed_slot, context, 0, UINTPTR_MAX);
 }
 
 static void verify_heap_object(void *object, void *context) {
@@ -140,7 +131,7 @@ static bool collect(bool minor) {
         if (minor) {
             scoop_gc_scan_remembered(visit_dirty_object, &relocate, false);
         }
-        scoop_gc_mark_visit_live(relocate_live_object, &relocate);
+        scoop_gc_update_live(visit_managed_slot, &relocate);
         metrics->update_ns += scoop_gc_monotonic_ns() - phase;
     }
     metrics->minor_collections += minor;

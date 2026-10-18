@@ -50,6 +50,7 @@ pub(super) const COMMON: &[&str] = &[
     "runtime/src/gc/mark_objects.c",
     "runtime/src/gc/mark_queue.c",
     "runtime/src/gc/mark_pool.c",
+    "runtime/src/gc/update.c",
     "runtime/src/gc/time.c",
     "runtime/src/gc_binding/collector_roots.c",
     "runtime/src/gc_binding/scan.c",
