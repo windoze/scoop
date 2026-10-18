@@ -928,6 +928,7 @@ mod tests {
                 roles,
                 [
                     DefinitionAtomRole::AddressTakenConstant,
+                    DefinitionAtomRole::AddressTakenConstant,
                     DefinitionAtomRole::EhFrame,
                     DefinitionAtomRole::Stackmap
                 ]
@@ -1006,6 +1007,7 @@ mod tests {
             assert_eq!(
                 roles,
                 [
+                    DefinitionAtomRole::AddressTakenConstant,
                     DefinitionAtomRole::AddressTakenConstant,
                     DefinitionAtomRole::EhFrame,
                     DefinitionAtomRole::Stackmap,

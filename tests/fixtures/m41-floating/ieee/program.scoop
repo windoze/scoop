@@ -5,11 +5,21 @@ fun check(ok: Boolean) { if (!ok) { throw IllegalStateException() } }
     case Greater -> 1
     case Unordered -> 2
 }
+@NoGC fun <T> describeGeneric(value: IeeeComparison): Int = when (value) {
+    case Less -> -1
+    case Equal -> 0
+    case Greater -> 1
+    case Unordered -> 2
+}
 fun main() {
     check(describe((-1f).ieeeCompare(0f)) == -1)
     check(describe((-0f).ieeeCompare(0f)) == 0)
     check(describe(Float.POSITIVE_INFINITY.ieeeCompare(Float.MAX_VALUE)) == 1)
     check(describe(Float.NaN.ieeeCompare(Float.NaN)) == 2)
+    check(describeGeneric<Long>((-1f).ieeeCompare(0f)) == -1)
+    check(describeGeneric<Long>((-0f).ieeeCompare(0f)) == 0)
+    check(describeGeneric<Long>(Float.POSITIVE_INFINITY.ieeeCompare(Float.MAX_VALUE)) == 1)
+    check(describeGeneric<Long>(Float.NaN.ieeeCompare(Float.NaN)) == 2)
     check(Float.NaN.ieeeCompare(1f) == IeeeComparison.Unordered)
     check(1f.ieeeCompare(Float.NaN) == IeeeComparison.Unordered)
     check(Double.NEGATIVE_INFINITY.ieeeCompare(-Double.MAX_VALUE) == IeeeComparison.Less)

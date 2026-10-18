@@ -382,6 +382,8 @@ body 的 EH、LSDA、unwind、stackmap、关联常量与私有 Context cells 属
 
 LLVM 在机器发射中由 switch 生成的引用查找表同样属于该 callable 的关联常量。每个 callable 使用已有 AddressTakenConstant／Singleton 子键描述这组后端常量，机器发射后按实际对象保留或移除；表内对 immortal object 等实体的重定位沿用普通引用闭合及 fingerprint。Mach-O 的后端表放入只读 __DATA_CONST 段，ELF 放入 .data.rel.ro.scoop.constants 并与 callable 一同进行 ODR 选择。它们不获得源码实体身份，不通过忽略 orphan relocation 或关闭 switch 优化绕过对象合同；无引用的数值 literal pool 保持原有按内容表示。
 
+ELF 的非合并 `.rodata`（ODR body 为 `.rodata.<primary symbol>`）也可承载 LLVM 生成的分支跳转表，其相对重定位指向同一 callable 内的代码。该段使用 AddressTakenConstant／StructuralPath(SyntheticValue, 0) 的独立后端常量 atom，完整记录实际段范围，并与 callable 一同进入 COMDAT；它与 Singleton 引用表可以同时存在，未发射的 atom 在机器输出后移除。沿用已有 subkey 编码，不新增源码身份、产物 section 版本或 runtime ABI；`.rodata.cst4/8/16` 的数值 literal pool 保持原路径。
+
 Mach-O 的数值跳转表可以位于 __TEXT,__const 的前缀，与后续已有边界的字符串等常量共享同一段。该局部表的范围止于首个已归属 atom（无 atom 时止于段尾），由代码到段首局部符号的实际引用识别；表内不含 relocation，其完整 bytes 参与 callable 内容指纹。不能因同段存在其他常量而拒绝正常 LLVM 输出，也不能把后续 atom 或其 relocation 纳入数值表。
 
 C extern 按 2.4 的 DirectC/StorageBridge 计划发射。DirectC 使用真实 native symbol 和完整目标 C ABI，不生成或经过 outbound storage bridge；对象中的调用 relocation 直接表达该 native 引用。只有实际采用 StorageBridge 的调用才要求相应 generated-C unit；callback、native global/TLS 等其他桥接用途照常保留。两种路径均保留相同的 native contract 与 library requirement，不因省去 bridge 丢失链接需求。

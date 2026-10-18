@@ -5,7 +5,7 @@ struct PreparedCallableObject {
     path: std::path::PathBuf,
     runtime_metadata: EmittedStrongRuntimeMetadataV1,
     plan: CallableCodePlan,
-    backend_constants: bool,
+    backend_constants: std::collections::BTreeSet<scoop_lir::CallableConstantKind>,
 }
 
 pub(super) fn emit_object_set_with_production<
@@ -54,8 +54,11 @@ pub(super) fn emit_object_set_with_production<
         )?;
         let path = backing.path().join(format!("{body}.o"));
         write_object(&machine, &prepared.llvm, &path)?;
-        let backend_constants =
-            crate::callable_constants::present(&path, profile.lir_target_profile())?;
+        let backend_constants = crate::callable_constants::present(
+            &path,
+            profile.lir_target_profile(),
+            function.symbol(),
+        )?;
         callables.insert(
             body,
             PreparedCallableObject {
@@ -71,7 +74,7 @@ pub(super) fn emit_object_set_with_production<
         &mut production,
         callables
             .iter()
-            .map(|(body, object)| (*body, &object.plan, object.backend_constants)),
+            .map(|(body, object)| (*body, &object.plan, &object.backend_constants)),
     )?;
     let partition = ScoopLirObjectPartitionV1::from_foundation(
         input,

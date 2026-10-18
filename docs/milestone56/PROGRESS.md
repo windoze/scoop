@@ -189,6 +189,10 @@ Linux workspace 首轮的 HIR lowering 有 1452 项通过、23 项失败；逐�
 
 Linux CLI 随后在 direct C aggregate／errno 的 NoGC 包装中暴露 C1 的选项遗漏：两处裸 `instcombine` 通过文本解析时默认开启固定点自检，LLVM 22.1.2 在一轮之后仍有可做的优化时会终止编译。上游明确将该文本默认值用于测试；普通 `InstCombineOptions` 默认不开启它。现将 NoGC 的两处调用与既有 Managed 管线一样显式设为 `instcombine<no-verify-fixpoint>`，保留正常有界变换、LLVM IR 验证和 site／root 检查，未改变语言／ABI 合同。[LLVM 22.1.2 文本管线解析](https://github.com/llvm/llvm-project/blob/llvmorg-22.1.2/llvm/lib/Passes/PassBuilder.cpp#L1123)、[迭代与自检实现](https://github.com/llvm/llvm-project/blob/llvmorg-22.1.2/llvm/lib/Transforms/InstCombine/InstructionCombining.cpp#L5552)。
 
-该修正本机格式化／workspace clippy、28 项 statepoint 专测通过；重建三个 release 工具后，direct C values、errno values／artifacts、M56 loops／moving 合计五个 fixture／13 个变体／47 个进程通过。Linux 正在以独立工具输出目录复验。E 的冷编译数字采于这项修正前，不将其当作修正后的精确编译耗时。
+该修正本机格式化／workspace clippy、28 项 statepoint 专测通过；重建三个 release 工具后，direct C values、errno values／artifacts、M56 loops／moving 合计五个 fixture／13 个变体／47 个进程通过。Linux 以独立工具输出目录通过同一 GNU 组合及 musl 的 direct C／loops／moving 三项组合，未替换仍在全量验收中的工具。E 的冷编译数字采于这项修正前，不将其当作修正后的精确编译耗时。
+
+GNU 的 `m41-floating-ieee` 另暴露 ELF 后端跳转表遗漏：NoGC `when` 优化后生成 `.rodata`，其中四个 `R_X86_64_PC32` 引用函数内分支；旧代码只登记 `.data.rel.ro` 引用表，导致 orphan relocation。先补充实现规范 2.5，再用已有 AddressTakenConstant／StructuralPath 子键为非合并只读段登记独立范围；ODR 的 `.rodata.<primary symbol>` 同样归入 callable COMDAT。保留正常 switch 优化、实际重定位与指纹处理，不改 wire 格式或 runtime ABI。新增 GNU／musl 普通及 ODR 对象专测，原 IEEE fixture 增加泛型版本，覆盖 debug／release、normal／moving／minor。新增 fixture 分支首次使用了错误的泛型声明语序，按现有语法修正后通过；没有修改语言规则。
+
+该修正本机格式化／workspace clippy、390 项 LIR 测试通过；codegen 原 233 项通过，新增对象专测修正 LLVM 可省略一个表项的断言并覆盖 ODR 段名后，10 项对象分区专测全部通过，合计 234 项不同测试闭合。三个 release 工具重新构建；IEEE、浮点跨 Cone 与 ODR 选择三个真实 CLI 用例通过。Linux 仅补验受影响对象与真实程序，不重复已通过的完整前端覆盖。
 
 桌面 footprint 另核查了实际 Mach-O：17,492,984 bytes 程序中 `__LINKEDIT` 为 13,697,024 bytes，76,560 个动态导出中约 55,000 个是 atom 边界。GNU 分配程序的实验副本经常规 strip 后，从 12,822,024 缩至 4,419,056 bytes，结果与 45 次 minor／复制量均一致；主要移除无 `SHF_ALLOC` 的静态符号信息。两项分别作为符号可见性与 release 输出的后续候选，未改现行链接／ODR 合同，也不把文件字节数当作 RSS；详细组成和限制见补充设计 3.2。

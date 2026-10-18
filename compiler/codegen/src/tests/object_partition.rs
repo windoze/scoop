@@ -7,6 +7,7 @@ use super::*;
 mod constants;
 mod no_gc;
 mod optimized;
+mod switches;
 
 #[test]
 fn partitions_each_callable_body_away_from_non_callable_definitions() {

@@ -24,14 +24,31 @@ pub(super) fn materialize(path: &Path, plan: &DefinitionSymbolPlanV1) -> Result<
         .ok_or_else(|| CodegenError("ELF callable extent overflows".into()))?;
     let mut associated = vec![primary_section];
     let personality_atom = personality::atom(plan)?;
-    let constants_atom = crate::callable_constants::atom(plan)?;
+    let constants_atom =
+        crate::callable_constants::atom(plan, scoop_lir::CallableConstantKind::Relocatable)?;
+    let readonly_atom =
+        crate::callable_constants::atom(plan, scoop_lir::CallableConstantKind::ReadOnly)?;
     for boundary in plan.atom_boundaries() {
         if boundary.atom() == personality_atom {
             let section = personality::materialize(&mut output, *boundary)?;
             associated.push(section);
             continue;
         }
-        let extent = if boundary.atom() == constants_atom {
+        let extent = if boundary.atom() == readonly_atom {
+            let section = output
+                .file
+                .sections()
+                .find(|section| {
+                    section.name().is_ok_and(|name| {
+                        crate::callable_constants::is_elf_readonly_section(
+                            name,
+                            primary_name.as_str(),
+                        )
+                    })
+                })
+                .ok_or_else(|| error("missing callable read-only constants"))?;
+            Some((section.index(), 0, section.size()))
+        } else if boundary.atom() == constants_atom {
             let section = output
                 .file
                 .section_by_name(".data.rel.ro")
