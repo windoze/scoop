@@ -1,0 +1,37 @@
+package scoop.http.asyncio
+
+internal fun resetH2Stream(state: H2State, stream: H2Stream, error: Throwable, code: UInt, actions: ArrayList<() -> Unit>) {
+    if (stream.disposed) return
+    stream.failure = Some(error)
+    if (state.closing) return
+    try { state.session.reset(stream.id, code) }
+    catch (failure: Throwable) { terminateH2(state, failure); return }
+    releaseH2Stream(state, stream, error, actions)
+}
+
+internal fun releaseH2Stream(state: H2State, stream: H2Stream, error: Throwable, actions: ArrayList<() -> Unit>) {
+    stream.disposed = true
+    stream.failure = Some(error)
+    stream.data.clear(); stream.offset = 0L
+    stream.responses.clear()
+    if (present(stream.reader)) finishH2Body(state, stream, stream.reader!!, 0L, Some(error), actions)
+    if (present(stream.writer)) finishH2Body(state, stream, stream.writer!!, 0L, Some(error), actions)
+    if (present(stream.responseWaiter)) {
+        failH2Wait(stream.responseWaiter!!, error, actions)
+        stream.responseWaiter = None
+    }
+    var index = state.requests.size
+    while (index > 0L) {
+        index -= 1L
+        if (state.requests[index].stream.id == stream.id) state.requests.removeAt(index)
+    }
+    state.streams.remove(stream.id)
+    detachH2Stream(stream, actions)
+}
+
+internal fun retireH2Stream(state: H2State, stream: H2Stream, actions: ArrayList<() -> Unit>) {
+    if (!stream.closed || stream.data.size != 0L || stream.responses.size != 0L ||
+        present(stream.reader) || present(stream.writer) || present(stream.responseWaiter)) return
+    state.streams.remove(stream.id)
+    detachH2Stream(stream, actions)
+}

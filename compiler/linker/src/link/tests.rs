@@ -2,6 +2,42 @@ use super::*;
 use crate::test_support;
 
 #[test]
+fn relocated_runtime_index_links_the_copied_objects() {
+    let fixture = test_support::native_fixture();
+    let directory = fixture.directory.path().join("relocated runtime");
+    std::fs::create_dir(&directory).unwrap();
+    let source = fixture.runtime.input_paths()[0].parent().unwrap();
+    std::fs::copy(source.join("index.cbor"), directory.join("index.cbor")).unwrap();
+    for object in fixture.runtime.objects() {
+        let destination = directory.join(object.path().strip_prefix(source).unwrap());
+        std::fs::create_dir_all(destination.parent().unwrap()).unwrap();
+        std::fs::copy(object.path(), destination).unwrap();
+    }
+    let runtime = crate::RuntimeObjectSet::read_index(
+        &directory.join("index.cbor"),
+        fixture.profile.target(),
+        fixture.profile.startup_toolchain().profile(),
+    )
+    .unwrap();
+    assert!(
+        runtime
+            .objects()
+            .iter()
+            .all(|object| object.path().starts_with(&directory))
+    );
+    let output = link_program(
+        &fixture.closure,
+        &runtime,
+        &fixture.profile,
+        &fixture.library_paths,
+        &directory.join("program"),
+        &directory.join("cache"),
+    )
+    .unwrap();
+    assert_eq!(run(&output.path), b"42\n");
+}
+
+#[test]
 fn native_alias_link_tracks_real_input_updates_and_missing_input() {
     let fixture = test_support::native_fixture();
     let directory = fixture.directory.path();

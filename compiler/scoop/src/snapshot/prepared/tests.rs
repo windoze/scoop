@@ -77,7 +77,7 @@ fn write_manifest_source(root: &Path, name: &str, kind: &str, source: &str, depe
     std::fs::write(
         root.join("Cone.toml"),
         format!(
-            "schema = 1\n[cone]\ngroup = \"test\"\nname = \"{name}\"\nversion = \"1.0.0\"\nkind = \"{kind}\"\n{dependencies}"
+            "schema = 1\n[cone]\ngroup = \"test\"\nname = \"{name}\"\nversion = \"1.0.0\"\nkind = \"{kind}\"\n{dependencies}\n[dependencies.\"scoop:scoop.core\"]\nversion = \"0.1.0\"\npath = \"../sysroot/src/scoop.core\"\n"
         ),
     )
     .unwrap();
@@ -85,7 +85,7 @@ fn write_manifest_source(root: &Path, name: &str, kind: &str, source: &str, depe
 }
 
 fn write_core(sysroot: &Path) {
-    let root = sysroot.join("lib/scoop.core");
+    let root = sysroot.join("src/scoop.core");
     std::fs::create_dir_all(root.join("src")).unwrap();
     std::fs::write(
         root.join("Cone.toml"),
@@ -93,6 +93,22 @@ fn write_core(sysroot: &Path) {
     )
     .unwrap();
     std::fs::write(root.join("src/core.scoop"), "class Any\n").unwrap();
+    let selection = crate::test_artifacts::host_target();
+    let directory = scoop_toolchain::target_library_root(sysroot, selection.target());
+    std::fs::create_dir_all(&directory).unwrap();
+    let artifact = crate::test_artifacts::manifest_archive(
+        selection,
+        scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
+        ConeRecord::new(
+            ConeCoordinate::reserved_core(),
+            ConeKind::Library,
+            ConeSourceForm::Manifest,
+        )
+        .unwrap(),
+        "prepare-test-seed",
+        Vec::new(),
+    );
+    std::fs::write(directory.join("scoop.core.slib"), artifact.as_bytes()).unwrap();
 }
 
 fn write_fake_compiler(path: &Path) {
@@ -301,7 +317,7 @@ fn compile_cache_key_excludes_manifest_presentation() {
     let first = prepare(&root, workspace).unwrap();
     let first_key = first.compile_cache_key(ConeIdentity::CORE, &[]).unwrap();
     std::fs::write(
-        sysroot.join("lib/scoop.core/Cone.toml"),
+        sysroot.join("src/scoop.core/Cone.toml"),
         "# presentation-only comment\nschema=1\n[cone]\ngroup=\"scoop\"\nname=\"scoop.core\"\nversion=\"0.1.0\"\nkind=\"library\"\n",
     ).unwrap();
     let second = prepare(&root, workspace).unwrap();
@@ -310,7 +326,7 @@ fn compile_cache_key_excludes_manifest_presentation() {
         second.compile_cache_key(ConeIdentity::CORE, &[]).unwrap()
     );
     std::fs::write(
-        sysroot.join("lib/scoop.core/src/core.scoop"),
+        sysroot.join("src/scoop.core/src/core.scoop"),
         "class Any { }\n",
     )
     .unwrap();

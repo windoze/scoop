@@ -21,7 +21,7 @@ pub(super) fn core_sources() -> CurrentConeParsedSources {
 }
 
 pub(super) fn core_sources_with(additional: &[(&str, &str)]) -> CurrentConeParsedSources {
-    let root = crate::workspace_root().join("sysroot/lib/scoop.core/src");
+    let root = crate::workspace_root().join("sysroot/src/scoop.core/src");
     let mut sources = std::fs::read_dir(root)
         .unwrap()
         .map(|entry| entry.unwrap().path())

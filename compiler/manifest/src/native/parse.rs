@@ -31,7 +31,7 @@ impl RawNativeConfig {
             sources: self
                 .sources
                 .into_iter()
-                .map(|raw| crate::selection::parse_path(raw, catalog))
+                .map(|raw| crate::selection::parse_native_path(raw, catalog))
                 .collect::<Result<_, _>>()?,
             include: self
                 .include

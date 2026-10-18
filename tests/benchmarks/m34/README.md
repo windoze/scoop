@@ -7,7 +7,7 @@
 - `baseline-source`：M33 revision `e97b40f5c9c408e2ff785e5d09c6bf9222c78979` 的源码、core 与 runtime；`baseline-tools` 是该 revision 配套的 release CLI。
 - `baseline-darwin-release-llvm22` 或 `baseline-linux-gnu-release`：使用上级 [measure.py](../measure.py) 对八个普通程序保存的 M33 构建、缓存、可执行文件与 `report.json`。
 - `target/release`：当前 M34 的三个配套 CLI；`index-darwin/cache`、`index-gnu/cache` 保存当前普通缓存。Darwin 如果已有 `acceptance-darwin/cache`，则复用该目录。
-- `sysroot/native/x86_64-unknown-linux-gnu/unwind`：Linux GNU 的既有链接工具依赖。
+- `sysroot/lib/x86_64-unknown-linux-gnu/unwind`：Linux GNU 的既有链接工具依赖。
 
 `build.py` 为每个 mode 建立新的 `final-<kind>-<mode>-<host>` 目录，已存在时拒绝覆盖；`off` 表示完整 M33，`on` 表示完整 M34。它不是某个优化的单独开关。同步到另一台机器但没有同步 Git 历史时，使用 `M34_COMPILER_REVISION` 明确记录构建源码的本机提交号。
 

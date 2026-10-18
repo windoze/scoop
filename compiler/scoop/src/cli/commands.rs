@@ -87,7 +87,10 @@ pub(super) fn execute(command: Command, reporter: &Reporter) -> BuildResult<Opti
         }
         Command::Link(args) => {
             let cwd = std::env::current_dir().map_err(config)?;
-            let sysroot = absolute(&cwd, scoop_toolchain::configured_sysroot_root(args.sysroot))?;
+            let sysroot = absolute(
+                &cwd,
+                scoop_toolchain::configured_sysroot_root(args.sysroot).map_err(config)?,
+            )?;
             let (c_toolchain, final_link) = args.native.resolve(&cwd, &sysroot)?;
             let request = scoop::LinkRequest {
                 cache_dir: absolute(
@@ -101,7 +104,10 @@ pub(super) fn execute(command: Command, reporter: &Reporter) -> BuildResult<Opti
                 target: target(args.target)?,
                 c_toolchain,
                 final_link,
-                runtime_index: absolute(&cwd, args.runtime_objects)?,
+                runtime_index: args
+                    .runtime_objects
+                    .map(|path| absolute(&cwd, path))
+                    .transpose()?,
                 library_paths: paths(&cwd, args.library_path)?,
                 output: absolute(&cwd, args.output)?,
             };
@@ -137,14 +143,17 @@ fn build_request(
     }
     let compiler = match args.scoopc {
         Some(path) => path,
-        None => std::env::current_exe()
+        None => scoop_toolchain::installed_executable()
             .map_err(config)?
             .parent()
             .ok_or_else(|| config("scoop executable has no parent"))?
             .join("scoopc"),
     };
     let cache = scoop_toolchain::configured_cache_root(args.cache_dir).map_err(config)?;
-    let sysroot = absolute(&cwd, scoop_toolchain::configured_sysroot_root(args.sysroot))?;
+    let sysroot = absolute(
+        &cwd,
+        scoop_toolchain::configured_sysroot_root(args.sysroot).map_err(config)?,
+    )?;
     let (c_toolchain, final_link) = args.native.resolve(&cwd, &sysroot)?;
     let graph = scoop::BuildGraphRequest::new(
         root,
@@ -160,13 +169,13 @@ fn build_request(
         DiagnosticsPolicy::Structured,
     )
     .map_err(BuildFailure::classified)?;
-    let runtime = match args.runtime_objects {
-        Some(index) => RuntimeInput::ObjectIndex(absolute(&cwd, index)?),
-        None => RuntimeInput::SourceRoot(absolute(
-            &cwd,
-            args.runtime_root
-                .unwrap_or_else(scoop_toolchain::development_runtime_root),
-        )?),
+    let runtime = match (args.runtime_objects, args.runtime_root) {
+        (Some(index), _) => RuntimeInput::ObjectIndex(absolute(&cwd, index)?),
+        (_, Some(root)) => RuntimeInput::SourceRoot(absolute(&cwd, root)?),
+        (None, None) => RuntimeInput::ObjectIndex(scoop_toolchain::default_runtime_index(
+            graph.sysroot().as_path(),
+            graph.target().lir_target(),
+        )),
     };
     Ok(BuildRequest {
         graph,

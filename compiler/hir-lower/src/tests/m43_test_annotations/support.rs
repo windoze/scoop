@@ -8,12 +8,12 @@ use crate::tests::m23_ordinary_core_only::support::{TrustedCoreFixture, trusted_
 use crate::{CurrentConeSources, lower_current_cone};
 
 pub(super) const MARKERS: &str =
-    include_str!("../../../../../sysroot/lib/scoop.test/src/markers.scoop");
+    include_str!("../../../../../sysroot/src/scoop.test/src/markers.scoop");
 
 pub(super) fn marker_core() -> TrustedCoreFixture {
     let mut source = crate::tests::complete_core_file();
     let annotations =
-        include_str!("../../../../../sysroot/lib/scoop.core/src/serialization_annotations.scoop");
+        include_str!("../../../../../sysroot/src/scoop.core/src/serialization_annotations.scoop");
     source
         .declarations
         .extend(scoop_parser::parse(annotations).unwrap().declarations);
@@ -85,22 +85,22 @@ pub(super) fn parsed_sources(
             ),
             (
                 "src/execution/selection.scoop",
-                include_str!("../../../../../sysroot/lib/scoop.test/src/execution/selection.scoop"),
+                include_str!("../../../../../sysroot/src/scoop.test/src/execution/selection.scoop"),
                 SourceRole::Production,
             ),
             (
                 "src/execution/data.scoop",
-                include_str!("../../../../../sysroot/lib/scoop.test/src/execution/data.scoop"),
+                include_str!("../../../../../sysroot/src/scoop.test/src/execution/data.scoop"),
                 SourceRole::Production,
             ),
             (
                 "src/execution/run.scoop",
-                include_str!("../../../../../sysroot/lib/scoop.test/src/execution/run.scoop"),
+                include_str!("../../../../../sysroot/src/scoop.test/src/execution/run.scoop"),
                 SourceRole::Production,
             ),
             (
                 "src/failure.scoop",
-                include_str!("../../../../../sysroot/lib/scoop.test/src/failure.scoop"),
+                include_str!("../../../../../sysroot/src/scoop.test/src/failure.scoop"),
                 SourceRole::Production,
             ),
         ]);

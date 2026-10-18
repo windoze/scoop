@@ -43,8 +43,11 @@ pub fn normalize_direct_build_request(
     };
     let target = ResolvedTargetProfile::resolve_with(triple, &options.c_toolchain)
         .map_err(BuildRequestNormalizationError::Target)?;
-    scoop_codegen::ValidatedBackendProfile::from_selection(target.lir_target_selection())
-        .map_err(BuildRequestNormalizationError::Backend)?;
+    scoop_codegen::ValidatedBackendProfile::from_selection(
+        target.lir_target_selection(),
+        target.c_bridge_toolchain().profile().contract(),
+    )
+    .map_err(BuildRequestNormalizationError::Backend)?;
     let is_core = match &current {
         CurrentConeInput::Manifest { root } => {
             scoop_toolchain::load_cone_manifest(root)
@@ -56,11 +59,13 @@ pub fn normalize_direct_build_request(
         }
         CurrentConeInput::SingleFile { .. } => false,
     };
+    let sysroot = scoop_toolchain::configured_sysroot_root(options.sysroot)
+        .map_err(BuildRequestNormalizationError::Target)?;
     let trusted_core = if is_core {
         TrustedCoreInput::BootstrapSelf
     } else {
         TrustedCoreInput::DependenciesOrDefault {
-            sysroot: scoop_toolchain::configured_sysroot_root(options.sysroot),
+            sysroot: sysroot.clone(),
         }
     };
     SingleConeBuildRequest::new(
@@ -74,6 +79,7 @@ pub fn normalize_direct_build_request(
     )
     .and_then(|request| {
         request
+            .with_native_sysroot(sysroot)
             .with_optimization(options.optimization)
             .with_purpose(options.purpose)
     })
@@ -109,8 +115,11 @@ pub fn normalize_protocol_build_request(
         SlibOutputDestination::new(output_path).map_err(BuildRequestNormalizationError::Request)?;
     let target = ResolvedTargetProfile::resolve_request(build.target())
         .map_err(BuildRequestNormalizationError::Target)?;
-    scoop_codegen::ValidatedBackendProfile::from_selection(target.lir_target_selection())
-        .map_err(BuildRequestNormalizationError::Backend)?;
+    scoop_codegen::ValidatedBackendProfile::from_selection(
+        target.lir_target_selection(),
+        target.c_bridge_toolchain().profile().contract(),
+    )
+    .map_err(BuildRequestNormalizationError::Backend)?;
     let (current, trusted_core) = match (current_path, build.trusted_core()) {
         ((true, path), TrustedCoreRequestV1::ArtifactSlot { artifact }) => {
             let root = ManifestRootLocator::from_path(path)

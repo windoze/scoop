@@ -6,9 +6,9 @@ version = "0.1.0"
 kind = "executable"
 [native]
 include = [
-    {path = "../../../../sysroot/native/aarch64-apple-darwin/openssl/include", when = {os = "darwin"}},
-    {path = "../../../../sysroot/native/x86_64-unknown-linux-gnu/openssl/include", when = {env = "gnu"}},
-    {path = "../../../../sysroot/native/x86_64-unknown-linux-musl/openssl/include", when = {env = "musl"}},
+    {path = "../../../../sysroot/lib/aarch64-apple-darwin/openssl/include", when = {os = "darwin"}},
+    {path = "../../../../sysroot/lib/x86_64-unknown-linux-gnu/openssl/include", when = {env = "gnu"}},
+    {path = "../../../../sysroot/lib/x86_64-unknown-linux-musl/openssl/include", when = {env = "musl"}},
 ]
 c_flags = ["-std=c11", "-Wall", "-Wextra", "-Werror"]
 [[native.sources]]

@@ -1,0 +1,86 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.IoClosedException
+import scoop.http.*
+
+internal suspend fun acceptH2(state: H2State): Http2IncomingRequest? {
+    val job = httpJob(state.loop, true)
+    return suspendCoroutine<Http2IncomingRequest?> { continuation ->
+        val wait = state.lock.withLock {
+            job.ensureActive(); h2Open(state)
+            if (state.session.role != HttpRole.Server) throw IllegalStateException(Some("only HTTP/2 servers accept requests"))
+            if (present(state.accepting)) throw IllegalStateException(Some("HTTP/2 accept is busy"))
+            val result = H2Wait<Http2IncomingRequest?>(job, continuation)
+            state.accepting = Some(result)
+            result
+        }
+        h2WaitListener(state, wait) { error, actions ->
+            state.accepting = None
+            failH2Wait(wait, error, actions)
+        }
+        driveH2(state)
+    }
+}
+
+internal suspend fun receiveH2Response(state: H2State, stream: H2Stream): HttpResponseHead {
+    val job = httpJob(state.loop, true)
+    return suspendCoroutine<HttpResponseHead> { continuation ->
+        val actions = ArrayList<() -> Unit>()
+        val waiting = state.lock.withLock {
+            job.ensureActive()
+            if (state.session.role != HttpRole.Client) throw IllegalStateException(Some("only HTTP/2 clients receive responses"))
+            if (present(stream.failure)) throw stream.failure!!
+            if (stream.disposed) throw IoClosedException()
+            if (stream.finalResponseTaken) throw IllegalStateException(Some("final HTTP/2 response has already been received"))
+            if (present(stream.responseWaiter)) throw IllegalStateException(Some("HTTP/2 response receive is busy"))
+            val wait = H2Wait<HttpResponseHead>(job, continuation)
+            if (stream.responses.size != 0L) {
+                val head = stream.responses.removeFirst()
+                stream.finalResponseTaken = head.status >= 200U
+                succeedH2Wait(wait, head, actions)
+                retireH2Stream(state, stream, actions)
+            } else {
+                h2StreamOpen(state, stream)
+                stream.responseWaiter = Some(wait)
+            }
+            wait
+        }
+        h2WaitListener(state, waiting) { error, ready -> resetH2Stream(state, stream, error, 8U, ready) }
+        for (action in actions) action()
+        driveH2(state)
+    }
+}
+
+internal fun finishH2Accept(state: H2State, actions: ArrayList<() -> Unit>): Boolean {
+    val wait = state.accepting ?: return false
+    if (state.requests.size == 0L && !state.acceptingEnded) return false
+    state.accepting = None
+    if (state.requests.size == 0L) succeedH2Wait(wait, None, actions)
+    else {
+        val incoming = state.requests.removeAt(0L)
+        actions.add { listenH2Stream(state, incoming.stream.stream, wait.job) }
+        succeedH2Wait(wait, Some(incoming), actions)
+    }
+    return true
+}
+
+internal suspend fun flushH2Connection(state: H2State, prepare: () -> Unit) {
+    val job = httpJob(state.loop, true)
+    suspendCoroutine<Unit> { continuation ->
+        val wait = state.lock.withLock {
+            job.ensureActive(); h2Open(state); prepare()
+            val result = H2Wait<Unit>(job, continuation)
+            state.connectionFlush.add(result)
+            result
+        }
+        h2WaitListener(state, wait) { error, actions ->
+            var index = state.connectionFlush.size
+            while (index > 0L) {
+                index -= 1L
+                if (state.connectionFlush[index] === wait) state.connectionFlush.removeAt(index)
+            }
+            failH2Wait(wait, error, actions)
+        }
+        driveH2(state)
+    }
+}

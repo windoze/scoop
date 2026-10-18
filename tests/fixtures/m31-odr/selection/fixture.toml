@@ -10,6 +10,10 @@ variants = [
 ]
 
 [[steps]]
+name = "runtime_vendor"
+files = [{symlink = {from = "${sysroot}/vendor", to = "${work}/prebuilt-sysroot/vendor"}}]
+
+[[steps]]
 name = "prepare"
 files = [
   {copy = {from = "${fixture}/template", to = "${work}/source/template"}},
@@ -41,7 +45,7 @@ stderr = ""
 [[steps]]
 name = "prepare_mixed"
 files = [
-  {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/prebuilt-sysroot/artifacts/${target_profile}/scoop.core.slib"}},
+  {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/prebuilt-sysroot/lib/${target}/scoop.core.slib"}},
   {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/${build.result.dependencies.0.coordinate.group}/${build.result.dependencies.0.coordinate.name}/${build.result.dependencies.0.coordinate.version}/cone.slib"}},
   {"copy" = {"from" = "${build.result.dependencies.1.path}", "to" = "${work}/artifacts/${build.result.dependencies.1.coordinate.group}/${build.result.dependencies.1.coordinate.name}/${build.result.dependencies.1.coordinate.version}/cone.slib"}},
   {"copy" = {"from" = "${build.result.dependencies.2.path}", "to" = "${work}/artifacts/${build.result.dependencies.2.coordinate.group}/${build.result.dependencies.2.coordinate.name}/${build.result.dependencies.2.coordinate.version}/cone.slib"}},

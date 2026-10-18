@@ -11,7 +11,7 @@ fn copied_managed_aggregate_keeps_pointer_provenance_through_statepoints() {
         scoop_target_data::LINUX_X86_64_MUSL_ID,
     ] {
         for mode in [OptimizationMode::Debug, OptimizationMode::Release] {
-            let profile = ValidatedBackendProfile::from_selection(
+            let profile = ValidatedBackendProfile::for_selection(
                 scoop_target_data::selection(target)
                     .expect("implemented target selected by this consumer"),
             )

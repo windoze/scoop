@@ -10,9 +10,9 @@
 
 ### 1.1 Cone 与源码
 
-提供普通 library Cone `scoop:scoop.std:0.1.0`，源码位于 `sysroot/lib/scoop.std/`，唯一生产直接依赖为 `scoop:scoop.core:0.1.0`。用户在 `Cone.toml` 显式声明依赖，按语言规范 12.2 使用 sysroot 默认定位；不隐式依赖或默认导入 std。single-file 模式继续只有 core dependency。
+提供普通 library Cone `scoop:scoop.std:0.1.0`，源码位于 `sysroot/src/scoop.std/`，唯一生产直接依赖为 `scoop:scoop.core:0.1.0`。用户在 `Cone.toml` 显式声明依赖，按语言规范 12.2 使用 sysroot 默认定位；不隐式依赖或默认导入 std。single-file 模式继续只有 core dependency。
 
-标准库自身的同 Cone 单元测试位于 `tests/`，显式声明测试依赖 `scoop:scoop.test:0.1.0`，通过 `scoop test sysroot/lib/scoop.std` 运行，作为 M43 测试能力的首个实际应用。测试源码和测试依赖按语言规范 12.2.4 排除在生产构建之外；现有编译器、产物和平台专用 fixtures 继续承担各自的验证职责。
+标准库自身的同 Cone 单元测试位于 `tests/`，显式声明测试依赖 `scoop:scoop.test:0.1.0`，通过 `scoop test sysroot/src/scoop.std` 运行，作为 M43 测试能力的首个实际应用。测试源码和测试依赖按语言规范 12.2.4 排除在生产构建之外；现有编译器、产物和平台专用 fixtures 继续承担各自的验证职责。
 
 | package | 责任 |
 | --- | --- |

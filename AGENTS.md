@@ -42,6 +42,7 @@ Scoop 是一门静态类型、编译到原生代码的语言：以 Kotlin 核心
 - 常用命令：
   - `cargo build` / `cargo test --workspace` — 构建 / Rust 单元与集成测试；
   - `cargo build -p scoop -p scoopc -p scoop-linker --bins` — 构建文件 fixture 使用的三个配套命令；
+  - 首次运行正式 CLI fixture 或内置库变更后，按 [准备脚本说明](scripts/README.md) 显式准备开发 sysroot，并设置 `SCOOP_SYSROOT="$PWD/sysroot"`；普通应用默认消费目标预编译资源，测试不自动执行准备或打包；
   - `python3 -m unittest discover -s tests/fixture_runner/tests` + `python3 tests/run_fixtures.py --all` — 公共规则测试与完整文件 fixture 验收；`cargo test` 不能替代这组正式 CLI 覆盖。声明规则与工具位置配置见 [fixture schema 1](tests/fixture_runner/README.md)；
   - `cargo fmt --all` + `cargo clippy --workspace --all-targets` — Rust 格式化 / lint（变更后、测试前先执行，见"编码准则"）；
   - Python 变更先执行 `uv tool run --from ruff==0.16.10 ruff format tests/fixture_runner tests/run_fixtures.py` 与同版本 `ruff check tests/fixture_runner tests/run_fixtures.py`，再运行测试。

@@ -5,10 +5,20 @@ tools = ["scoop", "scoopc", "cc", "ar"]
 # This fixture exercises Mach-O dylib, dyld namespace, or framework behavior.
 targets = ["aarch64-apple-darwin"]
 tags = ["native-link", "program-link"]
+variants = [{name = "explicit", vars = {library_args = ["--library-path", "${work}/native"]}}, {name = "sysroot", vars = {library_args = []}}]
 
 [[steps]]
 name = "prepare"
-files = [{"copy" = {"from" = "${fixture}/cone", "to" = "${work}/sources/reexport"}}, {"copy" = {"from" = "${fixture}/../../m23-native-link/direct/root.scoop", "to" = "${work}/sources/reexport/src/main.scoop"}}, {"mkdir" = {"path" = "${work}/native"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+files = [
+ {copy = {from = "${sysroot}/lib/${target}/scoop.core.slib", to = "${work}/sysroot/lib/${target}/scoop.core.slib"}},
+ {symlink = {from = "${sysroot}/src", to = "${work}/sysroot/src"}},
+ {symlink = {from = "${sysroot}/vendor", to = "${work}/sysroot/vendor"}},
+ {symlink = {from = "${sysroot}/include", to = "${work}/sysroot/include"}},
+ {symlink = {from = "${work}/sysroot/lib/${target}", to = "${work}/native"}},
+ {copy = {from = "${fixture}/cone", to = "${work}/sources/reexport"}},
+ {copy = {from = "${fixture}/../../m23-native-link/direct/root.scoop", to = "${work}/sources/reexport/src/main.scoop"}},
+ {mkdir = {path = "${work}/objects"}},
+]
 checks = []
 
 [[steps]]
@@ -60,7 +70,7 @@ env = {"PATH" = "/usr/bin:/bin"}
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", "${work}/sources/reexport", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native"]
+argv = ["${scoop}", "build", "${work}/sources/reexport", "--sysroot", "${work}/sysroot", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", {each = "${library_args}"}]
 exit = 0
 stdout = ""
 stderr = ""
@@ -70,7 +80,7 @@ checks = []
 
 [[steps]]
 name = "link"
-argv = ["${scoop}", "link", "--root-slib", "${build.result.root.path}", "--dependency-slib", "${build.result.dependencies.0.path}", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native", "--dump-plan"]
+argv = ["${scoop}", "link", "--root-slib", "${build.result.root.path}", "--dependency-slib", "${build.result.dependencies.0.path}", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/sysroot", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", {each = "${library_args}"}, "--dump-plan"]
 exit = 0
 stdout = ""
 stderr = ""

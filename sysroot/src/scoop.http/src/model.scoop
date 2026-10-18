@@ -1,0 +1,77 @@
+package scoop.http
+
+public enum HttpProtocol { Http1, Http2 }
+public enum HttpVersion { Http10, Http11, Http2 }
+public enum HttpRole { Client, Server }
+public enum HttpFailureScope { Operation, Stream, Connection }
+
+public class HttpException public constructor(
+    public val operation: String,
+    public val protocol: HttpProtocol,
+    public val scope: HttpFailureScope,
+    public val streamId: Int,
+    public val backend: String,
+    public val code: Int,
+    public val detail: String
+) : Exception(Some(operation + ": " + detail))
+
+public class HttpField public constructor(name: List<Byte>, value: List<Byte>, public val neverIndex: Boolean = false) {
+    public val name: Array<Byte> = name.toArray()
+    public val value: Array<Byte> = value.toArray()
+}
+
+public fun List<HttpField>.findAll(name: List<Byte>): Array<HttpField> {
+    val result = ArrayList<HttpField>()
+    for (field in this) if (httpAsciiEqual(field.name, name)) result.add(field)
+    return result.toArray()
+}
+
+public enum HttpRequestTarget {
+    Http1(Array<Byte>),
+    Http2(Array<Byte>, Array<Byte>, Array<Byte>),
+    Connect(Array<Byte>)
+}
+
+public struct Http2RequestIndexing(
+    val method: Boolean = false, val scheme: Boolean = false,
+    val authority: Boolean = false, val path: Boolean = false
+)
+
+public class HttpRequestHead public constructor(
+    public val version: HttpVersion,
+    method: List<Byte>,
+    public val target: HttpRequestTarget,
+    fields: List<HttpField> = ArrayList<HttpField>(),
+    public val indexing: Http2RequestIndexing = Http2RequestIndexing()
+) {
+    public val method: Array<Byte> = method.toArray()
+    public val fields: Array<HttpField> = fields.toArray()
+}
+
+public class HttpResponseHead public constructor(
+    public val version: HttpVersion,
+    public val status: UInt,
+    reason: List<Byte>? = None,
+    fields: List<HttpField> = ArrayList<HttpField>(),
+    public val neverIndexStatus: Boolean = false
+) {
+    public val reason: Array<Byte>? = when (reason) {
+        case Some(bytes) -> Some(bytes.toArray())
+        case None -> None
+    }
+    public val fields: Array<HttpField> = fields.toArray()
+}
+
+internal fun httpAsciiEqual(left: List<Byte>, right: List<Byte>): Boolean {
+    if (left.size != right.size) return false
+    var index = 0L
+    while (index < left.size) {
+        var a = left[index].toUByte().toInt()
+        var b = right[index].toUByte().toInt()
+        if (a >= 65 && a <= 90) a += 32
+        if (b >= 65 && b <= 90) b += 32
+        if (a != b) return false
+        index += 1L
+    }
+    return true
+}

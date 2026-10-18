@@ -99,7 +99,7 @@ pub(crate) fn resolve_cached(
                 .flatten(),
         ]
     } else {
-        Vec::new()
+        vec![Some(crate::c_bridge::deployment_version()?.into())]
     };
     let environment: Vec<_> = environment
         .iter()

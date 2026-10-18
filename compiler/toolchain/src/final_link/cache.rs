@@ -31,6 +31,7 @@ pub(super) fn resolve(
                 options.unwind_prefix.as_deref(),
             )
         })
+        .transpose()?
         .as_deref()
         .map(path)
         .transpose()?;
@@ -40,10 +41,11 @@ pub(super) fn resolve(
         options.sysroot.as_deref().map(path).transpose()?,
         options.unwind_prefix.as_deref().map(path).transpose()?,
         unwind,
+        options.native_roots(target.lir_target())?,
         cxx,
     ))?;
     let record = build_record::cached(
-        &cache.join("final-tools-v1"),
+        &cache.join("final-tools-v2"),
         key,
         |_| Ok(true),
         || {

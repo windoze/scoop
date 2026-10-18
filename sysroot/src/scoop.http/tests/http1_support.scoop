@@ -1,0 +1,68 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+internal fun collectHttp1(decoder: Http1Decoder, input: List<Byte>, chunk: Long = 1L, eof: Boolean = true): Array<Http1Event> {
+    val events = ArrayList<Http1Event>()
+    NativeByteBuffer.allocate(chunk).use { buffer ->
+        var offset = 0L
+        while (offset < input.size) {
+            buffer.clear()
+            val count = if (input.size - offset < chunk) input.size - offset else chunk
+            buffer.writeBytes(input, offset, count)
+            assertEquals(count, decoder.receive(buffer))
+            offset += count
+            drainHttp1(decoder, events)
+        }
+        if (eof) decoder.endInput()
+        drainHttp1(decoder, events)
+    }
+    return events.toArray()
+}
+
+internal fun drainHttp1(decoder: Http1Decoder, events: ArrayList<Http1Event>) {
+    while (true) {
+        val next = decoder.nextEvent()
+        when (next) {
+            case None -> return
+            case Some(_) -> events.add(next!!)
+        }
+    }
+}
+
+internal fun http1Requests(events: List<Http1Event>): Array<HttpRequestHead> {
+    val result = ArrayList<HttpRequestHead>()
+    for (event in events) when (event) { case Request(head) -> result.add(head); else -> {} }
+    return result.toArray()
+}
+
+internal fun http1Responses(events: List<Http1Event>): Array<HttpResponseHead> {
+    val result = ArrayList<HttpResponseHead>()
+    for (event in events) when (event) { case Response(head) -> result.add(head); else -> {} }
+    return result.toArray()
+}
+
+internal fun http1Data(events: List<Http1Event>): Array<Byte> {
+    val result = ByteArrayBuilder()
+    for (event in events) when (event) { case Data(bytes) -> result.append(bytes); else -> {} }
+    return result.toByteArray()
+}
+
+internal fun http1EndCount(events: List<Http1Event>): Long {
+    var result = 0L
+    for (event in events) when (event) { case End(_) -> result += 1L; else -> {} }
+    return result
+}
+
+internal fun checkHttp1Option(input: String, options: Http1ReceiveOptions, expectedBody: String = "") {
+    Http1Decoder.server().use { decoder ->
+        assertFailsWith<HttpException> { collectHttp1(decoder, input.toByteArray()) }
+    }
+    Http1Decoder.server(options).use { decoder ->
+        val events = collectHttp1(decoder, input.toByteArray())
+        assertEquals(1L, http1EndCount(events))
+        assertEquals(expectedBody, String.fromUtf8(http1Data(events)))
+    }
+}

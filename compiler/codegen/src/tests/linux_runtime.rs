@@ -177,7 +177,7 @@ fn linux_thread_publications_refresh_growing_main_stack_bounds() {
                 .arg("-I")
                 .arg(workspace.join("runtime/include"))
                 .arg("-I")
-                .arg(workspace.join("runtime/third_party/ryu"));
+                .arg(workspace.join("sysroot/vendor/ryu"));
             for source in [
                 "runtime/tests/linux_stack_growth_test.c",
                 "runtime/src/platform/os/linux.c",

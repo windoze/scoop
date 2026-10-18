@@ -53,10 +53,12 @@ pub enum CanonicalCBridgeFlagV1 {
     NoAsynchronousUnwindTables,
     NoBuiltinSubstitution,
     PositionIndependent,
+    X86_64Baseline,
 }
 
 impl CanonicalCBridgeFlagV1 {
-    pub const LINUX_GCC: [Self; 11] = [
+    pub const LINUX_GCC: [Self; 12] = [
+        Self::X86_64Baseline,
         Self::C11,
         Self::RelocatableObject,
         Self::SelectedOptimization,
@@ -101,6 +103,7 @@ impl CanonicalCBridgeFlagV1 {
             Self::NoAsynchronousUnwindTables => 12,
             Self::NoBuiltinSubstitution => 13,
             Self::PositionIndependent => 14,
+            Self::X86_64Baseline => 16,
         }
     }
 }

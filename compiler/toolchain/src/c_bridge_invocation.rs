@@ -204,6 +204,7 @@ impl ValidatedCBridgeToolchainInvocation {
                     .arg(format!("-mmacosx-version-min={minimum_os}"));
             }
             CBridgeCommandParameters::Linux { native_sysroot, .. } => {
+                command.arg("-march=x86-64");
                 if let Some(root) = native_sysroot {
                     command.arg("--sysroot").arg(root);
                 }

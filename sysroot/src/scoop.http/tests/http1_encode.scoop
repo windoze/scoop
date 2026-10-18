@@ -1,0 +1,140 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+@Test
+private class Http1EncodeTests {
+    @Test
+    fun `chunked output round trips binary body ordered fields and trailers`() {
+        val fields = [HttpField("X-Item".toByteArray(), "one".toByteArray()), HttpField("x-item".toByteArray(), "two".toByteArray())]
+        val output = ByteArrayBuilder()
+        Http1Encoder(HttpRole.Client).use { encoder ->
+            output.append(encoder.beginRequest(requestHead(fields = fields), Http1BodyFraming.Chunked))
+            NativeByteBuffer.allocate(4L).use { body ->
+                body.writeBytes([0.toByte(), 255.toByte(), 13.toByte(), 10.toByte()])
+                output.append(encoder.writeBody(body, 2L))
+                output.append(encoder.writeBody(body))
+                assertEquals(0L, body.readableBytes)
+            }
+            output.append(encoder.finish([HttpField("X-End".toByteArray(), "yes".toByteArray())]))
+            assertFalse(encoder.isMessageOpen)
+            assertFalse(encoder.mustClose)
+        }
+        Http1Decoder.server().use { decoder ->
+            val events = collectHttp1(decoder, output.toByteArray(), 3L)
+            val body = http1Data(events)
+            assertEquals(4L, body.size)
+            assertEquals(255.toByte(), body[1L])
+            assertEquals(2L, http1Requests(events)[0L].fields.findAll("x-item".toByteArray()).size)
+            assertEquals(1L, http1EndCount(events))
+        }
+    }
+
+    @Test
+    fun `fixed output checks length without consuming a rejected prefix`() {
+        Http1Encoder(HttpRole.Client).use { encoder ->
+            val output = ByteArrayBuilder().append(encoder.beginRequest(requestHead(), Http1BodyFraming.Length(3L)))
+            assertFailsWith<IllegalStateException> { encoder.finish() }
+            NativeByteBuffer.allocate(4L).use { body ->
+                body.writeBytes("abcd".toByteArray())
+                assertFailsWith<IllegalArgumentException> { encoder.writeBody(body) }
+                assertEquals(0L, body.readPosition)
+                output.append(encoder.writeBody(body, 3L))
+                assertEquals(3L, body.readPosition)
+            }
+            output.append(encoder.finish())
+            Http1Decoder.server().use { decoder ->
+                assertEquals("abc", String.fromUtf8(http1Data(collectHttp1(decoder, output.toByteArray()))))
+            }
+        }
+    }
+
+    @Test
+    fun `empty ordinary responses have explicit zero lengths and remain distinct`() {
+        Http1Encoder(HttpRole.Server).use { encoder ->
+            val output = ByteArrayBuilder()
+            for (status in [200U, 201U]) {
+                output.append(encoder.beginResponse(HttpResponseHead(HttpVersion.Http11, status), "GET".toByteArray()))
+                output.append(encoder.finish())
+            }
+            Http1Decoder.client().use { decoder ->
+                decoder.expectResponse("GET".toByteArray())
+                decoder.expectResponse("GET".toByteArray())
+                val events = collectHttp1(decoder, output.toByteArray())
+                assertEquals(2L, http1EndCount(events))
+                assertEquals(0L, http1Data(events).size)
+            }
+        }
+    }
+
+    @Test
+    fun `HEAD metadata and successful CONNECT use their response body rules`() {
+        Http1Encoder(HttpRole.Server).use { encoder ->
+            val fields = [HttpField("Content-Length".toByteArray(), "99".toByteArray())]
+            val output = encoder.beginResponse(HttpResponseHead(HttpVersion.Http11, 200U, fields = fields), "HEAD".toByteArray())
+            encoder.finish()
+            Http1Decoder.client().use { decoder ->
+                decoder.expectResponse("HEAD".toByteArray())
+                assertEquals(1L, http1EndCount(collectHttp1(decoder, output)))
+            }
+            encoder.beginResponse(HttpResponseHead(HttpVersion.Http11, 200U), "CONNECT".toByteArray())
+            encoder.finish()
+            assertTrue(encoder.isSwitched)
+            assertTrue(encoder.mustClose)
+        }
+        Http1Encoder(HttpRole.Server).use { encoder ->
+            assertFailsWith<IllegalArgumentException> {
+                encoder.beginResponse(HttpResponseHead(HttpVersion.Http11, 204U), "GET".toByteArray(), Http1BodyFraming.Length(1L))
+            }
+        }
+    }
+
+    @Test
+    fun `EOF output requires closing and cannot be reused`() {
+        Http1Encoder(HttpRole.Server).use { encoder ->
+            val output = ByteArrayBuilder().append(encoder.beginResponse(HttpResponseHead(HttpVersion.Http10, 200U),
+                "GET".toByteArray(), Http1BodyFraming.Eof))
+            NativeByteBuffer.allocate(4L).use { body -> body.writeBytes("body".toByteArray()); output.append(encoder.writeBody(body)) }
+            output.append(encoder.finish())
+            assertTrue(encoder.mustClose)
+            assertFailsWith<IllegalStateException> { encoder.beginResponse(HttpResponseHead(HttpVersion.Http11, 200U), "GET".toByteArray()) }
+            Http1Decoder.client().use { decoder ->
+                decoder.expectResponse("GET".toByteArray())
+                assertEquals("body", String.fromUtf8(http1Data(collectHttp1(decoder, output.toByteArray()))))
+            }
+        }
+    }
+
+    @Test
+    fun `sending rejects unknown methods injection and conflicting framing`() {
+        Http1Encoder(HttpRole.Client).use { encoder ->
+            val error = assertFailsWith<HttpException> { encoder.beginRequest(requestHead(method = "CUSTOM")) }
+            assertEquals("llhttp 9.4.3", error.backend)
+            assertFailsWith<IllegalArgumentException> {
+                encoder.beginRequest(requestHead(fields = [HttpField("X-Bad".toByteArray(), "one\r\nInjected: two".toByteArray())]))
+            }
+            assertFailsWith<IllegalArgumentException> {
+                encoder.beginRequest(requestHead(fields = [HttpField("Bad Name".toByteArray(), "value".toByteArray())]))
+            }
+            assertFailsWith<IllegalArgumentException> {
+                encoder.beginRequest(requestHead(fields = [HttpField("Content-Length".toByteArray(), "4".toByteArray())]), Http1BodyFraming.Length(3L))
+            }
+            assertFailsWith<IllegalArgumentException> {
+                encoder.beginRequest(HttpRequestHead(HttpVersion.Http10, "POST".toByteArray(), HttpRequestTarget.Http1("/".toByteArray())),
+                    Http1BodyFraming.Chunked)
+            }
+            encoder.beginRequest(requestHead())
+            encoder.finish()
+        }
+        Http1Encoder(HttpRole.Server).use { encoder ->
+            assertFailsWith<IllegalArgumentException> {
+                encoder.beginResponse(HttpResponseHead(HttpVersion.Http11, 200U, Some("OK\r\nBad".toByteArray())), "GET".toByteArray())
+            }
+        }
+    }
+}
+
+private fun requestHead(method: String = "POST", fields: List<HttpField> = ArrayList<HttpField>()): HttpRequestHead =
+    HttpRequestHead(HttpVersion.Http11, method.toByteArray(), HttpRequestTarget.Http1("/raw%2fpath".toByteArray()), fields)

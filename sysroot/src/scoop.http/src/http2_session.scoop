@@ -1,0 +1,180 @@
+package scoop.http
+
+import scoop.platform.memory.NativeByteBuffer
+
+public class Http2Session private constructor(private var handle: ULong, public val role: HttpRole) : Closeable {
+    public companion object {
+        public fun client(options: Http2ReceiveOptions = Http2ReceiveOptions(), limits: Http2Limits = Http2Limits(),
+            settings: Http2Settings = Http2Settings()): Http2Session = create(HttpRole.Client, options, limits, settings)
+
+        public fun server(options: Http2ReceiveOptions = Http2ReceiveOptions(), limits: Http2Limits = Http2Limits(),
+            settings: Http2Settings = Http2Settings()): Http2Session = create(HttpRole.Server, options, limits, settings)
+
+        public fun upgradedClient(requestMethod: List<Byte>, settings: Http2Settings = Http2Settings(),
+            options: Http2ReceiveOptions = Http2ReceiveOptions(), limits: Http2Limits = Http2Limits()): Http2Session =
+            upgrade(HttpRole.Client, requestMethod, http2SettingsPayload(settings), options, limits, settings)
+
+        public fun upgradedServer(requestMethod: List<Byte>, settingsPayload: List<Byte>,
+            options: Http2ReceiveOptions = Http2ReceiveOptions(), limits: Http2Limits = Http2Limits(),
+            settings: Http2Settings = Http2Settings()): Http2Session =
+            upgrade(HttpRole.Server, requestMethod, settingsPayload.toArray(), options, limits, settings)
+
+        private fun upgrade(role: HttpRole, requestMethod: List<Byte>, payload: Array<Byte>,
+            options: Http2ReceiveOptions, limits: Http2Limits, settings: Http2Settings): Http2Session {
+            val method = requestMethod.toArray()
+            requireHttp1Method(method)
+            if (httpBytesEqual(method, "CONNECT".toByteArray()))
+                throw IllegalArgumentException(Some("h2c upgrade cannot use CONNECT"))
+            val session = create(role, options, limits, settings, true)
+            try { session.applyUpgrade(payload, httpBytesEqual(method, "HEAD".toByteArray())); return session }
+            catch (error: Throwable) { session.close(); throw error }
+        }
+
+        private fun create(role: HttpRole, options: Http2ReceiveOptions, limits: Http2Limits,
+            settings: Http2Settings, upgrading: Boolean = false): Http2Session {
+            val config = http2Config(options, limits)
+            val values = http2Settings(settings)
+            @Unsafe {
+                val native = http2New(if (role == HttpRole.Server) 1 else 0, config, values, if (upgrading) 1 else 0)
+                if (native == 0UL) throw http2Failure("create HTTP/2 session", -901, "cannot allocate HTTP/2 session")
+                return Http2Session(native, role)
+            }
+        }
+    }
+
+    public val isClosed: Boolean get() = handle == 0UL
+    public val wantsRead: Boolean get() { @Unsafe { return http2Wants(nativeHandle(), 0) != 0 } }
+    public val wantsWrite: Boolean get() { @Unsafe { return http2Wants(nativeHandle(), 1) != 0 } }
+    public val bufferedOutputBytes: Long get() { @Unsafe { return http2Buffered(nativeHandle()) } }
+
+    public fun hasPendingOutput(streamId: Int): Boolean {
+        if (streamId <= 0) throw IllegalArgumentException(Some("invalid HTTP/2 stream ID"))
+        @Unsafe { return http2Pending(nativeHandle(), streamId) != 0 }
+    }
+
+    private fun nativeHandle(): ULong {
+        if (handle == 0UL) throw IllegalStateException(Some("HTTP/2 session is closed"))
+        return handle
+    }
+
+    @Unsafe private fun check(code: Int, operation: String, id: Int = 0, scope: HttpFailureScope = HttpFailureScope.Operation) {
+        if (code < 0) throw http2Failure(operation, code, String.fromCString(http2Error(nativeHandle())), id, scope)
+    }
+
+    private fun applyUpgrade(payload: Array<Byte>, head: Boolean) {
+        @Unsafe {
+            val code = payload.withDataPointer { pointer, size ->
+                @Unsafe { return@withDataPointer http2Upgrade(nativeHandle(), pointer, size, if (head) 1 else 0) }
+            }
+            check(code, "upgrade HTTP/2 session")
+        }
+    }
+
+    public fun receive(buffer: NativeByteBuffer, count: Long = buffer.readableBytes): Long {
+        val owned = nativeHandle()
+        if (count < 0L || count > buffer.readableBytes) throw IllegalArgumentException(Some("invalid HTTP/2 input count"))
+        if (count == 0L) return 0L
+        @Unsafe {
+            val step = buffer.withReadableBytes { pointer, _ ->
+                @Unsafe { return@withReadableBytes http2Receive(owned, pointer!!, count) }
+            }
+            buffer.skip(step.count)
+            check(step.code, "receive HTTP/2", 0, HttpFailureScope.Connection)
+            return step.count
+        }
+    }
+
+    public fun takeOutput(buffer: NativeByteBuffer, count: Long = buffer.writableBytes): Long {
+        val owned = nativeHandle()
+        if (count < 0L || count > buffer.writableBytes) throw IllegalArgumentException(Some("invalid HTTP/2 output capacity"))
+        if (count == 0L) return 0L
+        @Unsafe {
+            val borrow = buffer.borrowWritable(count)
+            val step = try { http2Output(owned, borrow.pointer()!!, count) }
+                catch (error: Throwable) { borrow.complete(0L); throw error }
+            borrow.complete(step.count)
+            check(step.code, "produce HTTP/2 output", 0, HttpFailureScope.Connection)
+            return step.count
+        }
+    }
+
+    public fun submitRequest(head: HttpRequestHead, endStream: Boolean = true): Int {
+        val owned = nativeHandle()
+        val fields = http2RequestFields(head)
+        try {
+            @Unsafe {
+                val id = http2Request(owned, fields.handle, if (endStream) 1 else 0, fields.length)
+                check(id, "submit HTTP/2 request")
+                return id
+            }
+        } finally { fields.close() }
+    }
+
+    public fun submitResponse(streamId: Int, head: HttpResponseHead, endStream: Boolean = true) {
+        val owned = nativeHandle()
+        val fields = http2ResponseFields(head)
+        try { @Unsafe { check(http2Response(owned, streamId, fields.handle, head.status.toInt(),
+            if (endStream) 1 else 0, fields.length), "submit HTTP/2 response", streamId) } }
+        finally { fields.close() }
+    }
+
+    public fun writeBody(streamId: Int, buffer: NativeByteBuffer, count: Long = buffer.readableBytes): Long {
+        val owned = nativeHandle()
+        if (count < 0L || count > buffer.readableBytes) throw IllegalArgumentException(Some("invalid HTTP/2 body count"))
+        @Unsafe {
+            val step = buffer.withReadableBytes { pointer, _ ->
+                @Unsafe { return@withReadableBytes http2Write(owned, streamId, pointer, count) }
+            }
+            buffer.skip(step.count)
+            check(step.code, "write HTTP/2 body", streamId)
+            return step.count
+        }
+    }
+
+    public fun finish(streamId: Int, trailers: List<HttpField> = ArrayList<HttpField>()) {
+        val owned = nativeHandle()
+        val fields = Http2Fields()
+        try {
+            fields.addRegular(trailers, true)
+            @Unsafe { check(http2Finish(owned, streamId, fields.handle), "finish HTTP/2 body", streamId) }
+        } finally { fields.close() }
+    }
+
+    public fun consume(streamId: Int, count: Long) {
+        @Unsafe { check(http2Consume(nativeHandle(), streamId, count), "consume HTTP/2 body", streamId) }
+    }
+
+    public fun reset(streamId: Int, code: UInt = 8U) {
+        if (streamId <= 0) throw IllegalArgumentException(Some("invalid HTTP/2 stream ID"))
+        @Unsafe { check(http2Reset(nativeHandle(), streamId, code), "reset HTTP/2 stream", streamId) }
+    }
+
+    public fun goAway(code: UInt = 0U, debugData: List<Byte> = ArrayList<Byte>(), lastStreamId: Int? = None) {
+        val owned = nativeHandle()
+        val last = lastStreamId ?: -1
+        if (lastStreamId != None && last < 0) throw IllegalArgumentException(Some("invalid last HTTP/2 stream ID"))
+        @Unsafe {
+            val result = debugData.toArray().withDataPointer { pointer, size ->
+                @Unsafe { return@withDataPointer http2Goaway(owned, last, code, pointer, size) }
+            }
+            check(result, "submit HTTP/2 GOAWAY")
+        }
+    }
+
+    public fun endInput() { @Unsafe { check(http2End(nativeHandle()), "finish HTTP/2 input", 0, HttpFailureScope.Connection) } }
+
+    public fun nextEvent(): Http2Event? {
+        @Unsafe {
+            val event = http2Next(nativeHandle())
+            if (event == 0UL) return None
+            try { return Some(http2ReadEvent(event)) }
+            finally { httpEventFree(event) }
+        }
+    }
+
+    public override fun close() {
+        val owned = handle
+        handle = 0UL
+        if (owned != 0UL) @Unsafe { http2Free(owned) }
+    }
+}

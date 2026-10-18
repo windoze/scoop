@@ -1,10 +1,37 @@
 use super::*;
 
+mod index;
 #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
 mod linux;
 
+fn vendor_root() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../sysroot/vendor")
+}
+
 fn runtime_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../runtime")
+}
+
+#[test]
+fn missing_runtime_vendor_reports_the_selected_path() {
+    let target = ResolvedTargetProfile::resolve_host().unwrap();
+    let directory = tempfile::tempdir().unwrap();
+    let missing = directory.path().join("missing vendor");
+    let failure = build_runtime(RuntimeBuildRequest {
+        target: &target,
+        runtime_root: &runtime_root(),
+        vendor_root: &missing,
+        cache_root: directory.path(),
+        optimization: RuntimeOptimization::Optimized,
+        unwind_prefix: None,
+    })
+    .unwrap_err();
+    assert!(
+        failure
+            .to_string()
+            .contains(&format!("vendor source root {}:", missing.display()))
+    );
+    assert!(!directory.path().join("runtime-v5").exists());
 }
 
 #[test]
@@ -15,6 +42,7 @@ fn actual_runtime_objects_roundtrip_and_reuse_paths() {
         build_runtime(RuntimeBuildRequest {
             target: &target,
             runtime_root: &runtime_root(),
+            vendor_root: &vendor_root(),
             cache_root: cache.path(),
             optimization: RuntimeOptimization::None,
             unwind_prefix: None,
@@ -28,6 +56,7 @@ fn actual_runtime_objects_roundtrip_and_reuse_paths() {
         .compiler_generated_object_symbol("scoop_rt_run_program");
     let first = build();
     assert!(!first.cache_hit());
+    index::check_relocation_and_compatible_toolchains(&first, &target);
     assert_eq!(
         first.objects().objects().len(),
         target.runtime_build().runtime_sources().len()
@@ -129,6 +158,8 @@ fn runtime_cache_tracks_sources_headers_candidates_and_flags() {
     let source = workspace.path().join("runtime source");
     let cache = workspace.path().join("cache");
     copy_tree(&runtime_root(), &source);
+    let vendor = workspace.path().join("vendor");
+    copy_tree(&vendor_root().join("ryu"), &vendor.join("ryu"));
     std::fs::write(
         source.join("include/m48_candidate.h"),
         "#define M48_VALUE 1\n",
@@ -141,6 +172,7 @@ fn runtime_cache_tracks_sources_headers_candidates_and_flags() {
         build_runtime(RuntimeBuildRequest {
             target: &target,
             runtime_root: &source,
+            vendor_root: &vendor,
             cache_root: &cache,
             optimization,
             unwind_prefix: None,
@@ -149,11 +181,15 @@ fn runtime_cache_tracks_sources_headers_candidates_and_flags() {
     };
     let first = build(RuntimeOptimization::None);
     assert!(build(RuntimeOptimization::None).cache_hit());
-    for relative in ["src/rt.c", "include/scoop_rt.h"] {
+    for path in [
+        source.join("src/rt.c"),
+        source.join("include/scoop_rt.h"),
+        vendor.join("ryu/ryu/ryu.h"),
+    ] {
         use std::io::Write;
         std::fs::OpenOptions::new()
             .append(true)
-            .open(source.join(relative))
+            .open(path)
             .unwrap()
             .write_all(b"\n/* Runtime cache content change. */\n")
             .unwrap();
@@ -174,7 +210,7 @@ fn runtime_cache_tracks_sources_headers_candidates_and_flags() {
     assert!(!build(RuntimeOptimization::None).cache_hit());
     assert!(!build(RuntimeOptimization::Optimized).cache_hit());
     let records = || {
-        std::fs::read_dir(cache.join("runtime-v3"))
+        std::fs::read_dir(cache.join("runtime-v5"))
             .unwrap()
             .map(|e| e.unwrap().path())
             .filter(|p| p.extension().is_some_and(|e| e == "json"))
@@ -186,6 +222,7 @@ fn runtime_cache_tracks_sources_headers_candidates_and_flags() {
     let failed = build_runtime(RuntimeBuildRequest {
         target: &target,
         runtime_root: &source,
+        vendor_root: &vendor,
         cache_root: &cache,
         optimization: RuntimeOptimization::None,
         unwind_prefix: None,
@@ -197,6 +234,7 @@ fn runtime_cache_tracks_sources_headers_candidates_and_flags() {
         build_runtime(RuntimeBuildRequest {
             target: &target,
             runtime_root: &source,
+            vendor_root: &vendor,
             cache_root: &cache,
             optimization: RuntimeOptimization::None,
             unwind_prefix: None,

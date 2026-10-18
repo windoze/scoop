@@ -53,7 +53,7 @@ impl DynamicInputs {
                 let root = records
                     .first()
                     .ok_or_else(|| error("dynamic library has no root record"))?;
-                locate::runpath(root, roots)?;
+                locate::runpath(root, roots, profile)?;
                 result.roots.insert(root.id);
                 for record in records {
                     result.insert(record.clone(), &mut names)?;
@@ -150,7 +150,7 @@ impl DynamicInputs {
             .ok_or_else(|| error("missing fixed system provider"))?;
         imports.entry(system.id).or_default();
         for id in imports.keys() {
-            if let Some(path) = locate::runpath(&self.providers[id], roots)? {
+            if let Some(path) = locate::runpath(&self.providers[id], roots, profile)? {
                 self.rpaths.insert(path);
             }
         }
@@ -164,7 +164,7 @@ impl DynamicInputs {
             for (index, edge) in provider.dependencies.iter().enumerate() {
                 let child = self.edges[&(id, index)];
                 if edge.name.starts_with("@rpath/") {
-                    if let Some(path) = locate::runpath(&self.providers[&child], roots)? {
+                    if let Some(path) = locate::runpath(&self.providers[&child], roots, profile)? {
                         self.rpaths.insert(path);
                     }
                 }

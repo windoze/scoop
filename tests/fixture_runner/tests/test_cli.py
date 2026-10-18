@@ -18,7 +18,7 @@ class EnvironmentTests(unittest.TestCase):
     def test_shared_language_core_preserves_sysroot_and_reuses_unchanged_sources(self):
         with tempfile.TemporaryDirectory() as directory:
             repo, work = self.prepare(directory)
-            original = work / "sysroot/lib/scoop.core/src"
+            original = work / "sysroot/src/scoop.core/src"
             original.mkdir(parents=True)
             (original / "core.scoop").write_text("public fun coreValue(): Int = 1\n")
             helper = repo / "tests/fixtures/m23-cli-imported-classes/support/stage3_test.scoop"
@@ -40,6 +40,10 @@ class EnvironmentTests(unittest.TestCase):
         repo = Path(directory) / "repo"
         work = Path(directory) / "work"
         (repo / "sysroot").mkdir(parents=True)
+        (repo / "scripts").mkdir()
+        (repo / "scripts/release.toml").write_text(
+            '[targets.aarch64-apple-darwin]\nminimum_os = "15.4"\n'
+        )
         work.mkdir()
         return repo, work
 
@@ -71,7 +75,7 @@ class EnvironmentTests(unittest.TestCase):
                 common["compile_args"]
                 + [
                     "--unwind-prefix",
-                    str(repo / "sysroot/native/x86_64-unknown-linux-musl/unwind"),
+                    str(repo / "sysroot/lib/x86_64-unknown-linux-musl/unwind"),
                 ],
             )
             self.assertNotIn("sdk", common)
@@ -123,9 +127,8 @@ class EnvironmentTests(unittest.TestCase):
             repo, work = self.prepare(directory)
             with (
                 patch("fixture_runner.cli.shutil.which", return_value="/opt/llvm/bin/llc"),
-                patch(
-                    "fixture_runner.cli.tool_output", side_effect=["LLVM version 22.1.8", "15.4"]
-                ),
+                patch("fixture_runner.cli.tool_output", return_value="LLVM version 22.1.8"),
+                patch.dict("os.environ", {}, clear=True),
             ):
                 common = environment(
                     repo,

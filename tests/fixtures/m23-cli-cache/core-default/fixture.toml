@@ -1,5 +1,5 @@
 schema = 1
-name = "cli-core-default-source-and-artifact"
+name = "cli-core-default-prebuilt-and-explicit-source"
 inputs = ["root", "../../core-library/extension.scoop", "../../core-library/library-consumer.scoop"]
 tools = ["scoop", "scoopc"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
@@ -11,15 +11,17 @@ options = ["--sysroot", "${work}/private-sysroot", "--scoopc", "${scoopc}", "--c
 [[steps]]
 name = "prepare"
 files = [
-  {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/private-sysroot/lib/scoop.core"}},
-  {"copy" = {"from" = "${fixture}/../../core-library/extension.scoop", "to" = "${work}/private-sysroot/lib/scoop.core/src/extension.scoop"}},
+  {symlink = {from = "${sysroot}/include", to = "${work}/private-sysroot/include"}},
+  {symlink = {from = "${sysroot}/lib/${target}/runtime", to = "${work}/private-sysroot/lib/${target}/runtime"}},
+  {"copy" = {"from" = "${sysroot}/src/scoop.core", "to" = "${work}/private-sysroot/src/scoop.core"}},
+  {"copy" = {"from" = "${fixture}/../../core-library/extension.scoop", "to" = "${work}/private-sysroot/src/scoop.core/src/extension.scoop"}},
   {"copy" = {"from" = "${fixture}/root", "to" = "${work}/root"}},
   {"copy" = {"from" = "${fixture}/../../core-library/library-consumer.scoop", "to" = "${work}/root/src/main.scoop"}},
 ]
 
 [[steps]]
 name = "core"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/private-sysroot/lib/scoop.core", {"each" = "${options}"}, "-o", "${work}/saved-core.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/private-sysroot/src/scoop.core", {"each" = "${options}"}, "-o", "${work}/saved-core.slib"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -32,7 +34,7 @@ checks = [
 [[steps]]
 name = "publish_core"
 files = [
-  {"copy" = {"from" = "${core.result.root.path}", "to" = "${work}/private-sysroot/artifacts/${target_profile}/scoop.core.slib"}},
+  {"copy" = {"from" = "${core.result.root.path}", "to" = "${work}/private-sysroot/lib/${target}/scoop.core.slib"}},
 ]
 
 [[steps]]
@@ -45,7 +47,7 @@ json = "stderr"
 diagnostics = []
 checks = [
   {"actual" = "${source.result.dependencies.0.artifact_fingerprint}", "equals" = "${core.result.root.artifact_fingerprint}"},
-  {"actual" = "${source.result.observations.nodes.0.origin}", "equals" = "cache"},
+  {"actual" = "${source.result.observations.nodes.0.origin}", "equals" = "prebuilt"},
   {"actual" = "${source.result.observations.child_invocations}", "equals" = ["${source.result.root.identity}"]},
 ]
 
@@ -53,13 +55,32 @@ checks = [
 name = "save_previous"
 files = [
   {"copy" = {"from" = "${work}/library.slib", "to" = "${work}/previous.slib"}},
-  {"copy" = {"from" = "${work}/saved-core.slib", "to" = "${work}/private-sysroot/artifacts/${target_profile}/scoop.core.slib"}},
+  {"copy" = {"from" = "${work}/saved-core.slib", "to" = "${work}/private-sysroot/lib/${target}/scoop.core.slib"}},
+]
+
+[[steps]]
+name = "change_available_source"
+files = [{replace = {path = "${work}/private-sysroot/src/scoop.core/src/extension.scoop", old = "value + 1", new = "value + 2"}}]
+
+[[steps]]
+name = "prebuilt_unchanged"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/root", {each = "${options}"}, "-o", "${work}/library.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${prebuilt_unchanged.result.observations.child_invocations}", equals = []},
+  {actual = "${prebuilt_unchanged.result.dependencies.0.artifact_fingerprint}", equals = "${core.result.root.artifact_fingerprint}"},
+  {file = "${work}/library.slib", same_as = "${work}/previous.slib"},
 ]
 
 [[steps]]
 name = "prepare_invalid_source"
 files = [
-  {"replace" = {"path" = "${work}/private-sysroot/lib/scoop.core/Cone.toml", "old" = "schema = 1", "new" = "schema = true"}},
+  {concat = {path = "${work}/root/Cone.toml", parts = [{file = "${work}/root/Cone.toml"}, "\n[dependencies.\"scoop:scoop.core\"]\nversion = \"0.1.0\"\npath = \"../private-sysroot/src/scoop.core\"\n"]}},
+  {"replace" = {"path" = "${work}/private-sysroot/src/scoop.core/Cone.toml", "old" = "schema = 1", "new" = "schema = true"}},
 ]
 
 [[steps]]
@@ -77,7 +98,7 @@ checks = [
 [[steps]]
 name = "prepare_missing_manifest"
 files = [
-  {"remove" = {"path" = "${work}/private-sysroot/lib/scoop.core/Cone.toml"}},
+  {"remove" = {"path" = "${work}/private-sysroot/src/scoop.core/Cone.toml"}},
 ]
 
 [[steps]]
@@ -95,8 +116,8 @@ checks = [
 [[steps]]
 name = "prepare_dangling_source"
 files = [
-  {"remove" = {"path" = "${work}/private-sysroot/lib/scoop.core"}},
-  {"symlink" = {"from" = "${work}/absent-core", "to" = "${work}/private-sysroot/lib/scoop.core"}},
+  {"remove" = {"path" = "${work}/private-sysroot/src/scoop.core"}},
+  {"symlink" = {"from" = "${work}/absent-core", "to" = "${work}/private-sysroot/src/scoop.core"}},
 ]
 
 [[steps]]

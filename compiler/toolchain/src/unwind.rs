@@ -8,15 +8,12 @@ pub fn selected_unwind_prefix(
     target: LirTargetProfile,
     sysroot: Option<&Path>,
     explicit: Option<&Path>,
-) -> PathBuf {
-    explicit.map(Path::to_owned).unwrap_or_else(|| {
-        sysroot
-            .map(Path::to_owned)
-            .unwrap_or_else(|| crate::configured_sysroot_root(None))
-            .join("native")
-            .join(target.contract().canonical_triple())
-            .join("unwind")
-    })
+) -> Result<PathBuf, ToolchainError> {
+    if let Some(prefix) = explicit {
+        return Ok(prefix.to_owned());
+    }
+    let sysroot = crate::configured_sysroot_root(sysroot.map(Path::to_owned))?;
+    Ok(crate::target_library_root(&sysroot, target).join("unwind"))
 }
 
 pub fn runtime_unwind_include(
@@ -32,7 +29,7 @@ pub fn runtime_unwind_include(
         return Ok(None);
     }
     crate::linux_target::LinuxTarget::select(target.id())?;
-    let prefix = selected_unwind_prefix(target, None, prefix);
+    let prefix = selected_unwind_prefix(target, None, prefix)?;
     let include = prefix.join("include");
     if !include.join("unwind.h").is_file() {
         return Err(ToolchainError(format!(

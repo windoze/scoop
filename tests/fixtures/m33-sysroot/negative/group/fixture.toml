@@ -9,10 +9,21 @@ tags = ["m33", "sysroot", "negative"]
 name = "prepare"
 files = [
  {mkdir = {path = "${work}/sysroot/lib"}},
- {symlink = {from = "${sysroot}/lib/scoop.core", to = "${work}/sysroot/lib/scoop.core"}},
+ {copy = {from = "${sysroot}/lib/${target}/scoop.core.slib", to = "${work}/sysroot/lib/${target}/scoop.core.slib"}},
+ {symlink = {from = "${sysroot}/vendor", to = "${work}/sysroot/vendor"}},
+ {symlink = {from = "${sysroot}/include", to = "${work}/sysroot/include"}},
+ {symlink = {from = "${sysroot}/lib/${target}/runtime", to = "${work}/sysroot/lib/${target}/runtime"}},
+ {symlink = {from = "${sysroot}/src/scoop.core", to = "${work}/sysroot/src/scoop.core"}},
  {copy = {from = "${fixture}/cone", to = "${work}/cone"}},
- {copy = {from = "${fixture}/platform", to = "${work}/sysroot/lib/scoop.platform"}},
+ {copy = {from = "${fixture}/platform", to = "${work}/sysroot/src/scoop.platform"}},
 ]
+
+[[steps]]
+name = "library"
+argv = ["${scoopc}", "build", {each = "${compile_args}"}, "${work}/sysroot/src/scoop.platform", "--sysroot", "${work}/sysroot", "--out-slib", "${work}/sysroot/lib/${target}/scoop.platform.slib"]
+exit = 0
+stdout = ""
+stderr = ""
 
 [[steps]]
 name = "reject"

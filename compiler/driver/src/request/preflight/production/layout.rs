@@ -232,6 +232,7 @@ pub(super) fn assemble(
     .map_err(Error::Selection)?;
     let backend = scoop_codegen::ValidatedBackendProfile::from_selection(
         request.target().lir_target_selection(),
+        request.target().c_bridge_toolchain().profile().contract(),
     )
     .map_err(Error::Codegen)?
     .with_optimization(request.optimization());

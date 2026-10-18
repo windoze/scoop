@@ -39,6 +39,6 @@ fn resolver_returns_default_source_and_artifact_locations() {
     let sysroot = TempDirectory::new();
     let slot = resolve_trusted_core_slot_at(&sysroot.0, target()).unwrap();
     assert_eq!(slot.artifact(), sysroot.artifact_path());
-    assert_eq!(slot.source_root(), sysroot.0.join("lib/scoop.core"));
+    assert_eq!(slot.source_root(), sysroot.0.join("src/scoop.core"));
     assert!(!slot.source_root().exists());
 }

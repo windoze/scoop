@@ -21,7 +21,7 @@ fn linux_runtime_sources_compile_and_define_the_complete_runtime_abi() {
         let profile = ValidatedRuntimeBuildProfile::for_target(target).unwrap();
         let directory = tempfile::tempdir().unwrap();
         let unwind = workspace
-            .join("sysroot/native")
+            .join("sysroot/lib")
             .join(profile.canonical_triple())
             .join("unwind/include");
         assert!(unwind.join("unwind.h").is_file());
@@ -29,12 +29,18 @@ fn linux_runtime_sources_compile_and_define_the_complete_runtime_abi() {
         let mut objects = Vec::new();
         for (index, source) in profile.runtime_sources().iter().enumerate() {
             let path = directory.path().join(format!("runtime-{index}.o"));
-            let mut command = invocation.object_compilation_command(&workspace.join(source), &path);
+            let input = source
+                .strip_prefix("vendor/")
+                .map(|source| workspace.join("sysroot/vendor").join(source))
+                .unwrap_or_else(|| workspace.join(source));
+            let mut command = invocation.object_compilation_command(&input, &path);
             command
                 .args(profile.runtime_c_flags())
                 .args(["-O2", "-Wall", "-Wextra", "-Werror", "-funwind-tables"])
                 .arg("-I")
-                .arg(&unwind);
+                .arg(&unwind)
+                .arg("-I")
+                .arg(workspace.join("sysroot/vendor/ryu"));
             for include in profile.include_directories() {
                 command
                     .arg("-I")
@@ -119,12 +125,12 @@ fn linux_runtime_sources_compile_and_define_the_complete_runtime_abi() {
             decoded
                 .objects()
                 .iter()
-                .map(|o| o.path())
+                .map(|o| o.path().canonicalize().unwrap())
                 .collect::<Vec<_>>(),
             runtime
                 .objects()
                 .iter()
-                .map(|o| o.path())
+                .map(|o| o.path().canonicalize().unwrap())
                 .collect::<Vec<_>>()
         );
     }

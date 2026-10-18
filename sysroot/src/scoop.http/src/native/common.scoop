@@ -1,0 +1,49 @@
+package scoop.http
+
+@CLayout internal struct NativeHttpStep(val count: Long, val code: Int)
+@CLayout internal struct NativeHttpBytes(val data: Ptr<Byte>?, val size: Long)
+@CLayout internal struct NativeHttpField(
+    val name: Ptr<Byte>?, val nameSize: Long,
+    val value: Ptr<Byte>?, val valueSize: Long,
+    val neverIndex: Int
+)
+@CLayout internal struct NativeHttpEventInfo(
+    val kind: Int, val version: Int, val streamId: Int, val status: Int,
+    val flags: UInt, val code: Int, val amount: Long
+)
+
+@Unsafe internal fun httpBytes(view: NativeHttpBytes): Array<Byte> =
+    Array<Byte>(view.size) { index -> @Unsafe { return@Array view.data!!.load(index) } }
+
+@Unsafe internal fun httpEventFields(event: ULong): Array<HttpField> =
+    Array<HttpField>(httpEventFieldCount(event)) { index ->
+        @Unsafe {
+            val field = httpEventField(event, index)
+            return@Array HttpField(httpBytes(NativeHttpBytes(field.name, field.nameSize)),
+                httpBytes(NativeHttpBytes(field.value, field.valueSize)), field.neverIndex != 0)
+        }
+    }
+
+@Unsafe internal fun httpEventVersion(info: NativeHttpEventInfo): HttpVersion = when (info.version) {
+    case 10 -> HttpVersion.Http10
+    case 11 -> HttpVersion.Http11
+    case 20 -> HttpVersion.Http2
+    else -> throw IllegalStateException(Some("invalid native HTTP version"))
+}
+
+@Extern(name = "scoop_http_event_info") internal fun httpEventInfo(handle: ULong): NativeHttpEventInfo
+@Extern(name = "scoop_http_event_bytes") internal fun httpEventBytes(handle: ULong, index: Int): NativeHttpBytes
+@Extern(name = "scoop_http_event_field_count") internal fun httpEventFieldCount(handle: ULong): Long
+@Extern(name = "scoop_http_event_field") internal fun httpEventField(handle: ULong, index: Long): NativeHttpField
+@Extern(name = "scoop_http_event_free") internal fun httpEventFree(handle: ULong)
+
+@Extern(name = "scoop_http1_new") internal fun http1New(server: Int, config: NativeHttp1Config): ULong
+@Extern(name = "scoop_http1_free") internal fun http1Free(handle: ULong)
+@Extern(name = "scoop_http1_expect") internal fun http1Expect(handle: ULong, name: Ptr<Byte>, size: Long): Int
+@Extern(name = "scoop_http1_receive") internal fun http1Receive(handle: ULong, data: Ptr<Byte>, size: Long): NativeHttpStep
+@Extern(name = "scoop_http1_end") internal fun http1End(handle: ULong): Int
+@Extern(name = "scoop_http1_resume") internal fun http1Resume(handle: ULong): Int
+@Extern(name = "scoop_http1_switched") internal fun http1Switched(handle: ULong): Int
+@Extern(name = "scoop_http1_error") internal fun http1Error(handle: ULong): Ptr<Byte>
+@Extern(name = "scoop_http1_next") internal fun http1Next(handle: ULong): ULong
+@Extern(name = "scoop_http1_known_method") internal fun http1KnownMethod(name: Ptr<Byte>, size: Long): Int

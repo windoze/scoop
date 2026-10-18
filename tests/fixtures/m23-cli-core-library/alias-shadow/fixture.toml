@@ -8,7 +8,7 @@ tags = ["core-library", "moving-gc"]
 [[steps]]
 name = "prepare_core"
 files = [
-  {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}},
+  {"copy" = {"from" = "${sysroot}/src/scoop.core", "to" = "${work}/core-source"}},
   {"copy" = {"from" = "${fixture}/../../core-library/extension.scoop", "to" = "${work}/core-source/src/user_extension.scoop"}},
   {"copy" = {"from" = "${fixture}/../../core-library/metadata.scoop", "to" = "${work}/core-source/src/user_metadata.scoop"}},
   {"copy" = {"from" = "${fixture}/../../core-library/abi.scoop", "to" = "${work}/core-source/src/user_abi.scoop"}},

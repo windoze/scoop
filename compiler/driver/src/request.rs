@@ -104,10 +104,9 @@ pub struct SingleConeBuildRequest {
     native_inputs: NativeInputOrigin,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 enum NativeInputOrigin {
-    #[default]
-    Source,
+    Source { sysroot: Option<PathBuf> },
     Objects(Vec<PathBuf>),
 }
 
@@ -133,7 +132,7 @@ impl SingleConeBuildRequest {
             emit,
             optimization: scoop_lir::OptimizationMode::Debug,
             purpose: CompilationPurpose::Production,
-            native_inputs: NativeInputOrigin::Source,
+            native_inputs: NativeInputOrigin::Source { sysroot: None },
         })
     }
 
@@ -157,6 +156,13 @@ impl SingleConeBuildRequest {
 
     fn with_native_inputs(mut self, inputs: Vec<PathBuf>) -> Self {
         self.native_inputs = NativeInputOrigin::Objects(inputs);
+        self
+    }
+
+    fn with_native_sysroot(mut self, sysroot: PathBuf) -> Self {
+        self.native_inputs = NativeInputOrigin::Source {
+            sysroot: Some(sysroot),
+        };
         self
     }
 }

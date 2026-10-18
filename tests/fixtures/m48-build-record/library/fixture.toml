@@ -21,7 +21,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {actual = "${cold.result.observations.child_invocations.length}", equals = 2},
+  {actual = "${cold.result.observations.child_invocations.length}", equals = 1},
   {file = "${cold.result.output}", same_as = "${cold.result.root.path}"},
   {file = "${work}/cache/compile-v2/${cold.result.observations.nodes.1.cache_key}/record.cbor", exists = true},
 ]

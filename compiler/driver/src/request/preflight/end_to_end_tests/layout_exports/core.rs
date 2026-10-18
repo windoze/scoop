@@ -113,7 +113,7 @@ fn check_core_layout_exports(names: &[&str]) {
     for &name in names {
         let directory = tempfile::tempdir().unwrap();
         copy_trusted_core_sources(directory.path());
-        let root = directory.path().join("lib/scoop.core");
+        let root = directory.path().join("src/scoop.core");
         std::fs::copy(
             fixtures.join(format!("{name}.scoop")),
             root.join("src/layout_probe.scoop"),
@@ -262,8 +262,11 @@ fn check_core_layout_exports(names: &[&str]) {
             &lir,
             production,
             directory.path(),
-            scoop_codegen::ValidatedBackendProfile::from_selection(target.lir_target_selection())
-                .unwrap(),
+            scoop_codegen::ValidatedBackendProfile::from_selection(
+                target.lir_target_selection(),
+                target.c_bridge_toolchain().profile().contract(),
+            )
+            .unwrap(),
         )
         .unwrap();
         assert!(!objects.members().is_empty());

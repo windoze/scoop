@@ -57,15 +57,18 @@ runtime-owned exception ABI:
   components for Darwin/AArch64 and Linux/amd64 with glibc or musl. OS/image
   code and architecture-specific frame/entry code are separate components.
 
-`scoop build` compiles the complete runtime source set carried by the selected
-target profile and caches its objects and runtime index for final linking.
-`scoop-link` can consume that index and existing `.slib` artifacts without
-compiler stages. Runtime behavior is covered by `cargo test --workspace` and
+Ordinary builds and both link commands use the selected Scoop sysroot's
+`lib/<canonical-target-triple>/runtime/index.cbor` and precompiled objects.
+An explicit `scoop build --runtime-root <source>` compiles the selected target's
+runtime sources and caches the resulting objects and index. Development resources
+are prepared manually with [`scripts/prepare_sysroot.py`](../scripts/prepare_sysroot.py).
+User native compilation reads the public headers from the selected sysroot's
+`include` directory. Runtime behavior is covered by `cargo test --workspace` and
 `python3 tests/run_fixtures.py --all`, including real moving-GC programs in
 addition to the fake-platform stack-map tests. The complete
 contracts live in `docs/specs/SCOOP-RUNTIME-SPEC.md` and
-`docs/milestone15/DESIGN.md`; the exception migration and its object/link
-qualification gates are specified in `docs/milestone25/DESIGN.md`. Linux
+`docs/milestone15/DESIGN.md`; the exception ABI and linking are described in
+`docs/milestone25/DESIGN.md`. Linux
 toolchain preparation and verification are documented in
 [`docs/milestone28/BUILDING.md`](../docs/milestone28/BUILDING.md).
 

@@ -1,6 +1,6 @@
 schema = 1
 name = "m29-container-encoding-artifacts"
-inputs = ["provider", "peer", "consumer", "../../../../sysroot/lib/scoop.json"]
+inputs = ["provider", "peer", "consumer", "../../../../sysroot/src/scoop.json"]
 tools = ["scoop", "scoopc"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
 tags = ["m29", "serialization", "json", "gc"]
@@ -9,7 +9,7 @@ tags = ["m29", "serialization", "json", "gc"]
 name = "prepare"
 files = [
   {"mkdir" = {"path" = "${work}/standalone"}},
-  {"copy" = {"from" = "${repo}/sysroot/lib/scoop.json", "to" = "${work}/sources/json"}},
+  {"copy" = {"from" = "${repo}/sysroot/src/scoop.json", "to" = "${work}/sources/json"}},
   {"copy" = {"from" = "${fixture}/provider", "to" = "${work}/sources/provider"}},
   {"copy" = {"from" = "${fixture}/peer", "to" = "${work}/sources/peer"}},
   {"copy" = {"from" = "${fixture}/consumer", "to" = "${work}/sources/consumer"}},
@@ -17,7 +17,7 @@ files = [
 
 [[steps]]
 name = "core"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${sysroot}/lib/scoop.core", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${sysroot}/src/scoop.core", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""

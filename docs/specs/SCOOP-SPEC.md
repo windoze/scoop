@@ -23,7 +23,7 @@ Scoop 的泛型采用**单态化（monomorphization）**，不进行类型擦除
 - Scoop 的核心语法；
 - 支撑核心语法所需的**最小核心库**（见第 11 章）。
 
-除 11.10 为字符串构建及公共容器访问提供的最小集合协议和 11.14 的原子类型外，标准库的其他部分不在本文件展开。M42 的平台无关标准基础库见 [标准基础库规范](SCOOP-STDLIB-SPEC.md)；它是显式依赖的普通 Scoop Cone，不扩展语言语法、编译器角色或 runtime ABI。同步 IO、系统取时及系统熵见[平台库规范](SCOOP-PLATFORM-SPEC.md)，事件循环与异步 IO 见[异步 I/O 库规范](SCOOP-ASYNCIO-SPEC.md)；结构化任务树见 11.9.1～11.9.2。
+除 11.10 为字符串构建及公共容器访问提供的最小集合协议和 11.14 的原子类型外，标准库的其他部分不在本文件展开。M42 的平台无关标准基础库见 [标准基础库规范](SCOOP-STDLIB-SPEC.md)；它是显式依赖的普通 Scoop Cone，不扩展语言语法、编译器角色或 runtime ABI。同步 IO、系统取时及系统熵见[平台库规范](SCOOP-PLATFORM-SPEC.md)，事件循环与异步 IO 见[异步 I/O 库规范](SCOOP-ASYNCIO-SPEC.md)；结构化任务树见 11.9.1～11.9.2。HTTP 协议与普通异步流适配见 [HTTP 库规范](SCOOP-HTTP-SPEC.md)。
 
 ### 1.2 并发安全与数据竞争
 
@@ -2630,7 +2630,7 @@ kind = "library" # 或 "executable"
 
 - `schema`以及`[cone]`中的`group`、`name`、`version`、`kind`必需；`kind`只能是`library`或`executable`。拼错或未知的semantic field不能被静默忽略；
 - dependency key是exact `group:name`，value必须给出exact version；字符串短式只省略locator。table value至多给一个`path` source-Cone locator或`artifact` `.slib` locator；二者都省略时，`scoop`在每个显式artifact search root下检查`<group>/<name>/<version>/cone.slib`，三项都使用canonical文本且`.`不拆目录。所有存在的候选必须具有相同完整`ArtifactFingerprint`，否则是ambiguous artifact错误；search-root顺序不能决定选择不同内容；
-- 除 core 按 12.6 定位外，没有显式 locator 且全部显式 artifact search root 均无候选时，仅 `group = "scoop"` 的依赖继续检查 `<sysroot>/lib/<name>/Cone.toml`。其完整 coordinate 必须匹配所声明的 group/name/version，且为普通 library Cone；其他 group 不作此默认查找。已选择的显式来源损坏、歧义或不兼容时直接报错，不以 sysroot 覆盖。默认查找不注入新依赖、不改变名称可见性或实体身份；
+- 除 core 按 12.6 定位外，没有显式 locator 且全部显式 artifact search root 均无候选时，仅 `group = "scoop"` 的依赖继续检查 `<sysroot>/lib/<canonical-target-triple>/<name>.slib`。其完整 coordinate 必须匹配所声明的 group/name/version，且为当前目标的普通 library Cone；其他 group 不作此默认查找。已选择的显式来源损坏、歧义或不兼容时直接报错，不以 sysroot 覆盖。缺失默认产物时报告目标、coordinate 和路径，不读取随包源码或自动重建。默认查找不注入新依赖、不改变名称可见性或实体身份；
 - locator只用于当前构建查找，相对路径以当前manifest为基准；它不进入Cone identity、实体identity、`.slib` metadata、初始化顺序或源码诊断identity。locator解析到的source/artifact coordinate必须与dependency key/version canonical相等；
 - dependency声明没有version range、`latest`、optional/build dependency、feature、platform条件或dependency alias；测试专用依赖见 12.2.4。`scoop`只把exact locator解析为12.3的resolved graph，不执行版本选择或冲突调停；`scoopc`仅验证当前manifest的semantic projection与命令行显式提供的binary dependency closure，不解析任何locator。native C++模式见12.2.1；
 - `scoop build [root-input]` 与 `scoop run [root-input]` 允许省略 root：此时明确使用调用者当前目录的 `Cone.toml`，与显式传入该文件相同；缺失或无效时报告输入错误，不向父目录搜索，也不猜测某个 `.scoop` 文件。显式 root 继续按目录、`Cone.toml` 或单文件规则分类；低层 `scoopc build` 仍要求明确输入；
@@ -2639,7 +2639,7 @@ kind = "library" # 或 "executable"
 
 #### 12.2.1 Native C/C++ 源码
 
-manifest Cone 可在 `[native]` 中配置 `include`、`c_flags`、`cxx_flags` 与 `cxx`，并以 `[[native.sources]]` 的 `path` 和可选 `when` 列出源码。`native.sources` 只选择单个 regular file；`.c` 按 C 编译，`.cc`、`.cpp`、`.cxx` 和 `.C` 按 C++ 编译，不递归发现其他 native 源码。省略的数组为空；`include` 是头文件搜索目录，允许普通相对路径（含 `..`）或绝对路径；相对路径以 Cone 根为基准，保留路径分量供实际文件系统解析。native.sources 路径使用 12.2.2 的归一化规则。条件筛选先于选中文件的存在性、后缀与语言开关检查。native 源码以声明的归一化路径区分 translation unit，不比较 inode 或将指向同一物理文件的不同路径合并。
+manifest Cone 可在 `[native]` 中配置 `include`、`c_flags`、`cxx_flags` 与 `cxx`，并以 `[[native.sources]]` 的 `path` 和可选 `when` 列出源码。`native.sources` 只选择单个 regular file；`.c` 按 C 编译，`.cc`、`.cpp`、`.cxx` 和 `.C` 按 C++ 编译，不递归发现其他 native 源码。省略的数组为空；`include` 是头文件搜索目录，允许普通相对路径（含 `..`）或绝对路径；相对路径以 Cone 根为基准，保留路径分量供实际文件系统解析。native.sources 使用 Cone 相对路径，沿用 12.2.2 的分隔符、空路径、绝对路径、盘符、NUL 与 glob 限制，词法折叠重复分隔符、`.` 及可以消去的 `..`，但允许保留越出 Cone 根的前置 `..`，以引用共用的 vendor 源码；Scoop 源码的逻辑路径规则不变。条件筛选先于选中文件的存在性、后缀与语言开关检查。native 源码以声明的归一化路径区分 translation unit，不比较 inode 或将指向同一物理文件的不同路径合并。
 
 native 预处理除编译器的目标宏外，还定义当前 target 对应的 `SCOOP_TARGET_OS_DARWIN`／`SCOOP_TARGET_OS_LINUX`、`SCOOP_TARGET_ARCH_AARCH64`／`SCOOP_TARGET_ARCH_X86_64` 及 `SCOOP_TARGET_ENV_NONE`／`SCOOP_TARGET_ENV_GNU`／`SCOOP_TARGET_ENV_MUSL`；每组只定义匹配项，值为 `1`。
 
@@ -2697,7 +2697,7 @@ when = { os = "darwin" }
 
 `[[native.libraries]]` 以必需的 `name`、可选的 `kind` 和 12.2.2 的 `when` 声明逻辑 native 库；name 不是文件路径或 linker 参数。kind 可为 `default`（省略时采用）、`dynamic`、`static`、`framework`，分别对应实现规范 2.8 的 TargetDefault、Dynamic、StaticArchive、Framework；本清单不提供 grouping 或任意链接参数。按 target 筛选后的要求写入 `.slib` 并沿依赖闭包传递，与非空 `@Extern(lib = ...)` 使用同一库合并、符号绑定和冲突规则。native 源码可以是库的唯一使用者，不要求另写无用途的 Scoop extern 声明。
 
-库解析先检查全部显式 library roots；没有候选时允许使用所选 target 的平台 provider 默认目录。Linux 使用所选 native toolchain/sysroot 的系统库目录，Darwin 使用所选 SDK 的库和 framework 目录。交叉编译不回退到宿主工具链或宿主系统目录。显式候选损坏、不兼容或歧义仍报错，不能静默改用系统库。
+库解析先检查全部显式 library roots；没有候选时检查所选 Scoop sysroot 的 `lib/<canonical-target-triple>` 和该目录下的 `openssl/lib`、`nghttp2/lib`；这一层仍无候选才允许使用所选 target 的平台 provider 默认目录。Linux 使用所选 native toolchain/sysroot 的系统库目录，Darwin 使用所选 SDK 的库和 framework 目录。交叉编译不回退到宿主工具链或宿主系统目录。已选层中的候选损坏、不兼容或歧义仍报错，不能静默改用下一层。只查询实际声明的库；未使用的库不读取或准备。
 
 平台默认查找只解析已经声明的逻辑库需求，不发现相邻 native 源码或任意库；空 lib 的默认 namespace 也不因此扫描系统目录。具体 target、link mode、候选格式、产物绑定和缓存规则见实现规范 2.8。
 
@@ -2846,14 +2846,14 @@ import 指向原声明；经不同依赖路径或 re-export 到达同一声明�
 
 core 是可修改、扩展和重建的普通 library Cone。intrinsic 与脱糖所需的声明按第 13 章解析；其余类型、可见性、ABI、产物与链接规则和普通库相同。sysroot 只提供默认 locator，不构成来源授权。
 
-- 除core自身外，每个Cone都具有到该exact core Cone的direct dependency。manifest可以像其他依赖一样显式声明core的`path`、`artifact`或search-root locator；未声明时注入默认edge。先解析全图的显式声明，已有core节点则复用，仅当仍无core节点时才读取默认sysroot源码位置。显式locator失败按普通依赖报错，不回退到sysroot；不同core来源的冲突使用同一coordinate/content唯一性检查；
+- 除core自身外，每个Cone都具有到该exact core Cone的direct dependency。manifest可以像其他依赖一样显式声明core的`path`、`artifact`或search-root locator；未声明时注入默认edge。先解析全图的显式声明，已有core节点则复用，仅当仍无core节点时才读取默认`<sysroot>/lib/<canonical-target-triple>/scoop.core.slib`，不查找随包源码。显式locator失败按普通依赖报错，不回退到sysroot；不同core来源的冲突使用同一coordinate/content唯一性检查；
 - core 自身不隐式依赖自身。core manifest 的显式 dependency 使用普通语法、定位与无环规则；core 到普通库的依赖若与该库到 core 的依赖形成环，按 12.3 报错。用户可在普通源码目录声明 core coordinate、修改或扩展源码，并重新构建 library；intrinsic 声明遵守第 13 章的名称、类型和唯一性规则；
 - core 声明与 Option variant 的默认可见性来自 core `.slib` 中的 typed prelude binding，不通过把 core 源码拼入用户 AST、扫描 package name 或对 `Some`/`None` 写短名特判实现；
 - core中的普通public API、generic template、non-generic alias、layout、TypeDescriptor与runtime binding遵守与其他library Cone相同的metadata、persistent identity和兼容检查。sysroot core与compiler的language/runtime、target及backend fingerprints不兼容时必须重建或拒绝，不能退回core与用户源码同单元编译。
 
 ### 12.7 独立命令行参数库
 
-`scoop:scoop.cli:0.1.0` 是显式依赖 core 的普通 library Cone，源码 package 为 scoop.cli，发布在 sysroot/lib/scoop.cli。应用显式依赖并 import；core 不依赖 CLI，CLI 不依赖 JSON。编译器不解释 CLI 注解，不增加 runtime ABI。
+`scoop:scoop.cli:0.1.0` 是显式依赖 core 的普通 library Cone，源码 package 为 scoop.cli，发布在 sysroot/src/scoop.cli。应用显式依赖并 import；core 不依赖 CLI，CLI 不依赖 JSON。编译器不解释 CLI 注解，不增加 runtime ABI。
 
 `Cli.schema<T>(info: TypeInfo<T>, config: CliConfig): CliSchema<T>` 生成默认 record schema；`CliSchema<T>(info, config, entries: Array<CliEntry>)` 提供相同已检查模型的显式入口。CliConfig 保存 programName 与 summary（默认空串）。schema 只在构造边界检查配置，之后只读；CliParser<T>(schema, codec: ValueDecoder<T>) 不重放验证。parse(arguments: Array<String>) 接收不含程序项的参数；parseCommandLine(argv) 跳过 argv[0]，空完整 argv 报输入错误。两者返回 CliResult.Parsed(T) 或 HelpRequested。schema.help() 与 writeHelp(TextWriter) 生成相同、以换行结束的纯文本；不执行 codec、constructor、default 或 getter，也不绑定 stdout、终端或进程退出。
 
@@ -3419,7 +3419,7 @@ core 提供普通安全函数 `write(message: String)`、`writeError(message: St
 
 ### 16.1 普通测试库
 
-`scoop:scoop.test:0.1.0` 是显式依赖的普通 library Cone，安装于 `sysroot/lib/scoop.test/`，按 12.2 的普通 `scoop` group 定位规则加载。标记与断言位于 `scoop.test` package，执行接口位于 `scoop.test.execution`，均没有默认导入，也不加入最小 core 或 single-file 模式的隐式依赖。断言可由普通程序调用，不依赖测试发现、专用入口或运行期反射。
+`scoop:scoop.test:0.1.0` 是显式依赖的普通 library Cone，安装于 `sysroot/src/scoop.test/`，按 12.2 的普通 `scoop` group 定位规则加载。标记与断言位于 `scoop.test` package，执行接口位于 `scoop.test.execution`，均没有默认导入，也不加入最小 core 或 single-file 模式的隐式依赖。断言可由普通程序调用，不依赖测试发现、专用入口或运行期反射。
 
 M43 只提供同 Cone 单元测试；独立 Cone 的 integration-test 留待 multi-cone workspace 定型后另行设计。
 

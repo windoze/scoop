@@ -1,0 +1,67 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+@Test
+private class AsyncHttp2LifecycleTests {
+    @Test
+    fun `excess response heads reset only the affected stream`() {
+        withHttp2 suspend { _, pair ->
+            val first = pair.client.openRequest(request2())
+            val incoming = pair.server.acceptRequest()!!
+            try {
+                var count = 0
+                while (count < 17) { incoming.stream.sendResponse(response2(103U), false); count += 1 }
+            } catch (error: HttpException) { assertTrue(error.scope == HttpFailureScope.Stream) }
+            pair.clientEvents.closed.await()
+            try { first.receiveResponse(); fail(Some("overflowed response queue remained readable")) }
+            catch (error: HttpException) { assertEquals(11, error.code) }
+            val other = pair.client.openRequest(request2())
+            pair.server.acceptRequest()!!.stream.sendResponse(response2(204U))
+            assertEquals(204U, other.receiveResponse().status)
+            assertFalse(pair.client.isClosed || pair.server.isClosed)
+        }
+    }
+
+    @Test
+    fun `GOAWAY flush completes while another stream is waiting for its DATA window`() {
+        withHttp2(Http2Limits(maxPendingBodyBytes = 4L), Http2Settings(initialWindowSize = 0U)) suspend { _, pair ->
+            val first = pair.client.openRequest(request2("POST"), false)
+            val incoming = pair.server.acceptRequest()!!
+            NativeByteBuffer.allocate(4L).use suspend { buffer ->
+                buffer.writeBytes("wait".toByteArray())
+                assertEquals(4L, first.writeFrom(buffer, 4L))
+                pair.client.goAway(debugData = "done".toByteArray())
+                pair.serverEvents.goAway.await()
+                assertFalse(present(pair.server.acceptRequest()))
+                assertFalse(pair.client.isClosed || pair.server.isClosed)
+                first.close(); incoming.stream.close()
+            }
+        }
+    }
+
+    @Test
+    fun `stream transfer validation and zero lengths do not consume buffers`() {
+        withHttp2 suspend { _, pair ->
+            val stream = pair.client.openRequest(request2("POST"), false)
+            val incoming = pair.server.acceptRequest()!!
+            NativeByteBuffer.allocate(1L).use suspend { buffer ->
+                val before = pair.clientRaw.reads + pair.clientRaw.writes
+                assertEquals(0L, stream.readInto(buffer, 0L))
+                assertEquals(0L, stream.writeFrom(buffer, 0L))
+                assertEquals(before, pair.clientRaw.reads + pair.clientRaw.writes)
+                try { stream.writeFrom(buffer, 1L); fail(Some("unavailable body byte accepted")) }
+                catch (_: IndexOutOfBoundsException) { assertFalse(pair.client.isClosed) }
+                try { stream.readInto(buffer, -1L); fail(Some("negative body count accepted")) }
+                catch (_: IllegalArgumentException) { assertFalse(pair.client.isClosed) }
+            }
+            stream.finish()
+            assertEquals(0L, receiveBytes(incoming.stream).size)
+            incoming.stream.sendResponse(response2(204U))
+            assertEquals(204U, stream.receiveResponse().status)
+        }
+    }
+}

@@ -17,6 +17,7 @@ fn musl_runtime_captures_selected_unwind_headers_without_needing_the_archive() {
         build_runtime(RuntimeBuildRequest {
             target: &target,
             runtime_root: &runtime_root(),
+            vendor_root: &vendor_root(),
             cache_root: &cache,
             optimization: RuntimeOptimization::Optimized,
             unwind_prefix: Some(&prefix),

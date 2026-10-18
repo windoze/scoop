@@ -19,11 +19,11 @@
 cc -std=c11 -O2 -Wall -Wextra -Werror -I "$source/runtime/include" \
   -c tests/benchmarks/containers/phases.c -o "$work/phases.o"
 ar rcs "$work/libm34_container_bench.a" "$work/phases.o"
-"$tools/scoop" build "$source/sysroot/lib/scoop.core" \
+"$tools/scoop" build "$source/sysroot/src/scoop.core" \
   --scoopc "$tools/scoopc" --sysroot "$source/sysroot" \
   --runtime-root "$source/runtime" --profile release --cache-dir "$work/cache" \
   -o "$work/artifacts/scoop/scoop.core/0.1.0/cone.slib"
-"$tools/scoop" build "$source/sysroot/lib/scoop.json" \
+"$tools/scoop" build "$source/sysroot/src/scoop.json" \
   --scoopc "$tools/scoopc" --sysroot "$source/sysroot" \
   --runtime-root "$source/runtime" --profile release --cache-dir "$work/cache" \
   --cone-path "$work/artifacts" -o "$work/artifacts/scoop/scoop.json/0.1.0/cone.slib"

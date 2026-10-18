@@ -1,0 +1,76 @@
+package scoop.http.asyncio
+
+import scoop.http.*
+
+internal fun notifyH2(state: H2State, notice: Http2Notice, actions: ArrayList<() -> Unit>) {
+    actions.add {
+        try { state.onEvent(notice) }
+        catch (error: Throwable) {
+            state.lock.withLock { terminateH2(state, error) }
+            driveH2(state)
+        }
+    }
+}
+
+internal fun receiveH2Events(state: H2State, actions: ArrayList<() -> Unit>): Boolean {
+    var changed = false
+    while (true) {
+        val event = state.session.nextEvent()
+        if (!present(event)) return changed
+        changed = true
+        when (event!!) {
+            case Request(id, head) -> {
+                if (state.acceptingEnded || state.requests.size >= state.requestCapacity) state.session.reset(id, 7U)
+                else {
+                    val stream = H2Stream(id)
+                    state.streams[id] = stream
+                    state.requests.add(Http2IncomingRequest(head, AsyncHttp2Stream(state, stream)))
+                }
+            }
+            case Response(id, head) -> {
+                val stream = state.streams[id]
+                if (present(stream)) {
+                    if (stream!!.responses.size >= 16L)
+                        resetH2Stream(state, stream!!, h2StreamFailure(id, 11U, "too many pending HTTP/2 response heads"), 11U, actions)
+                    else stream!!.responses.addLast(head)
+                }
+            }
+            case Data(id, bytes) -> {
+                val stream = state.streams[id]
+                if (!present(stream)) state.session.reset(id)
+                else if (bytes.size != 0L) stream!!.data.addLast(bytes)
+            }
+            case Trailers(id, fields) -> {
+                val stream = state.streams[id]
+                if (present(stream)) stream!!.trailers = Some(fields)
+            }
+            case End(id) -> {
+                val stream = state.streams[id]
+                if (present(stream)) stream!!.inputEnded = true
+            }
+            case StreamClosed(id, code) -> {
+                val stream = state.streams[id]
+                if (present(stream)) {
+                    if (code != 0U || !stream!!.inputEnded) {
+                        state.session.reset(id, code)
+                        releaseH2Stream(state, stream!!, h2StreamFailure(id, code, "HTTP/2 stream closed before normal completion"), actions)
+                    } else stream!!.closed = true
+                }
+                notifyH2(state, Http2Notice.StreamClosed(id, code), actions)
+            }
+            case GoAway(last, code, data, local) -> {
+                state.acceptingEnded = true
+                if (local) state.goAwaySerialized = true
+                notifyH2(state, Http2Notice.GoAway(last, code, data, local), actions)
+            }
+            case Settings(values, ack) -> notifyH2(state, Http2Notice.Settings(values, ack), actions)
+            case IgnoredField(id, field) -> notifyH2(state, Http2Notice.IgnoredField(id, field), actions)
+            case Failure(error) -> {
+                val stream = state.streams[error.streamId]
+                if (error.scope == HttpFailureScope.Connection) terminateH2(state, error)
+                else if (present(stream)) resetH2Stream(state, stream!!, error, 2U, actions)
+                notifyH2(state, Http2Notice.Failure(error), actions)
+            }
+        }
+    }
+}

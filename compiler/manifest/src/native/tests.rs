@@ -110,7 +110,7 @@ fn malformed_native_paths_and_tables_fail_before_source_selection() {
         "[native]\nc_flags = ['-I', '']",
         "[native]\nc_flags = ['-include']",
         "[native]\nsources = ['file.c']",
-        "[[native.sources]]\npath = '../file.c'\nwhen = {os = []}",
+        "[[native.sources]]\npath = '../*.c'\nwhen = {os = []}",
         "[[native.sources]]\npath = 'file.c'\nwhen = {env = 'unknown'}",
         "[native]\nflags = []",
     ] {
@@ -118,6 +118,29 @@ fn malformed_native_paths_and_tables_fail_before_source_selection() {
             parse_cone_manifest(&format!("{CONE}\n{native}")).is_err(),
             "{native}"
         );
+    }
+}
+
+#[test]
+fn native_sources_can_select_shared_parent_inputs() {
+    for (input, expected) in [
+        (
+            "../../vendor/./uv//src/poll.c",
+            "../../vendor/uv/src/poll.c",
+        ),
+        ("../other/../shared.c", "../shared.c"),
+        ("local/../../shared.c", "../shared.c"),
+    ] {
+        let parsed =
+            parse_cone_manifest(&format!("{CONE}\n[[native.sources]]\npath = '{input}'")).unwrap();
+        assert_eq!(
+            parsed.semantic().native().sources()[0].path().as_str(),
+            expected
+        );
+        let scoop = format!(
+            "schema = 1\n[[sources]]\npath = '{input}'\n[cone]\ngroup = 'test'\nname = 'paths'\nversion = '1.0.0'\nkind = 'library'"
+        );
+        assert!(parse_cone_manifest(&scoop).unwrap_err().span().is_some());
     }
 }
 

@@ -8,7 +8,7 @@ tags = ["core-layouts", "actual_core_sources_produce_closed_mir_and_lir_export_t
 [[steps]]
 name = "prepare_core"
 files = [
-  {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}},
+  {"copy" = {"from" = "${sysroot}/src/scoop.core", "to" = "${work}/core-source"}},
   {"copy" = {"from" = "${fixture}/../../m23-cli-imported-classes/support/stage3_test.scoop", "to" = "${work}/core-source/src/stage3_test.scoop"}},
   {"copy" = {"from" = "${fixture}/../../m23-core-layout-exports/combined.scoop", "to" = "${work}/core-source/src/layout_probe.scoop"}},
 ]

@@ -1,0 +1,12 @@
+schema = 1
+[cone]
+group = "test.m52"
+name = "installed-tools"
+version = "0.1.0"
+kind = "executable"
+
+[[native.sources]]
+path = "native/value.c"
+
+[test-dependencies]
+"scoop:scoop.test" = "0.1.0"

@@ -7,7 +7,7 @@ pub(super) fn floating_declarations() -> Vec<Decl> {
     DECLARATIONS
         .get_or_init(|| {
             let mut source = scoop_parser::parse(include_str!(
-                "../../../../../sysroot/lib/scoop.core/src/floating.scoop"
+                "../../../../../sysroot/src/scoop.core/src/floating.scoop"
             ))
             .expect("the actual floating core parses");
             source
@@ -103,7 +103,7 @@ fn synthetic_type(value: &TypeRef) -> TypeRef {
         std::sync::OnceLock::new();
     let aliases = ALIASES.get_or_init(|| {
         scoop_parser::parse(include_str!(
-            "../../../../../sysroot/lib/scoop.core/src/types.scoop"
+            "../../../../../sysroot/src/scoop.core/src/types.scoop"
         ))
         .expect("the actual integer aliases parse")
         .declarations

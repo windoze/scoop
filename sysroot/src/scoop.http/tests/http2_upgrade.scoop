@@ -1,0 +1,114 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+private fun upgradeRequest(method: String = "POST"): HttpRequestHead =
+    HttpRequestHead(HttpVersion.Http11, method.toByteArray(), HttpRequestTarget.Http1("/upgrade".toByteArray()))
+
+@Test private class HttpUpgradeTests {
+    @Test fun `request upgrade with body pauses before following bytes`() {
+        val wire = "POST / HTTP/1.1\r\nConnection: Upgrade\r\nUpgrade: h2c\r\nContent-Length: 4\r\n\r\nsent"
+        val input = NativeByteBuffer.allocate(wire.byteLength + 6L)
+        val decoder = Http1Decoder.server()
+        try {
+            input.writeBytes((wire + "suffix").toByteArray())
+            assertEquals(wire.byteLength, decoder.receive(input))
+            assertTrue(decoder.isSwitched)
+            assertEquals("suffix", String.fromUtf8(input.readBytes(input.readableBytes)))
+        } finally { decoder.close(); input.close() }
+    }
+
+    @Test fun `h2c finishes HTTP1 body then preserves 101 suffix and associates stream one`() {
+        val settings = Http2Settings(initialWindowSize = 4096U)
+        val offer = prepareHttp2Upgrade(upgradeRequest(), settings)
+        val wire = ByteArrayBuilder()
+        Http1Encoder(HttpRole.Client).use { encoder ->
+            wire.append(encoder.beginRequest(offer, Http1BodyFraming.Length(4L)))
+            NativeByteBuffer.allocate(4L).use { body -> body.writeBytes("sent".toByteArray()); wire.append(encoder.writeBody(body)) }
+            wire.append(encoder.finish())
+        }
+        val received = Http1Decoder.server().use { decoder -> collectHttp1(decoder, wire.toByteArray()) }
+        assertEquals("sent", String.fromUtf8(http1Data(received)))
+        assertEquals(1L, http1EndCount(received))
+        val request = http1Requests(received)[0L]
+        val payload = readHttp2UpgradeSettings(request)
+        val server = Http2Session.upgradedServer(request.method, payload)
+        val client = Http2Session.upgradedClient(offer.method, settings)
+        try {
+            val response = ByteArrayBuilder()
+            Http1Encoder(HttpRole.Server).use { encoder ->
+                response.append(encoder.beginResponse(http2UpgradeResponse(), request.method))
+                response.append(encoder.finish())
+            }
+            val boundary = response.size
+            response.append(output2(server))
+            val input = NativeByteBuffer.allocate(response.size)
+            try {
+                input.writeBytes(response.toByteArray())
+                Http1Decoder.client().use { decoder ->
+                    decoder.expectResponse(offer.method)
+                    assertEquals(boundary, decoder.receive(input))
+                    val events = ArrayList<Http1Event>()
+                    drainHttp1(decoder, events)
+                    assertTrue(http2UpgradeAccepted(http1Responses(events)[0L]))
+                    assertTrue(decoder.isSwitched)
+                    assertTrue(input.readableBytes > 0L)
+                    client.receive(input)
+                }
+            } finally { input.close() }
+            drive2(client, server, 1L)
+            val before = events2(server)
+            assertEquals(0L, requests2(before).size)
+            assertEquals(0L, data2(before, 1).size)
+            server.submitResponse(1, HttpResponseHead(HttpVersion.Http2, 200U), false)
+            assertEquals(2L, write2(server, 1, "42".toByteArray()))
+            server.finish(1)
+            drive2(client, server, 1L)
+            val events = events2(client)
+            assertEquals("42", String.fromUtf8(data2(events, 1)))
+            client.consume(1, 2L)
+            val next = client.submitRequest(request2())
+            assertEquals(3, next)
+            drive2(client, server)
+            assertEquals(1L, requests2(events2(server)).size)
+        } finally { client.close(); server.close() }
+    }
+
+    @Test fun `h2c HEAD retains metadata semantics without a repeated request`() {
+        val offer = prepareHttp2Upgrade(upgradeRequest("HEAD"))
+        val client = Http2Session.upgradedClient(offer.method)
+        val server = Http2Session.upgradedServer(offer.method, readHttp2UpgradeSettings(offer))
+        try {
+            drive2(client, server)
+            assertEquals(0L, requests2(events2(server)).size)
+            server.submitResponse(1, HttpResponseHead(HttpVersion.Http2, 200U, None,
+                [HttpField("content-length".toByteArray(), "100".toByteArray())]))
+            drive2(client, server)
+            val events = events2(client)
+            assertEquals(1, ends2(events, 1))
+            assertEquals(0L, data2(events, 1).size)
+        } finally { server.close(); client.close() }
+    }
+
+    @Test fun `h2c fields and malformed settings have specific failures`() {
+        val ordinary = upgradeRequest()
+        assertFailsWith<HttpNegotiationException> { readHttp2UpgradeSettings(ordinary) }
+        assertFailsWith<IllegalArgumentException> { prepareHttp2Upgrade(upgradeRequest("CONNECT")) }
+        val offer = prepareHttp2Upgrade(ordinary)
+        assertFailsWith<IllegalArgumentException> { prepareHttp2Upgrade(offer) }
+        for (value in ["AA==", "AA", "A/", "not base64"]) {
+            val fields = [HttpField("Connection".toByteArray(), "upgrade, http2-settings".toByteArray()),
+                HttpField("Upgrade".toByteArray(), "h2c".toByteArray()), HttpField("HTTP2-Settings".toByteArray(), value.toByteArray())]
+            val bad = HttpRequestHead(ordinary.version, ordinary.method, ordinary.target, fields)
+            assertFailsWith<HttpNegotiationException> { readHttp2UpgradeSettings(bad) }
+        }
+        assertFailsWith<HttpException> { Http2Session.upgradedServer(ordinary.method, [0.toByte()]) }
+        Http2Session.upgradedServer(ordinary.method,
+            [0.toByte(), 4.toByte(), 128.toByte(), 0.toByte(), 0.toByte(), 0.toByte()]).use { server ->
+            output2(server)
+            assertTrue(localGoAway2(events2(server), 3U))
+        }
+    }
+}

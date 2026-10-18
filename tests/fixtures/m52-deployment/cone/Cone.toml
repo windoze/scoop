@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "test.m52"
+name = "deployment"
+version = "0.1.0"
+kind = "executable"
+
+[[native.sources]]
+path = "native/value.c"

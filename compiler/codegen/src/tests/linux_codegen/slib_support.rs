@@ -22,7 +22,7 @@ impl SlibObjects {
         let invocation =
             scoop_toolchain::resolve_linux_c_toolchain(module.meta.target_profile, None, None)
                 .unwrap();
-        let backend = ValidatedBackendProfile::from_selection(
+        let backend = ValidatedBackendProfile::for_selection(
             scoop_target_data::selection(module.meta.target_profile.id())
                 .expect("implemented target selected by this consumer"),
         )

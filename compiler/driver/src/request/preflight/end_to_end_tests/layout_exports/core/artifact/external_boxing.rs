@@ -137,9 +137,11 @@ pub(in super::super) fn check(
     assert!(module.meta.type_descriptors.is_empty());
     consumer::snapshot(&module, references);
     let output = lir::ConeLirOutput::try_new(module, Vec::new()).unwrap();
-    let profile =
-        scoop_codegen::ValidatedBackendProfile::from_selection(target.lir_target_selection())
-            .unwrap();
+    let profile = scoop_codegen::ValidatedBackendProfile::from_selection(
+        target.lir_target_selection(),
+        target.c_bridge_toolchain().profile().contract(),
+    )
+    .unwrap();
     let rendered = scoop_codegen::render_llvm_ir_members(
         &output,
         &coordinate,

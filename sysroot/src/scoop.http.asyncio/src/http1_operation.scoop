@@ -1,0 +1,62 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.platform.io.WriteZeroException
+
+internal suspend fun <T> h1Operation(state: H1State, reading: Boolean, validate: () -> Unit, block: suspend () -> T): T =
+    h1PreparedOperation<Unit, T>(state, reading, validate, suspend { _ -> block() })
+
+internal suspend fun <P, T> h1PreparedOperation(state: H1State, reading: Boolean, prepare: () -> P, block: suspend (P) -> T): T {
+    val job = httpJob(state.loop, true)
+    val prepared = state.lock.withLock {
+        h1Open(state)
+        if (if (reading) state.readBusy else state.writeBusy) throw IllegalStateException(Some("HTTP/1 direction is busy"))
+        val value = prepare()
+        if (reading) state.readBusy = true else state.writeBusy = true
+        value
+    }
+    val listener = job.invokeOnCancellation { error ->
+        state.lock.withLock { terminateH1(state, error) }
+        driveH1Close(state)
+    }
+    val result = try { job.ensureActive(); block(prepared) }
+    catch (error: Throwable) {
+        listener.dispose()
+        endH1Operation(state, reading)
+        failH1Operation(state, error)
+    }
+    listener.dispose()
+    endH1Operation(state, reading)
+    return result
+}
+
+private fun endH1Operation(state: H1State, reading: Boolean) {
+    state.lock.withLock { if (reading) state.readBusy = false else state.writeBusy = false }
+    driveH1Close(state)
+}
+
+internal suspend fun failH1Operation(state: H1State, primary: Throwable): Nothing {
+    val cleanup = try { closeH1(state); state.lock.withLock { state.closeFailure } }
+        catch (error: Throwable) { Some(error) }
+    when (cleanup) {
+        case Some(error) -> throw ResourceUseException(primary, error)
+        case None -> throw primary
+    }
+}
+
+internal suspend fun writeH1Wire(state: H1State, bytes: Array<Byte>) {
+    var offset = 0L
+    while (offset < bytes.size) {
+        state.output.clear()
+        val count = if (bytes.size - offset < state.output.writableBytes) bytes.size - offset else state.output.writableBytes
+        state.output.writeBytes(bytes, offset, count)
+        while (state.output.readableBytes > 0L) {
+            val pending = state.output.readableBytes
+            val written = state.transport.writeFrom(state.output, pending)
+            httpProgress(written, pending)
+            if (written == 0L) throw WriteZeroException()
+        }
+        offset += count
+    }
+    state.transport.flush()
+}

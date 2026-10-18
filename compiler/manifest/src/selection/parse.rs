@@ -21,17 +21,30 @@ pub(crate) fn parse_sources(
         None => Ok(SourceSelection::Default),
         Some(raw) => raw
             .into_iter()
-            .map(|raw| parse_path(raw, catalog))
+            .map(|raw| parse_path(raw, catalog, false))
             .collect::<Result<Vec<_>, _>>()
             .map(SourceSelection::Explicit),
     }
 }
 
-pub(crate) fn parse_path(
+pub(crate) fn parse_native_path(
     raw: RawConditionalPath,
     catalog: &[SourceTarget<'_>],
 ) -> Result<ConditionalSourcePath, ManifestParseError> {
-    let path = ConeRelativePath::new(raw.path.get_ref()).map_err(|reason| {
+    parse_path(raw, catalog, true)
+}
+
+fn parse_path(
+    raw: RawConditionalPath,
+    catalog: &[SourceTarget<'_>],
+    native: bool,
+) -> Result<ConditionalSourcePath, ManifestParseError> {
+    let path = if native {
+        ConeRelativePath::native(raw.path.get_ref())
+    } else {
+        ConeRelativePath::new(raw.path.get_ref())
+    }
+    .map_err(|reason| {
         ManifestParseError::new(
             ManifestParseErrorKind::InvalidSelection(format!(
                 "invalid source path {:?}: {reason}",

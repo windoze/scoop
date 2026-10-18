@@ -26,13 +26,29 @@ fn write_manifest(root: &Path, name: &str, version: &str, kind: &str, dependenci
 }
 
 fn write_core(sysroot: &Path) {
-    let root = sysroot.join("lib").join("scoop.core");
+    let root = sysroot.join("src").join("scoop.core");
     std::fs::create_dir_all(&root).unwrap();
     std::fs::write(
         root.join("Cone.toml"),
         "schema = 1\n[cone]\ngroup = \"scoop\"\nname = \"scoop.core\"\nversion = \"0.1.0\"\nkind = \"library\"\n",
     )
     .unwrap();
+    let selection = crate::test_artifacts::host_target();
+    let directory = scoop_toolchain::target_library_root(sysroot, selection.target());
+    std::fs::create_dir_all(&directory).unwrap();
+    let artifact = crate::test_artifacts::manifest_archive(
+        selection,
+        scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
+        ConeRecord::new(
+            ConeCoordinate::reserved_core(),
+            ConeKind::Library,
+            ConeSourceForm::Manifest,
+        )
+        .unwrap(),
+        "graph-test-seed",
+        Vec::new(),
+    );
+    std::fs::write(directory.join("scoop.core.slib"), artifact.as_bytes()).unwrap();
 }
 
 fn request(root: &Path, sysroot: &Path) -> BuildGraphRequest {
@@ -514,7 +530,7 @@ fn core_manifest_is_an_ordinary_build_root() {
     let source = temp.path().join("source");
     write_core(&source);
     let root = temp.path().join("edited-core");
-    std::fs::rename(source.join("lib/scoop.core"), &root).unwrap();
+    std::fs::rename(source.join("src/scoop.core"), &root).unwrap();
     write_core(&source);
     let discovered = request(&root, &source)
         .load_root()

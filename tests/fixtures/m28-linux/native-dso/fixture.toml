@@ -58,7 +58,7 @@ stderr = ""
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", "${root}", "--target", "${target}", "--cc", "${cc}", "--link-mode", "dynamic", "--library-path", "${work}/libs", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--unwind-prefix", "${repo}/sysroot/native/${target}/unwind", "-o", "${work}/program", "--message-format", "json"]
+argv = ["${scoop}", "build", "${root}", "--target", "${target}", "--cc", "${cc}", "--link-mode", "dynamic", "--library-path", "${work}/libs", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--unwind-prefix", "${repo}/sysroot/lib/${target}/unwind", "-o", "${work}/program", "--message-format", "json"]
 timeout = 300
 exit = 0
 stdout = ""
@@ -76,7 +76,7 @@ stderr = ""
 
 [[steps]]
 name = "link"
-argv = ["${scoop-link}", "--root-slib", "${build.result.root.path}", { each = "${build.result.dependencies}", field = "path", prefix = "--dep-slib" }, "--runtime-objects", "${build.result.runtime_index}", "--target", "${target}", "--cc", "${cc}", "--link-mode", "dynamic", "--library-path", "${work}/libs", "--unwind-prefix", "${repo}/sysroot/native/${target}/unwind", "-o", "${work}/relinked"]
+argv = ["${scoop-link}", "--root-slib", "${build.result.root.path}", { each = "${build.result.dependencies}", field = "path", prefix = "--dep-slib" }, "--runtime-objects", "${build.result.runtime_index}", "--target", "${target}", "--cc", "${cc}", "--link-mode", "dynamic", "--library-path", "${work}/libs", "--unwind-prefix", "${repo}/sysroot/lib/${target}/unwind", "-o", "${work}/relinked"]
 timeout = 300
 exit = 0
 stdout = "link-plan ${build.result.link_plan_fingerprint}\n"
@@ -106,7 +106,7 @@ stderr = ""
 
 [[steps]]
 name = "reject-version"
-argv = ["${scoop-link}", "--root-slib", "${build.result.root.path}", { each = "${build.result.dependencies}", field = "path", prefix = "--dep-slib" }, "--runtime-objects", "${build.result.runtime_index}", "--target", "${target}", "--cc", "${cc}", "--link-mode", "dynamic", "--library-path", "${work}/libs", "--unwind-prefix", "${repo}/sysroot/native/${target}/unwind", "-o", "${work}/relinked"]
+argv = ["${scoop-link}", "--root-slib", "${build.result.root.path}", { each = "${build.result.dependencies}", field = "path", prefix = "--dep-slib" }, "--runtime-objects", "${build.result.runtime_index}", "--target", "${target}", "--cc", "${cc}", "--link-mode", "dynamic", "--library-path", "${work}/libs", "--unwind-prefix", "${repo}/sysroot/lib/${target}/unwind", "-o", "${work}/relinked"]
 timeout = 300
 exit = 1
 stdout = ""

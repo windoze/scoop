@@ -1,0 +1,92 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.platform.memory.NativeByteBuffer
+
+public class HttpTransport internal constructor(
+    private val stream: AsyncByteStream, private val owner: AsyncCloseable,
+    private val loop: EventLoop, private var prefix: Array<Byte>
+) : AsyncByteStream, AsyncCloseable {
+    public companion object {
+        public fun <T> takeOwnershipWithPrefix(transport: T, prefix: List<Byte>): HttpTransport
+            where T : AsyncByteStream, T : AsyncCloseable {
+            val loop = currentEventLoop()
+            val job = httpJob(loop, true)
+            val bytes = prefix.toArray()
+            job.ensureActive()
+            return HttpTransport(transport, transport, loop, bytes)
+        }
+    }
+
+    private val lock: HttpLock = HttpLock()
+    private var offset: Long = 0L
+    private var closing: Boolean = false
+    private var closed: Boolean = false
+    private val closeWaiters: ArrayList<Continuation<Unit>> = ArrayList<Continuation<Unit>>()
+
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long {
+        httpJob(loop, true)
+        val copied = lock.withLock {
+            if (closing) throw IoClosedException()
+            httpCount(count, buffer.writableBytes)
+            if (count == 0L) return@withLock 0L
+            val available = prefix.size - offset
+            if (available == 0L) return@withLock -1L
+            val amount = if (count < available) count else available
+            buffer.writeBytes(prefix, offset, amount)
+            offset += amount
+            if (offset == prefix.size) { prefix = Array<Byte>(0L) { _ -> 0.toByte() }; offset = 0L }
+            amount
+        }
+        return if (copied >= 0L) copied else stream.readInto(buffer, count)
+    }
+
+    public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long {
+        httpJob(loop, true)
+        lock.withLock { if (closing) throw IoClosedException(); httpCount(count, buffer.readableBytes) }
+        return if (count == 0L) 0L else stream.writeFrom(buffer, count)
+    }
+
+    public override suspend fun flush() {
+        httpJob(loop, true)
+        lock.withLock { if (closing) throw IoClosedException(); Unit }
+        stream.flush()
+    }
+
+    public override suspend fun close() {
+        if (lock.withLock { closed }) return
+        val job = httpJob(loop, false)
+        suspendCoroutine<Unit> { continuation ->
+            val begin = lock.withLock {
+                if (closed) -1 else {
+                    closeWaiters.add(continuation)
+                    if (closing) 0 else { closing = true; 1 }
+                }
+            }
+            if (begin == -1) continuation.resume(Unit)
+            else if (begin == 1) context(job) { context(loop) {
+                startCoroutine<Unit>(suspend { owner.close() }, HttpTransportClose(this))
+            } }
+        }
+    }
+
+    internal fun finishClose(failure: Throwable?) {
+        val waiters = lock.withLock {
+            closed = true
+            prefix = Array<Byte>(0L) { _ -> 0.toByte() }
+            offset = 0L
+            val result = closeWaiters.toArray()
+            closeWaiters.clear()
+            result
+        }
+        for (waiter in waiters) when (failure) {
+            case Some(error) -> waiter.resumeWithException(error)
+            case None -> waiter.resume(Unit)
+        }
+    }
+}
+
+private class HttpTransportClose(val transport: HttpTransport) : Continuation<Unit> {
+    public override fun resume(value: Unit) { transport.finishClose(None) }
+    public override fun resumeWithException(exception: Throwable) { transport.finishClose(Some(exception)) }
+}

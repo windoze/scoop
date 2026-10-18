@@ -6,6 +6,9 @@
 
 use std::fmt;
 
+pub const VERSION: &str = env!("SCOOP_BUILD_VERSION");
+pub const DARWIN_DEPLOYMENT_BASELINE: &str = env!("SCOOP_MACOS_BASELINE");
+
 mod c_bridge;
 mod c_bridge_invocation;
 pub use c_bridge_invocation::{
@@ -42,8 +45,9 @@ pub use native::{
     strip_native_include_observations,
 };
 pub use paths::{
-    configured_cache_root, configured_sysroot_root, development_runtime_root,
-    development_workspace_root,
+    configured_cache_root, configured_sysroot_root, default_runtime_index,
+    development_runtime_root, development_workspace_root, installed_executable,
+    target_library_root,
 };
 pub use registry::host_target_triple;
 pub use registry::{CToolchainOptions, ResolvedTargetProfile};

@@ -1,0 +1,81 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.collections.ArrayDeque
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+
+internal class H1BodyLifetime {
+    var completed: Boolean = false
+    var disposed: Boolean = false
+    var listener: Disposable? = None
+}
+
+internal class H1Input(val finalResponse: Boolean = false) {
+    val life: H1BodyLifetime = H1BodyLifetime()
+    var bytes: Array<Byte>? = None
+    var offset: Long = 0L
+    var trailers: Array<HttpField>? = None
+    var keepAlive: Boolean = true
+    var responseFinished: Boolean = false
+}
+
+internal class H1RequestContext(val method: Array<Byte>, val body: H1Input)
+
+internal class H1Output(val finalResponse: Boolean, val request: H1RequestContext? = None) {
+    val life: H1BodyLifetime = H1BodyLifetime()
+}
+
+internal class H1State(
+    val decoder: Http1Decoder, val encoder: Http1Encoder,
+    val transport: AsyncByteStream, val owner: AsyncCloseable, val loop: EventLoop,
+    val input: NativeByteBuffer, val output: NativeByteBuffer
+) {
+    val lock: HttpLock = HttpLock()
+    val events: ArrayDeque<Http1Event> = ArrayDeque<Http1Event>()
+    val requests: ArrayDeque<H1RequestContext> = ArrayDeque<H1RequestContext>()
+    var clientPending: Long = 0L
+    var incoming: H1Input? = None
+    var outgoing: H1Output? = None
+    var readBusy: Boolean = false
+    var writeBusy: Boolean = false
+    var inputEnded: Boolean = false
+    var adopted: Boolean = false
+    var closing: Boolean = false
+    var closed: Boolean = false
+    var detached: Boolean = false
+    var transportClosing: Boolean = false
+    var transportClosed: Boolean = false
+    var primary: Throwable? = None
+    var closeFailure: Throwable? = None
+    var ownerJob: Job? = None
+    var ownerWaiter: Continuation<Unit>? = None
+    var ownerListener: Disposable? = None
+    val closeWaiters: ArrayList<Continuation<Unit>> = ArrayList<Continuation<Unit>>()
+}
+
+internal fun h1Open(state: H1State) {
+    if (state.closing) throw IoClosedException()
+}
+
+internal fun listenH1Body(state: H1State, life: H1BodyLifetime, job: Job) {
+    val listener = job.invokeOnCancellation { error ->
+        state.lock.withLock { if (!life.completed && !life.disposed) terminateH1(state, error); Unit }
+        driveH1Close(state)
+    }
+    val done = state.lock.withLock {
+        if (life.completed || life.disposed || state.closing) true
+        else { life.listener = Some(listener); false }
+    }
+    if (done) listener.dispose()
+}
+
+internal fun completeH1Body(state: H1State, life: H1BodyLifetime) {
+    val listener = state.lock.withLock {
+        life.completed = true
+        val value = life.listener
+        life.listener = None
+        value
+    }
+    if (present(listener)) listener!!.dispose()
+}

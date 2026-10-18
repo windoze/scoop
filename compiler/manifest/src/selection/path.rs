@@ -6,6 +6,14 @@ pub struct ConeRelativePath(String);
 
 impl ConeRelativePath {
     pub fn new(value: &str) -> Result<Self, &'static str> {
+        Self::normalize(value, false)
+    }
+
+    pub(crate) fn native(value: &str) -> Result<Self, &'static str> {
+        Self::normalize(value, true)
+    }
+
+    fn normalize(value: &str, allow_parent: bool) -> Result<Self, &'static str> {
         if value.is_empty() {
             return Err("path must not be empty");
         }
@@ -20,7 +28,11 @@ impl ConeRelativePath {
             match segment {
                 "" | "." => {}
                 ".." => {
-                    if segments.pop().is_none() {
+                    if segments.last().is_some_and(|part| *part != "..") {
+                        segments.pop();
+                    } else if allow_parent {
+                        segments.push("..");
+                    } else {
                         return Err("path must not escape the Cone root");
                     }
                 }

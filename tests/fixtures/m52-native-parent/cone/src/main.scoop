@@ -1,0 +1,3 @@
+@Extern(name = "m52_answer")
+fun answer(): Int
+fun main(): Int { @Unsafe { return answer() } }

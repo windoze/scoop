@@ -79,7 +79,7 @@ fn machine_lookup_tables_are_owned_and_absent_tables_are_pruned() {
             let mut module = lookup_module();
             module.meta = string_metadata_for(scoop_target_data::layout(target).unwrap());
             let input = scoop_lir::ConeLirOutput::try_new(module, Vec::new()).unwrap();
-            let profile = ValidatedBackendProfile::from_selection(
+            let profile = ValidatedBackendProfile::for_selection(
                 scoop_target_data::selection(target).unwrap(),
             )
             .unwrap()

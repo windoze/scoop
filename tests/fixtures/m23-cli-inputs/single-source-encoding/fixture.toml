@@ -18,7 +18,7 @@ files = [
 
 [[steps]]
 name = "core"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${sysroot}/lib/scoop.core", "-o", "${work}/producer-sysroot/artifacts/${target_profile}/scoop.core.slib", {"each" = "${options}"}]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${sysroot}/src/scoop.core", "-o", "${work}/producer-sysroot/lib/${target}/scoop.core.slib", {"each" = "${options}"}]
 exit = 0
 stdout = ""
 stderr = ""

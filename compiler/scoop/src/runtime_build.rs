@@ -32,6 +32,7 @@ impl RuntimeOptimization {
 pub struct RuntimeBuildRequest<'a> {
     pub target: &'a ResolvedTargetProfile,
     pub runtime_root: &'a Path,
+    pub vendor_root: &'a Path,
     pub cache_root: &'a Path,
     pub optimization: RuntimeOptimization,
     pub unwind_prefix: Option<&'a Path>,
@@ -80,7 +81,7 @@ pub fn build_runtime(
     request: RuntimeBuildRequest<'_>,
 ) -> Result<RuntimeBuildOutput, RuntimeBuildError> {
     let inputs = inputs::Inputs::read(&request)?;
-    let namespace = request.cache_root.join("runtime-v3");
+    let namespace = request.cache_root.join("runtime-v5");
     let entry = namespace.join(format!("{}.json", inputs.base_key));
     if let Some(output) = record::load(&entry, request.target)? {
         return Ok(output);
@@ -96,7 +97,9 @@ pub fn build_runtime(
         .prefix("objects-")
         .tempdir_in(&namespace)
         .map_err(error)?;
-    let (paths, dependencies) = compile::compile(&request, &inputs, staging.path())?;
+    let object_directory = staging.path().join("objects");
+    std::fs::create_dir(&object_directory).map_err(error)?;
+    let (paths, dependencies) = compile::compile(&request, &inputs, &object_directory)?;
     let configuration = RuntimeBuildConfiguration {
         input_key: dependencies.input_key(inputs.base_key)?,
         compiler_inputs: inputs.compiler_inputs,

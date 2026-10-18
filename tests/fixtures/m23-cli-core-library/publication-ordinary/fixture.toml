@@ -6,12 +6,19 @@ targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-l
 tags = ["core-publication", "core-library", "moving-gc"]
 
 [[steps]]
+name = "runtime_vendor"
+files = [
+  {symlink = {from = "${sysroot}/vendor", to = "${work}/sysroot/vendor"}},
+  {symlink = {from = "${sysroot}/include", to = "${work}/sysroot/include"}},
+]
+
+[[steps]]
 name = "prepare_core"
 files = [
-  {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}},
+  {"copy" = {"from" = "${sysroot}/src/scoop.core", "to" = "${work}/core-source"}},
   {"copy" = {"from" = "${fixture}/../../m23-cli-imported-classes/support/stage3_test.scoop", "to" = "${work}/core-source/src/stage3_test.scoop"}},
   {"copy" = {"from" = "${fixture}/../../core-library/publication-warning.scoop", "to" = "${work}/core-source/src/publication-warning.scoop"}},
-  {"symlink" = {"from" = "${work}/core-source", "to" = "${work}/sysroot/lib/scoop.core"}},
+  {"symlink" = {"from" = "${work}/core-source", "to" = "${work}/sysroot/src/scoop.core"}},
   {"mkdir" = {"path" = "${work}/blocked.slib"}},
 ]
 
@@ -24,6 +31,10 @@ stderr = ""
 json = "stderr"
 diagnostics = {"file" = "core-warning.json"}
 checks = []
+
+[[steps]]
+name = "publish_core"
+files = [{copy = {from = "${core.result.root.path}", to = "${work}/sysroot/lib/${target}/scoop.core.slib"}}]
 
 [[steps]]
 name = "prepare_consumer"

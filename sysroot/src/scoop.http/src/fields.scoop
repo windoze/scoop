@@ -1,0 +1,65 @@
+package scoop.http
+
+internal fun httpToken(bytes: List<Byte>): Boolean {
+    if (bytes.size == 0L) return false
+    for (byte in bytes) {
+        val c = byte.toUByte().toInt()
+        if ((c >= 48 && c <= 57) || (c >= 65 && c <= 90) || (c >= 97 && c <= 122)) continue
+        if (c == 33 || c == 35 || c == 36 || c == 37 || c == 38 || c == 39 || c == 42 ||
+            c == 43 || c == 45 || c == 46 || c == 94 || c == 95 || c == 96 || c == 124 || c == 126) continue
+        return false
+    }
+    return true
+}
+
+internal fun requireHttpValue(bytes: List<Byte>) {
+    for (byte in bytes) {
+        val c = byte.toUByte().toInt()
+        if ((c < 32 && c != 9) || c == 127)
+            throw IllegalArgumentException(Some("HTTP output contains an invalid field or reason byte"))
+    }
+}
+
+internal fun httpTrim(bytes: List<Byte>, start: Long, end: Long): Array<Byte> {
+    var first = start
+    var last = end
+    while (first < last && (bytes[first] == 32.toByte() || bytes[first] == 9.toByte())) first += 1L
+    while (last > first && (bytes[last - 1L] == 32.toByte() || bytes[last - 1L] == 9.toByte())) last -= 1L
+    val offset = first
+    return Array<Byte>(last - first) { index -> bytes[offset + index] }
+}
+
+internal fun httpCommaParts(bytes: List<Byte>): Array<Array<Byte>> {
+    val parts = ArrayList<Array<Byte>>()
+    var start = 0L
+    var index = 0L
+    while (index <= bytes.size) {
+        if (index == bytes.size || bytes[index] == 44.toByte()) {
+            parts.add(httpTrim(bytes, start, index))
+            start = index + 1L
+        }
+        index += 1L
+    }
+    return parts.toArray()
+}
+
+internal fun httpHasToken(fields: List<HttpField>, name: String, value: String): Boolean {
+    val expected = value.toByteArray()
+    for (field in fields.findAll(name.toByteArray())) {
+        for (part in httpCommaParts(field.value)) if (httpAsciiEqual(part, expected)) return true
+    }
+    return false
+}
+
+internal fun httpContentLength(bytes: List<Byte>): Long {
+    val digits = httpTrim(bytes, 0L, bytes.size)
+    if (digits.size == 0L) throw IllegalArgumentException(Some("empty HTTP Content-Length"))
+    var value = 0L
+    for (byte in digits) {
+        val digit = byte.toUByte().toLong() - 48L
+        if (digit < 0L || digit > 9L || value > (Long.MAX_VALUE - digit) / 10L)
+            throw IllegalArgumentException(Some("invalid HTTP Content-Length"))
+        value = value * 10L + digit
+    }
+    return value
+}

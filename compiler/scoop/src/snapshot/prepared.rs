@@ -157,7 +157,7 @@ fn select_manifest_input(
         &manifest,
         &context.target,
         context.optimization,
-        &scoop_toolchain::development_runtime_root().join("include"),
+        &context.sysroot.as_path().join("include"),
         context.cache_root.as_path(),
     )
     .map_err(PrepareBuildGraphError::Native)?;

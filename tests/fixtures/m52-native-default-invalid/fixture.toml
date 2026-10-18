@@ -1,0 +1,24 @@
+schema = 1
+name = "m52-native-default-invalid"
+inputs = ["../m33-native-libraries/negative/bad-explicit/cone"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m52", "native", "negative"]
+
+[[steps]]
+name = "prepare"
+files = [
+ {copy = {from = "${sysroot}/lib/${target}/scoop.core.slib", to = "${work}/sysroot/lib/${target}/scoop.core.slib"}},
+ {symlink = {from = "${sysroot}/lib/${target}/runtime", to = "${work}/sysroot/lib/${target}/runtime"}},
+ {symlink = {from = "${sysroot}/src", to = "${work}/sysroot/src"}},
+ {write = {path = "${work}/sysroot/lib/${target}/libm.a", data = "not an archive\n"}},
+]
+
+[[steps]]
+name = "reject"
+argv = ["${scoop}", "build", "${fixture}/../m33-native-libraries/negative/bad-explicit/cone", {each = "${link_args}"}, "--sysroot", "${work}/sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "diagnostics.${target}.json"}

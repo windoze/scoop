@@ -100,7 +100,7 @@ fn test_source_bytes_and_selection_do_not_invalidate_production() {
     let workspace = temp.path();
     write_core(&workspace.join("sysroot"));
     write_fake_compiler(&workspace.join("bin/scoopc"));
-    let root = workspace.join("sysroot/lib/scoop.core");
+    let root = workspace.join("sysroot/src/scoop.core");
     std::fs::create_dir(root.join("tests")).unwrap();
     std::fs::write(root.join("tests/case.scoop"), "fun first() {}\n").unwrap();
     let production = prepare(&root, workspace).unwrap();

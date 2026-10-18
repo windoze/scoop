@@ -1,0 +1,59 @@
+package scoop.http
+
+public struct HttpHeaderLimits(
+    val maxBytes: Long = 65536L,
+    val maxFieldBytes: Long = 16384L,
+    val maxFields: Long = 100L
+)
+
+public struct Http1Limits(
+    val headers: HttpHeaderLimits = HttpHeaderLimits(),
+    val maxStartLineBytes: Long = 8192L
+)
+
+public enum Http1AfterClose { Reject, Discard, ParseNextMessage }
+public struct Http1ReceiveOptions(
+    val legacyHeaderValues: Boolean = false,
+    val lenientChunkedLength: Boolean = false,
+    val lenientTransferEncoding: Boolean = false,
+    val lenientTextVersion: Boolean = false,
+    val optionalLfAfterCr: Boolean = false,
+    val optionalCrBeforeLf: Boolean = false,
+    val optionalCrLfAfterChunk: Boolean = false,
+    val spacesAfterChunkSize: Boolean = false,
+    val afterClose: Http1AfterClose = Http1AfterClose.Reject
+)
+
+internal fun requireHttpHeaderLimits(limits: HttpHeaderLimits) {
+    if (limits.maxBytes <= 0L || limits.maxFieldBytes <= 0L || limits.maxFields <= 0L)
+        throw IllegalArgumentException(Some("HTTP field limits must be positive"))
+}
+
+@CLayout internal struct NativeHttp1Config(
+    val maxHeaderBytes: Long,
+    val maxFieldBytes: Long,
+    val maxFields: Long,
+    val maxStartLineBytes: Long,
+    val flags: UInt,
+    val afterClose: Int
+)
+
+internal fun http1Config(options: Http1ReceiveOptions, limits: Http1Limits): NativeHttp1Config {
+    requireHttpHeaderLimits(limits.headers)
+    if (limits.maxStartLineBytes <= 0L) throw IllegalArgumentException(Some("HTTP start line limit must be positive"))
+    var flags = 0U
+    if (options.legacyHeaderValues) flags = flags or 1U
+    if (options.lenientChunkedLength) flags = flags or 2U
+    if (options.lenientTransferEncoding) flags = flags or 4U
+    if (options.lenientTextVersion) flags = flags or 8U
+    if (options.optionalLfAfterCr) flags = flags or 16U
+    if (options.optionalCrBeforeLf) flags = flags or 32U
+    if (options.optionalCrLfAfterChunk) flags = flags or 64U
+    if (options.spacesAfterChunkSize) flags = flags or 128U
+    return NativeHttp1Config(limits.headers.maxBytes, limits.headers.maxFieldBytes, limits.headers.maxFields,
+        limits.maxStartLineBytes, flags, when (options.afterClose) {
+            case Reject -> 0
+            case Discard -> 1
+            case ParseNextMessage -> 2
+        })
+}

@@ -4,7 +4,11 @@ pub(super) fn resolved_target() -> Option<scoop_toolchain::ResolvedTargetProfile
     // The target resolver owns host Apple-toolchain qualification. A machine
     // blocked by the Xcode license gate cannot enter object production.
     let target = scoop_toolchain::ResolvedTargetProfile::resolve_host().ok()?;
-    scoop_codegen::ValidatedBackendProfile::from_selection(target.lir_target_selection()).ok()?;
+    scoop_codegen::ValidatedBackendProfile::from_selection(
+        target.lir_target_selection(),
+        target.c_bridge_toolchain().profile().contract(),
+    )
+    .ok()?;
     Some(target)
 }
 
@@ -198,8 +202,8 @@ pub(super) fn write_dependency_manifest(
 }
 
 pub(super) fn copy_trusted_core_sources(sysroot: &Path) {
-    let source = crate::workspace_root().join("sysroot/lib/scoop.core");
-    let destination = sysroot.join("lib/scoop.core");
+    let source = crate::workspace_root().join("sysroot/src/scoop.core");
+    let destination = sysroot.join("src/scoop.core");
     std::fs::create_dir_all(destination.join("src")).unwrap();
     std::fs::copy(source.join("Cone.toml"), destination.join("Cone.toml")).unwrap();
     for entry in std::fs::read_dir(source.join("src")).unwrap() {

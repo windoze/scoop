@@ -1,0 +1,54 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.test.*
+
+@Test
+private class AsyncHttpUpgradeTests {
+    @Test
+    fun `h2c hands completed POST and HEAD contexts to stream one and keeps later streams independent`() {
+        for (method in ["POST", "HEAD"]) withHttp1 suspend { scope, a, b, client, server ->
+            val serving = scope.launch suspend {
+                val incoming = server.receiveRequest()!!
+                val settings = readHttp2UpgradeSettings(incoming.head)
+                assertEquals(if (method == "POST") "sent" else "", String.fromUtf8(receiveBytes(incoming.body)))
+                server.sendResponse(http2UpgradeResponse()).finish()
+                val h2 = AsyncHttp2Connection.takeOwnershipAsUpgradedServer(server.takeTransport(), scope, incoming.head.method, settings)
+                try {
+                    val first = h2.upgradedStream!!
+                    assertTrue(first.isReadComplete)
+                    if (method == "HEAD") first.sendResponse(HttpResponseHead(HttpVersion.Http2, 200U, fields = [field("content-length", "8")]))
+                    else {
+                        first.sendResponse(response2(), false)
+                        sendBytes(first, "upgraded".toByteArray()); first.finish()
+                    }
+                    val next = h2.acceptRequest()!!
+                    assertEquals(3, next.stream.id)
+                    next.stream.sendResponse(response2(204U))
+                } finally { h2.close() }
+            }
+            val offer = prepareHttp2Upgrade(request(method))
+            val writer = client.sendRequest(offer, if (method == "POST") Http1BodyFraming.Length(4L) else Http1BodyFraming.Empty)
+            if (method == "POST") sendBytes(writer, "sent".toByteArray())
+            writer.finish()
+            val upgrade = client.receiveResponse()
+            assertTrue(http2UpgradeAccepted(upgrade.head))
+            receiveBytes(upgrade.body)
+            val h2 = AsyncHttp2Connection.takeOwnershipAsUpgradedClient(client.takeTransport(), scope, offer.method)
+            try {
+                val first = h2.upgradedStream!!
+                assertEquals(1, first.id)
+                assertEquals(200U, first.receiveResponse().status)
+                assertEquals(if (method == "HEAD") "" else "upgraded", String.fromUtf8(receiveBytes(first)))
+                val next = h2.openRequest(request2(path = "/next"))
+                assertEquals(3, next.id)
+                assertEquals(204U, next.receiveResponse().status)
+                receiveBytes(next)
+                serving.join()
+            } finally { h2.close() }
+            assertTrue(client.isClosed && server.isClosed)
+            assertEquals(1, a.closes); assertEquals(1, b.closes)
+        }
+    }
+}

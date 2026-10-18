@@ -1,0 +1,71 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.bytes.ByteArrayBuilder
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.*
+
+internal class AsyncGate {
+    private val lock: HttpLock = HttpLock()
+    private var open: Boolean = false
+    private val waiting: ArrayList<Continuation<Unit>> = ArrayList<Continuation<Unit>>()
+    fun signal() {
+        val ready = lock.withLock {
+            open = true
+            val result = waiting.toArray()
+            waiting.clear()
+            result
+        }
+        for (continuation in ready) continuation.resume(Unit)
+    }
+    suspend fun await() {
+        suspendCoroutine<Unit> { continuation ->
+            val done = lock.withLock { if (open) true else { waiting.add(continuation); false } }
+            if (done) continuation.resume(Unit)
+        }
+    }
+}
+
+internal suspend fun rawPair(loop: EventLoop, scope: CoroutineScope): (ObservedTransport, ObservedTransport) {
+    val listener = loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
+    try {
+        val connecting = scope.async<AsyncTcpStream> suspend { loop.connectTcp(listener.localAddress) }
+        val server = listener.accept()
+        return (ObservedTransport(connecting.await()), ObservedTransport(server))
+    } finally { listener.close() }
+}
+
+internal fun withHttp1(block: suspend (CoroutineScope, ObservedTransport, ObservedTransport,
+    AsyncHttp1Connection, AsyncHttp1Connection) -> Unit) {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { scope ->
+        val (a, b) = rawPair(loop, scope)
+        val client = AsyncHttp1Connection.takeOwnershipAsClient(a, scope)
+        val server = AsyncHttp1Connection.takeOwnershipAsServer(b, scope)
+        try { block(scope, a, b, client, server) }
+        finally { client.close(); server.close() }
+    }
+}
+
+internal fun field(name: String, value: String): HttpField = HttpField(name.toByteArray(), value.toByteArray())
+internal fun request(method: String = "GET", path: String = "/"): HttpRequestHead =
+    HttpRequestHead(HttpVersion.Http11, method.toByteArray(), HttpRequestTarget.Http1(path.toByteArray()), [field("Host", "localhost")])
+internal fun response(status: UInt = 200U): HttpResponseHead = HttpResponseHead(HttpVersion.Http11, status)
+
+internal suspend fun sendBytes(sink: AsyncByteSink, bytes: List<Byte>) {
+    NativeByteBuffer.allocate(bytes.size).use suspend { buffer -> buffer.writeBytes(bytes); sink.writeFully(buffer) }
+}
+
+internal suspend fun receiveBytes(source: AsyncByteSource): Array<Byte> {
+    val result = ByteArrayBuilder()
+    NativeByteBuffer.allocate(4091L).use suspend { buffer ->
+        while (true) {
+            buffer.clear()
+            val count = source.readInto(buffer, buffer.writableBytes)
+            if (count == 0L) break
+            result.append(buffer.readBytes(count))
+        }
+    }
+    return result.toByteArray()
+}

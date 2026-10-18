@@ -29,7 +29,7 @@ fn amd64_byval_calls_preserve_the_fixed_managed_frame() {
         scoop_target_data::LINUX_X86_64_GNU_ID,
         scoop_target_data::LINUX_X86_64_MUSL_ID,
     ] {
-        let profile = ValidatedBackendProfile::from_selection(
+        let profile = ValidatedBackendProfile::for_selection(
             scoop_target_data::selection(target)
                 .expect("implemented target selected by this consumer"),
         )

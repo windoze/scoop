@@ -2,8 +2,7 @@ use std::path::{Path, PathBuf};
 
 use scoop_lir::ValidatedLirTargetSelection;
 
-const CORE_SOURCE_RELATIVE_PATH: &str = "lib/scoop.core";
-const CORE_ARTIFACTS_RELATIVE_PATH: &str = "artifacts";
+const CORE_SOURCE_RELATIVE_PATH: &str = "src/scoop.core";
 const CORE_ARTIFACT_FILE_NAME: &str = "scoop.core.slib";
 /// Pure target-qualified sysroot layout shared by the orchestration parent and
 /// the paired single-Cone compiler. This type grants no filesystem authority.
@@ -16,9 +15,7 @@ pub struct TrustedCoreSlotLayoutV1 {
 
 impl TrustedCoreSlotLayoutV1 {
     pub fn new(sysroot: &Path, target: ValidatedLirTargetSelection) -> Self {
-        let artifact_root = sysroot
-            .join(CORE_ARTIFACTS_RELATIVE_PATH)
-            .join(target.target().id().canonical_name());
+        let artifact_root = crate::target_library_root(sysroot, target.target());
         Self {
             source_root: sysroot.join(CORE_SOURCE_RELATIVE_PATH),
             artifact: artifact_root.join(CORE_ARTIFACT_FILE_NAME),
@@ -49,14 +46,14 @@ mod tests {
             Path::new("/opt/scoop"),
             scoop_target_data::DARWIN_AARCH64_LLVM_22_1,
         );
-        assert_eq!(layout.source_root(), Path::new("/opt/scoop/lib/scoop.core"));
+        assert_eq!(layout.source_root(), Path::new("/opt/scoop/src/scoop.core"));
         assert_eq!(
             layout.artifact_root(),
-            Path::new("/opt/scoop/artifacts/darwin-aarch64")
+            Path::new("/opt/scoop/lib/aarch64-apple-darwin")
         );
         assert_eq!(
             layout.artifact(),
-            Path::new("/opt/scoop/artifacts/darwin-aarch64/scoop.core.slib")
+            Path::new("/opt/scoop/lib/aarch64-apple-darwin/scoop.core.slib")
         );
     }
 }

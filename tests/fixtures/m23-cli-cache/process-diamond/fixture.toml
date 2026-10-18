@@ -27,11 +27,11 @@ diagnostics = []
 checks = [
   {"actual" = "${cold.result.kind}", "equals" = "library"},
   {"actual" = "${cold.result.dependencies.length}", "equals" = 3},
-  {"actual" = "${cold.result.observations.child_invocations}", "equals" = ["${cold.result.dependencies.0.identity}", "${cold.result.dependencies.1.identity}", "${cold.result.dependencies.2.identity}", "${cold.result.root.identity}"]},
+  {"actual" = "${cold.result.observations.child_invocations}", "equals" = ["${cold.result.dependencies.1.identity}", "${cold.result.dependencies.2.identity}", "${cold.result.root.identity}"]},
   {"glob" = "${work}/cache/compile-v1/.staging/*", "equals" = []},
   {"actual" = "${cold.result.dependencies.0.coordinate}", "equals" = {"group" = "scoop", "name" = "scoop.core", "version" = "0.1.0"}},
   {"actual" = "${cold.result.observations.nodes.0.identity}", "equals" = "${cold.result.dependencies.0.identity}"},
-  {"actual" = "${cold.result.observations.nodes.0.origin}", "equals" = "compiled"},
+  {"actual" = "${cold.result.observations.nodes.0.origin}", "equals" = "prebuilt"},
   {"actual" = "${cold.result.dependencies.1.coordinate}", "equals" = {"group" = "test", "name" = "alpha", "version" = "1.0.0"}},
   {"actual" = "${cold.result.observations.nodes.1.identity}", "equals" = "${cold.result.dependencies.1.identity}"},
   {"actual" = "${cold.result.observations.nodes.1.origin}", "equals" = "compiled"},
@@ -59,7 +59,7 @@ checks = [
   {"glob" = "${work}/cache/compile-v1/.staging/*", "equals" = []},
   {"actual" = "${warm.result.dependencies.0.coordinate}", "equals" = {"group" = "scoop", "name" = "scoop.core", "version" = "0.1.0"}},
   {"actual" = "${warm.result.observations.nodes.0.identity}", "equals" = "${warm.result.dependencies.0.identity}"},
-  {"actual" = "${warm.result.observations.nodes.0.origin}", "equals" = "cache"},
+  {"actual" = "${warm.result.observations.nodes.0.origin}", "equals" = "prebuilt"},
   {"actual" = "${warm.result.dependencies.0.artifact_fingerprint}", "equals" = "${cold.result.dependencies.0.artifact_fingerprint}"},
   {"actual" = "${warm.result.observations.nodes.0.cache_key}", "equals" = "${cold.result.observations.nodes.0.cache_key}"},
   {"file" = "${warm.result.dependencies.0.path}", "same_as" = "${cold.result.dependencies.0.path}"},
@@ -87,7 +87,7 @@ checks = [
 [[steps]]
 name = "manual_core"
 files = [
-  {"copy" = {"from" = "${cold.result.dependencies.0.path}", "to" = "${work}/manual-sysroot/artifacts/${target_profile}/scoop.core.slib"}},
+  {"copy" = {"from" = "${cold.result.dependencies.0.path}", "to" = "${work}/manual-sysroot/lib/${target}/scoop.core.slib"}},
 ]
 
 [[steps]]

@@ -6,10 +6,17 @@ targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-l
 tags = ["core-direct-inputs", "core-library", "moving-gc"]
 
 [[steps]]
+name = "runtime_vendor"
+files = [
+  {symlink = {from = "${sysroot}/vendor", to = "${work}/sysroot/vendor"}},
+  {symlink = {from = "${sysroot}/include", to = "${work}/sysroot/include"}},
+]
+
+[[steps]]
 name = "prepare_core"
 files = [
-  {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}},
-  {"symlink" = {"from" = "${work}/core-source", "to" = "${work}/sysroot/lib/scoop.core"}},
+  {"copy" = {"from" = "${sysroot}/src/scoop.core", "to" = "${work}/core-source"}},
+  {"symlink" = {"from" = "${work}/core-source", "to" = "${work}/sysroot/src/scoop.core"}},
   {"copy" = {"from" = "${fixture}/../../core-library/extension.scoop", "to" = "${work}/core-source/src/user_extension.scoop"}},
   {"copy" = {"from" = "${fixture}/../../core-library/metadata.scoop", "to" = "${work}/core-source/src/user_metadata.scoop"}},
   {"copy" = {"from" = "${fixture}/../../core-library/abi.scoop", "to" = "${work}/core-source/src/user_abi.scoop"}},
@@ -31,6 +38,10 @@ diagnostics = []
 checks = []
 
 [[steps]]
+name = "publish_core"
+files = [{copy = {from = "${core.result.root.path}", to = "${work}/sysroot/lib/${target}/scoop.core.slib"}}]
+
+[[steps]]
 name = "prepare_helper"
 files = [
   {"copy" = {"from" = "${fixture}/../../core-library/direct-build/helper.toml", "to" = "${work}/sources/helper/Cone.toml"}},
@@ -50,7 +61,7 @@ checks = []
 [[steps]]
 name = "prepare_consumer"
 files = [
-  {"copy" = {"from" = "${core.result.root.path}", "to" = "${work}/sysroot/artifacts/${target_profile}/scoop.core.slib"}},
+  {"copy" = {"from" = "${core.result.root.path}", "to" = "${work}/sysroot/lib/${target}/scoop.core.slib"}},
   {"copy" = {"from" = "${fixture}/../../core-library/direct-build/combined.toml", "to" = "${work}/sources/consumer/Cone.toml"}},
   {"copy" = {"from" = "${fixture}/../../core-library/direct-build/combined.scoop", "to" = "${work}/sources/consumer/src/main.scoop"}},
 ]

@@ -1,0 +1,91 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+@Test private class Http2FlowTests {
+    @Test fun `pending body and peer window apply independent prefix backpressure`() {
+        withHttp2(Http2Session.client(limits = Http2Limits(maxPendingBodyBytes = 4L)),
+            Http2Session.server(settings = Http2Settings(initialWindowSize = 3U))) { client, server ->
+            val id = client.submitRequest(request2("POST", fields = [HttpField("content-length".toByteArray(), "8".toByteArray())]), false)
+            assertTrue(client.hasPendingOutput(id))
+            drive2(client, server)
+            assertFalse(client.hasPendingOutput(id))
+            val input = NativeByteBuffer.allocate(8L)
+            try {
+                input.writeBytes("12345678".toByteArray())
+                assertEquals(4L, client.writeBody(id, input))
+                drive2(client, server)
+                val bytes = ByteArrayBuilder().append(data2(events2(server), id))
+                assertEquals(3L, bytes.size)
+                assertTrue(client.hasPendingOutput(id))
+                assertFalse(client.wantsWrite)
+                assertEquals(3L, client.writeBody(id, input))
+                assertEquals(0L, client.writeBody(id, input))
+                assertEquals(1L, input.readableBytes)
+                assertFailsWith<HttpException> { client.finish(id) }
+                server.consume(id, 3L)
+                drive2(client, server)
+                bytes.append(data2(events2(server), id))
+                assertEquals(1L, client.writeBody(id, input))
+                client.finish(id)
+                assertTrue(client.hasPendingOutput(id))
+                server.consume(id, 3L)
+                drive2(client, server)
+                bytes.append(data2(events2(server), id))
+                assertEquals("12345678", String.fromUtf8(bytes.toByteArray()))
+                assertFalse(client.hasPendingOutput(id))
+                server.consume(id, 2L)
+            } finally { input.close() }
+        }
+    }
+
+    @Test fun `consuming a closed stream releases connection credit for another stream`() {
+        withHttp2 { client, server ->
+            val bytes = Array<Byte>(40000L) { _ -> 42.toByte() }
+            val first = client.submitRequest(request2("POST"), false)
+            assertEquals(bytes.size, write2(client, first, bytes))
+            client.finish(first)
+            drive2(client, server, 8192L)
+            assertEquals(bytes.size, data2(events2(server), first).size)
+            server.submitResponse(first, HttpResponseHead(HttpVersion.Http2, 204U))
+            drive2(client, server, 8192L)
+            assertTrue(closed2(events2(server), first, 0U))
+            val second = client.submitRequest(request2("POST"), false)
+            assertEquals(bytes.size, write2(client, second, bytes))
+            client.finish(second)
+            drive2(client, server, 8192L)
+            val partial = data2(events2(server), second).size
+            assertTrue(partial > 0L && partial < bytes.size)
+            server.consume(first, bytes.size)
+            drive2(client, server, 8192L)
+            assertEquals(bytes.size, partial + data2(events2(server), second).size)
+            server.consume(second, bytes.size)
+        }
+    }
+
+    @Test fun `reset discards one body and other streams continue through GOAWAY`() {
+        withHttp2 { client, server ->
+            val canceled = client.submitRequest(request2("POST"), false)
+            val other = client.submitRequest(request2())
+            drive2(client, server)
+            assertEquals(4L, write2(client, canceled, "body".toByteArray()))
+            drive2(client, server)
+            server.reset(canceled)
+            assertEquals(0L, data2(events2(server), canceled).size)
+            server.submitResponse(other, HttpResponseHead(HttpVersion.Http2, 200U))
+            server.goAway(0U, "done".toByteArray())
+            drive2(client, server)
+            val events = events2(client)
+            assertTrue(closed2(events, canceled, 8U))
+            assertEquals(1, ends2(events, other))
+            var remote = false
+            for (event in events) when (event) {
+                case GoAway(last, code, debug, local) -> { assertEquals(other, last); assertEquals(0U, code); assertFalse(local); assertEquals("done", String.fromUtf8(debug)); remote = true }
+                else -> {}
+            }
+            assertTrue(remote)
+        }
+    }
+}

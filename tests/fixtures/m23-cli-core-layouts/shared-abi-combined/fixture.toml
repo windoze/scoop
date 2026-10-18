@@ -8,7 +8,7 @@ tags = ["core-layouts", "shared_lir_callable_abis_replay_zst_indirect_results_an
 [[steps]]
 name = "prepare_core"
 files = [
-  {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}},
+  {"copy" = {"from" = "${sysroot}/src/scoop.core", "to" = "${work}/core-source"}},
   {"copy" = {"from" = "${fixture}/../../m23-cli-imported-classes/support/stage3_test.scoop", "to" = "${work}/core-source/src/stage3_test.scoop"}},
   {"copy" = {"from" = "${fixture}/../../m23-core-layout-exports/shared-abi-combined.scoop", "to" = "${work}/core-source/src/layout_probe.scoop"}},
 ]

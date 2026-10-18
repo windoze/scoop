@@ -1,0 +1,111 @@
+package scoop.http
+
+internal class Http2Fields internal constructor() : Closeable {
+    internal val handle: ULong = Http2Fields.create()
+    internal var length: Long = -1L
+
+    companion object {
+        internal fun create(): ULong {
+            @Unsafe {
+                val value = http2FieldsNew()
+                if (value == 0UL) throw http2Failure("prepare HTTP/2 fields", -901, "cannot allocate header storage")
+                return value
+            }
+        }
+    }
+
+    internal fun add(name: Array<Byte>, value: Array<Byte>, neverIndex: Boolean = false) {
+        @Unsafe {
+            val code = name.withDataPointer { namePointer, nameSize ->
+                @Unsafe {
+                    return@withDataPointer value.withDataPointer { valuePointer, valueSize ->
+                        @Unsafe { return@withDataPointer http2FieldAdd(handle, namePointer, nameSize,
+                            valuePointer, valueSize, if (neverIndex) 1 else 0) }
+                    }
+                }
+            }
+            if (code < 0) throw http2Failure("prepare HTTP/2 fields", code, "invalid HTTP/2 field name or value")
+        }
+    }
+
+    internal fun addRegular(fields: List<HttpField>, trailers: Boolean = false) {
+        for (field in fields) {
+            val name = Array<Byte>(field.name.size) { index ->
+                val byte = field.name[index].toUByte().toInt()
+                (if (byte >= 65 && byte <= 90) byte + 32 else byte).toByte()
+            }
+            if (name.size == 0L || name[0L] == 58.toByte()) throw IllegalArgumentException(Some("ordinary HTTP/2 field cannot be a pseudo-header"))
+            add(name, field.value, field.neverIndex)
+            val token = String.fromUtf8(name)
+            if (token == "connection" || token == "keep-alive" || token == "proxy-connection" || token == "upgrade" || token == "transfer-encoding")
+                throw IllegalArgumentException(Some("connection-specific HTTP/2 field"))
+            if (token == "te" && !httpAsciiEqual(field.value, "trailers".toByteArray()))
+                throw IllegalArgumentException(Some("HTTP/2 TE must be trailers"))
+            if (token == "content-length") {
+                if (trailers || length >= 0L) throw IllegalArgumentException(Some("invalid repeated or trailer Content-Length"))
+                length = httpContentLength(field.value)
+            }
+        }
+    }
+
+    public override fun close() { @Unsafe { http2FieldsFree(handle) } }
+}
+
+internal fun httpBytesEqual(left: List<Byte>, right: List<Byte>): Boolean {
+    if (left.size != right.size) return false
+    var index = 0L
+    while (index < left.size) {
+        if (left[index] != right[index]) return false
+        index += 1L
+    }
+    return true
+}
+
+internal fun http2RequestFields(head: HttpRequestHead): Http2Fields {
+    if (head.version != HttpVersion.Http2) throw IllegalArgumentException(Some("HTTP/2 request requires HTTP/2 version"))
+    val fields = Http2Fields()
+    try {
+        fields.add(":method".toByteArray(), head.method, head.indexing.method)
+        val connect = httpBytesEqual(head.method, "CONNECT".toByteArray())
+        when (head.target) {
+            case Http2(scheme, authority, path) -> {
+                if (connect || scheme.size == 0L || path.size == 0L)
+                    throw IllegalArgumentException(Some("invalid HTTP/2 request pseudo-headers"))
+                requireHttp2Scheme(scheme)
+                fields.add(":scheme".toByteArray(), scheme, head.indexing.scheme)
+                if (authority.size != 0L) fields.add(":authority".toByteArray(), authority, head.indexing.authority)
+                fields.add(":path".toByteArray(), path, head.indexing.path)
+            }
+            case Connect(authority) -> {
+                if (!connect || authority.size == 0L) throw IllegalArgumentException(Some("CONNECT requires authority"))
+                fields.add(":authority".toByteArray(), authority, head.indexing.authority)
+            }
+            else -> throw IllegalArgumentException(Some("HTTP/2 requires pseudo-header request target"))
+        }
+        fields.addRegular(head.fields)
+        return fields
+    } catch (error: Throwable) { fields.close(); throw error }
+}
+
+private fun requireHttp2Scheme(scheme: Array<Byte>) {
+    var index = 0L
+    for (byte in scheme) {
+        val c = byte.toUByte().toInt()
+        val alpha = (c >= 65 && c <= 90) || (c >= 97 && c <= 122)
+        if (!alpha && (index == 0L || !((c >= 48 && c <= 57) || c == 43 || c == 45 || c == 46)))
+            throw IllegalArgumentException(Some("invalid HTTP/2 URI scheme"))
+        index += 1L
+    }
+}
+
+internal fun http2ResponseFields(head: HttpResponseHead): Http2Fields {
+    val hasReason = when (head.reason) { case None -> false; case Some(_) -> true }
+    if (head.version != HttpVersion.Http2 || head.status < 100U || head.status > 599U || head.status == 101U || hasReason)
+        throw IllegalArgumentException(Some("invalid HTTP/2 response version status or reason"))
+    val fields = Http2Fields()
+    try {
+        fields.add(":status".toByteArray(), head.status.toString().toByteArray(), head.neverIndexStatus)
+        fields.addRegular(head.fields)
+        return fields
+    } catch (error: Throwable) { fields.close(); throw error }
+}

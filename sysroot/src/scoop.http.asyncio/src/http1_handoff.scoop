@@ -1,0 +1,31 @@
+package scoop.http.asyncio
+
+import scoop.http.HttpRole
+
+internal suspend fun handoffH1(state: H1State): HttpTransport {
+    httpJob(state.loop, true)
+    val actions = ArrayList<() -> Unit>()
+    val transport = state.lock.withLock {
+        h1Open(state)
+        if (state.readBusy || state.writeBusy || present(state.incoming) || present(state.outgoing))
+            throw IllegalStateException(Some("HTTP/1 operation or body is not complete"))
+        val switched = if (state.encoder.role == HttpRole.Server) state.encoder.isSwitched else state.decoder.isSwitched
+        if (!switched)
+            throw IllegalStateException(Some("HTTP/1 has not switched protocols"))
+        val result = HttpTransport(state.transport, state.owner, state.loop, state.input.readBytes(state.input.readableBytes))
+        state.detached = true
+        state.closing = true
+        state.transportClosing = true
+        state.transportClosed = true
+        finishH1Close(state, actions)
+        result
+    }
+    for (action in actions) action()
+    val failure = state.lock.withLock { state.closeFailure }
+    if (present(failure)) {
+        try { transport.close() }
+        catch (cleanup: Throwable) { throw ResourceUseException(failure!!, cleanup) }
+        throw failure!!
+    }
+    return transport
+}

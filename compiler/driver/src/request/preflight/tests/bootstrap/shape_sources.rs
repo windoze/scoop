@@ -8,7 +8,7 @@ use scoop_mir::ConeMirInputError as Error;
 
 #[test]
 fn shape_demands_are_validated_against_real_mir_without_a_production_root_copy() {
-    let root = crate::workspace_root().join("sysroot/lib/scoop.core");
+    let root = crate::workspace_root().join("sysroot/src/scoop.core");
     let manifest =
         scoop_toolchain::load_cone_manifest(&ManifestRootLocator::cone_directory(root)).unwrap();
     let sources =

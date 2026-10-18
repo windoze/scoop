@@ -33,11 +33,13 @@ const OPTIONS: &[&str] = &[
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DarwinFinalLinkProfile {
     startup: ValidatedCBridgeToolchainInvocation,
-    data: Discovery,
+    pub(super) data: Discovery,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub(super) struct Discovery {
+    #[serde(with = "crate::build_record::values::paths")]
+    pub(super) native_roots: Vec<PathBuf>,
     #[serde(with = "crate::build_record::values::path")]
     linker: PathBuf,
     #[serde(with = "crate::build_record::values::path")]
@@ -68,6 +70,7 @@ impl DarwinFinalLinkProfile {
     pub(crate) fn from_startup(
         startup: ValidatedCBridgeToolchainInvocation,
         cxx: Option<crate::ValidatedCxxToolchain>,
+        native_roots: Vec<PathBuf>,
     ) -> Result<Self, ToolchainError> {
         let path =
             c_bridge::command_text_from_path(Path::new("/usr/bin/xcrun"), &["--find", "ld"])?;
@@ -92,6 +95,7 @@ impl DarwinFinalLinkProfile {
         let mut profile = Self {
             startup,
             data: Discovery {
+                native_roots,
                 linker,
                 linker_locator,
                 linker_version,

@@ -3,7 +3,7 @@ use object::ObjectSection;
 use scoop_lir::{DefinitionAtomRole, OptimizationMode, TargetProfileId};
 
 fn profile(target: TargetProfileId, mode: OptimizationMode) -> ValidatedBackendProfile {
-    ValidatedBackendProfile::from_selection(
+    ValidatedBackendProfile::for_selection(
         scoop_target_data::selection(target).expect("implemented target selected by this consumer"),
     )
     .unwrap()

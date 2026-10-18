@@ -1,0 +1,94 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.IoClosedException
+import scoop.collections.toMutableList
+import scoop.platform.memory.NativeByteBuffer
+
+internal suspend fun h2BodyRequest(state: H2State, stream: H2Stream, kind: H2BodyKind,
+    buffer: NativeByteBuffer?, count: Long, prepare: () -> Unit): Long {
+    val job = httpJob(state.loop, true)
+    return suspendCoroutine<Long> { continuation ->
+        val actions = ArrayList<() -> Unit>()
+        val operation = state.lock.withLock {
+            job.ensureActive()
+            if (present(stream.failure)) throw stream.failure!!
+            if (stream.disposed) throw IoClosedException()
+            val reading = kind == H2BodyKind.Read
+            if (if (reading) present(stream.reader) else present(stream.writer))
+                throw IllegalStateException(Some("HTTP/2 stream direction is busy"))
+            if (present(buffer)) httpCount(count, if (reading) buffer!!.writableBytes else buffer!!.readableBytes)
+            if (!reading || !stream.closed || !stream.inputEnded) h2Open(state)
+            if (kind == H2BodyKind.Write && (!stream.sendStarted || stream.sendEnded))
+                throw IllegalStateException(Some("HTTP/2 output body is not open"))
+            prepare()
+            val wait = H2Wait<Long>(job, continuation)
+            val entry = H2BodyOperation(kind, wait, buffer, count)
+            if (kind != H2BodyKind.Flush && count == 0L) succeedH2Wait(wait, 0L, actions)
+            else if (reading) {
+                val ready = readH2Available(state, stream, buffer!!, count)
+                if (present(ready)) {
+                    succeedH2Wait(wait, ready!!, actions)
+                    retireH2Stream(state, stream, actions)
+                } else stream.reader = Some(entry)
+            } else if (kind == H2BodyKind.Flush && stream.closed && !state.outputBusy && !state.outputDirty &&
+                state.output.readableBytes == 0L && !state.session.hasPendingOutput(stream.id)) {
+                succeedH2Wait(wait, 0L, actions)
+            } else {
+                state.streams[stream.id] = stream
+                stream.writer = Some(entry)
+            }
+            entry
+        }
+        h2WaitListener(state, operation.wait) { error, ready -> resetH2Stream(state, stream, error, 8U, ready) }
+        for (action in actions) action()
+        if (kind == H2BodyKind.Flush || count != 0L) driveH2(state)
+    }
+}
+
+internal fun readH2Available(state: H2State, stream: H2Stream, buffer: NativeByteBuffer, count: Long): Long? {
+    if (stream.data.size == 0L) return if (stream.inputEnded) Some(0L) else None
+    val bytes = stream.data.firstOrNone()!!
+    val available = bytes.size - stream.offset
+    val copied = if (count < available) count else available
+    buffer.writeBytes(bytes, stream.offset, copied)
+    stream.offset += copied
+    if (stream.offset == bytes.size) { stream.data.removeFirst(); stream.offset = 0L }
+    if (!state.closed) state.session.consume(stream.id, copied)
+    return Some(copied)
+}
+
+internal fun finishH2Body(state: H2State, stream: H2Stream, entry: H2BodyOperation,
+    count: Long, failure: Throwable?, actions: ArrayList<() -> Unit>) {
+    if (entry.kind == H2BodyKind.Read) stream.reader = None else stream.writer = None
+    entry.buffer = None
+    if (present(failure)) failH2Wait(entry.wait, failure!!, actions) else succeedH2Wait(entry.wait, count, actions)
+    retireH2Stream(state, stream, actions)
+}
+
+internal fun finishH2Operations(state: H2State, actions: ArrayList<() -> Unit>): Boolean {
+    var changed = finishH2Accept(state, actions)
+    for (stream in state.streams.values.toMutableList()) {
+        if (present(stream.responseWaiter) && stream.responses.size != 0L) {
+            val wait = stream.responseWaiter!!
+            stream.responseWaiter = None
+            val head = stream.responses.removeFirst()
+            stream.finalResponseTaken = head.status >= 200U
+            succeedH2Wait(wait, head, actions)
+            changed = true
+        }
+        if (present(stream.reader)) {
+            val entry = stream.reader!!
+            val count = readH2Available(state, stream, entry.buffer!!, entry.count)
+            if (present(count)) { finishH2Body(state, stream, entry, count!!, None, actions); changed = true }
+        }
+        if (present(stream.writer) && stream.writer!!.kind == H2BodyKind.Write) {
+            val entry = stream.writer!!
+            try {
+                val count = state.session.writeBody(stream.id, entry.buffer!!, entry.count)
+                if (count != 0L) { finishH2Body(state, stream, entry, count, None, actions); changed = true }
+            } catch (error: Throwable) { finishH2Body(state, stream, entry, 0L, Some(error), actions); changed = true }
+        }
+        retireH2Stream(state, stream, actions)
+    }
+    return changed
+}

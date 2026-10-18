@@ -1,0 +1,88 @@
+package scoop.http
+
+import scoop.test.*
+
+@Test private class Http2MessageTests {
+    @Test fun `bytewise HPACK retains duplicates binary values and pseudo never index`() {
+        withHttp2 { client, server ->
+            val fields = [HttpField("X-Item".toByteArray(), "one".toByteArray()),
+                HttpField("x-item".toByteArray(), [255.toByte()], true)]
+            val original = request2("CUSTOM", "/raw%2f", fields)
+            val head = HttpRequestHead(original.version, original.method, original.target, fields,
+                Http2RequestIndexing(true, true, true, true))
+            val first = client.submitRequest(head)
+            drive2(client, server, 1L)
+            val received = events2(server)
+            val request = requests2(received)[0L]
+            gcCollect()
+            assertEquals("CUSTOM", String.fromUtf8(request.method))
+            assertTrue(request.indexing.method && request.indexing.scheme && request.indexing.authority && request.indexing.path)
+            val repeated = request.fields.findAll("X-ITEM".toByteArray())
+            assertEquals(2L, repeated.size)
+            assertEquals(255.toByte(), repeated[1L].value[0L])
+            assertTrue(repeated[1L].neverIndex)
+            assertEquals(1, ends2(received, first))
+            val second = client.submitRequest(request2("GET", "/second", fields))
+            drive2(client, server, 1L)
+            assertEquals(first + 2, second)
+            assertEquals(2L, requests2(events2(server))[0L].fields.size)
+            server.submitResponse(second, HttpResponseHead(HttpVersion.Http2, 200U, None, fields, true))
+            server.submitResponse(first, HttpResponseHead(HttpVersion.Http2, 204U))
+            drive2(client, server, 1L)
+            val responses = responses2(events2(client))
+            assertEquals(2L, responses.size)
+            assertTrue(responses[0L].neverIndexStatus)
+            assertTrue(when (responses[0L].reason) { case None -> true; case Some(_) -> false })
+        }
+    }
+
+    @Test fun `informational final body and trailers have distinct events`() {
+        withHttp2 { client, server ->
+            val id = client.submitRequest(request2())
+            drive2(client, server)
+            server.submitResponse(id, HttpResponseHead(HttpVersion.Http2, 100U), false)
+            server.submitResponse(id, HttpResponseHead(HttpVersion.Http2, 103U), false)
+            server.submitResponse(id, HttpResponseHead(HttpVersion.Http2, 200U), false)
+            assertEquals(4L, write2(server, id, "body".toByteArray()))
+            server.finish(id, [HttpField("x-end".toByteArray(), "yes".toByteArray(), true)])
+            drive2(client, server, 1L)
+            val events = events2(client)
+            val responses = responses2(events)
+            assertEquals(3L, responses.size)
+            assertEquals(103U, responses[1L].status)
+            assertEquals("body", String.fromUtf8(data2(events, id)))
+            assertEquals(1, ends2(events, id))
+            assertTrue(closed2(events, id, 0U))
+            var trailers = 0
+            for (event in events) when (event) {
+                case Trailers(_, fields) -> { assertEquals("yes", String.fromUtf8(fields[0L].value)); assertTrue(fields[0L].neverIndex); trailers += 1 }
+                else -> {}
+            }
+            assertEquals(1, trailers)
+            client.consume(id, 4L)
+            assertFailsWith<HttpException> { client.consume(id, 1L) }
+        }
+    }
+
+    @Test fun `HEAD metadata and CONNECT DATA use separate stream context`() {
+        withHttp2 { client, server ->
+            val head = client.submitRequest(request2("HEAD"))
+            val tunnel = client.submitRequest(HttpRequestHead(HttpVersion.Http2, "CONNECT".toByteArray(),
+                HttpRequestTarget.Connect("example.test:443".toByteArray())), false)
+            drive2(client, server)
+            assertTrue(when (requests2(events2(server))[1L].target) { case Connect(_) -> true; else -> false })
+            server.submitResponse(head, HttpResponseHead(HttpVersion.Http2, 200U, None,
+                [HttpField("content-length".toByteArray(), "99".toByteArray())]))
+            server.submitResponse(tunnel, HttpResponseHead(HttpVersion.Http2, 200U), false)
+            assertEquals(3L, write2(server, tunnel, "raw".toByteArray()))
+            server.finish(tunnel)
+            client.finish(tunnel)
+            drive2(client, server)
+            val events = events2(client)
+            assertEquals(0L, data2(events, head).size)
+            assertEquals("raw", String.fromUtf8(data2(events, tunnel)))
+            assertEquals(1, ends2(events, head))
+            client.consume(tunnel, 3L)
+        }
+    }
+}

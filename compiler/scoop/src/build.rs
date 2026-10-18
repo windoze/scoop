@@ -21,6 +21,7 @@ pub use request::*;
 
 pub fn build(request: BuildRequest) -> BuildResult<BuildOutcome> {
     let target = request.graph.target().clone();
+    let vendor_root = request.graph.sysroot().as_path().join("vendor");
     let cache = request.graph.cache_root().as_path().to_owned();
     let stem = request
         .graph
@@ -80,8 +81,13 @@ pub fn build(request: BuildRequest) -> BuildResult<BuildOutcome> {
                 .map_err(output_error)?;
             return Ok(None);
         }
-        let (runtime, index) =
-            runtime_input(&request.runtime, &target, &cache, &request.final_link)?;
+        let (runtime, index) = runtime_input(
+            &request.runtime,
+            &target,
+            &cache,
+            &request.final_link,
+            &vendor_root,
+        )?;
         let linked = executable::get(executable::Request {
             graph: &graph,
             runtime: &runtime,
@@ -120,6 +126,7 @@ fn runtime_input(
     target: &ResolvedTargetProfile,
     cache: &Path,
     final_link: &scoop_toolchain::FinalLinkOptions,
+    vendor_root: &Path,
 ) -> BuildResult<(RuntimeObjectSet, PathBuf)> {
     let failure = |error| {
         BuildFailure::tool(
@@ -135,22 +142,26 @@ fn runtime_input(
                 target.lir_target(),
                 target.c_bridge_toolchain().profile(),
             )
-            .map_err(|error| failure(error.to_string()))?;
+            .map_err(|error| failure(error.to_string()).at_host(index))?;
             Ok((objects, index.clone()))
         }
         RuntimeInput::SourceRoot(root) => {
             let unwind = if target.id() == scoop_target_data::DARWIN_AARCH64_ID {
                 final_link.unwind_prefix.clone()
             } else {
-                Some(scoop_toolchain::selected_unwind_prefix(
-                    target.lir_target(),
-                    final_link.sysroot.as_deref(),
-                    final_link.unwind_prefix.as_deref(),
-                ))
+                Some(
+                    scoop_toolchain::selected_unwind_prefix(
+                        target.lir_target(),
+                        final_link.sysroot.as_deref(),
+                        final_link.unwind_prefix.as_deref(),
+                    )
+                    .map_err(|error| failure(error.to_string()))?,
+                )
             };
             let runtime = build_runtime(RuntimeBuildRequest {
                 target,
                 runtime_root: root,
+                vendor_root,
                 cache_root: cache,
                 optimization: Default::default(),
                 unwind_prefix: unwind.as_deref(),

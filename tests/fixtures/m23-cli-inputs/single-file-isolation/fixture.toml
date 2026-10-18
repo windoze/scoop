@@ -30,7 +30,7 @@ diagnostics = []
 checks = [
   {"actual" = "${baseline.result.kind}", "equals" = "executable"},
   {"actual" = "${baseline.result.dependencies.length}", "equals" = 1},
-  {"actual" = "${baseline.result.observations.child_invocations.length}", "equals" = 2},
+  {"actual" = "${baseline.result.observations.child_invocations.length}", "equals" = 1},
 ]
 
 [[steps]]

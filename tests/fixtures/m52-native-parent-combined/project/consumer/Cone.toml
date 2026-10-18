@@ -1,0 +1,8 @@
+schema = 1
+[cone]
+group = "test.m52"
+name = "vendor-consumer"
+version = "1.0.0"
+kind = "executable"
+[dependencies]
+"test.m52:vendor-library" = {version = "1.0.0", path = "../library"}

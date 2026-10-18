@@ -1,0 +1,59 @@
+schema = 1
+name = "m52-native-parent"
+inputs = ["cone", "vendor"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m52", "native", "cache"]
+[vars]
+options = ["--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--runtime-root", "${runtime}", "--target-dir", "${work}/target", "--message-format", "json"]
+
+[[steps]]
+name = "prepare"
+files = [{copy = {from = "${fixture}/cone", to = "${work}/cone"}}, {copy = {from = "${fixture}/vendor", to = "${work}/vendor"}}]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${work}/cone", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 42
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "warm"
+argv = ["${scoop}", "build", "${work}/cone", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${warm.result.observations.child_invocations.length}", equals = 0}]
+
+[[steps]]
+name = "edit_header"
+files = [{replace = {path = "${work}/vendor/value.h", old = "VALUE 42", new = "VALUE 43"}}]
+
+[[steps]]
+name = "updated"
+argv = ["${scoop}", "build", "${work}/cone", {each = "${link_args}"}, {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${updated.result.observations.child_invocations.length}", equals = 1}]
+
+[[steps]]
+name = "run_updated"
+argv = ["${updated.result.output}"]
+exit = 43
+stdout = ""
+stderr = ""

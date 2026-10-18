@@ -1,0 +1,75 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.platform.io.UnexpectedEofException
+import scoop.platform.memory.NativeByteBuffer
+
+public class AsyncHttp1Body internal constructor(private val state: H1State, internal val body: H1Input)
+    : AsyncByteSource, AsyncCloseable {
+    public val isComplete: Boolean get() = state.lock.withLock { body.life.completed }
+    public val trailers: Array<HttpField>? get() = state.lock.withLock { body.trailers }
+
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long {
+        httpJob(state.loop, true)
+        val completed = state.lock.withLock {
+            if (body.life.disposed) throw IoClosedException()
+            httpCount(count, buffer.writableBytes)
+            body.life.completed
+        }
+        if (completed) return 0L
+        val progress = h1Operation<Long>(state, true, {
+            if (body.life.disposed) throw IoClosedException()
+            if (!body.life.completed && (!present(state.incoming) || state.incoming!! !== body))
+                throw IllegalStateException(Some("this is not the active HTTP/1 body"))
+            httpCount(count, buffer.writableBytes)
+        }, suspend {
+            if (count == 0L) return@h1Operation 0L
+            readH1Body(state, body, buffer, count)
+        })
+        if (count != 0L) closeAfterH1Input(state, body)
+        return progress
+    }
+
+    public override suspend fun close() {
+        httpJob(state.loop, false)
+        val incomplete = state.lock.withLock {
+            if (body.life.disposed) false else { body.life.disposed = true; !body.life.completed }
+        }
+        if (incomplete) closeH1(state)
+    }
+}
+
+private suspend fun readH1Body(state: H1State, body: H1Input, buffer: NativeByteBuffer, count: Long): Long {
+    while (true) {
+        if (body.life.completed) return 0L
+        when (body.bytes) {
+            case Some(bytes) -> {
+                val available = bytes.size - body.offset
+                val copied = if (count < available) count else available
+                buffer.writeBytes(bytes, body.offset, copied)
+                body.offset += copied
+                if (body.offset == bytes.size) { body.bytes = None; body.offset = 0L; advanceH1End(state, body) }
+                if (copied != 0L) return copied
+            }
+            case None -> {
+                val next = nextH1Event(state)
+                if (!present(next)) throw UnexpectedEofException()
+                when (next!!) {
+                    case Data(bytes) -> body.bytes = Some(bytes)
+                    case Trailers(fields) -> state.lock.withLock { body.trailers = Some(fields) }
+                    case End(keepAlive) -> {
+                        state.lock.withLock {
+                            body.keepAlive = keepAlive
+                            body.life.completed = true
+                            resumeH1AfterRejection(state, body)
+                            state.incoming = None
+                        }
+                        completeH1Body(state, body.life)
+                    }
+                    else -> throw IllegalStateException(Some("unexpected event in HTTP/1 body"))
+                }
+            }
+        }
+    }
+}

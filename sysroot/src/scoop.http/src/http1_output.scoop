@@ -1,0 +1,94 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+
+internal enum Http1HeadKind { Request, Response, Metadata, Forbidden, Switch }
+
+internal fun http1VersionText(version: HttpVersion): String = when (version) {
+    case Http10 -> "HTTP/1.0"
+    case Http11 -> "HTTP/1.1"
+    case Http2 -> throw IllegalArgumentException(Some("HTTP/2 cannot use a textual HTTP/1 encoder"))
+}
+
+internal fun requireHttp1Method(method: Array<Byte>) {
+    @Unsafe {
+        val known = method.withDataPointer { pointer, length ->
+            @Unsafe { return@withDataPointer http1KnownMethod(pointer, length) }
+        }
+        if (known == 0) throw HttpException("encode HTTP/1", HttpProtocol.Http1, HttpFailureScope.Operation,
+            0, "llhttp 9.4.3", 6, "llhttp 9.4.3 does not support this HTTP/1 method")
+    }
+}
+
+internal fun appendHttp1Field(output: ByteArrayBuilder, field: HttpField) {
+    if (!httpToken(field.name)) throw IllegalArgumentException(Some("invalid HTTP output field name"))
+    requireHttpValue(field.value)
+    output.append(field.name).append(": ".toByteArray()).append(field.value).append("\r\n".toByteArray())
+}
+
+internal fun http1ResponseKind(head: HttpResponseHead, method: Array<Byte>): Http1HeadKind {
+    if (head.status < 100U || head.status > 999U) throw IllegalArgumentException(Some("HTTP status requires three digits"))
+    if (head.status == 101U || (httpAsciiEqual(method, "CONNECT".toByteArray()) && head.status >= 200U && head.status < 300U))
+        return Http1HeadKind.Switch
+    if (head.status < 200U || head.status == 204U) return Http1HeadKind.Forbidden
+    if (head.status == 304U || httpAsciiEqual(method, "HEAD".toByteArray())) return Http1HeadKind.Metadata
+    return Http1HeadKind.Response
+}
+
+internal fun appendHttp1Headers(
+    output: ByteArrayBuilder, fields: Array<HttpField>, version: HttpVersion,
+    framing: Http1BodyFraming, kind: Http1HeadKind
+): Boolean {
+    val lengths = fields.findAll("content-length".toByteArray())
+    val encodings = fields.findAll("transfer-encoding".toByteArray())
+    if (lengths.size > 1L || encodings.size > 1L || (lengths.size != 0L && encodings.size != 0L))
+        throw IllegalArgumentException(Some("conflicting or repeated HTTP body framing fields"))
+    val length: Long? = if (lengths.size == 0L) None else Some(httpContentLength(lengths[0L].value))
+    val bodyless = kind == Http1HeadKind.Metadata || kind == Http1HeadKind.Forbidden || kind == Http1HeadKind.Switch
+    if (bodyless && framing != Http1BodyFraming.Empty)
+        throw IllegalArgumentException(Some("this HTTP response cannot carry a body"))
+    if ((kind == Http1HeadKind.Forbidden || kind == Http1HeadKind.Switch) && lengths.size != 0L)
+        throw IllegalArgumentException(Some("this HTTP response cannot carry Content-Length"))
+
+    for (field in fields) appendHttp1Field(output, field)
+    when (framing) {
+        case Empty -> {
+            if (encodings.size != 0L) throw IllegalArgumentException(Some("empty HTTP body cannot use Transfer-Encoding"))
+            if (kind != Http1HeadKind.Metadata && length != None && length!! != 0L)
+                throw IllegalArgumentException(Some("Content-Length disagrees with the empty HTTP body"))
+            if (kind == Http1HeadKind.Response && length == None) output.append("Content-Length: 0\r\n".toByteArray())
+        }
+        case Length(count) -> {
+            if (count < 0L || encodings.size != 0L || (length != None && length!! != count))
+                throw IllegalArgumentException(Some("Content-Length disagrees with HTTP body length"))
+            if (length == None) output.append(("Content-Length: " + count.toString() + "\r\n").toByteArray())
+        }
+        case Chunked -> {
+            if (version != HttpVersion.Http11 || length != None)
+                throw IllegalArgumentException(Some("chunked output requires HTTP/1.1 without Content-Length"))
+            if (encodings.size == 0L) output.append("Transfer-Encoding: chunked\r\n".toByteArray())
+            else requireFinalChunked(encodings[0L].value)
+        }
+        case Eof -> {
+            if (kind != Http1HeadKind.Response || length != None || httpHasToken(fields, "transfer-encoding", "chunked"))
+                throw IllegalArgumentException(Some("EOF framing requires a response without a length or chunked encoding"))
+            if (!httpHasToken(fields, "connection", "close")) output.append("Connection: close\r\n".toByteArray())
+        }
+    }
+    output.append("\r\n".toByteArray())
+    return kind == Http1HeadKind.Switch || framing == Http1BodyFraming.Eof || httpHasToken(fields, "connection", "close") ||
+        (version == HttpVersion.Http10 && !httpHasToken(fields, "connection", "keep-alive"))
+}
+
+private fun requireFinalChunked(value: Array<Byte>) {
+    val parts = httpCommaParts(value)
+    val chunked = "chunked".toByteArray()
+    if (parts.size == 0L || !httpAsciiEqual(parts[parts.size - 1L], chunked))
+        throw IllegalArgumentException(Some("chunked must be the final HTTP transfer coding"))
+    var index = 0L
+    while (index < parts.size - 1L) {
+        if (parts[index].size == 0L || httpAsciiEqual(parts[index], chunked))
+            throw IllegalArgumentException(Some("invalid HTTP transfer coding order"))
+        index += 1L
+    }
+}

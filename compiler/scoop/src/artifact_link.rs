@@ -19,7 +19,7 @@ pub struct LinkRequest {
     pub target: String,
     pub c_toolchain: scoop_toolchain::CToolchainOptions,
     pub final_link: scoop_toolchain::FinalLinkOptions,
-    pub runtime_index: PathBuf,
+    pub runtime_index: Option<PathBuf>,
     pub library_paths: Vec<PathBuf>,
     pub output: PathBuf,
 }
@@ -63,8 +63,11 @@ pub fn link_artifacts(request: LinkRequest) -> BuildResult<LinkOutcome> {
         Some(&request.cache_dir),
     )
     .map_err(failure)?;
+    let runtime_index = request.runtime_index.clone().unwrap_or_else(|| {
+        scoop_toolchain::default_runtime_index(&request.sysroot, target.lir_target())
+    });
     let runtime = RuntimeObjectSet::read_index(
-        &request.runtime_index,
+        &runtime_index,
         profile.target(),
         profile.startup_toolchain().profile(),
     )
@@ -88,7 +91,7 @@ pub fn link_artifacts(request: LinkRequest) -> BuildResult<LinkOutcome> {
         output: output.path().to_owned(),
         root,
         dependencies,
-        runtime_index: request.runtime_index,
+        runtime_index,
         link_plan_fingerprint: linked.fingerprint,
         link_plan: linked.plan_dump,
     })

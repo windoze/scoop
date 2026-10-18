@@ -7,7 +7,7 @@ tags = ["m45", "platform", "native"]
 
 [[steps]]
 name = "build"
-argv = ["${cc}", {each = "${cc_args}"}, "-std=c11", "-Wall", "-Wextra", "-Werror", "${fixture}/probe.c", "${repo}/sysroot/lib/scoop.platform/native/errors.c", "-o", "${work}/probe"]
+argv = ["${cc}", {each = "${cc_args}"}, "-std=c11", "-Wall", "-Wextra", "-Werror", "${fixture}/probe.c", "${repo}/sysroot/src/scoop.platform/native/errors.c", "-o", "${work}/probe"]
 exit = 0
 stdout = ""
 stderr = ""

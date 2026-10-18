@@ -11,10 +11,13 @@ options = ["--sysroot", "${work}/private-sysroot", "--scoopc", "${scoopc}", "--c
 [[steps]]
 name = "prepare"
 files = [
+  {symlink = {from = "${sysroot}/vendor", to = "${work}/private-sysroot/vendor"}},
+  {symlink = {from = "${sysroot}/include", to = "${work}/private-sysroot/include"}},
+  {symlink = {from = "${sysroot}/lib/${target}/runtime", to = "${work}/private-sysroot/lib/${target}/runtime"}},
   {"copy" = {"from" = "${fixture}/root", "to" = "${work}/sources/root"}},
   {"copy" = {"from" = "${fixture}/runner", "to" = "${work}/sources/runner"}},
-  {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/private-sysroot/lib/scoop.core"}},
-  {"copy" = {"from" = "${fixture}/../../core-library/extension.scoop", "to" = "${work}/private-sysroot/lib/scoop.core/src/extension.scoop"}},
+  {"copy" = {"from" = "${sysroot}/src/scoop.core", "to" = "${work}/private-sysroot/src/scoop.core"}},
+  {"copy" = {"from" = "${fixture}/../../core-library/extension.scoop", "to" = "${work}/private-sysroot/src/scoop.core/src/extension.scoop"}},
   {"copy" = {"from" = "${fixture}/../../core-library/library-consumer.scoop", "to" = "${work}/sources/root/src/main.scoop"}},
 ]
 
@@ -91,7 +94,7 @@ env = {"SCOOP_GC_STRESS_MOVE" = "1"}
 [[steps]]
 name = "edit_core"
 files = [
-  {"replace" = {"path" = "${work}/private-sysroot/lib/scoop.core/src/extension.scoop", "old" = "+ 1", "new" = "+ 2"}},
+  {"replace" = {"path" = "${work}/private-sysroot/src/scoop.core/src/extension.scoop", "old" = "+ 1", "new" = "+ 2"}},
 ]
 
 [[steps]]
@@ -171,7 +174,7 @@ env = {"SCOOP_GC_STRESS_MOVE" = "1"}
 [[steps]]
 name = "restore_core"
 files = [
-  {"replace" = {"path" = "${work}/private-sysroot/lib/scoop.core/src/extension.scoop", "old" = "+ 2", "new" = "+ 1"}},
+  {"replace" = {"path" = "${work}/private-sysroot/src/scoop.core/src/extension.scoop", "old" = "+ 2", "new" = "+ 1"}},
 ]
 
 [[steps]]

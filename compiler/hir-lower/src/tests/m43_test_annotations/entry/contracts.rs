@@ -49,13 +49,13 @@ fn an_incompatible_execution_function_is_diagnosed_instead_of_skipping_the_case(
             (
                 "src/execution/selection.scoop",
                 include_str!(
-                    "../../../../../../sysroot/lib/scoop.test/src/execution/selection.scoop"
+                    "../../../../../../sysroot/src/scoop.test/src/execution/selection.scoop"
                 ),
                 SourceRole::Production,
             ),
             (
                 "src/execution/data.scoop",
-                include_str!("../../../../../../sysroot/lib/scoop.test/src/execution/data.scoop"),
+                include_str!("../../../../../../sysroot/src/scoop.test/src/execution/data.scoop"),
                 SourceRole::Production,
             ),
             (

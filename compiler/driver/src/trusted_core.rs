@@ -77,12 +77,10 @@ impl std::error::Error for TrustedCoreSlotError {
 
 pub fn resolve_trusted_core_slot(
     target: ValidatedLirTargetSelection,
-) -> Result<TrustedCoreSlotLayoutV1, TrustedCoreSlotError> {
-    resolve_trusted_core_slot_at(&configured_sysroot_root(), target)
-}
-
-pub(crate) fn configured_sysroot_root() -> PathBuf {
-    scoop_toolchain::configured_sysroot_root(None)
+) -> Result<TrustedCoreSlotLayoutV1, scoop_toolchain::ToolchainError> {
+    let sysroot = scoop_toolchain::configured_sysroot_root(None)?;
+    resolve_trusted_core_slot_at(&sysroot, target)
+        .map_err(|error| scoop_toolchain::ToolchainError(error.to_string()))
 }
 
 pub(crate) fn resolve_trusted_core_slot_at(

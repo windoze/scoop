@@ -16,7 +16,7 @@ fn source_atomic_instructions_preserve_orders_widths_and_pointer_values() {
     ] {
         for mode in [OptimizationMode::Debug, OptimizationMode::Release] {
             let module = fixture::module(target);
-            let profile = ValidatedBackendProfile::from_selection(
+            let profile = ValidatedBackendProfile::for_selection(
                 scoop_target_data::selection(target)
                     .expect("implemented target selected by this consumer"),
             )

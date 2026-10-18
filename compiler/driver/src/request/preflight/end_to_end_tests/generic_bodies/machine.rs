@@ -189,8 +189,11 @@ fn actual_generic_library_emits_shared_odr_objects() {
             &lir,
             production.clone(),
             sysroot.path(),
-            scoop_codegen::ValidatedBackendProfile::from_selection(target.lir_target_selection())
-                .unwrap(),
+            scoop_codegen::ValidatedBackendProfile::from_selection(
+                target.lir_target_selection(),
+                target.c_bridge_toolchain().profile().contract(),
+            )
+            .unwrap(),
         )
         .unwrap();
         let mut actual_bodies = objects
@@ -247,6 +250,7 @@ fn actual_generic_library_emits_shared_odr_objects() {
                     sysroot.path(),
                     scoop_codegen::ValidatedBackendProfile::from_selection(
                         target.lir_target_selection(),
+                        target.c_bridge_toolchain().profile().contract(),
                     )
                     .unwrap(),
                 )

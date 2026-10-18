@@ -5,4 +5,4 @@ name = "scoop.platform"
 version = "0.1.0"
 kind = "library"
 [dependencies]
-"scoop:scoop.helper" = "0.1.0"
+"scoop:scoop.helper" = { version = "0.1.0", path = "../scoop.helper" }

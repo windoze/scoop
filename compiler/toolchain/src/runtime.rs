@@ -30,7 +30,7 @@ impl ValidatedRuntimeBuildProfile {
                 arch: sources::AARCH64,
                 image_flags: &[],
                 arch_flags: &[],
-                includes: &["include", "src", "third_party/ryu"],
+                includes: &["include", "src"],
             },
             scoop_target_data::LINUX_X86_64_GNU_ID | scoop_target_data::LINUX_X86_64_MUSL_ID => {
                 &RuntimeComponents {
@@ -40,7 +40,7 @@ impl ValidatedRuntimeBuildProfile {
                     arch: sources::X86_64,
                     image_flags: &["-fvisibility=hidden"],
                     arch_flags: &["-mno-red-zone"],
-                    includes: &["include", "src", "third_party/ryu"],
+                    includes: &["include", "src"],
                 }
             }
             _ => {

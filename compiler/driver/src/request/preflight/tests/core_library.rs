@@ -16,7 +16,7 @@ fn edited_core_library_builds_from_a_manifest_and_is_consumed_from_any_output_pa
     let workspace = tempfile::tempdir().unwrap();
     bootstrap::copy_trusted_core_sources(workspace.path());
     let source = workspace.path().join("edited-library");
-    std::fs::rename(workspace.path().join("lib/scoop.core"), &source).unwrap();
+    std::fs::rename(workspace.path().join("src/scoop.core"), &source).unwrap();
     std::fs::write(source.join("src/user_extension.scoop"), EXTENSION).unwrap();
     std::fs::write(
         source.join("src/user_metadata.scoop"),

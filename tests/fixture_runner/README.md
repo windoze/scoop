@@ -6,16 +6,21 @@
 缺少工具、期望文件、未知字段、嵌套类型错误、重复载体与前向步骤引用均报配置／环境错误。
 Python 3.11+ 只用标准库；格式化／lint 使用 `tests/requirements-dev.txt` 固定的 Ruff。
 默认最多并行运行四个用例，可用 `--jobs N` 调整，`--jobs 1` 顺序运行。
+正式 CLI 验证使用按 [准备脚本说明](../../scripts/README.md) 事先准备的开发 sysroot；
+设置 `SCOOP_SYSROOT="$PWD/sysroot"` 后再运行。runner 保留源码与工具，并复制正常资源布局，
+不自动调用 sysroot 准备、LLVM 构建或打包脚本。
 Linux amd64 默认选择 glibc；用 `--target x86_64-unknown-linux-musl` 运行 musl 用例，
 fixture 的 Scoop 命令通过 `${target}` 传递该选择。`${cc}` 默认分别为 GCC / musl-gcc，
 可用 `--cc` 覆盖；Linux 不提供 Darwin 的 `${sdk}` / `${deployment}`。
 共有 fixture 使用 `{each = "${compile_args}"}` 给 `scoopc build` 传目标参数，
 使用 `{each = "${link_args}"}` 给 `scoop build/run/link` 或 `scoop-link` 传目标及最终链接参数。
-Linux 的链接参数包含仓库 `sysroot/native/<target>/unwind`，供普通程序链接使用。
+Linux 的链接参数包含仓库 `sysroot/lib/<target>/unwind`，供普通程序链接使用。
 显式 `--cc` 也传给 Linux Scoop 工具；用例保留其实际源码、sysroot 和工具。
 native companion 用 `{each = "${cc_args}"}` 传平台编译参数：Darwin 为实际 target、
 SDK 和 deployment，Linux 为 PIC/pthread；源码自己的标准、优化和告警参数保留。
-`${target_profile}` 是 core artifact 的目录名；`${symbol_prefix}` 是 C/编译器逻辑名字
+Darwin deployment 采用 `MACOSX_DEPLOYMENT_TARGET` 或 `scripts/release.toml` 的明确基线，
+与开发工具保持一致，不读取宿主系统版本。
+`${target_profile}` 是内部 target profile 名称，core artifact 目录使用 canonical `${target}`；`${symbol_prefix}` 是 C/编译器逻辑名字
 在对象符号表中的平台前缀；`${errno_eloop}` 是宿主文件系统的符号链接循环错误码。
 结构／ABI／原生链接专测确有平台差异时，用 `${target}` 选择独立快照；
 平台无关的专测共用期望，比较时不抹去 ABI 或符号差异。

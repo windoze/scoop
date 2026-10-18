@@ -1,0 +1,11 @@
+@Extern(name = "deployment_value")
+fun nativeValue(): Int
+
+fun <T> identity(value: T): T = value
+
+fun main(): Int {
+    val values = [identity("deployment")]
+    gcCollect()
+    if (values[0] != "deployment") return 1
+    @Unsafe { return nativeValue() }
+}

@@ -6,7 +6,7 @@
 
 IO 端点、文件／进程观察权和 native buffer 使用 core Closeable.close，状态为 isClosed；继承的 dispose 默认转交 close，use 沿用语言规范 11.18。第 10 节的一般同步资源继续使用 Disposable。
 
-`scoop:scoop.platform:0.1.0` 是普通 library Cone，位于 `sysroot/lib/scoop.platform/`，生产依赖为 core 与 std，测试依赖为 scoop.test。应用显式声明依赖与 import；不默认导入，不改变 single-file 的 core-only 规则。公共逻辑用 Scoop 实现，C11 shim 只承担实际 OS、native allocation 与 ABI 操作，通过既有 native sources 发布，不新增 compiler-known role 或平台后端注册框架。
+`scoop:scoop.platform:0.1.0` 是普通 library Cone，位于 `sysroot/src/scoop.platform/`，生产依赖为 core 与 std，测试依赖为 scoop.test。应用显式声明依赖与 import；不默认导入，不改变 single-file 的 core-only 规则。公共逻辑用 Scoop 实现，C11 shim 只承担实际 OS、native allocation 与 ABI 操作，通过既有 native sources 发布，不新增 compiler-known role 或平台后端注册框架。
 
 本期目标为 `aarch64-apple-darwin`、`x86_64-unknown-linux-gnu`、`x86_64-unknown-linux-musl`。路径、参数与环境使用 POSIX 原始字节。阻塞操作走 NativeSafe FFI，只有符合语言规范 14 章的短操作才标记 GCLeaf。native 返回的错误在调用边界保存，不能晚些时候重新读取 errno。
 

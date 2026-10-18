@@ -11,7 +11,7 @@ variants = [
 
 [[steps]]
 name = "list"
-argv = ["${scoop}", "test", {each = "${link_args}"}, "${sysroot}/lib/scoop.std", "--list", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${sysroot}/src/scoop.std", "--list", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -28,7 +28,7 @@ checks = [
 
 [[steps]]
 name = "container"
-argv = ["${scoop}", "test", {each = "${link_args}"}, "${sysroot}/lib/scoop.std", "--filter", "ListTests::", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${sysroot}/src/scoop.std", "--filter", "ListTests::", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
 env = {SCOOP_GC_STRESS_MOVE = "1"}
 exit = 0
 stdout = ""
@@ -48,7 +48,7 @@ checks = [
 
 [[steps]]
 name = "method-list"
-argv = ["${scoop}", "test", {each = "${link_args}"}, "${sysroot}/lib/scoop.std", "--list", "--filter", "SequenceTests::taking windows", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${sysroot}/src/scoop.std", "--list", "--filter", "SequenceTests::taking windows", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -65,7 +65,7 @@ checks = [
 
 [[steps]]
 name = "method-run"
-argv = ["${scoop}", "test", {each = "${link_args}"}, "${sysroot}/lib/scoop.std", "--filter", "SequenceTests::taking windows", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${sysroot}/src/scoop.std", "--filter", "SequenceTests::taking windows", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
 env = {SCOOP_GC_STRESS_MOVE = "1"}
 exit = 0
 stdout = ""

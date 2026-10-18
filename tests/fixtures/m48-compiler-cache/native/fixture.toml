@@ -21,7 +21,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {actual = "${cold.result.observations.child_invocations.length}", equals = 2},
+  {actual = "${cold.result.observations.child_invocations.length}", equals = 1},
 ]
 
 [[steps]]
@@ -63,7 +63,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {actual = "${tool_changed.result.observations.child_invocations.length}", equals = 2},
+  {actual = "${tool_changed.result.observations.child_invocations.length}", equals = 1},
 ]
 
 [[steps]]

@@ -7,6 +7,7 @@ import os
 import platform
 import subprocess
 import tarfile
+import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -47,20 +48,19 @@ def main():
         parser.error(f"prepare {args.target} on a {host} build host")
     if args.jobs < 1:
         parser.error("--jobs must be positive")
-    archive = ROOT / f"sysroot/lib/scoop.crypto/vendor/openssl/openssl-{VERSION}.tar.gz"
-    build = (args.build_dir or Path.home() / ".cache/scoop-openssl" / args.target).resolve()
-    prefix = (args.prefix or ROOT / "sysroot/native" / args.target / "openssl").resolve()
+    archive = ROOT / f"sysroot/vendor/openssl/openssl-{VERSION}.tar.gz"
+    build = (args.build_dir or ROOT / "tmp/openssl" / args.target).resolve()
+    prefix = (args.prefix or ROOT / "sysroot/lib" / args.target / "openssl").resolve()
     cc = args.cc or default_cc
-    flags = ["-fPIC"]
-    if host == "Darwin":
-        flags.append("-mmacosx-version-min=13.0")
     inputs = {
         "archive": metadata(archive),
         "script": metadata(Path(__file__).resolve()),
         "config": config,
         "cc": cc,
         "prefix": str(prefix),
-        "options": OPTIONS + flags,
+        "options": OPTIONS,
+        "release": metadata(ROOT / "scripts/release.toml"),
+        "deployment": os.environ.get("MACOSX_DEPLOYMENT_TARGET") if host == "Darwin" else None,
     }
     record = build / "inputs.json"
     outputs = [
@@ -75,6 +75,13 @@ def main():
         print(f"Reusing {args.target} OpenSSL {VERSION}: {prefix}")
         return
 
+    release = tomllib.loads((ROOT / "scripts/release.toml").read_text())
+    flags = ["-fPIC"]
+    if host == "Darwin":
+        baseline = release["targets"][args.target]["minimum_os"]
+        flags.append("-mmacosx-version-min=" + os.environ.get("MACOSX_DEPLOYMENT_TARGET", baseline))
+    else:
+        flags.append("-march=" + release["targets"][args.target]["cpu"])
     scratch = build / "scratch"
     scratch.mkdir(parents=True, exist_ok=True)
     environment = dict(os.environ, TMPDIR=str(scratch), CC=cc)
@@ -103,7 +110,7 @@ def main():
     subprocess.run(["make", "install_dev"], cwd=objects, env=environment, check=True)
     record.write_text(json.dumps(inputs, indent=2) + "\n")
     print(f"Installed {args.target} OpenSSL {VERSION}: {prefix}")
-    print(f"Scoop link option: --library-path {prefix / 'lib'}")
+    print(f"Default Scoop library directory: {prefix / 'lib'}")
 
 
 if __name__ == "__main__":

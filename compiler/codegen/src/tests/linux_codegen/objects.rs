@@ -38,7 +38,7 @@ fn linux_elf_members_materialize_boundaries_tls_and_odr_groups() {
                     },
                 });
             }
-            let profile = ValidatedBackendProfile::from_selection(
+            let profile = ValidatedBackendProfile::for_selection(
                 scoop_target_data::selection(target)
                     .expect("implemented target selected by this consumer"),
             )

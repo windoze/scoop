@@ -1,0 +1,101 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.test.*
+
+@Test
+private class Http1OptionTests {
+    @Test
+    fun `legacy field values explicitly permit old folding`() {
+        checkHttp1Option("GET / HTTP/1.1\r\nX-Old: one\r\n two\r\n\r\n", Http1ReceiveOptions(legacyHeaderValues = true))
+        Http1Decoder.server().use { decoder ->
+            val events = collectHttp1(decoder, "GET / HTTP/1.1\r\nX-Text: 中文\r\n\r\n".toByteArray())
+            assertEquals("中文", String.fromUtf8(http1Requests(events)[0L].fields[0L].value))
+        }
+    }
+
+    @Test
+    fun `chunked length relaxation keeps its TE and CL semantics`() {
+        checkHttp1Option("POST / HTTP/1.1\r\nTransfer-Encoding: chunked\r\nContent-Length: 4\r\n\r\n4\r\ndata\r\n0\r\n\r\n",
+            Http1ReceiveOptions(lenientChunkedLength = true), "data")
+        checkHttp1Option("POST / HTTP/1.1\r\nTransfer-Encoding: gzip\r\n\r\ndata",
+            Http1ReceiveOptions(lenientChunkedLength = true), "data")
+    }
+
+    @Test
+    fun `nonfinal chunked relaxation uses EOF body framing`() {
+        checkHttp1Option("POST / HTTP/1.1\r\nTransfer-Encoding: chunked, gzip\r\n\r\n4\r\ndata\r\n0\r\n\r\n",
+            Http1ReceiveOptions(lenientTransferEncoding = true), "4\r\ndata\r\n0\r\n\r\n")
+    }
+
+    @Test
+    fun `strict values reject NUL and legacy values do not allow colon whitespace`() {
+        val raw = ByteArrayBuilder().append("GET / HTTP/1.1\r\nX: ".toByteArray()).append(0.toByte())
+            .append("\r\n\r\n".toByteArray()).toByteArray()
+        Http1Decoder.server().use { decoder -> assertFailsWith<HttpException> { collectHttp1(decoder, raw) } }
+        Http1Decoder.server(Http1ReceiveOptions(legacyHeaderValues = true)).use { decoder ->
+            assertFailsWith<HttpException> { collectHttp1(decoder, "GET / HTTP/1.1\r\nX : value\r\n\r\n".toByteArray()) }
+        }
+    }
+
+    @Test
+    fun `optional LF after CR applies at the request line`() {
+        checkHttp1Option("GET / HTTP/1.1\rHost: example.test\r\n\r\n", Http1ReceiveOptions(optionalLfAfterCr = true))
+    }
+
+    @Test
+    fun `optional CR before LF applies to field lines`() {
+        checkHttp1Option("GET / HTTP/1.1\r\nHost: example.test\n\n", Http1ReceiveOptions(optionalCrBeforeLf = true))
+    }
+
+    @Test
+    fun `optional chunk CRLF does not enable other framing relaxation`() {
+        checkHttp1Option("POST / HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n4\r\ndata0\r\n\r\n",
+            Http1ReceiveOptions(optionalCrLfAfterChunk = true), "data")
+    }
+
+    @Test
+    fun `spaces after chunk size are a separate option`() {
+        checkHttp1Option("POST / HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n4 \r\ndata\r\n0\r\n\r\n",
+            Http1ReceiveOptions(spacesAfterChunkSize = true), "data")
+    }
+
+    @Test
+    fun `relaxed version parsing does not execute unsupported protocols`() {
+        Http1Decoder.server(Http1ReceiveOptions(lenientTextVersion = true)).use { decoder ->
+            val error = assertFailsWith<HttpException> { collectHttp1(decoder, "GET / HTTP/9.9\r\n\r\n".toByteArray()) }
+            assertEquals(-4, error.code)
+        }
+        Http1Decoder.server().use { decoder ->
+            val error = assertFailsWith<HttpException> { collectHttp1(decoder, "GET / HTTP/9.9\r\n\r\n".toByteArray()) }
+            assertNotEquals(-4, error.code)
+        }
+        Http1Decoder.server().use { decoder ->
+            assertFailsWith<HttpException> { collectHttp1(decoder, "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n".toByteArray()) }
+        }
+    }
+
+    @Test
+    fun `after close reject discard and parse next are distinct`() {
+        val input = "GET /one HTTP/1.1\r\nConnection: close\r\n\r\nGET /two HTTP/1.1\r\n\r\n".toByteArray()
+        Http1Decoder.server().use { decoder -> assertFailsWith<HttpException> { collectHttp1(decoder, input) } }
+        Http1Decoder.server(Http1ReceiveOptions(afterClose = Http1AfterClose.Discard)).use { decoder ->
+            assertEquals(1L, http1Requests(collectHttp1(decoder, input)).size)
+        }
+        Http1Decoder.server(Http1ReceiveOptions(afterClose = Http1AfterClose.ParseNextMessage)).use { decoder ->
+            assertEquals(2L, http1Requests(collectHttp1(decoder, input)).size)
+        }
+    }
+
+    @Test
+    fun `local field and start line limits apply across fragments`() {
+        val limits = [Http1Limits(headers = HttpHeaderLimits(maxFieldBytes = 4L)),
+            Http1Limits(headers = HttpHeaderLimits(maxBytes = 8L)),
+            Http1Limits(headers = HttpHeaderLimits(maxFields = 1L)), Http1Limits(maxStartLineBytes = 4L)]
+        for (limit in limits) Http1Decoder.server(limits = limit).use { decoder ->
+            val error = assertFailsWith<HttpException> { collectHttp1(decoder, "GET / HTTP/1.1\r\nX-A: aaaa\r\nX-B: bbbb\r\n\r\n".toByteArray()) }
+            assertEquals(-3, error.code)
+        }
+        assertFailsWith<IllegalArgumentException> { Http1Decoder.server(limits = Http1Limits(maxStartLineBytes = 0L)) }
+    }
+}

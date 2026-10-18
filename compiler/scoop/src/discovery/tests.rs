@@ -15,13 +15,29 @@ fn write_manifest(root: &std::path::Path, name: &str, dependencies: &str) {
 }
 
 fn write_core(sysroot: &std::path::Path) {
-    let root = sysroot.join("lib").join("scoop.core");
+    let root = sysroot.join("src").join("scoop.core");
     std::fs::create_dir_all(&root).unwrap();
     std::fs::write(
             root.join("Cone.toml"),
             "schema = 1\n[cone]\ngroup = \"scoop\"\nname = \"scoop.core\"\nversion = \"0.1.0\"\nkind = \"library\"\n",
         )
         .unwrap();
+    let selection = crate::test_artifacts::host_target();
+    let directory = scoop_toolchain::target_library_root(sysroot, selection.target());
+    std::fs::create_dir_all(&directory).unwrap();
+    let artifact = crate::test_artifacts::manifest_archive(
+        selection,
+        scoop_slib::ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
+        ConeRecord::new(
+            ConeCoordinate::reserved_core(),
+            ConeKind::Library,
+            ConeSourceForm::Manifest,
+        )
+        .unwrap(),
+        "core",
+        Vec::new(),
+    );
+    std::fs::write(directory.join("scoop.core.slib"), artifact.as_bytes()).unwrap();
 }
 
 fn request(
@@ -275,7 +291,20 @@ fn default_core_uses_the_common_dependency_coordinate_check() {
     let root = temp.path().join("root");
     let sysroot = temp.path().join("sysroot");
     write_manifest(&root, "root", "");
-    write_manifest(&sysroot.join("lib/scoop.core"), "different-library", "");
+    write_core(&sysroot);
+    let path = scoop_toolchain::target_library_root(
+        &sysroot,
+        crate::test_artifacts::host_target().target(),
+    )
+    .join("scoop.core.slib");
+    std::fs::write(
+        path,
+        manifest_artifact(
+            ConeCoordinate::new("test", "different-library", "1.0.0").unwrap(),
+            "different",
+        ),
+    )
+    .unwrap();
     let error = request(&root, &sysroot, vec![])
         .load_root()
         .unwrap()

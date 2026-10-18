@@ -1,0 +1,25 @@
+schema = 1
+name = "m52-deployment-invalid"
+inputs = ["../m52-deployment/cone"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["m52", "deployment", "negative"]
+
+[[variants]]
+name = "malformed"
+vars = {version = "invalid", reason = "expected major.minor[.patch]"}
+
+[[variants]]
+name = "non_numeric"
+vars = {version = "27.x", reason = "non-numeric component"}
+
+[[steps]]
+name = "reject"
+argv = ["${scoop}", "build", "${fixture}/../m52-deployment/cone", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--message-format", "json", "-o", "${work}/program"]
+env = {MACOSX_DEPLOYMENT_TARGET = "${version}"}
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = [{code = "SCOOP_CHILD_TOOL_MISMATCH", message = 'invalid MACOSX_DEPLOYMENT_TARGET "${version}": ${reason}', notes = [], origin = {kind = "none"}, phase = "Toolchain", severity = "error"}]
+checks = [{file = "${work}/program", exists = false}]

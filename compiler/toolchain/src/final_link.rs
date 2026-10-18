@@ -28,6 +28,19 @@ pub struct FinalLinkOptions {
     pub mode: Option<LinkMode>,
 }
 
+impl FinalLinkOptions {
+    fn native_roots(&self, target: LirTargetProfile) -> Result<Vec<PathBuf>, ToolchainError> {
+        let sysroot = crate::configured_sysroot_root(self.sysroot.clone())?;
+        let root =
+            crate::target_library_root(&std::path::absolute(sysroot).map_err(error)?, target);
+        Ok(vec![
+            root.clone(),
+            root.join("openssl/lib"),
+            root.join("nghttp2/lib"),
+        ])
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ValidatedFinalLinkProfile {
     Darwin(DarwinFinalLinkProfile),
@@ -77,6 +90,7 @@ impl ValidatedFinalLinkProfile {
         options: &FinalLinkOptions,
         cxx: Option<crate::ValidatedCxxToolchain>,
     ) -> Result<Self, ToolchainError> {
+        let native_roots = options.native_roots(startup.target())?;
         match startup.profile().contract().target().id() {
             scoop_target_data::DARWIN_AARCH64_ID => {
                 if options.mode == Some(LinkMode::Static) || options.unwind_prefix.is_some() {
@@ -84,10 +98,10 @@ impl ValidatedFinalLinkProfile {
                         "Darwin uses dynamic libSystem unwinding; static mode and an unwind prefix are not applicable",
                     ));
                 }
-                DarwinFinalLinkProfile::from_startup(startup, cxx).map(Self::Darwin)
+                DarwinFinalLinkProfile::from_startup(startup, cxx, native_roots).map(Self::Darwin)
             }
             scoop_target_data::LINUX_X86_64_GNU_ID | scoop_target_data::LINUX_X86_64_MUSL_ID => {
-                LinuxFinalLinkProfile::resolve(startup, options, cxx).map(Self::Linux)
+                LinuxFinalLinkProfile::resolve(startup, options, cxx, native_roots).map(Self::Linux)
             }
             _ => Err(error("unsupported target for final linking")),
         }
@@ -95,6 +109,13 @@ impl ValidatedFinalLinkProfile {
 
     pub fn id(&self) -> TargetProfileId {
         self.startup_toolchain().profile().contract().target().id()
+    }
+
+    pub fn default_library_roots(&self) -> &[PathBuf] {
+        match self {
+            Self::Darwin(profile) => &profile.data.native_roots,
+            Self::Linux(profile) => &profile.data.native_roots,
+        }
     }
 
     pub fn cxx(&self) -> bool {

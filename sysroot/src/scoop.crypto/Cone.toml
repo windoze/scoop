@@ -1,0 +1,63 @@
+schema = 1
+[cone]
+group = "scoop"
+name = "scoop.crypto"
+version = "0.1.0"
+kind = "library"
+
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"scoop:scoop.std" = "0.1.0"
+"scoop:scoop.json" = "0.1.0"
+
+[test-dependencies]
+"scoop.tests:crypto-certificates" = { version = "0.1.0", path = "test-certificates" }
+"scoop:scoop.test" = "0.1.0"
+
+[native]
+include = [
+    {path = "../../lib/aarch64-apple-darwin/openssl/include", when = {os = "darwin"}},
+    {path = "../../lib/x86_64-unknown-linux-gnu/openssl/include", when = {env = "gnu"}},
+    {path = "../../lib/x86_64-unknown-linux-musl/openssl/include", when = {env = "musl"}},
+]
+c_flags = ["-std=c11", "-Wall", "-Wextra", "-Werror"]
+
+[[native.libraries]]
+name = "crypto"
+kind = "static"
+
+[[native.libraries]]
+name = "pthread"
+
+[[native.sources]]
+path = "native/common.c"
+
+[[native.sources]]
+path = "native/digest.c"
+
+[[native.sources]]
+path = "native/cipher.c"
+
+[[native.sources]]
+path = "native/keys.c"
+
+[[native.sources]]
+path = "native/key_io.c"
+
+[[native.sources]]
+path = "native/signature.c"
+
+[[native.sources]]
+path = "native/certificate.c"
+
+[[native.sources]]
+path = "native/certificate_names.c"
+
+[[native.sources]]
+path = "native/trust.c"
+
+[[native.sources]]
+path = "native/jws.c"
+
+[[native.sources]]
+path = "native/jwk.c"

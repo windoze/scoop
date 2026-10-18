@@ -1,0 +1,84 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+internal fun withHttp2(client: Http2Session = Http2Session.client(), server: Http2Session = Http2Session.server(),
+    block: (Http2Session, Http2Session) -> Unit) {
+    try { block(client, server) }
+    finally { server.close(); client.close() }
+}
+
+internal fun request2(method: String = "GET", path: String = "/", fields: List<HttpField> = ArrayList<HttpField>()): HttpRequestHead =
+    HttpRequestHead(HttpVersion.Http2, method.toByteArray(),
+        HttpRequestTarget.Http2("https".toByteArray(), "example.test".toByteArray(), path.toByteArray()), fields)
+
+internal fun transfer2(from: Http2Session, to: Http2Session, chunk: Long = 7L): Long {
+    var total = 0L
+    val buffer = NativeByteBuffer.allocate(chunk)
+    try {
+        while (true) {
+            buffer.clear()
+            val count = from.takeOutput(buffer)
+            if (count == 0L) return total
+            assertEquals(count, to.receive(buffer))
+            assertEquals(0L, buffer.readableBytes)
+            total += count
+        }
+    } finally { buffer.close() }
+}
+
+internal fun drive2(client: Http2Session, server: Http2Session, chunk: Long = 7L) {
+    while (true) {
+        val sent = transfer2(client, server, chunk)
+        val received = transfer2(server, client, chunk)
+        if (sent == 0L && received == 0L) return
+    }
+}
+
+internal fun events2(session: Http2Session): Array<Http2Event> {
+    val events = ArrayList<Http2Event>()
+    while (true) {
+        val next = session.nextEvent()
+        when (next) {
+            case None -> return events.toArray()
+            case Some(_) -> events.add(next!!)
+        }
+    }
+}
+
+internal fun requests2(events: List<Http2Event>): Array<HttpRequestHead> {
+    val heads = ArrayList<HttpRequestHead>()
+    for (event in events) when (event) { case Request(_, head) -> heads.add(head); else -> {} }
+    return heads.toArray()
+}
+
+internal fun responses2(events: List<Http2Event>): Array<HttpResponseHead> {
+    val heads = ArrayList<HttpResponseHead>()
+    for (event in events) when (event) { case Response(_, head) -> heads.add(head); else -> {} }
+    return heads.toArray()
+}
+
+internal fun data2(events: List<Http2Event>, streamId: Int): Array<Byte> {
+    val output = ByteArrayBuilder()
+    for (event in events) when (event) { case Data(id, bytes) -> { if (id == streamId) output.append(bytes) }; else -> {} }
+    return output.toByteArray()
+}
+
+internal fun closed2(events: List<Http2Event>, streamId: Int, code: UInt): Boolean {
+    for (event in events) when (event) { case StreamClosed(id, value) -> { if (id == streamId && value == code) return true }; else -> {} }
+    return false
+}
+
+internal fun ends2(events: List<Http2Event>, streamId: Int): Int {
+    var count = 0
+    for (event in events) when (event) { case End(id) -> { if (id == streamId) count += 1 }; else -> {} }
+    return count
+}
+
+internal fun write2(session: Http2Session, id: Int, bytes: List<Byte>): Long {
+    val buffer = NativeByteBuffer.allocate(bytes.size)
+    try { buffer.writeBytes(bytes); return session.writeBody(id, buffer) }
+    finally { buffer.close() }
+}

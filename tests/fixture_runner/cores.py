@@ -6,7 +6,7 @@ import shutil
 def prepare_test_core(repo, work):
     destination = work / "test-core"
     if not destination.exists():
-        shutil.copytree(work / "sysroot/lib/scoop.core", destination, symlinks=True)
+        shutil.copytree(work / "sysroot/src/scoop.core", destination, symlinks=True)
         shutil.copy2(
             repo / "tests/fixtures/m23-cli-imported-classes/support/stage3_test.scoop",
             destination / "src/stage3_test.scoop",

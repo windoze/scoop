@@ -8,8 +8,8 @@ tags = ["m42", "stdlib", "codecs", "gc"]
 [[steps]]
 name = "prepare"
 files = [
-  {"copy" = {"from" = "${sysroot}/lib/scoop.std", "to" = "${work}/sources/std"}},
-  {"copy" = {"from" = "${sysroot}/lib/scoop.json", "to" = "${work}/sources/json"}},
+  {"copy" = {"from" = "${sysroot}/src/scoop.std", "to" = "${work}/sources/std"}},
+  {"copy" = {"from" = "${sysroot}/src/scoop.json", "to" = "${work}/sources/json"}},
   {"copy" = {"from" = "${fixture}/provider", "to" = "${work}/sources/provider"}},
   {"copy" = {"from" = "${fixture}/consumer", "to" = "${work}/sources/consumer"}},
   {"copy" = {"from" = "${fixture}/application", "to" = "${work}/sources/application"}},
@@ -17,7 +17,7 @@ files = [
 
 [[steps]]
 name = "core"
-argv = ["${scoop}", "build", {each = "${link_args}"}, "${sysroot}/lib/scoop.core", "--profile", "debug", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${sysroot}/src/scoop.core", "--profile", "debug", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
 exit = 0
 stdout = ""
 stderr = ""

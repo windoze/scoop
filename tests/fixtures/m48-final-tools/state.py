@@ -5,8 +5,8 @@ import sys
 from pathlib import Path
 
 mode, root, saved = sys.argv[1:]
-paths = sorted(Path(root).glob("*-tools-v1/*.json"))
-assert any(p.parent.name == "final-tools-v1" for p in paths), paths
+paths = sorted(Path(root).glob("*-tools-v*/*.json"))
+assert any(p.parent.name == "final-tools-v2" for p in paths), paths
 state = {str(p): [p.stat().st_size, p.stat().st_mtime_ns] for p in paths}
 if mode == "save":
     Path(saved).write_text(json.dumps(state))

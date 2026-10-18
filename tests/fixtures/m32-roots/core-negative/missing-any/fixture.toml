@@ -8,7 +8,7 @@ tags = ["m32", "roots", "core", "negative"]
 [[steps]]
 name = "prepare"
 files = [
-  {copy = {from = "${sysroot}/lib/scoop.core", to = "${work}/core-source"}},
+  {copy = {from = "${sysroot}/src/scoop.core", to = "${work}/core-source"}},
   {copy = {from = "${fixture}/roots.scoop", to = "${work}/core-source/src/roots.scoop"}},
 ]
 

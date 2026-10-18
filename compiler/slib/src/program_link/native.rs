@@ -22,7 +22,7 @@ pub(super) fn read(
             return Err(error("native object has an invalid member key"));
         };
         let source = std::str::from_utf8(logical_key.as_bytes()).map_err(error)?;
-        let source = scoop_identity::NormalizedSourcePath::new(source).map_err(error)?;
+        let source = scoop_identity::NormalizedNativeSourcePath::new(source).map_err(error)?;
         let bytes = graph.envelope.member(record.id()).map_err(error)?
             .ok_or_else(|| error(format!("missing native object {}", record.id())))?;
         Ok(NativeLinkObject { member: record.id(), source, bytes: bytes.into(), digest: record.sha256() })

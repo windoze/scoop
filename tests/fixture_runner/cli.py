@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import tomllib
 from collections import Counter
 from pathlib import Path
 
@@ -94,7 +95,7 @@ def environment(repo, work, fixtures, args):
         common["compile_args"] += ["--cc", str(args.cc.resolve())]
     common["link_args"] = list(common["compile_args"])
     if target != "aarch64-apple-darwin":
-        common["link_args"] += ["--unwind-prefix", str(repo / "sysroot/native" / target / "unwind")]
+        common["link_args"] += ["--unwind-prefix", str(repo / "sysroot/lib" / target / "unwind")]
     applicable = [
         fixture
         for fixture in fixtures
@@ -135,7 +136,7 @@ def environment(repo, work, fixtures, args):
             else tool_output(["/usr/bin/xcrun", "--find", "clang"]),
             ar=tool_output(["/usr/bin/xcrun", "--find", "ar"]),
             sdk=tool_output(["/usr/bin/xcrun", "--sdk", "macosx", "--show-sdk-path"]),
-            deployment=tool_output(["/usr/bin/sw_vers", "-productVersion"]),
+            deployment=darwin_deployment(repo),
         )
         common["cc_args"] = [
             "-target",
@@ -157,16 +158,25 @@ def environment(repo, work, fixtures, args):
                 common[name] = located
     if "llc" in needed and target == "aarch64-apple-darwin":
         if "deployment" not in common:
-            common["deployment"] = tool_output(["/usr/bin/sw_vers", "-productVersion"])
+            common["deployment"] = darwin_deployment(repo)
         common["llvm_target"] = "aarch64-apple-macosx" + common["deployment"]
     if not (work / "sysroot").exists():
-        shutil.copytree(repo / "sysroot", work / "sysroot", symlinks=True)
+        # Materialize this run's resource copy when development outputs use symlinks.
+        shutil.copytree(repo / "sysroot", work / "sysroot")
     if any("${test_core}" in json.dumps(fixture.data) for fixture in applicable):
         prepare_test_core(repo, work)
     if any("${class_core}" in json.dumps(fixture.data) for fixture in applicable):
         prepare_class_core(repo, work)
     (work / "cache").mkdir(exist_ok=True)
     return common
+
+
+def darwin_deployment(repo):
+    configured = os.environ.get("MACOSX_DEPLOYMENT_TARGET")
+    if configured is not None:
+        return configured
+    release = tomllib.loads((repo / "scripts/release.toml").read_text())
+    return release["targets"]["aarch64-apple-darwin"]["minimum_os"]
 
 
 def main(argv=None):

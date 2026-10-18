@@ -1,0 +1,85 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+@Test
+private class AsyncHttp2MessageTests {
+    @Test
+    fun `multiplexed responses retain stream identity informational heads and trailers`() {
+        withHttp2 suspend { scope, pair ->
+            val serving = scope.launch suspend {
+                val first = pair.server.acceptRequest()!!
+                val second = pair.server.acceptRequest()!!
+                assertEquals("POST", String.fromUtf8(first.head.method))
+                assertEquals("GET", String.fromUtf8(second.head.method))
+                second.stream.sendResponse(response2(204U))
+                assertEquals("upload", String.fromUtf8(receiveBytes(first.stream)))
+                first.stream.sendResponse(response2(103U), false)
+                first.stream.sendResponse(HttpResponseHead(HttpVersion.Http2, 200U,
+                    fields = [field("set-cookie", "a=1"), field("set-cookie", "b=2")]), false)
+                sendBytes(first.stream, "download".toByteArray())
+                first.stream.finish([field("x-end", "yes")])
+            }
+            val first = pair.client.openRequest(request2("POST", "/first"), false)
+            val second = pair.client.openRequest(request2(path = "/second"))
+            assertEquals(1, first.id); assertEquals(3, second.id)
+            sendBytes(first, "upload".toByteArray()); first.finish()
+            assertEquals(204U, second.receiveResponse().status)
+            assertEquals(0L, receiveBytes(second).size)
+            assertEquals(103U, first.receiveResponse().status)
+            val response = first.receiveResponse()
+            assertEquals(200U, response.status)
+            assertEquals(2L, response.fields.findAll("SET-COOKIE".toByteArray()).size)
+            gcCollect()
+            assertEquals("download", String.fromUtf8(receiveBytes(first)))
+            assertEquals("yes", String.fromUtf8(first.trailers!![0L].value))
+            assertTrue(first.isReadComplete && first.isWriteComplete)
+            serving.join()
+        }
+    }
+
+    @Test
+    fun `flush waits for a blocked stream window while input continues to make progress`() {
+        withHttp2(Http2Limits(maxPendingBodyBytes = 4L), Http2Settings(initialWindowSize = 3U)) suspend { scope, pair ->
+            val first = pair.client.openRequest(request2("POST"), false)
+            val incoming = pair.server.acceptRequest()!!
+            NativeByteBuffer.allocate(12L).use suspend { output ->
+                output.writeBytes("abcdefghijkl".toByteArray())
+                assertEquals(4L, first.writeFrom(output, 12L))
+                val flushing = scope.launch suspend { first.flush() }
+                assertFalse(flushing.isCompleted)
+                NativeByteBuffer.allocate(3L).use suspend { input ->
+                    incoming.stream.readFully(input, 3L)
+                    assertEquals("abc", String.fromUtf8(input.readBytes(3L)))
+                }
+                flushing.join()
+                val writing = scope.launch suspend { first.writeFully(output); first.finish() }
+                assertEquals("defghijkl", String.fromUtf8(receiveBytes(incoming.stream)))
+                writing.join()
+                assertEquals(12L, output.readPosition)
+            }
+            incoming.stream.sendResponse(response2(204U))
+            assertEquals(204U, first.receiveResponse().status)
+            assertEquals(0L, receiveBytes(first).size)
+        }
+    }
+
+    @Test
+    fun `normal completed streams retain unread response data after connection cleanup`() {
+        withHttp2 suspend { _, pair ->
+            val stream = pair.client.openRequest(request2())
+            val incoming = pair.server.acceptRequest()!!
+            incoming.stream.sendResponse(response2(), false)
+            sendBytes(incoming.stream, "owned".toByteArray()); incoming.stream.finish()
+            pair.clientEvents.closed.await()
+            pair.client.close()
+            assertEquals(200U, stream.receiveResponse().status)
+            assertEquals("owned", String.fromUtf8(receiveBytes(stream)))
+            assertTrue(stream.isReadComplete)
+            assertEquals(1, pair.clientRaw.closes)
+        }
+    }
+}

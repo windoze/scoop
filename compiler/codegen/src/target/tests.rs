@@ -24,7 +24,7 @@ fn another_llvm_minor_is_rejected_structurally() {
 #[test]
 fn selected_profile_creates_the_canonical_aarch64_machine() {
     let backend =
-        ValidatedBackendProfile::from_selection(scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
+        ValidatedBackendProfile::for_selection(scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
             .expect("qualified backend selection");
     assert_eq!(backend.backend_profile(), scoop_target_data::LLVM_22_1);
     assert_eq!(backend.managed_address_space(), 1);
@@ -35,7 +35,7 @@ fn selected_profile_creates_the_canonical_aarch64_machine() {
             .as_str()
             .to_str()
             .expect("UTF-8 triple"),
-        backend.canonical_triple()
+        "aarch64-apple-macosx11.0.0"
     );
 }
 
@@ -113,7 +113,7 @@ fn unregistered_backend_identity_or_machine_configuration_is_rejected() {
         let selection =
             ValidatedLirTargetSelection::new(scoop_target_data::DARWIN_AARCH64, backend);
         assert!(
-            ValidatedBackendProfile::from_selection(selection)
+            ValidatedBackendProfile::for_selection(selection)
                 .unwrap_err()
                 .0
                 .contains("unsupported target/backend contract")
@@ -132,7 +132,7 @@ fn canonical_unknown_target_is_not_a_codegen_registration() {
         scoop_lir::LirTargetProfile::new(&UNKNOWN, scoop_target_data::DARWIN_AARCH64.description());
     let selection = ValidatedLirTargetSelection::new(target, scoop_target_data::LLVM_22_1);
     assert!(
-        ValidatedBackendProfile::from_selection(selection)
+        ValidatedBackendProfile::for_selection(selection)
             .unwrap_err()
             .0
             .contains("unsupported target/backend")

@@ -11,7 +11,7 @@ fn terminal_call_after_conditional_poll_keeps_one_machine_site() {
         scoop_target_data::LINUX_X86_64_MUSL_ID,
     ] {
         for mode in [OptimizationMode::Debug, OptimizationMode::Release] {
-            let profile = ValidatedBackendProfile::from_selection(
+            let profile = ValidatedBackendProfile::for_selection(
                 scoop_target_data::selection(target)
                     .expect("implemented target selected by this consumer"),
             )

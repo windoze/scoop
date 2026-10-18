@@ -8,7 +8,7 @@ tags = ["core-dependencies", "negative"]
 [[steps]]
 name = "prepare_core"
 files = [
-  {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}},
+  {"copy" = {"from" = "${sysroot}/src/scoop.core", "to" = "${work}/core-source"}},
   {"copy" = {"from" = "${fixture}/../../core-library/dependency-missing.scoop", "to" = "${work}/core-source/src/dependency-calls.scoop"}},
   {"copy" = {"from" = "${fixture}/../../core-library/dependency-locals.scoop", "to" = "${work}/core-source/src/dependency-locals.scoop"}},
 ]

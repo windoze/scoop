@@ -24,7 +24,7 @@ fn default_cache() -> Option<PathBuf> {
     }
 }
 
-/// Build-time development layout; explicit CLI paths allow relocating tools.
+/// Build-time source layout for repository tests and maintenance tools.
 pub fn development_workspace_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .ancestors()
@@ -33,12 +33,41 @@ pub fn development_workspace_root() -> PathBuf {
         .to_owned()
 }
 
-pub fn configured_sysroot_root(explicit: Option<PathBuf>) -> PathBuf {
-    explicit
-        .or_else(|| std::env::var_os("SCOOP_SYSROOT").map(PathBuf::from))
-        .unwrap_or_else(|| development_workspace_root().join("sysroot"))
+pub fn configured_sysroot_root(
+    explicit: Option<PathBuf>,
+) -> Result<PathBuf, crate::ToolchainError> {
+    if let Some(root) = explicit.or_else(|| std::env::var_os("SCOOP_SYSROOT").map(PathBuf::from)) {
+        return Ok(root);
+    }
+    let executable = installed_executable()?;
+    executable
+        .parent()
+        .and_then(Path::parent)
+        .map(Path::to_owned)
+        .ok_or_else(|| {
+            crate::ToolchainError(format!(
+                "cannot locate sysroot from {}",
+                executable.display()
+            ))
+        })
+}
+
+pub fn installed_executable() -> Result<PathBuf, crate::ToolchainError> {
+    std::env::current_exe()
+        .and_then(std::fs::canonicalize)
+        .map_err(|error| crate::ToolchainError(format!("cannot locate executable: {error}")))
 }
 
 pub fn development_runtime_root() -> PathBuf {
     development_workspace_root().join("runtime")
+}
+
+pub fn target_library_root(sysroot: &Path, target: scoop_lir::LirTargetProfile) -> PathBuf {
+    sysroot
+        .join("lib")
+        .join(target.contract().canonical_triple())
+}
+
+pub fn default_runtime_index(sysroot: &Path, target: scoop_lir::LirTargetProfile) -> PathBuf {
+    target_library_root(sysroot, target).join("runtime/index.cbor")
 }
