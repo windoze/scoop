@@ -24,4 +24,10 @@ val alpn: List<Byte>? = when (tls.connectionInfo.alpn) {
 val protocol = selectHttpAlpn(alpn, [HttpProtocol.Http1, HttpProtocol.Http2])
 ```
 
+HTTP/1 WebSocket 先用 `WebSocketHandshake` 校验握手并完成原 HTTP body，再把 `takeTransport()` 的结果交给 `AsyncWebSocketSession.takeOwnership(transport, scope, role)`。会话直接消费切换后缀，使用自己的结构化任务持续处理输入与控制帧。当前会话处理未协商扩展的帧，permessage-deflate 在后续组合中接入。
+
+`sendText`、`sendBinary` 与 `send(type, source)` 发送完整消息；source 为借用输入。流式发送使用 `beginMessage` 返回的 `WebSocketMessageWriter`，`writeFrom` 按配置的有限片段返回短写量，`finish` 显式结束消息，`flush` 不补 FIN。`receive` 返回 `WebSocketMessage`，它本身是异步字节源，`readBytes` 与 Text 的 `readText` 只汇集剩余内容。消息数据受有限背压约束，前一条未完成时不能开始同方向的下一条。
+
+WebSocket 的 `ping` 等待匹配的 Pong，`pong` 发送非请求式回应；自动 Pong 与应用发送独立调度，并保持当前输出帧完整。`shutdownGracefully` 等待双方 Close、flush 与资源收尾，使用配置的关闭期限；`close` 执行本地关闭，取消 owner I/O 后等待真实原生借用归还，支持已取消的 finally 与重复关闭。未完成消息的 close 会中止会话。具体状态、错误与并发合同见 [WebSocket 异步规范](../../../docs/specs/SCOOP-HTTP-WEBSOCKET-ASYNC-SPEC.md)。
+
 普通库不提供 TCP 连接、TLS 握手、连接池、自动重试或应用路由。初始参数与活动 Job 检查失败时传输仍归调用者，接管后的失败由库完成本地收尾。

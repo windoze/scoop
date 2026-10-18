@@ -1,0 +1,88 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+
+public class WebSocketMessageWriter internal constructor(private val state: WsState, private val message: WsOutgoing)
+    : AsyncByteSink, AsyncCloseable {
+    public val type: WebSocketMessageType get() = message.type
+    public val isComplete: Boolean get() = state.lock.withLock { message.life.complete }
+    public val isClosed: Boolean get() = state.lock.withLock { message.life.closed }
+
+    public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long =
+        wsOperation<Unit, Long>(state, false, {
+            checkWsWriter(state, message, false)
+            httpCount(count, buffer.readableBytes)
+        }, suspend { _ ->
+            if (count == 0L) 0L else writeWsMessage(state, message, buffer, count)
+        })
+
+    public override suspend fun flush() {
+        wsOperation<Unit, Unit>(state, false, { checkWsWriter(state, message, true) }, suspend { _ ->
+            if (!state.lock.withLock { message.life.complete }) submitWsWrite(state, WsWriteAction.Flush)
+            Unit
+        })
+    }
+
+    public suspend fun finish() {
+        wsOperation<Unit, Unit>(state, false, { checkWsWriter(state, message, true) }, suspend { _ ->
+            if (!state.lock.withLock { message.life.complete }) finishWsMessage(state, message)
+            Unit
+        })
+    }
+
+    public override suspend fun close() { closeWsLife(state, message.life) }
+}
+
+internal fun beginWsMessage(state: WsState, type: WebSocketMessageType): WsOutgoing {
+    wsOpen(state)
+    if (present(state.outgoing)) throw IllegalStateException(Some("previous WebSocket message is unfinished"))
+    val message = WsOutgoing(type)
+    state.outgoing = Some(message)
+    return message
+}
+
+private fun checkWsWriter(state: WsState, message: WsOutgoing, allowComplete: Boolean) {
+    if (message.life.closed) throw wsClosed(state)
+    if (message.life.complete) {
+        if (allowComplete) return
+        throw IllegalStateException(Some("WebSocket message is complete"))
+    }
+    wsOpen(state)
+    if (!present(state.outgoing) || state.outgoing!! !== message)
+        throw IllegalStateException(Some("this is not the active WebSocket writer"))
+}
+
+internal suspend fun writeWsMessage(state: WsState, message: WsOutgoing, buffer: NativeByteBuffer, count: Long): Long =
+    submitWsWrite(state, WsWriteAction.Data(message, buffer,
+        if (count < state.options.outgoingFrameBytes) count else state.options.outgoingFrameBytes))
+
+internal suspend fun finishWsMessage(state: WsState, message: WsOutgoing) {
+    submitWsWrite(state, WsWriteAction.Finish(message))
+}
+
+internal suspend fun submitWsWrite(state: WsState, action: WsWriteAction): Long = suspendCoroutine<Long> { continuation ->
+    val wait = WsWait<Long>(continuation)
+    val actions = ArrayList<() -> Unit>()
+    state.lock.withLock {
+        if (state.closed) failWsWait(wait, state.failure ?: wsClosed(state), actions)
+        else {
+            if (present(state.writer)) throw IllegalStateException(Some("WebSocket write is already pending"))
+            state.writer = Some(WsWriteRequest(action, wait))
+        }
+    }
+    for (next in actions) next()
+    driveWs(state)
+}
+
+internal suspend fun sendWsControl(state: WsState, ping: Boolean, payload: List<Byte>) {
+    val bytes = payload.toArray()
+    wsOperation<Unit, Unit>(state, false, {
+        wsOpen(state)
+        if (bytes.size > 125L) throw IllegalArgumentException(Some("WebSocket control payload exceeds 125 bytes"))
+    }, suspend { _ ->
+        submitWsWrite(state, if (ping) WsWriteAction.Ping(bytes) else WsWriteAction.Pong(bytes))
+        Unit
+    })
+}

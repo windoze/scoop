@@ -1,0 +1,135 @@
+package scoop.http.asyncio
+
+import scoop.http.*
+
+internal fun advanceWsInput(state: WsState, actions: ArrayList<() -> Unit>): Boolean {
+    if (state.inputBusy || state.inputFailed || present(state.peerClose)) return false
+    var changed = false
+    while (!state.closing && !present(state.peerClose)) {
+        if (!present(state.shutdown)) {
+            changed = deliverWsInput(state, actions) || changed
+            if (wsInputBlocked(state)) return changed
+        }
+        val event = state.decoder.nextEvent()
+        when (event) {
+            case Some(_) -> { receiveWsEvent(state, event!!, actions); changed = true }
+            case None -> {
+                if (state.input.readableBytes != 0L) {
+                    if (state.decoder.receive(state.input) == 0L)
+                        throw IllegalStateException(Some("WebSocket decoder made no progress"))
+                    changed = true
+                } else if (state.eof) {
+                    val cause: Throwable? = try { state.decoder.endInput(); None }
+                        catch (error: Throwable) { Some(error) }
+                    abortWs(state, Some(WebSocketSessionException(WebSocketFailureKind.UnexpectedEof,
+                        "input ended without a peer Close", state.peerClose, cause)))
+                    return true
+                } else return changed
+            }
+        }
+    }
+    return changed
+}
+
+internal fun wsInputBlocked(state: WsState): Boolean {
+    if (present(state.shutdown) || !present(state.incoming)) return false
+    val message = state.incoming!!
+    return present(message.data) || (message.ended && !message.taken)
+}
+
+private fun deliverWsInput(state: WsState, actions: ArrayList<() -> Unit>): Boolean {
+    if (!present(state.incoming)) return false
+    val message = state.incoming!!
+    var changed = false
+    if (!message.taken && present(state.receiving)) {
+        val wait = state.receiving!!
+        state.receiving = None
+        message.taken = true
+        succeedWsWait(wait, Some(message), actions)
+        changed = true
+    }
+    if (present(state.reader) && present(message.data)) {
+        val request = state.reader!!
+        if (request.message !== message) throw IllegalStateException(Some("WebSocket reader lost its message"))
+        val bytes = message.data!!
+        val remaining = bytes.size - message.offset
+        val count = if (request.count < remaining) request.count else remaining
+        request.buffer.writeBytes(bytes, message.offset, count)
+        message.offset += count
+        if (message.offset == bytes.size) { message.data = None; message.offset = 0L }
+        state.reader = None
+        succeedWsWait(request.wait, count, actions)
+        changed = true
+    }
+    if (message.ended && !present(message.data)) {
+        if (!message.life.complete) { completeWsLife(message.life, actions); changed = true }
+        if (present(state.reader)) {
+            val request = state.reader!!
+            state.reader = None
+            succeedWsWait(request.wait, 0L, actions)
+            changed = true
+        }
+        if (message.taken) { state.incoming = None; changed = true }
+    }
+    return changed
+}
+
+private fun receiveWsEvent(state: WsState, event: WebSocketFrameEvent, actions: ArrayList<() -> Unit>) {
+    when (event) {
+        case FrameStarted(head) -> {
+            state.frameFinal = head.isFinal
+            if (!present(state.shutdown) && head.opcode != WebSocketOpcode.Continuation) {
+                if (present(state.incoming)) throw IllegalStateException(Some("WebSocket message is still buffered"))
+                state.incoming = Some(WsIncoming(if (head.opcode == WebSocketOpcode.Text)
+                    WebSocketMessageType.Text else WebSocketMessageType.Binary))
+            }
+        }
+        case Data(bytes) -> {
+            if (!present(state.shutdown)) {
+                val message = state.incoming!!
+                message.data = Some(bytes)
+                message.offset = 0L
+            }
+        }
+        case FrameEnded -> {
+            if (!present(state.shutdown) && state.frameFinal) state.incoming!!.ended = true
+        }
+        case Ping(bytes) -> state.automaticPong = Some(bytes)
+        case Pong(bytes) -> matchWsPong(state, bytes, actions)
+        case Close(value) -> {
+            state.peerClose = Some(value)
+            beginWsShutdown(state, value, true)
+        }
+        case End -> abortWs(state, Some(WebSocketSessionException(WebSocketFailureKind.UnexpectedEof,
+            "input ended without a peer Close", state.peerClose)))
+    }
+}
+
+private fun matchWsPong(state: WsState, bytes: Array<Byte>, actions: ArrayList<() -> Unit>) {
+    if (!present(state.writer) || !state.writer!!.prepared) return
+    val request = state.writer!!
+    when (request.action) {
+        case Ping(payload) -> {
+            if (payload.size != bytes.size) return
+            var index = 0L
+            while (index < bytes.size) {
+                if (payload[index] != bytes[index]) return
+                index += 1L
+            }
+            request.pongSeen = true
+            if (request.flushed) {
+                state.writer = None
+                succeedWsWait(request.wait, 0L, actions)
+            }
+        }
+        else -> {}
+    }
+}
+
+internal fun failWsInput(state: WsState, error: Throwable) {
+    if (error is WebSocketFrameException) {
+        if (!present(state.failure)) state.failure = Some(error)
+        state.inputFailed = true
+        beginWsShutdown(state, WebSocketClose(Some(error.closeCode)), false)
+    } else abortWs(state, Some(error))
+}

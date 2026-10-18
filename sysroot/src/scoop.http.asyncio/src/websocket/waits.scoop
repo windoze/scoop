@@ -1,0 +1,35 @@
+package scoop.http.asyncio
+
+internal fun <T> succeedWsWait(wait: WsWait<T>, value: T, actions: ArrayList<() -> Unit>) {
+    val continuation = wait.continuation
+    wait.continuation = None
+    when (continuation) { case Some(next) -> actions.add { next.resume(value) }; case None -> {} }
+}
+
+internal fun <T> failWsWait(wait: WsWait<T>, error: Throwable, actions: ArrayList<() -> Unit>) {
+    val continuation = wait.continuation
+    wait.continuation = None
+    when (continuation) { case Some(next) -> actions.add { next.resumeWithException(error) }; case None -> {} }
+}
+
+internal fun listenWsLife(state: WsState, life: WsLife, job: Job) {
+    val listener = job.invokeOnCancellation { error ->
+        state.lock.withLock { if (!life.complete && !life.closed) abortWs(state, Some(error)); Unit }
+        driveWs(state)
+    }
+    val finished = state.lock.withLock {
+        if (state.closing || life.complete || life.closed) true else { life.listener = Some(listener); false }
+    }
+    if (finished) listener.dispose()
+}
+
+internal fun detachWsLife(life: WsLife, actions: ArrayList<() -> Unit>) {
+    val listener = life.listener
+    life.listener = None
+    when (listener) { case Some(value) -> actions.add { value.dispose() }; case None -> {} }
+}
+
+internal fun completeWsLife(life: WsLife, actions: ArrayList<() -> Unit>) {
+    life.complete = true
+    detachWsLife(life, actions)
+}

@@ -1,0 +1,40 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+
+internal suspend fun sendWsBytes(state: WsState, type: WebSocketMessageType, bytes: Array<Byte>) {
+    wsOperation<WsOutgoing, Unit>(state, false, { beginWsMessage(state, type) }, suspend { message ->
+        NativeByteBuffer.allocate(state.options.outgoingFrameBytes).use suspend { buffer ->
+            var offset = 0L
+            while (offset < bytes.size) {
+                buffer.clear()
+                val count = if (bytes.size - offset < buffer.capacity) bytes.size - offset else buffer.capacity
+                buffer.writeBytes(bytes, offset, count)
+                writeWsMessage(state, message, buffer, count)
+                offset += count
+            }
+            finishWsMessage(state, message)
+        }
+    })
+}
+
+internal suspend fun sendWsSource(state: WsState, type: WebSocketMessageType, source: AsyncByteSource) {
+    wsOperation<WsOutgoing, Unit>(state, false, { beginWsMessage(state, type) }, suspend { message ->
+        NativeByteBuffer.allocate(state.options.outgoingFrameBytes).use suspend { buffer ->
+            while (true) {
+                state.lock.withLock { wsOpen(state) }
+                buffer.clear()
+                val requested = buffer.writableBytes
+                val count = source.readInto(buffer, requested)
+                httpProgress(count, requested)
+                if (buffer.readPosition != 0L || buffer.writePosition != count)
+                    throw IllegalStateException(Some("WebSocket source progress does not match its buffer"))
+                if (count == 0L) break
+                writeWsMessage(state, message, buffer, count)
+            }
+            finishWsMessage(state, message)
+        }
+    })
+}

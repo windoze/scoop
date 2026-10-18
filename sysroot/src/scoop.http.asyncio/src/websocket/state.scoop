@@ -1,0 +1,91 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+
+internal class WsLife {
+    var complete: Boolean = false
+    var closed: Boolean = false
+    var listener: Disposable? = None
+}
+
+internal class WsIncoming(val type: WebSocketMessageType) {
+    val life: WsLife = WsLife()
+    var data: Array<Byte>? = None
+    var offset: Long = 0L
+    var taken: Boolean = false
+    var ended: Boolean = false
+    var discarded: Boolean = false
+}
+
+internal class WsOutgoing(val type: WebSocketMessageType) {
+    val life: WsLife = WsLife()
+    var first: Boolean = true
+}
+
+internal class WsWait<T>(initial: Continuation<T>) {
+    var continuation: Continuation<T>? = Some(initial)
+}
+
+internal class WsReadRequest(val message: WsIncoming, val buffer: NativeByteBuffer,
+    val count: Long, val wait: WsWait<Long>)
+
+internal enum WsWriteAction {
+    Data(WsOutgoing, NativeByteBuffer, Long), Finish(WsOutgoing), Flush,
+    Ping(Array<Byte>), Pong(Array<Byte>)
+}
+
+internal class WsWriteRequest(val action: WsWriteAction, val wait: WsWait<Long>) {
+    var prepared: Boolean = false
+    var accepted: Long = 0L
+    var flushed: Boolean = false
+    var pongSeen: Boolean = false
+}
+
+internal enum WsWireAction { Application(WsWriteRequest), AutomaticPong, Close(WebSocketClose) }
+internal class WsShutdown(val value: WebSocketClose, var waitForPeer: Boolean) {
+    var timerStarted: Boolean = false
+}
+
+internal class WsState(
+    val transport: AsyncByteStream, val owner: AsyncCloseable, val role: HttpRole,
+    val loop: EventLoop, val options: WebSocketSessionOptions,
+    val encoder: WebSocketFrameEncoder, val decoder: WebSocketFrameDecoder,
+    val input: NativeByteBuffer, val output: NativeByteBuffer
+) {
+    val lock: HttpLock = HttpLock()
+    var incoming: WsIncoming? = None
+    var outgoing: WsOutgoing? = None
+    var frameFinal: Boolean = false
+    var receiving: WsWait<WsIncoming?>? = None
+    var reader: WsReadRequest? = None
+    var writer: WsWriteRequest? = None
+    var wire: WsWireAction? = None
+    var automaticPong: Array<Byte>? = None
+    var reading: Boolean = false
+    var writing: Boolean = false
+    var inputBusy: Boolean = false
+    var outputBusy: Boolean = false
+    var inputFailed: Boolean = false
+    var eof: Boolean = false
+    var driving: Boolean = false
+    var shutdown: WsShutdown? = None
+    var peerClose: WebSocketClose? = None
+    var sentClose: WebSocketClose? = None
+    val shutdownWaiters: ArrayList<WsWait<WebSocketClose>> = ArrayList<WsWait<WebSocketClose>>()
+    var adopted: Boolean = false
+    var closing: Boolean = false
+    var closed: Boolean = false
+    var failure: Throwable? = None
+    var closeFailure: Throwable? = None
+    var ownerCancellationStarted: Boolean = false
+    var transportClosing: Boolean = false
+    var transportClosed: Boolean = false
+    var ownerScope: CoroutineScope? = None
+    var ownerJob: Job? = None
+    var ownerWaiter: Continuation<Unit>? = None
+    var ownerListener: Disposable? = None
+    var timer: Job? = None
+    val closeWaiters: ArrayList<Continuation<Unit>> = ArrayList<Continuation<Unit>>()
+}

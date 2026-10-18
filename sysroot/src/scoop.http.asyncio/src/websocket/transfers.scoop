@@ -1,0 +1,90 @@
+package scoop.http.asyncio
+
+import scoop.platform.io.WriteZeroException
+
+internal fun planWsTransfers(state: WsState, actions: ArrayList<() -> Unit>) {
+    if (!state.outputBusy && present(state.wire)) {
+        state.outputBusy = true
+        if (state.output.readableBytes == 0L) actions.add { startWsFlush(state) }
+        else {
+            val count = state.output.readableBytes
+            val beforeRead = state.output.readPosition
+            val beforeWrite = state.output.writePosition
+            actions.add { startWsTransfer(state, false, count, beforeRead, beforeWrite) }
+        }
+    }
+    if (!state.inputBusy && !state.inputFailed && !state.eof && !present(state.peerClose) &&
+        !wsInputBlocked(state) && state.input.readableBytes == 0L) {
+        state.input.clear()
+        state.inputBusy = true
+        val count = state.input.writableBytes
+        actions.add { startWsTransfer(state, true, count, 0L, 0L) }
+    }
+}
+
+private fun startWsTransfer(state: WsState, input: Boolean, count: Long, beforeRead: Long, beforeWrite: Long) {
+    val completion = WsTransferCompletion(state, input, count, beforeRead, beforeWrite)
+    if (state.lock.withLock { state.closing }) { completion.resume(0L); return }
+    val job = state.ownerJob!!
+    val loop = state.loop
+    context(job) { context(loop) {
+        startCoroutine<Long>(suspend {
+            if (input) state.transport.readInto(state.input, count) else state.transport.writeFrom(state.output, count)
+        }, completion)
+    } }
+}
+
+private class WsTransferCompletion(val state: WsState, val input: Boolean, val requested: Long,
+    val beforeRead: Long, val beforeWrite: Long) : Continuation<Long> {
+    public override fun resume(value: Long) { finish(value, None) }
+    public override fun resumeWithException(exception: Throwable) { finish(0L, Some(exception)) }
+
+    private fun finish(count: Long, failure: Throwable?) {
+        state.lock.withLock {
+            if (input) state.inputBusy = false else state.outputBusy = false
+            if (!state.closing) {
+                try {
+                    if (present(failure)) throw failure!!
+                    httpProgress(count, requested)
+                    if (input) {
+                        if (state.input.readPosition != beforeRead || state.input.writePosition - beforeWrite != count)
+                            throw IllegalStateException(Some("WebSocket input progress does not match its buffer"))
+                        state.eof = count == 0L
+                    } else {
+                        if (state.output.readPosition - beforeRead != count || state.output.writePosition != beforeWrite)
+                            throw IllegalStateException(Some("WebSocket output progress does not match its buffer"))
+                        if (count == 0L) throw WriteZeroException()
+                    }
+                } catch (error: Throwable) { abortWs(state, Some(error)) }
+            }
+            Unit
+        }
+        driveWs(state)
+    }
+}
+
+private fun startWsFlush(state: WsState) {
+    val completion = WsFlushCompletion(state)
+    if (state.lock.withLock { state.closing }) { completion.resume(Unit); return }
+    val job = state.ownerJob!!
+    val loop = state.loop
+    context(job) { context(loop) { startCoroutine<Unit>(suspend { state.transport.flush() }, completion) } }
+}
+
+private class WsFlushCompletion(val state: WsState) : Continuation<Unit> {
+    public override fun resume(value: Unit) { finish(None) }
+    public override fun resumeWithException(exception: Throwable) { finish(Some(exception)) }
+    private fun finish(failure: Throwable?) {
+        val actions = ArrayList<() -> Unit>()
+        state.lock.withLock {
+            state.outputBusy = false
+            if (!state.closing) {
+                if (present(failure)) abortWs(state, failure)
+                else finishWsWire(state, actions)
+            }
+            Unit
+        }
+        for (action in actions) action()
+        driveWs(state)
+    }
+}

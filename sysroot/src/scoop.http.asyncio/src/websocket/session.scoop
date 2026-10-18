@@ -1,0 +1,37 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.collections.emptyList
+import scoop.http.*
+
+public class AsyncWebSocketSession internal constructor(private val state: WsState) : AsyncCloseable {
+    public companion object {
+        public suspend fun <T> takeOwnership(transport: T, scope: CoroutineScope, role: HttpRole,
+            options: WebSocketSessionOptions = WebSocketSessionOptions()): AsyncWebSocketSession
+            where T : AsyncByteStream, T : AsyncCloseable = adoptWs(transport, transport, scope, role, options)
+    }
+
+    public val role: HttpRole get() = state.role
+    public val isClosed: Boolean get() = state.lock.withLock { state.closed }
+    public val peerClose: WebSocketClose? get() = state.lock.withLock { state.peerClose }
+    public val sentClose: WebSocketClose? get() = state.lock.withLock { state.sentClose }
+    public val failure: Throwable? get() = state.lock.withLock { state.failure }
+
+    public suspend fun beginMessage(type: WebSocketMessageType): WebSocketMessageWriter =
+        wsOperation<WsOutgoing, WebSocketMessageWriter>(state, false, { beginWsMessage(state, type) }, suspend { message ->
+            val job = httpJob(state.loop, true)
+            listenWsLife(state, message.life, job)
+            job.ensureActive()
+            WebSocketMessageWriter(state, message)
+        })
+
+    public suspend fun receive(): WebSocketMessage? = receiveWsMessage(state)
+    public suspend fun sendText(text: String) { sendWsBytes(state, WebSocketMessageType.Text, text.toByteArray()) }
+    public suspend fun sendBinary(bytes: List<Byte>) { sendWsBytes(state, WebSocketMessageType.Binary, bytes.toArray()) }
+    public suspend fun send(type: WebSocketMessageType, source: AsyncByteSource) { sendWsSource(state, type, source) }
+    public suspend fun ping(payload: List<Byte> = emptyList<Byte>()) { sendWsControl(state, true, payload) }
+    public suspend fun pong(payload: List<Byte> = emptyList<Byte>()) { sendWsControl(state, false, payload) }
+    public suspend fun shutdownGracefully(value: WebSocketClose = WebSocketClose(Some(1000U))): WebSocketClose =
+        shutdownWs(state, value)
+    public override suspend fun close() { closeWs(state) }
+}

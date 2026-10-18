@@ -68,7 +68,7 @@ receive、nextEvent 与 endInput 中的实际协议／字符错误保存 failure
 
 ## 7. 异步边界
 
-异步 session 的控制帧调度、关闭握手及 permessage-deflate 传输合同继续遵循 [消息工具规范第 6 节](SCOOP-HTTP-MESSAGE-SPEC.md#6-http11-websocket)，在相应实现中细化公共 API。握手或内存帧工具完成不代表传输功能已完成。HTTP/2 WebSocket、Extended CONNECT 和 HTTP/3 不属于本期。
+异步 session 的控制帧调度、关闭握手及 permessage-deflate 传输合同继续遵循 [消息工具规范第 6 节](SCOOP-HTTP-MESSAGE-SPEC.md#6-http11-websocket)，公共 API 与收尾细节见 [WebSocket 异步会话规范](SCOOP-HTTP-WEBSOCKET-ASYNC-SPEC.md)。握手或内存帧工具完成不代表传输功能已完成。HTTP/2 WebSocket、Extended CONNECT 和 HTTP/3 不属于本期。
 
 ## 8. 验证
 
