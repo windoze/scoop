@@ -149,6 +149,10 @@ AsyncFile 增加 suspend 的 metadata、size、position、seek(position)、trunc
 
 文件系统入口沿 EventLoop.openFile 的方式增加 `metadata(path, followLinks)`、`moveFile(source, destination, replaceExisting)`、`deleteFile(path)`、`createDirectories(path)`、`openDirectory(path)` 与 `createTempFile(parent, prefix)`，返回类型复用 FileMetadata／Path 等既有值。move 的排他／替换和跨文件系统错误沿 platform 合同，不暗中 copy+delete。
 
+路径修改的具体入口为 suspend 的 `EventLoop.moveFile(source: Path, destination: Path, replaceExisting: Boolean = false): Unit`、`deleteFile(path: Path): Unit` 与 `createDirectories(path: Path, mode: Int = 0x1ff): Unit`。deleteFile 删除文件、链接本身或空目录，不递归删除目录内容；moveFile 保留源内容，默认排他，替换时沿同一文件系统 rename 合同。move 失败的 context 为 destination，其他修改为对应 path；保留本次 syscall 的 errno。
+
+createDirectories 逐层调用共享 mkdir helper，缺少父目录时继续创建父目录；已经存在的目录成功，普通文件占用目录位置或其他错误照常报告。mode 复用 platform 的 0..0xfff 校验并受 OS umask 影响，不修改已存在目录的权限。每次 mkdir 和确认已有目录的 metadata 都通过 worker 等待，层间取消不再提交下一项；已创建目录与已生效的移动／删除不回滚。所有路径在工作排队前取得 native 副本，排队取消不执行 syscall，已经开始则等待实际完成。
+
 createTempFile 以一次 native 排他创建返回实际 Path 与拥有句柄的 AsyncFile，避免先创建路径再重新打开；结果为有名的普通 TemporaryFile 值。取消先获胜而 native 创建成功时，关闭未交付句柄并清理本次未交付的临时文件；已交付后是否删除由调用者负责。失败或清理错误保留真实原因，不执行目录来源审计。
 
 `AsyncDirectoryEntries` 为 AsyncCloseable 的单遍枚举器，`next(): DirectoryEntry?` 可挂起，正常 EOF 关闭句柄，提前退出须 close。名称在 native 返回前复制，跳过点目录，不一次性把任意大目录收集到数组。缓存淘汰或启动扫描使用此公共能力。

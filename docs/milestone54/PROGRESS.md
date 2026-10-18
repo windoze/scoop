@@ -44,6 +44,7 @@
 | 原生工作挂起等待 | asyncio.native.NativeWork 复用现有 libuv 工作队列，以真实 C 函数指针执行领域工作；一次性提交、明确结果借用和关闭，取消等实际完成 | Darwin debug／release：4 项新测试与 asyncio 全部 53 项通过；新增测试通过 moving GC，覆盖未提交关闭、前置失败、排队取消、运行中跨线程取消及结果回调异常 |
 | TLS 系统信任 | TlsTrustSource 的 System／Store 与同步／suspend 工厂；公共引擎 WantVerification 独立保活原生链和参数，Darwin 使用禁用网络获取的 SecTrust，Linux 装载运行环境 CA 文件／目录快照 | Darwin debug／release：TLS 新增 5 项、全部 27 项通过，TLS asyncio 新增 5 项、全部 22 项通过；新增测试通过 moving GC，独立 mTLS 消费者通过；Linux 装载源码另在 Darwin 原生测试中通过 13 个 POSIX 场景，GNU／musl 运行仍待验证 |
 | 异步文件查询与控制 | AsyncFile 增加 metadata／size／position／seek／truncate，EventLoop 增加路径 metadata；共享 platform 的记录、转换和 syscall，沿已有串行、取消与关闭边界完成 | Darwin debug／release：8 项新测试与 asyncio 全部 61 项通过，platform 文件相关 17 项通过；新增测试通过两种构建的 moving GC，覆盖 64 位稀疏偏移、链接、路径替换、原始错误、排队取消及已经生效的截断 |
+| 异步路径修改 | EventLoop 的 moveFile／deleteFile／createDirectories 复用 platform 原生 helper 与统一 mode 检查；排他／替换、链接、空目录和逐层建目录沿已有 OS 合同 | Darwin debug／release：6 项新测试与 asyncio 全部 67 项、platform 文件相关 17 项通过；新增测试通过 moving GC，正式消费者验证暂存文件替换及旧句柄保活 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -165,6 +166,10 @@ SecTrust 对原有十年有效期叶证书的拒绝符合系统政策，测试�
 
 新增的 8 项文件测试通过两种构建的 full moving，共 4 个进程。普通回归包含 platform 文件相关 17 项和 asyncio 全部 61 项；覆盖超过 4 GiB 的稀疏偏移、append、原始名称、符号链接、路径被替换后的句柄查询、只读／FIFO 错误、共用串行登记、并发关闭及 worker 排队取消。迟到取消用真实文件长度确认 truncate 已完成，再验证变更不回滚且文件位置不变。C 适配通过格式化和严格警告检查；临时文件、路径修改、目录枚举及 Linux 运行继续实施。
 
+`m54-path-modify` 在 Darwin 通过 debug／release 两个变体，共 6 个进程。正式 platform／asyncio `.slib` 在两个 native 线程中并发创建父目录，写完并同步暂存文件后替换旧路径，再通过新旧句柄分别核对内容与长度；Unicode／空格路径、显式删除、moving GC 与构建复用通过。
+
+6 项路径新测试通过两种构建的 full moving，共 4 个进程；覆盖排他移动、替换、链接本身、空／非空目录、无效 mode、文件占用父目录、两个任务同时创建同一层级及 errno／context。真实工作队列验证排队取消没有文件系统效果，实际目录项变化确认已经执行后再取消，变更按 OS 状态保留。未以此宣告排他临时文件、目录枚举或 Linux 运行完成。
+
 ## 后续工作
 
 继续完成 HTTP 消息与协议补充、TLS 与 asyncio 缺口，再完成统一 client、策略、存储与长连接组合。每个功能独立验证和提交，最终按设计完成三个目标的运行验收。
@@ -196,3 +201,5 @@ WebSocket 压缩与 WSS 验收结束后，清理 DEFLATE flush 与未压缩会�
 CA 文件组合验收结束后，清理客户端身份的 2 个已结束 fixture target 目录，释放约 123 MiB；保留 CA 文件与 WSS 消费者、当前库 target、生产 `.slib`、原始日志和缓存。
 
 系统信任验收结束后，清理 CA 文件的 2 个已结束 fixture target 目录，释放约 122 MiB；保留系统信任与 WSS 消费者、当前库 target、生产 `.slib`、全部源码、日志和缓存。
+
+文件查询与控制验收结束后，清理对应 2 个已结束 fixture target 目录，释放约 95 MiB；保留正式源码、验证报告、日志、缓存及当前库 target。

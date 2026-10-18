@@ -63,6 +63,12 @@ public class LibuvEventLoop public constructor() : EventLoop {
     public override suspend fun metadata(path: Path, followLinks: Boolean): FileMetadata =
         metadataOnLoop(this, path, followLinks)
 
+    public override suspend fun moveFile(source: Path, destination: Path, replaceExisting: Boolean) {
+        moveFileOnLoop(this, source, destination, replaceExisting)
+    }
+    public override suspend fun deleteFile(path: Path) { deleteFileOnLoop(this, path) }
+    public override suspend fun createDirectories(path: Path, mode: Int) { createDirectoriesOnLoop(this, path, mode) }
+
     public override suspend fun connectTcp(address: SocketAddress): AsyncTcpStream = connectTcpOnLoop(this, address)
     public override suspend fun listenTcp(address: SocketAddress, backlog: Int, reuseAddress: Boolean): AsyncTcpListener =
         listenTcpOnLoop(this, address, backlog, reuseAddress)

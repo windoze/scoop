@@ -160,6 +160,8 @@ EOF 时自动关闭枚举句柄，之后 next 仍返回 None；提前 close 后�
 
 供 asyncio 的实际文件工作复用，`scoop.platform.native.NativeFileMetadata` 公开既有 GC-free CLayout 记录：kind、permissions 为 Int，其余 size 及四组秒／纳秒为 Long；创建时间纳秒为负表示不可用。普通 `decodeFileMetadata(data, error, context)` 将它转换为 FileMetadata，复用同步文件的种类、时间和错误映射；失败记录的 kind 为负，error 是原调用中保存的 errno。共享 C 头声明既有 metadata、seek、truncate helper，不在 asyncio 再实现 stat 字段转换或 OS 偏移规则。
 
+共享路径头公开既有 `path_mkdir`、`path_delete`、`path_move` helper，分别沿 mkdir、remove 和排他／替换 rename 的 OS 合同。`scoop.platform.native.requireFileMode(mode: Int): Unit` 统一同步文件、目录与 asyncio 的权限参数检查；有效范围为 0..0xfff，非法值抛 IllegalArgumentException，不增加独立的文件系统规则。
+
 safe fd 输出不因断开的 pipe/socket 默认杀死进程。Linux 普通 fd 写入仅屏蔽当前线程的 SIGPIPE，保存旧 mask/pending，只消费本次写入新增的 SIGPIPE，再恢复 mask；不消费已有 pending，也不安装进程级 handler。Darwin 内核的普通 fd 写入发出进程定向 SIGPIPE，使用真实 F_SETNOSIGPIPE 选项抑制；该选项属于打开文件描述，同一描述的别名可见，标准输出也在实际写入当前 fd 时设置。socket 专用输出使用对应 MSG_NOSIGNAL/SO_NOSIGPIPE。所有目标保持用户 signal handler，不以成功 no-op 模拟保护。
 
 目标依据：[Linux close](https://man7.org/linux/man-pages/man2/close.2.html)、[Linux rename](https://man7.org/linux/man-pages/man2/rename.2.html)、[Darwin fd 生命周期](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_descrip.c)、[Darwin 写入与 SIGPIPE](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/sys_generic.c)。这些边界按实际 OS 合同实现，不推导新的 compiler/runtime 协议。

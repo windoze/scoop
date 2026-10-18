@@ -162,10 +162,6 @@ public class File private constructor(private val context: OsString?) : ByteSour
     release { if (descriptor >= 0) { @Unsafe { nativeClose(descriptor) } } }
 }
 
-internal fun requireMode(mode: Int) {
-    if (mode < 0 || mode > 0xfff) throw IllegalArgumentException(Some("invalid POSIX mode"))
-}
-
 @Extern(name = "scoop_platform_file_open", captureErrno = true)
 private fun nativeFileOpen(path: Ptr<Byte>, flags: Int, mode: Int): (Int, Int)
 @Extern(name = "scoop_platform_file_seek", captureErrno = true)

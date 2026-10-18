@@ -4,6 +4,7 @@ import scoop.platform.io.*
 import scoop.platform.memory.NativeByteBuffer
 import scoop.platform.memory.nativeMemoryFree
 import scoop.platform.native.decodeFileMetadata
+import scoop.platform.native.requireFileMode
 import scoop.platform.system.*
 
 public fun Path.readAllBytes(): Array<Byte> = File.open(this).use { it.readAllBytes() }
@@ -73,7 +74,7 @@ public fun Path.exists(followLinks: Boolean = true): Boolean {
 }
 
 public fun Path.createDirectory(mode: Int = 0x1ff) {
-    requireMode(mode)
+    requireFileMode(mode)
     @Unsafe {
         this.withNativePath { pointer ->
             @Unsafe {

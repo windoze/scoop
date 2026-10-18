@@ -1,0 +1,76 @@
+package scoop.asyncio
+
+import scoop.platform.fs.*
+import scoop.platform.system.*
+import scoop.test.*
+
+@Test
+private class AsyncPathModificationTest {
+    @Test
+    fun `moves preserve raw paths exclusivity replacement and open handles`() {
+        IoTestDirectory().use { tree ->
+            val raw: Array<Byte> = [109, -1, 32, 118]
+            val name = if (operatingSystem == OperatingSystem.Linux) OsString.fromByteArray(raw)
+                else OsString.fromString("移动 空格")
+            val source = tree.path.resolve(Path.fromOsString(name))
+            val destination = tree.child("destination")
+            source.writeText("new contents")
+            destination.writeText("old")
+            val loop: EventLoop = LibuvEventLoop()
+            loop.run suspend { _ ->
+                loop.openFile(destination).useAsync suspend { previous ->
+                    try { loop.moveFile(source, destination); fail(Some("exclusive move replaced a file")) }
+                    catch (error: PlatformException) {
+                        assertTrue(error.kind == PlatformErrorKind.AlreadyExists)
+                        assertTrue(error.nativeError!!.domain == NativeErrorDomain.PosixErrno)
+                        assertEquals(destination.toOsString(), error.context!!)
+                    }
+                    assertEquals("new contents", source.readText())
+                    assertEquals("old", destination.readText())
+                    loop.moveFile(source, destination, replaceExisting = true)
+                    assertEquals(3L, previous.size())
+                    assertEquals(12L, loop.metadata(destination).size)
+                    assertFalse(source.exists())
+                    val moved = tree.child("moved")
+                    loop.moveFile(destination, moved)
+                    assertEquals("new contents", moved.readText())
+                    try { loop.moveFile(source, destination); fail(Some("missing source moved")) }
+                    catch (error: PlatformException) {
+                        assertTrue(error.kind == PlatformErrorKind.NotFound)
+                        assertEquals(destination.toOsString(), error.context!!)
+                    }
+                    loop.deleteFile(moved)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `path deletion removes links and empty directories without recursive deletion`() {
+        IoTestDirectory().use { tree ->
+            val directory = tree.child("directory")
+            directory.createDirectory()
+            val child = directory.resolve(Path.fromString("child"))
+            child.writeText("keep")
+            val link = tree.child("link")
+            link.createSymbolicLink(directory)
+            val moved = tree.child("moved-link")
+            val loop: EventLoop = LibuvEventLoop()
+            loop.run suspend { _ ->
+                loop.moveFile(link, moved)
+                assertTrue(loop.metadata(moved, followLinks = false).kind == FileKind.SymbolicLink)
+                loop.deleteFile(moved)
+                assertTrue(child.exists())
+                try { loop.deleteFile(directory); fail(Some("nonempty directory removed")) }
+                catch (error: PlatformException) {
+                    assertTrue(error.nativeError!!.domain == NativeErrorDomain.PosixErrno)
+                    assertEquals(directory.toOsString(), error.context!!)
+                }
+                loop.deleteFile(child)
+                loop.deleteFile(directory)
+                try { loop.deleteFile(directory); fail(Some("missing path removed")) }
+                catch (error: PlatformException) { assertTrue(error.kind == PlatformErrorKind.NotFound) }
+            }
+        }
+    }
+}

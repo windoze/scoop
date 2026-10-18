@@ -1,0 +1,92 @@
+package scoop.asyncio
+
+import scoop.platform.concurrent.yield
+import scoop.platform.fs.*
+import scoop.platform.time.*
+import scoop.time.Duration
+import scoop.test.*
+
+@Test
+private class AsyncPathCancellationTest {
+    @Test
+    fun `queued path modifications cancel without filesystem effects`() {
+        IoTestDirectory().use { tree ->
+            val source = tree.child("source")
+            val destination = tree.child("destination")
+            val nested = tree.child("new/a/b")
+            source.writeText("source")
+            destination.writeText("destination")
+            val backend = LibuvEventLoop()
+            val loop: EventLoop = backend
+            loop.run suspend { scope ->
+                val fence = WorkFence(backend)
+                fence.start()
+                fence.waitStarted()
+                try {
+                    val moving = scope.launch suspend { loop.moveFile(source, destination, true) }
+                    backend.state.post { moving.cancel() }
+                    moving.join()
+                    assertTrue(moving.isCancelled)
+                    val deleting = scope.launch suspend { loop.deleteFile(source) }
+                    backend.state.post { deleting.cancel() }
+                    deleting.join()
+                    assertTrue(deleting.isCancelled)
+                    val creating = scope.launch suspend { loop.createDirectories(nested) }
+                    backend.state.post { creating.cancel() }
+                    creating.join()
+                    assertTrue(creating.isCancelled)
+                    gcCollect()
+                } finally { fence.close() }
+                assertEquals("source", source.readText())
+                assertEquals("destination", destination.readText())
+                assertFalse(tree.child("new").exists())
+            }
+        }
+    }
+
+    @Test
+    fun `late path cancellation retains completed move delete and directory creation`() {
+        IoTestDirectory().use { tree ->
+            val source = tree.child("source")
+            val destination = tree.child("destination")
+            val directory = tree.child("directory")
+            source.writeText("source")
+            val backend = LibuvEventLoop()
+            val loop: EventLoop = backend
+            loop.run suspend { scope ->
+                val moving = scope.launch suspend { loop.moveFile(source, destination) }
+                backend.state.post {
+                    awaitPathModification { destination.exists() }
+                    moving.cancel()
+                }
+                moving.join()
+                assertTrue(moving.isCancelled)
+                assertFalse(source.exists())
+                assertEquals("source", destination.readText())
+                val deleting = scope.launch suspend { loop.deleteFile(destination) }
+                backend.state.post {
+                    awaitPathModification { !destination.exists() }
+                    deleting.cancel()
+                }
+                deleting.join()
+                assertTrue(deleting.isCancelled)
+                val creating = scope.launch suspend { loop.createDirectories(directory) }
+                backend.state.post {
+                    awaitPathModification { directory.exists() }
+                    creating.cancel()
+                }
+                creating.join()
+                assertTrue(creating.isCancelled)
+                assertTrue(loop.metadata(directory).kind == FileKind.Directory)
+            }
+        }
+    }
+}
+
+private fun awaitPathModification(complete: () -> Boolean) {
+    val start = MonotonicTimeSource.markNow()
+    while (!complete()) {
+        assertTrue(start.elapsedNow() < Duration.seconds(10L), Some("path syscall did not execute"))
+        yield()
+    }
+}
