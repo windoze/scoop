@@ -2,19 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-int http1_method_code(const uint8_t *name, size_t length) {
-#define METHOD(number, symbol, text)                                           \
-  if (length == sizeof(#text) - 1 && memcmp(name, #text, length) == 0)         \
-    return number;
-  HTTP_ALL_METHOD_MAP(METHOD)
-#undef METHOD
-  return -1;
-}
-
-int32_t scoop_http1_known_method(const uint8_t *name, int64_t length) {
-  return http1_method_code(name, (size_t)length) >= 0;
-}
-
 int http1_fail(http1 *state, int code, const char *message) {
   http_fail(&state->error, code, message);
   llhttp_set_error_reason(&state->parser, state->error.text);
@@ -69,15 +56,16 @@ int32_t scoop_http1_expect(uint64_t handle, const uint8_t *name,
   if (state->server || state->failed || state->ended || state->switched)
     return http_fail(&state->error, -2,
                      "cannot register an HTTP/1 response here");
-  int code = http1_method_code(name, (size_t)length);
-  if (code < 0)
-    return http_fail(&state->error, HPE_INVALID_METHOD,
-                     "llhttp 9.4.3 does not support this HTTP/1 method");
   http1_method *method = calloc(1, sizeof(*method));
   if (!method)
     return http_fail(&state->error, -1,
                      "cannot allocate HTTP/1 request context");
-  method->method = (llhttp_method_t)code;
+  /* Only response framing needs the method; the wire token stays in Scoop. */
+  method->method = HTTP_GET;
+  if (length == 4 && memcmp(name, "HEAD", 4) == 0)
+    method->method = HTTP_HEAD;
+  else if (length == 7 && memcmp(name, "CONNECT", 7) == 0)
+    method->method = HTTP_CONNECT;
   if (state->last_method)
     state->last_method->next = method;
   else

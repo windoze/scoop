@@ -51,16 +51,6 @@ internal class Http2Fields internal constructor() : Closeable {
     public override fun close() { @Unsafe { http2FieldsFree(handle) } }
 }
 
-internal fun httpBytesEqual(left: List<Byte>, right: List<Byte>): Boolean {
-    if (left.size != right.size) return false
-    var index = 0L
-    while (index < left.size) {
-        if (left[index] != right[index]) return false
-        index += 1L
-    }
-    return true
-}
-
 internal fun http2RequestFields(head: HttpRequestHead): Http2Fields {
     if (head.version != HttpVersion.Http2) throw IllegalArgumentException(Some("HTTP/2 request requires HTTP/2 version"))
     val fields = Http2Fields()

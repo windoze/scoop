@@ -1,6 +1,6 @@
 # Scoop HTTP 库规范
 
-版本：M53 已实施基线，含 M54 待实施修订。既有实现见 [M53 设计](../milestone53/DESIGN.md)，新增范围见 [M54 设计](../milestone54/DESIGN.md)与第 9 节。本规范使用[库 API 风格](SCOOP-API-STYLE.md)、[异步 I/O](SCOOP-ASYNCIO-SPEC.md)和 [TLS](SCOOP-TLS-SPEC.md)的既有合同，不改变语言语义、runtime ABI 或编译阶段职责。
+版本：M53 已实施基线，含 M54 修订；扩展方法已实现，其余补充按 [M54 进度](../milestone54/PROGRESS.md)记录。既有实现见 [M53 设计](../milestone53/DESIGN.md)，新增范围见 [M54 设计](../milestone54/DESIGN.md)与第 9 节。本规范使用[库 API 风格](SCOOP-API-STYLE.md)、[异步 I/O](SCOOP-ASYNCIO-SPEC.md)和 [TLS](SCOOP-TLS-SPEC.md)的既有合同，不改变语言语义、runtime ABI 或编译阶段职责。
 
 ## 1. 分层与后端
 
@@ -34,7 +34,7 @@ client 在发送每个请求时按顺序登记方法上下文。信息响应不�
 
 解析支持 HTTP/1.0／1.1、连续消息、Content-Length、chunked、trailer 和 EOF 定界。起始行、字段、chunk 可以任意分段；字段回调片段必须组合到字段完成后才交付。只有需要 EOF 定界的消息在正常 EOF 时完成；截断定长／chunked 报文报错。
 
-llhttp 9.4.3 的服务端请求解析只接受其已知方法集合，`CUSTOM` 等集合之外的方法明确诊断为该版本不支持的方法；公共 token 数据模型不改变这个接收限制。M53 实现同时限制了发送与客户端响应的方法上下文；M54 按第 9.1 节解除后两处不必要的限制，服务端接收限制保持明确。HTTP/2 的方法不受 llhttp 限制。不能改写线上方法或预修复报文绕过后端。
+llhttp 9.4.3 的服务端请求解析只接受其已知方法集合，`CUSTOM` 等集合之外的方法明确诊断为该版本不支持的方法；公共 token 数据模型不改变这个接收限制。客户端方法登记接受任意合法 token，保留精确 HEAD／CONNECT 与普通方法的响应定界分类，非法 token 为参数错误且不登记上下文。HTTP/2 的方法不受 llhttp 限制。不能改写线上方法或预修复报文绕过后端。
 
 接收选项在创建时固定，默认全部关闭：
 
@@ -69,7 +69,7 @@ Http1Encoder 生成起始行、字段、body 定界与结束字节，保持调�
 
 body 定界显式选择无 body、已知长度、chunked 或响应 EOF。Content-Length 与 Transfer-Encoding 必须与所选定界一致；缺少所需字段时由编码器添加，不允许冲突的重复定界。chunked 仅用于 HTTP/1.1；EOF 定界不用于请求。发送的字节数不得超过已知长度，完成时检查剩余长度；trailer 只随 chunked 结束交付。
 
-响应编码持有对应方法上下文，处理 HEAD、信息响应、204、304 和成功 CONNECT 的实际 body 规则。101／成功 CONNECT 之后旧编码器不再发送 HTTP 消息。已被本层接受的 body 前缀不因后续传输失败或取消而回滚或自动重发。
+响应编码持有对应方法上下文，处理 HEAD、信息响应、204、304 和成功 CONNECT 的实际 body 规则。HEAD 与 CONNECT 按精确大小写识别，`head`／`connect` 等 token 使用普通方法规则。101／成功 CONNECT 之后旧编码器不再发送 HTTP 消息。已被本层接受的 body 前缀不因后续传输失败或取消而回滚或自动重发。
 
 ## 5. HTTP/2 内存会话
 
@@ -159,7 +159,7 @@ HTTP Cone 只声明一次 nghttp2 静态库，通过既有目标条件 include �
 
 Darwin/AArch64、GNU amd64、musl amd64 运行适用的 debug／release 库测试及生产产物消费者。独立工具只属于开发验证，不进入分发包。发布包按 M52 规则手工验证，不为每次常规测试重新打包；原始日志和工作数据不提交。
 
-## 9. M54 协议层补齐（待实施）
+## 9. M54 协议层补齐
 
 ### 9.1 扩展方法与上传协调
 

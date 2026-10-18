@@ -46,4 +46,3 @@ package scoop.http
 @Extern(name = "scoop_http1_switched") internal fun http1Switched(handle: ULong): Int
 @Extern(name = "scoop_http1_error") internal fun http1Error(handle: ULong): Ptr<Byte>
 @Extern(name = "scoop_http1_next") internal fun http1Next(handle: ULong): ULong
-@Extern(name = "scoop_http1_known_method") internal fun http1KnownMethod(name: Ptr<Byte>, size: Long): Int

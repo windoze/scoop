@@ -1,5 +1,15 @@
 package scoop.http
 
+internal fun httpBytesEqual(left: List<Byte>, right: List<Byte>): Boolean {
+    if (left.size != right.size) return false
+    var index = 0L
+    while (index < left.size) {
+        if (left[index] != right[index]) return false
+        index += 1L
+    }
+    return true
+}
+
 internal fun httpToken(bytes: List<Byte>): Boolean {
     if (bytes.size == 0L) return false
     for (byte in bytes) {

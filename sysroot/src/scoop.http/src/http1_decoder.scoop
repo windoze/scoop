@@ -41,8 +41,10 @@ public class Http1Decoder private constructor(private var handle: ULong, public 
 
     public fun expectResponse(method: List<Byte>) {
         val owned = nativeHandle()
+        val bytes = method.toArray()
+        requireHttp1Method(bytes)
         @Unsafe {
-            val code = method.toArray().withDataPointer { pointer, count ->
+            val code = bytes.withDataPointer { pointer, count ->
                 @Unsafe { return@withDataPointer http1Expect(owned, pointer, count) }
             }
             check(code, "register HTTP/1 response", HttpFailureScope.Operation)

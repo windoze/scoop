@@ -6,7 +6,7 @@
 
 同一方向只允许一个操作。未完成的 body 不能被下一条消息替换；提前关闭或取消 body 会关闭连接，不自动 drain。`close` 等待底层 I/O 和本地状态结束，支持取消后的 finally、并发等待与后续幂等调用。输入等待不借用调用者 buffer，已接受的发送前缀在失败时不回滚。
 
-接受 101／成功 CONNECT 后调用 `takeTransport`，得到先交付未消费后缀的 `HttpTransport`。旧连接已经释放协议状态，关闭旧对象不会再次关闭移交的传输。HTTP/1 方法受 llhttp 9.4.3 已知方法集合限制；具体接收选项、错误作用域和协议合同见 [HTTP 规范](../../../docs/specs/SCOOP-HTTP-SPEC.md)。
+接受 101／成功 CONNECT 后调用 `takeTransport`，得到先交付未消费后缀的 `HttpTransport`。旧连接已经释放协议状态，关闭旧对象不会再次关闭移交的传输。HTTP/1 客户端可发送任意合法方法 token；服务端请求解析仍受 llhttp 9.4.3 已知方法集合限制。具体接收选项、错误作用域和协议合同见 [HTTP 规范](../../../docs/specs/SCOOP-HTTP-SPEC.md)。
 
 `AsyncHttp2Connection.openRequest` 返回按 stream ID 关联的 `AsyncHttp2Stream`，服务端用 `acceptRequest` 取得请求头和流。`receiveResponse` 逐条取走信息／最终响应，`sendResponse` 提交服务端响应。需要 body 时将 endStream 设为 false，使用 `writeFrom`、`finish`；`readInto` 消费实际 DATA 并归还窗口。每流方向分别串行，其他流仍可并行推进；`flush` 在窗口打开、已接受输出写完并完成底层 flush 后返回。
 

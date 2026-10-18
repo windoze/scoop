@@ -29,6 +29,5 @@ typedef struct {
 
 void http1_callbacks(http1 *state);
 int http1_fail(http1 *state, int code, const char *message);
-int http1_method_code(const uint8_t *name, size_t length);
 
 #endif
