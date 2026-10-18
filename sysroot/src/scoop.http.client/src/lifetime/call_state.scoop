@@ -16,6 +16,8 @@ internal class ClientCall(
     var jobListener: Disposable? = None
     var dialWaiter: Continuation<ClientConnection>? = None
     var upgradeWaiter: Continuation<AsyncHttp2Connection>? = None
+    var continueDecision: Boolean? = None
+    var continueWaiter: CancellableContinuation<Boolean>? = None
     var endWaiter: Continuation<Unit>? = None
     var lease: ClientPoolEntry? = None
     var exchange: ClientExchange? = None

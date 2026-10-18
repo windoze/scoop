@@ -56,6 +56,7 @@
 | 同 origin 连接池 | 连接建立前预留容量，H1 依协议状态复用，H2 服从 peer SETTINGS 与本地流上限；可取消排队、GOAWAY 排空、单调时钟闲置／寿命回收与首次拒绝的明确失败出口 | 新增 14 项池测试；两种构建的独立 Python 对端验证 H1 连续复用与放弃、H2 降低 SETTINGS 上限、流取消顺序和 GOAWAY 后的新连接，full moving 与构建复用通过 |
 | 显式 h2c 升级 | 每条明文连接的首个请求经公开协议接口提议升级，完整上传后移交传输与后缀，原方法关联 stream 1；拒绝保留真实 H1 响应，Http2Only 明确失败，后续池请求使用实际协议 | 新增 9 项测试，client 全部 64 项 debug／release 通过；新增用例与 5 项取消／连接池回归逐例通过两种构建的 full moving，独立 Python 对端与正式跨 Cone 消费通过 |
 | Expect 字段语义 | HTTP 库的 httpExpectsContinue 完整读取 Expect 列表，区分裸 100-continue、未知值和带参数的扩展；复用字段 reader，保留原始字段与精确错误偏移 | 新增 4 项测试通过 debug／release 和 full moving；正式消费者在两个 native 线程中组合短块 HTTP/1 请求解析、扩展参数和 Unicode body，构建复用通过 |
+| Continue 上传门控 | HttpCallOptions 的 expectContinue／continueWait 与手写标准 Expect 共用门控；100 或间隔到期允许一次上传，早期最终响应不获取来源，等待可取消，H2 按流隔离 | 新增 9 项测试，client 全部 73 项通过 debug／release；13 项相关用例逐例通过两种构建的 full moving，独立 HTTP/1、H2 与 h2c 对端及正式构建复用通过 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -227,9 +228,13 @@ SecTrust 对原有十年有效期叶证书的拒绝符合系统政策，测试�
 
 `m54-http-expect` 在 Darwin 通过 debug／release 两个变体，共 6 个进程。正式消费者以 3 字节分块解析带多行 Expect 和 Unicode body 的请求，并验证扩展项与错误偏移；四项单元测试另覆盖空列表项、大小写、quoted 分隔与转义、重复未知参数、非 UTF-8 参数字节，以及找到 100-continue 后的后续格式错误。两种构建的 full moving 通过；协议工具只交付字段事实，等待、producer 启动与取消由 client 实施。
 
+`m54-client-continue` 在 Darwin 通过 debug／release 两个变体，共 6 个进程。独立 Python socket 对端覆盖 103、重复／迟到 100、等待到期、417 拒绝、取消、空 body、两个 H2 流分别放行，以及 Continue 后 h2c 升级；七种场景各在两个 native 线程中运行，full moving 与正常构建复用通过。
+
+9 项门控测试与 4 项取消／duplex／h2c 回归共 13 项，逐例通过两种构建的 full moving，共 26 个进程。早期最终响应不消耗单次 body，即使启用 duplex 也不启动 producer；定时器随调用真实结束，HTTP/1.0 的已知冲突在发头前拒绝。独立 h2c 对端最初在消费者正常关闭后仍要求读取 SETTINGS，已改为握手完成后才发送最终响应；未改变客户端关闭合同。
+
 ## 后续工作
 
-继续完成 client 的总截止与分阶段超时、Expect／请求 trailer、自动解码与文本／JSON 便利接口，以及重定向／重试／认证／代理、Cookie、缓存／续传、SSE／WebSocket 高层组合和可观察性。实际底层缺口仍在所属库补齐；每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
+继续完成 client 的总截止与分阶段超时、请求 trailer、自动解码与文本／JSON 便利接口，以及重定向／重试／认证／代理、Cookie、缓存／续传、SSE／WebSocket 高层组合和可观察性。实际底层缺口仍在所属库补齐；每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
 
 ## 验证安排
 

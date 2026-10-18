@@ -2,6 +2,7 @@ package scoop.http.client
 
 import scoop.asyncio.TcpConnectOptions
 import scoop.http.*
+import scoop.time.Duration
 import scoop.tls.*
 
 public enum HttpVersionPolicy { Auto, Http1Only, Http2Only }
@@ -39,5 +40,11 @@ public class HttpClientConfig public constructor(
 
 public class HttpCallOptions public constructor(
     public val duplex: Boolean = false,
+    public val expectContinue: Boolean = false,
+    public val continueWait: Duration = Duration.seconds(1L),
     public val onInformational: suspend (HttpResponseHead) -> Unit = suspend { _ -> }
-)
+) {
+    init {
+        if (continueWait < Duration.ZERO) throw IllegalArgumentException(Some("negative Continue wait duration"))
+    }
+}

@@ -13,6 +13,8 @@ internal suspend fun executeClientRequest(state: ClientState, request: HttpReque
             throw IllegalArgumentException(Some("duplex upload requires HTTP/2"))
         if (config.cleartext == HttpCleartextProtocol.Http1 && config.http1RequestVersion == HttpVersion.Http10 && request.contentLength == None)
             throw IllegalArgumentException(Some("HTTP/1.0 request body requires a known length"))
+        if (config.cleartext == HttpCleartextProtocol.Http1 && config.http1RequestVersion == HttpVersion.Http10 && request.expectsContinue)
+            throw IllegalArgumentException(Some("Continue waiting requires HTTP/1.1 or HTTP/2"))
     }
     return suspendCoroutine<HttpResponse> { continuation ->
         val call = ClientCall(state, request, caller, continuation)
@@ -51,10 +53,12 @@ private suspend fun runClientCall(call: ClientCall) {
             while (true) {
                 val head = exchange.receiveResponse()
                 if (head.status < 200U && head.status != 101U) {
+                    if (head.status == 100U) settleClientContinue(call, true)
                     call.request.options.onInformational(head)
                     continue
                 }
                 val response = HttpResponse(call, head)
+                settleClientContinue(call, false)
                 val result = call.lock.withLock {
                     requireClientCallUnlocked(call)
                     call.stopUpload = !call.request.options.duplex

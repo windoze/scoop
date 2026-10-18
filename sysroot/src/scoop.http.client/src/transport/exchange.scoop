@@ -18,6 +18,8 @@ internal suspend fun openClientExchange(call: ClientCall, connection: ClientConn
             if (request.options.duplex)
                 throw IllegalArgumentException(Some("negotiated HTTP/1 cannot perform a duplex upload"))
             val version = call.client.config.http1RequestVersion
+            if (version == HttpVersion.Http10 && request.expectsContinue)
+                throw IllegalArgumentException(Some("Continue waiting requires HTTP/1.1 or HTTP/2"))
             val framing = when (request.contentLength) {
                 case Some(0L) -> Http1BodyFraming.Empty
                 case Some(length) -> Http1BodyFraming.Length(length)

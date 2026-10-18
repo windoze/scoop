@@ -8,6 +8,7 @@ private class ClientUploadStoppedException : Exception(Some("final response stop
 internal suspend fun sendClientBody(call: ClientCall, exchange: ClientExchange) {
     var complete = false
     try {
+        if (!awaitClientContinue(call)) return
         val sink = RequestBodySink(ClientUploadSink(call, exchange), call.request.contentLength)
         try {
             call.request.body.writeTo(sink)

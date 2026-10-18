@@ -14,11 +14,10 @@ public class HttpRequest public constructor(
 ) {
     internal val methodBytes: Array<Byte> = method.toByteArray()
     internal val origin: UrlOrigin = requestOrigin(url)
-    public val fields: Array<HttpField> = prepareRequestFields(methodBytes, body, fields)
-    internal val contentLength: Long? = when (parseHttpContentLength(this.fields)) {
-        case Some(length) -> Some(length)
-        case None -> body.contentLength
-    }
+    private val metadata: ClientRequestMetadata = prepareRequestFields(methodBytes, body, fields, options.expectContinue)
+    public val fields: Array<HttpField> get() = metadata.fields
+    internal val contentLength: Long? get() = metadata.contentLength
+    internal val expectsContinue: Boolean get() = metadata.expectsContinue
 
     public companion object {
         public fun get(url: Url, fields: List<HttpField> = emptyList<HttpField>(), options: HttpCallOptions = HttpCallOptions()): HttpRequest =
@@ -43,7 +42,9 @@ private fun requestOrigin(url: Url): UrlOrigin {
     return origin
 }
 
-private fun prepareRequestFields(method: Array<Byte>, body: RequestBody, fields: List<HttpField>): Array<HttpField> {
+private class ClientRequestMetadata(val fields: Array<HttpField>, val contentLength: Long?, val expectsContinue: Boolean)
+
+private fun prepareRequestFields(method: Array<Byte>, body: RequestBody, fields: List<HttpField>, expectContinue: Boolean): ClientRequestMetadata {
     if (!isHttpToken(method)) throw IllegalArgumentException(Some("invalid HTTP method token"))
     val snapshot = requestBodyFields(body, fields)
     for (field in snapshot) {
@@ -54,5 +55,14 @@ private fun prepareRequestFields(method: Array<Byte>, body: RequestBody, fields:
     val length = parseHttpContentLength(snapshot)
     if (length != None && body.contentLength != None && length!! != body.contentLength!!)
         throw IllegalArgumentException(Some("Content-Length conflicts with request body length"))
-    return snapshot
+    val actualLength = if (length != None) length else body.contentLength
+    val present = httpExpectsContinue(snapshot)
+    val adding = expectContinue && actualLength != Some(0L) && !present
+    val prepared = if (adding) {
+        val result = ArrayList<HttpField>()
+        for (field in snapshot) result.add(field)
+        result.add(HttpField("Expect".toByteArray(), "100-continue".toByteArray()))
+        result.toArray()
+    } else snapshot
+    return ClientRequestMetadata(prepared, actualLength, (present || adding) && actualLength != Some(0L))
 }

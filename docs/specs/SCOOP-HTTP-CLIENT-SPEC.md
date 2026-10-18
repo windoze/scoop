@@ -82,6 +82,10 @@ RequestBodyPart 以 body 和有序 fields 创建不可变 part head，bodyLength
 
 `Expect: 100-continue` 可由调用者选择，另有独立等待间隔；100 或间隔到期才开始 body，先到最终响应则不启动 producer。间隔到期不是整个请求超时，也不能重发已接受的 body。HTTP/2 上仍处理该 HTTP 语义，但实际 DATA 和流控交给协议库。
 
+HttpCallOptions 的 expectContinue 默认为 false；设为 true 时为有正文的请求添加 100-continue expectation。continueWait 默认 1 秒，必须非负，零表示请求头提交后立即允许上传。调用者显式提供的标准 100-continue 同样启用门控，并使用该次 continueWait；协议库负责区分未知 expectation、带值／参数的扩展和裸 100-continue，client 不拆分或重新解释字段字节。自动添加不重复已有的裸 100-continue，也不删除其他有效 expectation。已知长度为零时不自动添加且不等待；调用者给定的字段仍保留。HTTP/1.0 不能启用此门控，选中该版本后在提交请求头前报配置冲突。
+
+等待从请求头提交后开始，103 等信息响应不打开门控；100 打开门控后仍由 onInformational 在调用 Context 中观察。到期后的迟到或重复 100 不再次运行 producer。最终响应若先于发送许可到达，即使 duplex 为 true 也不启动 producer，不打开文件或获取 source；该 body 的单次发送资格保持未使用。等待可取消，定时任务随调用收尾；H1 未完整定界的请求关闭连接，H2 只结束相应流。
+
 原始字节、压缩字节、HTTP 定界和 TLS 数据各自记录实际进度。输出背压不能阻塞共享输入驱动；没有数据或容量时挂起。应用没有读取响应时，只保留协议窗口及明确的本地缓冲，不自动在后台无限收集响应。
 
 ## 5. 版本选择与连接池
@@ -133,7 +137,7 @@ Proxy-Authorization 只发往代理，不能进入隧道后的 origin 请求；A
 | resolve／connect／tlsHandshake | 各自阶段默认 30 秒；一次候选连接序列共享 connect 截止 |
 | responseHeaders | 等待最终响应头，默认 None；启用时从该次请求头发出开始计时，包括并行上传 |
 | readIdle／writeIdle | 有实际待处理读／写时连续无字节进度的时间，默认 None；应用处理数据或未发起读取不算停滞 |
-| expectContinue | 默认 1 秒，到期允许发送 body，不单独令调用失败 |
+| HttpCallOptions.continueWait | 默认 1 秒，到期允许发送 body，不单独令调用失败 |
 
 每个阶段取自身上限与剩余 total 的较小者；重试、重定向和 token 刷新不重置总截止。收到无关 H2 控制帧或其他流的数据不能重置当前调用的 body 读停滞时间。
 
