@@ -1073,6 +1073,8 @@ LLVM 22.1 关闭寄存器分配后的独立 tail duplication pass 及机器基�
 
 普通优化可以消除已证明不可达的代码及 site，但保留实际求值、异常、Context、initialization、release-ready 与严格浮点语义。类型错误不能因优化删除代码而消失。
 
+release 的普通 LLVM 优化按 callable 选择。typed LIR effect 为 NoGc 且该 callable 的实际调用／poll 合同不含任何 safepoint 时，可以运行循环规范化、归纳变量化简、LICM 及 loop／SLP vectorization；不能仅凭优化前没有 LLVM statepoint 指令推断资格。其余定义使用不复制 site／恢复标记、不移动握手位置的标量管线，包括表达式重结合、关闭 PRE 和回边加载拆分的 GVN、位级死代码消除。严格浮点不启用 fast-math；正常 Managed 回边 poll、原子顺序、invoke 出口及逻辑根恢复保持。普通优化后仍由同一最终根计划确定实际保留的 site／roots，再执行 RS4GC；机器层限制继续适用。
+
 MIR 内联按调用点代入已知实参、局部常量和可证明不可达分支后的加权成本选择：极小正文积极内联，普通小正文结合循环位置、常量／receiver 机会和累计增长选择，较大正文保留调用，除非化简后进入前两档。标量运算、字段访问、aggregate copy、分配、调用和复杂控制流具有不同成本；实参副作用始终求值一次。稳定顺序、caller 累计增长及嵌套展开限制只决定优化选择，不决定程序合法性或 ABI。实际参数由性能记录公开，不增加通用跨阶段预算或源码属性。
 
 条件 poll 在 LIR 保存慢路径 site 与完整 live set，仅实际慢路径产生 statepoint／stackmap；合流连接更新引用，NoGC 不新增 poll。内联、去虚拟化及 CFG 改写均先于最终 roots 定稿，后端不靠完整 runtime poll 调用维持普通循环的检查。

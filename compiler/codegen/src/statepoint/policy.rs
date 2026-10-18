@@ -37,15 +37,40 @@ pub(crate) fn optimize(
     expected: &ExpectedSafepoints,
     profile: ValidatedBackendProfile,
 ) -> Result<ExpectedSafepoints, CodegenError> {
-    let passes = match profile.optimization() {
-        scoop_lir::OptimizationMode::Debug => "function(sroa,mem2reg,sccp,unreachableblockelim)",
-        scoop_lir::OptimizationMode::Release => {
-            "function(sroa,mem2reg,instcombine<no-verify-fixpoint>,early-cse,dse,adce,early-cse,sccp,unreachableblockelim)"
+    let site_owners = expected
+        .sites
+        .values()
+        .map(|site| site.function.as_str())
+        .collect::<BTreeSet<_>>();
+    for function in module.get_functions() {
+        if function.count_basic_blocks() == 0 {
+            continue;
         }
-    };
-    module
-        .run_passes(passes, machine, PassBuilderOptions::create())
-        .map_err(|error| CodegenError(format!("ordinary LLVM lowering failed: {error}")))?;
+        let name = function
+            .get_name()
+            .to_str()
+            .map_err(|error| CodegenError(format!("LLVM function name: {error}")))?;
+        let no_gc =
+            expected.functions.get(name) == Some(&GcEffect::NoGc) && !site_owners.contains(name);
+        let passes = match (profile.optimization(), no_gc) {
+            (scoop_lir::OptimizationMode::Debug, _) => "sroa,mem2reg,sccp,unreachableblockelim",
+            (scoop_lir::OptimizationMode::Release, true) => {
+                "sroa,mem2reg,instcombine,early-cse,simplifycfg,reassociate,loop-simplify,lcssa,loop-mssa(loop-rotate,licm),loop(indvars),loop-vectorize,slp-vectorizer,instcombine,simplifycfg,dse,adce"
+            }
+            (scoop_lir::OptimizationMode::Release, false) => {
+                // No PRE or backedge splitting: sites and logical root restores
+                // must stay unique until the physical root plan is finalized.
+                "sroa,mem2reg,instcombine<no-verify-fixpoint>,early-cse,reassociate,gvn<no-pre;no-load-pre;no-split-backedge-load-pre>,bdce,dse,adce,early-cse<memssa>,sccp,unreachableblockelim"
+            }
+        };
+        function
+            .run_passes(passes, machine, PassBuilderOptions::create())
+            .map_err(|error| {
+                CodegenError(format!(
+                    "ordinary LLVM lowering of `{name}` failed: {error}"
+                ))
+            })?;
+    }
     finalization::finalize(module, expected, profile)
 }
 

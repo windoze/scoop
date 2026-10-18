@@ -10,7 +10,7 @@
 | B1：内部 TD 验证结果复用、native 边界保留 | 本机通过 | 30 项 collector 测试、8 个 CLI 变体及完整分配对照；Linux 最终复验 |
 | B2：unbox／clone 单次对象定位 | 本机通过 | 单次 exact-size 定位；非法地址／类型、large clone、移动与含引用值 |
 | B3：String 有界表示 intrinsic | 本机通过 | 三个 typed intrinsic 与独立内部 NoGC leaf；UTF-8、越界、旧 extern 与移动 GC |
-| C1：NoGC／无 site 循环优化及 Managed 保守优化 | 待完成 | 实际向量化、唯一 site／roots、EH／原子与响应 |
+| C1：NoGC／无 site 循环优化及 Managed 保守优化 | 本机通过 | 三目标向量代码与完整 codegen 专测；Managed poll／EH／原子保留，Linux 运行待复验 |
 | C2：局部 card 查询／mark 复用 | 待完成 | 同 card／跨 card、同步边界、多 mutator、minor／moving |
 | D1：nursery／refill 对照与策略取舍 | 待完成 | 1／4／8／16 MiB，存活率与 1–8 mutator；吞吐／内存／停顿 |
 | D2：有搬迁 GC 并行 update 候选 | 待完成 | 串行 claim、槽分区、完整阶段屏障；单／多 worker 同义性及净收益 |
@@ -71,3 +71,18 @@ Linux 独立 worktree 已创建为 `/home/chenxu/repos/scoop-m56-20261019`，分
 | iterator | 20.679 [18.766, 21.611] | 3.132 [2.910, 3.182] |
 
 三个 kernel 时间分别约减少 84.0%、90.6%、84.9%。所有样本均为 1 次 minor／0 次 full、1,638,496 allocated bytes、400 promoted／copied bytes、38 root slots、3 traced objects。收益来自这些频繁的小操作，不能外推为整个 String 库或应用的加速比；Linux 待复验。原始数据保存在仓库外。此阶段又清理 1.7 GiB 的旧 incremental 产物，target 约 7.0 GiB。
+
+### C1：按 typed effect 选择普通优化管线
+
+先同步实现规范 2.19。使用 LLVM 22.1 的逐函数 pass 入口：typed NoGc 且没有实际 site 的定义启用循环规范化、LICM、indvars、loop／SLP vectorization；其余定义加入 reassociate、关闭 PRE／load PRE／回边拆分的 GVN 和 BDCE。debug 保持原管线，Managed 每条回边 poll 不变，最终 roots 仍由原 finalization 定稿。没有全局替换 default O2、重新编号 site 或启用 fast-math。
+
+格式化、workspace clippy、全部 227 项 codegen 测试通过，包含 runtime collector、invoke／unwind、实际 root count、机器 tail duplication、原子和握手。新增三目标专测确认 NoGc release 产生 `<4 x i32>`；debug 和无 site 的 Managed 控制组保持标量。严格浮点重结合负控制通过。新增 NoGC／Managed 循环 2 个 fixture 的 7 个变体通过，覆盖零迭代、非整向量尾部、整数回绕、重叠指针、嵌套 continue／break、try／catch／finally、原子发布与移动根；现有四 mutator 原子／GC fixture 的 2 个变体、12 个进程也通过。
+
+同一 4096-element 数组分别进行 5000 轮转换，真实 Scoop NoGC 指针借用与正常 Managed 数组路径各自对照 B3；checksum `25188352`。一轮预热、七轮交替独立进程，保留统计和所有 poll：
+
+| kernel | B3 中位 [最小, 最大] ms | C1 中位 [最小, 最大] ms |
+| --- | ---: | ---: |
+| NoGC 指针循环 | 5.366 [5.298, 5.557] | 1.104 [1.096, 1.190] |
+| Managed 数组循环 | 88.396 [86.706, 92.611] | 87.437 [84.793, 113.719] |
+
+NoGC kernel 时间约减少 79.4%；反汇编在对应 callable 确认两条 `mla.4s`，标量循环扩为带别名检查与尾部路径的向量循环（该函数约 14→40 条指令）。Managed 差异落在离散范围内，不能声称稳定加速；poll 仍主导此类短循环。两版可执行文件均为 17,492,984 bytes，`__TEXT` 均为 1,081,344 bytes，段对齐掩盖小函数的局部增长。全部样本无 GC；进程 allocated bytes 为 33,200，C1 单个耗时字符串更长的样本为 33,208，差异发生在 kernel 后的数字输出。当前应用构建约 3.43 s（与 fixture 构建并行，仅作观测，不能作为冷编译 A/B 结论）；编译开销的规模化对照与 E 合并记录，Linux 性能及完整验收仍待完成。

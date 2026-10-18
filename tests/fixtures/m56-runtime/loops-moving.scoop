@@ -1,0 +1,39 @@
+class LoopNode(val value: Long)
+
+fun main() {
+    val values = MutableArray<LoopNode>(16L) { index -> LoopNode(index) }
+    val published = AtomicRef<LoopNode>(values[0L])
+    var round = 0L
+    var visits = 0L
+    var caught = 0L
+    while (round < 4L) {
+        var index = 0L
+        while (true) {
+            if (index == values.size) { break }
+            val node = LoopNode(round * 16L + index)
+            values[index] = node
+            try {
+                if (index == 7L) { throw IllegalStateException() }
+                published.store(node)
+                gcCollect()
+                if (values[index] !== node || published.load() !== node) {
+                    throw IllegalStateException()
+                }
+            } catch (error: IllegalStateException) {
+                if (index != 7L) { throw error }
+                caught += 1L
+            } finally {
+                visits += 1L
+            }
+            index += 1L
+            if (index % 2L == 0L) { continue }
+            if (node.value != round * 16L + index - 1L) { throw IllegalStateException() }
+        }
+        round += 1L
+    }
+    gcCollect()
+    if (visits != 64L || caught != 4L || published.load().value != 63L) {
+        throw IllegalStateException()
+    }
+    println("Managed loops, exceptions, atomics and moving roots preserved")
+}
