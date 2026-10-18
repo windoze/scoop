@@ -4,6 +4,7 @@ import scoop.tls.*
 import scoop.tls.native.*
 
 internal fun advanceProtocol(state: TlsConnection): Boolean {
+    if (state.verificationBusy) return false
     if (present(state.exclusive)) return advanceRequest(state, state.exclusive!!)
     val read = state.reader
     val write = state.writer
@@ -26,6 +27,7 @@ private fun advanceRequest(state: TlsConnection, entry: TlsRequest): Boolean {
         case Ready -> true
         case Input -> state.inputEpoch != entry.lastInput
         case Output -> state.outputEpoch != entry.lastOutput
+        case Verification -> false
         case Finished -> false
     }
     if (!ready) return false
@@ -38,6 +40,7 @@ private fun advanceRequest(state: TlsConnection, entry: TlsRequest): Boolean {
             case Done -> RetryKind.Finished
             case WantRead -> RetryKind.Input
             case WantWrite -> RetryKind.Output
+            case WantVerification -> RetryKind.Verification
             case Closed -> {
                 if (entry.kind != RequestKind.Read)
                     throw TlsException("TLS protocol", TlsFailureKind.Protocol, 0UL, 0L, 0, "unexpected close_notify")

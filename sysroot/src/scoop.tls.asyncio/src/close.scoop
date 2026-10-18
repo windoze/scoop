@@ -26,7 +26,7 @@ internal fun advanceClose(state: TlsConnection, actions: ArrayList<() -> Unit>):
         actions.add { startClose(state) }
         return true
     }
-    if (!state.transportClosed || state.inputBusy || state.outputBusy) return false
+    if (!state.transportClosed || state.inputBusy || state.outputBusy || state.verificationBusy) return false
     try { state.engine.close() }
     catch (error: Throwable) { addCloseFailure(state, error) }
     val pending = requests(state)

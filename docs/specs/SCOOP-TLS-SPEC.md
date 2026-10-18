@@ -92,6 +92,12 @@ Linux 的 System 装载目标运行环境的系统 CA 配置，保留加载失�
 
 System 的配置装载提供同步与 suspend 工厂；`scoop.tls.asyncio.openTlsClientContext(trust, options, identity)` 通过 asyncio 的 native work 等待可能阻塞的系统操作。所有输入先保留 native 副本／引用，worker 不访问 managed 对象；取消后关闭未交付上下文，不能在 web client 的 EventLoop 线程直接读取系统 keychain 或同步 CA 文件。
 
+同步入口为 `TlsClientContext(trust: TlsTrustSource = TlsTrustSource.System, options = TlsOptions(), identity = None)`；原 TrustStore 构造重载保留。异步工厂的 trust 默认同样为 System，Store 路径只做内存配置。两条 System 路径先建立未发布的上下文并保留身份，再执行相同的原生装载工作，成功才交付；装载错误为 Configuration，保留原生原因及系统错误码。
+
+Linux 使用 SSL_CERT_FILE 和 SSL_CERT_DIR 的运行时设置，后者是冒号分隔的证书目录；显式空值禁用对应来源，显式指定的非空路径失败不回退。未设置文件变量时依次检查 /etc/ssl/certs/ca-certificates.crt、/etc/pki/tls/certs/ca-bundle.crt、/etc/ssl/ca-bundle.pem、/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem、/etc/ssl/cert.pem，使用首个存在的文件；只跳过不存在的默认候选。未设置目录变量时检查 /etc/ssl/certs、/etc/pki/tls/certs，使用存在的目录。文件按 OpenSSL 的系统 CA bundle 格式装载，目录选择其小写八位十六进制哈希加十进制序号的证书文件名（如 0123abcd.0），通过同一 PEM 装载器建立快照；其他目录项不作为 CA 输入。装载工作完成时必须含至少一张证书，空来源失败。
+
+目录快照在工厂的同步调用或 native worker 中读完，保留实际目录遍历、证书读取／权限和 PEM 格式错误；不使用会吞掉读取错误的延迟哈希查找。上下文创建后的 Linux CA 文件变化通过创建新上下文生效，握手不再读取原目录。此处不调用带构建前缀的 OpenSSL default-path 装载。
+
 ### 8.3 验证等待与共同引擎
 
 需要系统异步验证时，公共引擎增加明确的 WantVerification 步骤，利用 OpenSSL client 的 retry-verify 机制暂停握手。TLS 层建立拥有证书链与策略输入的验证工作，取得完成结果后继续同一握手；不在 native certificate callback 内 suspend，不从 worker 恢复 Scoop continuation。
@@ -99,6 +105,10 @@ System 的配置装载提供同步与 suspend 工厂；`scoop.tls.asyncio.openTl
 同步适配执行并等待同一验证工作，异步适配通过 asyncio native work 挂起。共同引擎、输入／输出背压和 SSL 重试规则保持一致，验证工作存活期间持有必需 native 引用。此工作仅供 TLS 适配组合，不作为新的用户证书 callback、证书链检查或信任插件 API。
 
 每条验证路径只运行其真正负责的信任链检查；OpenSSL 仍检查握手和证书持有证明，系统策略路径不再机械重跑一次等价的全链验证。DNS／IP 名称、时间与用途是必要验证输入，不能因切换后端遗漏。系统失败、关闭或取消后等待验证工作结束才释放其引用；M51 的 TLS 单操作取消关闭整条 TLS 连接的合同保持不变。
+
+WantVerification 期间，适配器从 TlsEngine 取走唯一的待执行工作，工作拥有独立的叶证书、未信任链、验证参数与信任来源引用；worker 不访问原 SSL。同步执行或 NativeWork 正常完成后，适配器在原引擎的串行区内移交结果，再重试原操作。取消／关闭时丢弃结果并释放工作，等实际工作返回后才释放 SSL。异步连接记录 verificationBusy，沿用既有请求 Job 和 startCoroutine，不增加逐步骤 Job。
+
+`scoop.tls.native` 的装载／验证工作接口只用于库适配：准备与取走操作交付一个稳定 native 指针，执行／释放入口由真正的 C 函数指针提供，结果读取或向引擎移交只能在执行结束后发生，每份工作由调用方恰好释放一次。它们均受 Unsafe 合同约束；不允许和 SSL 步骤并发移交结果，不允许指针或错误结果重复消费。Darwin 以 SecPolicyCreateSSL 的服务端用途及 DNS／IP 名称创建 SecTrust，显式关闭网络获取；失败保留 SecTrust 的实际错误码与描述，TLS 不再对同一链调用 X509_verify_cert。
 
 ### 8.4 验证
 

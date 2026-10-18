@@ -1,8 +1,15 @@
 #include "tls.h"
 #include <errno.h>
 
-static ScoopTlsStep failure(SSL *ssl, int status, int system_error,
-                            const char *message) {
+static ScoopTlsStep failure(ScoopTlsSession *session, int status,
+                            int system_error, const char *message) {
+  SSL *ssl = session->ssl;
+  if (session->verification_result.error) {
+    ScoopTlsStep result = session->verification_result;
+    session->verification_result.error = 0;
+    ERR_clear_error();
+    return result;
+  }
   long verification = SSL_get_verify_result(ssl);
   if (verification != X509_V_OK)
     status = -3;
@@ -16,7 +23,7 @@ ScoopTlsStep scoop_tls_step(uint64_t value, int operation, unsigned char *data,
   SSL *ssl = session->ssl;
   ERR_clear_error();
   if (operation == 3 && SSL_pending(ssl) > 0)
-    return failure(ssl, -4, 0,
+    return failure(session, -4, 0,
                    "unconsumed TLS application data during shutdown");
   size_t count = 0;
   int result;
@@ -35,7 +42,7 @@ ScoopTlsStep scoop_tls_step(uint64_t value, int operation, unsigned char *data,
     result = SSL_shutdown(ssl);
     break;
   default:
-    return failure(ssl, -1, 0, "invalid TLS operation");
+    return failure(session, -1, 0, "invalid TLS operation");
   }
   int saved_errno = errno;
   // SSL_shutdown(0) is a successful first half, not an SSL_get_error input.
@@ -48,6 +55,8 @@ ScoopTlsStep scoop_tls_step(uint64_t value, int operation, unsigned char *data,
     return (ScoopTlsStep){error == SSL_ERROR_WANT_READ ? 1 : 2, 0, 0, 0, 0};
   if (error == SSL_ERROR_ZERO_RETURN)
     return (ScoopTlsStep){3, 0, 0, 0, 0};
+  if (error == SSL_ERROR_WANT_RETRY_VERIFY)
+    return (ScoopTlsStep){4, 0, 0, 0, 0};
   unsigned long code = ERR_peek_error();
   int status =
       ERR_GET_LIB(code) == ERR_LIB_SSL &&
@@ -57,6 +66,6 @@ ScoopTlsStep scoop_tls_step(uint64_t value, int operation, unsigned char *data,
   if (operation == 3 && ERR_GET_LIB(code) == ERR_LIB_SSL &&
       ERR_GET_REASON(code) == SSL_R_APPLICATION_DATA_AFTER_CLOSE_NOTIFY)
     status = -4;
-  return failure(ssl, status, error == SSL_ERROR_SYSCALL ? saved_errno : 0,
+  return failure(session, status, error == SSL_ERROR_SYSCALL ? saved_errno : 0,
                  "TLS protocol operation failed");
 }

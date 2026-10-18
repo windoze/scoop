@@ -14,6 +14,7 @@ kind = "library"
 [test-dependencies]
 "scoop:scoop.test" = "0.1.0"
 "scoop.tests:crypto-certificates" = { version = "0.1.0", path = "../scoop.crypto/test-certificates" }
+"scoop.tests:tls-system-native" = { version = "0.1.0", path = "test-native" }
 
 [native]
 include = [
@@ -27,6 +28,15 @@ c_flags = ["-std=c11", "-Wall", "-Wextra", "-Werror"]
 name = "ssl"
 kind = "static"
 
+[[native.libraries]]
+name = "Security"
+kind = "framework"
+when = { os = "darwin" }
+[[native.libraries]]
+name = "CoreFoundation"
+kind = "framework"
+when = { os = "darwin" }
+
 [[native.sources]]
 path = "native/context.c"
 [[native.sources]]
@@ -37,3 +47,17 @@ path = "native/session.c"
 path = "native/step.c"
 [[native.sources]]
 path = "native/transport.c"
+
+[[native.sources]]
+path = "native/system_context.c"
+[[native.sources]]
+path = "native/verification.c"
+[[native.sources]]
+path = "native/system_linux.c"
+when = { os = "linux" }
+[[native.sources]]
+path = "native/verification_linux.c"
+when = { os = "linux" }
+[[native.sources]]
+path = "native/verification_darwin.c"
+when = { os = "darwin" }

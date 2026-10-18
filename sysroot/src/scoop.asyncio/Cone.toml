@@ -29,6 +29,9 @@ path = "native/timer.c"
 path = "native/work.c"
 
 [[native.sources]]
+path = "native/native_work.c"
+
+[[native.sources]]
 path = "native/file_open.c"
 
 [[native.sources]]

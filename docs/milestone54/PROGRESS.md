@@ -41,6 +41,8 @@
 | TLS 客户端身份 | TlsIdentity 独立保留证书链与私钥，PEM 工厂复用 crypto；TlsClientContext 接受可选身份，与服务端共用 OpenSSL 配置，关闭原输入／身份／上下文不破坏已有使用者 | Darwin debug／release：TLS 新增 6 项、全部 19 项通过，TLS asyncio 新增 2 项、全部 14 项通过；新增测试与两项服务端回归通过 moving GC，独立 OpenSSL 验证 TLS 1.2／1.3 的 mTLS 成功及拒绝 |
 | 异步流内存读取 | AsyncByteSource.readAllBytes 用有限原生缓冲读取剩余内容，显式返回独立数组，保留错误与取消，不接管输入端 | Darwin debug／release：4 项新测试与 asyncio 全部 49 项通过；新测试通过 moving GC，覆盖短读、空输入、部分失败、非法进度及真实借用完成后的取消 |
 | 显式 CA 文件 | TLS 的 fromCaFile 与 TLS asyncio 的 openTlsClientContext 共享 crypto bundle／TrustStore，异步文件读取复用 asyncio 公共操作；成功后独立保活，不混入系统根 | Darwin debug／release：TLS 新增 3 项、全部 22 项通过，TLS asyncio 新增 3 项、全部 17 项通过；新增测试通过 moving GC，生产消费者通过双版本同步／异步 mTLS |
+| 原生工作挂起等待 | asyncio.native.NativeWork 复用现有 libuv 工作队列，以真实 C 函数指针执行领域工作；一次性提交、明确结果借用和关闭，取消等实际完成 | Darwin debug／release：4 项新测试与 asyncio 全部 53 项通过；新增测试通过 moving GC，覆盖未提交关闭、前置失败、排队取消、运行中跨线程取消及结果回调异常 |
+| TLS 系统信任 | TlsTrustSource 的 System／Store 与同步／suspend 工厂；公共引擎 WantVerification 独立保活原生链和参数，Darwin 使用禁用网络获取的 SecTrust，Linux 装载运行环境 CA 文件／目录快照 | Darwin debug／release：TLS 新增 5 项、全部 27 项通过，TLS asyncio 新增 5 项、全部 22 项通过；新增测试通过 moving GC，独立 mTLS 消费者通过；Linux 装载源码另在 Darwin 原生测试中通过 13 个 POSIX 场景，GNU／musl 运行仍待验证 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -152,6 +154,12 @@ TLS 身份的 6 项新测试及 2 项既有服务端／引用回归在两种构�
 
 新增的 4 项通用读取、3 项同步 CA 和 3 项异步 CA 测试均通过两种构建的 full moving。读取帮助函数在取消时等待来源的真实 NativeByteBorrow 完成，保留已消费前缀并在下一次读取前结束；CA 工厂保留原始 I/O、UTF-8 与 PEM 错误，不交付部分信任库。初次通用读取测试修正了 Unsafe 块的语法位置后通过，未修改语言实现。新增 asyncio 接口后，按正常构建入口更新记录旧依赖指纹的压缩预编译库，并完成 HTTP asyncio 的依赖刷新。系统信任和 Linux 验证仍待后续完成。
 
+系统信任的 `m54-tls-system` 在 Darwin 通过 debug／release 两个变体，共 6 个进程。正式 TLS／asyncio `.slib` 与普通测试辅助 Cone 跨库组合，在两个 native 线程中分别执行同步与工作线程验证；TLS 1.2／1.3 均与独立 Python SSL／OpenSSL 对端完成客户端身份验证、明文交换及 close_notify。测试只为独立 SecTrust 对象设置测试锚，未修改机器信任设置；短密文分块、输入／身份／上下文提前关闭、moving GC 与正常缓存复用均通过。
+
+原生工作和系统信任共 14 项新测试在两种构建下通过 full moving。异步验证使用真实工作队列，排队取消等待实际完成回调，连接关闭继续等待传输收尾；运行中跨线程取消由 NativeWork 的原生执行栅栏验证。系统验证保留拒绝原因，并覆盖 DNS／IP、用途、过期、错误信任、原生输入保活及同一握手暂停／恢复。生产 asyncio、TLS、TLS asyncio、compression 和 HTTP asyncio 已按正常入口刷新。
+
+SecTrust 对原有十年有效期叶证书的拒绝符合系统政策，测试辅助库改为用既有测试 CA 在内存中签发短期证书，保留名称和用途扩展，未放宽生产验证。Linux 原生装载对照发现 OpenSSL 延迟目录查找会丢失读取权限错误，因此改为在工厂工作中读取哈希证书文件快照。13 个 POSIX 场景覆盖正常文件／目录、冒号列表、空来源、缺失输入、空／非法／坏尾部 PEM 和文件／目录证书权限失败；这些是在 Darwin 上执行 Linux 装载源码的检查，不计为 GNU／musl 运行验收。原始日志和辅助程序仍在仓库外。
+
 ## 后续工作
 
 继续完成 HTTP 消息与协议补充、TLS 与 asyncio 缺口，再完成统一 client、策略、存储与长连接组合。每个功能独立验证和提交，最终按设计完成三个目标的运行验收。
@@ -181,3 +189,5 @@ Multipart 异步双向与共享 SSE 生命周期验收结束后，清理对应 6
 WebSocket 压缩与 WSS 验收结束后，清理 DEFLATE flush 与未压缩会话的 4 个已结束 fixture target 目录，释放约 333 MiB；保留压缩／WSS 消费者、生产 `.slib`、库 target、原始日志和缓存。
 
 CA 文件组合验收结束后，清理客户端身份的 2 个已结束 fixture target 目录，释放约 123 MiB；保留 CA 文件与 WSS 消费者、当前库 target、生产 `.slib`、原始日志和缓存。
+
+系统信任验收结束后，清理 CA 文件的 2 个已结束 fixture target 目录，释放约 122 MiB；保留系统信任与 WSS 消费者、当前库 target、生产 `.slib`、全部源码、日志和缓存。

@@ -1,5 +1,6 @@
 package scoop.asyncio
 
+import scoop.asyncio.native.NativeWork
 import scoop.time.Duration
 import scoop.platform.net.*
 import scoop.platform.system.OsString
@@ -53,6 +54,8 @@ public class LibuvEventLoop public constructor() : EventLoop {
 
     public override suspend fun resolve(host: OsString, port: Int, family: AddressFamily?): Array<SocketAddress> =
         resolveOnLoop(this, host, port, family)
+
+    @Unsafe public override suspend fun runNativeWork(work: NativeWork) { runNativeWorkOnLoop(this, work) }
 
     public override suspend fun openFile(path: Path, options: OpenOptions): AsyncFile =
         openFileOnLoop(this, path, options)

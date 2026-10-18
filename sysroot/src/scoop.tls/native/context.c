@@ -38,7 +38,8 @@ ScoopCryptoResult scoop_tls_context_new(int server, int minimum, int maximum,
            SSL_CTX_set_max_proto_version(ctx->ssl, maximum);
   if (ok && !server) {
     SSL_CTX_set_verify(ctx->ssl, SSL_VERIFY_PEER, NULL);
-    SSL_CTX_set1_cert_store(ctx->ssl, (X509_STORE *)(uintptr_t)store);
+    if (store)
+      SSL_CTX_set1_cert_store(ctx->ssl, (X509_STORE *)(uintptr_t)store);
   }
   if (ok && alpn_size > 0 && alpn_size <= 65535) {
     ctx->alpn = OPENSSL_memdup(alpn, (size_t)alpn_size);

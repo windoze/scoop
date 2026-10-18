@@ -4,7 +4,7 @@ import scoop.crypto.native.cryptoBytes
 import scoop.platform.memory.*
 import scoop.tls.*
 
-public enum TlsStepKind { Done, WantRead, WantWrite, Closed }
+public enum TlsStepKind { Done, WantRead, WantWrite, Closed, WantVerification }
 public struct TlsStep(val kind: TlsStepKind, val count: Long)
 
 public class TlsEngine private constructor(private var handle: ULong) : Closeable {
@@ -35,6 +35,21 @@ public class TlsEngine private constructor(private var handle: ULong) : Closeabl
 
     public fun handshake(): TlsStep { @Unsafe { return checkedStep(sessionStep(nativeHandle(), 0, None, 0L), "TLS handshake") } }
     public fun shutdown(): TlsStep { @Unsafe { return checkedStep(sessionStep(nativeHandle(), 3, None, 0L), "TLS shutdown") } }
+
+    @Unsafe public fun takeVerification(): Ptr<Unit> =
+        workPointer(takeVerification(nativeHandle()), "take TLS verification")
+
+    @Unsafe public fun completeVerification(work: Ptr<Unit>) {
+        tlsValue(completeVerification(nativeHandle(), work), "complete TLS verification")
+    }
+
+    public fun verify() {
+        @Unsafe {
+            val work = takeVerification()
+            try { runVerification(work); completeVerification(work) }
+            finally { freeVerification(work) }
+        }
+    }
 
     @Unsafe public fun read(borrow: NativeByteBorrow): TlsStep {
         if (borrow.length == 0L) throw IllegalArgumentException(Some("TLS engine read requires a nonempty buffer"))

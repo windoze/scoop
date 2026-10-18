@@ -1,0 +1,56 @@
+import scoop.asyncio.*
+import scoop.platform.memory.*
+import scoop.tls.native.*
+
+class EnginePump(
+    val engine: TlsEngine,
+    val transport: AsyncByteStream,
+    val loop: EventLoop,
+    val asynchronous: Boolean
+) : Closeable {
+    val input: NativeByteBuffer = NativeByteBuffer.allocate(37L)
+    val output: NativeByteBuffer = NativeByteBuffer.allocate(41L)
+    var progress: Long = 0L
+    var verifications: Int = 0
+
+    suspend fun drive(operation: Int, borrow: NativeByteBorrow?): Long {
+        progress = 0L
+        while (true) {
+            val step = next(operation, borrow)
+            progress = step.count
+            while (engine.pendingOutput > 0L || output.readableBytes > 0L) {
+                if (output.readableBytes == 0L) { output.clear(); engine.takeCiphertext(output) }
+                transport.writeFully(output)
+            }
+            when (step.kind) {
+                case Done -> return progress
+                case Closed -> return 0L
+                case WantRead -> {
+                    input.clear()
+                    val count = transport.readInto(input)
+                    if (count == 0L) engine.endInput()
+                    else engine.receiveCiphertext(input)
+                }
+                case WantWrite -> {}
+                case WantVerification -> {
+                    gcCollect()
+                    if (asynchronous) verifyOnWorker(loop, engine)
+                    else verifyHere(engine)
+                    verifications += 1
+                }
+            }
+        }
+    }
+
+    private fun next(operation: Int, borrow: NativeByteBorrow?): TlsStep {
+        @Unsafe { return when (operation) {
+            case 0 -> engine.handshake()
+            case 1 -> engine.read(borrow!!)
+            case 2 -> engine.write(borrow!!)
+            case 3 -> engine.shutdown()
+            else -> throw IllegalArgumentException()
+        } }
+    }
+
+    public override fun close() { input.close(); output.close() }
+}

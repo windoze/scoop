@@ -17,6 +17,7 @@ import scoop.tls.*
             case -2 -> TlsFailureKind.Truncated
             case -3 -> TlsFailureKind.Verification
             case -4 -> TlsFailureKind.UnconsumedData
+            case -5 -> TlsFailureKind.Configuration
             else -> TlsFailureKind.Protocol
         }
         try { cryptoValue(CryptoResult(0UL, result.error), operation) }
@@ -27,6 +28,7 @@ import scoop.tls.*
         case 1 -> TlsStepKind.WantRead
         case 2 -> TlsStepKind.WantWrite
         case 3 -> TlsStepKind.Closed
+        case 4 -> TlsStepKind.WantVerification
         else -> throw IllegalStateException(Some("invalid TLS step status"))
     }, result.count)
 }

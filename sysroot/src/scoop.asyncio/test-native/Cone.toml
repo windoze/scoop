@@ -15,3 +15,6 @@ c_flags = ["-std=c11", "-Wall", "-Wextra", "-include", "../native/config.h"]
 
 [[native.sources]]
 path = "native/fence.c"
+
+[[native.sources]]
+path = "native/work.c"

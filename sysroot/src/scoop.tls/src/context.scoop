@@ -8,12 +8,17 @@ import scoop.tls.native.*
 
 public class TlsClientContext private constructor(private val state: ContextState) : Closeable {
     public companion object {
+        internal fun takeOwnership(handle: ULong): TlsClientContext = TlsClientContext(ContextState(handle))
+
         public fun fromCaFile(path: Path, options: TlsOptions = TlsOptions(), identity: TlsIdentity? = None): TlsClientContext =
             TrustStore.fromPem(path.readText()).use { store -> TlsClientContext(store, options, identity) }
     }
 
     public constructor(trustStore: TrustStore, options: TlsOptions = TlsOptions(), identity: TlsIdentity? = None)
-        : this(clientState(trustStore, options, identity)) {}
+        : this(storeState(trustStore, options, identity)) {}
+
+    public constructor(trust: TlsTrustSource = TlsTrustSource.System, options: TlsOptions = TlsOptions(), identity: TlsIdentity? = None)
+        : this(trustState(trust, options, identity)) {}
 
     internal fun newSession(peer: TlsPeerName): ULong {
         val (kind, bytes) = peerData(peer)
@@ -36,13 +41,28 @@ public class TlsServerContext private constructor(private val state: ContextStat
     public override fun close() { state.dispose() }
 }
 
-private fun clientState(trustStore: TrustStore, options: TlsOptions, identity: TlsIdentity?): ContextState {
+private fun trustState(trust: TlsTrustSource, options: TlsOptions, identity: TlsIdentity?): ContextState {
+    when (trust) {
+        case Store(store) -> return storeState(store, options, identity)
+        case System -> @Unsafe {
+            val work = prepareSystemContext(options, identity)
+            try { runSystemContext(work); return ContextState(takeSystemContextHandle(work)) }
+            finally { freeSystemContext(work) }
+        }
+    }
+}
+
+private fun storeState(trustStore: TrustStore, options: TlsOptions, identity: TlsIdentity?): ContextState {
+    @Unsafe { return ContextState(clientHandle(trustStoreHandle(trustStore), options, identity)) }
+}
+
+internal fun clientHandle(store: ULong, options: TlsOptions, identity: TlsIdentity?): ULong {
     val alpn = encodeOptions(options)
     @Unsafe {
-        val handle = newContext(false, options, alpn, trustStoreHandle(trustStore))
+        val handle = newContext(false, options, alpn, store)
         try {
             identity?.configure(handle)
-            return ContextState(handle)
+            return handle
         } catch (error: Throwable) {
             contextFree(handle)
             throw error

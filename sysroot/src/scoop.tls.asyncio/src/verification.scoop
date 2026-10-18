@@ -1,0 +1,58 @@
+package scoop.tls.asyncio
+
+import scoop.asyncio.native.NativeWork
+import scoop.tls.native.*
+
+internal fun planVerification(state: TlsConnection, actions: ArrayList<() -> Unit>): Boolean {
+    if (state.verificationBusy) return false
+    for (entry in requests(state)) {
+        if (entry.waiting != RetryKind.Verification) continue
+        state.verificationBusy = true
+        actions.add { startVerification(state, entry) }
+        return true
+    }
+    return false
+}
+
+private fun startVerification(state: TlsConnection, entry: TlsRequest) {
+    val job = entry.job
+    val loop = state.loop
+    context(job) { context(loop) {
+        startCoroutine<Unit>(suspend {
+            @Unsafe {
+                val work: NativeWork? = state.lock.withLock {
+                    if (state.closing) return@withLock None
+                    @Unsafe {
+                        val pointer = state.engine.takeVerification()
+                        return@withLock Some(NativeWork.takeOwnership(pointer, verificationExecutor(), verificationReleaser()))
+                    }
+                }
+                if (present(work)) work!!.use suspend { native ->
+                    @Unsafe { loop.runNativeWork(native) }
+                    state.lock.withLock {
+                        if (!state.closing) @Unsafe {
+                            native.withResult<Unit> { pointer -> @Unsafe { state.engine.completeVerification(pointer) } }
+                            for (waiting in requests(state)) {
+                                if (waiting.waiting == RetryKind.Verification) waiting.waiting = RetryKind.Ready
+                            }
+                        }
+                        Unit
+                    }
+                }
+            }
+        }, VerificationCompletion(state, entry))
+    } }
+}
+
+private class VerificationCompletion(val state: TlsConnection, val entry: TlsRequest) : Continuation<Unit> {
+    public override fun resume(value: Unit) { finish(None) }
+    public override fun resumeWithException(exception: Throwable) { finish(Some(exception)) }
+    private fun finish(failure: Throwable?) {
+        state.lock.withLock {
+            state.verificationBusy = false
+            if (!state.closing && present(failure)) terminate(state, Some(entry), failure!!)
+            Unit
+        }
+        drive(state)
+    }
+}

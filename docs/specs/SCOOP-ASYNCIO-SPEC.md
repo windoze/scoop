@@ -132,7 +132,7 @@ native request 持有预留完成节点；C callback 仅存状态和进度、入
 
 主要验收为同 Cone scoop.test：真实 loopback 动态端口、无公网 DNS、真实文件、Context、取消／关闭竞争、部分进度、原始错误、SIGPIPE 及 moving GC。竞争用明确同步点，测试源码和工具始终存在。详细边界见 [M49 设计第 14 节](../milestone49/DESIGN.md#142-异步-io)。
 
-## 9. M54 基础能力补齐（待实施）
+## 9. M54 基础能力补齐
 
 ### 9.1 文件与目录
 
@@ -161,6 +161,12 @@ TLS 的系统信任装载及平台验证需要能够挂起等待 native 工作�
 NativeWork 持有调用库构造的稳定 native 参数、GC-free 执行入口、结果存储和释放入口。worker 不调用 Scoop 回调、分配 managed 对象或恢复 continuation；结果的实际类型与提取由调用库的普通 FFI 声明负责。工作返回后，managed 调用方才能取得结果并构造 Scoop 值。它不是可执行任意 suspend／Scoop lambda 的 runBlocking 或通用调度框架。
 
 runNativeWork 期间借用 work，禁止重复提交和关闭；登记前失败不转移所有权。取消获胜也须等执行结束、复制错误和解除借用后返回，调用方在 finally 关闭 work。外部通知、Job 取消与 continuation 恢复保持锁外；native ABI 是普通库间接口，不新增 runtime functions 或 compiler-known 类型。
+
+具体入口为 Unsafe 的 `NativeWork.takeOwnership(payload: Ptr<Unit>, execute: FunPtr<(Ptr<Unit>) -> Unit>, release: FunPtr<(Ptr<Unit>) -> Unit>)` 和 `EventLoop.runNativeWork(work): Unit`。payload 由领域库原生代码分配，执行／释放指针必须来自可在对应线程调用的原生函数；不能使用仅支持已注册 Scoop 线程同步调用的静态 Scoop callback，也不能把 ForeignCallback 的 trampoline 单独交给 worker。执行函数在 payload 中保存结果及错误，不跨 C 边界展开异常；释放函数销毁同一份输入与未交付结果。
+
+work 是一次性资源：开始提交后，不论完成、提交失败或取消都不能再次运行；loop／Job 的前置检查失败不开始提交。正常等待返回后，通过 Unsafe 的 `work.withResult(block: (Ptr<Unit>) -> R): R` 在 managed 侧读取领域结果；回调不能挂起或让借出的指针逃逸。结果读取期间也禁止再次读取、提交或关闭，回调结束后解除借用。没有成功等待结果时 withResult 报状态错误；领域工作自身的失败仍由领域库从结果中解释。
+
+work 实现 Closeable，提供 isClosed；未使用、完成或失败的 work 均可关闭，释放入口恰好调用一次。其本地状态采用普通同步保护；执行与释放原生入口、结果回调及 continuation 恢复均不在状态锁内运行。runNativeWork 不接管关闭责任，EventLoop 通过既有在途操作等待实际 after-work，调用者在 finally 中关闭 work。
 
 ### 9.4 验证
 
