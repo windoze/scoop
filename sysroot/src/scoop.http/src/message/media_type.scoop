@@ -1,0 +1,34 @@
+package scoop.http
+
+import scoop.collections.emptyList
+import scoop.text.lowercaseAscii
+
+public class HttpMediaType private constructor(
+    public val type: String, public val subtype: String, public val parameters: Array<HttpParameter>,
+    public val originalValue: Array<Byte>?
+) {
+    public constructor(type: String, subtype: String, parameters: List<HttpParameter> = emptyList<HttpParameter>())
+        : this(httpNormalizedToken(type), httpNormalizedToken(subtype), uniqueHttpParameters(parameters), None) {}
+
+    public fun parameter(name: String): HttpParameter? = findHttpParameter(parameters, name)
+    public fun toByteArray(): Array<Byte> = encodeHttpParameters(type + "/" + subtype, parameters)
+    public fun toHttpField(): HttpField = HttpField("Content-Type".toByteArray(), toByteArray())
+
+    public companion object {
+        public fun parse(value: List<Byte>): HttpMediaType {
+            val reader = HttpFieldReader("Content-Type", value)
+            reader.skipOws()
+            val type = reader.token().lowercaseAscii()
+            reader.expect(47)
+            val subtype = reader.token().lowercaseAscii()
+            val parameters = reader.parameters(allowEmpty = true)
+            return HttpMediaType(type, subtype, parameters, Some(reader.bytes))
+        }
+        public fun parse(value: String): HttpMediaType = parse(value.toByteArray())
+        public fun parseOrNone(value: List<Byte>): HttpMediaType? {
+            try { return Some(parse(value)) }
+            catch (_: HttpFieldParseException) { return None }
+        }
+        public fun parseOrNone(value: String): HttpMediaType? = parseOrNone(value.toByteArray())
+    }
+}

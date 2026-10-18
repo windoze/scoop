@@ -1,6 +1,6 @@
 # Scoop HTTP 消息工具规范
 
-版本：M54 设计，尚未实施。本文补充 [HTTP 规范](SCOOP-HTTP-SPEC.md)第 9 节，所有能力在 `scoop.http` 或 `scoop.http.asyncio` 中交付，不在 web client 内另建协议实现。
+版本：M54，实施中。实际实现与验证见 [M54 进度](../milestone54/PROGRESS.md)。本文补充 [HTTP 规范](SCOOP-HTTP-SPEC.md)第 9 节，所有能力在 `scoop.http` 或 `scoop.http.asyncio` 中交付，不在 web client 内另建协议实现。
 
 ## 1. 字段与标准数据
 
@@ -17,6 +17,16 @@
 | `HttpRetryAfter` | delta-seconds 或 HTTP-date，解析与实际等待分开 |
 
 参数名大小写、重复值处理和扩展编码按字段所属 RFC 固定，不能用一个逗号 split 处理全部字段。扩展参数先在本层拆出 charset／language／百分号字节，再交给 URL 百分号 codec 与 charset 转换；优先满足 RFC 8187 的 UTF-8，历史 ISO-8859-1 兼容须显式记录。建议文件名只作为元数据，操作系统 Path 选择由调用者负责。
+
+### 1.1 媒体类型与字节参数
+
+`HttpMediaType(type, subtype, parameters)` 和 `HttpParameter(name, value: List<Byte>)` 是不可变值构造器。type、subtype 和参数名须为非空 ASCII token，统一为 ASCII 小写；参数值独立复制，允许 quoted-string 中的 HTAB、可见字节及 obs-text，拒绝其他控制字节。重复参数名（忽略 ASCII 大小写）一律报错，包括值相同的重复项；未知参数和顺序保留。
+
+`HttpMediaType.parse`／`parseOrNone` 接收字节或 String；String 明确按 UTF-8 转成字段字节，不把接收的任意字节猜成 UTF-8。`parameters` 与 `parameter(name)` 交付去除引号和 quoted-pair 转义后的字节；`HttpParameter.wasQuoted` 记录解析时的引号形式，普通构造值为 false。`originalValue` 在解析结果中保存完整原始字节，在普通构造值中为 None。
+
+解析接受前后 OWS 和 RFC 9110 parameters 中的空分号项，拒绝 type／slash／subtype 之间及参数等号两侧的空白；引号内的分号、逗号和转义字符不作为分隔符。字段内换行、非法 token、未闭合引号、坏 quoted-pair 和多余尾部均报错。`HttpFieldParseException` 保存 field、byteOffset 和 detail；偏移从原始字段值的第一个字节算起。parseOrNone 只吸收这种格式异常。
+
+`toByteArray()` 生成可发送的规范字段值；保留参数次序，必要时加引号并转义引号／反斜杠，已解析的 quoted 参数继续使用引号。`toHttpField()` 生成 Content-Type 字段。两者不隐式解释 charset 参数，也不把 obs-text 转成展示字符串；字符解码由显式 charset 操作完成。
 
 ## 2. Cookie 与公共后缀
 

@@ -1,0 +1,63 @@
+import scoop.http.*
+import scoop.charset.Charset
+import scoop.bytes.ByteArrayBuilder
+import scoop.platform.memory.NativeByteBuffer
+
+fun main() {
+    val charset = Charset.Iso8859_1
+    val body = charset.encode("café")
+    val media = HttpMediaType("TEXT", "PLAIN", [HttpParameter("Charset", charset.name.toByteArray()),
+        HttpParameter("Title", charset.encode("été"))])
+    val wire = ByteArrayBuilder()
+    Http1Encoder(HttpRole.Client).use { encoder ->
+        val head = HttpRequestHead(HttpVersion.Http11, "POST".toByteArray(), HttpRequestTarget.Http1("/".toByteArray()),
+            [HttpField("Host".toByteArray(), "example.test".toByteArray()), media.toHttpField()])
+        wire.append(encoder.beginRequest(head, Http1BodyFraming.Length(body.size)))
+        NativeByteBuffer.allocate(body.size).use { input ->
+            input.writeBytes(body)
+            wire.append(encoder.writeBody(input))
+        }
+        wire.append(encoder.finish())
+        Unit
+    }
+    val data = wire.toByteArray()
+    val received = ByteArrayBuilder()
+    val heads = ArrayList<HttpRequestHead>()
+    Http1Decoder.server().use { decoder ->
+        NativeByteBuffer.allocate(7L).use { input ->
+            var offset = 0L
+            var ends = 0L
+            while (offset < data.size) {
+                input.clear()
+                val count = if (data.size - offset < 7L) data.size - offset else 7L
+                input.writeBytes(data, offset, count)
+                if (decoder.receive(input) != count) throw IllegalStateException()
+                offset += count
+                while (true) {
+                    val next = decoder.nextEvent()
+                    when (next) {
+                        case None -> break
+                        case Some(_) -> when (next!!) {
+                            case Request(head) -> heads.add(head)
+                            case Data(bytes) -> received.append(bytes)
+                            case End(_) -> ends += 1L
+                            else -> {}
+                        }
+                    }
+                }
+                gcCollect()
+            }
+            decoder.endInput()
+            if (ends != 1L) throw IllegalStateException()
+            Unit
+        }
+        Unit
+    }
+    if (heads.size != 1L) throw IllegalStateException()
+    val parsed = HttpMediaType.parse(heads[0L].fields.findAll("content-type".toByteArray())[0L].value)
+    val selected = Charset.forName(String.fromUtf8(parsed.parameter("charset")!!.value))
+    if (selected.decode(received.toByteArray()) != "café") throw IllegalStateException()
+    if (selected.decode(parsed.parameter("title")!!.value) != "été") throw IllegalStateException()
+    if (parsed.type != "text" || parsed.subtype != "plain") throw IllegalStateException()
+    println("HTTP media type byte parameters")
+}
