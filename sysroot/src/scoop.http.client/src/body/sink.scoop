@@ -1,0 +1,70 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.platform.io.WriteZeroException
+import scoop.platform.memory.NativeByteBuffer
+
+internal class RequestBodySink(private val destination: AsyncByteSink, private val expected: Long?) : AsyncByteSink {
+    private val busy: AtomicBoolean = AtomicBoolean(false)
+    private val ended: AtomicBoolean = AtomicBoolean(false)
+    private var transferred: Long = 0L
+    private var failure: Throwable? = None
+
+    private fun enter() {
+        if (!busy.compareAndSet(false, true))
+            throw IllegalStateException(Some("request body output already has an operation in progress"))
+    }
+
+    private fun requireOpen() {
+        if (ended.load()) throw IoClosedException()
+        when (failure) { case Some(error) -> throw error; case None -> {} }
+        ensureActive()
+    }
+
+    public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long {
+        enter()
+        try {
+            requireOpen()
+            if (count < 0L) throw IllegalArgumentException(Some("negative request body write count"))
+            val available = buffer.readableBytes
+            if (count > available) throw IndexOutOfBoundsException()
+            if (count > Long.MAX_VALUE - transferred) throw ArithmeticException()
+            if (expected != None && count > expected!! - transferred) {
+                val error = RequestBodyLengthException(expected!!, transferred, count)
+                failure = Some(error)
+                throw error
+            }
+            try {
+                val progress = destination.writeFrom(buffer, count)
+                if (progress < 0L || progress > count || available - buffer.readableBytes != progress)
+                    throw IllegalStateException(Some("invalid request body output progress"))
+                if (progress == 0L && count != 0L) throw WriteZeroException()
+                return progress
+            } catch (error: Throwable) {
+                failure = Some(error)
+                throw error
+            } finally { transferred += available - buffer.readableBytes }
+        } finally { busy.store(false) }
+    }
+
+    public override suspend fun flush() {
+        enter()
+        try {
+            requireOpen()
+            try { destination.flush() }
+            catch (error: Throwable) { failure = Some(error); throw error }
+        } finally { busy.store(false) }
+    }
+
+    internal fun finish(): Long {
+        enter()
+        try {
+            requireOpen()
+            if (expected != None && transferred != expected!!)
+                throw RequestBodyLengthException(expected!!, transferred)
+            return transferred
+        } finally { busy.store(false) }
+    }
+
+    internal fun end() { ended.store(true) }
+}

@@ -1,0 +1,115 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.bytes.ByteArrayBuilder
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+import scoop.time.Duration
+
+internal class BodyTestGate {
+    private var signalled: Boolean = false
+    private var waiter: Continuation<Unit>? = None
+    fun signal() {
+        signalled = true
+        val ready = waiter
+        waiter = None
+        ready?.resume(Unit)
+    }
+    suspend fun await() {
+        suspendCoroutine<Unit> { continuation ->
+            if (signalled) continuation.resume(Unit) else waiter = Some(continuation)
+        }
+    }
+}
+
+internal class BodyTestSource(private val bytes: Array<Byte>) : AsyncByteSource, AsyncCloseable {
+    var reads: Long = 0L
+    var closes: Long = 0L
+    var position: Long = 0L
+    var failRead: Boolean = false
+    var failClose: Boolean = false
+    var holdRead: Boolean = false
+    var holdClose: Boolean = false
+    var buffer: NativeByteBuffer? = None
+    val failure: Throwable = Throwable()
+    val cleanup: Throwable = Throwable()
+    val started: BodyTestGate = BodyTestGate()
+    val release: BodyTestGate = BodyTestGate()
+    val closeStarted: BodyTestGate = BodyTestGate()
+    val closeRelease: BodyTestGate = BodyTestGate()
+
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long {
+        reads += 1L
+        this.buffer = Some(buffer)
+        if (holdRead && position == 0L) { started.signal(); release.await() }
+        else currentEventLoop().sleep(Duration.nanoseconds(1L))
+        if (failRead) throw failure
+        var amount = if (count < 3L) count else 3L
+        if (amount > bytes.size - position) amount = bytes.size - position
+        buffer.writeBytes(bytes, position, amount)
+        position += amount
+        return amount
+    }
+
+    public override suspend fun close() {
+        closes += 1L
+        closeStarted.signal()
+        if (holdClose) closeRelease.await()
+        if (failClose) throw cleanup
+    }
+}
+
+internal class BodyTestSink : AsyncByteSink, AsyncCloseable {
+    val bytes: ByteArrayBuilder = ByteArrayBuilder()
+    var calls: Long = 0L
+    var flushes: Long = 0L
+    var closes: Long = 0L
+    var zero: Boolean = false
+    var failAfterProgress: Boolean = false
+    var holdWrite: Boolean = false
+    var invalidProgress: Boolean = false
+    val started: BodyTestGate = BodyTestGate()
+    val release: BodyTestGate = BodyTestGate()
+    val failure: Throwable = Throwable()
+
+    public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long {
+        calls += 1L
+        if (holdWrite) { started.signal(); release.await() }
+        else currentEventLoop().sleep(Duration.nanoseconds(1L))
+        if (zero) return 0L
+        val amount = if (count < 2L) count else 2L
+        bytes.append(buffer.readBytes(amount))
+        if (failAfterProgress) throw failure
+        return if (invalidProgress) count + 1L else amount
+    }
+    public override suspend fun flush() { flushes += 1L }
+    public override suspend fun close() { closes += 1L }
+}
+
+internal class BodySinkCapture { var sink: AsyncByteSink? = None }
+internal class BodyTestContext(val value: String)
+
+context(binding: BodyTestContext)
+internal fun currentBodyTestContext(): String = binding.value
+
+internal suspend fun writeBodyText(destination: AsyncByteSink, text: String) {
+    val bytes = text.toByteArray()
+    NativeByteBuffer.allocate(bytes.size).use suspend { buffer ->
+        buffer.writeBytes(bytes)
+        destination.writeFully(buffer)
+    }
+}
+
+internal suspend fun <E : Throwable> expectBodyFailure(block: suspend () -> Unit): E {
+    try { block() }
+    catch (error: Throwable) { if (error is E) return error; throw error }
+    fail(Some("expected request body failure"))
+}
+
+internal suspend fun bodyText(body: RequestBody, bufferSize: Long = 2L): String {
+    val output = BodyTestSink()
+    val written = body.writeTo(output, bufferSize)
+    assertEquals(output.bytes.size, written)
+    assertEquals(0L, output.flushes + output.closes)
+    return String.fromUtf8(output.bytes.toByteArray())
+}

@@ -1,6 +1,6 @@
 # Scoop HTTP client 库规范
 
-版本：M54 设计，尚未实施。范围、底层缺口和实施次序见 [M54 设计](../milestone54/DESIGN.md)。本规范基于 [HTTP 协议库](SCOOP-HTTP-SPEC.md)、[异步 I/O](SCOOP-ASYNCIO-SPEC.md)、[TLS](SCOOP-TLS-SPEC.md)、[URL](SCOOP-URL-SPEC.md)、[IDNA](SCOOP-IDNA-SPEC.md)、[压缩](SCOOP-COMPRESSION-SPEC.md)与[字符集](SCOOP-CHARSET-SPEC.md)的公共合同。
+版本：M54 实施中；实际完成与验证范围见[实施进度](../milestone54/PROGRESS.md)。范围、底层缺口和实施次序见 [M54 设计](../milestone54/DESIGN.md)。本规范基于 [HTTP 协议库](SCOOP-HTTP-SPEC.md)、[异步 I/O](SCOOP-ASYNCIO-SPEC.md)、[TLS](SCOOP-TLS-SPEC.md)、[URL](SCOOP-URL-SPEC.md)、[IDNA](SCOOP-IDNA-SPEC.md)、[压缩](SCOOP-COMPRESSION-SPEC.md)与[字符集](SCOOP-CHARSET-SPEC.md)的公共合同。
 
 ## 1. 目标与边界
 
@@ -47,6 +47,16 @@ body 的已知长度必须与实际字节数一致，不能提前 EOF 或超长�
 响应 body 实现 AsyncByteSource／AsyncCloseable。同一 body 只能有一个消费者；bytes、text、JSON、copyTo 和其他解码视图共享这一次消费，不能同时读取 raw 与 decoded 两条伪独立流。便利入口明确传入 maxBytes，或使用调用方设置的有限缓冲上限；流式 copyTo 不要求把完整消息放入内存。取消及错误保留已交付的实际进度，不回滚文件或用户 sink。
 
 JSON 便利函数通过现有 Json 与显式 ValueEncoder／ValueDecoder 工作，完整 JSON 校验遵守语言规范 11.13。typed JSON body 是明确的有限缓冲转换，不声称业务 codec 可挂起或能逐元素处理无限 JSON；大 body 使用流接口，格式能力若需扩展必须在 scoop.json 补齐。非 UTF-8 文本使用 scoop.charset，不在 client 内实现编码器。
+
+### 3.1 Body 的基本工厂与发送
+
+`RequestBody` 保存可选 contentLength／contentType，以及实际的一次性生产过程或可重新创建内容的工厂；isReplayable 只报告该结构提供的能力。Empty、fromByteArray、fromText、fromJson、fromForm 产生可重复发送的独立字节快照；fromByteArray 接收 List<Byte>。fromText 使用显式 Charset（默认 UTF-8）严格编码并生成相应 text/plain 媒体类型。fromJson 接收 ValueEncoder 和 maxBytes，在调用现有 Json 完成编码后检查 UTF-8 结果长度；该上限约束接受的表示，不是 Json 编码过程的内存预算。fromForm 使用 URL 库的 FormUrlEncoded 与 UrlQuery。
+
+fromSource 接收单次借用的 AsyncByteSource，调用者负责其完整生命周期；构造不读取，未发送时也不关闭。fromSourceFactory 的 suspend 工厂在每次实际发送时创建同时满足 AsyncByteSource／AsyncCloseable 的独立来源，该次发送负责关闭，正文和关闭同时失败用 ResourceUseException。fromFile 是后者的便利入口，每次用当前 EventLoop 打开指定 Path，不在构造时同步查询或保存文件快照；可显式提供已知 contentLength，缺省为未知。
+
+fromProducer 接收一次性的 suspend `(AsyncByteSink) -> Unit`；fromProducerFactory 接收每次创建新 producer 的 suspend 工厂。producer 负责在返回前完成自己的子任务和释放自己打开的资源，借用的 sink 不能带出调用。单次来源或 producer 在发送实际开始时原子地标记已使用，失败后也不能再次发送；重复使用报 RequestBodyConsumedException。尚未实际发送、参数检查失败或入口已经取消不消耗该次机会。
+
+`body.writeTo(destination, bufferSize = 8192L): Long` 是普通 suspend 的表示字节发送入口，借用 destination，不执行 HTTP 定界、不关闭 destination、不隐式结束或 flush 协议消息；返回完整接受的表示字节数。内存快照和来源复制使用有限缓冲，工厂、producer 与 destination 调用均保留发起者 Context。已知长度通过实际输出进度检查；超长在提交超出部分前拒绝，提前结束和超长均报 RequestBodyLengthException，其中 expectedLength、transferredBytes 和 rejectedBytes 区分已发生进度与未提交数据。下游错误保留原异常，即使 producer 捕获下游错误后正常返回，本次发送也不转为成功。发送结束后保存的 sink 失效，同一 sink 不允许并发写入或 flush。
 
 ## 4. 上传、早期响应与背压
 

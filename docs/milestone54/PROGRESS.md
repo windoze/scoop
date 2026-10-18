@@ -49,6 +49,7 @@
 | 异步目录枚举 | openDirectory 返回单遍 AsyncDirectoryEntries，每次 next 在真实工作中复制一个原始名称；复用 platform 的目录入口与 DirectoryEntry，EOF、并发关闭和迟到取消沿所属 loop 收尾 | Darwin debug／release：7 项新测试与 asyncio 全部 80 项通过；9 项目录相关测试通过 moving GC，正式消费者验证两个 native 线程的逐项 metadata／读取、EOF 和显式删除 |
 | 双族 TCP 连接 | connectTcp 域名重载复用异步 DNS／TCP／定时器，按可配置延迟交错候选并限制并发；聚合实际错误、隔离普通失败，交付前收齐落败连接与子任务 | Darwin debug／release：12 项新测试与 asyncio 全部 92 项通过；新增测试通过 moving GC，正式消费者通过双族解析、平台同步对端、半关闭与并发 loop 组合 |
 | SOCKS5 异步隧道 | AsyncSocks5Tunnel 以普通 Scoop 接管异步流，支持无认证／用户名密码、IPv4／IPv6／ASCII 域名和本地／代理 DNS；精确读取回复，保留完整隧道数据与实际拒绝码 | Darwin debug／release：18 项新测试与 asyncio 全部 110 项通过；新增测试通过 moving GC，正式消费者与独立 Python socket 对端完成 20 次互通场景 |
+| 请求 body 基础 | 新建纯 Scoop 的 scoop.http.client，RequestBody 提供空／字节／字符集文本／JSON／表单快照、惰性文件、借用单次来源、独立来源工厂及单次／重新创建的 suspend producer；有限复制与实际长度检查不接管输出端 | Darwin debug／release：18 项新测试通过，全部通过两种构建的 moving GC；正式消费者验证多线程共享快照、HTTP/1 连接复用及 HTTP/2 双向上传和单流取消 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -190,6 +191,10 @@ SecTrust 对原有十年有效期叶证书的拒绝符合系统政策，测试�
 
 18 项 SOCKS5 新测试通过两种构建的 full moving，共 2 个进程。覆盖短读写、最大凭据长度、输入快照、非法目标不接管、禁止认证降级、格式／截断／零进度错误、原始 I/O 和清理双失败、并发关闭、错误 loop 及取消 finally。真实借用与关闭栅栏确认失败和取消等待底层收尾后才恢复；协议处理全部是普通 Scoop，没有原生入口或 client workaround。首次测试编译补齐字节列表和可选码的类型写法后，全部 110 项回归通过；独立对端脚本通过固定版本 Ruff。Linux 运行仍待验证。
 
+`m54-request-body` 在 Darwin 通过 debug／release 两个变体，共 6 个进程。生产 client `.slib` 的两个 native 线程共享同一字节快照和 producer 工厂，完成真实异步文件的 chunked 上传与 HTTP/1 连接复用。HTTP/2 小窗口先取消被背压阻塞的上传，再由另一 producer 读取早期响应后继续发送；动态 Context、最终字节、moving GC 与正常构建复用通过。
+
+18 项 body 测试通过两种构建的 full moving，共 2 个进程。覆盖 UTF-8／ISO-8859-1、JSON 的实际字节上限和 codec 错误、表单顺序、来源与工厂的关闭责任、重新打开后的文件内容、长度不符、单次竞争、短写／零写、并发输出、取消真实收尾及原始双失败。producer 即使捕获下游错误，发送仍保留该错误；保存到发送结束后的 sink 不能再使用。初次编译修正了受限初始化 receiver、尾随 lambda 的语句边界、可选值比较及消费者调用既有 API 的写法，未改变编译器。该项仅完成 body 基础，统一 HttpClient、multipart／上传压缩及 trailer 的高层组合继续实施。
+
 ## 后续工作
 
 继续完成 HTTP 消息与协议补充、TLS 与 asyncio 缺口，再完成统一 client、策略、存储与长连接组合。每个功能独立验证和提交，最终按设计完成三个目标的运行验收。
@@ -225,3 +230,5 @@ CA 文件组合验收结束后，清理客户端身份的 2 个已结束 fixture
 文件查询与控制验收结束后，清理对应 2 个已结束 fixture target 目录，释放约 95 MiB；保留正式源码、验证报告、日志、缓存及当前库 target。
 
 路径修改与临时文件验收结束后，清理对应 4 个已结束 fixture target 目录，释放约 194 MiB；保留正式源码、验证报告、日志、缓存及当前库 target。
+
+请求 body 验收期间，清理目录枚举和 TCP 竞速对应的 4 个已结束 fixture target 目录，释放约 205 MiB；保留正式源码、验证报告、日志、缓存、生产 sysroot 和当前库 target。

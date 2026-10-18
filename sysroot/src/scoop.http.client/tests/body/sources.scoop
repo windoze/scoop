@@ -1,0 +1,89 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.test.*
+
+@Test
+private class RequestBodySourceTest {
+    @Test
+    fun `a borrowed source is lazy single use and remains the callers resource`() {
+        val source = BodyTestSource("source".toByteArray())
+        val body = RequestBody.fromSource(source, Some(6L))
+        assertFalse(body.isReplayable)
+        assertEquals(0L, source.reads + source.closes)
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            expectBodyFailure<IllegalArgumentException> suspend { body.writeTo(BodyTestSink(), 0L) }
+            assertEquals(0L, source.reads)
+            assertEquals("source", bodyText(body))
+            expectBodyFailure<RequestBodyConsumedException> suspend { body.writeTo(BodyTestSink()) }
+            assertEquals(0L, source.closes)
+            source.close()
+        }
+        assertEquals(1L, source.closes)
+    }
+
+    @Test
+    fun `a source factory opens a fresh owned input only for each actual send`() {
+        val sources = ArrayList<BodyTestSource>()
+        val body = RequestBody.fromSourceFactory(Some(4L)) suspend {
+            val source = BodyTestSource("copy".toByteArray())
+            sources.add(source)
+            source
+        }
+        assertTrue(body.isReplayable)
+        assertEquals(0L, sources.size)
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            assertEquals("copy", bodyText(body))
+            assertEquals("copy", bodyText(body, 1L))
+            assertEquals(2L, sources.size)
+            assertTrue(sources[0L] !== sources[1L])
+            for (source in sources) assertEquals(1L, source.closes)
+        }
+    }
+
+    @Test
+    fun `source read and close failures retain both causes without cancelling the caller`() {
+        val source = BodyTestSource("bad".toByteArray())
+        source.failRead = true
+        source.failClose = true
+        val body = RequestBody.fromSourceFactory suspend { source }
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val error = expectBodyFailure<ResourceUseException> suspend { body.writeTo(BodyTestSink()) }
+            assertSame(source.failure, error.primaryFailure)
+            assertSame(source.cleanup, error.cleanupFailure)
+            assertEquals(1L, source.closes)
+            assertTrue(source.buffer!!.isClosed)
+            assertFalse(scope.job.isCancelled)
+        }
+    }
+
+    @Test
+    fun `file bodies reopen with asynchronous IO and do not claim a content snapshot`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            val temporary = loop.createTempFile(prefix = "m54-body-文件 ")
+            try {
+                RequestBody.fromText("first").writeTo(temporary.file)
+                val body = RequestBody.fromFile(temporary.path)
+                assertTrue(body.isReplayable)
+                assertTrue(body.contentLength == None)
+                assertEquals("first", bodyText(body, 3L))
+                temporary.file.seek(0L)
+                temporary.file.truncate(0L)
+                RequestBody.fromText("second").writeTo(temporary.file)
+                assertEquals("second", bodyText(body, 1L))
+                val wrongLength = RequestBody.fromFile(temporary.path, Some(8L))
+                val error = expectBodyFailure<RequestBodyLengthException> suspend { wrongLength.writeTo(BodyTestSink()) }
+                assertEquals(8L, error.expectedLength)
+                assertEquals(6L, error.transferredBytes)
+                assertEquals(0L, error.rejectedBytes)
+            } finally {
+                temporary.close()
+                loop.deleteFile(temporary.path)
+            }
+        }
+    }
+}

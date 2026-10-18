@@ -1,0 +1,75 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.charset.Charset
+import scoop.http.HttpMediaType
+import scoop.platform.fs.Path
+import scoop.url.UrlQuery
+
+public class RequestBody internal constructor(
+    contentLength: Long?, public val contentType: HttpMediaType?, private val plan: RequestBodyPlan
+) {
+    public val contentLength: Long? = checkedBodyLength(contentLength)
+    public val isReplayable: Boolean get() = plan.isReplayable
+
+    public suspend fun writeTo(destination: AsyncByteSink, bufferSize: Long = 8192L): Long {
+        ensureActive()
+        if (bufferSize <= 0L) throw IllegalArgumentException(Some("request body buffer size must be positive"))
+        val sink = RequestBodySink(destination, contentLength)
+        try {
+            plan.writeTo(sink, bufferSize)
+            return sink.finish()
+        } finally { sink.end() }
+    }
+
+    public companion object {
+        public val Empty: RequestBody = RequestBody(Some(0L), None, RequestBytes(Array<Byte>(0L) { _ -> 0.toByte() }))
+
+        public fun fromByteArray(bytes: List<Byte>, contentType: HttpMediaType? = None): RequestBody {
+            val snapshot = bytes.toArray()
+            return RequestBody(Some(snapshot.size), contentType, RequestBytes(snapshot))
+        }
+
+        public fun fromText(text: String, charset: Charset = Charset.Utf8): RequestBody =
+            textRequestBody(text, charset)
+
+        public fun <T> fromJson(value: T, codec: ValueEncoder<T>, maxBytes: Long): RequestBody =
+            jsonRequestBody(value, codec, maxBytes)
+
+        public fun fromForm(parameters: UrlQuery): RequestBody = formRequestBody(parameters)
+
+        public fun fromSource(source: AsyncByteSource, contentLength: Long? = None,
+            contentType: HttpMediaType? = None): RequestBody =
+            RequestBody(contentLength, contentType, RequestBodyOnce(suspend { destination, bufferSize ->
+                source.copyTo(destination, bufferSize)
+                Unit
+            }))
+
+        public fun <T> fromSourceFactory(contentLength: Long? = None, contentType: HttpMediaType? = None,
+            factory: suspend () -> T): RequestBody where T : AsyncByteSource, T : AsyncCloseable =
+            RequestBody(contentLength, contentType, RequestBodyFactory(suspend {
+                suspend { destination, bufferSize ->
+                    factory().useAsync suspend { source -> source.copyTo(destination, bufferSize); Unit }
+                }
+            }))
+
+        public fun fromFile(path: Path, contentLength: Long? = None, contentType: HttpMediaType? = None): RequestBody =
+            fromSourceFactory(contentLength, contentType, suspend { currentEventLoop().openFile(path) })
+
+        public fun fromProducer(contentLength: Long? = None, contentType: HttpMediaType? = None,
+            producer: suspend (AsyncByteSink) -> Unit): RequestBody =
+            RequestBody(contentLength, contentType, RequestBodyOnce(suspend { destination, _ -> producer(destination) }))
+
+        public fun fromProducerFactory(contentLength: Long? = None, contentType: HttpMediaType? = None,
+            factory: suspend () -> suspend (AsyncByteSink) -> Unit): RequestBody =
+            RequestBody(contentLength, contentType, RequestBodyFactory(suspend {
+                val producer = factory();
+                suspend { destination, _ -> producer(destination) }
+            }))
+    }
+}
+
+private fun checkedBodyLength(length: Long?): Long? {
+    if (length != None && length!! < 0L) throw IllegalArgumentException(Some("negative request body length"))
+    return length
+}
