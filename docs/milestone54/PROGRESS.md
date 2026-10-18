@@ -18,6 +18,7 @@
 | DEFLATE 消息 | 同一 Cone 的 DeflateMessageEncoder／Decoder 负责 RFC 7692 的同步尾部、消息结束、协商窗口与 context takeover；HTTP 无须改写压缩字节 | Darwin debug／release 与 moving GC：6 项新增测试；504 组独立 zlib 消息互操作对照；现有全部 40 项 debug／release 测试及 384 组普通压缩对照回归通过 |
 | HTTP 媒体类型 | `scoop.http` 提供 HttpMediaType、HttpParameter、原始字节快照、quoted-string 解析和可发送字段；格式异常保留字段名与原始字节位置 | Darwin debug／release 与 moving GC：4 项新增测试；HTTP 全部 58 项 debug／release 回归通过，涵盖大小写、空参数项、转义、重复、非法结构和非 UTF-8 字节 |
 | HTTP 扩展文件名 | HttpContentDisposition、RFC 8187 参数编码／解码与 HttpFilename 选择结果；复用 url／charset，保留原始字段、失败原因及字节位置，ISO-8859-1 扩展兼容显式开启 | Darwin debug／release 与 moving GC：7 项新增测试；HTTP 全部 65 项 debug／release 回归通过，覆盖 UTF-8、BOM、普通 filename、回退、坏编码及语言标签结构 |
+| HTTP 日期与 Retry-After | HttpDate 接收三种标准日期形状、只生成 IMF-fixdate，旧年份使用显式参考时间；HttpRetryAfter 区分非负秒数和日期，返回相对等待量 | Darwin debug／release 与 moving GC：6 项新增测试；HTTP 全部 71 项 debug／release 回归通过，覆盖 50 年边界、闰日、星期、秒 60、负 epoch、字段偏移及 Long 最大秒数 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -52,6 +53,8 @@ DEFLATE 消息对照包含编码窗口 9～15、解码窗口 8～15、两种 con
 `m54-content-disposition` 的 debug／release 两个变体通过，共 6 个进程；消费者只声明 HTTP 依赖，经其正式依赖取得 URL／charset，在逐字节的两条 HTTP/1 响应中处理中文扩展文件名、普通回退和解码失败原因，覆盖 moving GC 与缓存复用。UTF-8 与百分号错误保留底层原因并映射到原始字段字节位置；文件名仅为元数据，不选择文件路径。
 
 HTTP 日期的 release 编译暴露了跨无写入分支的同槽根加载直到机器发射才合并的问题。codegen 在根计划定稿前复用 LLVM MemorySSA 消除重复加载，保留所有逻辑引用的恢复；没有放宽 stackmap 校验或改写 HTTP 源码绕过。最小 LLVM 用例及独立 Scoop 程序均在修复前复现计数不一致。全部 224 项 codegen 测试通过，其中根计数回归覆盖 Darwin、Linux gnu／musl 的机器发射以及分支确有写入的对照；`m54-gc-branch-loads` 的 Darwin debug／release 两个变体通过，共 6 个进程，验证显式收集、moving GC 与两个引用选择路径。HTTP 的 71 项 release 测试随后通过。
+
+`m54-http-dates` 的 debug／release 两个变体通过，共 6 个进程；生产 HTTP `.slib` 的消费者逐字节解析 503 响应中的两种旧日期，计算 Retry-After 相对等待量，并验证大秒数、负 epoch、moving GC 与缓存复用。修复编译器后新增 6 项测试的 release moving GC 也全部通过；日期字段的年限与星期语义按 RFC 9110 引用的 RFC 5322 检查，时区与参考时刻始终显式。
 
 ## 后续工作
 

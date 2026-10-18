@@ -38,6 +38,18 @@
 
 `HttpContentDisposition.filename(allowIso88591 = false)` 返回 `HttpFilename`：text 是可用建议名或 None，language 在有效扩展名被选中时为 Some（可含空字符串），extendedFailure 保存被忽略的无效 filename* 原因。有效 filename* 优先；其缺失或无效时使用普通 filename，普通值按 RFC 6266 的 ISO-8859-1 解码，不猜 UTF-8、不额外百分号解码。仅有无效扩展名时 text 为 None，失败原因仍存在。此结果不转换或清理操作系统路径，下载目标仍由调用者显式选择。
 
+### 1.3 HTTP 日期与 Retry-After
+
+`HttpDate.format(Instant): String` 只生成 IMF-fixdate，使用 UTC 和固定英文星期／月份词；低于秒的部分向下取整。`parse(value, reference: Instant, caseInsensitive = false)`／`parseOrNone` 接收字节或 String，返回 std 的 Instant，完整接收 IMF-fixdate、RFC 850 和 asctime 三种形状。仅字段前后可有 OWS，内部空格、数字宽度和 GMT 按各格式检查；日期须为真实日历日期，星期须相符，年限按 RFC 9110 §5.6.7 引用的 RFC 5322 §3.3 及四位年份语法限定为 1900～9999。格式错误的 field 为 HTTP-date，日期与 UTC 算术复用 std，不查询当前时钟或本地时区。
+
+两位年份使用显式 reference 的 UTC 日历时间：以其后 50 个日历年为上界，选择不晚于上界、末两位相同的最近年份。比较包含月、日和时分秒；reference 的 UTC 年须在 1900～9999 内，只有旧式两位年份需要它。结果仍须满足日期及年份范围。这使世纪选择和 50 年边界可重现，不依赖运行机器的当前年份。
+
+秒接受 00～60；std 的 Instant 不表示独立闰秒，输入 60 映射到同一分钟的 59 秒，不查闰秒表，不把缓存有效期向后延长。`caseInsensitive = true` 按 RFC 9111 的缓存接收建议匹配英文词和 GMT；它不允许其他时区或任意日期形状。输出始终使用规范大小写。
+
+`HttpRetryAfter` 为 `DelaySeconds(Long)` 或 `At(Instant)`；parse／parseOrNone 与 HTTP 日期使用相同 reference 和大小写选项，格式诊断保留 Retry-After 字段名。delta-seconds 必须为非负十进制 Long，逐位检查溢出，不接受符号或小数。`toString()`／`toHttpField()` 输出合法字段；直接构造的负 DelaySeconds 在输出或计算时报告参数错误。
+
+`delayFrom(now): Duration` 将 DelaySeconds 原样表示为 Duration，将日期转换成相对显式 now 的非负等待量，已经过去的日期返回 ZERO。该操作不读时钟、不休眠，不把合法的大秒数先转换成会溢出的纳秒或到期 Instant；实际等待与策略上限属于 client。
+
 ## 2. Cookie 与公共后缀
 
 Cookie parser 接收单个 Set-Cookie 字段，按 RFC 6265 及现代 SameSite／前缀规则返回名称、值、Domain、Path、Expires、Max-Age、Secure、HttpOnly、SameSite 和未知属性。Cookie 请求字段的组装独立处理，不把多个 Set-Cookie 用逗号连接。域名使用 url／idna 的同一规范值。
