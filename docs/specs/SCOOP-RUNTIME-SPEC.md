@@ -133,6 +133,8 @@ struct、enum、tuple、数值、Ptr、FunPtr 依其静态类型按值存储。�
 
 String 持有合法 UTF-8，允许 U+0000，无隐含结尾 NUL。byte length 位于 offset 16，bytes 从 offset 24 开始；length 不超过 `INT64_MAX`。分配大小为 `alignUp(24 + byte_length, 8)`。
 
+语言规范 11.4 的三个有界表示 intrinsic 可在活动 Managed 状态直接读取，或调用内部 NoGC runtime leaf：`scoop_rt_string_byte_length_leaf(String*) -> i64`、`scoop_rt_string_byte_at_leaf(String*, i64) -> i8`、`scoop_rt_string_character_at_byte_leaf(String*, i64) -> u32`。leaf 不分配、park、转入 native、回调或保留传入地址，返回前最多读取一个 UTF-8 标量；调用期间对象不会移动。byte-at 和 cursor 解码保留索引检查；有效 String／标量起点是内部解码前置条件。内部 leaf 使用独立符号并复用旧入口的同一表示实现，避免把原 Managed extern 符号的合同改成 NoGC。旧 native 符号与实现保留，普通显式 extern 声明仍遵守自身调用模式；不得按符号拼写把它改成 intrinsic。完整 length、hash、比较或查找不因这些有界入口而改变线程协调合同。
+
 严格和 lossy 字节转换都只能发布满足该不变量的 String。lossy 的每个 U+FFFD 占三个 UTF-8 字节（`EF BF BD`），计入结果 byte length；结果长度计算和最终分配遵守上述边界，不能直接沿用输入长度。
 
 Array 与 MutableArray 的 logical size 位于 offset 16，元素区从 `alignUp(24, element_alignment)` 开始。分配大小为 `alignUp(element_offset + size * stride, object_alignment)`。size 在 `0..=INT64_MAX`，所有运算还须满足 `u64`、`size_t` 与实际分配边界。

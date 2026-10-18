@@ -9,6 +9,7 @@
 
 #include "../src/gc/gc_internal.h"
 #include "../src/managed_entries.h"
+#include "../src/string_abi.h"
 #include "../src/thread.h"
 #include "../src/value_shape.h"
 #include "platform/image_fixture.h"
@@ -322,6 +323,37 @@ static void test_allocation_bounds(void) {
     assert(scoop_shape_allocation_size(&bytes_td, 9) == 40);
 }
 
+static void negative_string_byte(void *value) { (void)scoop_rt_string_byte_at_leaf(value, -1); }
+static void past_string_byte(void *value) {
+    (void)scoop_rt_string_byte_at_leaf(value, (int64_t)((ScoopString *)value)->len);
+}
+static void negative_string_cursor(void *value) {
+    (void)scoop_rt_string_character_at_byte_leaf(value, -1);
+}
+static void past_string_cursor(void *value) {
+    (void)scoop_rt_string_character_at_byte_leaf(value, (int64_t)((ScoopString *)value)->len);
+}
+
+static void test_string_reads(void) {
+    const unsigned char bytes[] = {'A', 0, 0xc3, 0xa9, 0xe9, 0x9b, 0xaa, 0xf0, 0x9f, 0x99, 0x82};
+    ScoopString *value = allocate(&bytes_td, scoop_shape_allocation_size(&bytes_td, sizeof bytes));
+    value->len = sizeof bytes;
+    memcpy(value->data, bytes, sizeof bytes);
+    assert(scoop_rt_string_byte_length_leaf(value) == (int64_t)sizeof bytes);
+    for (size_t i = 0; i < sizeof bytes; i++) {
+        assert((uint8_t)scoop_rt_string_byte_at_leaf(value, (int64_t)i) == bytes[i]);
+    }
+    assert(scoop_rt_string_character_at_byte_leaf(value, 0) == 'A');
+    assert(scoop_rt_string_character_at_byte_leaf(value, 1) == 0);
+    assert(scoop_rt_string_character_at_byte_leaf(value, 2) == 0xe9);
+    assert(scoop_rt_string_character_at_byte_leaf(value, 4) == 0x96ea);
+    assert(scoop_rt_string_character_at_byte_leaf(value, 7) == 0x1f642);
+    expect_abort(negative_string_byte, value);
+    expect_abort(past_string_byte, value);
+    expect_abort(negative_string_cursor, value);
+    expect_abort(past_string_cursor, value);
+}
+
 static void run_mode(bool stress) {
     if (stress) {
         assert(setenv("SCOOP_GC_STRESS_MOVE", "1", 1) == 0);
@@ -341,6 +373,7 @@ static void run_mode(bool stress) {
     test_arrays();
     test_allocation_bounds();
     test_native_allocation_boundary();
+    test_string_reads();
     scoop_thread_leave_managed();
     scoop_thread_prepare_shutdown();
     scoop_thread_detach_main();

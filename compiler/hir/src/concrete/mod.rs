@@ -29,7 +29,7 @@ pub use super::{
     IntegerTypeCore, IntegerUnaryOperator, IntegerWidth, IntrinsicFunctionKind,
     IntrinsicProviderId, IntrinsicTypeKind, LocalValueDefinitionSite, MaybeUninitIntrinsic,
     MethodModifier, NoGcIntegerOperation, OperatorKind, PrimitiveBinaryKind, PrimitiveUnaryKind,
-    Safety, StringConstantOwner, StructAttributes, UnOp,
+    Safety, StringConstantOwner, StringIntrinsic, StructAttributes, UnOp,
 };
 
 mod types;

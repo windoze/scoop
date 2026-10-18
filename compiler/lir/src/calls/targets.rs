@@ -515,6 +515,9 @@ pub enum NoGcRuntimeFunction {
     ReleaseHandle,
     GcStats,
     StringCompare,
+    StringByteLength,
+    StringByteAt,
+    StringCharacterAtByte,
     Trap,
     Throw,
     Rethrow,
@@ -598,6 +601,9 @@ impl RuntimeFunction {
                 NoGcRuntimeFunction::ContextCurrent => 19,
                 NoGcRuntimeFunction::ContextEnter => 20,
                 NoGcRuntimeFunction::ContextLeave => 21,
+                NoGcRuntimeFunction::StringByteLength => 22,
+                NoGcRuntimeFunction::StringByteAt => 23,
+                NoGcRuntimeFunction::StringCharacterAtByte => 24,
             },
         }
     }
@@ -642,6 +648,9 @@ impl RuntimeFunction {
             (2, 19) => Some(Self::NoGc(NoGcRuntimeFunction::ContextCurrent)),
             (2, 20) => Some(Self::NoGc(NoGcRuntimeFunction::ContextEnter)),
             (2, 21) => Some(Self::NoGc(NoGcRuntimeFunction::ContextLeave)),
+            (2, 22) => Some(Self::NoGc(NoGcRuntimeFunction::StringByteLength)),
+            (2, 23) => Some(Self::NoGc(NoGcRuntimeFunction::StringByteAt)),
+            (2, 24) => Some(Self::NoGc(NoGcRuntimeFunction::StringCharacterAtByte)),
 
             _ => None,
         }

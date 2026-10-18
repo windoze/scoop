@@ -423,11 +423,15 @@ fn generic_runtime_has_no_target_specific_vm_dependency() {
 
 #[test]
 fn descriptor_driven_boxing_and_arrays_preserve_zst_and_moving_gc() {
-    let output = compile_and_run(
-        &workspace_root(),
+    let workspace = workspace_root();
+    let strings = workspace.join("runtime/src/strings.c");
+    let utf8 = workspace.join("runtime/src/utf8.c");
+    let output = compile_and_run_with_flags(
+        &workspace,
         "value_representation_test",
         "runtime/tests/value_representation_test.c",
         false,
+        &[strings.to_str().unwrap(), utf8.to_str().unwrap()],
     );
     assert!(
         output.status.success(),

@@ -9,7 +9,7 @@
 | A：当前 release 工具、开发 sysroot 与真实程序基线 | 本机基线就绪 | 完整库 sysroot 准备成功；分配与拆箱基线已建立，后续按项目追加 |
 | B1：内部 TD 验证结果复用、native 边界保留 | 本机通过 | 30 项 collector 测试、8 个 CLI 变体及完整分配对照；Linux 最终复验 |
 | B2：unbox／clone 单次对象定位 | 本机通过 | 单次 exact-size 定位；非法地址／类型、large clone、移动与含引用值 |
-| B3：String 有界表示 intrinsic | 待完成 | byteLength、byte-at、cursor 解码；UTF-8、越界与 GC 组合 |
+| B3：String 有界表示 intrinsic | 本机通过 | 三个 typed intrinsic 与独立内部 NoGC leaf；UTF-8、越界、旧 extern 与移动 GC |
 | C1：NoGC／无 site 循环优化及 Managed 保守优化 | 待完成 | 实际向量化、唯一 site／roots、EH／原子与响应 |
 | C2：局部 card 查询／mark 复用 | 待完成 | 同 card／跨 card、同步边界、多 mutator、minor／moving |
 | D1：nursery／refill 对照与策略取舍 | 待完成 | 1／4／8／16 MiB，存活率与 1–8 mutator；吞吐／内存／停顿 |
@@ -24,6 +24,8 @@
 本机 Apple M4 Pro／macOS 27.0.1，LLVM 22.1.8；Linux 从 `nuc12:~/repos/scoop` 新建独立 worktree，并为本任务使用独立 target、TMPDIR 和测试缓存，不修改其他 agent 的 checkout／构建输出。开始时远端 HEAD 为 `3cbc339f8`，完整验收前将本次提交导入独立 worktree。开始时本机 target 为 4.8 GiB、远端原 checkout target 为 1.6 GiB；按阶段清理无用构建产物，避免每个小改动反复全量构建。B1 验证后删除 2.6 GiB 的旧 incremental 缓存，本机 target 从约 6.6 GiB 降至 4.0 GiB；本任务设置 `CARGO_INCREMENTAL=0`。
 
 仓库外工作目录为 `../scoop-work/m56-20261019`，包含 scratch、基线／候选测量与原始日志；命令显式设置 TMPDIR。性能样本先完成构建，再串行交替运行。正常应用使用显式准备的开发 sysroot，runtime 专测继续用已有源码构建测试入口。
+
+Linux 独立 worktree 已创建为 `/home/chenxu/repos/scoop-m56-20261019`，分支 `codex/m56-validation-20261019`，起点为 B2 提交 `91df2bc22`；后续仅向该分支导入本任务提交。独立工作目录为 `/home/chenxu/repos/scoop-m56-work-20261019`，target／scratch／日志和测试输出均使用该目录，sysroot 属于新 worktree。未修改主 checkout 或其他 worktree。
 
 已有的 M47 两份文档和 M55 设计不属于本次提交。初始内容摘要保存在仓库外，结束时核对；不使用全仓 reset／checkout，也不删除／隐藏源码或工具来验收缓存。
 
@@ -53,3 +55,19 @@
 格式化、workspace clippy 和 descriptor-driven representation 专测通过；该专测在 normal／moving 两种模式覆盖内部地址、null、非对象地址、未匹配类型及动态 size。正式 CLI 的 3 个 fixture 共 12 个变体通过，新增整数枚举按原身份与父整数拆箱、错误转换异常、large array 克隆独立性；原含引用／ZST 用例继续通过。完整开发 sysroot 已准备成功。
 
 同一 release 编译器／core 对照 B1 与 B2 runtime：一个 `Any` 中的 Pair 在循环内拆箱两百万次并累加两字段，checksum `30000000`；一轮预热、七轮交替独立进程，构建完成后串行测量。B1 中位 112.989 ms [112.512, 114.101]，B2 102.124 ms [101.818, 102.482]，约减少 9.6%。全部样本 allocated bytes 为 224，无 collection／复制／晋升；该结果包含类型测试、锁与循环成本，不代表所有 Any 使用方式。Linux 最终复验。
+
+### B3：String 有界表示操作
+
+先同步语言规范 11.4、运行时规范 2.4 和实现规范 2.10。core 的 byteLength、byte-at 和单标量 cursor 解码使用三个有完整签名的 typed intrinsic，HIR／MIR／LIR 沿已有分层传递，LLVM 保留 AS1。内部 NoGC leaf 使用独立的 `_leaf` 符号，复用原表示实现；原 Managed extern 符号及显式调用合同保持。索引检查继续保留，不扩大到扫描整串的 length、hash 或比较。
+
+格式化与 workspace clippy 通过；相关 String 单元测试 24 项、intrinsic wire 测试 2 项通过，最终符号版本的 AS1／无 native transition 专测与 normal／moving C 表示专测也通过。C 专测首次缺少 String 实现的链接输入，补齐现有 strings／utf8 源文件后通过。release 工具和全部 16 个 Cone／runtime sysroot 已重建；新增 2 个 fixture 的 8 个 debug／release／moving／minor 变体，以及现有 m26-strings、m33-utf8 共计 17 个 fixture、26 个变体、64 个进程全部通过。覆盖旧 extern、跨 Cone、ASCII／NUL／多字节 UTF-8、非法索引、迭代、异常和移动 GC。
+
+真实程序使用同一 320-byte／128-character String，对比 B2 与 B3 的 release 产物。一轮预热、七轮交替独立进程；三个 kernel 分别执行两百万次 byteLength、四千次 toByteArray、四千次字符遍历，checksum 均为 `19703556000`。统计开启，构建完成后串行计时：
+
+| kernel | B2 中位 [最小, 最大] ms | B3 中位 [最小, 最大] ms |
+| --- | ---: | ---: |
+| byteLength | 33.725 [33.288, 34.080] | 5.405 [4.878, 5.500] |
+| toByteArray | 21.103 [20.865, 21.536] | 1.987 [1.949, 2.061] |
+| iterator | 20.679 [18.766, 21.611] | 3.132 [2.910, 3.182] |
+
+三个 kernel 时间分别约减少 84.0%、90.6%、84.9%。所有样本均为 1 次 minor／0 次 full、1,638,496 allocated bytes、400 promoted／copied bytes、38 root slots、3 traced objects。收益来自这些频繁的小操作，不能外推为整个 String 库或应用的加速比；Linux 待复验。原始数据保存在仓库外。此阶段又清理 1.7 GiB 的旧 incremental 产物，target 约 7.0 GiB。

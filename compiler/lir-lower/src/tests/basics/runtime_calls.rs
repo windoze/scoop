@@ -1,6 +1,48 @@
 use super::*;
 
 #[test]
+fn string_reads_lower_to_no_gc_calls_with_managed_arguments() {
+    for (operation, result_type, storage_type) in [
+        (mir::RuntimeFn::StringByteLength, LONG, lir::LirType::I64),
+        (
+            mir::RuntimeFn::StringByteAt,
+            mir::Type::Integer(mir::IntegerKind::SIGNED_8),
+            lir::LirType::I8,
+        ),
+        (
+            mir::RuntimeFn::StringCharacterAtByte,
+            mir::Type::Integer(mir::IntegerKind::UNSIGNED_32),
+            lir::LirType::I32,
+        ),
+    ] {
+        let mut builder = Builder::new();
+        let text = builder.string("a雪🙂");
+        let mut args = vec![string_expr(text)];
+        if operation != mir::RuntimeFn::StringByteLength {
+            args.push(long_expr(0));
+        }
+        let mut locals = Arena::new();
+        let result = locals.alloc(local("result", result_type));
+        let main = builder.main(
+            locals,
+            vec![call_value(result, runtime_call(operation, args))],
+        );
+        let module = lower(builder.finish(main));
+        let function = &module.functions[0];
+        let instructions = instructions_without_polls(&function.blocks[function.entry]);
+        let lir::Instruction::Call { site } = instructions[0] else {
+            panic!("expected string read")
+        };
+        assert!(matches!(site, lir::CallSite::NoGc(_)));
+        assert_eq!(
+            call_symbol(&module, site.destination(&function.call_targets)),
+            operation.symbol()
+        );
+        assert_eq!(function.temps[site.direct_out().unwrap()].ty, storage_type);
+    }
+}
+
+#[test]
 fn compiler_runtime_calls_with_results_produce_typed_temps() {
     let mut b = Builder::new();
     let s0 = b.string("a");

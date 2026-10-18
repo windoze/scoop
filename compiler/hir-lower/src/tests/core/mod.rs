@@ -9,6 +9,7 @@ mod floating;
 mod gc;
 mod intrinsic_types;
 mod module;
+mod strings;
 mod sysroot;
 mod testing;
 

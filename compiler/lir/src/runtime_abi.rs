@@ -116,7 +116,7 @@ pub enum RuntimeAbiSymbolV1 {
 }
 
 impl RuntimeAbiSymbolV1 {
-    pub const ALL: [Self; 64] = [
+    pub const ALL: [Self; 67] = [
         Self::PollState,
         Self::WorldPhase,
         Self::GcEpoch,
@@ -168,6 +168,11 @@ impl RuntimeAbiSymbolV1 {
         Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::ReleaseHandle)),
         Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::GcStats)),
         Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::StringCompare)),
+        Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::StringByteLength)),
+        Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::StringByteAt)),
+        Self::LirCall(RuntimeFunction::NoGc(
+            NoGcRuntimeFunction::StringCharacterAtByte,
+        )),
         Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::Trap)),
         Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::Throw)),
         Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::Rethrow)),
@@ -286,6 +291,15 @@ impl RuntimeAbiSymbolV1 {
             }
             Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::StringCompare)) => {
                 "scoop_rt_string_compare"
+            }
+            Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::StringByteLength)) => {
+                "scoop_rt_string_byte_length_leaf"
+            }
+            Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::StringByteAt)) => {
+                "scoop_rt_string_byte_at_leaf"
+            }
+            Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::StringCharacterAtByte)) => {
+                "scoop_rt_string_character_at_byte_leaf"
             }
             Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::Trap)) => "scoop_rt_trap",
             Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::Throw)) => "scoop_rt_throw",

@@ -828,6 +828,8 @@ intrinsic 的识别来自实际声明及其完整 name/target/shape/signature，
 
 每个 intrinsic 只承担其指定语义，展开后是普通 typed 运算、内存访问或有明确 runtime 合同的操作。Const 能力只来自声明允许的操作集合，不能由同名用户函数取得。
 
+String 的 byte length、byte-at 和 cursor 单字符解码使用独立 typed intrinsic kind，HIR 在登记边界检查 top-level／非泛型／非 suspend 签名，MIR 映射到封闭 runtime 操作，LIR 选择 NoGc 内部 leaf 并保留 managed pointer 参数。其调用不生成 NativeBorrowed transition、虚构 site 或 caller roots；外围真实 poll／异常／移动后的引用重载不变。源码 `@NoGC` 规则不放宽。HIR intrinsic wire tag 与 LIR runtime function tag 以新增项扩展，不复用旧 tag；旧 reader 对未知项照常报不兼容，编译器与开发 sysroot 一起重建，现有对象／metadata ABI 布局不变。
+
 原子类型使用真实 core 声明、封闭 intrinsic kind 与目标布局，值字段不作为源码可访问的普通字段。构造沿普通 nominal constructor 参数推导形成 `AtomicNew`，保存实际 application 和初值，不伪造源码函数身份。AtomicRef 的 HIR／MIR 表示及跨 Cone 元数据保留实际引用参数 T；四种对象的目标布局由 object header 和自然对齐的单个隐藏值槽组成，初始化在分配后、发布前以 Relaxed store 写入。HIR 检查内存序是编译期常量且组合合法；MIR 保存已确定的操作和内存序，LIR 使用 AtomicLoad/AtomicStore/AtomicRmw/AtomicCmpXchg，携带对象 base、值字段偏移与实际值类型。codegen 降低为对应 LLVM 原子指令，Boolean 使用 i8，整数 fetchAdd/fetchSub 不添加溢出假设；CAS 使用 strong，AtomicRef 按对象身份比较。五种内存序、CAS 的成功/失败区别及其语义进入普通 IR/metadata 和指纹，跨 Cone 与优化不能退化为普通内存访问。
 
 load、store 与 CAS 分别保存对应操作的合法内存序；CAS 是完整的成功／失败序组合，不能只保存成功序后由后端推断失败序。源码原子值种类封闭为 Int、Long、Boolean、managed reference；既有协程等编译器内部状态字继续使用 MachineAtomicLoad／MachineAtomicStore／MachineAtomicCompareExchange 及原来的固定同步序，不以源码数值类型替代其 machine scalar domain。
