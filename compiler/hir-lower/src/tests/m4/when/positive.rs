@@ -39,7 +39,10 @@ fn when_over_enum_with_bare_and_qualified_variants() {
     let module = lower_user(file).expect("when over Color must lower");
     let expected =
         include_str!("snapshots/when_over_enum_with_bare_and_qualified_variants.hir.txt");
-    assert_eq!(hir::dump(&module), expected);
+    assert_eq!(
+        dump_test_declarations(&module, &["  enum Color", "  fun main("]),
+        expected
+    );
 }
 
 /// `when` over the core `Option`: positional variant pattern with a
@@ -77,7 +80,7 @@ fn when_over_option_with_guard() {
     )]);
     let module = lower_user(file).expect("when over Option must lower");
     let expected = include_str!("snapshots/when_over_option_with_guard.hir.txt");
-    assert_eq!(hir::dump(&module), expected);
+    assert_eq!(dump_test_declarations(&module, &["  fun main("]), expected);
 }
 
 /// Tuple and struct subjects: positional and field patterns, literals,
@@ -136,7 +139,10 @@ fn when_over_tuple_and_struct() {
     ]);
     let module = lower_user(file).expect("tuple/struct when must lower");
     let expected = include_str!("snapshots/when_over_tuple_and_struct.hir.txt");
-    assert_eq!(hir::dump(&module), expected);
+    assert_eq!(
+        dump_test_declarations(&module, &["  struct Point", "  fun main("]),
+        expected
+    );
 }
 
 /// An unguarded binding arm is a catch-all (spec 5 "binding

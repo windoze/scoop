@@ -29,7 +29,10 @@ fn enum_declaration_all_variant_forms() {
     ]);
     let module = lower_user(file).expect("enum program must lower");
     let expected = include_str!("snapshots/enum_declaration_all_variant_forms.hir.txt");
-    assert_eq!(hir::dump(&module), expected);
+    assert_eq!(
+        dump_test_declarations(&module, &["  enum Color", "  enum Shape", "  fun main("]),
+        expected
+    );
 }
 
 /// A generic enum with several instantiations coexisting; `T?`

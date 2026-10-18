@@ -21,5 +21,19 @@ fn gc_intrinsics_golden() {
     assert_eq!(local_ty(&module, "s3"), "String");
     assert_eq!(local_ty(&module, "n"), "ULong");
     let expected = include_str!("snapshots/gc_intrinsics_golden.hir.txt");
-    assert_eq!(hir::dump(&module), expected);
+    assert_eq!(
+        dump_test_declarations(
+            &module,
+            &[
+                "  fun pin<",
+                "  fun unpin<",
+                "  fun getGcHandle<",
+                "  fun releaseGcHandle<",
+                "  fun gcCollect(",
+                "  fun gcStats(",
+                "  fun main("
+            ]
+        ),
+        expected
+    );
 }

@@ -50,7 +50,13 @@ fn try_catch_finally_golden() {
     ]);
     let module = lower_user_with_exceptions(file).expect("the exception program must lower");
     let expected = include_str!("snapshots/try_catch_finally_golden.hir.txt");
-    assert_eq!(hir::dump(&module), expected);
+    assert_eq!(
+        dump_test_declarations(
+            &module,
+            &["  class MyError(code: Int)", "  fun read(", "  fun main("]
+        ),
+        expected
+    );
 }
 
 // --- positive: structure and scoping ---

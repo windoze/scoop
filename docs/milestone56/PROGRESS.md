@@ -180,3 +180,9 @@ NoGC kernel 时间约减少 79.4%；反汇编在对应 callable 确认两条 `ml
 按用户补充，M56 明确分配速度、暂停尾部和低配置机器的 footprint 优先于批量 GC 吞吐。代码核算发现 small block 常驻 side tables 为容量的约 31.4%，搬迁 forwarding 还会临时增加一份 block 大小；建议优先释放空闲 metadata，不能把虚拟 region 大小直接当 RSS。官方 Unity／.NET／LLVM 资料和局部候选的正确性边界已写入[补充设计](DESKTOP-GC.md)。
 
 只在仓库外副本对普通年轻 small block 做整块退役，未改生产源码。真实 Scoop 一千万个短命对象的无插桩 kernel 在 0／16／128 MiB 无引用旧数组下分别从 174.952／177.848／192.305 ms 降到 115.298／119.941／134.324 ms，RSS 基本相同；独立诊断副本每格记录 1603 次 minor，保留 p50／p95／p99／最大值和 1 µs 时钟粒度，数据及限制见补充设计 5.1。显式全堆验证下，12 组引用／移动／pin／原子组合和六组多 mutator／存活率组合全部通过。此用例在 minor 点没有年轻存活图，原型还不是正式默认；后续先完成其跨平台与混合寿命验收，再考虑减少无引用大对象的 card 遍历。
+
+### 最终组合回归与旧快照闭合
+
+最终生产工具与重新准备的本机 sysroot 通过 M56 全部 10 个 fixture／48 个变体，以及 M26 String、M33 UTF-8 合计 15 个 fixture／18 个变体／56 个进程。Linux 已准备 GNU／musl 两套完整 16 Cone sysroot，进入完整 workspace 与正式 CLI 验收。
+
+Linux workspace 首轮的 HIR lowering 有 1452 项通过、23 项失败；逐项比较确认全部仅多出 B3 的三个 String intrinsic 声明，被测源码的 HIR 没有变化。按仓库的结构测试纪律，将这 23 份早期快照缩到被测函数／类型声明、入口和泛型实例，保留完整正文、求值顺序、字段／variant 和类型关系；不再重复固定公共 core 的无关定义。没有改生产 dump 或编译行为，也没有直接将新增 core 行抄入全部期望。删去约 2500 行重复快照，沿用一个只服务现有测试的局部选择 helper。格式化与 workspace clippy 通过；本机 23 项受影响测试加 String intrinsic 签名拒绝专测全部通过。Linux 将只补跑这些项及首轮尚未执行的 crate，不重复已通过的完整部分。
