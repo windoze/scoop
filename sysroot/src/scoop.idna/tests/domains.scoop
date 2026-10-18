@@ -19,6 +19,19 @@ private class IdnaDomainTests {
     }
 
     @Test
+    fun `validated names retain both representations after native cleanup`() {
+        val name = Idna.parse("BÜCHER。example.")
+        gcCollect()
+        assertEquals("xn--bcher-kva.example.", name.ascii)
+        assertEquals("bücher.example.", name.unicode)
+        val second = Idna.parse(name.ascii)
+        assertEquals(name.unicode, second.unicode)
+        assertEquals(".", Idna.parse("。").ascii)
+        assertFailsWith<IdnaException> { Idna.parse("0a.א") }
+        assertFailsWith<IdnaException> { Idna.parse("a_b") }
+    }
+
+    @Test
     fun `STD3-disallowed characters are rejected instead of deleted`() {
         for (input in ["a_b", "a/b", "a＠b", "a＿b", "a b", "a@b", "a:b", "a\u{0000}b", "a\tb", "a\u{007f}b"]) {
             assertFailsWith<IdnaException> { Idna.toAscii(input) }

@@ -1,8 +1,12 @@
 package scoop.idna
 
+public class IdnaName internal constructor(public val ascii: String, public val unicode: String)
+
 public object Idna {
     public val backendVersion: String get() { @Unsafe { return String.fromCString(idnaVersion()) } }
     public val unicodeVersion: String get() = "15.1.0"
+
+    public fun parse(domain: String): IdnaName = parseIdna(domain)
 
     public fun toAscii(domain: String): String = convertIdna(domain, 0, "IDNA to ASCII")
     public fun toUnicode(domain: String): String = convertIdna(domain, 1, "IDNA to Unicode")

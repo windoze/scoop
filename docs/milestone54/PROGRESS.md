@@ -9,7 +9,7 @@
 | HTTP 协议摘要 | `scoop.crypto` 增加 SHA-1、MD5、SHA-512/256 的一次性与增量摘要；HMAC、签名及 JWS 算法集合保持原合同 | Darwin debug／release 与 moving GC：3 项新测试及 3 项既有摘要／MAC 测试；标准空输入与 abc 向量、WebSocket Accept、HTTP Digest 凭据、增量状态和 HMAC 参数边界 |
 | HTTP/1 扩展方法 | 编码器与客户端响应上下文接受任意合法 token，HEAD／CONNECT 按精确大小写分类；服务端 llhttp 已知方法限制保留 | Darwin debug／release 与 moving GC：28 项 HTTP/1 测试，包括 4 项新增方法测试；合法 token 保真、非法 token 不改变状态、信息响应和混合方法关联 |
 | 多证书 PEM | crypto 提供 `parseCertificatesPem` 与 `TrustStore.fromPem`；保留顺序、独立拥有证书，拒绝空包、坏片段与非证书内容，失败释放部分结果 | Darwin debug／release 与 moving GC：3 项 bundle 测试与 3 项既有证书测试；重复证书的独立关闭、显式信任链、临时 bundle 释放后的锚保活 |
-| 独立 IDNA | `scoop.idna` 提供完整域名／单标签双向转换、OrNone、结构化错误及原始 RFC 3492 codec；固定 libidn2 2.3.8、libunistring 1.4.2、libiconv 1.19，无 ICU | Darwin debug／release 与 moving GC：9 项测试；官方 Unicode 15.1 的 6265 个输入与同版本映射表独立对照，无未解释差异 |
+| 独立 IDNA | `scoop.idna` 提供完整域名／单标签双向转换、OrNone、`IdnaName` 双表示快照、结构化错误及原始 RFC 3492 codec；固定 libidn2 2.3.8、libunistring 1.4.2、libiconv 1.19，无 ICU | Darwin debug／release 与 moving GC：10 项测试；官方 Unicode 15.1 的 6265 个输入与同版本映射表独立对照，无未解释差异 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -18,6 +18,8 @@
 `m54-certificate-bundle` 的 debug／release 两个变体通过，共 6 个进程；从生产 crypto `.slib` 解析双证书、构造信任库、验证证书并拒绝坏尾部，覆盖 moving GC 与缓存复用。
 
 `m54-idna` 的 debug／release 两个变体通过，共 6 个进程；生产 `.slib` 的两个 native 线程并行调用、A-label／Unicode、非法 ContextO、原始 Punycode、moving GC 和缓存复用均通过。后端准备脚本的第二次调用直接复用三个目标静态库。
+
+URL 的传输／展示组合需要同时取得域名两种表示，因此 IDNA 补充 `Idna.parse`：一次 lookup 后复用已验证的 ASCII 结果解码，返回 `IdnaName` 独立快照。新增测试及正式 fixture 均验证 native 临时数据释放、GC 与并行调用后的两种表示，URL 无须重复 IDNA 验证。
 
 IDNA 校验闭合了固定后端的 ContextO、整个域名的 Bidi、RTL 数字混用、末尾 NSM 和 NFC 前过早限长问题；raw Punycode 在同一后端算法中补齐 ASCII 基本字符与末尾分隔符，并修正非法数字字符和代理码点检查。静态后端的私有 gnulib 重复符号各自使用前缀，未修改编译器链接规则。官方对照中 379 个输入的 ASCII／Unicode 输出相符，5747 个错误输入被拒绝；另 137 个按映射表 NV8／XV8 标记由严格 IDNA2008 拒绝，2 个根域输入按公开 profile 接受。原始测试数据、对照脚本和日志保存在仓库外。
 

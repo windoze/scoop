@@ -4,6 +4,9 @@ import scoop.platform.concurrent.Thread
 private fun checkDomain() {
     var count = 0
     while (count < 12) {
+        val name = Idna.parse("BÜCHER。example.")
+        gcCollect()
+        if (name.ascii != "xn--bcher-kva.example." || name.unicode != "bücher.example.") throw IllegalStateException()
         if (Idna.toAscii("BÜCHER。example.") != "xn--bcher-kva.example.") throw IllegalStateException()
         if (Idna.toUnicode("XN--BCHER-KVA.example.") != "bücher.example.") throw IllegalStateException()
         if (Idna.toAsciiOrNone("a_b.example") != None) throw IllegalStateException()

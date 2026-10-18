@@ -58,3 +58,18 @@ scoop_idna_result scoop_idna_domain(const uint8_t *data, int64_t size,
     return scoop_idna_error(code, -1);
   return scoop_idna_bytes((uint8_t *)unicode, strlen(unicode));
 }
+
+scoop_idna_name scoop_idna_parse(const uint8_t *data, int64_t size) {
+  scoop_idna_result ascii = scoop_idna_domain(data, size, 0);
+  if (ascii.code)
+    return (scoop_idna_name){NULL, NULL, 0, 0, ascii.code, ascii.label};
+  char *unicode = NULL;
+  int code = idn2_to_unicode_8z8z((char *)ascii.data, &unicode, 0);
+  if (code) {
+    idn2_free(ascii.data);
+    return (scoop_idna_name){NULL, NULL, 0, 0, code, -1};
+  }
+  return (scoop_idna_name){ascii.data, (uint8_t *)unicode,
+                           ascii.size, (int64_t)strlen(unicode),
+                           0,          -1};
+}

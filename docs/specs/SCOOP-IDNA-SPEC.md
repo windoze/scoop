@@ -26,6 +26,7 @@ libidn2 2.3.8 的 IDNA 数据基线为 Unicode 15.1；libunistring 的数据版�
 
 | API | 结果 |
 | --- | --- |
+| `Idna.parse(domain): IdnaName` | 一次验证后同时持有规范 `ascii` 和 `unicode` 字符串，供 URL 的传输与展示视图复用 |
 | `Idna.toAscii(domain: String): String` | 完整验证后返回小写 ASCII／A-label，保留可选末尾根点 |
 | `Idna.toAsciiOrNone(domain): String?` | 仅对无效域名返回 None |
 | `Idna.toUnicode(domain: String): String` | 验证输入对应的域名后返回规范 U-label；非法 A-label 不作为成功原样返回 |
@@ -34,6 +35,8 @@ libidn2 2.3.8 的 IDNA 数据基线为 Unicode 15.1；libunistring 的数据版�
 | `Punycode.encode(text)`／`decode(text)` | RFC 3492 的原始单标签编码；名称明确区分它与 IDNA 验证 |
 
 libidn2 的 ToUnicode 本身不是有效性校验入口。公共 `toUnicode` 先取得经过 lookup／roundtrip 验证的域名，再调用后端解码，不把其 unused flags 当成已经执行验证。验证结果在本次转换内复用，不在 URL 或 TLS 的每次访问中重复重跑 Unicode 算法。
+
+`IdnaName` 的构造归本库，两个字符串都是独立 Scoop 快照，不持有 native 状态。只需要一种表示时继续使用 `toAscii`／`toUnicode`；同时需要两种表示的调用者使用 `parse`，不串联两个完整验证入口。
 
 `IdnaException` 保存 operation、kind、可选 code 与已复制 detail；kind 区分 InvalidLabel、InvalidAlabel、Disallowed、Context、Bidi、NameTooLong 和 Backend。code 仅在实际后端返回错误时保存原码，包装层检查失败为 None。不能确定某个标签的位置时 labelIndex 为 None，不虚构索引。参数／分配／后端运行故障不被 OrNone 吞掉。`Idna.backendVersion` 记录 libidn2、libunistring 与局部补丁，`unicodeVersion` 记录 IDNA 数据版本。
 

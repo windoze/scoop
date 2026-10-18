@@ -12,6 +12,15 @@ typedef struct {
   int64_t label;
 } scoop_idna_result;
 
+typedef struct {
+  uint8_t *ascii;
+  uint8_t *unicode;
+  int64_t ascii_size;
+  int64_t unicode_size;
+  int32_t code;
+  int64_t label;
+} scoop_idna_name;
+
 enum {
   SCOOP_IDNA_EMPTY = -1000,
   SCOOP_IDNA_LABEL = -1001,
