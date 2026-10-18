@@ -24,13 +24,8 @@ comp_info scoop_compression_next_message(uint64_t handle) {
     code = takeover ? zng_inflateResetKeep(stream) : zng_inflateReset(stream);
   else if (!takeover)
     code = zng_deflateReset(stream);
-  else {
-    // A no-input call permits the next empty message to produce its sync block.
-    comp_progress step = comp_deflate_step(codec, NULL, 0, codec->output,
-                                           sizeof(codec->output), 0);
-    if (step.produced)
-      comp_fail(codec, COMP_BACKEND, 0, "unfinished DEFLATE message output");
-  }
+  else
+    comp_message_resume_encoding(codec);
   if (code != Z_OK)
     comp_fail(codec, COMP_BACKEND, code,
               "cannot start the next DEFLATE message");
@@ -59,15 +54,19 @@ comp_step comp_message_process(comp_codec *codec, const unsigned char *input,
     result.status = 2;
     goto done;
   }
-  if (action == 1) {
+  if (action == 1 && !codec->options.encoding) {
     comp_fail(codec, COMP_PARAMETER, 0,
               "use finishMessage for a DEFLATE message");
     goto done;
   }
+  if (action == 1 && codec->flush_done)
+    goto done;
   if (result.produced == capacity) {
     result.status = 1;
     goto done;
   }
+  if (size)
+    codec->flush_done = 0;
   size_t input_size = size < 8192 ? (size_t)size : 8192;
   size_t output_size = comp_output_capacity(codec);
   comp_progress step =
@@ -78,6 +77,8 @@ comp_step comp_message_process(comp_codec *codec, const unsigned char *input,
   comp_save_output(codec, step.produced);
   if (step.status == 2)
     codec->finished = 1;
+  if (codec->options.encoding && action == 1 && step.status == 0)
+    codec->flush_done = 1;
   comp_drain(codec, output, capacity, &result);
   result.status = codec->output_size ? 1 : (codec->finished ? 2 : step.status);
 done:

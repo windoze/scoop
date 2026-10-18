@@ -1,0 +1,104 @@
+package scoop.compression
+
+import scoop.collections.emptyList
+import scoop.platform.memory.NativeByteBuffer
+import scoop.text.toHexString
+import scoop.test.*
+
+@Test
+private class DeflateMessageFlushTests {
+    @Test
+    fun `sync points expose prefixes before the message ends and retain history across messages`() {
+        for (takeover in [false, true]) {
+            DeflateMessageEncoder(contextTakeover = takeover).use { encoder ->
+                DeflateMessageDecoder(contextTakeover = takeover).use { decoder ->
+                    for (index in 0L..<3L) {
+                        if (index != 0L) { encoder.nextMessage(); decoder.nextMessage() }
+                        val first = "stream 🌍 prefix ".toByteArray()
+                        val second = "stream 🌍 suffix".toByteArray()
+                        val prefix = deflateMessagePrefix(encoder, first)
+                        assertEquals("stream 🌍 prefix ", String.fromUtf8(readDeflatePrefix(decoder, prefix)))
+                        assertFailsWith<IllegalStateException> { encoder.nextMessage() }
+                        assertEquals(0L, deflateMessagePrefix(encoder, emptyList<Byte>()).size)
+                        val suffix = deflateMessagePrefix(encoder, second)
+                        assertEquals("stream 🌍 suffix", String.fromUtf8(readDeflatePrefix(decoder, suffix)))
+                        val end = finishDeflateOutput(encoder)
+                        assertEquals(0L, readDeflatePrefix(decoder, end).size)
+                        assertEquals(0L, finishDeflateInput(decoder).size)
+                        assertEquals(first.size + second.size, encoder.totals.inputBytes)
+                        assertEquals(prefix.size + suffix.size + end.size, encoder.totals.outputBytes)
+                        assertEquals(encoder.totals.outputBytes, decoder.totals.inputBytes)
+                        assertEquals(encoder.totals.inputBytes, decoder.totals.outputBytes)
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `empty sync flush is idempotent and immediate finish creates a valid message boundary`() {
+        for (takeover in [false, true]) {
+            for (window in [9, 15]) {
+                DeflateMessageEncoder(DeflateOptions(windowBits = window), takeover).use { encoder ->
+                    DeflateMessageDecoder(window, takeover).use { decoder ->
+                        for (index in 0L..<3L) {
+                            if (index != 0L) { encoder.nextMessage(); decoder.nextMessage() }
+                            val prefix = deflateMessagePrefix(encoder, emptyList<Byte>())
+                            assertEquals("000000ffff", prefix.toHexString())
+                            assertEquals(0L, readDeflatePrefix(decoder, prefix).size)
+                            assertEquals(0L, deflateMessagePrefix(encoder, emptyList<Byte>()).size)
+                            val end = finishDeflateOutput(encoder)
+                            assertEquals("00", end.toHexString())
+                            assertEquals(0L, readDeflatePrefix(decoder, end).size)
+                            assertEquals(0L, finishDeflateInput(decoder).size)
+                            assertEquals(0L, encoder.totals.inputBytes)
+                            assertEquals(6L, encoder.totals.outputBytes)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `pending flush rejects other actions without losing input or poisoning the encoder`() {
+        DeflateMessageEncoder().use { encoder ->
+            NativeByteBuffer.allocate(1L).use { input ->
+                NativeByteBuffer.allocate(0L).use { full ->
+                    input.writeByte(65.toByte())
+                    assertTrue(encoder.flush(full).state == CompressionState.NeedOutput)
+                    assertFailsWith<IllegalStateException> { encoder.process(input, full) }
+                    assertFailsWith<IllegalStateException> { encoder.finishMessage(full) }
+                    assertFailsWith<IllegalStateException> { encoder.nextMessage() }
+                    assertEquals(1L, input.readableBytes)
+                    assertEquals(0L, encoder.totals.inputBytes)
+                    val prefix = deflateMessagePrefix(encoder, emptyList<Byte>())
+                    val suffix = deflateMessagePrefix(encoder, input.readBytes(1L))
+                    val end = finishDeflateOutput(encoder)
+                    DeflateMessageDecoder().use { decoder ->
+                        assertEquals(0L, readDeflatePrefix(decoder, prefix).size)
+                        assertEquals("A", String.fromUtf8(readDeflatePrefix(decoder, suffix)))
+                        assertEquals(0L, readDeflatePrefix(decoder, end).size)
+                        assertEquals(0L, finishDeflateInput(decoder).size)
+                    }
+                    Unit
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `stored blocks larger than the internal output buffer flush without dropping their tail`() {
+        val data = Array<Byte>(16411L) { index -> (index * 71L).toByte() }
+        DeflateMessageEncoder(DeflateOptions(level = 0)).use { encoder ->
+            DeflateMessageDecoder().use { decoder ->
+                val prefix = deflateMessagePrefix(encoder, data, 127L)
+                val decoded = readDeflatePrefix(decoder, prefix, 113L)
+                assertEquals(data.size, decoded.size)
+                for (index in 0L..<data.size) assertEquals(data[index], decoded[index])
+                assertEquals(0L, readDeflatePrefix(decoder, finishDeflateOutput(encoder)).size)
+                assertEquals(0L, finishDeflateInput(decoder).size)
+            }
+        }
+    }
+}

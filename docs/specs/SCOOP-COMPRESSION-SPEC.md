@@ -59,6 +59,8 @@ RawDeflate 另提供 WebSocket 所需的消息边界操作：生成／识别同�
 
 两者的 `process(input, output, count)` 只接受当前消息的片段，`finishMessage(output)` 完成边界处理并可多次返回 NeedOutput；Finished 表示该消息已完整结束且输出已取尽。编码器生成同步点后去除最后四字节，解码器确认边界并补入这四字节，不以碰巧能继续解码代替结束检查。合法空消息也有格式字节，空的压缩 payload 不能冒充完整消息。按 RFC 7692 接受消息内的 BFINAL 块、其零填充和后续原始块；这些格式处理仍使用 zlib-ng 的公开 block／reset API。
 
+`DeflateMessageEncoder.flush(output)` 提交当前消息内的同步点，让对端在消息结束前取得已接受的原文；中途同步点完整保留格式字节，不剥除其四字节尾部。返回 NeedOutput 时必须继续同一次 flush，返回 NeedInput 才表示同步点输出已全部取走；期间不能追加输入或改为 finishMessage。没有新输入时再次 flush 不产生额外空块。flush 后仍属于同一消息，可以继续 process，也可以直接 finishMessage；后一种情况由压缩器生成合法的最终消息边界，只去除最终边界的四字节尾部。flush 不允许 nextMessage 提前切换消息，也不重置 totals、输出限制或窗口历史。
+
 `nextMessage()` 仅在 Finished 后可用，清零当前消息的 totals 与解码输出计数；按构造时的 contextTakeover 保留或清除窗口历史，再进入下一条消息。它不丢弃尚未交付的输出，不恢复失败对象，也不令普通 CompressionEncoder／Decoder 获得 reset。WebSocket 消息的开始／结束仍由调用方传入，本库不解析 WebSocket frame。
 
 ## 4. 结束、连接流与尾随字节

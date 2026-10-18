@@ -107,6 +107,7 @@ comp_step comp_message_process(comp_codec *codec, const unsigned char *input,
                                int64_t capacity, int action);
 comp_progress comp_message_encode(comp_codec *codec, const unsigned char *input,
                                   size_t size, size_t capacity, int action);
+void comp_message_resume_encoding(comp_codec *codec);
 comp_progress comp_message_decode(comp_codec *codec, const unsigned char *input,
                                   size_t size, size_t capacity, int action);
 

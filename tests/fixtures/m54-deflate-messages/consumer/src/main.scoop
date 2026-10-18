@@ -41,6 +41,7 @@ private fun decode(decoder: DeflateMessageDecoder, bytes: List<Byte>): String {
 
 private fun exercise() {
     for (takeover in [true, false]) {
+        exerciseFlush(takeover)
         DeflateMessageEncoder(contextTakeover = takeover).use { encoder ->
             DeflateMessageDecoder(contextTakeover = takeover).use { decoder ->
                 for (text in ["Scoop 的压缩消息", "Scoop 的压缩消息", "", "", "finished"]) {

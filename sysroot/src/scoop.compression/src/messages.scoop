@@ -11,6 +11,7 @@ public class DeflateMessageEncoder public constructor(
 
     public fun process(input: NativeByteBuffer, output: NativeByteBuffer, count: Long = input.readableBytes): CompressionStep =
         codec.step(Some(input), count, output, output.writableBytes, 0)
+    public fun flush(output: NativeByteBuffer): CompressionStep = codec.step(None, 0L, output, output.writableBytes, 1)
     public fun finishMessage(output: NativeByteBuffer): CompressionStep = codec.step(None, 0L, output, output.writableBytes, 2)
     public fun nextMessage() { codec.nextMessage() }
     public override fun close() { codec.close() }

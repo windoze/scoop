@@ -16,6 +16,7 @@
 | 压缩同步流 | 同一 Cone 的 CompressionSource／Sink、DecompressionSource／Sink 与两个复制扩展，共享增量引擎；支持短传输、单字节缓冲、明确 finish 和可选端点接管 | Darwin debug／release 与 moving GC：10 项新增测试及 12 项引擎回归；所有格式的增量流、连续适配、结束检查、实际进度和清理原因均通过 |
 | 压缩异步流 | 同一 Cone 的 AsyncCompressionSource／Sink、AsyncDecompressionSource／Sink 与复制扩展；结构化操作、有限背压、取消后真实收尾和并发 close，共享同步流的格式状态 | Darwin debug／release 与 moving GC：12 项新增测试；五种格式、短读写、EOF／限制、所有权、失败隔离、延迟取消和取消 finally 清理全部通过 |
 | DEFLATE 消息 | 同一 Cone 的 DeflateMessageEncoder／Decoder 负责 RFC 7692 的同步尾部、消息结束、协商窗口与 context takeover；HTTP 无须改写压缩字节 | Darwin debug／release 与 moving GC：6 项新增测试；504 组独立 zlib 消息互操作对照；现有全部 40 项 debug／release 测试及 384 组普通压缩对照回归通过 |
+| DEFLATE 消息中途 flush | DeflateMessageEncoder.flush 完整交付消息内同步点；无新输入时幂等，可继续写或立即 finishMessage，最终剥尾仍由压缩库完成 | Darwin debug／release：4 项新增测试与压缩库全部 44 项通过；新增测试通过两种构建的 moving GC，674 组独立 zlib 前缀／边界检查及原有 504 组消息对照通过 |
 | HTTP 媒体类型 | `scoop.http` 提供 HttpMediaType、HttpParameter、原始字节快照、quoted-string 解析和可发送字段；格式异常保留字段名与原始字节位置 | Darwin debug／release 与 moving GC：4 项新增测试；HTTP 全部 58 项 debug／release 回归通过，涵盖大小写、空参数项、转义、重复、非法结构和非 UTF-8 字节 |
 | HTTP 扩展文件名 | HttpContentDisposition、RFC 8187 参数编码／解码与 HttpFilename 选择结果；复用 url／charset，保留原始字段、失败原因及字节位置，ISO-8859-1 扩展兼容显式开启 | Darwin debug／release 与 moving GC：7 项新增测试；HTTP 全部 65 项 debug／release 回归通过，覆盖 UTF-8、BOM、普通 filename、回退、坏编码及语言标签结构 |
 | HTTP 日期与 Retry-After | HttpDate 接收三种标准日期形状、只生成 IMF-fixdate，旧年份使用显式参考时间；HttpRetryAfter 区分非负秒数和日期，返回相对等待量 | Darwin debug／release 与 moving GC：6 项新增测试；HTTP 全部 71 项 debug／release 回归通过，覆盖 50 年边界、闰日、星期、秒 60、负 epoch、字段偏移及 Long 最大秒数 |
@@ -132,6 +133,8 @@ WebSocket 异步会话的首次完整编译暴露了对象指纹阶段的重复�
 `m54-websocket-async` 的 Darwin debug／release 两个变体通过，共 6 个进程。两个 native 线程各自完成真实 HTTP/1 升级、与 101 同次输出的首帧后缀、跨 UTF-8 字节的分片、双向 Ping／Pong、二进制回显和关闭握手；关闭旧 HTTP 对象后继续使用移交的传输。moving GC 与正常缓存复用通过。相同消费者在两种构建下分别作为客户端和服务器，与 websockets 17.2 独立收发分片、空 continuation 与控制帧，四次互通均通过。
 
 初次升级消费者漏接空 Trailers 事件、独立互通入口误把 argv[0] 当作用户参数，修正测试后均已闭合。新测试全放在同一 full moving 进程时，诊断模式的累计搬迁与隔离开销使两项关闭超时；最终 27 项按用例独立运行，两种构建共 54 个进程全部通过。两项大流量测试显式使用 60 秒关闭期限，库默认仍为 5 秒，另有短期限超时负例；大帧用例仍覆盖扩展长度头、短输入与有限 Data 块。当前提交交付未压缩会话，permessage-deflate 与 WSS 的真实会话组合继续实施。
+
+`m54-deflate-messages` 增加消息中途 flush 的生产消费者覆盖，Darwin debug／release 两个变体通过，共 6 个进程。两个 native 线程与主线程分别在保留／丢弃历史的配置下，用单字节压缩输出在 FIN 前解出完整 Unicode 前缀，再继续消息、重复空 flush 并立即 finish；moving GC 与缓存复用通过。原有 RFC 向量、连续空消息、窗口及保留历史的外部输入同时回归。C 适配通过格式化及严格警告检查；独立脚本通过固定版本 Ruff，原始向量留在仓库外。
 
 ## 后续工作
 
