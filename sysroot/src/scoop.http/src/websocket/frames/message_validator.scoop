@@ -1,0 +1,70 @@
+package scoop.http
+
+public class WebSocketMessageValidator public constructor(public val type: WebSocketMessageType, public val maxBytes: Long) : Closeable {
+    private val busy: AtomicBoolean = AtomicBoolean(false)
+    private var validator: WebSocketUtf8? = None
+    private var closed: Boolean = false
+    private var finished: Boolean = false
+    private var count: Long = 0L
+    private var error: Throwable? = None
+
+    init {
+        if (maxBytes < 0L) throw IllegalArgumentException(Some("negative WebSocket message limit"))
+        if (type == WebSocketMessageType.Text) validator = Some(WebSocketUtf8.create())
+    }
+
+    public val byteCount: Long get() = count
+    public val isClosed: Boolean get() = closed
+    public val isFinished: Boolean get() = finished
+    public val failure: Throwable? get() = error
+
+    public fun receive(data: List<Byte>) {
+        withUse {
+            requireActive()
+            val bytes = data.toArray()
+            try {
+                if (bytes.size > maxBytes - count) throw WebSocketFrameException(1009U, "message exceeds its byte limit")
+                when (validator) { case Some(value) -> value.receive(bytes); case None -> {} }
+                count += bytes.size
+            } catch (failure: Throwable) { fail(failure) }
+            Unit
+        }
+    }
+
+    public fun finish() {
+        withUse {
+            requireActive()
+            try {
+                when (validator) { case Some(value) -> value.finish(); case None -> {} }
+                closeValidator()
+                finished = true
+            } catch (failure: Throwable) { fail(failure) }
+            Unit
+        }
+    }
+
+    public override fun close() { withUse { if (!closed) { closed = true; closeValidator() }; Unit } }
+
+    private fun closeValidator() {
+        val owned = validator
+        validator = None
+        when (owned) { case Some(value) -> value.close(); case None -> {} }
+    }
+
+    private fun requireActive() {
+        if (closed || finished) throw IllegalStateException(Some("WebSocket message validator is closed or finished"))
+        when (error) { case Some(_) -> throw IllegalStateException(Some("WebSocket message validator failed")); case None -> {} }
+    }
+
+    private fun fail(failure: Throwable): Nothing {
+        var result = failure
+        try { closeValidator() } catch (cleanup: Throwable) { result = ResourceUseException(failure, cleanup) }
+        error = Some(result)
+        throw result
+    }
+
+    private fun <T> withUse(block: () -> T): T {
+        if (!busy.compareAndSet(false, true)) throw IllegalStateException(Some("WebSocket message validator is already in use"))
+        try { return block() } finally { busy.store(false) }
+    }
+}

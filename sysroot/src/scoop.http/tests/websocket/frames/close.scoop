@@ -1,0 +1,34 @@
+package scoop.http
+
+import scoop.test.*
+
+@Test private class WebSocketFrameCloseTests {
+    @Test fun `close data preserves network byte order UTF8 BOM and private application codes`() {
+        val value = WebSocketClose(Some(1000U), "\uFEFF雪\u0000")
+        val parsed = WebSocketClose.parse(value.toByteArray())
+        assertTrue(parsed.code == Some(1000U))
+        assertEquals("\uFEFF雪\u0000", parsed.reason)
+        assertEquals(3.toByte(), value.toByteArray()[0L])
+        assertEquals(232.toByte(), value.toByteArray()[1L])
+        for (code in [1000U, 1001U, 1002U, 1003U, 1007U, 1008U, 1009U, 1010U, 1011U, 1012U, 1013U, 1014U, 3000U, 4999U])
+            assertTrue(WebSocketClose.parse(WebSocketClose(Some(code)).toByteArray()).code == Some(code))
+        assertEquals(0L, WebSocketClose().toByteArray().size)
+        assertTrue(WebSocketClose.parse("".toByteArray()).code == None)
+    }
+
+    @Test fun `reserved codes missing codes and excessive reasons cannot be encoded`() {
+        for (code in [0U, 999U, 1004U, 1005U, 1006U, 1015U, 1016U, 2999U, 5000U, UInt.MAX_VALUE])
+            assertFailsWith<IllegalArgumentException> { WebSocketClose(Some(code)) }
+        assertFailsWith<IllegalArgumentException> { WebSocketClose(reason = "reason") }
+        val long = String.fromUtf8(Array<Byte>(124L) { _ -> 97.toByte() })
+        assertFailsWith<IllegalArgumentException> { WebSocketClose(Some(1000U), long) }
+        assertEquals(125L, WebSocketClose(Some(1000U), String.fromUtf8(Array<Byte>(123L) { _ -> 97.toByte() })).toByteArray().size)
+    }
+
+    @Test fun `close parsing distinguishes format errors from invalid reason text`() {
+        for (payload in [wfBytes([0]), wfBytes([3, 237]), wfBytes([3, 247]), Array<Byte>(126L) { _ -> 0.toByte() }])
+            assertEquals(1002U, assertFailsWith<WebSocketFrameException> { WebSocketClose.parse(payload) }.closeCode)
+        for (payload in [wfBytes([3, 232, 128]), wfBytes([3, 232, 226, 130])])
+            assertEquals(1007U, assertFailsWith<WebSocketFrameException> { WebSocketClose.parse(payload) }.closeCode)
+    }
+}

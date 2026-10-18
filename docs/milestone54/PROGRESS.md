@@ -34,6 +34,7 @@
 | Multipart 异步写入 | MultipartSink／MultipartPartWriter 复用内存 encoder，按有限前缀输出字段、正文及 delimiter；明确 part／消息 finish 与本地 close，沿用共享结构化 I/O 收尾 | Darwin debug／release：10 项新测试与 HTTP asyncio 全部 53 项通过；新增测试通过两种构建的 moving GC，覆盖短写、已知长度、真实消费量、零进度、同向并发、借用／接管、取消及双失败 |
 | WebSocket 升级握手 | WebSocketHandshake 生成／解析 HTTP/1.1 请求并绑定本次 key 校验 101；扩展字段及 permessage-deflate 提议／响应保存原始选择和最终双向配置，复用 URL、crypto 与 HTTP 字段 parser | Darwin debug／release：16 项新测试与 HTTP 全部 182 项通过；新增测试通过两种构建的 moving GC，另与 websockets 17.2 对照 2369 组输入、916 条重新生成的响应及真实 TCP 对端 |
 | Mach-O 局部数值表 | 对象读取器按实际局部引用处理位于既有常量之前、之间或之后的数值表；相邻表与已有 atom 分别定界，继续按实际 bytes 计算内容指纹 | 3 项新增范围回归与全部 140 项 link_object 测试、workspace clippy 通过；新 CLI 用例在修复前复现，修复后 debug／release、moving GC 与缓存复用通过，两个既有表用例同时回归 |
+| WebSocket 内存帧 | 增量 FrameEncoder／Decoder、Close 数据与 MessageValidator；角色 mask、分片、有限 Data 块、控制帧和真实输入进度，UTF-8 复用 charset，压缩消息显式交给 compression | Darwin debug／release：23 项新测试与 HTTP 全部 205 项通过；新增测试通过两种构建的 moving GC，244 组独立帧对照和正式压缩组合通过 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -121,6 +122,10 @@ WebSocket 帧的 release 构建暴露了只识别 __TEXT,__const 段首数值表
 
 `m54-local-table-after-constant` 的 Darwin debug／release 两个变体通过，共 6 个进程，覆盖普通 enum 分支与动态数组分配、moving GC 和缓存复用。同一小程序在修复前独立复现错误。`m49-shared-literal-section` 与 `m42-switch-reference-table` 同时回归通过，三个 fixture 共 6 个变体、18 个进程；固定宽度常量池、段首数值跳转表和包含引用的已归属查找表继续使用各自实际对象表示。
 
+`m54-websocket-frames` 的 Darwin debug／release 两个变体通过，共 6 个进程。生产 `.slib` 的两个 native 线程与主线程分别组合 mask／无 mask、压缩首帧与 continuation、穿插 Ping、关闭帧，以及保留／丢弃 DEFLATE 历史的连续空／非空消息。移动 GC、短读写、解压后大小与 UTF-8 错误、缓存复用均通过；初次 Close 负例误用了合法的 1007，修正为保留的 1015 后验证闭合。
+
+独立 websockets 17.2 帧对照的 244 组输入全部一致：178 组接受、66 组拒绝，接受项重新编码后均由参考实现解析并核对完整帧内容。覆盖两个角色、125／126／65535／65536 长度边界、分片文本与控制穿插、关闭原因、保留位、错误 mask、截断和局部大小限制。最短长度、整个分片的 UTF-8 及消息顺序继续由独立 RFC 字节向量验证，没有为参考库的较宽容帧 parser 放宽规则。原始向量、脚本与结果保存在仓库外；异步 session 和 WSS 尚未以此宣告完成。
+
 ## 后续工作
 
 继续完成 HTTP 消息与协议补充、TLS 与 asyncio 缺口，再完成统一 client、策略、存储与长连接组合。每个功能独立验证和提交，最终按设计完成三个目标的运行验收。
@@ -142,3 +147,5 @@ SSE 与代理组合验收后，清理对应 6 个已经结束的 fixture target 
 构造参数捕获回归及 multipart 内存验收结束后，清理对应 4 个 fixture target 目录，释放约 208 MiB；原始向量、日志、报告与当前异步库构建产物继续保留。
 
 Multipart 异步双向与共享 SSE 生命周期验收结束后，清理对应 6 个 fixture target 目录，释放约 640 MiB；生产 `.slib`、库 target、原始日志、报告与缓存继续保留。
+
+握手独立对照与数值表回归结束后，清理对应 8 个 fixture target 目录，释放约 307 MiB；当前帧消费者、生产 `.slib`、原始日志和缓存继续保留。

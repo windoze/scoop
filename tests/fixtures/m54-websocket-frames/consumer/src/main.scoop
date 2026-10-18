@@ -1,0 +1,69 @@
+import scoop.bytes.ByteArrayBuilder
+import scoop.compression.*
+import scoop.http.*
+import scoop.platform.concurrent.Thread
+import scoop.platform.fs.Path
+
+fun check(value: Boolean) { if (!value) throw IllegalStateException(Some("WebSocket frame fixture assertion failed")) }
+
+fun main(args: Array<String>) {
+    if (args.size == 2L) { runOracle(Path.fromString(args[1L])); return }
+    val first = Thread.start { exercise() }
+    val second = Thread.start { exercise() }
+    try { first.join() } finally { second.join() }
+    exercise()
+    checkDecodedFailures()
+    println("WebSocket frames compose with compression UTF8 control frames and native threads")
+}
+
+private fun exercise() {
+    for (takeover in [true, false]) {
+        val sending = if (takeover) HttpRole.Client else HttpRole.Server
+        val receiving = if (takeover) HttpRole.Server else HttpRole.Client
+        WebSocketFrameEncoder(sending, true).use { encoder ->
+            WebSocketFrameDecoder(receiving, true, WebSocketFrameLimits(dataChunkBytes = 3L)).use { parser ->
+                DeflateMessageEncoder(contextTakeover = takeover).use { compressor ->
+                    DeflateMessageDecoder(contextTakeover = takeover).use { decompressor ->
+                        for (text in ["雪😀\u0000line", "雪😀\u0000line twice", ""]) {
+                            val compressed = compressMessage(compressor, text.toByteArray())
+                            val first = Array<Byte>(compressed.size / 2L) { index -> compressed[index] }
+                            val second = Array<Byte>(compressed.size - first.size) { index -> compressed[first.size + index] }
+                            val wire = ByteArrayBuilder()
+                                .append(encodeFrame(encoder, WebSocketFrameHead(WebSocketOpcode.Text, first.size, false, true), first))
+                                .append(encodeFrame(encoder, WebSocketFrameHead(WebSocketOpcode.Ping, 1L), "?".toByteArray()))
+                                .append(encodeFrame(encoder, WebSocketFrameHead(WebSocketOpcode.Continuation, second.size), second))
+                            val events = readEvents(parser, wire.toByteArray(), 5L, false)
+                            var pings = 0L
+                            for (event in events) {
+                                when (event) { case Ping(bytes) -> { check(String.fromUtf8(bytes) == "?"); pings += 1L }; else -> {} }
+                            }
+                            check(pings == 1L && decompressMessage(decompressor, events, 128L) == text)
+                            gcCollect()
+                            compressor.nextMessage(); decompressor.nextMessage()
+                        }
+                    }
+                }
+                val close = WebSocketClose(Some(3001U), "done").toByteArray()
+                readEvents(parser, encodeFrame(encoder, WebSocketFrameHead(WebSocketOpcode.Close, close.size), close), 1L, true)
+                check(parser.hasCloseFrame && parser.closeFrame!!.reason == "done" && parser.isFinished)
+            }
+        }
+    }
+}
+
+private fun checkDecodedFailures() {
+    for (invalid in [false, true]) {
+        val raw: Array<Byte> = if (invalid) [255.toByte()] else "bad".toByteArray()
+        val compressed = DeflateMessageEncoder().use { encoder -> compressMessage(encoder, raw) }
+        val wire = WebSocketFrameEncoder(HttpRole.Server, true).use { encoder ->
+            encodeFrame(encoder, WebSocketFrameHead(WebSocketOpcode.Text, compressed.size, true, true), compressed)
+        }
+        val events = WebSocketFrameDecoder(HttpRole.Client, true, WebSocketFrameLimits(dataChunkBytes = 3L)).use { parser ->
+            readEvents(parser, wire, 2L, true)
+        }
+        try {
+            DeflateMessageDecoder().use { decoder -> decompressMessage(decoder, events, if (invalid) 8L else 1L) }
+            throw IllegalStateException(Some("decoded text failure was accepted"))
+        } catch (error: WebSocketFrameException) { check(error.closeCode == (if (invalid) 1007U else 1009U)) }
+    }
+}

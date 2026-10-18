@@ -1,0 +1,115 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+
+internal class WebSocketReadingFrame(val wire: WebSocketWireHead) {
+    var remaining: Long = wire.head.payloadLength
+}
+
+internal class WebSocketReadState(private val role: HttpRole, compressionEnabled: Boolean, private val limits: WebSocketFrameLimits) : Closeable {
+    private val sequence: WebSocketSequence = WebSocketSequence(compressionEnabled, limits.maxMessageBytes)
+    private val header: ByteArrayBuilder = ByteArrayBuilder()
+    private var data: ByteArrayBuilder = ByteArrayBuilder()
+    private val control: ByteArrayBuilder = ByteArrayBuilder()
+    private var headerSize: Long = 2L
+    private var frame: WebSocketReadingFrame? = None
+    private var endQueued: Boolean = false
+    var pending: WebSocketFrameEvent? = None
+    var inputEnded: Boolean = false
+    var finished: Boolean = false
+    var position: Long = 0L
+    var closeFrame: WebSocketClose? = None
+    val hasPending: Boolean get() = when (pending) { case Some(_) -> true; case None -> false }
+    val hasCloseFrame: Boolean get() = sequence.hasCloseFrame
+
+    fun accept(byte: Byte) {
+        position += 1L
+        when (frame) {
+            case None -> receiveHeader(byte)
+            case Some(active) -> {
+                val value = webSocketMask(byte, active.wire.mask, active.wire.head.payloadLength - active.remaining)
+                active.remaining -= 1L
+                if (webSocketControl(active.wire.head.opcode)) control.append(value)
+                else data.append(value)
+                if (data.size == limits.dataChunkBytes || active.remaining == 0L) { flushData(); pump() }
+            }
+        }
+    }
+
+    private fun receiveHeader(byte: Byte) {
+        header.append(byte)
+        if (header.size == 2L) headerSize = webSocketHeaderSize(header.toByteArray())
+        if (header.size != headerSize) return
+        val wire = readWebSocketHeader(header.toByteArray(), role)
+        if (wire.head.payloadLength > limits.maxFrameBytes) throw WebSocketFrameException(1009U, "frame exceeds its payload byte limit")
+        sequence.check(wire.head)
+        val next = WebSocketReadingFrame(wire)
+        sequence.begin(wire.head)
+        frame = Some(next)
+        header.clear()
+        headerSize = 2L
+        if (webSocketControl(wire.head.opcode)) pump()
+        else pending = Some(WebSocketFrameEvent.FrameStarted(wire.head))
+    }
+
+    fun flushData() {
+        if (hasPending || data.size == 0L) return
+        val active = frame!!
+        val bytes = data.toByteArray()
+        sequence.receive(active.wire.head, bytes)
+        data.clear()
+        pending = Some(WebSocketFrameEvent.Data(bytes))
+    }
+
+    fun pump() {
+        if (hasPending) return
+        when (frame) {
+            case Some(active) -> {
+                if (active.remaining != 0L) {
+                    if (inputEnded) webSocketFrameError("EOF within frame payload")
+                    return
+                }
+                if (data.size != 0L) { flushData(); return }
+                if (webSocketControl(active.wire.head.opcode)) finishControl(active.wire.head.opcode)
+                else {
+                    sequence.finish(active.wire.head)
+                    pending = Some(WebSocketFrameEvent.FrameEnded)
+                }
+                frame = None
+                return
+            }
+            case None -> {}
+        }
+        if (inputEnded && !endQueued) {
+            if (header.size != 0L) webSocketFrameError("EOF within frame header")
+            if (sequence.isMessageOpen) webSocketFrameError("EOF within fragmented message")
+            endQueued = true
+            pending = Some(WebSocketFrameEvent.End)
+        }
+    }
+
+    private fun finishControl(opcode: WebSocketOpcode) {
+        val bytes = control.toByteArray()
+        control.clear()
+        pending = Some(when (opcode) {
+            case Ping -> WebSocketFrameEvent.Ping(bytes)
+            case Pong -> WebSocketFrameEvent.Pong(bytes)
+            case Close -> {
+                val value = WebSocketClose.parse(bytes)
+                sequence.closeFrame()
+                closeFrame = Some(value)
+                WebSocketFrameEvent.Close(value)
+            }
+            else -> throw IllegalStateException(Some("expected a control frame"))
+        })
+    }
+
+    public override fun close() {
+        frame = None
+        pending = None
+        header.clear()
+        data = ByteArrayBuilder()
+        control.clear()
+        sequence.close()
+    }
+}

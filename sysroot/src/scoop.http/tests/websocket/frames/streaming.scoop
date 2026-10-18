@@ -1,0 +1,77 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+@Test private class WebSocketFrameStreamingTests {
+    @Test fun `pending events enforce bounded chunks and exact buffer progress`() {
+        WebSocketFrameDecoder(HttpRole.Client, limits = WebSocketFrameLimits(dataChunkBytes = 3L)).use { decoder ->
+            NativeByteBuffer.allocate(7L).use { input ->
+                input.writeBytes(wfPacket(130, "abcde".toByteArray()))
+                assertEquals(2L, decoder.receive(input))
+                assertEquals(0L, decoder.receive(input))
+                assertEquals(2L, input.readPosition)
+                assertTrue(when (decoder.nextEvent()!!) { case FrameStarted(head) -> head.payloadLength == 5L; else -> false })
+                assertEquals(3L, decoder.receive(input))
+                assertEquals(0L, decoder.receive(input))
+                val first = decoder.nextEvent()!!
+                assertEquals(2L, decoder.receive(input))
+                val second = decoder.nextEvent()!!
+                assertTrue(when (decoder.nextEvent()!!) { case FrameEnded -> true; else -> false })
+                decoder.endInput(); decoder.endInput()
+                assertTrue(!decoder.isFinished)
+                assertTrue(when (decoder.nextEvent()!!) { case End -> true; else -> false })
+                assertTrue(decoder.isFinished && !decoder.hasCloseFrame)
+                input.clear()
+                assertEquals("abcde", String.fromUtf8(wfPayload([first, second])))
+                assertTrue(when (decoder.nextEvent()) { case None -> true; case Some(_) -> false })
+            }
+        }
+    }
+
+    @Test fun `fragmented UTF8 survives interleaved control frames and records peer Close`() {
+        val wire = ByteArrayBuilder().append(wfPacket(1, wfBytes([240])))
+            .append(wfPacket(137, "?".toByteArray())).append(wfPacket(0, wfBytes([159, 152])))
+            .append(wfPacket(138, "!".toByteArray())).append(wfPacket(128, wfBytes([128])))
+            .append(wfPacket(136, WebSocketClose(Some(1000U), "ok").toByteArray())).toByteArray()
+        WebSocketFrameDecoder(HttpRole.Client).use { decoder ->
+            val events = wfFeed(decoder, wire)
+            assertEquals("😀", String.fromUtf8(wfPayload(events)))
+            var ping = 0L; var pong = 0L; var ended = 0L
+            for (event in events) {
+                when (event) {
+                    case Ping(bytes) -> { assertEquals("?", String.fromUtf8(bytes)); ping += 1L }
+                    case Pong(bytes) -> { assertEquals("!", String.fromUtf8(bytes)); pong += 1L }
+                    case FrameEnded -> ended += 1L
+                    else -> {}
+                }
+            }
+            assertEquals(1L, ping); assertEquals(1L, pong); assertEquals(3L, ended)
+            assertTrue(decoder.hasCloseFrame && decoder.isFinished && decoder.closeFrame!!.code == Some(1000U))
+            assertEquals("ok", decoder.closeFrame!!.reason)
+            decoder.close()
+            assertEquals("ok", decoder.closeFrame!!.reason)
+        }
+    }
+
+    @Test fun `zero payload frames and Close interrupting incomplete text keep distinct endings`() {
+        val wire = wfBytes([1, 0, 128, 0, 130, 0, 137, 0, 138, 0, 1, 1, 226, 136, 0])
+        WebSocketFrameDecoder(HttpRole.Client).use { decoder ->
+            val events = wfFeed(decoder, wire, 15L)
+            var starts = 0L; var endings = 0L; var controls = 0L
+            for (event in events) {
+                when (event) {
+                    case FrameStarted(_) -> starts += 1L
+                    case FrameEnded -> endings += 1L
+                    case Ping(_) -> controls += 1L
+                    case Pong(_) -> controls += 1L
+                    case Close(_) -> controls += 1L
+                    else -> {}
+                }
+            }
+            assertEquals(4L, starts); assertEquals(4L, endings); assertEquals(3L, controls)
+            assertTrue(decoder.isFinished && decoder.hasCloseFrame && decoder.closeFrame!!.code == None)
+        }
+    }
+}

@@ -1,0 +1,92 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.platform.memory.NativeByteBuffer
+
+internal class WebSocketWritingFrame(val head: WebSocketFrameHead, val mask: Array<Byte>) {
+    val control: ByteArrayBuilder = ByteArrayBuilder()
+    var written: Long = 0L
+}
+
+public class WebSocketFrameEncoder public constructor(public val role: HttpRole, compressionEnabled: Boolean = false) : Closeable {
+    private val sequence: WebSocketSequence = WebSocketSequence(compressionEnabled, Long.MAX_VALUE)
+    private val busy: AtomicBoolean = AtomicBoolean(false)
+    private var frame: WebSocketWritingFrame? = None
+    private var closed: Boolean = false
+    private var error: Throwable? = None
+    public val isClosed: Boolean get() = closed
+    public val isFrameOpen: Boolean get() = when (frame) { case Some(_) -> true; case None -> false }
+    public val isMessageOpen: Boolean get() = sequence.isMessageOpen
+    public val hasCloseFrame: Boolean get() = sequence.hasCloseFrame
+    public val failure: Throwable? get() = error
+
+    public fun beginFrame(head: WebSocketFrameHead): Array<Byte> = withUse {
+        requireOpen()
+        if (isFrameOpen) throw IllegalStateException(Some("WebSocket frame is still open"))
+        sequence.check(head)
+        val encoded = encodeWebSocketHeader(head, role)
+        val next = WebSocketWritingFrame(head, encoded.mask)
+        sequence.begin(head)
+        frame = Some(next)
+        encoded.bytes
+    }
+
+    public fun writePayload(buffer: NativeByteBuffer, count: Long = buffer.readableBytes): Array<Byte> = withUse {
+        requireOpen()
+        val active = activeFrame()
+        if (count < 0L) throw IllegalArgumentException(Some("negative WebSocket payload count"))
+        if (count > buffer.readableBytes) throw IndexOutOfBoundsException()
+        if (count > active.head.payloadLength - active.written) throw IllegalArgumentException(Some("payload exceeds frame length"))
+        if (count == 0L) return@withUse "".toByteArray()
+        val raw = buffer.readBytes(count)
+        try {
+            sequence.receive(active.head, raw)
+            if (webSocketControl(active.head.opcode)) active.control.append(raw)
+            val start = active.written
+            val result = if (active.mask.size == 0L) raw else Array<Byte>(count) { index -> webSocketMask(raw[index], active.mask, start + index) }
+            active.written += count
+            result
+        } catch (failure: Throwable) { fail(failure) }
+    }
+
+    public fun finishFrame() {
+        withUse {
+            requireOpen()
+            val active = activeFrame()
+            if (active.written != active.head.payloadLength) throw IllegalStateException(Some("incomplete WebSocket frame payload"))
+            try {
+                if (active.head.opcode == WebSocketOpcode.Close) {
+                    WebSocketClose.parse(active.control.toByteArray())
+                    sequence.closeFrame()
+                } else sequence.finish(active.head)
+                frame = None
+            } catch (failure: Throwable) { fail(failure) }
+            Unit
+        }
+    }
+
+    public override fun close() { withUse { if (!closed) { closed = true; frame = None; sequence.close() }; Unit } }
+
+    private fun activeFrame(): WebSocketWritingFrame = when (frame) {
+        case Some(value) -> value
+        case None -> throw IllegalStateException(Some("WebSocket frame has not begun"))
+    }
+
+    private fun requireOpen() {
+        if (closed) throw IllegalStateException(Some("WebSocket frame encoder is closed"))
+        when (error) { case Some(_) -> throw IllegalStateException(Some("WebSocket frame encoder failed")); case None -> {} }
+    }
+
+    private fun fail(failure: Throwable): Nothing {
+        frame = None
+        var result = failure
+        try { sequence.close() } catch (cleanup: Throwable) { result = ResourceUseException(failure, cleanup) }
+        error = Some(result)
+        throw result
+    }
+
+    private fun <T> withUse(block: () -> T): T {
+        if (!busy.compareAndSet(false, true)) throw IllegalStateException(Some("WebSocket frame encoder is already in use"))
+        try { return block() } finally { busy.store(false) }
+    }
+}
