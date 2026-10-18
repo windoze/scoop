@@ -20,25 +20,11 @@ static void enqueue_update_array(ScoopGcMarkWorker *owner, void *object, const u
     }
 }
 
-typedef struct UpdateVisit {
-    ScoopGcSlotVisitor visitor;
-    void *context;
-} UpdateVisit;
-
-static void update_serial(void *object, void *context) {
-    const uint64_t *scan = scoop_gc_object_scan(object);
-    if (scan == NULL) {
-        return;
-    }
-    UpdateVisit *visit = context;
-    void *current = scoop_heap_claim_relocated_object(object);
-    scoop_gc_scan_descriptor(current, scan, visit->visitor, visit->context, 0, UINTPTR_MAX);
-}
-
-void scoop_gc_update_live(ScoopGcSlotVisitor visitor, void *context) {
+void scoop_gc_update_live(ScoopGcSlotVisitor visitor, ScoopGcHeapObjectVisitor serial_visitor,
+                          void *context) {
     if (scoop_gc_marker.active_workers == 1) {
-        UpdateVisit visit = {visitor, context};
-        scoop_gc_mark_visit_live(update_serial, &visit);
+        /* Preserve the coordinator's direct callback without a per-object wrapper. */
+        scoop_gc_mark_visit_live(serial_visitor, context);
         return;
     }
     scoop_gc_marker.updating = true;
