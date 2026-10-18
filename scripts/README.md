@@ -43,6 +43,8 @@ python3 scripts/prepare_sysroot.py \
 
 `build_compression.py` 使用 CMake 依次准备 Zstandard 1.5.7、zlib-ng 2.3.3 和 Brotli 1.2.0；参数与目录布局同上。只发布静态库和头文件，不构建命令行程序、测试、benchmark 或并行压缩线程池；zlib-ng 保留原生命名前缀和运行时 CPU 检测。内存、同步与异步 API 共用同一个 `scoop.compression` Cone 和同一套后端。
 
+`generate_public_suffix.py` 将 `sysroot/vendor/publicsuffix/public_suffix_list.dat` 的固定 PSL 规则、分区和版本注释生成普通 C 静态数据，供 HTTP Cone 打包。只有维护者更新快照时显式执行；脚本不下载数据，日常构建直接使用提交的 `.inc`。同步保留上游许可和同 revision 的测试向量，运行公共后缀的库测试及正式消费者；分发沿既有 vendor／license 收集路径携带这些资料。
+
 开发 sysroot 准备完成后，设置 `SCOOP_SYSROOT="$PWD/sysroot"`，再运行相关的正式 CLI fixture 和库测试。Cargo 输出目录中的命令也遵守显式参数、环境变量、执行文件所属安装根的选择顺序，不再回退到编译时仓库。普通 build／run／test 和两个 link 命令默认使用目标 runtime 索引；`--runtime-root` 只用于明确需要源码构建的开发请求。准备 sysroot 不要求构建发行 LLVM、压缩归档或运行全套测试。
 
 ## 手工生成工具包

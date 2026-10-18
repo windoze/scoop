@@ -1,0 +1,82 @@
+package scoop.http
+
+import scoop.idna.*
+import scoop.test.*
+import scoop.url.Url
+
+@Test
+private class PublicSuffixTests {
+    @Test
+    fun `normal wildcard and exception rules select complete labels`() {
+        val list = PublicSuffixList.parse("com\nco.uk\n*.ck\n!www.ck\ncity.example\n*.example\n!city.example\n")
+        val simple = list.lookup("WWW.Example.COM.")
+        assertEquals("www.example.com", simple.domain)
+        assertEquals("com", simple.publicSuffix)
+        assertEquals("example.com", simple.registrableDomain!!)
+        assertEquals("com", simple.rule!!)
+        assertFalse(simple.isPrivate)
+        for ((input, suffix, registrable) in [("a.b.ck", "b.ck", "a.b.ck"), ("www.ck", "ck", "www.ck"),
+            ("a.www.ck", "ck", "www.ck"), ("a.city.example", "example", "city.example"),
+            ("a.example.co.uk", "co.uk", "example.co.uk")]) {
+            val match = list.lookup(input)
+            assertEquals(suffix, match.publicSuffix)
+            assertEquals(registrable, match.registrableDomain!!)
+        }
+        assertTrue(list.lookup("b.ck").registrableDomain == None)
+        assertEquals("*.ck", list.lookup("b.ck").rule!!)
+        assertEquals("!www.ck", list.lookup("www.ck").rule!!)
+        assertTrue(PublicSuffixList.parse("").lookup("unknown").rule == None)
+        assertEquals("unknown", PublicSuffixList.parse("").lookup("a.unknown").publicSuffix)
+        assertEquals("*", PublicSuffixList.parse("*\n").lookup("a.unknown").rule!!)
+    }
+
+    @Test
+    fun `private partitions can be selected without changing canonical results`() {
+        val list = PublicSuffixList.parse("// VERSION: local\n// COMMIT: example\ncom\ncom\n" +
+            "// ===BEGIN PRIVATE DOMAINS===\nblogspot.com\n*.tenant.test\n!safe.tenant.test\n")
+        assertEquals(4L, list.ruleCount)
+        assertEquals("local", list.version!!)
+        assertEquals("example", list.revision!!)
+        val privateMatch = list.lookup("a.blogspot.com")
+        assertEquals("blogspot.com", privateMatch.publicSuffix)
+        assertTrue(privateMatch.isPrivate)
+        val icann = list.lookup("a.blogspot.com", includePrivate = false)
+        assertEquals("com", icann.publicSuffix)
+        assertEquals("blogspot.com", icann.registrableDomain!!)
+        assertFalse(icann.isPrivate)
+        assertTrue(list.lookup("a.tenant.test").isPrivate)
+        assertTrue(list.lookup("safe.tenant.test").isPrivate)
+        assertEquals("test", list.lookup("a.tenant.test", includePrivate = false).publicSuffix)
+    }
+
+    @Test
+    fun `IDNA names and URL origins reuse canonical DNS names and exclude IP addresses`() {
+        val list = PublicSuffixList.parse("公司.cn\n中国\n")
+        val name = Idna.parse("www.食狮.公司.cn.")
+        gcCollect()
+        val match = list.lookup(name)
+        assertEquals("xn--55qx5d.cn", match.publicSuffix)
+        assertEquals("xn--85x722f.xn--55qx5d.cn", match.registrableDomain!!)
+        val origin = Url.parse("https://www.食狮.公司.cn/path").httpOrigin()
+        assertEquals(match.domain, list.lookup(origin)!!.domain)
+        assertTrue(when (list.lookup(Url.parse("http://127.0.0.1/").httpOrigin())) { case None -> true; case Some(_) -> false })
+        assertTrue(when (list.lookup(Url.parse("http://[::1]/").httpOrigin())) { case None -> true; case Some(_) -> false })
+        for (invalid in ["", ".", ".com", "bad..com", "foo_bar.com", "xn--a.com"]) {
+            assertTrue(when (list.lookupOrNone(invalid)) { case None -> true; case Some(_) -> false })
+        }
+        assertFailsWith<IllegalArgumentException> { list.lookup(Idna.parse(".")) }
+    }
+
+    @Test
+    fun `malformed rules report source lines while comments whitespace and duplicates are harmless`() {
+        val list = PublicSuffixList.parse("  // comment\r\n\tcom  explanation\r\nCOM\tmore\r\n")
+        assertEquals(1L, list.ruleCount)
+        for (invalid in ["foo.", "*.foo.*", "!single", "a..com", "foo_bar.com", "!", "*.", ".com"]) {
+            assertEquals(3L, assertFailsWith<PublicSuffixParseException> {
+                PublicSuffixList.parse("// comment\ncom\n" + invalid)
+            }.line)
+        }
+        val error = assertFailsWith<PublicSuffixParseException> { PublicSuffixList.parse("xn--a.com") }
+        assertTrue(when (error.cause) { case None -> false; case Some(_) -> true })
+    }
+}

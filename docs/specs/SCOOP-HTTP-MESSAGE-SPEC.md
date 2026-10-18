@@ -102,6 +102,16 @@ Cookie parser 接收单个 Set-Cookie 字段，按 RFC 6265 及现代 SameSite�
 
 PSL 数据访问是普通库逻辑，不生成 compiler-known 表或额外产物验证机制。Cookie jar 的内存状态、持久化和请求发送选择属于 client；这里不维护全局 Cookie 状态。
 
+### 2.1 公共后缀匹配
+
+`PublicSuffixList.bundled()` 读取随库固定交付的 PSL，返回可复用的不可变规则索引；`parse(text)` 可读取显式提供的 PSL 文本，保留 ICANN／PRIVATE 分区和可选的 VERSION／COMMIT 元数据。忽略空行、注释和规则后的空白说明，域名部分通过 idna 规范化；规则只允许普通名称、最左端 `*.` 和最左端 `!`，例外规则至少包含两个标签。重复规则合并。格式错误报告 PublicSuffixParseException 的行号，IDNA 后端运行错误照常传播。
+
+`lookup(domain: String, includePrivate = true)` 规范化输入域名；`lookup(name: IdnaName, includePrivate = true)` 复用其已验证的 ASCII 值。两者返回 PublicSuffixMatch，包含规范 domain、publicSuffix、可选 registrableDomain、可选 rule 和 isPrivate。末尾根点不参与匹配或返回值；独立根域不是可查主机名。rule 为规范 A-label 规则，包含实际的通配／例外前缀；未命中数据时采用 PSL 规定的隐式 `*`，rule 为 None。先选例外，否则选标签数最多的规则；完整域名自身是公共后缀时 registrableDomain 为 None。
+
+`lookup(origin: UrlOrigin, includePrivate = true): PublicSuffixMatch?` 直接消费 URL 已完成规范化的 DNS 主机名；IP 返回 None，不将地址的最后一个数字当作域名后缀。匹配器不重复 URL 的 IDNA 校验。`lookupOrNone(domain, includePrivate = true)` 只将无效域名或独立根域转换成 None，不吞掉后端错误。PSL 只判断注册边界，不判断域名是否已注册、是否可解析或是否受信任。
+
+规则匹配用普通 Scoop 集合和字符串实现。原始 PSL 与 MPL-2.0 许可随 vendor 交付，维护脚本将相同规则和分区嵌入本 Cone 的普通静态数据；本地构建和每次请求不下载数据，不引入新的编译器资源机制。每个 PublicSuffixList 对象构造一次索引，之后只读，可在独立请求与线程间复用。version、revision 与 ruleCount 记录实际加载的快照；这些信息仅用于维护和诊断。
+
 ## 3. 表单与 multipart
 
 application/x-www-form-urlencoded 使用 URL 库的 FormUrlEncoded，保留重复项和顺序，按明确 charset 编码。HTTP 层提供 Content-Type 与 RequestBody 所需的元数据，不重新定义加号、百分号或空值规则。

@@ -9,6 +9,7 @@ kind = "library"
 "scoop:scoop.core" = "0.1.0"
 "scoop:scoop.std" = "0.1.0"
 "scoop:scoop.platform" = "0.1.0"
+"scoop:scoop.idna" = "0.1.0"
 "scoop:scoop.url" = "0.1.0"
 "scoop:scoop.charset" = "0.1.0"
 
@@ -17,6 +18,7 @@ kind = "library"
 
 [native]
 include = [
+    "../../vendor/publicsuffix",
     "../../vendor/llhttp/include",
     {path = "../../lib/aarch64-apple-darwin/nghttp2/include", when = {os = "darwin"}},
     {path = "../../lib/x86_64-unknown-linux-gnu/nghttp2/include", when = {env = "gnu"}},
@@ -40,6 +42,8 @@ path = "../../vendor/llhttp/src/http.c"
 path = "../../vendor/llhttp/src/llhttp.c"
 [[native.sources]]
 path = "native/data.c"
+[[native.sources]]
+path = "native/psl.c"
 [[native.sources]]
 path = "native/http1.c"
 [[native.sources]]
