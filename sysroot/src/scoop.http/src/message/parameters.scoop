@@ -26,7 +26,7 @@ public class HttpParameter internal constructor(
     }
 }
 
-private fun checkedHttpParameter(value: List<Byte>): Array<Byte> {
+internal fun checkedHttpParameter(value: List<Byte>): Array<Byte> {
     val bytes = value.toArray()
     for (byte in bytes) if (!httpQuotedByte(byte.toUByte().toInt()))
         throw IllegalArgumentException(Some("invalid HTTP parameter byte"))
@@ -53,15 +53,19 @@ internal fun encodeHttpParameters(primary: String, parameters: List<HttpParamete
     output.append(primary.toByteArray())
     for (parameter in parameters) {
         output.append("; ".toByteArray()); output.append(parameter.name.toByteArray()); output.append(61.toByte())
-        if (!parameter.wasQuoted && httpToken(parameter.value)) output.append(parameter.value)
-        else {
-            output.append(34.toByte())
-            for (byte in parameter.value) {
-                if (byte == 34.toByte() || byte == 92.toByte()) output.append(92.toByte())
-                output.append(byte)
-            }
-            output.append(34.toByte())
-        }
+        appendHttpParameterValue(output, parameter.value, parameter.wasQuoted)
     }
     return output.toByteArray()
+}
+
+internal fun appendHttpParameterValue(output: ByteArrayBuilder, value: List<Byte>, quoted: Boolean) {
+    if (!quoted && httpToken(value)) output.append(value)
+    else {
+        output.append(34.toByte())
+        for (byte in value) {
+            if (byte == 34.toByte() || byte == 92.toByte()) output.append(92.toByte())
+            output.append(byte)
+        }
+        output.append(34.toByte())
+    }
 }

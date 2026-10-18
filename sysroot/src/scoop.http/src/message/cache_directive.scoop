@@ -1,0 +1,68 @@
+package scoop.http
+
+import scoop.text.lowercaseAscii
+
+public class HttpCacheDirective internal constructor(
+    public val name: String, public val value: Array<Byte>?, public val wasQuoted: Boolean,
+    internal val nameOffset: Long, private val valueOffset: Long, private val sourceValue: Array<Byte>?
+) {
+    public constructor(name: String, value: List<Byte>? = None) : this(httpNormalizedToken(name),
+        when (value) { case Some(bytes) -> Some(checkedHttpParameter(bytes)); case None -> None }, false, 0L, 0L, None) {}
+    public constructor(name: String, value: List<Byte>) : this(name, Some<List<Byte>>(value)) {}
+
+    public fun deltaSeconds(): Long {
+        val bytes = requiredValue()
+        if (bytes.size == 0L) failAt(0L, "empty delta-seconds")
+        var result = 0L
+        var offset = 0L
+        for (byte in bytes) {
+            val digit = byte.toUByte().toLong() - 48L
+            if (digit < 0L || digit > 9L) failAt(offset, "invalid delta-seconds")
+            result = if (result > (Long.MAX_VALUE - digit) / 10L) Long.MAX_VALUE else result * 10L + digit
+            offset += 1L
+        }
+        return result
+    }
+
+    public fun fieldNames(): Array<String> {
+        val bytes = requiredValue()
+        try { return cacheFieldNames(bytes) }
+        catch (error: HttpFieldParseException) { failAt(error.byteOffset, error.detail) }
+    }
+
+    private fun requiredValue(): Array<Byte> = when (value) {
+        case Some(bytes) -> bytes
+        case None -> failAt(0L, "cache directive requires an argument")
+    }
+
+    internal fun failAt(offset: Long, detail: String): Nothing {
+        var sourceOffset = valueOffset + offset
+        when (sourceValue) {
+            case Some(source) -> if (wasQuoted) {
+                sourceOffset = valueOffset + 1L
+                var decoded = 0L
+                while (decoded < offset) {
+                    if (source[sourceOffset] == 92.toByte()) sourceOffset += 1L
+                    sourceOffset += 1L
+                    decoded += 1L
+                }
+                if (source[sourceOffset] == 92.toByte()) sourceOffset += 1L
+            }
+            case None -> {}
+        }
+        throw HttpFieldParseException("Cache-Control", sourceOffset, name + ": " + detail)
+    }
+}
+
+private fun cacheFieldNames(value: List<Byte>): Array<String> {
+    val reader = HttpFieldReader("Cache-Control", value)
+    val names = ArrayList<String>()
+    reader.skipOws()
+    while (!reader.ended) {
+        if (reader.peek() == 44) { reader.position += 1L; reader.skipOws(); continue }
+        names.add(reader.token().lowercaseAscii())
+        reader.skipOws()
+        if (!reader.ended) { reader.expect(44); reader.skipOws() }
+    }
+    return names.toArray()
+}

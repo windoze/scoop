@@ -60,6 +60,16 @@
 
 `HttpContentRange(range: HttpResolvedRange, completeLength: Long? = None)` 表示已有范围及已知／未知总长度；已知总长度必须大于 last。`HttpContentRange.unsatisfied(completeLength)` 表示 `bytes */length`，长度可为零。配对 parse／parseOrNone、originalValue 和输出方法接受／生成这两种形状；未知总长度使用星号，unsatisfied 的总长度必须已知。分隔符按字段语法检查，只有字段前后允许 OWS；非法边界、无法表示的区间长度或数值溢出报告 Content-Range 字段。工具不检查响应状态、不读取 body，也不决定断点续传或文件写入位置。
 
+### 1.5 Cache-Control 指令
+
+`HttpCacheDirective(name, value: List<Byte>? = None)` 保存 ASCII 小写指令名及可选的独立字节参数；空字符串参数与无参数不同。`HttpCacheControl(directives)` 保存不可变的有序列表。parse／parseOrNone 接收单个字节或 String 字段，parseFields 接收 HttpField 列表并合并所有 Cache-Control 行；originalValues 保留每条原始字段，普通构造为空。按 RFC 9111 接收 token／quoted-string 参数及转义，保留 wasQuoted、未知指令、重复项、顺序和非 UTF-8 参数；逗号只在引号外分隔，空字段及列表空项允许，等号周围不额外接收空白。
+
+`findAll(name)`／`contains(name)` 按大小写无关名称查询；`single(name)` 返回唯一项或 None，重复时以第二项的原始位置报错，不静默覆盖。语法解析不提前应用缓存策略；调用者可以用 findAll 实现 RFC 9111 允许的首值规则，或将严格查询／参数解释失败视为无效缓存信息。
+
+`HttpCacheDirective.deltaSeconds()` 要求完整的非负十进制参数，接收已解码的两种参数形式；按 RFC 9111 §1.2.2 将溢出饱和到 Long.MAX_VALUE，溢出后的剩余字符仍须是数字。`fieldNames()` 解析 no-cache／private 等指令的字段名列表，接受列表 OWS 和空项，返回小写名称。无参数由 value 的 None 表示，例如无界 max-stale 与不限定字段的 no-cache；调用者不能把它当作空列表或零秒。这两个解释方法缺少参数或遇到非法内容时报告 HttpFieldParseException，解析项的偏移映射回原字段（含 quoted-pair），普通构造项的偏移相对于参数字节。
+
+`toByteArray()`／`toHttpField()` 生成可发送的 Cache-Control。标准秒数指令使用 token，no-cache／private 的字段列表使用 quoted-string；已解析的未知参数保留引号选择并正确转义。输出时检查已知的秒数、字段列表和无参数指令的参数形状，不把读取到的无效标准参数重新生成为合法配置。未知扩展只按通用字节语法处理。工具不判断请求／响应方向、freshness、存储或重验证，也不查询时钟。
+
 ## 2. Cookie 与公共后缀
 
 Cookie parser 接收单个 Set-Cookie 字段，按 RFC 6265 及现代 SameSite／前缀规则返回名称、值、Domain、Path、Expires、Max-Age、Secure、HttpOnly、SameSite 和未知属性。Cookie 请求字段的组装独立处理，不把多个 Set-Cookie 用逗号连接。域名使用 url／idna 的同一规范值。

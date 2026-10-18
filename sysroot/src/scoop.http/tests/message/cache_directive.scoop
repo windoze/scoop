@@ -1,0 +1,62 @@
+package scoop.http
+
+import scoop.test.*
+import scoop.text.*
+
+@Test
+private class HttpCacheDirectiveTests {
+    @Test
+    fun `cache seconds saturate overflow while validating every remaining byte`() {
+        for ((text, expected) in [("0000", 0L), ("2147483648", 2147483648L), ("9223372036854775807", Long.MAX_VALUE),
+            ("9223372036854775808", Long.MAX_VALUE), ("999999999999999999999999999999", Long.MAX_VALUE)]) {
+            assertEquals(expected, HttpCacheDirective("max-age", text.toByteArray()).deltaSeconds())
+            assertEquals(expected, HttpCacheControl.parse("max-age=\"" + text + "\"").single("max-age")!!.deltaSeconds())
+        }
+        for (text in ["", "+1", "-1", "1.0", "1 2", "99999999999999999999999999x"]) {
+            assertFailsWith<HttpFieldParseException> { HttpCacheDirective("max-age", text.toByteArray()).deltaSeconds() }
+        }
+        val invalid = HttpCacheControl.parse("max-age=\"12\\x\"").single("max-age")!!
+        assertEquals(12L, assertFailsWith<HttpFieldParseException> { invalid.deltaSeconds() }.byteOffset)
+        assertEquals(9L, assertFailsWith<HttpFieldParseException> { HttpCacheControl.parse("max-age=\"\"").single("max-age")!!.deltaSeconds() }.byteOffset)
+        assertFailsWith<HttpFieldParseException> { HttpCacheDirective("max-stale").deltaSeconds() }
+    }
+
+    @Test
+    fun `field name arguments preserve list structure and map errors through quoted pairs`() {
+        val fields = HttpCacheControl.parse("private=\"Set-Cookie, , X-Custom, SET-COOKIE\"").single("private")!!.fieldNames()
+        assertEquals(3L, fields.size)
+        assertEquals("set-cookie", fields[0L])
+        assertEquals("x-custom", fields[1L])
+        assertEquals("set-cookie", fields[2L])
+        val single = HttpCacheControl.parse("no-cache=ETag").single("no-cache")!!
+        assertEquals("etag", single.fieldNames()[0L])
+        assertEquals(0L, HttpCacheControl.parse("private=\"\"").single("private")!!.fieldNames().size)
+        assertFailsWith<HttpFieldParseException> { HttpCacheDirective("private").fieldNames() }
+        val invalid = "no-cache=\"ETag, X\\ Z\""
+        val directive = HttpCacheControl.parse(invalid).single("no-cache")!!
+        assertEquals(invalid.indexOf('Z'), assertFailsWith<HttpFieldParseException> { directive.fieldNames() }.byteOffset)
+    }
+
+    @Test
+    fun `output normalizes standard argument forms without losing unknown extensions`() {
+        val control = HttpCacheControl.parse("max-age=\"5\", s-maxage=\"6\", min-fresh=\"1\", max-stale=\"2\", " +
+            "stale-while-revalidate=\"3\", stale-if-error=\"4\", no-cache=ETag, private=Set-Cookie, x-option=\"token\"")
+        assertEquals("max-age=5, s-maxage=6, min-fresh=1, max-stale=2, stale-while-revalidate=3, stale-if-error=4, " +
+            "no-cache=\"ETag\", private=\"Set-Cookie\", x-option=\"token\"", String.fromUtf8(control.toByteArray()))
+        val flags = HttpCacheControl.parse("no-store, no-transform, only-if-cached, must-revalidate, must-understand, proxy-revalidate, public, immutable, max-stale")
+        assertEquals(9L, HttpCacheControl.parse(flags.toByteArray()).directives.size)
+        val constructed = HttpCacheControl([HttpCacheDirective("no-cache", "X-Secret".toByteArray()),
+            HttpCacheDirective("max-age", "120".toByteArray())])
+        assertEquals("no-cache=\"X-Secret\", max-age=120", String.fromUtf8(constructed.toByteArray()))
+    }
+
+    @Test
+    fun `invalid standard arguments remain inspectable but cannot be emitted as valid configuration`() {
+        for (text in ["max-age", "max-age=\"\"", "max-age=one", "max-age=\"1 2\"", "no-store=1", "immutable=yes",
+            "public=\"\"", "private=\"X Bogus\"", "no-cache=\"x/\""]) {
+            val parsed = HttpCacheControl.parse(text)
+            assertEquals(1L, parsed.directives.size)
+            assertEquals("Cache-Control", assertFailsWith<HttpFieldParseException> { parsed.toByteArray() }.field)
+        }
+    }
+}

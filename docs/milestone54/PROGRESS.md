@@ -20,6 +20,7 @@
 | HTTP 扩展文件名 | HttpContentDisposition、RFC 8187 参数编码／解码与 HttpFilename 选择结果；复用 url／charset，保留原始字段、失败原因及字节位置，ISO-8859-1 扩展兼容显式开启 | Darwin debug／release 与 moving GC：7 项新增测试；HTTP 全部 65 项 debug／release 回归通过，覆盖 UTF-8、BOM、普通 filename、回退、坏编码及语言标签结构 |
 | HTTP 日期与 Retry-After | HttpDate 接收三种标准日期形状、只生成 IMF-fixdate，旧年份使用显式参考时间；HttpRetryAfter 区分非负秒数和日期，返回相对等待量 | Darwin debug／release 与 moving GC：6 项新增测试；HTTP 全部 71 项 debug／release 回归通过，覆盖 50 年边界、闰日、星期、秒 60、负 epoch、字段偏移及 Long 最大秒数 |
 | HTTP 字节范围 | HttpRange 保留顺序与重复，解析后缀／开放终点并按实际表示长度求区间；HttpContentRange 表示部分响应与不可满足响应，区分未知总长度和零长度 | Darwin debug／release 与 moving GC：7 项新增测试及共享十进制解析的 2 项 Retry-After 回归；HTTP 全部 78 项 debug／release 通过，涵盖空表示的非零后缀、Long 边界、原始快照及非法结构 |
+| Cache-Control | HttpCacheControl 合并多条字段并保留原始行、未知扩展与重复项；HttpCacheDirective 提供秒数及字段列表解释，严格单值查询报告重复，输出遵守标准参数形状 | Darwin debug／release 与 moving GC：7 项新增测试；HTTP 全部 85 项 debug／release 回归通过，覆盖 quoted 逗号、字节快照、转义位置、Long 饱和、无参数与空参数的区别 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -59,6 +60,8 @@ HTTP 日期的 release 编译暴露了跨无写入分支的同槽根加载直到
 
 `m54-http-ranges` 的 debug／release 两个变体通过，共 6 个进程；生产 HTTP 与 compression `.slib` 的消费者按 3 字节输入解析两条 206 响应，用 Content-Range 重组 gzip 表示并解压核对正文，再验证 416、空表示后缀、moving GC 与缓存复用。所有范围都相对于编码后的字节序列；没有在 HTTP 或 client 中另建压缩处理。
 
+`m54-cache-control` 的 debug／release 两个变体通过，共 6 个进程；生产 `.slib` 的消费者逐字节解析带表示长度元数据的 304 响应，合并两条 Cache-Control，组合显式日期与 max-age，并验证字段名列表、未知参数、饱和秒数、moving GC 与缓存复用。Cache-Control 只处理消息数据，尚未以此宣告 client 缓存策略或存储实现完成。
+
 ## 后续工作
 
 继续完成 HTTP 消息与协议补充、TLS 与 asyncio 缺口，再完成统一 client、策略、存储与长连接组合。每个功能独立验证和提交，最终按设计完成三个目标的运行验收。
@@ -70,3 +73,5 @@ HTTP 日期的 release 编译暴露了跨无写入分支的同槽根加载直到
 已清理本机旧 `target/debug/incremental`，释放约 8 GB；保留当前仍需复用的编译产物。后续按实际磁盘占用继续清理不再使用的 target 内容。
 
 独立数据与压缩库本机验收完成后，清理仓库外对应的 debug／release target，共约 390 MB；生产 sysroot 与仍需使用的 HTTP／crypto 构建产物继续保留。
+
+GC 编译器修复验收后，清理本轮 codegen／driver 的 13 个增量构建目录，释放约 505 MB；继续保留配套命令、正常依赖产物和当前 HTTP 构建缓存。
