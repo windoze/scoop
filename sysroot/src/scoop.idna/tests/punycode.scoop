@@ -1,0 +1,29 @@
+package scoop.idna
+
+import scoop.test.*
+
+@Test
+private class PunycodeTests {
+    @Test
+    fun `RFC3492 vectors preserve case without IDNA mapping`() {
+        assertEquals("bcher-kva", Punycode.encode("bücher"))
+        assertEquals("Bcher-kva", Punycode.encode("Bücher"))
+        assertEquals("ihqwcrb4cv8a8dqg056pqjye", Punycode.encode("他们为什么不说中文"))
+        for (value in ["", "abc", "Bücher", "他们为什么不说中文", "☃", "a.b", "a\u{0000}b", "é.☃", "a\u{0000}é", "_"]) {
+            val encoded = Punycode.encode(value)
+            gcCollect()
+            assertEquals(value, Punycode.decode(encoded))
+        }
+        assertEquals("abc-", Punycode.encode("abc"))
+        assertEquals("", Punycode.decode(""))
+        assertTrue(Idna.toAsciiOrNone("☃") == None)
+    }
+
+    @Test
+    fun `invalid Punycode and non-scalar values report format failure`() {
+        for (value in ["_", "é", "ib9b", "9999999999999999999999999999999"]) {
+            val error = assertFailsWith<IdnaException> { Punycode.decode(value) }
+            assertTrue(error.kind != IdnaFailureKind.Backend)
+        }
+    }
+}

@@ -18,6 +18,7 @@ import package_licenses
 import package_native
 from build_llvm import HOSTS, VERSION
 from build_support import RELEASE_CONFIG, ROOT
+from build_text_backends import PACKAGES as TEXT_PACKAGES
 
 TOOLS = ("scoop", "scoopc", "scoop-link")
 
@@ -54,6 +55,19 @@ def prepare_targets(args, targets, binaries, environment):
                 target,
                 "--build-dir",
                 args.work_dir / "nghttp2" / target,
+                "--jobs",
+                args.jobs,
+                *native,
+            ],
+            environment,
+        )
+        run_script(
+            "build_text_backends.py",
+            [
+                "--target",
+                target,
+                "--build-dir",
+                args.work_dir / "text" / target,
                 "--jobs",
                 args.jobs,
                 *native,
@@ -125,6 +139,10 @@ def assemble(root, targets, binaries, args, release):
         destination.mkdir(parents=True)
         for cone in cones:
             shutil.copy2(source / f"{cone['name']}.slib", destination)
+        shutil.copytree(source / "include", destination / "include")
+        for _, _, _, libraries, _ in TEXT_PACKAGES:
+            for library in libraries:
+                shutil.copy2(source / library, destination / library)
         shutil.copytree(source / "runtime", destination / "runtime")
         for component, libraries in (
             ("openssl", ("libcrypto.a", "libssl.a")),
@@ -158,6 +176,7 @@ def assemble(root, targets, binaries, args, release):
         f"nghttp2 = {json.dumps(release['nghttp2'])}",
         f"host_libraries = {json.dumps(sorted(path.name for path in native))}",
     ]
+    manifest += [f"{name} = {json.dumps(release[name])}" for name, *_ in TEXT_PACKAGES]
     uv = (sysroot / "vendor/libuv/include/uv/version.h").read_text()
     uv_version = ".".join(
         re.search(rf"#define UV_VERSION_{part}\s+(\d+)", uv)[1]

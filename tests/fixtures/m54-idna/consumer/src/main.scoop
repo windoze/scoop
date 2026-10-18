@@ -1,0 +1,24 @@
+import scoop.idna.*
+import scoop.platform.concurrent.Thread
+
+private fun checkDomain() {
+    var count = 0
+    while (count < 12) {
+        if (Idna.toAscii("BÜCHER。example.") != "xn--bcher-kva.example.") throw IllegalStateException()
+        if (Idna.toUnicode("XN--BCHER-KVA.example.") != "bücher.example.") throw IllegalStateException()
+        if (Idna.toAsciiOrNone("a_b.example") != None) throw IllegalStateException()
+        if (Idna.toUnicodeOrNone("xn--ab-0ea.example") != None) throw IllegalStateException()
+        gcCollect()
+        if (Punycode.decode(Punycode.encode("他们为什么不说中文")) != "他们为什么不说中文") throw IllegalStateException()
+        count += 1
+    }
+}
+
+fun main() {
+    val first = Thread.start { checkDomain() }
+    val second = Thread.start { checkDomain() }
+    first.join()
+    second.join()
+    checkDomain()
+    println("independent IDNA calls")
+}

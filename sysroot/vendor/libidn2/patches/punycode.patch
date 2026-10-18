@@ -1,0 +1,84 @@
+--- a/lib/punycode.c
++++ b/lib/punycode.c
+@@ -64,6 +64,7 @@
+ #include "idn2.h"		/* IDN2_OK, ... */
+ 
+ #include <string.h>
++#include <stdbool.h>
+ 
+ /*** Bootstring parameters for Punycode ***/
+ 
+@@ -108,7 +109,7 @@
+   if (cp >= 'A' && cp <= 'Z')
+     return cp - 'A';
+ 
+-  return 0;
++  return base;
+ }
+ 
+ /*** Bias adaptation function ***/
+@@ -292,10 +293,9 @@
+  *
+  * Since: 2.3.5
+  **/
+-int
+-idn2_punycode_decode (const char *input,
+-		      size_t input_length,
+-		      uint32_t *output, size_t *output_length)
++static int
++punycode_decode (const char *input, size_t input_length,
++                 uint32_t *output, size_t *output_length, bool raw)
+ {
+   uint32_t n, out = 0, i, max_out, bias, oldi, w, k, digit, t;
+   size_t b = 0, j, in;
+@@ -306,7 +306,7 @@
+   /* Check that all chars are basic */
+   for (j = 0; j < input_length; ++j)
+     {
+-      if (!decode_basic (input[j]))
++      if (raw ? (unsigned char) input[j] >= 128 : !decode_basic (input[j]))
+ 	return IDN2_PUNYCODE_BAD_INPUT;
+       if (input[j] == delimiter)
+ 	b = j;
+@@ -321,7 +321,7 @@
+        *   - leading delim must be omitted if there is no ASCII char in u-label
+        *   - trailing delim means there where no non-ASCII chars in u-label
+        */
+-      if (!b || b == input_length - 1)
++      if (!raw && (!b || b == input_length - 1))
+ 	return IDN2_PUNYCODE_BAD_INPUT;
+ 
+       if (b >= max_out)
+@@ -378,7 +378,7 @@
+       if (i / (out + 1) > UINT32_MAX - n)
+ 	return IDN2_PUNYCODE_OVERFLOW;
+       n += i / (out + 1);
+-      if (n > 0x10FFFF || (n >= 0xD800 && n <= 0xDBFF))
++      if (n > 0x10FFFF || (n >= 0xD800 && n <= 0xDFFF))
+ 	return IDN2_PUNYCODE_BAD_INPUT;
+       i %= (out + 1);
+ 
+@@ -396,6 +396,23 @@
+   *output_length = (size_t) out;
+   /* cannot overflow because out <= old value of *output_length */
+   return IDN2_OK;
++}
++
++/* Preserve the DNS-specific entry point for IDNA callers. */
++int
++idn2_punycode_decode (const char *input, size_t input_length,
++                     uint32_t *output, size_t *output_length)
++{
++  return punycode_decode (input, input_length, output, output_length, false);
++}
++
++/* The Scoop raw RFC 3492 codec also accepts all ASCII basic characters
++   and the delimiter emitted for an entirely basic input. */
++int
++scoop_libidn2_punycode_decode_raw (const char *input, size_t input_length,
++                                 uint32_t *output, size_t *output_length)
++{
++  return punycode_decode (input, input_length, output, output_length, true);
+ }
+ 
+ /* We are stuck exporting these old internal interfaces because old
