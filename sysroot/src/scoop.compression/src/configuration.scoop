@@ -36,18 +36,23 @@ private fun openCompressionCodec(config: NativeCompressionOptions, format: Compr
             case None -> compressionNew(config, None, 0L)
             case Some(value) -> value.withBytes { data, count -> @Unsafe { return@withBytes compressionNew(config, data, count) } }
         }
-        if (handle == 0UL) throw compressionError(9, 0, "cannot allocate compression codec", format)
-        try {
-            val initial = checkCompressionConstruction(handle, format)
-            val info = when (metadata) {
-                case Some(value) -> { configureGzip(handle, value); checkCompressionConstruction(handle, format) }
-                case None -> initial
-            }
-            val codec = CompressionCodec(handle, info.memory, format, config.encoding != 0)
-            gcAdjustPressure(info.memory)
-            return codec
-        } catch (error: Throwable) { compressionFree(handle); throw error }
+        return ownCompressionHandle(handle, format, config.encoding != 0, metadata)
     }
+}
+
+@Unsafe internal fun ownCompressionHandle(handle: ULong, format: CompressionFormat, encoding: Boolean,
+    metadata: GzipMetadata? = None): CompressionCodec {
+    if (handle == 0UL) throw compressionError(9, 0, "cannot allocate compression codec", format)
+    try {
+        val initial = checkCompressionConstruction(handle, format)
+        val info = when (metadata) {
+            case Some(value) -> { configureGzip(handle, value); checkCompressionConstruction(handle, format) }
+            case None -> initial
+        }
+        val codec = CompressionCodec(handle, info.memory, format, encoding)
+        gcAdjustPressure(info.memory)
+        return codec
+    } catch (error: Throwable) { compressionFree(handle); throw error }
 }
 
 @Unsafe private fun checkCompressionConstruction(handle: ULong, format: CompressionFormat): NativeCompressionInfo {

@@ -1,0 +1,43 @@
+package scoop.compression
+
+import scoop.platform.memory.NativeByteBuffer
+
+public class DeflateMessageEncoder public constructor(
+    options: DeflateOptions = DeflateOptions(), contextTakeover: Boolean = true
+) : Closeable {
+    private val codec: CompressionCodec = newMessageEncoder(options, contextTakeover)
+    public val totals: CompressionTotals get() = codec.totals
+    public val failure: Throwable? get() = codec.failure
+
+    public fun process(input: NativeByteBuffer, output: NativeByteBuffer, count: Long = input.readableBytes): CompressionStep =
+        codec.step(Some(input), count, output, output.writableBytes, 0)
+    public fun finishMessage(output: NativeByteBuffer): CompressionStep = codec.step(None, 0L, output, output.writableBytes, 2)
+    public fun nextMessage() { codec.nextMessage() }
+    public override fun close() { codec.close() }
+}
+
+public class DeflateMessageDecoder public constructor(
+    windowBits: Int = 15, contextTakeover: Boolean = true, maxOutputBytes: Long? = None
+) : Closeable {
+    private val codec: CompressionCodec = newMessageDecoder(windowBits, contextTakeover, maxOutputBytes)
+    public val totals: CompressionTotals get() = codec.totals
+    public val failure: Throwable? get() = codec.failure
+
+    public fun process(input: NativeByteBuffer, output: NativeByteBuffer, count: Long = input.readableBytes): CompressionStep =
+        codec.step(Some(input), count, output, output.writableBytes, 0)
+    public fun finishMessage(output: NativeByteBuffer): CompressionStep = codec.step(None, 0L, output, output.writableBytes, 2)
+    public fun nextMessage() { codec.nextMessage() }
+    public override fun close() { codec.close() }
+}
+
+private fun newMessageEncoder(options: DeflateOptions, takeover: Boolean): CompressionCodec {
+    val config = NativeCompressionOptions(2, 1, options.level, options.windowBits,
+        deflateStrategyCode(options.strategy), 0, 0, -1L, -1L)
+    @Unsafe { return ownCompressionHandle(compressionMessageNew(config, if (takeover) 1 else 0), CompressionFormat.RawDeflate, true) }
+}
+
+private fun newMessageDecoder(window: Int, takeover: Boolean, limit: Long?): CompressionCodec {
+    if (limit != None && limit!! < 0L) throw IllegalArgumentException(Some("negative DEFLATE message output limit"))
+    val config = NativeCompressionOptions(2, 0, 0, window, 0, 0, 0, limit ?: -1L, -1L)
+    @Unsafe { return ownCompressionHandle(compressionMessageNew(config, if (takeover) 1 else 0), CompressionFormat.RawDeflate, false) }
+}

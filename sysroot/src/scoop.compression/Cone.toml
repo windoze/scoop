@@ -45,3 +45,11 @@ path = "native/zstd.c"
 path = "native/brotli.c"
 [[native.sources]]
 path = "native/process.c"
+[[native.sources]]
+path = "native/output.c"
+[[native.sources]]
+path = "native/message.c"
+[[native.sources]]
+path = "native/message_encode.c"
+[[native.sources]]
+path = "native/message_decode.c"

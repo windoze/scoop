@@ -23,10 +23,13 @@ TARGETS = {
 
 def prepare(package, args, cc, cmake):
     name, version = package["name"], package["version"]
-    archive = ROOT / "sysroot/vendor" / name / f"{name}-{version}.tar.gz"
+    vendor = ROOT / "sysroot/vendor" / name
+    archive = vendor / f"{name}-{version}.tar.gz"
+    patches = sorted((vendor / "patches").glob("*.patch"))
     build, prefix = args.build_dir / name, args.prefix
     inputs = {
         "archive": metadata(archive),
+        "patches": [metadata(path) for path in patches],
         "tools": [metadata(path) for path in (cc, cmake, __file__, RELEASE_CONFIG)],
         "support": [
             metadata(ROOT / "scripts" / file)
@@ -37,6 +40,8 @@ def prepare(package, args, cc, cmake):
         "package": package,
         "deployment": os.environ.get("MACOSX_DEPLOYMENT_TARGET"),
     }
+    if patches:
+        inputs["patch_tool"] = metadata(shutil.which("patch") or "/usr/bin/patch")
     outputs = [prefix / file for file in package["libraries"]]
     outputs.append(prefix / "include" / package["header"])
     record = build / "inputs.json"
@@ -46,14 +51,17 @@ def prepare(package, args, cc, cmake):
     build.mkdir(parents=True, exist_ok=True)
     source = build / "source"
     source_record = build / "source.json"
-    if not source_record.exists() or json.loads(source_record.read_text()) != inputs["archive"]:
+    source_inputs = {key: inputs[key] for key in ("archive", "patches")}
+    if not source_record.exists() or json.loads(source_record.read_text()) != source_inputs:
         if source.exists():
             shutil.rmtree(source)
         with tarfile.open(archive) as tar:
             top = tar.getmembers()[0].name.split("/")[0]
             tar.extractall(build, filter="data")
         (build / top).rename(source)
-        source_record.write_text(json.dumps(inputs["archive"]) + "\n")
+        for patch in patches:
+            subprocess.run(["patch", "--batch", "-p1", "-i", str(patch)], cwd=source, check=True)
+        source_record.write_text(json.dumps(source_inputs) + "\n")
     objects, stage, scratch = (build / part for part in ("objects", "stage", "scratch"))
     for directory in (objects, stage):
         if directory.exists():

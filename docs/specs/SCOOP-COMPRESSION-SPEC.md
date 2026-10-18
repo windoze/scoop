@@ -1,6 +1,6 @@
 # Scoop 压缩库规范
 
-版本：M54，实施中。内存、增量引擎与同步／异步流已实现，RawDeflate 消息适配继续实施；实际验证见[进度](../milestone54/PROGRESS.md)。范围与实施次序见 [M54 设计](../milestone54/DESIGN.md)。公共命名、字节进度、资源和取消分别遵守[库 API 风格](SCOOP-API-STYLE.md)、[平台库](SCOOP-PLATFORM-SPEC.md)和[异步 I/O](SCOOP-ASYNCIO-SPEC.md)。
+版本：M54，实施中。内存、增量引擎、同步／异步流及 RawDeflate 消息接口已实现；HTTP 组合与三目标最终验证继续实施，实际结果见[进度](../milestone54/PROGRESS.md)。范围与实施次序见 [M54 设计](../milestone54/DESIGN.md)。公共命名、字节进度、资源和取消分别遵守[库 API 风格](SCOOP-API-STYLE.md)、[平台库](SCOOP-PLATFORM-SPEC.md)和[异步 I/O](SCOOP-ASYNCIO-SPEC.md)。
 
 ## 1. Cone、格式与后端
 
@@ -54,6 +54,12 @@
 `flush` 排出足以让解码端取得当前输入的格式内同步点，流仍可继续。`finish` 提交格式结束并排空输出；完成过程可能多次需要输出空间。`close` 只释放本地状态，不把未 finish 的流变成完整流，不隐含任何传输。参数错误在修改前报告；已接受的输入和已产生的输出不回滚。
 
 RawDeflate 另提供 WebSocket 所需的消息边界操作：生成／识别同步 flush 边界、按 RFC 7692 处理末尾 `00 00 ff ff`，并支持协商后的 windowBits 与 context takeover。此能力属于压缩库；WebSocket 库负责 RSV1 和扩展协商，不访问 zlib 状态或自行修补压缩数据。发送方必须实际支持所协商的窗口，不能以更大的窗口冒充较小窗口。
+
+具体入口为 `DeflateMessageEncoder(options: DeflateOptions, contextTakeover = true)` 和 `DeflateMessageDecoder(windowBits = 15, contextTakeover = true, maxOutputBytes = None)`，均为 Closeable。编码窗口为 9～15，解码窗口为 8～15；解码器必须按实际协商窗口限制距离引用，包括引用仍落在当前输出 buffer 内的情况。固定 zlib-ng 在 raw 模式按配置窗口设置严格距离上限；修正在其 vendor 补丁中实现。
+
+两者的 `process(input, output, count)` 只接受当前消息的片段，`finishMessage(output)` 完成边界处理并可多次返回 NeedOutput；Finished 表示该消息已完整结束且输出已取尽。编码器生成同步点后去除最后四字节，解码器确认边界并补入这四字节，不以碰巧能继续解码代替结束检查。合法空消息也有格式字节，空的压缩 payload 不能冒充完整消息。按 RFC 7692 接受消息内的 BFINAL 块、其零填充和后续原始块；这些格式处理仍使用 zlib-ng 的公开 block／reset API。
+
+`nextMessage()` 仅在 Finished 后可用，清零当前消息的 totals 与解码输出计数；按构造时的 contextTakeover 保留或清除窗口历史，再进入下一条消息。它不丢弃尚未交付的输出，不恢复失败对象，也不令普通 CompressionEncoder／Decoder 获得 reset。WebSocket 消息的开始／结束仍由调用方传入，本库不解析 WebSocket frame。
 
 ## 4. 结束、连接流与尾随字节
 

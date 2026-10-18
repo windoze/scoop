@@ -55,6 +55,11 @@ typedef struct {
   char detail[192];
   unsigned char output[8192];
   size_t output_size, output_read;
+  struct {
+    int enabled, takeover, feeding_tail, has_last;
+    unsigned char tail[4], last_byte;
+    size_t tail_size, tail_read;
+  } message;
   union {
     struct {
       zng_stream stream;
@@ -76,6 +81,10 @@ void *comp_allocate(void *opaque, size_t size);
 void comp_release(void *opaque, void *address);
 void *comp_zallocate(void *opaque, unsigned int count, unsigned int size);
 void comp_fail(comp_codec *codec, int kind, int code, const char *detail);
+void comp_drain(comp_codec *codec, unsigned char *output, int64_t capacity,
+                comp_step *step);
+size_t comp_output_capacity(const comp_codec *codec);
+void comp_save_output(comp_codec *codec, size_t produced);
 int comp_zstd_error(comp_codec *codec, size_t code, int parameter);
 void comp_deflate_open(comp_codec *codec);
 void comp_brotli_open(comp_codec *codec);
@@ -90,5 +99,15 @@ comp_progress comp_zstd_step(comp_codec *codec, const unsigned char *input,
                              size_t size, unsigned char *output,
                              size_t capacity, int action);
 void scoop_compression_free(uint64_t handle);
+uint64_t scoop_compression_new(comp_options options, const void *dictionary,
+                               int64_t dictionary_size);
+comp_info scoop_compression_info(uint64_t handle);
+comp_step comp_message_process(comp_codec *codec, const unsigned char *input,
+                               int64_t size, unsigned char *output,
+                               int64_t capacity, int action);
+comp_progress comp_message_encode(comp_codec *codec, const unsigned char *input,
+                                  size_t size, size_t capacity, int action);
+comp_progress comp_message_decode(comp_codec *codec, const unsigned char *input,
+                                  size_t size, size_t capacity, int action);
 
 #endif

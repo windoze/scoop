@@ -34,14 +34,7 @@ internal class CompressionCodec(
             received = addCompressionCount(received, native.consumed)
             delivered = addCompressionCount(delivered, native.produced)
             if (!encoding && action == 2 && native.consumed == count) inputEnded = true
-            if (native.kind != 0) {
-                @Unsafe {
-                    val error = compressionError(native.kind, native.code, String.fromCString(compressionMessage(handle)), format)
-                    phase = 4
-                    failure = Some(error)
-                    throw error
-                }
-            }
+            checkFailure(native.kind, native.code)
             val state = when (native.status) {
                 case 0 -> CompressionState.NeedInput
                 case 1 -> CompressionState.NeedOutput
@@ -52,6 +45,32 @@ internal class CompressionCodec(
             else if (phase == 1 && state == CompressionState.NeedInput) phase = 0
             return CompressionStep(native.consumed, native.produced, state)
         } finally { busy.store(false) }
+    }
+
+    fun nextMessage() {
+        enter()
+        try {
+            if (phase != 3) throw IllegalStateException(Some("finish the current DEFLATE message first"))
+            @Unsafe {
+                val info = compressionNextMessage(handle)
+                account(info.memory)
+                checkFailure(info.kind, info.code)
+            }
+            phase = 0
+            inputEnded = false
+            received = 0L
+            delivered = 0L
+        } finally { busy.store(false) }
+    }
+
+    private fun checkFailure(kind: Int, code: Int) {
+        if (kind == 0) return
+        @Unsafe {
+            val error = compressionError(kind, code, String.fromCString(compressionMessage(handle)), format)
+            phase = 4
+            failure = Some(error)
+            throw error
+        }
     }
 
     private fun account(memory: Long) {

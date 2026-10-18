@@ -39,6 +39,8 @@ internal fun callCompression(handle: ULong, input: NativeByteBuffer?, count: Lon
 }
 
 @Extern(name = "scoop_compression_new") internal fun compressionNew(options: NativeCompressionOptions, dictionary: Ptr<Byte>?, size: Long): ULong
+@Extern(name = "scoop_compression_message_new") internal fun compressionMessageNew(options: NativeCompressionOptions, takeover: Int): ULong
+@Extern(name = "scoop_compression_next_message") internal fun compressionNextMessage(handle: ULong): NativeCompressionInfo
 @Extern(name = "scoop_compression_info") internal fun compressionInfo(handle: ULong): NativeCompressionInfo
 @Extern(name = "scoop_compression_error") internal fun compressionMessage(handle: ULong): Ptr<Byte>
 @Extern(name = "scoop_compression_version") internal fun compressionVersion(format: Int): Ptr<Byte>
