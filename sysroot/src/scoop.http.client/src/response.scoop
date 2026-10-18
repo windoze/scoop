@@ -1,0 +1,87 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.url.Url
+
+public class HttpResponse internal constructor(internal val call: ClientCall, public val head: HttpResponseHead) : AsyncCloseable {
+    public val version: HttpVersion get() = head.version
+    public val status: UInt get() = head.status
+    public val fields: Array<HttpField> get() = head.fields
+    public val url: Url get() = call.request.url
+    public val body: HttpResponseBody = HttpResponseBody(call)
+    public val wireContentLength: Long? = parseHttpContentLength(head.fields)
+    public val trailers: Array<HttpField>? get() = if (body.isComplete) call.exchange!!.trailers else None
+    public fun requireSuccess(): HttpResponse {
+        if (status < 200U || status >= 300U) throw HttpStatusException(head, url)
+        return this
+    }
+    public override suspend fun close() { body.close() }
+}
+
+public class HttpStatusException public constructor(public val head: HttpResponseHead, public val url: Url)
+    : Exception(Some("HTTP status " + head.status.toString()))
+
+public class HttpResponseBody internal constructor(private val call: ClientCall) : AsyncByteSource, AsyncCloseable {
+    private val busy: AtomicBoolean = AtomicBoolean(false)
+    private val closed: AtomicBoolean = AtomicBoolean(false)
+    public val isComplete: Boolean get() = call.lock.withLock { call.readDone }
+
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long {
+        val reader = clientJob(call.client.loop, true)
+        if (!busy.compareAndSet(false, true)) throw IllegalStateException(Some("HTTP response body already has a reader"))
+        try {
+            if (closed.load()) throw IoClosedException()
+            if (count < 0L) throw IllegalArgumentException(Some("negative HTTP response read count"))
+            if (count > buffer.writableBytes) throw IndexOutOfBoundsException()
+            val failure = observeClientCallFailure(call)
+            if (clientPresent(failure)) throw failure!!
+            if (isComplete || count == 0L) return 0L
+            val scope = call.lock.withLock { call.scope ?: throw IoClosedException() }
+            val job = scope.job
+            val exchange = call.exchange!!
+            val listener = reader.invokeOnCancellation { error -> cancelClientCall(call, error) }
+            try {
+                val result = context(job) { exchange.readInto(buffer, count) }
+                if (exchange.isReadComplete) {
+                    call.lock.withLock { call.readDone = true }
+                    wakeClientCall(call)
+                }
+                return result
+            } catch (error: Throwable) {
+                failClientCall(call, error)
+                awaitClientResponseClose(call)
+                throw (observeClientCallFailure(call) ?: error)
+            } finally { listener.dispose() }
+        } finally { busy.store(false) }
+    }
+
+    public override suspend fun close() {
+        if (call.lock.withLock { call.completed }) {
+            if (closed.compareAndSet(false, true)) reportClientResponseCloseFailure(call)
+            return
+        }
+        clientJob(call.client.loop, false)
+        closed.store(true)
+        call.lock.withLock { call.abandoned = true; call.ending = true }
+        cancelClientCall(call, CancellationException())
+        awaitClientResponseClose(call)
+        reportClientResponseCloseFailure(call)
+    }
+}
+
+private fun reportClientResponseCloseFailure(call: ClientCall) {
+    val failure = if (call.lock.withLock { call.failureObserved }) call.lock.withLock { call.cleanupFailure }
+        else clientCallFailure(call)
+    if (clientPresent(failure)) throw failure!!
+}
+
+private suspend fun awaitClientResponseClose(call: ClientCall) {
+    suspendCoroutine<Unit> { continuation ->
+        val done = call.lock.withLock {
+            if (call.completed) true else { call.closeWaiters.add(continuation); false }
+        }
+        if (done) continuation.resume(Unit)
+    }
+}

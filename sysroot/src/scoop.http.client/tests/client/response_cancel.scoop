@@ -1,0 +1,95 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+@Test
+private class HttpClientResponseCancellationTest {
+    @Test
+    fun `a new body reader Job can cancel after the original execute Job has completed`() {
+        clientTestTrust().use { trust ->
+            val loop: EventLoop = LibuvEventLoop()
+            loop.run suspend { scope ->
+                clientTestListen(loop).useAsync suspend { listener ->
+                    val done = BodyTestGate()
+                    val serving = scope.launch suspend {
+                        AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                            connection.receiveRequest()!!.body.readAllBytes(0L)
+                            connection.sendResponse(HttpResponseHead(HttpVersion.Http11, 200U), Http1BodyFraming.Length(5L)).useAsync suspend { output ->
+                                writeBodyText(output, "a")
+                                output.flush()
+                                done.await()
+                            }
+                        }
+                    }
+                    withHttpClient(clientTestConfig(trust)) suspend { client ->
+                        val executing = scope.async suspend { client.execute(HttpRequest.get(clientTestUrl(listener))) }
+                        val response = executing.await()
+                        assertTrue(executing.isCompleted)
+                        val prefix = BodyTestGate()
+                        val failure = ClientTestFailureHolder()
+                        NativeByteBuffer.allocate(5L).use suspend { buffer ->
+                            val reading = scope.launch suspend {
+                                try {
+                                    assertEquals(1L, response.body.readInto(buffer, 1L))
+                                    prefix.signal()
+                                    response.body.readInto(buffer, 4L)
+                                    fail(Some("cancelled read succeeded"))
+                                } catch (error: Throwable) { failure.value = Some(error) }
+                            }
+                            prefix.await()
+                            reading.cancel()
+                            reading.join()
+                            assertTrue(failure.value!! is CancellationException)
+                            assertEquals(1L, buffer.readableBytes)
+                            response.close()
+                        }
+                    }
+                    done.signal()
+                    serving.join()
+                    assertFalse(scope.job.isCancelled)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `abandoning an early response reports owned source cleanup failures`() {
+        clientTestTrust().use { trust ->
+            val loop: EventLoop = LibuvEventLoop()
+            loop.run suspend { scope ->
+                clientTestListen(loop).useAsync suspend { listener ->
+                    val source = BodyTestSource("late".toByteArray())
+                    source.holdRead = true; source.failClose = true
+                    val done = BodyTestGate()
+                    val serving = scope.launch suspend {
+                        AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                            connection.receiveRequest()
+                            source.started.await()
+                            sendClientTestText(connection, 413U, "stop")
+                            done.await()
+                        }
+                    }
+                    withHttpClient(clientTestConfig(trust)) suspend { client ->
+                        val response = client.execute(HttpRequest.post(clientTestUrl(listener), RequestBody.fromSourceFactory suspend { source }))
+                        val failure = ClientTestFailureHolder()
+                        val closing = scope.launch suspend {
+                            try { response.close() } catch (error: Throwable) { failure.value = Some(error) }
+                        }
+                        assertFalse(closing.isCompleted)
+                        source.release.signal()
+                        closing.join()
+                        assertSame(source.cleanup, failure.value!!)
+                        assertEquals(1L, source.closes)
+                    }
+                    done.signal()
+                    serving.join()
+                    assertFalse(scope.job.isCancelled)
+                }
+            }
+        }
+    }
+}

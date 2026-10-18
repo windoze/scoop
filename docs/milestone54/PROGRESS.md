@@ -52,6 +52,8 @@
 | SOCKS5 异步隧道 | AsyncSocks5Tunnel 以普通 Scoop 接管异步流，支持无认证／用户名密码、IPv4／IPv6／ASCII 域名和本地／代理 DNS；精确读取回复，保留完整隧道数据与实际拒绝码 | Darwin debug／release：18 项新测试与 asyncio 全部 110 项通过；新增测试通过 moving GC，正式消费者与独立 Python socket 对端完成 20 次互通场景 |
 | 请求 body 基础 | 新建纯 Scoop 的 scoop.http.client，RequestBody 提供空／字节／字符集文本／JSON／表单快照、惰性文件、借用单次来源、独立来源工厂及单次／重新创建的 suspend producer；有限复制与实际长度检查不接管输出端 | Darwin debug／release：18 项新测试通过，全部通过两种构建的 moving GC；正式消费者验证多线程共享快照、HTTP/1 连接复用及 HTTP/2 双向上传和单流取消 |
 | 异步限长读取 | readAllBytes 增加显式 maxBytes 重载，使用有限缓冲，最多额外读取一个字节确认超限；ReadLimitException 保留上限，来源位置和关闭责任保持明确 | Darwin debug／release：6 项新测试及 4 项既有读取回归通过，全部通过两种构建的 moving GC；正式消费者验证文件位置、后续读取和 TCP 半关闭后的继续写入 |
+| 统一 HTTP 调用与生命周期 | 纯 Scoop 的 HttpClient／HttpRequest／HttpResponse；HTTP/1.0／1.1、明文 H2 prior knowledge 与 TLS ALPN，流式上传／响应、信息回调、H2 duplex、真实 Context 与资源收尾 | Darwin debug／release：新增 15 项调用测试，client 全部 55 项普通测试通过；29 项调用及池测试逐例通过两种构建的 full moving，真实文件／TLS 与独立 Python HTTP 对端通过 |
+| 同 origin 连接池 | 连接建立前预留容量，H1 依协议状态复用，H2 服从 peer SETTINGS 与本地流上限；可取消排队、GOAWAY 排空、单调时钟闲置／寿命回收与首次拒绝的明确失败出口 | 新增 14 项池测试；两种构建的独立 Python 对端验证 H1 连续复用与放弃、H2 降低 SETTINGS 上限、流取消顺序和 GOAWAY 后的新连接，full moving 与构建复用通过 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -211,9 +213,15 @@ SecTrust 对原有十年有效期叶证书的拒绝符合系统政策，测试�
 
 6 项字段操作测试通过两种构建的普通及 full moving 验证。覆盖 ASCII token／名称规则、obs-text 与控制字节、空逗号项和原顺序、格式错误的精确偏移、相同／矛盾重复长度、前导零及 Long 边界。公共入口复用 HTTP 既有 reader 和校验函数，client 不复制字段 parser；初次消费者验证修正了枚举捕获名称引起的诊断，未改变解析规则。
 
+`m54-http-client` 在 Darwin 通过 debug／release 两个变体，共 8 个进程。两个 native 线程以正式生产库分别发送 HTTP/1 文件流和经 TLS ALPN 协商的 HTTP/2 小窗口上传，核对 103 回调与 producer 的请求 Context、真实 201 响应、Unicode 正文、trailer 和结构化关闭。独立 Python HTTP／SSL 对端分别验证明文、ALPN HTTP/1.1 和允许的无 ALPN 回退，包含扩展方法、有序重复字段与真实 reason phrase；full moving 与正常构建复用通过。
+
+`m54-client-pool` 在 Darwin 通过 debug／release 两个变体，共 6 个进程。独立 Python socket 对端核对单条 HTTP/1 连接连续处理三次请求、未读响应放弃后的新连接；H2 对端把并发上限从 2 降到 1，确认两条占用流取消后才发送后续流，并在 GOAWAY 后使用新连接。协议帧由测试对端独立产生，消费者只调用公开 client API；两种构建均启用 full moving 并完成缓存复用。
+
+15 项调用和 14 项池测试共 29 项，逐例通过两种构建的 full moving，共 58 个进程；普通回归覆盖 client 全部 55 项。覆盖 TLS 验证与 ALPN 拒绝、HTTP/1.0 长度约束、早期最终响应、双向上传、单流取消、排队公平与容量归还、闲置／寿命、来源清理失败及并发 close。极短寿命不会在首个预留交付前反复回收新连接；首次 GOAWAY 拒绝不会导致池内无界重连；响应首次 close 仍交付此前未观察的后台失败。连接驱动与请求任务使用各自的 Context，结果交付后释放 continuation 引用，所有容量在真实清理完成后归还。实现没有 native／Unsafe 入口或私有 Job 访问。
+
 ## 后续工作
 
-继续完成 HTTP 消息与协议补充、TLS 与 asyncio 缺口，再完成统一 client、策略、存储与长连接组合。每个功能独立验证和提交，最终按设计完成三个目标的运行验收。
+继续完成 client 的 h2c、总截止与分阶段超时、Expect／请求 trailer、自动解码与文本／JSON 便利接口，以及重定向／重试／认证／代理、Cookie、缓存／续传、SSE／WebSocket 高层组合和可观察性。实际底层缺口仍在所属库补齐；每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
 
 ## 验证安排
 

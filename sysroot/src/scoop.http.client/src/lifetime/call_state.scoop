@@ -1,0 +1,97 @@
+package scoop.http.client
+
+import scoop.asyncio.IoClosedException
+
+internal class ClientCall(
+    val client: ClientState, val request: HttpRequest, caller: Job,
+    result: Continuation<HttpResponse>
+) {
+    val lock: ClientLock = ClientLock()
+    var caller: Job? = Some(caller)
+    var result: Continuation<HttpResponse>? = Some(result)
+    var scope: CoroutineScope? = None
+    var hold: Continuation<Unit>? = None
+    var callerListener: Disposable? = None
+    var jobListener: Disposable? = None
+    var dialWaiter: Continuation<ClientConnection>? = None
+    var endWaiter: Continuation<Unit>? = None
+    var lease: ClientPoolEntry? = None
+    var exchange: ClientExchange? = None
+    var upload: Job? = None
+    var readDone: Boolean = false
+    var uploadDone: Boolean = false
+    var uploadComplete: Boolean = false
+    var stopUpload: Boolean = false
+    var ending: Boolean = false
+    var abandoned: Boolean = false
+    var completed: Boolean = false
+    var failure: Throwable? = None
+    var failureObserved: Boolean = false
+    var cleanupFailure: Throwable? = None
+    val closeWaiters: ArrayList<Continuation<Unit>> = ArrayList<Continuation<Unit>>()
+}
+
+internal fun wakeClientCall(call: ClientCall) {
+    val wake: Continuation<Unit>? = call.lock.withLock {
+        if (!call.ending && !(call.readDone && call.uploadDone)) return@withLock None
+        val saved = call.endWaiter; call.endWaiter = None; saved
+    }
+    if (clientPresent(wake)) wake!!.resume(Unit)
+}
+
+internal fun cancelClientCall(call: ClientCall, error: Throwable) {
+    val result: (CoroutineScope?, Continuation<ClientConnection>?, Continuation<Unit>?) = call.lock.withLock {
+        if (call.completed) return@withLock (None, None, None)
+        if (!call.ending && !call.abandoned && !clientPresent(call.failure)) call.failure = Some(error)
+        call.ending = true
+        val waiter = call.dialWaiter; call.dialWaiter = None
+        val end = call.endWaiter; call.endWaiter = None;
+        (call.scope, waiter, end)
+    }
+    val (scope, dial, wake) = result
+    if (clientPresent(scope)) scope!!.job.cancel()
+    if (clientPresent(dial)) dial!!.resumeWithException(error)
+    if (clientPresent(wake)) wake!!.resume(Unit)
+    wakeClient(call.client)
+}
+
+internal fun failClientCall(call: ClientCall, error: Throwable) {
+    call.lock.withLock {
+        if (call.abandoned) {
+            if (error is ResourceUseException) call.cleanupFailure = Some(clientCombined(call.cleanupFailure, error.cleanupFailure))
+            else if (!(error is CancellationException)) call.cleanupFailure = Some(clientCombined(call.cleanupFailure, error))
+        } else if (!clientPresent(call.failure)) call.failure = Some(error)
+        else if (error is ResourceUseException) call.cleanupFailure = Some(clientCombined(call.cleanupFailure, error.cleanupFailure))
+        Unit
+    }
+    cancelClientCall(call, error)
+}
+
+internal fun clientCallFailure(call: ClientCall): Throwable? = call.lock.withLock {
+    when (call.cleanupFailure) {
+        case Some(cleanup) -> Some(clientCombined(call.failure, cleanup))
+        case None -> call.failure
+    }
+}
+
+internal fun observeClientCallFailure(call: ClientCall): Throwable? {
+    val failure = clientCallFailure(call)
+    if (clientPresent(failure)) call.lock.withLock { call.failureObserved = true }
+    return failure
+}
+
+internal fun requireClientCall(call: ClientCall) {
+    val error = call.lock.withLock { call.failure }
+    if (clientPresent(error)) throw error!!
+    if (call.lock.withLock { call.ending || call.completed }) throw IoClosedException()
+}
+
+internal suspend fun awaitClientCallEnd(call: ClientCall) {
+    suspendCoroutine<Unit> { continuation ->
+        val immediate = call.lock.withLock {
+            if (call.ending || (call.readDone && call.uploadDone)) true
+            else { call.endWaiter = Some(continuation); false }
+        }
+        if (immediate) continuation.resume(Unit)
+    }
+}

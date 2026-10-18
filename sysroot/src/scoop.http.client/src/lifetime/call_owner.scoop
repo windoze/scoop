@@ -1,0 +1,145 @@
+package scoop.http.client
+
+import scoop.asyncio.IoClosedException
+import scoop.http.*
+
+internal suspend fun executeClientRequest(state: ClientState, request: HttpRequest): HttpResponse {
+    val caller = clientJob(state.loop, true)
+    val config = state.config
+    if (request.origin.scheme == "http") {
+        if (config.versionPolicy == HttpVersionPolicy.Http2Only && config.cleartext == HttpCleartextProtocol.Http1)
+            throw IllegalArgumentException(Some("cleartext HTTP/2-only requests require prior knowledge or an explicit upgrade"))
+        if (config.cleartext == HttpCleartextProtocol.Http1 && request.options.duplex)
+            throw IllegalArgumentException(Some("duplex upload requires HTTP/2"))
+        if (config.cleartext == HttpCleartextProtocol.Http1 && config.http1RequestVersion == HttpVersion.Http10 && request.contentLength == None)
+            throw IllegalArgumentException(Some("HTTP/1.0 request body requires a known length"))
+    }
+    return suspendCoroutine<HttpResponse> { continuation ->
+        val call = ClientCall(state, request, caller, continuation)
+        val scope = state.lock.withLock {
+            if (state.closing) throw HttpClientClosedException()
+            state.calls.add(call)
+            state.scope!!
+        }
+        try {
+            scope.launch suspend {
+                suspendCoroutine<Unit> { hold ->
+                    call.lock.withLock { call.hold = Some(hold) }
+                    startCoroutine<Unit>(suspend { runClientCall(call) }, ClientCallCompletion(call))
+                }
+            }
+            if (!call.lock.withLock { clientPresent(call.hold) || call.completed })
+                finishUnstartedClientCall(call, CancellationException())
+        } catch (error: Throwable) { finishUnstartedClientCall(call, error) }
+    }
+}
+
+private suspend fun runClientCall(call: ClientCall) {
+    coroutineScope suspend { scope ->
+        call.lock.withLock { call.scope = Some(scope) }
+        val jobListener = scope.job.invokeOnCancellation { error -> cancelClientCall(call, error) }
+        val caller = call.lock.withLock { val saved = call.caller!!; call.caller = None; saved }
+        val callerListener = caller.invokeOnCancellation { error -> cancelClientCall(call, error) }
+        call.lock.withLock { call.jobListener = Some(jobListener); call.callerListener = Some(callerListener) }
+        try {
+            requireClientCall(call)
+            val connection = awaitClientConnection(call)
+            val exchange = openClientExchange(call, connection)
+            call.lock.withLock { call.exchange = Some(exchange) }
+            if (call.request.options.duplex && exchange.version != HttpVersion.Http2)
+                throw IllegalArgumentException(Some("negotiated HTTP/1 cannot perform a duplex upload"))
+            val uploading = scope.launch suspend { sendClientBody(call, exchange) }
+            call.lock.withLock { call.upload = Some(uploading) }
+            while (true) {
+                val head = exchange.receiveResponse()
+                if (head.status < 200U && head.status != 101U) {
+                    call.request.options.onInformational(head)
+                    continue
+                }
+                val response = HttpResponse(call, head)
+                val result = call.lock.withLock {
+                    requireClientCallUnlocked(call)
+                    call.stopUpload = !call.request.options.duplex
+                    val saved = call.result!!
+                    call.result = None
+                    saved
+                }
+                result.resume(response)
+                break
+            }
+            awaitClientCallEnd(call)
+        } catch (error: Throwable) { failClientCall(call, error) }
+        finally {
+            val uploading = call.lock.withLock { call.upload }
+            if (clientPresent(uploading)) uploading!!.cancel()
+            cleanupClientExchange(call)
+        }
+    }
+}
+
+private fun requireClientCallUnlocked(call: ClientCall) {
+    if (clientPresent(call.failure)) throw call.failure!!
+    if (call.ending) throw IoClosedException()
+}
+
+private suspend fun cleanupClientExchange(call: ClientCall) {
+    val exchange = call.lock.withLock { call.exchange }
+    if (clientPresent(exchange)) {
+        try { exchange!!.close() }
+        catch (error: Throwable) { call.lock.withLock { call.cleanupFailure = Some(clientCombined(call.cleanupFailure, error)) } }
+    }
+}
+
+private fun finishUnstartedClientCall(call: ClientCall, error: Throwable) {
+    val unstarted = call.lock.withLock {
+        if (call.completed || clientPresent(call.hold)) return@withLock false
+        call.failure = Some(error)
+        true
+    }
+    if (unstarted) ClientCallCompletion(call).finish(None)
+}
+
+private class ClientCallCompletion(val call: ClientCall) : Continuation<Unit> {
+    public override fun resume(value: Unit) { finish(None) }
+    public override fun resumeWithException(exception: Throwable) { finish(Some(exception)) }
+    fun finish(error: Throwable?) {
+        val first = call.lock.withLock {
+            if (call.completed) return@withLock false
+            call.completed = true
+            true
+        }
+        if (!first) return
+        val (callerListener, jobListener) = call.lock.withLock {
+            if (clientPresent(error) && !call.abandoned && !clientPresent(call.failure)) call.failure = error
+            val saved = (call.callerListener, call.jobListener)
+            call.callerListener = None; call.jobListener = None
+            saved
+        }
+        if (clientPresent(callerListener)) callerListener!!.dispose()
+        if (clientPresent(jobListener)) jobListener!!.dispose()
+        val (hold, waiters, result) = call.lock.withLock {
+            val saved = call.hold
+            call.hold = None; call.scope = None; call.upload = None; call.caller = None
+            val waiting = call.closeWaiters.toArray(); call.closeWaiters.clear()
+            val pending = call.result; call.result = None;
+            (saved, waiting, pending)
+        }
+        releaseClientLease(call)
+        val cleanup = call.lock.withLock { call.cleanupFailure }
+        call.client.lock.withLock {
+            var index = 0L
+            while (index < call.client.calls.size) {
+                if (call.client.calls[index] === call) { call.client.calls.removeAt(index); break }
+                index += 1L
+            }
+            if (call.client.closing && clientPresent(cleanup))
+                call.client.closeFailure = Some(clientCombined(call.client.closeFailure, cleanup!!))
+            Unit
+        }
+        wakeClient(call.client)
+        if (clientPresent(hold)) hold!!.resume(Unit)
+        val failure = clientCallFailure(call)
+        if (clientPresent(result)) result!!.resumeWithException(failure ?: IoClosedException())
+        for (waiter in waiters) waiter.resume(Unit)
+    }
+}

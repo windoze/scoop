@@ -1,0 +1,41 @@
+package scoop.http.client
+
+import scoop.asyncio.TcpConnectOptions
+import scoop.http.*
+import scoop.tls.*
+
+public enum HttpVersionPolicy { Auto, Http1Only, Http2Only }
+public enum HttpCleartextProtocol { Http1, Http2PriorKnowledge }
+
+public class HttpClientTlsConfig public constructor(
+    public val trust: TlsTrustSource = TlsTrustSource.System,
+    public val minimum: TlsVersion = TlsVersion.Tls12,
+    public val maximum: TlsVersion = TlsVersion.Tls13,
+    public val identity: TlsIdentity? = None
+)
+
+public class HttpClientConfig public constructor(
+    public val versionPolicy: HttpVersionPolicy = HttpVersionPolicy.Auto,
+    public val cleartext: HttpCleartextProtocol = HttpCleartextProtocol.Http1,
+    public val http1RequestVersion: HttpVersion = HttpVersion.Http11,
+    public val tls: HttpClientTlsConfig = HttpClientTlsConfig(),
+    public val pool: HttpConnectionPoolOptions = HttpConnectionPoolOptions(),
+    public val tcpConnect: TcpConnectOptions = TcpConnectOptions(),
+    public val http1Receive: Http1ReceiveOptions = Http1ReceiveOptions(),
+    public val http1Limits: Http1Limits = Http1Limits(),
+    public val http2Receive: Http2ReceiveOptions = Http2ReceiveOptions(),
+    public val http2Limits: Http2Limits = Http2Limits(),
+    public val http2Settings: Http2Settings = Http2Settings()
+) {
+    init {
+        if (http1RequestVersion == HttpVersion.Http2)
+            throw IllegalArgumentException(Some("HTTP/1 request version must be 1.0 or 1.1"))
+        if (versionPolicy == HttpVersionPolicy.Http1Only && cleartext != HttpCleartextProtocol.Http1)
+            throw IllegalArgumentException(Some("HTTP/1-only policy conflicts with cleartext HTTP/2"))
+    }
+}
+
+public class HttpCallOptions public constructor(
+    public val duplex: Boolean = false,
+    public val onInformational: suspend (HttpResponseHead) -> Unit = suspend { _ -> }
+)

@@ -1,0 +1,57 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+import scoop.tls.TlsTrustSource
+
+@Test
+private class HttpClientLateFailureTest {
+    @Test
+    fun `a completed call reports an unobserved source cleanup failure on response close`() {
+        clientTestTrust().use { trust ->
+            val loop: EventLoop = LibuvEventLoop()
+            loop.run suspend { scope ->
+                clientTestListen(loop).useAsync suspend { listener ->
+                    val source = BodyTestSource("send".toByteArray())
+                    source.holdClose = true; source.failClose = true
+                    val serving = scope.launch suspend {
+                        AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                            assertEquals("send", String.fromUtf8(connection.receiveRequest()!!.body.readAllBytes(4L)))
+                            sendClientTestText(connection, 200U, "ok")
+                        }
+                        AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                            connection.receiveRequest()!!.body.readAllBytes(0L)
+                            sendClientTestText(connection, 200U, "next")
+                        }
+                    }
+                    val config = HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
+                        pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 1L))
+                    withHttpClient(config) suspend { client ->
+                        try {
+                            val body = RequestBody.fromSourceFactory(Some(4L)) suspend { source }
+                            val response = client.execute(HttpRequest.post(clientTestUrl(listener), body))
+                            source.closeStarted.await()
+                            NativeByteBuffer.allocate(2L).use suspend { buffer ->
+                                response.body.readFully(buffer)
+                                assertEquals("ok", String.fromUtf8(buffer.readBytes(2L)))
+                            }
+                            source.closeRelease.signal()
+                            client.withResponse(HttpRequest.get(clientTestUrl(listener))) suspend { next ->
+                                assertEquals("next", String.fromUtf8(next.body.readAllBytes(4L)))
+                            }
+                            val failure = expectBodyFailure<Throwable> suspend { response.close() }
+                            assertSame(source.cleanup, failure)
+                            response.close()
+                            assertEquals(1L, source.closes)
+                            assertTrue(source.buffer!!.isClosed)
+                        } finally { source.closeRelease.signal() }
+                    }
+                    serving.join()
+                    assertFalse(scope.job.isCancelled)
+                }
+            }
+        }
+    }
+}

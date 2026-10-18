@@ -1,0 +1,47 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.tls.*
+import scoop.tls.asyncio.openTlsClientContext
+
+public class HttpClient internal constructor(internal val state: ClientState) : AsyncCloseable {
+    public companion object {
+        public suspend fun open(scope: CoroutineScope, config: HttpClientConfig = HttpClientConfig()): HttpClient {
+            val loop = currentEventLoop()
+            val caller = clientJob(loop, true)
+            scope.job.ensureActive()
+            val tls = config.tls
+            val alpn: Array<Array<Byte>> = when (config.versionPolicy) {
+                case Auto -> ["h2".toByteArray(), "http/1.1".toByteArray()]
+                case Http1Only -> ["http/1.1".toByteArray()]
+                case Http2Only -> ["h2".toByteArray()]
+            }
+            val context = openTlsClientContext(tls.trust, TlsOptions(tls.minimum, tls.maximum, alpn), tls.identity)
+            val state = ClientState(loop, config, context)
+            try {
+                startClientOwner(state, scope)
+                caller.ensureActive()
+                state.lock.withLock {
+                    if (!clientPresent(state.scope) || state.closing) throw HttpClientClosedException()
+                    Unit
+                }
+                return HttpClient(state)
+            } catch (error: Throwable) {
+                try {
+                    if (state.lock.withLock { state.adopted }) closeClient(state)
+                    else context.close()
+                } catch (cleanup: Throwable) { throw ResourceUseException(error, cleanup) }
+                throw error
+            }
+        }
+    }
+
+    public val isClosed: Boolean get() = state.lock.withLock { state.closed }
+    public suspend fun execute(request: HttpRequest): HttpResponse = executeClientRequest(state, request)
+    public suspend fun <T> withResponse(request: HttpRequest, block: suspend (HttpResponse) -> T): T =
+        execute(request).useAsync(block)
+    public override suspend fun close() { closeClient(state) }
+}
+
+public suspend fun <T> withHttpClient(config: HttpClientConfig = HttpClientConfig(), block: suspend (HttpClient) -> T): T =
+    coroutineScope suspend { scope -> HttpClient.open(scope, config).useAsync(block) }

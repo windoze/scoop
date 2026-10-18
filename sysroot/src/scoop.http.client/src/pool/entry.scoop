@@ -1,0 +1,78 @@
+package scoop.http.client
+
+import scoop.http.asyncio.Http2Notice
+import scoop.platform.time.MonotonicTimeSource
+import scoop.time.TimeMark
+import scoop.url.UrlOrigin
+
+internal class ClientPoolEntry(val origin: UrlOrigin, first: ClientCall, now: TimeMark) {
+    var connection: ClientConnection? = None
+    var initial: ClientCall? = Some(first)
+    var connecting: Boolean = true
+    var closing: Boolean = false
+    var draining: Boolean = false
+    var active: Long = 0L
+    var peerStreams: Long = 4294967295L
+    var lastStreamId: Int? = None
+    var failure: Throwable? = None
+    var created: TimeMark = now
+    var idle: TimeMark = created
+}
+
+internal enum ClientPoolAction {
+    Dial(ClientCall, ClientPoolEntry),
+    Deliver(ClientCall, ClientPoolEntry, Continuation<ClientConnection>),
+    Reject(ClientCall, Throwable),
+    Close(ClientPoolEntry)
+}
+
+internal fun clientPoolNotice(state: ClientState, entry: ClientPoolEntry, notice: Http2Notice) {
+    val changed = state.lock.withLock {
+        when (notice) {
+            case Settings(values, false) -> {
+                for (value in values) if (value.id == 3.toUShort()) entry.peerStreams = value.value.toLong()
+                true
+            }
+            case GoAway(last, _, _, local) -> {
+                entry.draining = true
+                if (!local) entry.lastStreamId = Some(last)
+                true
+            }
+            case Failure(error) -> {
+                entry.draining = true
+                if (!clientPresent(entry.failure)) entry.failure = Some(error)
+                true
+            }
+            else -> false
+        }
+    }
+    if (changed) wakeClient(state)
+}
+
+internal fun removeClientPoolEntry(state: ClientState, entry: ClientPoolEntry) {
+    state.lock.withLock {
+        var index = 0L
+        while (index < state.connections.size) {
+            if (state.connections[index] === entry) { state.connections.removeAt(index); break }
+            index += 1L
+        }
+    }
+    wakeClient(state)
+}
+
+internal fun releaseClientLease(call: ClientCall) {
+    val entry = call.lock.withLock { val saved = call.lease; call.lease = None; saved }
+    if (clientPresent(entry)) {
+        val now: TimeMark? = try { Some(MonotonicTimeSource.markNow()) }
+        catch (error: Throwable) {
+            call.lock.withLock { call.cleanupFailure = Some(clientCombined(call.cleanupFailure, error)) }
+            None
+        }
+        call.client.lock.withLock {
+            entry!!.active -= 1L
+            if (!clientPresent(now)) entry!!.draining = true
+            else if (entry!!.active == 0L) entry!!.idle = now!!
+            Unit
+        }
+    }
+}

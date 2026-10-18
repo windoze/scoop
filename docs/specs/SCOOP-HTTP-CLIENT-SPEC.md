@@ -22,6 +22,8 @@
 
 HttpClient 可在同一 EventLoop 的多个任务中并发使用，配置创建后不可变。open 失败清理已接管资源；传入的外部策略对象、证书配置与缓存是否接管由对应工厂明确，普通参数默认借用。实现不得用 GC 或 EventLoop 的最终扫尾替代正常关闭。
 
+HttpClientConfig 保存协议策略、明文入口、HTTP/1 请求版本，以及所属库的 TCP、HTTP/1、HTTP/2 接收选项／限制／SETTINGS。HttpClientTlsConfig 保存 TLS 的 trust、minimum、maximum 和 identity；open 通过 TLS 的公开 suspend 工厂准备客户端上下文，client 关闭该上下文，外部信任库和身份仍由调用者拥有。HttpCallOptions 的 duplex 显式请求 HTTP/2 双向上传，onInformational 是在本次调用 Context 中执行的 suspend 响应头回调。无效的已知协议组合在网络提交前拒绝，协商后才得知无法满足 duplex 时关闭该次 exchange 并报错。
+
 client 的所有者在一个正文仍活动的子 coroutineScope 中维持连接任务与调用任务，直至 close；不能在 scope 正文返回后再尝试登记新连接。调用 owner 持续到请求发送与响应消费均完成或放弃，不在 execute 返回头部时结束。调用者 Job 的取消登记维持到本次调用收尾；execute 不创建一个必须等 body 结束才能返回的临时 coroutineScope。显式响应须在 client 的结构化生命周期内使用并关闭，不把引用带出 withHttpClient；漏关资源由 client.close 收尾。
 
 连接和请求分别持有自己的 Job。HTTP/2 共享 TLS 的读写归连接 owner；请求 body、头部等待和超时归调用 owner，单请求取消只关闭相应流。HTTP/1 未完成消息取消使连接不可复用并关闭。一次网络失败作为调用结果交付；内部候选连接／上传等子任务必须在任务内部捕获预期操作失败，不在 await 处才捕获已经传播到父 scope 的异常。core 的正常失败传播规则保持不变。
@@ -30,9 +32,15 @@ client 的所有者在一个正文仍活动的子 coroutineScope 中维持连接
 
 close 拒绝新请求与新借用，唤醒池等待者，取消活动调用，关闭连接，并等待实际 I/O、native 借用和子任务结束。close 可在已取消 Job 的 finally 中完成，并发调用等待同一轮收尾，之后幂等；清理失败使用既有 ResourceUseException。正常响应消费完成会归还连接／流容量；显式关闭不执行无界 drain。
 
+所有者的正文通过普通 continuation 保持活动；内部 coroutineScope 的最终 completion 在其子任务真实结束后才释放该正文并通知 close 等待者。连接创建由 client 的协调任务发起，请求 producer 和回调由 execute 所在 Context 发起；不需要公开 Context 快照、访问 Job 私有 join 或创建另一种任务调度器。操作失败在所属任务正文内转为本次调用的结果，不能作为未捕获子任务失败传播给 client 的其他调用。
+
+响应头已经交付后，后台上传或收尾的失败由后续正文操作报告；如果没有继续读取，首次响应 close 报告尚未观察的失败。已经由读取交付的主失败不再作为关闭失败重复报告，实际清理失败仍保留；完成后的重复 close 幂等。
+
 ## 3. 请求、响应与 body
 
-`HttpRequest` 是不可变配置快照，含 method、Url、有序重复 HttpField、RequestBody 和每次调用的选项。method 为合法 token，提供常用方法常量，同时支持扩展方法。URL、字段和 body 类型沿用所属库；client 不定义另一套大小写比较或字节字段模型。
+`HttpRequest` 是不可变配置快照，含 method、Url、有序重复 HttpField、RequestBody 和每次调用的选项。method 为合法 token，提供常用方法工厂，同时支持扩展方法。URL、字段和 body 类型沿用所属库；client 不定义另一套大小写比较或字节字段模型。
+
+普通构造的 method 为 String，保存其原始大小写并由 HTTP 的 token 规则检查；fields 复制并以 HTTP 的普通字段规则校验。Host／伪头与 Transfer-Encoding 由实际 URL 和协议生成，调用者不能提供这两套来源；显式 Content-Length 必须与已知 body 长度一致，或作为未知长度 producer 的受检长度。body 的 Content-Type 在字段缺省时补充，压缩 body 的 Content-Encoding 与手写同名字段互斥。请求中的 userinfo 不自动变成认证凭据，fragment 不进入 target。
 
 `HttpResponse` 保存实际协议版本、最终 status、原始字段快照、最终 URL、重定向历史、body 与调用信息。HTTP/1 reason phrase 保留实际字节，HTTP/2 不补默认文本。非 2xx 默认是正常响应；`requireSuccess()` 显式抛包含状态与头部快照的 HttpStatusException，不暗中读完整错误 body。
 
@@ -91,6 +99,12 @@ Http2Only 用于明文时必须选定允许的 H2 入口；与明文 Http1 配�
 HTTP/1 每条连接同时一个 exchange；body 完整消费、输出完成且协议允许持久连接后才归还。HTTP/2 复用 stream，按 peer SETTINGS 的并发上限和本地上限分配容量；SETTINGS 降低上限时保留合法在途流，暂停新建。GOAWAY 停止在该连接上创建新流，保留能够完成的已接受流；最后处理 stream ID 作为重试判断的事实输入。
 
 池等待可取消并可超时，公平交付可用容量。容量在登记时预留，取消／建立失败／迟到成功均归还；不能只在连接成功后计数而导致并发超限。默认每 origin 最多 8 条连接、全局最多 64 条、每条 H2 的本地并发流上限 100，并始终服从 peer 更低限制；这些为可配置的真实连接／流限制。
+
+HttpClientConfig 的 pool 参数使用 HttpConnectionPoolOptions，提供 maxConnectionsPerOrigin、maxConnections、maxStreamsPerHttp2、idleTimeout 与 maxLifetime。前三者必须为正；idleTimeout 可为零以在空闲后立即关闭，maxLifetime 为 None 或正时长。池按等待顺序交付当前可用容量，某 origin 暂时无容量不阻挡其他 origin。连接建立期间已经占据对应连接名额；同一 origin 先等待正在建立的连接明确协议，再决定是否还需建立下一条连接。
+
+HTTP/1 的复用资格直接查询协议库的 isReusable。H2 的请求容量保持到该调用的 producer、正文和清理均结束；取消其中一个调用只归还其流名额。达到最大存活时间的连接停止接收新调用，已有调用结束后关闭；GOAWAY 使用同样的停止分配路径。过期与空闲回收采用单调时钟和 EventLoop 定时器，不发送额外探测，也不建立另一套线程或调度器。
+
+建立连接时首个调用的预留不被空闲或寿命回收撤销；交付后若连接已经过期，则让该调用完成并停止后续借用。对端在首次借用前关闭连接或通过 GOAWAY 拒绝新流时，向首个调用交付建立失败，不在池内无界重连；是否再次尝试由调用级策略决定。
 
 空闲连接默认 60 秒回收，可设置最大存活时间以促使重新 DNS 查询。没有响应 body 未消费完的“空闲连接”。不把 getaddrinfo 结果伪装成含 TTL 的缓存：当前 resolver 不提供 TTL，使用调用方给定缓存时长须标明它是本地策略。HTTPS DNS records、Alt-Svc 和 HTTP/3 路由不在本期范围。
 
@@ -181,10 +195,10 @@ Upgrade 成功后把未消费后缀与传输所有权交给 WebSocket session，
 
 ```scoop
 fun main() {
-    LibuvEventLoop().run { scope ->
-        withHttpClient(HttpClientConfig()) { client ->
+    LibuvEventLoop().run suspend { _ ->
+        withHttpClient(HttpClientConfig()) suspend { client ->
             val request = HttpRequest.get(Url.parse("https://example.com/data"))
-            client.withResponse(request) { response ->
+            client.withResponse(request) suspend { response ->
                 response.requireSuccess()
                 val bytes = response.body.readAllBytes(maxBytes = 1048576L)
                 print(bytes.size)

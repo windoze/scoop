@@ -1,0 +1,63 @@
+package scoop.http.client
+
+internal fun startClientOwner(state: ClientState, parent: CoroutineScope) {
+    parent.launch suspend {
+        suspendCoroutine<Unit> { hold ->
+            state.lock.withLock { state.ownerHold = Some(hold); state.adopted = true }
+            startCoroutine<Unit>(suspend { runClientOwner(state) }, ClientOwnerCompletion(state))
+        }
+    }
+}
+
+private suspend fun runClientOwner(state: ClientState) {
+    coroutineScope suspend { scope ->
+        state.lock.withLock { state.scope = Some(scope) }
+        val listener = scope.job.invokeOnCancellation { _ -> stopClient(state) }
+        try {
+            driveClientPool(state, scope)
+        } catch (error: Throwable) {
+            state.lock.withLock {
+                if (!(error is CancellationException)) state.closeFailure = Some(clientCombined(state.closeFailure, error))
+                Unit
+            }
+            stopClient(state)
+            driveClientPool(state, scope)
+        } finally { listener.dispose() }
+    }
+}
+
+private class ClientOwnerCompletion(val state: ClientState) : Continuation<Unit> {
+    public override fun resume(value: Unit) { finish(None) }
+    public override fun resumeWithException(exception: Throwable) { finish(Some(exception)) }
+    private fun finish(error: Throwable?) {
+        var failure = state.lock.withLock { state.closeFailure }
+        if (clientPresent(error) && !(error!! is CancellationException)) failure = Some(clientCombined(failure, error!!))
+        try { state.tls.close() }
+        catch (cleanup: Throwable) { failure = Some(clientCombined(failure, cleanup)) }
+        val finalFailure = failure
+        val (hold, waiters) = state.lock.withLock {
+            state.closing = true; state.closed = true; state.closeFailure = finalFailure
+            val saved = state.ownerHold
+            state.ownerHold = None; state.scope = None; state.wake = None; state.waiting.clear()
+            val waiting = state.closeWaiters.toArray()
+            state.closeWaiters.clear()
+            (saved, waiting)
+        }
+        if (clientPresent(hold)) hold!!.resume(Unit)
+        for (waiter in waiters) {
+            if (clientPresent(finalFailure)) waiter.resumeWithException(finalFailure!!)
+            else waiter.resume(Unit)
+        }
+    }
+}
+
+internal suspend fun closeClient(state: ClientState) {
+    if (state.lock.withLock { state.closed }) return
+    clientJob(state.loop, false)
+    suspendCoroutine<Unit> { continuation ->
+        val closed = state.lock.withLock {
+            if (state.closed) true else { state.closeWaiters.add(continuation); false }
+        }
+        if (closed) continuation.resume(Unit) else stopClient(state)
+    }
+}

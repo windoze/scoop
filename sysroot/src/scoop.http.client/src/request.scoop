@@ -1,0 +1,58 @@
+package scoop.http.client
+
+import scoop.collections.emptyList
+import scoop.http.*
+import scoop.url.Url
+import scoop.url.UrlOrigin
+
+public class HttpRequest public constructor(
+    public val url: Url,
+    public val method: String = "GET",
+    fields: List<HttpField> = emptyList<HttpField>(),
+    public val body: RequestBody = RequestBody.Empty,
+    public val options: HttpCallOptions = HttpCallOptions()
+) {
+    internal val methodBytes: Array<Byte> = method.toByteArray()
+    internal val origin: UrlOrigin = requestOrigin(url)
+    public val fields: Array<HttpField> = prepareRequestFields(methodBytes, body, fields)
+    internal val contentLength: Long? = when (parseHttpContentLength(this.fields)) {
+        case Some(length) -> Some(length)
+        case None -> body.contentLength
+    }
+
+    public companion object {
+        public fun get(url: Url, fields: List<HttpField> = emptyList<HttpField>(), options: HttpCallOptions = HttpCallOptions()): HttpRequest =
+            HttpRequest(url, "GET", fields, RequestBody.Empty, options)
+        public fun head(url: Url, fields: List<HttpField> = emptyList<HttpField>(), options: HttpCallOptions = HttpCallOptions()): HttpRequest =
+            HttpRequest(url, "HEAD", fields, RequestBody.Empty, options)
+        public fun post(url: Url, body: RequestBody, fields: List<HttpField> = emptyList<HttpField>(), options: HttpCallOptions = HttpCallOptions()): HttpRequest =
+            HttpRequest(url, "POST", fields, body, options)
+        public fun put(url: Url, body: RequestBody, fields: List<HttpField> = emptyList<HttpField>(), options: HttpCallOptions = HttpCallOptions()): HttpRequest =
+            HttpRequest(url, "PUT", fields, body, options)
+        public fun patch(url: Url, body: RequestBody, fields: List<HttpField> = emptyList<HttpField>(), options: HttpCallOptions = HttpCallOptions()): HttpRequest =
+            HttpRequest(url, "PATCH", fields, body, options)
+        public fun delete(url: Url, fields: List<HttpField> = emptyList<HttpField>(), options: HttpCallOptions = HttpCallOptions()): HttpRequest =
+            HttpRequest(url, "DELETE", fields, RequestBody.Empty, options)
+    }
+}
+
+private fun requestOrigin(url: Url): UrlOrigin {
+    val origin = url.httpOrigin()
+    if (origin.scheme != "http" && origin.scheme != "https")
+        throw IllegalArgumentException(Some("HTTP request URL must use http or https"))
+    return origin
+}
+
+private fun prepareRequestFields(method: Array<Byte>, body: RequestBody, fields: List<HttpField>): Array<HttpField> {
+    if (!isHttpToken(method)) throw IllegalArgumentException(Some("invalid HTTP method token"))
+    val snapshot = requestBodyFields(body, fields)
+    for (field in snapshot) {
+        field.validate()
+        if (field.hasName("Host".toByteArray()) || field.hasName("Transfer-Encoding".toByteArray()))
+            throw IllegalArgumentException(Some("HTTP client generates authority and transfer framing"))
+    }
+    val length = parseHttpContentLength(snapshot)
+    if (length != None && body.contentLength != None && length!! != body.contentLength!!)
+        throw IllegalArgumentException(Some("Content-Length conflicts with request body length"))
+    return snapshot
+}

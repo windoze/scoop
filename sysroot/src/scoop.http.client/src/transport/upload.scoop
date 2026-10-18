@@ -1,0 +1,37 @@
+package scoop.http.client
+
+import scoop.asyncio.AsyncByteSink
+import scoop.platform.memory.NativeByteBuffer
+
+private class ClientUploadStoppedException : Exception(Some("final response stopped further request body output"))
+
+internal suspend fun sendClientBody(call: ClientCall, exchange: ClientExchange) {
+    var complete = false
+    try {
+        val sink = RequestBodySink(ClientUploadSink(call, exchange), call.request.contentLength)
+        try {
+            call.request.body.writeTo(sink)
+            sink.finish()
+            exchange.finish()
+            complete = true
+        } finally { sink.end() }
+    } catch (_: ClientUploadStoppedException) {
+    } catch (error: Throwable) { failClientCall(call, error) }
+    finally {
+        val finished = complete
+        call.lock.withLock { call.uploadDone = true; call.uploadComplete = finished }
+        wakeClientCall(call)
+    }
+}
+
+private class ClientUploadSink(val call: ClientCall, val destination: AsyncByteSink) : AsyncByteSink {
+    private fun requireSending() {
+        requireClientCall(call)
+        if (call.lock.withLock { call.stopUpload }) throw ClientUploadStoppedException()
+    }
+    public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long {
+        requireSending()
+        return destination.writeFrom(buffer, count)
+    }
+    public override suspend fun flush() { requireSending(); destination.flush() }
+}

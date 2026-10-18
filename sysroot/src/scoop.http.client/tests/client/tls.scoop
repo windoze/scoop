@@ -1,0 +1,117 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.collections.emptyList
+import scoop.crypto.PrivateKey
+import scoop.crypto.testdata.*
+import scoop.crypto.x509.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.system.PlatformException
+import scoop.test.*
+import scoop.tls.*
+import scoop.tls.asyncio.AsyncTlsStream
+import scoop.url.Url
+
+@Test
+private class HttpClientTlsTest {
+    @Test
+    fun `ALPN selects HTTP1 and absent ALPN uses the permitted fallback`() {
+        for (offered in [true, false]) {
+            val protocols: Array<Array<Byte>> = if (offered) ["http/1.1".toByteArray()] else []
+            clientTlsSuccess(protocols)
+        }
+    }
+
+    @Test
+    fun `HTTP2-only rejects missing ALPN without sending an HTTP1 request`() {
+        clientTestTrust().use { trust ->
+            val config = HttpClientConfig(versionPolicy = HttpVersionPolicy.Http2Only,
+                tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)))
+            val failure = clientTlsRejection(config)
+            assertTrue(failure is HttpNegotiationException)
+        }
+    }
+
+    @Test
+    fun `TLS verification failures preserve their type and do not trigger protocol fallback`() {
+        TrustStore.fromCertificates(emptyList<Certificate>()).use { trust ->
+            val failure = clientTlsRejection(clientTestConfig(trust))
+            assertTrue(failure is TlsException)
+            if (failure is TlsException) assertTrue(failure.kind == TlsFailureKind.Verification)
+            Unit
+        }
+    }
+}
+
+private fun clientTlsServer(protocols: List<Array<Byte>>): TlsServerContext = Certificate.fromPem(serverPem()).use { leaf ->
+    Certificate.fromPem(intermediatePem()).use { intermediate ->
+        PrivateKey.fromPem(serverKeyPem()).use { key ->
+            TlsServerContext([leaf, intermediate], key, TlsOptions(alpn = protocols))
+        }
+    }
+}
+
+private fun clientTlsSuccess(protocols: List<Array<Byte>>) {
+    clientTestTrust().use { trust ->
+        clientTlsServer(protocols).use { tlsContext ->
+            val loop: EventLoop = LibuvEventLoop()
+            loop.run suspend { scope ->
+                clientTestListen(loop).useAsync suspend { listener ->
+                    val done = BodyTestGate()
+                    val serving = scope.launch suspend {
+                        val tls = AsyncTlsStream.takeOwnershipAsServer(listener.accept(), tlsContext)
+                        AsyncHttp1Connection.takeOwnershipAsServer(tls, scope).useAsync suspend { connection ->
+                            connection.receiveRequest()!!.body.readAllBytes(0L)
+                            sendClientTestText(connection, 200U, "tls")
+                            done.await()
+                        }
+                    }
+                    withHttpClient(clientTestConfig(trust)) suspend { client ->
+                        val url = Url.parse("https://localhost:" + listener.localAddress.port.toString() + "/")
+                        client.withResponse(HttpRequest.get(url)) suspend { response ->
+                            assertTrue(response.version == HttpVersion.Http11)
+                            assertEquals("tls", String.fromUtf8(response.body.readAllBytes(3L)))
+                        }
+                    }
+                    done.signal()
+                    serving.join()
+                }
+            }
+        }
+    }
+}
+
+private fun clientTlsRejection(config: HttpClientConfig): Throwable {
+    val result = ClientTestFailureHolder()
+    clientTlsServer(emptyList<Array<Byte>>()).use { tlsContext ->
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            clientTestListen(loop).useAsync suspend { listener ->
+                val received = ArrayList<Long>()
+                val serving = scope.launch suspend {
+                    try {
+                        AsyncTlsStream.takeOwnershipAsServer(listener.accept(), tlsContext).useAsync suspend { tls ->
+                            NativeByteBuffer.allocate(1L).use suspend { buffer ->
+                                try { received.add(tls.readInto(buffer, 1L)) }
+                                catch (_: TlsException) { assertEquals(0L, buffer.readableBytes) }
+                                catch (_: PlatformException) { assertEquals(0L, buffer.readableBytes) }
+                            }
+                        }
+                    } catch (_: TlsException) {}
+                    catch (_: PlatformException) {}
+                }
+                withHttpClient(config) suspend { client ->
+                    val url = Url.parse("https://localhost:" + listener.localAddress.port.toString() + "/")
+                    try { client.execute(HttpRequest.get(url)).close(); fail(Some("rejected TLS policy succeeded")) }
+                    catch (error: Throwable) { result.value = Some(error) }
+                }
+                serving.join()
+                for (count in received) assertEquals(0L, count)
+                assertFalse(scope.job.isCancelled)
+            }
+        }
+    }
+    return result.value!!
+}
