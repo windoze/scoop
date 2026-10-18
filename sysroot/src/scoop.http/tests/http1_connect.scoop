@@ -1,0 +1,70 @@
+package scoop.http
+
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+@Test private class Http1ConnectTests {
+    @Test fun `CONNECT informational and rejected responses keep the next method context intact`() {
+        for (chunk in [1L, 7L, 1024L]) Http1Decoder.client().use { decoder ->
+            decoder.expectResponse("CONNECT".toByteArray())
+            decoder.expectResponse("HEAD".toByteArray())
+            decoder.expectResponse("GET".toByteArray())
+            val wire = "HTTP/1.1 100 Continue\r\n\r\nHTTP/1.1 103 Early Hints\r\n\r\n" +
+                "HTTP/1.1 407 Proxy Authentication Required\r\nContent-Length: 4\r\n\r\ndeny" +
+                "HTTP/1.1 200 OK\r\nContent-Length: 99\r\n\r\n" +
+                "HTTP/1.1 200 OK\r\nContent-Length: 3\r\n\r\nyes"
+            val events = collectHttp1(decoder, wire.toByteArray(), chunk)
+            assertEquals(5L, http1Responses(events).size)
+            assertEquals(5L, http1EndCount(events))
+            assertEquals("denyyes", String.fromUtf8(http1Data(events)))
+            assertFalse(decoder.isSwitched)
+        }
+    }
+
+    @Test fun `rejected CONNECT supports chunked trailers and EOF framing`() {
+        Http1Decoder.client().use { decoder ->
+            decoder.expectResponse("CONNECT".toByteArray())
+            val events = collectHttp1(decoder, ("HTTP/1.1 403 Forbidden\r\nTransfer-Encoding: chunked\r\n\r\n" +
+                "4\r\ndeny\r\n0\r\nX-Reason: rule\r\n\r\n").toByteArray(), 1L)
+            assertEquals("deny", String.fromUtf8(http1Data(events)))
+            assertEquals(1L, http1EndCount(events))
+            var found = false
+            for (event in events) when (event) {
+                case Trailers(fields) -> { if (fields.size != 0L) found = String.fromUtf8(fields[0L].value) == "rule" }
+                else -> {}
+            }
+            assertTrue(found)
+            assertFalse(decoder.isSwitched)
+        }
+        Http1Decoder.client().use { decoder ->
+            decoder.expectResponse("CONNECT".toByteArray())
+            val events = collectHttp1(decoder, "HTTP/1.0 502 Failed\r\n\r\nproxy failed".toByteArray(), 3L, false)
+            assertEquals("proxy failed", String.fromUtf8(http1Data(events)))
+            assertEquals(0L, http1EndCount(events))
+            decoder.endInput()
+            val ended = ArrayList<Http1Event>()
+            drainHttp1(decoder, ended)
+            assertEquals(1L, http1EndCount(ended))
+            assertFalse(decoder.isSwitched)
+        }
+    }
+
+    @Test fun `all successful CONNECT responses preserve their complete tunnel suffix`() {
+        for (status in [200U, 201U, 204U, 299U]) Http1Decoder.client().use { decoder ->
+            decoder.expectResponse("CONNECT".toByteArray())
+            val head = "HTTP/1.1 " + status.toString() + " Connected\r\nContent-Length: 99\r\n\r\n"
+            val bytes = (head + "tunnel").toByteArray()
+            NativeByteBuffer.allocate(bytes.size).use { buffer ->
+                buffer.writeBytes(bytes)
+                assertEquals(head.byteLength, decoder.receive(buffer))
+                assertTrue(decoder.isSwitched)
+                val events = ArrayList<Http1Event>()
+                drainHttp1(decoder, events)
+                assertEquals(1L, http1EndCount(events))
+                assertEquals(0L, http1Data(events).size)
+                assertEquals("tunnel", String.fromUtf8(buffer.readBytes(buffer.readableBytes)))
+                Unit
+            }
+        }
+    }
+}

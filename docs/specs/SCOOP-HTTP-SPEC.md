@@ -30,6 +30,8 @@ Http1Decoder 的 client／server 工厂固定接收角色、选项和局部字�
 
 client 在发送每个请求时按顺序登记方法上下文。信息响应不移除此上下文，最终响应结束后才移除。HEAD 响应没有 body；成功 CONNECT 与 101 交付切换事件，保留同次输入的全部未消费后缀。没有对应请求上下文的响应是调用状态错误，不能靠接收宽容选项补足。
 
+CONNECT 只有 2xx 响应按隧道成功处理；100／103 等信息响应仍等待同一请求的最终响应，407 等拒绝响应按普通 Content-Length、chunked 或 EOF 定界读取正文。llhttp 的方法状态主要服务请求端 CONNECT 暂停，不能将客户端的 CONNECT 上下文直接用于其无条件切换判断；适配层在取得响应状态后通过正常 headers-complete 回调声明成功切换，保留原始请求方法与响应字段。
+
 服务端收到 Upgrade／CONNECT 请求时，切换事件表示 parser 停在该请求边界，是否接受由服务端响应决定。拒绝请求的升级后调用 resumeHttp1 恢复 HTTP/1；接受后移交后缀，不再恢复旧 parser。
 
 解析支持 HTTP/1.0／1.1、连续消息、Content-Length、chunked、trailer 和 EOF 定界。起始行、字段、chunk 可以任意分段；字段回调片段必须组合到字段完成后才交付。只有需要 EOF 定界的消息在正常 EOF 时完成；截断定长／chunked 报文报错。

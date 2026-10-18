@@ -28,6 +28,7 @@
 | Age 与 Vary | HttpAge 遵守 RFC 9111 首值选择与秒数饱和，HttpVary 保留字段名、重复与通配符；与 Cache-Control 复用列表及数值解析 | Darwin debug／release：7 项新测试与 HTTP 全部 132 项通过；新测试及 4 项 Cache-Control 共享解析回归通过 moving GC，Range／Retry-After 仍拒绝溢出 |
 | SSE 内存解析 | SseDecoder 增量处理行结束、BOM、字段、ID／retry 和 EOF；UTF-8 复用 charset，有界行／data 与单个待交付事件，原生输入借用有明确消费量 | Darwin debug／release 与 moving GC：10 项新测试；HTTP 全部 142 项 debug／release 通过，涵盖 HTML 示例、单字节分块、坏 UTF-8、空 ID／data、背压、失败后借用释放与 EOF |
 | SSE 异步事件源 | SseSource 借用或显式接管 AsyncByteSource，以 next 驱动有限预取；结构化读取、取消与并发关闭等待真实借用结束，复用同一内存 parser | Darwin debug／release：9 项新测试和 HTTP asyncio 全部 35 项通过；新增测试通过 moving GC，覆盖短读、EOF、I/O／解析失败、错误 loop、并发读取、同一清理结果与取消 finally |
+| 代理请求与 CONNECT | httpProxyRequest／httpConnectRequest 复用 URL 生成正确 target 与 Host，httpConnectAccepted 覆盖全部 2xx；修复 llhttp 适配对 CONNECT 拒绝响应的过早切换 | Darwin debug／release：8 项新测试及 HTTP 150 项验证闭合；新增测试和既有 4 项异步切换测试通过 moving GC，覆盖 1xx、407、chunked／EOF、IPv6、H2 普通 CONNECT 与完整隧道后缀 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -84,6 +85,10 @@ HTTP 日期的 release 编译暴露了跨无写入分支的同槽根加载直到
 `m54-sse-decoder` 的 debug／release 两个变体通过，共 6 个进程；生产 HTTP `.slib` 将 SSE 正文编码成三字节 chunked 块，消费者逐字节完成 HTTP/1 定界后交给 SSE。UTF-8、CRLF、控制块、ID 清除、坏字符替换、不完整尾部、快照、moving GC 与缓存复用均通过。解析器不执行网络或重连，异步 SseSource 与 client 重连策略另行完成。
 
 `m54-sse-async` 的 debug／release 两个变体通过，共 6 个进程；正式 `.slib` 通过真实 TCP 在 HTTP/1 chunked 与 HTTP/2 小窗口上传输 SSE，组合短读写、trailer、ID／retry 与不完整尾部。取消另一个等待事件的 H2 stream 后，正常事件流与后续请求继续完成；moving GC、所有权关闭和缓存复用均通过。库回归前按正常构建入口刷新了使用旧 crypto 依赖指纹的 TLS 预编译资源，未改动其源码或跳过依赖检查。自动重连仍由后续 client 实现。
+
+`m54-http-proxy` 的 debug／release 两个变体通过，共 6 个进程；真实 TCP 对端直接检查线上请求字节，在同一连接依次返回普通正文、407 拒绝正文及带隧道后缀的 201 成功响应。userinfo／fragment 排除、编码路径、认证字段、非 200 的成功状态、忽略成功 CONNECT 的 Content-Length、关闭旧对象后继续双向通信、moving GC 与缓存复用均通过。
+
+CONNECT 新测试先复现了 llhttp 将所有 CONNECT 响应视为切换的问题。HTTP 适配现在保留真实请求上下文，在 headers-complete 中仅依据 2xx 声明 CONNECT 成功，未改写线上方法。全部 HTTP 回归确认其余功能正常；EOF 用例改为显式控制辅助函数的 EOF 后，相关 3 项定界测试单独复验通过。C 改动经过格式化和严格编译检查。
 
 ## 后续工作
 

@@ -10,7 +10,9 @@ static int begin(llhttp_t *parser) {
     if (!s->first_method)
       return http1_fail(s, -2,
                         "HTTP/1 response has no corresponding request method");
-    parser->method = s->first_method->method;
+    /* Response CONNECT switches only after its 2xx status is known. */
+    parser->method =
+        s->first_method->method == HTTP_HEAD ? HTTP_HEAD : HTTP_GET;
   }
   return 0;
 }

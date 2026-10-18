@@ -165,6 +165,14 @@ multipart 内存引擎按 RFC 2046／7578 增量处理 boundary、每 part 字�
 
 成功 CONNECT、101 Upgrade 的异步移交始终包含全部未消费后缀以及 AsyncByteStream／AsyncCloseable 所有权。旧连接停止协议处理，关闭旧对象不关闭已移交传输。不得把失败响应的一部分 body 当成隧道数据。
 
+### 4.1 代理请求与 CONNECT
+
+`httpProxyRequest(url, method = "GET" 的字节, fields = 空列表, version = Http11)` 构造 HTTP/1.0 或 HTTP/1.1 的 absolute-form 请求。url 必须为具有有效网络主机与端口的 http／https URL；target 复用 URL 的 httpAbsoluteTarget，保留编码路径、查询和显式端口，去除 userinfo 与 fragment。method 接受除精确 CONNECT 外的任意合法 token，不改写大小写。Host 复用 UrlOrigin 的规范主机，URL 显式给出端口时保留该端口，否则省略默认端口；userinfo 不进入 Host，也不隐式生成 Authorization。
+
+`httpConnectRequest(url, fields = 空列表, version = Http11)` 只使用 url 的有效网络 origin，支持 http／https／ws／wss，忽略路径、查询与 fragment。CONNECT target 通过 UrlOrigin.authority(true) 生成，始终含实际端口，IPv6 带方括号；HTTP/1 使用 authority-form 与相同 Host，HTTP/2 使用已有普通 CONNECT 的 :authority 模型，不包含 :scheme／:path。两种构造器均检查普通字段的 token／控制字节，按原顺序保留重复项和 neverIndex；Host 由工具生成，调用者不得另传 Host 或伪头。它们不选择代理、读取环境、生成凭据、连接或发送请求。
+
+`httpConnectAccepted(response)` 在状态码为 200～299 时返回 true，其余状态返回 false。调用者必须将它用于已关联 CONNECT 请求的响应；它不替代请求上下文、最终响应选择或协议定界。拒绝响应继续通过正常 body 读取，成功后仍须完成空 body 才调用 AsyncHttp1Connection.takeTransport。移交复用第 4 节及基础 HTTP 规范的既有生命周期合同，HTTP/2 的普通 CONNECT 保持为单个双向 stream，不进行整个连接移交。
+
 ## 5. SSE
 
 `SseDecoder` 为增量内存 parser，负责 UTF-8、开头 BOM、CR／LF／CRLF、注释、空行分隔、data 多行连接、event、id 与十进制 retry。UTF-8 错误按 SSE 规定替换，跨块残缺序列保留到后续输入；最终 EOF 按标准处理未完成事件，不自行补空行。
