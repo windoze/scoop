@@ -3,7 +3,7 @@
 use std::collections::BTreeSet;
 use std::path::Path;
 
-use object::{Object, ObjectSection};
+use object::{Object, ObjectSection, ObjectSymbol, SectionIndex};
 use scoop_lir::{
     CallableConstantKind, DefinitionAtomRole, DefinitionSymbolPlanV1, LirTargetProfile,
     NativeObjectFormat, ObjectDefinitionAtomId, ObjectDefinitionAtomKey,
@@ -27,7 +27,7 @@ pub(crate) fn atom(
 pub(crate) fn present(
     path: &Path,
     target: LirTargetProfile,
-    primary_symbol: &str,
+    plan: &DefinitionSymbolPlanV1,
 ) -> Result<BTreeSet<CallableConstantKind>, CodegenError> {
     let bytes = std::fs::read(path).map_err(error)?;
     let file = object::File::parse(bytes.as_slice()).map_err(error)?;
@@ -41,18 +41,37 @@ pub(crate) fn present(
                 Some(CallableConstantKind::Relocatable)
             }
             (NativeObjectFormat::Elf64, ".data.rel.ro") => Some(CallableConstantKind::Relocatable),
-            (NativeObjectFormat::Elf64, name) if is_elf_readonly_section(name, primary_symbol) => {
-                Some(CallableConstantKind::ReadOnly)
-            }
             _ => None,
         };
         if let Some(kind) = kind.filter(|_| section.size() != 0) {
             kinds.insert(kind);
         }
     }
+    if target.native_object_format() == NativeObjectFormat::Elf64
+        && elf_readonly_extent(&file, plan).is_some()
+    {
+        kinds.insert(CallableConstantKind::ReadOnly);
+    }
     Ok(kinds)
 }
 
-pub(crate) fn is_elf_readonly_section(name: &str, primary_symbol: &str) -> bool {
-    name == ".rodata" || name.strip_prefix(".rodata.") == Some(primary_symbol)
+pub(crate) fn elf_readonly_extent<'data>(
+    file: &impl Object<'data>,
+    plan: &DefinitionSymbolPlanV1,
+) -> Option<(SectionIndex, u64)> {
+    let name = format!(".rodata.{}", plan.primary_symbol().symbol());
+    let section = file
+        .section_by_name(&name)
+        .or_else(|| file.section_by_name(".rodata"))?;
+    // LLVM emits its tables before the module's already-owned globals. A plain
+    // .rodata section can contain only those globals, with no backend prefix.
+    let end = plan
+        .atom_boundaries()
+        .iter()
+        .filter_map(|boundary| file.symbol_by_name(boundary.start().symbol().as_str()))
+        .filter(|symbol| symbol.section_index() == Some(section.index()))
+        .map(|symbol| symbol.address())
+        .min()
+        .unwrap_or(section.size());
+    (end != 0).then_some((section.index(), end))
 }

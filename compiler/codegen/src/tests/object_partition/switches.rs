@@ -2,7 +2,7 @@ use super::*;
 use object::{ObjectComdat, ObjectSection};
 use scoop_lir::{CallableConstantKind, OptimizationMode};
 
-fn numeric_switch(odr: bool) -> Module {
+fn numeric_switch(odr: bool, has_table: bool, with_constant: bool) -> Module {
     let mut module = constants::lookup_module();
     module.globals = Arena::new();
     let function = &mut module.functions[0];
@@ -22,6 +22,37 @@ fn numeric_switch(odr: bool) -> Module {
             };
         }
     }
+    if !has_table {
+        function.blocks = Arena::new();
+        function.entry = function.blocks.alloc(BasicBlock {
+            name: "constant".into(),
+            instructions: Vec::new(),
+            terminator: Terminator::Return {
+                value: Some(signed64(7)),
+            },
+        });
+    }
+    if with_constant {
+        module.globals.alloc(Global {
+            address_kind: PointerKind::Raw,
+            scan: RefScan::None,
+            init: GlobalInit::CString {
+                identity: scoop_lir::CallableCStringIdentity::new(
+                    module.cone,
+                    &function.callable_body,
+                    scoop_identity::StructuralDefinitionPath::from_first(
+                        scoop_identity::StructuralPathSegment::new(
+                            scoop_identity::StructuralDefinitionSiteRole::StringConstant,
+                            0,
+                        ),
+                        [],
+                    ),
+                )
+                .unwrap(),
+                value: "already-owned callable constant".into(),
+            },
+        });
+    }
     module
 }
 
@@ -32,8 +63,15 @@ fn elf_switch_tables_have_owned_ranges_and_follow_callable_odr_selection() {
         scoop_target_data::LINUX_X86_64_GNU_ID,
         scoop_target_data::LINUX_X86_64_MUSL_ID,
     ] {
-        for odr in [false, true] {
-            let mut module = numeric_switch(odr);
+        for (odr, has_table, with_constant) in [
+            (false, true, false),
+            (true, true, false),
+            (false, true, true),
+            (true, true, true),
+            (false, false, true),
+            (true, false, true),
+        ] {
+            let mut module = numeric_switch(odr, has_table, with_constant);
             module.meta = string_metadata_for(scoop_target_data::layout(target).unwrap());
             let input = scoop_lir::ConeLirOutput::try_new(module, Vec::new()).unwrap();
             let profile = ValidatedBackendProfile::for_selection(
@@ -73,6 +111,17 @@ fn elf_switch_tables_have_owned_ranges_and_follow_callable_odr_selection() {
             let boundary = plan
                 .atom_boundaries()
                 .iter()
+                .find(|boundary| boundary.atom() == atom);
+            if !has_table {
+                assert!(
+                    boundary.is_none(),
+                    "an existing CString is not a backend table"
+                );
+                continue;
+            }
+            let boundary = plan
+                .atom_boundaries()
+                .iter()
                 .find(|boundary| boundary.atom() == atom)
                 .unwrap_or_else(|| {
                     panic!(
@@ -99,11 +148,20 @@ fn elf_switch_tables_have_owned_ranges_and_follow_callable_odr_selection() {
             assert_eq!(table.name().unwrap(), expected_name);
             assert_eq!(start.section_index(), Some(table.index()));
             assert_eq!(end.section_index(), start.section_index());
-            assert_eq!((start.address(), end.address()), (0, table.size()));
+            assert_eq!(start.address(), 0);
+            if with_constant && !odr {
+                assert!(end.address() < table.size());
+            } else {
+                assert_eq!(end.address(), table.size());
+            }
             // LLVM can make one case the fallthrough instead of a table entry.
             let entries = table.relocations().count();
             assert!(entries >= 4);
-            assert_eq!(table.size(), entries as u64 * 4);
+            assert!(
+                table
+                    .relocations()
+                    .all(|(offset, _)| offset + 4 <= end.address())
+            );
             if odr {
                 let group = file
                     .comdats()

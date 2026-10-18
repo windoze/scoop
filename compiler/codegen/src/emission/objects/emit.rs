@@ -38,6 +38,19 @@ pub(super) fn emit_object_set_with_production<
         })?;
     let mut callables = BTreeMap::new();
     let elf_symbols = crate::elf_llvm::SymbolPlanIndex::new(production.canonical_definitions());
+    let callable_definitions = production
+        .canonical_definitions()
+        .plans()
+        .iter()
+        .filter(|plan| plan.definition_role() == scoop_lir::StrongDefinitionRole::CallableBody)
+        .map(|plan| {
+            let scoop_lir::StrongDefinitionEntityKind::CallableBody(body) = plan.owner().kind()
+            else {
+                unreachable!("callable definition has a typed body owner");
+            };
+            (body, plan)
+        })
+        .collect::<BTreeMap<_, _>>();
     for function in module.callable_bodies() {
         let context = Context::create();
         let body = function.callable_body.id();
@@ -57,7 +70,7 @@ pub(super) fn emit_object_set_with_production<
         let backend_constants = crate::callable_constants::present(
             &path,
             profile.lir_target_profile(),
-            function.symbol(),
+            callable_definitions[&body],
         )?;
         callables.insert(
             body,

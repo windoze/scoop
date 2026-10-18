@@ -35,19 +35,9 @@ pub(super) fn materialize(path: &Path, plan: &DefinitionSymbolPlanV1) -> Result<
             continue;
         }
         let extent = if boundary.atom() == readonly_atom {
-            let section = output
-                .file
-                .sections()
-                .find(|section| {
-                    section.name().is_ok_and(|name| {
-                        crate::callable_constants::is_elf_readonly_section(
-                            name,
-                            primary_name.as_str(),
-                        )
-                    })
-                })
+            let (section, end) = crate::callable_constants::elf_readonly_extent(&output.file, plan)
                 .ok_or_else(|| error("missing callable read-only constants"))?;
-            Some((section.index(), 0, section.size()))
+            Some((section, 0, end))
         } else if boundary.atom() == constants_atom {
             let section = output
                 .file
