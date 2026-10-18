@@ -32,6 +32,7 @@
 | Multipart 内存编解码 | MultipartBoundary／PartHead、编码器与增量 decoder；保留二进制 part，单个待取事件与有限 boundary 前缀，生成已知长度及 RFC 7578 form-data 元数据，随机 boundary 复用 crypto | Darwin debug／release 与 moving GC：16 项新测试；HTTP 全部 166 项 debug／release 通过，另有 288 组 Python MIME 双向对照，覆盖短块、padding、未知长度、重复／折行字段、空 part、EOF 与局部限制 |
 | Multipart 异步读取 | MultipartSource／MultipartBody 复用内存 decoder，按消费推进 part，支持有限 discard、明确接管与借用；与 SSE 共用结构化操作及真实 I/O 完成后的清理 | Darwin debug／release：8 项新测试与 HTTP asyncio 全部 43 项通过；新增测试和 9 项 SSE 回归通过两种构建的 moving GC，覆盖短读、未读完关闭、截断、实际进度、并发、取消和双失败 |
 | Multipart 异步写入 | MultipartSink／MultipartPartWriter 复用内存 encoder，按有限前缀输出字段、正文及 delimiter；明确 part／消息 finish 与本地 close，沿用共享结构化 I/O 收尾 | Darwin debug／release：10 项新测试与 HTTP asyncio 全部 53 项通过；新增测试通过两种构建的 moving GC，覆盖短写、已知长度、真实消费量、零进度、同向并发、借用／接管、取消及双失败 |
+| WebSocket 升级握手 | WebSocketHandshake 生成／解析 HTTP/1.1 请求并绑定本次 key 校验 101；扩展字段及 permessage-deflate 提议／响应保存原始选择和最终双向配置，复用 URL、crypto 与 HTTP 字段 parser | Darwin debug／release：16 项新测试与 HTTP 全部 182 项通过；新增测试通过两种构建的 moving GC，另与 websockets 17.2 对照 2369 组输入、916 条重新生成的响应及真实 TCP 对端 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -104,6 +105,12 @@ Multipart 的通用字段保留扩展参数，form-data 工厂遵守 RFC 7578，
 `m54-multipart-sink` 的 Darwin debug／release 两个变体通过，共 6 个进程；生产 `.slib` 将真实异步文件与空／未知长度 part 组合，经 gzip 和 HTTP/1 chunked 输出，接收端逐 part 验证并消费 trailer，随后复用同一连接。HTTP/2 小窗口下取消被背压阻塞的 multipart 上传，其他流及后续请求继续完成；moving GC 与正常构建复用通过。首次消费者使用了无法从 List 推导元素类型的空数组默认值，改用已有显式类型的集合工厂后通过。
 
 异步 multipart 写入保留已交给编码器的调用者输入消费量，即使下游随后失败；非法参数与可纠正的长度／阶段错误不使 sink 失效。finish 按 multipart、压缩、HTTP 定界的顺序显式执行，提前 close 不补 delimiter、不隐式 flush；取消路径等待真实 NativeByteBorrow 结束才释放本地输出。
+
+`m54-websocket-handshake` 的 Darwin debug／release 两个变体通过，共 6 个进程；正式 `.slib` 经真实 TCP 组合国际域名 Host、编码 target、随机 key、子协议和 permessage-deflate，验证 101 后的传输移交与同次输出的首帧后缀。关闭原 HTTP 对象后仍能收发控制帧字节，moving GC 和正常缓存复用通过。消费者 Path 工厂调用及 IPv6 规范文本期望修正后验证闭合。
+
+独立 websockets 17.2 对照中，2369 组握手输入的接受／拒绝及最终配置全部一致：916 组接受、1453 组拒绝；接受项重新生成的 916 条 Scoop 响应同样被独立客户端接受。Python 服务端另验证 Scoop 生成的请求、协商结果及与 101 同次写出的帧后缀。对照脚本改为用 None 省略未启用的扩展，避免参考库在显式空列表下生成非法空字段；协议 parser 没有为该输入放宽语法。原始向量、脚本与结果保存在仓库外，Python 脚本通过固定版本 Ruff。
+
+窗口提议的缺省／无值／带值保持区分，客户端上下文与窗口提示和服务器的响应约束分别处理；未知或无效的请求扩展可以被跳过，非法的已选择响应必须失败。HTTP 内存工具只表达协议允许的参数，本地压缩器能力由异步组合在移交前检查；帧编解码与异步 WebSocket session 继续独立实施。
 
 异步消息清理的嵌套闭包暴露了构造参数捕获缺口：进入下一 callable 后仍保留构造器的直接参数作用域，使传递捕获丢失，泛型导出或 MIR 生成失败。HIR lowering 现在在 lambda、匿名函数和局部函数边界保存并移开这组直接参数，普通捕获继续保存原 BindingId；没有改变初始化 receiver 限制或在 HTTP 中改写调用来绕过问题。两项回归在修复前失败，修复后全部 1476 项 HIR lowering 测试与 workspace clippy 通过。
 

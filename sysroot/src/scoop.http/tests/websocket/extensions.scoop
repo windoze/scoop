@@ -1,0 +1,44 @@
+package scoop.http
+
+import scoop.test.*
+
+@Test private class WebSocketExtensionTests {
+    @Test fun `extension parsing preserves case order duplicates and optional quoted values`() {
+        val parsed = WebSocketExtension.parse(" , Foo; A; A=\"v\\1\", permessage-deflate; client_max_window_bits, ")
+        assertEquals(2L, parsed.size)
+        assertEquals("Foo", parsed[0L].name)
+        assertEquals(2L, parsed[0L].parameters.size)
+        assertTrue(parsed[0L].parameters[0L].value == None)
+        assertTrue(parsed[0L].parameters[1L].value == Some("v1"))
+        assertTrue(parsed[0L].parameters[1L].wasQuoted)
+        assertEquals("Foo; A; A=\"v1\"", String.fromUtf8(parsed[0L].toByteArray()))
+        assertEquals("client_max_window_bits", parsed[1L].parameters[0L].name)
+        val fields = WebSocketExtension.parseFields([parsed[0L].toHttpField(), wsField("Other", "ignored"), parsed[1L].toHttpField()])
+        assertEquals(2L, fields.size)
+        assertEquals("Foo", fields[0L].name)
+        assertEquals("permessage-deflate", fields[1L].name)
+    }
+
+    @Test fun `extension grammar rejects invalid token values and preserves source offsets`() {
+        for (value in ["", " , ", "x;", "x; a=", "x; =v", "x y", "x; a=\"\"", "x; a=\"a b\"", "x; a=\"é\"", "x; a=\"bad\\\""]) {
+            assertFailsWith<HttpFieldParseException> { WebSocketExtension.parse(value) }
+            assertTrue(when (WebSocketExtension.parseOrNone(value)) { case None -> true; case Some(_) -> false })
+        }
+        val error = assertFailsWith<HttpFieldParseException> { WebSocketExtension.parse("x; a=\"bad value\"") }
+        assertEquals("Sec-WebSocket-Extensions", error.field)
+        assertEquals(5L, error.byteOffset)
+        assertEquals(0L, WebSocketExtension.parseFields([wsField("Host", "example.com")]).size)
+    }
+
+    @Test fun `extension construction snapshots parameters and rejects invalid public inputs`() {
+        val parameters = ArrayList<WebSocketExtensionParameter>()
+        parameters.add(WebSocketExtensionParameter("x", Some("Y"), true))
+        val extension = WebSocketExtension("Case", parameters)
+        parameters.clear()
+        assertEquals("Case; x=\"Y\"", String.fromUtf8(extension.toByteArray()))
+        assertFailsWith<IllegalArgumentException> { WebSocketExtension("") }
+        assertFailsWith<IllegalArgumentException> { WebSocketExtensionParameter("bad name") }
+        assertFailsWith<IllegalArgumentException> { WebSocketExtensionParameter("x", Some("")) }
+        assertFailsWith<IllegalArgumentException> { WebSocketExtensionParameter("x", Some("a;b")) }
+    }
+}

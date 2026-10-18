@@ -209,6 +209,8 @@ isFinished、isClosed、lastEventId、retryMilliseconds 和 failure 公开已有
 
 ## 6. HTTP/1.1 WebSocket
 
+握手、扩展字段与协商的详细 API 见 [WebSocket 规范](SCOOP-HTTP-WEBSOCKET-SPEC.md)；实际实施进度仍分功能记录。
+
 握手工具生成和校验 RFC 6455 的 Upgrade、Connection、Sec-WebSocket-Key／Accept／Version、子协议与扩展字段，SHA-1 及随机数调用 crypto。成功响应必须绑定本次 key，不能只看到状态 101 就移交。响应选中的子协议／扩展必须属于本次有效提议。
 
 帧引擎独立于 socket，处理 FIN／opcode／RSV、16／64 位长度、mask、分片和控制帧，正确检查最高长度位、控制帧大小、UTF-8 与 Close code。客户端发帧使用新的随机 mask；接收方向检查对端的 mask 角色。不能把单个大 frame 强制全量缓存；分片消息可分块交付，UTF-8 验证跨片连续。

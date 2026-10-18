@@ -1,0 +1,57 @@
+package scoop.http
+
+public class WebSocketDeflate public constructor(
+    public val serverNoContextTakeover: Boolean = false,
+    public val clientNoContextTakeover: Boolean = false,
+    serverMaxWindowBits: Int? = None, clientMaxWindowBits: Int? = None
+) {
+    public val serverMaxWindowBits: Int? = checkedWebSocketWindow(serverMaxWindowBits)
+    public val clientMaxWindowBits: Int? = checkedWebSocketWindow(clientMaxWindowBits)
+    public fun toExtension(): WebSocketExtension = webSocketDeflateExtension(serverNoContextTakeover,
+        clientNoContextTakeover, serverMaxWindowBits, when (clientMaxWindowBits) {
+            case Some(bits) -> WebSocketWindowBits.Limit(bits)
+            case None -> WebSocketWindowBits.Absent
+        })
+
+    public companion object {
+        public fun parse(extension: WebSocketExtension): WebSocketDeflate {
+            val data = readWebSocketDeflate(extension, false)
+            val client: Int? = when (data.clientMaxWindowBits) {
+                case Limit(bits) -> Some(bits)
+                case Absent -> None
+                case Any -> webSocketDeflateError("response window bits require a value")
+            }
+            return WebSocketDeflate(data.serverNoContextTakeover, data.clientNoContextTakeover, data.serverMaxWindowBits, client)
+        }
+    }
+}
+
+public class WebSocketDeflateNegotiation internal constructor(
+    public val offer: WebSocketDeflateOffer, public val response: WebSocketDeflate
+) {
+    public val serverNoContextTakeover: Boolean get() = response.serverNoContextTakeover
+    public val clientNoContextTakeover: Boolean get() = response.clientNoContextTakeover || offer.clientNoContextTakeover
+    public val serverWindowBits: Int get() = response.serverMaxWindowBits ?: 15
+    public val clientWindowBits: Int get() = response.clientMaxWindowBits ?: when (offer.clientMaxWindowBits) {
+        case Limit(bits) -> bits
+        case Absent -> 15
+        case Any -> 15
+    }
+}
+
+internal fun webSocketDeflateExtension(serverNoContext: Boolean, clientNoContext: Boolean,
+    serverWindow: Int?, clientWindow: WebSocketWindowBits): WebSocketExtension {
+    val result = ArrayList<WebSocketExtensionParameter>()
+    if (serverNoContext) result.add(WebSocketExtensionParameter("server_no_context_takeover"))
+    if (clientNoContext) result.add(WebSocketExtensionParameter("client_no_context_takeover"))
+    when (serverWindow) {
+        case Some(bits) -> result.add(WebSocketExtensionParameter("server_max_window_bits", Some(bits.toString())))
+        case None -> {}
+    }
+    when (clientWindow) {
+        case Limit(bits) -> result.add(WebSocketExtensionParameter("client_max_window_bits", Some(bits.toString())))
+        case Any -> result.add(WebSocketExtensionParameter("client_max_window_bits"))
+        case Absent -> {}
+    }
+    return WebSocketExtension("permessage-deflate", result)
+}

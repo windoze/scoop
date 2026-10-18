@@ -1,0 +1,54 @@
+package scoop.http
+
+public enum WebSocketWindowBits { Absent, Any, Limit(Int) }
+
+public class WebSocketDeflateOffer public constructor(
+    public val serverNoContextTakeover: Boolean = false,
+    public val clientNoContextTakeover: Boolean = false,
+    serverMaxWindowBits: Int? = None, clientMaxWindowBits: WebSocketWindowBits = WebSocketWindowBits.Absent
+) {
+    public val serverMaxWindowBits: Int? = checkedWebSocketWindow(serverMaxWindowBits)
+    public val clientMaxWindowBits: WebSocketWindowBits = checkedWebSocketWindowOffer(clientMaxWindowBits)
+
+    public fun toExtension(): WebSocketExtension = webSocketDeflateExtension(serverNoContextTakeover,
+        clientNoContextTakeover, serverMaxWindowBits, clientMaxWindowBits)
+
+    public fun accepts(parameters: WebSocketDeflate): Boolean {
+        if (serverNoContextTakeover && !parameters.serverNoContextTakeover) return false
+        if (serverMaxWindowBits != None &&
+            (parameters.serverMaxWindowBits == None || parameters.serverMaxWindowBits!! > serverMaxWindowBits!!)) return false
+        return when (clientMaxWindowBits) {
+            case Absent -> parameters.clientMaxWindowBits == None
+            case Any -> true
+            case Limit(bits) -> parameters.clientMaxWindowBits == None || parameters.clientMaxWindowBits!! <= bits
+        }
+    }
+
+    public companion object {
+        public fun parseOrNone(extension: WebSocketExtension): WebSocketDeflateOffer? {
+            if (extension.name != "permessage-deflate") return None
+            try {
+                val data = readWebSocketDeflate(extension, true)
+                return Some(WebSocketDeflateOffer(data.serverNoContextTakeover, data.clientNoContextTakeover,
+                    data.serverMaxWindowBits, data.clientMaxWindowBits))
+            } catch (_: WebSocketHandshakeException) { return None }
+        }
+    }
+}
+
+internal fun checkedWebSocketWindow(value: Int?): Int? {
+    when (value) {
+        case Some(bits) -> if (bits < 8 || bits > 15) throw IllegalArgumentException(Some("WebSocket window bits must be 8 through 15"))
+        case None -> {}
+    }
+    return value
+}
+
+private fun checkedWebSocketWindowOffer(value: WebSocketWindowBits): WebSocketWindowBits {
+    when (value) {
+        case Limit(bits) -> { checkedWebSocketWindow(Some(bits)); }
+        case Absent -> {}
+        case Any -> {}
+    }
+    return value
+}

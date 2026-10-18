@@ -1,0 +1,55 @@
+package scoop.http
+
+import scoop.test.*
+
+@Test private class WebSocketDeflateTests {
+    @Test fun `deflate values round trip every protocol window without using a compressor`() {
+        var bits = 8
+        while (bits <= 15) {
+            val offer = WebSocketDeflateOffer(true, true, Some(bits), WebSocketWindowBits.Limit(bits))
+            val parsed = WebSocketDeflateOffer.parseOrNone(wsExtension(String.fromUtf8(offer.toExtension().toByteArray())))!!
+            assertTrue(parsed.serverNoContextTakeover && parsed.clientNoContextTakeover)
+            assertTrue(parsed.serverMaxWindowBits == Some(bits))
+            assertTrue(parsed.clientMaxWindowBits == WebSocketWindowBits.Limit(bits))
+            val response = WebSocketDeflate.parse(WebSocketDeflate(true, false, Some(bits), Some(bits)).toExtension())
+            assertTrue(parsed.accepts(response))
+            bits += 1
+        }
+        val any = WebSocketDeflateOffer.parseOrNone(wsExtension("permessage-deflate; client_max_window_bits"))!!
+        assertTrue(any.clientMaxWindowBits == WebSocketWindowBits.Any)
+        assertFailsWith<IllegalArgumentException> { WebSocketDeflateOffer(serverMaxWindowBits = Some(7)) }
+        assertFailsWith<IllegalArgumentException> { WebSocketDeflateOffer(clientMaxWindowBits = WebSocketWindowBits.Limit(16)) }
+        assertFailsWith<IllegalArgumentException> { WebSocketDeflate(clientMaxWindowBits = Some(0)) }
+    }
+
+    @Test fun `invalid offers can be declined while invalid responses fail negotiation`() {
+        for (value in ["other", "permessage-deflate; unknown", "permessage-deflate; server_no_context_takeover=1",
+            "permessage-deflate; client_no_context_takeover=x", "permessage-deflate; server_max_window_bits",
+            "permessage-deflate; client_max_window_bits=08", "permessage-deflate; server_max_window_bits=16",
+            "permessage-deflate; client_max_window_bits=8; client_max_window_bits=8",
+            "permessage-deflate; Server_No_Context_Takeover"]) {
+            val extension = wsExtension(value)
+            assertTrue(when (WebSocketDeflateOffer.parseOrNone(extension)) { case None -> true; case Some(_) -> false })
+            assertFailsWith<WebSocketHandshakeException> { WebSocketDeflate.parse(extension) }
+        }
+        assertFailsWith<WebSocketHandshakeException> { WebSocketDeflate.parse(wsExtension("permessage-deflate; client_max_window_bits")) }
+        assertTrue(WebSocketDeflate.parse(wsExtension("permessage-deflate; server_max_window_bits=\"12\"")).serverMaxWindowBits == Some(12))
+    }
+
+    @Test fun `server requirements and client hints have different negotiation rules`() {
+        val bare = WebSocketDeflateOffer()
+        assertTrue(bare.accepts(WebSocketDeflate()))
+        assertTrue(bare.accepts(WebSocketDeflate(true, true, Some(9))))
+        assertTrue(!bare.accepts(WebSocketDeflate(clientMaxWindowBits = Some(15))))
+        val constrained = WebSocketDeflateOffer(true, true, Some(12), WebSocketWindowBits.Limit(11))
+        assertTrue(constrained.accepts(WebSocketDeflate(true, false, Some(12))))
+        assertTrue(constrained.accepts(WebSocketDeflate(true, true, Some(9), Some(10))))
+        assertTrue(!constrained.accepts(WebSocketDeflate(false, true, Some(12), Some(10))))
+        assertTrue(!constrained.accepts(WebSocketDeflate(true, true, Some(13), Some(10))))
+        assertTrue(!constrained.accepts(WebSocketDeflate(true, true, None, Some(10))))
+        assertTrue(!constrained.accepts(WebSocketDeflate(true, true, Some(12), Some(12))))
+        val any = WebSocketDeflateOffer(clientMaxWindowBits = WebSocketWindowBits.Any)
+        assertTrue(any.accepts(WebSocketDeflate()))
+        assertTrue(any.accepts(WebSocketDeflate(clientMaxWindowBits = Some(8))))
+    }
+}

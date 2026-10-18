@@ -1,0 +1,50 @@
+package scoop.http
+
+import scoop.collections.HashSet
+
+internal class WebSocketDeflateData {
+    var serverNoContextTakeover: Boolean = false
+    var clientNoContextTakeover: Boolean = false
+    var serverMaxWindowBits: Int? = None
+    var clientMaxWindowBits: WebSocketWindowBits = WebSocketWindowBits.Absent
+}
+
+internal fun readWebSocketDeflate(extension: WebSocketExtension, offer: Boolean): WebSocketDeflateData {
+    if (extension.name != "permessage-deflate") webSocketDeflateError("unsupported WebSocket extension")
+    val data = WebSocketDeflateData()
+    val names = HashSet<String>()
+    for (parameter in extension.parameters) {
+        if (!names.add(parameter.name)) webSocketDeflateError("duplicate permessage-deflate parameter")
+        when (parameter.name) {
+            case "server_no_context_takeover" -> {
+                if (parameter.value != None) webSocketDeflateError("server_no_context_takeover has a value")
+                data.serverNoContextTakeover = true
+            }
+            case "client_no_context_takeover" -> {
+                if (parameter.value != None) webSocketDeflateError("client_no_context_takeover has a value")
+                data.clientNoContextTakeover = true
+            }
+            case "server_max_window_bits" -> data.serverMaxWindowBits = Some(webSocketWindowValue(parameter))
+            case "client_max_window_bits" -> {
+                data.clientMaxWindowBits = if (offer && parameter.value == None) WebSocketWindowBits.Any
+                    else WebSocketWindowBits.Limit(webSocketWindowValue(parameter))
+            }
+            else -> webSocketDeflateError("unknown permessage-deflate parameter")
+        }
+    }
+    return data
+}
+
+private fun webSocketWindowValue(parameter: WebSocketExtensionParameter): Int {
+    when (parameter.value) {
+        case Some(text) -> {
+            var bits = 8
+            while (bits <= 15) { if (text == bits.toString()) return bits; bits += 1 }
+        }
+        case None -> {}
+    }
+    webSocketDeflateError("window bits must be an integer from 8 through 15 without leading zeroes")
+}
+
+internal fun webSocketDeflateError(detail: String): Nothing =
+    throw WebSocketHandshakeException(detail, Some("Sec-WebSocket-Extensions"))

@@ -1,0 +1,48 @@
+package scoop.http
+
+import scoop.test.*
+
+@Test private class WebSocketHandshakeFailureTests {
+    @Test fun `request validation rejects wrong methods versions missing fields and duplicate singletons`() {
+        val request = wsSample().request
+        assertFailsWith<WebSocketHandshakeException> { WebSocketHandshake.parse(HttpRequestHead(HttpVersion.Http10, request.method, request.target, request.fields)) }
+        assertFailsWith<WebSocketHandshakeException> { WebSocketHandshake.parse(HttpRequestHead(HttpVersion.Http11, "get".toByteArray(), request.target, request.fields)) }
+        assertFailsWith<WebSocketHandshakeException> { WebSocketHandshake.parse(HttpRequestHead(HttpVersion.Http11, request.method,
+            HttpRequestTarget.Http2("https".toByteArray(), "example.com".toByteArray(), "/".toByteArray()), request.fields)) }
+        for (name in ["Host", "Sec-WebSocket-Key", "Sec-WebSocket-Version", "Upgrade", "Connection"])
+            assertFailsWith<WebSocketHandshakeException> { WebSocketHandshake.parse(wsRequest(wsFields(request.fields, name, ArrayList<String>()))) }
+        for (name in ["Host", "Sec-WebSocket-Key", "Sec-WebSocket-Version"])
+            assertFailsWith<WebSocketHandshakeException> { WebSocketHandshake.parse(wsRequest(wsFields(request.fields, name, ["x", "x"]))) }
+        for (value in ["", "25", "13, 13"])
+            assertFailsWith<WebSocketHandshakeException> { WebSocketHandshake.parse(wsRequest(wsFields(request.fields, "Sec-WebSocket-Version", [value]))) }
+    }
+
+    @Test fun `keys body framing and malformed offer fields are rejected before upgrade`() {
+        val fields = wsSample().request.fields
+        for (value in ["", "AAAA", "dGhlIHNhbXBsZSBub25jZQ", "dGhlIHNhbXBsZSBub25jZQ==,", "é"])
+            assertFailsWith<WebSocketHandshakeException> { WebSocketHandshake.parse(wsRequest(wsFields(fields, "Sec-WebSocket-Key", [value]))) }
+        assertFailsWith<WebSocketHandshakeException> { WebSocketHandshake.parse(wsRequest(wsFields(fields, "Transfer-Encoding", ["chunked"]))) }
+        for (length in ["1", "-1", "0, 0", "0x"])
+            assertFailsWith<HttpFieldParseException> { WebSocketHandshake.parse(wsRequest(wsFields(fields, "Content-Length", [length]))) }
+        assertFailsWith<HttpFieldParseException> { WebSocketHandshake.parse(wsRequest(wsFields(fields, "Sec-WebSocket-Protocol", ["chat, chat"]))) }
+        assertFailsWith<HttpFieldParseException> { WebSocketHandshake.parse(wsRequest(wsFields(fields, "Upgrade", ["websocket garbage"]))) }
+        assertFailsWith<WebSocketHandshakeException> { WebSocketHandshake.parse(wsRequest(wsFields(fields, "Upgrade", ["websocket/13"]))) }
+        assertFailsWith<HttpFieldParseException> { WebSocketHandshake.parse(wsRequest(wsFields(fields, "Connection", ["upgrade=1"]))) }
+    }
+
+    @Test fun `response checks exact status accept singleton and protocol binding`() {
+        val handshake = wsSample()
+        val fields = handshake.response(Some("chat")).fields
+        assertFailsWith<WebSocketHandshakeException> { handshake.accept(HttpResponseHead(HttpVersion.Http11, 200U, fields = fields)) }
+        assertFailsWith<WebSocketHandshakeException> { handshake.accept(HttpResponseHead(HttpVersion.Http2, 101U, fields = fields)) }
+        for (value in ["wrong", "S3pPLMBiTxaQ9kYGzzhZRbK+xOo=", "s3pPLMBiTxaQ9kYGzzhZRbK+xOo=,"])
+            assertFailsWith<WebSocketHandshakeException> { handshake.accept(wsResponse(wsFields(fields, "Sec-WebSocket-Accept", [value]))) }
+        for (name in ["Sec-WebSocket-Accept", "Sec-WebSocket-Protocol", "Upgrade"])
+            assertFailsWith<WebSocketHandshakeException> { handshake.accept(wsResponse(wsFields(fields, name, ["x", "x"]))) }
+        assertFailsWith<WebSocketHandshakeException> { handshake.accept(wsResponse(wsFields(fields, "Sec-WebSocket-Protocol", ["Chat"]))) }
+        assertFailsWith<HttpFieldParseException> { handshake.accept(wsResponse(wsFields(fields, "Sec-WebSocket-Protocol", ["chat, superchat"]))) }
+        assertFailsWith<WebSocketHandshakeException> { handshake.accept(wsResponse(wsFields(fields, "Upgrade", ["h2c, websocket"]))) }
+        for (name in ["Content-Length", "Transfer-Encoding"])
+            assertFailsWith<WebSocketHandshakeException> { handshake.accept(wsResponse(wsFields(fields, name, ["0"]))) }
+    }
+}
