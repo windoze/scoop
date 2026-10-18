@@ -1,0 +1,78 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.test.*
+import scoop.text.hexToByteArray
+
+@Test
+private class SseSourceTests {
+    @Test
+    fun `short reads are driven by next and preserve parser metadata and completed EOF`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            val input = SseTestSource("\u{FEFF}data:雪😀\r\n\r\nid:2\n\nretry:7\ndata:second\n\ndata:unfinished\n".toByteArray())
+            val source = SseSource(input, initialLastEventId = "initial", bufferSize = 1L)
+            assertEquals(0, input.reads)
+            source.useAsync suspend { stream ->
+                val first = stream.next()!!
+                assertEquals("雪😀", first.data)
+                assertEquals("initial", first.lastEventId)
+                assertTrue(first.id == None)
+                assertTrue(input.position < input.bytes.size)
+                gcCollect()
+                val second = stream.next()!!
+                assertEquals("second", second.data)
+                assertEquals("2", second.lastEventId)
+                assertTrue(second.id == None)
+                assertTrue(stream.retryMilliseconds == Some(7L))
+                assertFalse(present(stream.next()))
+                assertTrue(stream.isFinished)
+                val reads = input.reads
+                assertFalse(present(stream.next()))
+                assertEquals(reads, input.reads)
+            }
+            assertTrue(source.isClosed)
+            assertEquals("2", source.lastEventId)
+            assertEquals(0, input.closes)
+            input.close()
+        }
+    }
+
+    @Test
+    fun `bounded prefetch and owning close do not read the remaining body`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            val input = SseTestSource(("data:one\n\n" + "data:two\n\n" + "data:three\n\n").toByteArray(), 100L)
+            val source = SseSource.takeOwnership(input, bufferSize = 16L)
+            assertEquals("one", source.next()!!.data)
+            assertEquals(16L, input.position)
+            val reads = input.reads
+            source.close(); source.close()
+            assertEquals(reads, input.reads)
+            assertEquals(1, input.closes)
+            assertTrue(source.isClosed)
+            assertFalse(source.isFinished)
+            expectSseFailure<IoClosedException> suspend { source.next() }
+        }
+    }
+
+    @Test
+    fun `malformed UTF8 still uses SSE decoding and control only streams finish without events`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            val input = SseTestSource("646174613ae228a1e2820a0a".hexToByteArray())
+            SseSource.takeOwnership(input, bufferSize = 3L).useAsync suspend { stream ->
+                assertEquals("�(��", stream.next()!!.data)
+                assertFalse(present(stream.next()))
+            }
+            val controls = SseTestSource("id:next\n\nretry:25\n: comment\n".toByteArray())
+            val stream = SseSource.takeOwnership(controls)
+            assertFalse(present(stream.next()))
+            assertEquals("next", stream.lastEventId)
+            assertTrue(stream.retryMilliseconds == Some(25L))
+            stream.close()
+            assertEquals(1, controls.closes)
+        }
+    }
+}

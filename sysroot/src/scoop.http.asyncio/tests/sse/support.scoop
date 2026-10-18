@@ -1,0 +1,42 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+import scoop.time.Duration
+
+internal class SseTestSource(val bytes: Array<Byte>, val chunkSize: Long = 1L) : AsyncByteSource, AsyncCloseable {
+    var position: Long = 0L
+    var reads: Int = 0
+    var closes: Int = 0
+    var failRead: Boolean = false
+    var failClose: Boolean = false
+    var badProgress: Int = 0
+    var closeGate: AsyncGate? = None
+
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long {
+        reads += 1
+        currentEventLoop().sleep(Duration.nanoseconds(1L))
+        if (failRead) throw TransportFailure()
+        if (badProgress == 1) return -1L
+        if (badProgress == 2) return count + 1L
+        if (badProgress == 3) return 1L
+        var amount = if (count < chunkSize) count else chunkSize
+        if (amount > bytes.size - position) amount = bytes.size - position
+        buffer.writeBytes(bytes, position, amount)
+        position += amount
+        return amount
+    }
+
+    public override suspend fun close() {
+        closes += 1
+        when (closeGate) { case Some(gate) -> gate.await(); case None -> {} }
+        if (failClose) throw CleanupFailure()
+    }
+}
+
+internal suspend fun <E : Throwable> expectSseFailure(block: suspend () -> Unit): E {
+    try { block() }
+    catch (error: Throwable) { if (error is E) return error; throw error }
+    fail(Some("expected asynchronous SSE failure"))
+}

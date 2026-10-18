@@ -1,0 +1,68 @@
+package scoop.http.asyncio
+
+import scoop.Result
+import scoop.getOrThrow
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+
+internal class SseReader(
+    source: AsyncByteSource, var owner: AsyncCloseable?, val loop: EventLoop,
+    val decoder: SseDecoder, val input: NativeByteBuffer
+) {
+    var source: AsyncByteSource? = Some(source)
+    val lock: HttpLock = HttpLock()
+    var running: Boolean = false
+    var active: Job? = None
+    var closing: Boolean = false
+    var closed: Boolean = false
+    var cleanupStarted: Boolean = false
+    var closeJob: Job? = None
+    val closeWaiters: ArrayList<Continuation<Unit>> = ArrayList<Continuation<Unit>>()
+    private var operationFailure: Throwable? = None
+    val failure: Throwable? get() = lock.withLock { operationFailure }
+
+    suspend fun next(): SseEvent? {
+        httpJob(loop, true)
+        lock.withLock {
+            if (closing || closed) throw IoClosedException()
+            if (present(operationFailure)) throw IllegalStateException(Some("SSE source has failed"))
+            if (running) throw IllegalStateException(Some("SSE source is already in use"))
+            running = true
+        }
+        try {
+            val result = coroutineScope<Result<SseEvent?, Throwable>> suspend { scope ->
+                val stop = lock.withLock { active = Some(scope.job); closing }
+                if (stop) scope.job.cancel()
+                try {
+                    ensureActive()
+                    Result.Success<SseEvent?, Throwable>(readNext())
+                } catch (error: Throwable) { Result.Failure<SseEvent?, Throwable>(error) }
+            }
+            return result.getOrThrow()
+        } catch (error: Throwable) {
+            lock.withLock { operationFailure = Some(error) }
+            throw error
+        } finally {
+            lock.withLock { running = false; active = None }
+            startSseClose(this)
+        }
+    }
+
+    private suspend fun readNext(): SseEvent? {
+        while (true) {
+            ensureActive()
+            when (decoder.nextEvent()) { case Some(event) -> return Some(event); case None -> {} }
+            if (decoder.isFinished) return None
+            if (input.readableBytes > 0L) decoder.receive(input)
+            else {
+                input.clear()
+                val requested = input.writableBytes
+                val count = source!!.readInto(input, requested)
+                httpProgress(count, requested)
+                if (input.writePosition != count) throw IllegalStateException(Some("inconsistent SSE source progress"))
+                if (count == 0L) decoder.endInput()
+            }
+        }
+    }
+}

@@ -1,0 +1,41 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.platform.memory.*
+import scoop.test.*
+
+internal class PendingSseSource : AsyncByteSource, AsyncCloseable {
+    private var continuation: Continuation<Long>? = None
+    private var borrow: NativeByteBorrow? = None
+    var buffer: NativeByteBuffer? = None
+    var job: Job? = None
+    var running: Boolean = false
+    var closes: Int = 0
+
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long {
+        assertFalse(running)
+        running = true
+        this.buffer = Some(buffer)
+        val current = currentJobOrNone()!!
+        job = Some(current)
+        @Unsafe { borrow = Some(buffer.borrowWritable(count)) }
+        try {
+            val count = suspendCoroutine<Long> { next -> continuation = Some(next) }
+            current.ensureActive()
+            return count
+        } finally { running = false }
+    }
+
+    fun complete() {
+        val lease = borrow!!
+        val next = continuation!!
+        borrow = None; continuation = None
+        @Unsafe {
+            lease.pointer()!!.store(0L, 42.toByte())
+            lease.complete(1L)
+        }
+        next.resume(1L)
+    }
+
+    public override suspend fun close() { assertFalse(running); closes += 1 }
+}

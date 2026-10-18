@@ -187,6 +187,16 @@ CR、LF 与 CRLF 可以跨任意输入边界。UTF-8 的 CR／LF 字节不会出
 
 `endInput()` 幂等地声明 EOF，丢弃未结束的行和没有最终空行的块，不补发事件，也不提交不完整块的 id；已形成但未取走的事件继续可取。isFinished 在 EOF 且没有待交付事件时为 true。close 释放行与事件引用，不关闭调用者 buffer，不执行 I/O；lastEventId、retryMilliseconds 和 failure 继续作为结果快照可读。重连、HTTP 状态、URL 和应用回调均不进入这个内存引擎。
 
+### 5.2 可挂起事件源
+
+`scoop.http.asyncio.SseSource(source, limits = SseLimits(), initialLastEventId = "", bufferSize = 8192)` 借用 AsyncByteSource；`SseSource.takeOwnership` 另要求 AsyncCloseable，并在工厂成功返回时接管。bufferSize 必须为正，配置、当前 EventLoop／活动 Job 和登记前取消检查失败时端点仍归调用者，已分配的本地资源释放。没有后台读任务，构造不读取输入。
+
+`next(): SseEvent?` 在同一 EventLoop 和活动 Job 上执行，每次最多一个应用读取。它先消费已有缓冲和 decoder 事件，再按需要挂起读取 source；完整 EOF 返回 None，后续 next 不重复读取。复用内存 parser 的行、UTF-8、ID、retry 和限制规则，不重新解释正文；source 每次返回的字节数必须与缓冲区实际写入一致。已读取但尚未解析的前缀最多为 bufferSize，decoder 最多保留一个事件，不无界预取。借用模式在关闭时也会放弃已预取的前缀，不能假定底层位置仍停在最后交付的事件末尾。
+
+isFinished、isClosed、lastEventId、retryMilliseconds 和 failure 公开已有状态；前两者区分正常 EOF 与本地关闭，metadata 在关闭后仍可读。解析或实际读取失败／取消后保存 failure，不能继续推进；参数、错误 loop、登记前取消或同向并发失败不损坏尚未启动的流。下层 I/O 异常保留原类型，SSE 解析失败保留具体异常，已消费事件不回滚。
+
+每次 next 的实际 I/O 使用结构化子作用域。close 先拒绝新读取并取消该操作，等待它及原生 buffer borrow 真正结束，再释放 decoder／buffer 和关闭所接管端点；借用模式不关闭 source。并发 close 等待同一次收尾，后续幂等，取消的 finally 仍可完成；正文与清理同时失败由 useAsync 保留为 ResourceUseException。关闭解除端点、Job 和等待 continuation 的引用，不自动读取剩余正文、不重连、不执行用户回调。HTTP/1 未完成 body 的放弃、HTTP/2 单流取消继续由下层 HTTP body 的原有合同处理。
+
 ## 6. HTTP/1.1 WebSocket
 
 握手工具生成和校验 RFC 6455 的 Upgrade、Connection、Sec-WebSocket-Key／Accept／Version、子协议与扩展字段，SHA-1 及随机数调用 crypto。成功响应必须绑定本次 key，不能只看到状态 101 就移交。响应选中的子协议／扩展必须属于本次有效提议。

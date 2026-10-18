@@ -27,6 +27,7 @@
 | Cookie 消息与规则 | HttpCookiePair／Header／Attribute／SetCookie 保存有序字节数据；独立 Cookie 日期、标准属性、作用域、前缀、过期与显式 SameSite 判断，复用 URL／IDNA／PSL 和标准 Result | Darwin debug／release 与 moving GC：18 项新测试；HTTP 全部 125 项 debug／release 通过，覆盖无名值、重复与未知属性、控制字节／长度、溢出、IP／编码路径、公共后缀和拒绝原因 |
 | Age 与 Vary | HttpAge 遵守 RFC 9111 首值选择与秒数饱和，HttpVary 保留字段名、重复与通配符；与 Cache-Control 复用列表及数值解析 | Darwin debug／release：7 项新测试与 HTTP 全部 132 项通过；新测试及 4 项 Cache-Control 共享解析回归通过 moving GC，Range／Retry-After 仍拒绝溢出 |
 | SSE 内存解析 | SseDecoder 增量处理行结束、BOM、字段、ID／retry 和 EOF；UTF-8 复用 charset，有界行／data 与单个待交付事件，原生输入借用有明确消费量 | Darwin debug／release 与 moving GC：10 项新测试；HTTP 全部 142 项 debug／release 通过，涵盖 HTML 示例、单字节分块、坏 UTF-8、空 ID／data、背压、失败后借用释放与 EOF |
+| SSE 异步事件源 | SseSource 借用或显式接管 AsyncByteSource，以 next 驱动有限预取；结构化读取、取消与并发关闭等待真实借用结束，复用同一内存 parser | Darwin debug／release：9 项新测试和 HTTP asyncio 全部 35 项通过；新增测试通过 moving GC，覆盖短读、EOF、I/O／解析失败、错误 loop、并发读取、同一清理结果与取消 finally |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -81,6 +82,8 @@ HTTP 日期的 release 编译暴露了跨无写入分支的同槽根加载直到
 `m54-cache-metadata` 的 debug／release 两个变体通过，共 6 个进程；生产消费者逐字节接收 304 响应中的列表／重复 Age 与多行 Vary，组合 Date、Cache-Control，重新生成并解析响应字段。首值保留、名称顺序、通配符、饱和、moving GC 与构建复用均通过；这些工具只交付消息数据，不计算或存储实际缓存条目。
 
 `m54-sse-decoder` 的 debug／release 两个变体通过，共 6 个进程；生产 HTTP `.slib` 将 SSE 正文编码成三字节 chunked 块，消费者逐字节完成 HTTP/1 定界后交给 SSE。UTF-8、CRLF、控制块、ID 清除、坏字符替换、不完整尾部、快照、moving GC 与缓存复用均通过。解析器不执行网络或重连，异步 SseSource 与 client 重连策略另行完成。
+
+`m54-sse-async` 的 debug／release 两个变体通过，共 6 个进程；正式 `.slib` 通过真实 TCP 在 HTTP/1 chunked 与 HTTP/2 小窗口上传输 SSE，组合短读写、trailer、ID／retry 与不完整尾部。取消另一个等待事件的 H2 stream 后，正常事件流与后续请求继续完成；moving GC、所有权关闭和缓存复用均通过。库回归前按正常构建入口刷新了使用旧 crypto 依赖指纹的 TLS 预编译资源，未改动其源码或跳过依赖检查。自动重连仍由后续 client 实现。
 
 ## 后续工作
 
