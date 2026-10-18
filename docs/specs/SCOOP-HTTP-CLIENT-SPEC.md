@@ -56,7 +56,15 @@ fromSource 接收单次借用的 AsyncByteSource，调用者负责其完整生�
 
 fromProducer 接收一次性的 suspend `(AsyncByteSink) -> Unit`；fromProducerFactory 接收每次创建新 producer 的 suspend 工厂。producer 负责在返回前完成自己的子任务和释放自己打开的资源，借用的 sink 不能带出调用。单次来源或 producer 在发送实际开始时原子地标记已使用，失败后也不能再次发送；重复使用报 RequestBodyConsumedException。尚未实际发送、参数检查失败或入口已经取消不消耗该次机会。
 
-`body.writeTo(destination, bufferSize = 8192L): Long` 是普通 suspend 的表示字节发送入口，借用 destination，不执行 HTTP 定界、不关闭 destination、不隐式结束或 flush 协议消息；返回完整接受的表示字节数。内存快照和来源复制使用有限缓冲，工厂、producer 与 destination 调用均保留发起者 Context。已知长度通过实际输出进度检查；超长在提交超出部分前拒绝，提前结束和超长均报 RequestBodyLengthException，其中 expectedLength、transferredBytes 和 rejectedBytes 区分已发生进度与未提交数据。下游错误保留原异常，即使 producer 捕获下游错误后正常返回，本次发送也不转为成功。发送结束后保存的 sink 失效，同一 sink 不允许并发写入或 flush。
+`body.writeTo(destination, bufferSize = 8192L): Long` 是普通 suspend 的表示字节发送入口，借用 destination，不执行 HTTP 定界或关闭 destination；返回完整接受的表示字节数。writeTo 本身不补协议结束或额外 flush，producer 及所组合编码流的 finish／flush 仍按其合同向下游排出数据。内存快照和来源复制使用有限缓冲，工厂、producer 与 destination 调用均保留发起者 Context。已知长度通过实际输出进度检查；超长在提交超出部分前拒绝，提前结束和超长均报 RequestBodyLengthException，其中 expectedLength、transferredBytes 和 rejectedBytes 区分已发生进度与未提交数据。下游错误保留原异常，即使 producer 捕获下游错误后正常返回，本次发送也不转为成功。发送结束后保存的 sink 失效，同一 sink 不允许并发写入或 flush。
+
+### 3.2 Multipart 与上传压缩
+
+RequestBodyPart 以 body 和有序 fields 创建不可变 part head，bodyLength 来自该 body 的已知长度；formData(name, body, filename) 工厂使用 HTTP 库的 RFC 7578 字段生成器。构造复制 fields；缺少 Content-Type 时补充 body 的媒体类型，已经显式提供时保留。body 若包含编码描述则自动生成 Content-Encoding，此时再提供同名字段报配置冲突，不生成两套互相矛盾的编码声明。
+
+`RequestBody.fromMultipart(parts, boundary = MultipartBoundary.generate(), subtype = "form-data")` 保存 part 列表快照及固定 boundary，每次发送创建新的 MultipartSink，按 part 消费顺序完成正文、part 结束和整个 multipart 结束。contentLength 使用 HTTP 库的 MultipartEncoder.contentLength；任一 part 长度未知则整体未知，不为求长度预读。只有所有 part 均可重放时整体可重放；包含单次来源的整体也只允许发送一次，重复调用在输出新 delimiter 之前失败。边界字节、quoted 参数与文件名规则全部由 HTTP 负责。嵌套 multipart 使用同一组合；调用者负责提供不会出现在 part 正文中的显式 boundary，缺省边界使用 HTTP 的安全随机生成器。
+
+`body.compressed(options = CompressionOptions.Gzip(GzipOptions()))` 返回新的流式 body，复用 AsyncCompressionSink，先写完原 body 再显式 finish 压缩流，并关闭本次 codec；不接管 HTTP 输出端。支持 gzip、zlib 包装的 HTTP deflate、br 与 zstd，raw DEFLATE 不是 HTTP deflate 表示，配置时拒绝。contentType 保留，contentLength 改为未知，contentEncodings 按实际施加次序追加；重复压缩明确表示多层编码。原 body 的重放约束继续有效，非重放组合只允许一次发送。字典等外部配置按 compression 的借用规则保持有效；要用于认证摘要或重试，调用者须使各次产生的原文和编码选项一致，不把重新打开变化中的输入等同于字节快照。
 
 ## 4. 上传、早期响应与背压
 

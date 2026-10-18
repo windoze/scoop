@@ -1,0 +1,36 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.MultipartSink
+
+internal fun multipartRequestBody(parts: List<RequestBodyPart>, boundary: MultipartBoundary, subtype: String): RequestBody {
+    val snapshot = parts.toArray()
+    val heads = Array<MultipartPartHead>(snapshot.size) { index -> snapshot[index].head }
+    val plan = MultipartRequestPlan(snapshot, boundary)
+    return RequestBody(MultipartEncoder.contentLength(boundary, heads), Some(boundary.toMediaType(subtype)), singleUseWhenNeeded(plan))
+}
+
+internal fun singleUseWhenNeeded(plan: RequestBodyPlan): RequestBodyPlan =
+    if (plan.isReplayable) plan else RequestBodyOnce(suspend { destination, bufferSize -> plan.writeTo(destination, bufferSize) })
+
+private class MultipartRequestPlan(private val parts: Array<RequestBodyPart>, private val boundary: MultipartBoundary) : RequestBodyPlan {
+    public override val isReplayable: Boolean = multipartReplayable(parts)
+
+    public override suspend fun writeTo(destination: AsyncByteSink, bufferSize: Long) {
+        MultipartSink(destination, boundary, bufferSize).useAsync suspend { multipart ->
+            for (part in parts) {
+                multipart.beginPart(part.head).useAsync suspend { writer ->
+                    part.body.writeTo(writer, bufferSize)
+                    writer.finish()
+                }
+            }
+            multipart.finish()
+        }
+    }
+}
+
+private fun multipartReplayable(parts: Array<RequestBodyPart>): Boolean {
+    for (part in parts) if (!part.body.isReplayable) return false
+    return true
+}

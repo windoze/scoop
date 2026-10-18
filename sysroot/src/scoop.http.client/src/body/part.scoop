@@ -1,0 +1,34 @@
+package scoop.http.client
+
+import scoop.collections.emptyList
+import scoop.http.*
+
+public class RequestBodyPart public constructor(public val body: RequestBody, fields: List<HttpField> = emptyList<HttpField>()) {
+    public val head: MultipartPartHead = MultipartPartHead(requestBodyFields(body, fields), body.contentLength)
+
+    public companion object {
+        public fun formData(name: String, body: RequestBody, filename: String? = None): RequestBodyPart =
+            RequestBodyPart(body, MultipartPartHead.formData(name, filename).fields)
+    }
+}
+
+internal fun requestBodyFields(body: RequestBody, fields: List<HttpField>): Array<HttpField> {
+    val result = ArrayList<HttpField>()
+    for (field in fields) result.add(field)
+    if (result.findAll("content-type".toByteArray()).size == 0L) {
+        when (body.contentType) { case Some(type) -> result.add(type.toHttpField()); case None -> {} }
+    }
+    if (body.contentEncodings.size != 0L) {
+        if (result.findAll("content-encoding".toByteArray()).size != 0L)
+            throw IllegalArgumentException(Some("request body already supplies its Content-Encoding"))
+        val coding = StringBuilder()
+        var first = true
+        for (encoding in body.contentEncodings) {
+            if (!first) coding.append(", ")
+            first = false
+            coding.append(encoding)
+        }
+        result.add(HttpField("Content-Encoding".toByteArray(), coding.toString().toByteArray()))
+    }
+    return result.toArray()
+}

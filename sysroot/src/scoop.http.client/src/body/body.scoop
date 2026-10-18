@@ -2,15 +2,24 @@ package scoop.http.client
 
 import scoop.asyncio.*
 import scoop.charset.Charset
+import scoop.collections.emptyList
+import scoop.compression.CompressionOptions
+import scoop.compression.GzipOptions
 import scoop.http.HttpMediaType
+import scoop.http.MultipartBoundary
 import scoop.platform.fs.Path
 import scoop.url.UrlQuery
 
 public class RequestBody internal constructor(
-    contentLength: Long?, public val contentType: HttpMediaType?, private val plan: RequestBodyPlan
+    contentLength: Long?, public val contentType: HttpMediaType?, private val plan: RequestBodyPlan,
+    contentEncodings: List<String> = emptyList<String>()
 ) {
     public val contentLength: Long? = checkedBodyLength(contentLength)
+    public val contentEncodings: Array<String> = contentEncodings.toArray()
     public val isReplayable: Boolean get() = plan.isReplayable
+
+    public fun compressed(options: CompressionOptions = CompressionOptions.Gzip(GzipOptions())): RequestBody =
+        compressedRequestBody(this, options)
 
     public suspend fun writeTo(destination: AsyncByteSink, bufferSize: Long = 8192L): Long {
         ensureActive()
@@ -37,6 +46,9 @@ public class RequestBody internal constructor(
             jsonRequestBody(value, codec, maxBytes)
 
         public fun fromForm(parameters: UrlQuery): RequestBody = formRequestBody(parameters)
+
+        public fun fromMultipart(parts: List<RequestBodyPart>, boundary: MultipartBoundary = MultipartBoundary.generate(),
+            subtype: String = "form-data"): RequestBody = multipartRequestBody(parts, boundary, subtype)
 
         public fun fromSource(source: AsyncByteSource, contentLength: Long? = None,
             contentType: HttpMediaType? = None): RequestBody =

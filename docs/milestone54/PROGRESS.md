@@ -200,6 +200,10 @@ SecTrust 对原有十年有效期叶证书的拒绝符合系统政策，测试�
 
 限长与既有无上限读取共 10 项测试通过两种构建的 full moving，共 2 个进程。覆盖 8192 字节缓冲边界、负参数不提交读取、来源错误、实际请求量校验与不接管关闭。EOF／超限探测使用真实 NativeByteBorrow；迟到取消必须等借用完成，再释放内部缓冲并交付 CancellationException，不能把迟到 EOF 当成成功。此改动只提供调用者显式选择的单次内存读取上限，没有新增跨库资源预算。相关生产压缩与协议依赖按正常构建入口刷新。
 
+`m54-request-composition` 在 Darwin 通过 debug／release 两个变体，共 8 个进程。两个 native 线程共享同一可重放 body，将真实异步文件、Unicode 字段、单独 deflate part、空 part 和嵌套 multipart 组合后整体 gzip；通过 HTTP/1 chunked 与 HTTP/2 小窗口发送并逐 part 读取。Python 标准库独立解开两份 gzip／zlib 并解析 MIME，核对原文件、字段、嵌套内容和编码结束；moving GC 与正常构建复用通过。
+
+新增 8 项组合测试逐例通过两种构建的 full moving，共 16 个进程；普通回归覆盖 client 全部 26 项。覆盖四种 HTTP 内容编码、准确长度、字段与 part 快照、重复发送、单次来源在输出 delimiter 前拒绝重用、来源关闭与取消、原始双失败。合并运行的诊断进程采样显示累计收集／搬迁开销，改为逐例验证后全部通过；生产实现与短缓冲覆盖保持不变。初次编译修正测试缺少文本扩展 import 及消费者文件同步方法名，独立 Python 对照通过固定版本 Ruff。统一 HttpClient、trailer 和响应生命周期继续实施。
+
 ## 后续工作
 
 继续完成 HTTP 消息与协议补充、TLS 与 asyncio 缺口，再完成统一 client、策略、存储与长连接组合。每个功能独立验证和提交，最终按设计完成三个目标的运行验收。
