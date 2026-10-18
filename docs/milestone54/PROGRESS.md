@@ -50,6 +50,7 @@
 | 双族 TCP 连接 | connectTcp 域名重载复用异步 DNS／TCP／定时器，按可配置延迟交错候选并限制并发；聚合实际错误、隔离普通失败，交付前收齐落败连接与子任务 | Darwin debug／release：12 项新测试与 asyncio 全部 92 项通过；新增测试通过 moving GC，正式消费者通过双族解析、平台同步对端、半关闭与并发 loop 组合 |
 | SOCKS5 异步隧道 | AsyncSocks5Tunnel 以普通 Scoop 接管异步流，支持无认证／用户名密码、IPv4／IPv6／ASCII 域名和本地／代理 DNS；精确读取回复，保留完整隧道数据与实际拒绝码 | Darwin debug／release：18 项新测试与 asyncio 全部 110 项通过；新增测试通过 moving GC，正式消费者与独立 Python socket 对端完成 20 次互通场景 |
 | 请求 body 基础 | 新建纯 Scoop 的 scoop.http.client，RequestBody 提供空／字节／字符集文本／JSON／表单快照、惰性文件、借用单次来源、独立来源工厂及单次／重新创建的 suspend producer；有限复制与实际长度检查不接管输出端 | Darwin debug／release：18 项新测试通过，全部通过两种构建的 moving GC；正式消费者验证多线程共享快照、HTTP/1 连接复用及 HTTP/2 双向上传和单流取消 |
+| 异步限长读取 | readAllBytes 增加显式 maxBytes 重载，使用有限缓冲，最多额外读取一个字节确认超限；ReadLimitException 保留上限，来源位置和关闭责任保持明确 | Darwin debug／release：6 项新测试及 4 项既有读取回归通过，全部通过两种构建的 moving GC；正式消费者验证文件位置、后续读取和 TCP 半关闭后的继续写入 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -194,6 +195,10 @@ SecTrust 对原有十年有效期叶证书的拒绝符合系统政策，测试�
 `m54-request-body` 在 Darwin 通过 debug／release 两个变体，共 6 个进程。生产 client `.slib` 的两个 native 线程共享同一字节快照和 producer 工厂，完成真实异步文件的 chunked 上传与 HTTP/1 连接复用。HTTP/2 小窗口先取消被背压阻塞的上传，再由另一 producer 读取早期响应后继续发送；动态 Context、最终字节、moving GC 与正常构建复用通过。
 
 18 项 body 测试通过两种构建的 full moving，共 2 个进程。覆盖 UTF-8／ISO-8859-1、JSON 的实际字节上限和 codec 错误、表单顺序、来源与工厂的关闭责任、重新打开后的文件内容、长度不符、单次竞争、短写／零写、并发输出、取消真实收尾及原始双失败。producer 即使捕获下游错误，发送仍保留该错误；保存到发送结束后的 sink 不能再使用。初次编译修正了受限初始化 receiver、尾随 lambda 的语句边界、可选值比较及消费者调用既有 API 的写法，未改变编译器。该项仅完成 body 基础，统一 HttpClient、multipart／上传压缩及 trailer 的高层组合继续实施。
+
+`m54-read-limit` 在 Darwin 通过 debug／release 两个变体，共 6 个进程。正式 asyncio `.slib` 在两个 native 线程中从实际文件与 TCP 收集限长内容，确认超限只消耗一个额外字节、文件位置准确、剩余内容可继续读取；零上限、恰好到 EOF、Long.MAX_VALUE、半关闭后的反向写入、moving GC 与正常构建复用通过。
+
+限长与既有无上限读取共 10 项测试通过两种构建的 full moving，共 2 个进程。覆盖 8192 字节缓冲边界、负参数不提交读取、来源错误、实际请求量校验与不接管关闭。EOF／超限探测使用真实 NativeByteBorrow；迟到取消必须等借用完成，再释放内部缓冲并交付 CancellationException，不能把迟到 EOF 当成成功。此改动只提供调用者显式选择的单次内存读取上限，没有新增跨库资源预算。相关生产压缩与协议依赖按正常构建入口刷新。
 
 ## 后续工作
 

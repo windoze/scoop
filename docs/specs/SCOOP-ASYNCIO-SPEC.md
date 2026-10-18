@@ -68,13 +68,16 @@ public suspend fun AsyncByteSource.readFully(buffer: NativeByteBuffer, count: Lo
 public suspend fun AsyncByteSink.writeFully(buffer: NativeByteBuffer, count: Long = buffer.readableBytes)
 public suspend fun AsyncByteSource.copyTo(destination: AsyncByteSink, bufferSize: Long = 8192L): Long
 public suspend fun AsyncByteSource.readAllBytes(): Array<Byte>
+public suspend fun AsyncByteSource.readAllBytes(maxBytes: Long): Array<Byte>
 ```
 
 count 非负且不超过 buffer 当前可用区间。零长度字节流请求在状态及取消检查后返回零，不执行 native I/O、不表示 EOF。正 read 允许短读，零表示 EOF；正 write 允许短写，零抛平台 WriteZeroException。readFully 不足抛平台 UnexpectedEofException；各扩展保留已提交进度，不回滚或重发。copyTo 不接管任一端关闭责任，不自动 flush。
 
 省略 count 的基本操作扩展取 buffer 当前可用长度后转发。readFully／writeFully 先检查取消与 buffer 范围，零长度不调用端点；copyTo 要求 bufferSize 为正，内部 buffer 在退出时释放。组合扩展检查端点返回的进度在本次请求范围内，不把非法返回值当作正常结束。
 
-readAllBytes 从当前位置读取到 EOF，以固定 8192 字节的原生缓冲处理短读，返回剩余内容的独立数组；它是调用者显式要求的内存汇集，不预先读取文件大小或接管输入端关闭责任。每次读取前检查取消，输入异常及取消保留实际原因，不返回伪装成完整结果的部分数组。底层调用实际结束后才释放内部缓冲；UTF-8 或其他字符集解释由调用者使用现有文本能力完成。
+readAllBytes 从当前位置读取到 EOF，以至多 8192 字节的原生缓冲处理短读，返回剩余内容的独立数组；它是调用者显式要求的内存汇集，不预先读取文件大小或接管输入端关闭责任。每次读取前及接受实际结果前检查取消，输入异常及取消保留实际原因，不返回伪装成完整结果的部分数组。底层调用实际结束后才释放内部缓冲；UTF-8 或其他字符集解释由调用者使用现有文本能力完成。
+
+带 maxBytes 的重载要求上限非负，参数错误在读取和分配缓冲前报告；无参数入口保持显式读取全部内容的行为。结果至多包含 maxBytes 个字节，空输入在零上限下成功；恰好达到上限后仍需确认 EOF。为了区分完整内容与超限，最多额外读取一个字节，超限抛 ReadLimitException 并公开 maxBytes，不交付部分数组。输入实际位置保留在已读前缀之后，不回滚或关闭来源；调用者可继续读取剩余内容。计数和探测大小避免 maxBytes + 1 的溢出，Long.MAX_VALUE 也是合法上限。接受迟到结果时若已取消，等待真实借用结束后交付取消，不把迟到 EOF 或超限改成成功。
 
 read 推进 writer，write 推进 reader，返回前解除平台规范 4.5 的 NativeByteBorrow。取消／关闭也提交已知实际前缀。单次 native 调用选择后端可表示的合法前缀，不溢出截断。借用期间拒绝释放、扩容、清空、游标变更及重复借用；native 只保存稳定 allocation 指针，managed 表保活 owner。路径、DNS 等 managed 字节在提交 worker 前复制到请求自有 native 存储。
 
