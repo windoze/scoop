@@ -1,0 +1,91 @@
+package scoop.compression
+
+import scoop.test.*
+import scoop.platform.io.*
+
+@Test
+private class CompressionStreamTransferTests {
+    @Test
+    fun `sources incrementally transform short reads with small caller buffers`() {
+        for (options in compressionCases()) for (capacity in [1L, 7L, 8192L]) {
+            for (text in ["", "Hello, Scoop!"]) {
+                val input = ShortCompressionSource(text.toByteArray())
+                CompressionSource(input, options, capacity).use { source ->
+                    val bytes = readSmallCompression(source)
+                    assertEquals(text, String.fromUtf8(decompress(bytes, DecompressionOptions(options.format))))
+                    assertEquals(text.toByteArray().size, source.totals.inputBytes)
+                    assertEquals(bytes.size, source.totals.outputBytes)
+                }
+                assertEquals(0, input.closes)
+            }
+            val vector = compressionVector(options.format)
+            val input = ShortCompressionSource(vector)
+            DecompressionSource(input, DecompressionOptions(options.format), capacity).use { source ->
+                assertEquals("Hello, Scoop!", String.fromUtf8(readSmallCompression(source)))
+                assertEquals(vector.size, source.totals.inputBytes)
+                assertEquals(13L, source.totals.outputBytes)
+            }
+            assertEquals(0, input.closes)
+        }
+    }
+
+    @Test
+    fun `sinks finish complete formats through short writes and tiny buffers`() {
+        for (options in compressionCases()) for (capacity in [1L, 7L, 8192L]) {
+            val output = ShortCompressionSink()
+            CompressionSink(output, options, capacity).use { sink ->
+                sink.writeAllBytes("Hello, Scoop!".toByteArray())
+                sink.finish(); sink.finish()
+                assertEquals(13L, sink.totals.inputBytes)
+                assertEquals(output.bytes.size, sink.totals.outputBytes)
+                assertFailsWith<IllegalStateException> { sink.writeAllBytes("more".toByteArray()) }
+            }
+            assertEquals("Hello, Scoop!", String.fromUtf8(decompress(output.bytes.toByteArray(), DecompressionOptions(options.format))))
+            assertEquals(0, output.closes)
+            val decoded = ShortCompressionSink()
+            DecompressionSink(decoded, DecompressionOptions(options.format), capacity).use { sink ->
+                sink.writeAllBytes(compressionVector(options.format))
+                sink.finish()
+                assertEquals(13L, sink.totals.outputBytes)
+            }
+            assertEquals("Hello, Scoop!", String.fromUtf8(decoded.bytes.toByteArray()))
+            assertEquals(0, decoded.closes)
+        }
+    }
+
+    @Test
+    fun `flush delivers a prefix through two adapters without finishing either`() {
+        for (options in compressionCases()) {
+            val output = ShortCompressionSink()
+            DecompressionSink(output, DecompressionOptions(options.format), 1L).use { decoded ->
+                CompressionSink(decoded, options, 1L).use { encoded ->
+                    encoded.writeAllBytes("hello".toByteArray()); encoded.flush()
+                    assertEquals("hello", String.fromUtf8(output.bytes.toByteArray()))
+                    encoded.writeAllBytes("world".toByteArray()); encoded.finish()
+                    decoded.finish(); encoded.flush()
+                    assertEquals("helloworld", String.fromUtf8(output.bytes.toByteArray()))
+                    assertEquals(2, output.flushes)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `copy helpers finish streams and return actual counts without closing endpoints`() {
+        for (options in compressionCases()) {
+            val input = ShortCompressionSource("中文日本".toByteArray())
+            val encoded = ShortCompressionSink()
+            val totals = input.compressTo(encoded, options, 3L)
+            assertEquals(input.bytes.size, totals.inputBytes)
+            assertEquals(encoded.bytes.size, totals.outputBytes)
+            val output = ShortCompressionSink()
+            val compressed = ShortCompressionSource(encoded.bytes.toByteArray())
+            val inverse = compressed.decompressTo(output, DecompressionOptions(options.format), 1L)
+            assertEquals(totals.outputBytes, inverse.inputBytes)
+            assertEquals(totals.inputBytes, inverse.outputBytes)
+            assertEquals("中文日本", String.fromUtf8(output.bytes.toByteArray()))
+            assertEquals(0, input.closes + encoded.closes + compressed.closes + output.closes)
+            assertEquals(0, encoded.flushes + output.flushes)
+        }
+    }
+}

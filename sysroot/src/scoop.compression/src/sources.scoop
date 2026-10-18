@@ -1,0 +1,40 @@
+package scoop.compression
+
+import scoop.platform.io.ByteSource
+import scoop.platform.memory.NativeByteBuffer
+
+public class CompressionSource private constructor(private val stream: SyncCompressionSource) : ByteSource, Closeable {
+    public constructor(source: ByteSource, options: CompressionOptions = CompressionOptions.Zstd(ZstdOptions()),
+        bufferSize: Long = 8192L) : this(SyncCompressionSource(source,
+            compressionIoResources(createCompressionEncoder(options), bufferSize, true), None)) {}
+
+    public companion object {
+        public fun <T> takeOwnership(source: T, options: CompressionOptions = CompressionOptions.Zstd(ZstdOptions()),
+            bufferSize: Long = 8192L): CompressionSource where T : ByteSource, T : Closeable =
+            CompressionSource(SyncCompressionSource(source,
+                compressionIoResources(createCompressionEncoder(options), bufferSize, true), Some(source)))
+    }
+
+    public val totals: CompressionTotals get() = stream.totals
+    public val failure: Throwable? get() = stream.failure
+    public override fun readInto(buffer: NativeByteBuffer, count: Long): Long = stream.readInto(buffer, count)
+    public override fun close() { stream.close() }
+}
+
+public class DecompressionSource private constructor(private val stream: SyncCompressionSource) : ByteSource, Closeable {
+    public constructor(source: ByteSource, options: DecompressionOptions = DecompressionOptions(),
+        bufferSize: Long = 8192L) : this(SyncCompressionSource(source,
+            compressionIoResources(createCompressionDecoder(options), bufferSize, false), None)) {}
+
+    public companion object {
+        public fun <T> takeOwnership(source: T, options: DecompressionOptions = DecompressionOptions(),
+            bufferSize: Long = 8192L): DecompressionSource where T : ByteSource, T : Closeable =
+            DecompressionSource(SyncCompressionSource(source,
+                compressionIoResources(createCompressionDecoder(options), bufferSize, false), Some(source)))
+    }
+
+    public val totals: CompressionTotals get() = stream.totals
+    public val failure: Throwable? get() = stream.failure
+    public override fun readInto(buffer: NativeByteBuffer, count: Long): Long = stream.readInto(buffer, count)
+    public override fun close() { stream.close() }
+}

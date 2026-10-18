@@ -1,0 +1,45 @@
+package scoop.compression
+
+import scoop.platform.memory.NativeByteBuffer
+
+internal class CompressionIoResources(
+    val codec: CompressionCodec, val buffer: NativeByteBuffer, val encoding: Boolean
+) : Closeable {
+    public override fun close() {
+        var failure = compressionCleanup(None) { codec.close() }
+        failure = compressionCleanup(failure) { buffer.close() }
+        throwCompressionFailure(failure)
+    }
+}
+
+internal fun compressionIoResources(codec: CompressionCodec, bufferSize: Long, encoding: Boolean): CompressionIoResources {
+    try {
+        if (bufferSize <= 0L) throw IllegalArgumentException(Some("compression buffer size must be positive"))
+        return CompressionIoResources(codec, NativeByteBuffer.allocate(bufferSize), encoding)
+    } catch (error: Throwable) {
+        throw compressionCleanup(Some(error)) { codec.close() }!!
+    }
+}
+
+internal fun compressionCleanup(previous: Throwable?, cleanup: () -> Unit): Throwable? {
+    try { cleanup(); return previous }
+    catch (error: Throwable) { return Some(when (previous) {
+        case Some(primary) -> ResourceUseException(primary, error)
+        case None -> error
+    }) }
+}
+
+internal fun throwCompressionFailure(failure: Throwable?) {
+    when (failure) { case Some(error) -> throw error; case None -> {} }
+}
+
+internal fun requireCompressionTransfer(count: Long, available: Long) {
+    if (count < 0L) throw IllegalArgumentException(Some("negative compression transfer count"))
+    if (count > available) throw IndexOutOfBoundsException()
+}
+
+internal fun requireCompressionProgress(count: Long, requested: Long, advanced: Long) {
+    if (count < 0L || count > requested || count != advanced) {
+        throw IllegalStateException(Some("invalid compression stream I/O progress"))
+    }
+}

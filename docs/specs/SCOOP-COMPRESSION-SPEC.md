@@ -1,6 +1,6 @@
 # Scoop 压缩库规范
 
-版本：M54，实施中。内存与增量引擎已实现，同步／异步流和 RawDeflate 消息适配继续实施；实际验证见[进度](../milestone54/PROGRESS.md)。范围与实施次序见 [M54 设计](../milestone54/DESIGN.md)。公共命名、字节进度、资源和取消分别遵守[库 API 风格](SCOOP-API-STYLE.md)、[平台库](SCOOP-PLATFORM-SPEC.md)和[异步 I/O](SCOOP-ASYNCIO-SPEC.md)。
+版本：M54，实施中。内存、增量引擎与同步流已实现，异步流和 RawDeflate 消息适配继续实施；实际验证见[进度](../milestone54/PROGRESS.md)。范围与实施次序见 [M54 设计](../milestone54/DESIGN.md)。公共命名、字节进度、资源和取消分别遵守[库 API 风格](SCOOP-API-STYLE.md)、[平台库](SCOOP-PLATFORM-SPEC.md)和[异步 I/O](SCOOP-ASYNCIO-SPEC.md)。
 
 ## 1. Cone、格式与后端
 
@@ -79,7 +79,9 @@ gzip 解码默认支持连续 member；zstd 默认支持连续 frame 及标准 s
 
 source 默认借用输入，sink 默认借用输出，仅拥有自身引擎和缓冲。`takeOwnership` 工厂要求端点同时实现对应关闭协议；成功交付时移交关闭责任，交付前的失败只清理新建状态。关闭接管的包装层时继续关闭端点；借用形式不关闭端点。下游仅有字节协议时也可使用借用形式。
 
-bufferSize 约束实际中间缓冲，不限制总数据量。适配器以有限前缀推进，正确处理短读、短写、压缩膨胀和没有输出的输入；不得先读取完整源再伪装成流。异步包装的下游 I/O、上游 I/O 和等待均通过 suspend 入口，不能在 EventLoop 线程调用同步文件／socket API。codec 每次推进是有限的同步计算，不宣称转移到其他线程或提供硬实时抢占。
+构造参数依次为端点、对应的编码／解码配置和 bufferSize（默认 8192）。`compressTo`／`decompressTo` 是 source 上的扩展函数，接收目标 sink、配置和 bufferSize。流对象提供 totals：inputBytes 是引擎已接受的输入，source 的 outputBytes 是已经写入调用方 buffer 的输出，sink 的 outputBytes 是下游已经接受的输出。失败保留已知进度和原始异常；参数范围错误发生在推进之前。
+
+bufferSize 约束适配器的实际 I/O 中间缓冲，不限制总数据量，也不代替算法窗口；共享 codec 另有固定 8192 字节的待交付区。适配器以有限前缀推进，正确处理短读、短写、压缩膨胀和没有输出的输入；不得先读取完整源再伪装成流。异步包装的下游 I/O、上游 I/O 和等待均通过 suspend 入口，不能在 EventLoop 线程调用同步文件／socket API。codec 每次推进是有限的同步计算，不宣称转移到其他线程或提供硬实时抢占。
 
 异步操作要求活动 Job 和所属 EventLoop。单个适配器同一方向最多一个操作；等待真实输入、输出空间或关闭完成时挂起，不循环轮询。无下游进度时传播背压，不无限积累输出。
 
