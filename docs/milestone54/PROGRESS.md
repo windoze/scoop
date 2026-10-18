@@ -31,6 +31,7 @@
 | 代理请求与 CONNECT | httpProxyRequest／httpConnectRequest 复用 URL 生成正确 target 与 Host，httpConnectAccepted 覆盖全部 2xx；修复 llhttp 适配对 CONNECT 拒绝响应的过早切换 | Darwin debug／release：8 项新测试及 HTTP 150 项验证闭合；新增测试和既有 4 项异步切换测试通过 moving GC，覆盖 1xx、407、chunked／EOF、IPv6、H2 普通 CONNECT 与完整隧道后缀 |
 | Multipart 内存编解码 | MultipartBoundary／PartHead、编码器与增量 decoder；保留二进制 part，单个待取事件与有限 boundary 前缀，生成已知长度及 RFC 7578 form-data 元数据，随机 boundary 复用 crypto | Darwin debug／release 与 moving GC：16 项新测试；HTTP 全部 166 项 debug／release 通过，另有 288 组 Python MIME 双向对照，覆盖短块、padding、未知长度、重复／折行字段、空 part、EOF 与局部限制 |
 | Multipart 异步读取 | MultipartSource／MultipartBody 复用内存 decoder，按消费推进 part，支持有限 discard、明确接管与借用；与 SSE 共用结构化操作及真实 I/O 完成后的清理 | Darwin debug／release：8 项新测试与 HTTP asyncio 全部 43 项通过；新增测试和 9 项 SSE 回归通过两种构建的 moving GC，覆盖短读、未读完关闭、截断、实际进度、并发、取消和双失败 |
+| Multipart 异步写入 | MultipartSink／MultipartPartWriter 复用内存 encoder，按有限前缀输出字段、正文及 delimiter；明确 part／消息 finish 与本地 close，沿用共享结构化 I/O 收尾 | Darwin debug／release：10 项新测试与 HTTP asyncio 全部 53 项通过；新增测试通过两种构建的 moving GC，覆盖短写、已知长度、真实消费量、零进度、同向并发、借用／接管、取消及双失败 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -98,7 +99,11 @@ Multipart 的通用字段保留扩展参数，form-data 工厂遵守 RFC 7578，
 
 `m54-multipart-source` 的 Darwin debug／release 两个变体通过，共 6 个进程；生产 `.slib` 通过真实 TCP 组合 HTTP/1 chunked、gzip 解压、逐 part 读取、有限 discard 与 trailer，完整关闭后复用同一连接。HTTP/2 在小窗口下关闭一个未完成 part 的流，其他 multipart 流与后续请求仍完成；moving GC 与正常构建复用通过。首次消费者编译的两处辅助 API 使用错误修正后复验通过。
 
-共享生命周期调整后的 `m54-sse-async` 同时回归通过，共 2 个变体、6 个进程，保留 HTTP/1／HTTP/2、真实背压、单流取消、moving GC 与缓存复用。异步 multipart 编码继续作为独立功能实施。
+共享生命周期调整后的 `m54-sse-async` 同时回归通过，共 2 个变体、6 个进程，保留 HTTP/1／HTTP/2、真实背压、单流取消、moving GC 与缓存复用。
+
+`m54-multipart-sink` 的 Darwin debug／release 两个变体通过，共 6 个进程；生产 `.slib` 将真实异步文件与空／未知长度 part 组合，经 gzip 和 HTTP/1 chunked 输出，接收端逐 part 验证并消费 trailer，随后复用同一连接。HTTP/2 小窗口下取消被背压阻塞的 multipart 上传，其他流及后续请求继续完成；moving GC 与正常构建复用通过。首次消费者使用了无法从 List 推导元素类型的空数组默认值，改用已有显式类型的集合工厂后通过。
+
+异步 multipart 写入保留已交给编码器的调用者输入消费量，即使下游随后失败；非法参数与可纠正的长度／阶段错误不使 sink 失效。finish 按 multipart、压缩、HTTP 定界的顺序显式执行，提前 close 不补 delimiter、不隐式 flush；取消路径等待真实 NativeByteBorrow 结束才释放本地输出。
 
 异步消息清理的嵌套闭包暴露了构造参数捕获缺口：进入下一 callable 后仍保留构造器的直接参数作用域，使传递捕获丢失，泛型导出或 MIR 生成失败。HIR lowering 现在在 lambda、匿名函数和局部函数边界保存并移开这组直接参数，普通捕获继续保存原 BindingId；没有改变初始化 receiver 限制或在 HTTP 中改写调用来绕过问题。两项回归在修复前失败，修复后全部 1476 项 HIR lowering 测试与 workspace clippy 通过。
 
@@ -123,3 +128,5 @@ Cookie、缓存字段及 SSE 本机测试推进后，清理此前已经结束的
 SSE 与代理组合验收后，清理对应 6 个已经结束的 fixture target 目录，释放约 446 MiB；当前 multipart 消费者、库 target、日志和构建缓存继续保留。
 
 构造参数捕获回归及 multipart 内存验收结束后，清理对应 4 个 fixture target 目录，释放约 208 MiB；原始向量、日志、报告与当前异步库构建产物继续保留。
+
+Multipart 异步双向与共享 SSE 生命周期验收结束后，清理对应 6 个 fixture target 目录，释放约 640 MiB；生产 `.slib`、库 target、原始日志、报告与缓存继续保留。

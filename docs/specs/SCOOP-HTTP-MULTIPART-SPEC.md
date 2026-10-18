@@ -50,9 +50,19 @@ MultipartBody 只交付当前 part 的字节；分隔符、后续头字段和其
 
 关闭已完成的 body 只关闭该 body 的本地视图；关闭未完成 body 等同关闭整个 source，不自动排空网络。source.close 取消当前结构化读取，等操作及原生 borrow 真正结束，再释放 decoder／input／待交付 part 数据，并关闭所接管端点；借用模式保留端点。并发关闭共用一次收尾，取消的 finally 可完成。关闭后解除端点、等待者和当前 part 引用；借用模式同样放弃已预取前缀，不能承诺底层仍停在最后交付正文处。
 
-## 6. 异步编码与验证
+## 6. 异步 part 输出
 
-异步适配复用本规范的编码、解码及元数据，按调用者消费推进 AsyncByteSource／AsyncByteSink。每个 part 正文须读完或显式处理后才推进下一个 part；接管与借用分别声明，提前关闭不自动读取无限正文，取消收尾须等待真实 I/O borrow 结束。异步接口与 client 重放策略在消息工具规范及 client 规范中分别规定。
+`scoop.http.asyncio.MultipartSink(sink, boundary, bufferSize = 8192)` 借用 AsyncByteSink；takeOwnership 工厂在成功返回时接管同时实现 AsyncCloseable 的端点。bufferSize 须为正，构造绑定当前 EventLoop 与活动 Job；配置或登记前取消失败不移交端点，不产生输出。
+
+`beginPart(head): MultipartPartWriter` 可挂起，使用同一 MultipartEncoder 输出 boundary 和完整字段，之后返回当前 part 的 AsyncByteSink／AsyncCloseable。writer.head 保存原不可变元数据，isComplete 表示已成功 finish，isClosed 表示本地视图或整个 sink 已关闭。前一 part 必须 finish 后才能开始下一 part；文件、字节或其他流使用普通 copyTo／writeFrom 组合，不由 multipart 读取路径或创建后台任务。
+
+writer.writeFrom 检查原始 count 与 buffer 范围，然后接受至多 bufferSize 的正文前缀；其已知长度检查与 HTTP/1 writer 相同，针对实际接受的前缀。返回值及调用者 buffer 的消费量均表示已交给编码器的正文量；输出随后失败时也保留这个实际消费量。一个操作最多暂存一个编码块及一个有限输出 buffer，正文不整段缓存；完整头字段仍属于调用者显式提供的元数据。零长度操作检查状态与参数，不调用端点。字段、正文和 delimiter 都检查下游短写及真实 buffer 进度；零进度写抛 WriteZeroException。
+
+writer.finish 通过编码器检查已知长度并输出 part 的结束 CRLF，成功后解除当前 part。sink.finish 要求没有活动 part，输出 closing delimiter 并 flush 下游，然后设置 isFinished；两种 finish 均为单次完成动作，重复调用属于状态错误。flush 只向下游转发，不添加 delimiter；已完成且未关闭的 writer 仍可 flush。isFinished、isClosed、failure 由外层 sink 提供。
+
+所有头部、正文、finish 和 flush 合计至多一个应用输出；错误 loop、登记前取消、参数／编码状态错误与并发误用不损坏流，实际 I/O、flush 或操作内取消后不能继续输出。close 的结构化等待、借用／接管、并发收尾及双失败与第 5 节一致。关闭未完成 writer 关闭整个 multipart sink，关闭已完成 writer 只关闭其视图；close 不补 delimiter、不 flush、不结束外层 HTTP body 或压缩流。调用者按顺序 finish multipart、压缩及 HTTP framing，再关闭相应资源；client 的重放策略另见 client 规范。
+
+## 7. 验证
 
 独立向量覆盖 boundary 字符与引号、RFC 报文、每字节分块、部分匹配保真、transport padding、重复与折行字段、二进制正文、空 part、EOF、局部限制和长度溢出。与独立 MIME 实现互操作后，再通过正式 .slib 消费者组合 HTTP 分块、压缩、moving GC 和构建复用；异步组合另覆盖短读写、背压、取消及所有权。
 

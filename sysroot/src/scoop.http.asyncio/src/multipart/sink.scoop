@@ -1,0 +1,42 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+
+public class MultipartSink private constructor(private val writer: MultipartWriter) : AsyncCloseable {
+    public constructor(sink: AsyncByteSink, boundary: MultipartBoundary, bufferSize: Long = 8192L)
+        : this(createMultipartWriter(sink, None, boundary, bufferSize)) {}
+
+    public companion object {
+        public fun <T> takeOwnership(sink: T, boundary: MultipartBoundary, bufferSize: Long = 8192L): MultipartSink
+            where T : AsyncByteSink, T : AsyncCloseable =
+            MultipartSink(createMultipartWriter(sink, Some<AsyncCloseable>(sink), boundary, bufferSize))
+    }
+
+    public val isClosed: Boolean get() = writer.io.isClosed
+    public val isFinished: Boolean get() = writer.finished
+    public val failure: Throwable? get() = writer.io.failure
+    public suspend fun beginPart(head: MultipartPartHead): MultipartPartWriter = writer.beginPart(head)
+    public suspend fun flush() { writer.flush(None) }
+    public suspend fun finish() { writer.finish() }
+    public override suspend fun close() { writer.io.close() }
+}
+
+private fun createMultipartWriter(sink: AsyncByteSink, owner: AsyncCloseable?, boundary: MultipartBoundary,
+    bufferSize: Long): MultipartWriter {
+    val loop = currentEventLoop()
+    val job = httpJob(loop, true)
+    if (bufferSize <= 0L) throw IllegalArgumentException(Some("multipart buffer size must be positive"))
+    val encoder = MultipartEncoder(boundary)
+    val output = try { NativeByteBuffer.allocate(bufferSize) }
+        catch (error: Throwable) { throw messageCleanup(Some(error)) { encoder.close() }!! }
+    try {
+        job.ensureActive()
+        return MultipartWriter(sink, owner, loop, MultipartWriteState(encoder, output))
+    } catch (error: Throwable) {
+        var failure = messageCleanup(Some(error)) { output.close() }
+        failure = messageCleanup(failure) { encoder.close() }
+        throw failure!!
+    }
+}

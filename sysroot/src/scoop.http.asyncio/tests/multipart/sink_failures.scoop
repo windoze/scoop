@@ -1,0 +1,71 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.platform.io.WriteZeroException
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+@Test private class MultipartSinkFailureTests {
+    @Test fun `partial transport failure retains accepted input and the cleanup cause`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            val output = MessageTestSink()
+            val sink = MultipartSink.takeOwnership(output, MultipartBoundary("b"), 3L)
+            val part = sink.beginPart(MultipartPartHead())
+            val before = output.bytes.size
+            output.failAfter = Some(before + 1L)
+            output.failClose = true
+            NativeByteBuffer.allocate(4L).use suspend { buffer ->
+                buffer.writeBytes("abcd".toByteArray())
+                val error = expectMessageFailure<ResourceUseException> suspend {
+                    sink.useAsync suspend { _ -> part.writeFrom(buffer, 4L); Unit }
+                }
+                assertTrue(error.primaryFailure is TransportFailure && error.cleanupFailure is CleanupFailure)
+                assertEquals(3L, buffer.readPosition)
+                assertEquals(before + 1L, output.bytes.size)
+            }
+            assertTrue(sink.failure!! is TransportFailure && sink.isClosed && part.isClosed)
+            assertEquals(1, output.closes)
+            sink.close()
+        }
+    }
+
+    @Test fun `invalid progress and zero writes fail instead of looping or reusing output`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            for (mode in [1, 2, 3, 4]) {
+                val output = MessageTestSink()
+                output.badProgress = mode
+                val sink = MultipartSink.takeOwnership(output, MultipartBoundary("b"), 3L)
+                expectMessageFailure<IllegalStateException> suspend { sink.beginPart(MultipartPartHead()) }
+                assertTrue(sink.failure!! is IllegalStateException)
+                sink.close()
+                assertEquals(1, output.closes)
+            }
+            val output = MessageTestSink(0L)
+            val sink = MultipartSink.takeOwnership(output, MultipartBoundary("b"))
+            expectMessageFailure<WriteZeroException> suspend { sink.finish() }
+            assertTrue(sink.failure!! is WriteZeroException && !sink.isFinished)
+            sink.close()
+        }
+    }
+
+    @Test fun `downstream flush failure prevents successful completion and close does not retry flush`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            val output = MessageTestSink(3L)
+            output.failFlush = true
+            val sink = MultipartSink(output, MultipartBoundary("b"), 3L)
+            expectMessageFailure<TransportFailure> suspend { sink.finish() }
+            assertFalse(sink.isFinished)
+            assertTrue(sink.failure!! is TransportFailure)
+            expectMessageFailure<IllegalStateException> suspend { sink.flush() }
+            sink.close()
+            assertEquals("--b--\r\n", String.fromUtf8(output.bytes))
+            assertEquals(1, output.flushes)
+            assertEquals(0, output.closes)
+            output.close()
+        }
+    }
+}
