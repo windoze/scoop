@@ -9,6 +9,35 @@ import scoop.test.*
 @Test
 private class AsyncHttp1CancellationTests {
     @Test
+    fun `cancellation remains primary when transport closure overtakes a pending read`() {
+        withHttp1 suspend { scope, transport, _, client, server ->
+            client.sendRequest(request()).finish()
+            receiveBytes(server.receiveRequest()!!.body)
+            server.sendResponse(response(), Http1BodyFraming.Length(1L))
+            val incoming = client.receiveResponse()
+            val release = AsyncGate()
+            transport.readGate = Some(release)
+            transport.readStarted = AsyncGate()
+            val cancelled = AtomicBoolean(false)
+            NativeByteBuffer.allocate(1L).use suspend { buffer ->
+                val reading = scope.launch suspend {
+                    try { incoming.body.readInto(buffer, 1L); fail(Some("cancelled read succeeded")) }
+                    catch (_: CancellationException) { cancelled.store(true) }
+                }
+                transport.readStarted.await()
+                reading.cancel()
+                transport.closeStarted.await()
+                assertFalse(reading.isCompleted)
+                release.signal()
+                reading.join()
+                buffer.clear()
+                assertTrue(cancelled.load() && client.isClosed)
+                assertEquals(1, transport.closes)
+            }
+        }
+    }
+
+    @Test
     fun `pending body cancellation and concurrent close await the same cleanup`() {
         withHttp1 suspend { scope, a, _, client, server ->
             client.sendRequest(request()).finish()

@@ -20,6 +20,11 @@ public class AsyncHttp1Connection internal constructor(internal val state: H1Sta
 
     public val role: HttpRole get() = state.encoder.role
     public val isClosed: Boolean get() = state.lock.withLock { state.closed }
+    public val isReusable: Boolean get() = state.lock.withLock {
+        !state.closing && !state.inputEnded && !state.readBusy && !state.writeBusy &&
+            !present(state.incoming) && !present(state.outgoing) && state.clientPending == 0L &&
+            state.requests.size == 0L && !state.encoder.mustClose && !state.encoder.isSwitched && !state.decoder.isSwitched
+    }
     public suspend fun sendRequest(head: HttpRequestHead, body: Http1BodyFraming = Http1BodyFraming.Empty): AsyncHttp1Writer = sendH1Request(state, head, body)
     public suspend fun sendResponse(head: HttpResponseHead, body: Http1BodyFraming = Http1BodyFraming.Empty): AsyncHttp1Writer = sendH1Response(state, head, body)
     public suspend fun receiveRequest(): Http1IncomingRequest? = receiveH1Request(state)

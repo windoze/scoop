@@ -21,13 +21,25 @@ internal suspend fun <P, T> h1PreparedOperation(state: H1State, reading: Boolean
     }
     val result = try { job.ensureActive(); block(prepared) }
     catch (error: Throwable) {
+        val selected = state.lock.withLock { state.primary }
+        val failure = if (present(selected) && selected!! is CancellationException)
+            h1CancellationFailure(error, selected!!) else error
         listener.dispose()
         endH1Operation(state, reading)
-        failH1Operation(state, error)
+        failH1Operation(state, failure)
     }
     listener.dispose()
     endH1Operation(state, reading)
     return result
+}
+
+private fun h1CancellationFailure(error: Throwable, cancellation: Throwable): Throwable {
+    if (error is IoClosedException) return cancellation
+    if (error is ResourceUseException) {
+        val primary = h1CancellationFailure(error.primaryFailure, cancellation)
+        if (primary !== error.primaryFailure) return ResourceUseException(primary, error.cleanupFailure)
+    }
+    return error
 }
 
 private fun endH1Operation(state: H1State, reading: Boolean) {

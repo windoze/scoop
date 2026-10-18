@@ -17,6 +17,7 @@ private class AsyncHttp1SwitchTests {
                 try { server.takeTransport(); fail(Some("unaccepted upgrade transferred")) }
                 catch (_: IllegalStateException) { assertFalse(server.isClosed) }
                 server.sendResponse(http2UpgradeResponse()).finish()
+                assertFalse(server.isReusable)
                 val tunnel = server.takeTransport()
                 try { sendBytes(tunnel, "raw".toByteArray()); release.await() }
                 finally { tunnel.close() }
@@ -25,6 +26,7 @@ private class AsyncHttp1SwitchTests {
             val incoming = client.receiveResponse()
             assertTrue(http2UpgradeAccepted(incoming.head))
             receiveBytes(incoming.body)
+            assertFalse(client.isReusable)
             val tunnel = client.takeTransport()
             try {
                 client.close(); server.close()
@@ -50,6 +52,7 @@ private class AsyncHttp1SwitchTests {
                 sendBytes(b, "HTTP/1.1 200 Connection Established\r\n\r\ntunnel".toByteArray())
                 val incoming = client.receiveResponse()
                 assertEquals(0L, receiveBytes(incoming.body).size)
+                assertFalse(client.isReusable)
                 val tunnel = client.takeTransport()
                 try {
                     client.close(); assertEquals(0, a.closes)
@@ -88,6 +91,7 @@ private class AsyncHttp1SwitchTests {
             assertFalse(http2UpgradeAccepted(answer.head))
             receiveBytes(answer.body)
             sendBytes(writer, "sent".toByteArray()); writer.finish()
+            assertTrue(client.isReusable)
             client.sendRequest(request()).finish()
             assertEquals(204U, client.receiveResponse().head.status)
             serving.join()

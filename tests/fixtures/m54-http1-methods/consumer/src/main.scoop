@@ -22,13 +22,16 @@ fun main() {
             try {
                 var index = 0
                 for (method in ["CUSTOM", "HEAD", "head", "connect"]) {
+                    check(connection.isReusable)
                     val request = HttpRequestHead(HttpVersion.Http11, method.toByteArray(),
                         HttpRequestTarget.Http1("/resource".toByteArray()),
                         [HttpField("Host".toByteArray(), "example.test".toByteArray())])
                     connection.sendRequest(request).finish()
+                    check(!connection.isReusable)
                     @Unsafe { check(peerReply(index) == 0) }
                     val informational = connection.receiveResponse()
                     check(informational.head.status == 100U)
+                    check(!connection.isReusable)
                     NativeByteBuffer.allocate(3L).use suspend { buffer ->
                         check(informational.body.readInto(buffer, 3L) == 0L)
                         val response = connection.receiveResponse()
@@ -41,6 +44,7 @@ fun main() {
                         buffer.clear()
                         check(response.body.readInto(buffer, 3L) == 0L)
                         check(response.body.isComplete)
+                        check(connection.isReusable)
                     }
                     index += 1
                 }

@@ -8,6 +8,7 @@
 | --- | --- | --- |
 | HTTP 协议摘要 | `scoop.crypto` 增加 SHA-1、MD5、SHA-512/256 的一次性与增量摘要；HMAC、签名及 JWS 算法集合保持原合同 | Darwin debug／release 与 moving GC：3 项新测试及 3 项既有摘要／MAC 测试；标准空输入与 abc 向量、WebSocket Accept、HTTP Digest 凭据、增量状态和 HMAC 参数边界 |
 | HTTP/1 扩展方法 | 编码器与客户端响应上下文接受任意合法 token，HEAD／CONNECT 按精确大小写分类；服务端 llhttp 已知方法限制保留 | Darwin debug／release 与 moving GC：28 项 HTTP/1 测试，包括 4 项新增方法测试；合法 token 保真、非法 token 不改变状态、信息响应和混合方法关联 |
+| HTTP/1 复用状态与取消结果 | AsyncHttp1Connection.isReusable 公开真实消息／请求关联、持久连接和切换状态；已选择的任务取消不被同次关闭产生的 IoClosedException 覆盖，清理错误仍保留 | Darwin debug／release：15 项相关测试及 full moving 全部通过；新增 2 项复用测试与 1 项确定取消竞态测试，原跨线程取消用例另在两种构建各重复 12 次通过 |
 | 多证书 PEM | crypto 提供 `parseCertificatesPem` 与 `TrustStore.fromPem`；保留顺序、独立拥有证书，拒绝空包、坏片段与非证书内容，失败释放部分结果 | Darwin debug／release 与 moving GC：3 项 bundle 测试与 3 项既有证书测试；重复证书的独立关闭、显式信任链、临时 bundle 释放后的锚保活 |
 | 独立 IDNA | `scoop.idna` 提供完整域名／单标签双向转换、OrNone、`IdnaName` 双表示快照、结构化错误及原始 RFC 3492 codec；固定 libidn2 2.3.8、libunistring 1.4.2、libiconv 1.19，无 ICU | Darwin debug／release 与 moving GC：10 项测试；官方 Unicode 15.1 的 6265 个输入与同版本映射表独立对照，无未解释差异 |
 | 独立 URL | `scoop.url` 提供不可变 URI／IRI、组件 builder、相对解析、网络 origin、HTTP target、百分号／表单与有序重复 query；固定 uriparser 1.0.2，复用 IDNA 的已验证双表示 | Darwin debug／release 与 moving GC：12 项测试，包含 RFC 3986 第 5 节的 42 个解析向量、字节位置映射、IPv4／IPv6、IRI、空组件与编码边界 |
@@ -55,6 +56,8 @@
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
 `m54-http1-methods` 通过真实 TCP 与独立 C 对端核对 CUSTOM、HEAD、head、connect 及 100／最终响应；debug／release、moving GC 与缓存复用通过。既有 `m53-http1-consumer`、`m53-http1-async-consumer` 同时回归通过，共 6 个变体、18 个进程。原生对端用例初次因消费后未重置测试缓冲区失败，修正用例后全部通过。
+
+`m54-http1-methods` 增加复用状态断言后，两种构建的 6 个进程通过，覆盖发送、信息响应与最终消息之间的变化。新增 `m54-http1-cancellation` 的两种构建共 6 个进程通过：确定地让传输关闭先于挂起读取返回，组合独立 native 线程取消、并发 close、缓冲区实际释放、full moving 与缓存复用。原竞态曾在 debug moving 中返回 IoClosedException，修复所属协议库后，相关 15 项和额外 24 次跨线程重复验证均通过。
 
 `m54-certificate-bundle` 的 debug／release 两个变体通过，共 6 个进程；从生产 crypto `.slib` 解析双证书、构造信任库、验证证书并拒绝坏尾部，覆盖 moving GC 与缓存复用。
 
@@ -245,3 +248,5 @@ CA 文件组合验收结束后，清理客户端身份的 2 个已结束 fixture
 路径修改与临时文件验收结束后，清理对应 4 个已结束 fixture target 目录，释放约 194 MiB；保留正式源码、验证报告、日志、缓存及当前库 target。
 
 请求 body 验收期间，清理目录枚举和 TCP 竞速对应的 4 个已结束 fixture target 目录，释放约 205 MiB；保留正式源码、验证报告、日志、缓存、生产 sysroot 和当前库 target。
+
+请求组合与客户端连接池推进期间，清理 SOCKS5、请求 body、multipart／压缩组合及第一轮 HTTP/1 复用消费者的 8 个已结束 fixture target 目录，释放约 914 MiB；保留源码、生产 sysroot、当前库 target、原始日志、报告与缓存。
