@@ -1,0 +1,30 @@
+package scoop.compression
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.platform.memory.NativeByteBuffer
+
+public fun compress(data: List<Byte>, options: CompressionOptions = CompressionOptions.Zstd(ZstdOptions())): Array<Byte> =
+    createCompressionEncoder(options).use { codec -> memoryCompression(data, codec, true) }
+
+public fun decompress(data: List<Byte>, options: DecompressionOptions = DecompressionOptions()): Array<Byte> =
+    createCompressionDecoder(options).use { codec -> memoryCompression(data, codec, false) }
+
+private fun memoryCompression(data: List<Byte>, codec: CompressionCodec, encoding: Boolean): Array<Byte> {
+    return NativeByteBuffer.allocate(data.size).use { input ->
+        input.writeBytes(data)
+        NativeByteBuffer.allocate(8192L).use { output ->
+            val result = ByteArrayBuilder()
+            while (true) {
+                output.clear()
+                val action = if (!encoding || input.readableBytes == 0L) 2 else 0
+                val step = codec.step(Some(input), input.readableBytes, output, output.writableBytes, action)
+                result.append(output.readBytes(step.produced))
+                if (step.state == CompressionState.Finished) {
+                    if (input.readableBytes > 0L) compressionTrailing(codec.format)
+                    break
+                }
+            }
+            result.toByteArray()
+        }
+    }
+}

@@ -1,0 +1,20 @@
+package scoop.compression
+
+import scoop.platform.memory.NativeByteBuffer
+
+public class CompressionDictionary private constructor(private val buffer: NativeByteBuffer) : Closeable {
+    public val size: Long get() = buffer.readableBytes
+
+    public companion object {
+        public fun fromByteArray(data: List<Byte>): CompressionDictionary {
+            if (data.size == 0L) throw IllegalArgumentException(Some("compression dictionary cannot be empty"))
+            val buffer = NativeByteBuffer.allocate(data.size)
+            try { buffer.writeBytes(data); return CompressionDictionary(buffer) }
+            catch (error: Throwable) { buffer.close(); throw error }
+        }
+    }
+
+    @Unsafe internal fun <T> withBytes(block: (Ptr<Byte>?, Long) -> T): T = buffer.withReadableBytes(block)
+
+    public override fun close() { buffer.close() }
+}

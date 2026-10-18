@@ -1,0 +1,75 @@
+package scoop.compression
+
+import scoop.test.*
+import scoop.text.*
+import scoop.collections.emptyList
+
+@Test
+private class CompressionMemoryTests {
+    @Test
+    fun `independent format vectors and one byte buffers preserve complete streams`() {
+        for (options in compressionCases()) {
+            val decoding = DecompressionOptions(options.format)
+            assertEquals("Hello, Scoop!", String.fromUtf8(decompress(compressionVector(options.format), decoding)))
+            assertEquals("Hello, Scoop!", String.fromUtf8(chunkedDecompress(compressionVector(options.format), decoding)))
+            val encoded = chunkedCompress("Hello, Scoop!".toByteArray(), options)
+            assertEquals("Hello, Scoop!", String.fromUtf8(decompress(encoded, decoding)))
+            assertEquals("", String.fromUtf8(decompress(compress(emptyList<Byte>(), options), decoding)))
+        }
+        assertEquals("2.3.3", compressionBackendVersion(CompressionFormat.Gzip))
+        assertEquals("1.2.0", compressionBackendVersion(CompressionFormat.Brotli))
+        assertEquals("1.5.7", compressionBackendVersion(CompressionFormat.Zstd))
+        assertTrue(compress("a".toByteArray()).toHexString().startsWith("28b52ffd"))
+    }
+
+    @Test
+    fun `gzip metadata is explicit copied and deterministic`() {
+        val name = MutableArray<Byte>(1L) { _ -> 65.toByte() }
+        val metadata = GzipMetadata(Some<List<Byte>>(name), Some<List<Byte>>("hi".toByteArray()), 42U, true)
+        name[0L] = 66.toByte()
+        val options = CompressionOptions.Gzip(GzipOptions(metadata = metadata))
+        val first = compress("abc".toByteArray(), options)
+        assertTrue(first.toHexString().startsWith("1f8b081a2a00000000ff4100686900"))
+        assertEquals(first.toHexString(), compress("abc".toByteArray(), options).toHexString())
+        assertEquals("abc", String.fromUtf8(decompress(first, DecompressionOptions(CompressionFormat.Gzip))))
+        val invalid = GzipMetadata(filename = Some<List<Byte>>("a\u{0000}b".toByteArray()))
+        assertFailsWith<IllegalArgumentException> { CompressionEncoder(CompressionOptions.Gzip(GzipOptions(metadata = invalid))) }
+    }
+
+    @Test
+    fun `configuration rejects unsupported combinations and window expansion`() {
+        for (options in [CompressionOptions.Gzip(GzipOptions(windowBits = 8)),
+            CompressionOptions.Zlib(DeflateOptions(level = 10)), CompressionOptions.RawDeflate(DeflateOptions(windowBits = 8)),
+            CompressionOptions.Brotli(BrotliOptions(quality = 12)), CompressionOptions.Brotli(BrotliOptions(windowBits = 9)),
+            CompressionOptions.Zstd(ZstdOptions(level = 1000))]) {
+            assertFailsWith<IllegalArgumentException> { CompressionEncoder(options) }
+        }
+        assertFailsWith<IllegalArgumentException> { CompressionDecoder(DecompressionOptions(maxOutputBytes = Some(-1L))) }
+        assertFailsWith<IllegalArgumentException> { CompressionDecoder(DecompressionOptions(maxWindowBytes = Some(1023L))) }
+        assertFailsWith<IllegalArgumentException> { CompressionDecoder(DecompressionOptions(CompressionFormat.Gzip, maxWindowBytes = Some(4096L))) }
+        CompressionDictionary.fromByteArray("dictionary".toByteArray()).use { dictionary ->
+            assertFailsWith<IllegalArgumentException> { CompressionDecoder(DecompressionOptions(CompressionFormat.Zlib, Some(dictionary))) }
+        }
+    }
+
+    @Test
+    fun `empty compressed input truncated tails and checksum errors are failures`() {
+        for (options in compressionCases()) {
+            val decoding = DecompressionOptions(options.format)
+            val empty = assertFailsWith<CompressionException> { decompress(emptyList<Byte>(), decoding) }
+            assertTrue(empty.kind == CompressionFailureKind.Truncated)
+            val vector = compressionVector(options.format)
+            val truncated = Array<Byte>(vector.size - 1L) { index -> vector[index] }
+            val error = assertFailsWith<CompressionException> { decompress(truncated, decoding) }
+            assertTrue(error.kind == CompressionFailureKind.Truncated)
+        }
+        for (format in [CompressionFormat.Gzip, CompressionFormat.Zlib, CompressionFormat.Zstd]) {
+            val vector = compressionVector(format)
+            val corrupted = MutableArray<Byte>(vector.size) { index -> vector[index] }
+            corrupted[corrupted.size - 1L] = (corrupted[corrupted.size - 1L].toInt() xor 1).toByte()
+            val error = assertFailsWith<CompressionException> { decompress(corrupted, DecompressionOptions(format)) }
+            assertTrue(error.kind == CompressionFailureKind.InvalidData)
+        }
+        assertFailsWith<CompressionException> { decompress(compressionVector(CompressionFormat.RawDeflate), DecompressionOptions(CompressionFormat.Zlib)) }
+    }
+}

@@ -1,6 +1,6 @@
 # Scoop 压缩库规范
 
-版本：M54 设计，尚未实施。范围与实施次序见 [M54 设计](../milestone54/DESIGN.md)。公共命名、字节进度、资源和取消分别遵守[库 API 风格](SCOOP-API-STYLE.md)、[平台库](SCOOP-PLATFORM-SPEC.md)和[异步 I/O](SCOOP-ASYNCIO-SPEC.md)。
+版本：M54，实施中。内存与增量引擎已实现，同步／异步流和 RawDeflate 消息适配继续实施；实际验证见[进度](../milestone54/PROGRESS.md)。范围与实施次序见 [M54 设计](../milestone54/DESIGN.md)。公共命名、字节进度、资源和取消分别遵守[库 API 风格](SCOOP-API-STYLE.md)、[平台库](SCOOP-PLATFORM-SPEC.md)和[异步 I/O](SCOOP-ASYNCIO-SPEC.md)。
 
 ## 1. Cone、格式与后端
 
@@ -20,7 +20,13 @@
 
 编码配置为按算法区分的普通值：Gzip／Zlib／RawDeflate 的 level、windowBits 和 strategy，Brotli 的 quality、windowBits 和 mode，Zstd 的 level、checksum 与可选 dictionary。参数范围按固定后端检查；不设计会把无关参数静默忽略的通用选项 Map。Gzip 默认使用不含路径、固定 mtime 的头，使同一配置与输入可重复；明确提供文件名等元数据时才写入相应字段。
 
+`CompressionOptions` 的五个 variant 分别持有 `GzipOptions`、`DeflateOptions`、`DeflateOptions`、`BrotliOptions`、`ZstdOptions`。DEFLATE 默认 level 6、windowBits 15、Default strategy，编码窗口明确为 9～15；不接受后端会放大成 9 的 8 位编码窗口。Brotli 默认 quality 5、windowBits 22、Generic mode，分别接受 0～11、10～24 和 Generic／Text／Font。Zstd 默认 level 3、checksum true，等级按固定后端实际范围校验。
+
+`GzipMetadata` 提供可选 filename／comment 字节、UInt 类型的 Unix 秒数（默认 0）和 headerCrc。文件名／注释按 RFC 1952 的字节字段保存，复制调用方输入并拒绝嵌入 NUL；不隐式截断路径或猜测文本编码。固定 OS 标记为 unknown，使相同配置的头部不随宿主变化。
+
 解码配置包含所选格式、可选 zstd dictionary，以及实际所需的最大输出字节数和 zstd 最大窗口。缺省不设总输出上限；调用者可以在处理网络或文件数据时给出具体限制。这些限制只约束当前解码对象，不是跨库预算或计费。分配、计数和后端整数转换须做实际溢出检查。
+
+`DecompressionOptions` 提供 format、dictionary、maxOutputBytes、maxWindowBytes 和 Automatic／Single 模式。字典与最大窗口参数仅适用于 zstd，其他格式收到这些选项时报参数错误；未指定 zstd 窗口时采用固定后端的默认 128 MiB。Single 令内存引擎在第一个 frame／member 结束时返回 Finished，并保留 input buffer 中的后缀；完整内存操作和流适配仍要求所给输入没有尾随数据。
 
 必须提供以下表面；省略的具体配置字段遵守上表，不靠实现中的隐藏默认值决定格式。
 
@@ -33,11 +39,13 @@
 
 引擎保留已经接收的配置与字典引用。关闭传入的字典 wrapper 不使正在使用它的引擎失效；native 引用或独立副本由压缩库自己管理。外部数组后续变动不能改变配置或字典。
 
-`CompressionException` 保存 operation、format、kind、后端原码和已复制 detail。kind 至少区分 InvalidData、Truncated、DictionaryRequired、DictionaryMismatch、OutputLimit、WindowLimit 和 Backend。参数、状态、内存分配错误使用实际对应异常；底层 I/O 异常保留原类型。校验和不匹配属于 InvalidData，不交付一个宣称完整的成功结果。
+`CompressionException` 保存 operation、format、kind、后端原码和已复制 detail。kind 至少区分 InvalidData、Truncated、DictionaryRequired、DictionaryMismatch、OutputLimit、WindowLimit 和 Backend。参数、状态、内存分配错误使用实际对应异常；native 分配失败对应 PlatformException／NoMemory，计数或分配大小溢出对应 ArithmeticException。底层 I/O 异常保留原类型。校验和不匹配属于 InvalidData，不交付一个宣称完整的成功结果。
 
 ## 3. 共享增量引擎
 
 编码器与解码器以 NativeByteBuffer 的可读／可写前缀推进，返回本次 consumed、produced 和状态。状态区分 NeedInput、NeedOutput、Finished；发生进度后可以同时需要后续输入或输出，不以零进度表示 EOF。只有显式 endInput 或编码 finish 才能宣告不会再有输入。
+
+编码器的 `process(input, output, count)` 接受原文，`flush(output)` 与 `finish(output)` 只推进已有状态。flush 返回 NeedInput 表示同步点已完全取走，finish 返回 Finished 表示结束标记已完全取走。解码器的 `process(input, output, count, endInput)` 在本次 count 尚未全部消费时要求后续继续携带 endInput。调用方可以使用比编码器输出单元更小的 buffer；库内保留有限的待交付字节，实际消耗与交付仍分别报告。
 
 输入与输出使用不同 buffer；每次调用只消费合法前缀、初始化实际输出并推进相应游标。窗口、整数和后端单次输入范围均在真实边界检查。后端只持有自己的状态，不能保存 managed Array／String 的临时地址。临时 native 借用在该步返回前完成；输出进入异步下游前不得仍被 codec 借用。
 

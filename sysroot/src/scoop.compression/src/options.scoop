@@ -1,0 +1,68 @@
+package scoop.compression
+
+public enum CompressionFormat { Gzip, Zlib, RawDeflate, Brotli, Zstd }
+public enum CompressionState { NeedInput, NeedOutput, Finished }
+public enum DeflateStrategy { Default, Filtered, HuffmanOnly, Rle, Fixed }
+public enum BrotliMode { Generic, Text, Font }
+public enum DecompressionMode { Automatic, Single }
+
+public class DeflateOptions public constructor(
+    public val level: Int = 6, public val windowBits: Int = 15,
+    public val strategy: DeflateStrategy = DeflateStrategy.Default
+)
+
+public class GzipMetadata public constructor(
+    filename: List<Byte>? = None, comment: List<Byte>? = None,
+    public val modifiedUnixSeconds: UInt = 0U, public val headerCrc: Boolean = false
+) {
+    public val filename: Array<Byte>? = when (filename) { case Some(bytes) -> Some(bytes.toArray()); case None -> None }
+    public val comment: Array<Byte>? = when (comment) { case Some(bytes) -> Some(bytes.toArray()); case None -> None }
+}
+
+public class GzipOptions public constructor(
+    public val level: Int = 6, public val windowBits: Int = 15,
+    public val strategy: DeflateStrategy = DeflateStrategy.Default,
+    public val metadata: GzipMetadata = GzipMetadata()
+)
+
+public class BrotliOptions public constructor(
+    public val quality: Int = 5, public val windowBits: Int = 22,
+    public val mode: BrotliMode = BrotliMode.Generic
+)
+
+public class ZstdOptions public constructor(
+    public val level: Int = 3, public val checksum: Boolean = true,
+    public val dictionary: CompressionDictionary? = None
+)
+
+public enum CompressionOptions {
+    Gzip(val value: GzipOptions), Zlib(val value: DeflateOptions), RawDeflate(val value: DeflateOptions),
+    Brotli(val value: BrotliOptions), Zstd(val value: ZstdOptions)
+
+    public val format: CompressionFormat get() = when (this) {
+        case Gzip(_) -> CompressionFormat.Gzip
+        case Zlib(_) -> CompressionFormat.Zlib
+        case RawDeflate(_) -> CompressionFormat.RawDeflate
+        case Brotli(_) -> CompressionFormat.Brotli
+        case Zstd(_) -> CompressionFormat.Zstd
+    }
+}
+
+public class DecompressionOptions public constructor(
+    public val format: CompressionFormat = CompressionFormat.Zstd,
+    public val dictionary: CompressionDictionary? = None,
+    public val maxOutputBytes: Long? = None,
+    public val maxWindowBytes: Long? = None,
+    public val mode: DecompressionMode = DecompressionMode.Automatic
+)
+
+public struct CompressionStep(val consumed: Long, val produced: Long, val state: CompressionState)
+public struct CompressionTotals(val inputBytes: Long, val outputBytes: Long)
+
+internal fun compressionFormatCode(format: CompressionFormat): Int = when (format) {
+    case Gzip -> 0; case Zlib -> 1; case RawDeflate -> 2; case Brotli -> 3; case Zstd -> 4
+}
+
+internal fun deflateStrategyCode(strategy: DeflateStrategy): Int = when (strategy) {
+    case Default -> 0; case Filtered -> 1; case HuffmanOnly -> 2; case Rle -> 3; case Fixed -> 4
+}

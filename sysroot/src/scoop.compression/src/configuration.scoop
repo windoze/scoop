@@ -1,0 +1,65 @@
+package scoop.compression
+
+internal fun createCompressionEncoder(options: CompressionOptions): CompressionCodec {
+    val config = encoderConfiguration(options)
+    val dictionary = when (options) { case Zstd(value) -> value.dictionary; else -> None }
+    val metadata = when (options) { case Gzip(value) -> Some(value.metadata); else -> None }
+    return openCompressionCodec(config, options.format, dictionary, metadata)
+}
+
+internal fun createCompressionDecoder(options: DecompressionOptions): CompressionCodec {
+    if (options.maxOutputBytes != None && options.maxOutputBytes!! < 0L) throw IllegalArgumentException(Some("negative output limit"))
+    if (options.maxWindowBytes != None && options.maxWindowBytes!! <= 0L) throw IllegalArgumentException(Some("nonpositive window limit"))
+    val concatenate = options.mode == DecompressionMode.Automatic &&
+        (options.format == CompressionFormat.Gzip || options.format == CompressionFormat.Zstd)
+    val config = NativeCompressionOptions(compressionFormatCode(options.format), 0, 0, 15, 0, 0,
+        if (concatenate) 1 else 0, options.maxOutputBytes ?: -1L, options.maxWindowBytes ?: -1L)
+    return openCompressionCodec(config, options.format, options.dictionary, None)
+}
+
+private fun encoderConfiguration(options: CompressionOptions): NativeCompressionOptions {
+    val (level, window, strategy, checksum) = when (options) {
+        case Gzip(value) -> (value.level, value.windowBits, deflateStrategyCode(value.strategy), 0)
+        case Zlib(value) -> (value.level, value.windowBits, deflateStrategyCode(value.strategy), 0)
+        case RawDeflate(value) -> (value.level, value.windowBits, deflateStrategyCode(value.strategy), 0)
+        case Brotli(value) -> (value.quality, value.windowBits,
+            when (value.mode) { case Generic -> 0; case Text -> 1; case Font -> 2 }, 0)
+        case Zstd(value) -> (value.level, 0, 0, if (value.checksum) 1 else 0)
+    }
+    return NativeCompressionOptions(compressionFormatCode(options.format), 1, level, window, strategy, checksum, 0, -1L, -1L)
+}
+
+private fun openCompressionCodec(config: NativeCompressionOptions, format: CompressionFormat,
+    dictionary: CompressionDictionary?, metadata: GzipMetadata?): CompressionCodec {
+    @Unsafe {
+        val handle = when (dictionary) {
+            case None -> compressionNew(config, None, 0L)
+            case Some(value) -> value.withBytes { data, count -> @Unsafe { return@withBytes compressionNew(config, data, count) } }
+        }
+        if (handle == 0UL) throw compressionError(9, 0, "cannot allocate compression codec", format)
+        try {
+            val initial = checkCompressionConstruction(handle, format)
+            val info = when (metadata) {
+                case Some(value) -> { configureGzip(handle, value); checkCompressionConstruction(handle, format) }
+                case None -> initial
+            }
+            val codec = CompressionCodec(handle, info.memory, format, config.encoding != 0)
+            gcAdjustPressure(info.memory)
+            return codec
+        } catch (error: Throwable) { compressionFree(handle); throw error }
+    }
+}
+
+@Unsafe private fun checkCompressionConstruction(handle: ULong, format: CompressionFormat): NativeCompressionInfo {
+    val info = compressionInfo(handle)
+    if (info.kind != 0) throw compressionError(info.kind, info.code, String.fromCString(compressionMessage(handle)), format)
+    return info
+}
+
+@Unsafe private fun configureGzip(handle: ULong, metadata: GzipMetadata) {
+    withCompressionBytes(metadata.filename) { name, nameSize ->
+        @Unsafe { withCompressionBytes(metadata.comment) { comment, commentSize ->
+            @Unsafe { compressionGzip(handle, name, nameSize, comment, commentSize, metadata.modifiedUnixSeconds, if (metadata.headerCrc) 1 else 0) }
+        } }
+    }
+}
