@@ -1,0 +1,30 @@
+package scoop.asyncio
+
+import scoop.platform.net.*
+import scoop.platform.system.OsString
+import scoop.time.Duration
+
+public class TcpConnectOptions public constructor(
+    public val resolutionDelay: Duration = Duration.milliseconds(50L),
+    public val attemptDelay: Duration = Duration.milliseconds(250L),
+    public val maxConcurrentAttempts: Long = 2L
+) {
+    init {
+        if (resolutionDelay < Duration.ZERO || attemptDelay < Duration.ZERO) {
+            throw IllegalArgumentException(Some("TCP connection delays must be nonnegative"))
+        }
+        if (maxConcurrentAttempts <= 0L) {
+            throw IllegalArgumentException(Some("TCP connection concurrency must be positive"))
+        }
+    }
+}
+
+public struct TcpConnectionFailure(val address: SocketAddress, val cause: Throwable)
+public struct TcpResolutionFailure(val family: AddressFamily, val cause: Throwable)
+
+public class TcpConnectException internal constructor(
+    public val host: OsString,
+    public val port: Int,
+    public val attempts: Array<TcpConnectionFailure>,
+    public val resolutionFailures: Array<TcpResolutionFailure>
+) : Exception(Some("all TCP connection candidates failed"))

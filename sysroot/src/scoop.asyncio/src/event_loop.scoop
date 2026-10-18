@@ -20,6 +20,7 @@ public interface EventLoop {
     public suspend fun openDirectory(path: Path): AsyncDirectoryEntries
     public suspend fun bindUdp(address: SocketAddress, reuseAddress: Boolean = false): AsyncUdpSocket
     public suspend fun connectTcp(address: SocketAddress): AsyncTcpStream
+    public suspend fun connectTcp(host: OsString, port: Int, options: TcpConnectOptions = TcpConnectOptions()): AsyncTcpStream
     public suspend fun listenTcp(address: SocketAddress, backlog: Int = 128, reuseAddress: Boolean = false): AsyncTcpListener
 }
 

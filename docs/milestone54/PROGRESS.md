@@ -47,6 +47,7 @@
 | 异步路径修改 | EventLoop 的 moveFile／deleteFile／createDirectories 复用 platform 原生 helper 与统一 mode 检查；排他／替换、链接、空目录和逐层建目录沿已有 OS 合同 | Darwin debug／release：6 项新测试与 asyncio 全部 67 项、platform 文件相关 17 项通过；新增测试通过 moving GC，正式消费者验证暂存文件替换及旧句柄保活 |
 | 异步排他临时文件 | createTempFile 一次创建并返回 TemporaryFile 的路径与读写句柄；共享 platform 模板／mkostemp，公开原生字符串快照入口，迟到取消等待 close 与 delete 并保留清理错误 | Darwin debug／release：asyncio 新增 6 项、全部 73 项通过，platform 文件相关 18 项通过；临时文件与新增字符串快照测试通过 moving GC，正式消费者验证并发创建、短块复制及路径改变后的句柄身份 |
 | 异步目录枚举 | openDirectory 返回单遍 AsyncDirectoryEntries，每次 next 在真实工作中复制一个原始名称；复用 platform 的目录入口与 DirectoryEntry，EOF、并发关闭和迟到取消沿所属 loop 收尾 | Darwin debug／release：7 项新测试与 asyncio 全部 80 项通过；9 项目录相关测试通过 moving GC，正式消费者验证两个 native 线程的逐项 metadata／读取、EOF 和显式删除 |
+| 双族 TCP 连接 | connectTcp 域名重载复用异步 DNS／TCP／定时器，按可配置延迟交错候选并限制并发；聚合实际错误、隔离普通失败，交付前收齐落败连接与子任务 | Darwin debug／release：12 项新测试与 asyncio 全部 92 项通过；新增测试通过 moving GC，正式消费者通过双族解析、平台同步对端、半关闭与并发 loop 组合 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -180,6 +181,10 @@ SecTrust 对原有十年有效期叶证书的拒绝符合系统政策，测试�
 
 7 项目录枚举新测试与 2 项既有目录创建回归通过两种构建的 full moving，共 2 个进程。覆盖原始名称、悬空链接、非目录／缺失路径错误、同目录操作冲突、并发关闭、取消 finally 和 loop 退出清理。测试用真实工作队列栅栏区分排队与已经执行的取消：前者不推进目录，后者保留实际读取位置；迟到成功的 open 必须等待真实 close 才结束。platform 只公开既有目录函数的声明，未另建枚举实现；新增 C 适配通过格式化与严格警告检查。
 
+`m54-tcp-connect` 在 Darwin 通过 debug／release 两个变体，共 6 个进程。正式 `.slib` 在两个 native 线程中分别连接仅监听 IPv4／IPv6 的 localhost 对端；平台同步 socket 独立接收、反向交付实际字节并执行半关闭。并行上限 1／2、零延迟、moving GC 与构建缓存复用通过。
+
+12 项连接新测试通过两种构建的 full moving，共 2 个进程。调度测试验证初始 IPv6 等待、单族迟到／空结果、系统顺序、去重、双族交错、失败提前推进、并发上限与旧定时通知；真实连接验证候选失败及全部失败不污染调用方，保留原生错误，工作队列取消等待实际结果。结果队列用真实 TCP 验证多个成功连接、未选中及迟到结果的关闭责任，选中连接继续可用。初次验证发现重复参数失败被误算为清理失败，已修正并完成全部 92 项回归；实现未增加原生入口或第二套调度器。
+
 ## 后续工作
 
 继续完成 HTTP 消息与协议补充、TLS 与 asyncio 缺口，再完成统一 client、策略、存储与长连接组合。每个功能独立验证和提交，最终按设计完成三个目标的运行验收。
@@ -213,3 +218,5 @@ CA 文件组合验收结束后，清理客户端身份的 2 个已结束 fixture
 系统信任验收结束后，清理 CA 文件的 2 个已结束 fixture target 目录，释放约 122 MiB；保留系统信任与 WSS 消费者、当前库 target、生产 `.slib`、全部源码、日志和缓存。
 
 文件查询与控制验收结束后，清理对应 2 个已结束 fixture target 目录，释放约 95 MiB；保留正式源码、验证报告、日志、缓存及当前库 target。
+
+路径修改与临时文件验收结束后，清理对应 4 个已结束 fixture target 目录，释放约 194 MiB；保留正式源码、验证报告、日志、缓存及当前库 target。

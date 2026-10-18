@@ -1,0 +1,83 @@
+package scoop.asyncio
+
+import scoop.platform.net.*
+
+internal enum TcpRaceEvent {
+    Resolved(AddressFamily, Array<SocketAddress>),
+    ResolutionFailed(AddressFamily, Throwable),
+    Connected(AsyncTcpStream),
+    ConnectionFailed(SocketAddress, Throwable),
+    ResolutionDelay,
+    AttemptDelay(Long),
+    Aborted(Throwable)
+}
+
+private enum TcpRaceOffer { Queued, Waiting(Continuation<TcpRaceEvent>), Stopped }
+
+// The driver consumes one event at a time. Producers retain a rejected socket.
+internal class TcpRaceMailbox(private val loop: LibuvEventLoop) {
+    private val lock: IoLock = IoLock()
+    private var events: ArrayList<TcpRaceEvent> = ArrayList<TcpRaceEvent>()
+    private var waiter: Continuation<TcpRaceEvent>? = None
+    private var stopped: Boolean = false
+    private var cleanupError: Throwable? = None
+    val cleanupFailure: Throwable? get() = lock.withLock { cleanupError }
+
+    fun send(event: TcpRaceEvent): Boolean {
+        val offer = lock.withLock {
+            if (stopped) return@withLock TcpRaceOffer.Stopped
+            when (waiter) {
+                case Some(target) -> { waiter = None; TcpRaceOffer.Waiting(target) }
+                case None -> { events.add(event); TcpRaceOffer.Queued }
+            }
+        }
+        return when (offer) {
+            case Stopped -> false
+            case Queued -> true
+            case Waiting(target) -> { loop.state.post { target.resume(event) }; true }
+        }
+    }
+
+    suspend fun next(): TcpRaceEvent = suspendCoroutine<TcpRaceEvent> { continuation ->
+        val event: TcpRaceEvent? = lock.withLock {
+            if (events.size != 0L) Some(events.removeAt(0L))
+            else { waiter = Some(continuation); None }
+        }
+        when (event) { case Some(_) -> continuation.resume(event!!); case None -> {} }
+    }
+
+    private fun stop(): Array<TcpRaceEvent> = lock.withLock {
+        stopped = true
+        val pending = events.toArray()
+        events = ArrayList<TcpRaceEvent>()
+        pending
+    }
+
+    suspend fun close() {
+        for (event in stop()) {
+            when (event) {
+                case Connected(stream) -> closeUnselected(stream)
+                case Aborted(error) -> if (error is ResourceUseException) cleanupFailed(error)
+                case _ -> {}
+            }
+        }
+    }
+
+    fun abort(error: Throwable) {
+        if (!send(TcpRaceEvent.Aborted(error)) && error is ResourceUseException) cleanupFailed(error)
+    }
+
+    fun cleanupFailed(error: Throwable) {
+        lock.withLock {
+            cleanupError = Some(when (cleanupError) {
+                case None -> error
+                case Some(primary) -> ResourceUseException(primary, error)
+            })
+        }
+    }
+
+    suspend fun closeUnselected(stream: AsyncTcpStream) {
+        try { stream.close() }
+        catch (error: Throwable) { cleanupFailed(error) }
+    }
+}

@@ -1,0 +1,144 @@
+package scoop.asyncio
+
+import scoop.platform.net.*
+import scoop.platform.system.*
+import scoop.time.Duration
+
+internal suspend fun connectTcpHostOnLoop(loop: LibuvEventLoop, host: OsString,
+    port: Int, options: TcpConnectOptions): AsyncTcpStream {
+    loop.requireJob()
+    if (port < 0 || port > 65535) throw IllegalArgumentException(Some("port is out of range"))
+    val race = TcpConnectionRace(loop, host, port, options)
+    val failure: Throwable? = try {
+        coroutineScope<Throwable?> suspend { scope ->
+            // An ordinary connection failure must remain catchable by this caller.
+            try { race.run(scope); None }
+            catch (error: Throwable) { race.selectedFailure = Some(error); Some(error) }
+        }
+    } catch (error: Throwable) { Some(race.selectedFailure ?: error) }
+    return race.finish(failure)
+}
+
+private class TcpConnectionRace(
+    private val loop: LibuvEventLoop, private val host: OsString,
+    private val port: Int, private val options: TcpConnectOptions
+) {
+    var selectedFailure: Throwable? = None
+    private val mailbox: TcpRaceMailbox = TcpRaceMailbox(loop)
+    private val plan: TcpConnectPlan = TcpConnectPlan(options.maxConcurrentAttempts)
+    private val tasks: ArrayList<Job> = ArrayList<Job>()
+    private val attempts: ArrayList<TcpConnectionFailure> = ArrayList<TcpConnectionFailure>()
+    private val resolutions: ArrayList<TcpResolutionFailure> = ArrayList<TcpResolutionFailure>()
+    private var winner: AsyncTcpStream? = None
+    private var resolutionTimerStarted: Boolean = false
+    private var attemptTimer: Job? = None
+
+    suspend fun run(scope: CoroutineScope) {
+        val listener = scope.job.invokeOnCancellation { error -> mailbox.send(TcpRaceEvent.Aborted(error)); Unit }
+        try {
+            scope.job.ensureActive()
+            resolve(scope, AddressFamily.Ipv6)
+            resolve(scope, AddressFamily.Ipv4)
+            drive(scope)
+        } finally {
+            listener.dispose()
+            for (task in tasks) task.cancel()
+            mailbox.close()
+        }
+    }
+
+    private suspend fun drive(scope: CoroutineScope) {
+        while (true) {
+            if (plan.needsResolutionDelay && !resolutionTimerStarted) {
+                resolutionTimerStarted = true
+                delay(scope, options.resolutionDelay, TcpRaceEvent.ResolutionDelay)
+            }
+            when (plan.takeNext()) {
+                case Some(address) -> {
+                    connect(scope, address)
+                    when (attemptTimer) { case Some(timer) -> timer.cancel(); case None -> {} }
+                    attemptTimer = Some(delay(scope, options.attemptDelay, TcpRaceEvent.AttemptDelay(plan.generation)))
+                    continue
+                }
+                case None -> {}
+            }
+            if (plan.exhausted) throw TcpConnectException(host, port, attempts.toArray(), resolutions.toArray())
+            when (mailbox.next()) {
+                case Resolved(AddressFamily.Ipv4, addresses) -> plan.resolved(AddressFamily.Ipv4, addresses)
+                case Resolved(AddressFamily.Ipv6, addresses) -> plan.resolved(AddressFamily.Ipv6, addresses)
+                case ResolutionFailed(AddressFamily.Ipv4, error) -> resolutionFailed(AddressFamily.Ipv4, error)
+                case ResolutionFailed(AddressFamily.Ipv6, error) -> resolutionFailed(AddressFamily.Ipv6, error)
+                case Connected(stream) -> { winner = Some(stream); return }
+                case ConnectionFailed(address, error) -> {
+                    attempts.add(TcpConnectionFailure(address, error))
+                    plan.attemptFailed()
+                }
+                case ResolutionDelay -> plan.resolutionDelayElapsed()
+                case AttemptDelay(id) -> plan.attemptDelayElapsed(id)
+                case Aborted(error) -> throw error
+            }
+        }
+    }
+
+    private fun resolutionFailed(family: AddressFamily, error: Throwable) {
+        resolutions.add(TcpResolutionFailure(family, error))
+        plan.resolved(family, [])
+    }
+
+    private fun resolve(scope: CoroutineScope, family: AddressFamily) {
+        tasks.add(scope.launch suspend {
+            try { mailbox.send(TcpRaceEvent.Resolved(family, loop.resolve(host, port, Some(family)))) }
+            catch (error: PlatformException) { mailbox.send(TcpRaceEvent.ResolutionFailed(family, error)) }
+            catch (_: CancellationException) {}
+            catch (error: Throwable) { mailbox.abort(error) }
+        })
+    }
+
+    private fun connect(scope: CoroutineScope, address: SocketAddress) {
+        tasks.add(scope.launch suspend {
+            val stream = try { loop.connectTcp(address) }
+            catch (error: ResourceUseException) { mailbox.abort(error); return@launch }
+            catch (error: Throwable) { mailbox.send(TcpRaceEvent.ConnectionFailed(address, error)); return@launch }
+            if (!mailbox.send(TcpRaceEvent.Connected(stream))) mailbox.closeUnselected(stream)
+        })
+    }
+
+    private fun delay(scope: CoroutineScope, duration: Duration, event: TcpRaceEvent): Job {
+        val task = scope.launch suspend {
+            try { loop.sleep(duration); mailbox.send(event) }
+            catch (_: CancellationException) {}
+            catch (error: Throwable) { mailbox.abort(error) }
+        }
+        tasks.add(task)
+        return task
+    }
+
+    suspend fun finish(primary: Throwable?): AsyncTcpStream {
+        var failure = primary
+        when (mailbox.cleanupFailure) {
+            case Some(error) -> failure = Some(when (failure) {
+                case Some(first) -> ResourceUseException(first, error)
+                case None -> error
+            })
+            case None -> {}
+        }
+        when (failure) {
+            case None -> {
+                val result = winner ?: throw IllegalStateException(Some("TCP race returned no connection"))
+                winner = None
+                return result
+            }
+            case Some(error) -> {
+                when (winner) {
+                    case Some(stream) -> {
+                        winner = None
+                        try { stream.close() }
+                        catch (cleanup: Throwable) { throw ResourceUseException(error, cleanup) }
+                    }
+                    case None -> {}
+                }
+                throw error
+            }
+        }
+    }
+}

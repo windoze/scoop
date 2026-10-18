@@ -73,6 +73,8 @@ public class LibuvEventLoop public constructor() : EventLoop {
     public override suspend fun openDirectory(path: Path): AsyncDirectoryEntries = openDirectoryOnLoop(this, path)
 
     public override suspend fun connectTcp(address: SocketAddress): AsyncTcpStream = connectTcpOnLoop(this, address)
+    public override suspend fun connectTcp(host: OsString, port: Int, options: TcpConnectOptions): AsyncTcpStream =
+        connectTcpHostOnLoop(this, host, port, options)
     public override suspend fun listenTcp(address: SocketAddress, backlog: Int, reuseAddress: Boolean): AsyncTcpListener =
         listenTcpOnLoop(this, address, backlog, reuseAddress)
 
