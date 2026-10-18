@@ -48,6 +48,7 @@
 | 异步排他临时文件 | createTempFile 一次创建并返回 TemporaryFile 的路径与读写句柄；共享 platform 模板／mkostemp，公开原生字符串快照入口，迟到取消等待 close 与 delete 并保留清理错误 | Darwin debug／release：asyncio 新增 6 项、全部 73 项通过，platform 文件相关 18 项通过；临时文件与新增字符串快照测试通过 moving GC，正式消费者验证并发创建、短块复制及路径改变后的句柄身份 |
 | 异步目录枚举 | openDirectory 返回单遍 AsyncDirectoryEntries，每次 next 在真实工作中复制一个原始名称；复用 platform 的目录入口与 DirectoryEntry，EOF、并发关闭和迟到取消沿所属 loop 收尾 | Darwin debug／release：7 项新测试与 asyncio 全部 80 项通过；9 项目录相关测试通过 moving GC，正式消费者验证两个 native 线程的逐项 metadata／读取、EOF 和显式删除 |
 | 双族 TCP 连接 | connectTcp 域名重载复用异步 DNS／TCP／定时器，按可配置延迟交错候选并限制并发；聚合实际错误、隔离普通失败，交付前收齐落败连接与子任务 | Darwin debug／release：12 项新测试与 asyncio 全部 92 项通过；新增测试通过 moving GC，正式消费者通过双族解析、平台同步对端、半关闭与并发 loop 组合 |
+| SOCKS5 异步隧道 | AsyncSocks5Tunnel 以普通 Scoop 接管异步流，支持无认证／用户名密码、IPv4／IPv6／ASCII 域名和本地／代理 DNS；精确读取回复，保留完整隧道数据与实际拒绝码 | Darwin debug／release：18 项新测试与 asyncio 全部 110 项通过；新增测试通过 moving GC，正式消费者与独立 Python socket 对端完成 20 次互通场景 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -184,6 +185,10 @@ SecTrust 对原有十年有效期叶证书的拒绝符合系统政策，测试�
 `m54-tcp-connect` 在 Darwin 通过 debug／release 两个变体，共 6 个进程。正式 `.slib` 在两个 native 线程中分别连接仅监听 IPv4／IPv6 的 localhost 对端；平台同步 socket 独立接收、反向交付实际字节并执行半关闭。并行上限 1／2、零延迟、moving GC 与构建缓存复用通过。
 
 12 项连接新测试通过两种构建的 full moving，共 2 个进程。调度测试验证初始 IPv6 等待、单族迟到／空结果、系统顺序、去重、双族交错、失败提前推进、并发上限与旧定时通知；真实连接验证候选失败及全部失败不污染调用方，保留原生错误，工作队列取消等待实际结果。结果队列用真实 TCP 验证多个成功连接、未选中及迟到结果的关闭责任，选中连接继续可用。初次验证发现重复参数失败被误算为清理失败，已修正并完成全部 92 项回归；实现未增加原生入口或第二套调度器。
+
+`m54-socks5` 在 Darwin 通过 debug／release 两个变体，共 6 个进程。正式 `.slib` 的两个 native 线程分别通过双族连接入口访问仅监听 IPv4 的独立 Python socket 代理，核对本地／代理 DNS、IPv6 目标、UTF-8 与 opaque 凭据、认证及 CONNECT 拒绝码；两种构建共 20 次互通场景。回复同次附带的隧道前缀、双向数据、EOF、moving GC 与构建缓存复用通过。
+
+18 项 SOCKS5 新测试通过两种构建的 full moving，共 2 个进程。覆盖短读写、最大凭据长度、输入快照、非法目标不接管、禁止认证降级、格式／截断／零进度错误、原始 I/O 和清理双失败、并发关闭、错误 loop 及取消 finally。真实借用与关闭栅栏确认失败和取消等待底层收尾后才恢复；协议处理全部是普通 Scoop，没有原生入口或 client workaround。首次测试编译补齐字节列表和可选码的类型写法后，全部 110 项回归通过；独立对端脚本通过固定版本 Ruff。Linux 运行仍待验证。
 
 ## 后续工作
 

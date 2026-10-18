@@ -1,0 +1,41 @@
+package scoop.asyncio
+
+import scoop.platform.net.SocketAddress
+
+public enum Socks5Address { Ip(SocketAddress), Domain(String, Int) }
+public enum Socks5Resolution { Local, Proxy }
+public enum Socks5Phase { Method, Authentication, Connect }
+
+public class Socks5Credentials public constructor(username: List<Byte>, password: List<Byte>) {
+    public val username: Array<Byte> = socks5CredentialBytes(username)
+    public val password: Array<Byte> = socks5CredentialBytes(password)
+
+    public companion object {
+        public fun fromUtf8(username: String, password: String): Socks5Credentials =
+            Socks5Credentials(username.toByteArray(), password.toByteArray())
+    }
+}
+
+private fun socks5CredentialBytes(bytes: List<Byte>): Array<Byte> {
+    val count = bytes.size
+    if (count < 1L || count > 255L) {
+        throw IllegalArgumentException(Some("SOCKS5 credentials require 1..255 bytes per field"))
+    }
+    return Array<Byte>(count) { index -> bytes[index] }
+}
+
+public class Socks5Exception internal constructor(
+    public val phase: Socks5Phase,
+    public val replyCode: UByte?,
+    message: String
+) : Exception(Some(message))
+
+internal fun requireSocks5Job(loop: EventLoop, cancellable: Boolean): Job {
+    if (!hasEventLoop() || currentEventLoop() !== loop) {
+        throw IllegalStateException(Some("SOCKS5 tunnel belongs to another event loop"))
+    }
+    val job = currentJobOrNone() ?: throw IllegalStateException(Some("SOCKS5 requires a Job"))
+    if (job.isCompleted) throw IllegalStateException(Some("SOCKS5 requires an active Job"))
+    if (cancellable) job.ensureActive()
+    return job
+}

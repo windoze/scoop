@@ -1,0 +1,94 @@
+package scoop.asyncio
+
+import scoop.platform.memory.NativeByteBuffer
+
+private enum Socks5CloseAction { Done, Pending, Start(AsyncCloseable) }
+
+public class AsyncSocks5Tunnel private constructor(
+    transport: AsyncByteStream, closeable: AsyncCloseable,
+    private val loop: EventLoop, public val boundAddress: Socks5Address
+) : AsyncByteStream, AsyncCloseable {
+    private val lock: IoLock = IoLock()
+    private var stream: AsyncByteStream? = Some(transport)
+    private var owner: AsyncCloseable? = Some(closeable)
+    private var closing: Boolean = false
+    private var closed: Boolean = false
+    private val closeWaiters: ArrayList<Continuation<Unit>> = ArrayList<Continuation<Unit>>()
+    public val isClosed: Boolean get() = lock.withLock { closed }
+
+    public companion object {
+        public suspend fun <T> takeOwnership(transport: T, destination: Socks5Address,
+            credentials: Socks5Credentials? = None, resolution: Socks5Resolution = Socks5Resolution.Proxy): AsyncSocks5Tunnel
+            where T : AsyncByteStream, T : AsyncCloseable {
+            val loop = currentEventLoop()
+            val job = requireSocks5Job(loop, true)
+            validateSocks5Address(destination)
+            job.ensureActive()
+            try {
+                val bound = negotiateSocks5(transport, destination, credentials, resolution, loop)
+                job.ensureActive()
+                return AsyncSocks5Tunnel(transport, transport, loop, bound)
+            } catch (error: Throwable) {
+                try { transport.close() }
+                catch (cleanup: Throwable) { throw ResourceUseException(error, cleanup) }
+                throw error
+            }
+        }
+    }
+
+    private fun streamForIo(): AsyncByteStream {
+        requireSocks5Job(loop, true)
+        return lock.withLock {
+            if (closing) throw IoClosedException()
+            stream!!
+        }
+    }
+
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long =
+        streamForIo().readInto(buffer, count)
+
+    public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long =
+        streamForIo().writeFrom(buffer, count)
+
+    public override suspend fun flush() { streamForIo().flush() }
+
+    public override suspend fun close() {
+        if (isClosed) return
+        val job = requireSocks5Job(loop, false)
+        suspendCoroutine<Unit> { continuation ->
+            val action = lock.withLock {
+                if (closed) return@withLock Socks5CloseAction.Done
+                closeWaiters.add(continuation)
+                if (closing) Socks5CloseAction.Pending
+                else { closing = true; Socks5CloseAction.Start(owner!!) }
+            }
+            when (action) {
+                case Done -> continuation.resume(Unit)
+                case Pending -> {}
+                case Start(target) -> context(job) { context(loop) {
+                    startCoroutine<Unit>(suspend { target.close() }, Socks5CloseCompletion(this))
+                } }
+            }
+        }
+    }
+
+    internal fun finishClose(error: Throwable?) {
+        val waiters = lock.withLock {
+            closed = true
+            stream = None
+            owner = None
+            val pending = closeWaiters.toArray()
+            closeWaiters.clear()
+            pending
+        }
+        for (waiter in waiters) when (error) {
+            case Some(failure) -> waiter.resumeWithException(failure)
+            case None -> waiter.resume(Unit)
+        }
+    }
+}
+
+private class Socks5CloseCompletion(private val tunnel: AsyncSocks5Tunnel) : Continuation<Unit> {
+    public override fun resume(value: Unit) { tunnel.finishClose(None) }
+    public override fun resumeWithException(exception: Throwable) { tunnel.finishClose(Some(exception)) }
+}

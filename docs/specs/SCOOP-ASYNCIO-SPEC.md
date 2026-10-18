@@ -181,6 +181,16 @@ open／next／close 均由 worker 调用 platform 的目录 helper。next 在本
 
 提供 SOCKS5 的普通异步握手适配，支持无认证和 RFC 1929 用户名／密码、CONNECT、IPv4／IPv6／ASCII 域名目的地、本地解析或代理解析。用户凭据和长度在写出前检查；reply 错误保留协议码。使用已有 AsyncByteStream，按 takeOwnership 规则接管，成功交付隧道与完整前缀，失败清理；不让 HTTP client 手写 SOCKS 报文或同步 DNS。
 
+具体入口为 suspend 的 `AsyncSocks5Tunnel.takeOwnership(transport, destination: Socks5Address, credentials: Socks5Credentials? = None, resolution: Socks5Resolution = Proxy)`，transport 同时实现 AsyncByteStream 与 AsyncCloseable。Socks5Address 为 `Ip(SocketAddress)` 或 `Domain(String, Int)`，Socks5Resolution 为 Local／Proxy；返回的 AsyncSocks5Tunnel 实现同一异步流及关闭接口，并公开 boundAddress 和 isClosed。目标端口在 0..65535，域名为 1..255 字节的可打印 ASCII 且不含空格，不做 IDNA 或 DNS 标签规范化；IP 不能携带 SOCKS5 无法表示的非零 IPv6 scopeId。
+
+Socks5Credentials 以 List<Byte> 接收用户名与密码，分别保存独立 Array<Byte> 快照，长度均为 1..255；`fromUtf8(username, password)` 是明确的文本便利入口，长度按 UTF-8 字节计算。无凭据时只提议无认证方法，有凭据时只提议用户名／密码方法，不自动降为无认证。协议不规定这些凭据字节的字符集，不输出凭据内容。
+
+Proxy 模式把域名原样放入 CONNECT，Local 模式在写出握手前以当前 EventLoop.resolve 解析，并使用系统返回的第一个地址；空结果报明确失败，不伪造原生错误。调用者可显式传 Ip 选择其他候选；一次隧道握手只发送一次 CONNECT，失败后不能在同一流上改目标重试。IP 目的地不执行 DNS，Local／Proxy 均不更改已有地址。
+
+配置、目标与活动 Job／loop 检查通过后接管传输；此前失败仍由调用者负责关闭。接管后所有解析、写入、flush、读取及取消失败都等待真实操作结束并关闭未交付传输，清理失败使用 ResourceUseException。握手使用有界缓冲及 readFully／writeFully，每一阶段排出输出；读取只消费当前回复的确切长度，因此和回复同次到达的隧道数据完整保留在底层流中，返回后直接从隧道读取，不丢弃或重复前缀。
+
+Socks5Exception 保存 phase（Method／Authentication／Connect）及可选 replyCode；拒绝的方法、认证状态和 CONNECT REP 保留实际协议字节。非法版本、保留字段、地址类型或绑定域名报对应阶段的格式错误；底层 I/O、解析和取消保持原异常。交付后的流沿普通 AsyncByteStream 的双向、取消与背压合同；close 固定 loop 归属，可在取消 finally 中完成，并发关闭等待同一次底层收尾，之后幂等。
+
 ### 9.3 领域库的 native 阻塞工作
 
 TLS 的系统信任装载及平台验证需要能够挂起等待 native 工作。为这一实际使用者，在 `scoop.asyncio.native` 提供受 Unsafe 约束的 NativeWork 资源与 `EventLoop.runNativeWork(work)`；它复用现有 DNS／文件的 uv_queue_work 提交、取消与完成机制，不建立第二个线程池。
