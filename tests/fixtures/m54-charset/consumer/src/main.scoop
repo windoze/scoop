@@ -1,0 +1,40 @@
+import scoop.charset.*
+import scoop.url.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.concurrent.Thread
+import scoop.bytes.ByteArrayBuilder
+
+private fun exercise() {
+    NativeByteBuffer.allocate(32L).use { input ->
+        input.writeBytes(Charset.Utf16LE.encode("日本"))
+        NativeByteBuffer.allocate(1L).use { output ->
+            CharsetTranscoder(Charset.Utf16LE, Charset.Iso2022Jp).use { engine ->
+                val result = ByteArrayBuilder()
+                while (true) {
+                    output.clear()
+                    val step = engine.process(input, output, true)
+                    gcCollect()
+                    result.append(output.readBytes(step.produced))
+                    if (step.state == CharsetState.Finished) break
+                }
+                if (Charset.Iso2022Jp.decode(result.toByteArray()) != "日本") throw IllegalStateException()
+                Unit
+            }
+        }
+    }
+    val url = Url.parse("https://bücher.example/").toBuilder()
+        .setQueryParameters(UrlQuery().add("q", Some(Charset.Gbk.decode(Charset.Gbk.encode("中文"))))).build()
+    if (url.httpOrigin().host.toString() != "xn--bcher-kva.example") throw IllegalStateException()
+    if (url.queryParameters().getAll("q")[0L]!! != "中文") throw IllegalStateException()
+    var rejected = false
+    try { Charset.Ascii.encode("é") } catch (_: CharsetException) { rejected = true }
+    if (!rejected) throw IllegalStateException()
+}
+
+fun main() {
+    val first = Thread.start { exercise() }
+    val second = Thread.start { exercise() }
+    try { first.join() } finally { second.join() }
+    exercise()
+    println("independent charset streams")
+}

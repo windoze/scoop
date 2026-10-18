@@ -1,0 +1,78 @@
+--- a/lib/loop_unicode.h
++++ b/lib/loop_unicode.h
+@@ -205,9 +205,6 @@
+       outcount = cd->ofuncs.xxx_wctomb(cd,outptr,wc,outleft);
+       if (outcount != RET_ILUNI)
+         goto outcount_ok;
+-      /* Handle Unicode tag characters (range U+E0000..U+E007F). */
+-      if ((wc >> 7) == (0xe0000 >> 7))
+-        goto outcount_zero;
+       /* Try transliteration. */
+       if (cd->transliterate) {
+         outcount = unicode_transliterate(cd,wc,outptr,outleft);
+@@ -235,9 +232,6 @@
+         outcount = 0;
+         goto outcount_ok;
+       }
+-      outcount = cd->ofuncs.xxx_wctomb(cd,outptr,0xFFFD,outleft);
+-      if (outcount != RET_ILUNI)
+-        goto outcount_ok;
+       plocals->l_errno = EILSEQ;
+       break;
+     outcount_ok:
+@@ -249,7 +243,6 @@
+         (*cd->hooks.uc_hook)(wc, cd->hooks.data);
+       if (!(outcount <= outleft)) abort();
+       outptr += outcount; outleft -= outcount;
+-    outcount_zero: ;
+     }
+     plocals->l_outbuf = outptr;
+     plocals->l_outbytesleft = outleft;
+@@ -349,9 +342,6 @@
+       outcount = cd->ofuncs.xxx_wctomb(cd,outptr,wc,outleft);
+       if (outcount != RET_ILUNI)
+         goto outcount_ok;
+-      /* Handle Unicode tag characters (range U+E0000..U+E007F). */
+-      if ((wc >> 7) == (0xe0000 >> 7))
+-        goto outcount_zero;
+       /* Try transliteration. */
+       result++;
+       if (cd->transliterate) {
+@@ -381,9 +371,6 @@
+         outcount = 0;
+         goto outcount_ok;
+       }
+-      outcount = cd->ofuncs.xxx_wctomb(cd,outptr,0xFFFD,outleft);
+-      if (outcount != RET_ILUNI)
+-        goto outcount_ok;
+       cd->istate = last_istate;
+       errno = EILSEQ;
+       result = -1;
+@@ -431,9 +418,6 @@
+         int outcount = cd->ofuncs.xxx_wctomb(cd,outptr,wc,outleft);
+         if (outcount != RET_ILUNI)
+           goto outcount_ok;
+-        /* Handle Unicode tag characters (range U+E0000..U+E007F). */
+-        if ((wc >> 7) == (0xe0000 >> 7))
+-          goto outcount_zero;
+         /* Try transliteration. */
+         result++;
+         if (cd->transliterate) {
+@@ -463,9 +447,6 @@
+           outcount = 0;
+           goto outcount_ok;
+         }
+-        outcount = cd->ofuncs.xxx_wctomb(cd,outptr,0xFFFD,outleft);
+-        if (outcount != RET_ILUNI)
+-          goto outcount_ok;
+         cd->istate = last_istate;
+         errno = EILSEQ;
+         return -1;
+@@ -480,7 +461,6 @@
+         if (!(outcount <= outleft)) abort();
+         outptr += outcount;
+         outleft -= outcount;
+-      outcount_zero:
+         *outbuf = (char*) outptr;
+         *outbytesleft = outleft;
+       }

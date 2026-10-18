@@ -1,0 +1,66 @@
+package scoop.charset
+
+import scoop.text.*
+
+public class Charset private constructor(public val name: String) : Equals<Charset>, Hash, ToString {
+    public override operator fun equals(other: Charset): Boolean = name == other.name
+    public override fun hash(): Long = name.hash()
+    public override fun toString(): String = name
+
+    public fun decode(data: List<Byte>, options: CharsetDecodeOptions = CharsetDecodeOptions()): String =
+        String.fromUtf8(transcodeCharset(data, this, Charset.Utf8, CharsetTranscodeOptions(decode = options)))
+
+    public fun decodeLossy(data: List<Byte>, options: CharsetDecodeOptions = CharsetDecodeOptions()): String =
+        String.fromUtf8(transcodeCharset(data, this, Charset.Utf8,
+            CharsetTranscodeOptions(decode = options, malformedInput = CharsetErrorAction.Replace)))
+
+    public fun encode(text: String, options: CharsetEncodeOptions = CharsetEncodeOptions()): Array<Byte> =
+        encodeText(text, options, CharsetErrorAction.Strict)
+
+    public fun encodeLossy(text: String, options: CharsetEncodeOptions = CharsetEncodeOptions()): Array<Byte> =
+        encodeText(text, options, CharsetErrorAction.Replace)
+
+    private fun encodeText(text: String, options: CharsetEncodeOptions, action: CharsetErrorAction): Array<Byte> =
+        transcodeCharset(text.toByteArray(), Charset.Utf8, this, CharsetTranscodeOptions(
+            decode = CharsetDecodeOptions(bom = CharsetBomPolicy.Preserve), encode = options, unmappableOutput = action))
+
+    public companion object {
+        public fun forName(name: String): Charset = Charset(canonicalCharset(name))
+        public fun forNameOrNone(name: String): Charset? {
+            try { return Some(forName(name)) }
+            catch (_: UnsupportedCharsetException) { return None }
+        }
+        public val Utf8: Charset = Charset(canonicalCharset("UTF-8"))
+        public val Ascii: Charset = Charset(canonicalCharset("US-ASCII"))
+        public val Iso8859_1: Charset = Charset(canonicalCharset("ISO-8859-1"))
+        public val Windows1252: Charset = Charset(canonicalCharset("Windows-1252"))
+        public val Utf16: Charset = Charset(canonicalCharset("UTF-16"))
+        public val Utf16LE: Charset = Charset(canonicalCharset("UTF-16LE"))
+        public val Utf16BE: Charset = Charset(canonicalCharset("UTF-16BE"))
+        public val Utf32: Charset = Charset(canonicalCharset("UTF-32"))
+        public val Utf32LE: Charset = Charset(canonicalCharset("UTF-32LE"))
+        public val Utf32BE: Charset = Charset(canonicalCharset("UTF-32BE"))
+        public val Gb18030: Charset = Charset(canonicalCharset("GB18030"))
+        public val Gbk: Charset = Charset(canonicalCharset("GBK"))
+        public val Big5: Charset = Charset(canonicalCharset("Big5"))
+        public val ShiftJis: Charset = Charset(canonicalCharset("Shift_JIS"))
+        public val EucJp: Charset = Charset(canonicalCharset("EUC-JP"))
+        public val Iso2022Jp: Charset = Charset(canonicalCharset("ISO-2022-JP"))
+
+        public val availableNames: Array<String> get() {
+            val names = ArrayList<String>()
+            @Unsafe {
+                for (name in charsetText(charsetNames(), "list charsets").split('\n')) {
+                    if (name.length > 0L) names.add(name)
+                }
+            }
+            return names.toArray()
+        }
+        public val backendVersion: String get() {
+            @Unsafe {
+                val version = charsetVersion()
+                return (version shr 8).toString() + "." + (version and 255).toString()
+            }
+        }
+    }
+}

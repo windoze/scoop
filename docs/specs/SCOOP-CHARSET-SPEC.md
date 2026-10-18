@@ -1,6 +1,6 @@
 # Scoop 字符集库规范
 
-版本：M54 设计，尚未实施。提供普通 Cone `scoop:scoop.charset:0.1.0`，依赖 core、std、platform。它补齐 HTTP text 与字段参数所需的非 UTF-8 转换，负责字符集识别、内存转换和增量状态；不依赖 URL、IDNA、HTTP、asyncio 或 ICU。
+版本：M54。提供普通 Cone `scoop:scoop.charset:0.1.0`，依赖 core、std、platform。它补齐 HTTP text 与字段参数所需的非 UTF-8 转换，负责字符集识别、内存转换和增量状态；不依赖 URL、IDNA、HTTP、asyncio 或 ICU。实际验证范围见 [M54 进度](../milestone54/PROGRESS.md)。
 
 ## 1. 后端与范围
 
@@ -14,11 +14,23 @@
 
 `Charset` 为不可变配置，提供常见编码的具名实例和 `forName`／`forNameOrNone`。普通未知名称抛 UnsupportedCharsetException，OrNone 仅转换这一正常查找失败。`decode(data: List<Byte>): String` 与 `encode(text: String): Array<Byte>` 返回独立快照，默认严格处理非法序列或不能表示的字符。
 
+名称解析接受固定后端的 locale-independent 名称，拒绝空名、`CHAR`／`WCHAR_T`、宿主内部／交换字节序名称及 `//TRANSLIT`／`//IGNORE` 等转换后缀。`availableNames` 列出可用名称；`backendVersion` 记录固定版本。别名解析后以 canonical name 比较和 hash，不通过当前 locale 补全名称。
+
+除后端名称外，显式补充不带连字符的 UTF8、UTF16、UTF16LE、UTF16BE、UTF32、UTF32LE、UTF32BE，分别映射到对应 UTF 标准名称；这些别名也包含在 availableNames 中。大小写规则相同，不进行任意删标点或模糊匹配。
+
 显式有损入口名为 `decodeLossy`／`encodeLossy`：解码使用 U+FFFD，编码使用能在目标编码中表示的 `?`；不启用隐式 transliteration 或静默丢弃。状态编码的 shift 状态与错误恢复由转换器管理，调用者不能跳过字节并假定剩余状态仍然有效。
 
 显式字节序的 UTF-16／32 不以 BOM 改变已经指定的字节序。BOM 是否作为签名消费由配置表达；默认仅消费与所选编码一致的开头签名，冲突时报错，不在流中间删除 U+FEFF。无明确字节序的名称须给出 BOM 或显式默认字节序，不取宿主字节序。
 
+`CharsetDecodeOptions` 提供 `bom`（Consume／Preserve／Require）和可选 `defaultByteOrder`；Preserve 将匹配的签名作为 U+FEFF 数据保留，Require 在缺少签名时失败。无字节序的 UTF-16／32 优先采用输入签名，无签名时才使用显式默认值。显式字节序与反向签名冲突在所有模式下失败。非 Unicode 签名编码不能使用 Require。
+
+`CharsetEncodeOptions` 提供 `emitBom` 和可选 `byteOrder`。无字节序的 UTF-16／32 编码必须选择字节序；其他明确编码不得被此选项悄悄改变。emitBom 只对 UTF-8／16／32 有意义。encode 的 String 输入始终按数据保留开头 U+FEFF，只有显式 emitBom 才另写签名。
+
 `CharsetTranscoder(source, destination, options)` 为 Closeable 的增量引擎；process 使用 NativeByteBuffer 的实际可读／可写前缀，报告 consumed、produced、NeedInput／NeedOutput／Finished。endInput 明确输入结束，保留跨块的部分多字节序列和状态编码状态；严格模式的残缺尾部在结束时失败。所有计数为 Long，NativeByteBorrow 在本次同步步骤后结束。
+
+`CharsetTranscodeOptions` 分别保存上述 decode／encode 选项，以及 malformedInput／unmappableOutput 的 Strict 或 Replace 策略。增量 `process(input, output, endInput = false)` 推进两个 buffer 的实际位置；endInput 只在本次提供的输入全部接收后生效，未消费完时后续调用继续携带 true。Finished 后允许空输入查询完成状态，不能继续追加数据。转换错误后只允许 close；close 幂等，资源最终释放不冒充成功 finish。
+
+native 引擎使用同一 libiconv 后端解码到一个 Unicode 标量，再交给同一目标编码器，保留两侧状态与有限的跨块字节。源错误由后端 fallback 输出 U+FFFD；不可表示输出在同一个编码器中改为编码 U+003F，确保状态编码的转义序列正确。固定后端关闭默认静默丢弃 Unicode tag 和隐式 U+FFFD 替代的路径；严格模式不接受这些有损行为。截断尾部的 Replace 产生一个 U+FFFD，非截断错误按后端报告的非法编码单元替换。
 
 处理空输入与暂时无输入不等于 EOF，输出空间不足不等于格式错误。数据错误保存原始输入流中的字节偏移，不把每块起点当成零。`CharsetException` 保存操作、源／目标编码、kind、offset 和后端原因。输入有错误时可能已有输出，增量入口不提供回滚；一次性转换只在完整成功后交付结果。
 

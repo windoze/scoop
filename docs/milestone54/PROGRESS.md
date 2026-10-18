@@ -11,6 +11,7 @@
 | 多证书 PEM | crypto 提供 `parseCertificatesPem` 与 `TrustStore.fromPem`；保留顺序、独立拥有证书，拒绝空包、坏片段与非证书内容，失败释放部分结果 | Darwin debug／release 与 moving GC：3 项 bundle 测试与 3 项既有证书测试；重复证书的独立关闭、显式信任链、临时 bundle 释放后的锚保活 |
 | 独立 IDNA | `scoop.idna` 提供完整域名／单标签双向转换、OrNone、`IdnaName` 双表示快照、结构化错误及原始 RFC 3492 codec；固定 libidn2 2.3.8、libunistring 1.4.2、libiconv 1.19，无 ICU | Darwin debug／release 与 moving GC：10 项测试；官方 Unicode 15.1 的 6265 个输入与同版本映射表独立对照，无未解释差异 |
 | 独立 URL | `scoop.url` 提供不可变 URI／IRI、组件 builder、相对解析、网络 origin、HTTP target、百分号／表单与有序重复 query；固定 uriparser 1.0.2，复用 IDNA 的已验证双表示 | Darwin debug／release 与 moving GC：12 项测试，包含 RFC 3986 第 5 节的 42 个解析向量、字节位置映射、IPv4／IPv6、IRI、空组件与编码边界 |
+| 独立字符集 | `scoop.charset` 提供固定名称／别名、严格与有损内存转换、BOM／字节序配置及保留状态的增量引擎；固定 libiconv 1.19，108 种编码、352 个可查名称 | Darwin debug／release 与 moving GC：11 项测试；另有 864 组与 Python 标准编码器的独立分块对照，已验证全部名称能解析 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -26,9 +27,11 @@ IDNA 校验闭合了固定后端的 ContextO、整个域名的 Bidi、RTL 数字
 
 `m54-url` 的 debug／release 两个变体通过，共 6 个进程；消费者只声明 URL 而通过其正式依赖取得 IDNA，在两个 native 线程与主线程中组合解析、IRI、builder、query、origin 和 moving GC，确认不可变值的复用与构建缓存命中。uriparser 后端准备、第二次直接复用及生产 `.slib` 构建均通过；相对解析结果显式取得 native 文本所有权，再释放 base／reference 临时状态。
 
+`m54-charset` 的 debug／release 两个变体通过，共 6 个进程；生产消费者组合 UTF-16、ISO-2022-JP、GBK、URL 和 IDNA，使用单字节输出、两个 native 线程、moving GC 与缓存复用。严格后端补丁关闭默认丢弃 Unicode tag 和隐式 U+FFFD 替代，有损编码在同一目标编码器中生成 `?`，不破坏 shift 状态。BOM 分块、非法／截断输入、不可表示字符的原始偏移、错误后关闭与 borrow 清理已覆盖；共享后端更新后 IDNA 的 10 项回归通过，准备脚本再次直接复用三个库。
+
 ## 后续工作
 
-继续完成独立字符集／压缩库、HTTP 消息与协议补充、TLS 与 asyncio 缺口，再完成统一 client、策略、存储与长连接组合。每个功能独立验证和提交，最终按设计完成三个目标的运行验收。
+继续完成独立压缩库、HTTP 消息与协议补充、TLS 与 asyncio 缺口，再完成统一 client、策略、存储与长连接组合。每个功能独立验证和提交，最终按设计完成三个目标的运行验收。
 
 ## 验证安排
 
