@@ -1,0 +1,83 @@
+package scoop.http
+
+import scoop.collections.emptyList
+import scoop.test.*
+
+@Test
+private class HttpFieldOperationsTest {
+    @Test
+    fun `method tokens and field names retain ASCII rather than Unicode rules`() {
+        assertTrue(isHttpToken("M-SEARCH") && isHttpToken("!#$%&'*+-.^_`|~012AZaz"))
+        for (value in ["", "GET ", "GÉT", "X:Y", "\t", "\r\n"]) assertFalse(isHttpToken(value))
+        val field = HttpField("cOnTeNt-TyPe".toByteArray(), "application/octet-stream".toByteArray())
+        assertTrue(field.hasName("Content-Type".toByteArray()))
+        assertFalse(field.hasName("Content".toByteArray()))
+        field.validate()
+    }
+
+    @Test
+    fun `ordinary field validation preserves obs text and rejects injection bytes`() {
+        val allowed: Array<Byte> = [9.toByte(), 32.toByte(), 126.toByte(), 128.toByte(), 255.toByte()]
+        HttpField("X-Bytes".toByteArray(), allowed).validate()
+        for (name in ["", ":authority", "X Bad", "é"]) {
+            val field = HttpField(name.toByteArray(), "value".toByteArray())
+            assertFailsWith<IllegalArgumentException> { field.validate() }
+        }
+        for (byte in [0, 1, 10, 13, 31, 127]) {
+            val value: Array<Byte> = [byte.toByte()]
+            val field = HttpField("X".toByteArray(), value)
+            assertEquals(byte.toByte(), field.value[0L])
+            assertFailsWith<IllegalArgumentException> { field.validate() }
+        }
+    }
+
+    @Test
+    fun `token field lists preserve ordered repeats and ignore only empty comma items`() {
+        val fields = [HttpField("Content-Encoding".toByteArray(), " GZip, , BR\t,".toByteArray()),
+            HttpField("content-encoding".toByteArray(), "gzip".toByteArray()),
+            HttpField("Set-Cookie".toByteArray(), "a=b,c=d".toByteArray())]
+        val values = parseHttpTokenFields(fields, "Content-Encoding")
+        assertEquals(3L, values.size)
+        assertEquals("gzip", values[0L]); assertEquals("br", values[1L]); assertEquals("gzip", values[2L])
+        assertEquals(0L, parseHttpTokenFields(fields, "Connection").size)
+        assertEquals(0L, parseHttpTokenFields([HttpField("Trailer".toByteArray(), " ,\t,".toByteArray())], "Trailer").size)
+    }
+
+    @Test
+    fun `token field parsing reports the original field offset without accepting parameters`() {
+        for ((input, offset) in [("gzip br", 5L), ("gzip;q=1", 4L), ("\"gzip\"", 0L), ("gzip, é", 6L), ("gzip\r", 4L)]) {
+            val error = assertFailsWith<HttpFieldParseException> {
+                parseHttpTokenFields([HttpField("Content-Encoding".toByteArray(), input.toByteArray())], "Content-Encoding")
+            }
+            assertEquals("Content-Encoding", error.field)
+            assertEquals(offset, error.byteOffset)
+        }
+        assertFailsWith<IllegalArgumentException> { parseHttpTokenFields(emptyList<HttpField>(), "bad name") }
+    }
+
+    @Test
+    fun `content length combines equal numeric values and supports exact Long limits`() {
+        assertTrue(parseHttpContentLength(emptyList<HttpField>()) == None)
+        val fields = [HttpField("content-length".toByteArray(), " 00042, 42\t".toByteArray()),
+            HttpField("Content-Length".toByteArray(), "42".toByteArray())]
+        assertTrue(parseHttpContentLength(fields) == Some(42L))
+        assertTrue(parseHttpContentLength([HttpField("Content-Length".toByteArray(), "0".toByteArray())]) == Some(0L))
+        assertTrue(parseHttpContentLength([HttpField("Content-Length".toByteArray(), Long.MAX_VALUE.toString().toByteArray())]) == Some(Long.MAX_VALUE))
+    }
+
+    @Test
+    fun `content length rejects ambiguous empty negative overflow and malformed values`() {
+        for ((input, offset) in [("", 0L), (" ", 1L), ("-1", 0L), ("+1", 0L), ("1,", 2L), (",1", 0L),
+            ("1,,1", 2L), ("1, 2", 3L), ("1 1", 2L), ("1x", 1L), ("9223372036854775808", 18L)]) {
+            val error = assertFailsWith<HttpFieldParseException> {
+                parseHttpContentLength([HttpField("Content-Length".toByteArray(), input.toByteArray())])
+            }
+            assertEquals("Content-Length", error.field)
+            assertEquals(offset, error.byteOffset)
+        }
+        assertFailsWith<HttpFieldParseException> {
+            parseHttpContentLength([HttpField("Content-Length".toByteArray(), "1".toByteArray()),
+                HttpField("Content-Length".toByteArray(), "2".toByteArray())])
+        }
+    }
+}

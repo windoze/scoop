@@ -101,6 +101,14 @@ challenge 和 credentials 共用同一个字节语法实现。参数值使用 to
 
 两个工具的格式异常继续使用 HttpFieldParseException 和原字段字节偏移；OrNone 只吸收格式错误。Vary 与 Cache-Control 字段名参数共享相同的 token 列表语法，Age 与缓存秒数共享饱和十进制解析，Range／Retry-After 的溢出拒绝规则保持不变。
 
+### 1.9 通用字段操作与表示长度
+
+`isHttpToken(value)` 接收 List<Byte> 或 String，检查非空 ASCII token；String 按 UTF-8 转成字节，不执行 Unicode 大小写折叠。`HttpField.hasName(name: List<Byte>)` 复用字段名的 ASCII 不区分大小写比较。`field.validate()` 检查普通字段名为 token，值只含 HTAB、可见字节或 obs-text；伪头、CR／LF／NUL 等控制字节拒绝。HttpField 本身继续保存原始字节，构造不隐式过滤接收端需要观察的数据。
+
+`parseHttpTokenFields(fields, name: String): Array<String>` 只适用于 Connection、Content-Encoding、Trailer 等由大小写不敏感 token 列表组成的字段。它复用字段 reader，合并同名字段并保持值的原顺序与重复项，将 ASCII token 规范为小写，忽略逗号列表中的空项；无字段或只有空项返回空数组。quoted-string、参数、非 ASCII token、非法分隔和控制字节报 HttpFieldParseException，field 为所选名称，byteOffset 相对发生错误的那条字段值。该函数不解释 Accept 等带参数的列表，也不合并 Set-Cookie；调用方根据具体字段要求处理空列表。
+
+`parseHttpContentLength(fields): Long?` 返回不存在或实际非负长度；接受前后 OWS、重复字段与逗号合并后数值完全相同的十进制值，包含前导零时按数值比较。空值／空列表项、符号、非法尾部、超过 Long 或互相矛盾的长度均报 HttpFieldParseException。它只解释字段，不推断 HEAD／204／304 的正文语义，不代替协议引擎的消息定界。
+
 ## 2. Cookie 与公共后缀
 
 Cookie parser 接收单个 Set-Cookie 字段，按 RFC 6265 及现代 SameSite／前缀规则返回名称、值、Domain、Path、Expires、Max-Age、Secure、HttpOnly、SameSite 和未知属性。Cookie 请求字段的组装独立处理，不把多个 Set-Cookie 用逗号连接。域名使用 url／idna 的同一规范值。
