@@ -14,6 +14,7 @@
 | 独立字符集 | `scoop.charset` 提供固定名称／别名、严格与有损内存转换、BOM／字节序配置及保留状态的增量引擎；固定 libiconv 1.19，108 种编码、352 个可查名称 | Darwin debug／release 与 moving GC：11 项测试；另有 864 组与 Python 标准编码器的独立分块对照，已验证全部名称能解析 |
 | 压缩内存与增量引擎 | `scoop.compression` 提供 gzip／zlib／raw DEFLATE／Brotli／zstd 的完整内存操作和有状态编码／解码，显式字典、元数据、同步 flush、结束与局部限制 | Darwin debug／release 与 moving GC：12 项测试；384 组与独立 gzip／zlib／Brotli／zstd 工具的分块对照，另用独立工具验证 gzip 元数据与预共享 zstd 字典 |
 | 压缩同步流 | 同一 Cone 的 CompressionSource／Sink、DecompressionSource／Sink 与两个复制扩展，共享增量引擎；支持短传输、单字节缓冲、明确 finish 和可选端点接管 | Darwin debug／release 与 moving GC：10 项新增测试及 12 项引擎回归；所有格式的增量流、连续适配、结束检查、实际进度和清理原因均通过 |
+| 压缩异步流 | 同一 Cone 的 AsyncCompressionSource／Sink、AsyncDecompressionSource／Sink 与复制扩展；结构化操作、有限背压、取消后真实收尾和并发 close，共享同步流的格式状态 | Darwin debug／release 与 moving GC：12 项新增测试；五种格式、短读写、EOF／限制、所有权、失败隔离、延迟取消和取消 finally 清理全部通过 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -35,7 +36,9 @@ IDNA 校验闭合了固定后端的 ContextO、整个域名的 Bidi、RTL 数字
 
 `m54-compression` 的 debug／release 两个变体通过，共 6 个进程；从正式压缩 `.slib` 消费五种格式，组合 URL／IDNA、UTF-16、单字节输出、两个 native 线程与主线程、moving GC 和缓存复用。
 
-`m54-compression-streams` 的 debug／release 两个变体通过，共 6 个进程；正式 `.slib` 与真实 File 组合，对五种格式逐段处理 17321 字节数据，验证不同大小缓冲、flush 后 finish、接管端点关闭、moving GC 和缓存复用。初次用例误把 argv[0] 当作传入目录，改用实际参数 argv[1] 后全部通过。异步流与 WS 消息适配继续实施。
+`m54-compression-streams` 的 debug／release 两个变体通过，共 6 个进程；正式 `.slib` 与真实 File 组合，对五种格式逐段处理 17321 字节数据，验证不同大小缓冲、flush 后 finish、接管端点关闭、moving GC 和缓存复用。初次用例误把 argv[0] 当作传入目录，改用实际参数 argv[1] 后全部通过。
+
+`m54-compression-async` 的 debug／release 两个变体通过，共 6 个进程；正式 `.slib` 在同一 LibuvEventLoop 上并行执行 gzip 和 zstd 的真实文件／TCP 上传下载，每条处理 12345 字节，同时取消另一条解压读取。moving GC、借用连接继续使用、其他传输完成及缓存复用均通过。延迟读写测试还确认 close 等待真实 borrow 完成、仅取消当前操作、拒绝同向并发，并保留异常路径的实际写出进度；取消的 Job 可在 finally 中完成资源关闭。库现有 34 项测试已分批通过，WS 消息适配继续实施。
 
 ## 后续工作
 

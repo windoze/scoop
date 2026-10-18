@@ -1,0 +1,52 @@
+package scoop.compression
+
+import scoop.asyncio.*
+import scoop.platform.memory.*
+import scoop.test.*
+
+internal class PendingCompressionTransfer(private val output: Boolean) {
+    private var continuation: Continuation<Long>? = None
+    private var borrow: NativeByteBorrow? = None
+    var buffer: NativeByteBuffer? = None
+    var job: Job? = None
+    var running: Boolean = false
+    var closes: Int = 0
+
+    suspend fun transfer(value: NativeByteBuffer, count: Long): Long {
+        assertFalse(running)
+        running = true
+        buffer = Some(value)
+        val current = currentJobOrNone()!!
+        job = Some(current)
+        @Unsafe { borrow = Some(if (output) value.borrowReadable(count) else value.borrowWritable(count)) }
+        try {
+            val count = suspendCoroutine<Long> { next -> continuation = Some(next) }
+            current.ensureActive()
+            return count
+        } finally { running = false }
+    }
+
+    fun complete() {
+        val lease = borrow!!
+        val next = continuation!!
+        borrow = None; continuation = None
+        @Unsafe {
+            if (!output) lease.pointer()!!.store(0L, 42.toByte())
+            lease.complete(1L)
+        }
+        next.resume(1L)
+    }
+
+    fun close() { assertFalse(running); closes += 1 }
+}
+
+internal class PendingCompressionSource(val pending: PendingCompressionTransfer) : AsyncByteSource, AsyncCloseable {
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long = pending.transfer(buffer, count)
+    public override suspend fun close() { pending.close() }
+}
+
+internal class PendingCompressionSink(val pending: PendingCompressionTransfer) : AsyncByteSink, AsyncCloseable {
+    public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long = pending.transfer(buffer, count)
+    public override suspend fun flush() {}
+    public override suspend fun close() { pending.close() }
+}

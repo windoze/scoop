@@ -1,0 +1,20 @@
+package scoop.compression.asyncio
+
+import scoop.asyncio.*
+import scoop.compression.*
+
+public suspend fun AsyncByteSource.compressTo(destination: AsyncByteSink,
+    options: CompressionOptions = CompressionOptions.Zstd(ZstdOptions()), bufferSize: Long = 8192L): CompressionTotals {
+    return AsyncCompressionSource(this, options, bufferSize).useAsync suspend { source ->
+        source.copyTo(destination, bufferSize)
+        source.totals
+    }
+}
+
+public suspend fun AsyncByteSource.decompressTo(destination: AsyncByteSink,
+    options: DecompressionOptions = DecompressionOptions(), bufferSize: Long = 8192L): CompressionTotals {
+    return AsyncDecompressionSource(this, options, bufferSize).useAsync suspend { source ->
+        source.copyTo(destination, bufferSize)
+        source.totals
+    }
+}

@@ -1,0 +1,92 @@
+package scoop.compression
+
+import scoop.asyncio.*
+import scoop.compression.asyncio.*
+import scoop.test.*
+
+@Test
+private class AsyncCompressionTransferTests {
+    @Test
+    fun `sources stream every format through suspending short reads`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            for (options in compressionCases()) {
+                val input = ShortAsyncCompressionSource("Hello, Scoop!".toByteArray())
+                AsyncCompressionSource(input, options, 1L).useAsync suspend { source ->
+                    val bytes = readSmallAsyncCompression(source)
+                    assertEquals("Hello, Scoop!", String.fromUtf8(decompress(bytes, DecompressionOptions(options.format))))
+                    assertEquals(13L, source.totals.inputBytes)
+                    assertEquals(bytes.size, source.totals.outputBytes)
+                }
+                val compressed = ShortAsyncCompressionSource(compressionVector(options.format))
+                AsyncDecompressionSource(compressed, DecompressionOptions(options.format), 1L).useAsync suspend { source ->
+                    assertEquals("Hello, Scoop!", String.fromUtf8(readSmallAsyncCompression(source)))
+                    assertEquals(13L, source.totals.outputBytes)
+                }
+                assertEquals(0, input.closes + compressed.closes)
+            }
+        }
+    }
+
+    @Test
+    fun `sinks finish each format with bounded output and short suspended writes`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            for (options in compressionCases()) for (text in ["", "Hello, Scoop!"]) {
+                val output = ShortAsyncCompressionSink()
+                AsyncCompressionSink(output, options, 1L).useAsync suspend { sink ->
+                    writeAsyncCompression(sink, text.toByteArray())
+                    sink.finish(); sink.finish()
+                    assertEquals(output.bytes.size, sink.totals.outputBytes)
+                }
+                assertEquals(text, String.fromUtf8(decompress(output.bytes.toByteArray(), DecompressionOptions(options.format))))
+                val decoded = ShortAsyncCompressionSink()
+                AsyncDecompressionSink(decoded, DecompressionOptions(options.format), 1L).useAsync suspend { sink ->
+                    writeAsyncCompression(sink, output.bytes.toByteArray()); sink.finish()
+                    assertEquals(text.toByteArray().size, sink.totals.outputBytes)
+                }
+                assertEquals(text, String.fromUtf8(decoded.bytes.toByteArray()))
+                assertEquals(0, output.closes + decoded.closes)
+            }
+        }
+    }
+
+    @Test
+    fun `flush composes two suspending adapters without ending the message`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            for (options in compressionCases()) {
+                val output = ShortAsyncCompressionSink()
+                AsyncDecompressionSink(output, DecompressionOptions(options.format), 1L).useAsync suspend { decoded ->
+                    AsyncCompressionSink(decoded, options, 1L).useAsync suspend { encoded ->
+                        writeAsyncCompression(encoded, "hello".toByteArray()); encoded.flush()
+                        assertEquals("hello", String.fromUtf8(output.bytes.toByteArray()))
+                        writeAsyncCompression(encoded, "world".toByteArray()); encoded.finish(); decoded.finish()
+                        assertEquals("helloworld", String.fromUtf8(output.bytes.toByteArray()))
+                        assertEquals(1, output.flushes)
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `copy extensions count completed streams and keep borrowed endpoints open`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            for (options in compressionCases()) {
+                val input = ShortAsyncCompressionSource("中文日本".toByteArray())
+                val output = ShortAsyncCompressionSink()
+                val forward = input.compressTo(output, options, 3L)
+                val compressed = ShortAsyncCompressionSource(output.bytes.toByteArray())
+                val decoded = ShortAsyncCompressionSink()
+                val backward = compressed.decompressTo(decoded, DecompressionOptions(options.format), 7L)
+                assertEquals(forward.inputBytes, backward.outputBytes)
+                assertEquals(forward.outputBytes, backward.inputBytes)
+                assertEquals("中文日本", String.fromUtf8(decoded.bytes.toByteArray()))
+                assertEquals(0, input.closes + output.closes + compressed.closes + decoded.closes)
+                assertEquals(0, output.flushes + decoded.flushes)
+            }
+        }
+    }
+}

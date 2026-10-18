@@ -1,6 +1,6 @@
 # Scoop 压缩库规范
 
-版本：M54，实施中。内存、增量引擎与同步流已实现，异步流和 RawDeflate 消息适配继续实施；实际验证见[进度](../milestone54/PROGRESS.md)。范围与实施次序见 [M54 设计](../milestone54/DESIGN.md)。公共命名、字节进度、资源和取消分别遵守[库 API 风格](SCOOP-API-STYLE.md)、[平台库](SCOOP-PLATFORM-SPEC.md)和[异步 I/O](SCOOP-ASYNCIO-SPEC.md)。
+版本：M54，实施中。内存、增量引擎与同步／异步流已实现，RawDeflate 消息适配继续实施；实际验证见[进度](../milestone54/PROGRESS.md)。范围与实施次序见 [M54 设计](../milestone54/DESIGN.md)。公共命名、字节进度、资源和取消分别遵守[库 API 风格](SCOOP-API-STYLE.md)、[平台库](SCOOP-PLATFORM-SPEC.md)和[异步 I/O](SCOOP-ASYNCIO-SPEC.md)。
 
 ## 1. Cone、格式与后端
 
@@ -83,7 +83,7 @@ source 默认借用输入，sink 默认借用输出，仅拥有自身引擎和�
 
 bufferSize 约束适配器的实际 I/O 中间缓冲，不限制总数据量，也不代替算法窗口；共享 codec 另有固定 8192 字节的待交付区。适配器以有限前缀推进，正确处理短读、短写、压缩膨胀和没有输出的输入；不得先读取完整源再伪装成流。异步包装的下游 I/O、上游 I/O 和等待均通过 suspend 入口，不能在 EventLoop 线程调用同步文件／socket API。codec 每次推进是有限的同步计算，不宣称转移到其他线程或提供硬实时抢占。
 
-异步操作要求活动 Job 和所属 EventLoop。单个适配器同一方向最多一个操作；等待真实输入、输出空间或关闭完成时挂起，不循环轮询。无下游进度时传播背压，不无限积累输出。
+异步适配在构造时记录当前 EventLoop；异步操作要求活动 Job 和同一 EventLoop。单个适配器同一方向最多一个操作；等待真实输入、输出空间或关闭完成时挂起，不循环轮询。无下游进度时传播背压，不无限积累输出。为让 close 只取消当前操作，操作在调用方 Job 的结构化子作用域内完成；普通 codec／I/O 异常作为该次调用的异常返回，由调用方决定如何处理，不因内部任务传播机制额外取消调用方的其他工作。
 
 ## 6. 取消与清理
 
