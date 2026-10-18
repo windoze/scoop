@@ -17,8 +17,8 @@
 | D2：有搬迁 GC 并行 update | 本机通过 | 复用 marker pool；串行 claim 与根更新、槽分区、完成屏障，单 worker 直接串行 |
 | E：声明构建、局部 box／协程消除、跨 Cone 内联 | 本机进入调查完成 | 冷编译阶段与三类真实程序补测；保留明确的后续范围，不扩大 A–D 实现 |
 | 桌面短 STW 补充调研 | 本机实验完成 | 整块年轻区回收原型及逐次暂停、metadata footprint、旧堆 card 成本，详见补充设计 |
-| 本机阶段验证 | 待完成 | 每批先格式化／lint，相关 crate／runtime 与正式 CLI fixtures |
-| Linux 完整验收 | 待完成 | nuc12 独立 worktree：workspace、fixture runner 规则和完整 CLI；GNU／musl 合同 |
+| 本机阶段验证 | 已通过 | 每批格式化／lint、相关 crate／runtime；最终 M56 48 个变体及 String／UTF-8 组合回归 |
+| Linux 完整验收 | 进行中 | 独立 worktree 的 4975 项 Rust 测试与 50 项 runner 规则通过；正式 GNU 全量及 musl 合同组合继续 |
 | 逐功能提交、临时资料与 target 清理 | 进行中 | 只提交本任务变更，原始日志在仓库外，不使用绝对 `/tmp` |
 
 ## 工作环境与验证策略
@@ -185,4 +185,6 @@ NoGC kernel 时间约减少 79.4%；反汇编在对应 callable 确认两条 `ml
 
 最终生产工具与重新准备的本机 sysroot 通过 M56 全部 10 个 fixture／48 个变体，以及 M26 String、M33 UTF-8 合计 15 个 fixture／18 个变体／56 个进程。Linux 已准备 GNU／musl 两套完整 16 Cone sysroot，进入完整 workspace 与正式 CLI 验收。
 
-Linux workspace 首轮的 HIR lowering 有 1452 项通过、23 项失败；逐项比较确认全部仅多出 B3 的三个 String intrinsic 声明，被测源码的 HIR 没有变化。按仓库的结构测试纪律，将这 23 份早期快照缩到被测函数／类型声明、入口和泛型实例，保留完整正文、求值顺序、字段／variant 和类型关系；不再重复固定公共 core 的无关定义。没有改生产 dump 或编译行为，也没有直接将新增 core 行抄入全部期望。删去约 2500 行重复快照，沿用一个只服务现有测试的局部选择 helper。格式化与 workspace clippy 通过；本机 23 项受影响测试加 String intrinsic 签名拒绝专测全部通过。Linux 将只补跑这些项及首轮尚未执行的 crate，不重复已通过的完整部分。
+Linux workspace 首轮的 HIR lowering 有 1452 项通过、23 项失败；逐项比较确认全部仅多出 B3 的三个 String intrinsic 声明，被测源码的 HIR 没有变化。按仓库的结构测试纪律，将这 23 份早期快照缩到被测函数／类型声明、入口和泛型实例，保留完整正文、求值顺序、字段／variant 和类型关系；不再重复固定公共 core 的无关定义。没有改生产 dump 或编译行为，也没有直接将新增 core 行抄入全部期望。删去约 2500 行重复快照，沿用一个只服务现有测试的局部选择 helper。格式化与 workspace clippy 通过；本机 23 项受影响测试加 String intrinsic 签名拒绝专测全部通过。Linux 已仅补跑这些项及首轮尚未执行的 crate，不重复已通过的完整部分；最终覆盖 4975 项 Rust 测试、0 失败、0 忽略，50 项 fixture runner 规则全部通过。driver 未完成部分改用保留 debug assertions／overflow checks 的优化 Rust 测试程序，具体范围见 [最终验收](ACCEPTANCE.md)。
+
+桌面 footprint 另核查了实际 Mach-O：17,492,984 bytes 程序中 `__LINKEDIT` 为 13,697,024 bytes，76,560 个动态导出中约 55,000 个是 atom 边界。GNU 分配程序的实验副本经常规 strip 后，从 12,822,024 缩至 4,419,056 bytes，结果与 45 次 minor／复制量均一致；主要移除无 `SHF_ALLOC` 的静态符号信息。两项分别作为符号可见性与 release 输出的后续候选，未改现行链接／ODR 合同，也不把文件字节数当作 RSS；详细组成和限制见补充设计 3.2。
