@@ -1,0 +1,25 @@
+package scoop.crypto.x509
+
+import scoop.crypto.native.*
+
+public fun parseCertificatesPem(text: String): Array<Certificate> {
+    val bytes = text.toByteArray()
+    @Unsafe {
+        val bundle = bytes.withDataPointer { pointer, count ->
+            @Unsafe { return@withDataPointer cryptoValue(certificateBundleParse(pointer, count), "parse certificate bundle") }
+        }
+        val certificates = ArrayList<Certificate>()
+        try {
+            val count = certificateBundleCount(bundle)
+            var index = 0
+            while (index < count) {
+                certificates.add(Certificate(cryptoValue(certificateBundleGet(bundle, index), "retain bundle certificate")))
+                index += 1
+            }
+            return certificates.toArray()
+        } catch (error: Throwable) {
+            for (certificate in certificates) certificate.close()
+            throw error
+        } finally { certificateBundleFree(bundle) }
+    }
+}

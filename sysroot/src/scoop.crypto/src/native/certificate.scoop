@@ -34,6 +34,10 @@ public fun peerIdentityData(identity: PeerIdentity): (Int, Array<Byte>) {
 @Extern(name = "scoop_crypto_certificate_key") internal fun certificateKey(handle: ULong): CryptoResult
 @Extern(name = "scoop_crypto_certificate_signature") internal fun certificateSignature(handle: ULong, key: ULong): CryptoResult
 @Extern(name = "scoop_crypto_certificate_free") internal fun certificateFree(handle: ULong)
+@Extern(name = "scoop_crypto_certificate_bundle_parse") internal fun certificateBundleParse(data: Ptr<Byte>, count: Long): CryptoResult
+@Extern(name = "scoop_crypto_certificate_bundle_count") internal fun certificateBundleCount(handle: ULong): Int
+@Extern(name = "scoop_crypto_certificate_bundle_get") internal fun certificateBundleGet(handle: ULong, index: Int): CryptoResult
+@Extern(name = "scoop_crypto_certificate_bundle_free") internal fun certificateBundleFree(handle: ULong)
 @Extern(name = "scoop_crypto_certificate_names") internal fun certificateNames(handle: ULong): CryptoResult
 @Extern(name = "scoop_crypto_names_count") internal fun namesCount(handle: ULong): Int
 @Extern(name = "scoop_crypto_name_kind") internal fun nameKind(handle: ULong, index: Int): Int
