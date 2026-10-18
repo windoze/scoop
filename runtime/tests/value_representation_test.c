@@ -168,6 +168,7 @@ static void wrong_scan_box(void *unused) {
     scoop_rt_pop_native_region_roots(&region);
 }
 static void interior_unbox(void *object) { scoop_rt_unbox_zst((char *)object + 8, &zst_box_td); }
+static void invalid_object_unbox(void *object) { scoop_rt_unbox_zst(object, &zst_box_td); }
 static void wrong_exact_unbox(void *object) {
     ScoopTypeDescriptor other = zst_box_td;
     scoop_rt_unbox_zst(object, &other);
@@ -194,6 +195,8 @@ static void test_boxing(bool stress) {
     expect_abort(unrooted_box, NULL);
     expect_abort(wrong_scan_box, NULL);
     expect_abort(interior_unbox, first);
+    expect_abort(invalid_object_unbox, NULL);
+    expect_abort(invalid_object_unbox, (void *)(uintptr_t)8);
 
     _Alignas(16) TestPayload payload = {allocate(&leaf_td, 24), 42};
     uintptr_t old_reference = (uintptr_t)payload.reference;
@@ -227,6 +230,9 @@ static void wrong_array_exact(void *object) {
     ScoopTypeDescriptor other = zst_array_td;
     (void)clone(object, &other, &zst_array_td);
 }
+static void interior_clone(void *object) {
+    (void)clone((char *)object + 8, &zst_array_td, &zst_array_td);
+}
 
 static void test_arrays(void) {
     ScoopArray *source = NULL;
@@ -247,6 +253,7 @@ static void test_arrays(void) {
     }
     expect_abort(invalid_count, source);
     expect_abort(wrong_array_exact, source);
+    expect_abort(interior_clone, source);
     leaf = allocate(&leaf_td, 24);
     source = allocate(&ref_array_td, scoop_shape_allocation_size(&ref_array_td, 2));
     source->size = 2;

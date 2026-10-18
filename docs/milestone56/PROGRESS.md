@@ -6,9 +6,9 @@
 
 | 项目 | 状态 | 验证／取舍 |
 | --- | --- | --- |
-| A：当前 release 工具、开发 sysroot 与真实程序基线 | 进行中 | 当前工具／core／runtime 与分配基线已建立；完整库 sysroot 准备中 |
+| A：当前 release 工具、开发 sysroot 与真实程序基线 | 本机基线就绪 | 完整库 sysroot 准备成功；分配与拆箱基线已建立，后续按项目追加 |
 | B1：内部 TD 验证结果复用、native 边界保留 | 本机通过 | 30 项 collector 测试、8 个 CLI 变体及完整分配对照；Linux 最终复验 |
-| B2：unbox／clone 单次对象定位 | 待完成 | 类型匹配、对象边界、移动与含引用值 |
+| B2：unbox／clone 单次对象定位 | 本机通过 | 单次 exact-size 定位；非法地址／类型、large clone、移动与含引用值 |
 | B3：String 有界表示 intrinsic | 待完成 | byteLength、byte-at、cursor 解码；UTF-8、越界与 GC 组合 |
 | C1：NoGC／无 site 循环优化及 Managed 保守优化 | 待完成 | 实际向量化、唯一 site／roots、EH／原子与响应 |
 | C2：局部 card 查询／mark 复用 | 待完成 | 同 card／跨 card、同步边界、多 mutator、minor／moving |
@@ -45,3 +45,11 @@
 该工作负载约减少 39.3% 时间；全部样本均为 45 次 minor／0 次 full、48,008,432 allocated bytes、1,114,160 promoted／copied bytes，dirty cards／root slots／traced objects 等工作量也一致。这是包括循环、引用写入与实际 GC 的 kernel 成绩，不是所有应用的加速比；Linux 尚待复验。
 
 环境准备：release 工具、core、runtime 和第三方 native 后端已准备。完整 sysroot 首次在尚未准备好的 IDNA header 处停止；依赖已随后补齐，继续复用已有结果准备其余 Cone。原始构建、测量 JSON 与 fixture 工作目录均在仓库外。
+
+### B2：拆箱与克隆复用单次对象定位
+
+先补充运行时规范 2.3。两个表示入口在原有 heap lock 内调用一次 exact-size 查询，在读取对象头前确认对象起点，并用所得尺寸校验动态 shape；删除重复的 object-start 查询，没有增加新查询接口或跨 safepoint 缓存。保留类型／枚举父类型匹配、长度与实际分配尺寸检查。非法地址仍明确 abort，诊断沿用 exact-size 查询。
+
+格式化、workspace clippy 和 descriptor-driven representation 专测通过；该专测在 normal／moving 两种模式覆盖内部地址、null、非对象地址、未匹配类型及动态 size。正式 CLI 的 3 个 fixture 共 12 个变体通过，新增整数枚举按原身份与父整数拆箱、错误转换异常、large array 克隆独立性；原含引用／ZST 用例继续通过。完整开发 sysroot 已准备成功。
+
+同一 release 编译器／core 对照 B1 与 B2 runtime：一个 `Any` 中的 Pair 在循环内拆箱两百万次并累加两字段，checksum `30000000`；一轮预热、七轮交替独立进程，构建完成后串行测量。B1 中位 112.989 ms [112.512, 114.101]，B2 102.124 ms [101.818, 102.482]，约减少 9.6%。全部样本 allocated bytes 为 224，无 collection／复制／晋升；该结果包含类型测试、锁与循环成本，不代表所有 Any 使用方式。Linux 最终复验。
