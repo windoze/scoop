@@ -12,6 +12,7 @@
 | B3：String 有界表示 intrinsic | 本机通过 | 三个 typed intrinsic 与独立内部 NoGC leaf；UTF-8、越界、旧 extern 与移动 GC |
 | C1：NoGC／无 site 循环优化及 Managed 保守优化 | 本机通过 | 三目标向量代码与完整 codegen 专测；Managed poll／EH／原子保留，Linux 运行待复验 |
 | C2：局部 card 查询／mark 复用 | 本机通过 | 同对象复用 region，精确槽重复 mark 消除；跨 card／调用／原子／GC 边界覆盖 |
+| 分块 poll 候选调研 | 机制实验完成 | 设计 3.2 补充有界内层、CFG／roots 接入要求与真实移动握手对照；尚未启用自动变换 |
 | D1：nursery／refill 对照与策略取舍 | 待完成 | 1／4／8／16 MiB，存活率与 1–8 mutator；吞吐／内存／停顿 |
 | D2：有搬迁 GC 并行 update 候选 | 待完成 | 串行 claim、槽分区、完整阶段屏障；单／多 worker 同义性及净收益 |
 | E：声明构建、局部 box／协程消除、跨 Cone 内联 | 待评估 | 逐项记录设计规定的进入条件与实测，不以无依据延期替代调查 |
