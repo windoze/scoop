@@ -6,8 +6,8 @@ import scoop.crypto.x509.*
 import scoop.tls.native.*
 
 public class TlsClientContext private constructor(private val state: ContextState) : Closeable {
-    public constructor(trustStore: TrustStore, options: TlsOptions = TlsOptions())
-        : this(clientState(trustStore, options)) {}
+    public constructor(trustStore: TrustStore, options: TlsOptions = TlsOptions(), identity: TlsIdentity? = None)
+        : this(clientState(trustStore, options, identity)) {}
 
     internal fun newSession(peer: TlsPeerName): ULong {
         val (kind, bytes) = peerData(peer)
@@ -30,25 +30,29 @@ public class TlsServerContext private constructor(private val state: ContextStat
     public override fun close() { state.dispose() }
 }
 
-private fun clientState(trustStore: TrustStore, options: TlsOptions): ContextState {
+private fun clientState(trustStore: TrustStore, options: TlsOptions, identity: TlsIdentity?): ContextState {
     val alpn = encodeOptions(options)
-    @Unsafe { return ContextState(newContext(false, options, alpn, trustStoreHandle(trustStore))) }
+    @Unsafe {
+        val handle = newContext(false, options, alpn, trustStoreHandle(trustStore))
+        try {
+            identity?.configure(handle)
+            return ContextState(handle)
+        } catch (error: Throwable) {
+            contextFree(handle)
+            throw error
+        }
+    }
 }
 
 private fun serverState(certificates: List<Certificate>, privateKey: PrivateKey, options: TlsOptions): ContextState {
     val alpn = encodeOptions(options)
-    if (certificates.size == 0L) throw IllegalArgumentException(Some("TLS server requires a certificate chain"))
-    @Unsafe {
-        val key = privateKeyHandle(privateKey)
-        val chain = Array<ULong>(certificates.size) { index -> @Unsafe { return@Array certificateHandle(certificates[index]) } }
+    return TlsIdentity(certificates, privateKey).use { identity ->
         val handle = newContext(true, options, alpn, 0UL)
         try {
-            chain.withDataPointer { pointer, count ->
-                @Unsafe { tlsValue(contextIdentity(handle, key, pointer, count), "configure TLS server identity") }
-            }
-            return ContextState(handle)
+            identity.configure(handle)
+            ContextState(handle)
         } catch (error: Throwable) {
-            contextFree(handle)
+            @Unsafe { contextFree(handle) }
             throw error
         }
     }

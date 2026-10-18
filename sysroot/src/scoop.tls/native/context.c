@@ -59,21 +59,6 @@ ScoopCryptoResult scoop_tls_context_new(int server, int minimum, int maximum,
   return scoop_crypto_ok((uintptr_t)ctx);
 }
 
-ScoopCryptoResult scoop_tls_context_identity(uint64_t value, uint64_t key,
-                                             const uint64_t *certificates,
-                                             int64_t count) {
-  ERR_clear_error();
-  SSL_CTX *ctx = ((ScoopTlsContext *)(uintptr_t)value)->ssl;
-  int ok = count > 0 &&
-           SSL_CTX_use_certificate(ctx, (X509 *)(uintptr_t)certificates[0]) &&
-           SSL_CTX_use_PrivateKey(ctx, (EVP_PKEY *)(uintptr_t)key) &&
-           SSL_CTX_check_private_key(ctx);
-  for (int64_t i = 1; ok && i < count; ++i)
-    ok = SSL_CTX_add1_chain_cert(ctx, (X509 *)(uintptr_t)certificates[i]);
-  return ok ? scoop_crypto_ok(0)
-            : scoop_crypto_fail("TLS certificate and private key setup failed");
-}
-
 void scoop_tls_context_free(uint64_t value) {
   ScoopTlsContext *ctx = (ScoopTlsContext *)(uintptr_t)value;
   if (ctx && atomic_fetch_sub_explicit(&ctx->references, 1,

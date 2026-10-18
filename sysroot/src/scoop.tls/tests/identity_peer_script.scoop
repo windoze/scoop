@@ -1,0 +1,40 @@
+package scoop.tls
+
+internal fun identityPeerScript(): String =
+    "import socket, ssl, sys\n" +
+    "certificate, key, root, expected, version, outcome = sys.argv[1:]\n" +
+    "context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)\n" +
+    "selected = ssl.TLSVersion.TLSv1_2 if version == '12' else ssl.TLSVersion.TLSv1_3\n" +
+    "context.minimum_version = context.maximum_version = selected\n" +
+    "context.load_cert_chain(certificate, key)\n" +
+    "context.load_verify_locations(root)\n" +
+    "context.verify_mode = ssl.CERT_REQUIRED\n" +
+    "with open(expected) as source:\n" +
+    "    expected_der = ssl.PEM_cert_to_DER_cert(source.read())\n" +
+    "with socket.socket() as listener:\n" +
+    "    listener.settimeout(60)\n" +
+    "    listener.bind(('127.0.0.1', 0))\n" +
+    "    listener.listen(1)\n" +
+    "    print(listener.getsockname()[1], flush=True)\n" +
+    "    raw, _ = listener.accept()\n" +
+    "    raw.settimeout(60)\n" +
+    "    try:\n" +
+    "        connection = context.wrap_socket(raw, server_side=True)\n" +
+    "    except ssl.SSLError as error:\n" +
+    "        raw.close()\n" +
+    "        if outcome != 'reject': raise\n" +
+    "        assert error.reason in ('PEER_DID_NOT_RETURN_A_CERTIFICATE', 'CERTIFICATE_VERIFY_FAILED')\n" +
+    "        print('rejected', flush=True)\n" +
+    "    else:\n" +
+    "        with connection:\n" +
+    "            assert outcome == 'accept'\n" +
+    "            assert connection.getpeercert(binary_form=True) == expected_der\n" +
+    "            data = b''\n" +
+    "            while len(data) < 4:\n" +
+    "                part = connection.recv(4 - len(data))\n" +
+    "                if not part: raise RuntimeError('missing mTLS application data')\n" +
+    "                data += part\n" +
+    "            assert data == b'mtls'\n" +
+    "            connection.sendall(b'peer')\n" +
+    "            connection.unwrap().close()\n" +
+    "        print('accepted', flush=True)\n"

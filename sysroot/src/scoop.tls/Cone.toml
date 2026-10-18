@@ -30,6 +30,8 @@ kind = "static"
 [[native.sources]]
 path = "native/context.c"
 [[native.sources]]
+path = "native/identity.c"
+[[native.sources]]
 path = "native/session.c"
 [[native.sources]]
 path = "native/step.c"

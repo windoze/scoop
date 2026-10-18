@@ -38,6 +38,7 @@
 | WebSocket 内存帧 | 增量 FrameEncoder／Decoder、Close 数据与 MessageValidator；角色 mask、分片、有限 Data 块、控制帧和真实输入进度，UTF-8 复用 charset，压缩消息显式交给 compression | Darwin debug／release：23 项新测试与 HTTP 全部 205 项通过；新增测试通过两种构建的 moving GC，244 组独立帧对照和正式压缩组合通过 |
 | 未压缩 WebSocket 异步会话 | AsyncWebSocketSession 接管升级后传输与后缀；流式消息、有限背压、独立控制帧调度、关闭握手和结构化取消，真实借用结束后释放资源 | Darwin debug／release：27 项新测试与 HTTP asyncio 全部 80 项通过；新增测试逐例通过两种构建的 moving GC，真实 TCP 升级与独立 websockets 17.2 双向互通通过 |
 | WebSocket 压缩与 WSS | 同一异步会话按协商窗口与历史策略复用 DEFLATE 消息引擎，有限流式压缩／解压、FIN 前 flush、明文限制；TLS HTTP/1.1 升级保留完整传输所有权 | Darwin debug／release：14 项新测试与 HTTP asyncio 全部 94 项通过；新增测试逐例通过两种构建的 moving GC，独立 websockets 17.2 的 WS／WSS 双向共 32 种组合通过 |
+| TLS 客户端身份 | TlsIdentity 独立保留证书链与私钥，PEM 工厂复用 crypto；TlsClientContext 接受可选身份，与服务端共用 OpenSSL 配置，关闭原输入／身份／上下文不破坏已有使用者 | Darwin debug／release：TLS 新增 6 项、全部 19 项通过，TLS asyncio 新增 2 项、全部 14 项通过；新增测试与两项服务端回归通过 moving GC，独立 OpenSSL 验证 TLS 1.2／1.3 的 mTLS 成功及拒绝 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -140,6 +141,10 @@ WebSocket 异步会话的首次完整编译暴露了对象指纹阶段的重复�
 `m54-websocket-deflate` 的 Darwin debug／release 两个变体通过，共 6 个进程。正式 `.slib` 消费者在两个 native 线程中分别完成 WS 与 WSS，组合 TLS 的 HTTP/1.1 ALPN、101 同次输出的首帧后缀、压缩／普通消息混用、FIN 前原文交付、双向控制帧、二进制及空消息、关闭握手；moving GC 与正常缓存复用通过。
 
 同一消费者与 websockets 17.2 独立互通：两种构建分别覆盖 WS／WSS、客户端／服务端及四种双向历史保留配置，共 32 种组合全部通过，并核对最终窗口、子协议及 TLS ALPN。14 项库测试逐例运行 debug／release 的 full moving，共 28 个进程通过，包含独立 zlib 历史向量、UTF-8／格式／窗口错误、线上与解压长度的区别、未消费正文背压及延迟真实借用结束后的取消清理。压缩字节与同步尾部始终由 compression 处理，HTTP 未增加 native codec 调用；HTTP/2 WebSocket 与 HTTP/3 仍不在本期。Linux 验证及统一 client 尚未完成。
+
+`m54-tls-identity` 的 Darwin debug／release 两个变体通过，共 6 个进程。正式 crypto／TLS／TLS asyncio `.slib` 的消费者在两个 native 线程中分别运行同步与 suspend 客户端，两种 TLS 版本均由独立 Python SSL／OpenSSL 服务器要求客户端证书、验证信任链并核对实际叶证书；身份与上下文的提前关闭、实际数据和 close_notify、未完成异步握手的取消、moving GC 与缓存复用均通过。
+
+TLS 身份的 6 项新测试及 2 项既有服务端／引用回归在两种构建下逐例通过 full moving，共 16 个进程；TLS asyncio 的 2 项新测试也通过两种构建的 full moving。覆盖证书列表快照、空链／错误私钥／坏 PEM／关闭输入、多个上下文与 SSL 的独立保活、缺少身份／错误用途／缺少中间证书的服务端拒绝，以及身份不绕过目标名称和服务器信任验证。异步取消明确等待底层 close 后才恢复。首次编译修正了可选配置的调用语句与测试缺少集合函数 import，C 适配通过格式化及严格警告检查；未扩展系统信任、证书固定或会话管理的完成范围。系统信任、CA 文件入口及 Linux 验证继续实施。
 
 ## 后续工作
 

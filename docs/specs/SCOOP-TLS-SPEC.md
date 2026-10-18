@@ -1,6 +1,6 @@
 # Scoop TLS 库规范
 
-版本：M51 已实施基线，含第 8 节的 M54 待实施扩展。既有实现状态见 [M51 进度](../milestone51/PROGRESS.md)，新增范围见 [M54 设计](../milestone54/DESIGN.md)。本规范与[密码库规范](SCOOP-CRYPTO-SPEC.md)共同规定三个普通库的边界。
+版本：M51 已实施基线，含第 8 节的 M54 扩展。既有实现状态见 [M51 进度](../milestone51/PROGRESS.md)，新增范围与实施状态见 [M54 设计](../milestone54/DESIGN.md)及[进度](../milestone54/PROGRESS.md)。本规范与[密码库规范](SCOOP-CRYPTO-SPEC.md)共同规定三个普通库的边界。
 
 ## 1. 分层
 
@@ -16,7 +16,7 @@ M51 的 TlsClientContext 显式接收 crypto TrustStore，M54 的系统来源工
 
 默认 TLS 1.2～1.3，允许显式限定为其中一个版本；使用上游正常密码配置。ALPN 为独立协议字节串列表，每项 1～255 字节，总编码长度至多 65535；服务端按自身顺序选共同项。双方配置 ALPN 而无共同项时报握手错误，未协商返回 None。协商信息提供实际 TLS 版本与可选 ALPN。
 
-`TlsVersion { Tls12, Tls13 }`，`TlsOptions(minimum = Tls12, maximum = Tls13, alpn = 空列表)`。上下文构造为 `TlsClientContext(trustStore, options)` 和 `TlsServerContext(certificates, privateKey, options)`；certificates 非空，顺序为叶证书、其后发送的中间证书，根无需发送。`TlsPeerName { Dns(String), Ip(IpAddress) }` 在 TLS 层将 platform 的地址转成 crypto 的内存身份。`TlsConnectionInfo(version, alpn)` 返回协商数据的独立副本。
+`TlsVersion { Tls12, Tls13 }`，`TlsOptions(minimum = Tls12, maximum = Tls13, alpn = 空列表)`。上下文构造为 `TlsClientContext(trustStore, options, identity = None)` 和 `TlsServerContext(certificates, privateKey, options)`；certificates 非空，顺序为叶证书、其后发送的中间证书，根无需发送。`TlsPeerName { Dns(String), Ip(IpAddress) }` 在 TLS 层将 platform 的地址转成 crypto 的内存身份。`TlsConnectionInfo(version, alpn)` 返回协商数据的独立副本。
 
 ## 3. 所有权与引擎
 
@@ -66,13 +66,15 @@ shutdownGracefully 独占读写方向，排出已接受输出，发出并等待�
 
 各 Cone 的 scoop.test 与生产外部消费者覆盖算法、身份、TLS 1.2／1.3、ALPN、短传输、背压、双向并发、取消、关闭、moving GC 和独立 OpenSSL 对端。使用 loopback 动态端口、明确同步点和测试 CA，不依赖公网或系统信任。三个目标分别运行 debug／release／moving GC，不能以静态发射代替 Linux 运行；完整要求见 M51 设计第 12 节。
 
-## 8. M54 身份与系统信任（待实施）
+## 8. M54 身份与系统信任
 
 ### 8.1 客户端身份
 
-提供不可变 `TlsIdentity(certificates, privateKey)`，证书链非空，按叶证书到中间证书排序。创建时复用既有证书／私钥匹配检查并保留 native 引用，实现 Closeable；显式关闭原 Certificate／PrivateKey wrapper 不使 identity 失效。PEM 便利入口调用 crypto 的 bundle 与私钥 parser，不在 TLS 或 client 重写解析。
+提供不可变配置 `TlsIdentity(certificates: List<Certificate>, privateKey: PrivateKey)`，证书链非空，按叶证书到中间证书排序。创建时检查叶证书／私钥匹配，独立保留每张证书和私钥的 native 引用，实现 Closeable；显式关闭原 Certificate／PrivateKey wrapper 不使 identity 失效。isClosed 查询关闭状态，close 幂等；关闭后的身份不能配置新上下文。构造期间输入 wrapper 仍须有效，不允许其他使用者并发关闭它们。
 
-TlsClientContext 增加可选 identity，默认 None，旧的 `TlsClientContext(trustStore, options)` 调用仍合法。向 SSL_CTX 设置身份可复用当前服务端配置使用的 `scoop_tls_context_identity` 路径；是否确需补 C helper 由实际实现决定，不能在 client 直接调用它。对端请求证书时按 TLS 协议发送配置的身份，不动态执行用户选择 callback。
+`TlsIdentity.fromPem(certificates: String, privateKey: String)` 调用 crypto 的完整 bundle 与私钥 parser，在所有出口释放临时 wrapper。空链抛 IllegalArgumentException，已关闭输入抛 IllegalStateException，PEM 解析保留 CryptoException，证书／私钥不匹配以 TlsFailureKind.Configuration 报告；不通过导出／重新解析 PEM 来取得输入的所有权。
+
+TlsClientContext 的最后一个可选参数为 identity，默认 None，旧的 `TlsClientContext(trustStore, options)` 调用仍合法。向 SSL_CTX 配置身份时取得独立 native 引用，因此 identity 关闭不影响已创建上下文，上下文关闭也不影响已有 SSL。身份的配置／关闭使用短临界区，不在其中执行 I/O 或用户代码。服务端原构造入口使用同一身份检查与 OpenSSL 配置路径，不增加另一套证书链复制实现。对端请求证书时按 TLS 协议发送配置的身份，不动态执行用户选择 callback。
 
 客户端身份只影响本地配置与发送，服务端证书链、用途和 URL 名称验证继续执行。不同 identity 的连接不得在上层误用同一池键。mTLS 不扩展为证书固定、对端证书链查询或 TLS session 管理接口。
 
