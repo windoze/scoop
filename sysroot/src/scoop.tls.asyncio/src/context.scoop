@@ -1,0 +1,12 @@
+package scoop.tls.asyncio
+
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.platform.fs.Path
+import scoop.tls.*
+
+public suspend fun openTlsClientContext(caFile: Path, options: TlsOptions = TlsOptions(),
+    identity: TlsIdentity? = None): TlsClientContext {
+    val bytes = currentEventLoop().openFile(caFile).useAsync suspend { file -> file.readAllBytes() }
+    return TrustStore.fromPem(String.fromUtf8(bytes)).use { store -> TlsClientContext(store, options, identity) }
+}

@@ -39,6 +39,8 @@
 | 未压缩 WebSocket 异步会话 | AsyncWebSocketSession 接管升级后传输与后缀；流式消息、有限背压、独立控制帧调度、关闭握手和结构化取消，真实借用结束后释放资源 | Darwin debug／release：27 项新测试与 HTTP asyncio 全部 80 项通过；新增测试逐例通过两种构建的 moving GC，真实 TCP 升级与独立 websockets 17.2 双向互通通过 |
 | WebSocket 压缩与 WSS | 同一异步会话按协商窗口与历史策略复用 DEFLATE 消息引擎，有限流式压缩／解压、FIN 前 flush、明文限制；TLS HTTP/1.1 升级保留完整传输所有权 | Darwin debug／release：14 项新测试与 HTTP asyncio 全部 94 项通过；新增测试逐例通过两种构建的 moving GC，独立 websockets 17.2 的 WS／WSS 双向共 32 种组合通过 |
 | TLS 客户端身份 | TlsIdentity 独立保留证书链与私钥，PEM 工厂复用 crypto；TlsClientContext 接受可选身份，与服务端共用 OpenSSL 配置，关闭原输入／身份／上下文不破坏已有使用者 | Darwin debug／release：TLS 新增 6 项、全部 19 项通过，TLS asyncio 新增 2 项、全部 14 项通过；新增测试与两项服务端回归通过 moving GC，独立 OpenSSL 验证 TLS 1.2／1.3 的 mTLS 成功及拒绝 |
+| 异步流内存读取 | AsyncByteSource.readAllBytes 用有限原生缓冲读取剩余内容，显式返回独立数组，保留错误与取消，不接管输入端 | Darwin debug／release：4 项新测试与 asyncio 全部 49 项通过；新测试通过 moving GC，覆盖短读、空输入、部分失败、非法进度及真实借用完成后的取消 |
+| 显式 CA 文件 | TLS 的 fromCaFile 与 TLS asyncio 的 openTlsClientContext 共享 crypto bundle／TrustStore，异步文件读取复用 asyncio 公共操作；成功后独立保活，不混入系统根 | Darwin debug／release：TLS 新增 3 项、全部 22 项通过，TLS asyncio 新增 3 项、全部 17 项通过；新增测试通过 moving GC，生产消费者通过双版本同步／异步 mTLS |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -146,6 +148,10 @@ WebSocket 异步会话的首次完整编译暴露了对象指纹阶段的重复�
 
 TLS 身份的 6 项新测试及 2 项既有服务端／引用回归在两种构建下逐例通过 full moving，共 16 个进程；TLS asyncio 的 2 项新测试也通过两种构建的 full moving。覆盖证书列表快照、空链／错误私钥／坏 PEM／关闭输入、多个上下文与 SSL 的独立保活、缺少身份／错误用途／缺少中间证书的服务端拒绝，以及身份不绕过目标名称和服务器信任验证。异步取消明确等待底层 close 后才恢复。首次编译修正了可选配置的调用语句与测试缺少集合函数 import，C 适配通过格式化及严格警告检查；未扩展系统信任、证书固定或会话管理的完成范围。系统信任、CA 文件入口及 Linux 验证继续实施。
 
+`m54-tls-ca-file` 的 Darwin debug／release 两个变体通过，共 6 个进程。正式 `.slib` 消费者在两个 native 线程中读取超过 8 KiB 的多证书 CA 包，分别通过同步与 suspend 入口建立 TLS 1.2／1.3 mTLS，与独立 Python SSL／OpenSSL 服务器核对证书、数据及关闭通知。Unicode／空格路径、跨读取块的 bundle、临时输入与身份的关闭、moving GC 和缓存复用均通过。
+
+新增的 4 项通用读取、3 项同步 CA 和 3 项异步 CA 测试均通过两种构建的 full moving。读取帮助函数在取消时等待来源的真实 NativeByteBorrow 完成，保留已消费前缀并在下一次读取前结束；CA 工厂保留原始 I/O、UTF-8 与 PEM 错误，不交付部分信任库。初次通用读取测试修正了 Unsafe 块的语法位置后通过，未修改语言实现。新增 asyncio 接口后，按正常构建入口更新记录旧依赖指纹的压缩预编译库，并完成 HTTP asyncio 的依赖刷新。系统信任和 Linux 验证仍待后续完成。
+
 ## 后续工作
 
 继续完成 HTTP 消息与协议补充、TLS 与 asyncio 缺口，再完成统一 client、策略、存储与长连接组合。每个功能独立验证和提交，最终按设计完成三个目标的运行验收。
@@ -173,3 +179,5 @@ Multipart 异步双向与共享 SSE 生命周期验收结束后，清理对应 6
 未压缩 WebSocket 会话验收结束后，清理帧回归及旧会话消费者的 6 个 fixture target 目录，释放约 592 MiB；保留最终会话消费者、生产 `.slib`、库 target、原始日志和缓存。
 
 WebSocket 压缩与 WSS 验收结束后，清理 DEFLATE flush 与未压缩会话的 4 个已结束 fixture target 目录，释放约 333 MiB；保留压缩／WSS 消费者、生产 `.slib`、库 target、原始日志和缓存。
+
+CA 文件组合验收结束后，清理客户端身份的 2 个已结束 fixture target 目录，释放约 123 MiB；保留 CA 文件与 WSS 消费者、当前库 target、生产 `.slib`、原始日志和缓存。

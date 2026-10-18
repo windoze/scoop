@@ -1,0 +1,20 @@
+package scoop.asyncio
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.platform.memory.NativeByteBuffer
+
+public suspend fun AsyncByteSource.readAllBytes(): Array<Byte> {
+    ensureActive()
+    val bytes = ByteArrayBuilder()
+    val buffer = NativeByteBuffer.allocate(8192L)
+    try {
+        while (true) {
+            ensureActive()
+            buffer.clear()
+            val count = readInto(buffer, buffer.capacity)
+            requireProgress(count, buffer.capacity)
+            if (count == 0L) return bytes.toByteArray()
+            bytes.append(buffer.readBytes(count))
+        }
+    } finally { buffer.close() }
+}

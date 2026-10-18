@@ -3,9 +3,15 @@ package scoop.tls
 import scoop.crypto.PrivateKey
 import scoop.crypto.native.*
 import scoop.crypto.x509.*
+import scoop.platform.fs.*
 import scoop.tls.native.*
 
 public class TlsClientContext private constructor(private val state: ContextState) : Closeable {
+    public companion object {
+        public fun fromCaFile(path: Path, options: TlsOptions = TlsOptions(), identity: TlsIdentity? = None): TlsClientContext =
+            TrustStore.fromPem(path.readText()).use { store -> TlsClientContext(store, options, identity) }
+    }
+
     public constructor(trustStore: TrustStore, options: TlsOptions = TlsOptions(), identity: TlsIdentity? = None)
         : this(clientState(trustStore, options, identity)) {}
 

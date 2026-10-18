@@ -82,6 +82,10 @@ TlsClientContext 的最后一个可选参数为 identity，默认 None，旧的 
 
 引入 `TlsTrustSource { System, Store(TrustStore) }`；显式 Store 沿用 M51 的 OpenSSL 验证。CA 文件便利入口读取字节后调用 crypto 的 TrustStore.fromPem；同步入口在 TLS，异步入口在 TLS asyncio，后者使用 AsyncFile。System 不代表跳过验证或使用空 TrustStore。
 
+显式文件入口为同步的 `TlsClientContext.fromCaFile(path: Path, options = TlsOptions(), identity = None)`，以及 `scoop.tls.asyncio.openTlsClientContext(caFile: Path, options = TlsOptions(), identity = None)`。两者读取完整 UTF-8 PEM bundle、关闭文件，构造临时 TrustStore 后由上下文保留 native 引用，再释放临时 store；不混入系统根。异步入口使用当前 EventLoop.openFile、AsyncByteSource.readAllBytes 和 useAsync，打开／读取／关闭均可挂起，取消沿文件操作的真实收尾合同完成。
+
+文件 I/O、UTF-8 解码与 PEM 解析保留原错误类型；空文件或含坏尾部的 bundle 失败，不交付部分信任上下文。options 与可选 identity 遵守普通上下文构造合同，identity 在工厂返回前须保持有效。读取失败不关闭借入的身份；成功后改变 CA 文件或关闭身份不影响已创建上下文。系统来源工厂仍按下文独立实现。
+
 Linux 的 System 装载目标运行环境的系统 CA 配置，保留加载失败、权限和格式错误；路径属于平台集成数据，不能使用构建机前缀或打包机证书。Darwin 的 System 使用系统信任验证，尊重系统／管理员／用户的 TLS 信任设置，不能将导出的根证书列表宣称为完整等价的系统政策。默认禁止验证过程触发额外 AIA／OCSP／CRL 网络获取，与现有离线验证边界一致。
 
 系统信任集成和平台 native 链验证属于 scoop.tls。Darwin 通过目标条件链接 Security／CoreFoundation；Linux 继续使用目标 OpenSSL 和实际 CA 数据。普通 platform 只提供所需文件／OS 原语，不依赖 crypto，crypto 保持内存库。系统策略失败统一保存 TlsFailureKind.Verification 与实际平台原因，不能自动改用另一套更宽松验证。

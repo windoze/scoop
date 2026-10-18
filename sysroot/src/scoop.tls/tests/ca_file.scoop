@@ -1,0 +1,71 @@
+package scoop.tls
+
+import scoop.crypto.CryptoException
+import scoop.crypto.testdata.*
+import scoop.platform.fs.*
+import scoop.platform.system.*
+import scoop.test.*
+import scoop.tls.native.TlsEngine
+
+@Test
+private class TlsCaFileTests {
+    @Test
+    fun `CA file contexts retain the complete bundle after the input changes`() {
+        InteropDirectory().use { tree ->
+            val path = tree.child("ca bundle 中.pem")
+            path.writeText(rootPem() + intermediatePem())
+            TlsClientContext.fromCaFile(path).use { context ->
+                path.writeText("changed after loading")
+                TlsEngine.client(context, TlsPeerName.Dns("localhost")).use { client ->
+                    context.close()
+                    serverContext().use { config ->
+                        TlsEngine.server(config).use { server -> handshake(client, server) }
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `CA file loading preserves filesystem UTF8 and complete-bundle failures`() {
+        InteropDirectory().use { tree ->
+            val path = tree.child("ca.pem")
+            val missing = assertFailsWith<PlatformException> { TlsClientContext.fromCaFile(path) }
+            assertTrue(missing.nativeError!!.domain == NativeErrorDomain.PosixErrno)
+            assertEquals(path.decodeUtf8(), missing.context!!.decodeUtf8())
+            for (content in ["", "invalid", rootPem() + "trailing"]) {
+                path.writeText(content)
+                assertFailsWith<CryptoException> { TlsClientContext.fromCaFile(path) }
+            }
+            path.writeAllBytes([255.toByte()])
+            assertFailsWith<CharacterCodingException> { TlsClientContext.fromCaFile(path) }
+            path.writeText(clientPem())
+            val rejected = handshakeFailure(TlsClientContext.fromCaFile(path), serverContext(), TlsPeerName.Dns("localhost"))
+            assertTrue(rejected.kind == TlsFailureKind.Verification)
+        }
+    }
+
+    @Test
+    fun `CA file loading accepts explicit TLS options and an independently retained identity`() {
+        InteropDirectory().use { tree ->
+            val path = tree.child("root.pem")
+            TlsIdentity.fromPem(clientPem() + intermediatePem(), serverKeyPem()).use { identity ->
+                assertFailsWith<PlatformException> { TlsClientContext.fromCaFile(path, identity = Some(identity)) }
+                assertFalse(identity.isClosed)
+                path.writeText(rootPem())
+                TlsClientContext.fromCaFile(path, TlsOptions(TlsVersion.Tls13, TlsVersion.Tls13), Some(identity)).use { context ->
+                    identity.close()
+                    TlsEngine.client(context, TlsPeerName.Dns("localhost")).use { client ->
+                        context.close()
+                        serverContext().use { config ->
+                            TlsEngine.server(config).use { server ->
+                                handshake(client, server)
+                                assertTrue(client.connectionInfo.version == TlsVersion.Tls13)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
