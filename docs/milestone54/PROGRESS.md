@@ -51,6 +51,8 @@ DEFLATE 消息对照包含编码窗口 9～15、解码窗口 8～15、两种 con
 
 `m54-content-disposition` 的 debug／release 两个变体通过，共 6 个进程；消费者只声明 HTTP 依赖，经其正式依赖取得 URL／charset，在逐字节的两条 HTTP/1 响应中处理中文扩展文件名、普通回退和解码失败原因，覆盖 moving GC 与缓存复用。UTF-8 与百分号错误保留底层原因并映射到原始字段字节位置；文件名仅为元数据，不选择文件路径。
 
+HTTP 日期的 release 编译暴露了跨无写入分支的同槽根加载直到机器发射才合并的问题。codegen 在根计划定稿前复用 LLVM MemorySSA 消除重复加载，保留所有逻辑引用的恢复；没有放宽 stackmap 校验或改写 HTTP 源码绕过。最小 LLVM 用例及独立 Scoop 程序均在修复前复现计数不一致。全部 224 项 codegen 测试通过，其中根计数回归覆盖 Darwin、Linux gnu／musl 的机器发射以及分支确有写入的对照；`m54-gc-branch-loads` 的 Darwin debug／release 两个变体通过，共 6 个进程，验证显式收集、moving GC 与两个引用选择路径。HTTP 的 71 项 release 测试随后通过。
+
 ## 后续工作
 
 继续完成 HTTP 消息与协议补充、TLS 与 asyncio 缺口，再完成统一 client、策略、存储与长连接组合。每个功能独立验证和提交，最终按设计完成三个目标的运行验收。

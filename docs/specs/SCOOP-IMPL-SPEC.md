@@ -1079,6 +1079,8 @@ MIR 内联按调用点代入已知实参、局部常量和可证明不可达分�
 
 最终 GC 计划从实际保留的 callable/site 和完整逻辑 managed leaves 得到。多个逻辑 leaf 可以对应同一 SSA 值，已知 null/不可移动常量不要求 relocation pair；仅在这些常量之间选择的 phi/select 同样不要求重定位，包含任何动态 managed 输入的选择仍按移动根处理。runtime root count 使用实际 pair 数。每个保留 site 具有唯一 owner/role，site identity 不因删除其他 site 而重编号。
 
+release 在 roots 定稿前以 MemorySSA 消除跨无写入分支的重复加载，防止同一根槽的两个 SSA 加载直到机器发射时才合并，造成注册计数与 stackmap 不一致。任一路径可能修改该位置时保留独立引用；每个逻辑 leaf 的调用后恢复继续保留，并使用对应的重定位结果。
+
 GC 转换后每个 post-site managed use 必须来自正确更新的引用；invoke 的 normal/unwind 与 native transition 继续使用各自显式 root frames。不能在 root plan 定稿后增加未经描述的 safepoint、重复 site、外来 owner 或异常边。backend contract field 28 为 1，表示此最终根与发射合同。
 
 ODR 只比较 key 与 shared ABI，按实际需要选择物理 member。body 的机器码、EH、stackmap、callable/safepoint registration、关联常量与 Context cells 必须同选；独立 helper 可分别选择。shared TD、storage、cell 与初始化保持唯一，native linker 不得改变已确定选择。
