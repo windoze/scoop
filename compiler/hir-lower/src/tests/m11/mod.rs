@@ -59,6 +59,7 @@ fn anonymous(
 }
 
 mod captures;
+mod constructor_captures;
 mod literals;
 mod local_functions;
 mod references;

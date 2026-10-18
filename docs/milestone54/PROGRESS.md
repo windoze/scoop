@@ -95,6 +95,10 @@ CONNECT 新测试先复现了 llhttp 将所有 CONNECT 响应视为切换的问�
 
 Multipart 的通用字段保留扩展参数，form-data 工厂遵守 RFC 7578，不生成 filename*。接收端按 delimiter 定界，不信任 part 的 Content-Length；closing delimiter 与外层 EOF 分别可见，preamble／epilogue 按消费丢弃。此批仅完成内存引擎，异步 part 流与 client 重放组合继续独立完成。
 
+异步消息清理的嵌套闭包暴露了构造参数捕获缺口：进入下一 callable 后仍保留构造器的直接参数作用域，使传递捕获丢失，泛型导出或 MIR 生成失败。HIR lowering 现在在 lambda、匿名函数和局部函数边界保存并移开这组直接参数，普通捕获继续保存原 BindingId；没有改变初始化 receiver 限制或在 HTTP 中改写调用来绕过问题。两项回归在修复前失败，修复后全部 1476 项 HIR lowering 测试与 workspace clippy 通过。
+
+`m54-constructor-captures` 的 Darwin debug／release 两个变体通过，共 6 个进程；真实跨 Cone 消费者组合多层闭包、匿名函数、局部泛型函数、名称遮蔽、引用／值类型、moving GC 和正常构建复用。
+
 ## 后续工作
 
 继续完成 HTTP 消息与协议补充、TLS 与 asyncio 缺口，再完成统一 client、策略、存储与长连接组合。每个功能独立验证和提交，最终按设计完成三个目标的运行验收。
