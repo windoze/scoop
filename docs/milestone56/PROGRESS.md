@@ -1,25 +1,25 @@
 # M56 实施记录
 
-状态：实施中，2026-10-19 开始。范围与完成条件以 [DESIGN.md](DESIGN.md) 第 9、10 节为准；未完成项不得以设计或历史性能数据代替验收。
+状态：实现与验收完成，2026-10-19。A–D 交付及 E／桌面调查范围以 [DESIGN.md](DESIGN.md) 第 9、10 节为准；候选能力不计为已实现。最终结果与清理见 [ACCEPTANCE.md](ACCEPTANCE.md)。
 
 ## 交付检查表
 
 | 项目 | 状态 | 验证／取舍 |
 | --- | --- | --- |
-| A：当前 release 工具、开发 sysroot 与真实程序基线 | 本机基线就绪 | 完整库 sysroot 准备成功；分配与拆箱基线已建立，后续按项目追加 |
-| B1：内部 TD 验证结果复用、native 边界保留 | 本机通过 | 30 项 collector 测试、8 个 CLI 变体及完整分配对照；Linux 最终复验 |
-| B2：unbox／clone 单次对象定位 | 本机通过 | 单次 exact-size 定位；非法地址／类型、large clone、移动与含引用值 |
-| B3：String 有界表示 intrinsic | 本机通过 | 三个 typed intrinsic 与独立内部 NoGC leaf；UTF-8、越界、旧 extern 与移动 GC |
-| C1：NoGC／无 site 循环优化及 Managed 保守优化 | 本机通过 | 三目标向量代码与完整 codegen 专测；Managed poll／EH／原子保留，Linux 运行待复验 |
-| C2：局部 card 查询／mark 复用 | 本机通过 | 同对象复用 region，精确槽重复 mark 消除；跨 card／调用／原子／GC 边界覆盖 |
-| 分块 poll 候选调研 | 机制实验完成 | 设计 3.2 补充有界内层、CFG／roots 接入要求与真实移动握手对照；尚未启用自动变换 |
-| D1：nursery／refill 对照与策略取舍 | 本机实验完成 | 保留 1 MiB；完整容量／存活率／mutator 矩阵及无插桩复测，Linux 代表点待复验 |
-| D2：有搬迁 GC 并行 update | 本机通过 | 复用 marker pool；串行 claim 与根更新、槽分区、完成屏障，单 worker 直接串行 |
-| E：声明构建、局部 box／协程消除、跨 Cone 内联 | 本机进入调查完成 | 冷编译阶段与三类真实程序补测；保留明确的后续范围，不扩大 A–D 实现 |
-| 桌面短 STW 补充调研 | 本机实验完成 | 整块年轻区回收原型及逐次暂停、metadata footprint、旧堆 card 成本，详见补充设计 |
-| 本机阶段验证 | 已通过 | 每批格式化／lint、相关 crate／runtime；最终 M56 48 个变体及 String／UTF-8 组合回归 |
-| Linux 完整验收 | 进行中 | 独立 worktree 的 4975 项 Rust 测试与 50 项 runner 规则通过；正式 GNU 全量及 musl 合同组合继续 |
-| 逐功能提交、临时资料与 target 清理 | 进行中 | 只提交本任务变更，原始日志在仓库外，不使用绝对 `/tmp` |
+| A：当前 release 工具、开发 sysroot 与真实程序基线 | 完成 | 三目标工具／16 Cone／runtime 资源与同机对照 |
+| B1：内部 TD 验证结果复用、native 边界保留 | 完成 | 分配、非法 TD 拒绝、移动与 minor；两端性能复核 |
+| B2：unbox／clone 单次对象定位 | 完成 | 非法地址／类型、large clone、移动与含引用值 |
+| B3：String 有界表示 intrinsic | 完成 | 三个 typed intrinsic；UTF-8、越界、旧 extern 与移动 GC |
+| C1：NoGc 且无 site 的循环优化及 Managed 保守优化 | 完成 | 三目标向量代码；poll／EH／原子保留，Linux ELF 分区问题闭合 |
+| C2：局部 card 查询／mark 复用 | 完成 | 跨 card／调用／原子／GC 边界覆盖；Linux 未测到稳定加速 |
+| 分块 poll 候选调研 | 完成调查 | 有界内层、CFG／roots 与真实移动握手实验；未启用自动变换 |
+| D1：nursery／refill 对照与策略取舍 | 完成 | 保留 1 MiB；本机完整矩阵与 Linux 代表点支持该取舍 |
+| D2：有搬迁 GC 并行 update | 完成 | 复用 pool；单 worker 恢复直接回调，保留剩余差异与完整区间 |
+| E：声明构建、局部 box／协程消除、跨 Cone 内联 | 完成进入调查 | 阶段及真实程序测量完成，候选没有扩大为本期实现 |
+| 桌面短 STW 补充调研 | 完成调查 | 年轻区退役原型、metadata／链接信息、旧堆成本与 Linux 两核限制复核 |
+| 本机阶段验证 | 已通过 | 每批格式化／lint、相关 crate／runtime 与正式 CLI；最后补验 31 项 collector 和 17 个变体 |
+| Linux 完整验收 | 已通过 | Rust 4976 项、runner 50 项；GNU 4220 通过／33 不适用，musl 676／8，原失败闭合 |
+| 逐功能提交、临时资料与 target 清理 | 完成 | 实验源码与工具恢复；两端临时目录及远端 worktree 清理，既有用户文件保持 |
 
 ## 工作环境与验证策略
 
@@ -29,7 +29,7 @@
 
 Linux 独立 worktree 已创建为 `/home/chenxu/repos/scoop-m56-20261019`，分支 `codex/m56-validation-20261019`，起点为 B2 提交 `91df2bc22`；后续仅向该分支导入本任务提交。独立工作目录为 `/home/chenxu/repos/scoop-m56-work-20261019`，target／scratch／日志和测试输出均使用该目录，sysroot 属于新 worktree。未修改主 checkout 或其他 worktree。
 
-已有的 M47 两份文档和 M55 设计不属于本次提交。初始内容摘要保存在仓库外，结束时核对；不使用全仓 reset／checkout，也不删除／隐藏源码或工具来验收缓存。
+已有的 M47 两份文档和 M55 设计不属于本次提交。初始内容摘要在仓库外记录，收尾核对三份文件均未变化；不使用全仓 reset／checkout，也不删除／隐藏源码或工具来验收缓存。
 
 ## 实施与验收记录
 
@@ -46,7 +46,7 @@ Linux 独立 worktree 已创建为 `/home/chenxu/repos/scoop-m56-20261019`，分
 | `28fab1812` runtime | 71.363 [69.767, 75.752] | 35.682 |
 | B1 | 43.332 [42.524, 43.915] | 21.666 |
 
-该工作负载约减少 39.3% 时间；全部样本均为 45 次 minor／0 次 full、48,008,432 allocated bytes、1,114,160 promoted／copied bytes，dirty cards／root slots／traced objects 等工作量也一致。这是包括循环、引用写入与实际 GC 的 kernel 成绩，不是所有应用的加速比；Linux 尚待复验。
+该工作负载约减少 39.3% 时间；全部样本均为 45 次 minor／0 次 full、48,008,432 allocated bytes、1,114,160 promoted／copied bytes，dirty cards／root slots／traced objects 等工作量也一致。这是包括循环、引用写入与实际 GC 的 kernel 成绩，不是所有应用的加速比；Linux 结果见[最终验收](ACCEPTANCE.md)。
 
 环境准备：release 工具、core、runtime 和第三方 native 后端已准备。完整 sysroot 首次在尚未准备好的 IDNA header 处停止；依赖已随后补齐，继续复用已有结果准备其余 Cone。原始构建、测量 JSON 与 fixture 工作目录均在仓库外。
 
@@ -56,7 +56,7 @@ Linux 独立 worktree 已创建为 `/home/chenxu/repos/scoop-m56-20261019`，分
 
 格式化、workspace clippy 和 descriptor-driven representation 专测通过；该专测在 normal／moving 两种模式覆盖内部地址、null、非对象地址、未匹配类型及动态 size。正式 CLI 的 3 个 fixture 共 12 个变体通过，新增整数枚举按原身份与父整数拆箱、错误转换异常、large array 克隆独立性；原含引用／ZST 用例继续通过。完整开发 sysroot 已准备成功。
 
-同一 release 编译器／core 对照 B1 与 B2 runtime：一个 `Any` 中的 Pair 在循环内拆箱两百万次并累加两字段，checksum `30000000`；一轮预热、七轮交替独立进程，构建完成后串行测量。B1 中位 112.989 ms [112.512, 114.101]，B2 102.124 ms [101.818, 102.482]，约减少 9.6%。全部样本 allocated bytes 为 224，无 collection／复制／晋升；该结果包含类型测试、锁与循环成本，不代表所有 Any 使用方式。Linux 最终复验。
+同一 release 编译器／core 对照 B1 与 B2 runtime：一个 `Any` 中的 Pair 在循环内拆箱两百万次并累加两字段，checksum `30000000`；一轮预热、七轮交替独立进程，构建完成后串行测量。B1 中位 112.989 ms [112.512, 114.101]，B2 102.124 ms [101.818, 102.482]，约减少 9.6%。全部样本 allocated bytes 为 224，无 collection／复制／晋升；该结果包含类型测试、锁与循环成本，不代表所有 Any 使用方式。Linux 结果见[最终验收](ACCEPTANCE.md)。
 
 ### B3：String 有界表示操作
 
@@ -72,7 +72,7 @@ Linux 独立 worktree 已创建为 `/home/chenxu/repos/scoop-m56-20261019`，分
 | toByteArray | 21.103 [20.865, 21.536] | 1.987 [1.949, 2.061] |
 | iterator | 20.679 [18.766, 21.611] | 3.132 [2.910, 3.182] |
 
-三个 kernel 时间分别约减少 84.0%、90.6%、84.9%。所有样本均为 1 次 minor／0 次 full、1,638,496 allocated bytes、400 promoted／copied bytes、38 root slots、3 traced objects。收益来自这些频繁的小操作，不能外推为整个 String 库或应用的加速比；Linux 待复验。原始数据保存在仓库外。此阶段又清理 1.7 GiB 的旧 incremental 产物，target 约 7.0 GiB。
+三个 kernel 时间分别约减少 84.0%、90.6%、84.9%。所有样本均为 1 次 minor／0 次 full、1,638,496 allocated bytes、400 promoted／copied bytes、38 root slots、3 traced objects。收益来自这些频繁的小操作，不能外推为整个 String 库或应用的加速比；Linux 结果见[最终验收](ACCEPTANCE.md)。原始数据保存在仓库外。此阶段又清理 1.7 GiB 的旧 incremental 产物，target 约 7.0 GiB。
 
 ### C1：按 typed effect 选择普通优化管线
 
@@ -87,7 +87,7 @@ Linux 独立 worktree 已创建为 `/home/chenxu/repos/scoop-m56-20261019`，分
 | NoGC 指针循环 | 5.366 [5.298, 5.557] | 1.104 [1.096, 1.190] |
 | Managed 数组循环 | 88.396 [86.706, 92.611] | 87.437 [84.793, 113.719] |
 
-NoGC kernel 时间约减少 79.4%；反汇编在对应 callable 确认两条 `mla.4s`，标量循环扩为带别名检查与尾部路径的向量循环（该函数约 14→40 条指令）。Managed 差异落在离散范围内，不能声称稳定加速；poll 仍主导此类短循环。两版可执行文件均为 17,492,984 bytes，`__TEXT` 均为 1,081,344 bytes，段对齐掩盖小函数的局部增长。全部样本无 GC；进程 allocated bytes 为 33,200，C1 单个耗时字符串更长的样本为 33,208，差异发生在 kernel 后的数字输出。当前应用构建约 3.43 s（与 fixture 构建并行，仅作观测，不能作为冷编译 A/B 结论）；编译开销的规模化对照与 E 合并记录，Linux 性能及完整验收仍待完成。
+NoGC kernel 时间约减少 79.4%；反汇编在对应 callable 确认两条 `mla.4s`，标量循环扩为带别名检查与尾部路径的向量循环（该函数约 14→40 条指令）。Managed 差异落在离散范围内，不能声称稳定加速；poll 仍主导此类短循环。两版可执行文件均为 17,492,984 bytes，`__TEXT` 均为 1,081,344 bytes，段对齐掩盖小函数的局部增长。全部样本无 GC；进程 allocated bytes 为 33,200，C1 单个耗时字符串更长的样本为 33,208，差异发生在 kernel 后的数字输出。当前应用构建约 3.43 s（与 fixture 构建并行，仅作观测，不能作为冷编译 A/B 结论）；编译开销的规模化对照与 E 合并记录，Linux 性能及完整验收见 [ACCEPTANCE.md](ACCEPTANCE.md)。
 
 ### C2：普通字段写入的局部屏障复用
 
@@ -95,7 +95,7 @@ NoGC kernel 时间约减少 79.4%；反汇编在对应 callable 确认两条 `ml
 
 格式化与 workspace clippy 通过；moving_gc 相关 16 项、原子 3 项通过，最终局部屏障 5 项专测再次通过。专测断言同槽、相邻槽与跨 card 的查询／mark 数、receiver 变化、NoGc／Managed 调用、原子和 block 边界。新增 2 个 fixture 的 8 个变体、现有 aggregate／array／clone 写入 2 个变体／12 个进程，以及四 mutator 原子并发 2 个变体／12 个进程全部通过；含正常、moving、minor、跨 card 大字段、成功／失败 CAS。
 
-真实程序先将 Holder 提升为旧对象，再循环两百万轮，每轮写四个引用字段，末尾 checksum `10`。一轮预热、七轮交替独立进程，C1 中位 27.796 ms [25.905, 30.051]，C2 25.378 ms [24.917, 25.975]，约减少 8.7%。对应热 callable 的 acquire 指令静态数从 40 降为 16，构造函数从 20 降为 8；四个不同字段仍分别标记。所有样本均 allocated bytes 328、minor 0／full 1、root slots 41、copied bytes 0，唯一 full 在计时前。该无 GC 热循环的有限收益需与上述实际 GC 正确性覆盖一起理解；Linux 最终复验。
+真实程序先将 Holder 提升为旧对象，再循环两百万轮，每轮写四个引用字段，末尾 checksum `10`。一轮预热、七轮交替独立进程，C1 中位 27.796 ms [25.905, 30.051]，C2 25.378 ms [24.917, 25.975]，约减少 8.7%。对应热 callable 的 acquire 指令静态数从 40 降为 16，构造函数从 20 降为 8；四个不同字段仍分别标记。所有样本均 allocated bytes 328、minor 0／full 1、root slots 41、copied bytes 0，唯一 full 在计时前。该无 GC 热循环的有限收益需与上述实际 GC 正确性覆盖一起理解；Linux 结果见[最终验收](ACCEPTANCE.md)。
 
 ### D2：搬迁后的并行引用回写
 
@@ -111,9 +111,9 @@ NoGC kernel 时间约减少 79.4%；反汇编在对应 callable 确认两条 `ml
 | 262,144 节点＋共享环＋引用值数组，强制搬迁 | 47.779 [46.039, 49.087] | 38.543 [37.665, 39.308] | 16.234 → 7.366 |
 | 1,048,576 个数组元素，保留 1/8 节点，普通稀疏 region full | 41.874 [41.052, 42.842] | 34.297 [33.875, 35.689] | 17.250 → 10.460 |
 
-整体耗时分别约减少 19.1%、19.3%、18.1%。单 worker 对应整体中位为 3.401→3.419、53.700→52.682、48.596→49.154 ms，区间重叠，没有测到明确退化或加速。两版大图峰值 RSS 中位均约 67.3 MiB，普通稀疏图约 123.9 MiB；每次检查全部存活节点的值、共享与链关系，checksum 一致。强制搬迁组包含 stress 自身的验证／quarantine 成本，普通稀疏组未启用 stress，不能把这些阶段成绩外推为全部应用吞吐。
+上述为首版 D2 的结果；收尾直接回调修正后的复测见[最终验收](ACCEPTANCE.md#32-搬迁后的引用回写)。整体耗时分别约减少 19.1%、19.3%、18.1%。单 worker 对应整体中位为 3.401→3.419、53.700→52.682、48.596→49.154 ms，区间重叠，没有测到明确退化或加速。两版大图峰值 RSS 中位均约 67.3 MiB，普通稀疏图约 123.9 MiB；每次检查全部存活节点的值、共享与链关系，checksum 一致。强制搬迁组包含 stress 自身的验证／quarantine 成本，普通稀疏组未启用 stress，不能把这些阶段成绩外推为全部应用吞吐。
 
-原型的 2／4／8 worker 均有净收益；4 worker 大图的 claim／任务发布约 4.1 ms、扫描及等待约 3.1 ms，稀疏大数组约 6.5 ms 和 2.9 ms，串行准备已成为进一步扩展的明显限制。当前按已有 mark 策略选择 worker，保留默认小 minor／小堆串行；不为了局部扫描加速继续增加线程。Linux 性能与完整验收待复验，原始日志与实验副本在仓库外。
+原型的 2／4／8 worker 均有净收益；4 worker 大图的 claim／任务发布约 4.1 ms、扫描及等待约 3.1 ms，稀疏大数组约 6.5 ms 和 2.9 ms，串行准备已成为进一步扩展的明显限制。当前按已有 mark 策略选择 worker，保留默认小 minor／小堆串行；不为了局部扫描加速继续增加线程。Linux 最终性能与完整验收见 [ACCEPTANCE.md](ACCEPTANCE.md)；原始日志与实验副本仅在仓库外使用，已于收尾清理。
 
 ### D1：nursery 容量与 refill 取舍
 
@@ -138,7 +138,7 @@ NoGC kernel 时间约减少 79.4%；反汇编在对应 callable 确认两条 `ml
 
 取舍：M56 保留 **1 MiB** 默认值。较大 nursery 对该全存活批次有收益，但未给短／中寿命输入带来稳定的全面改善，且停顿和内存代价明确。例如单 mutator 低存活从 1→4→16 MiB，最大停稳后 pause 的样本中位为 0.241→0.957→3.664 ms，峰值 RSS 为 13.5→17.1→32.7 MiB；8 mutator 中存活为 0.988→2.130→7.482 ms、16.2→23.2→41.5 MiB。高存活 16 MiB 组先碰到整体 full 阈值，均为 0 minor／2 full，复制字节为零；1 MiB 组有约 17–20 次 minor，并复制大量后来持续存活的对象。因此收益同时涉及收集种类与晋升，不能解释为纯 bump／refill 加速，也不足以为所有程序扩大默认容量。
 
-诊断矩阵仅用来解释成本：8 mutator 低／中存活在 1 MiB 下退役未用空间约 2.3 MiB，4 MiB 约 0.6 MiB；同一业务总量被更多 STW 提前退休的 TLAB 分割。refill 锁等待是各线程累计量，不是墙钟关键路径占比；该样本没有足够证据要求批量领取 block，后者还会扩大尚未使用的容量占用，故不增加 refill 策略或自适应框架。请求到 RUNNING 的诊断口径覆盖成功 coordinator 的完整 collect，加入别人的请求不重复计数；另记录业务每 1024 次分配的最大进度间隔，不把它当作硬实时上界。Linux 代表点复验后再闭合平台记录。
+诊断矩阵仅用来解释成本：8 mutator 低／中存活在 1 MiB 下退役未用空间约 2.3 MiB，4 MiB 约 0.6 MiB；同一业务总量被更多 STW 提前退休的 TLAB 分割。refill 锁等待是各线程累计量，不是墙钟关键路径占比；该样本没有足够证据要求批量领取 block，后者还会扩大尚未使用的容量占用，故不增加 refill 策略或自适应框架。请求到 RUNNING 的诊断口径覆盖成功 coordinator 的完整 collect，加入别人的请求不重复计数；另记录业务每 1024 次分配的最大进度间隔，不把它当作硬实时上界。Linux 代表点复核与策略结论见[最终验收](ACCEPTANCE.md#33-nursery-取舍)。
 
 所有容量／诊断修改均在仓库外 runtime 副本，生产容量及 ABI 未改。此阶段另清理 834 MiB 的闲置 incremental 缓存，target 约 7.0 GiB。
 
@@ -173,7 +173,7 @@ NoGC kernel 时间约减少 79.4%；反汇编在对应 callable 确认两条 `ml
 
 取舍：局部 box 和静态同步 wrapper 消除有明确分配收益，作为后续编译优化优先于通用逃逸分析；完整语义组合及候选实现对照尚未完成，不在本期加入新的协程／导入机制。跨 Cone 导入还需证明 private 引用、Context／初始化唯一性、ODR 选择、编译时间和实际增量体积，当前仅记录必要性，不修改产物格式。E 的范围是进入调查；A–D 仍是本期实现交付，未进入的候选明确保留在设计而不伪称完成。
 
-阶段计时与旧 pass 开关涉及的四个 Rust 文件已按测量前备份逐字恢复，并确认与 HEAD 一致；生产 scoopc 二进制恢复。恢复后的格式检查和 workspace clippy 通过。原始日志、源程序、编译器副本及 runtime 原型均在仓库外，结束时清理。
+阶段计时与旧 pass 开关涉及的四个 Rust 文件已按测量前备份逐字恢复，并确认与 HEAD 一致；生产 scoopc 二进制恢复。恢复后的格式检查和 workspace clippy 通过。原始日志、源程序、编译器副本及 runtime 原型均只在仓库外使用，已于收尾清理。
 
 ### 桌面短 STW 补充调研
 
@@ -185,7 +185,7 @@ NoGC kernel 时间约减少 79.4%；反汇编在对应 callable 确认两条 `ml
 
 最终生产工具与重新准备的本机 sysroot 通过 M56 全部 10 个 fixture／48 个变体，以及 M26 String、M33 UTF-8 合计 15 个 fixture／18 个变体／56 个进程。Linux 已准备 GNU／musl 两套完整 16 Cone sysroot，进入完整 workspace 与正式 CLI 验收。
 
-Linux workspace 首轮的 HIR lowering 有 1452 项通过、23 项失败；逐项比较确认全部仅多出 B3 的三个 String intrinsic 声明，被测源码的 HIR 没有变化。按仓库的结构测试纪律，将这 23 份早期快照缩到被测函数／类型声明、入口和泛型实例，保留完整正文、求值顺序、字段／variant 和类型关系；不再重复固定公共 core 的无关定义。没有改生产 dump 或编译行为，也没有直接将新增 core 行抄入全部期望。删去约 2500 行重复快照，沿用一个只服务现有测试的局部选择 helper。格式化与 workspace clippy 通过；本机 23 项受影响测试加 String intrinsic 签名拒绝专测全部通过。Linux 已仅补跑这些项及首轮尚未执行的 crate，不重复已通过的完整部分；最终覆盖 4975 项 Rust 测试、0 失败、0 忽略，50 项 fixture runner 规则全部通过。driver 未完成部分改用保留 debug assertions／overflow checks 的优化 Rust 测试程序，具体范围见 [最终验收](ACCEPTANCE.md)。
+Linux workspace 首轮的 HIR lowering 有 1452 项通过、23 项失败；逐项比较确认全部仅多出 B3 的三个 String intrinsic 声明，被测源码的 HIR 没有变化。按仓库的结构测试纪律，将这 23 份早期快照缩到被测函数／类型声明、入口和泛型实例，保留完整正文、求值顺序、字段／variant 和类型关系；不再重复固定公共 core 的无关定义。没有改生产 dump 或编译行为，也没有直接将新增 core 行抄入全部期望。删去约 2500 行重复快照，沿用一个只服务现有测试的局部选择 helper。格式化与 workspace clippy 通过；本机 23 项受影响测试加 String intrinsic 签名拒绝专测全部通过。Linux 已仅补跑这些项及首轮尚未执行的 crate，不重复已通过的完整部分；该阶段覆盖 4975 项 Rust 测试、0 失败、0 忽略，50 项 fixture runner 规则全部通过；后续 ELF 新增专测使最终不同测试数增至 4976。driver 未完成部分改用保留 debug assertions／overflow checks 的优化 Rust 测试程序，具体范围见 [最终验收](ACCEPTANCE.md)。
 
 Linux CLI 随后在 direct C aggregate／errno 的 NoGC 包装中暴露 C1 的选项遗漏：两处裸 `instcombine` 通过文本解析时默认开启固定点自检，LLVM 22.1.2 在一轮之后仍有可做的优化时会终止编译。上游明确将该文本默认值用于测试；普通 `InstCombineOptions` 默认不开启它。现将 NoGC 的两处调用与既有 Managed 管线一样显式设为 `instcombine<no-verify-fixpoint>`，保留正常有界变换、LLVM IR 验证和 site／root 检查，未改变语言／ABI 合同。[LLVM 22.1.2 文本管线解析](https://github.com/llvm/llvm-project/blob/llvmorg-22.1.2/llvm/lib/Passes/PassBuilder.cpp#L1123)、[迭代与自检实现](https://github.com/llvm/llvm-project/blob/llvmorg-22.1.2/llvm/lib/Transforms/InstCombine/InstructionCombining.cpp#L5552)。
 
@@ -208,3 +208,10 @@ Linux 正式测量发现首版 D2 的单 worker 大图整体为 73.648→80.007 
 同机、先构建后交替七轮的三方对照中，大图单 worker 的原串行／首版 D2／直接回调为 70.124／75.003／71.493 ms，update 为 17.846／19.990／18.383 ms；普通稀疏图整体为 49.923／53.407／50.442 ms。原型显著减小了回退，但大图仍有约 2% 的剩余差异，不宣称完全消除。四 worker 大图和稀疏图仍有整轮收益；保留全部区间与异常样本，不将无源码变化阶段的差异都归因于回调。最终数据和针对性回归在验收文档闭合。
 
 收尾改动通过 clang-format 与既有 C 编译警告检查；本机 31 项 collector 测试全部通过。为避免重建已清理的无关 Rust 缓存，用仓库外薄入口以 `rustc --test` 原样加载现有测试模块与平台 helper，保留全部 C 编译参数和测试断言。显式更新 runtime 资源后，分配与引用回写的两个正式 fixture／17 个变体也全部通过；未增加新的测试实现或永久入口。
+
+
+### 最终闭合与清理
+
+单 worker 收尾修正提交为 `ded61b00c`。Linux 原有 31 项 collector 测试与 GNU／musl 各 17 个正式 CLI 变体通过；随后重新生成受影响的 runtime benchmark 产物，并在全部构建结束后完成最终对照。GNU 全量及 musl 合同组合的去重结果、首轮超时原样补验、剩余性能差异与峰值内存见 [ACCEPTANCE.md](ACCEPTANCE.md)。
+
+临时编译器源码和工具均已恢复，本机约 5.5 GiB 实验目录、远端约 135 GiB 工作目录及独立 worktree／分支／私有引用全部移除。收尾再清理约 6.9 GiB 本机 debug 缓存，保留最终 release 工具与 sysroot；既有 M47／M55 三份文件逐字未变。没有未闭合的实现或验收失败；分块 poll、年轻区整块退役等仍按设计作为后续候选。
