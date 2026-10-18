@@ -46,6 +46,7 @@
 | 异步文件查询与控制 | AsyncFile 增加 metadata／size／position／seek／truncate，EventLoop 增加路径 metadata；共享 platform 的记录、转换和 syscall，沿已有串行、取消与关闭边界完成 | Darwin debug／release：8 项新测试与 asyncio 全部 61 项通过，platform 文件相关 17 项通过；新增测试通过两种构建的 moving GC，覆盖 64 位稀疏偏移、链接、路径替换、原始错误、排队取消及已经生效的截断 |
 | 异步路径修改 | EventLoop 的 moveFile／deleteFile／createDirectories 复用 platform 原生 helper 与统一 mode 检查；排他／替换、链接、空目录和逐层建目录沿已有 OS 合同 | Darwin debug／release：6 项新测试与 asyncio 全部 67 项、platform 文件相关 17 项通过；新增测试通过 moving GC，正式消费者验证暂存文件替换及旧句柄保活 |
 | 异步排他临时文件 | createTempFile 一次创建并返回 TemporaryFile 的路径与读写句柄；共享 platform 模板／mkostemp，公开原生字符串快照入口，迟到取消等待 close 与 delete 并保留清理错误 | Darwin debug／release：asyncio 新增 6 项、全部 73 项通过，platform 文件相关 18 项通过；临时文件与新增字符串快照测试通过 moving GC，正式消费者验证并发创建、短块复制及路径改变后的句柄身份 |
+| 异步目录枚举 | openDirectory 返回单遍 AsyncDirectoryEntries，每次 next 在真实工作中复制一个原始名称；复用 platform 的目录入口与 DirectoryEntry，EOF、并发关闭和迟到取消沿所属 loop 收尾 | Darwin debug／release：7 项新测试与 asyncio 全部 80 项通过；9 项目录相关测试通过 moving GC，正式消费者验证两个 native 线程的逐项 metadata／读取、EOF 和显式删除 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -174,6 +175,10 @@ SecTrust 对原有十年有效期叶证书的拒绝符合系统政策，测试�
 `m54-temporary-file` 在 Darwin 通过 debug／release 两个变体，共 6 个进程。正式 `.slib` 的两个 native 线程分别并发创建两个同前缀临时文件，移动第一个文件并重新创建原路径，再通过原句柄写入、同步和短块复制，确认数据仍属于最初创建的文件。普通 struct 的跨库返回、AsyncCloseable 组合、移动 GC 与正常构建复用通过。
 
 6 项临时文件测试与 1 项 platform 原生字符串快照测试均通过两种构建的 full moving，共 4 个进程。覆盖 TMPDIR 默认值、空／非法前缀、原始名称、父目录错误、关闭后路径保留、排队取消和成功创建后的取消。迟到取消先关闭文件再删除未交付路径；人为制造非空目录的清理失败时，同时保留 CancellationException 和真实删除 errno／context。编译检查暴露的库间可见性缺口已闭合：字符串复制入口归 platform，临时结果的名称内存由 asyncio 自己释放。C 适配经过格式化和严格警告检查。
+
+`m54-directory` 在 Darwin 通过 debug／release 两个变体，共 6 个进程。正式 platform／asyncio `.slib` 在两个 native 线程中分别创建八个 Unicode 名称文件，逐项枚举、显式查询 metadata 和读取内容；关闭后仍可使用独立名称快照删除文件，空目录和重复 EOF、moving GC 与构建缓存复用通过。
+
+7 项目录枚举新测试与 2 项既有目录创建回归通过两种构建的 full moving，共 2 个进程。覆盖原始名称、悬空链接、非目录／缺失路径错误、同目录操作冲突、并发关闭、取消 finally 和 loop 退出清理。测试用真实工作队列栅栏区分排队与已经执行的取消：前者不推进目录，后者保留实际读取位置；迟到成功的 open 必须等待真实 close 才结束。platform 只公开既有目录函数的声明，未另建枚举实现；新增 C 适配通过格式化与严格警告检查。
 
 ## 后续工作
 

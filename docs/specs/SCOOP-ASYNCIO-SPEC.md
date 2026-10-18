@@ -161,6 +161,10 @@ createTempFile 以一次 native 排他创建返回实际 Path 与拥有句柄的
 
 `AsyncDirectoryEntries` 为 AsyncCloseable 的单遍枚举器，`next(): DirectoryEntry?` 可挂起，正常 EOF 关闭句柄，提前退出须 close。名称在 native 返回前复制，跳过点目录，不一次性把任意大目录收集到数组。缓存淘汰或启动扫描使用此公共能力。
 
+具体入口为 suspend 的 `EventLoop.openDirectory(path: Path): AsyncDirectoryEntries`；目录项复用 platform 的 DirectoryEntry，保持原始名称字节和 OS 枚举顺序，不额外查询每个条目的 metadata。同一目录同时最多一个 next，冲突报 IllegalStateException；正常 EOF 被记住，后续 next 等待同一次关闭后继续返回 None，显式提前关闭后的 next 报 IoClosedException。next 遵守所属 loop／Job 约束，close 沿已有资源清理合同允许取消中的 finally 和幂等关闭。
+
+open／next／close 均由 worker 调用 platform 的目录 helper。next 在本次工作内复制一个名称，managed 取得独立快照并释放原生副本；关闭等待正在进行的 readdir 及结果消费结束。排队取消不推进目录，已经执行的 next 不回退 OS 位置，迟到名称仍被释放。open 取消后取得的句柄必须在恢复调用方前关闭；循环退出也收尾未关闭的目录，不把所有名称预先收集进数组。
+
 上述工作使用既有 libuv worker 和 platform 的 GC-free 文件 helper；必要 helper 先在 platform 补齐，再由 asyncio 调度。路径、输入数据和输出存储在提交前取得稳定 native 副本，errno 在 worker 内立即记录。已开始的 syscall 取消仍等 after-work；迟到结果和 close 按第 3 节收尾。
 
 ### 9.2 地址族竞速与 SOCKS5

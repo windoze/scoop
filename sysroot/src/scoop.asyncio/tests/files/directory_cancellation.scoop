@@ -1,0 +1,83 @@
+package scoop.asyncio
+
+import scoop.platform.fs.*
+import scoop.test.*
+
+@Test
+private class AsyncDirectoryCancellationTest {
+    @Test
+    fun `queued directory work cancels without advancing or retaining an open`() {
+        IoTestDirectory().use { tree ->
+            for (name in ["one", "two", "three"]) tree.child(name).writeText(name)
+            val backend = LibuvEventLoop()
+            val loop: EventLoop = backend
+            loop.run suspend { scope ->
+                val directory = loop.openDirectory(tree.path)
+                val fence = WorkFence(backend)
+                fence.start()
+                fence.waitStarted()
+                try {
+                    val reading = scope.launch suspend { directory.next() }
+                    backend.state.post { reading.cancel() }
+                    reading.join()
+                    assertTrue(reading.isCancelled)
+                    val opening = scope.launch suspend { loop.openDirectory(tree.path) }
+                    backend.state.post { opening.cancel() }
+                    opening.join()
+                    assertTrue(opening.isCancelled)
+                    gcCollect()
+                } finally { fence.close() }
+                assertEquals(3L, collectDirectoryEntries(directory).size)
+                directory.close()
+            }
+        }
+    }
+
+    @Test
+    fun `late read cancellation discards the name but keeps the actual directory position`() {
+        IoTestDirectory().use { tree ->
+            for (name in ["one", "two", "three"]) tree.child(name).writeText(name)
+            val backend = LibuvEventLoop()
+            val loop: EventLoop = backend
+            loop.run suspend { scope ->
+                val directory = loop.openDirectory(tree.path)
+                val reading = scope.launch suspend { directory.next() }
+                val fence = WorkFence(backend)
+                fence.start(cancelAfterPriorWork = Some(reading))
+                try {
+                    reading.join()
+                    assertTrue(reading.isCancelled)
+                    gcCollect()
+                } finally { fence.close() }
+                assertEquals(2L, collectDirectoryEntries(directory).size)
+                assertDirectoryEnd(directory.next())
+            }
+        }
+    }
+
+    @Test
+    fun `late open cancellation waits for the acquired directory to close`() {
+        IoTestDirectory().use { tree ->
+            val backend = LibuvEventLoop()
+            val loop: EventLoop = backend
+            loop.run suspend { scope ->
+                val opening = scope.launch suspend { loop.openDirectory(tree.path) }
+                val fence = WorkFence(backend)
+                fence.start(cancelAfterPriorWork = Some(opening))
+                try {
+                    // Run after this ready batch so the selected open has entered cleanup.
+                    suspendCoroutine<Unit> { continuation ->
+                        backend.state.post { continuation.resume(Unit) }
+                    }
+                    assertFalse(opening.isCompleted)
+                    gcCollect()
+                } finally { fence.close() }
+                opening.join()
+                assertTrue(opening.isCancelled)
+                loop.openDirectory(tree.path).useAsync suspend { directory ->
+                    assertDirectoryEnd(directory.next())
+                }
+            }
+        }
+    }
+}

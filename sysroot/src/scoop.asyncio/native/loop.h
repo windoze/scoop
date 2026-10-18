@@ -26,7 +26,8 @@ enum {
     SCOOP_IO_DATAGRAM,
     SCOOP_IO_METADATA,
     SCOOP_IO_POSITION,
-    SCOOP_IO_TEMPORARY
+    SCOOP_IO_TEMPORARY,
+    SCOOP_IO_DIRECTORY_NAME
 };
 
 typedef struct ScoopIoCompletion {

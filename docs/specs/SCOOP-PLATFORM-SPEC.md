@@ -164,6 +164,8 @@ EOF 时自动关闭枚举句柄，之后 next 仍返回 None；提前 close 后�
 
 `scoop.platform.native.temporaryPathPattern(parent: Path, prefix: String): Path` 检查 prefix 并构造尾部为 XXXXXX 的路径模板；默认父目录复用既有 `scoop.platform.env.temporaryDirectory()`，这些步骤不创建文件。同步临时路径工厂与 asyncio 共用这些步骤。共享 `scoop_platform_file_temporary(char *pattern)` 通过 mkostemp(O_CLOEXEC) 一次排他创建并返回仍然打开的读写 fd，实际名称写回调用者拥有的模板；文件初始权限为 0600、长度与位置为零。原同步 createTempFile 复用该 helper 后关闭 fd，异步工厂则交付文件 owner。
 
+`native/directory.h` 声明既有 directory_open／directory_next／directory_close helper，供 asyncio 调度同一 opendir／readdir／closedir 实现。next 跳过点目录，返回名称借用到本句柄的下一次读取或关闭之前；NULL 且 errno 为零表示 EOF，NULL 且 errno 非零表示错误。异步调用者必须在同一次串行工作内复制名称，不跨工作保留 readdir 的内部存储。
+
 safe fd 输出不因断开的 pipe/socket 默认杀死进程。Linux 普通 fd 写入仅屏蔽当前线程的 SIGPIPE，保存旧 mask/pending，只消费本次写入新增的 SIGPIPE，再恢复 mask；不消费已有 pending，也不安装进程级 handler。Darwin 内核的普通 fd 写入发出进程定向 SIGPIPE，使用真实 F_SETNOSIGPIPE 选项抑制；该选项属于打开文件描述，同一描述的别名可见，标准输出也在实际写入当前 fd 时设置。socket 专用输出使用对应 MSG_NOSIGNAL/SO_NOSIGPIPE。所有目标保持用户 signal handler，不以成功 no-op 模拟保护。
 
 目标依据：[Linux close](https://man7.org/linux/man-pages/man2/close.2.html)、[Linux rename](https://man7.org/linux/man-pages/man2/rename.2.html)、[Darwin fd 生命周期](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_descrip.c)、[Darwin 写入与 SIGPIPE](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/sys_generic.c)。这些边界按实际 OS 合同实现，不推导新的 compiler/runtime 协议。
