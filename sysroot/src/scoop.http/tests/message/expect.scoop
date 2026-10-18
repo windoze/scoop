@@ -1,0 +1,49 @@
+package scoop.http
+
+import scoop.test.*
+
+@Test
+private class HttpExpectContinueTest {
+    @Test
+    fun `Continue matches complete bare expectations across repeated fields and empty items`() {
+        assertFalse(httpExpectsContinue(ArrayList<HttpField>()))
+        for (value in ["", " ,\t,", "other", "x100-continue", "100-continue-x", "100-continue=value"]) {
+            assertFalse(httpExpectsContinue([HttpField("Expect".toByteArray(), value.toByteArray())]))
+        }
+        assertTrue(httpExpectsContinue([
+            HttpField("Expect".toByteArray(), " , other,\t".toByteArray()),
+            HttpField("eXPeCt".toByteArray(), "100-CoNtInUe, 100-continue, ".toByteArray())]))
+    }
+
+    @Test
+    fun `unknown expectations retain quoted separators escapes and repeated parameters`() {
+        val value = "thing=\"a,b;\\\"c\"; ;; p=x; p=\"y,z\";, 100-continue, other=token"
+        val field = HttpField("Expect".toByteArray(), value.toByteArray())
+        assertTrue(httpExpectsContinue([field]))
+        assertEquals(value, String.fromUtf8(field.value))
+        assertFalse(httpExpectsContinue([HttpField("Expect".toByteArray(),
+            "thing=\"100-continue\"; p=100-continue".toByteArray())]))
+    }
+
+    @Test
+    fun `quoted expectation bytes do not require UTF8`() {
+        val raw: Array<Byte> = [120, 61, 34, -1, 34]
+        val field = HttpField("Expect".toByteArray(), raw)
+        assertFalse(httpExpectsContinue([field]))
+        assertTrue(httpExpectsContinue([field, HttpField("expect".toByteArray(), "100-continue".toByteArray())]))
+        assertEquals(-1, field.value[3L].toInt())
+    }
+
+    @Test
+    fun `malformed expectations report their original offset even after Continue was found`() {
+        for ((value, offset) in [("100 continue", 4L), ("foo; p=x", 3L), ("foo=bar; p =x", 10L),
+            ("foo=bar; p=", 11L), ("foo=\"unterminated", 17L), ("100-continue, bad thing", 18L)]) {
+            val error = assertFailsWith<HttpFieldParseException> {
+                httpExpectsContinue([HttpField("Expect".toByteArray(), "100-continue".toByteArray()),
+                    HttpField("expect".toByteArray(), value.toByteArray())])
+            }
+            assertEquals("Expect", error.field)
+            assertEquals(offset, error.byteOffset, Some(value))
+        }
+    }
+}

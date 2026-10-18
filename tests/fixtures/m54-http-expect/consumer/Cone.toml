@@ -1,0 +1,12 @@
+schema = 1
+[cone]
+kind = "executable"
+group = "scoop.tests"
+name = "m54-http-expect"
+version = "0.1.0"
+
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"scoop:scoop.std" = "0.1.0"
+"scoop:scoop.platform" = "0.1.0"
+"scoop:scoop.http" = "0.1.0"

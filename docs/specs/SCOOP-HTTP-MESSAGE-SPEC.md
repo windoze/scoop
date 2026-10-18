@@ -109,6 +109,12 @@ challenge 和 credentials 共用同一个字节语法实现。参数值使用 to
 
 `parseHttpContentLength(fields): Long?` 返回不存在或实际非负长度；接受前后 OWS、重复字段与逗号合并后数值完全相同的十进制值，包含前导零时按数值比较。空值／空列表项、符号、非法尾部、超过 Long 或互相矛盾的长度均报 HttpFieldParseException。它只解释字段，不推断 HEAD／204／304 的正文语义，不代替协议引擎的消息定界。
 
+### 1.10 Expect 与 Continue
+
+`httpExpectsContinue(fields): Boolean` 按 RFC 9110 §10.1.1 读取全部 Expect 字段，仅在存在不带值或参数的 `100-continue` 项时返回 true，名称不区分 ASCII 大小写。它接收逗号列表的空项、未知 expectation 的 token／quoted-string 值，以及值之后的 parameters；引号内逗号、分号与 quoted-pair 按同一个字段 reader 处理。未知 expectation 和参数保留原字段，不在本工具中实现扩展策略；未知参数允许重复，参数等号周围不接受空白。
+
+缺少 Expect、只有空项或只有未知 expectation 时返回 false。`100-continue=value` 是带值的其他 expectation，不作为标准 Continue 信号。即使此前已经找到有效 100-continue，后续非法结构仍报 HttpFieldParseException，field 为 Expect，byteOffset 相对发生错误的那条原始字段值。工具不启动 producer、不查询时钟，也不决定何时发送 body；这些等待行为由 client 组合。
+
 ## 2. Cookie 与公共后缀
 
 Cookie parser 接收单个 Set-Cookie 字段，按 RFC 6265 及现代 SameSite／前缀规则返回名称、值、Domain、Path、Expires、Max-Age、Secure、HttpOnly、SameSite 和未知属性。Cookie 请求字段的组装独立处理，不把多个 Set-Cookie 用逗号连接。域名使用 url／idna 的同一规范值。

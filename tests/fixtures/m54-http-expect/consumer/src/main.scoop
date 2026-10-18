@@ -1,0 +1,54 @@
+import scoop.bytes.ByteArrayBuilder
+import scoop.http.*
+import scoop.platform.concurrent.Thread
+import scoop.platform.memory.NativeByteBuffer
+
+private fun check(value: Boolean) { if (!value) throw IllegalStateException(Some("HTTP Expect check failed")) }
+
+private fun exercise(wire: Array<Byte>) {
+    val body = ByteArrayBuilder()
+    val received = ArrayList<HttpRequestHead>()
+    Http1Decoder.server().use { decoder ->
+        NativeByteBuffer.allocate(3L).use { input ->
+            var offset = 0L
+            while (offset < wire.size) {
+                val count = if (wire.size - offset < 3L) wire.size - offset else 3L
+                input.clear(); input.writeBytes(wire, offset, count)
+                check(decoder.receive(input) == count)
+                offset += count
+                while (true) {
+                    val event = decoder.nextEvent()
+                    when (event) {
+                        case None -> break
+                        case Some(_) -> when (event!!) {
+                            case Request(head) -> received.add(head)
+                            case Data(bytes) -> body.append(bytes)
+                            else -> {}
+                        }
+                    }
+                }
+            }
+            decoder.endInput()
+        }
+    }
+    check(received.size == 1L)
+    val fields = received[0L].fields
+    check(httpExpectsContinue(fields))
+    check(fields.findAll("Expect".toByteArray()).size == 2L)
+    check(parseHttpContentLength(fields) == Some(6L))
+    check(String.fromUtf8(body.toByteArray()) == "请求")
+    check(!httpExpectsContinue([HttpField("Expect".toByteArray(), "other=\"100-continue\"; p=100-continue".toByteArray())]))
+    try {
+        httpExpectsContinue([HttpField("Expect".toByteArray(), "bad;".toByteArray())])
+        check(false)
+    } catch (error: HttpFieldParseException) { check(error.field == "Expect" && error.byteOffset == 3L) }
+}
+
+fun main() {
+    val wire = ("POST / HTTP/1.1\r\nHost: example.test\r\nContent-Length: 6\r\n" +
+        "Expect: custom=\"a,b;\\\"c\"; x=1; x=2;\r\nExpect: , 100-CoNtInUe,\r\n\r\n请求").toByteArray()
+    Thread.start { exercise(wire) }.use { first ->
+        Thread.start { exercise(wire) }.use { second -> first.join(); second.join() }
+    }
+    println("HTTP Expect separates bare Continue from extension values")
+}

@@ -55,6 +55,7 @@
 | 统一 HTTP 调用与生命周期 | 纯 Scoop 的 HttpClient／HttpRequest／HttpResponse；HTTP/1.0／1.1、明文 H2 prior knowledge 与 TLS ALPN，流式上传／响应、信息回调、H2 duplex、真实 Context 与资源收尾 | Darwin debug／release：新增 15 项调用测试，client 全部 55 项普通测试通过；29 项调用及池测试逐例通过两种构建的 full moving，真实文件／TLS 与独立 Python HTTP 对端通过 |
 | 同 origin 连接池 | 连接建立前预留容量，H1 依协议状态复用，H2 服从 peer SETTINGS 与本地流上限；可取消排队、GOAWAY 排空、单调时钟闲置／寿命回收与首次拒绝的明确失败出口 | 新增 14 项池测试；两种构建的独立 Python 对端验证 H1 连续复用与放弃、H2 降低 SETTINGS 上限、流取消顺序和 GOAWAY 后的新连接，full moving 与构建复用通过 |
 | 显式 h2c 升级 | 每条明文连接的首个请求经公开协议接口提议升级，完整上传后移交传输与后缀，原方法关联 stream 1；拒绝保留真实 H1 响应，Http2Only 明确失败，后续池请求使用实际协议 | 新增 9 项测试，client 全部 64 项 debug／release 通过；新增用例与 5 项取消／连接池回归逐例通过两种构建的 full moving，独立 Python 对端与正式跨 Cone 消费通过 |
+| Expect 字段语义 | HTTP 库的 httpExpectsContinue 完整读取 Expect 列表，区分裸 100-continue、未知值和带参数的扩展；复用字段 reader，保留原始字段与精确错误偏移 | 新增 4 项测试通过 debug／release 和 full moving；正式消费者在两个 native 线程中组合短块 HTTP/1 请求解析、扩展参数和 Unicode body，构建复用通过 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -223,6 +224,8 @@ SecTrust 对原有十年有效期叶证书的拒绝符合系统政策，测试�
 `m54-client-h2c` 在 Darwin 通过 debug／release 两个变体，共 6 个进程。独立 Python socket 对端在一次发送中组合 101、H2 SETTINGS 和 stream 1 响应，核对 POST 不重放、HEAD 长度语义、后续 stream 3、H1 拒绝后的复用、Http2Only／畸形升级失败，以及取消 stream 1 后继续 stream 3／5。六种互通场景各在两个 native 线程中运行，full moving 与正常构建复用通过。
 
 9 项升级测试与 5 项受影响的取消／池回归共 14 项，逐例通过两种构建的 full moving，共 28 个进程。上传未结束时不会过早移交；早期拒绝仍能先交付响应；101 等待中的取消与并发 client.close 等待 producer 真实清理。升级工作从 client 协调器发起，共享 H2 驱动保持 client Context，stream 1 绑定原调用 owner；没有新增底层绕行接口。
+
+`m54-http-expect` 在 Darwin 通过 debug／release 两个变体，共 6 个进程。正式消费者以 3 字节分块解析带多行 Expect 和 Unicode body 的请求，并验证扩展项与错误偏移；四项单元测试另覆盖空列表项、大小写、quoted 分隔与转义、重复未知参数、非 UTF-8 参数字节，以及找到 100-continue 后的后续格式错误。两种构建的 full moving 通过；协议工具只交付字段事实，等待、producer 启动与取消由 client 实施。
 
 ## 后续工作
 
