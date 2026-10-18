@@ -217,6 +217,8 @@ core 对应内部声明与 compiler 一起调整，公开 String API 与值不�
 
 容量选择是 GC 策略，不进入语言合法性、对象 ABI 或产物兼容性。没有稳定优势时保留现值并记录结果，不为“自适应”建立通用调参框架。survivor space、多级年龄晋升、pretenuring 预测先留后续，需要真实寿命分布再设计。
 
+本机完成完整矩阵及无额外插桩复测后，M56 选择保留 1 MiB：大容量在全存活批次中减少 minor 搬迁，但短／中寿命用例没有稳定全面改善，单次停顿与峰值 RSS 增长明显。临时计数器对多线程时序有可见影响，吞吐取舍以无插桩数据为准；详见 [实施记录 D1](PROGRESS.md#d1nursery-容量与-refill-取舍)。不追加批量 refill 或自适应策略。
+
 ### 5.3 无 safepoint 区间内优化 card mark
 
 当前 card mark 先以 shifts 52／40／28／16 查询四级 page-map，再读取 region base／cards，按 512-byte card 执行 relaxed atomic OR。region 不是按自身大小对齐，不能用 16 MiB 掩码代替真实映射。
