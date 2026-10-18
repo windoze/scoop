@@ -1,0 +1,85 @@
+import scoop.bytes.ByteArrayBuilder
+import scoop.crypto.*
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.text.toHexString
+
+fun main() {
+    val nonce = "7ypf/xlj9XXwfDPEoM4URrv/xwf94BcCAzFZH4GiTo0v"
+    val cnonce = "f2/wE4q74E6zIJEtWaHKaf5wv/H5QzzpXusqGemxURZJ"
+    val wire = "HTTP/1.1 401 Unauthorized\r\n" +
+        "WWW-Authenticate: Digest realm=\"http-auth@example.org\", qop=\"auth, auth-int\"\r\n" +
+        "WWW-Authenticate: algorithm=SHA-256, nonce=\"" + nonce + "\", Negotiate abc==\r\n" +
+        "Content-Length: 0\r\n\r\n"
+    val fields = decodeFields(wire.toByteArray(), HttpRole.Client)
+    val challenges = HttpAuthChallenge.parseFields(fields)
+    if (challenges.size != 2L || challenges[0L].scheme != "digest" || challenges[1L].token68!! != "abc==")
+        throw IllegalStateException()
+    val challenge = challenges[0L]
+    val realm = String.fromUtf8(challenge.parameter("realm")!!.value)
+    if (String.fromUtf8(challenge.parameter("nonce")!!.value) != nonce ||
+        String.fromUtf8(challenge.parameter("qop")!!.value) != "auth, auth-int") throw IllegalStateException()
+    val ha1 = sha256("Mufasa:" + realm + ":Circle of Life")
+    val ha2 = sha256("GET:/dir/index.html")
+    val response = sha256(ha1 + ":" + nonce + ":00000001:" + cnonce + ":auth:" + ha2)
+    if (response != "753927fa0e85d155564e2e272a28d1802ca10daf4496794697cf8db5856cb6c1") throw IllegalStateException()
+    val credentials = HttpCredentials("Digest", [quoted("username", "Mufasa"), quoted("realm", realm),
+        quoted("uri", "/dir/index.html"), challenge.parameter("algorithm")!!, quoted("nonce", nonce),
+        HttpParameter("nc", "00000001".toByteArray()), quoted("cnonce", cnonce),
+        HttpParameter("qop", "auth".toByteArray()), quoted("response", response)])
+    gcCollect()
+    val received = decodeFields(requestBytes(credentials), HttpRole.Server)
+    val parsed = HttpCredentials.parse(received.findAll("authorization".toByteArray())[0L].value)
+    if (String.fromUtf8(parsed.parameter("response")!!.value) != response ||
+        !parsed.parameter("username")!!.wasQuoted || parsed.parameter("algorithm")!!.wasQuoted) throw IllegalStateException()
+    val success = "HTTP/1.1 200 OK\r\nAuthentication-Info: nextnonce=\"n,2\", qop=auth\r\n" +
+        "Authentication-Info: nc=00000001\r\nContent-Length: 0\r\n\r\n"
+    val info = HttpAuthenticationInfo.parseFields(decodeFields(success.toByteArray(), HttpRole.Client))
+    if (info.parameters.size != 3L || String.fromUtf8(info.parameter("nextnonce")!!.value) != "n,2") throw IllegalStateException()
+    val proxy = HttpCredentials.withToken68("Basic", "QWxhZGRpbjpvcGVuIHNlc2FtZQ==")
+    if (HttpCredentials.parse(proxy.toProxyAuthorizationField().value, "Proxy-Authorization").token68!! != proxy.token68!!)
+        throw IllegalStateException()
+    println("HTTP authentication fields compose with protocol digests")
+}
+
+fun quoted(name: String, text: String): HttpParameter = HttpParameter(name, text.toByteArray(), quoted = true)
+fun sha256(text: String): String = digest(DigestAlgorithm.Sha256, text.toByteArray()).toHexString()
+
+fun requestBytes(credentials: HttpCredentials): Array<Byte> = Http1Encoder(HttpRole.Client).use { encoder ->
+    val head = HttpRequestHead(HttpVersion.Http11, "GET".toByteArray(), HttpRequestTarget.Http1("/dir/index.html".toByteArray()),
+        [HttpField("Host".toByteArray(), "www.example.org".toByteArray()), credentials.toAuthorizationField()])
+    val bytes = ByteArrayBuilder()
+    bytes.append(encoder.beginRequest(head, Http1BodyFraming.Length(0L)))
+    bytes.append(encoder.finish())
+    bytes.toByteArray()
+}
+
+fun decodeFields(bytes: Array<Byte>, role: HttpRole): Array<HttpField> {
+    val heads = ArrayList<Array<HttpField>>()
+    val ends = ArrayList<Boolean>()
+    val parser = if (role == HttpRole.Client) Http1Decoder.client() else Http1Decoder.server()
+    parser.use { decoder ->
+        if (role == HttpRole.Client) decoder.expectResponse("GET".toByteArray())
+        NativeByteBuffer.allocate(1L).use { input ->
+            for (byte in bytes) {
+                input.clear(); input.writeByte(byte)
+                if (decoder.receive(input) != 1L) throw IllegalStateException()
+                while (true) {
+                    val next = decoder.nextEvent()
+                    when (next) { case None -> break; case Some(_) -> {} }
+                    when (next!!) {
+                        case Request(head) -> heads.add(head.fields)
+                        case Response(head) -> heads.add(head.fields)
+                        case End(value) -> ends.add(value)
+                        case Data(_) -> throw IllegalStateException()
+                        else -> {}
+                    }
+                }
+            }
+            decoder.endInput()
+        }
+        Unit
+    }
+    if (heads.size != 1L || ends.size != 1L) throw IllegalStateException()
+    return heads[0L]
+}

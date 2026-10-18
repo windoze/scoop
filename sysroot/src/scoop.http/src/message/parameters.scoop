@@ -9,8 +9,8 @@ public class HttpParameter internal constructor(
     public val name: String, public val value: Array<Byte>, public val wasQuoted: Boolean,
     internal val valueOffset: Long, internal val sourceField: String
 ) {
-    public constructor(name: String, value: List<Byte>)
-        : this(httpNormalizedToken(name), checkedHttpParameter(value), false, 0L, "HTTP parameter") {}
+    public constructor(name: String, value: List<Byte>, quoted: Boolean = false)
+        : this(httpNormalizedToken(name), checkedHttpParameter(value), quoted, 0L, "HTTP parameter") {}
 
     public fun decodeExtended(allowIso88591: Boolean = false): HttpExtendedValue = decodeHttpExtended(this, allowIso88591)
 

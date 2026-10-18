@@ -13,16 +13,16 @@
 | `HttpDate` | 生成 IMF-fixdate；接收 RFC 9110 允许的三种日期形状，旧两位年份按显式参考时间判断 |
 | `HttpCacheControl`、`HttpEntityTag` | 指令与值、弱／强 ETag、引号与列表边界；不自己查询或存储缓存 |
 | `HttpRange`、`HttpContentRange` | bytes 范围、suffix／开放终点、206／416 所需边界，受检 Long 算术 |
-| `HttpAuthChallenge` | 多 challenge、quoted 参数、token68 和 Digest 参数；不获取凭据或执行密码计算 |
+| `HttpAuthChallenge`、`HttpCredentials`、`HttpAuthenticationInfo` | 多 challenge、quoted 参数、token68、请求凭据和 Digest 完成参数；不获取凭据或执行密码计算 |
 | `HttpRetryAfter` | delta-seconds 或 HTTP-date，解析与实际等待分开 |
 
 参数名大小写、重复值处理和扩展编码按字段所属 RFC 固定，不能用一个逗号 split 处理全部字段。扩展参数先在本层拆出 charset／language／百分号字节，再交给 URL 百分号 codec 与 charset 转换；优先满足 RFC 8187 的 UTF-8，历史 ISO-8859-1 兼容须显式记录。建议文件名只作为元数据，操作系统 Path 选择由调用者负责。
 
 ### 1.1 媒体类型与字节参数
 
-`HttpMediaType(type, subtype, parameters)` 和 `HttpParameter(name, value: List<Byte>)` 是不可变值构造器。type、subtype 和参数名须为非空 ASCII token，统一为 ASCII 小写；参数值独立复制，允许 quoted-string 中的 HTAB、可见字节及 obs-text，拒绝其他控制字节。重复参数名（忽略 ASCII 大小写）一律报错，包括值相同的重复项；未知参数和顺序保留。
+`HttpMediaType(type, subtype, parameters)` 和 `HttpParameter(name, value: List<Byte>, quoted = false)` 是不可变值构造器。type、subtype 和参数名须为非空 ASCII token，统一为 ASCII 小写；参数值独立复制，允许 quoted-string 中的 HTAB、可见字节及 obs-text，拒绝其他控制字节。重复参数名（忽略 ASCII 大小写）一律报错，包括值相同的重复项；未知参数和顺序保留。
 
-`HttpMediaType.parse`／`parseOrNone` 接收字节或 String；String 明确按 UTF-8 转成字段字节，不把接收的任意字节猜成 UTF-8。`parameters` 与 `parameter(name)` 交付去除引号和 quoted-pair 转义后的字节；`HttpParameter.wasQuoted` 记录解析时的引号形式，普通构造值为 false。`originalValue` 在解析结果中保存完整原始字节，在普通构造值中为 None。
+`HttpMediaType.parse`／`parseOrNone` 接收字节或 String；String 明确按 UTF-8 转成字段字节，不把接收的任意字节猜成 UTF-8。`parameters` 与 `parameter(name)` 交付去除引号和 quoted-pair 转义后的字节；`HttpParameter.wasQuoted` 记录解析时的引号形式，普通构造使用 quoted 参数，默认 false。显式 quoted 供 Basic realm、Digest 等要求发送 quoted-string 的字段使用；false 仍在非 token 值输出时自动加引号。`originalValue` 在解析结果中保存完整原始字节，在普通构造值中为 None。
 
 解析接受前后 OWS 和 RFC 9110 parameters 中的空分号项，拒绝 type／slash／subtype 之间及参数等号两侧的空白；引号内的分号、逗号和转义字符不作为分隔符。字段内换行、非法 token、未闭合引号、坏 quoted-pair 和多余尾部均报错。`HttpFieldParseException` 保存 field、byteOffset 和 detail；偏移从原始字段值的第一个字节算起。parseOrNone 只吸收这种格式异常。
 
@@ -77,6 +77,20 @@
 `stronglyMatches(other)` 只在两者均为强标签且 opaque 逐字节相等时成立；`weaklyMatches(other)` 只比较 opaque。标签值不做大小写归一、Unicode 规范化或摘要推断。
 
 `HttpEntityTagCondition(tags)` 保存 If-Match／If-None-Match 的有序标签列表，允许空列表和重复项；`wildcard()` 单独表示星号条件，不能与列表混合。parse／parseOrNone 接收字节或 String，并可指定用于诊断的 fieldName（默认 If-None-Match）；按列表语法忽略 OWS 与空项，只在标签引号外识别逗号。isWildcard、tags 和 originalValue 暴露不可变结果，`toByteArray()`、`toIfMatchField()`、`toIfNoneMatchField()` 生成对应字段。引号内的星号仍是普通 ETag。工具不把无 ETag 等同于无当前表示，不自行判断条件是否满足；实际表示是否存在及所需比较强度由调用者决定。
+
+### 1.7 认证字段
+
+`HttpAuthChallenge(scheme, parameters)` 与 `HttpCredentials(scheme, parameters)` 分别表示服务端 challenge 和请求凭据；各自的 `withToken68(scheme, token68)` 工厂表示 token68 形式。scheme 和参数名是非空 ASCII token，保存为小写；parameters 独立复制、按原顺序保存，名称不区分大小写且不得重复。token68 与参数列表互斥，token68 只按 RFC 9110 §11.2 检查字符及末尾 padding，不做 Base64 解码或认证有效性推断。未知 scheme、未知参数、空参数列表和空 quoted 值都可表达。
+
+`HttpAuthChallenge.parse` 接收一个 challenge；`parseList` 接收 WWW-Authenticate 的整个列表，`parseFields(fields, fieldName = "WWW-Authenticate")` 合并多行再解析，可用 Proxy-Authenticate 作为字段名。`HttpCredentials.parse` 只接受一个 credentials 值，默认诊断字段为 Authorization，可显式选择 Proxy-Authorization。上述单值入口都有字节／String 和 parseOrNone 形式；列表入口的错误不静默删除无效项。
+
+challenge 和 credentials 共用同一个字节语法实现。参数值使用 token／quoted-string，等号两侧接受 BWS；引号内逗号和 quoted-pair 不分隔项目。scheme 与实际数据之间要求一个或多个 SP，HTAB 只作为字段末尾或列表分隔符的 OWS，不替代这段 SP。列表接受空项；逗号后若是 `token BWS =` 则继续当前参数列表，否则开始下一个 challenge。token68 的等号只允许出现在末尾；例如 `Basic abc==` 是 token68，`Digest realm=x` 是参数。不能用逗号 split、Base64 解码成功与否或已知 scheme 名单来决定语法。
+
+`parameters`、`parameter(name)` 和 `token68` 暴露不可变的已解析值；任意参数字节不经 String 中转。`toByteArray()` 生成合法字段值，保留参数顺序和引号选择；challenge 提供 `toWwwAuthenticateField()`／`toProxyAuthenticateField()`，credentials 提供 `toAuthorizationField()`／`toProxyAuthorizationField()`。特定方案的发送方通过 HttpParameter 的 quoted 选项遵守其额外格式要求，不在 client 中手工拼接或转义字段。
+
+`HttpAuthenticationInfo(parameters)` 处理 Authentication-Info／Proxy-Authentication-Info 的无 scheme 参数列表，提供同样的参数查询、字节输出、parse／parseOrNone、parseFields 和两个明确的字段生成方法。重复参数包括跨行重复都报错，响应头与 trailer 由调用者分别传入。parseFields 按 RFC 的字段组合规则用逗号及一个 SP 连接同名行，因此 challenge 的参数可以分布在多行；其错误偏移相对于组合后的字段字节，单行 parse 的错误偏移相对于原字段。
+
+本层只负责消息语法，不取得密码、刷新令牌、选择认证方案、计算 Digest、检查 rspauth 或执行网络往返。Basic／Bearer／Digest 的具体语义和 suspend 凭据提供者由 client 实现；摘要调用 crypto。
 
 ## 2. Cookie 与公共后缀
 

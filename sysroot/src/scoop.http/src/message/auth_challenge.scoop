@@ -1,0 +1,52 @@
+package scoop.http
+
+import scoop.collections.emptyList
+
+public class HttpAuthChallenge private constructor(private val content: HttpAuthValue) {
+    public constructor(scheme: String, parameters: List<HttpParameter> = emptyList<HttpParameter>())
+        : this(httpAuthWithParameters(scheme, parameters)) {}
+
+    public val scheme: String get() = content.scheme
+    public val token68: String? get() = content.token68
+    public val parameters: Array<HttpParameter> get() = content.parameters
+    public fun parameter(name: String): HttpParameter? = findHttpParameter(parameters, name)
+    public fun toByteArray(): Array<Byte> = content.toByteArray()
+    public fun toWwwAuthenticateField(): HttpField = HttpField("WWW-Authenticate".toByteArray(), toByteArray())
+    public fun toProxyAuthenticateField(): HttpField = HttpField("Proxy-Authenticate".toByteArray(), toByteArray())
+
+    public companion object {
+        public fun withToken68(scheme: String, token68: String): HttpAuthChallenge =
+            HttpAuthChallenge(httpAuthWithToken68(scheme, token68))
+
+        public fun parseList(value: List<Byte>, fieldName: String = "WWW-Authenticate"): Array<HttpAuthChallenge> {
+            val reader = HttpFieldReader(fieldName, value)
+            val result = ArrayList<HttpAuthChallenge>()
+            reader.skipOws()
+            while (!reader.ended) {
+                if (reader.peek() == 44) { reader.position += 1L; reader.skipOws(); continue }
+                result.add(HttpAuthChallenge(readHttpAuthValue(reader, true)))
+            }
+            return result.toArray()
+        }
+        public fun parseList(value: String, fieldName: String = "WWW-Authenticate"): Array<HttpAuthChallenge> =
+            parseList(value.toByteArray(), fieldName)
+        public fun parseFields(fields: List<HttpField>, fieldName: String = "WWW-Authenticate"): Array<HttpAuthChallenge> =
+            parseList(combinedHttpAuthFields(fields, fieldName), fieldName)
+
+        public fun parse(value: List<Byte>, fieldName: String = "WWW-Authenticate"): HttpAuthChallenge {
+            val reader = HttpFieldReader(fieldName, value)
+            reader.skipOws()
+            val result = HttpAuthChallenge(readHttpAuthValue(reader, false))
+            if (!reader.ended) reader.fail("expected a single authentication challenge")
+            return result
+        }
+        public fun parse(value: String, fieldName: String = "WWW-Authenticate"): HttpAuthChallenge =
+            parse(value.toByteArray(), fieldName)
+        public fun parseOrNone(value: List<Byte>, fieldName: String = "WWW-Authenticate"): HttpAuthChallenge? {
+            try { return Some(parse(value, fieldName)) }
+            catch (_: HttpFieldParseException) { return None }
+        }
+        public fun parseOrNone(value: String, fieldName: String = "WWW-Authenticate"): HttpAuthChallenge? =
+            parseOrNone(value.toByteArray(), fieldName)
+    }
+}
