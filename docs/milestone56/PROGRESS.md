@@ -187,4 +187,8 @@ NoGC kernel 时间约减少 79.4%；反汇编在对应 callable 确认两条 `ml
 
 Linux workspace 首轮的 HIR lowering 有 1452 项通过、23 项失败；逐项比较确认全部仅多出 B3 的三个 String intrinsic 声明，被测源码的 HIR 没有变化。按仓库的结构测试纪律，将这 23 份早期快照缩到被测函数／类型声明、入口和泛型实例，保留完整正文、求值顺序、字段／variant 和类型关系；不再重复固定公共 core 的无关定义。没有改生产 dump 或编译行为，也没有直接将新增 core 行抄入全部期望。删去约 2500 行重复快照，沿用一个只服务现有测试的局部选择 helper。格式化与 workspace clippy 通过；本机 23 项受影响测试加 String intrinsic 签名拒绝专测全部通过。Linux 已仅补跑这些项及首轮尚未执行的 crate，不重复已通过的完整部分；最终覆盖 4975 项 Rust 测试、0 失败、0 忽略，50 项 fixture runner 规则全部通过。driver 未完成部分改用保留 debug assertions／overflow checks 的优化 Rust 测试程序，具体范围见 [最终验收](ACCEPTANCE.md)。
 
+Linux CLI 随后在 direct C aggregate／errno 的 NoGC 包装中暴露 C1 的选项遗漏：两处裸 `instcombine` 通过文本解析时默认开启固定点自检，LLVM 22.1.2 在一轮之后仍有可做的优化时会终止编译。上游明确将该文本默认值用于测试；普通 `InstCombineOptions` 默认不开启它。现将 NoGC 的两处调用与既有 Managed 管线一样显式设为 `instcombine<no-verify-fixpoint>`，保留正常有界变换、LLVM IR 验证和 site／root 检查，未改变语言／ABI 合同。[LLVM 22.1.2 文本管线解析](https://github.com/llvm/llvm-project/blob/llvmorg-22.1.2/llvm/lib/Passes/PassBuilder.cpp#L1123)、[迭代与自检实现](https://github.com/llvm/llvm-project/blob/llvmorg-22.1.2/llvm/lib/Transforms/InstCombine/InstructionCombining.cpp#L5552)。
+
+该修正本机格式化／workspace clippy、28 项 statepoint 专测通过；重建三个 release 工具后，direct C values、errno values／artifacts、M56 loops／moving 合计五个 fixture／13 个变体／47 个进程通过。Linux 正在以独立工具输出目录复验。E 的冷编译数字采于这项修正前，不将其当作修正后的精确编译耗时。
+
 桌面 footprint 另核查了实际 Mach-O：17,492,984 bytes 程序中 `__LINKEDIT` 为 13,697,024 bytes，76,560 个动态导出中约 55,000 个是 atom 边界。GNU 分配程序的实验副本经常规 strip 后，从 12,822,024 缩至 4,419,056 bytes，结果与 45 次 minor／复制量均一致；主要移除无 `SHF_ALLOC` 的静态符号信息。两项分别作为符号可见性与 release 输出的后续候选，未改现行链接／ODR 合同，也不把文件字节数当作 RSS；详细组成和限制见补充设计 3.2。

@@ -52,10 +52,12 @@ pub(crate) fn optimize(
             .map_err(|error| CodegenError(format!("LLVM function name: {error}")))?;
         let no_gc =
             expected.functions.get(name) == Some(&GcEffect::NoGc) && !site_owners.contains(name);
+        // Textual InstCombine enables a testing-only fixpoint check by default.
+        // Use its normal bounded iteration policy in both release paths.
         let passes = match (profile.optimization(), no_gc) {
             (scoop_lir::OptimizationMode::Debug, _) => "sroa,mem2reg,sccp,unreachableblockelim",
             (scoop_lir::OptimizationMode::Release, true) => {
-                "sroa,mem2reg,instcombine,early-cse,simplifycfg,reassociate,loop-simplify,lcssa,loop-mssa(loop-rotate,licm),loop(indvars),loop-vectorize,slp-vectorizer,instcombine,simplifycfg,dse,adce"
+                "sroa,mem2reg,instcombine<no-verify-fixpoint>,early-cse,simplifycfg,reassociate,loop-simplify,lcssa,loop-mssa(loop-rotate,licm),loop(indvars),loop-vectorize,slp-vectorizer,instcombine<no-verify-fixpoint>,simplifycfg,dse,adce"
             }
             (scoop_lir::OptimizationMode::Release, false) => {
                 // No PRE or backedge splitting: sites and logical root restores
