@@ -1,12 +1,12 @@
 # Scoop 异步 I/O 库规范
 
-版本：M49。本文规定普通 Cone `scoop:scoop.asyncio:0.1.0` 的合同；实现及三目标验证见 [M49 验收](../milestone49/ACCEPTANCE.md)。
+版本：M49 已实施基线，含 M54 待实施扩展。本文规定普通 Cone `scoop:scoop.asyncio:0.1.0` 的合同；既有实现及三目标验证见 [M49 验收](../milestone49/ACCEPTANCE.md)，第 9 节的新增范围见 [M54 设计](../milestone54/DESIGN.md)。
 
 ## 1. 分层与目标
 
 源码位于 `sysroot/src/scoop.asyncio/`，显式依赖 core、std、platform，测试依赖 scoop.test；公共声明属于 `scoop.asyncio`。不默认导入，不引入 compiler-known role、runtime 调度入口或新的 ABI。任务树使用语言规范 11.9.1～11.9.2；路径、地址、错误、时间和 buffer 直接复用平台库与标准库。
 
-首版支持 aarch64-apple-darwin、x86_64-unknown-linux-gnu、x86_64-unknown-linux-musl。LibuvEventLoop 使用固定的 libuv 1.53.0，源码、许可证和各目标 native 输入随 Cone 发布；不查找系统 libuv。C11 shim 只管理 native I/O、稳定存储及完成记录，worker／callback 不进入 managed 代码。TLS、HTTP、异步目录遍历、文件监听、进程／TTY 和任意 fd 接管不在本版范围。
+首版支持 aarch64-apple-darwin、x86_64-unknown-linux-gnu、x86_64-unknown-linux-musl。LibuvEventLoop 使用固定的 libuv 1.53.0，源码、许可证和各目标 native 输入随 Cone 发布；不查找系统 libuv。C11 shim 只管理 native I/O、稳定存储及完成记录，worker／callback 不进入 managed 代码。TLS、HTTP 属于各自库，文件监听、进程／TTY 和任意 fd 接管不在本版范围；M54 为实际缓存与下载补齐文件／目录操作。
 
 Linux C 工具链同时需要所选 libc 的开发头文件和对应架构的 Linux UAPI 头文件（包括 linux/errqueue.h）。只带 musl libc 的 musl-gcc 包装器须补齐内核头文件搜索路径，可通过普通 --cc 包装脚本配置；不把 glibc 用户态头文件加入 musl 的搜索路径。
 
@@ -128,3 +128,39 @@ openFile 使用 Path／OpenOptions 的已有合同。文件 open／read／write�
 native request 持有预留完成节点；C callback 仅存状态和进度、入 native 队列，managed 在 NativeSafe 返回握手后消费。操作编号在完成消费前不复用。managed 使用普通带类型操作与结果，不以可空字段猜测不同事件。提交同步失败走同一释放路径。libuv 及相关系统库按语言规范 12.2.1～12.2.3 的普通 native 输入链接；三目标不启用 io_uring。
 
 主要验收为同 Cone scoop.test：真实 loopback 动态端口、无公网 DNS、真实文件、Context、取消／关闭竞争、部分进度、原始错误、SIGPIPE 及 moving GC。竞争用明确同步点，测试源码和工具始终存在。详细边界见 [M49 设计第 14 节](../milestone49/DESIGN.md#142-异步-io)。
+
+## 9. M54 基础能力补齐（待实施）
+
+### 9.1 文件与目录
+
+AsyncFile 增加 suspend 的 metadata、size、position、seek(position)、truncate(size)，语义复用 platform File；读写、位置查询／变更、truncate 与 sync 共用该句柄的串行操作边界。seek／truncate 的参数和偏移范围在提交前检查，失败不凭空改变已记录位置。不能在异步方法体内直接调用同步 File API。
+
+文件系统入口沿 EventLoop.openFile 的方式增加 `metadata(path, followLinks)`、`moveFile(source, destination, replaceExisting)`、`deleteFile(path)`、`createDirectories(path)`、`openDirectory(path)` 与 `createTempFile(parent, prefix)`，返回类型复用 FileMetadata／Path 等既有值。move 的排他／替换和跨文件系统错误沿 platform 合同，不暗中 copy+delete。
+
+createTempFile 以一次 native 排他创建返回实际 Path 与拥有句柄的 AsyncFile，避免先创建路径再重新打开；结果为有名的普通 TemporaryFile 值。取消先获胜而 native 创建成功时，关闭未交付句柄并清理本次未交付的临时文件；已交付后是否删除由调用者负责。失败或清理错误保留真实原因，不执行目录来源审计。
+
+`AsyncDirectoryEntries` 为 AsyncCloseable 的单遍枚举器，`next(): DirectoryEntry?` 可挂起，正常 EOF 关闭句柄，提前退出须 close。名称在 native 返回前复制，跳过点目录，不一次性把任意大目录收集到数组。缓存淘汰或启动扫描使用此公共能力。
+
+上述工作使用既有 libuv worker 和 platform 的 GC-free 文件 helper；必要 helper 先在 platform 补齐，再由 asyncio 调度。路径、输入数据和输出存储在提交前取得稳定 native 副本，errno 在 worker 内立即记录。已开始的 syscall 取消仍等 after-work；迟到结果和 close 按第 3 节收尾。
+
+### 9.2 地址族竞速与 SOCKS5
+
+增加 `EventLoop.connectTcp(host: OsString, port, options)` 的域名重载，提供 RFC 8305 所需的双族解析、候选交错和延迟启动。默认 resolution delay 50 ms、connection attempt delay 250 ms，可配置；默认同时在途的 TCP 候选不超过 2 个。先获得的可用地址不必等待另一族全部解析完成，全部失败保存实际尝试错误。
+
+选择一个成功连接后关闭其他未交付连接，等待竞速子任务和 native 结果收尾。候选普通失败在该任务内转成结果，不能传播并取消本来可能成功的候选。参数仍为 OsString，不隐式 IDNA；传入 SocketAddress 的既有接口保持不变。配置变化只影响本次连接，不建立全局 DNS 缓存、TTL 推测或 HTTPS records 实现。
+
+提供 SOCKS5 的普通异步握手适配，支持无认证和 RFC 1929 用户名／密码、CONNECT、IPv4／IPv6／ASCII 域名目的地、本地解析或代理解析。用户凭据和长度在写出前检查；reply 错误保留协议码。使用已有 AsyncByteStream，按 takeOwnership 规则接管，成功交付隧道与完整前缀，失败清理；不让 HTTP client 手写 SOCKS 报文或同步 DNS。
+
+### 9.3 领域库的 native 阻塞工作
+
+TLS 的系统信任装载及平台验证需要能够挂起等待 native 工作。为这一实际使用者，在 `scoop.asyncio.native` 提供受 Unsafe 约束的 NativeWork 资源与 `EventLoop.runNativeWork(work)`；它复用现有 DNS／文件的 uv_queue_work 提交、取消与完成机制，不建立第二个线程池。
+
+NativeWork 持有调用库构造的稳定 native 参数、GC-free 执行入口、结果存储和释放入口。worker 不调用 Scoop 回调、分配 managed 对象或恢复 continuation；结果的实际类型与提取由调用库的普通 FFI 声明负责。工作返回后，managed 调用方才能取得结果并构造 Scoop 值。它不是可执行任意 suspend／Scoop lambda 的 runBlocking 或通用调度框架。
+
+runNativeWork 期间借用 work，禁止重复提交和关闭；登记前失败不转移所有权。取消获胜也须等执行结束、复制错误和解除借用后返回，调用方在 finally 关闭 work。外部通知、Job 取消与 continuation 恢复保持锁外；native ABI 是普通库间接口，不新增 runtime functions 或 compiler-known 类型。
+
+### 9.4 验证
+
+文件能力独立验证真实 metadata／seek／truncate、排他临时创建、同文件系统替换、目录分批遍历、worker 取消与迟到结果；组合磁盘缓存和下载续传。连接竞速验证单族迟到／失败、不同候选交错、成功竞争、总取消及失败不污染父 scope。SOCKS5 使用独立 loopback 对端覆盖分段、认证和两种 DNS 模式。
+
+NativeWork 验证正常完成、登记失败、未开始撤销、运行中取消、异常清理和 moving GC，实际消费者包含 TLS 系统验证；不为仅存在于测试中的虚构工作扩展接口。三个目标运行对应库测试和生产消费者。

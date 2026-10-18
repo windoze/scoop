@@ -1,6 +1,6 @@
 # Scoop HTTP 库规范
 
-版本：M53。实施范围见 [M53 设计](../milestone53/DESIGN.md)。本规范使用[库 API 风格](SCOOP-API-STYLE.md)、[异步 I/O](SCOOP-ASYNCIO-SPEC.md)和 [TLS](SCOOP-TLS-SPEC.md)的既有合同，不改变语言语义、runtime ABI 或编译阶段职责。
+版本：M53 已实施基线，含 M54 待实施修订。既有实现见 [M53 设计](../milestone53/DESIGN.md)，新增范围见 [M54 设计](../milestone54/DESIGN.md)与第 9 节。本规范使用[库 API 风格](SCOOP-API-STYLE.md)、[异步 I/O](SCOOP-ASYNCIO-SPEC.md)和 [TLS](SCOOP-TLS-SPEC.md)的既有合同，不改变语言语义、runtime ABI 或编译阶段职责。
 
 ## 1. 分层与后端
 
@@ -8,7 +8,7 @@
 
 HTTP/1 使用 llhttp 9.4.3；HTTP/2 使用 nghttp2 1.70.0 的完整上游协议核心，通过 `nghttp2_session_mem_recv2`／`nghttp2_session_mem_send2` 接入。帧、HPACK、HTTP messaging、流状态与 SETTINGS 校验交给 nghttp2；Scoop 不再重放一套接收校验。
 
-不增加连接池、自动重试、路由、Cookie、缓存、下载命名、内容解压或 HTTP/3。HTTP/2 的库核心保持完整，本期普通消息接口不提供 server push 或通用扩展插件。客户端明确声明禁用 push；这不等于裁掉后端机器码。
+协议引擎不增加连接池、自动重试、路由、Cookie jar、响应缓存或下载目的地选择；这些客户端策略由独立 client 库承担。M54 的字段、Cookie 数据、multipart、SSE 与 WebSocket 协议补充见第 9 节，内容压缩由独立 compression 库提供。HTTP/2 的库核心保持完整，普通消息接口不提供 server push 或通用扩展插件。客户端明确声明禁用 push；这不等于裁掉后端机器码。HTTP/3 不在本规范范围。
 
 ## 2. 消息、字段与错误
 
@@ -34,7 +34,7 @@ client 在发送每个请求时按顺序登记方法上下文。信息响应不�
 
 解析支持 HTTP/1.0／1.1、连续消息、Content-Length、chunked、trailer 和 EOF 定界。起始行、字段、chunk 可以任意分段；字段回调片段必须组合到字段完成后才交付。只有需要 EOF 定界的消息在正常 EOF 时完成；截断定长／chunked 报文报错。
 
-llhttp 9.4.3 只接受其已知方法集合。`CUSTOM` 等集合之外的方法明确诊断为该版本不支持的方法；公共 token 数据模型不改变这个接收限制。HTTP/1 发送同样在开始前检查此限制，HTTP/2 的方法不受 llhttp 限制。不能改写方法或预修复报文绕过后端。
+llhttp 9.4.3 的服务端请求解析只接受其已知方法集合，`CUSTOM` 等集合之外的方法明确诊断为该版本不支持的方法；公共 token 数据模型不改变这个接收限制。M53 实现同时限制了发送与客户端响应的方法上下文；M54 按第 9.1 节解除后两处不必要的限制，服务端接收限制保持明确。HTTP/2 的方法不受 llhttp 限制。不能改写线上方法或预修复报文绕过后端。
 
 接收选项在创建时固定，默认全部关闭：
 
@@ -158,3 +158,21 @@ HTTP Cone 只声明一次 nghttp2 静态库，通过既有目标条件 include �
 验证覆盖独立 llhttp／nghttp2 对端、常规与非法报文、任意分段、字段快照、重复项、非 ASCII、每项公开兼容开关、H2 HPACK／流控／并发流／错误作用域、ALPN、prior knowledge、h2c 接受与拒绝，以及切换后缀。异步组合使用真实 loopback、短读写、双向背压、单流与连接取消、并发关闭和 moving GC。
 
 Darwin/AArch64、GNU amd64、musl amd64 运行适用的 debug／release 库测试及生产产物消费者。独立工具只属于开发验证，不进入分发包。发布包按 M52 规则手工验证，不为每次常规测试重新打包；原始日志和工作数据不提交。
+
+## 9. M54 协议层补齐（待实施）
+
+### 9.1 扩展方法与上传协调
+
+Http1Encoder、客户端 expectResponse 方法登记及异步 sendRequest 接受任意合法 method token，保留原始大小写和字节。响应定界上下文只区分精确的 HEAD、CONNECT 与普通方法；这一语义分类不是将线上 method 改写成 GET。移除以 llhttp 请求方法枚举校验编码器输入的限制，不能让 web client 为扩展方法强制选择 H2 或自己发送请求行。
+
+服务端请求解析仍受 llhttp 的实际能力限制，不为 M54 客户端需求另外维护请求解析器；独立 native 对端用于验证扩展方法的真实发送与响应接收。HEAD、成功 CONNECT、普通扩展方法、大小写不同 token 和 100／最终响应的关联须组合验证。
+
+H1／H2 异步连接须支持请求写入与响应头读取同时推进，暴露 100 Continue 与早期最终响应的事实。若 M53 现有协调在这些组合上存在缺陷，在 scoop.http.asyncio 修复并回归；client 只实现等待策略。H2 的 SETTINGS、GOAWAY、stream ID、关闭与流容量事件继续使用现有 Http2Notice，不重复解析帧或依赖私有 nghttp2 状态。
+
+### 9.2 消息工具与长连接协议
+
+[HTTP 消息工具规范](SCOOP-HTTP-MESSAGE-SPEC.md)属于本规范的 M54 补充，规定字段参数、日期、认证／缓存字段、Cookie／PSL、multipart、CONNECT 辅助、SSE 与 HTTP/1.1 WebSocket 的公共合同。普通消息数据与内存 parser 位于 scoop.http，相应异步流适配位于 scoop.http.asyncio。
+
+基础 HTTP Cone 按实际使用增加 url、charset 与 crypto 的普通依赖，仍不依赖 asyncio、TLS 或 socket。异步 HTTP Cone 增加 compression 依赖，用于 WebSocket 消息压缩；由于 compression 在一个 Cone 内交付异步适配，基础 HTTP 引擎不反向依赖它。HTTP client 只组合这些公开能力。
+
+这些新增能力分别验收后才作为 client 前置条件完成；M53 的历史验收不被改写为 M54 已通过。HTTP/2 WebSocket、Extended CONNECT 与 HTTP/3 明确留待后续。

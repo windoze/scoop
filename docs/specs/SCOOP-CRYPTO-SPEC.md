@@ -1,6 +1,6 @@
 # Scoop 密码库规范
 
-版本：M51。本文规定普通 Cone `scoop:scoop.crypto:0.1.0` 的合同；实现与实际验收分别记录于 [M51 进度](../milestone51/PROGRESS.md)和验收文档。规范不代表全部功能已验收。
+版本：M51 已实施基线，含第 8 节的 M54 待实施补充。本文规定普通 Cone `scoop:scoop.crypto:0.1.0` 的合同；既有实现与实际验收分别记录于 [M51 进度](../milestone51/PROGRESS.md)和验收文档，新增范围见 [M54 设计](../milestone54/DESIGN.md)。规范不代表全部功能已验收。
 
 ## 1. 分层与后端
 
@@ -22,7 +22,9 @@ Digest、SecretKey、PrivateKey、PublicKey、Certificate、TrustStore 均为显
 
 `scoop.crypto` 提供 `DigestAlgorithm { Sha256, Sha384, Sha512 }`；一次性 `digest(algorithm, data)` 与 `Digest(algorithm)` 上连续 update 后调用 finish 的结果相同，允许空输入。update 返回 Unit，finish 返回字节数组并结束上下文的计算状态。
 
-SecretKey 从字节建立自有 native 副本，支持显式导出及关闭时清除自有存储。`hmac(algorithm, key, data)` 与 `verifyHmac(algorithm, key, data, expected)` 支持以上三种 SHA；校验长度一致时使用 CRYPTO_memcmp，不使用字符串或提前退出的逐字节比较。
+以上为 M51 集合；M54 按第 8 节增加协议互操作所需算法。
+
+SecretKey 从字节建立自有 native 副本，支持显式导出及关闭时清除自有存储。`hmac(algorithm, key, data)` 与 `verifyHmac(algorithm, key, data, expected)` 支持 Sha256、Sha384、Sha512；校验长度一致时使用 CRYPTO_memcmp，不使用字符串或提前退出的逐字节比较。
 
 `AeadAlgorithm { Aes128Gcm, Aes256Gcm }` 分别要求 16／32 字节 key；nonce 固定 12 字节，tag 固定 16 字节，AAD 和数据可空。`encrypt` 返回 `AeadCiphertext(ciphertext, tag)`；`decryptOrNone` 成功返回明文，认证不匹配返回 None，临时明文在失败时清除且不交付。调用者确保同一密钥下 nonce 不重复，库不建立 nonce 分配服务。
 
@@ -61,3 +63,13 @@ ES256 在 JWS 边界转换为固定 64 字节 R || S，普通签名 API 仍使�
 ## 7. 跨 Cone native 边界
 
 必要的 CLayout 返回类型、已复制错误和 Unsafe 对象引用入口集中在 `scoop.crypto.native`，TLS 直接使用这些实际类型与 native 引用。Unsafe 使用者在借用有效期内调用，跨对象保留由 OpenSSL 引用计数承担；不通过导出再解析 PEM 传递，也不重声明同形 nominal 类型。该 package 不导出全部 OpenSSL API，不改变 runtime ABI。
+
+## 8. M54 摘要与证书输入补充（待实施）
+
+DigestAlgorithm 增加 Sha1、Md5、Sha512_256，分别用于 RFC 6455 握手和 RFC 7616 Digest 认证。复用 OpenSSL 的实际算法，Sha512_256 是 SHA-512/256，不是将 SHA-512 结果截断。一次性与增量摘要均支持这些值，输出分别为 20、16、32 字节；不改变原有签名／JWS 默认算法集合。HMAC 的本期算法集合保持第 3 节规定，对不支持的算法给出参数错误。
+
+新增 `parseCertificatesPem(text): Array<Certificate>`，解析包含多张证书的 CA／身份链 bundle。每个结果由调用者拥有，输入损坏、非法中间段或非证书尾随数据时报 CryptoException，并关闭已经创建但未交付的对象；空集合显式报错。提供 `TrustStore.fromPem(text)` 便利工厂，由 crypto 完成解析与 native 引用收尾，不让 web client 拆 PEM。
+
+单证书 fromPem／fromDer 继续拒绝额外证书和尾随数据。bundle 解析不查询文件系统、不选择系统信任、不自动把发送链的最后一张证书提升为信任根；路径和系统信任入口在 TLS 所属层。
+
+新增能力以标准摘要向量、独立 OpenSSL 输出、多证书与坏 bundle、部分失败清理及跨 Cone 消费验收。WebSocket、Digest auth-int 和 mTLS 组合测试调用这些公共入口，不携带客户端私有密码实现。

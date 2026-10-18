@@ -665,9 +665,20 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - nghttp2 1.70.0 只构建静态协议库，通过既有 `native.libraries` 按 archive 成员选择；排除应用、示例、工具、测试和文档目标，不重复编入上游对象。
 - 完成两个普通 Cone 的三目标 debug／release／moving GC 验收：每目标 50 项内存协议测试、26 项异步测试及 6 组独立消费者通过；包括 TLS 单流取消、双向背压、协议切换、并发关闭与原生对端互操作。Darwin／GNU 宿主包搬迁后，三目标 HTTP 消费、缓存复用和两个 link 入口均通过；本期不做函数级裁剪。
 
+### M54 统一 HTTP client 与配套基础库（设计已记录，待实施，[设计](milestone54/DESIGN.md)、[客户端规范](specs/SCOOP-HTTP-CLIENT-SPEC.md)）
+
+- 在 M53 协议库之上提供纯 Scoop `scoop.http.client`，统一 HTTP/1.x／HTTP/2、ALPN、连接池、流式 body、suspend、背压、完整生命周期超时与单请求取消。
+- 独立交付 [IDNA](specs/SCOOP-IDNA-SPEC.md)、[URL](specs/SCOOP-URL-SPEC.md)、[字符集](specs/SCOOP-CHARSET-SPEC.md)和单个 [compression Cone](specs/SCOOP-COMPRESSION-SPEC.md)；IDNA 不要求 ICU，压缩采用 zstd，并支持 gzip／deflate／Brotli 的同步与异步流。
+- 在所属 HTTP、crypto、TLS、asyncio／platform 库补齐方法／消息工具、摘要、mTLS／系统信任、文件操作、地址族竞速与代理，不在 client 中增加 workaround。完成重定向／重试、认证、Cookie、私有缓存、下载续传、multipart、SSE 与 HTTP/1.1 WebSocket。
+- HTTP/3、HTTP/2 WebSocket、跨 origin H2 合并、证书固定／对端链检查接口、TLS 会话恢复控制／0-RTT、主动 H2 PING 保活留待后续；不引入占位接口。本条只记录设计，尚未开始实现或运行验收。
+
 ## 4. 待补齐清单（backlog）
 
 各里程碑"涵盖但只实现了部分"的事项，按来源里程碑整理。标注→的为目标里程碑（已知时）；未标注的待排期。
+
+### M54 明确后续的客户端能力
+
+- QUIC／HTTP/3；HTTP/2 WebSocket／Extended CONNECT；跨 origin 的 H2 连接合并、证书固定／对端链检查、TLS 会话恢复控制／0-RTT、主动 H2 PING 保活。先在所属协议／TLS 库设计与补齐，再由 client 组合，不属于 M54 的验收范围。
 
 ### M48 缓存直接复用与编译职责收敛（已完成，[设计](milestone48/DESIGN.md)、[验收](milestone48/ACCEPTANCE.md)）
 
