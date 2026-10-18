@@ -1,0 +1,65 @@
+package scoop.http
+
+import scoop.collections.HashSet
+
+public class HttpTrailerDeclaration public constructor(names: List<String>) {
+    public val names: Array<String> = declaredTrailerNames(names)
+
+    public fun contains(name: String): Boolean {
+        val normalized = httpNormalizedToken(name)
+        for (value in names) if (value == normalized) return true
+        return false
+    }
+
+    public fun toHttpField(): HttpField {
+        val value = StringBuilder()
+        var first = true
+        for (name in names) {
+            if (!first) value.append(", ")
+            value.append(name)
+            first = false
+        }
+        return HttpField("Trailer".toByteArray(), value.toString().toByteArray())
+    }
+
+    public fun requireDeclared(fields: List<HttpField>) {
+        for (field in fields) {
+            var found = false
+            for (name in names) {
+                if (field.hasName(name.toByteArray())) { found = true; break }
+            }
+            if (!found) throw IllegalArgumentException(Some("HTTP trailer field was not declared"))
+        }
+    }
+}
+
+private fun declaredTrailerNames(names: List<String>): Array<String> {
+    val result = ArrayList<String>()
+    val seen = HashSet<String>()
+    for (name in names) {
+        val normalized = httpNormalizedToken(name)
+        requireHttpTrailerName(normalized.toByteArray())
+        if (seen.add(normalized)) result.add(normalized)
+    }
+    return result.toArray()
+}
+
+internal fun requireHttpTrailerName(name: List<Byte>) {
+    for (forbidden in forbiddenTrailerNames) {
+        if (httpAsciiEqual(name, forbidden))
+            throw IllegalArgumentException(Some("HTTP field cannot be sent in trailers: " + String.fromUtf8(forbidden)))
+    }
+}
+
+private val forbiddenTrailerNames: Array<Array<Byte>> = makeForbiddenTrailerNames()
+
+private fun makeForbiddenTrailerNames(): Array<Array<Byte>> {
+    val names = ["content-length", "transfer-encoding", "trailer", "host", "connection",
+        "keep-alive", "proxy-connection", "upgrade", "te", "authorization", "proxy-authorization",
+        "www-authenticate", "proxy-authenticate", "cookie", "set-cookie", "expect", "max-forwards",
+        "range", "if-match", "if-none-match", "if-modified-since", "if-unmodified-since", "if-range",
+        "accept", "accept-encoding", "accept-language", "accept-charset", "cache-control", "pragma",
+        "age", "date", "expires", "location", "retry-after", "vary", "warning", "content-encoding",
+        "content-type", "content-range", "content-disposition", "content-location"]
+    return Array<Array<Byte>>(names.size) { index -> names[index].toByteArray() }
+}

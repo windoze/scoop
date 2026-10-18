@@ -71,6 +71,8 @@ Http1Encoder 生成起始行、字段、body 定界与结束字节，保持调�
 
 body 定界显式选择无 body、已知长度、chunked 或响应 EOF。Content-Length 与 Transfer-Encoding 必须与所选定界一致；缺少所需字段时由编码器添加，不允许冲突的重复定界。chunked 仅用于 HTTP/1.1；EOF 定界不用于请求。发送的字节数不得超过已知长度，完成时检查剩余长度；trailer 只随 chunked 结束交付。
 
+HTTP/1 与 HTTP/2 的发送 trailer 使用同一组已知字段限制，见[消息工具 §1.11](SCOOP-HTTP-MESSAGE-SPEC.md#111-trailer-声明与发送限制)。普通名称／值的校验和协议定界仍由各自编码器执行，不将 trailer 合并到初始字段；字段错误不能提前提交消息结束。
+
 响应编码持有对应方法上下文，处理 HEAD、信息响应、204、304 和成功 CONNECT 的实际 body 规则。HEAD 与 CONNECT 按精确大小写识别，`head`／`connect` 等 token 使用普通方法规则。101／成功 CONNECT 之后旧编码器不再发送 HTTP 消息。已被本层接受的 body 前缀不因后续传输失败或取消而回滚或自动重发。
 
 ## 5. HTTP/2 内存会话

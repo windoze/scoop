@@ -115,6 +115,14 @@ challenge 和 credentials 共用同一个字节语法实现。参数值使用 to
 
 缺少 Expect、只有空项或只有未知 expectation 时返回 false。`100-continue=value` 是带值的其他 expectation，不作为标准 Continue 信号。即使此前已经找到有效 100-continue，后续非法结构仍报 HttpFieldParseException，field 为 Expect，byteOffset 相对发生错误的那条原始字段值。工具不启动 producer、不查询时钟，也不决定何时发送 body；这些等待行为由 client 组合。
 
+### 1.11 Trailer 声明与发送限制
+
+`HttpTrailerDeclaration(names)` 表示发送方预先声明的 trailer 名称，复制输入、按 ASCII 小写规范化，并按首次出现顺序去重；名称必须为普通 HTTP token。空声明合法，toHttpField 生成 Trailer 字段，contains 按 HTTP 名称规则查询。接收的 Trailer 字段仍用 parseHttpTokenFields 读取，不以发送声明的限制丢弃原始接收信息。
+
+requireDeclared(fields) 只检查本次实际 trailer 的名称均在声明内，允许少于声明的名称、空结果和有序重复字段，不合并值；字段值与实际协议的编码校验仍在发送边界进行。声明不创建全局字段注册表；按 RFC 9110 §6.5.1，调用者须确认扩展字段的定义允许放在 trailer 中。
+
+声明与 HTTP/1、HTTP/2 编码器共用已知不可后置字段的检查：拒绝消息定界、连接／路由、认证／Cookie、请求控制与条件、响应控制及内容格式字段，包括 Content-Length、Transfer-Encoding、Connection、Host、Trailer、Authorization、Cookie、Expect、Range、If-* 条件、Cache-Control、Location、Content-Type、Content-Encoding 和 Content-Range。Authentication-Info、Content-Digest、ETag 及调用者已确认允许的扩展字段可以声明；扩展字段不会因此被赋予库不知道的语义。失败在本次协议结束标记提交前报告，编码器仍可接受修正后的合法 trailer。
+
 ## 2. Cookie 与公共后缀
 
 Cookie parser 接收单个 Set-Cookie 字段，按 RFC 6265 及现代 SameSite／前缀规则返回名称、值、Domain、Path、Expires、Max-Age、Secure、HttpOnly、SameSite 和未知属性。Cookie 请求字段的组装独立处理，不把多个 Set-Cookie 用逗号连接。域名使用 url／idna 的同一规范值。
