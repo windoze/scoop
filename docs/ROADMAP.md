@@ -665,7 +665,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - nghttp2 1.70.0 只构建静态协议库，通过既有 `native.libraries` 按 archive 成员选择；排除应用、示例、工具、测试和文档目标，不重复编入上游对象。
 - 完成两个普通 Cone 的三目标 debug／release／moving GC 验收：每目标 50 项内存协议测试、26 项异步测试及 6 组独立消费者通过；包括 TLS 单流取消、双向背压、协议切换、并发关闭与原生对端互操作。Darwin／GNU 宿主包搬迁后，三目标 HTTP 消费、缓存复用和两个 link 入口均通过；本期不做函数级裁剪。
 
-### M54 统一 HTTP client 与配套基础库（设计已记录，待实施，[设计](milestone54/DESIGN.md)、[客户端规范](specs/SCOOP-HTTP-CLIENT-SPEC.md)）
+### M54 统一 HTTP client 与配套基础库（实施中，[设计](milestone54/DESIGN.md)、[进度](milestone54/PROGRESS.md)、[客户端规范](specs/SCOOP-HTTP-CLIENT-SPEC.md)）
 
 - 在 M53 协议库之上提供纯 Scoop `scoop.http.client`，统一 HTTP/1.x／HTTP/2、ALPN、连接池、流式 body、suspend、背压、完整生命周期超时与单请求取消。
 - 独立交付 [IDNA](specs/SCOOP-IDNA-SPEC.md)、[URL](specs/SCOOP-URL-SPEC.md)、[字符集](specs/SCOOP-CHARSET-SPEC.md)和单个 [compression Cone](specs/SCOOP-COMPRESSION-SPEC.md)；IDNA 不要求 ICU，压缩采用 zstd，并支持 gzip／deflate／Brotli 的同步与异步流。

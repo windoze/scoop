@@ -1,6 +1,6 @@
 # M54 设计：统一 HTTP client 与配套基础库
 
-状态：设计已记录，实施未开始。日期：2026-10-18。本轮只修改文档，不修改编译器、runtime、库源码、依赖清单或预编译资源；本文列出的新增能力均为 M54 的实施与验收目标。
+状态：实施中。日期：2026-10-18。本文规定 M54 的完整实施与验收目标，已完成项与实际验证范围见[进度](PROGRESS.md)；未完成的条目不因写入设计而视为已交付。
 
 依据：[语言规范](../specs/SCOOP-SPEC.md)第 11.9、11.13、11.18、12～14 节／章、[运行时规范](../specs/SCOOP-RUNTIME-SPEC.md)、[实现规范](../specs/SCOOP-IMPL-SPEC.md)、[库 API 风格](../specs/SCOOP-API-STYLE.md)、[M49](../milestone49/DESIGN.md)、[M51](../milestone51/DESIGN.md)、[M52](../milestone52/DESIGN.md)与 [M53](../milestone53/DESIGN.md)。本期是普通库工作，不改变语言语义、GC 合同、runtime ABI、stage 职责或编译缓存行为。
 
@@ -184,7 +184,7 @@ libidn2／libunistring／libiconv 按其库许可交付对应源码、修改说�
 
 准备脚本按 M52 为各目标生成资源，实际分发增加相应 `.slib`、头文件、静态库与许可／源码资料。应用 build／run／test／link 消费预编译资源，普通构建不下载、不探测或重编后端，不增加 scoop／driver 发布子命令。遵守既有 archive 成员选择，不把函数级裁剪塞进 M54。
 
-源码与版本作为正常构建输入；命中缓存直接复用，失效按实际更新判断。库测试使用开发 sysroot，最终归档搬迁按 M52 需要时手工验证，不为每个常规测试重新打包。本轮文档修改不提前变更真实 sysroot 清单或现有 Cone 数量。
+源码与版本作为正常构建输入；命中缓存直接复用，失效按实际更新判断。库测试使用开发 sysroot，最终归档搬迁按 M52 需要时手工验证，不为每个常规测试重新打包。真实 sysroot 清单与 Cone 数量随对应实现交付更新。
 
 ## 11. 后续范围
 
