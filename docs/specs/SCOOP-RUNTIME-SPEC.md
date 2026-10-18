@@ -103,6 +103,8 @@ scan fingerprint 为 `SHA-256(ByteSpan("scoop-scan-v1") || canonical_scan_bytes)
 
 `parent`、itable 和相关类型引用必须解析到实际登记的 TypeDescriptor。空 vtable 为 null；空接口仍保留以其真实 TD 为键的 itable entry，slot table 可以为 null。slot 与 callable ABI 由产物合同确定。
 
+装载后 TD 与 shape 不再变化。generated-code 的 typed TD 引用、已发布对象头中的 TD 和 runtime 内部实际类型引用直接复用登记结果，尺寸计算、装箱及 collector 扫描不反复查询地址成员表。公开 native 分配入口在消费外来 TD 时检查登记一次，再进入同一内部尺寸与分配实现；动态 requested size／count、对齐、溢出、abstract 类型和对象实际边界检查不因此省略。不新增验证凭证或第二套 shape 实现。
+
 `relation_kind` 为 0 时 related count 为 0、function result 为 null；1 和 2 分别表示普通与 suspend 函数类型，related types 按参数顺序保存、result 保存结果；该关系中 null TD 表示 Any。3 表示 interface，related types 按 exact identity 排序保存直接父接口，result 为 null。4 表示源码 intrinsic Nothing 的底类型关系，related count 为 0、result 为 null，实例形状必须为 AbstractRef；它是所有类型的子类型，其他类型不能成为它的子类型。其他 tag 非法。
 
 `Any` 与 `Nothing` 的类型身份来自 core 的实际源码声明（语言规范 11.1）。二者的 TD 使用不可分配的 AbstractRef 形状；`Nothing` 不存在对象、box 或合法的非空值。底类型关系在函数参数逆变／结果协变检查中必须保留，不能把 `Nothing` 与 `Any` 或普通空 class 合并。Any 的值仍指向实际动态类型对象，移动 GC、原类型 TD 和装箱协议不变。

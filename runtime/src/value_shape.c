@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "image/registry.h"
 #include "value_shape.h"
 
 _Noreturn void scoop_shape_fatal(const char *message) {
@@ -35,14 +34,8 @@ static size_t checked_size(uint64_t size) {
     return (size_t)size;
 }
 
-static const ScoopTypeInstanceShapeV1 *operation_shape(const ScoopTypeDescriptor *td) {
-    scoop_image_require_type(td);
-    return &td->instance_shape;
-}
-
-const ScoopTypeInstanceShapeV1 *scoop_shape_require(const ScoopTypeDescriptor *td,
-                                                    uint32_t kind) {
-    const ScoopTypeInstanceShapeV1 *shape = operation_shape(td);
+const ScoopTypeInstanceShapeV1 *scoop_shape_require(const ScoopTypeDescriptor *td, uint32_t kind) {
+    const ScoopTypeInstanceShapeV1 *shape = &td->instance_shape;
     if (shape->instance_kind != kind) {
         scoop_shape_fatal("operation received the wrong TypeDescriptor shape");
     }
@@ -63,28 +56,25 @@ static size_t allocation_size(const ScoopTypeInstanceShapeV1 *shape, uint64_t co
     if (count != 0 && shape->inline_stride > UINT64_MAX / count) {
         scoop_shape_fatal("inline payload size overflow");
     }
-    return checked_size(scoop_shape_align(
-        scoop_shape_add(shape->inline_offset, count * shape->inline_stride),
-        shape->instance_alignment));
+    return checked_size(
+        scoop_shape_align(scoop_shape_add(shape->inline_offset, count * shape->inline_stride),
+                          shape->instance_alignment));
 }
 
 size_t scoop_shape_allocation_size(const ScoopTypeDescriptor *td, uint64_t count) {
-    return allocation_size(operation_shape(td), count);
+    return allocation_size(&td->instance_shape, count);
 }
 
-size_t scoop_shape_normalize_allocation(const ScoopTypeDescriptor *td,
-                                        size_t requested) {
-    const ScoopTypeInstanceShapeV1 *shape = operation_shape(td);
+size_t scoop_shape_normalize_allocation(const ScoopTypeDescriptor *td, size_t requested) {
+    const ScoopTypeInstanceShapeV1 *shape = &td->instance_shape;
     if (shape->instance_kind == SCOOP_TYPE_INSTANCE_ABSTRACT_REF_V1) {
         scoop_shape_fatal("abstract reference is not allocatable");
     }
-    size_t normalized =
-        checked_size(scoop_shape_align(requested, shape->instance_alignment));
+    size_t normalized = checked_size(scoop_shape_align(requested, shape->instance_alignment));
     bool fixed = shape->instance_kind == SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1 ||
                  shape->instance_kind == SCOOP_TYPE_INSTANCE_BOXED_VALUE_V1 ||
                  shape->inline_storage_kind == SCOOP_INLINE_STORAGE_ZERO_SIZED_V1;
-    if (normalized < shape->minimum_size ||
-        (fixed && normalized != shape->minimum_size)) {
+    if (normalized < shape->minimum_size || (fixed && normalized != shape->minimum_size)) {
         scoop_shape_fatal("allocation size disagrees with its TypeDescriptor");
     }
     return normalized;
@@ -104,8 +94,8 @@ void scoop_shape_validate_object_size(const void *object, size_t object_size,
         shape->instance_kind == SCOOP_TYPE_INSTANCE_INLINE_BYTES_V1) {
         expected = allocation_size(shape, ((const ScoopArray *)object)->size);
     }
-    if (shape->instance_kind == SCOOP_TYPE_INSTANCE_ABSTRACT_REF_V1 ||
-        object_size != expected || !valid_alignment(shape->instance_alignment) ||
+    if (shape->instance_kind == SCOOP_TYPE_INSTANCE_ABSTRACT_REF_V1 || object_size != expected ||
+        !valid_alignment(shape->instance_alignment) ||
         (uintptr_t)object % shape->instance_alignment != 0) {
         scoop_shape_fatal("object count, alignment or side-metadata size is invalid");
     }
@@ -116,6 +106,5 @@ void scoop_shape_validate_object(const void *object, size_t object_size) {
         scoop_shape_fatal("object range cannot hold its header");
     }
     const ScoopTypeDescriptor *td = ((const ScoopObjectHeader *)object)->td;
-    (void)operation_shape(td);
     scoop_shape_validate_object_size(object, object_size, td);
 }

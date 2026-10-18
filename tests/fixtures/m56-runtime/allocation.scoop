@@ -1,0 +1,27 @@
+class Node(val number: Long, val next: Node?)
+struct Empty()
+
+fun main() {
+    var head = Node(0L, None)
+    var index = 1L
+    while (index < 64L) {
+        head = Node(index, Some(head))
+        index += 1L
+    }
+    val numbers = Array<Long>(257L) { i -> i * 3L }
+    val empty = Array<Empty>(2048L) { _ -> Empty() }
+    gcCollect()
+    var sum = 0L
+    var current: Node? = Some(head)
+    index = 0L
+    while (index < 64L) {
+        val node = current!!
+        sum += node.number
+        current = node.next
+        index += 1L
+    }
+    if (sum != 2016L || numbers[256L] != 768L || empty.size != 2048L) {
+        throw IllegalStateException()
+    }
+    println("fixed, array and zero-sized allocation preserved")
+}
