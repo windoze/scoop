@@ -155,6 +155,10 @@ createDirectories 逐层调用共享 mkdir helper，缺少父目录时继续创�
 
 createTempFile 以一次 native 排他创建返回实际 Path 与拥有句柄的 AsyncFile，避免先创建路径再重新打开；结果为有名的普通 TemporaryFile 值。取消先获胜而 native 创建成功时，关闭未交付句柄并清理本次未交付的临时文件；已交付后是否删除由调用者负责。失败或清理错误保留真实原因，不执行目录来源审计。
 
+具体入口为 suspend 的 `EventLoop.createTempFile(parent: Path? = None, prefix: String = "scoop-"): TemporaryFile`。TemporaryFile 是带只读 path／file 字段的普通 struct，实现 AsyncCloseable，其 close 只关闭同一个 AsyncFile，不隐式删除已交付路径。父目录默认沿 platform 的 TMPDIR 选择，prefix 拒绝 NUL 与路径分隔符；文件以 0600（受 umask 影响）、读写和 close-on-exec 创建，初始位置与长度均为零。
+
+路径模板与排他 native 创建由 platform 共享 helper 提供；创建失败保留父目录 context 和立即 errno。迟到的成功结果先纳入正常 OwnedFile 生命周期，再执行不可由本次取消中断的 close 和 delete；两项清理都尝试完成，失败以 ResourceUseException 与原取消／关闭原因组合，不能遗失清理错误或向调用方交付部分结果。成功交付后，路径和文件句柄拥有普通文件的独立生命周期。
+
 `AsyncDirectoryEntries` 为 AsyncCloseable 的单遍枚举器，`next(): DirectoryEntry?` 可挂起，正常 EOF 关闭句柄，提前退出须 close。名称在 native 返回前复制，跳过点目录，不一次性把任意大目录收集到数组。缓存淘汰或启动扫描使用此公共能力。
 
 上述工作使用既有 libuv worker 和 platform 的 GC-free 文件 helper；必要 helper 先在 platform 补齐，再由 asyncio 调度。路径、输入数据和输出存储在提交前取得稳定 native 副本，errno 在 worker 内立即记录。已开始的 syscall 取消仍等 after-work；迟到结果和 close 按第 3 节收尾。

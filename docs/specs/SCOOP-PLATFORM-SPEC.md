@@ -162,6 +162,8 @@ EOF 时自动关闭枚举句柄，之后 next 仍返回 None；提前 close 后�
 
 共享路径头公开既有 `path_mkdir`、`path_delete`、`path_move` helper，分别沿 mkdir、remove 和排他／替换 rename 的 OS 合同。`scoop.platform.native.requireFileMode(mode: Int): Unit` 统一同步文件、目录与 asyncio 的权限参数检查；有效范围为 0..0xfff，非法值抛 IllegalArgumentException，不增加独立的文件系统规则。
 
+`scoop.platform.native.temporaryPathPattern(parent: Path, prefix: String): Path` 检查 prefix 并构造尾部为 XXXXXX 的路径模板；默认父目录复用既有 `scoop.platform.env.temporaryDirectory()`，这些步骤不创建文件。同步临时路径工厂与 asyncio 共用这些步骤。共享 `scoop_platform_file_temporary(char *pattern)` 通过 mkostemp(O_CLOEXEC) 一次排他创建并返回仍然打开的读写 fd，实际名称写回调用者拥有的模板；文件初始权限为 0600、长度与位置为零。原同步 createTempFile 复用该 helper 后关闭 fd，异步工厂则交付文件 owner。
+
 safe fd 输出不因断开的 pipe/socket 默认杀死进程。Linux 普通 fd 写入仅屏蔽当前线程的 SIGPIPE，保存旧 mask/pending，只消费本次写入新增的 SIGPIPE，再恢复 mask；不消费已有 pending，也不安装进程级 handler。Darwin 内核的普通 fd 写入发出进程定向 SIGPIPE，使用真实 F_SETNOSIGPIPE 选项抑制；该选项属于打开文件描述，同一描述的别名可见，标准输出也在实际写入当前 fd 时设置。socket 专用输出使用对应 MSG_NOSIGNAL/SO_NOSIGPIPE。所有目标保持用户 signal handler，不以成功 no-op 模拟保护。
 
 目标依据：[Linux close](https://man7.org/linux/man-pages/man2/close.2.html)、[Linux rename](https://man7.org/linux/man-pages/man2/rename.2.html)、[Darwin fd 生命周期](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_descrip.c)、[Darwin 写入与 SIGPIPE](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/sys_generic.c)。这些边界按实际 OS 合同实现，不推导新的 compiler/runtime 协议。
@@ -275,5 +277,7 @@ socket 输出在 Linux 使用 MSG_NOSIGNAL，Darwin 在新建／accept 后设置
 这是普通 GC-free C helper 边界，不提供 managed File／TcpStream 的私有句柄访问。使用者自行拥有新获得的 fd，可交给其事件后端；只能移交一次。native 头文件作为实际 include 输入参与普通构建，预编译 `.slib` 消费不再次编译这些 helper。错误、对象身份与缓存沿既有合同处理，不增加 runtime API 或特殊 native dependency 机制。
 
 `OsString.withNativeString<R>((Ptr<Byte>) -> R)` 与 `Path.withNativePath<R>((Ptr<Byte>) -> R)` 是 fs package 的公开 Unsafe 同步扩展：检查 NUL、保持原始字节并追加终止 NUL，指针只在 callback 内有效，不得保留或交给尚未完成的异步操作；异步使用者须在 callback 内复制到自己的 native 存储。`scoop.platform.native.fileOpenFlags(options: OpenOptions): Int` 供同步 File 与 asyncio 的 native 适配复用 6.1 的参数检查，返回 file_open helper 的稳定位组合（read=1、write=2、append=4、create=8、createNew=16、truncate=32），不是系统 O_* 值。OpenOptions 只表达文件打开配置，不暴露 native 位布局成员；应用通过 File.open 或 EventLoop.openFile 使用配置。
+
+`copyNativeString(pointer: Ptr<Byte>): OsString` 同样是 fs package 的公开 Unsafe 同步函数。调用方保证指针指向在整个调用期间稳定、可读且以 NUL 终止的存储；函数复制首个 NUL 之前的原始字节，不做 UTF-8 转换、不保留指针、不释放输入，返回独立快照。原生结果的分配和释放继续由拥有该结果的库负责，asyncio 用此入口接收临时名称和目录项。
 
 `native/io.h` 声明 fd_read／fd_write／fd_close；`native/files.h` 声明 file_open／file_sync。read／write 使用 4～6 章的短传输及 EINTR 规则，close 只调用一次 raw close，syncData 在 Darwin 可用 fsync 实现。`socket_native.h` 还声明 resolve／resolve_next／resolve_address／resolve_free；ScoopResolution 保存 owned addrinfo 链、原始 EAI code、可选的同次 errno。以上函数不进入 managed 代码，可直接从工作线程调用；错误必须在返回时立即保存，资源只能释放一次。

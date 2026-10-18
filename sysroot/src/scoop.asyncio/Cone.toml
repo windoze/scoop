@@ -41,6 +41,9 @@ path = "native/file_io.c"
 path = "native/file_metadata.c"
 
 [[native.sources]]
+path = "native/file_temporary.c"
+
+[[native.sources]]
 path = "native/paths.c"
 
 [[native.sources]]

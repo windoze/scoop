@@ -46,10 +46,12 @@ const char *scoop_platform_temporary_directory(void) {
     return configured != NULL && configured[0] != '\0' ? configured : "/tmp";
 }
 
+int scoop_platform_file_temporary(char *pattern) { return mkostemp(pattern, O_CLOEXEC); }
+
 int scoop_platform_path_temporary(char *pattern, bool directory) {
     if (directory)
         return mkdtemp(pattern) == NULL ? -1 : 0;
-    int fd = mkostemp(pattern, O_CLOEXEC);
+    int fd = scoop_platform_file_temporary(pattern);
     if (fd < 0)
         return -1;
     /* No descriptor escapes this operation; close once, and remove on failure. */

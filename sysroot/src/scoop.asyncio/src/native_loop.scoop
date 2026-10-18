@@ -11,7 +11,7 @@ internal struct NativeRecord(val id: Long, val kind: Int, val code: Int, val cou
 
 internal enum IoResult {
     Done, Bytes(Long), Eof, Created(Ptr<Unit>), Addresses(Ptr<Unit>?), Packet(Datagram), Failed(NativeError, Long),
-    Metadata(FileMetadata), Position(Long)
+    Metadata(FileMetadata), Position(Long), Temporary(CreatedTemporaryFile)
 }
 internal struct NativeEvent(val id: Long, val result: IoResult)
 internal enum IoStart { Pending, Finished(NativeEvent) }
@@ -33,6 +33,7 @@ internal fun decodeEvent(record: NativeRecord): NativeEvent = NativeEvent(record
     case 8 -> IoResult.Packet(takeDatagram(record.resource!!))
     case 9 -> IoResult.Metadata(takeFileMetadata(record.resource!!))
     case 10 -> IoResult.Position(record.count)
+    case 11 -> IoResult.Temporary(takeTemporaryFile(record.resource!!))
     else -> throw IllegalStateException(Some("invalid native I/O event"))
 })
 

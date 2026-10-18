@@ -17,7 +17,7 @@ public fun <R> OsString.withNativeString(block: (Ptr<Byte>) -> R): R {
 public fun <R> Path.withNativePath(block: (Ptr<Byte>) -> R): R = toOsString().withNativeString(block)
 
 @Unsafe
-internal fun copyNativeString(pointer: Ptr<Byte>): OsString {
+public fun copyNativeString(pointer: Ptr<Byte>): OsString {
     val length = nativeStringLength(pointer)
     return OsString.fromByteArray(Array<Byte>(length) { index -> @Unsafe { return@Array pointer.load(index) } })
 }

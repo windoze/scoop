@@ -45,6 +45,7 @@
 | TLS 系统信任 | TlsTrustSource 的 System／Store 与同步／suspend 工厂；公共引擎 WantVerification 独立保活原生链和参数，Darwin 使用禁用网络获取的 SecTrust，Linux 装载运行环境 CA 文件／目录快照 | Darwin debug／release：TLS 新增 5 项、全部 27 项通过，TLS asyncio 新增 5 项、全部 22 项通过；新增测试通过 moving GC，独立 mTLS 消费者通过；Linux 装载源码另在 Darwin 原生测试中通过 13 个 POSIX 场景，GNU／musl 运行仍待验证 |
 | 异步文件查询与控制 | AsyncFile 增加 metadata／size／position／seek／truncate，EventLoop 增加路径 metadata；共享 platform 的记录、转换和 syscall，沿已有串行、取消与关闭边界完成 | Darwin debug／release：8 项新测试与 asyncio 全部 61 项通过，platform 文件相关 17 项通过；新增测试通过两种构建的 moving GC，覆盖 64 位稀疏偏移、链接、路径替换、原始错误、排队取消及已经生效的截断 |
 | 异步路径修改 | EventLoop 的 moveFile／deleteFile／createDirectories 复用 platform 原生 helper 与统一 mode 检查；排他／替换、链接、空目录和逐层建目录沿已有 OS 合同 | Darwin debug／release：6 项新测试与 asyncio 全部 67 项、platform 文件相关 17 项通过；新增测试通过 moving GC，正式消费者验证暂存文件替换及旧句柄保活 |
+| 异步排他临时文件 | createTempFile 一次创建并返回 TemporaryFile 的路径与读写句柄；共享 platform 模板／mkostemp，公开原生字符串快照入口，迟到取消等待 close 与 delete 并保留清理错误 | Darwin debug／release：asyncio 新增 6 项、全部 73 项通过，platform 文件相关 18 项通过；临时文件与新增字符串快照测试通过 moving GC，正式消费者验证并发创建、短块复制及路径改变后的句柄身份 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -169,6 +170,10 @@ SecTrust 对原有十年有效期叶证书的拒绝符合系统政策，测试�
 `m54-path-modify` 在 Darwin 通过 debug／release 两个变体，共 6 个进程。正式 platform／asyncio `.slib` 在两个 native 线程中并发创建父目录，写完并同步暂存文件后替换旧路径，再通过新旧句柄分别核对内容与长度；Unicode／空格路径、显式删除、moving GC 与构建复用通过。
 
 6 项路径新测试通过两种构建的 full moving，共 4 个进程；覆盖排他移动、替换、链接本身、空／非空目录、无效 mode、文件占用父目录、两个任务同时创建同一层级及 errno／context。真实工作队列验证排队取消没有文件系统效果，实际目录项变化确认已经执行后再取消，变更按 OS 状态保留。未以此宣告排他临时文件、目录枚举或 Linux 运行完成。
+
+`m54-temporary-file` 在 Darwin 通过 debug／release 两个变体，共 6 个进程。正式 `.slib` 的两个 native 线程分别并发创建两个同前缀临时文件，移动第一个文件并重新创建原路径，再通过原句柄写入、同步和短块复制，确认数据仍属于最初创建的文件。普通 struct 的跨库返回、AsyncCloseable 组合、移动 GC 与正常构建复用通过。
+
+6 项临时文件测试与 1 项 platform 原生字符串快照测试均通过两种构建的 full moving，共 4 个进程。覆盖 TMPDIR 默认值、空／非法前缀、原始名称、父目录错误、关闭后路径保留、排队取消和成功创建后的取消。迟到取消先关闭文件再删除未交付路径；人为制造非空目录的清理失败时，同时保留 CancellationException 和真实删除 errno／context。编译检查暴露的库间可见性缺口已闭合：字符串复制入口归 platform，临时结果的名称内存由 asyncio 自己释放。C 适配经过格式化和严格警告检查。
 
 ## 后续工作
 

@@ -17,12 +17,24 @@ internal suspend fun moveFileOnLoop(loop: LibuvEventLoop, source: Path, destinat
 
 internal suspend fun deleteFileOnLoop(loop: LibuvEventLoop, path: Path) {
     pathModification(loop, "delete", path.toOsString(), { native, id ->
-        @Unsafe {
-            return@pathModification path.withNativePath { name -> @Unsafe {
-                return@withNativePath nativePathDelete(native, id, name)
-            } }
-        }
+        deletePathNative(path, native, id)
     })
+}
+
+internal fun deleteFileForCleanup(loop: LibuvEventLoop, path: Path, complete: (Throwable?) -> Unit) {
+    val operation = LoopOperation(loop.state, loop.state.nextOperation(),
+        { native, id -> nativeStatus(id, deletePathNative(path, native, id)) },
+        { _, _ -> },
+        { event, selected -> complete(completionFailure("delete", event.result, selected, Some(path.toOsString()))) })
+    loop.state.submit(operation)
+}
+
+private fun deletePathNative(path: Path, native: Ptr<Unit>, id: Long): Int {
+    @Unsafe {
+        return path.withNativePath { name -> @Unsafe {
+            return@withNativePath nativePathDelete(native, id, name)
+        } }
+    }
 }
 
 internal suspend fun createDirectoryOnLoop(loop: LibuvEventLoop, path: Path, mode: Int) {

@@ -39,4 +39,24 @@ private class NativePathHelperTest {
         assertFailsWith<IllegalArgumentException> { fileOpenFlags(OpenOptions(write = true, append = true, truncate = true)) }
         assertFailsWith<IllegalArgumentException> { fileOpenFlags(OpenOptions(mode = 0x1000)) }
     }
+
+    @Test
+    fun `native string copies preserve raw bytes and outlive their input storage`() {
+        val values: Array<Byte> = [97, -1, 98, 0]
+        val input = MutableArray<Byte>(4L) { index -> values[index] }
+        @Unsafe {
+            val snapshot = input.withDataPointer { pointer, _ -> @Unsafe {
+                return@withDataPointer copyNativeString(pointer)
+            } }
+            input[0L] = 120
+            input[1L] = 0
+            gcCollect()
+            val expected: Array<Byte> = [97, -1, 98]
+            assertEquals(OsString.fromByteArray(expected), snapshot)
+            input[0L] = 0
+            input.withDataPointer { pointer, _ -> @Unsafe {
+                assertEquals(OsString.fromString(""), copyNativeString(pointer))
+            } }
+        }
+    }
 }

@@ -16,6 +16,7 @@ public interface EventLoop {
     public suspend fun moveFile(source: Path, destination: Path, replaceExisting: Boolean = false)
     public suspend fun deleteFile(path: Path)
     public suspend fun createDirectories(path: Path, mode: Int = 0x1ff)
+    public suspend fun createTempFile(parent: Path? = None, prefix: String = "scoop-"): TemporaryFile
     public suspend fun bindUdp(address: SocketAddress, reuseAddress: Boolean = false): AsyncUdpSocket
     public suspend fun connectTcp(address: SocketAddress): AsyncTcpStream
     public suspend fun listenTcp(address: SocketAddress, backlog: Int = 128, reuseAddress: Boolean = false): AsyncTcpListener
