@@ -1,0 +1,93 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.text.lowercaseAscii
+
+public class HttpRange private constructor(
+    public val ranges: Array<HttpByteRange>, public val originalValue: Array<Byte>?
+) : ToString {
+    public constructor(ranges: List<HttpByteRange>) : this(checkedHttpRanges(ranges), None) {}
+
+    public fun resolve(completeLength: Long): HttpRangeResolution {
+        if (completeLength < 0L) throw IllegalArgumentException(Some("negative representation length"))
+        val result = ArrayList<HttpResolvedRange>()
+        var satisfiable = false
+        for (range in ranges) {
+            when (range) {
+                case FromTo(first, last) -> if (first < completeLength) {
+                    satisfiable = true
+                    result.add(HttpResolvedRange(first, if (last < completeLength) last else completeLength - 1L))
+                }
+                case From(first) -> if (first < completeLength) {
+                    satisfiable = true
+                    result.add(HttpResolvedRange(first, completeLength - 1L))
+                }
+                case Suffix(length) -> if (length > 0L) {
+                    satisfiable = true
+                    if (completeLength > 0L) result.add(HttpResolvedRange(
+                        if (length >= completeLength) 0L else completeLength - length, completeLength - 1L))
+                }
+            }
+        }
+        return HttpRangeResolution(result.toArray(), satisfiable)
+    }
+
+    public fun toByteArray(): Array<Byte> {
+        val output = ByteArrayBuilder()
+        output.append("bytes=".toByteArray())
+        var first = true
+        for (range in ranges) {
+            if (!first) output.append(44.toByte())
+            output.append(formatHttpByteRange(range).toByteArray())
+            first = false
+        }
+        return output.toByteArray()
+    }
+    public override fun toString(): String = String.fromUtf8(toByteArray())
+    public fun toHttpField(): HttpField = HttpField("Range".toByteArray(), toByteArray())
+
+    public companion object {
+        public fun parse(value: List<Byte>): HttpRange {
+            val reader = HttpFieldReader("Range", value)
+            readBytesUnit(reader)
+            reader.expect(61)
+            val start = reader.position
+            val ranges = ArrayList<HttpByteRange>()
+            reader.skipOws()
+            while (!reader.ended) {
+                if (reader.peek() == 44) { reader.position += 1L; reader.skipOws(); continue }
+                ranges.add(readByteRange(reader))
+                reader.skipOws()
+                if (!reader.ended) { reader.expect(44); reader.skipOws() }
+            }
+            if (ranges.size == 0L) reader.failAt(start, "empty byte range set")
+            return HttpRange(ranges.toArray(), Some(reader.bytes))
+        }
+        public fun parse(value: String): HttpRange = parse(value.toByteArray())
+        public fun parseOrNone(value: List<Byte>): HttpRange? {
+            try { return Some(parse(value)) }
+            catch (_: HttpFieldParseException) { return None }
+        }
+        public fun parseOrNone(value: String): HttpRange? = parseOrNone(value.toByteArray())
+    }
+}
+
+internal fun readBytesUnit(reader: HttpFieldReader) {
+    reader.skipOws()
+    val start = reader.position
+    if (reader.token().lowercaseAscii() != "bytes") reader.failAt(start, "expected bytes range unit")
+}
+
+private fun readByteRange(reader: HttpFieldReader): HttpByteRange {
+    if (reader.peek() == 45) {
+        reader.position += 1L
+        return HttpByteRange.Suffix(reader.decimal())
+    }
+    val first = reader.decimal()
+    reader.expect(45)
+    if (reader.peek() < 48 || reader.peek() > 57) return HttpByteRange.From(first)
+    val lastOffset = reader.position
+    val last = reader.decimal()
+    if (last < first) reader.failAt(lastOffset, "range endpoint precedes its start")
+    return HttpByteRange.FromTo(first, last)
+}

@@ -50,6 +50,16 @@
 
 `delayFrom(now): Duration` 将 DelaySeconds 原样表示为 Duration，将日期转换成相对显式 now 的非负等待量，已经过去的日期返回 ZERO。该操作不读时钟、不休眠，不把合法的大秒数先转换成会溢出的纳秒或到期 Instant；实际等待与策略上限属于 client。
 
+### 1.4 字节范围
+
+`HttpRange(ranges: List<HttpByteRange>)` 保存不可变且非空的范围列表。`HttpByteRange` 为 `FromTo(first, last)`、`From(first)` 或 `Suffix(length)`，参数为非负 Long，显式终点不得小于起点；构造 HttpRange 时统一检查。保留重复、重叠和原顺序，不自动合并。`parse`／`parseOrNone` 接收字节或 String，按大小写无关的 bytes 单位解析；接受列表两端、逗号周围 OWS 及列表中的空项，但结果至少有一项。单位与等号之间及区间内部不插入空格。未知单位、非法项、负数和数值溢出报告 Range 字段与原始字节偏移，原始值保存于 originalValue。`toString()`／`toByteArray()`／`toHttpField()` 生成规范字段。
+
+`resolve(completeLength: Long): HttpRangeResolution` 使用非负的已知表示长度，将可满足项转为实际的 `HttpResolvedRange(first, last)` 闭区间；终点截到表示末尾，超长后缀选择整个表示，仍保留输入顺序与重复。结果同时提供 ranges 和 isSatisfiable。按 RFC 9110 §14.1.2，非零 Suffix 在长度为零时仍可满足，此时 ranges 为空；Suffix(0) 不可满足。不得仅凭实际区间列表为空就判断 416。
+
+`HttpResolvedRange` 检查端点及 `length = last - first + 1` 能用 Long 表示；Request Range 的大终点可以在 resolve 时截断，不提前按未截断长度拒绝。范围始终相对于实际表示的字节序列，包含其 content coding，不能擅自改成解压后偏移。
+
+`HttpContentRange(range: HttpResolvedRange, completeLength: Long? = None)` 表示已有范围及已知／未知总长度；已知总长度必须大于 last。`HttpContentRange.unsatisfied(completeLength)` 表示 `bytes */length`，长度可为零。配对 parse／parseOrNone、originalValue 和输出方法接受／生成这两种形状；未知总长度使用星号，unsatisfied 的总长度必须已知。分隔符按字段语法检查，只有字段前后允许 OWS；非法边界、无法表示的区间长度或数值溢出报告 Content-Range 字段。工具不检查响应状态、不读取 body，也不决定断点续传或文件写入位置。
+
 ## 2. Cookie 与公共后缀
 
 Cookie parser 接收单个 Set-Cookie 字段，按 RFC 6265 及现代 SameSite／前缀规则返回名称、值、Domain、Path、Expires、Max-Age、Secure、HttpOnly、SameSite 和未知属性。Cookie 请求字段的组装独立处理，不把多个 Set-Cookie 用逗号连接。域名使用 url／idna 的同一规范值。
