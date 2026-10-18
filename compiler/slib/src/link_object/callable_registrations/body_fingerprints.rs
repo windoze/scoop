@@ -179,9 +179,10 @@ fn compute_strong_callable_body_object_fingerprints_inner_v1(
         let ranges = associated::ranges(definition);
         let associated_ranges = definition.atoms();
         let direct_inputs = stackmap_inputs
-            .iter()
-            .filter(|(_, (owner, _))| *owner == plan.body())
-            .map(|(node, (_, digest))| CanonicalDigestInputV1 {
+            .get(&plan.body())
+            .into_iter()
+            .flat_map(|inputs| inputs.iter())
+            .map(|(node, digest)| CanonicalDigestInputV1 {
                 kind: DigestKind::StackmapRecord,
                 node: *node,
                 digest: *digest,
@@ -265,10 +266,10 @@ struct AssociatedFingerprintAtom {
 fn stackmap_inputs(
     stackmaps: &ScoopStackmapSetV1,
 ) -> Result<
-    BTreeMap<DigestNodeId, (PersistentCallableBodyId, [u8; 32])>,
+    BTreeMap<PersistentCallableBodyId, BTreeMap<DigestNodeId, [u8; 32]>>,
     StrongCallableBodyFingerprintError,
 > {
-    let mut inputs = BTreeMap::new();
+    let mut inputs: BTreeMap<_, BTreeMap<_, _>> = BTreeMap::new();
     for record in stackmaps.records() {
         let canonical = record.normalized().canonical();
         let key = scoop_identity::DigestNodeKey::stackmap_record(canonical.site());
@@ -278,13 +279,10 @@ fn stackmap_inputs(
                 source,
             }
         })?;
-        inputs.insert(
-            node,
-            (
-                canonical.owner(),
-                *record.normalized().fingerprint().as_array(),
-            ),
-        );
+        inputs
+            .entry(canonical.owner())
+            .or_default()
+            .insert(node, *record.normalized().fingerprint().as_array());
     }
     Ok(inputs)
 }

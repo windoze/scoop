@@ -192,6 +192,7 @@ impl VerifiedRelocationUseV1 {
 pub struct VerifiedMemberObjectRelocationIndexV1 {
     definitions: MemberObjectDefinitionIndexV1,
     relocations: Vec<VerifiedRelocationUseV1>,
+    relocations_by_atom: BTreeMap<ObjectDefinitionAtomId, Vec<usize>>,
 }
 
 impl VerifiedMemberObjectRelocationIndexV1 {
@@ -210,6 +211,17 @@ impl VerifiedMemberObjectRelocationIndexV1 {
     pub fn relocations(&self) -> &[VerifiedRelocationUseV1] {
         &self.relocations
     }
+
+    pub(in crate::link_object) fn relocations_for_atom(
+        &self,
+        atom: ObjectDefinitionAtomId,
+    ) -> impl Iterator<Item = &VerifiedRelocationUseV1> {
+        self.relocations_by_atom
+            .get(&atom)
+            .into_iter()
+            .flatten()
+            .map(|&index| &self.relocations[index])
+    }
 }
 
 pub fn verify_member_object_relocations_v1(
@@ -218,6 +230,7 @@ pub fn verify_member_object_relocations_v1(
     let local_symbol_owners = local_symbol_owners(&definitions);
     let envelope = definitions.sections().envelope();
     let mut relocations = Vec::with_capacity(envelope.relocations().len());
+    let mut relocations_by_atom: BTreeMap<_, Vec<_>> = BTreeMap::new();
     for relocation in envelope.relocations() {
         let section_ordinal = relocation.containing_section_ordinal();
         let section_index = section_ordinal.get() as usize - 1;
@@ -251,6 +264,10 @@ pub fn verify_member_object_relocations_v1(
                 width_bytes,
             })?;
         let shape = resolve_shape(relocation.shape(), &definitions, &local_symbol_owners)?;
+        relocations_by_atom
+            .entry(containing_atom.atom())
+            .or_default()
+            .push(relocations.len());
         relocations.push(VerifiedRelocationUseV1 {
             member: definitions.member(),
             containing_atom: containing_atom.atom(),
@@ -265,6 +282,7 @@ pub fn verify_member_object_relocations_v1(
     Ok(VerifiedMemberObjectRelocationIndexV1 {
         definitions,
         relocations,
+        relocations_by_atom,
     })
 }
 
