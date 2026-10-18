@@ -187,9 +187,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         object_ty.dump()
                     )));
                 }
-                let object = self.value(*object)?.into_pointer_value();
-                let field_ptr = self.byte_gep(object, *offset, "field_ptr")?;
-                self.heap_store(field_ptr, self.value(*value)?, &value_ty)?;
+                self.heap_field_store(*object, *offset, *value, &value_ty)?;
             }
             Instruction::MachineHeapStore {
                 kind,

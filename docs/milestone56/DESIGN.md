@@ -187,7 +187,7 @@ core 对应内部声明与 compiler 一起调整，公开 String API 与值不�
 
 当前 card mark 先以 shifts 52／40／28／16 查询四级 page-map，再读取 region base／cards，按 512-byte card 执行 relaxed atomic OR。region 不是按自身大小对齐，不能用 16 MiB 掩码代替真实映射。
 
-首版只处理可证明的局部模式：同一对象、同一 card、连续且中间没有 safepoint／native transition／未知调用／同步发布的普通引用写入，可复用一次映射结果并合并冗余 mark。尽量局限单 basic block，异常出口前仍完成已发生写入所需的 mark；编译器保持 store 与标记的必要顺序。
+首版只处理可证明的局部模式：同一对象、连续且中间没有 safepoint／调用／原子访问／同步发布的普通引用字段写入，可复用一次映射结果。同一对象完整地属于一个 region／large mapping，因此跨 card 的字段也可复用 base／cards，但必须按各自实际地址计算并标记 card；相邻静态字段不必然同 card。冗余 mark 首版仅消除精确相同字段槽的重复写入，不增加动态 card 比较分支。局限单 LLVM basic block，local 写入等可能改变 receiver 的操作使缓存失效；异常出口前仍完成已发生写入所需的 mark，保持 store 与标记的必要顺序。
 
 metadata 指针不跨 safepoint 缓存。不同 mutator 可同时写同一 card，保留原子置脏，不能用非原子 store 替换 OR；“先读 dirty 再决定是否 OR”是否划算须实测。AtomicRef 的 release／acquire 与 CAS 成败语义单独保留，首版不跨这类同步操作合并。
 

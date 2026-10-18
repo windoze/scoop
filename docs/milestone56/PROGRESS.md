@@ -11,7 +11,7 @@
 | B2：unbox／clone 单次对象定位 | 本机通过 | 单次 exact-size 定位；非法地址／类型、large clone、移动与含引用值 |
 | B3：String 有界表示 intrinsic | 本机通过 | 三个 typed intrinsic 与独立内部 NoGC leaf；UTF-8、越界、旧 extern 与移动 GC |
 | C1：NoGC／无 site 循环优化及 Managed 保守优化 | 本机通过 | 三目标向量代码与完整 codegen 专测；Managed poll／EH／原子保留，Linux 运行待复验 |
-| C2：局部 card 查询／mark 复用 | 待完成 | 同 card／跨 card、同步边界、多 mutator、minor／moving |
+| C2：局部 card 查询／mark 复用 | 本机通过 | 同对象复用 region，精确槽重复 mark 消除；跨 card／调用／原子／GC 边界覆盖 |
 | D1：nursery／refill 对照与策略取舍 | 待完成 | 1／4／8／16 MiB，存活率与 1–8 mutator；吞吐／内存／停顿 |
 | D2：有搬迁 GC 并行 update 候选 | 待完成 | 串行 claim、槽分区、完整阶段屏障；单／多 worker 同义性及净收益 |
 | E：声明构建、局部 box／协程消除、跨 Cone 内联 | 待评估 | 逐项记录设计规定的进入条件与实测，不以无依据延期替代调查 |
@@ -86,3 +86,11 @@ Linux 独立 worktree 已创建为 `/home/chenxu/repos/scoop-m56-20261019`，分
 | Managed 数组循环 | 88.396 [86.706, 92.611] | 87.437 [84.793, 113.719] |
 
 NoGC kernel 时间约减少 79.4%；反汇编在对应 callable 确认两条 `mla.4s`，标量循环扩为带别名检查与尾部路径的向量循环（该函数约 14→40 条指令）。Managed 差异落在离散范围内，不能声称稳定加速；poll 仍主导此类短循环。两版可执行文件均为 17,492,984 bytes，`__TEXT` 均为 1,081,344 bytes，段对齐掩盖小函数的局部增长。全部样本无 GC；进程 allocated bytes 为 33,200，C1 单个耗时字符串更长的样本为 33,208，差异发生在 kernel 后的数字输出。当前应用构建约 3.43 s（与 fixture 构建并行，仅作观测，不能作为冷编译 A/B 结论）；编译开销的规模化对照与 E 合并记录，Linux 性能及完整验收仍待完成。
+
+### C2：普通字段写入的局部屏障复用
+
+先同步运行时规范 3.6、实现规范 2.5 与设计 5.3。只保留当前直线区间一个 LIR 对象的 region base／cards；同一对象跨 card 字段分别寻址和原子标记，只有精确相同槽重复写入才省 mark。任何 block 切换、local／raw 写入、调用（含 NoGc）、poll、原子访问或发布均丢弃状态。原数组／aggregate 范围与 AtomicRef 屏障继续独立，未引入 dirty 预读分支、跨 safepoint 缓存或对象 ABI 变化。单独模块保存该局部状态，复用现有扫描偏移和 card 算法。
+
+格式化与 workspace clippy 通过；moving_gc 相关 16 项、原子 3 项通过，最终局部屏障 5 项专测再次通过。专测断言同槽、相邻槽与跨 card 的查询／mark 数、receiver 变化、NoGc／Managed 调用、原子和 block 边界。新增 2 个 fixture 的 8 个变体、现有 aggregate／array／clone 写入 2 个变体／12 个进程，以及四 mutator 原子并发 2 个变体／12 个进程全部通过；含正常、moving、minor、跨 card 大字段、成功／失败 CAS。
+
+真实程序先将 Holder 提升为旧对象，再循环两百万轮，每轮写四个引用字段，末尾 checksum `10`。一轮预热、七轮交替独立进程，C1 中位 27.796 ms [25.905, 30.051]，C2 25.378 ms [24.917, 25.975]，约减少 8.7%。对应热 callable 的 acquire 指令静态数从 40 降为 16，构造函数从 20 降为 8；四个不同字段仍分别标记。所有样本均 allocated bytes 328、minor 0／full 1、root slots 41、copied bytes 0，唯一 full 在计时前。该无 GC 热循环的有限收益需与上述实际 GC 正确性覆盖一起理解；Linux 最终复验。

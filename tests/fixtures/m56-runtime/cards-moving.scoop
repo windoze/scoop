@@ -1,0 +1,55 @@
+class CardNode(val value: Long)
+class WideHolder(
+    var first: CardNode,
+    val padding: (
+        Long, Long, Long, Long, Long, Long, Long, Long,
+        Long, Long, Long, Long, Long, Long, Long, Long,
+        Long, Long, Long, Long, Long, Long, Long, Long,
+        Long, Long, Long, Long, Long, Long, Long, Long,
+        Long, Long, Long, Long, Long, Long, Long, Long,
+        Long, Long, Long, Long, Long, Long, Long, Long,
+        Long, Long, Long, Long, Long, Long, Long, Long,
+        Long, Long, Long, Long, Long, Long, Long, Long
+    ),
+    var last: CardNode
+)
+
+fun main() {
+    val initial = CardNode(0L)
+    val holder = WideHolder(initial, (
+        0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L,
+        0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L,
+        0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L,
+        0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L,
+        0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L,
+        0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L,
+        0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L,
+        0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L
+    ), initial)
+    val published = AtomicRef<CardNode>(initial)
+    gcCollect()
+    var round = 0L
+    while (round < 32L) {
+        val first = CardNode(round)
+        val last = CardNode(round + 100L)
+        holder.first = first
+        holder.last = last
+        published.store(first)
+        holder.first = last
+        gcCollect()
+        if (holder.first !== last || holder.last !== last || published.load() !== first) {
+            throw IllegalStateException()
+        }
+        if (!published.compareAndSet(first, last) || published.compareAndSet(first, initial)) {
+            throw IllegalStateException()
+        }
+        holder.first = first
+        holder.last = last
+        gcCollect()
+        if (holder.first.value != round || holder.last.value != round + 100L) {
+            throw IllegalStateException()
+        }
+        round += 1L
+    }
+    println("cross-card fields, atomic publication and moving roots preserved")
+}
