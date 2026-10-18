@@ -21,6 +21,7 @@
 | HTTP 日期与 Retry-After | HttpDate 接收三种标准日期形状、只生成 IMF-fixdate，旧年份使用显式参考时间；HttpRetryAfter 区分非负秒数和日期，返回相对等待量 | Darwin debug／release 与 moving GC：6 项新增测试；HTTP 全部 71 项 debug／release 回归通过，覆盖 50 年边界、闰日、星期、秒 60、负 epoch、字段偏移及 Long 最大秒数 |
 | HTTP 字节范围 | HttpRange 保留顺序与重复，解析后缀／开放终点并按实际表示长度求区间；HttpContentRange 表示部分响应与不可满足响应，区分未知总长度和零长度 | Darwin debug／release 与 moving GC：7 项新增测试及共享十进制解析的 2 项 Retry-After 回归；HTTP 全部 78 项 debug／release 通过，涵盖空表示的非零后缀、Long 边界、原始快照及非法结构 |
 | Cache-Control | HttpCacheControl 合并多条字段并保留原始行、未知扩展与重复项；HttpCacheDirective 提供秒数及字段列表解释，严格单值查询报告重复，输出遵守标准参数形状 | Darwin debug／release 与 moving GC：7 项新增测试；HTTP 全部 85 项 debug／release 回归通过，覆盖 quoted 逗号、字节快照、转义位置、Long 饱和、无参数与空参数的区别 |
+| ETag 与条件列表 | HttpEntityTag 保留 opaque 字节，提供弱／强比较；HttpEntityTagCondition 区分通配符与有序列表，并生成 If-Match／If-None-Match 字段 | Darwin debug／release 与 moving GC：6 项新增测试；HTTP 全部 91 项 debug／release 回归通过，覆盖 RFC 比较矩阵、字面反斜杠、非 UTF-8 字节、空标签／空列表、逗号和原始位置 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -61,6 +62,8 @@ HTTP 日期的 release 编译暴露了跨无写入分支的同槽根加载直到
 `m54-http-ranges` 的 debug／release 两个变体通过，共 6 个进程；生产 HTTP 与 compression `.slib` 的消费者按 3 字节输入解析两条 206 响应，用 Content-Range 重组 gzip 表示并解压核对正文，再验证 416、空表示后缀、moving GC 与缓存复用。所有范围都相对于编码后的字节序列；没有在 HTTP 或 client 中另建压缩处理。
 
 `m54-cache-control` 的 debug／release 两个变体通过，共 6 个进程；生产 `.slib` 的消费者逐字节解析带表示长度元数据的 304 响应，合并两条 Cache-Control，组合显式日期与 max-age，并验证字段名列表、未知参数、饱和秒数、moving GC 与缓存复用。Cache-Control 只处理消息数据，尚未以此宣告 client 缓存策略或存储实现完成。
+
+`m54-entity-tags` 的 debug／release 两个变体通过，共 6 个进程；生产 `.slib` 生成包含非 UTF-8、逗号与反斜杠的 If-None-Match 请求，由 HTTP/1 服务端 parser 逐字节接收，再解析带弱 ETag 和 Cache-Control 的 304 响应。强弱比较、opaque 保真、通配符、moving GC 与缓存复用均通过；未把普通 quoted-string 的反转义用于 ETag。
 
 ## 后续工作
 

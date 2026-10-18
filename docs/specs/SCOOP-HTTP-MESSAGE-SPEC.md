@@ -70,6 +70,14 @@
 
 `toByteArray()`／`toHttpField()` 生成可发送的 Cache-Control。标准秒数指令使用 token，no-cache／private 的字段列表使用 quoted-string；已解析的未知参数保留引号选择并正确转义。输出时检查已知的秒数、字段列表和无参数指令的参数形状，不把读取到的无效标准参数重新生成为合法配置。未知扩展只按通用字节语法处理。工具不判断请求／响应方向、freshness、存储或重验证，也不查询时钟。
 
+### 1.6 ETag 与条件列表
+
+`HttpEntityTag(opaque: List<Byte>, isWeak = false)` 保存不可变的 opaque 字节及强弱标志。opaque 可为空，接受 RFC 9110 etagc 的可见字节（双引号除外）与 obs-text，拒绝空格、控制字节及 DEL。parse／parseOrNone 接收带引号的单个字节或 String 字段及前后 OWS；弱前缀必须精确为 `W/`。反斜杠是普通 opaque 字节，不做 quoted-pair、百分号或字符集转换。`toByteArray()`／`toHttpField()` 原样包围 opaque，生成 ETag 字段；不通过 String 中转任意接收字节。
+
+`stronglyMatches(other)` 只在两者均为强标签且 opaque 逐字节相等时成立；`weaklyMatches(other)` 只比较 opaque。标签值不做大小写归一、Unicode 规范化或摘要推断。
+
+`HttpEntityTagCondition(tags)` 保存 If-Match／If-None-Match 的有序标签列表，允许空列表和重复项；`wildcard()` 单独表示星号条件，不能与列表混合。parse／parseOrNone 接收字节或 String，并可指定用于诊断的 fieldName（默认 If-None-Match）；按列表语法忽略 OWS 与空项，只在标签引号外识别逗号。isWildcard、tags 和 originalValue 暴露不可变结果，`toByteArray()`、`toIfMatchField()`、`toIfNoneMatchField()` 生成对应字段。引号内的星号仍是普通 ETag。工具不把无 ETag 等同于无当前表示，不自行判断条件是否满足；实际表示是否存在及所需比较强度由调用者决定。
+
 ## 2. Cookie 与公共后缀
 
 Cookie parser 接收单个 Set-Cookie 字段，按 RFC 6265 及现代 SameSite／前缀规则返回名称、值、Domain、Path、Expires、Max-Age、Secure、HttpOnly、SameSite 和未知属性。Cookie 请求字段的组装独立处理，不把多个 Set-Cookie 用逗号连接。域名使用 url／idna 的同一规范值。
