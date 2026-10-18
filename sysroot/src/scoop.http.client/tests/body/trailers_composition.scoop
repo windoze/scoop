@@ -1,0 +1,47 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.compression.*
+import scoop.http.*
+import scoop.http.asyncio.MultipartSource
+import scoop.test.*
+
+@Test
+private class RequestBodyTrailersCompositionTest {
+    @Test
+    fun `compression preserves per-send trailers until a wrapped multipart is complete`() {
+        val multipart = RequestBody.fromMultipart([RequestBodyPart.formData("value", RequestBody.fromText("中文"))],
+            MultipartBoundary("trailer-boundary"))
+        val calls = AtomicLong(0L)
+        val body = RequestBody.fromProducerWithTrailersFactory(["X-Bytes"], multipart.contentLength, multipart.contentType) suspend {
+            calls.fetchAdd(1L);
+            suspend { sink ->
+                val written = multipart.writeTo(sink)
+                [HttpField("X-Bytes".toByteArray(), written.toString().toByteArray())]
+            }
+        }.compressed().compressed(CompressionOptions.Brotli(BrotliOptions()))
+        assertTrue(body.isReplayable)
+        assertEquals(1L, body.trailerNames.size)
+        assertEquals(2L, body.contentEncodings.size)
+        assertTrue(body.contentLength == None)
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            for (size in [1L, 7L]) {
+                val output = BodyTestSink()
+                val result = body.writeWithTrailersTo(output, size)
+                assertEquals(output.bytes.size, result.transferredBytes)
+                val gzip = decompress(output.bytes.toByteArray(), DecompressionOptions(CompressionFormat.Brotli))
+                val plain = decompress(gzip, DecompressionOptions(CompressionFormat.Gzip))
+                assertEquals(plain.size.toString(), String.fromUtf8(result.trailers[0L].value))
+                MultipartSource(BodyTestSource(plain), MultipartBoundary("trailer-boundary")).useAsync suspend { source ->
+                    val part = source.nextPart()!!
+                    assertEquals("中文", String.fromUtf8(part.body.readAllBytes(6L)))
+                    part.body.close()
+                    assertTrue(when (source.nextPart()) { case None -> true; case Some(_) -> false })
+                }
+                assertEquals(0L, output.closes)
+            }
+        }
+        assertEquals(2L, calls.load())
+    }
+}

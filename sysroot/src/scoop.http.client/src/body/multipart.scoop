@@ -1,6 +1,7 @@
 package scoop.http.client
 
 import scoop.asyncio.*
+import scoop.collections.emptyList
 import scoop.http.*
 import scoop.http.asyncio.MultipartSink
 
@@ -17,7 +18,7 @@ internal fun singleUseWhenNeeded(plan: RequestBodyPlan): RequestBodyPlan =
 private class MultipartRequestPlan(private val parts: Array<RequestBodyPart>, private val boundary: MultipartBoundary) : RequestBodyPlan {
     public override val isReplayable: Boolean = multipartReplayable(parts)
 
-    public override suspend fun writeTo(destination: AsyncByteSink, bufferSize: Long) {
+    public override suspend fun writeTo(destination: AsyncByteSink, bufferSize: Long): List<HttpField> {
         MultipartSink(destination, boundary, bufferSize).useAsync suspend { multipart ->
             for (part in parts) {
                 multipart.beginPart(part.head).useAsync suspend { writer ->
@@ -27,6 +28,7 @@ private class MultipartRequestPlan(private val parts: Array<RequestBodyPart>, pr
             }
             multipart.finish()
         }
+        return emptyList<HttpField>()
     }
 }
 

@@ -5,6 +5,9 @@ import scoop.http.*
 
 public class RequestBodyPart public constructor(public val body: RequestBody, fields: List<HttpField> = emptyList<HttpField>()) {
     public val head: MultipartPartHead = MultipartPartHead(requestBodyFields(body, fields), body.contentLength)
+    init {
+        if (body.trailerNames.size != 0L) throw IllegalArgumentException(Some("multipart parts cannot carry HTTP trailers"))
+    }
 
     public companion object {
         public fun formData(name: String, body: RequestBody, filename: String? = None): RequestBodyPart =
@@ -29,6 +32,11 @@ internal fun requestBodyFields(body: RequestBody, fields: List<HttpField>): Arra
             coding.append(encoding)
         }
         result.add(HttpField("Content-Encoding".toByteArray(), coding.toString().toByteArray()))
+    }
+    if (body.trailerNames.size != 0L) {
+        if (result.findAll("trailer".toByteArray()).size != 0L)
+            throw IllegalArgumentException(Some("request body already supplies its Trailer declaration"))
+        result.add(body.trailerDeclaration.toHttpField())
     }
     return result.toArray()
 }

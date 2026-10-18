@@ -3,6 +3,7 @@ package scoop.http.client
 import scoop.asyncio.*
 import scoop.compression.*
 import scoop.compression.asyncio.AsyncCompressionSink
+import scoop.http.HttpField
 
 internal fun compressedRequestBody(body: RequestBody, options: CompressionOptions): RequestBody {
     val encoding = when (options) {
@@ -15,16 +16,16 @@ internal fun compressedRequestBody(body: RequestBody, options: CompressionOption
     val encodings = ArrayList<String>()
     for (existing in body.contentEncodings) encodings.add(existing)
     encodings.add(encoding)
-    return RequestBody(None, body.contentType, singleUseWhenNeeded(CompressedRequestPlan(body, options)), encodings)
+    return RequestBody(None, body.contentType, singleUseWhenNeeded(CompressedRequestPlan(body, options)), encodings, body.trailerDeclaration)
 }
 
 private class CompressedRequestPlan(private val body: RequestBody, private val options: CompressionOptions) : RequestBodyPlan {
     public override val isReplayable: Boolean get() = body.isReplayable
 
-    public override suspend fun writeTo(destination: AsyncByteSink, bufferSize: Long) {
+    public override suspend fun writeTo(destination: AsyncByteSink, bufferSize: Long): List<HttpField> =
         AsyncCompressionSink(destination, options, bufferSize).useAsync suspend { compressed ->
-            body.writeTo(compressed, bufferSize)
+            val result = body.writeWithTrailersTo(compressed, bufferSize)
             compressed.finish()
+            result.trailers
         }
-    }
 }

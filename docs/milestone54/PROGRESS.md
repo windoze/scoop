@@ -58,6 +58,7 @@
 | Expect 字段语义 | HTTP 库的 httpExpectsContinue 完整读取 Expect 列表，区分裸 100-continue、未知值和带参数的扩展；复用字段 reader，保留原始字段与精确错误偏移 | 新增 4 项测试通过 debug／release 和 full moving；正式消费者在两个 native 线程中组合短块 HTTP/1 请求解析、扩展参数和 Unicode body，构建复用通过 |
 | Continue 上传门控 | HttpCallOptions 的 expectContinue／continueWait 与手写标准 Expect 共用门控；100 或间隔到期允许一次上传，早期最终响应不获取来源，等待可取消，H2 按流隔离 | 新增 9 项测试，client 全部 73 项通过 debug／release；13 项相关用例逐例通过两种构建的 full moving，独立 HTTP/1、H2 与 h2c 对端及正式构建复用通过 |
 | Trailer 声明与协议限制 | HTTP 库的 HttpTrailerDeclaration 保存规范名称与首次顺序，检查实际字段归属；HTTP/1 与 HTTP/2 统一拒绝已知不能后置的字段，失败不提交消息结束 | 新增 5 项测试，HTTP 全部 220 项通过 debug／release；新测试与 2 项协议回归通过两种构建的 full moving，正式消费者的短块、跨线程与构建复用通过 |
+| 每次发送的请求 trailer | 单次／工厂 producer 在同一次发送中写正文并返回 trailer，独立结果保留字节数与字段；H1 chunked、H2 尾部 HEADERS、h2c、压缩和 multipart 外层组合 | 新增 10 项测试，client 全部 83 项通过 debug／release；15 项新旧用例逐例通过两种构建的 full moving，独立 chunked／gzip／Continue／h2c 对端和真实并行 H2 消费者通过 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -235,9 +236,13 @@ SecTrust 对原有十年有效期叶证书的拒绝符合系统政策，测试�
 
 `m54-http-trailers` 在 Darwin 通过 debug／release 两个变体，共 6 个进程。正式消费者在两个 native 线程中共享声明快照，以单字节 chunk 输出 Unicode body，再以 3 字节短块接收，核对重复 trailer、非 UTF-8 值及初始声明；非法 Host trailer 被拒绝后仍可完成合法消息。5 项新测试另覆盖名称快照／大小写／去重、空与缺省实际字段、未声明名称，以及 H1／H2 拒绝字段后继续完成同一消息；与 2 项协议回归一起通过两种构建的 full moving，共 6 个进程。
 
+`m54-client-trailers` 在 Darwin 通过 debug／release 两个变体，共 6 个进程。独立 Python 对端验证已知长度仍采用 chunked、空正文仍发送 trailer、有序重复字段、gzip 完整结束、Continue 拒绝不运行 producer，以及原始 trailer 完成后的 h2c 升级。正式 H2 消费者在小窗口下并行重用同一 producer 工厂，核对每个请求的 Context、Content-Length 与独立尾部字段；六种场景各在两个 native 线程中运行，full moving 与正常构建复用通过。
+
+10 项 trailer 新测试与 5 项工厂／multipart／压缩／取消／duplex 回归共 15 项，逐例通过两种构建的 full moving，共 30 个进程。正文与 trailer 同属一次结果，名称和返回列表都有快照；字节接口和 multipart part 在消耗 producer 前拒绝不能表达的 trailer，未知名称、长度不符和被 producer 捕获的输出失败仍准确报告。取消等待 producer 所拥有来源的真实关闭，嵌套压缩完整结束后才交付字段；未引入 client 字段解析或协议编码的替代实现。
+
 ## 后续工作
 
-继续完成 client 的总截止与分阶段超时、请求 trailer、自动解码与文本／JSON 便利接口，以及重定向／重试／认证／代理、Cookie、缓存／续传、SSE／WebSocket 高层组合和可观察性。实际底层缺口仍在所属库补齐；每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
+继续完成 client 的总截止与分阶段超时、自动解码与文本／JSON 便利接口，以及重定向／重试／认证／代理、Cookie、缓存／续传、SSE／WebSocket 高层组合和可观察性。实际底层缺口仍在所属库补齐；每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
 
 ## 验证安排
 

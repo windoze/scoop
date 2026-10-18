@@ -8,25 +8,19 @@ internal interface ClientExchange : AsyncByteStream, AsyncCloseable {
     public val isReadComplete: Boolean
     public val trailers: Array<HttpField>?
     public suspend fun receiveResponse(): HttpResponseHead
-    public suspend fun finish()
+    public suspend fun finish(trailers: List<HttpField>)
 }
 
 internal suspend fun openClientExchange(call: ClientCall, connection: ClientConnection): ClientExchange {
     val request = call.request
     return when (connection) {
         case Http1(value) -> {
-            if (request.options.duplex)
-                throw IllegalArgumentException(Some("negotiated HTTP/1 cannot perform a duplex upload"))
             val version = call.client.config.http1RequestVersion
-            if (version == HttpVersion.Http10 && request.expectsContinue)
-                throw IllegalArgumentException(Some("Continue waiting requires HTTP/1.1 or HTTP/2"))
-            val framing = when (request.contentLength) {
+            validateClientHttp1Request(request, version)
+            val framing = if (request.body.trailerNames.size != 0L) Http1BodyFraming.Chunked else when (request.contentLength) {
                 case Some(0L) -> Http1BodyFraming.Empty
                 case Some(length) -> Http1BodyFraming.Length(length)
-                case None -> {
-                    if (version == HttpVersion.Http10) throw IllegalArgumentException(Some("HTTP/1.0 request body requires a known length"))
-                    Http1BodyFraming.Chunked
-                }
+                case None -> Http1BodyFraming.Chunked
             }
             val entry = call.lock.withLock { call.lease!! }
             val upgrading = call.client.lock.withLock { entry.h2cPending }
@@ -42,9 +36,11 @@ internal suspend fun openClientExchange(call: ClientCall, connection: ClientConn
 private fun clientRequestHead(request: HttpRequest, version: HttpVersion): HttpRequestHead {
     val fields = ArrayList<HttpField>()
     for (field in request.fields) if (!field.hasName("Content-Length".toByteArray())) fields.add(field)
-    when (request.contentLength) {
-        case Some(length) -> fields.add(HttpField("Content-Length".toByteArray(), length.toString().toByteArray()))
-        case None -> {}
+    if (version == HttpVersion.Http2 || request.body.trailerNames.size == 0L) {
+        when (request.contentLength) {
+            case Some(length) -> fields.add(HttpField("Content-Length".toByteArray(), length.toString().toByteArray()))
+            case None -> {}
+        }
     }
     val authority = request.origin.authority(request.url.authority!!.port != None).toByteArray()
     if (version != HttpVersion.Http2) fields.add(HttpField("Host".toByteArray(), authority))

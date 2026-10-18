@@ -20,7 +20,7 @@ internal class ClientH1Exchange(val connection: AsyncHttp1Connection, val output
     public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long = input!!.readInto(buffer, count)
     public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long = output.writeFrom(buffer, count)
     public override suspend fun flush() { output.flush() }
-    public override suspend fun finish() { output.finish() }
+    public override suspend fun finish(trailers: List<HttpField>) { output.finish(trailers) }
     public override suspend fun close() {
         var failure: Throwable? = None
         try { if (clientPresent(input)) input!!.close() }

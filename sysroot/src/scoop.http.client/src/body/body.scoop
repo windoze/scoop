@@ -6,16 +6,20 @@ import scoop.collections.emptyList
 import scoop.compression.CompressionOptions
 import scoop.compression.GzipOptions
 import scoop.http.HttpMediaType
+import scoop.http.HttpField
+import scoop.http.HttpTrailerDeclaration
 import scoop.http.MultipartBoundary
 import scoop.platform.fs.Path
 import scoop.url.UrlQuery
 
 public class RequestBody internal constructor(
     contentLength: Long?, public val contentType: HttpMediaType?, private val plan: RequestBodyPlan,
-    contentEncodings: List<String> = emptyList<String>()
+    contentEncodings: List<String> = emptyList<String>(),
+    internal val trailerDeclaration: HttpTrailerDeclaration = HttpTrailerDeclaration(emptyList<String>())
 ) {
     public val contentLength: Long? = checkedBodyLength(contentLength)
     public val contentEncodings: Array<String> = contentEncodings.toArray()
+    public val trailerNames: Array<String> get() = trailerDeclaration.names
     public val isReplayable: Boolean get() = plan.isReplayable
 
     public fun compressed(options: CompressionOptions = CompressionOptions.Gzip(GzipOptions())): RequestBody =
@@ -23,11 +27,20 @@ public class RequestBody internal constructor(
 
     public suspend fun writeTo(destination: AsyncByteSink, bufferSize: Long = 8192L): Long {
         ensureActive()
+        if (trailerNames.size != 0L)
+            throw IllegalArgumentException(Some("request body trailers require writeWithTrailersTo"))
+        return writeWithTrailersTo(destination, bufferSize).transferredBytes
+    }
+
+    public suspend fun writeWithTrailersTo(destination: AsyncByteSink, bufferSize: Long = 8192L): RequestBodyWriteResult {
+        ensureActive()
         if (bufferSize <= 0L) throw IllegalArgumentException(Some("request body buffer size must be positive"))
         val sink = RequestBodySink(destination, contentLength)
         try {
-            plan.writeTo(sink, bufferSize)
-            return sink.finish()
+            val trailers = plan.writeTo(sink, bufferSize).toArray()
+            val transferred = sink.finish()
+            trailerDeclaration.requireDeclared(trailers)
+            return RequestBodyWriteResult(transferred, trailers)
         } finally { sink.end() }
     }
 
@@ -54,7 +67,7 @@ public class RequestBody internal constructor(
             contentType: HttpMediaType? = None): RequestBody =
             RequestBody(contentLength, contentType, RequestBodyOnce(suspend { destination, bufferSize ->
                 source.copyTo(destination, bufferSize)
-                Unit
+                emptyList<HttpField>()
             }))
 
         public fun <T> fromSourceFactory(contentLength: Long? = None, contentType: HttpMediaType? = None,
@@ -62,6 +75,7 @@ public class RequestBody internal constructor(
             RequestBody(contentLength, contentType, RequestBodyFactory(suspend {
                 suspend { destination, bufferSize ->
                     factory().useAsync suspend { source -> source.copyTo(destination, bufferSize); Unit }
+                    emptyList<HttpField>()
                 }
             }))
 
@@ -70,16 +84,33 @@ public class RequestBody internal constructor(
 
         public fun fromProducer(contentLength: Long? = None, contentType: HttpMediaType? = None,
             producer: suspend (AsyncByteSink) -> Unit): RequestBody =
-            RequestBody(contentLength, contentType, RequestBodyOnce(suspend { destination, _ -> producer(destination) }))
+            RequestBody(contentLength, contentType, RequestBodyOnce(suspend { destination, _ ->
+                producer(destination)
+                emptyList<HttpField>()
+            }))
 
         public fun fromProducerFactory(contentLength: Long? = None, contentType: HttpMediaType? = None,
             factory: suspend () -> suspend (AsyncByteSink) -> Unit): RequestBody =
             RequestBody(contentLength, contentType, RequestBodyFactory(suspend {
                 val producer = factory();
-                suspend { destination, _ -> producer(destination) }
+                suspend { destination, _ -> producer(destination); emptyList<HttpField>() }
             }))
+
+        public fun fromProducerWithTrailers(trailerNames: List<String>, contentLength: Long? = None,
+            contentType: HttpMediaType? = None, producer: suspend (AsyncByteSink) -> List<HttpField>): RequestBody =
+            RequestBody(contentLength, contentType, RequestBodyOnce(suspend { destination, _ -> producer(destination) }),
+                trailerDeclaration = HttpTrailerDeclaration(trailerNames))
+
+        public fun fromProducerWithTrailersFactory(trailerNames: List<String>, contentLength: Long? = None,
+            contentType: HttpMediaType? = None, factory: suspend () -> suspend (AsyncByteSink) -> List<HttpField>): RequestBody =
+            RequestBody(contentLength, contentType, RequestBodyFactory(suspend {
+                val producer = factory();
+                suspend { destination, _ -> producer(destination) }
+            }), trailerDeclaration = HttpTrailerDeclaration(trailerNames))
     }
 }
+
+public class RequestBodyWriteResult internal constructor(public val transferredBytes: Long, public val trailers: Array<HttpField>)
 
 private fun checkedBodyLength(length: Long?): Long? {
     if (length != None && length!! < 0L) throw IllegalArgumentException(Some("negative request body length"))

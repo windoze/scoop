@@ -66,3 +66,22 @@ private fun prepareRequestFields(method: Array<Byte>, body: RequestBody, fields:
     } else snapshot
     return ClientRequestMetadata(prepared, actualLength, (present || adding) && actualLength != Some(0L))
 }
+
+internal fun validateClientRequest(config: HttpClientConfig, request: HttpRequest) {
+    if (request.origin.scheme != "http") return
+    if (config.versionPolicy == HttpVersionPolicy.Http2Only && config.cleartext == HttpCleartextProtocol.Http1)
+        throw IllegalArgumentException(Some("cleartext HTTP/2-only requests require prior knowledge or an explicit upgrade"))
+    if (config.cleartext == HttpCleartextProtocol.Http1) validateClientHttp1Request(request, config.http1RequestVersion)
+}
+
+internal fun validateClientHttp1Request(request: HttpRequest, version: HttpVersion) {
+    if (request.options.duplex)
+        throw IllegalArgumentException(Some("HTTP/1 cannot perform a duplex upload"))
+    if (version != HttpVersion.Http10) return
+    if (request.body.trailerNames.size != 0L)
+        throw IllegalArgumentException(Some("HTTP/1.0 cannot send request trailers"))
+    if (request.contentLength == None)
+        throw IllegalArgumentException(Some("HTTP/1.0 request body requires a known length"))
+    if (request.expectsContinue)
+        throw IllegalArgumentException(Some("Continue waiting requires HTTP/1.1 or HTTP/2"))
+}

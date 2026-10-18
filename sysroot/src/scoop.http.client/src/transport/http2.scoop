@@ -12,6 +12,6 @@ internal class ClientH2Exchange(val stream: AsyncHttp2Stream) : ClientExchange {
     public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long = stream.readInto(buffer, count)
     public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long = stream.writeFrom(buffer, count)
     public override suspend fun flush() { stream.flush() }
-    public override suspend fun finish() { stream.finish() }
+    public override suspend fun finish(trailers: List<HttpField>) { stream.finish(trailers) }
     public override suspend fun close() { stream.close() }
 }

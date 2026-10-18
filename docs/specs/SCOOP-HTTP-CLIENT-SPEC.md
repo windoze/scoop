@@ -74,6 +74,18 @@ RequestBodyPart 以 body 和有序 fields 创建不可变 part head，bodyLength
 
 `body.compressed(options = CompressionOptions.Gzip(GzipOptions()))` 返回新的流式 body，复用 AsyncCompressionSink，先写完原 body 再显式 finish 压缩流，并关闭本次 codec；不接管 HTTP 输出端。支持 gzip、zlib 包装的 HTTP deflate、br 与 zstd，raw DEFLATE 不是 HTTP deflate 表示，配置时拒绝。contentType 保留，contentLength 改为未知，contentEncodings 按实际施加次序追加；重复压缩明确表示多层编码。原 body 的重放约束继续有效，非重放组合只允许一次发送。字典等外部配置按 compression 的借用规则保持有效；要用于认证摘要或重试，调用者须使各次产生的原文和编码选项一致，不把重新打开变化中的输入等同于字节快照。
 
+### 3.3 每次发送的请求 trailer
+
+fromProducerWithTrailers(trailerNames, contentLength, contentType, producer) 接收一次性的 suspend producer，签名为 `(AsyncByteSink) -> List<HttpField>`；它在同一次调用中写出正文并返回本次 trailer。fromProducerWithTrailersFactory 接收每次创建上述 producer 的 suspend 工厂，重放能力由实际工厂提供；不会把不同发送过程的摘要、计数或 trailer 状态放进共享全局回调。单次资格、Context、取消与来源关闭遵守 §3.1；等待 Continue 被最终响应拒绝时不启动该 producer。
+
+trailerNames 通过 HTTP 库的 HttpTrailerDeclaration 复制和规范化，RequestBody 公开不可变名称数组。名称在构造时检查，实际字段在 producer 返回后复制并检查均已声明；允许空结果、少于声明的名称和有序重复字段。字段值及协议发送规则由 HTTP 编码器检查；client 不维护禁止字段名单。body 提供声明时，手写 Trailer 字段报冲突，实际请求头使用 body 的声明。
+
+`body.writeWithTrailersTo(destination, bufferSize = 8192L): RequestBodyWriteResult` 借用目的端，返回 transferredBytes 和本次不可变 trailer 数组，不提交 HTTP 结束标记。已知正文长度按原规则受检；字节与 trailer 同属一次发送的结果。原 writeTo 继续返回正文长度，但有 trailer 声明时在消耗 producer 前拒绝，要求调用者选择能接收 trailer 的入口，避免组合过程中静默丢失尾部字段。
+
+HTTP/1.1 中声明了 trailer 的请求始终使用 chunked，包括已知长度和空正文；已知或显式 Content-Length 仍作为本地长度断言，但不与 Transfer-Encoding 同时发送。HTTP/2 保留适用的 Content-Length，通过尾部 HEADERS 结束相应流；HTTP/1.0 在发送头部前拒绝。h2c 的原 HTTP/1 上传完成全部 trailer 后才移交，不在 stream 1 重放。
+
+压缩组合保留声明与本次实际 trailer，在压缩流 finish 完成后才交给 HTTP；库不改写调用者的摘要含义，若摘要针对压缩后的字节，producer 须在相应编码层计算。Multipart part 没有 HTTP trailer 定界，RequestBodyPart 在构造时拒绝携带 trailer 的 body；整个 multipart 可由外层 trailer producer 包装。任何 producer、长度、声明或编码错误都按当前请求的失败路径收尾，不提交一个成功的消息结束来掩盖失败。
+
 ## 4. 上传、早期响应与背压
 
 收响应与写请求可以双向推进。发送大 body 时仍必须能够处理早期 401／413、信息响应和 HTTP/2 WINDOW_UPDATE，不能先等待上传结束再启动响应读取。HTTP/2 的显式 duplex producer 可以在读取响应期间继续上传；每方向仍至多一个在途操作。HTTP/1 不增加 pipelining，早期最终响应后未能完整定界的请求使连接关闭。

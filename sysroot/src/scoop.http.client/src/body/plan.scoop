@@ -1,18 +1,20 @@
 package scoop.http.client
 
 import scoop.asyncio.*
+import scoop.collections.emptyList
+import scoop.http.HttpField
 import scoop.platform.memory.NativeByteBuffer
 
 internal interface RequestBodyPlan {
     public val isReplayable: Boolean
-    public suspend fun writeTo(destination: AsyncByteSink, bufferSize: Long)
+    public suspend fun writeTo(destination: AsyncByteSink, bufferSize: Long): List<HttpField>
 }
 
 internal class RequestBytes(private val bytes: Array<Byte>) : RequestBodyPlan {
     public override val isReplayable: Boolean get() = true
 
-    public override suspend fun writeTo(destination: AsyncByteSink, bufferSize: Long) {
-        if (bytes.size == 0L) return
+    public override suspend fun writeTo(destination: AsyncByteSink, bufferSize: Long): List<HttpField> {
+        if (bytes.size == 0L) return emptyList<HttpField>()
         val capacity = if (bytes.size < bufferSize) bytes.size else bufferSize
         NativeByteBuffer.allocate(capacity).use suspend { buffer ->
             var offset = 0L
@@ -25,27 +27,28 @@ internal class RequestBytes(private val bytes: Array<Byte>) : RequestBodyPlan {
                 offset += count
             }
         }
+        return emptyList<HttpField>()
     }
 }
 
-internal class RequestBodyOnce(private val producer: suspend (AsyncByteSink, Long) -> Unit) : RequestBodyPlan {
+internal class RequestBodyOnce(private val producer: suspend (AsyncByteSink, Long) -> List<HttpField>) : RequestBodyPlan {
     private val started: AtomicBoolean = AtomicBoolean(false)
     public override val isReplayable: Boolean get() = false
 
-    public override suspend fun writeTo(destination: AsyncByteSink, bufferSize: Long) {
+    public override suspend fun writeTo(destination: AsyncByteSink, bufferSize: Long): List<HttpField> {
         ensureActive()
         if (!started.compareAndSet(false, true)) throw RequestBodyConsumedException()
-        producer(destination, bufferSize)
+        return producer(destination, bufferSize)
     }
 }
 
 internal class RequestBodyFactory(
-    private val factory: suspend () -> suspend (AsyncByteSink, Long) -> Unit
+    private val factory: suspend () -> suspend (AsyncByteSink, Long) -> List<HttpField>
 ) : RequestBodyPlan {
     public override val isReplayable: Boolean get() = true
 
-    public override suspend fun writeTo(destination: AsyncByteSink, bufferSize: Long) {
+    public override suspend fun writeTo(destination: AsyncByteSink, bufferSize: Long): List<HttpField> {
         ensureActive()
-        factory()(destination, bufferSize)
+        return factory()(destination, bufferSize)
     }
 }

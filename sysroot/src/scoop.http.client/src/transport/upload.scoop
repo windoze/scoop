@@ -11,9 +11,9 @@ internal suspend fun sendClientBody(call: ClientCall, exchange: ClientExchange) 
         if (!awaitClientContinue(call)) return
         val sink = RequestBodySink(ClientUploadSink(call, exchange), call.request.contentLength)
         try {
-            call.request.body.writeTo(sink)
+            val result = call.request.body.writeWithTrailersTo(sink)
             sink.finish()
-            exchange.finish()
+            exchange.finish(result.trailers)
             complete = true
         } finally { sink.end() }
     } catch (_: ClientUploadStoppedException) {

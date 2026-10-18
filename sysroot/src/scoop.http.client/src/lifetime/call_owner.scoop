@@ -5,17 +5,7 @@ import scoop.http.*
 
 internal suspend fun executeClientRequest(state: ClientState, request: HttpRequest): HttpResponse {
     val caller = clientJob(state.loop, true)
-    val config = state.config
-    if (request.origin.scheme == "http") {
-        if (config.versionPolicy == HttpVersionPolicy.Http2Only && config.cleartext == HttpCleartextProtocol.Http1)
-            throw IllegalArgumentException(Some("cleartext HTTP/2-only requests require prior knowledge or an explicit upgrade"))
-        if (config.cleartext == HttpCleartextProtocol.Http1 && request.options.duplex)
-            throw IllegalArgumentException(Some("duplex upload requires HTTP/2"))
-        if (config.cleartext == HttpCleartextProtocol.Http1 && config.http1RequestVersion == HttpVersion.Http10 && request.contentLength == None)
-            throw IllegalArgumentException(Some("HTTP/1.0 request body requires a known length"))
-        if (config.cleartext == HttpCleartextProtocol.Http1 && config.http1RequestVersion == HttpVersion.Http10 && request.expectsContinue)
-            throw IllegalArgumentException(Some("Continue waiting requires HTTP/1.1 or HTTP/2"))
-    }
+    validateClientRequest(state.config, request)
     return suspendCoroutine<HttpResponse> { continuation ->
         val call = ClientCall(state, request, caller, continuation)
         val scope = state.lock.withLock {

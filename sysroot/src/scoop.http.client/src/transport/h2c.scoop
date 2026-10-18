@@ -36,7 +36,7 @@ internal class ClientH2cExchange(val call: ClientCall, val entry: ClientPoolEntr
     public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long = current.readInto(buffer, count)
     public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long = original.writeFrom(buffer, count)
     public override suspend fun flush() { original.flush() }
-    public override suspend fun finish() { original.finish() }
+    public override suspend fun finish(trailers: List<HttpField>) { original.finish(trailers) }
     public override suspend fun close() {
         try { current.close() }
         finally {
