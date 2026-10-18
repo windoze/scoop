@@ -153,6 +153,8 @@ HttpSetCookie 的 expires、maxAgeSeconds、domain、path、secure、httpOnly �
 
 application/x-www-form-urlencoded 使用 URL 库的 FormUrlEncoded，保留重复项和顺序，按明确 charset 编码。HTTP 层提供 Content-Type 与 RequestBody 所需的元数据，不重新定义加号、百分号或空值规则。
 
+Boundary、part 元数据、增量内存引擎和局部限制的详细合同见 [multipart 规范](SCOOP-HTTP-MULTIPART-SPEC.md)。form-data 工厂按 RFC 7578 生成普通 filename，不生成 filename*；通用字段与其他 multipart 类型的扩展参数仍由 Content-Disposition 工具处理。
+
 multipart 内存引擎按 RFC 2046／7578 增量处理 boundary、每 part 字段与内容，不把 body 当成文本。提供已知长度计算、编码与解码；仅所有组成数据长度已知时才宣告完整 contentLength。boundary 可显式指定，自动生成使用 crypto 随机字节；不扫描无限上传源预先寻找碰撞。
 
 异步编码／解码在 scoop.http.asyncio 组合 AsyncByteSource／AsyncByteSink，支持每 part 文件／字节／流、filename／filename*、重复字段和嵌套内容的原始交付。每个 part body 在推进下一 part 前必须完成或明确放弃；提前关闭整体消息关闭所拥有的响应，不能无界排空网络。header 和 boundary 跨任意输入块仍正确识别，正文出现部分匹配不得丢字节。

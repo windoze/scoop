@@ -1,0 +1,55 @@
+package scoop.http
+
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+@Test private class MultipartEncoderTests {
+    @Test fun `encoding emits canonical delimiters and computes only complete known lengths`() {
+        val boundary = MultipartBoundary("example")
+        val first = MultipartPartHead.formData("field", bodyLength = Some(3L))
+        val second = MultipartPartHead(bodyLength = Some(0L))
+        val bytes = encodeMp(boundary, [(first, "yes".toByteArray()), (second, "".toByteArray())])
+        assertEquals("--example\r\nContent-Disposition: form-data; name=\"field\"\r\n\r\nyes\r\n--example\r\n\r\n\r\n--example--\r\n", String.fromUtf8(bytes))
+        assertTrue(MultipartEncoder.contentLength(boundary, [first, second]) == Some(bytes.size))
+        assertTrue(MultipartEncoder.contentLength(boundary, [first, MultipartPartHead()]) == None)
+        MultipartEncoder(boundary).use { encoder ->
+            val empty = encoder.finish()
+            assertEquals("--example--\r\n", String.fromUtf8(empty))
+            assertTrue(MultipartEncoder.contentLength(boundary, ArrayList<MultipartPartHead>()) == Some(empty.size))
+            assertTrue(encoder.isFinished && !encoder.isPartOpen)
+        }
+        assertFailsWith<ArithmeticException> { MultipartEncoder.contentLength(boundary, [MultipartPartHead(bodyLength = Some(Long.MAX_VALUE))]) }
+    }
+
+    @Test fun `state and length errors leave the source and current part usable`() {
+        MultipartEncoder(MultipartBoundary("b")).use { encoder ->
+            NativeByteBuffer.allocate(3L).use { buffer ->
+                buffer.writeBytes("abc".toByteArray())
+                assertFailsWith<IllegalStateException> { encoder.writeBody(buffer) }
+                encoder.beginPart(MultipartPartHead(bodyLength = Some(2L)))
+                assertFailsWith<IllegalStateException> { encoder.beginPart(MultipartPartHead()) }
+                assertFailsWith<IllegalStateException> { encoder.finish() }
+                assertFailsWith<IllegalArgumentException> { encoder.writeBody(buffer, -1L) }
+                assertFailsWith<IndexOutOfBoundsException> { encoder.writeBody(buffer, 4L) }
+                assertFailsWith<IllegalArgumentException> { encoder.writeBody(buffer, 3L) }
+                assertEquals(0L, buffer.readPosition)
+                assertEquals("a", String.fromUtf8(encoder.writeBody(buffer, 1L)))
+                assertFailsWith<IllegalStateException> { encoder.endPart() }
+                assertEquals("b", String.fromUtf8(encoder.writeBody(buffer, 1L)))
+                encoder.endPart()
+                assertEquals("c", String.fromUtf8(buffer.readBytes(1L)))
+                encoder.finish()
+                assertFailsWith<IllegalStateException> { encoder.finish() }
+            }
+        }
+    }
+
+    @Test fun `close abandons an unfinished part without pretending to finish the format`() {
+        val encoder = MultipartEncoder(MultipartBoundary("b"))
+        encoder.beginPart(MultipartPartHead())
+        encoder.close(); encoder.close()
+        assertTrue(encoder.isClosed && !encoder.isFinished && !encoder.isPartOpen)
+        assertFailsWith<IllegalStateException> { encoder.endPart() }
+        assertFailsWith<IllegalStateException> { encoder.beginPart(MultipartPartHead()) }
+    }
+}

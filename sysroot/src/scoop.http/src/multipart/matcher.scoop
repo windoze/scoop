@@ -1,0 +1,27 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+
+internal class MultipartMatcher(boundary: MultipartBoundary) {
+    private val pattern: Array<Byte> = ByteArrayBuilder().append("\r\n--".toByteArray()).append(boundary.bytes).toByteArray()
+    private var matched: Long = 2L
+    private var virtual: Long = 2L
+
+    fun reset() { matched = 2L; virtual = 2L }
+    fun accept(byte: Byte, body: ByteArrayBuilder?): Boolean {
+        if (byte == pattern[matched]) {
+            matched += 1L
+            if (matched == pattern.size) { matched = 0L; virtual = 0L; return true }
+            return false
+        }
+        when (body) {
+            case Some(output) -> { for (index in virtual..<matched) output.append(pattern[index]) }
+            case None -> {}
+        }
+        matched = 0L
+        virtual = 0L
+        if (byte == 13.toByte()) matched = 1L
+        else when (body) { case Some(output) -> output.append(byte); case None -> {} }
+        return false
+    }
+}

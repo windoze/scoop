@@ -1,0 +1,73 @@
+import scoop.bytes.ByteArrayBuilder
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+
+fun writeMultipart(boundary: MultipartBoundary, parts: List<(MultipartPartHead, Array<Byte>)>): Array<Byte> {
+    val output = ByteArrayBuilder()
+    MultipartEncoder(boundary).use { encoder ->
+        for ((head, bytes) in parts) {
+            output.append(encoder.beginPart(head))
+            NativeByteBuffer.allocate(5L).use { buffer ->
+                var offset = 0L
+                while (offset < bytes.size) {
+                    buffer.clear()
+                    val count = if (bytes.size - offset > 5L) 5L else bytes.size - offset
+                    buffer.writeBytes(bytes, offset, count)
+                    output.append(encoder.writeBody(buffer))
+                    offset += count
+                }
+            }
+            output.append(encoder.endPart())
+        }
+        output.append(encoder.finish())
+    }
+    return output.toByteArray()
+}
+
+fun readMultipart(boundary: MultipartBoundary, bytes: List<Byte>, chunk: Long, dataChunk: Long): Array<(MultipartPartHead, Array<Byte>)> {
+    val capture = MultipartCapture(dataChunk)
+    MultipartDecoder(boundary, MultipartLimits(dataChunkBytes = dataChunk)).use { decoder ->
+        NativeByteBuffer.allocate(chunk).use { buffer ->
+            var offset = 0L
+            while (offset < bytes.size) {
+                buffer.clear()
+                val count = if (bytes.size - offset > chunk) chunk else bytes.size - offset
+                buffer.writeBytes(bytes, offset, count)
+                offset += count
+                while (buffer.readableBytes > 0L) {
+                    check(decoder.receive(buffer) > 0L)
+                    capture.drain(decoder)
+                }
+            }
+            decoder.endInput()
+            capture.drain(decoder)
+            check(decoder.isComplete && decoder.isFinished)
+        }
+    }
+    check(capture.done)
+    return Array<(MultipartPartHead, Array<Byte>)>(capture.heads.size) { index ->
+        (capture.heads[index], capture.bodies[index].toByteArray())
+    }
+}
+
+private class MultipartCapture(val dataChunk: Long) {
+    val heads: ArrayList<MultipartPartHead> = ArrayList<MultipartPartHead>()
+    val bodies: ArrayList<ByteArrayBuilder> = ArrayList<ByteArrayBuilder>()
+    var ended: Long = 0L
+    var done: Boolean = false
+    fun drain(decoder: MultipartDecoder) {
+        while (true) when (decoder.nextEvent()) {
+            case None -> return
+            case Some(MultipartEvent.PartStarted(head)) -> {
+                check(heads.size == ended && !done)
+                heads.add(head); bodies.add(ByteArrayBuilder())
+            }
+            case Some(MultipartEvent.Data(bytes)) -> {
+                check(heads.size == ended + 1L && !done && bytes.size <= dataChunk)
+                bodies[ended].append(bytes)
+            }
+            case Some(MultipartEvent.PartEnded) -> { check(heads.size == ended + 1L && !done); ended += 1L }
+            case Some(MultipartEvent.End) -> { check(heads.size == ended && !done); done = true }
+        }
+    }
+}

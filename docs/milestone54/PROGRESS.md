@@ -29,6 +29,7 @@
 | SSE 内存解析 | SseDecoder 增量处理行结束、BOM、字段、ID／retry 和 EOF；UTF-8 复用 charset，有界行／data 与单个待交付事件，原生输入借用有明确消费量 | Darwin debug／release 与 moving GC：10 项新测试；HTTP 全部 142 项 debug／release 通过，涵盖 HTML 示例、单字节分块、坏 UTF-8、空 ID／data、背压、失败后借用释放与 EOF |
 | SSE 异步事件源 | SseSource 借用或显式接管 AsyncByteSource，以 next 驱动有限预取；结构化读取、取消与并发关闭等待真实借用结束，复用同一内存 parser | Darwin debug／release：9 项新测试和 HTTP asyncio 全部 35 项通过；新增测试通过 moving GC，覆盖短读、EOF、I/O／解析失败、错误 loop、并发读取、同一清理结果与取消 finally |
 | 代理请求与 CONNECT | httpProxyRequest／httpConnectRequest 复用 URL 生成正确 target 与 Host，httpConnectAccepted 覆盖全部 2xx；修复 llhttp 适配对 CONNECT 拒绝响应的过早切换 | Darwin debug／release：8 项新测试及 HTTP 150 项验证闭合；新增测试和既有 4 项异步切换测试通过 moving GC，覆盖 1xx、407、chunked／EOF、IPv6、H2 普通 CONNECT 与完整隧道后缀 |
+| Multipart 内存编解码 | MultipartBoundary／PartHead、编码器与增量 decoder；保留二进制 part，单个待取事件与有限 boundary 前缀，生成已知长度及 RFC 7578 form-data 元数据，随机 boundary 复用 crypto | Darwin debug／release 与 moving GC：16 项新测试；HTTP 全部 166 项 debug／release 通过，另有 288 组 Python MIME 双向对照，覆盖短块、padding、未知长度、重复／折行字段、空 part、EOF 与局部限制 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -90,6 +91,10 @@ HTTP 日期的 release 编译暴露了跨无写入分支的同槽根加载直到
 
 CONNECT 新测试先复现了 llhttp 将所有 CONNECT 响应视为切换的问题。HTTP 适配现在保留真实请求上下文，在 headers-complete 中仅依据 2xx 声明 CONNECT 成功，未改写线上方法。全部 HTTP 回归确认其余功能正常；EOF 用例改为显式控制辅助函数的 EOF 后，相关 3 项定界测试单独复验通过。C 改动经过格式化和严格编译检查。
 
+`m54-multipart` 的 debug／release 两个变体通过，共 6 个进程；生产 `.slib` 组合需要引号的 boundary、中文 form-data 元数据、非 UTF-8 字段、部分匹配正文、嵌套 multipart、gzip 与 HTTP/1 chunked／trailer。单字节事件、移动 GC 和缓存复用均通过。相同消费者另读取 Python EmailMessage 生成的 144 组输入，再把 Scoop 输出交给 BytesParser，两个方向共 288 组通过；原始向量与输出保存在仓库外。
+
+Multipart 的通用字段保留扩展参数，form-data 工厂遵守 RFC 7578，不生成 filename*。接收端按 delimiter 定界，不信任 part 的 Content-Length；closing delimiter 与外层 EOF 分别可见，preamble／epilogue 按消费丢弃。此批仅完成内存引擎，异步 part 流与 client 重放组合继续独立完成。
+
 ## 后续工作
 
 继续完成 HTTP 消息与协议补充、TLS 与 asyncio 缺口，再完成统一 client、策略、存储与长连接组合。每个功能独立验证和提交，最终按设计完成三个目标的运行验收。
@@ -105,3 +110,5 @@ CONNECT 新测试先复现了 llhttp 将所有 CONNECT 响应视为切换的问�
 GC 编译器修复验收后，清理本轮 codegen／driver 的 13 个增量构建目录，释放约 505 MB；继续保留配套命令、正常依赖产物和当前 HTTP 构建缓存。
 
 Cookie、缓存字段及 SSE 本机测试推进后，清理此前已经结束的 52 个正式 fixture target 目录，释放约 2.4 GiB；原始日志、报告、源 fixture 和编译缓存保留，当前库 target 与生产 sysroot 继续复用。
+
+SSE 与代理组合验收后，清理对应 6 个已经结束的 fixture target 目录，释放约 446 MiB；当前 multipart 消费者、库 target、日志和构建缓存继续保留。

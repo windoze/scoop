@@ -1,0 +1,48 @@
+package scoop.http
+
+import scoop.test.*
+
+@Test private class MultipartMetadataTests {
+    @Test fun `boundary grammar quoted parameters and random generation preserve case`() {
+        val value = "Aa'()+_,-./:=? 012"
+        val boundary = MultipartBoundary(value)
+        val field = boundary.toMediaType("mixed").toByteArray()
+        assertEquals(value, MultipartBoundary.fromMediaType(HttpMediaType.parse(field)).value)
+        assertTrue(boundary == MultipartBoundary(value))
+        assertFalse(boundary == MultipartBoundary("aa'()+_,-./:=? 012"))
+        assertEquals(70L, MultipartBoundary(String.fromUtf8(Array<Byte>(70L) { _ -> 65.toByte() })).bytes.size)
+        val generated = MultipartBoundary.generate()
+        assertEquals(54L, generated.bytes.size)
+        assertEquals(generated.value, MultipartBoundary.fromMediaType(generated.toMediaType()).value)
+        assertFalse(generated == MultipartBoundary.generate())
+    }
+
+    @Test fun `invalid boundaries and missing parameters are ordinary argument failures`() {
+        for (value in ["", "x ", "x\t", "x\r\n", "é", "[x]", "x\"y", "x\\y", "x;y",
+            String.fromUtf8(Array<Byte>(71L) { _ -> 65.toByte() })]) {
+            assertFailsWith<IllegalArgumentException> { MultipartBoundary(value) }
+        }
+        assertFailsWith<IllegalArgumentException> { MultipartBoundary.fromMediaType(HttpMediaType("text", "plain")) }
+        assertFailsWith<IllegalArgumentException> { MultipartBoundary.fromMediaType(HttpMediaType("multipart", "mixed")) }
+        assertFailsWith<IllegalArgumentException> {
+            MultipartBoundary.fromMediaType(HttpMediaType("multipart", "mixed", [HttpParameter("boundary", [255.toByte()])]))
+        }
+    }
+
+    @Test fun `form data uses quoted UTF8 metadata while generic fields retain raw duplicate values`() {
+        val head = MultipartPartHead.formData("na\"me", Some("目录\\文.txt"), Some(HttpMediaType("text", "plain")), Some(3L))
+        val disposition = HttpContentDisposition.parse(head.fields[0L].value)
+        assertEquals("form-data", disposition.disposition)
+        assertEquals("na\"me", String.fromUtf8(disposition.parameter("name")!!.value))
+        assertEquals("目录\\文.txt", String.fromUtf8(disposition.parameter("filename")!!.value))
+        assertTrue(when (disposition.parameter("filename*")) { case None -> true; case Some(_) -> false })
+        assertTrue(disposition.parameter("name")!!.wasQuoted && head.bodyLength == Some(3L))
+        val raw = MultipartPartHead([HttpField("X-Repeat".toByteArray(), [255.toByte()]), HttpField("X-Repeat".toByteArray(), "a".toByteArray())])
+        assertEquals(2L, raw.fields.size)
+        assertEquals(255.toByte(), raw.toByteArray()[10L])
+        assertTrue(raw.bodyLength == None)
+        assertFailsWith<IllegalArgumentException> { MultipartPartHead(bodyLength = Some(-1L)) }
+        assertFailsWith<IllegalArgumentException> { MultipartPartHead.formData("bad\nname") }
+        assertFailsWith<IllegalArgumentException> { MultipartPartHead([HttpField(":name".toByteArray(), "x".toByteArray())]) }
+    }
+}

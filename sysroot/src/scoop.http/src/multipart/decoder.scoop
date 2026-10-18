@@ -1,0 +1,59 @@
+package scoop.http
+
+import scoop.platform.memory.NativeByteBuffer
+
+public class MultipartDecoder public constructor(public val boundary: MultipartBoundary, limits: MultipartLimits = MultipartLimits()) : Closeable {
+    private val guard: MultipartGuard = MultipartGuard()
+    private val state: MultipartState = MultipartState(boundary, limits)
+    private var closed: Boolean = false
+    private var parseFailure: Throwable? = None
+    public val isClosed: Boolean get() = closed
+    public val isComplete: Boolean get() = state.complete
+    public val isFinished: Boolean get() = state.ended && !state.hasPending
+    public val failure: Throwable? get() = parseFailure
+
+    public fun receive(buffer: NativeByteBuffer, count: Long = buffer.readableBytes): Long = guard.withUse {
+        requireOpen()
+        if (state.ended) throw IllegalStateException(Some("multipart input has ended"))
+        if (count < 0L) throw IllegalArgumentException(Some("negative multipart input count"))
+        if (count > buffer.readableBytes) throw IndexOutOfBoundsException()
+        if (count == 0L || state.hasPending) return@withUse 0L
+        @Unsafe {
+            val borrow = buffer.borrowReadable(count)
+            var consumed = 0L
+            try {
+                val pointer = borrow.pointer()!!
+                while (consumed < count && !state.hasPending) {
+                    val byte = pointer.load(consumed)
+                    consumed += 1L
+                    state.accept(byte)
+                }
+                state.flushBody(true)
+                return@withUse consumed
+            } catch (error: Throwable) {
+                failed(error)
+                throw error
+            } finally { borrow.complete(consumed) }
+        }
+    }
+
+    public fun nextEvent(): MultipartEvent? = guard.withUse {
+        requireOpen()
+        try { state.take() }
+        catch (error: Throwable) { failed(error); throw error }
+    }
+    public fun endInput() {
+        guard.withUse {
+            requireOpen()
+            try { state.endInput() }
+            catch (error: Throwable) { failed(error); throw error }
+        }
+    }
+
+    public override fun close() { guard.withUse { closed = true; state.discard(); Unit } }
+    private fun failed(error: Throwable) { parseFailure = Some(error); state.discard() }
+    private fun requireOpen() {
+        if (closed) throw IllegalStateException(Some("multipart decoder is closed"))
+        when (parseFailure) { case Some(_) -> throw IllegalStateException(Some("multipart decoder has failed")); case None -> {} }
+    }
+}
