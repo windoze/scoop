@@ -5,7 +5,7 @@ import scoop.platform.memory.NativeByteBuffer
 import scoop.test.*
 import scoop.time.Duration
 
-internal class SseTestSource(val bytes: Array<Byte>, val chunkSize: Long = 1L) : AsyncByteSource, AsyncCloseable {
+internal class MessageTestSource(val bytes: Array<Byte>, val chunkSize: Long = 1L) : AsyncByteSource, AsyncCloseable {
     var position: Long = 0L
     var reads: Int = 0
     var closes: Int = 0
@@ -21,6 +21,7 @@ internal class SseTestSource(val bytes: Array<Byte>, val chunkSize: Long = 1L) :
         if (badProgress == 1) return -1L
         if (badProgress == 2) return count + 1L
         if (badProgress == 3) return 1L
+        if (badProgress == 4) { buffer.writeInt8(42.toByte()); buffer.readInt8(); return 1L }
         var amount = if (count < chunkSize) count else chunkSize
         if (amount > bytes.size - position) amount = bytes.size - position
         buffer.writeBytes(bytes, position, amount)
@@ -35,8 +36,8 @@ internal class SseTestSource(val bytes: Array<Byte>, val chunkSize: Long = 1L) :
     }
 }
 
-internal suspend fun <E : Throwable> expectSseFailure(block: suspend () -> Unit): E {
+internal suspend fun <E : Throwable> expectMessageFailure(block: suspend () -> Unit): E {
     try { block() }
     catch (error: Throwable) { if (error is E) return error; throw error }
-    fail(Some("expected asynchronous SSE failure"))
+    fail(Some("expected asynchronous message failure"))
 }

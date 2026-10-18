@@ -1,0 +1,17 @@
+package scoop.http.asyncio
+
+import scoop.http.MultipartDecoder
+import scoop.platform.memory.NativeByteBuffer
+
+internal class MultipartReadState(val decoder: MultipartDecoder, val input: NativeByteBuffer) {
+    var current: MultipartBody? = None
+    var finished: Boolean = false
+
+    fun close() {
+        when (current) { case Some(body) -> { body.closed = true; body.clear() }; case None -> {} }
+        current = None
+        var failure = messageCleanup(None) { input.close() }
+        failure = messageCleanup(failure) { decoder.close() }
+        when (failure) { case Some(error) -> throw error; case None -> {} }
+    }
+}

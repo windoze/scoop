@@ -4,7 +4,7 @@ import scoop.asyncio.*
 import scoop.platform.memory.*
 import scoop.test.*
 
-internal class PendingSseSource : AsyncByteSource, AsyncCloseable {
+internal class PendingMessageSource : AsyncByteSource, AsyncCloseable {
     private var continuation: Continuation<Long>? = None
     private var borrow: NativeByteBorrow? = None
     var buffer: NativeByteBuffer? = None

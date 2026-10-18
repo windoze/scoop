@@ -1,0 +1,77 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+
+internal class MultipartReader(source: AsyncByteSource, owner: AsyncCloseable?, loop: EventLoop, private val state: MultipartReadState) {
+    val finished: Boolean get() = state.finished
+    val io: MessageIo<AsyncByteSource> = MessageIo<AsyncByteSource>(source, owner, loop) { state.close() }
+
+    suspend fun nextPart(): MultipartPart? = io.run({
+        if (present(state.current)) throw IllegalStateException(Some("current multipart body must be completed first"))
+    }) suspend { source ->
+        if (finished) None
+        else when (nextEvent(source)) {
+            case PartStarted(head) -> {
+                val body = MultipartBody(this)
+                state.current = Some(body)
+                Some(MultipartPart(head, body))
+            }
+            case End -> { state.finished = true; None }
+            else -> throw IllegalStateException(Some("unexpected multipart event between parts"))
+        }
+    }
+
+    suspend fun read(body: MultipartBody, buffer: NativeByteBuffer, count: Long): Long = io.run({
+        requireBody(body)
+        httpCount(count, buffer.writableBytes)
+    }) suspend { source -> readBody(source, body, buffer, count) }
+
+    fun requireBody(body: MultipartBody) {
+        if (body.closed) throw IoClosedException()
+        if (!body.complete && (!present(state.current) || state.current!! !== body))
+            throw IllegalStateException(Some("multipart body is not current"))
+    }
+
+    suspend fun readBody(source: AsyncByteSource, body: MultipartBody, buffer: NativeByteBuffer, count: Long): Long {
+        if (count == 0L || body.complete) return 0L
+        while (true) {
+            ensureActive()
+            val remaining = body.data.size - body.offset
+            if (remaining > 0L) {
+                val copied = if (remaining > count) count else remaining
+                buffer.writeBytes(body.data, body.offset, copied)
+                body.offset += copied
+                if (body.offset == body.data.size) body.clear()
+                return copied
+            }
+            when (nextEvent(source)) {
+                case Data(bytes) -> { body.data = bytes; body.offset = 0L }
+                case PartEnded -> { body.complete = true; state.current = None; return 0L }
+                else -> throw IllegalStateException(Some("unexpected multipart event inside a part"))
+            }
+        }
+    }
+
+    private suspend fun nextEvent(source: AsyncByteSource): MultipartEvent {
+        val decoder = state.decoder
+        val input = state.input
+        while (true) {
+            ensureActive()
+            val event = decoder.nextEvent()
+            if (present(event)) return event!!
+            if (decoder.isFinished) throw IllegalStateException(Some("multipart event stream has ended"))
+            if (input.readableBytes > 0L) decoder.receive(input)
+            else {
+                input.clear()
+                val requested = input.writableBytes
+                val count = source.readInto(input, requested)
+                httpProgress(count, requested)
+                if (input.writePosition != count || input.readPosition != 0L)
+                    throw IllegalStateException(Some("inconsistent multipart source progress"))
+                if (count == 0L) decoder.endInput()
+            }
+        }
+    }
+}

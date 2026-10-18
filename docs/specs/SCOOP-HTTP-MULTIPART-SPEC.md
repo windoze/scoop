@@ -38,7 +38,19 @@ delimiter 只能出现在行首，包含其前面的 CRLF，该 CRLF 不属于�
 
 格式错误使用 MultipartParseException，保存从输入起点计算的 byteOffset 与具体 detail；局部超限使用 MultipartLimitException，保存 kind 与 limit。receive 实际失败后释放原生 borrow、保存 failure，不能继续推进；参数错误不使 decoder 失效。close 仍可调用，清除未交付字节与字段引用，保留已有完成／错误快照。边界、长度计算和字段构造的普通参数错误不包装成网络错误。
 
-## 5. 异步组合与验证
+## 5. 异步 part 源
+
+`scoop.http.asyncio.MultipartSource(source, boundary, limits = MultipartLimits(), bufferSize = 8192)` 借用 AsyncByteSource；takeOwnership 工厂另要求 AsyncCloseable，在成功返回时接管。bufferSize 须为正，当前 EventLoop、活动 Job、配置或登记前取消检查失败不移交端点。构造不读取输入、不启动后台预取。
+
+`nextPart(): MultipartPart?` 可挂起；返回不可变 head 与 `MultipartBody`，后者实现 AsyncByteSource／AsyncCloseable。当前 body 须读取到返回零、完成 discard，或关闭整个消息，才能推进下一 part；不能静默跳过未消费正文。一个 source 的 nextPart、body.readInto 和 body.discard 合计至多一个应用读取，参数、同向并发、错误 loop 和登记前取消错误不损坏流。
+
+MultipartBody 只交付当前 part 的字节；分隔符、后续头字段和其他 part 正文不进入它。零长度读取检查参数和状态，不推进输入；完成后的 body 可再次读取零，head 与完成快照保留。nextPart 在外层 EOF 和 End 后返回 None，随后不重复读取。isFinished、isClosed、failure 公开 source 状态，body 另公开 isComplete／isClosed。内部复用 MultipartDecoder，每次预取最多 bufferSize，待交付 Data 与实际 metadata 仍受 decoder 的局部限制约束。
+
+`MultipartBody.discard(maxBytes): Long` 显式丢弃当前 part 的剩余正文，返回实际丢弃量。maxBytes 须非负；为区分恰好到达上限与仍有正文，最多额外读取一个正文字节，超限抛 MultipartDiscardLimitException，保存 maxBytes，并关闭整个 multipart source。该上限只约束此次丢弃的真实正文，不计字段或分隔符。超限与关闭同时失败使用 ResourceUseException 保留两者；其他 I/O、解析或取消错误照常传播。
+
+关闭已完成的 body 只关闭该 body 的本地视图；关闭未完成 body 等同关闭整个 source，不自动排空网络。source.close 取消当前结构化读取，等操作及原生 borrow 真正结束，再释放 decoder／input／待交付 part 数据，并关闭所接管端点；借用模式保留端点。并发关闭共用一次收尾，取消的 finally 可完成。关闭后解除端点、等待者和当前 part 引用；借用模式同样放弃已预取前缀，不能承诺底层仍停在最后交付正文处。
+
+## 6. 异步编码与验证
 
 异步适配复用本规范的编码、解码及元数据，按调用者消费推进 AsyncByteSource／AsyncByteSink。每个 part 正文须读完或显式处理后才推进下一个 part；接管与借用分别声明，提前关闭不自动读取无限正文，取消收尾须等待真实 I/O borrow 结束。异步接口与 client 重放策略在消息工具规范及 client 规范中分别规定。
 

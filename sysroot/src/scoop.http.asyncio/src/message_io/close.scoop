@@ -2,7 +2,7 @@ package scoop.http.asyncio
 
 import scoop.asyncio.*
 
-internal suspend fun closeSse(state: SseReader) {
+internal suspend fun <T> closeMessageIo(state: MessageIo<T>) {
     if (state.lock.withLock { state.closed }) return
     val job = httpJob(state.loop, false)
     suspendCoroutine<Unit> { continuation ->
@@ -18,12 +18,12 @@ internal suspend fun closeSse(state: SseReader) {
         if (closed) continuation.resume(Unit)
         else {
             when (active) { case Some(value) -> value.cancel(); case None -> {} }
-            startSseClose(state)
+            startMessageClose(state)
         }
     }
 }
 
-internal fun startSseClose(state: SseReader) {
+internal fun <T> startMessageClose(state: MessageIo<T>) {
     val start = state.lock.withLock {
         if (!state.closing || state.running || state.cleanupStarted) false
         else { state.cleanupStarted = true; true }
@@ -33,8 +33,7 @@ internal fun startSseClose(state: SseReader) {
     val loop = state.loop
     context(job) { context(loop) {
         startCoroutine<Unit>(suspend {
-            var failure = sseCleanup(None) { state.input.close() }
-            failure = sseCleanup(failure) { state.decoder.close() }
+            var failure = messageCleanup(None) { val cleanup = state.cleanup!!; cleanup() }
             when (state.owner) {
                 case Some(owner) -> {
                     try { owner.close() }
@@ -46,18 +45,19 @@ internal fun startSseClose(state: SseReader) {
                 case None -> {}
             }
             when (failure) { case Some(error) -> throw error; case None -> {} }
-        }, SseCloseCompletion(state))
+        }, MessageCloseCompletion(state))
     } }
 }
 
-private class SseCloseCompletion(val state: SseReader) : Continuation<Unit> {
+private class MessageCloseCompletion<T>(val state: MessageIo<T>) : Continuation<Unit> {
     public override fun resume(value: Unit) { finish(None) }
     public override fun resumeWithException(exception: Throwable) { finish(Some(exception)) }
     private fun finish(failure: Throwable?) {
         val waiters = state.lock.withLock {
             state.closed = true
-            state.source = None
+            state.endpoint = None
             state.owner = None
+            state.cleanup = None
             state.closeJob = None
             val result = state.closeWaiters.toArray()
             state.closeWaiters.clear()
@@ -70,7 +70,7 @@ private class SseCloseCompletion(val state: SseReader) : Continuation<Unit> {
     }
 }
 
-internal fun sseCleanup(primary: Throwable?, block: () -> Unit): Throwable? {
+internal fun messageCleanup(primary: Throwable?, block: () -> Unit): Throwable? {
     try { block(); return primary }
     catch (error: Throwable) { return Some(when (primary) {
         case Some(first) -> ResourceUseException(first, error)

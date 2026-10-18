@@ -9,15 +9,15 @@ private class SseSourceCancellationTests {
     fun `concurrent reads are rejected and close waits for the real borrow without cancelling the caller`() {
         val loop: EventLoop = LibuvEventLoop()
         loop.run suspend { scope ->
-            val pending = PendingSseSource()
+            val pending = PendingMessageSource()
             val source = SseSource.takeOwnership(pending, bufferSize = 4L)
             val reader = scope.launch suspend {
-                expectSseFailure<CancellationException> suspend { source.next() }
+                expectMessageFailure<CancellationException> suspend { source.next() }
                 ensureActive()
             }
             try {
                 assertTrue(pending.running)
-                expectSseFailure<IllegalStateException> suspend { source.next() }
+                expectMessageFailure<IllegalStateException> suspend { source.next() }
                 assertFalse(present(source.failure))
                 val first = scope.launch suspend { source.close() }
                 val second = scope.launch suspend { source.close() }
@@ -45,7 +45,7 @@ private class SseSourceCancellationTests {
     fun `cancelled finally closes local state while a borrowed endpoint remains open`() {
         val loop: EventLoop = LibuvEventLoop()
         loop.run suspend { scope ->
-            val pending = PendingSseSource()
+            val pending = PendingMessageSource()
             val source = SseSource(pending, bufferSize = 4L)
             val reader = scope.launch suspend { try { source.next() } finally { source.close() } }
             try {

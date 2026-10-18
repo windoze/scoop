@@ -11,17 +11,17 @@ private class SseSourceFailureTests {
         val loop: EventLoop = LibuvEventLoop()
         val other: EventLoop = LibuvEventLoop()
         loop.run suspend { scope ->
-            val input = SseTestSource("data:ok\n\n".toByteArray())
+            val input = MessageTestSource("data:ok\n\n".toByteArray())
             assertFailsWith<IllegalArgumentException> { SseSource.takeOwnership(input, bufferSize = 0L) }
             assertFailsWith<IllegalArgumentException> { SseSource.takeOwnership(input, initialLastEventId = "bad\n") }
             val source = SseSource(input)
             val cancelled = scope.launch suspend {
                 currentJobOrNone()!!.cancel()
-                expectSseFailure<CancellationException> suspend { SseSource.takeOwnership(input) }
-                expectSseFailure<CancellationException> suspend { source.next() }
+                expectMessageFailure<CancellationException> suspend { SseSource.takeOwnership(input) }
+                expectMessageFailure<CancellationException> suspend { source.next() }
             }
             cancelled.join()
-            expectSseFailure<IllegalStateException> suspend { context(other) { source.next() } }
+            expectMessageFailure<IllegalStateException> suspend { context(other) { source.next() } }
             assertEquals(0, input.reads)
             assertEquals(0, input.closes)
             assertFalse(present(source.failure))
@@ -36,22 +36,22 @@ private class SseSourceFailureTests {
     fun `I/O and parser failures retain their types and useAsync combines cleanup failure`() {
         val loop: EventLoop = LibuvEventLoop()
         loop.run suspend { _ ->
-            val input = SseTestSource("".toByteArray())
+            val input = MessageTestSource("".toByteArray())
             input.failRead = true; input.failClose = true
             val source = SseSource.takeOwnership(input)
-            val error = expectSseFailure<ResourceUseException> suspend { source.useAsync suspend { stream -> stream.next() } }
+            val error = expectMessageFailure<ResourceUseException> suspend { source.useAsync suspend { stream -> stream.next() } }
             assertTrue(error.primaryFailure is TransportFailure)
             assertTrue(error.cleanupFailure is CleanupFailure)
             assertTrue(source.failure!! is TransportFailure)
             assertTrue(source.isClosed)
             assertEquals(1, input.closes)
             source.close()
-            val large = SseTestSource("data:too long\n\n".toByteArray())
+            val large = MessageTestSource("data:too long\n\n".toByteArray())
             val limited = SseSource.takeOwnership(large, SseLimits(maxEventBytes = 1L))
-            val limit = expectSseFailure<SseLimitException> suspend { limited.next() }
+            val limit = expectMessageFailure<SseLimitException> suspend { limited.next() }
             assertTrue(limit.kind == SseLimitKind.EventBytes)
             assertTrue(limited.failure!! is SseLimitException)
-            expectSseFailure<IllegalStateException> suspend { limited.next() }
+            expectMessageFailure<IllegalStateException> suspend { limited.next() }
             limited.close()
             assertEquals(1, large.closes)
         }
@@ -61,11 +61,11 @@ private class SseSourceFailureTests {
     fun `inconsistent source progress is rejected before reusing its buffer`() {
         val loop: EventLoop = LibuvEventLoop()
         loop.run suspend { _ ->
-            for (mode in [1, 2, 3]) {
-                val input = SseTestSource("".toByteArray())
+            for (mode in [1, 2, 3, 4]) {
+                val input = MessageTestSource("".toByteArray())
                 input.badProgress = mode
                 val source = SseSource.takeOwnership(input, bufferSize = 4L)
-                expectSseFailure<IllegalStateException> suspend { source.next() }
+                expectMessageFailure<IllegalStateException> suspend { source.next() }
                 assertTrue(source.failure!! is IllegalStateException)
                 source.close()
                 assertEquals(1, input.closes)
@@ -78,12 +78,12 @@ private class SseSourceFailureTests {
         val loop: EventLoop = LibuvEventLoop()
         loop.run suspend { scope ->
             val gate = AsyncGate()
-            val input = SseTestSource("".toByteArray())
+            val input = MessageTestSource("".toByteArray())
             input.closeGate = Some(gate); input.failClose = true
             val source = SseSource.takeOwnership(input)
             val failures = ArrayList<CleanupFailure>()
-            val first = scope.launch suspend { failures.add(expectSseFailure<CleanupFailure> suspend { source.close() }) }
-            val second = scope.launch suspend { failures.add(expectSseFailure<CleanupFailure> suspend { source.close() }) }
+            val first = scope.launch suspend { failures.add(expectMessageFailure<CleanupFailure> suspend { source.close() }) }
+            val second = scope.launch suspend { failures.add(expectMessageFailure<CleanupFailure> suspend { source.close() }) }
             assertFalse(first.isCompleted || second.isCompleted || source.isClosed)
             assertEquals(1, input.closes)
             gate.signal()
