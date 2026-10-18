@@ -119,12 +119,17 @@ resolve 保留 OsString 原始名称字节，port 检查 0..65535，family None 
 
 ```scoop
 public interface AsyncFile : AsyncByteSource, AsyncByteSink, AsyncCloseable {
+    public suspend fun metadata(): FileMetadata
+    public suspend fun size(): Long
+    public suspend fun position(): Long
+    public suspend fun seek(position: Long)
+    public suspend fun truncate(size: Long)
     public suspend fun syncData()
     public suspend fun syncAll()
 }
 ```
 
-openFile 使用 Path／OpenOptions 的已有合同。文件 open／read／write／sync／close 在 libuv worker 调用 platform 的 GC-free helper，保留 PosixErrno。顺序 read／write 共用文件位置，同一文件的 read／write／sync 同时最多一个。flush 不等于 sync；不使用 uv_fs 的额外 close／sync 语义。worker 只接收 native 存储，立即记录错误。已开始的阻塞操作可能推迟取消和 run 退出，不承诺固定时延。
+openFile 使用 Path／OpenOptions 的已有合同。文件 open／read／write／metadata／seek／truncate／sync／close 在 libuv worker 调用 platform 的 GC-free helper，保留 PosixErrno。顺序 read／write 共用文件位置，同一文件的读写、查询、位置／长度控制与 sync 同时最多一个。flush 不等于 sync；不使用 uv_fs 的额外 close／sync 语义。worker 只接收 native 存储，立即记录错误。已开始的阻塞操作可能推迟取消和 run 退出，不承诺固定时延。
 
 ## 8. 实现边界与验收
 
@@ -137,6 +142,10 @@ native request 持有预留完成节点；C callback 仅存状态和进度、入
 ### 9.1 文件与目录
 
 AsyncFile 增加 suspend 的 metadata、size、position、seek(position)、truncate(size)，语义复用 platform File；读写、位置查询／变更、truncate 与 sync 共用该句柄的串行操作边界。seek／truncate 的参数和偏移范围在提交前检查，失败不凭空改变已记录位置。不能在异步方法体内直接调用同步 File API。
+
+具体签名为 `metadata(): FileMetadata`、`size(): Long`、`position(): Long`、`seek(position: Long): Unit` 与 `truncate(size: Long): Unit`，均为 suspend 函数；size 复用 metadata 的实际 OS 查询。seek 是绝对非负位置，truncate 不改变文件位置；seek 越过 EOF 后写入的空洞和 append 行为沿 OS 合同。负参数在原生提交前抛 IllegalArgumentException，底层错误保留 PlatformException 的 errno 和原路径。
+
+路径查询入口为 `EventLoop.metadata(path: Path, followLinks: Boolean = true): FileMetadata`，与句柄查询复用 platform 的同一原生结构及转换。路径先取得原生副本，完成事件携带独立的结果记录，managed 复制并释放该记录后才恢复 continuation。文件查询与位置／长度操作沿 OwnedFile 的串行登记、关闭和取消路径；排队取消不执行 syscall，已开始的操作等实际完成后结束。若取消或关闭获胜，已经发生的 seek／truncate 不回滚，之后观察到的文件位置与长度以 OS 为准。
 
 文件系统入口沿 EventLoop.openFile 的方式增加 `metadata(path, followLinks)`、`moveFile(source, destination, replaceExisting)`、`deleteFile(path)`、`createDirectories(path)`、`openDirectory(path)` 与 `createTempFile(parent, prefix)`，返回类型复用 FileMetadata／Path 等既有值。move 的排他／替换和跨文件系统错误沿 platform 合同，不暗中 copy+delete。
 

@@ -1,0 +1,35 @@
+package scoop.platform.native
+
+import scoop.platform.fs.FileKind
+import scoop.platform.fs.FileMetadata
+import scoop.platform.io.failNative
+import scoop.platform.system.OsString
+import scoop.time.Instant
+
+@CLayout
+public struct NativeFileMetadata(
+    val kind: Int, val permissions: Int, val size: Long,
+    val accessedSeconds: Long, val accessedNanos: Long,
+    val modifiedSeconds: Long, val modifiedNanos: Long,
+    val changedSeconds: Long, val changedNanos: Long,
+    val createdSeconds: Long, val createdNanos: Long
+)
+
+public fun decodeFileMetadata(data: NativeFileMetadata, error: Int, context: OsString?): FileMetadata {
+    if (data.kind < 0) failNative("metadata", error, context)
+    val kind = when (data.kind) {
+        case 0 -> FileKind.Regular
+        case 1 -> FileKind.Directory
+        case 2 -> FileKind.SymbolicLink
+        case 3 -> FileKind.BlockDevice
+        case 4 -> FileKind.CharacterDevice
+        case 5 -> FileKind.Fifo
+        case 6 -> FileKind.Socket
+        else -> FileKind.Other
+    }
+    return FileMetadata(kind, data.size, data.permissions,
+        Instant.fromEpochSeconds(data.accessedSeconds, data.accessedNanos),
+        Instant.fromEpochSeconds(data.modifiedSeconds, data.modifiedNanos),
+        Instant.fromEpochSeconds(data.changedSeconds, data.changedNanos),
+        if (data.createdNanos < 0L) None else Some(Instant.fromEpochSeconds(data.createdSeconds, data.createdNanos)))
+}

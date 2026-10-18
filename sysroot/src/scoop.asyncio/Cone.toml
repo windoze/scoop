@@ -38,6 +38,9 @@ path = "native/file_open.c"
 path = "native/file_io.c"
 
 [[native.sources]]
+path = "native/file_metadata.c"
+
+[[native.sources]]
 path = "native/resolve.c"
 
 [[native.sources]]

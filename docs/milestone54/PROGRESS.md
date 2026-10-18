@@ -43,6 +43,7 @@
 | 显式 CA 文件 | TLS 的 fromCaFile 与 TLS asyncio 的 openTlsClientContext 共享 crypto bundle／TrustStore，异步文件读取复用 asyncio 公共操作；成功后独立保活，不混入系统根 | Darwin debug／release：TLS 新增 3 项、全部 22 项通过，TLS asyncio 新增 3 项、全部 17 项通过；新增测试通过 moving GC，生产消费者通过双版本同步／异步 mTLS |
 | 原生工作挂起等待 | asyncio.native.NativeWork 复用现有 libuv 工作队列，以真实 C 函数指针执行领域工作；一次性提交、明确结果借用和关闭，取消等实际完成 | Darwin debug／release：4 项新测试与 asyncio 全部 53 项通过；新增测试通过 moving GC，覆盖未提交关闭、前置失败、排队取消、运行中跨线程取消及结果回调异常 |
 | TLS 系统信任 | TlsTrustSource 的 System／Store 与同步／suspend 工厂；公共引擎 WantVerification 独立保活原生链和参数，Darwin 使用禁用网络获取的 SecTrust，Linux 装载运行环境 CA 文件／目录快照 | Darwin debug／release：TLS 新增 5 项、全部 27 项通过，TLS asyncio 新增 5 项、全部 22 项通过；新增测试通过 moving GC，独立 mTLS 消费者通过；Linux 装载源码另在 Darwin 原生测试中通过 13 个 POSIX 场景，GNU／musl 运行仍待验证 |
+| 异步文件查询与控制 | AsyncFile 增加 metadata／size／position／seek／truncate，EventLoop 增加路径 metadata；共享 platform 的记录、转换和 syscall，沿已有串行、取消与关闭边界完成 | Darwin debug／release：8 项新测试与 asyncio 全部 61 项通过，platform 文件相关 17 项通过；新增测试通过两种构建的 moving GC，覆盖 64 位稀疏偏移、链接、路径替换、原始错误、排队取消及已经生效的截断 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -159,6 +160,10 @@ TLS 身份的 6 项新测试及 2 项既有服务端／引用回归在两种构�
 原生工作和系统信任共 14 项新测试在两种构建下通过 full moving。异步验证使用真实工作队列，排队取消等待实际完成回调，连接关闭继续等待传输收尾；运行中跨线程取消由 NativeWork 的原生执行栅栏验证。系统验证保留拒绝原因，并覆盖 DNS／IP、用途、过期、错误信任、原生输入保活及同一握手暂停／恢复。生产 asyncio、TLS、TLS asyncio、compression 和 HTTP asyncio 已按正常入口刷新。
 
 SecTrust 对原有十年有效期叶证书的拒绝符合系统政策，测试辅助库改为用既有测试 CA 在内存中签发短期证书，保留名称和用途扩展，未放宽生产验证。Linux 原生装载对照发现 OpenSSL 延迟目录查找会丢失读取权限错误，因此改为在工厂工作中读取哈希证书文件快照。13 个 POSIX 场景覆盖正常文件／目录、冒号列表、空来源、缺失输入、空／非法／坏尾部 PEM 和文件／目录证书权限失败；这些是在 Darwin 上执行 Linux 装载源码的检查，不计为 GNU／musl 运行验收。原始日志和辅助程序仍在仓库外。
+
+`m54-file-control` 在 Darwin 通过 debug／release 两个变体，共 6 个进程。正式 platform／asyncio `.slib` 消费者在两个 native 线程中分别截断旧下载、定位文件后缀并通过真实 TCP 继续复制；最终位置、长度、链接信息和完整内容一致，moving GC 与正常缓存复用通过。
+
+新增的 8 项文件测试通过两种构建的 full moving，共 4 个进程。普通回归包含 platform 文件相关 17 项和 asyncio 全部 61 项；覆盖超过 4 GiB 的稀疏偏移、append、原始名称、符号链接、路径被替换后的句柄查询、只读／FIFO 错误、共用串行登记、并发关闭及 worker 排队取消。迟到取消用真实文件长度确认 truncate 已完成，再验证变更不回滚且文件位置不变。C 适配通过格式化和严格警告检查；临时文件、路径修改、目录枚举及 Linux 运行继续实施。
 
 ## 后续工作
 

@@ -3,6 +3,7 @@ package scoop.platform.fs
 import scoop.platform.io.*
 import scoop.platform.memory.NativeByteBuffer
 import scoop.platform.memory.nativeMemoryFree
+import scoop.platform.native.decodeFileMetadata
 import scoop.platform.system.*
 
 public fun Path.readAllBytes(): Array<Byte> = File.open(this).use { it.readAllBytes() }
@@ -57,7 +58,7 @@ public fun Path.metadata(followLinks: Boolean = true): FileMetadata {
         return this.withNativePath { pointer ->
             @Unsafe {
                 val (data, error) = nativeMetadata(-1, Some(pointer), followLinks)
-                return@withNativePath fileMetadata(data, error, Some(this.toOsString()))
+                return@withNativePath decodeFileMetadata(data, error, Some(this.toOsString()))
             }
         }
     }

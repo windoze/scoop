@@ -23,7 +23,9 @@ enum {
     SCOOP_IO_POSIX_ERROR,
     SCOOP_IO_ADDRESSES,
     SCOOP_IO_ADDRESS_ERROR,
-    SCOOP_IO_DATAGRAM
+    SCOOP_IO_DATAGRAM,
+    SCOOP_IO_METADATA,
+    SCOOP_IO_POSITION
 };
 
 typedef struct ScoopIoCompletion {

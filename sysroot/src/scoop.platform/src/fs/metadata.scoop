@@ -1,7 +1,6 @@
 package scoop.platform.fs
 
-import scoop.platform.io.failNative
-import scoop.platform.system.OsString
+import scoop.platform.native.NativeFileMetadata
 import scoop.time.Instant
 
 public enum FileKind { Regular, Directory, SymbolicLink, BlockDevice, CharacterDevice, Fifo, Socket, Other }
@@ -11,33 +10,5 @@ public struct FileMetadata(
     val accessedAt: Instant, val modifiedAt: Instant, val changedAt: Instant, val createdAt: Instant?
 )
 
-@CLayout
-internal struct NativeMetadata(
-    val kind: Int, val permissions: Int, val size: Long,
-    val accessedSeconds: Long, val accessedNanos: Long,
-    val modifiedSeconds: Long, val modifiedNanos: Long,
-    val changedSeconds: Long, val changedNanos: Long,
-    val createdSeconds: Long, val createdNanos: Long
-)
-
-internal fun fileMetadata(data: NativeMetadata, error: Int, context: OsString?): FileMetadata {
-    if (data.kind < 0) failNative("metadata", error, context)
-    val kind = when (data.kind) {
-        case 0 -> FileKind.Regular
-        case 1 -> FileKind.Directory
-        case 2 -> FileKind.SymbolicLink
-        case 3 -> FileKind.BlockDevice
-        case 4 -> FileKind.CharacterDevice
-        case 5 -> FileKind.Fifo
-        case 6 -> FileKind.Socket
-        else -> FileKind.Other
-    }
-    return FileMetadata(kind, data.size, data.permissions,
-        Instant.fromEpochSeconds(data.accessedSeconds, data.accessedNanos),
-        Instant.fromEpochSeconds(data.modifiedSeconds, data.modifiedNanos),
-        Instant.fromEpochSeconds(data.changedSeconds, data.changedNanos),
-        if (data.createdNanos < 0L) None else Some(Instant.fromEpochSeconds(data.createdSeconds, data.createdNanos)))
-}
-
 @Extern(name = "scoop_platform_file_metadata", captureErrno = true)
-internal fun nativeMetadata(fd: Int, path: Ptr<Byte>?, follow: Boolean): (NativeMetadata, Int)
+internal fun nativeMetadata(fd: Int, path: Ptr<Byte>?, follow: Boolean): (NativeFileMetadata, Int)
