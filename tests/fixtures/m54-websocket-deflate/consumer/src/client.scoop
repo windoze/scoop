@@ -1,0 +1,61 @@
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.url.Url
+
+suspend fun useUpgrade(transport: HttpTransport, scope: CoroutineScope, profile: WsProfile) {
+    val scheme = if (profile.secure) "wss" else "ws"
+    val handshake = WebSocketHandshake.create(Url.parse(scheme + "://localhost/chat"), ["chat"], [profile.offer()])
+    val connection = AsyncHttp1Connection.takeOwnershipAsClient(transport, scope)
+    try {
+        connection.sendRequest(handshake.request).finish()
+        val response = connection.receiveResponse()
+        val negotiated = handshake.accept(response.head)
+        check(negotiated.protocol == Some("chat"))
+        check(negotiated.deflate!!.serverWindowBits == profile.serverWindow)
+        check(negotiated.deflate!!.clientWindowBits == profile.clientWindow)
+        NativeByteBuffer.allocate(1L).use suspend { buffer -> check(response.body.readInto(buffer, 1L) == 0L) }
+        val session = AsyncWebSocketSession.takeOwnership(connection.takeTransport(), scope, HttpRole.Client,
+            sessionOptions(), negotiated.deflate)
+        try {
+            connection.close()
+            check(session.receive()!!.readText() == "ready 🌍")
+            for (index in 0L..<3L) {
+                val text = if (index == 1L) "ordinary" else "chunk 🌍 repeating"
+                session.sendText(text, index != 1L)
+                check(session.receive()!!.readText() == "ack:" + text)
+            }
+            val writer = session.beginMessage(WebSocketMessageType.Text)
+            sendBytes(writer, "prefix 🌍 ".toByteArray())
+            writer.flush()
+            check(!writer.isComplete)
+            check(session.receive()!!.readText() == "prefix accepted")
+            session.ping("health".toByteArray())
+            sendBytes(writer, "tail".toByteArray())
+            writer.finish()
+            writer.close()
+            check(session.receive()!!.readText() == "stream accepted")
+            session.pong("oneway".toByteArray())
+            val data = Array<Byte>(129L) { index -> index.toByte() }
+            session.sendBinary(data)
+            val binary = session.receive()!!
+            check(binary.type == WebSocketMessageType.Binary)
+            val echoed = binary.readBytes()
+            check(echoed.size == data.size)
+            for (index in 0L..<data.size) check(data[index] == echoed[index])
+            session.sendText("")
+            check(session.receive()!!.readText() == "")
+            check(session.shutdownGracefully(WebSocketClose(Some(1000U), "finished")).reason == "finished")
+            check(session.isClosed && when (session.failure) { case None -> true; case Some(_) -> false })
+            check(when (session.receive()) { case None -> true; case Some(_) -> false })
+        } finally { session.close() }
+    } finally { connection.close() }
+}
+
+suspend fun sendBytes(sink: AsyncByteSink, bytes: Array<Byte>) {
+    NativeByteBuffer.allocate(bytes.size).use suspend { buffer ->
+        buffer.writeBytes(bytes)
+        sink.writeFully(buffer)
+    }
+}

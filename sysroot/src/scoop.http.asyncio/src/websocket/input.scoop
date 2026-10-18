@@ -9,6 +9,11 @@ internal fun advanceWsInput(state: WsState, actions: ArrayList<() -> Unit>): Boo
         if (!present(state.shutdown)) {
             changed = deliverWsInput(state, actions) || changed
             if (wsInputBlocked(state)) return changed
+            if (wsDeflateInputPending(state)) {
+                advanceWsDeflateInput(state)
+                changed = true
+                continue
+            }
         }
         val event = state.decoder.nextEvent()
         when (event) {
@@ -80,19 +85,31 @@ private fun receiveWsEvent(state: WsState, event: WebSocketFrameEvent, actions: 
             state.frameFinal = head.isFinal
             if (!present(state.shutdown) && head.opcode != WebSocketOpcode.Continuation) {
                 if (present(state.incoming)) throw IllegalStateException(Some("WebSocket message is still buffered"))
-                state.incoming = Some(WsIncoming(if (head.opcode == WebSocketOpcode.Text)
-                    WebSocketMessageType.Text else WebSocketMessageType.Binary))
+                val message = WsIncoming(if (head.opcode == WebSocketOpcode.Text)
+                    WebSocketMessageType.Text else WebSocketMessageType.Binary, head.isCompressed)
+                state.incoming = Some(message)
+                if (message.isCompressed) startWsDeflateInput(state, message)
             }
         }
         case Data(bytes) -> {
             if (!present(state.shutdown)) {
                 val message = state.incoming!!
-                message.data = Some(bytes)
-                message.offset = 0L
+                if (message.isCompressed) {
+                    val codec = state.deflate!!
+                    codec.decoderInput.clear()
+                    codec.decoderInput.writeBytes(bytes)
+                    codec.decodingPending = true
+                } else {
+                    message.data = Some(bytes)
+                    message.offset = 0L
+                }
             }
         }
         case FrameEnded -> {
-            if (!present(state.shutdown) && state.frameFinal) state.incoming!!.ended = true
+            if (!present(state.shutdown) && state.frameFinal) {
+                if (state.incoming!!.isCompressed) state.deflate!!.decodingFinishing = true
+                else state.incoming!!.ended = true
+            }
         }
         case Ping(bytes) -> state.automaticPong = Some(bytes)
         case Pong(bytes) -> matchWsPong(state, bytes, actions)

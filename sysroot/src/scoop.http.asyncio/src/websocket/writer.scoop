@@ -7,6 +7,7 @@ import scoop.platform.memory.NativeByteBuffer
 public class WebSocketMessageWriter internal constructor(private val state: WsState, private val message: WsOutgoing)
     : AsyncByteSink, AsyncCloseable {
     public val type: WebSocketMessageType get() = message.type
+    public val isCompressed: Boolean get() = message.isCompressed
     public val isComplete: Boolean get() = state.lock.withLock { message.life.complete }
     public val isClosed: Boolean get() = state.lock.withLock { message.life.closed }
 
@@ -20,7 +21,10 @@ public class WebSocketMessageWriter internal constructor(private val state: WsSt
 
     public override suspend fun flush() {
         wsOperation<Unit, Unit>(state, false, { checkWsWriter(state, message, true) }, suspend { _ ->
-            if (!state.lock.withLock { message.life.complete }) submitWsWrite(state, WsWriteAction.Flush)
+            if (!state.lock.withLock { message.life.complete }) {
+                if (message.isCompressed) flushWsDeflate(state, false)
+                submitWsWrite(state, WsWriteAction.Flush)
+            }
             Unit
         })
     }
@@ -35,10 +39,10 @@ public class WebSocketMessageWriter internal constructor(private val state: WsSt
     public override suspend fun close() { closeWsLife(state, message.life) }
 }
 
-internal fun beginWsMessage(state: WsState, type: WebSocketMessageType): WsOutgoing {
+internal fun beginWsMessage(state: WsState, type: WebSocketMessageType, compress: Boolean): WsOutgoing {
     wsOpen(state)
     if (present(state.outgoing)) throw IllegalStateException(Some("previous WebSocket message is unfinished"))
-    val message = WsOutgoing(type)
+    val message = WsOutgoing(type, compress && present(state.deflate))
     state.outgoing = Some(message)
     return message
 }
@@ -54,11 +58,14 @@ private fun checkWsWriter(state: WsState, message: WsOutgoing, allowComplete: Bo
         throw IllegalStateException(Some("this is not the active WebSocket writer"))
 }
 
-internal suspend fun writeWsMessage(state: WsState, message: WsOutgoing, buffer: NativeByteBuffer, count: Long): Long =
-    submitWsWrite(state, WsWriteAction.Data(message, buffer,
-        if (count < state.options.outgoingFrameBytes) count else state.options.outgoingFrameBytes))
+internal suspend fun writeWsMessage(state: WsState, message: WsOutgoing, buffer: NativeByteBuffer, count: Long): Long {
+    val accepted = if (count < state.options.outgoingFrameBytes) count else state.options.outgoingFrameBytes
+    return if (message.isCompressed) writeWsDeflate(state, message, buffer, accepted)
+        else submitWsWrite(state, WsWriteAction.Data(message, buffer, accepted))
+}
 
 internal suspend fun finishWsMessage(state: WsState, message: WsOutgoing) {
+    if (message.isCompressed) flushWsDeflate(state, true)
     submitWsWrite(state, WsWriteAction.Finish(message))
 }
 

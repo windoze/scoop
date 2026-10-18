@@ -38,7 +38,7 @@ internal fun prepareWsOutput(state: WsState): Boolean {
 private fun encodeWsData(state: WsState, message: WsOutgoing, buffer: NativeByteBuffer, count: Long, isFinal: Boolean) {
     val opcode = if (!message.first) WebSocketOpcode.Continuation
         else if (message.type == WebSocketMessageType.Text) WebSocketOpcode.Text else WebSocketOpcode.Binary
-    val header = state.encoder.beginFrame(WebSocketFrameHead(opcode, count, isFinal))
+    val header = state.encoder.beginFrame(WebSocketFrameHead(opcode, count, isFinal, message.first && message.isCompressed))
     val bytes = if (count == 0L) "".toByteArray() else state.encoder.writePayload(buffer, count)
     state.encoder.finishFrame()
     message.first = false

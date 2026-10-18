@@ -1,0 +1,38 @@
+package scoop.http.asyncio
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.http.*
+import scoop.test.*
+import scoop.url.Url
+
+internal fun negotiatedWsDeflate(serverWindow: Int = 15, clientWindow: Int = 15,
+    serverNoContext: Boolean = false, clientNoContext: Boolean = false): WebSocketDeflateNegotiation {
+    val offer = WebSocketDeflateOffer(serverNoContext, clientNoContext, Some(serverWindow), WebSocketWindowBits.Limit(clientWindow))
+    val handshake = WebSocketHandshake.create(Url.parse("ws://localhost/chat"), deflateOffers = [offer])
+    val response = handshake.response(deflate = Some(WebSocketDeflate(serverNoContext, clientNoContext,
+        Some(serverWindow), Some(clientWindow))))
+    return handshake.accept(response).deflate!!
+}
+
+internal suspend fun wsRawMessage(peer: RawWebSocketPeer, maxFrameBytes: Long = Long.MAX_VALUE):
+    (WebSocketFrameHead, Array<Byte>) {
+    val (first, bytes) = peer.receive()
+    assertTrue(first.opcode == WebSocketOpcode.Text || first.opcode == WebSocketOpcode.Binary)
+    assertTrue(first.payloadLength <= maxFrameBytes)
+    val result = ByteArrayBuilder().append(bytes)
+    var last = first
+    while (!last.isFinal) {
+        val (head, next) = peer.receive()
+        assertTrue(head.opcode == WebSocketOpcode.Continuation)
+        assertFalse(head.isCompressed)
+        assertTrue(head.payloadLength <= maxFrameBytes)
+        result.append(next)
+        last = head
+    }
+    return (first, result.toByteArray())
+}
+
+internal val wsContextText: String = "hello shared message dictionary phrase hello shared message dictionary phrase " +
+    "hello shared message dictionary phrase hello shared message dictionary phrase "
+internal val wsContextFirst: String = "ca48cdc9c95728ce482c4a4d51c84d2d2e4e4c4f5548c94c2ec9cccf4b2caa5428c8284a2c4e55c81808650000"
+internal val wsContextSecond: String = "1accca0000"

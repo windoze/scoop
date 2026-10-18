@@ -1,0 +1,57 @@
+package scoop.http.asyncio
+
+import scoop.compression.*
+import scoop.http.*
+
+internal fun startWsDeflateInput(state: WsState, message: WsIncoming) {
+    val codec = state.deflate!!
+    val validator = WebSocketMessageValidator(message.type, Long.MAX_VALUE)
+    try {
+        if (codec.decoderFinished) codec.decoder.nextMessage()
+        codec.decoderFinished = false
+        codec.decodingValidator = Some(validator)
+        codec.decodingPending = false
+        codec.decodingFinishing = false
+        codec.decoderInput.clear()
+    } catch (error: Throwable) { throw messageCleanup(Some(error)) { validator.close() }!! }
+}
+
+internal fun wsDeflateInputPending(state: WsState): Boolean {
+    if (!present(state.incoming) || !state.incoming!!.isCompressed) return false
+    val codec = state.deflate!!
+    return codec.decodingPending || codec.decodingFinishing || codec.decoderInput.readableBytes != 0L
+}
+
+internal fun advanceWsDeflateInput(state: WsState) {
+    val codec = state.deflate!!
+    val message = state.incoming!!
+    codec.decoderOutput.clear()
+    val step = try {
+        if (codec.decodingFinishing) codec.decoder.finishMessage(codec.decoderOutput)
+        else codec.decoder.process(codec.decoderInput, codec.decoderOutput)
+    } catch (error: CompressionException) { throw wsDeflateInputFailure(error) }
+    if (step.produced != 0L) {
+        val bytes = codec.decoderOutput.readBytes(step.produced)
+        codec.decodingValidator!!.receive(bytes)
+        message.data = Some(bytes)
+        message.offset = 0L
+    }
+    codec.decodingPending = step.state == CompressionState.NeedOutput
+    if (step.state == CompressionState.Finished) {
+        codec.decodingValidator!!.finish()
+        val validator = codec.decodingValidator!!
+        codec.decodingValidator = None
+        validator.close()
+        codec.decoderFinished = true
+        codec.decodingFinishing = false
+        message.ended = true
+    }
+}
+
+private fun wsDeflateInputFailure(error: CompressionException): Throwable = when (error.kind) {
+    case OutputLimit -> WebSocketFrameException(1009U, "decompressed message exceeds its byte limit", cause = Some(error))
+    case InvalidData -> WebSocketFrameException(1002U, "invalid compressed WebSocket message", cause = Some(error))
+    case Truncated -> WebSocketFrameException(1002U, "truncated compressed WebSocket message", cause = Some(error))
+    case WindowLimit -> WebSocketFrameException(1002U, "compressed message exceeds its negotiated window", cause = Some(error))
+    else -> error
+}

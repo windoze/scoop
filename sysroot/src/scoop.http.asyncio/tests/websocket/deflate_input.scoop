@@ -1,0 +1,85 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+import scoop.text.hexToByteArray
+import scoop.time.Duration
+
+@Test
+private class AsyncWebSocketDeflateInputTests {
+    @Test
+    fun `independent zlib messages retain receive history across an ordinary message`() {
+        withRawWebSocket(deflate = Some(negotiatedWsDeflate())) suspend { _, _, client, peer ->
+            peer.send(WebSocketOpcode.Text, wsContextFirst.hexToByteArray(), compressed = true)
+            assertEquals(wsContextText, client.receive()!!.readText())
+            peer.send(WebSocketOpcode.Text, "ordinary".toByteArray())
+            val ordinary = client.receive()!!
+            assertFalse(ordinary.isCompressed)
+            assertEquals("ordinary", ordinary.readText())
+            peer.send(WebSocketOpcode.Text, wsContextSecond.hexToByteArray(), compressed = true)
+            val next = client.receive()!!
+            assertTrue(next.isCompressed)
+            assertEquals(wsContextText, next.readText())
+            assertTrue(next.isComplete)
+        }
+    }
+
+    @Test
+    fun `receiving no context takeover rejects a later message that requires the old dictionary`() {
+        withRawWebSocket(deflate = Some(negotiatedWsDeflate(serverNoContext = true))) suspend { _, _, client, peer ->
+            peer.send(WebSocketOpcode.Text, wsContextFirst.hexToByteArray(), compressed = true)
+            assertEquals(wsContextText, client.receive()!!.readText())
+            peer.send(WebSocketOpcode.Text, wsContextSecond.hexToByteArray(), compressed = true)
+            val error = expectMessageFailure<WebSocketFrameException> suspend { client.receive()!!.readText() }
+            assertEquals(1002U, error.closeCode)
+            assertEquals(1002U, WebSocketClose.parse(peer.receive()._2).code!!)
+        }
+    }
+
+    @Test
+    fun `an empty compressed message fits a zero decoded limit and the next nonempty one fails`() {
+        val options = WebSocketSessionOptions(maxDecompressedMessageBytes = 0L)
+        withRawWebSocket(options, Some(negotiatedWsDeflate())) suspend { _, _, client, peer ->
+            peer.send(WebSocketOpcode.Binary, "00".hexToByteArray(), compressed = true)
+            val empty = client.receive()!!
+            assertTrue(empty.isCompressed)
+            assertEquals(0L, empty.readBytes().size)
+            assertTrue(empty.isComplete)
+            peer.send(WebSocketOpcode.Text, "f248cdc9c90700".hexToByteArray(), compressed = true)
+            val error = expectMessageFailure<WebSocketFrameException> suspend { client.receive()!!.readBytes() }
+            assertEquals(1009U, error.closeCode)
+            assertEquals(1009U, WebSocketClose.parse(peer.receive()._2).code!!)
+        }
+    }
+
+    @Test
+    fun `decompression is bounded by message consumption and graceful close drops pending output`() {
+        val options = WebSocketSessionOptions(WebSocketFrameLimits(dataChunkBytes = 5L), 7L,
+            closeTimeout = Duration.seconds(60L))
+        withRawWebSocket(options, Some(negotiatedWsDeflate())) suspend { scope, raw, client, peer ->
+            // Python zlib raw DEFLATE for 257 bytes of A with the final sync tail omitted.
+            peer.send(WebSocketOpcode.Binary, "72741ce10000".hexToByteArray(), compressed = true)
+            val message = client.receive()!!
+            currentEventLoop().sleep(Duration.milliseconds(1L))
+            val reads = raw.reads
+            currentEventLoop().sleep(Duration.milliseconds(1L))
+            assertEquals(reads, raw.reads)
+            assertFalse(message.isComplete)
+            NativeByteBuffer.allocate(257L).use suspend { buffer ->
+                val count = message.readInto(buffer, 257L)
+                assertTrue(count > 0L && count <= 5L)
+                assertEquals(65.toByte(), buffer.readByte())
+            }
+            val closing = scope.async<WebSocketClose> suspend { client.shutdownGracefully() }
+            assertTrue(peer.receive()._1.opcode == WebSocketOpcode.Close)
+            peer.send(WebSocketOpcode.Close, WebSocketClose(Some(1000U), "done").toByteArray())
+            assertEquals("done", closing.await().reason)
+            assertFalse(message.isComplete)
+            val error = expectMessageFailure<WebSocketSessionException> suspend { message.readBytes() }
+            assertTrue(error.kind == WebSocketFailureKind.InterruptedMessage)
+            assertFalse(present(client.failure))
+        }
+    }
+}

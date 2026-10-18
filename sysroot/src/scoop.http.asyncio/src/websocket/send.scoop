@@ -4,8 +4,8 @@ import scoop.asyncio.*
 import scoop.http.*
 import scoop.platform.memory.NativeByteBuffer
 
-internal suspend fun sendWsBytes(state: WsState, type: WebSocketMessageType, bytes: Array<Byte>) {
-    wsOperation<WsOutgoing, Unit>(state, false, { beginWsMessage(state, type) }, suspend { message ->
+internal suspend fun sendWsBytes(state: WsState, type: WebSocketMessageType, bytes: Array<Byte>, compress: Boolean) {
+    wsOperation<WsOutgoing, Unit>(state, false, { beginWsMessage(state, type, compress) }, suspend { message ->
         NativeByteBuffer.allocate(state.options.outgoingFrameBytes).use suspend { buffer ->
             var offset = 0L
             while (offset < bytes.size) {
@@ -20,8 +20,8 @@ internal suspend fun sendWsBytes(state: WsState, type: WebSocketMessageType, byt
     })
 }
 
-internal suspend fun sendWsSource(state: WsState, type: WebSocketMessageType, source: AsyncByteSource) {
-    wsOperation<WsOutgoing, Unit>(state, false, { beginWsMessage(state, type) }, suspend { message ->
+internal suspend fun sendWsSource(state: WsState, type: WebSocketMessageType, source: AsyncByteSource, compress: Boolean) {
+    wsOperation<WsOutgoing, Unit>(state, false, { beginWsMessage(state, type, compress) }, suspend { message ->
         NativeByteBuffer.allocate(state.options.outgoingFrameBytes).use suspend { buffer ->
             while (true) {
                 state.lock.withLock { wsOpen(state) }

@@ -7,25 +7,27 @@ import scoop.platform.memory.NativeByteBuffer
 import scoop.test.*
 
 internal fun withWebSockets(options: WebSocketSessionOptions = WebSocketSessionOptions(),
+    deflate: WebSocketDeflateNegotiation? = None,
     block: suspend (CoroutineScope, ObservedTransport, ObservedTransport, AsyncWebSocketSession, AsyncWebSocketSession) -> Unit) {
     val loop: EventLoop = LibuvEventLoop()
     loop.run suspend { scope ->
         val (a, b) = rawPair(loop, scope)
-        val client = AsyncWebSocketSession.takeOwnership(a, scope, HttpRole.Client, options)
-        val server = AsyncWebSocketSession.takeOwnership(b, scope, HttpRole.Server, options)
+        val client = AsyncWebSocketSession.takeOwnership(a, scope, HttpRole.Client, options, deflate)
+        val server = AsyncWebSocketSession.takeOwnership(b, scope, HttpRole.Server, options, deflate)
         try { block(scope, a, b, client, server) }
         finally { client.close(); server.close() }
     }
 }
 
-internal class RawWebSocketPeer(val transport: ObservedTransport, role: HttpRole = HttpRole.Server) : Closeable {
-    private val encoder: WebSocketFrameEncoder = WebSocketFrameEncoder(role)
-    private val decoder: WebSocketFrameDecoder = WebSocketFrameDecoder(role)
+internal class RawWebSocketPeer(val transport: ObservedTransport, role: HttpRole = HttpRole.Server,
+    compression: Boolean = false) : Closeable {
+    private val encoder: WebSocketFrameEncoder = WebSocketFrameEncoder(role, compression)
+    private val decoder: WebSocketFrameDecoder = WebSocketFrameDecoder(role, compression)
     private val input: NativeByteBuffer = NativeByteBuffer.allocate(4096L)
 
-    suspend fun send(opcode: WebSocketOpcode, bytes: Array<Byte>, isFinal: Boolean = true) {
+    suspend fun send(opcode: WebSocketOpcode, bytes: Array<Byte>, isFinal: Boolean = true, compressed: Boolean = false) {
         val wire = ByteArrayBuilder()
-        wire.append(encoder.beginFrame(WebSocketFrameHead(opcode, bytes.size, isFinal)))
+        wire.append(encoder.beginFrame(WebSocketFrameHead(opcode, bytes.size, isFinal, compressed)))
         NativeByteBuffer.allocate(bytes.size).use suspend { buffer ->
             buffer.writeBytes(bytes)
             wire.append(encoder.writePayload(buffer))
@@ -68,12 +70,13 @@ internal class RawWebSocketPeer(val transport: ObservedTransport, role: HttpRole
 }
 
 internal fun withRawWebSocket(options: WebSocketSessionOptions = WebSocketSessionOptions(),
+    deflate: WebSocketDeflateNegotiation? = None,
     block: suspend (CoroutineScope, ObservedTransport, AsyncWebSocketSession, RawWebSocketPeer) -> Unit) {
     val loop: EventLoop = LibuvEventLoop()
     loop.run suspend { scope ->
         val (a, b) = rawPair(loop, scope)
-        val client = AsyncWebSocketSession.takeOwnership(a, scope, HttpRole.Client, options)
-        val peer = RawWebSocketPeer(b)
+        val client = AsyncWebSocketSession.takeOwnership(a, scope, HttpRole.Client, options, deflate)
+        val peer = RawWebSocketPeer(b, compression = present(deflate))
         try { block(scope, a, client, peer) }
         finally { client.close(); b.close(); peer.close() }
     }

@@ -37,6 +37,7 @@
 | Mach-O 局部数值表 | 对象读取器按实际局部引用处理位于既有常量之前、之间或之后的数值表；相邻表与已有 atom 分别定界，继续按实际 bytes 计算内容指纹 | 3 项新增范围回归与全部 140 项 link_object 测试、workspace clippy 通过；新 CLI 用例在修复前复现，修复后 debug／release、moving GC 与缓存复用通过，两个既有表用例同时回归 |
 | WebSocket 内存帧 | 增量 FrameEncoder／Decoder、Close 数据与 MessageValidator；角色 mask、分片、有限 Data 块、控制帧和真实输入进度，UTF-8 复用 charset，压缩消息显式交给 compression | Darwin debug／release：23 项新测试与 HTTP 全部 205 项通过；新增测试通过两种构建的 moving GC，244 组独立帧对照和正式压缩组合通过 |
 | 未压缩 WebSocket 异步会话 | AsyncWebSocketSession 接管升级后传输与后缀；流式消息、有限背压、独立控制帧调度、关闭握手和结构化取消，真实借用结束后释放资源 | Darwin debug／release：27 项新测试与 HTTP asyncio 全部 80 项通过；新增测试逐例通过两种构建的 moving GC，真实 TCP 升级与独立 websockets 17.2 双向互通通过 |
+| WebSocket 压缩与 WSS | 同一异步会话按协商窗口与历史策略复用 DEFLATE 消息引擎，有限流式压缩／解压、FIN 前 flush、明文限制；TLS HTTP/1.1 升级保留完整传输所有权 | Darwin debug／release：14 项新测试与 HTTP asyncio 全部 94 项通过；新增测试逐例通过两种构建的 moving GC，独立 websockets 17.2 的 WS／WSS 双向共 32 种组合通过 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -136,6 +137,10 @@ WebSocket 异步会话的首次完整编译暴露了对象指纹阶段的重复�
 
 `m54-deflate-messages` 增加消息中途 flush 的生产消费者覆盖，Darwin debug／release 两个变体通过，共 6 个进程。两个 native 线程与主线程分别在保留／丢弃历史的配置下，用单字节压缩输出在 FIN 前解出完整 Unicode 前缀，再继续消息、重复空 flush 并立即 finish；moving GC 与缓存复用通过。原有 RFC 向量、连续空消息、窗口及保留历史的外部输入同时回归。C 适配通过格式化及严格警告检查；独立脚本通过固定版本 Ruff，原始向量留在仓库外。
 
+`m54-websocket-deflate` 的 Darwin debug／release 两个变体通过，共 6 个进程。正式 `.slib` 消费者在两个 native 线程中分别完成 WS 与 WSS，组合 TLS 的 HTTP/1.1 ALPN、101 同次输出的首帧后缀、压缩／普通消息混用、FIN 前原文交付、双向控制帧、二进制及空消息、关闭握手；moving GC 与正常缓存复用通过。
+
+同一消费者与 websockets 17.2 独立互通：两种构建分别覆盖 WS／WSS、客户端／服务端及四种双向历史保留配置，共 32 种组合全部通过，并核对最终窗口、子协议及 TLS ALPN。14 项库测试逐例运行 debug／release 的 full moving，共 28 个进程通过，包含独立 zlib 历史向量、UTF-8／格式／窗口错误、线上与解压长度的区别、未消费正文背压及延迟真实借用结束后的取消清理。压缩字节与同步尾部始终由 compression 处理，HTTP 未增加 native codec 调用；HTTP/2 WebSocket 与 HTTP/3 仍不在本期。Linux 验证及统一 client 尚未完成。
+
 ## 后续工作
 
 继续完成 HTTP 消息与协议补充、TLS 与 asyncio 缺口，再完成统一 client、策略、存储与长连接组合。每个功能独立验证和提交，最终按设计完成三个目标的运行验收。
@@ -161,3 +166,5 @@ Multipart 异步双向与共享 SSE 生命周期验收结束后，清理对应 6
 握手独立对照与数值表回归结束后，清理对应 8 个 fixture target 目录，释放约 307 MiB；当前帧消费者、生产 `.slib`、原始日志和缓存继续保留。
 
 未压缩 WebSocket 会话验收结束后，清理帧回归及旧会话消费者的 6 个 fixture target 目录，释放约 592 MiB；保留最终会话消费者、生产 `.slib`、库 target、原始日志和缓存。
+
+WebSocket 压缩与 WSS 验收结束后，清理 DEFLATE flush 与未压缩会话的 4 个已结束 fixture target 目录，释放约 333 MiB；保留压缩／WSS 消费者、生产 `.slib`、库 target、原始日志和缓存。

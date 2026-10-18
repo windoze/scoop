@@ -10,7 +10,7 @@ internal class WsLife {
     var listener: Disposable? = None
 }
 
-internal class WsIncoming(val type: WebSocketMessageType) {
+internal class WsIncoming(val type: WebSocketMessageType, val isCompressed: Boolean) {
     val life: WsLife = WsLife()
     var data: Array<Byte>? = None
     var offset: Long = 0L
@@ -19,7 +19,7 @@ internal class WsIncoming(val type: WebSocketMessageType) {
     var discarded: Boolean = false
 }
 
-internal class WsOutgoing(val type: WebSocketMessageType) {
+internal class WsOutgoing(val type: WebSocketMessageType, val isCompressed: Boolean) {
     val life: WsLife = WsLife()
     var first: Boolean = true
 }
@@ -52,7 +52,7 @@ internal class WsState(
     val transport: AsyncByteStream, val owner: AsyncCloseable, val role: HttpRole,
     val loop: EventLoop, val options: WebSocketSessionOptions,
     val encoder: WebSocketFrameEncoder, val decoder: WebSocketFrameDecoder,
-    val input: NativeByteBuffer, val output: NativeByteBuffer
+    val input: NativeByteBuffer, val output: NativeByteBuffer, val deflate: WsDeflate?
 ) {
     val lock: HttpLock = HttpLock()
     var incoming: WsIncoming? = None

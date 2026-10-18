@@ -8,6 +8,7 @@ import scoop.platform.memory.NativeByteBuffer
 public class WebSocketMessage internal constructor(private val state: WsState, private val message: WsIncoming)
     : AsyncByteSource, AsyncCloseable {
     public val type: WebSocketMessageType get() = message.type
+    public val isCompressed: Boolean get() = message.isCompressed
     public val isComplete: Boolean get() = state.lock.withLock { message.life.complete }
     public val isClosed: Boolean get() = state.lock.withLock { message.life.closed }
 

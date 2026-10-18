@@ -6,12 +6,14 @@ import scoop.time.Duration
 public class WebSocketSessionOptions public constructor(
     public val incomingLimits: WebSocketFrameLimits = WebSocketFrameLimits(),
     public val inputBufferBytes: Long = 8192L, public val outgoingFrameBytes: Long = 8192L,
-    public val closeTimeout: Duration = Duration.seconds(5L)
+    public val closeTimeout: Duration = Duration.seconds(5L),
+    public val maxDecompressedMessageBytes: Long = incomingLimits.maxMessageBytes
 ) {
     init {
         if (inputBufferBytes <= 0L || outgoingFrameBytes <= 0L || outgoingFrameBytes > Long.MAX_VALUE - 14L)
             throw IllegalArgumentException(Some("invalid WebSocket stream buffer size"))
         if (closeTimeout <= Duration.ZERO) throw IllegalArgumentException(Some("WebSocket close timeout must be positive"))
+        if (maxDecompressedMessageBytes < 0L) throw IllegalArgumentException(Some("negative decompressed message limit"))
     }
 }
 

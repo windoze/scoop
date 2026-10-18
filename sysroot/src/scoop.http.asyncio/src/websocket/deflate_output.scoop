@@ -1,0 +1,69 @@
+package scoop.http.asyncio
+
+import scoop.compression.*
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+
+internal suspend fun writeWsDeflate(state: WsState, message: WsOutgoing, input: NativeByteBuffer, count: Long): Long {
+    state.lock.withLock {
+        wsOpen(state)
+        startWsDeflateOutput(state, message)
+        val codec = state.deflate!!
+        val bytes = input.readBytes(count)
+        codec.encodingValidator!!.receive(bytes)
+        codec.encoderInput.clear()
+        codec.encoderInput.writeBytes(bytes)
+    }
+    drainWsDeflateOutput(state, message, WsDeflateAction.Process)
+    return count
+}
+
+internal suspend fun flushWsDeflate(state: WsState, finish: Boolean) {
+    val message = state.lock.withLock {
+        wsOpen(state)
+        val value = state.outgoing!!
+        startWsDeflateOutput(state, value)
+        if (finish) state.deflate!!.encodingValidator!!.finish()
+        value
+    }
+    drainWsDeflateOutput(state, message, if (finish) WsDeflateAction.Finish else WsDeflateAction.Flush)
+}
+
+private enum WsDeflateAction { Process, Flush, Finish }
+
+private suspend fun drainWsDeflateOutput(state: WsState, message: WsOutgoing, action: WsDeflateAction) {
+    val codec = state.deflate!!
+    while (true) {
+        val (step, done) = state.lock.withLock {
+            wsOpen(state)
+            codec.encoderOutput.clear()
+            val step = when (action) {
+                case Process -> codec.encoder.process(codec.encoderInput, codec.encoderOutput)
+                case Flush -> codec.encoder.flush(codec.encoderOutput)
+                case Finish -> codec.encoder.finishMessage(codec.encoderOutput)
+            }
+            if (step.state == CompressionState.Finished) {
+                codec.encoderFinished = true
+                val validator = codec.encodingValidator!!
+                codec.encodingValidator = None
+                validator.close()
+            }
+            val done = step.state != CompressionState.NeedOutput &&
+                (action != WsDeflateAction.Process || codec.encoderInput.readableBytes == 0L)
+            (step, done)
+        }
+        if (step.produced != 0L) submitWsWrite(state, WsWriteAction.Data(message, codec.encoderOutput, step.produced))
+        if (done) return
+    }
+}
+
+private fun startWsDeflateOutput(state: WsState, message: WsOutgoing) {
+    val codec = state.deflate!!
+    if (present(codec.encodingValidator)) return
+    val validator = WebSocketMessageValidator(message.type, Long.MAX_VALUE)
+    try {
+        if (codec.encoderFinished) codec.encoder.nextMessage()
+        codec.encoderFinished = false
+        codec.encodingValidator = Some(validator)
+    } catch (error: Throwable) { throw messageCleanup(Some(error)) { validator.close() }!! }
+}
