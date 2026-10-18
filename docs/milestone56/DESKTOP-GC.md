@@ -35,7 +35,7 @@ D2 对普通稀疏 region full 的四 worker 对照将请求至返回中位从 4
 | 2 | minor 的 begin／mark 归并／source 选择／reclaim 遍历全部 block；remembered 遍历旧堆 card，结束时清全 region card 数组 | 先测固定年轻工作量、逐渐增加稳定旧堆；优先按现有 bitmap 成组跳过零项，以及跳过确定无引用的大对象的 remembered 扫描。若仍支配暂停，再维护明确的 young／dirty 集合 | 不先为每次引用写入增加一个全局锁或全局原子；不能漏跨 card 对象、AtomicRef、旧到新写入和异常退出。full 原路径不变 |
 | 3 | small block 的精确大小与多个 bitmap、搬迁 forwarding 表，以及逐存活对象 move plan，带来真实内存与清零成本 | 优先在 full 后释放保留空 region 的闲置 side metadata，按现有首次激活路径重建；评估共享一块连续 metadata 存储。随后才评估稀疏 forwarding 或用可编码 offset 缩小表项 | 保持精确对象边界、pin、published starts 与 forwarding 生命周期；不要把压缩表查询成本转移到每次分配／引用访问。分别测空闲回落与下一轮突发 |
 | 4 | full 的 VM discard／unmap 和 page-map prune 在 STW 内；空页 discard 已合并相邻区间 | 先消除无变化区域重复扫描和保留不必要 metadata。只有 VM 调用实测支配尾部时，才评估将已从可分配集合移除的独立空 region 延后归还 | 现有代码已经合并连续 discard，不能把它当成新优化。不能在恢复后对可能重新分配的页做异步 discard；延后归还会增加 RSS、状态与生命周期复杂性，首版不加后台 scavenger |
-| 5 | 大堆第一次 full 在停稳后创建 marker 线程；`mark_pool_run` 即使本轮只有一个 worker 仍广播 phase，已创建的空闲线程会被唤醒后再睡眠；单链图并行度低 | 先评估单 worker 直接执行、跳过无用广播，再单独比较首次与热池 full。必要时复用有限的已有工作存储；实际有空闲阶段时可用现有显式收集预热，不在启动时无条件建满线程 | 测一／二／四 worker、先 full 后 minor 的序列，以及低核／其他应用占用 CPU 时的尾部；保持阶段切换和失败回退正确，不永久保留高水位工作内存 |
+| 5 | 大堆第一次 full 在停稳后创建 marker 线程；`mark_pool_run` 即使本轮只有一个 worker 仍广播 phase，已创建的空闲线程会被唤醒后再睡眠；单链图并行度低 | 先评估单 worker 直接执行、跳过无用广播；引用回写没有排入任何槽任务时也不必启动空 phase。再单独比较首次与热池 full。必要时复用有限的已有工作存储；实际有空闲阶段时可用现有显式收集预热，不在启动时无条件建满线程 | 测一／二／四 worker、先 full 后 minor 的序列，以及低核／其他应用占用 CPU 时的尾部；保持阶段切换和失败回退正确，不永久保留高水位工作内存 |
 | 6 | `NativeBorrowed` 长操作和同步 release hook 可以延长握手或回收 | 先定位慢 native 调用，使用现有合法 pin／NativeSafe 路径或带 roots 的分块处理；资源在应用已有 close／dispose 路径及时释放，release hook 做轻量兜底 | `NoGC` 不是有界时间证明。任意同步 release hook 不能承诺短暂停；移到后台会改变生命周期、顺序及完成语义，不作为简单优化悄悄实施 |
 
 前两项减少必要工作的次数，第三项同时针对 footprint。没有证据时不调整全堆触发阈值、不加 survivor／多级年龄、不增加统一自适应调参器。分块 poll 沿用 [设计 3.2](DESIGN.md#32-poll-的吞吐与响应合同)：只对每次迭代工作有界的 loop 选择编译期内层上限；选择达到吞吐平台的较小块，响应尾部优先，不能仅以平均迭代时间推导硬上界。
@@ -49,6 +49,14 @@ D2 对普通稀疏 region full 的四 worker 对照将请求至返回中位从 4
 当前每个激活过的 small block（32 KiB）有 8192 bytes 的 `size_units`、四份各 512 bytes 的 starts／marks／pins／scanned bitmap，以及两份各 32 bytes 的 line bitmap，共 **10,304 bytes，约为 block 容量的 31.4%**，尚未计 block struct、malloc 元数据、cards、page map、工作队列或对象头。被选为搬迁 source 时，forwarding 的 4096 个指针另占 32 KiB；它在该轮结束释放。统计来自当前 `heap.c`／`evacuation_sources.c` 的结构尺寸，不是 RSS 实测。
 
 full 至少保留一个可复用的空普通 region；若该 16 MiB region 的 512 个 block 都激活过，仅上述常驻 side tables 就可能保留约 5.03 MiB。现有物理页 discard 不会释放这些单独 malloc 的表。这里比简单缩小虚拟 region 大小更有针对性；但全面更换 bitmap／对象尺寸表示会影响分配和查询热路径，必须有实测后再采用。
+
+### 3.2 最终程序的链接信息
+
+对 C1 的实际 Darwin release 测试程序读取 Mach-O headers、符号表和 export trie：文件共 17,492,984 bytes，`__TEXT` 为 1,081,344 bytes，其中 `__text` 指令区为 730,340 bytes；`__LINKEDIT` 达 13,697,024 bytes，包含 5,684,496 bytes 的 export trie 和 5,924,736 bytes 的字符串表。因此不能把约 17.5 MB 文件大小解释为同等大小的机器码或常驻内存。
+
+该程序有 76,560 个导出符号，其中 27,536 个 `bs` 和 27,535 个 `be` 是 Scoop atom 起止边界。当前 codegen 在 Mach-O 对象中保留这些 external alias，以实现对象边界和 weak／ODR 物化；这是链接输入的实际用途，但不自动证明所有符号都需要保留为最终程序的动态导出。
+
+后续优先评估：在完成本次程序的普通符号解析与 ODR 选择后，将只用于产物消费／静态链接的内部边界设为局部或隐藏，并减少最终映像不需要的符号表内容。需要保留实际 native 导出、回调、跨 image 引用与 loader 的绑定语义；不能简单隐藏所有 Scoop 符号，也不删除精确 GC 所需的 stackmap／注册数据。先用普通链接可见性规则与现有最终映像验证确认可行性，再测启动、文件大小和 RSS。本轮只有结构测量，没有实现或宣称缩减收益；ELF 已有不同的 hidden 处理，Darwin 数字不能直接外推到 Linux。
 
 ## 4. 为什么暂不直接改成增量／并发 GC
 
