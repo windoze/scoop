@@ -1,6 +1,6 @@
 # M53 设计：HTTP/1.x 与 HTTP/2 协议库
 
-状态：实施中。日期：2026-10-18。本文落实 HTTP 协议层的接口边界、nghttp2 集成方式与本期裁剪范围；公共合同见 [HTTP 规范](../specs/SCOOP-HTTP-SPEC.md)，实际完成情况见[实施记录](PROGRESS.md)。
+状态：已完成。日期：2026-10-18。本文落实 HTTP 协议层的接口边界、nghttp2 集成方式与本期裁剪范围；公共合同见 [HTTP 规范](../specs/SCOOP-HTTP-SPEC.md)，实际验证结果见[验收记录](PROGRESS.md)。
 
 依据：[语言规范](../specs/SCOOP-SPEC.md)第 12～14 章、[运行时规范](../specs/SCOOP-RUNTIME-SPEC.md)、[实现规范](../specs/SCOOP-IMPL-SPEC.md)第 2.8 节、[库 API 风格](../specs/SCOOP-API-STYLE.md)、[M49 异步 I/O](../specs/SCOOP-ASYNCIO-SPEC.md)、[M51 TLS](../specs/SCOOP-TLS-SPEC.md)、[M52 分发设计](../milestone52/DESIGN.md)及[协议库兼容性调研](../http/INTERFACE-RESEARCH.md)。
 
