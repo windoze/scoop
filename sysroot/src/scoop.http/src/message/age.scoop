@@ -1,0 +1,37 @@
+package scoop.http
+
+public class HttpAge private constructor(public val seconds: Long, public val originalValue: Array<Byte>?) : ToString {
+    public constructor(seconds: Long) : this(seconds, None) {
+        if (seconds < 0L) throw IllegalArgumentException(Some("negative HTTP Age"))
+    }
+
+    public override fun toString(): String = seconds.toString()
+    public fun toByteArray(): Array<Byte> = toString().toByteArray()
+    public fun toHttpField(): HttpField = HttpField("Age".toByteArray(), toByteArray())
+
+    public companion object {
+        public fun parse(value: List<Byte>): HttpAge {
+            val reader = HttpFieldReader("Age", value)
+            reader.skipOws()
+            val seconds = reader.decimal(saturating = true)
+            reader.skipOws()
+            if (!reader.ended && reader.peek() != 44) reader.fail("invalid Age seconds")
+            return HttpAge(seconds, Some(reader.bytes))
+        }
+        public fun parse(value: String): HttpAge = parse(value.toByteArray())
+        public fun parseOrNone(value: List<Byte>): HttpAge? {
+            try { return Some(parse(value)) }
+            catch (_: HttpFieldParseException) { return None }
+        }
+        public fun parseOrNone(value: String): HttpAge? = parseOrNone(value.toByteArray())
+
+        public fun parseFields(fields: List<HttpField>): HttpAge? {
+            val selected = fields.findAll("age".toByteArray())
+            return if (selected.size == 0L) None else Some(parse(selected[0L].value))
+        }
+        public fun parseFieldsOrNone(fields: List<HttpField>): HttpAge? {
+            try { return parseFields(fields) }
+            catch (_: HttpFieldParseException) { return None }
+        }
+    }
+}

@@ -1,0 +1,66 @@
+import scoop.bytes.ByteArrayBuilder
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.time.Instant
+import scoop.time.Duration
+
+fun main() {
+    val wire = ("HTTP/1.1 304 Not Modified\r\nDate: Sun, 18 Oct 2026 11:22:33 GMT\r\n" +
+        "Age: 00042, invalid\r\nAge: 80\r\nCache-Control: max-age=120, private=\"X-Session\"\r\n" +
+        "Vary: Accept-Encoding, ACCEPT-LANGUAGE\r\nvary: accept-encoding\r\nContent-Length: 500\r\n\r\n").toByteArray()
+    val fields = decodeFields(wire)
+    val age = HttpAge.parseFields(fields)!!
+    val vary = HttpVary.parseFields(fields)
+    val cache = HttpCacheControl.parseFields(fields)
+    gcCollect()
+    if (age.seconds != 42L || String.fromUtf8(age.originalValue!!) != "00042, invalid" ||
+        vary.names.size != 3L || vary.originalValues.size != 2L || vary.isWildcard ||
+        !vary.contains("ACCEPT-LANGUAGE") || vary.contains("authorization")) throw IllegalStateException()
+    val date = HttpDate.parse(fields.findAll("date".toByteArray())[0L].value, Instant.parse("2026-10-18T11:22:33Z"))
+    if (date + Duration.seconds(cache.single("max-age")!!.deltaSeconds() - age.seconds) != Instant.parse("2026-10-18T11:23:51Z"))
+        throw IllegalStateException()
+    val output = Http1Encoder(HttpRole.Server).use { encoder ->
+        val bytes = ByteArrayBuilder()
+        bytes.append(encoder.beginResponse(HttpResponseHead(HttpVersion.Http11, 304U, None,
+            [age.toHttpField(), vary.toHttpField(), cache.toHttpField()]), "GET".toByteArray(), Http1BodyFraming.Empty))
+        bytes.append(encoder.finish())
+        bytes.toByteArray()
+    }
+    val roundtrip = decodeFields(output)
+    if (HttpAge.parseFields(roundtrip)!!.seconds != 42L || HttpVary.parseFields(roundtrip).names.size != 3L ||
+        HttpCacheControl.parseFields(roundtrip).single("private")!!.fieldNames()[0L] != "x-session") throw IllegalStateException()
+    val wildcard = HttpVary.parseFields([vary.toHttpField(), HttpVary(["*"]).toHttpField()])
+    if (!wildcard.isWildcard || wildcard.names.size != 4L ||
+        HttpAge.parse("9999999999999999999999999, 0").seconds != Long.MAX_VALUE) throw IllegalStateException()
+    println("Age and Vary compose with cache directives and dates")
+}
+
+fun decodeFields(bytes: Array<Byte>): Array<HttpField> {
+    val heads = ArrayList<HttpResponseHead>()
+    Http1Decoder.client().use { decoder ->
+        decoder.expectResponse("GET".toByteArray())
+        NativeByteBuffer.allocate(1L).use { input ->
+            var ends = 0L
+            for (byte in bytes) {
+                input.clear(); input.writeByte(byte)
+                if (decoder.receive(input) != 1L) throw IllegalStateException()
+                while (true) {
+                    val next = decoder.nextEvent()
+                    when (next) { case None -> break; case Some(_) -> {} }
+                    when (next!!) {
+                        case Response(head) -> heads.add(head)
+                        case End(_) -> ends += 1L
+                        case Data(_) -> throw IllegalStateException()
+                        else -> {}
+                    }
+                }
+            }
+            decoder.endInput()
+            if (ends != 1L) throw IllegalStateException()
+            Unit
+        }
+        Unit
+    }
+    if (heads.size != 1L || heads[0L].status != 304U) throw IllegalStateException()
+    return heads[0L].fields
+}

@@ -29,16 +29,30 @@ internal class HttpFieldReader(val field: String, data: List<Byte>) {
     }
     fun slice(start: Long, end: Long): Array<Byte> = Array<Byte>(end - start) { index -> bytes[start + index] }
 
-    fun decimal(): Long {
+    fun decimal(saturating: Boolean = false): Long {
         if (peek() < 48 || peek() > 57) fail("expected nonnegative decimal integer")
         var value = 0L
         while (peek() >= 48 && peek() <= 57) {
             val digit = (peek() - 48).toLong()
-            if (value > (Long.MAX_VALUE - digit) / 10L) fail("decimal integer exceeds Long")
-            value = value * 10L + digit
+            if (value > (Long.MAX_VALUE - digit) / 10L) {
+                if (!saturating) fail("decimal integer exceeds Long")
+                value = Long.MAX_VALUE
+            } else value = value * 10L + digit
             position += 1L
         }
         return value
+    }
+
+    fun tokenList(): Array<String> {
+        val result = ArrayList<String>()
+        skipOws()
+        while (!ended) {
+            if (peek() == 44) { position += 1L; skipOws(); continue }
+            result.add(token().lowercaseAscii())
+            skipOws()
+            if (!ended) { expect(44); skipOws() }
+        }
+        return result.toArray()
     }
 
     fun parameterValue(): (Array<Byte>, Boolean) {

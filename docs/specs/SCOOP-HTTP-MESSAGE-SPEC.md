@@ -15,6 +15,7 @@
 | `HttpRange`、`HttpContentRange` | bytes 范围、suffix／开放终点、206／416 所需边界，受检 Long 算术 |
 | `HttpAuthChallenge`、`HttpCredentials`、`HttpAuthenticationInfo` | 多 challenge、quoted 参数、token68、请求凭据和 Digest 完成参数；不获取凭据或执行密码计算 |
 | `HttpRetryAfter` | delta-seconds 或 HTTP-date，解析与实际等待分开 |
+| `HttpAge`、`HttpVary` | 缓存 Age 的饱和秒数及接收首值规则；Vary 的有序字段名、空项和通配符，不计算 freshness 或选择缓存条目 |
 
 参数名大小写、重复值处理和扩展编码按字段所属 RFC 固定，不能用一个逗号 split 处理全部字段。扩展参数先在本层拆出 charset／language／百分号字节，再交给 URL 百分号 codec 与 charset 转换；优先满足 RFC 8187 的 UTF-8，历史 ISO-8859-1 兼容须显式记录。建议文件名只作为元数据，操作系统 Path 选择由调用者负责。
 
@@ -91,6 +92,14 @@ challenge 和 credentials 共用同一个字节语法实现。参数值使用 to
 `HttpAuthenticationInfo(parameters)` 处理 Authentication-Info／Proxy-Authentication-Info 的无 scheme 参数列表，提供同样的参数查询、字节输出、parse／parseOrNone、parseFields 和两个明确的字段生成方法。重复参数包括跨行重复都报错，响应头与 trailer 由调用者分别传入。parseFields 按 RFC 的字段组合规则用逗号及一个 SP 连接同名行，因此 challenge 的参数可以分布在多行；其错误偏移相对于组合后的字段字节，单行 parse 的错误偏移相对于原字段。
 
 本层只负责消息语法，不取得密码、刷新令牌、选择认证方案、计算 Digest、检查 rspauth 或执行网络往返。Basic／Bearer／Digest 的具体语义和 suspend 凭据提供者由 client 实现；摘要调用 crypto。
+
+### 1.8 Age 与 Vary
+
+`HttpAge(seconds)` 保存非负 Long 秒数，提供 seconds、originalValue、toString／toByteArray／toHttpField。parse／parseOrNone 接收字节或 String 及首值两端 OWS；完整十进制数溢出时按 RFC 9111 §1.2.2 饱和到 Long.MAX_VALUE，仍检查首值的所有字符。接收列表形式时遵守 §5.1 的首值规则：只解释第一个逗号之前的部分，丢弃之后的内容，不用后续有效数字挽救空或无效的首值。parseFields 返回第一条 Age 的解析结果或缺少字段时的 None，后续同名行不参与选择；parseFieldsOrNone 另将首值格式错误变为 None。普通构造的 originalValue 为 None，解析保留被选中的完整原字段；输出只生成一个规范数字。没有 Age 不表示 origin 一定被访问，工具不推算缓存年龄。
+
+`HttpVary(names)` 保存按 ASCII 小写规范化的不可变、有序 token 列表，保留重复名和 `*`；isWildcard 表示任一项为星号，不能以列表还含其他字段名为由忽略它。parse／parseOrNone 接收字节或 String，接受 OWS、空字段和列表空项，拒绝引号、参数、非 ASCII 名称及缺少逗号的结构；parseFields 合并所有 Vary 行，originalValues 保留各条字段。contains(name) 按规范名称判断实际列表成员，不将星号解释成所有名称都在列表中。toByteArray／toHttpField 保留名称顺序并以逗号和 SP 输出；没有匹配行时返回空列表。Vary 只描述选择字段，是否能复用以及缺失字段与空字段的区别由缓存策略处理。
+
+两个工具的格式异常继续使用 HttpFieldParseException 和原字段字节偏移；OrNone 只吸收格式错误。Vary 与 Cache-Control 字段名参数共享相同的 token 列表语法，Age 与缓存秒数共享饱和十进制解析，Range／Retry-After 的溢出拒绝规则保持不变。
 
 ## 2. Cookie 与公共后缀
 

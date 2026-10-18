@@ -1,0 +1,50 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+
+public class HttpVary private constructor(public val names: Array<String>, public val originalValues: Array<Array<Byte>>) {
+    public constructor(names: List<String>)
+        : this(Array<String>(names.size) { index -> httpNormalizedToken(names[index]) }, []) {}
+
+    public val isWildcard: Boolean get() = contains("*")
+    public fun contains(name: String): Boolean {
+        val normalized = httpNormalizedToken(name)
+        for (value in names) if (value == normalized) return true
+        return false
+    }
+    public fun toByteArray(): Array<Byte> {
+        val output = ByteArrayBuilder()
+        var first = true
+        for (name in names) {
+            if (!first) output.append(", ".toByteArray())
+            output.append(name.toByteArray())
+            first = false
+        }
+        return output.toByteArray()
+    }
+    public fun toHttpField(): HttpField = HttpField("Vary".toByteArray(), toByteArray())
+
+    public companion object {
+        public fun parse(value: List<Byte>): HttpVary {
+            val reader = HttpFieldReader("Vary", value)
+            return HttpVary(reader.tokenList(), [reader.bytes])
+        }
+        public fun parse(value: String): HttpVary = parse(value.toByteArray())
+        public fun parseOrNone(value: List<Byte>): HttpVary? {
+            try { return Some(parse(value)) }
+            catch (_: HttpFieldParseException) { return None }
+        }
+        public fun parseOrNone(value: String): HttpVary? = parseOrNone(value.toByteArray())
+
+        public fun parseFields(fields: List<HttpField>): HttpVary {
+            val names = ArrayList<String>()
+            val originals = ArrayList<Array<Byte>>()
+            for (field in fields.findAll("vary".toByteArray())) {
+                val parsed = parse(field.value)
+                for (name in parsed.names) names.add(name)
+                originals.add(parsed.originalValues[0L])
+            }
+            return HttpVary(names.toArray(), originals.toArray())
+        }
+    }
+}
