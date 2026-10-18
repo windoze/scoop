@@ -1,6 +1,7 @@
 package scoop.http.client
 
 import scoop.asyncio.IoClosedException
+import scoop.http.asyncio.AsyncHttp2Connection
 
 internal class ClientCall(
     val client: ClientState, val request: HttpRequest, caller: Job,
@@ -14,6 +15,7 @@ internal class ClientCall(
     var callerListener: Disposable? = None
     var jobListener: Disposable? = None
     var dialWaiter: Continuation<ClientConnection>? = None
+    var upgradeWaiter: Continuation<AsyncHttp2Connection>? = None
     var endWaiter: Continuation<Unit>? = None
     var lease: ClientPoolEntry? = None
     var exchange: ClientExchange? = None
@@ -40,18 +42,20 @@ internal fun wakeClientCall(call: ClientCall) {
 }
 
 internal fun cancelClientCall(call: ClientCall, error: Throwable) {
-    val result: (CoroutineScope?, Continuation<ClientConnection>?, Continuation<Unit>?) = call.lock.withLock {
-        if (call.completed) return@withLock (None, None, None)
+    val result: (CoroutineScope?, Continuation<ClientConnection>?, Continuation<Unit>?, Continuation<AsyncHttp2Connection>?) = call.lock.withLock {
+        if (call.completed) return@withLock (None, None, None, None)
         if (!call.ending && !call.abandoned && !clientPresent(call.failure)) call.failure = Some(error)
         call.ending = true
         val waiter = call.dialWaiter; call.dialWaiter = None
-        val end = call.endWaiter; call.endWaiter = None;
-        (call.scope, waiter, end)
+        val end = call.endWaiter; call.endWaiter = None
+        val upgrade = call.upgradeWaiter; call.upgradeWaiter = None;
+        (call.scope, waiter, end, upgrade)
     }
-    val (scope, dial, wake) = result
+    val (scope, dial, wake, upgrade) = result
     if (clientPresent(scope)) scope!!.job.cancel()
     if (clientPresent(dial)) dial!!.resumeWithException(error)
     if (clientPresent(wake)) wake!!.resume(Unit)
+    if (clientPresent(upgrade)) upgrade!!.resumeWithException(error)
     wakeClient(call.client)
 }
 

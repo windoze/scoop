@@ -1,0 +1,101 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class HttpClientH2cUploadTest {
+    @Test
+    fun `h2c waits for the original producer and queues later calls until the protocol is known`() {
+        withClientH2cTest suspend { loop, scope, listener, config ->
+            val switched = BodyTestGate()
+            val release = BodyTestGate()
+            val firstHeaders = AtomicBoolean(false)
+            val nextStarted = AtomicBoolean(false)
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { h1 ->
+                    val incoming = h1.receiveRequest()!!
+                    assertEquals("sent", String.fromUtf8(incoming.body.readAllBytes(4L)))
+                    acceptClientTestUpgrade(h1, scope, incoming.head).useAsync suspend { h2 ->
+                        switched.signal()
+                        h2.upgradedStream!!.sendResponse(HttpResponseHead(HttpVersion.Http2, 204U))
+                        val next = h2.acceptRequest()!!
+                        assertEquals(3, next.stream.id)
+                        assertEquals("next", String.fromUtf8(next.stream.readAllBytes(4L)))
+                        next.stream.sendResponse(HttpResponseHead(HttpVersion.Http2, 204U))
+                    }
+                }
+            }
+            withHttpClient(config) suspend { client ->
+                val body = RequestBody.fromProducer(Some(4L)) suspend { output ->
+                    writeBodyText(output, "sent"); output.flush()
+                    release.await()
+                }
+                val first = scope.launch suspend {
+                    client.withResponse(HttpRequest.post(clientTestUrl(listener), body)) suspend { response ->
+                        firstHeaders.store(true)
+                        assertTrue(response.version == HttpVersion.Http2)
+                        response.body.readAllBytes(0L)
+                        Unit
+                    }
+                }
+                switched.await()
+                val next = scope.launch suspend {
+                    val nextBody = RequestBody.fromProducer(Some(4L)) suspend { output ->
+                        nextStarted.store(true)
+                        writeBodyText(output, "next")
+                    }
+                    client.withResponse(HttpRequest.post(clientTestUrl(listener), nextBody)) suspend { response ->
+                        assertTrue(response.version == HttpVersion.Http2)
+                        response.body.readAllBytes(0L)
+                        Unit
+                    }
+                }
+                try {
+                    loop.sleep(Duration.milliseconds(20L))
+                    assertFalse(firstHeaders.load() || nextStarted.load())
+                } finally { release.signal() }
+                first.join(); next.join()
+            }
+            serving.join()
+        }
+    }
+
+    @Test
+    fun `declined h2c delivers an early final response before the suspended source is released`() {
+        withClientH2cTest suspend { _, scope, listener, config ->
+            val source = BodyTestSource("late".toByteArray())
+            source.holdRead = true; source.holdClose = true
+            val done = BodyTestGate()
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { h1 ->
+                    readHttp2UpgradeSettings(h1.receiveRequest()!!.head)
+                    source.started.await()
+                    sendClientTestText(h1, 413U, "stop")
+                    done.await()
+                }
+            }
+            withHttpClient(config) suspend { client ->
+                val body = RequestBody.fromSourceFactory suspend { source }
+                val response = client.execute(HttpRequest.post(clientTestUrl(listener), body))
+                assertEquals(413U, response.status)
+                assertTrue(response.version == HttpVersion.Http11)
+                assertEquals("stop", String.fromUtf8(response.body.readAllBytes(4L)))
+                val closing = scope.launch suspend { response.close() }
+                assertFalse(closing.isCompleted)
+                source.release.signal()
+                source.closeStarted.await()
+                assertFalse(closing.isCompleted)
+                source.closeRelease.signal()
+                closing.join()
+                assertEquals(1L, source.closes)
+                assertTrue(source.buffer!!.isClosed)
+            }
+            done.signal()
+            serving.join()
+        }
+    }
+}

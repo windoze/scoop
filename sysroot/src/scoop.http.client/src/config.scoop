@@ -5,7 +5,7 @@ import scoop.http.*
 import scoop.tls.*
 
 public enum HttpVersionPolicy { Auto, Http1Only, Http2Only }
-public enum HttpCleartextProtocol { Http1, Http2PriorKnowledge }
+public enum HttpCleartextProtocol { Http1, Http2PriorKnowledge, H2cUpgrade }
 
 public class HttpClientTlsConfig public constructor(
     public val trust: TlsTrustSource = TlsTrustSource.System,
@@ -32,6 +32,8 @@ public class HttpClientConfig public constructor(
             throw IllegalArgumentException(Some("HTTP/1 request version must be 1.0 or 1.1"))
         if (versionPolicy == HttpVersionPolicy.Http1Only && cleartext != HttpCleartextProtocol.Http1)
             throw IllegalArgumentException(Some("HTTP/1-only policy conflicts with cleartext HTTP/2"))
+        if (cleartext == HttpCleartextProtocol.H2cUpgrade && http1RequestVersion != HttpVersion.Http11)
+            throw IllegalArgumentException(Some("h2c upgrade requires HTTP/1.1"))
     }
 }
 

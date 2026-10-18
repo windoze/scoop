@@ -1,0 +1,56 @@
+package scoop.http.client
+
+import scoop.asyncio.readAllBytes
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+
+internal class ClientH2cExchange(val call: ClientCall, val entry: ClientPoolEntry, val original: ClientH1Exchange) : ClientExchange {
+    private var current: ClientExchange = original
+    private var settled: Boolean = false
+    public override val version: HttpVersion get() = current.version
+    public override val isReadComplete: Boolean get() = current.isReadComplete
+    public override val trailers: Array<HttpField>? get() = current.trailers
+
+    public override suspend fun receiveResponse(): HttpResponseHead {
+        val head = current.receiveResponse()
+        if (settled || (head.status < 200U && head.status != 101U)) return head
+        settled = true
+        if (!http2UpgradeAccepted(head)) {
+            val required = call.client.config.versionPolicy == HttpVersionPolicy.Http2Only
+            finishClientH2cOffer(call.client, entry, required)
+            if (required) throw HttpNegotiationException("upgrade HTTP client", "server declined required h2c upgrade")
+            return head
+        }
+        original.readAllBytes(0L)
+        val upload = call.lock.withLock { call.upload!! }
+        upload.join()
+        requireClientCall(call)
+        if (!call.lock.withLock { call.uploadComplete })
+            throw HttpNegotiationException("upgrade HTTP client", "request upload did not complete")
+        original.close()
+        val connection = awaitClientUpgrade(call, entry, original.connection)
+        current = ClientH2Exchange(connection.upgradedStream!!)
+        return current.receiveResponse()
+    }
+
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long = current.readInto(buffer, count)
+    public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long = original.writeFrom(buffer, count)
+    public override suspend fun flush() { original.flush() }
+    public override suspend fun finish() { original.finish() }
+    public override suspend fun close() {
+        try { current.close() }
+        finally {
+            val unfinished = call.client.lock.withLock { entry.h2cPending }
+            finishClientH2cOffer(call.client, entry, unfinished)
+        }
+    }
+}
+
+internal fun finishClientH2cOffer(state: ClientState, entry: ClientPoolEntry, failed: Boolean) {
+    state.lock.withLock {
+        entry.h2cPending = false
+        if (failed) entry.draining = true
+        Unit
+    }
+    wakeClient(state)
+}

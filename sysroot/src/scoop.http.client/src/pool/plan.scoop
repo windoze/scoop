@@ -13,6 +13,7 @@ internal fun planClientPool(state: ClientState): ClientPoolPlan {
     return state.lock.withLock {
         state.dirty = false
         val actions = ArrayList<ClientPoolAction>()
+        while (state.upgrades.size != 0L) actions.add(ClientPoolAction.Upgrade(state.upgrades.removeFirst()))
         maintainClientPool(state, now, actions)
         val pending = state.waiting.size
         var index = 0L
@@ -48,6 +49,7 @@ internal fun planClientPool(state: ClientState): ClientPoolPlan {
 private fun planClientPoolClose(state: ClientState): ClientPoolPlan = state.lock.withLock {
     state.dirty = false
     state.waiting.clear()
+    state.upgrades.clear()
     val actions = ArrayList<ClientPoolAction>()
     for (entry in state.connections) {
         entry.draining = true
@@ -125,7 +127,7 @@ private fun reserveClientConnection(state: ClientState, call: ClientCall, now: T
     for (entry in state.connections) {
         if (entry.origin == call.request.origin) {
             sameOrigin += 1L
-            if (entry.connecting || clientPresent(entry.initial)) return
+            if (entry.connecting || entry.h2cPending || clientPresent(entry.initial)) return
         }
     }
     if (sameOrigin >= state.config.pool.maxConnectionsPerOrigin) return
@@ -140,6 +142,7 @@ private fun reserveClientConnection(state: ClientState, call: ClientCall, now: T
         return
     }
     val entry = ClientPoolEntry(call.request.origin, call, now)
+    entry.h2cPending = call.request.origin.scheme == "http" && state.config.cleartext == HttpCleartextProtocol.H2cUpgrade
     state.connections.add(entry)
     actions.add(ClientPoolAction.Dial(call, entry))
 }

@@ -46,8 +46,6 @@ private suspend fun runClientCall(call: ClientCall) {
             val connection = awaitClientConnection(call)
             val exchange = openClientExchange(call, connection)
             call.lock.withLock { call.exchange = Some(exchange) }
-            if (call.request.options.duplex && exchange.version != HttpVersion.Http2)
-                throw IllegalArgumentException(Some("negotiated HTTP/1 cannot perform a duplex upload"))
             val uploading = scope.launch suspend { sendClientBody(call, exchange) }
             call.lock.withLock { call.upload = Some(uploading) }
             while (true) {

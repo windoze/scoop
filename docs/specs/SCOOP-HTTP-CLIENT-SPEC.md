@@ -22,7 +22,7 @@
 
 HttpClient 可在同一 EventLoop 的多个任务中并发使用，配置创建后不可变。open 失败清理已接管资源；传入的外部策略对象、证书配置与缓存是否接管由对应工厂明确，普通参数默认借用。实现不得用 GC 或 EventLoop 的最终扫尾替代正常关闭。
 
-HttpClientConfig 保存协议策略、明文入口、HTTP/1 请求版本，以及所属库的 TCP、HTTP/1、HTTP/2 接收选项／限制／SETTINGS。HttpClientTlsConfig 保存 TLS 的 trust、minimum、maximum 和 identity；open 通过 TLS 的公开 suspend 工厂准备客户端上下文，client 关闭该上下文，外部信任库和身份仍由调用者拥有。HttpCallOptions 的 duplex 显式请求 HTTP/2 双向上传，onInformational 是在本次调用 Context 中执行的 suspend 响应头回调。无效的已知协议组合在网络提交前拒绝，协商后才得知无法满足 duplex 时关闭该次 exchange 并报错。
+HttpClientConfig 保存协议策略、明文入口、HTTP/1 请求版本，以及所属库的 TCP、HTTP/1、HTTP/2 接收选项／限制／SETTINGS。HttpClientTlsConfig 保存 TLS 的 trust、minimum、maximum 和 identity；open 通过 TLS 的公开 suspend 工厂准备客户端上下文，client 关闭该上下文，外部信任库和身份仍由调用者拥有。HttpCallOptions 的 duplex 显式请求 HTTP/2 双向上传，onInformational 是在本次调用 Context 中执行的 suspend 响应头回调。无效的已知协议组合在网络提交前拒绝；选中 HTTP/1 连接后不能满足 duplex 时，在提交请求头前报错。
 
 client 的所有者在一个正文仍活动的子 coroutineScope 中维持连接任务与调用任务，直至 close；不能在 scope 正文返回后再尝试登记新连接。调用 owner 持续到请求发送与响应消费均完成或放弃，不在 execute 返回头部时结束。调用者 Job 的取消登记维持到本次调用收尾；execute 不创建一个必须等 body 结束才能返回的临时 coroutineScope。显式响应须在 client 的结构化生命周期内使用并关闭，不把引用带出 withHttpClient；漏关资源由 client.close 收尾。
 
@@ -91,6 +91,10 @@ RequestBodyPart 以 body 和有序 fields 创建不可变 part head，bodyLength
 HTTP/1 默认发 1.1，显式 `http1RequestVersion` 可选 1.0；正常接收服务器的 1.0 响应并按其定界、持久连接规则处理。Http1Only 表达协议族，不把收到合法 1.0 响应当成 TLS 协商失败。
 
 明文默认 HTTP/1.1。`Http2PriorKnowledge` 与 `H2cUpgrade` 是显式明文选项，不能自动探测或重复发送有副作用的请求。h2c 复用 M53 的升级与 stream 1 合同；拒绝升级交付真实 H1 响应，Http2Only 则报告未满足策略并收尾，不偷偷重放。RFC 9113 已弃用 h2c Upgrade，因此它仅是显式互操作选项。
+
+H2cUpgrade 要求 HTTP/1.1 请求版本，不能与 Http1Only 组合。每条新建明文连接只在首个实际请求上提议升级；提议字段和 SETTINGS 由 HTTP 库生成，非法 CONNECT 或已有升级字段按该库的规则拒绝。有效 101 是内部协议切换，不交付为最终响应，也不进入 onInformational；切换前后的普通信息响应仍在调用 Context 中交付。原请求完整发送、101 的空 body 消费完毕后，才把传输及其全部未消费后缀接管为 H2，并以原方法关联 stream 1，不重新发送请求或运行 producer。随后从 H2 stream 1 取得最终响应，后续请求从新的流发送。
+
+提议期间，同 origin 的排队调用先等待协议结果。接受后按 H2 容量分配；拒绝后该连接按正常 H1 规则使用，不再次提议升级。Http2Only 下拒绝或畸形 101 以 HttpNegotiationException 失败并收尾。首个 h2c 请求必须先完成 H1 上传，因此不能使用 duplex；已升级连接上的后续请求可以使用 duplex。等待上传结束或接管传输时取消，必须终止本次调用并等待真实清理；共享 H2 驱动在 client 的 Context 中创建，stream 1 的取消归原调用 owner。
 
 Http2Only 用于明文时必须选定允许的 H2 入口；与明文 Http1 配置冲突在网络提交前报告。TLS／明文策略和请求版本不能以无效组合静默覆盖彼此。
 

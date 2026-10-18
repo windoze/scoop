@@ -1,0 +1,32 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.platform.memory.NativeByteBuffer
+
+internal class ClientH1Exchange(val connection: AsyncHttp1Connection, val output: AsyncHttp1Writer,
+    public override val version: HttpVersion) : ClientExchange {
+    private var input: AsyncHttp1Body? = None
+    public override val isReadComplete: Boolean get() = clientPresent(input) && input!!.isComplete
+    public override val trailers: Array<HttpField>? get() = when (input) { case Some(body) -> body.trailers; case None -> None }
+    public override suspend fun receiveResponse(): HttpResponseHead {
+        val response = connection.receiveResponse()
+        if (response.head.status < 200U && response.head.status != 101U) {
+            response.body.useAsync suspend { body -> body.readAllBytes(0L); Unit }
+        } else input = Some(response.body)
+        return response.head
+    }
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long = input!!.readInto(buffer, count)
+    public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long = output.writeFrom(buffer, count)
+    public override suspend fun flush() { output.flush() }
+    public override suspend fun finish() { output.finish() }
+    public override suspend fun close() {
+        var failure: Throwable? = None
+        try { if (clientPresent(input)) input!!.close() }
+        catch (error: Throwable) { failure = Some(error) }
+        try { output.close() }
+        catch (error: Throwable) { failure = Some(clientCombined(failure, error)) }
+        if (clientPresent(failure)) throw failure!!
+    }
+}

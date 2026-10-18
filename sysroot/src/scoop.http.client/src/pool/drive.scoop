@@ -12,6 +12,7 @@ internal suspend fun driveClientPool(state: ClientState, scope: CoroutineScope) 
             for (action in plan.actions) {
                 when (action) {
                     case Dial(call, entry) -> startClientDial(state, call, entry)
+                    case Upgrade(work) -> startClientUpgrade(work)
                     case Reject(call, error) -> failClientCall(call, error)
                     case Deliver(call, entry, waiter) -> {
                         val error = call.lock.withLock {

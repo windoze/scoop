@@ -9,6 +9,7 @@ internal class ClientPoolEntry(val origin: UrlOrigin, first: ClientCall, now: Ti
     var connection: ClientConnection? = None
     var initial: ClientCall? = Some(first)
     var connecting: Boolean = true
+    var h2cPending: Boolean = false
     var closing: Boolean = false
     var draining: Boolean = false
     var active: Long = 0L
@@ -21,6 +22,7 @@ internal class ClientPoolEntry(val origin: UrlOrigin, first: ClientCall, now: Ti
 
 internal enum ClientPoolAction {
     Dial(ClientCall, ClientPoolEntry),
+    Upgrade(ClientUpgrade),
     Deliver(ClientCall, ClientPoolEntry, Continuation<ClientConnection>),
     Reject(ClientCall, Throwable),
     Close(ClientPoolEntry)

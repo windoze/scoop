@@ -54,6 +54,7 @@
 | 异步限长读取 | readAllBytes 增加显式 maxBytes 重载，使用有限缓冲，最多额外读取一个字节确认超限；ReadLimitException 保留上限，来源位置和关闭责任保持明确 | Darwin debug／release：6 项新测试及 4 项既有读取回归通过，全部通过两种构建的 moving GC；正式消费者验证文件位置、后续读取和 TCP 半关闭后的继续写入 |
 | 统一 HTTP 调用与生命周期 | 纯 Scoop 的 HttpClient／HttpRequest／HttpResponse；HTTP/1.0／1.1、明文 H2 prior knowledge 与 TLS ALPN，流式上传／响应、信息回调、H2 duplex、真实 Context 与资源收尾 | Darwin debug／release：新增 15 项调用测试，client 全部 55 项普通测试通过；29 项调用及池测试逐例通过两种构建的 full moving，真实文件／TLS 与独立 Python HTTP 对端通过 |
 | 同 origin 连接池 | 连接建立前预留容量，H1 依协议状态复用，H2 服从 peer SETTINGS 与本地流上限；可取消排队、GOAWAY 排空、单调时钟闲置／寿命回收与首次拒绝的明确失败出口 | 新增 14 项池测试；两种构建的独立 Python 对端验证 H1 连续复用与放弃、H2 降低 SETTINGS 上限、流取消顺序和 GOAWAY 后的新连接，full moving 与构建复用通过 |
+| 显式 h2c 升级 | 每条明文连接的首个请求经公开协议接口提议升级，完整上传后移交传输与后缀，原方法关联 stream 1；拒绝保留真实 H1 响应，Http2Only 明确失败，后续池请求使用实际协议 | 新增 9 项测试，client 全部 64 项 debug／release 通过；新增用例与 5 项取消／连接池回归逐例通过两种构建的 full moving，独立 Python 对端与正式跨 Cone 消费通过 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -219,9 +220,13 @@ SecTrust 对原有十年有效期叶证书的拒绝符合系统政策，测试�
 
 15 项调用和 14 项池测试共 29 项，逐例通过两种构建的 full moving，共 58 个进程；普通回归覆盖 client 全部 55 项。覆盖 TLS 验证与 ALPN 拒绝、HTTP/1.0 长度约束、早期最终响应、双向上传、单流取消、排队公平与容量归还、闲置／寿命、来源清理失败及并发 close。极短寿命不会在首个预留交付前反复回收新连接；首次 GOAWAY 拒绝不会导致池内无界重连；响应首次 close 仍交付此前未观察的后台失败。连接驱动与请求任务使用各自的 Context，结果交付后释放 continuation 引用，所有容量在真实清理完成后归还。实现没有 native／Unsafe 入口或私有 Job 访问。
 
+`m54-client-h2c` 在 Darwin 通过 debug／release 两个变体，共 6 个进程。独立 Python socket 对端在一次发送中组合 101、H2 SETTINGS 和 stream 1 响应，核对 POST 不重放、HEAD 长度语义、后续 stream 3、H1 拒绝后的复用、Http2Only／畸形升级失败，以及取消 stream 1 后继续 stream 3／5。六种互通场景各在两个 native 线程中运行，full moving 与正常构建复用通过。
+
+9 项升级测试与 5 项受影响的取消／池回归共 14 项，逐例通过两种构建的 full moving，共 28 个进程。上传未结束时不会过早移交；早期拒绝仍能先交付响应；101 等待中的取消与并发 client.close 等待 producer 真实清理。升级工作从 client 协调器发起，共享 H2 驱动保持 client Context，stream 1 绑定原调用 owner；没有新增底层绕行接口。
+
 ## 后续工作
 
-继续完成 client 的 h2c、总截止与分阶段超时、Expect／请求 trailer、自动解码与文本／JSON 便利接口，以及重定向／重试／认证／代理、Cookie、缓存／续传、SSE／WebSocket 高层组合和可观察性。实际底层缺口仍在所属库补齐；每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
+继续完成 client 的总截止与分阶段超时、Expect／请求 trailer、自动解码与文本／JSON 便利接口，以及重定向／重试／认证／代理、Cookie、缓存／续传、SSE／WebSocket 高层组合和可观察性。实际底层缺口仍在所属库补齐；每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
 
 ## 验证安排
 
@@ -258,3 +263,5 @@ CA 文件组合验收结束后，清理客户端身份的 2 个已结束 fixture
 请求 body 验收期间，清理目录枚举和 TCP 竞速对应的 4 个已结束 fixture target 目录，释放约 205 MiB；保留正式源码、验证报告、日志、缓存、生产 sysroot 和当前库 target。
 
 请求组合与客户端连接池推进期间，清理 SOCKS5、请求 body、multipart／压缩组合及第一轮 HTTP/1 复用消费者的 8 个已结束 fixture target 目录，释放约 914 MiB；保留源码、生产 sysroot、当前库 target、原始日志、报告与缓存。
+
+h2c 验收期间，清理统一 client、连接池和 HTTP/1 取消对应的 6 个已结束 fixture target 目录，释放约 874 MiB；保留源码、生产 sysroot、当前库 target、原始日志、报告与缓存。

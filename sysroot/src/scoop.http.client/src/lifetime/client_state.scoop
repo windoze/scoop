@@ -8,6 +8,7 @@ internal class ClientState(val loop: EventLoop, val config: HttpClientConfig, va
     val lock: ClientLock = ClientLock()
     val calls: ArrayList<ClientCall> = ArrayList<ClientCall>()
     val waiting: ArrayDeque<ClientCall> = ArrayDeque<ClientCall>()
+    val upgrades: ArrayDeque<ClientUpgrade> = ArrayDeque<ClientUpgrade>()
     val connections: ArrayList<ClientPoolEntry> = ArrayList<ClientPoolEntry>()
     var scope: CoroutineScope? = None
     var ownerHold: Continuation<Unit>? = None

@@ -2,8 +2,6 @@ package scoop.http.client
 
 import scoop.asyncio.*
 import scoop.http.*
-import scoop.http.asyncio.*
-import scoop.platform.memory.NativeByteBuffer
 
 internal interface ClientExchange : AsyncByteStream, AsyncCloseable {
     public val version: HttpVersion
@@ -17,6 +15,8 @@ internal suspend fun openClientExchange(call: ClientCall, connection: ClientConn
     val request = call.request
     return when (connection) {
         case Http1(value) -> {
+            if (request.options.duplex)
+                throw IllegalArgumentException(Some("negotiated HTTP/1 cannot perform a duplex upload"))
             val version = call.client.config.http1RequestVersion
             val framing = when (request.contentLength) {
                 case Some(0L) -> Http1BodyFraming.Empty
@@ -26,7 +26,12 @@ internal suspend fun openClientExchange(call: ClientCall, connection: ClientConn
                     Http1BodyFraming.Chunked
                 }
             }
-            ClientH1Exchange(value, value.sendRequest(clientRequestHead(request, version), framing), version)
+            val entry = call.lock.withLock { call.lease!! }
+            val upgrading = call.client.lock.withLock { entry.h2cPending }
+            val head = clientRequestHead(request, version)
+            val prepared = if (upgrading) prepareHttp2Upgrade(head, call.client.config.http2Settings) else head
+            val exchange = ClientH1Exchange(value, value.sendRequest(prepared, framing), version)
+            if (upgrading) ClientH2cExchange(call, entry, exchange) else exchange
         }
         case Http2(value) -> ClientH2Exchange(value.openRequest(clientRequestHead(request, HttpVersion.Http2), false))
     }
@@ -45,42 +50,4 @@ private fun clientRequestHead(request: HttpRequest, version: HttpVersion): HttpR
         else if (version == HttpVersion.Http2) HttpRequestTarget.Http2(request.origin.scheme.toByteArray(), authority, request.url.httpRequestTarget().toByteArray())
         else HttpRequestTarget.Http1(request.url.httpRequestTarget().toByteArray())
     return HttpRequestHead(version, request.methodBytes, target, fields)
-}
-
-private class ClientH1Exchange(val connection: AsyncHttp1Connection, val output: AsyncHttp1Writer,
-    public override val version: HttpVersion) : ClientExchange {
-    private var input: AsyncHttp1Body? = None
-    public override val isReadComplete: Boolean get() = clientPresent(input) && input!!.isComplete
-    public override val trailers: Array<HttpField>? get() = when (input) { case Some(body) -> body.trailers; case None -> None }
-    public override suspend fun receiveResponse(): HttpResponseHead {
-        val response = connection.receiveResponse()
-        if (response.head.status < 200U && response.head.status != 101U) {
-            response.body.useAsync suspend { body -> body.readAllBytes(0L); Unit }
-        } else input = Some(response.body)
-        return response.head
-    }
-    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long = input!!.readInto(buffer, count)
-    public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long = output.writeFrom(buffer, count)
-    public override suspend fun flush() { output.flush() }
-    public override suspend fun finish() { output.finish() }
-    public override suspend fun close() {
-        var failure: Throwable? = None
-        try { if (clientPresent(input)) input!!.close() }
-        catch (error: Throwable) { failure = Some(error) }
-        try { output.close() }
-        catch (error: Throwable) { failure = Some(clientCombined(failure, error)) }
-        if (clientPresent(failure)) throw failure!!
-    }
-}
-
-private class ClientH2Exchange(val stream: AsyncHttp2Stream) : ClientExchange {
-    public override val version: HttpVersion get() = HttpVersion.Http2
-    public override val isReadComplete: Boolean get() = stream.isReadComplete
-    public override val trailers: Array<HttpField>? get() = stream.trailers
-    public override suspend fun receiveResponse(): HttpResponseHead = stream.receiveResponse()
-    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long = stream.readInto(buffer, count)
-    public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long = stream.writeFrom(buffer, count)
-    public override suspend fun flush() { stream.flush() }
-    public override suspend fun finish() { stream.finish() }
-    public override suspend fun close() { stream.close() }
 }
