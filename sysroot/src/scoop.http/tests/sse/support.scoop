@@ -1,0 +1,32 @@
+package scoop.http
+
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+internal fun feedSse(decoder: SseDecoder, bytes: List<Byte>, chunkSize: Long = 1L): Array<SseEvent> {
+    val events = ArrayList<SseEvent>()
+    NativeByteBuffer.allocate(chunkSize).use { input ->
+        var offset = 0L
+        while (offset < bytes.size) {
+            input.clear()
+            val count = if (bytes.size - offset < chunkSize) bytes.size - offset else chunkSize
+            input.writeBytes(bytes, offset, count)
+            offset += count
+            while (input.readableBytes > 0L) {
+                val consumed = decoder.receive(input)
+                when (decoder.nextEvent()) {
+                    case Some(event) -> events.add(event)
+                    case None -> assertTrue(consumed > 0L)
+                }
+            }
+        }
+    }
+    return events.toArray()
+}
+
+internal fun parseSse(text: String, chunkSize: Long = 1L): Array<SseEvent> = SseDecoder().use { decoder ->
+    val events = feedSse(decoder, text.toByteArray(), chunkSize)
+    decoder.endInput()
+    assertTrue(decoder.isFinished)
+    events
+}

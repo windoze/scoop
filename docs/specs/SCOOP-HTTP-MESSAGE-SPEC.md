@@ -173,6 +173,20 @@ multipart 内存引擎按 RFC 2046／7578 增量处理 boundary、每 part 字�
 
 异步 `SseSource` 借用或显式接管 AsyncByteSource，`next(): SseEvent?` 可挂起，消费驱动读取。maxLineBytes／maxEventBytes 约束实际累计文本，超出报具体错误。HTTP 状态、媒体类型、Last-Event-ID 和重连策略由 client 管理。
 
+### 5.1 增量解析与事件数据
+
+`SseDecoder(limits = SseLimits(), initialLastEventId = "")` 实现 Closeable，串行使用。`receive(buffer, count = buffer.readableBytes)` 消费 NativeByteBuffer 的实际前缀并返回字节数；`nextEvent(): SseEvent?` 取走一个事件。引擎至多保存一个待交付事件，形成事件后立即停止消费；在取走它之前 receive 返回零，不无界累计事件队列。零长度仍检查状态与参数，非法参数不使引擎失效；解析推进失败后保存 failure，后续推进报状态错误，close 仍可调用。
+
+`SseLimits(maxLineBytes = 65536, maxEventBytes = 1048576)` 的两个值须非负。maxLineBytes 限制一行的原始字节数，不含 CR／LF，开头 BOM 计入；maxEventBytes 限制当前待派发 data 合并后的 UTF-8 字节数，包含行间 LF，不含 event／id 元数据。元数据每条本身受行上限约束。超限报告含 kind、limit 的 SseLimitException；这些限制针对实际行和事件，不计算通用成本。
+
+CR、LF 与 CRLF 可以跨任意输入边界。UTF-8 的 CR／LF 字节不会出现在有效多字节序列内部，因此先保留完整行字节，再由 charset 执行有损 UTF-8 解码；跨块残缺字符不会提前替换，单行内的非法序列使用同一字符集实现处理。只剥去整个流开头的一个 BOM，后续 BOM 保留。字段名逐字、区分大小写；冒号只分隔第一次，值开头最多剥去一个 SP，不剥 HTAB 或更多空格。
+
+`SseEvent` 保存 event、data、id、lastEventId 四个不可变文本值；event 缺失或为空时为 `message`。data 字段按 LF 连接，有一个空 data 字段也会派发 data 为空的事件；没有 data 字段的块不派发事件。id 为本块最后一个有效 id 的可选值，None 表示本块未提供，Some("") 表示显式清除；含 NUL 的 id 被忽略。lastEventId 是派发时的有效 ID。decoder 的 lastEventId 也在无 data 的空行分界处更新；ID buffer 在完整块之间保留，event／data 和本块 id 标记在每个空行后重置。initialLastEventId 供调用者显式延续已有流的状态，不得含 NUL／CR／LF。
+
+`retryMilliseconds` 保存最后一个有效 retry，初始为 None；它在行结束时更新，不要求该块有 data。值只允许非空 ASCII 十进制，零合法，超过 Long 时饱和到 Long.MAX_VALUE，溢出后的其他字符仍使整项无效。注释、未知字段、坏 retry 不改变已有状态；实际等待与上限由 client 决定。
+
+`endInput()` 幂等地声明 EOF，丢弃未结束的行和没有最终空行的块，不补发事件，也不提交不完整块的 id；已形成但未取走的事件继续可取。isFinished 在 EOF 且没有待交付事件时为 true。close 释放行与事件引用，不关闭调用者 buffer，不执行 I/O；lastEventId、retryMilliseconds 和 failure 继续作为结果快照可读。重连、HTTP 状态、URL 和应用回调均不进入这个内存引擎。
+
 ## 6. HTTP/1.1 WebSocket
 
 握手工具生成和校验 RFC 6455 的 Upgrade、Connection、Sec-WebSocket-Key／Accept／Version、子协议与扩展字段，SHA-1 及随机数调用 crypto。成功响应必须绑定本次 key，不能只看到状态 101 就移交。响应选中的子协议／扩展必须属于本次有效提议。

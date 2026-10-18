@@ -1,0 +1,16 @@
+package scoop.http
+
+public class SseLimits public constructor(public val maxLineBytes: Long = 65536L, public val maxEventBytes: Long = 1048576L) {
+    init {
+        if (maxLineBytes < 0L || maxEventBytes < 0L) throw IllegalArgumentException(Some("negative SSE limit"))
+    }
+}
+
+public enum SseLimitKind { LineBytes, EventBytes }
+
+public class SseLimitException public constructor(public val kind: SseLimitKind, public val limit: Long)
+    : Exception(Some("SSE " + (if (kind == SseLimitKind.LineBytes) "line" else "event data") + " exceeds " + limit.toString() + " bytes"))
+
+public class SseEvent internal constructor(
+    public val event: String, public val data: String, public val id: String?, public val lastEventId: String
+)

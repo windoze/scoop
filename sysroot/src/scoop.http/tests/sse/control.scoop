@@ -1,0 +1,69 @@
+package scoop.http
+
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+@Test
+private class SseControlTests {
+    @Test
+    fun `ID updates include empty control blocks while absent and empty IDs stay distinct`() {
+        SseDecoder(initialLastEventId = "initial").use { decoder ->
+            val first = feedSse(decoder, "data:first\n\n".toByteArray())[0L]
+            assertEquals("initial", first.lastEventId)
+            assertTrue(first.id == None)
+            assertEquals(0L, feedSse(decoder, "id: prior\n\n".toByteArray()).size)
+            assertEquals("prior", decoder.lastEventId)
+            val second = feedSse(decoder, "id:next\nid:bad\u0000value\ndata:second\n\n".toByteArray())[0L]
+            assertTrue(second.id == Some("next"))
+            assertEquals("next", second.lastEventId)
+            val empty = feedSse(decoder, "id\ndata:third\n\n".toByteArray())[0L]
+            assertTrue(empty.id == Some(""))
+            assertEquals("", empty.lastEventId)
+            assertEquals(0L, feedSse(decoder, "id:pending\n".toByteArray()).size)
+            decoder.endInput()
+            assertEquals("", decoder.lastEventId)
+        }
+    }
+
+    @Test
+    fun `retry changes at complete lines and invalid values never replace a valid delay`() {
+        SseDecoder().use { decoder ->
+            assertTrue(decoder.retryMilliseconds == None)
+            feedSse(decoder, "retry:17\n".toByteArray())
+            for (value in ["", "-1", "+1", "  2", "2 ", "1x", "١", "999999999999999999999999x"]) {
+                feedSse(decoder, ("retry:" + value + "\n").toByteArray())
+                assertTrue(decoder.retryMilliseconds == Some(17L))
+            }
+            feedSse(decoder, "Retry:2\nretry:0000\n".toByteArray())
+            assertTrue(decoder.retryMilliseconds == Some(0L))
+            feedSse(decoder, "retry:9999999999999999999999999\n".toByteArray())
+            assertTrue(decoder.retryMilliseconds == Some(Long.MAX_VALUE))
+            feedSse(decoder, "retry:1".toByteArray())
+            decoder.endInput()
+            assertTrue(decoder.retryMilliseconds == Some(Long.MAX_VALUE))
+        }
+    }
+
+    @Test
+    fun `EOF retains a completed event but never invents the final empty line`() {
+        val decoder = SseDecoder(initialLastEventId = "before")
+        NativeByteBuffer.allocate(32L).use { input ->
+            input.writeBytes("id:after\ndata:done\n\n".toByteArray())
+            decoder.receive(input)
+            decoder.endInput(); decoder.endInput()
+            assertFalse(decoder.isFinished)
+            assertEquals("after", decoder.lastEventId)
+            gcCollect()
+            assertEquals("done", decoder.nextEvent()!!.data)
+            assertTrue(decoder.isFinished)
+            assertTrue(when (decoder.nextEvent()) { case None -> true; case Some(_) -> false })
+            assertFailsWith<IllegalStateException> { decoder.receive(input, 0L) }
+        }
+        decoder.close(); decoder.close()
+        assertTrue(decoder.isClosed)
+        assertEquals("after", decoder.lastEventId)
+        assertFailsWith<IllegalStateException> { decoder.nextEvent() }
+        assertEquals(0L, parseSse("data:incomplete\n").size)
+        assertEquals(0L, parseSse("data:incomplete").size)
+    }
+}

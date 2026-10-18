@@ -26,6 +26,7 @@
 | 公共后缀 | PublicSuffixList 提供不可变 PSL 索引、普通／通配／例外匹配、ICANN／PRIVATE 选择和域名边界结果，直接复用 URL／IDNA 的规范名称；随库交付 2026-10-17 固定快照及许可 | Darwin debug／release：5 项新测试和 HTTP 全部 107 项通过；10398 条规则、77 个官方向量通过，4 项代表性规则测试通过 full moving，完整快照通过 minor moving |
 | Cookie 消息与规则 | HttpCookiePair／Header／Attribute／SetCookie 保存有序字节数据；独立 Cookie 日期、标准属性、作用域、前缀、过期与显式 SameSite 判断，复用 URL／IDNA／PSL 和标准 Result | Darwin debug／release 与 moving GC：18 项新测试；HTTP 全部 125 项 debug／release 通过，覆盖无名值、重复与未知属性、控制字节／长度、溢出、IP／编码路径、公共后缀和拒绝原因 |
 | Age 与 Vary | HttpAge 遵守 RFC 9111 首值选择与秒数饱和，HttpVary 保留字段名、重复与通配符；与 Cache-Control 复用列表及数值解析 | Darwin debug／release：7 项新测试与 HTTP 全部 132 项通过；新测试及 4 项 Cache-Control 共享解析回归通过 moving GC，Range／Retry-After 仍拒绝溢出 |
+| SSE 内存解析 | SseDecoder 增量处理行结束、BOM、字段、ID／retry 和 EOF；UTF-8 复用 charset，有界行／data 与单个待交付事件，原生输入借用有明确消费量 | Darwin debug／release 与 moving GC：10 项新测试；HTTP 全部 142 项 debug／release 通过，涵盖 HTML 示例、单字节分块、坏 UTF-8、空 ID／data、背压、失败后借用释放与 EOF |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -79,6 +80,8 @@ HTTP 日期的 release 编译暴露了跨无写入分支的同槽根加载直到
 
 `m54-cache-metadata` 的 debug／release 两个变体通过，共 6 个进程；生产消费者逐字节接收 304 响应中的列表／重复 Age 与多行 Vary，组合 Date、Cache-Control，重新生成并解析响应字段。首值保留、名称顺序、通配符、饱和、moving GC 与构建复用均通过；这些工具只交付消息数据，不计算或存储实际缓存条目。
 
+`m54-sse-decoder` 的 debug／release 两个变体通过，共 6 个进程；生产 HTTP `.slib` 将 SSE 正文编码成三字节 chunked 块，消费者逐字节完成 HTTP/1 定界后交给 SSE。UTF-8、CRLF、控制块、ID 清除、坏字符替换、不完整尾部、快照、moving GC 与缓存复用均通过。解析器不执行网络或重连，异步 SseSource 与 client 重连策略另行完成。
+
 ## 后续工作
 
 继续完成 HTTP 消息与协议补充、TLS 与 asyncio 缺口，再完成统一 client、策略、存储与长连接组合。每个功能独立验证和提交，最终按设计完成三个目标的运行验收。
@@ -92,3 +95,5 @@ HTTP 日期的 release 编译暴露了跨无写入分支的同槽根加载直到
 独立数据与压缩库本机验收完成后，清理仓库外对应的 debug／release target，共约 390 MB；生产 sysroot 与仍需使用的 HTTP／crypto 构建产物继续保留。
 
 GC 编译器修复验收后，清理本轮 codegen／driver 的 13 个增量构建目录，释放约 505 MB；继续保留配套命令、正常依赖产物和当前 HTTP 构建缓存。
+
+Cookie、缓存字段及 SSE 本机测试推进后，清理此前已经结束的 52 个正式 fixture target 目录，释放约 2.4 GiB；原始日志、报告、源 fixture 和编译缓存保留，当前库 target 与生产 sysroot 继续复用。
