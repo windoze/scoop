@@ -18,6 +18,8 @@ mod call_frame;
 mod constant_roots;
 #[path = "statepoint_tests/copied_aggregate.rs"]
 mod copied_aggregate;
+#[path = "statepoint_tests/guarded_unwrap.rs"]
+mod guarded_unwrap;
 #[path = "statepoint_tests/interface_parts.rs"]
 mod interface_parts;
 #[path = "statepoint_tests/optimized.rs"]

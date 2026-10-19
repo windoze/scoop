@@ -271,6 +271,8 @@ SecTrust 对原有十年有效期叶证书的拒绝符合系统政策，测试�
 
 6 项新测试与 5 项流控／HPACK／错误回归逐例通过两种构建的 full moving，共 22 个进程。新旧接收入口共享分段状态，零输入不重复上次进度，正常关闭或 reset 不破坏已交付快照。边界来自 nghttp2 的公开回调，未增加第二个帧 parser；生产依赖顺序刷新后，`m54-client-h2c` 两种构建的 6 个进程回归通过。首轮修正了 Unsafe 块结果的源码写法及消费者的 enum 绑定警告，最终编译和运行通过。
 
+HTTP idle 的 release 构建暴露了短路判断中的不可达空值错误分支直到机器发射才删除的问题。codegen 现在在 GC 计划定稿前进行普通 CFG 化简，再沿用 MemorySSA 整理根加载；debug 保持原有 O0 路径，可达异常调用仍保留。最小 LLVM 用例与 `m54-gc-guarded-unwrap` 均在修复前复现；全部 225 项 codegen 测试通过，其中新用例覆盖三个目标的 debug／release 机器 stackmap。源码 fixture 在 Darwin 通过两个变体、6 个进程，含移动 GC、对象引用与真实空值异常；原 HTTP 异步库的生产 release 构建随后通过。临时诊断已移除，没有放宽对象或 GC 检查。
+
 ## 后续工作
 
 继续在所属 HTTP 层补齐实际 I/O idle 阶段，并完成 client 的重定向／重试／认证／代理、Cookie、缓存／续传、SSE／WebSocket 高层组合和可观察性。每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
@@ -279,7 +281,7 @@ SecTrust 对原有十年有效期叶证书的拒绝符合系统政策，测试�
 
 复用 M53 已完成的工具与目标资源，改动的库通过正常准备／构建入口更新。先运行本机相关测试，待功能组合稳定后在 Linux 完整验证；普通库改动不重复运行无关编译器全量测试。原始日志、fixture 工作区与本期构建缓存保存在仓库外的 `scoop-work/m54`。
 
-Linux 使用 nuc12 上的独立 checkout；已构建配套命令及 GNU／musl 的 OpenSSL、nghttp2、文本、URL、压缩和 libunwind 资源。宿主 LLVM 为 22.1.2，libunwind 源码为固定的 22.1.8；这些是环境准备结果，功能运行验收尚未进行。
+Linux 使用 nuc12 上的独立 checkout；已构建配套命令及 GNU／musl 的 OpenSSL、nghttp2、文本、URL、压缩和 libunwind 资源。宿主 LLVM 为 22.1.2，libunwind 源码为固定的 22.1.8。输入、输出进度两个 fixture 已分别通过 GNU／musl 的 debug／release，共 8 个变体、24 个步骤进程，覆盖 native 按值返回、独立线协议、full moving 与正常构建复用；其余功能的 Linux 组合验收继续推进。
 
 已清理本机旧 `target/debug/incremental`，释放约 8 GB；保留当前仍需复用的编译产物。后续按实际磁盘占用继续清理不再使用的 target 内容。
 
@@ -324,3 +326,5 @@ Trailer 实施期间，清理 Expect 字段、h2c 及 Continue 首轮消费者�
 网络阶段验收期间，清理上一批调用超时与 TCP 截止消费者的 4 个已结束 fixture target 目录，释放约 426 MiB；保留源码、当前消费者、生产 sysroot、库 target、原始日志、报告与缓存。
 
 HTTP/2 输入进度验收期间，清理网络阶段消费者的 2 个已结束 fixture target 目录，释放约 316 MiB；保留源码、当前消费者、生产 sysroot、库 target、原始日志、报告与缓存。
+
+HTTP idle 实施期间，清理输出进度消费者的 2 个已结束 fixture target 目录，释放约 146 MiB；保留源码、生产 sysroot、原始日志、报告与缓存。

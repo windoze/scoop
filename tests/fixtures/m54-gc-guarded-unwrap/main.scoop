@@ -1,0 +1,37 @@
+class Item(val number: Long, val next: Item?)
+
+private fun <T> present(value: T?): Boolean = when (value) { case Some(_) -> true; case None -> false }
+
+fun guardedSum(values: Array<Item?>, enabled: Boolean): Long {
+    var sum = 0L
+    for (value in values) {
+        if (enabled && present(value) && present(value!!.next)) {
+            gcCollect()
+            sum += value!!.next!!.number
+        }
+    }
+    return sum
+}
+
+fun uncheckedNumber(value: Item?, enabled: Boolean): Long {
+    if (enabled) return value!!.number
+    return 9L
+}
+
+fun main(args: Array<String>) {
+    val leaf = Item(37L, None)
+    val parent = Item(5L, Some(leaf))
+    val values: Array<Item?> = [None, Some(leaf), Some(parent)]
+    val enabled = args.size > 1L
+    val expected = if (enabled) 37L else 0L
+    if (guardedSum(values, enabled) != expected) throw IllegalStateException()
+    if (guardedSum(values, true) != 37L || guardedSum(values, false) != 0L) throw IllegalStateException()
+    if (uncheckedNumber(Some(leaf), true) != 37L || uncheckedNumber(None, false) != 9L) throw IllegalStateException()
+    var failed = false
+    try { uncheckedNumber(None, true) }
+    catch (_: Exception) { failed = true }
+    if (!failed) throw IllegalStateException()
+    gcCollect()
+    if (parent.next!!.number != 37L) throw IllegalStateException()
+    println("guarded unwrap keeps actual GC and exception paths")
+}

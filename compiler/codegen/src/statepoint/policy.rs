@@ -39,9 +39,11 @@ pub(crate) fn optimize(
 ) -> Result<ExpectedSafepoints, CodegenError> {
     let passes = match profile.optimization() {
         scoop_lir::OptimizationMode::Debug => "function(sroa,mem2reg,sccp,unreachableblockelim)",
-        scoop_lir::OptimizationMode::Release => {
-            "function(sroa,mem2reg,instcombine<no-verify-fixpoint>,early-cse,dse,adce,early-cse<memssa>,sccp,unreachableblockelim)"
-        }
+        scoop_lir::OptimizationMode::Release => concat!(
+            "function(sroa,mem2reg,instcombine<no-verify-fixpoint>,early-cse,dse,adce,",
+            "simplifycfg<no-speculate-blocks;no-hoist-common-insts;no-sink-common-insts>,",
+            "early-cse<memssa>,sccp,unreachableblockelim)"
+        ),
     };
     module
         .run_passes(passes, machine, PassBuilderOptions::create())
