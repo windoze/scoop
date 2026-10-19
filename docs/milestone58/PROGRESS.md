@@ -16,7 +16,7 @@
 | B：closure 私有支持产物清理 | 已实现 LIR 准备时的实际引用选择；本机 160 项 LIR 单测、源码／跨库／callback 回归通过，Linux 待验证 |
 | C：tail completion 转交 | 已实现 release 本地直接调用的整函数无帧转交；typed MIR、普通／移动 GC／跨线程源码回归通过，Linux 待验证 |
 | C：状态机生成前同步内联 | 已实现本地同步正文与 call-site 同步改写；19 项协程、23 项优化单测及源码组合通过。四层包装运行约 −32%、分配约 −74.5%、text −21 KB，Linux 待验证 |
-| D：外层 poll 循环分块、受限内层 SIMD | 标量分块已实现；本机单测及并发 moving／minor 源码通过，checksum 约 −38%；块大小、内层 SIMD 与 Linux 继续验证 |
+| D：外层 poll 循环分块、受限内层 SIMD | 已实现标量分块及实际结构限定的整数 SIMD；默认 64 次，本机并发 moving／minor、三目标精确 IR／site／根／EH 通过。checksum 约 −48%，text +212 bytes，stop-wait p99 未见明显回退；Linux 待运行验收 |
 | LLVM codegen：范围与 NoGc 标量补齐 | 本机实现与相关验证通过；实际内核暂无可信运行时间收益，后续候选逐项评估 |
 | LLVM codegen：按值复制 | 两条 release 管线增加 memcpyopt；17 项 statepoint 专测及源码三变体通过，text −616 bytes，运行与编译时间基本持平 |
 | LLVM codegen：NoGc 循环 | 启用 load elimination、最多四次完整 unroll、受限 unswitch；18 项 statepoint 专测、源码九变体及旧循环七变体通过。实际递推／四步处理／不变分支分别约 3×／2×／20% 收益，循环 text +256 bytes，编译约 +0.4% |

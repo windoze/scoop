@@ -96,9 +96,22 @@ pub(super) fn counted(function: &mir::Function, header: mir::BlockId) -> Option<
         _ => return None,
     };
     let mut valid = true;
+    let body_locals = block
+        .statements
+        .iter()
+        .filter_map(|statement| match statement.kind {
+            mir::StatementKind::ValDecl { local, .. } => Some(local),
+            _ => None,
+        })
+        .collect::<BTreeSet<_>>();
     let mut writes = Vec::new();
     for (id, candidate) in body.blocks.iter() {
         mir::visit_block_exprs(candidate, &mut |expr| {
+            if id != inner
+                && matches!(expr.kind, mir::ExprKind::Local(local) if body_locals.contains(&local))
+            {
+                valid = false;
+            }
             if matches!(expr.kind, mir::ExprKind::AddressOf { local, .. } if local == iv || Some(local) == bound_local)
                 || (id != header
                     && matches!(expr.kind, mir::ExprKind::Local(local) if header_locals.contains(&local)))

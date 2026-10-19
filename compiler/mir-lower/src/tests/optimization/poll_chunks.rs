@@ -8,12 +8,13 @@ fn sample(kind: hir::IntegerKind) -> (mir::Module, mir::FunctionId) {
     let mut index = local("i", ty);
     index.mutable = true;
     let i = locals.alloc(index);
+    let saved = locals.alloc(local("saved", ty));
     let one = integer_lit(&h, kind, 1);
     let increment = integer_binary(
         &mut h,
         kind,
         hir::IntegerBinaryOperator::Add,
-        local_ref(i, ty),
+        local_ref(saved, ty),
         one,
     );
     h.user_fn_full(
@@ -30,10 +31,13 @@ fn sample(kind: hir::IntegerKind) -> (mir::Module, mir::FunctionId) {
                     target: hir::LoopId::from_raw(0),
                     condition_setup: Vec::new(),
                     cond: bool_lit(&h, false),
-                    body: vec![stmt(hir::StatementKind::Assign {
-                        target: hir::AssignTarget::Local(i),
-                        value: increment,
-                    })],
+                    body: vec![
+                        val_decl(saved, local_ref(i, ty)),
+                        stmt(hir::StatementKind::Assign {
+                            target: hir::AssignTarget::Local(i),
+                            value: increment,
+                        }),
+                    ],
                 }),
                 stmt(hir::StatementKind::Return {
                     value: local_ref(i, ty),
@@ -99,8 +103,22 @@ fn bounded_inner_keeps_original_poll_and_generates_owned_counter() {
         chunk(&mut module);
         let body = &module.functions[id].body;
         assert_eq!(body.loop_header_polls, before.loop_header_polls);
-        assert_eq!(body.blocks.len(), before.blocks.len() + 2);
-        assert_eq!(body.locals.len(), before.locals.len() + 1);
+        assert_eq!(body.blocks.len(), before.blocks.len() + 3);
+        assert_eq!(body.locals.len(), before.locals.len() + 2);
+        let saved = body
+            .blocks
+            .iter()
+            .flat_map(|(_, block)| &block.statements)
+            .filter_map(|statement| match statement.kind {
+                mir::StatementKind::ValDecl { local, .. }
+                    if body.locals[local].name.ends_with("saved") =>
+                {
+                    Some(local)
+                }
+                _ => None,
+            })
+            .collect::<std::collections::BTreeSet<_>>();
+        assert_eq!(saved.len(), 2);
         let inner = body
             .blocks
             .iter()
@@ -120,7 +138,7 @@ fn bounded_inner_keeps_original_poll_and_generates_owned_counter() {
         chunk(&mut module);
         assert_eq!(
             module.functions[id].body.blocks.len(),
-            before.blocks.len() + 2
+            before.blocks.len() + 3
         );
     }
 }

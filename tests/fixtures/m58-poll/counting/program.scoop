@@ -28,6 +28,24 @@ fun wrapping(n: Int): Int {
     return value
 }
 
+fun checksum(n: Int): Int {
+    var i = 0
+    var sum = 0
+    while (i < n) {
+        sum += (i * 1664525 + 1013904223).xor(i.shr(8))
+        i += 1
+    }
+    return sum
+}
+
+fun withException(n: Int): Long {
+    var i = 0
+    var sum = 0L
+    while (i < n) { sum += i.toLong() + 1L; i += 1 }
+    try { throw IllegalStateException() }
+    catch (error: IllegalStateException) { return sum }
+}
+
 fun retained(n: Int): Int {
     var i = 0
     var sum = 0
@@ -53,6 +71,8 @@ fun main() {
     check(nearLimit(9223372036854775807L) == 130L)
     check(nearLimit(-1L) == 0L)
     check(wrapping(65) == 1856165533)
+    check(checksum(65) == 646509759)
+    check(withException(65) == 2145L)
     check(retained(10) == 8)
     println("bounded poll chunks preserve counts, limits and control flow")
 }

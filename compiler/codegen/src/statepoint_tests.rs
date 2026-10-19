@@ -10,6 +10,8 @@ use crate::ValidatedBackendProfile;
 
 #[path = "statepoint_tests/atomic_refs.rs"]
 mod atomic_refs;
+#[path = "statepoint_tests/bounded_loops.rs"]
+mod bounded_loops;
 #[path = "statepoint_tests/call_frame.rs"]
 mod call_frame;
 #[path = "statepoint_tests/constant_roots.rs"]

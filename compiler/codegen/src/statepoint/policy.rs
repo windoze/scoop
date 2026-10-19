@@ -72,6 +72,9 @@ pub(crate) fn optimize(
                     "ordinary LLVM lowering of `{name}` failed: {error}"
                 ))
             })?;
+        if profile.optimization() == scoop_lir::OptimizationMode::Release && !no_gc {
+            bounded_loops::optimize(function, machine)?;
+        }
     }
     finalization::finalize(module, expected, profile)
 }

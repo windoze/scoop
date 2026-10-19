@@ -1131,7 +1131,11 @@ LIR 准备阶段依据最终 MIR 的实际引用选择普通 closure 的私有�
 
 release 在普通 MIR 优化迭代结束后、LIR poll／roots 生成前，可以对 Managed 的单 header／单 body 计数循环分块。首版只接受独立前驱中初始化的非负 Int／Long 归纳变量、稳定参数或整数常量上界、严格小于条件及每轮唯一的加一更新；header 仅含条件的纯局部临时值，body 仅含整数／布尔局部运算。调用、非局部访问、取地址、EH、多回边／出口及嵌套循环保留原形。已知不超过 64 次的短循环保留原形。
 
-原 header 和入口的 poll 责任保持；进入 body 前在已成立的 `0 <= i < n` 条件下计算 `remaining = n - i`，以 `min(64, remaining)` 初始化独立 typed 倒计数。每个原 body 恰好消耗一次计数，非零继续内层，零返回原 header；原 i 加一仍在 body 中执行。该结构避免 `i + 64` 溢出，末块、零次及负上界保持原退出行为。内层有界事实来自实际算术／CFG，不靠 block 名称或 LLVM metadata；不增加持久 IR 字段或 runtime ABI。分块不使整个函数取得 NoGc 循环管线资格，是否开放内层向量化另按结构与 site／根合同验证。
+原 header 和入口的 poll 责任保持；进入 body 前在已成立的 `0 <= i < n` 条件下计算 `remaining = n - i`。remaining 至少为 64 时进入常数 64 次的完整块，否则进入剩余次数的标量块；两条路径均以独立 typed 倒计数约束，非零继续内层，零返回原 header。完整块复制纯 body，并为内部 ValDecl 重分配 caller local 身份；body 内临时值被外部读取时保留原循环。原 i 加一仍在 body 中执行。该结构避免 `i + 64` 溢出，末块、零次及负上界保持原退出行为；不增加持久 IR 字段或 runtime ABI。
+
+Managed release 标量优化后，仅对实际 LLVM CFG 为单块自循环、倒计数 phi 的唯一外来初值是 1～64 常量、回边恰好减一并在零终止、且正文全为整数 SSA 运算的内层请求向量化。调用、load／store、原子、EH、浮点和不明确的倒计数均排除；不能只检查 metadata 或名称。合格函数只追加 loop-simplify、LCSSA、仅显式选中循环的 loop-vectorize 和 InstCombine／ADCE，不开放一般循环复制／移动管线；普通 NoGc 管线与函数的 Managed effect 保持。metadata 只传递本次结构分析的选择，不能为外层 poll 或剩余标量块取得优化资格。最终 roots 与 RS4GC 仍在其后执行。
+
+内层选择只授权尝试优化，不要求 LLVM 必须向量化；无法识别 reduction 等普通 missed-optimization remark 不作为编译错误，也不写入结构化 child 协议的 stderr。该局部 pass 运行期间忽略 LLVM remark，错误／警告仍按原诊断路径传递，结束后恢复原 context handler。
 
 条件 poll 在 LIR 保存慢路径 site 与完整 live set，仅实际慢路径产生 statepoint／stackmap；合流连接更新引用，NoGC 不新增 poll。内联、去虚拟化及 CFG 改写均先于最终 roots 定稿，后端不靠完整 runtime poll 调用维持普通循环的检查。
 

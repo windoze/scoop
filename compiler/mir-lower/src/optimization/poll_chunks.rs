@@ -5,6 +5,7 @@ use scoop_identity::{StructuralDefinitionSiteRole, SyntheticLocalRole};
 use super::{inline, mir};
 use crate::local_values::LocalValueRegistry;
 
+mod copy;
 mod recognize;
 
 const CHUNK: u32 = 64;
@@ -48,12 +49,13 @@ pub(super) fn run(module: &mut mir::Module, registry: &mut LocalValueRegistry) {
                 StructuralDefinitionSiteRole::SyntheticValue,
                 SyntheticLocalRole::Temporary,
             );
-            expand(&mut function.body, counted, counter);
+            let full = copy::body(function, counted.body, registry, owner, id);
+            expand(&mut function.body, counted, counter, full);
         }
     }
 }
 
-fn expand(body: &mut mir::Body, counted: Loop, counter: mir::LocalId) {
+fn expand(body: &mut mir::Body, counted: Loop, counter: mir::LocalId, full: mir::BlockId) {
     let Loop {
         header,
         body: inner,
@@ -91,7 +93,7 @@ fn expand(body: &mut mir::Body, counted: Loop, counter: mir::LocalId) {
             },
             span,
         }],
-        terminator: mir::Terminator::Goto(inner),
+        terminator: mir::Terminator::Goto(full),
         unwind: None,
     });
     let chunk = body.blocks.alloc(mir::BasicBlock {
@@ -108,7 +110,10 @@ fn expand(body: &mut mir::Body, counted: Loop, counter: mir::LocalId) {
             span,
         }],
         terminator: mir::Terminator::Branch {
-            cond: compare(mir::IntegerComparisonOperator::GreaterThan, constant(CHUNK)),
+            cond: compare(
+                mir::IntegerComparisonOperator::GreaterThanOrEqual,
+                constant(CHUNK),
+            ),
             then_block: clamp,
             else_block: inner,
         },
@@ -118,22 +123,24 @@ fn expand(body: &mut mir::Body, counted: Loop, counter: mir::LocalId) {
         unreachable!("recognized conditional header")
     };
     *then_block = chunk;
-    body.blocks[inner].statements.push(mir::Statement {
-        kind: mir::StatementKind::Assign {
-            local: counter,
-            value: mir::Expr::integer_binary(
-                mir::IntegerBinaryOperation::new(kind, mir::IntegerBinaryOperator::Subtract),
-                read(),
-                constant(1),
-            ),
-        },
-        span,
-    });
-    body.blocks[inner].terminator = mir::Terminator::Branch {
-        cond: compare(mir::IntegerComparisonOperator::NotEqual, constant(0)),
-        then_block: inner,
-        else_block: header,
-    };
-    // Only the original header remains a poll target. The new self-loop has a
-    // positive countdown initialized to min(CHUNK, bound - index).
+    for inner in [inner, full] {
+        body.blocks[inner].statements.push(mir::Statement {
+            kind: mir::StatementKind::Assign {
+                local: counter,
+                value: mir::Expr::integer_binary(
+                    mir::IntegerBinaryOperation::new(kind, mir::IntegerBinaryOperator::Subtract),
+                    read(),
+                    constant(1),
+                ),
+            },
+            span,
+        });
+        body.blocks[inner].terminator = mir::Terminator::Branch {
+            cond: compare(mir::IntegerComparisonOperator::NotEqual, constant(0)),
+            then_block: inner,
+            else_block: header,
+        };
+    }
+    // The full inner has a constant countdown; the scalar tail consumes the
+    // positive remaining count. Only the original header remains a poll target.
 }

@@ -1,6 +1,6 @@
 # 带外层 poll 的循环分块：M58 调研
 
-本文属于 [M58 设计](DESIGN.md)。2026-10-19 的调查基线为 `04d28e763`；在 `c3b8942db` 上复核相关合同。首批自动标量分块现已实现，范围与验证见第 6 节；下文的数组／SIMD 机制实验不等同于生产支持。
+本文属于 [M58 设计](DESIGN.md)。2026-10-19 的调查基线为 `04d28e763`；在 `c3b8942db` 上复核相关合同。自动标量分块与受限整数内层 SIMD 现已实现，范围与验证见第 6／7 节；下文的 AS1 数组机制实验不等同于生产数组支持。
 
 ## 1. 优化形态与收益来源
 
@@ -118,3 +118,15 @@ poll 变少会延长另一个线程请求 GC 后等待当前块结束的时间�
 本机 fmt／workspace clippy、25 项 MIR 优化单测、18 项 statepoint 专测通过。两个新源码 fixture 共五变体、九次程序运行，覆盖 Int／Long、负／零上界、1／15／63／64／65／129／1025 次、Long 最大值附近、回绕算术、break／continue、普通／moving／minor 并发 GC，以及 class／interface／tuple／Option 引用跨循环存活。并发测试使用 32 次真实收集，避免测试 collector 无间隔持续请求造成无关的 mutator 饥饿。
 
 标量 64 相对逐轮 poll 的 checksum 程序约快 38%，递推程序约快 4%；text 增加 64 bytes，编译时间约增加 0.5%。stop-wait p99 基本不变，但单线程出现一次 1.99 ms 最大值异常，不能据此宣称尾延迟完全不回退。详见 [性能记录第 11 节](PERFORMANCE.md#11-外层-poll标量有界内层)。块大小选择、受限 SIMD 和 Linux 验收继续独立推进。
+
+## 7. 受限整数内层 SIMD 与默认块大小
+
+在标量提交 `219a1a958` 之后，把完整块与尾部标量块分开：剩余量至少为 64 时进入固定 64 次的 body 副本，否则执行剩余次数；两个内层都回到原 poll header。完整块为自身的 ValDecl 分配新的 caller local identity，循环携带的源变量继续共享；若 body 内临时值在外部使用，则不转换。该形式用少量代码复制让 LLVM 端无需再次求解 `n-i` 的全套范围关系。
+
+LLVM 普通标量阶段后检查真实 CFG：单块自循环、计数 phi 唯一外来初值是 1～64 常量、唯一回边减一并在零退出、正文全部为整数 SSA 运算。call／invoke、内存读写、原子、浮点、未知次数均排除。仅对通过检查的 loop 设置向量化选择；只追加 loop-simplify、LCSSA、`loop-vectorize<interleave-forced-only;vectorize-forced-only>`、InstCombine／ADCE。外层、尾部与其他 Managed 循环没有选择标记；不运行完整 NoGc 管线、unroll、unswitch 或 LICM。metadata 是这次结构判断的输出，不是资格证明本身。相关 LLVM 控制语义见 [LoopVectorizeOptions](https://github.com/llvm/llvm-project/blob/llvmorg-22.1.8/llvm/include/llvm/Transforms/Vectorize/LoopVectorize.h)。
+
+资格允许尝试，不保证向量化发生。源码递推循环暴露出 LLVM missed-optimization remark 会污染现有 child 协议 stderr；局部 pass 期间忽略 remark，结束后恢复原 handler，其他诊断沿原路径保留。源码 fixture 验证无法向量化时仍正常编译、运行，不把它变为新的语言限制。
+
+本机 fmt／workspace clippy 通过；25 项 MIR 优化与 20 项 statepoint 专测通过，追加了 body 副本 local 身份检查、三个目标的向量指令／两条唯一机器 stackmap／AS1 根恢复、变量上限与原子路径的排除，以及同函数 invoke／异常出口组合。源码覆盖补充 checksum、循环后的真实异常，并与先前并发 moving／minor 根用例共同通过。Linux 真实运行仍在最终跨平台验收中执行。
+
+同一轮五策略对照中，64 次 SIMD 相对逐轮 poll 的 checksum 总耗时约 −48%，相对标量 64 再减约 14%；递推程序没有稳定加速，因此不沿用首轮的小幅收益作通用结论。256 次只比 64 再快约 5.5%，四 worker stop-wait p99／max 为 70／309 μs，64 为 64／139 μs；保留较小的 64。text 相对逐轮增加 212 bytes，编译时间无明显变化。首轮 1.99 ms outlier 在本轮未复现，但原样保留；结果不是墙钟暂停上界。完整方法与数据见 [性能记录第 12 节](PERFORMANCE.md#12-整数内层-simd-与块大小选择)。临时 16／256 编译器修改已逐字恢复，最终代码没有实验开关。
