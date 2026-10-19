@@ -69,7 +69,7 @@
 | HTTP 读写停滞时限 | HttpIoTimeoutOptions 提供可关闭的读／写 idle；H1 按消息关闭连接，H2 按实际流输入／输出进度隔离超时，已排队输出持续计时，完成后在恢复调用方前停止 | 新增 12 项测试，HTTP asyncio 全部 109 项通过 debug／release；17 项新旧用例逐例通过两种构建的 full moving，独立对端验证分段首部、流控停滞、其他流活跃和应用同步停顿 |
 | HTTP/2 流失败通知 | StreamFailure 保留已终止流的原始原因，failure 快照衔接登记前事件；后台失败无须活动操作等待者，正常完成和显式关闭本流不额外通知 | 新增 4 项测试并扩展取消断言，HTTP asyncio 全部 113 项通过 debug／release；9 项新旧用例逐例通过两种构建的 full moving，独立对端验证响应头交付后的零窗口超时、对端 reset 和后续流复用 |
 | ELF 后端只读常量 | callable 的 .rodata 包含独立关联定义，跳转表与代码同属一次 ODR 选择；保留只读权限、相对重定位及精确范围，缺省贡献在机器发射后移除 | 225 项 codegen、350 项身份编码、390 项 LIR 与 253 项产物测试通过；独立协程消费者在旧 Linux 编译器上复现 release 失败，在 Darwin 通过 debug／release、full moving 与构建复用 |
-| ELF 可选 native 弱引用 | 未定义 STB_WEAK 保留目标 linker 的可选解析语义，不加入必须解析集合或仅为弱引用拉取 archive；普通强引用继续闭合 | 本机 clang 生成真实 ELF 对象，5 项 ELF reader 与既有 Mach-O reader 回归通过；native 选择的 3 项回归通过，workspace clippy 通过；GNU 旧工具独立复现缺失可选数据失败，GNU／musl 正式消费者待验证 |
+| ELF 可选 native 弱引用 | 未定义 STB_WEAK 保留目标 linker 的可选解析语义，不加入必须解析集合或仅为弱引用拉取 archive；普通强引用继续闭合 | 本机 5 项 ELF reader、既有 Mach-O reader 和 3 项 native 选择回归通过，workspace clippy 通过；GNU／musl 各 4 个正式变体、12 个进程通过，包含可选函数／数据缺省及实际定义、full moving 与复用 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -290,6 +290,10 @@ GNU 上的该独立 fixture 随后通过两种构建；原 TCP 消费者进一�
 新增 4 项测试与 5 项错误／取消／关闭回归逐例通过两种构建的 full moving，共 18 个进程。连接失败向每个未完成流保留同一 ResourceUseException，取消只通知一次，已完成响应仍可读取；重复 close 不覆盖原始原因。生产 HTTP asyncio 与兼容 client 已重建并发布到本机 sysroot。消费者首次编译的可空引用比较改为模式匹配后通过，未改变语言规则。
 
 ELF COMDAT 修复已在 GNU 通过扩展的 `m54-coroutine-jump-tables` 和原始 `m54-tcp-deadlines`：各 debug／release 两个变体、6 个进程，覆盖 full moving 与正常复用。后续 client 消费者暴露 zstd 的可选跟踪钩子被误当作强依赖；在 native ELF reader 修复后，本机对象与选择测试通过。独立纯 C 对照确认 Darwin weak_import 仍需要链接时提供方，本次不改变 Mach-O 规则。
+
+`m54-native-weak` 已在 GNU／musl 通过，共 8 个变体、24 个步骤进程。GNU 的 `m54-client-network` 与 `m54-client-timeouts` 各通过 debug／release、full moving 和正常复用，zstd 可选钩子的链接阻塞已闭合；COMDAT 协程消费者也已通过 musl。
+
+Linux 的 TCP deadline 消费者发现环境假设：该机 hosts 只为 localhost 配置 IPv4，原生 C 对照确认 glibc 会补出 ::1，musl 返回无可用 IPv6 地址。用例保留 IPv4 的 localhost 解析，IPv6 改用明确的 ::1 文本输入，仍经过相同的异步解析、候选和截止接口。本机修改后的 debug／release 两变体、6 个进程已通过；不修改库的解析规则或主机配置。
 
 ## 后续工作
 
