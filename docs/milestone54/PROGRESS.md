@@ -70,6 +70,7 @@
 | HTTP/2 流失败通知 | StreamFailure 保留已终止流的原始原因，failure 快照衔接登记前事件；后台失败无须活动操作等待者，正常完成和显式关闭本流不额外通知 | 新增 4 项测试并扩展取消断言，HTTP asyncio 全部 113 项通过 debug／release；9 项新旧用例逐例通过两种构建的 full moving，独立对端验证响应头交付后的零窗口超时、对端 reset 和后续流复用 |
 | ELF 后端只读常量 | callable 的 .rodata 包含独立关联定义，跳转表与代码同属一次 ODR 选择；保留只读权限、相对重定位及精确范围，缺省贡献在机器发射后移除 | 225 项 codegen、350 项身份编码、390 项 LIR 与 253 项产物测试通过；独立协程消费者在旧 Linux 编译器上复现 release 失败，在 Darwin 通过 debug／release、full moving 与构建复用 |
 | ELF 可选 native 弱引用 | 未定义 STB_WEAK 保留目标 linker 的可选解析语义，不加入必须解析集合或仅为弱引用拉取 archive；普通强引用继续闭合 | 本机 5 项 ELF reader、既有 Mach-O reader 和 3 项 native 选择回归通过，workspace clippy 通过；GNU／musl 各 4 个正式变体、12 个进程通过，包含可选函数／数据缺省及实际定义、full moving 与复用 |
+| HTTP/2 空正文结束 | 没有待序列化 DATA 时以 trailing HEADERS 结束，不等待流或连接窗口；初始头与此前 DATA 保持顺序，有待发送 DATA 时仍遵守窗口限制 | 新增 5 项测试，HTTP 全部 239 项通过 debug／release；15 项新旧用例逐例通过两种构建的 full moving，独立线协议和原输出归属消费者共 4 个变体、12 个进程通过 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -295,6 +296,12 @@ ELF COMDAT 修复已在 GNU 通过扩展的 `m54-coroutine-jump-tables` 和原�
 
 Linux 的 TCP deadline 消费者发现环境假设：该机 hosts 只为 localhost 配置 IPv4，原生 C 对照确认 glibc 会补出 ::1，musl 返回无可用 IPv6 地址。用例保留 IPv4 的 localhost 解析，IPv6 改用明确的 ::1 文本输入，仍经过相同的异步解析、候选和截止接口。本机修改后的 debug／release 两变体、6 个进程已通过；不修改库的解析规则或主机配置。
 
+修正后的 `m54-tcp-deadlines` 随后在 musl 通过两种构建；`m54-client-network` 与 `m54-client-timeouts` 也在 musl 通过 debug／release、full moving 和正常构建复用。三个 fixture 共 6 个变体、18 个步骤进程，GNU／musl 的这组网络回归均已闭合。
+
+`m54-http2-empty-finish` 在 Darwin 通过 debug／release、full moving 和正常构建复用，共 6 个步骤进程。独立 Python 帧检查覆盖初始头输出前／后的空结束、耗尽流窗口后的尾部字段、尚需窗口的 DATA、耗尽连接窗口后的新旧流结束，以及信息／最终响应顺序；每种场景在两个 native 线程执行。原 `m54-http2-output` 同时回归通过两个变体、6 个进程，空结束的输出归属按实际 trailing HEADERS 检查。
+
+5 项新增测试和 10 项流控／pending／输出／消息回归逐例通过两种构建的 full moving，共 30 个进程。修复位于 HTTP native 适配层，不依赖异步驱动或 client 补发窗口；尚未发送的 DATA 不能被结束标记越过。GNU／musl 的对应线协议验收随后进行。
+
 ## 后续工作
 
 继续完成 client 的统一 idle 配置与错误映射，以及重定向／重试／认证／代理、Cookie、缓存／续传、SSE／WebSocket 高层组合和可观察性。每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
@@ -354,3 +361,5 @@ HTTP idle 实施期间，清理输出进度消费者的 2 个已结束 fixture t
 ELF 跳转表修复验收期间，清理输入进度消费者的 2 个已结束 fixture target 目录，释放约 147 MiB；当前 HTTP 库 target、生产 sysroot、正式源码、原始日志、报告与缓存继续保留。
 
 HTTP idle 验收后，清理已被最终回归替代的 4 个 HTTP idle／基础跳转表 fixture target 目录，释放约 311 MiB；保留最终 fixture 产物、库 target、源码、生产 sysroot、原始日志、报告与缓存。
+
+client idle 实施期间，清理已完成的 3 个 HTTP 输入进度／idle 与 h2c 组合 fixture target 目录，释放约 483 MiB；保留源码、生产 sysroot、原始日志、报告与缓存。

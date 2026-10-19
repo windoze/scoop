@@ -136,6 +136,8 @@ static int frame_sent(nghttp2_session *session, const nghttp2_frame *frame,
     if ((frame->hd.type == NGHTTP2_HEADERS || frame->hd.type == NGHTTP2_DATA) &&
         (frame->hd.flags & NGHTTP2_FLAG_END_STREAM))
       s->send_end_pending = 0;
+    if (http2_finish_ready(h, s))
+      return NGHTTP2_ERR_CALLBACK_FAILURE;
   }
   return frame->hd.type == NGHTTP2_GOAWAY ? goaway(user_data, frame, 1) : 0;
 }

@@ -17,7 +17,7 @@ def check_trace(lines):
     spans = [(0, 24, 0, 0)]
     headers = Counter()
     data = {1: bytearray(), 3: bytearray()}
-    empty_end = reset = continuation = False
+    empty_end = empty_trailers = reset = continuation = False
     offset = 24
     while offset < len(wire):
         assert offset + 9 <= len(wire)
@@ -38,6 +38,9 @@ def check_trace(lines):
             assert stream in data
             if kind == 1:
                 headers[stream] += 1
+                if stream == 3 and headers[stream] == 2:
+                    assert flags & 1 and not payload
+                    empty_end = empty_trailers = True
             else:
                 assert stream == 1
                 continuation = True
@@ -47,7 +50,7 @@ def check_trace(lines):
         else:
             assert kind == 4 and stream == 0
         offset = end
-    assert headers == {1: 2, 3: 1}
+    assert headers == {1: 2, 3: 2 if empty_trailers else 1}
     assert data == {1: b"first", 3: b"two"}
     assert empty_end and reset and continuation
     offset = index = 0

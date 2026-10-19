@@ -54,18 +54,10 @@ static nghttp2_ssize body_read(nghttp2_session *session, int32_t stream_id,
     s->body_offset = s->body.size = 0;
     if (s->send_eof) {
       *flags |= NGHTTP2_DATA_FLAG_EOF;
-      if (s->trailers.size) {
-        nghttp2_nv *nva = http2_nv(&s->trailers);
-        if (!nva)
+      if (s->end_headers_queued || s->trailers.size) {
+        if (!s->end_headers_queued && http2_queue_trailers(h, s))
           return NGHTTP2_ERR_CALLBACK_FAILURE;
-        int code =
-            nghttp2_submit_trailer(session, stream_id, nva, s->trailers.size);
-        free(nva);
-        if (code)
-          return NGHTTP2_ERR_CALLBACK_FAILURE;
-        s->pending_headers++;
         *flags |= NGHTTP2_DATA_FLAG_NO_END_STREAM;
-        http_fields_clear(&s->trailers);
       }
     }
   }
@@ -103,22 +95,6 @@ http_step scoop_http2_write(uint64_t handle, int32_t id, const uint8_t *data,
   if (code != 0 && code != NGHTTP2_ERR_INVALID_ARGUMENT)
     return (http_step){(int64_t)count, http2_result(h, code)};
   return (http_step){(int64_t)count, 0};
-}
-
-int32_t scoop_http2_finish(uint64_t handle, int32_t id, uint64_t fields) {
-  http2 *h = (http2 *)(uintptr_t)handle;
-  http2_stream *s = http2_find(h, id);
-  if (!s || s->closed || s->reset || !s->send_open || s->send_eof || h->failed)
-    return http2_result(h, NGHTTP2_ERR_INVALID_STATE);
-  if (s->remaining > 0)
-    return http2_result(h, NGHTTP2_ERR_INVALID_ARGUMENT);
-  http_fields *trailers = (http_fields *)(uintptr_t)fields;
-  s->trailers = *trailers;
-  *trailers = (http_fields){0};
-  s->send_eof = 1;
-  s->send_end_pending = 1;
-  int code = nghttp2_session_resume_data(h->session, id);
-  return code == NGHTTP2_ERR_INVALID_ARGUMENT ? 0 : http2_result(h, code);
 }
 
 int32_t scoop_http2_consume(uint64_t handle, int32_t id, int64_t count) {

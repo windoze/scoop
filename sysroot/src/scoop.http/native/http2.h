@@ -35,7 +35,7 @@ typedef struct http2_stream {
   int32_t id;
   int closed, reset, head_request, connect_request;
   int received_final, received_trailers, sent_final, send_open, send_eof;
-  int send_end_pending;
+  int send_end_pending, end_headers_queued;
   size_t pending_headers;
   int64_t remaining, unconsumed;
   http_bytes body;
@@ -66,6 +66,8 @@ void http2_stream_free(http2 *h, http2_stream *stream);
 void http2_stream_maybe_free(http2 *h, http2_stream *stream);
 nghttp2_nv *http2_nv(const http_fields *fields);
 nghttp2_data_provider2 http2_provider(http2_stream *stream);
+int http2_queue_trailers(http2 *h, http2_stream *stream);
+int http2_finish_ready(http2 *h, http2_stream *stream);
 void http2_header_callbacks(nghttp2_session_callbacks *callbacks);
 void http2_event_callbacks(nghttp2_session_callbacks *callbacks);
 void http2_input_setup(http2 *h, nghttp2_session_callbacks *callbacks);

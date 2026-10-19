@@ -47,7 +47,7 @@ private fun checkOutputChunks2(chunks: Array<Http2OutputChunk>, id: Int, kind: H
             checkOutputChunks2(transferChunks2(client, server), 0, Http2OutputKind.Control)
             assertFalse(client.hasPendingOutput(id))
             client.finish(id)
-            checkOutputChunks2(transferChunks2(client, server), id, Http2OutputKind.Data)
+            checkOutputChunks2(transferChunks2(client, server), id, Http2OutputKind.Headers)
             val received = events2(server)
             assertEquals(0L, data2(received, id).size)
             assertEquals(1, ends2(received, id))

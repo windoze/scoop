@@ -81,6 +81,8 @@ Http2Session 的 client／server 工厂固定角色、接收选项、本地限�
 
 submitRequest／submitResponse 的 endStream 表示头部后立即结束发送；需要 body 或 trailer 时设为 false，随后 writeBody／finish。信息响应不结束流，必须显式使用 endStream=false。writeBody 只接受每流待发送容量内的前缀；返回零表示等待实际输出或窗口进展。finish 表示没有更多 DATA，可附独立 trailer。接收端通过 Request／Response／Data／Trailers／End 事件区分阶段，End 前没有 trailer 时也交付空 Trailers。StreamClosed 保存实际 HTTP/2 错误码，GoAway 另保存方向、最后 stream ID 与调试字节；不能把正常单向 End 等同于整个流关闭。
 
+finish 在没有待序列化 DATA 时不等待流或连接的发送窗口。实现可用带 END_STREAM 的空或非空 trailing HEADERS 表示结束，在本流已提交的初始头／信息响应／最终响应序列化之后排入输出；先前已序列化的 DATA 片段仍按原顺序完整取出。有待发送 DATA 时，结束和 trailer 必须等这些字节发送完毕，不能通过提前结束绕过流量控制。无论使用空 DATA 还是 trailing HEADERS，接收端只交付一次 Trailers 和 End。
+
 Http2Settings 声明 headerTableSize、maxConcurrentStreams、initialWindowSize、maxFrameSize、maxHeaderListSize；客户端另固定 ENABLE_PUSH=0。Http2Limits 使用 HttpHeaderLimits，并分别给出 maxContinuations、maxSendHeaderBlockBytes、maxPendingBodyBytes。伪头的 never-index 标记通过 Http2RequestIndexing(method, scheme, authority, path) 和响应的 neverIndexStatus 保存，普通字段仍使用 HttpField.neverIndex。
 
 receive／takeOutput 使用 NativeByteBuffer 的实际前缀。mem_send2 返回的临时字节必须在下一次可能使指针失效的调用前复制到自有存储；不能跨挂起保存该指针。输出每次可短传输，未取走的输出保持有效。
