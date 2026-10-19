@@ -102,6 +102,7 @@
 | client 显式续传 | 调用者指定部分文件与元数据，使用强 ETag、最终 URL、请求身份与编码验证原始表示；区分 200／206／416，多段共用总截止与累计进度，完整后提交目标 | Darwin 两项正式 fixture 通过 debug／release 与构建复用，共 4 个变体、12 个步骤进程；25 组独立网络场景、元数据与请求边界、取消／清理、空 producer、HTTP/2 分段及跨段截止通过；两项普通下载回归另通过 4 个变体、12 个步骤进程；未启用 GC stress |
 | HTTP 非预期 EOF 分类 | HttpException.isUnexpectedEof 由实际 HTTP 后端报告，保留原码、作用域与先前协议错误 | Darwin 普通模式的 EOF 消费者与续传网络回归通过两种构建及复用，共 4 个变体、12 个步骤进程；未启用 GC stress |
 | client SSE 事件源 | 复用普通请求、自动解码与 SseSource，显式重连、ID／retry、204 终止，共享总截止与累计进度，关闭等待活动操作及子树 | Darwin 两项正式 fixture 通过 debug／release 与构建复用，共 4 个变体、12 个步骤进程；30 个网络场景、20 个生命周期场景及 10 个配置／请求反例通过，下载与续传生命周期回归另通过 4 个变体、12 个步骤进程；未启用 GC stress |
+| WebSocket 来源收尾与关闭观察 | HTTP asyncio 的来源发送使用结构化子作用域；本地／对端关闭等待来源子树和真实借用结束，awaitClosed 提供可取消的实际关闭观察 | Darwin 新生命周期 fixture 的 23 个场景通过 debug／release 与复用，共 2 个变体、6 个步骤进程；WSS／permessage-deflate 组合另通过 2 个变体、6 个步骤进程；未启用 GC stress |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -434,6 +435,8 @@ HTTP 库新增明确的非预期 EOF 分类，由 llhttp／nghttp2 适配层标�
 SSE 高层事件源复用普通 HTTP 请求与 SseSource，支持 POST、自动解码、显式重连、Last-Event-ID、服务端 retry 和 204 终止；EOF 与真实传输失败的重连资格来自底层公开分类，协议、解码及用户回调错误不重试。事件源登记覆盖暂停读取与重连间隔，后续连接共享总截止和累计进度；取消、client.close 和回调子树均等待真实收尾，保留原错误对象。
 
 两项正式 SSE fixture 在 Darwin 普通模式通过 debug／release 与构建复用，共 4 个变体、12 个步骤进程，覆盖 30 个独立网络场景、20 个生命周期场景及 10 个配置／请求反例。HTTP/1、HTTP/2、TLS 截断、连接拒绝、Cookie、重定向、gzip、POST 重放、双工上传与并发关闭均已覆盖。首轮新增测试对非法 chunked 的报错时机和 HTTP/1 双工能力的假设已修正并完整复验；下载与续传生命周期回归另通过 4 个变体、12 个步骤进程。17 个生产 Cone 与 runtime 已更新，未启用 GC stress。
+
+WebSocket 高层接入前，普通消费者复现了 HTTP asyncio 的 close 未取消 send(type, source) 中挂起来源的问题。修复位于所属库：来源读取在独立子作用域内运行，关闭取消该子作用域并等待来源、子任务和 finally；读写等待者先恢复、操作清理完成后才释放资源，避免彼此等待。新增 awaitClosed 观察完整资源关闭，单独取消观察者不影响会话。实际清理异常保留原对象，内部收尾取消不制造正常关闭失败，同一来源回调的关闭自等待明确拒绝。23 个场景覆盖本地／owner／调用方取消、Context 与子树、并发关闭、延迟双向 NativeByteBorrow、来源及传输错误、EOF 观察和真实 TCP 对端关闭；WSS 与压缩消息同步回归。
 
 ## 后续工作
 

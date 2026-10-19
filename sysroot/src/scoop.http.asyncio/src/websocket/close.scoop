@@ -8,6 +8,7 @@ internal fun abortWs(state: WsState, error: Throwable?) {
 
 internal suspend fun closeWs(state: WsState) {
     if (!state.lock.withLock { state.closed }) {
+        checkWsCloseContext(state)
         httpJob(state.loop, false)
         state.lock.withLock { abortWs(state, None) }
         driveWs(state)
@@ -31,10 +32,13 @@ internal fun advanceWsClose(state: WsState, actions: ArrayList<() -> Unit>): Boo
     if (!state.ownerCancellationStarted) {
         state.ownerCancellationStarted = true
         val owner = state.ownerJob!!
-        actions.add { owner.cancel() }
+        val source = state.sourceJob
+        actions.add { source?.cancel(); owner.cancel() }
         return true
     }
     if (state.inputBusy || state.outputBusy) return false
+    finishWsOperations(state, actions)
+    if (state.reading || state.writing) return false
     if (!state.transportClosing) {
         state.transportClosing = true
         actions.add { startWsClose(state) }
@@ -42,20 +46,9 @@ internal fun advanceWsClose(state: WsState, actions: ArrayList<() -> Unit>): Boo
     }
     if (!state.transportClosed) return false
     state.closeFailure = releaseWsResources(state, state.closeFailure)
-    if (present(state.closeFailure)) state.failure = Some(if (present(state.failure))
-        ResourceUseException(state.failure!!, state.closeFailure!!) else state.closeFailure!!)
+    if (present(state.closeFailure)) state.failure = appendWsFailure(state.failure, state.closeFailure!!)
     state.closed = true
     val failure = state.failure ?: wsClosed(state)
-    if (present(state.reader)) {
-        failWsWait(state.reader!!.wait, state.failure ?: wsInterrupted(state), actions)
-        state.reader = None
-    }
-    if (present(state.receiving)) {
-        if (wsClean(state)) succeedWsWait(state.receiving!!, None, actions)
-        else failWsWait(state.receiving!!, failure, actions)
-        state.receiving = None
-    }
-    if (present(state.writer)) { failWsWait(state.writer!!.wait, failure, actions); state.writer = None }
     for (wait in state.shutdownWaiters) {
         if (wsClean(state)) succeedWsWait(wait, state.peerClose!!, actions)
         else failWsWait(wait, failure, actions)
@@ -74,6 +67,7 @@ internal fun advanceWsClose(state: WsState, actions: ArrayList<() -> Unit>): Boo
     actions.add { if (present(listener)) listener!!.dispose(); if (present(owner)) owner!!.resume(Unit) }
     for (waiter in state.closeWaiters) finishWsCloser(waiter, state.closeFailure, actions)
     state.closeWaiters.clear()
+    finishWsObservers(state, actions)
     return true
 }
 
@@ -84,14 +78,20 @@ private fun finishWsCloser(waiter: Continuation<Unit>, failure: Throwable?, acti
 private fun startWsClose(state: WsState) {
     val job = state.ownerJob!!
     val loop = state.loop
-    context(job) { context(loop) { startCoroutine<Unit>(suspend { state.owner.close() }, WsCloseCompletion(state)) } }
+    context(job) { context(loop) { startCoroutine<Unit>(suspend {
+        nonCancellableScope<Unit> suspend { _ -> state.owner.close() }
+    }, WsCloseCompletion(state)) } }
 }
 
 private class WsCloseCompletion(val state: WsState) : Continuation<Unit> {
     public override fun resume(value: Unit) { finish(None) }
     public override fun resumeWithException(exception: Throwable) { finish(Some(exception)) }
     private fun finish(failure: Throwable?) {
-        state.lock.withLock { state.transportClosed = true; state.closeFailure = failure }
+        state.lock.withLock {
+            state.transportClosed = true
+            if (present(failure)) state.closeFailure = appendWsFailure(state.closeFailure, failure!!)
+            Unit
+        }
         driveWs(state)
     }
 }

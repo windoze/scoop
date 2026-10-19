@@ -1,0 +1,40 @@
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.platform.net.*
+
+internal fun wsPeerClose() {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { scope ->
+        val listener = loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
+        try {
+            val accepting = scope.async suspend { listener.accept() }
+            val raw = loop.connectTcp(listener.localAddress)
+            val client = AsyncWebSocketSession.takeOwnership(raw, scope, HttpRole.Client)
+            val server = AsyncWebSocketSession.takeOwnership(accepting.await(), scope, HttpRole.Server)
+            val source = WsBlockedSource()
+            val failed = WsFailure()
+            val sending = scope.launch suspend {
+                try { client.send(WebSocketMessageType.Binary, source) }
+                catch (error: Throwable) { failed.value = Some(error) }
+                ensureActive()
+            }
+            source.started.await()
+            val observed = scope.launch suspend { client.awaitClosed(); wsCheck(source.finished, "peer observer source cleanup") }
+            val closing = scope.launch suspend { server.shutdownGracefully(WebSocketClose(Some(1000U), "peer done")); Unit }
+            try {
+                source.cancelled.await()
+                wsCheck(!client.isClosed && !observed.isCompleted, "peer close awaits source")
+                source.release.signal()
+                sending.join(); observed.join(); closing.join()
+                wsCheck(client.isClosed && server.isClosed && source.finished, "both peers closed")
+                wsCheck(!wsPresent(client.failure) && !wsPresent(server.failure), "graceful source interruption")
+                wsCheck(failed.value!! is WebSocketSessionException &&
+                    (failed.value!! as WebSocketSessionException).kind == WebSocketFailureKind.Closed, "interrupted source")
+                wsCheck(client.peerClose!!.reason == "peer done" && client.sentClose!!.code == Some(1000U), "close metadata")
+                wsCheck(!wsPresent(client.receive()), "clean receive EOF")
+                client.awaitClosed(); server.awaitClosed()
+            } finally { source.release.signal(); client.close(); server.close(); sending.join(); observed.join(); closing.join() }
+        } finally { listener.close() }
+    }
+}

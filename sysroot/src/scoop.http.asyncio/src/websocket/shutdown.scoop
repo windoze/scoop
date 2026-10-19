@@ -15,6 +15,7 @@ internal fun beginWsShutdown(state: WsState, value: WebSocketClose, waitForPeer:
 }
 
 internal suspend fun shutdownWs(state: WsState, value: WebSocketClose): WebSocketClose {
+    checkWsCloseContext(state)
     val job = httpJob(state.loop, true)
     val listener = job.invokeOnCancellation { error ->
         state.lock.withLock { abortWs(state, Some(error)) }

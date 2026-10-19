@@ -44,5 +44,6 @@ public class AsyncWebSocketSession internal constructor(private val state: WsSta
     public suspend fun pong(payload: List<Byte> = emptyList<Byte>()) { sendWsControl(state, false, payload) }
     public suspend fun shutdownGracefully(value: WebSocketClose = WebSocketClose(Some(1000U))): WebSocketClose =
         shutdownWs(state, value)
+    public suspend fun awaitClosed() { observeWsClosed(state) }
     public override suspend fun close() { closeWs(state) }
 }

@@ -27,24 +27,30 @@ internal suspend fun <P, T> wsOperation(state: WsState, reading: Boolean, prepar
         state.lock.withLock { abortWs(state, Some(error)) }
         driveWs(state)
     }
+    var result: T? = None
+    var failed: Throwable? = None
     try {
         job.ensureActive()
-        return block(prepared)
-    } catch (error: Throwable) { failWsOperation(state, error) }
-    finally {
+        result = Some(block(prepared))
+    } catch (error: Throwable) {
+        failed = Some(error)
+        state.lock.withLock { recordWsOperationFailure(state, error) }
+    } finally {
         listener.dispose()
         state.lock.withLock { if (reading) state.reading = false else state.writing = false }
         driveWs(state)
     }
+    if (present(failed) || state.lock.withLock { state.closing }) {
+        try { awaitWsClosed(state) } catch (_: Throwable) {}
+        val failure = state.lock.withLock { state.failure }
+        if (present(failure)) throw failure!!
+        if (present(failed)) throw (if (failed!! is CancellationException) wsClosed(state) else failed!!)
+    }
+    return result!!
 }
 
 internal suspend fun failWsOperation(state: WsState, error: Throwable): Nothing {
-    state.lock.withLock {
-        val normalEnd = error is WebSocketSessionException &&
-            (error.kind == WebSocketFailureKind.Closed || error.kind == WebSocketFailureKind.InterruptedMessage)
-        if (!state.closing && (!present(state.shutdown) || !normalEnd)) abortWs(state, Some(error))
-        Unit
-    }
+    state.lock.withLock { recordWsOperationFailure(state, error) }
     driveWs(state)
     try { awaitWsClosed(state) } catch (_: Throwable) {}
     throw state.lock.withLock { state.failure ?: error }

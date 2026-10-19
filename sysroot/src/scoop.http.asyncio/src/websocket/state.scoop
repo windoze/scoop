@@ -65,6 +65,7 @@ internal class WsState(
     var automaticPong: Array<Byte>? = None
     var reading: Boolean = false
     var writing: Boolean = false
+    var sourceJob: Job? = None
     var inputBusy: Boolean = false
     var outputBusy: Boolean = false
     var inputFailed: Boolean = false
@@ -88,4 +89,5 @@ internal class WsState(
     var ownerListener: Disposable? = None
     var timer: Job? = None
     val closeWaiters: ArrayList<Continuation<Unit>> = ArrayList<Continuation<Unit>>()
+    val closeObservers: ArrayList<CancellableContinuation<Unit>> = ArrayList<CancellableContinuation<Unit>>()
 }

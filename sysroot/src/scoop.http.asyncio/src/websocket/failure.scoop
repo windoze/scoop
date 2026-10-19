@@ -1,0 +1,46 @@
+package scoop.http.asyncio
+
+internal fun recordWsOperationFailure(state: WsState, error: Throwable) {
+    val normalEnd = error is WebSocketSessionException &&
+        (error.kind == WebSocketFailureKind.Closed || error.kind == WebSocketFailureKind.InterruptedMessage)
+    if (!state.closing) {
+        if (present(state.shutdown) && normalEnd) return
+        if (error is ResourceUseException) {
+            abortWs(state, Some(error.primaryFailure))
+            state.closeFailure = appendWsFailure(state.closeFailure, error.cleanupFailure)
+        } else abortWs(state, Some(error))
+    } else {
+        val cleanup = wsNewCleanup(state.failure, state.closeFailure, error)
+        if (present(cleanup)) state.closeFailure = appendWsFailure(state.closeFailure, cleanup!!)
+    }
+}
+
+internal fun appendWsFailure(previous: Throwable?, error: Throwable): Throwable? =
+    if (!present(previous)) Some(error)
+    else if (wsContainsFailure(previous!!, error)) previous
+    else Some(ResourceUseException(previous!!, error))
+
+private fun wsNewCleanup(primary: Throwable?, previous: Throwable?, error: Throwable): Throwable? {
+    if ((present(primary) && wsContainsFailure(primary!!, error)) ||
+        (present(previous) && wsContainsFailure(previous!!, error))) return None
+    if (error is CancellationException) return None
+    if (error is WebSocketSessionException &&
+        (error.kind == WebSocketFailureKind.Closed || error.kind == WebSocketFailureKind.InterruptedMessage)) return None
+    if (error is ResourceUseException) {
+        val first = wsNewCleanup(primary, previous, error.primaryFailure)
+        val second = wsNewCleanup(primary, if (present(first)) appendWsFailure(previous, first!!) else previous,
+            error.cleanupFailure)
+        if (!present(first)) return second
+        if (!present(second)) return first
+        if (first!! === error.primaryFailure && second!! === error.cleanupFailure) return Some(error)
+        return Some(ResourceUseException(first!!, second!!))
+    }
+    return Some(error)
+}
+
+private fun wsContainsFailure(root: Throwable, target: Throwable): Boolean {
+    if (root === target) return true
+    if (root is ResourceUseException)
+        return wsContainsFailure(root.primaryFailure, target) || wsContainsFailure(root.cleanupFailure, target)
+    return false
+}

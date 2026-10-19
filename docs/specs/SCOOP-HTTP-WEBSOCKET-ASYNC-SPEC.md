@@ -22,6 +22,8 @@ writeFrom 按实际输入返回短写量，最多接收 outgoingFrameBytes；普
 
 `sendText(text, compress = true)`、`sendBinary(bytes, compress = true)` 与 `send(type, source, compress = true)` 是同一 writer 的完整发送便利入口，使用有限缓冲。字节列表先取得不可变快照；source 为借用的 AsyncByteSource，不由会话关闭。便利入口从开始到 finish 占用同一应用发送方向，真实等待仍使用 suspend；source 的失败或取消中止本次消息和 WebSocket。
 
+send(type, source) 在独立的结构化子作用域内读取来源，继承调用方 Context，等待来源操作及其子任务结束。会话关闭会取消这个子作用域并等待其真实 finally；它不取消调用方 Job，也不把借用来源变成会话拥有的资源。来源及其子任务不能等待同一会话的 close、awaitClosed 或 shutdownGracefully，否则会形成自等待；这些调用立即报 IllegalStateException，活动发送方向仍遵守原来的并发规则。
+
 非法 count、可用范围、消息身份和并发参数在接受输入前检查，不关闭健康连接。实际编码／传输开始后的失败或取消保留调用者 NativeByteBuffer 已被帧引擎读取的进度，不回滚或重发。finish 才表示消息成功结束；未完成 writer 的 close 中止整个 WebSocket，完成后只关闭这个 writer 视图。
 
 ## 3. 接收消息与背压
@@ -48,9 +50,13 @@ Close 优先于尚未开始的普通数据帧，其次为自动 Pong，再推进
 
 closeTimeout 从握手开始计时，对主动与被动关闭都有效；超时报告 WebSocketSessionException 的 CloseTimeout 并中止传输。Close 本身不能压缩、分片或超过 125 字节。接收到帧协议错误时，在能够保持当前输出帧完整的前提下，使用对应的 1002／1007／1009 关闭码进行有限的失败关闭；发送编码器或传输已经失败时直接中止。
 
-`close()` 是本地 AsyncCloseable 收尾，不发送新的协议 Close、不等待 peer、不把未完成消息标为成功。它可在已取消的 finally 中调用。关闭先停止新工作并取消 owner 的待定 I/O，等待真实 read／write／flush 结束与 NativeByteBorrow 归还，再关闭所拥有的 transport 并释放帧引擎和原生缓冲。取消请求不等于实际完成，不能提前释放仍被借用的数据。
+`close()` 是本地 AsyncCloseable 收尾，不发送新的协议 Close、不等待 peer、不把未完成消息标为成功。它可在已取消的 finally 中调用。关闭先停止新工作，取消 owner 的待定 I/O 和活动来源发送子作用域，等待真实 read／write／flush、NativeByteBorrow 归还及应用操作收尾，再关闭所拥有的 transport 并释放帧引擎和原生缓冲。传输关闭使用不受调用方取消的清理作用域。取消请求不等于实际完成，不能提前释放仍被借用的数据。
 
 所有并发 close 等待同一结果，重复 close 重用已保存的清理失败；发生主失败及清理失败时保留标准 ResourceUseException 的两个原因。输入结束且没有 peer Close 是 UnexpectedEof，保留底层截断帧原因，不能作为正常 WebSocket 关闭。
+
+正常本地关闭或完整 Close 握手为结束来源读取而发出的内部取消，不成为会话 failure；被中断的发送报告既有会话失败或 Closed。来源／子任务的实际清理异常与传输清理异常必须保留，不能被该内部取消吞掉，也不能重复附加已经记录的主原因。调用者自己的取消仍保留为原始主原因。
+
+`awaitClosed()` 只观察实际资源关闭，不发起关闭，不轮询，也不要求应用继续读取消息；成功返回时与 isClosed 的终态一致，关闭清理失败与 close 报告同一原因，协议主失败仍可从 failure 读取。等待遵守当前 EventLoop 和 Job，取消一个等待者只移除该等待，不取消会话或其他等待者。上层 client 可用它跟踪 peer 主动关闭及全部资源的实际收尾。
 
 `WebSocketSessionException(kind, detail, peerClose = None, cause = None)` 的 kind 使用 Closed、UnexpectedEof、InterruptedMessage、CloseTimeout。FrameException 继续保留协议 closeCode；普通传输原因和 CancellationException 不被无信息的状态异常替代。failure 只保存实际失败，正常握手或显式本地 close 不凭空制造失败。
 
