@@ -1,6 +1,12 @@
 package scoop.json
 
 public object Json {
+    public fun <T> encodeToString(value: T): String
+        where T.Companion : ValueEncoder<T> = encodeToString(value, T.Companion)
+
+    public fun <T> decodeFromString(text: String): T
+        where T.Companion : ValueDecoder<T> = decodeFromString(text, T.Companion)
+
     public fun <T> encodeToString(value: T, codec: ValueEncoder<T>): String =
         renderJson(encodeToValue(value, codec).node)
 

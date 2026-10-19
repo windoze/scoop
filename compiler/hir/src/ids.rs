@@ -52,6 +52,7 @@ pub type ClassConstructorApplicationId = Idx<ClassConstructorApplication>;
 pub type StructConstructorApplicationId = Idx<StructConstructorApplication>;
 pub type InterfaceApplicationId = Idx<InterfaceApplication>;
 pub type InterfaceMethodId = Idx<InterfaceMethod>;
+pub type MemberRequirementImplementationId = Idx<MemberRequirementImplementation>;
 pub type BoundCallableRefId = Idx<BoundCallableRef>;
 pub type LocalId = Idx<Local>;
 pub type ExportDefaultExprId = Idx<ExportDefaultExpr>;

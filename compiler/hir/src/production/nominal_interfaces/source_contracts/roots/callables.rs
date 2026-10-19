@@ -94,6 +94,19 @@ pub(super) fn bounds(
     visit: &mut impl FnMut(TypeId) -> Result<(), Error>,
 ) -> Result<(), Error> {
     for parameter in parameters {
+        if let Some(companion) = &parameter.companion {
+            for bound in &companion.excluded_interfaces {
+                visit(bound.ty)?;
+            }
+            if let crate::TypeParamBounds::Nominal(bounds) = &companion.bounds {
+                for bound in bounds.in_source_order() {
+                    visit(bound.ty())?;
+                }
+            }
+        }
+        for bound in &parameter.excluded_interfaces {
+            visit(bound.ty)?;
+        }
         for bound in parameter.nominal_bounds_in_source_order() {
             let ty = bound.ty();
             visit(ty)?;

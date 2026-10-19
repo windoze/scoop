@@ -1,0 +1,34 @@
+import scoop.test.*
+
+private struct Point(val x: Int)
+struct Box<T>(val value: T)
+enum Choice { Empty, Data(Int) }
+class Counter { var calls: Int = 0 }
+private class Key(val id: Int, val counter: Counter) {
+    public fun equals(other: Key): Boolean { counter.calls += 1; return id == other.id }
+}
+fun <T: Equals<T>> nominal(expected: T, actual: T) { assertEquals(expected, actual) }
+fun <T: !Equals<T>> structural(expected: T, actual: T)
+    where requires(x: T, y: T) { x.equals(y): Boolean } { assertEquals(expected, actual) }
+
+fun main() {
+    assertEquals(Point(2), Point(2))
+    assertNotEquals(Point(2), Point(3))
+    assertEquals(Choice.Data(7), Choice.Data(7))
+    assertNotEquals(Choice.Empty, Choice.Data(7))
+    assertEquals((1, "x"), (1, "x"))
+    assertEquals(Box("value"), Box("value"))
+    structural(Box(Point(8)), Box(Point(8)))
+    nominal(42, 42)
+    val counter = Counter()
+    assertEquals(Key(3, counter), Key(3, counter))
+    assertEquals(counter.calls, 1)
+    val site = currentSourceLocation()
+    val failure = assertFailsWith<AssertionFailure> { assertEquals(Point(1), Point(2)) }
+    assertEquals(failure.location.file, site.file)
+    assertEquals(failure.location.line, site.line + 1L)
+    assertEquals(failure.kind, "assertEquals")
+    val unexpected = assertFailsWith<AssertionFailure> { assertNotEquals((1, "x"), (1, "x")) }
+    assertEquals(unexpected.kind, "assertNotEquals")
+    println("structural assertions passed")
+}

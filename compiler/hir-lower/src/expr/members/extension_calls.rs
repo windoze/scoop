@@ -53,8 +53,16 @@ impl Lowerer {
         let views = context.smart_cast_receiver_views(&receiver);
         let mut probes = Vec::new();
         let mut first_failure = None;
+        let mut wrong_arity_failure = None;
         let mut suppressed = false;
         for target in candidates {
+            let failure_slot = if call.type_args.is_empty()
+                || self.extension_call_target_has_type_arity(target, call.type_args.len())
+            {
+                &mut first_failure
+            } else {
+                &mut wrong_arity_failure
+            };
             for receiver in &views {
                 match target {
                     ExtensionCallTarget::Current(function) => {
@@ -65,7 +73,7 @@ impl Lowerer {
                         let mut state = context.clone();
                         let Some(explicit_type_args) = state.resolve_call_type_args(call.type_args)
                         else {
-                            first_failure.get_or_insert(Box::new(state));
+                            failure_slot.get_or_insert(Box::new(state));
                             continue;
                         };
                         let candidate = crate::CallableCandidate::function(*function, Vec::new());
@@ -90,7 +98,7 @@ impl Lowerer {
                                 break;
                             }
                             Err(failure) => {
-                                first_failure.get_or_insert(failure);
+                                failure_slot.get_or_insert(failure);
                             }
                         }
                     }
@@ -110,7 +118,7 @@ impl Lowerer {
                                 break;
                             }
                             Err(failure) => {
-                                first_failure.get_or_insert(failure);
+                                failure_slot.get_or_insert(failure);
                             }
                         }
                     }
@@ -118,6 +126,7 @@ impl Lowerer {
             }
         }
         if probes.is_empty() {
+            let first_failure = first_failure.or(wrong_arity_failure);
             return match (suppressed, first_failure) {
                 (true, Some(failure)) => PropertyExtensionInvokeOutcome::Failed(failure),
                 (true, None) => PropertyExtensionInvokeOutcome::Blocked,
@@ -175,6 +184,26 @@ impl Lowerer {
             | NamedFunctionLikeProbe::IntrinsicStruct(_) => {
                 unreachable!("extension function partitions contain only callable candidates")
             }
+        }
+    }
+
+    fn extension_call_target_has_type_arity(
+        &self,
+        target: &ExtensionCallTarget,
+        arity: usize,
+    ) -> bool {
+        match target {
+            ExtensionCallTarget::Current(function) => {
+                let signature = &self.signatures[function];
+                signature.type_params.len() - signature.owner_type_param_count == arity
+            }
+            ExtensionCallTarget::Dependency(binding) => self
+                .dependencies
+                .as_ref()
+                .and_then(|dependencies| dependencies.callable_candidate(binding).ok())
+                .is_none_or(|candidate| {
+                    candidate.interface().type_parameters().binders().len() == arity
+                }),
         }
     }
 }

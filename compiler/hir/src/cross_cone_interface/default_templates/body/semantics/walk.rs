@@ -123,6 +123,12 @@ pub(super) trait BodyWalkMode {
     type Error;
 
     fn resource(error: WireError) -> Self::Error;
+    fn replace_signature_scope(
+        &mut self,
+        _scope: crate::SignatureBinderScopeV1,
+    ) -> Option<crate::SignatureBinderScopeV1> {
+        None
+    }
 
     fn validate_type(
         &mut self,

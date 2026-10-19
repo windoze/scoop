@@ -66,6 +66,9 @@ where
         pending: &mut Vec<WorkItem<'body>>,
     ) -> Result<(), M::Error> {
         self.push_captures(pending, captures)?;
+        for binding in body_type_arguments.requirements() {
+            self.requirement_binding(&binding.value, definition_origin, pending)?;
+        }
         if let Some(arguments) = body_type_arguments.explicit_arguments() {
             for (index, argument) in arguments.iter().enumerate().rev() {
                 self.push_type(
@@ -190,6 +193,9 @@ where
         definition_origin: &'body ExportDefinitionSourceV1,
         pending: &mut Vec<WorkItem<'body>>,
     ) -> Result<(), M::Error> {
+        for binding in callable.requirements() {
+            self.requirement_binding(&binding.value, definition_origin, pending)?;
+        }
         for (index, argument) in callable.type_arguments().iter().enumerate().rev() {
             self.push_type(
                 pending,
@@ -336,5 +342,56 @@ where
                 definition_origin,
             },
         )
+    }
+}
+
+impl<M: BodyWalkMode> Validator<'_, M> {
+    pub(super) fn requirement_binding<'body>(
+        &mut self,
+        binding: &'body crate::DefaultRequirementBindingValueV1,
+        origin: &'body ExportDefinitionSourceV1,
+        pending: &mut Vec<WorkItem<'body>>,
+    ) -> Result<(), M::Error> {
+        if let crate::DefaultRequirementBindingValueV1::Implementation {
+            body,
+            type_arguments,
+            ..
+        } = binding
+        {
+            for (index, argument) in type_arguments.iter().enumerate() {
+                self.push_type(
+                    pending,
+                    argument,
+                    DefaultBodyProviderTypeSiteV1::CallableTypeArgument { index },
+                    origin,
+                )?;
+            }
+            let saved =
+                self.mode
+                    .replace_signature_scope(crate::SignatureBinderScopeV1::for_declaration(
+                        type_arguments.len() as u32,
+                        None,
+                    ));
+            let result = (|| {
+                for record in body.locals().records() {
+                    self.validate_type(
+                        record.value_type(),
+                        DefaultBodyProviderTypeSiteV1::CallableOwner,
+                        origin,
+                    )?;
+                }
+                self.run_nodes(
+                    body.statements()
+                        .iter()
+                        .map(BodyNode::Statement)
+                        .chain(body.results().iter().map(BodyNode::Expression)),
+                )
+            })();
+            if let Some(saved) = saved {
+                self.mode.replace_signature_scope(saved);
+            }
+            result?;
+        }
+        Ok(())
     }
 }

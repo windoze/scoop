@@ -101,3 +101,80 @@ fn no_gc_calls_with_elided_results_keep_the_planned_compact_unwind_atoms() {
     }
     assert_eq!(count, 2);
 }
+
+#[test]
+fn callable_modules_declare_only_their_targets_and_function_addresses() {
+    let mut module = values_module();
+    module.functions = (0..12)
+        .map(|index| empty_leaf(&format!("selected{index}")))
+        .collect();
+    module.output = scoop_lir::LirOutput::Library;
+    let caller = &mut module.functions[0];
+    for index in [0, 1, 1] {
+        let result = caller.temps.alloc(Temp {
+            ty: LirType::Aggregate(Vec::new()),
+        });
+        let site = elided_zst_site(
+            &mut caller.call_targets,
+            TestCallProtocol::NoGc {
+                destination: no_gc_local(index),
+            },
+            Vec::new(),
+            LirType::Aggregate(Vec::new()),
+            result,
+            Vec::new(),
+        );
+        caller.blocks[caller.entry]
+            .instructions
+            .push(Instruction::Call { site });
+    }
+    let address = caller.temps.alloc(Temp {
+        ty: scoop_lir::CODE_PTR,
+    });
+    caller.blocks[caller.entry]
+        .instructions
+        .push(Instruction::FunctionAddress {
+            out: address,
+            target: scoop_lir::FunctionAddressTarget::Local(local_function_ref(2, GcEffect::NoGc)),
+        });
+    let symbols = module
+        .functions
+        .iter()
+        .map(|function| (function.callable_body.id(), function.symbol().to_string()))
+        .collect::<Vec<_>>();
+    let input = scoop_lir::ConeLirOutput::try_new(module, Vec::new()).unwrap();
+    let rendered = render_llvm_ir_members(
+        &input,
+        &scoop_lir::ConeCoordinate::reserved_single_file(),
+        &[scoop_identity::ConeIdentity::CORE],
+        scoop_lir::EntryProductionSourceV1::Library,
+        host_profile(),
+    )
+    .unwrap();
+    for member in rendered {
+        let ScoopLirObjectKindV1::CallableBody(body) = member.units().kind() else {
+            continue;
+        };
+        let actual = symbols
+            .iter()
+            .filter(|(_, symbol)| {
+                member.llvm_ir().lines().any(|line| {
+                    (line.starts_with("define ") || line.starts_with("declare "))
+                        && line.contains(&format!("@\"{symbol}\""))
+                })
+            })
+            .map(|(body, _)| *body)
+            .collect::<BTreeSet<_>>();
+        let expected = if body == symbols[0].0 {
+            symbols[..3].iter().map(|(body, _)| *body).collect()
+        } else {
+            BTreeSet::from([body])
+        };
+        assert_eq!(actual, expected);
+        assert!(
+            !member
+                .llvm_ir()
+                .contains(&format!("@\"{}.1\"", symbols[0].1))
+        );
+    }
+}

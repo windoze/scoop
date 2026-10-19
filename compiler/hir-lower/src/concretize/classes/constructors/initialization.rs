@@ -58,6 +58,7 @@ impl Concretizer<'_> {
                         &initializer.statements,
                         substitution,
                         &locals,
+                        &mut body.locals,
                     ));
                     let value = self.lower_expr(&initializer.value, substitution, &locals);
                     let (receiver_ty, field) =
@@ -82,6 +83,7 @@ impl Concretizer<'_> {
                         &source_body.statements,
                         substitution,
                         &locals,
+                        &mut body.locals,
                     ));
                 }
             }

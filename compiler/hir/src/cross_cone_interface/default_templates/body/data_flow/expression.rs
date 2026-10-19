@@ -106,6 +106,7 @@ impl Validator<'_> {
             | DefaultExpressionKindV1::ReleaseFieldLoad { .. }
             | DefaultExpressionKindV1::GlobalRead(_)
             | DefaultExpressionKindV1::GenericDelegateStorageRead(_)
+            | DefaultExpressionKindV1::CompanionValue
             | DefaultExpressionKindV1::SingletonValue(_)
             | DefaultExpressionKindV1::SizeOf(_)
             | DefaultExpressionKindV1::AlignOf(_)

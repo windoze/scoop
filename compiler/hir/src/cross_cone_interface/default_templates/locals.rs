@@ -126,7 +126,7 @@ impl WireDecode for DecodedTemplateLocalDefinitionV1 {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct TemplateLocalRecordV1 {
     selector: LocalValueSelector,
     value_type: SignatureTypeKey,
@@ -236,7 +236,7 @@ impl WireDecode for DecodedTemplateLocalRecordV1 {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct CanonicalTemplateLocalTableV1 {
     records: Vec<TemplateLocalRecordV1>,
     len: u32,

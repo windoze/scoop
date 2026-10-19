@@ -31,6 +31,7 @@ impl Concretizer<'_> {
     ) -> concrete::ClassConstructorId {
         let key = (self.class_constructor_origin(source).0, owner);
         if let Some(&existing) = self.class_constructor_by_key.get(&key) {
+            self.record_specialization_request(type_info::CallableBody::ClassConstructor(existing));
             return existing;
         }
         let raw = u32::try_from(self.class_constructor_slots.len())
@@ -39,6 +40,10 @@ impl Concretizer<'_> {
         self.class_constructor_slots.push(None);
         self.class_constructor_definitions.push((source, owner));
         self.class_constructor_by_key.insert(key, id);
+        let body = type_info::CallableBody::ClassConstructor(id);
+        self.body_requirements
+            .insert(body, self.requirement_environment.clone());
+        self.record_specialization_request(body);
         self.pending_constructors
             .push_back((ConstructorWork::Class(id), self.type_use_site));
         id
@@ -66,6 +71,9 @@ impl Concretizer<'_> {
     ) -> concrete::StructConstructorId {
         let key = (self.struct_constructor_origin(source), owner);
         if let Some(&existing) = self.struct_constructor_by_key.get(&key) {
+            self.record_specialization_request(type_info::CallableBody::StructConstructor(
+                existing,
+            ));
             return existing;
         }
         let raw = u32::try_from(self.struct_constructor_slots.len())
@@ -74,6 +82,10 @@ impl Concretizer<'_> {
         self.struct_constructor_slots.push(None);
         self.struct_constructor_definitions.push((source, owner));
         self.struct_constructor_by_key.insert(key, id);
+        let body = type_info::CallableBody::StructConstructor(id);
+        self.body_requirements
+            .insert(body, self.requirement_environment.clone());
+        self.record_specialization_request(body);
         self.pending_constructors
             .push_back((ConstructorWork::Struct(id), self.type_use_site));
         id
@@ -85,6 +97,13 @@ impl Concretizer<'_> {
             ConstructorWork::Struct(id) => type_info::CallableBody::StructConstructor(id),
         };
         let previous = self.current_body.replace(body);
+        let saved_requirements = std::mem::replace(
+            &mut self.requirement_environment,
+            self.body_requirements
+                .get(&body)
+                .cloned()
+                .unwrap_or_default(),
+        );
         match work {
             ConstructorWork::Class(id) => {
                 let index = id.into_raw().into_u32() as usize;
@@ -110,5 +129,6 @@ impl Concretizer<'_> {
             }
         }
         self.current_body = previous;
+        self.requirement_environment = saved_requirements;
     }
 }

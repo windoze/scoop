@@ -242,7 +242,10 @@ impl ReferenceCollector<'_> {
     }
 
     pub(super) fn type_reference(&mut self, target: hir::TypeId, origin: hir::DefinitionOrigin) {
-        if matches!(self.lowerer.types[target], hir::Type::Param(_)) {
+        if matches!(
+            self.lowerer.types[target],
+            hir::Type::Param(_) | hir::Type::Companion(_)
+        ) {
             return;
         }
         let target_domain = self.lowerer.default_type_access_domain(target);

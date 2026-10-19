@@ -1,0 +1,1 @@
+fun <T> probe(value: T.Factory): Int where T.Companion : ref = 1

@@ -9,7 +9,7 @@ pub(super) struct PreparedSource {
 }
 
 impl Concretizer<'_> {
-    pub(super) fn prepare_source(&mut self) -> PreparedSource {
+    pub(super) fn prepare_source(&mut self) -> Result<PreparedSource, Vec<scoop_ast::Diagnostic>> {
         let unit = self.lower_type(self.source.unit, &[]);
         match self.core {
             export::CoreProtocols::Defined(protocols) => {
@@ -98,6 +98,9 @@ impl Concretizer<'_> {
             }
         }
         self.drain_pending_callables();
+        if !self.type_condition_errors.is_empty() {
+            return Err(std::mem::take(&mut self.type_condition_errors));
+        }
 
         let native_callback_signatures = self
             .source
@@ -115,6 +118,9 @@ impl Concretizer<'_> {
             })
             .collect();
         self.drain_pending_callables();
+        if !self.type_condition_errors.is_empty() {
+            return Err(std::mem::take(&mut self.type_condition_errors));
+        }
 
         let core_protocols = match self.core {
             export::CoreProtocols::Defined(protocols) => {
@@ -124,12 +130,12 @@ impl Concretizer<'_> {
                 concrete::ConcreteCoreProtocols::Imported(protocols.clone())
             }
         };
-        PreparedSource {
+        Ok(PreparedSource {
             unit,
             boolean,
             string,
             native_callback_signatures,
             core_protocols,
-        }
+        })
     }
 }

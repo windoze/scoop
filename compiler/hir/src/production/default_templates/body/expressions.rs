@@ -163,9 +163,17 @@ impl BodyProjection<'_, '_> {
             ExprKind::GlobalRead(global) => {
                 DefaultExpressionKindV1::GlobalRead(self.entities.global_property(*global)?)
             }
-            ExprKind::SingletonValue(value) => {
-                DefaultExpressionKindV1::SingletonValue(self.entities.singleton_id(*value)?)
-            }
+            ExprKind::SingletonValue(value) => match value {
+                crate::SingletonValueTarget::Local(value) => {
+                    DefaultExpressionKindV1::SingletonValue(self.entities.singleton_id(*value)?)
+                }
+                crate::SingletonValueTarget::Dependency(value) => {
+                    DefaultExpressionKindV1::SingletonValue(*value)
+                }
+                crate::SingletonValueTarget::Companion(_) => {
+                    DefaultExpressionKindV1::CompanionValue
+                }
+            },
             ExprKind::Capture(binding) => match self.locals.capture_source(*binding)? {
                 crate::DefaultCaptureSourceV1::Local(selector) => {
                     DefaultExpressionKindV1::Local(selector)

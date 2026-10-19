@@ -51,13 +51,13 @@ fn closure_occurrences_keep_original_bodies_and_complete_arguments() {
                             ));
                             assert!(matches!(
                                 arguments,
-                                hir::CallableBodyTypeArguments::Explicit(_)
+                                hir::CallableBodyTypeArguments::Explicit { .. }
                             ));
                             definition.type_parameters.len()
                         }
                     };
                     assert_eq!(owner_count, parameter_count);
-                    if let hir::CallableBodyTypeArguments::Explicit(arguments) = arguments {
+                    if let hir::CallableBodyTypeArguments::Explicit { arguments, .. } = arguments {
                         assert_eq!(arguments.len(), parameter_count);
                     }
                 }

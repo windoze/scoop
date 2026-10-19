@@ -15,7 +15,7 @@ pub(in crate::expr) enum ImportedCallArguments<'a> {
 #[derive(Clone, Copy)]
 pub(in crate::expr) struct ImportedProbeCall<'a> {
     pub(in crate::expr) alias: Option<&'a crate::aliases::AliasTemplate>,
-    pub(super) type_args: &'a [ast::CallTypeArgument],
+    pub(super) type_args: ImportedTypeArguments<'a>,
     pub(in crate::expr) arguments: ImportedCallArguments<'a>,
     pub(in crate::expr) span: ast::Span,
 }
@@ -24,7 +24,7 @@ impl<'a> From<CallSite<'a>> for ImportedProbeCall<'a> {
     fn from(call: CallSite<'a>) -> Self {
         Self {
             alias: None,
-            type_args: call.type_args,
+            type_args: ImportedTypeArguments::Source(call.type_args),
             arguments: ImportedCallArguments::Source(call.args),
             span: call.span,
         }
@@ -35,10 +35,57 @@ impl<'a> ImportedProbeCall<'a> {
     pub(in crate::expr) fn lowered(arguments: &'a [hir::Expr], span: ast::Span) -> Self {
         Self {
             alias: None,
-            type_args: &[],
+            type_args: ImportedTypeArguments::Source(&[]),
             arguments: ImportedCallArguments::Lowered(arguments),
             span,
         }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub(super) enum ImportedTypeArguments<'a> {
+    Source(&'a [ast::CallTypeArgument]),
+    Resolved(&'a [crate::expr::ResolvedCallTypeArgument]),
+}
+
+impl ImportedTypeArguments<'_> {
+    pub(super) fn span(self, index: usize) -> ast::Span {
+        match self {
+            Self::Source(args) => args[index].span(),
+            Self::Resolved(args) => match args[index] {
+                crate::expr::ResolvedCallTypeArgument::Explicit { span, .. }
+                | crate::expr::ResolvedCallTypeArgument::Infer { span } => span,
+            },
+        }
+    }
+
+    pub(super) fn len(self) -> usize {
+        match self {
+            Self::Source(args) => args.len(),
+            Self::Resolved(args) => args.len(),
+        }
+    }
+    pub(super) fn is_empty(self) -> bool {
+        self.len() == 0
+    }
+    pub(super) fn resolve(
+        self,
+        state: &mut crate::Lowerer,
+    ) -> Option<Vec<crate::expr::ResolvedCallTypeArgument>> {
+        match self {
+            Self::Source(args) => state.resolve_call_type_args(args),
+            Self::Resolved(args) => Some(args.to_vec()),
+        }
+    }
+}
+
+impl<'a> ImportedProbeCall<'a> {
+    pub(in crate::expr) fn with_resolved_type_arguments(
+        mut self,
+        arguments: &'a [crate::expr::ResolvedCallTypeArgument],
+    ) -> Self {
+        self.type_args = ImportedTypeArguments::Resolved(arguments);
+        self
     }
 }
 

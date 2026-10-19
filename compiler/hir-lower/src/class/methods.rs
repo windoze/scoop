@@ -57,6 +57,7 @@ impl Lowerer {
             owner_type_param_count,
             &decl.type_params,
             decl.where_clause.as_ref(),
+            true,
             "method",
         );
         let mut owner_parameters = type_params.clone();

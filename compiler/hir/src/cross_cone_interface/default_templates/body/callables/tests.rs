@@ -53,30 +53,30 @@ fn method_callee_variants_round_trip_without_application_ids() {
     let callable = fixture.callable();
     let cases = [
         DefaultMethodCalleeV1::Callable(callable.clone()),
-        DefaultMethodCalleeV1::Bound(DefaultBoundCallableRefV1::new(
+        DefaultMethodCalleeV1::Bound(Box::new(DefaultBoundCallableRefV1::new(
             SignatureTypeKey::Binder { depth: 1, index: 2 },
             DefaultBoundCallableSourceV1::Class {
                 bound: binder(0),
                 callable,
             },
             function_type(),
-        )),
-        DefaultMethodCalleeV1::Bound(DefaultBoundCallableRefV1::new(
+        ))),
+        DefaultMethodCalleeV1::Bound(Box::new(DefaultBoundCallableRefV1::new(
             SignatureTypeKey::Binder { depth: 2, index: 3 },
             DefaultBoundCallableSourceV1::Interface {
                 bound: binder(1),
                 member: CallableTemplateOrigin::GenericFunction(fixture.generic_function),
             },
             function_type(),
-        )),
-        DefaultMethodCalleeV1::Bound(DefaultBoundCallableRefV1::new(
+        ))),
+        DefaultMethodCalleeV1::Bound(Box::new(DefaultBoundCallableRefV1::new(
             SignatureTypeKey::Nominal(fixture.allowed_type),
             DefaultBoundCallableSourceV1::Interface {
                 bound: binder(1),
                 member: CallableTemplateOrigin::Function(fixture.function),
             },
             function_type(),
-        )),
+        ))),
         DefaultMethodCalleeV1::DerivedEquality {
             owner_type: binder(2),
         },
@@ -93,14 +93,14 @@ fn method_callee_variants_round_trip_without_application_ids() {
 #[test]
 fn bound_receiver_resolution_reports_unknown_nominal_types() {
     let fixture = Fixture::new();
-    let callee = DefaultMethodCalleeV1::Bound(DefaultBoundCallableRefV1::new(
+    let callee = DefaultMethodCalleeV1::Bound(Box::new(DefaultBoundCallableRefV1::new(
         SignatureTypeKey::Nominal(fixture.missing_type),
         DefaultBoundCallableSourceV1::Interface {
             bound: binder(0),
             member: CallableTemplateOrigin::Function(fixture.function),
         },
         function_type(),
-    ));
+    )));
     let decoded: DecodedDefaultMethodCalleeV1 =
         decode_canonical(&encode(&callee).unwrap()).unwrap();
     assert_eq!(
@@ -374,4 +374,118 @@ fn function_type() -> SignatureTypeKey {
 
 fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|byte| format!("{byte:02x}")).collect()
+}
+
+impl PersistentIdResolver<scoop_identity::PersistentExactTypeId> for Resolver {
+    type Error = ResolutionError;
+    fn resolve(
+        &mut self,
+        _: DecodedPersistentId<scoop_identity::PersistentExactTypeId>,
+    ) -> Result<scoop_identity::PersistentExactTypeId, Self::Error> {
+        Err(ResolutionError::Unknown("requirement reference"))
+    }
+}
+
+impl PersistentIdResolver<scoop_identity::PersistentAnnotationId> for Resolver {
+    type Error = ResolutionError;
+    fn resolve(
+        &mut self,
+        _: DecodedPersistentId<scoop_identity::PersistentAnnotationId>,
+    ) -> Result<scoop_identity::PersistentAnnotationId, Self::Error> {
+        Err(ResolutionError::Unknown("requirement reference"))
+    }
+}
+
+impl PersistentIdResolver<scoop_identity::PersistentExtensionPropertyId> for Resolver {
+    type Error = ResolutionError;
+    fn resolve(
+        &mut self,
+        _: DecodedPersistentId<scoop_identity::PersistentExtensionPropertyId>,
+    ) -> Result<scoop_identity::PersistentExtensionPropertyId, Self::Error> {
+        Err(ResolutionError::Unknown("requirement reference"))
+    }
+}
+
+impl PersistentIdResolver<scoop_identity::PersistentObjectValueId> for Resolver {
+    type Error = ResolutionError;
+    fn resolve(
+        &mut self,
+        _: DecodedPersistentId<scoop_identity::PersistentObjectValueId>,
+    ) -> Result<scoop_identity::PersistentObjectValueId, Self::Error> {
+        Err(ResolutionError::Unknown("requirement reference"))
+    }
+}
+
+impl PersistentIdResolver<scoop_identity::PersistentCallbackRegistrationId> for Resolver {
+    type Error = ResolutionError;
+    fn resolve(
+        &mut self,
+        _: DecodedPersistentId<scoop_identity::PersistentCallbackRegistrationId>,
+    ) -> Result<scoop_identity::PersistentCallbackRegistrationId, Self::Error> {
+        Err(ResolutionError::Unknown("requirement reference"))
+    }
+}
+
+impl PersistentIdResolver<scoop_identity::PersistentInitializationUnitId> for Resolver {
+    type Error = ResolutionError;
+    fn resolve(
+        &mut self,
+        _: DecodedPersistentId<scoop_identity::PersistentInitializationUnitId>,
+    ) -> Result<scoop_identity::PersistentInitializationUnitId, Self::Error> {
+        Err(ResolutionError::Unknown("requirement reference"))
+    }
+}
+
+impl PersistentIdResolver<scoop_identity::PersistentEnumVariantFieldId> for Resolver {
+    type Error = ResolutionError;
+    fn resolve(
+        &mut self,
+        _: DecodedPersistentId<scoop_identity::PersistentEnumVariantFieldId>,
+    ) -> Result<scoop_identity::PersistentEnumVariantFieldId, Self::Error> {
+        Err(ResolutionError::Unknown("requirement reference"))
+    }
+}
+
+impl PersistentIdResolver<scoop_identity::PersistentFieldId> for Resolver {
+    type Error = ResolutionError;
+    fn resolve(
+        &mut self,
+        _: DecodedPersistentId<scoop_identity::PersistentFieldId>,
+    ) -> Result<scoop_identity::PersistentFieldId, Self::Error> {
+        Err(ResolutionError::Unknown("requirement reference"))
+    }
+}
+
+impl PersistentIdResolver<ConeIdentity> for Resolver {
+    type Error = ResolutionError;
+    fn resolve(
+        &mut self,
+        _: DecodedPersistentId<ConeIdentity>,
+    ) -> Result<ConeIdentity, Self::Error> {
+        Err(ResolutionError::Unknown("cone"))
+    }
+}
+impl
+    scoop_identity::PersistentKeyResolver<
+        scoop_identity::PersistentSourceContextId,
+        scoop_identity::SourceContextKey,
+    > for Resolver
+{
+    type Error = ResolutionError;
+    fn resolve_key(
+        &mut self,
+        _: DecodedPersistentId<scoop_identity::PersistentSourceContextId>,
+    ) -> Result<std::sync::Arc<scoop_identity::SourceContextKey>, Self::Error> {
+        Err(ResolutionError::Unknown("context"))
+    }
+}
+
+impl PersistentIdResolver<scoop_identity::PersistentPropertyId> for Resolver {
+    type Error = ResolutionError;
+    fn resolve(
+        &mut self,
+        _: DecodedPersistentId<scoop_identity::PersistentPropertyId>,
+    ) -> Result<scoop_identity::PersistentPropertyId, Self::Error> {
+        Err(ResolutionError::Unknown("property"))
+    }
 }

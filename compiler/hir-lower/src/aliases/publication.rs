@@ -274,7 +274,8 @@ impl Lowerer {
             | Type::Boolean
             | Type::String
             | Type::Any
-            | Type::Param(_) => {}
+            | Type::Param(_)
+            | Type::Companion(_) => {}
         }
     }
 

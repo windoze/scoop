@@ -585,6 +585,12 @@ pub(crate) struct Lowerer {
     pub(crate) imported_companion_templates: Arena<hir::ImportedCompanionTemplate>,
     pub(crate) imported_generic_applications: Arena<hir::ImportedGenericCallableApplication>,
     pub(crate) retained_binding_witness_uses: Vec<hir::ExternalHirBindingWitnessUse>,
+    pub(crate) member_requirement_owners:
+        HashMap<hir::MemberRequirementId, hir::MemberRequirementOwner>,
+    pub(crate) member_requirement_implementations: Arena<hir::MemberRequirementImplementation>,
+    pub(crate) checked_member_requirements:
+        HashMap<scoop_identity::MemberRequirementKey<TypeId>, hir::MemberRequirementBindingValue>,
+    pub(crate) active_member_requirements: HashSet<hir::MemberRequirementId>,
     pub(crate) bound_callable_refs: Arena<hir::BoundCallableRef>,
     pub(crate) function_coercions: Arena<hir::FunctionCoercion>,
     pub(crate) foreign_callback_registrations: Arena<hir::ForeignCallbackRegistration>,

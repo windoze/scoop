@@ -17,6 +17,10 @@ pub(super) enum AtomicConstraintKind {
     Kind(InferenceVariableId, hir::TypeParamKind),
     ClassBound(InferenceVariableId, TypeTerm),
     Implements(InferenceVariableId, TypeTerm),
+    ExcludesInterface(InferenceVariableId, TypeTerm),
+    Companion(InferenceVariableId, hir::CompanionBounds),
+    MemberRequirement(hir::MemberRequirement),
+    DeferredRelation(RelationKind, TypeTerm, TypeTerm),
     CallableShape(CallableShape, TypeTerm),
     ConcreteApplication(NominalApplication),
 }
@@ -91,6 +95,29 @@ impl RelationReducer<'_> {
                 );
                 Ok(())
             }
+            Constraint::MemberRequirement(contract) => {
+                self.push(
+                    AtomicConstraintKind::MemberRequirement(contract.clone()),
+                    record.origin,
+                );
+                Ok(())
+            }
+            Constraint::Companion(variable, bounds) => {
+                self.check_variable(*variable, record.origin)?;
+                self.push(
+                    AtomicConstraintKind::Companion(*variable, bounds.clone()),
+                    record.origin,
+                );
+                Ok(())
+            }
+            Constraint::ExcludesInterface(variable, interface) => {
+                self.check_variable(*variable, record.origin)?;
+                self.push(
+                    AtomicConstraintKind::ExcludesInterface(*variable, *interface),
+                    record.origin,
+                );
+                Ok(())
+            }
             Constraint::ClassBound(variable, class) => {
                 self.check_variable(*variable, record.origin)?;
                 self.push(
@@ -152,6 +179,16 @@ impl RelationReducer<'_> {
         right_ty: hir::TypeId,
         origin: ConstraintOrigin,
     ) -> Result<(), ConstraintFailure> {
+        if [left, right].into_iter().any(|term| {
+            matches!(term,
+            TypeTerm::Type(ty) if matches!(self.lowerer.types[ty], Type::Companion(_)))
+        }) {
+            self.push(
+                AtomicConstraintKind::DeferredRelation(RelationKind::Equal, left, right),
+                origin,
+            );
+            return Ok(());
+        }
         if let (Some(left_application), Some(right_application)) = (
             self.lowerer.nominal_application(left_ty),
             self.lowerer.nominal_application(right_ty),
@@ -277,6 +314,16 @@ impl RelationReducer<'_> {
         right_ty: hir::TypeId,
         origin: ConstraintOrigin,
     ) -> Result<(), ConstraintFailure> {
+        if [left, right].into_iter().any(|term| {
+            matches!(term,
+            TypeTerm::Type(ty) if matches!(self.lowerer.types[ty], Type::Companion(_)))
+        }) {
+            self.push(
+                AtomicConstraintKind::DeferredRelation(RelationKind::Subtype, left, right),
+                origin,
+            );
+            return Ok(());
+        }
         if self.lowerer.is_nothing_ty(left_ty) || matches!(self.lowerer.types[right_ty], Type::Any)
         {
             return Ok(());
@@ -542,7 +589,9 @@ pub(crate) fn type_contains_session_parameter(
             .any(|argument| type_contains_session_parameter(lowerer, session, *argument));
     }
     let children: Vec<hir::TypeId> = match &lowerer.types[ty] {
-        Type::Param(parameter) => return session.variable_for(*parameter).is_some(),
+        Type::Param(parameter) | Type::Companion(parameter) => {
+            return session.variable_for(*parameter).is_some();
+        }
         Type::Struct(application) => lowerer.struct_applications[*application].arguments.clone(),
         Type::Class(application) => lowerer.class_applications[*application].arguments.clone(),
         Type::Interface(application) => lowerer.interface_applications[*application]

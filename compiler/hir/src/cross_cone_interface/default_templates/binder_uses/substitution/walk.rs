@@ -59,7 +59,7 @@ impl<'a> Substitution<'a, '_> {
             } => {
                 self.children(value, parameters, Some(result), substitute)?;
             }
-            SignatureTypeKey::RawPointer(pointee) => {
+            SignatureTypeKey::RawPointer(pointee) | SignatureTypeKey::Companion(pointee) => {
                 self.children(value, &[], Some(pointee), substitute)?;
             }
         }

@@ -21,3 +21,25 @@ public fun <T : Equals<T>> assertNotEquals(
         comparisonFailure("assertNotEquals", expected, actual, message, location)
     }
 }
+
+public fun <T : !Equals<T>> assertEquals(
+    expected: T,
+    actual: T,
+    message: String? = None,
+    location: SourceLocation = currentSourceLocation()
+) where requires(x: T, y: T) { x.equals(y): Boolean } {
+    if (!expected.equals(actual)) {
+        comparisonFailure("assertEquals", expected, actual, message, location)
+    }
+}
+
+public fun <T : !Equals<T>> assertNotEquals(
+    expected: T,
+    actual: T,
+    message: String? = None,
+    location: SourceLocation = currentSourceLocation()
+) where requires(x: T, y: T) { x.equals(y): Boolean } {
+    if (expected.equals(actual)) {
+        comparisonFailure("assertNotEquals", expected, actual, message, location)
+    }
+}

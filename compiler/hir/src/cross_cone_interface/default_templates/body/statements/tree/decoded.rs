@@ -29,6 +29,13 @@ pub struct DecodedDefaultStatementV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum DecodedDefaultStatementKindV1 {
+    MemberRequirementCall {
+        contract:
+            Box<scoop_identity::MemberRequirementKey<scoop_identity::DecodedSignatureTypeKey>>,
+        binding: Box<crate::DecodedDefaultRequirementBindingValueV1>,
+        arguments: Vec<DecodedDefaultExpressionV1>,
+        result: Box<DecodedDefaultPatternV1>,
+    },
     ContextScope {
         value: Box<DecodedDefaultExpressionV1>,
         body: Vec<DecodedDefaultStatementV1>,
@@ -79,6 +86,30 @@ impl DecodedDefaultStatementV1 {
             .resolve(resolver)
             .map_err(DefaultStatementResolutionError::DefinitionOrigin)?;
         let kind = match self.kind {
+            DecodedDefaultStatementKindV1::MemberRequirementCall {
+                contract,
+                binding,
+                arguments,
+                result,
+            } => DefaultStatementKindV1::MemberRequirementCall {
+                contract: Box::new(
+                    contract
+                        .try_map(|ty| ty.clone().resolve(resolver))
+                        .map_err(DefaultStatementResolutionError::InitializationUnit)?,
+                ),
+                binding: Box::new(binding.resolve(resolver).map_err(|error| {
+                    DefaultStatementResolutionError::Requirement(Box::new(error))
+                })?),
+                arguments: arguments
+                    .into_iter()
+                    .map(|argument| resolve_expression(argument, resolver, locals, 17, 3))
+                    .collect::<Result<_, _>>()?,
+                result: Box::new(
+                    result
+                        .resolve(resolver, locals)
+                        .map_err(DefaultStatementResolutionError::Pattern)?,
+                ),
+            },
             DecodedDefaultStatementKindV1::ContextScope { value, body } => {
                 DefaultStatementKindV1::ContextScope {
                     value: Box::new(resolve_expression(*value, resolver, locals, 16, 1)?),
@@ -221,6 +252,23 @@ impl WireDecode for DecodedDefaultStatementV1 {
 impl WireEncode for DecodedDefaultStatementKindV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
+            Self::MemberRequirementCall {
+                contract,
+                binding,
+                arguments,
+                result,
+            } => {
+                encoder.map(5)?;
+                encode_tag(encoder, 17)?;
+                encoder.field(1)?;
+                contract.encode(encoder)?;
+                encoder.field(2)?;
+                binding.encode(encoder)?;
+                encoder.field(3)?;
+                encode_sequence(encoder, arguments)?;
+                encoder.field(4)?;
+                result.encode(encoder)
+            }
             Self::ContextScope { value, body } => {
                 encoder.map(3)?;
                 encode_tag(encoder, 16)?;
@@ -269,6 +317,21 @@ impl WireDecode for DecodedDefaultStatementKindV1 {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
+            17 => {
+                expect_sum_length(decoder, fields, 5)?;
+                Ok(Self::MemberRequirementCall {
+                    contract: Box::new(
+                        decoder.field(1, scoop_identity::MemberRequirementKey::decode)?,
+                    ),
+                    binding: Box::new(
+                        decoder.field(2, crate::DecodedDefaultRequirementBindingValueV1::decode)?,
+                    ),
+                    arguments: decoder.field(3, |d| {
+                        d.decode_array(|d, _| DecodedDefaultExpressionV1::decode(d))
+                    })?,
+                    result: Box::new(decoder.field(4, DecodedDefaultPatternV1::decode)?),
+                })
+            }
             16 => {
                 expect_sum_length(decoder, fields, 3)?;
                 Ok(Self::ContextScope {
@@ -368,6 +431,7 @@ impl WireDecode for DecodedDefaultStatementKindV1 {
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum DefaultStatementResolutionError<E, L> {
+    Requirement(Box<crate::RequirementBindingResolutionError<E>>),
     InitializationUnit(E),
     Expression {
         variant_tag: u64,
@@ -394,6 +458,7 @@ pub enum DefaultStatementResolutionError<E, L> {
 impl<E: fmt::Display, L: fmt::Display> fmt::Display for DefaultStatementResolutionError<E, L> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Requirement(error) => write!(formatter, "{error}"),
             Self::InitializationUnit(error) => {
                 write!(formatter, "invalid default initialization unit: {error}")
             }

@@ -1,0 +1,24 @@
+interface I<T> {}
+interface Parent {}
+interface Child : Parent {}
+struct Box<T>(val value: T) : I<T>
+
+fun <T : !I<String>> absent(value: T): String = "absent"
+fun <T : !Child> child(value: T): String = "child"
+fun <T : !Parent> parent(value: T): String = child(value)
+fun <T> kind(value: T): String = "general"
+fun <T : value> kind(value: T): String where T : !Parent = "value"
+fun <T : !Parent> T.extension(): String = child(this)
+class Host<U>(val outer: U) {
+    fun <T : !I<U>> method(value: T): String = "method"
+}
+fun main() {
+    println(absent(Box(1)))
+    println(parent(1))
+    println(kind(1))
+    println(1.extension())
+    println(Host("host").method(Box(2)))
+    fun <T> local(value: T): String = "general"
+    fun <T : !Parent> local(value: T): String = "local"
+    println(local(1))
+}

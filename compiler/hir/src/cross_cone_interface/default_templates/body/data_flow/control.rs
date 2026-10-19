@@ -46,6 +46,15 @@ impl Validator<'_> {
         region: Region,
     ) -> Result<Flow, ExportDefaultLocalDataFlowValidationError> {
         match statement.kind() {
+            DefaultStatementKindV1::MemberRequirementCall {
+                arguments, result, ..
+            } => {
+                for argument in arguments {
+                    self.validate_expression(argument, &available, reachable)?;
+                }
+                self.define_pattern(result, &mut available)?;
+                Ok(Flow::falling_through(available))
+            }
             DefaultStatementKindV1::ContextScope { value, body } => {
                 self.validate_expression(value, &available, reachable)?;
                 self.validate_statements(body, Flow::falling_through(available), reachable, region)

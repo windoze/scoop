@@ -1,4 +1,7 @@
 use super::*;
+use scoop_ast::TypeConstraintSubject;
+
+mod requirements;
 
 impl Parser {
     /// `<T, U : Interface, ...>`. Nominal type parameters are permanently
@@ -56,6 +59,10 @@ impl Parser {
 
     pub(super) fn parse_type_bound(&mut self) -> Result<TypeBound, Diagnostic> {
         match &self.peek().kind {
+            TokenKind::Bang => {
+                self.bump();
+                self.parse_type_ref().map(TypeBound::ExcludedInterface)
+            }
             TokenKind::Ident(text) if text == "value" => {
                 self.bump();
                 Ok(TypeBound::Kind(TypeParamKindBound::Value))
@@ -77,29 +84,53 @@ impl Parser {
         }
         let start = self.bump().span.start;
         let mut constraints = Vec::new();
+        let mut requirements = Vec::new();
         loop {
-            let parameter = self.expect_ident("type parameter name in `where` constraint")?;
-            self.expect("`:`", |kind| matches!(kind, TokenKind::Colon))?;
-            let bound = self.parse_type_bound()?;
-            let end = self.tokens[self.pos - 1].span.end;
-            constraints.push(TypeConstraint {
-                span: Span::new(parameter.span.start, end),
-                parameter,
-                bound,
-            });
+            if matches!(&self.peek().kind, TokenKind::Ident(text) if text == "requires")
+                && matches!(
+                    self.tokens[self.pos + 1].kind,
+                    TokenKind::LParen | TokenKind::LBrace
+                )
+            {
+                requirements.push(self.parse_member_requirements()?);
+            } else {
+                constraints.push(self.parse_type_constraint()?);
+            }
             if !matches!(self.peek().kind, TokenKind::Comma) {
                 break;
             }
             self.bump();
         }
-        let end = constraints
-            .last()
-            .expect("a where clause always has one constraint")
-            .span
-            .end;
+        let end = self.tokens[self.pos - 1].span.end;
         Ok(Some(WhereClause {
             constraints,
+            requirements,
             span: Span::new(start, end),
         }))
+    }
+
+    fn parse_type_constraint(&mut self) -> Result<TypeConstraint, Diagnostic> {
+        let parameter = self.expect_ident("type parameter name in `where` constraint")?;
+        let start = parameter.span.start;
+        let subject = if matches!(self.peek().kind, TokenKind::Dot) {
+            self.bump();
+            let member = self.expect_ident("`Companion` in projected constraint")?;
+            if member.text != "Companion" {
+                return Err(Diagnostic::at(
+                    member.span,
+                    "a dependent constraint only supports the `Companion` projection",
+                ));
+            }
+            TypeConstraintSubject::Companion(parameter)
+        } else {
+            TypeConstraintSubject::Parameter(parameter)
+        };
+        self.expect("`:`", |kind| matches!(kind, TokenKind::Colon))?;
+        let bound = self.parse_type_bound()?;
+        Ok(TypeConstraint {
+            span: Span::new(start, self.tokens[self.pos - 1].span.end),
+            subject,
+            bound,
+        })
     }
 }

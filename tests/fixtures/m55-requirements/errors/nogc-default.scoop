@@ -1,0 +1,4 @@
+fun managed(): Int = 1
+struct Box() { @NoGC public fun read(n: Int = managed()): Int = n }
+fun <T> accept(value: T): Int where requires(x: T) { @NoGC x.read(): Int } = 0
+fun main() { accept(Box()) }

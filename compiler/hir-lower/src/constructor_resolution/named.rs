@@ -10,6 +10,25 @@ pub(crate) struct NamedNominalProbe {
 }
 
 impl NamedNominalProbe {
+    pub(crate) fn requirement_effects(&self) -> hir::RequiredCallEffects {
+        let state = &self.candidate.state;
+        let (safety, gc_effect) = match self.candidate.source {
+            NominalConstructorSource::Struct(id) => (
+                state.struct_constructors[id].safety,
+                state.struct_constructors[id].source_gc_effect(),
+            ),
+            NominalConstructorSource::Class(id) => {
+                (state.class_constructors[id].safety, hir::GcEffect::Managed)
+            }
+            _ => (hir::Safety::Safe, hir::GcEffect::Managed),
+        };
+        hir::RequiredCallEffects {
+            is_suspend: false,
+            safety,
+            gc_effect,
+        }
+    }
+
     pub(crate) fn forwarding(
         &self,
         state: &mut Lowerer,

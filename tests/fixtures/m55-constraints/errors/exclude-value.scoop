@@ -1,0 +1,2 @@
+fun <T : !Int> bad(value: T): Int = 1
+fun main() {}

@@ -153,7 +153,7 @@ impl Lowerer {
                 let selected = self.commit_imported_dependency_extension_property(*probe);
                 let write = ResolvedExtensionPropertyWrite {
                     target: ResolvedExtensionPropertyTarget::Dependency {
-                        target: selected.target,
+                        target: Box::new(selected.target),
                         name: name.clone(),
                     },
                     receiver: selected.receiver,

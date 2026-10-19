@@ -1,5 +1,5 @@
 use scoop_identity::{
-    CallableTemplateOrigin, ExactTypeKey, PersistentExactTypeId, PersistentTypeId, SignatureTypeKey,
+    CallableTemplateOrigin, ExactTypeKey, PersistentExactTypeId, SignatureTypeKey,
 };
 use scoop_wire::WireError;
 
@@ -24,7 +24,7 @@ impl HirDependencyCallSiteV1 {
         target: ExternalHirTargetV1,
         metadata: SharedTypeMetadataV1<'a>,
         identities: &'a scoop_identity::ValidatedIdentityGraph,
-        nominal_source: impl Fn(PersistentTypeId) -> Option<&'a crate::NominalInterfaceRecordV1>,
+        nominal_source: impl Fn(SourceNominalId) -> Option<&'a crate::NominalInterfaceRecordV1>,
     ) -> Result<&'a CallableDeclarationRecordV1, HirDependencyCallSignatureError> {
         use HirDependencyCallSignatureError as Error;
 
@@ -56,7 +56,11 @@ impl HirDependencyCallSiteV1 {
         }
         let bindings = applications::bindings(self.instantiation(), source, metadata, identities)?;
         let exact = |ty: &SignatureTypeKey| {
-            metadata.signature_exact_type_with_bindings(ty, &bindings, identities)
+            SharedTypeMetadataV1 {
+                identities,
+                ..metadata
+            }
+            .exact_with_sources(ty, &bindings, &nominal_source)
         };
         let construction = matches!(
             declaration,
@@ -146,14 +150,14 @@ fn argument<'a>(
     actual: PersistentExactTypeId,
     expected: PersistentExactTypeId,
     identities: &scoop_identity::ValidatedIdentityGraph,
-    nominal_source: &impl Fn(PersistentTypeId) -> Option<&'a crate::NominalInterfaceRecordV1>,
+    nominal_source: &impl Fn(SourceNominalId) -> Option<&'a crate::NominalInterfaceRecordV1>,
 ) -> Result<(), HirDependencyCallSignatureError> {
     if actual != expected {
         let key = identities
             .canonical_key::<_, ExactTypeKey>(actual)
             .map_err(SharedTypeMetadataError::from)?;
         if let ExactTypeKey::Nominal(owner) = key.as_ref()
-            && nominal_source(*owner).is_some_and(|nominal| {
+            && nominal_source(SourceNominalId::Concrete(*owner)).is_some_and(|nominal| {
                 matches!(
                     nominal.source_shape(),
                     crate::NominalSourceShapeV1::Intrinsic(representation)

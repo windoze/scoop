@@ -86,6 +86,9 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
         origin: &'body ExportDefinitionSourceV1,
     ) -> Result<(), V::Error> {
         self.push_captures(pending, captures)?;
+        for binding in body_type_arguments.requirements() {
+            self.push_requirement_binding(&binding.value, origin, pending)?;
+        }
         if let Some(arguments) = body_type_arguments.explicit_arguments() {
             for (index, argument) in arguments.iter().enumerate().rev() {
                 self.push_type(
@@ -199,6 +202,9 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
         origin: &'body ExportDefinitionSourceV1,
         pending: &mut Vec<ScheduledWork<'body>>,
     ) -> Result<(), V::Error> {
+        for binding in callable.requirements() {
+            self.push_requirement_binding(&binding.value, origin, pending)?;
+        }
         for (index, argument) in callable.type_arguments().iter().enumerate().rev() {
             self.push_type(
                 pending,
@@ -382,5 +388,43 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
             DefaultLiteralEqualityV1::Ordinary { target } => target,
         };
         self.push_child(pending, BodyNode::CallableUse { callable, origin })
+    }
+}
+
+impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, V> {
+    pub(super) fn push_requirement_binding(
+        &mut self,
+        binding: &'body crate::DefaultRequirementBindingValueV1,
+        origin: &'body ExportDefinitionSourceV1,
+        pending: &mut Vec<ScheduledWork<'body>>,
+    ) -> Result<(), V::Error> {
+        if let crate::DefaultRequirementBindingValueV1::Implementation {
+            body,
+            type_arguments,
+            ..
+        } = binding
+        {
+            for (index, argument) in type_arguments.iter().enumerate() {
+                self.push_type(
+                    pending,
+                    argument,
+                    origin,
+                    DefaultBodyProviderTypeSiteV1::CallableTypeArgument { index },
+                )?;
+            }
+            for record in body.locals().records() {
+                self.push_type(
+                    pending,
+                    record.value_type(),
+                    origin,
+                    DefaultBodyProviderTypeSiteV1::CallableOwner,
+                )?;
+            }
+            for result in body.results() {
+                self.push_child(pending, BodyNode::Expression(result))?;
+            }
+            self.push_statements(pending, body.statements())?;
+        }
+        Ok(())
     }
 }

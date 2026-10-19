@@ -84,7 +84,7 @@ impl SignatureBinderScopeV1 {
                     pending.push(result.as_ref());
                     parameters.as_slice()
                 }
-                SignatureTypeKey::RawPointer(pointee) => {
+                SignatureTypeKey::RawPointer(pointee) | SignatureTypeKey::Companion(pointee) => {
                     try_reserve(&mut pending, 1, path)
                         .map_err(SignatureTypeSemanticError::Allocation)?;
                     pending.push(pointee.as_ref());
@@ -157,29 +157,61 @@ impl CanonicalBinderListV1 {
     {
         let scope = self.signature_scope(nominal_owner_arity);
         for (binder_index, binder) in self.binders().iter().enumerate() {
-            let TypeParameterBoundsV1::Nominal(bounds) = binder.bounds() else {
-                continue;
-            };
-            if let Some(class) = bounds.class() {
-                validate_nominal_bound(class, PublicNominalKindV1::Class, &scope, authority)
-                    .map_err(|error| TypeParameterBinderSemanticValidationError {
-                        binder_index,
-                        bound: TypeParameterBoundLocation::Class,
-                        error,
+            for (companion, positive, excluded) in
+                [(false, binder.bounds(), binder.excluded_interfaces())]
+                    .into_iter()
+                    .chain(
+                        binder
+                            .companion()
+                            .map(|bounds| (true, bounds.bounds(), bounds.excluded_interfaces())),
+                    )
+            {
+                for (interface_index, interface) in excluded.values().iter().enumerate() {
+                    validate_nominal_bound(
+                        interface,
+                        PublicNominalKindV1::Interface,
+                        &scope,
+                        authority,
+                    )
+                    .map_err(|error| {
+                        TypeParameterBinderSemanticValidationError {
+                            binder_index,
+                            bound: TypeParameterBoundLocation::ExcludedInterface {
+                                interface_index,
+                            }
+                            .for_subject(companion),
+                            error,
+                        }
                     })?;
-            }
-            for (interface_index, interface) in bounds.interfaces().values().iter().enumerate() {
-                validate_nominal_bound(
-                    interface,
-                    PublicNominalKindV1::Interface,
-                    &scope,
-                    authority,
-                )
-                .map_err(|error| TypeParameterBinderSemanticValidationError {
-                    binder_index,
-                    bound: TypeParameterBoundLocation::Interface { interface_index },
-                    error,
-                })?;
+                }
+                let TypeParameterBoundsV1::Nominal(bounds) = positive else {
+                    continue;
+                };
+                if let Some(class) = bounds.class() {
+                    validate_nominal_bound(class, PublicNominalKindV1::Class, &scope, authority)
+                        .map_err(|error| TypeParameterBinderSemanticValidationError {
+                            binder_index,
+                            bound: TypeParameterBoundLocation::Class.for_subject(companion),
+                            error,
+                        })?;
+                }
+                for (interface_index, interface) in bounds.interfaces().values().iter().enumerate()
+                {
+                    validate_nominal_bound(
+                        interface,
+                        PublicNominalKindV1::Interface,
+                        &scope,
+                        authority,
+                    )
+                    .map_err(|error| {
+                        TypeParameterBinderSemanticValidationError {
+                            binder_index,
+                            bound: TypeParameterBoundLocation::Interface { interface_index }
+                                .for_subject(companion),
+                            error,
+                        }
+                    })?;
+                }
             }
         }
         Ok(())
@@ -264,6 +296,7 @@ pub enum SignatureTypeFormV1 {
     RawPointer,
     NativeFunctionPointer,
     Binder,
+    Companion,
 }
 
 impl SignatureTypeFormV1 {
@@ -276,6 +309,7 @@ impl SignatureTypeFormV1 {
             SignatureTypeKey::RawPointer(_) => Self::RawPointer,
             SignatureTypeKey::NativeFunctionPointer { .. } => Self::NativeFunctionPointer,
             SignatureTypeKey::Binder { .. } => Self::Binder,
+            SignatureTypeKey::Companion(_) => Self::Companion,
         }
     }
 }

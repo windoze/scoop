@@ -9,6 +9,17 @@ impl Lowerer {
     ) {
         for statement in statements {
             match &statement.kind {
+                hir::StatementKind::MemberRequirementCall(call) => {
+                    if call.contract.effects.gc_effect != hir::GcEffect::NoGc {
+                        out.push((
+                            statement.span,
+                            "managed member requirement is not allowed in `@NoGC` code".into(),
+                        ));
+                    }
+                    for argument in &call.arguments {
+                        self.collect_no_gc_expr_violations(argument, out, requirements);
+                    }
+                }
                 hir::StatementKind::ContextScope { value, body } => {
                     out.push((
                         statement.span,

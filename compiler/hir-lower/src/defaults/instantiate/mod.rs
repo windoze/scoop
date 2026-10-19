@@ -9,6 +9,7 @@ mod derived;
 mod entities;
 mod expressions;
 mod patterns;
+mod requirements;
 mod signatures;
 mod statements;
 

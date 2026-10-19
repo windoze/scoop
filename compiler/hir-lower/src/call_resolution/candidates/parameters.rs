@@ -50,11 +50,30 @@ impl<D> DeclarationSignature<D> {
             .iter_mut()
             .chain(&mut self.callable_parameters)
         {
-            if let hir::TypeParamBounds::Nominal(bounds) = &mut parameter.bounds {
-                if let Some(bound) = &mut bounds.class {
-                    bound.ty = state.instantiate_method_ty(bound.ty, bindings);
+            for requirement in &mut parameter.requirements {
+                requirement
+                    .contract
+                    .map_types(|ty| state.instantiate_method_ty(ty, bindings));
+            }
+            for (positive, excluded) in
+                [(&mut parameter.bounds, &mut parameter.excluded_interfaces)]
+                    .into_iter()
+                    .chain(
+                        parameter
+                            .companion
+                            .as_mut()
+                            .map(|bounds| (&mut bounds.bounds, &mut bounds.excluded_interfaces)),
+                    )
+            {
+                if let hir::TypeParamBounds::Nominal(bounds) = positive {
+                    if let Some(bound) = &mut bounds.class {
+                        bound.ty = state.instantiate_method_ty(bound.ty, bindings);
+                    }
+                    for bound in &mut bounds.interfaces {
+                        bound.ty = state.instantiate_method_ty(bound.ty, bindings);
+                    }
                 }
-                for bound in &mut bounds.interfaces {
+                for bound in excluded {
                     bound.ty = state.instantiate_method_ty(bound.ty, bindings);
                 }
             }

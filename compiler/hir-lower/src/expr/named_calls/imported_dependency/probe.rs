@@ -201,7 +201,7 @@ impl Lowerer {
         receiver_source: ImportedDependencyCallReceiver,
         operator_set: bool,
     ) -> Result<ImportedDependencyCallProbe, Box<Lowerer>> {
-        let mut state = self.clone();
+        let mut state = self.clone_imported_probe();
         let interface = candidate.interface();
         let kind = candidate.description();
         if matches!(
@@ -217,18 +217,21 @@ impl Lowerer {
                 call.span,
                 "`ForeignCallback` values can only be produced by `foreignCallback`".into(),
             );
-            return Err(Box::new(state));
+            return Err(state);
         }
         if matches!(
             interface.declaration(),
             scoop_identity::CallableTemplateOrigin::Constructor(_)
-        ) && !state.imported_callable_is_accessible(interface, None)
-        {
+        ) && if state.active_member_requirements.is_empty() {
+            !state.imported_callable_is_accessible(interface, None)
+        } else {
+            interface.declared_visibility() != hir::DeclaredVisibilityV1::Public
+        } {
             state.error(
                 name.span,
                 format!("constructor `{}` is not accessible here", name.text),
             );
-            return Err(Box::new(state));
+            return Err(state);
         }
         let constructor_owner = match (interface.declaration(), interface.owner()) {
             (
@@ -283,7 +286,7 @@ impl Lowerer {
                     call.type_args.len()
                 ),
             );
-            return Err(Box::new(state));
+            return Err(state);
         }
         let mut argument_mode = ArgumentMode::Mixed;
         if let scoop_identity::CallableTemplateOrigin::VariantConstructor(variant) =
@@ -311,7 +314,7 @@ impl Lowerer {
                     "unit variant `{}` of `{}` does not take arguments; use `{}` without parentheses",
                     name.text, enumeration.name(), name.text,
                 ));
-                return Err(Box::new(state));
+                return Err(state);
             }
             argument_mode = match variant.style() {
                 hir::EnumSourceVariantStyleV1::Named => ArgumentMode::NamedOnly,
@@ -325,7 +328,7 @@ impl Lowerer {
                 Ok(declaration) => declaration,
                 Err(error) => {
                     state.error(call.span, error);
-                    return Err(Box::new(state));
+                    return Err(state);
                 }
             };
         let argument_map = match call.arguments.map(
@@ -336,7 +339,7 @@ impl Lowerer {
             Ok(map) => map,
             Err(error) => {
                 state.imported_dependency_shape_error(name, call, error, kind);
-                return Err(Box::new(state));
+                return Err(state);
             }
         };
 
@@ -348,17 +351,16 @@ impl Lowerer {
             argument_map.has_vararg(),
         )?;
         match declaration {
-            ImportedCallDeclaration::Generic(declaration) => Box::new(state)
-                .probe_imported_generic(
-                    candidate,
-                    *declaration,
-                    name,
-                    call,
-                    expected,
-                    receiver,
-                    argument_map,
-                ),
-            ImportedCallDeclaration::Native(signature) => Box::new(state).probe_imported_native(
+            ImportedCallDeclaration::Generic(declaration) => state.probe_imported_generic(
+                candidate,
+                *declaration,
+                name,
+                call,
+                expected,
+                receiver,
+                argument_map,
+            ),
+            ImportedCallDeclaration::Native(signature) => state.probe_imported_native(
                 candidate,
                 signature,
                 name,
@@ -367,6 +369,11 @@ impl Lowerer {
                 argument_map,
             ),
         }
+    }
+
+    fn clone_imported_probe(&self) -> Box<Self> {
+        // Keep the complete candidate state off recursive argument-lowering frames.
+        Box::new(self.clone())
     }
 
     fn imported_dependency_shape_error(

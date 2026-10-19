@@ -124,7 +124,12 @@ impl Lowerer {
         };
         let bound_declaration = receiver
             .as_ref()
-            .filter(|receiver| matches!(self.types[receiver.ty], hir::Type::Param(_)))
+            .filter(|receiver| {
+                matches!(
+                    self.types[receiver.ty],
+                    hir::Type::Param(_) | hir::Type::Companion(_)
+                )
+            })
             .map(|_| candidate.interface().clone());
         let mut parameters = signature
             .value_parameters
@@ -294,8 +299,9 @@ impl Lowerer {
             };
             let kind = match template {
                 super::generic::ImportedGenericTarget::Function(template) => {
-                    let application = self.imported_generic_applications.alloc(
+                    let application = self.record_imported_callable_application(
                         hir::ImportedGenericCallableApplication {
+                            requirements: Vec::new(),
                             template,
                             arguments,
                         },

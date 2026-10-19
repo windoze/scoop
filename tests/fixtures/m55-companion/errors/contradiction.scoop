@@ -1,0 +1,2 @@
+interface I {}
+fun <T> probe(value: T): Int where T.Companion : I, T.Companion : !I = 1

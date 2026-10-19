@@ -310,7 +310,8 @@ fn compare_type_tasks<'a>(
                             path,
                         )?;
                     }
-                    (SignatureTypeKey::RawPointer(left), SignatureTypeKey::RawPointer(right)) => {
+                    (SignatureTypeKey::RawPointer(left), SignatureTypeKey::RawPointer(right))
+                    | (SignatureTypeKey::Companion(left), SignatureTypeKey::Companion(right)) => {
                         push_task(&mut pending, TypeComparison::Type(left, right), path)?;
                     }
                     (
@@ -421,7 +422,10 @@ fn callable_ref(
     if ordering != Ordering::Equal {
         return Ok(ordering);
     }
-    signature_types(left.type_arguments(), right.type_arguments(), path)
+    Ok(
+        signature_types(left.type_arguments(), right.type_arguments(), path)?
+            .then_with(|| left.requirements().cmp(right.requirements())),
+    )
 }
 
 fn optional_type(
@@ -633,6 +637,7 @@ const fn signature_tag(value: &SignatureTypeKey) -> u8 {
         SignatureTypeKey::RawPointer(_) => 5,
         SignatureTypeKey::NativeFunctionPointer { .. } => 6,
         SignatureTypeKey::Binder { .. } => 7,
+        SignatureTypeKey::Companion(_) => 8,
     }
 }
 

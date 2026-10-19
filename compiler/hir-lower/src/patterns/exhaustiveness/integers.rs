@@ -23,7 +23,8 @@ pub(super) fn integer_domain(ty: &Type) -> Option<IntegerDomain> {
         | Type::Ptr(_)
         | Type::FunPtr(_)
         | Type::Enum(_)
-        | Type::Param(_) => None,
+        | Type::Param(_)
+        | Type::Companion(_) => None,
     }
 }
 

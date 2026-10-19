@@ -52,6 +52,7 @@ impl Lowerer {
             0,
             &declaration.type_params,
             declaration.where_clause.as_ref(),
+            false,
             "extension property",
         );
         self.type_params_in_scope = type_params.clone();

@@ -1,0 +1,3 @@
+interface I {}
+typealias Bad<T : !I> = Array<T>
+fun main() {}

@@ -7,6 +7,7 @@ use scoop_identity::{
 use crate::{CrossConeHirInterfaceSectionV1, NominalMaterializationClosure};
 
 mod applications;
+mod companions;
 mod equality_applications;
 mod errors;
 mod inheritance;

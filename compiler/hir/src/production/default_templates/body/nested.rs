@@ -88,7 +88,7 @@ impl BodyProjection<'_, '_> {
             self.entities.generated_lexical_body(lambda.definition)?,
             lambda.definition_path.clone(),
             self.function_type(lambda.function_type)?,
-            self.body_type_arguments(&lambda.body_type_arguments)?,
+            self.body_type_arguments(&lambda.body_type_arguments, lambda.definition)?,
             self.captures(&lambda.captures)?,
             owner_parameter_count(lambda.owner_type_param_count)?,
         )
@@ -109,7 +109,7 @@ impl BodyProjection<'_, '_> {
             self.entities.generated_lexical_body(function.definition)?,
             function.definition_path.clone(),
             self.function_type(function.function_type)?,
-            self.body_type_arguments(&function.body_type_arguments)?,
+            self.body_type_arguments(&function.body_type_arguments, function.definition)?,
             self.captures(&function.captures)?,
             owner_parameter_count(function.owner_type_param_count)?,
         )
@@ -175,16 +175,46 @@ impl BodyProjection<'_, '_> {
     fn body_type_arguments(
         &self,
         arguments: &CallableBodyTypeArguments,
+        definition: crate::LexicalFunctionDefinition,
     ) -> Result<DefaultCallableBodyTypeArgumentsV1, super::super::DefaultBodyProjectionError> {
         match arguments {
-            CallableBodyTypeArguments::Lexical => Ok(DefaultCallableBodyTypeArgumentsV1::lexical()),
-            CallableBodyTypeArguments::Explicit(arguments) => {
+            CallableBodyTypeArguments::Lexical => {
+                let requirements = match definition {
+                    crate::LexicalFunctionDefinition::Source { function, .. } => self
+                        .entities
+                        .export()
+                        .functions[function]
+                        .type_params()
+                        .into_iter()
+                        .flat_map(|parameter| &parameter.requirements)
+                        .map(|requirement| crate::MemberRequirementBinding {
+                            requirement: requirement.id,
+                            value: crate::MemberRequirementBindingValue::Forwarded(requirement.id),
+                        })
+                        .collect::<Vec<_>>(),
+                    crate::LexicalFunctionDefinition::Template(_) => Vec::new(),
+                };
+                Ok(
+                    DefaultCallableBodyTypeArgumentsV1::lexical().with_requirements(
+                        self.entities
+                            .requirement_bindings(&requirements, self.binders)?,
+                    ),
+                )
+            }
+            CallableBodyTypeArguments::Explicit {
+                arguments,
+                requirements,
+            } => {
                 let arguments = arguments
                     .iter()
                     .map(|&argument| self.type_key(argument))
                     .collect::<Result<Vec<_>, _>>()?;
-                DefaultCallableBodyTypeArgumentsV1::try_explicit(arguments)
-                    .map_err(super::super::DefaultBodyProjectionError::BodyTypeArguments)
+                Ok(DefaultCallableBodyTypeArgumentsV1::try_explicit(arguments)
+                    .map_err(super::super::DefaultBodyProjectionError::BodyTypeArguments)?
+                    .with_requirements(
+                        self.entities
+                            .requirement_bindings(requirements, self.binders)?,
+                    ))
             }
         }
     }

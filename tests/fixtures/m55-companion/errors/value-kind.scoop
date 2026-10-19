@@ -1,0 +1,1 @@
+fun <T> probe(value: T): Int where T.Companion : value = 1

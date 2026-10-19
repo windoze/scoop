@@ -1,0 +1,4 @@
+fun <T> outer(value: T): Int {
+    fun <U> inner(other: U): Int where T.Companion : ref = 1
+    return inner(value)
+}

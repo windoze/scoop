@@ -46,7 +46,10 @@ pub enum CallableBodyTypeArguments {
     /// A decoded or expanded body keeps the original lexical parameters in
     /// its current binder frame, even when the expression belongs to a
     /// different caller body.
-    Explicit(Vec<TypeId>),
+    Explicit {
+        arguments: Vec<TypeId>,
+        requirements: Vec<crate::MemberRequirementBinding>,
+    },
 }
 
 /// A block-local named function. Its definition locates the lifted body;

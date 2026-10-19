@@ -167,6 +167,10 @@ impl Lowerer {
             | Kind::AddressOf(_)
             | Kind::SizeOf(_)
             | Kind::AlignOf(_)) => self.materialize_imported_pointer_expression(kind, context)?,
+            Kind::CompanionValue => hir::ExprKind::SingletonValue(
+                self.companion_singleton_target(ty)
+                    .map_err(ImportedDefaultMaterializationError::Plan)?,
+            ),
             Kind::SingletonValue(value) => {
                 if let Some(hir::SourceNominalId::GenericTemplate(owner)) =
                     self.imported_nominal_owner(ty)

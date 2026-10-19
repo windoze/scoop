@@ -1,5 +1,10 @@
 use super::*;
 
+mod bounds;
+mod companions;
+mod negative;
+mod requirements;
+
 impl Lowerer {
     /// Resolve the complete constraint set for one declaration after all
     /// nominal names and arities are known. `params` may begin with an owner
@@ -11,6 +16,7 @@ impl Lowerer {
         owner_count: usize,
         declarations: &[ast::TypeParamDecl],
         where_clause: Option<&ast::WhereClause>,
+        function_conditions: bool,
         target: &str,
     ) -> Vec<hir::TypeParamDecl> {
         let outer_checks = self.deferred_type_bounds.replace(Vec::new());
@@ -21,6 +27,13 @@ impl Lowerer {
             .skip(owner_count)
             .map(|(index, parameter)| (parameter.name.clone(), index))
             .collect();
+
+        self.declare_companion_conditions(
+            &mut params,
+            &own_indices,
+            where_clause,
+            function_conditions,
+        );
 
         let mut seen_inline = std::collections::HashSet::new();
         for declaration in declarations {
@@ -35,148 +48,53 @@ impl Lowerer {
             };
             self.apply_type_parameter_constraint(
                 &mut params,
-                index,
+                (index, false),
                 bound,
                 declaration.span,
+                function_conditions,
                 target,
             );
         }
 
         if let Some(clause) = where_clause {
             for constraint in &clause.constraints {
-                let Some(&index) = own_indices.get(&constraint.parameter.text) else {
+                let Some(&index) = own_indices.get(&constraint.subject.parameter().text) else {
                     self.error(
-                        constraint.parameter.span,
+                        constraint.subject.parameter().span,
                         format!(
                             "unknown type parameter `{}` in where clause of {target}",
-                            constraint.parameter.text
+                            constraint.subject.parameter().text
                         ),
                     );
                     continue;
                 };
                 self.apply_type_parameter_constraint(
                     &mut params,
-                    index,
+                    (
+                        index,
+                        matches!(constraint.subject, ast::TypeConstraintSubject::Companion(_)),
+                    ),
                     &constraint.bound,
                     constraint.span,
+                    function_conditions,
                     target,
                 );
             }
         }
 
+        self.type_params_in_scope = params.clone();
+        self.resolve_member_requirements(
+            &mut params,
+            &own_indices,
+            where_clause,
+            function_conditions,
+            target,
+        );
+        self.type_params_in_scope = params.clone();
+        self.check_negative_bound_contradictions(&params[owner_count..]);
         self.complete_parameter_bound_checks(outer_checks, &params);
         self.type_params_in_scope.clear();
         params
-    }
-
-    fn apply_type_parameter_constraint(
-        &mut self,
-        params: &mut [hir::TypeParamDecl],
-        index: usize,
-        bound: &ast::TypeBound,
-        span: ast::Span,
-        target: &str,
-    ) {
-        match bound {
-            ast::TypeBound::Kind(kind) => {
-                let next = match kind {
-                    ast::TypeParamKindBound::Value => hir::TypeParamBounds::Value { span },
-                    ast::TypeParamKindBound::Ref => hir::TypeParamBounds::Ref { span },
-                };
-                match params[index].bounds {
-                    hir::TypeParamBounds::Unconstrained => params[index].bounds = next,
-                    hir::TypeParamBounds::Nominal(_) => self.error(
-                        span,
-                        format!(
-                            "type parameter `{}` of {target} cannot combine a kind bound with nominal upper bounds",
-                            params[index].name
-                        ),
-                    ),
-                    hir::TypeParamBounds::Value { .. }
-                    | hir::TypeParamBounds::Ref { .. } => self.error(
-                        span,
-                        format!(
-                            "duplicate kind bound for type parameter `{}` of {target}",
-                            params[index].name
-                        ),
-                    ),
-                }
-            }
-            ast::TypeBound::Upper(reference) => {
-                // Keep the complete parameter namespace visible while the
-                // upper application (including F-bound arguments) resolves.
-                self.type_params_in_scope = params.to_vec();
-                let Some(ty) = self.resolve_type_ref(reference) else {
-                    return;
-                };
-                let bound_name = self.type_name(ty);
-                if !matches!(self.types[ty], Type::Class(_) | Type::Interface(_)) {
-                    self.error(
-                        reference.span,
-                        format!(
-                            "upper bound of type parameter `{}` must be a class or interface, found `{bound_name}`",
-                            params[index].name
-                        ),
-                    );
-                    return;
-                }
-                let parameter = &mut params[index];
-                if matches!(parameter.bounds, hir::TypeParamBounds::Unconstrained) {
-                    parameter.bounds = hir::TypeParamBounds::Nominal(hir::NominalBounds {
-                        class: None,
-                        interfaces: Vec::new(),
-                    });
-                }
-                let hir::TypeParamBounds::Nominal(bounds) = &mut parameter.bounds else {
-                    self.error(
-                        span,
-                        format!(
-                            "type parameter `{}` of {target} cannot combine nominal upper bounds with a kind bound",
-                            parameter.name
-                        ),
-                    );
-                    return;
-                };
-                match self.types[ty] {
-                    Type::Class(_) => {
-                        if bounds.class.is_some() {
-                            self.error(
-                                span,
-                                format!(
-                                    "type parameter `{}` of {target} cannot have more than one class upper bound; found `{bound_name}`",
-                                    parameter.name
-                                ),
-                            );
-                        } else {
-                            bounds.class = Some(hir::ClassUpperBound { ty, span });
-                        }
-                    }
-                    Type::Interface(_) => {
-                        let duplicate = bounds
-                            .interfaces
-                            .iter()
-                            .any(|bound| self.types_equal(bound.ty, ty));
-                        if duplicate {
-                            self.error(
-                                span,
-                                format!(
-                                    "duplicate interface upper bound `{bound_name}` for type parameter `{}` of {target}",
-                                    parameter.name
-                                ),
-                            );
-                        } else {
-                            bounds
-                                .interfaces
-                                .push(hir::InterfaceUpperBound { ty, span });
-                        }
-                    }
-                    _ => {
-                        unreachable!("a nominal upper bound has a checked class or interface type")
-                    }
-                }
-            }
-        }
-        self.type_params_in_scope = params.to_vec();
     }
 
     /// Validate dependencies between nominal bound declarations only after all

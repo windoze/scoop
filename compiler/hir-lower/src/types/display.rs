@@ -198,6 +198,13 @@ fn type_name(lowerer: &Lowerer, type_params: &[hir::TypeParamDecl], ty: TypeId) 
                 parameters.join(", ")
             )
         }
+        Type::Companion(index) => format!(
+            "{}.Companion",
+            type_params
+                .iter()
+                .find(|p| p.id == *index)
+                .map_or_else(|| format!("T{}", index.into_raw()), |p| p.name.clone())
+        ),
         Type::Param(index) => type_params
             .iter()
             .find(|parameter| parameter.id == *index)

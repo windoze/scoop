@@ -39,6 +39,7 @@ pub struct GenericFunction {
 /// function entity.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResolvedGenericFunction {
+    pub requirements: Vec<MemberRequirementBinding>,
     pub generic: GenericFunctionId,
     pub type_args: Vec<TypeId>,
 }
@@ -105,6 +106,7 @@ pub enum GenericMethodOwner {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct GenericMethodApplication {
+    pub requirements: Vec<MemberRequirementBinding>,
     pub method: GenericMethodId,
     pub owner: GenericMethodOwner,
     pub method_arguments: NonEmptyVec<TypeId>,

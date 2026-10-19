@@ -1,0 +1,3 @@
+interface I {}
+class Host<U> { fun <T> bad(value: T): Int where U : !I = 1 }
+fun main() {}

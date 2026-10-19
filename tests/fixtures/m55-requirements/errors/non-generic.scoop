@@ -1,0 +1,1 @@
+fun read(): Int where requires(x: Int) { x.read(): Int } = 0

@@ -3,6 +3,7 @@
 use super::initialization::InitializationSource;
 use super::*;
 mod imported;
+mod projections;
 
 impl Concretizer<'_> {
     pub(super) fn register_object(

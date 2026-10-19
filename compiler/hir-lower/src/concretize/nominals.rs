@@ -118,8 +118,9 @@ impl Concretizer<'_> {
         source: &export::ConstructorArguments,
         substitution: &[concrete::TypeId],
     ) -> (concrete::ConstructorArguments, Vec<concrete::LocalId>) {
-        let (locals, local_map) = self.lower_locals(&source.locals, substitution);
-        let statements = self.lower_statement_region(&source.statements, substitution, &local_map);
+        let (mut locals, local_map) = self.lower_locals(&source.locals, substitution);
+        let statements =
+            self.lower_statement_region(&source.statements, substitution, &local_map, &mut locals);
         let args = source
             .args
             .iter()

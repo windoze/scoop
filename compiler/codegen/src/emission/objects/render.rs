@@ -32,7 +32,7 @@ pub fn render_llvm_ir_members(
             &machine,
             profile,
             &selected_safepoints,
-            body,
+            function,
         )?;
         callables.insert(
             body,

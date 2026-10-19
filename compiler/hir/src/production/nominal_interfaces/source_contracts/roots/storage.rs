@@ -56,7 +56,7 @@ impl Roots {
             }
             None if matches!(
                 export.types[ty],
-                Type::Tuple(_) | Type::Function(_) | Type::Param(_)
+                Type::Tuple(_) | Type::Function(_) | Type::Param(_) | Type::Companion(_)
             ) => {}
             None => return Err(invalid("storage type has no source nominal identity")),
         }
@@ -82,7 +82,8 @@ impl Roots {
             | Type::Boolean
             | Type::String
             | Type::Any
-            | Type::Param(_) => &[],
+            | Type::Param(_)
+            | Type::Companion(_) => &[],
         };
         for child in children {
             self.require_field_type(export, index, *child)?;

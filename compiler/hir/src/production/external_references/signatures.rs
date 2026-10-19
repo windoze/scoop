@@ -210,19 +210,44 @@ where
     A: ExternalHirReferenceSemanticAuthority<E>,
 {
     for (wire_index, binder) in (0_u64..).zip(binders.binders()) {
-        let TypeParameterBoundsV1::Nominal(bounds) = binder.bounds() else {
-            continue;
-        };
-        let bounds_path = path.clone().index(wire_index).field(2);
-        if let Some(class) = bounds.class() {
-            observe(accumulator, class, &bounds_path.clone().field(1).field(1))?;
+        let root = path.clone().index(wire_index);
+        for (index, requirement) in binder.requirements().iter().enumerate() {
+            for ty in requirement.types() {
+                observe(accumulator, ty, &root.clone().field(5).index(index as u64))?;
+            }
         }
-        for (interface_index, interface) in (0_u64..).zip(bounds.interfaces().values()) {
-            observe(
-                accumulator,
-                interface,
-                &bounds_path.clone().field(2).index(interface_index),
-            )?;
+        for (positive, excluded, bounds_path, excluded_path) in [(
+            binder.bounds(),
+            binder.excluded_interfaces(),
+            root.clone().field(2),
+            root.clone().field(3),
+        )]
+        .into_iter()
+        .chain(binder.companion().map(|bounds| {
+            (
+                bounds.bounds(),
+                bounds.excluded_interfaces(),
+                root.clone().field(4).field(1),
+                root.clone().field(4).field(2),
+            )
+        })) {
+            for (index, interface) in (0_u64..).zip(excluded.values()) {
+                observe(accumulator, interface, &excluded_path.clone().index(index))?;
+            }
+            let TypeParameterBoundsV1::Nominal(bounds) = positive else {
+                continue;
+            };
+
+            if let Some(class) = bounds.class() {
+                observe(accumulator, class, &bounds_path.clone().field(1).field(1))?;
+            }
+            for (interface_index, interface) in (0_u64..).zip(bounds.interfaces().values()) {
+                observe(
+                    accumulator,
+                    interface,
+                    &bounds_path.clone().field(2).index(interface_index),
+                )?;
+            }
         }
     }
     Ok(())

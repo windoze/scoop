@@ -672,6 +672,15 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 在所属 HTTP、crypto、TLS、asyncio／platform 库补齐方法／消息工具、摘要、mTLS／系统信任、文件操作、地址族竞速与代理，不在 client 中增加 workaround。完成重定向／重试、认证、Cookie、私有缓存、下载续传、multipart、SSE 与 HTTP/1.1 WebSocket。
 - HTTP/3、HTTP/2 WebSocket、跨 origin H2 合并、证书固定／对端链检查接口、TLS 会话恢复控制／0-RTT、主动 H2 PING 保活留待后续；不引入占位接口。本条只记录设计，尚未开始实现或运行验收。
 
+### M55 泛型函数条件与成员调用要求（已完成，[设计](milestone55/DESIGN.md)、[验收](milestone55/PROGRESS.md)）
+
+- M55-1：负向接口约束、三态关系、条件重载与规范化声明身份，保持普通泛型正文的定义处绑定。
+- M55-2：public companion 的依赖投影与 bound，复用既有 singleton；增加 JSON 默认 codec 重载。
+- M55-3：公开实例／companion 成员与构造调用要求，完整调用形态、效果和同契约转发；增加结构相等断言入口。
+- M55-4：局部／成员泛型、默认模板、递归边及跨 Cone 组合验收；identity schema 2、metadata outer schema／language ABI 3，runtime ABI 不变。
+- 2026-10-19 完成按功能提交及三目标 M55 104 项 fixture；GNU 全量 4305 项通过／33 项不适用，musl 定向及补充复验 183／5，五项首轮失败全部闭合。Rust workspace 全量与最后 64 项定向回归、runner 50 项通过。
+- 逐 callable LLVM module 仅建立实际引用的声明；5000 小函数的同机单轮编译从 253.60 秒降至 64.96 秒，峰值内存未改善，测量边界见验收记录。
+
 ### M56 生成代码、GC 与 runtime 性能（已完成，[设计与调研](milestone56/DESIGN.md)、[进度](milestone56/PROGRESS.md)、[验收](milestone56/ACCEPTANCE.md)）
 
 - 面向 PC／桌面与 60 fps GUI，分配速度、短暂停尾部和低配置机器的 footprint 优先于 GC 批量吞吐；局部改进与增量 collector 取舍见[补充设计](milestone56/DESKTOP-GC.md)。

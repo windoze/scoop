@@ -96,6 +96,88 @@ impl Lowerer {
         check: &AtomicConstraint,
     ) -> Result<(), ConstraintFailure> {
         match &check.kind {
+            AtomicConstraintKind::MemberRequirement(requirement) => {
+                let key = requirement.contract.key(|ty| {
+                    let term = TypeTerm::Type(ty);
+                    self.materialize_term(session, bindings, term, check.origin)?
+                        .ok_or(ConstraintFailure {
+                            origin: check.origin,
+                            kind: ConstraintFailureKind::UnresolvedTerm(term),
+                        })
+                })?;
+                self.check_member_requirement(
+                    requirement.id,
+                    &hir::MemberRequirementContract::from_key(key),
+                )
+                .map(|_| ())
+                .map_err(|message| ConstraintFailure {
+                    origin: check.origin,
+                    kind: ConstraintFailureKind::MemberRequirement(message),
+                })
+            }
+            AtomicConstraintKind::Companion(variable, bounds) => self.validate_companion_condition(
+                session,
+                bindings,
+                *variable,
+                bounds,
+                check.origin,
+            ),
+            AtomicConstraintKind::DeferredRelation(relation, left, right) => {
+                let left_ty = self.require_materialized(
+                    session,
+                    bindings,
+                    &super::Bound {
+                        term: *left,
+                        origin: check.origin,
+                    },
+                )?;
+                let right_ty = self.require_materialized(
+                    session,
+                    bindings,
+                    &super::Bound {
+                        term: *right,
+                        origin: check.origin,
+                    },
+                )?;
+                let satisfied = match relation {
+                    RelationKind::Equal => self.types_equal(left_ty, right_ty),
+                    RelationKind::Subtype => self.is_subtype(left_ty, right_ty),
+                };
+                if satisfied {
+                    Ok(())
+                } else {
+                    Err(relation_failure(check.origin, *relation, *left, *right))
+                }
+            }
+            AtomicConstraintKind::ExcludesInterface(variable, interface) => {
+                let subject = TypeTerm::Variable(*variable);
+                let solution = self
+                    .materialize_term(session, bindings, subject, check.origin)?
+                    .ok_or(ConstraintFailure {
+                        origin: check.origin,
+                        kind: ConstraintFailureKind::UnresolvedTerm(subject),
+                    })?;
+                let required = self
+                    .materialize_term(session, bindings, *interface, check.origin)?
+                    .ok_or(ConstraintFailure {
+                        origin: check.origin,
+                        kind: ConstraintFailureKind::UnresolvedTerm(*interface),
+                    })?;
+                let outcome = self.excludes_interface(solution, required);
+                if outcome == crate::types::InterfaceExclusion::Satisfied {
+                    Ok(())
+                } else {
+                    Err(ConstraintFailure {
+                        origin: check.origin,
+                        kind: ConstraintFailureKind::ExcludedInterface {
+                            variable: *variable,
+                            solution,
+                            required,
+                            outcome,
+                        },
+                    })
+                }
+            }
             AtomicConstraintKind::CallableShape(shape, expected) => {
                 let expected = self
                     .materialize_term(session, bindings, *expected, check.origin)?

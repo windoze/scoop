@@ -60,6 +60,7 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
             | DefaultExpressionKindV1::UnitLiteral
             | DefaultExpressionKindV1::Local(_)
             | DefaultExpressionKindV1::Capture(_)
+            | DefaultExpressionKindV1::CompanionValue
             | DefaultExpressionKindV1::NoneLiteral => Ok(()),
             DefaultExpressionKindV1::AnnotationKey(annotation) => self.observe(
                 super::Target::Annotation(*annotation),

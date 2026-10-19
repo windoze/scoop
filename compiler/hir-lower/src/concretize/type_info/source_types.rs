@@ -149,6 +149,10 @@ impl<'a> Concretizer<'a> {
                     .collect::<Vec<_>>();
                 self.lower_type(source, &parameters)
             }
+            SignatureTypeKey::Companion(host) => {
+                let host = self.metadata_signature_type(host, arguments);
+                self.lower_companion_type(host)
+            }
             SignatureTypeKey::Binder { depth, index } => {
                 assert_eq!(*depth, 0, "nominal source members have one binder frame");
                 arguments[*index as usize]

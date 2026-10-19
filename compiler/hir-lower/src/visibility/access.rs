@@ -226,7 +226,8 @@ impl Lowerer {
             | hir::Type::Any
             | hir::Type::Tuple(_)
             | hir::Type::Function(_)
-            | hir::Type::Param(_) => None,
+            | hir::Type::Param(_)
+            | hir::Type::Companion(_) => None,
         };
         domain.is_none_or(|domain| self.access_domain_allows(&domain))
     }

@@ -16,6 +16,32 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
     ) -> Result<(), V::Error> {
         let origin = statement.definition_origin();
         match statement.kind() {
+            DefaultStatementKindV1::MemberRequirementCall {
+                contract,
+                binding,
+                arguments,
+                result,
+            } => {
+                for ty in contract.types() {
+                    self.push_type(
+                        pending,
+                        ty,
+                        origin,
+                        DefaultBodyProviderTypeSiteV1::CallableOwner,
+                    )?;
+                }
+                self.push_requirement_binding(binding, origin, pending)?;
+                for argument in arguments {
+                    self.push_child(pending, BodyNode::Expression(argument))?;
+                }
+                self.push_child(
+                    pending,
+                    BodyNode::Pattern {
+                        pattern: result,
+                        origin,
+                    },
+                )
+            }
             DefaultStatementKindV1::ContextScope { value, body } => {
                 self.push_statements(pending, body)?;
                 self.push_child(pending, BodyNode::Expression(value))

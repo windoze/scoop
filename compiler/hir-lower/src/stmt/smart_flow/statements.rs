@@ -7,6 +7,22 @@ impl SmartFlow<'_> {
         statement: &hir::Statement,
     ) -> SmartCastExits {
         match &statement.kind {
+            hir::StatementKind::MemberRequirementCall(call) => {
+                let mut exits = Self::normal(facts);
+                for argument in &call.arguments {
+                    if let Some(facts) = exits.remove(&Outcome::Fallthrough) {
+                        let next = self.expression(facts, argument);
+                        self.merge(&mut exits, next);
+                    }
+                }
+                if let Some(facts) = exits.remove(&Outcome::Fallthrough) {
+                    self.insert(&mut exits, Outcome::Throw, facts.clone());
+                    if !self.state.is_nothing_ty(call.contract.result) {
+                        exits.insert(Outcome::Fallthrough, facts);
+                    }
+                }
+                exits
+            }
             hir::StatementKind::Expr(value) => self.expression(facts, value),
             hir::StatementKind::ValDecl { pattern, init } => {
                 let mut exits = self.expression(facts, init);

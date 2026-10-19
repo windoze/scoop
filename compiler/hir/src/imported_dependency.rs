@@ -176,6 +176,7 @@ impl ImportedCallableTypeParameters {
 /// binders; only concretization produces persistent exact applications.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ImportedGenericCallableApplication {
+    pub requirements: Vec<crate::MemberRequirementBinding>,
     pub template: crate::ImportedGenericCallableTemplateId,
     pub arguments: ImportedCallableArguments,
 }

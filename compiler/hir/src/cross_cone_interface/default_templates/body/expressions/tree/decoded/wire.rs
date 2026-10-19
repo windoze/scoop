@@ -107,6 +107,7 @@ impl WireEncode for DecodedDefaultExpressionKindV1 {
             Self::Capture(index) => encode_one(encoder, 59, &U32Wire(*index)),
             Self::GlobalRead(property) => encode_one(encoder, 13, property),
             Self::GenericDelegateStorageRead(reference) => encode_one(encoder, 60, reference),
+            Self::CompanionValue => encode_empty(encoder, 76),
             Self::SingletonValue(value) => encode_one(encoder, 14, value),
             Self::Lambda(lambda) => encode_one(encoder, 15, lambda),
             Self::AnonymousFunction(function) => encode_one(encoder, 16, function),
@@ -371,6 +372,10 @@ impl WireDecode for DecodedDefaultExpressionKindV1 {
                 crate::DecodedDefaultGenericDelegateReferenceV1::decode,
             )
             .map(Self::GenericDelegateStorageRead),
+            76 => {
+                expect_sum_length(decoder, fields, 1)?;
+                Ok(Self::CompanionValue)
+            }
             14 => {
                 decode_one(decoder, fields, DecodedPersistentId::decode).map(Self::SingletonValue)
             }

@@ -1,0 +1,3 @@
+object Singleton {}
+fun <T> make(): T where requires { T() } = T()
+fun main() { make<Singleton>() }

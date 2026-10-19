@@ -44,7 +44,8 @@ impl ExecutableEntryIdentity {
                 type_parameter_count: 0,
                 receiver: OptionalSignatureType::Absent,
                 parameters,
-            } if parameters.len() == source_signature.parameters().len() && parameters.len() <= 1
+                conditions,
+            } if conditions.is_empty() && parameters.len() == source_signature.parameters().len() && parameters.len() <= 1
         ) {
             return Err(ExecutableEntryIdentityError::InvalidDeclarationShape);
         }

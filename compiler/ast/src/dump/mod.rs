@@ -3,6 +3,7 @@ mod declarations;
 mod expressions;
 mod headers;
 mod patterns;
+mod requirements;
 mod statements;
 mod types;
 mod when;

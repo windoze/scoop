@@ -11,13 +11,14 @@ impl Lowerer {
     ) -> hir::MethodCallee {
         let callable = hir::Callable::Method(self.record_method_application(function, owner));
         let source = match (self.types[receiver].clone(), owner) {
-            (hir::Type::Param(receiver_parameter), hir::MethodOwnerApplication::Class(bound)) => {
-                crate::CallableCandidateSource::ClassBound {
-                    receiver_parameter,
-                    bound,
-                    member: function,
-                }
-            }
+            (
+                hir::Type::Param(_) | hir::Type::Companion(_),
+                hir::MethodOwnerApplication::Class(bound),
+            ) => crate::CallableCandidateSource::ClassBound {
+                receiver_type: receiver,
+                bound,
+                member: function,
+            },
             _ => crate::CallableCandidateSource::Direct,
         };
         let arguments = self.method_owner_arguments(owner).to_vec();

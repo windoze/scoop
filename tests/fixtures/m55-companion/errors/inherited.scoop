@@ -1,0 +1,4 @@
+open class Base { public companion object {} }
+class Child : Base() {}
+fun <T> probe(value: T): Int where T.Companion : ref = 1
+fun main() { probe(Child()) }

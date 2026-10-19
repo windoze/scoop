@@ -1,0 +1,5 @@
+interface I {}
+struct Yes() : I
+fun <T : !I> absent(value: T): Int = 1
+fun bad(): Int = absent(Yes())
+fun main() {}

@@ -24,6 +24,12 @@ pub struct IndexedDefaultStatementV1<'a> {
 
 #[derive(Debug)]
 enum IndexedDefaultStatementKindV1<'a> {
+    MemberRequirementCall {
+        contract: &'a scoop_identity::MemberRequirementKey,
+        binding: &'a crate::DefaultRequirementBindingValueV1,
+        arguments: Vec<IndexedDefaultExpressionV1<'a>>,
+        result: IndexedDefaultPatternV1<'a>,
+    },
     ContextScope {
         value: IndexedDefaultExpressionV1<'a>,
         body: Vec<IndexedDefaultStatementV1<'a>>,
@@ -68,6 +74,22 @@ impl DefaultStatementV1 {
         I: TemplateLocalIndexResolver,
     {
         let kind = match &self.kind {
+            DefaultStatementKindV1::MemberRequirementCall {
+                contract,
+                binding,
+                arguments,
+                result,
+            } => IndexedDefaultStatementKindV1::MemberRequirementCall {
+                contract,
+                binding,
+                arguments: arguments
+                    .iter()
+                    .map(|argument| index_expression(argument, resolver, 17, 3))
+                    .collect::<Result<_, _>>()?,
+                result: result
+                    .index_locals(resolver)
+                    .map_err(DefaultStatementIndexError::Pattern)?,
+            },
             DefaultStatementKindV1::ContextScope { value, body } => {
                 IndexedDefaultStatementKindV1::ContextScope {
                     value: index_expression(value, resolver, 16, 1)?,
@@ -183,6 +205,23 @@ impl WireEncode for IndexedDefaultStatementV1<'_> {
 impl WireEncode for IndexedDefaultStatementKindV1<'_> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
+            Self::MemberRequirementCall {
+                contract,
+                binding,
+                arguments,
+                result,
+            } => {
+                encoder.map(5)?;
+                encode_tag(encoder, 17)?;
+                encoder.field(1)?;
+                contract.encode(encoder)?;
+                encoder.field(2)?;
+                binding.encode(encoder)?;
+                encoder.field(3)?;
+                encode_sequence(encoder, arguments)?;
+                encoder.field(4)?;
+                result.encode(encoder)
+            }
             Self::ContextScope { value, body } => {
                 encoder.map(3)?;
                 encode_tag(encoder, 16)?;

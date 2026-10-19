@@ -204,15 +204,16 @@ impl Lowerer {
             let template = self
                 .request_imported_generic_template(candidate)
                 .map_err(|_| ImportedSignatureTypeError::Structural)?;
-            let application =
-                self.imported_generic_applications
-                    .alloc(hir::ImportedGenericCallableApplication {
-                        template,
-                        arguments: hir::ImportedCallableArguments::Method {
-                            owner,
-                            method_arguments: Vec::new(),
-                        },
-                    });
+            let application = self.record_imported_callable_application(
+                hir::ImportedGenericCallableApplication {
+                    requirements: Vec::new(),
+                    template,
+                    arguments: hir::ImportedCallableArguments::Method {
+                        owner,
+                        method_arguments: Vec::new(),
+                    },
+                },
+            );
             return Ok(hir::ImportedDispatchCallable::Template(application));
         }
         for parameter in candidate.interface().parameters().parameters() {

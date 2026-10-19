@@ -70,7 +70,15 @@ impl Lowerer {
         };
         let definition = hir::LexicalFunctionDefinition::Template(template);
         let owner_type_param_count = arguments.len();
-        let body_type_arguments = hir::CallableBodyTypeArguments::Explicit(arguments);
+        let requirements = self.materialize_lexical_requirements(
+            body_arguments.requirements(),
+            &arguments,
+            context,
+        )?;
+        let body_type_arguments = hir::CallableBodyTypeArguments::Explicit {
+            arguments,
+            requirements,
+        };
         let span = creation.concrete().definition.span;
         Ok(match role {
             scoop_identity::LexicalCallableRole::LambdaBody => {

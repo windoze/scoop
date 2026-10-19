@@ -1,0 +1,30 @@
+interface Code<T> { fun code(value: T): String }
+var starts: Int = 0
+fun start(): Int { starts += 1; return starts }
+struct Box<T>(val value: T) {
+    public companion object Factory : Code<Box<T>> {
+        public val marker: Int = start()
+        public override fun code(value: Box<T>): String = "box"
+    }
+}
+typealias IntBox = Box<Int>
+fun <T> probe(value: T): String where T.Companion : ref = "present"
+fun <T> encode(value: T, codec: T.Companion = T.Companion): String
+    where T.Companion : Code<T> = codec.code(value)
+fun <T> forward(value: T): String where T.Companion : Code<T> = encode(value)
+fun <T> project(value: T): T.Companion where T.Companion : ref = T.Companion
+fun <T> short(value: T): String where T.Companion : Code<T> = T.code(value)
+fun main() {
+    val a = Box(1)
+    println(probe(a))
+    println(starts)
+    println(encode(a))
+    println(forward(a))
+    println(short(a))
+    println(starts)
+    println(project(a) === IntBox.Factory)
+    println(encode(Box("s")))
+    println(starts)
+    val reference: (IntBox) -> String = ::short
+    println(reference(a))
+}

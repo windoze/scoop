@@ -1,7 +1,7 @@
 Module
   global @scoop$1$io$5cbe24cdfd7dd27c7ecc2f7eb904462d46792fac8740b072ef663d62372d82b1 = "illegal state"
   global @scoop$1$io$6c33fabbc2356a6cbff972b6d48987176b282a4d8f72bdcc171bb1ce91c7451c = "small artifacts"
-  global @scoop$1$io$5f21604d2e4e126b3ec45d6462f3d27156b8da96e7b690422f6f233dc3e56888 = "\n"
+  global @scoop$1$io$e8bd83cc72abb352965680c8c311602020197ef47fd7ff5c70c83625783c129a = "\n"
   global @scoop$1$ss$39f70ca6c38442bf141d210844a450ead6bad0e05a818c1549fc8ef27bfa5691 : ptr<managed> scan=refs[0]
   enum Option niche(kind=managed,payload_variant=0)
   enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
@@ -368,7 +368,7 @@ Module
     call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () runtime @scoop_rt_gc_collect()
     t8 = aggregate () : {}
     ret param0
-  fun @scoop$1$cb$43be1945af2e9ba3587bf2ead706ac7563f8181567977803f1aaa99bf055da0f(ptr<managed>) -> void
+  fun @scoop$1$cb$3002a0464514cf914c87619d6a6bdbb7cb1071f854045946726ad15d2eb2b23f(ptr<managed>) -> void
     local %0 $dependency.local.1: ptr<managed>
     local %1 $dependency.local.2: ptr<managed>
     local %2 $dependency.local.3: ptr<managed>

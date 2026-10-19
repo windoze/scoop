@@ -150,6 +150,9 @@ pub(crate) enum Constraint {
     Kind(InferenceVariableId, hir::TypeParamKind),
     ClassBound(InferenceVariableId, TypeTerm),
     Implements(InferenceVariableId, TypeTerm),
+    ExcludesInterface(InferenceVariableId, TypeTerm),
+    Companion(InferenceVariableId, hir::CompanionBounds),
+    MemberRequirement(hir::MemberRequirement),
     ConcreteApplication(NominalApplication),
 }
 
@@ -185,6 +188,17 @@ pub(crate) enum CallableShapeMismatch {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ConstraintFailureKind {
+    MemberRequirement(String),
+    Companion {
+        variable: InferenceVariableId,
+        message: String,
+    },
+    ExcludedInterface {
+        variable: InferenceVariableId,
+        solution: hir::TypeId,
+        required: hir::TypeId,
+        outcome: crate::types::InterfaceExclusion,
+    },
     ForeignVariable(InferenceVariableId),
     ForeignTypeParameter(hir::TypeParamId),
     Relation {
@@ -226,11 +240,13 @@ pub(crate) enum ConstraintFailureKind {
 impl ConstraintFailureKind {
     pub(crate) fn inference_variable(&self) -> Option<InferenceVariableId> {
         match self {
-            Self::ForeignVariable(variable)
+            Self::Companion { variable, .. }
+            | Self::ForeignVariable(variable)
             | Self::ConflictingExactBounds { variable, .. }
             | Self::NoUniqueSolution { variable, .. }
             | Self::Kind { variable, .. }
             | Self::InterfaceBound { variable, .. }
+            | Self::ExcludedInterface { variable, .. }
             | Self::ClassBound { variable, .. } => Some(*variable),
             Self::Relation { left, right, .. } => [left, right].into_iter().find_map(|term| {
                 let TypeTerm::Variable(variable) = term else {
@@ -239,7 +255,8 @@ impl ConstraintFailureKind {
                 Some(*variable)
             }),
             Self::UnresolvedTerm(TypeTerm::Variable(variable)) => Some(*variable),
-            Self::ForeignTypeParameter(_)
+            Self::MemberRequirement(_)
+            | Self::ForeignTypeParameter(_)
             | Self::CallableShape(_)
             | Self::UnresolvedTerm(TypeTerm::Type(_) | TypeTerm::Rigid(_))
             | Self::NonConcreteApplication(_) => None,

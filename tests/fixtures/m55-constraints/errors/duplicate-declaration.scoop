@@ -1,0 +1,6 @@
+interface I {}
+interface J {}
+typealias Alias = I
+fun <T> choose(value: T): Int where T : !I, T : !J = 1
+fun <U : !J> choose(value: U): Int where U : !Alias = 2
+fun main() {}

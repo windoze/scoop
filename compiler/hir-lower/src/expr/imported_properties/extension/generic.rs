@@ -139,11 +139,11 @@ impl Lowerer {
         let mut args = vec![receiver.value];
         args.extend(value);
         let application =
-            self.imported_generic_applications
-                .alloc(hir::ImportedGenericCallableApplication {
-                    template,
-                    arguments: hir::ImportedCallableArguments::Function(arguments.to_vec()),
-                });
+            self.record_imported_callable_application(hir::ImportedGenericCallableApplication {
+                requirements: Vec::new(),
+                template,
+                arguments: hir::ImportedCallableArguments::Function(arguments.to_vec()),
+            });
         hir::Expr {
             kind: hir::ExprKind::Call {
                 callee: hir::CallableTarget::Application(application),

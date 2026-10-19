@@ -111,6 +111,7 @@ impl Lowerer {
             hir::Type::Unit
             | hir::Type::Integer(_)
             | hir::Type::Boolean
+            | hir::Type::Companion(_)
             | hir::Type::String
             | hir::Type::Any
             | hir::Type::Param(_) => {}

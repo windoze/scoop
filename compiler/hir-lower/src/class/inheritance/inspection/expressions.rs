@@ -26,13 +26,15 @@ impl Lowerer {
             InspectionTypeFactory::Current(function) => {
                 hir::Callable::Generic(self.record_instantiation(function, vec![target])).into()
             }
-            InspectionTypeFactory::Imported(template) => hir::CallableTarget::Application(
-                self.imported_generic_applications
-                    .alloc(hir::ImportedGenericCallableApplication {
+            InspectionTypeFactory::Imported(template) => {
+                hir::CallableTarget::Application(self.record_imported_callable_application(
+                    hir::ImportedGenericCallableApplication {
+                        requirements: Vec::new(),
                         template,
                         arguments: hir::ImportedCallableArguments::Function(vec![target]),
-                    }),
-            ),
+                    },
+                ))
+            }
         };
         let ty = self.inspection_type("TypeRef", span)?;
         Some(self.coding_expr(

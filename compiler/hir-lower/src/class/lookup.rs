@@ -19,7 +19,19 @@ impl Lowerer {
         name: &str,
     ) -> Vec<crate::CallableCandidate> {
         let declared = self.method_candidates(ty);
-        self.visible_method_candidates(declared, Some(ty), |this, candidate| {
+        self.visible_method_candidates(declared, Some(ty), false, |this, candidate| {
+            this.function_accessor_kind(candidate.function).is_none()
+                && this.source_function_name(candidate.function) == name
+        })
+    }
+
+    pub(crate) fn public_requirement_methods(
+        &mut self,
+        ty: TypeId,
+        name: &str,
+    ) -> Vec<crate::CallableCandidate> {
+        let declared = self.method_candidates(ty);
+        self.visible_method_candidates(declared, Some(ty), true, |this, candidate| {
             this.function_accessor_kind(candidate.function).is_none()
                 && this.source_function_name(candidate.function) == name
         })
@@ -31,7 +43,7 @@ impl Lowerer {
         name: &str,
     ) -> Vec<crate::CallableCandidate> {
         let declared = self.method_candidates(ty);
-        self.visible_method_candidates(declared, None, |this, candidate| {
+        self.visible_method_candidates(declared, None, false, |this, candidate| {
             !matches!(
                 this.function_owner.get(&candidate.function),
                 Some(Owner::Interface(_))
@@ -49,7 +61,7 @@ impl Lowerer {
         operator: hir::OperatorKind,
     ) -> Vec<crate::CallableCandidate> {
         let declared = self.method_candidates(ty);
-        self.visible_method_candidates(declared, Some(ty), |this, candidate| {
+        self.visible_method_candidates(declared, Some(ty), false, |this, candidate| {
             this.signatures[&candidate.function].modifiers.operator == Some(operator)
         })
     }
@@ -97,7 +109,7 @@ impl Lowerer {
         &mut self,
         mut application: hir::ClassApplicationId,
         root: usize,
-        bound: Option<(hir::TypeParamId, hir::ClassApplicationId)>,
+        bound: Option<(TypeId, hir::ClassApplicationId)>,
         out: &mut Vec<(crate::CallableCandidate, usize, usize)>,
     ) {
         let mut depth = 0;
@@ -115,13 +127,11 @@ impl Lowerer {
             };
             out.extend(self.classes[class].methods.iter().copied().map(|function| {
                 let source = match bound {
-                    Some((receiver_parameter, bound)) => {
-                        crate::CallableCandidateSource::ClassBound {
-                            receiver_parameter,
-                            bound,
-                            member: function,
-                        }
-                    }
+                    Some((receiver_type, bound)) => crate::CallableCandidateSource::ClassBound {
+                        receiver_type,
+                        bound,
+                        member: function,
+                    },
                     None => crate::CallableCandidateSource::Direct,
                 };
                 (
@@ -134,7 +144,7 @@ impl Lowerer {
                     root,
                 )
             }));
-            if let Some((receiver_parameter, _)) = bound {
+            if let Some((receiver_type, _)) = bound {
                 for interface in self.classes[class].interfaces.clone() {
                     let interface = self.instantiate_ty(interface, &application_value.arguments);
                     let Type::Interface(interface) = self.types[interface] else {
@@ -144,7 +154,7 @@ impl Lowerer {
                         interface,
                         depth + 1,
                         root,
-                        Some((receiver_parameter, interface)),
+                        Some((receiver_type, interface)),
                         &mut Vec::new(),
                         out,
                     );
@@ -167,12 +177,17 @@ impl Lowerer {
         &mut self,
         declared: Vec<(crate::CallableCandidate, usize, usize)>,
         receiver_ty: Option<TypeId>,
+        public_only: bool,
         mut matches: impl FnMut(&Self, &crate::CallableCandidate) -> bool,
     ) -> Vec<crate::CallableCandidate> {
         let mut visible = Vec::new();
         for (candidate, depth, root) in declared {
-            if !self.function_is_accessible(candidate.function, receiver_ty)
-                || !matches(self, &candidate)
+            if !(if public_only {
+                self.functions[candidate.function].access.declared
+                    == hir::DeclaredVisibility::Public
+            } else {
+                self.function_is_accessible(candidate.function, receiver_ty)
+            }) || !matches(self, &candidate)
             {
                 continue;
             }
@@ -231,7 +246,7 @@ impl Lowerer {
         application: hir::InterfaceApplicationId,
         depth: usize,
         root: usize,
-        bound: Option<(hir::TypeParamId, hir::InterfaceApplicationId)>,
+        bound: Option<(TypeId, hir::InterfaceApplicationId)>,
         seen: &mut Vec<hir::InterfaceApplicationId>,
         out: &mut Vec<(crate::CallableCandidate, usize, usize)>,
     ) {
@@ -268,13 +283,11 @@ impl Lowerer {
         for &member in &self.interfaces[source_id].methods {
             let function = self.interface_method_entities[member].function;
             let source = match bound {
-                Some((receiver_parameter, bound)) => {
-                    crate::CallableCandidateSource::InterfaceBound {
-                        receiver_parameter,
-                        bound,
-                        member,
-                    }
-                }
+                Some((receiver_type, bound)) => crate::CallableCandidateSource::InterfaceBound {
+                    receiver_type,
+                    bound,
+                    member,
+                },
                 None => crate::CallableCandidateSource::Direct,
             };
             out.push((

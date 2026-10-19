@@ -12,6 +12,9 @@ impl Concretizer<'_> {
         let mut protocols = Vec::new();
         loop {
             self.drain_pending_callables();
+            if !self.type_condition_errors.is_empty() {
+                break;
+            }
             let mut results = self.coroutine_result_types();
             results.retain(|result| {
                 !protocols

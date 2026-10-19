@@ -49,6 +49,12 @@ impl DefaultStatementV1 {
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum DefaultStatementKindV1 {
+    MemberRequirementCall {
+        contract: Box<scoop_identity::MemberRequirementKey>,
+        binding: Box<crate::DefaultRequirementBindingValueV1>,
+        arguments: Vec<DefaultExpressionV1>,
+        result: Box<DefaultPatternV1>,
+    },
     ContextScope {
         value: Box<DefaultExpressionV1>,
         body: Vec<DefaultStatementV1>,
@@ -137,7 +143,8 @@ fn validate_kind(kind: &DefaultStatementKindV1) -> Result<(), DefaultStatementBu
             require_statements(condition_setup, tag, 1)?;
             require_statements(body, tag, 3)?;
         }
-        DefaultStatementKindV1::Expr(_)
+        DefaultStatementKindV1::MemberRequirementCall { .. }
+        | DefaultStatementKindV1::Expr(_)
         | DefaultStatementKindV1::InitializationEnsure(_)
         | DefaultStatementKindV1::GenericDelegateEnsure(_)
         | DefaultStatementKindV1::LocalFunction(_)

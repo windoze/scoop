@@ -82,7 +82,9 @@ fn reference_kinds(templates: &[scoop_hir::ExportDefaultTemplateV1]) -> [bool; 6
             SignatureTypeKey::Function { .. } => 3,
             SignatureTypeKey::RawPointer(_) => 4,
             SignatureTypeKey::NativeFunctionPointer { .. } => 5,
-            SignatureTypeKey::Binder { .. } => panic!("a bare binder is not a reference"),
+            SignatureTypeKey::Binder { .. } | SignatureTypeKey::Companion(_) => {
+                panic!("a bare binder is not a reference")
+            }
         };
         kinds[index] = true;
     }

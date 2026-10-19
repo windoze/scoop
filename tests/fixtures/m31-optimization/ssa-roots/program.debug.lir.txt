@@ -1,7 +1,7 @@
 Module
   global @scoop$1$io$ab4f13beb0a3b5a4a89a70314a6fdc0632d76b70b069374f4c93b9c7677cfb17 = "missing context contextValue.request: Item"
   global @scoop$1$io$60c1d7670cf010e49b863301153b376f72a793454535013b6d60470e6617209f = "illegal state"
-  global @scoop$1$io$c3559d122df9d4496f5ad898e0dfdef297034b68f0defd79b7ffaeaf05946fcc = "\n"
+  global @scoop$1$io$c9c068a570a8b86fbcaeebf7d9ca676f2c0b424295fa6b204368fd5fba042999 = "\n"
   global @scoop$1$ss$9b273ab0bbc562dd7f8e8b0487c0e98f4a7d0781b1cb5aa5b6d69c2d8a7f66b1 : ptr<managed> scan=refs[0]
   enum Option niche(kind=managed,payload_variant=0)
   enum Option tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
@@ -388,13 +388,13 @@ Module
     t2 = extract t1, 1 : ptr<managed>
     t3 = heap_load t2 +16 : i64
     ret t3
-  fun @scoop$1$cb$7d18ec4b002de6368f16ca3194c0380a90537a7e35b31ea4bfa14fb54f6232e5(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$083f29f17f4b3c8311b479b44b94280469ca37590f204ea0d2b80151b9f840f3(ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     call managed-void-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] sig=void0 () runtime @scoop_rt_gc_collect()
     t0 = aggregate () : {}
     ret param0
-  fun @scoop$1$cb$8648ec25e6c21462d01c0f426d8f28e404131ecf913864474bfc5c19d1c94a73(i64) -> void
+  fun @scoop$1$cb$d2bd8876bca8a3762e84d6e5ad49aa94cc47b9561ba0e6a2ea4663b308c03128(i64) -> void
     local %0 $dependency.local.1: i64
     local %1 $dependency.local.2: ptr<managed>
     local %2 $dependency.local.3: ptr<managed>

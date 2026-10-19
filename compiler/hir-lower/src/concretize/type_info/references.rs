@@ -39,7 +39,10 @@ impl Concretizer<'_> {
         self.metadata_record(result, vec![identity, name, nominal, arguments], origin)
     }
 
-    pub(super) fn type_arguments(&self, ty: concrete::TypeId) -> Vec<concrete::TypeId> {
+    pub(in crate::concretize) fn type_arguments(
+        &self,
+        ty: concrete::TypeId,
+    ) -> Vec<concrete::TypeId> {
         match self.types[ty].kind {
             concrete::TypeKind::Struct(id) => self.structs[id].type_arguments.clone(),
             concrete::TypeKind::Enum(id) => self.enums[id].type_arguments.clone(),
@@ -53,7 +56,10 @@ impl Concretizer<'_> {
         }
     }
 
-    pub(super) fn type_nominal(&self, ty: concrete::TypeId) -> Option<export::SourceNominalId> {
+    pub(in crate::concretize) fn type_nominal(
+        &self,
+        ty: concrete::TypeId,
+    ) -> Option<export::SourceNominalId> {
         use concrete::TypeKind as T;
         let nominal = match self.types[ty].kind {
             T::Unit => export::SourceNominalId::Concrete(

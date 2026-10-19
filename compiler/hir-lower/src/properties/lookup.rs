@@ -9,16 +9,13 @@ impl Lowerer {
         name: &str,
     ) -> Option<(hir::PropertyId, hir::MethodOwnerApplication, TypeId)> {
         let lookup_ty = match self.types[receiver_ty] {
-            hir::Type::Param(parameter) => {
-                let parameter = self
-                    .type_params_in_scope
-                    .iter()
-                    .find(|candidate| candidate.id == parameter)?;
-                let hir::TypeParamBounds::Nominal(bounds) = &parameter.bounds else {
-                    return None;
-                };
-                bounds.class.as_ref()?.ty
-            }
+            hir::Type::Param(_) | hir::Type::Companion(_) => self
+                .parameter_nominal_bounds(receiver_ty)
+                .into_iter()
+                .find_map(|bound| match bound {
+                    hir::NominalBoundRef::Class(bound) => Some(bound.ty),
+                    hir::NominalBoundRef::Interface(_) => None,
+                })?,
             _ => receiver_ty,
         };
         self.find_accessible_declared_nominal_property(lookup_ty, receiver_ty, name)

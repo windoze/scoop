@@ -63,8 +63,11 @@ pub(crate) struct ArrayType {
 
 mod adaptation;
 mod arrays;
+mod negative;
+pub(crate) use negative::InterfaceExclusion;
 mod atomics;
 mod characters;
+mod companions;
 mod constraints;
 mod deferred_bounds;
 mod display;
@@ -96,7 +99,7 @@ fn type_value_equal(types: &Arena<Type>, a: TypeId, b: TypeId) -> bool {
         (Type::Struct(x), Type::Struct(y)) => x == y,
         (Type::Class(x), Type::Class(y)) => x == y,
         (Type::Interface(x), Type::Interface(y)) => x == y,
-        (Type::Param(x), Type::Param(y)) => x == y,
+        (Type::Param(x), Type::Param(y)) | (Type::Companion(x), Type::Companion(y)) => x == y,
         (Type::Enum(x), Type::Enum(y)) => x == y,
         (Type::Tuple(xs), Type::Tuple(ys)) => {
             xs.len() == ys.len()

@@ -51,7 +51,7 @@ pub fn dump_static_shapes<'a>(module: &'a Module, world: &ImportedSemanticWorld<
             StaticTypeShape::NativeFunctionPointer(_) => {
                 writeln!(dump.out, "native-function-pointer {name}").unwrap()
             }
-            StaticTypeShape::Parameter(_) => {
+            StaticTypeShape::Parameter(_) | StaticTypeShape::Companion { .. } => {
                 unreachable!("open parameters are printed with their nominal declaration")
             }
         }
