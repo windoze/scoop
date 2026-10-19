@@ -11,9 +11,9 @@ pub(super) fn apply(
     registry: &mut LocalValueRegistry,
     owner: CallableMaterialization,
     caller_id: mir::FunctionId,
-    depth: &mut Vec<u8>,
+    ancestry: &mut Vec<Vec<mir::FunctionId>>,
 ) {
-    let caller_depth = depth[index(choice.block)];
+    let caller_ancestry = ancestry[index(choice.block)].clone();
     let (statement, tail, terminator, unwind) = {
         let block = &mut caller.body.blocks[choice.block];
         let tail = block.statements.split_off(choice.statement + 1);
@@ -37,7 +37,7 @@ pub(super) fn apply(
         terminator,
         unwind,
     });
-    depth.push(caller_depth);
+    ancestry.push(caller_ancestry.clone());
     let result = result.map(|destination| {
         let mut definition = caller.body.locals[destination].clone();
         definition.name = format!("$inline.{}.result", index(continuation));
@@ -104,6 +104,8 @@ pub(super) fn apply(
     let local =
         |old: mir::LocalId| locals[index(old)].expect("every referenced local has a caller copy");
     let mut blocks = vec![None; callee.body.blocks.len()];
+    let mut nested_ancestry = caller_ancestry;
+    nested_ancestry.push(choice.callee);
     for (source, block) in &choice.blocks {
         let cloned = caller.body.blocks.alloc(mir::BasicBlock {
             name: format!("inline.{}.{}", index(continuation), block.name),
@@ -112,7 +114,7 @@ pub(super) fn apply(
             unwind,
         });
         blocks[index(*source)] = Some(cloned);
-        depth.push(caller_depth + 1);
+        ancestry.push(nested_ancestry.clone());
     }
     let target =
         |old: mir::BlockId| blocks[index(old)].expect("a reachable edge keeps its destination");

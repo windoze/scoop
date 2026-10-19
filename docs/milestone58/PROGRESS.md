@@ -10,7 +10,8 @@
 | A：无引用大对象跳过 remembered scan | 已实现；本机 nursery 专测 10 项、新源码 fixture 三个变体通过，Linux 待验证 |
 | A：full 必要容量早判 | 已实现；本机 region 专测 7 项、新源码 fixture 三个变体通过，Linux 待验证 |
 | A：starts bitmap 枚举 | 已实现；本机 GC 专测 35 项、M58 runtime 四个源码 fixture／13 变体通过，Linux 待验证 |
-| B：统一优化迭代、函数内来源／逃逸分析、box／closure 消除与支持产物清理 | 待实施 |
+| B：统一优化迭代 | 已实现三轮上限与无变化早停；本机 MIR 单测 122 项、新旧优化源码回归通过，Linux 待验证 |
+| B：函数内来源／逃逸分析、box／closure 消除与支持产物清理 | 待实施，接入同一迭代 |
 | C：tail completion 转交、状态机生成前同步内联 | 待实施 |
 | D：外层 poll 循环分块、受限内层 SIMD | 待实施 |
 | 性能与跨平台 | A 的本机生产前后矩阵已记录于 [PERFORMANCE.md](PERFORMANCE.md)；B–D 性能、GNU／musl 完整验收及最终清理待完成 |
@@ -54,3 +55,13 @@ C 格式化／严格语法检查、Rust fmt／workspace clippy 通过；全部 G
 固定编译器，仅替换 `c3b8942db`／`8df65ae17` runtime，使用真实 Scoop 编译运行的 full、minor 与连续分配程序。五对独立进程、事件级 full 100 样本／minor 250 样本，另做预热后的七对连续分配；方法、阶段、RSS、原始离群值处理和限制见 [PERFORMANCE.md](PERFORMANCE.md)。四 worker 下，90 万节点的失败压缩准备 plan 5.495 → 0.074 ms、总暂停 p50 20.788 → 11.729 ms；真实稀疏压缩 27.764 → 20.480 ms，仍有长暂停。四 worker、128 MiB 无引用旧数组的 minor p50 814 → 413 µs。连续分配总时间 105.234 → 67.775 ms，主要由累计暂停减少解释。
 
 全部测试输出与临时 benchmark 副本位于仓库外；已清理约 1.8 GiB 的已完成 fixture 产物。Linux、多个 mutator 的响应尾部、GUI 帧循环及 B–D 性能仍待完成。
+
+## 2026-10-20：统一普通优化迭代
+
+release 使用最多三轮 devirt／inline／simplify，实际无变化时早停。内联的稳定模板、原始成本、caller 剩余增长及展开祖先跨轮保留；当前直接调用图每轮刷新递归判断，隐藏递归另受实际展开祖先约束。只重新分析上轮改变的函数，LocalValueRegistry 在整个阶段内共用，结束时一次写回。没有新增持久 IR／产物字段或通用 pass 框架。
+
+新增 typed MIR 专测区分一轮仍间接、两轮已展开、第三轮观察到固定点；12 轮测试验证累计增长与六层深度不重置、开放 receiver 中隐藏的递归保留，以及新 exact receiver 暴露的直接递归触发重新判断。独立源码 fixture 组合 interface helper、两层 closure 包装、参数副作用、可变字段、实际递归与移动 GC；此时 closure 分配仍保留，环境消除属于下一项。
+
+Rust fmt、workspace clippy、MIR lowering 全部 122 项单测通过；8 项直接覆盖普通优化。新源码 fixture 3 变体／3 进程；M34 内联五项 10 变体／44 进程、M31 优化五项 12 变体／38 进程通过。M34 去虚拟化中，跨库与 slots 两项先通过；locals 的 release MIR 因新增展开和常量分支化简更新已有优化专测期望，debug 期望保持，复跑两变体／8 进程通过。隐藏递归单测原先预期停在 method，实际由展开祖先停在 helper；修正预期并单独增加新直接 SCC 的专测，二者均闭合。
+
+这笔仅完成有实际去虚拟化／内联消费者的迭代功能，不代表 B 的分配消除或 C 的协程前置内联已完成。GC benchmark 的临时源码、基线 runtime、可执行文件与缓存已清理；保留文档概要和仓库外的小型验证日志，完成的优化 fixture 产物继续定期清理。

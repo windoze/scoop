@@ -20,40 +20,81 @@ struct Choice {
     blocks: Vec<(mir::BlockId, mir::BasicBlock)>,
 }
 
-pub(super) fn run(module: &mut mir::Module) {
-    // All callers use the same original bodies. Earlier callers cannot
-    // accidentally give later callers an already expanded nested chain.
-    let templates = module.functions.clone();
-    let recursive = policy::recursive(module);
-    let protocol = policy::protocol_entries(module);
-    let eligible = templates
-        .iter()
-        .map(|(id, function)| {
-            !recursive[index(id)] && !protocol[index(id)] && policy::supported(function)
-        })
-        .collect::<Vec<_>>();
-    let costs = templates
-        .iter()
-        .map(|(_, function)| policy::function_cost(function))
-        .collect::<Vec<_>>();
-    let mut registry = LocalValueRegistry::from_existing(&module.meta.local_values);
-    for (id, original) in templates.iter() {
-        if protocol[index(id)] {
-            continue;
+pub(super) struct Session {
+    templates: Arena<mir::Function>,
+    protocol: Vec<bool>,
+    supported: Vec<bool>,
+    costs: Vec<usize>,
+    callers: Vec<CallerState>,
+}
+
+struct CallerState {
+    remaining: usize,
+    ancestry: Vec<Vec<mir::FunctionId>>,
+}
+
+impl Session {
+    pub(super) fn new(module: &mir::Module) -> Self {
+        // Stable templates avoid counting an already expanded body as one level.
+        let templates = module.functions.clone();
+        let costs = templates
+            .iter()
+            .map(|(_, function)| policy::function_cost(function))
+            .collect::<Vec<_>>();
+        let callers = templates
+            .iter()
+            .map(|(id, function)| CallerState {
+                remaining: (costs[index(id)] / 2 + 96).min(384),
+                ancestry: vec![vec![id]; function.body.blocks.len()],
+            })
+            .collect();
+        Self {
+            protocol: policy::protocol_entries(module),
+            supported: templates
+                .iter()
+                .map(|(_, function)| policy::supported(function))
+                .collect(),
+            templates,
+            costs,
+            callers,
         }
-        let Some(owner) = owner(module, id) else {
-            continue;
-        };
-        let context = Context {
-            module,
-            templates: &templates,
-            eligible: &eligible,
-            costs: &costs,
-        };
-        let body = context.optimize(id, original, owner, &mut registry);
-        module.functions[id].body = body;
     }
-    module.meta.local_values = registry.finish();
+
+    pub(super) fn run(
+        &mut self,
+        module: &mut mir::Module,
+        active: &[bool],
+        registry: &mut LocalValueRegistry,
+    ) -> Vec<bool> {
+        // Devirtualization can reveal cycles that were absent in earlier rounds.
+        let recursive = policy::recursive(module);
+        let eligible = self
+            .supported
+            .iter()
+            .enumerate()
+            .map(|(id, supported)| *supported && !recursive[id] && !self.protocol[id])
+            .collect::<Vec<_>>();
+        let mut changed = vec![false; module.functions.len()];
+        for (id, _) in self.templates.iter() {
+            if !active[index(id)] || self.protocol[index(id)] {
+                continue;
+            }
+            let Some(owner) = owner(module, id) else {
+                continue;
+            };
+            let context = Context {
+                module,
+                templates: &self.templates,
+                eligible: &eligible,
+                costs: &self.costs,
+            };
+            let (body, rewritten) =
+                context.optimize(id, owner, registry, &mut self.callers[index(id)]);
+            module.functions[id].body = body;
+            changed[index(id)] = rewritten;
+        }
+        changed
+    }
 }
 
 struct Context<'a> {
@@ -67,18 +108,18 @@ impl Context<'_> {
     fn optimize(
         &self,
         id: mir::FunctionId,
-        original: &mir::Function,
         owner: CallableMaterialization,
         registry: &mut LocalValueRegistry,
-    ) -> mir::Body {
-        let mut function = original.clone();
-        let mut depth = vec![0_u8; function.body.blocks.len()];
-        let mut remaining = (self.costs[index(id)] / 2 + 96).min(384);
+        state: &mut CallerState,
+    ) -> (mir::Body, bool) {
+        let mut function = self.module.functions[id].clone();
+        let mut changed = false;
         loop {
-            let choices = self.choose(&function, &depth, &mut remaining);
+            let choices = self.choose(&function, &state.ancestry, &mut state.remaining);
             if choices.is_empty() {
                 break;
             }
+            changed = true;
             // Reverse application preserves every selected source position.
             // Selection and growth accounting above remain in stable order.
             for choice in choices.into_iter().rev() {
@@ -90,20 +131,26 @@ impl Context<'_> {
                     registry,
                     owner,
                     id,
-                    &mut depth,
+                    &mut state.ancestry,
                 );
             }
         }
-        simplify::body(self.module, &function)
+        let (body, simplified) = simplify::body(self.module, &function);
+        (body, changed || simplified)
     }
 
-    fn choose(&self, function: &mir::Function, depth: &[u8], remaining: &mut usize) -> Vec<Choice> {
+    fn choose(
+        &self,
+        function: &mir::Function,
+        ancestry: &[Vec<mir::FunctionId>],
+        remaining: &mut usize,
+    ) -> Vec<Choice> {
         let analysis = flow::Analysis::new(self.module, function);
         let incoming = analysis.solve();
         let in_loop = graph::cyclic_nodes(&graph::block_edges(&function.body));
         let mut choices = Vec::new();
         for (block_id, block) in function.body.blocks.iter() {
-            if depth[index(block_id)] >= 6 {
+            if ancestry[index(block_id)].len() > 6 {
                 continue;
             }
             let Some(mut state) = incoming[index(block_id)].clone() else {
@@ -128,6 +175,7 @@ impl Context<'_> {
                     let call = super::call(effect);
                     if let Some(callee) = policy::local_target(self.module, call)
                         && self.eligible[index(callee)]
+                        && !ancestry[index(block_id)].contains(&callee)
                     {
                         let arguments = call
                             .args

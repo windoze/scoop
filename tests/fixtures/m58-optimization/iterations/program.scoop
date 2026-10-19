@@ -1,0 +1,31 @@
+interface Operation { fun apply(value: Int): Int }
+class Add(val offset: Int) : Operation {
+    public override fun apply(value: Int): Int = value + offset
+}
+class Holder(var operation: Operation)
+
+var evaluated = 0
+fun argument(): Int { evaluated += 1; return evaluated }
+fun invoke(operation: Operation, value: Int): Int = operation.apply(value)
+fun outer(operation: Operation, value: Int): Int = invoke(operation, value)
+fun withValue(value: Int, action: (Int) -> Int): Int = action(value)
+fun nested(value: Int, action: (Int) -> Int): Int = withValue(value, action)
+
+open class Recursive {
+    public open fun sum(value: Int): Int = if (value == 0) 0 else recurse(this, value - 1) + value
+}
+fun recurse(receiver: Recursive, value: Int): Int = receiver.sum(value)
+
+fun main() {
+    if (outer(Add(40), argument()) != 41 || evaluated != 1) throw IllegalStateException()
+    val offset = 7
+    val action = { value: Int -> value + offset }
+    if (nested(argument(), action) != 9 || evaluated != 2) throw IllegalStateException()
+    val holder = Holder(Add(3))
+    if (outer(holder.operation, 4) != 7) throw IllegalStateException()
+    holder.operation = Add(9)
+    gcCollect()
+    if (outer(holder.operation, 4) != 13) throw IllegalStateException()
+    if (recurse(Recursive(), 12) != 78) throw IllegalStateException()
+    println("iterated inline and dispatch preserve arguments, closures and recursive calls")
+}
