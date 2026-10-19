@@ -1,0 +1,98 @@
+package scoop.http.client
+
+import scoop.http.*
+import scoop.time.Instant
+
+internal class ClientCallCache(val options: HttpCacheOptions, val request: HttpCacheRequest) {
+    var snapshot: HttpCacheSnapshot? = None
+    var writer: HttpCacheWriter? = None
+    var sentAt: Instant = options.clock.now()
+    var receivedAt: Instant = sentAt
+}
+
+internal suspend fun prepareClientCache(call: ClientCall): HttpResponseHead? {
+    val request = call.request
+    val control = try { Some(HttpCacheControl.parseFields(request.fields)) }
+        catch (_: HttpFieldParseException) { None }
+    val only = request.options.cacheMode == HttpCacheMode.OnlyIfCached || (control?.contains("only-if-cached") ?: false)
+    val refresh = call.sequence.cacheRefresh
+    call.sequence.cacheRefresh = false
+    val options = call.client.config.cache
+    if (request.options.cacheMode == HttpCacheMode.Bypass || !clientPresent(options) || !clientPresent(control) ||
+        control!!.contains("no-store") || !clientCacheEligible(request))
+        return if (only) Some(clientCacheUnsatisfied(call)) else None
+    val cache = ClientCallCache(options!!, HttpCacheRequest(clientCacheKey(call), clientCacheRequestFields(call)))
+    call.cache = Some(cache)
+    if (!refresh) {
+        val saved = cache.options.storage.lookup(cache.request)
+        call.lock.withLock { cache.snapshot = saved }
+        requireClientCall(call)
+        if (clientPresent(saved)) {
+            val mode = if (clientCachePragmaNoCache(request.fields)) HttpCacheMode.Reload else request.options.cacheMode
+            val policy = try { Some(ClientCachePolicy(saved!!.record)) } catch (_: HttpFieldParseException) { None }
+            val usable = try { clientPresent(policy) && policy!!.canServe(control!!, mode, cache.options.clock.now()) }
+                catch (_: HttpFieldParseException) { false }
+            if (usable) {
+                call.cacheStatus = HttpCacheStatus.Hit
+                call.responseStream = Some<ClientResponseStream>(ClientCachedResponseStream(saved!!))
+                return Some(clientCacheWithAge(saved!!.record.head, policy!!.age(cache.options.clock.now()).inWholeSeconds))
+            }
+            if (!only) {
+                val condition = clientCacheCondition(saved!!.record)
+                if (clientPresent(condition)) {
+                    val fields = ArrayList<HttpField>()
+                    for (field in request.suppliedFields) fields.add(field)
+                    fields.add(condition!!)
+                    call.request = HttpRequest(request.url, request.method, fields, request.body, request.options)
+                    return None
+                }
+            }
+            closeClientCacheSnapshot(call)
+        }
+    }
+    return if (only) Some(clientCacheUnsatisfied(call)) else None
+}
+
+private fun clientCacheEligible(request: HttpRequest): Boolean {
+    if (request.method != "GET" || request.options.duplex || request.contentLength != Some(0L) || request.body.trailerNames.size != 0L) return false
+    for (name in ["Range", "If-Match", "If-None-Match", "If-Modified-Since", "If-Unmodified-Since", "If-Range"])
+        if (clientCacheHas(request.fields, name)) return false
+    return true
+}
+
+private fun clientCachePragmaNoCache(fields: List<HttpField>): Boolean {
+    if (clientCacheHas(fields, "Cache-Control")) return false
+    for (field in fields) if (field.hasName("Pragma".toByteArray())) {
+        val directives = HttpCacheControl.parseOrNone(field.value)
+        if (directives?.contains("no-cache") ?: false) return true
+    }
+    return false
+}
+
+private fun clientCacheCondition(record: HttpCacheRecord): HttpField? {
+    val etag = clientCacheField(record.head.fields, "ETag")
+    if (clientPresent(etag) && clientPresent(HttpEntityTag.parseOrNone(etag!!.value)))
+        return Some(HttpField("If-None-Match".toByteArray(), etag!!.value))
+    val modified = clientCacheField(record.head.fields, "Last-Modified")
+    if (clientPresent(modified) && clientPresent(HttpDate.parseOrNone(modified!!.value, record.receivedAt, true)))
+        return Some(HttpField("If-Modified-Since".toByteArray(), modified!!.value))
+    return None
+}
+
+private fun clientCacheUnsatisfied(call: ClientCall): HttpResponseHead {
+    call.cacheStatus = HttpCacheStatus.Unsatisfied
+    call.responseStream = Some<ClientResponseStream>(ClientEmptyCachedResponse())
+    return HttpResponseHead(HttpVersion.Http11, 504U, fields = [HttpField("Content-Length".toByteArray(), "0".toByteArray())])
+}
+
+internal fun clientResponseFromCache(call: ClientCall): Boolean = call.cacheStatus != HttpCacheStatus.Network
+
+internal fun markClientCacheSent(call: ClientCall) {
+    val cache = call.cache ?: return
+    cache.sentAt = cache.options.clock.now()
+}
+
+internal fun markClientCacheReceived(call: ClientCall) {
+    val cache = call.cache ?: return
+    cache.receivedAt = cache.options.clock.now()
+}

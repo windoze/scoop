@@ -33,7 +33,7 @@ internal suspend fun receiveClientBytes(call: ClientCall, source: AsyncByteSourc
 
 internal class ClientResponseWireSource(private val call: ClientCall) : AsyncByteSource {
     public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long =
-        receiveClientBytes(call, call.exchange!!, buffer, count, true)
+        receiveClientBytes(call, call.responseStream!!, buffer, count, true)
 }
 
 private fun addClientProgress(previous: Long, count: Long): Long =

@@ -1,0 +1,43 @@
+import scoop.asyncio.*
+import scoop.collections.emptyList
+import scoop.http.*
+import scoop.http.client.*
+import scoop.platform.fs.Path
+import scoop.platform.memory.NativeByteBuffer
+import scoop.time.Instant
+
+internal val cacheDate: Instant = Instant.parse("2026-10-20T00:00:00Z")
+internal fun cacheField(name: String, value: String): HttpField = HttpField(name.toByteArray(), value.toByteArray())
+internal fun cacheRequest(url: String = "/item", fields: List<HttpField> = emptyList<HttpField>(),
+    partition: String = "tests", identity: String = "anonymous"): HttpCacheRequest =
+    HttpCacheRequest(HttpCacheKey(partition, "https://example.com" + url, identity), fields)
+internal fun cacheRecord(request: HttpCacheRequest, size: Long, fields: List<HttpField> = emptyList<HttpField>()): HttpCacheRecord {
+    val all = ArrayList<HttpField>()
+    for (field in fields) all.add(field)
+    all.add(cacheField("Content-Length", size.toString()))
+    all.add(cacheField("Cache-Control", "max-age=60"))
+    return HttpCacheRecord.fromResponse(request, HttpResponseHead(HttpVersion.Http11, 200U, fields = all), cacheDate, cacheDate)
+}
+internal suspend fun cacheWrite(sink: AsyncByteSink, text: String) {
+    val bytes = text.toByteArray()
+    NativeByteBuffer.allocate(bytes.size).use suspend { buffer -> buffer.writeBytes(bytes); sink.writeFully(buffer) }
+}
+internal suspend fun cacheStore(cache: HttpCache, request: HttpCacheRequest, body: String,
+    fields: List<HttpField> = emptyList<HttpField>(), trailers: List<HttpField> = emptyList<HttpField>()) {
+    cache.begin(cacheRecord(request, body.toByteArray().size, fields))!!.useAsync suspend { writer ->
+        cacheWrite(writer, body)
+        writer.commit(trailers)
+    }
+}
+internal suspend fun cacheRead(cache: HttpCache, request: HttpCacheRequest): String? {
+    val snapshot = cache.lookup(request) ?: return None
+    return snapshot.useAsync suspend { value -> Some(String.fromUtf8(value.body.readAllBytes(4096L))) }
+}
+internal suspend fun cacheFiles(path: Path): Long {
+    return currentEventLoop().openDirectory(path).useAsync suspend { directory ->
+        var count = 0L
+        while (directory.next() != None) count += 1L
+        count
+    }
+}
+internal fun <T> cachePresent(value: T?): Boolean = when (value) { case Some(_) -> true; case None -> false }

@@ -1,0 +1,78 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.bytes.ByteOrder
+import scoop.http.*
+import scoop.platform.fs.Path
+import scoop.platform.io.UnexpectedEofException
+import scoop.platform.memory.NativeByteBuffer
+
+internal class ClientDiskCacheEntry(val path: Path, val record: HttpCacheRecord, val bodyLength: Long,
+    val fileSize: Long, val trailers: Array<HttpField>) {
+    var readers: Long = 0L
+    var retired: Boolean = false
+}
+
+internal suspend fun readClientDiskCacheEntry(path: Path, maxMetadata: Long): ClientDiskCacheEntry? {
+    return currentEventLoop().openFile(path).useAsync suspend { file ->
+        val size = file.size()
+        if (size < 16L) throw HttpCacheFormatException("truncated cache file")
+        val length = NativeByteBuffer.allocate(16L).use suspend { footer ->
+            file.seek(size - 16L); file.readFully(footer)
+            if (footer.readUInt64(ByteOrder.BigEndian) != clientCacheFileMagic)
+                throw HttpCacheFormatException("invalid cache file version")
+            footer.readInt64(ByteOrder.BigEndian)
+        }
+        if (length < 0L || length > size - 16L)
+            throw HttpCacheFormatException("invalid cache metadata length")
+        if (length > maxMetadata) return@useAsync None
+        val bodyLength = size - length - 16L
+        val (record, trailers) = NativeByteBuffer.allocate(length).use suspend { metadata ->
+            file.seek(bodyLength); file.readFully(metadata)
+            decodeClientCacheMetadata(metadata.readBytes(length))
+        }
+        val expected = parseHttpContentLength(record.head.fields)
+        if (clientPresent(expected) && expected!! != bodyLength)
+            throw HttpCacheFormatException("cached body length does not match Content-Length")
+        Some(ClientDiskCacheEntry(path, record, bodyLength, size, trailers))
+    }
+}
+
+internal class ClientDiskCacheSnapshot(val owner: DiskHttpCache, val entry: ClientDiskCacheEntry, val file: AsyncFile) : HttpCacheSnapshot {
+    public override val record: HttpCacheRecord get() = entry.record
+    public override val bodyLength: Long get() = entry.bodyLength
+    public override val trailers: Array<HttpField> get() = entry.trailers
+    private val source: ClientDiskCacheSource = ClientDiskCacheSource(file, entry.bodyLength)
+    private val closing: ClientCacheClosure = ClientCacheClosure()
+    public override val body: AsyncByteSource get() = source
+    public override suspend fun close() {
+        closing.close(suspend {
+            source.closed.store(true)
+            var failure: Throwable? = None
+            try { file.close() }
+            catch (error: Throwable) { failure = Some(error) }
+            try { owner.release(entry) }
+            catch (error: Throwable) { failure = Some(clientCombined(failure, error)) }
+            if (clientPresent(failure)) throw failure!!
+        })
+    }
+}
+
+private class ClientDiskCacheSource(val file: AsyncFile, var remaining: Long) : AsyncByteSource {
+    val closed: AtomicBoolean = AtomicBoolean(false)
+    private val busy: AtomicBoolean = AtomicBoolean(false)
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long {
+        if (closed.load()) throw IoClosedException()
+        if (count < 0L) throw IllegalArgumentException(Some("negative cache read count"))
+        if (count > buffer.writableBytes) throw IndexOutOfBoundsException()
+        if (!busy.compareAndSet(false, true)) throw IllegalStateException(Some("cache read is active"))
+        try {
+            if (remaining == 0L || count == 0L) return 0L
+            val before = buffer.writePosition
+            val amount = try { file.readInto(buffer, if (count < remaining) count else remaining) }
+            finally { remaining -= buffer.writePosition - before }
+            if (amount == 0L) throw UnexpectedEofException()
+            return amount
+        } finally { busy.store(false) }
+    }
+}

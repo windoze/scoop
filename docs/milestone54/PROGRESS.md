@@ -97,6 +97,7 @@
 | client Cookie jar | 显式 suspend CookieJar 和线程安全 MemoryCookieJar；复用 HTTP 的作用域、PSL、过期、前缀和 SameSite 规则，支持容量淘汰、快照、清除与 Secure 覆盖限制 | Darwin 两项正式 fixture 通过 debug／release 与构建复用，共 4 个变体、12 个步骤进程；5 组存储规则、两线程共享及 16 个真实网络／生命周期场景覆盖认证、重定向、重试、gzip、H2、代理 407、Context、取消和清理失败；未启用 GC stress |
 | 不受调用方取消的清理作用域 | core.nonCancellableScope 复用普通作用域的子树完成和错误边界，继承业务 Context，等待清理后恢复原 Job；用于必要的异步文件收尾 | Darwin 两项正式 fixture 通过 debug／release 与构建复用，共 4 个变体、12 个步骤进程；覆盖清理前／中途取消、子任务等待及失败、原取消保留、Context 恢复、双 native 线程上的真实异步关闭和删除；未启用 GC stress |
 | 本地 TLS 身份摘要 | TlsIdentity.leafCertificateSha256 由 crypto 计算本地叶证书 DER 摘要，独立保存并在关闭输入或身份后保持可读，供私有缓存区分客户端证书 | Darwin 两项正式 fixture 通过 debug／release 与构建复用，共 4 个变体、12 个步骤进程；核对两个独立 SHA-256 向量、证书链变化、并发读取，以及 TLS 1.2／1.3 同步／异步 mTLS 和握手取消；未启用 GC stress |
+| client 私有响应缓存 | 纯 Scoop 的 suspend 存储接口、内存 LRU 与异步磁盘缓存；分区和身份隔离、Vary、新鲜度、条件验证、304 合并与失效，完整验证正文后原子提交编码表示 | Darwin 三项正式 fixture 通过 debug／release 与构建复用，共 6 个变体、18 个步骤进程；覆盖存储并发／重开、15 组网络及策略场景和 18 组取消／错误生命周期场景，原响应解码回归另通过 2 个变体、6 个步骤进程；未启用 GC stress |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -416,9 +417,13 @@ Digest 的 95 个独立场景包括 57 个协议、17 个生命周期、14 个�
 
 Cookie 的保存回调在取消后抛出清理异常时，首轮网络用例复现了同一异常被两层捕获重复汇总。回调边界现在先记录真实结果，再按本次调用已选择的失败退出，清理对象只汇总一次；load／save 的取消、total 和 client.close 均等待真实 finally 结束，回调错误不取得网络重试资格。Jar 的原始字节、编码路径、IDNA／IP、PRIVATE PSL、显式 SameSite、替换顺序及过期／容量淘汰通过独立消费者验证。生产 sysroot 的 17 个 Cone 与 runtime 已通过正式准备入口更新。
 
+私有缓存的独立存储与网络消费者覆盖旧快照在替换后继续读取、未提交条目不可见、容量淘汰、临时文件清理、磁盘重开、原始编码与解码验证、Cookie／认证身份、Digest nonce 更新、HTTP/2 trailer 和 24 个新鲜度策略向量。304 的验证失败不会拼接旧正文；不相容的表示条件使调用重新进行一次正常请求。缓存默认关闭，磁盘工厂只协调同一活动实例，不增加多进程目录管理。
+
+生命周期用例先后复现写入取消时重复附加清理错误，以及 commit 回调结果晚于调用完成而丢失清理错误。现在读取交付已观察的错误后，close 仅报告后来新增的清理；关闭真实资源后仍等待活动读取记录结果，再发出调用完成通知。四个缓存回调阶段的失败、调用方取消、client.close 与 total 用例通过，原多层解压及并行 HTTP/2 响应同时回归。17 个生产 Cone 与 runtime 已通过正常准备入口更新。
+
 ## 后续工作
 
-继续完成缓存／续传、SSE／WebSocket 高层组合和可观察性。每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
+继续完成下载／续传、SSE／WebSocket 高层组合、拦截器和可观察性。每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
 
 ## 验证安排
 
@@ -495,3 +500,5 @@ Digest 实施期间，清理已被最终 Bearer 生命周期回归替代的 3 �
 safepoint 不可复制修正验收后，清理约 19.9 GiB 已结束的 Rust 增量构建缓存；配套命令、依赖产物、正式消费者、生产库与仓库外诊断日志保留。
 
 Cookie 与缓存基础能力验收期间，清理环境代理库测试和 Cookie 站点消费者的 3 个已结束 target，合计约 489 MiB；源码、缓存、SDK、当前消费者和原始验证记录保留。
+
+缓存验收期间，清理 nonCancellableScope 与 TLS 身份摘要消费者的 8 个已结束 target，释放约 396 MiB；源码、生产库、SDK、缓存与原始验证记录保留。

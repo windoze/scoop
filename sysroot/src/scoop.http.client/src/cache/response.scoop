@@ -1,0 +1,131 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.crypto.digest
+import scoop.collections.emptyList
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.text.toHexString
+
+internal suspend fun prepareClientCacheResponse(call: ClientCall, head: HttpResponseHead): HttpResponseHead? {
+    invalidateClientResponseCache(call, head)
+    val cache = call.cache ?: return Some(head)
+    val snapshot = cache.snapshot
+    if (head.status != 304U || !clientPresent(snapshot)) {
+        closeClientCacheSnapshot(call)
+        if (clientCacheForbidsStorage(head))
+            cache.options.storage.invalidate(cache.request.key.partition, cache.request.key.url)
+        return Some(head)
+    }
+    val stream = call.exchange!!
+    val complete = NativeByteBuffer.allocate(1L).use suspend { buffer -> stream.readInto(buffer, 1L) == 0L }
+    requireClientCall(call)
+    if (!complete) {
+        cache.options.storage.invalidate(cache.request.key.partition, cache.request.key.url)
+        return None
+    }
+    val origin = call.authentication.digestUse
+    if (clientPresent(origin)) finishClientCachedValidation(call, head, origin!!)
+    val proxy = clientForwardProxyDigest(call)
+    if (clientPresent(proxy)) finishClientCachedValidation(call, head, proxy!!)
+    if (!clientCacheCompatible(snapshot!!, head)) {
+        cache.options.storage.invalidate(cache.request.key.partition, cache.request.key.url)
+        return None
+    }
+    val merged = clientMergeCachedHead(snapshot!!.record.head, head, cache.receivedAt)
+    if (clientCacheForbidsStorage(merged))
+        cache.options.storage.invalidate(cache.request.key.partition, cache.request.key.url)
+    call.cacheStatus = HttpCacheStatus.Revalidated
+    call.responseStream = Some<ClientResponseStream>(ClientCachedResponseStream(snapshot!!))
+    return Some(merged)
+}
+
+private fun finishClientCachedValidation(call: ClientCall, head: HttpResponseHead, use: ClientDigestUse) {
+    val entity = if (use.nonce.challenge.qop == Some("auth-int"))
+        Some(digest(clientDigestAlgorithm(use.nonce.challenge.algorithm), emptyList<Byte>()).toHexString()) else None
+    finishClientDigestResponse(call, head, use, entity, call.exchange!!.trailers)
+}
+
+private fun clientCacheCompatible(snapshot: HttpCacheSnapshot, head: HttpResponseHead): Boolean {
+    try {
+        val length = parseHttpContentLength(head.fields)
+        if (clientPresent(length) && length!! != snapshot.bodyLength) return false
+        if (clientCacheHas(head.fields, "Content-Encoding")) {
+            val original = parseHttpTokenFields(snapshot.record.head.fields, "Content-Encoding")
+            val current = parseHttpTokenFields(head.fields, "Content-Encoding")
+            if (original.size != current.size) return false
+            for (index in 0L..<original.size) if (original[index] != current[index]) return false
+        }
+        val previous = clientCacheField(snapshot.record.head.fields, "ETag")
+        if (clientPresent(previous) && clientCacheHas(head.fields, "ETag")) {
+            val current = clientCacheField(head.fields, "ETag") ?: return false
+            if (!HttpEntityTag.parse(previous!!.value).weaklyMatches(HttpEntityTag.parse(current.value))) return false
+        }
+        return true
+    } catch (_: HttpFieldParseException) { return false }
+}
+
+internal suspend fun beginClientCacheResponse(call: ClientCall, head: HttpResponseHead) {
+    val cache = call.cache ?: return
+    if (call.cacheStatus == HttpCacheStatus.Hit || call.cacheStatus == HttpCacheStatus.Unsatisfied) return
+    val record = try {
+        if (!clientMayStoreCache(call.request, head)) return
+        HttpCacheRecord.fromResponse(HttpCacheRequest(cache.request.key, clientCacheRequestFields(call)),
+            head, cache.sentAt, cache.receivedAt)
+    } catch (_: HttpFieldParseException) { return }
+    val writer = cache.options.storage.begin(record)
+    call.lock.withLock { cache.writer = writer }
+    requireClientCall(call)
+}
+
+private fun clientCacheForbidsStorage(head: HttpResponseHead): Boolean {
+    try { return HttpCacheControl.parseFields(head.fields).contains("no-store") || HttpVary.parseFields(head.fields).isWildcard }
+    catch (_: HttpFieldParseException) { return true }
+}
+
+private suspend fun invalidateClientResponseCache(call: ClientCall, head: HttpResponseHead) {
+    if (call.request.options.cacheMode == HttpCacheMode.Bypass || head.status < 200U || head.status >= 400U) return
+    val options = call.client.config.cache ?: return
+    val request = call.request
+    if (request.method == "GET" || request.method == "OPTIONS" || request.method == "TRACE") return
+    options.storage.invalidate(call.client.cachePartition!!, clientCacheUrl(request.url))
+    for (name in ["Location", "Content-Location"]) {
+        val field = clientCacheField(head.fields, name) ?: continue
+        val location = HttpLocation.parseOrNone(field.value) ?: continue
+        val url = location.resolve(request.url)
+        if (url.scheme != Some("http") && url.scheme != Some("https")) continue
+        if (url.httpOrigin() == request.origin)
+            options.storage.invalidate(call.client.cachePartition!!, clientCacheUrl(url))
+    }
+}
+
+internal suspend fun commitClientCache(call: ClientCall) {
+    val cache = call.cache ?: return
+    val writer = call.lock.withLock { cache.writer } ?: return
+    requireClientCall(call)
+    writer.commit(call.responseStream!!.trailers ?: emptyList<HttpField>().toArray())
+    call.lock.withLock { cache.writer = None }
+    writer.close()
+    requireClientCall(call)
+}
+
+internal suspend fun closeClientCacheSnapshot(call: ClientCall) {
+    val cache = call.cache ?: return
+    val snapshot = call.lock.withLock { val saved = cache.snapshot; cache.snapshot = None; saved }
+    snapshot?.close()
+}
+
+internal suspend fun cleanupClientCache(call: ClientCall) {
+    val cache = call.cache ?: return
+    val (writer, snapshot) = call.lock.withLock {
+        val saved = (cache.writer, cache.snapshot)
+        cache.writer = None; cache.snapshot = None
+        saved
+    }
+    nonCancellableScope<Unit> suspend { _ ->
+        var failure: Throwable? = None
+        try { writer?.close() } catch (error: Throwable) { failure = Some(error) }
+        try { snapshot?.close() } catch (error: Throwable) { failure = Some(clientCombined(failure, error)) }
+        if (clientPresent(failure)) throw failure!!
+    }
+}

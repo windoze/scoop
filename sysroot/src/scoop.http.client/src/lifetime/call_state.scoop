@@ -36,6 +36,9 @@ internal class ClientCall(
     var endWaiter: Continuation<Unit>? = None
     var lease: ClientPoolEntry? = None
     var exchange: ClientExchange? = None
+    var responseStream: ClientResponseStream? = None
+    var cache: ClientCallCache? = None
+    var cacheStatus: HttpCacheStatus = HttpCacheStatus.Network
     var http2StreamId: Int? = None
     var responseInput: ClientResponseInput? = None
     val deadlines: ArrayList<ClientDeadline> = ArrayList<ClientDeadline>()
@@ -55,6 +58,7 @@ internal class ClientCall(
     var failure: Throwable? = None
     var failureObserved: Boolean = false
     var cleanupFailure: Throwable? = None
+    var observedCleanupFailure: Throwable? = None
     val closeWaiters: ArrayList<Continuation<Unit>> = ArrayList<Continuation<Unit>>()
 }
 
@@ -88,6 +92,9 @@ internal fun failClientCall(call: ClientCall, error: Throwable, preserveSecondar
     val failure = mapClientIoTimeout(call, error)
     call.lock.withLock {
         if (call.completed || (clientPresent(call.failure) && sameClientFailure(call.failure!!, failure))) return@withLock
+        if (failure is ResourceUseException && clientPresent(call.failure) && clientPresent(call.cleanupFailure) &&
+            sameClientFailure(call.failure!!, failure.primaryFailure) && sameClientFailure(call.cleanupFailure!!, failure.cleanupFailure))
+            return@withLock
         if (call.abandoned) {
             if (failure is ResourceUseException) call.cleanupFailure = Some(clientCombined(call.cleanupFailure, failure.cleanupFailure))
             else if (!(failure is CancellationException)) call.cleanupFailure = Some(clientCombined(call.cleanupFailure, failure))
@@ -108,8 +115,32 @@ internal fun clientCallFailure(call: ClientCall): Throwable? = call.lock.withLoc
 }
 
 internal fun observeClientCallFailure(call: ClientCall): Throwable? {
-    val failure = clientCallFailure(call)
-    if (clientPresent(failure)) call.lock.withLock { call.failureObserved = true }
+    return call.lock.withLock {
+        val failure = when (call.cleanupFailure) {
+            case Some(cleanup) -> Some(clientCombined(call.failure, cleanup))
+            case None -> call.failure
+        }
+        if (clientPresent(failure)) {
+            call.failureObserved = true
+            call.observedCleanupFailure = call.cleanupFailure
+        }
+        failure
+    }
+}
+
+internal fun unobservedClientCleanup(call: ClientCall): Throwable? = call.lock.withLock {
+    newClientCleanup(call.cleanupFailure, call.observedCleanupFailure)
+}
+
+private fun newClientCleanup(failure: Throwable?, observed: Throwable?): Throwable? {
+    val error = failure ?: return None
+    if (!clientPresent(observed)) return failure
+    if (error === observed!!) return None
+    if (error is ResourceUseException) {
+        val previous = newClientCleanup(Some(error.primaryFailure), observed)
+        if (!clientPresent(previous)) return Some(error.cleanupFailure)
+        if (previous!! !== error.primaryFailure) return Some(clientCombined(previous, error.cleanupFailure))
+    }
     return failure
 }
 

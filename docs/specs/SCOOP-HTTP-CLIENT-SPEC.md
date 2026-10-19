@@ -36,7 +36,9 @@ client.close 使尚未选定失败的活动调用报告 HttpClientClosedExceptio
 
 所有者的正文通过普通 continuation 保持活动；内部 coroutineScope 的最终 completion 在其子任务真实结束后才释放该正文并通知 close 等待者。连接创建由 client 的协调任务发起，请求 producer 和回调由 execute 所在 Context 发起；不需要公开 Context 快照、访问 Job 私有 join 或创建另一种任务调度器。操作失败在所属任务正文内转为本次调用的结果，不能作为未捕获子任务失败传播给 client 的其他调用。
 
-响应头已经交付后，后台上传或收尾的失败由后续正文操作报告；如果没有继续读取，首次响应 close 报告尚未观察的失败。已经由读取交付的主失败不再作为关闭失败重复报告，实际清理失败仍保留；完成后的重复 close 幂等。
+响应头已经交付后，后台上传或收尾的失败由后续正文操作报告；如果没有继续读取，首次响应 close 报告尚未观察的失败。已经由读取交付的主失败及其包含的清理失败不在 close 重复报告，之后实际发生而尚未交付的清理失败仍保留；完成后的重复 close 幂等。
+
+取消时先关闭实际协议、codec 和缓存资源以解除在途操作，再等待活动正文读取记录其结果与清理错误，随后交付调用完成和 client.close。底层资源的 close 已经返回，不代表借用它的上层读取／commit 回调已经完成；完成通知不能越过该结果交接，也不能使读取失败后的等待形成自等待。
 
 ## 3. 请求、响应与 body
 
@@ -365,6 +367,24 @@ MemoryCookieJar 是线程安全的纯 Scoop 实现，constructor 接收 `enforce
 逐条 Set-Cookie 使用 HTTP parser 和 resolve 接纳；格式错误与正常策略拒绝忽略该条，原始响应字段仍可观察，后端和存储错误照常传播。过期的新值删除相同键；普通会话 Cookie 保留到显式清理或 jar 生命周期结束。明文来源的非 Secure Cookie 不能覆盖或遮蔽名称相同、域名作用域重叠且新路径匹配旧路径的既有 Secure Cookie，过期删除同样服从此规则。HttpOnly 是保存的元数据，本接口代表 HTTP 请求，不提供脚本读取接口。`snapshot(): Array<HttpCookie>` 返回未过期项的不可变创建顺序快照，`remove(cookie): Boolean` 按完整键删除，`clear()` 清空，`clearSession()` 删除没有 expiresAt 的项。
 
 `HttpCookieContext(site: Url? = None, isTopLevelNavigation = false)` 由调用者显式提供，通过 HttpCallOptions.cookieContext 传入。MemoryCookieJar 仅在 enforceSameSite=true 时使用它：站点由 HTTP 的 schemeful-site 工具比较有效 scheme 与可注册域，含 PRIVATE PSL；IP 或无可注册域的 DNS 名称按完整 host 匹配，端口不参与。缺少上下文或 site 时按跨站处理，未给导航信息时不假定顶层导航。安全方法仅为精确大写的 GET／HEAD／OPTIONS／TRACE；Strict、Lax／Default、None 的发送与设置复用 HTTP 现有规则。上下文固定来自调用者，每跳针对当前 URL 判断，不从 socket、重定向来源或 TLS SNI 猜造页面站点；不实现浏览器的脚本、worker、分区和 Lax-Allowing-Unsafe 例外。
+
+### 9.4 私有响应缓存
+
+HttpClientConfig.cache 默认为 None；Some(HttpCacheOptions(storage, partition = None, clock = SystemClock)) 借用指定存储，不在 client.close 清空或关闭它。未指定 partition 时，每个 client 生成自己的随机分区；显式使用相同 partition 才能跨 client 或进程重启复用。HttpCallOptions.cacheMode 默认为 Default；Bypass 完全跳过本次缓存，Reload 不直接复用新鲜条目但允许条件验证，OnlyIfCached 只接受按请求指令可用的缓存，未命中返回空的 504。请求的 only-if-cached 指令具有同样含义。HttpResponse.cacheStatus 区分 Network、Hit、Revalidated、Unsatisfied；合成 504 使用 HTTP/1.1，没有网络尝试。
+
+自动缓存仅针对无正文、无 Range、无调用者条件字段的 GET。手写 If-Match、If-None-Match、If-Modified-Since、If-Unmodified-Since 或 If-Range 由服务器解释；client 不替调用者合并条件响应。请求 no-store 同时跳过读取和写入，no-cache 和未给 Cache-Control 时的 Pragma: no-cache 要求验证。非法或互相矛盾的缓存控制按不能直接复用处理，不使原本有效的网络响应失败。带 Authorization 的响应可进入私有缓存，private 不排除存储；共享缓存指令 s-maxage／proxy-revalidate 不改变本地私有缓存的新鲜度。Vary: *、no-store、206、304 和 Content-Range 不作为完整表示存入。
+
+键由分区、规范 origin 加实际已编码 path／query，以及身份摘要组成；不包含 fragment／userinfo，不重排 query。身份摘要区分实际 Cookie、Authorization 和本地 TLS 叶证书。内建 Digest 使用稳定的基础 H(A1) 及算法／保护空间，避免 nonce／nc 的正常变化使同一身份无法命中；手写认证字段按实际字节区分。请求凭据与请求 Cookie 原文不写入缓存元数据；响应字段仍保留原始值，Vary 保存字段名和有序、带长度分隔的字段值 SHA-256，包括缺失与空字段的区别。请求字段包含自动生成的 Accept-Encoding、Content-Length 与有效 Host；代理凭据不作为源站身份。
+
+新鲜度使用 RFC 9111 的 apparent age、Age、响应延迟和驻留时间，响应优先 max-age，其次 Expires；没有显式期限且状态允许启发式缓存时，采用 Date 与 Last-Modified 间隔的十分之一，至多一天。缺少 Date 时用收到响应的时刻补充；无效／重复日期、无效年龄及重复／无效期限不能产生新鲜条目。多条 Age 或列表使用 HTTP 库按 RFC 9111 选取的首值。请求 max-age／min-fresh／max-stale 缩小或明确放宽可接受范围，no-cache／must-revalidate 不允许借 max-stale 绕过验证。命中响应更新 Age，保留存储的实际协议版本、状态、表示字段与 trailer。
+
+过期条目优先使用 ETag／If-None-Match，否则使用 Last-Modified／If-Modified-Since。304 先按真实网络响应完成认证确认，再将其端到端字段合入旧头部；缺少 Date 时使用本次接收时刻，Age 重新计算，不将旧 Set-Cookie 再交给 jar。验证响应的长度、编码或已有 ETag 与原表示不相容时，放弃合并并进行一次不使用缓存条件的正常请求，不把不同表示拼接。新的 no-store 或 Vary: * 使旧条目失效。只有最终交付的完整表示才提交更新；中途关闭可以保留旧的、仍需验证的完整条目。成功的非安全方法使当前分区的目标 URL 及同 origin 的 Location／Content-Location 失效；成功 HEAD 保守地使相应 GET 失效。
+
+HttpCache 的 suspend lookup(HttpCacheRequest)、begin(HttpCacheRecord) 和 invalidate(partition, url) 分别返回可选 HttpCacheSnapshot、可选 HttpCacheWriter 和 Unit。request 保存 key 与字段快照；record 保存 key、头部、发送／接收时刻及 Vary 摘要，fromResponse 工厂生成字段摘要和可存储头部。lookup 返回匹配的完整表示或 None；snapshot 拥有独立 body、bodyLength 和 trailer，关闭后释放读取资源。writer 是 AsyncByteSink／AsyncCloseable，commit(trailers) 在完整写入后原子发布，close 只清理，不隐式提交；已知 Content-Length 必须等于实际表示长度。缓存容量不足时 begin 可返回 None，或 writer 消费输入而放弃存储。读取、写入、commit 与 close 均可挂起，在调用的 Context、total 和取消边界内执行；实际存储错误向当前调用传播，不取得网络重试资格。
+
+MemoryHttpCache 的 maxBytes 默认 32 MiB、maxEntryBytes 默认 8 MiB、maxEntries 默认 1024；容量均必须为正，按正文大小计数，按最近访问顺序淘汰。DiskHttpCache.open(directory, maxBytes = 256 MiB, maxEntryBytes = 64 MiB, maxEntries = 1024, maxMetadataBytes = 1 MiB, syncOnCommit = false) 使用专用目录，按包含元数据的文件大小计总容量；maxEntryBytes 约束正文，maxMetadataBytes 约束单条元数据，超限放弃存储。两者提供 entryCount／sizeBytes，以及清空全部条目的 clear；invalidate 和 clear 同时阻止此前未提交的相应 writer 发布。快照在条目替换、淘汰或清空后仍可读完。容量统计索引中的完整条目，在途临时写入与已借出的旧快照按各自生命周期释放。单个实例支持并发任务和多个 client，共享磁盘目录的多个同时活动实例不属于该工厂的协调合同。
+
+磁盘条目是正文、带长度元数据和固定尾部组成的单文件；open 读取边界明确的元数据重建索引并清理本实例目录的遗留临时文件，格式错误报告 HttpCacheFormatException。写入同目录临时文件，完整结束后按选项 sync、关闭并改名为独立条目，再发布内存索引。旧文件在最后一个快照关闭后删除；取消和失败通过 core.nonCancellableScope 等待实际异步文件关闭、删除，不开启脱离调用的后台任务。提交后的旧文件清理失败仍报告真实错误，但已发布的新条目始终是完整表示。磁盘缓存不进行文件来源审计，也不与编译缓存的更新判断共享验证政策。
 
 ## 10. SSE 与 WebSocket
 

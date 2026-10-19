@@ -44,6 +44,15 @@ private suspend fun runClientCall(call: ClientCall) {
             }
             catch (error: Throwable) { failClientCall(call, error, true) }
             requireClientCall(call)
+            val cached = try { prepareClientCache(call) }
+                catch (error: Throwable) { failClientCall(call, error, true); None }
+            requireClientCall(call)
+            if (clientPresent(cached)) {
+                call.lock.withLock { call.uploadDone = true; call.uploadComplete = true }
+                deliverClientResponse(call, cached!!)
+                awaitClientCallEnd(call)
+                return@coroutineScope
+            }
             startClientDeadline(call, scope, HttpTimeoutPhase.PoolAcquire, call.timeouts.poolAcquire)
             val connection = when (awaitClientConnection(call)) {
                 case Connected(_connection) -> _connection
@@ -53,8 +62,9 @@ private suspend fun runClientCall(call: ClientCall) {
                     return@coroutineScope
                 }
             }
+            markClientCacheSent(call)
             val exchange = openClientExchange(call, connection)
-            call.lock.withLock { call.exchange = Some(exchange) }
+            call.lock.withLock { call.exchange = Some(exchange); call.responseStream = Some<ClientResponseStream>(exchange) }
             val headersDeadline = startClientDeadline(call, scope, HttpTimeoutPhase.ResponseHeaders, call.timeouts.responseHeaders)
             val uploading = scope.launch suspend { sendClientBody(call, exchange) }
             call.lock.withLock { call.upload = Some(uploading) }
@@ -69,25 +79,14 @@ private suspend fun runClientCall(call: ClientCall) {
                 requireClientCall(call)
                 finishClientDeadline(headersDeadline)
                 requireClientCall(call)
+                markClientCacheReceived(call)
                 prepareClientDigestResponse(call, head)
                 saveClientCookies(call, head)
-                val followUp = planClientResponseFollowUp(call, head)
-                if (clientPresent(followUp)) {
-                    settleClientContinue(call, false)
-                    selectClientFollowUp(call, followUp!!)
-                    break
-                }
-                val response = HttpResponse(call, head)
-                call.lock.withLock { call.responseInput = Some(response.input) }
-                settleClientContinue(call, false)
-                val result = call.lock.withLock {
-                    requireClientCallUnlocked(call)
-                    call.stopUpload = !call.request.options.duplex
-                    val saved = call.result!!
-                    call.result = None
-                    saved
-                }
-                result.resume(ClientCallResult.Response(response))
+                val prepared = try { prepareClientCacheResponse(call, head) }
+                    catch (error: Throwable) { failClientCall(call, error, true); None }
+                requireClientCall(call)
+                if (clientPresent(prepared)) deliverClientResponse(call, prepared!!)
+                else selectClientFollowUp(call, ClientFollowUp.CacheRefresh)
                 break
             }
             awaitClientCallEnd(call)
@@ -99,6 +98,25 @@ private suspend fun runClientCall(call: ClientCall) {
             finally { stopClientDeadlines(call) }
         }
     }
+}
+
+private suspend fun deliverClientResponse(call: ClientCall, head: HttpResponseHead) {
+    val followUp = if (call.cacheStatus == HttpCacheStatus.Unsatisfied) None else planClientResponseFollowUp(call, head)
+    settleClientContinue(call, false)
+    if (clientPresent(followUp)) { selectClientFollowUp(call, followUp!!); return }
+    try { beginClientCacheResponse(call, head) }
+    catch (error: Throwable) { failClientCall(call, error, true) }
+    requireClientCall(call)
+    val response = HttpResponse(call, head)
+    call.lock.withLock { call.responseInput = Some(response.input) }
+    val result = call.lock.withLock {
+        requireClientCallUnlocked(call)
+        call.stopUpload = !call.request.options.duplex
+        val saved = call.result!!
+        call.result = None
+        saved
+    }
+    result.resume(ClientCallResult.Response(response))
 }
 
 private fun selectClientFollowUp(call: ClientCall, followUp: ClientFollowUp) {
@@ -120,11 +138,14 @@ private suspend fun cleanupClientExchange(call: ClientCall) {
         try { input!!.closeCodecs() }
         catch (error: Throwable) { call.lock.withLock { call.cleanupFailure = Some(clientCombined(call.cleanupFailure, error)) } }
     }
+    try { cleanupClientCache(call) }
+    catch (error: Throwable) { call.lock.withLock { call.cleanupFailure = Some(clientCombined(call.cleanupFailure, error)) } }
     val exchange = call.lock.withLock { call.exchange }
     if (clientPresent(exchange)) {
         try { exchange!!.close() }
         catch (error: Throwable) { call.lock.withLock { call.cleanupFailure = Some(clientCombined(call.cleanupFailure, error)) } }
     }
+    if (clientPresent(input)) input!!.awaitReadCompletion()
 }
 
 private fun finishUnstartedClientCall(call: ClientCall, error: Throwable) {

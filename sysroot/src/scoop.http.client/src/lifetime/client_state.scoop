@@ -4,7 +4,7 @@ import scoop.asyncio.EventLoop
 import scoop.collections.ArrayDeque
 import scoop.tls.TlsClientContext
 
-internal class ClientState(val loop: EventLoop, val config: HttpClientConfig, val tls: TlsClientContext) {
+internal class ClientState(val loop: EventLoop, val config: HttpClientConfig, val tls: TlsClientContext, val cachePartition: String?) {
     val lock: ClientLock = ClientLock()
     val calls: ArrayList<ClientCall> = ArrayList<ClientCall>()
     val retryWaits: ArrayList<Job> = ArrayList<Job>()

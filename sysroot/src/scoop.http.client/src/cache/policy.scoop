@@ -1,0 +1,75 @@
+package scoop.http.client
+
+import scoop.http.*
+import scoop.time.Duration
+import scoop.time.Instant
+
+internal class ClientCachePolicy(val record: HttpCacheRecord) {
+    val control: HttpCacheControl = HttpCacheControl.parseFields(record.head.fields)
+    private val date: Instant = record.responseDate
+    private val delay: Duration = clientCacheElapsed(record.receivedAt, record.sentAt)
+    private val apparent: Duration = clientCacheElapsed(record.receivedAt, date)
+    private val wireAge: Duration = Duration.seconds(HttpAge.parseFields(record.head.fields)?.seconds ?: 0L)
+    private val corrected: Duration = clientCacheAdd(wireAge, delay)
+    private val initialAge: Duration = if (apparent > corrected) apparent else corrected
+    val lifetime: Duration get() = cacheLifetime()
+
+    fun age(now: Instant): Duration = clientCacheAdd(initialAge, clientCacheElapsed(now, record.receivedAt))
+
+    fun canServe(request: HttpCacheControl, mode: HttpCacheMode, now: Instant): Boolean {
+        if (mode == HttpCacheMode.Reload || control.contains("no-store") || control.contains("no-cache") ||
+            request.contains("no-cache") || HttpVary.parseFields(record.head.fields).isWildcard) return false
+        if (clientCacheHas(record.head.fields, "Date") && !clientPresent(record.parsedDate))
+            return false
+        var freshness = lifetime
+        val maximum = cacheDelta(request, "max-age")
+        if (clientPresent(maximum) && maximum!! < freshness) freshness = maximum!!
+        val current = clientCacheAdd(age(now), cacheDelta(request, "min-fresh") ?: Duration.ZERO)
+        if (current < freshness) return true
+        if (control.contains("must-revalidate")) return false
+        val stale = request.single("max-stale") ?: return false
+        if (!clientPresent(stale.value)) return true
+        return current <= clientCacheAdd(freshness, Duration.seconds(stale.deltaSeconds()))
+    }
+
+    private fun cacheLifetime(): Duration {
+        val maximum = cacheDelta(control, "max-age")
+        if (clientPresent(maximum)) return maximum!!
+        if (clientCacheHas(record.head.fields, "Expires")) {
+            val expires = clientCacheDate(record.head.fields, "Expires", record.receivedAt) ?: return Duration.ZERO
+            return clientCacheElapsed(expires, date)
+        }
+        if (!clientCacheDefaultStatus(record.head.status)) return Duration.ZERO
+        val modified = clientCacheDate(record.head.fields, "Last-Modified", record.receivedAt) ?: return Duration.ZERO
+        val heuristic = clientCacheElapsed(date, modified) / 10L
+        val limit = Duration.days(1L)
+        return if (heuristic > limit) limit else heuristic
+    }
+}
+
+private fun cacheDelta(control: HttpCacheControl, name: String): Duration? =
+    when (control.single(name)) { case Some(value) -> Some(Duration.seconds(value.deltaSeconds())); case None -> None }
+
+internal fun clientCacheElapsed(later: Instant, earlier: Instant): Duration {
+    try { return if (later > earlier) later - earlier else Duration.ZERO }
+    catch (_: ArithmeticException) { return Duration.seconds(Long.MAX_VALUE, 999999999L) }
+}
+
+internal fun clientCacheAdd(first: Duration, second: Duration): Duration {
+    try { return first + second }
+    catch (_: ArithmeticException) { return Duration.seconds(Long.MAX_VALUE, 999999999L) }
+}
+
+internal fun clientCacheDefaultStatus(status: UInt): Boolean =
+    status == 200U || status == 203U || status == 204U || status == 300U || status == 301U || status == 308U ||
+        status == 404U || status == 405U || status == 410U || status == 414U || status == 501U
+
+internal fun clientMayStoreCache(request: HttpRequest, head: HttpResponseHead): Boolean {
+    if (request.method != "GET" || request.contentLength != Some(0L) || head.status < 200U || head.status > 599U || head.status == 206U ||
+        head.status == 304U || clientCacheHas(request.fields, "Range") || clientCacheHas(head.fields, "Content-Range")) return false
+    val requested = HttpCacheControl.parseFields(request.fields)
+    val control = HttpCacheControl.parseFields(head.fields)
+    if (requested.contains("no-store") || control.contains("no-store") || HttpVary.parseFields(head.fields).isWildcard) return false
+    return clientCacheDefaultStatus(head.status) || control.contains("max-age") || control.contains("public") ||
+        control.contains("private") || clientCacheHas(head.fields, "Expires")
+}

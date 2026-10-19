@@ -1,0 +1,78 @@
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.client.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+internal class CacheProbe(val selected: String, val cleanupError: Boolean) {
+    val entered: CacheGate = CacheGate()
+    val cancelled: CacheGate = CacheGate()
+    val release: CacheGate = CacheGate()
+    val cleaning: CacheGate = CacheGate()
+    val finish: CacheGate = CacheGate()
+    val finished: CacheGate = CacheGate()
+    val cleaned: AtomicBoolean = AtomicBoolean(false)
+    val active: AtomicBoolean = AtomicBoolean(false)
+    val cleanup: Throwable = Throwable()
+    suspend fun run(stage: String) {
+        if (stage != selected) return
+        active.store(true)
+        assertEquals("cache-context", cacheMarker())
+        val job = currentJobOrNone()!!
+        val registration = job.invokeOnCancellation { _ -> cancelled.signal() }
+        try { entered.signal(); release.await(); job.ensureActive() }
+        finally {
+            cleaning.signal(); finish.await()
+            cleaned.store(true); registration.dispose(); finished.signal()
+            if (cleanupError) throw ResourceUseException(CancellationException(), cleanup)
+        }
+    }
+    suspend fun awaitFinished() { if (active.load()) finished.await() }
+}
+
+internal class ProbedCache(val probe: CacheProbe, val storage: MemoryHttpCache = MemoryHttpCache()) : HttpCache {
+    public override suspend fun lookup(request: HttpCacheRequest): HttpCacheSnapshot? { probe.run("lookup"); return storage.lookup(request) }
+    public override suspend fun begin(record: HttpCacheRecord): HttpCacheWriter? {
+        probe.run("begin")
+        val writer = storage.begin(record) ?: return None
+        return Some<HttpCacheWriter>(ProbedWriter(writer, probe))
+    }
+    public override suspend fun invalidate(partition: String, url: String) { storage.invalidate(partition, url) }
+}
+
+private class ProbedWriter(val delegate: HttpCacheWriter, val probe: CacheProbe) : HttpCacheWriter {
+    public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long {
+        probe.run("write")
+        return delegate.writeFrom(buffer, count)
+    }
+    public override suspend fun flush() { delegate.flush() }
+    public override suspend fun commit(trailers: List<HttpField>) { probe.run("commit"); delegate.commit(trailers) }
+    public override suspend fun close() {
+        nonCancellableScope<Unit> suspend { _ -> probe.awaitFinished(); delegate.close() }
+    }
+}
+
+internal class FailingCache(val stage: String, val failure: Throwable) : HttpCache {
+    val storage: MemoryHttpCache = MemoryHttpCache()
+    var lookups: Long = 0L
+    public override suspend fun lookup(request: HttpCacheRequest): HttpCacheSnapshot? {
+        lookups += 1L
+        if (stage == "lookup") throw failure
+        return storage.lookup(request)
+    }
+    public override suspend fun begin(record: HttpCacheRecord): HttpCacheWriter? {
+        if (stage == "begin") throw failure
+        return Some<HttpCacheWriter>(FailingWriter(storage.begin(record)!!, stage, failure))
+    }
+    public override suspend fun invalidate(partition: String, url: String) { storage.invalidate(partition, url) }
+}
+
+private class FailingWriter(val delegate: HttpCacheWriter, val stage: String, val failure: Throwable) : HttpCacheWriter {
+    public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long {
+        if (stage == "write") throw failure
+        return delegate.writeFrom(buffer, count)
+    }
+    public override suspend fun flush() { delegate.flush() }
+    public override suspend fun commit(trailers: List<HttpField>) { if (stage == "commit") throw failure; delegate.commit(trailers) }
+    public override suspend fun close() { delegate.close() }
+}

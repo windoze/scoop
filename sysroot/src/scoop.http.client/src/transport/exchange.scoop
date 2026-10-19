@@ -3,10 +3,13 @@ package scoop.http.client
 import scoop.asyncio.*
 import scoop.http.*
 
-internal interface ClientExchange : AsyncByteStream, AsyncCloseable {
-    public val version: HttpVersion
+internal interface ClientResponseStream : AsyncByteSource {
     public val isReadComplete: Boolean
     public val trailers: Array<HttpField>?
+}
+
+internal interface ClientExchange : ClientResponseStream, AsyncByteStream, AsyncCloseable {
+    public val version: HttpVersion
     public suspend fun receiveResponse(): HttpResponseHead
     public suspend fun finish(trailers: List<HttpField>)
 }
@@ -43,16 +46,7 @@ internal suspend fun openClientExchange(call: ClientCall, connection: ClientConn
 
 private fun clientRequestHead(call: ClientCall, version: HttpVersion): HttpRequestHead {
     val request = call.request
-    val config = call.client.config
-    val fields = ArrayList<HttpField>()
-    for (field in request.fields) if (!field.hasName("Content-Length".toByteArray())) fields.add(field)
-    addClientAcceptEncoding(fields, request, config)
-    if (version == HttpVersion.Http2 || request.body.trailerNames.size == 0L) {
-        when (request.contentLength) {
-            case Some(length) -> fields.add(HttpField("Content-Length".toByteArray(), length.toString().toByteArray()))
-            case None -> {}
-        }
-    }
+    val fields = clientRequestFields(call, version)
     when (call.route) {
         case HttpForward(endpoint) -> {
             for (field in clientProxyAuthorization(call, endpoint)) fields.add(field)
@@ -67,6 +61,20 @@ private fun clientRequestHead(call: ClientCall, version: HttpVersion): HttpReque
         else if (version == HttpVersion.Http2) HttpRequestTarget.Http2(request.origin.scheme.toByteArray(), authority, targetBytes)
         else HttpRequestTarget.Http1(targetBytes)
     return HttpRequestHead(version, request.methodBytes, target, fields)
+}
+
+internal fun clientRequestFields(call: ClientCall, version: HttpVersion): ArrayList<HttpField> {
+    val request = call.request
+    val fields = ArrayList<HttpField>()
+    for (field in request.fields) if (!field.hasName("Content-Length".toByteArray())) fields.add(field)
+    addClientAcceptEncoding(fields, request, call.client.config)
+    if (version == HttpVersion.Http2 || request.body.trailerNames.size == 0L) {
+        when (request.contentLength) {
+            case Some(length) -> fields.add(HttpField("Content-Length".toByteArray(), length.toString().toByteArray()))
+            case None -> {}
+        }
+    }
+    return fields
 }
 
 internal fun clientRequestTargetBytes(call: ClientCall): Array<Byte> {

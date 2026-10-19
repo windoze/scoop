@@ -33,7 +33,8 @@ public class HttpClientConfig public constructor(
     public val retries: HttpRetryOptions = HttpRetryOptions(),
     public val authentication: HttpAuthenticationOptions = HttpAuthenticationOptions(),
     public val proxy: HttpProxySelector = HttpProxySelector.direct(),
-    public val cookieJar: CookieJar? = None
+    public val cookieJar: CookieJar? = None,
+    public val cache: HttpCacheOptions? = None
 ) {
     init {
         if (http1RequestVersion == HttpVersion.Http2)
@@ -57,7 +58,8 @@ public class HttpCallOptions public constructor(
     public val authentication: HttpAuthenticationOptions? = None,
     public val proxy: HttpProxySelector? = None,
     public val useCookies: Boolean = true,
-    public val cookieContext: HttpCookieContext? = None
+    public val cookieContext: HttpCookieContext? = None,
+    public val cacheMode: HttpCacheMode = HttpCacheMode.Default
 ) {
     init {
         if (continueWait < Duration.ZERO) throw IllegalArgumentException(Some("negative Continue wait duration"))

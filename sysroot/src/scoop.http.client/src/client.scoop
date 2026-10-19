@@ -10,6 +10,7 @@ public class HttpClient internal constructor(internal val state: ClientState) : 
             val loop = currentEventLoop()
             val caller = clientJob(loop, true)
             scope.job.ensureActive()
+            val cachePartition = clientCachePartition(config)
             val tls = config.tls
             val alpn: Array<Array<Byte>> = when (config.versionPolicy) {
                 case Auto -> ["h2".toByteArray(), "http/1.1".toByteArray()]
@@ -17,7 +18,7 @@ public class HttpClient internal constructor(internal val state: ClientState) : 
                 case Http2Only -> ["h2".toByteArray()]
             }
             val context = openTlsClientContext(tls.trust, TlsOptions(tls.minimum, tls.maximum, alpn), tls.identity)
-            val state = ClientState(loop, config, context)
+            val state = ClientState(loop, config, context, cachePartition)
             try {
                 startClientOwner(state, scope)
                 caller.ensureActive()

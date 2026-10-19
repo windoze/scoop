@@ -16,12 +16,13 @@ internal class ClientRequestSequence(config: HttpClientConfig, request: HttpRequ
     val history: ArrayList<HttpRedirect> = ArrayList<HttpRedirect>()
     var retryCount: Long = 0L
     var unprocessedRetryUsed: Boolean = false
+    var cacheRefresh: Boolean = false
     var requestBodyBytes: Long = 0L
     var encodedResponseBodyBytes: Long = 0L
     var responseBodyBytes: Long = 0L
 }
 
-internal enum ClientFollowUp { Redirect(ClientRedirect), Retry(Duration), Authenticate(ClientAuthenticationSession) }
+internal enum ClientFollowUp { Redirect(ClientRedirect), Retry(Duration), Authenticate(ClientAuthenticationSession), CacheRefresh }
 internal enum ClientCallResult { Response(HttpResponse), FollowUp(ClientFollowUp), Failed(ClientIoFailure, Boolean) }
 
 internal suspend fun executeClientRequest(state: ClientState, request: HttpRequest): HttpResponse {
@@ -46,6 +47,7 @@ internal suspend fun executeClientRequest(state: ClientState, request: HttpReque
                 if (session.scope.isProxy) sequence.proxyAuthenticationCount += 1L
                 else sequence.authenticationCount += 1L
             }
+            case FollowUp(ClientFollowUp.CacheRefresh) -> sequence.cacheRefresh = true
             case Failed(failure, bodyStarted) -> {
                 val delay = planClientFailureRetry(sequence, current, failure, bodyStarted) ?: throw failure.cause
                 awaitClientRetry(state, caller, sequence, delay)

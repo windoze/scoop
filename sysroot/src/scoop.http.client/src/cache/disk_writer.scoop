@@ -1,0 +1,121 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.bytes.ByteOrder
+import scoop.crypto.secureRandomBytes
+import scoop.http.*
+import scoop.platform.fs.Path
+import scoop.platform.memory.NativeByteBuffer
+import scoop.text.toHexString
+
+internal class ClientDiskCacheWriter(val owner: DiskHttpCache, val record: HttpCacheRecord, val limit: Long) : HttpCacheWriter {
+    val discard: AtomicBoolean = AtomicBoolean(false)
+    val published: AtomicBoolean = AtomicBoolean(false)
+    private val lock: ClientLock = ClientLock()
+    private val closing: ClientCacheClosure = ClientCacheClosure()
+    private var stopped: Boolean = false
+    private var sealed: Boolean = false
+    private var busy: Boolean = false
+    private var size: Long = 0L
+    private var temporary: TemporaryFile? = None
+    private var destination: Path? = None
+    private val waiters: ArrayList<Continuation<Unit>> = ArrayList<Continuation<Unit>>()
+
+    private fun enter(commit: Boolean = false) { lock.withLock {
+        if (stopped || sealed) throw IoClosedException()
+        if (busy) throw IllegalStateException(Some("cache writer operation is active"))
+        busy = true
+        if (commit) sealed = true
+        Unit
+    } }
+    private fun leave() {
+        val waiting = lock.withLock { busy = false; val saved = waiters.toArray(); waiters.clear(); saved }
+        for (waiter in waiting) waiter.resume(Unit)
+    }
+    private suspend fun file(): TemporaryFile {
+        val existing = lock.withLock { temporary }
+        if (clientPresent(existing)) return existing!!
+        val created = currentEventLoop().createTempFile(Some(owner.directory), "pending-http-cache-")
+        lock.withLock { temporary = Some(created) }
+        if (lock.withLock { stopped }) throw IoClosedException()
+        return created
+    }
+
+    public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long {
+        if (count < 0L) throw IllegalArgumentException(Some("negative cache write count"))
+        if (count > buffer.readableBytes) throw IndexOutOfBoundsException()
+        enter()
+        try {
+            if (count > limit - size) discard.store(true)
+            if (discard.load()) { buffer.skip(count); return count }
+            if (count == 0L) return 0L
+            val output = file().file
+            val before = buffer.readPosition
+            try { return output.writeFrom(buffer, count) }
+            finally { size += buffer.readPosition - before }
+        } finally { leave() }
+    }
+
+    public override suspend fun flush() {
+        enter()
+        try { lock.withLock { temporary }?.file?.flush() }
+        finally { leave() }
+    }
+
+    public override suspend fun commit(trailers: List<HttpField>) {
+        enter(true)
+        try {
+            if (discard.load()) return
+            val expected = parseHttpContentLength(record.head.fields)
+            if (clientPresent(expected) && expected!! != size)
+                throw IllegalStateException(Some("cached body length does not match Content-Length"))
+            val metadata = try { encodeClientCacheMetadata(record, trailers, owner.maxMetadataBytes) }
+                catch (_: ClientCacheMetadataLimit) { discard.store(true); return }
+            if (owner.maxBytes < 16L || metadata.size > owner.maxBytes - 16L || size > owner.maxBytes - 16L - metadata.size) {
+                discard.store(true); return
+            }
+            val output = file()
+            NativeByteBuffer.allocate(metadata.size + 16L).use suspend { buffer ->
+                buffer.writeBytes(metadata)
+                buffer.writeUInt64(clientCacheFileMagic, ByteOrder.BigEndian)
+                buffer.writeInt64(metadata.size, ByteOrder.BigEndian)
+                output.file.writeFully(buffer)
+            }
+            if (owner.syncOnCommit) output.file.syncAll()
+            output.close()
+            ensureActive()
+            if (discard.load()) return
+            val path = owner.directory.resolve(Path.fromString("entry-" + secureRandomBytes(16L).toHexString() + ".scoop-http-cache"))
+            lock.withLock { destination = Some(path) }
+            currentEventLoop().moveFile(output.path, path)
+            ensureActive()
+            owner.publish(ClientDiskCacheEntry(path, record, size, size + metadata.size + 16L, trailers.toArray()), this)
+        } finally { leave() }
+    }
+
+    public override suspend fun close() {
+        closing.close(suspend {
+            val active = lock.withLock { stopped = true; temporary }
+            if (!published.load()) discard.store(true)
+            var failure: Throwable? = None
+            try { active?.close() }
+            catch (error: Throwable) { failure = Some(error) }
+            suspendCoroutine<Unit> { continuation ->
+                val done = lock.withLock { if (busy) { waiters.add(continuation); false } else true }
+                if (done) continuation.resume(Unit)
+            }
+            val (created, target) = lock.withLock { (temporary, destination) }
+            try { if (clientPresent(created) && (!clientPresent(active) || created!!.file !== active!!.file)) created!!.close() }
+            catch (error: Throwable) { failure = Some(clientCombined(failure, error)) }
+            if (!published.load()) {
+                val paths = ArrayList<Path>()
+                if (clientPresent(created)) paths.add(created!!.path)
+                if (clientPresent(target)) paths.add(target!!)
+                try { deleteClientCacheFiles(paths) }
+                catch (error: Throwable) { failure = Some(clientCombined(failure, error)) }
+            }
+            owner.abandon(this)
+            if (clientPresent(failure)) throw failure!!
+        })
+    }
+}
