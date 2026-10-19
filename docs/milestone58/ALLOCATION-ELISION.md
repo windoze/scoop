@@ -142,18 +142,19 @@ LLVM 的 [CoroElide](https://llvm.org/docs/Coroutines.html#coroelide) 面向 `ll
 | 顺序 | 最小范围 | 正向与保守保留用例 | 观察指标 |
 | --- | --- | --- | --- |
 | 1 | 单创建点局部 box 替换 | 别名／多次拆箱／原值重赋值／含引用 payload 跨移动 GC；身份、逃逸、pin、错误转换保留 | 每操作分配次数／bytes、minor 次数、kernel、代码体积 |
+| 1（同一优化循环） | forEach 等内联后的 closure 环境替换 | invoke 去虚拟化／内联后以捕获快照替换字段；循环外创建、多次调用；未知使用、identity、共享 class 的其他实例保留 | ClosureAlloc、allocated bytes、残留 TD／layout／scan 与 invoke／bridge、编译成本 |
 | 2 | 同结果类型、全部挂起点均为尾部的 completion 转交 | 一／多层包装与分支；立即／真正挂起／异常／同步恢复／跨线程；前序非尾部挂起、catch／finally／Context／返回适配反例 | 无自身 frame／adapter、包装分配 bytes、恢复与唯一完成、保留路径无回退 |
 | 3 | coroutine lowering 前的小型同步 callee 内联 | 零／一／四层；不同返回类型；带普通 GC 的同步正文；未知／递归／真正挂起保留 | frame／adapter 的静态和动态数量、allocated bytes、吞吐、编译成本；内联后新成为尾调用的组合 |
 
-普通语义 fixture 断言结果和必要诊断，少量优化专测断言目标 Box／frame 分配是否存在及精确 root 合同，不为所有案例保存完整 MIR。原有 coroutine race、moving GC、接口／泛型组合不能被只执行同步成功路径替代。
+普通语义 fixture 断言结果和必要诊断，少量优化专测断言目标 Box／ClosureAlloc／frame 分配是否存在及精确 root 合同，不为所有案例保存完整 MIR。原有 coroutine race、moving GC、接口／泛型组合不能被只执行同步成功路径替代。
 
 先补实现规范 2.19 的局部替换与 pass 职责；协程还需明确对应 lowering 的处理顺序。语言规范 8.2／11.9、Context 8.3 与运行时 GC 合同保持原语义；若发现所需模式不能保持这些语义，应缩小优化范围。此次只提出方案，未修改规范中的现行行为或增加 ABI。
 
 减少短命分配首先改善分配热路径和 GC 触发频率；删除 frame 也可能减少存活根／引用槽。**单次 full 暂停是否缩短仍取决于真实 live set**，不能把少做若干次 minor 等同于 full 的 p99 改善。应与 [GC 暂停工作量](GC-PAUSE-WORK.md) 的混合寿命负载一起验收。
 
-## 4. Devirt／inline 的交替迭代与固定点
+## 4. 内联、去虚拟化与分配消除的统一迭代
 
-2026-10-20 补充：采用有界交替迭代，比固定只执行一次 `devirt → inline → devirt` 更适合本期的局部分配消除。以下是源码复核与设计调整，没有新增性能测量或生产 pass。
+2026-10-20 补充：将 **inline、devirt、逃逸分析、堆分配消除与 closure 消除串在同一个有界优化循环中**。内联改变可见使用，分配替换又暴露新的调用目标和字段值，因此不能只迭代 devirt／inline，最后再做一次逃逸分析。以下是源码复核与设计调整，没有新增性能测量或生产 pass。
 
 ### 4.1 现有内联已经迭代，但没有与 devirt 交错
 
@@ -161,11 +162,13 @@ LLVM 的 [CoroElide](https://llvm.org/docs/Coroutines.html#coroelide) 面向 `ll
 
 但该内部循环只接受直接目标，不执行去虚拟化。典型机会是 caller 把一个具体 class 作为 interface 实参传给小型 helper：helper 内原本不知道 receiver 的实际类型，内联进 caller 后才可证明其目标。现有最后一次 devirt 会将该调用改成 direct，随后却不再内联它；目标正文中的字段、值 receiver 或拆箱使用也就无法继续暴露。
 
-反复调用 devirt 而不改变 IR 通常不会多得到事实，因为单次类型传播已经求解到稳定。产生新机会的是**内联、常量／CFG 化简或标量替换改变了输入**：下一次 devirt 可解析新的目标，下一次 inline 又暴露新的局部操作。仅增加轮次仍不会凭空消除 Box，需要保留本期的 payload 替换消费者。
+反复调用 devirt 而不改变 IR 通常不会多得到事实，因为单次类型传播已经求解到稳定。产生新机会的是**内联、常量／CFG 化简或标量替换改变了输入**：下一次 devirt 可解析新的目标，下一次 inline 又暴露新的局部操作。仅增加轮次仍不会凭空消除 Box／ClosureAlloc，需要本期的 payload／capture 替换消费者。
+
+forEach 是直接例子：在独立的泛型正文中 action 只是函数参数，尚不知道本次调用传入哪一个 closure；caller 中先内联 forEach，随后才能用具体 closure 类型解析 invoke，并内联 lambda 正文。函数内逃逸分析在此之前把 action 实参保守保留即可，调用展开后重算事实，不必先建立跨过程参数分析。内联的是已知调用点的正文，不能把一个函数值的创建本身当作调用展开。
 
 ### 4.2 固定点存在于什么意义上
 
-设一次普通优化组合为 `F = 局部分配消除 ∘ 化简 ∘ 内联 ∘ 去虚拟化`。若执行后没有实际改写，便得到本组规则及当前策略下的固定点；不同执行顺序或内联选择可能到达不同结果，它不是全局最优代码。启发式带有剩余增长额度／展开历史时，F 的状态还包括这些信息，不能只比较 MIR 却在下一轮重新初始化策略状态。
+设一次普通优化改写组合为 `F = 化简 ∘ 局部分配消除 ∘ 化简 ∘ 内联 ∘ 去虚拟化`，其中分配消除基于本轮最新正文的来源／逃逸／使用分析，包含 box 和 closure 两个消费者。若执行后没有实际改写，便得到本组规则及当前策略下的固定点；不同执行顺序或内联选择可能到达不同结果，它不是全局最优代码。启发式带有剩余增长额度／展开历史时，F 的状态还包括这些信息，不能只比较 MIR 却在下一轮重新初始化策略状态。
 
 要区分两类固定点：
 
@@ -181,17 +184,35 @@ LLVM 的 [DevirtSCCRepeatedPass](https://llvm.org/doxygen/classllvm_1_1DevirtSCC
 普通 MIR 优化阶段可先对照最多 1／2／3／4 轮，以 3 轮作为待验证的起始选择；不是已经确定的性能最优值。每轮大致为：
 
 ```text
+affected_functions = optimizable_functions
 for round in 0 .. max_rounds:
     changed = devirtualize(affected_functions)
     changed |= inline(affected_functions, existing_inline_state)
     changed |= simplify(affected_functions)
-    changed |= eliminate_local_boxes(affected_functions)
+    facts = analyze_allocation_uses(affected_functions)
+    rewrites = plan_box_and_closure_elision(facts)
+    changed |= apply_local_elision(rewrites)
     changed |= simplify(affected_functions)
     if not changed:
         break
+    affected_functions = changed_and_dependent_callers(changed)
 ```
 
+逃逸分析是为当前改写提供事实的分析步骤；堆分配消除与 closure 消除是实际消费者，复用同一来源／别名检查，分别替换 payload 与捕获字段。这里的计划只是函数内一次改写所需的私有数据，不引入新的 IR 或通用 pass 框架；没有可替换使用时，即使 NoEscape 也保留对象。首版通过值替换删掉对象，不把所有 NoEscape 对象自动改成栈对象。
+
+循环从 devirt 或 inline 开始只是调度选择：已有直接 forEach 可以在第一轮 inline，新暴露的 closure 调用在下一轮 devirt／inline。下表是可能需要多轮的依赖关系示意，不要求实现机械地每轮只做一步：
+
+| 轮次 | 改变的输入与新机会 |
+| --- | --- |
+| 1 | forEach 内联到 caller，action 关联到具体 closure；invoke 调用仍在时保守保留环境 |
+| 2 | 具体 invoke 去虚拟化并内联，捕获读取可替换，closure 分配和别名消失 |
+| 3 | 某个 box 原先只因被 closure 捕获而保留；该 sink 消失后重新分析，剩余使用若全是可替换的拆箱／检查，就继续删除 box |
+
+内联也可能暴露真实字段存储或未知调用，使分配仍需保留；不能把“高阶函数已经内联”当作不逃逸证明。旧 Escape／NoEscape 结论、candidate ID 和改写位置只对应分析时的正文；一次替换改变使用关系后，不用旧事实继续推导新的删除。首版先应用无冲突的已确认改写，新增机会交给下一轮，或在确有需要时局部重算。
+
 各步返回实际发生改写的函数集合即可，不能把“运行过分析”算作 changed，也不靠序列化／哈希整份 MIR 检测变化。新直接目标、内联与可达性变化使相关分析失效；更新被修改函数，callee 正文变化若影响调用点选择则通知其实际 caller。没有变化的函数不重复求解，不另建通用查询框架。
+
+最后一轮若仍有改写但达到上限，则保留剩余调用与分配，记录为达到限制；不能使用已失效事实追加未经分析的消除。普通迭代结束后，再按实际引用清理本次消除留下的私有 closure 支持产物，然后进入 LIR roots／布局生成，详见[实例与支持产物的区别](ESCAPE-ANALYSIS.md#52-分开检查实例分配与残留支持产物)。
 
 不能在外面简单循环调用当前 `inline::run()`：它每次克隆整份函数表、重新设定 caller cost／remaining，并将所有块的 depth 置零，会绕过原来的累计增长与嵌套限制。应在**同一个内联优化阶段**中保留原始 cost、已使用增长额度与展开历史；化简删掉代码不自动返还额度。第一版可复用该阶段入口的稳定模板，在 caller 内交错去虚拟化／内联；若以后消费更新过的 callee 正文，需要连同其展开历史处理，不能把深层已展开正文计为一次深度。
 
@@ -209,6 +230,6 @@ for round in 0 .. max_rounds:
 
 ### 4.5 新增验收
 
-增加一组需要交替才能消除调用的真实源码：interface helper 内联后暴露具体 receiver、两级间接调用链、拆箱／类型检查化简后出现新的机会；检查第二／三轮是否实际减少剩余调用与分配。另覆盖无变化早停、去虚拟化后显露递归、跨轮增长／深度不重置，以及参数副作用只执行一次。
+增加一组需要交替才能消除调用的真实源码：interface helper 内联后暴露具体 receiver、两级间接调用链、拆箱／类型检查化简后出现新的机会，以及 forEach 内联 → invoke 展开 → closure 消除 → 捕获 box 再消除。检查第二／三轮是否实际减少剩余调用与分配，并验证高阶函数真实保存 action 的反例。另覆盖无变化早停、去虚拟化后显露递归、跨轮增长／深度不重置，以及参数副作用只执行一次。
 
 协程使用零／一／四层同步包装、普通 GC 副作用、动态目标、递归和真正挂起反例，分别观察前置迭代消失的 site 与最终 frame／adapter。比较 1／2／3／4 轮的编译耗时、峰值内存、产物体积、剩余调用／分配和运行收益，并区分无变化停机与达到限制停机；只对实际变化正文刷新分析，不增加全量 IR 快照或编译过程证明。

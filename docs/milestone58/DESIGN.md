@@ -11,13 +11,13 @@ Scoop 主要面向 PC／桌面应用，包括 60 fps GUI。本期优先改善分
 | 分组 | 要解决的问题 | 最小交付 |
 | --- | --- | --- |
 | M58-A：minor／full 暂停工作量 | minor 做与年轻存活量无关的扫描；full 在压缩失败前做昂贵准备，sweep 逐 word 扫描 | 年轻 small block 整块退役、无引用大对象跳过 remembered scan；full 必要容量早判与 starts bitmap 枚举 |
-| M58-B：函数内逃逸分析与局部装箱 | exact 类型已知，但 `Box → Any 别名 → 检查 → Unbox` 仍分配 | 局部分配来源与使用分析，先以 box 的 payload 替换为真实消费者 |
+| M58-B：函数内逃逸分析与局部分配消除 | exact 类型已知的 box 仍分配；高阶函数内联后 closure 环境仍存在 | 统一迭代内联、去虚拟化、来源／逃逸分析、box 与 closure 替换，清理无用闭包支持产物 |
 | M58-C：尾部与同步协程包装消除 | 真正尾调用仍生成自身状态；普通内联发生在 frame／adapter 生成之后 | 同结果类型的尾部 completion 转交；在 suspend ABI／状态机转换前内联小型已知同步正文 |
 | M58-D：带外层 poll 的循环分块 | 每轮 poll 限制轻量循环吞吐与向量化 | 简单有界计数循环分块，外层 poll；先保守标量，再验证受限内层向量化 |
 
-详细依据分别见 [GC 暂停工作量](GC-PAUSE-WORK.md)、[逃逸分析](ESCAPE-ANALYSIS.md)、[装箱与协程包装](ALLOCATION-ELISION.md)、[循环分块](POLL-STRIP-MINING.md)。M58-B 的分析与 box 消除一起交付，不先搭建没有消费者的通用分析平台。
+详细依据分别见 [GC 暂停工作量](GC-PAUSE-WORK.md)、[逃逸分析](ESCAPE-ANALYSIS.md)、[装箱与协程包装](ALLOCATION-ELISION.md)、[循环分块](POLL-STRIP-MINING.md)。M58-B 先以 box 打通分析与替换，再闭合 forEach 等内联后的 closure 消除，两者属于首批交付，不先搭建没有消费者的通用分析平台。
 
-本期不以全程序逃逸分析、普通对象栈化、部分逃逸重物化、continuation 池或并发 collector 为前置。即时闭包与简单 class 标量替换是同一分析的下一批实际消费者，按收益证据扩展，不要求一次覆盖所有局部分配。
+本期不以全程序逃逸分析、普通对象栈化、部分逃逸重物化、continuation 池或并发 collector 为前置。简单 class 标量替换是同一分析的后续实际消费者，按收益证据扩展，不要求一次覆盖所有局部分配。
 
 ## 2. 基线与已有证据
 
@@ -28,6 +28,7 @@ Scoop 主要面向 PC／桌面应用，包括 60 fps GUI。本期优先改善分
 | Minor | 单 mutator、256 KiB 年轻对象、约 1% 存活、128 MiB 无引用旧数组：请求到返回 p95 212 → 15 µs；单独整块退役为 157 µs | 仓库外 runtime 原型，500 事件／格；不代表多线程握手、GUI 或连续分配吞吐 |
 | Full | 约 40 MiB 密集存活图，四 worker 仍约 19–25 ms；约 5 ms plan 可来自最终失败的压缩准备 | 基线瓶颈分解，没有 full 优化后数据；七次事件不足以报告 p95／p99 |
 | 局部装箱 | 真实 release MIR 的构造已内联，box／别名／类型检查／拆箱仍存在 | 确认优化机会，尚无逃逸分析 pass 的前后性能结果 |
+| 局部 closure | 标准库 forEach 只在循环内调用 action，现有 devirt 可选择 typed invoke；LIR 仍为全部 closure class 建立 TD／layout | 源码审计与设计；尚无 closure 消除原型、产物裁剪或性能结果 |
 | 同步协程 | leaf 已无 frame，wrapper／outer／Task.run 仍各有 frame 与 adapter 路径 | 无 site 的现有 Immediate 路径已工作；需要前置消除调用点 |
 | 循环分块 | LLVM 22.1.8 中 AS1 数组、有界内层 SIMD、两个不同 site 的 relocation／stackmap 可以共存 | 手写 IR 的 poll 只计数；与旧真实 runtime 搬迁原型尚未合成正式源码编译闭环 |
 
@@ -41,15 +42,21 @@ Full 先处理两处局部工作：在单 source 且既有目标容量上界都�
 
 冷 worker 池、空任务阶段、region/card 收尾、根数量和释放回调另外计量。只有确实支配暂停才继续扩展；增加并行阶段或保留更大工作缓冲都需要同时报告低核数响应与 RSS。增量 major 仍按 M56 的[进入条件](../milestone56/DESKTOP-GC.md)评估，不把本期扩成新 collector。
 
-## 4. M58-B：逃逸分析从局部 box 开始
+## 4. M58-B：统一迭代与 box／closure 消除
 
 可以开始，但起点应是**函数内、保守的分配来源与使用分析**。先复用现有内联／去虚拟化已经暴露的 MIR；通过局部复制和合法 `Retype` 传播候选，遇到返回引用、外部存储、未知调用、身份／地址观察则保留对象。第一版不发布跨 Cone 摘要，也不创建额外 IR／meta 验证层。
 
 第一个消费者消除全部使用都可替换的 box：在装箱点保存 payload 快照，改写兼容的拆箱与类型检查，删除无用的引用别名，随后生成正常 LIR roots。含引用 payload 仍受精确 GC 保护。现有实际类型分析可用于类型判断，但它的合流会丢失不同来源，不能直接作为 may-escape 分析。
 
-普通优化采用有界的 `devirt → inline → simplify → 局部 box 消除` 迭代，让内联暴露的新目标和拆箱机会继续被消费；无实际改写时提前停止，先对照最多 1／2／3／4 轮。跨轮保留原始 caller cost、累计增长与展开历史，不能反复调用现有入口来重置限制。固定点只指当前规则与策略下不再变化，达到轮次上限不等于收敛，详见[交替迭代设计](ALLOCATION-ELISION.md#4-devirtinline-的交替迭代与固定点)。
+普通优化采用有界的 `devirt → inline → simplify → 逃逸／使用分析 → box／closure 消除 → simplify` 统一迭代。内联 forEach 后才可把 action 关联到具体 closure，下一轮解析并内联 invoke，再以捕获快照替换环境字段、删除分配；closure 消除后原先被它捕获的 box 又可能被下一轮消除。未知调用导致的旧保留结论随正文变化重新计算，不能只在全部内联结束后分析一次。
 
-这条路径比通用栈分配简单：不引入栈对象头、栈地址与堆引用混用、额外扫描协议或对象生命周期 ABI。后续即时闭包使用捕获快照；简单 class 使用字段局部值，两者复用候选／使用分析，并在有真实替换消费者时扩展。具体转移规则、循环限制、构造器副作用和测试见 [ESCAPE-ANALYSIS.md](ESCAPE-ANALYSIS.md)。
+无实际改写时提前停止，先对照最多 1／2／3／4 轮。跨轮保留原始 caller cost、累计增长与展开历史，不能反复调用现有入口来重置限制。固定点只指当前规则与策略下不再变化，达到轮次上限不等于收敛，详见[统一迭代设计](ALLOCATION-ELISION.md#4-内联去虚拟化与分配消除的统一迭代)。
+
+closure 消除要求所有使用都可替换，不仅是 NoEscape。Scoop 捕获不可重新绑定的 binding；值类型复制完整值，引用复制引用，保留创建点和求值顺序，捕获的引用对象仍可变。循环外创建、循环内多次调用是首批正例；身份／地址观察、剩余调用或发布仍保留。环境消失后，捕获值继续走普通精确 roots。
+
+动态分配与静态支持产物分别验收。当前删掉 ClosureAlloc 不会自动避免所有 TD／layout 生成；迭代结束后，仅在相关实例、callable 引用及现行输出要求均已消失时省掉私有环境 TD／layout／scan 和无用 invoke／bridge。同 class 的其他实例、共享函数类型信息与实际 Strong／ODR 引用照常保留，MIR 记录保持完整。
+
+这条路径不需要通用栈对象头、栈地址与堆引用混用、额外扫描协议或对象生命周期 ABI。后续简单 class 可使用字段局部值，按实际消费者扩展。具体转移规则、循环限制、闭包支持产物、构造器副作用和测试见 [ESCAPE-ANALYSIS.md](ESCAPE-ANALYSIS.md)。
 
 ## 5. M58-C：尾部转交与同步正文内联
 
@@ -73,14 +80,14 @@ Full 先处理两处局部工作：在单 source 且既有目标容量上界都�
 
 ## 7. 实施顺序、规范与验收
 
-先实施 A 的两个 minor 改动和 B 的 box 消费者，两者独立。随后用 full 对照决定 A 的后续局部改动，并完成 C；D 先交付正确分块，再单独启用内层 SIMD。所有优化按功能提交，保留独立前后对照，不能用一个总体总分掩盖暂停或 footprint 回退。
+先实施 A 的两个 minor 改动和 B 的 box 消费者，两者独立；B 随后在同一迭代中补齐 forEach 闭包消除与无用支持产物清理。用 full 对照决定 A 的后续局部改动，并完成 C；D 先交付正确分块，再单独启用内层 SIMD。所有优化按功能提交，保留独立前后对照，不能用一个总体总分掩盖暂停或 footprint 回退。
 
 实现前先更新对应规范：
 
 | 改动 | 规范位置与要求 |
 | --- | --- |
 | 年轻块退役／full 工作量 | 运行时规范 3.9：退役、元数据复用、对象释放与搬迁责任；3.2／3.3 根与握手语义保持 |
-| 逃逸分析与标量替换 | 实现规范 2.19：职责、保守保留与 roots 前完成；语言 3.3／4.4.4、runtime 2.3／2.6 的值、identity 和捕获语义保持 |
+| 逃逸分析、box／closure 替换 | 实现规范 2.19：统一迭代、分析失效、保守保留与 roots 前完成；2.3 及物理输出条款明确无用闭包支持项的选择；语言 3.3／4.4.4／8.1、runtime 2.3／2.6 的值、identity 和捕获语义保持 |
 | 协程尾转交／前置内联 | 实现规范 2.3／2.19：明确 tail 的 step 转交和 source signature 阶段顺序；runtime 第 8 章区分无自身恢复状态与实际挂起，语言 8.2／8.3／11.9 的协议保持 |
 | 循环分块 | runtime 3.2 与实现规范 2.19：允许外层 poll 覆盖已证明有界、无 safepoint 的内层，保留 continue 和移动根要求 |
 
