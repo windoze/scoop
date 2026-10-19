@@ -34,7 +34,7 @@ def exercise(binary, mode):
                 mode,
                 *[f"http://127.0.0.1:{s.getsockname()[1]}/private/start" for s in listeners],
             ],
-            env=dict(os.environ, SCOOP_GC_STRESS_MOVE="1"),
+            env=os.environ,
             capture_output=True,
             text=True,
             timeout=180,

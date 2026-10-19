@@ -6,7 +6,7 @@ import sys
 def consume(binary, *args):
     result = subprocess.run(
         [binary, *args],
-        env=dict(os.environ, SCOOP_GC_STRESS_MOVE="1"),
+        env=os.environ,
         capture_output=True,
         text=True,
         timeout=600,

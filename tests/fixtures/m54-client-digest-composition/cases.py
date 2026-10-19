@@ -13,7 +13,7 @@ from routing_peer import no_preempt, retry, routing
 def consume(mode, *arguments):
     result = subprocess.run(
         [sys.argv[1], mode, *arguments],
-        env=dict(os.environ, SCOOP_GC_STRESS_MOVE="1"),
+        env=os.environ,
         capture_output=True,
         text=True,
         timeout=600 if mode in ("http2", "late-401") else 180,

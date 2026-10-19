@@ -10,7 +10,7 @@ for group in ("callback", "callback-cleanup", "callback-wrapped", "prehash", "pr
     ):
         result = subprocess.run(
             [sys.argv[1], group, case],
-            env=dict(os.environ, SCOOP_GC_STRESS_MOVE="1"),
+            env=os.environ,
             capture_output=True,
             text=True,
             timeout=180,

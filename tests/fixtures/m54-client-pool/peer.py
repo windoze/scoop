@@ -169,7 +169,7 @@ def exercise(binary, name, serve):
             capture_output=True,
             text=True,
             timeout=180,
-            env=dict(os.environ, SCOOP_GC_STRESS_MOVE="1"),
+            env=os.environ,
         )
         thread.join(180)
         assert not thread.is_alive(), "HTTP pool peer did not finish"

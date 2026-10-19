@@ -77,7 +77,7 @@ def exercise(binary, mode, serve):
             capture_output=True,
             text=True,
             timeout=240,
-            env=dict(os.environ, SCOOP_GC_STRESS_MOVE="1"),
+            env=os.environ,
         )
         for thread in workers:
             thread.join(240)
@@ -96,7 +96,7 @@ result = subprocess.run(
     capture_output=True,
     text=True,
     timeout=240,
-    env=dict(os.environ, SCOOP_GC_STRESS_MOVE="1"),
+    env=os.environ,
 )
 assert result.returncode == 0, (result.returncode, result.stdout, result.stderr)
 assert result.stdout == "response h2\n" and not result.stderr

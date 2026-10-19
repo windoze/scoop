@@ -52,7 +52,7 @@ def consume(binary, mode, arguments):
         [binary, mode, *arguments],
         capture_output=True,
         text=True,
-        env=dict(os.environ, SCOOP_GC_STRESS_MOVE="1"),
+        env=os.environ,
         timeout=600,
     )
     assert result.returncode == 0, (mode, result.returncode, result.stdout, result.stderr)

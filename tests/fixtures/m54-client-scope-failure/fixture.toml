@@ -27,7 +27,6 @@ checks = [{actual = "${build.result.observations.child_invocations.length}", equ
 [[steps]]
 name = "producer"
 argv = ["${build.result.output}", "producer"]
-env = {SCOOP_GC_STRESS_MOVE = "1"}
 timeout = 180
 exit = 0
 stdout = "client nested scope producer failure stays within its call\n"
@@ -36,7 +35,6 @@ stderr = ""
 [[steps]]
 name = "informational"
 argv = ["${build.result.output}", "informational"]
-env = {SCOOP_GC_STRESS_MOVE = "1"}
 timeout = 180
 exit = 0
 stdout = "client nested scope informational failure stays within its call\n"

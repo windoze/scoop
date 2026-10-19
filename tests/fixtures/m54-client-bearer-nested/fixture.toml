@@ -29,7 +29,6 @@ checks = [{actual = "${build.result.observations.child_invocations.length}", equ
 name = "run"
 timeout = 900
 argv = ["${build.result.output}"]
-env = {SCOOP_GC_STRESS_MOVE = "1"}
 exit = 0
 stdout = "nested Bearer token requests passed\n"
 stderr = ""

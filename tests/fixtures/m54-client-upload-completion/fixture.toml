@@ -27,7 +27,6 @@ checks = [{actual = "${build.result.observations.child_invocations.length}", equ
 [[steps]]
 name = "redirect-success"
 argv = ["${build.result.output}", "redirect", "success"]
-env = {SCOOP_GC_STRESS_MOVE = "1"}
 timeout = 180
 exit = 0
 stdout = "upload completion redirect success\n"
@@ -36,7 +35,6 @@ stderr = ""
 [[steps]]
 name = "redirect-failure"
 argv = ["${build.result.output}", "redirect", "failure"]
-env = {SCOOP_GC_STRESS_MOVE = "1"}
 timeout = 180
 exit = 0
 stdout = "upload completion redirect failure\n"
@@ -45,7 +43,6 @@ stderr = ""
 [[steps]]
 name = "retry-success"
 argv = ["${build.result.output}", "retry", "success"]
-env = {SCOOP_GC_STRESS_MOVE = "1"}
 timeout = 180
 exit = 0
 stdout = "upload completion retry success\n"
@@ -54,7 +51,6 @@ stderr = ""
 [[steps]]
 name = "retry-failure"
 argv = ["${build.result.output}", "retry", "failure"]
-env = {SCOOP_GC_STRESS_MOVE = "1"}
 timeout = 180
 exit = 0
 stdout = "upload completion retry failure\n"

@@ -86,7 +86,7 @@ def exercise(binary, mode, context):
             capture_output=True,
             text=True,
             timeout=180,
-            env=dict(os.environ, SCOOP_GC_STRESS_MOVE="1"),
+            env=os.environ,
         )
         for thread in workers:
             thread.join(180)

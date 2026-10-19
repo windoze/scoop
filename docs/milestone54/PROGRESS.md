@@ -412,6 +412,8 @@ Digest 的 95 个独立场景包括 57 个协议、17 个生命周期、14 个�
 
 ## 验证安排
 
+按用户要求，先完成全部功能并逐项提交，只运行普通功能测试与必要回归；GC stress 留到全部功能完成后统一执行。M54 client fixture 继承调用环境，缺省不开启压力模式，最终统一验收时显式设置 `SCOOP_GC_STRESS_MOVE=1`。本机与 Linux 已启动的压力批次已停止，保留已有结果与原始日志，中止不记为整批通过。
+
 复用 M53 已完成的工具与目标资源，改动的库通过正常准备／构建入口更新。先运行本机相关测试，待功能组合稳定后在 Linux 完整验证；普通库改动不重复运行无关编译器全量测试。原始日志、fixture 工作区与本期构建缓存保存在仓库外的 `scoop-work/m54`。
 
 Linux 使用 nuc12 上的独立 checkout；已构建配套命令及 GNU／musl 的 OpenSSL、nghttp2、文本、URL、压缩和 libunwind 资源。宿主 LLVM 为 22.1.2，libunwind 源码为固定的 22.1.8。输入、输出进度两个 fixture 已分别通过 GNU／musl 的 debug／release，共 8 个变体、24 个步骤进程，覆盖 native 按值返回、独立线协议、full moving 与正常构建复用；其余功能的 Linux 组合验收继续推进。
