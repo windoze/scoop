@@ -26,8 +26,12 @@ internal enum ClientFollowUp { Redirect(ClientRedirect), Retry(Duration), Authen
 internal enum ClientCallResult { Response(HttpResponse), FollowUp(ClientFollowUp), Failed(ClientIoFailure, Boolean) }
 
 internal suspend fun executeClientRequest(state: ClientState, request: HttpRequest): HttpResponse {
-    val caller = clientJob(state.loop, true)
     val sequence = ClientRequestSequence(state.config, request)
+    return executeClientSequence(state, request, sequence)
+}
+
+internal suspend fun executeClientSequence(state: ClientState, request: HttpRequest, sequence: ClientRequestSequence): HttpResponse {
+    val caller = clientJob(state.loop, true)
     var current = request
     while (true) {
         caller.ensureActive()

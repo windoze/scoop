@@ -386,6 +386,20 @@ MemoryHttpCache 的 maxBytes 默认 32 MiB、maxEntryBytes 默认 8 MiB、maxEnt
 
 磁盘条目是正文、带长度元数据和固定尾部组成的单文件；open 读取边界明确的元数据重建索引并清理本实例目录的遗留临时文件，格式错误报告 HttpCacheFormatException。写入同目录临时文件，完整结束后按选项 sync、关闭并改名为独立条目，再发布内存索引。旧文件在最后一个快照关闭后删除；取消和失败通过 core.nonCancellableScope 等待实际异步文件关闭、删除，不开启脱离调用的后台任务。提交后的旧文件清理失败仍报告真实错误，但已发布的新条目始终是完整表示。磁盘缓存不进行文件来源审计，也不与编译缓存的更新判断共享验证政策。
 
+### 9.5 文件下载
+
+`HttpClient.download(request, destination, options = HttpDownloadOptions())` 返回不可变 HttpDownloadResult；destination 是调用者明确指定的 Path。HttpDownloadOptions 的 replaceExisting 默认 false，syncOnCommit 默认 false，bufferSize 默认 8192 且必须为正，onProgress 是默认空操作的 suspend 回调。下载要求最终 HTTP 状态成功，按该响应已选定的解码视图保存正文；普通请求的重定向、重试、认证、代理、Cookie 与完整缓存仍生效。手写 Range 的普通下载仅保存调用者请求的那份响应，不自动解释为续传。
+
+下载先在目标的父目录创建临时文件，使用有界缓冲异步读写；读到完整正文、验证编码与认证、关闭响应及文件后，才通过 asyncio.moveFile 提交。syncOnCommit=true 时在关闭前调用文件的 syncAll；不承诺目录同步或断电恢复。拒绝覆盖由实际改名操作原子执行，不通过事先检查目标存在来决定。目标父目录由应用准备，库不依据 Content-Disposition 自行选择目录或文件名，也不使用同步文件 I/O。
+
+onProgress 接收 HttpDownloadProgress 的 url、bytesWritten、totalBytes；首次确认成功响应时报告零进度，之后只计目的文件已确认写入的字节，回调串行且提供背压。totalBytes 来自所读取视图的 contentLength，自动解压时可能未知。HttpDownloadResult 保存 path、最终 url、原始 head、完整 trailers 与 byteCount，不持有活动 HTTP 响应。网络、解码、文件和回调错误保留原类型，不因文件写入或回调错误重新执行请求。
+
+下载在 client 中登记独立的结构化操作，直到文件及回调子树实际收尾后才移除；HTTP 消息已经完成并归还连接，不代表下载结束。它沿用调用方 Context，总截止从 download 开始，涵盖网络、文件 I/O、进度回调和提交前收尾；后续 HTTP 尝试不重新计时。调用方取消与 client.close 取消活动下载并等候真实清理，保留主错误与清理错误；响应关闭再次交付的同一次取消、关闭或总截止不成为新的清理错误，实际回调 finally 和文件关闭错误仍保留。活动下载的回调及其子任务不能等待同一 client.close，否则形成自等待；该调用立即报 IllegalStateException，外部任务仍可正常关闭 client。
+
+错误合并保留原始异常对象；嵌套 ResourceUseException 中没有需要去重的部分时，直接保留该对象，不仅重建等价的异常树。client.close 与下载结果可能观察同一次真实清理失败，两者均保留该失败，不在同一个结果中重复附加。
+
+最终改名有明确的提交点：检查总截止、调用方取消及 client 关闭状态后进入提交，随后用 nonCancellableScope 等待改名结束。在提交点之前失败或取消，关闭并删除临时文件，保留原目标；进入提交之后到达的取消不撤销改名，也不把已经成功的替换报告为未提交。client.close 在此期间仍等待实际改名与清理完成。实际改名或清理失败照常报告，不删除已经提交的目标。
+
 ## 10. SSE 与 WebSocket
 
 SSE 通过普通 execute 和 HTTP/1.1／HTTP/2 响应流工作，要求适用的成功状态与 text/event-stream，使用 HTTP 库的 UTF-8 增量行／事件 parser。支持 data 多行、event、id、retry、注释与 CR／LF 分段；异步 `next(): SseEvent?` 按消费者读取推进。可选重连使用 Last-Event-ID、服务端 retry 与 client 策略，204 停止；取消或显式关闭不得触发自动重连。

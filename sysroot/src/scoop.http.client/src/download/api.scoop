@@ -1,0 +1,24 @@
+package scoop.http.client
+
+import scoop.http.HttpField
+import scoop.http.HttpResponseHead
+import scoop.platform.fs.Path
+import scoop.url.Url
+
+public class HttpDownloadOptions public constructor(
+    public val replaceExisting: Boolean = false,
+    public val syncOnCommit: Boolean = false,
+    public val bufferSize: Long = 8192L,
+    public val onProgress: suspend (HttpDownloadProgress) -> Unit = suspend { _ -> }
+) {
+    init { if (bufferSize <= 0L) throw IllegalArgumentException(Some("download buffer size must be positive")) }
+}
+
+public class HttpDownloadProgress internal constructor(
+    public val url: Url, public val bytesWritten: Long, public val totalBytes: Long?
+)
+
+public class HttpDownloadResult internal constructor(
+    public val path: Path, public val url: Url, public val head: HttpResponseHead,
+    public val trailers: Array<HttpField>, public val byteCount: Long
+)

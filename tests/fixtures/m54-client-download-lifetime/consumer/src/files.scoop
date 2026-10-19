@@ -1,0 +1,37 @@
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.client.*
+import scoop.platform.fs.Path
+import scoop.platform.system.PlatformErrorKind
+import scoop.platform.system.PlatformException
+import scoop.test.*
+import scoop.url.Url
+
+internal fun downloadFileFailure(trust: TrustStore, directory: Path) {
+    downloadWithServer(directory) suspend { _, _, url, serving ->
+        try {
+            withHttpClient(downloadConfig(trust)) suspend { client ->
+                val failed = DownloadFailure()
+                try { client.download(HttpRequest.get(url), directory.resolve(Path.fromString("absent/result"))) }
+                catch (error: Throwable) { failed.value = Some(error) }
+                val error = failed.value!!
+                assertTrue(error is PlatformException)
+                if (error is PlatformException) assertEquals(PlatformErrorKind.NotFound, error.kind)
+                assertEquals(0L, downloadFiles(directory))
+                assertFalse(client.isClosed)
+            }
+        } finally { serving.signal() }
+    }
+}
+
+internal fun downloadInvalidPath(trust: TrustStore) {
+    LibuvEventLoop().run suspend { _ ->
+        withHttpClient(downloadConfig(trust)) suspend { client ->
+            val failed = DownloadFailure()
+            try { client.download(HttpRequest.get(Url.parse("http://127.0.0.1:9/")), Path.fromString("/")) }
+            catch (error: Throwable) { failed.value = Some(error) }
+            assertTrue(failed.value!! is IllegalArgumentException)
+            assertFalse(client.isClosed)
+        }
+    }
+}

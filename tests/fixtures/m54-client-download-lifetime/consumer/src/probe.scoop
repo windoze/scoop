@@ -1,0 +1,27 @@
+import scoop.asyncio.*
+import scoop.http.client.*
+import scoop.test.*
+
+internal class DownloadProbe(val last: Boolean, val cleanupMode: String) {
+    val entered: DownloadGate = DownloadGate()
+    val cancelled: DownloadGate = DownloadGate()
+    val release: DownloadGate = DownloadGate()
+    val cleaning: DownloadGate = DownloadGate()
+    val finish: DownloadGate = DownloadGate()
+    val cleaned: AtomicBoolean = AtomicBoolean(false)
+    val cleanup: Throwable = if (cleanupMode == "nested") ResourceUseException(Throwable(), Throwable()) else Throwable()
+    suspend fun progress(value: HttpDownloadProgress) {
+        if ((value.bytesWritten > 0L) != last) return
+        assertEquals(if (last) 4L else 0L, value.bytesWritten)
+        assertEquals("download-context", downloadMarker())
+        val job = currentJobOrNone()!!
+        val registration = job.invokeOnCancellation { _ -> cancelled.signal() }
+        try { entered.signal(); release.await(); job.ensureActive() }
+        finally {
+            cleaning.signal(); finish.await()
+            cleaned.store(true); registration.dispose()
+            if (cleanupMode == "direct") throw cleanup
+            if (cleanupMode == "wrapped" || cleanupMode == "nested") throw ResourceUseException(CancellationException(), cleanup)
+        }
+    }
+}

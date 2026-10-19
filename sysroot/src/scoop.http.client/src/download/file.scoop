@@ -1,0 +1,65 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.platform.fs.Path
+import scoop.platform.io.WriteZeroException
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.system.PlatformErrorKind
+import scoop.platform.system.PlatformException
+
+private class ClientDownloadCount { var written: Long = 0L }
+
+internal suspend fun prepareClientDownload(download: ClientDownload, request: HttpRequest, destination: Path,
+    options: HttpDownloadOptions): HttpDownloadResult {
+    val loop = download.client.loop
+    val response = executeClientSequence(download.client, request, download.sequence)
+    download.client.lock.withLock { download.responseCall = Some(response.call) }
+    return response.useAsync suspend { value ->
+        value.requireSuccess()
+        val parent = destination.parent ?: Path.fromString(".")
+        val output = loop.createTempFile(Some(parent), "pending-http-download-")
+        download.temporary = Some(output)
+        output.useAsync suspend { owned ->
+            val count = ClientDownloadCount()
+            reportClientDownloadProgress(download, value, count.written, options)
+            NativeByteBuffer.allocate(options.bufferSize).use suspend { buffer ->
+                while (true) {
+                    download.requireActive()
+                    buffer.clear()
+                    val received = value.body.readInto(buffer, buffer.capacity)
+                    if (received == 0L) break
+                    while (buffer.readableBytes > 0L) {
+                        val written = owned.file.writeFrom(buffer, buffer.readableBytes)
+                        if (written == 0L) throw WriteZeroException()
+                        count.written += written
+                        reportClientDownloadProgress(download, value, count.written, options)
+                    }
+                }
+            }
+            download.requireActive()
+            if (options.syncOnCommit) owned.file.syncAll()
+            download.requireActive()
+            HttpDownloadResult(destination, value.url, value.head, value.trailers!!, count.written)
+        }
+    }
+}
+
+private suspend fun reportClientDownloadProgress(download: ClientDownload, response: HttpResponse, written: Long,
+    options: HttpDownloadOptions) {
+    download.requireActive()
+    options.onProgress(HttpDownloadProgress(response.url, written, response.body.contentLength))
+    download.requireActive()
+}
+
+internal suspend fun cleanupClientDownload(download: ClientDownload) {
+    val output = download.temporary ?: return
+    nonCancellableScope<Unit> suspend { _ ->
+        var failure: Throwable? = None
+        try { output.close() } catch (error: Throwable) { failure = Some(error) }
+        try { download.client.loop.deleteFile(output.path) }
+        catch (error: PlatformException) {
+            if (error.kind != PlatformErrorKind.NotFound) failure = Some(clientCombined(failure, error))
+        } catch (error: Throwable) { failure = Some(clientCombined(failure, error)) }
+        if (clientPresent(failure)) throw failure!!
+    }
+}

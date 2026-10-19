@@ -8,6 +8,7 @@ internal class ClientState(val loop: EventLoop, val config: HttpClientConfig, va
     val lock: ClientLock = ClientLock()
     val calls: ArrayList<ClientCall> = ArrayList<ClientCall>()
     val retryWaits: ArrayList<Job> = ArrayList<Job>()
+    val downloads: ArrayList<ClientDownload> = ArrayList<ClientDownload>()
     val bearerEntries: ArrayList<ClientBearerEntry> = ArrayList<ClientBearerEntry>()
     val digestEntries: ArrayList<ClientDigestEntry> = ArrayList<ClientDigestEntry>()
     val waiting: ArrayDeque<ClientCall> = ArrayDeque<ClientCall>()
@@ -30,14 +31,18 @@ internal fun wakeClient(state: ClientState) {
 }
 
 internal fun stopClient(state: ClientState) {
-    val (calls, retryWaits, bearers) = state.lock.withLock {
+    val (calls, retryWaits, bearers, downloads) = state.lock.withLock {
         state.closing = true
         val active = ArrayList<ClientBearerFlight>()
         for (entry in state.bearerEntries) if (clientPresent(entry.flight)) active.add(entry.flight!!)
-        (state.calls.toArray(), state.retryWaits.toArray(), active.toArray())
+        for (download in state.downloads) {
+            if (!download.committing && !clientPresent(download.failure)) download.failure = Some(HttpClientClosedException())
+        }
+        (state.calls.toArray(), state.retryWaits.toArray(), active.toArray(), state.downloads.toArray())
     }
     for (call in calls) cancelClientCall(call, HttpClientClosedException())
     for (waiting in retryWaits) waiting.cancel()
     for (flight in bearers) stopClientBearerFlight(flight)
+    for (download in downloads) stopClientDownload(download, HttpClientClosedException())
     wakeClient(state)
 }

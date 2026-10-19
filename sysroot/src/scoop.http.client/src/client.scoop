@@ -1,6 +1,7 @@
 package scoop.http.client
 
 import scoop.asyncio.*
+import scoop.platform.fs.Path
 import scoop.tls.*
 import scoop.tls.asyncio.openTlsClientContext
 
@@ -41,6 +42,8 @@ public class HttpClient internal constructor(internal val state: ClientState) : 
     public suspend fun execute(request: HttpRequest): HttpResponse = executeClientRequest(state, request)
     public suspend fun <T> withResponse(request: HttpRequest, block: suspend (HttpResponse) -> T): T =
         execute(request).useAsync(block)
+    public suspend fun download(request: HttpRequest, destination: Path, options: HttpDownloadOptions = HttpDownloadOptions()): HttpDownloadResult =
+        runClientDownload(state, request, destination, options)
     public fun clearAuthenticationCache(authenticator: HttpAuthenticator) { clearClientAuthenticationCache(state, authenticator) }
     public override suspend fun close() { closeClient(state) }
 }
