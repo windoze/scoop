@@ -155,6 +155,11 @@ static int frame_sending(nghttp2_session *session, const nghttp2_frame *frame,
 static int frame_not_sent(nghttp2_session *session, const nghttp2_frame *frame,
                           int code, void *user_data) {
   (void)session;
+  /* nghttp2 follows this unsent request with StreamClosed(REFUSED_STREAM). */
+  if (frame->hd.type == NGHTTP2_HEADERS &&
+      frame->headers.cat == NGHTTP2_HCAT_REQUEST &&
+      code == NGHTTP2_ERR_START_STREAM_NOT_ALLOWED)
+    return 0;
   http2 *h = user_data;
   http_event *event = http_event_new(HTTP_EVENT_ERROR);
   if (!event)
