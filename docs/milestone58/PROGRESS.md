@@ -22,7 +22,7 @@
 | LLVM codegen：NoGc 循环 | 启用 load elimination、最多四次完整 unroll、受限 unswitch；18 项 statepoint 专测、源码九变体及旧循环七变体通过。实际递推／四步处理／不变分支分别约 3×／2×／20% 收益，循环 text +256 bytes，编译约 +0.4% |
 | native helper 链接边界 | 已删除未登记外部符号的编译期拒绝，交由 linker 解析；141 项对象产物回归与真实 Darwin loop-idiom 程序通过 |
 | runtime C → LLVM IR 小函数 | String 有界读取已实现，本机精确 IR 与源码十一变体通过；重建两版 core 后字符遍历约 −7.6%，byteLength 单项未见明确收益。静态 unbox 已完成，值／含引用扫描分别约 −19.4%／−28.7%；数组 clone 已完成，小数组约 −15%，stop-wait 未见稳定尾部回退；见 [迁移记录](RUNTIME-IR.md) |
-| 性能与跨平台 | A 的本机生产前后矩阵已记录于 [PERFORMANCE.md](PERFORMANCE.md)；B–D 性能、GNU／musl 完整验收及最终清理待完成 |
+| 性能与跨平台 | A 的本机生产前后矩阵已记录于 [PERFORMANCE.md](PERFORMANCE.md)；A–D 本机性能矩阵已完成；GNU／musl 完整验收及最终清理待完成 |
 
 ## 2026-10-20：LLVM 范围推导与 NoGc 标量补齐
 
@@ -143,3 +143,7 @@ fmt／workspace clippy、八项数组精确测试、十八项 statepoint 专测�
 fmt／workspace clippy、26 项普通 MIR 优化专测通过；新增 nested box 精确断言，已有上一迭代别名保留测试继续通过。源码 closure fixture 增加 17 轮 each、每个元素实际 gcCollect 与含引用捕获，M58 优化五个 fixture 共 13 变体／15 进程通过。
 
 B 功能开／关矩阵见性能记录第 13 节：局部装箱与 scope 闭包分别约 −80%／−50% 耗时，循环分配消失。嵌套 each 相比关闭 B 约 −13.5%，但相比回边修正前增加约 15.6% 耗时；换得 8 MB 分配／7 次 minor 消失、RSS 约 −1.37 MiB。保留并公开该 CPU／footprint 取舍，不把分配消失等同于总耗时改善。基线开关已恢复，Linux 完整验收随后执行。
+
+## 2026-10-20：C1 尾转交的生产对照
+
+新增实际 suspendCoroutine leaf 的四层尾包装 benchmark，区分 register 同步完成与真正返回 Suspended 后恢复；保留 C2 和其他优化，仅关闭／开启 C1。两模式各十一对输出与唯一完成计数一致，整程序时间约 −34%／−42%、分配约 −67%、minor 48 → 16，text −21940 bytes。累计暂停减少，单次最大暂停没有明确改善；编译／RSS 和限制见性能记录第 14 节。临时源码开关已恢复并完成 fmt／workspace clippy／工具重建；既有跨线程、移动 GC 和异常 fixture 承担协议正确性验证。

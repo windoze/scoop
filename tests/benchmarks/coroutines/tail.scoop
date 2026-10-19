@@ -1,0 +1,40 @@
+class Gate(val immediate: Boolean) : SuspendRegistration<Long> {
+    var value = 0L
+    var waiter: Continuation<Long>? = None
+    public override fun register(continuation: Continuation<Long>) {
+        if (immediate) continuation.resume(value)
+        else waiter = Some(continuation)
+    }
+}
+
+suspend fun leaf(gate: Gate): Long = suspendCoroutine(gate) + 1L
+suspend fun first(gate: Gate): Long = leaf(gate)
+suspend fun second(gate: Gate): Long = first(gate)
+suspend fun third(gate: Gate): Long = second(gate)
+suspend fun fourth(gate: Gate): Long = third(gate)
+
+class Done : Continuation<Long> {
+    var count = 0L
+    var sum = 0L
+    public override fun resume(value: Long) { count += 1L; sum += value }
+    public override fun resumeWithException(error: Throwable) { throw error }
+}
+
+fun main(args: Array<String>) {
+    val immediate = args[1L] == "immediate"
+    val gate = Gate(immediate)
+    val done = Done()
+    var round = 0L
+    while (round < 50000L) {
+        gate.value = round
+        startCoroutine(suspend { fourth(gate) }, done)
+        if (!immediate) {
+            val waiter = gate.waiter!!
+            gate.waiter = None
+            waiter.resume(round)
+        }
+        round += 1L
+    }
+    if (done.count != 50000L) throw IllegalStateException()
+    println(done.sum)
+}
