@@ -25,7 +25,7 @@ internal suspend fun clientDigestField(call: ClientCall, session: ClientAuthenti
     val nc = Array<Byte>(4L) { index -> (count shr ((3L - index) * 8L)).toByte() }.toHexString()
     val ha1 = if (clientDigestIsSession(challenge.algorithm)) clientDigestHash(challenge.algorithm,
         [secret.ha1.toByteArray(), ":".toByteArray(), challenge.nonce, ":".toByteArray(), nonce.cnonce.toByteArray()]) else secret.ha1
-    val use = ClientDigestUse(selection, clientRequestTargetBytes(call.originalRequest), ha1, nc)
+    val use = ClientDigestUse(selection, clientRequestTargetBytes(call), ha1, nc)
     val parameters = ArrayList<HttpParameter>()
     addDigestUsername(parameters, secret, challenge)
     parameters.add(HttpParameter("realm", challenge.realm, quoted = true))

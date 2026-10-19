@@ -31,7 +31,8 @@ public class HttpClientConfig public constructor(
     public val timeouts: HttpTimeoutOptions = HttpTimeoutOptions(),
     public val redirects: HttpRedirectOptions = HttpRedirectOptions(),
     public val retries: HttpRetryOptions = HttpRetryOptions(),
-    public val authentication: HttpAuthenticationOptions = HttpAuthenticationOptions()
+    public val authentication: HttpAuthenticationOptions = HttpAuthenticationOptions(),
+    public val proxy: HttpProxySelector = HttpProxySelector.direct()
 ) {
     init {
         if (http1RequestVersion == HttpVersion.Http2)
@@ -52,7 +53,8 @@ public class HttpCallOptions public constructor(
     public val onInformational: suspend (HttpResponseHead) -> Unit = suspend { _ -> },
     public val redirects: HttpRedirectOptions? = None,
     public val retries: HttpRetryOptions? = None,
-    public val authentication: HttpAuthenticationOptions? = None
+    public val authentication: HttpAuthenticationOptions? = None,
+    public val proxy: HttpProxySelector? = None
 ) {
     init {
         if (continueWait < Duration.ZERO) throw IllegalArgumentException(Some("negative Continue wait duration"))

@@ -108,7 +108,8 @@ private fun maintainClientPool(state: ClientState, now: TimeMark, actions: Array
 
 private fun assignClientLease(state: ClientState, call: ClientCall, now: TimeMark, actions: ArrayList<ClientPoolAction>): Boolean {
     for (entry in state.connections) {
-        if (entry.origin != call.request.origin || entry.connecting || entry.closing || entry.draining) continue
+        if (entry.origin != call.request.origin || !sameClientRoute(entry.route, call.route) ||
+            entry.connecting || entry.closing || entry.draining) continue
         if (clientPresent(entry.initial) && entry.initial!! !== call) continue
         val connection = entry.connection!!
         val available = when (connection) {
@@ -144,18 +145,16 @@ private fun reserveClientConnection(state: ClientState, call: ClientCall, now: T
     for (entry in state.connections) {
         if (entry.origin == call.request.origin) {
             sameOrigin += 1L
-            if (entry.connecting || entry.h2cPending || clientPresent(entry.initial)) return
+            if (sameClientRoute(entry.route, call.route) &&
+                (entry.connecting || entry.h2cPending || clientPresent(entry.initial))) return
         }
     }
-    if (sameOrigin >= state.config.pool.maxConnectionsPerOrigin) return
+    if (sameOrigin >= state.config.pool.maxConnectionsPerOrigin) {
+        drainClientUnusedRoute(state, call, true)
+        return
+    }
     if (state.connections.size >= state.config.pool.maxConnections) {
-        var oldest: ClientPoolEntry? = None
-        for (entry in state.connections) {
-            if (entry.origin == call.request.origin || entry.connecting || entry.closing || entry.draining ||
-                entry.active != 0L || clientPresent(entry.initial)) continue
-            if (!clientPresent(oldest) || entry.idle < oldest!!.idle) oldest = Some(entry)
-        }
-        if (clientPresent(oldest)) oldest!!.draining = true
+        drainClientUnusedRoute(state, call, false)
         return
     }
     val admitted = call.lock.withLock {
@@ -168,4 +167,15 @@ private fun reserveClientConnection(state: ClientState, call: ClientCall, now: T
     entry.h2cPending = call.request.origin.scheme == "http" && state.config.cleartext == HttpCleartextProtocol.H2cUpgrade
     state.connections.add(entry)
     actions.add(ClientPoolAction.Dial(call, entry))
+}
+
+private fun drainClientUnusedRoute(state: ClientState, call: ClientCall, sameOriginOnly: Boolean) {
+    var oldest: ClientPoolEntry? = None
+    for (entry in state.connections) {
+        val sameOrigin = entry.origin == call.request.origin
+        if ((sameOriginOnly && !sameOrigin) || (sameOrigin && sameClientRoute(entry.route, call.route)) ||
+            entry.connecting || entry.closing || entry.draining || entry.active != 0L || clientPresent(entry.initial)) continue
+        if (!clientPresent(oldest) || entry.idle < oldest!!.idle) oldest = Some(entry)
+    }
+    if (clientPresent(oldest)) oldest!!.draining = true
 }

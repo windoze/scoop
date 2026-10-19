@@ -52,6 +52,8 @@ private fun prepareRequestFields(method: Array<Byte>, body: RequestBody, fields:
         field.validate()
         if (field.hasName("Host".toByteArray()) || field.hasName("Transfer-Encoding".toByteArray()))
             throw IllegalArgumentException(Some("HTTP client generates authority and transfer framing"))
+        if (field.hasName("Proxy-Authorization".toByteArray()))
+            throw IllegalArgumentException(Some("proxy credentials belong to the proxy endpoint"))
     }
     val length = parseHttpContentLength(snapshot)
     if (length != None && body.contentLength != None && length!! != body.contentLength!!)

@@ -24,7 +24,7 @@ internal suspend fun openClientExchange(call: ClientCall, connection: ClientConn
             }
             val entry = call.lock.withLock { call.lease!! }
             val upgrading = call.client.lock.withLock { entry.h2cPending }
-            val head = clientRequestHead(request, version, call.client.config)
+            val head = clientRequestHead(call, version)
             val prepared = if (upgrading) prepareHttp2Upgrade(head, call.client.config.http2Settings) else head
             val output = try { value.sendRequest(prepared, framing, writeIdle = call.timeouts.writeIdle) }
             catch (error: Throwable) { recordClientIoFailure(call, error); throw error }
@@ -33,7 +33,7 @@ internal suspend fun openClientExchange(call: ClientCall, connection: ClientConn
         }
         case Http2(value) -> {
             val stream = try {
-                value.openRequest(clientRequestHead(request, HttpVersion.Http2, call.client.config), false, clientIoTimeouts(call))
+                value.openRequest(clientRequestHead(call, HttpVersion.Http2), false, clientIoTimeouts(call))
             } catch (error: Throwable) { recordClientIoFailure(call, error, true); throw error }
             bindClientHttp2Stream(call, stream)
             ClientH2Exchange(call, stream)
@@ -41,7 +41,9 @@ internal suspend fun openClientExchange(call: ClientCall, connection: ClientConn
     }
 }
 
-private fun clientRequestHead(request: HttpRequest, version: HttpVersion, config: HttpClientConfig): HttpRequestHead {
+private fun clientRequestHead(call: ClientCall, version: HttpVersion): HttpRequestHead {
+    val request = call.request
+    val config = call.client.config
     val fields = ArrayList<HttpField>()
     for (field in request.fields) if (!field.hasName("Content-Length".toByteArray())) fields.add(field)
     addClientAcceptEncoding(fields, request, config)
@@ -51,14 +53,25 @@ private fun clientRequestHead(request: HttpRequest, version: HttpVersion, config
             case None -> {}
         }
     }
+    when (call.route) {
+        case HttpForward(endpoint) -> {
+            for (field in clientProxyAuthorization(endpoint)) fields.add(field)
+            return httpProxyRequest(request.url, request.methodBytes, fields, version)
+        }
+        else -> {}
+    }
     val authority = request.origin.authority(request.url.authority!!.port != None).toByteArray()
     if (version != HttpVersion.Http2) fields.add(HttpField("Host".toByteArray(), authority))
-    val targetBytes = clientRequestTargetBytes(request)
+    val targetBytes = clientRequestTargetBytes(call)
     val target = if (request.method == "CONNECT") HttpRequestTarget.Connect(targetBytes)
         else if (version == HttpVersion.Http2) HttpRequestTarget.Http2(request.origin.scheme.toByteArray(), authority, targetBytes)
         else HttpRequestTarget.Http1(targetBytes)
     return HttpRequestHead(version, request.methodBytes, target, fields)
 }
 
-internal fun clientRequestTargetBytes(request: HttpRequest): Array<Byte> =
-    (if (request.method == "CONNECT") request.origin.authority(true) else request.url.httpRequestTarget()).toByteArray()
+internal fun clientRequestTargetBytes(call: ClientCall): Array<Byte> {
+    val request = call.originalRequest
+    return (if (request.method == "CONNECT") request.origin.authority(true)
+        else if (clientUsesForwardProxy(call)) request.url.httpAbsoluteTarget()
+        else request.url.httpRequestTarget()).toByteArray()
+}

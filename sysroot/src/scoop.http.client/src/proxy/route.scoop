@@ -1,0 +1,54 @@
+package scoop.http.client
+
+import scoop.http.HttpVersion
+import scoop.url.UrlHost
+
+internal enum ClientRoute { Direct, HttpForward(HttpProxyEndpoint), HttpTunnel(HttpProxyEndpoint), Socks5(HttpSocks5Endpoint) }
+
+internal suspend fun selectClientRoute(call: ClientCall) {
+    val selector = call.request.options.proxy ?: call.client.config.proxy
+    val selected = selector.select(call.originalRequest)
+    requireClientCall(call)
+    call.route = when (selected) {
+        case Direct -> ClientRoute.Direct
+        case Http(endpoint) -> {
+            val config = call.client.config
+            if (call.request.origin.scheme == "http" && config.cleartext == HttpCleartextProtocol.Http1 &&
+                config.http1RequestVersion == HttpVersion.Http11 && call.request.method != "CONNECT")
+                ClientRoute.HttpForward(endpoint)
+            else ClientRoute.HttpTunnel(endpoint)
+        }
+        case Socks5(endpoint) -> ClientRoute.Socks5(endpoint)
+    }
+}
+
+internal fun sameClientRoute(left: ClientRoute, right: ClientRoute): Boolean = when (left) {
+    case Direct -> when (right) { case Direct -> true; else -> false }
+    case HttpForward(endpoint) -> when (right) { case HttpForward(other) -> endpoint === other; else -> false }
+    case HttpTunnel(endpoint) -> when (right) { case HttpTunnel(other) -> endpoint === other; else -> false }
+    case Socks5(endpoint) -> when (right) { case Socks5(other) -> endpoint === other; else -> false }
+}
+
+internal fun clientRouteAddress(call: ClientCall): (UrlHost, Int) {
+    val address: ClientProxyAddress? = when (call.route) {
+        case Direct -> None
+        case HttpForward(endpoint) -> Some(endpoint.address)
+        case HttpTunnel(endpoint) -> Some(endpoint.address)
+        case Socks5(endpoint) -> Some(endpoint.address)
+    }
+    return when (address) {
+        case Some(value) -> (value.host, value.port)
+        case None -> (call.request.origin.host, call.request.origin.port)
+    }
+}
+
+internal fun clientUsesForwardProxy(call: ClientCall): Boolean = when (call.route) {
+    case HttpForward(_) -> true
+    else -> false
+}
+
+internal fun clientNeedsProxyHandshake(route: ClientRoute): Boolean = when (route) {
+    case HttpTunnel(_) -> true
+    case Socks5(_) -> true
+    else -> false
+}

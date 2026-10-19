@@ -87,7 +87,8 @@
 | client Digest 认证 | 纯 Scoop 组合 crypto、charset、URL 和 HTTP；六种摘要算法形式、auth／auth-int、有限预哈希、逐次签名、nonce 计数、响应证明及挂起凭据与清理 | Darwin 95 个独立场景通过 debug／release、full moving 和构建复用，共 5 个 fixture、10 个变体、30 个步骤进程；独立对端、双 native 线程、H2、编码、重定向、重试及并发更新通过 |
 | 原生缓冲区批量只读 | platform 的 NativeByteBuffer.getBytes 返回已初始化绝对区间的独立副本；一次状态同步，不改变游标，借用期间仍可读取 | Darwin 两个正式 fixture 通过 debug／release、full moving 与复用，共 4 个变体、12 个步骤进程；覆盖边界、跨线程借用，以及真实短读写 TCP 与 crypto 增量摘要 |
 | Boolean Scoop ABI | 标量参数和结果使用 i1 zeroext，定义、调用、间接分派和 statepoint 保持一致；现有目标指纹升级后正常重建产物 | GNU 旧工具最小复现 1／255 两个真值比较失败；237 项 codegen、6 项 ABI 分类、387 项 LIR、253 项产物测试及 workspace clippy 通过，Darwin 正式消费者 8 个变体、26 个步骤进程通过；GNU／musl 各 10 个 fixture、20 个变体、70 个步骤进程通过 |
-| LLVM safepoint 不可复制 | 普通 safepoint 调用、显式 statepoint 和逻辑根恢复标记统一携带 noduplicate；保留现有优化管线与机器层约束 | 239 项 codegen 测试及 workspace clippy 通过；最小 IR 覆盖三目标、两种构建的实际机器栈映射，Darwin 四项正式回归通过 8 个变体、34 个步骤进程，原代理消费者通过两种构建及 full moving |
+| LLVM safepoint 不可复制 | 普通 safepoint 调用、显式 statepoint 和逻辑根恢复标记统一携带 noduplicate；保留现有优化管线与机器层约束 | Darwin 239 项、Linux 253 项 codegen 测试及 workspace clippy 通过；最小 IR 核对三目标机器栈映射，四项正式回归在每目标各通过 8 个变体、34 个步骤进程，原代理消费者通过两种构建及 full moving |
+| client 显式代理 | 纯 Scoop 组合 HTTP／HTTPS 转发、CONNECT、SOCKS5、本地／代理 DNS、两层 TLS 与目标 H2；suspend selector、静态代理凭据、路由池隔离及协商截止 | Darwin 30 个网络场景与 10 个 selector 生命周期场景通过 debug／release、双 native 线程、full moving 与复用；158 项 client 库测试通过两种构建，生产库与连接池／重试组合最终通过 8 个变体、24 个步骤进程 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -399,11 +400,15 @@ Digest 的 95 个独立场景包括 57 个协议、17 个生命周期、14 个�
 
 显式代理的 release 构建曾因 SafepointId 重复失败。最小 LLVM IR 确认 SimplifyCFG 将短路条件合流中的一次调用及根恢复标记复制到两个分支；在三个统一发射入口添加 noduplicate 后，同一优化管线保留一个实际调用点，无须关闭更多 pass 或改写 client 源码。SafepointId 在 Rust 中仍是普通标识值，不把复制 ID 数值误当成新增调用点。
 
-新增分支／异常消费者与既有 guarded unwrap、tail duplication、Boolean ABI 正式回归在 Darwin 全部通过 debug／release 和 full moving。原代理的 28 个网络场景及 selector 的 10 个生命周期场景也通过两种构建、full moving 与正常构建复用，共 4 个变体、12 个步骤进程。独立 LLVM 专测同时验证 Darwin／GNU／musl 的根计划与机器栈映射对应；Linux 新编译器的实际消费者验证继续跟进。
+新增分支／异常消费者与既有 guarded unwrap、tail duplication、Boolean ABI 正式回归在 Darwin 全部通过 debug／release 和 full moving。原代理的 28 个网络场景及 selector 的 10 个生命周期场景也通过两种构建、full moving 与正常构建复用，共 4 个变体、12 个步骤进程。独立 LLVM 专测同时验证 Darwin／GNU／musl 的根计划与机器栈映射对应。Linux 的格式化、workspace clippy、253 项 codegen 测试及工具重建通过；GNU／musl 的同一四项实际消费者各通过 8 个变体、34 个步骤进程，编译器修正的三目标验证闭合。
+
+显式代理已通过正常入口更新生产 sysroot。真实独立对端验证 absolute-form、全部 2xx CONNECT、同包隧道后缀、TLS-in-TLS 与独立信任、SOCKS 地址／凭据、H2 prior knowledge／Upgrade、HTTP/1.0、路由切换和 origin Digest；代理凭据不进入隧道后的目标请求。selector 在每次实际尝试前执行，保留原 Context、回调异常及取消后的真实清理。新增 CONNECT／SOCKS5 已开始协商后的超时用例均确认未启动目标 producer，并在同一 client 的单连接名额下继续完成下一请求；测试明确 Unit 回调类型后通过。原连接池与重试正式用例同时回归，未重复未修改的编译器全量测试。
+
+合并后的 GNU Digest 主协议用例通过两种构建、full moving 与复用；Digest 组合的 release late-401 场景触及原 180 秒测试时限，正在保留原二进制单独诊断。musl 的三个长认证用例与新代理的 Linux 验证继续进行。
 
 ## 后续工作
 
-继续完成代理、Cookie、缓存／续传、SSE／WebSocket 高层组合和可观察性。每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
+继续完成代理 407 认证与环境配置、Cookie、缓存／续传、SSE／WebSocket 高层组合和可观察性。每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
 
 ## 验证安排
 

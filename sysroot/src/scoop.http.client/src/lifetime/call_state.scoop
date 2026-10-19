@@ -9,14 +9,16 @@ internal class ClientCall(
     result: Continuation<ClientCallResult>
 ) {
     var request: HttpRequest = originalRequest
+    var route: ClientRoute = ClientRoute.Direct
     var authenticationSession: ClientAuthenticationSession? = None
     var digestUse: ClientDigestUse? = None
     var bearerCleanup: ClientBearerCleanup? = None
     val timeouts: HttpTimeoutOptions = sequence.timeouts
     val started: TimeMark? = sequence.started
-    val usesDeadlines: Boolean = timeouts.total != None || timeouts.poolAcquire != None || timeouts.responseHeaders != None ||
+    private val baseDeadlines: Boolean = timeouts.total != None || timeouts.poolAcquire != None || timeouts.responseHeaders != None ||
         timeouts.resolve != None || timeouts.connect != None || timeouts.tlsHandshake != None
-    val tracksProgress: Boolean = usesDeadlines || timeouts.readIdle != None || timeouts.writeIdle != None
+    val usesDeadlines: Boolean get() = baseDeadlines || (timeouts.proxyHandshake != None && clientNeedsProxyHandshake(route))
+    val tracksProgress: Boolean get() = usesDeadlines || timeouts.readIdle != None || timeouts.writeIdle != None
     val lock: ClientLock = ClientLock()
     var caller: Job? = Some(caller)
     var result: Continuation<ClientCallResult>? = Some(result)

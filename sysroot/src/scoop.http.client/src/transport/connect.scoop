@@ -6,6 +6,7 @@ import scoop.http.asyncio.*
 import scoop.platform.net.*
 import scoop.platform.time.MonotonicTimeSource
 import scoop.tls.*
+import scoop.url.UrlHost
 
 internal enum ClientConnection { Http1(AsyncHttp1Connection), Http2(AsyncHttp2Connection) }
 
@@ -64,38 +65,17 @@ internal fun startClientDial(state: ClientState, call: ClientCall, entry: Client
 
 private suspend fun connectClient(call: ClientCall, entry: ClientPoolEntry): ClientConnection {
     val state = call.client
-    val origin = call.request.origin
-    val tcp = connectClientSocket(call)
+    val (host, port) = clientRouteAddress(call)
+    val tcp = connectClientSocket(call, host, port)
     try {
         val connected = MonotonicTimeSource.markNow()
         state.lock.withLock { entry.created = connected }
         requireClientCall(call)
-        if (origin.scheme == "http") {
-            val protocol = if (state.config.cleartext == HttpCleartextProtocol.Http2PriorKnowledge) HttpProtocol.Http2 else HttpProtocol.Http1
-            return adoptClientConnection(call, entry, tcp, protocol)
-        }
-        val peer = when (origin.host) {
-            case Dns(name) -> TlsPeerName.Dns(name)
-            case Ipv4(bytes) -> TlsPeerName.Ip(IpAddress.fromByteArray(bytes))
-            case Ipv6(bytes) -> TlsPeerName.Ip(IpAddress.fromByteArray(bytes))
-        }
-        val tls = connectClientTls(call, tcp, peer)
-        try {
-            val allowed: Array<HttpProtocol> = when (state.config.versionPolicy) {
-                case Auto -> [HttpProtocol.Http2, HttpProtocol.Http1]
-                case Http1Only -> [HttpProtocol.Http1]
-                case Http2Only -> [HttpProtocol.Http2]
-            }
-            val selected: List<Byte>? = when (tls.connectionInfo.alpn) {
-                case Some(bytes) -> Some(bytes)
-                case None -> None
-            }
-            val protocol = selectHttpAlpn(selected, allowed, state.config.versionPolicy != HttpVersionPolicy.Http2Only)
-            requireClientCall(call)
-            return adoptClientConnection(call, entry, tls, protocol)
-        } catch (error: Throwable) {
-            try { tls.close() } catch (cleanup: Throwable) { throw ResourceUseException(error, cleanup) }
-            throw error
+        return when (call.route) {
+            case Direct -> connectClientOrigin(call, entry, tcp)
+            case HttpForward(endpoint) -> connectClientHttpProxy(call, entry, tcp, endpoint, true)
+            case HttpTunnel(endpoint) -> connectClientHttpProxy(call, entry, tcp, endpoint, false)
+            case Socks5(endpoint) -> connectClientSocks5(call, entry, tcp, endpoint)
         }
     } catch (error: Throwable) {
         try { tcp.close() } catch (cleanup: Throwable) { throw ResourceUseException(error, cleanup) }
@@ -103,7 +83,43 @@ private suspend fun connectClient(call: ClientCall, entry: ClientPoolEntry): Cli
     }
 }
 
-private suspend fun <T> adoptClientConnection(call: ClientCall, entry: ClientPoolEntry, transport: T, protocol: HttpProtocol): ClientConnection
+internal suspend fun <T> connectClientOrigin(call: ClientCall, entry: ClientPoolEntry, transport: T): ClientConnection
+    where T : AsyncByteStream, T : AsyncCloseable {
+    val config = call.client.config
+    try {
+        requireClientCall(call)
+        if (call.request.origin.scheme == "http") {
+            val protocol = if (config.cleartext == HttpCleartextProtocol.Http2PriorKnowledge) HttpProtocol.Http2 else HttpProtocol.Http1
+            return adoptClientConnection(call, entry, transport, protocol)
+        }
+        val tls = connectClientTls(call, transport, clientTlsPeer(call.request.origin.host), call.client.tls)
+        try {
+            val allowed: Array<HttpProtocol> = when (config.versionPolicy) {
+                case Auto -> [HttpProtocol.Http2, HttpProtocol.Http1]
+                case Http1Only -> [HttpProtocol.Http1]
+                case Http2Only -> [HttpProtocol.Http2]
+            }
+            val selected: List<Byte>? = when (tls.connectionInfo.alpn) { case Some(bytes) -> Some(bytes); case None -> None }
+            val protocol = selectHttpAlpn(selected, allowed, config.versionPolicy != HttpVersionPolicy.Http2Only)
+            requireClientCall(call)
+            return adoptClientConnection(call, entry, tls, protocol)
+        } catch (error: Throwable) {
+            try { tls.close() } catch (cleanup: Throwable) { throw ResourceUseException(error, cleanup) }
+            throw error
+        }
+    } catch (error: Throwable) {
+        try { transport.close() } catch (cleanup: Throwable) { throw ResourceUseException(error, cleanup) }
+        throw error
+    }
+}
+
+internal fun clientTlsPeer(host: UrlHost): TlsPeerName = when (host) {
+    case Dns(name) -> TlsPeerName.Dns(name)
+    case Ipv4(bytes) -> TlsPeerName.Ip(IpAddress.fromByteArray(bytes))
+    case Ipv6(bytes) -> TlsPeerName.Ip(IpAddress.fromByteArray(bytes))
+}
+
+internal suspend fun <T> adoptClientConnection(call: ClientCall, entry: ClientPoolEntry, transport: T, protocol: HttpProtocol): ClientConnection
     where T : AsyncByteStream, T : AsyncCloseable {
     val state = call.client
     val scope = state.lock.withLock {

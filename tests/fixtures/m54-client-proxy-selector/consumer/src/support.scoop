@@ -1,0 +1,85 @@
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.http.client.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.*
+import scoop.time.Duration
+import scoop.tls.TlsTrustSource
+import scoop.url.Url
+
+internal fun selectorCheck(value: Boolean, detail: String = "proxy selector lifecycle check failed") {
+    if (!value) throw IllegalStateException(Some(detail))
+}
+
+internal fun <T> selectorPresent(value: T?): Boolean = when (value) { case Some(_) -> true; case None -> false }
+
+internal class SelectorGate {
+    private var ready: Boolean = false
+    private var waiter: Continuation<Unit>? = None
+    fun signal() {
+        ready = true
+        val saved = waiter; waiter = None
+        saved?.resume(Unit)
+    }
+    suspend fun await() {
+        suspendCoroutine<Unit> { continuation ->
+            if (ready) continuation.resume(Unit) else waiter = Some(continuation)
+        }
+    }
+}
+
+internal class SelectorFailure { var value: Throwable? = None }
+internal class SelectorContext(val name: String)
+context(value: SelectorContext)
+internal fun selectorContext(): String = value.name
+
+internal fun selectorTarget(): Url = Url.parse("http://origin.invalid/resource")
+internal fun selectorRoute(listener: AsyncTcpListener): HttpProxy = HttpProxy.Http(HttpProxyEndpoint(
+    Url.parse("http://127.0.0.1:" + listener.localAddress.port.toString())))
+
+internal fun selectorConfig(trust: TrustStore, selector: HttpProxySelector, total: Boolean = false): HttpClientConfig =
+    HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)), proxy = selector,
+        retries = HttpRetryOptions(maxRetries = 3L, initialDelay = Duration.ZERO, maxDelay = Duration.ZERO),
+        timeouts = HttpTimeoutOptions(total = if (total) Some(Duration.seconds(15L)) else None,
+            resolve = None, connect = None, tlsHandshake = None, proxyHandshake = None))
+
+internal fun withSelectorRuntime(block: suspend (EventLoop, CoroutineScope, AsyncTcpListener) -> Unit) {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { scope ->
+        loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).useAsync suspend { listener ->
+            block(loop, scope, listener)
+            selectorCheck(!scope.job.isCancelled)
+        }
+    }
+}
+
+internal fun selectorServe(scope: CoroutineScope, listener: AsyncTcpListener, connected: AtomicBoolean): Job =
+    scope.launch suspend {
+        val socket = listener.accept()
+        connected.store(true)
+        AsyncHttp1Connection.takeOwnershipAsServer(socket, scope).useAsync suspend { connection ->
+            val incoming = connection.receiveRequest()!!
+            when (val target = incoming.head.target) {
+                case Http1(bytes) -> selectorCheck(String.fromUtf8(bytes) == "http://origin.invalid/resource")
+                else -> throw IllegalStateException(Some("proxy received a non-HTTP/1 target"))
+            }
+            selectorCheck(incoming.head.fields.findAll("Proxy-Authorization".toByteArray()).size == 0L)
+            incoming.body.readAllBytes(0L)
+            connection.sendResponse(HttpResponseHead(HttpVersion.Http11, 200U, fields = [
+                HttpField("Connection".toByteArray(), "close".toByteArray())
+            ]), Http1BodyFraming.Length(2L)).useAsync suspend { output ->
+                NativeByteBuffer.allocate(2L).use suspend { buffer ->
+                    buffer.writeBytes("ok".toByteArray()); output.writeFully(buffer)
+                }
+                output.finish()
+            }
+        }
+    }
+
+internal suspend fun selectorDone(client: HttpClient, options: HttpCallOptions = HttpCallOptions()) {
+    client.withResponse(HttpRequest.get(selectorTarget(), options = options)) suspend { response ->
+        selectorCheck(response.status == 200U && response.body.text(2L) == "ok")
+    }
+}

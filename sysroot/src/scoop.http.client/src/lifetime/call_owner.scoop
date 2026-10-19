@@ -35,7 +35,7 @@ private suspend fun runClientCall(call: ClientCall) {
         try {
             startClientDeadline(call, scope, HttpTimeoutPhase.Total, call.timeouts.total, call.started)
             requireClientCall(call)
-            try { prepareClientAuthentication(call) }
+            try { selectClientRoute(call); prepareClientAuthentication(call) }
             catch (error: Throwable) { failClientCall(call, error, true) }
             requireClientCall(call)
             startClientDeadline(call, scope, HttpTimeoutPhase.PoolAcquire, call.timeouts.poolAcquire)

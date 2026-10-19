@@ -7,6 +7,7 @@ import scoop.time.TimeMark
 import scoop.url.UrlOrigin
 
 internal class ClientPoolEntry(val origin: UrlOrigin, first: ClientCall, now: TimeMark) {
+    val route: ClientRoute = first.route
     var connection: ClientConnection? = None
     var initial: ClientCall? = Some(first)
     var connecting: Boolean = true

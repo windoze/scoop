@@ -1,0 +1,90 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.collections.emptyList
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.platform.net.*
+import scoop.tls.*
+import scoop.tls.asyncio.openTlsClientContext
+
+internal suspend fun connectClientHttpProxy(call: ClientCall, entry: ClientPoolEntry, tcp: AsyncTcpStream,
+    endpoint: HttpProxyEndpoint, forward: Boolean): ClientConnection {
+    if (!endpoint.address.secure) return connectClientHttpProxyTransport(call, entry, tcp, endpoint, forward)
+    val options = endpoint.tls
+    val tls = openTlsClientContext(options.trust,
+        TlsOptions(options.minimum, options.maximum, ["http/1.1".toByteArray()]), options.identity).use suspend { context ->
+        connectClientTls(call, tcp, clientTlsPeer(endpoint.address.host), context)
+    }
+    try {
+        val selected: List<Byte>? = when (tls.connectionInfo.alpn) { case Some(bytes) -> Some(bytes); case None -> None }
+        selectHttpAlpn(selected, [HttpProtocol.Http1], true)
+        requireClientCall(call)
+        return connectClientHttpProxyTransport(call, entry, tls, endpoint, forward)
+    } catch (error: Throwable) {
+        try { tls.close() } catch (cleanup: Throwable) { throw ResourceUseException(error, cleanup) }
+        throw error
+    }
+}
+
+private suspend fun <T> connectClientHttpProxyTransport(call: ClientCall, entry: ClientPoolEntry, transport: T,
+    endpoint: HttpProxyEndpoint, forward: Boolean): ClientConnection where T : AsyncByteStream, T : AsyncCloseable {
+    if (forward) return adoptClientConnection(call, entry, transport, HttpProtocol.Http1)
+    val tunnel = connectClientHttpTunnel(call, transport, endpoint)
+    return connectClientOrigin(call, entry, tunnel)
+}
+
+private suspend fun <T> connectClientHttpTunnel(call: ClientCall, transport: T, endpoint: HttpProxyEndpoint): HttpTransport
+    where T : AsyncByteStream, T : AsyncCloseable {
+    val deadline = startClientDeadline(call, call.scope!!, HttpTimeoutPhase.ProxyHandshake, call.timeouts.proxyHandshake)
+    try {
+        requireClientCall(call)
+        val config = call.client.config
+        val tunnel = AsyncHttp1Connection.takeOwnershipAsClient(transport, call.scope!!,
+            config.http1Receive, config.http1Limits).useAsync suspend { connection ->
+            connection.sendRequest(httpConnectRequest(call.request.url, clientProxyAuthorization(endpoint))).useAsync suspend { output ->
+                output.finish()
+            }
+            while (true) {
+                val response = connection.receiveResponse()
+                val complete = response.body.useAsync suspend { body ->
+                    if (response.head.status < 200U && response.head.status != 101U) {
+                        body.readAllBytes(0L)
+                        false
+                    } else {
+                        if (!httpConnectAccepted(response.head)) throw HttpProxyConnectException(endpoint.url, response.head)
+                        body.readAllBytes(0L)
+                        true
+                    }
+                }
+                if (complete) break
+            }
+            connection.takeTransport()
+        }
+        return finishClientNetworkStage(call, deadline, tunnel)
+    } catch (error: Throwable) { recordClientIoFailure(call, error); throw error }
+    finally { stopClientDeadline(deadline) }
+}
+
+internal suspend fun connectClientSocks5(call: ClientCall, entry: ClientPoolEntry, tcp: AsyncTcpStream,
+    endpoint: HttpSocks5Endpoint): ClientConnection {
+    val origin = call.request.origin
+    val destination = when (origin.host) {
+        case Dns(name) -> Socks5Address.Domain(name, origin.port)
+        case Ipv4(bytes) -> Socks5Address.Ip(SocketAddress(IpAddress.fromByteArray(bytes), origin.port))
+        case Ipv6(bytes) -> Socks5Address.Ip(SocketAddress(IpAddress.fromByteArray(bytes), origin.port))
+    }
+    val deadline = startClientDeadline(call, call.scope!!, HttpTimeoutPhase.ProxyHandshake, call.timeouts.proxyHandshake)
+    val tunnel = try {
+        requireClientCall(call)
+        finishClientNetworkStage(call, deadline,
+            AsyncSocks5Tunnel.takeOwnership(tcp, destination, endpoint.credentials, endpoint.resolution))
+    } catch (error: Throwable) { recordClientIoFailure(call, error); throw error }
+    finally { stopClientDeadline(deadline) }
+    return connectClientOrigin(call, entry, tunnel)
+}
+
+internal fun clientProxyAuthorization(endpoint: HttpProxyEndpoint): Array<HttpField> = when (endpoint.authorization) {
+    case None -> emptyList<HttpField>().toArray()
+    case Some(credentials) -> [HttpField("Proxy-Authorization".toByteArray(), credentials.toByteArray(), true)]
+}

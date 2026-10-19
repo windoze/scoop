@@ -140,6 +140,24 @@ TLS 始终验证 URL 的 DNS／IP 身份，不能按所连接 IP 替换主机名
 
 Proxy-Authorization 只发往代理，不能进入隧道后的 origin 请求；Authorization 不能误用于代理。代理选择与凭据来源可通过 suspend 回调提供。环境代理通过显式启用的配置读取 HTTP_PROXY／HTTPS_PROXY／ALL_PROXY／NO_PROXY 等规则；默认不受环境变量影响。NO_PROXY 的域名后缀、IP、CIDR 和可选端口匹配由独立的代理配置函数处理，未知语法报配置错误；不实现 PAC 或系统自动发现服务。
 
+### 6.1 显式代理与选路
+
+HttpClientConfig.proxy 使用 HttpProxySelector，默认 direct()。HttpCallOptions.proxy 为 None 时继承，Some 时完整替换，包括使用 direct() 强制直连。HttpProxySelector 的构造参数为 suspend (HttpRequest) -> HttpProxy；fixed(proxy) 提供固定选择。每次实际尝试在取得池容量和生成 origin 认证字段前调用一次 selector，包括重定向、重试和认证 follow-up。回调位于原调用的 Context 与 Job 中，可挂起读取凭据；total、取消和 client.close 均等待其实际清理，不由连接池驱动调用用户代码。
+
+HttpProxy 提供 Direct、Http(HttpProxyEndpoint) 和 Socks5(HttpSocks5Endpoint)。HttpProxyEndpoint 接收 URL、独立的 HttpClientTlsConfig 和可选 HttpCredentials authorization；URL 只允许 http／https，缺省端口分别为 80／443。HttpSocks5Endpoint 接收 socks5 URL、可选的 asyncio.Socks5Credentials 及 Socks5Resolution，缺省端口 1080、缺省解析模式 Proxy。两个 endpoint 均为不可变配置：拒绝 userinfo、非空且不为根的路径、query、fragment、空 authority 和零端口；网络主机直接由 UrlAuthority.networkHost() 取得，保留 URL／IDNA 的错误原因。
+
+endpoint.authorization 表示调用者显式提供的代理凭据；selector 可先挂起取得凭据再返回 endpoint。字段由 HTTP 的 HttpCredentials 生成并标记 never-index，只用于该 endpoint 的外层请求。普通 HttpRequest.fields 不接受 Proxy-Authorization；origin 的 Authorization 不复制到自动生成的 CONNECT。SOCKS5 的用户名／密码快照、协议编码与错误均由 asyncio 处理，client 不解释或拼装 SOCKS 字节。
+
+池以目标 origin、具体代理配置实例及转发／隧道方式区分连接；同一 selector 可返回已有不可变 endpoint 以复用连接，更换代理凭据或 TLS 配置使用新 endpoint。每 origin 的数量限制覆盖该 origin 的全部路由。路由改变且名额被其他路由的空闲连接占用时，先回收这些空闲连接再建立新路由；不复用错误路由，也不关闭仍在处理调用的连接。
+
+### 6.2 转发与隧道
+
+明文 HTTP/1.1 的普通请求经 HTTP／HTTPS 代理使用 absolute-form，并由 HTTP 库生成 Host；origin 的 Digest 按实际 absolute-form 签名。HTTPS、显式 HTTP/1.0、HTTP/2 prior knowledge、h2c Upgrade 和应用本身的 CONNECT 请求先建立代理隧道，再按原目标配置执行请求，不静默覆盖调用者选择的目标协议。代理外层始终使用 HTTP/1.1；HTTPS 代理只提议 http/1.1 ALPN，使用代理的 DNS／IP 身份和独立 TLS 配置。目标 TLS 使用原 URL 的身份与 client 的目标 TLS 配置。
+
+自动 CONNECT 的 authority-form、Host、全部 2xx 成功判断以及拒绝响应定界由 HTTP 库负责。忽略合法信息响应，成功响应的空 body 关闭后通过 takeTransport 接管全部未消费后缀，再建立目标协议；不重新读取、丢弃后缀或新建 socket。没有被认证策略处理的非 2xx 结果以 HttpProxyConnectException 报告，保存代理 URL 和实际 HttpResponseHead，关闭代理连接，不无界读取拒绝 body。SOCKS5 接管同一 TCP 传输，完成协商后按相同的目标协议路径使用隧道。
+
+代理传输的建立、取消、失败与迟到成功均遵守普通池名额和所有权规则。HTTPS 代理的 TLS 上下文在每条新代理连接建立时通过 TLS 的 suspend 工厂装载；已有 TLS 会话保留独立引用，工厂上下文随后关闭。复用现有代理连接不重新装载上下文。代理层不实现 native 工作线程、TLS 引擎、HTTP parser 或 SOCKS parser。
+
 ## 7. 超时和取消
 
 总截止时间覆盖排队、DNS、连接、握手、所有重试／重定向／认证、上传、头部与响应 body 消费，直到调用结束。execute 返回响应头不停止总计时。计时使用单调时钟；服务器日期、Retry-After 的绝对日期和缓存日期使用 wall clock，两者不混用。
@@ -149,6 +167,7 @@ Proxy-Authorization 只发往代理，不能进入隧道后的 origin 请求；A
 | total | 完整调用，默认 None；长流可明确保持无总截止 |
 | poolAcquire | 等待池容量，默认 None，仍受 total 约束 |
 | resolve／connect／tlsHandshake | 各自阶段默认 30 秒；一次候选连接序列共享 connect 截止 |
+| proxyHandshake | CONNECT／SOCKS5 协商，默认 30 秒；不包含此前的代理选择、TCP 或外层 TLS |
 | responseHeaders | 等待最终响应头，默认 None；启用时从该次请求头发出开始计时，包括并行上传 |
 | readIdle／writeIdle | 有实际待处理读／写时连续无字节进度的时间，默认 None；应用处理数据或未发起读取不算停滞 |
 | HttpCallOptions.continueWait | 默认 1 秒，到期允许发送 body，不单独令调用失败 |
@@ -178,6 +197,8 @@ DNS 名称直接使用 asyncio.connectTcp 的双族解析与候选竞速；clien
 IP 字面量跳过 resolve，connect 从提交单个 TCP 连接前计时。TLS 的 tlsHandshake 从调用 AsyncTlsStream 接管连接前开始，到握手和身份验证完成时结束；阶段为 TlsHandshake，ALPN 的协议选择失败保留 HttpNegotiationException。明文请求不启动 TLS 计时。阶段结束检查仍有效的 total，握手或连接成功但截止已过时，关闭未交付资源再报告失败。
 
 HttpTimeoutException.cause 为 None 或原始下层异常；附带清理失败时继续使用 ResourceUseException，不能丢失已选择的超时、取消或 native 原码。任何阶段到期都等实际连接、握手及取消收尾后再结束调用，未完成的连接名额随后才可复用。
+
+HttpTimeoutOptions.proxyHandshake 默认 Some(Duration.seconds(30))，同样允许 None 和零。HttpTimeoutPhase.ProxyHandshake 覆盖自动 CONNECT 的请求提交、信息／最终响应与传输接管，或完整 SOCKS5 协商；普通代理转发的响应仍使用 responseHeaders 和 idle 配置。每次代理协商独立计时并受同一 total 约束。HTTPS 代理和目标的两个 TLS 会话分别使用 tlsHandshake 阶段。CONNECT 的目标域名由代理解析；SOCKS5 的目标 DNS 使用显式选择的本地或代理模式，client 不另行解析代理负责的域名。
 
 ### 7.3 读写停滞
 
