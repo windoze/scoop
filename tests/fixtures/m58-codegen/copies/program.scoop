@@ -1,0 +1,47 @@
+struct Words(val a: Long, val b: Long, val c: Long, val d: Long,
+             val e: Long, val f: Long, val g: Long, val h: Long)
+class Node(val value: Long)
+struct Snapshot(val node: Node, val words: Words)
+
+@NoGC @Unsafe
+fun replace(value: Words): Words {
+    addressOf(value).store(Words(8L, 7L, 6L, 5L, 4L, 3L, 2L, 1L))
+    return value
+}
+
+fun acrossGc(value: Snapshot, fail: Boolean): Snapshot {
+    try {
+        gcCollect()
+        if (fail) { throw IllegalArgumentException() }
+        return value
+    } catch (error: IllegalArgumentException) {
+        gcCollect()
+        return Snapshot(value.node, value.words)
+    }
+}
+
+fun main() {
+    val words = Words(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L)
+    val original = Snapshot(Node(42L), words)
+    val pair = (original, words)
+    @Unsafe {
+        val replaced = replace(words)
+        if (replaced.a != 8L || replaced.h != 1L || words.a != 1L || words.h != 8L) {
+            throw IllegalStateException()
+        }
+    }
+    val values = MutableArray<Snapshot>(17L) { _ -> original }
+    gcCollect()
+    values[8L] = Snapshot(Node(99L), words)
+    val copied = values.toArray()
+    val normal = acrossGc(copied[8L], false)
+    val caught = acrossGc(original, true)
+    gcCollect()
+    val (saved, savedWords) = pair
+    if (normal.node.value != 99L || caught.node !== original.node ||
+        saved.node.value != 42L || savedWords.h != 8L || normal.words.a != 1L ||
+        copied[0L].node !== saved.node || values[8L].node !== normal.node) {
+        throw IllegalStateException()
+    }
+    println("value copies preserve snapshots, barriers and relocated returns")
+}

@@ -18,6 +18,9 @@
 | C：状态机生成前同步内联 | 待实施 |
 | D：外层 poll 循环分块、受限内层 SIMD | 待实施 |
 | LLVM codegen：范围与 NoGc 标量补齐 | 本机实现与相关验证通过；实际内核暂无可信运行时间收益，后续候选逐项评估 |
+| LLVM codegen：按值复制 | 两条 release 管线增加 memcpyopt；17 项 statepoint 专测及源码三变体通过，text −616 bytes，运行与编译时间基本持平 |
+| native helper 链接边界 | 已删除未登记外部符号的编译期拒绝，交由 linker 解析；141 项对象产物回归与真实 Darwin loop-idiom 程序通过 |
+| runtime C → LLVM IR 小函数 | 用户追加实施范围；LLVM 批次之后核对、分项实现与对照，当前仅完成早期候选审计 |
 | 性能与跨平台 | A 的本机生产前后矩阵已记录于 [PERFORMANCE.md](PERFORMANCE.md)；B–D 性能、GNU／musl 完整验收及最终清理待完成 |
 
 ## 2026-10-20：LLVM 范围推导与 NoGc 标量补齐

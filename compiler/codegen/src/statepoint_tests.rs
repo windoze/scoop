@@ -16,6 +16,8 @@ mod call_frame;
 mod constant_roots;
 #[path = "statepoint_tests/copied_aggregate.rs"]
 mod copied_aggregate;
+#[path = "statepoint_tests/copies.rs"]
+mod copies;
 #[path = "statepoint_tests/interface_parts.rs"]
 mod interface_parts;
 #[path = "statepoint_tests/loops.rs"]

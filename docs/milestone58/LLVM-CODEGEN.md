@@ -38,3 +38,9 @@ Managed 不新增会复制 site 的 CFG／循环 pass；普通优化先于最终
 loop-idiom 的 Darwin 实验生成了 `bzero`，暴露出 `.slib` 生产路径要求所有 native 引用预先登记的错误限制。删除该拒绝分支；未匹配已知分类的引用直接保存符号名与重定位，由最终 linker 解析。已有 helper 表保留已知 ABI 分类用途，不作为白名单，也不添加 `bzero` 特判。正文编码保留 native 目标名字。测试验证普通引用可保存、读回及区分目标；不要求编译器预判辅助函数是否存在。
 
 本机 fmt／workspace clippy 与 141 项对象产物相关测试通过；原触发 Darwin `bzero` 的实际程序已正常编译、链接，fill／prefix／small／branch 四模式输出均与基线一致。动态 undefined 表保留 `_bzero`，由系统库正常解析。
+
+## 第二批：按值复制
+
+两条 release 标量管线在 BDCE 后增加 memcpyopt，随后由 DSE／ADCE 清理，前置 SROA 保持。没有新增内存效果属性。精确测试覆盖 byval 中间副本转发，以及源值在消费前被修改时必须保留快照；Managed 同时保留实际 site。已有跨三目标测试继续覆盖含 AS1 引用的聚合复制、volatile 根恢复、invoke 和机器 site 唯一性。
+
+fmt／workspace clippy、17 项 statepoint 专测与新源码 debug／release／moving 三变体通过。源码组合大 struct 参数取址与独立值副本、tuple、old→young 数组写入、clone、GC 后返回和 catch。程序对照的主要收益是综合内核 text 减少 616 bytes；同 Cone 值复制及跨 Cone byval 的运行时间均没有可信提升，详见 [性能记录](PERFORMANCE.md#6-复制与循环候选)。不把单条 memcpy 消失解释为通用运行加速。

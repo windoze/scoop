@@ -245,4 +245,4 @@ for round in 0 .. max_rounds:
 | Array clone | codegen 已知 source／target 的元素和布局，当前仍调用 C clone；可复用分配 IR、memcpy 与必要范围屏障 | source 必须在目标分配后使用 relocation 更新地址；名义 Array／MutableArray TD 仍分别正确 |
 | is-instance／itable lookup | 先利用 exact receiver 与 devirt 消除；剩余可考虑 exact TD 指针比较快路径 | 父类、接口、函数类型变体等动态关系不能全部退化成指针相等；复杂慢路径保留 runtime |
 
-这部分为源码核对与后续候选，没有宣称迁移后的性能结果，也不扩大 M58 的交付门槛。优先在 typed MIR／LIR 保留语义，codegen 只负责最终布局／GC 相关发射；不把上游语义分析搬到 codegen，不一次性将整个 C runtime 展开。收益依据应是消失的调用、重复检查、root frame 与复制，以及 LLVM 获得的静态信息；GC 协调、分配慢路径、异常和 OS 操作继续留在 runtime。
+这部分最初为源码核对，尚无迁移后的性能结果。用户随后明确将候选的分项实现、验证和性能对照纳入 M58，安排在 LLVM 管线优化之后；实际完成范围见 PROGRESS。优先在 typed MIR／LIR 保留语义，codegen 只负责最终布局／GC 相关发射；不把上游语义分析搬到 codegen，不一次性将整个 C runtime 展开。收益依据应是消失的调用、重复检查、root frame 与复制，以及 LLVM 获得的静态信息；GC 协调、分配慢路径、异常和 OS 操作继续留在 runtime。
