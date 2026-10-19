@@ -27,6 +27,12 @@ void scoop_gc_heap_finish_collection_locked(uint64_t object_count, bool minor) {
         }
         if (block->generation == SCOOP_GC_YOUNG) {
             scoop_gc_heap_state.metrics.promoted_bytes += block->live_bytes;
+            if (minor && !stress_move && block->kind == SCOOP_BLOCK_KIND_SMALL &&
+                (block->live_bytes == 0 || block->state == SCOOP_BLOCK_EVACUATION_SOURCE)) {
+                /* Sources are unpinned and fully updated; activation resets metadata. */
+                scoop_heap_release_block(block);
+                continue;
+            }
         }
         block->generation = SCOOP_GC_OLD;
         scoop_heap_finish_block(block, stress_move);

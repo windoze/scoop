@@ -485,6 +485,8 @@ minor collection 处理年轻代，依据完整精确根与旧代脏区追踪年
 
 minor 和 full 共享线程、root、pin、handle、Context、callback、冻结栈段及精确扫描契约。晋升或移动在原存储失效前更新全部相关引用；pin 暴露的地址不变。年轻区复用不能遗漏存活引用或 release hook，旧代死对象可以留到 full collection。
 
+普通 minor 在引用回写与必要验证完成后，可以整块退役全死或已完成搬迁的年轻 small block。搬迁 source 的选择已经排除含 pin 的 block；release-hook 对象预晋升，不进入年轻快速路径。先累计年轻存活 bytes 的晋升统计，再按既有 block 退役流程释放 forwarding、撤销活动状态并交还空闲链；不逐对象清理已经失效的源存储。block 再次激活时清空对象起点、大小、mark／pin／scan 和 line 元数据，不能让旧起点随复用重新可见。evacuation target 和仍含存活 pinned 对象的 block 正常收尾，moving stress 保留逐对象 poison 与 quarantine；full 的 release 处理不因此改变。
+
 分配压力可触发 minor 或 full；晋升空间不足时必须从完整对象图进入 full 或明确的分配失败出口。分代策略和容量不改变语言合法性、对象 ABI 或 FFI 保活义务。
 
 STW 后 coordinator 可使用内部常驻 pthread worker 并行 mark，worker 不登记为 mutator，也不执行用户代码。小 minor 可只使用 coordinator；单 worker 与多 worker 共用同一参数化 collector。对象／大对象 mark 使用原子首次置位，只有首次成功者登记存活对象和扫描任务；line_live 原子 OR，计数和存活清单按 worker 汇总。
