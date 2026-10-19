@@ -81,11 +81,11 @@
 | 创建后立即调用的小型 closure | 分配来源、别名／逃逸检查，现有 closure actual type 与 typed invoke 内联 | invoke 已展开后，用创建点捕获快照替换 `ClosureCapture`，才删除 `ClosureAlloc`；保留捕获求值顺序，未知 bridge／返回／存储／callback 保留 |
 | 同函数内的小型普通 class | 分配来源、exact class、内联后的字段使用 | initializer 与相关方法正文已经可见且展开后，将字段读写替换成普通 typed locals；保留初始化顺序／副作用，不支持的父类、EH、release／地址／原子语义先保留 |
 
-class 的 [lowering](../../compiler/mir-lower/src/cfg/expression.rs) 是 `ClassAlloc` → 独立 initializer 调用 → 必要的 `PublishReleaseReady`，不是一个纯字段字面量。未分析或未内联的 constructor 可以发布 receiver、抛异常或承担资源义务；仅看到分配结果局部使用，不能删除整段构造。第一批 class 候选应无 release hook，字段操作可以逐项替换；创建点的初始化和每次字段写入仍按原路径执行。
+class 的 [lowering](../../compiler/mir-lower/src/cfg/expression.rs) 是 `ClassAlloc` → 独立 initializer 调用 → 必要的 `PublishReleaseReady`，不是一个纯字段字面量。语言规范 9.1.1 禁止发布或捕获 initializing receiver，但 constructor 仍可执行普通调用、分配、抛异常或承担资源义务；仅看到分配结果局部使用，不能删除整段构造。未内联 initializer 的保守保留来自尚需真实 receiver 和字段存储，不能误写为语言允许构造器直接发布 `this`。第一批 class 候选应无 release hook，字段操作可以逐项替换；创建点的初始化和每次字段写入仍按原路径执行。
 
 现有 [ListIterator](../../sysroot/src/scoop.core/src/iteration.scoop)、[RangeIterator](../../sysroot/src/scoop.core/src/ranges.scoop) 和 [StringIterator](../../sysroot/src/scoop.core/src/string_iterator.scoop) 是值得量化的实际候选：容器引用加少量游标字段，可能通过标量替换省掉一次局部分配。但它们还依赖调用去虚拟化、正文可见性／内联，以及循环中的字段状态；不能承诺首批 box pass 就能消除所有 `for` 的 iterator，也不把跨 Cone 通用内联加入前置条件。
 
-若后续确实需要分析局部容器包住另一个候选，再增加对应 containment 边，并在容器逃逸时传播到所含引用。不要为第一版尚不接受的任意对象图先实现字段敏感堆分析。两类消费者都不直接扩展到 coroutine frame／adapter；协程包装仍按[前置同步内联](ALLOCATION-ELISION.md#22-第一阶段在-coroutine-lowering-前内联小型已知同步正文)处理。
+若后续确实需要分析局部容器包住另一个候选，再增加对应 containment 边，并在容器逃逸时传播到所含引用。不要为第一版尚不接受的任意对象图先实现字段敏感堆分析。两类消费者都不直接扩展到 coroutine frame／adapter；协程包装使用[前置同步内联](ALLOCATION-ELISION.md#22-在-coroutine-lowering-前内联小型已知同步正文)和[尾部 completion 转交](ALLOCATION-ELISION.md#23-真正尾部-suspend-调用直接转交-completion)。
 
 ## 6. 实施与验收
 
@@ -98,7 +98,7 @@ class 的 [lowering](../../compiler/mir-lower/src/cfg/expression.rs) 是 `ClassA
 | 循环 | 每轮独立 box 正例；上轮别名、多个活实例、复杂退出保留；不能只测无循环的小函数 |
 | 组合 | struct／enum／tuple 含引用跨强制移动、泛型单态化、真实 interface adapter 保留、异常与 release 不变 |
 | 优化与性能 | 少量 typed MIR 断言 Box 是否消失；真实运行的 allocated bytes／对象数、minor 次数、耗时、代码体积与编译时间 |
-| 后续消费者 | closure 捕获快照／副作用／逃逸；class constructor 发布／release／字段别名；迭代器的实际源码闭环 |
+| 后续消费者 | closure 捕获快照／副作用／逃逸；class constructor 副作用／异常／release／字段别名；初始化 receiver 的现行禁止发布规则；迭代器的实际源码闭环 |
 
 保守保留案例仍是合法程序，验证运行结果和分配是否按预期保留，不新增“优化失败”诊断。类型规则本身的 negative fixture 沿用正常诊断验收。全量 IR 快照、分析结果持久化和通用解释报告均非本期所需。
 

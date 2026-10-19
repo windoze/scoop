@@ -12,7 +12,7 @@ Scoop 主要面向 PC／桌面应用，包括 60 fps GUI。本期优先改善分
 | --- | --- | --- |
 | M58-A：minor／full 暂停工作量 | minor 做与年轻存活量无关的扫描；full 在压缩失败前做昂贵准备，sweep 逐 word 扫描 | 年轻 small block 整块退役、无引用大对象跳过 remembered scan；full 必要容量早判与 starts bitmap 枚举 |
 | M58-B：函数内逃逸分析与局部装箱 | exact 类型已知，但 `Box → Any 别名 → 检查 → Unbox` 仍分配 | 局部分配来源与使用分析，先以 box 的 payload 替换为真实消费者 |
-| M58-C：同步协程包装消除 | 普通内联发生在 frame／adapter 生成之后 | 在 suspend ABI／状态机转换前内联小型已知同步正文，删除已消失的 suspend site |
+| M58-C：尾部与同步协程包装消除 | 真正尾调用仍生成自身状态；普通内联发生在 frame／adapter 生成之后 | 同结果类型的尾部 completion 转交；在 suspend ABI／状态机转换前内联小型已知同步正文 |
 | M58-D：带外层 poll 的循环分块 | 每轮 poll 限制轻量循环吞吐与向量化 | 简单有界计数循环分块，外层 poll；先保守标量，再验证受限内层向量化 |
 
 详细依据分别见 [GC 暂停工作量](GC-PAUSE-WORK.md)、[逃逸分析](ESCAPE-ANALYSIS.md)、[装箱与协程包装](ALLOCATION-ELISION.md)、[循环分块](POLL-STRIP-MINING.md)。M58-B 的分析与 box 消除一起交付，不先搭建没有消费者的通用分析平台。
@@ -51,15 +51,17 @@ Full 先处理两处局部工作：在单 source 且既有目标容量上界都�
 
 这条路径比通用栈分配简单：不引入栈对象头、栈地址与堆引用混用、额外扫描协议或对象生命周期 ABI。后续即时闭包使用捕获快照；简单 class 使用字段局部值，两者复用候选／使用分析，并在有真实替换消费者时扩展。具体转移规则、循环限制、构造器副作用和测试见 [ESCAPE-ANALYSIS.md](ESCAPE-ANALYSIS.md)。
 
-## 5. M58-C：同步正文在生成状态机之前处理
+## 5. M58-C：尾部转交与同步正文内联
+
+优先实现简单 tail suspend 包装：函数的所有可达挂起点均为真正尾调用，exact 结果类型匹配，没有调用后的结果处理、catch／finally 或 Context／其他 cleanup 义务时，将原 completion 传给 callee，原样返回 `CoroutineStep`。callee 即使真正挂起，也无需本函数的状态机、frame 或 site adapter；允许普通计算前缀和多个尾调用分支。先有非尾部挂起再尾调用的函数仍需状态机。该优化不依赖内联，也不要求机器 tail call，详见[尾部转交](ALLOCATION-ELISION.md#23-真正尾部-suspend-调用直接转交-completion)。
 
 在 typed MIR 正文及调用点登记完成后、`transform_suspend_abis()` 和 `coroutine::transform()` 之前，内联同一 Cone 内直接可见的小型同步 callee。初始叶子无 suspend site，不观察／发布 hidden completion；移除调用后同步更新 site registry，让 wrapper 继续走已有 Immediate 路径。普通 GC、参数求值、副作用与取消检查保持，不能把“不挂起”当成 NoGC 或纯函数。
 
 这一前置阶段也允许有界交替目标解析／去虚拟化、同步正文内联和 site 清理，并将已确认同步的事实传播给受影响 caller。它不能由状态机生成后的普通优化多跑几轮替代；前置迭代完成后只生成一次正式状态机。
 
-初版限制无 EH 的小 CFG，递归、动态／外部 suspend 调用与真正挂起路径保留。复用已有 clone／ID 重映射与代码增长选择；不通过把 `Continuation<T>` 强转成 `Continuation<U>`、传 null 或延迟 adapter 分配来省对象。一般逃逸分析不负责推导协程的一次完成协议。
+同步内联初版限制无 EH 的小 CFG，递归、动态／外部 suspend 调用与真正挂起路径保留。复用已有 clone／ID 重映射与代码增长选择；不通过把 `Continuation<T>` 强转成 `Continuation<U>`、传 null 或延迟 adapter 分配来省对象。一般逃逸分析不负责推导协程的一次完成协议。
 
-同结果类型的纯尾部 suspend 转交是后续独立步骤；需证明没有 catch／finally、Context 恢复、返回适配和调用后状态义务。只有同步恢复、跨线程、失败与唯一完成协议均验证后才扩大范围。
+同步内联后的 CFG 可以再次产生尾调用候选。无帧的 tail wrapper 仍可能返回 Suspended，不能因其不再有自身 site／frame 就把它当成同步叶子。尾转交在 ABI 转换时保持完整参数和原 step 返回，与本函数剩余 site 一起决定是否生成状态机；同步恢复、跨线程、失败与唯一完成协议保持。
 
 ## 6. M58-D：外层 poll 覆盖有界内层
 
@@ -79,7 +81,7 @@ Full 先处理两处局部工作：在单 source 且既有目标容量上界都�
 | --- | --- |
 | 年轻块退役／full 工作量 | 运行时规范 3.9：退役、元数据复用、对象释放与搬迁责任；3.2／3.3 根与握手语义保持 |
 | 逃逸分析与标量替换 | 实现规范 2.19：职责、保守保留与 roots 前完成；语言 3.3／4.4.4、runtime 2.3／2.6 的值、identity 和捕获语义保持 |
-| 协程前置内联 | 实现规范 2.3／2.19：明确 source signature 阶段的处理顺序；语言 8.2／8.3／11.9 的协议保持 |
+| 协程尾转交／前置内联 | 实现规范 2.3／2.19：明确 tail 的 step 转交和 source signature 阶段顺序；runtime 第 8 章区分无自身恢复状态与实际挂起，语言 8.2／8.3／11.9 的协议保持 |
 | 循环分块 | runtime 3.2 与实现规范 2.19：允许外层 poll 覆盖已证明有界、无 safepoint 的内层，保留 continue 和移动根要求 |
 
 本次只写设计，未把尚未实施的策略写成当前规范行为；实现时按上表先修改规范，再修改代码和引用方。

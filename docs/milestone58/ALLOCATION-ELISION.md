@@ -1,6 +1,6 @@
-# 局部装箱与同步协程包装消除：M58 调研
+# 局部装箱与协程包装消除：M58 调研
 
-本文属于 [M58 设计](DESIGN.md)。2026-10-19 的源码样本基线为 `04d28e763`；在 `c3b8942db` 上复核，相关 MIR 优化与 coroutine lowering 顺序未变化。局部装箱作为本期[函数内逃逸分析](ESCAPE-ANALYSIS.md)的首个消费者；同步协程包装采用独立的前置内联路径。目标是在保持值、GC、协程语义的前提下减少短命对象，本轮尚未实现生产优化。
+本文属于 [M58 设计](DESIGN.md)。2026-10-19 的源码样本基线为 `04d28e763`；在 `c3b8942db` 上复核，相关 MIR 优化与 coroutine lowering 顺序未变化。局部装箱作为本期[函数内逃逸分析](ESCAPE-ANALYSIS.md)的首个消费者；协程包装分别通过真正尾部调用的 completion 转交和已知同步正文的前置内联消除。目标是在保持值、GC、协程语义的前提下减少短命对象，本轮尚未实现生产优化。
 
 ## 1. 局部装箱：先做值替换
 
@@ -52,7 +52,7 @@ constructor 已被局部内联，但 box、cast 隐藏局部值和异常分支�
 
 OpenJDK 的[逃逸分析与标量替换研究报告](https://cr.openjdk.org/~cslucas/escape-analysis/EscapeAnalysis.html)讨论了内联、控制流汇合及循环携带对象对消除效果的影响。这是历史机制研究，用来解释为何先限制局部模式，不作为当前 JDK 能力或 Scoop 加速幅度的结论。
 
-## 2. 同步协程：优化必须早于状态机生成
+## 2. 协程包装：在状态机生成前区分同步与尾部调用
 
 ### 2.1 当前顺序造成的成本
 
@@ -75,9 +75,9 @@ MIR 中 leaf 没有 frame；wrapper、outer、Task.run 各有一份 `CoroutineFr
 
 已有十万次同步启动的源码对照为：零／一／四层包装分别 6.107／12.361／30.731 ms，2.40／13.60／49.60 MB 分配、2／13／47 次 minor，见 [M56 原始实验记录](../milestone56/PROGRESS.md)。本次没有重新计时，也没有把源码改写的差值报成编译器优化结果。
 
-### 2.2 第一阶段：在 coroutine lowering 前内联小型已知同步正文
+### 2.2 在 coroutine lowering 前内联小型已知同步正文
 
-建议顺序：完成 typed MIR 正文与调用点登记 → 有界迭代目标解析／去虚拟化、同步正文内联与 site 清理 → 转换 suspend ABI → 现有状态机生成 → 普通 MIR 有界优化迭代。两个位置分别承担同步 site 消除和普通调用／分配优化，见第 4 节。
+建议顺序：完成 typed MIR 正文与调用点登记 → 有界迭代目标解析／去虚拟化、同步正文内联与 site 清理 → 识别尾位置并转换 suspend ABI（尾调用保持原 step 转交）→ 为仍需恢复状态的函数生成状态机 → 普通 MIR 有界优化迭代。两个优化位置分别承担同步 site 消除和普通调用／分配优化，见第 4 节。
 
 初版只做同一 Cone、直接目标、正文已知的小函数。无 suspend site 的 source body 是起点；将它内联到 wrapper 后，如果 wrapper 也不再包含 site，就可以继续处理其直接 caller。递归／互递归先保留，复用已有局部代码增长选择，更新受影响 caller 的事实，不在所有函数上反复克隆整份 Module。
 
@@ -89,11 +89,49 @@ MIR 中 leaf 没有 frame；wrapper、outer、Task.run 各有一份 `CoroutineFr
 
 实现时需要复用已有 MIR clone 中的实际能力：实参单次求值、local／block／loop ID 重映射、return 汇合、typed callable 归属。新增入口同时更新 pre-coroutine call-site registry，不能只改 CFG 而留下旧 site。若某个模式必须复制 EH 或 coroutine 协议元数据，初版就保留调用，不为其扩建通用变换层。
 
-### 2.3 第二阶段才考虑尾部转交
+### 2.3 真正尾部 suspend 调用：直接转交 completion
 
-纯粹 `return child(args)` 可以另行研究直接传递 completion、原样返回 `CoroutineStep`，即使 child 真正挂起也可能省掉父包装；这是与“静态同步内联”不同的优化。
+2026-10-20 补充：这一项应作为 M58-C 的优先基础优化，不必等同步内联完成。只要函数的所有可达挂起点都处于真正尾位置，且没有自己的恢复／清理义务，就可以不生成该函数的状态机、frame 和 site adapter；**不要求 callee 同步完成，也不要求内联其正文**。
 
-初版尾部候选应具有相同 exact 结果类型，无调用后值加工、catch／finally、Context 恢复、返回适配或独立完成状态义务。必须验证 source exception、同步 reentrant resume、失败传播、跨线程恢复和唯一完成协议。不能用语法上的最后一行推断这些条件，也不解除 LLVM 的机器 tail-call／tail-duplication 限制。
+例如：
+
+```kotlin
+suspend fun wrapper(value: Int): Int {
+    val adjusted = value + 1
+    return child(adjusted)
+}
+```
+
+可以按现有 ABI 降为以下伪代码：
+
+```text
+wrapper(value: Int, completion: Continuation<Int>) -> CoroutineStep<Int>:
+    adjusted = value + 1
+    return child(adjusted, completion)
+```
+
+child 返回 Completed 时，wrapper 原样返回；child 返回 Suspended 时，wrapper 也原样返回，后续由 child 沿同一个 completion 恢复原 caller。wrapper 没有恢复入口，也不再次通知 completion。普通调用前计算、参数单次求值与正常 Managed GC 合同保留；这不意味着整个调用链没有状态机或分配。
+
+初版按实际 CFG／cleanup 信息识别，采用以下边界：
+
+| 情形 | 处置 |
+| --- | --- |
+| `return child(args)`，source 结果 exact type 相同，无后续工作 | 直接转交，callee 可以真正挂起 |
+| 多个分支分别尾调用，或某分支直接返回普通值 | 可以整体无帧：普通值路径构造 Completed，尾调用路径原样返回 step；每条挂起路径分别满足条件 |
+| `return child(args) + 1`、拆箱／转换／丢弃结果后返回 Unit | 仍有结果处理，首版保留原 lowering；物理布局相同不等于 `Continuation<T>`／`CoroutineStep<T>` 可互换 |
+| 先 `val x = first()` 再 `return child(x)`，或 `return child(first())` | first 是非尾部挂起点，函数仍需保存恢复状态；最后一行是尾调用不足以消除整个状态机 |
+| 包围调用的 catch／finally、Context restore、pending cleanup | 保留，异常恢复和真实完成后仍有本函数工作；不把“返回 Suspended”误当源码作用域退出 |
+| 结果 ABI 完整且匹配的动态／外部 suspend 目标 | 机制上同样可以转交，无需知道 callee 正文；首批先闭合同一 Cone 的直接调用，再按已有 typed ABI 扩展 |
+
+前置同步内联可以使原来的非尾部 site 消失，进而让整个函数成为尾调用包装。因此在前置迭代化简后再判定 tail 资格，但 tail 转交本身不必展开 child，也没有内联导致的代码增长。首版只交付“整函数全部可达挂起点均为尾部”的无帧路径；已经需要状态机的函数，只省其最后一个 site 是另一项优化，不作为前置。
+
+当前 [transform_suspend_abis](../../compiler/mir-lower/src/pipeline/coroutines.rs) 将普通 `return value` 包成 Completed，之后 [coroutine::transform](../../compiler/mir-lower/src/coroutine.rs) 对存在 site 的函数建立状态机，尚未区分 tail。实施时应先识别尾位置，在 ABI 转换时追加原 completion，并让相应 return 原样交付 callee 的 step；正常返回仍构造 Completed。同步更新对应 call-site 记录，避免状态机生成器再次为这些调用创建 adapter，不能只删除 site 而留下缺 hidden 参数的调用或嵌套的 Completed。
+
+**无帧不等于静态不挂起。** 当前 `CoroutineLowering::Immediate` 用于没有 site 的立即返回路径。加入尾转交后，lowering 的无帧表示与“已证明同步”的分析事实必须分开；不能因 frame／site 消失就把 wrapper 当成同步叶子传播给非尾部 caller。用现有 MIR 表示做必要调整即可，不改变对外 continuation ABI，也不另建证明记录。
+
+尾转交沿用 callee 和原 caller 的单次完成协议，不能新建一个省掉一次性检查的 `suspendCoroutine` 入口。初版仍保留原语的 registration／同步完成协调。需分别验证立即 Completed、真正 Suspended 后成功／失败、同步恢复、跨线程恢复、重复完成及 register 已完成后抛错；包围调用的 catch／finally／Context 反例继续走原实现。
+
+这也不要求 LLVM 发射机器 tail call。普通 `call; return` 已能省掉包装的堆状态；现有 stackmap、frame pointer、tail-call／tail-duplication 限制保持，深层同步调用或尾递归仍不保证常数栈空间。[Kotlin 编译器的协程代码生成说明](https://github.com/JetBrains/kotlin/blob/master/compiler/backend/src/org/jetbrains/kotlin/codegen/coroutines/coroutines-codegen.md#tail-call-optimization)也以全部挂起点处于尾位置为条件省掉 continuation class／状态机；Scoop 仍按自己的 exact `CoroutineStep<T>` 和完成协议验收。
 
 暂不做可逃逸 continuation 的栈化、全局 adapter 池或 frame 池。这些对象的唯一获胜／一次完成状态与寿命不同于普通局部 box，把它们统一交给一般逃逸 pass 会扩大正确性范围。
 
@@ -104,8 +142,8 @@ LLVM 的 [CoroElide](https://llvm.org/docs/Coroutines.html#coroelide) 面向 `ll
 | 顺序 | 最小范围 | 正向与保守保留用例 | 观察指标 |
 | --- | --- | --- | --- |
 | 1 | 单创建点局部 box 替换 | 别名／多次拆箱／原值重赋值／含引用 payload 跨移动 GC；身份、逃逸、pin、错误转换保留 | 每操作分配次数／bytes、minor 次数、kernel、代码体积 |
-| 2 | coroutine lowering 前的小型同步 callee 内联 | 零／一／四层；不同返回类型；带普通 GC 的同步正文；未知／递归／真正挂起保留 | frame／adapter 的静态和动态数量、allocated bytes、吞吐、编译成本 |
-| 3 | 同结果类型的简单尾部 suspend 转交 | 正常／异常／同步恢复／跨线程；finally／Context／返回适配反例 | 包装数、恢复次数、异常与 Context 内容、保留路径无回退 |
+| 2 | 同结果类型、全部挂起点均为尾部的 completion 转交 | 一／多层包装与分支；立即／真正挂起／异常／同步恢复／跨线程；前序非尾部挂起、catch／finally／Context／返回适配反例 | 无自身 frame／adapter、包装分配 bytes、恢复与唯一完成、保留路径无回退 |
+| 3 | coroutine lowering 前的小型同步 callee 内联 | 零／一／四层；不同返回类型；带普通 GC 的同步正文；未知／递归／真正挂起保留 | frame／adapter 的静态和动态数量、allocated bytes、吞吐、编译成本；内联后新成为尾调用的组合 |
 
 普通语义 fixture 断言结果和必要诊断，少量优化专测断言目标 Box／frame 分配是否存在及精确 root 合同，不为所有案例保存完整 MIR。原有 coroutine race、moving GC、接口／泛型组合不能被只执行同步成功路径替代。
 
@@ -166,6 +204,8 @@ for round in 0 .. max_rounds:
 但普通优化的位置仍晚于状态机生成，且 `protocol_entries` 排除协程 entry／driver／resume／start helper。**在现有位置多跑几轮不会绕过这两个限制。** 前置迭代必须作用于具有完整 typed 正文和调用点信息的 source-signature 阶段；复用局部分析／clone 能力，而非把依赖完整 Module 的普通优化器原样放进尚未完成的 lowering shell。
 
 前置每轮只内联符合第 2.2 节条件的已知同步 callee，同时更新 suspend site registry、异常出口与 local／block 身份，再传播受影响 caller 的同步事实。一个“不会挂起”的分析结论本身不删除 frame／adapter，仍要实际消除对应 site；超过增长／轮次限制而留下的调用继续走现有协议。正式状态机只在前置迭代结束后生成一次，不反复生成再拆除。
+
+第 2.3 节的尾转交在前置化简后独立判断；它省掉本函数的恢复状态，却不证明 child 或 wrapper 不挂起。不能将尾转交移除的 site 混入“已内联同步 site”的结果，误用于后续同步性传播。
 
 ### 4.5 新增验收
 

@@ -686,7 +686,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 
 - Minor／full 暂停工作量：年轻 small block 整块退役、无引用大对象跳过 remembered scan；full 压缩必要容量早判与 starts bitmap 遍历，按暂停阶段独立验证。
 - 函数内逃逸分析先服务局部 box 的 payload 替换，保留 identity、捕获与精确根语义；即时 closure 和简单 class 字段替换作为后续实际消费者，不以全程序分析或通用栈对象为前置。
-- 同步协程在 suspend ABI／状态机转换前内联小型已知同步正文；简单计数循环用外层 poll 覆盖有界内层，并单独验证受限向量化与移动 GC。
+- 全部挂起点为真正尾调用的协程直接转交 completion，省掉自身状态机；同步正文在 suspend ABI／状态机转换前内联。简单计数循环用外层 poll 覆盖有界内层，并单独验证受限向量化与移动 GC。
 - 面向 60 fps 桌面与低配置 PC，同时验收分配、minor／full 与 stop-wait 尾部、RSS、编译成本和代码体积。本轮原型与机制实验保留原基线和限制，未计为生产优化；M56 的已完成范围不变。
 
 ## 4. 待补齐清单（backlog）
