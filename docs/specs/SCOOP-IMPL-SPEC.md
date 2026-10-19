@@ -1099,6 +1099,8 @@ LLVM 22.1 关闭寄存器分配后的独立 tail duplication pass 及机器基�
 
 release 的普通 LLVM 优化按 callable 选择。typed LIR effect 为 NoGc 且该 callable 的实际调用／poll 合同不含任何 safepoint 时，可以运行循环规范化、归纳变量化简、LICM 及 loop／SLP vectorization；不能仅凭优化前没有 LLVM statepoint 指令推断资格。其余定义使用不复制 site／恢复标记、不移动握手位置的标量管线，包括表达式重结合、关闭 PRE 和回边加载拆分的 GVN、位级死代码消除。严格浮点不启用 fast-math；正常 Managed 回边 poll、原子顺序、invoke 出口及逻辑根恢复保持。普通优化后仍由同一最终根计划确定实际保留的 site／roots，再执行 RS4GC；机器层限制继续适用。
 
+两条 release 管线均在 SROA／mem2reg 与初始表达式化简后执行 constraint-elimination、correlated-propagation 和 SCCP，再用 InstCombine、受限 GVN、BDCE、DSE／ADCE、MemorySSA early-CSE 及不可达块清理收尾。范围事实只来自实际支配条件和对应整数语义，不凭无溢出假设删除检查。NoGc 在同一标量阶段之后执行其既有循环／向量优化；不重复运行整个标量管线。Managed 不因此启用一般 SimplifyCFG、循环复制或跳转线程化。机器 O2 不等于 LLVM IR 的 default<O2>；不能用默认 O2／O3 替代这里的管线选择。NoGc／gc-leaf 本身也不提供 readonly、无副作用或内存不相交的事实。
+
 MIR 内联按调用点代入已知实参、局部常量和可证明不可达分支后的加权成本选择：极小正文积极内联，普通小正文结合循环位置、常量／receiver 机会和累计增长选择，较大正文保留调用，除非化简后进入前两档。标量运算、字段访问、aggregate copy、分配、调用和复杂控制流具有不同成本；实参副作用始终求值一次。稳定顺序、caller 累计增长及嵌套展开限制只决定优化选择，不决定程序合法性或 ABI。实际参数由性能记录公开，不增加通用跨阶段预算或源码属性。
 
 普通 release MIR 优化交替执行去虚拟化、内联与局部化简，当前最多三轮；没有实际改写时提前结束，达到轮次上限不视为已收敛。内联使用同一阶段入口的稳定 callee 模板，跨轮保留原始成本、caller 累计增长与每个块的展开祖先，化简不返还增长额度。每轮新直接边进入当前调用图的递归判断，重复展开祖先仍保留调用。下一轮只重新分析实际改变的函数；本期不消费更新过的 callee 正文，因而不为其建立额外 caller 摘要或通用 pass 调度框架。所有改写仍先于最终 LIR roots 生成，调用实参的顺序、异常出口及 poll 责任保持。

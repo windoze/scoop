@@ -22,6 +22,8 @@ mod interface_parts;
 mod loops;
 #[path = "statepoint_tests/optimized.rs"]
 mod optimized;
+#[path = "statepoint_tests/ranges.rs"]
+mod ranges;
 #[path = "statepoint_tests/terminal_poll.rs"]
 mod terminal_poll;
 

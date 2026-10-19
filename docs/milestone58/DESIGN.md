@@ -82,6 +82,8 @@ closure 消除要求所有使用都可替换，不仅是 NoEscape。Scoop 捕获
 
 ## 7. 实施顺序、规范与验收
 
+本轮增加 [LLVM codegen 优化](LLVM-CODEGEN.md)：先补范围推导与 NoGc 标量优化，再按真实源码对照评估 memcpyopt、aggressive-instcombine、vector-combine 和小范围循环优化。普通优化始终先于最终 roots 和 RS4GC；该工作与 D 的内层资格分析分别验收，不扩大到 LTO 或通用 pass 调度。
+
 先实施 A 的两个 minor 改动和 B 的 box 消费者，两者独立；B 随后在同一迭代中补齐 forEach 闭包消除与无用支持产物清理。用 full 对照决定 A 的后续局部改动，并完成 C；D 先交付正确分块，再单独启用内层 SIMD。所有优化按功能提交，保留独立前后对照，不能用一个总体总分掩盖暂停或 footprint 回退。
 
 实现前先更新对应规范：

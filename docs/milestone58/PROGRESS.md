@@ -17,7 +17,14 @@
 | C：tail completion 转交 | 已实现 release 本地直接调用的整函数无帧转交；typed MIR、普通／移动 GC／跨线程源码回归通过，Linux 待验证 |
 | C：状态机生成前同步内联 | 待实施 |
 | D：外层 poll 循环分块、受限内层 SIMD | 待实施 |
+| LLVM codegen：范围与 NoGc 标量补齐 | 本机实现与相关验证通过；实际内核暂无可信运行时间收益，后续候选逐项评估 |
 | 性能与跨平台 | A 的本机生产前后矩阵已记录于 [PERFORMANCE.md](PERFORMANCE.md)；B–D 性能、GNU／musl 完整验收及最终清理待完成 |
+
+## 2026-10-20：LLVM 范围推导与 NoGc 标量补齐
+
+先核对 `bc806046b` 的现有管线及 M58 完成范围，再修改实现规范 2.19。两条 release 管线增加 constraint-elimination／correlated-propagation，并安排 SCCP／InstCombine 与不可达清理；NoGc 补齐既有受限 GVN、BDCE、MemorySSA early-CSE，随后才执行原循环／向量阶段。没有打开 default<O2>、PRE 或 Managed 循环复制。
+
+fmt、workspace clippy、16 项 statepoint 专测、三个新源码变体及七个既有循环变体通过。真实 moving GC、含引用快照、catch、原子引用、严格浮点和唯一 site 均包含在覆盖内。原始日志位于仓库外；首轮运行对照未发现可信加速，范围推导能力与端到端结果分别记录于 [LLVM-CODEGEN.md](LLVM-CODEGEN.md) 和 [PERFORMANCE.md](PERFORMANCE.md)。后续 memcpy／向量及循环候选仍待评估，M58 整体未完成。
 
 ## 2026-10-20：年轻 block 退役
 

@@ -1,0 +1,41 @@
+class Value(val number: Long)
+struct Snapshot(val node: Value, val index: Long)
+
+@NoGC
+fun classify(i: Long, n: Long, m: Long): Long {
+    if (i < n && n <= m) {
+        if (i >= m) { return -2L }
+        if (i >= 0L && i < 256L) { return i.shr(8L) }
+        return 1L
+    }
+    return -1L
+}
+
+fun checked(values: Array<Value>, index: Long, limit: Long): Long {
+    if (index >= 0L && index < limit && limit <= values.size) {
+        val saved = Snapshot(values[index], index)
+        try {
+            gcCollect()
+            if (saved.index == 2L) { throw IllegalArgumentException() }
+            return values[index].number + saved.node.number
+        } catch (error: IllegalArgumentException) {
+            gcCollect()
+            return saved.node.number
+        }
+    }
+    return -1L
+}
+
+fun main() {
+    if (classify(7L, 10L, 20L) != 0L || classify(-1L, 0L, 10L) != 1L ||
+        classify(256L, 300L, 301L) != 1L || classify(4L, 4L, 4L) != -1L ||
+        classify(Long.MIN_VALUE, Long.MAX_VALUE, Long.MAX_VALUE) != 1L ||
+        classify(Long.MAX_VALUE, Long.MIN_VALUE, 0L) != -1L) {
+        throw IllegalStateException()
+    }
+    val values = Array<Value>(4L) { i -> Value(i + 1L) }
+    if (checked(values, 0L, 4L) != 2L || checked(values, 2L, 3L) != 3L ||
+        checked(values, -1L, 4L) != -1L || checked(values, 4L, 4L) != -1L ||
+        checked(values, 3L, 5L) != -1L) { throw IllegalStateException() }
+    println("ranges preserve boundaries, relocated snapshots and exceptions")
+}
