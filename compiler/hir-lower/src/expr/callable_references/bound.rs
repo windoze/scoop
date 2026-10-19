@@ -174,6 +174,10 @@ impl Lowerer {
                 }
             }
         }
+        if self.has_required_member(receiver.ty, &name.text) {
+            self.reject_requirement_reference(span);
+            return None;
+        }
         if let Some(failure) = first_failure {
             self.commit_layer_diagnostics(*failure);
         } else {

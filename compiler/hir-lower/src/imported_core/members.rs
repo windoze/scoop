@@ -40,6 +40,24 @@ impl Lowerer {
         access_receiver: Option<hir::TypeId>,
         lookup: hir::ImportedMemberLookup<'_>,
     ) -> Result<Vec<hir::ImportedCallableDeclaration>, hir::ImportedDependencyCandidateError> {
+        self.imported_member_candidates_with_access(receiver, access_receiver, lookup, false)
+    }
+
+    pub(crate) fn imported_requirement_members(
+        &mut self,
+        receiver: hir::TypeId,
+        lookup: hir::ImportedMemberLookup<'_>,
+    ) -> Result<Vec<hir::ImportedCallableDeclaration>, hir::ImportedDependencyCandidateError> {
+        self.imported_member_candidates_with_access(receiver, Some(receiver), lookup, true)
+    }
+
+    fn imported_member_candidates_with_access(
+        &mut self,
+        receiver: hir::TypeId,
+        access_receiver: Option<hir::TypeId>,
+        lookup: hir::ImportedMemberLookup<'_>,
+        public_only: bool,
+    ) -> Result<Vec<hir::ImportedCallableDeclaration>, hir::ImportedDependencyCandidateError> {
         if self.dependencies.is_none() {
             return Ok(Vec::new());
         }
@@ -168,7 +186,11 @@ impl Lowerer {
                 .member_callable_candidates(owner, lookup)?
             {
                 let declaration = candidate.interface();
-                if !self.imported_callable_is_accessible(declaration, access_receiver) {
+                if !(if public_only {
+                    declaration.declared_visibility() == hir::DeclaredVisibilityV1::Public
+                } else {
+                    self.imported_callable_is_accessible(declaration, access_receiver)
+                }) {
                     continue;
                 }
                 if effective

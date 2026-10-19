@@ -10,6 +10,7 @@ fn upper(name: &str, bound: TypeRef) -> ast::TypeParamDecl {
 
 fn where_clause(constraints: Vec<(&str, ast::TypeBound)>) -> ast::WhereClause {
     ast::WhereClause {
+        requirements: Vec::new(),
         constraints: constraints
             .into_iter()
             .map(|(parameter, bound)| ast::TypeConstraint {

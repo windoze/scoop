@@ -1,0 +1,10 @@
+schema = 1
+[cone]
+group = "dev.m55.requirements"
+name = "consumer"
+version = "0.1.0"
+kind = "executable"
+
+[dependencies]
+"scoop:scoop.test" = "0.1.0"
+"dev.m55.requirements:facade" = {version = "0.1.0", path = "../facade"}

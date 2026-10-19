@@ -449,6 +449,7 @@ fn distribute_constraints(
                 continue;
             }
             AtomicConstraintKind::CallableShape(..)
+            | AtomicConstraintKind::MemberRequirement(..)
             | AtomicConstraintKind::Companion(..)
             | AtomicConstraintKind::DeferredRelation(..)
             | AtomicConstraintKind::ExcludesInterface(..)

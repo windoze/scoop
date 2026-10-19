@@ -318,6 +318,7 @@ fn generic_interface_applications_get_distinct_mir_identities() {
     let interface = h.declare_interface(
         "Channel",
         vec![hir::TypeParamDecl {
+            requirements: Vec::new(),
             excluded_interfaces: Vec::new(),
             companion: None,
             id: hir::TypeParamId::from_raw(0),
@@ -404,6 +405,7 @@ fn generic_interface_signature_types_follow_typed_interface_order() {
     let source = h.declare_interface(
         "Source",
         vec![hir::TypeParamDecl {
+            requirements: Vec::new(),
             excluded_interfaces: Vec::new(),
             companion: None,
             id: parameter,

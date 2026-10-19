@@ -27,6 +27,15 @@ pub(crate) struct NamedCallableProbe {
 }
 
 impl NamedCallableProbe {
+    pub(crate) fn requirement_effects(&self) -> hir::RequiredCallEffects {
+        let effects = self.prepared.view.effects;
+        hir::RequiredCallEffects {
+            is_suspend: effects.is_suspend,
+            safety: effects.attributes.safety,
+            gc_effect: effects.attributes.gc_effect,
+        }
+    }
+
     pub(crate) fn forwarding(
         &self,
     ) -> crate::call_resolution::specificity::DeclarationForwardingView<'_> {

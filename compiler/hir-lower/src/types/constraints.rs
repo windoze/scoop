@@ -3,6 +3,7 @@ use super::*;
 mod bounds;
 mod companions;
 mod negative;
+mod requirements;
 
 impl Lowerer {
     /// Resolve the complete constraint set for one declaration after all
@@ -81,6 +82,14 @@ impl Lowerer {
             }
         }
 
+        self.type_params_in_scope = params.clone();
+        self.resolve_member_requirements(
+            &mut params,
+            &own_indices,
+            where_clause,
+            function_conditions,
+            target,
+        );
         self.type_params_in_scope = params.clone();
         self.check_negative_bound_contradictions(&params[owner_count..]);
         self.complete_parameter_bound_checks(outer_checks, &params);

@@ -1,0 +1,1 @@
+fun <T> make(value: T): T where requires { suspend T() } = value

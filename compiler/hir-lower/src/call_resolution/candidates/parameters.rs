@@ -50,6 +50,11 @@ impl<D> DeclarationSignature<D> {
             .iter_mut()
             .chain(&mut self.callable_parameters)
         {
+            for requirement in &mut parameter.requirements {
+                requirement
+                    .contract
+                    .map_types(|ty| state.instantiate_method_ty(ty, bindings));
+            }
             for (positive, excluded) in
                 [(&mut parameter.bounds, &mut parameter.excluded_interfaces)]
                     .into_iter()

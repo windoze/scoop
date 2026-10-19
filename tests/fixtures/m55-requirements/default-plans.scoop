@@ -1,0 +1,39 @@
+struct Box(val value: Int) {
+    public fun read(n: Int = 2, action: () -> Int = { n + 1 }): Int = value + action()
+    public fun location(site: SourceLocation = currentSourceLocation()): SourceLocation = site
+}
+fun <T> read(value: T): Int where requires(x: T) { x.read(): Int } = value.read()
+fun <T> twice(value: T): Int where requires(x: T) { x.read(): Int } = value.read() + value.read()
+fun <T> defaultForward(value: T, n: Int = read(value)): Int where requires(x: T) { x.read(): Int } = n
+fun <T> defaultClosure(value: T, action: () -> Int = { value.read() }): Int where requires(x: T) { x.read(): Int } = action()
+fun <T> correctLocation(value: T): Boolean where requires(x: T) { x.location(): SourceLocation } {
+    val expected = currentSourceLocation()
+    val actual = value.location()
+    return actual.file == expected.file && actual.line == expected.line + 1L && actual.functionName == expected.functionName
+}
+fun <T> localClosure(value: T): Int where requires(x: T) { x.read(): Int } {
+    fun local(): Int = value.read()
+    val action: () -> Int = { local() }
+    return action()
+}
+fun <T> localClass(value: T): Int where requires(x: T) { x.read(): Int } {
+    class Reader { val result: Int = value.read(); fun read(): Int = result }
+    return Reader().read()
+}
+fun <T> loop(value: T): Int where requires(x: T) { x.read(): Int } {
+    var sum = 0
+    var count = 0
+    while (count < 2) { sum += value.read(); count += 1 }
+    return sum
+}
+fun main() {
+    val value = Box(7)
+    println(read(value))
+    println(twice(value))
+    println(defaultForward(value))
+    println(correctLocation(value))
+    println(localClosure(value))
+    println(localClass(value))
+    println(loop(value))
+    println(defaultClosure(value))
+}

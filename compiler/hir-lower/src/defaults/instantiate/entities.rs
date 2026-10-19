@@ -20,14 +20,15 @@ impl Lowerer {
         match source {
             hir::Callable::Function(function) => hir::Callable::Function(function),
             hir::Callable::Generic(application) => {
-                let application = self.instantiations[application].clone();
-                let function = self.generic_functions[application.generic].function;
-                let arguments = application
+                let mut application = self.instantiations[application].clone();
+                application.type_args = application
                     .type_args
-                    .into_iter()
-                    .map(|ty| self.instantiate_method_ty(ty, &context.bindings))
+                    .iter()
+                    .map(|ty| self.instantiate_method_ty(*ty, &context.bindings))
                     .collect();
-                hir::Callable::Generic(self.record_instantiation(function, arguments))
+                application.requirements =
+                    self.instantiate_application_requirements(&application.requirements, context);
+                hir::Callable::Generic(self.instantiations.alloc(application))
             }
             hir::Callable::Method(application) => {
                 let application = self.method_applications[application].clone();
@@ -35,8 +36,7 @@ impl Lowerer {
                 hir::Callable::Method(self.record_method_application(application.function, owner))
             }
             hir::Callable::GenericMethod(application) => {
-                let application = self.generic_method_applications[application].clone();
-                let function = self.generic_methods[application.method].function;
+                let mut application = self.generic_method_applications[application].clone();
                 let owner = match application.owner {
                     hir::GenericMethodOwner::Class(owner) => hir::GenericMethodOwner::Class(
                         self.instantiate_default_class_application(owner, context),
@@ -60,9 +60,12 @@ impl Lowerer {
                     .iter()
                     .map(|ty| self.instantiate_method_ty(*ty, &context.bindings))
                     .collect();
-                hir::Callable::GenericMethod(
-                    self.record_generic_method_application(function, owner, arguments),
-                )
+                application.owner = owner;
+                application.method_arguments = hir::NonEmptyVec::from_vec(arguments)
+                    .expect("substitution retains method parameters");
+                application.requirements =
+                    self.instantiate_application_requirements(&application.requirements, context);
+                hir::Callable::GenericMethod(self.generic_method_applications.alloc(application))
             }
         }
     }

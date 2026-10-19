@@ -211,6 +211,11 @@ where
 {
     for (wire_index, binder) in (0_u64..).zip(binders.binders()) {
         let root = path.clone().index(wire_index);
+        for (index, requirement) in binder.requirements().iter().enumerate() {
+            for ty in requirement.types() {
+                observe(accumulator, ty, &root.clone().field(5).index(index as u64))?;
+            }
+        }
         for (positive, excluded, bounds_path, excluded_path) in [(
             binder.bounds(),
             binder.excluded_interfaces(),

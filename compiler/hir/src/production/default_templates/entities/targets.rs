@@ -183,7 +183,9 @@ impl DefaultEntityProjector<'_> {
             .iter()
             .map(|ty| self.type_key(*ty, binders))
             .collect::<Result<Vec<_>, _>>()?;
+        let requirements = self.requirement_bindings(&application.requirements, binders)?;
         crate::DefaultCallableRefV1::try_new(declaration, owner, arguments)
+            .map(|callable| callable.with_requirements(requirements))
             .map_err(super::super::DefaultEntityProjectionError::Callable)
     }
 }

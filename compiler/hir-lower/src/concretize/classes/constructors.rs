@@ -210,6 +210,7 @@ impl Concretizer<'_> {
             &arguments.statements,
             substitution,
             &locals,
+            &mut body.locals,
         ));
         arguments
             .args
@@ -229,6 +230,7 @@ impl Concretizer<'_> {
             &source.statements,
             substitution,
             &locals,
+            &mut body.locals,
         ));
     }
 

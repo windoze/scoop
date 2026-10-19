@@ -31,11 +31,14 @@ impl Concretizer<'_> {
         expression
     }
 
-    fn concrete_expression_origin(
+    pub(in crate::concretize) fn concrete_expression_origin(
         &self,
         source: export::ExpressionOrigin,
     ) -> export::ConcreteExpressionOrigin {
         let mut origin = source.concrete();
+        if let Some(evaluation) = self.requirement_evaluation {
+            origin.evaluation = evaluation;
+        }
         if let Some(context) = self.evaluation_context {
             origin.evaluation.context = context;
         }

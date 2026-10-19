@@ -1,7 +1,7 @@
 use super::*;
 use scoop_identity::CallableTemplateOwner;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub(in crate::concretize) enum CallableBody {
     Function(concrete::FunctionId),
     ClassConstructor(concrete::ClassConstructorId),

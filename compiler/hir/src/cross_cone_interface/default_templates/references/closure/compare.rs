@@ -422,7 +422,10 @@ fn callable_ref(
     if ordering != Ordering::Equal {
         return Ok(ordering);
     }
-    signature_types(left.type_arguments(), right.type_arguments(), path)
+    Ok(
+        signature_types(left.type_arguments(), right.type_arguments(), path)?
+            .then_with(|| left.requirements().cmp(right.requirements())),
+    )
 }
 
 fn optional_type(

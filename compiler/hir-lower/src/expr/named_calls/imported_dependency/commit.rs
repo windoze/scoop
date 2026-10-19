@@ -299,8 +299,9 @@ impl Lowerer {
             };
             let kind = match template {
                 super::generic::ImportedGenericTarget::Function(template) => {
-                    let application = self.imported_generic_applications.alloc(
+                    let application = self.record_imported_callable_application(
                         hir::ImportedGenericCallableApplication {
+                            requirements: Vec::new(),
                             template,
                             arguments,
                         },

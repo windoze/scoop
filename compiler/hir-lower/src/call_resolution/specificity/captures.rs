@@ -17,6 +17,12 @@ impl Lowerer {
             .iter()
             .chain(declaration.callable_parameters)
         {
+            pending.extend(
+                parameter
+                    .requirements
+                    .iter()
+                    .flat_map(|requirement| requirement.contract.types()),
+            );
             if let Some(companion) = &parameter.companion {
                 pending.extend(companion.excluded_interfaces.iter().map(|bound| bound.ty));
                 if let hir::TypeParamBounds::Nominal(bounds) = &companion.bounds {

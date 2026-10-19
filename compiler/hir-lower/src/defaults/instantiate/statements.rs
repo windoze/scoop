@@ -8,6 +8,42 @@ impl Lowerer {
         context: &mut InstantiationContext,
     ) -> hir::Statement {
         let kind = match &source.kind {
+            hir::StatementKind::MemberRequirementCall(call) => {
+                let mut contract = call.contract.clone();
+                contract.map_types(|ty| self.instantiate_method_ty(ty, &context.bindings));
+                let binding = match &call.binding {
+                    hir::MemberRequirementBindingValue::Forwarded(id)
+                        if contract != call.contract =>
+                    {
+                        self.check_member_requirement(*id, &contract)
+                            .expect("selected default satisfies its declared member requirement")
+                    }
+                    hir::MemberRequirementBindingValue::Forwarded(id) => {
+                        hir::MemberRequirementBindingValue::Forwarded(*id)
+                    }
+                    hir::MemberRequirementBindingValue::Implementation {
+                        implementation,
+                        type_arguments,
+                    } => hir::MemberRequirementBindingValue::Implementation {
+                        implementation: *implementation,
+                        type_arguments: type_arguments
+                            .iter()
+                            .map(|ty| self.instantiate_method_ty(*ty, &context.bindings))
+                            .collect(),
+                    },
+                };
+                hir::StatementKind::MemberRequirementCall(Box::new(hir::MemberRequirementCall {
+                    contract,
+                    binding,
+                    result: mapped_local(context, call.result),
+                    arguments: call
+                        .arguments
+                        .iter()
+                        .map(|value| self.instantiate_default_expr(value, context))
+                        .collect(),
+                    origin: instantiate_origin(call.origin, context.evaluation),
+                }))
+            }
             hir::StatementKind::ContextScope { value, body } => hir::StatementKind::ContextScope {
                 value: self.instantiate_default_expr(value, context),
                 body: body

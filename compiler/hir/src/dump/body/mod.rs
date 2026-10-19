@@ -75,6 +75,16 @@ pub(super) fn dump_statements(
     for statement in statements {
         let pad = "  ".repeat(indent);
         match &statement.kind {
+            StatementKind::MemberRequirementCall(call) => {
+                out.push_str(&format!(
+                    "{pad}required {:?} -> {}\n",
+                    call.contract.call,
+                    call.result.into_raw()
+                ));
+                for argument in &call.arguments {
+                    dump_expr(module, locals, argument, indent + 1, out);
+                }
+            }
             StatementKind::ContextScope { value, body } => {
                 out.push_str(&format!("{pad}ContextScope\n"));
                 dump_expr(module, locals, value, indent + 1, out);

@@ -1,0 +1,3 @@
+interface Readable { fun read(): Int }
+fun <T> read(value: T): Int where requires(x: T) { x.read(): Int } = value.read()
+fun <T: Readable> forward(value: T): Int = read(value)

@@ -1,0 +1,1 @@
+fun <T> equal(a: T, b: T): Boolean where requires(x: T, y: T) { x.equals(y): Boolean } = a == b

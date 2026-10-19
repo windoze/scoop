@@ -51,9 +51,9 @@ impl BodyProjection<'_, '_> {
             crate::MethodCallee::Callable(callable) => {
                 DefaultMethodCalleeV1::Callable(self.callable_target(callable)?)
             }
-            crate::MethodCallee::Bound(bound) => {
-                DefaultMethodCalleeV1::Bound(self.entities.bound_callable(bound, self.binders)?)
-            }
+            crate::MethodCallee::Bound(bound) => DefaultMethodCalleeV1::Bound(Box::new(
+                self.entities.bound_callable(bound, self.binders)?,
+            )),
             crate::MethodCallee::DerivedEquality(application_id) => {
                 let application = super::super::super::arena_get(
                     &self.entities.export().derived_equality_applications,

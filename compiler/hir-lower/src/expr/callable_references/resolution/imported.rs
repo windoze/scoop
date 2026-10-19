@@ -218,6 +218,7 @@ impl ImportedReferenceDeclaration {
                 };
                 hir::CallableTarget::Application(state.imported_generic_applications.alloc(
                     hir::ImportedGenericCallableApplication {
+                        requirements: Vec::new(),
                         template,
                         arguments,
                     },

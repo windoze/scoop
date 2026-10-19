@@ -18,7 +18,7 @@ impl Lowerer {
         );
         let span = match failure.origin {
             ConstraintOrigin::Argument(input) => call.arguments.span(input.index()),
-            ConstraintOrigin::ExplicitTypeArgument(index) => call.type_args[index as usize].span(),
+            ConstraintOrigin::ExplicitTypeArgument(index) => call.type_args.span(index as usize),
             _ => call.span,
         };
         self.error(
@@ -57,6 +57,7 @@ impl Lowerer {
             }
         };
         match &failure.kind {
+            Kind::MemberRequirement(message) => message.clone(),
             Kind::Companion { message, .. } => message.clone(),
             Kind::Kind {
                 variable,

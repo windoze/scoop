@@ -876,6 +876,12 @@ persistent keys 保留原 ConeIdentity、typed owner chain、kind 和该声明�
 
 CallableApplicationKey 区分原声明、NoOwner/ExactNominalOwner/EnclosingCallableApplication/EnclosingInitializationApplication，以及无 callable arguments 或完整非空 arguments。lexical body、local value、capture、initializer 与默认值的原定义路径在替换后保持；物理 producer 不替代定义 owner。
 
+成员调用要求在 Export HIR 中保存独立的 typed 要求身份、完整调用契约与正文要求引用。父函数声明 key 先以规范化契约确定，再由父声明及规范化位置确定要求身份，不用普通 function／interface slot ID 替代要求。参数替换后成功的要求绑定复用同一公开成员查询结果，保存实际 typed 目标、参数映射、默认值／vararg 与结果适配；未知主体通过定义环境中相同契约转发。失败候选沿已有 probe 事务丢弃，不提交实体或展开任意方法正文。
+
+默认参数中的闭包在其他 callable 中创建时，同时携带原词法参数的完整替换与已满足的要求绑定；跨 Cone 模板保留这些绑定，不能借用创建位置的同名要求或重新选择已经确定的实现。普通正文中的闭包继续继承原词法环境。
+
+泛型 application 仍只由声明及完整类型实参标识，不增加调用点作用域、隐式 dictionary 或所选方法的 specialization 参数。Export HIR／跨 Cone 声明与正文编码完整条件和要求引用，consumer 使用实际类型的公开成员与原默认模板，不能按本地扩展重选。进入 LocalConcreteHir 前消去要求与投影，只留下正常调用、构造、值适配和 singleton 访问；要求落实后新增的实际调用边在具体化请求处遵守既有递归规则：沿调用链重新请求同一声明且完整实参改变时诊断，阻止无限实例化，同实例递归直接复用。MIR、LIR、linker、runtime 不重放源码要求查询，runtime ABI 不变。
+
 persistent mangling schema 为 `persistent-v1`，语义 symbol 为 `scoop$1$<kind>$<lowercase-hex-owner-id>`，再按目标加平台前缀。kind tags 为：
 
 | 实体 | tag | 实体 | tag |

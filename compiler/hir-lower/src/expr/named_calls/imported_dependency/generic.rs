@@ -27,7 +27,7 @@ impl Lowerer {
             signature,
             bindings: template_bindings,
         } = declaration;
-        let mut explicit = match self.resolve_call_type_args(call.type_args) {
+        let mut explicit = match call.type_args.resolve(&mut self) {
             Some(arguments) => arguments,
             None => return Err(self),
         };

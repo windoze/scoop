@@ -184,6 +184,18 @@ where
     for (wire_index, (binder_index, binder)) in (0_u64..).zip(binders.binders().iter().enumerate())
     {
         let root = path.clone().index(wire_index);
+        for (requirement_index, requirement) in binder.requirements().iter().enumerate() {
+            for ty in requirement.types() {
+                validator.visit_signature(
+                    ty,
+                    site(
+                        binder_index,
+                        TypeParameterBoundLocation::Requirement { requirement_index },
+                    ),
+                    &root.clone().field(5).index(requirement_index as u64),
+                )?;
+            }
+        }
         for (companion, positive, excluded, bounds_path, excluded_path) in [(
             false,
             binder.bounds(),

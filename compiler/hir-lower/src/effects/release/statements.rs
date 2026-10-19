@@ -19,6 +19,14 @@ impl Lowerer {
     ) {
         for statement in statements {
             match &statement.kind {
+                hir::StatementKind::MemberRequirementCall(call) => {
+                    // NoGC does not imply the separate release-safe contract.
+                    facts.requirements = None;
+                    facts.violation.get_or_insert(statement.span);
+                    for argument in &call.arguments {
+                        self.release_expression(argument, values, facts);
+                    }
+                }
                 hir::StatementKind::ContextScope { value, body } => {
                     facts.requirements = None;
                     facts.violation.get_or_insert(statement.span);

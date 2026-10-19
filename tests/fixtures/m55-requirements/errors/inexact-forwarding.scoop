@@ -1,0 +1,2 @@
+fun <T> read(value: T): Any where requires(x: T) { x.read(): Any } = value.read()
+fun <T> forward(value: T): Any where requires(x: T) { x.read(): String } = read(value)

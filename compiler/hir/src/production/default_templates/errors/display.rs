@@ -100,6 +100,8 @@ impl fmt::Display for DefaultTemplateEnvelopeProjectionError {
 impl fmt::Display for DefaultEntityProjectionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::RequirementLocals(error) => write!(formatter, "requirement locals: {error}"),
+            Self::RequirementBody(error) => write!(formatter, "requirement body: {error}"),
             Self::CallableKind(declaration) => write!(
                 formatter,
                 "declaration {declaration:?} has the wrong callable kind"

@@ -1,0 +1,1 @@
+fun <T> make(value: T): T where requires { T(): Int } = value

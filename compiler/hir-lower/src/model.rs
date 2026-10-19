@@ -227,6 +227,7 @@ pub(crate) fn lower_type_param_decl(
     id: hir::TypeParamId,
 ) -> hir::TypeParamDecl {
     hir::TypeParamDecl {
+        requirements: Vec::new(),
         excluded_interfaces: Vec::new(),
         companion: None,
         id,

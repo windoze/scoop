@@ -114,6 +114,7 @@ mod m45_safe_call_statements;
 mod m5;
 mod m55_companion;
 mod m55_negative;
+mod m55_requirements;
 mod m6;
 mod m7;
 mod m8;

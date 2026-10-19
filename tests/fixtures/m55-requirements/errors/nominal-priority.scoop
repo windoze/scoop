@@ -1,0 +1,2 @@
+interface Readable { fun read(): Int }
+@NoGC fun <T: Readable> read(value: T): Int where requires(x: T) { @NoGC x.read(): Int } = value.read()

@@ -149,6 +149,18 @@ impl Flow<'_> {
 
     fn statement(&self, statement: &hir::Statement) -> HirControlOutcomes {
         match &statement.kind {
+            hir::StatementKind::MemberRequirementCall(call) => {
+                if call
+                    .arguments
+                    .iter()
+                    .any(|argument| !self.expression_can_complete(argument))
+                    || (self.is_nothing)(call.contract.result)
+                {
+                    HirControlOutcomes::singleton(ControlOutcome::Throw)
+                } else {
+                    HirControlOutcomes::fallthrough()
+                }
+            }
             hir::StatementKind::ContextScope { value, body } => {
                 self.expression(value).then(self.statements(body))
             }

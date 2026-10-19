@@ -7,6 +7,7 @@ use crate::{PersistentGenericTypeId, PersistentIdResolver, PersistentTypeId};
 /// are deliberately absent from declaration identity.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum SignatureConditionKey<T = SignatureTypeKey> {
+    Member(super::MemberRequirementKey<T>),
     Companion { subject: T },
     Value { subject: T },
     Ref { subject: T },
@@ -16,7 +17,15 @@ pub enum SignatureConditionKey<T = SignatureTypeKey> {
 
 impl<T: WireEncode> WireEncode for SignatureConditionKey<T> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        if let Self::Member(requirement) = self {
+            encoder.map(2)?;
+            encoder.field(0)?;
+            encoder.unsigned(6)?;
+            encoder.field(1)?;
+            return requirement.encode(encoder);
+        }
         let (tag, subject, bound) = match self {
+            Self::Member(_) => unreachable!("member requirement was encoded"),
             Self::Companion { subject } => (5, subject, None),
             Self::Value { subject } => (1, subject, None),
             Self::Ref { subject } => (2, subject, None),
@@ -41,7 +50,7 @@ impl WireDecode for SignatureConditionKey<DecodedSignatureTypeKey> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         let expected = match tag {
-            1 | 2 | 5 => 2,
+            1 | 2 | 5 | 6 => 2,
             3 | 4 => 3,
             _ => {
                 return Err(WireError::new(
@@ -60,6 +69,11 @@ impl WireDecode for SignatureConditionKey<DecodedSignatureTypeKey> {
                 decoder.path().clone(),
                 Some(decoder.position()),
             ));
+        }
+        if tag == 6 {
+            return decoder
+                .field(1, super::MemberRequirementKey::decode)
+                .map(Self::Member);
         }
         let subject = decoder.field(1, DecodedSignatureTypeKey::decode)?;
         match tag {
@@ -86,6 +100,9 @@ impl SignatureConditionKey<DecodedSignatureTypeKey> {
             + PersistentIdResolver<PersistentGenericTypeId, Error = E>,
     {
         Ok(match self {
+            Self::Member(requirement) => SignatureConditionKey::Member(
+                requirement.try_map(|ty| ty.clone().resolve(resolver))?,
+            ),
             Self::Companion { subject } => SignatureConditionKey::Companion {
                 subject: subject.resolve(resolver)?,
             },

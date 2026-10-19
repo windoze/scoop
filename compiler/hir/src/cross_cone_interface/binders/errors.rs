@@ -92,6 +92,8 @@ impl std::error::Error for TypeParameterBinderBuildError {}
 #[derive(Debug)]
 pub enum TypeParameterBinderResolutionError<E> {
     Name(CanonicalIdentifierError),
+    RequirementReference(E),
+    RequirementOrder,
     Bounds(TypeParameterBoundsResolutionError<E>),
     ExcludedInterfaces(SignatureTypeSetValidationError<E>),
 }
@@ -99,6 +101,12 @@ pub enum TypeParameterBinderResolutionError<E> {
 impl<E: fmt::Display> fmt::Display for TypeParameterBinderResolutionError<E> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::RequirementReference(error) => {
+                write!(formatter, "invalid requirement type: {error}")
+            }
+            Self::RequirementOrder => {
+                formatter.write_str("requirements must be unique and canonically ordered")
+            }
             Self::Name(error) => write!(formatter, "invalid type-parameter name: {error}"),
             Self::Bounds(error) => error.fmt(formatter),
             Self::ExcludedInterfaces(error) => error.fmt(formatter),

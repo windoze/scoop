@@ -1,7 +1,7 @@
 use super::*;
 
 impl Lowerer {
-    pub(super) fn collect_prepared_nominal_probes(
+    pub(in crate::expr::named_calls) fn collect_prepared_nominal_probes(
         &mut self,
         prepared: PreparedNominalPlans,
         call: &ast::CallExpr,

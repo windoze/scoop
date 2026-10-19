@@ -23,6 +23,9 @@ impl FunctionIdentityBuilder<'_> {
                     .map(ty, binders)
                     .map_err(|error| self.failure(function, Detail::InvalidSignatureType(error)))
             };
+            for requirement in &parameter.requirements {
+                conditions.push(Condition::Member(requirement.contract.key(map)?));
+            }
             let subjects = [(
                 subject.clone(),
                 &parameter.bounds,

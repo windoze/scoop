@@ -33,6 +33,25 @@ enum BoundReferenceOutcome {
 }
 
 impl Lowerer {
+    fn has_required_member(&self, receiver: TypeId, name: &str) -> bool {
+        self.type_params_in_scope
+            .iter()
+            .flat_map(|parameter| &parameter.requirements)
+            .any(|requirement| {
+                requirement.contract.subject == receiver
+                    && matches!(&requirement.contract.call,
+                hir::RequiredCallKind::Method { name: member, .. } if member == name)
+            })
+    }
+
+    fn reject_requirement_reference(&mut self, span: Span) {
+        self.error(
+            span,
+            "member requirements do not provide callable references; wrap the call in a lambda"
+                .into(),
+        );
+    }
+
     pub(super) fn lower_callable_reference(
         &mut self,
         receiver: Option<&ast::Expr>,
@@ -140,6 +159,18 @@ impl Lowerer {
             .filter(|layer| !layer.candidates.is_empty() || !layer.suppressed_callables.is_empty())
             .collect::<Vec<_>>();
         if candidate_layers.is_empty() && first_failure.is_none() {
+            if self.type_params_in_scope.iter().any(|parameter| {
+                parameter.name == name.text
+                    && parameter.requirements.iter().any(|requirement| {
+                        matches!(
+                            requirement.contract.call,
+                            hir::RequiredCallKind::Constructor
+                        )
+                    })
+            }) {
+                self.reject_requirement_reference(span);
+                return None;
+            }
             self.error(name.span, format!("unknown function `{}`", name.text));
             return None;
         }

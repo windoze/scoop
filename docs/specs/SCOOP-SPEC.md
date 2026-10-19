@@ -178,6 +178,28 @@ alias只建立名称、declared visibility、source origin与导出实体，不�
 
 条件查询只读取声明及其完整类型关系，不初始化 singleton。实际替换采用原 companion application，包含全部宿主实参；只有值访问执行既有 ensure。命名 companion 的 `Companion` 别名、透明 alias 和跨 Cone singleton 身份沿用 9.1.3、9.5。条件参与 3.2.2 的规范化声明身份和转发；无该事实的未知 T 不能使用投影。
 
+#### 3.2.4 泛型函数的公开成员调用要求
+
+函数级 `where` 可包含非空要求块，例如 `requires(x: T, s: String) { x.format(s): String }`、`requires { T.parse(text: String): T }` 或 `requires { T(text: String) }`。声明范围与 3.2.2 相同；虚拟 receiver 必须是本函数参数 T 或其 companion 投影，宿主／外层参数可出现在其他类型位置。`requires` 仅在 where 条目开头且紧接 `(` 或 `{` 时作为上下文关键字，普通同名标识符保持原义。
+
+虚拟参数是无存储、无求值的名称与完整类型，不能有默认值或 vararg；重复名称报错。调用实参可以引用虚拟参数，或内联写 `name: Type`。内联名称仅用于说明，不建立 binding；命名调用写 `parameter = name: Type`，spread 写 `*items: Array<T>`。方法自己的显式类型实参及 `_` 沿普通规则；它们不能反向猜测外层函数的未决实参。方法要求必须写结果类型；构造结果固定为 T，可省略 `: T`，显式写其他类型或 suspend 构造要求则报错。要求块只接受方法和构造调用，以换行或分号分隔；不接受普通语句、自由函数、扩展、函数值属性、getter／setter、运算符表达式或嵌套调用。
+
+要求查询实际类型自身公开的方法、继承／接口成员、既有派生 equals 及合法 public 构造器。只看成员本身的声明可见性，不借用调用点的 import、扩展、private／protected／internal 权限或隐式 receiver。宿主类型可以隐藏或局部；它有 typed identity 和公开成员即可。`T.method` 与 `T.Companion.method` 都固定查询直接 public companion；这两种形式及虚拟 receiver 类型 T.Companion 同时建立 companion 存在条件，其余位置的投影仍需要明确存在条件。
+
+构造要求只使用 class／struct 的合法普通入口；interface、abstract class、object、enum 整体及无普通构造入口的 intrinsic 类型不能满足。需要 outer 实例或运行期捕获值的构造不满足要求，即使调用点恰好具有这些值；没有捕获的局部 class 可按其公开构造器满足。需要环境时使用显式工厂值参数，不为要求补隐式环境。
+
+对确定的静态类型，先按要求所写实参类型、命名和 spread 形态应用普通参数映射、默认值、vararg、泛型推断及最具体候选规则；选出唯一成员后，才检查其结果可赋给要求的结果类型及效果兼容。结果和效果不能反向参与选择或使失败后重选其他重载。查询不执行构造、默认值、方法或 singleton 初始化，不生成未调用成员的机器代码。
+
+要求默认承诺 safe、非 suspend、Managed 调用。逐项可写既有效果标记 `suspend`、`@NoGC`、`@Unsafe`，不接受其他注解；suspend 状态须相同，safe 要求不能使用 unsafe 目标。NoGC 要求的完整实际调用必须满足既有 NoGC 合同，包括默认值、vararg、receiver 与 companion ensure；值类型条件本身不保证 GC-free。未写 NoGC 时，即使实际目标为 NoGC，泛型正文也不能据此取得更强效果。Unsafe／suspend 要求在正文中的使用仍受普通上下文检查。
+
+泛型正文先使用已有名义 bound 中适用的成员；该层没有适用目标时，才按要求契约解析。名义成员的 Managed 效果不会被同形结构 NoGC 要求覆盖，因而二者同时存在时，绑定名义成员的 NoGC 正文仍报错。需要按结构契约调用时，可转发到只携带同一要求的普通 helper。正文使用要求声明的 receiver、实参类型及调用形态，结果视为要求的结果类型；更窄的真实表达式不会在具体化时触发重选。仅结果或效果不同的多个适用契约不能择优。方法要求不建立 operator 能力。
+
+未知类型参数仅能按替换后相同的完整要求转发；普通名义 bound 不自动产生结构要求。要求作为函数条件参与 3.2.2 的适用性、规范化身份与声明转发，不按条件条数或额外逆变／协变关系排序。忽略块分组、未使用虚拟参数、虚拟名称及变量复用关系；保留目标种类、成员名、完整类型实参、receiver／实参／结果类型、命名／spread 形态和效果。重复的规范化契约在声明处报错。
+
+要求只支持调用，不能单凭要求形成 `value::method`、`T::method` 或 `::T`；需要函数值时用普通 lambda。名义 bound 或已知具体声明原本允许的引用保持；对受约束普通泛型函数的 `::foo` 则照常完成类型推断、新条件检查和重载选择。
+
+要求失败应报告缺失公开目标、歧义、结果或效果不兼容等实际原因，不能吞掉被调用声明的类型错误、产物格式或 I/O 错误。活动要求判定链再次进入同一要求声明即报递归要求错误，不以任意深度／数量预算截断。落实要求产生的实际调用边参与既有泛型递归检查；普通同实例正文递归仍合法，参数持续变化的递归仍被拒绝。
+
 ### 3.3 参数传递、receiver 与 `this`
 
 Scoop 的源码函数/方法调用一律是 **pass-by-value**：每个实参表达式求值一次，再以所得值初始化 callee 中不可重新绑定的形参 binding。这条规则不按 value type / reference type 分叉：
@@ -3458,6 +3480,12 @@ public fun <T : Equals<T>> assertEquals(expected: T, actual: T, message: String?
     location: SourceLocation = currentSourceLocation())
 public fun <T : Equals<T>> assertNotEquals(expected: T, actual: T, message: String? = None,
     location: SourceLocation = currentSourceLocation())
+public fun <T : !Equals<T>> assertEquals(expected: T, actual: T, message: String? = None,
+    location: SourceLocation = currentSourceLocation())
+    where requires(x: T, y: T) { x.equals(y): Boolean }
+public fun <T : !Equals<T>> assertNotEquals(expected: T, actual: T, message: String? = None,
+    location: SourceLocation = currentSourceLocation())
+    where requires(x: T, y: T) { x.equals(y): Boolean }
 public fun <T : ref> assertSame(expected: T, actual: T, message: String? = None,
     location: SourceLocation = currentSourceLocation())
 public fun <T : ref> assertNotSame(expected: T, actual: T, message: String? = None,
@@ -3468,7 +3496,7 @@ public fun fail(message: String? = None,
     location: SourceLocation = currentSourceLocation()): Nothing
 ```
 
-assertTrue/assertFalse 检查 Boolean；assertEquals/assertNotEquals 调用一次 `expected.equals(actual)`，使用普通 `Equals<T>` 契约及 11.11 的浮点默认相等。结构可比较不隐含 Equals conformance；struct/enum/tuple 可用 `assertTrue(actual == expected)`，不增加结构型 bound 或 Any.equals。assertSame/assertNotSame 使用普通引用身份比较，不接受值类型。比较函数抛出的异常原样传播，不转换成断言失败。
+assertTrue/assertFalse 检查 Boolean；assertEquals/assertNotEquals 调用一次 `expected.equals(actual)`。满足 `Equals<T>` 的类型使用原名义入口及 11.11 的浮点默认相等；确定不满足该接口但具有公开 `equals(T): Boolean` 调用能力的类型使用 3.2.4 的成员要求入口，包括已具备派生相等能力的 struct／enum／tuple。结构入口不添加 Equals conformance、运算符能力或 Any.equals。assertSame/assertNotSame 使用普通引用身份比较，不接受值类型。比较函数抛出的异常原样传播，不转换成断言失败。
 
 失败抛出普通 `AssertionFailure : Throwable`，不继承 Exception；显式 catch Throwable 仍可捕获。它公开只读字段 `kind: String`、`message: String?`、`location: SourceLocation`、`expected: AssertionValue`、`actual: AssertionValue` 和 `cause: Throwable?`。kind 是所调用断言的名称（例如 `assertEquals`）；构造器依次接受这些参数，expected/actual 默认 Unavailable，cause 默认 None。
 

@@ -25,6 +25,45 @@ impl Lowerer {
                     });
             }
         }
+        for block in clause.into_iter().flat_map(|clause| &clause.requirements) {
+            let virtuals = block
+                .parameters
+                .iter()
+                .map(|parameter| parameter.name.text.as_str())
+                .collect::<std::collections::HashSet<_>>();
+            let mut subjects = Vec::new();
+            for parameter in &block.parameters {
+                if let ast::TypeRefKind::Qualified { path, arguments } = &parameter.ty.kind
+                    && let [host, projection] = path.as_slice()
+                    && projection.text == "Companion"
+                    && arguments.is_empty()
+                {
+                    subjects.push((host, parameter.ty.span));
+                }
+            }
+            for call in &block.calls {
+                if let ast::RequiredCall::Method {
+                    receiver,
+                    companion,
+                    ..
+                } = &call.call
+                    && (*companion || !virtuals.contains(receiver.text.as_str()))
+                {
+                    subjects.push((receiver, call.span));
+                }
+            }
+            for (subject, span) in subjects {
+                if let Some(&index) = own.get(&subject.text) {
+                    parameters[index]
+                        .companion
+                        .get_or_insert(hir::CompanionBounds {
+                            bounds: hir::TypeParamBounds::Unconstrained,
+                            excluded_interfaces: Vec::new(),
+                            span,
+                        });
+                }
+            }
+        }
         self.type_params_in_scope = parameters.to_vec();
     }
 }

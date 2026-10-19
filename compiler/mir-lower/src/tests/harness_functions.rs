@@ -80,8 +80,11 @@ impl Harness {
         {
             return id;
         }
-        self.instantiations
-            .alloc(hir::ResolvedGenericFunction { generic, type_args })
+        self.instantiations.alloc(hir::ResolvedGenericFunction {
+            requirements: Vec::new(),
+            generic,
+            type_args,
+        })
     }
 
     pub(super) fn test_coroutine_core(&mut self, throwable: hir::ClassId) -> hir::CoroutineCore {
@@ -90,6 +93,7 @@ impl Harness {
             .types
             .alloc(hir::Type::Param(hir::TypeParamId::from_raw(0)));
         let type_param = || hir::TypeParamDecl {
+            requirements: Vec::new(),
             excluded_interfaces: Vec::new(),
             companion: None,
             id: hir::TypeParamId::from_raw(0),
@@ -354,6 +358,7 @@ impl Harness {
         option_core: hir::OptionCore,
     ) -> hir::IterationCore {
         let parameter = hir::TypeParamDecl {
+            requirements: Vec::new(),
             excluded_interfaces: Vec::new(),
             companion: None,
             id: hir::TypeParamId::with_substitution_slot(u32::MAX, 0),

@@ -175,6 +175,7 @@ impl Concretizer<'_> {
         source: FunctionSource,
     ) -> concrete::FunctionId {
         if let Some(&id) = self.function_by_key.get(&key) {
+            self.record_specialization_request(type_info::CallableBody::Function(id));
             return id;
         }
         let (parameter_count, emittable) = match source {
@@ -211,6 +212,10 @@ impl Concretizer<'_> {
         self.function_keys.push(key.clone());
         self.function_sources.push(source);
         self.function_by_key.insert(key.clone(), id);
+        let body = type_info::CallableBody::Function(id);
+        self.body_requirements
+            .insert(body, self.requirement_environment.clone());
+        self.record_specialization_request(body);
         self.pending_functions
             .push_back((key, id, self.type_use_site));
         if emittable {
@@ -279,6 +284,8 @@ impl Concretizer<'_> {
         };
         let source = FunctionSource::Imported(application.template);
         let key = self.function_key(source, owner, arguments);
-        self.request_function_key(key, source)
+        self.with_requirement_bindings(&application.requirements, substitution, |state| {
+            state.request_function_key(key, source)
+        })
     }
 }

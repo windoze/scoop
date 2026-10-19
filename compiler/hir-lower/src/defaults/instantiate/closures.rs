@@ -10,8 +10,11 @@ impl Lowerer {
         let arguments = application
             .arguments
             .map(|ty| self.instantiate_method_ty(ty, &context.bindings));
+        let requirements =
+            self.instantiate_application_requirements(&application.requirements, context);
         self.imported_generic_applications
             .alloc(hir::ImportedGenericCallableApplication {
+                requirements,
                 template: application.template,
                 arguments,
             })
@@ -221,13 +224,32 @@ impl Lowerer {
                 .into_iter()
                 .map(|parameter| self.intern_type(Type::Param(parameter)))
                 .collect(),
-            hir::CallableBodyTypeArguments::Explicit(arguments) => arguments.clone(),
+            hir::CallableBodyTypeArguments::Explicit { arguments, .. } => arguments.clone(),
         };
-        hir::CallableBodyTypeArguments::Explicit(
-            arguments
-                .into_iter()
-                .map(|argument| self.instantiate_method_ty(argument, &context.bindings))
-                .collect(),
-        )
+        let arguments = arguments
+            .into_iter()
+            .map(|argument| self.instantiate_method_ty(argument, &context.bindings))
+            .collect::<Vec<_>>();
+        let requirements = match source {
+            hir::CallableBodyTypeArguments::Lexical => {
+                let parameters = match definition {
+                    hir::LexicalFunctionDefinition::Source { function, .. } => self.functions
+                        [function]
+                        .type_params()
+                        .into_iter()
+                        .cloned()
+                        .collect::<Vec<_>>(),
+                    hir::LexicalFunctionDefinition::Template(_) => Vec::new(),
+                };
+                self.member_requirement_bindings(&parameters, &arguments)
+            }
+            hir::CallableBodyTypeArguments::Explicit { requirements, .. } => {
+                self.instantiate_application_requirements(requirements, context)
+            }
+        };
+        hir::CallableBodyTypeArguments::Explicit {
+            arguments,
+            requirements,
+        }
     }
 }

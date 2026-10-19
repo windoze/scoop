@@ -1,0 +1,16 @@
+package m55.requirements
+public struct Remote(val value: Int) {
+    public fun read(count: Int = 1): Int = value + count
+    public companion object { public fun create(value: Int): Remote = Remote(value) }
+}
+public fun <T> read(value: T): Int where requires(x: T) { x.read(): Int } = value.read()
+public fun <T> forward(value: T): Int where requires(z: T) { z.read(): Int } = read(value)
+public fun <T> construct(n: Int): T where requires { T(value = x: Int) } = T(value = n)
+public fun <T> make(n: Int): T where requires { T.create(value = x: Int): T } = T.create(value = n)
+public fun <T> fromDefault(value: T, n: Int = value.read()): Int where requires(x: T) { x.read(): Int } = n
+public fun <T> wrapped(value: T): () -> Int where requires(x: T) { x.read(): Int } = { value.read() }
+public fun known(): Int = read(Remote(10))
+public fun <T> defaultClosure(value: T, action: () -> Int = { value.read() }): Int
+    where requires(x: T) { x.read(): Int } = action()
+public fun <T> defaultForward(value: T, n: Int = read(value)): Int
+    where requires(x: T) { x.read(): Int } = n

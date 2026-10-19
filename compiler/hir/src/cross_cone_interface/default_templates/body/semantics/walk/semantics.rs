@@ -13,6 +13,12 @@ where
 {
     type Error = DefaultBodyProviderEnvelopeSemanticValidationError<E>;
 
+    fn replace_signature_scope(
+        &mut self,
+        scope: crate::SignatureBinderScopeV1,
+    ) -> Option<crate::SignatureBinderScopeV1> {
+        Some(std::mem::replace(&mut self.scope, scope))
+    }
     fn resource(error: WireError) -> Self::Error {
         DefaultBodyProviderEnvelopeSemanticValidationError::Resource(error)
     }

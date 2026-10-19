@@ -40,6 +40,17 @@ pub(in super::super) fn collect_statement_type_occurrences(
 ) {
     for statement in statements {
         match &statement.kind {
+            hir::StatementKind::MemberRequirementCall(call) => {
+                push_types_at(
+                    file,
+                    statement.span,
+                    |types| types.extend(call.contract.types()),
+                    out,
+                );
+                for argument in &call.arguments {
+                    collect_expr_type_occurrences(lowerer, argument, out);
+                }
+            }
             hir::StatementKind::ContextScope { value, body } => {
                 collect_expr_type_occurrences(lowerer, value, out);
                 collect_statement_type_occurrences(lowerer, body, file, out);
@@ -332,7 +343,7 @@ pub(in super::super) fn collect_expr_type_occurrences(
             push_types_at_expression(
                 expression,
                 |types| {
-                    if let hir::CallableBodyTypeArguments::Explicit(arguments) =
+                    if let hir::CallableBodyTypeArguments::Explicit { arguments, .. } =
                         &closure.body_type_arguments
                     {
                         types.extend(arguments.iter().copied());
@@ -350,7 +361,7 @@ pub(in super::super) fn collect_expr_type_occurrences(
             push_types_at_expression(
                 expression,
                 |types| {
-                    if let hir::CallableBodyTypeArguments::Explicit(arguments) =
+                    if let hir::CallableBodyTypeArguments::Explicit { arguments, .. } =
                         &closure.body_type_arguments
                     {
                         types.extend(arguments.iter().copied());

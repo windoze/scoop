@@ -29,6 +29,7 @@ fn applied_field_and_variant_refs_close_owner_and_index_relations() {
         ],
     ));
     enums[choice].type_params.push(TypeParamDecl {
+        requirements: Vec::new(),
         excluded_interfaces: Vec::new(),
         companion: None,
         id: parameter,
@@ -176,6 +177,7 @@ fn applied_field_and_variant_refs_close_owner_and_index_relations() {
         }]),
     ));
     structs[declared].type_params.push(TypeParamDecl {
+        requirements: Vec::new(),
         excluded_interfaces: Vec::new(),
         companion: None,
         id: parameter,

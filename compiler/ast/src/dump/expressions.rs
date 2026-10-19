@@ -404,7 +404,7 @@ fn dump_call_argument(argument: &CallArgument, indent: usize, out: &mut String) 
     dump_expr(&argument.expression, indent + 1, out);
 }
 
-fn dump_call_type_args(type_args: &[CallTypeArgument]) -> String {
+pub(super) fn dump_call_type_args(type_args: &[CallTypeArgument]) -> String {
     if type_args.is_empty() {
         String::new()
     } else {

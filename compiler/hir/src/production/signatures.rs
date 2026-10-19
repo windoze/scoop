@@ -136,10 +136,20 @@ impl<'a> HirInterfaceSignatureProjector<'a> {
                     ))
                 })
                 .transpose()?;
+            let requirements = parameter
+                .requirements
+                .iter()
+                .map(|requirement| {
+                    requirement
+                        .contract
+                        .key(|ty| self.map_type(ty, visible_binders))
+                })
+                .collect::<Result<Vec<_>, _>>()?;
             projected.push(
                 TypeParameterBinderV1::new(name, bounds)
                     .with_excluded_interfaces(excluded)
-                    .with_companion(companion),
+                    .with_companion(companion)
+                    .with_requirements(requirements),
             );
         }
         CanonicalBinderListV1::try_new(projected)

@@ -213,7 +213,7 @@ impl ReferenceCollector<'_> {
         origin: hir::DefinitionOrigin,
     ) {
         self.function_type_reference(function_type, origin);
-        if let hir::CallableBodyTypeArguments::Explicit(arguments) = body_arguments {
+        if let hir::CallableBodyTypeArguments::Explicit { arguments, .. } = body_arguments {
             for &argument in arguments {
                 self.type_reference(argument, origin);
             }

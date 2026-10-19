@@ -19,6 +19,7 @@ pub(super) enum AtomicConstraintKind {
     Implements(InferenceVariableId, TypeTerm),
     ExcludesInterface(InferenceVariableId, TypeTerm),
     Companion(InferenceVariableId, hir::CompanionBounds),
+    MemberRequirement(hir::MemberRequirement),
     DeferredRelation(RelationKind, TypeTerm, TypeTerm),
     CallableShape(CallableShape, TypeTerm),
     ConcreteApplication(NominalApplication),
@@ -90,6 +91,13 @@ impl RelationReducer<'_> {
                 self.check_variable(*variable, record.origin)?;
                 self.push(
                     AtomicConstraintKind::Implements(*variable, *interface),
+                    record.origin,
+                );
+                Ok(())
+            }
+            Constraint::MemberRequirement(contract) => {
+                self.push(
+                    AtomicConstraintKind::MemberRequirement(contract.clone()),
                     record.origin,
                 );
                 Ok(())

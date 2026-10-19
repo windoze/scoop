@@ -47,6 +47,13 @@ impl Lowerer {
         same_bounds(&left.bounds, &right.bounds)
             && same_set(&left.excluded_interfaces, &right.excluded_interfaces)
             && companion
+            && left.requirements.len() == right.requirements.len()
+            && left.requirements.iter().all(|a| {
+                right
+                    .requirements
+                    .iter()
+                    .any(|b| self.same_requirement_contract(&a.contract, &b.contract, pairs))
+            })
     }
 
     fn overload_types_equal(
@@ -72,6 +79,23 @@ impl Lowerer {
 
     /// Compare parameter signatures under the exact alpha-renaming relation
     /// between their globally unique type-parameter identities.
+    pub(crate) fn same_requirement_contract(
+        &self,
+        a: &hir::MemberRequirementContract,
+        b: &hir::MemberRequirementContract,
+        pairs: &[(hir::TypeParamId, hir::TypeParamId)],
+    ) -> bool {
+        let shape = |value: &hir::MemberRequirementContract| {
+            value
+                .key(|_| Ok::<_, std::convert::Infallible>(()))
+                .unwrap()
+        };
+        shape(a) == shape(b)
+            && a.types()
+                .zip(b.types())
+                .all(|(a, b)| self.signature_types_equal(a, b, pairs))
+    }
+
     pub(crate) fn same_parameter_signature(&self, a: FunctionId, b: FunctionId) -> bool {
         let (Some(a_sig), Some(b_sig)) = (self.signatures.get(&a), self.signatures.get(&b)) else {
             return false;

@@ -68,12 +68,21 @@ impl DefaultEntityProjector<'_> {
                 )
             }
         };
+        let requirements = match callable {
+            Callable::Generic(id) => &self.export.instantiations[id].requirements[..],
+            Callable::GenericMethod(id) => {
+                &self.export.generic_method_applications[id].requirements[..]
+            }
+            _ => &[],
+        };
+        let requirements = self.requirement_bindings(requirements, binders)?;
         let owner = owner.map(|ty| self.type_key(ty, binders)).transpose()?;
         DefaultCallableRefV1::try_new(
             self.callable_declaration(function)?,
             OptionalSignatureType::from_option(owner),
             arguments,
         )
+        .map(|callable| callable.with_requirements(requirements))
         .map_err(super::super::DefaultEntityProjectionError::Callable)
     }
 

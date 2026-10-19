@@ -1,5 +1,7 @@
 use super::*;
 
+mod requirements;
+
 impl Lowerer {
     pub(crate) fn lexical_body_type_parameters(
         &self,
@@ -33,6 +35,10 @@ impl Lowerer {
             return *definition;
         }
         assert!(!parameters.is_empty());
+        self.record_member_requirement_owner(
+            hir::MemberRequirementOwner::Source(function),
+            &parameters,
+        );
         let generic = self.generic_functions.alloc(GenericFunction {
             function,
             no_gc_type_params: Vec::new(),
@@ -65,8 +71,17 @@ impl Lowerer {
         {
             return id;
         }
-        self.instantiations
-            .alloc(hir::ResolvedGenericFunction { generic, type_args })
+        let parameters = self.functions[function]
+            .type_params()
+            .into_iter()
+            .cloned()
+            .collect::<Vec<_>>();
+        let requirements = self.member_requirement_bindings(&parameters, &type_args);
+        self.instantiations.alloc(hir::ResolvedGenericFunction {
+            requirements,
+            generic,
+            type_args,
+        })
     }
 
     pub(crate) fn register_method_parameters(
@@ -75,6 +90,10 @@ impl Lowerer {
         owner_parameters: Vec<hir::TypeParamDecl>,
         method_parameters: Vec<hir::TypeParamDecl>,
     ) {
+        self.record_member_requirement_owner(
+            hir::MemberRequirementOwner::Source(function),
+            &method_parameters,
+        );
         if method_parameters.is_empty() {
             self.functions[function].genericity = if owner_parameters.is_empty() {
                 hir::FunctionGenericity::Plain
@@ -132,9 +151,26 @@ impl Lowerer {
         if let Some(&application) = self.generic_method_application_by_key.get(&key) {
             return application;
         }
+        let parameters = self.functions[function]
+            .type_params()
+            .into_iter()
+            .cloned()
+            .collect::<Vec<_>>();
+        let mut arguments = match owner {
+            hir::GenericMethodOwner::Class(id) => self.class_applications[id].arguments.clone(),
+            hir::GenericMethodOwner::Struct(id) => self.struct_applications[id].arguments.clone(),
+            hir::GenericMethodOwner::Enum(id) => self.enum_applications[id].arguments.clone(),
+            hir::GenericMethodOwner::Object(id) => self.class_applications
+                [self.object_types[id].representation]
+                .arguments
+                .clone(),
+        };
+        arguments.extend(method_arguments.iter().copied());
+        let requirements = self.member_requirement_bindings(&parameters, &arguments);
         let application = self
             .generic_method_applications
             .alloc(hir::GenericMethodApplication {
+                requirements,
                 method,
                 owner,
                 method_arguments,

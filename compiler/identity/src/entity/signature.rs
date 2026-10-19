@@ -5,6 +5,10 @@ use scoop_wire::{Encoder, WireEncode};
 use crate::{PersistentGenericTypeId, PersistentTypeId};
 
 mod conditions;
+mod requirements;
+pub use requirements::{
+    MemberRequirementKey, RequiredArgumentKey, RequiredEffectsKey, RequiredMemberKey,
+};
 mod decode;
 pub use conditions::SignatureConditionKey;
 

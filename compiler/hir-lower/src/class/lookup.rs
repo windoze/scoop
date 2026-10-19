@@ -19,7 +19,19 @@ impl Lowerer {
         name: &str,
     ) -> Vec<crate::CallableCandidate> {
         let declared = self.method_candidates(ty);
-        self.visible_method_candidates(declared, Some(ty), |this, candidate| {
+        self.visible_method_candidates(declared, Some(ty), false, |this, candidate| {
+            this.function_accessor_kind(candidate.function).is_none()
+                && this.source_function_name(candidate.function) == name
+        })
+    }
+
+    pub(crate) fn public_requirement_methods(
+        &mut self,
+        ty: TypeId,
+        name: &str,
+    ) -> Vec<crate::CallableCandidate> {
+        let declared = self.method_candidates(ty);
+        self.visible_method_candidates(declared, Some(ty), true, |this, candidate| {
             this.function_accessor_kind(candidate.function).is_none()
                 && this.source_function_name(candidate.function) == name
         })
@@ -31,7 +43,7 @@ impl Lowerer {
         name: &str,
     ) -> Vec<crate::CallableCandidate> {
         let declared = self.method_candidates(ty);
-        self.visible_method_candidates(declared, None, |this, candidate| {
+        self.visible_method_candidates(declared, None, false, |this, candidate| {
             !matches!(
                 this.function_owner.get(&candidate.function),
                 Some(Owner::Interface(_))
@@ -49,7 +61,7 @@ impl Lowerer {
         operator: hir::OperatorKind,
     ) -> Vec<crate::CallableCandidate> {
         let declared = self.method_candidates(ty);
-        self.visible_method_candidates(declared, Some(ty), |this, candidate| {
+        self.visible_method_candidates(declared, Some(ty), false, |this, candidate| {
             this.signatures[&candidate.function].modifiers.operator == Some(operator)
         })
     }
@@ -165,12 +177,17 @@ impl Lowerer {
         &mut self,
         declared: Vec<(crate::CallableCandidate, usize, usize)>,
         receiver_ty: Option<TypeId>,
+        public_only: bool,
         mut matches: impl FnMut(&Self, &crate::CallableCandidate) -> bool,
     ) -> Vec<crate::CallableCandidate> {
         let mut visible = Vec::new();
         for (candidate, depth, root) in declared {
-            if !self.function_is_accessible(candidate.function, receiver_ty)
-                || !matches(self, &candidate)
+            if !(if public_only {
+                self.functions[candidate.function].access.declared
+                    == hir::DeclaredVisibility::Public
+            } else {
+                self.function_is_accessible(candidate.function, receiver_ty)
+            }) || !matches(self, &candidate)
             {
                 continue;
             }

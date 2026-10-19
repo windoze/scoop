@@ -1,0 +1,2 @@
+fun <T> make(): T where requires { T() } = T()
+fun capture(n: Int): Int { class Local { fun read(): Int = n }; return make<Local>().read() }

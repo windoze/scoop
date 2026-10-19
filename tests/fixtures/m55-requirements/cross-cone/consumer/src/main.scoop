@@ -1,0 +1,17 @@
+import m55.facade.*
+import scoop.test.*
+private struct Local(val value: Int) { public fun read(): Int = value }
+fun main() {
+    val value = construct<Remote>(7)
+    println(forward(value))
+    println(make<Remote>(8).value)
+    println(fromDefault(value))
+    println(wrapped(value)())
+    println(forward(Local(9)))
+    println(known())
+    println(defaultClosure(value))
+    println(defaultClosure(Local(9)))
+    println(defaultForward(value))
+    assertEquals(Remote(7), Remote(7))
+    assertNotEquals(Local(1), Local(2))
+}

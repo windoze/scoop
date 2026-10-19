@@ -1,0 +1,2 @@
+fun <T> make(): T where requires { T() } = T()
+class Outer { inner class Item; fun makeItem(): Item = make<Item>() }

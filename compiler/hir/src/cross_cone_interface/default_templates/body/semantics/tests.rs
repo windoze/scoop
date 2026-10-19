@@ -74,7 +74,7 @@ fn validates_bound_receiver_binders_against_the_provider_scope() {
         expression(
             DefaultExpressionKindV1::MethodCall {
                 receiver: Box::new(receiver),
-                callee: DefaultMethodCalleeV1::Bound(bound),
+                callee: DefaultMethodCalleeV1::Bound(Box::new(bound)),
                 arguments: Vec::new(),
             },
             binder(0, 0),

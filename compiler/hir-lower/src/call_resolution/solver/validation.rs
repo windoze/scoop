@@ -96,6 +96,25 @@ impl Lowerer {
         check: &AtomicConstraint,
     ) -> Result<(), ConstraintFailure> {
         match &check.kind {
+            AtomicConstraintKind::MemberRequirement(requirement) => {
+                let key = requirement.contract.key(|ty| {
+                    let term = TypeTerm::Type(ty);
+                    self.materialize_term(session, bindings, term, check.origin)?
+                        .ok_or(ConstraintFailure {
+                            origin: check.origin,
+                            kind: ConstraintFailureKind::UnresolvedTerm(term),
+                        })
+                })?;
+                self.check_member_requirement(
+                    requirement.id,
+                    &hir::MemberRequirementContract::from_key(key),
+                )
+                .map(|_| ())
+                .map_err(|message| ConstraintFailure {
+                    origin: check.origin,
+                    kind: ConstraintFailureKind::MemberRequirement(message),
+                })
+            }
             AtomicConstraintKind::Companion(variable, bounds) => self.validate_companion_condition(
                 session,
                 bindings,

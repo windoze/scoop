@@ -31,6 +31,7 @@ mod patterns;
 mod pointers;
 mod references;
 mod release;
+mod requirements;
 mod statements;
 mod variants;
 
@@ -44,6 +45,7 @@ struct ImportedDefaultContext<'a> {
     loop_targets: Vec<hir::LoopId>,
 }
 
+#[derive(Clone, Copy)]
 enum ImportedTemplateSource<'a> {
     Default(&'a dyn hir::ImportedCallableSource),
     Callable(&'a crate::imported_generics::PreparedImportedCallableSource),

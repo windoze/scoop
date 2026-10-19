@@ -13,6 +13,33 @@ impl Lowerer {
     ) -> Result<hir::Statement, ImportedDefaultMaterializationError> {
         use hir::DefaultStatementKindV1 as Kind;
         let kind = match source.kind() {
+            Kind::MemberRequirementCall {
+                contract,
+                binding,
+                arguments,
+                result,
+            } => {
+                let origin = hir::ExpressionOrigin::Definition(
+                    self.imported_default_definition_origin(source.definition_origin(), context)?,
+                );
+                let contract =
+                    contract.try_map(|ty| self.materialize_imported_default_type(ty, context))?;
+                let binding = self.materialize_requirement_binding(binding, context)?;
+                let hir::Pattern::Binding { local } =
+                    self.materialize_imported_default_pattern(result, context)?
+                else {
+                    return Err(ImportedDefaultMaterializationError::Plan(
+                        "member requirement result must name one local".into(),
+                    ));
+                };
+                hir::StatementKind::MemberRequirementCall(Box::new(hir::MemberRequirementCall {
+                    contract: hir::MemberRequirementContract::from_key(contract),
+                    binding,
+                    arguments: self.materialize_imported_default_expressions(arguments, context)?,
+                    result: local,
+                    origin,
+                }))
+            }
             Kind::ContextScope { value, body } => hir::StatementKind::ContextScope {
                 value: self.materialize_imported_default_expression(value, context)?,
                 body: body
@@ -134,7 +161,7 @@ impl Lowerer {
             .span)
     }
 
-    fn materialize_imported_default_statements(
+    pub(super) fn materialize_imported_default_statements(
         &mut self,
         statements: &[hir::DefaultStatementV1],
         context: &mut ImportedDefaultContext<'_>,

@@ -77,6 +77,23 @@ pub(crate) struct ImportedDependencyCallProbe {
 }
 
 impl ImportedDependencyCallProbe {
+    pub(in crate::expr) fn requirement_effects(&self) -> hir::RequiredCallEffects {
+        let effects = self.candidate.interface().effects();
+        hir::RequiredCallEffects {
+            is_suspend: effects.execution() == scoop_identity::Effect::Suspend,
+            safety: if effects.safety() == hir::CallableSafetyV1::Unsafe {
+                hir::Safety::Unsafe
+            } else {
+                hir::Safety::Safe
+            },
+            gc_effect: if effects.gc_effect() == scoop_identity::GcEffect::NoGc {
+                hir::GcEffect::NoGc
+            } else {
+                hir::GcEffect::Managed
+            },
+        }
+    }
+
     pub(in crate::expr) fn safety(&self) -> hir::CallableSafetyV1 {
         self.candidate.interface().effects().safety()
     }

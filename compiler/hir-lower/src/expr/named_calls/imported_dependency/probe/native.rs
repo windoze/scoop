@@ -24,7 +24,7 @@ impl Lowerer {
         argument_map: ImportedArgumentMap,
     ) -> Result<ImportedDependencyCallProbe, Box<Lowerer>> {
         let alias_signature = if let Some(alias) = call.alias {
-            let Some(explicit) = self.resolve_call_type_args(call.type_args) else {
+            let Some(explicit) = call.type_args.resolve(&mut self) else {
                 return Err(self);
             };
             match self.alias_constructor_signature(alias, &signature, &explicit, call.span) {

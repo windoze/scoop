@@ -595,6 +595,7 @@ fn suspend_intrinsic_keeps_machine_kinds_and_generated_loop_header_polls_distinc
         panic!("suspendCoroutine is generic")
     };
     let suspend = source.instantiations.alloc(hir::ResolvedGenericFunction {
+        requirements: Vec::new(),
         generic: suspend_generic,
         type_args: vec![result],
     });
@@ -742,6 +743,7 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
     let start = hir_module
         .instantiations
         .alloc(hir::ResolvedGenericFunction {
+            requirements: Vec::new(),
             generic: start_generic,
             type_args: vec![result],
         });

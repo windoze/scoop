@@ -283,7 +283,7 @@ fn statement_decoder_rejects_unknown_tags_and_non_exact_sums() {
     )
     .unwrap();
 
-    for tag in [17, 18] {
+    for tag in [18, 19] {
         let mut unknown = bytes.clone();
         unknown[4] = tag;
         let error = decode_canonical::<DecodedDefaultStatementV1>(&unknown).unwrap_err();

@@ -201,6 +201,12 @@ impl Lowerer {
                     ConstraintOrigin::TypeParameterBound(parameter.id),
                 );
             }
+            for requirement in &parameter.requirements {
+                session.push(
+                    Constraint::MemberRequirement(requirement.clone()),
+                    ConstraintOrigin::TypeParameterBound(parameter.id),
+                );
+            }
             for bound in &parameter.excluded_interfaces {
                 session.push(
                     Constraint::ExcludesInterface(variable, TypeTerm::Type(bound.ty)),

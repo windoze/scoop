@@ -12,6 +12,8 @@ pub struct TypeParamDecl {
     pub excluded_interfaces: Vec<InterfaceUpperBound>,
     /// Present exactly when this parameter's public companion is required.
     pub companion: Option<CompanionBounds>,
+    /// Function-only public call contracts owned by this parameter.
+    pub requirements: Vec<MemberRequirement>,
     pub span: Span,
 }
 

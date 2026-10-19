@@ -101,7 +101,7 @@ impl Lowerer {
                         .expect("every callable body parameter has a canonical parameter type")
                 })
                 .collect::<Vec<_>>(),
-            hir::CallableBodyTypeArguments::Explicit(arguments) => arguments.clone(),
+            hir::CallableBodyTypeArguments::Explicit { arguments, .. } => arguments.clone(),
         };
         assert_eq!(parameters.len(), argument_types.len());
         Some(GenericCall {
@@ -118,7 +118,10 @@ impl Lowerer {
         })
     }
 
-    fn generic_method_owner_arguments(&self, owner: hir::GenericMethodOwner) -> &[hir::TypeId] {
+    pub(crate) fn generic_method_owner_arguments(
+        &self,
+        owner: hir::GenericMethodOwner,
+    ) -> &[hir::TypeId] {
         match owner {
             hir::GenericMethodOwner::Class(id) => &self.class_applications[id].arguments,
             hir::GenericMethodOwner::Struct(id) => &self.struct_applications[id].arguments,

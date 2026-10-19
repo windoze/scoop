@@ -212,6 +212,23 @@ impl Lowerer {
             })
             .collect::<Result<_, _>>()?;
         Ok(hir::TypeParamDecl {
+            requirements: binder
+                .requirements()
+                .iter()
+                .enumerate()
+                .map(|(index, requirement)| {
+                    Ok::<_, String>(hir::MemberRequirement {
+                        id: hir::MemberRequirementId {
+                            declaration_parameter: id,
+                            ordinal: u32::try_from(index).expect("requirement count fits u32"),
+                        },
+                        contract: hir::MemberRequirementContract::from_key(
+                            requirement.try_map(|ty| self.imported_generic_type(ty, bindings))?,
+                        ),
+                        span,
+                    })
+                })
+                .collect::<Result<_, _>>()?,
             companion,
             excluded_interfaces,
             id,

@@ -265,6 +265,12 @@ pub(super) fn dump_where_clause(clause: Option<&WhereClause>) -> String {
                 },
                 dump_type_bound(&constraint.bound)
             ))
+            .chain(
+                clause
+                    .requirements
+                    .iter()
+                    .map(super::requirements::dump_requirements)
+            )
             .collect::<Vec<_>>()
             .join(", ")
     )

@@ -202,9 +202,29 @@ impl Lowerer {
                         })?;
                 }
             }
+            let requirements = callee
+                .requirements()
+                .iter()
+                .map(|binding| {
+                    Ok(hir::MemberRequirementBinding {
+                        requirement: self.materialize_requirement_ref(binding.requirement)?,
+                        value: self.materialize_requirement_binding(&binding.value, context)?,
+                    })
+                })
+                .collect::<Result<_, ImportedDefaultMaterializationError>>()?;
+            if let hir::ImportedCallableTypeParameters::Declared(parameters) =
+                &self.imported_generic_templates[template].type_parameters
+            {
+                let parameters = parameters.clone();
+                self.record_member_requirement_owner(
+                    hir::MemberRequirementOwner::Imported(template),
+                    &parameters,
+                );
+            }
             let application =
                 self.imported_generic_applications
                     .alloc(hir::ImportedGenericCallableApplication {
+                        requirements,
                         template,
                         arguments,
                     });

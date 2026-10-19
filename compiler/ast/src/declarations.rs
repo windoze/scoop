@@ -1,3 +1,6 @@
+mod requirements;
+pub use requirements::*;
+
 use crate::{
     Annotation, AnnotationClassDecl, Block, Expr, Ident, ImportSyntax, PackageSyntax, Span, TypeRef,
 };
@@ -305,6 +308,7 @@ pub enum TypeBound {
 #[derive(Debug, Clone, PartialEq)]
 pub struct WhereClause {
     pub constraints: Vec<TypeConstraint>,
+    pub requirements: Vec<MemberRequirements>,
     pub span: Span,
 }
 

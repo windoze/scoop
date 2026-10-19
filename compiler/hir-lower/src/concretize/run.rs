@@ -9,7 +9,7 @@ impl Concretizer<'_> {
         mut self,
         finish: impl FnOnce(&mut Self) -> Extra,
     ) -> Result<(concrete::Module, Extra), Vec<scoop_ast::Diagnostic>> {
-        let prepared = self.prepare_source();
+        let prepared = self.prepare_source()?;
         let roots = self.shared_result_types();
         self.coroutine_results
             .extend(self.owned_result_types(&roots));
@@ -21,6 +21,9 @@ impl Concretizer<'_> {
         prepared: prepare::PreparedSource,
         finish: impl FnOnce(&mut Self) -> Extra,
     ) -> Result<(concrete::Module, Extra), Vec<scoop_ast::Diagnostic>> {
+        if !self.type_condition_errors.is_empty() {
+            return Err(self.type_condition_errors);
+        }
         let prepare::PreparedSource {
             unit,
             boolean,
@@ -148,7 +151,7 @@ impl Concretizer<'_> {
     }
 
     pub(super) fn drain_pending_callables(&mut self) {
-        loop {
+        while self.type_condition_errors.is_empty() {
             if let Some(unit) = self.pending_initializations.pop_front() {
                 self.require_initialization_dependencies(unit);
             } else if let Some((key, id, site)) = self.pending_functions.pop_front() {
@@ -159,7 +162,15 @@ impl Concretizer<'_> {
                 let previous_body = self
                     .current_body
                     .replace(type_info::CallableBody::Function(id));
+                let saved_requirements = std::mem::replace(
+                    &mut self.requirement_environment,
+                    self.body_requirements
+                        .get(&type_info::CallableBody::Function(id))
+                        .cloned()
+                        .unwrap_or_default(),
+                );
                 let function = self.lower_function(&key);
+                self.requirement_environment = saved_requirements;
                 self.current_body = previous_body;
                 self.instantiation_site = previous;
                 self.type_use_site = previous_use;

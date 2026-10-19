@@ -17,7 +17,7 @@ impl ImportedDerivedEqualityProbe {
 }
 
 impl Lowerer {
-    pub(super) fn probe_imported_derived_equality(
+    pub(in crate::expr) fn probe_imported_derived_equality(
         &self,
         target: hir::ImportedDerivedEquality,
         receiver: hir::Expr,

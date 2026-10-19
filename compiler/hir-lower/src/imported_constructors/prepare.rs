@@ -67,6 +67,7 @@ impl Lowerer {
                 }
             };
             type_parameters.push(hir::TypeParamDecl {
+                requirements: Vec::new(),
                 excluded_interfaces: Vec::new(),
                 companion: None,
                 id,

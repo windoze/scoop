@@ -119,6 +119,17 @@ impl CanonicalBinderListV1 {
     ) -> Result<(), TypeParameterBinderScopeValidationError> {
         let scope = self.signature_scope(nominal_owner_arity);
         for (binder_index, binder) in self.binders().iter().enumerate() {
+            for (requirement_index, requirement) in binder.requirements().iter().enumerate() {
+                for ty in requirement.types() {
+                    scope.validate(ty).map_err(|error| {
+                        TypeParameterBinderScopeValidationError {
+                            binder_index,
+                            bound: TypeParameterBoundLocation::Requirement { requirement_index },
+                            error,
+                        }
+                    })?;
+                }
+            }
             for (companion, positive, excluded) in
                 [(false, binder.bounds(), binder.excluded_interfaces())]
                     .into_iter()
@@ -201,6 +212,7 @@ impl std::error::Error for SignatureBinderScopeError {}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum TypeParameterBoundLocation {
+    Requirement { requirement_index: usize },
     CompanionClass,
     CompanionInterface { interface_index: usize },
     CompanionExcludedInterface { interface_index: usize },
@@ -228,6 +240,9 @@ impl TypeParameterBoundLocation {
 impl fmt::Display for TypeParameterBoundLocation {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Requirement { requirement_index } => {
+                write!(formatter, "member requirement {requirement_index}")
+            }
             Self::CompanionClass => formatter.write_str("companion class bound"),
             Self::CompanionInterface { interface_index } => {
                 write!(formatter, "companion interface bound {interface_index}")
