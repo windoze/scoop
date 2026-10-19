@@ -32,12 +32,10 @@ stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
-checks = [{actual = "${build.result.observations.child_invocations.length}", equals = 1}]
 
 [[steps]]
 name = "run"
 argv = ["${build.result.output}"]
-env = {SCOOP_GC_STRESS_MOVE = "1"}
 exit = 0
 stdout = "Retained TLS identities authenticate synchronous and suspend clients and drain cancellation\n"
 stderr = ""

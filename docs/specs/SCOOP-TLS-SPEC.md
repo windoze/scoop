@@ -72,6 +72,8 @@ shutdownGracefully 独占读写方向，排出已接受输出，发出并等待�
 
 提供不可变配置 `TlsIdentity(certificates: List<Certificate>, privateKey: PrivateKey)`，证书链非空，按叶证书到中间证书排序。创建时检查叶证书／私钥匹配，独立保留每张证书和私钥的 native 引用，实现 Closeable；显式关闭原 Certificate／PrivateKey wrapper 不使 identity 失效。isClosed 查询关闭状态，close 幂等；关闭后的身份不能配置新上下文。构造期间输入 wrapper 仍须有效，不允许其他使用者并发关闭它们。
 
+`leafCertificateSha256: Array<Byte>` 返回配置的本地叶证书 DER 的 SHA-256 摘要。构造时使用 crypto 计算并保存独立不可变快照，关闭原 Certificate／PrivateKey 或 identity 后仍可读取；同一叶证书具有相同摘要，中间证书链的改变不改变它。上层私有缓存可用它区分本地客户端身份；该属性不查询对端证书、不包含私钥，也不增加连接检查或证书固定功能。
+
 `TlsIdentity.fromPem(certificates: String, privateKey: String)` 调用 crypto 的完整 bundle 与私钥 parser，在所有出口释放临时 wrapper。空链抛 IllegalArgumentException，已关闭输入抛 IllegalStateException，PEM 解析保留 CryptoException，证书／私钥不匹配以 TlsFailureKind.Configuration 报告；不通过导出／重新解析 PEM 来取得输入的所有权。
 
 TlsClientContext 的最后一个可选参数为 identity，默认 None，旧的 `TlsClientContext(trustStore, options)` 调用仍合法。向 SSL_CTX 配置身份时取得独立 native 引用，因此 identity 关闭不影响已创建上下文，上下文关闭也不影响已有 SSL。身份的配置／关闭使用短临界区，不在其中执行 I/O 或用户代码。服务端原构造入口使用同一身份检查与 OpenSSL 配置路径，不增加另一套证书链复制实现。对端请求证书时按 TLS 协议发送配置的身份，不动态执行用户选择 callback。

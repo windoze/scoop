@@ -96,6 +96,7 @@
 | client 环境代理 | 显式读取并快照 HTTP／HTTPS／ALL／NO_PROXY，处理大小写优先、CGI、HTTP Basic／SOCKS 凭据与 DNS 模式；域名／IP／CIDR／端口绕过复用 URL、HTTP 和 platform，方法重写保留调用级代理 | 6 项规则测试通过 Darwin debug；17 个真实 HTTP／HTTPS 代理／SOCKS／重定向场景通过 debug／release 与构建复用，共 2 个变体、6 个步骤进程；覆盖无效 UTF-8、未选中的别名、默认直连和 POST 的 301／302／303，未启用 GC stress |
 | client Cookie jar | 显式 suspend CookieJar 和线程安全 MemoryCookieJar；复用 HTTP 的作用域、PSL、过期、前缀和 SameSite 规则，支持容量淘汰、快照、清除与 Secure 覆盖限制 | Darwin 两项正式 fixture 通过 debug／release 与构建复用，共 4 个变体、12 个步骤进程；5 组存储规则、两线程共享及 16 个真实网络／生命周期场景覆盖认证、重定向、重试、gzip、H2、代理 407、Context、取消和清理失败；未启用 GC stress |
 | 不受调用方取消的清理作用域 | core.nonCancellableScope 复用普通作用域的子树完成和错误边界，继承业务 Context，等待清理后恢复原 Job；用于必要的异步文件收尾 | Darwin 两项正式 fixture 通过 debug／release 与构建复用，共 4 个变体、12 个步骤进程；覆盖清理前／中途取消、子任务等待及失败、原取消保留、Context 恢复、双 native 线程上的真实异步关闭和删除；未启用 GC stress |
+| 本地 TLS 身份摘要 | TlsIdentity.leafCertificateSha256 由 crypto 计算本地叶证书 DER 摘要，独立保存并在关闭输入或身份后保持可读，供私有缓存区分客户端证书 | Darwin 两项正式 fixture 通过 debug／release 与构建复用，共 4 个变体、12 个步骤进程；核对两个独立 SHA-256 向量、证书链变化、并发读取，以及 TLS 1.2／1.3 同步／异步 mTLS 和握手取消；未启用 GC stress |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -492,3 +493,5 @@ Digest 实施期间，清理已被最终 Bearer 生命周期回归替代的 3 �
 合并 M55 后，清理已被新工具回归替代的 Digest 参数变更与 nextnonce 共 4 个旧 target，释放约 685 MiB；正式源码、最终消费者、生产库、缓存、原始日志和报告保留。
 
 safepoint 不可复制修正验收后，清理约 19.9 GiB 已结束的 Rust 增量构建缓存；配套命令、依赖产物、正式消费者、生产库与仓库外诊断日志保留。
+
+Cookie 与缓存基础能力验收期间，清理环境代理库测试和 Cookie 站点消费者的 3 个已结束 target，合计约 489 MiB；源码、缓存、SDK、当前消费者和原始验证记录保留。

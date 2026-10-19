@@ -1,12 +1,16 @@
 package scoop.tls
 
 import scoop.crypto.PrivateKey
+import scoop.crypto.DigestAlgorithm
+import scoop.crypto.digest
 import scoop.crypto.native.*
 import scoop.crypto.x509.*
 import scoop.tls.native.*
 
-public class TlsIdentity private constructor(private var handle: ULong) : Closeable {
+public class TlsIdentity private constructor(retained: RetainedTlsIdentity) : Closeable {
+    private var handle: ULong = retained.handle
     private val held: AtomicBoolean = AtomicBoolean(false)
+    public val leafCertificateSha256: Array<Byte> = retained.leafCertificateSha256
 
     public constructor(certificates: List<Certificate>, privateKey: PrivateKey)
         : this(retainIdentity(certificates, privateKey)) {}
@@ -45,14 +49,18 @@ public class TlsIdentity private constructor(private var handle: ULong) : Closea
     }
 }
 
-private fun retainIdentity(certificates: List<Certificate>, privateKey: PrivateKey): ULong {
+private struct RetainedTlsIdentity(val handle: ULong, val leafCertificateSha256: Array<Byte>)
+
+private fun retainIdentity(certificates: List<Certificate>, privateKey: PrivateKey): RetainedTlsIdentity {
     val chain = certificates.toArray()
     if (chain.size == 0L) throw IllegalArgumentException(Some("TLS identity requires a certificate chain"))
+    val fingerprint = digest(DigestAlgorithm.Sha256, chain[0L].toDer())
     @Unsafe {
         val key = privateKeyHandle(privateKey)
         val handles = Array<ULong>(chain.size) { index -> @Unsafe { return@Array certificateHandle(chain[index]) } }
         return handles.withDataPointer { pointer, count ->
-            @Unsafe { return@withDataPointer tlsValue(identityNew(key, pointer, count), "create TLS identity") }
+            @Unsafe { return@withDataPointer RetainedTlsIdentity(
+                tlsValue(identityNew(key, pointer, count), "create TLS identity"), fingerprint) }
         }
     }
 }
