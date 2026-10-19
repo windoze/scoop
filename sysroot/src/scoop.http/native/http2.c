@@ -21,6 +21,7 @@ uint64_t scoop_http2_new(int32_t server, http2_config config,
     goto fail;
   http2_header_callbacks(callbacks);
   http2_event_callbacks(callbacks);
+  http2_input_setup(h, callbacks);
   nghttp2_option_set_no_auto_window_update(options, 1);
   nghttp2_option_set_no_rfc9113_leading_and_trailing_ws_validation(
       options, config.edge_whitespace);
@@ -62,25 +63,12 @@ void scoop_http2_free(uint64_t handle) {
   http_events_clear(&h->events);
   http_event_free(h->headers);
   http_bytes_clear(&h->output);
+  http_bytes_clear(&h->input.progress);
   free(h);
 }
 
 const char *scoop_http2_error(uint64_t handle) {
   return ((http2 *)(uintptr_t)handle)->error.text;
-}
-
-http_step scoop_http2_receive(uint64_t handle, const uint8_t *data,
-                              int64_t size) {
-  http2 *h = (http2 *)(uintptr_t)handle;
-  if (h->ended || h->failed)
-    return (http_step){0, http2_result(h, NGHTTP2_ERR_INVALID_STATE)};
-  nghttp2_ssize count =
-      nghttp2_session_mem_recv2(h->session, data, (size_t)size);
-  if (count < 0) {
-    h->failed = 1;
-    return (http_step){0, http2_result(h, (int)count)};
-  }
-  return (http_step){count, 0};
 }
 
 http2_output scoop_http2_output(uint64_t handle, uint8_t *data,

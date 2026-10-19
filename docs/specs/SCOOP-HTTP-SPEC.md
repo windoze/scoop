@@ -85,6 +85,10 @@ Http2Settings 声明 headerTableSize、maxConcurrentStreams、initialWindowSize�
 
 receive／takeOutput 使用 NativeByteBuffer 的实际前缀。mem_send2 返回的临时字节必须在下一次可能使指针失效的调用前复制到自有存储；不能跨挂起保存该指针。输出每次可短传输，未取走的输出保持有效。
 
+receiveWithProgress 使用相同的 buffer／count 合同，返回 Http2ReceiveResult(count, progress)。progress 是独立的 Http2InputProgress(streamId, count) 数组，按接收顺序报告本次新确认归属的 HEADERS／CONTINUATION／DATA 字节；包括帧定界、填充和压缩首部字节，不包含连接前言、其他控制帧或被后端忽略而未报告归属的帧。同流相邻进度可合并，同一数组也可多次出现同流。该记录表示协议输入进展，不是已解码正文大小。
+
+帧头完整且 nghttp2 已确认归属时，一次报告其 9 字节；如果帧头跨调用接收，早先尚未归属的帧头字节也在此时报告。帧头尚不完整时不能据此延长任一流的读等待。后续 payload 依据 mem_recv2 的真实消费量报告，因此分段 HPACK／CONTINUATION 不必等完整首部事件才可观察进展。归属和长度来自 nghttp2 回调，适配层按已知边界分段提交输入，不另写帧解析或校验；被后端忽略的帧不影响下一条有效流的归属。receive 与 receiveWithProgress 可交替使用，零容量不推进并返回空进度；普通 receive 不创建进度数组。消息事件、窗口和错误仍遵守同一会话合同，关闭或 reset 不使已经返回的进度快照失效。
+
 takeOutputChunk 使用相同的 buffer／count 合同，返回 Http2OutputChunk(count, streamId, kind)。每个非空片段只属于一个流和一种 Http2OutputKind：Headers 包含首部及其 CONTINUATION，Data 包含 DATA 的定界和内容，Control 包含其他帧及连接前言；streamId 是实际帧的流号，连接级内容为零。零容量或暂无输出返回 count=0、streamId=0、Control，不推进零容量操作。归属由 nghttp2 的序列化回调保存，跨短取出保持稳定，不另外解析输出字节；takeOutput 仍只返回 count，两种入口可交替消费同一输出位置。此 count 是取出量，实际网络写入进度须由调用方按该片段的真实传输返回量累计。
 
 hasPendingOutput(streamId) 查询该流尚未序列化的头、已接受的 DATA 和结束标记，以及会话仍持有的该流 Headers／Data 片段；其他流和 Control 片段不使本流保持待发送。流已关闭或 reset 时，之前已序列化而未取完的片段仍须完整取走。bufferedOutputBytes 单独返回会话已经序列化、尚未取走的所有片段字节数，供 GOAWAY 等控制输出在其他流继续发送时独立完成 flush。流窗口为零时即使 wantsWrite 为 false，该流仍可有待发送 body。查询不推进协议、不执行 I/O；已经交给调用者的 buffer 仍由调用者负责写完和 flush。

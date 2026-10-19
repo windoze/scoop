@@ -65,6 +65,7 @@
 | 调用截止与阶段等待 | HttpTimeoutOptions 提供 total／poolAcquire／responseHeaders；配置继承或完整替换，单调截止覆盖正文消费及真实清理，阶段与进度随结构化异常交付 | 新增 13 项测试，client 全部 112 项通过 debug／release；17 项新旧用例逐例通过两种构建的 full moving，独立对端的同步回调边界、压缩取消、H2 单流隔离与构建复用通过 |
 | 统一网络阶段时限 | HttpTimeoutOptions 的 resolve／connect／tlsHandshake 默认各 30 秒；DNS／TCP 复用 asyncio 的分族截止与竞速，TLS 单独计时，结构化错误保留下层原因，复用连接跳过建连阶段 | 新增 7 项测试并扩展配置覆盖，client 全部 119 项通过 debug／release；14 项新旧用例逐例通过两种构建的 full moving，独立 Python socket／TLS 对端验证零期限、握手停滞、总截止与复用 |
 | HTTP/2 输出归属 | takeOutputChunk 返回实际流号与 Headers／Data／Control 类别，保留 CONTINUATION 和短取出的归属；hasPendingOutput 只计算本流的消息输出，reset 后仍保留已序列化尾部 | 新增 5 项测试，HTTP 全部 228 项、HTTP asyncio 全部 97 项通过 debug／release；10 项协议用例逐例通过两种构建的 full moving，独立帧解析与连接池对端回归通过 |
+| HTTP/2 输入进度 | receiveWithProgress 交付按流归属的消息输入字节，分段 HPACK／CONTINUATION 不等待完整首部；帧头完整后才归属，控制及后端忽略的帧不延长其他流的等待 | 新增 6 项测试，HTTP 全部 234 项通过 debug／release；11 项新旧用例逐例通过两种构建的 full moving，独立逐段字节对照与 h2c 对端回归通过 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -266,6 +267,10 @@ SecTrust 对原有十年有效期叶证书的拒绝符合系统政策，测试�
 
 5 项新测试与 5 项 pending／流控／消息回归逐例通过两种构建的 full moving，共 20 个进程。原有 takeOutput 与新入口可交替消费，零容量和非法范围不推进，其他流与控制输出不延长本流的 pending 状态。生产 HTTP、HTTP asyncio 和 client 按依赖顺序重建，`m54-client-pool` 两种构建的 6 个进程回归通过，包含 H2 取消、并发上限变化与 GOAWAY。消费者初次编译补足空字段列表的元素类型后通过；此项提供输出事实，实际 I/O idle 计时继续在 HTTP asyncio 实施。
 
+`m54-http2-input` 在 Darwin 通过 debug／release 两个变体，共 6 个进程。独立 Python 对端生成带 priority、padding、CONTINUATION 和双流正文的输入，以 1／7／4093 字节分块交给两个 native 线程；逐段核对帧头确认时刻和实际 payload 进度，控制帧、未知扩展及 reset 后数据不混入有效流。大首部、full moving 和正常构建复用通过。
+
+6 项新测试与 5 项流控／HPACK／错误回归逐例通过两种构建的 full moving，共 22 个进程。新旧接收入口共享分段状态，零输入不重复上次进度，正常关闭或 reset 不破坏已交付快照。边界来自 nghttp2 的公开回调，未增加第二个帧 parser；生产依赖顺序刷新后，`m54-client-h2c` 两种构建的 6 个进程回归通过。首轮修正了 Unsafe 块结果的源码写法及消费者的 enum 绑定警告，最终编译和运行通过。
+
 ## 后续工作
 
 继续在所属 HTTP 层补齐实际 I/O idle 阶段，并完成 client 的重定向／重试／认证／代理、Cookie、缓存／续传、SSE／WebSocket 高层组合和可观察性。每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
@@ -317,3 +322,5 @@ Trailer 实施期间，清理 Expect 字段、h2c 及 Continue 首轮消费者�
 调用超时验收期间，清理最终 Continue 与响应解码消费者的 4 个已结束 fixture target 目录，释放约 621 MiB；保留源码、当前消费者、生产 sysroot、库 target、原始日志、报告与缓存。
 
 网络阶段验收期间，清理上一批调用超时与 TCP 截止消费者的 4 个已结束 fixture target 目录，释放约 426 MiB；保留源码、当前消费者、生产 sysroot、库 target、原始日志、报告与缓存。
+
+HTTP/2 输入进度验收期间，清理网络阶段消费者的 2 个已结束 fixture target 目录，释放约 316 MiB；保留源码、当前消费者、生产 sysroot、库 target、原始日志、报告与缓存。

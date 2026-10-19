@@ -11,6 +11,17 @@ typedef struct {
 } http2_output;
 
 typedef struct {
+  int64_t count;
+  int32_t stream_id;
+} http2_input_progress;
+typedef struct {
+  http_bytes progress;
+  size_t payload_left, magic_left, header_left;
+  int32_t stream_id;
+  int capture, began;
+} http2_input;
+
+typedef struct {
   int64_t header_bytes, field_bytes, fields, continuations;
   int64_t send_header_bytes, pending_body_bytes;
   int32_t edge_whitespace, reject_invalid;
@@ -44,6 +55,7 @@ typedef struct {
   http_bytes output;
   size_t output_offset;
   int32_t output_stream_id, output_kind;
+  http2_input input;
   http_error error;
 } http2;
 
@@ -56,6 +68,7 @@ nghttp2_nv *http2_nv(const http_fields *fields);
 nghttp2_data_provider2 http2_provider(http2_stream *stream);
 void http2_header_callbacks(nghttp2_session_callbacks *callbacks);
 void http2_event_callbacks(nghttp2_session_callbacks *callbacks);
+void http2_input_setup(http2 *h, nghttp2_session_callbacks *callbacks);
 int http2_push_simple(http2 *h, int kind, int32_t id, uint32_t flags);
 
 #endif

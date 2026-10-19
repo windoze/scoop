@@ -1,0 +1,103 @@
+package scoop.http
+
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+internal fun inputProgress2(session: Http2Session, bytes: List<Byte>, chunk: Long = 7L): Array<Http2InputProgress> {
+    val result = ArrayList<Http2InputProgress>()
+    val buffer = NativeByteBuffer.allocate(chunk)
+    try {
+        var offset = 0L
+        while (offset < bytes.size) {
+            buffer.clear()
+            val count = if (bytes.size - offset < chunk) bytes.size - offset else chunk
+            buffer.writeBytes(bytes, offset, count)
+            val step = session.receiveWithProgress(buffer)
+            assertEquals(count, step.count)
+            assertEquals(0L, buffer.readableBytes)
+            for (part in step.progress) {
+                assertTrue(part.streamId > 0 && part.count > 0L)
+                result.add(part)
+            }
+            offset += count
+        }
+        return result.toArray()
+    } finally { buffer.close() }
+}
+
+internal fun inputTotal2(parts: List<Http2InputProgress>, id: Int): Long {
+    var total = 0L
+    for (part in parts) { if (part.streamId == id) total += part.count }
+    return total
+}
+
+@Test private class Http2InputProgressTests {
+    @Test fun `partial frame headers wait for attribution while partial HPACK already reports progress`() {
+        Http2Session.server().use { server ->
+            assertEquals(0L, inputProgress2(server, clientPreface2(), 1L).size)
+            val wire = frame2(1, 4, 1, headerBlock2(rawRequestFields2()))
+            NativeByteBuffer.allocate(wire.size).use { buffer ->
+                buffer.writeBytes(wire)
+                val partial = server.receiveWithProgress(buffer, 8L)
+                assertEquals(8L, partial.count)
+                assertEquals(0L, partial.progress.size)
+                val header = server.receiveWithProgress(buffer, 1L)
+                assertEquals(1L, header.count)
+                assertEquals(9L, inputTotal2(header.progress, 1))
+                assertEquals(0L, requests2(events2(server)).size)
+                val hpack = server.receiveWithProgress(buffer, 4L)
+                assertEquals(4L, inputTotal2(hpack.progress, 1))
+                assertEquals(0L, requests2(events2(server)).size)
+                val rest = server.receiveWithProgress(buffer)
+                assertEquals(wire.size - 13L, inputTotal2(rest.progress, 1))
+                assertEquals(1L, requests2(events2(server)).size)
+            }
+        }
+    }
+
+    @Test fun `legacy receive and progress calls share partial frame state and snapshots survive reset and close`() {
+        Http2Session.server().use { server ->
+            receive2(server, clientPreface2())
+            val wire = frame2(1, 5, 1, headerBlock2(rawRequestFields2()))
+            NativeByteBuffer.allocate(wire.size).use { buffer ->
+                buffer.writeBytes(wire)
+                assertEquals(8L, server.receive(buffer, 8L))
+                val first = server.receiveWithProgress(buffer, 1L)
+                assertEquals(9L, inputTotal2(first.progress, 1))
+                assertEquals(5L, server.receive(buffer, 5L))
+                val rest = server.receiveWithProgress(buffer)
+                assertEquals(wire.size - 14L, inputTotal2(rest.progress, 1))
+                server.reset(1)
+                output2(server)
+                val next = frame2(1, 5, 3, headerBlock2(rawRequestFields2()))
+                assertEquals(next.size, inputTotal2(inputProgress2(server, next, 3L), 3))
+                server.close()
+                assertEquals(9L, inputTotal2(first.progress, 1))
+                assertEquals(wire.size - 14L, inputTotal2(rest.progress, 1))
+            }
+        }
+    }
+
+    @Test fun `zero and invalid input counts preserve the source and never replay prior progress`() {
+        Http2Session.server().use { server ->
+            val preface = clientPreface2()
+            NativeByteBuffer.allocate(preface.size).use { buffer ->
+                buffer.writeBytes(preface)
+                val zero = server.receiveWithProgress(buffer, 0L)
+                assertEquals(0L, zero.count)
+                assertEquals(0L, zero.progress.size)
+                assertFailsWith<IllegalArgumentException> { server.receiveWithProgress(buffer, -1L) }
+                assertFailsWith<IllegalArgumentException> { server.receiveWithProgress(buffer, preface.size + 1L) }
+                assertEquals(preface.size, buffer.readableBytes)
+                assertEquals(preface.size, server.receiveWithProgress(buffer).count)
+                val wire = frame2(1, 5, 1, headerBlock2(rawRequestFields2()))
+                assertEquals(wire.size, inputTotal2(inputProgress2(server, wire), 1))
+                val empty = server.receiveWithProgress(buffer)
+                assertEquals(0L, empty.count)
+                assertEquals(0L, empty.progress.size)
+                server.close()
+                assertFailsWith<IllegalStateException> { server.receiveWithProgress(buffer, 0L) }
+            }
+        }
+    }
+}
