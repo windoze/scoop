@@ -1,0 +1,55 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.charset.*
+import scoop.http.*
+import scoop.json.Json
+import scoop.platform.memory.NativeByteBuffer
+
+public class HttpResponseBody internal constructor(private val input: ClientResponseInput, private val fields: Array<HttpField>)
+    : AsyncByteSource, AsyncCloseable {
+    private val busy: AtomicBoolean = AtomicBoolean(false)
+    public val isComplete: Boolean get() = input.isComplete
+    public val contentLength: Long? get() = input.plan.contentLength
+
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long =
+        withReader(suspend { source -> source.readInto(buffer, count) })
+
+    public suspend fun readAllBytes(maxBytes: Long): Array<Byte> =
+        withReader(suspend { source -> source.readAllBytes(maxBytes) })
+
+    public suspend fun bytes(maxBytes: Long): Array<Byte> = readAllBytes(maxBytes)
+
+    public suspend fun copyTo(destination: AsyncByteSink, bufferSize: Long = 8192L): Long =
+        withReader(suspend { source -> source.copyTo(destination, bufferSize) })
+
+    public suspend fun text(maxBytes: Long, charset: Charset? = None, options: CharsetDecodeOptions = CharsetDecodeOptions(),
+        malformedInput: CharsetErrorAction = CharsetErrorAction.Strict): String {
+        val selected = charset ?: responseTextCharset(fields)
+        val value = readAllBytes(maxBytes)
+        return when (malformedInput) {
+            case Strict -> selected.decode(value, options)
+            case Replace -> selected.decodeLossy(value, options)
+        }
+    }
+
+    public suspend fun <T> json(codec: ValueDecoder<T>, maxBytes: Long): T =
+        Json.decodeFromString(Charset.Utf8.decode(readAllBytes(maxBytes)), codec)
+
+    private suspend fun <T> withReader(block: suspend (AsyncByteSource) -> T): T {
+        val call = input.call
+        val reader = clientJob(call.client.loop, true)
+        if (!busy.compareAndSet(false, true)) throw IllegalStateException(Some("HTTP response body already has a reader"))
+        val listener = reader.invokeOnCancellation { error -> cancelClientCall(call, error) }
+        try { return block(input) }
+        finally { listener.dispose(); busy.store(false) }
+    }
+
+    public override suspend fun close() { input.close() }
+}
+
+private fun responseTextCharset(fields: Array<HttpField>): Charset {
+    val media = HttpMediaType.parseFields(fields)
+    val charset = when (media) { case Some(value) -> value.parameter("charset"); case None -> None }
+    return when (charset) { case Some(value) -> Charset.forName(String.fromUtf8(value.value)); case None -> Charset.Utf8 }
+}

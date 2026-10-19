@@ -26,7 +26,8 @@ public class HttpClientConfig public constructor(
     public val http1Limits: Http1Limits = Http1Limits(),
     public val http2Receive: Http2ReceiveOptions = Http2ReceiveOptions(),
     public val http2Limits: Http2Limits = Http2Limits(),
-    public val http2Settings: Http2Settings = Http2Settings()
+    public val http2Settings: Http2Settings = Http2Settings(),
+    public val decoding: HttpDecodingOptions = HttpDecodingOptions()
 ) {
     init {
         if (http1RequestVersion == HttpVersion.Http2)
@@ -42,6 +43,7 @@ public class HttpCallOptions public constructor(
     public val duplex: Boolean = false,
     public val expectContinue: Boolean = false,
     public val continueWait: Duration = Duration.seconds(1L),
+    public val decoding: HttpDecodingOptions? = None,
     public val onInformational: suspend (HttpResponseHead) -> Unit = suspend { _ -> }
 ) {
     init {

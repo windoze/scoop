@@ -1,0 +1,58 @@
+package scoop.http.client
+
+import scoop.compression.CompressionFormat
+import scoop.http.*
+
+public enum HttpContentDecoding { Automatic, Raw }
+
+public class HttpDecodingOptions public constructor(
+    public val mode: HttpContentDecoding = HttpContentDecoding.Automatic,
+    public val bufferSize: Long = 8192L,
+    public val maxWindowBytes: Long? = None
+) {
+    init {
+        if (bufferSize <= 0L) throw IllegalArgumentException(Some("HTTP decoding buffer size must be positive"))
+        if (maxWindowBytes != None && maxWindowBytes!! <= 0L)
+            throw IllegalArgumentException(Some("HTTP decoding window limit must be positive"))
+    }
+}
+
+public class HttpUnsupportedContentCodingException public constructor(public val coding: String)
+    : Exception(Some("unsupported HTTP content coding: " + coding))
+
+internal class ClientResponseDecoding(val options: HttpDecodingOptions, val formats: Array<CompressionFormat>, val contentLength: Long?)
+
+internal fun clientDecodingOptions(config: HttpClientConfig, request: HttpRequest): HttpDecodingOptions =
+    request.options.decoding ?: config.decoding
+
+internal fun clientResponseDecoding(call: ClientCall, head: HttpResponseHead, wireLength: Long?): ClientResponseDecoding {
+    val options = clientDecodingOptions(call.client.config, call.request)
+    val allows = httpResponseAllowsContent(head, call.request.methodBytes)
+    val formats = ArrayList<CompressionFormat>()
+    if (options.mode == HttpContentDecoding.Automatic && allows) {
+        val codings = parseHttpTokenFields(head.fields, "Content-Encoding")
+        var index = codings.size
+        while (index > 0L) {
+            index -= 1L
+            val coding = codings[index]
+            when (coding) {
+                case "identity" -> {}
+                case "gzip" -> formats.add(CompressionFormat.Gzip)
+                case "x-gzip" -> formats.add(CompressionFormat.Gzip)
+                case "deflate" -> formats.add(CompressionFormat.Zlib)
+                case "br" -> formats.add(CompressionFormat.Brotli)
+                case "zstd" -> formats.add(CompressionFormat.Zstd)
+                else -> throw HttpUnsupportedContentCodingException(coding)
+            }
+        }
+    }
+    return ClientResponseDecoding(options, formats.toArray(), if (allows && formats.size == 0L) wireLength else None)
+}
+
+internal fun addClientAcceptEncoding(fields: ArrayList<HttpField>, request: HttpRequest, config: HttpClientConfig) {
+    if (fields.findAll("Accept-Encoding".toByteArray()).size != 0L) return
+    val range = fields.findAll("Range".toByteArray()).size != 0L
+    if (range || clientDecodingOptions(config, request).mode == HttpContentDecoding.Automatic)
+        fields.add(HttpField("Accept-Encoding".toByteArray(),
+            (if (range) "identity" else "gzip, deflate, br, zstd").toByteArray()))
+}

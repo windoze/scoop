@@ -29,6 +29,8 @@
 
 `toByteArray()` 生成可发送的规范字段值；保留参数次序，必要时加引号并转义引号／反斜杠，已解析的 quoted 参数继续使用引号。`toHttpField()` 生成 Content-Type 字段。两者不隐式解释 charset 参数，也不把 obs-text 转成展示字符串；字符解码由显式 charset 操作完成。
 
+`HttpMediaType.parseFields(fields): HttpMediaType?` 解释单值 Content-Type：没有对应字段时返回 None，一条字段复用 parse；同名字段超过一条即报 HttpFieldParseException，即使值相同也不将它们拼成逗号列表。重复字段的 byteOffset 为第二条字段值的起点零；原始 fields 保持不变。高层只在需要媒体类型时调用，不因文本元数据无效而提前丢弃可按原始字节读取的响应。
+
 ### 1.2 Content-Disposition 与扩展参数
 
 `HttpContentDisposition(disposition, parameters)` 与配对的字节／String parse、parseOrNone、parameter、toByteArray、toHttpField 遵守同样的不可变值合同。disposition 和参数名按 ASCII 小写保存；参数顺序和原始字段保留，重复名报错。按 RFC 6266 接收参数等号两侧 OWS，不接收空分号项。未知 disposition 与参数只保存，不猜测业务含义。
@@ -122,6 +124,12 @@ challenge 和 credentials 共用同一个字节语法实现。参数值使用 to
 requireDeclared(fields) 只检查本次实际 trailer 的名称均在声明内，允许少于声明的名称、空结果和有序重复字段，不合并值；字段值与实际协议的编码校验仍在发送边界进行。声明不创建全局字段注册表；按 RFC 9110 §6.5.1，调用者须确认扩展字段的定义允许放在 trailer 中。
 
 声明与 HTTP/1、HTTP/2 编码器共用已知不可后置字段的检查：拒绝消息定界、连接／路由、认证／Cookie、请求控制与条件、响应控制及内容格式字段，包括 Content-Length、Transfer-Encoding、Connection、Host、Trailer、Authorization、Cookie、Expect、Range、If-* 条件、Cache-Control、Location、Content-Type、Content-Encoding 和 Content-Range。Authentication-Info、Content-Digest、ETag 及调用者已确认允许的扩展字段可以声明；扩展字段不会因此被赋予库不知道的语义。失败在本次协议结束标记提交前报告，编码器仍可接受修正后的合法 trailer。
+
+### 1.12 响应内容语义
+
+`httpResponseAllowsContent(head, requestMethod): Boolean` 查询已解析消息的 HTTP 内容语义。HEAD、1xx、204、205、304 和成功 CONNECT 的响应返回 false；方法按字节精确匹配，其他扩展方法沿用普通响应规则。它不以 Content-Length 是否存在或大于零判断内容，也不把 CONNECT 隧道数据或升级后的新协议数据当成 HTTP 表示。
+
+该查询供内容解码等上层组合使用，不代替各版本的报文定界、原始方法／状态检查或接收兼容选项。HEAD／304 的 Content-Encoding、Content-Length 等可以描述所选表示，但不能据此对实际空 body 启动解压；原始字段仍保留。
 
 ## 2. Cookie 与公共后缀
 

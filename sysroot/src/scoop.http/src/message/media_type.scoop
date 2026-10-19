@@ -15,6 +15,13 @@ public class HttpMediaType private constructor(
     public fun toHttpField(): HttpField = HttpField("Content-Type".toByteArray(), toByteArray())
 
     public companion object {
+        public fun parseFields(fields: List<HttpField>): HttpMediaType? {
+            val values = fields.findAll("Content-Type".toByteArray())
+            if (values.size == 0L) return None
+            if (values.size > 1L) throw HttpFieldParseException("Content-Type", 0L, "Content-Type must occur once")
+            return Some(parse(values[0L].value))
+        }
+
         public fun parse(value: List<Byte>): HttpMediaType {
             val reader = HttpFieldReader("Content-Type", value)
             reader.skipOws()

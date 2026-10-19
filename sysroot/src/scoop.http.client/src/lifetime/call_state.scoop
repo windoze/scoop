@@ -21,6 +21,7 @@ internal class ClientCall(
     var endWaiter: Continuation<Unit>? = None
     var lease: ClientPoolEntry? = None
     var exchange: ClientExchange? = None
+    var responseInput: ClientResponseInput? = None
     var upload: Job? = None
     var readDone: Boolean = false
     var uploadDone: Boolean = false

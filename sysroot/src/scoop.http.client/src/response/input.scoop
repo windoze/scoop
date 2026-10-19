@@ -1,0 +1,63 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.platform.memory.NativeByteBuffer
+
+internal class ClientResponseInput(val call: ClientCall, val plan: ClientResponseDecoding) : AsyncByteSource, AsyncCloseable {
+    private val closed: AtomicBoolean = AtomicBoolean(false)
+    private val codec: ClientResponseCodec = ClientResponseCodec(call, plan)
+    val isComplete: Boolean get() = call.lock.withLock { call.readDone }
+
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long {
+        if (closed.load()) throw IoClosedException()
+        if (count < 0L) throw IllegalArgumentException(Some("negative HTTP response read count"))
+        if (count > buffer.writableBytes) throw IndexOutOfBoundsException()
+        val failure = observeClientCallFailure(call)
+        if (clientPresent(failure)) throw failure!!
+        if (isComplete || count == 0L) return 0L
+        val scope = call.lock.withLock { call.scope ?: throw IoClosedException() }
+        val job = scope.job
+        try {
+            val result = context(job) { codec.readInto(buffer, count) }
+            if (result == 0L || (plan.formats.size == 0L && call.exchange!!.isReadComplete)) {
+                call.lock.withLock { call.readDone = true }
+                wakeClientCall(call)
+            }
+            return result
+        } catch (error: Throwable) {
+            failClientCall(call, error)
+            awaitClientResponseClose(call)
+            throw (observeClientCallFailure(call) ?: error)
+        }
+    }
+
+    suspend fun closeCodecs() { codec.close() }
+
+    public override suspend fun close() {
+        if (call.lock.withLock { call.completed }) {
+            if (closed.compareAndSet(false, true)) reportClientResponseCloseFailure(call)
+            return
+        }
+        clientJob(call.client.loop, false)
+        closed.store(true)
+        call.lock.withLock { call.abandoned = true; call.ending = true }
+        cancelClientCall(call, CancellationException())
+        awaitClientResponseClose(call)
+        reportClientResponseCloseFailure(call)
+    }
+}
+
+private fun reportClientResponseCloseFailure(call: ClientCall) {
+    val failure = if (call.lock.withLock { call.failureObserved }) call.lock.withLock { call.cleanupFailure }
+        else clientCallFailure(call)
+    if (clientPresent(failure)) throw failure!!
+}
+
+private suspend fun awaitClientResponseClose(call: ClientCall) {
+    suspendCoroutine<Unit> { continuation ->
+        val done = call.lock.withLock {
+            if (call.completed) true else { call.closeWaiters.add(continuation); false }
+        }
+        if (done) continuation.resume(Unit)
+    }
+}

@@ -48,6 +48,7 @@ private suspend fun runClientCall(call: ClientCall) {
                     continue
                 }
                 val response = HttpResponse(call, head)
+                call.lock.withLock { call.responseInput = Some(response.input) }
                 settleClientContinue(call, false)
                 val result = call.lock.withLock {
                     requireClientCallUnlocked(call)
@@ -75,6 +76,11 @@ private fun requireClientCallUnlocked(call: ClientCall) {
 }
 
 private suspend fun cleanupClientExchange(call: ClientCall) {
+    val input = call.lock.withLock { call.responseInput }
+    if (clientPresent(input)) {
+        try { input!!.closeCodecs() }
+        catch (error: Throwable) { call.lock.withLock { call.cleanupFailure = Some(clientCombined(call.cleanupFailure, error)) } }
+    }
     val exchange = call.lock.withLock { call.exchange }
     if (clientPresent(exchange)) {
         try { exchange!!.close() }
@@ -111,7 +117,7 @@ private class ClientCallCompletion(val call: ClientCall) : Continuation<Unit> {
         if (clientPresent(jobListener)) jobListener!!.dispose()
         val (hold, waiters, result) = call.lock.withLock {
             val saved = call.hold
-            call.hold = None; call.scope = None; call.upload = None; call.caller = None
+            call.hold = None; call.scope = None; call.upload = None; call.caller = None; call.responseInput = None
             val waiting = call.closeWaiters.toArray(); call.closeWaiters.clear()
             val pending = call.result; call.result = None;
             (saved, waiting, pending)

@@ -59,6 +59,8 @@
 | Continue 上传门控 | HttpCallOptions 的 expectContinue／continueWait 与手写标准 Expect 共用门控；100 或间隔到期允许一次上传，早期最终响应不获取来源，等待可取消，H2 按流隔离 | 新增 9 项测试，client 全部 73 项通过 debug／release；13 项相关用例逐例通过两种构建的 full moving，独立 HTTP/1、H2 与 h2c 对端及正式构建复用通过 |
 | Trailer 声明与协议限制 | HTTP 库的 HttpTrailerDeclaration 保存规范名称与首次顺序，检查实际字段归属；HTTP/1 与 HTTP/2 统一拒绝已知不能后置的字段，失败不提交消息结束 | 新增 5 项测试，HTTP 全部 220 项通过 debug／release；新测试与 2 项协议回归通过两种构建的 full moving，正式消费者的短块、跨线程与构建复用通过 |
 | 每次发送的请求 trailer | 单次／工厂 producer 在同一次发送中写正文并返回 trailer，独立结果保留字节数与字段；H1 chunked、H2 尾部 HEADERS、h2c、压缩和 multipart 外层组合 | 新增 10 项测试，client 全部 83 项通过 debug／release；15 项新旧用例逐例通过两种构建的 full moving，独立 chunked／gzip／Continue／h2c 对端和真实并行 H2 消费者通过 |
+| 响应内容语义与 Content-Type 字段 | HTTP 库按原始方法和状态查询内容语义；HttpMediaType.parseFields 解释单值字段并保留缺省，拒绝重复字段 | 新增 3 项测试与 4 项媒体类型回归通过 debug／release；新增测试通过两种构建的 full moving，正式 client 消费者组合 HEAD／304 元数据与显式字符集覆盖 |
+| 响应自动解码与有界读取 | 纯 Scoop 组合 gzip／zlib／Brotli／zstd 异步流，支持 Raw、逆序多层解码和原始头部；bytes／text／json／copyTo 共用单一消费位置与读取互斥，取消等待 decoder 清理 | 新增 16 项测试，client 全部 99 项通过 debug／release；20 项新旧用例逐例通过两种构建的 full moving，独立 HTTP 对端、双线程并行 H2 与正式构建复用通过 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -240,9 +242,13 @@ SecTrust 对原有十年有效期叶证书的拒绝符合系统政策，测试�
 
 10 项 trailer 新测试与 5 项工厂／multipart／压缩／取消／duplex 回归共 15 项，逐例通过两种构建的 full moving，共 30 个进程。正文与 trailer 同属一次结果，名称和返回列表都有快照；字节接口和 multipart part 在消耗 producer 前拒绝不能表达的 trailer，未知名称、长度不符和被 producer 捕获的输出失败仍准确报告。取消等待 producer 所拥有来源的真实关闭，嵌套压缩完整结束后才交付字段；未引入 client 字段解析或协议编码的替代实现。
 
+`m54-client-response` 在 Darwin 通过 debug／release 两个变体，共 6 个进程。独立 Python 对端检查 Accept-Encoding／Range，发送 gzip、叠加 zlib、chunked trailer、ISO-8859-1、UTF-8 JSON、重复 Content-Type、HEAD／304 元数据及截断压缩流；两个 native 线程各完成一次序列。正式 H2 消费者在 3 字节窗口下并行解码 Brotli 与 zstd，核对每条响应的 Context、原始长度和 trailer；full moving 与正常构建复用通过。
+
+16 项响应新测试与 4 项读取取消／来源关闭／duplex／连接池回归共 20 项，逐例通过两种构建的 full moving，共 40 个进程。覆盖空正文不解压、原始模式、逆序解码、结束验证前保留 H2 容量、单流错误隔离、窗口与解码字节上限、严格／替代文本和 typed JSON 错误、目的端背压及完整便利操作的读取互斥。HTTP 内容语义与 Content-Type 的 3 项新增测试另通过两种构建的 full moving；相关 7 项普通回归通过。首轮修正消费者缺少文本扩展导入，以及测试对主动 client.close 与 reader 取消的异常类型区分；生产关闭规则保持一致。
+
 ## 后续工作
 
-继续完成 client 的总截止与分阶段超时、自动解码与文本／JSON 便利接口，以及重定向／重试／认证／代理、Cookie、缓存／续传、SSE／WebSocket 高层组合和可观察性。实际底层缺口仍在所属库补齐；每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
+继续完成 client 的总截止与分阶段超时，以及重定向／重试／认证／代理、Cookie、缓存／续传、SSE／WebSocket 高层组合和可观察性。实际底层缺口仍在所属库补齐；每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
 
 ## 验证安排
 
@@ -283,3 +289,5 @@ CA 文件组合验收结束后，清理客户端身份的 2 个已结束 fixture
 h2c 验收期间，清理统一 client、连接池和 HTTP/1 取消对应的 6 个已结束 fixture target 目录，释放约 874 MiB；保留源码、生产 sysroot、当前库 target、原始日志、报告与缓存。
 
 Trailer 实施期间，清理 Expect 字段、h2c 及 Continue 首轮消费者的 5 个已结束 fixture target 目录，释放约 601 MiB；保留正式源码、最终 Continue 消费者、生产 sysroot、当前库 target、原始日志、报告与缓存。
+
+响应解码验收期间，清理 HTTP trailer 与请求 trailer 消费者的 4 个已结束 fixture target 目录，释放约 458 MiB；保留源码、生产 sysroot、当前库 target、原始日志、报告与缓存。

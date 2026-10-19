@@ -32,6 +32,8 @@ client 的所有者在一个正文仍活动的子 coroutineScope 中维持连接
 
 close 拒绝新请求与新借用，唤醒池等待者，取消活动调用，关闭连接，并等待实际 I/O、native 借用和子任务结束。close 可在已取消 Job 的 finally 中完成，并发调用等待同一轮收尾，之后幂等；清理失败使用既有 ResourceUseException。正常响应消费完成会归还连接／流容量；显式关闭不执行无界 drain。
 
+client.close 使尚未选定失败的活动调用报告 HttpClientClosedException；caller 或当前正文 reader 的 Job 取消保留 CancellationException。此前已经选定的操作失败不被后来的关闭或取消覆盖。
+
 所有者的正文通过普通 continuation 保持活动；内部 coroutineScope 的最终 completion 在其子任务真实结束后才释放该正文并通知 close 等待者。连接创建由 client 的协调任务发起，请求 producer 和回调由 execute 所在 Context 发起；不需要公开 Context 快照、访问 Job 私有 join 或创建另一种任务调度器。操作失败在所属任务正文内转为本次调用的结果，不能作为未捕获子任务失败传播给 client 的其他调用。
 
 响应头已经交付后，后台上传或收尾的失败由后续正文操作报告；如果没有继续读取，首次响应 close 报告尚未观察的失败。已经由读取交付的主失败不再作为关闭失败重复报告，实际清理失败仍保留；完成后的重复 close 幂等。
@@ -188,6 +190,28 @@ Cookie 默认关闭，提供显式 MemoryCookieJar 和可由调用者实现的 s
 缓存保存未自动解压的表示字节与对应字段，键保留 URL query 的实际顺序和 Vary 所需请求字段。成功读完 body 后才提交条目；中途取消／解码错误不发布完整条目。磁盘写入用 asyncio 临时文件、关闭／按配置 sync 后同文件系统替换；原始网络与缓存 I/O 都可挂起，不能调用同步 Path API。HTTP 缓存的响应验证与 M48 编译缓存是不同功能，不能据此恢复编译产物复验。
 
 下载便利入口接受显式 Path、覆盖策略和 suspend 进度回调；默认写入同目录临时文件，成功完成并关闭后再替换目标，取消保留原目标。显式续传模式保留部分文件与已确认的 URL、表示编码、长度和强 ETag，下一次使用 Range／If-Range；206 必须从期望偏移开始且验证相同实体，200 则按策略从头重建，416 只有在长度和验证条件证明已完整时才成功。实体变更、无可靠验证条件或范围不符时不得把新旧内容拼接。seek／truncate／metadata／替换全部使用 asyncio，缓存与续传共享格式工具，不共享不完整条目。
+
+### 9.1 响应解码配置与生命周期
+
+HttpClientConfig 的 decoding 使用 HttpDecodingOptions；mode 为 HttpContentDecoding.Automatic（默认）或 Raw，bufferSize 默认 8192 且必须为正，maxWindowBytes 为 None 或正数，直接限制每层所属 compression decoder 的窗口。HttpCallOptions.decoding 为 None 时继承 client 配置，Some 时完整替换该次配置。
+
+没有手写 Accept-Encoding 时，Automatic 添加 gzip、deflate、br、zstd；Raw 不自动添加编码提议。带 Range 的请求在缺省时添加 identity，显式 Accept-Encoding 始终保留。解码模式独立于调用者的提议：Raw 可以接收显式请求的压缩字节，Automatic 也会解释服务器实际返回的编码。
+
+Content-Encoding 的多行列表、大小写和空项由 HTTP 工具解释，按逆序建立 decoder；identity 不增加一层，x-gzip 按 gzip 兼容，deflate 严格指 zlib 包装，不猜测 raw DEFLATE。Automatic 遇到不支持的编码抛 HttpUnsupportedContentCodingException，非法列表保留 HttpFieldParseException；这些配置解释发生在最终响应构造时。Raw 不解释编码字段。HEAD、1xx、204、205、304 和成功 CONNECT 的内容语义从 HTTP 库查询，不因表示元数据而启动解压。
+
+每个 decoder 在首次非零读取时创建，只借用下一层输入。响应的 body 始终是本次选择的一条视图，不提供可同时读取的 raw／decoded 副本。解码后的 contentLength 为 None；没有解码且允许内容时使用 wireContentLength，元数据或协议切换响应不从该字段推导 body 长度。fields 和 wireContentLength 始终保留实际接收值。
+
+压缩流必须读到验证结束，才将该响应标记为完整并公开 trailer；底层已经收到全部编码字节不提前归还本次调用容量。格式／截断／窗口错误保留 compression 的异常，并按调用失败收尾；H2 只取消相应流。放弃 body、client.close 和 caller 取消均关闭已创建的 decoder，等待真实读取与借用结束，再完成协议资源清理。
+
+### 9.2 有界读取、文本与 JSON
+
+HttpResponseBody 提供 readAllBytes(maxBytes)／bytes(maxBytes)、text(maxBytes, charset = None, options = CharsetDecodeOptions(), malformedInput = CharsetErrorAction.Strict)、json(codec, maxBytes) 与 copyTo(destination, bufferSize = 8192)。前三类便利读取的上限计入交付视图的字节，因此自动解压后按解码字节计数；超限沿用 asyncio 的 ReadLimitException 和至多一个额外字节的检查。copyTo 使用有限缓冲且不接管或关闭目的端。
+
+每次便利读取在整个 suspend 过程独占 body，同一时间的其他读取报忙；普通 readInto 仍按单个操作独占。它们复用同一消费位置，顺序调用不会重放已读内容。当前 reader Job 的取消登记覆盖整个便利操作，保留该调用的真实 I/O 收尾。
+
+text 优先使用显式 Charset，否则通过 HttpMediaType.parseFields 读取单一 Content-Type 的 charset；没有 charset 时使用 UTF-8。未知字符集和坏媒体类型在消费正文前报告，调用者可以显式选定 Charset；不猜测 HTML／XML 内容。BOM、字节序及严格／替代处理直接使用 charset 的选项，不在 client 编码转换。
+
+json 使用严格 UTF-8、按 charset 默认规则消费匹配 BOM，再调用 Json.decodeFromString 与显式 ValueDecoder；不按 Content-Type 的 charset 将 JSON 解释为其他编码。完整 JSON 与 typed codec 错误保留其原类型。文本和 JSON 的业务解析错误不改写响应字段，也不把已经完整消费的 HTTP 消息变成连接错误。
 
 ## 10. SSE 与 WebSocket
 

@@ -1,0 +1,52 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.collections.emptyList
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+import scoop.tls.TlsTrustSource
+import scoop.url.Url
+
+internal fun responseTestField(name: String, value: String): HttpField = HttpField(name.toByteArray(), value.toByteArray())
+
+internal suspend fun writeResponseTestBytes(output: AsyncByteSink, bytes: List<Byte>) {
+    NativeByteBuffer.allocate(bytes.size).use suspend { buffer ->
+        buffer.writeBytes(bytes)
+        output.writeFully(buffer)
+    }
+}
+
+internal suspend fun sendResponseTestBytes(connection: AsyncHttp1Connection, bytes: List<Byte>, fields: List<HttpField>,
+    chunked: Boolean = false, trailers: List<HttpField> = emptyList<HttpField>()) {
+    connection.sendResponse(HttpResponseHead(HttpVersion.Http11, 200U, fields = fields),
+        if (chunked) Http1BodyFraming.Chunked else Http1BodyFraming.Length(bytes.size)).useAsync suspend { output ->
+        writeResponseTestBytes(output, bytes)
+        output.finish(trailers)
+    }
+}
+
+internal fun withResponseTestHttp1(serving: suspend (AsyncHttp1Connection) -> Unit,
+    reading: suspend (HttpClient, Url) -> Unit, decoding: HttpDecodingOptions = HttpDecodingOptions()) {
+    clientTestTrust().use { trust ->
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            clientTestListen(loop).useAsync suspend { listener ->
+                val done = BodyTestGate()
+                val server = scope.launch suspend {
+                    AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                        serving(connection)
+                        done.await()
+                    }
+                }
+                try {
+                    val config = HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)), decoding = decoding)
+                    withHttpClient(config) suspend { client -> reading(client, clientTestUrl(listener)) }
+                } finally { done.signal() }
+                server.join()
+                assertFalse(scope.job.isCancelled)
+            }
+        }
+    }
+}

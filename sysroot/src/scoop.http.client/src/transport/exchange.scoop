@@ -24,18 +24,19 @@ internal suspend fun openClientExchange(call: ClientCall, connection: ClientConn
             }
             val entry = call.lock.withLock { call.lease!! }
             val upgrading = call.client.lock.withLock { entry.h2cPending }
-            val head = clientRequestHead(request, version)
+            val head = clientRequestHead(request, version, call.client.config)
             val prepared = if (upgrading) prepareHttp2Upgrade(head, call.client.config.http2Settings) else head
             val exchange = ClientH1Exchange(value, value.sendRequest(prepared, framing), version)
             if (upgrading) ClientH2cExchange(call, entry, exchange) else exchange
         }
-        case Http2(value) -> ClientH2Exchange(value.openRequest(clientRequestHead(request, HttpVersion.Http2), false))
+        case Http2(value) -> ClientH2Exchange(value.openRequest(clientRequestHead(request, HttpVersion.Http2, call.client.config), false))
     }
 }
 
-private fun clientRequestHead(request: HttpRequest, version: HttpVersion): HttpRequestHead {
+private fun clientRequestHead(request: HttpRequest, version: HttpVersion, config: HttpClientConfig): HttpRequestHead {
     val fields = ArrayList<HttpField>()
     for (field in request.fields) if (!field.hasName("Content-Length".toByteArray())) fields.add(field)
+    addClientAcceptEncoding(fields, request, config)
     if (version == HttpVersion.Http2 || request.body.trailerNames.size == 0L) {
         when (request.contentLength) {
             case Some(length) -> fields.add(HttpField("Content-Length".toByteArray(), length.toString().toByteArray()))
