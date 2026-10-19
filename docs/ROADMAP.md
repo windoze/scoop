@@ -665,13 +665,14 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - nghttp2 1.70.0 只构建静态协议库，通过既有 `native.libraries` 按 archive 成员选择；排除应用、示例、工具、测试和文档目标，不重复编入上游对象。
 - 完成两个普通 Cone 的三目标 debug／release／moving GC 验收：每目标 50 项内存协议测试、26 项异步测试及 6 组独立消费者通过；包括 TLS 单流取消、双向背压、协议切换、并发关闭与原生对端互操作。Darwin／GNU 宿主包搬迁后，三目标 HTTP 消费、缓存复用和两个 link 入口均通过；本期不做函数级裁剪。
 
-### M55 泛型函数条件与成员调用要求（实施中，[设计](milestone55/DESIGN.md)）
+### M55 泛型函数条件与成员调用要求（已完成，[设计](milestone55/DESIGN.md)、[验收](milestone55/PROGRESS.md)）
 
-- M55-1（已完成本机验证）：负向接口约束、三态关系、条件重载与规范化声明身份，保持普通泛型正文的定义处绑定。
-- M55-2（已完成本机验证）：public companion 的依赖投影与 bound，复用既有 singleton；增加 JSON 默认 codec 重载。
-- M55-3（已完成本机验证）：公开实例／companion 成员与构造调用要求，完整调用形态、效果和同契约转发；增加结构相等断言入口。
-- M55-4：局部／成员泛型、默认模板、递归边及跨 Cone 组合验收，完成对应格式迁移和 Linux 完整验证。
-- 按功能完成正式源码编译、链接、运行后提交；状态和验证结果以实际完成记录为准。
+- M55-1：负向接口约束、三态关系、条件重载与规范化声明身份，保持普通泛型正文的定义处绑定。
+- M55-2：public companion 的依赖投影与 bound，复用既有 singleton；增加 JSON 默认 codec 重载。
+- M55-3：公开实例／companion 成员与构造调用要求，完整调用形态、效果和同契约转发；增加结构相等断言入口。
+- M55-4：局部／成员泛型、默认模板、递归边及跨 Cone 组合验收；identity schema 2、metadata outer schema／language ABI 3，runtime ABI 不变。
+- 2026-10-19 完成按功能提交及三目标 M55 104 项 fixture；GNU 全量 4305 项通过／33 项不适用，musl 定向及补充复验 183／5，五项首轮失败全部闭合。Rust workspace 全量与最后 64 项定向回归、runner 50 项通过。
+- 逐 callable LLVM module 仅建立实际引用的声明；5000 小函数的同机单轮编译从 253.60 秒降至 64.96 秒，峰值内存未改善，测量边界见验收记录。
 
 ### M56 生成代码、GC 与 runtime 性能（已完成，[设计与调研](milestone56/DESIGN.md)、[进度](milestone56/PROGRESS.md)、[验收](milestone56/ACCEPTANCE.md)）
 
