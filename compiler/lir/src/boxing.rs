@@ -21,6 +21,7 @@ pub struct BoxedNonZeroDescriptor {
     descriptor: BoxedDescriptorReference,
     descriptor_exact: scoop_identity::PersistentExactTypeId,
     payload_exact: scoop_identity::PersistentExactTypeId,
+    payload_offset: u64,
     value: AbiValue,
 }
 
@@ -65,6 +66,10 @@ impl BoxedNonZeroDescriptor {
 
     pub const fn payload_exact(&self) -> scoop_identity::PersistentExactTypeId {
         self.payload_exact
+    }
+
+    pub const fn payload_offset(&self) -> u64 {
+        self.payload_offset
     }
 
     pub const fn value(&self) -> &AbiValue {

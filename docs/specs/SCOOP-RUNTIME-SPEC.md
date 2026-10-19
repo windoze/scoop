@@ -115,7 +115,7 @@ scan fingerprint 为 `SHA-256(ByteSpan("scoop-scan-v1") || canonical_scan_bytes)
 
 struct、enum、tuple、数值、Ptr、FunPtr 依其静态类型按值存储。提升到 Any 或 interface 时，值存入带原 exact TypeDescriptor 的 managed box；值类型 receiver 使用独立的方法局部副本，不能取得调用方 place 或 box payload 的别名。
 
-拆箱及数组克隆对源对象的检查在同一 heap lock 区间内只定位一次：exact size 查询同时确认对象起点，随后复用所得尺寸检查实际 TD 和动态 shape。读取对象头前必须完成对象边界检查；定位结果不得跨 safepoint 保留，类型匹配、整数枚举父类型关系及动态 length／实际分配尺寸检查不变。
+runtime 后备入口的拆箱及数组克隆对源对象的检查在同一 heap lock 区间内只定位一次：exact size 查询同时确认对象起点，随后复用所得尺寸检查实际 TD 和动态 shape。读取对象头前必须完成对象边界检查；定位结果不得跨 safepoint 保留，类型匹配、整数枚举父类型关系及动态 length／实际分配尺寸检查不变。
 
 整型枚举（语言规范 4.2.1）的 inline size、alignment 和位表示等于底层整数，无额外 tag。直接装箱保留 enum exact identity，其 boxed TD 以对应整数的 boxed TD 为父类型；继承的接口使用整数成员的原签名。按父整数解箱允许这一已声明父子关系，使用同一 scalar payload 表示；反向解箱仍要求实际 enum 身份，不能检查数值后伪造 enum。先上转再装箱的值只有整数身份。未使用整数值不增加 Option niche。
 
@@ -128,6 +128,8 @@ struct、enum、tuple、数值、Ptr、FunPtr 依其静态类型按值存储。�
 `Unit` 和其他 ZST 的 payload size 可以为 0，类型身份与 box 对象身份仍存在。`scoop_rt_box_zst(td)` 每次产生新的 box；`scoop_rt_unbox_zst(object, expected_td)` 检查 exact type。
 
 `scoop_rt_box_value(td, source_place)` 要求 source place 可读、地址稳定、满足该 TD 的 inline size/alignment。含引用的 source place 必须在入口握手前以同一 TD 的 nonempty inline scan 登记为链顶 RecursiveRegion root。分配或 GC 后从更新后的 place 复制，返回后按 LIFO 撤销 root。`scoop_rt_unbox_value(object, expected_td, destination)` 在 exact type 或上述整型枚举到父整数的合法解箱检查成功后，按值写入满足大小与对齐的 destination。
+
+生成代码的 typed unbox 可以直接读取有效、非 null managed 对象的 TD；与预期 boxed TD 相等时，按已确定的 payload offset／大小／对齐将完整字节（包含 padding）复制到独立 typed local，ZST 只完成类型检查而不读取 payload。该路径不分配或停顿，含引用值仍由后续普通根计划保活和恢复，不查询 heap size 或重放已确定的布局校验。TD 不相等时继续调用原 unbox leaf，保留整型 enum 到父整数的兼容解箱及原错误行为。C 入口仍履行自身合同；不能将原本需要的源码 null／cast 检查替换为无条件 payload load。
 
 ### 2.4 String 与数组
 

@@ -6,6 +6,8 @@
 
 `string-reads.scoop` 模式为 `length`、`bytes`、`characters`，输出依次为 `11264000000`、`-499712`、`175646965760`。String 表示读取位于 core 中；对照必须分别以两版编译器重建同一 core，再用对应 sysroot 编译应用，不能只替换应用编译器。字符串包含 NUL、双／三／四字节 UTF-8。
 
+`unbox.scoop` 的 `words`／`references` 模式分别处理四 Long 值、含引用与嵌套 tuple 的值。4096 个 box 存入数组并 full GC，随后扫描 1024 次，输出分别为 `34376515584`／`25776095232`；这使 box 实际逃逸，不能用 MIR 局部消除掩盖 C／IR 拆箱差异。两版使用同一预编译 core。
+
 `byval/provider` 与 `byval/consumer` 是普通库／应用 Cone，用于保留跨 Cone 的 64-byte byval 调用。先以固定编译器构建 provider 到 artifact root 的 `dev.m58/byval-provider/0.1.0/cone.slib`，再让两版 consumer 构建使用相同 `--artifact-dir`。输出 `-1018`。不能把非泛型 provider 正文当作本地 inline 输入；这个对照用于区分副本消除与函数调用开销。
 
 使用同一预备 sysroot、app release、runtime 配置，分别以修改前后编译器构建到独立缓存及输出。先预热，每轮交替执行两版，校验 stdout，再报告整个程序的耗时中位数与范围；启动和输出包含在内。记录最终 executable 的 `llvm-size -A` text bytes 与文件大小。不要在计时期间并行构建或测试。

@@ -21,7 +21,7 @@
 | LLVM codegen：按值复制 | 两条 release 管线增加 memcpyopt；17 项 statepoint 专测及源码三变体通过，text −616 bytes，运行与编译时间基本持平 |
 | LLVM codegen：NoGc 循环 | 启用 load elimination、最多四次完整 unroll、受限 unswitch；18 项 statepoint 专测、源码九变体及旧循环七变体通过。实际递推／四步处理／不变分支分别约 3×／2×／20% 收益，循环 text +256 bytes，编译约 +0.4% |
 | native helper 链接边界 | 已删除未登记外部符号的编译期拒绝，交由 linker 解析；141 项对象产物回归与真实 Darwin loop-idiom 程序通过 |
-| runtime C → LLVM IR 小函数 | String 有界读取已实现，本机精确 IR 与源码十一变体通过；重建两版 core 后字符遍历约 −7.6%，byteLength 单项未见明确收益。静态 unbox／数组复制待继续，见 [迁移记录](RUNTIME-IR.md) |
+| runtime C → LLVM IR 小函数 | String 有界读取已实现，本机精确 IR 与源码十一变体通过；重建两版 core 后字符遍历约 −7.6%，byteLength 单项未见明确收益。静态 unbox 已完成，值／含引用扫描分别约 −19.4%／−28.7%；数组复制待继续，见 [迁移记录](RUNTIME-IR.md) |
 | 性能与跨平台 | A 的本机生产前后矩阵已记录于 [PERFORMANCE.md](PERFORMANCE.md)；B–D 性能、GNU／musl 完整验收及最终清理待完成 |
 
 ## 2026-10-20：LLVM 范围推导与 NoGc 标量补齐
@@ -113,3 +113,9 @@ fmt／workspace clippy、LIR 全部 160 项单测通过，正式 CLI 重建后�
 五项 typed MIR 专测覆盖四层尾包装、Unit、debug 保留、非尾部前序／结果处理，以及调用无帧 wrapper 的非尾部 caller 仍有状态机。新 local 保留完整身份。fmt／workspace clippy 通过；MIR 247 项、MIR lowering 141 项全量单测通过，追加非尾部 caller 专测后五项 tail 专测通过。正式 CLI 重建后，两个新源码 fixture 共五变体／13 进程通过；补充 Unit 与结果丢弃反例后，普通／release／moving 三变体复跑通过。
 
 源码覆盖多分支尾调用、直接普通返回、泛型、参数单次求值、立即完成、真正挂起后的成功／失败及异常对象身份、同步恢复、register 完成后抛错、重复完成、catch／finally／Context restore。独立 native 组合通过真实线程恢复和移动 GC，验证尾包装前分配的 payload 在 child frame 中保活、失败只完成一次。测试 helper 的 local owner 断言按现有 typed API 修正，未留下失败。清理约 1.6 GiB 的本轮 fixture 产物；保留仓库外日志。前置同步内联、B–D 性能及 Linux 完整验证仍待完成，不将无帧直接等同于暂停时长改善。
+
+## 2026-10-20：静态拆箱 IR 快路径
+
+先修订 runtime 2.3 和实现规范，复用 LIR 已选 boxed shape 的 payload offset，TD 相等时按完整大小复制到独立 typed local；保留 AS1、packed alignment、padding、引用根和 ZST。非 exact 的 enum 父整数及错误情况复用原 C leaf，源码 null／cast 检查不变。审查中将 aggregate load/store 调整为完整 memcpy，避免遗漏可观察 padding。
+
+fmt、workspace clippy、LIR descriptor 两项、codegen boxing 五项通过。新源码三变体与既有 roots／unbox-clone 七变体通过，覆盖实际移动、minor、嵌套引用、packed、ZST、enum 父整数、异常和 padding 字节。对照 `564be9489`，4096 个逃逸 box 扫描 1024 次的两个程序分别约 −19.4%／−28.7%，text +116 bytes，文件大小不变，编译时间基本持平；详见性能记录第 8 节。相关源码、精确断言与 benchmark 保留，临时缓存和应用产物清理，原始日志保存在仓库外。

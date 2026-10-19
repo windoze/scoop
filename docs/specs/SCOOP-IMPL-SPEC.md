@@ -842,6 +842,8 @@ String 的 byte length、byte-at 和 cursor 单字符解码使用独立 typed in
 
 codegen 在现有 typed call 合同检查后展开普通 byte-length／byte-at：按运行时规范 2.4 生成 AS1 load 与必要的 unsigned bounds check，失败路径复用原 leaf 的 fatal 行为。只有对应 typed runtime 操作参与展开；同名 extern 不改写。invoke 与 UTF-8 单字符解码仍走既有调用发射。展开先于普通优化、最终 roots 和 RS4GC；不修改 LIR／runtime ABI 或新建另一套 intrinsic 表。预编译 core 必须用新编译器重建，已有库对象不会被应用编译阶段重新优化。
 
+LIR 的非零 boxed descriptor 同时保留选定 shape 的 payload offset，供 codegen 消费既有布局结果；不重新推导目标布局，也不增加持久 wire 字段。typed UnboxValue 生成 TD 相等的快速路径与原 leaf 慢路径：快速路径从 AS1 对象地址向已有 typed local 复制完整 payload 字节（包含 padding），ZST 不产生虚假存储。非 exact 的 enum 父整数解箱继续由慢路径处理。普通优化、最终根计划和 RS4GC 顺序保持；不把含引用的 payload 指针转成 raw pointer 后跨 GC 使用。
+
 原子类型使用真实 core 声明、封闭 intrinsic kind 与目标布局，值字段不作为源码可访问的普通字段。构造沿普通 nominal constructor 参数推导形成 `AtomicNew`，保存实际 application 和初值，不伪造源码函数身份。AtomicRef 的 HIR／MIR 表示及跨 Cone 元数据保留实际引用参数 T；四种对象的目标布局由 object header 和自然对齐的单个隐藏值槽组成，初始化在分配后、发布前以 Relaxed store 写入。HIR 检查内存序是编译期常量且组合合法；MIR 保存已确定的操作和内存序，LIR 使用 AtomicLoad/AtomicStore/AtomicRmw/AtomicCmpXchg，携带对象 base、值字段偏移与实际值类型。codegen 降低为对应 LLVM 原子指令，Boolean 使用 i8，整数 fetchAdd/fetchSub 不添加溢出假设；CAS 使用 strong，AtomicRef 按对象身份比较。五种内存序、CAS 的成功/失败区别及其语义进入普通 IR/metadata 和指纹，跨 Cone 与优化不能退化为普通内存访问。
 
 load、store 与 CAS 分别保存对应操作的合法内存序；CAS 是完整的成功／失败序组合，不能只保存成功序后由后端推断失败序。源码原子值种类封闭为 Int、Long、Boolean、managed reference；既有协程等编译器内部状态字继续使用 MachineAtomicLoad／MachineAtomicStore／MachineAtomicCompareExchange 及原来的固定同步序，不以源码数值类型替代其 machine scalar domain。
