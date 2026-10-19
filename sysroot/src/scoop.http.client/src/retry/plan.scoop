@@ -5,8 +5,10 @@ import scoop.time.Duration
 
 internal fun planClientResponseFollowUp(call: ClientCall, head: HttpResponseHead): ClientFollowUp? {
     val sequence = call.sequence
-    val redirect = planClientRedirect(call.request, head, sequence.redirects, sequence.history)
+    val redirect = planClientRedirect(call.originalRequest, head, sequence.redirects, sequence.history)
     if (clientPresent(redirect)) return Some(ClientFollowUp.Redirect(redirect!!))
+    val authentication = planClientAuthentication(call, head)
+    if (clientPresent(authentication)) return Some(ClientFollowUp.Authenticate(authentication!!))
     val options = sequence.retries
     if (sequence.retryCount >= options.maxRetries || !call.request.body.isReplayable ||
         !clientRetryMethod(options, call.request.method)) return None

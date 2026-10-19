@@ -217,6 +217,18 @@ H2 的后台 StreamFailure 按实际连接和 stream ID 关联到调用；最终
 
 凭据获取与 Bearer 刷新为 suspend 回调，按实际保护空间或 origin 合并同一次并发刷新；失败交付相关调用，不取消无关 origin。限制认证往返，处理 stale nonce 与 nonce-count，避免 401／407 无限循环。OAuth 登录、账号存储和浏览器交互属于应用，不建立另一套认证框架。
 
+### 8.1 Basic 认证
+
+HttpClientConfig.authentication 使用不可变 HttpAuthenticationOptions，保存按优先级排列的 providers 和 maxAttempts（默认 3，必须非负）；HttpCallOptions.authentication 为 None 时继承，Some 时完整替换。空列表关闭内建认证。maxAttempts 计算整个 execute 中的挑战重发，跨重定向累计；零关闭挑战重发，显式首发凭据仍可使用。HttpResponse.authenticationCount 保存最终次数，不计作网络 retryCount。
+
+HttpAuthenticator.basic 绑定明确的 UrlOrigin、可选的原始 realm 字节和 suspend credentials 回调；回调接收 HttpAuthenticationRequest 的原始 request、可选 challenge 与当前认证次数，返回 HttpPasswordCredentials(username, password)。只有目标 origin 和配置的 realm 都匹配时才选择，多个候选按配置顺序、响应中的挑战顺序选择。realm 按原始字节精确比较，不做 Unicode 映射或把响应头整体解码。没有匹配项的 401 正常交付；调用者已提供 Authorization 时内建认证不覆盖它。URL userinfo 不自动成为凭据。
+
+sendWithoutChallenge 默认 false；显式开启时可向配置 origin 的请求首发 Basic。缺省编码由 HttpBasicCharset.Iso8859_1／Utf8 表达，默认为前者；合法 charset=UTF-8 挑战按大小写无关匹配切换到 UTF-8，其他 charset 值忽略。UTF-8 的用户名／密码先调用 charset.normalizeNfc；两种模式均拒绝 CTL，用户名另拒绝冒号，密码保留冒号。编码失败保留 charset 原因，Base64 使用标准库，凭据字段使用 HTTP 公共类型并标记 never-index。
+
+401 选择下一次认证后，先按协议放弃响应，等上传、来源清理与池名额归还，再在新调用 owner 中挂起获取凭据；总截止覆盖该回调，取消或 client.close 等待回调的真实 finally 完成。已经启动的单次 body 不能重发；Continue 等待期间尚未启动的 body 可以使用其原来的单次资格。相同 Basic 挑战已经提交凭据后仍被拒绝，以 Rejected 结束；首发凭据可以再响应一次正式挑战。已取得的凭据仅在同一 execute、同 origin 和挑战 URI 的目录路径范围内复用；显式首发绑定覆盖整个配置 origin。重定向始终从原请求字段重建，再按新目标选择，不能把自动添加的 Authorization 携带到另一个 origin 或无关路径。
+
+HttpAuthenticationException 保存 reason、url、可选 head 和原 cause；reason 区分 InvalidChallenge、InvalidCredentials、BodyNotReplayable、Rejected 与 LimitExceeded。异常消息不拼接用户名、密码或凭据。回调错误原样传播，不能因它恰好属于某个 I/O 异常类型而自动重试；认证中间响应不启动无用的内容解码器。
+
 ## 9. 内容、Cookie 和缓存
 
 自动内容解码默认开启，Advertise gzip、deflate、br、zstd，前提是本构建实际支持对应 decoder。Content-Encoding 多层编码按逆序解开；不支持的编码报明确错误或由显式原始 body 模式交付，不能悄悄少解一层。调用者显式提供 Accept-Encoding 时保留原值，实际解码策略仍独立配置。

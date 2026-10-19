@@ -81,6 +81,7 @@
 | client 重试 | 默认最多两次，按实际网络失败、方法语义及 body 重放能力选择；明确未处理、状态策略、Retry-After、指数退避与取消共享整个调用的截止和累计进度 | 新增 18 项测试，client 全部 158 项通过 debug／release；24 项相关用例逐例通过两种构建的 full moving，独立 H1／H2 对端及正式构建复用通过 |
 | HTTP/1 早期关闭 | 最终响应完成且要求关闭时，活动请求 writer 保留 finish／放弃机会，立即禁止复用；关闭协调在 HTTP asyncio 完成 | 原库确定性复现；8 类协议场景与重试／重定向 source 清理组合通过两种构建、full moving 和构建复用，既有 HTTP/1 消息与取消回归通过 |
 | coroutineScope 失败边界 | 内部失败取消本作用域子树，等待真实清理后从调用处抛出；调用方可以 catch，未捕获和父取消仍按结构化任务规则传播 | 旧库最小复现；新增边界及既有任务／取消／登记回归通过 8 个变体、24 个步骤进程，HTTP/2 并行响应与 native 线程组合另通过 4 个变体、14 个步骤进程 |
+| client Basic 认证 | 按明确 origin、原始 realm 和配置顺序选择；支持挂起凭据、UTF-8／NFC、显式首发、有限挑战和调用内路径范围复用 | 24 个独立场景通过 debug／release、full moving 和构建复用；独立 TCP 对端、双 native 线程、HTTP/2、重定向、重试及真实取消／清理组合通过 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -360,13 +361,15 @@ Linux 组合回归中的连接池对端把已发送请求的空 trailing HEADERS
 
 HTTP/1 的原认证清理故障来自协议库：空的 Connection: close 最终响应在交付之前关闭连接，使尚未 finish 的上传 writer 提前失效。scoop.http.asyncio 现在等待该 writer 完成或放弃后执行本地关闭，不在 client 中吞掉 IoClosedException。m54-http1-early-close 在旧库稳定复现，修复后覆盖空／固定长度／EOF 响应、请求声明关闭、上传放弃、长度不足、实际写入失败及已经完成上传的立即关闭。
 
-上述正式消费者、m54-client-upload-completion 及既有 HTTP/1 消息／取消回归在 Darwin 共通过 8 个变体、30 个步骤进程；新增用例包含两个 native 线程、full moving 与构建复用。上传组合验证下一次请求等待 source 关闭，保留真实清理失败；测试自身的双等待者 gate 已改为两个独立信号。Basic 草稿的原清理场景和全部 20 个普通运行场景通过，清理成功／失败及 HTTP/2 三项另通过 full moving；Basic 的正式发布验收和本修复的 Linux 验证继续进行。
+上述正式消费者、m54-client-upload-completion 及既有 HTTP/1 消息／取消回归在 Darwin 共通过 8 个变体、30 个步骤进程；新增用例包含两个 native 线程、full moving 与构建复用。上传组合验证下一次请求等待 source 关闭，保留真实清理失败；测试自身的双等待者 gate 已改为两个独立信号。GNU／musl 的三个已有及上传组合 fixture 均通过，早期关闭新用例暴露的 Boolean ABI 问题另在编译器中修正后复验。
 
 core 的旧 coroutineScope 在异常返回调用点前已取消调用方 Job，导致可捕获的 producer／回调失败影响其他 HTTP 请求。现在只为 coroutineScope 的内部 Job 关闭立即向父传播，launch／async 保持原规则；没有增加公开任务种类或 client 绕行。Darwin 的正式消费者覆盖嵌套正文／子任务失败、兄弟取消和等待清理、异常身份、Context、调用方取消、同作用域捕获 await 仍失败，以及失败请求结束后同一 HTTP/2 连接上其他响应和新请求继续完成，均通过 debug／release、full moving 与构建复用。
 
+Basic 的正式消费者在每个场景中运行两个 native 线程，覆盖未知 charset、Latin-1、UTF-8／NFC、CTL／用户名冒号拒绝、原始 realm 字节、provider 优先级和快照、手写 Authorization、userinfo、Continue 单次上传、路径及跨 origin 重定向、gzip／trailer、重复挑战、往返上限、真实 source 关闭、HTTP/2 并行流，以及回调的原异常、Context 和挂起 finally。凭据回调中的嵌套 coroutineScope 失败也保留原异常且不触发网络重试。最新 Basic、HTTP/2 作用域组合及 native 线程回归共通过 6 个变体、20 个步骤进程；重定向和重试正式回归也已通过。Basic 的 GNU／musl 验证随 Boolean ABI 修正后的生产库更新进行。
+
 ## 后续工作
 
-继续完成认证／代理、Cookie、缓存／续传、SSE／WebSocket 高层组合和可观察性。每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
+继续完成 Bearer／Digest 认证、代理、Cookie、缓存／续传、SSE／WebSocket 高层组合和可观察性。每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
 
 ## 验证安排
 

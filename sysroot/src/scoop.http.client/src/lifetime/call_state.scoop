@@ -5,9 +5,11 @@ import scoop.http.asyncio.AsyncHttp2Connection
 import scoop.time.TimeMark
 
 internal class ClientCall(
-    val client: ClientState, val request: HttpRequest, caller: Job, val sequence: ClientRequestSequence,
+    val client: ClientState, val originalRequest: HttpRequest, caller: Job, val sequence: ClientRequestSequence,
     result: Continuation<ClientCallResult>
 ) {
+    var request: HttpRequest = originalRequest
+    var authenticationSession: ClientAuthenticationSession? = None
     val timeouts: HttpTimeoutOptions = sequence.timeouts
     val started: TimeMark? = sequence.started
     val usesDeadlines: Boolean = timeouts.total != None || timeouts.poolAcquire != None || timeouts.responseHeaders != None ||

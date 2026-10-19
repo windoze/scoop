@@ -1,0 +1,57 @@
+package scoop.http.client
+
+import scoop.collections.emptyList
+import scoop.http.HttpAuthChallenge
+import scoop.url.UrlOrigin
+
+public enum HttpBasicCharset { Iso8859_1, Utf8 }
+
+public class HttpPasswordCredentials public constructor(public val username: String, public val password: String)
+
+public class HttpAuthenticationRequest internal constructor(
+    public val request: HttpRequest,
+    public val challenge: HttpAuthChallenge?,
+    public val attempt: Long
+)
+
+public class HttpAuthenticationOptions public constructor(
+    providers: List<HttpAuthenticator> = emptyList<HttpAuthenticator>(),
+    public val maxAttempts: Long = 3L
+) {
+    public val providers: Array<HttpAuthenticator> = providers.toArray()
+    init {
+        if (maxAttempts < 0L) throw IllegalArgumentException(Some("negative authentication attempt limit"))
+    }
+}
+
+public class HttpAuthenticator private constructor(
+    public val origin: UrlOrigin,
+    realm: List<Byte>?,
+    public val sendWithoutChallenge: Boolean,
+    internal val provider: ClientAuthenticationProvider
+) {
+    public val realm: Array<Byte>? = when (realm) { case Some(value) -> Some(value.toArray()); case None -> None }
+    init {
+        if (origin.scheme != "http" && origin.scheme != "https")
+            throw IllegalArgumentException(Some("authentication origin must use http or https"))
+    }
+
+    public companion object {
+        public fun basic(
+            origin: UrlOrigin,
+            realm: List<Byte>? = None,
+            sendWithoutChallenge: Boolean = false,
+            charset: HttpBasicCharset = HttpBasicCharset.Iso8859_1,
+            credentials: suspend (HttpAuthenticationRequest) -> HttpPasswordCredentials
+        ): HttpAuthenticator =
+            HttpAuthenticator(origin, realm, sendWithoutChallenge,
+                ClientAuthenticationProvider.Basic(ClientBasicAuthentication(charset, credentials)))
+    }
+}
+
+internal enum ClientAuthenticationProvider { Basic(ClientBasicAuthentication) }
+
+internal class ClientBasicAuthentication(
+    val charset: HttpBasicCharset,
+    val credentials: suspend (HttpAuthenticationRequest) -> HttpPasswordCredentials
+)

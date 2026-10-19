@@ -1,0 +1,77 @@
+package scoop.http.client
+
+import scoop.http.*
+import scoop.text.lastIndexOf
+import scoop.text.startsWith
+import scoop.text.substring
+
+internal class ClientAuthenticationSession(
+    val authenticator: HttpAuthenticator,
+    val challenge: HttpAuthChallenge?,
+    val path: String
+) {
+    var field: HttpField? = None
+}
+
+internal suspend fun prepareClientAuthentication(call: ClientCall) {
+    val request = call.originalRequest
+    if (hasClientAuthorization(request)) return
+    val sequence = call.sequence
+    var selected: ClientAuthenticationSession? = None
+    var index = sequence.authenticationSessions.size
+    while (index > 0L) {
+        index -= 1L
+        val session = sequence.authenticationSessions[index]
+        if (session.authenticator.origin == request.origin && clientAuthenticationPath(request).startsWith(session.path)) {
+            selected = Some(session); break
+        }
+    }
+    if (!clientPresent(selected)) {
+        for (provider in sequence.authentication.providers) {
+            if (provider.origin == request.origin && provider.sendWithoutChallenge) {
+                val session = ClientAuthenticationSession(provider, None, "/")
+                sequence.authenticationSessions.add(session)
+                selected = Some(session)
+                break
+            }
+        }
+    }
+    if (!clientPresent(selected)) return
+    val session = selected!!
+    val field = when (session.field) {
+        case Some(value) -> value
+        case None -> when (session.authenticator.provider) {
+            case Basic(provider) -> clientBasicField(call, session, provider)
+        }
+    }
+    requireClientCall(call)
+    session.field = Some(field)
+    val fields = ArrayList<HttpField>()
+    for (value in request.suppliedFields) fields.add(value)
+    fields.add(field)
+    call.request = HttpRequest(request.url, request.method, fields, request.body, request.options)
+    call.authenticationSession = Some(session)
+}
+
+internal fun hasClientAuthorization(request: HttpRequest): Boolean {
+    for (field in request.suppliedFields) if (field.hasName("Authorization".toByteArray())) return true
+    return false
+}
+
+internal fun clientAuthenticationPath(request: HttpRequest): String =
+    if (request.url.encodedPath.length == 0L) "/" else request.url.encodedPath
+
+internal fun clientAuthenticationDirectory(request: HttpRequest): String {
+    val path = clientAuthenticationPath(request)
+    return path.substring(0L, path.lastIndexOf('/') + 1L)
+}
+
+internal fun clientAuthenticationBytesEqual(first: List<Byte>, second: List<Byte>): Boolean {
+    if (first.size != second.size) return false
+    var index = 0L
+    while (index < first.size) {
+        if (first[index] != second[index]) return false
+        index += 1L
+    }
+    return true
+}

@@ -24,4 +24,4 @@ private fun redirectBodyField(field: HttpField): Boolean {
 internal fun redirectedClientOptions(options: HttpCallOptions): HttpCallOptions =
     HttpCallOptions(duplex = false, expectContinue = false, continueWait = options.continueWait,
         decoding = options.decoding, timeouts = options.timeouts, onInformational = options.onInformational,
-        redirects = options.redirects, retries = options.retries)
+        redirects = options.redirects, retries = options.retries, authentication = options.authentication)

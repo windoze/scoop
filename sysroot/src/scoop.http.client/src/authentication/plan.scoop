@@ -1,0 +1,40 @@
+package scoop.http.client
+
+import scoop.http.*
+
+internal fun planClientAuthentication(call: ClientCall, head: HttpResponseHead): ClientAuthenticationSession? {
+    val request = call.originalRequest
+    val sequence = call.sequence
+    val options = sequence.authentication
+    if (head.status != 401U || options.providers.size == 0L || options.maxAttempts == 0L ||
+        hasClientAuthorization(request)) return None
+    var relevant = false
+    for (provider in options.providers) if (provider.origin == request.origin) relevant = true
+    if (!relevant) return None
+    val challenges = try { HttpAuthChallenge.parseFields(head.fields) }
+    catch (error: HttpFieldParseException) {
+        throw HttpAuthenticationException(HttpAuthenticationFailure.InvalidChallenge, request.url, Some(head), Some(error))
+    }
+    for (provider in options.providers) {
+        if (provider.origin != request.origin) continue
+        for (challenge in challenges) {
+            val scheme = when (provider.provider) { case Basic(_) -> "basic" }
+            if (challenge.scheme != scheme) continue
+            val realm = challenge.parameter("realm")
+                ?: throw HttpAuthenticationException(HttpAuthenticationFailure.InvalidChallenge, request.url, Some(head))
+            if (clientPresent(provider.realm) && !clientAuthenticationBytesEqual(provider.realm!!, realm.value)) continue
+            val previous = call.authenticationSession
+            if (clientPresent(previous) && previous!!.authenticator === provider && clientPresent(previous!!.challenge)) {
+                val previousRealm = previous!!.challenge!!.parameter("realm")!!
+                if (clientAuthenticationBytesEqual(previousRealm.value, realm.value))
+                    throw HttpAuthenticationException(HttpAuthenticationFailure.Rejected, request.url, Some(head))
+            }
+            if (sequence.authenticationCount >= options.maxAttempts)
+                throw HttpAuthenticationException(HttpAuthenticationFailure.LimitExceeded, request.url, Some(head))
+            if (!request.body.isReplayable && call.lock.withLock { call.bodyStarted })
+                throw HttpAuthenticationException(HttpAuthenticationFailure.BodyNotReplayable, request.url, Some(head))
+            return Some(ClientAuthenticationSession(provider, Some(challenge), clientAuthenticationDirectory(request)))
+        }
+    }
+    return None
+}

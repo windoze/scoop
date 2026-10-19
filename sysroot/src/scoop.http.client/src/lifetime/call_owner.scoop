@@ -35,6 +35,8 @@ private suspend fun runClientCall(call: ClientCall) {
         try {
             startClientDeadline(call, scope, HttpTimeoutPhase.Total, call.timeouts.total, call.started)
             requireClientCall(call)
+            prepareClientAuthentication(call)
+            requireClientCall(call)
             startClientDeadline(call, scope, HttpTimeoutPhase.PoolAcquire, call.timeouts.poolAcquire)
             val connection = awaitClientConnection(call)
             val exchange = openClientExchange(call, connection)

@@ -9,6 +9,9 @@ internal class ClientRequestSequence(config: HttpClientConfig, request: HttpRequ
     val started: TimeMark? = if (timeouts.total != None) Some(MonotonicTimeSource.markNow()) else None
     val redirects: HttpRedirectOptions = request.options.redirects ?: config.redirects
     val retries: HttpRetryOptions = request.options.retries ?: config.retries
+    val authentication: HttpAuthenticationOptions = request.options.authentication ?: config.authentication
+    val authenticationSessions: ArrayList<ClientAuthenticationSession> = ArrayList<ClientAuthenticationSession>()
+    var authenticationCount: Long = 0L
     val history: ArrayList<HttpRedirect> = ArrayList<HttpRedirect>()
     var retryCount: Long = 0L
     var unprocessedRetryUsed: Boolean = false
@@ -17,7 +20,7 @@ internal class ClientRequestSequence(config: HttpClientConfig, request: HttpRequ
     var responseBodyBytes: Long = 0L
 }
 
-internal enum ClientFollowUp { Redirect(ClientRedirect), Retry(Duration) }
+internal enum ClientFollowUp { Redirect(ClientRedirect), Retry(Duration), Authenticate(ClientAuthenticationSession) }
 internal enum ClientCallResult { Response(HttpResponse), FollowUp(ClientFollowUp), Failed(ClientIoFailure, Boolean) }
 
 internal suspend fun executeClientRequest(state: ClientState, request: HttpRequest): HttpResponse {
@@ -36,6 +39,10 @@ internal suspend fun executeClientRequest(state: ClientState, request: HttpReque
             case FollowUp(ClientFollowUp.Retry(delay)) -> {
                 awaitClientRetry(state, caller, sequence, delay)
                 sequence.retryCount += 1L
+            }
+            case FollowUp(ClientFollowUp.Authenticate(session)) -> {
+                sequence.authenticationSessions.add(session)
+                sequence.authenticationCount += 1L
             }
             case Failed(failure, bodyStarted) -> {
                 val delay = planClientFailureRetry(sequence, current, failure, bodyStarted) ?: throw failure.cause
