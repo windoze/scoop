@@ -69,7 +69,7 @@ pub(crate) fn build_zero_live_call<'ctx>(
         AttributeLoc::Function,
         context.create_enum_attribute(Attribute::get_named_enum_kind_id("nounwind"), 0),
     );
-    build_gc_result(module, builder, token, result_type, "native_result")
+    build_gc_result(module, builder, token, result_type, None, "native_result")
 }
 
 pub(crate) fn build_managed_invoke<'ctx>(
@@ -130,7 +130,16 @@ pub(crate) fn build_managed_invoke<'ctx>(
     }
 
     builder.position_at_end(normal);
-    build_gc_result(module, builder, token, result_type, "invoke_result")
+    let return_attribute = abi_signature
+        .and_then(|signature| crate::abi::boolean_return_attribute(context, signature));
+    build_gc_result(
+        module,
+        builder,
+        token,
+        result_type,
+        return_attribute,
+        "invoke_result",
+    )
 }
 
 fn zero_live_arguments<'ctx>(
@@ -184,6 +193,7 @@ fn build_gc_result<'ctx>(
     builder: &Builder<'ctx>,
     token: inkwell::llvm_sys::prelude::LLVMValueRef,
     result_type: Option<BasicTypeEnum<'ctx>>,
+    return_attribute: Option<inkwell::attributes::Attribute>,
     name: &str,
 ) -> Result<Option<BasicValueEnum<'ctx>>, CodegenError> {
     let Some(result_type) = result_type else {
@@ -210,6 +220,11 @@ fn build_gc_result<'ctx>(
             result_name.as_ptr(),
         )
     };
+    if let Some(attribute) = return_attribute {
+        // The statepoint returns a token; wrapped-call return attributes belong
+        // to its typed gc.result, just as they do after RS4GC rewriting.
+        unsafe { CallSiteValue::new(value) }.add_attribute(AttributeLoc::Return, attribute);
+    }
     Ok(Some(unsafe { BasicValueEnum::new(value) }))
 }
 

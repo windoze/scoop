@@ -295,6 +295,8 @@ Scoop ABI 保留完整逻辑参数序列及 exact identity，物理分类为：
 
 DirectParts 明确保存每个 carrier 的类型、来源 offset／extent、alignment 与 provenance，以及完整返回约定。接口为 AS1 object 和 AS0 metadata，不能落入单 scalar 分支；slot 的隐藏 receiver 独立采用单字 object projection。所有 caller／callee、typed invoke、adapter、Scoop ABI extern 和跨 Cone 签名消费同一计划。
 
+Boolean 标量的物理类型为 LLVM `i1`，直接参数与直接结果使用 `zeroext`；caller 在传参时、callee 在返回时按目标寄存器规则零扩展，确保 C runtime 的 `_Bool` 入口接收规范的 0／1。函数定义、声明、直接与间接调用、普通 invoke 和 statepoint 中实际调用的参数／结果遵守同一规则。仅低位有效的中间 `i1` 不能原样作为 C `_Bool` 传入；aggregate carrier 不因内部包含 Boolean 而获得标量扩展属性。此约定纳入现有 target fingerprint：Scoop ABI classifier 编码由 3 更新为 4，旧产物与缓存重建，不增加独立登记或验证通道。
+
 LLVM 22.1 的接口结果跨 safepoint 时，沿精确 leaf 回写协议重新取得 object，再与原 metadata 重建双字值；重读必须阻止普通优化将结果重新合并为 GC 前的 aggregate SSA。首版在实际 relocation 路径使用 volatile object reload，条件 poll 仅在慢路径执行该动作，不为快路径引入无条件 root 临时存储。不能假定 RS4GC 会重写 aggregate 内部的 managed leaf。
 
 GC-free 小值按 exact layout 和 scalar leaves 复用下述目标 aggregate classifier，保留整数／浮点／混合寄存器类别；tagged enum 的固定 tag 和共享 payload 字节区域不随 variant 改变分类。每个 aggregate 作为整体分配寄存器或回退；coercion 不越过 exact storage，padding 确定，浮点按 bits 搬运。callee 按需要建立独立 place，不能把 caller storage 当成按值别名。MaybeUninit 依自身值表示分类，不继承 T 的 nonnull、tag、niche 或专门接口 ABI。

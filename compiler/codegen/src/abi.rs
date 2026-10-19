@@ -131,18 +131,24 @@ fn apply_parameter_attributes(
     mut add: impl FnMut(AttributeLoc, Attribute),
 ) -> Result<(), CodegenError> {
     for parameter in signature.physical_parameters() {
-        let attribute_name = match parameter.origin() {
-            AbiPhysicalParameterOrigin::IndirectReturn => "sret",
-            AbiPhysicalParameterOrigin::IndirectArgument { .. } => "byval",
-            AbiPhysicalParameterOrigin::DirectArgument { .. }
-            | AbiPhysicalParameterOrigin::DirectArgumentPart { .. } => continue,
-        };
         let index = u32::try_from(parameter.index())
             .ok()
             .and_then(|index| index.checked_add(parameter_offset))
             .ok_or_else(|| {
                 CodegenError("Scoop ABI parameter index exceeds u32::MAX".to_string())
             })?;
+        let attribute_name = match parameter.origin() {
+            AbiPhysicalParameterOrigin::IndirectReturn => "sret",
+            AbiPhysicalParameterOrigin::IndirectArgument { .. } => "byval",
+            AbiPhysicalParameterOrigin::DirectArgument { .. }
+                if parameter.value().storage_type() == &scoop_lir::LirType::I1 =>
+            {
+                add(AttributeLoc::Param(index), boolean_extension(context));
+                continue;
+            }
+            AbiPhysicalParameterOrigin::DirectArgument { .. }
+            | AbiPhysicalParameterOrigin::DirectArgumentPart { .. } => continue,
+        };
         let ty = value_type(
             context,
             structs,
@@ -168,6 +174,24 @@ fn apply_parameter_attributes(
     Ok(())
 }
 
+fn boolean_extension(context: &Context) -> Attribute {
+    context.create_enum_attribute(Attribute::get_named_enum_kind_id("zeroext"), 0)
+}
+
+pub(crate) fn boolean_return_attribute(
+    context: &Context,
+    signature: &ScoopAbiSignature,
+) -> Option<Attribute> {
+    match signature.result() {
+        AbiReturn::Direct(scoop_lir::AbiDirectValue::Scalar(value))
+            if value.storage_type() == &scoop_lir::LirType::I1 =>
+        {
+            Some(boolean_extension(context))
+        }
+        _ => None,
+    }
+}
+
 pub(crate) fn apply_function_attributes(
     context: &Context,
     structs: &StructDefs,
@@ -176,6 +200,9 @@ pub(crate) fn apply_function_attributes(
     function: FunctionValue<'_>,
     signature: &ScoopAbiSignature,
 ) -> Result<(), CodegenError> {
+    if let Some(attribute) = boolean_return_attribute(context, signature) {
+        function.add_attribute(AttributeLoc::Return, attribute);
+    }
     apply_parameter_attributes(
         context,
         structs,
@@ -195,6 +222,9 @@ pub(crate) fn apply_call_attributes(
     call: CallSiteValue<'_>,
     signature: &ScoopAbiSignature,
 ) -> Result<(), CodegenError> {
+    if let Some(attribute) = boolean_return_attribute(context, signature) {
+        call.add_attribute(AttributeLoc::Return, attribute);
+    }
     apply_parameter_attributes(
         context,
         structs,

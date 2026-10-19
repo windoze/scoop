@@ -511,6 +511,8 @@ region 诊断补充 managed region 映射成功的累计次数、当前可复用
 
 本章规定语言规范第 14 章对应的 runtime 能力。managed generated-code、native-borrowed、runtime internal 与 foreign-callback 入口具有明确的调用角色，入口不从裸 C 栈猜测 caller kind。
 
+Scoop ABI 的 Boolean 参数／结果遵守实现规范 2.4 的 `i1 zeroext` 约定，与本章 C `_Bool` 原型的规范 0／1 值一致。编译器在调用边界生成所需扩展；runtime 不为来自错误调用约定的非规范值增加容错分支。Boolean 对象存储及现有 C 函数原型保持不变。
+
 ### 4.1 对象分配
 
 - `scoop_runtime_alloc_pinned(type_desc, size) -> ScoopObjectHeader*` 分配即固定，返回前 pin 生效；具体 API 明确 unpin 所有权。
