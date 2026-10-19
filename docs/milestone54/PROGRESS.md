@@ -75,6 +75,7 @@
 | HTTP Location | HttpLocation 保存单值 URI-reference、原始字段与错误偏移；相对解析复用 URL，按重定向规则继承缺省 fragment，显式空 fragment 保留 | 新增 5 项测试通过 debug／release 与 full moving；正式消费者在两个 native 线程中组合短块 HTTP/1、HTTP/2 字段、IRI 构造、移动 GC 与正常构建复用 |
 | HTTP/2 GOAWAY 连接状态 | isDraining 在本地／远端 GOAWAY 通知前更新；openRequest 在提交新流前交付专门异常，已有流继续按实际事件完成，未处理流保留 REFUSED_STREAM | 新增 2 项测试与 19 项 HTTP/2 回归通过 debug／release；3 项相关用例逐例通过两种构建的 full moving，独立 GOAWAY 对端与正式构建复用通过 |
 | client 重定向 | 默认最多 10 跳，组合 HTTP Location、方法与字段重建、跨 origin 凭据移除、重放约束和不可变历史；上一跳真实清理后继续，共享总截止与累计进度 | 新增 15 项测试，client 全部 140 项通过 debug／release；新测试逐例通过两种构建的 full moving，独立 HTTP/1／TLS／H2 对端的三种组合流程与构建复用通过 |
+| 协程异常路径活跃值 | MIR 在实际调用处合并异常后继所需的旧值，挂起前保存、失败恢复后再进入原 catch／finally；正常路径的后续赋值不再丢失清理值 | 两项回归在修复前失败，修复后全部 119 项 MIR lowering 与 workspace clippy 通过；独立 Scoop 程序在旧工具上复现 GC 中止，新工具通过 debug／release、full moving 与构建复用 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -335,6 +336,10 @@ Linux 重编 HTTP 库暴露了 callable C 字符串的重复归属：已有边�
 全部 140 项 client 测试通过两种构建，新增 15 项逐例通过两种构建的 full moving，共 30 个进程。覆盖方法转换、重放拒绝、循环／次数／scheme、配置替换、H2 并发隔离、取消、清理失败和总截止。网络阶段单独启用时的累计计数曾在独立消费者中复现为零，修复后保留已确认的 4 字节；并发测试使用明确的接受顺序栅栏。中间响应不初始化无用解码器，下一跳等待上传与来源清理；生产 client release 构建通过。
 
 Linux 组合回归中的连接池对端把已发送请求的空 trailing HEADERS 误认为新流。对端现按 stream ID、空 payload 与 END_STREAM 区分合法上传结束和新请求，仍检查占用容量释放前不得创建新流；修正后的 `m54-client-pool` 在 Darwin 通过 debug／release、full moving 与构建复用，共 6 个步骤进程。GNU／musl 的 Location 和重定向已通过，连接池待此修正后复验；GOAWAY 消费者的 release 暴露了独立 GC 故障，继续在编译器层定位。
+
+连接池修正随后在 GNU／musl 各通过 debug／release、full moving 与构建复用，共 4 个变体、12 个步骤进程。GOAWAY 的原始 Linux release 消费者通过 gdb 定位到协程入口 poll：正常路径在 openRequest 后覆盖 `second`，但失败路径的 finally 仍读取原值；MIR 活跃度把异常边放到块末，导致保存／恢复遗漏，入口根计划因此包含未初始化局部。修复在 MIR 按实际调用处处理异常边，保留失败清理需要的值，没有初始化伪造对象、放宽 GC 检查或改写 HTTP 调用来绕过。
+
+`m54-coroutine-unwind-liveness` 在 Darwin 通过 debug／release、full moving 和构建复用，共 6 个步骤进程。两个 native 线程分别检查普通挂起、直接 suspendCoroutine、恢复后的普通调用失败与泛型清理；成功取新对象，失败保留原对象身份与异常身份。既有 catch/finally 与嵌套待定 transfer 组合同时通过 4 个变体、8 个步骤进程。原 HTTP/2 消费者及 GNU／musl 的修复后验收继续进行。
 
 ## 后续工作
 

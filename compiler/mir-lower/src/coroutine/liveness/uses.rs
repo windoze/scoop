@@ -81,7 +81,7 @@ pub(super) fn terminator_uses(terminator: &mir::Terminator) -> HashSet<mir::Loca
     uses
 }
 
-pub(super) fn successors(block: &mir::BasicBlock) -> Vec<mir::BlockId> {
+pub(super) fn terminator_successors(block: &mir::BasicBlock) -> Vec<mir::BlockId> {
     let mut out = Vec::new();
     match block.terminator {
         mir::Terminator::Goto(target) => out.push(target),
@@ -102,11 +102,6 @@ pub(super) fn successors(block: &mir::BasicBlock) -> Vec<mir::BlockId> {
         | mir::Terminator::Resume
         | mir::Terminator::Trap { .. }
         | mir::Terminator::Unreachable => {}
-    }
-    if let Some(unwind) = block.unwind
-        && !out.contains(&unwind)
-    {
-        out.push(unwind);
     }
     out
 }

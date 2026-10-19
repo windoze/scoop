@@ -2,7 +2,9 @@ use super::*;
 
 mod uses;
 mod work;
-use uses::{expr_uses, pending_uses, raw, statement_use_def, successors, terminator_uses};
+use uses::{
+    expr_uses, pending_uses, raw, statement_use_def, terminator_successors, terminator_uses,
+};
 use work::WorkingStatement;
 
 pub(super) fn analyze_sites(
@@ -14,9 +16,16 @@ pub(super) fn analyze_sites(
     let block_count = body.blocks.len();
     let mut uses = vec![HashSet::new(); block_count];
     let mut defs = vec![HashSet::new(); block_count];
+    let mut unwind_defs = vec![None; block_count];
     for (block_id, block) in body.blocks.iter() {
         let index = raw(block_id);
         for statement in &work.blocks[index] {
+            // Every call in this block has the same handler. Definitions only
+            // accumulate, so the first call determines which handler inputs
+            // are already available without reading the block's entry values.
+            if block.unwind.is_some() && statement.can_unwind() && unwind_defs[index].is_none() {
+                unwind_defs[index] = Some(defs[index].clone());
+            }
             let (statement_uses, statement_defs) = working_use_def(statement);
             for local in statement_uses {
                 if !defs[index].contains(&local) {
@@ -39,11 +48,14 @@ pub(super) fn analyze_sites(
         for (block_id, block) in body.blocks.iter().rev() {
             let index = raw(block_id);
             let mut out = HashSet::new();
-            for successor in successors(block) {
+            for successor in terminator_successors(block) {
                 out.extend(live_in[raw(successor)].iter().copied());
             }
             let mut input = uses[index].clone();
             input.extend(out.iter().filter(|local| !defs[index].contains(local)));
+            if let (Some(unwind), Some(prior_defs)) = (block.unwind, &unwind_defs[index]) {
+                input.extend(live_in[raw(unwind)].difference(prior_defs).copied());
+            }
             if out != live_out[index] || input != live_in[index] {
                 live_out[index] = out;
                 live_in[index] = input;
@@ -60,6 +72,10 @@ pub(super) fn analyze_sites(
         let mut live = live_out[raw(block_id)].clone();
         live.extend(terminator_uses(&block.terminator));
         for statement in work.blocks[raw(block_id)].iter().rev() {
+            let exceptional = block
+                .unwind
+                .filter(|_| statement.can_unwind())
+                .map(|unwind| &live_in[raw(unwind)]);
             let suspension = match statement {
                 WorkingStatement::Mir {
                     position,
@@ -97,7 +113,11 @@ pub(super) fn analyze_sites(
             };
             if let Some((position, order, destination, result, kind, pending)) = suspension {
                 pending_uses(&pending, &mut live);
-                let mut live_after: Vec<_> = live.iter().copied().collect();
+                let mut saved = live.clone();
+                if let Some(exceptional) = exceptional {
+                    saved.extend(exceptional.iter().copied());
+                }
+                let mut live_after: Vec<_> = saved.into_iter().collect();
                 live_after.sort_by_key(|local| raw(*local));
                 sites.push(DiscoveredSuspendSite {
                     order,
@@ -113,6 +133,11 @@ pub(super) fn analyze_sites(
             let (statement_uses, statement_defs) = working_use_def(statement);
             for local in statement_defs {
                 live.remove(&local);
+            }
+            // A call result is defined only on success. The handler observes
+            // the values from before the call, including later-overwritten locals.
+            if let Some(exceptional) = exceptional {
+                live.extend(exceptional.iter().copied());
             }
             live.extend(statement_uses);
         }

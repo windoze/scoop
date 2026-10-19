@@ -223,6 +223,8 @@ structured MIR 与最终 MIR 的动态调用将 receiver 保存在对应目标�
 
 CFG 的私有协程工作记录保留挂起操作的语义顺序、块内位置、receiver 与结果 local；尚未生成的注册调用不使用普通 callee 或空语句占位。协程变换把这些记录与已有 CFG 语句一起用于 liveness 和恢复分析，生成 continuation adapter 后直接形成完整接口调用。cleanup 中的待定 return／throw／break／continue 继续保留原值和目标，最终只输出引用实际 saved slots 与恢复入口的协程 metadata。
 
+协程活跃度分别处理调用的正常后继与异常后继；异常边发生在实际调用处，不能统一放在块末再被后续赋值杀死。挂起前保存成功恢复、失败恢复及待定 cleanup 所需的值，失败恢复先还原异常处理所需的旧值，再进入原 catch／finally。成功路径在调用后覆盖的局部值，若仍被异常路径使用，也必须跨挂起保存；结果 local 只在成功恢复时定义。此规则同样覆盖挂起之后的普通调用失败和直接 suspendCoroutine 注册，不增加运行时根兜底或改变源码赋值语义。
+
 `==` / `!=` 保存已选定的 operator callable；若它来自普通用户接口，则保留该接口 application、slot 与实际 implementation。派生结构比较降为普通 typed 成员调用和短路控制流；`Equals<T>.equals` 是同一 operator 契约的普通接口调用。bound 调用在单态化时映射到已确定的实现，不能重新按名字搜索 equals。基本类型的精确 intrinsic 比较保持原运算与 effect；接口分派需要的适配正文同样是完整 typed callable，不能把 NoGc 直接实现误当成具有相同 effect 的 Managed slot 入口。
 
 使用结构表示的值，其装箱接口闭包来自 LocalConcreteHir 的实际声明／继承关系，并由 MIR 的实际表项写入产物。tuple 的结构比较不增加 Equals 表项；Ptr 的显式接口仍按普通规则保留。产物读写检查接口引用、slot、callable 与签名的一致性，不因 exact type 使用结构表示就强制接口集合为空，也不在后续 stage 重放字段相等或源码 implements 的决议。
