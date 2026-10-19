@@ -1,7 +1,6 @@
 //! Reconciliation and closure of generated-C target-support requirements.
 
 use std::collections::BTreeMap;
-use std::fmt;
 
 use scoop_identity::ConeIdentity;
 use scoop_lir::{CBridgeTargetSupportRequirementV1, ValidatedLirTargetSelection};
@@ -12,7 +11,6 @@ use super::{
     VerifiedCrossConeStrongRequirementClosureV1, VerifiedCurrentConeStrongRelocationClosureV1,
     VerifiedRuntimeAndEhRequirementClosureV1,
 };
-use crate::SlibMemberId;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CBridgeTargetSupportRequirementUseV1 {
@@ -198,41 +196,6 @@ pub(in crate::link_object) fn without_target_support_for_test(
         target_support_requirements: Vec::new(),
     }
 }
-
-pub fn finish_builtin_external_requirements_v1(
-    verified: BuiltinExternalRequirementsV1,
-) -> Result<BuiltinExternalRequirementsV1, BuiltinObjectExternalRequirementClosureError> {
-    if let Some(binding) = verified.remaining_external_candidates().first() {
-        return Err(
-            BuiltinObjectExternalRequirementClosureError::UnclassifiedExternalRelocation {
-                member: binding.source_member(),
-                atom: binding.containing_atom(),
-                symbol: binding.symbol().to_vec(),
-            },
-        );
-    }
-    Ok(verified)
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum BuiltinObjectExternalRequirementClosureError {
-    UnclassifiedExternalRelocation {
-        member: SlibMemberId,
-        atom: scoop_identity::ObjectDefinitionAtomId,
-        symbol: Vec<u8>,
-    },
-}
-
-impl fmt::Display for BuiltinObjectExternalRequirementClosureError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            formatter,
-            "incomplete built-in object external requirement closure: {self:?}"
-        )
-    }
-}
-
-impl std::error::Error for BuiltinObjectExternalRequirementClosureError {}
 
 #[cfg(test)]
 pub(super) mod tests;

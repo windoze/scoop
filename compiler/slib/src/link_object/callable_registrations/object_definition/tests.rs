@@ -12,6 +12,21 @@ use scoop_wire::encode_runtime;
 use super::*;
 
 #[test]
+fn native_relocation_targets_preserve_their_symbol_names() {
+    let encode = |symbol: &[u8]| {
+        encode_runtime(&CanonicalObjectDefinitionRequirementV1::Legacy(
+            FinalUndefinedSymbolRequirementV1::NativeSymbol {
+                symbol: symbol.to_vec(),
+            },
+        ))
+        .unwrap()
+    };
+    let first = encode(b"_bzero");
+    assert!(first.ends_with(b"_bzero"));
+    assert_ne!(first, encode(b"_explicit_bzero"));
+}
+
+#[test]
 fn storage_and_initialization_targets_preserve_the_original_definition_identity() {
     use scoop_identity::{InitializationUnitKey, PersistentInitializationUnitId, StaticStorageKey};
 

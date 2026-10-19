@@ -58,8 +58,6 @@ impl SlibObjects {
         let external =
             classify_c_bridge_target_support_requirements_v1(runtime, &bridges, &self.profile)
                 .expect("target support requirements");
-        let external = finish_builtin_external_requirements_v1(external)
-            .expect("all external references classified");
         finalize_undefined_symbol_requirements_v1(current, external)
     }
 }

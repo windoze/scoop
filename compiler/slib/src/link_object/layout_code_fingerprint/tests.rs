@@ -15,9 +15,8 @@ use crate::{
     ConeKind, ConeRecord, ConeSourceForm, CrossConeLayoutProductionManifestV1,
     DecodedSingleConeProductionManifestV1, DependencyRecord, HirFingerprint, LirFingerprint,
     MirFingerprint, finalize_layout_partitioned_undefined_symbol_requirements_v1,
-    finish_builtin_external_requirements_v1, verify_current_cone_undefined_requirements_v1,
-    verify_dependency_strong_requirements_v1, verify_external_shape_requirements_v1,
-    verify_runtime_and_eh_requirements_v1,
+    verify_current_cone_undefined_requirements_v1, verify_dependency_strong_requirements_v1,
+    verify_external_shape_requirements_v1, verify_runtime_and_eh_requirements_v1,
     verify_source_external_requirements_after_external_shape_v1,
 };
 
@@ -96,10 +95,7 @@ fn layout_code_fingerprint_binds_v2_imports_and_the_required_member_directory() 
     let runtime =
         verify_runtime_and_eh_requirements_v1(source, scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
             .unwrap();
-    let external = finish_builtin_external_requirements_v1(
-        crate::link_object::without_target_support_for_test(runtime),
-    )
-    .unwrap();
+    let external = crate::link_object::without_target_support_for_test(runtime);
     let partitions =
         finalize_layout_partitioned_undefined_symbol_requirements_v1(current, external, &shape)
             .unwrap();

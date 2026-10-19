@@ -422,7 +422,9 @@ digest 槽位直接保存 codegen 返回的 intent、member 和对象偏移，�
 
 Code 指纹直接编码已有的定义、undefined requirements、native contracts、imports 与最终成员目录。计算和归档组装不重建这些集合来比较副本，也不再次比对所有组件的 producer／target 或复制的 relocation 闭包。已有结果直接进入 metadata 和内容摘要；当前编码、范围读取及真实链接引用错误正常处理。
 
-generated-C 的 external requirements 直接复用实际符号分类；target helper 从当前工具链 registry 取得合同。bridge 计划只用于区分自身 source extern 与编译器辅助调用的同名符号，不重建 definition／atom 集合、扫描必需调用覆盖或证明机器 relocation 与模板相同。Scoop LIR 自身产生的 memcpy、TLS 等正常辅助引用使用同一 registry。未知引用按普通链接需求报错。
+generated-C 的 external requirements 直接复用实际符号分类；已知 target helper 可从当前工具链 registry 取得合同，该表不是外部符号白名单。bridge 计划只用于区分自身 source extern 与编译器辅助调用的同名符号，不重建 definition／atom 集合、扫描必需调用覆盖或证明机器 relocation 与模板相同。Scoop LIR／LLVM 和 C 编译器产生的其他 native 引用保留实际符号名与重定位，作为普通 native 链接需求交给 linker；编译器不要求预先登记，也不检查目标库是否提供该符号。无法解析的符号由最终 native 链接阶段报告。
+
+最终 undefined requirement 增加 `NativeSymbol`（wire tag 10，field 1 为对象文件中的原始符号 bytes）；已退役的 tag 2／8 不复用。该引用没有伪造的 Scoop 实体或 ABI 合同。对象正文的重定位编码使用 tag 16 与符号 bytes，使目标不同的 native 调用仍具有不同的正文内容；符号解析继续使用原对象文件与普通链接输入。
 
 undefined requirements 完成普通分类后直接合并、排序，保留 callable／shape 的实际依赖分区。finalizer 不重建全部 relocation uses 做 coverage／重叠证明，也不比较 current／external／shape 闭包副本；查找真实 import 时保留索引边界错误。完成分类的外部需求使用同一数据类型，不再套封口资格包装。
 

@@ -36,7 +36,7 @@ enum ObjectDefinitionRequirementModeV1 {
     Layout(Box<FinalizedLayoutUndefinedSymbolRequirementPartitionsV1>),
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub(in crate::link_object) enum CanonicalObjectDefinitionRequirementV1 {
     Legacy(FinalUndefinedSymbolRequirementV1),
     DependencyStrong {

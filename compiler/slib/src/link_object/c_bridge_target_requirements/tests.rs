@@ -21,13 +21,6 @@ fn classifies_generated_c_target_support() {
         scoop_lir::CBridgeTargetSupportV1::Memcpy
     );
     assert_eq!(support.use_site().symbol(), b"_memcpy");
-    let producer = verified.producer();
-    assert_eq!(
-        finish_builtin_external_requirements_v1(verified)
-            .unwrap()
-            .producer(),
-        producer
-    );
 }
 
 #[test]

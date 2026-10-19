@@ -32,3 +32,9 @@ Managed 不新增会复制 site 的 CFG／循环 pass；普通优化先于最终
 实际内核的首轮运行时间没有超出噪声的收益，详见 [性能记录](PERFORMANCE.md#5-llvm-管线对照)。此批确认局部范围推导能力及 NoGc 标量覆盖，不宣称程序普遍加速，也不据此扩大 GVN 配置。
 
 实现核对使用本机 LLVM 22.1.8 headers 及对应版本的 [ConstraintElimination](https://github.com/llvm/llvm-project/blob/llvmorg-22.1.8/llvm/lib/Transforms/Scalar/ConstraintElimination.cpp)、[CorrelatedValuePropagation](https://github.com/llvm/llvm-project/blob/llvmorg-22.1.8/llvm/lib/Transforms/Scalar/CorrelatedValuePropagation.cpp)。两者使用支配条件／范围事实化简；新管线不主动附加 fast-math 或无溢出假设。
+
+## Native 辅助符号的链接边界
+
+loop-idiom 的 Darwin 实验生成了 `bzero`，暴露出 `.slib` 生产路径要求所有 native 引用预先登记的错误限制。删除该拒绝分支；未匹配已知分类的引用直接保存符号名与重定位，由最终 linker 解析。已有 helper 表保留已知 ABI 分类用途，不作为白名单，也不添加 `bzero` 特判。正文编码保留 native 目标名字。测试验证普通引用可保存、读回及区分目标；不要求编译器预判辅助函数是否存在。
+
+本机 fmt／workspace clippy 与 141 项对象产物相关测试通过；原触发 Darwin `bzero` 的实际程序已正常编译、链接，fill／prefix／small／branch 四模式输出均与基线一致。动态 undefined 表保留 `_bzero`，由系统库正常解析。

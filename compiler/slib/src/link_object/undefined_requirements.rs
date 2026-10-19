@@ -25,7 +25,7 @@ use wire::DecodedFinalUndefinedSymbolRequirementV1;
 mod partitions;
 pub use partitions::*;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum FinalUndefinedSymbolRequirementV1 {
     OdrMember {
         member: OdrMemberId,
@@ -50,6 +50,9 @@ pub enum FinalUndefinedSymbolRequirementV1 {
     CBridgeTargetSupport {
         contract: CBridgeTargetSupportRequirementId,
     },
+    NativeSymbol {
+        symbol: Vec<u8>,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -67,8 +70,8 @@ impl CanonicalUndefinedSymbolRequirementV1 {
         &self.use_site
     }
 
-    pub const fn requirement(&self) -> FinalUndefinedSymbolRequirementV1 {
-        self.requirement
+    pub fn requirement(&self) -> FinalUndefinedSymbolRequirementV1 {
+        self.requirement.clone()
     }
 }
 
@@ -147,6 +150,14 @@ pub fn finalize_undefined_symbol_requirements_v1(
             use_site: item.use_site().clone(),
             requirement: FinalUndefinedSymbolRequirementV1::CBridgeTargetSupport {
                 contract: item.requirement().id(),
+            },
+        });
+    }
+    for binding in verified_external.remaining_external_candidates() {
+        requirements.push(CanonicalUndefinedSymbolRequirementV1 {
+            use_site: CanonicalUndefinedRelocationUseV1::from(binding),
+            requirement: FinalUndefinedSymbolRequirementV1::NativeSymbol {
+                symbol: binding.symbol().to_vec(),
             },
         });
     }

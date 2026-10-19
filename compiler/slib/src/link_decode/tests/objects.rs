@@ -213,6 +213,5 @@ fn empty_undefined_requirements(
         &c_bridge_profile(),
     )
     .unwrap();
-    let external = crate::finish_builtin_external_requirements_v1(external).unwrap();
     crate::finalize_undefined_symbol_requirements_v1(current, external)
 }
