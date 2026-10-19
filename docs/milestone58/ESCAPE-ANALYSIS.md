@@ -110,7 +110,23 @@ for (value in values) consume(value * capturedFactor)
 
 [Kotlin inline functions](https://kotlinlang.org/docs/inline-functions.html)展示了内联高阶函数与 lambda 后省去函数对象的同类效果。Scoop 在现有普通优化中实现上述局部模式，不增加 inline 语法、non-local return 豁免或捕获规则。
 
-### 5.2 分开检查实例分配与残留支持产物
+### 5.2 尾随闭包与作用域式 API 的实际覆盖
+
+尾随闭包常被用于把库函数写成类似语言结构的形式，闭包消除应以这类正常用法作为代表负载。对于每帧或每次状态更新都调用、正文工作很少的同步 API，临时环境分配、间接调用和其引起的 GC 频率可能占据显著比例；多层包装消除后，还能继续暴露常量与字段值。这是收益假设，不能在测量前承诺零开销或固定加速比。
+
+现有库已经给出了不同边界，不能仅凭尾随语法统一判定：
+
+| 真实场景 | 本期处理与依赖 |
+| --- | --- |
+| [Iterable.forEach／fold](../../sysroot/src/scoop.std/src/collections/traversal.scoop)、[Result.map／onSuccess](../../sysroot/src/scoop.std/src/results/result_transforms.scoop) | 同步调用且普通 CFG 正文可见，作为首批代表；沿统一迭代消除已展开的闭包环境，仍受实际内联选择约束 |
+| [Mutex.withLock](../../sysroot/src/scoop.platform/src/concurrent/mutex.scoop)、[CoroutineLock.withLock](../../sysroot/src/scoop.core/src/coroutine_listeners.scoop)、[同步 use](../../sysroot/src/scoop.core/src/resources.scoop)、[runCatching](../../sysroot/src/scoop.std/src/results/result.scoop) | 含 finally／catch／资源清理；当前内联器不复制 callee 自身 EH 协议，首批明确保留。作为后续受限 EH 内联的真实驱动，不能靠多轮调度跳过清理 |
+| [Sequence.map／onEach](../../sysroot/src/scoop.std/src/sequences/transforms.scoop)、被保存的 GUI 事件回调 | 函数值存入返回对象或注册状态，首批保留；终端链整体局部化还需要额外对象替换，不能从相似调用语法推导不逃逸 |
+
+后续若扩展作用域包装，优先围绕上表具体 EH 形态补齐已有 clone：正常返回、局部提前返回与异常都保留正确的 unlock／dispose，body 与 cleanup 同时失败仍保持现行异常语义。不为覆盖任意 DSL 先建设通用 EH 专化框架；挂起版 use／scope 继续受协程与 cleanup 合同约束。
+
+验收对照同语义的手写展开版本，覆盖无捕获／值捕获／含引用捕获、单层／多层包装和轻量正文。记录每次调用及代表帧循环的分配次数／bytes、minor 频率、运行时间和最终代码体积；耗时主要来自锁或 I/O 的例子另列，不用它们稀释闭包成本，也不把内联代码膨胀忽略掉。新增“外层同步 scope block 可消除、内层被保存回调仍保留”的组合，避免将整个 DSL 调用笼统归为逃逸或不逃逸。
+
+### 5.3 分开检查实例分配与残留支持产物
 
 删除 `ClosureAlloc` 首先省掉运行时对象。当前 [MIR closure 声明](../../compiler/mir-lower/src/closures/lambdas.rs)先建立完整 class／invoke；LIR 的 [descriptor](../../compiler/lir-lower/src/metadata/descriptors/functions.rs) 和 [layout](../../compiler/lir-lower/src/metadata/layouts.rs) 生成还会遍历所有 closure class。因此不能把“分配已消失”直接当作 TD、scan、layout、invoke／bridge 已不发射。
 
@@ -118,7 +134,7 @@ for (value in values) consume(value * capturedFactor)
 
 这一清理只闭合本次消除产生的无用支持项，复用已有实体身份与输出选择，不另建全程序 DCE 系统。保留的 MIR 记录仍结构完整，不通过空捕获类型、缺失 invoke 或伪造 layout 表示“优化掉了”。实现前同步修改实现规范 2.3／2.19 及相关物理输出条款；验收分别检查动态分配和最终支持产物，不把仅保留的语义身份记录算作运行时 footprint。
 
-### 5.3 后续 class 消费者
+### 5.4 后续 class 消费者
 
 同函数内的小型普通 class 可以复用分配来源、exact class 与内联后的字段使用：initializer 与相关方法正文可见且展开后，把字段读写替换成普通 typed locals；不支持的父类、EH、release／地址／原子语义先保留。
 
@@ -138,6 +154,7 @@ class 的 [lowering](../../compiler/mir-lower/src/cfg/expression.rs) 是 `ClassA
 | 替换语义 | 多次拆箱、原值重赋值、构造参数副作用、`is`／`as`／`as?` 成败、enum 父整数、ZST identity 保留 |
 | 循环 | 每轮独立 box；循环外一次创建的 closure 在内层循环反复调用；上轮别名、多个活实例、复杂退出保留 |
 | 闭包 | forEach 运行零／一／多次，值捕获副本、引用捕获共享可变对象、bound receiver 单次求值；跨调用／poll 的移动 GC；逃逸与 identity 观察保留 |
+| 尾随闭包惯用法 | forEach／Result 操作与手写展开对照；轻量单层／多层包装；withLock／use 的 EH 保留边界；scope block 与被保存回调分开处理 |
 | 交替迭代 | forEach 内联后才解析 invoke；invoke 内联后消除环境；捕获 box 的 closure 消除后重算来源并继续删 box；旧 Escape 不跨改写永久保留 |
 | 组合 | struct／enum／tuple 含引用跨强制移动、泛型单态化、真实 interface adapter 保留、异常与 release 不变 |
 | 优化与性能 | 少量 typed MIR 断言 Box／ClosureAlloc 是否消失；真实运行的 allocated bytes／对象数、minor 次数、耗时、代码体积与编译时间 |
