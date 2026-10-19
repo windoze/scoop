@@ -313,7 +313,11 @@ Linux 重编 HTTP 库暴露了 callable C 字符串的重复归属：已有边�
 
 2026-10-19 合并 origin/main 的 M56 性能改进（04d28e763），包括 String 的 NoGC 表示读取、按 callable 选择的 release 优化、局部写屏障复用和并行引用回写。合并保留 M54 的受限 CFG 化简、COMDAT 段识别、独立 C 字符串段及 BackendReadOnlyData 子键；后端只读范围同时采用 main 的前缀边界，避免重复归属已有 atom。
 
-合并后的本机格式化、workspace clippy、236 项 codegen、390 项 LIR 及 10 项字符串相关 HIR／LIR lowering 测试通过。工具与开发 sysroot 需一起重建，再继续 M54 功能和正式 CLI 组合验证。
+合并后已完成配套工具、17 个 Cone 及 runtime 的本机重建。10 项字符串相关 HIR／LIR lowering 专项通过；正式 CLI 组合覆盖 M56 的字符串、循环、分配、写屏障和引用回写，以及 M54 的 GC 边界、C 字符串、协程、HTTP／client idle 和浮点原生辅助调用。
+
+重建平台库时，LLVM 将 80 字节值的派生比较优化为正常的 `memcmp` 调用，暴露了产物生成阶段的普通 native 符号登记门槛。现已删除 CBridgeTargetSupport 的逐符号枚举、合同 registry 与外部引用封口层；普通 native 需求保存真实符号和 relocation，最终 linker 解析对象、archive 和系统库。源码 FFI、Scoop 类型化引用、runtime／EH ABI、GC 和对象格式检查继续承担各自职责。Native requirement 使用新 wire tag 10，link-identity-closure 升至 17。
+
+格式化、workspace clippy 和 885 项 Rust 测试通过（codegen 236、LIR 387、slib 253、linker 9）。独立最小源码在旧工具上复现未登记 `memcmp` 的产物错误，修复后链接并通过 full moving；`m54-native-requirements` 验证跨库结构比较、每个字段的差异、泛型封装、GC 与构建复用。22 项正式 fixture 最终全部通过，共 67 个变体、128 个步骤进程，包含缺失强引用、FFI 参数／ABI／GC effect 冲突等反例。HTTP idle 对端补充识别已有协议支持的空 trailing HEADERS 结束方式，仍检查完整正文与 END_STREAM；继续使用协议库既有的结束行为。
 
 ## 后续工作
 
@@ -376,3 +380,5 @@ ELF 跳转表修复验收期间，清理输入进度消费者的 2 个已结束 
 HTTP idle 验收后，清理已被最终回归替代的 4 个 HTTP idle／基础跳转表 fixture target 目录，释放约 311 MiB；保留最终 fixture 产物、库 target、源码、生产 sysroot、原始日志、报告与缓存。
 
 client idle 实施期间，清理已完成的 3 个 HTTP 输入进度／idle 与 h2c 组合 fixture target 目录，释放约 483 MiB；保留源码、生产 sysroot、原始日志、报告与缓存。
+
+main 合并与 native 引用修正验收后，清理已结束的 Rust 增量构建缓存约 22 GiB，以及约 16 MiB 的比较回归诊断 target；配套命令、依赖产物、源用例和日志保留。

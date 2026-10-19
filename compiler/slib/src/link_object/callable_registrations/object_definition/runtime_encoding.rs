@@ -93,27 +93,29 @@ impl RuntimeEncode for CanonicalRelocationTargetV1 {
 
 impl RuntimeEncode for CanonicalObjectDefinitionRequirementV1 {
     fn runtime_encode(&self, encoder: &mut RuntimeEncoder) -> Result<(), RuntimeEncodeError> {
-        let requirement = match *self {
-            CanonicalObjectDefinitionRequirementV1::Legacy(requirement) => requirement,
+        match self {
+            CanonicalObjectDefinitionRequirementV1::Legacy(requirement) => {
+                encode_legacy_requirement(encoder, requirement)
+            }
             CanonicalObjectDefinitionRequirementV1::DependencyStrong { target, .. } => {
-                return encode_callable_target(encoder, CallableDefinitionOwner::Strong(target));
+                encode_callable_target(encoder, CallableDefinitionOwner::Strong(*target))
             }
             CanonicalObjectDefinitionRequirementV1::DependencyShapeStrong {
                 subject: scoop_lir::ExternalStrongShapeSubjectV1::Callable(target),
                 ..
-            } => {
-                return encode_callable_target(encoder, target);
-            }
+            } => encode_callable_target(encoder, *target),
             CanonicalObjectDefinitionRequirementV1::DependencyShapeStrong { subject, .. } => {
                 let (entity, role, _) = subject
                     .definition_parts()
                     .expect("a resolved shape has a complete definition identity");
                 let owner = StrongDefinitionOwnerV1::new(entity, role)
                     .expect("a shape subject has a matching definition role");
-                FinalUndefinedSymbolRequirementV1::IntraConeStrong { owner }
+                encode_legacy_requirement(
+                    encoder,
+                    &FinalUndefinedSymbolRequirementV1::IntraConeStrong { owner },
+                )
             }
-        };
-        encode_legacy_requirement(encoder, requirement)
+        }
     }
 }
 
@@ -136,12 +138,12 @@ fn encode_callable_target(
             member: member.member(),
         },
     };
-    encode_legacy_requirement(encoder, requirement)
+    encode_legacy_requirement(encoder, &requirement)
 }
 
 fn encode_legacy_requirement(
     encoder: &mut RuntimeEncoder,
-    requirement: FinalUndefinedSymbolRequirementV1,
+    requirement: &FinalUndefinedSymbolRequirementV1,
 ) -> Result<(), RuntimeEncodeError> {
     match requirement {
         FinalUndefinedSymbolRequirementV1::OdrMember { member } => {
@@ -150,7 +152,7 @@ fn encode_legacy_requirement(
         }
         FinalUndefinedSymbolRequirementV1::IntraConeStrong { owner } => {
             encoder.u32(1)?;
-            encode_strong_owner(encoder, owner)
+            encode_strong_owner(encoder, *owner)
         }
 
         FinalUndefinedSymbolRequirementV1::GeneratedBridge { unit } => {
@@ -176,9 +178,9 @@ fn encode_legacy_requirement(
             encoder.u32(6)?;
             encoder.fixed(contract.as_array())
         }
-        FinalUndefinedSymbolRequirementV1::CBridgeTargetSupport { contract } => {
-            encoder.u32(7)?;
-            encoder.fixed(contract.as_array())
+        FinalUndefinedSymbolRequirementV1::Native { symbol } => {
+            encoder.u32(16)?;
+            encoder.byte_span(symbol)
         }
     }
 }

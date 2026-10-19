@@ -163,7 +163,6 @@ pub struct TargetLayoutDescription {
     pub stack_alignment: u64,
     pub maximum_managed_alignment: u64,
     pub maximum_managed_object_size: u64,
-    pub c_bridge_support: &'static [crate::CBridgeTargetSupportV1],
 }
 
 impl NativeObjectFormat {

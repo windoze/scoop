@@ -1,15 +1,8 @@
 use scoop_identity::{ConeIdentity, NativeLibraryBinding};
-use scoop_lir::{
-    CBridgeTargetSupportRequirementV1, CBridgeTargetSupportV1, CanonicalLirFoundation,
-    ConeLirFoundation, GeneratedBridgePlanSetV1,
-};
+use scoop_lir::{CanonicalLirFoundation, ConeLirFoundation, GeneratedBridgePlanSetV1};
 use scoop_wire::{decode_canonical, encode};
 
-use super::super::c_bridge_target_requirements::{
-    tests::support_closure, without_target_support_for_test,
-};
 use super::super::current_cone_requirements::tests::primary_bridge_requirement;
-use super::super::generated_c_objects::tests::profile;
 use super::super::native_requirements::tests::{contract_record, native_surface};
 use super::super::runtime_requirements::tests::classify;
 use super::super::strong_relocation_closure::tests::{
@@ -18,7 +11,7 @@ use super::super::strong_relocation_closure::tests::{
 use super::super::symbol_verification::tests::{fixture_for_producer, fixture_named};
 use super::*;
 use crate::{
-    finish_builtin_external_requirements_v1, verify_current_cone_strong_relocation_closure_v1,
+    verify_current_cone_strong_relocation_closure_v1,
     verify_current_cone_undefined_requirements_v1, verify_dependency_strong_requirements_v1,
     verify_runtime_and_eh_requirements_v1, verify_source_external_requirements_v1,
 };
@@ -55,7 +48,7 @@ fn odr_requirement_uses_a_new_tag_and_keeps_service_tags_retired() {
         DecodedFinalUndefinedSymbolRequirementV1::OdrMember { .. }
     ));
     assert_eq!(encode(&decoded).unwrap(), bytes);
-    for tag in [2, 8] {
+    for tag in [2, 7, 8] {
         assert!(matches!(
             decode_canonical::<DecodedFinalUndefinedSymbolRequirementV1>(&[0xa1, 0, tag]),
             Err(error) if matches!(error.kind(), scoop_wire::WireErrorKind::UnknownTag { tag: actual } if *actual == u64::from(tag))
@@ -64,43 +57,34 @@ fn odr_requirement_uses_a_new_tag_and_keeps_service_tags_retired() {
 }
 
 #[test]
-fn c_bridge_target_support_uses_the_seventh_requirement_tag() {
-    let profile = profile("clang-2100.1.1.101", 0x000d_0100, 0x000e_0200);
-    let contract = CBridgeTargetSupportRequirementV1::current(
-        scoop_target_data::DARWIN_AARCH64,
-        &profile,
-        CBridgeTargetSupportV1::Memcpy,
-    )
-    .unwrap()
-    .id();
-    let mut expected = vec![0xa2, 0x00, 0x07, 0x01];
-    expected.extend(encode(&contract).unwrap());
+fn native_requirement_records_the_symbol_bytes_with_a_new_tag() {
+    let symbol = b"_memcmp".to_vec();
+    let requirement = FinalUndefinedSymbolRequirementV1::Native {
+        symbol: symbol.clone(),
+    };
+    let mut expected = vec![0xa2, 0, 10, 1, 0x47];
+    expected.extend_from_slice(&symbol);
+    assert_eq!(encode(&requirement).unwrap(), expected);
     assert_eq!(
-        encode(&FinalUndefinedSymbolRequirementV1::CBridgeTargetSupport { contract }).unwrap(),
-        expected
+        decode_canonical::<DecodedFinalUndefinedSymbolRequirementV1>(&expected).unwrap(),
+        DecodedFinalUndefinedSymbolRequirementV1::Native { symbol },
     );
 }
 
 #[test]
-fn finalizes_a_c_bridge_target_support_use() {
-    let external = support_closure(false);
-    let strong = external.strong_closure().clone();
-    let current = verify_current_cone_undefined_requirements_v1(
-        strong,
-        empty_bridge_plan(ConeIdentity::CORE),
-    )
-    .unwrap();
-    let final_set = finalize_undefined_symbol_requirements_v1(
-        current,
-        finish_builtin_external_requirements_v1(external).unwrap(),
-    );
-    assert_projection_round_trip(&final_set);
-
-    assert_eq!(final_set.requirements().len(), 2);
-    assert!(final_set.requirements().iter().any(|requirement| matches!(
-        requirement.requirement(),
-        FinalUndefinedSymbolRequirementV1::CBridgeTargetSupport { .. }
-    )));
+fn finalizes_ordinary_native_symbols_without_source_contracts() {
+    for symbol in [b"_memcmp".as_slice(), b"_toolchain_helper", b"_native_\xff"] {
+        let final_set = final_from_external(classify(symbol));
+        assert_projection_round_trip(&final_set);
+        assert_eq!(final_set.requirements().len(), 1);
+        assert_eq!(final_set.requirements()[0].use_site().symbol(), symbol);
+        assert_eq!(
+            final_set.requirements()[0].requirement(),
+            FinalUndefinedSymbolRequirementV1::Native {
+                symbol: symbol.to_vec()
+            },
+        );
+    }
 }
 
 #[test]
@@ -128,8 +112,10 @@ fn finalizes_current_cone_and_generated_bridge_requirements() {
         empty_bridge_plan(ConeIdentity::CORE),
     )
     .unwrap();
-    let final_set =
-        finalize_undefined_symbol_requirements_v1(current, sealed_without_externals(strong));
+    let final_set = finalize_undefined_symbol_requirements_v1(
+        current,
+        classify_without_source_externals(strong),
+    );
     assert_projection_round_trip(&final_set);
     assert!(matches!(
         final_set.requirements()[0].requirement(),
@@ -138,8 +124,10 @@ fn finalizes_current_cone_and_generated_bridge_requirements() {
 
     let (current, unit) = primary_bridge_requirement();
     let strong = current.strong_closure().clone();
-    let final_set =
-        finalize_undefined_symbol_requirements_v1(current, sealed_without_externals(strong));
+    let final_set = finalize_undefined_symbol_requirements_v1(
+        current,
+        classify_without_source_externals(strong),
+    );
     assert_projection_round_trip(&final_set);
     assert_eq!(
         final_set.requirements()[0].requirement(),
@@ -177,8 +165,7 @@ fn finalizes_source_external_requirements() {
     let external =
         verify_runtime_and_eh_requirements_v1(source, scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
             .unwrap();
-    let final_set =
-        finalize_undefined_symbol_requirements_v1(current, seal_without_generated(external));
+    let final_set = finalize_undefined_symbol_requirements_v1(current, external);
     assert_projection_round_trip(&final_set);
     assert!(matches!(
         final_set.requirements()[0].requirement(),
@@ -218,12 +205,12 @@ fn final_from_external(
         .clone();
     let current =
         verify_current_cone_undefined_requirements_v1(strong, empty_bridge_plan(producer)).unwrap();
-    finalize_undefined_symbol_requirements_v1(current, seal_without_generated(external))
+    finalize_undefined_symbol_requirements_v1(current, external)
 }
 
-pub(in crate::link_object) fn sealed_without_externals(
+pub(in crate::link_object) fn classify_without_source_externals(
     strong: crate::VerifiedCurrentConeStrongRelocationClosureV1,
-) -> BuiltinExternalRequirementsV1 {
+) -> VerifiedRuntimeAndEhRequirementClosureV1 {
     let producer = strong.producer();
     let core =
         verify_dependency_strong_requirements_v1(scoop_target_data::DARWIN_AARCH64, strong, &[])
@@ -233,10 +220,8 @@ pub(in crate::link_object) fn sealed_without_externals(
         native_surface(producer, Vec::new(), Vec::new()),
     )
     .unwrap();
-    let external =
-        verify_runtime_and_eh_requirements_v1(source, scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
-            .unwrap();
-    seal_without_generated(external)
+    verify_runtime_and_eh_requirements_v1(source, scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
+        .unwrap()
 }
 
 pub(in crate::link_object) fn empty_final_requirements_for_strong(
@@ -257,13 +242,7 @@ pub(in crate::link_object) fn empty_final_requirements_for_strong(
     let external =
         verify_runtime_and_eh_requirements_v1(source, scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
             .unwrap();
-    finalize_undefined_symbol_requirements_v1(current, seal_without_generated(external))
-}
-
-fn seal_without_generated(
-    external: crate::VerifiedRuntimeAndEhRequirementClosureV1,
-) -> BuiltinExternalRequirementsV1 {
-    finish_builtin_external_requirements_v1(without_target_support_for_test(external)).unwrap()
+    finalize_undefined_symbol_requirements_v1(current, external)
 }
 
 pub(in crate::link_object) fn empty_bridge_plan(

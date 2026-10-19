@@ -103,9 +103,6 @@ pub use native_requirements::*;
 mod runtime_requirements;
 pub use runtime_requirements::*;
 
-mod c_bridge_target_requirements;
-pub use c_bridge_target_requirements::*;
-
 mod undefined_requirements;
 pub use undefined_requirements::*;
 

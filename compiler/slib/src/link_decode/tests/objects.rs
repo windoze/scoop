@@ -207,12 +207,5 @@ fn empty_undefined_requirements(
         crate::verify_dependency_strong_requirements_v1(selection().target(), strong, &[]).unwrap();
     let source = crate::verify_source_external_requirements_v1(core, native.clone()).unwrap();
     let runtime = crate::verify_runtime_and_eh_requirements_v1(source, selection()).unwrap();
-    let external = crate::classify_c_bridge_target_support_requirements_v1(
-        runtime,
-        production.generated_bridge_plan(),
-        &c_bridge_profile(),
-    )
-    .unwrap();
-    let external = crate::finish_builtin_external_requirements_v1(external).unwrap();
-    crate::finalize_undefined_symbol_requirements_v1(current, external)
+    crate::finalize_undefined_symbol_requirements_v1(current, runtime)
 }

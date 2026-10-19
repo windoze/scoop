@@ -73,13 +73,6 @@ pub(super) fn check_compiler_contract(
                 .into_iter()
                 .find(|entry| normalize(entry.logical_symbol()) == symbol)
                 .map(|entry| entry.machine_contract())
-        })
-        .or_else(|| {
-            scoop_lir::CBridgeTargetSupportV1::for_target(profile.target())
-                .iter()
-                .copied()
-                .find(|entry| normalize(entry.logical_symbol()) == symbol)
-                .map(|entry| entry.machine_contract())
         });
     let Some(known) = known else {
         return Ok(());

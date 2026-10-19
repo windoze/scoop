@@ -37,7 +37,7 @@ fn elf_allocation_tls_is_a_runtime_requirement_with_a_platform_resolver() {
             for usage in uses {
                 assert!(match usage.requirement() {
                     FinalUndefinedSymbolRequirementV1::RuntimeAbi { .. } => runtime,
-                    FinalUndefinedSymbolRequirementV1::CBridgeTargetSupport { .. } => !runtime,
+                    FinalUndefinedSymbolRequirementV1::Native { .. } => !runtime,
                     _ => false,
                 });
             }

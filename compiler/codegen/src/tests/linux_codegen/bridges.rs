@@ -28,7 +28,7 @@ fn linux_generated_c_requirements_cover_native_tls_and_callback_contracts() {
             requirement.use_site().symbol() == b"__tls_get_addr"
                 && matches!(
                     requirement.requirement(),
-                    scoop_slib::FinalUndefinedSymbolRequirementV1::CBridgeTargetSupport { .. }
+                    scoop_slib::FinalUndefinedSymbolRequirementV1::Native { .. }
                 )
         }));
     }

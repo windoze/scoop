@@ -55,7 +55,6 @@ pub(crate) fn prepare(
         target_selection: emitted.target_selection(),
         foundation: emitted.foundation().clone(),
         production: emitted.into_production(),
-        c_bridge_profile: generated.profile().clone(),
         patch_sites,
         stackmaps,
         bindings,

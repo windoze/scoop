@@ -17,14 +17,6 @@ pub(crate) fn complete_requirements(
             .map_err(BuiltinObjectProductionError::SourceExternalRequirements)?;
     let runtime = verify_runtime_and_eh_requirements_v1(source, input.target_selection)
         .map_err(BuiltinObjectProductionError::RuntimeAndEhRequirements)?;
-    let external = classify_c_bridge_target_support_requirements_v1(
-        runtime,
-        bridge_plan,
-        &input.c_bridge_profile,
-    )
-    .map_err(BuiltinObjectProductionError::CBridgeTargetSupportRequirements)?;
-    let external = finish_builtin_external_requirements_v1(external)
-        .map_err(BuiltinObjectProductionError::UnclassifiedExternalRequirement)?;
-    slib::finalize_layout_partitioned_undefined_symbol_requirements_v1(current, external, shape)
+    slib::finalize_layout_partitioned_undefined_symbol_requirements_v1(current, runtime, shape)
         .map_err(BuiltinObjectProductionError::UndefinedSymbols)
 }

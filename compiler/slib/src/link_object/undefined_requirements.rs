@@ -3,19 +3,16 @@
 use std::fmt;
 
 use super::{
-    BuiltinExternalRequirementsV1, CanonicalUndefinedRelocationUseV1,
-    CurrentConeUndefinedRequirementV1, RelocationTargetSlotV1, StrongDefinitionOwnerV1,
-    VerifiedCurrentConeUndefinedRequirementClosureV1,
+    CanonicalUndefinedRelocationUseV1, CurrentConeUndefinedRequirementV1, RelocationTargetSlotV1,
+    StrongDefinitionOwnerV1, VerifiedCurrentConeUndefinedRequirementClosureV1,
+    VerifiedRuntimeAndEhRequirementClosureV1,
 };
 use crate::SlibMemberId;
 use scoop_identity::{
     ConeIdentity, GeneratedBridgeUnitId, NativeExternalContractFingerprint, NativeLibraryBinding,
     OdrMemberId,
 };
-use scoop_lir::{
-    CBridgeTargetSupportRequirementId, RuntimeSymbolContractId, TargetEhRequirementId,
-    ValidatedLirTargetSelection,
-};
+use scoop_lir::{RuntimeSymbolContractId, TargetEhRequirementId, ValidatedLirTargetSelection};
 
 mod wire;
 pub use wire::DecodedCanonicalUndefinedSymbolRequirementSetV1;
@@ -25,7 +22,7 @@ use wire::DecodedFinalUndefinedSymbolRequirementV1;
 mod partitions;
 pub use partitions::*;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum FinalUndefinedSymbolRequirementV1 {
     OdrMember {
         member: OdrMemberId,
@@ -47,8 +44,8 @@ pub enum FinalUndefinedSymbolRequirementV1 {
     TargetEhSupport {
         contract: TargetEhRequirementId,
     },
-    CBridgeTargetSupport {
-        contract: CBridgeTargetSupportRequirementId,
+    Native {
+        symbol: Vec<u8>,
     },
 }
 
@@ -67,8 +64,8 @@ impl CanonicalUndefinedSymbolRequirementV1 {
         &self.use_site
     }
 
-    pub const fn requirement(&self) -> FinalUndefinedSymbolRequirementV1 {
-        self.requirement
+    pub fn requirement(&self) -> FinalUndefinedSymbolRequirementV1 {
+        self.requirement.clone()
     }
 }
 
@@ -95,7 +92,7 @@ impl CanonicalUndefinedSymbolRequirementSetV1 {
 
 pub fn finalize_undefined_symbol_requirements_v1(
     current_cone: VerifiedCurrentConeUndefinedRequirementClosureV1,
-    external: BuiltinExternalRequirementsV1,
+    external: VerifiedRuntimeAndEhRequirementClosureV1,
 ) -> CanonicalUndefinedSymbolRequirementSetV1 {
     let mut requirements = Vec::new();
     for item in current_cone.requirements() {
@@ -116,8 +113,7 @@ pub fn finalize_undefined_symbol_requirements_v1(
         });
     }
 
-    let verified_external = &external;
-    for item in verified_external.source_external_requirements() {
+    for item in external.source_closure().source_external_requirements() {
         requirements.push(CanonicalUndefinedSymbolRequirementV1 {
             use_site: item.use_site().clone(),
             requirement: FinalUndefinedSymbolRequirementV1::SourceExtern {
@@ -126,7 +122,7 @@ pub fn finalize_undefined_symbol_requirements_v1(
             },
         });
     }
-    for item in verified_external.runtime_requirements() {
+    for item in external.runtime_requirements() {
         requirements.push(CanonicalUndefinedSymbolRequirementV1 {
             use_site: item.use_site().clone(),
             requirement: FinalUndefinedSymbolRequirementV1::RuntimeAbi {
@@ -134,7 +130,7 @@ pub fn finalize_undefined_symbol_requirements_v1(
             },
         });
     }
-    for item in verified_external.target_eh_requirements() {
+    for item in external.target_eh_requirements() {
         requirements.push(CanonicalUndefinedSymbolRequirementV1 {
             use_site: item.use_site().clone(),
             requirement: FinalUndefinedSymbolRequirementV1::TargetEhSupport {
@@ -142,11 +138,11 @@ pub fn finalize_undefined_symbol_requirements_v1(
             },
         });
     }
-    for item in verified_external.target_support_requirements() {
+    for item in external.remaining_external_candidates() {
         requirements.push(CanonicalUndefinedSymbolRequirementV1 {
-            use_site: item.use_site().clone(),
-            requirement: FinalUndefinedSymbolRequirementV1::CBridgeTargetSupport {
-                contract: item.requirement().id(),
+            use_site: CanonicalUndefinedRelocationUseV1::from(item),
+            requirement: FinalUndefinedSymbolRequirementV1::Native {
+                symbol: item.symbol().to_vec(),
             },
         });
     }
@@ -154,7 +150,7 @@ pub fn finalize_undefined_symbol_requirements_v1(
     requirements.sort_unstable_by_key(|item| use_key(item.use_site()));
     CanonicalUndefinedSymbolRequirementSetV1 {
         producer: current_cone.producer(),
-        selection: verified_external.selection(),
+        selection: external.selection(),
         requirements,
     }
 }

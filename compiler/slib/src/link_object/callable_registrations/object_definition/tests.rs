@@ -12,6 +12,32 @@ use scoop_wire::encode_runtime;
 use super::*;
 
 #[test]
+fn native_symbol_names_and_relocations_are_distinct_fingerprint_inputs() {
+    let encode = |symbol: &[u8], addend| {
+        let mut relocation = CanonicalObjectRelocationV1::unsigned64(
+            8,
+            FinalUndefinedSymbolRequirementV1::Native {
+                symbol: symbol.to_vec(),
+            },
+        );
+        relocation.form = VerifiedObjectRelocationFormV1::ElfX86_64Rela {
+            kind: object::elf::R_X86_64_PLT32,
+            addend,
+            width: 4,
+        };
+        encode_runtime(&ObjectDefinitionFingerprintInputV1 {
+            bytes: &[0; 16],
+            relocations: &[relocation],
+            direct_inputs: &[],
+        })
+        .unwrap()
+    };
+    let memcmp = encode(b"memcmp", -4);
+    assert_ne!(memcmp, encode(b"bcmp", -4));
+    assert_ne!(memcmp, encode(b"memcmp", 0));
+}
+
+#[test]
 fn storage_and_initialization_targets_preserve_the_original_definition_identity() {
     use scoop_identity::{InitializationUnitKey, PersistentInitializationUnitId, StaticStorageKey};
 

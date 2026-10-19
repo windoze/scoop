@@ -12,8 +12,8 @@ use scoop_identity::{
     DigestSemanticFieldRole, NativeLibraryBinding,
 };
 use scoop_lir::{
-    CBridgeProductionSetV1, CBridgeToolchainProfileV1, CanonicalNativeExternalRequirementSurfaceV1,
-    DigestNodeV1, GeneratedBridgePlanSetV1, ObjectSymbolSurfaceV1,
+    CBridgeProductionSetV1, CanonicalNativeExternalRequirementSurfaceV1, DigestNodeV1,
+    GeneratedBridgePlanSetV1, ObjectSymbolSurfaceV1,
 };
 const MINIMUM_OS: u32 = 0x000d_0100;
 const SDK: u32 = 0x000e_0200;
@@ -22,19 +22,10 @@ pub(in crate::link_object) struct SemanticFixture {
     pub(in crate::link_object) scoop_patch_sites: ScoopLirDigestPatchSitesV1,
     pub(in crate::link_object) bridge_plan: GeneratedBridgePlanSetV1,
     pub(in crate::link_object) native_requirements: CanonicalNativeExternalRequirementSurfaceV1,
-    pub(in crate::link_object) profile: CBridgeToolchainProfileV1,
 }
 
 pub(in crate::link_object) fn semantic_fixture(
     native_name: &str,
-    relocation_symbols: &[&[u8]],
-) -> SemanticFixture {
-    semantic_fixture_with_additional_contracts(native_name, &[], relocation_symbols)
-}
-
-pub(in crate::link_object) fn semantic_fixture_with_additional_contracts(
-    native_name: &str,
-    additional_native_names: &[&str],
     relocation_symbols: &[&[u8]],
 ) -> SemanticFixture {
     let fixture = fixture(Some(native_name));
@@ -115,31 +106,17 @@ pub(in crate::link_object) fn semantic_fixture_with_additional_contracts(
         u64::try_from(scoop_object.section_offset).unwrap() + 16,
     )];
     let scoop_patch_sites = ScoopLirDigestPatchSitesV1::new(builtins, (patch_sites).to_vec());
-    let mut contracts = vec![contract_record(
+    let contracts = vec![contract_record(
         ConeIdentity::CORE,
         "nativeBridgeDeclaration",
         native_name,
         NativeLibraryBinding::DefaultNativeNamespace,
     )];
-    contracts.extend(
-        additional_native_names
-            .iter()
-            .enumerate()
-            .map(|(index, name)| {
-                contract_record(
-                    ConeIdentity::CORE,
-                    &format!("additionalNativeBridgeDeclaration{index}"),
-                    name,
-                    NativeLibraryBinding::DefaultNativeNamespace,
-                )
-            }),
-    );
     let native_requirements = native_surface(ConeIdentity::CORE, contracts, Vec::new());
     SemanticFixture {
         scoop_patch_sites,
         bridge_plan,
         native_requirements,
-        profile,
     }
 }
 
