@@ -12,7 +12,6 @@ pub(super) struct SlibObjects {
     symbols: PlannedStrongObjectSymbolSetV1,
     bridge_objects: GeneratedCObjectSetV1,
     patches: Vec<DigestPatchSiteV1>,
-    profile: scoop_lir::CBridgeToolchainProfileV1,
     c_objects: Vec<(SlibMemberId, Vec<u8>)>,
 }
 
@@ -136,7 +135,6 @@ impl SlibObjects {
             symbols,
             bridge_objects,
             patches,
-            profile: invocation.profile().clone(),
             c_objects,
         }
     }
