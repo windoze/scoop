@@ -21,7 +21,7 @@
 | LLVM codegen：按值复制 | 两条 release 管线增加 memcpyopt；17 项 statepoint 专测及源码三变体通过，text −616 bytes，运行与编译时间基本持平 |
 | LLVM codegen：NoGc 循环 | 启用 load elimination、最多四次完整 unroll、受限 unswitch；18 项 statepoint 专测、源码九变体及旧循环七变体通过。实际递推／四步处理／不变分支分别约 3×／2×／20% 收益，循环 text +256 bytes，编译约 +0.4% |
 | native helper 链接边界 | 已删除未登记外部符号的编译期拒绝，交由 linker 解析；141 项对象产物回归与真实 Darwin loop-idiom 程序通过 |
-| runtime C → LLVM IR 小函数 | 用户追加实施范围；LLVM 批次之后核对、分项实现与对照，当前仅完成早期候选审计 |
+| runtime C → LLVM IR 小函数 | String 有界读取已实现，本机精确 IR 与源码十一变体通过；重建两版 core 后字符遍历约 −7.6%，byteLength 单项未见明确收益。静态 unbox／数组复制待继续，见 [迁移记录](RUNTIME-IR.md) |
 | 性能与跨平台 | A 的本机生产前后矩阵已记录于 [PERFORMANCE.md](PERFORMANCE.md)；B–D 性能、GNU／musl 完整验收及最终清理待完成 |
 
 ## 2026-10-20：LLVM 范围推导与 NoGc 标量补齐
