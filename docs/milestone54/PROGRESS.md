@@ -320,6 +320,8 @@ Linux 重编 HTTP 库暴露了 callable C 字符串的重复归属：已有边�
 
 格式化、workspace clippy 和 885 项 Rust 测试通过（codegen 236、LIR 387、slib 253、linker 9）。独立最小源码在旧工具上复现未登记 `memcmp` 的产物错误，修复后链接并通过 full moving；`m54-native-requirements` 验证跨库结构比较、每个字段的差异、泛型封装、GC 与构建复用。22 项正式 fixture 最终全部通过，共 67 个变体、128 个步骤进程，包含缺失强引用、FFI 参数／ABI／GC effect 冲突等反例。HTTP idle 对端补充识别已有协议支持的空 trailing HEADERS 结束方式，仍检查完整正文与 END_STREAM；继续使用协议库既有的结束行为。
 
+同一 main／native 修正在 Linux 完成 886 项 Rust 专项及 workspace clippy。GNU／musl 各有 22 项正式 fixture 最终通过，每目标 70 个变体、127 个步骤进程；另有 1 项仅适用于 Darwin。覆盖 M56 性能组合、M54 的 GC／对象边界、普通 native 辅助调用、弱引用，以及缺失强引用和 FFI 合同反例。HTTP idle 对端改为按 ACK 限制 PING 积压，并接受目标流 CANCEL 与后续请求的合法乱序；复用探针单独关闭 idle。full moving 下独立诊断确认后续 finish 可耗时 661 ms，超出原 600 ms 测试时限，因此将时限调为 2 秒，同步延长持续进展与应用暂停，三个目标的全部六种协议场景、debug／release 和构建复用通过。
+
 `m54-http-location` 的 Darwin debug／release 两个变体通过，共 6 个进程；生产 `.slib` 消费者验证 URI 中的逗号、相对与跨 authority 引用、fragment 继承和显式空 fragment。5 项库测试在合并 main 后重新通过两种构建及 full moving；合并前的全部 244 项 HTTP 库回归也已通过。首次正式用例修正了捕获外层局部 var 和未知泛型结果下的无 else 尾部 if，改由回调返回响应计数，没有改变语言或库行为。Location 不选择目标协议、不跟随请求，client 继续组合其公开 API。
 
 ## 后续工作
@@ -385,3 +387,5 @@ HTTP idle 验收后，清理已被最终回归替代的 4 个 HTTP idle／基础
 client idle 实施期间，清理已完成的 3 个 HTTP 输入进度／idle 与 h2c 组合 fixture target 目录，释放约 483 MiB；保留源码、生产 sysroot、原始日志、报告与缓存。
 
 main 合并与 native 引用修正验收后，清理已结束的 Rust 增量构建缓存约 22 GiB，以及约 16 MiB 的比较回归诊断 target；配套命令、依赖产物、源用例和日志保留。
+
+Linux 回归收尾期间，清理本机首轮 main／native 验收中已被最终结果替代的 63 个 fixture target，释放约 1.43 GiB；正式源码、编译缓存、最终消费者、原始日志和报告保留。
