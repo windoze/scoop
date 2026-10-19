@@ -153,3 +153,9 @@ B 功能开／关矩阵见性能记录第 13 节：局部装箱与 scope 闭包�
 最终 sysroot 重建在 Darwin／GNU 的 HTTP asyncio 库复现同一 MissingStackmap。定位到后段 GVN／MemorySSA 产生的常量分支：根计划仍包含死路径的四个 site，RS4GC 随后才删除它们。先补实现规范 2.19，再在 Managed release 的全部普通优化之后追加 SCCP／不可达清理，早于最终根计划。没有放宽 stackmap 一致性检查或打开一般 CFG 复制。
 
 fmt／workspace clippy、21 项 statepoint 专测通过；新精确回归覆盖三目标、debug／release、真实机器 stackmap 与保留根。原失败的 HTTP asyncio 库本机成功重建；ranges 源码增加相邻字段与真／假异常路径，随整组 M58 的 fresh-core／moving GC 验证执行。临时函数 dump 已从生产源码撤销。
+
+## 2026-10-20：本机组合验收
+
+重建本分支全部 12 个 core／标准库 Cone 与生产 runtime，HTTP asyncio 的失败按上节闭合。以新 core 运行整组 M58：20 个 fixture、58 变体、98 进程全部通过，含强制移动 GC、minor、含引用 clone／unbox、嵌套闭包、真正挂起、跨线程恢复、异常与并发 poll 根恢复。21 项 statepoint 专测同时覆盖 Darwin、GNU、musl 的实际机器对象。
+
+额外常量清理的隔离对照未见明显编译或运行代价，text／文件大小不变，见性能记录第 15 节。诊断 dump 与 benchmark 临时源码均已恢复，已完成的工具、可执行文件和 fixture 缓存已清理，仅保留仓库外报告／日志；GNU／musl 完整运行验收仍在独立 worktree 进行。

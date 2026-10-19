@@ -26,7 +26,7 @@ while i < n:
 
 这里编译期确定的是**内层最多 N 轮**，不是整个循环的次数，也不要求最后一块填满。对满足 `0 <= i <= n` 的非负计数，使用 `n - i` 限制剩余量，避免先算 `i + N` 再取 min 所带来的溢出。保留函数入口 poll。上例只是适用模式的伪代码，不是任意 while 的等价替换规则。
 
-收益有两部分：降低 poll 快路径的原子读取／分支频率；给无 poll 内层提供向量化、归纳变量和局部移动优化的机会。当前 [policy.rs](../../compiler/codegen/src/statepoint/policy.rs) 按整个 callable 的 typed GC effect 选择管线：NoGc 且无 site 才有 loop vectorizer，Managed 使用保守标量管线。因此**只移走内层 poll，不会自动获得当前 NoGc 的循环优化收益**。
+收益有两部分：降低 poll 快路径的原子读取／分支频率；给无 poll 内层提供向量化、归纳变量和局部移动优化的机会。调查基线的 [policy.rs](../../compiler/codegen/src/statepoint/policy.rs) 按整个 callable 的 typed GC effect 选择管线：NoGc 且无 site 才有 loop vectorizer，Managed 使用保守标量管线。因此**只移走内层 poll，不会自动获得 NoGc 的循环优化收益**；生产实现另加第 7 节的实际结构分析，只对合格整数内层请求向量化。
 
 [OpenJDK C2 的 loop strip mining 设计](https://cr.openjdk.org/~roland/loop_strip_mining.pdf)使用同类外层 safepoint／有界内层结构，并讨论了循环变换期间的结构维护和短循环成本。这里采用其机制思路，不照搬 JVM 的节点类型、JIT profiling 或参数默认值。
 
