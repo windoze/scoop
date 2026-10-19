@@ -1,0 +1,38 @@
+schema = 1
+name = "m54-ip-network"
+inputs = ["consumer", "verify.py"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m54", "platform", "net", "cidr", "url", "prebuilt", "gc"]
+variants = [{name = "debug", vars = {mode = []}}, {name = "release", vars = {mode = ["--release"]}}]
+
+[[steps]]
+name = "source"
+files = [{copy = {from = "${fixture}/consumer", to = "${work}/consumer"}}, {copy = {from = "${fixture}/verify.py", to = "${work}/verify.py"}}]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${work}/consumer", {each = "${mode}"}, {each = "${link_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${build.result.observations.child_invocations.length}", equals = 1}]
+
+[[steps]]
+name = "run"
+argv = ["python3", "${work}/verify.py", "${build.result.output}"]
+exit = 0
+stdout = "808 independent IPv4 and IPv6 CIDR vectors passed\n"
+stderr = ""
+
+[[steps]]
+name = "warm"
+argv = ["${scoop}", "build", "${work}/consumer", {each = "${mode}"}, {each = "${link_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${warm.result.observations.child_invocations}", equals = []}]

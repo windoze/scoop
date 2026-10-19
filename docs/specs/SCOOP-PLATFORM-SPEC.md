@@ -251,6 +251,8 @@ communicate(input: List<Byte>? = None): ProcessOutput 收集 stdout/stderr 的�
 
 `scoop.platform.net.AddressFamily { Ipv4, Ipv6 }` 区分 IPv4／IPv6。不可变 IpAddress 保存地址位与 IPv6 scopeId: UInt，实现 Equals、Hash、ToString；fromByteArray 接受 List<Byte> 的 4 或 16 字节快照副本，IPv4 不接受非零 scope。toByteArray 返回独立数组。parse(String) 只解析 IP 字面量，IPv6 可带 `%数字` scope，不解析接口名或域名；toString 输出标准数字文本与非零 scope。提供 IPV4_ANY、IPV4_LOOPBACK、IPV6_ANY、IPV6_LOOPBACK。
 
+`IpNetwork(address: IpAddress, prefixLength: Int)` 表示 IPv4／IPv6 CIDR 网络，实现 Equals、Hash、ToString；address 保存按前缀掩码清除主机位后的网络地址，prefixLength 分别限于 0..32 和 0..128。网络不绑定接口，构造拒绝非零 scopeId，`contains(address)` 按同一地址族的地址位匹配，不比较被查询地址的 scopeId，也不把 IPv4-mapped IPv6 当作 IPv4。`parse(String)` 接受一个 IP 字面量、一个 `/` 和无符号十进制前缀长度，复用 IpAddress.parse，不进行 DNS；非法地址、缺少前缀及越界均报 IllegalArgumentException。toString 输出规范化网络地址和前缀长度。CIDR 的解析、规范化与包含判断属于 platform，代理等上层策略直接组合此类型。
+
 SocketAddress(address: IpAddress, port: Int) 检查 0..65535，实现 Equals／Hash／ToString。parse 接受 `IPv4:port` 或 `[IPv6%scope]:port`；端口为十进制数字，不接受缺失、负值或溢出。bind 端口 0 由 OS 分配，返回后的 localAddress() 查询给出实际值。
 
 resolve(host: OsString, port: Int, family: AddressFamily? = None) 与 String 重载使用阻塞 getaddrinfo，返回实际地址数组，不承诺排序或去重。名称与 IP parse 分开，不做 IDNA 或隐式构造器联网；名称字节不含 NUL。错误保存 AddressResolution 的 EAI code；仅 EAI_SYSTEM 另保存同次 errno。native 结果在复制后 freeaddrinfo，包括复制失败路径；不使用外部 DNS 服务作为测试前提。

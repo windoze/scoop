@@ -89,6 +89,7 @@
 | Boolean Scoop ABI | 标量参数和结果使用 i1 zeroext，定义、调用、间接分派和 statepoint 保持一致；现有目标指纹升级后正常重建产物 | GNU 旧工具最小复现 1／255 两个真值比较失败；237 项 codegen、6 项 ABI 分类、387 项 LIR、253 项产物测试及 workspace clippy 通过，Darwin 正式消费者 8 个变体、26 个步骤进程通过；GNU／musl 各 10 个 fixture、20 个变体、70 个步骤进程通过 |
 | LLVM safepoint 不可复制 | 普通 safepoint 调用、显式 statepoint 和逻辑根恢复标记统一携带 noduplicate；保留现有优化管线与机器层约束 | Darwin 239 项、Linux 253 项 codegen 测试及 workspace clippy 通过；最小 IR 核对三目标机器栈映射，四项正式回归在每目标各通过 8 个变体、34 个步骤进程，原代理消费者通过两种构建及 full moving |
 | client 显式代理 | 纯 Scoop 组合 HTTP／HTTPS 转发、CONNECT、SOCKS5、本地／代理 DNS、两层 TLS 与目标 H2；suspend selector、静态代理凭据、路由池隔离及协商截止 | Darwin 30 个网络场景与 10 个 selector 生命周期场景通过 debug／release、双 native 线程、full moving 与复用；158 项 client 库测试通过两种构建，生产库与连接池／重试组合最终通过 8 个变体、24 个步骤进程 |
+| IP CIDR 网络 | platform.IpNetwork 提供 IPv4／IPv6 网络归一化、前缀检查、包含判断与值比较；地址解析仍使用 IpAddress，上层不重复实现位掩码 | Darwin 正式消费者通过 debug／release 和构建复用；808 个 Python ipaddress 独立向量覆盖全部前缀长度、内外边界，另验证无效输入、IPv4-mapped IPv6、scope 及 URL／socket 地址组合；未启用 GC stress |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
