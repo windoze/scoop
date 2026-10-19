@@ -87,6 +87,7 @@
 | client Digest 认证 | 纯 Scoop 组合 crypto、charset、URL 和 HTTP；六种摘要算法形式、auth／auth-int、有限预哈希、逐次签名、nonce 计数、响应证明及挂起凭据与清理 | Darwin 95 个独立场景通过 debug／release、full moving 和构建复用，共 5 个 fixture、10 个变体、30 个步骤进程；独立对端、双 native 线程、H2、编码、重定向、重试及并发更新通过 |
 | 原生缓冲区批量只读 | platform 的 NativeByteBuffer.getBytes 返回已初始化绝对区间的独立副本；一次状态同步，不改变游标，借用期间仍可读取 | Darwin 两个正式 fixture 通过 debug／release、full moving 与复用，共 4 个变体、12 个步骤进程；覆盖边界、跨线程借用，以及真实短读写 TCP 与 crypto 增量摘要 |
 | Boolean Scoop ABI | 标量参数和结果使用 i1 zeroext，定义、调用、间接分派和 statepoint 保持一致；现有目标指纹升级后正常重建产物 | GNU 旧工具最小复现 1／255 两个真值比较失败；237 项 codegen、6 项 ABI 分类、387 项 LIR、253 项产物测试及 workspace clippy 通过，Darwin 正式消费者 8 个变体、26 个步骤进程通过；GNU／musl 各 10 个 fixture、20 个变体、70 个步骤进程通过 |
+| LLVM safepoint 不可复制 | 普通 safepoint 调用、显式 statepoint 和逻辑根恢复标记统一携带 noduplicate；保留现有优化管线与机器层约束 | 239 项 codegen 测试及 workspace clippy 通过；最小 IR 覆盖三目标、两种构建的实际机器栈映射，Darwin 四项正式回归通过 8 个变体、34 个步骤进程，原代理消费者通过两种构建及 full moving |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -396,6 +397,10 @@ Digest 的 95 个独立场景包括 57 个协议、17 个生命周期、14 个�
 
 合并后的 Bearer、Digest 与 Digest 组合三项长 fixture 在 Darwin 通过两种构建、full moving 与复用，共 6 个变体、18 个步骤进程；GNU 的 Bearer 主 fixture 同样通过两个变体、6 个步骤进程。根据实际强制 GC 耗时，测试对 Bearer cache／HTTP/2 和 Digest 组合 HTTP/2 使用 600 秒单进程时限，三个完整协议批次使用 3600 秒外层时限，未改产品默认截止。旧 GNU cache 二进制曾在一次独立压力运行中报告 UnwrapException，后续三次独立诊断与新正式消费者均未复现；测试已增加收到 EOF 的明确断言，不能将该异常视为已定位或修复。GNU 其余认证补验与 musl 验证继续进行。
 
+显式代理的 release 构建曾因 SafepointId 重复失败。最小 LLVM IR 确认 SimplifyCFG 将短路条件合流中的一次调用及根恢复标记复制到两个分支；在三个统一发射入口添加 noduplicate 后，同一优化管线保留一个实际调用点，无须关闭更多 pass 或改写 client 源码。SafepointId 在 Rust 中仍是普通标识值，不把复制 ID 数值误当成新增调用点。
+
+新增分支／异常消费者与既有 guarded unwrap、tail duplication、Boolean ABI 正式回归在 Darwin 全部通过 debug／release 和 full moving。原代理的 28 个网络场景及 selector 的 10 个生命周期场景也通过两种构建、full moving 与正常构建复用，共 4 个变体、12 个步骤进程。独立 LLVM 专测同时验证 Darwin／GNU／musl 的根计划与机器栈映射对应；Linux 新编译器的实际消费者验证继续跟进。
+
 ## 后续工作
 
 继续完成代理、Cookie、缓存／续传、SSE／WebSocket 高层组合和可观察性。每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
@@ -469,3 +474,5 @@ HTTP/1 上传收尾验收后，清理已被修复后验证替代的 3 个诊断 
 Digest 实施期间，清理已被最终 Bearer 生命周期回归替代的 3 个 target 目录，释放约 544 MiB；当前验证产物、生产库、源码、缓存、日志和报告保留。
 
 合并 M55 后，清理已被新工具回归替代的 Digest 参数变更与 nextnonce 共 4 个旧 target，释放约 685 MiB；正式源码、最终消费者、生产库、缓存、原始日志和报告保留。
+
+safepoint 不可复制修正验收后，清理约 19.9 GiB 已结束的 Rust 增量构建缓存；配套命令、依赖产物、正式消费者、生产库与仓库外诊断日志保留。

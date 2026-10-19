@@ -178,6 +178,7 @@ fn configure_statepoint_call(
     statepoint_call: CallSiteValue<'_>,
     callee_type: FunctionType<'_>,
 ) {
+    mark_nonduplicable(context, statepoint_call);
     // Opaque pointers require the actual callee signature on operand 2.
     statepoint_call.add_attribute(
         AttributeLoc::Param(2),

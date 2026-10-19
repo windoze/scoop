@@ -24,6 +24,8 @@ mod guarded_unwrap;
 mod interface_parts;
 #[path = "statepoint_tests/loops.rs"]
 mod loops;
+#[path = "statepoint_tests/nonduplicable.rs"]
+mod nonduplicable;
 #[path = "statepoint_tests/optimized.rs"]
 mod optimized;
 #[path = "statepoint_tests/terminal_poll.rs"]
