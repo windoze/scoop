@@ -12,6 +12,7 @@
 | 多证书 PEM | crypto 提供 `parseCertificatesPem` 与 `TrustStore.fromPem`；保留顺序、独立拥有证书，拒绝空包、坏片段与非证书内容，失败释放部分结果 | Darwin debug／release 与 moving GC：3 项 bundle 测试与 3 项既有证书测试；重复证书的独立关闭、显式信任链、临时 bundle 释放后的锚保活 |
 | 独立 IDNA | `scoop.idna` 提供完整域名／单标签双向转换、OrNone、`IdnaName` 双表示快照、结构化错误及原始 RFC 3492 codec；固定 libidn2 2.3.8、libunistring 1.4.2、libiconv 1.19，无 ICU | Darwin debug／release 与 moving GC：10 项测试；官方 Unicode 15.1 的 6265 个输入与同版本映射表独立对照，无未解释差异 |
 | 独立 URL | `scoop.url` 提供不可变 URI／IRI、组件 builder、相对解析、网络 origin、HTTP target、百分号／表单与有序重复 query；固定 uriparser 1.0.2，复用 IDNA 的已验证双表示 | Darwin debug／release 与 moving GC：12 项测试，包含 RFC 3986 第 5 节的 42 个解析向量、字节位置映射、IPv4／IPv6、IRI、空组件与编码边界 |
+| 通用 authority 的网络主机 | URL 公开既有 `UrlAuthority.networkHost()`，非 HTTP scheme 与相对 authority 可直接取得规范 DNS／IP；不重做解析／IDNA，也不承担协议端口策略 | Darwin 独立生产消费者的 debug／release、full moving 与复用通过，共 2 个变体、6 个步骤进程；覆盖 SOCKS URI、IDNA／根点、IPv4／IPv6、builder／resolve、通用 URI 保真及 Host 错误原因 |
 | 独立字符集 | `scoop.charset` 提供固定名称／别名、严格与有损内存转换、BOM／字节序配置及保留状态的增量引擎；固定 libiconv 1.19，108 种编码、352 个可查名称 | Darwin debug／release 与 moving GC：11 项测试；另有 864 组与 Python 标准编码器的独立分块对照，已验证全部名称能解析 |
 | 压缩内存与增量引擎 | `scoop.compression` 提供 gzip／zlib／raw DEFLATE／Brotli／zstd 的完整内存操作和有状态编码／解码，显式字典、元数据、同步 flush、结束与局部限制 | Darwin debug／release 与 moving GC：12 项测试；384 组与独立 gzip／zlib／Brotli／zstd 工具的分块对照，另用独立工具验证 gzip 元数据与预共享 zstd 字典 |
 | 压缩同步流 | 同一 Cone 的 CompressionSource／Sink、DecompressionSource／Sink 与两个复制扩展，共享增量引擎；支持短传输、单字节缓冲、明确 finish 和可选端点接管 | Darwin debug／release 与 moving GC：10 项新增测试及 12 项引擎回归；所有格式的增量流、连续适配、结束检查、实际进度和清理原因均通过 |
@@ -462,3 +463,5 @@ Linux 回归收尾期间，清理本机首轮 main／native 验收中已被最�
 HTTP/1 上传收尾验收后，清理已被修复后验证替代的 3 个诊断 target，释放约 469 MiB；正式源码、最终消费者、生产库、编译缓存、原始日志和报告保留。
 
 Digest 实施期间，清理已被最终 Bearer 生命周期回归替代的 3 个 target 目录，释放约 544 MiB；当前验证产物、生产库、源码、缓存、日志和报告保留。
+
+合并 M55 后，清理已被新工具回归替代的 Digest 参数变更与 nextnonce 共 4 个旧 target，释放约 685 MiB；正式源码、最终消费者、生产库、缓存、原始日志和报告保留。

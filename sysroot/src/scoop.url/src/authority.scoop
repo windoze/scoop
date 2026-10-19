@@ -29,7 +29,7 @@ public class UrlAuthority internal constructor(
         return output.toString()
     }
 
-    internal fun networkHost(): UrlHost = when (resolution) {
+    public fun networkHost(): UrlHost = when (resolution) {
         case HostResolution.Dns(name) -> UrlHost.Dns(stripRootDot(name.ascii))
         case HostResolution.Ipv4(bytes) -> UrlHost.Ipv4(bytes)
         case HostResolution.Ipv6(bytes) -> UrlHost.Ipv6(bytes)

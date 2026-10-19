@@ -10,7 +10,7 @@
 
 Unicode 输入先按 IRI 规则把非 ASCII 标量编码为 UTF-8 百分号字节，再交给同一 URI parser；ASCII 结构分隔符保持不变。解析出的网络 host 在明确边界进行百分号解码、严格 UTF-8 和 IDNA 转换。此适配不重写 URI 状态机，不把整个输入先解码后再寻找分隔符。
 
-`Url` 表示绝对或相对引用；允许无 authority 的绝对 URI 和非 HTTP scheme。通用 URI 的 registered-name 按组件保留；只有转换为网络 origin 时才要求 DNS 名或 IP。本库不猜测 scheme 专属语义，rootless path 也按 RFC 3986 的通用相对解析规则处理。HTTP client 只接受绝对 `http`／`https` URL，WebSocket 入口接受 `ws`／`wss`。
+`Url` 表示绝对或相对引用；允许无 authority 的绝对 URI 和非 HTTP scheme。通用 URI 的 registered-name 按组件保留；只有取得网络 host 或转换为网络 origin 时才要求 DNS 名或 IP。本库不猜测 scheme 专属语义，rootless path 也按 RFC 3986 的通用相对解析规则处理。HTTP client 只接受绝对 `http`／`https` URL，WebSocket 入口接受 `ws`／`wss`。
 
 ## 2. 值与公共入口
 
@@ -24,6 +24,7 @@ Url 为不可变、可比较与 hash 的普通值对象，持有 Scoop 组件快
 | `url.toIriString()` | 生成 Unicode 展示文本；不用于 DNS、TLS、签名或 origin 比较 |
 | `url.toBuilder()`、`builder.build()` | 显式修改与检查后构造新值；原值不变 |
 | `scheme`、`authority`、`encodedPath`、`encodedQuery`、`encodedFragment` | 保存是否存在及编码后的独立组件；缺失和空串不同 |
+| `authority.networkHost()` | 返回已解析的规范 DNS／IP，与 scheme 和端口策略无关；非法网络 host 报告 Host 错误，不改变通用 URI |
 | `httpOrigin()` | 验证 HTTP／WebSocket 网络目标并返回规范化 scheme、host、有效端口 |
 | `httpRequestTarget()` | 返回 path 与可选 query；空 path 变为 `/`，不包含 fragment 或 userinfo |
 | `httpAbsoluteTarget()` | 返回代理请求所需的绝对形式；使用相同网络目标校验并排除 userinfo 与 fragment |
@@ -36,7 +37,9 @@ port 必须为十进制 `0..65535`，显式空端口为格式错误；HTTP clien
 
 网络 DNS 名可保留表示绝对名称的末尾根点用于序列化和解析。证书名称比较使用去掉该根点的 A-label；origin、Cookie 和连接池统一使用去掉根点后的 DNS 名，禁止各层各自选择规范化方式。根域本身、空 host 和非 DNS registered-name 不能成为 HTTP 连接目标。
 
-authority 保存 host 的网络解释结果与失败原因。DNS 同时需要传输和展示表示时调用 `Idna.parse`，复用 `IdnaName` 的两种快照；origin、展示和字段访问不重新执行 IDNA。通用 registered-name 的网络解释失败不使 URI 本身失效，`httpOrigin` 才报告对应 host 错误。支持的网络 scheme 在序列化时采用已取得的规范 A-label。
+authority 保存 host 的网络解释结果与失败原因。DNS 同时需要传输和展示表示时调用 `Idna.parse`，复用 `IdnaName` 的两种快照；origin、展示和字段访问不重新执行 IDNA。通用 registered-name 的网络解释失败不使 URI 本身失效，`networkHost` 或 `httpOrigin` 才报告对应 host 错误。支持的网络 scheme 在序列化时采用已取得的规范 A-label。
+
+`UrlAuthority.networkHost()` 同样适用于 SOCKS5 等非 HTTP scheme 及相对 authority；只读取既有网络解释结果，不重新解析 URL、映射 IDNA、选择默认端口或执行 DNS。调用者负责所属协议的 scheme 与端口规则。它与 `httpOrigin().host` 使用同一套 DNS 根点、严格 IPv4、IPv6 与错误规则；后者仍只接受既有 HTTP／WebSocket scheme。取得网络 host 不改写通用 URI 的 registered-name 或其他组件。
 
 ## 3. 编码、参数与拼装
 
@@ -56,7 +59,7 @@ builder 分开提供接收原文与接收已编码组件的入口：`appendPathS
 
 Location 可以是绝对、相对、仅 query 或仅 fragment 的引用，均由 `resolve` 处理。重定向是否允许该 scheme、是否跨 origin、是否转发认证由 client 决定；URL 库只返回规范值。解析不读取环境变量或当前目录，不自动从缺少 scheme 的 `example.com` 猜成 HTTPS。
 
-userinfo 能解析和显式序列化，但 HTTP client 不把它自动转成 Authorization；请求构造时拒绝含 userinfo 的网络 URL 并要求显式认证配置。日志展示入口 `redacted()` 移除 userinfo，并按调用者指定参数名隐藏 query 值，不修改用于实际传输的 Url。
+userinfo 能解析和显式序列化，但 HTTP client 不把它自动转成 Authorization；实际请求目标排除 userinfo，凭据通过显式认证配置提供。日志展示入口 `redacted()` 移除 userinfo，并按调用者指定参数名隐藏 query 值，不修改用于实际传输的 Url。
 
 文件下载目标由调用者提供 Path。Content-Disposition 的文件名只是 HTTP 元数据，不能直接用 Url 或 server 文件名覆盖本地文件。URL 不承担文件系统来源审计、沙箱或路径权限检查。
 
