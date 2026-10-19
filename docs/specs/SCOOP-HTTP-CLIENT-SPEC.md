@@ -161,13 +161,23 @@ H2 请求取消通过 stream close／RST_STREAM，其他请求继续；H1 取消
 
 ### 7.1 调用截止与头部等待
 
-HttpClientConfig.timeouts 使用 HttpTimeoutOptions(total = None, poolAcquire = None, responseHeaders = None)；HttpCallOptions.timeouts 为 None 时继承，Some 时完整替换该次配置。这三个时长均为 None 或非负值，零表示进入对应阶段即到期。配置解释不增加其他尚未实现阶段的占位选项。
+HttpClientConfig.timeouts 使用 HttpTimeoutOptions；调用层的 total／poolAcquire／responseHeaders 默认均为 None，建连阶段默认见 §7.2。HttpCallOptions.timeouts 为 None 时继承，Some 时完整替换该次配置。所有时长均为 None 或非负值，零表示进入对应阶段即到期。配置解释不增加其他尚未实现阶段的占位选项。
 
 total 从 execute 登记本次调用开始计时，直到上传、响应消费及协议资源清理完成；交付最终头部、暂不读取 body 和来源关闭中的等待均不重置它。poolAcquire 从登记池等待开始，到已有连接的流／消息容量或新连接名额预留成功时停止，不把随后建连计入池等待。responseHeaders 从请求头提交完成开始，到最终头部到达时停止；并行上传、Continue 等待和信息响应回调占用同一截止，1xx 不延长它。
 
 HttpTimeoutException 的 phase 使用 HttpTimeoutPhase.Total／PoolAcquire／ResponseHeaders，limit 为该阶段配置的时长，elapsed 为选择超时结果时的单调时钟经过量。requestBodyBytes、encodedResponseBodyBytes、responseBodyBytes 保存当时已由正文 I/O 返回确认的累计进度：分别为交给 HTTP 的请求表示字节、HTTP 交给解码输入的响应表示字节和正文视图读出的字节。它们不包括 HTTP 定界／TLS 字节或尚未由在途操作确认的进度，达到 Long 上界时饱和。
 
 阶段完成与超时在同一调用状态边界选择结果；池名额选择、最终头部交付及正文 I/O 返回时也检查仍有效的单调截止，同步回调占住事件循环不会使已过期调用成功交付。多个阶段同时已到期时选择最早的截止，已有取消／操作失败优先保留。计时任务由调用登记并在资源清理时取消，调用 completion 等待其真实结束。超时不会抢先恢复正在借用缓冲区的读取／上传；响应头之前由 execute 报告，头部之后由后续正文操作或首次尚未观察失败的 close 报告。
+
+### 7.2 DNS、TCP 与 TLS 阶段
+
+HttpTimeoutOptions 的 resolve／connect／tlsHandshake 默认各为 Some(Duration.seconds(30))，None 关闭该阶段，零表示进入阶段即到期。它们与三个调用层选项一起继承或完整替换；复用已建立的连接不再次计时。HttpClientConfig.tcpConnect 提供竞速间隔和并发数，所属 asyncio 配置中的 resolveTimeout／connectTimeout 在 client 中统一由 HttpTimeoutOptions 的相应值覆盖。
+
+DNS 名称直接使用 asyncio.connectTcp 的双族解析与候选竞速；client 不先串行解析、重写候选顺序或叠加一个覆盖 DNS 与 TCP 的混合时限。底层的解析截止只停止未完成的族，其他候选仍可成功。所有候选最终失败且存在 TcpResolutionTimeoutException 时，client 报 HttpTimeoutPhase.Resolve，cause 保留完整 TcpConnectException；连接截止映射为 Connect，cause 为原始 TcpConnectTimeoutException，limit／elapsed 保留底层选择时的值。
+
+IP 字面量跳过 resolve，connect 从提交单个 TCP 连接前计时。TLS 的 tlsHandshake 从调用 AsyncTlsStream 接管连接前开始，到握手和身份验证完成时结束；阶段为 TlsHandshake，ALPN 的协议选择失败保留 HttpNegotiationException。明文请求不启动 TLS 计时。阶段结束检查仍有效的 total，握手或连接成功但截止已过时，关闭未交付资源再报告失败。
+
+HttpTimeoutException.cause 为 None 或原始下层异常；附带清理失败时继续使用 ResourceUseException，不能丢失已选择的超时、取消或 native 原码。任何阶段到期都等实际连接、握手及取消收尾后再结束调用，未完成的连接名额随后才可复用。
 
 ## 8. 重定向、重试与认证
 

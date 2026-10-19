@@ -13,13 +13,20 @@ private class HttpClientTimeoutOptionsTest {
         assertFailsWith<IllegalArgumentException> { HttpTimeoutOptions(total = negative) }
         assertFailsWith<IllegalArgumentException> { HttpTimeoutOptions(poolAcquire = negative) }
         assertFailsWith<IllegalArgumentException> { HttpTimeoutOptions(responseHeaders = negative) }
+        assertFailsWith<IllegalArgumentException> { HttpTimeoutOptions(resolve = negative) }
+        assertFailsWith<IllegalArgumentException> { HttpTimeoutOptions(connect = negative) }
+        assertFailsWith<IllegalArgumentException> { HttpTimeoutOptions(tlsHandshake = negative) }
         val zero = HttpTimeoutOptions(total = Some(Duration.ZERO))
         assertTrue(zero.total == Some(Duration.ZERO))
         assertTrue(zero.poolAcquire == None && zero.responseHeaders == None)
+        val thirty = Some(Duration.seconds(30L))
+        assertTrue(zero.resolve == thirty && zero.connect == thirty && zero.tlsHandshake == thirty)
+        val disabled = HttpTimeoutOptions(resolve = None, connect = None, tlsHandshake = None)
+        assertTrue(disabled.resolve == None && disabled.connect == None && disabled.tlsHandshake == None)
     }
 
     @Test
-    fun `call options inherit deadlines and an explicit empty replacement disables them`() {
+    fun `call options inherit deadlines and an explicit replacement resets the call deadlines`() {
         withClientTimeoutTest(HttpTimeoutOptions(total = Some(Duration.ZERO))) suspend { _, scope, listener, config ->
             val started = AtomicBoolean(false)
             val serving = scope.launch suspend {

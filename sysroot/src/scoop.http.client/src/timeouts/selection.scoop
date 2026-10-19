@@ -5,7 +5,7 @@ import scoop.time.Duration
 import scoop.time.TimeMark
 
 internal fun checkClientDeadlines(call: ClientCall) {
-    if (!call.tracksProgress) return
+    if (!call.usesDeadlines) return
     try {
         val now = MonotonicTimeSource.markNow()
         val error = call.lock.withLock { selectExpiredClientDeadline(call, now) }

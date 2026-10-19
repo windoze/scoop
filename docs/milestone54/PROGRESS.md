@@ -63,6 +63,7 @@
 | 响应内容语义与 Content-Type 字段 | HTTP 库按原始方法和状态查询内容语义；HttpMediaType.parseFields 解释单值字段并保留缺省，拒绝重复字段 | 新增 3 项测试与 4 项媒体类型回归通过 debug／release；新增测试通过两种构建的 full moving，正式 client 消费者组合 HEAD／304 元数据与显式字符集覆盖 |
 | 响应自动解码与有界读取 | 纯 Scoop 组合 gzip／zlib／Brotli／zstd 异步流，支持 Raw、逆序多层解码和原始头部；bytes／text／json／copyTo 共用单一消费位置与读取互斥，取消等待 decoder 清理 | 新增 16 项测试，client 全部 99 项通过 debug／release；20 项新旧用例逐例通过两种构建的 full moving，独立 HTTP 对端、双线程并行 H2 与正式构建复用通过 |
 | 调用截止与阶段等待 | HttpTimeoutOptions 提供 total／poolAcquire／responseHeaders；配置继承或完整替换，单调截止覆盖正文消费及真实清理，阶段与进度随结构化异常交付 | 新增 13 项测试，client 全部 112 项通过 debug／release；17 项新旧用例逐例通过两种构建的 full moving，独立对端的同步回调边界、压缩取消、H2 单流隔离与构建复用通过 |
+| 统一网络阶段时限 | HttpTimeoutOptions 的 resolve／connect／tlsHandshake 默认各 30 秒；DNS／TCP 复用 asyncio 的分族截止与竞速，TLS 单独计时，结构化错误保留下层原因，复用连接跳过建连阶段 | 新增 7 项测试并扩展配置覆盖，client 全部 119 项通过 debug／release；14 项新旧用例逐例通过两种构建的 full moving，独立 Python socket／TLS 对端验证零期限、握手停滞、总截止与复用 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -256,13 +257,19 @@ SecTrust 对原有十年有效期叶证书的拒绝符合系统政策，测试�
 
 7 项新测试与 4 项 TCP 竞速／取消回归逐例通过两种构建的 full moving，共 22 个进程。真实 worker fence 验证排队 DNS 超时与显式取消的释放，候选计划验证迟到解析不能覆盖已结束族，既有取消专测继续检查迟到 DNS 和竞争 socket 的实际收尾。阶段时长默认关闭，client 的缺省与错误映射由后续集成配置；首次编译修正了测试对 Option 时长的泛型断言写法，最终全部回归通过。
 
+`m54-client-network` 在 Darwin 通过 debug／release 两个变体，共 6 个进程。五种独立对端场景各由两个 native 线程执行：DNS／TCP 零期限失败后继续调用、零 TLS 时限下不发送 ClientHello、实际握手停滞、更早的总截止，以及握手结束后的延迟读取和同连接复用；full moving 与构建复用通过。
+
+7 项新测试与配置、TLS／ALPN、H2 取消回归共 14 项，逐例通过两种构建的 full moving，共 28 个进程。IP 与明文跳过不适用阶段，统一配置覆盖 asyncio 的底层时限字段，失败保持完整 DNS／TCP 原因；超时和显式取消均等待实际关闭，另一 origin 继续可用。生产依赖按正常库入口刷新，client 没有引入解析、竞速或 TLS 的替代实现。
+
 ## 后续工作
 
-继续在 client 集成 DNS／TCP 时限，完成 TLS 与实际 I/O idle 阶段，以及重定向／重试／认证／代理、Cookie、缓存／续传、SSE／WebSocket 高层组合和可观察性。实际底层缺口仍在所属库补齐；每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
+继续在所属 HTTP 层补齐实际 I/O idle 阶段，并完成 client 的重定向／重试／认证／代理、Cookie、缓存／续传、SSE／WebSocket 高层组合和可观察性。每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
 
 ## 验证安排
 
 复用 M53 已完成的工具与目标资源，改动的库通过正常准备／构建入口更新。先运行本机相关测试，待功能组合稳定后在 Linux 完整验证；普通库改动不重复运行无关编译器全量测试。原始日志、fixture 工作区与本期构建缓存保存在仓库外的 `scoop-work/m54`。
+
+Linux 使用 nuc12 上的独立 checkout；已构建配套命令及 GNU／musl 的 OpenSSL、nghttp2、文本、URL、压缩和 libunwind 资源。宿主 LLVM 为 22.1.2，libunwind 源码为固定的 22.1.8；这些是环境准备结果，功能运行验收尚未进行。
 
 已清理本机旧 `target/debug/incremental`，释放约 8 GB；保留当前仍需复用的编译产物。后续按实际磁盘占用继续清理不再使用的 target 内容。
 
@@ -303,3 +310,5 @@ Trailer 实施期间，清理 Expect 字段、h2c 及 Continue 首轮消费者�
 响应解码验收期间，清理 HTTP trailer 与请求 trailer 消费者的 4 个已结束 fixture target 目录，释放约 458 MiB；保留源码、生产 sysroot、当前库 target、原始日志、报告与缓存。
 
 调用超时验收期间，清理最终 Continue 与响应解码消费者的 4 个已结束 fixture target 目录，释放约 621 MiB；保留源码、当前消费者、生产 sysroot、库 target、原始日志、报告与缓存。
+
+网络阶段验收期间，清理上一批调用超时与 TCP 截止消费者的 4 个已结束 fixture target 目录，释放约 426 MiB；保留源码、当前消费者、生产 sysroot、库 target、原始日志、报告与缓存。

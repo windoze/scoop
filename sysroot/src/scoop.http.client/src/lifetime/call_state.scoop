@@ -12,6 +12,7 @@ internal class ClientCall(
     val timeouts: HttpTimeoutOptions = request.options.timeouts ?: client.config.timeouts
     val started: TimeMark? = if (timeouts.total != None) Some(MonotonicTimeSource.markNow()) else None
     val tracksProgress: Boolean = timeouts.total != None || timeouts.poolAcquire != None || timeouts.responseHeaders != None
+    val usesDeadlines: Boolean = tracksProgress || timeouts.resolve != None || timeouts.connect != None || timeouts.tlsHandshake != None
     val lock: ClientLock = ClientLock()
     var caller: Job? = Some(caller)
     var result: Continuation<HttpResponse>? = Some(result)

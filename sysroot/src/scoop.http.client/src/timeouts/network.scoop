@@ -1,0 +1,32 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.time.Duration
+
+internal fun clientTcpConnectOptions(call: ClientCall): TcpConnectOptions {
+    val options = call.client.config.tcpConnect
+    return TcpConnectOptions(options.resolutionDelay, options.attemptDelay, options.maxConcurrentAttempts,
+        call.timeouts.resolve, call.timeouts.connect)
+}
+
+internal fun mapClientNetworkTimeout(call: ClientCall, error: Throwable): Throwable {
+    if (error is ResourceUseException) {
+        val mapped = mapClientNetworkTimeout(call, error.primaryFailure)
+        return if (mapped === error.primaryFailure) error else ResourceUseException(mapped, error.cleanupFailure)
+    }
+    if (error is TcpConnectTimeoutException)
+        return clientNetworkTimeout(call, HttpTimeoutPhase.Connect, error.limit, error.elapsed, error)
+    if (error is TcpConnectException) {
+        for (failure in error.resolutionFailures) {
+            val cause = failure.cause
+            if (cause is TcpResolutionTimeoutException)
+                return clientNetworkTimeout(call, HttpTimeoutPhase.Resolve, cause.limit, cause.elapsed, error)
+        }
+    }
+    return error
+}
+
+private fun clientNetworkTimeout(call: ClientCall, phase: HttpTimeoutPhase, limit: Duration, elapsed: Duration,
+    cause: Throwable): HttpTimeoutException = call.lock.withLock {
+    HttpTimeoutException(phase, limit, elapsed, call.requestBodyBytes, call.encodedResponseBodyBytes, call.responseBodyBytes, Some(cause))
+}

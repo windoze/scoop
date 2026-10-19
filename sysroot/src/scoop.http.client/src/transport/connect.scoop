@@ -4,10 +4,8 @@ import scoop.asyncio.*
 import scoop.http.*
 import scoop.http.asyncio.*
 import scoop.platform.net.*
-import scoop.platform.system.OsString
 import scoop.platform.time.MonotonicTimeSource
 import scoop.tls.*
-import scoop.tls.asyncio.AsyncTlsStream
 
 internal enum ClientConnection { Http1(AsyncHttp1Connection), Http2(AsyncHttp2Connection) }
 
@@ -67,11 +65,7 @@ internal fun startClientDial(state: ClientState, call: ClientCall, entry: Client
 private suspend fun connectClient(call: ClientCall, entry: ClientPoolEntry): ClientConnection {
     val state = call.client
     val origin = call.request.origin
-    val tcp = when (origin.host) {
-        case Dns(name) -> state.loop.connectTcp(OsString.fromString(name), origin.port, state.config.tcpConnect)
-        case Ipv4(bytes) -> state.loop.connectTcp(SocketAddress(IpAddress.fromByteArray(bytes), origin.port))
-        case Ipv6(bytes) -> state.loop.connectTcp(SocketAddress(IpAddress.fromByteArray(bytes), origin.port))
-    }
+    val tcp = connectClientSocket(call)
     try {
         val connected = MonotonicTimeSource.markNow()
         state.lock.withLock { entry.created = connected }
@@ -85,7 +79,7 @@ private suspend fun connectClient(call: ClientCall, entry: ClientPoolEntry): Cli
             case Ipv4(bytes) -> TlsPeerName.Ip(IpAddress.fromByteArray(bytes))
             case Ipv6(bytes) -> TlsPeerName.Ip(IpAddress.fromByteArray(bytes))
         }
-        val tls = AsyncTlsStream.takeOwnershipAsClient(tcp, state.tls, peer)
+        val tls = connectClientTls(call, tcp, peer)
         try {
             val allowed: Array<HttpProtocol> = when (state.config.versionPolicy) {
                 case Auto -> [HttpProtocol.Http2, HttpProtocol.Http1]

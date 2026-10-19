@@ -5,17 +5,20 @@ import scoop.time.Duration
 public class HttpTimeoutOptions public constructor(
     public val total: Duration? = None,
     public val poolAcquire: Duration? = None,
-    public val responseHeaders: Duration? = None
+    public val responseHeaders: Duration? = None,
+    public val resolve: Duration? = Some(Duration.seconds(30L)),
+    public val connect: Duration? = Some(Duration.seconds(30L)),
+    public val tlsHandshake: Duration? = Some(Duration.seconds(30L))
 ) {
     init {
-        for (duration in [total, poolAcquire, responseHeaders]) {
+        for (duration in [total, poolAcquire, responseHeaders, resolve, connect, tlsHandshake]) {
             if (duration != None && duration!! < Duration.ZERO)
                 throw IllegalArgumentException(Some("HTTP timeout must be nonnegative"))
         }
     }
 }
 
-public enum HttpTimeoutPhase { Total, PoolAcquire, ResponseHeaders }
+public enum HttpTimeoutPhase { Total, PoolAcquire, ResponseHeaders, Resolve, Connect, TlsHandshake }
 
 public class HttpTimeoutException internal constructor(
     public val phase: HttpTimeoutPhase,
@@ -23,11 +26,15 @@ public class HttpTimeoutException internal constructor(
     public val elapsed: Duration,
     public val requestBodyBytes: Long,
     public val encodedResponseBodyBytes: Long,
-    public val responseBodyBytes: Long
+    public val responseBodyBytes: Long,
+    public val cause: Throwable? = None
 ) : Exception(Some("HTTP " + httpTimeoutPhaseName(phase) + " timeout"))
 
 private fun httpTimeoutPhaseName(phase: HttpTimeoutPhase): String = when (phase) {
     case Total -> "total"
     case PoolAcquire -> "pool acquisition"
     case ResponseHeaders -> "response headers"
+    case Resolve -> "address resolution"
+    case Connect -> "TCP connection"
+    case TlsHandshake -> "TLS handshake"
 }

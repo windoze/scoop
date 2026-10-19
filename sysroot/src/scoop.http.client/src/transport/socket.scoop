@@ -1,0 +1,48 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.platform.net.*
+import scoop.platform.system.OsString
+import scoop.tls.TlsPeerName
+import scoop.tls.asyncio.AsyncTlsStream
+
+internal suspend fun connectClientSocket(call: ClientCall): AsyncTcpStream {
+    val origin = call.request.origin
+    return when (origin.host) {
+        case Dns(name) -> {
+            val options = clientTcpConnectOptions(call)
+            try { call.client.loop.connectTcp(OsString.fromString(name), origin.port, options) }
+            catch (error: Throwable) { throw mapClientNetworkTimeout(call, error) }
+        }
+        case Ipv4(bytes) -> connectClientAddress(call, SocketAddress(IpAddress.fromByteArray(bytes), origin.port))
+        case Ipv6(bytes) -> connectClientAddress(call, SocketAddress(IpAddress.fromByteArray(bytes), origin.port))
+    }
+}
+
+private suspend fun connectClientAddress(call: ClientCall, address: SocketAddress): AsyncTcpStream {
+    val deadline = startClientDeadline(call, call.scope!!, HttpTimeoutPhase.Connect, call.timeouts.connect)
+    try {
+        requireClientCall(call)
+        return finishClientNetworkStage(call, deadline, call.client.loop.connectTcp(address))
+    } finally { stopClientDeadline(deadline) }
+}
+
+internal suspend fun connectClientTls(call: ClientCall, tcp: AsyncTcpStream, peer: TlsPeerName): AsyncTlsStream {
+    val deadline = startClientDeadline(call, call.scope!!, HttpTimeoutPhase.TlsHandshake, call.timeouts.tlsHandshake)
+    try {
+        requireClientCall(call)
+        return finishClientNetworkStage(call, deadline, AsyncTlsStream.takeOwnershipAsClient(tcp, call.client.tls, peer))
+    } finally { stopClientDeadline(deadline) }
+}
+
+private suspend fun <T : AsyncCloseable> finishClientNetworkStage(call: ClientCall, deadline: ClientDeadline?, connection: T): T {
+    try {
+        requireClientCall(call)
+        finishClientDeadline(deadline)
+        requireClientCall(call)
+        return connection
+    } catch (error: Throwable) {
+        try { connection.close() } catch (cleanup: Throwable) { throw ResourceUseException(error, cleanup) }
+        throw error
+    }
+}

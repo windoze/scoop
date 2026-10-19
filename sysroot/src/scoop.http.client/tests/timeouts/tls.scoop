@@ -1,0 +1,129 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.system.PlatformException
+import scoop.test.*
+import scoop.time.Duration
+import scoop.tls.asyncio.AsyncTlsStream
+import scoop.url.Url
+
+internal fun clientTlsTimeoutUrl(listener: AsyncTcpListener): Url =
+    Url.parse("https://127.0.0.1:" + listener.localAddress.port.toString() + "/")
+
+internal suspend fun observeStalledClientTls(listener: AsyncTcpListener, observed: BodyTestGate) {
+    listener.accept().useAsync suspend { raw ->
+        NativeByteBuffer.allocate(1L).use suspend { buffer ->
+            assertEquals(1L, raw.readInto(buffer, 1L))
+            assertEquals(22, buffer.readBytes(1L)[0L].toInt())
+        }
+        observed.signal()
+        try { raw.readAllBytes(65536L) } catch (_: PlatformException) {}
+    }
+}
+
+@Test
+private class HttpClientTlsTimeoutTest {
+    @Test
+    fun `zero handshake deadline closes the connected socket before TLS or body bytes are sent`() {
+        withClientTimeoutTest(HttpTimeoutOptions(tlsHandshake = Some(Duration.ZERO))) suspend { _, scope, listener, config ->
+            val serving = scope.launch suspend {
+                listener.accept().useAsync suspend { raw -> assertEquals(0L, raw.readAllBytes(0L).size) }
+            }
+            val started = AtomicBoolean(false)
+            withHttpClient(config) suspend { client ->
+                val body = RequestBody.fromProducer(Some(4L)) suspend { output ->
+                    started.store(true); writeBodyText(output, "send")
+                }
+                val error = expectBodyFailure<HttpTimeoutException> suspend {
+                    client.execute(HttpRequest.post(clientTlsTimeoutUrl(listener), body)); Unit
+                }
+                checkClientTimeout(error, HttpTimeoutPhase.TlsHandshake, Duration.ZERO)
+                assertFalse(clientPresent(error.cause) || started.load())
+            }
+            serving.join()
+        }
+    }
+
+    @Test
+    fun `TLS and total deadlines interrupt stalled handshakes while another origin remains usable`() {
+        val limit = clientTimeoutTestDuration()
+        for (total in [false, true]) {
+            val options = HttpTimeoutOptions(total = if (total) Some(limit) else None,
+                tlsHandshake = Some(if (total) Duration.seconds(3600L) else limit))
+            withClientTimeoutTest(options) suspend { loop, scope, listener, config ->
+                val observed = BodyTestGate()
+                val serving = scope.launch suspend { observeStalledClientTls(listener, observed) }
+                clientTestListen(loop).useAsync suspend { healthy ->
+                    val healthServer = scope.launch suspend {
+                        AsyncHttp1Connection.takeOwnershipAsServer(healthy.accept(), scope).useAsync suspend { connection ->
+                            connection.receiveRequest()!!.body.readAllBytes(0L)
+                            sendClientTestText(connection, 200U, "ok")
+                        }
+                    }
+                    withHttpClient(config) suspend { client ->
+                        val failure = ClientTestFailureHolder()
+                        val started = AtomicBoolean(false)
+                        val executing = scope.launch suspend {
+                            val body = RequestBody.fromProducer(Some(4L)) suspend { output ->
+                                started.store(true); writeBodyText(output, "send")
+                            }
+                            try { client.execute(HttpRequest.post(clientTlsTimeoutUrl(listener), body)).close() }
+                            catch (error: Throwable) { failure.value = Some(error) }
+                        }
+                        observed.await()
+                        client.withResponse(HttpRequest.get(clientTestUrl(healthy),
+                            options = HttpCallOptions(timeouts = Some(HttpTimeoutOptions())))) suspend { response ->
+                            assertEquals("ok", response.body.text(2L))
+                        }
+                        executing.join()
+                        val error = failure.value!!
+                        assertTrue(error is HttpTimeoutException)
+                        if (error is HttpTimeoutException)
+                            checkClientTimeout(error, if (total) HttpTimeoutPhase.Total else HttpTimeoutPhase.TlsHandshake, limit)
+                        assertFalse(started.load())
+                    }
+                    healthServer.join()
+                }
+                serving.join()
+                assertFalse(scope.job.isCancelled)
+            }
+        }
+    }
+
+    @Test
+    fun `successful handshake stops its deadline and pooled TLS bypasses zero network limits`() {
+        val limit = clientTimeoutTestDuration()
+        clientTlsServer(["http/1.1".toByteArray()]).use { tlsContext ->
+            withClientTimeoutTest(HttpTimeoutOptions(tlsHandshake = Some(limit))) suspend { loop, scope, listener, config ->
+                val done = BodyTestGate()
+                val serving = scope.launch suspend {
+                    val tls = AsyncTlsStream.takeOwnershipAsServer(listener.accept(), tlsContext)
+                    AsyncHttp1Connection.takeOwnershipAsServer(tls, scope).useAsync suspend { connection ->
+                        for (_ in 0L..1L) {
+                            connection.receiveRequest()!!.body.readAllBytes(0L)
+                            sendClientTestText(connection, 200U, "ok")
+                        }
+                        done.await()
+                    }
+                }
+                try {
+                    withHttpClient(config) suspend { client ->
+                        val url = clientTlsTimeoutUrl(listener)
+                        client.withResponse(HttpRequest.get(url)) suspend { response ->
+                            loop.sleep(limit + Duration.milliseconds(20L))
+                            assertEquals("ok", response.body.text(2L))
+                        }
+                        val zero = Some(Duration.ZERO)
+                        val timeouts = HttpTimeoutOptions(resolve = zero, connect = zero, tlsHandshake = zero)
+                        client.withResponse(HttpRequest.get(url, options = HttpCallOptions(timeouts = Some(timeouts)))) suspend { response ->
+                            assertEquals("ok", response.body.text(2L))
+                        }
+                    }
+                } finally { done.signal() }
+                serving.join()
+            }
+        }
+    }
+}

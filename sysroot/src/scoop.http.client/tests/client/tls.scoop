@@ -45,7 +45,7 @@ private class HttpClientTlsTest {
     }
 }
 
-private fun clientTlsServer(protocols: List<Array<Byte>>): TlsServerContext = Certificate.fromPem(serverPem()).use { leaf ->
+internal fun clientTlsServer(protocols: List<Array<Byte>>): TlsServerContext = Certificate.fromPem(serverPem()).use { leaf ->
     Certificate.fromPem(intermediatePem()).use { intermediate ->
         PrivateKey.fromPem(serverKeyPem()).use { key ->
             TlsServerContext([leaf, intermediate], key, TlsOptions(alpn = protocols))
