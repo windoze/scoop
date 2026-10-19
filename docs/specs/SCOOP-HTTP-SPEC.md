@@ -143,6 +143,8 @@ H1 按顺序关联请求与响应，同一方向只允许一个消息 body 操�
 
 AsyncHttp1Connection 的 takeOwnershipAsClient／takeOwnershipAsServer 接收传输与 CoroutineScope。sendRequest／sendResponse 返回 AsyncHttp1Writer，每条消息用 finish 完成；receiveRequest 在正常 EOF 返回 None，receiveResponse 逐条交付信息／最终响应及 AsyncHttp1Body。body 在消费完数据及结束标记后公开已完成状态和 trailer，之后读取返回零；显式 close 未完成的 body 会关闭连接。服务端按接收顺序使用对应请求方法发送响应，拒绝升级后恢复 HTTP/1；接受切换后通过 takeTransport 移交前缀及传输。H1 的实际读写属于调用操作的 Job，连接另登记一个负责存活与本地关闭的 scope 子任务。
 
+客户端最终响应已经定界完成且协议要求关闭连接时，若请求 writer 仍未结束，先交付响应并保留该 writer 的收尾机会；不在响应返回之前使它失效。连接立即失去复用资格，当前 writer 正常 finish 后执行本地关闭，显式 close／取消仍放弃未完成的上传并关闭连接。没有活动 writer 时按原有规则关闭。此规则同样覆盖空响应、EOF 定界和请求声明的 Connection: close，不掩盖实际传输写入失败或非法消息长度。
+
 `AsyncHttp1Connection.isReusable` 是已知协议状态的只读快照：连接开放、没有在途读写或未结束的消息／请求关联，且没有已知 EOF、关闭要求或协议切换时为 true。新建的空闲连接也可以为 true；完成所有信息／最终响应和双向正文之前为 false。它复用本连接的编解码状态，不发送探测、不读取 socket，不保证尚未观察到的对端关闭不会使下一次操作失败。池使用这一事实判断复用资格，不能自己重建 HTTP/1 持久连接或切换规则。
 
 H2 连接所有者作为调用者提供的 CoroutineScope 的子任务登记。共享传输读写使用该所有者的 Job；请求／流等待使用请求自己的 Job。请求取消只发出对应 RST_STREAM、丢弃该流剩余 body 并释放其等待，不取消共享 TLS read／write 的 Job。连接所有者取消关闭整条连接并完成所有流收尾。每次 native 步骤不另建 Job。

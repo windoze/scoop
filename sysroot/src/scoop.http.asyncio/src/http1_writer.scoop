@@ -47,7 +47,7 @@ public class AsyncHttp1Writer internal constructor(private val state: H1State, p
             completeH1Body(state, body.life)
         }, body.writeIdle)
         val closing = state.lock.withLock {
-            state.encoder.role == HttpRole.Server && state.encoder.mustClose && !state.encoder.isSwitched
+            state.closeAfterOutput || (state.encoder.role == HttpRole.Server && state.encoder.mustClose && !state.encoder.isSwitched)
         }
         if (closing) closeH1(state)
         else if (body.finalResponse && present(body.request)) closeAfterH1Input(state, body.request!!.body)
@@ -63,6 +63,7 @@ public class AsyncHttp1Writer internal constructor(private val state: H1State, p
 }
 
 private fun requireH1Output(state: H1State, role: HttpRole) {
+    if (state.closeAfterOutput) throw IoClosedException()
     if (state.encoder.role != role) throw IllegalStateException(Some("wrong HTTP/1 send role"))
     if (present(state.outgoing)) throw IllegalStateException(Some("previous HTTP/1 output body is not complete"))
 }

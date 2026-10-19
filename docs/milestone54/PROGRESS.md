@@ -79,6 +79,7 @@
 | HTTP/2 未发送请求拒绝 | 已排队请求因 GOAWAY 无法发送时，保留 nghttp2 实际交付的 REFUSED_STREAM，不把同一次未发送回调重复报告为普通失败；其他发送错误保持原语义 | 新增 2 项测试与 HTTP 全部 246 项通过 debug／release；新测试和 2 项发送错误／输出尾部回归通过 full moving，正式消费者在旧库复现、新库通过两种构建和复用 |
 | 字符集 NFC | scoop.charset 的 normalizeNfc 复用已有 libunistring，处理规范组合、顺序、排除与 Hangul；保留 NUL／BOM，不做兼容折叠或通过 IDNA 转换普通文本 | 新增 3 项测试与字符集全部 14 项通过 debug／release；新测试通过 full moving，正式消费者组合 Basic 字段、Digest 摘要、UTF-16 往返和双线程生产库消费 |
 | client 重试 | 默认最多两次，按实际网络失败、方法语义及 body 重放能力选择；明确未处理、状态策略、Retry-After、指数退避与取消共享整个调用的截止和累计进度 | 新增 18 项测试，client 全部 158 项通过 debug／release；24 项相关用例逐例通过两种构建的 full moving，独立 H1／H2 对端及正式构建复用通过 |
+| HTTP/1 早期关闭 | 最终响应完成且要求关闭时，活动请求 writer 保留 finish／放弃机会，立即禁止复用；关闭协调在 HTTP asyncio 完成 | 原库确定性复现；8 类协议场景与重试／重定向 source 清理组合通过两种构建、full moving 和构建复用，既有 HTTP/1 消息与取消回归通过 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -355,6 +356,10 @@ Linux 组合回归中的连接池对端把已发送请求的空 trailing HEADERS
 重试正式消费者 m54-client-retries 在 Darwin 通过 debug／release 两个变体、6 个步骤进程，两个 native 线程各执行六类独立 Python 对端流程。覆盖 gzip／trailer／Continue 重放、H2 REFUSED_STREAM 与初始 GOAWAY、状态重试和重定向共存、默认 POST 拒绝重试，以及总截止保留已发送字节；包含 full moving 与正常构建复用。原初始 GOAWAY 故障由 HTTP 库的未发送回调修复闭合。24 项新旧库用例共 48 个 full moving 进程通过，覆盖同类型用户异常不重试、来源清理失败、退避取消和响应交付后的边界。
 
 重试功能提交后，Darwin 的连接池与重定向正式回归再通过 4 个变体、12 个步骤进程。GNU／musl 分别完成生产 sysroot 更新，并各通过重试、连接池、重定向三项正式 fixture，每目标 6 个变体、18 个步骤进程；均包含 debug／release、full moving 和构建复用。重试的三个目标验证闭合，原始日志和报告保存在仓库外。
+
+HTTP/1 的原认证清理故障来自协议库：空的 Connection: close 最终响应在交付之前关闭连接，使尚未 finish 的上传 writer 提前失效。scoop.http.asyncio 现在等待该 writer 完成或放弃后执行本地关闭，不在 client 中吞掉 IoClosedException。m54-http1-early-close 在旧库稳定复现，修复后覆盖空／固定长度／EOF 响应、请求声明关闭、上传放弃、长度不足、实际写入失败及已经完成上传的立即关闭。
+
+上述正式消费者、m54-client-upload-completion 及既有 HTTP/1 消息／取消回归在 Darwin 共通过 8 个变体、30 个步骤进程；新增用例包含两个 native 线程、full moving 与构建复用。上传组合验证下一次请求等待 source 关闭，保留真实清理失败；测试自身的双等待者 gate 已改为两个独立信号。Basic 草稿的原清理场景和全部 20 个普通运行场景通过，清理成功／失败及 HTTP/2 三项另通过 full moving；Basic 的正式发布验收和本修复的 Linux 验证继续进行。
 
 ## 后续工作
 

@@ -115,7 +115,10 @@ internal suspend fun receiveH1Response(state: H1State, readIdle: Duration?): Htt
 internal suspend fun closeAfterH1Input(state: H1State, body: H1Input) {
     val close = state.lock.withLock {
         if (state.closed || !body.life.completed || state.decoder.isSwitched) false
-        else if (state.decoder.role == HttpRole.Client) body.finalResponse && (!body.keepAlive || state.encoder.mustClose)
+        else if (state.decoder.role == HttpRole.Client) {
+            if (body.finalResponse && (!body.keepAlive || state.encoder.mustClose)) state.closeAfterOutput = true
+            state.closeAfterOutput && !present(state.outgoing)
+        }
         else body.responseFinished && !body.keepAlive
     }
     if (close) closeH1(state)

@@ -43,6 +43,7 @@ internal class H1State(
     var readIdle: H1Idle? = None
     var writeIdle: H1Idle? = None
     var inputEnded: Boolean = false
+    var closeAfterOutput: Boolean = false
     var adopted: Boolean = false
     var closing: Boolean = false
     var closed: Boolean = false

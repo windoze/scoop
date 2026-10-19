@@ -25,7 +25,7 @@ public class AsyncHttp1Connection internal constructor(internal val state: H1Sta
     public val ioTimeouts: HttpIoTimeoutOptions get() = state.ioTimeouts
     public val isClosed: Boolean get() = state.lock.withLock { state.closed }
     public val isReusable: Boolean get() = state.lock.withLock {
-        !state.closing && !state.inputEnded && !state.readBusy && !state.writeBusy &&
+        !state.closing && !state.inputEnded && !state.closeAfterOutput && !state.readBusy && !state.writeBusy &&
             !present(state.incoming) && !present(state.outgoing) && state.clientPending == 0L &&
             state.requests.size == 0L && !state.encoder.mustClose && !state.encoder.isSwitched && !state.decoder.isSwitched
     }
