@@ -24,6 +24,33 @@ fn m55_negative_overloads_and_forwarding() {
 }
 
 #[test]
+fn m55_extension_failure_prefers_the_explicit_type_arity() {
+    let declarations = [
+        "public fun <T, U> Int.select(value: T): Int = 0",
+        "public fun <T: Bound> Int.select(value: T): Int = 1",
+    ];
+    for order in [[0, 1], [1, 0]] {
+        let provider = format!(
+            "public interface Bound {{}}\n{}\n{}",
+            declarations[order[0]], declarations[order[1]],
+        );
+        let consumer = "class Key\nfun use(): Int = 1.select<Key>(Key())";
+        let local = check(&format!("{provider}\n{consumer}")).unwrap_err();
+        let imported = super::m23_generic_body_consumption::with_provider_consumer(
+            &format!("package extensionarity\n{provider}"),
+            &format!("import extensionarity.*\n{consumer}"),
+            |_, _, _, _, _| (),
+        )
+        .unwrap_err();
+        for errors in [local, imported] {
+            assert_eq!(errors.len(), 1, "{errors:#?}");
+            let diagnostic = format!("{errors:#?}");
+            assert!(diagnostic.contains("upper bound `Bound`"), "{diagnostic}");
+        }
+    }
+}
+
+#[test]
 fn m55_negative_recursive_calls_keep_the_declared_argument() {
     check(
         r#"
