@@ -215,6 +215,7 @@ struct Concretizer<'a> {
     requirement_environment: requirements::RequirementEnvironment,
     body_requirements: HashMap<type_info::CallableBody, requirements::RequirementEnvironment>,
     specialization_parents: HashMap<type_info::CallableBody, Vec<type_info::CallableBody>>,
+    specialization_failed: bool,
     requirement_evaluation: Option<export::EvaluationOrigin>,
 }
 
@@ -394,6 +395,7 @@ impl<'a> Concretizer<'a> {
             requirement_environment: HashMap::new(),
             body_requirements: HashMap::new(),
             specialization_parents: HashMap::new(),
+            specialization_failed: false,
             requirement_evaluation: None,
         }
     }

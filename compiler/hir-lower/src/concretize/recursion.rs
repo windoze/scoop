@@ -38,6 +38,7 @@ impl Concretizer<'_> {
                     Some((file, span)) => Diagnostic::at_file(file, span, message),
                     None => Diagnostic::without_span(DiagnosticSeverity::Error, 0, message),
                 });
+                self.specialization_failed = true;
                 return;
             }
             pending.extend(

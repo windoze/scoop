@@ -37,6 +37,39 @@ fn an_owner_type_alone_checks_abstract_and_unused_context_contracts() {
 }
 
 #[test]
+fn independent_specialization_errors_are_collected_across_callable_bodies() {
+    let core = trusted_core();
+    let parsed = parsed_ordinary_text(
+        r#"
+        interface Pair<A: ref, B: ref> { context(a: A, b: B) fun read(): Int }
+        abstract class AbstractPair<A: ref, B: ref> {
+            context(a: A, b: B) abstract fun read(): Int
+        }
+        class UnusedPair<A: ref, B: ref> { context(a: A, b: B) fun read(): Int = 1 }
+        fun interfaceOnly(value: Pair<String, String>) {}
+        fun abstractOnly(value: AbstractPair<String, String>) {}
+        fun unusedMethod(value: UnusedPair<String, String>) {}
+        "#,
+    );
+    let world = core.world(parsed.cone());
+    let input = CurrentConeSources::try_new(
+        &parsed,
+        core.foundation.import_core_inputs(&core.interface).unwrap(),
+        &world,
+    )
+    .unwrap();
+    let errors = lower_current_cone(scoop_identity::RequestedConeKind::Library, &input)
+        .err()
+        .expect("each callable exposes an invalid context specialization");
+    assert_eq!(errors.len(), 3, "{errors:#?}");
+    assert!(errors.iter().all(|error| {
+        error
+            .message
+            .contains("duplicate context key after specialization")
+    }));
+}
+
+#[test]
 fn distinct_concrete_keys_remain_valid_after_owner_substitution() {
     with_source(
         r#"

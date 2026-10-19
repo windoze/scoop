@@ -882,6 +882,8 @@ CallableApplicationKey 区分原声明、NoOwner/ExactNominalOwner/EnclosingCall
 
 泛型 application 仍只由声明及完整类型实参标识，不增加调用点作用域、隐式 dictionary 或所选方法的 specialization 参数。Export HIR／跨 Cone 声明与正文编码完整条件和要求引用，consumer 使用实际类型的公开成员与原默认模板，不能按本地扩展重选。进入 LocalConcreteHir 前消去要求与投影，只留下正常调用、构造、值适配和 singleton 访问；要求落实后新增的实际调用边在具体化请求处遵守既有递归规则：沿调用链重新请求同一声明且完整实参改变时诊断，阻止无限实例化，同实例递归直接复用。MIR、LIR、linker、runtime 不重放源码要求查询，runtime ABI 不变。
 
+具体化工作队列在检测到上述无限实例化时停止；普通类型条件错误（例如 Context key 在替换后重复）继续收集其他独立请求的诊断。错误输出不包含未完成的 concrete module，不能把一般条件失败误作队列不再能终止的标记。
+
 persistent mangling schema 为 `persistent-v1`，语义 symbol 为 `scoop$1$<kind>$<lowercase-hex-owner-id>`，再按目标加平台前缀。kind tags 为：
 
 | 实体 | tag | 实体 | tag |

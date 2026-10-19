@@ -151,7 +151,7 @@ impl Concretizer<'_> {
     }
 
     pub(super) fn drain_pending_callables(&mut self) {
-        while self.type_condition_errors.is_empty() {
+        while !self.specialization_failed {
             if let Some(unit) = self.pending_initializations.pop_front() {
                 self.require_initialization_dependencies(unit);
             } else if let Some((key, id, site)) = self.pending_functions.pop_front() {
