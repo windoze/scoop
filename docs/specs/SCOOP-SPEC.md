@@ -2093,7 +2093,7 @@ suspend fun <T> suspendCoroutine(
 以下声明位于 core 根 package，均为普通 Scoop 库声明。Job 与 Deferred 的构造器仅供 core 使用，不开放无归属任务或用户继承；公开 Job 类型用于句柄、参数及精确 Context key。
 
 ```scoop
-public open class Job internal constructor(parent: Job?) {
+public open class Job internal constructor(parent: Job?, propagatesFailure: Boolean = true) {
     public val isCompleted: Boolean
     public val isCancelled: Boolean
     public fun cancel()
@@ -2101,7 +2101,7 @@ public open class Job internal constructor(parent: Job?) {
     public suspend fun join()
     public fun invokeOnCancellation(handler: (CancellationException) -> Unit): Disposable
 }
-public class Deferred<T> internal constructor(parent: Job?) : Job(parent) {
+public class Deferred<T> internal constructor(parent: Job?, propagatesFailure: Boolean = true) : Job(parent, propagatesFailure) {
     public suspend fun await(): T
 }
 public class CoroutineScope internal constructor(job: Job) {
@@ -2119,7 +2119,9 @@ coroutineScope 建立属于当前 Job 的子作用域；当前没有 Job 时建�
 
 正文退出后关闭直接子任务登记，已关闭 CoroutineScope 的 launch／async 抛 IllegalStateException。Job 仅在正文及所有已登记子任务完成后发布最终结果；完成前取消不等于已完成。父子及等待者引用在不再需要时解除。join 可多次、多等待者调用，只等待目标结束；await 同样可重复，返回保存的类型化结果或抛该任务的最终异常。coroutineScope 内部等待不被调用方的取消提前中断，必须等子树完成收尾。
 
-正文或任一子任务的非取消失败立即向父任务传播，并向其他活动后代请求取消，最终在整棵相关子树收尾后传播原失败。async 未被 await 的失败同样传播；捕获 await 不撤销父任务的失败。单独取消子任务不自动取消父任务；取消过程中的非取消失败仍传播。每个 Job 保留首先记录的非取消失败；后续独立失败不覆盖它，也不增加 Throwable 聚合字段。正文内 finally 的异常覆盖仍按 8.2 执行。
+launch／async 正文或其子任务的非取消失败立即向父任务传播，并向其他活动后代请求取消；传播到 coroutineScope 的作用域 Job 时止于该作用域。coroutineScope 先取消并等待自己的子树收尾，再从原挂起调用处抛出原失败，不能在调用方有机会 catch 之前取消调用方 Job 或其其他子任务。调用方未捕获时，异常按其自身任务的失败继续传播。core 以内部 propagatesFailure=false 表达该调用边界，不开放无归属 Job。
+
+同一作用域内，async 未被 await 的失败仍传播；捕获该 async 的 await 不撤销所属作用域 Job 已记录的失败。单独取消子任务不自动取消父任务；调用方取消仍向作用域及其后代传播，coroutineScope 继续等候真实收尾，清理的非取消失败经同一调用边界交付。每个 Job 保留首先记录的非取消失败；后续独立失败不覆盖它，也不增加 Throwable 聚合字段。正文内 finally 的异常覆盖仍按 8.2 执行。
 
 cancel 幂等、协作式向下传播，ensureActive 抛普通 CancellationException。原始 suspendCoroutine 不自动观察取消。join／await 的公开等待可以被等待者自身的取消撤销，不直接取消被等待任务；树关系的正常取消传播仍有效。取消通过恢复异常进入原挂起点并执行正常 finally，不丢弃 continuation。
 

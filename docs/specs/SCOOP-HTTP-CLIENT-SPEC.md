@@ -26,7 +26,7 @@ HttpClientConfig 保存协议策略、明文入口、HTTP/1 请求版本，以�
 
 client 的所有者在一个正文仍活动的子 coroutineScope 中维持连接任务与调用任务，直至 close；不能在 scope 正文返回后再尝试登记新连接。调用 owner 持续到请求发送与响应消费均完成或放弃，不在 execute 返回头部时结束。调用者 Job 的取消登记维持到本次调用收尾；execute 不创建一个必须等 body 结束才能返回的临时 coroutineScope。显式响应须在 client 的结构化生命周期内使用并关闭，不把引用带出 withHttpClient；漏关资源由 client.close 收尾。
 
-连接和请求分别持有自己的 Job。HTTP/2 共享 TLS 的读写归连接 owner；请求 body、头部等待和超时归调用 owner，单请求取消只关闭相应流。HTTP/1 未完成消息取消使连接不可复用并关闭。一次网络失败作为调用结果交付；内部候选连接／上传等子任务必须在任务内部捕获预期操作失败，不在 await 处才捕获已经传播到父 scope 的异常。core 的正常失败传播规则保持不变。
+连接和请求分别持有自己的 Job。HTTP/2 共享 TLS 的读写归连接 owner；请求 body、头部等待和超时归调用 owner，单请求取消只关闭相应流。HTTP/1 未完成消息取消使连接不可复用并关闭。一次网络失败作为调用结果交付；内部候选连接／上传等子任务必须在任务内部捕获预期操作失败，不在 await 处才捕获已经传播到父 scope 的异常。producer 和用户回调的嵌套 coroutineScope 按语言规范 11.9.1 在子树收尾后从调用处交付失败，client 取得原失败而不取消其他请求。
 
 调用任务在发起者的 Context 中创建，producer、认证和调用级回调保留该调用的动态 binding；共享连接驱动使用连接自己的 Context，不把第一条请求的业务 Context 用于所有后续流。切换 Job 不得丢失其他有效 binding。
 

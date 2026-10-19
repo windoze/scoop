@@ -1,6 +1,6 @@
 public class CancellationException public constructor() : Exception(Some("task was cancelled"))
 
-public open class Job internal constructor(parent: Job?) {
+public open class Job internal constructor(parent: Job?, private val propagatesFailure: Boolean = true) {
     private val lock: CoroutineLock = CoroutineLock()
     private var parent: Job? = parent
     private val children: ArrayList<Job> = ArrayList<Job>()
@@ -112,7 +112,7 @@ public open class Job internal constructor(parent: Job?) {
                     when (batch.failure) {
                         case Some(reason) -> {
                             when (batch.parent) {
-                                case Some(owner) -> owner.requestCancellation(Some(reason))
+                                case Some(owner) -> if (propagatesFailure) owner.requestCancellation(Some(reason))
                                 case None -> {}
                             }
                         }
