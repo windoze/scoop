@@ -21,6 +21,9 @@ internal class TcpConnectPlan(private val maximum: Long) {
     private var pending: Long = 0L
     private var attemptGeneration: Long = 0L
     val generation: Long get() = attemptGeneration
+    val resolutionComplete: Boolean get() = ipv4.finished && ipv6.finished
+
+    fun isResolved(family: AddressFamily): Boolean = if (family == AddressFamily.Ipv4) ipv4.finished else ipv6.finished
 
     val needsResolutionDelay: Boolean get() =
         !started && !resolutionReady && ipv4.available && !ipv6.finished
@@ -29,6 +32,7 @@ internal class TcpConnectPlan(private val maximum: Long) {
         ipv4.finished && ipv6.finished && !ipv4.available && !ipv6.available && pending == 0L
 
     fun resolved(family: AddressFamily, addresses: Array<SocketAddress>) {
+        if (isResolved(family)) return
         val unique = ArrayList<SocketAddress>()
         for (address in addresses) if (seen.add(address)) unique.add(address)
         val queue = if (family == AddressFamily.Ipv4) ipv4 else ipv6

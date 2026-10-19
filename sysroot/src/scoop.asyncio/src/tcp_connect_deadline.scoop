@@ -1,0 +1,14 @@
+package scoop.asyncio
+
+import scoop.platform.time.MonotonicTimeSource
+import scoop.time.Duration
+import scoop.time.TimeMark
+
+internal class TcpConnectionDeadline(val limit: Duration) {
+    val started: TimeMark = MonotonicTimeSource.markNow()
+    fun elapsed(now: TimeMark): Duration = now - started
+    fun remaining(): Duration {
+        val left = limit - elapsed(MonotonicTimeSource.markNow())
+        return if (left > Duration.ZERO) left else Duration.ZERO
+    }
+}

@@ -7,7 +7,9 @@ import scoop.time.Duration
 public class TcpConnectOptions public constructor(
     public val resolutionDelay: Duration = Duration.milliseconds(50L),
     public val attemptDelay: Duration = Duration.milliseconds(250L),
-    public val maxConcurrentAttempts: Long = 2L
+    public val maxConcurrentAttempts: Long = 2L,
+    public val resolveTimeout: Duration? = None,
+    public val connectTimeout: Duration? = None
 ) {
     init {
         if (resolutionDelay < Duration.ZERO || attemptDelay < Duration.ZERO) {
@@ -15,6 +17,10 @@ public class TcpConnectOptions public constructor(
         }
         if (maxConcurrentAttempts <= 0L) {
             throw IllegalArgumentException(Some("TCP connection concurrency must be positive"))
+        }
+        for (timeout in [resolveTimeout, connectTimeout]) {
+            if (timeout != None && timeout!! < Duration.ZERO)
+                throw IllegalArgumentException(Some("TCP connection timeouts must be nonnegative"))
         }
     }
 }
@@ -28,3 +34,13 @@ public class TcpConnectException internal constructor(
     public val attempts: Array<TcpConnectionFailure>,
     public val resolutionFailures: Array<TcpResolutionFailure>
 ) : Exception(Some("all TCP connection candidates failed"))
+
+public class TcpResolutionTimeoutException internal constructor(
+    public val host: OsString, public val port: Int, public val family: AddressFamily,
+    public val limit: Duration, public val elapsed: Duration
+) : Exception(Some("TCP address resolution timeout"))
+
+public class TcpConnectTimeoutException internal constructor(
+    public val host: OsString, public val port: Int, public val limit: Duration, public val elapsed: Duration,
+    public val attempts: Array<TcpConnectionFailure>, public val resolutionFailures: Array<TcpResolutionFailure>
+) : Exception(Some("TCP connection timeout"))

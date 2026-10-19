@@ -49,6 +49,7 @@
 | 异步排他临时文件 | createTempFile 一次创建并返回 TemporaryFile 的路径与读写句柄；共享 platform 模板／mkostemp，公开原生字符串快照入口，迟到取消等待 close 与 delete 并保留清理错误 | Darwin debug／release：asyncio 新增 6 项、全部 73 项通过，platform 文件相关 18 项通过；临时文件与新增字符串快照测试通过 moving GC，正式消费者验证并发创建、短块复制及路径改变后的句柄身份 |
 | 异步目录枚举 | openDirectory 返回单遍 AsyncDirectoryEntries，每次 next 在真实工作中复制一个原始名称；复用 platform 的目录入口与 DirectoryEntry，EOF、并发关闭和迟到取消沿所属 loop 收尾 | Darwin debug／release：7 项新测试与 asyncio 全部 80 项通过；9 项目录相关测试通过 moving GC，正式消费者验证两个 native 线程的逐项 metadata／读取、EOF 和显式删除 |
 | 双族 TCP 连接 | connectTcp 域名重载复用异步 DNS／TCP／定时器，按可配置延迟交错候选并限制并发；聚合实际错误、隔离普通失败，交付前收齐落败连接与子任务 | Darwin debug／release：12 项新测试与 asyncio 全部 92 项通过；新增测试通过 moving GC，正式消费者通过双族解析、平台同步对端、半关闭与并发 loop 组合 |
+| TCP 竞速的阶段截止 | TcpConnectOptions 提供 resolveTimeout／connectTimeout；双族解析共享截止，超时族不覆盖已有候选，整组连接尝试使用同一单调截止，失败保留原始候选及解析原因 | 新增 7 项测试，asyncio 全部 123 项通过 debug／release；11 项新旧用例逐例通过两种构建的 full moving，双族正式消费者验证阶段失败后继续建连、真实传输和构建复用 |
 | SOCKS5 异步隧道 | AsyncSocks5Tunnel 以普通 Scoop 接管异步流，支持无认证／用户名密码、IPv4／IPv6／ASCII 域名和本地／代理 DNS；精确读取回复，保留完整隧道数据与实际拒绝码 | Darwin debug／release：18 项新测试与 asyncio 全部 110 项通过；新增测试通过 moving GC，正式消费者与独立 Python socket 对端完成 20 次互通场景 |
 | 请求 body 基础 | 新建纯 Scoop 的 scoop.http.client，RequestBody 提供空／字节／字符集文本／JSON／表单快照、惰性文件、借用单次来源、独立来源工厂及单次／重新创建的 suspend producer；有限复制与实际长度检查不接管输出端 | Darwin debug／release：18 项新测试通过，全部通过两种构建的 moving GC；正式消费者验证多线程共享快照、HTTP/1 连接复用及 HTTP/2 双向上传和单流取消 |
 | 异步限长读取 | readAllBytes 增加显式 maxBytes 重载，使用有限缓冲，最多额外读取一个字节确认超限；ReadLimitException 保留上限，来源位置和关闭责任保持明确 | Darwin debug／release：6 项新测试及 4 项既有读取回归通过，全部通过两种构建的 moving GC；正式消费者验证文件位置、后续读取和 TCP 半关闭后的继续写入 |
@@ -251,9 +252,13 @@ SecTrust 对原有十年有效期叶证书的拒绝符合系统政策，测试�
 
 13 项新增测试与 4 项取消／duplex 回归逐例通过两种构建的 full moving，共 34 个进程。覆盖零期限、显式关闭配置、阶段停止、未读正文、真实读取进度、来源 close 仍在挂起时的总截止，以及长计时任务的收尾。池等待在名额预留时停止；多个已到期阶段按最早截止选择，同步完成路径也检查时间，取消仍等待已有借用结束。此项交付三个调用层阶段，DNS／TCP／TLS 与实际 I/O idle 阶段继续在其所属层补齐。
 
+`m54-tcp-deadlines` 在 Darwin 通过 debug／release 两个变体，共 6 个进程。独立的跨 Cone 消费者同时使用 IPv4／IPv6 和同步平台 socket 对端，验证零解析／连接期限不提交后续连接、捕获失败后继续同一协程连接、长时限正常收尾和双向数据；full moving 与构建复用通过。
+
+7 项新测试与 4 项 TCP 竞速／取消回归逐例通过两种构建的 full moving，共 22 个进程。真实 worker fence 验证排队 DNS 超时与显式取消的释放，候选计划验证迟到解析不能覆盖已结束族，既有取消专测继续检查迟到 DNS 和竞争 socket 的实际收尾。阶段时长默认关闭，client 的缺省与错误映射由后续集成配置；首次编译修正了测试对 Option 时长的泛型断言写法，最终全部回归通过。
+
 ## 后续工作
 
-继续完成 DNS／TCP／TLS 与实际 I/O idle 阶段及 client 集成，以及重定向／重试／认证／代理、Cookie、缓存／续传、SSE／WebSocket 高层组合和可观察性。实际底层缺口仍在所属库补齐；每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
+继续在 client 集成 DNS／TCP 时限，完成 TLS 与实际 I/O idle 阶段，以及重定向／重试／认证／代理、Cookie、缓存／续传、SSE／WebSocket 高层组合和可观察性。实际底层缺口仍在所属库补齐；每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
 
 ## 验证安排
 

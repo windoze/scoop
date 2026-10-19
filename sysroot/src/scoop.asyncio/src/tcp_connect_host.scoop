@@ -2,7 +2,9 @@ package scoop.asyncio
 
 import scoop.platform.net.*
 import scoop.platform.system.*
+import scoop.platform.time.MonotonicTimeSource
 import scoop.time.Duration
+import scoop.time.TimeMark
 
 internal suspend fun connectTcpHostOnLoop(loop: LibuvEventLoop, host: OsString,
     port: Int, options: TcpConnectOptions): AsyncTcpStream {
@@ -32,13 +34,26 @@ private class TcpConnectionRace(
     private var winner: AsyncTcpStream? = None
     private var resolutionTimerStarted: Boolean = false
     private var attemptTimer: Job? = None
+    private var resolutionDeadline: TcpConnectionDeadline? = None
+    private var connectionDeadline: TcpConnectionDeadline? = None
+    private var ipv4Resolver: Job? = None
+    private var ipv6Resolver: Job? = None
 
     suspend fun run(scope: CoroutineScope) {
         val listener = scope.job.invokeOnCancellation { error -> mailbox.send(TcpRaceEvent.Aborted(error)); Unit }
         try {
             scope.job.ensureActive()
-            resolve(scope, AddressFamily.Ipv6)
-            resolve(scope, AddressFamily.Ipv4)
+            when (options.resolveTimeout) {
+                case Some(limit) -> {
+                    val deadline = TcpConnectionDeadline(limit)
+                    resolutionDeadline = Some(deadline)
+                    delay(scope, deadline.remaining(), TcpRaceEvent.CheckDeadlines)
+                    checkDeadlines()
+                }
+                case None -> {}
+            }
+            if (!plan.isResolved(AddressFamily.Ipv6)) resolve(scope, AddressFamily.Ipv6)
+            if (!plan.isResolved(AddressFamily.Ipv4)) resolve(scope, AddressFamily.Ipv4)
             drive(scope)
         } finally {
             listener.dispose()
@@ -49,12 +64,16 @@ private class TcpConnectionRace(
 
     private suspend fun drive(scope: CoroutineScope) {
         while (true) {
+            scope.job.ensureActive()
+            checkDeadlines()
             if (plan.needsResolutionDelay && !resolutionTimerStarted) {
                 resolutionTimerStarted = true
                 delay(scope, options.resolutionDelay, TcpRaceEvent.ResolutionDelay)
             }
             when (plan.takeNext()) {
                 case Some(address) -> {
+                    beginConnectionDeadline(scope)
+                    checkDeadlines()
                     connect(scope, address)
                     when (attemptTimer) { case Some(timer) -> timer.cancel(); case None -> {} }
                     attemptTimer = Some(delay(scope, options.attemptDelay, TcpRaceEvent.AttemptDelay(plan.generation)))
@@ -64,34 +83,74 @@ private class TcpConnectionRace(
             }
             if (plan.exhausted) throw TcpConnectException(host, port, attempts.toArray(), resolutions.toArray())
             when (mailbox.next()) {
-                case Resolved(AddressFamily.Ipv4, addresses) -> plan.resolved(AddressFamily.Ipv4, addresses)
-                case Resolved(AddressFamily.Ipv6, addresses) -> plan.resolved(AddressFamily.Ipv6, addresses)
+                case Resolved(AddressFamily.Ipv4, addresses) -> { checkDeadlines(); plan.resolved(AddressFamily.Ipv4, addresses) }
+                case Resolved(AddressFamily.Ipv6, addresses) -> { checkDeadlines(); plan.resolved(AddressFamily.Ipv6, addresses) }
                 case ResolutionFailed(AddressFamily.Ipv4, error) -> resolutionFailed(AddressFamily.Ipv4, error)
                 case ResolutionFailed(AddressFamily.Ipv6, error) -> resolutionFailed(AddressFamily.Ipv6, error)
-                case Connected(stream) -> { winner = Some(stream); return }
+                case Connected(stream) -> { winner = Some(stream); scope.job.ensureActive(); checkDeadlines(); return }
                 case ConnectionFailed(address, error) -> {
                     attempts.add(TcpConnectionFailure(address, error))
                     plan.attemptFailed()
                 }
                 case ResolutionDelay -> plan.resolutionDelayElapsed()
                 case AttemptDelay(id) -> plan.attemptDelayElapsed(id)
+                case CheckDeadlines -> {}
                 case Aborted(error) -> throw error
             }
         }
     }
 
     private fun resolutionFailed(family: AddressFamily, error: Throwable) {
+        if (plan.isResolved(family)) return
         resolutions.add(TcpResolutionFailure(family, error))
         plan.resolved(family, [])
     }
 
     private fun resolve(scope: CoroutineScope, family: AddressFamily) {
-        tasks.add(scope.launch suspend {
+        val task = scope.launch suspend {
             try { mailbox.send(TcpRaceEvent.Resolved(family, loop.resolve(host, port, Some(family)))) }
             catch (error: PlatformException) { mailbox.send(TcpRaceEvent.ResolutionFailed(family, error)) }
             catch (_: CancellationException) {}
             catch (error: Throwable) { mailbox.abort(error) }
-        })
+        }
+        if (family == AddressFamily.Ipv4) ipv4Resolver = Some(task) else ipv6Resolver = Some(task)
+        tasks.add(task)
+    }
+
+    private fun beginConnectionDeadline(scope: CoroutineScope) {
+        when (connectionDeadline) { case Some(_) -> return; case None -> {} }
+        when (options.connectTimeout) {
+            case Some(limit) -> {
+                val deadline = TcpConnectionDeadline(limit)
+                connectionDeadline = Some(deadline)
+                delay(scope, deadline.remaining(), TcpRaceEvent.CheckDeadlines)
+            }
+            case None -> {}
+        }
+    }
+
+    private fun checkDeadlines() {
+        if (options.resolveTimeout == None && options.connectTimeout == None) return
+        val now = MonotonicTimeSource.markNow()
+        when (resolutionDeadline) {
+            case Some(deadline) -> if (!plan.resolutionComplete && deadline.elapsed(now) >= deadline.limit)
+                expireResolution(deadline, now)
+            case None -> {}
+        }
+        when (connectionDeadline) {
+            case Some(deadline) -> if (deadline.elapsed(now) >= deadline.limit)
+                throw TcpConnectTimeoutException(host, port, deadline.limit, deadline.elapsed(now), attempts.toArray(), resolutions.toArray())
+            case None -> {}
+        }
+    }
+
+    private fun expireResolution(deadline: TcpConnectionDeadline, now: TimeMark) {
+        for (family in [AddressFamily.Ipv6, AddressFamily.Ipv4]) {
+            if (plan.isResolved(family)) continue
+            resolutionFailed(family, TcpResolutionTimeoutException(host, port, family, deadline.limit, deadline.elapsed(now)))
+            val task = if (family == AddressFamily.Ipv4) ipv4Resolver else ipv6Resolver
+            when (task) { case Some(value) -> value.cancel(); case None -> {} }
+        }
     }
 
     private fun connect(scope: CoroutineScope, address: SocketAddress) {

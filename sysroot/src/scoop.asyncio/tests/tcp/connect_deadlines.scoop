@@ -1,0 +1,95 @@
+package scoop.asyncio
+
+import scoop.platform.net.*
+import scoop.platform.system.OsString
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class AsyncTcpConnectDeadlineTest {
+    @Test
+    fun `connection deadlines are optional and reject negative values`() {
+        val options = TcpConnectOptions()
+        assertTrue(options.resolveTimeout == None && options.connectTimeout == None)
+        assertFailsWith<IllegalArgumentException> { TcpConnectOptions(resolveTimeout = Some(Duration.nanoseconds(-1L))) }
+        assertFailsWith<IllegalArgumentException> { TcpConnectOptions(connectTimeout = Some(Duration.seconds(-1L))) }
+        assertTrue(TcpConnectOptions(resolveTimeout = Some(Duration.ZERO)).resolveTimeout == Some(Duration.ZERO))
+    }
+
+    @Test
+    fun `zero resolution deadline records both families without starting a connection`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).useAsync suspend { listener ->
+                val host = OsString.fromString("localhost")
+                try {
+                    loop.connectTcp(host, listener.localAddress.port, TcpConnectOptions(resolveTimeout = Some(Duration.ZERO)))
+                    fail(Some("zero DNS deadline connected"))
+                } catch (error: TcpConnectException) {
+                    checkResolutionTimeout(error, host, listener.localAddress.port, Duration.ZERO)
+                }
+                assertFalse(scope.job.isCancelled)
+                verifyAfterTcpTimeout(loop, listener)
+            }
+        }
+    }
+
+    @Test
+    fun `zero connection deadline begins after resolution and submits no candidate socket`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).useAsync suspend { listener ->
+                val host = OsString.fromString("127.0.0.1")
+                try {
+                    loop.connectTcp(host, listener.localAddress.port, TcpConnectOptions(connectTimeout = Some(Duration.ZERO)))
+                    fail(Some("zero TCP deadline connected"))
+                } catch (error: TcpConnectTimeoutException) {
+                    assertEquals(host, error.host); assertEquals(listener.localAddress.port, error.port)
+                    assertEquals(Duration.ZERO, error.limit); assertTrue(error.elapsed >= Duration.ZERO)
+                    assertEquals(0L, error.attempts.size)
+                }
+                assertFalse(scope.job.isCancelled)
+                verifyAfterTcpTimeout(loop, listener)
+            }
+        }
+    }
+
+    @Test
+    fun `successful fallback cancels long resolution and connection timers before returning`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).useAsync suspend { listener ->
+                val long = Some(Duration.seconds(3600L))
+                val options = TcpConnectOptions(attemptDelay = Duration.seconds(60L), resolveTimeout = long, connectTimeout = long)
+                loop.connectTcp(OsString.fromString("localhost"), listener.localAddress.port, options).useAsync suspend { client ->
+                    listener.accept().useAsync suspend { peer -> verifyConnectedStreams(client, peer) }
+                }
+                assertFalse(scope.job.isCancelled)
+            }
+        }
+    }
+}
+
+internal fun checkResolutionTimeout(error: TcpConnectException, host: OsString, port: Int, limit: Duration) {
+    assertEquals(host, error.host); assertEquals(port, error.port)
+    assertEquals(0L, error.attempts.size)
+    assertEquals(2L, error.resolutionFailures.size)
+    for (failure in error.resolutionFailures) {
+        val cause = failure.cause
+        assertTrue(cause is TcpResolutionTimeoutException)
+        if (cause is TcpResolutionTimeoutException) {
+            assertEquals(host, cause.host); assertEquals(port, cause.port)
+            assertTrue(failure.family == cause.family)
+            assertEquals(limit, cause.limit); assertTrue(cause.elapsed >= limit)
+        }
+    }
+}
+
+internal suspend fun verifyAfterTcpTimeout(loop: EventLoop, listener: AsyncTcpListener) {
+    loop.connectTcp(OsString.fromString("127.0.0.1"), listener.localAddress.port).useAsync suspend { client ->
+        listener.accept().useAsync suspend { peer ->
+            assertEquals(client.localAddress, peer.peerAddress)
+            verifyConnectedStreams(client, peer)
+        }
+    }
+}

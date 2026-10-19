@@ -176,11 +176,15 @@ open／next／close 均由 worker 调用 platform 的目录 helper。next 在本
 
 选择一个成功连接后关闭其他未交付连接，等待竞速子任务和 native 结果收尾。候选普通失败在该任务内转成结果，不能传播并取消本来可能成功的候选。参数仍为 OsString，不隐式 IDNA；传入 SocketAddress 的既有接口保持不变。配置变化只影响本次连接，不建立全局 DNS 缓存、TTL 推测或 HTTPS records 实现。
 
-具体入口为 `EventLoop.connectTcp(host: OsString, port: Int, options: TcpConnectOptions = TcpConnectOptions()): AsyncTcpStream`。TcpConnectOptions 为不可变配置，包含 `resolutionDelay: Duration = Duration.milliseconds(50)`、`attemptDelay: Duration = Duration.milliseconds(250)` 与 `maxConcurrentAttempts: Long = 2L`；两个时长必须非负，并行数必须为正。零时长允许立即推进，实际在途数仍受并行数限制，单地址入口不应用这些策略。
+具体入口为 `EventLoop.connectTcp(host: OsString, port: Int, options: TcpConnectOptions = TcpConnectOptions()): AsyncTcpStream`。TcpConnectOptions 为不可变配置，包含 `resolutionDelay: Duration = Duration.milliseconds(50)`、`attemptDelay: Duration = Duration.milliseconds(250)`、`maxConcurrentAttempts: Long = 2L`，以及默认均为 None 的 `resolveTimeout: Duration?`／`connectTimeout: Duration?`。所有配置时长必须非负，并行数必须为正。零间隔允许立即推进，零超时表示进入该阶段即到期；实际在途数仍受并行数限制，单地址入口不应用这些竞速策略。
 
 两族分别调用既有异步 resolve，族内保留系统结果顺序并去除重复地址。IPv6 已有结果时立即开始；IPv4 先到且 IPv6 未结束时，最多等待一次 resolutionDelay，IPv6 失败或空结果提前解除等待。开始后优先选上次尝试的另一族，不因尚未返回的族阻塞已有候选。相邻尝试默认间隔 attemptDelay；任何候选失败可以提前开始下一项，达到并行上限时等待空位，迟到的旧定时通知不能越过新间隔。
 
 全部候选失败抛 TcpConnectException，保留 host、port、`attempts: Array<TcpConnectionFailure>` 与 `resolutionFailures: Array<TcpResolutionFailure>`。两个记录分别含 address／family 及原始 cause，按各自完成顺序保存；解析成功但没有地址不伪造 OS 错误。此异常在调用方可正常捕获，不预先取消其 Job 或兄弟任务；参数及错误 loop 仍报原状态／参数异常。成功交付前发生总取消时关闭已选中的连接；清理失败以 ResourceUseException 保留，不遗失迟到连接的关闭错误。
+
+resolveTimeout 从开始双族解析前取同一个单调时钟起点，直到两族各自交付结果。截止到期只取消尚未完成的族，并将其记为 TcpResolutionFailure，cause 为 TcpResolutionTimeoutException，保存 host／port／family、limit 与 elapsed；已经获得的候选仍可连接。迟到解析结果正常释放，不替换已结束族的候选，也不使成功的另一族失败。零解析超时不提交 DNS 工作，最终没有候选时仍通过 TcpConnectException 交付两族的明确超时原因。
+
+connectTimeout 从第一个候选即将启动时开始，对整个候选序列共享，失败和交错启动不重置它。到期抛 TcpConnectTimeoutException，保存 host／port、limit／elapsed 和当时已记录的 attempts／resolutionFailures；零连接超时不提交 TCP 尝试。阶段完成与新尝试前也检查单调截止，已经选择的外部取消保持原异常。两类超时都取消有关任务并等待实际 native 工作与未交付 socket 清理完成，再返回调用方；计时器随竞速作用域结束，不留下长时间等待的子任务。
 
 提供 SOCKS5 的普通异步握手适配，支持无认证和 RFC 1929 用户名／密码、CONNECT、IPv4／IPv6／ASCII 域名目的地、本地解析或代理解析。用户凭据和长度在写出前检查；reply 错误保留协议码。使用已有 AsyncByteStream，按 takeOwnership 规则接管，成功交付隧道与完整前缀，失败清理；不让 HTTP client 手写 SOCKS 报文或同步 DNS。
 

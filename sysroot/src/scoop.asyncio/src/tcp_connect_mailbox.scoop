@@ -9,6 +9,7 @@ internal enum TcpRaceEvent {
     ConnectionFailed(SocketAddress, Throwable),
     ResolutionDelay,
     AttemptDelay(Long),
+    CheckDeadlines,
     Aborted(Throwable)
 }
 
