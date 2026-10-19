@@ -13,7 +13,7 @@
 | B：统一优化迭代、函数内来源／逃逸分析、box／closure 消除与支持产物清理 | 待实施 |
 | C：tail completion 转交、状态机生成前同步内联 | 待实施 |
 | D：外层 poll 循环分块、受限内层 SIMD | 待实施 |
-| 性能与跨平台 | 生产前后性能矩阵、GNU／musl 完整验收及最终清理待完成；历史原型数字不替代新结果 |
+| 性能与跨平台 | A 的本机生产前后矩阵已记录于 [PERFORMANCE.md](PERFORMANCE.md)；B–D 性能、GNU／musl 完整验收及最终清理待完成 |
 
 ## 2026-10-20：年轻 block 退役
 
@@ -48,3 +48,9 @@ small block 收尾按 starts 置位枚举对象；目标准备直接枚举 `star
 新增 C 专测覆盖同 word 多起点、相邻 word、空 word、block 末尾的 24-byte 对象、含 pin 的目标与另一 source region；压缩前后的存活资源内容保持，全部资源只 release 一次。独立源码 fixture 以 512 个 release 资源保留稀疏子集，覆盖普通 full 与移动 stress 的生命周期。
 
 C 格式化／严格语法检查、Rust fmt／workspace clippy 通过；全部 GC 专测 35 项通过。M58 runtime 的四个源码 fixture 共 13 变体／33 进程通过，包含前面三项改动的组合回归。A 的四项实现已分别闭合本机正确性验证；生产性能对照与 Linux 验证尚未完成。
+
+## 2026-10-20：A 的生产对照
+
+固定编译器，仅替换 `c3b8942db`／`8df65ae17` runtime，使用真实 Scoop 编译运行的 full、minor 与连续分配程序。五对独立进程、事件级 full 100 样本／minor 250 样本，另做预热后的七对连续分配；方法、阶段、RSS、原始离群值处理和限制见 [PERFORMANCE.md](PERFORMANCE.md)。四 worker 下，90 万节点的失败压缩准备 plan 5.495 → 0.074 ms、总暂停 p50 20.788 → 11.729 ms；真实稀疏压缩 27.764 → 20.480 ms，仍有长暂停。四 worker、128 MiB 无引用旧数组的 minor p50 814 → 413 µs。连续分配总时间 105.234 → 67.775 ms，主要由累计暂停减少解释。
+
+全部测试输出与临时 benchmark 副本位于仓库外；已清理约 1.8 GiB 的已完成 fixture 产物。Linux、多个 mutator 的响应尾部、GUI 帧循环及 B–D 性能仍待完成。

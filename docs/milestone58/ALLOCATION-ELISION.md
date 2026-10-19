@@ -233,3 +233,16 @@ for round in 0 .. max_rounds:
 增加一组需要交替才能消除调用的真实源码：interface helper 内联后暴露具体 receiver、两级间接调用链、拆箱／类型检查化简后出现新的机会，以及 forEach 内联 → invoke 展开 → closure 消除 → 捕获 box 再消除。检查第二／三轮是否实际减少剩余调用与分配，并验证高阶函数真实保存 action 的反例。另覆盖无变化早停、去虚拟化后显露递归、跨轮增长／深度不重置，以及参数副作用只执行一次。
 
 协程使用零／一／四层同步包装、普通 GC 副作用、动态目标、递归和真正挂起反例，分别观察前置迭代消失的 site 与最终 frame／adapter。比较 1／2／3／4 轮的编译耗时、峰值内存、产物体积、剩余调用／分配和运行收益，并区分无变化停机与达到限制停机；只对实际变化正文刷新分析，不增加全量 IR 快照或编译过程证明。
+
+## 5. 尚未消除的 runtime 调用：IR 候选
+
+2026-10-20 核对生产代码后，普通对象的 TLAB cursor 检查／推进、条件 poll、单引用字段卡表屏障已有 codegen 快路径；TLAB 完成发布仍调用 runtime，范围屏障等也并非全部内联。不能把 M56 已完成的部分再次列为新收益。
+
+| 候选 | 当前路径与建议 | 边界 |
+| --- | --- | --- |
+| box／unbox | LIR 已有专门指令，codegen 仍调用 C；unbox 还取得 heap lock、查询 exact size 并检查 shape。先做 M58-B 的局部消除，剩余静态布局已知的操作再考虑分配／类型检查／load／copy IR | 含引用 payload 必须跨分配 safepoint 保活并恢复；保留必要动态类型检查，C 边界与生成代码职责分别表达，不复制热路径校验 |
+| String byteLength／byteAt | `strings.c` 前者只读 len，后者为边界检查加 byte load，适合直接生成 IR，暴露重复读取与检查消除机会 | 字符数量 length 要扫描 UTF-8，不等同于 byteLength；UTF-8 解码等复杂算法先保留 C |
+| Array clone | codegen 已知 source／target 的元素和布局，当前仍调用 C clone；可复用分配 IR、memcpy 与必要范围屏障 | source 必须在目标分配后使用 relocation 更新地址；名义 Array／MutableArray TD 仍分别正确 |
+| is-instance／itable lookup | 先利用 exact receiver 与 devirt 消除；剩余可考虑 exact TD 指针比较快路径 | 父类、接口、函数类型变体等动态关系不能全部退化成指针相等；复杂慢路径保留 runtime |
+
+这部分为源码核对与后续候选，没有宣称迁移后的性能结果，也不扩大 M58 的交付门槛。优先在 typed MIR／LIR 保留语义，codegen 只负责最终布局／GC 相关发射；不把上游语义分析搬到 codegen，不一次性将整个 C runtime 展开。收益依据应是消失的调用、重复检查、root frame 与复制，以及 LLVM 获得的静态信息；GC 协调、分配慢路径、异常和 OS 操作继续留在 runtime。
