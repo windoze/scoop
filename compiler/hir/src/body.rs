@@ -39,6 +39,7 @@ pub struct Statement {
 
 #[derive(Debug, Clone)]
 pub enum StatementKind {
+    MemberRequirementCall(Box<MemberRequirementCall>),
     ContextScope {
         value: Expr,
         body: Vec<Statement>,

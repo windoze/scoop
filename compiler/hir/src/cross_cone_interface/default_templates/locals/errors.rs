@@ -32,7 +32,7 @@ impl fmt::Display for TemplateLocalRecordBuildError {
 
 impl std::error::Error for TemplateLocalRecordBuildError {}
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum TemplateLocalRecordResolutionError<E> {
     Type(E),
     Definition(SourceOriginResolutionError<E>),
@@ -97,7 +97,7 @@ impl fmt::Display for TemplateLocalLookupError {
 
 impl std::error::Error for TemplateLocalLookupError {}
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum TemplateLocalTableValidationError<E> {
     TooMany,
     Record {

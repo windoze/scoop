@@ -1,0 +1,3 @@
+struct Box() { public suspend fun read(): Int = 1 }
+fun <T> accept(value: T): Int where requires(x: T) { x.read(): Int } = 0
+fun main() { accept(Box()) }

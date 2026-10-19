@@ -19,6 +19,33 @@ mod type_validation;
 mod violations;
 
 impl Lowerer {
+    pub(crate) fn check_requirement_no_gc_body(
+        &self,
+        body: &hir::Body,
+        result: &hir::Expr,
+    ) -> Result<(), String> {
+        let mut violations = Vec::new();
+        let mut requirements = HashSet::new();
+        self.collect_no_gc_statement_violations(
+            &body.statements,
+            &mut violations,
+            &mut requirements,
+        );
+        self.collect_no_gc_expr_violations(result, &mut violations, &mut requirements);
+        for local in body.locals.values() {
+            if !self.is_gc_free(local.ty) {
+                return Err(format!(
+                    "required NoGC call uses a value of non-GC-free type {}",
+                    self.type_name(local.ty)
+                ));
+            }
+        }
+        match violations.into_iter().next() {
+            Some((_, message)) => Err(format!("required NoGC call: {message}")),
+            None => Ok(()),
+        }
+    }
+
     pub(crate) fn check_no_gc_functions(&mut self) {
         let functions: Vec<_> = self
             .functions

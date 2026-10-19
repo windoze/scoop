@@ -10,6 +10,7 @@ mod interfaces;
 mod nominals;
 mod objects;
 mod properties;
+mod requirements;
 
 pub use aliases::*;
 pub use dispatch::*;
@@ -21,3 +22,4 @@ pub use interfaces::*;
 pub use nominals::*;
 pub use objects::*;
 pub use properties::*;
+pub use requirements::*;

@@ -104,3 +104,11 @@ pub use statements::{
     IndexedDefaultWhenV1, IndexedOptionalDefaultStatementListV1, IndexedOptionalDefaultWhenGuardV1,
     OptionalDefaultStatementListV1, OptionalDefaultStatementListViewV1, OptionalDefaultWhenGuardV1,
 };
+
+mod requirements;
+pub use requirements::{
+    DecodedDefaultMemberRequirementRefV1, DecodedDefaultRequirementBindingV1,
+    DecodedDefaultRequirementBindingValueV1, DefaultMemberRequirementRefV1,
+    DefaultRequirementBindingV1, DefaultRequirementBindingValueV1,
+    RequirementBindingResolutionError,
+};

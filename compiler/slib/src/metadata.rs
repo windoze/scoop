@@ -8,7 +8,7 @@ use scoop_wire::{
 
 use crate::{CapabilityContractRegistry, MemberPurposeSet, SectionLocation};
 
-pub(crate) const METADATA_SCHEMA: u32 = 2;
+pub(crate) const METADATA_SCHEMA: u32 = 3;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum MetadataLocation {

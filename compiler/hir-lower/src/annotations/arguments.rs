@@ -6,7 +6,7 @@ use scoop_hir as hir;
 use crate::Lowerer;
 
 impl Lowerer {
-    pub(super) fn annotation_marker(&mut self, annotation: &ast::Annotation) -> bool {
+    pub(crate) fn annotation_marker(&mut self, annotation: &ast::Annotation) -> bool {
         if annotation.args.is_empty() {
             true
         } else {

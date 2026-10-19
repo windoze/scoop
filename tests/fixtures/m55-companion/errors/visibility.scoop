@@ -1,0 +1,2 @@
+private interface Hidden {}
+public fun <T> probe(value: T): Int where T.Companion : Hidden = 1

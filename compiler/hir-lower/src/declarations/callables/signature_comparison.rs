@@ -1,6 +1,61 @@
 use super::*;
 
 impl Lowerer {
+    fn same_parameter_conditions(
+        &self,
+        left: &hir::TypeParamDecl,
+        right: &hir::TypeParamDecl,
+        pairs: &[(hir::TypeParamId, hir::TypeParamId)],
+    ) -> bool {
+        let same_set = |a: &[hir::InterfaceUpperBound], b: &[hir::InterfaceUpperBound]| {
+            a.len() == b.len()
+                && a.iter().all(|a| {
+                    b.iter()
+                        .any(|b| self.signature_types_equal(a.ty, b.ty, pairs))
+                })
+        };
+        let same_bounds =
+            |left: &hir::TypeParamBounds, right: &hir::TypeParamBounds| match (left, right) {
+                (hir::TypeParamBounds::Unconstrained, hir::TypeParamBounds::Unconstrained)
+                | (hir::TypeParamBounds::Value { .. }, hir::TypeParamBounds::Value { .. })
+                | (hir::TypeParamBounds::Ref { .. }, hir::TypeParamBounds::Ref { .. }) => true,
+                (hir::TypeParamBounds::Nominal(a), hir::TypeParamBounds::Nominal(b)) => {
+                    let class = match (&a.class, &b.class) {
+                        (Some(a), Some(b)) => self.signature_types_equal(a.ty, b.ty, pairs),
+                        (None, None) => true,
+                        _ => false,
+                    };
+                    class && same_set(&a.interfaces, &b.interfaces)
+                }
+                _ => false,
+            };
+        let companion = match (&left.companion, &right.companion) {
+            (None, None) => true,
+            (Some(a), Some(b)) => {
+                let exists_only = |bounds: &hir::TypeParamBounds| {
+                    matches!(
+                        bounds,
+                        hir::TypeParamBounds::Unconstrained | hir::TypeParamBounds::Ref { .. }
+                    )
+                };
+                ((exists_only(&a.bounds) && exists_only(&b.bounds))
+                    || same_bounds(&a.bounds, &b.bounds))
+                    && same_set(&a.excluded_interfaces, &b.excluded_interfaces)
+            }
+            _ => false,
+        };
+        same_bounds(&left.bounds, &right.bounds)
+            && same_set(&left.excluded_interfaces, &right.excluded_interfaces)
+            && companion
+            && left.requirements.len() == right.requirements.len()
+            && left.requirements.iter().all(|a| {
+                right
+                    .requirements
+                    .iter()
+                    .any(|b| self.same_requirement_contract(&a.contract, &b.contract, pairs))
+            })
+    }
+
     fn overload_types_equal(
         &self,
         left: TypeId,
@@ -24,6 +79,23 @@ impl Lowerer {
 
     /// Compare parameter signatures under the exact alpha-renaming relation
     /// between their globally unique type-parameter identities.
+    pub(crate) fn same_requirement_contract(
+        &self,
+        a: &hir::MemberRequirementContract,
+        b: &hir::MemberRequirementContract,
+        pairs: &[(hir::TypeParamId, hir::TypeParamId)],
+    ) -> bool {
+        let shape = |value: &hir::MemberRequirementContract| {
+            value
+                .key(|_| Ok::<_, std::convert::Infallible>(()))
+                .unwrap()
+        };
+        shape(a) == shape(b)
+            && a.types()
+                .zip(b.types())
+                .all(|(a, b)| self.signature_types_equal(a, b, pairs))
+    }
+
     pub(crate) fn same_parameter_signature(&self, a: FunctionId, b: FunctionId) -> bool {
         let (Some(a_sig), Some(b_sig)) = (self.signatures.get(&a), self.signatures.get(&b)) else {
             return false;
@@ -48,6 +120,11 @@ impl Lowerer {
             _ => false,
         };
         receivers_match
+            && a_sig.owner_type_param_count == b_sig.owner_type_param_count
+            && a_sig.type_params[a_sig.owner_type_param_count..]
+                .iter()
+                .zip(&b_sig.type_params[b_sig.owner_type_param_count..])
+                .all(|(a, b)| self.same_parameter_conditions(a, b, &parameter_pairs))
             && a_sig.params.len() == b_sig.params.len()
             && a_sig
                 .params
@@ -63,7 +140,8 @@ impl Lowerer {
         parameter_pairs: &[(hir::TypeParamId, hir::TypeParamId)],
     ) -> bool {
         match (&self.types[left], &self.types[right]) {
-            (Type::Param(left), Type::Param(right)) => {
+            (Type::Param(left), Type::Param(right))
+            | (Type::Companion(left), Type::Companion(right)) => {
                 parameter_pairs
                     .iter()
                     .any(|&(expected_left, expected_right)| {

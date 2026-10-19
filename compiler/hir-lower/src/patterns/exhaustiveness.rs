@@ -253,7 +253,8 @@ impl Lowerer {
             | Type::Function(_)
             | Type::Ptr(_)
             | Type::FunPtr(_)
-            | Type::Param(_) => ConstructorSpace::Open {
+            | Type::Param(_)
+            | Type::Companion(_) => ConstructorSpace::Open {
                 prefix: Vec::new(),
                 remainder: Constructor::Opaque,
             },

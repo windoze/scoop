@@ -1,0 +1,2 @@
+fun <T> probe(value: T): Int where T.Companion : ref = 1
+fun <U> forward(value: U): Int = probe(value)

@@ -1,0 +1,1 @@
+fun <T> read(value: T): Int where requires {} = 0

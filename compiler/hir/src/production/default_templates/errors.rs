@@ -72,6 +72,8 @@ pub enum DefaultTemplateEnvelopeProjectionError {
 
 #[derive(Debug)]
 pub enum DefaultEntityProjectionError {
+    RequirementLocals(Box<DefaultTemplateEnvelopeProjectionError>),
+    RequirementBody(Box<DefaultBodyProjectionError>),
     CallableKind(CallableTemplateOrigin),
     Resource(scoop_wire::WireError),
     Unknown { kind: &'static str, index: u32 },

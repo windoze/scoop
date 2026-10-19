@@ -98,24 +98,19 @@ impl Lowerer {
                 }
             }
             Type::Any => {}
-            Type::Param(receiver_parameter) => {
-                let parameter = self
-                    .type_params_in_scope
-                    .iter()
-                    .find(|parameter| parameter.id == receiver_parameter)
-                    .expect("the receiver parameter is in the active declaration scope")
-                    .clone();
-                for (root, bound) in parameter
-                    .nominal_bounds_in_source_order()
+            Type::Param(_) | Type::Companion(_) => {
+                let bounds = self
+                    .parameter_nominal_bounds(ty)
                     .into_iter()
-                    .enumerate()
-                {
-                    match self.types[bound.ty()] {
+                    .map(|bound| bound.ty())
+                    .collect::<Vec<_>>();
+                for (root, bound) in bounds.into_iter().enumerate() {
+                    match self.types[bound] {
                         Type::Class(application) => {
                             self.collect_class_method_candidates(
                                 application,
                                 root,
-                                Some((receiver_parameter, application)),
+                                Some((ty, application)),
                                 &mut declared,
                             );
                         }
@@ -124,7 +119,7 @@ impl Lowerer {
                                 application,
                                 0,
                                 root,
-                                Some((receiver_parameter, application)),
+                                Some((ty, application)),
                                 &mut Vec::new(),
                                 &mut declared,
                             );

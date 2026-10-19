@@ -87,7 +87,9 @@ impl Graph<'_> {
                     self.signature(argument, kind)?;
                 }
             }
-            SignatureTypeKey::Binder { .. } => return Err(Error::NonConcreteSignature),
+            SignatureTypeKey::Binder { .. } | SignatureTypeKey::Companion(_) => {
+                return Err(Error::NonConcreteSignature);
+            }
             SignatureTypeKey::Tuple(elements) => {
                 for element in elements.as_slice() {
                     self.signature(element, kind)?;

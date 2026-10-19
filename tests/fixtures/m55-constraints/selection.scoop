@@ -1,0 +1,24 @@
+interface Debug {}
+struct Plain(val value: Int)
+class Traced : Debug {}
+open class Base {}
+class Derived : Base(), Debug {}
+
+fun <T> foo(value: T): String = "general"
+fun <T> foo(value: T): String where T : !Debug = "opaque"
+fun <T> bar(value: T): String = foo(value)
+fun <T : !Debug> baz(value: T): String = foo(value)
+fun <T : !Debug> foo1(value: T): String = "forwarded"
+fun <T : !Debug> good(value: T): String = foo1(value)
+
+fun main() {
+    println(foo(Plain(1)))
+    println(foo(Traced()))
+    println(bar(Plain(2)))
+    println(baz(Plain(3)))
+    println(good(Plain(4)))
+    val value: Base = Derived()
+    println(foo(value))
+    val reference: (Plain) -> String = ::foo
+    println(reference(Plain(5)))
+}

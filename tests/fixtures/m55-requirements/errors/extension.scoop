@@ -1,0 +1,4 @@
+fun Box.read(): Int = 1
+struct Box() {  }
+fun <T> accept(value: T): Int where requires(x: T) { x.read(): Int } = 0
+fun main() { accept(Box()) }

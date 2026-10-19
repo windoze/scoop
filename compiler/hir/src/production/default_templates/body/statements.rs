@@ -30,6 +30,19 @@ impl BodyProjection<'_, '_> {
         kind: &StatementKind,
     ) -> Result<DefaultStatementKindV1, super::super::DefaultBodyProjectionError> {
         Ok(match kind {
+            StatementKind::MemberRequirementCall(call) => {
+                DefaultStatementKindV1::MemberRequirementCall {
+                    contract: Box::new(call.contract.key(|ty| self.type_key(ty))?),
+                    binding: Box::new(
+                        self.entities
+                            .requirement_binding(&call.binding, self.binders)?,
+                    ),
+                    arguments: self.expressions(&call.arguments)?,
+                    result: Box::new(
+                        self.pattern(&crate::Pattern::Binding { local: call.result })?,
+                    ),
+                }
+            }
             StatementKind::ContextScope { value, body } => DefaultStatementKindV1::ContextScope {
                 value: Box::new(self.expression(value)?),
                 body: self.statements(body)?,

@@ -1,6 +1,6 @@
 import scoop.test.assertEquals
 
-struct Point(val x: Int)
+class Point(val x: Int)
 
 fun main() {
     assertEquals(Point(1), Point(1))

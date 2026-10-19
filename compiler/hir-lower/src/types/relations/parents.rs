@@ -60,15 +60,13 @@ impl Lowerer {
                     .map(|parent| self.instantiate_ty(parent, &application.arguments))
                     .collect()
             }
-            Type::Param(parameter) => self
-                .type_params_in_scope
-                .iter()
-                .find(|candidate| candidate.id == parameter)
-                .map(hir::TypeParamDecl::nominal_bounds_in_source_order)
-                .unwrap_or_default()
-                .into_iter()
-                .map(|bound| bound.ty())
-                .collect(),
+            Type::Param(_) | Type::Companion(_) => {
+                let ty = self.intern_type(ty);
+                self.parameter_nominal_bounds(ty)
+                    .into_iter()
+                    .map(|bound| bound.ty())
+                    .collect()
+            }
             Type::Integer(kind) => {
                 self.intrinsic_type_interfaces(hir::IntrinsicTypeKind::Integer(kind))
             }

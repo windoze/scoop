@@ -241,7 +241,7 @@ impl Parser {
     /// Parse `<T, ...>` only when followed by a call argument list or
     /// an external lambda. The speculative reset keeps ordinary `<` / `>` binary
     /// expressions unchanged.
-    pub(super) fn parse_explicit_call_type_args(
+    pub(crate) fn parse_explicit_call_type_args(
         &mut self,
     ) -> Result<Vec<scoop_ast::CallTypeArgument>, Diagnostic> {
         if !matches!(self.peek().kind, TokenKind::Less) {

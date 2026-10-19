@@ -16,8 +16,9 @@ impl Concretizer<'_> {
         source: &export::Body,
         substitution: &[concrete::TypeId],
     ) -> (concrete::Body, Vec<concrete::LocalId>) {
-        let (locals, local_map) = self.lower_locals(&source.locals, substitution);
-        let statements = self.lower_statement_region(&source.statements, substitution, &local_map);
+        let (mut locals, local_map) = self.lower_locals(&source.locals, substitution);
+        let statements =
+            self.lower_statement_region(&source.statements, substitution, &local_map, &mut locals);
         (concrete::Body { locals, statements }, local_map)
     }
 
@@ -59,12 +60,24 @@ impl Concretizer<'_> {
         locals: &[concrete::LocalId],
         loops: &mut LoopRemap,
         out: &mut Vec<concrete::Statement>,
+        storage: &mut Arena<concrete::Local>,
     ) {
         let kind = match &source.kind {
+            export::StatementKind::MemberRequirementCall(call) => {
+                self.lower_requirement_call(call, substitution, locals, storage, out);
+                return;
+            }
             export::StatementKind::ContextScope { value, body } => {
                 let mut statements = Vec::new();
                 for statement in body {
-                    self.lower_statement(statement, substitution, locals, loops, &mut statements);
+                    self.lower_statement(
+                        statement,
+                        substitution,
+                        locals,
+                        loops,
+                        &mut statements,
+                        storage,
+                    );
                 }
                 concrete::StatementKind::ContextScope {
                     value: self.lower_expr(value, substitution, locals),
@@ -106,10 +119,10 @@ impl Concretizer<'_> {
                 else_body,
             } => concrete::StatementKind::If {
                 cond: self.lower_expr(cond, substitution, locals),
-                then_body: self.lower_statements(then_body, substitution, locals, loops),
+                then_body: self.lower_statements(then_body, substitution, locals, loops, storage),
                 else_body: else_body
                     .as_ref()
-                    .map(|body| self.lower_statements(body, substitution, locals, loops)),
+                    .map(|body| self.lower_statements(body, substitution, locals, loops, storage)),
             },
             export::StatementKind::While {
                 loop_kind,
@@ -121,9 +134,9 @@ impl Concretizer<'_> {
                 let mapped_target = self.fresh_loop();
                 loops.active.push((*target, mapped_target));
                 let condition_setup =
-                    self.lower_statements(condition_setup, substitution, locals, loops);
+                    self.lower_statements(condition_setup, substitution, locals, loops, storage);
                 let cond = self.lower_expr(cond, substitution, locals);
-                let body = self.lower_statements(body, substitution, locals, loops);
+                let body = self.lower_statements(body, substitution, locals, loops, storage);
                 assert_eq!(loops.active.pop(), Some((*target, mapped_target)));
                 concrete::StatementKind::While {
                     loop_kind: *loop_kind,
@@ -139,25 +152,35 @@ impl Concretizer<'_> {
             export::StatementKind::Continue { target } => concrete::StatementKind::Continue {
                 target: self.active_loop_target(loops, *target, "continue"),
             },
-            export::StatementKind::When(when) => {
-                concrete::StatementKind::When(self.lower_when(when, substitution, locals, loops))
-            }
+            export::StatementKind::When(when) => concrete::StatementKind::When(self.lower_when(
+                when,
+                substitution,
+                locals,
+                loops,
+                storage,
+            )),
             export::StatementKind::Try(try_) => concrete::StatementKind::Try(concrete::Try {
-                body: self.lower_statements(&try_.body, substitution, locals, loops),
+                body: self.lower_statements(&try_.body, substitution, locals, loops, storage),
                 catches: try_
                     .catches
                     .iter()
                     .map(|catch| concrete::CatchClause {
                         local: self.lower_local(catch.local, locals),
                         ty: self.lower_type(catch.ty, substitution),
-                        body: self.lower_statements(&catch.body, substitution, locals, loops),
+                        body: self.lower_statements(
+                            &catch.body,
+                            substitution,
+                            locals,
+                            loops,
+                            storage,
+                        ),
                         span: catch.span,
                     })
                     .collect(),
                 finally_body: try_
                     .finally_body
                     .as_ref()
-                    .map(|body| self.lower_statements(body, substitution, locals, loops)),
+                    .map(|body| self.lower_statements(body, substitution, locals, loops, storage)),
             }),
             export::StatementKind::Throw(expr) => {
                 concrete::StatementKind::Throw(self.lower_expr(expr, substitution, locals))
@@ -175,10 +198,11 @@ impl Concretizer<'_> {
         substitution: &[concrete::TypeId],
         locals: &[concrete::LocalId],
         loops: &mut LoopRemap,
+        storage: &mut Arena<concrete::Local>,
     ) -> Vec<concrete::Statement> {
         let mut out = Vec::with_capacity(source.len());
         for statement in source {
-            self.lower_statement(statement, substitution, locals, loops, &mut out);
+            self.lower_statement(statement, substitution, locals, loops, &mut out, storage);
         }
         out
     }
@@ -188,9 +212,10 @@ impl Concretizer<'_> {
         source: &[export::Statement],
         substitution: &[concrete::TypeId],
         locals: &[concrete::LocalId],
+        storage: &mut Arena<concrete::Local>,
     ) -> Vec<concrete::Statement> {
         let mut loops = LoopRemap::default();
-        let statements = self.lower_statements(source, substitution, locals, &mut loops);
+        let statements = self.lower_statements(source, substitution, locals, &mut loops, storage);
         debug_assert!(loops.active.is_empty());
         statements
     }

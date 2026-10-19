@@ -96,6 +96,27 @@ pub(crate) fn render_nominal_constraint_failure(
                 parameter(*variable).name,
             )
         }
+        ConstraintFailureKind::MemberRequirement(message) => message.clone(),
+        ConstraintFailureKind::Companion { message, .. } => message.clone(),
+        ConstraintFailureKind::ExcludedInterface {
+            variable,
+            solution,
+            required,
+            outcome,
+        } => format!(
+            "type argument `{}` for `{}` must satisfy negative interface bound `!{}`: {}",
+            lowerer.type_name(*solution),
+            parameter(*variable).name,
+            lowerer.type_name(*required),
+            match outcome {
+                crate::types::InterfaceExclusion::Implemented =>
+                    "the static type implements this interface",
+                crate::types::InterfaceExclusion::Unknown =>
+                    "the generic environment does not establish this negative fact",
+                crate::types::InterfaceExclusion::Satisfied =>
+                    unreachable!("a satisfied exclusion is not a failure"),
+            },
+        ),
         ConstraintFailureKind::InterfaceBound {
             variable,
             solution,

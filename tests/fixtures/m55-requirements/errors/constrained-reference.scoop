@@ -1,0 +1,3 @@
+struct Missing()
+fun <T> read(value: T): Int where requires(x: T) { x.read(): Int } = value.read()
+fun main() { val reference: (Missing) -> Int = ::read }

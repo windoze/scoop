@@ -34,6 +34,32 @@ where
         pending: &mut Vec<WorkItem<'body>>,
     ) -> Result<(), M::Error> {
         match kind {
+            DefaultStatementKindV1::MemberRequirementCall {
+                contract,
+                binding,
+                arguments,
+                result,
+            } => {
+                for ty in contract.types() {
+                    self.push_type(
+                        pending,
+                        ty,
+                        DefaultBodyProviderTypeSiteV1::CallableOwner,
+                        definition_origin,
+                    )?;
+                }
+                self.requirement_binding(binding, definition_origin, pending)?;
+                for argument in arguments {
+                    self.push_child(pending, BodyNode::Expression(argument))?;
+                }
+                self.push_child(
+                    pending,
+                    BodyNode::Pattern {
+                        pattern: result,
+                        definition_origin,
+                    },
+                )
+            }
             DefaultStatementKindV1::ContextScope { value, body } => {
                 self.push_statements(pending, body)?;
                 self.push_child(pending, BodyNode::Expression(value))

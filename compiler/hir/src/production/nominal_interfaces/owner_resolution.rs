@@ -45,7 +45,10 @@ pub(in crate::production) fn from_type(
         crate::Type::FunPtr(_) => {
             return intrinsic_generic_owner(export, IntrinsicGenericType::FunctionPointer);
         }
-        crate::Type::Tuple(_) | crate::Type::Function(_) | crate::Type::Param(_) => return None,
+        crate::Type::Tuple(_)
+        | crate::Type::Function(_)
+        | crate::Type::Param(_)
+        | crate::Type::Companion(_) => return None,
     };
     identity.source().map(super::source_nominal_id)
 }

@@ -24,11 +24,27 @@ impl<'a> SharedTypeMetadataV1<'a> {
         signature: &SignatureTypeKey,
         bindings: &[Vec<PersistentExactTypeId>],
     ) -> Result<PersistentExactTypeId, Error> {
+        self.exact_with_sources(signature, bindings, &|owner| {
+            self.public.nominal_interfaces().declaration(owner)
+        })
+    }
+
+    pub(crate) fn exact_with_sources(
+        self,
+        signature: &SignatureTypeKey,
+        bindings: &[Vec<PersistentExactTypeId>],
+        nominal_source: &impl Fn(crate::SourceNominalId) -> Option<&'a crate::NominalInterfaceRecordV1>,
+    ) -> Result<PersistentExactTypeId, Error> {
         let key = match signature {
             SignatureTypeKey::Nominal(owner) => ExactTypeKey::Nominal(*owner),
-            SignatureTypeKey::NominalApplication { origin, arguments } => {
-                self.application_key(*origin, self.exacts(arguments.as_slice(), bindings)?)?
+            SignatureTypeKey::Companion(host) => {
+                let host = self.exact_with_sources(host, bindings, nominal_source)?;
+                return self.companion_type(host, nominal_source);
             }
+            SignatureTypeKey::NominalApplication { origin, arguments } => self.application_key(
+                *origin,
+                self.exacts(arguments.as_slice(), bindings, nominal_source)?,
+            )?,
             SignatureTypeKey::Binder { depth, index } => {
                 let exact = bindings
                     .get(*depth as usize)
@@ -39,7 +55,7 @@ impl<'a> SharedTypeMetadataV1<'a> {
                 return Ok(exact);
             }
             SignatureTypeKey::Tuple(elements) => ExactTypeKey::Tuple(
-                NonEmptyVec::new(self.exacts(elements.as_slice(), bindings)?)
+                NonEmptyVec::new(self.exacts(elements.as_slice(), bindings, nominal_source)?)
                     .map_err(|e| Error::Key(e.to_string()))?,
             ),
             SignatureTypeKey::Function {
@@ -50,23 +66,23 @@ impl<'a> SharedTypeMetadataV1<'a> {
             } => ExactTypeKey::Function {
                 receiver: receiver
                     .as_ref()
-                    .map(|ty| self.exact_with_bindings(ty, bindings))
+                    .map(|ty| self.exact_with_sources(ty, bindings, nominal_source))
                     .transpose()?,
                 effect: *effect,
-                parameters: self.exacts(parameters, bindings)?,
-                result: self.exact_with_bindings(result, bindings)?,
+                parameters: self.exacts(parameters, bindings, nominal_source)?,
+                result: self.exact_with_sources(result, bindings, nominal_source)?,
             },
-            SignatureTypeKey::RawPointer(pointee) => {
-                ExactTypeKey::RawPointer(self.exact_with_bindings(pointee, bindings)?)
-            }
+            SignatureTypeKey::RawPointer(pointee) => ExactTypeKey::RawPointer(
+                self.exact_with_sources(pointee, bindings, nominal_source)?,
+            ),
             SignatureTypeKey::NativeFunctionPointer {
                 calling_convention,
                 parameters,
                 result,
             } => ExactTypeKey::NativeFunctionPointer {
                 calling_convention: *calling_convention,
-                parameters: self.exacts(parameters, bindings)?,
-                result: self.exact_with_bindings(result, bindings)?,
+                parameters: self.exacts(parameters, bindings, nominal_source)?,
+                result: self.exact_with_sources(result, bindings, nominal_source)?,
             },
         };
         self.exact_key(key)
@@ -76,16 +92,17 @@ impl<'a> SharedTypeMetadataV1<'a> {
         self,
         signatures: &[SignatureTypeKey],
         bindings: &[Vec<PersistentExactTypeId>],
+        nominal_source: &impl Fn(crate::SourceNominalId) -> Option<&'a crate::NominalInterfaceRecordV1>,
     ) -> Result<Vec<PersistentExactTypeId>, Error> {
         let mut exacts = Vec::new();
         scoop_wire::allocation::try_reserve(&mut exacts, signatures.len(), &WirePath::root())?;
         for signature in signatures {
-            exacts.push(self.exact_with_bindings(signature, bindings)?);
+            exacts.push(self.exact_with_sources(signature, bindings, nominal_source)?);
         }
         Ok(exacts)
     }
 
-    fn application_key(
+    pub(super) fn application_key(
         self,
         origin: scoop_identity::PersistentGenericTypeId,
         arguments: Vec<PersistentExactTypeId>,
@@ -125,7 +142,7 @@ impl<'a> SharedTypeMetadataV1<'a> {
         })
     }
 
-    fn exact_key(self, key: ExactTypeKey) -> Result<PersistentExactTypeId, Error> {
+    pub(super) fn exact_key(self, key: ExactTypeKey) -> Result<PersistentExactTypeId, Error> {
         let exact = PersistentExactTypeId::from_key(&key).map_err(|e| Error::Key(e.to_string()))?;
         if self.key(exact)?.as_ref() != &key {
             return Err(Error::Key("exact type key mismatch".into()));

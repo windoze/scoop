@@ -162,7 +162,7 @@ impl<'a> TypeIdentityBuilder<'a> {
                 }
             }
             Type::FunPtr(function) => self.function_type(ty, function, true)?,
-            Type::Param(parameter) => open_identity(vec![parameter]),
+            Type::Param(parameter) | Type::Companion(parameter) => open_identity(vec![parameter]),
         };
         self.visiting[index] = false;
         self.identities[index] = Some(identity.clone());

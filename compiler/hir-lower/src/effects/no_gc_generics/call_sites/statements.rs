@@ -8,6 +8,20 @@ impl Lowerer {
     ) {
         for statement in statements {
             match &statement.kind {
+                hir::StatementKind::MemberRequirementCall(call) => {
+                    for argument in &call.arguments {
+                        self.collect_generic_calls_in_expr(argument, out);
+                    }
+                    if let hir::MemberRequirementBindingValue::Implementation {
+                        implementation,
+                        ..
+                    } = &call.binding
+                    {
+                        let plan = &self.member_requirement_implementations[*implementation];
+                        self.collect_generic_calls_in_statements(&plan.body.statements, out);
+                        self.collect_generic_calls_in_expr(&plan.result, out);
+                    }
+                }
                 hir::StatementKind::ContextScope { value, body } => {
                     self.collect_generic_calls_in_expr(value, out);
                     self.collect_generic_calls_in_statements(body, out);

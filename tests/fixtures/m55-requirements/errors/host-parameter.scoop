@@ -1,0 +1,1 @@
+class Host<T> { fun <U> read(value: U): Int where requires(x: T) { x.read(): Int } = 0 }

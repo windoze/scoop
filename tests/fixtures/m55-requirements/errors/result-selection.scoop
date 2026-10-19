@@ -1,0 +1,3 @@
+struct Box() { public fun read(x: Int): String = "x"; public fun read(x: Any): Int = 1 }
+fun <T> accept(value: T): Int where requires(x: T) { x.read(n: Int): Int } = 0
+fun main() { accept(Box()) }

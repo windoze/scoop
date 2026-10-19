@@ -1,0 +1,3 @@
+struct Host() { public companion object {} }
+fun <T> probe(value: T.Companion): Int where T.Companion : ref = 1
+fun main() { probe(Host.Companion) }

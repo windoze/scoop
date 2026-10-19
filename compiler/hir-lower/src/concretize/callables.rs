@@ -62,9 +62,11 @@ impl Concretizer<'_> {
                     .map(|argument| self.lower_type(*argument, substitution))
                     .collect();
                 (
-                    concrete::Callable::Function(
-                        self.request_function(function, arguments.clone()),
-                    ),
+                    concrete::Callable::Function(self.with_requirement_bindings(
+                        &resolved.requirements,
+                        substitution,
+                        |state| state.request_function(function, arguments.clone()),
+                    )),
                     arguments,
                 )
             }
@@ -85,10 +87,16 @@ impl Concretizer<'_> {
                 let mut arguments = self.concrete_method_owner_arguments(owner).to_vec();
                 arguments.extend(method_arguments.iter().copied());
                 let function = self.source.generic_methods[application.method].function;
-                let concrete = self.request_method(
-                    function,
-                    owner,
-                    method_arguments.iter().copied().collect(),
+                let concrete = self.with_requirement_bindings(
+                    &application.requirements,
+                    substitution,
+                    |state| {
+                        state.request_method(
+                            function,
+                            owner,
+                            method_arguments.iter().copied().collect(),
+                        )
+                    },
                 );
                 (concrete::Callable::Function(concrete), arguments)
             }

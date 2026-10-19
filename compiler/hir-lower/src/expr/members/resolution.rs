@@ -166,16 +166,16 @@ impl Lowerer {
         callable: hir::Callable,
         type_args: &[TypeId],
     ) -> hir::MethodCallee {
-        let (receiver_parameter, bound_source, function) = match source {
+        let (receiver_type, bound_source, function) = match source {
             crate::CallableCandidateSource::Direct => {
                 return hir::MethodCallee::Callable(callable.into());
             }
             crate::CallableCandidateSource::ClassBound {
-                receiver_parameter,
+                receiver_type,
                 bound,
                 member,
             } => (
-                receiver_parameter,
+                receiver_type,
                 hir::BoundCallableSource::Class {
                     bound,
                     callable: callable.into(),
@@ -183,11 +183,11 @@ impl Lowerer {
                 member,
             ),
             crate::CallableCandidateSource::InterfaceBound {
-                receiver_parameter,
+                receiver_type,
                 bound,
                 member,
             } => (
-                receiver_parameter,
+                receiver_type,
                 hir::BoundCallableSource::Interface {
                     bound,
                     member: hir::InterfaceMethodReference::Local(member),
@@ -206,7 +206,7 @@ impl Lowerer {
         let instantiated_signature =
             self.intern_function_type(signature.is_suspend, parameter_types, return_type);
         let value = hir::BoundCallableRef {
-            receiver_type: self.intern_type(Type::Param(receiver_parameter)),
+            receiver_type,
             source: bound_source,
             instantiated_signature,
         };

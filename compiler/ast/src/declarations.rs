@@ -1,3 +1,6 @@
+mod requirements;
+pub use requirements::*;
+
 use crate::{
     Annotation, AnnotationClassDecl, Block, Expr, Ident, ImportSyntax, PackageSyntax, Span, TypeRef,
 };
@@ -299,19 +302,35 @@ pub enum TypeParamKindBound {
 pub enum TypeBound {
     Kind(TypeParamKindBound),
     Upper(TypeRef),
+    ExcludedInterface(TypeRef),
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct WhereClause {
     pub constraints: Vec<TypeConstraint>,
+    pub requirements: Vec<MemberRequirements>,
     pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TypeConstraint {
-    pub parameter: Ident,
+    pub subject: TypeConstraintSubject,
     pub bound: TypeBound,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum TypeConstraintSubject {
+    Parameter(Ident),
+    Companion(Ident),
+}
+
+impl TypeConstraintSubject {
+    pub fn parameter(&self) -> &Ident {
+        match self {
+            Self::Parameter(parameter) | Self::Companion(parameter) => parameter,
+        }
+    }
 }
 
 /// `enum E<T> { ... }` (spec 4.2).

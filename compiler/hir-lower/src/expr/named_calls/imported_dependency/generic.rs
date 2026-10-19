@@ -27,7 +27,7 @@ impl Lowerer {
             signature,
             bindings: template_bindings,
         } = declaration;
-        let mut explicit = match self.resolve_call_type_args(call.type_args) {
+        let mut explicit = match call.type_args.resolve(&mut self) {
             Some(arguments) => arguments,
             None => return Err(self),
         };
@@ -272,8 +272,10 @@ impl Lowerer {
                 let value = if matches!(
                     candidate.interface().owner(),
                     hir::PublicDeclarationOwnerV1::Nominal(_)
-                ) && matches!(self.types[value.ty], hir::Type::Param(_))
-                    && matches!(self.types[ty], hir::Type::Interface(_))
+                ) && matches!(
+                    self.types[value.ty],
+                    hir::Type::Param(_) | hir::Type::Companion(_)
+                ) && matches!(self.types[ty], hir::Type::Interface(_))
                 {
                     value
                 } else {

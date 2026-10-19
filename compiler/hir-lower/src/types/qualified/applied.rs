@@ -8,6 +8,9 @@ impl Lowerer {
         arguments: &[ast::TypeRef],
         span: ast::Span,
     ) -> Option<TypeId> {
+        if let Type::Param(parameter) = self.types[host] {
+            return self.resolve_parameter_companion(parameter, name, arguments);
+        }
         let owner = self
             .nominal_target_for_type(host)
             .map(|target| self.nominal_identity(target.owner()).declaration_id())

@@ -4,7 +4,13 @@ use scoop_wire::{Encoder, WireEncode};
 
 use crate::{PersistentGenericTypeId, PersistentTypeId};
 
+mod conditions;
+mod requirements;
+pub use requirements::{
+    MemberRequirementKey, RequiredArgumentKey, RequiredEffectsKey, RequiredMemberKey,
+};
 mod decode;
+pub use conditions::SignatureConditionKey;
 
 pub use decode::{
     DecodedDuplicateSignatureKey, DecodedOptionalSignatureType, DecodedSignatureTypeKey,
@@ -98,6 +104,7 @@ pub enum SignatureTypeKey {
         depth: u32,
         index: u32,
     },
+    Companion(Box<SignatureTypeKey>),
 }
 
 impl WireEncode for SignatureTypeKey {
@@ -139,6 +146,7 @@ impl WireEncode for SignatureTypeKey {
                 Ok(())
             }
             Self::RawPointer(pointee) => encode_single_payload(encoder, 5, pointee.as_ref()),
+            Self::Companion(host) => encode_single_payload(encoder, 8, host.as_ref()),
             Self::NativeFunctionPointer {
                 calling_convention,
                 parameters,
@@ -192,7 +200,7 @@ impl SignatureTypeKey {
             Self::NativeFunctionPointer {
                 parameters, result, ..
             } => parameters.iter().any(Self::contains_binder) || result.contains_binder(),
-            Self::RawPointer(pointee) => pointee.contains_binder(),
+            Self::RawPointer(pointee) | Self::Companion(pointee) => pointee.contains_binder(),
             Self::Binder { .. } => true,
         }
     }
@@ -238,6 +246,7 @@ pub enum DuplicateSignatureKey {
         type_parameter_count: u32,
         receiver: OptionalSignatureType,
         parameters: Vec<SignatureTypeKey>,
+        conditions: Vec<SignatureConditionKey>,
     },
     Constructor {
         parameters: Vec<SignatureTypeKey>,
@@ -292,15 +301,21 @@ impl WireEncode for DuplicateSignatureKey {
                 type_parameter_count,
                 receiver,
                 parameters,
+                conditions,
             } => {
-                encoder.map(4)?;
+                encoder.map(4 + u64::from(!conditions.is_empty()))?;
                 encode_tag(encoder, 2)?;
                 encoder.field(1)?;
                 encoder.unsigned(u64::from(*type_parameter_count))?;
                 encoder.field(2)?;
                 receiver.encode(encoder)?;
                 encoder.field(3)?;
-                encode_sequence(encoder, parameters)
+                encode_sequence(encoder, parameters)?;
+                if !conditions.is_empty() {
+                    encoder.field(4)?;
+                    encode_sequence(encoder, conditions)?;
+                }
+                Ok(())
             }
             Self::Constructor { parameters } => {
                 encoder.map(2)?;

@@ -90,6 +90,20 @@ impl Lowerer {
             }
         }
 
+        if direct_required.operator.is_none()
+            && direct_required.property_delegate_operator.is_none()
+            && !direct_required.infix
+            && let Some(result) = self.lower_required_member_call(
+                Some(receiver.clone()),
+                receiver.ty,
+                Some(&name.text),
+                call,
+                sink,
+            )
+        {
+            return result;
+        }
+
         if let Some(property) = &property {
             match property.state.probe_property_member_invoke_partition(
                 property.expression.clone(),

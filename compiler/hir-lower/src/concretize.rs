@@ -35,8 +35,10 @@ mod objects;
 mod output;
 mod prepare;
 mod protocols;
+mod recursion;
 mod release;
 mod requests;
+mod requirements;
 mod run;
 mod runtime_exceptions;
 mod structs;
@@ -210,6 +212,11 @@ struct Concretizer<'a> {
         concrete::ForeignCallbackRegistrationId,
     >,
     next_loop_identity: u32,
+    requirement_environment: requirements::RequirementEnvironment,
+    body_requirements: HashMap<type_info::CallableBody, requirements::RequirementEnvironment>,
+    specialization_parents: HashMap<type_info::CallableBody, Vec<type_info::CallableBody>>,
+    specialization_failed: bool,
+    requirement_evaluation: Option<export::EvaluationOrigin>,
 }
 
 impl<'a> Concretizer<'a> {
@@ -385,6 +392,11 @@ impl<'a> Concretizer<'a> {
             foreign_callback_slots: Vec::new(),
             foreign_callback_by_key: HashMap::new(),
             next_loop_identity: 0,
+            requirement_environment: HashMap::new(),
+            body_requirements: HashMap::new(),
+            specialization_parents: HashMap::new(),
+            specialization_failed: false,
+            requirement_evaluation: None,
         }
     }
 }

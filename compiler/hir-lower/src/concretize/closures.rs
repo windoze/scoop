@@ -43,14 +43,21 @@ impl Concretizer<'_> {
         let source = self.source.lambdas[source_id].clone();
         let body_arguments = match &source.body_type_arguments {
             export::CallableBodyTypeArguments::Lexical => substitution.to_vec(),
-            export::CallableBodyTypeArguments::Explicit(arguments) => arguments
+            export::CallableBodyTypeArguments::Explicit { arguments, .. } => arguments
                 .iter()
                 .map(|&argument| self.lower_type(argument, substitution))
                 .collect(),
         };
+        let requirements = match &source.body_type_arguments {
+            export::CallableBodyTypeArguments::Lexical => &[][..],
+            export::CallableBodyTypeArguments::Explicit { requirements, .. } => &requirements[..],
+        };
+        let function = self.with_requirement_bindings(requirements, substitution, |this| {
+            this.request_lexical_function(source.definition, body_arguments)
+        });
         let value = concrete::Lambda {
             definition_path: source.definition_path,
-            function: self.request_lexical_function(source.definition, body_arguments),
+            function,
             function_type: self.lower_function_type(source.function_type, substitution),
             captures: source
                 .captures
@@ -71,14 +78,21 @@ impl Concretizer<'_> {
         let source = self.source.anonymous_functions[source_id].clone();
         let body_arguments = match &source.body_type_arguments {
             export::CallableBodyTypeArguments::Lexical => substitution.to_vec(),
-            export::CallableBodyTypeArguments::Explicit(arguments) => arguments
+            export::CallableBodyTypeArguments::Explicit { arguments, .. } => arguments
                 .iter()
                 .map(|&argument| self.lower_type(argument, substitution))
                 .collect(),
         };
+        let requirements = match &source.body_type_arguments {
+            export::CallableBodyTypeArguments::Lexical => &[][..],
+            export::CallableBodyTypeArguments::Explicit { requirements, .. } => &requirements[..],
+        };
+        let function = self.with_requirement_bindings(requirements, substitution, |this| {
+            this.request_lexical_function(source.definition, body_arguments)
+        });
         let value = concrete::AnonymousFunction {
             definition_path: source.definition_path,
-            function: self.request_lexical_function(source.definition, body_arguments),
+            function,
             function_type: self.lower_function_type(source.function_type, substitution),
             captures: source
                 .captures

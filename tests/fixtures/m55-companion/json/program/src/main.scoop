@@ -1,0 +1,42 @@
+import scoop.json.Json
+
+var starts: Int = 0
+fun start(): Int { starts += 1; return starts }
+struct User(val id: Long, val name: String) {
+    public companion object Codec : ValueEncoder<User>, ValueDecoder<User> {
+        val marker: Int = start()
+    }
+}
+struct WriteOnly(val value: Long) {
+    public companion object : ValueEncoder<WriteOnly> {}
+}
+struct ReadOnly(val value: Long) {
+    public companion object : ValueDecoder<ReadOnly> {}
+}
+struct Explicit(val value: Long)
+object Custom : ValueEncoder<Explicit>, ValueDecoder<Explicit> {
+    public override fun encode(value: Explicit, encoder: Encoder) =
+        Long.encode(value.value + 1L, encoder)
+    public override fun decode(decoder: Decoder): Explicit = Explicit(Long.decode(decoder) - 1L)
+}
+fun <T> encode(value: T): String where T.Companion : ValueEncoder<T> = Json.encodeToString(value)
+fun <T> decode(text: String): T where T.Companion : ValueDecoder<T> = Json.decodeFromString<T>(text)
+fun <T> present(value: T): Boolean where T.Companion : ValueEncoder<T> = true
+fun main() {
+    val user = User(7L, "Ada")
+    println(present(user))
+    println(starts)
+    val text = encode(user)
+    println(text)
+    println(decode<User>(text) == user)
+    println(User.Companion === User.Codec)
+    println(starts)
+    println(Json.encodeToString(WriteOnly(9L)))
+    println(Json.decodeFromString<ReadOnly>("{\"value\":8}").value)
+    println(Json.encodeToString(Explicit(4L), Custom))
+    println(Json.decodeFromString("5", Custom).value)
+    println(Json.encodeToString(user, ValueEncoderFunction<User>({ value, encoder ->
+        encoder.singleValue().writeString(value.name)
+    })))
+    println(Json.decodeFromString<Int>("12"))
+}

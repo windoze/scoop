@@ -49,6 +49,24 @@ impl Lowerer {
                 }
             }
         }
+        if !found
+            && let Some(parameter) = self.type_params_in_scope.iter().find(|p| p.name == *name)
+        {
+            let subject = self.intern_type(Type::Param(parameter.id));
+            if let Some(result) = self.lower_required_member_call(
+                None,
+                subject,
+                None,
+                CallSite {
+                    type_args: &call.type_args,
+                    args: &call.args,
+                    span: call.span,
+                },
+                sink,
+            ) {
+                return result;
+            }
+        }
         if let Some(failure) = ordinary_failure {
             self.commit_layer_diagnostics(*failure);
             return None;

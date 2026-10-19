@@ -31,11 +31,14 @@ impl Concretizer<'_> {
         expression
     }
 
-    fn concrete_expression_origin(
+    pub(in crate::concretize) fn concrete_expression_origin(
         &self,
         source: export::ExpressionOrigin,
     ) -> export::ConcreteExpressionOrigin {
         let mut origin = source.concrete();
+        if let Some(evaluation) = self.requirement_evaluation {
+            origin.evaluation = evaluation;
+        }
         if let Some(context) = self.evaluation_context {
             origin.evaluation.context = context;
         }
@@ -215,6 +218,9 @@ impl Concretizer<'_> {
             }
             export::ExprKind::SingletonValue(value) => {
                 concrete::ExprKind::SingletonValue(match *value {
+                    export::SingletonValueTarget::Companion(_) => {
+                        self.projected_singleton_value(ty)
+                    }
                     export::SingletonValueTarget::Local(_) => {
                         concrete::SingletonValueTarget::Local(self.singleton_value_for_type(ty))
                     }

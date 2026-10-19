@@ -44,7 +44,9 @@ impl Loaded {
                     .collect(),
                 result: self.register_signature(result),
             },
-            SignatureTypeKey::Binder { .. } | SignatureTypeKey::NominalApplication { .. } => {
+            SignatureTypeKey::Binder { .. }
+            | SignatureTypeKey::NominalApplication { .. }
+            | SignatureTypeKey::Companion(_) => {
                 panic!("call fixtures register complete parameter-free signatures")
             }
         };

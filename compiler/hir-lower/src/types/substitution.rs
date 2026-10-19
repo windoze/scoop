@@ -9,7 +9,7 @@ impl Lowerer {
                 .any(|argument| self.type_contains_param(*argument));
         }
         match &self.types[ty] {
-            Type::Param(_) => true,
+            Type::Param(_) | Type::Companion(_) => true,
             Type::Ptr(element) => self.type_contains_param(*element),
             Type::Tuple(args) => args.iter().any(|ty| self.type_contains_param(*ty)),
             Type::Function(id) | Type::FunPtr(id) => self.function_type_contains_param(*id),
@@ -44,6 +44,9 @@ impl Lowerer {
         }
         match self.types[ty].clone() {
             Type::Param(index) => type_args[index.into_raw() as usize],
+            Type::Companion(index) => {
+                self.substitute_companion_type(type_args[index.into_raw() as usize])
+            }
             Type::Tuple(elements) => {
                 let mut substituted = Vec::with_capacity(elements.len());
                 for element in elements {
@@ -95,6 +98,13 @@ impl Lowerer {
                 .expect("substitution preserves a resolved nominal declaration");
         }
         match self.types[ty].clone() {
+            Type::Companion(parameter) => {
+                let host = bindings
+                    .iter()
+                    .find_map(|(source, target)| (*source == parameter).then_some(*target))
+                    .expect("a complete substitution binds every projection host");
+                self.substitute_companion_type(host)
+            }
             Type::Param(parameter) => bindings
                 .iter()
                 .find_map(|(source, target)| (*source == parameter).then_some(*target))
@@ -149,6 +159,10 @@ impl Lowerer {
         }
         match self.types[ty].clone() {
             Type::Param(index) => bindings.get(index.into_raw() as usize).copied().flatten(),
+            Type::Companion(index) => {
+                let host = bindings.get(index.into_raw() as usize).copied().flatten()?;
+                self.projected_companion_type(host).ok()
+            }
             Type::Tuple(elements) => {
                 let mut substituted = Vec::with_capacity(elements.len());
                 for element in elements {

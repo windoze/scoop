@@ -6,6 +6,23 @@ impl ReferenceCollector<'_> {
     pub(super) fn statement(&mut self, statement: &hir::Statement) {
         let origin = self.at(statement.span);
         match &statement.kind {
+            hir::StatementKind::MemberRequirementCall(call) => {
+                for ty in call.contract.types() {
+                    self.type_reference(ty, origin);
+                }
+                for argument in &call.arguments {
+                    self.expression(argument);
+                }
+                if let hir::MemberRequirementBindingValue::Implementation {
+                    implementation, ..
+                } = &call.binding
+                {
+                    let plan =
+                        self.lowerer.member_requirement_implementations[*implementation].clone();
+                    self.statements(&plan.body.statements);
+                    self.expression(&plan.result);
+                }
+            }
             hir::StatementKind::ContextScope { value, body } => {
                 self.expression(value);
                 self.statements(body);

@@ -2,15 +2,13 @@ use super::*;
 
 impl Lowerer {
     pub(crate) fn enclosing_receiver_class(&mut self, receiver: hir::Expr) -> Option<hir::Expr> {
-        let ty = if let Type::Param(parameter) = self.types[receiver.ty] {
-            let parameter = self
-                .type_params_in_scope
-                .iter()
-                .find(|value| value.id == parameter)?;
-            let hir::TypeParamBounds::Nominal(bounds) = &parameter.bounds else {
-                return None;
-            };
-            bounds.class.as_ref()?.ty
+        let ty = if matches!(self.types[receiver.ty], Type::Param(_) | Type::Companion(_)) {
+            self.parameter_nominal_bounds(receiver.ty)
+                .into_iter()
+                .find_map(|bound| match bound {
+                    hir::NominalBoundRef::Class(bound) => Some(bound.ty),
+                    hir::NominalBoundRef::Interface(_) => None,
+                })?
         } else {
             receiver.ty
         };

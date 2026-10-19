@@ -206,7 +206,8 @@ impl Lowerer {
             | Type::Function(_)
             | Type::Ptr(_)
             | Type::FunPtr(_)
-            | Type::Param(_) => {}
+            | Type::Param(_)
+            | Type::Companion(_) => {}
         }
     }
 

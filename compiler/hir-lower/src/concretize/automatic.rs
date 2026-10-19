@@ -46,7 +46,7 @@ impl Concretizer<'_> {
             | export::Type::Boolean
             | export::Type::String
             | export::Type::Any => true,
-            export::Type::Param(_) => false,
+            export::Type::Param(_) | export::Type::Companion(_) => false,
             export::Type::Struct(application) => {
                 let application = &self.source.struct_applications[*application];
                 (!application.arguments.is_empty()

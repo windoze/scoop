@@ -158,6 +158,48 @@ alias 的全部展开依赖必须无环，包含藏在泛型实参、函数类�
 
 alias只建立名称、declared visibility、source origin与导出实体，不建立新的type identity、nominal application、layout、TypeDescriptor、RTTI、boxing、单态化实例、overload差异或ABI分类。alias的类型语义等同于完全展开的目标type；分别以alias和目标声明的同形overload是重复签名。alias可用于目标本来允许出现的type及type-qualifier位置；`Alias(...)`、`Alias.Variant(...)`或static/companion member lookup先展开目标再执行普通决议，不产生额外候选。非局部 alias 的 visibility 默认仍为 `internal`；展开目标和参数 bound 的 effective access domain 必须覆盖 alias 自身的 effective domain。内部 alias 也不能暴露 file-private 目标，public alias 遵循同一签名可见性规则。可导出的 alias 可经普通 import、public import 及链式 re-export 使用，保留原声明身份、实际 binder、bound 和定义处已绑定的目标类型，消费方不重新查找目标名称。
 
+#### 3.2.2 泛型函数的条件与负向接口约束
+
+有自身类型参数的顶层、局部、扩展函数及 non-interface final 泛型成员函数可以声明负向接口条件：`fun <T : !Debug> f(value: T)` 与 `fun <T> f(value: T) where T : !Debug` 等价。只有半角 `!` 是该语法；`!I` 不属于普通类型。名义类型、typealias、extension property、构造器及没有自身参数的普通成员不能声明这些新增条件。内层函数只能约束自己的参数，条件中的类型引用仍可使用已在作用域中的宿主／外层参数。
+
+负向条件的目标必须是完整 interface application，如 `!Debug`、`!Equals<T>`；class、value type、`Any`、类型参数和 kind 均不能被否定。负向条件与原正向 bound 分开，允许与 `value`／`ref` 组合；正向 nominal bound 和 kind 的原互斥规则保持。全部条件取合取，书写顺序不影响含义；重复完整条件、直接正负矛盾和普通继承关系已经确定的矛盾在声明处报错。
+
+负向关系有成立、不成立、未知三种结果，只有成立才能使用候选。已确定的静态类型按完整接口继承关系判断；已满足该接口则负向不成立，确定不满足才成立。`Nothing` 沿用底类型规则，不满足负向条件。未知参数只能使用定义环境中的明确负向事实；若 `J : I`，`T : !I` 可推出 `T : !J`，反向不能。只有 class 上界并不能证明其未知子类型没有某个接口。部分 application 也可能未知：`Box<U> : I<U>` 对 `!I<String>` 的判断不能把未知 `U` 当成与 String 不同。
+
+负向条件只检查静态类型，不产生运行期类型排除或 smart cast。先完成普通参数、receiver、显式实参、允许的期望类型及正向 bound 的推断，再检查负向条件；不得为了满足否定而把已确定的实参改为 Any 或其他类型。泛型定义处选定的重载在具体化时保持：无约束 `bar<T>` 调用同形无约束／负向两个 `foo` 时只可选择前者，带同一负向条件的 `baz<T>` 可以选择后者。
+
+泛型函数的条件集合参与重复签名和声明身份。类型使用真实身份，函数及宿主／外层 binder 按各自位置 alpha-normalize，inline 与 where 合并，透明 alias 展开，条件顺序和来源位置不参与身份。参数名、函数结果、默认值和函数自身 suspend 标记仍不能单独区分重载。当前 Cone、局部、成员、import 和 re-export 使用相同规则。条件不同的同形函数先检查适用性，再按 8.6 的声明转发比较；源参数保持 rigid，源条件成为已知事实，目标条件必须可满足。不按条件数量或正负方向赋权，无法区分的多个适用候选报歧义。
+
+#### 3.2.3 泛型函数的 companion 投影
+
+有自身类型参数的函数可用 `where T.Companion : I<T>`、`Base<T>`、`ref` 或 `!I<T>` 约束其 companion。它要求实际静态类型直接拥有 public companion；不能借用基类 companion，也不能使用 private／internal companion。`value` 与 companion 的引用 singleton 性质矛盾，声明处报错。主体必须是本函数参数；宿主与外层参数仅可在条件的类型中被引用。正向、负向、kind 的组合规则分别应用于 `T` 和 `T.Companion`。
+
+投影可作为签名、默认值、正文和类型实参中的完整类型，也可作为 companion 值访问。先登记整个函数的投影存在条件，再解析条件和签名；仅使用投影不隐式建立该条件。依赖类型只允许固定的 `T.Companion`，不支持 `T.Factory` 或其他 nested 投影。`T.method(...)` 在此环境中固定表示 `T.Companion.method(...)`。投影不反向推断宿主，无法由其他位置确定 T 时需写显式类型实参。
+
+条件查询只读取声明及其完整类型关系，不初始化 singleton。实际替换采用原 companion application，包含全部宿主实参；只有值访问执行既有 ensure。命名 companion 的 `Companion` 别名、透明 alias 和跨 Cone singleton 身份沿用 9.1.3、9.5。条件参与 3.2.2 的规范化声明身份和转发；无该事实的未知 T 不能使用投影。
+
+#### 3.2.4 泛型函数的公开成员调用要求
+
+函数级 `where` 可包含非空要求块，例如 `requires(x: T, s: String) { x.format(s): String }`、`requires { T.parse(text: String): T }` 或 `requires { T(text: String) }`。声明范围与 3.2.2 相同；虚拟 receiver 必须是本函数参数 T 或其 companion 投影，宿主／外层参数可出现在其他类型位置。`requires` 仅在 where 条目开头且紧接 `(` 或 `{` 时作为上下文关键字，普通同名标识符保持原义。
+
+虚拟参数是无存储、无求值的名称与完整类型，不能有默认值或 vararg；重复名称报错。调用实参可以引用虚拟参数，或内联写 `name: Type`。内联名称仅用于说明，不建立 binding；命名调用写 `parameter = name: Type`，spread 写 `*items: Array<T>`。方法自己的显式类型实参及 `_` 沿普通规则；它们不能反向猜测外层函数的未决实参。方法要求必须写结果类型；构造结果固定为 T，可省略 `: T`，显式写其他类型或 suspend 构造要求则报错。要求块只接受方法和构造调用，以换行或分号分隔；不接受普通语句、自由函数、扩展、函数值属性、getter／setter、运算符表达式或嵌套调用。
+
+要求查询实际类型自身公开的方法、继承／接口成员、既有派生 equals 及合法 public 构造器。只看成员本身的声明可见性，不借用调用点的 import、扩展、private／protected／internal 权限或隐式 receiver。宿主类型可以隐藏或局部；它有 typed identity 和公开成员即可。`T.method` 与 `T.Companion.method` 都固定查询直接 public companion；这两种形式及虚拟 receiver 类型 T.Companion 同时建立 companion 存在条件，其余位置的投影仍需要明确存在条件。
+
+构造要求只使用 class／struct 的合法普通入口；interface、abstract class、object、enum 整体及无普通构造入口的 intrinsic 类型不能满足。需要 outer 实例或运行期捕获值的构造不满足要求，即使调用点恰好具有这些值；没有捕获的局部 class 可按其公开构造器满足。需要环境时使用显式工厂值参数，不为要求补隐式环境。
+
+对确定的静态类型，先按要求所写实参类型、命名和 spread 形态应用普通参数映射、默认值、vararg、泛型推断及最具体候选规则；选出唯一成员后，才检查其结果可赋给要求的结果类型及效果兼容。结果和效果不能反向参与选择或使失败后重选其他重载。查询不执行构造、默认值、方法或 singleton 初始化，不生成未调用成员的机器代码。
+
+要求默认承诺 safe、非 suspend、Managed 调用。逐项可写既有效果标记 `suspend`、`@NoGC`、`@Unsafe`，不接受其他注解；suspend 状态须相同，safe 要求不能使用 unsafe 目标。NoGC 要求的完整实际调用必须满足既有 NoGC 合同，包括默认值、vararg、receiver 与 companion ensure；值类型条件本身不保证 GC-free。未写 NoGC 时，即使实际目标为 NoGC，泛型正文也不能据此取得更强效果。Unsafe／suspend 要求在正文中的使用仍受普通上下文检查。
+
+泛型正文先使用已有名义 bound 中适用的成员；该层没有适用目标时，才按要求契约解析。名义成员的 Managed 效果不会被同形结构 NoGC 要求覆盖，因而二者同时存在时，绑定名义成员的 NoGC 正文仍报错。需要按结构契约调用时，可转发到只携带同一要求的普通 helper。正文使用要求声明的 receiver、实参类型及调用形态，结果视为要求的结果类型；更窄的真实表达式不会在具体化时触发重选。仅结果或效果不同的多个适用契约不能择优。方法要求不建立 operator 能力。
+
+未知类型参数仅能按替换后相同的完整要求转发；普通名义 bound 不自动产生结构要求。要求作为函数条件参与 3.2.2 的适用性、规范化身份与声明转发，不按条件条数或额外逆变／协变关系排序。忽略块分组、未使用虚拟参数、虚拟名称及变量复用关系；保留目标种类、成员名、完整类型实参、receiver／实参／结果类型、命名／spread 形态和效果。重复的规范化契约在声明处报错。
+
+要求只支持调用，不能单凭要求形成 `value::method`、`T::method` 或 `::T`；需要函数值时用普通 lambda。名义 bound 或已知具体声明原本允许的引用保持；对受约束普通泛型函数的 `::foo` 则照常完成类型推断、新条件检查和重载选择。
+
+要求失败应报告缺失公开目标、歧义、结果或效果不兼容等实际原因，不能吞掉被调用声明的类型错误、产物格式或 I/O 错误。活动要求判定链再次进入同一要求声明即报递归要求错误，不以任意深度／数量预算截断。落实要求产生的实际调用边参与既有泛型递归检查；普通同实例正文递归仍合法，参数持续变化的递归仍被拒绝。
+
 ### 3.3 参数传递、receiver 与 `this`
 
 Scoop 的源码函数/方法调用一律是 **pass-by-value**：每个实参表达式求值一次，再以所得值初始化 callee 中不可重新绑定的形参 binding。这条规则不按 value type / reference type 分叉：
@@ -1595,7 +1637,7 @@ public fun <T> decodeFrom(decoder: Decoder, codec: ValueDecoder<T>): T =
 
 - `ValueEncoder<T>`与`ValueDecoder<T>`都是普通invariant generic interface，T是普通显式类型参数。encode的数据参数和decode的结果直接写Identifier、`Box<E>`或tuple等完整类型；没有Self替换、associated type或static成员语法。
 - `Identifier.Companion`实现这两个接口，Identifier实例不因此实现它们。两个方法的this都是codec；encode通过value取得待编码数据，decode返回目标值。实现选择、override、slot、可见性及异常均使用普通方法规则，缺省body的合成见11.13。
-- `Identifier.Companion.encode(value, sink)`与`Identifier.Companion.decode(source)`都是普通成员调用；无冲突时可按9.1.3转发为`Identifier.encode(value, sink)`与`Identifier.decode(source)`。generic代码显式接收相应codec值；不增加`T.encode`/`T.decode`/`T.Companion`泛型查找、隐式codec参数或companion bound。
+- `Identifier.Companion.encode(value, sink)`与`Identifier.Companion.decode(source)`都是普通成员调用；无冲突时可按9.1.3转发为`Identifier.encode(value, sink)`与`Identifier.decode(source)`。generic代码可显式接收相应codec值，也可按3.2.3用companion bound访问`T.Companion`或转发的`T.encode`／`T.decode`；不增加隐式codec参数。
 - companion随完整宿主application具体化，可声明`ValueEncoder<Box<T>>`或`ValueDecoder<Box<T>>`，但含T字段时仍须在定义处取得相应字段codec。需要调用方选择元素策略时，普通encoder/decoder方法显式接收元素codec并返回持有依赖的普通对象，见11.13.4；依赖不写入singleton的全局状态。
 - class继承不继承companion。Base.Companion的`ValueEncoder<Base>`或`ValueDecoder<Base>`不会转移到Derived.Companion，也不会使数据实例获得接口。`ValueEncoder<Base>`不能赋给`ValueEncoder<Derived>`，解码方向同理；显式使用Base codec时，encode的数据实参仍允许普通Derived到Base的向上转换，表示按Base策略编码。运行时数据类型不改变所选codec；字段的自动选择也不向基类companion回退。
 - 普通codec class自身继承的方法/default照常选择，参数和结果类型不会因数据类型继承自动改写。codec可以由companion、object或普通class/struct提供，可手写处理接口、基类或singleton目标；自动派生仍限于11.13的形状及普通访问规则。
@@ -2407,7 +2449,7 @@ enum解码检查外层恰好一个key，未知variant失败；构造选中的var
 
 默认语义编码树形值：共享引用可展开为多份值，decode不保留原对象identity。循环图、跨对象引用及开放多态的discriminator由显式codec定义，不属于自动派生数据模型。
 
-普通 JSON 库提供 `Json.encodeToString<T>(value: T, codec: ValueEncoder<T>): String`与`Json.decodeFromString<T>(text: String, codec: ValueDecoder<T>): T`两个入口。调用如`Json.encodeToString(value, User.Companion)`与`Json.decodeFromString(text, User.Companion)`，T按普通实参推断；两个入口都要求显式codec，没有从T或运行时数据类型隐式寻找codec的重载。`ValueEncoder<T>`／`ValueDecoder<T>` 表示可复用的值策略，区别于格式侧 `Encoder`／`Decoder`；函数适配器分别命名为 `ValueEncoderFunction`／`ValueDecoderFunction`。JSON 实现先解析完整文档，检查语法、Unicode/转义、重复 key 和尾随内容，包括业务 codec 忽略的子树；解析后的输入节点由视图共享，不因复读重新解析或深拷贝。业务 codec 可以只读部分字段或返回常量，根入口不要求遍历或消费全部值。整数不经过 Double 转换，整数字段不接受带小数部分或指数部分的数字 token。record 已可覆盖对象形式，array 覆盖序列，不增加 Map 协议。格式错误抛带数据路径的 EncodingException/DecodingException；用户 codec、default 和 constructor 抛出的普通异常照常传播，不改写为 default 或空值。
+普通 JSON 库提供 `Json.encodeToString<T>(value: T, codec: ValueEncoder<T>): String`与`Json.decodeFromString<T>(text: String, codec: ValueDecoder<T>): T`两个入口。调用如`Json.encodeToString(value, User.Companion)`与`Json.decodeFromString(text, User.Companion)`，T按普通实参推断；两个显式 codec 入口保留；另提供 `encodeToString<T>(value: T): String where T.Companion : ValueEncoder<T>` 与 `decodeFromString<T>(text: String): T where T.Companion : ValueDecoder<T>` 普通泛型重载，分别显式转发 `T.Companion`。两个方向独立约束，codec 选择由静态类型与普通重载规则决定，不查询运行时数据类型，也不增加隐式参数。`ValueEncoder<T>`／`ValueDecoder<T>` 表示可复用的值策略，区别于格式侧 `Encoder`／`Decoder`；函数适配器分别命名为 `ValueEncoderFunction`／`ValueDecoderFunction`。JSON 实现先解析完整文档，检查语法、Unicode/转义、重复 key 和尾随内容，包括业务 codec 忽略的子树；解析后的输入节点由视图共享，不因复读重新解析或深拷贝。业务 codec 可以只读部分字段或返回常量，根入口不要求遍历或消费全部值。整数不经过 Double 转换，整数字段不接受带小数部分或指数部分的数字 token。record 已可覆盖对象形式，array 覆盖序列，不增加 Map 协议。格式错误抛带数据路径的 EncodingException/DecodingException；用户 codec、default 和 constructor 抛出的普通异常照常传播，不改写为 default 或空值。
 
 `scoop.json.JsonValue` 是公共不可变 class，只表示已合法解析或完整编码的 JSON 值。其构造器及内部节点不可由 Cone 外直接访问；不公开可变数组、未经检查的原始文本或节点修改入口。companion 以普通手写方法实现 ValueEncoder<JsonValue>／ValueDecoder<JsonValue>。Json 另提供普通泛型 encodeToValue(value, codec): JsonValue 和 decodeFromValue(value, codec): T；前者遵守同一根提交规则，后者以空串路径建立新的根视图，均不经文本中转。
 
@@ -3438,6 +3480,12 @@ public fun <T : Equals<T>> assertEquals(expected: T, actual: T, message: String?
     location: SourceLocation = currentSourceLocation())
 public fun <T : Equals<T>> assertNotEquals(expected: T, actual: T, message: String? = None,
     location: SourceLocation = currentSourceLocation())
+public fun <T : !Equals<T>> assertEquals(expected: T, actual: T, message: String? = None,
+    location: SourceLocation = currentSourceLocation())
+    where requires(x: T, y: T) { x.equals(y): Boolean }
+public fun <T : !Equals<T>> assertNotEquals(expected: T, actual: T, message: String? = None,
+    location: SourceLocation = currentSourceLocation())
+    where requires(x: T, y: T) { x.equals(y): Boolean }
 public fun <T : ref> assertSame(expected: T, actual: T, message: String? = None,
     location: SourceLocation = currentSourceLocation())
 public fun <T : ref> assertNotSame(expected: T, actual: T, message: String? = None,
@@ -3448,7 +3496,7 @@ public fun fail(message: String? = None,
     location: SourceLocation = currentSourceLocation()): Nothing
 ```
 
-assertTrue/assertFalse 检查 Boolean；assertEquals/assertNotEquals 调用一次 `expected.equals(actual)`，使用普通 `Equals<T>` 契约及 11.11 的浮点默认相等。结构可比较不隐含 Equals conformance；struct/enum/tuple 可用 `assertTrue(actual == expected)`，不增加结构型 bound 或 Any.equals。assertSame/assertNotSame 使用普通引用身份比较，不接受值类型。比较函数抛出的异常原样传播，不转换成断言失败。
+assertTrue/assertFalse 检查 Boolean；assertEquals/assertNotEquals 调用一次 `expected.equals(actual)`。满足 `Equals<T>` 的类型使用原名义入口及 11.11 的浮点默认相等；确定不满足该接口但具有公开 `equals(T): Boolean` 调用能力的类型使用 3.2.4 的成员要求入口，包括已具备派生相等能力的 struct／enum／tuple。结构入口不添加 Equals conformance、运算符能力或 Any.equals。assertSame/assertNotSame 使用普通引用身份比较，不接受值类型。比较函数抛出的异常原样传播，不转换成断言失败。
 
 失败抛出普通 `AssertionFailure : Throwable`，不继承 Exception；显式 catch Throwable 仍可捕获。它公开只读字段 `kind: String`、`message: String?`、`location: SourceLocation`、`expected: AssertionValue`、`actual: AssertionValue` 和 `cause: Throwable?`。kind 是所调用断言的名称（例如 `assertEquals`）；构造器依次接受这些参数，expected/actual 默认 Unavailable，cause 默认 None。
 

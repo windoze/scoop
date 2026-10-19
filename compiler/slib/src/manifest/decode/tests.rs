@@ -97,13 +97,13 @@ fn manifest_and_compatibility_schema_stay_at_the_initial_value() {
     );
 
     let mut decoded = decode_canonical::<DecodedBootstrapManifest>(&encoded).unwrap();
-    decoded.compatibility.set_identity_schema(2);
+    decoded.compatibility.set_identity_schema(1);
     assert_eq!(
         validate(decoded),
         Err(BootstrapManifestValidationError::Compatibility(
             CompatibilityValidationError::UnsupportedSchema {
                 kind: CompatibilitySchemaKind::Identity,
-                actual: 2,
+                actual: 1,
             }
         ))
     );

@@ -243,12 +243,13 @@ impl Lowerer {
                 .request_imported_generic_template(candidate)
                 .map_err(|error| self.error(span, error))
                 .ok()?;
-            let application =
-                self.imported_generic_applications
-                    .alloc(hir::ImportedGenericCallableApplication {
-                        template,
-                        arguments,
-                    });
+            let application = self.record_imported_callable_application(
+                hir::ImportedGenericCallableApplication {
+                    requirements: Vec::new(),
+                    template,
+                    arguments,
+                },
+            );
             let static_type = receiver.ty;
             let mut args = vec![self.adapt_to(receiver, owner_type)];
             args.extend(values);

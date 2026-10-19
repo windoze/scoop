@@ -13,9 +13,9 @@ fn capability(name: &str) -> CapabilityId {
 #[test]
 fn empty_outer_envelopes_have_distinct_fixed_magic() {
     for (location, expected) in [
-        (MetadataLocation::Hir, "a3014853434f4f5048495202020380"),
-        (MetadataLocation::Mir, "a3014853434f4f504d495202020380"),
-        (MetadataLocation::Lir, "a3014853434f4f504c495202020380"),
+        (MetadataLocation::Hir, "a3014853434f4f5048495202030380"),
+        (MetadataLocation::Mir, "a3014853434f4f504d495202030380"),
+        (MetadataLocation::Lir, "a3014853434f4f504c495202030380"),
     ] {
         let envelope = MetadataEnvelope::new(location, Vec::new()).unwrap();
         assert_eq!(hex(&encode(&envelope).unwrap()), expected);

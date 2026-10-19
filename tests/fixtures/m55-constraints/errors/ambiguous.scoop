@@ -1,0 +1,6 @@
+interface I {}
+interface J {}
+fun <T : !I> choose(value: T): Int = 1
+fun <T : !J> choose(value: T): Int = 2
+fun bad(): Int = choose(1)
+fun main() {}

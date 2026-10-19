@@ -1,0 +1,16 @@
+schema = 1
+name = "m55-requirements-error-captured-constructor"
+root = "captured-constructor.scoop"
+inputs = ["captured-constructor.scoop"]
+tools = ["scoop"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m55", "requirements", "negative"]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "captured-constructor.diagnostics.json"}

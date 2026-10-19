@@ -1,5 +1,8 @@
 use super::*;
 
+mod callable_declarations;
+use callable_declarations::CallableDeclarations;
+
 mod initialization;
 #[cfg(test)]
 pub(crate) use initialization::initialization_unit_globals_from_pairs;
@@ -20,17 +23,16 @@ pub(crate) fn host_target_machine() -> Result<TargetMachine, CodegenError> {
     ValidatedBackendProfile::darwin_aarch64_for_test().create_target_machine()
 }
 
-/// Translate `module` to an (unverified) LLVM module: globals,
-/// TypeDescriptors, and every function.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum StrongObjectEmissionSelection {
+/// Definitions emitted into one physical LLVM module.
+#[derive(Clone, Copy)]
+enum StrongObjectEmissionSelection<'a> {
     #[cfg(test)]
     CompleteTestModule,
     NonCallable,
-    CallableBody(scoop_lir::PersistentCallableBodyId),
+    CallableBody(&'a Function),
 }
 
-impl StrongObjectEmissionSelection {
+impl StrongObjectEmissionSelection<'_> {
     fn defines_non_callable(self) -> bool {
         match self {
             #[cfg(test)]
@@ -45,7 +47,7 @@ impl StrongObjectEmissionSelection {
             #[cfg(test)]
             Self::CompleteTestModule => true,
             Self::NonCallable => false,
-            Self::CallableBody(selected) => selected == body,
+            Self::CallableBody(selected) => selected.callable_body.id() == body,
         }
     }
 }
@@ -59,7 +61,7 @@ fn emit_llvm_module_with_surface<'ctx, R>(
     runtime_scan_plans: &scoop_lir::StrongCallableRuntimeScanPlanSetV1,
     machine: &TargetMachine,
     profile: ValidatedBackendProfile,
-    selection: StrongObjectEmissionSelection,
+    selection: StrongObjectEmissionSelection<'_>,
     emit_runtime_metadata: impl FnOnce(
         &'ctx Context,
         &LlvmModule<'ctx>,
@@ -277,11 +279,10 @@ fn emit_llvm_module_with_surface<'ctx, R>(
             ))
         }),
     )?;
-    // Two passes: declare every function first so call sites never
-    // create shadow extern declarations (a forward call would
-    // otherwise declare the symbol as extern, and the later definition
-    // would be renamed with a `.N` suffix by LLVM, breaking the link).
-    for function in module.callable_bodies() {
+    // Declare selected symbols before bodies to preserve forward and recursive
+    // targets without introducing LLVM's automatic `.N` renaming.
+    let declarations = CallableDeclarations::new(module, selection);
+    for &function in &declarations.functions {
         declare_function(
             context,
             &llvm,
@@ -292,7 +293,8 @@ fn emit_llvm_module_with_surface<'ctx, R>(
             selection.defines_callable(function.callable_body.id()),
         )?;
     }
-    for (_, callable) in module.meta.external_callables.iter() {
+    for &id in &declarations.external {
+        let callable = &module.meta.external_callables[id];
         declare_external_callable(
             context,
             &llvm,
@@ -302,7 +304,8 @@ fn emit_llvm_module_with_surface<'ctx, R>(
             callable,
         )?;
     }
-    for (_, callback) in module.callback_bridges.iter() {
+    for &id in &declarations.callbacks {
+        let callback = &module.callback_bridges[id];
         declare_callback_trampoline(
             context,
             &llvm,
@@ -313,7 +316,8 @@ fn emit_llvm_module_with_surface<'ctx, R>(
         )?;
     }
     let mut declared_foreign_trampolines = HashSet::new();
-    for (_, callback) in module.foreign_callback_bridges.iter() {
+    for &id in &declarations.foreign_callbacks {
+        let callback = &module.foreign_callback_bridges[id];
         if !declared_foreign_trampolines.insert(callback.trampoline.entry().symbol()) {
             continue;
         }
@@ -373,7 +377,7 @@ fn emit_llvm_module_with_surface<'ctx, R>(
         external_type_tds: &external_type_tds,
         target_data: &target_data,
     };
-    for function in module.callable_bodies() {
+    for &function in &declarations.functions {
         if selection.defines_callable(function.callable_body.id()) {
             let runtime_scan_plan = runtime_scan_plans
                 .callable(function.callable_body.id())
@@ -408,7 +412,8 @@ fn emit_llvm_module_with_surface<'ctx, R>(
                 );
             }
         }
-        for (_, callable) in module.meta.external_callables.iter() {
+        for &id in &declarations.external {
+            let callable = &module.meta.external_callables[id];
             if let Some(function) = llvm.get_function(callable.expected_symbol().symbol().as_str())
             {
                 crate::elf_llvm::apply_visibility(function.as_global_value());

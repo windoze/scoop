@@ -11,6 +11,8 @@ use crate::{
 };
 
 mod binding;
+mod body_arguments;
+pub use body_arguments::*;
 mod source;
 use binding::DecodedDefaultCaptureBindingV1;
 pub use binding::DefaultCaptureBindingV1;
@@ -186,143 +188,6 @@ impl WireEncode for IndexedDefaultCaptureV1<'_> {
     }
 }
 
-/// Whether a nested body inherits the lexical binder stack or receives an
-/// explicit declaration-order substitution.
-#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct DefaultCallableBodyTypeArgumentsV1(DefaultCallableBodyTypeArgumentsKindV1);
-
-#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-enum DefaultCallableBodyTypeArgumentsKindV1 {
-    Lexical,
-    Explicit(Vec<SignatureTypeKey>),
-}
-
-impl DefaultCallableBodyTypeArgumentsV1 {
-    pub const fn lexical() -> Self {
-        Self(DefaultCallableBodyTypeArgumentsKindV1::Lexical)
-    }
-
-    pub fn try_explicit(
-        arguments: Vec<SignatureTypeKey>,
-    ) -> Result<Self, DefaultCallableBodyTypeArgumentsBuildError> {
-        u32::try_from(arguments.len())
-            .map_err(|_| DefaultCallableBodyTypeArgumentsBuildError::TooManyArguments)?;
-        Ok(Self(DefaultCallableBodyTypeArgumentsKindV1::Explicit(
-            arguments,
-        )))
-    }
-
-    pub const fn is_lexical(&self) -> bool {
-        matches!(&self.0, DefaultCallableBodyTypeArgumentsKindV1::Lexical)
-    }
-
-    pub fn explicit_arguments(&self) -> Option<&[SignatureTypeKey]> {
-        match &self.0 {
-            DefaultCallableBodyTypeArgumentsKindV1::Lexical => None,
-            DefaultCallableBodyTypeArgumentsKindV1::Explicit(arguments) => Some(arguments),
-        }
-    }
-}
-
-impl WireEncode for DefaultCallableBodyTypeArgumentsV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        match &self.0 {
-            DefaultCallableBodyTypeArgumentsKindV1::Lexical => {
-                encoder.map(1)?;
-                encode_tag(encoder, 1)
-            }
-            DefaultCallableBodyTypeArgumentsKindV1::Explicit(arguments) => {
-                encoder.map(2)?;
-                encode_tag(encoder, 2)?;
-                encoder.field(1)?;
-                encode_sequence(encoder, arguments)
-            }
-        }
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct DecodedDefaultCallableBodyTypeArgumentsV1(DecodedDefaultCallableBodyTypeArgumentsKindV1);
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-enum DecodedDefaultCallableBodyTypeArgumentsKindV1 {
-    Lexical,
-    Explicit(Vec<DecodedSignatureTypeKey>),
-}
-
-impl DecodedDefaultCallableBodyTypeArgumentsV1 {
-    pub fn resolve<R, E>(
-        self,
-        resolver: &mut R,
-    ) -> Result<
-        DefaultCallableBodyTypeArgumentsV1,
-        DefaultCallableBodyTypeArgumentsResolutionError<E>,
-    >
-    where
-        R: crate::SignatureTypeReferenceResolver<E>,
-    {
-        match self.0 {
-            DecodedDefaultCallableBodyTypeArgumentsKindV1::Lexical => {
-                Ok(DefaultCallableBodyTypeArgumentsV1::lexical())
-            }
-            DecodedDefaultCallableBodyTypeArgumentsKindV1::Explicit(arguments) => {
-                let count = u32::try_from(arguments.len()).map_err(|_| {
-                    DefaultCallableBodyTypeArgumentsResolutionError::TooManyArguments
-                })?;
-                let mut resolved = Vec::with_capacity(count as usize);
-                for (index, argument) in arguments.into_iter().enumerate() {
-                    resolved.push(argument.resolve(resolver).map_err(|error| {
-                        DefaultCallableBodyTypeArgumentsResolutionError::Argument { index, error }
-                    })?);
-                }
-                Ok(DefaultCallableBodyTypeArgumentsV1(
-                    DefaultCallableBodyTypeArgumentsKindV1::Explicit(resolved),
-                ))
-            }
-        }
-    }
-}
-
-impl WireEncode for DecodedDefaultCallableBodyTypeArgumentsV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        match &self.0 {
-            DecodedDefaultCallableBodyTypeArgumentsKindV1::Lexical => {
-                encoder.map(1)?;
-                encode_tag(encoder, 1)
-            }
-            DecodedDefaultCallableBodyTypeArgumentsKindV1::Explicit(arguments) => {
-                encoder.map(2)?;
-                encode_tag(encoder, 2)?;
-                encoder.field(1)?;
-                encode_sequence(encoder, arguments)
-            }
-        }
-    }
-}
-
-impl WireDecode for DecodedDefaultCallableBodyTypeArgumentsV1 {
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        let fields = decoder.map()?;
-        let tag = decoder.field(0, Decoder::unsigned)?;
-        match tag {
-            1 => {
-                expect_sum_length(decoder, fields, 1)?;
-                Ok(Self(DecodedDefaultCallableBodyTypeArgumentsKindV1::Lexical))
-            }
-            2 => {
-                expect_sum_length(decoder, fields, 2)?;
-                decoder
-                    .field(1, |decoder| {
-                        decoder.decode_array(|decoder, _| DecodedSignatureTypeKey::decode(decoder))
-                    })
-                    .map(DecodedDefaultCallableBodyTypeArgumentsKindV1::Explicit)
-                    .map(Self)
-            }
-            tag => Err(wire_error(decoder, WireErrorKind::UnknownTag { tag })),
-        }
-    }
-}
-
 #[derive(Debug, Eq, PartialEq)]
 pub enum DefaultCaptureResolutionError<E, L> {
     Source(L),
@@ -376,50 +241,6 @@ impl<E: fmt::Display> fmt::Display for DefaultCaptureIndexError<E> {
 }
 
 impl<E: std::error::Error + 'static> std::error::Error for DefaultCaptureIndexError<E> {}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum DefaultCallableBodyTypeArgumentsBuildError {
-    TooManyArguments,
-}
-
-impl fmt::Display for DefaultCallableBodyTypeArgumentsBuildError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::TooManyArguments => {
-                formatter.write_str("default callable body type argument count exceeds u32")
-            }
-        }
-    }
-}
-
-impl std::error::Error for DefaultCallableBodyTypeArgumentsBuildError {}
-
-#[derive(Debug, Eq, PartialEq)]
-pub enum DefaultCallableBodyTypeArgumentsResolutionError<E> {
-    TooManyArguments,
-    Argument { index: usize, error: E },
-}
-
-impl<E: fmt::Display> fmt::Display for DefaultCallableBodyTypeArgumentsResolutionError<E> {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::TooManyArguments => {
-                formatter.write_str("default callable body type argument count exceeds u32")
-            }
-            Self::Argument { index, error } => {
-                write!(
-                    formatter,
-                    "invalid default callable body type argument {index}: {error}"
-                )
-            }
-        }
-    }
-}
-
-impl<E: std::error::Error + 'static> std::error::Error
-    for DefaultCallableBodyTypeArgumentsResolutionError<E>
-{
-}
 
 fn encode_sequence(
     encoder: &mut Encoder,

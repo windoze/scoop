@@ -1,0 +1,3 @@
+struct Box() { public fun read(x: Int): Int = 1; @NoGC public fun <U> read(x: U): Int = 2 }
+fun <T> accept(value: T): Int where requires(x: T) { @NoGC x.read(n: Int): Int } = 0
+fun main() { accept(Box()) }

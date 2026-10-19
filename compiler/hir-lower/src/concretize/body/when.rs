@@ -7,6 +7,7 @@ impl Concretizer<'_> {
         substitution: &[concrete::TypeId],
         locals: &[concrete::LocalId],
         loops: &mut LoopRemap,
+        storage: &mut Arena<concrete::Local>,
     ) -> concrete::When {
         match source {
             export::When::Subject {
@@ -28,14 +29,16 @@ impl Concretizer<'_> {
                                     substitution,
                                     locals,
                                     loops,
+                                    storage,
                                 ))
                             }
                             export::WhenCondition::Always => concrete::WhenCondition::Always,
                         };
-                        self.lower_when_arm(arm, condition, substitution, locals, loops)
+                        self.lower_when_arm(arm, condition, substitution, locals, loops, storage)
                     })
                     .collect();
-                let fallback = self.lower_when_fallback(fallback, substitution, locals, loops);
+                let fallback =
+                    self.lower_when_fallback(fallback, substitution, locals, loops, storage);
                 concrete::When::Subject {
                     subject,
                     arms,
@@ -53,14 +56,16 @@ impl Concretizer<'_> {
                                     substitution,
                                     locals,
                                     loops,
+                                    storage,
                                 ))
                             }
                             export::WhenPredicate::Always => concrete::WhenPredicate::Always,
                         };
-                        self.lower_when_arm(arm, condition, substitution, locals, loops)
+                        self.lower_when_arm(arm, condition, substitution, locals, loops, storage)
                     })
                     .collect();
-                let fallback = self.lower_when_fallback(fallback, substitution, locals, loops);
+                let fallback =
+                    self.lower_when_fallback(fallback, substitution, locals, loops, storage);
                 concrete::When::Conditions { arms, fallback }
             }
         }
@@ -73,14 +78,15 @@ impl Concretizer<'_> {
         substitution: &[concrete::TypeId],
         locals: &[concrete::LocalId],
         loops: &mut LoopRemap,
+        storage: &mut Arena<concrete::Local>,
     ) -> concrete::WhenArm<D> {
         concrete::WhenArm {
             condition,
             guard: arm
                 .guard
                 .as_ref()
-                .map(|guard| self.lower_when_guard(guard, substitution, locals, loops)),
-            body: self.lower_statements(&arm.body, substitution, locals, loops),
+                .map(|guard| self.lower_when_guard(guard, substitution, locals, loops, storage)),
+            body: self.lower_statements(&arm.body, substitution, locals, loops, storage),
             span: arm.span,
         }
     }
@@ -91,9 +97,10 @@ impl Concretizer<'_> {
         substitution: &[concrete::TypeId],
         locals: &[concrete::LocalId],
         loops: &mut LoopRemap,
+        storage: &mut Arena<concrete::Local>,
     ) -> concrete::WhenGuard {
         concrete::WhenGuard {
-            setup: self.lower_statements(&guard.setup, substitution, locals, loops),
+            setup: self.lower_statements(&guard.setup, substitution, locals, loops, storage),
             condition: self.lower_expr(&guard.condition, substitution, locals),
         }
     }
@@ -104,10 +111,11 @@ impl Concretizer<'_> {
         substitution: &[concrete::TypeId],
         locals: &[concrete::LocalId],
         loops: &mut LoopRemap,
+        storage: &mut Arena<concrete::Local>,
     ) -> concrete::WhenFallback<P> {
         match fallback {
             export::WhenFallback::Else(body) => concrete::WhenFallback::Else(
-                self.lower_statements(body, substitution, locals, loops),
+                self.lower_statements(body, substitution, locals, loops, storage),
             ),
             export::WhenFallback::Fallthrough => concrete::WhenFallback::Fallthrough,
             export::WhenFallback::Impossible(proof) => concrete::WhenFallback::Impossible(*proof),

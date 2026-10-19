@@ -2,6 +2,7 @@
 
 mod incorporation;
 mod materialization;
+mod projections;
 mod validation;
 
 use scoop_hir as hir;
@@ -189,7 +190,7 @@ impl Lowerer {
         completion: CompletionMode,
     ) -> Result<Vec<Option<hir::TypeId>>, ConstraintFailure> {
         let atomic = reduce_constraints(self, session)?;
-        let atomic = incorporation::incorporate_bounds(self, session, atomic)?;
+        let mut atomic = incorporation::incorporate_bounds(self, session, atomic)?;
         let mut states: Vec<_> = session
             .variables()
             .iter()
@@ -197,7 +198,8 @@ impl Lowerer {
             .map(VariableState::new)
             .collect();
         let mut checks = Vec::new();
-        distribute_constraints(session, atomic, &mut states, &mut checks)?;
+        distribute_constraints(session, atomic.clone(), &mut states, &mut checks)?;
+        let mut resolved_projections = std::collections::HashSet::new();
         let mut bindings = vec![None; states.len()];
 
         loop {
@@ -213,6 +215,29 @@ impl Lowerer {
                     bindings[index] = Some(solution);
                     progress = true;
                 }
+            }
+            let derived = self.resolve_projection_checks(
+                session,
+                &bindings,
+                &checks,
+                &mut resolved_projections,
+            )?;
+            if !derived.is_empty() {
+                let mut expanded = atomic.clone();
+                for constraint in derived {
+                    if !expanded.contains(&constraint) {
+                        expanded.push(constraint);
+                    }
+                }
+                let expanded = incorporation::incorporate_bounds(self, session, expanded)?;
+                let additions = expanded
+                    .iter()
+                    .filter(|constraint| !atomic.contains(constraint))
+                    .cloned()
+                    .collect::<Vec<_>>();
+                progress |= !additions.is_empty();
+                distribute_constraints(session, additions, &mut states, &mut checks)?;
+                atomic = expanded;
             }
             if !progress {
                 break;
@@ -294,8 +319,10 @@ impl Lowerer {
         }
 
         let preferred_bounds = if lower.is_empty() { &upper } else { &lower };
+        // Materialized bounds are fixed types, even when a recursive caller's
+        // rigid parameter has the same declaration ID as a callee variable.
+        // Identical bounds already determine the unique relation frontier.
         if let Some(&candidate) = preferred_bounds.first()
-            && matches!(self.types[candidate], hir::Type::Function(_))
             && preferred_bounds
                 .iter()
                 .all(|&bound| self.types_equal(bound, candidate))
@@ -422,6 +449,10 @@ fn distribute_constraints(
                 continue;
             }
             AtomicConstraintKind::CallableShape(..)
+            | AtomicConstraintKind::MemberRequirement(..)
+            | AtomicConstraintKind::Companion(..)
+            | AtomicConstraintKind::DeferredRelation(..)
+            | AtomicConstraintKind::ExcludesInterface(..)
             | AtomicConstraintKind::ConcreteApplication(..) => {
                 checks.push(constraint);
                 continue;

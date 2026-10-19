@@ -99,7 +99,9 @@ pub fn type_annotation_path_exists(
 fn children(ty: &SignatureTypeKey) -> Vec<(Vec<TypeUseStep>, &SignatureTypeKey)> {
     use TypeUseStep as Step;
     match ty {
-        SignatureTypeKey::Nominal(_) | SignatureTypeKey::Binder { .. } => Vec::new(),
+        SignatureTypeKey::Nominal(_)
+        | SignatureTypeKey::Binder { .. }
+        | SignatureTypeKey::Companion(_) => Vec::new(),
         SignatureTypeKey::NominalApplication { arguments, .. } => arguments
             .as_slice()
             .iter()

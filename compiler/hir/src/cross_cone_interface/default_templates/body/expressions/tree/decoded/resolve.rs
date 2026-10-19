@@ -193,6 +193,7 @@ impl DecodedDefaultExpressionKindV1 {
                     })?,
                 )
             }
+            Self::CompanionValue => DefaultExpressionKindV1::CompanionValue,
             Self::SingletonValue(value) => {
                 DefaultExpressionKindV1::SingletonValue(resolve_persistent(value, resolver, 14, 1)?)
             }

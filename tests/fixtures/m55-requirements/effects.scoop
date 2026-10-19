@@ -1,0 +1,31 @@
+struct Reader(val value: Int) {
+    @NoGC public fun read(): Int = value
+    @Unsafe public fun raw(): Int = value + 1
+}
+@NoGC fun <T> pure(value: T): Int where requires(x: T) { @NoGC x.read(): Int } = value.read()
+@Unsafe fun <T> raw(value: T): Int where requires(x: T) { @Unsafe x.raw(): Int } = value.raw()
+class Gate(var waiter: Continuation<Int>?) {
+    fun complete(value: Int) { val saved = waiter!!; waiter = None; saved.resume(value) }
+}
+suspend fun awaitValue(gate: Gate): Int = suspendCoroutine() { next: Continuation<Int> -> gate.waiter = Some(next) }
+class AsyncReader(val gate: Gate) {
+    public suspend fun read(value: Int = awaitValue(gate)): Int = value + 1
+}
+suspend fun <T> readAsync(value: T): Int where requires(x: T) { suspend x.read(): Int } = value.read()
+class Done() : Continuation<Int> {
+    public override fun resume(value: Int) { println(value) }
+    public override fun resumeWithException(error: Throwable) { println("unexpected failure") }
+}
+fun main() {
+    val value = Reader(41)
+    println(pure(value))
+    val reference: (Reader) -> Int = ::pure
+    println(reference(value))
+    @Unsafe { println(raw(value)) }
+    val gate = Gate(None)
+    val suspendReference: suspend (AsyncReader) -> Int = ::readAsync
+    startCoroutine(suspend { suspendReference(AsyncReader(gate)) }, Done())
+    println("waiting")
+    gcCollect()
+    gate.complete(50)
+}

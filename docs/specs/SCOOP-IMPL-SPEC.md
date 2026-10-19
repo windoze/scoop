@@ -275,6 +275,8 @@ LIR 保存目标上完整的类型布局、值表示、字段 offset、alignment
 
 callable 对象发射直接借用 production 中已有的 runtime scan 计划，按 body identity 取得本函数的扫描树与 Context key；不在每个 LLVM module 中重新扫描全部函数来构造相同计划。Context cell 与扫描 atom 的边界也通过上述索引取得；无 callable 输出的 metadata module 不另建扫描计划。实际扫描内容、发射顺序和 GC 契约保持。
 
+逐 callable LLVM module 直接接收已选定的完整函数，声明范围由该函数自身、函数局部 typed call targets、函数取址及 foreign callback 注册确定；后者包含已有 adapter、trampoline 与签名 descriptor。声明在正文发射前完成，保留完整 ABI、GC effect 与真实目标身份，不扫描或重复声明整个 Cone 的 callable 目录。非 callable metadata module 继续声明其完整引用表面；初始化、TypeDescriptor、全局值及对象划分合同不变。该局部选择只减少 LLVM 临时声明，不修改 LIR arena 或产生缺项的 callable 数据。
+
 ELF 可见性与 COMDAT 准备将固定 symbol surface 的实际符号名和所属定义组索引一次，在各 callable LLVM module 中只查询该 module 实际包含的 global、function 和 alias；不逐 module 重建全部符号名或探查未发射的 atom。保持原有计划顺序、可见性、weak linkage、alias owner 与定义组冲突检查。定义计划完成最终裁剪后，metadata module 使用裁剪后的计划；该 codegen 局部查询索引不进入 IR、wire 或 runtime ABI。
 
 每个 pointer（包括 null）具有 Managed、Raw、Code 或 Metadata provenance；LLVM opaque pointer 不抹去这种区别。managed 使用 address space 1，其余使用 0，转换必须为明确合法的 typed operation。
@@ -432,7 +434,7 @@ Mach-O／ELF 对象按实际目标格式读取 section、符号及 relocation，
 
 ### 2.6 `.slib` 格式与指纹
 
-`.slib` 是 target-specific、bitwise reproducible 的 normal、self-contained ar archive。容器 schema、manifest schema、persistent identity schema 与 mangling schema 的格式版本为 1；HIR/MIR/LIR metadata outer schema 为 2。它不允许 thin archive、外部成员引用或相邻文件 payload。
+`.slib` 是 target-specific、bitwise reproducible 的 normal、self-contained ar archive。容器 schema、manifest schema 与 mangling schema 的格式版本为 1；persistent identity schema 为 2，HIR/MIR/LIR metadata outer schema 为 3。函数声明 key 增加规范化条件集合及 companion 存在条件，签名类型增加固定 companion 投影，binder 增加负向接口集合与独立 companion 条件；默认表达式保存依赖 companion 值访问。空集合在 wire 中省略对应字段，解码后仍是完整集合，无条件声明保持原身份。旧产物按格式版本拒绝，重建得到新产物。它不允许 thin archive、外部成员引用或相邻文件 payload。
 
 归档 magic 为 `!<arch>\n`，首项固定为 `manifest.cbor`。其余 payload 按 manifest 中的 SlibMemberId bytes 严格排序，物理短名为从 0 开始的 ordinal：`m` 加 8 位零填充十进制。header 使用 SysV/GNU short-name encoding：名称后为 `/` 与空格填充，mtime/uid/gid 为十进制 0，mode 为八进制 `100644`，size 为无多余前导零的十进制，trailer 为 `` `\n``，奇数 payload 后补 `0x0A`。
 
@@ -868,7 +870,21 @@ type、function type、generic declaration、完整 application、concrete funct
 
 persistent keys 保留原 ConeIdentity、typed owner chain、kind 和该声明种类所需的规范化签名；不含正文、arena ordinal、host 路径或 link symbol。透明 alias 不建立新的 exact type，完整 generic arguments 和 structural type constituents 参与 exact identity。
 
+泛型函数的重复签名与持久化声明 key 包含语言规范 3.2.2 的规范化条件集合。正向 bound 与 kind 继续保持原互斥表示，负向接口条件独立保存完整类型和诊断来源。HIR lowering 在普通推断完成后执行三态负向查询；MSC 使用相同规则并保留源声明的条件事实。IR／meta 只表达数据与 typed 引用，不重新实现语言条件判定。
+
+显式扩展调用在同一候选层没有适用目标时，优先采用类型实参个数匹配候选的失败诊断；仅在没有这类候选时使用个数不匹配的诊断。声明身份的排序不能让另一个重载的参数数量错误覆盖实际调用的约束失败。
+
+依赖 companion 在 Export HIR 和 signature key 中保存固定投影及宿主 binder，条件表独立保存投影的存在性、正向／kind 与负向条件。普通推断不从投影倒推宿主；宿主确定后才解析真实 public companion application 并验证条件。正文保留投影值访问及定义处所选 bound callable，具体化替换真实 companion 类型与 singleton，复用原有 ensure、interface／class bound 调用及实例身份；不增加隐式 codec 参数或新的初始化机制。
+
 CallableApplicationKey 区分原声明、NoOwner/ExactNominalOwner/EnclosingCallableApplication/EnclosingInitializationApplication，以及无 callable arguments 或完整非空 arguments。lexical body、local value、capture、initializer 与默认值的原定义路径在替换后保持；物理 producer 不替代定义 owner。
+
+成员调用要求在 Export HIR 中保存独立的 typed 要求身份、完整调用契约与正文要求引用。父函数声明 key 先以规范化契约确定，再由父声明及规范化位置确定要求身份，不用普通 function／interface slot ID 替代要求。参数替换后成功的要求绑定复用同一公开成员查询结果，保存实际 typed 目标、参数映射、默认值／vararg 与结果适配；未知主体通过定义环境中相同契约转发。失败候选沿已有 probe 事务丢弃，不提交实体或展开任意方法正文。
+
+默认参数中的闭包在其他 callable 中创建时，同时携带原词法参数的完整替换与已满足的要求绑定；跨 Cone 模板保留这些绑定，不能借用创建位置的同名要求或重新选择已经确定的实现。普通正文中的闭包继续继承原词法环境。
+
+泛型 application 仍只由声明及完整类型实参标识，不增加调用点作用域、隐式 dictionary 或所选方法的 specialization 参数。Export HIR／跨 Cone 声明与正文编码完整条件和要求引用，consumer 使用实际类型的公开成员与原默认模板，不能按本地扩展重选。进入 LocalConcreteHir 前消去要求与投影，只留下正常调用、构造、值适配和 singleton 访问；要求落实后新增的实际调用边在具体化请求处遵守既有递归规则：沿调用链重新请求同一声明且完整实参改变时诊断，阻止无限实例化，同实例递归直接复用。MIR、LIR、linker、runtime 不重放源码要求查询，runtime ABI 不变。
+
+具体化工作队列在检测到上述无限实例化时停止；普通类型条件错误（例如 Context key 在替换后重复）继续收集其他独立请求的诊断。错误输出不包含未完成的 concrete module，不能把一般条件失败误作队列不再能终止的标记。
 
 persistent mangling schema 为 `persistent-v1`，语义 symbol 为 `scoop$1$<kind>$<lowercase-hex-owner-id>`，再按目标加平台前缀。kind tags 为：
 
@@ -931,6 +947,8 @@ HIR 将 Nothing 参与的子类型、结果合并和调用完成性质在源码�
 非泛型接口的私有普通方法与其他 nominal 的直接成员使用相同的自动物化规则：所属类型及签名进入物化闭包时，provider 生成完整正文和 callable binding，不要求先出现本地调用。方法仍保持私有访问域，不占接口分派槽；带类型参数的方法仍按实际 application 物化。
 
 Export HIR 保存模板的已解析正文、原 binder、默认值、局部 callable/capture、字段/variant 和完整定义位置。实例化只按 actual application 替换类型，不重新执行 provider 的名称、重载、接口或 codec 选择。
+
+负向条件随原 binder 和泛型 callable 导出，消费方在正常调用适用性检查中使用；已绑定正文不在具体化时重选普通重载。条件变化进入既有声明接口与更新判断，不增加缓存内容复核。实例身份仍由原声明和完整宿主／函数实参决定，不引入调用点作用域或隐式 dictionary。
 
 普通参数自由定义由原 Cone 提供，即使签名含已闭合 generic application 也仍是该 Strong 定义。泛型和 structural application 的机器实体由实际需要它的 Cone 物化，并保持程序内共享身份。
 

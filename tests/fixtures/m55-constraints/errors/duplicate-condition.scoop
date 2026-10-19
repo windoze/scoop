@@ -1,0 +1,4 @@
+interface I {}
+typealias Alias = I
+fun <T : !I> bad(value: T): Int where T : !Alias = 1
+fun main() {}

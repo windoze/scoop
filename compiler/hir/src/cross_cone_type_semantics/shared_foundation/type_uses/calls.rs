@@ -33,14 +33,17 @@ impl Graph<'_> {
                         metadata,
                         self.current.identities,
                         |owner| {
-                            let owner = SourceNominalId::Concrete(owner);
                             self.current
                                 .public
                                 .nominal_interfaces()
-                                .get(owner)
+                                .declaration(owner)
                                 .or_else(|| {
                                     self.providers.values().find_map(|provider| {
-                                        provider.metadata.public.nominal_interfaces().get(owner)
+                                        provider
+                                            .metadata
+                                            .public
+                                            .nominal_interfaces()
+                                            .declaration(owner)
                                     })
                                 })
                         },

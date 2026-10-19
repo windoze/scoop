@@ -8,6 +8,13 @@ impl Lowerer {
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
         if let ast::FieldSelector::Name(name) = &access.selector
+            && name.text == "Companion"
+            && matches!(&*access.receiver, ast::Expr::Var(_))
+            && let Some(parameter) = self.companion_parameter_qualifier(&access.receiver)
+        {
+            return self.lower_parameter_companion(parameter, access.span);
+        }
+        if let ast::FieldSelector::Name(name) = &access.selector
             && let Some((alias, index)) = self.resolve_alias_variant(&access.receiver, name).ok()?
         {
             return self.lower_alias_unit_variant(&alias, index, name, expected);

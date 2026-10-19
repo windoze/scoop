@@ -1,0 +1,19 @@
+schema = 1
+name = "m55-companion-cross-cone"
+inputs = ["provider", "facade", "consumer"]
+tools = ["scoop"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m55", "generics", "reexport", "defaults"]
+
+[[steps]]
+name = "prepare"
+files = [{copy = {from = "${fixture}/provider", to = "${work}/source/provider"}}, {copy = {from = "${fixture}/facade", to = "${work}/source/facade"}}, {copy = {from = "${fixture}/consumer", to = "${work}/source/consumer"}}]
+
+[[steps]]
+name = "run"
+argv = ["${scoop}", "run", {each = "${link_args}"}, "${work}/source/consumer", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = "present\n0\nremote\nremote\ntrue\n1\nbox\nbox\n3\nlocal\nlocal-box\nlocal\nremote\n"
+stderr = ""
+json = "stderr"
+diagnostics = []

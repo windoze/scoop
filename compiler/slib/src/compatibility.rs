@@ -14,6 +14,7 @@ use crate::{ArtifactCapabilityProfile, ArtifactCapabilityProfileFingerprint};
 const LANGUAGE_ABI_DOMAIN: &str = "scoop-language-abi-contract-v1";
 const COMPOSITE_IDENTITY_ABI_DOMAIN: &str = "scoop-composite-identity-abi-v1";
 const INITIAL_SCHEMA: u64 = 1;
+pub(crate) const IDENTITY_SCHEMA: u32 = 2;
 
 macro_rules! typed_fingerprint {
     ($name:ident) => {
@@ -60,7 +61,7 @@ impl WireEncode for LanguageAbiContract {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(1)?;
         encoder.field(1)?;
-        encoder.unsigned(2)
+        encoder.unsigned(3)
     }
 }
 
@@ -105,7 +106,9 @@ impl WireEncode for IdentityAbiDescriptor {
         self.language_abi.encode(encoder)?;
         encoder.field(2)?;
         self.runtime_abi.encode(encoder)?;
-        for field in 3..=5 {
+        encoder.field(3)?;
+        encoder.unsigned(u64::from(IDENTITY_SCHEMA))?;
+        for field in 4..=5 {
             encode_initial_schema(encoder, field)?;
         }
         encoder.field(6)?;
@@ -117,7 +120,7 @@ impl WireEncode for IdentityAbiDescriptor {
         }
         for field in 11..=13 {
             encoder.field(field)?;
-            encoder.unsigned(2)?;
+            encoder.unsigned(u64::from(crate::metadata::METADATA_SCHEMA))?;
         }
         Ok(())
     }
@@ -207,7 +210,8 @@ impl WireEncode for CompatibilityRecord {
         self.language_abi.encode(encoder)?;
         encoder.field(2)?;
         self.runtime_abi.encode(encoder)?;
-        encode_initial_schema(encoder, 3)?;
+        encoder.field(3)?;
+        encoder.unsigned(u64::from(IDENTITY_SCHEMA))?;
         encoder.field(4)?;
         self.mangling_schema.encode(encoder)?;
         encoder.field(5)?;
@@ -248,10 +252,10 @@ mod tests {
 
     #[test]
     fn language_runtime_and_composite_abi_have_fixed_vectors() {
-        assert_eq!(hex(&encode(&LanguageAbiContract).unwrap()), "a10102");
+        assert_eq!(hex(&encode(&LanguageAbiContract).unwrap()), "a10103");
         assert_eq!(
             LanguageAbiContract.fingerprint().unwrap().to_string(),
-            "634ec02192ba1541f603b8b56f8c9e63dfc31d86ca5d4443a626f6afc9005391"
+            "c946cc51f867b8d2fefcb1a1fb646164c5614dbf2c9281b97c6337ca642f3a1d"
         );
         assert_eq!(hex(&encode(&RuntimeAbiContract).unwrap()), "a3010d02010302");
         assert_eq!(
@@ -262,11 +266,11 @@ mod tests {
         let descriptor = IdentityAbiDescriptor::current().unwrap();
         assert_eq!(
             hex(&encode(&descriptor).unwrap()),
-            "ad015820634ec02192ba1541f603b8b56f8c9e63dfc31d86ca5d4443a626f6afc90053910258207f6b81cc9c8c1046ac6623fde91708f32aa0170c53f7e75f12466250d1f7be330301040105010602076d70657273697374656e742d7631080109010a010b020c020d02"
+            "ad015820c946cc51f867b8d2fefcb1a1fb646164c5614dbf2c9281b97c6337ca642f3a1d0258207f6b81cc9c8c1046ac6623fde91708f32aa0170c53f7e75f12466250d1f7be330302040105010602076d70657273697374656e742d7631080109010a010b030c030d03"
         );
         assert_eq!(
             descriptor.fingerprint().unwrap().to_string(),
-            "d31b357a6cdcebd332ca80106215cb4abf787d636883378ab71b3f0d4d50c234"
+            "e1657661b0d8d47c25398d75d49ff2719912c39d00c2cfa379268896a7e3d846"
         );
     }
 

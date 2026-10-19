@@ -216,8 +216,9 @@ impl ImportedReferenceDeclaration {
                     }
                     _ => hir::ImportedCallableArguments::Function(type_args.to_vec()),
                 };
-                hir::CallableTarget::Application(state.imported_generic_applications.alloc(
+                hir::CallableTarget::Application(state.record_imported_callable_application(
                     hir::ImportedGenericCallableApplication {
+                        requirements: Vec::new(),
                         template,
                         arguments,
                     },
@@ -241,7 +242,11 @@ impl ImportedReferenceDeclaration {
             }
         };
         let target = if let Some(receiver) = receiver {
-            let bound = if matches!(state.types[receiver.ty], Type::Param(_)) && !extension {
+            let bound = if matches!(
+                state.types[receiver.ty],
+                Type::Param(_) | Type::Companion(_)
+            ) && !extension
+            {
                 let Type::Function(signature) = state.types[ty] else {
                     unreachable!("reference resolution produces a function type")
                 };

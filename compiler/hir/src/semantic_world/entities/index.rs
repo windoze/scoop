@@ -170,7 +170,26 @@ impl ImportedEntityIndex {
     ) -> Result<(), ImportedSemanticWorldBuildError> {
         for record in provider.interface().callable_interfaces().records() {
             let declaration = record.declaration();
+            let conditions = if let CallableTemplateOrigin::GenericFunction(id) = declaration {
+                let key = provider
+                    .foundation()
+                    .canonical_for_semantic_authority()
+                    .generic_function_by_bytes(id.as_array())
+                    .ok_or(ImportedSemanticWorldBuildError::MissingEntityIdentity {
+                        provider: provider.identity(),
+                        entity: ImportedSemanticEntityId::Callable(declaration),
+                    })?
+                    .1;
+                let DuplicateSignatureKey::Function { conditions, .. } = key.duplicate_signature()
+                else {
+                    unreachable!("a generic function identity has a function signature")
+                };
+                conditions.clone()
+            } else {
+                Vec::new()
+            };
             let conflict = ImportedBindingConflictKey::Overload(DuplicateSignatureKey::Function {
+                conditions,
                 type_parameter_count: record.type_parameters().len_u32(),
                 receiver: OptionalSignatureType::from_option(record.receiver().cloned()),
                 parameters: record

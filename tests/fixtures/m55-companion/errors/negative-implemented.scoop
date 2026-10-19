@@ -1,0 +1,4 @@
+interface I {}
+struct Host() { public companion object : I {} }
+fun <T> probe(value: T): Int where T.Companion : !I = 1
+fun main() { probe(Host()) }

@@ -88,7 +88,8 @@ impl Lowerer {
             | hir::Type::Any
             | hir::Type::Tuple(_)
             | hir::Type::Function(_)
-            | hir::Type::Param(_) => None,
+            | hir::Type::Param(_)
+            | hir::Type::Companion(_) => None,
         };
         if let Some(provided) = provided
             && !dependencies.iter().any(|(dependency, _)| *dependency == ty)
@@ -135,7 +136,8 @@ impl Lowerer {
             | hir::Type::Boolean
             | hir::Type::String
             | hir::Type::Any
-            | hir::Type::Param(_) => {}
+            | hir::Type::Param(_)
+            | hir::Type::Companion(_) => {}
         }
     }
 

@@ -6,6 +6,11 @@ pub(crate) fn walk(
     statement: &mut hir::Statement,
 ) {
     match &mut statement.kind {
+        hir::StatementKind::MemberRequirementCall(call) => {
+            for argument in &mut call.arguments {
+                visitor.expression(lowerer, argument);
+            }
+        }
         hir::StatementKind::ContextScope { value, body } => {
             visitor.expression(lowerer, value);
             visitor.statements(lowerer, body);

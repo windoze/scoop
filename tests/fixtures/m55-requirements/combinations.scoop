@@ -1,0 +1,60 @@
+private struct Reader(val value: Int) {
+    public fun read(): Int = value
+    public fun <U> marker(value: U): Int = 7
+}
+fun <T> requiredRead(value: T): Int where requires(x: T) { x.read(): Int } = value.read()
+fun <T> make(value: Int): T where requires { T(value = n: Int) } = T(value = value)
+fun <T> empty(): T where requires { T() } = T()
+fun <T> choose(value: T): Int = 0
+fun <T> choose(value: T): Int where requires(x: T) { x.read(): Int } = value.read()
+fun <T> T.via(): Int where requires(x: T) { x.read(): Int } = this.read()
+fun <T> inferred(value: T): Int where requires(x: T) { x.marker<_>(n: Int): Int } = value.marker<_>(42)
+fun <T> widened(value: T): Any where requires(x: T) { x.read(): Any } = value.read()
+fun <T> local(value: T): Int where requires(x: T) { x.read(): Int } {
+    fun <U> nested(input: U): Int where requires(y: U) { y.read(): Int } = requiredRead(input)
+    return nested(value)
+}
+class Holder<U>(val seed: U) {
+    fun <T> apply(value: T): Int where requires(x: T) { x.read(): Int } = requiredRead(value)
+}
+struct Recursive(val depth: Int) {
+    public fun read(): Int = if (depth == 0) 19 else requiredRead(Recursive(depth - 1))
+}
+struct Overloaded() {
+    public fun pick(value: Any): Int = 2
+    public fun pick(value: Int): Int = 1
+}
+fun <T> staticArguments(value: T): Int where requires(x: T) { x.pick(y: Any): Int } = value.pick(1)
+var initializations: Int = 0
+struct Factory() {
+    public companion object {
+        init { initializations += 1 }
+        public fun create(): Int = 23
+    }
+}
+fun <T> inspect(): Int where requires { T.create(): Int } = 0
+fun <T> create(): Int where requires { T.create(): Int } = T.create()
+fun localConstructor(): Int {
+    class Local public constructor() { public fun read(): Int = 29 }
+    return empty<Local>().read()
+}
+fun main() {
+    val value = Reader(11)
+    val reference: (Reader) -> Int = ::requiredRead
+    val constructor: (Int) -> Reader = ::make
+    println(reference(constructor(11)))
+    println(choose(value))
+    println(choose(1))
+    println(value.via())
+    println(local(value))
+    println(Holder(0).apply(value))
+    println(inferred(value))
+    println(widened(value) as Int)
+    println(requiredRead(Recursive(3)))
+    println(staticArguments(Overloaded()))
+    inspect<Factory>()
+    println(initializations)
+    println(create<Factory>())
+    println(initializations)
+    println(localConstructor())
+}

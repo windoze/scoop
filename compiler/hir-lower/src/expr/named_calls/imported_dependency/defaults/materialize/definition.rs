@@ -143,6 +143,21 @@ impl Lowerer {
             nominal.interface.type_parameters().binders()
         });
         let own = declaration.interface().type_parameters().binders();
+        if own.iter().any(|binder| !binder.requirements().is_empty()) {
+            // Required calls and default closures retain the original callable's
+            // binders, so later substitution preserves their requirement identity.
+            let id = self
+                .request_imported_generic_template(declaration)
+                .map_err(ImportedDefaultMaterializationError::Plan)?;
+            let prepared = &self.imported_generic_templates[id];
+            let parameters = prepared.type_parameters.declarations().to_vec();
+            let bindings = prepared.bindings.clone();
+            self.record_member_requirement_owner(
+                hir::MemberRequirementOwner::Imported(id),
+                &parameters,
+            );
+            return Ok((parameters, bindings));
+        }
         let shape =
             hir::DefaultTemplateProviderShapeV1::try_new(host.len() as u32, own.len() as u32)
                 .expect("validated callable binder arities fit the source format");

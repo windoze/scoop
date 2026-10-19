@@ -1,0 +1,4 @@
+class Uncomparable()
+struct Container(val value: Uncomparable)
+fun <T> same(value: T): Boolean where requires(x: T, y: T) { x.equals(y): Boolean } = value.equals(value)
+fun main() { same(Container(Uncomparable())) }

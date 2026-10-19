@@ -1,0 +1,23 @@
+struct Box(val value: Int) {
+    public fun read(count: Int = 1): Int = value + count
+    public fun <U> marker(value: U): Int = 7
+    public fun add(vararg values: Int): Int = value + values[0] + values[1]
+    public companion object { public fun create(value: Int): Box = Box(value) }
+}
+fun <T> read(value: T): Int where requires(x: T) { x.read(): Int } = value.read()
+fun <T> forward(value: T): Int where requires(z: T) { z.read(): Int } = read(value)
+fun <T> construct(n: Int): T where requires { T(value = x: Int) } = T(value = n)
+fun <T> make(n: Int): T where requires { T.create(value = x: Int): T } = T.create(value = n)
+fun <T> marker(value: T): Int where requires(x: T) { x.marker<Int>(value = n: Int): Int } = value.marker<Int>(value = 42)
+fun <T> sum(value: T, values: Array<Int>): Int where requires(x: T) { x.add(*values: Array<Int>): Int } = value.add(*values)
+fun <T> fromDefault(value: T, n: Int = value.read()): Int where requires(x: T) { x.read(): Int } = n
+fun <T> wrapped(value: T): () -> Int where requires(x: T) { x.read(): Int } = { value.read() }
+fun main() {
+    val value = construct<Box>(7)
+    println(forward(value))
+    println(make<Box>(8).value)
+    println(marker(value))
+    println(sum(value, [2, 3]))
+    println(fromDefault(value))
+    println(wrapped(value)())
+}

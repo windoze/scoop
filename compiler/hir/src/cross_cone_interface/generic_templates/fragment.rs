@@ -15,7 +15,7 @@ use crate::{
 
 /// One original local scope, its evaluation order, and its actual result values.
 /// A statement-only scope has no results; no synthetic value is required.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct ExportTemplateFragmentV1 {
     locals: CanonicalTemplateLocalTableV1,
     statements: Vec<DefaultStatementV1>,
@@ -213,7 +213,7 @@ impl fmt::Display for TemplateFragmentIndexError {
 }
 impl std::error::Error for TemplateFragmentIndexError {}
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum TemplateFragmentResolutionError<E> {
     Locals(TemplateLocalTableValidationError<E>),
     Statement {
@@ -240,3 +240,11 @@ impl<E: fmt::Display> fmt::Display for TemplateFragmentResolutionError<E> {
     }
 }
 impl<E: std::error::Error + 'static> std::error::Error for TemplateFragmentResolutionError<E> {}
+
+impl WireEncode for ExportTemplateFragmentV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        self.index_locals()
+            .expect("typed fragment has valid local references")
+            .encode(encoder)
+    }
+}

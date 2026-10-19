@@ -85,6 +85,20 @@ impl Lowerer {
             }
         }
 
+        if required.operator.is_none()
+            && required.property_delegate_operator.is_none()
+            && !required.infix
+            && let Some(result) = self.lower_required_member_call(
+                Some(receiver.clone()),
+                receiver.ty,
+                Some(&name.text),
+                call,
+                sink,
+            )
+        {
+            return result;
+        }
+
         let extension_layers = match required.operator {
             Some(operator) => self.named_executable_extension_operator_layers(operator),
             None => self.named_executable_extension_call_layers(&name.text),

@@ -89,6 +89,116 @@ fn decoded_binders_resolve_typed_nominal_references() {
 }
 
 #[test]
+fn excluded_interfaces_round_trip_and_resolve_typed_references() {
+    let fixture = fixture();
+    let excluded = CanonicalSignatureTypesV1::try_new(vec![SignatureTypeKey::Nominal(
+        fixture.interface_a.id(),
+    )])
+    .unwrap();
+    let expected = CanonicalBinderListV1::try_new(vec![
+        binder("T", TypeParameterBoundsV1::Value).with_excluded_interfaces(excluded),
+    ])
+    .unwrap();
+    assert_eq!(
+        decode_binders(&expected)
+            .resolve(&mut authority(&fixture))
+            .unwrap(),
+        expected
+    );
+    assert!(
+        decode_binders(&expected)
+            .resolve(&mut empty_authority())
+            .is_err()
+    );
+}
+
+#[test]
+fn member_requirement_binders_preserve_call_shape_and_validate_type_scope() {
+    use scoop_identity::{
+        MemberRequirementKey, RequiredArgumentKey, RequiredEffectsKey, RequiredMemberKey,
+    };
+    let fixture = fixture();
+    let requirement = MemberRequirementKey {
+        subject: SignatureTypeKey::Binder { depth: 0, index: 0 },
+        call: RequiredMemberKey::Method {
+            name: "read".into(),
+            type_arguments: vec![None, Some(SignatureTypeKey::Nominal(fixture.class.id()))],
+        },
+        arguments: vec![RequiredArgumentKey {
+            name: Some("values".into()),
+            spread: true,
+            ty: SignatureTypeKey::Nominal(fixture.interface_a.id()),
+        }],
+        result: SignatureTypeKey::Binder { depth: 0, index: 0 },
+        effects: RequiredEffectsKey {
+            is_suspend: false,
+            is_unsafe: true,
+            is_no_gc: true,
+        },
+    };
+    let expected = CanonicalBinderListV1::try_new(vec![
+        binder("T", TypeParameterBoundsV1::Unconstrained)
+            .with_requirements(vec![requirement.clone()]),
+    ])
+    .unwrap();
+    assert_eq!(
+        decode_binders(&expected)
+            .resolve(&mut authority(&fixture))
+            .unwrap(),
+        expected
+    );
+    assert!(expected.validate_bound_scopes(None).is_ok());
+    assert!(
+        decode_binders(&expected)
+            .resolve(&mut empty_authority())
+            .is_err()
+    );
+    let mut invalid = requirement;
+    invalid.result = SignatureTypeKey::Binder { depth: 0, index: 1 };
+    let invalid = CanonicalBinderListV1::try_new(vec![
+        binder("T", TypeParameterBoundsV1::Unconstrained).with_requirements(vec![invalid]),
+    ])
+    .unwrap();
+    assert!(invalid.validate_bound_scopes(None).is_err());
+}
+
+#[test]
+fn companion_binder_preserves_independent_bounds_and_projection_scope() {
+    let fixture = fixture();
+    let excluded = CanonicalSignatureTypesV1::try_new(vec![SignatureTypeKey::Nominal(
+        fixture.interface_a.id(),
+    )])
+    .unwrap();
+    let companion = CompanionBoundsV1::new(TypeParameterBoundsV1::Ref, excluded);
+    let expected = CanonicalBinderListV1::try_new(vec![
+        binder("T", TypeParameterBoundsV1::Value).with_companion(Some(companion)),
+    ])
+    .unwrap();
+    assert_eq!(
+        decode_binders(&expected)
+            .resolve(&mut authority(&fixture))
+            .unwrap(),
+        expected
+    );
+    assert!(
+        decode_binders(&expected)
+            .resolve(&mut empty_authority())
+            .is_err()
+    );
+    let projection =
+        SignatureTypeKey::Companion(Box::new(SignatureTypeKey::Binder { depth: 0, index: 0 }));
+    let decoded =
+        decode_canonical::<DecodedSignatureTypeKey>(&encode(&projection).unwrap()).unwrap();
+    assert_eq!(decoded.resolve(&mut empty_authority()).unwrap(), projection);
+    assert!(expected.signature_scope(None).validate(&projection).is_ok());
+    assert!(
+        SignatureBinderScopeV1::for_declaration(0, None)
+            .validate(&projection)
+            .is_err()
+    );
+}
+
+#[test]
 fn reader_rejects_duplicate_and_noncanonical_signature_sets() {
     let fixture = fixture();
     let mut ordered = vec![

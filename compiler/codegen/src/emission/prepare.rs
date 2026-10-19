@@ -64,8 +64,9 @@ pub(super) fn prepare_callable_strong_llvm_module<'ctx, D, C, I>(
     machine: &TargetMachine,
     profile: ValidatedBackendProfile,
     expected: &statepoint::ExpectedSafepoints,
-    body: scoop_lir::PersistentCallableBodyId,
+    function: &Function,
 ) -> Result<PreparedCallableModule<'ctx>, CodegenError> {
+    let body = function.callable_body.id();
     let (llvm, mut runtime_metadata) = emit_llvm_module_with_surface(
         context,
         module,
@@ -76,7 +77,7 @@ pub(super) fn prepare_callable_strong_llvm_module<'ctx, D, C, I>(
             .runtime_scans(),
         machine,
         profile,
-        StrongObjectEmissionSelection::CallableBody(body),
+        StrongObjectEmissionSelection::CallableBody(function),
         |context, llvm, _, _, _| {
             Ok((
                 runtime_metadata_v1::emit_callable_metadata_v1(

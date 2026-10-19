@@ -85,6 +85,8 @@ mod tests_m4;
 #[cfg(test)]
 mod tests_m5;
 #[cfg(test)]
+mod tests_m55_requirements;
+#[cfg(test)]
 mod tests_m6;
 #[cfg(test)]
 mod tests_m8;

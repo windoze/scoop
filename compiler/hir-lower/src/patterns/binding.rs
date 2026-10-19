@@ -104,7 +104,7 @@ impl Lowerer {
                 Type::Struct(_) => {
                     self.lower_struct_binding(elements, *rest, *span, subject, mutable, statements)
                 }
-                Type::Class(_) | Type::Interface(_) | Type::Param(_) => {
+                Type::Class(_) | Type::Interface(_) | Type::Param(_) | Type::Companion(_) => {
                     self.lower_component_binding(elements, *rest, subject, mutable, statements)
                 }
                 _ => {

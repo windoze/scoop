@@ -116,6 +116,9 @@ pub struct Module {
     /// Template-only calls through a class or interface upper bound. Entries
     /// retain the receiver type, bound application and selected declaration;
     /// local-concrete HIR has no corresponding arena.
+    pub member_requirement_owners:
+        std::collections::HashMap<MemberRequirementId, MemberRequirementOwner>,
+    pub member_requirement_implementations: Arena<MemberRequirementImplementation>,
     pub bound_callable_refs: Arena<BoundCallableRef>,
     /// Source/target signatures of every explicit function-value variance
     /// adaptation requested by HIR.

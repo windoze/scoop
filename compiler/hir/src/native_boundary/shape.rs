@@ -246,7 +246,7 @@ fn validate_signature_binders(
             }
             validate_signature_binders(result, binder_parameter_counts)
         }
-        SignatureTypeKey::RawPointer(pointee) => {
+        SignatureTypeKey::RawPointer(pointee) | SignatureTypeKey::Companion(pointee) => {
             validate_signature_binders(pointee, binder_parameter_counts)
         }
         SignatureTypeKey::Binder { depth, index } => {

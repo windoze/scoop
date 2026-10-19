@@ -45,6 +45,7 @@ impl Lowerer {
             owner_type_param_count,
             &decl.type_params,
             decl.where_clause.as_ref(),
+            true,
             "local function",
         );
         self.type_params_in_scope = type_params.clone();

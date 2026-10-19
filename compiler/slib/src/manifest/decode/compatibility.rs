@@ -10,8 +10,6 @@ use scoop_wire::{Decoder, Digest256, Encoder, HashError, WireDecode, WireEncode,
 
 use crate::{ArtifactCapabilityProfile, CompatibilityRecord};
 
-const INITIAL_SCHEMA: u32 = 1;
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct DecodedCompatibilityRecord {
     language_abi: Digest256,
@@ -200,7 +198,7 @@ pub enum CompatibilitySchemaKind {
 impl CompatibilitySchemaKind {
     const fn current_schema(self) -> u32 {
         match self {
-            Self::Identity => INITIAL_SCHEMA,
+            Self::Identity => crate::compatibility::IDENTITY_SCHEMA,
             Self::Hir | Self::Mir | Self::Lir => crate::metadata::METADATA_SCHEMA,
         }
     }

@@ -24,6 +24,12 @@ pub(in super::super) fn collect_statement_types(
 ) {
     for statement in statements {
         match &statement.kind {
+            hir::StatementKind::MemberRequirementCall(call) => {
+                out.extend(call.contract.types());
+                for argument in &call.arguments {
+                    collect_expr_types(lowerer, argument, out);
+                }
+            }
             hir::StatementKind::ContextScope { value, body } => {
                 collect_expr_types(lowerer, value, out);
                 collect_statement_types(lowerer, body, out);
@@ -407,7 +413,8 @@ pub(in super::super) fn collect_expr_types(
         ExprKind::Lambda(lambda) => {
             let lambda = &lowerer.lambdas[*lambda];
             collect_function_type_types(lowerer, lambda.function_type, out);
-            if let hir::CallableBodyTypeArguments::Explicit(arguments) = &lambda.body_type_arguments
+            if let hir::CallableBodyTypeArguments::Explicit { arguments, .. } =
+                &lambda.body_type_arguments
             {
                 out.extend(arguments.iter().copied());
             }
@@ -419,7 +426,7 @@ pub(in super::super) fn collect_expr_types(
         ExprKind::AnonymousFunction(function) => {
             let function = &lowerer.anonymous_functions[*function];
             collect_function_type_types(lowerer, function.function_type, out);
-            if let hir::CallableBodyTypeArguments::Explicit(arguments) =
+            if let hir::CallableBodyTypeArguments::Explicit { arguments, .. } =
                 &function.body_type_arguments
             {
                 out.extend(arguments.iter().copied());

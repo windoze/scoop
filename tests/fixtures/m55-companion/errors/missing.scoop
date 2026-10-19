@@ -1,0 +1,3 @@
+struct Missing()
+fun <T> probe(value: T): Int where T.Companion : ref = 1
+fun main() { probe(Missing()) }

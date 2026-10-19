@@ -102,7 +102,7 @@ impl<'a> MaterializableSignatures<'a> {
                 .as_slice()
                 .iter()
                 .all(|argument| self.ty(argument)),
-            SignatureTypeKey::Binder { .. } => false,
+            SignatureTypeKey::Binder { .. } | SignatureTypeKey::Companion(_) => false,
             SignatureTypeKey::Tuple(elements) => {
                 for element in elements.as_slice() {
                     if !self.ty(element) {

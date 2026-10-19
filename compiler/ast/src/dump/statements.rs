@@ -242,6 +242,7 @@ fn dump_type_bound(bound: &TypeBound) -> String {
         TypeBound::Kind(TypeParamKindBound::Value) => "value".to_string(),
         TypeBound::Kind(TypeParamKindBound::Ref) => "ref".to_string(),
         TypeBound::Upper(ty) => dump_type_ref(ty),
+        TypeBound::ExcludedInterface(ty) => format!("!{}", dump_type_ref(ty)),
     }
 }
 
@@ -255,10 +256,21 @@ pub(super) fn dump_where_clause(clause: Option<&WhereClause>) -> String {
             .constraints
             .iter()
             .map(|constraint| format!(
-                "{} : {}",
-                constraint.parameter.text,
+                "{}{} : {}",
+                constraint.subject.parameter().text,
+                if matches!(constraint.subject, TypeConstraintSubject::Companion(_)) {
+                    ".Companion"
+                } else {
+                    ""
+                },
                 dump_type_bound(&constraint.bound)
             ))
+            .chain(
+                clause
+                    .requirements
+                    .iter()
+                    .map(super::requirements::dump_requirements)
+            )
             .collect::<Vec<_>>()
             .join(", ")
     )

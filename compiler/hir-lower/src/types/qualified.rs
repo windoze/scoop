@@ -17,6 +17,21 @@ impl Lowerer {
         arguments: &[ast::TypeRef],
         span: ast::Span,
     ) -> Option<TypeId> {
+        if let Some(parameter) = self
+            .type_params_in_scope
+            .iter()
+            .find(|p| p.name == path[0].text)
+            .map(|p| p.id)
+        {
+            if path.len() != 2 {
+                self.error(
+                    span,
+                    "a dependent type only supports the `Companion` projection".into(),
+                );
+                return None;
+            }
+            return self.resolve_parameter_companion(parameter, &path[1], arguments);
+        }
         let Some(target) = self.resolve_type_name_path(path, arguments).ok()? else {
             let first = path.first().expect("a qualified type path is non-empty");
             self.error(first.span, format!("unknown type `{}`", first.text));

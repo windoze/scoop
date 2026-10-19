@@ -191,6 +191,7 @@ impl Lowerer {
             alias.outer_parameter_count,
             &alias.syntax_parameters,
             alias.where_clause.as_ref(),
+            false,
             "typealias",
         );
         self.source_type_aliases[id].parameters = parameters.clone();
@@ -389,7 +390,11 @@ impl Lowerer {
                 .map(NominalTarget::Interface),
             Type::Ptr(_) => self.ffi_ptr.map(NominalTarget::Struct),
             Type::FunPtr(_) => self.ffi_fun_ptr.map(NominalTarget::Struct),
-            Type::Any | Type::Tuple(_) | Type::Function(_) | Type::Param(_) => None,
+            Type::Any
+            | Type::Tuple(_)
+            | Type::Function(_)
+            | Type::Param(_)
+            | Type::Companion(_) => None,
         }
     }
 }

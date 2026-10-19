@@ -173,11 +173,16 @@ fn type_argument_decoder_rejects_unknown_tags_and_non_exact_maps() {
     .unwrap_err();
     assert_eq!(
         error.kind(),
-        &WireErrorKind::InvalidLength {
-            expected: 1,
-            actual: 2,
+        &WireErrorKind::UnexpectedField {
+            expected: 2,
+            actual: 1,
         }
     );
+    let error = decode_canonical::<DecodedDefaultCallableBodyTypeArgumentsV1>(&[
+        0xa2, 0x00, 0x01, 0x02, 0x80,
+    ])
+    .unwrap_err();
+    assert_eq!(error.kind(), &WireErrorKind::NonCanonicalCbor);
 }
 
 struct LocalResolver {
@@ -384,4 +389,84 @@ fn context_key() -> SourceContextKey {
 
 fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|byte| format!("{byte:02x}")).collect()
+}
+
+impl PersistentIdResolver<scoop_identity::PersistentAnnotationId> for Resolver {
+    type Error = ResolutionError;
+    fn resolve(
+        &mut self,
+        _: DecodedPersistentId<scoop_identity::PersistentAnnotationId>,
+    ) -> Result<scoop_identity::PersistentAnnotationId, Self::Error> {
+        Err(ResolutionError)
+    }
+}
+
+impl PersistentIdResolver<scoop_identity::PersistentPropertyId> for Resolver {
+    type Error = ResolutionError;
+    fn resolve(
+        &mut self,
+        _: DecodedPersistentId<scoop_identity::PersistentPropertyId>,
+    ) -> Result<scoop_identity::PersistentPropertyId, Self::Error> {
+        Err(ResolutionError)
+    }
+}
+
+impl PersistentIdResolver<scoop_identity::PersistentExtensionPropertyId> for Resolver {
+    type Error = ResolutionError;
+    fn resolve(
+        &mut self,
+        _: DecodedPersistentId<scoop_identity::PersistentExtensionPropertyId>,
+    ) -> Result<scoop_identity::PersistentExtensionPropertyId, Self::Error> {
+        Err(ResolutionError)
+    }
+}
+
+impl PersistentIdResolver<scoop_identity::PersistentObjectValueId> for Resolver {
+    type Error = ResolutionError;
+    fn resolve(
+        &mut self,
+        _: DecodedPersistentId<scoop_identity::PersistentObjectValueId>,
+    ) -> Result<scoop_identity::PersistentObjectValueId, Self::Error> {
+        Err(ResolutionError)
+    }
+}
+
+impl PersistentIdResolver<scoop_identity::PersistentCallbackRegistrationId> for Resolver {
+    type Error = ResolutionError;
+    fn resolve(
+        &mut self,
+        _: DecodedPersistentId<scoop_identity::PersistentCallbackRegistrationId>,
+    ) -> Result<scoop_identity::PersistentCallbackRegistrationId, Self::Error> {
+        Err(ResolutionError)
+    }
+}
+
+impl PersistentIdResolver<scoop_identity::PersistentInitializationUnitId> for Resolver {
+    type Error = ResolutionError;
+    fn resolve(
+        &mut self,
+        _: DecodedPersistentId<scoop_identity::PersistentInitializationUnitId>,
+    ) -> Result<scoop_identity::PersistentInitializationUnitId, Self::Error> {
+        Err(ResolutionError)
+    }
+}
+
+impl PersistentIdResolver<scoop_identity::PersistentEnumVariantFieldId> for Resolver {
+    type Error = ResolutionError;
+    fn resolve(
+        &mut self,
+        _: DecodedPersistentId<scoop_identity::PersistentEnumVariantFieldId>,
+    ) -> Result<scoop_identity::PersistentEnumVariantFieldId, Self::Error> {
+        Err(ResolutionError)
+    }
+}
+
+impl PersistentIdResolver<scoop_identity::PersistentFieldId> for Resolver {
+    type Error = ResolutionError;
+    fn resolve(
+        &mut self,
+        _: DecodedPersistentId<scoop_identity::PersistentFieldId>,
+    ) -> Result<scoop_identity::PersistentFieldId, Self::Error> {
+        Err(ResolutionError)
+    }
 }

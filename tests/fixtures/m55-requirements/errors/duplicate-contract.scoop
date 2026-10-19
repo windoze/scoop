@@ -1,0 +1,1 @@
+fun <T> read(value: T): Int where requires(x: T) { x.read(a: Int): Int }, requires(y: T) { y.read(b: Int): Int } = 0
