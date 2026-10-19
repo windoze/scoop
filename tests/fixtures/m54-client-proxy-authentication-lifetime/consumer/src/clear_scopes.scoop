@@ -1,0 +1,67 @@
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.client.*
+
+private fun lifeFailureCount(error: Throwable, wanted: Throwable): Long {
+    if (error === wanted) return 1L
+    if (error is ResourceUseException) return lifeFailureCount(error.primaryFailure, wanted) + lifeFailureCount(error.cleanupFailure, wanted)
+    return 0L
+}
+
+internal fun lifeClearScopes(trust: TrustStore) {
+    withLifeRuntime suspend { _, scope, listener ->
+        val proxy = lifeUrl(listener)
+        val controls = Array<LifeControl>(3L) { _ -> LifeControl() }
+        val failures = Array<LifeFailure>(3L) { _ -> LifeFailure() }
+        val loads = AtomicLong(0L)
+        val provider = HttpAuthenticator.bearer(proxy.httpOrigin()) suspend { request ->
+            val number = loads.fetchAdd(1L)
+            lifeCheck(number < 3L && request.attempt == 0L)
+            lifeCheck(request.proxyUrl == if (number == 0L) None else Some(proxy))
+            controls[number].hold()
+            HttpBearerTokens("unused")
+        }
+        val options = HttpAuthenticationOptions([provider])
+        val first = lifeSelector(HttpProxyEndpoint(proxy, authentication = options))
+        val second = lifeSelector(HttpProxyEndpoint(proxy, authentication = options))
+        val client = HttpClient.open(scope, lifeConfig(trust, HttpProxySelector.direct(), options))
+        val requests = [HttpRequest.get(proxy.resolve("/origin")),
+            HttpRequest.get(lifeTarget(), options = HttpCallOptions(proxy = Some(first))),
+            HttpRequest.get(lifeTarget(), options = HttpCallOptions(proxy = Some(second)))]
+        val jobs = ArrayList<Job>()
+        for (index in 0L..<3L) {
+            jobs.add(scope.launch suspend {
+                try { client.execute(requests[index]).close() }
+                catch (error: Throwable) { failures[index].value = Some(error) }
+            })
+            controls[index].entered.await()
+        }
+        val closeFailure = LifeFailure()
+        try {
+            client.clearAuthenticationCache(provider)
+            for (control in controls) control.cancelled.await()
+            for (job in jobs) lifeCheck(!job.isCompleted)
+            for (control in controls) control.release.signal()
+            for (control in controls) control.cleaning.await()
+            val closing = scope.launch suspend {
+                try { client.close() } catch (error: Throwable) { closeFailure.value = Some(error) }
+            }
+            lifeCheck(!closing.isCompleted)
+            for (index in 0L..<3L) { controls[index].finish.signal(); jobs[index].join() }
+            closing.join()
+            lifeCheck(loads.load() == 3L)
+            for (index in 0L..<3L) {
+                val error = failures[index].value!!
+                lifeCheck(error is ResourceUseException)
+                if (error is ResourceUseException)
+                    lifeCheck(error.primaryFailure is CancellationException && error.cleanupFailure === controls[index].cleanup)
+                lifeCheck(controls[index].closed.load())
+                lifeCheck(lifeFailureCount(closeFailure.value!!, controls[index].cleanup) == 1L,
+                    "client.close lost or repeated one authentication scope's cleanup failure")
+            }
+        } finally {
+            for (control in controls) { control.release.signal(); control.finish.signal() }
+            client.close()
+        }
+    }
+}

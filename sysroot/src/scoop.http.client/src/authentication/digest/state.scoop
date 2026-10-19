@@ -21,7 +21,8 @@ internal class ClientDigestNonce(val challenge: ClientDigestChallenge, val numbe
     val cnonce: String get() = numbers.cnonce
 }
 
-internal class ClientDigestEntry(val authenticator: HttpAuthenticator, var nonce: ClientDigestNonce) {
+internal class ClientDigestEntry(val scope: ClientAuthenticationScope, val authenticator: HttpAuthenticator,
+    var nonce: ClientDigestNonce) {
     var discard: Boolean = false
 }
 
@@ -34,6 +35,7 @@ internal class ClientDigestSession(val entry: ClientDigestEntry, val nonce: Clie
 internal class ClientDigestUse(
     val session: ClientDigestSession, val uri: Array<Byte>, val ha1: String, val nc: String
 ) {
+    val scope: ClientAuthenticationScope get() = session.entry.scope
     val nonce: ClientDigestNonce = session.nonce
     var responseInfo: HttpAuthenticationInfo? = None
 }
@@ -42,22 +44,23 @@ internal fun sameClientDigestKey(first: ClientDigestChallenge, second: ClientDig
     first.algorithm == second.algorithm && first.utf8 == second.utf8 &&
         clientAuthenticationBytesEqual(first.realm, second.realm)
 
-internal fun clientDigestCovers(challenge: ClientDigestChallenge, request: HttpRequest): Boolean {
+internal fun clientDigestCovers(scope: ClientAuthenticationScope, challenge: ClientDigestChallenge, request: HttpRequest): Boolean {
+    if (scope.isProxy) return true
     val target = request.url.httpRequestTarget()
     for (path in challenge.paths) if (target.startsWith(path)) return true
     return false
 }
 
-internal fun cachedClientDigest(call: ClientCall, authenticator: HttpAuthenticator,
+internal fun cachedClientDigest(call: ClientCall, scope: ClientAuthenticationScope, authenticator: HttpAuthenticator,
     provider: ClientDigestAuthentication): ClientAuthenticationSession? = call.client.lock.withLock {
     for (algorithm in provider.algorithms) {
         var index = call.client.digestEntries.size
         while (index > 0L) {
             index -= 1L
             val entry = call.client.digestEntries[index]
-            if (entry.authenticator !== authenticator || entry.nonce.challenge.algorithm != algorithm ||
-                !clientDigestCovers(entry.nonce.challenge, call.originalRequest)) continue
-            return@withLock Some(ClientAuthenticationSession(authenticator, None, "/",
+            if (entry.authenticator !== authenticator || !sameClientAuthenticationScope(entry.scope, scope) ||
+                entry.nonce.challenge.algorithm != algorithm || !clientDigestCovers(scope, entry.nonce.challenge, call.originalRequest)) continue
+            return@withLock Some(ClientAuthenticationSession(scope, authenticator, None, "/",
                 digest = Some(ClientDigestSession(entry, entry.nonce))))
         }
     }

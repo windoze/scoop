@@ -2,16 +2,19 @@ package scoop.http.client
 
 import scoop.http.*
 
-internal fun planClientDigest(call: ClientCall, head: HttpResponseHead, authenticator: HttpAuthenticator,
+internal fun planClientDigest(call: ClientCall, head: HttpResponseHead, authentication: ClientCallAuthentication,
+    authenticator: HttpAuthenticator,
     provider: ClientDigestAuthentication, challenges: List<HttpAuthChallenge>): ClientAuthenticationSession? {
-    val challenge = chooseClientDigestChallenge(call, head, authenticator, provider, challenges) ?: return None
-    val previous = call.authenticationSession
-    val rejected = if (clientPresent(previous) && previous!!.authenticator === authenticator) call.digestUse else None
+    val scope = authentication.scope
+    val challenge = chooseClientDigestChallenge(call, head, scope, authenticator, provider, challenges) ?: return None
+    val previous = authentication.session
+    val rejected = if (clientPresent(previous) && previous!!.authenticator === authenticator) authentication.digestUse else None
     val session = call.client.lock.withLock {
         val detached = clientPresent(rejected) && rejected!!.session.entry.discard
         var cached: ClientDigestEntry? = None
         for (entry in call.client.digestEntries) {
-            if (!detached && entry.authenticator === authenticator && sameClientDigestKey(entry.nonce.challenge, challenge)) {
+            if (!detached && entry.authenticator === authenticator && sameClientAuthenticationScope(entry.scope, scope) &&
+                sameClientDigestKey(entry.nonce.challenge, challenge)) {
                 cached = Some(entry); break
             }
         }
@@ -20,10 +23,10 @@ internal fun planClientDigest(call: ClientCall, head: HttpResponseHead, authenti
             !clientAuthenticationBytesEqual(cached!!.nonce.challenge.nonce, rejected!!.nonce.challenge.nonce)
         if (same && !newer && clientPresent(previous!!.challenge) &&
             (!challenge.stale || clientAuthenticationBytesEqual(challenge.nonce, rejected!!.nonce.challenge.nonce)))
-            throw HttpAuthenticationException(HttpAuthenticationFailure.Rejected, call.request.url, Some(head))
-        requireClientAuthenticationFollowUp(call, head)
+            throw HttpAuthenticationException(HttpAuthenticationFailure.Rejected, scope.url(call), Some(head))
+        requireClientAuthenticationFollowUp(call, head, scope)
         val entry = if (clientPresent(cached)) cached!! else {
-            val created = ClientDigestEntry(authenticator, ClientDigestNonce(challenge))
+            val created = ClientDigestEntry(scope, authenticator, ClientDigestNonce(challenge))
             created.discard = detached
             if (!created.discard) call.client.digestEntries.add(created)
             created
@@ -34,5 +37,5 @@ internal fun planClientDigest(call: ClientCall, head: HttpResponseHead, authenti
         if (same) selected.secret = rejected!!.session.secret
         selected
     }
-    return Some(ClientAuthenticationSession(authenticator, Some(session.nonce.challenge.original), "/", digest = Some(session)))
+    return Some(ClientAuthenticationSession(scope, authenticator, Some(session.nonce.challenge.original), "/", digest = Some(session)))
 }

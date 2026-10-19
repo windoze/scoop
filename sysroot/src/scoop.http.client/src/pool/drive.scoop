@@ -19,7 +19,7 @@ internal suspend fun driveClientPool(state: ClientState, scope: CoroutineScope) 
                         val error = call.lock.withLock {
                             if (call.ending) Some(call.failure ?: IoClosedException()) else None
                         }
-                        if (clientPresent(error)) waiter.resumeWithException(error!!) else waiter.resume(entry.connection!!)
+                        if (clientPresent(error)) waiter.resumeWithException(error!!) else waiter.resume(ClientConnectResult.Connected(entry.connection!!))
                     }
                     case Close(entry) -> closeClientPoolEntry(state, entry, entry.connection!!)
                 }

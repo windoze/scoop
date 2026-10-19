@@ -1,0 +1,54 @@
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.*
+import scoop.http.client.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.time.Duration
+import scoop.tls.TlsTrustSource
+import scoop.url.Url
+
+internal fun authCheck(value: Boolean, detail: String = "proxy authentication integration check failed") {
+    if (!value) throw IllegalStateException(Some(detail))
+}
+internal fun <T> authPresent(value: T?): Boolean = when (value) { case Some(_) -> true; case None -> false }
+internal suspend fun <E : Throwable> authFailure(block: suspend () -> Unit): E {
+    try { block() }
+    catch (error: Throwable) { if (error is E) return error; throw error }
+    throw IllegalStateException(Some("expected proxy authentication failure"))
+}
+internal class AuthContext(val value: String)
+context(context: AuthContext)
+internal fun authContext(): String = context.value
+internal class AuthClient { var value: HttpClient? = None }
+
+internal fun authTls(trust: TrustStore): HttpClientTlsConfig = HttpClientTlsConfig(TlsTrustSource.Store(trust))
+internal fun authConfig(trust: TrustStore, selector: HttpProxySelector,
+    origin: HttpAuthenticationOptions = HttpAuthenticationOptions(), h2: Boolean = false): HttpClientConfig =
+    HttpClientConfig(tls = authTls(trust), proxy = selector, authentication = origin,
+        versionPolicy = if (h2) HttpVersionPolicy.Http2Only else HttpVersionPolicy.Http1Only,
+        pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 1L, maxConnections = 1L),
+        retries = HttpRetryOptions(maxRetries = 0L), timeouts = HttpTimeoutOptions(
+            resolve = None, connect = None, tlsHandshake = None, proxyHandshake = None))
+internal fun authSelector(endpoint: HttpProxyEndpoint): HttpProxySelector = HttpProxySelector.fixed(HttpProxy.Http(endpoint))
+internal fun authContinue(): HttpCallOptions = HttpCallOptions(expectContinue = true, continueWait = Duration.seconds(3600L))
+internal suspend fun authWrite(output: AsyncByteSink, text: String) {
+    val bytes = text.toByteArray()
+    NativeByteBuffer.allocate(bytes.size).use suspend { buffer ->
+        buffer.writeBytes(bytes); output.writeFully(buffer)
+    }
+}
+internal fun authOnce(started: AtomicLong): RequestBody = RequestBody.fromProducer(Some(7L)) suspend { output ->
+    authCheck(authContext() == "application")
+    started.fetchAdd(1L); authWrite(output, "payload")
+}
+internal suspend fun authDone(client: HttpClient, request: HttpRequest, proxyCount: Long = 1L, originCount: Long = 0L,
+    version: HttpVersion = HttpVersion.Http11, redirects: Long = 0L) {
+    client.withResponse(request) suspend { response ->
+        authCheck(response.status == 200U && response.version == version)
+        authCheck(response.proxyAuthenticationCount == proxyCount && response.authenticationCount == originCount,
+            "incorrect independent proxy/origin authentication counts")
+        authCheck(response.retryCount == 0L && response.redirectHistory.size == redirects)
+        authCheck(response.body.text(4L) == "done")
+        authCheck(authContext() == "application")
+    }
+}

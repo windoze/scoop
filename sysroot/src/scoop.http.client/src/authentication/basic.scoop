@@ -16,21 +16,19 @@ internal suspend fun clientBasicField(call: ClientCall, session: ClientAuthentic
         if (clientPresent(charset) && Charset.Iso8859_1.decode(charset!!.value).lowercaseAscii() == "utf-8")
             utf8 = true
     }
-    val credentials = provider.credentials(HttpAuthenticationRequest(call.originalRequest, challenge,
-        call.sequence.authenticationCount))
+    val credentials = provider.credentials(session.scope.request(call, challenge))
     requireClientCall(call)
     val username = if (utf8) normalizeNfc(credentials.username) else credentials.username
     val password = if (utf8) normalizeNfc(credentials.password) else credentials.password
     for (character in username) {
         if (character.code < 32 || character.code == 127 || character == ':')
-            throw HttpAuthenticationException(HttpAuthenticationFailure.InvalidCredentials, call.request.url)
+            throw HttpAuthenticationException(HttpAuthenticationFailure.InvalidCredentials, session.scope.url(call))
     }
     for (character in password) {
         if (character.code < 32 || character.code == 127)
-            throw HttpAuthenticationException(HttpAuthenticationFailure.InvalidCredentials, call.request.url)
+            throw HttpAuthenticationException(HttpAuthenticationFailure.InvalidCredentials, session.scope.url(call))
     }
     val charset = if (utf8) Charset.Utf8 else Charset.Iso8859_1
-    val field = HttpCredentials.withToken68("Basic",
-        Base64.Default.encode(charset.encode(username + ":" + password))).toAuthorizationField()
-    return HttpField(field.name, field.value, neverIndex = true)
+    return session.scope.field(HttpCredentials.withToken68("Basic",
+        Base64.Default.encode(charset.encode(username + ":" + password))))
 }

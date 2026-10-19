@@ -12,6 +12,7 @@ public class HttpResponse internal constructor(internal val call: ClientCall, pu
     public val redirectHistory: Array<HttpRedirect> = call.sequence.history.toArray()
     public val retryCount: Long = call.sequence.retryCount
     public val authenticationCount: Long = call.sequence.authenticationCount
+    public val proxyAuthenticationCount: Long = call.sequence.proxyAuthenticationCount
     public val wireContentLength: Long? = parseHttpContentLength(head.fields)
     internal val input: ClientResponseInput = ClientResponseInput(call, clientResponseDecoding(call, head, wireContentLength), head)
     public val body: HttpResponseBody = HttpResponseBody(input, head.fields)

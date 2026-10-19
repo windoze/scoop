@@ -10,9 +10,7 @@ import http1_peer
 
 def consume(binary, mode, *urls, moving=True):
     environment = dict(os.environ)
-    if moving:
-        environment.setdefault("SCOOP_GC_STRESS_MOVE", "0")
-    else:
+    if not moving:
         environment.pop("SCOOP_GC_STRESS_MOVE", None)
     result = subprocess.run(
         [binary, mode, *urls],

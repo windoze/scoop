@@ -288,6 +288,20 @@ auth-int 优先使用该表示明确给定的摘要；已知零长度表示可�
 
 有效 nextnonce 只更新其所属的当前 nonce 状态，并保留期间由新挑战更新的其他参数；迟到旧响应不能覆盖更晚的 nonce。未完整读取而主动关闭、重定向或重试放弃的 auth-int 响应不宣称通过正文校验，也不应用尚未验证的 nextnonce；不为认证无界 drain 中间 body。HttpClient.clearAuthenticationCache 对 Digest 清除已有挑战／nonce，已在进行的调用保留本轮选择，旧响应不能重新填回或改写清除后新建的缓存；后续请求重新取得挑战。没有 Authentication-Info 的响应仍按普通 HTTP 内容语义交付。
 
+### 8.4 HTTP 代理认证
+
+HttpProxyEndpoint.authentication 使用独立的 HttpAuthenticationOptions，默认空列表；其 providers 必须匹配代理 URL 的 httpOrigin，不能借用目标站点的认证配置。显式 authorization 优先，不被自动认证覆盖。Basic、Bearer 和 Digest 共用 §8.1～§8.3 的字段、字符集、凭据回调与算法实现；挑战来自 Proxy-Authenticate，凭据仅进入 Proxy-Authorization，确认来自 Proxy-Authentication-Info。SOCKS5 认证继续使用 asyncio 的协议和凭据类型。
+
+HttpAuthenticationRequest 与 HttpBearerRefreshRequest 的 proxyUrl 在目标站点认证时为 None，在代理认证时为 Some(endpoint.url)；request 始终保存当前应用请求。attempt 为该认证作用域在整个 execute 中已经发生的挑战重发次数。HttpResponse.proxyAuthenticationCount 独立记录 407 重发，跨重定向、网络重试与代理路由变化累计，不增加 authenticationCount 或 retryCount。代理配置的 maxAttempts 限制这项累计值；零关闭挑战重发，显式首发凭据仍可使用。HttpAuthenticationException.url 指向实际认证对象：目标请求 URL 或代理 URL。
+
+每次尝试先选择路由，再准备该路由和目标站点的凭据，随后申请连接池容量；准备可挂起，保持原请求 Context、取消和 total 截止。forward 407 沿普通响应 follow-up 处理。CONNECT 407 先放弃响应、关闭该代理连接并归还连接名额，下一次尝试才执行凭据获取或刷新；回调通过同一个 client、同一容量上限发起令牌请求时仍能推进。没有匹配项的 forward 407 正常交付；CONNECT 仍以 HttpProxyConnectException 保存代理 URL 和原始拒绝头部。回调异常、取消清理及已消费单次 body 的处理继续遵守 §8.1～§8.3，不能作为普通网络重试。
+
+认证状态按目标站点或具体 HttpProxyEndpoint 实例区分。即使两者 URL 相同、使用同一个 provider 对象，也不能共享 Bearer token、刷新任务或 Digest nonce；两个 endpoint 实例亦相互独立。同一 endpoint 上的并发请求继续按 provider 合并 Bearer 加载／刷新，迟到的 407 使用已更新 token；Basic 的代理保护空间覆盖该代理，不按目标 URL 目录划分。更换路由只选取新路由适用的状态，代理凭据不能进入 direct 请求、其他代理或 CONNECT 隧道内的目标请求。clearAuthenticationCache(provider) 清除该 provider 在所有实际作用域中的缓存，并取消各自在途的 Bearer 工作；已在进行的 Digest 使用不能重新填回已清除的状态。
+
+代理 Digest 的 method 与 uri 来自实际代理请求：forward 使用应用方法和 absolute-form；自动 CONNECT 使用 CONNECT 和含端口的 authority-form。CONNECT 的请求与成功响应均按空实体计算 auth-int，不能启动、预哈希或消费目标请求 body。代理挑战中的 domain 按 RFC 7616 忽略，不套用目标站点的 URI 路径保护规则。算法协商、stale、nonce-count、userhash、字符集与 nextnonce 仍使用同一实现，并保留上述作用域隔离。
+
+CONNECT 成功头部中的 Proxy-Authentication-Info 在接管隧道之前校验，错误关闭代理传输并报告 InvalidResponse；合法 1xx 和 2xx 仍遵守 §6.2 的 CONNECT 语义。forward 响应可以同时确认目标和代理的 Digest，两种 auth-int 都对同一份 HTTP 定界后、Content-Encoding 解码前的表示字节增量计算，并分别验证各自的头部／trailer 和 nextnonce。只校验实际提交过相应凭据的响应；没有确认字段时正常交付。主动关闭或放弃未读完的实体不能宣称校验成功，也不能应用尚未验证的 nextnonce。
+
 ## 9. 内容、Cookie 和缓存
 
 自动内容解码默认开启，Advertise gzip、deflate、br、zstd，前提是本构建实际支持对应 decoder。Content-Encoding 多层编码按逆序解开；不支持的编码报明确错误或由显式原始 body 模式交付，不能悄悄少解一层。调用者显式提供 Accept-Encoding 时保留原值，实际解码策略仍独立配置。

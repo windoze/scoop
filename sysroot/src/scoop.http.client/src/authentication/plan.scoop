@@ -2,25 +2,26 @@ package scoop.http.client
 
 import scoop.http.*
 
-internal fun planClientAuthentication(call: ClientCall, head: HttpResponseHead): ClientAuthenticationSession? {
-    val request = call.originalRequest
-    val options = call.sequence.authentication
-    if (head.status != 401U || options.providers.size == 0L || options.maxAttempts == 0L ||
-        hasClientAuthorization(request)) return None
+internal fun planClientAuthentication(call: ClientCall, head: HttpResponseHead,
+    authentication: ClientCallAuthentication): ClientAuthenticationSession? {
+    val scope = authentication.scope
+    val options = scope.options(call)
+    if (head.status != (if (scope.isProxy) 407U else 401U) || options.providers.size == 0L ||
+        options.maxAttempts == 0L || scope.hasExplicitCredentials(call)) return None
     var relevant = false
-    for (provider in options.providers) if (provider.origin == request.origin) relevant = true
+    for (provider in options.providers) if (provider.origin == scope.origin(call)) relevant = true
     if (!relevant) return None
-    val challenges = try { HttpAuthChallenge.parseFields(head.fields) }
+    val challenges = try { HttpAuthChallenge.parseFields(head.fields, scope.challengeField) }
     catch (error: HttpFieldParseException) {
-        throw HttpAuthenticationException(HttpAuthenticationFailure.InvalidChallenge, request.url, Some(head), Some(error))
+        throw HttpAuthenticationException(HttpAuthenticationFailure.InvalidChallenge, scope.url(call), Some(head), Some(error))
     }
     for (authenticator in options.providers) {
-        if (authenticator.origin != request.origin) continue
+        if (authenticator.origin != scope.origin(call)) continue
         val session = when (authenticator.provider) {
-            case Digest(provider) -> planClientDigest(call, head, authenticator, provider, challenges)
+            case Digest(provider) -> planClientDigest(call, head, authentication, authenticator, provider, challenges)
             else -> {
-                val selected = planClientSimpleAuthentication(call, head, authenticator, challenges)
-                if (clientPresent(selected)) requireClientAuthenticationFollowUp(call, head)
+                val selected = planClientSimpleAuthentication(call, head, authentication, authenticator, challenges)
+                if (clientPresent(selected)) requireClientAuthenticationFollowUp(call, head, scope)
                 selected
             }
         }
@@ -29,40 +30,41 @@ internal fun planClientAuthentication(call: ClientCall, head: HttpResponseHead):
     return None
 }
 
-internal fun requireClientAuthenticationFollowUp(call: ClientCall, head: HttpResponseHead) {
-    if (call.sequence.authenticationCount >= call.sequence.authentication.maxAttempts)
-        throw HttpAuthenticationException(HttpAuthenticationFailure.LimitExceeded, call.request.url, Some(head))
+internal fun requireClientAuthenticationFollowUp(call: ClientCall, head: HttpResponseHead, scope: ClientAuthenticationScope) {
+    if (scope.count(call.sequence) >= scope.options(call).maxAttempts)
+        throw HttpAuthenticationException(HttpAuthenticationFailure.LimitExceeded, scope.url(call), Some(head))
     if (!call.originalRequest.body.isReplayable && call.lock.withLock { call.bodyStarted })
-        throw HttpAuthenticationException(HttpAuthenticationFailure.BodyNotReplayable, call.request.url, Some(head))
+        throw HttpAuthenticationException(HttpAuthenticationFailure.BodyNotReplayable, scope.url(call), Some(head))
 }
 
-private fun planClientSimpleAuthentication(call: ClientCall, head: HttpResponseHead, provider: HttpAuthenticator,
-    challenges: List<HttpAuthChallenge>): ClientAuthenticationSession? {
+private fun planClientSimpleAuthentication(call: ClientCall, head: HttpResponseHead, authentication: ClientCallAuthentication,
+    provider: HttpAuthenticator, challenges: List<HttpAuthChallenge>): ClientAuthenticationSession? {
+    val scope = authentication.scope
     val basic = when (provider.provider) { case Basic(_) -> true; else -> false }
     for (challenge in challenges) {
         if (challenge.scheme != (if (basic) "basic" else "bearer")) continue
         val realm = challenge.parameter("realm")
         if (basic && !clientPresent(realm))
-            throw HttpAuthenticationException(HttpAuthenticationFailure.InvalidChallenge, call.request.url, Some(head))
+            throw HttpAuthenticationException(HttpAuthenticationFailure.InvalidChallenge, scope.url(call), Some(head))
         if (clientPresent(provider.realm) && (!clientPresent(realm) ||
             !clientAuthenticationBytesEqual(provider.realm!!, realm!!.value))) continue
-        val previous = call.authenticationSession
+        val previous = authentication.session
         var rejectedBearer: ClientBearerValue? = None
         if (basic) {
             if (clientPresent(previous) && previous!!.authenticator === provider && clientPresent(previous!!.challenge)) {
                 val previousRealm = previous!!.challenge!!.parameter("realm")!!
                 if (clientAuthenticationBytesEqual(previousRealm.value, realm!!.value))
-                    throw HttpAuthenticationException(HttpAuthenticationFailure.Rejected, call.request.url, Some(head))
+                    throw HttpAuthenticationException(HttpAuthenticationFailure.Rejected, scope.url(call), Some(head))
             }
         } else {
             if (clientPresent(challenge.token68))
-                throw HttpAuthenticationException(HttpAuthenticationFailure.InvalidChallenge, call.request.url, Some(head))
+                throw HttpAuthenticationException(HttpAuthenticationFailure.InvalidChallenge, scope.url(call), Some(head))
             val error = challenge.parameter("error")
             if (clientPresent(error) && !clientAuthenticationBytesEqual(error!!.value, "invalid_token".toByteArray())) continue
             if (clientPresent(previous) && previous!!.authenticator === provider) rejectedBearer = previous!!.bearerValue
         }
-        return Some(ClientAuthenticationSession(provider, Some(challenge),
-            if (basic) clientAuthenticationDirectory(call.originalRequest) else "/", rejectedBearer))
+        return Some(ClientAuthenticationSession(scope, provider, Some(challenge),
+            if (basic && !scope.isProxy) clientAuthenticationDirectory(call.originalRequest) else "/", rejectedBearer))
     }
     return None
 }

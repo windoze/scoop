@@ -1,6 +1,7 @@
 package scoop.http.client
 
 import scoop.http.HttpAuthChallenge
+import scoop.url.Url
 
 public class HttpBearerTokens public constructor(public val accessToken: String, public val refreshToken: String? = None)
 
@@ -8,7 +9,8 @@ public class HttpBearerRefreshRequest internal constructor(
     public val request: HttpRequest,
     public val challenge: HttpAuthChallenge,
     public val attempt: Long,
-    public val tokens: HttpBearerTokens
+    public val tokens: HttpBearerTokens,
+    public val proxyUrl: Url? = None
 )
 
 internal class ClientBearerAuthentication(

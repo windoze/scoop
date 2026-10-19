@@ -1,0 +1,53 @@
+package scoop.http.client
+
+import scoop.http.*
+import scoop.url.Url
+import scoop.url.UrlOrigin
+
+internal enum ClientAuthenticationScope {
+    Origin, Proxy(HttpProxyEndpoint)
+
+    val isProxy: Boolean get() = when (this) { case Origin -> false; case Proxy(_) -> true }
+    val proxyUrl: Url? get() = when (this) { case Origin -> None; case Proxy(endpoint) -> Some(endpoint.url) }
+    val challengeField: String get() = if (isProxy) "Proxy-Authenticate" else "WWW-Authenticate"
+    val infoField: String get() = if (isProxy) "Proxy-Authentication-Info" else "Authentication-Info"
+
+    fun url(call: ClientCall): Url = proxyUrl ?: call.originalRequest.url
+    fun origin(call: ClientCall): UrlOrigin = when (this) {
+        case Origin -> call.originalRequest.origin
+        case Proxy(endpoint) -> endpoint.url.httpOrigin()
+    }
+    fun options(call: ClientCall): HttpAuthenticationOptions = when (this) {
+        case Origin -> call.sequence.authentication
+        case Proxy(endpoint) -> endpoint.authentication
+    }
+    fun count(sequence: ClientRequestSequence): Long =
+        if (isProxy) sequence.proxyAuthenticationCount else sequence.authenticationCount
+    fun hasExplicitCredentials(call: ClientCall): Boolean = when (this) {
+        case Origin -> hasClientAuthorization(call.originalRequest)
+        case Proxy(endpoint) -> clientPresent(endpoint.authorization)
+    }
+    fun request(call: ClientCall, challenge: HttpAuthChallenge?): HttpAuthenticationRequest =
+        HttpAuthenticationRequest(call.originalRequest, challenge, count(call.sequence), proxyUrl)
+    fun field(credentials: HttpCredentials): HttpField {
+        val field = if (isProxy) credentials.toProxyAuthorizationField() else credentials.toAuthorizationField()
+        return HttpField(field.name, field.value, neverIndex = true)
+    }
+    fun usesConnect(call: ClientCall): Boolean = isProxy && when (call.route) {
+        case HttpTunnel(_) -> true
+        else -> false
+    }
+    fun method(call: ClientCall): Array<Byte> = if (usesConnect(call)) "CONNECT".toByteArray() else call.originalRequest.methodBytes
+    fun target(call: ClientCall): Array<Byte> =
+        if (usesConnect(call)) call.originalRequest.origin.authority(true).toByteArray() else clientRequestTargetBytes(call)
+}
+
+internal class ClientCallAuthentication(val scope: ClientAuthenticationScope) {
+    var session: ClientAuthenticationSession? = None
+    var digestUse: ClientDigestUse? = None
+}
+
+internal fun sameClientAuthenticationScope(first: ClientAuthenticationScope, second: ClientAuthenticationScope): Boolean = when (first) {
+    case Origin -> when (second) { case Origin -> true; else -> false }
+    case Proxy(endpoint) -> when (second) { case Proxy(other) -> endpoint === other; else -> false }
+}

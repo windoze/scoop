@@ -9,11 +9,15 @@ import scoop.platform.memory.NativeByteBuffer
 internal class ClientResponseCodec(private val call: ClientCall, private val plan: ClientResponseDecoding,
     head: HttpResponseHead) : AsyncByteSource, AsyncCloseable {
     private val wire: AsyncByteSource = if (call.tracksProgress) ClientResponseWireSource(call) else call.exchange!!
-    private val digest: ClientDigestResponseSource? = when (call.digestUse) {
+    private val proxyDigest: ClientDigestResponseSource? = when (clientForwardProxyDigest(call)) {
         case Some(use) -> Some(ClientDigestResponseSource(call, head, use, wire))
         case None -> None
     }
-    private val original: AsyncByteSource = digest ?: wire
+    private val digest: ClientDigestResponseSource? = when (call.authentication.digestUse) {
+        case Some(use) -> Some(ClientDigestResponseSource(call, head, use, proxyDigest ?: wire))
+        case None -> None
+    }
+    private val original: AsyncByteSource = digest ?: proxyDigest ?: wire
     private var source: AsyncByteSource = original
     private var prepared: Boolean = false
     private val codecs: ArrayList<AsyncDecompressionSource> = ArrayList<AsyncDecompressionSource>()
@@ -51,6 +55,8 @@ internal class ClientResponseCodec(private val call: ClientCall, private val pla
         }
         source = original
         try { digest?.close() }
+        catch (error: Throwable) { failure = Some(clientCombined(failure, error)) }
+        try { proxyDigest?.close() }
         catch (error: Throwable) { failure = Some(clientCombined(failure, error)) }
         if (clientPresent(failure)) throw failure!!
     }

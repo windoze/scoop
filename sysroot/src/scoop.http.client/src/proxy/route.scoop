@@ -12,6 +12,7 @@ internal suspend fun selectClientRoute(call: ClientCall) {
     call.route = when (selected) {
         case Direct -> ClientRoute.Direct
         case Http(endpoint) -> {
+            call.proxyAuthentication = Some(ClientCallAuthentication(ClientAuthenticationScope.Proxy(endpoint)))
             val config = call.client.config
             if (call.request.origin.scheme == "http" && config.cleartext == HttpCleartextProtocol.Http1 &&
                 config.http1RequestVersion == HttpVersion.Http11 && call.request.method != "CONNECT")

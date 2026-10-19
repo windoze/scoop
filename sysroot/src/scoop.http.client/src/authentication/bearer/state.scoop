@@ -4,7 +4,8 @@ import scoop.http.HttpField
 
 internal class ClientBearerValue(val tokens: HttpBearerTokens, val field: HttpField)
 
-internal class ClientBearerEntry(val authenticator: HttpAuthenticator, val provider: ClientBearerAuthentication) {
+internal class ClientBearerEntry(val scope: ClientAuthenticationScope, val authenticator: HttpAuthenticator,
+    val provider: ClientBearerAuthentication) {
     var value: ClientBearerValue? = None
     var flight: ClientBearerFlight? = None
     var discard: Boolean = false

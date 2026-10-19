@@ -118,7 +118,7 @@ private fun assignClientLease(state: ClientState, call: ClientCall, now: TimeMar
                 entry.active < entry.peerStreams && entry.active < state.config.pool.maxStreamsPerHttp2
         }
         if (!available) continue
-        val waiter: Continuation<ClientConnection>? = call.lock.withLock {
+        val waiter: Continuation<ClientConnectResult<ClientConnection>>? = call.lock.withLock {
             if (call.ending || call.completed) return@withLock None
             val expiry = finishClientPoolWait(call, now)
             if (clientPresent(expiry)) {

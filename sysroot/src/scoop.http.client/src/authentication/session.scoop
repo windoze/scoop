@@ -6,6 +6,7 @@ import scoop.text.startsWith
 import scoop.text.substring
 
 internal class ClientAuthenticationSession(
+    val scope: ClientAuthenticationScope,
     val authenticator: HttpAuthenticator,
     val challenge: HttpAuthChallenge?,
     val path: String,
@@ -16,26 +17,28 @@ internal class ClientAuthenticationSession(
     var bearerValue: ClientBearerValue? = None
 }
 
-internal suspend fun prepareClientAuthentication(call: ClientCall) {
+internal suspend fun prepareClientAuthentication(call: ClientCall, authentication: ClientCallAuthentication) {
+    val scope = authentication.scope
     val request = call.originalRequest
-    if (hasClientAuthorization(request)) return
+    if (scope.hasExplicitCredentials(call)) return
     val sequence = call.sequence
     var selected: ClientAuthenticationSession? = None
     var index = sequence.authenticationSessions.size
     while (index > 0L) {
         index -= 1L
         val session = sequence.authenticationSessions[index]
-        if (session.authenticator.origin == request.origin && clientAuthenticationPath(request).startsWith(session.path) &&
-            (!clientPresent(session.digest) || clientDigestCovers(session.digest!!.nonce.challenge, request))) {
+        if (sameClientAuthenticationScope(session.scope, scope) && session.authenticator.origin == scope.origin(call) &&
+            (scope.isProxy || clientAuthenticationPath(request).startsWith(session.path)) &&
+            (!clientPresent(session.digest) || clientDigestCovers(scope, session.digest!!.nonce.challenge, request))) {
             selected = Some(session); break
         }
     }
     if (!clientPresent(selected)) {
-        for (provider in sequence.authentication.providers) {
-            if (provider.origin == request.origin && provider.sendWithoutChallenge) {
+        for (provider in scope.options(call).providers) {
+            if (provider.origin == scope.origin(call) && provider.sendWithoutChallenge) {
                 val available = when (provider.provider) {
-                    case Digest(options) -> cachedClientDigest(call, provider, options)
-                    else -> Some(ClientAuthenticationSession(provider, None, "/"))
+                    case Digest(options) -> cachedClientDigest(call, scope, provider, options)
+                    else -> Some(ClientAuthenticationSession(scope, provider, None, "/"))
                 }
                 if (!clientPresent(available)) continue
                 val session = available!!
@@ -55,15 +58,17 @@ internal suspend fun prepareClientAuthentication(call: ClientCall) {
             session.bearerValue = Some(value)
             value.field
         }
-        case Digest(provider) -> clientDigestField(call, session, provider)
+        case Digest(provider) -> clientDigestField(call, authentication, session, provider)
     }
     requireClientCall(call)
     session.field = Some(field)
-    val fields = ArrayList<HttpField>()
-    for (value in request.suppliedFields) fields.add(value)
-    fields.add(field)
-    call.request = HttpRequest(request.url, request.method, fields, request.body, request.options)
-    call.authenticationSession = Some(session)
+    authentication.session = Some(session)
+    if (!scope.isProxy) {
+        val fields = ArrayList<HttpField>()
+        for (value in request.suppliedFields) fields.add(value)
+        fields.add(field)
+        call.request = HttpRequest(request.url, request.method, fields, request.body, request.options)
+    }
 }
 
 internal fun hasClientAuthorization(request: HttpRequest): Boolean {

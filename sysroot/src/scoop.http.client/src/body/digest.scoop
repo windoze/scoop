@@ -20,12 +20,13 @@ internal fun replaceClientEntityDigest(existing: List<ClientEntityDigest>, algor
     return result.toArray()
 }
 
-internal suspend fun clientDigestEntity(call: ClientCall, algorithm: HttpDigestAlgorithm): String {
-    val body = call.originalRequest.body
+internal suspend fun clientDigestEntity(call: ClientCall, scope: ClientAuthenticationScope, algorithm: HttpDigestAlgorithm): String {
     val actual = clientDigestAlgorithm(algorithm)
+    if (scope.usesConnect(call)) return digest(actual, emptyList<Byte>()).toHexString()
+    val body = call.originalRequest.body
     for (entry in body.entityDigests) if (entry.algorithm == actual) return entry.bytes.toHexString()
     if (body.contentLength == Some(0L)) return digest(actual, emptyList<Byte>()).toHexString()
-    if (!body.isReplayable) throw HttpAuthenticationException(HttpAuthenticationFailure.BodyNotReplayable, call.request.url)
+    if (!body.isReplayable) throw HttpAuthenticationException(HttpAuthenticationFailure.BodyNotReplayable, scope.url(call))
     return Digest(actual).use suspend { hash ->
         body.writeWithTrailersTo(ClientDigestSink(call, hash))
         requireClientCall(call)

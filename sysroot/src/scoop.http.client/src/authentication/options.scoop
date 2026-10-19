@@ -2,6 +2,7 @@ package scoop.http.client
 
 import scoop.collections.emptyList
 import scoop.http.HttpAuthChallenge
+import scoop.url.Url
 import scoop.url.UrlOrigin
 
 public enum HttpBasicCharset { Iso8859_1, Utf8 }
@@ -11,7 +12,8 @@ public class HttpPasswordCredentials public constructor(public val username: Str
 public class HttpAuthenticationRequest internal constructor(
     public val request: HttpRequest,
     public val challenge: HttpAuthChallenge?,
-    public val attempt: Long
+    public val attempt: Long,
+    public val proxyUrl: Url? = None
 )
 
 public class HttpAuthenticationOptions public constructor(

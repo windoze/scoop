@@ -26,7 +26,8 @@ internal class ClientDigestResponseSource(val call: ClientCall, val head: HttpRe
         }
         if (count != 0L && (actual == 0L || call.exchange!!.isReadComplete)) {
             done = true
-            finishClientDigestResponse(call, head, use, if (clientPresent(hash)) Some(hash!!.finish().toHexString()) else None)
+            finishClientDigestResponse(call, head, use, if (clientPresent(hash)) Some(hash!!.finish().toHexString()) else None,
+                call.exchange!!.trailers)
         }
         return actual
     }

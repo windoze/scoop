@@ -1,0 +1,52 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+
+internal suspend fun <T> connectClientHttpTunnel(call: ClientCall, transport: T, endpoint: HttpProxyEndpoint): ClientConnectResult<HttpTransport>
+    where T : AsyncByteStream, T : AsyncCloseable {
+    val deadline = startClientDeadline(call, call.scope!!, HttpTimeoutPhase.ProxyHandshake, call.timeouts.proxyHandshake)
+    try {
+        requireClientCall(call)
+        val config = call.client.config
+        val result: ClientConnectResult<HttpTransport> = AsyncHttp1Connection.takeOwnershipAsClient(transport, call.scope!!,
+            config.http1Receive, config.http1Limits).useAsync suspend { connection ->
+            connection.sendRequest(httpConnectRequest(call.request.url, clientProxyAuthorization(call, endpoint))).useAsync suspend { output ->
+                output.finish()
+            }
+            var authentication: ClientAuthenticationSession? = None
+            while (true) {
+                val response = connection.receiveResponse()
+                if (response.head.status < 200U && response.head.status != 101U) {
+                    response.body.useAsync suspend { body -> body.readAllBytes(0L); Unit }
+                    continue
+                }
+                authentication = response.body.useAsync suspend { body ->
+                    if (httpConnectAccepted(response.head)) {
+                        body.readAllBytes(0L)
+                        verifyClientConnectDigest(call, response.head)
+                        None
+                    } else {
+                        val session = planClientAuthentication(call, response.head, call.proxyAuthentication!!)
+                            ?: throw HttpProxyConnectException(endpoint.url, response.head)
+                        Some(session)
+                    }
+                }
+                break
+            }
+            if (clientPresent(authentication)) ClientConnectResult.Authenticate(authentication!!)
+            else ClientConnectResult.Connected(connection.takeTransport())
+        }
+        return when (result) {
+            case Connected(tunnel) -> ClientConnectResult.Connected(finishClientNetworkStage(call, deadline, tunnel))
+            case Authenticate(session) -> {
+                requireClientCall(call)
+                finishClientDeadline(deadline)
+                requireClientCall(call)
+                ClientConnectResult.Authenticate(session)
+            }
+        }
+    } catch (error: Throwable) { recordClientIoFailure(call, error); throw error }
+    finally { stopClientDeadline(deadline) }
+}

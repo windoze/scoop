@@ -1,6 +1,6 @@
 # M54 实施进度
 
-状态：实施中。完整范围见[设计](DESIGN.md)，本页只记录实际实现与验证；Linux 分项验证进行中，最终三目标验收尚未完成。
+状态：实施中。完整范围见[设计](DESIGN.md)，本页只记录实际实现与验证；先完成全部功能，再统一执行 GC stress 与最终三目标验收。
 
 ## 已完成的功能
 
@@ -89,6 +89,7 @@
 | Boolean Scoop ABI | 标量参数和结果使用 i1 zeroext，定义、调用、间接分派和 statepoint 保持一致；现有目标指纹升级后正常重建产物 | GNU 旧工具最小复现 1／255 两个真值比较失败；237 项 codegen、6 项 ABI 分类、387 项 LIR、253 项产物测试及 workspace clippy 通过，Darwin 正式消费者 8 个变体、26 个步骤进程通过；GNU／musl 各 10 个 fixture、20 个变体、70 个步骤进程通过 |
 | LLVM safepoint 不可复制 | 普通 safepoint 调用、显式 statepoint 和逻辑根恢复标记统一携带 noduplicate；保留现有优化管线与机器层约束 | Darwin 239 项、Linux 253 项 codegen 测试及 workspace clippy 通过；最小 IR 核对三目标机器栈映射，四项正式回归在每目标各通过 8 个变体、34 个步骤进程，原代理消费者通过两种构建及 full moving |
 | client 显式代理 | 纯 Scoop 组合 HTTP／HTTPS 转发、CONNECT、SOCKS5、本地／代理 DNS、两层 TLS 与目标 H2；suspend selector、静态代理凭据、路由池隔离及协商截止 | Darwin 30 个网络场景与 10 个 selector 生命周期场景通过 debug／release、双 native 线程、full moving 与复用；158 项 client 库测试通过两种构建，生产库与连接池／重试组合最终通过 8 个变体、24 个步骤进程 |
+| client 代理认证 | Basic／Bearer／Digest 共用认证实现，按 origin 与代理实例分开保存 token、刷新和 nonce；CONNECT 拒绝先关闭并归还名额，回调随后执行；转发与隧道分别验证响应摘要 | Darwin 新增 28 个独立协议场景、12 个挂起／清理场景，通过 debug／release 普通测试；正式库消费及原有认证、代理、连接池、重试共 11 个 fixture、22 个变体、66 个步骤进程全部通过，GC stress 延后统一执行 |
 | IP CIDR 网络 | platform.IpNetwork 提供 IPv4／IPv6 网络归一化、前缀检查、包含判断与值比较；地址解析仍使用 IpAddress，上层不重复实现位掩码 | Darwin 正式消费者通过 debug／release 和构建复用；808 个 Python ipaddress 独立向量覆盖全部前缀长度、内外边界，另验证无效输入、IPv4-mapped IPv6、scope 及 URL／socket 地址组合；未启用 GC stress |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
@@ -405,11 +406,11 @@ Digest 的 95 个独立场景包括 57 个协议、17 个生命周期、14 个�
 
 显式代理已通过正常入口更新生产 sysroot。真实独立对端验证 absolute-form、全部 2xx CONNECT、同包隧道后缀、TLS-in-TLS 与独立信任、SOCKS 地址／凭据、H2 prior knowledge／Upgrade、HTTP/1.0、路由切换和 origin Digest；代理凭据不进入隧道后的目标请求。selector 在每次实际尝试前执行，保留原 Context、回调异常及取消后的真实清理。新增 CONNECT／SOCKS5 已开始协商后的超时用例均确认未启动目标 producer，并在同一 client 的单连接名额下继续完成下一请求；测试明确 Unit 回调类型后通过。原连接池与重试正式用例同时回归，未重复未修改的编译器全量测试。
 
-合并后的 GNU Digest 主协议用例通过两种构建、full moving 与复用；Digest 组合的 debug 批次通过，release late-401 触及原 180 秒进程时限。原 release 二进制在保留原对端等待规则的独立运行中正常完成，用时约 185 秒，其中 43,139 次 full GC 耗时约 181 秒；该场景的测试进程时限已提高到 600 秒，未改产品截止或对端规则。复用原二进制完成 late-401、late-nextnonce、clear-active 三个场景及无子进程的正常构建复用，其余 release 场景沿用该批次中断前已通过的结果。musl 的 Bearer 主用例已通过两种构建，Digest 与组合用例、显式代理的 Linux 验证继续进行。
+合并后的 GNU Digest 主协议用例通过两种构建、full moving 与复用；Digest 组合的 debug 批次通过，release late-401 触及原 180 秒进程时限。原 release 二进制在保留原对端等待规则的独立运行中正常完成，用时约 185 秒，其中 43,139 次 full GC 耗时约 181 秒；该场景的测试进程时限已提高到 600 秒，未改产品截止或对端规则。复用原二进制完成 late-401、late-nextnonce、clear-active 三个场景及无子进程的正常构建复用，其余 release 场景沿用该批次中断前已通过的结果。musl 的 Bearer 与 Digest 主用例均已通过两种构建；显式代理及池、重试、网络主机组合在 GNU 全部通过，共 10 个变体、30 个步骤进程。musl 已通过池回归，尚未完成的其余压力批次已按用户要求停止，保留实际完成结果，待全部功能完成后统一验收。
 
 ## 后续工作
 
-继续完成代理 407 认证与环境配置、Cookie、缓存／续传、SSE／WebSocket 高层组合和可观察性。每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
+继续完成环境代理配置、Cookie、缓存／续传、SSE／WebSocket 高层组合和可观察性。每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
 
 ## 验证安排
 

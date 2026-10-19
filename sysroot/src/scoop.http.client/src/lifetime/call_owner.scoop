@@ -35,11 +35,23 @@ private suspend fun runClientCall(call: ClientCall) {
         try {
             startClientDeadline(call, scope, HttpTimeoutPhase.Total, call.timeouts.total, call.started)
             requireClientCall(call)
-            try { selectClientRoute(call); prepareClientAuthentication(call) }
+            try {
+                selectClientRoute(call)
+                val proxy = call.proxyAuthentication
+                if (clientPresent(proxy)) prepareClientAuthentication(call, proxy!!)
+                prepareClientAuthentication(call, call.authentication)
+            }
             catch (error: Throwable) { failClientCall(call, error, true) }
             requireClientCall(call)
             startClientDeadline(call, scope, HttpTimeoutPhase.PoolAcquire, call.timeouts.poolAcquire)
-            val connection = awaitClientConnection(call)
+            val connection = when (awaitClientConnection(call)) {
+                case Connected(_connection) -> _connection
+                case Authenticate(session) -> {
+                    requireClientCall(call)
+                    selectClientFollowUp(call, ClientFollowUp.Authenticate(session))
+                    return@coroutineScope
+                }
+            }
             val exchange = openClientExchange(call, connection)
             call.lock.withLock { call.exchange = Some(exchange) }
             val headersDeadline = startClientDeadline(call, scope, HttpTimeoutPhase.ResponseHeaders, call.timeouts.responseHeaders)
@@ -60,11 +72,7 @@ private suspend fun runClientCall(call: ClientCall) {
                 val followUp = planClientResponseFollowUp(call, head)
                 if (clientPresent(followUp)) {
                     settleClientContinue(call, false)
-                    call.lock.withLock {
-                        requireClientCallUnlocked(call)
-                        call.followUp = followUp
-                        call.abandoned = true; call.ending = true; call.stopUpload = true
-                    }
+                    selectClientFollowUp(call, followUp!!)
                     break
                 }
                 val response = HttpResponse(call, head)
@@ -88,6 +96,14 @@ private suspend fun runClientCall(call: ClientCall) {
             try { cleanupClientExchange(call) }
             finally { stopClientDeadlines(call) }
         }
+    }
+}
+
+private fun selectClientFollowUp(call: ClientCall, followUp: ClientFollowUp) {
+    call.lock.withLock {
+        requireClientCallUnlocked(call)
+        call.followUp = Some(followUp)
+        call.abandoned = true; call.ending = true; call.stopUpload = true
     }
 }
 

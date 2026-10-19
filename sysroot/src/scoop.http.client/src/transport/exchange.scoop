@@ -55,7 +55,7 @@ private fun clientRequestHead(call: ClientCall, version: HttpVersion): HttpReque
     }
     when (call.route) {
         case HttpForward(endpoint) -> {
-            for (field in clientProxyAuthorization(endpoint)) fields.add(field)
+            for (field in clientProxyAuthorization(call, endpoint)) fields.add(field)
             return httpProxyRequest(request.url, request.methodBytes, fields, version)
         }
         else -> {}

@@ -12,6 +12,7 @@ internal class ClientRequestSequence(config: HttpClientConfig, request: HttpRequ
     val authentication: HttpAuthenticationOptions = request.options.authentication ?: config.authentication
     val authenticationSessions: ArrayList<ClientAuthenticationSession> = ArrayList<ClientAuthenticationSession>()
     var authenticationCount: Long = 0L
+    var proxyAuthenticationCount: Long = 0L
     val history: ArrayList<HttpRedirect> = ArrayList<HttpRedirect>()
     var retryCount: Long = 0L
     var unprocessedRetryUsed: Boolean = false
@@ -42,7 +43,8 @@ internal suspend fun executeClientRequest(state: ClientState, request: HttpReque
             }
             case FollowUp(ClientFollowUp.Authenticate(session)) -> {
                 sequence.authenticationSessions.add(session)
-                sequence.authenticationCount += 1L
+                if (session.scope.isProxy) sequence.proxyAuthenticationCount += 1L
+                else sequence.authenticationCount += 1L
             }
             case Failed(failure, bodyStarted) -> {
                 val delay = planClientFailureRetry(sequence, current, failure, bodyStarted) ?: throw failure.cause

@@ -20,10 +20,10 @@ private fun selectClientBearer(call: ClientCall, session: ClientAuthenticationSe
     if (state.closing) throw HttpClientClosedException()
     var selected: ClientBearerEntry? = None
     for (entry in state.bearerEntries) {
-        if (entry.authenticator === session.authenticator) { selected = Some(entry); break }
+        if (entry.authenticator === session.authenticator && sameClientAuthenticationScope(entry.scope, session.scope)) { selected = Some(entry); break }
     }
     if (!clientPresent(selected)) {
-        val entry = ClientBearerEntry(session.authenticator, provider)
+        val entry = ClientBearerEntry(session.scope, session.authenticator, provider)
         state.bearerEntries.add(entry)
         selected = Some(entry)
     }
@@ -36,7 +36,7 @@ private fun selectClientBearer(call: ClientCall, session: ClientAuthenticationSe
     if (clientPresent(current) && (!clientPresent(rejected) ||
         current!!.tokens.accessToken != rejected!!.tokens.accessToken))
         return@withLock ClientBearerDecision.Ready(current!!)
-    val request = HttpAuthenticationRequest(call.originalRequest, session.challenge, call.sequence.authenticationCount)
+    val request = session.scope.request(call, session.challenge)
     val flight = ClientBearerFlight(state, entry, state.scope!!, request, current)
     entry.flight = Some(flight)
     ClientBearerDecision.Start(flight)

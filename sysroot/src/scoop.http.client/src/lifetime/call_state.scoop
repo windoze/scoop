@@ -10,8 +10,8 @@ internal class ClientCall(
 ) {
     var request: HttpRequest = originalRequest
     var route: ClientRoute = ClientRoute.Direct
-    var authenticationSession: ClientAuthenticationSession? = None
-    var digestUse: ClientDigestUse? = None
+    val authentication: ClientCallAuthentication = ClientCallAuthentication(ClientAuthenticationScope.Origin)
+    var proxyAuthentication: ClientCallAuthentication? = None
     var bearerCleanup: ClientBearerCleanup? = None
     val timeouts: HttpTimeoutOptions = sequence.timeouts
     val started: TimeMark? = sequence.started
@@ -29,7 +29,7 @@ internal class ClientCall(
     var hold: Continuation<Unit>? = None
     var callerListener: Disposable? = None
     var jobListener: Disposable? = None
-    var dialWaiter: Continuation<ClientConnection>? = None
+    var dialWaiter: Continuation<ClientConnectResult<ClientConnection>>? = None
     var upgradeWaiter: Continuation<AsyncHttp2Connection>? = None
     var continueDecision: Boolean? = None
     var continueWaiter: CancellableContinuation<Boolean>? = None
@@ -67,7 +67,7 @@ internal fun wakeClientCall(call: ClientCall) {
 }
 
 internal fun cancelClientCall(call: ClientCall, error: Throwable) {
-    val result: (CoroutineScope?, Continuation<ClientConnection>?, Continuation<Unit>?, Continuation<AsyncHttp2Connection>?) = call.lock.withLock {
+    val result: (CoroutineScope?, Continuation<ClientConnectResult<ClientConnection>>?, Continuation<Unit>?, Continuation<AsyncHttp2Connection>?) = call.lock.withLock {
         if (call.completed) return@withLock (None, None, None, None)
         if (!call.ending && !call.abandoned && !clientPresent(call.failure)) call.failure = Some(error)
         call.ending = true

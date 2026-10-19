@@ -19,7 +19,8 @@ public class HttpProxySelector public constructor(internal val select: suspend (
 public class HttpProxyEndpoint public constructor(
     public val url: Url,
     public val tls: HttpClientTlsConfig = HttpClientTlsConfig(),
-    public val authorization: HttpCredentials? = None
+    public val authorization: HttpCredentials? = None,
+    public val authentication: HttpAuthenticationOptions = HttpAuthenticationOptions()
 ) {
     internal val address: ClientProxyAddress = clientProxyAddress(url, false)
 }

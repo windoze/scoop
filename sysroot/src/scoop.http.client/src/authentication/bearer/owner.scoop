@@ -1,7 +1,6 @@
 package scoop.http.client
 
 import scoop.http.HttpCredentials
-import scoop.http.HttpField
 
 internal fun startClientBearerFlight(flight: ClientBearerFlight) {
     try {
@@ -29,19 +28,19 @@ private suspend fun runClientBearerFlight(flight: ClientBearerFlight): ClientBea
         else {
             val request = flight.request
             val refreshed = provider.refreshTokens(HttpBearerRefreshRequest(request.request, request.challenge!!,
-                request.attempt, previous!!.tokens))
+                request.attempt, previous!!.tokens, request.proxyUrl))
             scope.job.ensureActive()
             if (!clientPresent(refreshed) || refreshed!!.accessToken == previous!!.tokens.accessToken)
-                throw HttpAuthenticationException(HttpAuthenticationFailure.Rejected, request.request.url)
+                throw HttpAuthenticationException(HttpAuthenticationFailure.Rejected, request.proxyUrl ?: request.request.url)
             refreshed!!
         }
         scope.job.ensureActive()
-        val field = try { HttpCredentials.withToken68("Bearer", tokens.accessToken).toAuthorizationField() }
+        val field = try { flight.entry.scope.field(HttpCredentials.withToken68("Bearer", tokens.accessToken)) }
         catch (error: IllegalArgumentException) {
-            throw HttpAuthenticationException(HttpAuthenticationFailure.InvalidCredentials, flight.request.request.url,
+            throw HttpAuthenticationException(HttpAuthenticationFailure.InvalidCredentials, flight.request.proxyUrl ?: flight.request.request.url,
                 cause = Some(error))
         }
-        ClientBearerValue(tokens, HttpField(field.name, field.value, neverIndex = true))
+        ClientBearerValue(tokens, field)
     }
 
 private class ClientBearerCompletion(val flight: ClientBearerFlight) : Continuation<ClientBearerValue> {

@@ -4,15 +4,20 @@ internal fun clearClientAuthenticationCache(state: ClientState, authenticator: H
     if (state.lock.withLock { state.closed }) return
     clientJob(state.loop, false)
     clearClientDigestCache(state, authenticator)
-    val flight: ClientBearerFlight? = state.lock.withLock {
-        for (entry in state.bearerEntries) {
+    val flights = state.lock.withLock {
+        val active = ArrayList<ClientBearerFlight>()
+        var index = state.bearerEntries.size
+        while (index > 0L) {
+            index -= 1L
+            val entry = state.bearerEntries[index]
             if (entry.authenticator !== authenticator) continue
             entry.discard = true; entry.value = None
-            val active = entry.flight
-            if (!clientPresent(active)) removeClientBearerEntry(state, entry)
-            return@withLock active
+            when (entry.flight) {
+                case Some(flight) -> active.add(flight)
+                case None -> state.bearerEntries.removeAt(index)
+            }
         }
-        None
+        active.toArray()
     }
-    if (clientPresent(flight)) stopClientBearerFlight(flight!!)
+    for (flight in flights) stopClientBearerFlight(flight)
 }

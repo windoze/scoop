@@ -9,12 +9,13 @@ import scoop.tls.*
 import scoop.url.UrlHost
 
 internal enum ClientConnection { Http1(AsyncHttp1Connection), Http2(AsyncHttp2Connection) }
+internal enum ClientConnectResult<T> { Connected(T), Authenticate(ClientAuthenticationSession) }
 
 internal suspend fun closeClientConnection(connection: ClientConnection) {
     when (connection) { case Http1(value) -> value.close(); case Http2(value) -> value.close() }
 }
 
-internal suspend fun awaitClientConnection(call: ClientCall): ClientConnection = suspendCoroutine<ClientConnection> { continuation ->
+internal suspend fun awaitClientConnection(call: ClientCall): ClientConnectResult<ClientConnection> = suspendCoroutine<ClientConnectResult<ClientConnection>> { continuation ->
     call.lock.withLock {
         if (call.ending) throw (call.failure ?: CancellationException())
         call.dialWaiter = Some(continuation)
@@ -34,17 +35,26 @@ internal fun startClientDial(state: ClientState, call: ClientCall, entry: Client
         scope!!.launch suspend {
             entered.store(true)
             try {
-                val connection = connectClient(call, entry)
-                if (call.lock.withLock { call.ending } || state.lock.withLock { state.closing }) {
-                    try { closeClientConnection(connection) }
-                    finally { removeClientPoolEntry(state, entry) }
-                } else {
-                    state.lock.withLock {
-                        entry.connection = Some(connection)
-                        entry.connecting = false
-                        entry.idle = entry.created
+                when (connectClient(call, entry)) {
+                    case Authenticate(session) -> {
+                        val waiter = call.lock.withLock { val saved = call.dialWaiter; call.dialWaiter = None; saved }
+                        removeClientPoolEntry(state, entry)
+                        if (clientPresent(waiter)) waiter!!.resume(ClientConnectResult.Authenticate(session))
                     }
-                    wakeClient(state)
+                    case Connected(_connection) -> {
+                        val connection = _connection
+                        if (call.lock.withLock { call.ending } || state.lock.withLock { state.closing }) {
+                            try { closeClientConnection(connection) }
+                            finally { removeClientPoolEntry(state, entry) }
+                        } else {
+                            state.lock.withLock {
+                                entry.connection = Some(connection)
+                                entry.connecting = false
+                                entry.idle = entry.created
+                            }
+                            wakeClient(state)
+                        }
+                    }
                 }
             } catch (error: Throwable) {
                 val waiter = call.lock.withLock { val saved = call.dialWaiter; call.dialWaiter = None; saved }
@@ -63,7 +73,7 @@ internal fun startClientDial(state: ClientState, call: ClientCall, entry: Client
     }
 }
 
-private suspend fun connectClient(call: ClientCall, entry: ClientPoolEntry): ClientConnection {
+private suspend fun connectClient(call: ClientCall, entry: ClientPoolEntry): ClientConnectResult<ClientConnection> {
     val state = call.client
     val (host, port) = clientRouteAddress(call)
     val tcp = connectClientSocket(call, host, port)
@@ -72,10 +82,10 @@ private suspend fun connectClient(call: ClientCall, entry: ClientPoolEntry): Cli
         state.lock.withLock { entry.created = connected }
         requireClientCall(call)
         return when (call.route) {
-            case Direct -> connectClientOrigin(call, entry, tcp)
+            case Direct -> ClientConnectResult.Connected(connectClientOrigin(call, entry, tcp))
             case HttpForward(endpoint) -> connectClientHttpProxy(call, entry, tcp, endpoint, true)
             case HttpTunnel(endpoint) -> connectClientHttpProxy(call, entry, tcp, endpoint, false)
-            case Socks5(endpoint) -> connectClientSocks5(call, entry, tcp, endpoint)
+            case Socks5(endpoint) -> ClientConnectResult.Connected(connectClientSocks5(call, entry, tcp, endpoint))
         }
     } catch (error: Throwable) {
         try { tcp.close() } catch (cleanup: Throwable) { throw ResourceUseException(error, cleanup) }
