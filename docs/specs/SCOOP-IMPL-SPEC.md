@@ -765,6 +765,8 @@ musl 将数学库、pthread 等接口合入 libc；所选工具链为这些固�
 
 普通 archive 使用既有 archive reader 返回的普通成员顺序作为从 0 开始的 member index（不包含 TOC 和名称表），保留实际 header／payload offset、length 与 digest，允许 BSD/GNU 命名；不另遍历原始 headers／padding 或按名称前缀拒绝普通成员。拒绝 thin、外部或嵌套 archive，实际读取的损坏边界由 reader 报告。通过普通对象 reader 建立候选的定义／引用索引，不为候选或选中 member 另建完整 relocation/EH/TLS/初始化验证器。实际 undefined references 驱动成员选择，新增引用继续闭合，每个物理 member 最多加入一次。
 
+ELF native 对象中的未定义 STB_WEAK 引用不加入必须解析的 requirements，也不单独拉取 archive member。对象保留原有弱引用标志，最终地址由目标 linker／loader 按平台规则处理；缺少可选定义可以得到空地址，已经引入的定义仍可满足引用。普通未定义强引用及 Scoop 的 extern 合同仍必须闭合，不能因另一对象对同名符号使用弱引用而放宽。
+
 native 对象按普通目标工具链输入处理，不按段名、load command 白名单、C++ 符号前缀、COMMON 或可执行栈标志拒绝。Scoop 索引所需的格式与目标必须可读取，其余对象内容及嵌入的正常链接要求交给目标 linker 处理；实际工具失败照常报告。C/C++ 运行库按所选工具链配置参与链接。普通 C unwind、TLS 和目标 CRT 支持的初始化／析构记录沿平台规则执行，不要求额外 manifest 开关，不注册为 Scoop initialization unit 或 managed destructor。异常与初始化边界遵守运行时规范 5.5、第 7 章。普通 native 重复定义不使用 Scoop ODR 判等；Strong 覆盖 Common 和 Weak；ELF 的 Common 覆盖 Weak，Mach-O 的已有 Weak 定义覆盖 Common。同名 Common 由 native linker 合并大小与对齐，两个同名 Strong 报冲突。
 
 非空 `@Extern(lib=L)` 在 Darwin 的每个显式 library root R 下，对 TargetDefault 检查 `R/L.o`、`R/libL.a`、`R/libL.dylib`、`R/libL.tbd` 与 `R/L.framework/L`；不去掉已有 lib 前缀或扩展名，不递归扫描。显式 kind 只收窄对应格式；相同内容及加载合同的重复候选可合并，不同候选为歧义。空 lib 只查询已引入的 runtime/native 对象和动态 exports，不扫描目录搜索任意库。
