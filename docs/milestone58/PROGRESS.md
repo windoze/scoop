@@ -147,3 +147,9 @@ B 功能开／关矩阵见性能记录第 13 节：局部装箱与 scope 闭包�
 ## 2026-10-20：C1 尾转交的生产对照
 
 新增实际 suspendCoroutine leaf 的四层尾包装 benchmark，区分 register 同步完成与真正返回 Suspended 后恢复；保留 C2 和其他优化，仅关闭／开启 C1。两模式各十一对输出与唯一完成计数一致，整程序时间约 −34%／−42%、分配约 −67%、minor 48 → 16，text −21940 bytes。累计暂停减少，单次最大暂停没有明确改善；编译／RSS 和限制见性能记录第 14 节。临时源码开关已恢复并完成 fmt／workspace clippy／工具重建；既有跨线程、移动 GC 和异常 fixture 承担协议正确性验证。
+
+## 2026-10-20：闭合后段常量分支与 safepoint 计划
+
+最终 sysroot 重建在 Darwin／GNU 的 HTTP asyncio 库复现同一 MissingStackmap。定位到后段 GVN／MemorySSA 产生的常量分支：根计划仍包含死路径的四个 site，RS4GC 随后才删除它们。先补实现规范 2.19，再在 Managed release 的全部普通优化之后追加 SCCP／不可达清理，早于最终根计划。没有放宽 stackmap 一致性检查或打开一般 CFG 复制。
+
+fmt／workspace clippy、21 项 statepoint 专测通过；新精确回归覆盖三目标、debug／release、真实机器 stackmap 与保留根。原失败的 HTTP asyncio 库本机成功重建；ranges 源码增加相邻字段与真／假异常路径，随整组 M58 的 fresh-core／moving GC 验证执行。临时函数 dump 已从生产源码撤销。

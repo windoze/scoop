@@ -74,6 +74,19 @@ pub(crate) fn optimize(
             })?;
         if profile.optimization() == scoop_lir::OptimizationMode::Release && !no_gc {
             bounded_loops::optimize(function, machine)?;
+            // GVN/MemorySSA can expose constant branches after the first SCCP.
+            // Fold them before the root plan: RS4GC also removes dead paths.
+            function
+                .run_passes(
+                    "sccp,unreachableblockelim",
+                    machine,
+                    PassBuilderOptions::create(),
+                )
+                .map_err(|error| {
+                    CodegenError(format!(
+                        "final LLVM constant cleanup of `{name}` failed: {error}"
+                    ))
+                })?;
         }
     }
     finalization::finalize(module, expected, profile)

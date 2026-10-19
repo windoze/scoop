@@ -1,5 +1,21 @@
 class Value(val number: Long)
 struct Snapshot(val node: Value, val index: Long)
+class Fields(var value: Long, var other: Long)
+
+fun checkedFields(fields: Fields): Long {
+    if (fields.value < 0L) { return -1L }
+    fields.other = 9L
+    if (fields.value < 0L) { throw IllegalStateException() }
+    gcCollect()
+    return fields.value + fields.other
+}
+
+fun changedField(fields: Fields) {
+    if (fields.value >= 0L) {
+        fields.value = -2L
+        if (fields.value < 0L) { throw IllegalArgumentException() }
+    }
+}
 
 @NoGC
 fun classify(i: Long, n: Long, m: Long): Long {
@@ -27,6 +43,17 @@ fun checked(values: Array<Value>, index: Long, limit: Long): Long {
 }
 
 fun main() {
+    val fields = Fields(7L, 0L)
+    if (checkedFields(fields) != 16L || checkedFields(Fields(-1L, 0L)) != -1L) {
+        throw IllegalStateException()
+    }
+    try {
+        changedField(fields)
+        throw IllegalStateException()
+    } catch (error: IllegalArgumentException) {
+        gcCollect()
+        if (fields.value != -2L || fields.other != 9L) { throw IllegalStateException() }
+    }
     if (classify(7L, 10L, 20L) != 0L || classify(-1L, 0L, 10L) != 1L ||
         classify(256L, 300L, 301L) != 1L || classify(4L, 4L, 4L) != -1L ||
         classify(Long.MIN_VALUE, Long.MAX_VALUE, Long.MAX_VALUE) != 1L ||

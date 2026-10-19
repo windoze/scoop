@@ -1113,6 +1113,8 @@ release 的普通 LLVM 优化按 callable 选择。typed LIR effect 为 NoGc 且
 
 两条 release 管线均在 SROA／mem2reg 与初始表达式化简后执行 constraint-elimination、correlated-propagation 和 SCCP，再用 InstCombine、受限 GVN、BDCE、DSE／ADCE、MemorySSA early-CSE 及不可达块清理收尾。范围事实只来自实际支配条件和对应整数语义，不凭无溢出假设删除检查。NoGc 在同一标量阶段之后执行其既有循环／向量优化；不重复运行整个标量管线。Managed 不因此启用一般 SimplifyCFG、循环复制或跳转线程化。机器 O2 不等于 LLVM IR 的 default<O2>；不能用默认 O2／O3 替代这里的管线选择。NoGc／gc-leaf 本身也不提供 readonly、无副作用或内存不相交的事实。
 
+Managed release 在全部标量及受限内层优化之后、最终根计划之前，再执行一次 SCCP 与不可达块清理，折叠后段 GVN／MemorySSA 优化新暴露的常量条件。单独的 unreachableblockelim 不承担常量终结指令折叠；不能让 RS4GC 首次删除这些路径而留下过时的 site／根描述。此收尾只做常量传播和死路径删除，不开放一般 CFG 复制，也不在根定稿之后补做普通优化。
+
 两条 release 管线在上述 BDCE 与 DSE 之间执行 memcpyopt，消除可转发的按值中间副本并合并初始化；SROA 在前、死存储与死代码清理在后。消除的是可替换的复制，不改变值的独立性：源值在复制与消费之间被写入时仍保留快照。含引用副本保留 AS1 provenance、typed logical root restore、volatile 重读与必要屏障／发布；不能以 NoGc 或 byval 推导整个调用无内存副作用。其普通优化仍先于最终根计划与 RS4GC，不为复制优化移动握手或复制 SafepointId。
 
 上述同时满足 typed NoGc 与实际无 safepoint 条件的 release 函数，在 loop-rotate／LICM 后执行 simple-loop-unswitch（trivial 与受 LLVM 自身代码增长限制的 nontrivial 变换），再执行 indvars、loop-load-elim 与小规模完整 loop-unroll，最后执行既有 loop／SLP vectorization 及清理。unroll 仅考虑最多四次的完整展开，关闭 partial、runtime、upper-bound 展开及普通／profile peeling；不提高 LLVM 原有展开成本阈值。Managed 函数及带 site 的定义不进入这些变换。loop-idiom、jump-threading、aggressive-instcombine、vector-combine 仍关闭；不改变严格浮点、GC 合同或 poll 频率。

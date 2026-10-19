@@ -52,3 +52,11 @@ fmt／workspace clippy、17 项 statepoint 专测与新源码 debug／release／
 逐项和组合的实际程序均有相应收益：递推加载约三倍、固定四步处理约两倍、不变分支约 20% 加速。组合 text 增加 256 bytes，循环程序编译时间中位数约 +0.4%；数据、规模与局限见性能记录。jump-threading 虽加速两个标量内核，却使分支内核回退约 8%；与尚无足够收益的 aggressive-instcombine、vector-combine、loop-idiom 一起保持关闭。Darwin helper 已可正常交给 linker，因此 loop-idiom 的关闭只依据当前性能结果。
 
 fmt／workspace clippy、18 项 statepoint 专测通过。新增精确测试检查循环中的 load 被转到非循环块、四次回边消失、不变 flag 分支移出循环，并对照 Managed 定义保留这些结构；不依赖块名或完整 IR 快照。源码覆盖零／一次／短／较长循环、边界外哨兵、四步变换、两种分支及移动后的对象内容。M58 三项源码九变体与 M56 原有循环七变体通过，包含 alias、严格浮点、真实强制移动 GC、minor、异常和原子引用。临时 pass 环境变量已从生产代码删除。Linux 全量验收随 M58 后续功能统一完成。
+
+## 最终根计划前的常量控制流收尾
+
+重建完整 sysroot 时，`scoop.http.asyncio` 在 Darwin／GNU 同时暴露 MissingStackmap。隔离后的实际函数在 GVN／MemorySSA early-CSE 后有两个常量 false 分支；单独 unreachableblockelim 没有折叠其终结指令。最终根计划仍登记 64 个 site，而 RS4GC 随后的死路径清理只留下 60 个，导致描述与对象不一致。
+
+Managed release 在全部普通优化（含合格内层 SIMD）之后、最终根计划之前追加一次 SCCP／unreachableblockelim；NoGc 的既有 CFG 收尾与 debug 保持。不放开一般 SimplifyCFG，不在 roots／RS4GC 后增加普通优化，不删除产物对实际 stackmap 的必要一致性检查。该次 SCCP 的消费者是后段标量变换新暴露的常量分支，不重跑整套标量管线。
+
+精确 IR 以同一对象的两个不相交字段复现：第一个字段决定分支，写第二字段后再读第一个；后段 GVN 才将失败条件折为 false。三目标的 debug／release 同时断言剩余 site、volatile 根恢复、gc.relocate 和机器 stackmap 数量。源码扩展 ranges fixture，组合相邻字段、真正改变被检查字段后的异常和实际移动 GC。21 项 statepoint 测试通过，原完整 HTTP asyncio 库已成功构建；平台整体验收继续执行。诊断用 LLVM dump 改动已恢复。

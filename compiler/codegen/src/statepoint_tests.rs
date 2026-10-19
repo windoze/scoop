@@ -22,6 +22,8 @@ mod copied_aggregate;
 mod copies;
 #[path = "statepoint_tests/interface_parts.rs"]
 mod interface_parts;
+#[path = "statepoint_tests/late_branches.rs"]
+mod late_branches;
 #[path = "statepoint_tests/loops.rs"]
 mod loops;
 #[path = "statepoint_tests/nogc_loops.rs"]
