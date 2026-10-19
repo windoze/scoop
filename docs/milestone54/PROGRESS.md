@@ -72,6 +72,7 @@
 | ELF 可选 native 弱引用 | 未定义 STB_WEAK 保留目标 linker 的可选解析语义，不加入必须解析集合或仅为弱引用拉取 archive；普通强引用继续闭合 | 本机 5 项 ELF reader、既有 Mach-O reader 和 3 项 native 选择回归通过，workspace clippy 通过；GNU／musl 各 4 个正式变体、12 个进程通过，包含可选函数／数据缺省及实际定义、full moving 与复用 |
 | HTTP/2 空正文结束 | 没有待序列化 DATA 时以 trailing HEADERS 结束，不等待流或连接窗口；初始头与此前 DATA 保持顺序，有待发送 DATA 时仍遵守窗口限制 | 新增 5 项测试，HTTP 全部 239 项通过 debug／release；15 项新旧用例逐例通过两种构建的 full moving，独立线协议和原输出归属消费者共 4 个变体、12 个进程通过 |
 | client 读写停滞与后台失败 | readIdle／writeIdle 逐调用传给 HTTP 异步库，统一阶段、原始原因和已确认正文计数；H2 后台超时／reset 取消 producer，真实清理后释放本流容量 | 新增 6 项测试并扩展配置断言，client 全部 125 项通过 debug／release；14 项新旧用例逐例通过两种构建的 full moving，五种独立 TCP 场景与构建复用通过 |
+| HTTP Location | HttpLocation 保存单值 URI-reference、原始字段与错误偏移；相对解析复用 URL，按重定向规则继承缺省 fragment，显式空 fragment 保留 | 新增 5 项测试通过 debug／release 与 full moving；正式消费者在两个 native 线程中组合短块 HTTP/1、HTTP/2 字段、IRI 构造、移动 GC 与正常构建复用 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -318,6 +319,8 @@ Linux 重编 HTTP 库暴露了 callable C 字符串的重复归属：已有边�
 重建平台库时，LLVM 将 80 字节值的派生比较优化为正常的 `memcmp` 调用，暴露了产物生成阶段的普通 native 符号登记门槛。现已删除 CBridgeTargetSupport 的逐符号枚举、合同 registry 与外部引用封口层；普通 native 需求保存真实符号和 relocation，最终 linker 解析对象、archive 和系统库。源码 FFI、Scoop 类型化引用、runtime／EH ABI、GC 和对象格式检查继续承担各自职责。Native requirement 使用新 wire tag 10，link-identity-closure 升至 17。
 
 格式化、workspace clippy 和 885 项 Rust 测试通过（codegen 236、LIR 387、slib 253、linker 9）。独立最小源码在旧工具上复现未登记 `memcmp` 的产物错误，修复后链接并通过 full moving；`m54-native-requirements` 验证跨库结构比较、每个字段的差异、泛型封装、GC 与构建复用。22 项正式 fixture 最终全部通过，共 67 个变体、128 个步骤进程，包含缺失强引用、FFI 参数／ABI／GC effect 冲突等反例。HTTP idle 对端补充识别已有协议支持的空 trailing HEADERS 结束方式，仍检查完整正文与 END_STREAM；继续使用协议库既有的结束行为。
+
+`m54-http-location` 的 Darwin debug／release 两个变体通过，共 6 个进程；生产 `.slib` 消费者验证 URI 中的逗号、相对与跨 authority 引用、fragment 继承和显式空 fragment。5 项库测试在合并 main 后重新通过两种构建及 full moving；合并前的全部 244 项 HTTP 库回归也已通过。首次正式用例修正了捕获外层局部 var 和未知泛型结果下的无 else 尾部 if，改由回调返回响应计数，没有改变语言或库行为。Location 不选择目标协议、不跟随请求，client 继续组合其公开 API。
 
 ## 后续工作
 

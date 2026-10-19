@@ -1,0 +1,48 @@
+package scoop.http
+
+import scoop.url.Url
+import scoop.url.UrlParseException
+
+public class HttpLocation private constructor(public val reference: Url, public val originalValue: Array<Byte>?) {
+    public constructor(reference: Url) : this(reference, None) {}
+
+    public fun resolve(base: Url): Url {
+        val resolved = base.resolve(reference)
+        return if (reference.encodedFragment == None && base.encodedFragment != None)
+            resolved.toBuilder().setEncodedFragment(base.encodedFragment).build() else resolved
+    }
+
+    public fun toByteArray(): Array<Byte> = reference.toString().toByteArray()
+    public fun toHttpField(): HttpField = HttpField("Location".toByteArray(), toByteArray())
+
+    public companion object {
+        public fun parseFields(fields: List<HttpField>): HttpLocation? {
+            val values = fields.findAll("Location".toByteArray())
+            if (values.size == 0L) return None
+            if (values.size > 1L) throw HttpFieldParseException("Location", 0L, "Location must occur once")
+            return Some(parse(values[0L].value))
+        }
+
+        public fun parse(value: List<Byte>): HttpLocation {
+            val reader = HttpFieldReader("Location", value)
+            reader.skipOws()
+            val start = reader.position
+            var end = reader.bytes.size
+            while (end > start && (reader.bytes[end - 1L] == 32.toByte() || reader.bytes[end - 1L] == 9.toByte())) end -= 1L
+            for (index in start..<end) {
+                if (reader.bytes[index].toUByte().toInt() >= 128) reader.failAt(index, "Location requires URI ASCII")
+            }
+            val reference = try { Url.parse(String.fromUtf8(reader.slice(start, end))) }
+            catch (error: UrlParseException) {
+                throw HttpFieldParseException("Location", start + (error.offset ?: 0L), error.detail, Some(error))
+            }
+            return HttpLocation(reference, Some(reader.bytes))
+        }
+        public fun parse(value: String): HttpLocation = parse(value.toByteArray())
+        public fun parseOrNone(value: List<Byte>): HttpLocation? {
+            try { return Some(parse(value)) }
+            catch (_: HttpFieldParseException) { return None }
+        }
+        public fun parseOrNone(value: String): HttpLocation? = parseOrNone(value.toByteArray())
+    }
+}

@@ -16,6 +16,7 @@
 | `HttpAuthChallenge`、`HttpCredentials`、`HttpAuthenticationInfo` | 多 challenge、quoted 参数、token68、请求凭据和 Digest 完成参数；不获取凭据或执行密码计算 |
 | `HttpRetryAfter` | delta-seconds 或 HTTP-date，解析与实际等待分开 |
 | `HttpAge`、`HttpVary` | 缓存 Age 的饱和秒数及接收首值规则；Vary 的有序字段名、空项和通配符，不计算 freshness 或选择缓存条目 |
+| `HttpLocation` | 单值 URI-reference、相对解析与重定向 fragment 继承；不决定是否跟随或允许哪个 scheme |
 
 参数名大小写、重复值处理和扩展编码按字段所属 RFC 固定，不能用一个逗号 split 处理全部字段。扩展参数先在本层拆出 charset／language／百分号字节，再交给 URL 百分号 codec 与 charset 转换；优先满足 RFC 8187 的 UTF-8，历史 ISO-8859-1 兼容须显式记录。建议文件名只作为元数据，操作系统 Path 选择由调用者负责。
 
@@ -130,6 +131,14 @@ requireDeclared(fields) 只检查本次实际 trailer 的名称均在声明内�
 `httpResponseAllowsContent(head, requestMethod): Boolean` 查询已解析消息的 HTTP 内容语义。HEAD、1xx、204、205、304 和成功 CONNECT 的响应返回 false；方法按字节精确匹配，其他扩展方法沿用普通响应规则。它不以 Content-Length 是否存在或大于零判断内容，也不把 CONNECT 隧道数据或升级后的新协议数据当成 HTTP 表示。
 
 该查询供内容解码等上层组合使用，不代替各版本的报文定界、原始方法／状态检查或接收兼容选项。HEAD／304 的 Content-Encoding、Content-Length 等可以描述所选表示，但不能据此对实际空 body 启动解压；原始字段仍保留。
+
+### 1.13 Location
+
+`HttpLocation(reference: Url)` 保存独立 URL 库已解析的 URI-reference，允许相对引用和空引用。`parse`／`parseOrNone` 接收字节或 String，字段前后剥去 OWS；字段中的 URI 必须为 ASCII，非 ASCII 原始字节不能被猜成 UTF-8。需要从 IRI 构造字段时，先用 Url.parse 显式取得规范 URI，再传给构造器。URI 语法、百分号与 authority 解析全部复用 url；本层不另写解析器。解析结果保留 originalValue，toByteArray／toHttpField 输出 reference 的规范 URI 表示。
+
+`parseFields(fields)` 在没有 Location 时返回 None，多条同名字段报 HttpFieldParseException，即使相同也不合并；逗号是 URI 中可用的字节，不作为列表分隔。字段格式错误保留 Location 名称与原始字节偏移，URL 格式错误作为 cause；parseOrNone 只吸收字段格式异常。
+
+`resolve(base: Url)` 调用 base.resolve(reference)。按 RFC 9110 §10.2.2，reference 没有 fragment 时继承 base 的 fragment，显式空 fragment 则覆盖而不继承；其他解析行为沿用 URL 库。不在此处限制 http／https、检查降级或跟随次数，也不执行请求。
 
 ## 2. Cookie 与公共后缀
 
