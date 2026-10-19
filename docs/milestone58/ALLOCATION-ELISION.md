@@ -1,12 +1,12 @@
 # 局部装箱与协程包装消除：M58 调研
 
-本文属于 [M58 设计](DESIGN.md)。2026-10-19 的源码样本基线为 `04d28e763`；在 `c3b8942db` 上复核，相关 MIR 优化与 coroutine lowering 顺序未变化。局部装箱作为本期[函数内逃逸分析](ESCAPE-ANALYSIS.md)的首个消费者；协程包装分别通过真正尾部调用的 completion 转交和已知同步正文的前置内联消除。目标是在保持值、GC、协程语义的前提下减少短命对象，本轮尚未实现生产优化。
+本文属于 [M58 设计](DESIGN.md)。2026-10-19 的源码样本基线为 `04d28e763`；在 `c3b8942db` 上复核。下文的初始产物观察保留该基线含义；2026-10-20 已实现有界普通迭代与局部 box 消除，当前进度见 [PROGRESS.md](PROGRESS.md)。局部装箱作为本期[函数内逃逸分析](ESCAPE-ANALYSIS.md)的首个消费者；协程包装分别通过真正尾部调用的 completion 转交和已知同步正文的前置内联消除。目标是在保持值、GC、协程语义的前提下减少短命对象。
 
 ## 1. 局部装箱：先做值替换
 
-### 1.1 当前已经知道类型，但没有消除 box
+### 1.1 基线已经知道类型，但没有消除 box
 
-现有 MIR release 顺序是去虚拟化、局部内联、再去虚拟化，见 [optimization.rs](../../compiler/mir-lower/src/optimization.rs)。[flow.rs](../../compiler/mir-lower/src/optimization/flow.rs) 已能把 `Box(value)` 映射到其实际 boxed class，不能笼统说编译器完全不知道 box 的类型；但这个事实目前用于调用目标选择，不包含 payload 替换或 box 生命周期分析。
+基线 MIR release 顺序是去虚拟化、局部内联、再去虚拟化。[flow.rs](../../compiler/mir-lower/src/optimization/flow.rs) 已能把 `Box(value)` 映射到其实际 boxed class，不能笼统说编译器完全不知道 box 的类型；该基线事实用于调用目标选择，不包含 payload 替换或 box 生命周期分析。当前 [optimization.rs](../../compiler/mir-lower/src/optimization.rs) 已按第 4 节交替执行，并加入第 1.2 节的局部 box 消费者。
 
 本次从源码编译以下模式，release MIR 仍保留 `Box → Any 局部别名 → IsInstance → 条件抛错 → Unbox`：
 

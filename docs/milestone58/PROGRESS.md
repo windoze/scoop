@@ -11,7 +11,8 @@
 | A：full 必要容量早判 | 已实现；本机 region 专测 7 项、新源码 fixture 三个变体通过，Linux 待验证 |
 | A：starts bitmap 枚举 | 已实现；本机 GC 专测 35 项、M58 runtime 四个源码 fixture／13 变体通过，Linux 待验证 |
 | B：统一优化迭代 | 已实现三轮上限与无变化早停；本机 MIR 单测 122 项、新旧优化源码回归通过，Linux 待验证 |
-| B：函数内来源／逃逸分析、box／closure 消除与支持产物清理 | 待实施，接入同一迭代 |
+| B：函数内来源／逃逸分析与 box 消除 | 已实现，接入同一迭代；本机 typed MIR 专测与源码／移动 GC 回归通过，Linux 待验证 |
+| B：closure 消除与支持产物清理 | 待实施，复用来源分析并接入同一迭代 |
 | C：tail completion 转交、状态机生成前同步内联 | 待实施 |
 | D：外层 poll 循环分块、受限内层 SIMD | 待实施 |
 | 性能与跨平台 | A 的本机生产前后矩阵已记录于 [PERFORMANCE.md](PERFORMANCE.md)；B–D 性能、GNU／musl 完整验收及最终清理待完成 |
@@ -65,3 +66,13 @@ release 使用最多三轮 devirt／inline／simplify，实际无变化时早停
 Rust fmt、workspace clippy、MIR lowering 全部 122 项单测通过；8 项直接覆盖普通优化。新源码 fixture 3 变体／3 进程；M34 内联五项 10 变体／44 进程、M31 优化五项 12 变体／38 进程通过。M34 去虚拟化中，跨库与 slots 两项先通过；locals 的 release MIR 因新增展开和常量分支化简更新已有优化专测期望，debug 期望保持，复跑两变体／8 进程通过。隐藏递归单测原先预期停在 method，实际由展开祖先停在 helper；修正预期并单独增加新直接 SCC 的专测，二者均闭合。
 
 这笔仅完成有实际去虚拟化／内联消费者的迭代功能，不代表 B 的分配消除或 C 的协程前置内联已完成。GC benchmark 的临时源码、基线 runtime、可执行文件与缓存已清理；保留文档概要和仓库外的小型验证日志，完成的优化 fixture 产物继续定期清理。
+
+## 2026-10-20：函数内来源分析与 box 替换
+
+先补实现规范 2.19，在每轮 inline／simplify 后加入普通局部 box 消费者。只登记 ValDecl 根部的 typed Box 创建点，以稀疏队列传播 Local／Retype 的来源并集；外来值、取地址和多个候选汇合均保留已有候选。创建支配检查和回边 liveness 区分循环内多个动态实例与循环外一次创建。所有引用使用均有明确替换时，才在原创建点保存 payload 快照、替换 exact 拆箱、折叠 boxed 继承／itable 决定的检查，并删除引用别名。含引用快照正常进入 LIR roots，不增加持久 IR、栈对象或 GC ABI。
+
+未内联调用、identity、存储／聚合嵌入、地址、非 exact 拆箱及 EH 保守保留；整型 enum 的父整数拆箱保留实际对象。类型检查可以先化简失败／成功路径，再在下一轮依据剩余使用消除 box。MIR visitor 复用原 block 遍历，拆出实际需要的 statement／terminator 只读入口；分析、控制流与改写按职责分模块。
+
+Rust fmt／workspace clippy 通过；MIR 247 项、MIR lowering 131 项全量单测通过，追加 interface 交替专测后装箱专测共 10 项通过。专测覆盖快照顺序、来源合流、未知使用、地址、创建支配、循环、失败路径，以及第一轮仍保留接口调用／box、后续 devirt／inline 后实际删除。新源码两个 fixture 共六变体／六进程通过，覆盖 debug／release／moving、值重赋值、参数副作用、interface、enum、ZST identity、嵌套引用、泛型与跨 GC 的根。既有 M58 迭代三变体、M34 去虚拟化六变体／28 进程／六 golden、M37 enum boxing 两变体／六进程、M56 unbox／clone 四变体均通过。
+
+最初测试按未规范化的 return 编写结构断言，已改为检查实际返回临时值；源码用例按现行 immutable struct、泛型函数语法及 smart cast 规则修正。所有失败均闭合，没有改变语言规则或更新既有 golden。清理约 6 GiB incremental 与已完成 fixture 产物，日志仍放仓库外。B 的生产性能对照、closure 消除、协程与循环分块继续实施；本节不宣称新的分配吞吐或暂停倍率。

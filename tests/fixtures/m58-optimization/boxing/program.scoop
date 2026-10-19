@@ -1,0 +1,92 @@
+struct Value(val number: Int)
+struct Empty()
+enum Code: Int { Answer = 42 }
+interface Read { fun read(): Int }
+struct Reader(val number: Int) : Read {
+    public override fun read(): Int = number
+}
+class Holder(var value: Any)
+
+var evaluations = 0
+fun next(): Value { evaluations += 1; return Value(evaluations) }
+fun check(ok: Boolean) { if (!ok) throw IllegalStateException() }
+fun invoke(value: Read): Int = value.read()
+fun boxedRead(value: Int): Int = invoke(Reader(value))
+
+fun snapshots() {
+    var source = next()
+    val boxed: Any = source
+    val alias = boxed
+    check(!(boxed is Boolean))
+    check(when (boxed as? Boolean) { case Some(_) -> false; case None -> true })
+    check(when (boxed as? Value) { case Some(value) -> value.number == 1; case None -> false })
+    check(boxed is Value)
+    source = Value(70)
+    gcCollect()
+    var first = alias as Value
+    first = Value(90)
+    check((boxed as Value).number == 1 && source.number == 70 && first.number == 90)
+    check(evaluations == 1)
+}
+
+fun loops(count: Int): Int {
+    val fixed: Any = 3
+    var previous: Any = 0
+    var index = 0
+    var total = 0
+    while (index < count) {
+        val current: Any = index
+        val alias = current
+        total += (alias as Int) + (previous as Int) + (fixed as Int)
+        previous = current
+        index += 1
+    }
+    return total
+}
+
+fun recurse(value: Any, depth: Int): Any = if (depth == 0) value else recurse(value, depth - 1)
+fun retained(first: Boolean): Int {
+    val one: Any = 11
+    val two: Any = 22
+    var merged = one
+    if (!first) merged = two
+    val holder = Holder(merged)
+    val values = [holder.value, one, two]
+    gcCollect()
+    return recurse(values[0L], 2) as Int
+}
+
+fun identities() {
+    val first: Any = Empty()
+    val alias = first
+    val second: Any = Empty()
+    gcCollect()
+    check(first === alias && !(first === second))
+}
+
+fun enums() {
+    val boxed: Any = Code.Answer
+    check(boxed is Code && boxed is Int)
+    check((boxed as Code) == Code.Answer && (boxed as Int) == 42)
+    val plain: Any = 42
+    check(!(plain is Code))
+    check(when (plain as? Code) { case Some(_) -> false; case None -> true })
+}
+
+fun badCast(value: Int): Boolean {
+    val boxed: Any = value
+    return boxed as Boolean
+}
+
+fun main() {
+    snapshots()
+    check(boxedRead(37) == 37)
+    check(loops(0) == 0 && loops(1) == 3 && loops(8) == 73)
+    check(retained(true) == 11 && retained(false) == 22)
+    identities()
+    enums()
+    var caught = false
+    try { badCast(7) } catch (_: ClassCastException) { caught = true }
+    check(caught)
+    println("local boxes preserve copies, casts, aliases and loop instances")
+}

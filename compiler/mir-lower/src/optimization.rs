@@ -2,6 +2,7 @@
 
 use scoop_mir as mir;
 
+mod allocation;
 mod constants;
 mod dispatch;
 mod flow;
@@ -14,12 +15,14 @@ mod simplify;
 pub struct MirOptimizationOptions {
     pub devirtualize: bool,
     pub inline: bool,
+    pub allocation_elision: bool,
 }
 
 impl MirOptimizationOptions {
     pub const RELEASE: Self = Self {
         devirtualize: true,
         inline: true,
+        allocation_elision: true,
     };
 }
 
@@ -38,7 +41,7 @@ pub(super) fn run_to_limit(
     options: MirOptimizationOptions,
     limit: usize,
 ) -> (usize, bool) {
-    if !options.devirtualize && !options.inline {
+    if !options.devirtualize && !options.inline && !options.allocation_elision {
         return (0, true);
     }
     let mut inliner = options.inline.then(|| inline::Session::new(module));
@@ -59,6 +62,15 @@ pub(super) fn run_to_limit(
                     .zip(inliner.run(module, &active, &mut registry))
             {
                 *changed |= inlined;
+            }
+        }
+        if options.allocation_elision {
+            for (changed, elided) in
+                changed
+                    .iter_mut()
+                    .zip(allocation::run(module, &active, &mut registry))
+            {
+                *changed |= elided;
             }
         }
         if !changed.iter().any(|changed| *changed) {

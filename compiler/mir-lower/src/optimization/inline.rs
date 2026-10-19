@@ -213,7 +213,10 @@ impl Context<'_> {
     }
 }
 
-fn owner(module: &mir::Module, function: mir::FunctionId) -> Option<CallableMaterialization> {
+pub(super) fn owner(
+    module: &mir::Module,
+    function: mir::FunctionId,
+) -> Option<CallableMaterialization> {
     if let Some(source) = module.meta.source_callable_materializations.get(function) {
         return Some(source.materialization());
     }
