@@ -3,27 +3,27 @@ index 6d2cc7254..2bb3a1813 100644
 --- a/docs/specs/SCOOP-COMPRESSION-SPEC.md
 +++ b/docs/specs/SCOOP-COMPRESSION-SPEC.md
 @@ -103,6 +103,8 @@ close 不补写结束标记。需要完整压缩内容的调用者必须正常
- 
+
  三套源码、版本和许可证进入 M52 vendor 布局；三个目标分别提供静态库与头文件。zlib-ng 使用自身前缀，避免与其他依赖的 zlib 符号相撞。压缩 Cone 各声明一次 native 库，异步适配不复制对象。上游命令行程序、测试和 benchmark 不进入生产包；维护脚本负责准备，普通应用不下载、不探测或重建后端。
- 
+
 +固定 zstd 后端以 `ZSTD_TRACE=0` 构建，不启用未使用的库私有 tracing hooks；这不改变压缩格式、字典、校验和或公开 API。尤其在 ELF 上，不依赖上游自动启用的可选弱 tracing 符号来完成普通应用链接。
 +
  验收使用固定格式向量及独立 gzip／Brotli／zstd 工具双向互操作，不能只用同一 wrapper 压缩后再解压。覆盖空流、任意分块、短传输、flush 后继续写、finish、截断、坏校验和、尾随数据、连续 member／frame、字典、输出与窗口限制、原始 DEFLATE 消息边界、取消、提前关闭和 moving GC。
- 
+
  每个同步能力须有异步对应场景；验证流式压缩上传、流式解压下载和 HTTP/2 并发下载之间的背压与取消隔离。三个目标运行库测试和普通跨 Cone 消费者；独立工具仅为开发验证依赖。
 diff --git a/scripts/README.md b/scripts/README.md
 index 227b8fc45..573d0b22e 100644
 --- a/scripts/README.md
 +++ b/scripts/README.md
 @@ -41,7 +41,7 @@ python3 scripts/prepare_sysroot.py \
- 
+
  `build_uriparser.py` 以相同布局准备 uriparser 1.0.2，仅启用窄字符静态库，关闭工具、文档、测试及宽字符 API 的构建。需要 CMake 和所选目标 C 编译器；使用仓库外 `--build-dir`，其余目标、编译器与并行选项同上。输入未变化时直接复用，实际更新后在维护工作区重建，再发布库与头文件。
- 
+
 -`build_compression.py` 使用 CMake 依次准备 Zstandard 1.5.7、zlib-ng 2.3.3 和 Brotli 1.2.0；参数与目录布局同上。只发布静态库和头文件，不构建命令行程序、测试、benchmark 或并行压缩线程池；zlib-ng 保留原生命名前缀和运行时 CPU 检测。内存、同步与异步 API 共用同一个 `scoop.compression` Cone 和同一套后端。
 +`build_compression.py` 使用 CMake 依次准备 Zstandard 1.5.7、zlib-ng 2.3.3 和 Brotli 1.2.0；参数与目录布局同上。只发布静态库和头文件，不构建命令行程序、测试、benchmark 或并行压缩线程池；zstd 显式设置 `ZSTD_TRACE=0`，关闭未使用的可选弱 tracing hooks；zlib-ng 保留原生命名前缀和运行时 CPU 检测。内存、同步与异步 API 共用同一个 `scoop.compression` Cone 和同一套后端。
- 
+
  `generate_public_suffix.py` 将 `sysroot/vendor/publicsuffix/public_suffix_list.dat` 的固定 PSL 规则、分区和版本注释生成普通 C 静态数据，供 HTTP Cone 打包。只有维护者更新快照时显式执行；脚本不下载数据，日常构建直接使用提交的 `.inc`。同步保留上游许可和同 revision 的测试向量，运行公共后缀的库测试及正式消费者；分发沿既有 vendor／license 收集路径携带这些资料。
- 
+
 diff --git a/scripts/build_compression.py b/scripts/build_compression.py
 index 0c208e291..be6d1f8fc 100644
 --- a/scripts/build_compression.py
