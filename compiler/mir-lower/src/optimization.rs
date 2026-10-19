@@ -8,6 +8,7 @@ mod dispatch;
 mod flow;
 mod graph;
 mod inline;
+mod poll_chunks;
 mod simplify;
 
 /// Producer choices; they do not change entity or ABI identity.
@@ -17,6 +18,7 @@ pub struct MirOptimizationOptions {
     pub inline: bool,
     pub allocation_elision: bool,
     pub coroutine_elision: bool,
+    pub poll_chunking: bool,
 }
 
 impl MirOptimizationOptions {
@@ -25,6 +27,7 @@ impl MirOptimizationOptions {
         inline: true,
         allocation_elision: true,
         coroutine_elision: true,
+        poll_chunking: true,
     };
 }
 
@@ -47,7 +50,11 @@ pub(super) fn run_to_limit(
     options: MirOptimizationOptions,
     limit: usize,
 ) -> (usize, bool) {
-    if !options.devirtualize && !options.inline && !options.allocation_elision {
+    if !options.devirtualize
+        && !options.inline
+        && !options.allocation_elision
+        && !options.poll_chunking
+    {
         return (0, true);
     }
     let mut inliner = options.inline.then(|| inline::Session::new(module));
@@ -84,6 +91,9 @@ pub(super) fn run_to_limit(
             break;
         }
         active = changed;
+    }
+    if options.poll_chunking {
+        poll_chunks::run(module, &mut registry);
     }
     module.meta.local_values = registry.finish();
     outcome

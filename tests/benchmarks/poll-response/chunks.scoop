@@ -1,0 +1,22 @@
+fun recurrence(n: Int): Int {
+    var i = 0
+    var value = 17
+    while (i < n) { value = value * 1664525 + i; i += 1 }
+    return value
+}
+
+fun checksum(n: Int): Int {
+    var i = 0
+    var sum = 0
+    while (i < n) {
+        val value = i * 1664525 + 1013904223
+        sum += value.xor(i.shr(8))
+        i += 1
+    }
+    return sum
+}
+
+fun main(args: Array<String>) {
+    if (args[1L] == "recurrence") println(recurrence(20000000))
+    else println(checksum(20000000))
+}

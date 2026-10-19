@@ -1129,6 +1129,10 @@ MIR 内联按调用点代入已知实参、局部常量和可证明不可达分�
 
 LIR 准备阶段依据最终 MIR 的实际引用选择普通 closure 的私有物理支持。只将环境关联的生成 invoke／bridge 作为可省略 callable，普通源码定义、初始化、入口、dispatch、callback 和协程协议入口仍是发射根。由这些根的正文沿本地调用、ClosureAlloc／ClosureCapture 与环境支持关系传播；直接引用某个 helper 或同 class 的其他实例均保留对应支持。没有外部根的 helper 相互引用不使自身存活。未选环境不发射其 TD、对象／值 layout、scan 和私有 callable；仍被实际类型检查或其他环境使用的函数签名 TD 保留。首版保留 suspend closure 支持，不扩大为任意定义的全程序 DCE。选择仅为 lir-lower 的本次私有状态，MIR 身份、签名和完整语义目录保持，不增加产物字段、重建语义校验或改变对外导出合同。
 
+release 在普通 MIR 优化迭代结束后、LIR poll／roots 生成前，可以对 Managed 的单 header／单 body 计数循环分块。首版只接受独立前驱中初始化的非负 Int／Long 归纳变量、稳定参数或整数常量上界、严格小于条件及每轮唯一的加一更新；header 仅含条件的纯局部临时值，body 仅含整数／布尔局部运算。调用、非局部访问、取地址、EH、多回边／出口及嵌套循环保留原形。已知不超过 64 次的短循环保留原形。
+
+原 header 和入口的 poll 责任保持；进入 body 前在已成立的 `0 <= i < n` 条件下计算 `remaining = n - i`，以 `min(64, remaining)` 初始化独立 typed 倒计数。每个原 body 恰好消耗一次计数，非零继续内层，零返回原 header；原 i 加一仍在 body 中执行。该结构避免 `i + 64` 溢出，末块、零次及负上界保持原退出行为。内层有界事实来自实际算术／CFG，不靠 block 名称或 LLVM metadata；不增加持久 IR 字段或 runtime ABI。分块不使整个函数取得 NoGc 循环管线资格，是否开放内层向量化另按结构与 site／根合同验证。
+
 条件 poll 在 LIR 保存慢路径 site 与完整 live set，仅实际慢路径产生 statepoint／stackmap；合流连接更新引用，NoGC 不新增 poll。内联、去虚拟化及 CFG 改写均先于最终 roots 定稿，后端不靠完整 runtime poll 调用维持普通循环的检查。
 
 依据语言规范 1.2，编译器可以假定普通非原子访问不存在数据竞争，不为竞争场景提供单字或逐字段不撕裂的保证。普通字段、数组元素、全局存储和聚合值复制无需为此改用 LLVM `unordered` 原子 load/store、增加发布屏障或限制访问的机器指令粒度；显式同步原语以及 runtime/GC 内部同步的契约仍须保持。

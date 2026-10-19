@@ -1,6 +1,6 @@
 # 带外层 poll 的循环分块：M58 调研
 
-本文属于 [M58 设计](DESIGN.md)。2026-10-19 的调查基线为 `04d28e763`；在 `c3b8942db` 上复核，相关 MIR／LIR poll 和 GC 合同未变化。结论是该方向值得实施一个窄范围版本，但需要同时处理 typed CFG、poll 合同和 LLVM 内层优化；当前尚未实现自动分块。
+本文属于 [M58 设计](DESIGN.md)。2026-10-19 的调查基线为 `04d28e763`；在 `c3b8942db` 上复核相关合同。首批自动标量分块现已实现，范围与验证见第 6 节；下文的数组／SIMD 机制实验不等同于生产支持。
 
 ## 1. 优化形态与收益来源
 
@@ -108,3 +108,13 @@ poll 变少会延长另一个线程请求 GC 后等待当前块结束的时间�
 | 结果 | 每元素耗时、机器码体积、poll 次数、stop-wait 与请求到恢复分布、实际漏帧率 |
 
 正确性先覆盖原退出条件、值与别名、移动后地址、重复／遗漏迭代；初版不接受的 EH／跳转／调用模式确认仍走原路径。少量优化专测检查向量指令、site 唯一性及根位置，普通 fixture 仍只锁定语言结果。GNU／musl 和真实 compiled stackmap 的移动测试通过之前，保留为实验候选。
+
+## 6. 标量实现与第一轮验证
+
+在 `417e661f2` 后实现 MIR 普通优化结束时的一次分块。识别已有显式 poll header、唯一 body／回边与独立初始化前驱；Int／Long 从非负常量开始，稳定上界为形参或整数常量，唯一更新为加一，条件为严格小于。支持 core 运算展开产生的局部副本及 compareTo 形态。body 只接受整数／布尔局部表达式；数组 getter／setter、调用、EH、非局部访问、取地址和复杂跳转仍保留原循环。已知最多 64 次的循环不转换。
+
+原 header 保持其 poll 身份；新 CFG 计算 `min(64, n-i)`，正倒计数控制内层回边。新 counter 使用 caller 的正常 synthetic local identity，不增加 MIR／LIR wire 字段。内层无需 poll 的依据是实际倒计数 CFG；没有 LLVM metadata 或函数 effect 伪装。
+
+本机 fmt／workspace clippy、25 项 MIR 优化单测、18 项 statepoint 专测通过。两个新源码 fixture 共五变体、九次程序运行，覆盖 Int／Long、负／零上界、1／15／63／64／65／129／1025 次、Long 最大值附近、回绕算术、break／continue、普通／moving／minor 并发 GC，以及 class／interface／tuple／Option 引用跨循环存活。并发测试使用 32 次真实收集，避免测试 collector 无间隔持续请求造成无关的 mutator 饥饿。
+
+标量 64 相对逐轮 poll 的 checksum 程序约快 38%，递推程序约快 4%；text 增加 64 bytes，编译时间约增加 0.5%。stop-wait p99 基本不变，但单线程出现一次 1.99 ms 最大值异常，不能据此宣称尾延迟完全不回退。详见 [性能记录第 11 节](PERFORMANCE.md#11-外层-poll标量有界内层)。块大小选择、受限 SIMD 和 Linux 验收继续独立推进。
