@@ -42,7 +42,7 @@ internal class ClientDigestUse(
 
 internal fun sameClientDigestKey(first: ClientDigestChallenge, second: ClientDigestChallenge): Boolean =
     first.algorithm == second.algorithm && first.utf8 == second.utf8 &&
-        clientAuthenticationBytesEqual(first.realm, second.realm)
+        clientBytesEqual(first.realm, second.realm)
 
 internal fun clientDigestCovers(scope: ClientAuthenticationScope, challenge: ClientDigestChallenge, request: HttpRequest): Boolean {
     if (scope.isProxy) return true

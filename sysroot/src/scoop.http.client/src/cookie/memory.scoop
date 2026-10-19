@@ -1,0 +1,96 @@
+package scoop.http.client
+
+import scoop.collections.*
+import scoop.http.*
+import scoop.platform.time.SystemClock
+import scoop.time.Clock
+import scoop.time.Instant
+
+public class MemoryCookieJar public constructor(
+    public val enforceSameSite: Boolean = false,
+    private val suffixes: PublicSuffixList = PublicSuffixList.bundled(),
+    private val clock: Clock = SystemClock,
+    public val maxCookies: Long = 3000L,
+    public val maxCookiesPerDomain: Long = 180L,
+    public val maxLifetimeSeconds: Long = 34560000L
+) : CookieJar {
+    private val lock: ClientLock = ClientLock()
+    private val entries: ArrayList<ClientStoredCookie> = ArrayList<ClientStoredCookie>()
+    init {
+        if (maxCookies <= 0L || maxCookiesPerDomain <= 0L || maxLifetimeSeconds < 0L)
+            throw IllegalArgumentException(Some("invalid cookie jar limits"))
+    }
+
+    public override suspend fun load(request: HttpRequest): HttpCookieHeader {
+        val now = clock.now()
+        val (sameSite, navigation) = if (enforceSameSite) clientCookieContext(request, suffixes) else (false, false)
+        val safe = request.method == "GET" || request.method == "HEAD" || request.method == "OPTIONS" || request.method == "TRACE"
+        val selected = lock.withLock {
+            pruneClientCookies(entries, now)
+            val cookies = ArrayList<HttpCookie>()
+            for (entry in entries) {
+                val cookie = entry.cookie
+                if (cookie.matches(request.url, now) && (!enforceSameSite || cookie.allowsSameSite(sameSite, navigation, safe))) {
+                    cookies.add(cookie)
+                    entry.lastAccess = now
+                }
+            }
+            cookies.toArray()
+        }
+        val pairs = ArrayList<HttpCookiePair>()
+        for (cookie in selected.sortedBy<HttpCookie, Long> { cookie -> -cookie.path.size }) pairs.add(cookie.pair)
+        return HttpCookieHeader(pairs)
+    }
+
+    public override suspend fun save(request: HttpRequest, response: HttpResponseHead) {
+        val now = clock.now()
+        val (sameSite, navigation) = if (enforceSameSite) clientCookieContext(request, suffixes) else (false, false)
+        val cookies = ArrayList<HttpCookie>()
+        for (field in response.fields) {
+            if (!field.hasName("Set-Cookie".toByteArray())) continue
+            val parsed = HttpSetCookie.parseOrNone(field.value) ?: continue
+            when (parsed.resolve(request.url, now, suffixes, maxLifetimeSeconds)) {
+                case Success(cookie) -> if (!enforceSameSite || cookie.allowsSetting(sameSite, navigation)) cookies.add(cookie)
+                case Failure(_) -> {}
+            }
+        }
+        val secure = request.origin.scheme == "https" || request.origin.scheme == "wss"
+        lock.withLock {
+            pruneClientCookies(entries, now)
+            for (cookie in cookies) {
+                if (!secure && !cookie.secure && clientCookieOverlaysSecure(entries, cookie)) continue
+                storeClientCookie(entries, cookie, now)
+                trimClientCookies(entries, Some(cookie.host), maxCookiesPerDomain)
+                trimClientCookies(entries, None, maxCookies)
+            }
+        }
+    }
+
+    public fun snapshot(): Array<HttpCookie> {
+        val now = clock.now()
+        return lock.withLock {
+            pruneClientCookies(entries, now)
+            Array<HttpCookie>(entries.size) { index -> entries[index].cookie }
+        }
+    }
+
+    public fun remove(cookie: HttpCookie): Boolean = lock.withLock {
+        for (index in 0L..<entries.size) if (sameClientCookieKey(entries[index].cookie, cookie)) {
+            entries.removeAt(index)
+            return@withLock true
+        }
+        false
+    }
+
+    public fun clear() { lock.withLock { entries.clear() } }
+    public fun clearSession() { lock.withLock {
+        var index = entries.size
+        while (index > 0L) { index -= 1L; if (!clientPresent(entries[index].cookie.expiresAt)) entries.removeAt(index) }
+    } }
+}
+
+private fun clientCookieContext(request: HttpRequest, suffixes: PublicSuffixList): (Boolean, Boolean) {
+    val context = request.options.cookieContext ?: return (false, false)
+    val origin = context.origin
+    return (clientPresent(origin) && HttpCookieRules.sameSite(request.origin, origin!!, suffixes), context.isTopLevelNavigation)
+}

@@ -47,20 +47,20 @@ private fun planClientSimpleAuthentication(call: ClientCall, head: HttpResponseH
         if (basic && !clientPresent(realm))
             throw HttpAuthenticationException(HttpAuthenticationFailure.InvalidChallenge, scope.url(call), Some(head))
         if (clientPresent(provider.realm) && (!clientPresent(realm) ||
-            !clientAuthenticationBytesEqual(provider.realm!!, realm!!.value))) continue
+            !clientBytesEqual(provider.realm!!, realm!!.value))) continue
         val previous = authentication.session
         var rejectedBearer: ClientBearerValue? = None
         if (basic) {
             if (clientPresent(previous) && previous!!.authenticator === provider && clientPresent(previous!!.challenge)) {
                 val previousRealm = previous!!.challenge!!.parameter("realm")!!
-                if (clientAuthenticationBytesEqual(previousRealm.value, realm!!.value))
+                if (clientBytesEqual(previousRealm.value, realm!!.value))
                     throw HttpAuthenticationException(HttpAuthenticationFailure.Rejected, scope.url(call), Some(head))
             }
         } else {
             if (clientPresent(challenge.token68))
                 throw HttpAuthenticationException(HttpAuthenticationFailure.InvalidChallenge, scope.url(call), Some(head))
             val error = challenge.parameter("error")
-            if (clientPresent(error) && !clientAuthenticationBytesEqual(error!!.value, "invalid_token".toByteArray())) continue
+            if (clientPresent(error) && !clientBytesEqual(error!!.value, "invalid_token".toByteArray())) continue
             if (clientPresent(previous) && previous!!.authenticator === provider) rejectedBearer = previous!!.bearerValue
         }
         return Some(ClientAuthenticationSession(scope, provider, Some(challenge),

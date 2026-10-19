@@ -15,7 +15,7 @@ internal fun chooseClientDigestChallenge(call: ClientCall, head: HttpResponseHea
             val nonce = challenge.parameter("nonce")
             if (clientPresent(challenge.token68) || !clientPresent(realm) || !clientPresent(nonce) || nonce!!.value.size == 0L)
                 throw HttpAuthenticationException(HttpAuthenticationFailure.InvalidChallenge, scope.url(call), Some(head))
-            if (clientPresent(authenticator.realm) && !clientAuthenticationBytesEqual(authenticator.realm!!, realm!!.value)) continue
+            if (clientPresent(authenticator.realm) && !clientBytesEqual(authenticator.realm!!, realm!!.value)) continue
             val selected = challenge.parameter("algorithm")
             val name = if (clientPresent(selected)) Charset.Iso8859_1.decode(selected!!.value) else "MD5"
             if (name.lowercaseAscii() != clientDigestName(algorithm).lowercaseAscii()) continue

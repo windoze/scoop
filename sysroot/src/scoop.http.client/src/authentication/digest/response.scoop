@@ -68,7 +68,7 @@ private fun verifyClientDigestInfo(call: ClientCall, head: HttpResponseHead, use
         if (Some(Charset.Iso8859_1.decode(qop!!.value).lowercaseAscii()) != use.nonce.challenge.qop ||
             !clientPresent(proof) || !clientPresent(cnonce) || !clientPresent(nc)) throw digestResponseError(call, head, use)
     }
-    if (clientPresent(cnonce) && !clientAuthenticationBytesEqual(cnonce!!.value, use.nonce.cnonce.toByteArray()))
+    if (clientPresent(cnonce) && !clientBytesEqual(cnonce!!.value, use.nonce.cnonce.toByteArray()))
         throw digestResponseError(call, head, use)
     if (clientPresent(nc) && (nc!!.value.size != 8L ||
         Charset.Iso8859_1.decode(nc!!.value).lowercaseAscii() != use.nc)) throw digestResponseError(call, head, use)
@@ -77,7 +77,7 @@ private fun verifyClientDigestInfo(call: ClientCall, head: HttpResponseHead, use
             throw digestResponseError(call, head, use)
         val actual = Charset.Iso8859_1.decode(proof!!.value).hexToByteArrayOrNone()
         val expected = clientDigestProof(use, emptyList<Byte>(), entity).hexToByteArrayOrNone()!!
-        if (!clientPresent(actual) || !clientAuthenticationBytesEqual(actual!!, expected)) throw digestResponseError(call, head, use)
+        if (!clientPresent(actual) || !clientBytesEqual(actual!!, expected)) throw digestResponseError(call, head, use)
     }
     val next = info.parameter("nextnonce")
     if (clientPresent(next)) {
@@ -87,7 +87,7 @@ private fun verifyClientDigestInfo(call: ClientCall, head: HttpResponseHead, use
 }
 
 private fun advanceClientDigestNonce(call: ClientCall, use: ClientDigestUse, nonce: Array<Byte>) {
-    if (clientAuthenticationBytesEqual(use.nonce.challenge.nonce, nonce)) return
+    if (clientBytesEqual(use.nonce.challenge.nonce, nonce)) return
     call.client.lock.withLock {
         val entry = use.session.entry
         if (entry.discard || entry.nonce.numbers !== use.nonce.numbers) return@withLock

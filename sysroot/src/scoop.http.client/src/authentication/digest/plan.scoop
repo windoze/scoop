@@ -20,9 +20,9 @@ internal fun planClientDigest(call: ClientCall, head: HttpResponseHead, authenti
         }
         val same = clientPresent(rejected) && sameClientDigestKey(rejected!!.nonce.challenge, challenge)
         val newer = same && clientPresent(cached) &&
-            !clientAuthenticationBytesEqual(cached!!.nonce.challenge.nonce, rejected!!.nonce.challenge.nonce)
+            !clientBytesEqual(cached!!.nonce.challenge.nonce, rejected!!.nonce.challenge.nonce)
         if (same && !newer && clientPresent(previous!!.challenge) &&
-            (!challenge.stale || clientAuthenticationBytesEqual(challenge.nonce, rejected!!.nonce.challenge.nonce)))
+            (!challenge.stale || clientBytesEqual(challenge.nonce, rejected!!.nonce.challenge.nonce)))
             throw HttpAuthenticationException(HttpAuthenticationFailure.Rejected, scope.url(call), Some(head))
         requireClientAuthenticationFollowUp(call, head, scope)
         val entry = if (clientPresent(cached)) cached!! else {
@@ -31,7 +31,7 @@ internal fun planClientDigest(call: ClientCall, head: HttpResponseHead, authenti
             if (!created.discard) call.client.digestEntries.add(created)
             created
         }
-        if (clientPresent(cached) && !newer) entry.nonce = if (clientAuthenticationBytesEqual(entry.nonce.challenge.nonce, challenge.nonce))
+        if (clientPresent(cached) && !newer) entry.nonce = if (clientBytesEqual(entry.nonce.challenge.nonce, challenge.nonce))
             ClientDigestNonce(challenge, entry.nonce.numbers) else ClientDigestNonce(challenge)
         val selected = ClientDigestSession(entry, entry.nonce)
         if (same) selected.secret = rejected!!.session.secret

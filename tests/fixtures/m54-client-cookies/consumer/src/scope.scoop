@@ -1,0 +1,63 @@
+import scoop.http.*
+import scoop.http.client.*
+import scoop.test.*
+
+internal suspend fun cookieScopes() {
+    val jar = MemoryCookieJar()
+    cookieSave(jar, ["host=h; HttpOnly", "domain=d; Domain=example.com; Path=/", "deep=p; Path=/dir/deep"])
+    assertEquals("host=h; domain=d", cookieLoad(jar))
+    assertEquals("deep=p; host=h; domain=d", cookieLoad(jar, "https://example.com/dir/deep/next"))
+    assertEquals("domain=d", cookieLoad(jar, "https://sub.example.com/dir/page"))
+    assertEquals("domain=d", cookieLoad(jar, "https://example.com/directory"))
+    assertEquals("", cookieLoad(jar, "https://badexample.com/dir/page"))
+    assertEquals("host=h; domain=d", cookieLoad(jar, "https://EXAMPLE.COM.:8443/dir/page"))
+    assertTrue(jar.snapshot()[0L].httpOnly && jar.snapshot()[0L].hostOnly)
+    assertFalse(jar.snapshot()[1L].hostOnly)
+    assertTrue(jar.load(cookieRequest()).toHttpField().neverIndex)
+    cookieSave(jar, ["host=next; HttpOnly"])
+    assertEquals("host=next; domain=d", cookieLoad(jar))
+    cookieSave(jar, ["host=wide; Domain=example.com; Path=/dir"])
+    assertEquals("host=next; host=wide; domain=d", cookieLoad(jar))
+    assertEquals("host=wide; domain=d", cookieLoad(jar, "https://sub.example.com/dir/page"))
+    cookieSave(jar, ["encoded=%2f%FF; Path=/a%2Fb", "default=D"], "https://example.com/a%2Fb/start")
+    assertEquals("encoded=%2f%FF; default=D; domain=d", cookieLoad(jar, "https://example.com/a%2Fb/next"))
+    assertEquals("domain=d", cookieLoad(jar, "https://example.com/a/b/next"))
+    cookieSave(jar, ["host=; Max-Age=0"])
+    assertEquals("host=wide; domain=d", cookieLoad(jar))
+}
+
+internal suspend fun cookieRejections() {
+    val jar = MemoryCookieJar()
+    cookieSave(jar, ["a=1; Domain=com", "a=1; Domain=elsewhere.com", "a=1; Domain=example.com.",
+        "__Host-x=1; Secure; Domain=example.com; Path=/", "__Secure-x=1", "a=1; SameSite=None", "broken=\nvalue"])
+    assertEquals(0L, jar.snapshot().size)
+    cookieSave(jar, ["a=1; Domain=github.io"], "https://user.github.io/")
+    assertEquals(0L, jar.snapshot().size)
+    cookieSave(jar, ["__Host-session=ok; Secure; HttpOnly; Path=/"])
+    assertEquals("", cookieLoad(jar, "http://example.com/dir/page"))
+    assertEquals("__Host-session=ok", cookieLoad(jar))
+    cookieSave(jar, ["idna=ok; Domain=xn--bcher-kva.example; Path=/"], "https://BÜCHER.example./")
+    assertEquals("idna=ok", cookieLoad(jar, "https://sub.xn--bcher-kva.example/"))
+    cookieSave(jar, ["ip=one; Domain=127.0.0.1; Path=/"], "http://127.0.0.1/")
+    assertEquals("ip=one", cookieLoad(jar, "http://127.0.0.1:9000/"))
+    assertEquals("", cookieLoad(jar, "http://[::ffff:127.0.0.1]/"))
+    val bytes = [110.toByte(), 61.toByte(), 255.toByte()]
+    jar.save(cookieRequest("https://bytes.test/"), HttpResponseHead(HttpVersion.Http11, 200U,
+        fields = [HttpField("Set-Cookie".toByteArray(), bytes)]))
+    val loaded = jar.load(cookieRequest("https://bytes.test/")).toByteArray()
+    assertEquals(bytes.size, loaded.size)
+    for (index in 0L..<bytes.size) assertEquals(bytes[index], loaded[index])
+}
+
+internal suspend fun cookieSecureOverlay() {
+    val jar = MemoryCookieJar()
+    cookieSave(jar, ["sid=secure; Domain=example.com; Path=/login; Secure"])
+    cookieSave(jar, ["sid=plain; Domain=example.com; Path=/login", "sid=shadow; Path=/login/deep",
+        "sid=gone; Domain=example.com; Path=/login; Max-Age=0", "sid=bad; Path=/login; Secure"], "http://sub.example.com/login")
+    assertEquals("sid=secure", cookieLoad(jar, "https://sub.example.com/login/deep"))
+    assertEquals("", cookieLoad(jar, "http://sub.example.com/login/deep"))
+    cookieSave(jar, ["sid=root; Domain=example.com; Path=/"], "http://sub.example.com/")
+    assertEquals("sid=secure; sid=root", cookieLoad(jar, "https://sub.example.com/login/deep"))
+    cookieSave(jar, ["sid=gone; Domain=example.com; Path=/login; Max-Age=0"], "https://sub.example.com/login")
+    assertEquals("sid=root", cookieLoad(jar, "https://sub.example.com/login/deep"))
+}

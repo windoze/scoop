@@ -354,6 +354,18 @@ text 优先使用显式 Charset，否则通过 HttpMediaType.parseFields 读取�
 
 json 使用严格 UTF-8、按 charset 默认规则消费匹配 BOM，再调用 Json.decodeFromString 与显式 ValueDecoder；不按 Content-Type 的 charset 将 JSON 解释为其他编码。完整 JSON 与 typed codec 错误保留其原类型。文本和 JSON 的业务解析错误不改写响应字段，也不把已经完整消费的 HTTP 消息变成连接错误。
 
+### 9.3 Cookie jar
+
+HttpClientConfig.cookieJar 为 None 时关闭自动 Cookie，Some 时借用调用者提供的 CookieJar；client.close 不关闭或清空外部 jar。CookieJar 的 `suspend load(request: HttpRequest): HttpCookieHeader` 和 `suspend save(request: HttpRequest, response: HttpResponseHead)` 可用于内存或应用自定义存储。HttpCallOptions.useCookies 默认 true，false 同时跳过本次调用的加载与保存；手写 Cookie 字段优先，跳过加载但仍保存响应。调用选项在认证、重试和改变方法的重定向后保留。
+
+每次实际尝试在凭据准备完成后、连接池排队前加载，输出字段使用 HTTP 的 never-index Cookie 构造器。最终响应头到达后、重定向／认证／状态重试判断前保存，因此下一次尝试可使用中间响应的新 Cookie。信息响应、自动 CONNECT 的响应和转发代理的 407 不作为目标站点 Cookie 来源。用户回调在本次调用的 Context 中执行，不在锁或 H2 共享驱动中挂起；受 total、取消与 client.close 约束，等真实清理结束后才完成。存储异常原样传播，不取得网络重试资格。
+
+MemoryCookieJar 是线程安全的纯 Scoop 实现，constructor 接收 `enforceSameSite = false`、`suffixes = PublicSuffixList.bundled()`、`clock = SystemClock`、`maxCookies = 3000`、`maxCookiesPerDomain = 180` 和 `maxLifetimeSeconds = 34560000`；两个数量上限必须为正，期限上限非负。读取时淘汰过期项，按路径长度降序、同长度按创建先后输出；成功选中的项更新最后访问时刻。存储键是原始名称字节、规范 host、hostOnly 和原始已编码路径，替换保留原创建次序。超过规范 host 的数量上限或总上限时，先移除过期项，再按对应范围内最早访问、创建先后的顺序淘汰。短锁只保护内存状态；字段解析、PSL 与时钟回调在锁外执行。
+
+逐条 Set-Cookie 使用 HTTP parser 和 resolve 接纳；格式错误与正常策略拒绝忽略该条，原始响应字段仍可观察，后端和存储错误照常传播。过期的新值删除相同键；普通会话 Cookie 保留到显式清理或 jar 生命周期结束。明文来源的非 Secure Cookie 不能覆盖或遮蔽名称相同、域名作用域重叠且新路径匹配旧路径的既有 Secure Cookie，过期删除同样服从此规则。HttpOnly 是保存的元数据，本接口代表 HTTP 请求，不提供脚本读取接口。`snapshot(): Array<HttpCookie>` 返回未过期项的不可变创建顺序快照，`remove(cookie): Boolean` 按完整键删除，`clear()` 清空，`clearSession()` 删除没有 expiresAt 的项。
+
+`HttpCookieContext(site: Url? = None, isTopLevelNavigation = false)` 由调用者显式提供，通过 HttpCallOptions.cookieContext 传入。MemoryCookieJar 仅在 enforceSameSite=true 时使用它：站点由 HTTP 的 schemeful-site 工具比较有效 scheme 与可注册域，含 PRIVATE PSL；IP 或无可注册域的 DNS 名称按完整 host 匹配，端口不参与。缺少上下文或 site 时按跨站处理，未给导航信息时不假定顶层导航。安全方法仅为精确大写的 GET／HEAD／OPTIONS／TRACE；Strict、Lax／Default、None 的发送与设置复用 HTTP 现有规则。上下文固定来自调用者，每跳针对当前 URL 判断，不从 socket、重定向来源或 TLS SNI 猜造页面站点；不实现浏览器的脚本、worker、分区和 Lax-Allowing-Unsafe 例外。
+
 ## 10. SSE 与 WebSocket
 
 SSE 通过普通 execute 和 HTTP/1.1／HTTP/2 响应流工作，要求适用的成功状态与 text/event-stream，使用 HTTP 库的 UTF-8 增量行／事件 parser。支持 data 多行、event、id、retry、注释与 CR／LF 分段；异步 `next(): SseEvent?` 按消费者读取推进。可选重连使用 Last-Event-ID、服务端 retry 与 client 策略，204 停止；取消或显式关闭不得触发自动重连。

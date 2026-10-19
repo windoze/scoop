@@ -1,0 +1,25 @@
+package scoop.http.client
+
+import scoop.http.*
+
+internal suspend fun prepareClientCookies(call: ClientCall) {
+    if (!call.request.options.useCookies) return
+    val jar = call.client.config.cookieJar ?: return
+    for (field in call.request.suppliedFields) if (field.hasName("Cookie".toByteArray())) return
+    val cookies = jar.load(call.request)
+    requireClientCall(call)
+    if (cookies.pairs.size == 0L) return
+    val request = call.request
+    val fields = ArrayList<HttpField>()
+    for (field in request.suppliedFields) fields.add(field)
+    fields.add(cookies.toHttpField())
+    call.request = HttpRequest(request.url, request.method, fields, request.body, request.options)
+}
+
+internal suspend fun saveClientCookies(call: ClientCall, head: HttpResponseHead) {
+    if (!call.request.options.useCookies || (head.status == 407U && clientUsesForwardProxy(call))) return
+    val jar = call.client.config.cookieJar ?: return
+    try { jar.save(call.request, head) }
+    catch (error: Throwable) { failClientCall(call, error, true) }
+    requireClientCall(call)
+}

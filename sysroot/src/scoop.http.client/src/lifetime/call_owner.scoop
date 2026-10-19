@@ -40,6 +40,7 @@ private suspend fun runClientCall(call: ClientCall) {
                 val proxy = call.proxyAuthentication
                 if (clientPresent(proxy)) prepareClientAuthentication(call, proxy!!)
                 prepareClientAuthentication(call, call.authentication)
+                prepareClientCookies(call)
             }
             catch (error: Throwable) { failClientCall(call, error, true) }
             requireClientCall(call)
@@ -69,6 +70,7 @@ private suspend fun runClientCall(call: ClientCall) {
                 finishClientDeadline(headersDeadline)
                 requireClientCall(call)
                 prepareClientDigestResponse(call, head)
+                saveClientCookies(call, head)
                 val followUp = planClientResponseFollowUp(call, head)
                 if (clientPresent(followUp)) {
                     settleClientContinue(call, false)

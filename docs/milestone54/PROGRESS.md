@@ -93,7 +93,8 @@
 | IP CIDR 网络 | platform.IpNetwork 提供 IPv4／IPv6 网络归一化、前缀检查、包含判断与值比较；地址解析仍使用 IpAddress，上层不重复实现位掩码 | Darwin 正式消费者通过 debug／release 和构建复用；808 个 Python ipaddress 独立向量覆盖全部前缀长度、内外边界，另验证无效输入、IPv4-mapped IPv6、scope 及 URL／socket 地址组合；未启用 GC stress |
 | 重定位要求查找 | 对已按 use-site 排序的普通、跨 Cone callable 和布局要求使用二分查找，仍按完整引用匹配，保留原始分区与编码 | 普通 client 测试构建采样定位到重复线性扫描；141 项产物／链接单测及 workspace clippy 通过，新增多成员命中与同位置不同符号拒绝覆盖；HTTP 库重建和正式消费者 debug／release、构建复用通过，未启用 GC stress |
 | Cookie 站点比较 | HTTP 的 HttpCookieRules.sameSite 复用规范 URL origin 与 PSL，按 scheme 和可注册域比较，处理 ws／wss、安全 scheme、IP 与无可注册域的 host | Darwin 正式消费者 debug／release 和构建复用通过；22 组对称用例在两个 native 线程中覆盖 ICANN／PRIVATE、PSL 通配／例外、IDNA、根点、端口和 IPv4／IPv6；未启用 GC stress |
-| client 环境代理 | 显式读取并快照 HTTP／HTTPS／ALL／NO_PROXY，处理大小写优先、CGI、HTTP Basic／SOCKS 凭据与 DNS 模式；域名／IP／CIDR／端口绕过复用 URL、HTTP 和 platform，方法重写保留调用级代理 | 6 项规则测试通过 Darwin debug；17 个真实 HTTP／HTTPS 代理／SOCKS／重定向场景通过 debug／release 与构建复用，共 2 个变体、6 个步骤进程；覆盖无效 UTF-8、隐藏别名、取消环境依赖和 POST 的 301／302／303，未启用 GC stress |
+| client 环境代理 | 显式读取并快照 HTTP／HTTPS／ALL／NO_PROXY，处理大小写优先、CGI、HTTP Basic／SOCKS 凭据与 DNS 模式；域名／IP／CIDR／端口绕过复用 URL、HTTP 和 platform，方法重写保留调用级代理 | 6 项规则测试通过 Darwin debug；17 个真实 HTTP／HTTPS 代理／SOCKS／重定向场景通过 debug／release 与构建复用，共 2 个变体、6 个步骤进程；覆盖无效 UTF-8、未选中的别名、默认直连和 POST 的 301／302／303，未启用 GC stress |
+| client Cookie jar | 显式 suspend CookieJar 和线程安全 MemoryCookieJar；复用 HTTP 的作用域、PSL、过期、前缀和 SameSite 规则，支持容量淘汰、快照、清除与 Secure 覆盖限制 | Darwin 两项正式 fixture 通过 debug／release 与构建复用，共 4 个变体、12 个步骤进程；5 组存储规则、两线程共享及 16 个真实网络／生命周期场景覆盖认证、重定向、重试、gzip、H2、代理 407、Context、取消和清理失败；未启用 GC stress |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -411,9 +412,11 @@ Digest 的 95 个独立场景包括 57 个协议、17 个生命周期、14 个�
 
 合并后的 GNU Digest 主协议用例通过两种构建、full moving 与复用；Digest 组合的 debug 批次通过，release late-401 触及原 180 秒进程时限。原 release 二进制在保留原对端等待规则的独立运行中正常完成，用时约 185 秒，其中 43,139 次 full GC 耗时约 181 秒；该场景的测试进程时限已提高到 600 秒，未改产品截止或对端规则。复用原二进制完成 late-401、late-nextnonce、clear-active 三个场景及无子进程的正常构建复用，其余 release 场景沿用该批次中断前已通过的结果。musl 的 Bearer 与 Digest 主用例均已通过两种构建；显式代理及池、重试、网络主机组合在 GNU 全部通过，共 10 个变体、30 个步骤进程。musl 已通过池回归，尚未完成的其余压力批次已按用户要求停止，保留实际完成结果，待全部功能完成后统一验收。
 
+Cookie 的保存回调在取消后抛出清理异常时，首轮网络用例复现了同一异常被两层捕获重复汇总。回调边界现在先记录真实结果，再按本次调用已选择的失败退出，清理对象只汇总一次；load／save 的取消、total 和 client.close 均等待真实 finally 结束，回调错误不取得网络重试资格。Jar 的原始字节、编码路径、IDNA／IP、PRIVATE PSL、显式 SameSite、替换顺序及过期／容量淘汰通过独立消费者验证。生产 sysroot 的 17 个 Cone 与 runtime 已通过正式准备入口更新。
+
 ## 后续工作
 
-继续完成环境代理配置、Cookie、缓存／续传、SSE／WebSocket 高层组合和可观察性。每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
+继续完成缓存／续传、SSE／WebSocket 高层组合和可观察性。每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
 
 ## 验证安排
 

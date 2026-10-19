@@ -1,0 +1,13 @@
+import scoop.asyncio.LibuvEventLoop
+
+fun main() {
+    LibuvEventLoop().run suspend { _ ->
+        cookieScopes()
+        cookieRejections()
+        cookieSecureOverlay()
+        cookieSameSite()
+        cookieStorage()
+    }
+    cookieConcurrent()
+    println("client cookie scopes expiry SameSite storage and concurrent access passed")
+}

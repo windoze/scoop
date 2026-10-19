@@ -83,13 +83,3 @@ internal fun clientAuthenticationDirectory(request: HttpRequest): String {
     val path = clientAuthenticationPath(request)
     return path.substring(0L, path.lastIndexOf('/') + 1L)
 }
-
-internal fun clientAuthenticationBytesEqual(first: List<Byte>, second: List<Byte>): Boolean {
-    if (first.size != second.size) return false
-    var index = 0L
-    while (index < first.size) {
-        if (first[index] != second[index]) return false
-        index += 1L
-    }
-    return true
-}
