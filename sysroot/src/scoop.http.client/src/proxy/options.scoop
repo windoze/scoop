@@ -1,5 +1,6 @@
 package scoop.http.client
 
+import scoop.collections.Map
 import scoop.asyncio.Socks5Credentials
 import scoop.asyncio.Socks5Resolution
 import scoop.http.HttpCredentials
@@ -12,6 +13,10 @@ public enum HttpProxy { Direct, Http(HttpProxyEndpoint), Socks5(HttpSocks5Endpoi
 public class HttpProxySelector public constructor(internal val select: suspend (HttpRequest) -> HttpProxy) {
     public companion object {
         public fun direct(): HttpProxySelector = fixed(HttpProxy.Direct)
+        public fun fromEnvironment(tls: HttpClientTlsConfig = HttpClientTlsConfig()): HttpProxySelector =
+            clientEnvironmentProxy(currentClientProxyEnvironment(), tls)
+        public fun fromEnvironment(variables: Map<String, String>, tls: HttpClientTlsConfig = HttpClientTlsConfig()): HttpProxySelector =
+            clientEnvironmentProxy(variables, tls)
         public fun fixed(proxy: HttpProxy): HttpProxySelector = HttpProxySelector(suspend { _ -> proxy })
     }
 }

@@ -18,17 +18,23 @@ internal suspend fun clientBasicField(call: ClientCall, session: ClientAuthentic
     }
     val credentials = provider.credentials(session.scope.request(call, challenge))
     requireClientCall(call)
+    try { return session.scope.field(clientBasicCredentials(credentials, utf8)) }
+    catch (_: IllegalArgumentException) {
+        throw HttpAuthenticationException(HttpAuthenticationFailure.InvalidCredentials, session.scope.url(call))
+    }
+}
+
+internal fun clientBasicCredentials(credentials: HttpPasswordCredentials, utf8: Boolean): HttpCredentials {
     val username = if (utf8) normalizeNfc(credentials.username) else credentials.username
     val password = if (utf8) normalizeNfc(credentials.password) else credentials.password
     for (character in username) {
         if (character.code < 32 || character.code == 127 || character == ':')
-            throw HttpAuthenticationException(HttpAuthenticationFailure.InvalidCredentials, session.scope.url(call))
+            throw IllegalArgumentException(Some("invalid Basic username"))
     }
     for (character in password) {
         if (character.code < 32 || character.code == 127)
-            throw HttpAuthenticationException(HttpAuthenticationFailure.InvalidCredentials, session.scope.url(call))
+            throw IllegalArgumentException(Some("invalid Basic password"))
     }
     val charset = if (utf8) Charset.Utf8 else Charset.Iso8859_1
-    return session.scope.field(HttpCredentials.withToken68("Basic",
-        Base64.Default.encode(charset.encode(username + ":" + password))))
+    return HttpCredentials.withToken68("Basic", Base64.Default.encode(charset.encode(username + ":" + password)))
 }

@@ -1,0 +1,68 @@
+package scoop.http.client
+
+import scoop.asyncio.Socks5Credentials
+import scoop.asyncio.Socks5Resolution
+import scoop.collections.*
+import scoop.http.HttpCredentials
+import scoop.platform.env.environment
+import scoop.platform.system.OsString
+import scoop.text.*
+import scoop.url.*
+
+internal fun currentClientProxyEnvironment(): Map<String, String> {
+    val values = environment()
+    val selected = LinkedHashMap<String, String>()
+    val cgi = values.containsKey(OsString.fromString("REQUEST_METHOD"))
+    if (cgi) selected.put("REQUEST_METHOD", "")
+    for (name in ["http_proxy", "https_proxy", "all_proxy", "no_proxy"]) {
+        val lower = values[OsString.fromString(name)]
+        val value: OsString? = if (clientPresent(lower)) lower
+            else if (cgi && name == "http_proxy") None else values[OsString.fromString(name.uppercaseAscii())]
+        if (clientPresent(value)) selected.put(name, value!!.decodeUtf8())
+    }
+    return selected.toMap()
+}
+
+internal fun clientEnvironmentProxy(variables: Map<String, String>, tls: HttpClientTlsConfig): HttpProxySelector {
+    val cgi = variables.containsKey("REQUEST_METHOD")
+    val http = parseClientEnvironmentProxy(clientProxyVariable(variables, "http_proxy", cgi), tls)
+    val https = parseClientEnvironmentProxy(clientProxyVariable(variables, "https_proxy", false), tls)
+    val fallback = parseClientEnvironmentProxy(clientProxyVariable(variables, "all_proxy", false), tls)
+    val bypass = parseClientProxyBypass(clientProxyVariable(variables, "no_proxy", false) ?: "")
+    return HttpProxySelector(suspend { request ->
+        val origin = request.origin
+        var direct = false
+        for (rule in bypass) if (rule.matches(origin)) direct = true
+        if (direct) HttpProxy.Direct else (if (origin.scheme == "https") https else http) ?: fallback ?: HttpProxy.Direct
+    })
+}
+
+private fun clientProxyVariable(values: Map<String, String>, name: String, ignoreUppercase: Boolean): String? {
+    val lower = values[name]
+    if (clientPresent(lower)) return lower
+    return if (ignoreUppercase) None else values[name.uppercaseAscii()]
+}
+
+private fun parseClientEnvironmentProxy(value: String?, tls: HttpClientTlsConfig): HttpProxy? {
+    val text = value ?: return None
+    if (text.length == 0L) return None
+    val url = Url.parse(if (text.contains("://")) text else "http://" + text)
+    val authority = url.authority ?: throw IllegalArgumentException(Some("proxy address requires an authority"))
+    val clean = url.toBuilder().setEncodedUserInfo(None)
+    val userInfo = authority.encodedUserInfo
+    var username = ""
+    var password = ""
+    if (clientPresent(userInfo)) {
+        val separator = userInfo!!.indexOf(':')
+        username = if (separator < 0L) userInfo!! else userInfo!!.slice(0L, separator)
+        password = if (separator < 0L) "" else userInfo!!.slice(separator + 1L, userInfo!!.length)
+    }
+    if (url.scheme == Some("socks5") || url.scheme == Some("socks5h")) {
+        val resolution = if (url.scheme == Some("socks5h")) Socks5Resolution.Proxy else Socks5Resolution.Local
+        val credentials = if (clientPresent(userInfo)) Some(Socks5Credentials(PercentEncoding.decode(username), PercentEncoding.decode(password))) else None
+        return Some(HttpProxy.Socks5(HttpSocks5Endpoint(clean.setScheme(Some("socks5")).build(), credentials, resolution)))
+    }
+    val credentials: HttpCredentials? = if (clientPresent(userInfo))
+        Some(clientBasicCredentials(HttpPasswordCredentials(PercentEncoding.decodeUtf8(username), PercentEncoding.decodeUtf8(password)), true)) else None
+    return Some(HttpProxy.Http(HttpProxyEndpoint(clean.build(), tls, credentials)))
+}

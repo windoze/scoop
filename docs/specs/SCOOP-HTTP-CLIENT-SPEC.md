@@ -158,6 +158,18 @@ endpoint.authorization 表示调用者显式提供的代理凭据；selector 可
 
 代理传输的建立、取消、失败与迟到成功均遵守普通池名额和所有权规则。HTTPS 代理的 TLS 上下文在每条新代理连接建立时通过 TLS 的 suspend 工厂装载；已有 TLS 会话保留独立引用，工厂上下文随后关闭。复用现有代理连接不重新装载上下文。代理层不实现 native 工作线程、TLS 引擎、HTTP parser 或 SOCKS parser。
 
+### 6.3 环境代理
+
+`HttpProxySelector.fromEnvironment(variables: Map<String, String>, tls = HttpClientTlsConfig())` 在构造时解析给定配置并保存不可变路由；无 variables 的重载显式读取当前进程的相关环境变量。创建普通 HttpClient 不读取环境代理；环境后续变化不改变已经创建的 selector，同一个 endpoint 在多次选择间复用。tls 只配置 HTTPS 代理的外层 TLS。
+
+读取 http_proxy／https_proxy／all_proxy／no_proxy 及各自的大写形式，小写存在时优先，包括空值；空代理值按没有该项处理，HTTP／HTTPS 没有专用代理时使用 ALL_PROXY。存在 REQUEST_METHOD 时忽略大写 HTTP_PROXY，小写 http_proxy 和其他代理项仍有效。未知环境变量不参与配置。当前进程重载仅对实际选中的值做严格 UTF-8 解码，未选择的大小写别名和无关变量不影响结果。
+
+代理地址允许 http、https、socks5 和 socks5h；省略 `://` 时按 http 地址解释，IPv6 authority 使用方括号。socks5 使用本地目标解析，socks5h 使用代理解析并转换成既有 socks5 endpoint。userinfo 在原始冒号处分隔用户名和密码，再使用 URL 的百分号解码；缺省密码为空。HTTP 凭据按 UTF-8／NFC Basic 编码并显式首发，SOCKS 凭据直接使用 asyncio 的字节长度与协议规则。保存到 endpoint 的 URL 移除 userinfo，凭据不放进目标请求。非法代理配置在 factory 返回前报告，不等首次网络操作才处理。
+
+NO_PROXY 是逗号分隔的列表，忽略项两侧空白和空项。`*` 匹配所有目标；普通域名匹配自身和子域，`.example.com` 与 `*.example.com` 只匹配子域。域名由 URL／IDNA 规范化，匹配按 HTTP 的完整标签规则，不把 example.com 当作 badexample.com 的后缀。IP 字面量精确匹配；CIDR 复用 platform.IpNetwork，只匹配 URL 中的 IP，不解析域名来决定绕过。IPv4 和 IPv6 不相互转换。
+
+域名、IP 和 CIDR 可限制端口，按目标的有效端口精确比较；IPv6 带端口须使用括号，例如 `[::1]:443`、`[2001:db8::/32]:443`，IPv4 CIDR 可写 `192.0.2.0/24:80`。不带括号的多冒号项整体视为 IPv6 地址或网络，不猜测尾段为端口。非法端口、网络、通配位置、URL 路径／query／fragment 或其他未知语法均报配置错误。绕过判断在每次 selector 调用时针对该次 URL 执行，因此重定向和重试仍选择当前目标的路由。调用级 selector 在重定向改变方法并丢弃 body 后仍保留，不回退到 client 配置。
+
 ## 7. 超时和取消
 
 总截止时间覆盖排队、DNS、连接、握手、所有重试／重定向／认证、上传、头部与响应 body 消费，直到调用结束。execute 返回响应头不停止总计时。计时使用单调时钟；服务器日期、Retry-After 的绝对日期和缓存日期使用 wall clock，两者不混用。

@@ -93,6 +93,7 @@
 | IP CIDR 网络 | platform.IpNetwork 提供 IPv4／IPv6 网络归一化、前缀检查、包含判断与值比较；地址解析仍使用 IpAddress，上层不重复实现位掩码 | Darwin 正式消费者通过 debug／release 和构建复用；808 个 Python ipaddress 独立向量覆盖全部前缀长度、内外边界，另验证无效输入、IPv4-mapped IPv6、scope 及 URL／socket 地址组合；未启用 GC stress |
 | 重定位要求查找 | 对已按 use-site 排序的普通、跨 Cone callable 和布局要求使用二分查找，仍按完整引用匹配，保留原始分区与编码 | 普通 client 测试构建采样定位到重复线性扫描；141 项产物／链接单测及 workspace clippy 通过，新增多成员命中与同位置不同符号拒绝覆盖；HTTP 库重建和正式消费者 debug／release、构建复用通过，未启用 GC stress |
 | Cookie 站点比较 | HTTP 的 HttpCookieRules.sameSite 复用规范 URL origin 与 PSL，按 scheme 和可注册域比较，处理 ws／wss、安全 scheme、IP 与无可注册域的 host | Darwin 正式消费者 debug／release 和构建复用通过；22 组对称用例在两个 native 线程中覆盖 ICANN／PRIVATE、PSL 通配／例外、IDNA、根点、端口和 IPv4／IPv6；未启用 GC stress |
+| client 环境代理 | 显式读取并快照 HTTP／HTTPS／ALL／NO_PROXY，处理大小写优先、CGI、HTTP Basic／SOCKS 凭据与 DNS 模式；域名／IP／CIDR／端口绕过复用 URL、HTTP 和 platform，方法重写保留调用级代理 | 6 项规则测试通过 Darwin debug；17 个真实 HTTP／HTTPS 代理／SOCKS／重定向场景通过 debug／release 与构建复用，共 2 个变体、6 个步骤进程；覆盖无效 UTF-8、隐藏别名、取消环境依赖和 POST 的 301／302／303，未启用 GC stress |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
