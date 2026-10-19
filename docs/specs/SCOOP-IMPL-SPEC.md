@@ -378,7 +378,7 @@ relocation 的 section、atom、offset 和 target 均属于本次实际对象。
 
 body 的 EH、LSDA、unwind、stackmap、关联常量与私有 Context cells 属于该 body 的同一次物理选择。TD、scan、dispatch、static storage、初始化和六类 registration 满足运行时规范；release hook 为 raw C、nounwind、NoGC，无 managed transition 或 EH/safepoint。
 
-LLVM 在机器发射中由 switch 生成的引用查找表同样属于该 callable 的关联常量。每个 callable 使用已有 AddressTakenConstant／Singleton 子键描述这组后端常量，机器发射后按实际对象保留或移除；表内对 immortal object 等实体的重定位沿用普通引用闭合及 fingerprint。Mach-O 的后端表放入只读 __DATA_CONST 段，ELF 放入 .data.rel.ro.scoop.constants 并与 callable 一同进行 ODR 选择。它们不获得源码实体身份，不通过忽略 orphan relocation 或关闭 switch 优化绕过对象合同；无引用的数值 literal pool 保持原有按内容表示。
+LLVM 在机器发射中由 switch 生成的引用查找表和跳转表同样属于该 callable 的关联常量。AddressTakenConstant／Singleton 描述需要装载期地址重定位的后端常量；ELF 的 .rodata 贡献另用 AddressTakenConstant／BackendReadOnlyData 描述，包含指向本函数代码的相对跳转表。BackendReadOnlyData 是 DefinitionAtomSubkey 的无 payload 变体（wire tag 10），不改变既有子键的编码。两个贡献均在机器发射后按实际对象保留或移除，表内引用沿用普通引用闭合及 fingerprint。Mach-O 的地址表放入只读 __DATA_CONST 段；ELF 分别使用 .data.rel.ro.scoop.constants 与 .rodata.scoop.constants，保留各自权限，并与 callable 一同进行 ODR 选择。它们不获得源码实体身份，不通过忽略 orphan relocation 或关闭 switch 优化绕过对象合同；固定宽度、无引用的数值 literal pool 保持原有按内容表示。
 
 Mach-O 的数值跳转表及查找表可以与已有边界的字符串等常量共享 __TEXT,__const，位置可在段首、已有 atom 之间或之后。按代码实际引用的局部符号确定每张无归属表的起点，范围止于下一个被引用的局部表、已有 atom 起点或段尾；已有 atom 内的符号仍按该 atom 处理。表内不含 relocation，其实际 bytes 参与 callable 内容指纹，不把同段的字符串、相邻表或其 relocation 一并归入当前表。局部符号名与物理位置不获得新的语义身份，也不因表不在段首而拒绝正常 LLVM 输出。
 

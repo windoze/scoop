@@ -25,6 +25,7 @@ pub(super) fn materialize(path: &Path, plan: &DefinitionSymbolPlanV1) -> Result<
     let mut associated = vec![primary_section];
     let personality_atom = personality::atom(plan)?;
     let constants_atom = crate::callable_constants::atom(plan)?;
+    let readonly_atom = crate::callable_constants::readonly_atom(plan)?;
     for boundary in plan.atom_boundaries() {
         if boundary.atom() == personality_atom {
             let section = personality::materialize(&mut output, *boundary)?;
@@ -39,6 +40,15 @@ pub(super) fn materialize(path: &Path, plan: &DefinitionSymbolPlanV1) -> Result<
             let index = section.index();
             let size = section.size();
             output.rename_section(index, ".data.rel.ro.scoop.constants")?;
+            Some((index, 0, size))
+        } else if boundary.atom() == readonly_atom {
+            let section = output
+                .file
+                .section_by_name(".rodata")
+                .ok_or_else(|| error("missing callable read-only constants"))?;
+            let index = section.index();
+            let size = section.size();
+            output.rename_section(index, ".rodata.scoop.constants")?;
             Some((index, 0, size))
         } else {
             match boundary.atom_role() {

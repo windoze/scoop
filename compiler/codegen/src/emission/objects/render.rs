@@ -43,10 +43,17 @@ pub fn render_llvm_ir_members(
         input,
         &mut production,
         // IR rendering precedes machine-generated constants; retain their candidate
-        // atom here. Object emission projects the actual section before packaging.
-        callables
-            .iter()
-            .map(|(body, (_, plan))| (*body, plan, true)),
+        // atoms here. Object emission projects the actual sections before packaging.
+        callables.iter().map(|(body, (_, plan))| {
+            (
+                *body,
+                plan,
+                crate::callable_constants::Contributions {
+                    relocatable: true,
+                    read_only: true,
+                },
+            )
+        }),
     )?;
     let partition = ScoopLirObjectPartitionV1::from_foundation(
         input,

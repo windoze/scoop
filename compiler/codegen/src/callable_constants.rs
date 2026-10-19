@@ -1,4 +1,4 @@
-//! Relocatable constants synthesized by LLVM while emitting a callable.
+//! LLVM lookup tables and read-only data associated with a callable.
 
 use std::path::Path;
 
@@ -11,29 +11,57 @@ use scoop_lir::{
 use crate::CodegenError;
 use crate::elf_object::error;
 
+#[derive(Clone, Copy, Default)]
+pub(crate) struct Contributions {
+    pub(crate) relocatable: bool,
+    pub(crate) read_only: bool,
+}
+
 pub(crate) fn atom(plan: &DefinitionSymbolPlanV1) -> Result<ObjectDefinitionAtomId, CodegenError> {
+    constant_atom(plan, DefinitionAtomSubkey::Singleton)
+}
+
+pub(crate) fn readonly_atom(
+    plan: &DefinitionSymbolPlanV1,
+) -> Result<ObjectDefinitionAtomId, CodegenError> {
+    constant_atom(plan, DefinitionAtomSubkey::BackendReadOnlyData)
+}
+
+fn constant_atom(
+    plan: &DefinitionSymbolPlanV1,
+    subkey: DefinitionAtomSubkey,
+) -> Result<ObjectDefinitionAtomId, CodegenError> {
     ObjectDefinitionAtomId::from_key(&ObjectDefinitionAtomKey::new(
         plan.definition_plan(),
         DefinitionAtomRole::AddressTakenConstant,
-        DefinitionAtomSubkey::Singleton,
+        subkey,
     ))
     .map_err(error)
 }
 
-pub(crate) fn present(path: &Path, target: LirTargetProfile) -> Result<bool, CodegenError> {
+pub(crate) fn contributions(
+    path: &Path,
+    target: LirTargetProfile,
+) -> Result<Contributions, CodegenError> {
     let bytes = std::fs::read(path).map_err(error)?;
     let file = object::File::parse(bytes.as_slice()).map_err(error)?;
+    let mut result = Contributions::default();
     for section in file.sections() {
+        if section.size() == 0 {
+            continue;
+        }
         let name = section.name().map_err(error)?;
-        let matches = match target.native_object_format() {
+        match target.native_object_format() {
             NativeObjectFormat::MachO64 => {
-                name == "__const" && section.segment_name().map_err(error)? == Some("__DATA")
+                if name == "__const" && section.segment_name().map_err(error)? == Some("__DATA") {
+                    result.relocatable = true;
+                }
             }
-            NativeObjectFormat::Elf64 => name == ".data.rel.ro",
-        };
-        if matches && section.size() != 0 {
-            return Ok(true);
+            NativeObjectFormat::Elf64 => {
+                result.relocatable |= name == ".data.rel.ro";
+                result.read_only |= name == ".rodata";
+            }
         }
     }
-    Ok(false)
+    Ok(result)
 }

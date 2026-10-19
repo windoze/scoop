@@ -920,13 +920,16 @@ mod tests {
             crate::target_fixtures::LINUX_X86_64_GNU,
             crate::target_fixtures::LINUX_X86_64_MUSL,
         ] {
-            let roles = definitions::callable_body_associated_atoms(&function, &[], &[], target)
-                .into_iter()
-                .map(|(role, _)| role)
-                .collect::<Vec<_>>();
+            let atoms = definitions::callable_body_associated_atoms(&function, &[], &[], target);
+            assert!(atoms.contains(&(
+                DefinitionAtomRole::AddressTakenConstant,
+                DefinitionAtomSubkey::BackendReadOnlyData,
+            )));
+            let roles = atoms.into_iter().map(|(role, _)| role).collect::<Vec<_>>();
             assert_eq!(
                 roles,
                 [
+                    DefinitionAtomRole::AddressTakenConstant,
                     DefinitionAtomRole::AddressTakenConstant,
                     DefinitionAtomRole::EhFrame,
                     DefinitionAtomRole::Stackmap
@@ -999,13 +1002,16 @@ mod tests {
             crate::target_fixtures::LINUX_X86_64_GNU,
             crate::target_fixtures::LINUX_X86_64_MUSL,
         ] {
-            let roles = definitions::callable_body_associated_atoms(&function, &[], &[], target)
-                .into_iter()
-                .map(|(role, _)| role)
-                .collect::<Vec<_>>();
+            let atoms = definitions::callable_body_associated_atoms(&function, &[], &[], target);
+            assert!(atoms.contains(&(
+                DefinitionAtomRole::AddressTakenConstant,
+                DefinitionAtomSubkey::BackendReadOnlyData,
+            )));
+            let roles = atoms.into_iter().map(|(role, _)| role).collect::<Vec<_>>();
             assert_eq!(
                 roles,
                 [
+                    DefinitionAtomRole::AddressTakenConstant,
                     DefinitionAtomRole::AddressTakenConstant,
                     DefinitionAtomRole::EhFrame,
                     DefinitionAtomRole::Stackmap,

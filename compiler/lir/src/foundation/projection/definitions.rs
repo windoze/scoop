@@ -301,6 +301,12 @@ pub(super) fn callable_body_associated_atoms(
         DefinitionAtomRole::AddressTakenConstant,
         DefinitionAtomSubkey::Singleton,
     )];
+    if target.native_object_format() == crate::NativeObjectFormat::Elf64 {
+        associated.push((
+            DefinitionAtomRole::AddressTakenConstant,
+            DefinitionAtomSubkey::BackendReadOnlyData,
+        ));
+    }
     let context_keys = crate::function_context_keys(function);
     if !context_keys.is_empty() {
         associated.push((

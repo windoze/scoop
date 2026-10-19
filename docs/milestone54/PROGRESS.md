@@ -1,6 +1,6 @@
 # M54 实施进度
 
-状态：实施中。完整范围见[设计](DESIGN.md)，本页只记录实际实现与验证；Linux 与最终三目标验收尚未进行。
+状态：实施中。完整范围见[设计](DESIGN.md)，本页只记录实际实现与验证；Linux 分项验证进行中，最终三目标验收尚未完成。
 
 ## 已完成的功能
 
@@ -66,6 +66,7 @@
 | 统一网络阶段时限 | HttpTimeoutOptions 的 resolve／connect／tlsHandshake 默认各 30 秒；DNS／TCP 复用 asyncio 的分族截止与竞速，TLS 单独计时，结构化错误保留下层原因，复用连接跳过建连阶段 | 新增 7 项测试并扩展配置覆盖，client 全部 119 项通过 debug／release；14 项新旧用例逐例通过两种构建的 full moving，独立 Python socket／TLS 对端验证零期限、握手停滞、总截止与复用 |
 | HTTP/2 输出归属 | takeOutputChunk 返回实际流号与 Headers／Data／Control 类别，保留 CONTINUATION 和短取出的归属；hasPendingOutput 只计算本流的消息输出，reset 后仍保留已序列化尾部 | 新增 5 项测试，HTTP 全部 228 项、HTTP asyncio 全部 97 项通过 debug／release；10 项协议用例逐例通过两种构建的 full moving，独立帧解析与连接池对端回归通过 |
 | HTTP/2 输入进度 | receiveWithProgress 交付按流归属的消息输入字节，分段 HPACK／CONTINUATION 不等待完整首部；帧头完整后才归属，控制及后端忽略的帧不延长其他流的等待 | 新增 6 项测试，HTTP 全部 234 项通过 debug／release；11 项新旧用例逐例通过两种构建的 full moving，独立逐段字节对照与 h2c 对端回归通过 |
+| ELF 后端只读常量 | callable 的 .rodata 包含独立关联定义，跳转表与代码同属一次 ODR 选择；保留只读权限、相对重定位及精确范围，缺省贡献在机器发射后移除 | 225 项 codegen、350 项身份编码、390 项 LIR 与 253 项产物测试通过；独立协程消费者在旧 Linux 编译器上复现 release 失败，在 Darwin 通过 debug／release、full moving 与构建复用 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -271,7 +272,9 @@ SecTrust 对原有十年有效期叶证书的拒绝符合系统政策，测试�
 
 6 项新测试与 5 项流控／HPACK／错误回归逐例通过两种构建的 full moving，共 22 个进程。新旧接收入口共享分段状态，零输入不重复上次进度，正常关闭或 reset 不破坏已交付快照。边界来自 nghttp2 的公开回调，未增加第二个帧 parser；生产依赖顺序刷新后，`m54-client-h2c` 两种构建的 6 个进程回归通过。首轮修正了 Unsafe 块结果的源码写法及消费者的 enum 绑定警告，最终编译和运行通过。
 
-HTTP idle 的 release 构建暴露了短路判断中的不可达空值错误分支直到机器发射才删除的问题。codegen 现在在 GC 计划定稿前进行普通 CFG 化简，再沿用 MemorySSA 整理根加载；debug 保持原有 O0 路径，可达异常调用仍保留。最小 LLVM 用例与 `m54-gc-guarded-unwrap` 均在修复前复现；全部 225 项 codegen 测试通过，其中新用例覆盖三个目标的 debug／release 机器 stackmap。源码 fixture 在 Darwin 通过两个变体、6 个进程，含移动 GC、对象引用与真实空值异常；原 HTTP 异步库的生产 release 构建随后通过。临时诊断已移除，没有放宽对象或 GC 检查。
+HTTP idle 的 release 构建暴露了短路判断中的不可达空值错误分支直到机器发射才删除的问题。codegen 现在在 GC 计划定稿前进行普通 CFG 化简，再沿用 MemorySSA 整理根加载；debug 保持原有 O0 路径，可达异常调用仍保留。最小 LLVM 用例与 `m54-gc-guarded-unwrap` 均在修复前复现；全部 225 项 codegen 测试通过，其中新用例覆盖三个目标的 debug／release 机器 stackmap。源码 fixture 在 Darwin、Linux GNU／musl 分别通过 debug／release，共 6 个变体、18 个进程，含移动 GC、对象引用与真实空值异常；原 HTTP 异步库的生产 release 构建随后通过。临时诊断已移除，没有放宽对象或 GC 检查。
+
+Linux 的 `m54-tcp-deadlines` 在 release 对象生成时暴露 ELF 跳转表缺少关联定义的问题。原对象的 .rodata 含 11 项指向本函数代码的相对重定位；codegen 现在将该实际贡献归入 AddressTakenConstant／BackendReadOnlyData，并与已有的装载期地址表分别定界。未改变分支优化或放宽 orphan relocation 检查。`m54-coroutine-jump-tables` 在旧编译器上独立复现，包含两个交错推进、各 12 次真实挂起的协程和持续存活的值；修复后的 Darwin debug／release 共 2 个变体、6 个进程通过。workspace clippy 与上述 1218 项 Rust 测试通过，Linux 修复后的运行验证继续进行。
 
 ## 后续工作
 
@@ -328,3 +331,5 @@ Trailer 实施期间，清理 Expect 字段、h2c 及 Continue 首轮消费者�
 HTTP/2 输入进度验收期间，清理网络阶段消费者的 2 个已结束 fixture target 目录，释放约 316 MiB；保留源码、当前消费者、生产 sysroot、库 target、原始日志、报告与缓存。
 
 HTTP idle 实施期间，清理输出进度消费者的 2 个已结束 fixture target 目录，释放约 146 MiB；保留源码、生产 sysroot、原始日志、报告与缓存。
+
+ELF 跳转表修复验收期间，清理输入进度消费者的 2 个已结束 fixture target 目录，释放约 147 MiB；当前 HTTP 库 target、生产 sysroot、正式源码、原始日志、报告与缓存继续保留。

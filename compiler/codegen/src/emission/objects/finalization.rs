@@ -14,7 +14,7 @@ pub(super) fn finalize_production<'a, D, C, I>(
         Item = (
             scoop_lir::PersistentCallableBodyId,
             &'a CallableCodePlan,
-            bool,
+            crate::callable_constants::Contributions,
         ),
     >,
 ) -> Result<scoop_lir::ConeLirFoundation, CodegenError> {
@@ -52,8 +52,11 @@ pub(super) fn finalize_production<'a, D, C, I>(
             .get(&body)
             .expect("every callable was prepared before finalizing production");
         let mut roles = Vec::new();
-        if !constants {
+        if !constants.relocatable {
             removed_atoms.insert(crate::callable_constants::atom(definition)?);
+        }
+        if format == scoop_lir::NativeObjectFormat::Elf64 && !constants.read_only {
+            removed_atoms.insert(crate::callable_constants::readonly_atom(definition)?);
         }
         if plan.safepoints.site_count() == 0 {
             roles.push(DefinitionAtomRole::Stackmap);

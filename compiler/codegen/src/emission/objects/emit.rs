@@ -5,7 +5,7 @@ struct PreparedCallableObject {
     path: std::path::PathBuf,
     runtime_metadata: EmittedStrongRuntimeMetadataV1,
     plan: CallableCodePlan,
-    backend_constants: bool,
+    backend_constants: crate::callable_constants::Contributions,
 }
 
 pub(super) fn emit_object_set_with_production<
@@ -55,7 +55,7 @@ pub(super) fn emit_object_set_with_production<
         let path = backing.path().join(format!("{body}.o"));
         write_object(&machine, &prepared.llvm, &path)?;
         let backend_constants =
-            crate::callable_constants::present(&path, profile.lir_target_profile())?;
+            crate::callable_constants::contributions(&path, profile.lir_target_profile())?;
         callables.insert(
             body,
             PreparedCallableObject {

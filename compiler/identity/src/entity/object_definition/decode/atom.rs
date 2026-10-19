@@ -56,6 +56,7 @@ pub enum DecodedDefinitionAtomSubkey {
     SafepointSite(DecodedPersistentId<PersistentSafepointSiteId>),
     StructuralPath(StructuralDefinitionPath),
     ConeImageSupport(ConeImageSupportRole),
+    BackendReadOnlyData,
 }
 
 impl DecodedDefinitionAtomSubkey {
@@ -81,6 +82,7 @@ impl DecodedDefinitionAtomSubkey {
                 .map(DefinitionAtomSubkey::SafepointSite),
             Self::StructuralPath(path) => Ok(DefinitionAtomSubkey::StructuralPath(path)),
             Self::ConeImageSupport(role) => Ok(DefinitionAtomSubkey::ConeImageSupport(role)),
+            Self::BackendReadOnlyData => Ok(DefinitionAtomSubkey::BackendReadOnlyData),
         }
     }
 }
@@ -97,6 +99,7 @@ impl WireEncode for DecodedDefinitionAtomSubkey {
             Self::SafepointSite(id) => encode_value_sum(encoder, 7, id),
             Self::StructuralPath(path) => encode_value_sum(encoder, 8, path),
             Self::ConeImageSupport(role) => encode_value_sum(encoder, 9, role),
+            Self::BackendReadOnlyData => encode_empty_sum(encoder, 10),
         }
     }
 }
@@ -127,6 +130,10 @@ impl WireDecode for DecodedDefinitionAtomSubkey {
                 decoder
                     .field(1, ConeImageSupportRole::decode)
                     .map(Self::ConeImageSupport)
+            }
+            10 => {
+                expect_sum_length(decoder, fields, 1)?;
+                Ok(Self::BackendReadOnlyData)
             }
             tag => Err(unknown_tag(decoder, tag)),
         }
