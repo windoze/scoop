@@ -47,11 +47,15 @@ Full 先处理两处局部工作：在单 source 且既有目标容量上界都�
 
 第一个消费者消除全部使用都可替换的 box：在装箱点保存 payload 快照，改写兼容的拆箱与类型检查，删除无用的引用别名，随后生成正常 LIR roots。含引用 payload 仍受精确 GC 保护。现有实际类型分析可用于类型判断，但它的合流会丢失不同来源，不能直接作为 may-escape 分析。
 
+普通优化采用有界的 `devirt → inline → simplify → 局部 box 消除` 迭代，让内联暴露的新目标和拆箱机会继续被消费；无实际改写时提前停止，先对照最多 1／2／3／4 轮。跨轮保留原始 caller cost、累计增长与展开历史，不能反复调用现有入口来重置限制。固定点只指当前规则与策略下不再变化，达到轮次上限不等于收敛，详见[交替迭代设计](ALLOCATION-ELISION.md#4-devirtinline-的交替迭代与固定点)。
+
 这条路径比通用栈分配简单：不引入栈对象头、栈地址与堆引用混用、额外扫描协议或对象生命周期 ABI。后续即时闭包使用捕获快照；简单 class 使用字段局部值，两者复用候选／使用分析，并在有真实替换消费者时扩展。具体转移规则、循环限制、构造器副作用和测试见 [ESCAPE-ANALYSIS.md](ESCAPE-ANALYSIS.md)。
 
 ## 5. M58-C：同步正文在生成状态机之前处理
 
 在 typed MIR 正文及调用点登记完成后、`transform_suspend_abis()` 和 `coroutine::transform()` 之前，内联同一 Cone 内直接可见的小型同步 callee。初始叶子无 suspend site，不观察／发布 hidden completion；移除调用后同步更新 site registry，让 wrapper 继续走已有 Immediate 路径。普通 GC、参数求值、副作用与取消检查保持，不能把“不挂起”当成 NoGC 或纯函数。
+
+这一前置阶段也允许有界交替目标解析／去虚拟化、同步正文内联和 site 清理，并将已确认同步的事实传播给受影响 caller。它不能由状态机生成后的普通优化多跑几轮替代；前置迭代完成后只生成一次正式状态机。
 
 初版限制无 EH 的小 CFG，递归、动态／外部 suspend 调用与真正挂起路径保留。复用已有 clone／ID 重映射与代码增长选择；不通过把 `Continuation<T>` 强转成 `Continuation<U>`、传 null 或延迟 adapter 分配来省对象。一般逃逸分析不负责推导协程的一次完成协议。
 

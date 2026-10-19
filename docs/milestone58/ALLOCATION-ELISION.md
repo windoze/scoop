@@ -34,7 +34,7 @@ constructor 已被局部内联，但 box、cast 隐藏局部值和异常分支�
 4. 只有全部可达使用都可替换，才删除 box 分配和相应 Any 存储。不做“先删除，在罕见分支重新装箱”的部分逃逸处理。
 5. LIR 从最终 MIR 正常生成 roots。如果 payload 含引用，继续按值扫描描述保活和重定位；不保留一个假的堆对象，不把栈地址强转为 managed object。
 
-初版可在现有优化序列末尾执行一次，然后复用 simplify；没有事实变化不重新全图求解。去虚拟化／内联后已经展开为独立值 receiver 的调用，可在普通使用分析闭合后受益；仍需 boxed receiver ABI 的接口 adapter 先保留。函数内来源／使用分析随后可以服务即时 closure 与简单 class；若真实样本主要卡在 adapter，再单独扩展对应 typed 转换，不先铺设跨过程逃逸框架。
+初版把 box 替换接入第 4 节的有界局部优化迭代，先化简调用与 CFG，再分析实际剩余使用；没有事实变化不重新求解。去虚拟化／内联后已经展开为独立值 receiver 的调用，可在普通使用分析闭合后受益；仍需 boxed receiver ABI 的接口 adapter 先保留。函数内来源／使用分析随后可以服务即时 closure 与简单 class；若真实样本主要卡在 adapter，再单独扩展对应 typed 转换，不先铺设跨过程逃逸框架。
 
 ### 1.3 必须保留的语义
 
@@ -77,7 +77,7 @@ MIR 中 leaf 没有 frame；wrapper、outer、Task.run 各有一份 `CoroutineFr
 
 ### 2.2 第一阶段：在 coroutine lowering 前内联小型已知同步正文
 
-建议顺序：完成 typed MIR 正文与调用点登记 → 选择局部直接 callee → 消除安全的同步 site → 转换 suspend ABI → 现有状态机生成 → 既有普通 MIR 优化。
+建议顺序：完成 typed MIR 正文与调用点登记 → 有界迭代目标解析／去虚拟化、同步正文内联与 site 清理 → 转换 suspend ABI → 现有状态机生成 → 普通 MIR 有界优化迭代。两个位置分别承担同步 site 消除和普通调用／分配优化，见第 4 节。
 
 初版只做同一 Cone、直接目标、正文已知的小函数。无 suspend site 的 source body 是起点；将它内联到 wrapper 后，如果 wrapper 也不再包含 site，就可以继续处理其直接 caller。递归／互递归先保留，复用已有局部代码增长选择，更新受影响 caller 的事实，不在所有函数上反复克隆整份 Module。
 
@@ -112,3 +112,63 @@ LLVM 的 [CoroElide](https://llvm.org/docs/Coroutines.html#coroelide) 面向 `ll
 先补实现规范 2.19 的局部替换与 pass 职责；协程还需明确对应 lowering 的处理顺序。语言规范 8.2／11.9、Context 8.3 与运行时 GC 合同保持原语义；若发现所需模式不能保持这些语义，应缩小优化范围。此次只提出方案，未修改规范中的现行行为或增加 ABI。
 
 减少短命分配首先改善分配热路径和 GC 触发频率；删除 frame 也可能减少存活根／引用槽。**单次 full 暂停是否缩短仍取决于真实 live set**，不能把少做若干次 minor 等同于 full 的 p99 改善。应与 [GC 暂停工作量](GC-PAUSE-WORK.md) 的混合寿命负载一起验收。
+
+## 4. Devirt／inline 的交替迭代与固定点
+
+2026-10-20 补充：采用有界交替迭代，比固定只执行一次 `devirt → inline → devirt` 更适合本期的局部分配消除。以下是源码复核与设计调整，没有新增性能测量或生产 pass。
+
+### 4.1 现有内联已经迭代，但没有与 devirt 交错
+
+[inline.rs](../../compiler/mir-lower/src/optimization/inline.rs) 的每个 caller 内部已经循环选择并展开直接调用，直到没有合格候选、累计增长额度用完或达到嵌套深度限制。因此并非每次 `inline::run()` 只展开一层；当前每个 caller 的增长额度为 `min(original_cost / 2 + 96, 384)`，展开深度限制为 6。正文按一次调用开始时的模板快照消费，避免函数遍历顺序意外带入已经展开的调用链。
+
+但该内部循环只接受直接目标，不执行去虚拟化。典型机会是 caller 把一个具体 class 作为 interface 实参传给小型 helper：helper 内原本不知道 receiver 的实际类型，内联进 caller 后才可证明其目标。现有最后一次 devirt 会将该调用改成 direct，随后却不再内联它；目标正文中的字段、值 receiver 或拆箱使用也就无法继续暴露。
+
+反复调用 devirt 而不改变 IR 通常不会多得到事实，因为单次类型传播已经求解到稳定。产生新机会的是**内联、常量／CFG 化简或标量替换改变了输入**：下一次 devirt 可解析新的目标，下一次 inline 又暴露新的局部操作。仅增加轮次仍不会凭空消除 Box，需要保留本期的 payload 替换消费者。
+
+### 4.2 固定点存在于什么意义上
+
+设一次普通优化组合为 `F = 局部分配消除 ∘ 化简 ∘ 内联 ∘ 去虚拟化`。若执行后没有实际改写，便得到本组规则及当前策略下的固定点；不同执行顺序或内联选择可能到达不同结果，它不是全局最优代码。启发式带有剩余增长额度／展开历史时，F 的状态还包括这些信息，不能只比较 MIR 却在下一轮重新初始化策略状态。
+
+要区分两类固定点：
+
+- **固定 IR 上的分析**：类型／来源集合在有限事实域中按既定合流传播，可以求解到稳定。未知事实、多个可能来源与控制流汇合仍必须保持保守性。
+- **改变 IR 的优化组合**：内联会复制调用、分配与 CFG，分析域随之变化；不能直接套用有限数据流域的收敛论证。没有递归的有限调用图可以完全展开而终止，但展开量可能很大；递归或去虚拟化后才显露的调用环可能持续产生候选。
+
+采用不反向重新虚拟化／装箱的局部规则、有限的内联展开范围和跨轮不重置的既有增长限制，可以使允许的改写最终耗尽。此时得到的是**策略约束下的局部固定点**。若先触及轮次上限则只是提前停止，不能记录为“已收敛”；剩余调用与分配照常保留，程序行为不变。
+
+LLVM 的 [DevirtSCCRepeatedPass](https://llvm.org/doxygen/classllvm_1_1DevirtSCCRepeatedPass.html)也是在间接调用变成直接调用后重跑 SCC pass，并限制最大迭代次数。[接口源码注释](https://llvm.org/doxygen/CGSCCPassManager_8h_source.html)说明，每次可能只改善一个调用点，重复次数会很大。Scoop 可以采用这种调度思路，无需复制 LLVM 的完整 CGSCC pass manager。
+
+### 4.3 初版调度与停止条件
+
+普通 MIR 优化阶段可先对照最多 1／2／3／4 轮，以 3 轮作为待验证的起始选择；不是已经确定的性能最优值。每轮大致为：
+
+```text
+for round in 0 .. max_rounds:
+    changed = devirtualize(affected_functions)
+    changed |= inline(affected_functions, existing_inline_state)
+    changed |= simplify(affected_functions)
+    changed |= eliminate_local_boxes(affected_functions)
+    changed |= simplify(affected_functions)
+    if not changed:
+        break
+```
+
+各步返回实际发生改写的函数集合即可，不能把“运行过分析”算作 changed，也不靠序列化／哈希整份 MIR 检测变化。新直接目标、内联与可达性变化使相关分析失效；更新被修改函数，callee 正文变化若影响调用点选择则通知其实际 caller。没有变化的函数不重复求解，不另建通用查询框架。
+
+不能在外面简单循环调用当前 `inline::run()`：它每次克隆整份函数表、重新设定 caller cost／remaining，并将所有块的 depth 置零，会绕过原来的累计增长与嵌套限制。应在**同一个内联优化阶段**中保留原始 cost、已使用增长额度与展开历史；化简删掉代码不自动返还额度。第一版可复用该阶段入口的稳定模板，在 caller 内交错去虚拟化／内联；若以后消费更新过的 callee 正文，需要连同其展开历史处理，不能把深层已展开正文计为一次深度。
+
+去虚拟化可能揭示原直接调用图没有的递归边。新目标参与内联前，应刷新受影响的递归判断或检查实际展开祖先；不能一直沿用第一轮仅按 direct call 得到的 SCC 结果。保留现有保守递归策略，不靠反复重置轮次或增长额度处理递归。上述限制仅决定优化选择，不进入源码合法性、产物兼容性或 runtime ABI。
+
+### 4.4 同步协程要在正确的阶段迭代
+
+同样的交替思路适用于 `leaf → wrapper → outer`：叶子同步正文内联并清掉 site 后，wrapper 也可能成为无 site 的同步候选，再处理 outer。对有限、非递归的候选调用链，已确认同步的事实可以沿 caller 传播到固定点；使用 caller 工作队列可以避免为每层包装扫描全部函数。
+
+但普通优化的位置仍晚于状态机生成，且 `protocol_entries` 排除协程 entry／driver／resume／start helper。**在现有位置多跑几轮不会绕过这两个限制。** 前置迭代必须作用于具有完整 typed 正文和调用点信息的 source-signature 阶段；复用局部分析／clone 能力，而非把依赖完整 Module 的普通优化器原样放进尚未完成的 lowering shell。
+
+前置每轮只内联符合第 2.2 节条件的已知同步 callee，同时更新 suspend site registry、异常出口与 local／block 身份，再传播受影响 caller 的同步事实。一个“不会挂起”的分析结论本身不删除 frame／adapter，仍要实际消除对应 site；超过增长／轮次限制而留下的调用继续走现有协议。正式状态机只在前置迭代结束后生成一次，不反复生成再拆除。
+
+### 4.5 新增验收
+
+增加一组需要交替才能消除调用的真实源码：interface helper 内联后暴露具体 receiver、两级间接调用链、拆箱／类型检查化简后出现新的机会；检查第二／三轮是否实际减少剩余调用与分配。另覆盖无变化早停、去虚拟化后显露递归、跨轮增长／深度不重置，以及参数副作用只执行一次。
+
+协程使用零／一／四层同步包装、普通 GC 副作用、动态目标、递归和真正挂起反例，分别观察前置迭代消失的 site 与最终 frame／adapter。比较 1／2／3／4 轮的编译耗时、峰值内存、产物体积、剩余调用／分配和运行收益，并区分无变化停机与达到限制停机；只对实际变化正文刷新分析，不增加全量 IR 快照或编译过程证明。
