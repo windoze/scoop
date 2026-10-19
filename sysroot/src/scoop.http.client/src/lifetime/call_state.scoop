@@ -2,22 +2,21 @@ package scoop.http.client
 
 import scoop.asyncio.IoClosedException
 import scoop.http.asyncio.AsyncHttp2Connection
-import scoop.platform.time.MonotonicTimeSource
 import scoop.time.TimeMark
 
 internal class ClientCall(
-    val client: ClientState, val request: HttpRequest, caller: Job,
-    result: Continuation<HttpResponse>
+    val client: ClientState, val request: HttpRequest, caller: Job, val sequence: ClientRequestSequence,
+    result: Continuation<ClientCallResult>
 ) {
-    val timeouts: HttpTimeoutOptions = request.options.timeouts ?: client.config.timeouts
-    val started: TimeMark? = if (timeouts.total != None) Some(MonotonicTimeSource.markNow()) else None
-    val tracksProgress: Boolean = timeouts.total != None || timeouts.poolAcquire != None || timeouts.responseHeaders != None ||
-        timeouts.readIdle != None || timeouts.writeIdle != None
+    val timeouts: HttpTimeoutOptions = sequence.timeouts
+    val started: TimeMark? = sequence.started
     val usesDeadlines: Boolean = timeouts.total != None || timeouts.poolAcquire != None || timeouts.responseHeaders != None ||
         timeouts.resolve != None || timeouts.connect != None || timeouts.tlsHandshake != None
+    val tracksProgress: Boolean = usesDeadlines || timeouts.readIdle != None || timeouts.writeIdle != None
     val lock: ClientLock = ClientLock()
     var caller: Job? = Some(caller)
-    var result: Continuation<HttpResponse>? = Some(result)
+    var result: Continuation<ClientCallResult>? = Some(result)
+    var redirect: ClientRedirect? = None
     var scope: CoroutineScope? = None
     var hold: Continuation<Unit>? = None
     var callerListener: Disposable? = None
@@ -33,9 +32,9 @@ internal class ClientCall(
     var responseInput: ClientResponseInput? = None
     val deadlines: ArrayList<ClientDeadline> = ArrayList<ClientDeadline>()
     var poolDeadline: ClientDeadline? = None
-    var requestBodyBytes: Long = 0L
-    var encodedResponseBodyBytes: Long = 0L
-    var responseBodyBytes: Long = 0L
+    var requestBodyBytes: Long = sequence.requestBodyBytes
+    var encodedResponseBodyBytes: Long = sequence.encodedResponseBodyBytes
+    var responseBodyBytes: Long = sequence.responseBodyBytes
     var upload: Job? = None
     var readDone: Boolean = false
     var uploadDone: Boolean = false

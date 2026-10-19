@@ -1,0 +1,33 @@
+package scoop.http.client
+
+import scoop.platform.time.MonotonicTimeSource
+import scoop.time.TimeMark
+
+internal class ClientRequestSequence(config: HttpClientConfig, request: HttpRequest) {
+    val timeouts: HttpTimeoutOptions = request.options.timeouts ?: config.timeouts
+    val started: TimeMark? = if (timeouts.total != None) Some(MonotonicTimeSource.markNow()) else None
+    val redirects: HttpRedirectOptions = request.options.redirects ?: config.redirects
+    val history: ArrayList<HttpRedirect> = ArrayList<HttpRedirect>()
+    var requestBodyBytes: Long = 0L
+    var encodedResponseBodyBytes: Long = 0L
+    var responseBodyBytes: Long = 0L
+}
+
+internal enum ClientCallResult { Response(HttpResponse), Redirect(ClientRedirect) }
+
+internal suspend fun executeClientRequest(state: ClientState, request: HttpRequest): HttpResponse {
+    val caller = clientJob(state.loop, true)
+    val sequence = ClientRequestSequence(state.config, request)
+    var current = request
+    while (true) {
+        caller.ensureActive()
+        val result = executeClientAttempt(state, current, caller, sequence)
+        when (result) {
+            case Response(response) -> return response
+            case Redirect(redirect) -> {
+                sequence.history.add(redirect.history)
+                current = redirect.request
+            }
+        }
+    }
+}

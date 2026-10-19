@@ -1,0 +1,38 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class HttpClientRedirectNetworkProgressTest {
+    @Test
+    fun `redirect connect timeouts retain confirmed bytes from the previous request`() {
+        withClientRedirectTest suspend { loop, scope, listener, config ->
+            clientTestListen(loop).useAsync suspend { destination ->
+                val server = scope.launch suspend {
+                    AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                        connection.receiveRequest()!!.body.readAllBytes(0L)
+                        connection.sendResponse(HttpResponseHead(HttpVersion.Http11, 204U)).finish()
+                        assertEquals("sent", String.fromUtf8(connection.receiveRequest()!!.body.readAllBytes(4L)))
+                        val head = redirectTestHead(307U, clientTestUrl(destination).toString())
+                        connection.sendResponse(head, Http1BodyFraming.Length(0L)).finish()
+                    }
+                }
+                withHttpClient(config) suspend { client ->
+                    val url = clientTestUrl(listener)
+                    client.withResponse(HttpRequest.get(url)) suspend { response -> response.body.bytes(0L); Unit }
+                    val options = HttpCallOptions(timeouts = Some(HttpTimeoutOptions(connect = Some(Duration.ZERO))))
+                    val error = expectBodyFailure<HttpTimeoutException> suspend {
+                        client.execute(HttpRequest.post(url, RequestBody.fromText("sent"), options = options)).close()
+                    }
+                    checkClientTimeout(error, HttpTimeoutPhase.Connect, Duration.ZERO, sent = 4L)
+                }
+                server.join()
+                assertFalse(scope.job.isCancelled)
+            }
+        }
+    }
+}

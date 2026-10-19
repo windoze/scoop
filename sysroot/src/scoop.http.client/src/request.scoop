@@ -14,7 +14,8 @@ public class HttpRequest public constructor(
 ) {
     internal val methodBytes: Array<Byte> = method.toByteArray()
     internal val origin: UrlOrigin = requestOrigin(url)
-    private val metadata: ClientRequestMetadata = prepareRequestFields(methodBytes, body, fields, options.expectContinue)
+    internal val suppliedFields: Array<HttpField> = fields.toArray()
+    private val metadata: ClientRequestMetadata = prepareRequestFields(methodBytes, body, suppliedFields, options.expectContinue)
     public val fields: Array<HttpField> get() = metadata.fields
     internal val contentLength: Long? get() = metadata.contentLength
     internal val expectsContinue: Boolean get() = metadata.expectsContinue

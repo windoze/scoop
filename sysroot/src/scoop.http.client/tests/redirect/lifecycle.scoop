@@ -1,0 +1,84 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.test.*
+
+@Test
+private class HttpClientRedirectLifecycleTest {
+    @Test
+    fun `redirects wait for actual source cleanup and stop on cleanup failure or caller cancellation`() {
+        for (mode in ["success", "cleanup", "cancel"]) {
+            withClientRedirectTest suspend { _, scope, listener, config ->
+                val source = BodyTestSource("late".toByteArray())
+                source.holdRead = true; source.holdClose = true; source.failClose = mode == "cleanup"
+                val watched = RedirectTestSource(source)
+                val done = BodyTestGate()
+                val accepted = BodyTestGate()
+                val secondSeen = AtomicBoolean(false)
+                val first = scope.launch suspend {
+                    val socket = listener.accept()
+                    accepted.signal()
+                    AsyncHttp1Connection.takeOwnershipAsServer(socket, scope).useAsync suspend { connection ->
+                        connection.receiveRequest()
+                        source.started.await()
+                        connection.sendResponse(redirectTestHead(), Http1BodyFraming.Length(10L)).useAsync suspend { output ->
+                            output.flush(); done.await()
+                        }
+                    }
+                }
+                val second = scope.launch suspend {
+                    accepted.await()
+                    AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                        secondSeen.store(true)
+                        val incoming = connection.receiveRequest()!!
+                        incoming.body.readAllBytes(0L)
+                        assertEquals("GET", String.fromUtf8(incoming.head.method))
+                        sendClientTestText(connection, 200U, "done")
+                    }
+                }
+                try {
+                    withHttpClient(config) suspend { client ->
+                        val failure = ClientTestFailureHolder()
+                        val body = RequestBody.fromSourceFactory suspend { watched }
+                        val executing = scope.launch suspend {
+                            try {
+                                client.withResponse(HttpRequest.post(clientTestUrl(listener), body)) suspend { response ->
+                                    assertEquals(1L, response.redirectHistory.size)
+                                    assertEquals("done", response.body.text(10L))
+                                }
+                            } catch (error: Throwable) { failure.value = Some(error) }
+                        }
+                        try {
+                            watched.cancelled.await()
+                            assertFalse(executing.isCompleted || secondSeen.load())
+                            source.release.signal()
+                            source.closeStarted.await()
+                            if (mode == "cancel") executing.cancel()
+                            assertFalse(executing.isCompleted || secondSeen.load())
+                            assertEquals(1L, source.closes)
+                            source.closeRelease.signal()
+                            executing.join()
+                            if (mode == "success") {
+                                assertFalse(clientPresent(failure.value))
+                                assertTrue(secondSeen.load())
+                            } else {
+                                assertFalse(secondSeen.load())
+                                if (mode == "cleanup") assertSame(source.cleanup, failure.value!!)
+                                else assertTrue(failure.value!! is CancellationException)
+                            }
+                            assertTrue(source.buffer!!.isClosed)
+                            assertEquals(1L, source.closes)
+                        } finally { source.release.signal(); source.closeRelease.signal() }
+                    }
+                } finally {
+                    source.release.signal(); source.closeRelease.signal(); done.signal()
+                    if (mode != "success") second.cancel()
+                }
+                first.join(); second.join()
+                assertFalse(scope.job.isCancelled)
+            }
+        }
+    }
+}

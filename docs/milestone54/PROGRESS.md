@@ -74,6 +74,7 @@
 | client 读写停滞与后台失败 | readIdle／writeIdle 逐调用传给 HTTP 异步库，统一阶段、原始原因和已确认正文计数；H2 后台超时／reset 取消 producer，真实清理后释放本流容量 | 新增 6 项测试并扩展配置断言，client 全部 125 项通过 debug／release；14 项新旧用例逐例通过两种构建的 full moving，五种独立 TCP 场景与构建复用通过 |
 | HTTP Location | HttpLocation 保存单值 URI-reference、原始字段与错误偏移；相对解析复用 URL，按重定向规则继承缺省 fragment，显式空 fragment 保留 | 新增 5 项测试通过 debug／release 与 full moving；正式消费者在两个 native 线程中组合短块 HTTP/1、HTTP/2 字段、IRI 构造、移动 GC 与正常构建复用 |
 | HTTP/2 GOAWAY 连接状态 | isDraining 在本地／远端 GOAWAY 通知前更新；openRequest 在提交新流前交付专门异常，已有流继续按实际事件完成，未处理流保留 REFUSED_STREAM | 新增 2 项测试与 19 项 HTTP/2 回归通过 debug／release；3 项相关用例逐例通过两种构建的 full moving，独立 GOAWAY 对端与正式构建复用通过 |
+| client 重定向 | 默认最多 10 跳，组合 HTTP Location、方法与字段重建、跨 origin 凭据移除、重放约束和不可变历史；上一跳真实清理后继续，共享总截止与累计进度 | 新增 15 项测试，client 全部 140 项通过 debug／release；新测试逐例通过两种构建的 full moving，独立 HTTP/1／TLS／H2 对端的三种组合流程与构建复用通过 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -329,9 +330,13 @@ Linux 重编 HTTP 库暴露了 callable C 字符串的重复归属：已有边�
 
 新增 2 项测试与 19 项 HTTP/2 回归通过两种构建；新测试和既有 GOAWAY flush 回归逐例通过两种构建的 full moving，共 6 个进程。状态和异常由 HTTP asyncio 提供，client 无须解析错误字符串或另猜协议状态；生产库 release 构建通过。
 
+`m54-client-redirects` 在 Darwin 通过 debug／release 两个变体，共 6 个步骤进程。两个 native 线程各运行三种独立 Python 对端流程：Continue 未启动的 POST 经 302 改为 GET，再经 307 跨 origin 协商 TLS／H2；可重放 POST 经 307／308 重新生成 gzip、trailer 与请求 Context；连接复用后发送 4 字节，再重定向至零连接时限的目标，验证累计发送进度且不建立新连接。凭据移除、fragment、原始响应字段、full moving 与正常构建复用通过。
+
+全部 140 项 client 测试通过两种构建，新增 15 项逐例通过两种构建的 full moving，共 30 个进程。覆盖方法转换、重放拒绝、循环／次数／scheme、配置替换、H2 并发隔离、取消、清理失败和总截止。网络阶段单独启用时的累计计数曾在独立消费者中复现为零，修复后保留已确认的 4 字节；并发测试使用明确的接受顺序栅栏。中间响应不初始化无用解码器，下一跳等待上传与来源清理；生产 client release 构建通过。
+
 ## 后续工作
 
-继续完成重定向／重试／认证／代理、Cookie、缓存／续传、SSE／WebSocket 高层组合和可观察性。每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
+继续完成重试／认证／代理、Cookie、缓存／续传、SSE／WebSocket 高层组合和可观察性。每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
 
 ## 验证安排
 

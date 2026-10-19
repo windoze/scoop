@@ -3,11 +3,11 @@ package scoop.http.client
 import scoop.asyncio.IoClosedException
 import scoop.http.*
 
-internal suspend fun executeClientRequest(state: ClientState, request: HttpRequest): HttpResponse {
-    val caller = clientJob(state.loop, true)
+internal suspend fun executeClientAttempt(state: ClientState, request: HttpRequest, caller: Job,
+    sequence: ClientRequestSequence): ClientCallResult {
     validateClientRequest(state.config, request)
-    return suspendCoroutine<HttpResponse> { continuation ->
-        val call = ClientCall(state, request, caller, continuation)
+    return suspendCoroutine<ClientCallResult> { continuation ->
+        val call = ClientCall(state, request, caller, sequence, continuation)
         val scope = state.lock.withLock {
             if (state.closing) throw HttpClientClosedException()
             state.calls.add(call)
@@ -52,6 +52,17 @@ private suspend fun runClientCall(call: ClientCall) {
                 }
                 requireClientCall(call)
                 finishClientDeadline(headersDeadline)
+                requireClientCall(call)
+                val redirect = planClientRedirect(call.request, head, call.sequence.redirects, call.sequence.history)
+                if (clientPresent(redirect)) {
+                    settleClientContinue(call, false)
+                    call.lock.withLock {
+                        requireClientCallUnlocked(call)
+                        call.redirect = redirect
+                        call.abandoned = true; call.ending = true; call.stopUpload = true
+                    }
+                    break
+                }
                 val response = HttpResponse(call, head)
                 call.lock.withLock { call.responseInput = Some(response.input) }
                 settleClientContinue(call, false)
@@ -62,7 +73,7 @@ private suspend fun runClientCall(call: ClientCall) {
                     call.result = None
                     saved
                 }
-                result.resume(response)
+                result.resume(ClientCallResult.Response(response))
                 break
             }
             awaitClientCallEnd(call)
@@ -143,7 +154,16 @@ private class ClientCallCompletion(val call: ClientCall) : Continuation<Unit> {
         wakeClient(call.client)
         if (clientPresent(hold)) hold!!.resume(Unit)
         val failure = clientCallFailure(call)
-        if (clientPresent(result)) result!!.resumeWithException(failure ?: IoClosedException())
+        if (clientPresent(result)) {
+            val redirect = call.lock.withLock { call.redirect }
+            if (clientPresent(failure) || !clientPresent(redirect)) result!!.resumeWithException(failure ?: IoClosedException())
+            else {
+                call.sequence.requestBodyBytes = call.requestBodyBytes
+                call.sequence.encodedResponseBodyBytes = call.encodedResponseBodyBytes
+                call.sequence.responseBodyBytes = call.responseBodyBytes
+                result!!.resume(ClientCallResult.Redirect(redirect!!))
+            }
+        }
         for (waiter in waiters) waiter.resume(Unit)
     }
 }

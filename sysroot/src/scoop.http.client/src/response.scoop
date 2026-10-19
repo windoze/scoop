@@ -9,6 +9,7 @@ public class HttpResponse internal constructor(internal val call: ClientCall, pu
     public val status: UInt get() = head.status
     public val fields: Array<HttpField> get() = head.fields
     public val url: Url get() = call.request.url
+    public val redirectHistory: Array<HttpRedirect> = call.sequence.history.toArray()
     public val wireContentLength: Long? = parseHttpContentLength(head.fields)
     internal val input: ClientResponseInput = ClientResponseInput(call, clientResponseDecoding(call, head, wireContentLength))
     public val body: HttpResponseBody = HttpResponseBody(input, head.fields)

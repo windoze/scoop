@@ -193,6 +193,14 @@ H2 的后台 StreamFailure 按实际连接和 stream ID 关联到调用；最终
 
 跨 origin 移除 Authorization 与调用者提供的 Cookie，按新 origin 重新选择凭据和 Cookie；代理凭据按代理路由重新选择。Host／:authority 由新 URL 生成。每次 follow-up 在取得下一条连接前关闭旧响应 body；不先无界 drain 旧 body。
 
+`HttpRedirectOptions(enabled = true, maxRedirects = 10, allowHttpsToHttp = false)` 是不可变配置，maxRedirects 为非负 Long；HttpClientConfig.redirects 提供默认值，HttpCallOptions.redirects 可整组覆盖。只有 301／302／303／307／308 且含 Location 才跟随；关闭跟随或缺少 Location 时交付原响应。Location 的单值、URI 与 fragment 继承规则使用 HTTP 的 HttpLocation，client 只判断目标 scheme、origin、方法、重放和次数。循环按方法、规范 origin 和实际 request target 判断，忽略不发送的 userinfo／fragment；POST 到同 URL 的 GET 不被当作同一请求循环。
+
+改为 GET 时使用 Empty，移除 Content-Length、Content-Type、Content-Encoding、Content-Language、Content-Location、Content-Range、Content-Disposition、Content-MD5、Digest、Content-Digest、Repr-Digest、Trailer 和 Expect，并关闭 duplex／Continue 门控。保留 body 时必须为真实可重放表示；单次 body 即使尚未启动，也不承诺能自动完成这一跳。重建请求从调用者字段快照出发，body 自动提供的编码与 trailer 声明由原工厂重新生成，不能作为手写字段再次加入并产生冲突。
+
+`HttpResponse.redirectHistory` 是按完成顺序排列的不可变 HttpRedirect 数组。每项保存 url、method、head、nextUrl、nextMethod，只保留已关闭响应的元数据；最终 response.url 为最后请求的 URL。HTTP/1 reason 和所有原始字段保持真实值。中间响应直接按协议 body.close 合同放弃，不初始化其内容解码器，不要求无用的压缩 body 完整有效。下一跳在上一跳的上传、协议关闭及来源清理真正结束后才开始；清理失败终止跟随。
+
+`HttpRedirectException` 的 reason 区分 InvalidLocation、UnsupportedScheme、HttpsDowngrade、LimitExceeded、Loop 与 BodyNotReplayable，并保存当前 url／head、已解析的可选 destination 和原 cause。总截止从最初 execute 开始，每跳 owner 沿用同一个起始 TimeMark，涵盖中间清理与最终响应消费；重新取得连接前检查剩余时间。超时的三类确认字节数累计同一逻辑调用已经发生的发送与应用读取，不重置为最后一跳的计数。仅启用 resolve／connect／tlsHandshake 时，下一跳的网络阶段超时也保留前面已经确认的正文进度。
+
 默认最多 2 次重试，网络原因须同时满足请求语义允许重试及 body 可重放。失败可能已提交请求时，仅默认重试幂等方法；POST 等需要应用明确提供策略。只有协议明确证明未处理，例如合适的 REFUSED_STREAM 或 GOAWAY 边界，才可对其他方法进行一次新的尝试，仍要求已消耗 body 可重新创建。状态码重试默认关闭，可配置 408／429／503 等、Retry-After、指数退避和抖动。
 
 连接失效、响应中途截断、任意超时、认证失败和任意 5xx 不能统一视为可重试。一旦响应 body 已向应用交付，不把另一响应拼接到它后面；后续恢复属于显式下载续传。退避通过 EventLoop 定时等待，可取消，且受 total 与剩余次数约束。

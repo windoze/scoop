@@ -1,0 +1,100 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.test.*
+
+@Test
+private class HttpClientRedirectHttp1Test {
+    @Test
+    fun `cross origin redirects close unread responses before delivering final metadata`() {
+        withClientRedirectTest suspend { loop, scope, listener, config ->
+            clientTestListen(loop).useAsync suspend { destination ->
+                val done = BodyTestGate()
+                val first = scope.launch suspend {
+                    AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                        val incoming = connection.receiveRequest()!!
+                        incoming.body.readAllBytes(0L)
+                        assertEquals(1L, incoming.head.fields.findAll("Authorization".toByteArray()).size)
+                        assertEquals(1L, incoming.head.fields.findAll("Cookie".toByteArray()).size)
+                        val fields = [HttpField("Location".toByteArray(), clientTestUrl(destination, "/final?q=1").toString().toByteArray()),
+                            HttpField("Content-Encoding".toByteArray(), "unneeded-coding".toByteArray())]
+                        connection.sendResponse(HttpResponseHead(HttpVersion.Http11, 302U, Some("first reason".toByteArray()), fields),
+                            Http1BodyFraming.Length(100L)).useAsync suspend { output -> output.flush(); done.await() }
+                    }
+                }
+                val second = scope.launch suspend {
+                    AsyncHttp1Connection.takeOwnershipAsServer(destination.accept(), scope).useAsync suspend { connection ->
+                        val incoming = connection.receiveRequest()!!
+                        incoming.body.readAllBytes(0L)
+                        assertEquals(0L, incoming.head.fields.findAll("Authorization".toByteArray()).size)
+                        assertEquals(0L, incoming.head.fields.findAll("Cookie".toByteArray()).size)
+                        assertEquals(2L, incoming.head.fields.findAll("X-Keep".toByteArray()).size)
+                        assertEquals(clientTestUrl(destination).httpOrigin().authority(true),
+                            String.fromUtf8(incoming.head.fields.findAll("Host".toByteArray())[0L].value))
+                        sendClientTestText(connection, 200U, "final body")
+                    }
+                }
+                try {
+                    withHttpClient(config) suspend { client ->
+                        val url = clientTestUrl(listener, "/start#saved")
+                        val request = HttpRequest.get(url, [HttpField("Authorization".toByteArray(), "Bearer secret".toByteArray()),
+                            HttpField("Cookie".toByteArray(), "session=secret".toByteArray()),
+                            HttpField("X-Keep".toByteArray(), "one".toByteArray()), HttpField("X-Keep".toByteArray(), "two".toByteArray())])
+                        client.withResponse(request) suspend { response ->
+                            assertEquals(200U, response.status)
+                            assertEquals(clientTestUrl(destination, "/final?q=1#saved").toString(), response.url.toString())
+                            assertEquals(1L, response.redirectHistory.size)
+                            val history = response.redirectHistory[0L]
+                            assertSame(url, history.url)
+                            assertEquals(302U, history.head.status)
+                            assertEquals("first reason", String.fromUtf8(history.head.reason!!))
+                            assertEquals("unneeded-coding", String.fromUtf8(history.head.fields.findAll("Content-Encoding".toByteArray())[0L].value))
+                            assertEquals("final body", response.body.text(100L))
+                        }
+                    }
+                } finally { done.signal() }
+                first.join(); second.join()
+                assertFalse(scope.job.isCancelled)
+            }
+        }
+    }
+
+    @Test
+    fun `per call redirect options override disabled defaults and preserve connection reuse`() {
+        withClientRedirectTest(redirects = HttpRedirectOptions(enabled = false)) suspend { _, scope, listener, config ->
+            val done = BodyTestGate()
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    for (index in 0..2) {
+                        val incoming = connection.receiveRequest()!!
+                        incoming.body.readAllBytes(4L)
+                        if (index == 2) {
+                            assertEquals("GET", String.fromUtf8(incoming.head.method))
+                            assertEquals(0L, incoming.head.fields.findAll("Content-Type".toByteArray()).size)
+                            connection.sendResponse(HttpResponseHead(HttpVersion.Http11, 204U)).finish()
+                        } else connection.sendResponse(redirectTestHead(if (index == 0) 302U else 303U, "/final")).finish()
+                    }
+                    done.await()
+                }
+            }
+            try {
+                withHttpClient(config) suspend { client ->
+                    client.withResponse(HttpRequest.get(clientTestUrl(listener, "/default"))) suspend { response ->
+                        assertEquals(302U, response.status)
+                        assertEquals(0L, response.redirectHistory.size)
+                        response.body.readAllBytes(0L)
+                    }
+                    val options = HttpCallOptions(redirects = Some(HttpRedirectOptions()))
+                    client.withResponse(HttpRequest.post(clientTestUrl(listener, "/override"), RequestBody.fromText("body"), options = options)) suspend { response ->
+                        assertEquals(204U, response.status)
+                        assertEquals(1L, response.redirectHistory.size)
+                        response.body.readAllBytes(0L)
+                    }
+                }
+            } finally { done.signal() }
+            serving.join()
+        }
+    }
+}

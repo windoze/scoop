@@ -1,0 +1,35 @@
+package scoop.http.client
+
+import scoop.http.HttpResponseHead
+import scoop.url.Url
+
+public class HttpRedirectOptions public constructor(
+    public val enabled: Boolean = true,
+    public val maxRedirects: Long = 10L,
+    public val allowHttpsToHttp: Boolean = false
+) {
+    init {
+        if (maxRedirects < 0L) throw IllegalArgumentException(Some("negative redirect limit"))
+    }
+}
+
+public class HttpRedirect internal constructor(
+    public val url: Url, public val method: String, public val head: HttpResponseHead,
+    public val nextUrl: Url, public val nextMethod: String
+)
+
+public enum HttpRedirectFailure { InvalidLocation, UnsupportedScheme, HttpsDowngrade, LimitExceeded, Loop, BodyNotReplayable }
+
+public class HttpRedirectException internal constructor(
+    public val reason: HttpRedirectFailure, public val url: Url, public val head: HttpResponseHead,
+    public val destination: Url? = None, public val cause: Throwable? = None
+) : Exception(Some(redirectFailureMessage(reason)))
+
+private fun redirectFailureMessage(reason: HttpRedirectFailure): String = when (reason) {
+    case InvalidLocation -> "invalid HTTP redirect location"
+    case UnsupportedScheme -> "HTTP redirect requires http or https"
+    case HttpsDowngrade -> "HTTPS redirect to HTTP is disabled"
+    case LimitExceeded -> "HTTP redirect limit exceeded"
+    case Loop -> "HTTP redirect loop"
+    case BodyNotReplayable -> "HTTP redirect requires a replayable request body"
+}
