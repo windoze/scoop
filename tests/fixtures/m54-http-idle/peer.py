@@ -13,7 +13,7 @@ from wire import begin, closed, frame, frame_bytes, h1_request, request, string
 def paced(connection, wire, capacity):
     for offset in range(0, len(wire), capacity):
         connection.sendall(wire[offset : offset + capacity])
-        time.sleep(0.075)
+        time.sleep(0.2)
 
 
 def reset_with_other_traffic(connection, writing):

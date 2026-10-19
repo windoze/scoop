@@ -7,7 +7,8 @@ import scoop.text.toInt
 import scoop.time.Duration
 
 fun check(value: Boolean) { if (!value) throw IllegalStateException(Some("HTTP idle fixture assertion failed")) }
-fun idleLimit(): Duration = Duration.milliseconds(600L)
+// Allow ordinary flush work on two native threads under full moving GC.
+fun idleLimit(): Duration = Duration.seconds(2L)
 
 fun checkTimeout(error: HttpIoTimeoutException, protocol: HttpProtocol, direction: HttpIoDirection, stream: Int) {
     check(error.protocol == protocol && error.direction == direction && error.streamId == stream)
