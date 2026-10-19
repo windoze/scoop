@@ -84,7 +84,7 @@
 | client Basic 认证 | 按明确 origin、原始 realm 和配置顺序选择；支持挂起凭据、UTF-8／NFC、显式首发、有限挑战和调用内路径范围复用 | 30 个独立场景通过 debug／release、full moving 和构建复用；独立 TCP 对端、双 native 线程、HTTP/2、重定向、重试及真实取消／清理组合通过 |
 | client Bearer 认证 | 纯 Scoop 挂起加载／刷新，按 client 与 provider 合并并发工作和缓存；迟到 401 按实际 token 复用，取消独立等待，清除缓存与共享清理保持原失败 | 54 个独立场景覆盖两种构建、full moving 和构建复用；包含 HTTP/2、编码上传、重定向、独立 TCP 对端、同 client 令牌子请求及双 native 线程，Basic 30 场景回归通过 |
 | 原生缓冲区批量只读 | platform 的 NativeByteBuffer.getBytes 返回已初始化绝对区间的独立副本；一次状态同步，不改变游标，借用期间仍可读取 | Darwin 两个正式 fixture 通过 debug／release、full moving 与复用，共 4 个变体、12 个步骤进程；覆盖边界、跨线程借用，以及真实短读写 TCP 与 crypto 增量摘要 |
-| Boolean Scoop ABI | 标量参数和结果使用 i1 zeroext，定义、调用、间接分派和 statepoint 保持一致；现有目标指纹升级后正常重建产物 | GNU 旧工具最小复现 1／255 两个真值比较失败；237 项 codegen、6 项 ABI 分类、387 项 LIR、253 项产物测试及 workspace clippy 通过，Darwin 正式消费者 8 个变体、26 个步骤进程通过 |
+| Boolean Scoop ABI | 标量参数和结果使用 i1 zeroext，定义、调用、间接分派和 statepoint 保持一致；现有目标指纹升级后正常重建产物 | GNU 旧工具最小复现 1／255 两个真值比较失败；237 项 codegen、6 项 ABI 分类、387 项 LIR、253 项产物测试及 workspace clippy 通过，Darwin 正式消费者 8 个变体、26 个步骤进程通过；GNU／musl 各 10 个 fixture、20 个变体、70 个步骤进程通过 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -368,11 +368,11 @@ HTTP/1 的原认证清理故障来自协议库：空的 Connection: close 最终
 
 core 的旧 coroutineScope 在异常返回调用点前已取消调用方 Job，导致可捕获的 producer／回调失败影响其他 HTTP 请求。现在只为 coroutineScope 的内部 Job 关闭立即向父传播，launch／async 保持原规则；没有增加公开任务种类或 client 绕行。Darwin 的正式消费者覆盖嵌套正文／子任务失败、兄弟取消和等待清理、异常身份、Context、调用方取消、同作用域捕获 await 仍失败，以及失败请求结束后同一 HTTP/2 连接上其他响应和新请求继续完成，均通过 debug／release、full moving 与构建复用。
 
-Basic 的正式消费者在每个场景中运行两个 native 线程，覆盖未知 charset、Latin-1、UTF-8／NFC、CTL／用户名冒号拒绝、原始 realm 字节、provider 优先级和快照、手写 Authorization、userinfo、Continue 单次上传、路径及跨 origin 重定向、gzip／trailer、重复挑战、往返上限、真实 source 关闭、HTTP/2 并行流，以及回调的原异常、Context 和挂起 finally。凭据回调中的嵌套 coroutineScope 失败也保留原异常且不触发网络重试。最新 Basic、HTTP/2 作用域组合及 native 线程回归共通过 6 个变体、20 个步骤进程；重定向和重试正式回归也已通过。Basic 的 GNU／musl 验证随 Boolean ABI 修正后的生产库更新进行。
+Basic 的正式消费者在每个场景中运行两个 native 线程，覆盖未知 charset、Latin-1、UTF-8／NFC、CTL／用户名冒号拒绝、原始 realm 字节、provider 优先级和快照、手写 Authorization、userinfo、Continue 单次上传、路径及跨 origin 重定向、gzip／trailer、重复挑战、往返上限、真实 source 关闭、HTTP/2 并行流，以及回调的原异常、Context 和挂起 finally。凭据回调中的嵌套 coroutineScope 失败也保留原异常且不触发网络重试。最新 Basic、HTTP/2 作用域组合及 native 线程回归共通过 6 个变体、20 个步骤进程；重定向和重试正式回归也已通过。Basic 的原 24 个场景已随 Boolean ABI 修正通过 GNU／musl；新增 6 个清理场景单独跟进。
 
 取消后的凭据回调清理曾在旧库确定性复现为只报告取消原因。认证边界现在保留 finally 的实际异常，沿用既有 ResourceUseException 与调用清理汇总；不把异常重新归入网络重试。新增调用方取消、total 到期和 client.close 的直接／已包装清理失败共 6 个场景，完整 Basic 的 30 个场景通过两种构建、full moving 和正常缓存复用，共 6 个步骤进程；断言保留原失败与清理对象，client.close 同样报告该清理错误且不重复附加。
 
-Linux 早期关闭断言实际暴露了 Boolean ABI 缺口：调试器在普通 C `_Bool` 相等函数入口观察到参数 1 和 255，两者在 Scoop 中都表示 true；不含 HTTP 的独立程序也在 debug 稳定失败。codegen 现在统一零扩展参数和返回值，显式 invoke 的结果属性放在 gc.result；三个目标的调用／分派／statepoint 及机器对象发射通过。Scoop ABI classifier 更新为 4，相关固定指纹向量同步；本机用 LLVM 22.1.8 重建工具和 17 个生产 Cone／runtime 后，Boolean、早期关闭、作用域及既有 native Scoop ABI 消费者通过两种适用变体、moving GC 与正常构建复用。GNU／musl 的新工具实际运行继续验证。
+Linux 早期关闭断言实际暴露了 Boolean ABI 缺口：调试器在普通 C `_Bool` 相等函数入口观察到参数 1 和 255，两者在 Scoop 中都表示 true；不含 HTTP 的独立程序也在 debug 稳定失败。codegen 现在统一零扩展参数和返回值，显式 invoke 的结果属性放在 gc.result；三个目标的调用／分派／statepoint 及机器对象发射通过。Scoop ABI classifier 更新为 4，相关固定指纹向量同步；本机用 LLVM 22.1.8 重建工具和 17 个生产 Cone／runtime 后，Boolean、早期关闭、作用域及既有 native Scoop ABI 消费者通过两种适用变体、moving GC 与正常构建复用。GNU／musl 使用重建后的工具和生产库完成实际运行，相关结果见下文。
 
 Bearer 的 50 个主场景在 Darwin 通过 debug／release、full moving 和正常构建复用，覆盖并发初次加载、刷新中的新请求、迟到 401、清除缓存后相同 token 的再次拒绝、不同 client／provider、原始 realm、手写 Authorization、错误挑战、有限往返、单次 body、Context、取消、gzip／trailer、跨 origin 重定向及 H2 的 never-index。每个场景使用两个 native 线程；线上凭据与上传／响应表示由独立 Python socket 对端核对。
 
@@ -380,7 +380,7 @@ Bearer 的 50 个主场景在 Darwin 通过 debug／release、full moving 和正
 
 同一 client 的令牌端点组合另通过两个变体、6 个步骤进程：显式关闭子请求的内建认证，在每 origin 仅一条连接的配置下并发完成加载、两条受保护请求和一次刷新，保留原 Context 与实际刷新参数。测试中的可变局部捕获改成显式引用状态后通过，没有修改编译器。仓库源码已通过正常入口更新 17 个生产 Cone／runtime，正式产物另通过共享清理、单个等待者取消与回调内清除缓存的 full moving 消费检查；没有新增 native 依赖或另一套令牌请求传输。
 
-Boolean ABI 修正后的 GNU 实机验证已闭合：格式化、workspace clippy、相关 Rust 测试和工具构建通过；Boolean／早期关闭／作用域／既有 native ABI 的 4 个 fixture，加 Basic、作用域、上传、重试、重定向与池的 6 个 fixture，共通过 20 个变体、70 个步骤进程。此轮 Basic 是原 24 个场景，后续 6 个认证清理场景与 Bearer 尚未计入 Linux 结果；musl 同轮验证继续进行。
+Boolean ABI 修正后的 GNU／musl 实机验证均已闭合：格式化、workspace clippy、相关 Rust 测试和工具构建通过；Boolean／早期关闭／作用域／既有 native ABI 的 4 个 fixture，加 Basic、作用域、上传、重试、重定向与池的 6 个 fixture，在两个目标各通过 20 个变体、70 个步骤进程。此轮 Basic 是原 24 个场景，后续 6 个认证清理场景与 Bearer 尚未计入 Linux 结果。远端使用独立 checkout，测试期间未替换工具、源码或 sysroot。
 
 本轮另清理 8 个已经结束的旧诊断 target，释放约 1.18 GiB；源码、缓存和验证日志保留在仓库外。
 
@@ -455,3 +455,5 @@ Linux 回归收尾期间，清理本机首轮 main／native 验收中已被最�
 重定向与 GOAWAY 状态验收期间，清理已结束的 Location、首轮重定向和已被最终结果替代的 native 消费者共 5 个 fixture target，释放约 585 MiB；正式源码、最终消费者、生产库、编译缓存、原始日志和报告保留。
 
 HTTP/1 上传收尾验收后，清理已被修复后验证替代的 3 个诊断 target，释放约 469 MiB；正式源码、最终消费者、生产库、编译缓存、原始日志和报告保留。
+
+Digest 实施期间，清理已被最终 Bearer 生命周期回归替代的 3 个 target 目录，释放约 544 MiB；当前验证产物、生产库、源码、缓存、日志和报告保留。
