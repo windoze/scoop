@@ -183,6 +183,21 @@ where
 {
     for (wire_index, (binder_index, binder)) in (0_u64..).zip(binders.binders().iter().enumerate())
     {
+        for (interface_index, interface) in binder.excluded_interfaces().values().iter().enumerate()
+        {
+            validator.visit_signature(
+                interface,
+                site(
+                    binder_index,
+                    TypeParameterBoundLocation::ExcludedInterface { interface_index },
+                ),
+                &path
+                    .clone()
+                    .index(wire_index)
+                    .field(3)
+                    .index(interface_index as u64),
+            )?;
+        }
         let TypeParameterBoundsV1::Nominal(bounds) = binder.bounds() else {
             continue;
         };

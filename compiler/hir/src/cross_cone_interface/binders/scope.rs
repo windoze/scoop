@@ -117,6 +117,17 @@ impl CanonicalBinderListV1 {
     ) -> Result<(), TypeParameterBinderScopeValidationError> {
         let scope = self.signature_scope(nominal_owner_arity);
         for (binder_index, binder) in self.binders().iter().enumerate() {
+            for (interface_index, interface) in
+                binder.excluded_interfaces().values().iter().enumerate()
+            {
+                scope.validate(interface).map_err(|error| {
+                    TypeParameterBinderScopeValidationError {
+                        binder_index,
+                        bound: TypeParameterBoundLocation::ExcludedInterface { interface_index },
+                        error,
+                    }
+                })?;
+            }
             let TypeParameterBoundsV1::Nominal(bounds) = binder.bounds() else {
                 continue;
             };
@@ -177,12 +188,16 @@ impl std::error::Error for SignatureBinderScopeError {}
 pub enum TypeParameterBoundLocation {
     Class,
     Interface { interface_index: usize },
+    ExcludedInterface { interface_index: usize },
 }
 
 impl fmt::Display for TypeParameterBoundLocation {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Class => formatter.write_str("class bound"),
+            Self::ExcludedInterface { interface_index } => {
+                write!(formatter, "negative interface bound {interface_index}")
+            }
             Self::Interface { interface_index } => {
                 write!(formatter, "interface bound {interface_index}")
             }

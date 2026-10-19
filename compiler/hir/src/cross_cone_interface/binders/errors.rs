@@ -93,6 +93,7 @@ impl std::error::Error for TypeParameterBinderBuildError {}
 pub enum TypeParameterBinderResolutionError<E> {
     Name(CanonicalIdentifierError),
     Bounds(TypeParameterBoundsResolutionError<E>),
+    ExcludedInterfaces(SignatureTypeSetValidationError<E>),
 }
 
 impl<E: fmt::Display> fmt::Display for TypeParameterBinderResolutionError<E> {
@@ -100,6 +101,7 @@ impl<E: fmt::Display> fmt::Display for TypeParameterBinderResolutionError<E> {
         match self {
             Self::Name(error) => write!(formatter, "invalid type-parameter name: {error}"),
             Self::Bounds(error) => error.fmt(formatter),
+            Self::ExcludedInterfaces(error) => error.fmt(formatter),
         }
     }
 }

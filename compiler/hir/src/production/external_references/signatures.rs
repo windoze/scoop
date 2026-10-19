@@ -210,6 +210,13 @@ where
     A: ExternalHirReferenceSemanticAuthority<E>,
 {
     for (wire_index, binder) in (0_u64..).zip(binders.binders()) {
+        for (index, interface) in (0_u64..).zip(binder.excluded_interfaces().values()) {
+            observe(
+                accumulator,
+                interface,
+                &path.clone().index(wire_index).field(3).index(index),
+            )?;
+        }
         let TypeParameterBoundsV1::Nominal(bounds) = binder.bounds() else {
             continue;
         };

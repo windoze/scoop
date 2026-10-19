@@ -191,7 +191,17 @@ impl Lowerer {
                 self.imported_generic_nominal_bounds(bounds, bindings, span)?
             }
         };
+        let excluded_interfaces = binder
+            .excluded_interfaces()
+            .values()
+            .iter()
+            .map(|ty| {
+                self.imported_generic_type(ty, bindings)
+                    .map(|ty| hir::InterfaceUpperBound { ty, span })
+            })
+            .collect::<Result<_, _>>()?;
         Ok(hir::TypeParamDecl {
+            excluded_interfaces,
             id,
             name: binder.name().as_str().to_owned(),
             bounds,

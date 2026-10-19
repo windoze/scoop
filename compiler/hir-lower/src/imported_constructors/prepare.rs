@@ -67,6 +67,7 @@ impl Lowerer {
                 }
             };
             type_parameters.push(hir::TypeParamDecl {
+                excluded_interfaces: Vec::new(),
                 id,
                 name: binder.name().as_str().to_owned(),
                 bounds,

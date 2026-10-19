@@ -96,6 +96,35 @@ impl Lowerer {
         check: &AtomicConstraint,
     ) -> Result<(), ConstraintFailure> {
         match &check.kind {
+            AtomicConstraintKind::ExcludesInterface(variable, interface) => {
+                let subject = TypeTerm::Variable(*variable);
+                let solution = self
+                    .materialize_term(session, bindings, subject, check.origin)?
+                    .ok_or(ConstraintFailure {
+                        origin: check.origin,
+                        kind: ConstraintFailureKind::UnresolvedTerm(subject),
+                    })?;
+                let required = self
+                    .materialize_term(session, bindings, *interface, check.origin)?
+                    .ok_or(ConstraintFailure {
+                        origin: check.origin,
+                        kind: ConstraintFailureKind::UnresolvedTerm(*interface),
+                    })?;
+                let outcome = self.excludes_interface(solution, required);
+                if outcome == crate::types::InterfaceExclusion::Satisfied {
+                    Ok(())
+                } else {
+                    Err(ConstraintFailure {
+                        origin: check.origin,
+                        kind: ConstraintFailureKind::ExcludedInterface {
+                            variable: *variable,
+                            solution,
+                            required,
+                            outcome,
+                        },
+                    })
+                }
+            }
             AtomicConstraintKind::CallableShape(shape, expected) => {
                 let expected = self
                     .materialize_term(session, bindings, *expected, check.origin)?

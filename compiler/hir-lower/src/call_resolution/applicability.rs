@@ -195,6 +195,12 @@ impl Lowerer {
                 Constraint::Kind(variable, parameter.kind()),
                 ConstraintOrigin::TypeParameterBound(parameter.id),
             );
+            for bound in &parameter.excluded_interfaces {
+                session.push(
+                    Constraint::ExcludesInterface(variable, TypeTerm::Type(bound.ty)),
+                    ConstraintOrigin::TypeParameterBound(parameter.id),
+                );
+            }
             for bound in parameter.nominal_bounds_in_source_order() {
                 let constraint = match bound {
                     hir::NominalBoundRef::Class(bound) => {

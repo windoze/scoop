@@ -191,6 +191,7 @@ impl Lowerer {
             alias.outer_parameter_count,
             &alias.syntax_parameters,
             alias.where_clause.as_ref(),
+            false,
             "typealias",
         );
         self.source_type_aliases[id].parameters = parameters.clone();

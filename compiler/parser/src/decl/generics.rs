@@ -56,6 +56,10 @@ impl Parser {
 
     pub(super) fn parse_type_bound(&mut self) -> Result<TypeBound, Diagnostic> {
         match &self.peek().kind {
+            TokenKind::Bang => {
+                self.bump();
+                self.parse_type_ref().map(TypeBound::ExcludedInterface)
+            }
             TokenKind::Ident(text) if text == "value" => {
                 self.bump();
                 Ok(TypeBound::Kind(TypeParamKindBound::Value))

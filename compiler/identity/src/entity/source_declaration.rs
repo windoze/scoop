@@ -149,6 +149,25 @@ impl SourceDeclarationKey {
         receiver: Option<SignatureTypeKey>,
         parameters: Vec<SignatureTypeKey>,
     ) -> Self {
+        Self::constrained_function(
+            site,
+            name,
+            type_parameter_count,
+            receiver,
+            parameters,
+            Vec::new(),
+        )
+    }
+
+    pub fn constrained_function(
+        site: SourceDeclarationSite,
+        name: CanonicalIdentifier,
+        type_parameter_count: u32,
+        receiver: Option<SignatureTypeKey>,
+        parameters: Vec<SignatureTypeKey>,
+        mut conditions: Vec<super::SignatureConditionKey>,
+    ) -> Self {
+        conditions.sort_unstable();
         Self::build(
             site,
             DeclarationName::Named(name),
@@ -157,6 +176,7 @@ impl SourceDeclarationKey {
                 type_parameter_count,
                 receiver: OptionalSignatureType::from_option(receiver),
                 parameters,
+                conditions,
             },
         )
     }

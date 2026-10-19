@@ -191,7 +191,7 @@ pub use scoop_abi::{
 pub use signature::{
     CallingConvention, DecodedDuplicateSignatureKey, DecodedOptionalSignatureType,
     DecodedSignatureTypeKey, DuplicateSignatureKey, Effect, NonEmptyVec, NonEmptyVecError,
-    OptionalSignatureType, SignatureTypeKey,
+    OptionalSignatureType, SignatureConditionKey, SignatureTypeKey,
 };
 pub use source_abi::{
     CallbackMode, DecodedSourceCAbiFunctionSignature, DecodedSourceCAbiReturn,

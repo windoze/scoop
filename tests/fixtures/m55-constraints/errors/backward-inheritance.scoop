@@ -1,0 +1,5 @@
+interface I {}
+interface J : I {}
+fun <T : !I> absent(value: T): Int = 1
+fun <T : !J> bad(value: T): Int = absent(value)
+fun main() {}

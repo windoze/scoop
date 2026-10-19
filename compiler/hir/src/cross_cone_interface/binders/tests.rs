@@ -89,6 +89,30 @@ fn decoded_binders_resolve_typed_nominal_references() {
 }
 
 #[test]
+fn excluded_interfaces_round_trip_and_resolve_typed_references() {
+    let fixture = fixture();
+    let excluded = CanonicalSignatureTypesV1::try_new(vec![SignatureTypeKey::Nominal(
+        fixture.interface_a.id(),
+    )])
+    .unwrap();
+    let expected = CanonicalBinderListV1::try_new(vec![
+        binder("T", TypeParameterBoundsV1::Value).with_excluded_interfaces(excluded),
+    ])
+    .unwrap();
+    assert_eq!(
+        decode_binders(&expected)
+            .resolve(&mut authority(&fixture))
+            .unwrap(),
+        expected
+    );
+    assert!(
+        decode_binders(&expected)
+            .resolve(&mut empty_authority())
+            .is_err()
+    );
+}
+
+#[test]
 fn reader_rejects_duplicate_and_noncanonical_signature_sets() {
     let fixture = fixture();
     let mut ordered = vec![

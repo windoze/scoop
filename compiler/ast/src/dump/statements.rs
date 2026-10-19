@@ -242,6 +242,7 @@ fn dump_type_bound(bound: &TypeBound) -> String {
         TypeBound::Kind(TypeParamKindBound::Value) => "value".to_string(),
         TypeBound::Kind(TypeParamKindBound::Ref) => "ref".to_string(),
         TypeBound::Upper(ty) => dump_type_ref(ty),
+        TypeBound::ExcludedInterface(ty) => format!("!{}", dump_type_ref(ty)),
     }
 }
 

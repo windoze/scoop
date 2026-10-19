@@ -17,6 +17,7 @@ impl Lowerer {
             .iter()
             .chain(declaration.callable_parameters)
         {
+            pending.extend(parameter.excluded_interfaces.iter().map(|bound| bound.ty));
             pending.extend(
                 parameter
                     .nominal_bounds_in_source_order()

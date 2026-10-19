@@ -227,6 +227,7 @@ pub(crate) fn lower_type_param_decl(
     id: hir::TypeParamId,
 ) -> hir::TypeParamDecl {
     hir::TypeParamDecl {
+        excluded_interfaces: Vec::new(),
         id,
         name: param.name.text.clone(),
         // Bounds are resolved after every nominal declaration has entered the

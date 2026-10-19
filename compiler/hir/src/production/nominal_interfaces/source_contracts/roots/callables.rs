@@ -94,6 +94,9 @@ pub(super) fn bounds(
     visit: &mut impl FnMut(TypeId) -> Result<(), Error>,
 ) -> Result<(), Error> {
     for parameter in parameters {
+        for bound in &parameter.excluded_interfaces {
+            visit(bound.ty)?;
+        }
         for bound in parameter.nominal_bounds_in_source_order() {
             let ty = bound.ty();
             visit(ty)?;

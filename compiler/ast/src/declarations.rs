@@ -299,6 +299,7 @@ pub enum TypeParamKindBound {
 pub enum TypeBound {
     Kind(TypeParamKindBound),
     Upper(TypeRef),
+    ExcludedInterface(TypeRef),
 }
 
 #[derive(Debug, Clone, PartialEq)]

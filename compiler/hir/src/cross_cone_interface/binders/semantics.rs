@@ -157,6 +157,21 @@ impl CanonicalBinderListV1 {
     {
         let scope = self.signature_scope(nominal_owner_arity);
         for (binder_index, binder) in self.binders().iter().enumerate() {
+            for (interface_index, interface) in
+                binder.excluded_interfaces().values().iter().enumerate()
+            {
+                validate_nominal_bound(
+                    interface,
+                    PublicNominalKindV1::Interface,
+                    &scope,
+                    authority,
+                )
+                .map_err(|error| TypeParameterBinderSemanticValidationError {
+                    binder_index,
+                    bound: TypeParameterBoundLocation::ExcludedInterface { interface_index },
+                    error,
+                })?;
+            }
             let TypeParameterBoundsV1::Nominal(bounds) = binder.bounds() else {
                 continue;
             };

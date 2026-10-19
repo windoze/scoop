@@ -111,6 +111,25 @@ pub(crate) fn render_callable_constraint_failure(
                 parameter(*variable).name,
             )
         }
+        ConstraintFailureKind::ExcludedInterface {
+            variable,
+            solution,
+            required,
+            outcome,
+        } => format!(
+            "type argument `{}` for `{}` must satisfy negative interface bound `!{}`: {}",
+            lowerer.type_name(*solution),
+            parameter(*variable).name,
+            lowerer.type_name(*required),
+            match outcome {
+                crate::types::InterfaceExclusion::Implemented =>
+                    "the static type implements this interface",
+                crate::types::InterfaceExclusion::Unknown =>
+                    "the generic environment does not establish this negative fact",
+                crate::types::InterfaceExclusion::Satisfied =>
+                    unreachable!("a satisfied exclusion is not a failure"),
+            },
+        ),
         ConstraintFailureKind::InterfaceBound {
             variable,
             solution,
@@ -249,7 +268,7 @@ pub(crate) fn render_type_parameters(
     let parameters = parameters
         .iter()
         .map(|parameter| {
-            let bound = match &parameter.bounds {
+            let mut bound = match &parameter.bounds {
                 hir::TypeParamBounds::Unconstrained => String::new(),
                 hir::TypeParamBounds::Value { .. } => " : value".to_string(),
                 hir::TypeParamBounds::Ref { .. } => " : ref".to_string(),
@@ -265,6 +284,10 @@ pub(crate) fn render_type_parameters(
                     format!(" : {}", rendered.join(" & "))
                 }
             };
+            for excluded in &parameter.excluded_interfaces {
+                bound.push_str(if bound.is_empty() { " : !" } else { " & !" });
+                bound.push_str(&lowerer.type_name_with_params(excluded.ty, all_parameters));
+            }
             format!("{}{bound}", parameter.name)
         })
         .collect::<Vec<_>>()

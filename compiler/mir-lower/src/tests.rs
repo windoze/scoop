@@ -345,6 +345,7 @@ fn definition_origin() -> hir::DefinitionOrigin {
 
 fn type_param(name: impl Into<String>) -> hir::TypeParamDecl {
     hir::TypeParamDecl {
+        excluded_interfaces: Vec::new(),
         id: hir::TypeParamId::from_raw(0),
         name: name.into(),
         bounds: hir::TypeParamBounds::Unconstrained,

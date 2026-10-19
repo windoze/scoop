@@ -13,6 +13,7 @@ mod captured;
 
 fn parameter(identity: u32, slot: u32) -> hir::TypeParamDecl {
     hir::TypeParamDecl {
+        excluded_interfaces: Vec::new(),
         id: hir::TypeParamId::with_substitution_slot(identity, slot),
         name: format!("T{identity}"),
         bounds: hir::TypeParamBounds::Unconstrained,

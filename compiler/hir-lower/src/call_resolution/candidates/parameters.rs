@@ -58,6 +58,9 @@ impl<D> DeclarationSignature<D> {
                     bound.ty = state.instantiate_method_ty(bound.ty, bindings);
                 }
             }
+            for bound in &mut parameter.excluded_interfaces {
+                bound.ty = state.instantiate_method_ty(bound.ty, bindings);
+            }
         }
         self.return_type = state.instantiate_method_ty(self.return_type, bindings);
     }

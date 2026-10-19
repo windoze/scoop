@@ -7,6 +7,9 @@ pub struct TypeParamDecl {
     /// Complete declaration-site constraint set. The sum type makes kind
     /// bounds and nominal upper bounds mutually exclusive by construction.
     pub bounds: TypeParamBounds,
+    /// Function-only negative interface facts, independent of positive kind
+    /// and nominal bounds. Empty for nominal and alias declarations.
+    pub excluded_interfaces: Vec<InterfaceUpperBound>,
     pub span: Span,
 }
 

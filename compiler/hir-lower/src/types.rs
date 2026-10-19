@@ -63,6 +63,8 @@ pub(crate) struct ArrayType {
 
 mod adaptation;
 mod arrays;
+mod negative;
+pub(crate) use negative::InterfaceExclusion;
 mod atomics;
 mod characters;
 mod constraints;

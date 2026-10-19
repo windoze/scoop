@@ -71,6 +71,25 @@ impl Lowerer {
                     hir::TypeParamKind::Ref => "ref",
                 }
             ),
+            Kind::ExcludedInterface {
+                variable,
+                solution,
+                required,
+                outcome,
+            } => format!(
+                "type argument `{}` for `{}` must satisfy negative interface bound `!{}`: {}",
+                self.type_name(*solution),
+                parameter(*variable),
+                self.type_name(*required),
+                match outcome {
+                    crate::types::InterfaceExclusion::Implemented =>
+                        "the static type implements this interface",
+                    crate::types::InterfaceExclusion::Unknown =>
+                        "the generic environment does not establish this negative fact",
+                    crate::types::InterfaceExclusion::Satisfied =>
+                        unreachable!("a satisfied exclusion is not a failure"),
+                },
+            ),
             Kind::ClassBound {
                 variable,
                 solution,

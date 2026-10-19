@@ -158,6 +158,18 @@ alias 的全部展开依赖必须无环，包含藏在泛型实参、函数类�
 
 alias只建立名称、declared visibility、source origin与导出实体，不建立新的type identity、nominal application、layout、TypeDescriptor、RTTI、boxing、单态化实例、overload差异或ABI分类。alias的类型语义等同于完全展开的目标type；分别以alias和目标声明的同形overload是重复签名。alias可用于目标本来允许出现的type及type-qualifier位置；`Alias(...)`、`Alias.Variant(...)`或static/companion member lookup先展开目标再执行普通决议，不产生额外候选。非局部 alias 的 visibility 默认仍为 `internal`；展开目标和参数 bound 的 effective access domain 必须覆盖 alias 自身的 effective domain。内部 alias 也不能暴露 file-private 目标，public alias 遵循同一签名可见性规则。可导出的 alias 可经普通 import、public import 及链式 re-export 使用，保留原声明身份、实际 binder、bound 和定义处已绑定的目标类型，消费方不重新查找目标名称。
 
+#### 3.2.2 泛型函数的条件与负向接口约束
+
+有自身类型参数的顶层、局部、扩展函数及 non-interface final 泛型成员函数可以声明负向接口条件：`fun <T : !Debug> f(value: T)` 与 `fun <T> f(value: T) where T : !Debug` 等价。只有半角 `!` 是该语法；`!I` 不属于普通类型。名义类型、typealias、extension property、构造器及没有自身参数的普通成员不能声明这些新增条件。内层函数只能约束自己的参数，条件中的类型引用仍可使用已在作用域中的宿主／外层参数。
+
+负向条件的目标必须是完整 interface application，如 `!Debug`、`!Equals<T>`；class、value type、`Any`、类型参数和 kind 均不能被否定。负向条件与原正向 bound 分开，允许与 `value`／`ref` 组合；正向 nominal bound 和 kind 的原互斥规则保持。全部条件取合取，书写顺序不影响含义；重复完整条件、直接正负矛盾和普通继承关系已经确定的矛盾在声明处报错。
+
+负向关系有成立、不成立、未知三种结果，只有成立才能使用候选。已确定的静态类型按完整接口继承关系判断；已满足该接口则负向不成立，确定不满足才成立。`Nothing` 沿用底类型规则，不满足负向条件。未知参数只能使用定义环境中的明确负向事实；若 `J : I`，`T : !I` 可推出 `T : !J`，反向不能。只有 class 上界并不能证明其未知子类型没有某个接口。部分 application 也可能未知：`Box<U> : I<U>` 对 `!I<String>` 的判断不能把未知 `U` 当成与 String 不同。
+
+负向条件只检查静态类型，不产生运行期类型排除或 smart cast。先完成普通参数、receiver、显式实参、允许的期望类型及正向 bound 的推断，再检查负向条件；不得为了满足否定而把已确定的实参改为 Any 或其他类型。泛型定义处选定的重载在具体化时保持：无约束 `bar<T>` 调用同形无约束／负向两个 `foo` 时只可选择前者，带同一负向条件的 `baz<T>` 可以选择后者。
+
+泛型函数的条件集合参与重复签名和声明身份。类型使用真实身份，函数及宿主／外层 binder 按各自位置 alpha-normalize，inline 与 where 合并，透明 alias 展开，条件顺序和来源位置不参与身份。参数名、函数结果、默认值和函数自身 suspend 标记仍不能单独区分重载。当前 Cone、局部、成员、import 和 re-export 使用相同规则。条件不同的同形函数先检查适用性，再按 8.6 的声明转发比较；源参数保持 rigid，源条件成为已知事实，目标条件必须可满足。不按条件数量或正负方向赋权，无法区分的多个适用候选报歧义。
+
 ### 3.3 参数传递、receiver 与 `this`
 
 Scoop 的源码函数/方法调用一律是 **pass-by-value**：每个实参表达式求值一次，再以所得值初始化 callee 中不可重新绑定的形参 binding。这条规则不按 value type / reference type 分叉：

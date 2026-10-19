@@ -90,6 +90,7 @@ impl Harness {
             .types
             .alloc(hir::Type::Param(hir::TypeParamId::from_raw(0)));
         let type_param = || hir::TypeParamDecl {
+            excluded_interfaces: Vec::new(),
             id: hir::TypeParamId::from_raw(0),
             name: "T".to_string(),
             bounds: hir::TypeParamBounds::Unconstrained,
@@ -352,6 +353,7 @@ impl Harness {
         option_core: hir::OptionCore,
     ) -> hir::IterationCore {
         let parameter = hir::TypeParamDecl {
+            excluded_interfaces: Vec::new(),
             id: hir::TypeParamId::with_substitution_slot(u32::MAX, 0),
             name: "T".to_string(),
             bounds: hir::TypeParamBounds::Unconstrained,

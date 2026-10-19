@@ -294,8 +294,10 @@ impl Lowerer {
         }
 
         let preferred_bounds = if lower.is_empty() { &upper } else { &lower };
+        // Materialized bounds are fixed types, even when a recursive caller's
+        // rigid parameter has the same declaration ID as a callee variable.
+        // Identical bounds already determine the unique relation frontier.
         if let Some(&candidate) = preferred_bounds.first()
-            && matches!(self.types[candidate], hir::Type::Function(_))
             && preferred_bounds
                 .iter()
                 .all(|&bound| self.types_equal(bound, candidate))
@@ -422,6 +424,7 @@ fn distribute_constraints(
                 continue;
             }
             AtomicConstraintKind::CallableShape(..)
+            | AtomicConstraintKind::ExcludesInterface(..)
             | AtomicConstraintKind::ConcreteApplication(..) => {
                 checks.push(constraint);
                 continue;

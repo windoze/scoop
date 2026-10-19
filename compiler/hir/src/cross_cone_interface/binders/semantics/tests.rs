@@ -10,6 +10,39 @@ use super::*;
 use crate::{CanonicalSignatureTypesV1, NominalTypeParameterBoundsV1, TypeParameterBinderV1};
 
 #[test]
+fn excluded_bounds_require_complete_interface_types_even_with_a_kind_bound() {
+    let fixture = Fixture::new();
+    for (bound, valid) in [
+        (
+            SignatureTypeKey::Nominal(fixture.plain_interface.id()),
+            true,
+        ),
+        (
+            nominal_application(fixture.generic_interface.id(), binder(0, 0)),
+            true,
+        ),
+        (SignatureTypeKey::Nominal(fixture.plain_class.id()), false),
+        (binder(0, 0), false),
+        (
+            nominal_application(fixture.generic_interface.id(), binder(0, 1)),
+            false,
+        ),
+    ] {
+        let excluded = CanonicalSignatureTypesV1::try_new(vec![bound]).unwrap();
+        let binders = CanonicalBinderListV1::try_new(vec![
+            TypeParameterBinderV1::new(
+                CanonicalIdentifier::new("T").unwrap(),
+                TypeParameterBoundsV1::Value,
+            )
+            .with_excluded_interfaces(excluded),
+        ])
+        .unwrap();
+        let result = binders.validate_bound_semantics(None, &mut fixture.authority());
+        assert_eq!(result.is_ok(), valid, "{result:?}");
+    }
+}
+
+#[test]
 fn validates_bound_kind_arity_and_nested_binder_scope() {
     let fixture = Fixture::new();
     let mut authority = fixture.authority();

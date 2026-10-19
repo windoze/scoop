@@ -1,5 +1,7 @@
 use super::*;
 
+mod negative;
+
 impl Lowerer {
     /// Resolve the complete constraint set for one declaration after all
     /// nominal names and arities are known. `params` may begin with an owner
@@ -11,6 +13,7 @@ impl Lowerer {
         owner_count: usize,
         declarations: &[ast::TypeParamDecl],
         where_clause: Option<&ast::WhereClause>,
+        function_conditions: bool,
         target: &str,
     ) -> Vec<hir::TypeParamDecl> {
         let outer_checks = self.deferred_type_bounds.replace(Vec::new());
@@ -38,6 +41,7 @@ impl Lowerer {
                 index,
                 bound,
                 declaration.span,
+                function_conditions,
                 target,
             );
         }
@@ -59,11 +63,14 @@ impl Lowerer {
                     index,
                     &constraint.bound,
                     constraint.span,
+                    function_conditions,
                     target,
                 );
             }
         }
 
+        self.type_params_in_scope = params.clone();
+        self.check_negative_bound_contradictions(&params[owner_count..]);
         self.complete_parameter_bound_checks(outer_checks, &params);
         self.type_params_in_scope.clear();
         params
@@ -75,9 +82,17 @@ impl Lowerer {
         index: usize,
         bound: &ast::TypeBound,
         span: ast::Span,
+        function_conditions: bool,
         target: &str,
     ) {
         match bound {
+            ast::TypeBound::ExcludedInterface(reference) => {
+                if !function_conditions {
+                    self.error(span, format!("negative interface bounds are only allowed on generic functions, not {target}"));
+                } else {
+                    self.apply_negative_interface_bound(params, index, reference, span);
+                }
+            }
             ast::TypeBound::Kind(kind) => {
                 let next = match kind {
                     ast::TypeParamKindBound::Value => hir::TypeParamBounds::Value { span },

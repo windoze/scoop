@@ -2,7 +2,7 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorK
 
 use super::{
     CallingConvention, DuplicateSignatureKey, Effect, NonEmptyVec, OptionalSignatureType,
-    SignatureTypeKey, encode_sequence, encode_single_payload, encode_tag,
+    SignatureConditionKey, SignatureTypeKey, encode_sequence, encode_single_payload, encode_tag,
 };
 use crate::{DecodedPersistentId, PersistentGenericTypeId, PersistentIdResolver, PersistentTypeId};
 
@@ -277,6 +277,7 @@ pub enum DecodedDuplicateSignatureKey {
         type_parameter_count: u32,
         receiver: DecodedOptionalSignatureType,
         parameters: Vec<DecodedSignatureTypeKey>,
+        conditions: Vec<SignatureConditionKey<DecodedSignatureTypeKey>>,
     },
     Constructor {
         parameters: Vec<DecodedSignatureTypeKey>,
@@ -304,10 +305,15 @@ impl DecodedDuplicateSignatureKey {
                 type_parameter_count,
                 receiver,
                 parameters,
+                conditions,
             } => Ok(DuplicateSignatureKey::Function {
                 type_parameter_count,
                 receiver: receiver.resolve(resolver)?,
                 parameters: resolve_sequence(parameters, resolver)?,
+                conditions: conditions
+                    .into_iter()
+                    .map(|condition| condition.resolve(resolver))
+                    .collect::<Result<_, _>>()?,
             }),
             Self::Constructor { parameters } => Ok(DuplicateSignatureKey::Constructor {
                 parameters: resolve_sequence(parameters, resolver)?,
@@ -339,15 +345,21 @@ impl WireEncode for DecodedDuplicateSignatureKey {
                 type_parameter_count,
                 receiver,
                 parameters,
+                conditions,
             } => {
-                encoder.map(4)?;
+                encoder.map(4 + u64::from(!conditions.is_empty()))?;
                 encode_tag(encoder, 2)?;
                 encoder.field(1)?;
                 encoder.unsigned(u64::from(*type_parameter_count))?;
                 encoder.field(2)?;
                 receiver.encode(encoder)?;
                 encoder.field(3)?;
-                encode_sequence(encoder, parameters)
+                encode_sequence(encoder, parameters)?;
+                if !conditions.is_empty() {
+                    encoder.field(4)?;
+                    encode_sequence(encoder, conditions)?;
+                }
+                Ok(())
             }
             Self::Constructor { parameters } => {
                 encoder.map(2)?;
@@ -386,11 +398,27 @@ impl WireDecode for DecodedDuplicateSignatureKey {
                 })
             }
             2 => {
-                expect_sum_length(decoder, fields, 4)?;
+                if fields != 4 && fields != 5 {
+                    return Err(wire_error(
+                        decoder,
+                        WireErrorKind::InvalidLength {
+                            expected: 4,
+                            actual: fields,
+                        },
+                    ));
+                }
                 Ok(Self::Function {
                     type_parameter_count: decoder.field(1, Decoder::u32)?,
                     receiver: decoder.field(2, DecodedOptionalSignatureType::decode)?,
                     parameters: decoder.field(3, decode_signatures)?,
+                    conditions: if fields == 5 {
+                        decoder.field(4, |decoder| {
+                            decoder
+                                .decode_array(|decoder, _| SignatureConditionKey::decode(decoder))
+                        })?
+                    } else {
+                        Vec::new()
+                    },
                 })
             }
             3 => {
@@ -544,6 +572,7 @@ mod tests {
         let generic = PersistentGenericTypeId(ConeIdentity::SINGLE_FILE.0);
         let binder = SignatureTypeKey::Binder { depth: 0, index: 1 };
         let key = DuplicateSignatureKey::Function {
+            conditions: Vec::new(),
             type_parameter_count: 2,
             receiver: OptionalSignatureType::Present(Box::new(SignatureTypeKey::Nominal(nominal))),
             parameters: vec![

@@ -430,6 +430,7 @@ impl Lowerer {
             0,
             &decl.type_params,
             decl.where_clause.as_ref(),
+            true,
             "function",
         );
         if !type_params.is_empty() {

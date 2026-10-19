@@ -1,6 +1,36 @@
 use super::*;
 
 impl Lowerer {
+    fn same_parameter_conditions(
+        &self,
+        left: &hir::TypeParamDecl,
+        right: &hir::TypeParamDecl,
+        pairs: &[(hir::TypeParamId, hir::TypeParamId)],
+    ) -> bool {
+        let same_set = |a: &[hir::InterfaceUpperBound], b: &[hir::InterfaceUpperBound]| {
+            a.len() == b.len()
+                && a.iter().all(|a| {
+                    b.iter()
+                        .any(|b| self.signature_types_equal(a.ty, b.ty, pairs))
+                })
+        };
+        let positive = match (&left.bounds, &right.bounds) {
+            (hir::TypeParamBounds::Unconstrained, hir::TypeParamBounds::Unconstrained)
+            | (hir::TypeParamBounds::Value { .. }, hir::TypeParamBounds::Value { .. })
+            | (hir::TypeParamBounds::Ref { .. }, hir::TypeParamBounds::Ref { .. }) => true,
+            (hir::TypeParamBounds::Nominal(a), hir::TypeParamBounds::Nominal(b)) => {
+                let class = match (&a.class, &b.class) {
+                    (Some(a), Some(b)) => self.signature_types_equal(a.ty, b.ty, pairs),
+                    (None, None) => true,
+                    _ => false,
+                };
+                class && same_set(&a.interfaces, &b.interfaces)
+            }
+            _ => false,
+        };
+        positive && same_set(&left.excluded_interfaces, &right.excluded_interfaces)
+    }
+
     fn overload_types_equal(
         &self,
         left: TypeId,
@@ -48,6 +78,11 @@ impl Lowerer {
             _ => false,
         };
         receivers_match
+            && a_sig.owner_type_param_count == b_sig.owner_type_param_count
+            && a_sig.type_params[a_sig.owner_type_param_count..]
+                .iter()
+                .zip(&b_sig.type_params[b_sig.owner_type_param_count..])
+                .all(|(a, b)| self.same_parameter_conditions(a, b, &parameter_pairs))
             && a_sig.params.len() == b_sig.params.len()
             && a_sig
                 .params

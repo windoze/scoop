@@ -29,6 +29,7 @@ fn applied_field_and_variant_refs_close_owner_and_index_relations() {
         ],
     ));
     enums[choice].type_params.push(TypeParamDecl {
+        excluded_interfaces: Vec::new(),
         id: parameter,
         name: "T".to_string(),
         bounds: TypeParamBounds::Unconstrained,
@@ -174,6 +175,7 @@ fn applied_field_and_variant_refs_close_owner_and_index_relations() {
         }]),
     ));
     structs[declared].type_params.push(TypeParamDecl {
+        excluded_interfaces: Vec::new(),
         id: parameter,
         name: "T".to_string(),
         bounds: TypeParamBounds::Unconstrained,

@@ -60,6 +60,7 @@ fn variable_bounds(
         AtomicConstraintKind::ClassBound(variable, term) => (variable, Direction::Class, term),
         AtomicConstraintKind::Implements(variable, term) => (variable, Direction::Interface, term),
         AtomicConstraintKind::Kind(..)
+        | AtomicConstraintKind::ExcludesInterface(..)
         | AtomicConstraintKind::CallableShape(..)
         | AtomicConstraintKind::ConcreteApplication(..) => return Vec::new(),
     };

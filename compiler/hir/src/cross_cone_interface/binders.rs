@@ -284,11 +284,25 @@ impl WireDecode for DecodedTypeParameterBoundsV1 {
 pub struct TypeParameterBinderV1 {
     name: CanonicalIdentifier,
     bounds: TypeParameterBoundsV1,
+    excluded_interfaces: CanonicalSignatureTypesV1,
 }
 
 impl TypeParameterBinderV1 {
     pub const fn new(name: CanonicalIdentifier, bounds: TypeParameterBoundsV1) -> Self {
-        Self { name, bounds }
+        Self {
+            name,
+            bounds,
+            excluded_interfaces: CanonicalSignatureTypesV1 { values: Vec::new() },
+        }
+    }
+
+    pub fn with_excluded_interfaces(mut self, excluded: CanonicalSignatureTypesV1) -> Self {
+        self.excluded_interfaces = excluded;
+        self
+    }
+
+    pub fn excluded_interfaces(&self) -> &CanonicalSignatureTypesV1 {
+        &self.excluded_interfaces
     }
 
     pub const fn name(&self) -> &CanonicalIdentifier {
@@ -302,11 +316,16 @@ impl TypeParameterBinderV1 {
 
 impl WireEncode for TypeParameterBinderV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(2)?;
+        encoder.map(2 + u64::from(!self.excluded_interfaces.values.is_empty()))?;
         encoder.field(1)?;
         self.name.encode(encoder)?;
         encoder.field(2)?;
-        self.bounds.encode(encoder)
+        self.bounds.encode(encoder)?;
+        if !self.excluded_interfaces.values.is_empty() {
+            encoder.field(3)?;
+            self.excluded_interfaces.encode(encoder)?;
+        }
+        Ok(())
     }
 }
 
@@ -314,6 +333,7 @@ impl WireEncode for TypeParameterBinderV1 {
 pub struct DecodedTypeParameterBinderV1 {
     name: DecodedCanonicalIdentifier,
     bounds: DecodedTypeParameterBoundsV1,
+    excluded_interfaces: DecodedCanonicalSignatureTypesV1,
 }
 
 impl DecodedTypeParameterBinderV1 {
@@ -332,26 +352,53 @@ impl DecodedTypeParameterBinderV1 {
             .bounds
             .resolve(resolver)
             .map_err(TypeParameterBinderResolutionError::Bounds)?;
-        Ok(TypeParameterBinderV1 { name, bounds })
+        let excluded_interfaces = self
+            .excluded_interfaces
+            .resolve(resolver)
+            .map_err(TypeParameterBinderResolutionError::ExcludedInterfaces)?;
+        Ok(TypeParameterBinderV1 {
+            name,
+            bounds,
+            excluded_interfaces,
+        })
     }
 }
 
 impl WireEncode for DecodedTypeParameterBinderV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(2)?;
+        encoder.map(2 + u64::from(!self.excluded_interfaces.values.is_empty()))?;
         encoder.field(1)?;
         self.name.encode(encoder)?;
         encoder.field(2)?;
-        self.bounds.encode(encoder)
+        self.bounds.encode(encoder)?;
+        if !self.excluded_interfaces.values.is_empty() {
+            encoder.field(3)?;
+            self.excluded_interfaces.encode(encoder)?;
+        }
+        Ok(())
     }
 }
 
 impl WireDecode for DecodedTypeParameterBinderV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(2)?;
+        let fields = decoder.map()?;
+        if fields != 2 && fields != 3 {
+            return Err(wire_error(
+                decoder,
+                WireErrorKind::InvalidLength {
+                    expected: 2,
+                    actual: fields,
+                },
+            ));
+        }
         Ok(Self {
             name: decoder.field(1, DecodedCanonicalIdentifier::decode)?,
             bounds: decoder.field(2, DecodedTypeParameterBoundsV1::decode)?,
+            excluded_interfaces: if fields == 3 {
+                decoder.field(3, DecodedCanonicalSignatureTypesV1::decode)?
+            } else {
+                DecodedCanonicalSignatureTypesV1 { values: Vec::new() }
+            },
         })
     }
 }

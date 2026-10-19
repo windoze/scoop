@@ -56,7 +56,7 @@ enum ResolvedExtensionPropertyTarget {
         type_args: Vec<TypeId>,
     },
     Dependency {
-        target: crate::expr::ImportedExtensionPropertyTarget,
+        target: Box<crate::expr::ImportedExtensionPropertyTarget>,
         name: ast::Ident,
     },
 }

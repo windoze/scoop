@@ -64,16 +64,19 @@ fn compatibility_reader_rejects_each_old_outer_schema_and_mixed_generations() {
     let current =
         CompatibilityRecord::new(selection, ArtifactCapabilityProfile::CROSS_CONE_GENERIC).unwrap();
     for (kind, schemas) in [
-        (CompatibilitySchemaKind::Hir, (1, 2, 2)),
-        (CompatibilitySchemaKind::Mir, (2, 1, 2)),
-        (CompatibilitySchemaKind::Lir, (2, 2, 1)),
+        (CompatibilitySchemaKind::Hir, (1, 3, 3)),
+        (CompatibilitySchemaKind::Mir, (3, 1, 3)),
+        (CompatibilitySchemaKind::Lir, (3, 3, 1)),
         (CompatibilitySchemaKind::Hir, (1, 1, 1)),
+        (CompatibilitySchemaKind::Hir, (2, 3, 3)),
+        (CompatibilitySchemaKind::Mir, (3, 2, 3)),
+        (CompatibilitySchemaKind::Lir, (3, 3, 2)),
     ] {
         let mut decoded =
             decode_canonical::<DecodedCompatibilityRecord>(&encode(&current).unwrap()).unwrap();
         (decoded.hir_schema, decoded.mir_schema, decoded.lir_schema) = schemas;
         assert!(
-            matches!(decoded.validate(selection), Err(CompatibilityValidationError::UnsupportedSchema { kind: actual, actual: 1 }) if actual == kind)
+            matches!(decoded.validate(selection), Err(CompatibilityValidationError::UnsupportedSchema { kind: actual, actual: 1 | 2 }) if actual == kind)
         );
     }
 }

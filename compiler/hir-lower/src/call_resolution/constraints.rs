@@ -150,6 +150,7 @@ pub(crate) enum Constraint {
     Kind(InferenceVariableId, hir::TypeParamKind),
     ClassBound(InferenceVariableId, TypeTerm),
     Implements(InferenceVariableId, TypeTerm),
+    ExcludesInterface(InferenceVariableId, TypeTerm),
     ConcreteApplication(NominalApplication),
 }
 
@@ -185,6 +186,12 @@ pub(crate) enum CallableShapeMismatch {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ConstraintFailureKind {
+    ExcludedInterface {
+        variable: InferenceVariableId,
+        solution: hir::TypeId,
+        required: hir::TypeId,
+        outcome: crate::types::InterfaceExclusion,
+    },
     ForeignVariable(InferenceVariableId),
     ForeignTypeParameter(hir::TypeParamId),
     Relation {
@@ -231,6 +238,7 @@ impl ConstraintFailureKind {
             | Self::NoUniqueSolution { variable, .. }
             | Self::Kind { variable, .. }
             | Self::InterfaceBound { variable, .. }
+            | Self::ExcludedInterface { variable, .. }
             | Self::ClassBound { variable, .. } => Some(*variable),
             Self::Relation { left, right, .. } => [left, right].into_iter().find_map(|term| {
                 let TypeTerm::Variable(variable) = term else {

@@ -1,0 +1,3 @@
+interface I {}
+val <T : !I> T.bad: Int get() = 1
+fun main() {}

@@ -4,7 +4,9 @@ use scoop_wire::{Encoder, WireEncode};
 
 use crate::{PersistentGenericTypeId, PersistentTypeId};
 
+mod conditions;
 mod decode;
+pub use conditions::SignatureConditionKey;
 
 pub use decode::{
     DecodedDuplicateSignatureKey, DecodedOptionalSignatureType, DecodedSignatureTypeKey,
@@ -238,6 +240,7 @@ pub enum DuplicateSignatureKey {
         type_parameter_count: u32,
         receiver: OptionalSignatureType,
         parameters: Vec<SignatureTypeKey>,
+        conditions: Vec<SignatureConditionKey>,
     },
     Constructor {
         parameters: Vec<SignatureTypeKey>,
@@ -292,15 +295,21 @@ impl WireEncode for DuplicateSignatureKey {
                 type_parameter_count,
                 receiver,
                 parameters,
+                conditions,
             } => {
-                encoder.map(4)?;
+                encoder.map(4 + u64::from(!conditions.is_empty()))?;
                 encode_tag(encoder, 2)?;
                 encoder.field(1)?;
                 encoder.unsigned(u64::from(*type_parameter_count))?;
                 encoder.field(2)?;
                 receiver.encode(encoder)?;
                 encoder.field(3)?;
-                encode_sequence(encoder, parameters)
+                encode_sequence(encoder, parameters)?;
+                if !conditions.is_empty() {
+                    encoder.field(4)?;
+                    encode_sequence(encoder, conditions)?;
+                }
+                Ok(())
             }
             Self::Constructor { parameters } => {
                 encoder.map(2)?;

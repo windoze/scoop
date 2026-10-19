@@ -165,6 +165,7 @@ fn option_core_revalidates_refs_and_field_types_before_indexing() {
         ],
     ));
     enums[option].type_params.push(TypeParamDecl {
+        excluded_interfaces: Vec::new(),
         id: parameter,
         name: "T".to_string(),
         bounds: TypeParamBounds::Unconstrained,

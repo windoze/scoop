@@ -1,0 +1,5 @@
+interface I<T> {}
+struct Box<T>(val value: T) : I<T>
+fun <T : !I<Int>> absent(value: T): Int = 1
+fun bad(): Int = absent(Box(1))
+fun main() {}

@@ -1,0 +1,3 @@
+interface I {}
+fun <T : I> bad(value: T): Int where T : !I = 1
+fun main() {}

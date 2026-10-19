@@ -22,6 +22,7 @@ impl Lowerer {
                 self.local_type_parameter_count(Owner::Struct(id)),
                 &decl.type_params,
                 decl.where_clause.as_ref(),
+                false,
                 "struct",
             );
             self.structs[id].type_params = params;
@@ -35,6 +36,7 @@ impl Lowerer {
                 self.local_type_parameter_count(Owner::Enum(id)),
                 &decl.type_params,
                 decl.where_clause.as_ref(),
+                false,
                 "enum",
             );
             self.enums[id].type_params = params;
@@ -56,6 +58,7 @@ impl Lowerer {
                 outer_count,
                 &decl.type_params,
                 decl.where_clause.as_ref(),
+                false,
                 "class",
             );
             self.classes[id].type_params = params;
@@ -69,6 +72,7 @@ impl Lowerer {
                 self.local_type_parameter_count(Owner::Interface(id)),
                 &decl.type_params,
                 decl.where_clause.as_ref(),
+                false,
                 "interface",
             );
             self.interfaces[id].type_params = params;

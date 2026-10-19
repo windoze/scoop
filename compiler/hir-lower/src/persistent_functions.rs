@@ -11,6 +11,7 @@ use crate::{Lowerer, Owner, SourceFunctionDeclaration, namespace::TopLevelLookup
 mod error;
 pub(crate) use error::PersistentFunctionIdentityError;
 use error::PersistentFunctionIdentityErrorDetail as Detail;
+mod conditions;
 mod context;
 mod derived;
 mod topology;
@@ -290,13 +291,17 @@ impl FunctionIdentityBuilder<'_> {
             .map(|parameter| self.type_mapper.map(parameter.ty, &binders))
             .collect::<Result<Vec<_>, _>>()
             .map_err(|error| self.failure(function, Detail::InvalidSignatureType(error)))?;
-        hir::HirSourceFunctionIdentity::from_declaration(SourceDeclarationKey::function(
-            site,
-            name,
-            own_count_u32,
-            receiver,
-            parameters,
-        ))
+        let conditions = self.function_conditions(function, &binders)?;
+        hir::HirSourceFunctionIdentity::from_declaration(
+            SourceDeclarationKey::constrained_function(
+                site,
+                name,
+                own_count_u32,
+                receiver,
+                parameters,
+                conditions,
+            ),
+        )
         .map_err(|error| self.failure(function, Detail::InvalidIdentity(error)))
     }
 
