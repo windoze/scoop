@@ -1,0 +1,45 @@
+struct Pair(val left: Long, val right: Long)
+class Total(var value: Long)
+
+fun <T> scope(action: () -> T): T = action()
+
+fun each(values: Array<Long>, action: (Long) -> Unit) {
+    var i = 0L
+    while (i < values.size) { action(values[i]); i += 1L }
+}
+
+fun boxes(n: Long, total: Total) {
+    var i = 0L
+    while (i < n) {
+        val boxed: Any = Pair(i, i + 1L)
+        val pair = boxed as Pair
+        total.value += pair.left + pair.right
+        i += 1L
+    }
+}
+
+fun closures(n: Long, total: Total) {
+    var i = 0L
+    while (i < n) {
+        val value = i
+        scope { total.value += value + 1L }
+        i += 1L
+    }
+}
+
+fun traversals(n: Long, total: Total, values: Array<Long>) {
+    var i = 0L
+    while (i < n) {
+        val offset = i
+        each(values) { value -> total.value += value + offset }
+        i += 1L
+    }
+}
+
+fun main(args: Array<String>) {
+    val total = Total(0L)
+    if (args[1L] == "boxes") boxes(1000000L, total)
+    else if (args[1L] == "closures") closures(1000000L, total)
+    else traversals(200000L, total, Array<Long>(64L) { i -> i })
+    println(total.value)
+}

@@ -71,9 +71,15 @@ impl ControlFlow {
         if creation.block == usage.block {
             return creation.statement < usage.statement;
         }
-        let mut block = index(usage.block);
+        self.block_dominates(index(creation.block), index(usage.block))
+    }
+
+    fn block_dominates(&self, creation: usize, mut block: usize) -> bool {
+        if creation == block {
+            return true;
+        }
         while let Some(parent) = self.dominators[block] {
-            if parent == index(creation.block) {
+            if parent == creation {
                 return true;
             }
             if parent == block {
@@ -126,10 +132,22 @@ impl ControlFlow {
         let cyclic = graph::cyclic_nodes(&self.edges);
         self.back_edges
             .iter()
-            .flat_map(|&(_, target)| &live[target])
-            .flat_map(|&local| &sources.locals[index(local)].candidates)
-            .copied()
-            .filter(|&id| cyclic[index(sources.allocations[id].site.block)])
+            .flat_map(|&(from, target)| {
+                let natural = self.block_dominates(target, from);
+                let cyclic = &cyclic;
+                live[target]
+                    .iter()
+                    .flat_map(|&local| &sources.locals[index(local)].candidates)
+                    .copied()
+                    .filter(move |&id| {
+                        let creation = index(sources.allocations[id].site.block);
+                        // An outer iteration may reuse one instance throughout
+                        // an inner loop. Only its creation loop needs isolation.
+                        let outside =
+                            natural && creation != target && self.block_dominates(creation, target);
+                        cyclic[creation] && !outside
+                    })
+            })
             .collect()
     }
 }

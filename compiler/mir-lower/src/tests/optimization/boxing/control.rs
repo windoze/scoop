@@ -46,6 +46,44 @@ fn loop_local_boxes_and_dominating_preheader_boxes_can_be_removed() {
 }
 
 #[test]
+fn outer_iteration_snapshot_can_be_reused_by_an_inner_loop() {
+    let (mut module, id) = sample();
+    let body = &mut module.functions[id].body;
+    let entry = body.entry;
+    let flag = value(body, "flag");
+    let mut checks = body.blocks[entry].statements.split_off(3);
+    let mir::Terminator::Return { value } = std::mem::replace(
+        &mut body.blocks[entry].terminator,
+        mir::Terminator::Unreachable,
+    ) else {
+        panic!("sample return");
+    };
+    checks.push(node(mir::StatementKind::Expr(value)));
+    let statements = std::mem::take(&mut body.blocks[entry].statements);
+    let creation = body.blocks.alloc(mir::BasicBlock {
+        name: "outer.creation".into(),
+        statements,
+        terminator: mir::Terminator::Unreachable,
+        unwind: None,
+    });
+    let inner = body.blocks.alloc(mir::BasicBlock {
+        name: "inner".into(),
+        statements: checks,
+        terminator: mir::Terminator::Unreachable,
+        unwind: None,
+    });
+    body.blocks[entry].terminator = mir::Terminator::Goto(creation);
+    body.blocks[creation].terminator = mir::Terminator::Goto(inner);
+    body.blocks[inner].terminator = mir::Terminator::Branch {
+        cond: flag,
+        then_block: inner,
+        else_block: creation,
+    };
+    elide(&mut module);
+    assert_eq!(counts(&module.functions[id]), (0, 0, 0));
+}
+
+#[test]
 fn previous_iteration_alias_is_not_replaced_by_the_latest_payload() {
     let (mut module, id) = sample();
     let body = &mut module.functions[id].body;
