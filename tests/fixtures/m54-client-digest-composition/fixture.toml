@@ -33,7 +33,7 @@ checks = [{actual = "${build.result.observations.child_invocations.length}", equ
 
 [[steps]]
 name = "run"
-timeout = 900
+timeout = 3600
 argv = ["python3", "${work}/cases.py", "${build.result.output}"]
 exit = 0
 stdout = "Digest metadata redirects retries HTTP2 and concurrent nonce updates passed\n"

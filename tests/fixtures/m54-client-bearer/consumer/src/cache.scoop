@@ -25,7 +25,9 @@ internal fun bearerCache(trust: TrustStore) {
             val expected = ["token1", "token1", "token1", "token2", "token3", "other", "token2"]
             for (token in expected) {
                 AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
-                    val request = connection.receiveRequest()!!
+                    val received = connection.receiveRequest()
+                    bearerCheck(bearerPresent(received), "Bearer cache peer reached EOF before " + token)
+                    val request = received!!
                     bearerCheck(bearerToken(request.head) == Some(token))
                     request.body.readAllBytes(0L)
                     bearerRespond(connection, 200U, "done")

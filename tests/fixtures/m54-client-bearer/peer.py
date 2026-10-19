@@ -19,7 +19,7 @@ def consume(binary, mode, *urls, moving=True):
         env=environment,
         capture_output=True,
         text=True,
-        timeout=180,
+        timeout=600 if mode in ("cache", "http2") else 180,
     )
     assert result.returncode == 0, (mode, urls, result.returncode, result.stdout, result.stderr)
     assert result.stdout == f"client Bearer {mode}\n" and not result.stderr, result

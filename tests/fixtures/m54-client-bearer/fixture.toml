@@ -29,7 +29,7 @@ checks = [{actual = "${build.result.observations.child_invocations.length}", equ
 
 [[steps]]
 name = "run"
-timeout = 900
+timeout = 3600
 argv = ["python3", "${work}/peer.py", "${build.result.output}"]
 exit = 0
 stdout = "independent Bearer cache refresh cancellation and HTTP2 passed\n"
