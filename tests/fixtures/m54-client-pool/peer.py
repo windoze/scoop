@@ -79,7 +79,7 @@ def begin_http2(connection):
     send_frame(connection, 4, 0, 0, struct.pack("!HI", 3, 2))
 
 
-def next_request(connection):
+def next_request(connection, previous_streams=()):
     while True:
         kind, flags, stream, payload = frame(connection)
         if kind == 4:
@@ -88,7 +88,9 @@ def next_request(connection):
                 send_frame(connection, 4, 1, 0)
         elif kind == 1:
             assert flags & 4
-            return stream
+            if payload:
+                return stream
+            assert stream in previous_streams and flags & 1
         else:
             assert kind in (0, 8), (kind, flags, stream, payload)
 
@@ -103,21 +105,24 @@ def http2(listener):
         begin_http2(connection)
         assert next_request(connection) == 1
         h2_response(connection, 1, "a")
-        assert next_request(connection) == 3
+        assert next_request(connection, (1,)) == 3
         send_frame(connection, 4, 0, 0, struct.pack("!HI", 3, 1))
         h2_response(connection, 3, "b")
         resets = set()
         while resets != {1, 3}:
             kind, flags, stream, payload = frame(connection)
-            assert kind != 1, "new stream was sent before both occupied slots were released"
-            if kind == 3:
+            if kind == 1:
+                assert stream in (1, 3) and flags & 5 == 5 and not payload, (
+                    "new stream was sent before both occupied slots were released"
+                )
+            elif kind == 3:
                 assert stream in (1, 3) and payload == struct.pack("!I", 8)
                 resets.add(stream)
             elif kind == 4 and not flags & 1:
                 send_frame(connection, 4, 1, 0)
             else:
                 assert kind in (0, 4, 8), (kind, flags, stream)
-        assert next_request(connection) == 5
+        assert next_request(connection, (1, 3)) == 5
         send_frame(connection, 7, 0, 0, struct.pack("!II", 5, 0))
         h2_response(connection, 5, "third", end=True)
         # The client can flush WINDOW_UPDATE before closing the drained connection.
@@ -130,7 +135,10 @@ def http2(listener):
                 break
             header = first + exact(connection, 8)
             payload = exact(connection, int.from_bytes(header[:3], "big"))
-            assert header[3] in (0, 3, 4, 7, 8), (header, payload)
+            if header[3] == 1:
+                assert int.from_bytes(header[5:], "big") == 5 and header[4] & 5 == 5 and not payload
+            else:
+                assert header[3] in (0, 3, 4, 7, 8), (header, payload)
     with listener.accept()[0] as connection:
         begin_http2(connection)
         assert next_request(connection) == 1

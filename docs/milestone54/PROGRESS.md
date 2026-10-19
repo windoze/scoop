@@ -334,6 +334,8 @@ Linux 重编 HTTP 库暴露了 callable C 字符串的重复归属：已有边�
 
 全部 140 项 client 测试通过两种构建，新增 15 项逐例通过两种构建的 full moving，共 30 个进程。覆盖方法转换、重放拒绝、循环／次数／scheme、配置替换、H2 并发隔离、取消、清理失败和总截止。网络阶段单独启用时的累计计数曾在独立消费者中复现为零，修复后保留已确认的 4 字节；并发测试使用明确的接受顺序栅栏。中间响应不初始化无用解码器，下一跳等待上传与来源清理；生产 client release 构建通过。
 
+Linux 组合回归中的连接池对端把已发送请求的空 trailing HEADERS 误认为新流。对端现按 stream ID、空 payload 与 END_STREAM 区分合法上传结束和新请求，仍检查占用容量释放前不得创建新流；修正后的 `m54-client-pool` 在 Darwin 通过 debug／release、full moving 与构建复用，共 6 个步骤进程。GNU／musl 的 Location 和重定向已通过，连接池待此修正后复验；GOAWAY 消费者的 release 暴露了独立 GC 故障，继续在编译器层定位。
+
 ## 后续工作
 
 继续完成重试／认证／代理、Cookie、缓存／续传、SSE／WebSocket 高层组合和可观察性。每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
