@@ -140,6 +140,16 @@ static int frame_sent(nghttp2_session *session, const nghttp2_frame *frame,
   return frame->hd.type == NGHTTP2_GOAWAY ? goaway(user_data, frame, 1) : 0;
 }
 
+static int frame_sending(nghttp2_session *session, const nghttp2_frame *frame,
+                         void *user_data) {
+  (void)session;
+  http2 *h = user_data;
+  h->output_stream_id = frame->hd.stream_id;
+  h->output_kind = frame->hd.type == NGHTTP2_HEADERS ? HTTP2_OUTPUT_HEADERS
+                                                     : HTTP2_OUTPUT_CONTROL;
+  return 0;
+}
+
 static int frame_not_sent(nghttp2_session *session, const nghttp2_frame *frame,
                           int code, void *user_data) {
   (void)session;
@@ -165,6 +175,8 @@ void http2_event_callbacks(nghttp2_session_callbacks *callbacks) {
   nghttp2_session_callbacks_set_on_stream_close_callback(callbacks,
                                                          stream_close);
   nghttp2_session_callbacks_set_on_frame_send_callback(callbacks, frame_sent);
+  nghttp2_session_callbacks_set_before_frame_send_callback(callbacks,
+                                                           frame_sending);
   nghttp2_session_callbacks_set_on_frame_not_send_callback(callbacks,
                                                            frame_not_sent);
 }

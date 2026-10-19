@@ -38,13 +38,15 @@ void http2_stream_maybe_free(http2 *h, http2_stream *s) {
 static nghttp2_ssize body_read(nghttp2_session *session, int32_t stream_id,
                                uint8_t *buffer, size_t length, uint32_t *flags,
                                nghttp2_data_source *source, void *user_data) {
-  (void)user_data;
+  http2 *h = user_data;
   http2_stream *s = source->ptr;
   size_t count = s->body.size - s->body_offset;
   if (count > length)
     count = length;
   if (!count && !s->send_eof)
     return NGHTTP2_ERR_DEFERRED;
+  h->output_stream_id = stream_id;
+  h->output_kind = HTTP2_OUTPUT_DATA;
   if (count)
     memcpy(buffer, s->body.data + s->body_offset, count);
   s->body_offset += count;

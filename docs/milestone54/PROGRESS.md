@@ -64,6 +64,7 @@
 | 响应自动解码与有界读取 | 纯 Scoop 组合 gzip／zlib／Brotli／zstd 异步流，支持 Raw、逆序多层解码和原始头部；bytes／text／json／copyTo 共用单一消费位置与读取互斥，取消等待 decoder 清理 | 新增 16 项测试，client 全部 99 项通过 debug／release；20 项新旧用例逐例通过两种构建的 full moving，独立 HTTP 对端、双线程并行 H2 与正式构建复用通过 |
 | 调用截止与阶段等待 | HttpTimeoutOptions 提供 total／poolAcquire／responseHeaders；配置继承或完整替换，单调截止覆盖正文消费及真实清理，阶段与进度随结构化异常交付 | 新增 13 项测试，client 全部 112 项通过 debug／release；17 项新旧用例逐例通过两种构建的 full moving，独立对端的同步回调边界、压缩取消、H2 单流隔离与构建复用通过 |
 | 统一网络阶段时限 | HttpTimeoutOptions 的 resolve／connect／tlsHandshake 默认各 30 秒；DNS／TCP 复用 asyncio 的分族截止与竞速，TLS 单独计时，结构化错误保留下层原因，复用连接跳过建连阶段 | 新增 7 项测试并扩展配置覆盖，client 全部 119 项通过 debug／release；14 项新旧用例逐例通过两种构建的 full moving，独立 Python socket／TLS 对端验证零期限、握手停滞、总截止与复用 |
+| HTTP/2 输出归属 | takeOutputChunk 返回实际流号与 Headers／Data／Control 类别，保留 CONTINUATION 和短取出的归属；hasPendingOutput 只计算本流的消息输出，reset 后仍保留已序列化尾部 | 新增 5 项测试，HTTP 全部 228 项、HTTP asyncio 全部 97 项通过 debug／release；10 项协议用例逐例通过两种构建的 full moving，独立帧解析与连接池对端回归通过 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -260,6 +261,10 @@ SecTrust 对原有十年有效期叶证书的拒绝符合系统政策，测试�
 `m54-client-network` 在 Darwin 通过 debug／release 两个变体，共 6 个进程。五种独立对端场景各由两个 native 线程执行：DNS／TCP 零期限失败后继续调用、零 TLS 时限下不发送 ClientHello、实际握手停滞、更早的总截止，以及握手结束后的延迟读取和同连接复用；full moving 与构建复用通过。
 
 7 项新测试与配置、TLS／ALPN、H2 取消回归共 14 项，逐例通过两种构建的 full moving，共 28 个进程。IP 与明文跳过不适用阶段，统一配置覆盖 asyncio 的底层时限字段，失败保持完整 DNS／TCP 原因；超时和显式取消均等待实际关闭，另一 origin 继续可用。生产依赖按正常库入口刷新，client 没有引入解析、竞速或 TLS 的替代实现。
+
+`m54-http2-output` 在 Darwin 通过 debug／release 两个变体，共 6 个进程。两个 native 线程分别输出短片段、大首部的 CONTINUATION、双流正文、trailer、空 DATA 结束和 RST_STREAM；独立 Python 帧解析逐字节核对流号与片段类别，full moving 与构建复用通过。
+
+5 项新测试与 5 项 pending／流控／消息回归逐例通过两种构建的 full moving，共 20 个进程。原有 takeOutput 与新入口可交替消费，零容量和非法范围不推进，其他流与控制输出不延长本流的 pending 状态。生产 HTTP、HTTP asyncio 和 client 按依赖顺序重建，`m54-client-pool` 两种构建的 6 个进程回归通过，包含 H2 取消、并发上限变化与 GOAWAY。消费者初次编译补足空字段列表的元素类型后通过；此项提供输出事实，实际 I/O idle 计时继续在 HTTP asyncio 实施。
 
 ## 后续工作
 

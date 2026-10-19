@@ -84,17 +84,26 @@ public class Http2Session private constructor(private var handle: ULong, public 
         }
     }
 
-    public fun takeOutput(buffer: NativeByteBuffer, count: Long = buffer.writableBytes): Long {
+    public fun takeOutput(buffer: NativeByteBuffer, count: Long = buffer.writableBytes): Long =
+        takeOutputChunk(buffer, count).count
+
+    public fun takeOutputChunk(buffer: NativeByteBuffer, count: Long = buffer.writableBytes): Http2OutputChunk {
         val owned = nativeHandle()
         if (count < 0L || count > buffer.writableBytes) throw IllegalArgumentException(Some("invalid HTTP/2 output capacity"))
-        if (count == 0L) return 0L
+        if (count == 0L) return Http2OutputChunk(0L, 0, Http2OutputKind.Control)
         @Unsafe {
             val borrow = buffer.borrowWritable(count)
             val step = try { http2Output(owned, borrow.pointer()!!, count) }
                 catch (error: Throwable) { borrow.complete(0L); throw error }
             borrow.complete(step.count)
             check(step.code, "produce HTTP/2 output", 0, HttpFailureScope.Connection)
-            return step.count
+            val kind = when (step.kind) {
+                case 0 -> Http2OutputKind.Control
+                case 1 -> Http2OutputKind.Headers
+                case 2 -> Http2OutputKind.Data
+                else -> throw IllegalStateException(Some("invalid native HTTP/2 output kind"))
+            }
+            return Http2OutputChunk(step.count, step.streamId, kind)
         }
     }
 

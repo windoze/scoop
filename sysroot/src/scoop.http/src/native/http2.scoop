@@ -1,10 +1,12 @@
 package scoop.http
 
+@CLayout internal struct NativeHttp2Output(val count: Long, val code: Int, val streamId: Int, val kind: Int)
+
 @Extern(name = "scoop_http2_new") internal fun http2New(server: Int, config: NativeHttp2Config, settings: NativeHttp2Settings, upgrading: Int): ULong
 @Extern(name = "scoop_http2_free") internal fun http2Free(handle: ULong)
 @Extern(name = "scoop_http2_error") internal fun http2Error(handle: ULong): Ptr<Byte>
 @Extern(name = "scoop_http2_receive") internal fun http2Receive(handle: ULong, data: Ptr<Byte>, size: Long): NativeHttpStep
-@Extern(name = "scoop_http2_output") internal fun http2Output(handle: ULong, data: Ptr<Byte>, capacity: Long): NativeHttpStep
+@Extern(name = "scoop_http2_output") internal fun http2Output(handle: ULong, data: Ptr<Byte>, capacity: Long): NativeHttp2Output
 @Extern(name = "scoop_http2_wants") internal fun http2Wants(handle: ULong, write: Int): Int
 @Extern(name = "scoop_http2_pending") internal fun http2Pending(handle: ULong, id: Int): Int
 @Extern(name = "scoop_http2_buffered") internal fun http2Buffered(handle: ULong): Long

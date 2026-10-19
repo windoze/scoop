@@ -85,7 +85,9 @@ Http2Settings 声明 headerTableSize、maxConcurrentStreams、initialWindowSize�
 
 receive／takeOutput 使用 NativeByteBuffer 的实际前缀。mem_send2 返回的临时字节必须在下一次可能使指针失效的调用前复制到自有存储；不能跨挂起保存该指针。输出每次可短传输，未取走的输出保持有效。
 
-hasPendingOutput(streamId) 查询该流尚未序列化的头、已接受的 DATA 和结束标记，以及会话仍持有的输出片段。bufferedOutputBytes 单独返回会话已经序列化、尚未取走的片段字节数，供 GOAWAY 等控制输出在其他流继续发送时独立完成 flush。流窗口为零时即使 wantsWrite 为 false，该流仍可有待发送 body。查询不推进协议、不执行 I/O；takeOutput 已交给调用者的 buffer 仍由调用者负责写完和 flush。
+takeOutputChunk 使用相同的 buffer／count 合同，返回 Http2OutputChunk(count, streamId, kind)。每个非空片段只属于一个流和一种 Http2OutputKind：Headers 包含首部及其 CONTINUATION，Data 包含 DATA 的定界和内容，Control 包含其他帧及连接前言；streamId 是实际帧的流号，连接级内容为零。零容量或暂无输出返回 count=0、streamId=0、Control，不推进零容量操作。归属由 nghttp2 的序列化回调保存，跨短取出保持稳定，不另外解析输出字节；takeOutput 仍只返回 count，两种入口可交替消费同一输出位置。此 count 是取出量，实际网络写入进度须由调用方按该片段的真实传输返回量累计。
+
+hasPendingOutput(streamId) 查询该流尚未序列化的头、已接受的 DATA 和结束标记，以及会话仍持有的该流 Headers／Data 片段；其他流和 Control 片段不使本流保持待发送。流已关闭或 reset 时，之前已序列化而未取完的片段仍须完整取走。bufferedOutputBytes 单独返回会话已经序列化、尚未取走的所有片段字节数，供 GOAWAY 等控制输出在其他流继续发送时独立完成 flush。流窗口为零时即使 wantsWrite 为 false，该流仍可有待发送 body。查询不推进协议、不执行 I/O；已经交给调用者的 buffer 仍由调用者负责写完和 flush。
 
 请求／响应头、trailer、DATA、流结束、RST_STREAM、GOAWAY、SETTINGS 与忽略字段各自可观察。非法头或消息错误按后端真实作用域处理；普通消息接口不暴露 no_http_messaging。发送头根据消息数据生成合法伪头顺序和小写字段名，使用后端公开的名称／值检查；调用者不能把伪头混入普通字段。
 

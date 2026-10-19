@@ -1,0 +1,85 @@
+package scoop.http
+
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+@Test private class Http2OutputOriginLifetimeTests {
+    @Test fun `a reset keeps the serialized data tail while other streams and control bytes are not pending`() {
+        withHttp2 { client, server ->
+            val first = client.submitRequest(request2("POST", "/first"), false)
+            val second = client.submitRequest(request2("POST", "/second"), false)
+            drive2(client, server)
+            assertFalse(client.hasPendingOutput(first) || client.hasPendingOutput(second))
+            write2(client, first, "body".toByteArray())
+            NativeByteBuffer.allocate(1L).use { buffer ->
+                val initial = client.takeOutputChunk(buffer)
+                assertEquals(1L, initial.count)
+                assertEquals(first, initial.streamId)
+                assertTrue(initial.kind == Http2OutputKind.Data)
+                assertEquals(1L, server.receive(buffer))
+                assertTrue(client.hasPendingOutput(first))
+                assertFalse(client.hasPendingOutput(second))
+                client.reset(first)
+                assertTrue(client.hasPendingOutput(first))
+                while (true) {
+                    buffer.clear()
+                    val part = client.takeOutputChunk(buffer)
+                    assertEquals(1L, part.count)
+                    assertEquals(first, part.streamId)
+                    assertEquals(1L, server.receive(buffer))
+                    assertFalse(client.hasPendingOutput(second))
+                    if (part.kind == Http2OutputKind.Control) {
+                        assertFalse(client.hasPendingOutput(first))
+                        assertTrue(client.bufferedOutputBytes > 0L)
+                        break
+                    }
+                    assertTrue(part.kind == Http2OutputKind.Data)
+                }
+            }
+            drive2(client, server)
+            assertFalse(client.hasPendingOutput(first))
+            assertEquals(2L, write2(client, second, "ok".toByteArray()))
+            client.finish(second)
+            drive2(client, server)
+            val received = events2(server)
+            assertTrue(closed2(received, first, 8U))
+            assertEquals("ok", String.fromUtf8(data2(received, second)))
+        }
+    }
+
+    @Test fun `CONTINUATION retains its stream across short output chunks and old output calls`() {
+        val limits = Http2Limits(headers = HttpHeaderLimits(maxFieldBytes = 65536L))
+        withHttp2(Http2Session.client(limits = limits), Http2Session.server(limits = limits)) { client, server ->
+            drive2(client, server)
+            val value = Array<Byte>(40000L) { _ -> 122.toByte() }
+            val id = client.submitRequest(request2(fields = [HttpField("x-large".toByteArray(), value)]))
+            NativeByteBuffer.allocate(2048L).use { buffer ->
+                var total = 0L
+                var labelled = 0L
+                var legacy = false
+                while (true) {
+                    buffer.clear()
+                    val count = if (legacy) client.takeOutput(buffer) else {
+                        val part = client.takeOutputChunk(buffer)
+                        if (part.count > 0L) {
+                            assertEquals(id, part.streamId)
+                            assertTrue(part.kind == Http2OutputKind.Headers)
+                            labelled += 1L
+                        }
+                        part.count
+                    }
+                    if (count == 0L) break
+                    total += count
+                    assertEquals(count, server.receive(buffer))
+                    legacy = !legacy
+                }
+                assertTrue(total > 16393L && labelled > 2L)
+            }
+            assertFalse(client.hasPendingOutput(id))
+            val heads = requests2(events2(server))
+            assertEquals(1L, heads.size)
+            assertEquals(value.size, heads[0L].fields[0L].value.size)
+            assertEquals(String.fromUtf8(value), String.fromUtf8(heads[0L].fields[0L].value))
+        }
+    }
+}

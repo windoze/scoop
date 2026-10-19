@@ -4,6 +4,12 @@
 #include "http.h"
 #include <nghttp2/nghttp2.h>
 
+enum { HTTP2_OUTPUT_CONTROL, HTTP2_OUTPUT_HEADERS, HTTP2_OUTPUT_DATA };
+typedef struct {
+  int64_t count;
+  int32_t code, stream_id, kind;
+} http2_output;
+
 typedef struct {
   int64_t header_bytes, field_bytes, fields, continuations;
   int64_t send_header_bytes, pending_body_bytes;
@@ -37,6 +43,7 @@ typedef struct {
   size_t header_bytes, header_count;
   http_bytes output;
   size_t output_offset;
+  int32_t output_stream_id, output_kind;
   http_error error;
 } http2;
 
