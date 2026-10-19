@@ -380,6 +380,8 @@ body 的 EH、LSDA、unwind、stackmap、关联常量与私有 Context cells 属
 
 LLVM 在机器发射中由 switch 生成的引用查找表和跳转表同样属于该 callable 的关联常量。AddressTakenConstant／Singleton 描述需要装载期地址重定位的后端常量；ELF 的 .rodata 贡献另用 AddressTakenConstant／BackendReadOnlyData 描述，包含指向本函数代码的相对跳转表。BackendReadOnlyData 是 DefinitionAtomSubkey 的无 payload 变体（wire tag 10），不改变既有子键的编码。两个贡献均在机器发射后按实际对象保留或移除，表内引用沿用普通引用闭合及 fingerprint。ELF 同时识别普通段名及带当前 callable 实际符号后缀的 COMDAT 段名，不把其他函数、字符串或固定宽度 literal 段归入该贡献。Mach-O 的地址表放入只读 __DATA_CONST 段；ELF 分别使用 .data.rel.ro.scoop.constants 与 .rodata.scoop.constants，保留各自权限，并与 callable 一同进行 ODR 选择。它们不获得源码实体身份，不通过忽略 orphan relocation 或关闭 switch 优化绕过对象合同；固定宽度、无引用的数值 literal pool 保持原有按内容表示。
 
+已有 CallableCStringIdentity 的 C 字符串直接发射到所选目标的 C 字符串段（Mach-O 的 __TEXT,__cstring 或 ELF 的 .rodata.str1.1），沿用自身的 callable 归属与起止边界，不重复计入后端 .rodata 贡献。该规则同时适用于普通 callable 和 ODR callable；不把任意 byte array 当作 C 字符串。
+
 Mach-O 的数值跳转表及查找表可以与已有边界的字符串等常量共享 __TEXT,__const，位置可在段首、已有 atom 之间或之后。按代码实际引用的局部符号确定每张无归属表的起点，范围止于下一个被引用的局部表、已有 atom 起点或段尾；已有 atom 内的符号仍按该 atom 处理。表内不含 relocation，其实际 bytes 参与 callable 内容指纹，不把同段的字符串、相邻表或其 relocation 一并归入当前表。局部符号名与物理位置不获得新的语义身份，也不因表不在段首而拒绝正常 LLVM 输出。
 
 C extern 按 2.4 的 DirectC/StorageBridge 计划发射。DirectC 使用真实 native symbol 和完整目标 C ABI，不生成或经过 outbound storage bridge；对象中的调用 relocation 直接表达该 native 引用。只有实际采用 StorageBridge 的调用才要求相应 generated-C unit；callback、native global/TLS 等其他桥接用途照常保留。两种路径均保留相同的 native contract 与 library requirement，不因省去 bridge 丢失链接需求。

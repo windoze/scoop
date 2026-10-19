@@ -307,6 +307,10 @@ Linux 的 TCP deadline 消费者发现环境假设：该机 hosts 只为 localho
 
 6 项新增测试和 8 项配置／截止／取消／清理回归逐例通过两种构建的 full moving，共 28 个进程。覆盖零时限不获取 producer、复用连接上的完整配置替换、保留原始 HTTP idle 原因和资源清理错误、后台对端 reset、未完成清理期间的池容量及首次 close 的失败观察。生产 client 已使用经过验证的 HTTP 实现发布到本机 sysroot；client 没有新增 I/O 时钟或原生入口。
 
+Linux 重编 HTTP 库暴露了 callable C 字符串的重复归属：已有边界的 `array size overflow` 与后端整段 .rodata 贡献重叠。codegen 现在将 CallableCStringIdentity 发射到既有目标字符串段，保留普通／ODR callable 的独立边界；没有放宽对象范围验证或改写 HTTP 源码。
+
+新增对象范围回归在修复前失败，修复后覆盖三目标、debug／release、普通／ODR 共 12 种输出，codegen 全部 226 项测试及 workspace clippy 通过。`m54-callable-cstrings` 的数组展开、泛型和 suspend 组合，以及原协程跳转表 fixture，在 Darwin 共通过 4 个变体、12 个步骤进程，均含 full moving 和正常构建复用；同一数组消费者已在旧 Linux 编译器上复现范围重叠。
+
 ## 后续工作
 
 继续完成重定向／重试／认证／代理、Cookie、缓存／续传、SSE／WebSocket 高层组合和可观察性。每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。

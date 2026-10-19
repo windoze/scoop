@@ -5,6 +5,7 @@ use object::{Object, ObjectSymbol};
 use super::*;
 
 mod constants;
+mod cstrings;
 mod no_gc;
 mod optimized;
 
