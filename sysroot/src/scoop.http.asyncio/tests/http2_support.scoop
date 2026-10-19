@@ -8,12 +8,14 @@ internal class NoticeLog {
     private val entries: ArrayList<Http2Notice> = ArrayList<Http2Notice>()
     val settings: AsyncGate = AsyncGate()
     val closed: AsyncGate = AsyncGate()
+    val failed: AsyncGate = AsyncGate()
     val goAway: AsyncGate = AsyncGate()
     fun receive(event: Http2Notice) {
         lock.withLock { entries.add(event) }
         when (event) {
             case Settings(_, ack) -> { if (!ack) settings.signal() }
             case StreamClosed(_, _) -> closed.signal()
+            case StreamFailure(_, _) -> failed.signal()
             case GoAway(_, _, _, _) -> goAway.signal()
             else -> {}
         }

@@ -67,6 +67,7 @@
 | HTTP/2 输出归属 | takeOutputChunk 返回实际流号与 Headers／Data／Control 类别，保留 CONTINUATION 和短取出的归属；hasPendingOutput 只计算本流的消息输出，reset 后仍保留已序列化尾部 | 新增 5 项测试，HTTP 全部 228 项、HTTP asyncio 全部 97 项通过 debug／release；10 项协议用例逐例通过两种构建的 full moving，独立帧解析与连接池对端回归通过 |
 | HTTP/2 输入进度 | receiveWithProgress 交付按流归属的消息输入字节，分段 HPACK／CONTINUATION 不等待完整首部；帧头完整后才归属，控制及后端忽略的帧不延长其他流的等待 | 新增 6 项测试，HTTP 全部 234 项通过 debug／release；11 项新旧用例逐例通过两种构建的 full moving，独立逐段字节对照与 h2c 对端回归通过 |
 | HTTP 读写停滞时限 | HttpIoTimeoutOptions 提供可关闭的读／写 idle；H1 按消息关闭连接，H2 按实际流输入／输出进度隔离超时，已排队输出持续计时，完成后在恢复调用方前停止 | 新增 12 项测试，HTTP asyncio 全部 109 项通过 debug／release；17 项新旧用例逐例通过两种构建的 full moving，独立对端验证分段首部、流控停滞、其他流活跃和应用同步停顿 |
+| HTTP/2 流失败通知 | StreamFailure 保留已终止流的原始原因，failure 快照衔接登记前事件；后台失败无须活动操作等待者，正常完成和显式关闭本流不额外通知 | 新增 4 项测试并扩展取消断言，HTTP asyncio 全部 113 项通过 debug／release；9 项新旧用例逐例通过两种构建的 full moving，独立对端验证响应头交付后的零窗口超时、对端 reset 和后续流复用 |
 | ELF 后端只读常量 | callable 的 .rodata 包含独立关联定义，跳转表与代码同属一次 ODR 选择；保留只读权限、相对重定位及精确范围，缺省贡献在机器发射后移除 | 225 项 codegen、350 项身份编码、390 项 LIR 与 253 项产物测试通过；独立协程消费者在旧 Linux 编译器上复现 release 失败，在 Darwin 通过 debug／release、full moving 与构建复用 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
@@ -283,9 +284,13 @@ GNU 上的该独立 fixture 随后通过两种构建；原 TCP 消费者进一�
 
 12 项新增测试与 5 项取消／清理／h2c 回归逐例通过两种构建的 full moving，共 34 个进程。覆盖零时限、已缓冲输入、配置拒绝、迟到同步完成、实际 caller Job、TLS 流隔离、长计时取消和并发关闭。应用停顿用例独立复现并闭合了 flush 恢复调用方前未停止写时钟的问题；生产 HTTP asyncio 与兼容调用方的 client 按依赖顺序重建并发布到本机 sysroot。client 的统一 idle 错误映射与后台流失败通知继续在对应库实现。
 
+`m54-http2-notices` 在 Darwin 通过 debug／release 两个变体，共 6 个进程。三个独立 Python 对端场景各由两个 native 线程执行：最终响应头之后，零窗口中已排队的上传超时仍主动通知；对端 reset 保留具体协议原因；正常完成和本地显式 close 不产生新的失败通知。回调直接查询流快照，验证锁外调用与原因对象一致，其他流和后续请求保持可用，full moving 与构建复用通过。
+
+新增 4 项测试与 5 项错误／取消／关闭回归逐例通过两种构建的 full moving，共 18 个进程。连接失败向每个未完成流保留同一 ResourceUseException，取消只通知一次，已完成响应仍可读取；重复 close 不覆盖原始原因。生产 HTTP asyncio 与兼容 client 已重建并发布到本机 sysroot。消费者首次编译的可空引用比较改为模式匹配后通过，未改变语言规则。
+
 ## 后续工作
 
-继续在 HTTP 层补齐后台流失败通知，完成 client 的统一 idle 配置与错误映射，以及重定向／重试／认证／代理、Cookie、缓存／续传、SSE／WebSocket 高层组合和可观察性。每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
+继续完成 client 的统一 idle 配置与错误映射，以及重定向／重试／认证／代理、Cookie、缓存／续传、SSE／WebSocket 高层组合和可观察性。每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
 
 ## 验证安排
 

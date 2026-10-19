@@ -1,0 +1,119 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.platform.env.environmentVariable
+import scoop.test.*
+import scoop.time.Duration
+
+internal fun failureNotices(log: NoticeLog): ArrayList<(Int, Throwable)> {
+    val result = ArrayList<(Int, Throwable)>()
+    for (notice in log.snapshot()) {
+        when (notice) {
+            case StreamFailure(id, error) -> result.add((id, error))
+            else -> {}
+        }
+    }
+    return result
+}
+
+@Test private class Http2StreamNoticeTests {
+    @Test fun `queued output timeout publishes its original cause without an operation waiter`() {
+        val limit = if (present(environmentVariable("SCOOP_GC_STRESS_MOVE"))) Duration.seconds(5L)
+            else Duration.milliseconds(300L)
+        withHttp2(serverSettings = Http2Settings(initialWindowSize = 0U)) suspend { scope, pair ->
+            val stream = pair.client.openRequest(request2("POST"), false,
+                HttpIoTimeoutOptions(writeIdle = Some(limit)))
+            pair.server.acceptRequest()!!.stream.sendResponse(response2())
+            assertEquals(200U, stream.receiveResponse().status)
+            assertFalse(present(stream.failure))
+            sendBytes(stream, "queued".toByteArray())
+            pair.clientEvents.failed.await()
+            val failures = failureNotices(pair.clientEvents)
+            assertEquals(1L, failures.size)
+            val (id, error) = failures[0L]
+            assertEquals(stream.id, id)
+            assertTrue(stream.failure!! === error)
+            if (error is HttpIoTimeoutException) {
+                assertTrue(error.direction == HttpIoDirection.Write && error.protocol == HttpProtocol.Http2)
+                assertEquals(limit, error.limit)
+            } else fail(Some("queued timeout lost its original cause"))
+            try { stream.flush(); fail(Some("failed stream flushed")) }
+            catch (failure: HttpIoTimeoutException) { assertTrue(failure === error) }
+            stream.close(); stream.close()
+            assertTrue(stream.failure!! === error)
+            assertEquals(1L, failureNotices(pair.clientEvents).size)
+            val other = pair.client.openRequest(request2())
+            pair.server.acceptRequest()!!.stream.sendResponse(response2(204U))
+            assertEquals(204U, other.receiveResponse().status)
+            assertTrue(!scope.job.isCancelled && !pair.client.isClosed)
+        }
+    }
+
+    @Test fun `peer reset publishes once and keeps the other streams usable`() {
+        withHttp2 suspend { _, pair ->
+            val stream = pair.client.openRequest(request2())
+            pair.server.acceptRequest()!!.stream.close()
+            pair.clientEvents.failed.await()
+            val failures = failureNotices(pair.clientEvents)
+            assertEquals(1L, failures.size)
+            val (id, error) = failures[0L]
+            assertEquals(stream.id, id)
+            assertTrue(stream.failure!! === error)
+            if (error is HttpException) {
+                assertTrue(error.scope == HttpFailureScope.Stream)
+                assertEquals(8, error.code)
+            } else fail(Some("peer reset lost its protocol cause"))
+            stream.close()
+            assertTrue(stream.failure!! === error)
+            assertEquals(0L, failureNotices(pair.serverEvents).size)
+            val other = pair.client.openRequest(request2())
+            pair.server.acceptRequest()!!.stream.sendResponse(response2(204U))
+            assertEquals(204U, other.receiveResponse().status)
+            assertEquals(1L, failureNotices(pair.clientEvents).size)
+        }
+    }
+
+    @Test fun `normal completion and explicit stream close do not report new failures`() {
+        withHttp2 suspend { _, pair ->
+            val completed = pair.client.openRequest(request2())
+            pair.server.acceptRequest()!!.stream.sendResponse(response2(204U))
+            assertEquals(204U, completed.receiveResponse().status)
+            assertEquals(0L, receiveBytes(completed).size)
+            assertFalse(present(completed.failure))
+            completed.close(); completed.close()
+            val abandoned = pair.client.openRequest(request2("POST"), false)
+            pair.server.acceptRequest()
+            abandoned.close(); abandoned.close()
+            assertTrue(abandoned.failure!! is IoClosedException)
+            assertEquals(0L, failureNotices(pair.clientEvents).size)
+        }
+    }
+
+    @Test fun `connection failure publishes the same combined cause for each unfinished stream`() {
+        withHttp2 suspend { _, pair ->
+            val first = pair.client.openRequest(request2())
+            val second = pair.client.openRequest(request2())
+            pair.server.acceptRequest(); pair.server.acceptRequest()
+            pair.clientRaw.failWrite = true; pair.clientRaw.failClose = true
+            try { pair.client.goAway(); fail(Some("failed transport sent GOAWAY")) }
+            catch (error: ResourceUseException) {
+                assertTrue(error.primaryFailure is TransportFailure && error.cleanupFailure is CleanupFailure)
+                assertTrue(first.failure!! === error && second.failure!! === error)
+                val failures = failureNotices(pair.clientEvents)
+                assertEquals(2L, failures.size)
+                var firstCount = 0; var secondCount = 0
+                for ((id, cause) in failures) {
+                    assertTrue(cause === error)
+                    if (id == first.id) firstCount += 1
+                    else if (id == second.id) secondCount += 1
+                    else fail(Some("failure belongs to an unknown stream"))
+                }
+                assertEquals(1, firstCount); assertEquals(1, secondCount)
+                first.close(); second.close()
+                assertEquals(2L, failureNotices(pair.clientEvents).size)
+            }
+            assertTrue(pair.client.isClosed)
+        }
+    }
+}

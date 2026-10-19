@@ -7,6 +7,7 @@ import scoop.platform.memory.NativeByteBuffer
 public class AsyncHttp2Stream internal constructor(internal val state: H2State, internal val stream: H2Stream)
     : AsyncByteStream, AsyncCloseable {
     public val id: Int get() = stream.id
+    public val failure: Throwable? get() = state.lock.withLock { stream.failure }
     public val isReadComplete: Boolean get() = state.lock.withLock { stream.inputEnded && stream.data.size == 0L }
     public val isWriteComplete: Boolean get() = state.lock.withLock { stream.sendEnded }
     public val trailers: Array<HttpField>? get() = state.lock.withLock {

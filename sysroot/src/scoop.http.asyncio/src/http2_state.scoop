@@ -6,7 +6,7 @@ import scoop.http.*
 import scoop.platform.memory.NativeByteBuffer
 
 public enum Http2Notice {
-    Settings(Array<Http2Setting>, Boolean), StreamClosed(Int, UInt),
+    Settings(Array<Http2Setting>, Boolean), StreamClosed(Int, UInt), StreamFailure(Int, Throwable),
     GoAway(Int, UInt, Array<Byte>, Boolean), IgnoredField(Int, HttpField), Failure(HttpException)
 }
 

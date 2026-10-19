@@ -33,6 +33,11 @@ private class AsyncHttp2CancellationTests {
             cancelling.join(); request.join()
             pair.serverEvents.closed.await()
             assertTrue(caught.load())
+            val failures = failureNotices(pair.clientEvents)
+            assertEquals(1L, failures.size)
+            val (failedId, failure) = failures[0L]
+            assertEquals(cancelled.stream.id, failedId)
+            assertTrue(failure is CancellationException)
             assertEquals(0, pair.clientRaw.closes); assertEquals(0, pair.serverRaw.closes)
             NativeByteBuffer.allocate(1L).use suspend { buffer ->
                 try { cancelled.stream.readInto(buffer, 1L); fail(Some("reset body remained readable")) }

@@ -2,19 +2,23 @@ package scoop.http.asyncio
 
 import scoop.asyncio.IoClosedException
 
-internal fun resetH2Stream(state: H2State, stream: H2Stream, error: Throwable, code: UInt, actions: ArrayList<() -> Unit>) {
+internal fun resetH2Stream(state: H2State, stream: H2Stream, error: Throwable, code: UInt,
+    actions: ArrayList<() -> Unit>, notifyFailure: Boolean = true) {
     if (stream.disposed) return
     stream.failure = Some(error)
     if (state.closing) return
     try { state.session.reset(stream.id, code) }
     catch (failure: Throwable) { terminateH2(state, failure); return }
-    releaseH2Stream(state, stream, error, actions)
+    releaseH2Stream(state, stream, error, actions, notifyFailure)
 }
 
-internal fun releaseH2Stream(state: H2State, stream: H2Stream, error: Throwable, actions: ArrayList<() -> Unit>) {
+internal fun releaseH2Stream(state: H2State, stream: H2Stream, error: Throwable,
+    actions: ArrayList<() -> Unit>, notifyFailure: Boolean = true) {
+    if (stream.disposed) return
     stopH2Idle(stream, actions)
     stream.disposed = true
     stream.failure = Some(error)
+    if (notifyFailure) notifyH2(state, Http2Notice.StreamFailure(stream.id, error), actions)
     stream.data.clear(); stream.offset = 0L
     stream.responses.clear()
     if (present(stream.reader)) finishH2Body(state, stream, stream.reader!!, 0L, Some(error), actions)
@@ -48,8 +52,8 @@ internal suspend fun closeH2Stream(state: H2State, stream: H2Stream) {
         val actions = ArrayList<() -> Unit>()
         val done = state.lock.withLock {
             if (!stream.disposed) {
-                if (state.closed) releaseH2Stream(state, stream, IoClosedException(), actions)
-                else resetH2Stream(state, stream, IoClosedException(), 8U, actions)
+                if (state.closed) releaseH2Stream(state, stream, IoClosedException(), actions, false)
+                else resetH2Stream(state, stream, IoClosedException(), 8U, actions, false)
             }
             if (stream.idleTimers == 0L) true else { stream.idleCloseWaiters.add(continuation); false }
         }

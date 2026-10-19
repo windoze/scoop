@@ -147,6 +147,8 @@ AsyncHttp2Connection 的 client／server 所有权工厂接收相同的 HTTP/2 o
 
 HTTP/2 的 upgraded 所有权工厂另外接收已完成 HTTP/1 请求的方法与协商 SETTINGS，upgradedStream 交付关联的 stream 1；服务端这一流的请求输入已经完成。goAway 提交并发送协议结束通知，关闭仍由独立的 close 负责；停止接收新请求且已无排队请求时 acceptRequest 返回 None。SETTINGS、忽略字段、流关闭、GOAWAY 和后端失败通过 Http2Notice 回调交付，回调在 native 返回后、锁外执行，不可挂起；回调抛出异常会结束连接。
 
+Http2Notice.StreamFailure(streamId, cause) 在已存在的流因协议错误、请求取消、I/O 或时限而异常结束时交付一次原始 Throwable，包括连接结束时尚未正常完成的流；即使没有正在等待的 read／write／receiveResponse，也必须交付。它在流状态定稿后、锁外执行，不取代描述线上事件的 StreamClosed 或后端 Failure。正常完成和调用者显式 close 本流不额外产生 StreamFailure；close 仍按原有合同放弃数据并完成本地清理。AsyncHttp2Stream.failure 是该流已选择的终止原因快照，显式 close 的本地原因是 IoClosedException，正常完成不设置失败；异常结束后的快照与通知引用同一原因，后续 close 不覆盖它。使用者可在登记流之后查询一次快照，衔接此前已经交付的通知，不需要轮询或另建计时器。
+
 HTTP/2 已正常关闭的流保留尚未被应用取走的完整响应头与 body，即使连接随后结束也可读取；连接已经释放后不再归还无效窗口。未完成或收到错误 reset 的流在关闭时释放排队数据并报告相应异常。
 
 异步服务端待交付请求数量不超过本端 SETTINGS 的 maxConcurrentStreams，超出时拒绝对应流。每流最多暂存 16 条尚未被应用取走的信息／最终响应头，超过时以 ENHANCE_YOUR_CALM 结束该流。DATA 由实际连接／流窗口背压，应用消费或显式放弃后才归还窗口。上述限制仅约束实际消息队列，不扩展为通用资源预算。
