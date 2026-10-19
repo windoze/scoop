@@ -37,6 +37,18 @@ public class HttpAuthenticator private constructor(
     }
 
     public companion object {
+        public fun digest(
+            origin: UrlOrigin,
+            realm: List<Byte>? = None,
+            sendWithoutChallenge: Boolean = true,
+            algorithms: List<HttpDigestAlgorithm> = [HttpDigestAlgorithm.Sha512_256, HttpDigestAlgorithm.Sha512_256Sess,
+                HttpDigestAlgorithm.Sha256, HttpDigestAlgorithm.Sha256Sess, HttpDigestAlgorithm.Md5, HttpDigestAlgorithm.Md5Sess],
+            preferIntegrity: Boolean = false,
+            credentials: suspend (HttpAuthenticationRequest) -> HttpPasswordCredentials
+        ): HttpAuthenticator =
+            HttpAuthenticator(origin, realm, sendWithoutChallenge,
+                ClientAuthenticationProvider.Digest(ClientDigestAuthentication(algorithms, preferIntegrity, credentials)))
+
         public fun bearer(
             origin: UrlOrigin,
             realm: List<Byte>? = None,
@@ -59,7 +71,7 @@ public class HttpAuthenticator private constructor(
     }
 }
 
-internal enum ClientAuthenticationProvider { Basic(ClientBasicAuthentication), Bearer(ClientBearerAuthentication) }
+internal enum ClientAuthenticationProvider { Basic(ClientBasicAuthentication), Bearer(ClientBearerAuthentication), Digest(ClientDigestAuthentication) }
 
 internal class ClientBasicAuthentication(
     val charset: HttpBasicCharset,

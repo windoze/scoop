@@ -9,6 +9,7 @@ internal class ClientState(val loop: EventLoop, val config: HttpClientConfig, va
     val calls: ArrayList<ClientCall> = ArrayList<ClientCall>()
     val retryWaits: ArrayList<Job> = ArrayList<Job>()
     val bearerEntries: ArrayList<ClientBearerEntry> = ArrayList<ClientBearerEntry>()
+    val digestEntries: ArrayList<ClientDigestEntry> = ArrayList<ClientDigestEntry>()
     val waiting: ArrayDeque<ClientCall> = ArrayDeque<ClientCall>()
     val upgrades: ArrayDeque<ClientUpgrade> = ArrayDeque<ClientUpgrade>()
     val connections: ArrayList<ClientPoolEntry> = ArrayList<ClientPoolEntry>()

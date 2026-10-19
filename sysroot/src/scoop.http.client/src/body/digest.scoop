@@ -1,0 +1,48 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.collections.emptyList
+import scoop.crypto.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.text.toHexString
+
+internal class ClientEntityDigest(val algorithm: DigestAlgorithm, val bytes: Array<Byte>)
+
+internal fun replaceClientEntityDigest(existing: List<ClientEntityDigest>, algorithm: HttpDigestAlgorithm,
+    bytes: List<Byte>): Array<ClientEntityDigest> {
+    val actual = clientDigestAlgorithm(algorithm)
+    val snapshot = bytes.toArray()
+    if (snapshot.size != (if (actual == DigestAlgorithm.Md5) 16L else 32L))
+        throw IllegalArgumentException(Some("incorrect HTTP entity digest length"))
+    val result = ArrayList<ClientEntityDigest>()
+    for (entry in existing) if (entry.algorithm != actual) result.add(entry)
+    result.add(ClientEntityDigest(actual, snapshot))
+    return result.toArray()
+}
+
+internal suspend fun clientDigestEntity(call: ClientCall, algorithm: HttpDigestAlgorithm): String {
+    val body = call.originalRequest.body
+    val actual = clientDigestAlgorithm(algorithm)
+    for (entry in body.entityDigests) if (entry.algorithm == actual) return entry.bytes.toHexString()
+    if (body.contentLength == Some(0L)) return digest(actual, emptyList<Byte>()).toHexString()
+    if (!body.isReplayable) throw HttpAuthenticationException(HttpAuthenticationFailure.BodyNotReplayable, call.request.url)
+    return Digest(actual).use suspend { hash ->
+        body.writeWithTrailersTo(ClientDigestSink(call, hash))
+        requireClientCall(call)
+        hash.finish().toHexString()
+    }
+}
+
+private class ClientDigestSink(val call: ClientCall, val hash: Digest) : AsyncByteSink {
+    public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long {
+        ensureActive()
+        requireClientCall(call)
+        if (count < 0L) throw IllegalArgumentException(Some("negative digest byte count"))
+        if (count > buffer.readableBytes) throw IndexOutOfBoundsException()
+        val amount = if (count > 8192L) 8192L else count
+        hash.update(buffer.getBytes(buffer.readPosition, amount))
+        buffer.skip(amount)
+        return amount
+    }
+    public override suspend fun flush() { ensureActive(); requireClientCall(call) }
+}

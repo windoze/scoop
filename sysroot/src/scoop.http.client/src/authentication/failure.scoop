@@ -3,7 +3,7 @@ package scoop.http.client
 import scoop.http.HttpResponseHead
 import scoop.url.Url
 
-public enum HttpAuthenticationFailure { InvalidChallenge, InvalidCredentials, BodyNotReplayable, Rejected, LimitExceeded }
+public enum HttpAuthenticationFailure { InvalidChallenge, InvalidCredentials, InvalidResponse, BodyNotReplayable, Rejected, LimitExceeded }
 
 public class HttpAuthenticationException public constructor(
     public val reason: HttpAuthenticationFailure,
@@ -15,6 +15,7 @@ public class HttpAuthenticationException public constructor(
 private fun authenticationFailureText(reason: HttpAuthenticationFailure): String = when (reason) {
     case InvalidChallenge -> "invalid HTTP authentication challenge"
     case InvalidCredentials -> "invalid HTTP authentication credentials"
+    case InvalidResponse -> "invalid HTTP authentication response"
     case BodyNotReplayable -> "HTTP authentication requires a replayable request body"
     case Rejected -> "HTTP authentication credentials were rejected"
     case LimitExceeded -> "HTTP authentication attempt limit exceeded"

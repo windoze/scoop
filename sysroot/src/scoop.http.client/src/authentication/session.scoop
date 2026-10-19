@@ -9,7 +9,8 @@ internal class ClientAuthenticationSession(
     val authenticator: HttpAuthenticator,
     val challenge: HttpAuthChallenge?,
     val path: String,
-    val rejectedBearer: ClientBearerValue? = None
+    val rejectedBearer: ClientBearerValue? = None,
+    var digest: ClientDigestSession? = None
 ) {
     var field: HttpField? = None
     var bearerValue: ClientBearerValue? = None
@@ -24,14 +25,20 @@ internal suspend fun prepareClientAuthentication(call: ClientCall) {
     while (index > 0L) {
         index -= 1L
         val session = sequence.authenticationSessions[index]
-        if (session.authenticator.origin == request.origin && clientAuthenticationPath(request).startsWith(session.path)) {
+        if (session.authenticator.origin == request.origin && clientAuthenticationPath(request).startsWith(session.path) &&
+            (!clientPresent(session.digest) || clientDigestCovers(session.digest!!.nonce.challenge, request))) {
             selected = Some(session); break
         }
     }
     if (!clientPresent(selected)) {
         for (provider in sequence.authentication.providers) {
             if (provider.origin == request.origin && provider.sendWithoutChallenge) {
-                val session = ClientAuthenticationSession(provider, None, "/")
+                val available = when (provider.provider) {
+                    case Digest(options) -> cachedClientDigest(call, provider, options)
+                    else -> Some(ClientAuthenticationSession(provider, None, "/"))
+                }
+                if (!clientPresent(available)) continue
+                val session = available!!
                 sequence.authenticationSessions.add(session)
                 selected = Some(session)
                 break
@@ -48,6 +55,7 @@ internal suspend fun prepareClientAuthentication(call: ClientCall) {
             session.bearerValue = Some(value)
             value.field
         }
+        case Digest(provider) -> clientDigestField(call, session, provider)
     }
     requireClientCall(call)
     session.field = Some(field)

@@ -1,0 +1,18 @@
+package scoop.http.client
+
+internal fun clearClientAuthenticationCache(state: ClientState, authenticator: HttpAuthenticator) {
+    if (state.lock.withLock { state.closed }) return
+    clientJob(state.loop, false)
+    clearClientDigestCache(state, authenticator)
+    val flight: ClientBearerFlight? = state.lock.withLock {
+        for (entry in state.bearerEntries) {
+            if (entry.authenticator !== authenticator) continue
+            entry.discard = true; entry.value = None
+            val active = entry.flight
+            if (!clientPresent(active)) removeClientBearerEntry(state, entry)
+            return@withLock active
+        }
+        None
+    }
+    if (clientPresent(flight)) stopClientBearerFlight(flight!!)
+}

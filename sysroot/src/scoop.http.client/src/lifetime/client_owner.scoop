@@ -39,6 +39,7 @@ private class ClientOwnerCompletion(val state: ClientState) : Continuation<Unit>
             state.closing = true; state.closed = true; state.closeFailure = finalFailure
             val saved = state.ownerHold
             state.ownerHold = None; state.scope = None; state.wake = None; state.waiting.clear(); state.upgrades.clear(); state.bearerEntries.clear()
+            state.digestEntries.clear()
             val waiting = state.closeWaiters.toArray()
             state.closeWaiters.clear()
             (saved, waiting)

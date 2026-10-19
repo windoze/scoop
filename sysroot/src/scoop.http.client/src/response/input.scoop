@@ -1,11 +1,13 @@
 package scoop.http.client
 
 import scoop.asyncio.*
+import scoop.http.HttpResponseHead
 import scoop.platform.memory.NativeByteBuffer
 
-internal class ClientResponseInput(val call: ClientCall, val plan: ClientResponseDecoding) : AsyncByteSource, AsyncCloseable {
+internal class ClientResponseInput(val call: ClientCall, val plan: ClientResponseDecoding,
+    head: HttpResponseHead) : AsyncByteSource, AsyncCloseable {
     private val closed: AtomicBoolean = AtomicBoolean(false)
-    private val codec: ClientResponseCodec = ClientResponseCodec(call, plan)
+    private val codec: ClientResponseCodec = ClientResponseCodec(call, plan, head)
     val isComplete: Boolean get() = call.lock.withLock { call.readDone }
 
     public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long {

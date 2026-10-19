@@ -15,7 +15,8 @@ import scoop.url.UrlQuery
 public class RequestBody internal constructor(
     contentLength: Long?, public val contentType: HttpMediaType?, private val plan: RequestBodyPlan,
     contentEncodings: List<String> = emptyList<String>(),
-    internal val trailerDeclaration: HttpTrailerDeclaration = HttpTrailerDeclaration(emptyList<String>())
+    internal val trailerDeclaration: HttpTrailerDeclaration = HttpTrailerDeclaration(emptyList<String>()),
+    internal val entityDigests: Array<ClientEntityDigest> = []
 ) {
     public val contentLength: Long? = checkedBodyLength(contentLength)
     public val contentEncodings: Array<String> = contentEncodings.toArray()
@@ -24,6 +25,10 @@ public class RequestBody internal constructor(
 
     public fun compressed(options: CompressionOptions = CompressionOptions.Gzip(GzipOptions())): RequestBody =
         compressedRequestBody(this, options)
+
+    public fun withDigest(algorithm: HttpDigestAlgorithm, bytes: List<Byte>): RequestBody =
+        RequestBody(contentLength, contentType, plan, contentEncodings, trailerDeclaration,
+            replaceClientEntityDigest(entityDigests, algorithm, bytes))
 
     public suspend fun writeTo(destination: AsyncByteSink, bufferSize: Long = 8192L): Long {
         ensureActive()

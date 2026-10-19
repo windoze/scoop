@@ -1,0 +1,76 @@
+package scoop.http.client
+
+import scoop.crypto.secureRandomBytes
+import scoop.http.HttpAuthChallenge
+import scoop.http.HttpAuthenticationInfo
+import scoop.text.startsWith
+import scoop.text.toHexString
+
+internal class ClientDigestChallenge(
+    val original: HttpAuthChallenge, val algorithm: HttpDigestAlgorithm, val utf8: Boolean,
+    val realm: Array<Byte>, val nonce: Array<Byte>, val qop: String?, val opaque: Array<Byte>?,
+    val userhash: Boolean, val stale: Boolean, val paths: Array<String>
+)
+
+internal class ClientDigestNumbers {
+    val cnonce: String = secureRandomBytes(16L).toHexString()
+    var count: Long = 0L
+}
+
+internal class ClientDigestNonce(val challenge: ClientDigestChallenge, val numbers: ClientDigestNumbers = ClientDigestNumbers()) {
+    val cnonce: String get() = numbers.cnonce
+}
+
+internal class ClientDigestEntry(val authenticator: HttpAuthenticator, var nonce: ClientDigestNonce) {
+    var discard: Boolean = false
+}
+
+internal class ClientDigestSecret(val username: String, val ha1: String)
+
+internal class ClientDigestSession(val entry: ClientDigestEntry, val nonce: ClientDigestNonce) {
+    var secret: ClientDigestSecret? = None
+}
+
+internal class ClientDigestUse(
+    val session: ClientDigestSession, val uri: Array<Byte>, val ha1: String, val nc: String
+) {
+    val nonce: ClientDigestNonce = session.nonce
+    var responseInfo: HttpAuthenticationInfo? = None
+}
+
+internal fun sameClientDigestKey(first: ClientDigestChallenge, second: ClientDigestChallenge): Boolean =
+    first.algorithm == second.algorithm && first.utf8 == second.utf8 &&
+        clientAuthenticationBytesEqual(first.realm, second.realm)
+
+internal fun clientDigestCovers(challenge: ClientDigestChallenge, request: HttpRequest): Boolean {
+    val target = request.url.httpRequestTarget()
+    for (path in challenge.paths) if (target.startsWith(path)) return true
+    return false
+}
+
+internal fun cachedClientDigest(call: ClientCall, authenticator: HttpAuthenticator,
+    provider: ClientDigestAuthentication): ClientAuthenticationSession? = call.client.lock.withLock {
+    for (algorithm in provider.algorithms) {
+        var index = call.client.digestEntries.size
+        while (index > 0L) {
+            index -= 1L
+            val entry = call.client.digestEntries[index]
+            if (entry.authenticator !== authenticator || entry.nonce.challenge.algorithm != algorithm ||
+                !clientDigestCovers(entry.nonce.challenge, call.originalRequest)) continue
+            return@withLock Some(ClientAuthenticationSession(authenticator, None, "/",
+                digest = Some(ClientDigestSession(entry, entry.nonce))))
+        }
+    }
+    None
+}
+
+internal fun clearClientDigestCache(state: ClientState, authenticator: HttpAuthenticator) {
+    state.lock.withLock {
+        var index = state.digestEntries.size
+        while (index > 0L) {
+            index -= 1L
+            val entry = state.digestEntries[index]
+            if (entry.authenticator === authenticator) { entry.discard = true; state.digestEntries.removeAt(index) }
+        }
+    }
+}

@@ -56,6 +56,7 @@ private suspend fun runClientCall(call: ClientCall) {
                 requireClientCall(call)
                 finishClientDeadline(headersDeadline)
                 requireClientCall(call)
+                prepareClientDigestResponse(call, head)
                 val followUp = planClientResponseFollowUp(call, head)
                 if (clientPresent(followUp)) {
                     settleClientContinue(call, false)

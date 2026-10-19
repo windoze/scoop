@@ -4,8 +4,7 @@ import scoop.http.*
 
 internal fun planClientAuthentication(call: ClientCall, head: HttpResponseHead): ClientAuthenticationSession? {
     val request = call.originalRequest
-    val sequence = call.sequence
-    val options = sequence.authentication
+    val options = call.sequence.authentication
     if (head.status != 401U || options.providers.size == 0L || options.maxAttempts == 0L ||
         hasClientAuthorization(request)) return None
     var relevant = false
@@ -15,44 +14,55 @@ internal fun planClientAuthentication(call: ClientCall, head: HttpResponseHead):
     catch (error: HttpFieldParseException) {
         throw HttpAuthenticationException(HttpAuthenticationFailure.InvalidChallenge, request.url, Some(head), Some(error))
     }
-    for (provider in options.providers) {
-        if (provider.origin != request.origin) continue
-        for (challenge in challenges) {
-            val scheme = when (provider.provider) { case Basic(_) -> "basic"; case Bearer(_) -> "bearer" }
-            if (challenge.scheme != scheme) continue
-            val realm = challenge.parameter("realm")
-            when (provider.provider) {
-                case Basic(_) -> if (!clientPresent(realm))
-                    throw HttpAuthenticationException(HttpAuthenticationFailure.InvalidChallenge, request.url, Some(head))
-                case Bearer(_) -> {}
+    for (authenticator in options.providers) {
+        if (authenticator.origin != request.origin) continue
+        val session = when (authenticator.provider) {
+            case Digest(provider) -> planClientDigest(call, head, authenticator, provider, challenges)
+            else -> {
+                val selected = planClientSimpleAuthentication(call, head, authenticator, challenges)
+                if (clientPresent(selected)) requireClientAuthenticationFollowUp(call, head)
+                selected
             }
-            if (clientPresent(provider.realm) && (!clientPresent(realm) ||
-                !clientAuthenticationBytesEqual(provider.realm!!, realm!!.value))) continue
-            val previous = call.authenticationSession
-            var rejectedBearer: ClientBearerValue? = None
-            when (provider.provider) {
-                case Basic(_) -> {
-                    if (clientPresent(previous) && previous!!.authenticator === provider && clientPresent(previous!!.challenge)) {
-                        val previousRealm = previous!!.challenge!!.parameter("realm")!!
-                        if (clientAuthenticationBytesEqual(previousRealm.value, realm!!.value))
-                            throw HttpAuthenticationException(HttpAuthenticationFailure.Rejected, request.url, Some(head))
-                    }
-                }
-                case Bearer(_) -> {
-                    if (clientPresent(challenge.token68))
-                        throw HttpAuthenticationException(HttpAuthenticationFailure.InvalidChallenge, request.url, Some(head))
-                    val error = challenge.parameter("error")
-                    if (clientPresent(error) && !clientAuthenticationBytesEqual(error!!.value, "invalid_token".toByteArray())) continue
-                    if (clientPresent(previous) && previous!!.authenticator === provider) rejectedBearer = previous!!.bearerValue
-                }
-            }
-            if (sequence.authenticationCount >= options.maxAttempts)
-                throw HttpAuthenticationException(HttpAuthenticationFailure.LimitExceeded, request.url, Some(head))
-            if (!request.body.isReplayable && call.lock.withLock { call.bodyStarted })
-                throw HttpAuthenticationException(HttpAuthenticationFailure.BodyNotReplayable, request.url, Some(head))
-            val path = when (provider.provider) { case Basic(_) -> clientAuthenticationDirectory(request); case Bearer(_) -> "/" }
-            return Some(ClientAuthenticationSession(provider, Some(challenge), path, rejectedBearer))
         }
+        if (clientPresent(session)) return session
+    }
+    return None
+}
+
+internal fun requireClientAuthenticationFollowUp(call: ClientCall, head: HttpResponseHead) {
+    if (call.sequence.authenticationCount >= call.sequence.authentication.maxAttempts)
+        throw HttpAuthenticationException(HttpAuthenticationFailure.LimitExceeded, call.request.url, Some(head))
+    if (!call.originalRequest.body.isReplayable && call.lock.withLock { call.bodyStarted })
+        throw HttpAuthenticationException(HttpAuthenticationFailure.BodyNotReplayable, call.request.url, Some(head))
+}
+
+private fun planClientSimpleAuthentication(call: ClientCall, head: HttpResponseHead, provider: HttpAuthenticator,
+    challenges: List<HttpAuthChallenge>): ClientAuthenticationSession? {
+    val basic = when (provider.provider) { case Basic(_) -> true; else -> false }
+    for (challenge in challenges) {
+        if (challenge.scheme != (if (basic) "basic" else "bearer")) continue
+        val realm = challenge.parameter("realm")
+        if (basic && !clientPresent(realm))
+            throw HttpAuthenticationException(HttpAuthenticationFailure.InvalidChallenge, call.request.url, Some(head))
+        if (clientPresent(provider.realm) && (!clientPresent(realm) ||
+            !clientAuthenticationBytesEqual(provider.realm!!, realm!!.value))) continue
+        val previous = call.authenticationSession
+        var rejectedBearer: ClientBearerValue? = None
+        if (basic) {
+            if (clientPresent(previous) && previous!!.authenticator === provider && clientPresent(previous!!.challenge)) {
+                val previousRealm = previous!!.challenge!!.parameter("realm")!!
+                if (clientAuthenticationBytesEqual(previousRealm.value, realm!!.value))
+                    throw HttpAuthenticationException(HttpAuthenticationFailure.Rejected, call.request.url, Some(head))
+            }
+        } else {
+            if (clientPresent(challenge.token68))
+                throw HttpAuthenticationException(HttpAuthenticationFailure.InvalidChallenge, call.request.url, Some(head))
+            val error = challenge.parameter("error")
+            if (clientPresent(error) && !clientAuthenticationBytesEqual(error!!.value, "invalid_token".toByteArray())) continue
+            if (clientPresent(previous) && previous!!.authenticator === provider) rejectedBearer = previous!!.bearerValue
+        }
+        return Some(ClientAuthenticationSession(provider, Some(challenge),
+            if (basic) clientAuthenticationDirectory(call.originalRequest) else "/", rejectedBearer))
     }
     return None
 }

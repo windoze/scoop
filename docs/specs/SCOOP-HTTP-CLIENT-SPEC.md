@@ -247,6 +247,26 @@ HttpClient.clearAuthenticationCache(authenticator) 同步使该 provider 的跨�
 
 回调可以用同一 client 请求令牌端点；该子请求通过 HttpCallOptions.authentication = Some(HttpAuthenticationOptions()) 显式关闭内建认证，避免等待当前正在执行的 provider。加载／刷新发生在原请求取得连接名额之前，子请求使用已有连接池、Context、截止和取消合同，不提供另一套令牌请求传输。
 
+### 8.3 Digest 认证
+
+HttpAuthenticator.digest 绑定明确 origin、可选原始 realm 和 suspend credentials 回调，复用 HttpAuthenticationRequest／HttpPasswordCredentials。sendWithoutChallenge 默认 true，但只在已有适用挑战的情况下首发；没有 nonce 时正常发送未认证请求。algorithms 保存配置顺序的不可变快照，默认依次为 HttpDigestAlgorithm 的 Sha512_256、Sha512_256Sess、Sha256、Sha256Sess、Md5、Md5Sess；同一 provider 的多个 Digest 挑战按该顺序选择，provider 之间仍遵守配置优先级。preferIntegrity 默认 false，双方同时支持时先选 auth，显式开启后先选 auth-int；只提供一种可用 qop 时使用该种。未知算法或 qop 不被误解为另一算法；没有可用匹配项时交付原 401。
+
+realm 和非空 nonce 必须存在，Digest 不接受 token68 挑战。缺省 algorithm 按 MD5 解释；没有 qop 时兼容旧式 response = H(H(A1):nonce:H(A2))，不伪造 auth。charset 缺省采用 ISO-8859-1；只有 UTF-8 是可接受的显式 charset，按大小写无关匹配并对用户名／密码应用 NFC。用户名拒绝 CTL 与冒号，密码拒绝 CTL；编码错误保留 charset 原因。realm、nonce、opaque 按实际字段字节参与计算和回送。userhash=true 时发送 H(username:realm)，否则非 ASCII 用户名使用 HTTP 的 username* 扩展参数；不同时发送 username 与 username*。
+
+每次实际尝试重新计算 method、request-target 和 Authorization，不复用上一请求的完整字段。H(A1) 使用原始用户名、realm 和密码；sess 形式再以 H(A1)、nonce、cnonce 生成会话摘要。qop=auth 的 H(A2) 来自 method:uri，auth-int 再包含 H(entity-body)。摘要和随机 cnonce 均调用 crypto，十六进制输出及 HTTP 参数引号使用所属公共工具；Authorization 标记 never-index。算法、qop 和 nc 不输出为 quoted-string，用户名、realm、nonce、uri、response、cnonce 和 opaque 使用显式引号。
+
+客户端按同一 provider、realm、算法和 charset 保存挑战／nonce 状态，nonce-count 为同一 nonce 分配唯一递增的八位十六进制值，从 00000001 开始，耗尽时报告 LimitExceeded，不环绕。接受新的挑战时使用其中的 qop、opaque 和保护路径；nonce 不变则保留计数及 cnonce，nonce 改变才重新开始。凭据回调在每个逻辑调用首次需要签名时运行，使用该请求的 Context、total 与取消边界；密码及其派生凭据不进入跨调用缓存。同一调用的 stale 重发可以复用已取得的凭据，算法／charset／realm 改变时重新取得。取消只结束所属调用，client.close 沿已有调用作用域等待所有凭据和预哈希清理。
+
+Digest 保护空间缺省覆盖整个配置 origin；domain 参数中的 URI 前缀通过 URL 库解析，并与显式配置的 origin 求交，不按服务器提供的跨 origin URI 外送凭据。首次挑战、缓存首发被拒绝及带不同 nonce 的 stale=true 都计入既有 maxAttempts；正式响应挑战后的同 nonce 拒绝、没有 stale 的再次拒绝以 Rejected 结束。迟到的拒绝若对应旧 nonce，而缓存已有更新状态，先使用当前状态，不倒退覆盖它。所有重发继续遵守原 body 重放、来源关闭、总截止和重试分类规则。
+
+RequestBody.withDigest(algorithm: HttpDigestAlgorithm, bytes: List<Byte>) 返回共享原生产过程的不可变表示，保存给定摘要的字节快照；MD5 为 16 字节，SHA-256／SHA-512-256 为 32 字节，sess 与对应普通算法使用同一实体摘要。长度错误在构造时拒绝，再次指定同一基础算法时替换旧值。摘要描述应用 Content-Encoding 后、HTTP 传输定界前的实体；compressed 产生新的表示时不继承原文摘要，multipart 的 part 摘要也不作为整个 multipart 的摘要。
+
+auth-int 优先使用该表示明确给定的摘要；已知零长度表示可直接使用空实体摘要，其余情况仅对可重放 body 通过原 writeWithTrailersTo 流式预哈希。预哈希保持有限缓冲、原 Context 和真实来源清理，不计为已发送网络字节；随后的发送遵守原来的可重放表示契约。没有可用摘要的单次非空 body 报 BodyNotReplayable，不偷偷消费一次性来源、无限缓冲或落盘。显式摘要不赋予已消费的单次 body 重发资格。
+
+收到 Authentication-Info 时使用 HTTP 公共 parser，检查实际请求的 qop、cnonce、八位 nc 和 rspauth。存在 qop 的确认必须携带对应 rspauth／cnonce／nc；非法参数、错配或摘要不符以 HttpAuthenticationFailure.InvalidResponse 结束，保留 url、已知响应头和原 cause。auth 的 rspauth 使用空 method 的 A2；auth-int 的响应实体摘要在 HTTP 定界之后、Content-Encoding 解码之前增量计算。头部和 trailer 共用同一次确认，读取至真实 EOF 并验证成功后才完成该校验。
+
+有效 nextnonce 只更新其所属的当前 nonce 状态，并保留期间由新挑战更新的其他参数；迟到旧响应不能覆盖更晚的 nonce。未完整读取而主动关闭、重定向或重试放弃的 auth-int 响应不宣称通过正文校验，也不应用尚未验证的 nextnonce；不为认证无界 drain 中间 body。HttpClient.clearAuthenticationCache 对 Digest 清除已有挑战／nonce，已在进行的调用保留本轮选择，旧响应不能重新填回或改写清除后新建的缓存；后续请求重新取得挑战。没有 Authentication-Info 的响应仍按普通 HTTP 内容语义交付。
+
 ## 9. 内容、Cookie 和缓存
 
 自动内容解码默认开启，Advertise gzip、deflate、br、zstd，前提是本构建实际支持对应 decoder。Content-Encoding 多层编码按逆序解开；不支持的编码报明确错误或由显式原始 body 模式交付，不能悄悄少解一层。调用者显式提供 Accept-Encoding 时保留原值，实际解码策略仍独立配置。

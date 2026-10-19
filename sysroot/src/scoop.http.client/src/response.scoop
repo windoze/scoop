@@ -13,7 +13,7 @@ public class HttpResponse internal constructor(internal val call: ClientCall, pu
     public val retryCount: Long = call.sequence.retryCount
     public val authenticationCount: Long = call.sequence.authenticationCount
     public val wireContentLength: Long? = parseHttpContentLength(head.fields)
-    internal val input: ClientResponseInput = ClientResponseInput(call, clientResponseDecoding(call, head, wireContentLength))
+    internal val input: ClientResponseInput = ClientResponseInput(call, clientResponseDecoding(call, head, wireContentLength), head)
     public val body: HttpResponseBody = HttpResponseBody(input, head.fields)
     public val trailers: Array<HttpField>? get() = if (body.isComplete) call.exchange!!.trailers else None
     public fun requireSuccess(): HttpResponse {

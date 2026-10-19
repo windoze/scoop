@@ -3,10 +3,17 @@ package scoop.http.client
 import scoop.asyncio.*
 import scoop.compression.DecompressionOptions
 import scoop.compression.asyncio.AsyncDecompressionSource
+import scoop.http.HttpResponseHead
 import scoop.platform.memory.NativeByteBuffer
 
-internal class ClientResponseCodec(private val call: ClientCall, private val plan: ClientResponseDecoding) : AsyncByteSource, AsyncCloseable {
-    private val original: AsyncByteSource = if (call.tracksProgress) ClientResponseWireSource(call) else call.exchange!!
+internal class ClientResponseCodec(private val call: ClientCall, private val plan: ClientResponseDecoding,
+    head: HttpResponseHead) : AsyncByteSource, AsyncCloseable {
+    private val wire: AsyncByteSource = if (call.tracksProgress) ClientResponseWireSource(call) else call.exchange!!
+    private val digest: ClientDigestResponseSource? = when (call.digestUse) {
+        case Some(use) -> Some(ClientDigestResponseSource(call, head, use, wire))
+        case None -> None
+    }
+    private val original: AsyncByteSource = digest ?: wire
     private var source: AsyncByteSource = original
     private var prepared: Boolean = false
     private val codecs: ArrayList<AsyncDecompressionSource> = ArrayList<AsyncDecompressionSource>()
@@ -43,6 +50,8 @@ internal class ClientResponseCodec(private val call: ClientCall, private val pla
             catch (error: Throwable) { failure = Some(clientCombined(failure, error)) }
         }
         source = original
+        try { digest?.close() }
+        catch (error: Throwable) { failure = Some(clientCombined(failure, error)) }
         if (clientPresent(failure)) throw failure!!
     }
 }

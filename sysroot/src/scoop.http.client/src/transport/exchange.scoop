@@ -53,8 +53,12 @@ private fun clientRequestHead(request: HttpRequest, version: HttpVersion, config
     }
     val authority = request.origin.authority(request.url.authority!!.port != None).toByteArray()
     if (version != HttpVersion.Http2) fields.add(HttpField("Host".toByteArray(), authority))
-    val target = if (request.method == "CONNECT") HttpRequestTarget.Connect(request.origin.authority(true).toByteArray())
-        else if (version == HttpVersion.Http2) HttpRequestTarget.Http2(request.origin.scheme.toByteArray(), authority, request.url.httpRequestTarget().toByteArray())
-        else HttpRequestTarget.Http1(request.url.httpRequestTarget().toByteArray())
+    val targetBytes = clientRequestTargetBytes(request)
+    val target = if (request.method == "CONNECT") HttpRequestTarget.Connect(targetBytes)
+        else if (version == HttpVersion.Http2) HttpRequestTarget.Http2(request.origin.scheme.toByteArray(), authority, targetBytes)
+        else HttpRequestTarget.Http1(targetBytes)
     return HttpRequestHead(version, request.methodBytes, target, fields)
 }
+
+internal fun clientRequestTargetBytes(request: HttpRequest): Array<Byte> =
+    (if (request.method == "CONNECT") request.origin.authority(true) else request.url.httpRequestTarget()).toByteArray()

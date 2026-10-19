@@ -1,0 +1,35 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.crypto.Digest
+import scoop.http.HttpResponseHead
+import scoop.platform.memory.NativeByteBuffer
+import scoop.text.toHexString
+
+internal class ClientDigestResponseSource(val call: ClientCall, val head: HttpResponseHead,
+    val use: ClientDigestUse, val source: AsyncByteSource) : AsyncByteSource, AsyncCloseable {
+    private val hash: Digest? = if (use.nonce.challenge.qop == Some("auth-int"))
+        Some(Digest(clientDigestAlgorithm(use.nonce.challenge.algorithm))) else None
+    private var done: Boolean = false
+
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long {
+        if (done) return 0L
+        val before = buffer.writePosition
+        val actual = source.readInto(buffer, count)
+        if (clientPresent(hash)) {
+            var offset = 0L
+            while (offset < actual) {
+                val amount = if (actual - offset > 8192L) 8192L else actual - offset
+                hash!!.update(buffer.getBytes(before + offset, amount))
+                offset += amount
+            }
+        }
+        if (count != 0L && (actual == 0L || call.exchange!!.isReadComplete)) {
+            done = true
+            finishClientDigestResponse(call, head, use, if (clientPresent(hash)) Some(hash!!.finish().toHexString()) else None)
+        }
+        return actual
+    }
+
+    public override suspend fun close() { hash?.close() }
+}
