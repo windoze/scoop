@@ -15,7 +15,34 @@ pub(super) struct Site {
 pub(super) struct Allocation {
     pub site: Site,
     pub local: mir::LocalId,
-    pub payload: mir::Expr,
+    pub kind: AllocationKind,
+}
+
+pub(super) enum AllocationKind {
+    Box(mir::Expr),
+    Closure {
+        class: mir::ClosureClassId,
+        captures: Vec<mir::ClosureCaptureInit>,
+    },
+}
+
+impl AllocationKind {
+    fn from_expression(expr: &mir::Expr) -> Option<Self> {
+        match &expr.kind {
+            mir::ExprKind::Box(payload) => Some(Self::Box((**payload).clone())),
+            mir::ExprKind::ClosureAlloc { class, captures } => Some(Self::Closure {
+                class: *class,
+                captures: captures.clone(),
+            }),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum Projection {
+    BoxPayload,
+    Capture(u32),
 }
 
 pub(super) type AllocationId = Idx<Allocation>;
@@ -68,14 +95,14 @@ impl Sources {
                 };
                 let value = match &statement.kind {
                     mir::StatementKind::ValDecl { init, .. } => {
-                        if let mir::ExprKind::Box(payload) = &init.kind {
+                        if let Some(kind) = AllocationKind::from_expression(init) {
                             let allocation = sources.allocations.alloc(Allocation {
                                 site: Site {
                                     block: block_id,
                                     statement: statement_index,
                                 },
                                 local: destination,
-                                payload: (**payload).clone(),
+                                kind,
                             });
                             sources.locals[index(destination)]
                                 .candidates

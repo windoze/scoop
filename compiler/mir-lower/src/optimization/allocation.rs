@@ -9,6 +9,7 @@ use crate::local_values::LocalValueRegistry;
 mod control;
 mod origins;
 mod rewrite;
+mod snapshots;
 mod uses;
 
 pub(super) fn run(
@@ -60,7 +61,7 @@ fn supported(function: &mir::Function) -> bool {
                 mir::StatementKind::ValDecl {
                     init:
                         mir::Expr {
-                            kind: mir::ExprKind::Box(_),
+                            kind: mir::ExprKind::Box(_) | mir::ExprKind::ClosureAlloc { .. },
                             ..
                         },
                     ..

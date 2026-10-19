@@ -1,8 +1,9 @@
-use scoop_identity::{CallableMaterialization, StructuralDefinitionSiteRole, SyntheticLocalRole};
+use scoop_identity::CallableMaterialization;
 
 use super::{
     index, mir,
     origins::{Site, statement_alias},
+    snapshots::{self, Snapshot},
     uses::{Plan, Replacement},
 };
 use crate::local_values::LocalValueRegistry;
@@ -15,25 +16,7 @@ pub(super) fn apply(
     plan: &Plan,
 ) -> (mir::Function, bool) {
     let mut function = module.functions[id].clone();
-    let mut snapshots = vec![None; plan.removable.len()];
-    for (candidate, creation) in plan.sources.allocations.iter() {
-        if !plan.removable[index(candidate)] {
-            continue;
-        }
-        let local = function.body.locals.alloc(mir::Local {
-            name: format!("$box.payload.{}", index(creation.local)),
-            ty: creation.payload.ty.clone(),
-            mutable: false,
-        });
-        registry.record_generated_local(
-            id,
-            local,
-            owner,
-            StructuralDefinitionSiteRole::SyntheticValue,
-            SyntheticLocalRole::Temporary,
-        );
-        snapshots[index(candidate)] = Some(local);
-    }
+    let snapshots = snapshots::create(&mut function, id, owner, registry, plan);
     let mut changed = false;
     for (block_id, block) in function.body.blocks.iter_mut() {
         // Positions refer to the immutable analyzed body, even after removals.
@@ -58,13 +41,23 @@ pub(super) fn apply(
                 && let Some(candidate) = plan.sources.locals[index(*local)].unique()
                 && let creation = &plan.sources.allocations[candidate]
                 && creation.site == site
-                && let Some(snapshot) = snapshots[index(candidate)]
+                && plan.removable[index(candidate)]
             {
-                statement.kind = mir::StatementKind::ValDecl {
-                    local: snapshot,
-                    init: creation.payload.clone(),
-                };
+                for snapshot in &snapshots[index(candidate)] {
+                    let mut init = snapshot.init.clone();
+                    mir::visit_expr_mut(&mut init, &mut |expr| {
+                        expression(module, plan, &snapshots, site, expr);
+                    });
+                    block.statements.push(mir::Statement {
+                        kind: mir::StatementKind::ValDecl {
+                            local: snapshot.local,
+                            init,
+                        },
+                        span: statement.span,
+                    });
+                }
                 changed = true;
+                continue;
             }
             mir::visit_statement_exprs_mut(&mut statement, &mut |expr| {
                 changed |= expression(module, plan, &snapshots, site, expr);
@@ -81,7 +74,7 @@ pub(super) fn apply(
 fn expression(
     module: &mir::Module,
     plan: &Plan,
-    snapshots: &[Option<mir::LocalId>],
+    snapshots: &[Vec<Snapshot>],
     site: Site,
     expr: &mut mir::Expr,
 ) -> bool {
@@ -89,11 +82,17 @@ fn expression(
         return false;
     };
     match replacement {
-        Replacement::Payload(candidate) => {
-            let Some(snapshot) = snapshots[index(candidate)] else {
+        Replacement::Value {
+            candidate,
+            projection,
+        } => {
+            let Some(snapshot) = snapshots[index(candidate)]
+                .iter()
+                .find(|value| value.projection == projection)
+            else {
                 return false;
             };
-            *expr = mir::Expr::local(snapshot, expr.ty.clone());
+            *expr = mir::Expr::local(snapshot.local, expr.ty.clone());
         }
         Replacement::Boolean(value) => {
             *expr = mir::Expr::new(mir::Type::Boolean, mir::ExprKind::BoolLiteral(value))

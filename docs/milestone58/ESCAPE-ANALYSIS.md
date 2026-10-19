@@ -1,10 +1,10 @@
 # M58：逃逸分析的最小着手点
 
-基于 `c3b8942db` 的 MIR 实现与现行值／GC 合同。首批做**函数内的分配来源追踪，以局部 box 和内联后闭包消除为实际消费者**。内联、去虚拟化、逃逸分析和分配替换共同迭代，简单 class 的字段替换后续按收益扩展；不先实现通用栈对象或跨过程逃逸系统。2026-10-20 已实现来源分析与 box 消费者，closure 与性能矩阵仍待完成；当前验收见 [PROGRESS.md](PROGRESS.md)。
+基于 `c3b8942db` 的 MIR 实现与现行值／GC 合同。首批做**函数内的分配来源追踪，以局部 box 和内联后闭包消除为实际消费者**。内联、去虚拟化、逃逸分析和分配替换共同迭代，简单 class 的字段替换后续按收益扩展；不先实现通用栈对象或跨过程逃逸系统。2026-10-20 已实现来源分析、box 与 closure 实例消除，closure 私有支持产物清理和性能矩阵仍待完成；当前验收见 [PROGRESS.md](PROGRESS.md)。
 
 ## 1. 现有能力与差的那一步
 
-[optimization.rs](../../compiler/mir-lower/src/optimization.rs) 现以最多三轮执行去虚拟化 → 内联／化简 → 分配替换／化简。[flow.rs](../../compiler/mir-lower/src/optimization/flow.rs) 从 `ClassAlloc`、`ClosureAlloc`、`Box` 得到 actual type；[dispatch.rs](../../compiler/mir-lower/src/optimization/dispatch.rs) 选择实际 class／closure 的调用目标。来源／使用分析由 [allocation](../../compiler/mir-lower/src/optimization/allocation.rs) 承担，首批消费者删除使用闭合的 box；类型事实本身仍不等于对象可删除。
+[optimization.rs](../../compiler/mir-lower/src/optimization.rs) 现以最多三轮执行去虚拟化 → 内联／化简 → 分配替换／化简。[flow.rs](../../compiler/mir-lower/src/optimization/flow.rs) 从 `ClassAlloc`、`ClosureAlloc`、`Box` 得到 actual type；[dispatch.rs](../../compiler/mir-lower/src/optimization/dispatch.rs) 选择实际 class／closure 的调用目标。来源／使用分析由 [allocation](../../compiler/mir-lower/src/optimization/allocation.rs) 承担，消费者删除使用闭合的 box 与 closure 实例；类型事实本身仍不等于对象可删除。
 
 [MIR](../../compiler/mir/src/control_flow.rs) 已显式表达分配、局部复制、`Retype`、拆箱、字段存取和调用，适合在普通优化的每轮改写后、LIR root plan 之前进行本期分析。当前可复用 typed local／class／callable ID、表达式 visitor、[CFG 边与 SCC](../../compiler/mir-lower/src/optimization/graph.rs)、内联与 [simplify](../../compiler/mir-lower/src/optimization/simplify.rs)。不需要新依赖，也不需要修改普通 `.slib` 格式。
 
@@ -163,4 +163,4 @@ class 的 [lowering](../../compiler/mir-lower/src/cfg/expression.rs) 是 `ClassA
 
 保守保留案例仍是合法程序，验证运行结果和分配是否按预期保留，不新增“优化失败”诊断。类型规则本身的 negative fixture 沿用正常诊断验收。全量 IR 快照、分析结果持久化和通用解释报告均非本期所需。
 
-M56 的直接值／装箱对照只能表示这个模式的机会大小；当前来源／box pass 已通过本机正确性验证，尚未完成 B 的生产性能对照，不能预报固定加速倍数。正式结果应与实际 live set 的 GC 暂停一起报告：分配减少和 GC 次数下降不自动等于单次 full 暂停变短。
+M56 的直接值／装箱对照只能表示这个模式的机会大小；当前 box／closure 实例消除已通过本机正确性验证，尚未完成 B 的生产性能对照，不能预报固定加速倍数。正式结果应与实际 live set 的 GC 暂停一起报告：分配减少和 GC 次数下降不自动等于单次 full 暂停变短。

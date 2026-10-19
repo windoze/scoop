@@ -3,11 +3,16 @@
 use super::{
     control::ControlFlow,
     index, mir,
-    origins::{AllocationId, Site, Sources, local_alias, statement_alias},
+    origins::{
+        AllocationId, AllocationKind, Projection, Site, Sources, local_alias, statement_alias,
+    },
 };
 
 pub(super) enum Replacement {
-    Payload(AllocationId),
+    Value {
+        candidate: AllocationId,
+        projection: Projection,
+    },
     Boolean(bool),
 }
 
@@ -100,6 +105,7 @@ impl Plan {
     ) -> Option<(AllocationId, Replacement)> {
         let operand = match &expr.kind {
             mir::ExprKind::Unbox(operand) | mir::ExprKind::IsInstance { operand, .. } => operand,
+            mir::ExprKind::ClosureCapture { closure, .. } => closure,
             _ => return None,
         };
         let candidate = self.sources.locals[index(local_alias(operand)?)].unique()?;
@@ -107,12 +113,39 @@ impl Plan {
         if !self.control.dominates(creation.site, site) {
             return None;
         }
-        let replacement = match &expr.kind {
-            mir::ExprKind::Unbox(_) if expr.ty == creation.payload.ty => {
-                Replacement::Payload(candidate)
+        let replacement = match (&creation.kind, &expr.kind) {
+            (AllocationKind::Box(payload), mir::ExprKind::Unbox(_)) if expr.ty == payload.ty => {
+                Replacement::Value {
+                    candidate,
+                    projection: Projection::BoxPayload,
+                }
             }
-            mir::ExprKind::IsInstance { check_ty, .. } => {
-                Replacement::Boolean(instance_test(module, &creation.payload.ty, check_ty)?)
+            (AllocationKind::Box(payload), mir::ExprKind::IsInstance { check_ty, .. }) => {
+                Replacement::Boolean(instance_test(module, &payload.ty, check_ty)?)
+            }
+            (
+                AllocationKind::Closure { class, captures },
+                mir::ExprKind::ClosureCapture {
+                    class: expected,
+                    index,
+                    ..
+                },
+            ) if class == expected
+                && captures
+                    .iter()
+                    .any(|capture| capture.field() == *index && capture.value().ty == expr.ty) =>
+            {
+                Replacement::Value {
+                    candidate,
+                    projection: Projection::Capture(*index),
+                }
+            }
+            (AllocationKind::Closure { class, .. }, mir::ExprKind::IsInstance { check_ty, .. })
+                if **check_ty == mir::Type::Any
+                    || **check_ty
+                        == mir::Type::Function(module.closure_classes[*class].function_type) =>
+            {
+                Replacement::Boolean(true)
             }
             _ => return None,
         };

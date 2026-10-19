@@ -12,7 +12,8 @@
 | A：starts bitmap 枚举 | 已实现；本机 GC 专测 35 项、M58 runtime 四个源码 fixture／13 变体通过，Linux 待验证 |
 | B：统一优化迭代 | 已实现三轮上限与无变化早停；本机 MIR 单测 122 项、新旧优化源码回归通过，Linux 待验证 |
 | B：函数内来源／逃逸分析与 box 消除 | 已实现，接入同一迭代；本机 typed MIR 专测与源码／移动 GC 回归通过，Linux 待验证 |
-| B：closure 消除与支持产物清理 | 待实施，复用来源分析并接入同一迭代 |
+| B：closure 实例消除 | 已实现，复用来源／循环分析；本机五项 typed MIR 专测、源码与移动 GC 回归通过，Linux 待验证 |
+| B：closure 私有支持产物清理 | 待实施；实例消除仍保留完整 class／invoke／bridge 语义与物理支持 |
 | C：tail completion 转交、状态机生成前同步内联 | 待实施 |
 | D：外层 poll 循环分块、受限内层 SIMD | 待实施 |
 | 性能与跨平台 | A 的本机生产前后矩阵已记录于 [PERFORMANCE.md](PERFORMANCE.md)；B–D 性能、GNU／musl 完整验收及最终清理待完成 |
@@ -76,3 +77,11 @@ Rust fmt、workspace clippy、MIR lowering 全部 122 项单测通过；8 项直
 Rust fmt／workspace clippy 通过；MIR 247 项、MIR lowering 131 项全量单测通过，追加 interface 交替专测后装箱专测共 10 项通过。专测覆盖快照顺序、来源合流、未知使用、地址、创建支配、循环、失败路径，以及第一轮仍保留接口调用／box、后续 devirt／inline 后实际删除。新源码两个 fixture 共六变体／六进程通过，覆盖 debug／release／moving、值重赋值、参数副作用、interface、enum、ZST identity、嵌套引用、泛型与跨 GC 的根。既有 M58 迭代三变体、M34 去虚拟化六变体／28 进程／六 golden、M37 enum boxing 两变体／六进程、M56 unbox／clone 四变体均通过。
 
 最初测试按未规范化的 return 编写结构断言，已改为检查实际返回临时值；源码用例按现行 immutable struct、泛型函数语法及 smart cast 规则修正。所有失败均闭合，没有改变语言规则或更新既有 golden。清理约 6 GiB incremental 与已完成 fixture 产物，日志仍放仓库外。B 的生产性能对照、closure 消除、协程与循环分块继续实施；本节不宣称新的分配吞吐或暂停倍率。
+
+## 2026-10-20：closure 捕获替换与实例消除
+
+同一 pass 以明确的 Box／Closure 两种候选共用来源、创建支配、循环携带与保守使用判断。invoke 展开后，匹配 exact closure class 与捕获字段类型，以原创建点的 typed 捕获快照替换 ClosureCapture。快照按原 captures 求值顺序发出，独立记录物理 field index；无捕获环境直接删除，不生成占位局部值。只折叠已知的 Any／exact 函数类型检查，其余函数关系保留。没有删除 class、invoke、bridge 语义记录，物理支持清理仍是下一项。
+
+新增五项 typed MIR 专测验证：一轮 inline 后环境仍在、第二轮 devirt／inline 后删除；捕获 box 在环境删除后第三轮继续消失；无捕获环境、identity 保留与反转字段顺序。测试 helper 补齐实际 lambda lowering 的 hidden receiver 后全部闭合。fmt／workspace clippy、23 项普通优化专测及 MIR lowering 全部 137 项单测通过。
+
+新源码覆盖零／一／17 次高阶调用、普通／泛型 scope 包装、含引用值捕获、循环体内 GC、bound receiver 单次求值、同 closure class 的逃逸 sibling、外层 scope 与被保存的内层回调，以及 identity。M58 优化四个 fixture 共 12 变体／12 进程通过；M37 局部类型 closure 与 inner closure 各两变体／六进程、M34 内联语义两变体／八进程均通过。本机闭环未出现根或运行结果回归；Linux、生产分配／耗时／footprint 矩阵仍待统一验证，不将实例消失等同于私有 TD／layout 已不发射。

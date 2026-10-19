@@ -1,6 +1,7 @@
 use super::*;
 
 mod boxing;
+mod closures;
 mod iterations;
 
 fn optimize(module: &mut mir::Module) {
