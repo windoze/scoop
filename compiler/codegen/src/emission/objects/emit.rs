@@ -63,7 +63,7 @@ pub(super) fn emit_object_set_with_production<
             &machine,
             profile,
             &selected_safepoints,
-            body,
+            function,
         )?;
         let path = backing.path().join(format!("{body}.o"));
         write_object(&machine, &prepared.llvm, &path)?;
