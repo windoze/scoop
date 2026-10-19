@@ -349,6 +349,8 @@ Linux 组合回归中的连接池对端把已发送请求的空 trailing HEADERS
 
 `m54-nfc-authentication` 在 Darwin 通过 debug／release、full moving 和构建复用，共 6 个步骤进程。规范化和 Base64／SHA-256 结果已用 Python 标准库独立核对；最初消费者误写的十六进制扩展 import 已修正并复验。该功能补齐 RFC 7616／7617 的 UTF-8 凭据规范化基础，client 的认证流程仍属后续工作，不新增 ICU 依赖。
 
+以上未发送请求拒绝与 NFC 两项正式消费者在 GNU／musl 各通过 4 个变体、12 个步骤进程，包含 debug／release、full moving 和正常构建复用，三个目标验证闭合。正常准备入口更新目标生产库，无须重跑未修改的编译器测试。清理已被修复后结果替代的重试与 GOAWAY 诊断 target，释放约 330 MiB；保留源码、目标资源、缓存和原始日志。
+
 ## 后续工作
 
 继续完成重试／认证／代理、Cookie、缓存／续传、SSE／WebSocket 高层组合和可观察性。每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
