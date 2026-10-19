@@ -16,13 +16,18 @@ private class HttpClientTimeoutOptionsTest {
         assertFailsWith<IllegalArgumentException> { HttpTimeoutOptions(resolve = negative) }
         assertFailsWith<IllegalArgumentException> { HttpTimeoutOptions(connect = negative) }
         assertFailsWith<IllegalArgumentException> { HttpTimeoutOptions(tlsHandshake = negative) }
+        assertFailsWith<IllegalArgumentException> { HttpTimeoutOptions(readIdle = negative) }
+        assertFailsWith<IllegalArgumentException> { HttpTimeoutOptions(writeIdle = negative) }
         val zero = HttpTimeoutOptions(total = Some(Duration.ZERO))
         assertTrue(zero.total == Some(Duration.ZERO))
         assertTrue(zero.poolAcquire == None && zero.responseHeaders == None)
+        assertTrue(zero.readIdle == None && zero.writeIdle == None)
         val thirty = Some(Duration.seconds(30L))
         assertTrue(zero.resolve == thirty && zero.connect == thirty && zero.tlsHandshake == thirty)
         val disabled = HttpTimeoutOptions(resolve = None, connect = None, tlsHandshake = None)
         assertTrue(disabled.resolve == None && disabled.connect == None && disabled.tlsHandshake == None)
+        val idle = HttpTimeoutOptions(readIdle = Some(Duration.ZERO), writeIdle = Some(Duration.ZERO))
+        assertTrue(idle.readIdle == Some(Duration.ZERO) && idle.writeIdle == Some(Duration.ZERO))
     }
 
     @Test
@@ -57,7 +62,7 @@ private class HttpClientTimeoutOptionsTest {
     @Test
     fun `successful cleanup cancels every long deadline instead of retaining timer children`() {
         val long = Some(Duration.seconds(3600L))
-        withClientTimeoutTest(HttpTimeoutOptions(long, long, long)) suspend { _, scope, listener, config ->
+        withClientTimeoutTest(HttpTimeoutOptions(long, long, long, readIdle = long, writeIdle = long)) suspend { _, scope, listener, config ->
             val serving = scope.launch suspend {
                 AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
                     connection.receiveRequest()!!.body.readAllBytes(0L)

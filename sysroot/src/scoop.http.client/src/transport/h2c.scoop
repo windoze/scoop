@@ -29,7 +29,9 @@ internal class ClientH2cExchange(val call: ClientCall, val entry: ClientPoolEntr
             throw HttpNegotiationException("upgrade HTTP client", "request upload did not complete")
         original.close()
         val connection = awaitClientUpgrade(call, entry, original.connection)
-        current = ClientH2Exchange(connection.upgradedStream!!)
+        val stream = connection.upgradedStream!!
+        current = ClientH2Exchange(stream)
+        bindClientHttp2Stream(call, stream)
         return current.receiveResponse()
     }
 

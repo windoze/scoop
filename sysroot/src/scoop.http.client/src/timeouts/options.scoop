@@ -8,17 +8,19 @@ public class HttpTimeoutOptions public constructor(
     public val responseHeaders: Duration? = None,
     public val resolve: Duration? = Some(Duration.seconds(30L)),
     public val connect: Duration? = Some(Duration.seconds(30L)),
-    public val tlsHandshake: Duration? = Some(Duration.seconds(30L))
+    public val tlsHandshake: Duration? = Some(Duration.seconds(30L)),
+    public val readIdle: Duration? = None,
+    public val writeIdle: Duration? = None
 ) {
     init {
-        for (duration in [total, poolAcquire, responseHeaders, resolve, connect, tlsHandshake]) {
+        for (duration in [total, poolAcquire, responseHeaders, resolve, connect, tlsHandshake, readIdle, writeIdle]) {
             if (duration != None && duration!! < Duration.ZERO)
                 throw IllegalArgumentException(Some("HTTP timeout must be nonnegative"))
         }
     }
 }
 
-public enum HttpTimeoutPhase { Total, PoolAcquire, ResponseHeaders, Resolve, Connect, TlsHandshake }
+public enum HttpTimeoutPhase { Total, PoolAcquire, ResponseHeaders, Resolve, Connect, TlsHandshake, ReadIdle, WriteIdle }
 
 public class HttpTimeoutException internal constructor(
     public val phase: HttpTimeoutPhase,
@@ -37,4 +39,6 @@ private fun httpTimeoutPhaseName(phase: HttpTimeoutPhase): String = when (phase)
     case Resolve -> "address resolution"
     case Connect -> "TCP connection"
     case TlsHandshake -> "TLS handshake"
+    case ReadIdle -> "read idle"
+    case WriteIdle -> "write idle"
 }

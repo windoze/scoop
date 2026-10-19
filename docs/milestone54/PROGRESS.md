@@ -71,6 +71,7 @@
 | ELF 后端只读常量 | callable 的 .rodata 包含独立关联定义，跳转表与代码同属一次 ODR 选择；保留只读权限、相对重定位及精确范围，缺省贡献在机器发射后移除 | 225 项 codegen、350 项身份编码、390 项 LIR 与 253 项产物测试通过；独立协程消费者在旧 Linux 编译器上复现 release 失败，在 Darwin 通过 debug／release、full moving 与构建复用 |
 | ELF 可选 native 弱引用 | 未定义 STB_WEAK 保留目标 linker 的可选解析语义，不加入必须解析集合或仅为弱引用拉取 archive；普通强引用继续闭合 | 本机 5 项 ELF reader、既有 Mach-O reader 和 3 项 native 选择回归通过，workspace clippy 通过；GNU／musl 各 4 个正式变体、12 个进程通过，包含可选函数／数据缺省及实际定义、full moving 与复用 |
 | HTTP/2 空正文结束 | 没有待序列化 DATA 时以 trailing HEADERS 结束，不等待流或连接窗口；初始头与此前 DATA 保持顺序，有待发送 DATA 时仍遵守窗口限制 | 新增 5 项测试，HTTP 全部 239 项通过 debug／release；15 项新旧用例逐例通过两种构建的 full moving，独立线协议和原输出归属消费者共 4 个变体、12 个进程通过 |
+| client 读写停滞与后台失败 | readIdle／writeIdle 逐调用传给 HTTP 异步库，统一阶段、原始原因和已确认正文计数；H2 后台超时／reset 取消 producer，真实清理后释放本流容量 | 新增 6 项测试并扩展配置断言，client 全部 125 项通过 debug／release；14 项新旧用例逐例通过两种构建的 full moving，五种独立 TCP 场景与构建复用通过 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -302,9 +303,13 @@ Linux 的 TCP deadline 消费者发现环境假设：该机 hosts 只为 localho
 
 5 项新增测试和 10 项流控／pending／输出／消息回归逐例通过两种构建的 full moving，共 30 个进程。修复位于 HTTP native 适配层，不依赖异步驱动或 client 补发窗口；尚未发送的 DATA 不能被结束标记越过。GNU／musl 的对应线协议验收随后进行。
 
+`m54-client-idle` 在 Darwin 通过 debug／release 两个变体，共 6 个步骤进程。五种独立 Python 对端场景各由两个 native 线程执行，覆盖 H1 分段首部持续进展、应用停顿不计入 idle、gzip 缺少结尾时的三类确认计数、其他 H2 流活跃时的读超时、零窗口后台写超时与真实 producer 清理，以及 h2c 的 stream 1 超时和后续流复用。PING 按 ACK 节拍继续发送，避免测试对端在 full moving 下自行积压高优先级 ACK。
+
+6 项新增测试和 8 项配置／截止／取消／清理回归逐例通过两种构建的 full moving，共 28 个进程。覆盖零时限不获取 producer、复用连接上的完整配置替换、保留原始 HTTP idle 原因和资源清理错误、后台对端 reset、未完成清理期间的池容量及首次 close 的失败观察。生产 client 已使用经过验证的 HTTP 实现发布到本机 sysroot；client 没有新增 I/O 时钟或原生入口。
+
 ## 后续工作
 
-继续完成 client 的统一 idle 配置与错误映射，以及重定向／重试／认证／代理、Cookie、缓存／续传、SSE／WebSocket 高层组合和可观察性。每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
+继续完成重定向／重试／认证／代理、Cookie、缓存／续传、SSE／WebSocket 高层组合和可观察性。每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
 
 ## 验证安排
 

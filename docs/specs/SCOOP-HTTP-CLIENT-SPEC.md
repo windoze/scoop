@@ -179,6 +179,14 @@ IP 字面量跳过 resolve，connect 从提交单个 TCP 连接前计时。TLS �
 
 HttpTimeoutException.cause 为 None 或原始下层异常；附带清理失败时继续使用 ResourceUseException，不能丢失已选择的超时、取消或 native 原码。任何阶段到期都等实际连接、握手及取消收尾后再结束调用，未完成的连接名额随后才可复用。
 
+### 7.3 读写停滞
+
+HttpTimeoutOptions 的 readIdle／writeIdle 默认 None，采用相同的非负验证、继承和完整替换规则。client 将配置直接交给 HTTP 异步库：H1 的请求 writer 和每次响应读取按消息设置，H2 的每个请求流单独设置，h2c 的 stream 1 使用该次调用的配置。复用连接上的新请求重新选择本次配置，不继承上一次请求的时限。实际计时、缓冲读取、零时限、流控等待及应用停顿遵守 HTTP 规范 §7.1，client 不再维护一套 I/O 时钟。
+
+HttpIoTimeoutException 映射为 HttpTimeoutPhase.ReadIdle／WriteIdle，保留原始 cause、limit 和 elapsed，并附带 §7.1 定义的三个已确认正文进度计数。ResourceUseException 只映射其主要原因，保留原清理异常。总截止、请求取消或其他已选择的失败不被迟到的 idle 结果覆盖。
+
+H2 的后台 StreamFailure 按实际连接和 stream ID 关联到调用；最终响应头已经交付、producer 挂起且应用没有读取时，已排队输出的超时仍结束调用并取消 producer。流登记后查询一次 HTTP 的 failure 快照，衔接此前已经交付的通知。调用等待上传、正文适配和协议清理完成后释放名额，后续正文操作或首次尚未观察失败的 close 报告统一异常；同一原始失败不重复附加清理原因。单流失败不排空仍可用的 H2 连接，也不取消其他流。
+
 ## 8. 重定向、重试与认证
 
 重定向默认开启，最多 10 跳，只允许 http／https；HTTPS 降到 HTTP 默认拒绝，可由调用者明确开启。301／302 默认仅将 POST 改为 GET，303 将非 HEAD 改为 GET，307／308 保持方法与 body。改为 GET 时移除原 body 相关字段；保留 body 时必须满足重放条件。Location 用 URL.resolve，处理循环和相对引用。

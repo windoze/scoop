@@ -1,0 +1,19 @@
+package scoop.http.client
+
+import scoop.http.asyncio.AsyncHttp2Stream
+
+internal fun bindClientHttp2Stream(call: ClientCall, stream: AsyncHttp2Stream) {
+    call.lock.withLock { call.http2StreamId = Some(stream.id) }
+    val failure = stream.failure
+    if (clientPresent(failure)) failClientCall(call, failure!!)
+}
+
+internal fun failClientHttp2Stream(state: ClientState, entry: ClientPoolEntry, id: Int, error: Throwable) {
+    val calls = state.lock.withLock { state.calls.toArray() }
+    for (call in calls) {
+        val matches = call.lock.withLock {
+            !call.completed && clientPresent(call.lease) && call.lease!! === entry && call.http2StreamId == Some(id)
+        }
+        if (matches) failClientCall(call, error)
+    }
+}

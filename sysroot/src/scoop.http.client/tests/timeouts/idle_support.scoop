@@ -1,0 +1,33 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.HttpProtocol
+import scoop.http.asyncio.*
+import scoop.test.*
+
+internal fun checkClientIdleCause(error: HttpTimeoutException, protocol: HttpProtocol, stream: Int) {
+    val cause = error.cause!!
+    assertTrue(cause is HttpIoTimeoutException)
+    if (cause is HttpIoTimeoutException) {
+        assertTrue(cause.protocol == protocol)
+        assertEquals(stream, cause.streamId)
+        assertEquals(error.limit, cause.limit)
+        assertEquals(error.elapsed, cause.elapsed)
+        val direction = if (error.phase == HttpTimeoutPhase.ReadIdle) HttpIoDirection.Read else HttpIoDirection.Write
+        assertTrue(cause.direction == direction)
+    }
+}
+
+internal class ClientIdleCleanup(private val failClose: Boolean) : AsyncCloseable {
+    val started: AtomicBoolean = AtomicBoolean(false)
+    val release: BodyTestGate = BodyTestGate()
+    val failure: Throwable = Throwable()
+    var closes: Long = 0L
+
+    public override suspend fun close() {
+        closes += 1L
+        started.store(true)
+        release.await()
+        if (failClose) throw failure
+    }
+}

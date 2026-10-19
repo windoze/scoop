@@ -11,8 +11,10 @@ internal class ClientCall(
 ) {
     val timeouts: HttpTimeoutOptions = request.options.timeouts ?: client.config.timeouts
     val started: TimeMark? = if (timeouts.total != None) Some(MonotonicTimeSource.markNow()) else None
-    val tracksProgress: Boolean = timeouts.total != None || timeouts.poolAcquire != None || timeouts.responseHeaders != None
-    val usesDeadlines: Boolean = tracksProgress || timeouts.resolve != None || timeouts.connect != None || timeouts.tlsHandshake != None
+    val tracksProgress: Boolean = timeouts.total != None || timeouts.poolAcquire != None || timeouts.responseHeaders != None ||
+        timeouts.readIdle != None || timeouts.writeIdle != None
+    val usesDeadlines: Boolean = timeouts.total != None || timeouts.poolAcquire != None || timeouts.responseHeaders != None ||
+        timeouts.resolve != None || timeouts.connect != None || timeouts.tlsHandshake != None
     val lock: ClientLock = ClientLock()
     var caller: Job? = Some(caller)
     var result: Continuation<HttpResponse>? = Some(result)
@@ -27,6 +29,7 @@ internal class ClientCall(
     var endWaiter: Continuation<Unit>? = None
     var lease: ClientPoolEntry? = None
     var exchange: ClientExchange? = None
+    var http2StreamId: Int? = None
     var responseInput: ClientResponseInput? = None
     val deadlines: ArrayList<ClientDeadline> = ArrayList<ClientDeadline>()
     var poolDeadline: ClientDeadline? = None
@@ -74,15 +77,17 @@ internal fun cancelClientCall(call: ClientCall, error: Throwable) {
 }
 
 internal fun failClientCall(call: ClientCall, error: Throwable) {
+    val failure = mapClientIoTimeout(call, error)
     call.lock.withLock {
+        if (call.completed || (clientPresent(call.failure) && sameClientFailure(call.failure!!, failure))) return@withLock
         if (call.abandoned) {
-            if (error is ResourceUseException) call.cleanupFailure = Some(clientCombined(call.cleanupFailure, error.cleanupFailure))
-            else if (!(error is CancellationException)) call.cleanupFailure = Some(clientCombined(call.cleanupFailure, error))
-        } else if (!clientPresent(call.failure)) call.failure = Some(error)
-        else if (error is ResourceUseException) call.cleanupFailure = Some(clientCombined(call.cleanupFailure, error.cleanupFailure))
+            if (failure is ResourceUseException) call.cleanupFailure = Some(clientCombined(call.cleanupFailure, failure.cleanupFailure))
+            else if (!(failure is CancellationException)) call.cleanupFailure = Some(clientCombined(call.cleanupFailure, failure))
+        } else if (!clientPresent(call.failure)) call.failure = Some(failure)
+        else if (failure is ResourceUseException) call.cleanupFailure = Some(clientCombined(call.cleanupFailure, failure.cleanupFailure))
         Unit
     }
-    cancelClientCall(call, error)
+    cancelClientCall(call, failure)
 }
 
 internal fun clientCallFailure(call: ClientCall): Throwable? = call.lock.withLock {

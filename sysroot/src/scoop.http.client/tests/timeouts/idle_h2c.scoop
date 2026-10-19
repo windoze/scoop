@@ -1,0 +1,46 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.test.*
+
+@Test
+private class HttpClientH2cIdleTest {
+    @Test
+    fun `h2c stream one keeps its call idle options and a later stream does not inherit them`() {
+        val limit = clientTimeoutTestDuration()
+        withClientH2cTest suspend { _, scope, listener, config ->
+            val done = BodyTestGate()
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { h1 ->
+                    val first = h1.receiveRequest()!!
+                    assertEquals("send", String.fromUtf8(first.body.readAllBytes(4L)))
+                    acceptClientTestUpgrade(h1, scope, first.head).useAsync suspend { h2 ->
+                        assertEquals(1, h2.upgradedStream!!.id)
+                        val second = h2.acceptRequest()!!.stream
+                        assertEquals(3, second.id); second.readAllBytes(0L)
+                        second.sendResponse(HttpResponseHead(HttpVersion.Http2, 204U))
+                        done.await()
+                    }
+                }
+            }
+            try {
+                withHttpClient(config) suspend { client ->
+                    val options = HttpCallOptions(timeouts = Some(HttpTimeoutOptions(readIdle = Some(limit))))
+                    val error = expectBodyFailure<HttpTimeoutException> suspend {
+                        client.execute(HttpRequest.post(clientTestUrl(listener), RequestBody.fromText("send"), options = options)); Unit
+                    }
+                    checkClientTimeout(error, HttpTimeoutPhase.ReadIdle, limit, sent = 4L)
+                    checkClientIdleCause(error, HttpProtocol.Http2, 1)
+                    client.withResponse(HttpRequest.get(clientTestUrl(listener))) suspend { response ->
+                        assertTrue(response.version == HttpVersion.Http2)
+                        assertEquals(204U, response.status); response.body.bytes(0L); Unit
+                    }
+                }
+            } finally { done.signal() }
+            serving.join()
+            assertFalse(scope.job.isCancelled)
+        }
+    }
+}

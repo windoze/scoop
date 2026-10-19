@@ -1,6 +1,7 @@
 package scoop.http.client
 
 import scoop.http.asyncio.Http2Notice
+import scoop.http.HttpFailureScope
 import scoop.platform.time.MonotonicTimeSource
 import scoop.time.TimeMark
 import scoop.url.UrlOrigin
@@ -29,6 +30,10 @@ internal enum ClientPoolAction {
 }
 
 internal fun clientPoolNotice(state: ClientState, entry: ClientPoolEntry, notice: Http2Notice) {
+    when (notice) {
+        case StreamFailure(id, error) -> { failClientHttp2Stream(state, entry, id, error); return }
+        else -> {}
+    }
     val changed = state.lock.withLock {
         when (notice) {
             case Settings(values, false) -> {
@@ -41,9 +46,11 @@ internal fun clientPoolNotice(state: ClientState, entry: ClientPoolEntry, notice
                 true
             }
             case Failure(error) -> {
-                entry.draining = true
-                if (!clientPresent(entry.failure)) entry.failure = Some(error)
-                true
+                if (error.scope != HttpFailureScope.Connection) false else {
+                    entry.draining = true
+                    if (!clientPresent(entry.failure)) entry.failure = Some(error)
+                    true
+                }
             }
             else -> false
         }
