@@ -22,6 +22,8 @@ mod copied_aggregate;
 mod guarded_unwrap;
 #[path = "statepoint_tests/interface_parts.rs"]
 mod interface_parts;
+#[path = "statepoint_tests/loops.rs"]
+mod loops;
 #[path = "statepoint_tests/optimized.rs"]
 mod optimized;
 #[path = "statepoint_tests/terminal_poll.rs"]

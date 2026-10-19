@@ -22,7 +22,10 @@ fn generic_identity_infers_type_arguments() {
     ]);
     let module = lower_user(file).expect("generic identity must lower");
     let expected = include_str!("snapshots/generic_identity_infers_type_arguments.hir.txt");
-    assert_eq!(hir::dump(&module), expected);
+    assert_eq!(
+        dump_test_declarations(&module, &["  fun identity<", "  fun main("]),
+        expected
+    );
 }
 
 #[test]
@@ -238,7 +241,10 @@ fn nested_generic_calls_record_param_instantiations() {
     let module = lower_user(file).expect("nested generic calls must lower");
     let expected =
         include_str!("snapshots/nested_generic_calls_record_param_instantiations.hir.txt");
-    assert_eq!(hir::dump(&module), expected);
+    assert_eq!(
+        dump_test_declarations(&module, &["  fun identity<", "  fun twice<", "  fun main("]),
+        expected
+    );
 }
 
 /// `Option<T>` in a parameter type binds recursively against an
@@ -270,5 +276,8 @@ fn generic_option_roundtrip() {
     ]);
     let module = lower_user(file).expect("generic Option function must lower");
     let expected = include_str!("snapshots/generic_option_roundtrip.hir.txt");
-    assert_eq!(hir::dump(&module), expected);
+    assert_eq!(
+        dump_test_declarations(&module, &["  fun unwrapOr<", "  fun main("]),
+        expected
+    );
 }

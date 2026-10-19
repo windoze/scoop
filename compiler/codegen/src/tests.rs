@@ -68,6 +68,7 @@ mod runtime_scans;
 mod scoop_abi;
 mod smoke;
 mod statepoints;
+mod string_leaves;
 mod strong_shapes;
 mod utf8;
 mod zst_places;

@@ -5,27 +5,23 @@
 
 void scoop_gc_check_array_clone_source(const void *object, const ScoopTypeDescriptor *expected) {
     scoop_gc_heap_lock();
-    if (!scoop_gc_is_object_start_locked(object)) {
-        scoop_shape_fatal("array clone requires a managed object start");
-    }
+    size_t size = scoop_gc_object_size_locked(object);
     if (((const ScoopObjectHeader *)object)->td != expected) {
         scoop_shape_fatal("array clone exact source TypeDescriptor mismatch");
     }
-    scoop_shape_validate_object(object, scoop_gc_object_size_locked(object));
+    scoop_shape_validate_object(object, size);
     scoop_gc_heap_unlock();
 }
 
 void scoop_gc_check_unbox(const void *object, const ScoopTypeDescriptor *expected,
                           uint32_t storage_kind) {
     scoop_gc_heap_lock();
-    if (!scoop_gc_is_object_start_locked(object)) {
-        scoop_shape_fatal("unbox requires a managed object start");
-    }
+    size_t size = scoop_gc_object_size_locked(object);
     const ScoopTypeDescriptor *actual = ((const ScoopObjectHeader *)object)->td;
     if (actual != expected &&
         (storage_kind != SCOOP_INLINE_STORAGE_INLINE_V1 || actual->parent != expected)) {
         scoop_shape_fatal("unbox exact TypeDescriptor mismatch");
     }
-    scoop_shape_validate_object(object, scoop_gc_object_size_locked(object));
+    scoop_shape_validate_object(object, size);
     scoop_gc_heap_unlock();
 }

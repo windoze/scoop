@@ -1,0 +1,30 @@
+interface Read { fun value(): Long }
+class Leaf(val number: Long)
+struct Pair(val leaf: Leaf, val number: Long) : Read {
+    override fun value(): Long = leaf.number + number
+}
+struct Empty()
+
+fun main() {
+    val leaf = Leaf(7L)
+    val boxed: Any = Pair(leaf, 35L)
+    val view: Read = Pair(leaf, 8L)
+    val zero: Any = Empty()
+    val values = MutableArray<Pair>(33L) { i -> Pair(leaf, i) }
+    val copy = values.toArray()
+    gcCollect()
+    val result = boxed as Pair
+    val empty = zero as Empty
+    if (result.leaf !== leaf || result.number != 35L || view.value() != 15L) {
+        throw IllegalStateException()
+    }
+    if (copy[32L].leaf !== leaf || copy[32L].number != 32L || copy.size != 33L) {
+        throw IllegalStateException()
+    }
+    val zeroes = Array<Empty>(2L) { _ -> empty }
+    gcCollect()
+    if (zeroes.size != 2L || result.leaf.number != 7L) {
+        throw IllegalStateException()
+    }
+    println("boxing, cloning and moving references preserved")
+}

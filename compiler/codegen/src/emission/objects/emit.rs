@@ -5,7 +5,7 @@ struct PreparedCallableObject {
     path: std::path::PathBuf,
     runtime_metadata: EmittedStrongRuntimeMetadataV1,
     plan: CallableCodePlan,
-    backend_constants: crate::callable_constants::Contributions,
+    backend_constants: std::collections::BTreeSet<scoop_lir::CallableConstantKind>,
 }
 
 pub(super) fn emit_object_set_with_production<
@@ -38,6 +38,19 @@ pub(super) fn emit_object_set_with_production<
         })?;
     let mut callables = BTreeMap::new();
     let elf_symbols = crate::elf_llvm::SymbolPlanIndex::new(production.canonical_definitions());
+    let callable_definitions = production
+        .canonical_definitions()
+        .plans()
+        .iter()
+        .filter(|plan| plan.definition_role() == scoop_lir::StrongDefinitionRole::CallableBody)
+        .map(|plan| {
+            let scoop_lir::StrongDefinitionEntityKind::CallableBody(body) = plan.owner().kind()
+            else {
+                unreachable!("callable definition has a typed body owner");
+            };
+            (body, plan)
+        })
+        .collect::<BTreeMap<_, _>>();
     for function in module.callable_bodies() {
         let context = Context::create();
         let body = function.callable_body.id();
@@ -54,10 +67,10 @@ pub(super) fn emit_object_set_with_production<
         )?;
         let path = backing.path().join(format!("{body}.o"));
         write_object(&machine, &prepared.llvm, &path)?;
-        let backend_constants = crate::callable_constants::contributions(
+        let backend_constants = crate::callable_constants::present(
             &path,
             profile.lir_target_profile(),
-            function.symbol(),
+            callable_definitions[&body],
         )?;
         callables.insert(
             body,
@@ -74,7 +87,7 @@ pub(super) fn emit_object_set_with_production<
         &mut production,
         callables
             .iter()
-            .map(|(body, object)| (*body, &object.plan, object.backend_constants)),
+            .map(|(body, object)| (*body, &object.plan, &object.backend_constants)),
     )?;
     let partition = ScoopLirObjectPartitionV1::from_foundation(
         input,

@@ -672,6 +672,14 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 在所属 HTTP、crypto、TLS、asyncio／platform 库补齐方法／消息工具、摘要、mTLS／系统信任、文件操作、地址族竞速与代理，不在 client 中增加 workaround。完成重定向／重试、认证、Cookie、私有缓存、下载续传、multipart、SSE 与 HTTP/1.1 WebSocket。
 - HTTP/3、HTTP/2 WebSocket、跨 origin H2 合并、证书固定／对端链检查接口、TLS 会话恢复控制／0-RTT、主动 H2 PING 保活留待后续；不引入占位接口。本条只记录设计，尚未开始实现或运行验收。
 
+### M56 生成代码、GC 与 runtime 性能（已完成，[设计与调研](milestone56/DESIGN.md)、[进度](milestone56/PROGRESS.md)、[验收](milestone56/ACCEPTANCE.md)）
+
+- 面向 PC／桌面与 60 fps GUI，分配速度、短暂停尾部和低配置机器的 footprint 优先于 GC 批量吞吐；局部改进与增量 collector 取舍见[补充设计](milestone56/DESKTOP-GC.md)。
+- 优先复用 TD／对象表示操作的已有验证结果，以 typed intrinsic 消除常数时间 runtime 操作的 native transition，并扩展满足精确根与 site identity 合同的 release 优化。
+- 对 nursery／TLAB、局部 card mark 和有搬迁 GC 的引用回写做真实工作负载对照；吞吐、GC 响应、内存、编译耗时与代码体积共同决定方案取舍。
+- 记录编译声明重复、跨 Cone 小函数内联、装箱与协程对象消除的候选边界；分块 poll 等合同变更需单独验证，不作为首版前置。实现按功能提交，先本机聚焦验证，再做 Linux 完整验收。
+- 2026-10-19 完成 A–D 实现与策略取舍，默认 nursery 保留 1 MiB；E／桌面后续候选完成调查。Linux Rust 4976 项、runner 50 项通过，GNU 全量 4220 项通过／33 项不适用，musl 合同组合 676／8；末轮单 worker 回写修正在三目标定向闭合。两端性能保留无明显收益和剩余回退，临时源码、工具、实验目录与远端 worktree 已恢复或清理。
+
 ## 4. 待补齐清单（backlog）
 
 各里程碑"涵盖但只实现了部分"的事项，按来源里程碑整理。标注→的为目标里程碑（已知时）；未标注的待排期。

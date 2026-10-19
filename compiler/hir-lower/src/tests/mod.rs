@@ -127,6 +127,26 @@ use ast::{
 pub(crate) use builders::*;
 pub(crate) use core::*;
 
+// Snapshot only the declarations under test; shared core declarations have
+// separate typed contract tests. Bodies and referenced generic instances remain
+// verbatim, including their types, evaluation order and local bindings.
+fn dump_test_declarations(output: &hir::ExportHirOutput, prefixes: &[&str]) -> String {
+    let mut selected = false;
+    let mut result = String::new();
+    for line in hir::dump(output).lines() {
+        if line.starts_with("  ") && !line.starts_with("    ") {
+            selected = prefixes.iter().any(|prefix| line.starts_with(prefix))
+                || line.starts_with("  output ")
+                || line.starts_with("  instance ");
+        }
+        if selected {
+            result.push_str(line);
+            result.push('\n');
+        }
+    }
+    result
+}
+
 pub(crate) fn defined_export_core(module: &hir::Module) -> &hir::DefinedCoreProtocols {
     let hir::CoreProtocols::Defined(protocols) = &module.core_protocols else {
         panic!("test Export HIR carries locally defined core protocols")

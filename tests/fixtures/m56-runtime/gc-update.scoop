@@ -1,0 +1,47 @@
+class UpdateNode(val value: Long, var next: UpdateNode?)
+struct UpdateEdge(val left: UpdateNode, val right: UpdateNode)
+
+@Unsafe
+fun main() {
+    val anchor = UpdateNode(-1L, None)
+    val nodes = Array<UpdateNode>(65L) { index -> UpdateNode(index, Some(anchor)) }
+    val edges = MutableArray<UpdateEdge>(2051L) { index ->
+        UpdateEdge(nodes[index % 65L], nodes[(index + 1L) % 65L])
+    }
+    val published = AtomicRef(nodes[64L])
+    var round = 0L
+    while (round < 3L) {
+        gcCollect()
+        var index = 0L
+        while (index < edges.size) {
+            val edge = edges[index]
+            if (edge.left !== nodes[index % 65L] || edge.right !== nodes[(index + 1L) % 65L]) {
+                throw IllegalStateException()
+            }
+            if (edge.left.next!! !== anchor || edge.left.value != index % 65L) {
+                throw IllegalStateException()
+            }
+            index += 1L
+        }
+        nodes[0L].next = Some(UpdateNode(7331L + round, None))
+        gcCollect()
+        if (nodes[0L].next!!.value != 7331L + round || published.load() !== nodes[64L]) {
+            throw IllegalStateException()
+        }
+        nodes[0L].next = Some(anchor)
+        val held = pin(edges)
+        try {
+            gcCollect()
+            val first = edges[0L]
+            val last = edges[edges.size - 1L]
+            if (first.left !== nodes[0L] || last.right !== nodes[edges.size % 65L]) {
+                throw IllegalStateException()
+            }
+        } finally { unpin(held) }
+        round += 1L
+    }
+    val empty = Array<UpdateNode>(0L) { _ -> anchor }
+    gcCollect()
+    if (empty.size != 0L) { throw IllegalStateException() }
+    println("parallel update preserves arrays, pins, roots and atomic references")
+}

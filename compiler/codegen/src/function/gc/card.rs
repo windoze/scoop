@@ -1,8 +1,22 @@
 //! Inline sparse page-map lookup and marking, entirely between safepoints.
 use super::*;
 
+#[derive(Clone, Copy)]
+pub(super) struct CardRegion<'ctx> {
+    base: IntValue<'ctx>,
+    cards: PointerValue<'ctx>,
+}
+
 impl<'ctx> FnEmitter<'_, 'ctx> {
     pub(super) fn card_mark(&self, addr: PointerValue<'ctx>) -> Result<(), CodegenError> {
+        let region = self.card_region(addr)?;
+        self.mark_card_in_region(addr, region)
+    }
+
+    pub(super) fn card_region(
+        &self,
+        addr: PointerValue<'ctx>,
+    ) -> Result<CardRegion<'ctx>, CodegenError> {
         let context = self.context;
         let builder = self.builder;
         let ptr = ptr_ty(context);
@@ -52,8 +66,22 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .build_load(ptr, cards_slot, "region_cards")
             .map_err(card_error)?
             .into_pointer_value();
+        Ok(CardRegion { base, cards })
+    }
+
+    pub(super) fn mark_card_in_region(
+        &self,
+        addr: PointerValue<'ctx>,
+        region: CardRegion<'ctx>,
+    ) -> Result<(), CodegenError> {
+        let context = self.context;
+        let builder = self.builder;
+        let i64_ty = context.i64_type();
+        let address = builder
+            .build_ptr_to_int(addr, i64_ty, "card_addr")
+            .map_err(card_error)?;
         let offset = builder
-            .build_int_sub(address, base, "card_offset")
+            .build_int_sub(address, region.base, "card_offset")
             .map_err(card_error)?;
         let card = builder
             .build_right_shift(
@@ -65,8 +93,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .map_err(card_error)?;
         // SAFETY: the destination belongs to this mapping and its cards cover
         // the entire immutable [base, base + size) range.
-        let slot = unsafe { builder.build_gep(context.i8_type(), cards, &[card], "card_ptr") }
-            .map_err(card_error)?;
+        let slot =
+            unsafe { builder.build_gep(context.i8_type(), region.cards, &[card], "card_ptr") }
+                .map_err(card_error)?;
         builder
             .build_atomicrmw(
                 AtomicRMWBinOp::Or,

@@ -39,21 +39,15 @@ pub fn render_llvm_ir_members(
             (prepared.llvm.print_to_string().to_string(), prepared.plan),
         );
     }
+    let constants = scoop_lir::CallableConstantKind::ALL.into_iter().collect();
     let foundation = finalization::finalize_production(
         input,
         &mut production,
         // IR rendering precedes machine-generated constants; retain their candidate
         // atoms here. Object emission projects the actual sections before packaging.
-        callables.iter().map(|(body, (_, plan))| {
-            (
-                *body,
-                plan,
-                crate::callable_constants::Contributions {
-                    relocatable: true,
-                    read_only: true,
-                },
-            )
-        }),
+        callables
+            .iter()
+            .map(|(body, (_, plan))| (*body, plan, &constants)),
     )?;
     let partition = ScoopLirObjectPartitionV1::from_foundation(
         input,

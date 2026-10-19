@@ -66,6 +66,9 @@ struct FnEmitter<'a, 'ctx> {
     allocation_index: u32,
     /// The attached thread address stays stable throughout this invocation.
     cached_poll_state: Option<PointerValue<'ctx>>,
+    /// One ordinary field-write region, never retained across control flow or
+    /// operations that can change the reference or publish/collect heap state.
+    field_barrier: Option<gc::FieldBarrierCache<'ctx>>,
     /// Checked array-size failures share one block per callable-owned message.
     array_size_trap_blocks: HashMap<scoop_lir::GlobalId, inkwell::basic_block::BasicBlock<'ctx>>,
 }
@@ -308,6 +311,7 @@ pub(super) fn emit_function<'ctx>(
         compiler_invoke_index: 0,
         allocation_index: 0,
         cached_poll_state: None,
+        field_barrier: None,
         array_size_trap_blocks: HashMap::new(),
     };
 
@@ -319,6 +323,7 @@ pub(super) fn emit_function<'ctx>(
     emitter.prepare_root_storage()?;
     for (block_id, block) in function.blocks.iter() {
         emitter.current_block = block_id;
+        emitter.field_barrier = None;
         builder.position_at_end(blocks[arena_index(block_id)]);
         // Invoke is an LLVM terminator even though it
         // are LIR instructions: one must be the last instruction of its

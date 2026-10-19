@@ -20,6 +20,25 @@ fn serial_and_parallel_markers_preserve_shared_graphs_and_repeated_collection() 
 }
 
 #[test]
+fn parallel_update_preserves_native_root_aliases_and_remembered_slots() {
+    let output = compile_and_run(
+        &workspace_root(),
+        "parallel_update_test",
+        "runtime/tests/parallel_update_test.c",
+        true,
+    );
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        output.stdout,
+        b"parallel update preserves aliased native roots, pinned fields and remembered slots\n"
+    );
+}
+
+#[test]
 fn worker_creation_failure_joins_started_threads_and_uses_the_same_serial_marker() {
     let output = compile_and_run_with_flags(
         &workspace_root(),

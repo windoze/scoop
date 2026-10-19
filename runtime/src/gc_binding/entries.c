@@ -7,10 +7,10 @@
 #include <stdint.h>
 
 #include "../gc/gc_internal.h"
-#include "internal.h"
 #include "../managed_entries.h"
-#include "scoop_rt.h"
 #include "../thread.h"
+#include "internal.h"
+#include "scoop_rt.h"
 
 void scoop_rt_gc_init(const ScoopImageRegistry *registry) {
     scoop_gc_stackmaps_init(&registry->stackmaps);
@@ -29,6 +29,7 @@ void *scoop_runtime_alloc_slow_impl(const ScoopTypeDescriptor *td, size_t size, 
 
 void *scoop_rt_alloc(const ScoopTypeDescriptor *td, size_t size) {
     scoop_thread_native_borrowed_entry();
+    scoop_image_require_type(td);
     return scoop_gc_alloc_internal(td, size);
 }
 

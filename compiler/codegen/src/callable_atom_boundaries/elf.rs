@@ -24,15 +24,22 @@ pub(super) fn materialize(path: &Path, plan: &DefinitionSymbolPlanV1) -> Result<
         .ok_or_else(|| CodegenError("ELF callable extent overflows".into()))?;
     let mut associated = vec![primary_section];
     let personality_atom = personality::atom(plan)?;
-    let constants_atom = crate::callable_constants::atom(plan)?;
-    let readonly_atom = crate::callable_constants::readonly_atom(plan)?;
+    let constants_atom =
+        crate::callable_constants::atom(plan, scoop_lir::CallableConstantKind::Relocatable)?;
+    let readonly_atom =
+        crate::callable_constants::atom(plan, scoop_lir::CallableConstantKind::ReadOnly)?;
     for boundary in plan.atom_boundaries() {
         if boundary.atom() == personality_atom {
             let section = personality::materialize(&mut output, *boundary)?;
             associated.push(section);
             continue;
         }
-        let extent = if boundary.atom() == constants_atom {
+        let extent = if boundary.atom() == readonly_atom {
+            let (section, end) = crate::callable_constants::elf_readonly_extent(&output.file, plan)
+                .ok_or_else(|| error("missing callable read-only constants"))?;
+            output.rename_section(section, ".rodata.scoop.constants")?;
+            Some((section, 0, end))
+        } else if boundary.atom() == constants_atom {
             let section = output
                 .file
                 .sections()
@@ -49,24 +56,6 @@ pub(super) fn materialize(path: &Path, plan: &DefinitionSymbolPlanV1) -> Result<
             let index = section.index();
             let size = section.size();
             output.rename_section(index, ".data.rel.ro.scoop.constants")?;
-            Some((index, 0, size))
-        } else if boundary.atom() == readonly_atom {
-            let section = output
-                .file
-                .sections()
-                .find(|section| {
-                    section.name().ok().is_some_and(|name| {
-                        crate::callable_constants::is_section(
-                            name,
-                            ".rodata",
-                            primary_name.as_str(),
-                        )
-                    })
-                })
-                .ok_or_else(|| error("missing callable read-only constants"))?;
-            let index = section.index();
-            let size = section.size();
-            output.rename_section(index, ".rodata.scoop.constants")?;
             Some((index, 0, size))
         } else {
             match boundary.atom_role() {

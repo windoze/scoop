@@ -21,7 +21,7 @@ fn tuples_and_indexing() {
     )]);
     let module = lower_user(file).expect("tuple program must lower");
     let expected = include_str!("snapshots/tuples_and_indexing.hir.txt");
-    assert_eq!(hir::dump(&module), expected);
+    assert_eq!(dump_test_declarations(&module, &["  fun main("]), expected);
 }
 
 #[test]

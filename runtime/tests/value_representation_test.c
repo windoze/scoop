@@ -9,6 +9,7 @@
 
 #include "../src/gc/gc_internal.h"
 #include "../src/managed_entries.h"
+#include "../src/string_abi.h"
 #include "../src/thread.h"
 #include "../src/value_shape.h"
 #include "platform/image_fixture.h"
@@ -102,8 +103,7 @@ typedef struct TestAnchor {
 } TestAnchor;
 static TestAnchor test_anchor(void) {
     TestAnchor anchor = {{0}};
-    anchor.words[2] =
-        (uintptr_t)scoop_thread_current_required()->managed_stack_boundary;
+    anchor.words[2] = (uintptr_t)scoop_thread_current_required()->managed_stack_boundary;
     return anchor;
 }
 
@@ -130,15 +130,13 @@ static void *box(const ScoopTypeDescriptor *td, const void *source) {
 static ScoopArray *clone(const void *source, const ScoopTypeDescriptor *source_td,
                          const ScoopTypeDescriptor *target_td) {
     TestAnchor frame = test_anchor();
-    return (ScoopArray *)scoop_rt_array_clone_impl(source, source_td, target_td, 0x1010,
-                                                   (uintptr_t)frame.words,
-                                                   (uintptr_t)&frame.words[2]);
+    return (ScoopArray *)scoop_rt_array_clone_impl(
+        source, source_td, target_td, 0x1010, (uintptr_t)frame.words, (uintptr_t)&frame.words[2]);
 }
 
 static void collect(void) {
     TestAnchor frame = test_anchor();
-    scoop_rt_gc_collect_impl(0x1010, (uintptr_t)frame.words,
-                             (uintptr_t)&frame.words[2]);
+    scoop_rt_gc_collect_impl(0x1010, (uintptr_t)frame.words, (uintptr_t)&frame.words[2]);
 }
 
 typedef void (*AbortProbe)(void *);
@@ -170,9 +168,8 @@ static void wrong_scan_box(void *unused) {
     (void)box(&ref_box_td, &payload);
     scoop_rt_pop_native_region_roots(&region);
 }
-static void interior_unbox(void *object) {
-    scoop_rt_unbox_zst((char *)object + 8, &zst_box_td);
-}
+static void interior_unbox(void *object) { scoop_rt_unbox_zst((char *)object + 8, &zst_box_td); }
+static void invalid_object_unbox(void *object) { scoop_rt_unbox_zst(object, &zst_box_td); }
 static void wrong_exact_unbox(void *object) {
     ScoopTypeDescriptor other = zst_box_td;
     scoop_rt_unbox_zst(object, &other);
@@ -199,6 +196,8 @@ static void test_boxing(bool stress) {
     expect_abort(unrooted_box, NULL);
     expect_abort(wrong_scan_box, NULL);
     expect_abort(interior_unbox, first);
+    expect_abort(invalid_object_unbox, NULL);
+    expect_abort(invalid_object_unbox, (void *)(uintptr_t)8);
 
     _Alignas(16) TestPayload payload = {allocate(&leaf_td, 24), 42};
     uintptr_t old_reference = (uintptr_t)payload.reference;
@@ -232,6 +231,9 @@ static void wrong_array_exact(void *object) {
     ScoopTypeDescriptor other = zst_array_td;
     (void)clone(object, &other, &zst_array_td);
 }
+static void interior_clone(void *object) {
+    (void)clone((char *)object + 8, &zst_array_td, &zst_array_td);
+}
 
 static void test_arrays(void) {
     ScoopArray *source = NULL;
@@ -242,18 +244,17 @@ static void test_arrays(void) {
     scoop_rt_push_native_roots(&roots, slots, 3);
     const uint64_t counts[] = {0, 1, INT64_MAX};
     for (size_t i = 0; i < sizeof counts / sizeof counts[0]; i++) {
-        source = allocate(&zst_array_td,
-                          scoop_shape_allocation_size(&zst_array_td, counts[i]));
+        source = allocate(&zst_array_td, scoop_shape_allocation_size(&zst_array_td, counts[i]));
         source->size = counts[i];
         copy = clone(source, &zst_array_td, &zst_target_td);
-        assert(copy != source && copy->size == counts[i] &&
-               copy->header.td == &zst_target_td);
+        assert(copy != source && copy->size == counts[i] && copy->header.td == &zst_target_td);
         assert(scoop_rt_gc_debug_allocation_size(copy) == 32);
         collect();
         assert(copy->size == counts[i]);
     }
     expect_abort(invalid_count, source);
     expect_abort(wrong_array_exact, source);
+    expect_abort(interior_clone, source);
     leaf = allocate(&leaf_td, 24);
     source = allocate(&ref_array_td, scoop_shape_allocation_size(&ref_array_td, 2));
     source->size = 2;
@@ -285,12 +286,72 @@ static void abstract_allocation(void *unused) {
         .instance_shape = {.instance_kind = SCOOP_TYPE_INSTANCE_ABSTRACT_REF_V1}};
     (void)allocate(&td, 16);
 }
+
+static void *native_allocate(const ScoopTypeDescriptor *td, size_t size) {
+    TestAnchor frame = test_anchor();
+    void *object = NULL;
+    ScoopCallerRootEntry entry = {&object, value_scan};
+    ScoopCallerRootFrame roots;
+    ScoopThreadTransition transition;
+    scoop_rt_push_caller_roots(&roots, &entry, 1);
+    scoop_rt_enter_native_borrowed_impl(&transition, (uintptr_t)frame.words, 0x1010,
+                                        (uintptr_t)frame.words, (uintptr_t)&frame.words[2]);
+    object = scoop_rt_alloc(td, size);
+    scoop_rt_leave_native_borrowed(&transition);
+    scoop_rt_pop_caller_roots(&roots);
+    return object;
+}
+
+static void invalid_native_type(void *td) { (void)native_allocate(td, 24); }
+
+static void test_native_allocation_boundary(void) {
+    ScoopObjectHeader *object = native_allocate(&leaf_td, 24);
+    assert(object->td == &leaf_td);
+    assert(scoop_rt_gc_debug_allocation_size(object) == 24);
+    assert(*(uint64_t *)(object + 1) == 0);
+    ScoopTypeDescriptor unregistered = leaf_td;
+    expect_abort(invalid_native_type, &unregistered);
+    expect_abort(invalid_native_type, NULL);
+    expect_abort(invalid_native_type, (void *)(uintptr_t)1);
+}
+
 static void test_allocation_bounds(void) {
     expect_abort(overflow_string, NULL);
     expect_abort(overflow_array, NULL);
     expect_abort(abstract_allocation, NULL);
     assert(scoop_shape_allocation_size(&bytes_td, 0) == 24);
     assert(scoop_shape_allocation_size(&bytes_td, 9) == 40);
+}
+
+static void negative_string_byte(void *value) { (void)scoop_rt_string_byte_at_leaf(value, -1); }
+static void past_string_byte(void *value) {
+    (void)scoop_rt_string_byte_at_leaf(value, (int64_t)((ScoopString *)value)->len);
+}
+static void negative_string_cursor(void *value) {
+    (void)scoop_rt_string_character_at_byte_leaf(value, -1);
+}
+static void past_string_cursor(void *value) {
+    (void)scoop_rt_string_character_at_byte_leaf(value, (int64_t)((ScoopString *)value)->len);
+}
+
+static void test_string_reads(void) {
+    const unsigned char bytes[] = {'A', 0, 0xc3, 0xa9, 0xe9, 0x9b, 0xaa, 0xf0, 0x9f, 0x99, 0x82};
+    ScoopString *value = allocate(&bytes_td, scoop_shape_allocation_size(&bytes_td, sizeof bytes));
+    value->len = sizeof bytes;
+    memcpy(value->data, bytes, sizeof bytes);
+    assert(scoop_rt_string_byte_length_leaf(value) == (int64_t)sizeof bytes);
+    for (size_t i = 0; i < sizeof bytes; i++) {
+        assert((uint8_t)scoop_rt_string_byte_at_leaf(value, (int64_t)i) == bytes[i]);
+    }
+    assert(scoop_rt_string_character_at_byte_leaf(value, 0) == 'A');
+    assert(scoop_rt_string_character_at_byte_leaf(value, 1) == 0);
+    assert(scoop_rt_string_character_at_byte_leaf(value, 2) == 0xe9);
+    assert(scoop_rt_string_character_at_byte_leaf(value, 4) == 0x96ea);
+    assert(scoop_rt_string_character_at_byte_leaf(value, 7) == 0x1f642);
+    expect_abort(negative_string_byte, value);
+    expect_abort(past_string_byte, value);
+    expect_abort(negative_string_cursor, value);
+    expect_abort(past_string_cursor, value);
 }
 
 static void run_mode(bool stress) {
@@ -311,6 +372,8 @@ static void run_mode(bool stress) {
     test_boxing(stress);
     test_arrays();
     test_allocation_bounds();
+    test_native_allocation_boundary();
+    test_string_reads();
     scoop_thread_leave_managed();
     scoop_thread_prepare_shutdown();
     scoop_thread_detach_main();

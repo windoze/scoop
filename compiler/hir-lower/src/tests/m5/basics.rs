@@ -37,7 +37,7 @@ fn array_basics_golden() {
     )]);
     let module = lower_user(file).expect("array program must lower");
     let expected = include_str!("snapshots/array_basics_golden.hir.txt");
-    assert_eq!(hir::dump(&module), expected);
+    assert_eq!(dump_test_declarations(&module, &["  fun main("]), expected);
 }
 
 /// A generic function over array elements: `T` is inferred from the
@@ -62,5 +62,8 @@ fn generic_function_over_array_elements() {
     ]);
     let module = lower_user(file).expect("generic array program must lower");
     let expected = include_str!("snapshots/generic_function_over_array_elements.hir.txt");
-    assert_eq!(hir::dump(&module), expected);
+    assert_eq!(
+        dump_test_declarations(&module, &["  fun first<", "  fun main("]),
+        expected
+    );
 }

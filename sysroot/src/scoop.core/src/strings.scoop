@@ -91,7 +91,7 @@ internal fun coreStringEquals(left: String, right: String): Boolean
 @Extern(name = "scoop_rt_string_hash", abi = "scoop")
 internal fun coreStringHash(value: String): Long
 
-@Extern(name = "scoop_rt_string_byte_length", abi = "scoop")
+@Intrinsic("string_byte_length")
 internal fun coreStringByteLength(value: String): Long
 
 @Extern(name = "scoop_rt_string_length", abi = "scoop")
@@ -103,10 +103,10 @@ internal fun coreStringGet(value: String, index: Long): Char?
 @Extern(name = "scoop_rt_string_slice_bounds", abi = "scoop")
 internal fun coreStringSliceBounds(value: String, start: Long, endExclusive: Long): (Long, Long)?
 
-@Extern(name = "scoop_rt_string_character_at_byte", abi = "scoop")
+@Intrinsic("string_character_at_byte")
 internal fun coreStringCharacterAtByte(value: String, index: Long): Char
 
-@Extern(name = "scoop_rt_string_byte_at", abi = "scoop")
+@Intrinsic("string_byte_at")
 internal fun coreStringByteAt(value: String, index: Long): Byte
 
 @Extern(name = "scoop_rt_string_slice_bytes", abi = "scoop")

@@ -23,6 +23,7 @@ pub(crate) fn core_file() -> SourceFile {
     equals.operator = Some(ast::OperatorModifier { span: sp() });
     declarations.push(generic_interface_decl("Equals", vec!["T"], vec![equals]));
     declarations.extend(intrinsic_type_declarations());
+    declarations.extend(super::strings::string_intrinsic_declarations());
     declarations.push(class_decl(
         ast::ClassModifier::Final,
         "TypeRef",

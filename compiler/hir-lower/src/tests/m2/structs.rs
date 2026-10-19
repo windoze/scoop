@@ -26,7 +26,10 @@ fn struct_construction_and_field_access() {
         Type::Integer(hir::IntegerKind::SIGNED_32)
     ));
     let expected = include_str!("snapshots/struct_construction_and_field_access.hir.txt");
-    assert_eq!(hir::dump(&module), expected);
+    assert_eq!(
+        dump_test_declarations(&module, &["  struct Point", "  fun main("]),
+        expected
+    );
 }
 
 #[test]

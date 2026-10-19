@@ -367,6 +367,8 @@ LLVM 优化、RS4GC 与对象发射使用前一步的成功结果，生产路径
 
 managed 单槽写屏障按运行时规范 3.6 内联读取四级 page map 与 region prefix，再原子置脏；这段计算没有 safepoint，不保留跨 safepoint 的 region metadata。runtime ABI 数据符号 PageMap 使用 tag 32，旧单 arena CardTable 的 tag 6 退役；PageMap 的 32768-byte／8-byte 对齐数据合同和新符号进入现有 registry fingerprint。范围写屏障保持既有 NoGC 入口，由 runtime 逐映射标记完整范围。
 
+普通 HeapStore 的局部屏障复用只保留当前 LLVM block 内一个未改变的 LIR 对象引用及其 region prefix；精确相同的字段槽可复用已完成的 mark，其他字段只复用查询。block 切换、local 写入、调用（含 NoGc）、poll、原子访问、发布和未列入无副作用允许集合的指令使缓存失效。数组／范围复制及 AtomicRef 继续使用各自原有屏障，不改变成功／失败 CAS 的标记条件，也不按静态字段距离猜测 card 身份。
+
 每个实际物理定义都有 typed owner、role、linkage、symbol 和精确 section range。引用使用 typed target 与真实 relocation；跨对象 external 声明不能变成可缺失的 weak reference。Strong 属于原定义 Cone，ODR 使用其稳定 member identity。
 
 对象格式与架构分别决定容器结构和机器规则：ELF 不隐含 x86-64，AArch64 不隐含 Mach-O。所选对象规则解释 machine、e_flags、relocation 写入范围／addend、stackmap/EH 指针及最终动态 relocation；仅开放当前已实现的完整 target，不增加空 handler。对象边界验证目标格式、section/symbol extent、alignment、权限、relocation 写入宽度/addend、定义与引用闭合。Mach-O 使用其真实 relocation 与 weak 属性；ELF 使用 ET_REL、实际 section/symbol/RELA/COMDAT 数据，TLS 必须保持 STT_TLS/SHF_TLS，不能伪装成普通 data。
@@ -379,6 +381,8 @@ relocation 的 section、atom、offset 和 target 均属于本次实际对象。
 body 的 EH、LSDA、unwind、stackmap、关联常量与私有 Context cells 属于该 body 的同一次物理选择。TD、scan、dispatch、static storage、初始化和六类 registration 满足运行时规范；release hook 为 raw C、nounwind、NoGC，无 managed transition 或 EH/safepoint。
 
 LLVM 在机器发射中由 switch 生成的引用查找表和跳转表同样属于该 callable 的关联常量。AddressTakenConstant／Singleton 描述需要装载期地址重定位的后端常量；ELF 的 .rodata 贡献另用 AddressTakenConstant／BackendReadOnlyData 描述，包含指向本函数代码的相对跳转表。BackendReadOnlyData 是 DefinitionAtomSubkey 的无 payload 变体（wire tag 10），不改变既有子键的编码。两个贡献均在机器发射后按实际对象保留或移除，表内引用沿用普通引用闭合及 fingerprint。ELF 同时识别普通段名及带当前 callable 实际符号后缀的 COMDAT 段名，不把其他函数、字符串或固定宽度 literal 段归入该贡献。Mach-O 的地址表放入只读 __DATA_CONST 段；ELF 分别使用 .data.rel.ro.scoop.constants 与 .rodata.scoop.constants，保留各自权限，并与 callable 一同进行 ODR 选择。它们不获得源码实体身份，不通过忽略 orphan relocation 或关闭 switch 优化绕过对象合同；固定宽度、无引用的数值 literal pool 保持原有按内容表示。
+
+ELF 的非合并 `.rodata`（ODR body 为 `.rodata.<primary symbol>`）可以与已有 atom 共享。后端表位于该段前缀，范围止于首个已有 atom 的起点（没有已有 atom 时止于段尾）；后续已有定义保持各自范围，空前缀不产生后端 atom。该前缀沿用 BackendReadOnlyData 子键，与 Singleton 引用表可以同时存在；`.rodata.cst4/8/16` 的数值 literal pool 保持原路径。
 
 已有 CallableCStringIdentity 的 C 字符串直接发射到所选目标的 C 字符串段（Mach-O 的 __TEXT,__cstring 或 ELF 的 .rodata.str1.1），沿用自身的 callable 归属与起止边界，不重复计入后端 .rodata 贡献。该规则同时适用于普通 callable 和 ODR callable；不把任意 byte array 当作 C 字符串。
 
@@ -832,6 +836,8 @@ intrinsic 的识别来自实际声明及其完整 name/target/shape/signature，
 
 每个 intrinsic 只承担其指定语义，展开后是普通 typed 运算、内存访问或有明确 runtime 合同的操作。Const 能力只来自声明允许的操作集合，不能由同名用户函数取得。
 
+String 的 byte length、byte-at 和 cursor 单字符解码使用独立 typed intrinsic kind，HIR 在登记边界检查 top-level／非泛型／非 suspend 签名，MIR 映射到封闭 runtime 操作，LIR 选择 NoGc 内部 leaf 并保留 managed pointer 参数。其调用不生成 NativeBorrowed transition、虚构 site 或 caller roots；外围真实 poll／异常／移动后的引用重载不变。源码 `@NoGC` 规则不放宽。HIR intrinsic wire tag 与 LIR runtime function tag 以新增项扩展，不复用旧 tag；旧 reader 对未知项照常报不兼容，编译器与开发 sysroot 一起重建，现有对象／metadata ABI 布局不变。
+
 原子类型使用真实 core 声明、封闭 intrinsic kind 与目标布局，值字段不作为源码可访问的普通字段。构造沿普通 nominal constructor 参数推导形成 `AtomicNew`，保存实际 application 和初值，不伪造源码函数身份。AtomicRef 的 HIR／MIR 表示及跨 Cone 元数据保留实际引用参数 T；四种对象的目标布局由 object header 和自然对齐的单个隐藏值槽组成，初始化在分配后、发布前以 Relaxed store 写入。HIR 检查内存序是编译期常量且组合合法；MIR 保存已确定的操作和内存序，LIR 使用 AtomicLoad/AtomicStore/AtomicRmw/AtomicCmpXchg，携带对象 base、值字段偏移与实际值类型。codegen 降低为对应 LLVM 原子指令，Boolean 使用 i8，整数 fetchAdd/fetchSub 不添加溢出假设；CAS 使用 strong，AtomicRef 按对象身份比较。五种内存序、CAS 的成功/失败区别及其语义进入普通 IR/metadata 和指纹，跨 Cone 与优化不能退化为普通内存访问。
 
 load、store 与 CAS 分别保存对应操作的合法内存序；CAS 是完整的成功／失败序组合，不能只保存成功序后由后端推断失败序。源码原子值种类封闭为 Int、Long、Boolean、managed reference；既有协程等编译器内部状态字继续使用 MachineAtomicLoad／MachineAtomicStore／MachineAtomicCompareExchange 及原来的固定同步序，不以源码数值类型替代其 machine scalar domain。
@@ -1075,7 +1081,9 @@ LLVM 22.1 关闭寄存器分配后的独立 tail duplication pass 及机器基�
 
 普通优化可以消除已证明不可达的代码及 site，但保留实际求值、异常、Context、initialization、release-ready 与严格浮点语义。类型错误不能因优化删除代码而消失。
 
-release 的短路条件与合流形成的不可达错误分支，在 GC 根和 safepoint 计划定稿前由普通 LLVM CFG 化简消除；仅做常量传播不足以识别这些关系。该化简关闭块推测及公共指令提升／下沉，随后沿用 MemorySSA 整理根加载，保留仍可达的错误调用与根恢复。debug 保留原来的 O0 控制流和对应实际调用点。不能等机器发射删除调用后再忽略缺失的 stackmap，也不为已删除的分支登记运行时 safepoint。
+release 的普通 LLVM 优化按 callable 选择。typed LIR effect 为 NoGc 且该 callable 的实际调用／poll 合同不含任何 safepoint 时，可以运行循环规范化、归纳变量化简、LICM 及 loop／SLP vectorization；不能仅凭优化前没有 LLVM statepoint 指令推断资格。其余定义使用不复制 site／恢复标记、不移动握手位置的标量管线，包括表达式重结合、关闭 PRE 和回边加载拆分的 GVN、位级死代码消除。严格浮点不启用 fast-math；正常 Managed 回边 poll、原子顺序、invoke 出口及逻辑根恢复保持。普通优化后仍由同一最终根计划确定实际保留的 site／roots，再执行 RS4GC；机器层限制继续适用。
+
+release 的短路条件与合流形成的不可达错误分支，在 GC 根和 safepoint 计划定稿前由普通 LLVM CFG 化简消除；仅做常量传播不足以识别这些关系。Managed 管线的该化简关闭块推测及公共指令提升／下沉，随后沿用 MemorySSA 整理根加载，保留仍可达的错误调用与根恢复。debug 保留原来的 O0 控制流和对应实际调用点。不能等机器发射删除调用后再忽略缺失的 stackmap，也不为已删除的分支登记运行时 safepoint。
 
 MIR 内联按调用点代入已知实参、局部常量和可证明不可达分支后的加权成本选择：极小正文积极内联，普通小正文结合循环位置、常量／receiver 机会和累计增长选择，较大正文保留调用，除非化简后进入前两档。标量运算、字段访问、aggregate copy、分配、调用和复杂控制流具有不同成本；实参副作用始终求值一次。稳定顺序、caller 累计增长及嵌套展开限制只决定优化选择，不决定程序合法性或 ABI。实际参数由性能记录公开，不增加通用跨阶段预算或源码属性。
 

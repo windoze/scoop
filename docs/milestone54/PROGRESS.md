@@ -311,6 +311,10 @@ Linux 重编 HTTP 库暴露了 callable C 字符串的重复归属：已有边�
 
 新增对象范围回归在修复前失败，修复后覆盖三目标、debug／release、普通／ODR 共 12 种输出，codegen 全部 226 项测试及 workspace clippy 通过。`m54-callable-cstrings` 的数组展开、泛型和 suspend 组合，以及原协程跳转表 fixture，在 Darwin 共通过 4 个变体、12 个步骤进程，均含 full moving 和正常构建复用；同一数组消费者已在旧 Linux 编译器上复现范围重叠。
 
+2026-10-19 合并 origin/main 的 M56 性能改进（04d28e763），包括 String 的 NoGC 表示读取、按 callable 选择的 release 优化、局部写屏障复用和并行引用回写。合并保留 M54 的受限 CFG 化简、COMDAT 段识别、独立 C 字符串段及 BackendReadOnlyData 子键；后端只读范围同时采用 main 的前缀边界，避免重复归属已有 atom。
+
+合并后的本机格式化、workspace clippy、236 项 codegen、390 项 LIR 及 10 项字符串相关 HIR／LIR lowering 测试通过。工具与开发 sysroot 需一起重建，再继续 M54 功能和正式 CLI 组合验证。
+
 ## 后续工作
 
 继续完成重定向／重试／认证／代理、Cookie、缓存／续传、SSE／WebSocket 高层组合和可观察性。每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。

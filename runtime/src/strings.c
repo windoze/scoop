@@ -34,6 +34,18 @@ int8_t scoop_rt_string_byte_at(const ScoopString *value, int64_t index) {
     return result;
 }
 
+int64_t scoop_rt_string_byte_length_leaf(const ScoopString *value) {
+    return scoop_rt_string_byte_length(value);
+}
+
+int8_t scoop_rt_string_byte_at_leaf(const ScoopString *value, int64_t index) {
+    return scoop_rt_string_byte_at(value, index);
+}
+
+uint32_t scoop_rt_string_character_at_byte_leaf(const ScoopString *value, int64_t index) {
+    return scoop_rt_string_character_at_byte(value, index);
+}
+
 ScoopStringCharResult scoop_rt_string_get(const ScoopString *value, int64_t index) {
     ScoopStringCharResult result = {.tag = 1};
     if (index < 0) {

@@ -8,5 +8,8 @@ mod arrays;
 mod atomics;
 mod barrier;
 mod card;
+mod fields;
 mod poll;
 mod writes;
+
+pub(in crate::function) use fields::FieldBarrierCache;

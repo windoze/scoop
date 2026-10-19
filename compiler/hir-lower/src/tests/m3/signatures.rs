@@ -22,7 +22,10 @@ fn expression_body_and_parameters() {
     ]);
     let module = lower_user(file).expect("expression body must lower");
     let expected = include_str!("snapshots/expression_body_and_parameters.hir.txt");
-    assert_eq!(hir::dump(&module), expected);
+    assert_eq!(
+        dump_test_declarations(&module, &["  fun double(", "  fun main("]),
+        expected
+    );
 }
 
 #[test]
@@ -59,5 +62,8 @@ fn return_with_unit_value_preserves_its_expression() {
     let module = lower_user(file).expect("Unit return with value must lower");
     let expected =
         include_str!("snapshots/return_with_unit_value_preserves_its_expression.hir.txt");
-    assert_eq!(hir::dump(&module), expected);
+    assert_eq!(
+        dump_test_declarations(&module, &["  fun main(", "  fun f("]),
+        expected
+    );
 }
