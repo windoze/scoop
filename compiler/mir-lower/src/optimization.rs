@@ -16,6 +16,7 @@ pub struct MirOptimizationOptions {
     pub devirtualize: bool,
     pub inline: bool,
     pub allocation_elision: bool,
+    pub coroutine_elision: bool,
 }
 
 impl MirOptimizationOptions {
@@ -23,6 +24,7 @@ impl MirOptimizationOptions {
         devirtualize: true,
         inline: true,
         allocation_elision: true,
+        coroutine_elision: true,
     };
 }
 

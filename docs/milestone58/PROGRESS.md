@@ -14,7 +14,8 @@
 | B：函数内来源／逃逸分析与 box 消除 | 已实现，接入同一迭代；本机 typed MIR 专测与源码／移动 GC 回归通过，Linux 待验证 |
 | B：closure 实例消除 | 已实现，复用来源／循环分析；本机五项 typed MIR 专测、源码与移动 GC 回归通过，Linux 待验证 |
 | B：closure 私有支持产物清理 | 已实现 LIR 准备时的实际引用选择；本机 160 项 LIR 单测、源码／跨库／callback 回归通过，Linux 待验证 |
-| C：tail completion 转交、状态机生成前同步内联 | 待实施 |
+| C：tail completion 转交 | 已实现 release 本地直接调用的整函数无帧转交；typed MIR、普通／移动 GC／跨线程源码回归通过，Linux 待验证 |
+| C：状态机生成前同步内联 | 待实施 |
 | D：外层 poll 循环分块、受限内层 SIMD | 待实施 |
 | 性能与跨平台 | A 的本机生产前后矩阵已记录于 [PERFORMANCE.md](PERFORMANCE.md)；B–D 性能、GNU／musl 完整验收及最终清理待完成 |
 
@@ -93,3 +94,11 @@ Rust fmt／workspace clippy 通过；MIR 247 项、MIR lowering 131 项全量单
 新增六项 typed LIR 专测覆盖消失、剩余实例、invoke／bridge 直接引用、签名检查独立存活、dispatch 和 suspend 保留。旧的 nominal descriptor 身份测试增加真实 closure 创建，继续验证六个同显示名／不同 exact identity 的描述符。测试发现通用 generated descriptor 补齐也需尊重筛选，已修正；测试 helper 的 boxed Boolean 支持补齐后全部闭合。
 
 fmt／workspace clippy、LIR 全部 160 项单测通过，正式 CLI 重建后，M58 优化五个 fixture／13 变体／15 进程、跨库 callable 组合一项／五进程、managed native callback 两变体／八进程通过。新的小源码专测同时检查 LIR 无私有 lambda 环境，并执行普通／移动 GC 路径。清理约 2.7 GiB 的本轮 fixture 产物，保留仓库外日志。此处确认物理支持确实不发射，B 的生产分配／耗时／footprint 对照仍待完成。
+
+## 2026-10-20：tail suspend completion 转交
+
+先补实现规范 2.3。release 在完整 suspend ABI 建立后、状态机生成前，检查整函数的全部 site：只接受同结果 exact type、同 completion 类型的本地直接调用，调用后只经未取地址的局部复制和无条件边返回结果；EH、pending cleanup、结果处理及不闭合目标保留原路径。合格调用追加原 completion，使用新的 typed step local 原样返回；普通值分支继续返回 Completed，不生成自己的 frame／adapter。新增 TailForwarding lowering 分支，非尾部 caller 仍将其视为可能挂起。
+
+五项 typed MIR 专测覆盖四层尾包装、Unit、debug 保留、非尾部前序／结果处理，以及调用无帧 wrapper 的非尾部 caller 仍有状态机。新 local 保留完整身份。fmt／workspace clippy 通过；MIR 247 项、MIR lowering 141 项全量单测通过，追加非尾部 caller 专测后五项 tail 专测通过。正式 CLI 重建后，两个新源码 fixture 共五变体／13 进程通过；补充 Unit 与结果丢弃反例后，普通／release／moving 三变体复跑通过。
+
+源码覆盖多分支尾调用、直接普通返回、泛型、参数单次求值、立即完成、真正挂起后的成功／失败及异常对象身份、同步恢复、register 完成后抛错、重复完成、catch／finally／Context restore。独立 native 组合通过真实线程恢复和移动 GC，验证尾包装前分配的 payload 在 child frame 中保活、失败只完成一次。测试 helper 的 local owner 断言按现有 typed API 修正，未留下失败。清理约 1.6 GiB 的本轮 fixture 产物；保留仓库外日志。前置同步内联、B–D 性能及 Linux 完整验证仍待完成，不将无帧直接等同于暂停时长改善。

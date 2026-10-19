@@ -6,6 +6,7 @@ mod basic_lowering;
 mod callbacks;
 mod control_flow;
 mod coroutine_pending;
+mod coroutine_tail;
 mod coroutines;
 mod function_adapters;
 mod generics;

@@ -468,6 +468,7 @@ pub fn dump(module: &Module) -> String {
     for (id, coroutine) in module.meta.coroutine_functions.iter() {
         let lowering = match &coroutine.lowering {
             CoroutineLowering::Immediate => " immediate".to_string(),
+            CoroutineLowering::TailForwarding => " tail-forwarding".to_string(),
             CoroutineLowering::StateMachine {
                 frame,
                 driver,

@@ -77,7 +77,7 @@ MIR 中 leaf 没有 frame；wrapper、outer、Task.run 各有一份 `CoroutineFr
 
 ### 2.2 在 coroutine lowering 前内联小型已知同步正文
 
-建议顺序：完成 typed MIR 正文与调用点登记 → 有界迭代目标解析／去虚拟化、同步正文内联与 site 清理 → 识别尾位置并转换 suspend ABI（尾调用保持原 step 转交）→ 为仍需恢复状态的函数生成状态机 → 普通 MIR 有界优化迭代。两个优化位置分别承担同步 site 消除和普通调用／分配优化，见第 4 节。
+建议顺序：完成 typed MIR 正文与调用点登记 → 有界迭代目标解析／去虚拟化、同步正文内联与 site 清理 → 转换 suspend ABI → 识别尾位置并保留原 step 转交 → 为仍需恢复状态的函数生成状态机 → 普通 MIR 有界优化迭代。两个优化位置分别承担同步 site 消除和普通调用／分配优化，见第 4 节。
 
 初版只做同一 Cone、直接目标、正文已知的小函数。无 suspend site 的 source body 是起点；将它内联到 wrapper 后，如果 wrapper 也不再包含 site，就可以继续处理其直接 caller。递归／互递归先保留，复用已有局部代码增长选择，更新受影响 caller 的事实，不在所有函数上反复克隆整份 Module。
 
@@ -125,9 +125,9 @@ child 返回 Completed 时，wrapper 原样返回；child 返回 Suspended 时�
 
 前置同步内联可以使原来的非尾部 site 消失，进而让整个函数成为尾调用包装。因此在前置迭代化简后再判定 tail 资格，但 tail 转交本身不必展开 child，也没有内联导致的代码增长。首版只交付“整函数全部可达挂起点均为尾部”的无帧路径；已经需要状态机的函数，只省其最后一个 site 是另一项优化，不作为前置。
 
-当前 [transform_suspend_abis](../../compiler/mir-lower/src/pipeline/coroutines.rs) 将普通 `return value` 包成 Completed，之后 [coroutine::transform](../../compiler/mir-lower/src/coroutine.rs) 对存在 site 的函数建立状态机，尚未区分 tail。实施时应先识别尾位置，在 ABI 转换时追加原 completion，并让相应 return 原样交付 callee 的 step；正常返回仍构造 Completed。同步更新对应 call-site 记录，避免状态机生成器再次为这些调用创建 adapter，不能只删除 site 而留下缺 hidden 参数的调用或嵌套的 Completed。
+2026-10-20 已实现：[transform_suspend_abis](../../compiler/mir-lower/src/pipeline/coroutines.rs) 先建立完整的 step／completion ABI；[tail 转交](../../compiler/mir-lower/src/coroutine/tail.rs) 在状态机生成前核对实际 site 与返回路径，改写合格的本地直接调用和 return，并跳过本函数状态机生成。普通值路径仍返回 Completed。调用点私有工作记录在同一次 transform 中消费，没有缺 hidden 参数的调用或嵌套 Completed；前置同步内联仍待实施。
 
-**无帧不等于静态不挂起。** 当前 `CoroutineLowering::Immediate` 用于没有 site 的立即返回路径。加入尾转交后，lowering 的无帧表示与“已证明同步”的分析事实必须分开；不能因 frame／site 消失就把 wrapper 当成同步叶子传播给非尾部 caller。用现有 MIR 表示做必要调整即可，不改变对外 continuation ABI，也不另建证明记录。
+**无帧不等于静态不挂起。** `CoroutineLowering::Immediate` 用于没有 site 的立即返回路径，`TailForwarding` 单独表示无自身 frame 的转交。非尾部 caller 仍按 suspend 签名建立恢复状态；不能因 frame／site 消失就把 wrapper 当成同步叶子传播。此区分不改变对外 continuation ABI，也不另建证明记录。
 
 尾转交沿用 callee 和原 caller 的单次完成协议，不能新建一个省掉一次性检查的 `suspendCoroutine` 入口。初版仍保留原语的 registration／同步完成协调。需分别验证立即 Completed、真正 Suspended 后成功／失败、同步恢复、跨线程恢复、重复完成及 register 已完成后抛错；包围调用的 catch／finally／Context 反例继续走原实现。
 
@@ -148,7 +148,7 @@ LLVM 的 [CoroElide](https://llvm.org/docs/Coroutines.html#coroelide) 面向 `ll
 
 普通语义 fixture 断言结果和必要诊断，少量优化专测断言目标 Box／ClosureAlloc／frame 分配是否存在及精确 root 合同，不为所有案例保存完整 MIR。原有 coroutine race、moving GC、接口／泛型组合不能被只执行同步成功路径替代。
 
-先补实现规范 2.19 的局部替换与 pass 职责；协程还需明确对应 lowering 的处理顺序。语言规范 8.2／11.9、Context 8.3 与运行时 GC 合同保持原语义；若发现所需模式不能保持这些语义，应缩小优化范围。此次只提出方案，未修改规范中的现行行为或增加 ABI。
+局部替换与物理选择已纳入实现规范 2.19，尾转交职责已纳入 2.3；前置同步内联仍待按 spec 先行完成。语言规范 8.2／11.9、Context 8.3 与运行时 GC 合同保持原语义；若发现所需模式不能保持这些语义，应缩小优化范围，不增加 ABI。
 
 减少短命分配首先改善分配热路径和 GC 触发频率；删除 frame 也可能减少存活根／引用槽。**单次 full 暂停是否缩短仍取决于真实 live set**，不能把少做若干次 minor 等同于 full 的 p99 改善。应与 [GC 暂停工作量](GC-PAUSE-WORK.md) 的混合寿命负载一起验收。
 

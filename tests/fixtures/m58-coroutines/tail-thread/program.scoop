@@ -1,0 +1,63 @@
+@Extern(lib = "fixture_native", name = "m13_start_one")
+fun startOne(callback: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>, value: Int): Ptr<Unit>
+@Extern(lib = "fixture_native", name = "m13_join_one")
+fun joinOne(job: Ptr<Unit>): Int
+
+fun check(value: Boolean) { if (!value) throw IllegalStateException() }
+class Payload(val value: Int)
+class Gate(val fail: Boolean) : SuspendRegistration<Int> {
+    var job: Ptr<Unit>? = None
+    var observer: ForeignCallback<(Int, Ptr<Unit>) -> Int>? = None
+    public override fun register(continuation: Continuation<Int>) {
+        val fail = this.fail
+        @Unsafe {
+            val worker = foreignCallback<(Int, Ptr<Unit>) -> Int>(
+                { value: Int ->
+                    gcCollect()
+                    if (fail) continuation.resumeWithException(UnwrapException())
+                    else continuation.resume(value)
+                    var rejected = false
+                    try { continuation.resume(99) }
+                    catch (error: IllegalStateException) { rejected = true }
+                    check(rejected)
+                    value
+                }, 1, ForeignCallbackMode.OneShot
+            )
+            observer = Some(retainForeignCallback(worker))
+            job = Some(startOne(worker.function, worker.context, 41))
+        }
+    }
+}
+class Done : Continuation<Int> {
+    var calls = 0
+    var value = 0
+    public override fun resume(value: Int) { calls += 1; this.value = value }
+    public override fun resumeWithException(exception: Throwable) {
+        check(exception is UnwrapException)
+        calls += 1
+        value = -1
+    }
+}
+suspend fun leaf(gate: Gate, payload: Payload): Int = suspendCoroutine(gate) + payload.value
+suspend fun inner(gate: Gate, payload: Payload): Int = leaf(gate, payload)
+suspend fun outer(gate: Gate): Int = inner(gate, Payload(1))
+
+fun main() {
+    var index = 0
+    while (index < 2) {
+        val gate = Gate(index == 1)
+        val done = Done()
+        startCoroutine(suspend { outer(gate) }, done)
+        check(done.calls == 0)
+        gcCollect()
+        @Unsafe {
+            check(joinOne(gate.job!!) == 41)
+            val observer = gate.observer!!
+            check(foreignCallbackState(observer) == ForeignCallbackState.Completed)
+            releaseForeignCallback(observer)
+        }
+        check(done.calls == 1 && done.value == if (index == 0) 42 else -1)
+        index += 1
+    }
+    println("tail suspension resumes once across threads")
+}
