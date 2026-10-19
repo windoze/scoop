@@ -95,6 +95,7 @@
 | Cookie 站点比较 | HTTP 的 HttpCookieRules.sameSite 复用规范 URL origin 与 PSL，按 scheme 和可注册域比较，处理 ws／wss、安全 scheme、IP 与无可注册域的 host | Darwin 正式消费者 debug／release 和构建复用通过；22 组对称用例在两个 native 线程中覆盖 ICANN／PRIVATE、PSL 通配／例外、IDNA、根点、端口和 IPv4／IPv6；未启用 GC stress |
 | client 环境代理 | 显式读取并快照 HTTP／HTTPS／ALL／NO_PROXY，处理大小写优先、CGI、HTTP Basic／SOCKS 凭据与 DNS 模式；域名／IP／CIDR／端口绕过复用 URL、HTTP 和 platform，方法重写保留调用级代理 | 6 项规则测试通过 Darwin debug；17 个真实 HTTP／HTTPS 代理／SOCKS／重定向场景通过 debug／release 与构建复用，共 2 个变体、6 个步骤进程；覆盖无效 UTF-8、未选中的别名、默认直连和 POST 的 301／302／303，未启用 GC stress |
 | client Cookie jar | 显式 suspend CookieJar 和线程安全 MemoryCookieJar；复用 HTTP 的作用域、PSL、过期、前缀和 SameSite 规则，支持容量淘汰、快照、清除与 Secure 覆盖限制 | Darwin 两项正式 fixture 通过 debug／release 与构建复用，共 4 个变体、12 个步骤进程；5 组存储规则、两线程共享及 16 个真实网络／生命周期场景覆盖认证、重定向、重试、gzip、H2、代理 407、Context、取消和清理失败；未启用 GC stress |
+| 不受调用方取消的清理作用域 | core.nonCancellableScope 复用普通作用域的子树完成和错误边界，继承业务 Context，等待清理后恢复原 Job；用于必要的异步文件收尾 | Darwin 两项正式 fixture 通过 debug／release 与构建复用，共 4 个变体、12 个步骤进程；覆盖清理前／中途取消、子任务等待及失败、原取消保留、Context 恢复、双 native 线程上的真实异步关闭和删除；未启用 GC stress |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
