@@ -404,7 +404,7 @@ Digest 的 95 个独立场景包括 57 个协议、17 个生命周期、14 个�
 
 显式代理已通过正常入口更新生产 sysroot。真实独立对端验证 absolute-form、全部 2xx CONNECT、同包隧道后缀、TLS-in-TLS 与独立信任、SOCKS 地址／凭据、H2 prior knowledge／Upgrade、HTTP/1.0、路由切换和 origin Digest；代理凭据不进入隧道后的目标请求。selector 在每次实际尝试前执行，保留原 Context、回调异常及取消后的真实清理。新增 CONNECT／SOCKS5 已开始协商后的超时用例均确认未启动目标 producer，并在同一 client 的单连接名额下继续完成下一请求；测试明确 Unit 回调类型后通过。原连接池与重试正式用例同时回归，未重复未修改的编译器全量测试。
 
-合并后的 GNU Digest 主协议用例通过两种构建、full moving 与复用；Digest 组合的 release late-401 场景触及原 180 秒测试时限，正在保留原二进制单独诊断。musl 的三个长认证用例与新代理的 Linux 验证继续进行。
+合并后的 GNU Digest 主协议用例通过两种构建、full moving 与复用；Digest 组合的 debug 批次通过，release late-401 触及原 180 秒进程时限。原 release 二进制在保留原对端等待规则的独立运行中正常完成，用时约 185 秒，其中 43,139 次 full GC 耗时约 181 秒；该场景的测试进程时限已提高到 600 秒，未改产品截止或对端规则。复用原二进制完成 late-401、late-nextnonce、clear-active 三个场景及无子进程的正常构建复用，其余 release 场景沿用该批次中断前已通过的结果。musl 的 Bearer 主用例已通过两种构建，Digest 与组合用例、显式代理的 Linux 验证继续进行。
 
 ## 后续工作
 

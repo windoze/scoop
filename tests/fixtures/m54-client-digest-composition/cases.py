@@ -16,7 +16,7 @@ def consume(mode, *arguments):
         env=dict(os.environ, SCOOP_GC_STRESS_MOVE="1"),
         capture_output=True,
         text=True,
-        timeout=600 if mode == "http2" else 180,
+        timeout=600 if mode in ("http2", "late-401") else 180,
     )
     assert (
         result.returncode == 0
