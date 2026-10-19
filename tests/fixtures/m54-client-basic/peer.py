@@ -77,6 +77,8 @@ def main():
             ("preemptive", "zero", "user", "password", "encoding", "callback", "nested"),
         ),
         ("cancel", ("caller", "total", "client")),
+        ("cancel-cleanup", ("caller", "total", "client")),
+        ("cancel-wrapped-cleanup", ("caller", "total", "client")),
         ("cleanup", ("success", "failure")),
     ):
         for case in cases:

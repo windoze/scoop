@@ -3,7 +3,7 @@ import scoop.crypto.x509.TrustStore
 import scoop.http.client.*
 import scoop.time.Duration
 
-internal fun basicCancellation(trust: TrustStore, mode: String) {
+internal fun basicCancellation(trust: TrustStore, mode: String, failsCleanup: Boolean = false, wrapsCleanup: Boolean = false) {
     withBasicRuntime suspend { _, scope, listener ->
         val url = basicUrl(listener)
         val entered = BasicGate()
@@ -12,6 +12,7 @@ internal fun basicCancellation(trust: TrustStore, mode: String) {
         val cleaning = BasicGate()
         val finish = BasicGate()
         val closed = AtomicBoolean(false)
+        val cleanupFailure = Throwable()
         val provider = HttpAuthenticator.basic(url.httpOrigin(), sendWithoutChallenge = true) suspend { _ ->
             val registration = currentJobOrNone()!!.invokeOnCancellation { _ -> cancelled.signal() }
             try {
@@ -23,10 +24,15 @@ internal fun basicCancellation(trust: TrustStore, mode: String) {
                 finish.await()
                 closed.store(true)
                 registration.dispose()
+                if (failsCleanup) {
+                    if (wrapsCleanup) throw ResourceUseException(CancellationException(), cleanupFailure)
+                    throw cleanupFailure
+                } else Unit
             }
         }
         val client = HttpClient.open(scope, basicConfig(trust, HttpAuthenticationOptions([provider])))
         val failure = BasicFailureHolder()
+        val closeFailure = BasicFailureHolder()
         val executing = scope.launch suspend {
             try {
                 val options = HttpCallOptions(timeouts = if (mode == "total")
@@ -35,7 +41,9 @@ internal fun basicCancellation(trust: TrustStore, mode: String) {
             } catch (error: Throwable) { failure.value = Some(error) }
         }
         entered.await()
-        val closing = if (mode == "client") Some(scope.launch suspend { client.close() }) else None
+        val closing = if (mode == "client") Some(scope.launch suspend {
+            try { client.close() } catch (error: Throwable) { closeFailure.value = Some(error) }
+        }) else None
         if (mode == "caller") executing.cancel()
         try {
             cancelled.await()
@@ -49,14 +57,21 @@ internal fun basicCancellation(trust: TrustStore, mode: String) {
             closing?.join()
             basicCheck(closed.load())
             val error = failure.value!!
+            if (failsCleanup) {
+                basicCheck(error is ResourceUseException, "authentication cleanup failure was discarded")
+                if (error is ResourceUseException) basicCheck(error.cleanupFailure === cleanupFailure)
+            }
+            val primary = if (error is ResourceUseException) error.primaryFailure else error
             when (mode) {
-                case "caller" -> basicCheck(error is CancellationException)
-                case "client" -> basicCheck(error is HttpClientClosedException)
+                case "caller" -> basicCheck(primary is CancellationException)
+                case "client" -> basicCheck(primary is HttpClientClosedException)
                 else -> {
-                    basicCheck(error is HttpTimeoutException)
-                    if (error is HttpTimeoutException) basicCheck(error.phase == HttpTimeoutPhase.Total)
+                    basicCheck(primary is HttpTimeoutException)
+                    if (primary is HttpTimeoutException) basicCheck(primary.phase == HttpTimeoutPhase.Total)
                 }
             }
+            if (mode == "client" && failsCleanup) basicCheck(closeFailure.value!! === cleanupFailure)
+            else basicCheck(!basicPresent(closeFailure.value))
         } finally {
             release.signal(); finish.signal()
             client.close()

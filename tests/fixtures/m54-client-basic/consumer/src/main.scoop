@@ -9,6 +9,8 @@ private fun exercise(args: Array<String>, first: Long, trust: TrustStore) {
         case "policy" -> basicPolicies(trust, args[2L])
         case "credentials" -> basicCredentialFailures(trust, args[2L])
         case "cancel" -> basicCancellation(trust, args[2L])
+        case "cancel-cleanup" -> basicCancellation(trust, args[2L], true)
+        case "cancel-wrapped-cleanup" -> basicCancellation(trust, args[2L], true, true)
         case "cleanup" -> basicSourceCleanup(trust, args[2L] == "failure")
         case "selection" -> basicSelection(trust)
         case "http2" -> basicHttp2(trust)

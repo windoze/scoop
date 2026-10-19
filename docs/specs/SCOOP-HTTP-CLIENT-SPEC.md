@@ -229,6 +229,8 @@ sendWithoutChallenge 默认 false；显式开启时可向配置 origin 的请求
 
 HttpAuthenticationException 保存 reason、url、可选 head 和原 cause；reason 区分 InvalidChallenge、InvalidCredentials、BodyNotReplayable、Rejected 与 LimitExceeded。异常消息不拼接用户名、密码或凭据。回调错误原样传播，不能因它恰好属于某个 I/O 异常类型而自动重试；认证中间响应不启动无用的内容解码器。
 
+调用取消或超时后，凭据回调 finally 抛出的非取消异常是实际清理失败；以 ResourceUseException 保留原调用失败与该异常。client.close 取消该回调时，同样等待真实收尾并报告清理失败，不能只留下取消原因或把回调异常归入网络重试。
+
 ## 9. 内容、Cookie 和缓存
 
 自动内容解码默认开启，Advertise gzip、deflate、br、zstd，前提是本构建实际支持对应 decoder。Content-Encoding 多层编码按逆序解开；不支持的编码报明确错误或由显式原始 body 模式交付，不能悄悄少解一层。调用者显式提供 Accept-Encoding 时保留原值，实际解码策略仍独立配置。
