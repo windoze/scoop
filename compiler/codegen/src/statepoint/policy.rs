@@ -57,7 +57,7 @@ pub(crate) fn optimize(
         let passes = match (profile.optimization(), no_gc) {
             (scoop_lir::OptimizationMode::Debug, _) => "sroa,mem2reg,sccp,unreachableblockelim",
             (scoop_lir::OptimizationMode::Release, true) => {
-                "sroa,mem2reg,instcombine<no-verify-fixpoint>,early-cse,reassociate,constraint-elimination,correlated-propagation,sccp,instcombine<no-verify-fixpoint>,gvn<no-pre;no-load-pre;no-split-backedge-load-pre>,bdce,memcpyopt,dse,adce,early-cse<memssa>,unreachableblockelim,simplifycfg,loop-simplify,lcssa,loop-mssa(loop-rotate,licm),loop(indvars),loop-vectorize,slp-vectorizer,instcombine<no-verify-fixpoint>,simplifycfg,dse,adce"
+                "sroa,mem2reg,instcombine<no-verify-fixpoint>,early-cse,reassociate,constraint-elimination,correlated-propagation,sccp,instcombine<no-verify-fixpoint>,gvn<no-pre;no-load-pre;no-split-backedge-load-pre>,bdce,memcpyopt,dse,adce,early-cse<memssa>,unreachableblockelim,simplifycfg,loop-simplify,lcssa,loop-mssa(loop-rotate,licm,simple-loop-unswitch<nontrivial;trivial>),loop(indvars),loop-load-elim,loop-unroll<O2;full-unroll-max=4;no-partial;no-peeling;no-profile-peeling;no-runtime;no-upperbound>,loop-vectorize,slp-vectorizer,instcombine<no-verify-fixpoint>,simplifycfg,dse,adce"
             }
             (scoop_lir::OptimizationMode::Release, false) => {
                 // No PRE or backedge splitting: sites and logical root restores

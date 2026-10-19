@@ -1,0 +1,21 @@
+import codegen.copy.Wide
+import codegen.copy.copyValue
+@NoGC @Unsafe
+fun copies(source: Ptr<Wide>, output: Ptr<Wide>, count: Long) {
+    var k = 0L
+    while (k < count) { output.store(k, copyValue(source.load(k))); k += 1L }
+}
+@Unsafe
+fun main() {
+    val source = Array<Wide>(1024L) { i -> Wide(i, 2L, 3L, 4L, 5L, 6L, 7L, 8L) }
+    val output = MutableArray<Wide>(1024L) { _ -> Wide(0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L) }
+    source.withDataPointer<Wide, Unit>() { from: Ptr<Wide>, count: Long ->
+        @Unsafe { output.withDataPointer<Wide, Unit>() { to: Ptr<Wide>, _: Long ->
+            @Unsafe {
+                var round = 0L
+                while (round < 4096L) { copies(from, to, count); round += 1L }
+            }
+        } }
+    }
+    println(output[1023L].d)
+}

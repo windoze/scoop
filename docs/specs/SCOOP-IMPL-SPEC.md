@@ -1105,6 +1105,8 @@ release 的普通 LLVM 优化按 callable 选择。typed LIR effect 为 NoGc 且
 
 两条 release 管线在上述 BDCE 与 DSE 之间执行 memcpyopt，消除可转发的按值中间副本并合并初始化；SROA 在前、死存储与死代码清理在后。消除的是可替换的复制，不改变值的独立性：源值在复制与消费之间被写入时仍保留快照。含引用副本保留 AS1 provenance、typed logical root restore、volatile 重读与必要屏障／发布；不能以 NoGc 或 byval 推导整个调用无内存副作用。其普通优化仍先于最终根计划与 RS4GC，不为复制优化移动握手或复制 SafepointId。
 
+上述同时满足 typed NoGc 与实际无 safepoint 条件的 release 函数，在 loop-rotate／LICM 后执行 simple-loop-unswitch（trivial 与受 LLVM 自身代码增长限制的 nontrivial 变换），再执行 indvars、loop-load-elim 与小规模完整 loop-unroll，最后执行既有 loop／SLP vectorization 及清理。unroll 仅考虑最多四次的完整展开，关闭 partial、runtime、upper-bound 展开及普通／profile peeling；不提高 LLVM 原有展开成本阈值。Managed 函数及带 site 的定义不进入这些变换。loop-idiom、jump-threading、aggressive-instcombine、vector-combine 仍关闭；不改变严格浮点、GC 合同或 poll 频率。
+
 MIR 内联按调用点代入已知实参、局部常量和可证明不可达分支后的加权成本选择：极小正文积极内联，普通小正文结合循环位置、常量／receiver 机会和累计增长选择，较大正文保留调用，除非化简后进入前两档。标量运算、字段访问、aggregate copy、分配、调用和复杂控制流具有不同成本；实参副作用始终求值一次。稳定顺序、caller 累计增长及嵌套展开限制只决定优化选择，不决定程序合法性或 ABI。实际参数由性能记录公开，不增加通用跨阶段预算或源码属性。
 
 普通 release MIR 优化交替执行去虚拟化、内联与局部化简，当前最多三轮；没有实际改写时提前结束，达到轮次上限不视为已收敛。内联使用同一阶段入口的稳定 callee 模板，跨轮保留原始成本、caller 累计增长与每个块的展开祖先，化简不返还增长额度。每轮新直接边进入当前调用图的递归判断，重复展开祖先仍保留调用。下一轮只重新分析实际改变的函数；本期不消费更新过的 callee 正文，因而不为其建立额外 caller 摘要或通用 pass 调度框架。所有改写仍先于最终 LIR roots 生成，调用实参的顺序、异常出口及 poll 责任保持。

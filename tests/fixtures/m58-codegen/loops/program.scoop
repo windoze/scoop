@@ -1,0 +1,76 @@
+@NoGC @Unsafe
+fun fill(data: Ptr<Long>, count: Long) {
+    var i = 0L
+    while (i < count) { data.store(i, 0L); i += 1L }
+}
+@NoGC @Unsafe
+fun prefix(data: Ptr<Long>, count: Long) {
+    var i = 1L
+    while (i < count) { data.store(i, data.load(i - 1L) + i); i += 1L }
+}
+@NoGC @Unsafe
+fun small(data: Ptr<Long>, count: Long) {
+    var i = 0L
+    while (i < count) {
+        var k = 0L
+        var x = data.load(i)
+        while (k < 4L) { x = x.xor(x.shl(5L)) + k; k += 1L }
+        data.store(i, x)
+        i += 1L
+    }
+}
+@NoGC @Unsafe
+fun branch(data: Ptr<Long>, count: Long, flag: Boolean) {
+    var i = 0L
+    while (i < count) {
+        val x = data.load(i)
+        var y = x
+        if (flag) { y = x * 3L + 7L } else { y = x.xor(x.shr(7L)) }
+        if (y < 0L) { y = -y }
+        if (y >= 0L) { data.store(i, y) } else { data.store(i, 0L) }
+        i += 1L
+    }
+}
+@Unsafe
+fun check(count: Long) {
+    val values = MutableArray<Long>(count + 1L) { _ -> 7L }
+    values.withDataPointer<Long, Unit>() { data: Ptr<Long>, size: Long ->
+        @Unsafe {
+            fill(data, count)
+            if (count > 0L) { data.store(0L, 5L) }
+            prefix(data, count)
+            var i = 0L
+            while (i < count) {
+                if (data.load(i) != 5L + i * (i + 1L) / 2L) {
+                    throw IllegalStateException()
+                }
+                i += 1L
+            }
+            fill(data, count)
+            small(data, count)
+            i = 0L
+            while (i < count) {
+                if (data.load(i) != 1094L) { throw IllegalStateException() }
+                i += 1L
+            }
+            branch(data, count, true)
+            branch(data, count, false)
+        }
+    }
+    gcCollect()
+    if (values[count] != 7L) { throw IllegalStateException() }
+    var i = 0L
+    while (i < count) {
+        if (values[i] != 3264L) { throw IllegalStateException() }
+        i += 1L
+    }
+}
+
+@Unsafe
+fun main() {
+    check(0L)
+    check(1L)
+    check(17L)
+    check(257L)
+    println("NoGc loops preserve zero trips, bounds and moving roots")
+}

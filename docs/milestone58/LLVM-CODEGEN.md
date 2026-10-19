@@ -44,3 +44,11 @@ loop-idiom 的 Darwin 实验生成了 `bzero`，暴露出 `.slib` 生产路径�
 两条 release 标量管线在 BDCE 后增加 memcpyopt，随后由 DSE／ADCE 清理，前置 SROA 保持。没有新增内存效果属性。精确测试覆盖 byval 中间副本转发，以及源值在消费前被修改时必须保留快照；Managed 同时保留实际 site。已有跨三目标测试继续覆盖含 AS1 引用的聚合复制、volatile 根恢复、invoke 和机器 site 唯一性。
 
 fmt／workspace clippy、17 项 statepoint 专测与新源码 debug／release／moving 三变体通过。源码组合大 struct 参数取址与独立值副本、tuple、old→young 数组写入、clone、GC 后返回和 catch。程序对照的主要收益是综合内核 text 减少 616 bytes；同 Cone 值复制及跨 Cone byval 的运行时间均没有可信提升，详见 [性能记录](PERFORMANCE.md#6-复制与循环候选)。不把单条 memcpy 消失解释为通用运行加速。
+
+## 第三批：NoGc 循环
+
+仅在原有 typed NoGc 且无实际 site 的分支接入三个候选：loop-rotate／LICM → simple-loop-unswitch（trivial／nontrivial，保留默认增长阈值）→ indvars → loop-load-elim → 最多四次的完整 unroll → 既有 loop／SLP vectorization → 原收尾。unroll 使用 O2 的局部成本选择，关闭 partial、runtime、upper-bound 和两类 peeling，不采用完整 default<O2> 管线。严格浮点与 Managed 管线保持。
+
+逐项和组合的实际程序均有相应收益：递推加载约三倍、固定四步处理约两倍、不变分支约 20% 加速。组合 text 增加 256 bytes，循环程序编译时间中位数约 +0.4%；数据、规模与局限见性能记录。jump-threading 虽加速两个标量内核，却使分支内核回退约 8%；与尚无足够收益的 aggressive-instcombine、vector-combine、loop-idiom 一起保持关闭。Darwin helper 已可正常交给 linker，因此 loop-idiom 的关闭只依据当前性能结果。
+
+fmt／workspace clippy、18 项 statepoint 专测通过。新增精确测试检查循环中的 load 被转到非循环块、四次回边消失、不变 flag 分支移出循环，并对照 Managed 定义保留这些结构；不依赖块名或完整 IR 快照。源码覆盖零／一次／短／较长循环、边界外哨兵、四步变换、两种分支及移动后的对象内容。M58 三项源码九变体与 M56 原有循环七变体通过，包含 alias、严格浮点、真实强制移动 GC、minor、异常和原子引用。临时 pass 环境变量已从生产代码删除。Linux 全量验收随 M58 后续功能统一完成。

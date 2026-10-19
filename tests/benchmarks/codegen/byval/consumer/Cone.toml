@@ -1,0 +1,8 @@
+schema = 1
+[cone]
+group = "dev.m58"
+name = "byval-consumer"
+version = "0.1.0"
+kind = "executable"
+[dependencies]
+"dev.m58:byval-provider" = "0.1.0"

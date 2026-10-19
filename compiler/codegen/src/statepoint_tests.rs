@@ -22,6 +22,8 @@ mod copies;
 mod interface_parts;
 #[path = "statepoint_tests/loops.rs"]
 mod loops;
+#[path = "statepoint_tests/nogc_loops.rs"]
+mod nogc_loops;
 #[path = "statepoint_tests/optimized.rs"]
 mod optimized;
 #[path = "statepoint_tests/ranges.rs"]
