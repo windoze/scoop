@@ -276,6 +276,8 @@ HTTP idle 的 release 构建暴露了短路判断中的不可达空值错误分�
 
 Linux 的 `m54-tcp-deadlines` 在 release 对象生成时暴露 ELF 跳转表缺少关联定义的问题。原对象的 .rodata 含 11 项指向本函数代码的相对重定位；codegen 现在将该实际贡献归入 AddressTakenConstant／BackendReadOnlyData，并与已有的装载期地址表分别定界。未改变分支优化或放宽 orphan relocation 检查。`m54-coroutine-jump-tables` 在旧编译器上独立复现，包含两个交错推进、各 12 次真实挂起的协程和持续存活的值；修复后的 Darwin debug／release 共 2 个变体、6 个进程通过。workspace clippy 与上述 1218 项 Rust 测试通过，Linux 修复后的运行验证继续进行。
 
+GNU 上的该独立 fixture 随后通过两种构建；原 TCP 消费者进一步暴露泛型实例使用带函数符号后缀的 COMDAT 只读段。段归属现在匹配当前 callable 的实际符号，同时覆盖普通段名与该 COMDAT 名称。fixture 增加第三个泛型挂起函数，跨 12 次恢复保留引用值；它在修复前独立复现相同的 section 6 重定位错误，修复后在 Darwin 通过 debug／release、full moving 与构建复用，共 6 个进程。workspace clippy 和 225 项 codegen 测试通过；GNU／musl 上的原 TCP 及客户端网络回归继续进行。
+
 ## 后续工作
 
 继续在所属 HTTP 层补齐实际 I/O idle 阶段，并完成 client 的重定向／重试／认证／代理、Cookie、缓存／续传、SSE／WebSocket 高层组合和可观察性。每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。

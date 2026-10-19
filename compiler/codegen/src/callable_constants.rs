@@ -42,6 +42,7 @@ fn constant_atom(
 pub(crate) fn contributions(
     path: &Path,
     target: LirTargetProfile,
+    callable: &str,
 ) -> Result<Contributions, CodegenError> {
     let bytes = std::fs::read(path).map_err(error)?;
     let file = object::File::parse(bytes.as_slice()).map_err(error)?;
@@ -58,10 +59,18 @@ pub(crate) fn contributions(
                 }
             }
             NativeObjectFormat::Elf64 => {
-                result.relocatable |= name == ".data.rel.ro";
-                result.read_only |= name == ".rodata";
+                result.relocatable |= is_section(name, ".data.rel.ro", callable);
+                result.read_only |= is_section(name, ".rodata", callable);
             }
         }
     }
     Ok(result)
+}
+
+pub(crate) fn is_section(name: &str, base: &str, callable: &str) -> bool {
+    name == base
+        || name
+            .strip_prefix(base)
+            .and_then(|suffix| suffix.strip_prefix('.'))
+            == Some(callable)
 }

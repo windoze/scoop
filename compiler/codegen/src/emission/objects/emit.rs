@@ -54,8 +54,11 @@ pub(super) fn emit_object_set_with_production<
         )?;
         let path = backing.path().join(format!("{body}.o"));
         write_object(&machine, &prepared.llvm, &path)?;
-        let backend_constants =
-            crate::callable_constants::contributions(&path, profile.lir_target_profile())?;
+        let backend_constants = crate::callable_constants::contributions(
+            &path,
+            profile.lir_target_profile(),
+            function.symbol(),
+        )?;
         callables.insert(
             body,
             PreparedCallableObject {

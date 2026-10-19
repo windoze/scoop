@@ -35,7 +35,16 @@ pub(super) fn materialize(path: &Path, plan: &DefinitionSymbolPlanV1) -> Result<
         let extent = if boundary.atom() == constants_atom {
             let section = output
                 .file
-                .section_by_name(".data.rel.ro")
+                .sections()
+                .find(|section| {
+                    section.name().ok().is_some_and(|name| {
+                        crate::callable_constants::is_section(
+                            name,
+                            ".data.rel.ro",
+                            primary_name.as_str(),
+                        )
+                    })
+                })
                 .ok_or_else(|| error("missing callable constants"))?;
             let index = section.index();
             let size = section.size();
@@ -44,7 +53,16 @@ pub(super) fn materialize(path: &Path, plan: &DefinitionSymbolPlanV1) -> Result<
         } else if boundary.atom() == readonly_atom {
             let section = output
                 .file
-                .section_by_name(".rodata")
+                .sections()
+                .find(|section| {
+                    section.name().ok().is_some_and(|name| {
+                        crate::callable_constants::is_section(
+                            name,
+                            ".rodata",
+                            primary_name.as_str(),
+                        )
+                    })
+                })
                 .ok_or_else(|| error("missing callable read-only constants"))?;
             let index = section.index();
             let size = section.size();
