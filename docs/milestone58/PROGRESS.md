@@ -9,7 +9,7 @@
 | A：年轻 small block 整块退役 | 已实现；本机 GC 专测 32 项、新源码 fixture 四个变体通过，Linux 待验证 |
 | A：无引用大对象跳过 remembered scan | 已实现；本机 nursery 专测 10 项、新源码 fixture 三个变体通过，Linux 待验证 |
 | A：full 必要容量早判 | 已实现；本机 region 专测 7 项、新源码 fixture 三个变体通过，Linux 待验证 |
-| A：starts bitmap 枚举 | 待实施 |
+| A：starts bitmap 枚举 | 已实现；本机 GC 专测 35 项、M58 runtime 四个源码 fixture／13 变体通过，Linux 待验证 |
 | B：统一优化迭代、函数内来源／逃逸分析、box／closure 消除与支持产物清理 | 待实施 |
 | C：tail completion 转交、状态机生成前同步内联 | 待实施 |
 | D：外层 poll 循环分块、受限内层 SIMD | 待实施 |
@@ -40,3 +40,11 @@
 C 专测在真实 STW、mark 与 plan 边界检查：两个 block 的 source 无法放入仅一个 block 的容量时，目标死亡对象仍未 release、起点仍存在；正常收尾只 release 一次。额外释放两个目标 block 后，同一 source 的两个对象成功搬迁，引用和内容保持。正式源码 fixture 用 55 万个含引用节点、共享尾节点和大引用数组，覆盖密集全存活、稀疏回收及再次 full 的图正确性。
 
 C 格式化／严格语法检查、Rust fmt／workspace clippy 通过；region 专测 7 项通过，包含失败回滚、pin、discard、region 压缩；源码 fixture 1 项／3 变体／3 进程通过，覆盖 debug、release 与四 worker。此处确认正确性和提前退出路径，尚未给出暂停加速比。清理约 16 GiB 的 `target/debug/incremental`，保留依赖与正式 CLI 工具。
+
+## 2026-10-20：按 starts 位图枚举
+
+small block 收尾按 starts 置位枚举对象；目标准备直接枚举 `starts & ~marks`。每次取得 bitmap word 快照后清位，维持地址顺序与原有 release／pin／forwarding／size／line 逻辑。没有增加对象列表或持久索引。
+
+新增 C 专测覆盖同 word 多起点、相邻 word、空 word、block 末尾的 24-byte 对象、含 pin 的目标与另一 source region；压缩前后的存活资源内容保持，全部资源只 release 一次。独立源码 fixture 以 512 个 release 资源保留稀疏子集，覆盖普通 full 与移动 stress 的生命周期。
+
+C 格式化／严格语法检查、Rust fmt／workspace clippy 通过；全部 GC 专测 35 项通过。M58 runtime 的四个源码 fixture 共 13 变体／33 进程通过，包含前面三项改动的组合回归。A 的四项实现已分别闭合本机正确性验证；生产性能对照与 Linux 验证尚未完成。
