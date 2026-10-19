@@ -1,0 +1,3 @@
+class Hidden private constructor()
+fun <T> make(): T where requires { T() } = T()
+fun main() { make<Hidden>() }

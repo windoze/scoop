@@ -14,3 +14,8 @@ public fun <T> defaultClosure(value: T, action: () -> Int = { value.read() }): I
     where requires(x: T) { x.read(): Int } = action()
 public fun <T> defaultForward(value: T, n: Int = read(value)): Int
     where requires(x: T) { x.read(): Int } = n
+public class Api<P> public constructor(val marker: P) {
+    public fun <T> withDefault(value: T, action: () -> Int = { value.read() }): Int
+        where requires(x: T) { x.read(): Int } = action()
+}
+@NoGC public fun <T> pure(value: T): Int where requires(x: T) { @NoGC x.read(): Int } = value.read()

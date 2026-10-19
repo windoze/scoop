@@ -29,7 +29,9 @@ impl Lowerer {
         };
         if let Some(crate::NominalTarget::Class(class)) = nominal
             && (self.enclosing_class_field(class).is_some()
-                || self.captured_environment_field(class).is_some())
+                || self
+                    .captured_environment_field(class)
+                    .is_some_and(|field| self.class_field_definition(field).ty != self.unit))
         {
             return Err("constructor requirements cannot use an implicit outer instance or runtime captures".into());
         }

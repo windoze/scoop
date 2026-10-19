@@ -169,13 +169,27 @@ fn m55_imported_default_closures_keep_original_requirement_binders() {
         r#"
         import m55.requirements.*
         private struct Local(val value: Int) { public fun read(): Int = value }
+        private struct Pure(val value: Int) { @NoGC public fun read(): Int = value }
         fun main() {
             defaultClosure(Remote(7))
             defaultClosure(Local(9))
             defaultForward(Remote(7))
+            val reference: (Local) -> Int = ::read
+            val constructor: (Int) -> Local = ::construct
+            reference(constructor(17))
+            Api("tag").withDefault(Local(19))
+            pure(Pure(21))
         }
         "#,
         |_, _, _, _, _| (),
     )
+    .unwrap();
+}
+
+#[test]
+fn m55_requirement_combinations_keep_references_and_capture_free_local_constructors() {
+    check(include_str!(
+        "../../../../tests/fixtures/m55-requirements/combinations.scoop"
+    ))
     .unwrap();
 }

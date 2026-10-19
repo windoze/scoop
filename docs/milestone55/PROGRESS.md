@@ -49,3 +49,11 @@ Export HIR 保留有类型的要求声明、已选调用实现与转发绑定，
 本机格式化、all-target Clippy 通过；完整受影响回归为 identity 351、parser 510、HIR 867、HIR lowering 1,490、slib 250 项。最后的跨库默认绑定修复另跑 requirements lowering 8 项（包含新增回归）及 parser 4 项。全部 M55 正式 CLI 92 个 fixture 通过，其中本批 43 个（39 个错误规则）；原 M43 断言 10 个 fixture／15 个变体通过。失败闭合后只重跑受影响用例，未重复全量测试。
 
 已闭合的问题包括默认闭包要求绑定丢失、导入默认值重建参数后失去原声明归属、默认参数捕获与求值位置、递归失败后继续具体化，以及嵌套导入候选的 debug 栈溢出；默认线程栈验证已通过。新增实现按职责拆成短模块，原 callable wire 模块拆出声明、绑定与错误定义。清理约 16 GiB incremental 缓存；原始日志仍保存在仓库外。M55-4 组合补充与 Linux 完整验证继续进行。
+
+## M55-4：组合补充与最终验收（进行中）
+
+本机新增 12 个独立 fixture，覆盖函数／构造 helper 引用、局部和成员泛型、受约束重载、显式 `_`、结果适配、同实例递归、定义处实参选择、companion 查询不初始化、无捕获局部构造、NoGC、Unsafe、真实 suspend 默认值及恢复。两个正向组合均运行普通与 GC 移动变体。补齐 abstract／interface／object／enum、private／internal 构造、非 GC-free receiver／实参、不可比较字段及不适用泛型引用的诊断。
+
+跨 Cone 组合加入隐藏消费方类型的构造与函数引用、宿主参数加方法参数的默认闭包，以及 NoGC 转发。由此修复两处边界：空捕获环境是既有 Unit 环境，不应据其字段存在拒绝局部 class；导入的泛型函数引用须与普通调用共用已检查要求的登记入口。M55 当前共 104 个正式 fixture 已在本机通过；补充回归运行 lowering requirements 9 项、parser 4 项与 compile-cache key 6 项。
+
+Linux 在独立目录执行首轮 workspace 完整测试。已识别的 native 测试失败来自遗漏 `SCOOP_SYSROOT`，随后补齐环境重跑；缓存键固定向量随 identity／language ABI 版本变化更新，本机已验证。GNU／musl 的 LLVM unwind、OpenSSL 与 nghttp2 均已显式准备。最终 Linux 结果待完整验收后填写。

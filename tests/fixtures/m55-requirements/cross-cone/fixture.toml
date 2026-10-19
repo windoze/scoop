@@ -13,7 +13,7 @@ files = [{copy = {from = "${fixture}/provider", to = "${work}/source/provider"}}
 name = "run"
 argv = ["${scoop}", "run", {each = "${link_args}"}, "${work}/source/consumer", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
 exit = 0
-stdout = "8\n8\n8\n8\n9\n11\n8\n9\n8\n"
+stdout = "8\n8\n8\n8\n9\n11\n8\n9\n8\n17\n8\n19\n21\n"
 stderr = ""
 json = "stderr"
 diagnostics = []
