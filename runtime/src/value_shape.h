@@ -11,11 +11,12 @@
 _Noreturn void scoop_shape_fatal(const char *message);
 uint64_t scoop_shape_add(uint64_t left, uint64_t right);
 uint64_t scoop_shape_align(uint64_t size, uint64_t alignment);
-const ScoopTypeInstanceShapeV1 *scoop_shape_require(const ScoopTypeDescriptor *td,
-                                                    uint32_t kind);
+/* Descriptors come from typed generated code, published object headers, or a
+ * checked native entry. Immutable metadata membership is not rechecked here;
+ * dynamic sizes, counts, kinds and representation bounds are still checked. */
+const ScoopTypeInstanceShapeV1 *scoop_shape_require(const ScoopTypeDescriptor *td, uint32_t kind);
 size_t scoop_shape_allocation_size(const ScoopTypeDescriptor *td, uint64_t count);
-size_t scoop_shape_normalize_allocation(const ScoopTypeDescriptor *td,
-                                        size_t requested);
+size_t scoop_shape_normalize_allocation(const ScoopTypeDescriptor *td, size_t requested);
 void scoop_shape_validate_object(const void *object, size_t allocation_size);
 /* The registry has already resolved and validated td before this size check. */
 void scoop_shape_validate_object_size(const void *object, size_t object_size,

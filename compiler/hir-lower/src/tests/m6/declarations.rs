@@ -7,7 +7,18 @@ fn class_hierarchy_golden() {
     let file = file(vec![describable(), shape(), point(), fun("main", vec![])]);
     let module = lower_user(file).expect("the hierarchy must lower");
     let expected = include_str!("snapshots/class_hierarchy_golden.hir.txt");
-    assert_eq!(hir::dump(&module), expected);
+    assert_eq!(
+        dump_test_declarations(
+            &module,
+            &[
+                "  open class Shape(name: String) : Describable",
+                "  class Point(x: Int, y: Int)",
+                "  interface Describable",
+                "  fun main("
+            ]
+        ),
+        expected
+    );
 }
 
 // --- positive: declaration structure ---

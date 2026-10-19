@@ -9,6 +9,14 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let mut offsets = Vec::new();
         self.heap_reference_offsets(ty, 0, &mut offsets)?;
         offsets.sort_unstable();
+        self.heap_reference_barrier(address, &offsets)
+    }
+
+    pub(super) fn heap_reference_barrier(
+        &self,
+        address: PointerValue<'ctx>,
+        offsets: &[u64],
+    ) -> Result<(), CodegenError> {
         let Some(&first) = offsets.first() else {
             return Ok(());
         };
@@ -73,7 +81,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
 
     /// Read offsets from the complete value layout. This does not revalidate
     /// the type or make any assumption about the age of the destination.
-    fn heap_reference_offsets(
+    pub(super) fn heap_reference_offsets(
         &self,
         ty: &LirType,
         base: u64,

@@ -1,4 +1,4 @@
-/* STW phases: parallel mark, serial plan/copy, retained-set update and reclaim. */
+/* STW phases: parallel mark/update, serial plan/copy and reclaim. */
 #include <stdint.h>
 
 #include "../gc_binding/object.h"
@@ -140,7 +140,7 @@ static bool collect(bool minor) {
         if (minor) {
             scoop_gc_scan_remembered(visit_dirty_object, &relocate, false);
         }
-        scoop_gc_mark_visit_live(relocate_live_object, &relocate);
+        scoop_gc_update_live(visit_managed_slot, relocate_live_object, &relocate);
         metrics->update_ns += scoop_gc_monotonic_ns() - phase;
     }
     metrics->minor_collections += minor;

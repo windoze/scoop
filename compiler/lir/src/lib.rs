@@ -55,7 +55,9 @@ pub use calls::*;
 pub use scoop_identity::ConeIdentity;
 
 mod callable_abi;
+mod callable_constants;
 pub use callable_abi::*;
+pub use callable_constants::CallableConstantKind;
 
 mod external_callable;
 pub use external_callable::*;

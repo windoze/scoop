@@ -1,0 +1,22 @@
+schema = 1
+name = "m56-runtime-strings-moving"
+root = "strings-moving.scoop"
+inputs = ["strings-moving.scoop"]
+tools = ["scoop"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m56", "gc", "string", "intrinsics"]
+variants = [
+  {name = "debug", vars = {profile = "debug"}},
+  {name = "release", vars = {profile = "release"}},
+  {name = "moving", vars = {profile = "release"}, env = {SCOOP_GC_STRESS_MOVE = "1"}},
+  {name = "minor", vars = {profile = "release"}, env = {SCOOP_GC_STRESS_MINOR = "1"}},
+]
+
+[[steps]]
+name = "run"
+argv = ["${scoop}", "run", {each = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--profile", "${profile}", "--message-format", "json"]
+exit = 0
+stdout = "String iteration, moving GC and native ABI preserved\n"
+stderr = ""
+json = "stderr"
+diagnostics = []

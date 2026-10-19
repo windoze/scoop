@@ -20,7 +20,7 @@ fn some_none_and_nullable_annotations() {
     )]);
     let module = lower_user(file).expect("Option constructors must lower");
     let expected = include_str!("snapshots/some_none_and_nullable_annotations.hir.txt");
-    assert_eq!(hir::dump(&module), expected);
+    assert_eq!(dump_test_declarations(&module, &["  fun main("]), expected);
 }
 
 #[test]
@@ -44,7 +44,10 @@ fn safe_field_access_desugars_to_hidden_locals() {
     ]);
     let module = lower_user(file).expect("safe field access must lower");
     let expected = include_str!("snapshots/safe_field_access_desugars_to_hidden_locals.hir.txt");
-    assert_eq!(hir::dump(&module), expected);
+    assert_eq!(
+        dump_test_declarations(&module, &["  struct Point", "  fun main("]),
+        expected
+    );
 }
 
 #[test]
@@ -58,7 +61,7 @@ fn elvis_desugars_to_hidden_locals() {
     )]);
     let module = lower_user(file).expect("elvis must lower");
     let expected = include_str!("snapshots/elvis_desugars_to_hidden_locals.hir.txt");
-    assert_eq!(hir::dump(&module), expected);
+    assert_eq!(dump_test_declarations(&module, &["  fun main("]), expected);
 }
 
 /// `w?.p?.x` chains: `w?.p` is an `Option<Point>`, whose `?.x` is an

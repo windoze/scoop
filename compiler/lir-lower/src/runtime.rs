@@ -26,6 +26,15 @@ pub(super) fn lower_runtime_function(function: mir::RuntimeFn) -> lir::RuntimeFu
         mir::RuntimeFn::StringCompare => {
             lir::RuntimeFunction::NoGc(lir::NoGcRuntimeFunction::StringCompare)
         }
+        mir::RuntimeFn::StringByteLength => {
+            lir::RuntimeFunction::NoGc(lir::NoGcRuntimeFunction::StringByteLength)
+        }
+        mir::RuntimeFn::StringByteAt => {
+            lir::RuntimeFunction::NoGc(lir::NoGcRuntimeFunction::StringByteAt)
+        }
+        mir::RuntimeFn::StringCharacterAtByte => {
+            lir::RuntimeFunction::NoGc(lir::NoGcRuntimeFunction::StringCharacterAtByte)
+        }
         mir::RuntimeFn::InitializationEnter => {
             lir::RuntimeFunction::Managed(lir::ManagedRuntimeFunction::InitializationEnter)
         }

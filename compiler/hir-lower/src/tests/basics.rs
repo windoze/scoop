@@ -39,7 +39,10 @@ fn lowers_hello_world() {
 
     // Golden dump locks the output structure.
     let expected = include_str!("snapshots/lowers_hello_world.hir.txt");
-    assert_eq!(hir::dump(&module), expected);
+    assert_eq!(
+        dump_test_declarations(&module, &["  fun main(", "  fun helper("]),
+        expected
+    );
 }
 
 #[test]

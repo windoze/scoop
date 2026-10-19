@@ -190,6 +190,11 @@ impl BodyLowerer<'_> {
         result_ty: hir::TypeId,
     ) -> smir::Expr {
         let function = match kind {
+            hir::IntrinsicFunctionKind::String(kind) => match kind {
+                hir::StringIntrinsic::ByteLength => mir::RuntimeFn::StringByteLength,
+                hir::StringIntrinsic::ByteAt => mir::RuntimeFn::StringByteAt,
+                hir::StringIntrinsic::CharacterAtByte => mir::RuntimeFn::StringCharacterAtByte,
+            },
             hir::IntrinsicFunctionKind::MaybeUninit(kind) => {
                 return self.lower_maybe_uninit(kind, args.first(), result_ty);
             }

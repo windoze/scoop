@@ -36,6 +36,10 @@ _Static_assert(sizeof(ScoopStringDecodeResult) == 16 && _Alignof(ScoopStringDeco
                "(String?, Long) storage");
 
 ScoopStringCharResult scoop_rt_string_get(const ScoopString *value, int64_t index);
+/* Compiler-only bounded reads. Legacy native entry points keep their ABI. */
+int64_t scoop_rt_string_byte_length_leaf(const ScoopString *value);
+int8_t scoop_rt_string_byte_at_leaf(const ScoopString *value, int64_t index);
+uint32_t scoop_rt_string_character_at_byte_leaf(const ScoopString *value, int64_t index);
 void scoop_rt_string_slice_bounds_storage(ScoopStringBoundsResult *result, const ScoopString *value,
                                           int64_t start, int64_t end);
 

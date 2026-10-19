@@ -1,0 +1,28 @@
+class CardNode(val value: Long)
+class CardHolder(var first: CardNode, var second: CardNode, var third: CardNode)
+
+fun main() {
+    val one = CardNode(1L)
+    val two = CardNode(2L)
+    val three = CardNode(3L)
+    val left = CardHolder(one, one, one)
+    val right = CardHolder(two, two, two)
+    gcCollect()
+    var current = left
+    current.first = two
+    current.first = three
+    current.second = one
+    current.third = two
+    current = right
+    current.first = three
+    current.second = one
+    current.third = two
+    gcCollect()
+    if (left.first !== three || left.second !== one || left.third !== two) {
+        throw IllegalStateException()
+    }
+    if (right.first !== three || right.second !== one || right.third !== two) {
+        throw IllegalStateException()
+    }
+    println("local field barriers preserve writes and receiver changes")
+}

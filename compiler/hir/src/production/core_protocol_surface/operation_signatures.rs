@@ -84,6 +84,19 @@ pub(super) fn expected_operation_signature(
         }
         IntrinsicFunctionKind::GcCollect => (Effect::Ordinary, Vec::new(), unit.clone()),
         IntrinsicFunctionKind::GcStats => (Effect::Ordinary, Vec::new(), ulong.clone()),
+        IntrinsicFunctionKind::String(kind) => match kind {
+            crate::StringIntrinsic::ByteLength => (Effect::Ordinary, vec![string], long),
+            crate::StringIntrinsic::ByteAt => (
+                Effect::Ordinary,
+                vec![string, long],
+                signature_integer(fundamental, crate::IntegerKind::SIGNED_8),
+            ),
+            crate::StringIntrinsic::CharacterAtByte => (
+                Effect::Ordinary,
+                vec![string, long],
+                SignatureTypeKey::Nominal(fundamental.character),
+            ),
+        },
         IntrinsicFunctionKind::CoroutineStart => {
             let coroutine = &surface.coroutine_protocol;
             (
@@ -330,6 +343,7 @@ pub(super) fn operation_own_type_parameter_count(kind: IntrinsicFunctionKind) ->
         | IntrinsicFunctionKind::Array(_)
         | IntrinsicFunctionKind::Atomic(_)
         | IntrinsicFunctionKind::MaybeUninit(_)
+        | IntrinsicFunctionKind::String(_)
         | IntrinsicFunctionKind::Pointer(_) => 0,
     }
 }

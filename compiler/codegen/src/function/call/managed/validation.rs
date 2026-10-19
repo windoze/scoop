@@ -318,6 +318,15 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                             vec![scoop_lir::MANAGED_PTR, scoop_lir::MANAGED_PTR],
                             LirType::I64,
                         ),
+                        scoop_lir::NoGcRuntimeFunction::StringByteLength => {
+                            (vec![scoop_lir::MANAGED_PTR], LirType::I64)
+                        }
+                        scoop_lir::NoGcRuntimeFunction::StringByteAt => {
+                            (vec![scoop_lir::MANAGED_PTR, LirType::I64], LirType::I8)
+                        }
+                        scoop_lir::NoGcRuntimeFunction::StringCharacterAtByte => {
+                            (vec![scoop_lir::MANAGED_PTR, LirType::I64], LirType::I32)
+                        }
                         scoop_lir::NoGcRuntimeFunction::Trap => {
                             (vec![scoop_lir::RAW_PTR], LirType::Void)
                         }

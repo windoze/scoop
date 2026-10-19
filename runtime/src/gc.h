@@ -6,7 +6,8 @@
 #include "scoop_rt.h"
 
 /* Runtime operations. Allocation may collect: the caller has already published
- * its managed entry and live roots. No private heap metadata escapes this API. */
+ * its managed entry and live roots, and td is already registered. No private
+ * heap metadata escapes this API. */
 void *scoop_gc_alloc_internal(const ScoopTypeDescriptor *td, size_t size);
 bool scoop_gc_is_published_object(const void *object);
 void scoop_gc_check_array_clone_source(const void *object, const ScoopTypeDescriptor *expected);

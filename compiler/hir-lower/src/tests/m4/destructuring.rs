@@ -66,7 +66,10 @@ fn destructuring_declarations() {
     ]);
     let module = lower_user(file).expect("destructuring must lower");
     let expected = include_str!("snapshots/destructuring_declarations.hir.txt");
-    assert_eq!(hir::dump(&module), expected);
+    assert_eq!(
+        dump_test_declarations(&module, &["  struct Point", "  fun main("]),
+        expected
+    );
 }
 
 /// `var` destructuring: bindings are mutable.

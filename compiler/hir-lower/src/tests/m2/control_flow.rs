@@ -25,7 +25,7 @@ fn var_rebinding_and_control_flow() {
     )]);
     let module = lower_user(file).expect("control flow program must lower");
     let expected = include_str!("snapshots/var_rebinding_and_control_flow.hir.txt");
-    assert_eq!(hir::dump(&module), expected);
+    assert_eq!(dump_test_declarations(&module, &["  fun main("]), expected);
 }
 
 #[test]
@@ -82,5 +82,5 @@ fn inner_scopes_shadow_and_do_not_leak() {
     )]);
     let module = lower_user(file).expect("shadowing program must lower");
     let expected = include_str!("snapshots/inner_scopes_shadow_and_do_not_leak.hir.txt");
-    assert_eq!(hir::dump(&module), expected);
+    assert_eq!(dump_test_declarations(&module, &["  fun main("]), expected);
 }

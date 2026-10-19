@@ -271,6 +271,27 @@ pub const INTRINSIC_REGISTRY: &[IntrinsicSpec] = &[
         effects: IntrinsicEffects::NONE,
     },
     IntrinsicSpec {
+        name: "string_byte_length",
+        stage: IntrinsicStage::Mir,
+        kind: IntrinsicFunctionKind::String(StringIntrinsic::ByteLength),
+        target: IntrinsicTarget::TopLevel,
+        effects: IntrinsicEffects::NONE,
+    },
+    IntrinsicSpec {
+        name: "string_byte_at",
+        stage: IntrinsicStage::Mir,
+        kind: IntrinsicFunctionKind::String(StringIntrinsic::ByteAt),
+        target: IntrinsicTarget::TopLevel,
+        effects: IntrinsicEffects::NONE,
+    },
+    IntrinsicSpec {
+        name: "string_character_at_byte",
+        stage: IntrinsicStage::Mir,
+        kind: IntrinsicFunctionKind::String(StringIntrinsic::CharacterAtByte),
+        target: IntrinsicTarget::TopLevel,
+        effects: IntrinsicEffects::NONE,
+    },
+    IntrinsicSpec {
         name: "coroutine_start",
         stage: IntrinsicStage::Mir,
         kind: IntrinsicFunctionKind::CoroutineStart,

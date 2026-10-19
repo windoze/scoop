@@ -299,8 +299,14 @@ pub(super) fn callable_body_associated_atoms(
     let subkey = || DefinitionAtomSubkey::CallableBody(body);
     let mut associated = vec![(
         DefinitionAtomRole::AddressTakenConstant,
-        DefinitionAtomSubkey::Singleton,
+        crate::CallableConstantKind::Relocatable.subkey(),
     )];
+    if target.native_object_format() == crate::NativeObjectFormat::Elf64 {
+        associated.push((
+            DefinitionAtomRole::AddressTakenConstant,
+            crate::CallableConstantKind::ReadOnly.subkey(),
+        ));
+    }
     let context_keys = crate::function_context_keys(function);
     if !context_keys.is_empty() {
         associated.push((

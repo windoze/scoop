@@ -38,8 +38,12 @@ static void run_worker(ScoopGcMarkWorker *worker) {
                 break;
             }
         }
-        scoop_gc_mark_run_task(worker, task);
-        scoop_gc_mark_flush(worker);
+        if (scoop_gc_marker.updating) {
+            scoop_gc_update_run_task(task);
+        } else {
+            scoop_gc_mark_run_task(worker, task);
+            scoop_gc_mark_flush(worker);
+        }
         scoop_gc_mark_task_done();
     }
     worker->cpu_ns += scoop_gc_thread_cpu_ns() - started;

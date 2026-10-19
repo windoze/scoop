@@ -2,7 +2,7 @@ use super::*;
 use object::ObjectSection;
 use scoop_lir::OptimizationMode;
 
-fn lookup_module() -> Module {
+pub(super) fn lookup_module() -> Module {
     let mut module = values_module();
     module.globals = Arena::new();
     let values = (0..12)
@@ -109,7 +109,9 @@ fn machine_lookup_tables_are_owned_and_absent_tables_are_pruned() {
                     plan.definition_role() == scoop_lir::StrongDefinitionRole::CallableBody
                 })
                 .unwrap();
-            let atom = crate::callable_constants::atom(plan).unwrap();
+            let atom =
+                crate::callable_constants::atom(plan, scoop_lir::CallableConstantKind::Relocatable)
+                    .unwrap();
             let boundary = plan
                 .atom_boundaries()
                 .iter()

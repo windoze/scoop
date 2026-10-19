@@ -26,4 +26,5 @@ mod option;
 mod pointers;
 mod program_arguments;
 mod source_location;
+mod strings;
 mod type_info;

@@ -1,0 +1,24 @@
+enum Code: Long { Answer = 42L }
+
+fun main() {
+    val boxed: Any = Code.Answer
+    val values = MutableArray<Long>(8192L) { i -> i * 3L }
+    val copy = values.toArray()
+    values[8191L] = -1L
+    gcCollect()
+    if ((boxed as Code) != Code.Answer || (boxed as Long) != 42L) {
+        throw IllegalStateException()
+    }
+    if (copy[8191L] != 24573L || values[8191L] != -1L) {
+        throw IllegalStateException()
+    }
+    var caught = false
+    try {
+        val wrong = boxed as String
+        println(wrong)
+    } catch (_: ClassCastException) {
+        caught = true
+    }
+    if (!caught) { throw IllegalStateException() }
+    println("unbox identity and large clone preserved")
+}

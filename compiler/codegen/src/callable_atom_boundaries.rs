@@ -34,7 +34,8 @@ pub(crate) fn materialize_v1(
     let text = layout.require_section_ordinal(primary.section_ordinal())?;
 
     let mut additions = Vec::new();
-    let constants_atom = crate::callable_constants::atom(plan)?;
+    let constants_atom =
+        crate::callable_constants::atom(plan, scoop_lir::CallableConstantKind::Relocatable)?;
     for boundary in plan.atom_boundaries() {
         let start_name = normalization
             .compiler_generated_object_symbol(boundary.start().symbol().as_str())

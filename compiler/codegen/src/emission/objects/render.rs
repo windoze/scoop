@@ -39,6 +39,7 @@ pub fn render_llvm_ir_members(
             (prepared.llvm.print_to_string().to_string(), prepared.plan),
         );
     }
+    let constants = scoop_lir::CallableConstantKind::ALL.into_iter().collect();
     let foundation = finalization::finalize_production(
         input,
         &mut production,
@@ -46,7 +47,7 @@ pub fn render_llvm_ir_members(
         // atom here. Object emission projects the actual section before packaging.
         callables
             .iter()
-            .map(|(body, (_, plan))| (*body, plan, true)),
+            .map(|(body, (_, plan))| (*body, plan, &constants)),
     )?;
     let partition = ScoopLirObjectPartitionV1::from_foundation(
         input,
