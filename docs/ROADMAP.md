@@ -670,7 +670,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 在 M53 协议库之上提供纯 Scoop `scoop.http.client`，统一 HTTP/1.x／HTTP/2、ALPN、连接池、流式 body、suspend、背压、完整生命周期超时与单请求取消。
 - 独立交付 [IDNA](specs/SCOOP-IDNA-SPEC.md)、[URL](specs/SCOOP-URL-SPEC.md)、[字符集](specs/SCOOP-CHARSET-SPEC.md)和单个 [compression Cone](specs/SCOOP-COMPRESSION-SPEC.md)；IDNA 不要求 ICU，压缩采用 zstd，并支持 gzip／deflate／Brotli 的同步与异步流。
 - 在所属 HTTP、crypto、TLS、asyncio／platform 库补齐方法／消息工具、摘要、mTLS／系统信任、文件操作、地址族竞速与代理，不在 client 中增加 workaround。完成重定向／重试、认证、Cookie、私有缓存、下载续传、multipart、SSE 与 HTTP/1.1 WebSocket。
-- HTTP/3、HTTP/2 WebSocket、跨 origin H2 合并、证书固定／对端链检查接口、TLS 会话恢复控制／0-RTT、主动 H2 PING 保活留待后续；不引入占位接口。本条只记录设计，尚未开始实现或运行验收。
+- HTTP/3、HTTP/2 WebSocket、跨 origin H2 合并、证书固定／对端链检查接口、TLS 会话恢复控制／0-RTT、主动 H2 PING 保活留待后续；不引入占位接口。已实现功能与逐项验证见实施进度，最终三目标组合验收尚未完成。
 
 ### M55 泛型函数条件与成员调用要求（已完成，[设计](milestone55/DESIGN.md)、[验收](milestone55/PROGRESS.md)）
 
