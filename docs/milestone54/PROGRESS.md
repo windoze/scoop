@@ -354,6 +354,8 @@ Linux 组合回归中的连接池对端把已发送请求的空 trailing HEADERS
 
 重试正式消费者 m54-client-retries 在 Darwin 通过 debug／release 两个变体、6 个步骤进程，两个 native 线程各执行六类独立 Python 对端流程。覆盖 gzip／trailer／Continue 重放、H2 REFUSED_STREAM 与初始 GOAWAY、状态重试和重定向共存、默认 POST 拒绝重试，以及总截止保留已发送字节；包含 full moving 与正常构建复用。原初始 GOAWAY 故障由 HTTP 库的未发送回调修复闭合。24 项新旧库用例共 48 个 full moving 进程通过，覆盖同类型用户异常不重试、来源清理失败、退避取消和响应交付后的边界。
 
+重试功能提交后，Darwin 的连接池与重定向正式回归再通过 4 个变体、12 个步骤进程。GNU／musl 分别完成生产 sysroot 更新，并各通过重试、连接池、重定向三项正式 fixture，每目标 6 个变体、18 个步骤进程；均包含 debug／release、full moving 和构建复用。重试的三个目标验证闭合，原始日志和报告保存在仓库外。
+
 ## 后续工作
 
 继续完成认证／代理、Cookie、缓存／续传、SSE／WebSocket 高层组合和可观察性。每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
