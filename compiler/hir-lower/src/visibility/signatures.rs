@@ -9,6 +9,12 @@ impl Lowerer {
     ) -> Vec<hir::TypeId> {
         let mut result = Vec::new();
         for parameter in parameters {
+            if let Some(companion) = &parameter.companion {
+                result.extend(companion.excluded_interfaces.iter().map(|bound| bound.ty));
+                if let hir::TypeParamBounds::Nominal(bounds) = &companion.bounds {
+                    result.extend(bounds.in_source_order().into_iter().map(|bound| bound.ty()));
+                }
+            }
             result.extend(parameter.excluded_interfaces.iter().map(|bound| bound.ty));
             for bound in parameter.nominal_bounds_in_source_order() {
                 let ty = bound.ty();

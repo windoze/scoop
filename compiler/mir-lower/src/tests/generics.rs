@@ -319,6 +319,7 @@ fn generic_interface_applications_get_distinct_mir_identities() {
         "Channel",
         vec![hir::TypeParamDecl {
             excluded_interfaces: Vec::new(),
+            companion: None,
             id: hir::TypeParamId::from_raw(0),
             name: "T".to_string(),
             bounds: hir::TypeParamBounds::Unconstrained,
@@ -404,6 +405,7 @@ fn generic_interface_signature_types_follow_typed_interface_order() {
         "Source",
         vec![hir::TypeParamDecl {
             excluded_interfaces: Vec::new(),
+            companion: None,
             id: parameter,
             name: "T".to_string(),
             bounds: hir::TypeParamBounds::Unconstrained,

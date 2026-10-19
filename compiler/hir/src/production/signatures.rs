@@ -120,8 +120,27 @@ impl<'a> HirInterfaceSignatureProjector<'a> {
                 .collect::<Result<Vec<_>, _>>()?;
             let excluded = CanonicalSignatureTypesV1::try_new(excluded)
                 .map_err(HirInterfaceSignatureProjectionError::InterfaceBounds)?;
-            projected
-                .push(TypeParameterBinderV1::new(name, bounds).with_excluded_interfaces(excluded));
+            let companion = parameter
+                .companion
+                .as_ref()
+                .map(|companion| {
+                    let excluded = companion
+                        .excluded_interfaces
+                        .iter()
+                        .map(|bound| self.map_type(bound.ty, visible_binders))
+                        .collect::<Result<Vec<_>, _>>()?;
+                    Ok::<_, HirInterfaceSignatureProjectionError>(crate::CompanionBoundsV1::new(
+                        self.project_bounds(&companion.bounds, visible_binders)?,
+                        CanonicalSignatureTypesV1::try_new(excluded)
+                            .map_err(HirInterfaceSignatureProjectionError::InterfaceBounds)?,
+                    ))
+                })
+                .transpose()?;
+            projected.push(
+                TypeParameterBinderV1::new(name, bounds)
+                    .with_excluded_interfaces(excluded)
+                    .with_companion(companion),
+            );
         }
         CanonicalBinderListV1::try_new(projected)
             .map_err(HirInterfaceSignatureProjectionError::BinderList)

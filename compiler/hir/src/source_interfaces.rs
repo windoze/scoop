@@ -230,7 +230,8 @@ impl Module {
             | Type::Function(_)
             | Type::Ptr(_)
             | Type::FunPtr(_)
-            | Type::Param(_) => String::new(),
+            | Type::Param(_)
+            | Type::Companion(_) => String::new(),
         }
     }
 }

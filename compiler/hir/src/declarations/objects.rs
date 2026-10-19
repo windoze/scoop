@@ -54,6 +54,7 @@ pub struct ObjectType {
 pub enum SingletonValueTarget {
     Local(SingletonValueId),
     Dependency(scoop_identity::PersistentObjectValueId),
+    Companion(TypeParamId),
 }
 
 /// The unique source value denoted by an object name.

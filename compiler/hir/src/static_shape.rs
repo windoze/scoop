@@ -30,6 +30,10 @@ pub enum StaticTypeShape<'a> {
     Pointer(TypeId),
     NativeFunctionPointer(&'a FunctionType),
     Parameter(&'a TypeParamDecl),
+    Companion {
+        host: &'a TypeParamDecl,
+        bounds: &'a CompanionBounds,
+    },
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -70,6 +74,17 @@ impl Module {
                     .find(|candidate| candidate.id == *parameter)
                     .ok_or(StaticShapeUnboundParameter(*parameter))?,
             ),
+            Type::Companion(parameter) => {
+                let host = parameters
+                    .iter()
+                    .find(|candidate| candidate.id == *parameter)
+                    .ok_or(StaticShapeUnboundParameter(*parameter))?;
+                let bounds = host
+                    .companion
+                    .as_ref()
+                    .ok_or(StaticShapeUnboundParameter(*parameter))?;
+                StaticTypeShape::Companion { host, bounds }
+            }
             Type::Integer(_)
             | Type::Boolean
             | Type::String

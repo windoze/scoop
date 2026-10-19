@@ -140,19 +140,12 @@ impl Lowerer {
                 hir::Type::Tuple(_) => {
                     pending.extend(self.direct_nominal_supertypes(ty));
                 }
-                hir::Type::Param(parameter) => {
-                    if let Some(declaration) = self
-                        .type_params_in_scope
-                        .iter()
-                        .find(|declaration| declaration.id == *parameter)
-                    {
-                        pending.extend(
-                            declaration
-                                .nominal_bounds_in_source_order()
-                                .into_iter()
-                                .map(|bound| bound.ty()),
-                        );
-                    }
+                hir::Type::Param(_) | hir::Type::Companion(_) => {
+                    pending.extend(
+                        self.parameter_nominal_bounds(ty)
+                            .into_iter()
+                            .map(|bound| bound.ty()),
+                    );
                 }
                 _ => {}
             }

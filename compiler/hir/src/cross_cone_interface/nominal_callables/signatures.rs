@@ -30,7 +30,7 @@ impl NominalExactLeafClassifierV1 {
                         .expect("a nominal signature application has nonempty arguments"),
                 }
             }
-            SignatureTypeKey::Binder { .. } => {
+            SignatureTypeKey::Binder { .. } | SignatureTypeKey::Companion(_) => {
                 return Ok(None);
             }
             SignatureTypeKey::Tuple(elements) => {

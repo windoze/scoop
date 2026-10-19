@@ -1,0 +1,1 @@
+struct Host<T>(val value: T) where T.Companion : ref

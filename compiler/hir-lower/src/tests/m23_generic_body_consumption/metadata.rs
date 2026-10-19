@@ -74,11 +74,7 @@ fn actual_generic_calls_publish_applications_and_definition_locations() {
                         foundation: &provider_types,
                         public: provider_interface,
                     };
-                    let nominal_source = |owner| {
-                        provider_interface
-                            .nominal_interfaces()
-                            .get(hir::SourceNominalId::Concrete(owner))
-                    };
+                    let nominal_source = |owner| provider_interface.nominal_interfaces().get(owner);
                     site.validate_source_signature(
                         reference.target(),
                         metadata,

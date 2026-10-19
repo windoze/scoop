@@ -19,12 +19,22 @@ impl Lowerer {
         if self.is_subtype(subject, interface) {
             return InterfaceExclusion::Implemented;
         }
-        if let Type::Param(id) = self.types[subject] {
+        if let Type::Param(id) | Type::Companion(id) = self.types[subject] {
             let excluded = self
                 .type_params_in_scope
                 .iter()
                 .find(|parameter| parameter.id == id)
-                .map(|parameter| parameter.excluded_interfaces.clone())
+                .map(|parameter| {
+                    if matches!(self.types[subject], Type::Companion(_)) {
+                        parameter
+                            .companion
+                            .as_ref()
+                            .map(|bounds| bounds.excluded_interfaces.clone())
+                            .unwrap_or_default()
+                    } else {
+                        parameter.excluded_interfaces.clone()
+                    }
+                })
                 .unwrap_or_default();
             return if excluded
                 .iter()
@@ -52,7 +62,8 @@ impl Lowerer {
         if !self.type_contains_param(left) && !self.type_contains_param(right) {
             return false;
         }
-        if matches!(self.types[left], Type::Param(_)) || matches!(self.types[right], Type::Param(_))
+        if matches!(self.types[left], Type::Param(_) | Type::Companion(_))
+            || matches!(self.types[right], Type::Param(_) | Type::Companion(_))
         {
             return true;
         }

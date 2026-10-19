@@ -157,6 +157,17 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
+        if let Some(parameter) = self.companion_parameter_qualifier(receiver) {
+            let receiver = self.lower_parameter_companion(parameter, receiver.span())?;
+            return self.lower_explicit_named_call(
+                receiver,
+                name,
+                call,
+                sink,
+                expected,
+                RequiredCallableModifiers::default(),
+            );
+        }
         if let ast::Expr::This { label, .. } = receiver
             && self.is_initializing_this_label(label.as_ref())
         {

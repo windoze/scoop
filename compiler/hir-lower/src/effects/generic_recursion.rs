@@ -31,6 +31,7 @@ enum SymbolicType {
     },
     Enum(hir::SourceNominalId, Vec<SymbolicType>),
     Parameter(hir::TypeParamId),
+    Companion(Box<SymbolicType>),
 }
 
 impl Lowerer {
@@ -252,6 +253,12 @@ impl Lowerer {
                         .collect(),
                 )
             }
+            hir::Type::Companion(parameter) => SymbolicType::Companion(Box::new(
+                bindings
+                    .get(parameter)
+                    .cloned()
+                    .expect("the caller mapping binds every projection host"),
+            )),
             hir::Type::Param(parameter) => bindings
                 .get(parameter)
                 .cloned()

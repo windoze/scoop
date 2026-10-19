@@ -14,21 +14,39 @@ impl Lowerer {
                         .any(|b| self.signature_types_equal(a.ty, b.ty, pairs))
                 })
         };
-        let positive = match (&left.bounds, &right.bounds) {
-            (hir::TypeParamBounds::Unconstrained, hir::TypeParamBounds::Unconstrained)
-            | (hir::TypeParamBounds::Value { .. }, hir::TypeParamBounds::Value { .. })
-            | (hir::TypeParamBounds::Ref { .. }, hir::TypeParamBounds::Ref { .. }) => true,
-            (hir::TypeParamBounds::Nominal(a), hir::TypeParamBounds::Nominal(b)) => {
-                let class = match (&a.class, &b.class) {
-                    (Some(a), Some(b)) => self.signature_types_equal(a.ty, b.ty, pairs),
-                    (None, None) => true,
-                    _ => false,
+        let same_bounds =
+            |left: &hir::TypeParamBounds, right: &hir::TypeParamBounds| match (left, right) {
+                (hir::TypeParamBounds::Unconstrained, hir::TypeParamBounds::Unconstrained)
+                | (hir::TypeParamBounds::Value { .. }, hir::TypeParamBounds::Value { .. })
+                | (hir::TypeParamBounds::Ref { .. }, hir::TypeParamBounds::Ref { .. }) => true,
+                (hir::TypeParamBounds::Nominal(a), hir::TypeParamBounds::Nominal(b)) => {
+                    let class = match (&a.class, &b.class) {
+                        (Some(a), Some(b)) => self.signature_types_equal(a.ty, b.ty, pairs),
+                        (None, None) => true,
+                        _ => false,
+                    };
+                    class && same_set(&a.interfaces, &b.interfaces)
+                }
+                _ => false,
+            };
+        let companion = match (&left.companion, &right.companion) {
+            (None, None) => true,
+            (Some(a), Some(b)) => {
+                let exists_only = |bounds: &hir::TypeParamBounds| {
+                    matches!(
+                        bounds,
+                        hir::TypeParamBounds::Unconstrained | hir::TypeParamBounds::Ref { .. }
+                    )
                 };
-                class && same_set(&a.interfaces, &b.interfaces)
+                ((exists_only(&a.bounds) && exists_only(&b.bounds))
+                    || same_bounds(&a.bounds, &b.bounds))
+                    && same_set(&a.excluded_interfaces, &b.excluded_interfaces)
             }
             _ => false,
         };
-        positive && same_set(&left.excluded_interfaces, &right.excluded_interfaces)
+        same_bounds(&left.bounds, &right.bounds)
+            && same_set(&left.excluded_interfaces, &right.excluded_interfaces)
+            && companion
     }
 
     fn overload_types_equal(
@@ -98,7 +116,8 @@ impl Lowerer {
         parameter_pairs: &[(hir::TypeParamId, hir::TypeParamId)],
     ) -> bool {
         match (&self.types[left], &self.types[right]) {
-            (Type::Param(left), Type::Param(right)) => {
+            (Type::Param(left), Type::Param(right))
+            | (Type::Companion(left), Type::Companion(right)) => {
                 parameter_pairs
                     .iter()
                     .any(|&(expected_left, expected_right)| {

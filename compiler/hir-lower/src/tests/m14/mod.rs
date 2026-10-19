@@ -18,7 +18,7 @@ fn where_clause(constraints: Vec<(&str, ast::TypeBound)>) -> ast::WhereClause {
         constraints: constraints
             .into_iter()
             .map(|(parameter, bound)| ast::TypeConstraint {
-                parameter: ident(parameter),
+                subject: ast::TypeConstraintSubject::Parameter(ident(parameter)),
                 bound,
                 span: sp(),
             })

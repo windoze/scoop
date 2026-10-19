@@ -170,6 +170,14 @@ alias只建立名称、declared visibility、source origin与导出实体，不�
 
 泛型函数的条件集合参与重复签名和声明身份。类型使用真实身份，函数及宿主／外层 binder 按各自位置 alpha-normalize，inline 与 where 合并，透明 alias 展开，条件顺序和来源位置不参与身份。参数名、函数结果、默认值和函数自身 suspend 标记仍不能单独区分重载。当前 Cone、局部、成员、import 和 re-export 使用相同规则。条件不同的同形函数先检查适用性，再按 8.6 的声明转发比较；源参数保持 rigid，源条件成为已知事实，目标条件必须可满足。不按条件数量或正负方向赋权，无法区分的多个适用候选报歧义。
 
+#### 3.2.3 泛型函数的 companion 投影
+
+有自身类型参数的函数可用 `where T.Companion : I<T>`、`Base<T>`、`ref` 或 `!I<T>` 约束其 companion。它要求实际静态类型直接拥有 public companion；不能借用基类 companion，也不能使用 private／internal companion。`value` 与 companion 的引用 singleton 性质矛盾，声明处报错。主体必须是本函数参数；宿主与外层参数仅可在条件的类型中被引用。正向、负向、kind 的组合规则分别应用于 `T` 和 `T.Companion`。
+
+投影可作为签名、默认值、正文和类型实参中的完整类型，也可作为 companion 值访问。先登记整个函数的投影存在条件，再解析条件和签名；仅使用投影不隐式建立该条件。依赖类型只允许固定的 `T.Companion`，不支持 `T.Factory` 或其他 nested 投影。`T.method(...)` 在此环境中固定表示 `T.Companion.method(...)`。投影不反向推断宿主，无法由其他位置确定 T 时需写显式类型实参。
+
+条件查询只读取声明及其完整类型关系，不初始化 singleton。实际替换采用原 companion application，包含全部宿主实参；只有值访问执行既有 ensure。命名 companion 的 `Companion` 别名、透明 alias 和跨 Cone singleton 身份沿用 9.1.3、9.5。条件参与 3.2.2 的规范化声明身份和转发；无该事实的未知 T 不能使用投影。
+
 ### 3.3 参数传递、receiver 与 `this`
 
 Scoop 的源码函数/方法调用一律是 **pass-by-value**：每个实参表达式求值一次，再以所得值初始化 callee 中不可重新绑定的形参 binding。这条规则不按 value type / reference type 分叉：
@@ -1607,7 +1615,7 @@ public fun <T> decodeFrom(decoder: Decoder, codec: ValueDecoder<T>): T =
 
 - `ValueEncoder<T>`与`ValueDecoder<T>`都是普通invariant generic interface，T是普通显式类型参数。encode的数据参数和decode的结果直接写Identifier、`Box<E>`或tuple等完整类型；没有Self替换、associated type或static成员语法。
 - `Identifier.Companion`实现这两个接口，Identifier实例不因此实现它们。两个方法的this都是codec；encode通过value取得待编码数据，decode返回目标值。实现选择、override、slot、可见性及异常均使用普通方法规则，缺省body的合成见11.13。
-- `Identifier.Companion.encode(value, sink)`与`Identifier.Companion.decode(source)`都是普通成员调用；无冲突时可按9.1.3转发为`Identifier.encode(value, sink)`与`Identifier.decode(source)`。generic代码显式接收相应codec值；不增加`T.encode`/`T.decode`/`T.Companion`泛型查找、隐式codec参数或companion bound。
+- `Identifier.Companion.encode(value, sink)`与`Identifier.Companion.decode(source)`都是普通成员调用；无冲突时可按9.1.3转发为`Identifier.encode(value, sink)`与`Identifier.decode(source)`。generic代码可显式接收相应codec值，也可按3.2.3用companion bound访问`T.Companion`或转发的`T.encode`／`T.decode`；不增加隐式codec参数。
 - companion随完整宿主application具体化，可声明`ValueEncoder<Box<T>>`或`ValueDecoder<Box<T>>`，但含T字段时仍须在定义处取得相应字段codec。需要调用方选择元素策略时，普通encoder/decoder方法显式接收元素codec并返回持有依赖的普通对象，见11.13.4；依赖不写入singleton的全局状态。
 - class继承不继承companion。Base.Companion的`ValueEncoder<Base>`或`ValueDecoder<Base>`不会转移到Derived.Companion，也不会使数据实例获得接口。`ValueEncoder<Base>`不能赋给`ValueEncoder<Derived>`，解码方向同理；显式使用Base codec时，encode的数据实参仍允许普通Derived到Base的向上转换，表示按Base策略编码。运行时数据类型不改变所选codec；字段的自动选择也不向基类companion回退。
 - 普通codec class自身继承的方法/default照常选择，参数和结果类型不会因数据类型继承自动改写。codec可以由companion、object或普通class/struct提供，可手写处理接口、基类或singleton目标；自动派生仍限于11.13的形状及普通访问规则。
@@ -2419,7 +2427,7 @@ enum解码检查外层恰好一个key，未知variant失败；构造选中的var
 
 默认语义编码树形值：共享引用可展开为多份值，decode不保留原对象identity。循环图、跨对象引用及开放多态的discriminator由显式codec定义，不属于自动派生数据模型。
 
-普通 JSON 库提供 `Json.encodeToString<T>(value: T, codec: ValueEncoder<T>): String`与`Json.decodeFromString<T>(text: String, codec: ValueDecoder<T>): T`两个入口。调用如`Json.encodeToString(value, User.Companion)`与`Json.decodeFromString(text, User.Companion)`，T按普通实参推断；两个入口都要求显式codec，没有从T或运行时数据类型隐式寻找codec的重载。`ValueEncoder<T>`／`ValueDecoder<T>` 表示可复用的值策略，区别于格式侧 `Encoder`／`Decoder`；函数适配器分别命名为 `ValueEncoderFunction`／`ValueDecoderFunction`。JSON 实现先解析完整文档，检查语法、Unicode/转义、重复 key 和尾随内容，包括业务 codec 忽略的子树；解析后的输入节点由视图共享，不因复读重新解析或深拷贝。业务 codec 可以只读部分字段或返回常量，根入口不要求遍历或消费全部值。整数不经过 Double 转换，整数字段不接受带小数部分或指数部分的数字 token。record 已可覆盖对象形式，array 覆盖序列，不增加 Map 协议。格式错误抛带数据路径的 EncodingException/DecodingException；用户 codec、default 和 constructor 抛出的普通异常照常传播，不改写为 default 或空值。
+普通 JSON 库提供 `Json.encodeToString<T>(value: T, codec: ValueEncoder<T>): String`与`Json.decodeFromString<T>(text: String, codec: ValueDecoder<T>): T`两个入口。调用如`Json.encodeToString(value, User.Companion)`与`Json.decodeFromString(text, User.Companion)`，T按普通实参推断；两个显式 codec 入口保留；另提供 `encodeToString<T>(value: T): String where T.Companion : ValueEncoder<T>` 与 `decodeFromString<T>(text: String): T where T.Companion : ValueDecoder<T>` 普通泛型重载，分别显式转发 `T.Companion`。两个方向独立约束，codec 选择由静态类型与普通重载规则决定，不查询运行时数据类型，也不增加隐式参数。`ValueEncoder<T>`／`ValueDecoder<T>` 表示可复用的值策略，区别于格式侧 `Encoder`／`Decoder`；函数适配器分别命名为 `ValueEncoderFunction`／`ValueDecoderFunction`。JSON 实现先解析完整文档，检查语法、Unicode/转义、重复 key 和尾随内容，包括业务 codec 忽略的子树；解析后的输入节点由视图共享，不因复读重新解析或深拷贝。业务 codec 可以只读部分字段或返回常量，根入口不要求遍历或消费全部值。整数不经过 Double 转换，整数字段不接受带小数部分或指数部分的数字 token。record 已可覆盖对象形式，array 覆盖序列，不增加 Map 协议。格式错误抛带数据路径的 EncodingException/DecodingException；用户 codec、default 和 constructor 抛出的普通异常照常传播，不改写为 default 或空值。
 
 `scoop.json.JsonValue` 是公共不可变 class，只表示已合法解析或完整编码的 JSON 值。其构造器及内部节点不可由 Cone 外直接访问；不公开可变数组、未经检查的原始文本或节点修改入口。companion 以普通手写方法实现 ValueEncoder<JsonValue>／ValueDecoder<JsonValue>。Json 另提供普通泛型 encodeToValue(value, codec): JsonValue 和 decodeFromValue(value, codec): T；前者遵守同一根提交规则，后者以空串路径建立新的根视图，均不经文本中转。
 

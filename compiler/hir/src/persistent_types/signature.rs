@@ -244,30 +244,41 @@ impl<'a> HirSignatureTypeMapper<'a> {
                     visiting,
                 )?
             }
-            Type::Param(parameter) => {
-                if let Some((_, replacement)) = binders
-                    .substitutions
-                    .iter()
-                    .find(|(source, _)| source == parameter)
-                {
-                    self.map(*replacement, binders.binders)?
-                } else {
-                    let binder = binders
-                        .binders
-                        .iter()
-                        .find(|binder| binder.parameter == *parameter)
-                        .ok_or_else(|| {
-                            HirSignatureTypeMappingError::UnknownBinder(parameter.identity_raw())
-                        })?;
-                    SignatureTypeKey::Binder {
-                        depth: binder.depth,
-                        index: binder.index,
-                    }
-                }
+            Type::Param(parameter) => self.map_parameter(*parameter, binders)?,
+            Type::Companion(parameter) => {
+                SignatureTypeKey::Companion(Box::new(self.map_parameter(*parameter, binders)?))
             }
         };
         visiting.remove(&ty);
         Ok(key)
+    }
+
+    fn map_parameter(
+        &self,
+        parameter: TypeParamId,
+        binders: &ParameterEnvironment<'_>,
+    ) -> Result<SignatureTypeKey, HirSignatureTypeMappingError> {
+        Ok(
+            if let Some((_, replacement)) = binders
+                .substitutions
+                .iter()
+                .find(|(source, _)| *source == parameter)
+            {
+                self.map(*replacement, binders.binders)?
+            } else {
+                let binder = binders
+                    .binders
+                    .iter()
+                    .find(|binder| binder.parameter == parameter)
+                    .ok_or_else(|| {
+                        HirSignatureTypeMappingError::UnknownBinder(parameter.identity_raw())
+                    })?;
+                SignatureTypeKey::Binder {
+                    depth: binder.depth,
+                    index: binder.index,
+                }
+            },
+        )
     }
 
     fn function(

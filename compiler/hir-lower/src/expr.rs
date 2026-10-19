@@ -55,6 +55,7 @@ pub(crate) use callable_literals::ExpressionExpectation;
 mod callable_references;
 mod callables;
 mod callbacks;
+mod companion_projections;
 mod generic_calls;
 mod generic_inference;
 mod imported_callables;

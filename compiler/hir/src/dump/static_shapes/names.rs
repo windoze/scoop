@@ -32,6 +32,9 @@ impl<'a> ShapeDump<'a, '_> {
                 self.type_list(arguments, parameters),
                 self.type_name(result, parameters)
             ),
+            SignatureTypeKey::Companion(host) => {
+                format!("{}.Companion", self.type_name(host, parameters))
+            }
             SignatureTypeKey::RawPointer(pointee) => {
                 format!("Ptr<{}>", self.type_name(pointee, parameters))
             }

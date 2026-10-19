@@ -1,4 +1,5 @@
 use super::*;
+use scoop_ast::TypeConstraintSubject;
 
 impl Parser {
     /// `<T, U : Interface, ...>`. Nominal type parameters are permanently
@@ -83,12 +84,26 @@ impl Parser {
         let mut constraints = Vec::new();
         loop {
             let parameter = self.expect_ident("type parameter name in `where` constraint")?;
+            let parameter_start = parameter.span.start;
+            let subject = if matches!(self.peek().kind, TokenKind::Dot) {
+                self.bump();
+                let member = self.expect_ident("`Companion` in projected constraint")?;
+                if member.text != "Companion" {
+                    return Err(Diagnostic::at(
+                        member.span,
+                        "a dependent constraint only supports the `Companion` projection",
+                    ));
+                }
+                TypeConstraintSubject::Companion(parameter)
+            } else {
+                TypeConstraintSubject::Parameter(parameter)
+            };
             self.expect("`:`", |kind| matches!(kind, TokenKind::Colon))?;
             let bound = self.parse_type_bound()?;
             let end = self.tokens[self.pos - 1].span.end;
             constraints.push(TypeConstraint {
-                span: Span::new(parameter.span.start, end),
-                parameter,
+                span: Span::new(parameter_start, end),
+                subject,
                 bound,
             });
             if !matches!(self.peek().kind, TokenKind::Comma) {

@@ -51,7 +51,7 @@ impl<'signature> SignatureNominalWalker<'signature> {
                         self.pending.push(parameter);
                     }
                 }
-                SignatureTypeKey::RawPointer(pointee) => {
+                SignatureTypeKey::RawPointer(pointee) | SignatureTypeKey::Companion(pointee) => {
                     scoop_wire::allocation::try_reserve(&mut self.pending, 1, path)?;
                     self.pending.push(pointee.as_ref());
                 }

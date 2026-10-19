@@ -215,6 +215,9 @@ impl Concretizer<'_> {
             }
             export::ExprKind::SingletonValue(value) => {
                 concrete::ExprKind::SingletonValue(match *value {
+                    export::SingletonValueTarget::Companion(_) => {
+                        self.projected_singleton_value(ty)
+                    }
                     export::SingletonValueTarget::Local(_) => {
                         concrete::SingletonValueTarget::Local(self.singleton_value_for_type(ty))
                     }

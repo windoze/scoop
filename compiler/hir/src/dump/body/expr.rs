@@ -170,6 +170,9 @@ pub(super) fn dump_expr(
         )),
         ExprKind::SingletonValue(value) => {
             let name = match *value {
+                SingletonValueTarget::Companion(parameter) => {
+                    format!("T{}.Companion", parameter.into_raw())
+                }
                 SingletonValueTarget::Local(value) => {
                     let declaration = module.singleton_values[value].declaration;
                     module.objects[declaration].name.clone()

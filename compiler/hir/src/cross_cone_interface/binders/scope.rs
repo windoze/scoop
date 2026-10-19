@@ -75,7 +75,9 @@ impl SignatureBinderScopeV1 {
                 self.validate_sequence(parameters)?;
                 self.validate(result)
             }
-            SignatureTypeKey::RawPointer(pointee) => self.validate(pointee),
+            SignatureTypeKey::RawPointer(pointee) | SignatureTypeKey::Companion(pointee) => {
+                self.validate(pointee)
+            }
             SignatureTypeKey::Binder { depth, index } => {
                 let Some(arity) = self.arity_at_depth(*depth) else {
                     return Err(SignatureBinderScopeError::DepthOutOfRange {
@@ -117,37 +119,50 @@ impl CanonicalBinderListV1 {
     ) -> Result<(), TypeParameterBinderScopeValidationError> {
         let scope = self.signature_scope(nominal_owner_arity);
         for (binder_index, binder) in self.binders().iter().enumerate() {
-            for (interface_index, interface) in
-                binder.excluded_interfaces().values().iter().enumerate()
+            for (companion, positive, excluded) in
+                [(false, binder.bounds(), binder.excluded_interfaces())]
+                    .into_iter()
+                    .chain(
+                        binder
+                            .companion()
+                            .map(|bounds| (true, bounds.bounds(), bounds.excluded_interfaces())),
+                    )
             {
-                scope.validate(interface).map_err(|error| {
-                    TypeParameterBinderScopeValidationError {
-                        binder_index,
-                        bound: TypeParameterBoundLocation::ExcludedInterface { interface_index },
-                        error,
-                    }
-                })?;
-            }
-            let TypeParameterBoundsV1::Nominal(bounds) = binder.bounds() else {
-                continue;
-            };
-            if let Some(class) = bounds.class() {
-                scope
-                    .validate(class)
-                    .map_err(|error| TypeParameterBinderScopeValidationError {
-                        binder_index,
-                        bound: TypeParameterBoundLocation::Class,
-                        error,
+                for (interface_index, interface) in excluded.values().iter().enumerate() {
+                    scope.validate(interface).map_err(|error| {
+                        TypeParameterBinderScopeValidationError {
+                            binder_index,
+                            bound: TypeParameterBoundLocation::ExcludedInterface {
+                                interface_index,
+                            }
+                            .for_subject(companion),
+                            error,
+                        }
                     })?;
-            }
-            for (interface_index, interface) in bounds.interfaces().values().iter().enumerate() {
-                scope.validate(interface).map_err(|error| {
-                    TypeParameterBinderScopeValidationError {
-                        binder_index,
-                        bound: TypeParameterBoundLocation::Interface { interface_index },
-                        error,
-                    }
-                })?;
+                }
+                let TypeParameterBoundsV1::Nominal(bounds) = positive else {
+                    continue;
+                };
+                if let Some(class) = bounds.class() {
+                    scope.validate(class).map_err(|error| {
+                        TypeParameterBinderScopeValidationError {
+                            binder_index,
+                            bound: TypeParameterBoundLocation::Class.for_subject(companion),
+                            error,
+                        }
+                    })?;
+                }
+                for (interface_index, interface) in bounds.interfaces().values().iter().enumerate()
+                {
+                    scope.validate(interface).map_err(|error| {
+                        TypeParameterBinderScopeValidationError {
+                            binder_index,
+                            bound: TypeParameterBoundLocation::Interface { interface_index }
+                                .for_subject(companion),
+                            error,
+                        }
+                    })?;
+                }
             }
         }
         Ok(())
@@ -186,14 +201,41 @@ impl std::error::Error for SignatureBinderScopeError {}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum TypeParameterBoundLocation {
+    CompanionClass,
+    CompanionInterface { interface_index: usize },
+    CompanionExcludedInterface { interface_index: usize },
     Class,
     Interface { interface_index: usize },
     ExcludedInterface { interface_index: usize },
 }
 
+impl TypeParameterBoundLocation {
+    pub(crate) fn for_subject(self, companion: bool) -> Self {
+        if !companion {
+            return self;
+        }
+        match self {
+            Self::Class => Self::CompanionClass,
+            Self::Interface { interface_index } => Self::CompanionInterface { interface_index },
+            Self::ExcludedInterface { interface_index } => {
+                Self::CompanionExcludedInterface { interface_index }
+            }
+            other => other,
+        }
+    }
+}
+
 impl fmt::Display for TypeParameterBoundLocation {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::CompanionClass => formatter.write_str("companion class bound"),
+            Self::CompanionInterface { interface_index } => {
+                write!(formatter, "companion interface bound {interface_index}")
+            }
+            Self::CompanionExcludedInterface { interface_index } => write!(
+                formatter,
+                "companion negative interface bound {interface_index}"
+            ),
             Self::Class => formatter.write_str("class bound"),
             Self::ExcludedInterface { interface_index } => {
                 write!(formatter, "negative interface bound {interface_index}")

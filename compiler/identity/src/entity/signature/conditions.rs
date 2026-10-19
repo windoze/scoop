@@ -7,6 +7,7 @@ use crate::{PersistentGenericTypeId, PersistentIdResolver, PersistentTypeId};
 /// are deliberately absent from declaration identity.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum SignatureConditionKey<T = SignatureTypeKey> {
+    Companion { subject: T },
     Value { subject: T },
     Ref { subject: T },
     Upper { subject: T, bound: T },
@@ -16,6 +17,7 @@ pub enum SignatureConditionKey<T = SignatureTypeKey> {
 impl<T: WireEncode> WireEncode for SignatureConditionKey<T> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         let (tag, subject, bound) = match self {
+            Self::Companion { subject } => (5, subject, None),
             Self::Value { subject } => (1, subject, None),
             Self::Ref { subject } => (2, subject, None),
             Self::Upper { subject, bound } => (3, subject, Some(bound)),
@@ -39,7 +41,7 @@ impl WireDecode for SignatureConditionKey<DecodedSignatureTypeKey> {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         let expected = match tag {
-            1 | 2 => 2,
+            1 | 2 | 5 => 2,
             3 | 4 => 3,
             _ => {
                 return Err(WireError::new(
@@ -61,6 +63,7 @@ impl WireDecode for SignatureConditionKey<DecodedSignatureTypeKey> {
         }
         let subject = decoder.field(1, DecodedSignatureTypeKey::decode)?;
         match tag {
+            5 => Ok(Self::Companion { subject }),
             1 => Ok(Self::Value { subject }),
             2 => Ok(Self::Ref { subject }),
             3 => Ok(Self::Upper {
@@ -83,6 +86,9 @@ impl SignatureConditionKey<DecodedSignatureTypeKey> {
             + PersistentIdResolver<PersistentGenericTypeId, Error = E>,
     {
         Ok(match self {
+            Self::Companion { subject } => SignatureConditionKey::Companion {
+                subject: subject.resolve(resolver)?,
+            },
             Self::Value { subject } => SignatureConditionKey::Value {
                 subject: subject.resolve(resolver)?,
             },

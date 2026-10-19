@@ -135,7 +135,7 @@ fn upper(name: &str, interface: TypeRef) -> ast::TypeParamDecl {
 fn where_clause(parameter: &str, interface: TypeRef) -> ast::WhereClause {
     ast::WhereClause {
         constraints: vec![ast::TypeConstraint {
-            parameter: ident(parameter),
+            subject: ast::TypeConstraintSubject::Parameter(ident(parameter)),
             bound: ast::TypeBound::Upper(interface),
             span: sp(),
         }],

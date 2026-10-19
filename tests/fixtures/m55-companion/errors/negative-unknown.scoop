@@ -1,0 +1,3 @@
+interface I {}
+fun <T> probe(value: T): Int where T.Companion : !I = 1
+fun <U> forward(value: U): Int where U.Companion : ref = probe(value)

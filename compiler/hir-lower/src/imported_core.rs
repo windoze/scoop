@@ -70,7 +70,8 @@ impl Lowerer {
             | hir::Type::Ptr(_)
             | hir::Type::FunPtr(_)
             | hir::Type::Enum(_)
-            | hir::Type::Param(_) => return None,
+            | hir::Type::Param(_)
+            | hir::Type::Companion(_) => return None,
         })
     }
 
@@ -129,6 +130,15 @@ impl Lowerer {
                     hir::SourceNominalId::GenericTemplate(*origin),
                     arguments,
                 )
+            }
+            SignatureTypeKey::Companion(host) => {
+                let host = self.imported_signature_type_with_bindings(host, bindings)?;
+                if let hir::Type::Param(parameter) = self.types[host] {
+                    Ok(self.intern_type(hir::Type::Companion(parameter)))
+                } else {
+                    self.projected_companion_type(host)
+                        .map_err(|_| ImportedSignatureTypeError::Structural)
+                }
             }
             SignatureTypeKey::Binder { .. } => Err(ImportedSignatureTypeError::Generic),
             SignatureTypeKey::Tuple(elements) => {

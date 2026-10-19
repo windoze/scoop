@@ -96,6 +96,7 @@ pub(crate) fn render_nominal_constraint_failure(
                 parameter(*variable).name,
             )
         }
+        ConstraintFailureKind::Companion { message, .. } => message.clone(),
         ConstraintFailureKind::ExcludedInterface {
             variable,
             solution,

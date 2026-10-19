@@ -74,7 +74,9 @@ impl Graph {
                 }
                 self.require(owner, result)?;
             }
-            SignatureTypeKey::RawPointer(pointee) => self.require(owner, pointee)?,
+            SignatureTypeKey::RawPointer(pointee) | SignatureTypeKey::Companion(pointee) => {
+                self.require(owner, pointee)?
+            }
         }
         Ok(())
     }

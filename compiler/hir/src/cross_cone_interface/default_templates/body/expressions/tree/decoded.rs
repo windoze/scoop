@@ -99,6 +99,7 @@ enum DecodedDefaultExpressionKindV1 {
     GlobalRead(DecodedPersistentId<PersistentPropertyId>),
     GenericDelegateStorageRead(crate::DecodedDefaultGenericDelegateReferenceV1),
     SingletonValue(DecodedPersistentId<PersistentObjectValueId>),
+    CompanionValue,
     Lambda(DecodedDefaultLambdaV1),
     AnonymousFunction(DecodedDefaultAnonymousFunctionV1),
     CallableReference(DecodedDefaultCallableReferenceV1),

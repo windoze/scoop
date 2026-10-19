@@ -57,6 +57,7 @@ impl Lowerer {
             }
         };
         match &failure.kind {
+            Kind::Companion { message, .. } => message.clone(),
             Kind::Kind {
                 variable,
                 solution,

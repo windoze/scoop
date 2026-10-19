@@ -146,7 +146,8 @@ impl ReleaseValueFacts {
                     &application.arguments,
                 )
             }
-            hir::Type::String
+            hir::Type::Companion(_)
+            | hir::Type::String
             | hir::Type::Class(_)
             | hir::Type::Interface(_)
             | hir::Type::Any

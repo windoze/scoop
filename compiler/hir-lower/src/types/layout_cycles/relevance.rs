@@ -134,6 +134,7 @@ impl Lowerer {
             Type::Unit
             | Type::Integer(_)
             | Type::Boolean
+            | Type::Companion(_)
             | Type::String
             | Type::Class(_)
             | Type::Interface(_)

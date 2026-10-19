@@ -241,7 +241,11 @@ impl ImportedReferenceDeclaration {
             }
         };
         let target = if let Some(receiver) = receiver {
-            let bound = if matches!(state.types[receiver.ty], Type::Param(_)) && !extension {
+            let bound = if matches!(
+                state.types[receiver.ty],
+                Type::Param(_) | Type::Companion(_)
+            ) && !extension
+            {
                 let Type::Function(signature) = state.types[ty] else {
                     unreachable!("reference resolution produces a function type")
                 };

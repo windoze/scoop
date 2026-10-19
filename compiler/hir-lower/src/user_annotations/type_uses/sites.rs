@@ -24,7 +24,7 @@ impl Lowerer {
                 bounds.extend(constraints.constraints.iter().filter_map(|constraint| {
                     match &constraint.bound {
                         ast::TypeBound::Upper(ty)
-                            if constraint.parameter.text == source.name.text =>
+                            if constraint.subject.parameter().text == source.name.text =>
                         {
                             Some(ty)
                         }

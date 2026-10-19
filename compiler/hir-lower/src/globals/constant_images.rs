@@ -47,7 +47,8 @@ impl Lowerer {
             | hir::Type::Function(_)
             | hir::Type::Ptr(_)
             | hir::Type::FunPtr(_)
-            | hir::Type::Param(_) => None,
+            | hir::Type::Param(_)
+            | hir::Type::Companion(_) => None,
         }
     }
 

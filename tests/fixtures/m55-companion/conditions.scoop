@@ -1,0 +1,19 @@
+interface Mark {}
+struct Plain() { public companion object {} }
+struct Marked() { public companion object : Mark {} }
+struct Absent()
+fun <T> choose(value: T): String = "general"
+fun <T> choose(value: T): String where T.Companion : !Mark = "negative"
+fun <T> forward(value: T): String where T.Companion : !Mark = choose(value)
+fun <T : value> kind(value: T): String where T.Companion : ref = "value+companion"
+open class Parent { public val label: String = "base" }
+struct Child() { public companion object : Parent() {} }
+fun <T> label(value: T): String where T.Companion : Parent = T.Companion.label
+fun main() {
+    println(choose(Plain()))
+    println(choose(Marked()))
+    println(choose(Absent()))
+    println(forward(Plain()))
+    println(kind(Plain()))
+    println(label(Child()))
+}

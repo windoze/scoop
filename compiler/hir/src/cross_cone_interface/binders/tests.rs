@@ -113,6 +113,42 @@ fn excluded_interfaces_round_trip_and_resolve_typed_references() {
 }
 
 #[test]
+fn companion_binder_preserves_independent_bounds_and_projection_scope() {
+    let fixture = fixture();
+    let excluded = CanonicalSignatureTypesV1::try_new(vec![SignatureTypeKey::Nominal(
+        fixture.interface_a.id(),
+    )])
+    .unwrap();
+    let companion = CompanionBoundsV1::new(TypeParameterBoundsV1::Ref, excluded);
+    let expected = CanonicalBinderListV1::try_new(vec![
+        binder("T", TypeParameterBoundsV1::Value).with_companion(Some(companion)),
+    ])
+    .unwrap();
+    assert_eq!(
+        decode_binders(&expected)
+            .resolve(&mut authority(&fixture))
+            .unwrap(),
+        expected
+    );
+    assert!(
+        decode_binders(&expected)
+            .resolve(&mut empty_authority())
+            .is_err()
+    );
+    let projection =
+        SignatureTypeKey::Companion(Box::new(SignatureTypeKey::Binder { depth: 0, index: 0 }));
+    let decoded =
+        decode_canonical::<DecodedSignatureTypeKey>(&encode(&projection).unwrap()).unwrap();
+    assert_eq!(decoded.resolve(&mut empty_authority()).unwrap(), projection);
+    assert!(expected.signature_scope(None).validate(&projection).is_ok());
+    assert!(
+        SignatureBinderScopeV1::for_declaration(0, None)
+            .validate(&projection)
+            .is_err()
+    );
+}
+
+#[test]
 fn reader_rejects_duplicate_and_noncanonical_signature_sets() {
     let fixture = fixture();
     let mut ordered = vec![

@@ -124,7 +124,12 @@ impl Lowerer {
         };
         let bound_declaration = receiver
             .as_ref()
-            .filter(|receiver| matches!(self.types[receiver.ty], hir::Type::Param(_)))
+            .filter(|receiver| {
+                matches!(
+                    self.types[receiver.ty],
+                    hir::Type::Param(_) | hir::Type::Companion(_)
+                )
+            })
             .map(|_| candidate.interface().clone());
         let mut parameters = signature
             .value_parameters

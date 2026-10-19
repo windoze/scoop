@@ -96,6 +96,40 @@ impl Lowerer {
         check: &AtomicConstraint,
     ) -> Result<(), ConstraintFailure> {
         match &check.kind {
+            AtomicConstraintKind::Companion(variable, bounds) => self.validate_companion_condition(
+                session,
+                bindings,
+                *variable,
+                bounds,
+                check.origin,
+            ),
+            AtomicConstraintKind::DeferredRelation(relation, left, right) => {
+                let left_ty = self.require_materialized(
+                    session,
+                    bindings,
+                    &super::Bound {
+                        term: *left,
+                        origin: check.origin,
+                    },
+                )?;
+                let right_ty = self.require_materialized(
+                    session,
+                    bindings,
+                    &super::Bound {
+                        term: *right,
+                        origin: check.origin,
+                    },
+                )?;
+                let satisfied = match relation {
+                    RelationKind::Equal => self.types_equal(left_ty, right_ty),
+                    RelationKind::Subtype => self.is_subtype(left_ty, right_ty),
+                };
+                if satisfied {
+                    Ok(())
+                } else {
+                    Err(relation_failure(check.origin, *relation, *left, *right))
+                }
+            }
             AtomicConstraintKind::ExcludesInterface(variable, interface) => {
                 let subject = TypeTerm::Variable(*variable);
                 let solution = self

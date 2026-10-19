@@ -183,40 +183,56 @@ where
 {
     for (wire_index, (binder_index, binder)) in (0_u64..).zip(binders.binders().iter().enumerate())
     {
-        for (interface_index, interface) in binder.excluded_interfaces().values().iter().enumerate()
-        {
-            validator.visit_signature(
-                interface,
-                site(
-                    binder_index,
-                    TypeParameterBoundLocation::ExcludedInterface { interface_index },
-                ),
-                &path
-                    .clone()
-                    .index(wire_index)
-                    .field(3)
-                    .index(interface_index as u64),
-            )?;
-        }
-        let TypeParameterBoundsV1::Nominal(bounds) = binder.bounds() else {
-            continue;
-        };
-        let bounds_path = path.clone().index(wire_index).field(2);
-        if let Some(class) = bounds.class() {
-            let bound = TypeParameterBoundLocation::Class;
-            validator.visit_signature(
-                class,
-                site(binder_index, bound),
-                &bounds_path.clone().field(1).field(1),
-            )?;
-        }
-        for (interface_index, interface) in bounds.interfaces().values().iter().enumerate() {
-            let bound = TypeParameterBoundLocation::Interface { interface_index };
-            validator.visit_signature(
-                interface,
-                site(binder_index, bound),
-                &bounds_path.clone().field(2).index(interface_index as u64),
-            )?;
+        let root = path.clone().index(wire_index);
+        for (companion, positive, excluded, bounds_path, excluded_path) in [(
+            false,
+            binder.bounds(),
+            binder.excluded_interfaces(),
+            root.clone().field(2),
+            root.clone().field(3),
+        )]
+        .into_iter()
+        .chain(binder.companion().map(|bounds| {
+            (
+                true,
+                bounds.bounds(),
+                bounds.excluded_interfaces(),
+                root.clone().field(4).field(1),
+                root.clone().field(4).field(2),
+            )
+        })) {
+            for (interface_index, interface) in excluded.values().iter().enumerate() {
+                validator.visit_signature(
+                    interface,
+                    site(
+                        binder_index,
+                        TypeParameterBoundLocation::ExcludedInterface { interface_index }
+                            .for_subject(companion),
+                    ),
+                    &excluded_path.clone().index(interface_index as u64),
+                )?;
+            }
+            let TypeParameterBoundsV1::Nominal(bounds) = positive else {
+                continue;
+            };
+
+            if let Some(class) = bounds.class() {
+                let bound = TypeParameterBoundLocation::Class.for_subject(companion);
+                validator.visit_signature(
+                    class,
+                    site(binder_index, bound),
+                    &bounds_path.clone().field(1).field(1),
+                )?;
+            }
+            for (interface_index, interface) in bounds.interfaces().values().iter().enumerate() {
+                let bound = TypeParameterBoundLocation::Interface { interface_index }
+                    .for_subject(companion);
+                validator.visit_signature(
+                    interface,
+                    site(binder_index, bound),
+                    &bounds_path.clone().field(2).index(interface_index as u64),
+                )?;
+            }
         }
     }
     Ok(())

@@ -150,6 +150,7 @@ pub enum DefaultExpressionKindV1 {
     GlobalRead(PersistentPropertyId),
     GenericDelegateStorageRead(crate::DefaultGenericDelegateReferenceV1),
     SingletonValue(PersistentObjectValueId),
+    CompanionValue,
     Lambda(DefaultLambdaV1),
     AnonymousFunction(DefaultAnonymousFunctionV1),
     CallableReference(DefaultCallableReferenceV1),
@@ -487,6 +488,7 @@ fn validate_kind(kind: &DefaultExpressionKindV1) -> Result<(), DefaultExpression
         | DefaultExpressionKindV1::Capture(_)
         | DefaultExpressionKindV1::GlobalRead(_)
         | DefaultExpressionKindV1::GenericDelegateStorageRead(_)
+        | DefaultExpressionKindV1::CompanionValue
         | DefaultExpressionKindV1::SingletonValue(_)
         | DefaultExpressionKindV1::Lambda(_)
         | DefaultExpressionKindV1::AnonymousFunction(_)

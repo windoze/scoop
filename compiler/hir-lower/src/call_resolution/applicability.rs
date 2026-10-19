@@ -195,6 +195,12 @@ impl Lowerer {
                 Constraint::Kind(variable, parameter.kind()),
                 ConstraintOrigin::TypeParameterBound(parameter.id),
             );
+            if let Some(bounds) = &parameter.companion {
+                session.push(
+                    Constraint::Companion(variable, bounds.clone()),
+                    ConstraintOrigin::TypeParameterBound(parameter.id),
+                );
+            }
             for bound in &parameter.excluded_interfaces {
                 session.push(
                     Constraint::ExcludesInterface(variable, TypeTerm::Type(bound.ty)),

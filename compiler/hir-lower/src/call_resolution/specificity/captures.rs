@@ -17,6 +17,12 @@ impl Lowerer {
             .iter()
             .chain(declaration.callable_parameters)
         {
+            if let Some(companion) = &parameter.companion {
+                pending.extend(companion.excluded_interfaces.iter().map(|bound| bound.ty));
+                if let hir::TypeParamBounds::Nominal(bounds) = &companion.bounds {
+                    pending.extend(bounds.in_source_order().into_iter().map(|bound| bound.ty()));
+                }
+            }
             pending.extend(parameter.excluded_interfaces.iter().map(|bound| bound.ty));
             pending.extend(
                 parameter
@@ -39,7 +45,7 @@ impl Lowerer {
                 continue;
             }
             match &self.types[ty] {
-                Type::Param(id) => {
+                Type::Param(id) | Type::Companion(id) => {
                     used.insert(*id);
                 }
                 Type::Tuple(elements) => pending.extend(elements),

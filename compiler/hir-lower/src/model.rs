@@ -192,12 +192,12 @@ pub(crate) enum CallableCandidateOwner {
 pub(crate) enum CallableCandidateSource {
     Direct,
     ClassBound {
-        receiver_parameter: hir::TypeParamId,
+        receiver_type: TypeId,
         bound: hir::ClassApplicationId,
         member: hir::FunctionId,
     },
     InterfaceBound {
-        receiver_parameter: hir::TypeParamId,
+        receiver_type: TypeId,
         bound: hir::InterfaceApplicationId,
         member: hir::InterfaceMethodId,
     },
@@ -228,6 +228,7 @@ pub(crate) fn lower_type_param_decl(
 ) -> hir::TypeParamDecl {
     hir::TypeParamDecl {
         excluded_interfaces: Vec::new(),
+        companion: None,
         id,
         name: param.name.text.clone(),
         // Bounds are resolved after every nominal declaration has entered the

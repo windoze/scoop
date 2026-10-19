@@ -24,8 +24,8 @@ pub use section::signature_nominal_walk::SignatureNominalWalker;
 mod type_alias_interfaces;
 
 pub use binders::{
-    BinderListValidationError, CanonicalBinderListV1, CanonicalSignatureTypesV1,
-    DecodedCanonicalBinderListV1, DecodedCanonicalSignatureTypesV1,
+    BinderListValidationError, CanonicalBinderListV1, CanonicalSignatureTypesV1, CompanionBoundsV1,
+    DecodedCanonicalBinderListV1, DecodedCanonicalSignatureTypesV1, DecodedCompanionBoundsV1,
     DecodedNominalTypeParameterBoundsV1, DecodedTypeParameterBinderV1,
     DecodedTypeParameterBoundsV1, NominalBoundSemanticError, NominalInterfaceShapeAuthority,
     NominalSignatureSemanticError, NominalTypeParameterBoundsV1, PublicNominalShapeV1,

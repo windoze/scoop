@@ -83,6 +83,21 @@ impl Lowerer {
                 });
         }
         match self.types[ty].clone() {
+            Type::Companion(parameter) => {
+                let variable = session.variable_for(parameter).ok_or(ConstraintFailure {
+                    origin,
+                    kind: ConstraintFailureKind::ForeignTypeParameter(parameter),
+                })?;
+                let Some(host) = self.binding_for(session, bindings, variable, origin)? else {
+                    return Ok(None);
+                };
+                self.projected_companion_type(host)
+                    .map(Some)
+                    .map_err(|message| ConstraintFailure {
+                        origin,
+                        kind: ConstraintFailureKind::Companion { variable, message },
+                    })
+            }
             Type::Param(parameter) => {
                 let variable = session.variable_for(parameter).ok_or(ConstraintFailure {
                     origin,

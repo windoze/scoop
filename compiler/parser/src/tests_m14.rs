@@ -44,7 +44,7 @@ fn generic_class_preserves_complete_host_and_supertype_syntax() {
     ));
     let clause = class.where_clause.as_ref().expect("where clause");
     assert_eq!(clause.constraints.len(), 1);
-    assert_eq!(clause.constraints[0].parameter.text, "T");
+    assert_eq!(clause.constraints[0].subject.parameter().text, "T");
     assert!(
         class
             .functions()

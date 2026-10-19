@@ -256,8 +256,13 @@ pub(super) fn dump_where_clause(clause: Option<&WhereClause>) -> String {
             .constraints
             .iter()
             .map(|constraint| format!(
-                "{} : {}",
-                constraint.parameter.text,
+                "{}{} : {}",
+                constraint.subject.parameter().text,
+                if matches!(constraint.subject, TypeConstraintSubject::Companion(_)) {
+                    ".Companion"
+                } else {
+                    ""
+                },
                 dump_type_bound(&constraint.bound)
             ))
             .collect::<Vec<_>>()

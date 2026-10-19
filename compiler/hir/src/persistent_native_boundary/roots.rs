@@ -267,7 +267,9 @@ pub(super) fn collect_signature_type(
             }
             collect_signature_type(result, required);
         }
-        SignatureTypeKey::RawPointer(pointee) => collect_signature_type(pointee, required),
+        SignatureTypeKey::RawPointer(pointee) | SignatureTypeKey::Companion(pointee) => {
+            collect_signature_type(pointee, required)
+        }
         SignatureTypeKey::Binder { .. } => {}
     }
 }

@@ -100,6 +100,7 @@ pub enum SignatureTypeKey {
         depth: u32,
         index: u32,
     },
+    Companion(Box<SignatureTypeKey>),
 }
 
 impl WireEncode for SignatureTypeKey {
@@ -141,6 +142,7 @@ impl WireEncode for SignatureTypeKey {
                 Ok(())
             }
             Self::RawPointer(pointee) => encode_single_payload(encoder, 5, pointee.as_ref()),
+            Self::Companion(host) => encode_single_payload(encoder, 8, host.as_ref()),
             Self::NativeFunctionPointer {
                 calling_convention,
                 parameters,
@@ -194,7 +196,7 @@ impl SignatureTypeKey {
             Self::NativeFunctionPointer {
                 parameters, result, ..
             } => parameters.iter().any(Self::contains_binder) || result.contains_binder(),
-            Self::RawPointer(pointee) => pointee.contains_binder(),
+            Self::RawPointer(pointee) | Self::Companion(pointee) => pointee.contains_binder(),
             Self::Binder { .. } => true,
         }
     }

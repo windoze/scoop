@@ -310,7 +310,8 @@ fn compare_type_tasks<'a>(
                             path,
                         )?;
                     }
-                    (SignatureTypeKey::RawPointer(left), SignatureTypeKey::RawPointer(right)) => {
+                    (SignatureTypeKey::RawPointer(left), SignatureTypeKey::RawPointer(right))
+                    | (SignatureTypeKey::Companion(left), SignatureTypeKey::Companion(right)) => {
                         push_task(&mut pending, TypeComparison::Type(left, right), path)?;
                     }
                     (
@@ -633,6 +634,7 @@ const fn signature_tag(value: &SignatureTypeKey) -> u8 {
         SignatureTypeKey::RawPointer(_) => 5,
         SignatureTypeKey::NativeFunctionPointer { .. } => 6,
         SignatureTypeKey::Binder { .. } => 7,
+        SignatureTypeKey::Companion(_) => 8,
     }
 }
 

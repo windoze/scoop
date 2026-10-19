@@ -112,6 +112,7 @@ mod m41_operators;
 mod m45_lambda_inference;
 mod m45_safe_call_statements;
 mod m5;
+mod m55_companion;
 mod m55_negative;
 mod m6;
 mod m7;

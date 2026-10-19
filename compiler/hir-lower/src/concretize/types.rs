@@ -247,6 +247,9 @@ impl Concretizer<'_> {
                 let id = self.lower_enum_application(application, substitution);
                 self.enum_type[&id]
             }
+            export::Type::Companion(index) => {
+                self.lower_companion_type(substitution[index.into_raw() as usize])
+            }
             export::Type::Param(index) => substitution
                 .get(index.into_raw() as usize)
                 .copied()

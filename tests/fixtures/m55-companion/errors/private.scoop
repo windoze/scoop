@@ -1,0 +1,3 @@
+struct Hidden() { private companion object {} }
+fun <T> probe(value: T): Int where T.Companion : ref = 1
+fun main() { probe(Hidden()) }

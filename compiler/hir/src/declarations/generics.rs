@@ -10,6 +10,15 @@ pub struct TypeParamDecl {
     /// Function-only negative interface facts, independent of positive kind
     /// and nominal bounds. Empty for nominal and alias declarations.
     pub excluded_interfaces: Vec<InterfaceUpperBound>,
+    /// Present exactly when this parameter's public companion is required.
+    pub companion: Option<CompanionBounds>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CompanionBounds {
+    pub bounds: TypeParamBounds,
+    pub excluded_interfaces: Vec<InterfaceUpperBound>,
     pub span: Span,
 }
 

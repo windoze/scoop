@@ -310,9 +310,23 @@ pub struct WhereClause {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TypeConstraint {
-    pub parameter: Ident,
+    pub subject: TypeConstraintSubject,
     pub bound: TypeBound,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum TypeConstraintSubject {
+    Parameter(Ident),
+    Companion(Ident),
+}
+
+impl TypeConstraintSubject {
+    pub fn parameter(&self) -> &Ident {
+        match self {
+            Self::Parameter(parameter) | Self::Companion(parameter) => parameter,
+        }
+    }
 }
 
 /// `enum E<T> { ... }` (spec 4.2).

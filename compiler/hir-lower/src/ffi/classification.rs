@@ -163,7 +163,8 @@ impl Lowerer {
                 }
             }
             hir::Type::Param(_) => Ok(Classification::Deferred),
-            hir::Type::String
+            hir::Type::Companion(_)
+            | hir::Type::String
             | hir::Type::Class(..)
             | hir::Type::Interface(_)
             | hir::Type::Any
@@ -274,6 +275,7 @@ impl Lowerer {
             hir::Type::Unit => Some(true),
             hir::Type::Integer(_)
             | hir::Type::Boolean
+            | hir::Type::Companion(_)
             | hir::Type::String
             | hir::Type::Class(_)
             | hir::Type::Interface(_)
@@ -337,6 +339,7 @@ impl Lowerer {
             }),
             hir::Type::Integer(_)
             | hir::Type::Boolean
+            | hir::Type::Companion(_)
             | hir::Type::String
             | hir::Type::Class(..)
             | hir::Type::Interface(_)

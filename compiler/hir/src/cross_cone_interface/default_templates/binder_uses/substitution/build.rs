@@ -45,6 +45,7 @@ impl Substitution<'_, '_> {
                 }
             }
             SignatureTypeKey::RawPointer(_) => SignatureTypeKey::RawPointer(self.boxed()?),
+            SignatureTypeKey::Companion(_) => SignatureTypeKey::Companion(self.boxed()?),
             SignatureTypeKey::Nominal(_) | SignatureTypeKey::Binder { .. } => {
                 return Err(invalid_length(1, 0, self.path).into());
             }

@@ -183,14 +183,25 @@ impl Lowerer {
         bindings: &ImportedTypeBindings,
         span: scoop_ast::Span,
     ) -> Result<hir::TypeParamDecl, String> {
-        let bounds = match binder.bounds() {
-            hir::TypeParameterBoundsV1::Unconstrained => hir::TypeParamBounds::Unconstrained,
-            hir::TypeParameterBoundsV1::Value => hir::TypeParamBounds::Value { span },
-            hir::TypeParameterBoundsV1::Ref => hir::TypeParamBounds::Ref { span },
-            hir::TypeParameterBoundsV1::Nominal(bounds) => {
-                self.imported_generic_nominal_bounds(bounds, bindings, span)?
-            }
-        };
+        let bounds = self.resolve_imported_bounds(binder.bounds(), bindings, span)?;
+        let companion = binder
+            .companion()
+            .map(|companion| {
+                Ok::<_, String>(hir::CompanionBounds {
+                    bounds: self.resolve_imported_bounds(companion.bounds(), bindings, span)?,
+                    excluded_interfaces: companion
+                        .excluded_interfaces()
+                        .values()
+                        .iter()
+                        .map(|ty| {
+                            self.imported_generic_type(ty, bindings)
+                                .map(|ty| hir::InterfaceUpperBound { ty, span })
+                        })
+                        .collect::<Result<_, _>>()?,
+                    span,
+                })
+            })
+            .transpose()?;
         let excluded_interfaces = binder
             .excluded_interfaces()
             .values()
@@ -201,11 +212,28 @@ impl Lowerer {
             })
             .collect::<Result<_, _>>()?;
         Ok(hir::TypeParamDecl {
+            companion,
             excluded_interfaces,
             id,
             name: binder.name().as_str().to_owned(),
             bounds,
             span,
+        })
+    }
+
+    fn resolve_imported_bounds(
+        &mut self,
+        bounds: &hir::TypeParameterBoundsV1,
+        bindings: &ImportedTypeBindings,
+        span: scoop_ast::Span,
+    ) -> Result<hir::TypeParamBounds, String> {
+        Ok(match bounds {
+            hir::TypeParameterBoundsV1::Unconstrained => hir::TypeParamBounds::Unconstrained,
+            hir::TypeParameterBoundsV1::Value => hir::TypeParamBounds::Value { span },
+            hir::TypeParameterBoundsV1::Ref => hir::TypeParamBounds::Ref { span },
+            hir::TypeParameterBoundsV1::Nominal(bounds) => {
+                self.imported_generic_nominal_bounds(bounds, bindings, span)?
+            }
         })
     }
 

@@ -151,6 +151,7 @@ pub(crate) enum Constraint {
     ClassBound(InferenceVariableId, TypeTerm),
     Implements(InferenceVariableId, TypeTerm),
     ExcludesInterface(InferenceVariableId, TypeTerm),
+    Companion(InferenceVariableId, hir::CompanionBounds),
     ConcreteApplication(NominalApplication),
 }
 
@@ -186,6 +187,10 @@ pub(crate) enum CallableShapeMismatch {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ConstraintFailureKind {
+    Companion {
+        variable: InferenceVariableId,
+        message: String,
+    },
     ExcludedInterface {
         variable: InferenceVariableId,
         solution: hir::TypeId,
@@ -233,7 +238,8 @@ pub(crate) enum ConstraintFailureKind {
 impl ConstraintFailureKind {
     pub(crate) fn inference_variable(&self) -> Option<InferenceVariableId> {
         match self {
-            Self::ForeignVariable(variable)
+            Self::Companion { variable, .. }
+            | Self::ForeignVariable(variable)
             | Self::ConflictingExactBounds { variable, .. }
             | Self::NoUniqueSolution { variable, .. }
             | Self::Kind { variable, .. }

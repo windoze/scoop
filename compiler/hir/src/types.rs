@@ -41,6 +41,9 @@ pub enum Type {
     /// generic function/type definition; instantiated MIR never
     /// contains it.
     Param(TypeParamId),
+    /// The public companion of a function parameter, substituted with the
+    /// actual host application before entering concrete HIR.
+    Companion(TypeParamId),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -106,7 +109,7 @@ pub fn types_equal(module: &Module, a: TypeId, b: TypeId) -> bool {
         (Type::Ptr(x), Type::Ptr(y)) => types_equal(module, *x, *y),
         (Type::FunPtr(x), Type::FunPtr(y)) => x == y,
         (Type::Enum(x), Type::Enum(y)) => x == y,
-        (Type::Param(x), Type::Param(y)) => x == y,
+        (Type::Param(x), Type::Param(y)) | (Type::Companion(x), Type::Companion(y)) => x == y,
         _ => false,
     }
 }
@@ -250,6 +253,14 @@ pub(crate) fn type_name_with_params(
                 type_name_with_params(module, function.return_type, params)
             )
         }
+        Type::Companion(index) => format!(
+            "{}.Companion",
+            params
+                .iter()
+                .find(|p| p.id == *index)
+                .map(|p| p.name.clone())
+                .unwrap_or_else(|| format!("T{}", index.into_raw()))
+        ),
         Type::Param(index) => params
             .iter()
             .find(|parameter| parameter.id == *index)
