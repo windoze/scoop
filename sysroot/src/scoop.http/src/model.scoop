@@ -12,7 +12,8 @@ public class HttpException public constructor(
     public val streamId: Int,
     public val backend: String,
     public val code: Int,
-    public val detail: String
+    public val detail: String,
+    public val isUnexpectedEof: Boolean = false
 ) : Exception(Some(operation + ": " + detail))
 
 public class HttpField public constructor(name: List<Byte>, value: List<Byte>, public val neverIndex: Boolean = false) {

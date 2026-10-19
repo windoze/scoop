@@ -36,7 +36,7 @@ public class Http1Decoder private constructor(private var handle: ULong, public 
 
     @Unsafe private fun check(code: Int, operation: String, scope: HttpFailureScope = HttpFailureScope.Connection) {
         if (code != 0) throw HttpException(operation, HttpProtocol.Http1, scope, 0,
-            "llhttp 9.4.3", code, String.fromCString(http1Error(nativeHandle())))
+            "llhttp 9.4.3", code, String.fromCString(http1Error(nativeHandle())), http1IsUnexpectedEof(code) != 0)
     }
 
     public fun expectResponse(method: List<Byte>) {

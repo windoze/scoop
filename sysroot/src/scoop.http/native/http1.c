@@ -117,6 +117,10 @@ int32_t scoop_http1_end(uint64_t handle) {
   return finish_step(state, llhttp_finish(&state->parser));
 }
 
+int32_t scoop_http1_is_unexpected_eof(int32_t code) {
+  return code == HPE_INVALID_EOF_STATE;
+}
+
 int32_t scoop_http1_resume(uint64_t handle) {
   http1 *state = (http1 *)(uintptr_t)handle;
   if (!state->server || !state->switched || state->failed)

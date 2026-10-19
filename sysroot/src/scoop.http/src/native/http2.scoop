@@ -15,6 +15,7 @@ package scoop.http
 @Extern(name = "scoop_http2_buffered") internal fun http2Buffered(handle: ULong): Long
 @Extern(name = "scoop_http2_next") internal fun http2Next(handle: ULong): ULong
 @Extern(name = "scoop_http2_end") internal fun http2End(handle: ULong): Int
+@GCLeaf @Extern(name = "scoop_http2_is_unexpected_eof") internal fun http2IsUnexpectedEof(code: Int): Int
 @Extern(name = "scoop_http2_goaway") internal fun http2Goaway(handle: ULong, last: Int, code: UInt, data: Ptr<Byte>, size: Long): Int
 @Extern(name = "scoop_http2_upgrade") internal fun http2Upgrade(handle: ULong, data: Ptr<Byte>, size: Long, head: Int): Int
 
@@ -29,5 +30,9 @@ package scoop.http
 @Extern(name = "scoop_http2_reset") internal fun http2Reset(handle: ULong, id: Int, code: UInt): Int
 
 internal fun http2Failure(operation: String, code: Int, detail: String, streamId: Int = 0,
-    scope: HttpFailureScope = HttpFailureScope.Operation): HttpException =
-    HttpException(operation, HttpProtocol.Http2, scope, streamId, "nghttp2 1.70.0", code, detail)
+    scope: HttpFailureScope = HttpFailureScope.Operation): HttpException {
+    @Unsafe {
+        return HttpException(operation, HttpProtocol.Http2, scope, streamId, "nghttp2 1.70.0", code, detail,
+            http2IsUnexpectedEof(code) != 0)
+    }
+}

@@ -135,12 +135,18 @@ int32_t scoop_http2_end(uint64_t handle) {
   http2 *h = (http2 *)(uintptr_t)handle;
   if (h->ended)
     return 0;
+  if (h->failed)
+    return h->error.code;
   h->ended = 1;
   if (nghttp2_session_want_read(h->session)) {
     h->failed = 1;
     return http2_result(h, NGHTTP2_ERR_EOF);
   }
   return 0;
+}
+
+int32_t scoop_http2_is_unexpected_eof(int32_t code) {
+  return code == NGHTTP2_ERR_EOF;
 }
 
 int32_t scoop_http2_goaway(uint64_t handle, int32_t last, uint32_t code,

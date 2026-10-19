@@ -24,6 +24,8 @@ body 交付解开 chunked／DATA 定界后的内容字节；不按 Content-Type�
 
 HttpException 保存操作、协议、作用域、stream ID、后端码及已复制的说明。HTTP/1 的消息／定界错误属于连接；HTTP/2 区分操作参数、单流错误与连接错误，RST_STREAM、GOAWAY 和后端忽略的普通字段以实际事件交付。底层 I/O 异常保留原类型。native 错误先复制再返回 Scoop 抛出，不穿越 C ABI 展开。
 
+HttpException 的 isUnexpectedEof 明确表示该错误是否来自后端确认的输入截断；构造参数缺省为 false。HTTP/1 的无效 EOF 状态与 HTTP/2 的 EOF 错误由各自适配层按后端公开常量标记，保留原始错误码、说明与作用域。已正常完成的 EOF 不产生此错误，其他语法或协议错误不因随后调用 endInput 而变成截断。使用者据此区分断开的输入和其他协议失败，无须解析错误文本或在高层库绑定后端常量；是否重试仍由使用者的协议与调用策略决定。
+
 ## 3. HTTP/1 接收
 
 Http1Decoder 的 client／server 工厂固定接收角色、选项和局部字段限制；对象实现 Closeable，调用者串行使用。receive 消费 NativeByteBuffer 中的实际前缀，nextEvent 取走已完成事件，endInput 明确交付 EOF。关闭后不能继续推进；关闭本身不执行 I/O。
