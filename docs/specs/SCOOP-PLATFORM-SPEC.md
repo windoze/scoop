@@ -76,6 +76,7 @@ open 对象保持 `0 <= readPosition <= writePosition <= capacity`，只有 `[0,
 ### 4.2 字节、数组与数值
 
 - readByte()/writeByte(Byte) 顺序访问单字节；getByte(index: Long)/setByte(index: Long, value: Byte) 只访问已初始化的绝对下标，不改游标。
+- getBytes(index: Long, count: Long): Array<Byte> 返回已初始化绝对区间的独立副本，不改读写游标，也可读取已消费的前缀。count 非负，index 位于 `[0, writePosition]`，且 count 不超过 `writePosition-index`；writer 位置仅允许空区间。负 count 抛 IllegalArgumentException，区间越界抛 IndexOutOfBoundsException。范围检查与复制使用一次状态同步，借用期间仍可读取已初始化区域；关闭后即使空区间也抛 IllegalStateException。
 - readBytes(count: Long): Array<Byte> 返回独立副本，分配与复制成功后才消费输入。
 - readInto(array: MutableArray<Byte>, offset: Long = 0L, count: Long = array.size-offset) 复制到受检数组区间；writeBytes(array: List<Byte>, offset: Long = 0L, count: Long = array.size-offset) 接收只读字节列表。先验证两侧区间，在现有 writable 借用内、状态锁外取得所选输入区间的快照后复制，完成后才提交游标；用户 getter 可查询缓冲区，重入修改遵守 4.3 的借用规则；count 为负抛 IllegalArgumentException，数组区间非法抛 IndexOutOfBoundsException。
 - read/writeInt8、UInt8、Int16、UInt16、Int32、UInt32、Int64、UInt64、Float、Double 提供相应定宽读写；write 的首参数为 value，除单字节外都必须显式传入 `scoop.bytes.ByteOrder`。浮点按位型编码，包括 NaN 与负零。
@@ -88,7 +89,7 @@ open 对象保持 `0 <= readPosition <= writePosition <= capacity`，只有 `[0,
 
 writable block 必须初始化返回值 n 指定的完整前缀；仅正常返回且 `0 <= n <= writableBytes` 时提交 writePosition。无效 n 抛 IllegalArgumentException，抛异常或无效返回都不提交游标，已修改的尾部仍不能 safe 读取。库只检查范围，不证明 native 初始化事实。
 
-block 是普通非 suspend callback，可分配 managed 对象、抛异常及进行同步 C 调用。owner 跨 callback 与 finally 保持 live root，GC 可移动 wrapper；native 地址保持稳定，不 pin wrapper。finally 清除借用状态。借用中拒绝 close、ensureWritable、clear、compact、skip、顺序读写、绝对写和嵌套借用，修改前抛 IllegalStateException；只读属性及 getByte 仍可用。
+block 是普通非 suspend callback，可分配 managed 对象、抛异常及进行同步 C 调用。owner 跨 callback 与 finally 保持 live root，GC 可移动 wrapper；native 地址保持稳定，不 pin wrapper。finally 清除借用状态。借用中拒绝 close、ensureWritable、clear、compact、skip、顺序读写、绝对写和嵌套借用，修改前抛 IllegalStateException；只读属性及 getByte／getBytes 仍可用。
 
 pointer 不得逃出 callback、保留给异步操作或跨挂起使用；writable callback 不读取未初始化尾部或改写借用区外字节。同步与异步借用共同使用 4.5 的状态同步边界；callback 在状态锁外执行。不增加逃逸分析、静态 borrow checker 或 managed ownership 类型。
 

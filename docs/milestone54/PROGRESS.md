@@ -83,6 +83,7 @@
 | coroutineScope 失败边界 | 内部失败取消本作用域子树，等待真实清理后从调用处抛出；调用方可以 catch，未捕获和父取消仍按结构化任务规则传播 | 旧库最小复现；新增边界及既有任务／取消／登记回归通过 8 个变体、24 个步骤进程，HTTP/2 并行响应与 native 线程组合另通过 4 个变体、14 个步骤进程 |
 | client Basic 认证 | 按明确 origin、原始 realm 和配置顺序选择；支持挂起凭据、UTF-8／NFC、显式首发、有限挑战和调用内路径范围复用 | 30 个独立场景通过 debug／release、full moving 和构建复用；独立 TCP 对端、双 native 线程、HTTP/2、重定向、重试及真实取消／清理组合通过 |
 | client Bearer 认证 | 纯 Scoop 挂起加载／刷新，按 client 与 provider 合并并发工作和缓存；迟到 401 按实际 token 复用，取消独立等待，清除缓存与共享清理保持原失败 | 54 个独立场景覆盖两种构建、full moving 和构建复用；包含 HTTP/2、编码上传、重定向、独立 TCP 对端、同 client 令牌子请求及双 native 线程，Basic 30 场景回归通过 |
+| 原生缓冲区批量只读 | platform 的 NativeByteBuffer.getBytes 返回已初始化绝对区间的独立副本；一次状态同步，不改变游标，借用期间仍可读取 | Darwin 两个正式 fixture 通过 debug／release、full moving 与复用，共 4 个变体、12 个步骤进程；覆盖边界、跨线程借用，以及真实短读写 TCP 与 crypto 增量摘要 |
 | Boolean Scoop ABI | 标量参数和结果使用 i1 zeroext，定义、调用、间接分派和 statepoint 保持一致；现有目标指纹升级后正常重建产物 | GNU 旧工具最小复现 1／255 两个真值比较失败；237 项 codegen、6 项 ABI 分类、387 项 LIR、253 项产物测试及 workspace clippy 通过，Darwin 正式消费者 8 个变体、26 个步骤进程通过 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
@@ -384,6 +385,8 @@ Boolean ABI 修正后的 GNU 实机验证已闭合：格式化、workspace clipp
 本轮另清理 8 个已经结束的旧诊断 target，释放约 1.18 GiB；源码、缓存和验证日志保留在仓库外。
 
 ## 后续工作
+
+Digest 响应摘要所需的非消费批量读取已在 platform 补齐。getBytes 沿用 getByte 的绝对索引规则，允许已消费前缀和 writer 处的空区间，拒绝未初始化尾部、负数量及溢出范围；副本在原缓冲区修改、扩容、compact、clear、close 和 GC 后保持独立。独立消费者覆盖同步及跨线程借用，组合消费者用两个 native 线程验证有限缓冲、TCP 短读写和两端 SHA-256。两项 fixture 的 debug／release、full moving 与正常构建复用均通过，生产 sysroot 已按依赖顺序更新；client 无需逐字节加锁或通过消费后回写实现摘要读取。
 
 继续完成 Digest 认证、代理、Cookie、缓存／续传、SSE／WebSocket 高层组合和可观察性。每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
 
