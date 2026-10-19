@@ -2,8 +2,17 @@ package scoop.http
 
 import scoop.text.*
 import scoop.url.UrlHost
+import scoop.url.UrlOrigin
 
 public object HttpCookieRules {
+    public fun sameSite(first: UrlOrigin, second: UrlOrigin, suffixes: PublicSuffixList): Boolean {
+        if (cookieSiteScheme(first.scheme) != cookieSiteScheme(second.scheme)) return false
+        if (first.host == second.host) return true
+        val left = suffixes.lookup(first) ?: return false
+        val right = suffixes.lookup(second) ?: return false
+        return (left.registrableDomain ?: left.domain) == (right.registrableDomain ?: right.domain)
+    }
+
     public fun domainMatches(host: UrlHost, domain: UrlHost): Boolean = when (host) {
         case Dns(name) -> when (domain) {
             case Dns(suffix) -> name == suffix || name.endsWith("." + suffix)
@@ -32,3 +41,9 @@ public object HttpCookieRules {
 }
 
 internal fun secureCookieScheme(scheme: String): Boolean = scheme == "https" || scheme == "wss"
+
+private fun cookieSiteScheme(scheme: String): String = when (scheme) {
+    case "ws" -> "http"
+    case "wss" -> "https"
+    else -> scheme
+}

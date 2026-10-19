@@ -186,6 +186,8 @@ HttpSetCookie 的 expires、maxAgeSeconds、domain、path、secure、httpOnly �
 
 `HttpCookie.isExpired(now)` 和 `matches(url, now)` 判断期限、主机／域名、路径和 Secure。`HttpCookieRules.domainMatches`、`defaultPath`、`pathMatches` 是相同算法的独立入口；domainMatches 使用已规范化 UrlHost，defaultPath／pathMatches 使用已编码路径字节。它们不读取 DNS、Cookie jar 或文件。
 
+`HttpCookieRules.sameSite(first: UrlOrigin, second: UrlOrigin, suffixes: PublicSuffixList)` 比较 schemeful site：ws／wss 分别按 http／https 对待，两个 scheme 必须相同；DNS 使用含 PRIVATE 的 PSL 可注册域，缺少可注册域时使用完整规范 host，IP 使用完整地址与地址族。端口不参与，DNS 与 IP 不互换，不进行网络查询或猜测浏览器上下文。输入沿用 URL 已验证的 origin，PSL 是调用者明确提供的不可变索引。
+
 `allowsSameSite(isSameSiteRequest, isTopLevelNavigation, isSafeMethod)` 在 Strict 时只接受同站请求，在 Lax／Default 时另接受使用安全方法的顶层导航，None 不限制。`allowsSetting(isSameSiteRequest, isTopLevelNavigation)` 表达对应的设置规则。调用者必须传入真实的站点与导航判断；本层不将“同一个连接”解释为同站，不提供 Lax-Allowing-Unsafe 的时间例外。没有浏览器上下文时，client 按其显式 Cookie 策略提供限制性的输入。Cookie 的存储键、排序、替换、持久化及明文覆盖既有 Secure Cookie 的检查仍属于有状态 Cookie jar。
 
 ## 3. 表单与 multipart
