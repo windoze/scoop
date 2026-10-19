@@ -18,17 +18,35 @@ def paced(connection, wire, capacity):
 
 def reset_with_other_traffic(connection, writing):
     # Only the timed-out stream's own bytes may reset its clock.
+    # Bound pending probes so GC pauses cannot accumulate unrelated control work.
+    pending_ping = False
+    probe_seen = False
+    reset_seen = False
     for _ in range(80):
-        connection.sendall(frame_bytes(6, 0, 0, b"12345678"))
-        if not writing:
-            connection.sendall(frame_bytes(0, 0, 3, b"x"))
+        if not pending_ping and not reset_seen:
+            connection.sendall(frame_bytes(6, 0, 0, b"12345678"))
+            if probe_seen and not writing:
+                connection.sendall(frame_bytes(0, 0, 3, b"x"))
+            pending_ping = True
         ready = select.select([connection], [], [], 0.08)[0]
         while ready:
             kind, flags, stream, payload = frame(connection)
-            if kind == 3:
-                assert stream == 1 and payload == struct.pack("!I", 8)
+            if kind == 1:
+                assert not probe_seen and stream == 3 and flags == 5
+                probe_seen = True
+                if not writing:
+                    connection.sendall(frame_bytes(1, 4, 3, b"\x88") + frame_bytes(0, 0, 3, b"x"))
+            elif kind == 3:
+                assert not reset_seen and stream == 1 and payload == struct.pack("!I", 8)
+                reset_seen = True
+            elif kind == 6:
+                assert flags == 1 and stream == 0 and payload == b"12345678"
+                pending_ping = False
+            else:
+                assert kind in (4, 8), (kind, flags, stream, payload)
+            # Cancellation and a later request may arrive in either order.
+            if probe_seen and reset_seen:
                 return
-            assert kind in (4, 6, 8), (kind, flags, stream, payload)
             ready = select.select([connection], [], [], 0)[0]
         time.sleep(0.04)
     raise AssertionError("background stream idle timer did not send CANCEL")
@@ -74,9 +92,6 @@ def serve(connection, mode):
         assert body == b"ab", body
         connection.sendall(frame_bytes(1, 5, 1, b"\x89"))
     else:
-        request(connection, 3)
-        if not writing:
-            connection.sendall(frame_bytes(1, 4, 3, b"\x88"))
         reset_with_other_traffic(connection, writing)
         if writing:
             connection.sendall(frame_bytes(1, 5, 3, b"\x89"))

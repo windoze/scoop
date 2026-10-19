@@ -46,7 +46,7 @@ private suspend fun exerciseH2Isolation(client: AsyncHttp2Connection, scope: Cor
     for (byte in body) check(byte == 120.toByte())
     check(waiting.await())
     first.close(); second.close()
-    val third = client.openRequest(request())
+    val third = client.openRequest(request(), ioTimeouts = HttpIoTimeoutOptions())
     check(third.receiveResponse().status == 204U && third.readAllBytes(0L).size == 0L)
     third.close()
 }
