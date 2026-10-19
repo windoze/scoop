@@ -1,0 +1,76 @@
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.SocketAddress
+import scoop.platform.time.MonotonicTimeSource
+import scoop.platform.time.elapsedNow
+import scoop.platform.time.sleep
+
+private fun request(method: String = "GET"): HttpRequestHead = HttpRequestHead(HttpVersion.Http2,
+    method.toByteArray(), HttpRequestTarget.Http2("http".toByteArray(), "localhost".toByteArray(), "/".toByteArray()))
+
+suspend fun exerciseH2(loop: EventLoop, scope: CoroutineScope, address: SocketAddress, mode: String) {
+    val settings = Signal()
+    val options = if (mode == "h2-write" || mode == "h2-pause") HttpIoTimeoutOptions(writeIdle = Some(idleLimit()))
+        else HttpIoTimeoutOptions(readIdle = Some(idleLimit()))
+    val client = AsyncHttp2Connection.takeOwnershipAsClient(loop.connectTcp(address), scope, ioTimeouts = options,
+        onEvent = { notice -> when (notice) { case Settings(_, ack) -> { if (!ack) settings.signal() }; else -> {} } })
+    try {
+        settings.await()
+        if (mode == "h2-write") exerciseH2Write(client)
+        else if (mode == "h2-pause") exerciseH2Pause(client)
+        else if (mode == "h2-progress") {
+            val stream = client.openRequest(request())
+            val began = MonotonicTimeSource.markNow()
+            val response = stream.receiveResponse()
+            check(response.status == 200U && began.elapsedNow() > idleLimit())
+            check(response.fields[0L].value.size == 900L)
+            check(stream.readAllBytes(0L).size == 0L)
+            stream.close()
+        } else exerciseH2Isolation(client, scope)
+        check(!client.isClosed)
+    } finally { client.close() }
+}
+
+private suspend fun exerciseH2Isolation(client: AsyncHttp2Connection, scope: CoroutineScope) {
+    val first = client.openRequest(request())
+    val waiting = scope.async<Boolean> suspend {
+        try { first.receiveResponse(); check(false); false }
+        catch (error: HttpIoTimeoutException) { checkTimeout(error, HttpProtocol.Http2, HttpIoDirection.Read, first.id); true }
+    }
+    val second = client.openRequest(request(), ioTimeouts = HttpIoTimeoutOptions())
+    check(second.receiveResponse().status == 200U)
+    val body = second.readAllBytes(1024L)
+    check(body.size > 0L)
+    for (byte in body) check(byte == 120.toByte())
+    check(waiting.await())
+    first.close(); second.close()
+    val third = client.openRequest(request())
+    check(third.receiveResponse().status == 204U && third.readAllBytes(0L).size == 0L)
+    third.close()
+}
+
+private suspend fun exerciseH2Write(client: AsyncHttp2Connection) {
+    val first = client.openRequest(request("POST"), false)
+    NativeByteBuffer.allocate(7L).use suspend { buffer ->
+        buffer.writeBytes("blocked".toByteArray())
+        check(first.writeFrom(buffer, 7L) == 7L)
+    }
+    val probe = client.openRequest(request(), ioTimeouts = HttpIoTimeoutOptions())
+    check(probe.receiveResponse().status == 204U)
+    try { first.flush(); check(false) }
+    catch (error: HttpIoTimeoutException) { checkTimeout(error, HttpProtocol.Http2, HttpIoDirection.Write, first.id) }
+    first.close(); probe.close()
+}
+
+private suspend fun exerciseH2Pause(client: AsyncHttp2Connection) {
+    val stream = client.openRequest(request("POST"), false)
+    NativeByteBuffer.allocate(1L).use suspend { buffer ->
+        buffer.writeByte(97); stream.writeFully(buffer); stream.flush()
+        sleep(idleLimit() + idleLimit())
+        buffer.clear(); buffer.writeByte(98); stream.writeFully(buffer); stream.finish()
+    }
+    check(stream.receiveResponse().status == 204U && stream.readAllBytes(0L).size == 0L)
+    stream.close()
+}

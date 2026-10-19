@@ -3,6 +3,7 @@ package scoop.http.asyncio
 import scoop.asyncio.*
 import scoop.http.*
 import scoop.platform.memory.NativeByteBuffer
+import scoop.time.Duration
 
 public class AsyncHttp1Writer internal constructor(private val state: H1State, private val body: H1Output)
     : AsyncByteSink, AsyncCloseable {
@@ -24,10 +25,10 @@ public class AsyncHttp1Writer internal constructor(private val state: H1State, p
             val (prefix, bytes) = prepared
             if (prefix != 0L) writeH1Wire(state, bytes)
             prefix
-        })
+        }, body.writeIdle)
 
     public override suspend fun flush() {
-        h1Operation<Unit>(state, false, { if (!body.life.completed) requireActive() }, suspend { state.transport.flush() })
+        h1Operation<Unit>(state, false, { if (!body.life.completed) requireActive() }, suspend { flushH1Transport(state) }, body.writeIdle)
     }
 
     public suspend fun finish(trailers: List<HttpField> = ArrayList<HttpField>()) {
@@ -44,7 +45,7 @@ public class AsyncHttp1Writer internal constructor(private val state: H1State, p
                 Unit
             }
             completeH1Body(state, body.life)
-        })
+        }, body.writeIdle)
         val closing = state.lock.withLock {
             state.encoder.role == HttpRole.Server && state.encoder.mustClose && !state.encoder.isSwitched
         }
@@ -66,13 +67,13 @@ private fun requireH1Output(state: H1State, role: HttpRole) {
     if (present(state.outgoing)) throw IllegalStateException(Some("previous HTTP/1 output body is not complete"))
 }
 
-internal suspend fun sendH1Request(state: H1State, head: HttpRequestHead, framing: Http1BodyFraming): AsyncHttp1Writer =
+internal suspend fun sendH1Request(state: H1State, head: HttpRequestHead, framing: Http1BodyFraming, writeIdle: Duration?): AsyncHttp1Writer =
     h1PreparedOperation<(H1Output, Array<Byte>), AsyncHttp1Writer>(state, false, {
         requireH1Output(state, HttpRole.Client)
         val bytes = state.encoder.beginRequest(head, framing)
         state.decoder.expectResponse(head.method)
         state.clientPending += 1L
-        val body = H1Output(false)
+        val body = H1Output(false, writeIdle = writeIdle)
         state.outgoing = Some(body)
         (body, bytes)
     }, suspend { prepared ->
@@ -80,14 +81,14 @@ internal suspend fun sendH1Request(state: H1State, head: HttpRequestHead, framin
         writeH1Wire(state, bytes)
         listenH1Body(state, body.life, httpJob(state.loop, true))
         AsyncHttp1Writer(state, body)
-    })
+    }, writeIdle)
 
-internal suspend fun sendH1Response(state: H1State, head: HttpResponseHead, framing: Http1BodyFraming): AsyncHttp1Writer =
+internal suspend fun sendH1Response(state: H1State, head: HttpResponseHead, framing: Http1BodyFraming, writeIdle: Duration?): AsyncHttp1Writer =
     h1PreparedOperation<(H1Output, Array<Byte>), AsyncHttp1Writer>(state, false, {
         requireH1Output(state, HttpRole.Server)
         val request = state.requests.firstOrNone() ?: throw IllegalStateException(Some("no HTTP/1 request to answer"))
         val bytes = state.encoder.beginResponse(head, request.method, framing)
-        val body = H1Output(head.status >= 200U || head.status == 101U, Some(request))
+        val body = H1Output(head.status >= 200U || head.status == 101U, Some(request), writeIdle)
         state.outgoing = Some(body)
         (body, bytes)
     }, suspend { prepared ->
@@ -95,4 +96,4 @@ internal suspend fun sendH1Response(state: H1State, head: HttpResponseHead, fram
         writeH1Wire(state, bytes)
         listenH1Body(state, body.life, httpJob(state.loop, true))
         AsyncHttp1Writer(state, body)
-    })
+    }, writeIdle)

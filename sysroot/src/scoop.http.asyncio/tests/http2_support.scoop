@@ -25,6 +25,7 @@ internal class H2Pair(val client: AsyncHttp2Connection, val server: AsyncHttp2Co
     val clientRaw: ObservedTransport, val serverRaw: ObservedTransport, val clientEvents: NoticeLog, val serverEvents: NoticeLog)
 
 internal fun withHttp2(clientLimits: Http2Limits = Http2Limits(), serverSettings: Http2Settings = Http2Settings(),
+    clientTimeouts: HttpIoTimeoutOptions = HttpIoTimeoutOptions(), serverTimeouts: HttpIoTimeoutOptions = HttpIoTimeoutOptions(),
     block: suspend (CoroutineScope, H2Pair) -> Unit) {
     val loop: EventLoop = LibuvEventLoop()
     loop.run suspend { scope ->
@@ -32,8 +33,10 @@ internal fun withHttp2(clientLimits: Http2Limits = Http2Limits(), serverSettings
         a.readLimit = 97L; b.readLimit = 101L
         a.writeLimit = 103L; b.writeLimit = 107L
         val first = NoticeLog(); val second = NoticeLog()
-        val client = AsyncHttp2Connection.takeOwnershipAsClient(a, scope, limits = clientLimits, onEvent = { event -> first.receive(event) })
-        val server = AsyncHttp2Connection.takeOwnershipAsServer(b, scope, settings = serverSettings, onEvent = { event -> second.receive(event) })
+        val client = AsyncHttp2Connection.takeOwnershipAsClient(a, scope, limits = clientLimits,
+            ioTimeouts = clientTimeouts, onEvent = { event -> first.receive(event) })
+        val server = AsyncHttp2Connection.takeOwnershipAsServer(b, scope, settings = serverSettings,
+            ioTimeouts = serverTimeouts, onEvent = { event -> second.receive(event) })
         try {
             first.settings.await(); second.settings.await()
             block(scope, H2Pair(client, server, a, b, first, second))

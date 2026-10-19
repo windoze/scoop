@@ -22,7 +22,7 @@ internal fun receiveH2Events(state: H2State, actions: ArrayList<() -> Unit>): Bo
             case Request(id, head) -> {
                 if (state.acceptingEnded || state.requests.size >= state.requestCapacity) state.session.reset(id, 7U)
                 else {
-                    val stream = H2Stream(id)
+                    val stream = H2Stream(id, state.ioTimeouts)
                     state.streams[id] = stream
                     state.requests.add(Http2IncomingRequest(head, AsyncHttp2Stream(state, stream)))
                 }

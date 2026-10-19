@@ -4,6 +4,7 @@ import scoop.asyncio.*
 import scoop.collections.ArrayDeque
 import scoop.http.*
 import scoop.platform.memory.NativeByteBuffer
+import scoop.time.Duration
 
 internal class H1BodyLifetime {
     var completed: Boolean = false
@@ -11,7 +12,7 @@ internal class H1BodyLifetime {
     var listener: Disposable? = None
 }
 
-internal class H1Input(val finalResponse: Boolean = false) {
+internal class H1Input(val finalResponse: Boolean = false, val readIdle: Duration? = None) {
     val life: H1BodyLifetime = H1BodyLifetime()
     var bytes: Array<Byte>? = None
     var offset: Long = 0L
@@ -22,14 +23,14 @@ internal class H1Input(val finalResponse: Boolean = false) {
 
 internal class H1RequestContext(val method: Array<Byte>, val body: H1Input)
 
-internal class H1Output(val finalResponse: Boolean, val request: H1RequestContext? = None) {
+internal class H1Output(val finalResponse: Boolean, val request: H1RequestContext? = None, val writeIdle: Duration? = None) {
     val life: H1BodyLifetime = H1BodyLifetime()
 }
 
 internal class H1State(
     val decoder: Http1Decoder, val encoder: Http1Encoder,
     val transport: AsyncByteStream, val owner: AsyncCloseable, val loop: EventLoop,
-    val input: NativeByteBuffer, val output: NativeByteBuffer
+    val input: NativeByteBuffer, val output: NativeByteBuffer, val ioTimeouts: HttpIoTimeoutOptions
 ) {
     val lock: HttpLock = HttpLock()
     val events: ArrayDeque<Http1Event> = ArrayDeque<Http1Event>()
@@ -39,6 +40,8 @@ internal class H1State(
     var outgoing: H1Output? = None
     var readBusy: Boolean = false
     var writeBusy: Boolean = false
+    var readIdle: H1Idle? = None
+    var writeIdle: H1Idle? = None
     var inputEnded: Boolean = false
     var adopted: Boolean = false
     var closing: Boolean = false

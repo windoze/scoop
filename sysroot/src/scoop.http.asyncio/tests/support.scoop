@@ -36,13 +36,15 @@ internal suspend fun rawPair(loop: EventLoop, scope: CoroutineScope): (ObservedT
     } finally { listener.close() }
 }
 
-internal fun withHttp1(block: suspend (CoroutineScope, ObservedTransport, ObservedTransport,
+internal fun withHttp1(clientTimeouts: HttpIoTimeoutOptions = HttpIoTimeoutOptions(),
+    serverTimeouts: HttpIoTimeoutOptions = HttpIoTimeoutOptions(),
+    block: suspend (CoroutineScope, ObservedTransport, ObservedTransport,
     AsyncHttp1Connection, AsyncHttp1Connection) -> Unit) {
     val loop: EventLoop = LibuvEventLoop()
     loop.run suspend { scope ->
         val (a, b) = rawPair(loop, scope)
-        val client = AsyncHttp1Connection.takeOwnershipAsClient(a, scope)
-        val server = AsyncHttp1Connection.takeOwnershipAsServer(b, scope)
+        val client = AsyncHttp1Connection.takeOwnershipAsClient(a, scope, ioTimeouts = clientTimeouts)
+        val server = AsyncHttp1Connection.takeOwnershipAsServer(b, scope, ioTimeouts = serverTimeouts)
         try { block(scope, a, b, client, server) }
         finally { client.close(); server.close() }
     }

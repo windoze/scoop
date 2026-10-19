@@ -37,15 +37,5 @@ public class AsyncHttp2Stream internal constructor(internal val state: H2State, 
         }
     }
 
-    public override suspend fun close() {
-        if (state.lock.withLock { stream.disposed }) return
-        httpJob(state.loop, false)
-        val actions = ArrayList<() -> Unit>()
-        state.lock.withLock {
-            if (state.closed) releaseH2Stream(state, stream, IoClosedException(), actions)
-            else resetH2Stream(state, stream, IoClosedException(), 8U, actions)
-        }
-        for (action in actions) action()
-        driveH2(state)
-    }
+    public override suspend fun close() { closeH2Stream(state, stream) }
 }

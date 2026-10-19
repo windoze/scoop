@@ -114,6 +114,6 @@ private suspend fun <T> adoptClientConnection(call: ClientCall, entry: ClientPoo
     return when (protocol) {
         case Http1 -> ClientConnection.Http1(AsyncHttp1Connection.takeOwnershipAsClient(transport, scope, config.http1Receive, config.http1Limits))
         case Http2 -> ClientConnection.Http2(AsyncHttp2Connection.takeOwnershipAsClient(transport, scope,
-            config.http2Receive, config.http2Limits, config.http2Settings, { notice -> clientPoolNotice(state, entry, notice) }))
+            config.http2Receive, config.http2Limits, config.http2Settings, onEvent = { notice -> clientPoolNotice(state, entry, notice) }))
     }
 }

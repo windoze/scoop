@@ -3,6 +3,7 @@ package scoop.http.asyncio
 import scoop.asyncio.*
 import scoop.http.*
 import scoop.platform.memory.NativeByteBuffer
+import scoop.time.Duration
 
 public class Http1IncomingRequest internal constructor(public val head: HttpRequestHead, public val body: AsyncHttp1Body)
 public class Http1IncomingResponse internal constructor(public val head: HttpResponseHead, public val body: AsyncHttp1Body)
@@ -10,26 +11,31 @@ public class Http1IncomingResponse internal constructor(public val head: HttpRes
 public class AsyncHttp1Connection internal constructor(internal val state: H1State) : AsyncCloseable {
     public companion object {
         public suspend fun <T> takeOwnershipAsClient(transport: T, scope: CoroutineScope,
-            options: Http1ReceiveOptions = Http1ReceiveOptions(), limits: Http1Limits = Http1Limits()): AsyncHttp1Connection
-            where T : AsyncByteStream, T : AsyncCloseable = adoptH1(transport, transport, scope, HttpRole.Client, options, limits)
+            options: Http1ReceiveOptions = Http1ReceiveOptions(), limits: Http1Limits = Http1Limits(),
+            ioTimeouts: HttpIoTimeoutOptions = HttpIoTimeoutOptions()): AsyncHttp1Connection
+            where T : AsyncByteStream, T : AsyncCloseable = adoptH1(transport, transport, scope, HttpRole.Client, options, limits, ioTimeouts)
 
         public suspend fun <T> takeOwnershipAsServer(transport: T, scope: CoroutineScope,
-            options: Http1ReceiveOptions = Http1ReceiveOptions(), limits: Http1Limits = Http1Limits()): AsyncHttp1Connection
-            where T : AsyncByteStream, T : AsyncCloseable = adoptH1(transport, transport, scope, HttpRole.Server, options, limits)
+            options: Http1ReceiveOptions = Http1ReceiveOptions(), limits: Http1Limits = Http1Limits(),
+            ioTimeouts: HttpIoTimeoutOptions = HttpIoTimeoutOptions()): AsyncHttp1Connection
+            where T : AsyncByteStream, T : AsyncCloseable = adoptH1(transport, transport, scope, HttpRole.Server, options, limits, ioTimeouts)
     }
 
     public val role: HttpRole get() = state.encoder.role
+    public val ioTimeouts: HttpIoTimeoutOptions get() = state.ioTimeouts
     public val isClosed: Boolean get() = state.lock.withLock { state.closed }
     public val isReusable: Boolean get() = state.lock.withLock {
         !state.closing && !state.inputEnded && !state.readBusy && !state.writeBusy &&
             !present(state.incoming) && !present(state.outgoing) && state.clientPending == 0L &&
             state.requests.size == 0L && !state.encoder.mustClose && !state.encoder.isSwitched && !state.decoder.isSwitched
     }
-    public suspend fun sendRequest(head: HttpRequestHead, body: Http1BodyFraming = Http1BodyFraming.Empty): AsyncHttp1Writer = sendH1Request(state, head, body)
-    public suspend fun sendResponse(head: HttpResponseHead, body: Http1BodyFraming = Http1BodyFraming.Empty): AsyncHttp1Writer = sendH1Response(state, head, body)
-    public suspend fun receiveRequest(): Http1IncomingRequest? = receiveH1Request(state)
-    public suspend fun receiveResponse(): Http1IncomingResponse {
-        val response = receiveH1Response(state)
+    public suspend fun sendRequest(head: HttpRequestHead, body: Http1BodyFraming = Http1BodyFraming.Empty,
+        writeIdle: Duration? = ioTimeouts.writeIdle): AsyncHttp1Writer = sendH1Request(state, head, body, writeIdle)
+    public suspend fun sendResponse(head: HttpResponseHead, body: Http1BodyFraming = Http1BodyFraming.Empty,
+        writeIdle: Duration? = ioTimeouts.writeIdle): AsyncHttp1Writer = sendH1Response(state, head, body, writeIdle)
+    public suspend fun receiveRequest(readIdle: Duration? = ioTimeouts.readIdle): Http1IncomingRequest? = receiveH1Request(state, readIdle)
+    public suspend fun receiveResponse(readIdle: Duration? = ioTimeouts.readIdle): Http1IncomingResponse {
+        val response = receiveH1Response(state, readIdle)
         closeAfterH1Input(state, response.body.body)
         return response
     }
@@ -38,12 +44,13 @@ public class AsyncHttp1Connection internal constructor(internal val state: H1Sta
 }
 
 private suspend fun adoptH1(transport: AsyncByteStream, owner: AsyncCloseable, scope: CoroutineScope,
-    role: HttpRole, options: Http1ReceiveOptions, limits: Http1Limits): AsyncHttp1Connection {
+    role: HttpRole, options: Http1ReceiveOptions, limits: Http1Limits, ioTimeouts: HttpIoTimeoutOptions): AsyncHttp1Connection {
     val loop = currentEventLoop()
     val caller = httpJob(loop, true)
     if (scope.job.isCompleted) throw IllegalStateException(Some("HTTP connection scope is closed"))
     scope.job.ensureActive()
-    val state = allocateH1(transport, owner, loop, role, options, limits)
+    requireHttpIoTimeouts(ioTimeouts)
+    val state = allocateH1(transport, owner, loop, role, options, limits, ioTimeouts)
     try {
         scope.launch suspend {
             val job = httpJob(loop, true)
@@ -84,10 +91,10 @@ private suspend fun adoptH1(transport: AsyncByteStream, owner: AsyncCloseable, s
 }
 
 private fun allocateH1(transport: AsyncByteStream, owner: AsyncCloseable, loop: EventLoop,
-    role: HttpRole, options: Http1ReceiveOptions, limits: Http1Limits): H1State {
+    role: HttpRole, options: Http1ReceiveOptions, limits: Http1Limits, ioTimeouts: HttpIoTimeoutOptions): H1State {
     val decoder = if (role == HttpRole.Client) Http1Decoder.client(options, limits) else Http1Decoder.server(options, limits)
     val input = try { NativeByteBuffer.allocate(16384L) }
         catch (error: Throwable) { decoder.close(); throw error }
-    try { return H1State(decoder, Http1Encoder(role), transport, owner, loop, input, NativeByteBuffer.allocate(16384L)) }
+    try { return H1State(decoder, Http1Encoder(role), transport, owner, loop, input, NativeByteBuffer.allocate(16384L), ioTimeouts) }
     catch (error: Throwable) { decoder.close(); input.close(); throw error }
 }

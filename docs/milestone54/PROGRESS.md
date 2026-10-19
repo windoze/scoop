@@ -66,6 +66,7 @@
 | 统一网络阶段时限 | HttpTimeoutOptions 的 resolve／connect／tlsHandshake 默认各 30 秒；DNS／TCP 复用 asyncio 的分族截止与竞速，TLS 单独计时，结构化错误保留下层原因，复用连接跳过建连阶段 | 新增 7 项测试并扩展配置覆盖，client 全部 119 项通过 debug／release；14 项新旧用例逐例通过两种构建的 full moving，独立 Python socket／TLS 对端验证零期限、握手停滞、总截止与复用 |
 | HTTP/2 输出归属 | takeOutputChunk 返回实际流号与 Headers／Data／Control 类别，保留 CONTINUATION 和短取出的归属；hasPendingOutput 只计算本流的消息输出，reset 后仍保留已序列化尾部 | 新增 5 项测试，HTTP 全部 228 项、HTTP asyncio 全部 97 项通过 debug／release；10 项协议用例逐例通过两种构建的 full moving，独立帧解析与连接池对端回归通过 |
 | HTTP/2 输入进度 | receiveWithProgress 交付按流归属的消息输入字节，分段 HPACK／CONTINUATION 不等待完整首部；帧头完整后才归属，控制及后端忽略的帧不延长其他流的等待 | 新增 6 项测试，HTTP 全部 234 项通过 debug／release；11 项新旧用例逐例通过两种构建的 full moving，独立逐段字节对照与 h2c 对端回归通过 |
+| HTTP 读写停滞时限 | HttpIoTimeoutOptions 提供可关闭的读／写 idle；H1 按消息关闭连接，H2 按实际流输入／输出进度隔离超时，已排队输出持续计时，完成后在恢复调用方前停止 | 新增 12 项测试，HTTP asyncio 全部 109 项通过 debug／release；17 项新旧用例逐例通过两种构建的 full moving，独立对端验证分段首部、流控停滞、其他流活跃和应用同步停顿 |
 | ELF 后端只读常量 | callable 的 .rodata 包含独立关联定义，跳转表与代码同属一次 ODR 选择；保留只读权限、相对重定位及精确范围，缺省贡献在机器发射后移除 | 225 项 codegen、350 项身份编码、390 项 LIR 与 253 项产物测试通过；独立协程消费者在旧 Linux 编译器上复现 release 失败，在 Darwin 通过 debug／release、full moving 与构建复用 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
@@ -278,9 +279,13 @@ Linux 的 `m54-tcp-deadlines` 在 release 对象生成时暴露 ELF 跳转表缺
 
 GNU 上的该独立 fixture 随后通过两种构建；原 TCP 消费者进一步暴露泛型实例使用带函数符号后缀的 COMDAT 只读段。段归属现在匹配当前 callable 的实际符号，同时覆盖普通段名与该 COMDAT 名称。fixture 增加第三个泛型挂起函数，跨 12 次恢复保留引用值；它在修复前独立复现相同的 section 6 重定位错误，修复后在 Darwin 通过 debug／release、full moving 与构建复用，共 6 个进程。workspace clippy 和 225 项 codegen 测试通过；GNU／musl 上的原 TCP 及客户端网络回归继续进行。
 
+`m54-http-idle` 在 Darwin 通过 debug／release 两个变体，共 6 个进程。六种独立 Python 对端场景各由两个 native 线程执行：H1 正数短读延长时限及半个首部停滞，H2 分段 HPACK／CONTINUATION 持续推进、其他流 DATA／PING 不掩盖目标流超时、零窗口下后台排队写超时，以及 flush 完成后的应用同步停顿。超时的 H2 流以 CANCEL 结束，其他流和后续请求仍正常，full moving 与构建复用通过。
+
+12 项新增测试与 5 项取消／清理／h2c 回归逐例通过两种构建的 full moving，共 34 个进程。覆盖零时限、已缓冲输入、配置拒绝、迟到同步完成、实际 caller Job、TLS 流隔离、长计时取消和并发关闭。应用停顿用例独立复现并闭合了 flush 恢复调用方前未停止写时钟的问题；生产 HTTP asyncio 与兼容调用方的 client 按依赖顺序重建并发布到本机 sysroot。client 的统一 idle 错误映射与后台流失败通知继续在对应库实现。
+
 ## 后续工作
 
-继续在所属 HTTP 层补齐实际 I/O idle 阶段，并完成 client 的重定向／重试／认证／代理、Cookie、缓存／续传、SSE／WebSocket 高层组合和可观察性。每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
+继续在 HTTP 层补齐后台流失败通知，完成 client 的统一 idle 配置与错误映射，以及重定向／重试／认证／代理、Cookie、缓存／续传、SSE／WebSocket 高层组合和可观察性。每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
 
 ## 验证安排
 
@@ -335,3 +340,5 @@ HTTP/2 输入进度验收期间，清理网络阶段消费者的 2 个已结束 
 HTTP idle 实施期间，清理输出进度消费者的 2 个已结束 fixture target 目录，释放约 146 MiB；保留源码、生产 sysroot、原始日志、报告与缓存。
 
 ELF 跳转表修复验收期间，清理输入进度消费者的 2 个已结束 fixture target 目录，释放约 147 MiB；当前 HTTP 库 target、生产 sysroot、正式源码、原始日志、报告与缓存继续保留。
+
+HTTP idle 验收后，清理已被最终回归替代的 4 个 HTTP idle／基础跳转表 fixture target 目录，释放约 311 MiB；保留最终 fixture 产物、库 target、源码、生产 sysroot、原始日志、报告与缓存。

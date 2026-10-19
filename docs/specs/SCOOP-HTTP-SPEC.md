@@ -155,6 +155,20 @@ HTTP/2 已正常关闭的流保留尚未被应用取走的完整响应头与 bod
 
 body readInto／writeFrom 采用既有 NativeByteBuffer 前缀合同，允许短传输。等待到达的数据时无需借用调用者 buffer；实际复制时才同步借用。跨挂起只保留稳定 native allocation，底层借用结束后才复用或释放缓冲。零长度经状态、范围和取消检查后返回零，不推进网络。
 
+### 7.1 读写停滞时限
+
+HttpIoTimeoutOptions 的 readIdle／writeIdle 均为可选非负 Duration，默认 None；None 关闭对应计时。所有权工厂的 ioTimeouts 提供缺省配置，在接管前验证；连接的只读 ioTimeouts 属性可查询该配置。H1 的 sendRequest／sendResponse 可覆盖本条消息的 writeIdle，receiveRequest／receiveResponse 可覆盖本条消息的 readIdle；返回的 writer／body 保留该时限。H2 的 openRequest 可传入本流 ioTimeouts，服务端接受的流和 h2c 的 stream 1 使用所有权工厂的配置。覆盖在消息或流入口验证，只影响对应消息或流，不修改复用连接上其他调用的配置。
+
+计时只在有待处理的 I/O 时开始。H1 从本次操作首次调用底层 read／write／flush 开始，以每次真实正数短读／短写重置；当前操作结束后停止。读取已缓冲正文、零长度读取、应用处理数据和两次操作之间的停顿不启动读计时。flush 不虚构字节进度，消息结束与底层 flush 仍受尚未完成的写等待约束。零时限在需要 I/O 时立即到期；已有缓冲可直接完成的读取不因零时限失败。
+
+H2 的读计时仅在该流等待响应头或 body 时有效，按 receiveWithProgress 的本流输入推进；尚未完整到能确认归属的帧头不延长任何流的时限。写计时覆盖该流已接受但尚未发送／flush 的首部、DATA 和结束标记，包括等待流窗口的期间；writeFrom 只把数据入队时，后台写计时继续有效。实际传输按 takeOutputChunk 的流号与类别归属，其他流和 Control 不重置本流时钟。应用暂停 producer 且没有已排队输出时不计写停滞，应用没有发起读取时不计读停滞。完成边界在恢复调用方前停止不再有待处理 I/O 的计时，调用方随后同步处理数据也不延续已经结束的等待。
+
+HttpIoTimeoutException 保存 direction（HttpIoDirection.Read／Write）、protocol、streamId（H1 为零）、limit 和自上次进度以来的 elapsed。同步完成的传输也在完成边界检查已到期时限，迟到字节不把超时改成成功。H1 超时关闭该连接，H2 超时以 CANCEL 结束对应流并保留共享连接；由同次关闭产生的 IoClosedException 不覆盖已选择的超时，独立 I/O 错误和 ResourceUseException 的清理原因仍保留。
+
+计时采用普通 CoroutineScope 子任务、EventLoop.sleep 与单调时钟；有进度时调整下一次剩余等待，不为每个 native 步骤创建任务。操作／流结束后取消计时，close 等待所属定时 I/O 的真实收尾；已取消 Job 的清理仍可完成。这里不增加另一套调度器，client 只传入配置并映射错误。
+
+### 7.2 关闭与所有权
+
 close 只保证本地收尾，不隐含 flush 或对端确认；先拒绝新操作，关闭接管的传输，等待实际 I/O、native 借用和未交付资源结束，再释放协议状态。并发 close 等待同一次收尾，后续幂等。允许在已取消 Job 的 finally 中完成；清理不能因该取消提前退出。正文和清理同时失败使用 ResourceUseException。
 
 HTTP/1 已因本次操作的任务取消选择关闭原因后，底层读取／写入因同一次关闭返回的 IoClosedException 不替换原 CancellationException；独立的协议或 I/O 故障仍保留原类型。由此产生的清理失败仍通过 ResourceUseException 保留，取消结果也必须等实际关闭及借用结束后交付。

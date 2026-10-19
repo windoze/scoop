@@ -1,0 +1,94 @@
+package scoop.http.asyncio
+
+import scoop.Result
+import scoop.getOrThrow
+import scoop.http.HttpProtocol
+import scoop.platform.time.MonotonicTimeSource
+import scoop.time.Duration
+
+internal class H1Idle(val state: H1State, val reading: Boolean, val limit: Duration, val scope: CoroutineScope) {
+    var clock: HttpIoClock? = None
+    var timer: Job? = None
+    var active: Boolean = true
+}
+
+internal suspend fun <T> withH1Idle(state: H1State, reading: Boolean, limit: Duration?, block: suspend () -> T): T {
+    if (limit == None) return block()
+    val caller = httpJob(state.loop, true)
+    val result = coroutineScope<Result<T, Throwable>> suspend { scope ->
+        val idle = H1Idle(state, reading, limit!!, scope)
+        state.lock.withLock { if (reading) state.readIdle = Some(idle) else state.writeIdle = Some(idle) }
+        try { context(caller) { return@coroutineScope Result.Success<T, Throwable>(block()) } }
+        catch (error: Throwable) { Result.Failure<T, Throwable>(error) }
+        finally {
+            val timer = state.lock.withLock {
+                idle.active = false
+                if (reading) state.readIdle = None else state.writeIdle = None
+                val saved = idle.timer; idle.timer = None; saved
+            }
+            if (present(timer)) timer!!.cancel()
+            Unit
+        }
+    }
+    return result.getOrThrow()
+}
+
+internal fun beginH1Io(state: H1State, reading: Boolean) {
+    val result: (H1Idle?, Boolean, HttpIoTimeoutException?) = state.lock.withLock {
+        h1Open(state)
+        val idle = if (reading) state.readIdle else state.writeIdle
+        if (!present(idle)) return@withLock (None, false, None)
+        val value = idle!!
+        val now = MonotonicTimeSource.markNow()
+        val start = !present(value.clock)
+        if (start) value.clock = Some(HttpIoClock(if (reading) HttpIoDirection.Read else HttpIoDirection.Write,
+            HttpProtocol.Http1, 0, value.limit, now))
+        val error = value.clock!!.expired(now)
+        if (present(error)) terminateH1(state, error!!)
+        (idle, start, error)
+    }
+    val (idle, start, error) = result
+    if (present(error)) { driveH1Close(state); throw error!! }
+    if (start) startH1Idle(idle!!)
+}
+
+internal fun progressH1Io(state: H1State, reading: Boolean, progressed: Boolean) {
+    val error: HttpIoTimeoutException? = state.lock.withLock {
+        h1Open(state)
+        val idle = if (reading) state.readIdle else state.writeIdle
+        if (!present(idle)) return@withLock None
+        val clock = idle!!.clock!!
+        val now = MonotonicTimeSource.markNow()
+        val error = clock.expired(now)
+        if (present(error)) terminateH1(state, error!!)
+        else if (progressed) clock.progress = now
+        error
+    }
+    if (present(error)) { driveH1Close(state); throw error!! }
+}
+
+private fun startH1Idle(idle: H1Idle) {
+    val state = idle.state
+    val timer = idle.scope.launch suspend {
+        try {
+            while (true) {
+                val remaining = state.lock.withLock {
+                    if (idle.active && !state.closing) Some(idle.clock!!.remaining(MonotonicTimeSource.markNow())) else None
+                }
+                if (remaining == None) break
+                if (remaining!! > Duration.ZERO) state.loop.sleep(remaining!!)
+                val expired = state.lock.withLock {
+                    if (!idle.active || state.closing) false else {
+                        val error = idle.clock!!.expired(MonotonicTimeSource.markNow())
+                        if (present(error)) terminateH1(state, error!!)
+                        present(error)
+                    }
+                }
+                if (expired) { driveH1Close(state); break }
+            }
+        } catch (_: CancellationException) {}
+        catch (error: Throwable) { state.lock.withLock { terminateH1(state, error) }; driveH1Close(state) }
+    }
+    val stopped = state.lock.withLock { if (idle.active) { idle.timer = Some(timer); false } else true }
+    if (stopped) timer.cancel()
+}

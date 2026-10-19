@@ -3,6 +3,7 @@ package scoop.http.asyncio
 import scoop.asyncio.*
 import scoop.platform.memory.NativeByteBuffer
 import scoop.platform.concurrent.*
+import scoop.time.Duration
 
 internal class TransportFailure : Exception(Some("test HTTP transport failure"))
 internal class CleanupFailure : Exception(Some("test HTTP cleanup failure"))
@@ -20,6 +21,9 @@ internal class ObservedTransport(val inner: AsyncTcpStream) : AsyncByteStream, A
     var readGate: AsyncGate? = None
     var flushGate: AsyncGate? = None
     var closeGate: AsyncGate? = None
+    var writeDelay: Duration = Duration.ZERO
+    var readJob: Job? = None
+    var writeJob: Job? = None
     var readStarted: AsyncGate = AsyncGate()
     var writeStarted: AsyncGate = AsyncGate()
     var flushStarted: AsyncGate = AsyncGate()
@@ -28,6 +32,7 @@ internal class ObservedTransport(val inner: AsyncTcpStream) : AsyncByteStream, A
 
     public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long {
         reads += 1L
+        readJob = currentJobOrNone()
         readStarted.signal()
         if (present(readGate)) readGate!!.await()
         if (closing.load()) throw IoClosedException()
@@ -35,8 +40,10 @@ internal class ObservedTransport(val inner: AsyncTcpStream) : AsyncByteStream, A
     }
     public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long {
         writes += 1L
+        writeJob = currentJobOrNone()
         writeStarted.signal()
         if (present(writeGate)) writeGate!!.await()
+        if (writeDelay > Duration.ZERO) currentEventLoop().sleep(writeDelay)
         if (closing.load()) throw IoClosedException()
         if (failWrite) throw TransportFailure()
         if (zeroWrite) return 0L

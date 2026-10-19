@@ -26,10 +26,11 @@ internal suspend fun closeH2(state: H2State) {
 internal fun advanceH2Close(state: H2State, actions: ArrayList<() -> Unit>): Boolean {
     if (!state.transportClosing) {
         state.transportClosing = true
+        for (stream in state.streams.values) stopH2Idle(stream, actions)
         actions.add { startH2Close(state) }
         return true
     }
-    if (!state.transportClosed || state.inputBusy || state.outputBusy) return false
+    if (!state.transportClosed || state.inputBusy || state.outputBusy || state.idleTimers != 0L) return false
     try { releaseH2Buffers(state) }
     catch (error: Throwable) {
         state.closeFailure = Some(if (present(state.closeFailure)) ResourceUseException(state.closeFailure!!, error) else error)
@@ -61,7 +62,7 @@ internal fun advanceH2Close(state: H2State, actions: ArrayList<() -> Unit>): Boo
     state.connectionFlush.clear(); state.flushingConnection.clear(); state.flushing.clear()
     val listener = state.ownerListener
     val owner = state.ownerWaiter
-    state.ownerListener = None; state.ownerWaiter = None; state.ownerJob = None
+    state.ownerListener = None; state.ownerWaiter = None; state.ownerJob = None; state.ownerScope = None
     actions.add { if (present(listener)) listener!!.dispose(); if (present(owner)) owner!!.resume(Unit) }
     for (waiter in state.closeWaiters) {
         val cleanup = state.closeFailure
