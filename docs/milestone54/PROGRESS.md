@@ -73,6 +73,7 @@
 | HTTP/2 空正文结束 | 没有待序列化 DATA 时以 trailing HEADERS 结束，不等待流或连接窗口；初始头与此前 DATA 保持顺序，有待发送 DATA 时仍遵守窗口限制 | 新增 5 项测试，HTTP 全部 239 项通过 debug／release；15 项新旧用例逐例通过两种构建的 full moving，独立线协议和原输出归属消费者共 4 个变体、12 个进程通过 |
 | client 读写停滞与后台失败 | readIdle／writeIdle 逐调用传给 HTTP 异步库，统一阶段、原始原因和已确认正文计数；H2 后台超时／reset 取消 producer，真实清理后释放本流容量 | 新增 6 项测试并扩展配置断言，client 全部 125 项通过 debug／release；14 项新旧用例逐例通过两种构建的 full moving，五种独立 TCP 场景与构建复用通过 |
 | HTTP Location | HttpLocation 保存单值 URI-reference、原始字段与错误偏移；相对解析复用 URL，按重定向规则继承缺省 fragment，显式空 fragment 保留 | 新增 5 项测试通过 debug／release 与 full moving；正式消费者在两个 native 线程中组合短块 HTTP/1、HTTP/2 字段、IRI 构造、移动 GC 与正常构建复用 |
+| HTTP/2 GOAWAY 连接状态 | isDraining 在本地／远端 GOAWAY 通知前更新；openRequest 在提交新流前交付专门异常，已有流继续按实际事件完成，未处理流保留 REFUSED_STREAM | 新增 2 项测试与 19 项 HTTP/2 回归通过 debug／release；3 项相关用例逐例通过两种构建的 full moving，独立 GOAWAY 对端与正式构建复用通过 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -324,6 +325,10 @@ Linux 重编 HTTP 库暴露了 callable C 字符串的重复归属：已有边�
 
 `m54-http-location` 的 Darwin debug／release 两个变体通过，共 6 个进程；生产 `.slib` 消费者验证 URI 中的逗号、相对与跨 authority 引用、fragment 继承和显式空 fragment。5 项库测试在合并 main 后重新通过两种构建及 full moving；合并前的全部 244 项 HTTP 库回归也已通过。首次正式用例修正了捕获外层局部 var 和未知泛型结果下的无 else 尾部 if，改由回调返回响应计数，没有改变语言或库行为。Location 不选择目标协议、不跟随请求，client 继续组合其公开 API。
 
+`m54-http2-draining` 在 Darwin 通过 debug／release 两个变体，共 6 个步骤进程。独立 Python 对端将 GOAWAY、已有流的响应头与正文放在同批输入中，正式消费者在两个 native 线程中验证通知内的状态、拒绝新请求、保留 stream 3 的 REFUSED_STREAM 和完成 stream 1 正文；full moving 与正常构建复用通过。
+
+新增 2 项测试与 19 项 HTTP/2 回归通过两种构建；新测试和既有 GOAWAY flush 回归逐例通过两种构建的 full moving，共 6 个进程。状态和异常由 HTTP asyncio 提供，client 无须解析错误字符串或另猜协议状态；生产库 release 构建通过。
+
 ## 后续工作
 
 继续完成重定向／重试／认证／代理、Cookie、缓存／续传、SSE／WebSocket 高层组合和可观察性。每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
@@ -389,3 +394,5 @@ client idle 实施期间，清理已完成的 3 个 HTTP 输入进度／idle 与
 main 合并与 native 引用修正验收后，清理已结束的 Rust 增量构建缓存约 22 GiB，以及约 16 MiB 的比较回归诊断 target；配套命令、依赖产物、源用例和日志保留。
 
 Linux 回归收尾期间，清理本机首轮 main／native 验收中已被最终结果替代的 63 个 fixture target，释放约 1.43 GiB；正式源码、编译缓存、最终消费者、原始日志和报告保留。
+
+重定向与 GOAWAY 状态验收期间，清理已结束的 Location、首轮重定向和已被最终结果替代的 native 消费者共 5 个 fixture target，释放约 585 MiB；正式源码、最终消费者、生产库、编译缓存、原始日志和报告保留。

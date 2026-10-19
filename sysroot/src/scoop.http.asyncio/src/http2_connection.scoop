@@ -5,6 +5,9 @@ import scoop.http.*
 
 public class Http2IncomingRequest internal constructor(public val head: HttpRequestHead, public val stream: AsyncHttp2Stream)
 
+public class Http2ConnectionDrainingException public constructor() :
+    Exception(Some("HTTP/2 connection is draining; no new request was submitted"))
+
 public class AsyncHttp2Connection internal constructor(internal val state: H2State) : AsyncCloseable {
     public companion object {
         public suspend fun <T> takeOwnershipAsClient(transport: T, scope: CoroutineScope,
@@ -42,6 +45,7 @@ public class AsyncHttp2Connection internal constructor(internal val state: H2Sta
     public val role: HttpRole get() = state.session.role
     public val ioTimeouts: HttpIoTimeoutOptions get() = state.ioTimeouts
     public val isClosed: Boolean get() = state.lock.withLock { state.closed }
+    public val isDraining: Boolean get() = state.lock.withLock { state.acceptingEnded }
     public val upgradedStream: AsyncHttp2Stream? get() = state.lock.withLock {
         when (state.upgrade) { case Some(stream) -> Some(AsyncHttp2Stream(state, stream)); case None -> None }
     }
@@ -52,7 +56,7 @@ public class AsyncHttp2Connection internal constructor(internal val state: H2Sta
         requireHttpIoTimeouts(ioTimeouts)
         val stream = state.lock.withLock {
             h2Open(state)
-            if (state.acceptingEnded) throw IllegalStateException(Some("HTTP/2 connection received or sent GOAWAY"))
+            if (state.acceptingEnded) throw Http2ConnectionDrainingException()
             val value = H2Stream(state.session.submitRequest(head, endStream), ioTimeouts)
             value.sendStarted = true
             value.sendEnded = endStream

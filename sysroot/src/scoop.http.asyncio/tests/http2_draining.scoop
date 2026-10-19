@@ -1,0 +1,55 @@
+package scoop.http.asyncio
+
+import scoop.http.*
+import scoop.test.*
+
+@Test
+private class Http2DrainingTests {
+    @Test
+    fun `local and remote GOAWAY reject new requests while an accepted response still completes`() {
+        for (local in [false, true]) {
+            withHttp2 suspend { scope, pair ->
+                assertFalse(pair.client.isDraining || pair.server.isDraining)
+                val stream = pair.client.openRequest(request2())
+                val incoming = pair.server.acceptRequest()!!
+                if (local) {
+                    pair.client.goAway()
+                    pair.serverEvents.goAway.await()
+                } else {
+                    pair.server.goAway(lastStreamId = Some(stream.id))
+                    pair.clientEvents.goAway.await()
+                }
+                assertTrue(pair.client.isDraining && pair.server.isDraining)
+                try { pair.client.openRequest(request2()); fail(Some("draining connection submitted a request")) }
+                catch (_: Http2ConnectionDrainingException) { assertFalse(pair.client.isClosed) }
+                incoming.stream.sendResponse(response2(), false)
+                sendBytes(incoming.stream, "kept".toByteArray())
+                incoming.stream.finish()
+                assertEquals(200U, stream.receiveResponse().status)
+                assertEquals("kept", String.fromUtf8(receiveBytes(stream)))
+                assertFalse(scope.job.isCancelled || pair.server.isClosed)
+            }
+        }
+    }
+
+    @Test
+    fun `GOAWAY preserves refusal of an unprocessed stream without failing an accepted stream`() {
+        withHttp2 suspend { scope, pair ->
+            val accepted = pair.client.openRequest(request2())
+            val incoming = pair.server.acceptRequest()!!
+            val refused = pair.client.openRequest(request2("POST"))
+            pair.server.goAway(lastStreamId = Some(accepted.id))
+            pair.clientEvents.goAway.await()
+            assertTrue(pair.client.isDraining)
+            try { refused.receiveResponse(); fail(Some("unprocessed stream received a response")) }
+            catch (error: HttpException) {
+                assertTrue(error.protocol == HttpProtocol.Http2 && error.scope == HttpFailureScope.Stream)
+                assertEquals(refused.id, error.streamId)
+                assertEquals(7, error.code)
+            }
+            incoming.stream.sendResponse(response2(204U))
+            assertEquals(204U, accepted.receiveResponse().status)
+            assertFalse(scope.job.isCancelled || pair.client.isClosed || pair.server.isClosed)
+        }
+    }
+}
