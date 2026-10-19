@@ -65,6 +65,10 @@ def serve(connection, mode):
                 body.extend(payload)
                 if flags & 1:
                     break
+            elif kind == 1:
+                # The upload may end with empty trailing HEADERS.
+                assert stream == 1 and flags == 5 and not payload
+                break
             else:
                 assert kind in (4, 6, 8), (kind, flags, stream, payload)
         assert body == b"ab", body
