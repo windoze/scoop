@@ -339,7 +339,9 @@ Linux 组合回归中的连接池对端把已发送请求的空 trailing HEADERS
 
 连接池修正随后在 GNU／musl 各通过 debug／release、full moving 与构建复用，共 4 个变体、12 个步骤进程。GOAWAY 的原始 Linux release 消费者通过 gdb 定位到协程入口 poll：正常路径在 openRequest 后覆盖 `second`，但失败路径的 finally 仍读取原值；MIR 活跃度把异常边放到块末，导致保存／恢复遗漏，入口根计划因此包含未初始化局部。修复在 MIR 按实际调用处处理异常边，保留失败清理需要的值，没有初始化伪造对象、放宽 GC 检查或改写 HTTP 调用来绕过。
 
-`m54-coroutine-unwind-liveness` 在 Darwin 通过 debug／release、full moving 和构建复用，共 6 个步骤进程。两个 native 线程分别检查普通挂起、直接 suspendCoroutine、恢复后的普通调用失败与泛型清理；成功取新对象，失败保留原对象身份与异常身份。既有 catch/finally 与嵌套待定 transfer 组合同时通过 4 个变体、8 个步骤进程。原 HTTP/2 消费者及 GNU／musl 的修复后验收继续进行。
+`m54-coroutine-unwind-liveness` 在 Darwin 通过 debug／release、full moving 和构建复用，共 6 个步骤进程。两个 native 线程分别检查普通挂起、直接 suspendCoroutine、恢复后的普通调用失败与泛型清理；成功取新对象，失败保留原对象身份与异常身份。原 HTTP/2 消费者复验通过两个变体、6 个步骤进程；既有 catch/finally 与嵌套待定 transfer 组合同时通过 4 个变体、8 个步骤进程。
+
+同一修复在 GNU／musl 各通过上述 4 项正式 fixture，每目标 8 个变体、20 个步骤进程，原 release GC 故障已闭合。Linux 的 workspace clippy 与 119 项 MIR 测试通过。清理已结束的旧故障复现 target，释放约 110 MiB；保留源码、缓存、目标资源与仓库外诊断日志。
 
 ## 后续工作
 
