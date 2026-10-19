@@ -223,7 +223,11 @@ structured MIR 与最终 MIR 的动态调用将 receiver 保存在对应目标�
 
 CFG 的私有协程工作记录保留挂起操作的语义顺序、块内位置、receiver 与结果 local；尚未生成的注册调用不使用普通 callee 或空语句占位。协程变换把这些记录与已有 CFG 语句一起用于 liveness 和恢复分析，生成 continuation adapter 后直接形成完整接口调用。cleanup 中的待定 return／throw／break／continue 继续保留原值和目标，最终只输出引用实际 saved slots 与恢复入口的协程 metadata。
 
-release 在状态机生成前识别整函数的尾挂起转交。首版要求所有挂起点都是本 Cone 的直接 suspend 调用，结果 exact type 与当前函数相同；调用后仅沿普通局部复制和无条件边返回该结果，没有 EH、pending cleanup、Context restore 或其他结果处理。可以有多个尾调用分支及直接返回普通值的分支。合格调用追加原 hidden completion，并直接返回 callee 的 CoroutineStep；普通返回仍构造 Completed。本函数不生成 frame／adapter，callee 可以真正挂起。无帧尾转交与无挂起点的立即完成以不同 lowering 分支表示，不能据此前者推断同步；原语注册、唯一完成及异常协议保持。该优化不要求 LLVM 机器 tail call，不承诺尾递归常数栈。
+release 在 suspend ABI 转换前，从 source-signature CFG 与私有 call-site 登记中确定本 Cone 直接可见的同步 suspend 正文：没有原语挂起、动态／外部 suspend 边、递归依赖或自身 EH／pending cleanup；这一事实可沿直接 suspend 依赖传播。普通 GC、可能抛异常或有副作用的非 suspend 调用不因此变成 NoGC 或纯操作。只在既有小函数成本、累计增长与六层展开深度范围内克隆正文，稳定模板不使用已展开函数重置成本；同步事实本身不能删除仍存在的调用点。
+
+该克隆复用普通内联的参数求值、local 身份与 CFG 重映射，同时更新 call-site 的块、语句位置、语义顺序和调用点 cleanup。共享插入位置的待生成 suspend 注册仍位于原语句之前；callee 无自身 cleanup，克隆调用继承 caller 的 pending 链及异常出口。内联完成后才转换 hidden completion／step ABI，并只生成一次正式状态机。全部 suspend site 已实际消除的函数沿既有 Immediate 路径；剩余调用仍参与尾转交或状态机生成。该局部阶段不导入普通外部正文，也不把无帧尾转交判为同步。
+
+release 在状态机生成前识别整函数的尾挂起转交。首版要求所有挂起点都是本 Cone 的直接 suspend 调用，结果 exact type 与当前函数相同；调用后仅沿未取地址的普通局部初始化／赋值复制和无条件边返回该结果，没有 EH、pending cleanup、Context restore 或其他结果处理。内联的返回汇合临时值遵守同一规则；不按临时变量名称放宽检查。可以有多个尾调用分支及直接返回普通值的分支。合格调用追加原 hidden completion，并直接返回 callee 的 CoroutineStep；普通返回仍构造 Completed。本函数不生成 frame／adapter，callee 可以真正挂起。无帧尾转交与无挂起点的立即完成以不同 lowering 分支表示，不能据此前者推断同步；原语注册、唯一完成及异常协议保持。该优化不要求 LLVM 机器 tail call，不承诺尾递归常数栈。
 
 `==` / `!=` 保存已选定的 operator callable；若它来自普通用户接口，则保留该接口 application、slot 与实际 implementation。派生结构比较降为普通 typed 成员调用和短路控制流；`Equals<T>.equals` 是同一 operator 契约的普通接口调用。bound 调用在单态化时映射到已确定的实现，不能重新按名字搜索 equals。基本类型的精确 intrinsic 比较保持原运算与 effect；接口分派需要的适配正文同样是完整 typed callable，不能把 NoGc 直接实现误当成具有相同 effect 的 Managed slot 入口。
 

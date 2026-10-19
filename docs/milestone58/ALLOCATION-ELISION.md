@@ -1,6 +1,6 @@
 # 局部装箱与协程包装消除：M58 调研
 
-本文属于 [M58 设计](DESIGN.md)。2026-10-19 的源码样本基线为 `04d28e763`；在 `c3b8942db` 上复核。下文的初始产物观察保留该基线含义；2026-10-20 已实现有界普通迭代、局部 box／closure 实例消除及 closure 私有物理支持选择，当前进度见 [PROGRESS.md](PROGRESS.md)。局部装箱作为本期[函数内逃逸分析](ESCAPE-ANALYSIS.md)的首个消费者；协程包装分别通过真正尾部调用的 completion 转交和已知同步正文的前置内联消除。目标是在保持值、GC、协程语义的前提下减少短命对象。
+本文属于 [M58 设计](DESIGN.md)。2026-10-19 的源码样本基线为 `04d28e763`；在 `c3b8942db` 上复核。下文的初始产物观察保留该基线含义；2026-10-20 已实现有界普通迭代、局部 box／closure 实例消除、closure 私有物理支持选择、尾转交及前置同步内联，当前进度见 [PROGRESS.md](PROGRESS.md)。局部装箱作为本期[函数内逃逸分析](ESCAPE-ANALYSIS.md)的首个消费者；协程包装分别通过真正尾部调用的 completion 转交和已知同步正文的前置内联消除。目标是在保持值、GC、协程语义的前提下减少短命对象。
 
 ## 1. 局部装箱：先做值替换
 
@@ -89,6 +89,12 @@ MIR 中 leaf 没有 frame；wrapper、outer、Task.run 各有一份 `CoroutineFr
 
 实现时需要复用已有 MIR clone 中的实际能力：实参单次求值、local／block／loop ID 重映射、return 汇合、typed callable 归属。新增入口同时更新 pre-coroutine call-site registry，不能只改 CFG 而留下旧 site。若某个模式必须复制 EH 或 coroutine 协议元数据，初版就保留调用，不为其扩建通用变换层。
 
+2026-10-20 已实现：[source-signature 内联](../../compiler/mir-lower/src/optimization/inline/suspend.rs) 位于 `transform_suspend_abis()` 之前。它从原始本地直接 suspend 依赖图传播同步事实，排除原语／动态／外部 suspend、递归和 callee 自身 EH／pending cleanup；普通 GC 和副作用保留。稳定模板、既有成本选择、累计增长及六层展开祖先跨克隆复用，不给大函数或深链重置限制。这里只做直接调用消费者，尚未把普通去虚拟化分析移到该阶段。
+
+正文克隆返回实际 block 映射和 continuation 前缀，用于重排私有 call-site 记录；同一语句位置的 deferred suspend 继续先于被内联的调用。cloned call 继承 caller cleanup 和异常出口。剩余 site 正常生成状态机，全部实际移除才走 Immediate。尾转交同时接受未取地址、只复制同一结果的局部赋值，以处理内联返回汇合，而不是按临时变量名称豁免。
+
+本机 typed MIR、源码／moving／跨线程／pending finally 验证通过；四层非尾包装的 50,000 次任务运行约 −32%，总分配量 −74.5%，text −21,216 bytes，见 [性能记录](PERFORMANCE.md#10-状态机生成前同步-suspend-内联)。动态 Task 调用和剩余 closure／协议对象仍存在，不宣称所有协程分配已消除。
+
 ### 2.3 真正尾部 suspend 调用：直接转交 completion
 
 2026-10-20 补充：这一项应作为 M58-C 的优先基础优化，不必等同步内联完成。只要函数的所有可达挂起点都处于真正尾位置，且没有自己的恢复／清理义务，就可以不生成该函数的状态机、frame 和 site adapter；**不要求 callee 同步完成，也不要求内联其正文**。
@@ -125,7 +131,7 @@ child 返回 Completed 时，wrapper 原样返回；child 返回 Suspended 时�
 
 前置同步内联可以使原来的非尾部 site 消失，进而让整个函数成为尾调用包装。因此在前置迭代化简后再判定 tail 资格，但 tail 转交本身不必展开 child，也没有内联导致的代码增长。首版只交付“整函数全部可达挂起点均为尾部”的无帧路径；已经需要状态机的函数，只省其最后一个 site 是另一项优化，不作为前置。
 
-2026-10-20 已实现：[transform_suspend_abis](../../compiler/mir-lower/src/pipeline/coroutines.rs) 先建立完整的 step／completion ABI；[tail 转交](../../compiler/mir-lower/src/coroutine/tail.rs) 在状态机生成前核对实际 site 与返回路径，改写合格的本地直接调用和 return，并跳过本函数状态机生成。普通值路径仍返回 Completed。调用点私有工作记录在同一次 transform 中消费，没有缺 hidden 参数的调用或嵌套 Completed；前置同步内联仍待实施。
+2026-10-20 已实现：[transform_suspend_abis](../../compiler/mir-lower/src/pipeline/coroutines.rs) 先建立完整的 step／completion ABI；[tail 转交](../../compiler/mir-lower/src/coroutine/tail.rs) 在状态机生成前核对实际 site 与返回路径，改写合格的本地直接调用和 return，并跳过本函数状态机生成。普通值路径仍返回 Completed。调用点私有工作记录在同一次 transform 中消费，没有缺 hidden 参数的调用或嵌套 Completed；前置同步内联也已实现，见下述实现记录。
 
 **无帧不等于静态不挂起。** `CoroutineLowering::Immediate` 用于没有 site 的立即返回路径，`TailForwarding` 单独表示无自身 frame 的转交。非尾部 caller 仍按 suspend 签名建立恢复状态；不能因 frame／site 消失就把 wrapper 当成同步叶子传播。此区分不改变对外 continuation ABI，也不另建证明记录。
 
@@ -148,7 +154,7 @@ LLVM 的 [CoroElide](https://llvm.org/docs/Coroutines.html#coroelide) 面向 `ll
 
 普通语义 fixture 断言结果和必要诊断，少量优化专测断言目标 Box／ClosureAlloc／frame 分配是否存在及精确 root 合同，不为所有案例保存完整 MIR。原有 coroutine race、moving GC、接口／泛型组合不能被只执行同步成功路径替代。
 
-局部替换与物理选择已纳入实现规范 2.19，尾转交职责已纳入 2.3；前置同步内联仍待按 spec 先行完成。语言规范 8.2／11.9、Context 8.3 与运行时 GC 合同保持原语义；若发现所需模式不能保持这些语义，应缩小优化范围，不增加 ABI。
+局部替换与物理选择已纳入实现规范 2.19，尾转交职责已纳入 2.3；前置同步内联已按 spec 先行落地。语言规范 8.2／11.9、Context 8.3 与运行时 GC 合同保持原语义；若发现所需模式不能保持这些语义，应缩小优化范围，不增加 ABI。
 
 减少短命分配首先改善分配热路径和 GC 触发频率；删除 frame 也可能减少存活根／引用槽。**单次 full 暂停是否缩短仍取决于真实 live set**，不能把少做若干次 minor 等同于 full 的 p99 改善。应与 [GC 暂停工作量](GC-PAUSE-WORK.md) 的混合寿命负载一起验收。
 

@@ -23,9 +23,12 @@ pub(super) fn unchanged(
         let block = &body.blocks[block_id];
         for statement in &block.statements[start..] {
             match &statement.kind {
-                mir::StatementKind::ValDecl { local, init } if result(init, site, &aliases) => {
-                    // A newly initialized ordinary local cannot be observed
-                    // through storage outside this return path.
+                mir::StatementKind::ValDecl { local, init }
+                | mir::StatementKind::Assign { local, value: init }
+                    if result(init, site, &aliases) =>
+                {
+                    // Unaddressed local copies cannot be observed outside this
+                    // return path, including an inliner's result merge slot.
                     if body.locals[*local].ty != site.result || addressed.contains(local) {
                         return false;
                     }

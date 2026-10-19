@@ -21,7 +21,8 @@ use adapters::*;
 use construction::*;
 use errors::protocol_error_block;
 use intrinsics::*;
-use liveness::*;
+use liveness::analyze_sites;
+pub(super) use liveness::suspend_effect;
 use sites::*;
 
 #[derive(Clone)]

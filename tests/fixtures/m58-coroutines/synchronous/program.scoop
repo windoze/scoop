@@ -1,0 +1,81 @@
+fun check(value: Boolean) { if (!value) throw IllegalStateException() }
+class Node(val value: Int)
+var marks = 0
+var arguments = 0
+fun mark(value: Int) { marks += value }
+fun argument(): Int { arguments += 1; return 40 }
+suspend fun increment(value: Int): Int = value + 1
+suspend fun next(value: Int): Int = increment(value) + 1
+suspend fun rooted(value: Node): Node { gcCollect(); return value }
+suspend fun <T> identity(value: T): T = value
+suspend fun marked(value: Int): Int { mark(value); return value }
+suspend fun unitMark() { mark(4) }
+suspend fun fail(error: Throwable): Int { throw error }
+suspend fun big(): Int {
+    mark(1); mark(1); mark(1); mark(1); mark(1); mark(1); mark(1); mark(1)
+    return 7
+}
+suspend fun wrapBig(): Int = big()
+
+class Gate : SuspendRegistration<Unit> {
+    var waiter: Continuation<Unit>? = None
+    public override fun register(continuation: Continuation<Unit>) { waiter = Some(continuation) }
+}
+class Done : Continuation<Int> {
+    var count = 0
+    var value = 0
+    public override fun resume(value: Int) { count += 1; this.value = value }
+    public override fun resumeWithException(error: Throwable) { throw error }
+}
+suspend fun mixed(gate: Gate): Int {
+    val first = next(argument())
+    suspendCoroutine(gate)
+    unitMark()
+    return marked(first)
+}
+suspend fun cleanup(value: Node, gate: Gate): Int {
+    try { return rooted(value).value }
+    finally {
+        wrapBig()
+        suspendCoroutine(gate)
+        marked(3)
+    }
+}
+suspend fun caught(error: UnwrapException): Int {
+    try { return fail(error) }
+    catch (actual: UnwrapException) { check(actual === error); return 42 }
+    finally { mark(1) }
+}
+suspend fun recursive(count: Int): Int {
+    if (count == 0) return 1
+    return recursive(count - 1) + 1
+}
+
+fun main() {
+    val node = Node(42)
+    val immediate = Done()
+    startCoroutine(suspend { identity(rooted(node)).value + next(argument()) }, immediate)
+    check(immediate.count == 1 && immediate.value == 84 && arguments == 1)
+    val gate = Gate()
+    val delayed = Done()
+    startCoroutine(suspend { mixed(gate) }, delayed)
+    check(delayed.count == 0 && marks == 0 && arguments == 2)
+    gcCollect()
+    gate.waiter!!.resume(Unit)
+    check(delayed.count == 1 && delayed.value == 42 && marks == 46)
+    marks = 0
+    val cleanupGate = Gate()
+    val cleanupDone = Done()
+    startCoroutine(suspend { cleanup(node, cleanupGate) }, cleanupDone)
+    check(cleanupDone.count == 0 && marks == 8)
+    gcCollect()
+    cleanupGate.waiter!!.resume(Unit)
+    check(cleanupDone.count == 1 && cleanupDone.value == 42 && marks == 11)
+    val failureDone = Done()
+    startCoroutine(suspend { caught(UnwrapException()) }, failureDone)
+    check(failureDone.count == 1 && failureDone.value == 42 && marks == 12)
+    val recursionDone = Done()
+    startCoroutine(suspend { recursive(4) }, recursionDone)
+    check(recursionDone.count == 1 && recursionDone.value == 5)
+    println("synchronous suspend inlining preserves effects, roots and pending cleanup")
+}

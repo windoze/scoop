@@ -15,7 +15,7 @@
 | B：closure 实例消除 | 已实现，复用来源／循环分析；本机五项 typed MIR 专测、源码与移动 GC 回归通过，Linux 待验证 |
 | B：closure 私有支持产物清理 | 已实现 LIR 准备时的实际引用选择；本机 160 项 LIR 单测、源码／跨库／callback 回归通过，Linux 待验证 |
 | C：tail completion 转交 | 已实现 release 本地直接调用的整函数无帧转交；typed MIR、普通／移动 GC／跨线程源码回归通过，Linux 待验证 |
-| C：状态机生成前同步内联 | 待实施 |
+| C：状态机生成前同步内联 | 已实现本地同步正文与 call-site 同步改写；19 项协程、23 项优化单测及源码组合通过。四层包装运行约 −32%、分配约 −74.5%、text −21 KB，Linux 待验证 |
 | D：外层 poll 循环分块、受限内层 SIMD | 待实施 |
 | LLVM codegen：范围与 NoGc 标量补齐 | 本机实现与相关验证通过；实际内核暂无可信运行时间收益，后续候选逐项评估 |
 | LLVM codegen：按值复制 | 两条 release 管线增加 memcpyopt；17 项 statepoint 专测及源码三变体通过，text −616 bytes，运行与编译时间基本持平 |
@@ -127,3 +127,11 @@ fmt、workspace clippy、LIR descriptor 两项、codegen boxing 五项通过。�
 fmt／workspace clippy、八项数组精确测试、十八项 statepoint 专测及新旧源码八变体通过；覆盖真实 moving／minor、large old-to-young references、padding、packed、异常与 ZST。fixture 的 Option 写入补上显式 Some；observer 构建补齐私有 sysroot 的现有 vendor 输入，失败均已闭合。
 
 生产小数组两个场景约 −14.9%，大数组持平，text +380 bytes、文件不变、编译时间基本持平；独立 observer runtime 的一／四 worker 各百万次 clone、七对运行补足 stop-wait 样本，未见稳定尾部回退。完整方法和 max 离群值见性能记录第 9 节。首批 runtime C→IR 三项已完成本机验证，后续 C2／D、统一性能矩阵与 Linux 验收继续。
+
+## 2026-10-20：状态机生成前同步内联
+
+先补实现规范 2.3，在原 source-signature CFG／call-site 完成后、hidden ABI 前，沿本地直接依赖传播同步事实。稳定模板复用普通 clone／cost／累计增长及六层祖先；普通 GC、参数单次求值和副作用保留，原语／动态／外部 suspend、递归及 callee 自身 EH／pending cleanup 不作为同步内联来源。克隆后更新私有 site 的 block、statement、顺序和 caller cleanup；实际剩余 site 仍产生尾转交或状态机，没有新的 ABI／摘要。
+
+组合测试发现内联返回汇合的 Assign 会妨碍尾转交，已按规范接受未取地址、只复制同一结果的普通 local，并保留其他副作用／EH 拒绝条件。19 项协程单测及 23 项普通优化单测通过；原 tail 专测使用超过内联阈值的同步 leaf，继续独立验证尾转交。M58 协程三项源码共八变体／16 进程通过，涵盖移动 GC、真实挂起、跨线程、异常身份、递归、generic、pending return/finally 和共享位置的 deferred suspend；补充 Unit 副作用后，三个源码变体复跑通过。所有代码先 fmt／workspace clippy。
+
+固定 `915e1f5d0` 基线、同 core／当前生产 runtime，50,000 次四层非尾同步包装的运行中位数 31.963 → 21.678 ms，总分配 40,800,296 → 10,400,296 bytes，minor 39 → 9，text −21,216 bytes。应用编译 6.419 → 6.192 s，编译峰值 RSS 约 528.7 → 509.3 MiB。完整矩阵、启动／协议分配及暂停限制见性能记录第 10 节；未据同步分析删除未内联的调用点。

@@ -12,6 +12,8 @@ use crate::local_values::LocalValueRegistry;
 
 mod clone;
 mod policy;
+mod suspend;
+pub(super) use suspend::run as inline_synchronous_coroutines;
 
 struct Choice {
     block: mir::BlockId,

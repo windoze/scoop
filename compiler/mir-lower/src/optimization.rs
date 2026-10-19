@@ -28,6 +28,10 @@ impl MirOptimizationOptions {
     };
 }
 
+pub(super) fn inline_synchronous_coroutines(lowerer: &mut crate::Lowerer) {
+    inline::inline_synchronous_coroutines(lowerer);
+}
+
 pub(super) fn run(
     module: &mut mir::Module,
     selected: &mir::SelectedExternalMirSet,

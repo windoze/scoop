@@ -1,14 +1,14 @@
 use super::*;
 
 #[derive(Clone, Copy)]
-pub(super) enum Shape {
+pub(in crate::tests) enum Shape {
     Exact,
     Add,
     EarlierCall,
     TailThenAdd,
 }
 
-pub(super) fn lower_tail(source: &hir::ExportHirOutput, enabled: bool) -> mir::Module {
+pub(in crate::tests) fn lower_tail(source: &hir::ExportHirOutput, enabled: bool) -> mir::Module {
     let concrete = scoop_hir_lower::concretize_output(source).unwrap();
     crate::lower_with_dependencies(
         &concrete,
@@ -20,7 +20,19 @@ pub(super) fn lower_tail(source: &hir::ExportHirOutput, enabled: bool) -> mir::M
     )
 }
 
-pub(super) fn program(shape: Shape, depth: usize, unit: bool) -> hir::ExportHirOutput {
+pub(in crate::tests) fn program(shape: Shape, depth: usize, unit: bool) -> hir::ExportHirOutput {
+    build_program(shape, depth, unit, 64)
+}
+
+pub(in crate::tests) fn small_program(
+    shape: Shape,
+    depth: usize,
+    unit: bool,
+) -> hir::ExportHirOutput {
+    build_program(shape, depth, unit, 0)
+}
+
+fn build_program(shape: Shape, depth: usize, unit: bool, leaf_cost: usize) -> hir::ExportHirOutput {
     let mut h = Harness::new();
     let result = if unit { h.unit } else { h.int };
     let value = if unit {
@@ -28,14 +40,23 @@ pub(super) fn program(shape: Shape, depth: usize, unit: bool) -> hir::ExportHirO
     } else {
         int_lit(&h, 42)
     };
+    // Tail forwarding also applies when a synchronous callee exceeds the
+    // pre-ABI inlining threshold. Keep this test independent of that choice.
+    let mut leaf_locals = Arena::new();
+    let mut leaf_statements = Vec::new();
+    for index in 0..leaf_cost {
+        let value = leaf_locals.alloc(local(&format!("cost{index}"), h.int));
+        leaf_statements.push(val_decl(value, int_lit(&h, index as i32)));
+    }
+    leaf_statements.push(stmt(hir::StatementKind::Return { value }));
     let mut target = h.user_fn_full(
         "leaf",
         Vec::new(),
         Vec::new(),
         result,
         hir::Body {
-            locals: Arena::new(),
-            statements: vec![stmt(hir::StatementKind::Return { value })],
+            locals: leaf_locals,
+            statements: leaf_statements,
         },
     );
     h.functions[target].is_suspend = true;

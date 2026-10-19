@@ -1,6 +1,6 @@
 use super::*;
 
-mod sample;
+pub(super) mod sample;
 use sample::{Shape, lower_tail, program};
 
 fn coroutine<'a>(module: &'a mir::Module, name: &str) -> &'a mir::CoroutineFunction {

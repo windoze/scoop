@@ -4,6 +4,12 @@ use scoop_identity::{CallableMaterialization, StructuralDefinitionSiteRole, Synt
 
 use super::{Choice, LocalValueRegistry, index, mir};
 
+pub(super) struct Expansion {
+    pub(super) continuation: mir::BlockId,
+    pub(super) blocks: Vec<Option<mir::BlockId>>,
+    pub(super) result_prefix: usize,
+}
+
 pub(super) fn apply(
     caller: &mut mir::Function,
     callee: &mir::Function,
@@ -12,7 +18,7 @@ pub(super) fn apply(
     owner: CallableMaterialization,
     caller_id: mir::FunctionId,
     ancestry: &mut Vec<Vec<mir::FunctionId>>,
-) {
+) -> Expansion {
     let caller_ancestry = ancestry[index(choice.block)].clone();
     let (statement, tail, terminator, unwind) = {
         let block = &mut caller.body.blocks[choice.block];
@@ -195,5 +201,10 @@ pub(super) fn apply(
                 blocks[index(poll.header())].map(mir::LoopHeaderPollTarget::new)
             }),
         );
+    }
+    Expansion {
+        continuation,
+        blocks,
+        result_prefix: usize::from(result.is_some()),
     }
 }
