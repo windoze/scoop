@@ -40,6 +40,7 @@ public class HttpClient internal constructor(internal val state: ClientState) : 
     public suspend fun execute(request: HttpRequest): HttpResponse = executeClientRequest(state, request)
     public suspend fun <T> withResponse(request: HttpRequest, block: suspend (HttpResponse) -> T): T =
         execute(request).useAsync(block)
+    public fun clearAuthenticationCache(authenticator: HttpAuthenticator) { clearClientAuthenticationCache(state, authenticator) }
     public override suspend fun close() { closeClient(state) }
 }
 

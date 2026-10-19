@@ -37,6 +37,16 @@ public class HttpAuthenticator private constructor(
     }
 
     public companion object {
+        public fun bearer(
+            origin: UrlOrigin,
+            realm: List<Byte>? = None,
+            sendWithoutChallenge: Boolean = true,
+            refreshTokens: suspend (HttpBearerRefreshRequest) -> HttpBearerTokens? = suspend { _ -> None },
+            loadTokens: suspend (HttpAuthenticationRequest) -> HttpBearerTokens
+        ): HttpAuthenticator =
+            HttpAuthenticator(origin, realm, sendWithoutChallenge,
+                ClientAuthenticationProvider.Bearer(ClientBearerAuthentication(loadTokens, refreshTokens)))
+
         public fun basic(
             origin: UrlOrigin,
             realm: List<Byte>? = None,
@@ -49,7 +59,7 @@ public class HttpAuthenticator private constructor(
     }
 }
 
-internal enum ClientAuthenticationProvider { Basic(ClientBasicAuthentication) }
+internal enum ClientAuthenticationProvider { Basic(ClientBasicAuthentication), Bearer(ClientBearerAuthentication) }
 
 internal class ClientBasicAuthentication(
     val charset: HttpBasicCharset,

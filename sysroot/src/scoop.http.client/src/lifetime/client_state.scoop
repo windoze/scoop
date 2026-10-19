@@ -8,6 +8,7 @@ internal class ClientState(val loop: EventLoop, val config: HttpClientConfig, va
     val lock: ClientLock = ClientLock()
     val calls: ArrayList<ClientCall> = ArrayList<ClientCall>()
     val retryWaits: ArrayList<Job> = ArrayList<Job>()
+    val bearerEntries: ArrayList<ClientBearerEntry> = ArrayList<ClientBearerEntry>()
     val waiting: ArrayDeque<ClientCall> = ArrayDeque<ClientCall>()
     val upgrades: ArrayDeque<ClientUpgrade> = ArrayDeque<ClientUpgrade>()
     val connections: ArrayList<ClientPoolEntry> = ArrayList<ClientPoolEntry>()
@@ -28,8 +29,14 @@ internal fun wakeClient(state: ClientState) {
 }
 
 internal fun stopClient(state: ClientState) {
-    val (calls, retryWaits) = state.lock.withLock { state.closing = true; (state.calls.toArray(), state.retryWaits.toArray()) }
+    val (calls, retryWaits, bearers) = state.lock.withLock {
+        state.closing = true
+        val active = ArrayList<ClientBearerFlight>()
+        for (entry in state.bearerEntries) if (clientPresent(entry.flight)) active.add(entry.flight!!)
+        (state.calls.toArray(), state.retryWaits.toArray(), active.toArray())
+    }
     for (call in calls) cancelClientCall(call, HttpClientClosedException())
     for (waiting in retryWaits) waiting.cancel()
+    for (flight in bearers) stopClientBearerFlight(flight)
     wakeClient(state)
 }

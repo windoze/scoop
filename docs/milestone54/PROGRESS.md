@@ -82,6 +82,7 @@
 | HTTP/1 早期关闭 | 最终响应完成且要求关闭时，活动请求 writer 保留 finish／放弃机会，立即禁止复用；关闭协调在 HTTP asyncio 完成 | 原库确定性复现；8 类协议场景与重试／重定向 source 清理组合通过两种构建、full moving 和构建复用，既有 HTTP/1 消息与取消回归通过 |
 | coroutineScope 失败边界 | 内部失败取消本作用域子树，等待真实清理后从调用处抛出；调用方可以 catch，未捕获和父取消仍按结构化任务规则传播 | 旧库最小复现；新增边界及既有任务／取消／登记回归通过 8 个变体、24 个步骤进程，HTTP/2 并行响应与 native 线程组合另通过 4 个变体、14 个步骤进程 |
 | client Basic 认证 | 按明确 origin、原始 realm 和配置顺序选择；支持挂起凭据、UTF-8／NFC、显式首发、有限挑战和调用内路径范围复用 | 30 个独立场景通过 debug／release、full moving 和构建复用；独立 TCP 对端、双 native 线程、HTTP/2、重定向、重试及真实取消／清理组合通过 |
+| client Bearer 认证 | 纯 Scoop 挂起加载／刷新，按 client 与 provider 合并并发工作和缓存；迟到 401 按实际 token 复用，取消独立等待，清除缓存与共享清理保持原失败 | 54 个独立场景覆盖两种构建、full moving 和构建复用；包含 HTTP/2、编码上传、重定向、独立 TCP 对端、同 client 令牌子请求及双 native 线程，Basic 30 场景回归通过 |
 | Boolean Scoop ABI | 标量参数和结果使用 i1 zeroext，定义、调用、间接分派和 statepoint 保持一致；现有目标指纹升级后正常重建产物 | GNU 旧工具最小复现 1／255 两个真值比较失败；237 项 codegen、6 项 ABI 分类、387 项 LIR、253 项产物测试及 workspace clippy 通过，Darwin 正式消费者 8 个变体、26 个步骤进程通过 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
@@ -372,9 +373,19 @@ Basic 的正式消费者在每个场景中运行两个 native 线程，覆盖未
 
 Linux 早期关闭断言实际暴露了 Boolean ABI 缺口：调试器在普通 C `_Bool` 相等函数入口观察到参数 1 和 255，两者在 Scoop 中都表示 true；不含 HTTP 的独立程序也在 debug 稳定失败。codegen 现在统一零扩展参数和返回值，显式 invoke 的结果属性放在 gc.result；三个目标的调用／分派／statepoint 及机器对象发射通过。Scoop ABI classifier 更新为 4，相关固定指纹向量同步；本机用 LLVM 22.1.8 重建工具和 17 个生产 Cone／runtime 后，Boolean、早期关闭、作用域及既有 native Scoop ABI 消费者通过两种适用变体、moving GC 与正常构建复用。GNU／musl 的新工具实际运行继续验证。
 
+Bearer 的 50 个主场景在 Darwin 通过 debug／release、full moving 和正常构建复用，覆盖并发初次加载、刷新中的新请求、迟到 401、清除缓存后相同 token 的再次拒绝、不同 client／provider、原始 realm、手写 Authorization、错误挑战、有限往返、单次 body、Context、取消、gzip／trailer、跨 origin 重定向及 H2 的 never-index。每个场景使用两个 native 线程；线上凭据与上传／响应表示由独立 Python socket 对端核对。
+
+额外共享清理用例先复现 client.close 重复汇总同一次回调错误。现在记录每次实际凭据工作的清理结果，相关调用保留各自的原失败，client.close 只汇总一次；清除缓存也立即记录取消，后来的关闭不覆盖它。修正后的 18 个生命周期场景及 Basic 全部 30 个场景通过两种构建、full moving 与复用，共 4 个变体、12 个步骤进程。其中新增共享清理、直接／嵌套加载失败共 3 个独立场景。
+
+同一 client 的令牌端点组合另通过两个变体、6 个步骤进程：显式关闭子请求的内建认证，在每 origin 仅一条连接的配置下并发完成加载、两条受保护请求和一次刷新，保留原 Context 与实际刷新参数。测试中的可变局部捕获改成显式引用状态后通过，没有修改编译器。仓库源码已通过正常入口更新 17 个生产 Cone／runtime，正式产物另通过共享清理、单个等待者取消与回调内清除缓存的 full moving 消费检查；没有新增 native 依赖或另一套令牌请求传输。
+
+Boolean ABI 修正后的 GNU 实机验证已闭合：格式化、workspace clippy、相关 Rust 测试和工具构建通过；Boolean／早期关闭／作用域／既有 native ABI 的 4 个 fixture，加 Basic、作用域、上传、重试、重定向与池的 6 个 fixture，共通过 20 个变体、70 个步骤进程。此轮 Basic 是原 24 个场景，后续 6 个认证清理场景与 Bearer 尚未计入 Linux 结果；musl 同轮验证继续进行。
+
+本轮另清理 8 个已经结束的旧诊断 target，释放约 1.18 GiB；源码、缓存和验证日志保留在仓库外。
+
 ## 后续工作
 
-继续完成 Bearer／Digest 认证、代理、Cookie、缓存／续传、SSE／WebSocket 高层组合和可观察性。每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
+继续完成 Digest 认证、代理、Cookie、缓存／续传、SSE／WebSocket 高层组合和可观察性。每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
 
 ## 验证安排
 

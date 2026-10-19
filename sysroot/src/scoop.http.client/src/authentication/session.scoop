@@ -8,9 +8,11 @@ import scoop.text.substring
 internal class ClientAuthenticationSession(
     val authenticator: HttpAuthenticator,
     val challenge: HttpAuthChallenge?,
-    val path: String
+    val path: String,
+    val rejectedBearer: ClientBearerValue? = None
 ) {
     var field: HttpField? = None
+    var bearerValue: ClientBearerValue? = None
 }
 
 internal suspend fun prepareClientAuthentication(call: ClientCall) {
@@ -38,10 +40,13 @@ internal suspend fun prepareClientAuthentication(call: ClientCall) {
     }
     if (!clientPresent(selected)) return
     val session = selected!!
-    val field = when (session.field) {
-        case Some(value) -> value
-        case None -> when (session.authenticator.provider) {
-            case Basic(provider) -> clientBasicField(call, session, provider)
+    val field = when (session.authenticator.provider) {
+        case Basic(provider) -> session.field ?: clientBasicField(call, session, provider)
+        case Bearer(provider) -> {
+            val value = awaitClientBearer(call, session, provider)
+            requireClientCall(call)
+            session.bearerValue = Some(value)
+            value.field
         }
     }
     requireClientCall(call)

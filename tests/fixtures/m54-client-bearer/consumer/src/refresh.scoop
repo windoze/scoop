@@ -1,0 +1,84 @@
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.http.client.*
+
+internal fun bearerRefresh(trust: TrustStore, clearSame: Boolean) {
+    withBearerRuntime suspend { _, scope, listener ->
+        val url = bearerUrl(listener)
+        val firstSeen = BearerGate()
+        val secondSeen = BearerGate()
+        val releaseOld = BearerGate()
+        val refreshing = BearerGate()
+        val allowRefresh = BearerGate()
+        val loads = AtomicLong(0L)
+        val refreshes = AtomicLong(0L)
+        val provider = HttpAuthenticator.bearer(url.httpOrigin(), refreshTokens = suspend { request ->
+            bearerCheck(request.tokens.accessToken == "old" && request.tokens.refreshToken == Some("local") && request.attempt == 1L)
+            bearerCheck(request.challenge.scheme == "bearer")
+            refreshes.fetchAdd(1L); refreshing.signal(); allowRefresh.await()
+            Some(HttpBearerTokens("new", Some("next")))
+        }) suspend { _ -> loads.fetchAdd(1L); HttpBearerTokens("old", Some("local")) }
+        val serving = scope.launch suspend {
+            val delayed = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    val request = connection.receiveRequest()!!
+                    bearerCheck(bearerToken(request.head) == Some("old"))
+                    request.body.readAllBytes(0L); firstSeen.signal()
+                    releaseOld.await()
+                    bearerRespond(connection, 401U, extra = [bearerField("WWW-Authenticate", "Bearer error=\"invalid_token\"")])
+                }
+            }
+            firstSeen.await()
+            AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                val request = connection.receiveRequest()!!
+                bearerCheck(bearerToken(request.head) == Some("old"))
+                request.body.readAllBytes(0L); secondSeen.signal()
+                if (clearSame) bearerRespond(connection, 200U, "done")
+                else bearerRespond(connection, 401U, extra = [bearerField("WWW-Authenticate", "Bearer")])
+            }
+            val count = if (clearSame) 1L else 3L
+            var index = 0L
+            while (index < count) {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    val request = connection.receiveRequest()!!
+                    bearerCheck(bearerToken(request.head) == Some("new"))
+                    request.body.readAllBytes(0L)
+                    bearerRespond(connection, 200U, "done")
+                }
+                index += 1L
+            }
+            delayed.join()
+        }
+        try {
+            withHttpClient(bearerConfig(trust, HttpAuthenticationOptions([provider]))) suspend { client ->
+                val first = scope.async<Unit> suspend {
+                    client.withResponse(HttpRequest.get(url)) suspend { response ->
+                        bearerCheck(response.authenticationCount == 1L && response.body.text(4L) == "done")
+                    }
+                }
+                firstSeen.await()
+                if (clearSame) {
+                    client.clearAuthenticationCache(provider)
+                    bearerDone(client, HttpRequest.get(url.resolve("/reload")))
+                    bearerCheck(loads.load() == 2L)
+                    releaseOld.signal(); refreshing.await(); allowRefresh.signal(); first.await()
+                } else {
+                    val second = scope.async<Unit> suspend {
+                        client.withResponse(HttpRequest.get(url.resolve("/refresh"))) suspend { response ->
+                            bearerCheck(response.authenticationCount == 1L && response.body.text(4L) == "done")
+                        }
+                    }
+                    refreshing.await()
+                    val third = scope.async<Unit> suspend { bearerDone(client, HttpRequest.get(url.resolve("/joining"))) }
+                    bearerCheck(!third.isCompleted && loads.load() == 1L && refreshes.load() == 1L)
+                    allowRefresh.signal(); second.await()
+                    releaseOld.signal(); first.await(); third.await()
+                }
+                bearerCheck(refreshes.load() == 1L)
+            }
+        } finally { releaseOld.signal(); allowRefresh.signal() }
+        serving.join()
+    }
+}

@@ -29,14 +29,21 @@ internal class ClientCallCompletion(val call: ClientCall) : Continuation<Unit> {
         }
         releaseClientLease(call)
         val cleanup = call.lock.withLock { call.cleanupFailure }
+        val bearerCleanup = call.lock.withLock { val saved = call.bearerCleanup; call.bearerCleanup = None; saved }
         call.client.lock.withLock {
             var index = 0L
             while (index < call.client.calls.size) {
                 if (call.client.calls[index] === call) { call.client.calls.removeAt(index); break }
                 index += 1L
             }
-            if (call.client.closing && clientPresent(cleanup))
-                call.client.closeFailure = Some(clientCombined(call.client.closeFailure, cleanup!!))
+            if (call.client.closing && clientPresent(cleanup)) {
+                if (clientPresent(bearerCleanup) && cleanup!! === bearerCleanup!!.error) {
+                    if (!bearerCleanup!!.closeReported) {
+                        bearerCleanup!!.closeReported = true
+                        call.client.closeFailure = Some(clientCombined(call.client.closeFailure, cleanup!!))
+                    }
+                } else call.client.closeFailure = Some(clientCombined(call.client.closeFailure, cleanup!!))
+            }
             Unit
         }
         wakeClient(call.client)

@@ -1,0 +1,79 @@
+package scoop.http.client
+
+internal suspend fun waitClientBearer(call: ClientCall, flight: ClientBearerFlight, start: Boolean): ClientBearerValue =
+    suspendCoroutine<ClientBearerValue> { continuation ->
+        val waiter = ClientBearerWaiter(call, continuation)
+        val outcome = flight.client.lock.withLock {
+            if (clientPresent(flight.outcome)) flight.outcome
+            else {
+                if (flight.stopping) waiter.cancellation = Some(call.lock.withLock { call.failure } ?: CancellationException())
+                flight.waiters.add(waiter)
+                None
+            }
+        }
+        val listener = call.lock.withLock { call.scope!! }.job.invokeOnCancellation { error ->
+            cancelClientBearerWaiter(flight, waiter, error)
+        }
+        val finished = flight.client.lock.withLock {
+            if (!clientPresent(waiter.continuation)) true else { waiter.listener = Some(listener); false }
+        }
+        if (finished) listener.dispose()
+        if (clientPresent(outcome)) deliverClientBearer(flight, waiter, outcome!!)
+        else if (start) startClientBearerFlight(flight)
+    }
+
+private fun cancelClientBearerWaiter(flight: ClientBearerFlight, waiter: ClientBearerWaiter, error: CancellationException) {
+    val reason = waiter.call.lock.withLock { waiter.call.failure } ?: error
+    val decision: (Boolean, CoroutineScope?, ClientBearerOutcome?) = flight.client.lock.withLock {
+        if (!clientPresent(waiter.continuation)) return@withLock (false, None, None)
+        if (!clientPresent(waiter.cancellation)) waiter.cancellation = Some(reason)
+        if (clientPresent(flight.outcome)) return@withLock (true, None, flight.outcome)
+        var other = false
+        for (pending in flight.waiters) {
+            if (pending !== waiter && clientPresent(pending.continuation) && !clientPresent(pending.cancellation)) other = true
+        }
+        if (other) {
+            var index = 0L
+            while (index < flight.waiters.size) {
+                if (flight.waiters[index] === waiter) { flight.waiters.removeAt(index); break }
+                index += 1L
+            }
+            (true, None, None)
+        } else {
+            flight.stopping = true
+            (false, flight.scope, None)
+        }
+    }
+    val (detach, scope, outcome) = decision
+    if (clientPresent(scope)) scope!!.job.cancel()
+    if (detach) deliverClientBearer(flight, waiter, outcome ?: ClientBearerOutcome.Failed(error))
+}
+
+internal fun deliverClientBearer(flight: ClientBearerFlight, waiter: ClientBearerWaiter, outcome: ClientBearerOutcome) {
+    val (continuation, listener, cancellation) = flight.client.lock.withLock {
+        val saved = (waiter.continuation, waiter.listener, waiter.cancellation)
+        waiter.continuation = None; waiter.listener = None
+        saved
+    }
+    if (clientPresent(listener)) listener!!.dispose()
+    if (!clientPresent(continuation)) return
+    if (clientPresent(cancellation)) {
+        val primary = cancellation!!
+        waiter.call.lock.withLock { waiter.call.bearerCleanup = flight.cleanup }
+        val failure = when (outcome) {
+            case Value(_) -> primary
+            case Failed(error) -> {
+                if (error === primary || error is CancellationException) primary
+                else if (error is ResourceUseException && error.primaryFailure is CancellationException)
+                    ResourceUseException(primary, error.cleanupFailure)
+                else ResourceUseException(primary, error)
+            }
+        }
+        continuation!!.resumeWithException(failure)
+    } else {
+        when (outcome) {
+            case Value(value) -> continuation!!.resume(value)
+            case Failed(error) -> continuation!!.resumeWithException(error)
+        }
+    }
+}

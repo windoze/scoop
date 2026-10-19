@@ -231,6 +231,22 @@ HttpAuthenticationException 保存 reason、url、可选 head 和原 cause；rea
 
 调用取消或超时后，凭据回调 finally 抛出的非取消异常是实际清理失败；以 ResourceUseException 保留原调用失败与该异常。client.close 取消该回调时，同样等待真实收尾并报告清理失败，不能只留下取消原因或把回调异常归入网络重试。
 
+### 8.2 Bearer 认证
+
+HttpAuthenticator.bearer 绑定明确的 UrlOrigin、可选原始 realm，sendWithoutChallenge 默认 true。loadTokens 是 suspend HttpAuthenticationRequest → HttpBearerTokens 回调；可选 refreshTokens 接收 HttpBearerRefreshRequest 的原 request、实际 challenge、认证次数和被拒绝的 tokens，返回可选新 tokens，默认不提供刷新。HttpBearerTokens 保存 accessToken 和可选 refreshToken；只有 accessToken 进入 Authorization，使用 HTTP 公共 token68 语法与 never-index 字段，refreshToken 只交给回调。
+
+跨调用缓存和正在进行的加载／刷新属于同一 HttpClient 中的同一个 provider 实例；一个实例表达同一凭据源，origin 必须精确匹配。初次并发加载只执行一次，后续请求使用缓存；正在刷新时，新请求等待同一次刷新。realm 仅作挑战选择，Bearer 挑战可以没有 realm，显式配置 realm 时仍按原始字节精确匹配。已取得的 Bearer 凭据覆盖该 provider 的 origin；重定向按新 origin 重新选择，手写 Authorization 继续优先，不通过 URL query 或正文传 token。
+
+只有匹配的 401 Bearer 挑战且 error 缺省或为 invalid_token 才自动认证／刷新；403、insufficient_scope、invalid_request 及未知 error 正常交付原响应。Bearer 挑战不接受 token68 形式。尚未发送该 provider 凭据时先加载，已经发送时刷新；挑战重发计入既有 authenticationCount／maxAttempts，并遵守同一 body 重放与旧响应收尾规则。刷新返回 None 或仍为被拒绝的 accessToken 时以 Rejected 结束，非法 accessToken 以 InvalidCredentials 结束；回调的原异常不取得网络重试资格。
+
+迟到的 401 若对应的 accessToken 已被同一 provider 的另一请求更新，直接使用当前 token，不再执行一次刷新。合并的工作使用首个发起请求的业务 Context 和独立的客户端子任务；每个等待者恢复自己的 Context、保持自己的 total 截止。一个等待者取消不取消其他等待者仍需的工作；最后一个等待者取消时，工作也取消，并在其 finally 和子树真正结束后交付该等待者的结果。此后到来的请求先等旧工作结束，再重新选择缓存或加载，避免同时运行同一 provider 的旧清理和新加载。
+
+HttpClient.clearAuthenticationCache(authenticator) 同步使该 provider 的跨调用缓存失效，并取消其正在进行的凭据工作；失效前的回调结果不能重新填回缓存。相关调用继续等待真实清理，之后的请求重新加载。已发送请求保留本轮的实际字段。client.close 取消全部等待调用和凭据工作，并由已有客户端作用域等待其清理；回调清理失败遵守 8.1 的 ResourceUseException 规则，不影响其他 provider 或 origin 的正常请求。
+
+清除缓存时立即记录相关调用的取消原因，后续 client.close 不覆盖它。共享回调的一次清理失败会交付每个仍在等待清理的调用；client.close 按实际共享工作汇总一次，不因等待者数量重复附加同一错误。
+
+回调可以用同一 client 请求令牌端点；该子请求通过 HttpCallOptions.authentication = Some(HttpAuthenticationOptions()) 显式关闭内建认证，避免等待当前正在执行的 provider。加载／刷新发生在原请求取得连接名额之前，子请求使用已有连接池、Context、截止和取消合同，不提供另一套令牌请求传输。
+
 ## 9. 内容、Cookie 和缓存
 
 自动内容解码默认开启，Advertise gzip、deflate、br、zstd，前提是本构建实际支持对应 decoder。Content-Encoding 多层编码按逆序解开；不支持的编码报明确错误或由显式原始 body 模式交付，不能悄悄少解一层。调用者显式提供 Accept-Encoding 时保留原值，实际解码策略仍独立配置。

@@ -1,0 +1,78 @@
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp2Connection
+import scoop.http.client.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.time.Duration
+
+internal fun bearerHttp2(trust: TrustStore) {
+    withBearerRuntime suspend { _, scope, listener ->
+        val url = bearerUrl(listener)
+        val firstSeen = BearerGate()
+        val credentialsReady = BearerGate()
+        val done = BearerGate()
+        val started = AtomicLong(0L)
+        val callback = AtomicLong(0L)
+        val provider = HttpAuthenticator.bearer(url.httpOrigin(), sendWithoutChallenge = false) suspend { request ->
+            bearerCheck(request.attempt == 1L && started.load() == 0L)
+            callback.fetchAdd(1L)
+            credentialsReady.await()
+            HttpBearerTokens("opaque.-_~+/==", Some("local-only"))
+        }
+        val serving = scope.launch suspend {
+            AsyncHttp2Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                val first = connection.acceptRequest()!!
+                bearerCheck(first.stream.id == 1)
+                firstSeen.signal()
+                val other = connection.acceptRequest()!!
+                bearerCheck(other.stream.id == 3)
+                first.stream.sendResponse(HttpResponseHead(HttpVersion.Http2, 401U, fields = [
+                    bearerField("WWW-Authenticate", "Bearer realm=\"private\""),
+                    bearerField("Content-Encoding", "unneeded-coding")
+                ]), false)
+                other.stream.sendResponse(HttpResponseHead(HttpVersion.Http2, 200U), false)
+                bearerWrite(other.stream, "left")
+                other.stream.flush()
+                val authenticated = connection.acceptRequest()!!
+                bearerCheck(authenticated.stream.id == 5)
+                val field = authenticated.head.fields.findAll("Authorization".toByteArray())[0L]
+                bearerCheck(field.neverIndex && HttpCredentials.parse(field.value).token68 == Some("opaque.-_~+/=="))
+                authenticated.stream.sendResponse(HttpResponseHead(HttpVersion.Http2, 100U), false)
+                bearerCheck(String.fromUtf8(authenticated.stream.readAllBytes(4L)) == "once")
+                authenticated.stream.sendResponse(HttpResponseHead(HttpVersion.Http2, 200U), false)
+                bearerWrite(authenticated.stream, "done"); authenticated.stream.finish()
+                bearerWrite(other.stream, "right"); other.stream.finish()
+                done.await()
+            }
+        }
+        try {
+            withHttpClient(bearerConfig(trust, HttpAuthenticationOptions([provider]), h2 = true)) suspend { client ->
+                val failure = BearerFailureHolder()
+                val body = RequestBody.fromProducer(Some(4L)) suspend { output ->
+                    started.fetchAdd(1L); bearerWrite(output, "once")
+                }
+                val executing = scope.launch suspend {
+                    try {
+                        client.withResponse(HttpRequest.post(url, body, options = HttpCallOptions(expectContinue = true,
+                            continueWait = Duration.seconds(3600L)))) suspend { response ->
+                            bearerCheck(response.authenticationCount == 1L && response.body.text(4L) == "done")
+                        }
+                    } catch (error: Throwable) { failure.value = Some(error) }
+                }
+                firstSeen.await()
+                client.withResponse(HttpRequest.get(url.resolve("/public"))) suspend { response ->
+                    NativeByteBuffer.allocate(4L).use suspend { buffer ->
+                        response.body.readFully(buffer)
+                        bearerCheck(String.fromUtf8(buffer.readBytes(4L)) == "left")
+                    }
+                    credentialsReady.signal()
+                    bearerCheck(response.body.text(5L) == "right" && response.authenticationCount == 0L)
+                }
+                executing.join()
+                bearerCheck(!bearerPresent(failure.value) && started.load() == 1L && callback.load() == 1L)
+            }
+        } finally { credentialsReady.signal(); done.signal() }
+        serving.join()
+    }
+}

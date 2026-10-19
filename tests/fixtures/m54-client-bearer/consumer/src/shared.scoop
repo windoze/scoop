@@ -1,0 +1,64 @@
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.http.client.*
+import scoop.time.Duration
+
+internal fun bearerSharedCancellation(trust: TrustStore, total: Boolean) {
+    withBearerRuntime suspend { _, scope, listener ->
+        val url = bearerUrl(listener)
+        val entered = BearerGate()
+        val release = BearerGate()
+        val cancelled = AtomicBoolean(false)
+        val loads = AtomicLong(0L)
+        val provider = HttpAuthenticator.bearer(url.httpOrigin()) suspend { _ ->
+            bearerCheck(bearerContext() == "loading")
+            loads.fetchAdd(1L)
+            val registration = currentJobOrNone()!!.invokeOnCancellation { _ -> cancelled.store(true) }
+            try {
+                entered.signal(); release.await()
+                bearerCheck(bearerContext() == "loading")
+                HttpBearerTokens("shared")
+            } finally { registration.dispose() }
+        }
+        val serving = scope.launch suspend {
+            AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                val request = connection.receiveRequest()!!
+                bearerCheck(bearerToken(request.head) == Some("shared"))
+                request.body.readAllBytes(0L); bearerRespond(connection, 200U, "done")
+            }
+        }
+        try {
+            withHttpClient(bearerConfig(trust, HttpAuthenticationOptions([provider]))) suspend { client ->
+                val failure = BearerFailureHolder()
+                val firstContext = BearerContext("loading")
+                val first = context(firstContext) {
+                    scope.launch suspend {
+                        try {
+                            val options = HttpCallOptions(timeouts = if (total)
+                                Some(HttpTimeoutOptions(total = Some(Duration.seconds(15L)))) else None)
+                            client.execute(HttpRequest.get(url, options = options)).close()
+                        } catch (error: Throwable) { failure.value = Some(error) }
+                        bearerCheck(bearerContext() == "loading")
+                    }
+                }
+                entered.await()
+                val secondContext = BearerContext("waiting")
+                val second = context(secondContext) {
+                    scope.async<Unit> suspend {
+                        bearerDone(client, HttpRequest.get(url))
+                        bearerCheck(bearerContext() == "waiting")
+                    }
+                }
+                if (!total) first.cancel()
+                first.join()
+                if (total) bearerCheck(failure.value!! is HttpTimeoutException)
+                else bearerCheck(failure.value!! is CancellationException)
+                bearerCheck(!cancelled.load() && !second.isCompleted && loads.load() == 1L)
+                release.signal(); second.await()
+                bearerCheck(!cancelled.load())
+            }
+        } finally { release.signal() }
+        serving.join()
+    }
+}

@@ -1,0 +1,62 @@
+package scoop.http.client
+
+internal suspend fun awaitClientBearer(call: ClientCall, session: ClientAuthenticationSession,
+    provider: ClientBearerAuthentication): ClientBearerValue {
+    while (true) {
+        requireClientCall(call)
+        val decision = selectClientBearer(call, session, provider)
+        when (decision) {
+            case Ready(value) -> return value
+            case Start(flight) -> return waitClientBearer(call, flight, true)
+            case Join(flight) -> return waitClientBearer(call, flight, false)
+            case Settle(flight) -> awaitClientBearerSettlement(flight)
+        }
+    }
+}
+
+private fun selectClientBearer(call: ClientCall, session: ClientAuthenticationSession,
+    provider: ClientBearerAuthentication): ClientBearerDecision = call.client.lock.withLock {
+    val state = call.client
+    if (state.closing) throw HttpClientClosedException()
+    var selected: ClientBearerEntry? = None
+    for (entry in state.bearerEntries) {
+        if (entry.authenticator === session.authenticator) { selected = Some(entry); break }
+    }
+    if (!clientPresent(selected)) {
+        val entry = ClientBearerEntry(session.authenticator, provider)
+        state.bearerEntries.add(entry)
+        selected = Some(entry)
+    }
+    val entry = selected!!
+    val active = entry.flight
+    if (clientPresent(active)) return@withLock if (active!!.stopping)
+        ClientBearerDecision.Settle(active!!) else ClientBearerDecision.Join(active!!)
+    val current = entry.value
+    val rejected = session.rejectedBearer
+    if (clientPresent(current) && (!clientPresent(rejected) ||
+        current!!.tokens.accessToken != rejected!!.tokens.accessToken))
+        return@withLock ClientBearerDecision.Ready(current!!)
+    val request = HttpAuthenticationRequest(call.originalRequest, session.challenge, call.sequence.authenticationCount)
+    val flight = ClientBearerFlight(state, entry, state.scope!!, request, current)
+    entry.flight = Some(flight)
+    ClientBearerDecision.Start(flight)
+}
+
+private suspend fun awaitClientBearerSettlement(flight: ClientBearerFlight) {
+    suspendCancellableCoroutine<Unit> { continuation ->
+        val finished = flight.client.lock.withLock {
+            if (clientPresent(flight.outcome)) true else { flight.settled.add(continuation); false }
+        }
+        if (finished) continuation.tryResume(Unit)
+        else continuation.invokeOnCancellation { _ ->
+            flight.client.lock.withLock {
+                var index = 0L
+                while (index < flight.settled.size) {
+                    if (flight.settled[index] === continuation) { flight.settled.removeAt(index); break }
+                    index += 1L
+                }
+            }
+        }
+        Unit
+    }
+}

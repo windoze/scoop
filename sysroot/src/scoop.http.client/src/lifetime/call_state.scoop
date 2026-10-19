@@ -10,6 +10,7 @@ internal class ClientCall(
 ) {
     var request: HttpRequest = originalRequest
     var authenticationSession: ClientAuthenticationSession? = None
+    var bearerCleanup: ClientBearerCleanup? = None
     val timeouts: HttpTimeoutOptions = sequence.timeouts
     val started: TimeMark? = sequence.started
     val usesDeadlines: Boolean = timeouts.total != None || timeouts.poolAcquire != None || timeouts.responseHeaders != None ||

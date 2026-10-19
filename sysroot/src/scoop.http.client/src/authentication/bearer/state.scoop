@@ -1,0 +1,74 @@
+package scoop.http.client
+
+import scoop.http.HttpField
+
+internal class ClientBearerValue(val tokens: HttpBearerTokens, val field: HttpField)
+
+internal class ClientBearerEntry(val authenticator: HttpAuthenticator, val provider: ClientBearerAuthentication) {
+    var value: ClientBearerValue? = None
+    var flight: ClientBearerFlight? = None
+    var discard: Boolean = false
+}
+
+internal enum ClientBearerOutcome { Value(ClientBearerValue), Failed(Throwable) }
+internal enum ClientBearerDecision { Ready(ClientBearerValue), Start(ClientBearerFlight), Join(ClientBearerFlight), Settle(ClientBearerFlight) }
+
+internal class ClientBearerCleanup(val error: Throwable) { var closeReported: Boolean = false }
+
+internal class ClientBearerFlight(
+    val client: ClientState, val entry: ClientBearerEntry, val parent: CoroutineScope,
+    val request: HttpAuthenticationRequest, val previous: ClientBearerValue?
+) {
+    var scope: CoroutineScope? = None
+    var hold: Continuation<Unit>? = None
+    var stopping: Boolean = false
+    var outcome: ClientBearerOutcome? = None
+    var cleanup: ClientBearerCleanup? = None
+    val waiters: ArrayList<ClientBearerWaiter> = ArrayList<ClientBearerWaiter>()
+    val settled: ArrayList<CancellableContinuation<Unit>> = ArrayList<CancellableContinuation<Unit>>()
+}
+
+internal class ClientBearerWaiter(val call: ClientCall, continuation: Continuation<ClientBearerValue>) {
+    var continuation: Continuation<ClientBearerValue>? = Some(continuation)
+    var cancellation: Throwable? = None
+    var listener: Disposable? = None
+}
+
+internal fun removeClientBearerEntry(state: ClientState, entry: ClientBearerEntry) {
+    var index = 0L
+    while (index < state.bearerEntries.size) {
+        if (state.bearerEntries[index] === entry) { state.bearerEntries.removeAt(index); return }
+        index += 1L
+    }
+}
+
+internal fun clearClientAuthenticationCache(state: ClientState, authenticator: HttpAuthenticator) {
+    if (state.lock.withLock { state.closed }) return
+    clientJob(state.loop, false)
+    val flight: ClientBearerFlight? = state.lock.withLock {
+        for (entry in state.bearerEntries) {
+            if (entry.authenticator !== authenticator) continue
+            entry.discard = true; entry.value = None
+            val active = entry.flight
+            if (!clientPresent(active)) removeClientBearerEntry(state, entry)
+            return@withLock active
+        }
+        None
+    }
+    if (clientPresent(flight)) stopClientBearerFlight(flight!!)
+}
+
+internal fun stopClientBearerFlight(flight: ClientBearerFlight) {
+    val pending: (CoroutineScope?, Array<ClientBearerWaiter>) = flight.client.lock.withLock {
+        if (clientPresent(flight.outcome)) return@withLock (None, [])
+        flight.stopping = true
+        for (waiter in flight.waiters) {
+            if (!clientPresent(waiter.cancellation))
+                waiter.cancellation = Some(waiter.call.lock.withLock { waiter.call.failure } ?: CancellationException())
+        }
+        (flight.scope, flight.waiters.toArray())
+    }
+    val (scope, waiters) = pending
+    for (waiter in waiters) cancelClientCall(waiter.call, waiter.cancellation!!)
+    if (clientPresent(scope)) scope!!.job.cancel()
+}

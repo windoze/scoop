@@ -1,0 +1,85 @@
+package scoop.http.client
+
+import scoop.http.HttpCredentials
+import scoop.http.HttpField
+
+internal fun startClientBearerFlight(flight: ClientBearerFlight) {
+    try {
+        flight.parent.launch suspend {
+            suspendCoroutine<Unit> { hold ->
+                flight.client.lock.withLock { flight.hold = Some(hold) }
+                startCoroutine<ClientBearerValue>(suspend { runClientBearerFlight(flight) }, ClientBearerCompletion(flight))
+            }
+        }
+        if (!flight.client.lock.withLock { clientPresent(flight.hold) || clientPresent(flight.outcome) })
+            finishClientBearerFlight(flight, ClientBearerOutcome.Failed(CancellationException()))
+    } catch (error: Throwable) {
+        finishClientBearerFlight(flight, ClientBearerOutcome.Failed(error))
+    }
+}
+
+private suspend fun runClientBearerFlight(flight: ClientBearerFlight): ClientBearerValue =
+    coroutineScope<ClientBearerValue> suspend { scope ->
+        val stopped = flight.client.lock.withLock { flight.scope = Some(scope); flight.stopping }
+        if (stopped) scope.job.cancel()
+        scope.job.ensureActive()
+        val provider = flight.entry.provider
+        val previous = flight.previous
+        val tokens = if (!clientPresent(previous)) provider.loadTokens(flight.request)
+        else {
+            val request = flight.request
+            val refreshed = provider.refreshTokens(HttpBearerRefreshRequest(request.request, request.challenge!!,
+                request.attempt, previous!!.tokens))
+            scope.job.ensureActive()
+            if (!clientPresent(refreshed) || refreshed!!.accessToken == previous!!.tokens.accessToken)
+                throw HttpAuthenticationException(HttpAuthenticationFailure.Rejected, request.request.url)
+            refreshed!!
+        }
+        scope.job.ensureActive()
+        val field = try { HttpCredentials.withToken68("Bearer", tokens.accessToken).toAuthorizationField() }
+        catch (error: IllegalArgumentException) {
+            throw HttpAuthenticationException(HttpAuthenticationFailure.InvalidCredentials, flight.request.request.url,
+                cause = Some(error))
+        }
+        ClientBearerValue(tokens, HttpField(field.name, field.value, neverIndex = true))
+    }
+
+private class ClientBearerCompletion(val flight: ClientBearerFlight) : Continuation<ClientBearerValue> {
+    public override fun resume(value: ClientBearerValue) { finishClientBearerFlight(flight, ClientBearerOutcome.Value(value)) }
+    public override fun resumeWithException(exception: Throwable) {
+        finishClientBearerFlight(flight, ClientBearerOutcome.Failed(exception))
+    }
+}
+
+internal fun finishClientBearerFlight(flight: ClientBearerFlight, outcome: ClientBearerOutcome) {
+    val completed = flight.client.lock.withLock {
+        if (clientPresent(flight.outcome)) return@withLock false
+        flight.outcome = Some(outcome)
+        flight.cleanup = when (outcome) {
+            case Value(_) -> None
+            case Failed(error) -> {
+                if (error is CancellationException) None
+                else if (error is ResourceUseException && error.primaryFailure is CancellationException)
+                    Some(ClientBearerCleanup(error.cleanupFailure))
+                else Some(ClientBearerCleanup(error))
+            }
+        }
+        flight.entry.flight = None
+        if (!flight.stopping && !flight.entry.discard) {
+            when (outcome) { case Value(value) -> flight.entry.value = Some(value); case Failed(_) -> {} }
+        }
+        if (flight.entry.discard) removeClientBearerEntry(flight.client, flight.entry)
+        true
+    }
+    if (!completed) return
+    val (hold, waiters, settled) = flight.client.lock.withLock {
+        val saved = flight.hold
+        flight.hold = None; flight.scope = None
+        val waiting = flight.waiters.toArray(); flight.waiters.clear()
+        val stopping = flight.settled.toArray(); flight.settled.clear();
+        (saved, waiting, stopping)
+    }
+    if (clientPresent(hold)) hold!!.resume(Unit)
+    for (waiter in waiters) deliverClientBearer(flight, waiter, outcome)
+    for (continuation in settled) continuation.tryResume(Unit)
+}
