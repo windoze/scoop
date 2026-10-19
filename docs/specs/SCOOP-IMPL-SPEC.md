@@ -241,7 +241,7 @@ completion 与 resume 具有唯一获胜方，并明确 payload 的 release/acqu
 
 MIR metadata 保存源码声明到实际 callable、constructor、accessor、generated body 的映射，exact signature、GC effect、继承、dispatch、object/init 关系及 Strong/ODR 归属。它不定义目标布局；布局由 LIR metadata 提供。
 
-mir-lower 完成 concrete CFG、dispatch、closure／adapter 与协程执行 ABI 后，由独立优化模块依次执行 receiver 实际类型传播、唯一目标去虚拟化、按调用点选择的小函数内联、局部常量／CFG 清理和再次去虚拟化；driver 显式传入优化配置。scoop-mir 保持纯数据职责，program-link 不隐藏重编译或导入普通外部正文。
+mir-lower 完成 concrete CFG、dispatch、closure／adapter 与协程执行 ABI 后，由独立优化模块按 2.19 有界交替执行 receiver 实际类型传播、唯一目标去虚拟化、按调用点选择的小函数内联、局部分配替换与常量／CFG 清理；driver 显式传入优化配置。scoop-mir 保持纯数据职责，program-link 不隐藏重编译或导入普通外部正文。
 
 release 默认启用 MIR 优化，debug 保留未优化的完整 MIR；两种模式的阶段 dump 分别记录实际输出，使用相同的实体身份与 ABI。数据流在异常边合并可能抛出时的局部状态，不能只把 block 的最终状态交给 handler。实际表项或闭包 invoke／bridge 完整可用时才改写目标；外部目标使用已经选中的 callable 签名和引用。
 
@@ -1106,6 +1106,8 @@ MIR 内联按调用点代入已知实参、局部常量和可证明不可达分�
 首批替换要求创建点支配全部相关使用，所有引用使用都可改写，且来源唯一、没有外来值或未闭合的 EH。循环内创建的候选若有别名跨回边存活则保留；循环外创建且支配循环内使用的候选不因此被排除。box 的 payload 在原创建点保存为普通 typed local 快照，保持求值顺序和完整值复制，以快照替换 exact payload 类型的拆箱，折叠由现有 boxed type／继承／itable 事实决定的类型检查，然后删除无用引用别名。整型 enum 的非 exact 父整数拆箱暂保留；错误转换的失败路径不能因同位宽而消失。含引用 payload 继续经最终 LIR 精确 roots 保活与移动回写，身份、pin、地址及未知使用仍保留实际分配；不引入栈对象、重物化或新的 GC ABI。
 
 同一来源分析也登记局部 ClosureAlloc。高阶函数及 invoke 展开后，只有所有环境引用使用均可替换时才删除实例；按原 captures 的求值顺序保存每个捕获值，以独立的物理字段索引匹配 ClosureCapture，不能把字段布局顺序当作求值顺序。捕获值副本、引用共享、bound receiver 的单次求值与普通 roots 保持。未知调用、身份／地址观察、逃逸存储、无法处理的函数类型关系和 EH 保留环境；被环境捕获的其他候选在后续迭代重新分析。实例消除不删除或残缺化语义 class／invoke／bridge 记录，其物理支持项仍遵循输出选择合同。
+
+LIR 准备阶段依据最终 MIR 的实际引用选择普通 closure 的私有物理支持。只将环境关联的生成 invoke／bridge 作为可省略 callable，普通源码定义、初始化、入口、dispatch、callback 和协程协议入口仍是发射根。由这些根的正文沿本地调用、ClosureAlloc／ClosureCapture 与环境支持关系传播；直接引用某个 helper 或同 class 的其他实例均保留对应支持。没有外部根的 helper 相互引用不使自身存活。未选环境不发射其 TD、对象／值 layout、scan 和私有 callable；仍被实际类型检查或其他环境使用的函数签名 TD 保留。首版保留 suspend closure 支持，不扩大为任意定义的全程序 DCE。选择仅为 lir-lower 的本次私有状态，MIR 身份、签名和完整语义目录保持，不增加产物字段、重建语义校验或改变对外导出合同。
 
 条件 poll 在 LIR 保存慢路径 site 与完整 live set，仅实际慢路径产生 statepoint／stackmap；合流连接更新引用，NoGC 不新增 poll。内联、去虚拟化及 CFG 改写均先于最终 roots 定稿，后端不靠完整 runtime poll 调用维持普通循环的检查。
 

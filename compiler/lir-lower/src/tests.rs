@@ -5,6 +5,7 @@ mod support;
 use support::*;
 
 mod callable_abi;
+mod closure_support;
 mod dependency_external;
 mod exact_callable_abi;
 mod exact_layouts;
@@ -838,6 +839,16 @@ fn nominal_descriptor_symbols_use_exact_type_identity() {
             mir::ClosureEnvironment::checked(class, &source.closure_classes[class], identity)
                 .unwrap(),
         );
+        let body = &mut source.functions[main].body;
+        body.blocks[body.entry]
+            .statements
+            .push(stmt(mir::StatementKind::Expr(expr(
+                mir::Type::Function(function_type),
+                mir::ExprKind::ClosureAlloc {
+                    class,
+                    captures: Vec::new(),
+                },
+            ))));
     }
     source.meta.source_callable_materializations =
         mir::SourceCallableMaterializations::checked(source_callables).unwrap();

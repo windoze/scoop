@@ -1,0 +1,10 @@
+class Counter(val value: Long)
+
+fun <T> scope(action: () -> T): T = action()
+
+fun main() {
+    val counter = Counter(39L)
+    val result = scope { gcCollect(); counter.value + 3L }
+    if (result != 42L) throw IllegalStateException()
+    println("private closure support removed")
+}

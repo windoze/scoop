@@ -13,7 +13,7 @@
 | B：统一优化迭代 | 已实现三轮上限与无变化早停；本机 MIR 单测 122 项、新旧优化源码回归通过，Linux 待验证 |
 | B：函数内来源／逃逸分析与 box 消除 | 已实现，接入同一迭代；本机 typed MIR 专测与源码／移动 GC 回归通过，Linux 待验证 |
 | B：closure 实例消除 | 已实现，复用来源／循环分析；本机五项 typed MIR 专测、源码与移动 GC 回归通过，Linux 待验证 |
-| B：closure 私有支持产物清理 | 待实施；实例消除仍保留完整 class／invoke／bridge 语义与物理支持 |
+| B：closure 私有支持产物清理 | 已实现 LIR 准备时的实际引用选择；本机 160 项 LIR 单测、源码／跨库／callback 回归通过，Linux 待验证 |
 | C：tail completion 转交、状态机生成前同步内联 | 待实施 |
 | D：外层 poll 循环分块、受限内层 SIMD | 待实施 |
 | 性能与跨平台 | A 的本机生产前后矩阵已记录于 [PERFORMANCE.md](PERFORMANCE.md)；B–D 性能、GNU／musl 完整验收及最终清理待完成 |
@@ -85,3 +85,11 @@ Rust fmt／workspace clippy 通过；MIR 247 项、MIR lowering 131 项全量单
 新增五项 typed MIR 专测验证：一轮 inline 后环境仍在、第二轮 devirt／inline 后删除；捕获 box 在环境删除后第三轮继续消失；无捕获环境、identity 保留与反转字段顺序。测试 helper 补齐实际 lambda lowering 的 hidden receiver 后全部闭合。fmt／workspace clippy、23 项普通优化专测及 MIR lowering 全部 137 项单测通过。
 
 新源码覆盖零／一／17 次高阶调用、普通／泛型 scope 包装、含引用值捕获、循环体内 GC、bound receiver 单次求值、同 closure class 的逃逸 sibling、外层 scope 与被保存的内层回调，以及 identity。M58 优化四个 fixture 共 12 变体／12 进程通过；M37 局部类型 closure 与 inner closure 各两变体／六进程、M34 内联语义两变体／八进程均通过。本机闭环未出现根或运行结果回归；Linux、生产分配／耗时／footprint 矩阵仍待统一验证，不将实例消失等同于私有 TD／layout 已不发射。
+
+## 2026-10-20：closure 私有物理支持选择
+
+先修订实现规范 2.3／2.19。在 LIR 准备中，以实际发射的普通函数、入口、初始化、dispatch、callback 与协程协议为根，沿调用和环境引用选择普通 closure 的支持。仅允许省略关联的生成 invoke／bridge；同 class 的剩余实例、捕获读取和直接 helper 引用保留支持，无根的 helper 环不自行保活。未选环境的 TD、对象／值 layout、扫描描述及私有 callable 不进入 LIR，函数类型检查仍保留所需签名 TD；MIR 完整目录保持。suspend closure 暂保留，不扩展为任意源码定义 DCE。
+
+新增六项 typed LIR 专测覆盖消失、剩余实例、invoke／bridge 直接引用、签名检查独立存活、dispatch 和 suspend 保留。旧的 nominal descriptor 身份测试增加真实 closure 创建，继续验证六个同显示名／不同 exact identity 的描述符。测试发现通用 generated descriptor 补齐也需尊重筛选，已修正；测试 helper 的 boxed Boolean 支持补齐后全部闭合。
+
+fmt／workspace clippy、LIR 全部 160 项单测通过，正式 CLI 重建后，M58 优化五个 fixture／13 变体／15 进程、跨库 callable 组合一项／五进程、managed native callback 两变体／八进程通过。新的小源码专测同时检查 LIR 无私有 lambda 环境，并执行普通／移动 GC 路径。清理约 2.7 GiB 的本轮 fixture 产物，保留仓库外日志。此处确认物理支持确实不发射，B 的生产分配／耗时／footprint 对照仍待完成。

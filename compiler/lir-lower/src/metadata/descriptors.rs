@@ -316,6 +316,11 @@ pub(crate) fn type_descriptors(
         )?);
     }
     for root in identity_roots.generated_nominal_shapes() {
+        if let mir::GeneratedExactTypeLocation::Closure(class) = root.location()
+            && !identity_roots.emits_closure(class)
+        {
+            continue;
+        }
         if descriptors
             .iter()
             .any(|(_, descriptor)| descriptor.identity.exact_type() == root.exact())
