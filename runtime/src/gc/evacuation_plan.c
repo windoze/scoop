@@ -73,6 +73,31 @@ static void rollback_reservations(void) {
     evacuation_cursor = evacuation_limit = NULL;
 }
 
+static bool single_source_may_fit(void) {
+    size_t required = 0;
+    for (const ScoopGcRegion *region = scoop_gc_heap_state.regions; region != NULL;
+         region = region->next) {
+        if (region->evacuation_source) {
+            required = region->collection_live_bytes;
+            break;
+        }
+    }
+    for (const ScoopGcRegion *region = scoop_gc_heap_state.regions; region != NULL;
+         region = region->next) {
+        if (region->large || region->evacuation_source || region->collection_live_bytes == 0) {
+            continue;
+        }
+        /* A new occupied region cannot reduce one source. This upper bound
+         * ignores fragmentation and alignment; success still needs reservation. */
+        size_t available = GC_REGION_BLOCKS * GC_REGULAR_MAX - region->collection_live_bytes;
+        if (available >= required) {
+            return true;
+        }
+        required -= available;
+    }
+    return false;
+}
+
 static void append_move(void *object, void *context) {
     MovingPlan *plan = context;
     if (!plan->reserved) {
@@ -120,6 +145,10 @@ bool scoop_gc_heap_plan_moving_locked(bool minor) {
     }
     if (ordinary_full && source_regions == 0) {
         return true;
+    }
+    if (ordinary_full && source_regions == 1 && !single_source_may_fit()) {
+        rollback_reservations();
+        return false;
     }
     if (ordinary_full) {
         scoop_heap_prepare_evacuation_targets();

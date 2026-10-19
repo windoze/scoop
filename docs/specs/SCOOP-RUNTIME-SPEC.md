@@ -453,6 +453,8 @@ full collection 按回收收益选择低存活、无 pin 的 region 为 source�
 
 首版普通 full 保留存活字节最多的普通 region 作为目标，其他存活量不超过 region 容量四分之一且无 pin 的非空 region 可选为 source。先使用非 source 的旧代空闲 line、空 block 和未使用 block；只有多个 source 可被腾空时才允许增加目标 region。预留完成后，新占用的空 region 数量（含已有空 region 和新映射）必须少于本批 source 数量，使含存活对象的 region 数量实际下降，避免在空闲缓存间往返复制。未取得实际集中收益或目标预留失败时保持非移动回收。该阈值是可调的收集策略，不属于产物 ABI。minor 仍以年轻 block 为晋升单位；显式 moving stress 以 eligible block 为单位验证对象搬迁，不采用普通 full 的收益筛选。
 
+普通 full 只有一个 source region 时，不能通过新占用空 region 获得上述集中收益。目标准备前可用本轮已累计的 region 存活字节计算必要容量上界：只计入非 source、非 large 且已有存活对象的 region，以其全部普通 block 的可用容量减去存活字节。若总上界仍小于 source 的存活量，取消本轮搬迁选择，直接进入正常非移动收尾，不提前扫描目标对象或执行 release。该上界忽略碎片、对齐和不可复用区间，只能否决不可能成功的尝试；通过检查仍须完成实际目标预留及必要回滚。
+
 原存储失效前，所有 roots、存活对象引用和相关运行时引用必须更新到新地址；不能遗留指向已回收副本的 managed reference。对象精确大小与 scan 不得从可能失效的存储猜测。移动或空间预留失败必须保留完整可达图，不能在部分更新后按未移动状态继续执行。
 
 搬迁前预留包括对齐损耗的全部目标空间，失败时缩小 source 集合或非移动回收；minor 晋升不足从完整原图转 full。source 不能又作目标。复制、forwarding 和全部精确引用更新完成后，才允许退休旧副本。

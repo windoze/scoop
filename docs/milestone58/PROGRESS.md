@@ -8,7 +8,8 @@
 | --- | --- |
 | A：年轻 small block 整块退役 | 已实现；本机 GC 专测 32 项、新源码 fixture 四个变体通过，Linux 待验证 |
 | A：无引用大对象跳过 remembered scan | 已实现；本机 nursery 专测 10 项、新源码 fixture 三个变体通过，Linux 待验证 |
-| A：full 必要容量早判、starts bitmap 枚举 | 待实施，各自提交和验证 |
+| A：full 必要容量早判 | 已实现；本机 region 专测 7 项、新源码 fixture 三个变体通过，Linux 待验证 |
+| A：starts bitmap 枚举 | 待实施 |
 | B：统一优化迭代、函数内来源／逃逸分析、box／closure 消除与支持产物清理 | 待实施 |
 | C：tail completion 转交、状态机生成前同步内联 | 待实施 |
 | D：外层 poll 循环分块、受限内层 SIMD | 待实施 |
@@ -31,3 +32,11 @@
 新增 C 专测将 1 MiB 无引用对象全部标脏，与真正含引用的 large array 同轮收集；四轮均只计入两个必要脏卡、128 个旧引用槽，两个年轻对象正常搬迁、内容和晋升统计保持。正式源码 fixture 组合大值数组的 scoped pointer borrow、native 范围屏障和旧引用数组，使用当前 runtime 源码。
 
 格式化、C 严格语法检查、workspace clippy 通过；nursery 专测 10 项、新 fixture 1 项／3 变体／9 进程通过。fixture 的回调补上显式 unsafe 作用域；无引用存储使用 Array 的 scoped borrow，避免当前显式 MutableArray 借用重载解析到 Array 的无关诊断。没有修改语言或重载行为，目标运行时路径由 C 专测和源码闭环共同覆盖。性能测量留到 GC 改动完成后统一对照。
+
+## 2026-10-20：full 容量早判
+
+在普通 full 的单 source 情况下，使用现有 region 存活统计与普通 block 容量，计算已占用目标 region 的可用容量上界。明显不足时恢复 source 状态，直接做非移动收尾；通过时仍使用实际预留／回滚。没有新增堆列表、对象扫描、公开参数或 ABI。
+
+C 专测在真实 STW、mark 与 plan 边界检查：两个 block 的 source 无法放入仅一个 block 的容量时，目标死亡对象仍未 release、起点仍存在；正常收尾只 release 一次。额外释放两个目标 block 后，同一 source 的两个对象成功搬迁，引用和内容保持。正式源码 fixture 用 55 万个含引用节点、共享尾节点和大引用数组，覆盖密集全存活、稀疏回收及再次 full 的图正确性。
+
+C 格式化／严格语法检查、Rust fmt／workspace clippy 通过；region 专测 7 项通过，包含失败回滚、pin、discard、region 压缩；源码 fixture 1 项／3 变体／3 进程通过，覆盖 debug、release 与四 worker。此处确认正确性和提前退出路径，尚未给出暂停加速比。清理约 16 GiB 的 `target/debug/incremental`，保留依赖与正式 CLI 工具。
