@@ -5,7 +5,7 @@ import scoop.http.asyncio.AsyncHttp2Stream
 internal fun bindClientHttp2Stream(call: ClientCall, stream: AsyncHttp2Stream) {
     call.lock.withLock { call.http2StreamId = Some(stream.id) }
     val failure = stream.failure
-    if (clientPresent(failure)) failClientCall(call, failure!!)
+    if (clientPresent(failure)) { recordClientIoFailure(call, failure!!, true); failClientCall(call, failure!!) }
 }
 
 internal fun failClientHttp2Stream(state: ClientState, entry: ClientPoolEntry, id: Int, error: Throwable) {
@@ -14,6 +14,6 @@ internal fun failClientHttp2Stream(state: ClientState, entry: ClientPoolEntry, i
         val matches = call.lock.withLock {
             !call.completed && clientPresent(call.lease) && call.lease!! === entry && call.http2StreamId == Some(id)
         }
-        if (matches) failClientCall(call, error)
+        if (matches) { recordClientIoFailure(call, error, true); failClientCall(call, error) }
     }
 }

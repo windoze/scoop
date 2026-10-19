@@ -7,6 +7,7 @@ import scoop.tls.TlsClientContext
 internal class ClientState(val loop: EventLoop, val config: HttpClientConfig, val tls: TlsClientContext) {
     val lock: ClientLock = ClientLock()
     val calls: ArrayList<ClientCall> = ArrayList<ClientCall>()
+    val retryWaits: ArrayList<Job> = ArrayList<Job>()
     val waiting: ArrayDeque<ClientCall> = ArrayDeque<ClientCall>()
     val upgrades: ArrayDeque<ClientUpgrade> = ArrayDeque<ClientUpgrade>()
     val connections: ArrayList<ClientPoolEntry> = ArrayList<ClientPoolEntry>()
@@ -27,7 +28,8 @@ internal fun wakeClient(state: ClientState) {
 }
 
 internal fun stopClient(state: ClientState) {
-    val calls = state.lock.withLock { state.closing = true; state.calls.toArray() }
+    val (calls, retryWaits) = state.lock.withLock { state.closing = true; (state.calls.toArray(), state.retryWaits.toArray()) }
     for (call in calls) cancelClientCall(call, HttpClientClosedException())
+    for (waiting in retryWaits) waiting.cancel()
     wakeClient(state)
 }

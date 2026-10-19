@@ -1,0 +1,86 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.bytes.ByteArrayBuilder
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.platform.io.UnexpectedEofException
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+import scoop.text.endsWith
+import scoop.text.startsWith
+import scoop.time.Duration
+
+@Test
+private class HttpClientRetryMethodsTest {
+    @Test
+    fun `method semantics and real body replayability both constrain retries`() {
+        for ((method, single, allowed) in [("POST", false, false), ("get", false, false),
+            ("PUT", true, false), ("POST", false, true)]) {
+            withClientRetryTest suspend { _, scope, listener, config ->
+                val serving = scope.launch suspend {
+                    for (attempt in 0..(if (allowed) 1 else 0)) {
+                        if (method == "get") listener.accept().useAsync suspend { connection ->
+                            readLowercaseRetryRequest(connection)
+                        } else AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                            val incoming = connection.receiveRequest()!!
+                            assertEquals(method, String.fromUtf8(incoming.head.method))
+                            assertEquals("sent", String.fromUtf8(incoming.body.readAllBytes(4L)))
+                            if (attempt == 1) sendClientTestText(connection, 200U, "done")
+                            Unit
+                        }
+                    }
+                }
+                val body = if (single) RequestBody.fromProducer(Some(4L)) suspend { output -> writeBodyText(output, "sent") }
+                    else RequestBody.fromText("sent")
+                val retries: HttpRetryOptions? = if (allowed)
+                    Some(HttpRetryOptions(methods = ["POST"], initialDelay = Duration.ZERO, jitter = false)) else None
+                withHttpClient(config) suspend { client ->
+                    val request = HttpRequest(clientTestUrl(listener), method, body = body, options = HttpCallOptions(retries = retries))
+                    if (allowed) client.withResponse(request) suspend { response ->
+                        assertEquals(1L, response.retryCount); assertEquals("done", response.body.text(4L))
+                    } else expectBodyFailure<UnexpectedEofException> suspend { client.execute(request).close() }
+                }
+                serving.join()
+                assertFalse(scope.job.isCancelled)
+            }
+        }
+    }
+
+    @Test
+    fun `per call options can disable all retries or just connection failures`() {
+        for (options in [HttpRetryOptions(maxRetries = 0L), HttpRetryOptions(connectionFailures = false)]) {
+            withClientRetryTest suspend { _, scope, listener, config ->
+                val serving = scope.launch suspend {
+                    AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                        connection.receiveRequest()!!.body.readAllBytes(0L)
+                    }
+                }
+                withHttpClient(config) suspend { client ->
+                    expectBodyFailure<UnexpectedEofException> suspend {
+                        client.execute(HttpRequest.get(clientTestUrl(listener), options = HttpCallOptions(retries = Some(options)))).close()
+                    }
+                }
+                serving.join()
+                assertFalse(scope.job.isCancelled)
+            }
+        }
+    }
+}
+
+private suspend fun readLowercaseRetryRequest(source: AsyncByteSource) {
+    val bytes = ByteArrayBuilder()
+    NativeByteBuffer.allocate(1024L).use suspend { buffer ->
+        while (true) {
+            buffer.clear()
+            val count = source.readInto(buffer)
+            assertTrue(count > 0L && bytes.size + count <= 8192L)
+            bytes.append(buffer.readBytes(count))
+            val text = String.fromUtf8(bytes.toByteArray())
+            if (text.endsWith("\r\n\r\nsent")) {
+                assertTrue(text.startsWith("get / HTTP/1.1\r\n"))
+                break
+            }
+        }
+    }
+}

@@ -1,0 +1,30 @@
+package scoop.http.client
+
+import scoop.collections.emptyList
+import scoop.http.isHttpToken
+import scoop.time.Duration
+
+public class HttpRetryOptions public constructor(
+    public val maxRetries: Long = 2L,
+    public val connectionFailures: Boolean = true,
+    methods: List<String> = ["GET", "HEAD", "PUT", "DELETE", "OPTIONS", "TRACE"],
+    statuses: List<UInt> = emptyList<UInt>(),
+    public val initialDelay: Duration = Duration.milliseconds(100L),
+    public val maxDelay: Duration = Duration.seconds(30L),
+    public val jitter: Boolean = true,
+    public val respectRetryAfter: Boolean = true
+) {
+    public val methods: Array<String> = methods.toArray()
+    public val statuses: Array<UInt> = statuses.toArray()
+    init {
+        if (maxRetries < 0L) throw IllegalArgumentException(Some("negative HTTP retry count"))
+        if (initialDelay < Duration.ZERO || maxDelay < initialDelay)
+            throw IllegalArgumentException(Some("invalid HTTP retry delay range"))
+        for (method in this.methods) {
+            if (!isHttpToken(method.toByteArray())) throw IllegalArgumentException(Some("invalid HTTP retry method"))
+        }
+        for (status in this.statuses) {
+            if (status < 200U || status > 599U) throw IllegalArgumentException(Some("invalid HTTP retry status"))
+        }
+    }
+}

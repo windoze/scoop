@@ -203,6 +203,14 @@ H2 的后台 StreamFailure 按实际连接和 stream ID 关联到调用；最终
 
 默认最多 2 次重试，网络原因须同时满足请求语义允许重试及 body 可重放。失败可能已提交请求时，仅默认重试幂等方法；POST 等需要应用明确提供策略。只有协议明确证明未处理，例如合适的 REFUSED_STREAM 或 GOAWAY 边界，才可对其他方法进行一次新的尝试，仍要求已消耗 body 可重新创建。状态码重试默认关闭，可配置 408／429／503 等、Retry-After、指数退避和抖动。
 
+`HttpRetryOptions(maxRetries = 2, connectionFailures = true, methods = ["GET", "HEAD", "PUT", "DELETE", "OPTIONS", "TRACE"], statuses = [], initialDelay = 100 ms, maxDelay = 30 s, jitter = true, respectRetryAfter = true)` 是不可变配置。方法与状态保存数组快照，方法必须是合法 HTTP token，按精确大小写匹配；状态可显式选择 200～599。maxRetries 是非负 Long，initialDelay 非负且不大于 maxDelay；0 次关闭所有自动重试。HttpClientConfig.retries 提供默认值，HttpCallOptions.retries 可整组覆盖。次数跨重定向累计，HttpResponse.retryCount 保存最终响应之前实际发起的重试次数。
+
+连接重试只接受实际 TCP／HTTP I/O 所报告的 BrokenPipe、ConnectionReset、ConnectionRefused，非空且所有实际连接尝试均属于上述类别的 TcpConnectException，HTTP/1 等待下一响应头时的 UnexpectedEofException，以及 HTTP/2 连接结束的 IoClosedException。HTTP/2 的 stream REFUSED_STREAM 与提交前的 Http2ConnectionDrainingException 表示明确未处理。判定不解析异常文字；只有最终主错误与实际 I/O 边界记录的原始对象一致，且没有清理失败，才进入策略选择。producer、信息响应回调、解析／验证和来源清理所抛的同类型异常不因此取得网络重试资格。连接池同时使用 HTTP asyncio 的 isDraining／isClosed，不向已停止接收请求的 H2 连接分配新流。
+
+普通连接重试要求方法在 methods 中且 body 能重新创建。明确未处理时，未启动的单次 body 可保留；已经启动仍要求可重放。未列入 methods 的方法最多享有一次明确未处理的重试，不重置全调用的 maxRetries。状态重试只有显式选中状态、方法允许且 body 可重放时才生效；条件不满足则交付原响应。重定向判断先于状态重试；重试保持当前 URL、方法、请求字段和调用 Context，每次使用新的 body 生产过程，不自动缓存单次输入。
+
+每次重试先放弃本轮协议响应，等待上传、来源关闭及连接池容量实际归还；中间响应不初始化内容解码器。退避使用 initialDelay 的指数倍增并饱和到 maxDelay，启用 jitter 时从零到该延迟取均匀抖动；计算不能因大重试次数或有效 Duration 溢出、无界空转。单条合法 Retry-After 由 HTTP 的字段工具解释为最低等待量，不受指数退避的 maxDelay 截短；重复或非法字段忽略。等待占用可取消的结构化 Job，client.close 会取消并等候它完成，其他调用可继续。total 从首次 execute 起算，涵盖退避且在下一次尝试前再次检查；失败轮次已经确认的正文进度继续累计。
+
 连接失效、响应中途截断、任意超时、认证失败和任意 5xx 不能统一视为可重试。一旦响应 body 已向应用交付，不把另一响应拼接到它后面；后续恢复属于显式下载续传。退避通过 EventLoop 定时等待，可取消，且受 total 与剩余次数约束。
 
 内建 Basic、Bearer 和 RFC 7616 Digest（MD5、SHA-256、SHA-512-256 及相应 sess 形式，qop auth／auth-int）。摘要算法在 crypto，字段语法在 HTTP；认证不能私自实现密码算法。Digest 的 auth-int 在发头前取得实际发送的实体字节摘要，包括已应用的 Content-Encoding，不包括 chunked 等传输定界。使用可重放表示的独立读取或显式给定摘要，重建的编码字节必须一致；单次流若无法满足则返回明确认证／重放错误，不偷偷落盘或无限缓冲。

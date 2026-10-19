@@ -3,6 +3,7 @@ package scoop.http.client
 import scoop.asyncio.*
 import scoop.http.HttpException
 import scoop.http.HttpVersion
+import scoop.http.asyncio.Http2ConnectionDrainingException
 import scoop.platform.memory.NativeByteBuffer
 import scoop.platform.system.PlatformErrorKind
 import scoop.platform.system.PlatformException
@@ -11,7 +12,7 @@ import scoop.test.*
 @Test
 private class HttpClientPoolRejectionTest {
     @Test
-    fun `a peer refusing initial HTTP2 streams fails the call without an internal redial`() {
+    fun `disabled retries report an initial HTTP2 refusal without an internal redial`() {
         clientTestTrust().use { trust ->
             val loop: EventLoop = LibuvEventLoop()
             loop.run suspend { scope ->
@@ -48,10 +49,12 @@ private class HttpClientPoolRejectionTest {
                 try {
                     withHttpClient(clientTestConfig(trust, HttpVersion.Http2)) suspend { client ->
                         val failure = expectBodyFailure<Throwable> suspend {
-                            client.execute(HttpRequest.get(clientTestUrl(listener))).close()
+                            client.execute(HttpRequest.get(clientTestUrl(listener),
+                                options = HttpCallOptions(retries = Some(HttpRetryOptions(maxRetries = 0L))))).close()
                             fail(Some("GOAWAY peer unexpectedly returned a response"))
                         }
-                        assertTrue(failure is HttpException || failure is IoClosedException || failure is PlatformException)
+                        assertTrue(failure is HttpException || failure is IoClosedException || failure is PlatformException ||
+                            failure is Http2ConnectionDrainingException)
                     }
                 } finally { listener.close() }
                 serving.join()

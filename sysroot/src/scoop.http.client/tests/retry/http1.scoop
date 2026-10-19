@@ -1,0 +1,84 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.compression.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.platform.io.UnexpectedEofException
+import scoop.test.*
+
+@Test
+private class HttpClientRetryHttp1Test {
+    @Test
+    fun `an HTTP1 request is retried twice and exhaustion preserves the final transport error`() {
+        for (succeed in [true, false]) {
+            withClientRetryTest suspend { _, scope, listener, config ->
+                val attempts = AtomicLong(0L)
+                val serving = scope.launch suspend {
+                    for (index in 0..2) {
+                        AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                            val incoming = connection.receiveRequest()!!
+                            assertEquals("GET", String.fromUtf8(incoming.head.method))
+                            incoming.body.readAllBytes(0L)
+                            attempts.fetchAdd(1L)
+                            if (index == 2 && succeed) sendClientTestText(connection, 200U, "done")
+                            Unit
+                        }
+                    }
+                }
+                withHttpClient(config) suspend { client ->
+                    val request = HttpRequest.get(clientTestUrl(listener))
+                    if (succeed) client.withResponse(request) suspend { response ->
+                        assertEquals(2L, response.retryCount)
+                        assertEquals("done", response.body.text(4L))
+                    } else expectBodyFailure<UnexpectedEofException> suspend { client.execute(request).close() }
+                }
+                serving.join()
+                assertEquals(3L, attempts.load())
+                assertFalse(scope.job.isCancelled)
+            }
+        }
+    }
+
+    @Test
+    fun `a retried PUT recreates gzip and trailers while preserving fields and request Context`() {
+        withClientRetryTest suspend { _, scope, listener, config ->
+            val factories = AtomicLong(0L)
+            val serving = scope.launch suspend {
+                for (index in 1..2) {
+                    AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                        val incoming = connection.receiveRequest()!!
+                        assertEquals("PUT", String.fromUtf8(incoming.head.method))
+                        assertEquals("kept", String.fromUtf8(incoming.head.fields.findAll("X-Test".toByteArray())[0L].value))
+                        val encoded = incoming.body.readAllBytes(100L)
+                        assertEquals("payload", String.fromUtf8(decompress(encoded, DecompressionOptions(CompressionFormat.Gzip))))
+                        assertEquals(index.toString(), String.fromUtf8(incoming.body.trailers!![0L].value))
+                        if (index == 2) sendClientTestText(connection, 200U, "done")
+                        Unit
+                    }
+                }
+            }
+            val body = RequestBody.fromProducerWithTrailersFactory(["X-Attempt"], Some(7L)) suspend {
+                assertEquals("retry context", currentBodyTestContext())
+                val attempt = factories.fetchAdd(1L) + 1L;
+                suspend { sink ->
+                    assertEquals("retry context", currentBodyTestContext())
+                    writeBodyText(sink, "payload")
+                    [HttpField("X-Attempt".toByteArray(), attempt.toString().toByteArray())]
+                }
+            }.compressed()
+            withHttpClient(config) suspend { client ->
+                context(BodyTestContext("retry context")) {
+                    client.withResponse(HttpRequest(clientTestUrl(listener), "PUT",
+                        [HttpField("X-Test".toByteArray(), "kept".toByteArray())], body)) suspend { response ->
+                        assertEquals(1L, response.retryCount)
+                        assertEquals("done", response.body.text(4L))
+                    }
+                }
+            }
+            serving.join()
+            assertEquals(2L, factories.load())
+            assertFalse(scope.job.isCancelled)
+        }
+    }
+}

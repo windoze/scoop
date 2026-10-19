@@ -1,0 +1,84 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class HttpClientRetryHttp2Test {
+    @Test
+    fun `REFUSED STREAM retries an allowed method twice but an unlisted POST only once`() {
+        for (method in ["GET", "POST"]) {
+            withClientRetryTest(version = HttpVersion.Http2) suspend { _, scope, listener, config ->
+                val done = BodyTestGate()
+                val last = if (method == "GET") 2 else 1
+                val serving = scope.launch suspend {
+                    listener.accept().useAsync suspend { socket ->
+                        RetryTestHttp2Peer(socket).use suspend { peer ->
+                            for (attempt in 0..last) {
+                                val (id, head) = peer.request()
+                                assertEquals(attempt * 2 + 1, id)
+                                assertEquals(method, String.fromUtf8(head.method))
+                                assertEquals("body", peer.body(id))
+                                if (method == "GET" && attempt == last) peer.respond(id)
+                                else { peer.session.reset(id, 7U); peer.flush() }
+                            }
+                            done.await()
+                        }
+                    }
+                }
+                try {
+                    withHttpClient(config) suspend { client ->
+                        val request = HttpRequest(clientTestUrl(listener), method, body = RequestBody.fromText("body"))
+                        if (method == "GET") client.withResponse(request) suspend { response ->
+                            assertEquals(2L, response.retryCount); assertEquals("done", response.body.text(4L))
+                        } else {
+                            val failure = expectBodyFailure<HttpException> suspend { client.execute(request).close() }
+                            assertEquals(7, failure.code); assertEquals(3, failure.streamId)
+                        }
+                    }
+                } finally { done.signal() }
+                serving.join()
+                assertFalse(scope.job.isCancelled)
+            }
+        }
+    }
+
+    @Test
+    fun `a single use POST not started before refusal is consumed exactly once after Continue`() {
+        withClientRetryTest(version = HttpVersion.Http2) suspend { _, scope, listener, config ->
+            val started = AtomicLong(0L)
+            val done = BodyTestGate()
+            val serving = scope.launch suspend {
+                listener.accept().useAsync suspend { socket ->
+                    RetryTestHttp2Peer(socket).use suspend { peer ->
+                        val (first, _) = peer.request()
+                        assertEquals(0L, started.load())
+                        peer.session.reset(first, 7U); peer.flush()
+                        val (second, head) = peer.request()
+                        assertEquals(3, second); assertEquals("POST", String.fromUtf8(head.method))
+                        assertEquals(0L, started.load())
+                        peer.session.submitResponse(second, HttpResponseHead(HttpVersion.Http2, 100U), false)
+                        peer.flush()
+                        assertEquals("once", peer.body(second))
+                        peer.respond(second)
+                        done.await()
+                    }
+                }
+            }
+            val body = RequestBody.fromProducer(Some(4L)) suspend { output -> started.fetchAdd(1L); writeBodyText(output, "once") }
+            try {
+                withHttpClient(config) suspend { client ->
+                    client.withResponse(HttpRequest.post(clientTestUrl(listener), body,
+                        options = HttpCallOptions(expectContinue = true, continueWait = Duration.seconds(3600L)))) suspend { response ->
+                        assertEquals(1L, response.retryCount); assertEquals("done", response.body.text(4L))
+                    }
+                }
+            } finally { done.signal() }
+            serving.join()
+            assertEquals(1L, started.load())
+            assertFalse(scope.job.isCancelled)
+        }
+    }
+}

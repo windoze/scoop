@@ -12,7 +12,11 @@ internal suspend fun connectClientSocket(call: ClientCall): AsyncTcpStream {
         case Dns(name) -> {
             val options = clientTcpConnectOptions(call)
             try { call.client.loop.connectTcp(OsString.fromString(name), origin.port, options) }
-            catch (error: Throwable) { throw mapClientNetworkTimeout(call, error) }
+            catch (error: Throwable) {
+                val mapped = mapClientNetworkTimeout(call, error)
+                recordClientIoFailure(call, mapped)
+                throw mapped
+            }
         }
         case Ipv4(bytes) -> connectClientAddress(call, SocketAddress(IpAddress.fromByteArray(bytes), origin.port))
         case Ipv6(bytes) -> connectClientAddress(call, SocketAddress(IpAddress.fromByteArray(bytes), origin.port))
@@ -24,7 +28,8 @@ private suspend fun connectClientAddress(call: ClientCall, address: SocketAddres
     try {
         requireClientCall(call)
         return finishClientNetworkStage(call, deadline, call.client.loop.connectTcp(address))
-    } finally { stopClientDeadline(deadline) }
+    } catch (error: Throwable) { recordClientIoFailure(call, error); throw error }
+    finally { stopClientDeadline(deadline) }
 }
 
 internal suspend fun connectClientTls(call: ClientCall, tcp: AsyncTcpStream, peer: TlsPeerName): AsyncTlsStream {
@@ -32,7 +37,8 @@ internal suspend fun connectClientTls(call: ClientCall, tcp: AsyncTcpStream, pee
     try {
         requireClientCall(call)
         return finishClientNetworkStage(call, deadline, AsyncTlsStream.takeOwnershipAsClient(tcp, call.client.tls, peer))
-    } finally { stopClientDeadline(deadline) }
+    } catch (error: Throwable) { recordClientIoFailure(call, error); throw error }
+    finally { stopClientDeadline(deadline) }
 }
 
 private suspend fun <T : AsyncCloseable> finishClientNetworkStage(call: ClientCall, deadline: ClientDeadline?, connection: T): T {

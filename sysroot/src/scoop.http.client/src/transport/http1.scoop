@@ -6,13 +6,14 @@ import scoop.http.asyncio.*
 import scoop.platform.memory.NativeByteBuffer
 import scoop.time.Duration
 
-internal class ClientH1Exchange(val connection: AsyncHttp1Connection, val output: AsyncHttp1Writer,
+internal class ClientH1Exchange(val call: ClientCall, val connection: AsyncHttp1Connection, val output: AsyncHttp1Writer,
     public override val version: HttpVersion, val readIdle: Duration?) : ClientExchange {
     private var input: AsyncHttp1Body? = None
     public override val isReadComplete: Boolean get() = clientPresent(input) && input!!.isComplete
     public override val trailers: Array<HttpField>? get() = when (input) { case Some(body) -> body.trailers; case None -> None }
     public override suspend fun receiveResponse(): HttpResponseHead {
-        val response = connection.receiveResponse(readIdle = readIdle)
+        val response = try { connection.receiveResponse(readIdle = readIdle) }
+        catch (error: Throwable) { recordClientIoFailure(call, error); throw error }
         if (response.head.status < 200U && response.head.status != 101U) {
             response.body.useAsync suspend { body -> body.readAllBytes(0L); Unit }
         } else input = Some(response.body)

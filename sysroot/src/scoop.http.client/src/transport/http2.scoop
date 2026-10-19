@@ -4,11 +4,12 @@ import scoop.http.*
 import scoop.http.asyncio.AsyncHttp2Stream
 import scoop.platform.memory.NativeByteBuffer
 
-internal class ClientH2Exchange(val stream: AsyncHttp2Stream) : ClientExchange {
+internal class ClientH2Exchange(val call: ClientCall, val stream: AsyncHttp2Stream) : ClientExchange {
     public override val version: HttpVersion get() = HttpVersion.Http2
     public override val isReadComplete: Boolean get() = stream.isReadComplete
     public override val trailers: Array<HttpField>? get() = stream.trailers
-    public override suspend fun receiveResponse(): HttpResponseHead = stream.receiveResponse()
+    public override suspend fun receiveResponse(): HttpResponseHead = try { stream.receiveResponse() }
+    catch (error: Throwable) { recordClientIoFailure(call, error, true); throw error }
     public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long = stream.readInto(buffer, count)
     public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long = stream.writeFrom(buffer, count)
     public override suspend fun flush() { stream.flush() }

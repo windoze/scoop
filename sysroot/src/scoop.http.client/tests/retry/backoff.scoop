@@ -1,0 +1,75 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.platform.time.MonotonicTimeSource
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class HttpClientRetryBackoffTest {
+    @Test
+    fun `backoff releases the call lease and stops on cancellation client close or the original total deadline`() {
+        for (mode in ["cancel", "close", "total"]) {
+            val delay = Duration.seconds(3600L)
+            val retry = HttpRetryOptions(statuses = [503U], initialDelay = delay, maxDelay = delay, jitter = false)
+            withClientRetryTest(retry) suspend { loop, scope, listener, config ->
+                val ready = BodyTestGate()
+                val proceed = BodyTestGate()
+                val done = BodyTestGate()
+                val serving = scope.launch suspend {
+                    AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                        assertEquals("sent", String.fromUtf8(connection.receiveRequest()!!.body.readAllBytes(4L)))
+                        sendRetryTestStatus(connection); ready.signal()
+                        if (mode == "cancel") {
+                            proceed.await()
+                            connection.receiveRequest()!!.body.readAllBytes(0L)
+                            sendClientTestText(connection, 200U, "next")
+                        }
+                        done.await()
+                    }
+                }
+                val client = HttpClient.open(scope, config)
+                val failure = ClientTestFailureHolder()
+                val limit = clientTimeoutTestDuration()
+                val options = HttpCallOptions(timeouts = Some(HttpTimeoutOptions(total = if (mode == "total") Some(limit) else None)))
+                val executing = scope.launch suspend {
+                    try {
+                        client.execute(HttpRequest(clientTestUrl(listener), "PUT", body = RequestBody.fromText("sent"), options = options)).close()
+                    } catch (error: Throwable) { failure.value = Some(error) }
+                }
+                try {
+                    ready.await(); waitForClientRetryBackoff(loop, client)
+                    assertEquals(0L, client.state.calls.size)
+                    if (mode == "cancel") executing.cancel()
+                    else if (mode == "close") client.close()
+                    executing.join()
+                    assertEquals(0L, client.state.retryWaits.size)
+                    val error = failure.value!!
+                    if (mode == "cancel") {
+                        assertTrue(error is CancellationException)
+                        assertFalse(client.isClosed)
+                        proceed.signal()
+                        client.withResponse(HttpRequest.get(clientTestUrl(listener))) suspend { response ->
+                            assertEquals(0L, response.retryCount); assertEquals("next", response.body.text(4L))
+                        }
+                    } else if (mode == "close") assertTrue(error is HttpClientClosedException && client.isClosed)
+                    else {
+                        assertTrue(error is HttpTimeoutException)
+                        if (error is HttpTimeoutException) checkClientTimeout(error, HttpTimeoutPhase.Total, limit, sent = 4L)
+                    }
+                } finally { proceed.signal(); done.signal(); client.close() }
+                serving.join()
+                assertFalse(scope.job.isCancelled)
+            }
+        }
+    }
+}
+
+internal suspend fun waitForClientRetryBackoff(loop: EventLoop, client: HttpClient) {
+    val start = MonotonicTimeSource.markNow()
+    while (client.state.lock.withLock { client.state.retryWaits.size == 0L }) {
+        assertTrue(MonotonicTimeSource.markNow() - start < clientTimeoutTestDuration() * 2L)
+        loop.sleep(Duration.milliseconds(1L))
+    }
+}

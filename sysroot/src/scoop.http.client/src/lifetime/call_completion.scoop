@@ -1,0 +1,61 @@
+package scoop.http.client
+
+import scoop.asyncio.IoClosedException
+
+internal class ClientCallCompletion(val call: ClientCall) : Continuation<Unit> {
+    public override fun resume(value: Unit) { finish(None) }
+    public override fun resumeWithException(exception: Throwable) { finish(Some(exception)) }
+    fun finish(error: Throwable?) {
+        val first = call.lock.withLock {
+            if (call.completed) return@withLock false
+            call.completed = true
+            true
+        }
+        if (!first) return
+        val (callerListener, jobListener) = call.lock.withLock {
+            if (clientPresent(error) && !call.abandoned && !clientPresent(call.failure)) call.failure = error
+            val saved = (call.callerListener, call.jobListener)
+            call.callerListener = None; call.jobListener = None
+            saved
+        }
+        if (clientPresent(callerListener)) callerListener!!.dispose()
+        if (clientPresent(jobListener)) jobListener!!.dispose()
+        val (hold, waiters, result) = call.lock.withLock {
+            val saved = call.hold
+            call.hold = None; call.scope = None; call.upload = None; call.caller = None; call.responseInput = None
+            val waiting = call.closeWaiters.toArray(); call.closeWaiters.clear()
+            val pending = call.result; call.result = None;
+            (saved, waiting, pending)
+        }
+        releaseClientLease(call)
+        val cleanup = call.lock.withLock { call.cleanupFailure }
+        call.client.lock.withLock {
+            var index = 0L
+            while (index < call.client.calls.size) {
+                if (call.client.calls[index] === call) { call.client.calls.removeAt(index); break }
+                index += 1L
+            }
+            if (call.client.closing && clientPresent(cleanup))
+                call.client.closeFailure = Some(clientCombined(call.client.closeFailure, cleanup!!))
+            Unit
+        }
+        wakeClient(call.client)
+        if (clientPresent(hold)) hold!!.resume(Unit)
+        if (clientPresent(result)) deliver(result!!, cleanup)
+        for (waiter in waiters) waiter.resume(Unit)
+    }
+
+    private fun deliver(result: Continuation<ClientCallResult>, cleanup: Throwable?) {
+        call.sequence.requestBodyBytes = call.requestBodyBytes
+        call.sequence.encodedResponseBodyBytes = call.encodedResponseBodyBytes
+        call.sequence.responseBodyBytes = call.responseBodyBytes
+        val failure = clientCallFailure(call)
+        val (followUp, recorded, bodyStarted) = call.lock.withLock { (call.followUp, call.ioFailure, call.bodyStarted) }
+        if (clientPresent(failure)) {
+            if (!clientPresent(cleanup) && clientPresent(recorded) && recorded!!.cause === failure!!)
+                result.resume(ClientCallResult.Failed(recorded!!, bodyStarted))
+            else result.resumeWithException(failure!!)
+        } else if (clientPresent(followUp)) result.resume(ClientCallResult.FollowUp(followUp!!))
+        else result.resumeWithException(IoClosedException())
+    }
+}

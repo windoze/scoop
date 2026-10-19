@@ -1,6 +1,7 @@
 package scoop.http.client
 
 import scoop.asyncio.IoClosedException
+import scoop.http.asyncio.Http2ConnectionDrainingException
 import scoop.platform.time.MonotonicTimeSource
 import scoop.time.Duration
 import scoop.time.TimeMark
@@ -42,7 +43,8 @@ internal fun planClientPool(state: ClientState): ClientPoolPlan {
                 }
             }
         }
-        ClientPoolPlan(actions.toArray(), delay, state.closing && state.calls.size == 0L && state.connections.size == 0L)
+        ClientPoolPlan(actions.toArray(), delay,
+            state.closing && state.calls.size == 0L && state.connections.size == 0L && state.retryWaits.size == 0L)
     }
 }
 
@@ -58,7 +60,7 @@ private fun planClientPoolClose(state: ClientState): ClientPoolPlan = state.lock
             actions.add(ClientPoolAction.Close(entry))
         }
     }
-    ClientPoolPlan(actions.toArray(), None, state.calls.size == 0L && state.connections.size == 0L)
+    ClientPoolPlan(actions.toArray(), None, state.calls.size == 0L && state.connections.size == 0L && state.retryWaits.size == 0L)
 }
 
 private fun waitingClientCall(call: ClientCall): Boolean = call.lock.withLock {
@@ -75,7 +77,7 @@ private fun maintainClientPool(state: ClientState, now: TimeMark, actions: Array
         val connection = entry.connection!!
         when (connection) {
             case Http1(value) -> if (entry.active == 0L && !value.isReusable) entry.draining = true
-            case Http2(value) -> if (value.isClosed) entry.draining = true
+            case Http2(value) -> if (value.isClosed || value.isDraining) entry.draining = true
         }
         if (!clientPresent(entry.initial)) {
             when (state.config.pool.maxLifetime) {
@@ -89,7 +91,14 @@ private fun maintainClientPool(state: ClientState, now: TimeMark, actions: Array
             if (clientPresent(entry.initial)) {
                 val first = entry.initial!!
                 entry.initial = None
-                if (waitingClientCall(first)) actions.add(ClientPoolAction.Reject(first, entry.failure ?: IoClosedException()))
+                if (waitingClientCall(first)) {
+                    val error = entry.failure ?: when (connection) {
+                        case Http2(value) -> if (value.isDraining) Http2ConnectionDrainingException() else IoClosedException()
+                        case Http1(_) -> IoClosedException()
+                    }
+                    recordClientIoFailure(first, error, when (connection) { case Http2(_) -> true; case Http1(_) -> false })
+                    actions.add(ClientPoolAction.Reject(first, error))
+                }
             }
             entry.closing = true
             actions.add(ClientPoolAction.Close(entry))
@@ -104,7 +113,8 @@ private fun assignClientLease(state: ClientState, call: ClientCall, now: TimeMar
         val connection = entry.connection!!
         val available = when (connection) {
             case Http1(value) -> entry.active == 0L && value.isReusable
-            case Http2(value) -> !value.isClosed && entry.active < entry.peerStreams && entry.active < state.config.pool.maxStreamsPerHttp2
+            case Http2(value) -> !value.isClosed && !value.isDraining &&
+                entry.active < entry.peerStreams && entry.active < state.config.pool.maxStreamsPerHttp2
         }
         if (!available) continue
         val waiter: Continuation<ClientConnection>? = call.lock.withLock {

@@ -78,6 +78,7 @@
 | 协程异常路径活跃值 | MIR 在实际调用处合并异常后继所需的旧值，挂起前保存、失败恢复后再进入原 catch／finally；正常路径的后续赋值不再丢失清理值 | 两项回归在修复前失败，修复后全部 119 项 MIR lowering 与 workspace clippy 通过；独立 Scoop 程序在旧工具上复现 GC 中止，新工具通过 debug／release、full moving 与构建复用 |
 | HTTP/2 未发送请求拒绝 | 已排队请求因 GOAWAY 无法发送时，保留 nghttp2 实际交付的 REFUSED_STREAM，不把同一次未发送回调重复报告为普通失败；其他发送错误保持原语义 | 新增 2 项测试与 HTTP 全部 246 项通过 debug／release；新测试和 2 项发送错误／输出尾部回归通过 full moving，正式消费者在旧库复现、新库通过两种构建和复用 |
 | 字符集 NFC | scoop.charset 的 normalizeNfc 复用已有 libunistring，处理规范组合、顺序、排除与 Hangul；保留 NUL／BOM，不做兼容折叠或通过 IDNA 转换普通文本 | 新增 3 项测试与字符集全部 14 项通过 debug／release；新测试通过 full moving，正式消费者组合 Basic 字段、Digest 摘要、UTF-16 往返和双线程生产库消费 |
+| client 重试 | 默认最多两次，按实际网络失败、方法语义及 body 重放能力选择；明确未处理、状态策略、Retry-After、指数退避与取消共享整个调用的截止和累计进度 | 新增 18 项测试，client 全部 158 项通过 debug／release；24 项相关用例逐例通过两种构建的 full moving，独立 H1／H2 对端及正式构建复用通过 |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -351,9 +352,11 @@ Linux 组合回归中的连接池对端把已发送请求的空 trailing HEADERS
 
 以上未发送请求拒绝与 NFC 两项正式消费者在 GNU／musl 各通过 4 个变体、12 个步骤进程，包含 debug／release、full moving 和正常构建复用，三个目标验证闭合。正常准备入口更新目标生产库，无须重跑未修改的编译器测试。清理已被修复后结果替代的重试与 GOAWAY 诊断 target，释放约 330 MiB；保留源码、目标资源、缓存和原始日志。
 
+重试正式消费者 m54-client-retries 在 Darwin 通过 debug／release 两个变体、6 个步骤进程，两个 native 线程各执行六类独立 Python 对端流程。覆盖 gzip／trailer／Continue 重放、H2 REFUSED_STREAM 与初始 GOAWAY、状态重试和重定向共存、默认 POST 拒绝重试，以及总截止保留已发送字节；包含 full moving 与正常构建复用。原初始 GOAWAY 故障由 HTTP 库的未发送回调修复闭合。24 项新旧库用例共 48 个 full moving 进程通过，覆盖同类型用户异常不重试、来源清理失败、退避取消和响应交付后的边界。
+
 ## 后续工作
 
-继续完成重试／认证／代理、Cookie、缓存／续传、SSE／WebSocket 高层组合和可观察性。每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
+继续完成认证／代理、Cookie、缓存／续传、SSE／WebSocket 高层组合和可观察性。每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
 
 ## 验证安排
 

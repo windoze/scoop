@@ -1,0 +1,50 @@
+package scoop.http.client
+
+import scoop.platform.time.MonotonicTimeSource
+import scoop.time.Duration
+
+internal suspend fun awaitClientRetry(state: ClientState, caller: Job, sequence: ClientRequestSequence, delay: Duration) {
+    caller.ensureActive()
+    val failure = try {
+        coroutineScope<Throwable?> suspend { scope ->
+            val registered = state.lock.withLock {
+                if (state.closing) false else { state.retryWaits.add(scope.job); true }
+            }
+            if (!registered) return@coroutineScope Some(HttpClientClosedException())
+            try {
+                scope.job.ensureActive()
+                val remaining = clientRetryRemainingTotal(sequence)
+                val wait = if (clientPresent(remaining) && remaining!! < delay) remaining!! else delay
+                if (wait > Duration.ZERO) state.loop.sleep(wait)
+                scope.job.ensureActive()
+                clientRetryRemainingTotal(sequence)
+                None
+            } catch (error: Throwable) { Some(error) }
+            finally {
+                state.lock.withLock {
+                    var index = 0L
+                    while (index < state.retryWaits.size) {
+                        if (state.retryWaits[index] === scope.job) { state.retryWaits.removeAt(index); break }
+                        index += 1L
+                    }
+                }
+                wakeClient(state)
+            }
+        }
+    } catch (error: CancellationException) {
+        caller.ensureActive()
+        if (state.lock.withLock { state.closing }) throw HttpClientClosedException()
+        throw error
+    }
+    caller.ensureActive()
+    if (state.lock.withLock { state.closing }) throw HttpClientClosedException()
+    if (clientPresent(failure)) throw failure!!
+}
+
+private fun clientRetryRemainingTotal(sequence: ClientRequestSequence): Duration? {
+    val limit = sequence.timeouts.total ?: return None
+    val elapsed = MonotonicTimeSource.markNow() - sequence.started!!
+    if (elapsed >= limit) throw HttpTimeoutException(HttpTimeoutPhase.Total, limit, elapsed,
+        sequence.requestBodyBytes, sequence.encodedResponseBodyBytes, sequence.responseBodyBytes)
+    return Some(limit - elapsed)
+}

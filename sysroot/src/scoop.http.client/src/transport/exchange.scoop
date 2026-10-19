@@ -26,14 +26,17 @@ internal suspend fun openClientExchange(call: ClientCall, connection: ClientConn
             val upgrading = call.client.lock.withLock { entry.h2cPending }
             val head = clientRequestHead(request, version, call.client.config)
             val prepared = if (upgrading) prepareHttp2Upgrade(head, call.client.config.http2Settings) else head
-            val exchange = ClientH1Exchange(value, value.sendRequest(prepared, framing, writeIdle = call.timeouts.writeIdle),
-                version, call.timeouts.readIdle)
+            val output = try { value.sendRequest(prepared, framing, writeIdle = call.timeouts.writeIdle) }
+            catch (error: Throwable) { recordClientIoFailure(call, error); throw error }
+            val exchange = ClientH1Exchange(call, value, output, version, call.timeouts.readIdle)
             if (upgrading) ClientH2cExchange(call, entry, exchange) else exchange
         }
         case Http2(value) -> {
-            val stream = value.openRequest(clientRequestHead(request, HttpVersion.Http2, call.client.config), false, clientIoTimeouts(call))
+            val stream = try {
+                value.openRequest(clientRequestHead(request, HttpVersion.Http2, call.client.config), false, clientIoTimeouts(call))
+            } catch (error: Throwable) { recordClientIoFailure(call, error, true); throw error }
             bindClientHttp2Stream(call, stream)
-            ClientH2Exchange(stream)
+            ClientH2Exchange(call, stream)
         }
     }
 }

@@ -1,0 +1,45 @@
+package scoop.http.client
+
+import scoop.asyncio.IoClosedException
+import scoop.asyncio.TcpConnectException
+import scoop.http.*
+import scoop.http.asyncio.Http2ConnectionDrainingException
+import scoop.platform.io.UnexpectedEofException
+import scoop.platform.system.PlatformErrorKind
+import scoop.platform.system.PlatformException
+
+internal enum ClientRetryReason { Connection, NotProcessed }
+internal class ClientIoFailure(val cause: Throwable, val reason: ClientRetryReason)
+
+// Call only at an actual transport boundary, before propagating its original error.
+internal fun recordClientIoFailure(call: ClientCall, error: Throwable, http2: Boolean = false) {
+    val reason = clientRetryReason(error, http2)
+    if (!clientPresent(reason)) return
+    call.lock.withLock {
+        if (!call.completed && (!clientPresent(call.failure) || call.failure!! === error))
+            call.ioFailure = Some(ClientIoFailure(error, reason!!))
+        Unit
+    }
+}
+
+internal fun recordClientUploadIoFailure(call: ClientCall, error: Throwable, http2: Boolean) {
+    call.lock.withLock { call.uploadIoFailure = Some(error) }
+    recordClientIoFailure(call, error, http2)
+}
+
+private fun clientRetryReason(error: Throwable, http2: Boolean): ClientRetryReason? {
+    if (error is Http2ConnectionDrainingException) return Some(ClientRetryReason.NotProcessed)
+    if (error is HttpException && error.protocol == HttpProtocol.Http2 &&
+        error.scope == HttpFailureScope.Stream && error.code == 7) return Some(ClientRetryReason.NotProcessed)
+    if (error is UnexpectedEofException || (http2 && error is IoClosedException)) return Some(ClientRetryReason.Connection)
+    if (retryableClientSocketFailure(error)) return Some(ClientRetryReason.Connection)
+    if (error is TcpConnectException && error.attempts.size != 0L) {
+        for (attempt in error.attempts) if (!retryableClientSocketFailure(attempt.cause)) return None
+        return Some(ClientRetryReason.Connection)
+    }
+    return None
+}
+
+private fun retryableClientSocketFailure(error: Throwable): Boolean =
+    error is PlatformException && (error.kind == PlatformErrorKind.BrokenPipe ||
+        error.kind == PlatformErrorKind.ConnectionReset || error.kind == PlatformErrorKind.ConnectionRefused)

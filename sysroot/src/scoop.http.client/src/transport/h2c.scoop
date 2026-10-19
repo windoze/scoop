@@ -30,7 +30,7 @@ internal class ClientH2cExchange(val call: ClientCall, val entry: ClientPoolEntr
         original.close()
         val connection = awaitClientUpgrade(call, entry, original.connection)
         val stream = connection.upgradedStream!!
-        current = ClientH2Exchange(stream)
+        current = ClientH2Exchange(call, stream)
         bindClientHttp2Stream(call, stream)
         return current.receiveResponse()
     }

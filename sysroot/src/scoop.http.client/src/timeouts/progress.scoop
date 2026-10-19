@@ -1,14 +1,19 @@
 package scoop.http.client
 
 import scoop.asyncio.*
+import scoop.http.HttpVersion
 import scoop.platform.memory.NativeByteBuffer
 
-internal suspend fun sendClientBytes(call: ClientCall, destination: AsyncByteSink, buffer: NativeByteBuffer, count: Long): Long {
-    if (!call.tracksProgress) return destination.writeFrom(buffer, count)
-    val before = buffer.readPosition
+internal suspend fun sendClientBytes(call: ClientCall, destination: ClientExchange, buffer: NativeByteBuffer, count: Long): Long {
+    val before = if (call.tracksProgress) buffer.readPosition else 0L
     val written = try { destination.writeFrom(buffer, count) }
-    finally { call.lock.withLock { call.requestBodyBytes = addClientProgress(call.requestBodyBytes, buffer.readPosition - before) } }
-    requireClientCall(call)
+    catch (error: Throwable) { recordClientUploadIoFailure(call, error, destination.version == HttpVersion.Http2); throw error }
+    finally {
+        if (call.tracksProgress)
+            call.lock.withLock { call.requestBodyBytes = addClientProgress(call.requestBodyBytes, buffer.readPosition - before) }
+        Unit
+    }
+    if (call.tracksProgress) requireClientCall(call)
     return written
 }
 

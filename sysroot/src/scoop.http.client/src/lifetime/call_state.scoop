@@ -16,7 +16,9 @@ internal class ClientCall(
     val lock: ClientLock = ClientLock()
     var caller: Job? = Some(caller)
     var result: Continuation<ClientCallResult>? = Some(result)
-    var redirect: ClientRedirect? = None
+    var followUp: ClientFollowUp? = None
+    var ioFailure: ClientIoFailure? = None
+    var uploadIoFailure: Throwable? = None
     var scope: CoroutineScope? = None
     var hold: Continuation<Unit>? = None
     var callerListener: Disposable? = None
@@ -36,6 +38,7 @@ internal class ClientCall(
     var encodedResponseBodyBytes: Long = sequence.encodedResponseBodyBytes
     var responseBodyBytes: Long = sequence.responseBodyBytes
     var upload: Job? = None
+    var bodyStarted: Boolean = false
     var readDone: Boolean = false
     var uploadDone: Boolean = false
     var uploadComplete: Boolean = false
@@ -75,7 +78,7 @@ internal fun cancelClientCall(call: ClientCall, error: Throwable) {
     wakeClient(call.client)
 }
 
-internal fun failClientCall(call: ClientCall, error: Throwable) {
+internal fun failClientCall(call: ClientCall, error: Throwable, preserveSecondary: Boolean = false) {
     val failure = mapClientIoTimeout(call, error)
     call.lock.withLock {
         if (call.completed || (clientPresent(call.failure) && sameClientFailure(call.failure!!, failure))) return@withLock
@@ -84,6 +87,8 @@ internal fun failClientCall(call: ClientCall, error: Throwable) {
             else if (!(failure is CancellationException)) call.cleanupFailure = Some(clientCombined(call.cleanupFailure, failure))
         } else if (!clientPresent(call.failure)) call.failure = Some(failure)
         else if (failure is ResourceUseException) call.cleanupFailure = Some(clientCombined(call.cleanupFailure, failure.cleanupFailure))
+        else if (preserveSecondary && !(failure is CancellationException))
+            call.cleanupFailure = Some(clientCombined(call.cleanupFailure, failure))
         Unit
     }
     cancelClientCall(call, failure)

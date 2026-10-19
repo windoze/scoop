@@ -1,6 +1,7 @@
 package scoop.http.client
 
 import scoop.asyncio.AsyncByteSink
+import scoop.http.HttpVersion
 import scoop.platform.memory.NativeByteBuffer
 
 private class ClientUploadStoppedException : Exception(Some("final response stopped further request body output"))
@@ -11,13 +12,18 @@ internal suspend fun sendClientBody(call: ClientCall, exchange: ClientExchange) 
         if (!awaitClientContinue(call)) return
         val sink = RequestBodySink(ClientUploadSink(call, exchange), call.request.contentLength)
         try {
+            call.lock.withLock { call.bodyStarted = true }
             val result = call.request.body.writeWithTrailersTo(sink)
             sink.finish()
-            exchange.finish(result.trailers)
+            try { exchange.finish(result.trailers) }
+            catch (error: Throwable) { recordClientUploadIoFailure(call, error, exchange.version == HttpVersion.Http2); throw error }
             complete = true
         } finally { sink.end() }
     } catch (_: ClientUploadStoppedException) {
-    } catch (error: Throwable) { failClientCall(call, error) }
+    } catch (error: Throwable) {
+        val transport = call.lock.withLock { call.uploadIoFailure }
+        failClientCall(call, error, !clientPresent(transport) || !sameClientFailure(transport!!, error))
+    }
     finally {
         val finished = complete
         call.lock.withLock { call.uploadDone = true; call.uploadComplete = finished }
@@ -25,7 +31,7 @@ internal suspend fun sendClientBody(call: ClientCall, exchange: ClientExchange) 
     }
 }
 
-private class ClientUploadSink(val call: ClientCall, val destination: AsyncByteSink) : AsyncByteSink {
+private class ClientUploadSink(val call: ClientCall, val destination: ClientExchange) : AsyncByteSink {
     private fun requireSending() {
         requireClientCall(call)
         if (call.lock.withLock { call.stopUpload }) throw ClientUploadStoppedException()
@@ -34,5 +40,9 @@ private class ClientUploadSink(val call: ClientCall, val destination: AsyncByteS
         requireSending()
         return sendClientBytes(call, destination, buffer, count)
     }
-    public override suspend fun flush() { requireSending(); destination.flush() }
+    public override suspend fun flush() {
+        requireSending()
+        try { destination.flush() }
+        catch (error: Throwable) { recordClientUploadIoFailure(call, error, destination.version == HttpVersion.Http2); throw error }
+    }
 }
