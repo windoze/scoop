@@ -1,0 +1,33 @@
+package scoop.http.client
+
+import scoop.time.Duration
+
+public class HttpTimeoutOptions public constructor(
+    public val total: Duration? = None,
+    public val poolAcquire: Duration? = None,
+    public val responseHeaders: Duration? = None
+) {
+    init {
+        for (duration in [total, poolAcquire, responseHeaders]) {
+            if (duration != None && duration!! < Duration.ZERO)
+                throw IllegalArgumentException(Some("HTTP timeout must be nonnegative"))
+        }
+    }
+}
+
+public enum HttpTimeoutPhase { Total, PoolAcquire, ResponseHeaders }
+
+public class HttpTimeoutException internal constructor(
+    public val phase: HttpTimeoutPhase,
+    public val limit: Duration,
+    public val elapsed: Duration,
+    public val requestBodyBytes: Long,
+    public val encodedResponseBodyBytes: Long,
+    public val responseBodyBytes: Long
+) : Exception(Some("HTTP " + httpTimeoutPhaseName(phase) + " timeout"))
+
+private fun httpTimeoutPhaseName(phase: HttpTimeoutPhase): String = when (phase) {
+    case Total -> "total"
+    case PoolAcquire -> "pool acquisition"
+    case ResponseHeaders -> "response headers"
+}

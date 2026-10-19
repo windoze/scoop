@@ -1,0 +1,41 @@
+package scoop.http.client
+
+import scoop.platform.time.MonotonicTimeSource
+import scoop.time.Duration
+import scoop.time.TimeMark
+
+internal fun checkClientDeadlines(call: ClientCall) {
+    if (!call.tracksProgress) return
+    try {
+        val now = MonotonicTimeSource.markNow()
+        val error = call.lock.withLock { selectExpiredClientDeadline(call, now) }
+        if (clientPresent(error)) cancelClientCall(call, error!!)
+    } catch (error: Throwable) { failClientCall(call, error) }
+}
+
+// The caller holds call.lock. Relative lateness avoids overflowing absolute marks.
+internal fun selectExpiredClientDeadline(call: ClientCall, now: TimeMark): HttpTimeoutException? {
+    var selected: ClientDeadline? = None
+    var overdue = Duration.ZERO
+    for (deadline in call.deadlines) {
+        if (!deadline.active) continue
+        val elapsed = now - deadline.started
+        if (elapsed < deadline.limit) continue
+        val late = elapsed - deadline.limit
+        if (!clientPresent(selected) || late > overdue) { selected = Some(deadline); overdue = late }
+    }
+    return if (clientPresent(selected)) selectClientTimeout(selected!!, now - selected!!.started) else None
+}
+
+// The caller holds deadline.call.lock; cancellation runs after releasing it.
+internal fun selectClientTimeout(deadline: ClientDeadline, elapsed: Duration): HttpTimeoutException? {
+    val call = deadline.call
+    if (!deadline.active) return None
+    deadline.active = false
+    if (call.ending || call.completed || clientPresent(call.failure) || clientPresent(call.cleanupFailure)) return None
+    val selected = HttpTimeoutException(deadline.phase, deadline.limit, elapsed,
+        call.requestBodyBytes, call.encodedResponseBodyBytes, call.responseBodyBytes)
+    call.failure = Some(selected)
+    call.ending = true
+    return Some(selected)
+}

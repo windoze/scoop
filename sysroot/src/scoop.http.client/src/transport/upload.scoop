@@ -32,7 +32,7 @@ private class ClientUploadSink(val call: ClientCall, val destination: AsyncByteS
     }
     public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long {
         requireSending()
-        return destination.writeFrom(buffer, count)
+        return sendClientBytes(call, destination, buffer, count)
     }
     public override suspend fun flush() { requireSending(); destination.flush() }
 }

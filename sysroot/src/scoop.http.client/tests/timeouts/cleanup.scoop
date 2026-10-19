@@ -1,0 +1,51 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class HttpClientTimeoutCleanupTest {
+    @Test
+    fun `total expiry covers source closing and cannot return a still borrowed resource early`() {
+        val limit = clientTimeoutTestDuration()
+        withClientTimeoutTest(HttpTimeoutOptions(total = Some(limit))) suspend { loop, scope, listener, config ->
+            val source = BodyTestSource("send".toByteArray())
+            source.holdClose = true
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    assertEquals("send", String.fromUtf8(connection.receiveRequest()!!.body.readAllBytes(4L)))
+                    sendClientTestText(connection, 200U, "ok")
+                }
+            }
+            try {
+                withHttpClient(config) suspend { client ->
+                    val body = RequestBody.fromSourceFactory(Some(4L)) suspend { source }
+                    val response = client.execute(HttpRequest.post(clientTestUrl(listener), body))
+                    source.closeStarted.await()
+                    NativeByteBuffer.allocate(2L).use suspend { buffer -> response.body.readFully(buffer) }
+                    assertTrue(response.body.isComplete)
+                    loop.sleep(limit + Duration.milliseconds(10L))
+                    val failure = ClientTestFailureHolder()
+                    val closing = scope.launch suspend {
+                        try { response.close() } catch (error: Throwable) { failure.value = Some(error) }
+                    }
+                    assertFalse(closing.isCompleted)
+                    assertEquals(1L, source.closes)
+                    source.closeRelease.signal()
+                    closing.join()
+                    val error = failure.value!!
+                    assertTrue(error is HttpTimeoutException)
+                    if (error is HttpTimeoutException)
+                        checkClientTimeout(error, HttpTimeoutPhase.Total, limit, sent = 4L, encoded = 2L, received = 2L)
+                    assertTrue(source.buffer!!.isClosed)
+                    response.close()
+                }
+            } finally { source.closeRelease.signal() }
+            serving.join()
+            assertFalse(scope.job.isCancelled)
+        }
+    }
+}

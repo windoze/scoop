@@ -20,7 +20,7 @@ internal fun planClientPool(state: ClientState): ClientPoolPlan {
         while (index < pending) {
             val call = state.waiting.removeFirst()
             if (!state.closing && waitingClientCall(call)) {
-                if (!assignClientLease(state, call, actions)) {
+                if (!assignClientLease(state, call, now, actions)) {
                     reserveClientConnection(state, call, now, actions)
                     state.waiting.addLast(call)
                 }
@@ -97,7 +97,7 @@ private fun maintainClientPool(state: ClientState, now: TimeMark, actions: Array
     }
 }
 
-private fun assignClientLease(state: ClientState, call: ClientCall, actions: ArrayList<ClientPoolAction>): Boolean {
+private fun assignClientLease(state: ClientState, call: ClientCall, now: TimeMark, actions: ArrayList<ClientPoolAction>): Boolean {
     for (entry in state.connections) {
         if (entry.origin != call.request.origin || entry.connecting || entry.closing || entry.draining) continue
         if (clientPresent(entry.initial) && entry.initial!! !== call) continue
@@ -109,8 +109,15 @@ private fun assignClientLease(state: ClientState, call: ClientCall, actions: Arr
         if (!available) continue
         val waiter: Continuation<ClientConnection>? = call.lock.withLock {
             if (call.ending || call.completed) return@withLock None
+            val expiry = finishClientPoolWait(call, now)
+            if (clientPresent(expiry)) {
+                actions.add(ClientPoolAction.Reject(call, expiry!!))
+                return@withLock None
+            }
             val saved = call.dialWaiter
-            if (clientPresent(saved)) { call.dialWaiter = None; call.lease = Some(entry) }
+            if (clientPresent(saved)) {
+                call.dialWaiter = None; call.lease = Some(entry)
+            }
             saved
         }
         if (!clientPresent(waiter)) return true
@@ -141,6 +148,12 @@ private fun reserveClientConnection(state: ClientState, call: ClientCall, now: T
         if (clientPresent(oldest)) oldest!!.draining = true
         return
     }
+    val admitted = call.lock.withLock {
+        if (call.ending || call.completed) return@withLock false
+        val expiry = finishClientPoolWait(call, now)
+        if (clientPresent(expiry)) { actions.add(ClientPoolAction.Reject(call, expiry!!)); false } else true
+    }
+    if (!admitted) return
     val entry = ClientPoolEntry(call.request.origin, call, now)
     entry.h2cPending = call.request.origin.scheme == "http" && state.config.cleartext == HttpCleartextProtocol.H2cUpgrade
     state.connections.add(entry)

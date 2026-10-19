@@ -1,0 +1,35 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.platform.memory.NativeByteBuffer
+
+internal suspend fun sendClientBytes(call: ClientCall, destination: AsyncByteSink, buffer: NativeByteBuffer, count: Long): Long {
+    if (!call.tracksProgress) return destination.writeFrom(buffer, count)
+    val before = buffer.readPosition
+    val written = try { destination.writeFrom(buffer, count) }
+    finally { call.lock.withLock { call.requestBodyBytes = addClientProgress(call.requestBodyBytes, buffer.readPosition - before) } }
+    requireClientCall(call)
+    return written
+}
+
+internal suspend fun receiveClientBytes(call: ClientCall, source: AsyncByteSource, buffer: NativeByteBuffer,
+    count: Long, encoded: Boolean): Long {
+    if (!call.tracksProgress) return source.readInto(buffer, count)
+    val before = buffer.writePosition
+    try { return source.readInto(buffer, count) }
+    finally {
+        val amount = buffer.writePosition - before
+        call.lock.withLock {
+            if (encoded) call.encodedResponseBodyBytes = addClientProgress(call.encodedResponseBodyBytes, amount)
+            else call.responseBodyBytes = addClientProgress(call.responseBodyBytes, amount)
+        }
+    }
+}
+
+internal class ClientResponseWireSource(private val call: ClientCall) : AsyncByteSource {
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long =
+        receiveClientBytes(call, call.exchange!!, buffer, count, true)
+}
+
+private fun addClientProgress(previous: Long, count: Long): Long =
+    if (count > Long.MAX_VALUE - previous) Long.MAX_VALUE else previous + count

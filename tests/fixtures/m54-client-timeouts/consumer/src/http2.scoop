@@ -1,0 +1,24 @@
+import scoop.asyncio.*
+import scoop.http.client.*
+import scoop.time.Duration
+import scoop.url.Url
+
+internal class TimeoutResult { var failure: HttpTimeoutException? = None }
+
+internal suspend fun timeoutHttp2(client: HttpClient, url: Url, scope: CoroutineScope) {
+    val limit = Duration.seconds(15L)
+    val result = TimeoutResult()
+    val executing = scope.launch suspend {
+        result.failure = Some(timeoutFailure suspend {
+            client.execute(HttpRequest.get(url.resolve("/stalled"),
+                options = HttpCallOptions(timeouts = Some(HttpTimeoutOptions(responseHeaders = Some(limit)))))); Unit
+        })
+    }
+    val second = client.execute(HttpRequest.get(url.resolve("/concurrent")))
+    executing.join()
+    timeoutPhase(result.failure!!, HttpTimeoutPhase.ResponseHeaders, limit)
+    timeoutCheck(second.body.text(2L) == "ok"); second.close()
+    client.withResponse(HttpRequest.get(url.resolve("/after"))) suspend { response ->
+        timeoutCheck(response.body.text(2L) == "ok")
+    }
+}

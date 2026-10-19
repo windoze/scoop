@@ -6,7 +6,7 @@ import scoop.compression.asyncio.AsyncDecompressionSource
 import scoop.platform.memory.NativeByteBuffer
 
 internal class ClientResponseCodec(private val call: ClientCall, private val plan: ClientResponseDecoding) : AsyncByteSource, AsyncCloseable {
-    private val original: AsyncByteSource = call.exchange!!
+    private val original: AsyncByteSource = if (call.tracksProgress) ClientResponseWireSource(call) else call.exchange!!
     private var source: AsyncByteSource = original
     private var prepared: Boolean = false
     private val codecs: ArrayList<AsyncDecompressionSource> = ArrayList<AsyncDecompressionSource>()

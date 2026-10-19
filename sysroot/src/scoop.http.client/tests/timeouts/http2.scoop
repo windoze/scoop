@@ -1,0 +1,57 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp2Connection
+import scoop.test.*
+
+@Test
+private class HttpClientHttp2TimeoutTest {
+    @Test
+    fun `a header timeout cancels one HTTP2 stream while another response and later stream complete`() {
+        val limit = clientTimeoutTestDuration()
+        withClientTimeoutTest(version = HttpVersion.Http2) suspend { _, scope, listener, config ->
+            val accepted = BodyTestGate()
+            val done = BodyTestGate()
+            val serving = scope.launch suspend {
+                AsyncHttp2Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    val first = connection.acceptRequest()!!.stream
+                    assertEquals(1, first.id); first.readAllBytes(0L)
+                    accepted.signal()
+                    val second = connection.acceptRequest()!!.stream
+                    assertEquals(3, second.id); second.readAllBytes(0L)
+                    second.sendResponse(HttpResponseHead(HttpVersion.Http2, 200U), false)
+                    writeBodyText(second, "second"); second.finish()
+                    val third = connection.acceptRequest()!!.stream
+                    assertEquals(5, third.id); third.readAllBytes(0L)
+                    third.sendResponse(HttpResponseHead(HttpVersion.Http2, 204U))
+                    done.await()
+                }
+            }
+            try {
+                withHttpClient(config) suspend { client ->
+                    val failure = ClientTestFailureHolder()
+                    val executing = scope.launch suspend {
+                        try {
+                            client.execute(HttpRequest.get(clientTestUrl(listener),
+                                options = HttpCallOptions(timeouts = Some(HttpTimeoutOptions(responseHeaders = Some(limit))))))
+                            fail(Some("stalled headers succeeded"))
+                        } catch (error: Throwable) { failure.value = Some(error) }
+                    }
+                    accepted.await()
+                    val second = client.execute(HttpRequest.get(clientTestUrl(listener)))
+                    executing.join()
+                    val error = failure.value!!
+                    assertTrue(error is HttpTimeoutException)
+                    if (error is HttpTimeoutException) checkClientTimeout(error, HttpTimeoutPhase.ResponseHeaders, limit)
+                    assertEquals("second", second.body.text(6L)); second.close()
+                    client.withResponse(HttpRequest.get(clientTestUrl(listener))) suspend { response ->
+                        assertEquals(204U, response.status); response.body.bytes(0L); Unit
+                    }
+                }
+            } finally { done.signal() }
+            serving.join()
+            assertFalse(scope.job.isCancelled)
+        }
+    }
+}

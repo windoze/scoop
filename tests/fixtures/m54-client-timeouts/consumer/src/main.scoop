@@ -1,0 +1,55 @@
+import scoop.asyncio.*
+import scoop.crypto.testdata.rootPem
+import scoop.crypto.x509.TrustStore
+import scoop.http.client.*
+import scoop.platform.concurrent.Thread
+import scoop.time.Duration
+import scoop.tls.TlsTrustSource
+import scoop.url.Url
+
+internal fun timeoutCheck(value: Boolean) {
+    if (!value) throw IllegalStateException(Some("HTTP client timeout integration check failed"))
+}
+
+internal suspend fun timeoutFailure(block: suspend () -> Unit): HttpTimeoutException {
+    try { block() }
+    catch (error: HttpTimeoutException) { return error }
+    throw IllegalStateException(Some("expected HTTP timeout"))
+}
+
+internal fun timeoutPhase(error: HttpTimeoutException, phase: HttpTimeoutPhase, limit: Duration) {
+    timeoutCheck(error.phase == phase && error.limit == limit && error.elapsed >= limit)
+}
+
+private fun exercise(mode: String, url: Url, trust: TrustStore) {
+    val config = HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
+        cleartext = if (mode == "h2") HttpCleartextProtocol.Http2PriorKnowledge else HttpCleartextProtocol.Http1,
+        pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 1L, maxStreamsPerHttp2 = 2L))
+    LibuvEventLoop().run suspend { scope ->
+        withHttpClient(config) suspend { client ->
+            when (mode) {
+                case "pool" -> timeoutPool(client, url)
+                case "headers" -> timeoutHeaders(client, url, mode)
+                case "boundary" -> timeoutHeaders(client, url, mode)
+                case "total-boundary" -> timeoutHeaders(client, url, mode)
+                case "decoded" -> timeoutDecoded(client, url)
+                case "h2" -> timeoutHttp2(client, url, scope)
+                else -> throw IllegalArgumentException(Some("unknown timeout fixture mode"))
+            }
+        }
+        timeoutCheck(!scope.job.isCancelled)
+    }
+}
+
+fun main(args: Array<String>) {
+    timeoutCheck(args.size == 3L)
+    val mode = args[1L]
+    val url = Url.parse(args[2L])
+    TrustStore.fromPem(rootPem()).use { trust ->
+        Thread.start { exercise(mode, url, trust) }.use { thread ->
+            exercise(mode, url, trust)
+            thread.join()
+        }
+    }
+    println("timeout " + mode)
+}

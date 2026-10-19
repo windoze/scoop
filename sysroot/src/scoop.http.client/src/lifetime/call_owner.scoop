@@ -34,10 +34,13 @@ private suspend fun runClientCall(call: ClientCall) {
         val callerListener = caller.invokeOnCancellation { error -> cancelClientCall(call, error) }
         call.lock.withLock { call.jobListener = Some(jobListener); call.callerListener = Some(callerListener) }
         try {
+            startClientDeadline(call, scope, HttpTimeoutPhase.Total, call.timeouts.total, call.started)
             requireClientCall(call)
+            startClientDeadline(call, scope, HttpTimeoutPhase.PoolAcquire, call.timeouts.poolAcquire)
             val connection = awaitClientConnection(call)
             val exchange = openClientExchange(call, connection)
             call.lock.withLock { call.exchange = Some(exchange) }
+            val headersDeadline = startClientDeadline(call, scope, HttpTimeoutPhase.ResponseHeaders, call.timeouts.responseHeaders)
             val uploading = scope.launch suspend { sendClientBody(call, exchange) }
             call.lock.withLock { call.upload = Some(uploading) }
             while (true) {
@@ -47,6 +50,8 @@ private suspend fun runClientCall(call: ClientCall) {
                     call.request.options.onInformational(head)
                     continue
                 }
+                requireClientCall(call)
+                finishClientDeadline(headersDeadline)
                 val response = HttpResponse(call, head)
                 call.lock.withLock { call.responseInput = Some(response.input) }
                 settleClientContinue(call, false)
@@ -65,7 +70,8 @@ private suspend fun runClientCall(call: ClientCall) {
         finally {
             val uploading = call.lock.withLock { call.upload }
             if (clientPresent(uploading)) uploading!!.cancel()
-            cleanupClientExchange(call)
+            try { cleanupClientExchange(call) }
+            finally { stopClientDeadlines(call) }
         }
     }
 }

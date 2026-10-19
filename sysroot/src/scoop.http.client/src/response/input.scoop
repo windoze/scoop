@@ -12,13 +12,17 @@ internal class ClientResponseInput(val call: ClientCall, val plan: ClientRespons
         if (closed.load()) throw IoClosedException()
         if (count < 0L) throw IllegalArgumentException(Some("negative HTTP response read count"))
         if (count > buffer.writableBytes) throw IndexOutOfBoundsException()
+        checkClientDeadlines(call)
         val failure = observeClientCallFailure(call)
         if (clientPresent(failure)) throw failure!!
         if (isComplete || count == 0L) return 0L
         val scope = call.lock.withLock { call.scope ?: throw IoClosedException() }
         val job = scope.job
         try {
-            val result = context(job) { codec.readInto(buffer, count) }
+            val result = context(job) { receiveClientBytes(call, codec, buffer, count, false) }
+            checkClientDeadlines(call)
+            val expired = observeClientCallFailure(call)
+            if (clientPresent(expired)) throw expired!!
             if (result == 0L || (plan.formats.size == 0L && call.exchange!!.isReadComplete)) {
                 call.lock.withLock { call.readDone = true }
                 wakeClientCall(call)
