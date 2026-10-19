@@ -31,18 +31,8 @@ internal class ClientDownload(val client: ClientState, val caller: Job, initial:
     }
 
     fun timeout(): HttpTimeoutException {
-        val active = client.lock.withLock {
-            var current = responseCall
-            for (call in client.calls) if (call.sequence === sequence) current = Some(call)
-            current
-        }
-        val progress = when (active) {
-            case Some(call) -> call.lock.withLock { (call.requestBodyBytes, call.encodedResponseBodyBytes, call.responseBodyBytes) }
-            case None -> (sequence.requestBodyBytes, sequence.encodedResponseBodyBytes, sequence.responseBodyBytes)
-        }
-        val (sent, encoded, decoded) = progress
-        return HttpTimeoutException(HttpTimeoutPhase.Total, sequence.timeouts.total!!,
-            MonotonicTimeSource.markNow() - sequence.started!!, sent, encoded, decoded)
+        val (current, previous) = client.lock.withLock { (sequence, responseCall) }
+        return clientSequenceTimeout(client, current, previous)
     }
 }
 

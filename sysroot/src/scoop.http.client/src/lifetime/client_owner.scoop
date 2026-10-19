@@ -55,6 +55,7 @@ private class ClientOwnerCompletion(val state: ClientState) : Continuation<Unit>
 internal suspend fun closeClient(state: ClientState) {
     if (state.lock.withLock { state.closed }) return
     checkClientDownloadClose(state)
+    checkClientSseClose(state)
     clientJob(state.loop, false)
     suspendCoroutine<Unit> { continuation ->
         val closed = state.lock.withLock {

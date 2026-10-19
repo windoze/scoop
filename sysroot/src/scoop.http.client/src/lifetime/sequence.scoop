@@ -20,6 +20,7 @@ internal class ClientRequestSequence(config: HttpClientConfig, request: HttpRequ
     var requestBodyBytes: Long = 0L
     var encodedResponseBodyBytes: Long = 0L
     var responseBodyBytes: Long = 0L
+    var lastTransportFailure: Throwable? = None
 }
 
 internal enum ClientFollowUp { Redirect(ClientRedirect), Retry(Duration), Authenticate(ClientAuthenticationSession), CacheRefresh }
@@ -35,6 +36,7 @@ internal suspend fun executeClientSequence(state: ClientState, request: HttpRequ
     var current = request
     while (true) {
         caller.ensureActive()
+        sequence.lastTransportFailure = None
         val result = executeClientAttempt(state, current, caller, sequence)
         when (result) {
             case Response(response) -> return response

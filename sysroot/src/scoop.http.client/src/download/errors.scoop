@@ -6,27 +6,11 @@ internal fun recordClientDownloadFailure(download: ClientDownload, error: Throwa
         if (!clientPresent(primary)) {
             if (error is ResourceUseException) {
                 download.failure = Some(error.primaryFailure)
-                download.cleanupFailure = collectDownloadSecondary(error.primaryFailure, download.cleanupFailure, error.cleanupFailure)
+                download.cleanupFailure = collectClientSecondary(error.primaryFailure, download.cleanupFailure, error.cleanupFailure)
             } else download.failure = Some(error)
-        } else download.cleanupFailure = collectDownloadSecondary(primary!!, download.cleanupFailure, error)
+        } else download.cleanupFailure = collectClientSecondary(primary!!, download.cleanupFailure, error)
         Unit
     }
-}
-
-private fun collectDownloadSecondary(primary: Throwable, existing: Throwable?, error: Throwable): Throwable? {
-    val selected = selectDownloadSecondary(primary, error) ?: return existing
-    return appendDownloadCleanup(existing, selected)
-}
-
-private fun selectDownloadSecondary(primary: Throwable, error: Throwable): Throwable? {
-    if (sameClientFailure(primary, error) || containsDownloadCleanup(Some(primary), error) || error is CancellationException ||
-        (primary is HttpClientClosedException && error is HttpClientClosedException) ||
-        (primary is HttpTimeoutException && error is HttpTimeoutException && primary.phase == error.phase)) return None
-    if (error is ResourceUseException) {
-        return combineDownloadParts(error, selectDownloadSecondary(primary, error.primaryFailure),
-            selectDownloadSecondary(primary, error.cleanupFailure))
-    }
-    return Some(error)
 }
 
 internal fun clientDownloadFailure(download: ClientDownload): Throwable? = download.client.lock.withLock {
@@ -34,34 +18,4 @@ internal fun clientDownloadFailure(download: ClientDownload): Throwable? = downl
         case Some(cleanup) -> Some(clientCombined(download.failure, cleanup))
         case None -> download.failure
     }
-}
-
-internal fun appendDownloadCleanup(existing: Throwable?, addition: Throwable): Throwable? {
-    val fresh = unseenDownloadCleanup(existing, addition) ?: return existing
-    return Some(clientCombined(existing, fresh))
-}
-
-private fun unseenDownloadCleanup(existing: Throwable?, addition: Throwable): Throwable? {
-    if (!clientPresent(existing)) return Some(addition)
-    if (containsDownloadCleanup(existing, addition)) return None
-    if (addition is ResourceUseException) {
-        return combineDownloadParts(addition, unseenDownloadCleanup(existing, addition.primaryFailure),
-            unseenDownloadCleanup(existing, addition.cleanupFailure))
-    }
-    return Some(addition)
-}
-
-private fun combineDownloadParts(original: ResourceUseException, first: Throwable?, second: Throwable?): Throwable? {
-    if (!clientPresent(first)) return second
-    if (!clientPresent(second)) return first
-    if (first!! === original.primaryFailure && second!! === original.cleanupFailure) return Some<Throwable>(original)
-    return Some<Throwable>(ResourceUseException(first!!, second!!))
-}
-
-private fun containsDownloadCleanup(existing: Throwable?, addition: Throwable): Boolean {
-    val value = existing ?: return false
-    if (value === addition) return true
-    if (value is ResourceUseException)
-        return containsDownloadCleanup(Some(value.primaryFailure), addition) || containsDownloadCleanup(Some(value.cleanupFailure), addition)
-    return false
 }

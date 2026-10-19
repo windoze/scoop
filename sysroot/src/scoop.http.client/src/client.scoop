@@ -47,6 +47,10 @@ public class HttpClient internal constructor(internal val state: ClientState) : 
     public suspend fun resumeDownload(request: HttpRequest, destination: Path, resume: HttpResumeOptions,
         options: HttpDownloadOptions = HttpDownloadOptions()): HttpDownloadResult =
         runClientDownload(state, request, destination, options, Some(resume))
+    public suspend fun openSse(request: HttpRequest, options: HttpSseOptions = HttpSseOptions()): HttpEventSource =
+        openClientSse(state, request, options)
+    public suspend fun <T> withSse(request: HttpRequest, options: HttpSseOptions = HttpSseOptions(),
+        block: suspend (HttpEventSource) -> T): T = openSse(request, options).useAsync(block)
     public fun clearAuthenticationCache(authenticator: HttpAuthenticator) { clearClientAuthenticationCache(state, authenticator) }
     public override suspend fun close() { closeClient(state) }
 }

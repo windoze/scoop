@@ -45,7 +45,7 @@ internal suspend fun runClientDownload(state: ClientState, request: HttpRequest,
     finally {
         try { cleanupClientDownload(download) }
         catch (error: Throwable) {
-            state.lock.withLock { download.cleanupFailure = appendDownloadCleanup(download.cleanupFailure, error) }
+            state.lock.withLock { download.cleanupFailure = appendClientCleanup(download.cleanupFailure, error) }
         }
         unregisterClientDownload(download)
     }
@@ -75,7 +75,7 @@ private fun unregisterClientDownload(download: ClientDownload) {
         download.registered = false
         download.job = None
         if (state.closing && clientPresent(download.cleanupFailure))
-            state.closeFailure = appendDownloadCleanup(state.closeFailure, download.cleanupFailure!!)
+            state.closeFailure = appendClientCleanup(state.closeFailure, download.cleanupFailure!!)
         Unit
     }
     wakeClient(state)

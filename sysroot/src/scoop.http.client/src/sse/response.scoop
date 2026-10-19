@@ -1,0 +1,73 @@
+package scoop.http.client
+
+import scoop.http.*
+import scoop.http.asyncio.SseSource
+import scoop.time.Duration
+
+internal suspend fun openClientSseResponse(state: ClientSseState) {
+    state.requireActive()
+    val request = clientSseRequest(state)
+    val previous = state.sequence
+    val last = state.lastCall
+    val sequence = if (clientPresent(last) && last!!.sequence === previous)
+        continueClientSequence(state.client, request, previous, last!!)
+    else {
+        val next = ClientRequestSequence(state.client.config, request, previous.started)
+        next.requestBodyBytes = previous.requestBodyBytes
+        next.encodedResponseBodyBytes = previous.encodedResponseBodyBytes
+        next.responseBodyBytes = previous.responseBodyBytes
+        next
+    }
+    state.client.lock.withLock { state.sequence = sequence }
+    val response = executeClientSequence(state.client, request, sequence)
+    state.client.lock.withLock {
+        state.response = Some(response)
+        state.lastCall = Some(response.call)
+        when (state.info) {
+            case Some(info) -> { info.url = response.url; info.head = response.head }
+            case None -> state.info = Some(ClientSseInfo(response.url, response.head))
+        }
+    }
+    state.requireActive()
+    if (response.status == 204U) {
+        response.body.bytes(0L)
+        finishClientSse(state)
+        return
+    }
+    response.requireSuccess()
+    if (response.status != 200U) throw HttpSseException(HttpSseFailureReason.UnexpectedStatus, response.url, Some(response.head))
+    val mediaType = HttpMediaType.parseFields(response.fields)
+    if (!clientPresent(mediaType) || mediaType!!.type != "text" || mediaType!!.subtype != "event-stream")
+        throw HttpSseException(HttpSseFailureReason.UnsupportedContentType, response.url, Some(response.head))
+    val reader = SseSource(response.body, state.options.limits, state.lastEventId, state.options.bufferSize)
+    state.client.lock.withLock { state.reader = Some(reader) }
+}
+
+internal fun updateClientSseCursor(state: ClientSseState) {
+    val reader = state.reader ?: return
+    val id = reader.lastEventId
+    val retry = reader.retryMilliseconds
+    state.client.lock.withLock {
+        state.lastEventId = id
+        val policy = state.options.reconnect
+        if (clientPresent(retry) && clientPresent(policy)) {
+            val maximum = policy!!.maxDelay
+            val requested = Duration.milliseconds(retry!!)
+            state.delay = if (requested > maximum) maximum else requested
+        }
+        Unit
+    }
+}
+
+internal suspend fun closeClientSseResponse(state: ClientSseState) {
+    updateClientSseCursor(state)
+    val (reader, response) = state.client.lock.withLock {
+        val saved = (state.reader, state.response)
+        state.reader = None; state.response = None
+        saved
+    }
+    var failure: Throwable? = None
+    try { reader?.close() } catch (error: Throwable) { failure = Some(error) }
+    try { response?.close() } catch (error: Throwable) { failure = appendClientCleanup(failure, error) }
+    if (clientPresent(failure)) throw failure!!
+}

@@ -9,6 +9,7 @@ internal class ClientState(val loop: EventLoop, val config: HttpClientConfig, va
     val calls: ArrayList<ClientCall> = ArrayList<ClientCall>()
     val retryWaits: ArrayList<Job> = ArrayList<Job>()
     val downloads: ArrayList<ClientDownload> = ArrayList<ClientDownload>()
+    val eventSources: ArrayList<ClientSseState> = ArrayList<ClientSseState>()
     val bearerEntries: ArrayList<ClientBearerEntry> = ArrayList<ClientBearerEntry>()
     val digestEntries: ArrayList<ClientDigestEntry> = ArrayList<ClientDigestEntry>()
     val waiting: ArrayDeque<ClientCall> = ArrayDeque<ClientCall>()
@@ -31,18 +32,22 @@ internal fun wakeClient(state: ClientState) {
 }
 
 internal fun stopClient(state: ClientState) {
-    val (calls, retryWaits, bearers, downloads) = state.lock.withLock {
+    val (calls, retryWaits, bearers, downloads, eventSources) = state.lock.withLock {
         state.closing = true
         val active = ArrayList<ClientBearerFlight>()
         for (entry in state.bearerEntries) if (clientPresent(entry.flight)) active.add(entry.flight!!)
         for (download in state.downloads) {
             if (!download.committing && !clientPresent(download.failure)) download.failure = Some(HttpClientClosedException())
         }
-        (state.calls.toArray(), state.retryWaits.toArray(), active.toArray(), state.downloads.toArray())
+        for (source in state.eventSources) {
+            if (!source.finished && !clientPresent(source.failure)) source.failure = Some(HttpClientClosedException())
+        }
+        (state.calls.toArray(), state.retryWaits.toArray(), active.toArray(), state.downloads.toArray(), state.eventSources.toArray())
     }
     for (call in calls) cancelClientCall(call, HttpClientClosedException())
     for (waiting in retryWaits) waiting.cancel()
     for (flight in bearers) stopClientBearerFlight(flight)
     for (download in downloads) stopClientDownload(download, HttpClientClosedException())
+    for (source in eventSources) stopClientSse(source, HttpClientClosedException())
     wakeClient(state)
 }

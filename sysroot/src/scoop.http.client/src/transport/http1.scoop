@@ -19,7 +19,8 @@ internal class ClientH1Exchange(val call: ClientCall, val connection: AsyncHttp1
         } else input = Some(response.body)
         return response.head
     }
-    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long = input!!.readInto(buffer, count)
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long = try { input!!.readInto(buffer, count) }
+    catch (error: Throwable) { recordClientIoFailure(call, error); throw error }
     public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long = output.writeFrom(buffer, count)
     public override suspend fun flush() { output.flush() }
     public override suspend fun finish(trailers: List<HttpField>) { output.finish(trailers) }

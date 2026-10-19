@@ -14,10 +14,11 @@ internal class ClientIoFailure(val cause: Throwable, val reason: ClientRetryReas
 // Call only at an actual transport boundary, before propagating its original error.
 internal fun recordClientIoFailure(call: ClientCall, error: Throwable, http2: Boolean = false) {
     val reason = clientRetryReason(error, http2)
-    if (!clientPresent(reason)) return
     call.lock.withLock {
-        if (!call.completed && (!clientPresent(call.failure) || call.failure!! === error))
-            call.ioFailure = Some(ClientIoFailure(error, reason!!))
+        if (!call.completed && (!clientPresent(call.failure) || call.failure!! === error)) {
+            call.sequence.lastTransportFailure = Some(error)
+            if (clientPresent(reason)) call.ioFailure = Some(ClientIoFailure(error, reason!!))
+        }
         Unit
     }
 }
@@ -27,7 +28,7 @@ internal fun recordClientUploadIoFailure(call: ClientCall, error: Throwable, htt
     recordClientIoFailure(call, error, http2)
 }
 
-private fun clientRetryReason(error: Throwable, http2: Boolean): ClientRetryReason? {
+internal fun clientRetryReason(error: Throwable, http2: Boolean): ClientRetryReason? {
     if (error is Http2ConnectionDrainingException) return Some(ClientRetryReason.NotProcessed)
     if (error is HttpException && error.protocol == HttpProtocol.Http2 &&
         error.scope == HttpFailureScope.Stream && error.code == 7) return Some(ClientRetryReason.NotProcessed)

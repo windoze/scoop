@@ -424,6 +424,26 @@ onProgress 接收 HttpDownloadProgress 的 url、bytesWritten、totalBytes；首
 
 SSE 通过普通 execute 和 HTTP/1.1／HTTP/2 响应流工作，要求适用的成功状态与 text/event-stream，使用 HTTP 库的 UTF-8 增量行／事件 parser。支持 data 多行、event、id、retry、注释与 CR／LF 分段；异步 `next(): SseEvent?` 按消费者读取推进。可选重连使用 Last-Event-ID、服务端 retry 与 client 策略，204 停止；取消或显式关闭不得触发自动重连。
 
+### 10.1 客户端 SSE 事件源
+
+`HttpClient.openSse(request, options = HttpSseOptions())` 挂起至首个最终响应验证完成，返回实现 AsyncCloseable 的 HttpEventSource；`withSse(request, options, block)` 在 block 结束时关闭该事件源。它支持普通 HTTP 方法与请求正文，包括 POST 返回的事件流；重定向、认证、代理、Cookie、上传与早期响应沿用 execute。显式启用重连时，请求正文必须可重放，调用者同时授权重复该方法和正文；不能用重连隐式重放单次来源。
+
+HttpSseOptions 提供 SseLimits、正数 bufferSize（默认 8192）、可选 initialLastEventId 与可选 reconnect（默认关闭）。缺少 Accept 时添加 text/event-stream，缺少 Cache-Control 时添加 no-cache；本地响应缓存固定绕过，OnlyIfCached 与请求 only-if-cached 不适用。事件源总是使用自动内容解码视图，沿用原解码配置的缓冲与窗口限制；SSE 的字符编码固定为 UTF-8，不受 Content-Type 的 charset 参数覆盖。
+
+初始 Last-Event-ID 来自显式 initialLastEventId 或请求中的单值同名字段，两者不能同时提供；ID 是能作为 HTTP 字段值的 UTF-8 文本。后续每次重连移除旧字段，当前 ID 非空时发送当前值；服务端的空 id 清除该字段。解析与 id、retry、BOM、行尾、坏 UTF-8 和尾部不完整事件的规则全部由 HTTP asyncio 的 SseSource 承担。
+
+200 响应要求 Content-Type 的 essence 为 text/event-stream；参数不改变 SSE UTF-8 规则。204 表示永久停止，不再重连；其他非成功状态保留 HttpStatusException，其他成功状态或不适用的 Content-Type 报可识别的 HttpSseException。失败关闭该响应，保留实际头部与 URL，正常字段解析异常不被改写为网络错误。
+
+HttpEventSource 公开最近实际响应的 url／head、lastEventId、retryDelay、reconnectCount、isFinished、isClosed 与 failure。`next(): SseEvent?` 按消费者读取推进，返回独立事件；没有后台事件队列或无限预取，同时只允许一个活动 next，重叠调用立即失败且不影响已有读取。正常终止后的 next 返回 None，终止失败保留原始异常。close 释放 parser、缓冲和当前 HTTP 响应，并等待真实读取与子任务收尾。
+
+HttpSseReconnectOptions 提供 initialDelay（默认 3 秒）、maxDelay（默认 30 秒）、可选非负 maxReconnects（默认不限制）与 suspend onReconnect 回调；间隔不能为负，maxDelay 不能小于 initialDelay。只在显式开启时处理流 EOF 与实际传输边界确认的暂时连接失败，后端确认的非预期 EOF 使用 HTTP 的公开分类，未完成 TLS 关闭使用既有 TlsFailureKind.Truncated；协议／SSE 解析、内容解码、认证和用户回调失败不触发重连，取消、总截止及显式关闭始终终止。初次打开失败仍按普通 HTTP 请求策略报告；已有事件源重连建连失败可以继续到配置上限。HTTP 内部重试与 SSE 的重连计数分别保留。
+
+服务端最近有效 retry 值覆盖后续间隔并以 maxDelay 为上限，零间隔合法；未给出新 retry 的连接继续使用此前间隔。重连先关闭旧响应并记录最后 ID／retry，再在锁外调用 onReconnect，回调完成后等待所选间隔并请求。HttpSseReconnect 保存从 1 开始的次数、实际间隔、最近 URL、ID 与可选原因（正常 EOF 为 None）；回调和子任务提供背压，错误原样终止，不能因回调看起来像 I/O 错误而重试。达到次数上限时，正常 EOF 终止为 None，失败保留最近的实际原因。
+
+一个事件源从 openSse 开始在 client 登记，涵盖应用暂停读取、重连间隔、文件／编码收尾及回调子树。总截止从打开开始，后续连接不重置起点，异常进度累计所有连接的实际字节；readIdle 仍只按底层活动读取规则计时。调用方取消活动 open／next 会终止该事件源，client.close 同时关闭空闲与活动事件源并等候实际清理。活动回调及其子任务不能等待同一事件源或 client 的关闭，否则形成自等待；该调用立即报 IllegalStateException。其他任务的关闭正常取消活动工作并等待结束，主错误与真实清理错误保留原始对象且不重复附加。
+
+### 10.2 HTTP/1.1 WebSocket
+
 WebSocket 仅实现 RFC 6455 的 HTTP/1.1 Upgrade，`wss` 使用仅提供 http/1.1 的独立 TLS 连接。即使同 origin 已有 H2 池连接，也不尝试 RFC 8441。握手验证、SHA-1、mask 随机值、帧编解码、分片、UTF-8、Ping／Pong、Close 和消息上限分别使用 HTTP／crypto 的公共能力。
 
 `withWebSocket(request, block)`／显式 open 返回 AsyncCloseable session，支持 suspend send、receive、ping 和 close handshake；应用读写可并行，同方向串行。有限缓冲与协议处理允许控制帧推进，消息发送不会把任意大 payload 先收集到内存。permessage-deflate 为显式扩展，协商与帧状态在 HTTP，raw DEFLATE 与 context takeover 在 compression。

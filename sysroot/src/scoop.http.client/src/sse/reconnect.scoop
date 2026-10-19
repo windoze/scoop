@@ -1,0 +1,64 @@
+package scoop.http.client
+
+import scoop.http.*
+import scoop.time.Duration
+import scoop.tls.TlsException
+import scoop.tls.TlsFailureKind
+
+internal suspend fun receiveClientSse(state: ClientSseState): SseEvent? {
+    while (true) {
+        state.requireActive()
+        if (state.client.lock.withLock { state.finished }) return None
+        var failure: Throwable? = None
+        try {
+            val event = state.reader!!.next()
+            updateClientSseCursor(state)
+            if (clientPresent(event)) return event
+        } catch (error: Throwable) {
+            if (!canReconnectClientSse(state, error)) throw error
+            failure = Some(error)
+        }
+        closeClientSseResponse(state)
+        if (!reconnectClientSse(state, failure)) { finishClientSse(state); return None }
+    }
+}
+
+private fun canReconnectClientSse(state: ClientSseState, error: Throwable): Boolean {
+    if (error is ResourceUseException || error is CancellationException || !clientPresent(state.options.reconnect)) return false
+    if (state.client.lock.withLock { state.closing || clientPresent(state.failure) || state.client.closing }) return false
+    val recorded = state.sequence.lastTransportFailure
+    if (!clientPresent(recorded) || recorded!! !== error) return false
+    val http2 = when (state.lastCall) {
+        case Some(call) -> clientPresent(call.http2StreamId)
+        case None -> false
+    }
+    return clientPresent(clientRetryReason(error, http2)) || (error is HttpException && error.isUnexpectedEof) ||
+        (error is TlsException && error.kind == TlsFailureKind.Truncated)
+}
+
+private suspend fun reconnectClientSse(state: ClientSseState, initialFailure: Throwable?): Boolean {
+    var failure = initialFailure
+    while (true) {
+        state.requireActive()
+        val policy = state.options.reconnect
+        if (!clientPresent(policy) || (clientPresent(policy!!.maxReconnects) && state.reconnects >= policy!!.maxReconnects!!)) {
+            if (clientPresent(failure)) throw failure!!
+            return false
+        }
+        val cause = failure
+        val event = state.client.lock.withLock {
+            state.reconnects += 1L
+            HttpSseReconnect(state.reconnects, state.delay, state.info!!.url, state.lastEventId, cause)
+        }
+        policy!!.onReconnect(event)
+        state.requireActive()
+        if (event.delay > Duration.ZERO) state.client.loop.sleep(event.delay)
+        state.requireActive()
+        try { openClientSseResponse(state); return true }
+        catch (error: Throwable) {
+            if (!canReconnectClientSse(state, error)) throw error
+            failure = Some(error)
+            closeClientSseResponse(state)
+        }
+    }
+}

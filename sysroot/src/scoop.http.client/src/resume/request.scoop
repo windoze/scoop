@@ -40,11 +40,7 @@ internal fun clientResumeRequest(config: HttpClientConfig, original: HttpRequest
 internal suspend fun executeClientResumeRequest(download: ClientDownload, request: HttpRequest): HttpResponse {
     val previous = download.client.lock.withLock { download.responseCall }
     if (clientPresent(previous)) {
-        val next = ClientRequestSequence(download.client.config, request, download.sequence.started)
-        val (sent, encoded, decoded) = previous!!.lock.withLock {
-            (previous!!.requestBodyBytes, previous!!.encodedResponseBodyBytes, previous!!.responseBodyBytes)
-        }
-        next.requestBodyBytes = sent; next.encodedResponseBodyBytes = encoded; next.responseBodyBytes = decoded
+        val next = continueClientSequence(download.client, request, download.sequence, previous!!)
         download.client.lock.withLock { download.sequence = next; download.responseCall = None }
     }
     val response = executeClientSequence(download.client, request, download.sequence)
