@@ -392,6 +392,8 @@ Digest 的 95 个独立场景包括 57 个协议、17 个生命周期、14 个�
 
 两项重新挑战错误先在初版实现中确定性复现：未预发凭据的新调用沿用旧 qop／opaque，以及迟到的 auth-int 响应应用 nextnonce 时恢复旧挑战参数。现在同 nonce 保留计数与 cnonce、采用当前挑战参数；更新 nonce 时保留已收到的新参数，清除缓存后的旧响应不回填新缓存。最终库另通过 9 个相关场景的两种构建回归；Basic 30 个场景和 Bearer 18 个生命周期场景也通过两种构建、full moving 与复用，共 4 个变体、12 个步骤进程。17 个生产 Cone／runtime 已通过正常准备入口更新；新增认证功能的 GNU／musl 验证将在合并 main 的工具更新后继续。
 
+合并 origin/main 的 M55（c3b8942db）后，保留 M54 的 Boolean ABI classifier 4，并采用 main 的 identity schema 2、meta schema 3 与 language ABI 3；产物语义与缓存键的固定向量已同步。Darwin 的格式化、workspace clippy、全部 Rust 测试（去重 4,986 项）及 fixture runner 的 50 项规则测试通过。M55 全部 104 项与 M54／ABI／GC 的 10 项正式 fixture 共通过 127 个变体、194 个步骤进程、9 个结构 golden。配套命令及生产 sysroot 已按新格式重建；GNU／musl 的新认证组合验证继续进行，当前 GNU 的 Bearer 缓存与 Digest HTTP/2 压力场景仍需闭合。
+
 ## 后续工作
 
 继续完成代理、Cookie、缓存／续传、SSE／WebSocket 高层组合和可观察性。每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
