@@ -44,6 +44,9 @@ public class HttpClient internal constructor(internal val state: ClientState) : 
         execute(request).useAsync(block)
     public suspend fun download(request: HttpRequest, destination: Path, options: HttpDownloadOptions = HttpDownloadOptions()): HttpDownloadResult =
         runClientDownload(state, request, destination, options)
+    public suspend fun resumeDownload(request: HttpRequest, destination: Path, resume: HttpResumeOptions,
+        options: HttpDownloadOptions = HttpDownloadOptions()): HttpDownloadResult =
+        runClientDownload(state, request, destination, options, Some(resume))
     public fun clearAuthenticationCache(authenticator: HttpAuthenticator) { clearClientAuthenticationCache(state, authenticator) }
     public override suspend fun close() { closeClient(state) }
 }

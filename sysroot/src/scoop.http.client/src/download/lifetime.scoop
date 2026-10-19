@@ -6,8 +6,9 @@ import scoop.time.Duration
 import scoop.platform.time.MonotonicTimeSource
 
 internal suspend fun runClientDownload(state: ClientState, request: HttpRequest, destination: Path,
-    options: HttpDownloadOptions): HttpDownloadResult {
+    options: HttpDownloadOptions, resume: HttpResumeOptions? = None): HttpDownloadResult {
     if (!clientPresent(destination.fileName)) throw IllegalArgumentException(Some("download destination needs a file name"))
+    if (clientPresent(resume)) validateClientResumeRequest(request, destination, resume!!)
     val download = ClientDownload(state, clientJob(state.loop, true), ClientRequestSequence(state.config, request))
     var result: HttpDownloadResult? = None
     try {
@@ -23,7 +24,8 @@ internal suspend fun runClientDownload(state: ClientState, request: HttpRequest,
                 val timer = startClientDownloadTimer(download, scope)
                 try {
                     download.requireActive()
-                    prepareClientDownload(download, request, destination, options)
+                    if (clientPresent(resume)) prepareClientResume(download, request, destination, options, resume!!)
+                    else prepareClientDownload(download, request, destination, options)
                 } catch (error: Throwable) { recordClientDownloadFailure(download, error); throw error }
                 finally { timer?.cancel(); listener.dispose() }
             }
@@ -35,7 +37,8 @@ internal suspend fun runClientDownload(state: ClientState, request: HttpRequest,
             download.committing = true
         }
         nonCancellableScope<Unit> suspend { _ ->
-            state.loop.moveFile(download.temporary!!.path, destination, options.replaceExisting)
+            state.loop.moveFile(download.output!!.path, destination, options.replaceExisting)
+            download.committed = true
         }
         result = Some(ready)
     } catch (error: Throwable) { recordClientDownloadFailure(download, error) }

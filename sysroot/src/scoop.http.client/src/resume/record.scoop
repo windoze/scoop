@@ -1,0 +1,58 @@
+package scoop.http.client
+
+import scoop.http.*
+
+internal class ClientResumeRecord(val originalUrl: String, val url: String, val identity: String,
+    val encodings: Array<String>, val length: Long?, val etag: HttpEntityTag?) {
+    fun withLength(value: Long): ClientResumeRecord = ClientResumeRecord(originalUrl, url, identity, encodings, Some(value), etag)
+}
+
+internal fun clientResumeRecord(original: HttpRequest, response: HttpResponse): ClientResumeRecord =
+    ClientResumeRecord(clientCacheUrl(original.url), clientCacheUrl(response.url), clientRequestIdentity(response.call),
+        clientResumeEncodings(response.head), response.wireContentLength, clientResumeTag(response.head))
+
+internal fun clientResumeTag(head: HttpResponseHead): HttpEntityTag? {
+    val field = clientCacheField(head.fields, "ETag") ?: return None
+    val value = HttpEntityTag.parseOrNone(field.value) ?: return None
+    return if (value.isWeak) None else Some(value)
+}
+
+private fun clientResumeEncodings(head: HttpResponseHead): Array<String> {
+    val result = ArrayList<String>()
+    for (name in parseHttpTokenFields(head.fields, "Content-Encoding")) if (name != "identity") result.add(name)
+    return result.toArray()
+}
+
+internal fun clientResumeIdentityMatches(range: ClientResumeRange, response: HttpResponse): Boolean {
+    val tag = clientResumeTag(response.head) ?: return false
+    return clientCacheUrl(response.url) == range.record.url && clientRequestIdentity(response.call) == range.record.identity &&
+        range.record.etag!!.stronglyMatches(tag)
+}
+
+internal fun clientResumePartialRange(range: ClientResumeRange, response: HttpResponse): HttpContentRange {
+    if (!clientResumeIdentityMatches(range, response))
+        throw HttpResumeException(HttpResumeFailureReason.RepresentationChanged, "resumed response identity changed", Some(response.head))
+    val encodings = clientResumeEncodings(response.head)
+    if (encodings.size != range.record.encodings.size)
+        throw HttpResumeException(HttpResumeFailureReason.RepresentationChanged, "resumed response encoding changed", Some(response.head))
+    for (index in 0L..<encodings.size) if (encodings[index] != range.record.encodings[index])
+        throw HttpResumeException(HttpResumeFailureReason.RepresentationChanged, "resumed response encoding changed", Some(response.head))
+    val field = clientCacheField(response.head.fields, "Content-Range")
+    val value = when (field) { case Some(part) -> HttpContentRange.parseOrNone(part.value); case None -> None }
+    if (!clientPresent(value) || !clientPresent(value!!.range) || !clientPresent(value!!.completeLength))
+        throw HttpResumeException(HttpResumeFailureReason.InvalidRange, "resume needs a complete byte range", Some(response.head))
+    val actual = value!!
+    val interval = actual.range!!
+    if (interval.first != range.offset || (clientPresent(range.record.length) && range.record.length != actual.completeLength) ||
+        (clientPresent(response.wireContentLength) && response.wireContentLength != Some(interval.length)))
+        throw HttpResumeException(HttpResumeFailureReason.InvalidRange, "resumed byte range does not match the prefix", Some(response.head))
+    return actual
+}
+
+internal fun clientResumeAlreadyComplete(range: ClientResumeRange, response: HttpResponse): Boolean {
+    if (!clientResumeIdentityMatches(range, response)) return false
+    val field = clientCacheField(response.head.fields, "Content-Range") ?: return false
+    val value = HttpContentRange.parseOrNone(field.value) ?: return false
+    return !clientPresent(value.range) && value.completeLength == Some(range.offset) &&
+        (!clientPresent(range.record.length) || range.record.length == value.completeLength)
+}

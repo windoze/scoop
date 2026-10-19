@@ -22,6 +22,10 @@ internal fun clientCacheRequestFields(call: ClientCall): Array<HttpField> {
 }
 
 internal fun clientCacheKey(call: ClientCall): HttpCacheKey {
+    return HttpCacheKey(call.client.cachePartition!!, clientCacheUrl(call.request.url), clientRequestIdentity(call))
+}
+
+internal fun clientRequestIdentity(call: ClientCall): String {
     val output = ByteArrayBuilder()
     val use = call.authentication.digestUse
     if (clientPresent(use)) {
@@ -39,8 +43,7 @@ internal fun clientCacheKey(call: ClientCall): HttpCacheKey {
     if (call.request.origin.scheme == "https" && clientPresent(identity))
         cacheIdentityPart(output, identity!!.leafCertificateSha256)
     else cacheIdentityPart(output, emptyList<Byte>())
-    return HttpCacheKey(call.client.cachePartition!!, clientCacheUrl(call.request.url),
-        digest(DigestAlgorithm.Sha256, output.toByteArray()).toHexString())
+    return digest(DigestAlgorithm.Sha256, output.toByteArray()).toHexString()
 }
 
 private fun cacheIdentityPart(output: ByteArrayBuilder, value: List<Byte>) {

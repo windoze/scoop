@@ -400,6 +400,26 @@ onProgress 接收 HttpDownloadProgress 的 url、bytesWritten、totalBytes；首
 
 最终改名有明确的提交点：检查总截止、调用方取消及 client 关闭状态后进入提交，随后用 nonCancellableScope 等待改名结束。在提交点之前失败或取消，关闭并删除临时文件，保留原目标；进入提交之后到达的取消不撤销改名，也不把已经成功的替换报告为未提交。client.close 在此期间仍等待实际改名与清理完成。实际改名或清理失败照常报告，不删除已经提交的目标。
 
+### 9.6 显式文件续传
+
+`HttpClient.resumeDownload(request, destination, resume, options = HttpDownloadOptions())` 复用文件下载的进度、覆盖、总截止和最终提交合同。HttpResumeOptions 显式指定 partialFile 与 metadataFile，mismatch 默认为 HttpResumeMismatch.Restart，可选 Fail；maxMetadataBytes 默认 65536 且必须为正。destination、partialFile 和 metadataFile 由调用者独占使用并指向不同文件，部分文件与最终目标须能进行同文件系统改名；实际文件系统错误照常报告，不做来源审计或多进程目录协调。
+
+续传只接受已知为空且可重放的 GET 正文，没有请求 trailer、duplex、Range 或调用者条件字段。它固定选择 Raw 响应视图；未给 Accept-Encoding 时添加 identity，显式编码提议保留。部分文件保存完成 HTTP 定界之后的表示字节，不能拼接自动解压的数据。续传绕过完整响应缓存，OnlyIfCached 与请求 only-if-cached 不适用于此入口。
+
+元数据保存原始规范请求 URL、最终规范 URL、内容编码、有则保存完整长度、强 ETag 和实际请求身份摘要。URL 与身份摘要复用私有缓存的既有规则；实际 Authorization、Cookie 及本地 TLS 叶证书参与隔离，Digest 使用稳定基础 H(A1)，凭据原文不落盘。Content-Encoding 名称按 HTTP 规则解释，identity 与没有编码相同；其他编码须保持相同有序列表。
+
+重新开始时读取独占部分文件的实际长度作为偏移，不相信元数据中的已下载计数。零长度部分文件不使用旧状态。部分文件非空而缺元数据、没有强验证条件或原始请求 URL 不相符时，Restart 从头请求，Fail 报 HttpResumeException。损坏的元数据和实际文件 I/O 错误分别报告明确的格式原因和原始底层错误，不把它们隐藏为成功的续传。
+
+可靠状态使用 Range: bytes=offset- 和 If-Range: strong-etag。206 必须保留相同的最终 URL、请求身份、强 ETag 与编码，Content-Range 起点等于实际偏移，已知总长度不得改变；正文长度必须等于所声明区间。只有完整长度已知且文件达到该长度，才提交目标。服务器若分段返回请求范围，下一段从已确认的新偏移继续，所有段共享最初的总截止和累计网络进度。协议、正文错误或取消保留可继续使用的部分文件，不能把一次截断宣称为完整响应。Digest auth-int 片段只有在完整读取并通过适用的响应认证校验后才作为可续传前缀保留；确认前失败或取消时回退本段写入，保留此前已完整确认的部分。
+
+200 在首次完整请求时从零保存；原请求带 Range 时，Restart 按新表示重建，Fail 拒绝替换既有前缀。不相容的 206 在 Restart 下先关闭响应，再进行一次不带 Range 的完整请求，不将新旧实体拼接。没有请求 Range 时收到的 206 不能当作完整表示。416 仅在最终 URL、身份和强 ETag 均相符，且 Content-Range 的完整长度等于部分文件长度时视为已完整；其错误页内容编码不用于改写原表示编码。其他非成功状态保留 HttpStatusException。
+
+首次 200 可以没有强 ETag，仍可完成整文件下载；中断后不得续拼该前缀，下一次按 Restart／Fail 处理。替换新表示前先编码并检查新元数据，再 truncate 部分文件至零并 seek 到零，原子发布新元数据后才写新正文。相容 206 只更新同一表示的新确认长度，不截断既有字节。元数据采用同目录临时文件、关闭和改名，复用 bytes 与 HTTP 字段工具；不增加摘要收据、文件来源检查或另一套格式框架。
+
+下载结果与进度的 resumedBytes 表示首次成功验证并保留的既有前缀长度；普通 download 为零。bytesWritten／byteCount 是当前完整文件的已确认长度，包括保留的前缀。重启新表示会产生从零开始的新进度序列，resumedBytes 同时归零。result.head 与 trailers 保留最后一次实际 HTTP 响应，206 的 Content-Length 仅描述该段，不能将其当作最终文件长度；已完整的 416 同样保留真实状态。
+
+最终完整文件沿用 §9.5 的提交点，关闭后改名为 destination，再清理 metadataFile。失败或提交前取消保留部分文件与当前有效元数据，原目标不受影响；改名成功后的元数据清理错误仍报告，但不撤销完整目标。syncOnCommit 只提供既有文件同步合同，不承诺每段数据或目录的断电恢复。
+
 ## 10. SSE 与 WebSocket
 
 SSE 通过普通 execute 和 HTTP/1.1／HTTP/2 响应流工作，要求适用的成功状态与 text/event-stream，使用 HTTP 库的 UTF-8 增量行／事件 parser。支持 data 多行、event、id、retry、注释与 CR／LF 分段；异步 `next(): SseEvent?` 按消费者读取推进。可选重连使用 Last-Event-ID、服务端 retry 与 client 策略，204 停止；取消或显式关闭不得触发自动重连。

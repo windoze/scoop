@@ -1,0 +1,53 @@
+package scoop.http.client
+
+import scoop.http.*
+import scoop.platform.fs.Path
+
+internal class ClientResumeRange(val record: ClientResumeRecord, val offset: Long, val resumed: Long)
+
+internal fun validateClientResumeRequest(request: HttpRequest, destination: Path, options: HttpResumeOptions) {
+    if (request.method != "GET" || request.contentLength != Some(0L) || request.body.contentLength != Some(0L) ||
+        !request.body.isReplayable || request.body.trailerNames.size != 0L || request.options.duplex)
+        throw IllegalArgumentException(Some("resume requires a replayable empty GET request"))
+    for (name in ["Range", "If-Match", "If-None-Match", "If-Modified-Since", "If-Unmodified-Since", "If-Range"])
+        if (clientCacheHas(request.fields, name)) throw IllegalArgumentException(Some("resume generates conditional range fields"))
+    if (request.options.cacheMode == HttpCacheMode.OnlyIfCached || HttpCacheControl.parseFields(request.fields).contains("only-if-cached"))
+        throw IllegalArgumentException(Some("resume requires network validation"))
+    val target = destination.normalizeLexically()
+    if (target == options.partialFile.normalizeLexically() || target == options.metadataFile.normalizeLexically() ||
+        !clientPresent(options.partialFile.fileName) || !clientPresent(options.metadataFile.fileName))
+        throw IllegalArgumentException(Some("resume needs distinct data, metadata and destination paths"))
+}
+
+internal fun clientResumeRequest(config: HttpClientConfig, original: HttpRequest, range: ClientResumeRange?): HttpRequest {
+    val fields = ArrayList<HttpField>()
+    for (field in original.suppliedFields) fields.add(field)
+    if (!clientCacheHas(original.fields, "Accept-Encoding")) fields.add(HttpField("Accept-Encoding".toByteArray(), "identity".toByteArray()))
+    if (clientPresent(range)) {
+        fields.add(HttpRange([HttpByteRange.From(range!!.offset)]).toHttpField())
+        fields.add(HttpField("If-Range".toByteArray(), range!!.record.etag!!.toByteArray()))
+    }
+    val options = original.options
+    val decoding = options.decoding ?: config.decoding
+    val prepared = HttpCallOptions(continueWait = options.continueWait,
+        decoding = Some(HttpDecodingOptions(HttpContentDecoding.Raw, decoding.bufferSize, decoding.maxWindowBytes)),
+        timeouts = options.timeouts, onInformational = options.onInformational, redirects = options.redirects,
+        retries = options.retries, authentication = options.authentication, proxy = options.proxy,
+        useCookies = options.useCookies, cookieContext = options.cookieContext, cacheMode = HttpCacheMode.Bypass)
+    return HttpRequest(original.url, "GET", fields, original.body, prepared)
+}
+
+internal suspend fun executeClientResumeRequest(download: ClientDownload, request: HttpRequest): HttpResponse {
+    val previous = download.client.lock.withLock { download.responseCall }
+    if (clientPresent(previous)) {
+        val next = ClientRequestSequence(download.client.config, request, download.sequence.started)
+        val (sent, encoded, decoded) = previous!!.lock.withLock {
+            (previous!!.requestBodyBytes, previous!!.encodedResponseBodyBytes, previous!!.responseBodyBytes)
+        }
+        next.requestBodyBytes = sent; next.encodedResponseBodyBytes = encoded; next.responseBodyBytes = decoded
+        download.client.lock.withLock { download.sequence = next; download.responseCall = None }
+    }
+    val response = executeClientSequence(download.client, request, download.sequence)
+    download.client.lock.withLock { download.responseCall = Some(response.call) }
+    return response
+}

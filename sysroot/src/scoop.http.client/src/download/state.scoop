@@ -1,16 +1,25 @@
 package scoop.http.client
 
-import scoop.asyncio.TemporaryFile
+import scoop.asyncio.AsyncFile
+import scoop.asyncio.AsyncCloseable
+import scoop.platform.fs.Path
 import scoop.platform.time.MonotonicTimeSource
 
-internal class ClientDownload(val client: ClientState, val caller: Job, val sequence: ClientRequestSequence) {
+internal class ClientDownloadFile(val path: Path, val file: AsyncFile, val discardOnFailure: Boolean) : AsyncCloseable {
+    public override suspend fun close() { file.close() }
+}
+
+internal class ClientDownload(val client: ClientState, val caller: Job, initial: ClientRequestSequence) {
+    var sequence: ClientRequestSequence = initial
     var job: Job? = None
     var registered: Boolean = false
     var committing: Boolean = false
+    var committed: Boolean = false
     var failure: Throwable? = None
     var cleanupFailure: Throwable? = None
     var responseCall: ClientCall? = None
-    var temporary: TemporaryFile? = None
+    var output: ClientDownloadFile? = None
+    var resumeMetadata: Path? = None
 
     fun requireActive() {
         val current = client.lock.withLock { failure }

@@ -4,9 +4,9 @@ import scoop.platform.time.MonotonicTimeSource
 import scoop.time.Duration
 import scoop.time.TimeMark
 
-internal class ClientRequestSequence(config: HttpClientConfig, request: HttpRequest) {
+internal class ClientRequestSequence(config: HttpClientConfig, request: HttpRequest, startedAt: TimeMark? = None) {
     val timeouts: HttpTimeoutOptions = request.options.timeouts ?: config.timeouts
-    val started: TimeMark? = if (timeouts.total != None) Some(MonotonicTimeSource.markNow()) else None
+    val started: TimeMark? = if (timeouts.total != None) Some(startedAt ?: MonotonicTimeSource.markNow()) else None
     val redirects: HttpRedirectOptions = request.options.redirects ?: config.redirects
     val retries: HttpRetryOptions = request.options.retries ?: config.retries
     val authentication: HttpAuthenticationOptions = request.options.authentication ?: config.authentication

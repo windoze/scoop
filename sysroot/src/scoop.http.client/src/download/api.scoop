@@ -15,10 +15,10 @@ public class HttpDownloadOptions public constructor(
 }
 
 public class HttpDownloadProgress internal constructor(
-    public val url: Url, public val bytesWritten: Long, public val totalBytes: Long?
+    public val url: Url, public val bytesWritten: Long, public val totalBytes: Long?, public val resumedBytes: Long = 0L
 )
 
 public class HttpDownloadResult internal constructor(
     public val path: Path, public val url: Url, public val head: HttpResponseHead,
-    public val trailers: Array<HttpField>, public val byteCount: Long
+    public val trailers: Array<HttpField>, public val byteCount: Long, public val resumedBytes: Long = 0L
 )
