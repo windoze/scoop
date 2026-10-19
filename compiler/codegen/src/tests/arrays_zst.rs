@@ -27,7 +27,6 @@ fn zst_arrays_keep_count_checks_without_payload_access() {
         1,
         RefScan::None,
     );
-    let source_symbol = type_descriptor_symbol(&module, "MutableArray<Empty>");
     let target_symbol = type_descriptor_symbol(&module, "Array<Empty>");
     let mut temps = Arena::default();
     let value = temps.alloc(Temp { ty: zst.clone() });
@@ -116,6 +115,8 @@ fn zst_arrays_keep_count_checks_without_payload_access() {
         "card_index",
         "load {}",
         "store {}",
+        "clone.payload_bytes",
+        "clone.source =",
     ] {
         assert!(
             !ir.contains(forbidden),
@@ -124,11 +125,10 @@ fn zst_arrays_keep_count_checks_without_payload_access() {
     }
     assert!(
         ir.lines().any(
-            |line| line.contains("call ptr addrspace(1) @scoop_rt_array_clone")
-                && line.contains(&source_symbol)
+            |line| line.contains("call ptr addrspace(1) @scoop_runtime_alloc_slow")
                 && line.contains(&target_symbol)
         ),
-        "clone retains both exact descriptors:\n{ir}"
+        "clone allocates its target nominal descriptor:\n{ir}"
     );
     assert!(
         ir.contains("allocation_alignment") && ir.contains("tlab_aligned_cursor"),

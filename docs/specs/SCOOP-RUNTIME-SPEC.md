@@ -145,6 +145,8 @@ Array 与 MutableArray 的 logical size 位于 offset 16，元素区从 `alignUp
 
 ZST 数组不保存元素 payload，但保留 logical size、完整类型与独立对象身份；clone 和互转产生新对象。按长度初始化仍逐索引执行 initializer，保留副作用与异常。初始化期间数组和已写元素必须可被精确扫描，不得向用户暴露未初始化元素。
 
+typed 数组 clone 的源／目标 element exact type 与 layout 已一致时，生成代码可按源对象的有效、不可变 count 计算相同布局的分配大小，复用普通 TLAB／分配慢路径，并以目标 nominal TD 构造独立对象。源数组属于该分配点的 live roots；分配后必须从恢复的根重新读取源对象，才形成 AS1 payload 地址。复制完整 stride 字节（包含 padding），含引用元素在发布前执行范围写屏障；ZST 只复制 logical count。原 C 入口及其动态对象检查保持，普通源码循环的 poll 不因 clone 展开而删除。
+
 ArrayList、StringBuilder 等普通库类型使用其声明的 class/value 表示，其公开行为由语言规范第 11 章规定。
 
 `MutableArray<MaybeUninit<T>>` 复用 InlineArray shape，logical size 为 capacity，元素 size／stride 为 T 的 exact size，ZST 仍为零。所有容量槽都保存合法 wrapper，完整 GC 按 capacity 扫描；ArrayList 的 elementCount 不进入 GC 协议。删除与 clear 必须清零不再使用的槽，StringBuilder 复用同一 ArrayList 扩容。

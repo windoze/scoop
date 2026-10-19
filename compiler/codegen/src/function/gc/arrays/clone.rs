@@ -19,7 +19,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             } => {
                 let (array_metadata, target_td) = self.array_type(*array_type);
                 let element = array_metadata.element.clone();
-                let (source_metadata, source_td) = self.array_type(*source_type);
+                let layout = array_metadata.layout.clone();
+                let (source_metadata, _) = self.array_type(*source_type);
                 if source_metadata.element_exact != array_metadata.element_exact
                     || source_metadata.element != array_metadata.element
                     || source_metadata.layout != array_metadata.layout
@@ -38,51 +39,50 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         function.symbol()
                     )));
                 }
+                // A valid source of the same layout already bounds the count and extent.
+                let source = self.value(*operand)?.into_pointer_value();
+                let count_ptr = self.byte_gep(source, 16, "clone.source_count_ptr")?;
+                let count = builder
+                    .build_load(context.i64_type(), count_ptr, "clone.count")
+                    .map_err(clone_error)?
+                    .into_int_value();
+                let bytes = self.array_allocation_size(&layout, count)?;
                 let safepoint = self.safepoint_id(*safepoint);
                 let live = self.materialize_statepoint_live(live, safepoint)?;
-                let operand = self.statepoint_value(*operand, &live)?;
-                // The target descriptor is explicit: converting Array<T> to
-                // MutableArray<T> (or back) changes nominal runtime identity.
-                let clone = self.runtime_fn(
-                    scoop_lir::RuntimeAbiSymbolV1::ArrayClone.logical_symbol(),
-                    managed_ptr_ty(context, self.managed_address_space).fn_type(
-                        &[
-                            managed_ptr_ty(context, self.managed_address_space).into(),
-                            ptr_ty(context).into(),
-                            ptr_ty(context).into(),
-                        ],
-                        false,
-                    ),
-                );
-                let name = format!("t{}", out.into_raw().into_u32());
-                let call = builder
-                    .build_call(
-                        clone,
-                        &[
-                            operand.into(),
-                            source_td.as_pointer_value().into(),
-                            target_td.as_pointer_value().into(),
-                        ],
-                        &name,
-                    )
-                    .map_err(|e| {
-                        CodegenError(format!(
-                            "array_clone @{symbol}: {e}",
-                            symbol = function.symbol()
-                        ))
-                    })?;
-                self.apply_safepoint_id(call, safepoint);
-                let result = call.try_as_basic_value().basic().ok_or_else(|| {
-                    CodegenError(format!(
-                        "call @{} produced no value",
-                        scoop_lir::RuntimeAbiSymbolV1::ArrayClone.logical_symbol()
-                    ))
-                })?;
-                self.restore_statepoint_live(live, safepoint)?;
-                self.temps.insert(*out, result);
+                let copy =
+                    self.managed_alloc_value(target_td.as_pointer_value(), bytes, safepoint, live)?;
+                let count_ptr = self.byte_gep(copy, 16, "clone.count_ptr")?;
+                builder.build_store(count_ptr, count).map_err(clone_error)?;
+                if let scoop_lir::ArrayElementStorageKindV1::Inline { stride, .. } =
+                    layout.storage().kind()
+                {
+                    // Allocation can move the source. Form both payload addresses only
+                    // after restoring its canonical root, on either allocation path.
+                    let source = self.value(*operand)?.into_pointer_value();
+                    let offset = layout.instance().inline_offset();
+                    let source = self.byte_gep(source, offset, "clone.source")?;
+                    let destination = self.byte_gep(copy, offset, "clone.destination")?;
+                    let payload_bytes = builder
+                        .build_int_mul(
+                            count,
+                            context.i64_type().const_int(stride.get(), false),
+                            "clone.payload_bytes",
+                        )
+                        .map_err(clone_error)?;
+                    let alignment = layout.instance().inline_alignment() as u32;
+                    builder
+                        .build_memcpy(destination, alignment, source, alignment, payload_bytes)
+                        .map_err(clone_error)?;
+                    self.heap_array_barrier(copy, &layout, bytes)?;
+                }
+                self.temps.insert(*out, copy.into());
             }
             _ => unreachable!("array instruction dispatch is exhaustive"),
         }
         Ok(())
     }
+}
+
+fn clone_error(error: inkwell::builder::BuilderError) -> CodegenError {
+    CodegenError(format!("array clone emission: {error}"))
 }

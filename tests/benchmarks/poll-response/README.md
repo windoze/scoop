@@ -7,3 +7,5 @@
 runner 独立校验每个线程的结果为 `count * (count + 1) / 2`。它报告从请求到全部线程停稳及从请求到恢复的 p50／p99／最大值，同时记录实际 collection 数；`ns_per_call` 字段在本用例表示每次整数循环的聚合墙钟成本。计时包含一次 callback attach／detach，测试观测回调也有开销，不将此结果称为无观测开销的生产延迟。
 
 最终 M33／M34 对照使用两套各自匹配的工具、core 和 runtime，七轮交替运行，保存每轮报告与 GC 统计。正常无请求路径的吞吐由原有 `primitive.scoop` 单独测量；本用例用于确认轻量 poll 在其他线程请求 GC 时仍及时响应。
+
+`clone.scoop` 使用同一 runner，每轮把 index + 1 写入 32 Long 源数组、转为新的 Array，再读取副本累加；校验和公式保持。它用于 C clone 到 IR 普通分配路径的对照，源码循环 poll 不变。建议 `BENCH_ITERATIONS=1000000`，1／4 worker 各预热后七对，记录事件数及每轮 p50／p99／max；观察到的最坏值包括调度噪声，不能当作暂停上界。M58 的方法与结果见 `docs/milestone58/PERFORMANCE.md` 第 9 节。

@@ -18,4 +18,14 @@ LIR 的已有 boxed descriptor 保留选定 shape 的 payload offset，不另推
 
 格式化、workspace clippy、LIR descriptor 两项与 codegen boxing 五项测试通过。精确断言覆盖 AS1、payload offset、完整复制、慢路径和 RS4GC。新增源码三变体与原根恢复／unbox-clone 七变体通过，包含真实移动 GC、嵌套引用、packed、ZST、enum 父整数、异常和 padding 字节标记。按值的 LLVM aggregate load/store 不能保证保留可观察 padding，因此最终实现使用 memcpy，再由现有标量管线优化。
 
-真实数组中逃逸 box 的 11 对交替测量中，四 Long 值扫描 248.624 → 200.357 ms（−19.4%），含引用嵌套值扫描 181.524 → 129.450 ms（−28.7%）；text +116 bytes，文件大小不变，编译时间基本持平。方法和限制见 [性能记录](PERFORMANCE.md#8-静态布局拆箱迁移)。数组复制仍待单独实现／验证；GC 协调及分配慢路径继续由 runtime 负责。
+真实数组中逃逸 box 的 11 对交替测量中，四 Long 值扫描 248.624 → 200.357 ms（−19.4%），含引用嵌套值扫描 181.524 → 129.450 ms（−28.7%）；text +116 bytes，文件大小不变，编译时间基本持平。方法和限制见 [性能记录](PERFORMANCE.md#8-静态布局拆箱迁移)。
+
+## 静态数组 clone
+
+复用 typed ArrayClone 已有的源 live root、元素 exact type 与完整 layout。源是相同布局的有效数组，其不可变 count 已满足尺寸边界；生成代码复用普通 sizing／TLAB／慢分配路径，按目标 nominal TD 分配新对象并写入 count。分配后从 canonical root 重读源，随后才形成 AS1 payload 地址并复制完整 stride 字节，含引用元素发布前执行既有范围屏障。ZST 只保留 logical count 和独立对象身份。原 C 入口及动态检查继续可用，没有更改语言、LIR wire 或 runtime ABI。
+
+原 site 只标记实际分配慢调用，最终 roots／RS4GC 顺序保持；入口和源码循环 poll 保留。精确测试检查只剩一个实际 site、恢复后的源地址、AS1 memcpy、范围屏障顺序、目标 TD 和 ZST。fmt／workspace clippy、数组相关八项与 statepoint 十八项测试通过；新旧源码八变体通过，覆盖 moving／minor、含引用 large array、复制后修改源、packed、padding、ZST、空数组及异常。
+
+相对 `171b70ed6` 的 11 对生产程序测量，小型无引用／含引用数组复制均约快 15%，大数组没有明确变化；text +380 bytes，文件不变，编译成本基本持平。因为 wrapper 握手改为普通分配慢路径握手，另以保留源码 loop poll 的一百万次 clone 测 stop-wait：单／四 worker 的每轮 p99 中位数为 13 → 11／74 → 60 µs，最坏单样本 99 → 118／161 → 140 µs，没有稳定尾部回退的证据。带观测点的 runtime 与生产计时分开；这不代表通用 GUI 或无调度噪声的暂停上界。完整方法见 [性能记录](PERFORMANCE.md#9-静态数组-clone-迁移)。
+
+首批三个 runtime 迁移候选均完成本机实现、验证和对照；GNU／musl 的最终组合验收仍待完成。GC 协调与分配慢路径继续由 runtime 负责。

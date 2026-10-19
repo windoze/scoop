@@ -21,7 +21,7 @@
 | LLVM codegen：按值复制 | 两条 release 管线增加 memcpyopt；17 项 statepoint 专测及源码三变体通过，text −616 bytes，运行与编译时间基本持平 |
 | LLVM codegen：NoGc 循环 | 启用 load elimination、最多四次完整 unroll、受限 unswitch；18 项 statepoint 专测、源码九变体及旧循环七变体通过。实际递推／四步处理／不变分支分别约 3×／2×／20% 收益，循环 text +256 bytes，编译约 +0.4% |
 | native helper 链接边界 | 已删除未登记外部符号的编译期拒绝，交由 linker 解析；141 项对象产物回归与真实 Darwin loop-idiom 程序通过 |
-| runtime C → LLVM IR 小函数 | String 有界读取已实现，本机精确 IR 与源码十一变体通过；重建两版 core 后字符遍历约 −7.6%，byteLength 单项未见明确收益。静态 unbox 已完成，值／含引用扫描分别约 −19.4%／−28.7%；数组复制待继续，见 [迁移记录](RUNTIME-IR.md) |
+| runtime C → LLVM IR 小函数 | String 有界读取已实现，本机精确 IR 与源码十一变体通过；重建两版 core 后字符遍历约 −7.6%，byteLength 单项未见明确收益。静态 unbox 已完成，值／含引用扫描分别约 −19.4%／−28.7%；数组 clone 已完成，小数组约 −15%，stop-wait 未见稳定尾部回退；见 [迁移记录](RUNTIME-IR.md) |
 | 性能与跨平台 | A 的本机生产前后矩阵已记录于 [PERFORMANCE.md](PERFORMANCE.md)；B–D 性能、GNU／musl 完整验收及最终清理待完成 |
 
 ## 2026-10-20：LLVM 范围推导与 NoGc 标量补齐
@@ -119,3 +119,11 @@ fmt／workspace clippy、LIR 全部 160 项单测通过，正式 CLI 重建后�
 先修订 runtime 2.3 和实现规范，复用 LIR 已选 boxed shape 的 payload offset，TD 相等时按完整大小复制到独立 typed local；保留 AS1、packed alignment、padding、引用根和 ZST。非 exact 的 enum 父整数及错误情况复用原 C leaf，源码 null／cast 检查不变。审查中将 aggregate load/store 调整为完整 memcpy，避免遗漏可观察 padding。
 
 fmt、workspace clippy、LIR descriptor 两项、codegen boxing 五项通过。新源码三变体与既有 roots／unbox-clone 七变体通过，覆盖实际移动、minor、嵌套引用、packed、ZST、enum 父整数、异常和 padding 字节。对照 `564be9489`，4096 个逃逸 box 扫描 1024 次的两个程序分别约 −19.4%／−28.7%，text +116 bytes，文件大小不变，编译时间基本持平；详见性能记录第 8 节。相关源码、精确断言与 benchmark 保留，临时缓存和应用产物清理，原始日志保存在仓库外。
+
+## 2026-10-20：静态数组 clone IR 展开
+
+先修订 runtime 2.4 与实现规范，复用现有数组 sizing、源 root、TLAB／慢分配和范围屏障。原 site 仅用于分配慢调用，分配后重读源根再形成 AS1 copy 地址；复制完整 storage，保留目标 TD、count、ZST 和独立身份。没有重复实现分配器或添加 shape 验证层。
+
+fmt／workspace clippy、八项数组精确测试、十八项 statepoint 专测及新旧源码八变体通过；覆盖真实 moving／minor、large old-to-young references、padding、packed、异常与 ZST。fixture 的 Option 写入补上显式 Some；observer 构建补齐私有 sysroot 的现有 vendor 输入，失败均已闭合。
+
+生产小数组两个场景约 −14.9%，大数组持平，text +380 bytes、文件不变、编译时间基本持平；独立 observer runtime 的一／四 worker 各百万次 clone、七对运行补足 stop-wait 样本，未见稳定尾部回退。完整方法和 max 离群值见性能记录第 9 节。首批 runtime C→IR 三项已完成本机验证，后续 C2／D、统一性能矩阵与 Linux 验收继续。
