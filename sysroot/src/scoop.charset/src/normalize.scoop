@@ -1,0 +1,23 @@
+package scoop.charset
+
+public fun normalizeNfc(text: String): String {
+    @Unsafe {
+        val input = text.toByteArray()
+        val result = input.withDataPointer { data, size ->
+            @Unsafe { return@withDataPointer charsetNormalizeNfc(data, size) }
+        }
+        try {
+            if (result.code != 0) {
+                throw CharsetException("normalize NFC", "UTF-8", "UTF-8", CharsetFailureKind.Backend, None,
+                    if (result.backend == 0) None else Some(result.backend),
+                    "libunistring failed with code " + result.backend.toString())
+            }
+            val output = Array<Byte>(result.size) { index -> @Unsafe { return@Array result.data!!.load(index) } }
+            return String.fromUtf8(output)
+        } finally { charsetTextFree(result.data) }
+    }
+}
+
+@Extern(name = "scoop_charset_normalize_nfc")
+private fun charsetNormalizeNfc(data: Ptr<Byte>, size: Long): NativeCharsetText
+

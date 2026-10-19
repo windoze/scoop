@@ -20,6 +20,11 @@ c_flags = ["-std=c11", "-Wall", "-Wextra", "-Werror"]
 [[native.libraries]]
 name = "iconv"
 kind = "static"
+[[native.libraries]]
+name = "unistring"
+kind = "static"
+[[native.sources]]
+path = "native/normalize.c"
 [[native.sources]]
 path = "native/names.c"
 [[native.sources]]

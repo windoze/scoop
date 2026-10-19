@@ -1,6 +1,6 @@
 # scoop.charset
 
-独立字符集转换库，依赖 core、std 和 platform，使用固定 GNU libiconv 1.19。提供内存 codec 与不执行 I/O 的增量引擎，不依赖 ICU、HTTP 或系统 locale。
+独立字符集转换库，依赖 core、std 和 platform，使用固定 GNU libiconv 1.19 和 libunistring 1.4.2。提供内存 codec、NFC 规范化与不执行 I/O 的增量引擎，不依赖 ICU、HTTP 或系统 locale。
 
 ```scoop
 import scoop.charset.*
@@ -9,6 +9,7 @@ val encoded = Charset.Gbk.encode("中文")
 val text = Charset.Gbk.decode(encoded)
 val selected = Charset.forName("windows-1252")
 val replacement = Charset.Ascii.encodeLossy("café")
+val username = normalizeNfc("Jose\u{0301}") // José
 ```
 
 `encode`／`decode` 严格报告非法输入、残缺尾部和不可表示字符；有损转换显式使用 `encodeLossy`／`decodeLossy`。解码替换为 U+FFFD，编码通过同一目标编码器写出 `?`，保留 ISO-2022-JP 等编码的切换状态。没有隐式 transliteration 或静默丢弃。
@@ -22,5 +23,7 @@ val replacement = Charset.Ascii.encodeLossy("café")
 同步和 suspend 的流调用者使用同一个增量引擎：先等待输入或输出资源，再执行短暂的同步转换步骤。引擎不保留 NativeByteBorrow，不替调用者关闭输入／输出 buffer，也不把 close 当作 finish。各方法串行调用；并发使用同一个实例会明确报错。不同实例可在多个 native 线程上同时使用。
 
 `CharsetException` 保存操作、源／目标名称、错误分类、原始输入流中的字节偏移和后端原因。增量失败前可能已经输出部分有效内容；一次性操作只在完整成功后返回结果。
+
+`normalizeNfc(text)` 用 libunistring 对完整 String 做 Unicode NFC，处理组合顺序、组合排除与 Hangul，返回拥有独立生命周期的字符串。它保留内嵌 NUL 和 BOM，不做兼容性折叠或大小写转换，也不隐含在 encode／decode 中执行。Basic／Digest 的 UTF-8 凭据可以先调用此函数，再编码与计算摘要。不要对流的任意分块分别调用它，因为组合字符可以跨块关联。
 
 固定后端在 [libiconv vendor](../../vendor/libiconv/README.md) 维护严格转换补丁。准备过程与 IDNA 共享 `build_text_backends.py`，普通应用消费预编译 `.slib` 和目标静态库。完整合同见 [字符集规范](../../../docs/specs/SCOOP-CHARSET-SPEC.md)。

@@ -1,6 +1,6 @@
 # Scoop 字符集库规范
 
-版本：M54。提供普通 Cone `scoop:scoop.charset:0.1.0`，依赖 core、std、platform。它补齐 HTTP text 与字段参数所需的非 UTF-8 转换，负责字符集识别、内存转换和增量状态；不依赖 URL、IDNA、HTTP、asyncio 或 ICU。实际验证范围见 [M54 进度](../milestone54/PROGRESS.md)。
+版本：M54。提供普通 Cone `scoop:scoop.charset:0.1.0`，依赖 core、std、platform。它补齐 HTTP text、字段参数和认证凭据所需的字符集转换与 NFC 规范化，负责字符集识别、内存转换和增量状态；不依赖 URL、IDNA、HTTP、asyncio 或 ICU。实际验证范围见 [M54 进度](../milestone54/PROGRESS.md)。
 
 ## 1. 后端与范围
 
@@ -8,7 +8,7 @@
 
 必须支持 UTF-8、US-ASCII、ISO-8859-1、Windows-1252、UTF-16LE／BE、UTF-32LE／BE、GB18030、GBK、Big5、Shift_JIS、EUC-JP 和 ISO-2022-JP。名称解析采用固定后端的受支持名称与显式别名，大小写无关；记录具体版本支持列表，不把未知名字退回系统默认编码。ISO-8859-1 按该编码本义处理，不采用浏览器将其当 Windows-1252 的隐式规则。
 
-此库不改变 core String 的 UTF-8 表示，也不把 native 依赖加入仅依赖 core 的 `scoop.std`。Unicode 规范化、语言检测、浏览器编码猜测与完整国际化服务不属于本库。
+NFC 使用已有的固定 GNU libunistring 1.4.2，与 IDNA 的目标资源共享同一份静态库；不通过域名转换接口处理普通文本。此库不改变 core String 的 UTF-8 表示，也不把 native 依赖加入仅依赖 core 的 `scoop.std`。语言检测、浏览器编码猜测与完整国际化服务不属于本库。
 
 ## 2. 公共合同
 
@@ -36,10 +36,14 @@ native 引擎使用同一 libiconv 后端解码到一个 Unicode 标量，再交
 
 引擎串行使用，不执行 I/O。HTTP 等流适配逐块调用它即可保持同步／异步流的相同编码语义，不得在上层另写 GBK、UTF-16 等 decoder。只需要现有 UTF-8 能力的库继续使用 core 的公开入口，无须重复引入转换实现。
 
+`normalizeNfc(text: String): String` 对完整 String 执行 Unicode NFC，返回拥有独立生命周期的 String。规范分解、组合顺序、组合排除和 Hangul 组合均使用 libunistring；不做兼容性折叠、大小写映射、空白删除或 BOM 消费。空字符串、内嵌 NUL 与 U+FEFF 都是普通文本。该入口不修改原字符串，各次调用没有共享可变转换状态；后端失败以 CharsetException 的 Backend 类别保留实际错误码。它不对任意流分块分别规范化，因为组合字符可以跨块关联；调用者明确提供完整文本。
+
 ## 3. HTTP 使用与验收
 
 Content-Type 参数解析属于 HTTP；HTTP client 根据显式 charset、调用方选择和协议规定选择 Charset。本库不猜测媒体类型。JSON 的网络表示采用 UTF-8，SSE 采用其规定的 UTF-8；HTTP 历史字段的原始字节不被整体当成 UTF-8 解码。
 
+Basic／Digest 在选择 UTF-8 凭据时按 RFC 7617／7616 调用 normalizeNfc，再编码和计算凭据；字段语法、凭据选择和摘要分别保留在 HTTP、client 和 crypto。NFC 的独立向量覆盖组合、重排、排除、Hangul、非兼容折叠、NUL／BOM，并组合字符集往返与实际认证字段和摘要。
+
 固定向量覆盖编码双向转换、不等价字符、非法输入、不可表示输出、BOM 与字节序、任意分块及状态编码。与独立 libiconv 工具交叉验证，再组合短读 HTTP body、Content-Disposition 扩展参数和取消后的引擎清理。三个目标执行库测试和普通生产消费者，工具只用于开发验证。
 
-依据：[GNU libiconv](https://www.gnu.org/software/libiconv/)、[固定版本发行](https://ftp.gnu.org/gnu/libiconv/)、[RFC 8187](https://www.rfc-editor.org/rfc/rfc8187.html)。
+依据：[GNU libiconv](https://www.gnu.org/software/libiconv/)、[固定版本发行](https://ftp.gnu.org/gnu/libiconv/)、[GNU libunistring](https://www.gnu.org/software/libunistring/)、[UAX #15](https://www.unicode.org/reports/tr15/)、[RFC 8187](https://www.rfc-editor.org/rfc/rfc8187.html)、[RFC 7616](https://www.rfc-editor.org/rfc/rfc7616.html)、[RFC 7617](https://www.rfc-editor.org/rfc/rfc7617.html)。

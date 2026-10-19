@@ -62,7 +62,7 @@ internal fun processCharset(handle: ULong, input: NativeByteBuffer, output: Nati
 }
 
 @Extern(name = "scoop_charset_name") private fun charsetName(data: Ptr<Byte>, count: Long): NativeCharsetText
-@Extern(name = "scoop_charset_text_free") private fun charsetTextFree(data: Ptr<Byte>?)
+@Extern(name = "scoop_charset_text_free") internal fun charsetTextFree(data: Ptr<Byte>?)
 @Extern(name = "scoop_charset_names") internal fun charsetNames(): NativeCharsetText
 @Extern(name = "scoop_charset_version") internal fun charsetVersion(): Int
 @Extern(name = "scoop_charset_new") private fun charsetNew(source: Ptr<Byte>, sourceSize: Long, destination: Ptr<Byte>, destinationSize: Long, options: NativeCharsetOptions): NativeCharsetResult
