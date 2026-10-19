@@ -70,10 +70,16 @@ impl FinalizedLayoutUndefinedSymbolRequirementPartitionsV1 {
         &self,
         use_site: &CanonicalUndefinedRelocationUseV1,
     ) -> Option<CanonicalObjectDefinitionRequirementV1> {
-        let requirement = self
+        let index = self
             .external_shape
-            .iter()
-            .find(|requirement| requirement.use_site() == use_site)?;
+            .binary_search_by_key(&super::super::use_key(use_site), |requirement| {
+                super::super::use_key(requirement.use_site())
+            })
+            .ok()?;
+        let requirement = &self.external_shape[index];
+        if requirement.use_site() != use_site {
+            return None;
+        }
         Some(
             CanonicalObjectDefinitionRequirementV1::DependencyShapeStrong {
                 provider: requirement.provider(),

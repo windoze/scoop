@@ -77,11 +77,13 @@ impl VerifiedObjectDefinitionRequirementSetV1 {
         &self,
         use_site: &CanonicalUndefinedRelocationUseV1,
     ) -> Option<CanonicalObjectDefinitionRequirementV1> {
-        if let Some(requirement) = self
-            .legacy()
-            .requirements()
-            .iter()
-            .find(|requirement| requirement.use_site() == use_site)
+        let key = super::use_key(use_site);
+        let legacy = self.legacy().requirements();
+        if let Some(requirement) = legacy
+            .binary_search_by_key(&key, |requirement| super::use_key(requirement.use_site()))
+            .ok()
+            .map(|index| &legacy[index])
+            .filter(|requirement| requirement.use_site() == use_site)
         {
             return Some(CanonicalObjectDefinitionRequirementV1::Legacy(
                 requirement.requirement(),
@@ -92,10 +94,12 @@ impl VerifiedObjectDefinitionRequirementSetV1 {
             ObjectDefinitionRequirementModeV1::CrossCone(partitions) => partitions.cross_cone(),
             ObjectDefinitionRequirementModeV1::Layout(partitions) => partitions.cross_cone(),
         };
-        if let Some(requirement) = cross_cone
-            .requirements()
-            .iter()
-            .find(|requirement| requirement.use_site() == use_site)
+        let requirements = cross_cone.requirements();
+        if let Some(requirement) = requirements
+            .binary_search_by_key(&key, |requirement| super::use_key(requirement.use_site()))
+            .ok()
+            .map(|index| &requirements[index])
+            .filter(|requirement| requirement.use_site() == use_site)
         {
             let import = cross_cone
                 .semantic_imports()

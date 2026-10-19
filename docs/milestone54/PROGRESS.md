@@ -91,6 +91,7 @@
 | client 显式代理 | 纯 Scoop 组合 HTTP／HTTPS 转发、CONNECT、SOCKS5、本地／代理 DNS、两层 TLS 与目标 H2；suspend selector、静态代理凭据、路由池隔离及协商截止 | Darwin 30 个网络场景与 10 个 selector 生命周期场景通过 debug／release、双 native 线程、full moving 与复用；158 项 client 库测试通过两种构建，生产库与连接池／重试组合最终通过 8 个变体、24 个步骤进程 |
 | client 代理认证 | Basic／Bearer／Digest 共用认证实现，按 origin 与代理实例分开保存 token、刷新和 nonce；CONNECT 拒绝先关闭并归还名额，回调随后执行；转发与隧道分别验证响应摘要 | Darwin 新增 28 个独立协议场景、12 个挂起／清理场景，通过 debug／release 普通测试；正式库消费及原有认证、代理、连接池、重试共 11 个 fixture、22 个变体、66 个步骤进程全部通过，GC stress 延后统一执行 |
 | IP CIDR 网络 | platform.IpNetwork 提供 IPv4／IPv6 网络归一化、前缀检查、包含判断与值比较；地址解析仍使用 IpAddress，上层不重复实现位掩码 | Darwin 正式消费者通过 debug／release 和构建复用；808 个 Python ipaddress 独立向量覆盖全部前缀长度、内外边界，另验证无效输入、IPv4-mapped IPv6、scope 及 URL／socket 地址组合；未启用 GC stress |
+| 重定位要求查找 | 对已按 use-site 排序的普通、跨 Cone callable 和布局要求使用二分查找，仍按完整引用匹配，保留原始分区与编码 | 普通 client 测试构建采样定位到重复线性扫描；141 项产物／链接单测及 workspace clippy 通过，新增多成员命中与同位置不同符号拒绝覆盖；HTTP 库重建和正式消费者 debug／release、构建复用通过，未启用 GC stress |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 

@@ -136,6 +136,50 @@ fn finalizes_current_cone_and_generated_bridge_requirements() {
 }
 
 #[test]
+fn object_requirements_find_every_sorted_use_and_preserve_full_site_matching() {
+    let fixtures = (0..16)
+        .map(|index| fixture_named(&format!("indexedRequirement{index}")))
+        .collect::<Vec<_>>();
+    let members = fixtures
+        .iter()
+        .enumerate()
+        .map(|(index, fixture)| {
+            verified_member_with_undefined(fixture, format!("_ordinary_native_{index}").as_bytes())
+        })
+        .collect();
+    let strong = verify_current_cone_strong_relocation_closure_v1(members).unwrap();
+    let current = verify_current_cone_undefined_requirements_v1(
+        strong.clone(),
+        empty_bridge_plan(ConeIdentity::CORE),
+    )
+    .unwrap();
+    let finalized = finalize_undefined_symbol_requirements_v1(
+        current,
+        classify_without_source_externals(strong),
+    );
+    assert_eq!(finalized.requirements().len(), 16);
+    let lookup = VerifiedObjectDefinitionRequirementSetV1::from(finalized.clone());
+    for requirement in finalized.requirements() {
+        assert_eq!(
+            lookup.requirement_for(requirement.use_site()),
+            Some(CanonicalObjectDefinitionRequirementV1::Legacy(
+                requirement.requirement()
+            ))
+        );
+    }
+    for fixture in [&fixtures[0], &fixture_named("missingRequirement")] {
+        let different =
+            verify_current_cone_strong_relocation_closure_v1(vec![verified_member_with_undefined(
+                fixture,
+                b"_different_native",
+            )])
+            .unwrap();
+        let use_site = CanonicalUndefinedRelocationUseV1::from(&different.bindings()[0]);
+        assert!(lookup.requirement_for(&use_site).is_none());
+    }
+}
+
+#[test]
 fn finalizes_source_external_requirements() {
     let producer = ConeIdentity::SINGLE_FILE;
     let source = fixture_for_producer(producer, "finalNativeConsumer");
