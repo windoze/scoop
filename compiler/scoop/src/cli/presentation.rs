@@ -28,7 +28,10 @@ impl Reporter {
                 "cones": outcome.cones.iter().map(|cone| json!({
                     "identity": cone.identity.to_string(), "output": path_value(&cone.output),
                 })).collect::<Vec<_>>(),
-                "observations": { "child_invocations": outcome.compiled.iter().map(ToString::to_string).collect::<Vec<_>>() },
+                "observations": {
+                    "child_invocations": outcome.compiled.iter().map(ToString::to_string).collect::<Vec<_>>(),
+                    "rendered_files": outcome.rendered_files.iter().map(|path| path_value(path)).collect::<Vec<_>>(),
+                },
             })),
         }
     }

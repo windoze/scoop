@@ -39,6 +39,7 @@ pub struct DocumentOutcome {
     pub sources: Vec<SelectedSource>,
     pub compiled: Vec<ConeIdentity>,
     pub rendered: bool,
+    pub rendered_files: Vec<PathBuf>,
 }
 
 #[derive(Debug)]
@@ -90,8 +91,9 @@ pub fn document(request: DocumentRequest) -> BuildResult<DocumentOutcome> {
     if request.deny_warnings && !doc_warnings.is_empty() {
         return Err(error("documentation warnings are denied").with_context(&warnings, &sources));
     }
-    let rendered = publication::publish(&request, &plan.sources, &plan.selected, &overviews)
-        .map_err(|failure| failure.with_context(&warnings, &sources))?;
+    let (rendered, rendered_files) =
+        publication::publish(&request, &plan.sources, &plan.selected, &overviews)
+            .map_err(|failure| failure.with_context(&warnings, &sources))?;
     Ok(DocumentOutcome {
         output: request.output.join("index.html"),
         cones: plan
@@ -109,6 +111,7 @@ pub fn document(request: DocumentRequest) -> BuildResult<DocumentOutcome> {
         sources,
         compiled,
         rendered,
+        rendered_files,
     })
 }
 

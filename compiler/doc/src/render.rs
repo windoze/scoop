@@ -11,7 +11,7 @@ mod routes;
 mod search;
 mod views;
 
-pub use catalog::SiteCatalog;
+pub use catalog::{ConeLinkInputs, SiteCatalog};
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct SiteOptions {

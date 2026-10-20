@@ -65,6 +65,7 @@ diagnostics = []
 checks = [
   {actual = "${readme.result.observations.child_invocations}", equals = []},
   {actual = "${readme.result.rendered}", equals = true},
+  {actual = "${readme.result.observations.rendered_files}", equals = ["${readme.result.cones.0.output}"]},
   {file = "${readme.result.cones.0.output}", contains = "README revision two"},
 ]
 

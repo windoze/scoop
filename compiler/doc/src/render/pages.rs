@@ -5,6 +5,12 @@ impl SiteRenderer<'_, '_> {
     /// Each Cone can be rendered independently after the complete site catalog
     /// has been assembled. The caller owns incremental decisions and I/O.
     pub fn render_cone(&self, key: &ConeKey, overview: &ConeOverview) -> Result<Vec<RenderedFile>> {
+        let mut files = vec![self.render_overview(key, overview)?];
+        files.extend(self.render_api(key)?);
+        Ok(files)
+    }
+
+    pub fn render_overview(&self, key: &ConeKey, overview: &ConeOverview) -> Result<RenderedFile> {
         let cone = self
             .catalog
             .cones
@@ -61,12 +67,21 @@ impl SiteRenderer<'_, '_> {
                 .unwrap_or_default(),
             sections,
         };
-        let mut files = vec![self.frame(
+        self.frame(
             &home,
             &cone.name,
             Some(cone),
             self.template("listing", listing)?,
-        )?];
+        )
+    }
+
+    pub fn render_api(&self, key: &ConeKey) -> Result<Vec<RenderedFile>> {
+        let cone = self
+            .catalog
+            .cones
+            .get(key)
+            .ok_or_else(|| RenderError::MissingCone(key.clone()))?;
+        let mut files = Vec::new();
         for ((owner, package), path) in &self.catalog.packages {
             if owner != key {
                 continue;

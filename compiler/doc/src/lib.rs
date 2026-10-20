@@ -12,8 +12,8 @@ mod tags;
 pub use model::*;
 pub use project::{ProjectionError, project_cone};
 pub use render::{
-    ConeOverview, ConeReference, ReadmeInput, RenderError, RenderedFile, SiteCatalog, SiteOptions,
-    SiteRenderer,
+    ConeLinkInputs, ConeOverview, ConeReference, ReadmeInput, RenderError, RenderedFile,
+    SiteCatalog, SiteOptions, SiteRenderer,
 };
 pub use syntax::prepare_source;
 

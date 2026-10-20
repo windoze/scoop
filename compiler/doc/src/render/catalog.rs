@@ -3,6 +3,9 @@ use routes::Route;
 use std::collections::BTreeSet;
 
 mod groups;
+mod links;
+
+pub use links::ConeLinkInputs;
 
 pub struct SiteCatalog<'a> {
     pub(super) cones: BTreeMap<ConeKey, &'a ConeInput>,
