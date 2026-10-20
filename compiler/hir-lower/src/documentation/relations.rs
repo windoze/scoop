@@ -11,6 +11,8 @@ mod implemented;
 mod imported;
 mod methods;
 mod overrides;
+mod properties;
+use properties::{imported_visibility, property_signature};
 
 impl Lowerer {
     pub(super) fn documentation_relations(&mut self, target: Target) -> Vec<Relation> {
@@ -93,14 +95,16 @@ impl Lowerer {
                     relations.push(Relation {
                         kind: RelationKind::Inherited,
                         target: Symbol::Current(Source::Property(id).into()),
-                        signature: format!(
-                            "{} {name}: {}",
-                            if property.capability.setter().is_some() {
-                                "var"
-                            } else {
-                                "val"
-                            },
-                            self.type_name(value)
+                        signature: property_signature(
+                            &name,
+                            &self.type_name(value),
+                            self.property_getters[property.capability.getter()]
+                                .access
+                                .declared,
+                            property
+                                .capability
+                                .setter()
+                                .map(|setter| self.property_setters[setter].access.declared),
                         ),
                         origin: self.type_name(declaring),
                         visibility: property.access.declared,

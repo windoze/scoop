@@ -43,7 +43,8 @@ fn m60_documentation_projection_preserves_binder_names_source_aliases_and_markdo
         /** 文档 [Cell] and [Missing].\r\n\
          * @return Number of items.\r\n\
          */\r\n\
-        public fun count(value: Count = 2) = value\r\n";
+        public fun count(value: Count = 2) = value\r\n\
+        public fun shadow(Count: Count): Count = Count\r\n";
     let input = project(&lower_documented(source).unwrap());
     assert_eq!(input.sources.len(), 1);
     assert_eq!(input.sources[0].text, source);
@@ -62,6 +63,16 @@ fn m60_documentation_projection_preserves_binder_names_source_aliases_and_markdo
         Some(item(&input, ApiKind::TypeAlias, "Count").key.clone())
     );
     let cell = item(&input, ApiKind::Class, "Cell");
+    let shadow = item(&input, ApiKind::Function, "shadow");
+    assert_eq!(
+        shadow
+            .signature
+            .iter()
+            .filter(|part| part.text == "Count"
+                && part.link.as_ref() == Some(&item(&input, ApiKind::TypeAlias, "Count").key))
+            .count(),
+        2
+    );
     assert_eq!(
         cell.signature
             .iter()

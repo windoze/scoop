@@ -63,7 +63,7 @@ impl Lowerer {
                             .collect(),
                         span,
                     };
-                    self.documentation_symbols(declaration.target, &path, index, world)
+                    self.documentation_symbols(declaration.target, &path, index, world, true)
                             .ok()
                             .and_then(|symbols| match symbols.as_slice() {
                                 [

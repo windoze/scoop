@@ -74,16 +74,22 @@ impl Lowerer {
             let scoop_identity::PropertyOwner::Property(id) = property.declaration() else {
                 unreachable!("a nominal property is not an extension")
             };
+            let setter = property.accessors().setter().map(|setter| {
+                let setter = self
+                    .dependencies
+                    .as_ref()
+                    .unwrap()
+                    .callable_declaration(CallableTemplateOrigin::Accessor(setter))
+                    .expect("a checked property retains its setter declaration");
+                imported_visibility(setter.interface().declared_visibility())
+            });
             (
                 hir::AnnotationTargetV1::Property(id),
-                format!(
-                    "{} {}: {result}",
-                    if property.accessors().setter().is_some() {
-                        "var"
-                    } else {
-                        "val"
-                    },
-                    candidate.name()
+                property_signature(
+                    candidate.name(),
+                    &result,
+                    imported_visibility(declaration.declared_visibility()),
+                    setter,
                 ),
             )
         } else {
@@ -196,12 +202,7 @@ impl Lowerer {
             target: Symbol::Imported(target),
             signature,
             origin: self.type_name(declaring),
-            visibility: match declaration.declared_visibility() {
-                hir::DeclaredVisibilityV1::Public => hir::DeclaredVisibility::Public,
-                hir::DeclaredVisibilityV1::Protected => hir::DeclaredVisibility::Protected,
-                hir::DeclaredVisibilityV1::Internal => hir::DeclaredVisibility::Internal,
-                hir::DeclaredVisibilityV1::Private => hir::DeclaredVisibility::Private,
-            },
+            visibility: imported_visibility(declaration.declared_visibility()),
             hidden: self.documentation_imported_hidden(target)
                 || self.documentation_imported_hidden(hir::AnnotationTargetV1::Nominal(owner)),
         }

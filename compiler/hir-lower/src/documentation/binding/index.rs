@@ -43,13 +43,16 @@ impl DocumentationIndex {
         &self,
         mut target: Target,
         name: &str,
+        types_only: bool,
     ) -> Option<Target> {
         loop {
             if let Some((target, _, _)) = self.children(target).find(|(target, kind, candidate)| {
-                matches!(
-                    kind,
-                    Kind::Parameter | Kind::TypeParameter | Kind::ContextParameter
-                ) && !matches!(target, Target::Declaration(Source::Receiver(_)))
+                (!types_only || *kind == Kind::TypeParameter)
+                    && matches!(
+                        kind,
+                        Kind::Parameter | Kind::TypeParameter | Kind::ContextParameter
+                    )
+                    && !matches!(target, Target::Declaration(Source::Receiver(_)))
                     && *candidate == name
                     && name != "_"
             }) {

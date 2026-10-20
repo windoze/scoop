@@ -181,7 +181,7 @@ impl Lowerer {
         world: Option<&hir::ImportedSemanticWorld<'_>>,
         warnings: &mut Vec<ast::Diagnostic>,
     ) -> Link {
-        match self.documentation_symbols(target, path, index, world) {
+        match self.documentation_symbols(target, path, index, world, false) {
             Ok(symbols) => {
                 let mut symbols = symbols.into_iter();
                 let first = symbols

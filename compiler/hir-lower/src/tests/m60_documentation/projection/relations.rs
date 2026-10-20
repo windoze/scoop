@@ -11,6 +11,8 @@ const PROVIDER: &str = r#"
         @Unsafe public fun hazardous(): Int = 2
         public open fun number(): Int = 1
         public open val size: Int get() = 1
+        public var state: Int get() = 1
+            private set(next) {}
         @DocHidden public fun secret(): Int = 0
         protected fun protectedItem(): Int = 3
     }
@@ -75,6 +77,12 @@ fn check(input: &ConeInput) {
         "{inherited:?}"
     );
     let reader = item(input, ApiKind::Interface, "Reader");
+    assert!(
+        inherited
+            .iter()
+            .any(|r| r.signature == "var state: Int { public get; private set }"),
+        "{inherited:?}"
+    );
     assert!(
         inherited
             .iter()

@@ -8,6 +8,8 @@ public open class Base<T> public constructor(public val value: T) {
     public fun <U> constrained(input: U): Int where requires(x: U) { x.read(): T } = 1
     public fun defaulted(value: Int = 1): Int = value
     public open fun number(): Int = 1
+    public var state: Int get() = 1
+        private set(next) {}
     @DocHidden public fun secret(): Int = 0
 }
 

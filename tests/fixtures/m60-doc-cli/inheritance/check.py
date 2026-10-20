@@ -53,6 +53,7 @@ for signature in (
     "fun other<U>(input: U, fallback: Int): U",
     "fun constrained<U>(input: U): Int where requires(x: U) { x.read(): Int }",
     "fun defaulted(value: Int = …): Int",
+    "var state: Int { public get; private set }",
     "Base<Int>",
     "Overrides",
 ):
