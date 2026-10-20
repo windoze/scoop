@@ -6,5 +6,7 @@ public struct SourceLocation(
     val typeName: String
 )
 
+/** Returns the source location of this call. */
+@DocAlias("source position")
 @Intrinsic("current_source_location")
 public fun currentSourceLocation(): SourceLocation

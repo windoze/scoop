@@ -1,0 +1,5 @@
+package application
+annotation class DocAlias(val number: Int)
+annotation class DocHidden
+fun value(@DocAlias(42) @DocHidden argument: Int): Int = argument
+fun main() { println(value(42)) }

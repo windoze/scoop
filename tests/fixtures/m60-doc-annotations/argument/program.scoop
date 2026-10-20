@@ -1,0 +1,2 @@
+@DocAlias(1) struct S()
+fun main() {}

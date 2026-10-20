@@ -1,3 +1,5 @@
+/** A signed integer value with arithmetic and comparison operations. */
+@DocAlias("integer")
 @Intrinsic("core_int")
 public struct Int :
     Add<Int, Int>,

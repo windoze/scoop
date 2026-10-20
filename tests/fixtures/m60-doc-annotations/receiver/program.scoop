@@ -1,0 +1,2 @@
+@receiver:DocHidden fun Int.value(): Int = this
+fun main() {}

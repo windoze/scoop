@@ -1,0 +1,10 @@
+schema = 1
+
+[cone]
+group = "dev.m60"
+name = "doc-annotations-consumer"
+version = "0.1.0"
+kind = "executable"
+
+[dependencies]
+"dev.m60:doc-annotations-facade" = {version = "0.1.0", path = "../facade"}

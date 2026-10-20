@@ -1595,6 +1595,10 @@ core 提供普通的 `annotation class Target(val allowed: Array<AnnotationTarge
 
 `@Repeatable` 允许同一实际目标上多次应用该 annotation class，保留源码顺序、相同参数值及各次来源；未标时重复应用在后一处报错。导入别名和 re-export 不改变 annotation identity，不能绕过重复检查。不同实际 use-site 独立检查，不复制或继承应用，也不生成 container annotation。两个核心元注解的固定语义只按真实 core 声明身份识别；同名用户声明没有特殊作用。前向声明使用最终绑定的规则，不因声明顺序改变结果。规则与静态参数只在定义处绑定一次，跨库使用已保存的规则。
 
+core 还提供普通公开文档注解 `annotation class DocHidden` 和 `@Repeatable annotation class DocAlias(val name: String)`。两者的 Target 均限于 Class、AnnotationClass、EnumVariant、Field、Property、Function、Constructor、TypeAlias；DocHidden 不可重复。它们使用普通静态参数与 use-site 规则，不用于普通参数、receiver、类型使用或独立 accessor。
+
+DocHidden 从生成的 API 页面、成员目录和搜索中省略目标及其包含的文档条目，私有文档模式和 re-export 不覆盖显式隐藏。DocAlias 为实际呈现的目标增加搜索关键词；它不增加源码名称或 import binding。隐藏字段／property 不删除构造器参数或其他可见签名中的类型文字。两者均按实际 core annotation identity 识别，导入 alias／re-export 保持语义，用户同名声明没有特殊作用；不改变语言可见性、继承、类型、调用效果或 ABI。普通编译仍完整检查隐藏声明；源码页不因 API 隐藏而删改源码。
+
 类型使用位置可以写注解前缀，包含字段/property/参数/结果、显式局部类型、父类型与 bound、alias 目标及类型实参；完整类型使用树中的泛型实参、tuple 元素、函数 receiver/参数/结果和指针 pointee 分别保留各自位置。类型使用只接受 Type 类别，不接受 use-site 选择或第 13 章不适用于类型位置的核心效果注解。局部变量的显式类型可以带注解，变量本体仍不是声明注解目标。
 
 前缀属于紧随其后的完整类型：`@A T?` 标在 Option 根，`(@A T)?` 标在其元素 T；`@F() R.(P) -> Q` 标在函数类型根，`(@R R).(@P P) -> @Q Q` 分别标在 receiver、参数和结果。声明 receiver 同样区分 `fun @A T?.f()` / `val @A T?.p` 的 Option 根与 `fun (@A T)?.f()` / `val (@A T)?.p` 的元素 T。单元素括号不增加类型节点或丢弃内部注解；零参数注解在后续类型以括号开始时可以显式写 `@A()`，避免与注解参数括号混淆。限定名本身不产生另一个运行期类型节点；完整 inner application 的外层/自身类型实参按原 binder 顺序保留，限定符的类型使用不能把其根注解复制给另一个名义类型。
@@ -2983,6 +2987,7 @@ internal fun coreLongHash(value: Long): Long
 - 11.15 的 `core_maybe_uninit` 登记为单参数 intrinsic struct；`maybe_uninit_zero`、`maybe_uninit_initialized` 是相应 companion 的静态操作，`maybe_uninit_assume_init` 是 wrapper 实例操作，后者必须带 `@Unsafe`。它们保留 wrapper 与 payload 的完整类型，不凭相同布局抹除初始化契约；不允许其他 annotation 组合绕过既有 NoGC／unsafe 检查。
 
 - 除非有单独说明，`@Intrinsic` 不能与其他任何注解共存。integer registry中除`div`/`rem`外的纯scalar operation与conversion是一个封闭例外：其声明必须同时带`@NoGC`；`div`/`rem`不得带。 Char code/相等/比较和 core 内部 unchecked code-point 构造均为 NoGC scalar operation，其中 unchecked 构造还必须标注 `@Unsafe`；公开 `Int.toChar` 在普通 core body 中先检查范围再调用。13.10列出的pointer intrinsic继续按该节例外组合`@NoGC`/`@Unsafe`。
+- §9.4 的真实 core DocHidden／DocAlias 是文档例外，可以与 intrinsic 类型及函数共存，包括通过普通 import alias／re-export 使用。此例外不改变登记项要求的 NoGC／Unsafe 等效果组合；同名用户注解及其他普通注解仍不允许。先解析普通注解的 typed identity 再判断该例外，不能按短名或注解总数量判断。
 - `name` 必须是编译器内置intrinsic登记表中的已知标识；未知`name`、错误annotation target、与登记shape/signature不符或同一intrinsic kind存在多个provider都是编译错误（用户不能声明自定义intrinsic）。阶段契约见编译器与产物规范 2.10。
 
 ### 13.2 `@NoGC`

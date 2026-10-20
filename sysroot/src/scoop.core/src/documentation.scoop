@@ -1,0 +1,37 @@
+/**
+ * Omits a declaration and its contained API entries from generated documentation.
+ *
+ * The declaration remains available to normal language lookup and compilation.
+ * This annotation does not remove source text from generated source pages.
+ */
+@Target([
+    AnnotationTarget.Class,
+    AnnotationTarget.AnnotationClass,
+    AnnotationTarget.EnumVariant,
+    AnnotationTarget.Field,
+    AnnotationTarget.Property,
+    AnnotationTarget.Function,
+    AnnotationTarget.Constructor,
+    AnnotationTarget.TypeAlias
+])
+public annotation class DocHidden
+
+/**
+ * Adds a search keyword to a declaration's generated documentation.
+ *
+ * Apply this annotation repeatedly to provide several keywords.
+ *
+ * @param name The keyword used to find the documented declaration.
+ */
+@Target([
+    AnnotationTarget.Class,
+    AnnotationTarget.AnnotationClass,
+    AnnotationTarget.EnumVariant,
+    AnnotationTarget.Field,
+    AnnotationTarget.Property,
+    AnnotationTarget.Function,
+    AnnotationTarget.Constructor,
+    AnnotationTarget.TypeAlias
+])
+@Repeatable
+public annotation class DocAlias(val name: String)

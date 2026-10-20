@@ -1,0 +1,2 @@
+fun f(value: @DocAlias("number") Int) {}
+fun main() {}

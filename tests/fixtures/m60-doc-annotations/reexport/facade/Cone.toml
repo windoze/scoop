@@ -1,0 +1,7 @@
+schema = 1
+
+[cone]
+group = "dev.m60"
+name = "doc-annotations-facade"
+version = "0.1.0"
+kind = "library"

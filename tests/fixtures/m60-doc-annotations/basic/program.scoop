@@ -1,0 +1,16 @@
+import DocHidden as Omit
+import DocAlias as Keyword
+/** A documented record; the annotations do not change execution. */
+@Keyword("record") @Keyword("entry")
+struct Item(@Omit val value: Int)
+@Omit fun helper(value: Int): Int = value + 1
+@DocHidden annotation class Note
+@DocAlias("number") typealias Number = Int
+@DocHidden interface Marker {}
+@DocAlias("singleton") object Service {}
+@DocHidden enum Data { @DocHidden Empty, Value(@DocAlias("payload") val value: Int) }
+@DocAlias("container") class C(@DocHidden val x: Int) {
+    @DocHidden constructor() : this(41) {}
+    @DocAlias("read") fun read(): Int = x
+}
+fun main() { println(helper(Item(C().read()).value)) }

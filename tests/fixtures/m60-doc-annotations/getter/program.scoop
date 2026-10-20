@@ -1,0 +1,2 @@
+class C { val value: Int @DocHidden get() = 1 }
+fun main() {}
