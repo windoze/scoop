@@ -9,6 +9,7 @@ internal class TerminalHandle {
     private var pointer: Ptr<Unit>? = None
     internal val isRaw: Boolean get() { @Unsafe { return nativeRawEnabled(pointer!!) } }
     internal val isClosed: Boolean get() = pointer == None
+    internal fun <R> withPointer(block: (Ptr<Unit>) -> R): R = block(pointer!!)
 
     internal fun open() {
         @Unsafe {

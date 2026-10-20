@@ -160,7 +160,7 @@ C shim 持有 opaque native 状态，不把 `termios`、fd 数字或平台常量
 
 ### 6.2 Resize 与 signal
 
-同步 Unix 路径使用 `SIGWINCH` 唤醒等待，并重新查询实际尺寸；handler 只执行 async-signal-safe 的通知操作，例如向非阻塞 self-pipe 写入。pipe 已满时可合并通知，因为后续读取最终尺寸，而不是要求每个信号对应一项历史尺寸事件。
+同步 Unix 路径使用 `SIGWINCH` 唤醒等待，并重新查询实际尺寸。Linux handler 只执行 async-signal-safe 的通知操作，写入非阻塞 self-pipe；pipe 已满时可合并通知。Darwin 使用 kqueue `EVFILT_SIGNAL` 直接观察，不替换原 handler；其 sigaction 查询不返回 SA_RESETHAND，读取后重装不能保留完整语义，详见终端规范 7.1。
 
 signal 安装与输入会话共享同一生命周期，保存并正确恢复原 handler，处理安装／关闭竞态以及自有通知 fd 的关闭顺序。对已有 handler 的共存策略必须在实现前写入 terminal 规范并测试，不能静默覆盖后不恢复。这里仅实现终端 resize 所需的协调，不顺带发布通用 signal 框架。
 

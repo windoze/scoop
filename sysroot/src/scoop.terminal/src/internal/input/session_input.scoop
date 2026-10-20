@@ -1,0 +1,98 @@
+package scoop.terminal.internal.input
+
+import scoop.platform.time.MonotonicTimeSource
+import scoop.terminal.*
+import scoop.terminal.event.*
+import scoop.terminal.internal.platform.*
+import scoop.time.Duration
+
+internal class SessionInput(escapeDelay: Duration) {
+    private val parser: InputParser = InputParser(escapeDelay)
+    private var ready: Event? = None
+    private var ended: Boolean = false
+    private var previous: TerminalSize = TerminalSize(0L, 0L, 0L, 0L)
+
+    internal fun initialize(terminal: TerminalHandle) { previous = terminal.size() }
+
+    internal fun read(terminal: TerminalHandle): Event {
+        poll(terminal, None)
+        val event = ready!!
+        ready = None
+        return event
+    }
+
+    internal fun poll(terminal: TerminalHandle, timeout: Duration?): Boolean {
+        val started = now()
+        while (true) {
+            if (collect()) return true
+            if (ended) throw TerminalDisconnectedException()
+            val immediate = terminal.waitInput(Some(Duration.ZERO))
+            if (immediate != 0) {
+                receive(terminal, immediate)
+                if (collect()) return true
+                if (expired(started, timeout)) {
+                    if (!ended) {
+                        val more = terminal.waitInput(Some(Duration.ZERO))
+                        if (more == 0) parser.advance(now()) else receive(terminal, more)
+                    }
+                    if (collect()) return true
+                    if (ended) throw TerminalDisconnectedException()
+                    return false
+                }
+                continue
+            }
+            parser.advance(now())
+            if (collect()) return true
+            if (expired(started, timeout)) return false
+            val delay = shorter(remaining(started, timeout), parser.escapeRemaining)
+            receive(terminal, terminal.waitInput(delay))
+        }
+    }
+
+    private fun receive(terminal: TerminalHandle, flags: Int) {
+        if ((flags and 2) != 0) {
+            val size = terminal.size()
+            if (size.columns != previous.columns || size.rows != previous.rows) {
+                parser.output.addLast(InputItem.User(Event.Resize(size.columns, size.rows)))
+                previous = size
+            }
+        }
+        if ((flags and 5) == 0) return
+        when (terminal.readInput((flags and 4) != 0)) {
+            case None -> {}
+            case Some(bytes) -> {
+                if (bytes.size == 0L) {
+                    ended = true
+                    parser.finish()
+                } else parser.feed(bytes, now(), terminal.isRaw)
+            }
+        }
+    }
+
+    private fun collect(): Boolean {
+        if (ready != None) return true
+        while (true) {
+            when (parser.next()) {
+                case None -> return false
+                case Some(InputItem.User(event)) -> { ready = Some(event); return true }
+                case Some(InputItem.Invalid(detail)) -> throw TerminalInputException(detail)
+                // Unsolicited device replies are not user input.
+                case Some(_) -> {}
+            }
+        }
+    }
+}
+
+private fun now(): Duration = MonotonicTimeSource.markNow().reading
+private fun expired(started: Duration, timeout: Duration?): Boolean =
+    timeout != None && now() - started >= timeout!!
+private fun remaining(started: Duration, timeout: Duration?): Duration? {
+    if (timeout == None) return None
+    val elapsed = now() - started
+    return Some(if (elapsed >= timeout!!) Duration.ZERO else timeout!! - elapsed)
+}
+private fun shorter(first: Duration?, second: Duration?): Duration? {
+    if (first == None) return second
+    if (second == None) return first
+    return Some(if (first!! < second!!) first!! else second!!)
+}

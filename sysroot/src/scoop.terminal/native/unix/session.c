@@ -21,6 +21,7 @@ void *scoop_terminal_open(void) {
     char path[PATH_MAX];
     const char *selected = "/dev/tty";
     int fd = -1;
+    scoop_terminal *terminal = NULL;
     if (isatty(STDIN_FILENO)) {
         int error = ttyname_r(STDIN_FILENO, path, sizeof(path));
         if (error != 0) {
@@ -34,15 +35,18 @@ void *scoop_terminal_open(void) {
     } while (fd < 0 && errno == EINTR);
     if (fd < 0)
         goto failed;
-    scoop_terminal *terminal = calloc(1, sizeof(*terminal));
+    terminal = calloc(1, sizeof(*terminal));
     if (!terminal)
         goto failed;
     terminal->fd = fd;
+    if (scoop_terminal_watch_start(terminal) < 0)
+        goto failed;
     return terminal;
 failed: {
     int error = errno;
     if (fd >= 0)
         (void)close(fd);
+    free(terminal);
     atomic_store(&session_open, false);
     errno = error;
     return NULL;
@@ -51,7 +55,9 @@ failed: {
 
 int scoop_terminal_close(scoop_terminal *terminal) {
     int error = 0;
-    if (scoop_terminal_set_raw(terminal, false) < 0)
+    if (scoop_terminal_watch_stop(terminal) < 0)
+        error = errno;
+    if (scoop_terminal_set_raw(terminal, false) < 0 && error == 0)
         error = errno;
     if (close(terminal->fd) < 0 && error == 0)
         error = errno;

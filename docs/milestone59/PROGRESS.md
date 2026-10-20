@@ -10,8 +10,8 @@
 | 命令／光标／屏幕 | 本机完成，PTY／Linux 随后验收 | 14 项单测 debug 与 release＋moving GC 均通过；3 项消费者 fixture、6 个变体通过 |
 | 样式与颜色策略 | 本机完成，PTY／Linux 随后验收 | 新增 11 项单测；全库 25 项 debug 与 release＋moving GC 均通过；2 项消费者 fixture、4 个变体通过 |
 | 事件数据与增量 parser | 本机完成，PTY／Linux 随后验收 | 新增 29 项单测；全库 54 项 debug 与 release＋moving GC 均通过；事件消费者 fixture 两个变体通过 |
-| Unix 会话、raw、resize、read／poll、查询 | 会话、raw、尺寸本机完成；通知与输入／查询待实施 | PTY 会话 fixture 两个变体、8 个进程通过；输出交互回归通过 |
-| PTY host 与交互 fixture | host 与输出交互本机完成；输入／恢复随会话补齐 | host 4 项测试、runner 51 项规则测试通过；PTY 输出 fixture 两个变体通过 |
+| Unix 会话、raw、resize、read／poll、查询 | 会话、raw、尺寸、通知与同步输入本机完成；查询待实施 | 会话与输入 PTY fixture 共 4 个变体、12 个进程通过 |
+| PTY host 与交互 fixture | 输出、输入、raw 与信号恢复本机完成；查询／异步随后补齐 | host 5 项测试、runner 51 项规则测试通过；各 PTY fixture 的 debug／release 变体通过 |
 | Kitty／OSC 52 与组合覆盖 | Kitty 数据、命令及解析已实现；OSC 52 本机完成；Kitty 会话探测待实施 | Kitty 协议已有单测；OSC 52 新增 3 项单测及两个 PTY 消费者变体通过 |
 | asyncio TTY 与 terminal.asyncio | 待实施 | — |
 | Linux GNU／musl 验收与清理 | 待实施 | — |
@@ -73,3 +73,11 @@ host 的 4 项测试覆盖全部查询切分位置、Kitty 零标志与不回复
 完成有序 ClipboardSelection、ClipboardType、CopyToClipboard 和 UTF-8 文本便捷入口，复用 std 的标准带填充 Base64。选择器在输出前拒绝控制字符、非 ASCII 和分号；保留默认目标、顺序及重复项。复制不受 NO_COLOR 影响，不引入桌面剪贴板或读取协议。
 
 新增 3 项单测在 debug 和 release＋moving GC 下通过；按 Clipboard 筛选运行，没有重复全部 parser 切分测试。真实 PTY 消费者两个变体、4 个进程通过，核对 UTF-8、二进制与空内容的完整 OSC 52／ST，并确认屏幕和光标不变。host 只捕获数据，未修改宿主剪贴板。开发 sysroot 已发布，Rust fmt／Clippy 通过；生产文件为 21／47 行。
+
+## 10. 同步输入、截止时间与 resize
+
+完成 read／poll、可配置 Escape 等待、完整事件保留、非法输入恢复、EOF 与断开分类。Scoop 管理单调总截止时间和 parser，native 只做非阻塞读取与等待；EINTR／EAGAIN 不重新开始计时。读取使用显式 NativeByteBorrow，不捕获外层可变局部。
+
+Linux 使用非阻塞 self-pipe，保留原 handler、mask 及一次性语义，拆除等待在途 handler 后释放通知 fd。Darwin 实测及 XNU 源码确认 sigaction 查询遗漏 SA_RESETHAND，故改用 kqueue EVFILT_SIGNAL 观察；不替换原 disposition，避免把无法恢复的一次性行为当作已支持。设计与规范已同步。
+
+真实 PTY 输入覆盖 UTF-8 分片、连续队列、零／有限 poll、Escape、鼠标／focus／paste／Kitty、非法字节后继续读取、输入与 resize 交错、五种原 signal disposition 及规范模式 EOF。输入与已有会话 fixture 的 debug／release 共 4 个变体、12 个进程在 moving GC 下通过；host 5 项测试、Rust fmt／Clippy、Darwin C 严格告警检查通过。Linux self-pipe 的运行验证留待最后的 Linux 验收。生产文件最长 114 行，target 约 772 MiB。

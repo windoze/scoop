@@ -109,13 +109,18 @@ impl Terminal {
         Ok(())
     }
 
-    pub fn wait_output(&mut self, offset: usize, expected: &[u8]) -> Result<()> {
+    pub fn wait_output(&mut self, offset: usize, expected: &[u8]) -> Result<usize> {
         ensure!(!expected.is_empty(), "empty output predicate");
         self.wait_for(&format!("output {expected:?}"), |host| {
             host.raw[offset..]
                 .windows(expected.len())
                 .any(|bytes| bytes == expected)
-        })
+        })?;
+        let position = self.raw[offset..]
+            .windows(expected.len())
+            .position(|bytes| bytes == expected)
+            .context("matched output disappeared")?;
+        Ok(offset + position + expected.len())
     }
 
     pub fn finish(&mut self) -> Result<()> {

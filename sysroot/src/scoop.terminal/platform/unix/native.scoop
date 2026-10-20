@@ -17,3 +17,7 @@ internal fun nativeRawEnabled(terminal: Ptr<Unit>): Boolean
 internal fun nativeSize(terminal: Ptr<Unit>): (NativeSize, Int)
 @Extern(name = "scoop_terminal_write", captureErrno = true)
 internal fun nativeWrite(terminal: Ptr<Unit>, data: Ptr<Byte>, count: Long): (Long, Int)
+@Extern(name = "scoop_terminal_wait", captureErrno = true)
+internal fun nativeWait(terminal: Ptr<Unit>, milliseconds: Int): (Int, Int)
+@Extern(name = "scoop_terminal_read", captureErrno = true)
+internal fun nativeRead(terminal: Ptr<Unit>, data: Ptr<Byte>, count: Long, hungUp: Boolean): (Long, Int)

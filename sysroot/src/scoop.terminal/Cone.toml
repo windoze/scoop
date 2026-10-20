@@ -29,3 +29,12 @@ when = {os = ["darwin", "linux"]}
 [[native.sources]]
 path = "native/unix/control.c"
 when = {os = ["darwin", "linux"]}
+[[native.sources]]
+path = "native/unix/resize_linux.c"
+when = {os = "linux"}
+[[native.sources]]
+path = "native/unix/resize_darwin.c"
+when = {os = "darwin"}
+[[native.sources]]
+path = "native/unix/input.c"
+when = {os = ["darwin", "linux"]}

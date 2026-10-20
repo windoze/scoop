@@ -3,6 +3,9 @@ package scoop.terminal
 import scoop.platform.io.ByteSink
 import scoop.platform.memory.NativeByteBuffer
 import scoop.terminal.internal.platform.*
+import scoop.terminal.internal.input.SessionInput
+import scoop.terminal.event.Event
+import scoop.time.Duration
 
 public enum StandardStream { Input, Output, Error }
 
@@ -13,16 +16,23 @@ public fun isTerminal(stream: StandardStream): Boolean {
 
 public struct TerminalSize(val columns: Long, val rows: Long, val widthPixels: Long, val heightPixels: Long)
 
-public class TerminalSession private constructor() : ByteSink, Closeable {
+public class TerminalSession private constructor(escapeDelay: Duration) : ByteSink, Closeable {
     private val terminal: TerminalHandle = TerminalHandle()
+    private val input: SessionInput = SessionInput(escapeDelay)
     private val active: AtomicBoolean = AtomicBoolean(false)
     public val isClosed: Boolean get() = withState { terminal.isClosed }
     public val isRawMode: Boolean get() = withTerminal { it.isRaw }
 
     public companion object {
-        public fun open(): TerminalSession {
-            val session = TerminalSession()
+        public fun open(escapeDelay: Duration = Duration.milliseconds(50L)): TerminalSession {
+            val session = TerminalSession(escapeDelay)
             session.terminal.open()
+            try { session.input.initialize(session.terminal) }
+            catch (primary: Throwable) {
+                try { session.close() }
+                catch (cleanup: Throwable) { throw ResourceUseException(primary, cleanup) }
+                throw primary
+            }
             return session
         }
     }
@@ -41,6 +51,11 @@ public class TerminalSession private constructor() : ByteSink, Closeable {
     public fun size(): TerminalSize = withTerminal { it.size() }
     public fun enableRawMode() { withTerminal { it.setRaw(true) } }
     public fun disableRawMode() { withTerminal { it.setRaw(false) } }
+    public fun read(): Event = withTerminal { input.read(it) }
+    public fun poll(timeout: Duration): Boolean {
+        if (timeout < Duration.ZERO) throw IllegalArgumentException(Some("negative terminal poll timeout"))
+        return withTerminal { input.poll(it, Some(timeout)) }
+    }
 
     public override fun writeFrom(buffer: NativeByteBuffer, count: Long): Long =
         withTerminal { it.write(buffer, count) }

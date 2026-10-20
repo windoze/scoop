@@ -46,6 +46,8 @@ fn real_pty_drains_output_and_preserves_exact_cells() {
     let mut host = Terminal::spawn(command, 12, 5).unwrap();
     host.finish().unwrap();
     assert!(host.raw.ends_with(b"done"));
+    let consumed = host.wait_output(0, b"A").unwrap();
+    host.wait_output(consumed, b"done").unwrap();
     assert_eq!(host.parser.screen().cell(1, 2).unwrap().contents(), " ");
     assert_eq!(host.parser.screen().cell(1, 3).unwrap().contents(), "A");
     assert_eq!(host.parser.screen().cell(1, 5).unwrap().contents(), " ");

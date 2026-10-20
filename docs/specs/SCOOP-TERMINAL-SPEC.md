@@ -123,7 +123,7 @@ public enum Event {
 - 旧式 `25/26/28/29/31/32/33/34 ~` 分别为 F13～F20，依据 [xterm 功能键表](https://invisible-island.net/xterm/xterm-function-keys.html)，修正上游 0.29 对 F15～F20 的编号偏差。
 - 传统鼠标固定收取三个原始字节；rxvt 与 SGR 按数字字段解析，允许上游接受的末尾可选分号。协议坐标必须为正数，转换为零基 Long；不允许下溢。普通十进制字段先受检累积，再按具体协议范围检查，不接受符号、空的必填数字、额外字段或溢出。
 - `CSI 200~` 开始粘贴，至第一个完整 `CSI 201~` 结束。期间包括 Escape、换行和近似结束标记在内的载荷均按原样收集；结束标记不进入 Paste，后续字节继续解析。
-- EOF 保留已完成结果，单独 Escape 转为 Esc，其余未完成前缀／粘贴产生一次非法输入，然后结束。非法输入由会话转为 TerminalInputException，消费后可继续读取；EOF／断开的异常合同见第 9 节。
+- EOF 保留已完成结果，单独 Escape 转为 Esc，其余未完成前缀／粘贴产生一次非法输入，然后结束。非法输入由会话转为 TerminalInputException，消费后可继续读取；EOF／断开的异常合同见 7.1。
 
 ### 6.2 键盘增强与设备回复
 
@@ -141,12 +141,16 @@ public fun isTerminal(stream: StandardStream): Boolean
 public struct TerminalSize(val columns: Long, val rows: Long,
     val widthPixels: Long, val heightPixels: Long)
 public class TerminalSession : ByteSink, Closeable {
-    public companion object { public fun open(): TerminalSession }
+    public companion object {
+        public fun open(escapeDelay: Duration = Duration.milliseconds(50L)): TerminalSession
+    }
     public val isClosed: Boolean
     public val isRawMode: Boolean
     public fun size(): TerminalSize
     public fun enableRawMode()
     public fun disableRawMode()
+    public fun read(): Event
+    public fun poll(timeout: Duration): Boolean
 }
 public fun <R> TerminalSession.withRawMode(block: () -> R): R
 ```
@@ -181,6 +185,49 @@ close 在恢复失败后仍尝试关闭其他自有资源；消费句柄后会�
 显式 close／use 是终端恢复和资源释放的必要入口；本会话不注册 GC／atexit
 恢复钩子，不让 GC 线程执行 tcsetattr 或阻塞等待。
 
+### 7.1 同步输入与 resize
+
+TerminalSession 的 `read(): Event` 等待下一项完整用户事件；
+`poll(timeout: Duration): Boolean` 使用非负总等待时间，0 不阻塞。
+poll 为 true 时保留该事件，随后同一串行读取者的 read 直接消费；重复 poll 不
+移除事件。非法输入抛 TerminalInputException 并消费该错误项，后续事件仍可读取。
+内部设备回复不使 poll 返回 true，也不作为用户输入交付。
+
+read／poll 不隐式启用 raw；立即逐键输入需要调用方使用 raw 作用域。传给 parser
+的 raw 标志跟随会话的 raw 所有权。所有输入、解析状态及用户事件归同一会话，
+并发 read／poll／close 触发第 7 节的操作冲突错误。
+
+等待使用单调时钟的总截止时间，并取剩余总时间与 Escape 剩余时间的较小值。
+非阻塞读取和 signal 中断不会重新开始计时。零等待可以处理当前可读数据，但
+不承诺在一次调用中排空任意长的持续输入；分片未完成时返回 false 并保留前缀。
+Escape 延迟为 0 时，只有确认暂时无更多可读数据才结束歧义。
+OS poll 的毫秒精度与线程调度影响实际返回时刻，不代表允许重新延长等待窗口。
+
+EOF／断开在排空已经完成的用户事件后抛 TerminalDisconnectedException。
+EOF 时未完成前缀沿 6.1 先产生一项解析错误；随后读取报告断开，不忙循环。
+调用方仍须 close／use；若断开的设备无法恢复 termios，关闭继续释放资源并报告
+实际原生错误。
+
+Linux 同步会话安装 SIGWINCH 的非阻塞 self-pipe 通知，close 恢复原 disposition。
+原有普通 handler／SA_SIGINFO handler 继续调用，原 signal mask、SA_ONSTACK、
+SA_NODEFER、SA_RESTART 行为保留；SA_RESETHAND 的原 handler 只调用一次，之后
+恢复为默认 disposition。SIG_DFL／SIG_IGN 不调用函数指针。signal handler 保存
+errno，不分配、不调用 Scoop，pipe 满时合并通知。
+
+安装与拆除期间使用 native 原子引用和在途 handler 计数保护自有 fd／存储。
+Linux 同一进程的应用不得在会话存续期间并发重新注册 SIGWINCH；如果它已经被其他
+代码替换，close 不覆盖新的 disposition。
+
+Darwin 使用 kqueue 的 EVFILT_SIGNAL 观察进程 SIGWINCH，不替换 disposition，
+因此原 handler 的一次性、mask 与恢复行为由内核保留。Darwin sigaction 查询不
+返回 SA_RESETHAND，不能通过重新安装查询所得的 action 声称完整恢复；依据为
+[XNU sigaction 实现](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_sig.c)
+及 [kqueue 合同](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/man/man2/kqueue.2)。
+
+标准信号及切换边界允许合并，不承诺
+每一次 resize 都交付。会话保存最近观察到的行列，通知后重查；只有行列改变
+才排入 Resize。尺寸为最后一次实际观察值，输入字节与 signal 没有全局先后保证。
+
 ## 8. OSC 52 复制
 
 package `scoop.terminal.clipboard`：
@@ -212,15 +259,10 @@ UTF-8 内容；直接构造接受任意不可变字节数组。编码复用 std 
 
 ## 9. 后续功能的既定合同
 
-Unix 会话、PTY 交互、OSC 52 与异步适配均属于 M59 的交付范围，不因前面的功能先完成而移出里程碑。后续功能的具体公共声明在各自实现前增加到本文；以下约束已经确定：
+查询与异步适配仍属于 M59 的交付范围。具体公共声明在各自实现前增加到本文；以下约束已经确定：
 
-- 事件 parser 增量处理 UTF-8、CSI／SS3、鼠标、focus、paste、Kitty 与设备回复；分片本身不决定事件边界。
-- Escape 判定默认等待 50 ms，可配置非负 Duration。零等待表示下一次无更多可用输入的推进即可判定 Escape。`poll` 使用独立的总截止时间，不能为了完成 Escape 判定越过调用时限。
-- `read` 返回完整 Event；正常关闭前读到 EOF／断开抛 `TerminalDisconnectedException`，不返回伪造事件。`poll` 只为完整用户事件返回 true，终端断开沿同一异常合同处理。
 - 查询默认等待 1 秒，超时抛 `TerminalQueryTimeoutException`；能力探测的正常“不支持”单独表达。查询回复与普通输入由同一读取者分流，不能吞掉用户事件。
-- 显式终端会话实现 Closeable；raw mode 保存并恢复实际快照，同一会话上的嵌套作用域只撤销自身改变。正常返回、异常与取消使用现有 use／useAsync 清理合同。
-- `SIGWINCH` 通知只在 native 层执行 async-signal-safe 操作，安装期间保留已有 handler 的行为并在关闭时恢复。FD、信号与关闭竞态属于平台实现和 PTY 验收。
+- 异步 raw 作用域按现有 useAsync 合同在正常返回、异常与取消后清理。
 - 同步和异步不能同时读取同一会话。异步通过单独 `scoop.terminal.asyncio` 交付，先补齐 asyncio 的实际 TTY 操作、取消与关闭，不使用阻塞 suspend 包装。
-- PTY host 采用 portable-pty＋vt100，独立生成输入／查询回复，同时观察精确 cell 和 raw bytes；模式恢复检查实际 termios，结束时排空输出并检查 reader 结果。
 
 终端恢复不依赖 GC release hook 或进程退出钩子。core.exit、SIGKILL 等无法展开作用域的退出不保证终端模式恢复。
