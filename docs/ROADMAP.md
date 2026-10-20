@@ -704,6 +704,14 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 同步 read／poll 与查询共用单一输入通道；独立 `scoop.terminal.asyncio` 复用公共协议实现，使用实际异步 TTY、取消与关闭合同。
 - 三目标各 15 项 M59 fixture、30 个变体、68 个进程通过；Linux 两种 libc 各 62 项终端单测、3 项异步输出单测和 11 项相关网络回归通过，GNU／musl 的 tmux 3.6 smoke 通过。GUI 终端抽查与协议支持的限制见验收记录。
 
+### M60 `scoop doc` 与多 Cone API 文档（设计完成，待实施，[设计](milestone60/DESIGN.md)、[调研](scoop-doc/INVESTIGATION.md)）
+
+- 新增 `scoop doc`，为一个或多个源码 Cone 生成可离线浏览的 API、源码页与搜索；各 root 保持独立合法依赖图，复用完整 HIR 和真实 typed 声明。
+- 支持 `/** ... */`／`///`、有限 KDoc 风格 tag、DocHidden／DocAlias、可见性筛选及按原作用域解析的文档链接；覆盖泛型、property、扩展、继承与 re-export。
+- 只使用所选 target 的 Production 源码；沿用 M52 的预编译依赖选择，不因随包源码存在而重建 sysroot，也不在首版新增 `.slib` 文档格式。
+- 文档与机器结果分别判断更新，冷源码依赖正常生产时复用同次 HIR；多 Cone 站点统一处理身份、版本、搜索与链接，失败不发布半成品。
+- 按规范与前端、单 Cone、多 Cone 与更新复用、core／std 实际库验收四阶段实施；文档测试和内置库静态文档分发留待后续。
+
 ## 4. 待补齐清单（backlog）
 
 各里程碑"涵盖但只实现了部分"的事项，按来源里程碑整理。标注→的为目标里程碑（已知时）；未标注的待排期。
