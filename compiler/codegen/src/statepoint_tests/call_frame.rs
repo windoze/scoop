@@ -58,7 +58,7 @@ fn amd64_byval_calls_preserve_the_fixed_managed_frame() {
                     )
                 })
                 .collect(),
-            functions: BTreeMap::from([("f".into(), GcEffect::Managed)]),
+            functions: BTreeMap::from([("f".into(), GcEffect::Managed)]).into(),
         };
         crate::statepoint::rewrite(&llvm, &machine, &expected, profile).unwrap();
 

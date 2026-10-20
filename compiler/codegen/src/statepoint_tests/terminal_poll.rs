@@ -46,7 +46,7 @@ fn terminal_call_after_conditional_poll_keeps_one_machine_site() {
                         )
                     })
                     .collect(),
-                functions: BTreeMap::from([("f".into(), GcEffect::Managed)]),
+                functions: BTreeMap::from([("f".into(), GcEffect::Managed)]).into(),
             };
             let plan = crate::statepoint::rewrite(&llvm, &machine, &expected, profile).unwrap();
 

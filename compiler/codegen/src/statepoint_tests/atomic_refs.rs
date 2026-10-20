@@ -72,7 +72,7 @@ fn expected() -> ExpectedSafepoints {
                 )
             })
             .collect(),
-        functions: BTreeMap::from([("f".into(), GcEffect::Managed)]),
+        functions: BTreeMap::from([("f".into(), GcEffect::Managed)]).into(),
     }
 }
 

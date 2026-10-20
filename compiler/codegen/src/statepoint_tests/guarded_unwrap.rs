@@ -42,7 +42,8 @@ fn short_circuit_null_guards_are_simplified_before_site_planning() {
                 functions: ["f", "g"]
                     .into_iter()
                     .map(|function| (function.into(), GcEffect::Managed))
-                    .collect(),
+                    .collect::<BTreeMap<_, _>>()
+                    .into(),
             };
             let plan = crate::statepoint::rewrite(&llvm, &machine, &expected, profile).unwrap();
             let guarded = (mode == OptimizationMode::Debug).then_some(0);

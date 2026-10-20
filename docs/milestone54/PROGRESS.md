@@ -1,6 +1,6 @@
 # M54 实施进度
 
-状态：功能实现完成，GNU／musl 最终验收仍在进行。完整范围见[设计](DESIGN.md)，本页记录当前实现、实际验证和未完成项；运行中的批次不记为已通过。
+状态：功能实现完成，三目标最终验收仍在进行。完整范围见[设计](DESIGN.md)，本页记录当前实现、实际验证和未完成项；运行中的批次不记为已通过。
 
 ## 已完成的功能
 
@@ -31,6 +31,7 @@ client manifest 没有 native 构建项。URL／IDNA、压缩、字符集、TLS�
 - core 的作用域失败边界与 `nonCancellableScope`、协议取消、来源关闭和真实 native borrow 收尾已分别修复并验证。client 的缓存、下载、SSE、WebSocket、拦截器与 observer 保留主失败、清理异常和实际子树完成。
 - HTTP/2 在 GOAWAY 排空后丢弃待发 SETTINGS ACK 时，不再把 nghttp2 的 `SESSION_CLOSING` 误报为连接失败。旧 SDK 的确定性失败已复现，修复仅位于 HTTP 适配层；独立 ACK、异步排空、未发送拒绝、连接池和重试五项组合在 Darwin／GNU／musl 均已通过。
 - client 库编译采样定位到 LIR 符号与 ODR 定义的重复线性扫描；已改用已有排序和共享 callable 索引，同时修复删除 atom 后 foundation 索引仍返回旧记录的问题。key／linkage、定义顺序和 wire 保持，删除后查询的独立回归在旧实现确定失败。
+- codegen 的每个已生成 callable 计划原先保留一份整库 GC effect 表，导致大库编译持续累积副本。现共享这份只读表，各函数的 site 与根分组仍独立保存；不改变 GC、优化或产物合同。
 
 ## 验证安排
 
@@ -52,14 +53,18 @@ GC stress 只用于 GC 正确性的定向测试。普通功能与完整功能验
 | musl 库与普通消费者 | 其他 10 个相关库的 debug／release 已通过；client 库验收尚待完成。剩余普通 fixture 正在逐项运行，已完成结果保留 |
 | 合并后的 Linux 集成 | 三个 release 工具及 GNU／musl 的 17 个 Cone／runtime 准备完成；native 强／弱引用、Basic／H2 和 observer 每目标四项全部通过，各 10 个变体、32 个进程 |
 | LIR 查询修复 | fmt／workspace clippy、1,245 项相关 Rust 测试与 1 项 doctest 通过；observer 的 debug／release 真实网络运行及无子进程 warm 构建通过。相同消费者的 debug `.slib` 字节与链接计划完全一致 |
+| Darwin client 整库 | `d8a3a4c9d` 的普通 debug 运行通过全部 164 项测试，release 仍在运行；此前只有部分筛选运行，未计为整库通过 |
+| GC effect 表共享 | 独立保留／共享回归在旧实现确定失败；LLVM 22.1 下的 workspace clippy、25 项 statepoint 与 12 项对象划分测试通过，整库编译的内存与产物对照待完成 |
 
 GNU 和 musl 的 client 库首次 debug 编译均被系统 OOM 终止，内核记录已确认；musl 单进程匿名 RSS 约 42 GiB。普通批次已在当前用例完成后正常中止并保存报告，为单个大型库编译留出内存，后续仅续跑未完成部分。局部查询修复的单次消费者编译为 82.90→79.62 秒，不据此声称稳定的整体加速或 OOM 已解决；client 两目标的 debug／release 仍待独立重试。
+
+独立 GNU 重试的采样及对象保留路径进一步定位到 GC effect 表副本；在约 50 GiB RSS 时主动停止旧实现的编译，保留记录后改用共享表验证。这次中止不记为新 OOM 或通过。一次局部 Rust 测试误用了环境中的 LLVM 23，已改用项目要求的 LLVM 22.1 重跑相关 37 项并全部通过。
 
 已结束的旧 target 和诊断输出按批清理，保留需要复用的工具、源码、生产 SDK、缓存及实际报告。原始日志、JSON、历史进度副本与缓存归档均位于仓库外的 `scoop-work/m54`；本页不保存逐次流水账。
 
 ## 后续工作
 
-1. 完成 GNU／musl 剩余 client 库 profile 与普通功能消费者；修复真实失败并复验受影响范围。
+1. 完成三目标 client 库 profile 与 GNU／musl 剩余普通功能消费者；验证共享表修复的实际内存与产物，修复真实失败并复验受影响范围。
 2. 在 Linux 使用已验证的合并后 SDK 验收查询修复与剩余组合，保留旧批次的实际版本与结果。
 3. 汇总三目标最终结果，核对设计矩阵与分发资料，再更新 milestone／roadmap 为完成。
 

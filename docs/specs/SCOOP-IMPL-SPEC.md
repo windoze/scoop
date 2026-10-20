@@ -371,6 +371,8 @@ codegen 的 LLVM 发射入口只接收当前 Cone 的完整 LIR；不在后端�
 
 发射前的 ABI 规划入口只消费 LIR 定义的布局／签名数据，不读取 HIR 或重新解释 MIR 正文。具体 LLVM 初始化、CPU/features、data layout、机器栈与过程 ABI 规则归 codegen；目标布局描述与 backend contract 作为完整数据传递。Scoop producer 消费 LIR target/backend，generated-C 源码生成消费 LIR target/C toolchain 合同。宿主 compiler/SDK/sysroot 路径、环境与命令构造归 toolchain，driver 执行 generated-C 编译后将对象交回现有对象边界处理。输出可以有多个对象，物理分片数量与文件名不是 Cone 或实体身份。
 
+逐 callable 发射使用的整库函数 GC effect 表建立一次，函数计划及优化后计划共享这份只读数据。每个函数的 site 集合与根分组独立保存；保留已生成函数计划时不逐份复制整库属性表。共享只改变进程内所有权，不改变 GC effect 选择、safepoint 身份、输出或 ABI。
+
 元数据对象按已经确定的物理定义集合投影。实现先按对象序列逐层拆分候选模块，再从较小的模块生成最终对象，避免为每个对象重复复制全部 LLVM 元数据。每层只保留所选定义及其实际引用声明，沿用同一别名、TLS 边界与可见性处理；拆分过程不改变最终对象划分、符号、布局、注册内容或 ABI。
 
 codegen 保留 LIR 已分类的数据关系：direct callee 携带实际 LLVM function，dispatch 携带对应分派数据；native transition 的准备分支一并取得 safepoint 与 roots，发射入口握手后保留退出所需的 roots、frame 与结果存储，不拆成需要彼此同步的可选参数，也不额外保存已消费且后续不再使用的状态。LLVM builder、对象及目标发射的实际失败继续走后端错误路径。

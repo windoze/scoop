@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::rc::Rc;
 
 use inkwell::context::Context;
 use inkwell::memory_buffer::MemoryBuffer;
@@ -30,6 +31,8 @@ mod interface_parts;
 mod late_branches;
 #[path = "statepoint_tests/loops.rs"]
 mod loops;
+#[path = "statepoint_tests/manifest.rs"]
+mod manifest_selection;
 #[path = "statepoint_tests/nogc_loops.rs"]
 mod nogc_loops;
 #[path = "statepoint_tests/nonduplicable.rs"]
@@ -68,7 +71,7 @@ fn manifest(site: Option<(u64, ExpectedStatepoint)>) -> ExpectedSafepoints {
             })
             .into_iter()
             .collect(),
-        functions: BTreeMap::from([("f".to_string(), GcEffect::Managed)]),
+        functions: BTreeMap::from([("f".to_string(), GcEffect::Managed)]).into(),
     }
 }
 
