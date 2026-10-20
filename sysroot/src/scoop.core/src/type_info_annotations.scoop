@@ -1,13 +1,26 @@
+/**
+ * The identity of an annotation declaration, distinct from its display spelling.
+ */
 public struct AnnotationKey(
     val identity: String,
     val displayName: String,
     val describeBody: () -> AnnotationDeclarationInfo
 ) : Equals<AnnotationKey> {
+    /**
+     * Compares annotation declaration identities.
+     */
     public override operator fun equals(other: AnnotationKey): Boolean = identity == other.identity
 
+    /**
+     * Returns the annotation declaration's parameter and annotation metadata.
+     */
     public fun describe(): AnnotationDeclarationInfo = describeBody()
 }
 
+/**
+ * Describes an annotation declaration, its visibility, constructor parameters, and own
+ * annotations.
+ */
 public struct AnnotationDeclarationInfo(
     val key: AnnotationKey,
     val visibility: DeclarationVisibility,
@@ -15,6 +28,9 @@ public struct AnnotationDeclarationInfo(
     val annotations: Array<AnnotationInfo>
 )
 
+/**
+ * A declared annotation parameter with its accepted constant type and optional default.
+ */
 public struct AnnotationParameterInfo(
     val id: ParameterRef,
     val name: String,
@@ -22,8 +38,15 @@ public struct AnnotationParameterInfo(
     val defaultValue: Option<AnnotationValue>
 )
 
+/**
+ * One applied annotation with resolved argument values bound to the declaring parameters.
+ */
 public struct AnnotationInfo(val key: AnnotationKey, val arguments: Array<AnnotationArgument>)
 
+/**
+ * An evaluated annotation argument retaining both its parameter identity and declared constant
+ * type.
+ */
 public struct AnnotationArgument(
     val parameter: ParameterRef,
     val name: String,
@@ -31,42 +54,132 @@ public struct AnnotationArgument(
     val value: AnnotationValue
 )
 
+/**
+ * The supported scalar, integer-enum, nested-annotation, or homogeneous-array parameter
+ * categories.
+ */
 public enum AnnotationParameterType {
+    /**
+     * A supported scalar constant with its concrete type.
+     */
     Scalar(TypeRef),
+    /**
+     * A constant from the identified integer-backed enum.
+     */
     IntegerEnum(TypeRef),
+    /**
+     * A nested instance of the identified annotation declaration.
+     */
     Annotation(AnnotationKey),
+    /**
+     * A homogeneous array of constants in the specified atom category.
+     */
     Array(AnnotationAtomType)
 }
 
+/**
+ * The non-array categories allowed as elements of an annotation array.
+ */
 public enum AnnotationAtomType {
+    /**
+     * A supported scalar constant with its concrete type.
+     */
     Scalar(TypeRef),
+    /**
+     * A constant from the identified integer-backed enum.
+     */
     IntegerEnum(TypeRef),
+    /**
+     * A nested instance of the identified annotation declaration.
+     */
     Annotation(AnnotationKey)
 }
 
+/**
+ * An integer annotation value retaining its declared width and signedness.
+ */
 public enum IntegerValue {
+    /**
+     * An integer constant with the width and signedness of Int8.
+     */
     Int8(Int8),
+    /**
+     * An integer constant with the width and signedness of Int16.
+     */
     Int16(Int16),
+    /**
+     * An integer constant with the width and signedness of Int.
+     */
     Int(Int),
+    /**
+     * An integer constant with the width and signedness of Long.
+     */
     Long(Long),
+    /**
+     * An integer constant with the width and signedness of UInt8.
+     */
     UInt8(UInt8),
+    /**
+     * An integer constant with the width and signedness of UInt16.
+     */
     UInt16(UInt16),
+    /**
+     * An integer constant with the width and signedness of UInt.
+     */
     UInt(UInt),
+    /**
+     * An integer constant with the width and signedness of ULong.
+     */
     ULong(ULong)
 }
 
+/**
+ * An evaluated annotation constant. Floating-point payloads retain their raw bits, and enum values
+ * retain variant identity.
+ */
 public enum AnnotationValue {
+    /**
+     * A Boolean constant.
+     */
     Boolean(Boolean),
+    /**
+     * An immutable text constant.
+     */
     String(String),
+    /**
+     * A Unicode scalar constant.
+     */
     Char(Char),
+    /**
+     * An integer retaining its width and signedness.
+     */
     Integer(IntegerValue),
+    /**
+     * Raw binary32 bits, preserving NaN payload and signed zero.
+     */
     FloatBits(UInt),
+    /**
+     * Raw binary64 bits, preserving NaN payload and signed zero.
+     */
     DoubleBits(ULong),
+    /**
+     * An integer-enum type, declared variant identity, and underlying integer value.
+     */
     IntegerEnum(TypeRef, VariantRef, IntegerValue),
+    /**
+     * A nested annotation instance.
+     */
     Annotation(AnnotationInfo),
+    /**
+     * A homogeneous array retaining its declared element category.
+     */
     Array(AnnotationAtomType, Array<AnnotationValue>)
 }
 
+/**
+ * Returns every application with the requested annotation identity, preserving repeated
+ * annotations and input order.
+ */
 public fun findAnnotations(items: Array<AnnotationInfo>, key: AnnotationKey): Array<AnnotationInfo> {
     val result = ArrayList<AnnotationInfo>()
     for (item in items) {
@@ -77,5 +190,8 @@ public fun findAnnotations(items: Array<AnnotationInfo>, key: AnnotationKey): Ar
     return result.toArray()
 }
 
+/**
+ * Obtains the compiler-provided identity and description of annotation type A.
+ */
 @Intrinsic("annotation_key")
 public fun <A> annotationKey(): AnnotationKey

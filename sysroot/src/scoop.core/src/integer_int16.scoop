@@ -1,3 +1,8 @@
+/**
+ * A 16-bit signed integer. Arithmetic wraps modulo 2^16; division by zero throws
+ * [ArithmeticException]. Conversions are explicit and preserve the language's fixed-width rules on
+ * every target.
+ */
 @Intrinsic("core_int16")
 public struct Int16 :
     Add<Int16, Int16>,
@@ -13,141 +18,272 @@ public struct Int16 :
     RangeTo<Int16, IntRange>,
     RangeUntil<Int16, IntRange>,
     Equals<Int16>, ToString, Hash {
+    /**
+     * Rounds the integer directly to IEEE binary32 using round-to-nearest, ties-to-even.
+     */
     @NoGC @Intrinsic("int16_to_float")
     public fun toFloat(): Float
 
+    /**
+     * Rounds the integer directly to IEEE binary64 using round-to-nearest, ties-to-even.
+     */
     @NoGC @Intrinsic("int16_to_double")
     public fun toDouble(): Double
 
+    /**
+     * Compares the mathematical values of two integers of the same type.
+     */
     @NoGC
     @Intrinsic("int16_equals")
     public override operator fun equals(other: Int16): Boolean
 
 
+    /**
+     * Returns the unchanged integer value.
+     */
     @NoGC
     @Intrinsic("int16_unary_plus")
     public override operator fun unaryPlus(): Int16
 
+    /**
+     * Returns the additive inverse modulo 2^16, including at the representation boundary.
+     */
     @NoGC
     @Intrinsic("int16_unary_minus")
     public override operator fun unaryMinus(): Int16
 
+    /**
+     * Returns the value plus one, wrapping modulo 2^16.
+     */
     @NoGC
     @Intrinsic("int16_inc")
     public override operator fun inc(): Int16
 
+    /**
+     * Returns the value minus one, wrapping modulo 2^16.
+     */
     @NoGC
     @Intrinsic("int16_dec")
     public override operator fun dec(): Int16
 
+    /**
+     * Returns the sum modulo 2^16; overflow does not throw.
+     */
     @NoGC
     @Intrinsic("int16_add")
     public override operator fun plus(other: Int16): Int16
 
+    /**
+     * Returns the difference modulo 2^16; overflow does not throw.
+     */
     @NoGC
     @Intrinsic("int16_sub")
     public override operator fun minus(other: Int16): Int16
 
+    /**
+     * Returns the product modulo 2^16; overflow does not throw.
+     */
     @NoGC
     @Intrinsic("int16_mul")
     public override operator fun times(other: Int16): Int16
 
+    /**
+     * Returns the quotient truncated toward zero. A zero divisor throws [ArithmeticException]. The
+     * minimum value divided by -1 wraps to the minimum value.
+     */
     @Intrinsic("int16_div")
     public override operator fun div(other: Int16): Int16
 
+    /**
+     * Returns the remainder associated with division truncated toward zero. A zero divisor throws
+     * [ArithmeticException]. A nonzero remainder has the dividend's sign.
+     */
     @Intrinsic("int16_rem")
     public override operator fun rem(other: Int16): Int16
 
+    /**
+     * Returns -1, 0, or 1 using signed mathematical ordering.
+     */
     @NoGC
     @Intrinsic("int16_compare_to")
     public override operator fun compareTo(other: Int16): Long
 
+    /**
+     * Returns the bitwise intersection of the 16-bit operands.
+     */
     @NoGC
     @Intrinsic("int16_and")
     public infix fun and(other: Int16): Int16
 
+    /**
+     * Returns the bitwise union of the 16-bit operands.
+     */
     @NoGC
     @Intrinsic("int16_or")
     public infix fun or(other: Int16): Int16
 
+    /**
+     * Sets each result bit where the corresponding 16-bit operand bits differ.
+     */
     @NoGC
     @Intrinsic("int16_xor")
     public infix fun xor(other: Int16): Int16
 
+    /**
+     * Flips all 16 bits of the representation.
+     */
     @NoGC
     @Intrinsic("int16_inv")
     public fun inv(): Int16
 
+    /**
+     * Shifts left using the low 4 bits of the Long count; shifted-out bits are discarded.
+     */
     @NoGC
     @Intrinsic("int16_shl")
     public infix fun shl(count: Long): Int16
 
+    /**
+     * Shifts right using the low 4 bits of the Long count, replicating the sign bit.
+     */
     @NoGC
     @Intrinsic("int16_shr")
     public infix fun shr(count: Long): Int16
 
+    /**
+     * Shifts right with zero fill using the low 4 bits of the Long count.
+     */
     @NoGC
     @Intrinsic("int16_ushr")
     public infix fun ushr(count: Long): Int16
 
+    /**
+     * Converts modulo 2^8 and interprets the result as a 8-bit signed integer. The conversion
+     * always succeeds.
+     */
     @NoGC
     @Intrinsic("int16_to_int8")
     public fun toByte(): Byte
 
+    /**
+     * Converts modulo 2^16 and interprets the result as a 16-bit signed integer. The conversion
+     * always succeeds.
+     */
     @NoGC
     @Intrinsic("int16_to_int16")
     public fun toShort(): Short
 
+    /**
+     * Converts modulo 2^32 and interprets the result as a 32-bit signed integer. The conversion
+     * always succeeds.
+     */
     @NoGC
     @Intrinsic("int16_to_int")
     public fun toInt(): Int
 
+    /**
+     * Converts modulo 2^64 and interprets the result as a 64-bit signed integer. The conversion
+     * always succeeds.
+     */
     @NoGC
     @Intrinsic("int16_to_long")
     public fun toLong(): Long
 
+    /**
+     * Converts modulo 2^8 and interprets the result as a 8-bit unsigned integer. The conversion
+     * always succeeds.
+     */
     @NoGC
     @Intrinsic("int16_to_uint8")
     public fun toUByte(): UByte
 
+    /**
+     * Converts modulo 2^16 and interprets the result as a 16-bit unsigned integer. The conversion
+     * always succeeds.
+     */
     @NoGC
     @Intrinsic("int16_to_uint16")
     public fun toUShort(): UShort
 
+    /**
+     * Converts modulo 2^32 and interprets the result as a 32-bit unsigned integer. The conversion
+     * always succeeds.
+     */
     @NoGC
     @Intrinsic("int16_to_uint")
     public fun toUInt(): UInt
 
+    /**
+     * Converts modulo 2^64 and interprets the result as a 64-bit unsigned integer. The conversion
+     * always succeeds.
+     */
     @NoGC
     @Intrinsic("int16_to_ulong")
     public fun toULong(): ULong
 
+    /**
+     * Creates an ascending range including both this value and the endpoint.
+     */
     public override operator fun rangeTo(endpoint: Int16): IntRange =
         IntRange(this.toInt(), endpoint.toInt(), 1, false, true)
 
+    /**
+     * Creates an ascending range including this value and excluding the endpoint.
+     */
     public override operator fun rangeUntil(endpoint: Int16): IntRange =
         IntRange(this.toInt(), endpoint.toInt(), 1, false, false)
 
+    /**
+     * Creates an ascending range with an exclusive endpoint.
+     */
     public infix fun until(endpoint: Int16): IntRange =
         IntRange(this.toInt(), endpoint.toInt(), 1, false, false)
 
+    /**
+     * Creates a descending range including both endpoints.
+     */
     public infix fun downTo(endpoint: Int16): IntRange =
         IntRange(this.toInt(), endpoint.toInt(), 1, true, true)
 
+    /**
+     * Returns the locale-independent decimal representation of this integer.
+     */
     public override fun toString(): String = coreLongToString(this.toLong())
 
+    /**
+     * Returns a hash consistent with same-type integer equality.
+     */
     public override fun hash(): Long = coreLongHash(this.toLong())
 
+    /**
+     * Fixed representation bounds and the scalar encoding, decoding, and inspection protocols.
+     */
     public companion object : ValueEncoder<Int16>, ValueDecoder<Int16>, ValueInspector<Int16> {
+        /**
+         * Exposes the integer as a scalar value observation without reference identity.
+         */
         public override fun inspect(value: Int16): ValueView =
             ValueObservation(typeInfo<Int16>().type, None, { ValueShape.Scalar(ScalarValue.Signed(value.toLong())) })
 
+        /**
+         * The smallest representable 16-bit signed integer.
+         */
         public const val MIN_VALUE: Int16 = -32768
+        /**
+         * The largest representable 16-bit signed integer.
+         */
         public const val MAX_VALUE: Int16 = 32767
 
+        /**
+         * Writes the integer through the encoder's single-value container.
+         */
         public override fun encode(value: Int16, encoder: Encoder): Unit =
             encoder.singleValue().writeLong(value.toLong())
 
+        /**
+         * Decodes an integer and rejects values outside the 16-bit signed range with
+         * [DecodingException].
+         */
         public override fun decode(decoder: Decoder): Int16 =
             decodeSigned(decoder, -32768L, 32767L).toShort()
     }

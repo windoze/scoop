@@ -1,8 +1,16 @@
 // GC facilities (spec 14.1, M12 DESIGN section 4.2). Public operations are
 // ordinary unsafe core functions; pressure uses a direct C leaf binding.
 
+/**
+ * An outstanding explicit pin that keeps a managed object at a stable address until unpinned.
+ * Copying the token does not acquire another pin.
+ */
 public struct PinnedPtr<T : ref>(val raw: ULong)
 
+/**
+ * An outstanding native handle keeping a managed reference alive without promising a stable object
+ * address. Copying the token does not retain it.
+ */
 public struct GcHandle<T : ref>(val raw: ULong)
 
 @Unsafe
@@ -21,27 +29,50 @@ internal fun <T : ref> _getGcHandle(v: T): ULong
 @Intrinsic("gc_release_handle_raw")
 internal fun <T : ref> _releaseGcHandle(raw: ULong): T
 
+/**
+ * Acquires an explicit pin on a managed object. Balance each acquired pin with exactly one unpin.
+ */
 @Unsafe
 public fun <T : ref> pin(v: T): PinnedPtr<T> = PinnedPtr<T>(_pin(v))
 
+/**
+ * Releases this acquired pin and returns the managed reference; do not reuse the released token.
+ */
 @Unsafe
 public fun <T : ref> unpin(p: PinnedPtr<T>): T = _unpin<T>(p.raw)
 
+/**
+ * Acquires a stable native handle that roots the managed reference until released.
+ */
 @Unsafe
 public fun <T : ref> getGcHandle(v: T): GcHandle<T> = GcHandle<T>(_getGcHandle(v))
 
+/**
+ * Releases this acquired handle and returns the managed reference; do not reuse the released
+ * token.
+ */
 @Unsafe
 public fun <T : ref> releaseGcHandle(h: GcHandle<T>): T = _releaseGcHandle<T>(h.raw)
 
 // Test-only hooks (not part of the spec): force a collection and
 // read the live object count.
+/**
+ * Forces a collection for diagnostics and runtime tests.
+ */
 @Intrinsic("rt_gc_collect")
 public fun gcCollect()
 
+/**
+ * Returns the runtime's live managed-object count for diagnostics and tests.
+ */
 @Intrinsic("rt_gc_stats")
 public fun gcStats(): ULong
 
 // A leaf hint only: it never collects, allocates, or accesses thread state.
+/**
+ * Adds a signed native-memory pressure hint. This leaf operation does not itself allocate or
+ * collect; release external memory with a matching negative adjustment.
+ */
 @GCLeaf
 @Extern(name = "scoop_rt_gc_adjust_pressure")
 public fun gcAdjustPressure(delta: Long)

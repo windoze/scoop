@@ -2,8 +2,15 @@
 // HIR validates these declarations exactly and normalizes applications to
 // dedicated Ptr/FunPtr types; downstream stages never identify them by name.
 
+/**
+ * A typed native data address. Unsafe users must ensure valid lifetime, alignment, bounds, and
+ * access permissions; pointer values do not own or root their pointees.
+ */
 @Intrinsic("core_ptr")
 public struct Ptr<T : value> : Equals<Ptr<T>> {
+    /**
+     * Compares the stored addresses without dereferencing either pointer.
+     */
     public override operator fun equals(other: Ptr<T>): Boolean {
         @Unsafe {
             return this.toULong() == other.toULong()
@@ -11,58 +18,101 @@ public struct Ptr<T : value> : Equals<Ptr<T>> {
     }
 
 
+    /**
+     * Returns the address as an unsigned integer without extending the pointee's lifetime.
+     */
     @NoGC
     @Unsafe
     @Intrinsic("ptr_to_ulong")
     public fun toULong(): ULong
 
+    /**
+     * Reinterprets the same address with another pointee type. The caller must establish the new
+     * type's alignment and access validity.
+     */
     @NoGC
     @Unsafe
     @Intrinsic("ptr_cast")
     public fun <U : value> cast(): Ptr<U>
 
+    /**
+     * Reads a value at this address or the specified element offset. The caller must provide
+     * readable, properly aligned initialized storage.
+     */
     @NoGC
     @Unsafe
     @Intrinsic("ptr_load")
     public fun load(): T
 
+    /**
+     * Reads a value at this address or the specified element offset. The caller must provide
+     * readable, properly aligned initialized storage.
+     */
     @NoGC
     @Unsafe
     @Intrinsic("ptr_load_offset")
     public fun load(offset: Long): T
 
+    /**
+     * Writes a value at this address or the specified element offset. The caller must provide
+     * writable, properly aligned storage.
+     */
     @NoGC
     @Unsafe
     @Intrinsic("ptr_store")
     public fun store(value: T)
 
+    /**
+     * Writes a value at this address or the specified element offset. The caller must provide
+     * writable, properly aligned storage.
+     */
     @NoGC
     @Unsafe
     @Intrinsic("ptr_store_offset")
     public fun store(offset: Long, value: T)
 
+    /**
+     * Moves forward by `offset` elements of T, not bytes. It does not check allocation bounds.
+     */
     @NoGC
     @Unsafe
     @Intrinsic("ptr_plus")
     public operator fun plus(offset: Long): Ptr<T>
 
+    /**
+     * Moves backward by `offset` elements of T, not bytes. It does not check allocation bounds.
+     */
     @NoGC
     @Unsafe
     @Intrinsic("ptr_minus")
     public operator fun minus(offset: Long): Ptr<T>
 }
 
+/**
+ * A native function address with a statically checked function signature; it does not own callback
+ * state.
+ */
 @Intrinsic("core_fun_ptr")
 public struct FunPtr<F>
 
+/**
+ * Borrows the address of addressable value storage. The unsafe caller must not let the pointer
+ * outlive that storage.
+ */
 @Unsafe
 @Intrinsic("address_of")
 public fun <T : value> addressOf(value: T): Ptr<T>
 
+/**
+ * Returns the target ABI size in bytes of a concrete value type.
+ */
 @NoGC
 @Intrinsic("size_of")
 public fun <T : value> sizeOf(): ULong
 
+/**
+ * Returns the target ABI alignment in bytes of a concrete value type.
+ */
 @NoGC
 @Intrinsic("align_of")
 public fun <T : value> alignOf(): ULong

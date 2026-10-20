@@ -1,17 +1,29 @@
+/**
+ * Accumulates string parts and joins them when converted to text.
+ */
 public class StringBuilder public constructor() : ToString {
     private val parts: ArrayList<String> = ArrayList<String>()
 
+    /**
+     * Appends text or the value's ToString result and returns this builder for chaining.
+     */
     public fun append(value: String): StringBuilder {
         parts.add(value)
         return this
     }
 
+    /**
+     * Appends text or the value's ToString result and returns this builder for chaining.
+     */
     public fun <T : ToString> append(value: T): StringBuilder {
         val text = value.toString()
         parts.add(text)
         return this
     }
 
+    /**
+     * Joins all appended parts in order into an immutable string.
+     */
     public override fun toString(): String = coreStringJoinParts(parts.backing, parts.size)
 }
 

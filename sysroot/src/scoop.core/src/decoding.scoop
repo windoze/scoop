@@ -1,47 +1,144 @@
+/**
+ * A format-independent decoding strategy for T, usable explicitly or through a type companion.
+ */
 public interface ValueDecoder<T> {
+    /**
+     * Reads one value from the supplied format backend, reporting incompatible input as a decoding
+     * failure.
+     */
     public fun decode(decoder: Decoder): T
 }
 
+/**
+ * A format backend positioned at one value. Select a keyed record, unkeyed sequence, or single
+ * scalar container according to the value's representation.
+ */
 public interface Decoder {
+    /**
+     * The backend-defined diagnostic path of the current value.
+     */
     public val path: String
+    /**
+     * Selects the named-field record container at this value.
+     */
     public fun keyed(): KeyedDecodingContainer
+    /**
+     * Selects the ordered sequence container at this value.
+     */
     public fun unkeyed(): UnkeyedDecodingContainer
+    /**
+     * Selects the scalar or null container at this value.
+     */
     public fun singleValue(): SingleValueDecodingContainer
 }
 
+/**
+ * A named-field record container. Finish the record with end after processing its fields.
+ */
 public interface KeyedDecodingContainer {
+    /**
+     * The field names available in this record.
+     */
     public val keys: List<String>
+    /**
+     * Returns the named child decoder, failing when the field is absent.
+     */
     public fun required(name: String): Decoder
+    /**
+     * Returns None when the field is absent; explicit null is still a present child decoder.
+     */
     public fun optional(name: String): Option<Decoder>
+    /**
+     * Completes the container and permits the backend to check its final structure.
+     */
     public fun end(): Unit
 }
 
+/**
+ * An ordered sequence container. Finish the sequence with end after processing its elements.
+ */
 public interface UnkeyedDecodingContainer {
+    /**
+     * Whether another sequence element remains.
+     */
     public val hasNext: Boolean
+    /**
+     * Returns the decoder for the next element and advances the sequence position.
+     */
     public fun element(): Decoder
+    /**
+     * Completes the container and permits the backend to check its final structure.
+     */
     public fun end(): Unit
 }
 
+/**
+ * The format backend's scalar and explicit-null operations. Supported representations and
+ * conversion errors belong to the backend.
+ */
 public interface SingleValueDecodingContainer {
+    /**
+     * Tests whether the current scalar represents explicit null.
+     */
     public fun isNull(): Boolean
+    /**
+     * Reads one Boolean scalar using the backend's representation rules.
+     */
     public fun readBoolean(): Boolean
+    /**
+     * Reads one Long scalar using the backend's representation rules.
+     */
     public fun readLong(): Long
+    /**
+     * Reads one ULong scalar using the backend's representation rules.
+     */
     public fun readULong(): ULong
+    /**
+     * Reads one Float scalar using the backend's representation rules.
+     */
     public fun readFloat(): Float
+    /**
+     * Reads one Double scalar using the backend's representation rules.
+     */
     public fun readDouble(): Double
+    /**
+     * Reads one String scalar using the backend's representation rules.
+     */
     public fun readString(): String
+    /**
+     * Reads an explicit null.
+     */
     public fun readNull(): Unit
 }
 
-public class DecodingException public constructor(public val path: String, message: String)
+/**
+ * Reports a decoding failure with the backend's path to the affected value.
+ */
+public class DecodingException public constructor(
+    /**
+     * The backend-defined path of the value that failed.
+     */
+    public val path: String, message: String)
     : Exception(Some(message))
 
+/**
+ * Adapts an ordinary function to the value decoding protocol.
+ */
 public class ValueDecoderFunction<T> public constructor(private val body: (Decoder) -> T)
     : ValueDecoder<T> {
+    /**
+     * Invokes the wrapped decoding function.
+     */
     public override fun decode(decoder: Decoder): T = body(decoder)
 }
 
+/**
+ * Represents the zero-sized Unit value as an explicit null scalar.
+ */
 public object UnitDecoder : ValueDecoder<Unit> {
+    /**
+     * Uses the backend's explicit null operation for Unit.
+     */
     public override fun decode(decoder: Decoder): Unit = decoder.singleValue().readNull()
 }
 

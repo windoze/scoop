@@ -1,5 +1,20 @@
-public enum DebugLayout { Compact, Pretty }
+/**
+ * Controls whether debug output is compact or arranged on indented lines.
+ */
+public enum DebugLayout {
+    /**
+     * Keeps structural output compact without pretty-print line breaks.
+     */
+    Compact,
+    /**
+     * Uses line breaks and the configured indentation for nested structures.
+     */
+    Pretty }
 
+/**
+ * Controls debug layout and maximum depth, item count, and string length. Limits must be
+ * nonnegative and truncate presentation rather than altering the observed value.
+ */
 public struct DebugOptions(
     val layout: DebugLayout = DebugLayout.Compact,
     val indent: String = "  ",
@@ -8,13 +23,26 @@ public struct DebugOptions(
     val maxStringLength: Long = 256L
 )
 
+/**
+ * Omits an annotated field or property from debug output.
+ */
 @Target([AnnotationTarget.Field, AnnotationTarget.Property])
 public annotation class DebugIgnore
 
+/**
+ * Substitutes the configured text for an annotated field or property without exposing its value.
+ */
 @Target([AnnotationTarget.Field, AnnotationTarget.Property])
 public annotation class DebugRedact(val replacement: String = "<redacted>")
 
+/**
+ * Formats ValueView observations with cycle handling, redaction, and bounded presentation.
+ */
 public object DebugPrinter {
+    /**
+     * Writes an observation to the supplied text destination. Invalid negative limits throw
+     * IllegalArgumentException.
+     */
     public fun write(view: ValueView, writer: TextWriter, options: DebugOptions = DebugOptions()) {
         if (options.maxDepth < 0L || options.maxItems < 0L || options.maxStringLength < 0L) {
             throw IllegalArgumentException()
@@ -22,6 +50,9 @@ public object DebugPrinter {
         DebugSession(writer, options).write(view, 0L, true)
     }
 
+    /**
+     * Returns the same debug representation as write in an immutable string.
+     */
     public fun format(view: ValueView, options: DebugOptions = DebugOptions()): String {
         val writer = StringWriter()
         write(view, writer, options)

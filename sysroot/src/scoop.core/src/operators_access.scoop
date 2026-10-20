@@ -1,35 +1,107 @@
+/**
+ * The generic operator contract used for `a[index]`. Operand and result types are chosen by the
+ * implementation.
+ */
 public interface IndexGet<Index, Value> {
+    /**
+     * Implements `a[index]` for this receiver; domain restrictions and failure behavior belong to
+     * the implementing type.
+     */
     public operator fun get(index: Index): Value
 }
 
+/**
+ * The generic operator contract used for `a[index] = value`. Operand and result types are chosen
+ * by the implementation.
+ */
 public interface IndexSet<Index, Value> {
+    /**
+     * Implements `a[index] = value` for this receiver; domain restrictions and failure behavior
+     * belong to the implementing type.
+     */
     public operator fun set(index: Index, value: Value): Unit
 }
 
+/**
+ * The generic operator contract used for `a[first, second]`. Operand and result types are chosen
+ * by the implementation.
+ */
 public interface IndexGet2<I, J, Value> {
+    /**
+     * Implements `a[first, second]` for this receiver; domain restrictions and failure behavior
+     * belong to the implementing type.
+     */
     public operator fun get(first: I, second: J): Value
 }
 
+/**
+ * The generic operator contract used for `a[first, second] = value`. Operand and result types are
+ * chosen by the implementation.
+ */
 public interface IndexSet2<I, J, Value> {
+    /**
+     * Implements `a[first, second] = value` for this receiver; domain restrictions and failure
+     * behavior belong to the implementing type.
+     */
     public operator fun set(first: I, second: J, value: Value): Unit
 }
 
+/**
+ * The generic operator contract used for `a()`. Operand and result types are chosen by the
+ * implementation.
+ */
 public interface Invoke0<Result> {
+    /**
+     * Implements `a()` for this receiver; domain restrictions and failure behavior belong to the
+     * implementing type.
+     */
     public operator fun invoke(): Result
 }
 
+/**
+ * The generic operator contract used for `a(argument)`. Operand and result types are chosen by the
+ * implementation.
+ */
 public interface Invoke<Arg, Result> {
+    /**
+     * Implements `a(argument)` for this receiver; domain restrictions and failure behavior belong
+     * to the implementing type.
+     */
     public operator fun invoke(argument: Arg): Result
 }
 
+/**
+ * The generic operator contract used for `a(first, second)`. Operand and result types are chosen
+ * by the implementation.
+ */
 public interface Invoke2<A, B, Result> {
+    /**
+     * Implements `a(first, second)` for this receiver; domain restrictions and failure behavior
+     * belong to the implementing type.
+     */
     public operator fun invoke(first: A, second: B): Result
 }
 
+/**
+ * The generic operator contract used for `the first destructured component`. Operand and result
+ * types are chosen by the implementation.
+ */
 public interface Component1<Result> {
+    /**
+     * Implements `the first destructured component` for this receiver; domain restrictions and
+     * failure behavior belong to the implementing type.
+     */
     public operator fun component1(): Result
 }
 
+/**
+ * The generic operator contract used for `the second destructured component`. Operand and result
+ * types are chosen by the implementation.
+ */
 public interface Component2<Result> {
+    /**
+     * Implements `the second destructured component` for this receiver; domain restrictions and
+     * failure behavior belong to the implementing type.
+     */
     public operator fun component2(): Result
 }

@@ -1,8 +1,15 @@
+/**
+ * A growable indexed list. Appending grows storage geometrically; insertion and removal shift
+ * later elements. Clearing releases references in occupied slots.
+ */
 public class ArrayList<T> public constructor(initialCapacity: Long = 0L) : MutableList<T> {
     private var storage: MutableArray<MaybeUninit<T>> =
         MutableArray<MaybeUninit<T>>(initialCapacity) { _ -> MaybeUninit<T>.uninit() }
     private var elementCount: Long = 0L
 
+    /**
+     * The current number of element slots visible through the list interface.
+     */
     public override val size: Long get() = elementCount
 
     // Used by StringBuilder's concrete parts boundary inside scoop.core.
@@ -28,22 +35,37 @@ public class ArrayList<T> public constructor(initialCapacity: Long = 0L) : Mutab
         storage = replacement
     }
 
+    /**
+     * Reads the element at a zero-based index; out-of-range indices throw
+     * [IndexOutOfBoundsException].
+     */
     public override operator fun get(index: Long): T {
         checkIndex(index)
         @Unsafe { return storage[index].assumeInit() }
     }
 
+    /**
+     * Replaces an existing element; out-of-range indices throw [IndexOutOfBoundsException].
+     */
     public override operator fun set(index: Long, value: T) {
         checkIndex(index)
         storage[index] = MaybeUninit<T>.initialized(value)
     }
 
+    /**
+     * Appends an element or inserts it at the supplied index. Indexed insertion shifts later
+     * elements.
+     */
     public override fun add(value: T) {
         ensureRoom()
         storage[elementCount] = MaybeUninit<T>.initialized(value)
         elementCount = elementCount + 1L
     }
 
+    /**
+     * Appends an element or inserts it at the supplied index. Indexed insertion shifts later
+     * elements.
+     */
     public override fun add(index: Long, value: T) {
         if (index < 0L || index > elementCount) { throw IndexOutOfBoundsException() }
         ensureRoom()
@@ -56,6 +78,10 @@ public class ArrayList<T> public constructor(initialCapacity: Long = 0L) : Mutab
         elementCount = elementCount + 1L
     }
 
+    /**
+     * Removes and returns the indexed element, shifts later elements, and releases the vacated
+     * slot.
+     */
     public override fun removeAt(index: Long): T {
         checkIndex(index)
         @Unsafe {
@@ -72,6 +98,9 @@ public class ArrayList<T> public constructor(initialCapacity: Long = 0L) : Mutab
         }
     }
 
+    /**
+     * Releases all occupied element slots and sets the size to zero.
+     */
     public override fun clear() {
         var cursor = 0L
         while (cursor < elementCount) {
@@ -81,13 +110,28 @@ public class ArrayList<T> public constructor(initialCapacity: Long = 0L) : Mutab
         elementCount = 0L
     }
 
+    /**
+     * Traverses the elements in index order and remains exhausted after reaching the end.
+     */
     public override operator fun iterator(): Iterator<T> = ListIterator<T>(this, 0L, false)
 
+    /**
+     * Builds element-wise inspection and serialization adapters for this container.
+     */
     public companion object {
+        /**
+         * Builds a sequence inspector using the supplied element inspector.
+         */
         public fun inspector(element: ValueInspector<T>): ValueInspector<ArrayList<T>> = ArrayListInspector<T>(element)
 
+        /**
+         * Builds a sequence encoder using the supplied element encoder.
+         */
         public fun encoder(element: ValueEncoder<T>): ValueEncoder<ArrayList<T>> = ArrayListEncoder<T>(element)
 
+        /**
+         * Builds a sequence decoder using the supplied element decoder.
+         */
         public fun decoder(element: ValueDecoder<T>): ValueDecoder<ArrayList<T>> = ArrayListDecoder<T>(element)
     }
 }

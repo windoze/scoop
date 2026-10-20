@@ -1,4 +1,10 @@
+/**
+ * The zero-sized value returned by operations that have no meaningful result.
+ */
 @Intrinsic("core_unit")
 public struct Unit : Equals<Unit> {
+    /**
+     * Returns true because all Unit values represent the same zero-sized value.
+     */
     public override operator fun equals(other: Unit): Boolean = true
 }

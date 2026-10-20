@@ -1,79 +1,221 @@
+/**
+ * Creates a typed observation of a value for structured inspection without defining a
+ * serialization format.
+ */
 public interface ValueInspector<T> {
+    /**
+     * Builds an observation; member and element reads can remain lazy until requested.
+     */
     public fun inspect(value: T): ValueView
 }
 
+/**
+ * Adapts a function returning ValueView to the inspection protocol.
+ */
 public class ValueInspectorFunction<T> public constructor(private val body: (T) -> ValueView)
     : ValueInspector<T> {
+    /**
+     * Invokes the wrapped inspection function.
+     */
     public override fun inspect(value: T): ValueView = body(value)
 }
 
+/**
+ * A typed observation with an optional reference identity and lazily described shape. It need not
+ * be a snapshot of mutable data.
+ */
 public interface ValueView {
+    /**
+     * The concrete type identity of the observed value.
+     */
     public val type: TypeRef
+    /**
+     * A managed identity used to recognize repeated references or cycles; value observations
+     * normally have None.
+     */
     public val referenceIdentity: Option<Any>
+    /**
+     * Obtains the structural view of this value.
+     */
     public fun shape(): ValueShape
 }
 
+/**
+ * A function-backed observation whose shape is evaluated on request.
+ */
 public class ValueObservation public constructor(
+    /**
+     * The concrete type associated with this observation.
+     */
     public override val type: TypeRef,
+    /**
+     * The reference identity supplied by the inspector, or None for identity-free observations.
+     */
     public override val referenceIdentity: Option<Any>,
     private val describeBody: () -> ValueShape
 ) : ValueView {
+    /**
+     * Evaluates the supplied shape function.
+     */
     public override fun shape(): ValueShape = describeBody()
 }
 
+/**
+ * The observable scalar, record, variant, tuple, sequence, or opaque representation of a value.
+ */
 public enum ValueShape {
+    /**
+     * One scalar value.
+     */
     Scalar(ScalarValue),
+    /**
+     * Named record members and an optional base view.
+     */
     Record(RecordView),
+    /**
+     * The active payload-enum variant.
+     */
     Variant(VariantView),
+    /**
+     * An integer-backed enum value.
+     */
     IntegerEnum(IntegerEnumView),
+    /**
+     * Ordered tuple elements.
+     */
     Tuple(TupleView),
+    /**
+     * An indexed sequence of values.
+     */
     Sequence(SequenceView),
+    /**
+     * A descriptive value with no exposed internal structure.
+     */
     Opaque(OpaqueValue)
 }
 
+/**
+ * A scalar observation retaining its logical category and numeric representation.
+ */
 public enum ScalarValue {
+    /**
+     * A logical true or false value.
+     */
     Boolean(Boolean),
+    /**
+     * A signed integer observed as Long.
+     */
     Signed(Long),
+    /**
+     * An unsigned integer observed as ULong.
+     */
     Unsigned(ULong),
+    /**
+     * A binary32 floating-point value.
+     */
     Float(Float),
+    /**
+     * A binary64 floating-point value.
+     */
     Double(Double),
+    /**
+     * One Unicode scalar.
+     */
     Char(Char),
+    /**
+     * An immutable Unicode string.
+     */
     String(String),
+    /**
+     * The zero-sized Unit value.
+     */
     Unit
 }
 
+/**
+ * Connects an observed member to its declared field or property metadata.
+ */
 public enum ObservedMember {
+    /**
+     * A stored field observation with field metadata.
+     */
     Field(FieldInfo),
+    /**
+     * A property observation with its accessor and declaration metadata.
+     */
     Property(PropertyInfo)
 }
 
+/**
+ * Pairs member metadata with a deferred read. Reading may execute a property getter and may fail.
+ */
 public struct MemberView(val info: ObservedMember, val readBody: () -> ValueView) {
+    /**
+     * Evaluates the member's read function and returns its current observation.
+     */
     public fun read(): ValueView = readBody()
 }
 
+/**
+ * The members of a record plus an optional view of its base subobject.
+ */
 public struct RecordView(val members: Array<MemberView>, val base: Option<ValueView> = None)
 
+/**
+ * The active payload variant and its observable members.
+ */
 public struct VariantView(val info: VariantInfo, val members: Array<MemberView>)
 
+/**
+ * The active integer-backed enum value with its declared variant metadata.
+ */
 public struct IntegerEnumView(val info: IntegerEnumVariantInfo)
 
+/**
+ * An indexed lazy tuple observation with a fixed reported size.
+ */
 public struct TupleView(val size: Long, val elementBody: (Long) -> ValueView) {
+    /**
+     * Reads the requested zero-based tuple element through the supplied callback.
+     */
     public fun element(index: Long): ValueView = elementBody(index)
 }
 
+/**
+ * An indexed lazy sequence observation. Its size and reads follow the underlying inspector's
+ * mutation contract.
+ */
 public struct SequenceView(val size: Long, val elementBody: (Long) -> ValueView) {
+    /**
+     * Reads the requested zero-based sequence element through the supplied callback.
+     */
     public fun element(index: Long): ValueView = elementBody(index)
 }
 
+/**
+ * A descriptive placeholder for a value whose internals are intentionally not exposed.
+ */
 public struct OpaqueValue(val description: String)
 
+/**
+ * Observes any T as opaque text without exposing fields or reference identity.
+ */
 public class OpaqueInspector<T> public constructor(private val description: String)
     : ValueInspector<T> {
+    /**
+     * Creates an opaque observation using the configured description.
+     */
     public override fun inspect(value: T): ValueView =
         ValueObservation(typeInfo<T>().type, None, { ValueShape.Opaque(OpaqueValue(description)) })
 }
 
+/**
+ * Observes Unit as a scalar without reference identity.
+ */
 public object UnitInspector : ValueInspector<Unit> {
+    /**
+     * Returns the Unit scalar observation.
+     */
     public override fun inspect(value: Unit): ValueView =
         ValueObservation(typeInfo<Unit>().type, None, { ValueShape.Scalar(ScalarValue.Unit) })
 }

@@ -161,3 +161,5 @@ Linux 全工作区单测、集成测试与 doctest 已执行完毕；首轮 14 �
 M60 新功能的 Darwin／GNU／musl 专项用例全部通过，Linux 的三个 annotation 正例在更新后的 runtime 上复验闭合。GNU 的 19 库共同站点通过 2,160 页、142,252 个页面及搜索入口链接、733 个源码页和 6,065 个搜索条目的静态检查。三个目标的完整 CLI 回归仍在运行。
 
 为 charset、cli、idna、json、test、terminal.asyncio、tls 和 tls.asyncio 补充 305 处声明说明，包括编解码错误、流状态、资源所有权、异步取消、测试生命周期及真实类型引用。修正 annotation 声明注释应位于 modifiers／annotations 之前的附着位置后，fmt／workspace clippy 和严格文档生成通过；8 库站点 191 页、9,497 个本地链接、73 个内嵌源码页检查通过，没有文档 warning。
+
+core 补充 1,071 处说明，覆盖数值与转换规则、集合／Option、operator、原子内存序、协程、显式资源和 FFI 生命周期、序列化、inspection／debug 及 typed reflection。严格文档生成通过，339 页、18,771 个本地入口链接、67 个源码页与 1,362 个搜索条目有效。musl 的 19 库功能站点也通过与 GNU 相同规模的静态检查。

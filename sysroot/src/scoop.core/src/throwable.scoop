@@ -2,25 +2,63 @@
 // Throwable / Exception are `open` so user code can define custom
 // exceptions; the built-in subclasses are final.
 
+/**
+ * The common reference base for values that can be thrown and caught.
+ */
 public open class Throwable public constructor()
 
-public open class Exception public constructor(public val message: String?) : Throwable()
+/**
+ * An ordinary throwable carrying an optional human-readable message.
+ */
+public open class Exception public constructor(
+    /**
+     * Optional explanatory text; None means no message was supplied.
+     */
+    public val message: String?) : Throwable()
 
+/**
+ * Thrown when a forced optional unwrap encounters None.
+ */
 public class UnwrapException public constructor() : Exception(Some("unwrap on None"))
 
+/**
+ * Thrown when a checked cast cannot produce the requested runtime type.
+ */
 public class ClassCastException public constructor() : Exception(Some("invalid cast"))
 
+/**
+ * Reports an invalid checked arithmetic operation, including integer division by zero.
+ */
 public class ArithmeticException public constructor() : Exception(Some("arithmetic error"))
 
+/**
+ * Reports a required context value that is absent at runtime.
+ */
 public class MissingContextException public constructor(message: String?) : Exception(message)
 
+/**
+ * Reports an index or slice boundary outside the valid range.
+ */
 public class IndexOutOfBoundsException public constructor() : Exception(Some("array index out of bounds"))
 
+/**
+ * Reports an argument that violates an operation's preconditions.
+ */
 public class IllegalArgumentException public constructor(message: String? = Some("illegal argument")) : Exception(message)
 
+/**
+ * Reports an operation invalid for the object's current state.
+ */
 public class IllegalStateException public constructor(message: String? = Some("illegal state")) : Exception(message)
 
-public class CharacterCodingException public constructor(public val byteOffset: Long) : Exception(Some("invalid UTF-8"))
+/**
+ * Reports malformed UTF-8 and the byte offset where validation failed.
+ */
+public class CharacterCodingException public constructor(
+    /**
+     * The zero-based byte offset associated with the invalid encoding.
+     */
+    public val byteOffset: Long) : Exception(Some("invalid UTF-8"))
 
 internal fun __scoopThrowInitializationCycle(message: String) {
     throw IllegalStateException(Some(message))

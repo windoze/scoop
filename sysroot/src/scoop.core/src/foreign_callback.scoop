@@ -1,22 +1,57 @@
 // GC-aware managed callback registration (spec 14.3, M13).
 
+/**
+ * Controls whether a managed callback registration accepts repeated native invocation.
+ */
 public enum ForeignCallbackMode {
+    /**
+     * Allows repeated invocations until the registration is released or fails.
+     */
     Reusable,
+    /**
+     * Allows one terminal invocation of the managed callback.
+     */
     OneShot
 }
 
+/**
+ * The observable lifecycle of a registered managed callback.
+ */
 public enum ForeignCallbackState {
+    /**
+     * The registration exists and has not begun invocation.
+     */
     Registered,
+    /**
+     * A native invocation is executing the managed callback.
+     */
     Active,
+    /**
+     * The one-shot callback completed successfully.
+     */
     Completed,
+    /**
+     * A callback invocation failed; its exception can be queried.
+     */
     Failed
 }
 
+/**
+ * Pairs a callable native entry with the context pointer that must be passed at its declared
+ * context argument position.
+ */
 public struct ForeignCallback<F>(
     val function: FunPtr<F>,
     val context: Ptr<Unit>
 )
 
+/**
+ * Registers a managed non-suspending function behind a native trampoline. F must be an explicit
+ * concrete C-safe signature; contextIndex and mode are compile-time constants, and the context
+ * parameter is Ptr<Unit>. Reusable owners release after native unregister. A successful one-shot
+ * launch transfers its worker ownership to the callback; retain a separate observer before that
+ * transfer when needed.
+ */
 @Unsafe
 @Intrinsic("foreign_callback_register")
 public fun <F> foreignCallback(
@@ -25,22 +60,36 @@ public fun <F> foreignCallback(
     mode: ForeignCallbackMode
 ): ForeignCallback<F>
 
+/**
+ * Acquires another reference to the callback registration for independent native ownership.
+ */
 @Unsafe
 @Intrinsic("foreign_callback_retain")
 public fun <F> retainForeignCallback(
     callback: ForeignCallback<F>
 ): ForeignCallback<F>
 
+/**
+ * Releases one acquired registration reference. Coordinate with native owners so no invocation can
+ * use a freed registration.
+ */
 @Unsafe
 @Intrinsic("foreign_callback_release")
 public fun <F> releaseForeignCallback(callback: ForeignCallback<F>)
 
+/**
+ * Reads the lifecycle state of a live callback registration.
+ */
 @Unsafe
 @Intrinsic("foreign_callback_state")
 public fun <F> foreignCallbackState(
     callback: ForeignCallback<F>
 ): ForeignCallbackState
 
+/**
+ * Returns the captured callback exception when invocation failed, or None when no failure is
+ * recorded.
+ */
 @Unsafe
 @Intrinsic("foreign_callback_failure")
 public fun <F> foreignCallbackFailure(callback: ForeignCallback<F>): Throwable?

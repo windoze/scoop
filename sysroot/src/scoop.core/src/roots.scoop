@@ -1,5 +1,11 @@
+/**
+ * The common reference root. Value types can be boxed when a reference representation is required.
+ */
 @Intrinsic("core_any")
 public abstract class Any {}
 
+/**
+ * The uninhabited result type of computations that do not return normally.
+ */
 @Intrinsic("core_nothing")
 public final class Nothing {}

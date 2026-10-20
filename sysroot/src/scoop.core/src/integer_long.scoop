@@ -1,3 +1,8 @@
+/**
+ * A 64-bit signed integer. Arithmetic wraps modulo 2^64; division by zero throws
+ * [ArithmeticException]. Conversions are explicit and preserve the language's fixed-width rules on
+ * every target.
+ */
 @Intrinsic("core_long")
 public struct Long :
     Add<Long, Long>,
@@ -13,141 +18,272 @@ public struct Long :
     RangeTo<Long, LongRange>,
     RangeUntil<Long, LongRange>,
     Equals<Long>, ToString, Hash {
+    /**
+     * Rounds the integer directly to IEEE binary32 using round-to-nearest, ties-to-even.
+     */
     @NoGC @Intrinsic("long_to_float")
     public fun toFloat(): Float
 
+    /**
+     * Rounds the integer directly to IEEE binary64 using round-to-nearest, ties-to-even.
+     */
     @NoGC @Intrinsic("long_to_double")
     public fun toDouble(): Double
 
+    /**
+     * Compares the mathematical values of two integers of the same type.
+     */
     @NoGC
     @Intrinsic("long_equals")
     public override operator fun equals(other: Long): Boolean
 
 
+    /**
+     * Returns the unchanged integer value.
+     */
     @NoGC
     @Intrinsic("long_unary_plus")
     public override operator fun unaryPlus(): Long
 
+    /**
+     * Returns the additive inverse modulo 2^64, including at the representation boundary.
+     */
     @NoGC
     @Intrinsic("long_unary_minus")
     public override operator fun unaryMinus(): Long
 
+    /**
+     * Returns the value plus one, wrapping modulo 2^64.
+     */
     @NoGC
     @Intrinsic("long_inc")
     public override operator fun inc(): Long
 
+    /**
+     * Returns the value minus one, wrapping modulo 2^64.
+     */
     @NoGC
     @Intrinsic("long_dec")
     public override operator fun dec(): Long
 
+    /**
+     * Returns the sum modulo 2^64; overflow does not throw.
+     */
     @NoGC
     @Intrinsic("long_add")
     public override operator fun plus(other: Long): Long
 
+    /**
+     * Returns the difference modulo 2^64; overflow does not throw.
+     */
     @NoGC
     @Intrinsic("long_sub")
     public override operator fun minus(other: Long): Long
 
+    /**
+     * Returns the product modulo 2^64; overflow does not throw.
+     */
     @NoGC
     @Intrinsic("long_mul")
     public override operator fun times(other: Long): Long
 
+    /**
+     * Returns the quotient truncated toward zero. A zero divisor throws [ArithmeticException]. The
+     * minimum value divided by -1 wraps to the minimum value.
+     */
     @Intrinsic("long_div")
     public override operator fun div(other: Long): Long
 
+    /**
+     * Returns the remainder associated with division truncated toward zero. A zero divisor throws
+     * [ArithmeticException]. A nonzero remainder has the dividend's sign.
+     */
     @Intrinsic("long_rem")
     public override operator fun rem(other: Long): Long
 
+    /**
+     * Returns -1, 0, or 1 using signed mathematical ordering.
+     */
     @NoGC
     @Intrinsic("long_compare_to")
     public override operator fun compareTo(other: Long): Long
 
+    /**
+     * Returns the bitwise intersection of the 64-bit operands.
+     */
     @NoGC
     @Intrinsic("long_and")
     public infix fun and(other: Long): Long
 
+    /**
+     * Returns the bitwise union of the 64-bit operands.
+     */
     @NoGC
     @Intrinsic("long_or")
     public infix fun or(other: Long): Long
 
+    /**
+     * Sets each result bit where the corresponding 64-bit operand bits differ.
+     */
     @NoGC
     @Intrinsic("long_xor")
     public infix fun xor(other: Long): Long
 
+    /**
+     * Flips all 64 bits of the representation.
+     */
     @NoGC
     @Intrinsic("long_inv")
     public fun inv(): Long
 
+    /**
+     * Shifts left using the low 6 bits of the Long count; shifted-out bits are discarded.
+     */
     @NoGC
     @Intrinsic("long_shl")
     public infix fun shl(count: Long): Long
 
+    /**
+     * Shifts right using the low 6 bits of the Long count, replicating the sign bit.
+     */
     @NoGC
     @Intrinsic("long_shr")
     public infix fun shr(count: Long): Long
 
+    /**
+     * Shifts right with zero fill using the low 6 bits of the Long count.
+     */
     @NoGC
     @Intrinsic("long_ushr")
     public infix fun ushr(count: Long): Long
 
+    /**
+     * Converts modulo 2^8 and interprets the result as a 8-bit signed integer. The conversion
+     * always succeeds.
+     */
     @NoGC
     @Intrinsic("long_to_int8")
     public fun toByte(): Byte
 
+    /**
+     * Converts modulo 2^16 and interprets the result as a 16-bit signed integer. The conversion
+     * always succeeds.
+     */
     @NoGC
     @Intrinsic("long_to_int16")
     public fun toShort(): Short
 
+    /**
+     * Converts modulo 2^32 and interprets the result as a 32-bit signed integer. The conversion
+     * always succeeds.
+     */
     @NoGC
     @Intrinsic("long_to_int")
     public fun toInt(): Int
 
+    /**
+     * Converts modulo 2^64 and interprets the result as a 64-bit signed integer. The conversion
+     * always succeeds.
+     */
     @NoGC
     @Intrinsic("long_to_long")
     public fun toLong(): Long
 
+    /**
+     * Converts modulo 2^8 and interprets the result as a 8-bit unsigned integer. The conversion
+     * always succeeds.
+     */
     @NoGC
     @Intrinsic("long_to_uint8")
     public fun toUByte(): UByte
 
+    /**
+     * Converts modulo 2^16 and interprets the result as a 16-bit unsigned integer. The conversion
+     * always succeeds.
+     */
     @NoGC
     @Intrinsic("long_to_uint16")
     public fun toUShort(): UShort
 
+    /**
+     * Converts modulo 2^32 and interprets the result as a 32-bit unsigned integer. The conversion
+     * always succeeds.
+     */
     @NoGC
     @Intrinsic("long_to_uint")
     public fun toUInt(): UInt
 
+    /**
+     * Converts modulo 2^64 and interprets the result as a 64-bit unsigned integer. The conversion
+     * always succeeds.
+     */
     @NoGC
     @Intrinsic("long_to_ulong")
     public fun toULong(): ULong
 
+    /**
+     * Creates an ascending range including both this value and the endpoint.
+     */
     public override operator fun rangeTo(endpoint: Long): LongRange =
         LongRange(this, endpoint, 1L, false, true)
 
+    /**
+     * Creates an ascending range including this value and excluding the endpoint.
+     */
     public override operator fun rangeUntil(endpoint: Long): LongRange =
         LongRange(this, endpoint, 1L, false, false)
 
+    /**
+     * Creates an ascending range with an exclusive endpoint.
+     */
     public infix fun until(endpoint: Long): LongRange =
         LongRange(this, endpoint, 1L, false, false)
 
+    /**
+     * Creates a descending range including both endpoints.
+     */
     public infix fun downTo(endpoint: Long): LongRange =
         LongRange(this, endpoint, 1L, true, true)
 
+    /**
+     * Returns the locale-independent decimal representation of this integer.
+     */
     public override fun toString(): String = coreLongToString(this)
 
+    /**
+     * Returns a hash consistent with same-type integer equality.
+     */
     public override fun hash(): Long = coreLongHash(this)
 
+    /**
+     * Fixed representation bounds and the scalar encoding, decoding, and inspection protocols.
+     */
     public companion object : ValueEncoder<Long>, ValueDecoder<Long>, ValueInspector<Long> {
+        /**
+         * Exposes the integer as a scalar value observation without reference identity.
+         */
         public override fun inspect(value: Long): ValueView =
             ValueObservation(typeInfo<Long>().type, None, { ValueShape.Scalar(ScalarValue.Signed(value)) })
 
+        /**
+         * The smallest representable 64-bit signed integer.
+         */
         public const val MIN_VALUE: Long = -9223372036854775808L
+        /**
+         * The largest representable 64-bit signed integer.
+         */
         public const val MAX_VALUE: Long = 9223372036854775807L
 
+        /**
+         * Writes the integer through the encoder's single-value container.
+         */
         public override fun encode(value: Long, encoder: Encoder): Unit =
             encoder.singleValue().writeLong(value.toLong())
 
+        /**
+         * Decodes an integer and rejects values outside the 64-bit signed range with
+         * [DecodingException].
+         */
         public override fun decode(decoder: Decoder): Long =
             decoder.singleValue().readLong()
     }

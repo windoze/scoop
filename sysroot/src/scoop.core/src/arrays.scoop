@@ -1,56 +1,117 @@
+/**
+ * A fixed-size array with immutable element slots and zero-based Long indexing. Copy conversion
+ * creates independent slots while preserving element values or references.
+ */
 @Intrinsic("core_array")
 public class Array<T> : List<T> {
     @Intrinsic("array_length")
     private fun arrayLength(): Long
 
+    /**
+     * The current number of element slots visible through the list interface.
+     */
     public override val size: Long get() = arrayLength()
 
     @Intrinsic("array_get")
     private fun arrayRead(index: Long): T
 
+    /**
+     * Reads the element at a zero-based index; out-of-range indices throw
+     * [IndexOutOfBoundsException].
+     */
     public override operator fun get(index: Long): T = arrayRead(index)
 
+    /**
+     * Copies the elements into independent mutable array slots.
+     */
     @Intrinsic("array_to_mutable")
     public fun toMutableArray(): MutableArray<T>
 
+    /**
+     * Traverses the elements in index order and remains exhausted after reaching the end.
+     */
     public override operator fun iterator(): Iterator<T> = ListIterator<T>(this, 0L, false)
 
+    /**
+     * Builds element-wise inspection and serialization adapters for this container.
+     */
     public companion object {
+        /**
+         * Builds a sequence inspector using the supplied element inspector.
+         */
         public fun inspector(element: ValueInspector<T>): ValueInspector<Array<T>> = ArrayInspector<T>(element)
 
+        /**
+         * Builds a sequence encoder using the supplied element encoder.
+         */
         public fun encoder(element: ValueEncoder<T>): ValueEncoder<Array<T>> = ArrayEncoder<T>(element)
 
+        /**
+         * Builds a sequence decoder using the supplied element decoder.
+         */
         public fun decoder(element: ValueDecoder<T>): ValueDecoder<Array<T>> = ArrayDecoder<T>(element)
     }
 }
 
+/**
+ * A fixed-size array with replaceable element slots and zero-based Long indexing. Use [ArrayList]
+ * when the number of elements must change.
+ */
 @Intrinsic("core_mutable_array")
 public class MutableArray<T> : List<T>, IndexSet<Long, T> {
     @Intrinsic("mutable_array_length")
     private fun arrayLength(): Long
 
+    /**
+     * The current number of element slots visible through the list interface.
+     */
     public override val size: Long get() = arrayLength()
 
     @Intrinsic("mutable_array_get")
     private fun arrayRead(index: Long): T
 
+    /**
+     * Reads the element at a zero-based index; out-of-range indices throw
+     * [IndexOutOfBoundsException].
+     */
     public override operator fun get(index: Long): T = arrayRead(index)
 
     @Intrinsic("mutable_array_set")
     private fun arrayWrite(index: Long, value: T)
 
+    /**
+     * Replaces an existing element; out-of-range indices throw [IndexOutOfBoundsException].
+     */
     public override operator fun set(index: Long, value: T): Unit = arrayWrite(index, value)
 
+    /**
+     * Copies the elements into independent immutable array slots.
+     */
     @Intrinsic("array_to_immutable")
     public fun toArray(): Array<T>
 
+    /**
+     * Traverses the elements in index order and remains exhausted after reaching the end.
+     */
     public override operator fun iterator(): Iterator<T> = ListIterator<T>(this, 0L, false)
 
+    /**
+     * Builds element-wise inspection and serialization adapters for this container.
+     */
     public companion object {
+        /**
+         * Builds a sequence inspector using the supplied element inspector.
+         */
         public fun inspector(element: ValueInspector<T>): ValueInspector<MutableArray<T>> = MutableArrayInspector<T>(element)
 
+        /**
+         * Builds a sequence encoder using the supplied element encoder.
+         */
         public fun encoder(element: ValueEncoder<T>): ValueEncoder<MutableArray<T>> = MutableArrayEncoder<T>(element)
 
+        /**
+         * Builds a sequence decoder using the supplied element decoder.
+         */
         public fun decoder(element: ValueDecoder<T>): ValueDecoder<MutableArray<T>> =
             MutableArrayDecoder<T>(element)
     }

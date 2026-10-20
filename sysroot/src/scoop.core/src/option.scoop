@@ -1,15 +1,37 @@
 // The Option type (spec 7.2). `T?` desugars to `Option<T>`, and the
 // variant names `Some` / `None` are resolvable without a prefix
 // (spec 4.2, 5.1).
+/**
+ * A value that is either [Some] or [None]. The spelling `T?` denotes `Option<T>`; absence is
+ * represented explicitly and can be matched exhaustively.
+ */
 public enum Option<T> {
+    /**
+     * Contains the present value.
+     */
     Some(T),
+    /**
+     * Represents the absence of a value.
+     */
     None
 
+    /**
+     * Inspection and serialization operations for this value type.
+     */
     public companion object {
+        /**
+         * Builds an inspector that delegates a present payload to the supplied element inspector.
+         */
         public fun inspector(element: ValueInspector<T>): ValueInspector<Option<T>> = OptionInspector<T>(element)
 
+        /**
+         * Builds an encoder that delegates a present payload to the supplied element encoder.
+         */
         public fun encoder(element: ValueEncoder<T>): ValueEncoder<Option<T>> = OptionEncoder<T>(element)
 
+        /**
+         * Builds a decoder that delegates a present payload to the supplied element decoder.
+         */
         public fun decoder(element: ValueDecoder<T>): ValueDecoder<Option<T>> = OptionDecoder<T>(element)
     }
 }

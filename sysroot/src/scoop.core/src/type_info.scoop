@@ -1,3 +1,7 @@
+/**
+ * Obtains compiler-provided metadata for the concrete type T. It describes types and declarations;
+ * it does not enable arbitrary dynamic invocation.
+ */
 public fun <T> typeInfo(): TypeInfo<T> = TypeInfo<T>(__scoopTypeReference<T>())
 
 internal fun <T> __scoopTypeReference(): TypeRef {
@@ -20,22 +24,50 @@ internal fun <T> coreTypeReference(): TypeReferenceData
 @Intrinsic("type_description")
 internal fun <T> coreTypeDescription(): TypeDescription
 
+/**
+ * A typed entry point into concrete type metadata.
+ */
 public struct TypeInfo<T>(val type: TypeRef) {
+    /**
+     * Returns the declaration and shape metadata of the represented type.
+     */
     public fun describe(): TypeDescription = type.describe()
 }
 
+/**
+ * A concrete type identity with a display name and lazily available description. Identity
+ * comparison is independent of display spelling.
+ */
 public class TypeRef public constructor(
     private val identity: String,
+    /**
+     * Human-readable type spelling; do not use it as an identity key.
+     */
     public val displayName: String,
+    /**
+     * The declaring nominal identity when the type has one.
+     */
     public val nominal: Option<NominalRef>,
+    /**
+     * The concrete generic argument types, in declaration order.
+     */
     public val arguments: Array<TypeRef>,
     private val describeBody: () -> TypeDescription
 ) : Equals<TypeRef> {
+    /**
+     * Compares concrete type identities, including generic arguments.
+     */
     public override operator fun equals(other: TypeRef): Boolean = identity == other.identity
 
+    /**
+     * Evaluates the type's description provider.
+     */
     public fun describe(): TypeDescription = describeBody()
 }
 
+/**
+ * Combines a concrete type identity, its declaration annotations, and its structural shape.
+ */
 public struct TypeDescription(
     val type: TypeRef,
     val annotations: Array<AnnotationInfo>,

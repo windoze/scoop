@@ -1,3 +1,6 @@
+/**
+ * The caller's source file, one-based line and column, and enclosing function and type names.
+ */
 public struct SourceLocation(
     val file: String,
     val line: Long,

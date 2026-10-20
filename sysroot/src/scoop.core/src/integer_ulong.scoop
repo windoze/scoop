@@ -1,3 +1,8 @@
+/**
+ * A 64-bit unsigned integer. Arithmetic wraps modulo 2^64; division by zero throws
+ * [ArithmeticException]. Conversions are explicit and preserve the language's fixed-width rules on
+ * every target.
+ */
 @Intrinsic("core_ulong")
 public struct ULong :
     Add<ULong, ULong>,
@@ -13,137 +18,264 @@ public struct ULong :
     RangeTo<ULong, ULongRange>,
     RangeUntil<ULong, ULongRange>,
     Equals<ULong>, ToString, Hash {
+    /**
+     * Rounds the integer directly to IEEE binary32 using round-to-nearest, ties-to-even.
+     */
     @NoGC @Intrinsic("ulong_to_float")
     public fun toFloat(): Float
 
+    /**
+     * Rounds the integer directly to IEEE binary64 using round-to-nearest, ties-to-even.
+     */
     @NoGC @Intrinsic("ulong_to_double")
     public fun toDouble(): Double
 
+    /**
+     * Compares the mathematical values of two integers of the same type.
+     */
     @NoGC
     @Intrinsic("ulong_equals")
     public override operator fun equals(other: ULong): Boolean
 
 
+    /**
+     * Returns the unchanged integer value.
+     */
     @NoGC
     @Intrinsic("ulong_unary_plus")
     public override operator fun unaryPlus(): ULong
 
+    /**
+     * Returns the additive inverse modulo 2^64, including at the representation boundary.
+     */
     @NoGC
     @Intrinsic("ulong_unary_minus")
     public override operator fun unaryMinus(): ULong
 
+    /**
+     * Returns the value plus one, wrapping modulo 2^64.
+     */
     @NoGC
     @Intrinsic("ulong_inc")
     public override operator fun inc(): ULong
 
+    /**
+     * Returns the value minus one, wrapping modulo 2^64.
+     */
     @NoGC
     @Intrinsic("ulong_dec")
     public override operator fun dec(): ULong
 
+    /**
+     * Returns the sum modulo 2^64; overflow does not throw.
+     */
     @NoGC
     @Intrinsic("ulong_add")
     public override operator fun plus(other: ULong): ULong
 
+    /**
+     * Returns the difference modulo 2^64; overflow does not throw.
+     */
     @NoGC
     @Intrinsic("ulong_sub")
     public override operator fun minus(other: ULong): ULong
 
+    /**
+     * Returns the product modulo 2^64; overflow does not throw.
+     */
     @NoGC
     @Intrinsic("ulong_mul")
     public override operator fun times(other: ULong): ULong
 
+    /**
+     * Returns the quotient truncated toward zero. A zero divisor throws [ArithmeticException].
+     */
     @Intrinsic("ulong_div")
     public override operator fun div(other: ULong): ULong
 
+    /**
+     * Returns the remainder associated with division truncated toward zero. A zero divisor throws
+     * [ArithmeticException].
+     */
     @Intrinsic("ulong_rem")
     public override operator fun rem(other: ULong): ULong
 
+    /**
+     * Returns -1, 0, or 1 using unsigned mathematical ordering.
+     */
     @NoGC
     @Intrinsic("ulong_compare_to")
     public override operator fun compareTo(other: ULong): Long
 
+    /**
+     * Returns the bitwise intersection of the 64-bit operands.
+     */
     @NoGC
     @Intrinsic("ulong_and")
     public infix fun and(other: ULong): ULong
 
+    /**
+     * Returns the bitwise union of the 64-bit operands.
+     */
     @NoGC
     @Intrinsic("ulong_or")
     public infix fun or(other: ULong): ULong
 
+    /**
+     * Sets each result bit where the corresponding 64-bit operand bits differ.
+     */
     @NoGC
     @Intrinsic("ulong_xor")
     public infix fun xor(other: ULong): ULong
 
+    /**
+     * Flips all 64 bits of the representation.
+     */
     @NoGC
     @Intrinsic("ulong_inv")
     public fun inv(): ULong
 
+    /**
+     * Shifts left using the low 6 bits of the Long count; shifted-out bits are discarded.
+     */
     @NoGC
     @Intrinsic("ulong_shl")
     public infix fun shl(count: Long): ULong
 
+    /**
+     * Shifts right using the low 6 bits of the Long count, filling with zero bits.
+     */
     @NoGC
     @Intrinsic("ulong_shr")
     public infix fun shr(count: Long): ULong
 
+    /**
+     * Converts modulo 2^8 and interprets the result as a 8-bit signed integer. The conversion
+     * always succeeds.
+     */
     @NoGC
     @Intrinsic("ulong_to_int8")
     public fun toByte(): Byte
 
+    /**
+     * Converts modulo 2^16 and interprets the result as a 16-bit signed integer. The conversion
+     * always succeeds.
+     */
     @NoGC
     @Intrinsic("ulong_to_int16")
     public fun toShort(): Short
 
+    /**
+     * Converts modulo 2^32 and interprets the result as a 32-bit signed integer. The conversion
+     * always succeeds.
+     */
     @NoGC
     @Intrinsic("ulong_to_int")
     public fun toInt(): Int
 
+    /**
+     * Converts modulo 2^64 and interprets the result as a 64-bit signed integer. The conversion
+     * always succeeds.
+     */
     @NoGC
     @Intrinsic("ulong_to_long")
     public fun toLong(): Long
 
+    /**
+     * Converts modulo 2^8 and interprets the result as a 8-bit unsigned integer. The conversion
+     * always succeeds.
+     */
     @NoGC
     @Intrinsic("ulong_to_uint8")
     public fun toUByte(): UByte
 
+    /**
+     * Converts modulo 2^16 and interprets the result as a 16-bit unsigned integer. The conversion
+     * always succeeds.
+     */
     @NoGC
     @Intrinsic("ulong_to_uint16")
     public fun toUShort(): UShort
 
+    /**
+     * Converts modulo 2^32 and interprets the result as a 32-bit unsigned integer. The conversion
+     * always succeeds.
+     */
     @NoGC
     @Intrinsic("ulong_to_uint")
     public fun toUInt(): UInt
 
+    /**
+     * Converts modulo 2^64 and interprets the result as a 64-bit unsigned integer. The conversion
+     * always succeeds.
+     */
     @NoGC
     @Intrinsic("ulong_to_ulong")
     public fun toULong(): ULong
 
+    /**
+     * Creates an ascending range including both this value and the endpoint.
+     */
     public override operator fun rangeTo(endpoint: ULong): ULongRange =
         ULongRange(this, endpoint, 1uL, false, true)
 
+    /**
+     * Creates an ascending range including this value and excluding the endpoint.
+     */
     public override operator fun rangeUntil(endpoint: ULong): ULongRange =
         ULongRange(this, endpoint, 1uL, false, false)
 
+    /**
+     * Creates an ascending range with an exclusive endpoint.
+     */
     public infix fun until(endpoint: ULong): ULongRange =
         ULongRange(this, endpoint, 1uL, false, false)
 
+    /**
+     * Creates a descending range including both endpoints.
+     */
     public infix fun downTo(endpoint: ULong): ULongRange =
         ULongRange(this, endpoint, 1uL, true, true)
 
+    /**
+     * Returns the locale-independent decimal representation of this integer.
+     */
     public override fun toString(): String = coreULongToString(this)
 
+    /**
+     * Returns a hash consistent with same-type integer equality.
+     */
     public override fun hash(): Long = coreULongHash(this)
 
+    /**
+     * Fixed representation bounds and the scalar encoding, decoding, and inspection protocols.
+     */
     public companion object : ValueEncoder<ULong>, ValueDecoder<ULong>, ValueInspector<ULong> {
+        /**
+         * Exposes the integer as a scalar value observation without reference identity.
+         */
         public override fun inspect(value: ULong): ValueView =
             ValueObservation(typeInfo<ULong>().type, None, { ValueShape.Scalar(ScalarValue.Unsigned(value)) })
 
+        /**
+         * The smallest representable 64-bit unsigned integer.
+         */
         public const val MIN_VALUE: ULong = 0uL
+        /**
+         * The largest representable 64-bit unsigned integer.
+         */
         public const val MAX_VALUE: ULong = 18446744073709551615uL
 
+        /**
+         * Writes the integer through the encoder's single-value container.
+         */
         public override fun encode(value: ULong, encoder: Encoder): Unit =
             encoder.singleValue().writeULong(value.toULong())
 
+        /**
+         * Decodes an integer and rejects values outside the 64-bit unsigned range with
+         * [DecodingException].
+         */
         public override fun decode(decoder: Decoder): ULong =
             decoder.singleValue().readULong()
     }

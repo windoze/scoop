@@ -1,31 +1,80 @@
+/**
+ * The structural category of a concrete type and its category-specific declaration metadata.
+ */
 public enum TypeShape {
+    /**
+     * Describes the Struct category of concrete type metadata.
+     */
     Struct(StructInfo),
+    /**
+     * Describes the Enum category of concrete type metadata.
+     */
     Enum(EnumInfo),
+    /**
+     * Describes the IntegerEnum category of concrete type metadata.
+     */
     IntegerEnum(IntegerEnumInfo),
+    /**
+     * Describes the Class category of concrete type metadata.
+     */
     Class(ClassInfo),
+    /**
+     * Describes the Object category of concrete type metadata.
+     */
     Object(ObjectInfo),
+    /**
+     * Describes the Interface category of concrete type metadata.
+     */
     Interface(InterfaceInfo),
+    /**
+     * Describes the Tuple category of concrete type metadata.
+     */
     Tuple(TupleInfo),
+    /**
+     * Describes the Unit category of concrete type metadata.
+     */
     Unit,
+    /**
+     * Describes the Intrinsic category of concrete type metadata.
+     */
     Intrinsic(IntrinsicInfo),
+    /**
+     * Describes the Function category of concrete type metadata.
+     */
     Function(FunctionTypeInfo),
+    /**
+     * Describes the Pointer category of concrete type metadata.
+     */
     Pointer(PointerTypeInfo)
 }
 
+/**
+ * Stored value fields, constructors, and implemented interface type uses of a struct.
+ */
 public struct StructInfo(
     val fields: Array<FieldInfo>,
     val constructors: Array<ConstructorInfo>,
     val interfaces: Array<TypeUseInfo>
 )
 
+/**
+ * Payload variants and implemented interface type uses of an enum.
+ */
 public struct EnumInfo(val variants: Array<VariantInfo>, val interfaces: Array<TypeUseInfo>)
 
+/**
+ * The underlying integer type, declared values, and interfaces of an integer-backed enum.
+ */
 public struct IntegerEnumInfo(
     val underlyingType: TypeRef,
     val variants: Array<IntegerEnumVariantInfo>,
     val interfaces: Array<TypeUseInfo>
 )
 
+/**
+ * A declared integer-enum variant retaining its identity, annotations, order, and exact integer
+ * value.
+ */
 public struct IntegerEnumVariantInfo(
     val id: VariantRef,
     val owner: TypeRef,
@@ -35,6 +84,10 @@ public struct IntegerEnumVariantInfo(
     val value: IntegerValue
 )
 
+/**
+ * A class's base type, interfaces, declared properties, physical storage, constructors, and
+ * finality.
+ */
 public struct ClassInfo(
     val base: Option<TypeUseInfo>,
     val interfaces: Array<TypeUseInfo>,
@@ -44,6 +97,9 @@ public struct ClassInfo(
     val isFinal: Boolean
 )
 
+/**
+ * A singleton's base, interfaces, properties, storage, and optional companion host identity.
+ */
 public struct ObjectInfo(
     val base: Option<TypeUseInfo>,
     val interfaces: Array<TypeUseInfo>,
@@ -52,34 +108,101 @@ public struct ObjectInfo(
     val companionHost: Option<NominalRef>
 )
 
+/**
+ * An interface's parent interfaces and declared properties.
+ */
 public struct InterfaceInfo(val parents: Array<TypeUseInfo>, val properties: Array<PropertyInfo>)
 
+/**
+ * The ordered, annotated element types of a tuple.
+ */
 public struct TupleInfo(val elements: Array<TupleElementInfo>)
 
+/**
+ * The compiler-defined representation category of an intrinsic type.
+ */
 public enum IntrinsicKind {
+    /**
+     * Logical values.
+     */
     Boolean,
+    /**
+     * A fixed-width integer, with signedness and bit width.
+     */
     Integer(Boolean, Long),
+    /**
+     * IEEE binary32.
+     */
     Float,
+    /**
+     * IEEE binary64.
+     */
     Double,
+    /**
+     * Unicode scalar values.
+     */
     Char,
+    /**
+     * Immutable UTF-8 text.
+     */
     String,
+    /**
+     * Fixed-size immutable element storage.
+     */
     Array,
+    /**
+     * Fixed-size mutable element storage.
+     */
     MutableArray,
+    /**
+     * The common reference root.
+     */
     Any,
+    /**
+     * The uninhabited type.
+     */
     Nothing,
+    /**
+     * Possibly uninitialized value storage.
+     */
     MaybeUninit,
+    /**
+     * One of the fixed atomic representation categories.
+     */
     Atomic(AtomicTypeKind)
 }
 
+/**
+ * Distinguishes fixed integer, Boolean, and managed-reference atomic representations.
+ */
 public enum AtomicTypeKind {
+    /**
+     * An atomic Int cell.
+     */
     Int,
+    /**
+     * An atomic Long cell.
+     */
     Long,
+    /**
+     * An atomic Boolean cell.
+     */
     Boolean,
+    /**
+     * An atomic managed-reference cell using identity comparisons.
+     */
     Reference
 }
 
+/**
+ * The representation category of a compiler-defined type.
+ */
 public struct IntrinsicInfo(val kind: IntrinsicKind)
 
+/**
+ * A concrete function type, including suspend effect, optional receiver, ordered parameters, and
+ * result type use.
+ */
 public struct FunctionTypeInfo(
     val isSuspend: Boolean,
     val receiver: Option<TypeUseInfo>,
@@ -87,7 +210,16 @@ public struct FunctionTypeInfo(
     val result: TypeUseInfo
 )
 
+/**
+ * Distinguishes native data pointers from native function pointers.
+ */
 public enum PointerTypeInfo {
+    /**
+     * A native data pointer with its annotated pointee type.
+     */
     Ptr(TypeUseInfo),
+    /**
+     * A native function pointer with its complete function signature.
+     */
     FunPtr(FunctionTypeInfo)
 }

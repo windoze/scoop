@@ -1,3 +1,7 @@
+/**
+ * An integer progression with a fixed direction, positive step, and inclusive or exclusive
+ * endpoint. Iteration checks the endpoint before arithmetic can wrap.
+ */
 public class IntRange internal constructor(
     private val first: Int,
     private val endpoint: Int,
@@ -5,9 +9,16 @@ public class IntRange internal constructor(
     private val descending: Boolean,
     private val inclusive: Boolean
 ) : Iterable<Int>, Contains<Int> {
+    /**
+     * Creates a fresh cursor over this progression.
+     */
     public override operator fun iterator(): Iterator<Int> =
         IntRangeIterator(first, endpoint, stride, descending, inclusive, false)
 
+    /**
+     * Returns a progression with the requested positive step magnitude, preserving direction and
+     * endpoint policy. Zero or negative signed steps are invalid.
+     */
     public infix fun step(value: Int): IntRange {
         if (value <= 0) {
             throw IllegalArgumentException()
@@ -15,6 +26,9 @@ public class IntRange internal constructor(
         return IntRange(first, endpoint, value, descending, inclusive)
     }
 
+    /**
+     * Tests membership using both endpoint bounds and alignment with the progression step.
+     */
     public override operator fun contains(value: Int): Boolean {
         if (descending) {
             if (value > first) {
@@ -121,6 +135,10 @@ internal class IntRangeIterator internal constructor(
     }
 }
 
+/**
+ * An integer progression with a fixed direction, positive step, and inclusive or exclusive
+ * endpoint. Iteration checks the endpoint before arithmetic can wrap.
+ */
 public class LongRange internal constructor(
     private val first: Long,
     private val endpoint: Long,
@@ -128,9 +146,16 @@ public class LongRange internal constructor(
     private val descending: Boolean,
     private val inclusive: Boolean
 ) : Iterable<Long>, Contains<Long> {
+    /**
+     * Creates a fresh cursor over this progression.
+     */
     public override operator fun iterator(): Iterator<Long> =
         LongRangeIterator(first, endpoint, stride, descending, inclusive, false)
 
+    /**
+     * Returns a progression with the requested positive step magnitude, preserving direction and
+     * endpoint policy. Zero or negative signed steps are invalid.
+     */
     public infix fun step(value: Long): LongRange {
         if (value <= 0L) {
             throw IllegalArgumentException()
@@ -138,6 +163,9 @@ public class LongRange internal constructor(
         return LongRange(first, endpoint, value, descending, inclusive)
     }
 
+    /**
+     * Tests membership using both endpoint bounds and alignment with the progression step.
+     */
     public override operator fun contains(value: Long): Boolean {
         if (descending) {
             if (value > first) {
@@ -244,6 +272,10 @@ internal class LongRangeIterator internal constructor(
     }
 }
 
+/**
+ * An integer progression with a fixed direction, positive step, and inclusive or exclusive
+ * endpoint. Iteration checks the endpoint before arithmetic can wrap.
+ */
 public class UIntRange internal constructor(
     private val first: UInt,
     private val endpoint: UInt,
@@ -251,9 +283,16 @@ public class UIntRange internal constructor(
     private val descending: Boolean,
     private val inclusive: Boolean
 ) : Iterable<UInt>, Contains<UInt> {
+    /**
+     * Creates a fresh cursor over this progression.
+     */
     public override operator fun iterator(): Iterator<UInt> =
         UIntRangeIterator(first, endpoint, stride, descending, inclusive, false)
 
+    /**
+     * Returns a progression with the requested positive step magnitude, preserving direction and
+     * endpoint policy. Zero or negative signed steps are invalid.
+     */
     public infix fun step(value: UInt): UIntRange {
         if (value == 0u) {
             throw IllegalArgumentException()
@@ -261,6 +300,9 @@ public class UIntRange internal constructor(
         return UIntRange(first, endpoint, value, descending, inclusive)
     }
 
+    /**
+     * Tests membership using both endpoint bounds and alignment with the progression step.
+     */
     public override operator fun contains(value: UInt): Boolean {
         if (descending) {
             if (value > first) {
@@ -366,6 +408,10 @@ internal class UIntRangeIterator internal constructor(
     }
 }
 
+/**
+ * An integer progression with a fixed direction, positive step, and inclusive or exclusive
+ * endpoint. Iteration checks the endpoint before arithmetic can wrap.
+ */
 public class ULongRange internal constructor(
     private val first: ULong,
     private val endpoint: ULong,
@@ -373,9 +419,16 @@ public class ULongRange internal constructor(
     private val descending: Boolean,
     private val inclusive: Boolean
 ) : Iterable<ULong>, Contains<ULong> {
+    /**
+     * Creates a fresh cursor over this progression.
+     */
     public override operator fun iterator(): Iterator<ULong> =
         ULongRangeIterator(first, endpoint, stride, descending, inclusive, false)
 
+    /**
+     * Returns a progression with the requested positive step magnitude, preserving direction and
+     * endpoint policy. Zero or negative signed steps are invalid.
+     */
     public infix fun step(value: ULong): ULongRange {
         if (value == 0uL) {
             throw IllegalArgumentException()
@@ -383,6 +436,9 @@ public class ULongRange internal constructor(
         return ULongRange(first, endpoint, value, descending, inclusive)
     }
 
+    /**
+     * Tests membership using both endpoint bounds and alignment with the progression step.
+     */
     public override operator fun contains(value: ULong): Boolean {
         if (descending) {
             if (value > first) {

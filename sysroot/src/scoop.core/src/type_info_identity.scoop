@@ -1,35 +1,102 @@
+/**
+ * The identity of one nominal declaration. The stored identity is opaque; display names are not
+ * substitutes for it.
+ */
 public struct NominalRef(val identity: String) : Equals<NominalRef> {
+    /**
+     * Compares the represented declaration identities.
+     */
     public override operator fun equals(other: NominalRef): Boolean = identity == other.identity
 }
 
+/**
+ * The identity of one field declaration. The stored identity is opaque; display names are not
+ * substitutes for it.
+ */
 public struct FieldRef(val identity: String) : Equals<FieldRef> {
+    /**
+     * Compares the represented declaration identities.
+     */
     public override operator fun equals(other: FieldRef): Boolean = identity == other.identity
 }
 
+/**
+ * The identity of one property declaration. The stored identity is opaque; display names are not
+ * substitutes for it.
+ */
 public struct PropertyRef(val identity: String) : Equals<PropertyRef> {
+    /**
+     * Compares the represented declaration identities.
+     */
     public override operator fun equals(other: PropertyRef): Boolean = identity == other.identity
 }
 
+/**
+ * The identity of one accessor declaration. The stored identity is opaque; display names are not
+ * substitutes for it.
+ */
 public struct AccessorRef(val identity: String) : Equals<AccessorRef> {
+    /**
+     * Compares the represented declaration identities.
+     */
     public override operator fun equals(other: AccessorRef): Boolean = identity == other.identity
 }
 
+/**
+ * The identity of one variant declaration. The stored identity is opaque; display names are not
+ * substitutes for it.
+ */
 public struct VariantRef(val identity: String) : Equals<VariantRef> {
+    /**
+     * Compares the represented declaration identities.
+     */
     public override operator fun equals(other: VariantRef): Boolean = identity == other.identity
 }
 
+/**
+ * The identity of one constructor declaration. The stored identity is opaque; display names are
+ * not substitutes for it.
+ */
 public struct ConstructorRef(val identity: String) : Equals<ConstructorRef> {
+    /**
+     * Compares the represented declaration identities.
+     */
     public override operator fun equals(other: ConstructorRef): Boolean = identity == other.identity
 }
 
+/**
+ * The identity of one parameter declaration. The stored identity is opaque; display names are not
+ * substitutes for it.
+ */
 public struct ParameterRef(val identity: String) : Equals<ParameterRef> {
+    /**
+     * Compares the represented declaration identities.
+     */
     public override operator fun equals(other: ParameterRef): Boolean = identity == other.identity
 }
 
+/**
+ * The visibility recorded for an individual declaration, including local declarations.
+ */
 public enum DeclarationVisibility {
+    /**
+     * Visible through the public declaration boundary.
+     */
     Public,
+    /**
+     * Visible within its declaring Cone.
+     */
     Internal,
+    /**
+     * Visible under protected member-access rules.
+     */
     Protected,
+    /**
+     * Visible only in the declaration's private scope.
+     */
     Private,
+    /**
+     * Declared in a local lexical scope.
+     */
     Local
 }

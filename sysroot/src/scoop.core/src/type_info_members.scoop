@@ -1,17 +1,52 @@
+/**
+ * A declared member name or a positional payload index.
+ */
 public enum MemberName {
+    /**
+     * A member with an explicit source-level name.
+     */
     Named(String),
+    /**
+     * A member identified by its zero-based payload position.
+     */
     Positional(Long)
 }
 
+/**
+ * Explains why a storage slot exists, separating declared storage from property backing and
+ * compiler-created slots.
+ */
 public enum StorageOrigin {
+    /**
+     * A field explicitly declared in source.
+     */
     Declared,
+    /**
+     * Storage backing the identified property.
+     */
     Backing(PropertyRef),
+    /**
+     * Storage holding the delegate of the identified property.
+     */
     Delegate(PropertyRef),
+    /**
+     * Storage of an enclosing instance reference.
+     */
     Outer,
+    /**
+     * Storage of a captured value.
+     */
     Capture,
+    /**
+     * Other compiler-generated storage.
+     */
     Generated
 }
 
+/**
+ * Describes one storage field with identity, owner, type use, order, annotations, visibility,
+ * origin, and optional constructor-parameter association.
+ */
 public struct FieldInfo(
     val id: FieldRef,
     val owner: TypeRef,
@@ -24,15 +59,34 @@ public struct FieldInfo(
     val origin: StorageOrigin,
     val constructorParameter: Option<ParameterRef>
 ) {
+    /**
+     * The concrete type of this field, without its type-use annotation tree.
+     */
     public val type: TypeRef get() = typeUse.type
 }
 
+/**
+ * Describes whether a property uses backing storage, a delegate, or only accessor computation.
+ */
 public enum PropertyStorage {
+    /**
+     * The property is backed by the identified field.
+     */
     Stored(FieldRef),
+    /**
+     * The property has no backing field.
+     */
     Computed,
+    /**
+     * The identified field stores the property delegate.
+     */
     Delegated(FieldRef)
 }
 
+/**
+ * Describes a property independently of its storage, including accessor visibility, override
+ * identities, and constructor association.
+ */
 public struct PropertyInfo(
     val id: PropertyRef,
     val owner: TypeRef,
@@ -49,16 +103,37 @@ public struct PropertyInfo(
     val overrides: Array<PropertyRef>,
     val constructorParameter: Option<ParameterRef>
 ) {
+    /**
+     * The concrete property type, without its type-use annotation tree.
+     */
     public val type: TypeRef get() = typeUse.type
 }
 
+/**
+ * Classifies storage, constant, explicit-body, and abstract property accessors.
+ */
 public enum AccessorKind {
+    /**
+     * An accessor reads or writes associated storage.
+     */
     Storage,
+    /**
+     * An accessor produces a constant value.
+     */
     Constant,
+    /**
+     * An accessor has an explicit implementation body.
+     */
     Body,
+    /**
+     * An accessor has no implementation in this declaration.
+     */
     Abstract
 }
 
+/**
+ * A property accessor's own identity, visibility, annotations, and implementation category.
+ */
 public struct AccessorInfo(
     val id: AccessorRef,
     val visibility: DeclarationVisibility,
@@ -66,16 +141,37 @@ public struct AccessorInfo(
     val kind: AccessorKind
 )
 
+/**
+ * A tuple element's zero-based position, label, and annotated type use.
+ */
 public struct TupleElementInfo(val index: Long, val name: String, val typeUse: TypeUseInfo) {
+    /**
+     * The concrete element type without its type-use annotations.
+     */
     public val type: TypeRef get() = typeUse.type
 }
 
+/**
+ * Distinguishes a unit variant from named or positional payload fields.
+ */
 public enum VariantPayload {
+    /**
+     * The variant carries no fields.
+     */
     Unit,
+    /**
+     * The variant has named payload fields.
+     */
     Named(Array<FieldInfo>),
+    /**
+     * The variant has positionally indexed payload fields.
+     */
     Positional(Array<FieldInfo>)
 }
 
+/**
+ * Describes a payload enum variant, its declaration order, fields, annotations, and constructor.
+ */
 public struct VariantInfo(
     val id: VariantRef,
     val owner: TypeRef,
@@ -86,12 +182,27 @@ public struct VariantInfo(
     val constructor: ConstructorInfo
 )
 
+/**
+ * Distinguishes primary, secondary, and enum-variant constructors.
+ */
 public enum ConstructorKind {
+    /**
+     * The nominal type's primary constructor.
+     */
     Primary,
+    /**
+     * An explicitly declared secondary constructor.
+     */
     Secondary,
+    /**
+     * The constructor of the identified enum variant.
+     */
     Variant(VariantRef)
 }
 
+/**
+ * Describes a constructor and its parameters; metadata does not itself invoke the constructor.
+ */
 public struct ConstructorInfo(
     val id: ConstructorRef,
     val owner: TypeRef,
@@ -101,12 +212,28 @@ public struct ConstructorInfo(
     val parameters: Array<ParameterInfo>
 )
 
+/**
+ * Connects a constructor parameter to the field or property it declares, when applicable.
+ */
 public enum ParameterMember {
+    /**
+     * The parameter declares no persistent member.
+     */
     None,
+    /**
+     * The parameter declares the identified field.
+     */
     Field(FieldRef),
+    /**
+     * The parameter declares the identified property.
+     */
     Property(PropertyRef)
 }
 
+/**
+ * Describes a value parameter, including its annotated type, position, default availability,
+ * vararg status, and declared member association.
+ */
 public struct ParameterInfo(
     val id: ParameterRef,
     val name: String,

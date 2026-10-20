@@ -1,4 +1,7 @@
 // Borrowed bytes remain pinned while ordinary C calls may block in stdio.
+/**
+ * Writes UTF-8 text to standard output without adding a line terminator.
+ */
 public fun write(message: String) {
     @Unsafe {
         message.withUtf8Bytes<Unit>(fun(pointer: Ptr<UInt8>, length: Long) {
@@ -7,6 +10,9 @@ public fun write(message: String) {
     }
 }
 
+/**
+ * Writes UTF-8 text to standard error without adding a line terminator.
+ */
 public fun writeError(message: String) {
     @Unsafe {
         message.withUtf8Bytes<Unit>(fun(pointer: Ptr<UInt8>, length: Long) {
@@ -15,6 +21,10 @@ public fun writeError(message: String) {
     }
 }
 
+/**
+ * Flushes the standard-output stdio buffer. It does not flush standard error or promise line-level
+ * atomicity.
+ */
 public fun flushOutput() { @Unsafe { coreFlushStdout() } }
 
 @Extern(name = "scoop_rt_flush_stdout")
@@ -26,15 +36,27 @@ internal fun coreStdoutWrite(pointer: Ptr<UInt8>, length: Long)
 @Extern(name = "scoop_rt_stderr_write")
 internal fun coreStderrWrite(pointer: Ptr<UInt8>, length: Long)
 
+/**
+ * Writes the value's ToString result to standard output without a line terminator.
+ */
 public fun <T : ToString> print(value: T) = write(value.toString())
 
+/**
+ * Writes the value's ToString result followed by a newline to standard output.
+ */
 public fun <T : ToString> println(value: T) {
     write(value.toString())
     write("\n")
 }
 
+/**
+ * Writes the value's ToString result to standard error without a line terminator.
+ */
 public fun <T : ToString> eprint(value: T) = writeError(value.toString())
 
+/**
+ * Writes the value's ToString result followed by a newline to standard error.
+ */
 public fun <T : ToString> eprintln(value: T) {
     writeError(value.toString())
     writeError("\n")

@@ -1,55 +1,167 @@
+/**
+ * The generic operator contract used for `a + b`. Operand and result types are chosen by the
+ * implementation.
+ */
 public interface Add<Rhs, Result> {
+    /**
+     * Implements `a + b` for this receiver; domain restrictions and failure behavior belong to the
+     * implementing type.
+     */
     public operator fun plus(other: Rhs): Result
 }
 
+/**
+ * The generic operator contract used for `a - b`. Operand and result types are chosen by the
+ * implementation.
+ */
 public interface Sub<Rhs, Result> {
+    /**
+     * Implements `a - b` for this receiver; domain restrictions and failure behavior belong to the
+     * implementing type.
+     */
     public operator fun minus(other: Rhs): Result
 }
 
+/**
+ * The generic operator contract used for `a * b`. Operand and result types are chosen by the
+ * implementation.
+ */
 public interface Mul<Rhs, Result> {
+    /**
+     * Implements `a * b` for this receiver; domain restrictions and failure behavior belong to the
+     * implementing type.
+     */
     public operator fun times(other: Rhs): Result
 }
 
+/**
+ * The generic operator contract used for `a / b`. Operand and result types are chosen by the
+ * implementation.
+ */
 public interface Div<Rhs, Result> {
+    /**
+     * Implements `a / b` for this receiver; domain restrictions and failure behavior belong to the
+     * implementing type.
+     */
     public operator fun div(other: Rhs): Result
 }
 
+/**
+ * The generic operator contract used for `a % b`. Operand and result types are chosen by the
+ * implementation.
+ */
 public interface Rem<Rhs, Result> {
+    /**
+     * Implements `a % b` for this receiver; domain restrictions and failure behavior belong to the
+     * implementing type.
+     */
     public operator fun rem(other: Rhs): Result
 }
 
+/**
+ * The generic operator contract used for `+a`. Operand and result types are chosen by the
+ * implementation.
+ */
 public interface UnaryPlus<Result> {
+    /**
+     * Implements `+a` for this receiver; domain restrictions and failure behavior belong to the
+     * implementing type.
+     */
     public operator fun unaryPlus(): Result
 }
 
+/**
+ * The generic operator contract used for `-a`. Operand and result types are chosen by the
+ * implementation.
+ */
 public interface UnaryMinus<Result> {
+    /**
+     * Implements `-a` for this receiver; domain restrictions and failure behavior belong to the
+     * implementing type.
+     */
     public operator fun unaryMinus(): Result
 }
 
+/**
+ * The generic operator contract used for `++a or a++`. Operand and result types are chosen by the
+ * implementation.
+ */
 public interface Increment<Result : Increment<Result>> {
+    /**
+     * Implements `++a or a++` for this receiver; domain restrictions and failure behavior belong
+     * to the implementing type.
+     */
     public operator fun inc(): Result
 }
 
+/**
+ * The generic operator contract used for `--a or a--`. Operand and result types are chosen by the
+ * implementation.
+ */
 public interface Decrement<Result : Decrement<Result>> {
+    /**
+     * Implements `--a or a--` for this receiver; domain restrictions and failure behavior belong
+     * to the implementing type.
+     */
     public operator fun dec(): Result
 }
 
+/**
+ * The generic operator contract used for `!a`. Operand and result types are chosen by the
+ * implementation.
+ */
 public interface Not<Result> {
+    /**
+     * Implements `!a` for this receiver; domain restrictions and failure behavior belong to the
+     * implementing type.
+     */
     public operator fun not(): Result
 }
 
+/**
+ * The generic ordered-comparison protocol. Only the sign of compareTo matters to relational
+ * operators.
+ */
 public interface Compare<Rhs> {
+    /**
+     * Returns a negative number, zero, or a positive number when this value is before, equal to,
+     * or after the operand in the implementation's ordering.
+     */
     public operator fun compareTo(other: Rhs): Long
 }
 
+/**
+ * The generic operator contract used for `a..b`. Operand and result types are chosen by the
+ * implementation.
+ */
 public interface RangeTo<Rhs, Result> {
+    /**
+     * Implements `a..b` for this receiver; domain restrictions and failure behavior belong to the
+     * implementing type.
+     */
     public operator fun rangeTo(endpoint: Rhs): Result
 }
 
+/**
+ * The generic operator contract used for `a..<b`. Operand and result types are chosen by the
+ * implementation.
+ */
 public interface RangeUntil<Rhs, Result> {
+    /**
+     * Implements `a..<b` for this receiver; domain restrictions and failure behavior belong to the
+     * implementing type.
+     */
     public operator fun rangeUntil(endpoint: Rhs): Result
 }
 
+/**
+ * The generic operator contract used for `element in container`. Operand and result types are
+ * chosen by the implementation.
+ */
 public interface Contains<Element> {
+    /**
+     * Implements `element in container` for this receiver; domain restrictions and failure
+     * behavior belong to the implementing type.
+     */
     public operator fun contains(value: Element): Boolean
 }

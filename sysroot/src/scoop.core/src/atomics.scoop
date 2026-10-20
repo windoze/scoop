@@ -1,37 +1,102 @@
-public enum MemoryOrder { Relaxed, Acquire, Release, AcqRel, SeqCst }
+/**
+ * The ordering of an atomic operation relative to other memory accesses. Allowed combinations
+ * depend on the operation.
+ */
+public enum MemoryOrder {
+    /**
+     * Provides atomicity without ordering unrelated accesses.
+     */
+    Relaxed,
+    /**
+     * Orders subsequent accesses after a matching release observed by this operation.
+     */
+    Acquire,
+    /**
+     * Publishes preceding accesses to an acquire that observes this operation.
+     */
+    Release,
+    /**
+     * Combines acquire and release for a read-modify-write operation.
+     */
+    AcqRel,
+    /**
+     * Participates in the sequentially consistent order in addition to the operation's
+     * acquire/release effects.
+     */
+    SeqCst }
 
+/**
+ * A shared atomic cell. Memory-order arguments must be compile-time enum variants. Loads permit
+ * Relaxed, Acquire, or SeqCst; stores permit Relaxed, Release, or SeqCst. Read-modify-write
+ * operations permit every order. Compare-exchange failure order cannot release or be stronger than
+ * success order.
+ */
 @Intrinsic("core_atomic_int")
 public class AtomicInt {
+    /**
+     * Atomically reads the current value with the selected load order.
+     */
     @NoGC @Intrinsic("atomic_int_load")
     public fun load(order: MemoryOrder = MemoryOrder.SeqCst): Int
 
+    /**
+     * Atomically replaces the value with the selected store order.
+     */
     @NoGC @Intrinsic("atomic_int_store")
     public fun store(value: Int, order: MemoryOrder = MemoryOrder.SeqCst): Unit
 
+    /**
+     * Atomically replaces the value and returns the value observed before replacement.
+     */
     @NoGC @Intrinsic("atomic_int_exchange")
     public fun exchange(value: Int, order: MemoryOrder = MemoryOrder.SeqCst): Int
 
+    /**
+     * Replaces the value only when it matches `expected`, returning whether replacement occurred.
+     */
     @NoGC @Intrinsic("atomic_int_compare_and_set")
     public fun compareAndSet(expected: Int, value: Int, successOrder: MemoryOrder = MemoryOrder.SeqCst, failureOrder: MemoryOrder = MemoryOrder.SeqCst): Boolean
 
+    /**
+     * Conditionally replaces the value and returns the value observed by the comparison.
+     */
     @NoGC @Intrinsic("atomic_int_compare_and_exchange")
     public fun compareAndExchange(expected: Int, value: Int, successOrder: MemoryOrder = MemoryOrder.SeqCst, failureOrder: MemoryOrder = MemoryOrder.SeqCst): Int
 
+    /**
+     * Atomically adds with integer wrapping and returns the previous value.
+     */
     @NoGC @Intrinsic("atomic_int_fetch_add")
     public fun fetchAdd(value: Int, order: MemoryOrder = MemoryOrder.SeqCst): Int
 
+    /**
+     * Atomically subtracts with integer wrapping and returns the previous value.
+     */
     @NoGC @Intrinsic("atomic_int_fetch_sub")
     public fun fetchSub(value: Int, order: MemoryOrder = MemoryOrder.SeqCst): Int
 
+    /**
+     * Atomically applies bitwise AND and returns the previous value.
+     */
     @NoGC @Intrinsic("atomic_int_fetch_and")
     public fun fetchAnd(value: Int, order: MemoryOrder = MemoryOrder.SeqCst): Int
 
+    /**
+     * Atomically applies bitwise OR and returns the previous value.
+     */
     @NoGC @Intrinsic("atomic_int_fetch_or")
     public fun fetchOr(value: Int, order: MemoryOrder = MemoryOrder.SeqCst): Int
 
+    /**
+     * Atomically applies bitwise XOR and returns the previous value.
+     */
     @NoGC @Intrinsic("atomic_int_fetch_xor")
     public fun fetchXor(value: Int, order: MemoryOrder = MemoryOrder.SeqCst): Int
 
+    /**
+     * Retries a compare-exchange loop and returns the old value. The callback may run more than
+     * once; callback side effects are not rolled back.
+     */
     public fun getAndUpdate(update: (Int) -> Int): Int {
         var current = load()
         var next = update(current)
@@ -42,6 +107,10 @@ public class AtomicInt {
         return current
     }
 
+    /**
+     * Retries a compare-exchange loop and returns the installed value. The callback may run more
+     * than once.
+     */
     public fun updateAndGet(update: (Int) -> Int): Int {
         var current = load()
         var next = update(current)
@@ -53,38 +122,78 @@ public class AtomicInt {
     }
 }
 
+/**
+ * A shared atomic cell. Memory-order arguments must be compile-time enum variants. Loads permit
+ * Relaxed, Acquire, or SeqCst; stores permit Relaxed, Release, or SeqCst. Read-modify-write
+ * operations permit every order. Compare-exchange failure order cannot release or be stronger than
+ * success order.
+ */
 @Intrinsic("core_atomic_long")
 public class AtomicLong {
+    /**
+     * Atomically reads the current value with the selected load order.
+     */
     @NoGC @Intrinsic("atomic_long_load")
     public fun load(order: MemoryOrder = MemoryOrder.SeqCst): Long
 
+    /**
+     * Atomically replaces the value with the selected store order.
+     */
     @NoGC @Intrinsic("atomic_long_store")
     public fun store(value: Long, order: MemoryOrder = MemoryOrder.SeqCst): Unit
 
+    /**
+     * Atomically replaces the value and returns the value observed before replacement.
+     */
     @NoGC @Intrinsic("atomic_long_exchange")
     public fun exchange(value: Long, order: MemoryOrder = MemoryOrder.SeqCst): Long
 
+    /**
+     * Replaces the value only when it matches `expected`, returning whether replacement occurred.
+     */
     @NoGC @Intrinsic("atomic_long_compare_and_set")
     public fun compareAndSet(expected: Long, value: Long, successOrder: MemoryOrder = MemoryOrder.SeqCst, failureOrder: MemoryOrder = MemoryOrder.SeqCst): Boolean
 
+    /**
+     * Conditionally replaces the value and returns the value observed by the comparison.
+     */
     @NoGC @Intrinsic("atomic_long_compare_and_exchange")
     public fun compareAndExchange(expected: Long, value: Long, successOrder: MemoryOrder = MemoryOrder.SeqCst, failureOrder: MemoryOrder = MemoryOrder.SeqCst): Long
 
+    /**
+     * Atomically adds with integer wrapping and returns the previous value.
+     */
     @NoGC @Intrinsic("atomic_long_fetch_add")
     public fun fetchAdd(value: Long, order: MemoryOrder = MemoryOrder.SeqCst): Long
 
+    /**
+     * Atomically subtracts with integer wrapping and returns the previous value.
+     */
     @NoGC @Intrinsic("atomic_long_fetch_sub")
     public fun fetchSub(value: Long, order: MemoryOrder = MemoryOrder.SeqCst): Long
 
+    /**
+     * Atomically applies bitwise AND and returns the previous value.
+     */
     @NoGC @Intrinsic("atomic_long_fetch_and")
     public fun fetchAnd(value: Long, order: MemoryOrder = MemoryOrder.SeqCst): Long
 
+    /**
+     * Atomically applies bitwise OR and returns the previous value.
+     */
     @NoGC @Intrinsic("atomic_long_fetch_or")
     public fun fetchOr(value: Long, order: MemoryOrder = MemoryOrder.SeqCst): Long
 
+    /**
+     * Atomically applies bitwise XOR and returns the previous value.
+     */
     @NoGC @Intrinsic("atomic_long_fetch_xor")
     public fun fetchXor(value: Long, order: MemoryOrder = MemoryOrder.SeqCst): Long
 
+    /**
+     * Retries a compare-exchange loop and returns the old value. The callback may run more than
+     * once; callback side effects are not rolled back.
+     */
     public fun getAndUpdate(update: (Long) -> Long): Long {
         var current = load()
         var next = update(current)
@@ -95,6 +204,10 @@ public class AtomicLong {
         return current
     }
 
+    /**
+     * Retries a compare-exchange loop and returns the installed value. The callback may run more
+     * than once.
+     */
     public fun updateAndGet(update: (Long) -> Long): Long {
         var current = load()
         var next = update(current)
@@ -106,32 +219,66 @@ public class AtomicLong {
     }
 }
 
+/**
+ * A shared atomic cell. Memory-order arguments must be compile-time enum variants. Loads permit
+ * Relaxed, Acquire, or SeqCst; stores permit Relaxed, Release, or SeqCst. Read-modify-write
+ * operations permit every order. Compare-exchange failure order cannot release or be stronger than
+ * success order.
+ */
 @Intrinsic("core_atomic_boolean")
 public class AtomicBoolean {
+    /**
+     * Atomically reads the current value with the selected load order.
+     */
     @NoGC @Intrinsic("atomic_boolean_load")
     public fun load(order: MemoryOrder = MemoryOrder.SeqCst): Boolean
 
+    /**
+     * Atomically replaces the value with the selected store order.
+     */
     @NoGC @Intrinsic("atomic_boolean_store")
     public fun store(value: Boolean, order: MemoryOrder = MemoryOrder.SeqCst): Unit
 
+    /**
+     * Atomically replaces the value and returns the value observed before replacement.
+     */
     @NoGC @Intrinsic("atomic_boolean_exchange")
     public fun exchange(value: Boolean, order: MemoryOrder = MemoryOrder.SeqCst): Boolean
 
+    /**
+     * Replaces the value only when it matches `expected`, returning whether replacement occurred.
+     */
     @NoGC @Intrinsic("atomic_boolean_compare_and_set")
     public fun compareAndSet(expected: Boolean, value: Boolean, successOrder: MemoryOrder = MemoryOrder.SeqCst, failureOrder: MemoryOrder = MemoryOrder.SeqCst): Boolean
 
+    /**
+     * Conditionally replaces the value and returns the value observed by the comparison.
+     */
     @NoGC @Intrinsic("atomic_boolean_compare_and_exchange")
     public fun compareAndExchange(expected: Boolean, value: Boolean, successOrder: MemoryOrder = MemoryOrder.SeqCst, failureOrder: MemoryOrder = MemoryOrder.SeqCst): Boolean
 
+    /**
+     * Atomically applies bitwise AND and returns the previous value.
+     */
     @NoGC @Intrinsic("atomic_boolean_fetch_and")
     public fun fetchAnd(value: Boolean, order: MemoryOrder = MemoryOrder.SeqCst): Boolean
 
+    /**
+     * Atomically applies bitwise OR and returns the previous value.
+     */
     @NoGC @Intrinsic("atomic_boolean_fetch_or")
     public fun fetchOr(value: Boolean, order: MemoryOrder = MemoryOrder.SeqCst): Boolean
 
+    /**
+     * Atomically applies bitwise XOR and returns the previous value.
+     */
     @NoGC @Intrinsic("atomic_boolean_fetch_xor")
     public fun fetchXor(value: Boolean, order: MemoryOrder = MemoryOrder.SeqCst): Boolean
 
+    /**
+     * Retries a compare-exchange loop and returns the old value. The callback may run more than
+     * once; callback side effects are not rolled back.
+     */
     public fun getAndUpdate(update: (Boolean) -> Boolean): Boolean {
         var current = load()
         var next = update(current)
@@ -142,6 +289,10 @@ public class AtomicBoolean {
         return current
     }
 
+    /**
+     * Retries a compare-exchange loop and returns the installed value. The callback may run more
+     * than once.
+     */
     public fun updateAndGet(update: (Boolean) -> Boolean): Boolean {
         var current = load()
         var next = update(current)
@@ -153,23 +304,48 @@ public class AtomicBoolean {
     }
 }
 
+/**
+ * A shared atomic cell. Memory-order arguments must be compile-time enum variants. Loads permit
+ * Relaxed, Acquire, or SeqCst; stores permit Relaxed, Release, or SeqCst. Read-modify-write
+ * operations permit every order. Compare-exchange failure order cannot release or be stronger than
+ * success order. Reference comparison uses identity, not user-defined equality.
+ */
 @Intrinsic("core_atomic_ref")
 public class AtomicRef<T : ref> {
+    /**
+     * Atomically reads the current value with the selected load order.
+     */
     @NoGC @Intrinsic("atomic_ref_load")
     public fun load(order: MemoryOrder = MemoryOrder.SeqCst): T
 
+    /**
+     * Atomically replaces the value with the selected store order.
+     */
     @NoGC @Intrinsic("atomic_ref_store")
     public fun store(value: T, order: MemoryOrder = MemoryOrder.SeqCst): Unit
 
+    /**
+     * Atomically replaces the value and returns the value observed before replacement.
+     */
     @NoGC @Intrinsic("atomic_ref_exchange")
     public fun exchange(value: T, order: MemoryOrder = MemoryOrder.SeqCst): T
 
+    /**
+     * Replaces the value only when it matches `expected`, returning whether replacement occurred.
+     */
     @NoGC @Intrinsic("atomic_ref_compare_and_set")
     public fun compareAndSet(expected: T, value: T, successOrder: MemoryOrder = MemoryOrder.SeqCst, failureOrder: MemoryOrder = MemoryOrder.SeqCst): Boolean
 
+    /**
+     * Conditionally replaces the value and returns the value observed by the comparison.
+     */
     @NoGC @Intrinsic("atomic_ref_compare_and_exchange")
     public fun compareAndExchange(expected: T, value: T, successOrder: MemoryOrder = MemoryOrder.SeqCst, failureOrder: MemoryOrder = MemoryOrder.SeqCst): T
 
+    /**
+     * Retries a compare-exchange loop and returns the old value. The callback may run more than
+     * once; callback side effects are not rolled back.
+     */
     public fun getAndUpdate(update: (T) -> T): T {
         var current = load()
         var next = update(current)
@@ -180,6 +356,10 @@ public class AtomicRef<T : ref> {
         return current
     }
 
+    /**
+     * Retries a compare-exchange loop and returns the installed value. The callback may run more
+     * than once.
+     */
     public fun updateAndGet(update: (T) -> T): T {
         var current = load()
         var next = update(current)

@@ -2,27 +2,57 @@
 @DocAlias("text")
 @Intrinsic("core_string")
 public class String : IndexGet<Long, Char>, Compare<String>, Add<String, String>, Equals<String>, ToString, Hash, Iterable<Char> {
+    /**
+     * The UTF-8 byte count, available in constant time.
+     */
     public val byteLength: Long get() = coreStringByteLength(this)
+    /**
+     * The number of Unicode scalar values. Counting scans UTF-8 text; combining marks count
+     * separately.
+     */
     public val length: Long get() = coreStringLength(this)
 
+    /**
+     * Compares text exactly, without Unicode normalization or case folding.
+     */
     public override operator fun equals(other: String): Boolean = coreStringEquals(this, other)
 
 
+    /**
+     * Concatenates the two immutable UTF-8 strings.
+     */
     @Intrinsic("string_concat")
     public override operator fun plus(other: String): String
 
+    /**
+     * Compares strings lexicographically using their Unicode text order.
+     */
     @Intrinsic("string_compare_to")
     public override operator fun compareTo(other: String): Long
 
+    /**
+     * Returns this immutable string.
+     */
     public override fun toString(): String = this
+    /**
+     * Returns a hash consistent with exact string equality.
+     */
     public override fun hash(): Long = coreStringHash(this)
 
+    /**
+     * Returns the Unicode scalar at a zero-based scalar index. An invalid index throws
+     * [IndexOutOfBoundsException].
+     */
     public override operator fun get(index: Long): Char {
         val value = coreStringGet(this, index)
         if (value == None) { throw IndexOutOfBoundsException() }
         return value!!
     }
 
+    /**
+     * Returns the scalar-indexed half-open range from `start` to `endExclusive`. Invalid bounds
+     * throw [IndexOutOfBoundsException]; an empty range is allowed.
+     */
     public fun slice(start: Long, endExclusive: Long): String {
         val result = coreStringSliceBounds(this, start, endExclusive)
         if (result == None) { throw IndexOutOfBoundsException() }
@@ -30,57 +60,108 @@ public class String : IndexGet<Long, Char>, Compare<String>, Add<String, String>
         return coreStringSliceBytes(this, bounds._1, bounds._2)
     }
 
+    /**
+     * Traverses Unicode scalars in order without repeatedly rescanning from the beginning.
+     */
     public override operator fun iterator(): Iterator<Char> = StringIterator(this)
 
+    /**
+     * Copies Unicode scalars into an immutable character array.
+     */
     public fun toCharArray(): Array<Char> {
         val source = iterator()
         return Array<Char>(length) { _ -> source.next()!! }
     }
 
+    /**
+     * Copies Unicode scalars into independently mutable character slots.
+     */
     public fun toMutableCharArray(): MutableArray<Char> {
         val source = iterator()
         return MutableArray<Char>(length) { _ -> source.next()!! }
     }
 
+    /**
+     * Copies the UTF-8 encoding into an immutable byte array without a NUL terminator.
+     */
     public fun toByteArray(): Array<Byte> {
         val source = this
         return Array<Byte>(byteLength) { index -> coreStringByteAt(source, index) }
     }
 
+    /**
+     * Copies the UTF-8 encoding into an independently mutable byte array.
+     */
     public fun toMutableByteArray(): MutableArray<Byte> {
         val source = this
         return MutableArray<Byte>(byteLength) { index -> coreStringByteAt(source, index) }
     }
 
+    /**
+     * String construction and scalar encoding, decoding, and inspection operations.
+     */
     public companion object : ValueEncoder<String>, ValueDecoder<String>, ValueInspector<String> {
+        /**
+         * Observes the complete string as a text scalar.
+         */
         public override fun inspect(value: String): ValueView =
             ValueObservation(typeInfo<String>().type, Some(value), { ValueShape.Scalar(ScalarValue.String(value)) })
 
+        /**
+         * Writes the string through the backend's text scalar operation.
+         */
         public override fun encode(value: String, encoder: Encoder): Unit =
             encoder.singleValue().writeString(value)
 
+        /**
+         * Reads a string through the backend's text scalar operation.
+         */
         public override fun decode(decoder: Decoder): String =
             decoder.singleValue().readString()
 
+        /**
+         * Encodes the supplied Unicode scalars as a new UTF-8 string.
+         */
         public fun fromChars(chars: List<Char>): String = coreStringFromChars(chars.toArray())
 
+        /**
+         * Copies bytes that the unsafe caller guarantees are valid UTF-8.
+         */
         @Unsafe
         public fun fromUtf8Unchecked(bytes: List<Byte>): String =
             coreStringFromBytes(bytes.toArray())
 
+        /**
+         * Validates and copies UTF-8 bytes. Invalid encoding throws [CharacterCodingException];
+         * raw-pointer callers must provide readable, stable memory for the specified length.
+         */
         public fun fromUtf8(bytes: List<Byte>): String =
             requireValidUtf8(decodeUtf8(bytes))
 
+        /**
+         * Returns decoded UTF-8 text, or None for invalid encoding.
+         */
         public fun fromUtf8OrNone(bytes: List<Byte>): String? = decodeUtf8(bytes)._1
 
+        /**
+         * Decodes UTF-8 while replacing malformed input with Unicode replacement characters.
+         */
         public fun fromUtf8Lossy(bytes: List<Byte>): String = decodeUtf8Lossy(bytes)
 
+        /**
+         * Validates and copies UTF-8 bytes. Invalid encoding throws [CharacterCodingException];
+         * raw-pointer callers must provide readable, stable memory for the specified length.
+         */
         @Unsafe
         public fun fromUtf8(pointer: Ptr<UInt8>, length: Long): String {
             if (length < 0L) { throw IllegalArgumentException() }
             return requireValidUtf8(coreStringDecodeUtf8(pointer, length))
         }
 
+        /**
+         * Copies and validates the UTF-8 bytes preceding the first NUL. The unsafe caller must
+         * keep the entire terminated region readable and stable.
+         */
         @Unsafe
         public fun fromCString(pointer: Ptr<Int8>): String =
             fromUtf8(pointer.cast<UInt8>(), coreCStringLength(pointer).toLong())

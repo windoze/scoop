@@ -1,4 +1,8 @@
 // Temporary NUL-terminated copies use the ordinary scoped array borrow.
+/**
+ * Copies the string into scoped NUL-terminated UTF-8 storage. Embedded NUL is rejected; the
+ * pointer must not escape the callback.
+ */
 @Unsafe
 public fun <R> String.withCString(block: (Ptr<Int8>) -> R): R {
     val source = this
