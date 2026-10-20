@@ -18,6 +18,7 @@ checks = [{actual = "${build.result.observations.child_invocations.length}", equ
 
 [[steps]]
 name = "run"
+timeout = 30
 argv = ["${build.result.output}"]
 exit = 0
 stdout = "TCP connection races preserve structured stream ownership\n"

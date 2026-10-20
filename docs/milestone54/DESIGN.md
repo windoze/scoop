@@ -174,6 +174,8 @@ libidn2／libunistring／libiconv 按其库许可交付对应源码、修改说�
 
 同 Cone 的 scoop.test 验证库行为；少量正式文件 fixture 验证 API 组合、编译诊断、`.slib` 消费和 native 链接，不保存大规模 IR 快照。各特性有独立用例和组合用例，错误规则有对应失败检查。时序用明确同步点、loopback 动态端口和可控制的对端；不依赖公网稳定性，不通过删掉源或工具证明缓存复用。
 
+双栈传输用例使用实际绑定地址对应的数值 loopback host，不假定宿主的 `localhost` 同时解析出 IPv4 与 IPv6；名称解析另按系统实际结果验证。
+
 三个目标为 aarch64-apple-darwin、x86_64-unknown-linux-gnu、x86_64-unknown-linux-musl。分别运行适用的 debug／release，不能以能生成 ELF 代替 Linux 运行；GC stress 只用于 GC 正确性的定向测试，不作为普通功能或全量验收的运行模式。验收规模按实际变化确定；只有涉及编译器或 runtime 时才扩大相应回归，不把每批普通文档／库迭代都绑定到完整编译器验收。
 
 测试未通过的能力不能以文档状态或预编译包存在代替。最终进度文档只保留验证范围、结果概要、失败闭合与必要限制，原始日志／报告保存在仓库外。

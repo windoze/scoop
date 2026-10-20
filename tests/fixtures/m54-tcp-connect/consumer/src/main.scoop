@@ -37,7 +37,8 @@ private fun exercise(ip: IpAddress) {
             loop.run suspend { scope ->
                 for (maximum in [1L, 2L]) {
                     val options = TcpConnectOptions(Duration.ZERO, Duration.ZERO, maximum)
-                    loop.connectTcp(OsString.fromString("localhost"), address.port, options).useAsync suspend { client ->
+                    // System localhost records need not include both address families.
+                    loop.connectTcp(OsString.fromString(ip.toString()), address.port, options).useAsync suspend { client ->
                         check(client.peerAddress == address)
                         NativeByteBuffer.allocate(2L).use suspend { bytes ->
                             bytes.writeByte(maximum.toByte())
