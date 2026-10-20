@@ -3,7 +3,7 @@ name = "m54-request-body"
 inputs = ["consumer", "payload.txt"]
 tools = ["scoop", "scoopc"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["m54", "http", "client", "asyncio", "files", "prebuilt", "gc"]
+tags = ["m54", "http", "client", "asyncio", "files", "prebuilt"]
 variants = [{name = "debug", vars = {mode = []}}, {name = "release", vars = {mode = ["--release"]}}]
 
 [[steps]]
@@ -19,7 +19,6 @@ checks = [{actual = "${build.result.observations.child_invocations.length}", equ
 [[steps]]
 name = "run"
 argv = ["${build.result.output}", "${fixture}/payload.txt"]
-env = {SCOOP_GC_STRESS_MOVE = "1"}
 exit = 0
 stdout = "request bodies stream files and snapshots through HTTP1 and HTTP2\n"
 stderr = ""

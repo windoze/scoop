@@ -3,7 +3,7 @@ name = "m54-native-requirements"
 inputs = ["provider", "consumer"]
 tools = ["scoop", "scoopc"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["m54", "codegen", "native", "link", "struct", "generics", "gc"]
+tags = ["m54", "codegen", "native", "link", "struct", "generics"]
 variants = [{name = "debug", vars = {mode = []}}, {name = "release", vars = {mode = ["--release"]}}]
 
 [[steps]]
@@ -29,7 +29,6 @@ checks = [{actual = "${consumer.result.observations.child_invocations.length}", 
 [[steps]]
 name = "run"
 argv = ["${consumer.result.output}"]
-env = {SCOOP_GC_STRESS_MOVE = "1"}
 exit = 0
 stdout = "native comparison helpers link and preserve every field\n"
 stderr = ""

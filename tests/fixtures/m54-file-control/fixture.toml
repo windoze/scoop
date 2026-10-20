@@ -3,7 +3,7 @@ name = "m54-file-control"
 inputs = ["consumer"]
 tools = ["scoop", "scoopc"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["m54", "asyncio", "prebuilt", "gc", "files", "network"]
+tags = ["m54", "asyncio", "prebuilt", "files", "network"]
 variants = [{name = "debug", vars = {mode = []}}, {name = "release", vars = {mode = ["--release"]}}]
 
 [[steps]]
@@ -19,7 +19,6 @@ checks = [{actual = "${build.result.observations.child_invocations.length}", equ
 [[steps]]
 name = "run"
 argv = ["${build.result.output}", "${work}"]
-env = {SCOOP_GC_STRESS_MOVE = "1"}
 exit = 0
 stdout = "asynchronous file controls compose with resumed TCP copies\n"
 stderr = ""

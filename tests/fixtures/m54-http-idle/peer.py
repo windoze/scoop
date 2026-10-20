@@ -1,4 +1,3 @@
-import os
 import select
 import socket
 import struct
@@ -124,7 +123,6 @@ def exercise(binary, mode):
             capture_output=True,
             text=True,
             timeout=60,
-            env=dict(os.environ, SCOOP_GC_STRESS_MOVE="1"),
         )
         for thread in workers:
             thread.join(25)

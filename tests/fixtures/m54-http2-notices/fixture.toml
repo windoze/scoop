@@ -3,7 +3,7 @@ name = "m54-http2-notices"
 inputs = ["consumer", "peer.py", "wire.py"]
 tools = ["scoop", "scoopc", "python"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["m54", "http2", "asyncio", "timeout", "gc"]
+tags = ["m54", "http2", "asyncio", "timeout"]
 variants = [{name = "debug", vars = {mode = []}}, {name = "release", vars = {mode = ["--release"]}}]
 
 [[steps]]

@@ -1,4 +1,3 @@
-import os
 import struct
 import subprocess
 import sys
@@ -74,7 +73,6 @@ def check_trace(lines):
 
 result = subprocess.run(
     [sys.argv[1]],
-    env=dict(os.environ, SCOOP_GC_STRESS_MOVE="1"),
     capture_output=True,
     text=True,
     timeout=180,

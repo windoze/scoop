@@ -3,7 +3,7 @@ name = "m54-callable-cstrings"
 inputs = ["main.scoop"]
 tools = ["scoop", "scoopc"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["m54", "codegen", "elf", "arrays", "generics", "suspend", "gc"]
+tags = ["m54", "codegen", "elf", "arrays", "generics", "suspend"]
 variants = [{name = "debug", vars = {mode = []}}, {name = "release", vars = {mode = ["--release"]}}]
 
 [[steps]]
@@ -19,7 +19,6 @@ checks = [{actual = "${build.result.observations.child_invocations.length}", equ
 [[steps]]
 name = "run"
 argv = ["${build.result.output}"]
-env = {SCOOP_GC_STRESS_MOVE = "1"}
 exit = 0
 stdout = "callable C strings retain their own array support ranges\n"
 stderr = ""

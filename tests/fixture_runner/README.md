@@ -70,7 +70,7 @@ stderr = ""
 
 顶层还可声明 `support`、`vars`、`variants`；每个变体只有 `name`、`vars`、`env`。
 未写 variants 时运行 `normal`。变体按顺序执行，各有独立 `${work}`，共享本次私有
-`${cache}` 与 `${sysroot}`。例如 `env = { SCOOP_GC_STRESS_MOVE = "1" }` 只影响该变体。
+`${cache}` 与 `${sysroot}`。GC 正确性专测可用 `env = { SCOOP_GC_STRESS_MOVE = "1" }`，只影响该变体。
 多 Cone 提交真实 `Cone.toml`，按普通 `copy` 步骤布置，runner 不合成入口或 manifest。
 native companion 显式作为 input，并用普通 argv 步骤调用 `${cc}`、`${ar}`，指定
 `{each = "${cc_args}"}` 和输出；随后传 `--library-path`。
@@ -112,7 +112,7 @@ AST/HIR/MIR/LIR 的 typed IR 测试同样可承担结构职责；不要求每个
 
 每个进程必须声明 `exit` 或 `signal`（如 `"SIGABRT"`）之一，以及完整 stdout/stderr。
 stdin 默认空；cwd 默认 `${work}`；env 继承调用者并应用显式键；timeout 默认 300 秒，以容纳 Linux 上完整的 core 冷构建。
-`SCOOP_GC_STRESS_MOVE` 与其他环境变量一样继承，变体或步骤仍可显式覆盖；普通功能测试缺省不设置它，需要统一压力验收时由调用者设为 `1`。
+`SCOOP_GC_STRESS_MOVE` 与其他环境变量一样继承，变体或步骤仍可显式覆盖；只在验证 GC 正确性的定向用例中显式开启，不用于普通功能测试或全量验收。
 字节期望和 stdin 可写文本、`{hex = "..."}` 或 `{file = "expected.stdout"}`。
 stdout/stderr 也可显式声明 `{snapshot = "symbols.${target}.txt"}`，沿用 snapshot
 更新规则；正常验收仍比较完整原始字节。仅用于小而受控的结构或工具输出专测；普通功能用例不保存完整符号表。

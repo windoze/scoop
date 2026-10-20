@@ -4,7 +4,7 @@ root = "program.scoop"
 inputs = ["program.scoop"]
 tools = ["scoop", "scoopc"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["m54", "codegen", "optimization", "gc"]
+tags = ["m54", "codegen", "optimization"]
 variants = [{name = "debug", vars = {profile = "debug"}}, {name = "release", vars = {profile = "release"}}]
 
 [[steps]]
@@ -20,7 +20,6 @@ checks = [{actual = "${build.result.observations.child_invocations.length}", equ
 [[steps]]
 name = "run"
 argv = ["${build.result.output}"]
-env = {SCOOP_GC_STRESS_MOVE = "1"}
 exit = 0
 stdout = "local lookup tables retain their constant section boundaries\n"
 stderr = ""

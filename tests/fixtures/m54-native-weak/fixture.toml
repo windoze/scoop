@@ -3,7 +3,7 @@ name = "m54-native-weak"
 inputs = ["absent", "present", "native"]
 tools = ["scoop", "scoopc"]
 targets = ["x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["m54", "native", "elf", "ffi", "link", "gc"]
+tags = ["m54", "native", "elf", "ffi", "link"]
 variants = [
     {name = "absent-debug", vars = {cone = "absent", mode = []}},
     {name = "absent-release", vars = {cone = "absent", mode = ["--release"]}},
@@ -24,7 +24,6 @@ checks = [{actual = "${build.result.observations.child_invocations.length}", equ
 [[steps]]
 name = "run"
 argv = ["${build.result.output}"]
-env = {SCOOP_GC_STRESS_MOVE = "1"}
 exit = 0
 stdout = "native weak references follow the target linker\n"
 stderr = ""

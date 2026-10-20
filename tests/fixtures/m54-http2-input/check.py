@@ -1,4 +1,3 @@
-import os
 import struct
 import subprocess
 import sys
@@ -87,7 +86,6 @@ for mode, capacity in (("tiny", 1), ("short", 7), ("large", 4093)):
     wire, spans = scenario(mode == "large")
     result = subprocess.run(
         [sys.argv[1], wire.hex(), mode],
-        env=dict(os.environ, SCOOP_GC_STRESS_MOVE="1"),
         capture_output=True,
         text=True,
         timeout=180,

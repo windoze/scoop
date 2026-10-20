@@ -3,7 +3,7 @@ name = "m54-client-cookies"
 inputs = ["consumer"]
 tools = ["scoop", "scoopc"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["m54", "http", "cookie", "url", "prebuilt", "gc"]
+tags = ["m54", "http", "cookie", "url", "prebuilt"]
 variants = [{name = "debug", vars = {mode = []}}, {name = "release", vars = {mode = ["--release"]}}]
 
 [[steps]]
@@ -18,16 +18,13 @@ diagnostics = []
 [[steps]]
 name = "bundled"
 argv = ["${build.result.output}", "bundled"]
-env = {SCOOP_GC_STRESS_MOVE = "0", SCOOP_GC_STRESS_MINOR = "1"}
 exit = 0
 stdout = "client cookie scopes expiry SameSite storage and concurrent access passed\n"
 stderr = ""
 
 [[steps]]
-name = "moving"
-timeout = 1800
+name = "custom"
 argv = ["${build.result.output}", "custom"]
-env = {SCOOP_GC_STRESS_MOVE = "1", SCOOP_GC_STRESS_MINOR = "0"}
 exit = 0
 stdout = "client cookie scopes expiry SameSite storage and concurrent access passed\n"
 stderr = ""

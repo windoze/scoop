@@ -1,6 +1,5 @@
 import ast
 import http.server
-import os
 import re
 import ssl
 import subprocess
@@ -63,7 +62,6 @@ def run(executable: str, context: ssl.SSLContext | None, label: str):
     try:
         result = subprocess.run(
             [executable, "external", url],
-            env=dict(os.environ, SCOOP_GC_STRESS_MOVE="1"),
             capture_output=True,
             text=True,
             timeout=90,

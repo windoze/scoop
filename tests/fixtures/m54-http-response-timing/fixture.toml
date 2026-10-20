@@ -4,7 +4,7 @@ inputs = ["consumer", "peer.py"]
 support = ["../m54-client-idle/wire.py"]
 tools = ["scoop", "scoopc"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
-tags = ["m54", "asyncio", "prebuilt", "gc", "tcp"]
+tags = ["m54", "asyncio", "prebuilt", "tcp"]
 variants = [{name = "debug", vars = {mode = []}}, {name = "release", vars = {mode = ["--release"]}}]
 
 [[steps]]

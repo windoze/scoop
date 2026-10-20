@@ -1,4 +1,3 @@
-import os
 import subprocess
 import sys
 
@@ -46,7 +45,6 @@ def check(mode, trace):
 for mode in ("early", "late", "exact", "blocked", "connection", "response"):
     result = subprocess.run(
         [sys.argv[1], mode],
-        env=dict(os.environ, SCOOP_GC_STRESS_MOVE="1"),
         capture_output=True,
         text=True,
         timeout=180,

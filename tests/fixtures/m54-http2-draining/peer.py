@@ -1,4 +1,3 @@
-import os
 import socket
 import struct
 import subprocess
@@ -40,7 +39,6 @@ def exercise(binary, mode):
             capture_output=True,
             text=True,
             timeout=90,
-            env=dict(os.environ, SCOOP_GC_STRESS_MOVE="1"),
         )
         for worker_thread in workers:
             worker_thread.join(30)
