@@ -87,6 +87,8 @@ submitRequest／submitResponse 的 endStream 表示头部后立即结束发送�
 
 请求 HEADERS 已排队但尚未发送时，对端 GOAWAY 可以使后端拒绝打开该流。nghttp2 随后的实际 StreamClosed(REFUSED_STREAM) 是该次拒绝的终止结果；包装层不先将同一次 START_STREAM_NOT_ALLOWED 未发送回调重复报告为 Failure。该流的待发正文与 trailer 随关闭释放，已接受的其他流仍可完成；其他发送错误保留其实际 Failure，不一律解释成请求未处理。
 
+收到 GOAWAY 且现有流均结束后，nghttp2 可以丢弃尚未发出的 SETTINGS ACK，并以 SESSION_CLOSING 报告该帧未发送。此正常收尾不产生新的 Failure，已经接收的 GOAWAY、响应、正文和流结束事件仍然有效；其他帧及其他错误码继续按实际发送失败处理。
+
 finish 在没有待序列化 DATA 时不等待流或连接的发送窗口。实现可用带 END_STREAM 的空或非空 trailing HEADERS 表示结束，在本流已提交的初始头／信息响应／最终响应序列化之后排入输出；先前已序列化的 DATA 片段仍按原顺序完整取出。有待发送 DATA 时，结束和 trailer 必须等这些字节发送完毕，不能通过提前结束绕过流量控制。无论使用空 DATA 还是 trailing HEADERS，接收端只交付一次 Trailers 和 End。
 
 Http2Settings 声明 headerTableSize、maxConcurrentStreams、initialWindowSize、maxFrameSize、maxHeaderListSize；客户端另固定 ENABLE_PUSH=0。Http2Limits 使用 HttpHeaderLimits，并分别给出 maxContinuations、maxSendHeaderBlockBytes、maxPendingBodyBytes。伪头的 never-index 标记通过 Http2RequestIndexing(method, scheme, authority, path) 和响应的 neverIndexStatus 保存，普通字段仍使用 HttpField.neverIndex。

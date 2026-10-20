@@ -155,6 +155,11 @@ static int frame_sending(nghttp2_session *session, const nghttp2_frame *frame,
 static int frame_not_sent(nghttp2_session *session, const nghttp2_frame *frame,
                           int code, void *user_data) {
   (void)session;
+  /* A drained session may discard its remaining SETTINGS acknowledgement. */
+  if (frame->hd.type == NGHTTP2_SETTINGS &&
+      (frame->hd.flags & NGHTTP2_FLAG_ACK) &&
+      code == NGHTTP2_ERR_SESSION_CLOSING)
+    return 0;
   /* nghttp2 follows this unsent request with StreamClosed(REFUSED_STREAM). */
   if (frame->hd.type == NGHTTP2_HEADERS &&
       frame->headers.cat == NGHTTP2_HCAT_REQUEST &&
