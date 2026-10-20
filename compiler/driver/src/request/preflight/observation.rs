@@ -5,9 +5,11 @@ impl SingleConeBuildRequest {
         let current =
             load_current_input(self.current).map_err(SingleConeProductionError::Preflight)?;
         let sources = match current {
-            LoadedCurrentConeInput::Manifest { manifest } => {
-                parse_manifest_current(&manifest, self.target.id(), self.purpose)
-            }
+            LoadedCurrentConeInput::Manifest { manifest } => parse_manifest_current(
+                &manifest,
+                self.target.selection().target().id(),
+                self.purpose,
+            ),
             LoadedCurrentConeInput::SingleFile { source } => parse_single_file_current(&source),
         }
         .map_err(SingleConeProductionError::Sources)?;

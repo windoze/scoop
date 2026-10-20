@@ -149,8 +149,23 @@ fn success_response(
         .map_err(ChildProtocolError::DiagnosticMapping)?;
     match success {
         scoopc::SingleConeCompilation::Published(success) => {
+            let artifact = Box::new(success.artifact().summary().manifest_summary().clone());
+            let product = match success.documentation() {
+                Some(documentation) => scoop_protocol::ScoopcProductV1::ArtifactWithDocumentation {
+                    artifact,
+                    documentation: documentation_response(documentation)?,
+                },
+                None => scoop_protocol::ScoopcProductV1::Artifact(artifact),
+            };
+            let result = ScoopcSuccessV1::new(product, warnings, dumps)
+                .map_err(ChildProtocolError::ConstructResponse)?;
+            Ok(ScoopcResponseEnvelopeV1::success(request_id, result))
+        }
+        scoopc::SingleConeCompilation::Documented(success) => {
             let result = ScoopcSuccessV1::new(
-                success.artifact().summary().manifest_summary().clone(),
+                scoop_protocol::ScoopcProductV1::Documentation(documentation_response(
+                    success.documentation(),
+                )?),
                 warnings,
                 dumps,
             )
@@ -163,6 +178,22 @@ fn success_response(
                 .map_err(ChildProtocolError::ConstructResponse)?,
         }),
     }
+}
+
+fn documentation_response(
+    output: &scoopc::PublishedDocumentation,
+) -> Result<scoop_protocol::ScoopcDocumentationOutputV1, ChildProtocolError> {
+    let path = scoop_protocol::HostPathCarrier::from_path(output.path()).map_err(|error| {
+        ChildProtocolError::ConstructResponse(ProtocolValidationError::HostPath(error))
+    })?;
+    scoop_protocol::ScoopcDocumentationOutputV1::new(
+        path,
+        output
+            .warnings()
+            .structured()
+            .map_err(ChildProtocolError::DiagnosticMapping)?,
+    )
+    .map_err(ChildProtocolError::ConstructResponse)
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

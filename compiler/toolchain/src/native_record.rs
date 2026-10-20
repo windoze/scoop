@@ -32,7 +32,7 @@ impl ResolvedRecord {
     }
 
     pub(crate) fn into_target(self, triple: &str) -> Result<ResolvedTargetProfile, ToolchainError> {
-        let target = crate::registry::validate_target(triple)?;
+        let target = crate::registry::select_target(triple)?;
         ResolvedTargetProfile::from_c_toolchain(
             target,
             self.invocation.into_invocation(target.target())?,
@@ -55,7 +55,7 @@ pub(crate) fn probe(
 }
 
 fn probe_record(triple: &str, options: &CToolchainOptions) -> Result<Record, ToolchainError> {
-    let target = crate::registry::validate_target(triple)?.target();
+    let target = crate::registry::select_target(triple)?.target();
     let (invocation, paths) = match target.id() {
         scoop_target_data::DARWIN_AARCH64_ID => {
             if options.compiler.is_some() || options.native_sysroot.is_some() {
@@ -88,7 +88,7 @@ pub(crate) fn resolve_cached(
     cache: &Path,
 ) -> Result<ResolvedTargetProfile, ToolchainError> {
     let triple = request.canonical_triple();
-    crate::registry::validate_target(triple)?;
+    crate::registry::select_target(triple)?;
     let options = CToolchainOptions::from_request(request)?;
     let environment = if triple.contains("linux") {
         vec![

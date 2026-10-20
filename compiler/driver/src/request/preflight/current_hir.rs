@@ -14,6 +14,7 @@ pub(super) struct CurrentConeHirArtifacts {
 }
 
 impl CurrentConeHirArtifacts {
+    #[cfg(test)]
     pub fn lower(
         requested: scoop_identity::RequestedConeKind,
         sources: &scoop_ast::CurrentConeParsedSources,
@@ -21,9 +22,36 @@ impl CurrentConeHirArtifacts {
         world: &scoop_hir::ImportedSemanticWorld<'_>,
         source_names: std::collections::BTreeMap<scoop_identity::ConeIdentity, String>,
     ) -> Result<Self, CurrentConeHirStageError> {
-        let sources = scoop_hir_lower::CurrentConeSources::try_new(sources, protocols, world)
+        Self::lower_with_documentation(requested, sources, protocols, world, source_names, false)
+    }
+
+    pub(super) fn lower_with_documentation(
+        requested: scoop_identity::RequestedConeKind,
+        parsed: &scoop_ast::CurrentConeParsedSources,
+        protocols: scoop_hir_lower::CoreProtocolInput,
+        world: &scoop_hir::ImportedSemanticWorld<'_>,
+        source_names: std::collections::BTreeMap<scoop_identity::ConeIdentity, String>,
+        documentation: bool,
+    ) -> Result<Self, CurrentConeHirStageError> {
+        let mut sources = scoop_hir_lower::CurrentConeSources::try_new(parsed, protocols, world)
             .map_err(CurrentConeHirStageError::Input)?
             .with_source_names(source_names);
+        if documentation {
+            sources = sources
+                .with_documentation(
+                    parsed
+                        .iter()
+                        .map(|source| scoop_ast::IdentifiedSourceDocumentation {
+                            source: source.source().identity().clone(),
+                            documentation: scoop_doc::prepare_source(
+                                source.source().ast(),
+                                source.text().text(),
+                            ),
+                        })
+                        .collect(),
+                )
+                .map_err(CurrentConeHirStageError::Input)?;
+        }
         let hir = scoop_hir_lower::lower_current_cone(requested, &sources)
             .map_err(CurrentConeHirStageError::Lowering)?;
 

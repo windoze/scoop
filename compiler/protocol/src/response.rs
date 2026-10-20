@@ -1,7 +1,9 @@
 use scoop_wire::{Encoder, WireEncode};
 
 mod decode;
+mod product;
 pub(crate) use decode::DecodedScoopcResponseEnvelopeV1;
+pub use product::{ScoopcDocumentationOutputV1, ScoopcProductV1};
 
 use crate::{
     HostPathCarrier, MAX_EMITTED_DUMPS, PROTOCOL_VERSION, ProtocolValidationError, StageDumpKindV1,
@@ -131,27 +133,35 @@ impl WireEncode for EmittedDumpDescriptorV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ScoopcSuccessV1 {
-    summary: scoop_slib::ArtifactManifestSummaryV1,
+    product: ScoopcProductV1,
     warnings: Vec<StructuredDiagnosticV1>,
     emitted_dump_descriptors: Vec<EmittedDumpDescriptorV1>,
 }
 
 impl ScoopcSuccessV1 {
     pub fn new(
-        summary: scoop_slib::ArtifactManifestSummaryV1,
+        product: impl Into<ScoopcProductV1>,
         warnings: Vec<StructuredDiagnosticV1>,
         emitted_dump_descriptors: Vec<EmittedDumpDescriptorV1>,
     ) -> Result<Self, ProtocolValidationError> {
         validate_success_fields(&warnings, &emitted_dump_descriptors)?;
         Ok(Self {
-            summary,
+            product: product.into(),
             warnings,
             emitted_dump_descriptors,
         })
     }
 
-    pub const fn summary(&self) -> &scoop_slib::ArtifactManifestSummaryV1 {
-        &self.summary
+    pub fn summary(&self) -> Option<&scoop_slib::ArtifactManifestSummaryV1> {
+        self.product.summary()
+    }
+
+    pub fn documentation(&self) -> Option<&ScoopcDocumentationOutputV1> {
+        self.product.documentation()
+    }
+
+    pub fn product(&self) -> &ScoopcProductV1 {
+        &self.product
     }
 
     pub fn warnings(&self) -> &[StructuredDiagnosticV1] {
@@ -266,7 +276,7 @@ fn encode_success(
     encoder.field(1)?;
     request_id.encode(encoder)?;
     encoder.field(2)?;
-    result.summary.encode(encoder)?;
+    result.product.encode(encoder)?;
     encoder.field(3)?;
     encode_diagnostics(encoder, &result.warnings)?;
     encoder.field(4)?;

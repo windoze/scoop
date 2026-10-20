@@ -1,3 +1,4 @@
+use super::product::DecodedProduct;
 use super::*;
 use crate::diagnostic::DecodedStructuredDiagnosticV1;
 use crate::path::DecodedHostPathCarrier;
@@ -102,7 +103,7 @@ enum DecodedResponseV1 {
     },
     Success {
         request_id: Vec<u8>,
-        summary: Box<scoop_slib::ArtifactManifestSummaryV1>,
+        product: DecodedProduct,
         warnings: Vec<DecodedStructuredDiagnosticV1>,
         dumps: Vec<DecodedDumpDescriptorV1>,
     },
@@ -134,7 +135,7 @@ impl DecodedResponseV1 {
             }),
             Self::Success {
                 request_id,
-                summary,
+                product,
                 warnings,
                 dumps,
             } => {
@@ -146,7 +147,7 @@ impl DecodedResponseV1 {
                     .into_iter()
                     .map(DecodedDumpDescriptorV1::validate)
                     .collect::<Result<Vec<_>, _>>()?;
-                let result = ScoopcSuccessV1::new(*summary, warnings, dumps)?;
+                let result = ScoopcSuccessV1::new(product.validate()?, warnings, dumps)?;
                 Ok(ScoopcResponseEnvelopeV1::success(
                     RequestCorrelationId::from_vec(request_id)?,
                     result,
@@ -193,7 +194,7 @@ impl WireEncode for DecodedResponseV1 {
             }
             Self::Success {
                 request_id,
-                summary,
+                product,
                 warnings,
                 dumps,
             } => {
@@ -203,7 +204,7 @@ impl WireEncode for DecodedResponseV1 {
                 encoder.field(1)?;
                 encoder.bytes(request_id)?;
                 encoder.field(2)?;
-                summary.encode(encoder)?;
+                product.encode(encoder)?;
                 encoder.field(3)?;
                 encode_decoded_diagnostics(encoder, warnings)?;
                 encoder.field(4)?;
@@ -247,15 +248,14 @@ impl WireDecode for DecodedResponseV1 {
             1 => {
                 crate::framing::expect_sum_length(decoder, fields, 5)?;
                 let request_id = decoder.field(1, Decoder::owned_bytes)?;
-                let summary =
-                    Box::new(decoder.field(2, scoop_slib::ArtifactManifestSummaryV1::decode)?);
+                let product = decoder.field(2, DecodedProduct::decode)?;
                 let warnings = decoder.field(3, decode_decoded_diagnostics)?;
                 let dumps = decoder.field(4, |decoder| {
                     decoder.decode_array(|decoder, _| DecodedDumpDescriptorV1::decode(decoder))
                 })?;
                 Ok(Self::Success {
                     request_id,
-                    summary,
+                    product,
                     warnings,
                     dumps,
                 })

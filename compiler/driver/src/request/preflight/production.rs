@@ -1,7 +1,9 @@
 //! Shared parsed-request lowering, artifact production, and publication.
 
 use super::*;
+mod documentation;
 mod errors;
+pub use documentation::DocumentationProductionError;
 mod layout;
 mod layout_references;
 mod layout_selection;
@@ -18,9 +20,14 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
         self,
         temporary_parent: &Path,
     ) -> Result<SingleConeProductionSuccess, CurrentConeProductionError> {
+        if self.request.output().artifact().is_none() {
+            return Err(CurrentConeProductionError::before_hir(
+                CurrentConeProductionFailure::ArtifactOutputRequired,
+            ));
+        }
         match self.compile(temporary_parent, None)? {
             SingleConeCompilation::Published(result) => Ok(*result),
-            SingleConeCompilation::Observed(_) => {
+            SingleConeCompilation::Observed(_) | SingleConeCompilation::Documented(_) => {
                 unreachable!("production has no observation stop")
             }
         }
@@ -85,6 +92,41 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
                 dumps: dump,
             }));
         }
+        let documentation = match documentation::PendingDocumentation::prepare(
+            &self,
+            &hir,
+            cone.coordinate(),
+            requested,
+        ) {
+            Ok(documentation) => documentation,
+            Err(cause) => {
+                return Err(CurrentConeProductionError::after_hir(
+                    CurrentConeProductionFailure::Documentation(cause),
+                    warnings,
+                ));
+            }
+        };
+        if self.request.output().artifact().is_none() {
+            let documentation = match documentation
+                .expect("documentation-only output has an input")
+                .publish()
+            {
+                Ok(documentation) => documentation,
+                Err(cause) => {
+                    return Err(CurrentConeProductionError::after_hir(
+                        CurrentConeProductionFailure::Documentation(cause),
+                        warnings,
+                    ));
+                }
+            };
+            return Ok(SingleConeCompilation::Documented(
+                crate::SingleConeDocumentationSuccess {
+                    documentation,
+                    warnings,
+                    dumps: dump,
+                },
+            ));
+        }
         let artifact = (|| {
             let ControlFlow::Continue(artifact) = protocols::lower_machine(
                 hir,
@@ -104,7 +146,13 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
                     .map_err(CurrentConeProductionFailure::ObjectOutput)?;
             }
             artifact
-                .publish(self.request.output().as_path())
+                .publish(
+                    self.request
+                        .output()
+                        .artifact()
+                        .expect("machine production has an artifact destination")
+                        .as_path(),
+                )
                 .map(ControlFlow::Continue)
                 .map_err(CurrentConeProductionFailure::Publication)
         })();
@@ -113,9 +161,21 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
                 warnings,
                 dumps: dump,
             })),
-            Ok(ControlFlow::Continue(artifact)) => Ok(SingleConeCompilation::Published(Box::new(
-                SingleConeProductionSuccess::new_cross_cone(artifact, warnings, dump),
-            ))),
+            Ok(ControlFlow::Continue(artifact)) => {
+                let documentation = match documentation.map(|input| input.publish()).transpose() {
+                    Ok(documentation) => documentation,
+                    Err(cause) => {
+                        return Err(CurrentConeProductionError::after_hir(
+                            CurrentConeProductionFailure::Documentation(cause),
+                            warnings,
+                        ));
+                    }
+                };
+                let mut success =
+                    SingleConeProductionSuccess::new_cross_cone(artifact, warnings, dump);
+                success.documentation = documentation;
+                Ok(SingleConeCompilation::Published(Box::new(success)))
+            }
             Err(cause) => Err(CurrentConeProductionError::after_hir(cause, warnings)),
         }
     }
@@ -172,12 +232,13 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
                 test_dependencies,
             );
         }
-        current_hir::CurrentConeHirArtifacts::lower(
+        current_hir::CurrentConeHirArtifacts::lower_with_documentation(
             requested,
             &self.sources,
             protocols.hir_input(),
             world,
             source_names,
+            self.request.output().documentation().is_some(),
         )
     }
 }

@@ -8,7 +8,7 @@
 | --- | --- |
 | 设计与路线图 | 已提交；已核对本地引用、M52 当前状态及源码布局 |
 | M60-A：文档前端与注解 | 文档注释、Markdown／tag、普通 core 注解及 typed HIR 文档视图已完成；正式命令诊断随 B 接入 |
-| M60-B：单 Cone 闭环 | 已完成可缓存渲染输入、可见性及文档注解投影；协议、CLI 与站点渲染继续实施 |
+| M60-B：单 Cone 闭环 | 已完成渲染输入、可见性、文档注解与 single-Cone 协议／driver；CLI 与站点渲染继续实施 |
 | M60-C：多 Cone 与更新复用 | 待实施 |
 | M60-D：实际库及跨平台验收 | 待实施 |
 
@@ -59,3 +59,13 @@ CurrentConeSources 接收与选中源码身份、顺序一致的整理后注释�
 本机 fmt／workspace clippy 和 24 项 HIR 文档测试通过（新增 8 项投影组合测试）；真实 core 全部源码完成展示投影且无文档 warning。覆盖 JSON 输入往返、Unicode／CRLF、泛型推断类型、M55／context、重载及稳定地址、private setter、sealed／protected、精确 use-site 与注解 alias。测试修正了 inheritance domain 自身 subclass 约束的递归解释。清理四份已被替代的前端增量缓存，约 5.16 GiB 文件逻辑大小，保留当前验证缓存及 release 工具。
 
 此提交提供站点的渲染输入，尚未接入 single-Cone 文档协议、CLI、页面目录／HTML／搜索、继承成员页面或增量发布；完整命令与 Linux 验收继续实施。
+
+## B2：single-Cone 文档协议与编译编排
+
+配套协议升级至 12，以闭合的输出选择表达普通产物、仅文档及产物附带文档；成功结果对应携带真实产物摘要、文档输入位置与独立文档 warning。仅文档不使用虚构 `.slib`，不与 observation 混用，限 Production manifest 输入与 AST／HIR dump。
+
+driver 复用完整正常 HIR，在同一次结果中投影文档；仅文档随后结束，联合输出在机器生产成功后发布文档输入。普通编译不整理文档。仅文档使用已有目标注册表的纯选择，不探测 C 工具链或进入 MIR／LIR、native 编译、runtime 和最终链接；依赖仍按原产物合同加载。文档 JSON 通过同目录临时文件替换，正文检查失败保留旧结果。
+
+本机 fmt／workspace clippy 无警告；31 项协议测试及两组 driver 集成测试通过。集成测试以真实 core 验证 Darwin／GNU／musl 三目标的仅文档路径，以普通库验证 Production 排除测试目录、Unicode／CRLF warning 的准确 span、DocAlias、HIR dump、联合与普通编译产物一致、独立 warning 以及正文错误不覆盖旧输入。协议测试覆盖三种输出往返、非法用途／输入／dump 组合和独立文档诊断；同步更新协议 frame 的长度断言。
+
+本次尚未提供用户侧 `scoop doc`、HTML／搜索、站点缓存与发布。正式 CLI fixture 和 Linux 完整验证继续随 B／C／D 闭合。

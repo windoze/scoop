@@ -1,7 +1,9 @@
 use scoop_identity::SourceIdentity;
 use std::fmt;
 
+mod documentation;
 mod protocol;
+pub use documentation::{PublishedDocumentation, SingleConeDocumentationSuccess};
 pub use protocol::DiagnosticMappingError;
 
 use scoop_ast::{CurrentConeParsedSources, Diagnostic};
@@ -181,6 +183,7 @@ pub struct SingleConeProductionSuccess {
     artifact: PublishedCrossConeArtifact,
     warnings: CurrentConeDiagnosticSet,
     emitted_dumps: Vec<EmittedStageDump>,
+    pub(in crate::request) documentation: Option<PublishedDocumentation>,
 }
 
 impl SingleConeProductionSuccess {
@@ -193,6 +196,7 @@ impl SingleConeProductionSuccess {
             artifact,
             warnings,
             emitted_dumps,
+            documentation: None,
         }
     }
 
@@ -207,12 +211,17 @@ impl SingleConeProductionSuccess {
     pub fn emitted_dumps(&self) -> &[EmittedStageDump] {
         &self.emitted_dumps
     }
+
+    pub fn documentation(&self) -> Option<&PublishedDocumentation> {
+        self.documentation.as_ref()
+    }
 }
 
 #[derive(Debug)]
 pub enum SingleConeCompilation {
     Published(Box<SingleConeProductionSuccess>),
     Observed(StageObservation),
+    Documented(SingleConeDocumentationSuccess),
 }
 
 #[derive(Debug)]
@@ -226,6 +235,7 @@ impl SingleConeCompilation {
         match self {
             Self::Published(result) => result.warnings(),
             Self::Observed(result) => &result.warnings,
+            Self::Documented(result) => &result.warnings,
         }
     }
 
@@ -233,6 +243,7 @@ impl SingleConeCompilation {
         match self {
             Self::Published(result) => result.emitted_dumps(),
             Self::Observed(result) => &result.dumps,
+            Self::Documented(result) => &result.dumps,
         }
     }
 }

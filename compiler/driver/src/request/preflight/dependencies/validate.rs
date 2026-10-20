@@ -4,7 +4,6 @@ use std::rc::Rc;
 use scoop_identity::{ConeIdentity, SemanticIdentitySession};
 use scoop_manifest::LoadedConeManifest;
 use scoop_slib::{CrossConeArtifactClosureInput, validate_cross_cone_artifact_closure};
-use scoop_toolchain::ResolvedTargetProfile;
 
 use super::graph::{
     ValidatedDependencyNode, dependency_first_order, validate_acyclic, validate_artifact_shape,
@@ -21,7 +20,7 @@ impl LoadedExplicitDependencyInputs {
         &'input self,
         manifest: Option<&LoadedConeManifest>,
         current_identity: ConeIdentity,
-        target: &ResolvedTargetProfile,
+        target: scoop_lir::ValidatedLirTargetSelection,
         purpose: scoop_protocol::CompilationPurpose,
     ) -> DependencyValidationResult<ValidatedExplicitDependencyInputSet> {
         let mut nodes = BTreeMap::<ConeIdentity, ValidatedDependencyNode<'input>>::new();
@@ -107,7 +106,7 @@ impl LoadedExplicitDependencyInputs {
         let closure = validate_cross_cone_artifact_closure(
             CrossConeArtifactClosureInput::file_dependencies(
                 current_identity,
-                target.lir_target_selection(),
+                target,
                 direct.clone(),
                 dependency_first,
             ),

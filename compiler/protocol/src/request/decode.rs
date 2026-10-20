@@ -131,7 +131,7 @@ pub(super) struct DecodedScoopcBuildRequestV1 {
     support_slibs: Vec<DecodedHostPathCarrier>,
     trusted_core: DecodedTrustedCoreRequestV1,
     target: DecodedTargetSelectionRequestV1,
-    out_slib: DecodedHostPathCarrier,
+    output: DecodedOutputRequest,
     diagnostics: u64,
     emit: DecodedStageDumpPolicyV1,
     optimization: OptimizationMode,
@@ -146,10 +146,7 @@ impl DecodedScoopcBuildRequestV1 {
         let support_slibs = validate_paths(self.support_slibs)?;
         let trusted_core = self.trusted_core.validate()?;
         let target = self.target.validate()?;
-        let out_slib = self
-            .out_slib
-            .validate()
-            .map_err(ProtocolValidationError::HostPath)?;
+        let output = self.output.validate()?;
         let diagnostics = DiagnosticOutputPolicyV1::from_tag(self.diagnostics)?;
         let emit = self.emit.validate()?;
         let native_inputs = validate_paths(self.native_inputs)?;
@@ -159,7 +156,7 @@ impl DecodedScoopcBuildRequestV1 {
             support_slibs,
             trusted_core,
             target,
-            out_slib,
+            output,
             diagnostics,
             emit,
         )
@@ -186,7 +183,7 @@ impl WireEncode for DecodedScoopcBuildRequestV1 {
         encoder.field(5)?;
         self.target.encode(encoder)?;
         encoder.field(6)?;
-        self.out_slib.encode(encoder)?;
+        self.output.encode(encoder)?;
         encoder.field(7)?;
         encoder.unsigned(self.diagnostics)?;
         encoder.field(8)?;
@@ -212,7 +209,7 @@ impl WireDecode for DecodedScoopcBuildRequestV1 {
         })?;
         let trusted_core = decoder.field(4, DecodedTrustedCoreRequestV1::decode)?;
         let target = decoder.field(5, DecodedTargetSelectionRequestV1::decode)?;
-        let out_slib = decoder.field(6, DecodedHostPathCarrier::decode)?;
+        let output = decoder.field(6, DecodedOutputRequest::decode)?;
         let diagnostics = decoder.field(7, Decoder::unsigned)?;
         let emit = decoder.field(8, DecodedStageDumpPolicyV1::decode)?;
         let optimization = decoder.field(9, OptimizationMode::decode)?;
@@ -225,7 +222,7 @@ impl WireDecode for DecodedScoopcBuildRequestV1 {
             support_slibs,
             trusted_core,
             target,
-            out_slib,
+            output,
             diagnostics,
             emit,
             optimization,

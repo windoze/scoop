@@ -113,7 +113,7 @@ impl PreparedBuildGraph {
                     &lock,
                     invocation.output_path(),
                     CompileBuildRecordV1 {
-                        summary: success.summary().clone(),
+                        summary: success.summary().ok_or(Error::UnexpectedResponse)?.clone(),
                         warnings: success.warnings().to_vec(),
                     },
                 )

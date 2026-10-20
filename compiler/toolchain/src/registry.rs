@@ -124,7 +124,7 @@ pub fn host_target_triple() -> Result<&'static str, ToolchainError> {
     }
 }
 
-pub(crate) fn validate_target(triple: &str) -> Result<ValidatedLirTargetSelection, ToolchainError> {
+pub fn select_target(triple: &str) -> Result<ValidatedLirTargetSelection, ToolchainError> {
     match triple {
         "x86_64-unknown-linux-gnu" | "x86_64-linux-gnu" => {
             return Ok(scoop_target_data::LINUX_X86_64_GNU_LLVM_22_1);

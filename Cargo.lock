@@ -802,6 +802,7 @@ dependencies = [
  "object",
  "scoop-ast",
  "scoop-codegen",
+ "scoop-doc",
  "scoop-hir",
  "scoop-hir-lower",
  "scoop-identity",

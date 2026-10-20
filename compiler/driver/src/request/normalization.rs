@@ -107,19 +107,22 @@ pub fn normalize_protocol_build_request(
         protocol_paths(build.direct_slibs())?,
         protocol_paths(build.support_slibs())?,
     )?;
-    let output_path = build
-        .out_slib()
-        .to_path_buf()
-        .map_err(BuildRequestNormalizationError::HostPath)?;
-    let output =
-        SlibOutputDestination::new(output_path).map_err(BuildRequestNormalizationError::Request)?;
-    let target = ResolvedTargetProfile::resolve_request(build.target())
-        .map_err(BuildRequestNormalizationError::Target)?;
-    scoop_codegen::ValidatedBackendProfile::from_selection(
-        target.lir_target_selection(),
-        target.c_bridge_toolchain().profile().contract(),
-    )
-    .map_err(BuildRequestNormalizationError::Backend)?;
+    let output = protocol_output(build.output())?;
+    let target = if output.artifact().is_none() {
+        target::SelectedTarget::Frontend(
+            scoop_toolchain::select_target(build.target().canonical_triple())
+                .map_err(BuildRequestNormalizationError::Target)?,
+        )
+    } else {
+        let target = ResolvedTargetProfile::resolve_request(build.target())
+            .map_err(BuildRequestNormalizationError::Target)?;
+        scoop_codegen::ValidatedBackendProfile::from_selection(
+            target.lir_target_selection(),
+            target.c_bridge_toolchain().profile().contract(),
+        )
+        .map_err(BuildRequestNormalizationError::Backend)?;
+        target::SelectedTarget::Production(Box::new(target))
+    };
     let (current, trusted_core) = match (current_path, build.trusted_core()) {
         ((true, path), TrustedCoreRequestV1::ArtifactSlot { artifact }) => {
             let root = ManifestRootLocator::from_path(path)
@@ -161,7 +164,7 @@ pub fn normalize_protocol_build_request(
         }
     };
 
-    SingleConeBuildRequest::new(
+    SingleConeBuildRequest::new_selected(
         current,
         dependencies,
         trusted_core,
@@ -177,6 +180,37 @@ pub fn normalize_protocol_build_request(
             .with_native_inputs(protocol_paths(build.native_inputs())?)
             .with_purpose(build.purpose())
             .map_err(BuildRequestNormalizationError::Request)
+    })
+}
+
+fn protocol_output(
+    output: &scoop_protocol::ScoopcOutputRequestV1,
+) -> Result<SingleConeOutput, BuildRequestNormalizationError> {
+    use scoop_protocol::ScoopcOutputRequestV1 as O;
+    let artifact = |path: &scoop_protocol::HostPathCarrier| {
+        SlibOutputDestination::new(
+            path.to_path_buf()
+                .map_err(BuildRequestNormalizationError::HostPath)?,
+        )
+        .map_err(BuildRequestNormalizationError::Request)
+    };
+    let documentation = |path: &scoop_protocol::HostPathCarrier| {
+        DocumentationOutputDestination::new(
+            path.to_path_buf()
+                .map_err(BuildRequestNormalizationError::HostPath)?,
+        )
+        .map_err(BuildRequestNormalizationError::Request)
+    };
+    Ok(match output {
+        O::Artifact(path) => SingleConeOutput::Artifact(artifact(path)?),
+        O::Documentation(path) => SingleConeOutput::Documentation(documentation(path)?),
+        O::ArtifactWithDocumentation {
+            artifact: slib,
+            documentation: doc,
+        } => SingleConeOutput::ArtifactWithDocumentation {
+            artifact: artifact(slib)?,
+            documentation: documentation(doc)?,
+        },
     })
 }
 

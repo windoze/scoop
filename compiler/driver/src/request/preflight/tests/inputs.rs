@@ -75,7 +75,7 @@ fn empty_core_dependencies_run_the_shared_closure() {
         .validate_inner(
             None,
             ConeIdentity::CORE,
-            &target,
+            target.lir_target_selection(),
             CompilationPurpose::Production,
         )
         .unwrap();
@@ -87,7 +87,7 @@ fn empty_core_dependencies_run_the_shared_closure() {
     assert_eq!(world.provider_count(), 0);
 
     assert!(matches!(
-        loaded.validate_inner(None, ConeIdentity::SINGLE_FILE, &target, CompilationPurpose::Production),
+        loaded.validate_inner(None, ConeIdentity::SINGLE_FILE, target.lir_target_selection(), CompilationPurpose::Production),
         Err(error) if matches!(error.as_ref(), ExplicitDependencyValidationError::ManifestDirectSet { declared, actual }
             if declared == &[ConeCoordinate::reserved_core()] && actual.is_empty()),
     ));
@@ -108,7 +108,7 @@ fn core_dependency_inputs_use_the_shared_artifact_summary_validation() {
     )
     .unwrap();
     assert!(matches!(
-        loaded.validate_inner(None, ConeIdentity::CORE, &target, CompilationPurpose::Production),
+        loaded.validate_inner(None, ConeIdentity::CORE, target.lir_target_selection(), CompilationPurpose::Production),
         Err(error) if matches!(error.as_ref(), ExplicitDependencyValidationError::Summary { input, .. }
             if input.path() == path),
     ));

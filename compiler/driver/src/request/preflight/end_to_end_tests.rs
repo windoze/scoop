@@ -13,6 +13,7 @@ mod default_callable_access;
 mod default_type_access;
 mod default_value_access;
 mod dependency_preflight;
+mod documentation;
 mod executable_callables;
 mod executable_type_sites;
 mod generic_bodies;

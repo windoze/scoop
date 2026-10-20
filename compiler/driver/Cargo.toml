@@ -25,6 +25,7 @@ scoop-lir.workspace = true
 scoop-mir-lower.workspace = true
 scoop-mir.workspace = true
 scoop-parser.workspace = true
+scoop-doc.workspace = true
 scoop-manifest.workspace = true
 scoop-protocol.workspace = true
 scoop-slib.workspace = true
