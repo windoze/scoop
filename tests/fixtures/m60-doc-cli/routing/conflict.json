@@ -1,0 +1,13 @@
+[
+  {
+    "code": "SCOOP_DOCUMENTATION",
+    "severity": "error",
+    "phase": "Publication",
+    "message": "conflicting source or dependency inputs for dev.m60:versioned-docs:1.0.0",
+    "origin": {
+      "kind": "none"
+    },
+    "notes": []
+  }
+]
+

@@ -1,0 +1,25 @@
+[
+  {
+    "code": "SCOOP_DOC_RESOURCE",
+    "severity": "warning",
+    "message": "README resource \"guide.txt\" does not exist",
+    "origin": {
+      "kind": "host",
+      "path": "${work}/first/README.md",
+      "start": 0,
+      "end": 18
+    },
+    "notes": []
+  },
+  {
+    "code": "SCOOP_DOCUMENTATION",
+    "severity": "error",
+    "phase": "Publication",
+    "message": "documentation warnings are denied",
+    "origin": {
+      "kind": "none"
+    },
+    "notes": []
+  }
+]
+

@@ -1,0 +1,7 @@
+public import bridge.left.LeftVersion as ThroughLeft
+public import bridge.right.RightVersion as ThroughRight
+
+/** Uses [ThroughLeft] and [ThroughRight] from the same declaration. */
+fun firstHelper(value: ThroughLeft): ThroughRight = value
+fun main() {}
+

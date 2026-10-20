@@ -1,0 +1,10 @@
+schema = 1
+[cone]
+group = "dev.m60"
+name = "second-routes"
+version = "1.0.0"
+kind = "executable"
+
+[dependencies]
+"dev.m60:versioned-docs" = {version = "2.0.0", path = "../v2"}
+

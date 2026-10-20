@@ -1,0 +1,7 @@
+schema = 1
+[cone]
+group = "dev.m60"
+name = "versioned-docs"
+version = "2.0.0"
+kind = "library"
+
