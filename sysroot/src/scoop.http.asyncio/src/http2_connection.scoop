@@ -44,6 +44,7 @@ public class AsyncHttp2Connection internal constructor(internal val state: H2Sta
 
     public val role: HttpRole get() = state.session.role
     public val ioTimeouts: HttpIoTimeoutOptions get() = state.ioTimeouts
+    public val isClosing: Boolean get() = state.lock.withLock { state.closing }
     public val isClosed: Boolean get() = state.lock.withLock { state.closed }
     public val isDraining: Boolean get() = state.lock.withLock { state.acceptingEnded }
     public val upgradedStream: AsyncHttp2Stream? get() = state.lock.withLock {
