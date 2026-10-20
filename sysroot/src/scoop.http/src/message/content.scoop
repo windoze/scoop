@@ -1,5 +1,9 @@
 package scoop.http
 
+/**
+ * Checks response content semantics for the exact request method and status, including HEAD,
+ * CONNECT, and bodyless statuses.
+ */
 public fun httpResponseAllowsContent(head: HttpResponseHead, requestMethod: List<Byte>): Boolean {
     if (httpBytesEqual(requestMethod, "HEAD".toByteArray())) return false
     if (head.status < 200U || head.status == 204U || head.status == 205U || head.status == 304U) return false

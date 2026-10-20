@@ -6,26 +6,72 @@ import scoop.Result
 import scoop.time.Instant
 import scoop.url.Url
 
+/**
+ * One Set-Cookie field with its ordered attributes and interpreted cookie properties. Resolve
+ * against the response URL before storing it.
+ */
 public class HttpSetCookie private constructor(
-    public val pair: HttpCookiePair, public val attributes: Array<HttpCookieAttribute>, public val originalValue: Array<Byte>?
+    /**
+     * The cookie name/value pair.
+     */
+    public val pair: HttpCookiePair, 
+        /**
+         * Ordered original cookie attributes.
+         */
+        public val attributes: Array<HttpCookieAttribute>, 
+        /**
+         * The original parsed field-value bytes, or None for a programmatically constructed value.
+         */
+        public val originalValue: Array<Byte>?
 ) {
     public constructor(pair: HttpCookiePair, attributes: List<HttpCookieAttribute> = emptyList<HttpCookieAttribute>())
         : this(pair, attributes.toArray(), None) {}
 
     private val interpreted: CookieAttributes = interpretCookieAttributes(attributes)
+    /**
+     * The interpreted Expires date, when valid and present.
+     */
     public val expires: Instant? get() = interpreted.expires
+    /**
+     * The interpreted Max-Age in seconds, when present.
+     */
     public val maxAgeSeconds: Long? get() = interpreted.maxAge
+    /**
+     * The interpreted Domain attribute bytes, before resolution against an origin.
+     */
     public val domain: Array<Byte>? get() = interpreted.domain
+    /**
+     * The cookie path bytes.
+     */
     public val path: Array<Byte>? get() = interpreted.path
+    /**
+     * Whether transmission requires a secure scheme.
+     */
     public val secure: Boolean get() = interpreted.secure
+    /**
+     * Whether the cookie is marked inaccessible to non-HTTP scripting APIs.
+     */
     public val httpOnly: Boolean get() = interpreted.httpOnly
+    /**
+     * The interpreted SameSite policy.
+     */
     public val sameSite: HttpCookieSameSite get() = interpreted.sameSite
 
+    /**
+     * Calculates expiry, giving Max-Age precedence and applying the explicit maximum lifetime.
+     */
     public fun expiryFrom(now: Instant, maxLifetimeSeconds: Long = 34560000L): Instant? =
         cookieExpiry(expires, maxAgeSeconds, now, maxLifetimeSeconds)
+    /**
+     * Resolves and validates domain, public suffix, path, Secure, SameSite, and name-prefix rules
+     * for the response URL.
+     */
     public fun resolve(url: Url, now: Instant, suffixes: PublicSuffixList, maxLifetimeSeconds: Long = 34560000L): Result<HttpCookie, HttpCookieRejection> =
         resolveHttpCookie(this, url, now, suffixes, maxLifetimeSeconds)
 
+    /**
+     * Serializes the structured value into HTTP field-value bytes.
+     */
     public fun toByteArray(): Array<Byte> {
         val output = ByteArrayBuilder()
         if (pair.name.size == 0L && pair.value.size > 0L) output.append(61.toByte())
@@ -33,9 +79,18 @@ public class HttpSetCookie private constructor(
         for (attribute in attributes) { output.append("; ".toByteArray()); output.append(attribute.toByteArray()) }
         return output.toByteArray()
     }
+    /**
+     * Builds a separate Set-Cookie field with never-index enabled.
+     */
     public fun toHttpField(): HttpField = HttpField("Set-Cookie".toByteArray(), toByteArray(), neverIndex = true)
 
+    /**
+     * Construction and parsing of this structured HTTP field.
+     */
     public companion object {
+        /**
+         * Parses the complete field value, throwing HttpFieldParseException for malformed syntax.
+         */
         public fun parse(value: List<Byte>): HttpSetCookie {
             val reader = cookieFieldReader("Set-Cookie", value)
             val pair = HttpCookiePair.read(reader)
@@ -46,11 +101,22 @@ public class HttpSetCookie private constructor(
             }
             return HttpSetCookie(pair, attributes.toArray(), Some(reader.bytes))
         }
+        /**
+         * Parses the complete field value, throwing HttpFieldParseException for malformed syntax.
+         */
         public fun parse(value: String): HttpSetCookie = parse(value.toByteArray())
+        /**
+         * Parses the complete value, returning None for HttpFieldParseException while propagating
+         * unrelated failures.
+         */
         public fun parseOrNone(value: List<Byte>): HttpSetCookie? {
             try { return Some(parse(value)) }
             catch (_: HttpFieldParseException) { return None }
         }
+        /**
+         * Parses the complete value, returning None for HttpFieldParseException while propagating
+         * unrelated failures.
+         */
         public fun parseOrNone(value: String): HttpSetCookie? = parseOrNone(value.toByteArray())
     }
 }

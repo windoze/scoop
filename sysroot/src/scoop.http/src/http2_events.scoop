@@ -1,10 +1,50 @@
 package scoop.http
 
+/**
+ * An HTTP/2 stream or connection event. Data consumption and outgoing bytes must be driven
+ * separately through the session.
+ */
 public enum Http2Event {
-    Request(Int, HttpRequestHead), Response(Int, HttpResponseHead),
-    Data(Int, Array<Byte>), Trailers(Int, Array<HttpField>), End(Int),
-    StreamClosed(Int, UInt), GoAway(Int, UInt, Array<Byte>, Boolean),
-    Settings(Array<Http2Setting>, Boolean), IgnoredField(Int, HttpField), Failure(HttpException)
+    /**
+     * A stream ID and its initial request head.
+     */
+    Request(Int, HttpRequestHead), 
+        /**
+         * A stream ID and response head, including informational responses.
+         */
+        Response(Int, HttpResponseHead),
+    /**
+     * A stream ID and owned DATA payload; acknowledge actual application consumption with consume.
+     */
+    Data(Int, Array<Byte>), 
+        /**
+         * A stream ID and trailing regular fields.
+         */
+        Trailers(Int, Array<HttpField>), 
+        /**
+         * The peer ended its sending direction for this stream.
+         */
+        End(Int),
+    /**
+     * A stream fully closed with the supplied HTTP/2 error code.
+     */
+    StreamClosed(Int, UInt), 
+        /**
+         * The last stream ID, error code, debug bytes, and whether this GOAWAY was sent locally.
+         */
+        GoAway(Int, UInt, Array<Byte>, Boolean),
+    /**
+     * Received settings entries and whether the frame is an acknowledgement.
+     */
+    Settings(Array<Http2Setting>, Boolean), 
+        /**
+         * A stream ID and regular field ignored under the receive compatibility policy.
+         */
+        IgnoredField(Int, HttpField), 
+        /**
+         * An asynchronous send-side protocol failure with its affected scope.
+         */
+        Failure(HttpException)
 }
 
 @Unsafe internal fun http2EventRequest(event: ULong, info: NativeHttpEventInfo): HttpRequestHead {

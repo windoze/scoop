@@ -2,15 +2,27 @@ package scoop.http
 
 import scoop.collections.HashSet
 
+/**
+ * The names declared in Trailer, with explicit validation of received or outgoing trailer fields.
+ */
 public class HttpTrailerDeclaration public constructor(names: List<String>) {
+    /**
+     * The normalized declared trailer names.
+     */
     public val names: Array<String> = declaredTrailerNames(names)
 
+    /**
+     * Tests a trailer name using ASCII case folding.
+     */
     public fun contains(name: String): Boolean {
         val normalized = httpNormalizedToken(name)
         for (value in names) if (value == normalized) return true
         return false
     }
 
+    /**
+     * Builds the Trailer declaration field.
+     */
     public fun toHttpField(): HttpField {
         val value = StringBuilder()
         var first = true
@@ -22,6 +34,9 @@ public class HttpTrailerDeclaration public constructor(names: List<String>) {
         return HttpField("Trailer".toByteArray(), value.toString().toByteArray())
     }
 
+    /**
+     * Validates that each supplied trailer was declared and is permitted as a trailer.
+     */
     public fun requireDeclared(fields: List<HttpField>) {
         for (field in fields) {
             var found = false

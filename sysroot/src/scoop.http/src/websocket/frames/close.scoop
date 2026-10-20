@@ -3,7 +3,19 @@ package scoop.http
 import scoop.bytes.ByteArrayBuilder
 import scoop.charset.*
 
-public class WebSocketClose public constructor(public val code: UInt? = None, public val reason: String = "") {
+/**
+ * A validated optional close status and UTF-8 reason. Serialization enforces legal wire codes and
+ * the control-frame payload limit.
+ */
+public class WebSocketClose public constructor(
+    /**
+     * The optional wire close status code.
+     */
+    public val code: UInt? = None, 
+    /**
+     * The close reason text, requiring a status code when nonempty.
+     */
+    public val reason: String = "") {
     init {
         if (code == None && reason.byteLength > 0L)
             throw IllegalArgumentException(Some("WebSocket close reason requires a code"))
@@ -11,6 +23,9 @@ public class WebSocketClose public constructor(public val code: UInt? = None, pu
         if (reason.byteLength > 123L) throw IllegalArgumentException(Some("WebSocket close reason exceeds 123 UTF-8 bytes"))
     }
 
+    /**
+     * Serializes a legal status and UTF-8 reason within the control-frame payload limit.
+     */
     public fun toByteArray(): Array<Byte> {
         val result = ByteArrayBuilder()
         when (code) {
@@ -23,7 +38,14 @@ public class WebSocketClose public constructor(public val code: UInt? = None, pu
         return result.toByteArray()
     }
 
+    /**
+     * Parsing validated close-frame payloads.
+     */
     public companion object {
+        /**
+         * Validates payload length, close code, and UTF-8 reason, then returns the decoded close
+         * value.
+         */
         public fun parse(data: List<Byte>): WebSocketClose {
             val bytes = data.toArray()
             if (bytes.size == 0L) return WebSocketClose()

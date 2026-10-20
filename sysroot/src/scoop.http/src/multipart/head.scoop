@@ -3,14 +3,35 @@ package scoop.http
 import scoop.bytes.ByteArrayBuilder
 import scoop.collections.emptyList
 
+/**
+ * Validated part fields and an optional declared body length used by the encoder; parsed incoming
+ * heads do not infer a body length.
+ */
 public class MultipartPartHead private constructor(
-    public val fields: Array<HttpField>, public val bodyLength: Long?, internal val encoded: Array<Byte>
+    /**
+     * Ordered fields belonging to this part.
+     */
+    public val fields: Array<HttpField>, 
+        /**
+         * The encoder's expected body byte count, or None when unknown.
+         */
+        public val bodyLength: Long?, internal val encoded: Array<Byte>
 ) {
     public constructor(fields: List<HttpField> = emptyList<HttpField>(), bodyLength: Long? = None)
         : this(fields.toArray(), checkedPartLength(bodyLength), multipartHeaders(fields, true)) {}
+    /**
+     * Returns encoded part-header bytes including the terminating blank line.
+     */
     public fun toByteArray(): Array<Byte> = encoded
 
+    /**
+     * Factories for common multipart part heads.
+     */
     public companion object {
+        /**
+         * Constructs form-data Content-Disposition with optional filename, media type, and known
+         * body length.
+         */
         public fun formData(name: String, filename: String? = None, contentType: HttpMediaType? = None,
             bodyLength: Long? = None): MultipartPartHead {
             val parameters = ArrayList<HttpParameter>()

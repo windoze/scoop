@@ -1,65 +1,218 @@
 package scoop.http
 
-public enum HttpProtocol { Http1, Http2 }
-public enum HttpVersion { Http10, Http11, Http2 }
-public enum HttpRole { Client, Server }
-public enum HttpFailureScope { Operation, Stream, Connection }
+/**
+ * The HTTP framing family selected for a connection.
+ */
+public enum HttpProtocol { 
+    /**
+     * HTTP/1 text-message framing.
+     */
+    Http1, 
+    /**
+     * HTTP/2 binary framing and multiplexed streams.
+     */
+    Http2 }
+/**
+ * The protocol version represented by a message head.
+ */
+public enum HttpVersion { 
+    /**
+     * HTTP/1.0 message syntax.
+     */
+    Http10, 
+    /**
+     * HTTP/1.1 message syntax.
+     */
+    Http11, 
+    /**
+     * HTTP/2 message semantics.
+     */
+    Http2 }
+/**
+ * Selects client or server responsibilities for parsing, framing, and masking.
+ */
+public enum HttpRole { 
+    /**
+     * The endpoint initiates requests and receives responses.
+     */
+    Client, 
+    /**
+     * The endpoint receives requests and sends responses.
+     */
+    Server }
+/**
+ * The protocol state affected by a failure.
+ */
+public enum HttpFailureScope { 
+    /**
+     * The requested operation failed.
+     */
+    Operation, 
+    /**
+     * One HTTP/2 stream failed.
+     */
+    Stream, 
+    /**
+     * The connection-level protocol state failed.
+     */
+    Connection }
 
+/**
+ * A protocol failure carrying operation, backend code, affected scope, stream identity, and
+ * unexpected-EOF information.
+ */
 public class HttpException public constructor(
+    /**
+     * The operation that failed.
+     */
     public val operation: String,
+    /**
+     * The affected protocol family.
+     */
     public val protocol: HttpProtocol,
+    /**
+     * Whether the failure affects the operation, one stream, or the connection.
+     */
     public val scope: HttpFailureScope,
+    /**
+     * The affected stream ID, or zero when no stream is associated.
+     */
     public val streamId: Int,
+    /**
+     * The protocol backend reporting the failure.
+     */
     public val backend: String,
+    /**
+     * The backend-specific numeric error code.
+     */
     public val code: Int,
+    /**
+     * The failure explanation.
+     */
     public val detail: String,
+    /**
+     * Whether input ended before required protocol bytes arrived.
+     */
     public val isUnexpectedEof: Boolean = false
 ) : Exception(Some(operation + ": " + detail))
 
-public class HttpField public constructor(name: List<Byte>, value: List<Byte>, public val neverIndex: Boolean = false) {
+/**
+ * An owned snapshot of HTTP field name and value bytes. Duplicate fields and original ordering
+ * remain distinct; text decoding is explicit.
+ */
+public class HttpField public constructor(name: List<Byte>, value: List<Byte>, 
+    /**
+     * Whether header compression must avoid indexing this field.
+     */
+    public val neverIndex: Boolean = false) {
+    /**
+     * The copied field-name bytes.
+     */
     public val name: Array<Byte> = name.toArray()
+    /**
+     * The copied field-value bytes without implicit character decoding.
+     */
     public val value: Array<Byte> = value.toArray()
 }
 
+/**
+ * Returns all fields whose names match under ASCII case folding, preserving order without
+ * combining their values.
+ */
 public fun List<HttpField>.findAll(name: List<Byte>): Array<HttpField> {
     val result = ArrayList<HttpField>()
     for (field in this) if (httpAsciiEqual(field.name, name)) result.add(field)
     return result.toArray()
 }
 
+/**
+ * The protocol-specific request-target representation.
+ */
 public enum HttpRequestTarget {
+    /**
+     * Raw HTTP/1 target bytes, including the selected origin, absolute, authority, or asterisk
+     * form.
+     */
     Http1(Array<Byte>),
+    /**
+     * HTTP/2 scheme, authority, and path pseudo-field bytes, in that order.
+     */
     Http2(Array<Byte>, Array<Byte>, Array<Byte>),
+    /**
+     * The authority pseudo-field for an HTTP/2 CONNECT request.
+     */
     Connect(Array<Byte>)
 }
 
+/**
+ * Never-index flags for the method, scheme, authority, and path pseudo-fields. True requests that
+ * the corresponding value not enter the compression table.
+ */
 public struct Http2RequestIndexing(
     val method: Boolean = false, val scheme: Boolean = false,
     val authority: Boolean = false, val path: Boolean = false
 )
 
+/**
+ * An owned request head with method bytes, protocol-specific target, ordered regular fields, and
+ * HTTP/2 indexing hints.
+ */
 public class HttpRequestHead public constructor(
+    /**
+     * The message protocol version.
+     */
     public val version: HttpVersion,
     method: List<Byte>,
+    /**
+     * The protocol-specific request target.
+     */
     public val target: HttpRequestTarget,
     fields: List<HttpField> = ArrayList<HttpField>(),
+    /**
+     * Never-index hints for HTTP/2 request pseudo-fields.
+     */
     public val indexing: Http2RequestIndexing = Http2RequestIndexing()
 ) {
+    /**
+     * The case-sensitive method token bytes.
+     */
     public val method: Array<Byte> = method.toArray()
+    /**
+     * Ordered regular fields, preserving duplicates.
+     */
     public val fields: Array<HttpField> = fields.toArray()
 }
 
+/**
+ * An owned response head with status, ordered fields, and an optional HTTP/1 reason phrase. HTTP/2
+ * responses have no reason phrase.
+ */
 public class HttpResponseHead public constructor(
+    /**
+     * The message protocol version.
+     */
     public val version: HttpVersion,
+    /**
+     * The response status code.
+     */
     public val status: UInt,
     reason: List<Byte>? = None,
     fields: List<HttpField> = ArrayList<HttpField>(),
+    /**
+     * Whether HTTP/2 status compression must avoid indexing the status value.
+     */
     public val neverIndexStatus: Boolean = false
 ) {
+    /**
+     * The optional HTTP/1 reason-phrase bytes; absent for HTTP/2.
+     */
     public val reason: Array<Byte>? = when (reason) {
         case Some(bytes) -> Some(bytes.toArray())
         case None -> None
     }
+    /**
+     * Ordered regular fields, preserving duplicates.
+     */
     public val fields: Array<HttpField> = fields.toArray()
 }
 

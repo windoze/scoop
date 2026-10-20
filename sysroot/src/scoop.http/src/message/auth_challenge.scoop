@@ -2,22 +2,56 @@ package scoop.http
 
 import scoop.collections.emptyList
 
+/**
+ * One authentication challenge with a scheme and token68 or named parameters; parsing alone does
+ * not authenticate credentials.
+ */
 public class HttpAuthChallenge private constructor(private val content: HttpAuthValue) {
     public constructor(scheme: String, parameters: List<HttpParameter> = emptyList<HttpParameter>())
         : this(httpAuthWithParameters(scheme, parameters)) {}
 
+    /**
+     * The authentication scheme token.
+     */
     public val scheme: String get() = content.scheme
+    /**
+     * The optional token68 credential or challenge payload.
+     */
     public val token68: String? get() = content.token68
+    /**
+     * The parsed named parameters in their stored order.
+     */
     public val parameters: Array<HttpParameter> get() = content.parameters
+    /**
+     * Looks up a named parameter using ASCII case folding, returning None when absent.
+     */
     public fun parameter(name: String): HttpParameter? = findHttpParameter(parameters, name)
+    /**
+     * Serializes the structured value into HTTP field-value bytes.
+     */
     public fun toByteArray(): Array<Byte> = content.toByteArray()
+    /**
+     * Builds a WWW-Authenticate challenge field.
+     */
     public fun toWwwAuthenticateField(): HttpField = HttpField("WWW-Authenticate".toByteArray(), toByteArray())
+    /**
+     * Builds a Proxy-Authenticate challenge field.
+     */
     public fun toProxyAuthenticateField(): HttpField = HttpField("Proxy-Authenticate".toByteArray(), toByteArray())
 
+    /**
+     * Construction and parsing of this structured HTTP field.
+     */
     public companion object {
+        /**
+         * Constructs a scheme with a validated token68 payload.
+         */
         public fun withToken68(scheme: String, token68: String): HttpAuthChallenge =
             HttpAuthChallenge(httpAuthWithToken68(scheme, token68))
 
+        /**
+         * Parses all authentication challenges in one field value.
+         */
         public fun parseList(value: List<Byte>, fieldName: String = "WWW-Authenticate"): Array<HttpAuthChallenge> {
             val reader = HttpFieldReader(fieldName, value)
             val result = ArrayList<HttpAuthChallenge>()
@@ -28,11 +62,20 @@ public class HttpAuthChallenge private constructor(private val content: HttpAuth
             }
             return result.toArray()
         }
+        /**
+         * Parses all authentication challenges in one field value.
+         */
         public fun parseList(value: String, fieldName: String = "WWW-Authenticate"): Array<HttpAuthChallenge> =
             parseList(value.toByteArray(), fieldName)
+        /**
+         * Parses selected authentication challenge fields in their original order.
+         */
         public fun parseFields(fields: List<HttpField>, fieldName: String = "WWW-Authenticate"): Array<HttpAuthChallenge> =
             parseList(combinedHttpAuthFields(fields, fieldName), fieldName)
 
+        /**
+         * Parses the complete field value, throwing HttpFieldParseException for malformed syntax.
+         */
         public fun parse(value: List<Byte>, fieldName: String = "WWW-Authenticate"): HttpAuthChallenge {
             val reader = HttpFieldReader(fieldName, value)
             reader.skipOws()
@@ -40,12 +83,23 @@ public class HttpAuthChallenge private constructor(private val content: HttpAuth
             if (!reader.ended) reader.fail("expected a single authentication challenge")
             return result
         }
+        /**
+         * Parses the complete field value, throwing HttpFieldParseException for malformed syntax.
+         */
         public fun parse(value: String, fieldName: String = "WWW-Authenticate"): HttpAuthChallenge =
             parse(value.toByteArray(), fieldName)
+        /**
+         * Parses the complete value, returning None for HttpFieldParseException while propagating
+         * unrelated failures.
+         */
         public fun parseOrNone(value: List<Byte>, fieldName: String = "WWW-Authenticate"): HttpAuthChallenge? {
             try { return Some(parse(value, fieldName)) }
             catch (_: HttpFieldParseException) { return None }
         }
+        /**
+         * Parses the complete value, returning None for HttpFieldParseException while propagating
+         * unrelated failures.
+         */
         public fun parseOrNone(value: String, fieldName: String = "WWW-Authenticate"): HttpAuthChallenge? =
             parseOrNone(value.toByteArray(), fieldName)
     }

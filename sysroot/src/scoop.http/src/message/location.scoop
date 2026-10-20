@@ -3,19 +3,47 @@ package scoop.http
 import scoop.url.Url
 import scoop.url.UrlParseException
 
-public class HttpLocation private constructor(public val reference: Url, public val originalValue: Array<Byte>?) {
+/**
+ * A parsed Location URL reference, preserving original bytes and requiring a base URL for relative
+ * resolution.
+ */
+public class HttpLocation private constructor(
+    /**
+     * The parsed absolute or relative URL reference.
+     */
+    public val reference: Url, 
+    /**
+     * The original parsed field-value bytes, or None for a programmatically constructed value.
+     */
+    public val originalValue: Array<Byte>?) {
     public constructor(reference: Url) : this(reference, None) {}
 
+    /**
+     * Resolves against the base URL, inheriting its fragment when the Location reference omits
+     * one.
+     */
     public fun resolve(base: Url): Url {
         val resolved = base.resolve(reference)
         return if (reference.encodedFragment == None && base.encodedFragment != None)
             resolved.toBuilder().setEncodedFragment(base.encodedFragment).build() else resolved
     }
 
+    /**
+     * Serializes the structured value into HTTP field-value bytes.
+     */
     public fun toByteArray(): Array<Byte> = reference.toString().toByteArray()
+    /**
+     * Builds the corresponding named HTTP field from the structured value.
+     */
     public fun toHttpField(): HttpField = HttpField("Location".toByteArray(), toByteArray())
 
+    /**
+     * Construction and parsing of this structured HTTP field.
+     */
     public companion object {
+        /**
+         * Reads the Location field, returning None when absent and rejecting duplicates.
+         */
         public fun parseFields(fields: List<HttpField>): HttpLocation? {
             val values = fields.findAll("Location".toByteArray())
             if (values.size == 0L) return None
@@ -23,6 +51,9 @@ public class HttpLocation private constructor(public val reference: Url, public 
             return Some(parse(values[0L].value))
         }
 
+        /**
+         * Parses the complete field value, throwing HttpFieldParseException for malformed syntax.
+         */
         public fun parse(value: List<Byte>): HttpLocation {
             val reader = HttpFieldReader("Location", value)
             reader.skipOws()
@@ -38,11 +69,22 @@ public class HttpLocation private constructor(public val reference: Url, public 
             }
             return HttpLocation(reference, Some(reader.bytes))
         }
+        /**
+         * Parses the complete field value, throwing HttpFieldParseException for malformed syntax.
+         */
         public fun parse(value: String): HttpLocation = parse(value.toByteArray())
+        /**
+         * Parses the complete value, returning None for HttpFieldParseException while propagating
+         * unrelated failures.
+         */
         public fun parseOrNone(value: List<Byte>): HttpLocation? {
             try { return Some(parse(value)) }
             catch (_: HttpFieldParseException) { return None }
         }
+        /**
+         * Parses the complete value, returning None for HttpFieldParseException while propagating
+         * unrelated failures.
+         */
         public fun parseOrNone(value: String): HttpLocation? = parseOrNone(value.toByteArray())
     }
 }

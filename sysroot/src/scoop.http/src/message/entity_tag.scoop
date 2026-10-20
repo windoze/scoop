@@ -2,11 +2,31 @@ package scoop.http
 
 import scoop.bytes.ByteArrayBuilder
 
-public class HttpEntityTag private constructor(public val opaque: Array<Byte>, public val isWeak: Boolean) {
+/**
+ * An opaque entity tag with an optional weak marker. Weak and strong comparisons are explicit.
+ */
+public class HttpEntityTag private constructor(
+    /**
+     * The opaque tag bytes without quotes or weak prefix.
+     */
+    public val opaque: Array<Byte>, 
+    /**
+     * Whether the tag carries the weak W/ marker.
+     */
+    public val isWeak: Boolean) {
     public constructor(opaque: List<Byte>, isWeak: Boolean = false) : this(checkedEntityTag(opaque), isWeak) {}
 
+    /**
+     * Requires equal opaque bytes and two nonweak tags.
+     */
     public fun stronglyMatches(other: HttpEntityTag): Boolean = !isWeak && !other.isWeak && weaklyMatches(other)
+    /**
+     * Compares opaque bytes while ignoring weak markers.
+     */
     public fun weaklyMatches(other: HttpEntityTag): Boolean = httpBytesEqual(opaque, other.opaque)
+    /**
+     * Serializes the structured value into HTTP field-value bytes.
+     */
     public fun toByteArray(): Array<Byte> {
         val output = ByteArrayBuilder()
         output.append((if (isWeak) "W/\"" else "\"").toByteArray())
@@ -14,9 +34,18 @@ public class HttpEntityTag private constructor(public val opaque: Array<Byte>, p
         output.append(34.toByte())
         return output.toByteArray()
     }
+    /**
+     * Builds the corresponding named HTTP field from the structured value.
+     */
     public fun toHttpField(): HttpField = HttpField("ETag".toByteArray(), toByteArray())
 
+    /**
+     * Construction and parsing of this structured HTTP field.
+     */
     public companion object {
+        /**
+         * Parses the complete field value, throwing HttpFieldParseException for malformed syntax.
+         */
         public fun parse(value: List<Byte>): HttpEntityTag {
             val reader = HttpFieldReader("ETag", value)
             reader.skipOws()
@@ -25,11 +54,22 @@ public class HttpEntityTag private constructor(public val opaque: Array<Byte>, p
             if (!reader.ended) reader.fail("unexpected text after entity tag")
             return result
         }
+        /**
+         * Parses the complete field value, throwing HttpFieldParseException for malformed syntax.
+         */
         public fun parse(value: String): HttpEntityTag = parse(value.toByteArray())
+        /**
+         * Parses the complete value, returning None for HttpFieldParseException while propagating
+         * unrelated failures.
+         */
         public fun parseOrNone(value: List<Byte>): HttpEntityTag? {
             try { return Some(parse(value)) }
             catch (_: HttpFieldParseException) { return None }
         }
+        /**
+         * Parses the complete value, returning None for HttpFieldParseException while propagating
+         * unrelated failures.
+         */
         public fun parseOrNone(value: String): HttpEntityTag? = parseOrNone(value.toByteArray())
 
         internal fun read(reader: HttpFieldReader): HttpEntityTag {

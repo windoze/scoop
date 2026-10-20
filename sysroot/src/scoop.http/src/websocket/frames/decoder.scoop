@@ -2,18 +2,45 @@ package scoop.http
 
 import scoop.platform.memory.NativeByteBuffer
 
-public class WebSocketFrameDecoder public constructor(public val role: HttpRole, compressionEnabled: Boolean = false,
+/**
+ * A serial incremental frame parser that validates masking, fragmentation, control frames, and
+ * limits. Compression flag acceptance does not itself inflate message data.
+ */
+public class WebSocketFrameDecoder public constructor(
+    /**
+     * The endpoint role determining incoming/outgoing masking requirements.
+     */
+    public val role: HttpRole, compressionEnabled: Boolean = false,
     limits: WebSocketFrameLimits = WebSocketFrameLimits()) : Closeable {
     private val state: WebSocketReadState = WebSocketReadState(role, compressionEnabled, limits)
     private val busy: AtomicBoolean = AtomicBoolean(false)
     private var closed: Boolean = false
     private var error: Throwable? = None
+    /**
+     * Whether local frame state has been closed.
+     */
     public val isClosed: Boolean get() = closed
+    /**
+     * Whether the terminal End event has been removed.
+     */
     public val isFinished: Boolean get() = state.finished
+    /**
+     * Whether a close frame has been processed.
+     */
     public val hasCloseFrame: Boolean get() = state.hasCloseFrame
+    /**
+     * The parsed close payload, once a close frame has arrived.
+     */
     public val closeFrame: WebSocketClose? get() = state.closeFrame
+    /**
+     * The retained framing or message failure.
+     */
     public val failure: Throwable? get() = error
 
+    /**
+     * Consumes a prefix of the readable buffer and advances by the returned count. A pending event
+     * can stop progress; drain events before supplying more bytes.
+     */
     public fun receive(buffer: NativeByteBuffer, count: Long = buffer.readableBytes): Long = withUse {
         requireOpen()
         if (state.inputEnded) throw IllegalStateException(Some("WebSocket input has ended"))
@@ -39,6 +66,9 @@ public class WebSocketFrameDecoder public constructor(public val role: HttpRole,
         }
     }
 
+    /**
+     * Removes the next parsed event, or returns None when no event is ready.
+     */
     public fun nextEvent(): WebSocketFrameEvent? = withUse {
         requireOpen()
         try {
@@ -50,6 +80,10 @@ public class WebSocketFrameDecoder public constructor(public val role: HttpRole,
         } catch (failure: Throwable) { fail(failure) }
     }
 
+    /**
+     * Reports transport EOF and advances final validation; incomplete framing or unclosed protocol
+     * state is reported as a failure.
+     */
     public fun endInput() {
         withUse {
             requireOpen()
@@ -59,6 +93,9 @@ public class WebSocketFrameDecoder public constructor(public val role: HttpRole,
         }
     }
 
+    /**
+     * Releases local state; it does not send a Close frame or close a transport.
+     */
     public override fun close() { withUse { if (!closed) { closed = true; state.close() }; Unit } }
 
     private fun requireOpen() {

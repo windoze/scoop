@@ -3,17 +3,45 @@ package scoop.http
 import scoop.crypto.secureRandomBytes
 import scoop.text.toHexString
 
-public class MultipartBoundary private constructor(public val value: String, internal val bytes: Array<Byte>)
+/**
+ * A validated multipart boundary of 1..70 permitted ASCII characters with no trailing space.
+ */
+public class MultipartBoundary private constructor(
+    /**
+     * The validated ASCII boundary text without delimiter prefixes.
+     */
+    public val value: String, internal val bytes: Array<Byte>)
     : Equals<MultipartBoundary>, Hash, ToString {
     public constructor(value: String) : this(value, checkedBoundary(value.toByteArray())) {}
+    /**
+     * Compares boundary text exactly.
+     */
     public override operator fun equals(other: MultipartBoundary): Boolean = value == other.value
+    /**
+     * Hashes the boundary text consistently with equality.
+     */
     public override fun hash(): Long = value.hash()
+    /**
+     * Returns the raw boundary text.
+     */
     public override fun toString(): String = value
+    /**
+     * Builds a multipart media type with this boundary and the selected subtype.
+     */
     public fun toMediaType(subtype: String = "form-data"): HttpMediaType =
         HttpMediaType("multipart", subtype, [HttpParameter("boundary", bytes)])
 
+    /**
+     * Boundary generation and extraction from Content-Type.
+     */
     public companion object {
+        /**
+         * Creates a boundary from 24 cryptographically random bytes with a scoop- prefix.
+         */
         public fun generate(): MultipartBoundary = MultipartBoundary("scoop-" + secureRandomBytes(24L).toHexString())
+        /**
+         * Extracts and validates the boundary parameter from a multipart media type.
+         */
         public fun fromMediaType(mediaType: HttpMediaType): MultipartBoundary {
             if (mediaType.type != "multipart") throw IllegalArgumentException(Some("expected a multipart media type"))
             val parameter = mediaType.parameter("boundary") ?: throw IllegalArgumentException(Some("missing multipart boundary"))

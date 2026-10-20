@@ -3,11 +3,26 @@ package scoop.http
 import scoop.bytes.ByteArrayBuilder
 import scoop.text.lowercaseAscii
 
+/**
+ * An ordered nonempty set of byte-range requests. Resolve against the representation size before
+ * serving bytes.
+ */
 public class HttpRange private constructor(
-    public val ranges: Array<HttpByteRange>, public val originalValue: Array<Byte>?
+    /**
+     * Requested byte intervals in their original order.
+     */
+    public val ranges: Array<HttpByteRange>, 
+        /**
+         * The original parsed field-value bytes, or None for a programmatically constructed value.
+         */
+        public val originalValue: Array<Byte>?
 ) : ToString {
     public constructor(ranges: List<HttpByteRange>) : this(checkedHttpRanges(ranges), None) {}
 
+    /**
+     * Resolves requested ranges against a nonnegative representation length, retaining satisfiable
+     * intervals.
+     */
     public fun resolve(completeLength: Long): HttpRangeResolution {
         if (completeLength < 0L) throw IllegalArgumentException(Some("negative representation length"))
         val result = ArrayList<HttpResolvedRange>()
@@ -32,6 +47,9 @@ public class HttpRange private constructor(
         return HttpRangeResolution(result.toArray(), satisfiable)
     }
 
+    /**
+     * Serializes the structured value into HTTP field-value bytes.
+     */
     public fun toByteArray(): Array<Byte> {
         val output = ByteArrayBuilder()
         output.append("bytes=".toByteArray())
@@ -43,10 +61,22 @@ public class HttpRange private constructor(
         }
         return output.toByteArray()
     }
+    /**
+     * Formats the structured value as HTTP field text.
+     */
     public override fun toString(): String = String.fromUtf8(toByteArray())
+    /**
+     * Builds the corresponding named HTTP field from the structured value.
+     */
     public fun toHttpField(): HttpField = HttpField("Range".toByteArray(), toByteArray())
 
+    /**
+     * Construction and parsing of this structured HTTP field.
+     */
     public companion object {
+        /**
+         * Parses the complete field value, throwing HttpFieldParseException for malformed syntax.
+         */
         public fun parse(value: List<Byte>): HttpRange {
             val reader = HttpFieldReader("Range", value)
             readBytesUnit(reader)
@@ -63,11 +93,22 @@ public class HttpRange private constructor(
             if (ranges.size == 0L) reader.failAt(start, "empty byte range set")
             return HttpRange(ranges.toArray(), Some(reader.bytes))
         }
+        /**
+         * Parses the complete field value, throwing HttpFieldParseException for malformed syntax.
+         */
         public fun parse(value: String): HttpRange = parse(value.toByteArray())
+        /**
+         * Parses the complete value, returning None for HttpFieldParseException while propagating
+         * unrelated failures.
+         */
         public fun parseOrNone(value: List<Byte>): HttpRange? {
             try { return Some(parse(value)) }
             catch (_: HttpFieldParseException) { return None }
         }
+        /**
+         * Parses the complete value, returning None for HttpFieldParseException while propagating
+         * unrelated failures.
+         */
         public fun parseOrNone(value: String): HttpRange? = parseOrNone(value.toByteArray())
     }
 }

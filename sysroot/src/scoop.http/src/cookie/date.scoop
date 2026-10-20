@@ -2,13 +2,31 @@ package scoop.http
 
 import scoop.time.Instant
 
+/**
+ * Cookie-date parsing, including accepted historical forms, and HTTP-date formatting.
+ */
 public object HttpCookieDate {
+    /**
+     * Parses a date or throws HttpFieldParseException when the input is invalid.
+     */
     public fun parse(value: List<Byte>): Instant = parseCookieDate(HttpFieldReader("Expires", value))
+    /**
+     * Parses a date or throws HttpFieldParseException when the input is invalid.
+     */
     public fun parse(value: String): Instant = parse(value.toByteArray())
+    /**
+     * Parses a date, returning None for invalid syntax or date values.
+     */
     public fun parseOrNone(value: List<Byte>): Instant? {
         try { return Some(parse(value)) }
         catch (_: HttpFieldParseException) { return None }
     }
+    /**
+     * Parses a date, returning None for invalid syntax or date values.
+     */
     public fun parseOrNone(value: String): Instant? = parseOrNone(value.toByteArray())
+    /**
+     * Formats the instant as canonical IMF-fixdate in GMT.
+     */
     public fun format(value: Instant): String = httpDateText(value, 1601, "Cookie date")
 }

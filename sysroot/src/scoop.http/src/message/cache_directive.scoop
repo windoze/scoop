@@ -1,13 +1,31 @@
 package scoop.http
 
+/**
+ * A normalized directive name and optional raw argument. Numeric and field-list interpretation
+ * validate their own grammar.
+ */
 public class HttpCacheDirective internal constructor(
-    public val name: String, public val value: Array<Byte>?, public val wasQuoted: Boolean,
+    /**
+     * The ASCII-lowercase directive token.
+     */
+    public val name: String, 
+        /**
+         * The optional argument bytes after quoted-string decoding.
+         */
+        public val value: Array<Byte>?, 
+        /**
+         * Whether the parsed argument used quoted-string syntax.
+         */
+        public val wasQuoted: Boolean,
     internal val nameOffset: Long, private val valueOffset: Long, private val sourceValue: Array<Byte>?
 ) {
     public constructor(name: String, value: List<Byte>? = None) : this(httpNormalizedToken(name),
         when (value) { case Some(bytes) -> Some(checkedHttpParameter(bytes)); case None -> None }, false, 0L, 0L, None) {}
     public constructor(name: String, value: List<Byte>) : this(name, Some<List<Byte>>(value)) {}
 
+    /**
+     * Parses the required nonnegative decimal argument, saturating numeric overflow.
+     */
     public fun deltaSeconds(): Long {
         val reader = HttpFieldReader("Cache-Control", requiredValue())
         try {
@@ -17,6 +35,9 @@ public class HttpCacheDirective internal constructor(
         } catch (error: HttpFieldParseException) { failAt(error.byteOffset, error.detail) }
     }
 
+    /**
+     * Parses the required argument as a list of HTTP field-name tokens.
+     */
     public fun fieldNames(): Array<String> {
         val bytes = requiredValue()
         try { return HttpFieldReader("Cache-Control", bytes).tokenList() }

@@ -3,7 +3,18 @@ package scoop.http
 import scoop.bytes.ByteArrayBuilder
 import scoop.platform.memory.NativeByteBuffer
 
-public class HttpNegotiationException public constructor(public val operation: String, public val detail: String)
+/**
+ * HTTP protocol negotiation failed for the named operation.
+ */
+public class HttpNegotiationException public constructor(
+    /**
+     * The negotiation operation that failed.
+     */
+    public val operation: String, 
+    /**
+     * The parse or negotiation failure explanation.
+     */
+    public val detail: String)
     : Exception(Some(operation + ": " + detail))
 
 internal fun httpAllows(protocols: List<HttpProtocol>, protocol: HttpProtocol): Boolean {
@@ -11,6 +22,10 @@ internal fun httpAllows(protocols: List<HttpProtocol>, protocol: HttpProtocol): 
     return false
 }
 
+/**
+ * Maps negotiated h2 or http/1.1 to an allowed protocol. Absent ALPN uses HTTP/1 only when
+ * fallback is explicitly enabled.
+ */
 public fun selectHttpAlpn(selected: List<Byte>?, allowed: List<HttpProtocol>, allowHttp1Fallback: Boolean = false): HttpProtocol {
     if (allowed.size == 0L) throw IllegalArgumentException(Some("no HTTP protocols are allowed"))
     val protocol = when (selected) {
@@ -28,6 +43,10 @@ public fun selectHttpAlpn(selected: List<Byte>?, allowed: List<HttpProtocol>, al
     return protocol
 }
 
+/**
+ * Incrementally distinguishes the HTTP/2 client preface from HTTP/1, retaining consumed prefix
+ * bytes and leaving the remaining input untouched.
+ */
 public class HttpCleartextProbe public constructor(allowed: List<HttpProtocol>) {
     private val http1: Boolean = httpAllows(allowed, HttpProtocol.Http1)
     private val http2: Boolean = httpAllows(allowed, HttpProtocol.Http2)
@@ -37,9 +56,19 @@ public class HttpCleartextProbe public constructor(allowed: List<HttpProtocol>) 
     private var failed: Boolean = false
     init { if (!http1 && !http2) throw IllegalArgumentException(Some("no cleartext HTTP protocols are allowed")) }
 
+    /**
+     * The selected protocol, or None while the prefix remains ambiguous.
+     */
     public val protocol: HttpProtocol? get() = selected
+    /**
+     * A snapshot of all bytes consumed during probing, to pass to the selected protocol decoder.
+     */
     public val prefix: Array<Byte> get() = buffered.toByteArray()
 
+    /**
+     * Consumes only enough bytes to decide the protocol, preserving the remainder in the input
+     * buffer.
+     */
     public fun receive(buffer: NativeByteBuffer, count: Long = buffer.readableBytes): Long {
         if (failed) throw IllegalStateException(Some("HTTP protocol probe has failed"))
         if (count < 0L || count > buffer.readableBytes) throw IllegalArgumentException(Some("invalid HTTP probe input count"))
@@ -60,6 +89,9 @@ public class HttpCleartextProbe public constructor(allowed: List<HttpProtocol>) 
         return consumed
     }
 
+    /**
+     * Returns the selected protocol or rejects EOF during an incomplete preface.
+     */
     public fun endInput(): HttpProtocol {
         if (failed) throw IllegalStateException(Some("HTTP protocol probe has failed"))
         return when (selected) {

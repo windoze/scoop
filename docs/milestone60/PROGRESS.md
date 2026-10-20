@@ -173,3 +173,5 @@ core 注释使内置声明字节位置改变，同步 6 个 core-negative 诊断
 terminal 补充 376 处说明，覆盖 ANSI 输出与刷新、坐标与范围、输入解析、查询匹配、raw mode 恢复、颜色策略及剪贴板协议边界。fmt／workspace clippy、严格文档生成通过，156 页／7,020 个本地入口／44 个源码页／535 个搜索条目有效；文档 warning 为零。
 
 std 补充 843 处说明，覆盖集合与排序、惰性序列、Option／Result、字节编解码、文本、日期时间、随机数与 UUID。fmt／workspace clippy、严格文档生成通过，468 页／22,401 个本地入口／123 个源码页／901 个搜索条目有效，编译及文档 warning 均为零。
+
+http 补充 710 处说明，明确 HTTP/1 定界与切换、HTTP/2 流控／输入输出进度、字段解析与原始字节、Cookie／公共后缀、multipart、SSE、WebSocket 握手和帧状态。fmt／workspace clippy、严格文档生成及页面／入口静态检查通过，文档 warning 为零。

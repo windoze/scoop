@@ -1,5 +1,23 @@
 package scoop.http
 
-public enum Http2OutputKind { Control, Headers, Data }
+/**
+ * Identifies control, header, or DATA bytes copied out of a session.
+ */
+public enum Http2OutputKind { 
+    /**
+     * Connection or stream control-frame bytes.
+     */
+    Control, 
+    /**
+     * Header-block frame bytes.
+     */
+    Headers, 
+    /**
+     * Body DATA-frame bytes.
+     */
+    Data }
 
+/**
+ * The byte count copied into the output buffer, associated stream ID, and output category.
+ */
 public struct Http2OutputChunk(val count: Long, val streamId: Int, val kind: Http2OutputKind)

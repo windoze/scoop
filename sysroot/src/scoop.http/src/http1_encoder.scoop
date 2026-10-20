@@ -4,9 +4,37 @@ import scoop.bytes.ByteArrayBuilder
 import scoop.platform.memory.NativeByteBuffer
 import scoop.text.*
 
-public enum Http1BodyFraming { Empty, Length(Long), Chunked, Eof }
+/**
+ * The explicit body-delimiting rule selected before encoding an HTTP/1 message.
+ */
+public enum Http1BodyFraming { 
+    /**
+     * No body bytes are permitted.
+     */
+    Empty, 
+    /**
+     * Exactly the supplied nonnegative body length must be written before finish.
+     */
+    Length(Long), 
+    /**
+     * Writes chunked framing and permits trailers at finish.
+     */
+    Chunked, 
+    /**
+     * Response body ends when the transport closes; the caller must close the connection after
+     * output.
+     */
+    Eof }
 
-public class Http1Encoder public constructor(public val role: HttpRole) : Closeable {
+/**
+ * An in-memory HTTP/1 encoder with explicit message begin, body, and finish. It produces bytes
+ * without performing transport I/O; close does not finish a message.
+ */
+public class Http1Encoder public constructor(
+    /**
+     * The fixed client/server role of this codec.
+     */
+    public val role: HttpRole) : Closeable {
     private var closed: Boolean = false
     private var active: Boolean = false
     private var closing: Boolean = false
@@ -14,9 +42,21 @@ public class Http1Encoder public constructor(public val role: HttpRole) : Closea
     private var framing: Http1BodyFraming = Http1BodyFraming.Empty
     private var remaining: Long = 0L
 
+    /**
+     * Whether its state has been released.
+     */
     public val isClosed: Boolean get() = closed
+    /**
+     * Whether begin has started a message that still requires finish.
+     */
     public val isMessageOpen: Boolean get() = active
+    /**
+     * Whether the caller must close the transport after the encoded message.
+     */
     public val mustClose: Boolean get() = closing
+    /**
+     * Whether the encoded response transferred the connection to another protocol.
+     */
     public val isSwitched: Boolean get() = switched
 
     private fun requireOpen() {
@@ -40,6 +80,10 @@ public class Http1Encoder public constructor(public val role: HttpRole) : Closea
         return bytes
     }
 
+    /**
+     * Validates and encodes a client request head, selecting explicit body framing. Every
+     * successful begin requires finish.
+     */
     public fun beginRequest(head: HttpRequestHead, body: Http1BodyFraming = Http1BodyFraming.Empty): Array<Byte> {
         requireBegin(HttpRole.Client)
         requireHttp1Method(head.method)
@@ -58,6 +102,10 @@ public class Http1Encoder public constructor(public val role: HttpRole) : Closea
         return begin(output, head.fields, head.version, body, Http1HeadKind.Request)
     }
 
+    /**
+     * Encodes a server response using the exact originating method to determine body and switching
+     * rules.
+     */
     public fun beginResponse(head: HttpResponseHead, requestMethod: List<Byte>,
         body: Http1BodyFraming = Http1BodyFraming.Empty): Array<Byte> {
         requireBegin(HttpRole.Server)
@@ -74,6 +122,10 @@ public class Http1Encoder public constructor(public val role: HttpRole) : Closea
         return begin(output, head.fields, head.version, body, kind)
     }
 
+    /**
+     * Consumes body bytes and returns their framed representation, rejecting writes beyond the
+     * declared length.
+     */
     public fun writeBody(buffer: NativeByteBuffer, count: Long = buffer.readableBytes): Array<Byte> {
         requireOpen()
         if (!active) throw IllegalStateException(Some("HTTP/1 message has not begun"))
@@ -101,6 +153,10 @@ public class Http1Encoder public constructor(public val role: HttpRole) : Closea
         return result
     }
 
+    /**
+     * Completes the current message and returns final framing bytes; trailers require chunked
+     * framing and fixed-length bodies must be complete.
+     */
     public fun finish(trailers: List<HttpField> = ArrayList<HttpField>()): Array<Byte> {
         requireOpen()
         if (!active) throw IllegalStateException(Some("HTTP/1 message has not begun"))
@@ -119,5 +175,8 @@ public class Http1Encoder public constructor(public val role: HttpRole) : Closea
         return result
     }
 
+    /**
+     * Releases codec state without sending, finishing, or closing a transport.
+     */
     public override fun close() { closed = true; active = false }
 }

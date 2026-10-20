@@ -4,7 +4,14 @@ import scoop.text.*
 import scoop.url.UrlHost
 import scoop.url.UrlOrigin
 
+/**
+ * Pure helpers for schemeful site, domain, and cookie-path matching.
+ */
 public object HttpCookieRules {
+    /**
+     * Compares schemeful registrable domains using the suffix list; ws/wss map to http/https
+     * respectively.
+     */
     public fun sameSite(first: UrlOrigin, second: UrlOrigin, suffixes: PublicSuffixList): Boolean {
         if (cookieSiteScheme(first.scheme) != cookieSiteScheme(second.scheme)) return false
         if (first.host == second.host) return true
@@ -13,6 +20,9 @@ public object HttpCookieRules {
         return (left.registrableDomain ?: left.domain) == (right.registrableDomain ?: right.domain)
     }
 
+    /**
+     * Checks an exact host or DNS suffix at a label boundary; IP hosts require exact equality.
+     */
     public fun domainMatches(host: UrlHost, domain: UrlHost): Boolean = when (host) {
         case Dns(name) -> when (domain) {
             case Dns(suffix) -> name == suffix || name.endsWith("." + suffix)
@@ -22,6 +32,9 @@ public object HttpCookieRules {
         case Ipv6(_) -> host == domain
     }
 
+    /**
+     * Derives the cookie default path from the request's encoded path, falling back to /.
+     */
     public fun defaultPath(encodedPath: List<Byte>): Array<Byte> {
         if (encodedPath.size == 0L || encodedPath[0L] != 47.toByte()) return "/".toByteArray()
         var last = 0L
@@ -29,14 +42,23 @@ public object HttpCookieRules {
         if (last == 0L) return "/".toByteArray()
         return Array<Byte>(last) { index -> encodedPath[index] }
     }
+    /**
+     * Derives the cookie default path from the request's encoded path, falling back to /.
+     */
     public fun defaultPath(encodedPath: String): Array<Byte> = defaultPath(encodedPath.toByteArray())
 
+    /**
+     * Compares encoded paths with cookie slash-boundary semantics, without percent decoding.
+     */
     public fun pathMatches(requestPath: List<Byte>, cookiePath: List<Byte>): Boolean {
         if (cookiePath.size == 0L || requestPath.size < cookiePath.size) return false
         for (index in 0L..<cookiePath.size) if (requestPath[index] != cookiePath[index]) return false
         return requestPath.size == cookiePath.size || cookiePath[cookiePath.size - 1L] == 47.toByte() ||
             requestPath[cookiePath.size] == 47.toByte()
     }
+    /**
+     * Compares encoded paths with cookie slash-boundary semantics, without percent decoding.
+     */
     public fun pathMatches(requestPath: String, cookiePath: String): Boolean = pathMatches(requestPath.toByteArray(), cookiePath.toByteArray())
 }
 

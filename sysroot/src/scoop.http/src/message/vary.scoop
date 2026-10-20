@@ -2,16 +2,37 @@ package scoop.http
 
 import scoop.bytes.ByteArrayBuilder
 
-public class HttpVary private constructor(public val names: Array<String>, public val originalValues: Array<Array<Byte>>) {
+/**
+ * The request-field names affecting representation selection, or a wildcard that prevents ordinary
+ * cache matching.
+ */
+public class HttpVary private constructor(
+    /**
+     * The normalized request-field names controlling selection.
+     */
+    public val names: Array<String>, 
+    /**
+     * The original field-value byte sequences, preserving field order.
+     */
+    public val originalValues: Array<Array<Byte>>) {
     public constructor(names: List<String>)
         : this(Array<String>(names.size) { index -> httpNormalizedToken(names[index]) }, []) {}
 
+    /**
+     * Whether Vary contains the wildcard.
+     */
     public val isWildcard: Boolean get() = contains("*")
+    /**
+     * Tests whether the named request field is covered by this Vary value.
+     */
     public fun contains(name: String): Boolean {
         val normalized = httpNormalizedToken(name)
         for (value in names) if (value == normalized) return true
         return false
     }
+    /**
+     * Serializes the structured value into HTTP field-value bytes.
+     */
     public fun toByteArray(): Array<Byte> {
         val output = ByteArrayBuilder()
         var first = true
@@ -22,20 +43,43 @@ public class HttpVary private constructor(public val names: Array<String>, publi
         }
         return output.toByteArray()
     }
+    /**
+     * Builds the corresponding named HTTP field from the structured value.
+     */
     public fun toHttpField(): HttpField = HttpField("Vary".toByteArray(), toByteArray())
 
+    /**
+     * Construction and parsing of this structured HTTP field.
+     */
     public companion object {
+        /**
+         * Parses the complete field value, throwing HttpFieldParseException for malformed syntax.
+         */
         public fun parse(value: List<Byte>): HttpVary {
             val reader = HttpFieldReader("Vary", value)
             return HttpVary(reader.tokenList(), [reader.bytes])
         }
+        /**
+         * Parses the complete field value, throwing HttpFieldParseException for malformed syntax.
+         */
         public fun parse(value: String): HttpVary = parse(value.toByteArray())
+        /**
+         * Parses the complete value, returning None for HttpFieldParseException while propagating
+         * unrelated failures.
+         */
         public fun parseOrNone(value: List<Byte>): HttpVary? {
             try { return Some(parse(value)) }
             catch (_: HttpFieldParseException) { return None }
         }
+        /**
+         * Parses the complete value, returning None for HttpFieldParseException while propagating
+         * unrelated failures.
+         */
         public fun parseOrNone(value: String): HttpVary? = parseOrNone(value.toByteArray())
 
+        /**
+         * Combines Vary fields, retaining original values and wildcard semantics.
+         */
         public fun parseFields(fields: List<HttpField>): HttpVary {
             val names = ArrayList<String>()
             val originals = ArrayList<Array<Byte>>()

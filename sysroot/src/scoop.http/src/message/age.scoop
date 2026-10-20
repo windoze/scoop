@@ -1,15 +1,42 @@
 package scoop.http
 
-public class HttpAge private constructor(public val seconds: Long, public val originalValue: Array<Byte>?) : ToString {
+/**
+ * A nonnegative Age field value in seconds, retaining original input when parsed.
+ */
+public class HttpAge private constructor(
+    /**
+     * The age value in whole seconds.
+     */
+    public val seconds: Long, 
+    /**
+     * The original parsed field-value bytes, or None for a programmatically constructed value.
+     */
+    public val originalValue: Array<Byte>?) : ToString {
     public constructor(seconds: Long) : this(seconds, None) {
         if (seconds < 0L) throw IllegalArgumentException(Some("negative HTTP Age"))
     }
 
+    /**
+     * Formats the structured value as HTTP field text.
+     */
     public override fun toString(): String = seconds.toString()
+    /**
+     * Serializes the structured value into HTTP field-value bytes.
+     */
     public fun toByteArray(): Array<Byte> = toString().toByteArray()
+    /**
+     * Builds the corresponding named HTTP field from the structured value.
+     */
     public fun toHttpField(): HttpField = HttpField("Age".toByteArray(), toByteArray())
 
+    /**
+     * Construction and parsing of this structured HTTP field.
+     */
     public companion object {
+        /**
+         * Parses the first Age value, tolerating a following comma-separated suffix and saturating
+         * decimal overflow; malformed leading syntax throws HttpFieldParseException.
+         */
         public fun parse(value: List<Byte>): HttpAge {
             val reader = HttpFieldReader("Age", value)
             reader.skipOws()
@@ -18,17 +45,35 @@ public class HttpAge private constructor(public val seconds: Long, public val or
             if (!reader.ended && reader.peek() != 44) reader.fail("invalid Age seconds")
             return HttpAge(seconds, Some(reader.bytes))
         }
+        /**
+         * Parses the first Age value, tolerating a following comma-separated suffix and saturating
+         * decimal overflow; malformed leading syntax throws HttpFieldParseException.
+         */
         public fun parse(value: String): HttpAge = parse(value.toByteArray())
+        /**
+         * Parses the complete value, returning None for HttpFieldParseException while propagating
+         * unrelated failures.
+         */
         public fun parseOrNone(value: List<Byte>): HttpAge? {
             try { return Some(parse(value)) }
             catch (_: HttpFieldParseException) { return None }
         }
+        /**
+         * Parses the complete value, returning None for HttpFieldParseException while propagating
+         * unrelated failures.
+         */
         public fun parseOrNone(value: String): HttpAge? = parseOrNone(value.toByteArray())
 
+        /**
+         * Reads the first Age field, returning None when absent; later Age fields are ignored.
+         */
         public fun parseFields(fields: List<HttpField>): HttpAge? {
             val selected = fields.findAll("age".toByteArray())
             return if (selected.size == 0L) None else Some(parse(selected[0L].value))
         }
+        /**
+         * Returns a parsed Age when present and valid, or None for absent/invalid input.
+         */
         public fun parseFieldsOrNone(fields: List<HttpField>): HttpAge? {
             try { return parseFields(fields) }
             catch (_: HttpFieldParseException) { return None }

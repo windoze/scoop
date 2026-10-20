@@ -4,8 +4,22 @@ import scoop.collections.*
 import scoop.idna.*
 import scoop.text.*
 
+/**
+ * A malformed public-suffix rule with source line and optional cause.
+ */
 public class PublicSuffixParseException public constructor(
-    public val line: Long, public val detail: String, public val cause: Throwable? = None
+    /**
+     * The one-based input line containing the invalid rule.
+     */
+    public val line: Long, 
+        /**
+         * The parse or negotiation failure explanation.
+         */
+        public val detail: String, 
+        /**
+         * The underlying failure when available.
+         */
+        public val cause: Throwable? = None
 ) : Exception(Some("public suffix list at line " + line.toString() + ": " + detail))
 
 internal fun parsePublicSuffixList(text: String): PublicSuffixList {

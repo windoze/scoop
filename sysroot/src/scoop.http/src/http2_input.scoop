@@ -1,6 +1,13 @@
 package scoop.http
 
+/**
+ * A stream ID and newly attributed HEADERS/CONTINUATION/DATA input bytes, including framing and
+ * padding. This measures protocol progress, not decoded body length.
+ */
 public struct Http2InputProgress(val streamId: Int, val count: Long)
+/**
+ * Total consumed input bytes together with per-stream input progress.
+ */
 public struct Http2ReceiveResult(val count: Long, val progress: Array<Http2InputProgress>)
 
 @Unsafe internal fun http2ReadInputProgress(handle: ULong): Array<Http2InputProgress> {

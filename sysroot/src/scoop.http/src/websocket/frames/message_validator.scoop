@@ -1,6 +1,18 @@
 package scoop.http
 
-public class WebSocketMessageValidator public constructor(public val type: WebSocketMessageType, public val maxBytes: Long) : Closeable {
+/**
+ * Validates the final message byte stream against a size limit and, for text, incremental UTF-8
+ * validity. Feed decompressed bytes when compression is used.
+ */
+public class WebSocketMessageValidator public constructor(
+    /**
+     * Whether the validated message is text or binary.
+     */
+    public val type: WebSocketMessageType, 
+    /**
+     * The maximum accepted message size in bytes.
+     */
+    public val maxBytes: Long) : Closeable {
     private val busy: AtomicBoolean = AtomicBoolean(false)
     private var validator: WebSocketUtf8? = None
     private var closed: Boolean = false
@@ -13,11 +25,27 @@ public class WebSocketMessageValidator public constructor(public val type: WebSo
         if (type == WebSocketMessageType.Text) validator = Some(WebSocketUtf8.create())
     }
 
+    /**
+     * The bytes successfully accepted so far.
+     */
     public val byteCount: Long get() = count
+    /**
+     * Whether validation resources have been released.
+     */
     public val isClosed: Boolean get() = closed
+    /**
+     * Whether final message validation completed successfully.
+     */
     public val isFinished: Boolean get() = finished
+    /**
+     * The retained validation or cleanup failure.
+     */
     public val failure: Throwable? get() = error
 
+    /**
+     * Accepts the next uncompressed message bytes, checking the byte limit and incremental UTF-8
+     * when required.
+     */
     public fun receive(data: List<Byte>) {
         withUse {
             requireActive()
@@ -31,6 +59,10 @@ public class WebSocketMessageValidator public constructor(public val type: WebSo
         }
     }
 
+    /**
+     * Validates final UTF-8 completion and releases the validator; no more message data may
+     * follow.
+     */
     public fun finish() {
         withUse {
             requireActive()
@@ -43,6 +75,9 @@ public class WebSocketMessageValidator public constructor(public val type: WebSo
         }
     }
 
+    /**
+     * Releases validation resources without asserting successful message completion.
+     */
     public override fun close() { withUse { if (!closed) { closed = true; closeValidator() }; Unit } }
 
     private fun closeValidator() {

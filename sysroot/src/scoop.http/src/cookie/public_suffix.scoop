@@ -5,24 +5,77 @@ import scoop.idna.*
 import scoop.text.*
 import scoop.url.UrlOrigin
 
+/**
+ * The normalized domain, effective public suffix, optional registrable domain, and matched rule
+ * metadata.
+ */
 public class PublicSuffixMatch internal constructor(
-    public val domain: String, public val publicSuffix: String, public val registrableDomain: String?,
-    public val rule: String?, public val isPrivate: Boolean
+    /**
+     * The normalized ASCII domain without a trailing dot.
+     */
+    public val domain: String, 
+        /**
+         * The effective public suffix selected by the rule set.
+         */
+        public val publicSuffix: String, 
+        /**
+         * The public suffix plus one preceding label, or None if no such label exists.
+         */
+        public val registrableDomain: String?,
+    /**
+     * The selected exact, wildcard, or exception rule, when explicitly present.
+     */
+    public val rule: String?, 
+        /**
+         * Whether the selected rule came from the private section.
+         */
+        public val isPrivate: Boolean
 )
 
+/**
+ * An in-memory public-suffix rule set supporting exact, wildcard, exception, and optional
+ * private-section rules. Lookup performs no network update.
+ */
 public class PublicSuffixList internal constructor(
-    private val rules: Map<String, Int>, public val ruleCount: Long,
-    public val version: String?, public val revision: String?
+    private val rules: Map<String, Int>, 
+        /**
+         * The number of parsed suffix rules.
+         */
+        public val ruleCount: Long,
+    /**
+     * The version marker supplied by the rule-list text, if present.
+     */
+    public val version: String?, 
+        /**
+         * The revision marker supplied by the rule-list text, if present.
+         */
+        public val revision: String?
 ) {
+    /**
+     * Applies suffix rules to a normalized DNS name; URL-origin overloads return None for IP
+     * hosts. Private rules are included by default.
+     */
     public fun lookup(domain: String, includePrivate: Boolean = true): PublicSuffixMatch =
         lookupAscii(Idna.toAscii(domain), includePrivate)
+    /**
+     * Applies suffix rules to a normalized DNS name; URL-origin overloads return None for IP
+     * hosts. Private rules are included by default.
+     */
     public fun lookup(name: IdnaName, includePrivate: Boolean = true): PublicSuffixMatch =
         lookupAscii(name.ascii, includePrivate)
+    /**
+     * Applies suffix rules to a normalized DNS name; URL-origin overloads return None for IP
+     * hosts. Private rules are included by default.
+     */
     public fun lookup(origin: UrlOrigin, includePrivate: Boolean = true): PublicSuffixMatch? = when (origin.host) {
         case Dns(name) -> Some(lookupAscii(name, includePrivate))
         case Ipv4(_) -> None
         case Ipv6(_) -> None
     }
+    /**
+     * Returns None for invalid domain input, otherwise performs suffix lookup with the selected
+     * private-rule policy.
+     */
     public fun lookupOrNone(domain: String, includePrivate: Boolean = true): PublicSuffixMatch? {
         val ascii = Idna.toAsciiOrNone(domain)
         if (ascii == None || ascii!! == ".") return None
@@ -64,8 +117,18 @@ public class PublicSuffixList internal constructor(
             if (selected == 0L) None else Some(publicSuffixTail(labels, selected - 1L)), rule, privateRule)
     }
 
+    /**
+     * Rule-list parsing and access to the bundled snapshot.
+     */
     public companion object {
+        /**
+         * Parses public-suffix list text, including section metadata and wildcard/exception rules.
+         */
         public fun parse(text: String): PublicSuffixList = parsePublicSuffixList(text)
+        /**
+         * Parses the public-suffix snapshot bundled with the library; it does not fetch network
+         * updates.
+         */
         public fun bundled(): PublicSuffixList {
             @Unsafe { return parse(String.fromUtf8(httpBytes(httpPublicSuffixData()))) }
         }

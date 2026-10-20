@@ -3,6 +3,10 @@ package scoop.http
 import scoop.collections.emptyList
 import scoop.url.Url
 
+/**
+ * Builds an HTTP/1 absolute-form request from an HTTP URL, deriving Host and rejecting conflicting
+ * caller-supplied Host fields.
+ */
 public fun httpProxyRequest(url: Url, method: List<Byte> = "GET".toByteArray(),
     fields: List<HttpField> = emptyList<HttpField>(), version: HttpVersion = HttpVersion.Http11): HttpRequestHead {
     if (version == HttpVersion.Http2) throw IllegalArgumentException(Some("absolute-form requires HTTP/1"))
@@ -17,6 +21,9 @@ public fun httpProxyRequest(url: Url, method: List<Byte> = "GET".toByteArray(),
         proxyFields(fields, Some(authority)))
 }
 
+/**
+ * Builds an authority-form CONNECT request for HTTP/1 or HTTP/2 using the URL's effective port.
+ */
 public fun httpConnectRequest(url: Url, fields: List<HttpField> = emptyList<HttpField>(),
     version: HttpVersion = HttpVersion.Http11): HttpRequestHead {
     val authority = url.httpOrigin().authority(true)
@@ -26,6 +33,9 @@ public fun httpConnectRequest(url: Url, fields: List<HttpField> = emptyList<Http
         proxyFields(fields, if (version == HttpVersion.Http2) None else Some(authority)))
 }
 
+/**
+ * Returns whether CONNECT received a 2xx status.
+ */
 public fun httpConnectAccepted(response: HttpResponseHead): Boolean = response.status >= 200U && response.status < 300U
 
 private fun proxyFields(fields: List<HttpField>, authority: String?): Array<HttpField> {

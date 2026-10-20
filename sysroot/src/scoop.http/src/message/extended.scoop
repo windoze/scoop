@@ -5,8 +5,22 @@ import scoop.text.*
 import scoop.url.PercentEncoding
 import scoop.url.UrlParseException
 
+/**
+ * Decoded extended-parameter text together with its language tag and selected charset.
+ */
 public class HttpExtendedValue internal constructor(
-    public val text: String, public val language: String, public val charset: Charset
+    /**
+     * The decoded Unicode value.
+     */
+    public val text: String, 
+        /**
+         * The embedded language tag, possibly empty.
+         */
+        public val language: String, 
+        /**
+         * The charset used to decode the extended value.
+         */
+        public val charset: Charset
 )
 
 internal fun httpAttributeByte(c: Int): Boolean = httpTokenByte(c) && c != 42 && c != 39 && c != 37
