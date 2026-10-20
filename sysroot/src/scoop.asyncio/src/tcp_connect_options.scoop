@@ -9,7 +9,8 @@ public class TcpConnectOptions public constructor(
     public val attemptDelay: Duration = Duration.milliseconds(250L),
     public val maxConcurrentAttempts: Long = 2L,
     public val resolveTimeout: Duration? = None,
-    public val connectTimeout: Duration? = None
+    public val connectTimeout: Duration? = None,
+    public val onEvent: ((TcpConnectEvent) -> Unit)? = None
 ) {
     init {
         if (resolutionDelay < Duration.ZERO || attemptDelay < Duration.ZERO) {

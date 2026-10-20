@@ -1,0 +1,38 @@
+import scoop.asyncio.*
+import scoop.test.*
+import scoop.time.TimeMark
+
+internal class TcpTraceGate {
+    var ready: Boolean = false
+    private var waiter: Continuation<Unit>? = None
+    fun signal() { ready = true; val saved = waiter; waiter = None; saved?.resume(Unit) }
+    suspend fun await() { suspendCoroutine<Unit> { next -> if (ready) next.resume(Unit) else waiter = Some(next) } }
+}
+internal class TcpTraceState {
+    val events: ArrayList<TcpConnectEvent> = ArrayList<TcpConnectEvent>()
+    val closed: TcpTraceGate = TcpTraceGate()
+    val failure: Throwable = IoClosedException()
+    var observed: Throwable? = None
+}
+internal class TcpTraceMarker(val value: String)
+context(marker: TcpTraceMarker)
+internal fun tcpTraceMarker(): String = marker.value
+internal suspend fun tcpTraceFailure(block: suspend () -> Unit): Throwable {
+    try { block() } catch (error: Throwable) { return error }
+    throw IllegalStateException(Some("expected TCP trace failure"))
+}
+internal fun tcpTraceCounts(state: TcpTraceState, phase: TcpConnectPhase, expected: Long) {
+    val matches = ArrayList<TcpConnectEvent>()
+    for (event in state.events) if (event.phase == phase) matches.add(event)
+    assertEquals(expected, matches.size)
+    if (expected == 2L) {
+        assertEquals(TcpConnectEventKind.Started, matches[0L].kind)
+        assertEquals(TcpConnectEventKind.Finished, matches[1L].kind)
+        assertTrue(matches[1L].at >= matches[0L].at)
+    }
+    var previous: TimeMark? = None
+    for (event in state.events) {
+        when (previous) { case Some(at) -> assertTrue(event.at >= at); case None -> {} }
+        previous = Some(event.at)
+    }
+}

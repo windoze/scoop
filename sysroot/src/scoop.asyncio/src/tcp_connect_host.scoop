@@ -38,11 +38,16 @@ private class TcpConnectionRace(
     private var connectionDeadline: TcpConnectionDeadline? = None
     private var ipv4Resolver: Job? = None
     private var ipv6Resolver: Job? = None
+    private val trace: TcpConnectTrace? = when (options.onEvent) {
+        case Some(callback) -> Some(TcpConnectTrace(callback))
+        case None -> None
+    }
 
     suspend fun run(scope: CoroutineScope) {
         val listener = scope.job.invokeOnCancellation { error -> mailbox.send(TcpRaceEvent.Aborted(error)); Unit }
         try {
             scope.job.ensureActive()
+            trace?.start(TcpConnectPhase.Resolve)
             when (options.resolveTimeout) {
                 case Some(limit) -> {
                     val deadline = TcpConnectionDeadline(limit)
@@ -87,7 +92,11 @@ private class TcpConnectionRace(
                 case Resolved(AddressFamily.Ipv6, addresses) -> { checkDeadlines(); plan.resolved(AddressFamily.Ipv6, addresses) }
                 case ResolutionFailed(AddressFamily.Ipv4, error) -> resolutionFailed(AddressFamily.Ipv4, error)
                 case ResolutionFailed(AddressFamily.Ipv6, error) -> resolutionFailed(AddressFamily.Ipv6, error)
-                case Connected(stream) -> { winner = Some(stream); scope.job.ensureActive(); checkDeadlines(); return }
+                case Connected(stream) -> {
+                    winner = Some(stream)
+                    trace?.finish(TcpConnectPhase.Connect)
+                    scope.job.ensureActive(); checkDeadlines(); return
+                }
                 case ConnectionFailed(address, error) -> {
                     attempts.add(TcpConnectionFailure(address, error))
                     plan.attemptFailed()
@@ -97,6 +106,7 @@ private class TcpConnectionRace(
                 case CheckDeadlines -> {}
                 case Aborted(error) -> throw error
             }
+            if (plan.resolutionComplete) trace?.finish(TcpConnectPhase.Resolve)
         }
     }
 
@@ -118,6 +128,7 @@ private class TcpConnectionRace(
     }
 
     private fun beginConnectionDeadline(scope: CoroutineScope) {
+        trace?.start(TcpConnectPhase.Connect)
         when (connectionDeadline) { case Some(_) -> return; case None -> {} }
         when (options.connectTimeout) {
             case Some(limit) -> {
@@ -174,6 +185,15 @@ private class TcpConnectionRace(
 
     suspend fun finish(primary: Throwable?): AsyncTcpStream {
         var failure = primary
+        try {
+            trace?.finish(TcpConnectPhase.Resolve)
+            trace?.finish(TcpConnectPhase.Connect)
+        } catch (error: Throwable) {
+            failure = Some(when (failure) {
+                case Some(first) -> ResourceUseException(first, error)
+                case None -> error
+            })
+        }
         when (mailbox.cleanupFailure) {
             case Some(error) -> failure = Some(when (failure) {
                 case Some(first) -> ResourceUseException(first, error)

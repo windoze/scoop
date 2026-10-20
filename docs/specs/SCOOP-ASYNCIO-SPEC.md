@@ -186,6 +186,10 @@ resolveTimeout 从开始双族解析前取同一个单调时钟起点，直到�
 
 connectTimeout 从第一个候选即将启动时开始，对整个候选序列共享，失败和交错启动不重置它。到期抛 TcpConnectTimeoutException，保存 host／port、limit／elapsed 和当时已记录的 attempts／resolutionFailures；零连接超时不提交 TCP 尝试。阶段完成与新尝试前也检查单调截止，已经选择的外部取消保持原异常。两类超时都取消有关任务并等待实际 native 工作与未交付 socket 清理完成，再返回调用方；计时器随竞速作用域结束，不留下长时间等待的子任务。
 
+TcpConnectOptions.onEvent 是可选的普通 `(TcpConnectEvent) -> Unit` 回调，默认 None。事件保存 phase（TcpConnectPhase.Resolve／Connect）、kind（TcpConnectEventKind.Started／Finished）和单调 TimeMark。Resolve 覆盖双族解析，Connect 从首个候选开始；两个阶段可以重叠，各自至多通知一次开始与结束，不为每个候选保留事件历史。零截止仍表示进入过对应阶段；没有可用地址时没有 Connect 事件。成功连接导致未完成的解析／竞速任务取消时，未结束阶段的 Finished 在这些任务实际收尾后交付。
+
+通知在 Scoop 连接流程、内部锁外执行，保留原 Context；未配置回调不增加阶段采样时钟。回调应快速返回，上层挂起 observer 可以只在这里记录状态，再于自己的调用步骤交付。回调抛出后停止后续通知，取消并等待连接任务，关闭未交付的 socket，再向调用者报告原异常；已有主失败保持在 ResourceUseException.primaryFailure，通知或实际关闭的新失败按发生顺序附加。这里不包装普通 TCP／解析错误，也不增加客户端私有 DNS 或连接竞速路径。
+
 提供 SOCKS5 的普通异步握手适配，支持无认证和 RFC 1929 用户名／密码、CONNECT、IPv4／IPv6／ASCII 域名目的地、本地解析或代理解析。用户凭据和长度在写出前检查；reply 错误保留协议码。使用已有 AsyncByteStream，按 takeOwnership 规则接管，成功交付隧道与完整前缀，失败清理；不让 HTTP client 手写 SOCKS 报文或同步 DNS。
 
 具体入口为 suspend 的 `AsyncSocks5Tunnel.takeOwnership(transport, destination: Socks5Address, credentials: Socks5Credentials? = None, resolution: Socks5Resolution = Proxy)`，transport 同时实现 AsyncByteStream 与 AsyncCloseable。Socks5Address 为 `Ip(SocketAddress)` 或 `Domain(String, Int)`，Socks5Resolution 为 Local／Proxy；返回的 AsyncSocks5Tunnel 实现同一异步流及关闭接口，并公开 boundAddress 和 isClosed。目标端口在 0..65535，域名为 1..255 字节的可打印 ASCII 且不含空格，不做 IDNA 或 DNS 标签规范化；IP 不能携带 SOCKS5 无法表示的非零 IPv6 scopeId。
