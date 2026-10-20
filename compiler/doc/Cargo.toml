@@ -1,0 +1,13 @@
+[package]
+name = "scoop-doc"
+version = "0.0.0"
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+scoop-ast.workspace = true
+pulldown-cmark.workspace = true
+unicode-ident.workspace = true
+
+[dev-dependencies]
+scoop-parser.workspace = true

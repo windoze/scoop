@@ -1713,6 +1713,23 @@ struct 的字段、enum 的 variant/payload、class 本 owner 的 storage/proper
 
 同一目标的片段按源码顺序保存；相邻 `///` 行可组成同一段，分开的片段以空段落连接。保留原始文本及 UTF-8 byte span，去前缀、块注释装饰性 `*`、公共缩进与 CRLF 归一化不得丢失诊断到原文本的位置映射。没有附着目标的片段保留为文档专有诊断输入；普通编译仍将其视为注释，不因此失败或产生文档 warning。
 
+正文采用 Markdown。首个普通段落为摘要；围栏、缩进代码块及行内代码中的 tag 和方括号不参与文档语义。以下 tag 在普通正文行首识别，后续正文属于该 tag，直到下一个 tag：
+
+| Tag | 含义 |
+| --- | --- |
+| `@param name` | 当前 callable、构造器或 variant 的源码值参数，或当前声明的类型参数 |
+| `@property name` | 当前类型实际声明的字段或 logical property |
+| `@constructor` | 当前类型的主构造器 |
+| `@receiver` | 实际扩展 receiver |
+| `@return` | callable 或 getter 的结果说明 |
+| `@throws Type` | 实际可见异常类型的说明，不引入 checked exception |
+| `@see target` | 符号引用或显式普通 URL |
+| `@since text` | 版本说明，不参与依赖选择 |
+
+名称可使用语言的反引号标识符；限定符在反引号外以点分段。直接附着说明优先于 owner 上描述同一目标的 tag；重复说明给出文档 warning。`@param` 和 `@property` 分别绑定实际目标，不按同名互相补全。未知 tag、缺失必要参数、目标不存在或不适用，以及重复的单值说明均给出文档 warning。
+
+正文中的 `[Type]`、`[Type.member]` 和 `[label][Type]` 可引用符号；整个文档中的显式 Markdown 引用定义优先，普通 URL 和图片保持 Markdown 含义。符号在声明原定义处的词法、import 和依赖环境中解析；同一可见 overload 集引用函数组，其他歧义或不存在的名称给出文档 warning。目标因未生成文档、可见性或 DocHidden 而没有页面时保留文字，不产生失效链接。普通编译不执行文档语义；文档 warning 的输出与升级策略见实现规范 2.7。
+
 ## 10. 数组
 
 Scoop 内置两个数组类型（引用类型，属于核心库）：

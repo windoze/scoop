@@ -11,6 +11,7 @@ members = [
     "compiler/scoop",
     "compiler/ast",
     "compiler/parser",
+    "compiler/doc",
     "compiler/hir",
     "compiler/hir-lower",
     "compiler/mir",
@@ -55,6 +56,7 @@ fs4 = { version = "1.1" }
 rustix = { version = "1.1", features = ["fs"] }
 signal-hook = "0.4.4"
 unicode-ident = "1.0.26"
+pulldown-cmark = { version = "0.13.4", default-features = false, features = ["html"] }
 
 scoop-wire = { path = "compiler/wire" }
 scoop-process = { path = "compiler/process" }
@@ -66,6 +68,7 @@ scoop-linker = { path = "compiler/linker" }
 scoop = { path = "compiler/scoop" }
 scoop-ast = { path = "compiler/ast" }
 scoop-parser = { path = "compiler/parser" }
+scoop-doc = { path = "compiler/doc" }
 scoop-hir = { path = "compiler/hir" }
 scoop-hir-lower = { path = "compiler/hir-lower" }
 scoop-mir = { path = "compiler/mir" }

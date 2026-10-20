@@ -2,6 +2,11 @@
 
 use crate::Span;
 
+mod syntax;
+mod text;
+pub use syntax::*;
+pub use text::*;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DocCommentKind {
     Line,
