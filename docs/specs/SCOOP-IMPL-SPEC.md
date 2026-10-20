@@ -797,6 +797,8 @@ runtime object index schema 4 保存相对索引目录的普通对象路径、�
 
 sysroot 采用同一源码与产物布局：`src/<cone-name>` 保存普通 Cone，`vendor/<project>` 保存共享上游输入，`lib/<canonical-target-triple>` 保存 `.slib`、runtime、OpenSSL、nghttp2 与 Linux unwind。libuv、OpenSSL、Ryu、llhttp、nghttp2 及 LLVM／libunwind 的上游源码、版本说明、许可证和补丁集中在 vendor，目标生成头与 archive 不写入 vendor。runtime 编排显式接收 runtime source root 和所选 sysroot 的 vendor root；Ryu 源码与 include 从后者取得，按实际 depfile 输入更新，命中不读取源码或复制输入。公开头的发行位置为 `include`。
 
+发行打包在各目标的预编译资源准备完成后，使用本次配套工具为全部内置库源码生成文档。文档入口位于 SYSROOT 的 `docs/index.html`，按目标生成的共同站点位于 `docs/<canonical-target-triple>/`；页面、搜索、资源及内嵌源码一同进入归档，跨库导航遵守该目标的真实声明身份。文档警告或生成失败阻止本次归档发布，保留已有完整发行包。此步骤属于维护者打包编排，普通 `scoop doc` 不隐式准备 sysroot；`.slib` 不增加完整源码、注释正文或文档缓存。
+
 普通 build／run／test 的 executable 和两个 link 命令默认消费 `lib/<canonical-target-triple>/runtime/index.cbor`，不触发 runtime 源码构建。显式 `--runtime-objects` 选择另一份索引；build／run／test 的 `--runtime-root` 明确请求从源码构建，与对象选项互斥。缺失实际需要的索引时报告目标和所选路径，不补建或改选其他目标；library 构建不读取未使用的 runtime。
 
 runtime 构建使用 `runtime-v5` 普通记录，按实际源码根、选中源码、include／unwind 配置、flags、C 工具输入和规则版本定位。命中前只查询上次实际源码、depfile 头文件及 include 候选的路径／mtime／大小；不读取源码、扫描并复制整棵头文件树或重读 compiler 内容。更新时直接从原始源码预处理并编译，观察实际 include 名称；全部成功后保存对象、index 与记录。每批对象位于 index 同级的 `objects` 子目录，使准备脚本可按同一相对布局复制本次已知输出，不改写索引或重新提取对象信息。对象采用稳定且不同批次不覆盖的位置；所需 index／对象缺失时补产，真实输入缺失照常报错，失败不发布新记录或替换已有结果。本机 metadata 不改变 runtime ABI。
