@@ -1,0 +1,28 @@
+import scoop.terminal.asyncio.*
+import scoop.terminal.*
+import scoop.terminal.event.*
+import scoop.terminal.screen.SetTitle
+import scoop.time.Duration
+
+fun check(value: Boolean, message: String) {
+    if (!value) { eprintln(message); throw IllegalStateException(Some(message)) }
+}
+
+suspend fun stage(session: AsyncTerminalSession, name: String) {
+    session.execute(SetTitle(name))
+    gcCollect()
+}
+
+fun key(character: Char): Event = Event.Key(KeyEvent(KeyCode.Char(character)))
+suspend fun expect(session: AsyncTerminalSession, event: Event) { check(session.read() == event, "query lost or reordered user input") }
+suspend fun timeout(block: suspend () -> Unit) {
+    var timedOut = false
+    try { block() } catch (error: TerminalQueryTimeoutException) { timedOut = true }
+    check(timedOut, "query timeout not reported")
+}
+suspend fun restored(session: AsyncTerminalSession) { check(!session.isRawMode(), "query raw mode was not restored") }
+
+@Extern(name = "m59_query_redirect")
+fun redirect(): Int
+@Extern(name = "m59_query_restore")
+fun restore(): Int

@@ -1,0 +1,31 @@
+package scoop.terminal.style
+
+import scoop.platform.env.environmentVariable
+import scoop.text.contains
+
+private val colorOverride: AtomicInt = AtomicInt(-1)
+
+public fun forceColorOutput(enabled: Boolean) { colorOverride.store(if (enabled) 1 else 0) }
+public fun resetColorOutput() { colorOverride.store(-1) }
+
+public fun isColorOutputEnabled(): Boolean {
+    val decision = colorOverride.load()
+    if (decision >= 0) return decision != 0
+    return when (environmentVariable("NO_COLOR")) {
+        case Some(value) -> value.toByteArray().size == 0L
+        case None -> true
+    }
+}
+
+public fun availableColorCount(): Long {
+    val value = when (environmentVariable("COLORTERM")) {
+        case Some(text) -> Some(text)
+        case None -> environmentVariable("TERM")
+    }
+    val text = when (value) {
+        case Some(text) -> text.decodeUtf8Lossy()
+        case None -> ""
+    }
+    return if (text.contains("24bit") || text.contains("truecolor")) 65535L
+        else if (text.contains("256")) 256L else 8L
+}

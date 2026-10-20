@@ -1,0 +1,58 @@
+package scoop.terminal.internal.input
+
+import scoop.terminal.protocol.*
+import scoop.terminal.event.*
+import scoop.text.split
+
+internal struct KeyParameters(val modifiers: KeyModifiers, val kind: KeyEventKind, val state: KeyEventState)
+
+internal fun keyParameters(text: String): KeyParameters {
+    val parts = text.split(':')
+    if (parts.size > 2L) invalidInput("too many key modifier fields")
+    val mask = if (parts[0L] == "") 1L else decimal(parts[0L], 256L)
+    if (mask == 0L) invalidInput("key modifier number must be positive")
+    val event = if (parts.size == 1L || parts[1L] == "") 1L else decimal(parts[1L], 3L)
+    val kind = when (event) {
+        case 1L -> KeyEventKind.Press; case 2L -> KeyEventKind.Repeat; case 3L -> KeyEventKind.Release
+        case _ -> invalidInput("unknown terminal key event type")
+    }
+    val bits = (mask - 1L).toUInt()
+    return KeyParameters(KeyModifiers(bits and 63u), kind, KeyEventState((bits shr 5L) and 6u))
+}
+
+internal fun letterKey(letter: Char): KeyCode = when (letter) {
+    case 'A' -> KeyCode.Up; case 'B' -> KeyCode.Down
+    case 'C' -> KeyCode.Right; case 'D' -> KeyCode.Left
+    case 'E' -> KeyCode.KeypadBegin; case 'F' -> KeyCode.End; case 'H' -> KeyCode.Home
+    case 'P' -> KeyCode.F(1); case 'Q' -> KeyCode.F(2)
+    case 'R' -> KeyCode.F(3); case 'S' -> KeyCode.F(4)
+    case _ -> invalidInput("unknown terminal letter key")
+}
+
+internal fun tildeKey(number: Long): KeyCode {
+    if (number >= 11L && number <= 15L) return KeyCode.F((number - 10L).toInt())
+    if (number >= 17L && number <= 21L) return KeyCode.F((number - 11L).toInt())
+    if (number >= 23L && number <= 26L) return KeyCode.F((number - 12L).toInt())
+    if (number >= 28L && number <= 29L) return KeyCode.F((number - 13L).toInt())
+    if (number >= 31L && number <= 34L) return KeyCode.F((number - 14L).toInt())
+    return when (number) {
+        case 1L -> KeyCode.Home; case 7L -> KeyCode.Home
+        case 2L -> KeyCode.Insert; case 3L -> KeyCode.Delete
+        case 4L -> KeyCode.End; case 8L -> KeyCode.End
+        case 5L -> KeyCode.PageUp; case 6L -> KeyCode.PageDown
+        case 57427L -> KeyCode.KeypadBegin
+        case _ -> invalidInput("unknown terminal numbered key")
+    }
+}
+
+internal fun decodeLegacyKey(body: String, last: Char): InputItem {
+    val parts = body.split(';')
+    if (parts.size > 2L) invalidInput("too many terminal key fields")
+    val parameters = keyParameters(if (parts.size == 2L) parts[1L] else "")
+    val code = if (last == '~') tildeKey(decimal(parts[0L], 65535L)) else {
+        if (parts[0L] != "" && parts[0L] != "1") invalidInput("invalid terminal letter key prefix")
+        letterKey(last)
+    }
+    val state = if (code == KeyCode.KeypadBegin) parameters.state.with(KeyState.Keypad) else parameters.state
+    return userKey(code, parameters.modifiers, parameters.kind, state)
+}

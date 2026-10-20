@@ -1,0 +1,46 @@
+package scoop.terminal
+
+import scoop.terminal.screen.*
+import scoop.test.*
+
+@Test
+private class ScreenCommandsTest {
+    @Test
+    fun `clear preserves each region and scrollback distinction`() {
+        val writer = StringWriter()
+        writer.queue(Clear(ClearType.All), Clear(ClearType.Purge), Clear(ClearType.FromCursorDown),
+            Clear(ClearType.FromCursorUp), Clear(ClearType.CurrentLine), Clear(ClearType.UntilNewLine))
+        assertEquals("\u001b[2J\u001b[3J\u001b[J\u001b[1J\u001b[2K\u001b[K", writer.toString())
+    }
+
+    @Test
+    fun `scroll zero is empty and size encodes rows before columns`() {
+        val writer = StringWriter()
+        writer.queue(ScrollUp(0L), ScrollDown(0L), ScrollUp(3L), ScrollDown(4L), SetSize(80L, 24L))
+        assertEquals("\u001b[3S\u001b[4T\u001b[8;24;80t", writer.toString())
+    }
+
+    @Test
+    fun `screen modes and Unicode title compose without implicit resets`() {
+        val writer = StringWriter()
+        writer.queue(EnterAlternateScreen, DisableLineWrap, BeginSynchronizedUpdate,
+            SetTitle("Scoop 中😀"), EndSynchronizedUpdate, EnableLineWrap, LeaveAlternateScreen)
+        assertEquals("\u001b[?1049h\u001b[?7l\u001b[?2026h\u001b]0;Scoop 中😀\u0007"
+            + "\u001b[?2026l\u001b[?7h\u001b[?1049l", writer.toString())
+    }
+
+    @Test
+    fun `invalid sizes scroll counts and title controls emit no partial command`() {
+        val invalid: Array<Command> = [
+            ScrollUp(-1L) as Command, ScrollDown(65536L) as Command,
+            SetSize(0L, 24L) as Command, SetSize(80L, 0L) as Command, SetSize(65536L, 24L) as Command,
+            SetTitle("bad\n") as Command, SetTitle("bad\u0007") as Command,
+            SetTitle("\u001b]1;x") as Command, SetTitle("\u009c") as Command, SetTitle("\u007f") as Command
+        ]
+        for (command in invalid) {
+            val writer = StringWriter()
+            assertFailsWith<IllegalArgumentException> { command.writeAnsi(writer) }
+            assertEquals("", writer.toString())
+        }
+    }
+}

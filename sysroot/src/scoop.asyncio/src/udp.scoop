@@ -9,7 +9,7 @@ public interface AsyncUdpSocket : AsyncCloseable {
     public suspend fun receiveFrom(buffer: NativeByteBuffer, count: Long): Datagram
 }
 
-internal class UdpSocket(private val owner: OwnedSocket,
+internal class UdpSocket(private val owner: OwnedEndpoint,
     public override val localAddress: SocketAddress) : AsyncUdpSocket {
     public override suspend fun sendTo(buffer: NativeByteBuffer, destination: SocketAddress, count: Long): Long =
         sendUdp(owner, buffer, destination, count)
@@ -25,7 +25,7 @@ internal suspend fun bindUdpOnLoop(loop: LibuvEventLoop, address: SocketAddress,
         val operation = LoopOperation(loop.state, loop.state.nextOperation(),
             { native, id -> @Unsafe { return@LoopOperation nativeStatus(id, nativeUdpBind(native, id, target, reuse)) } },
             { _, _ -> },
-            { event, selected -> finishSocketCreation<AsyncUdpSocket>(loop, SocketKind.Udp, event.result, selected,
+            { event, selected -> finishEndpointCreation<AsyncUdpSocket>(loop, EndpointKind.Udp, event.result, selected,
                 continuation, { owner -> UdpSocket(owner, udpAddress(owner.pointer)) }) })
         operation.subscribe(job)
         loop.state.submit(operation)

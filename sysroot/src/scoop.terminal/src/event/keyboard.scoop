@@ -1,0 +1,31 @@
+package scoop.terminal.event
+
+import scoop.terminal.Command
+
+public enum KeyboardEnhancement {
+    DisambiguateEscapeCodes, ReportEventTypes, ReportAlternateKeys, ReportAllKeysAsEscapeCodes
+
+    internal val mask: UInt get() = when (this) {
+        case DisambiguateEscapeCodes -> 1u; case ReportEventTypes -> 2u
+        case ReportAlternateKeys -> 4u; case ReportAllKeysAsEscapeCodes -> 8u
+    }
+}
+
+public struct KeyboardEnhancementFlags(val bits: UInt = 0u) {
+    public val isEmpty: Boolean get() = bits == 0u
+    public fun has(flag: KeyboardEnhancement): Boolean = (bits and flag.mask) != 0u
+    public fun with(flag: KeyboardEnhancement): KeyboardEnhancementFlags = KeyboardEnhancementFlags(bits or flag.mask)
+    public fun without(flag: KeyboardEnhancement): KeyboardEnhancementFlags =
+        KeyboardEnhancementFlags(bits and flag.mask.inv())
+}
+
+public struct PushKeyboardEnhancementFlags(val flags: KeyboardEnhancementFlags) : Command {
+    public override fun writeAnsi(writer: TextWriter) {
+        if ((flags.bits and 15u.inv()) != 0u) throw IllegalArgumentException(Some("unknown keyboard enhancement flag"))
+        writer.write("\u001b[>" + flags.bits.toString() + "u")
+    }
+}
+
+public object PopKeyboardEnhancementFlags : Command {
+    public override fun writeAnsi(writer: TextWriter) { writer.write("\u001b[<1u") }
+}

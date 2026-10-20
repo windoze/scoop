@@ -1,0 +1,15 @@
+package scoop.terminal.internal.input
+
+internal fun isUppercaseKey(character: Char): Boolean {
+    val code = character.code
+    var low = 0L
+    var high = uppercaseRanges.size
+    while (low < high) {
+        val middle = low + (high - low) / 2L
+        val range = uppercaseRanges[middle]
+        if (code < range._1) high = middle
+        else if (code > range._2) low = middle + 1L
+        else return true
+    }
+    return false
+}

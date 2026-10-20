@@ -1,0 +1,79 @@
+import scoop.asyncio.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.system.PlatformException
+import scoop.terminal.TerminalSession
+import scoop.time.Duration
+
+suspend fun cancellation(loop: EventLoop, scope: CoroutineScope, tty: AsyncTty) {
+    NativeByteBuffer.allocate(1L).use suspend { buffer ->
+        val pending = scope.launch suspend { tty.receive(buffer, 1L) }
+        loop.sleep(Duration.nanoseconds(1L))
+        var rejected = false
+        try { buffer.clear() } catch (_: IllegalStateException) { rejected = true }
+        check(rejected, "pending receive owns buffer")
+        rejected = false
+        try { tty.size() } catch (_: IllegalStateException) { rejected = true }
+        check(rejected, "control conflicts with receive")
+        NativeByteBuffer.allocate(1L).use suspend { other ->
+            var concurrent = false
+            try { tty.receive(other, 1L) } catch (_: IllegalStateException) { concurrent = true }
+            check(concurrent, "second receive rejected")
+        }
+        pending.cancel()
+        pending.join()
+        check(buffer.writePosition == 0L, "cancelled receive without input")
+        buffer.clear()
+        stage(tty, "tty-after-cancel")
+        check(tty.receive(buffer, 1L) == TtyRead.Bytes(1L), "healthy receive after cancel")
+        check(buffer.readByte() == 99.toByte(), "post-cancel input")
+    }
+}
+
+suspend fun lifecycle(loop: EventLoop, scope: CoroutineScope) {
+    TerminalSession.open().use suspend { _ ->
+        var rejected = false
+        try { loop.openTty().close() } catch (_: PlatformException) { rejected = true }
+        check(rejected, "async owner conflicts with sync owner")
+    }
+    val opening = scope.launch suspend { loop.openTty().close() }
+    opening.cancel()
+    opening.join()
+    check(opening.isCancelled, "cancelled open")
+    val tty = loop.openTty()
+    tty.enableRawMode()
+    NativeByteBuffer.allocate(1L).use suspend { buffer ->
+        val ended = AtomicBoolean(false)
+        val pending = scope.launch suspend {
+            try { tty.receive(buffer, 1L); check(false, "closed receive succeeded") }
+            catch (_: IoClosedException) { ended.store(true) }
+        }
+        loop.sleep(Duration.nanoseconds(1L))
+        val first = scope.launch suspend { tty.close() }
+        val second = scope.launch suspend { tty.close() }
+        first.join()
+        second.join()
+        pending.join()
+        check(ended.load() && tty.isClosed, "close waits for active receive")
+        buffer.clear()
+        tty.close()
+    }
+    TerminalSession.open().close()
+    val restored = loop.openTty()
+    val child = scope.launch suspend {
+        restored.enableRawMode()
+        try { loop.sleep(Duration.days(100L)) }
+        finally {
+            restored.disableRawMode()
+            check(!restored.isRawMode(), "cancelled Job restores raw mode")
+        }
+    }
+    loop.sleep(Duration.milliseconds(10L))
+    child.cancel()
+    child.join()
+    stage(restored, "tty-cancel-restored")
+    readByte(restored, 10)
+    restored.close()
+    // The run epilogue must restore and close a resource escaping its root body.
+    val escaped = loop.openTty()
+    escaped.enableRawMode()
+}

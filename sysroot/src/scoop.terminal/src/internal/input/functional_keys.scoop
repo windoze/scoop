@@ -1,0 +1,24 @@
+package scoop.terminal.internal.input
+
+import scoop.terminal.event.*
+
+internal val keypadCodes: Array<KeyCode> = [
+    KeyCode.Char('.'), KeyCode.Char('/'), KeyCode.Char('*'), KeyCode.Char('-'), KeyCode.Char('+'),
+    KeyCode.Enter, KeyCode.Char('='), KeyCode.Char(','), KeyCode.Left, KeyCode.Right,
+    KeyCode.Up, KeyCode.Down, KeyCode.PageUp, KeyCode.PageDown, KeyCode.Home, KeyCode.End,
+    KeyCode.Insert, KeyCode.Delete, KeyCode.KeypadBegin
+]
+
+internal val mediaCodes: Array<MediaKeyCode> = [
+    MediaKeyCode.Play, MediaKeyCode.Pause, MediaKeyCode.PlayPause, MediaKeyCode.Reverse, MediaKeyCode.Stop,
+    MediaKeyCode.FastForward, MediaKeyCode.Rewind, MediaKeyCode.TrackNext, MediaKeyCode.TrackPrevious,
+    MediaKeyCode.Record, MediaKeyCode.LowerVolume, MediaKeyCode.RaiseVolume, MediaKeyCode.MuteVolume
+]
+
+internal val modifierCodes: Array<ModifierKeyCode> = [
+    ModifierKeyCode.LeftShift, ModifierKeyCode.LeftControl, ModifierKeyCode.LeftAlt,
+    ModifierKeyCode.LeftSuper, ModifierKeyCode.LeftHyper, ModifierKeyCode.LeftMeta,
+    ModifierKeyCode.RightShift, ModifierKeyCode.RightControl, ModifierKeyCode.RightAlt,
+    ModifierKeyCode.RightSuper, ModifierKeyCode.RightHyper, ModifierKeyCode.RightMeta,
+    ModifierKeyCode.IsoLevel3Shift, ModifierKeyCode.IsoLevel5Shift
+]

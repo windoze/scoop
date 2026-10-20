@@ -1,0 +1,15 @@
+[package]
+name = "terminal-host"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[dependencies]
+anyhow = "1"
+libc = "0.2"
+nix = { version = "0.28", features = ["term"] }
+portable-pty = "=0.9.0"
+signal-hook = "0.4.4"
+vt100 = "=0.16.2"

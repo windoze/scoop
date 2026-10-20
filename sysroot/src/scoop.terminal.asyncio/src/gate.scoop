@@ -1,0 +1,58 @@
+package scoop.terminal.asyncio
+
+import scoop.asyncio.IoClosedException
+
+internal class SessionGate {
+    private val held: AtomicBoolean = AtomicBoolean(false)
+    private var input: Boolean = false
+    private var output: Boolean = false
+    private var closing: Boolean = false
+    private var waiters: ArrayList<Continuation<Unit>> = ArrayList<Continuation<Unit>>()
+
+    internal val isClosing: Boolean get() = locked { closing }
+    internal val isIdle: Boolean get() = locked { !input && !output }
+
+    private fun <R> locked(block: () -> R): R {
+        while (!held.compareAndSet(false, true, MemoryOrder.Acquire, MemoryOrder.Relaxed)) {}
+        try { return block() }
+        finally { held.store(false, MemoryOrder.Release) }
+    }
+
+    internal fun acquire(reading: Boolean, writing: Boolean) {
+        locked {
+            if (closing) throw IoClosedException()
+            if ((reading && input) || (writing && output)) {
+                throw IllegalStateException(Some("terminal operation is active"))
+            }
+            if (reading) input = true
+            if (writing) output = true
+            Unit
+        }
+    }
+
+    internal fun release(reading: Boolean, writing: Boolean) {
+        val ready = locked {
+            if (reading) input = false
+            if (writing) output = false
+            val callbacks = ArrayList<Continuation<Unit>>()
+            if (!input && !output) {
+                for (waiter in waiters) callbacks.add(waiter)
+                waiters.clear()
+            }
+            callbacks
+        }
+        for (waiter in ready) waiter.resume(Unit)
+    }
+
+    internal fun beginClose() { locked { closing = true } }
+
+    internal suspend fun awaitIdle() {
+        suspendCoroutine<Unit> { continuation ->
+            val immediate = locked {
+                if (!input && !output) true
+                else { waiters.add(continuation); false }
+            }
+            if (immediate) continuation.resume(Unit)
+        }
+    }
+}

@@ -125,6 +125,18 @@ BufferedSource 不把未读数据交回 endpoint；BufferedSink.close 尝试 flu
 
 standardInput、standardOutput、standardError 是使用调用时 fd 0/1/2 的借用视图，不实现 Closeable。duplicateStandardInput/Output/Error 返回独立拥有、close-on-exec 的 File 副本，与原描述符共享 OS 文件位置／状态，关闭副本不关闭标准 fd。标准流重定向后，后续操作使用新 fd；与 core libc stdio 混用时需要显式 flush，不承诺自动排序。
 
+### 5.1 终端库共用的 native TTY 资源
+
+M59 的同步 terminal 与 asyncio TTY 共用 platform 中的 native TTY 实现，
+包括独立打开、每进程独占、实际 termios 快照、尺寸、非阻塞字节 I/O、resize
+通知和关闭。此处只提供两个库实际使用的 C helper，不增加公开 Scoop fd 接管
+或通用 signal API。原生实现及同步公开合同见 [终端规范](SCOOP-TERMINAL-SPEC.md)第 7 节。
+
+TTY 与通知 fd 属于同一个 opaque owner；同步 poll 和 libuv poll 分别借用，
+不能另行关闭。异步必须先停止并关闭所有 libuv 观察句柄、结束 native 操作，
+再恢复 termios 并释放 owner。每进程独占状态由该共同实现维护，因此同步与
+异步会话不能各自成功打开一个竞争读取者。该限制不约束普通 stdout 输出。
+
 ## 6. 文件与目录
 
 ### 6.1 File 与 OpenOptions

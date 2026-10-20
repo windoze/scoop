@@ -1,0 +1,34 @@
+import scoop.platform.io.*
+import scoop.terminal.*
+import scoop.terminal.event.*
+
+private fun describe(event: Event): String = when (event) {
+    case Event.Key(value) -> when (value.code) {
+        case KeyCode.Char(character) -> {
+            val suffix = if (value.modifiers.has(KeyModifier.Control) && value.kind == KeyEventKind.Release) ":up" else ":key"
+            character.toString() + suffix
+        }
+        case _ -> "key"
+    }
+    case Event.Mouse(value) -> value.column.toString() + "," + value.row.toString()
+    case Event.Paste(text) -> text
+    case Event.Resize(columns, rows) -> columns.toString() + "x" + rows.toString()
+    case Event.FocusGained -> "focus"
+    case Event.FocusLost -> "blur"
+}
+
+fun main() {
+    val events = [
+        Event.Key(KeyEvent(KeyCode.Char('中'), KeyModifiers().with(KeyModifier.Control), KeyEventKind.Release)),
+        Event.Mouse(MouseEvent(MouseEventKind.Up(MouseButton.Right), 65535L, 0L)),
+        Event.Paste("😀"), Event.Resize(80L, 24L), Event.FocusGained, Event.FocusLost
+    ]
+    gcCollect()
+    for (event in events) standardOutput.execute(Print(describe(event)), Print("\n"))
+    val flags = KeyboardEnhancementFlags().with(KeyboardEnhancement.DisambiguateEscapeCodes)
+        .with(KeyboardEnhancement.ReportEventTypes).with(KeyboardEnhancement.ReportAlternateKeys)
+        .with(KeyboardEnhancement.ReportAllKeysAsEscapeCodes)
+    standardOutput.execute(EnableMouseCapture, EnableFocusChange, EnableBracketedPaste,
+        PushKeyboardEnhancementFlags(flags), PopKeyboardEnhancementFlags,
+        DisableBracketedPaste, DisableFocusChange, DisableMouseCapture)
+}

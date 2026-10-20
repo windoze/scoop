@@ -1,0 +1,78 @@
+package scoop.terminal.asyncio
+
+import scoop.asyncio.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.terminal.TerminalSize
+import scoop.terminal.event.Event
+import scoop.terminal.protocol.InputParser
+import scoop.time.Duration
+
+public class AsyncTerminalSession private constructor(internal val tty: AsyncTty,
+    private val loop: EventLoop, parser: InputParser) : AsyncByteSink, AsyncCloseable {
+    internal val gate: SessionGate = SessionGate()
+    internal val raw: AtomicBoolean = AtomicBoolean(false)
+    internal val input: SessionInput = SessionInput(SessionReader(tty, parser, raw))
+    public val isClosed: Boolean get() = tty.isClosed
+
+    public companion object {
+        public suspend fun open(loop: EventLoop,
+            escapeDelay: Duration = Duration.milliseconds(50L)): AsyncTerminalSession {
+            val parser = InputParser(escapeDelay)
+            val tty = loop.openTty()
+            try { return AsyncTerminalSession(tty, loop, parser) }
+            catch (primary: Throwable) {
+                try { tty.close() }
+                catch (cleanup: Throwable) { throw ResourceUseException(primary, cleanup) }
+                throw primary
+            }
+        }
+    }
+
+    private fun requireJob(cancellable: Boolean) {
+        val current = try { currentEventLoop() }
+            catch (_: MissingContextException) { throw IllegalStateException(Some("missing event loop")) }
+        if (current !== loop) throw IllegalStateException(Some("wrong event loop"))
+        val job = currentJobOrNone() ?: throw IllegalStateException(Some("terminal I/O requires a Job"))
+        if (job.isCompleted) throw IllegalStateException(Some("terminal I/O requires an active Job"))
+        if (cancellable) job.ensureActive()
+        if (tty.isClosed) throw IoClosedException()
+    }
+
+    internal suspend fun <R> withAccess(reading: Boolean, writing: Boolean, cancellable: Boolean = true,
+        block: suspend () -> R): R {
+        requireJob(cancellable)
+        gate.acquire(reading, writing)
+        try { return block() }
+        finally { gate.release(reading, writing) }
+    }
+
+    public suspend fun read(): Event = withAccess(true, false) suspend { input.read() }
+    public suspend fun poll(timeout: Duration): Boolean {
+        if (timeout < Duration.ZERO) throw IllegalArgumentException(Some("negative terminal poll timeout"))
+        return withAccess(true, false) suspend { input.poll(Some(timeout)) }
+    }
+
+    public suspend fun size(): TerminalSize = withAccess(true, true) suspend {
+        val value = tty.size()
+        TerminalSize(value.columns, value.rows, value.widthPixels, value.heightPixels)
+    }
+    public suspend fun isRawMode(): Boolean = withAccess(true, true, false) suspend {
+        val value = tty.isRawMode()
+        raw.store(value)
+        value
+    }
+    public suspend fun enableRawMode() { withAccess(true, true) suspend { changeRaw(true) } }
+    public suspend fun disableRawMode() { withAccess(true, true, false) suspend { changeRaw(false) } }
+
+    public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long =
+        withAccess(false, true) suspend { tty.writeFrom(buffer, count) }
+    public override suspend fun flush() { withAccess(false, true) suspend { tty.flush() } }
+
+    public override suspend fun close() {
+        if (tty.isClosed && gate.isIdle) return
+        if (!tty.isClosed) requireJob(false)
+        gate.beginClose()
+        try { tty.close() }
+        finally { gate.awaitIdle() }
+    }
+}

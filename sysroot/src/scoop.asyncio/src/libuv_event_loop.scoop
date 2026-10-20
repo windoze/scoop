@@ -59,6 +59,7 @@ public class LibuvEventLoop public constructor() : EventLoop {
 
     public override suspend fun openFile(path: Path, options: OpenOptions): AsyncFile =
         openFileOnLoop(this, path, options)
+    public override suspend fun openTty(): AsyncTty = openTtyOnLoop(this)
 
     public override suspend fun metadata(path: Path, followLinks: Boolean): FileMetadata =
         metadataOnLoop(this, path, followLinks)

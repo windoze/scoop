@@ -78,6 +78,12 @@ native companion 显式作为 input，并用普通 argv 步骤调用 `${cc}`、`
 
 `${fixture}`、`${root}`、`${repo}`、`${runtime}`、`${target}` 也是内置值；三个 Scoop
 工具默认从 `target/debug` 取得，可用 CLI 参数或 `SCOOP_TEST_PAIRED_*` 指定。
+
+PTY fixture 声明 `tools = ["scoop", "scoopc", "terminal-host"]`，以普通 argv
+步骤调用 `${terminal-host}` 并传入 Scoop 产物。先按
+[host 说明](../terminal_host/README.md)构建测试工具；路径依次取 `--terminal-host`、
+`SCOOP_TEST_PAIRED_TERMINAL_HOST`、`target/debug/terminal-host`。
+runner 仅在选中用例需要时检查该可执行文件，不自动构建工具。
 `${step.result.output}` 等引用前一步实际 JSON；数组使用 `.0`，`.length` 取长度。
 文本或 bytes 的 `.hex` 返回十六进制字节表示；文本使用文件系统编码并保留原始字节，
 可组合 `${work.hex}2fff` 这类期望来比较 JSON 中的非 UTF-8 路径。字典的 `hex` 字段仍按普通字段读取。

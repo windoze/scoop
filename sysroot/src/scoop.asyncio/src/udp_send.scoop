@@ -5,7 +5,7 @@ import scoop.platform.net.SocketAddress
 
 private class SendProgress { var count: Long = 0L }
 
-internal suspend fun sendUdp(owner: OwnedSocket, buffer: NativeByteBuffer, destination: SocketAddress, count: Long): Long {
+internal suspend fun sendUdp(owner: OwnedEndpoint, buffer: NativeByteBuffer, destination: SocketAddress, count: Long): Long {
     val job = owner.loop.requireJob()
     val reservation = owner.reserve(true)
     try {
@@ -14,7 +14,7 @@ internal suspend fun sendUdp(owner: OwnedSocket, buffer: NativeByteBuffer, desti
 }
 
 @Unsafe
-private suspend fun sendBorrowed(owner: OwnedSocket, buffer: NativeByteBuffer,
+private suspend fun sendBorrowed(owner: OwnedEndpoint, buffer: NativeByteBuffer,
     destination: SocketAddress, count: Long, job: Job): Long {
     val target = ioAddress(destination)
     val borrowed = buffer.borrowReadable(count)

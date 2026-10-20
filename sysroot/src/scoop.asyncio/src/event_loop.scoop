@@ -12,6 +12,7 @@ public interface EventLoop {
     public suspend fun sleep(duration: Duration)
     public suspend fun resolve(host: OsString, port: Int, family: AddressFamily? = None): Array<SocketAddress>
     public suspend fun openFile(path: Path, options: OpenOptions = OpenOptions()): AsyncFile
+    public suspend fun openTty(): AsyncTty
     public suspend fun metadata(path: Path, followLinks: Boolean = true): FileMetadata
     public suspend fun moveFile(source: Path, destination: Path, replaceExisting: Boolean = false)
     public suspend fun deleteFile(path: Path)

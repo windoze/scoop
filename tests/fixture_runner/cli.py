@@ -35,6 +35,7 @@ def arguments(argv):
     parser.add_argument("--scoop", type=Path)
     parser.add_argument("--scoopc", type=Path)
     parser.add_argument("--scoop-link", type=Path)
+    parser.add_argument("--terminal-host", type=Path, help="prebuilt native PTY test host")
     parser.add_argument(
         "--target",
         choices=["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"],
@@ -102,7 +103,7 @@ def environment(repo, work, fixtures, args):
         if not fixture.data.get("targets") or target in fixture.data["targets"]
     ]
     needed = set().union(*(set(fixture.data.get("tools", ["scoop"])) for fixture in applicable))
-    for name in ("scoop", "scoopc", "scoop-link"):
+    for name in ("scoop", "scoopc", "scoop-link", "terminal-host"):
         configured = getattr(args, name.replace("-", "_")) or os.environ.get(
             "SCOOP_TEST_PAIRED_" + name.upper().replace("-", "_")
         )
@@ -110,7 +111,16 @@ def environment(repo, work, fixtures, args):
         common[name] = str(binary.resolve())
         if name in needed and (not binary.is_file() or not os.access(binary, os.X_OK)):
             raise EnvironmentError(f"required executable is missing: {binary}")
-    unknown = needed - {"scoop", "scoopc", "scoop-link", "cc", "ar", "llc", "python"}
+    unknown = needed - {
+        "scoop",
+        "scoopc",
+        "scoop-link",
+        "terminal-host",
+        "cc",
+        "ar",
+        "llc",
+        "python",
+    }
     if unknown:
         raise ConfigurationError(f"unknown required tools: {sorted(unknown)}")
     if "llc" in needed:

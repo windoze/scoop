@@ -1,0 +1,56 @@
+package scoop.terminal.asyncio
+
+import scoop.asyncio.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.terminal.TerminalDisconnectedException
+import scoop.terminal.protocol.*
+import scoop.time.Duration
+
+internal class SessionReader(private val tty: AsyncTty, internal val parser: InputParser,
+    private val raw: AtomicBoolean) {
+    private var ended: Boolean = false
+    internal val exhausted: Boolean get() = ended && !parser.hasPending
+
+    internal suspend fun next(timeout: Duration?): InputItem? {
+        val started = inputNow()
+        while (true) {
+            if (parser.hasPending) return parser.next()
+            if (ended) throw TerminalDisconnectedException()
+            val received = receive(Some(Duration.ZERO))
+            if (parser.hasPending) return parser.next()
+            if (ended) throw TerminalDisconnectedException()
+            if (!received) {
+                parser.advance(inputNow())
+                if (parser.hasPending) return parser.next()
+            }
+            if (inputExpired(started, timeout)) {
+                if (received && !receive(Some(Duration.ZERO))) parser.advance(inputNow())
+                if (parser.hasPending) return parser.next()
+                if (ended) throw TerminalDisconnectedException()
+                return None
+            }
+            if (!received) receive(shorter(inputRemaining(started, timeout), parser.escapeRemaining))
+        }
+    }
+
+    internal suspend fun receiveAvailable() { if (!ended) receive(Some(Duration.ZERO)) }
+
+    private suspend fun receive(timeout: Duration?): Boolean {
+        val buffer = NativeByteBuffer.allocate(4096L)
+        try {
+            try {
+                return when (tty.receive(buffer, buffer.capacity, timeout)) {
+                    case Bytes(_) -> true
+                    case Resize(columns, rows) -> { parser.feedResize(columns, rows); true }
+                    case End -> { ended = true; parser.finish(); true }
+                    case TimedOut -> false
+                }
+            } finally {
+                // Cancellation still commits bytes read before the selected terminal result.
+                if (buffer.readableBytes > 0L) {
+                    parser.feed(buffer.readBytes(buffer.readableBytes), inputNow(), raw.load())
+                }
+            }
+        } finally { buffer.close() }
+    }
+}

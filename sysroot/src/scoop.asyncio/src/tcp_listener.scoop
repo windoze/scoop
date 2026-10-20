@@ -7,7 +7,7 @@ public interface AsyncTcpListener : AsyncCloseable {
     public suspend fun accept(): AsyncTcpStream
 }
 
-internal class TcpListener(private val owner: OwnedSocket, public override val localAddress: SocketAddress) : AsyncTcpListener {
+internal class TcpListener(private val owner: OwnedEndpoint, public override val localAddress: SocketAddress) : AsyncTcpListener {
     public override suspend fun accept(): AsyncTcpStream {
         val job = owner.loop.requireJob()
         val reservation = owner.reserve(false)
@@ -16,7 +16,7 @@ internal class TcpListener(private val owner: OwnedSocket, public override val l
                 val operation = LoopOperation(owner.loop.state, owner.loop.state.nextOperation(),
                     { _, id -> @Unsafe { return@LoopOperation nativeStatus(id, nativeTcpAccept(owner.pointer, id)) } },
                     { _, id -> @Unsafe { nativeTcpAcceptCancel(owner.pointer, id) } },
-                    { event, selected -> finishSocketCreation<AsyncTcpStream>(owner.loop, SocketKind.Tcp, event.result, selected, continuation,
+                    { event, selected -> finishEndpointCreation<AsyncTcpStream>(owner.loop, EndpointKind.Tcp, event.result, selected, continuation,
                         { accepted -> TcpStream(accepted, tcpAddress(accepted.pointer, false), tcpAddress(accepted.pointer, true)) }) })
                 operation.subscribe(job)
                 owner.attach(operation, false)

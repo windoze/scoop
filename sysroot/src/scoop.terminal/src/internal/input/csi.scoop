@@ -1,0 +1,46 @@
+package scoop.terminal.internal.input
+
+import scoop.terminal.protocol.*
+import scoop.terminal.event.*
+import scoop.text.*
+
+internal fun decodeCsi(body: String, last: Char, raw: Boolean): InputItem {
+    if (body.startsWith("?") || body.startsWith(">")) return decodeDeviceReply(body, last)
+    if (body.startsWith("<")) return decodeMouse(body.substring(1L), last, false)
+    if (last == 'M') return decodeMouse(body, last, true)
+    if (last == 'u') return decodeKittyKey(body, raw)
+    if (last == 'n') return InputItem.DeviceStatus(decimal(body, 4294967295L))
+    if (last == 'R' && body != "" && !body.contains(':')) {
+        val coordinates = body.split(';')
+        if (coordinates.size != 2L) invalidInput("invalid cursor position reply")
+        return InputItem.CursorPosition(coordinate(coordinates[1L]), coordinate(coordinates[0L]))
+    }
+    if (last == 'I' || last == 'O' || last == 'Z') {
+        if (body != "") invalidInput("unexpected terminal event parameters")
+        return when (last) {
+            case 'I' -> InputItem.User(Event.FocusGained)
+            case 'O' -> InputItem.User(Event.FocusLost)
+            case _ -> userKey(KeyCode.BackTab, KeyModifiers().with(KeyModifier.Shift))
+        }
+    }
+    return decodeLegacyKey(body, last)
+}
+
+private fun decodeDeviceReply(body: String, last: Char): InputItem {
+    val secondary = body.startsWith(">")
+    val payload = body.substring(1L)
+    if (last == 'u' && !secondary) {
+        return InputItem.KeyboardFlags(KeyboardEnhancementFlags(decimal(payload, 4294967295L).toUInt()))
+    }
+    if (last != 'c') invalidInput("unknown terminal device reply")
+    val parts = payload.split(';')
+    return InputItem.DeviceAttributes(secondary, Array<Long>(parts.size) { index ->
+        decimal(parts[index], 4294967295L)
+    })
+}
+
+internal fun coordinate(text: String): Long {
+    val value = decimal(text, 65536L)
+    if (value == 0L) invalidInput("terminal coordinate must be positive")
+    return value - 1L
+}

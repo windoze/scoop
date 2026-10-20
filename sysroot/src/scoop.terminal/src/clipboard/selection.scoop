@@ -1,0 +1,47 @@
+package scoop.terminal.clipboard
+
+public enum ClipboardType {
+    Clipboard, Primary, Other(val selector: Char)
+
+    public fun selector(): Char = when (this) {
+        case Clipboard -> 'c'
+        case Primary -> 'p'
+        case Other(value) -> value
+    }
+}
+
+public struct ClipboardSelection(val destinations: Array<ClipboardType>) : ToString {
+    public override fun toString(): String {
+        val writer = StringWriter()
+        for (destination in destinations) {
+            val selector = destination.selector()
+            if (!validClipboardSelector(selector)) throw IllegalArgumentException(Some("invalid clipboard selector"))
+            writer.write(selector.toString())
+        }
+        return writer.toString()
+    }
+
+    public companion object {
+        public val clipboard: ClipboardSelection = ClipboardSelection([ClipboardType.Clipboard])
+        public val primary: ClipboardSelection = ClipboardSelection([ClipboardType.Primary])
+
+        public fun parseOrNone(text: String): ClipboardSelection? {
+            val values = ArrayList<ClipboardType>()
+            for (selector in text) {
+                if (!validClipboardSelector(selector)) return None
+                values.add(when (selector) {
+                    case 'c' -> ClipboardType.Clipboard
+                    case 'p' -> ClipboardType.Primary
+                    else -> ClipboardType.Other(selector)
+                })
+            }
+            return Some(ClipboardSelection(Array<ClipboardType>(values.size) { index -> values[index] }))
+        }
+
+        public fun parse(text: String): ClipboardSelection = parseOrNone(text)
+            ?: throw IllegalArgumentException(Some("invalid clipboard selection"))
+    }
+}
+
+private fun validClipboardSelector(selector: Char): Boolean =
+    selector >= ' ' && selector <= '~' && selector != ';'

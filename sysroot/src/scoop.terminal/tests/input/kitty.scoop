@@ -1,0 +1,61 @@
+package scoop.terminal.internal.input
+
+import scoop.terminal.protocol.*
+import scoop.terminal.event.*
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class KittyInputTest {
+    @Test
+    fun `Kitty combines six modifiers two locks and release without truncation`() {
+        val modifiers = KeyModifiers().with(KeyModifier.Shift).with(KeyModifier.Alt).with(KeyModifier.Control)
+            .with(KeyModifier.Super).with(KeyModifier.Hyper).with(KeyModifier.Meta)
+        val state = KeyEventState().with(KeyState.CapsLock).with(KeyState.NumLock)
+        assertSplitText("\u001b[97;256:3u", [key(KeyCode.Char('a'), modifiers, KeyEventKind.Release, state)])
+        assertSplitText("\u001b[128512;1:2u", [key(KeyCode.Char('😀'), KeyModifiers(), KeyEventKind.Repeat)])
+        assertSplitText("\u001b[9;2u\u001b[13u\u001b[27u\u001b[127u", [
+            key(KeyCode.BackTab, KeyModifiers().with(KeyModifier.Shift)), key(KeyCode.Enter),
+            key(KeyCode.Esc), key(KeyCode.Backspace)
+        ])
+    }
+
+    @Test
+    fun `alternate shifted key replaces code and consumes Shift only`() {
+        assertSplitText("\u001b[97:65;6u\u001b[97::113;5u\u001b[97;;97u", [
+            key(KeyCode.Char('A'), KeyModifiers().with(KeyModifier.Control)),
+            key(KeyCode.Char('a'), KeyModifiers().with(KeyModifier.Control)), key(KeyCode.Char('a'))
+        ])
+    }
+
+    @Test
+    fun `functional keys include keypad media and independent modifier releases`() {
+        val inputs = ["57358", "57363", "57376", "57398", "57399", "57408", "57414", "57427", "57428", "57440", "57441", "57454"]
+        val codes = [KeyCode.CapsLock, KeyCode.Menu, KeyCode.F(13), KeyCode.F(35), KeyCode.Char('0'),
+            KeyCode.Char('9'), KeyCode.Enter, KeyCode.KeypadBegin, KeyCode.Media(MediaKeyCode.Play),
+            KeyCode.Media(MediaKeyCode.MuteVolume), KeyCode.Modifier(ModifierKeyCode.LeftShift),
+            KeyCode.Modifier(ModifierKeyCode.IsoLevel5Shift)]
+        for (index in 0L..<inputs.size) {
+            val state = if (index >= 4L && index <= 7L) KeyEventState().with(KeyState.Keypad) else KeyEventState()
+            assertSplitText("\u001b[" + inputs[index] + ";1:3u", [key(codes[index], KeyModifiers(), KeyEventKind.Release, state)])
+        }
+        assertSplitText("\u001b[E\u001b[57427~", [
+            key(KeyCode.KeypadBegin, state = KeyEventState().with(KeyState.Keypad)),
+            key(KeyCode.KeypadBegin, state = KeyEventState().with(KeyState.Keypad))
+        ])
+    }
+
+    @Test
+    fun `Kitty rejects invalid scalars fields event types and numeric overflow`() {
+        val bodies = ["", "55296", "1114112", "999999999999999999999999", "97;0", "97;257",
+            "97;1:0", "97;1:4", "97;1:999999999999", "97:55296;2", "97::1114112",
+            "97;1;0", "97;1;55296", "97;1;97;98", "97:65:97:98", "97;-1", "+97"]
+        for (body in bodies) {
+            val parser = InputParser()
+            parser.feed(("\u001b[" + body + "ux").toByteArray(), Duration.ZERO)
+            expectInvalid(parser)
+            expectUser(parser, key(KeyCode.Char('x')))
+            expectEmpty(parser)
+        }
+    }
+}

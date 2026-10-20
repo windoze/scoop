@@ -1,0 +1,71 @@
+package scoop.terminal.internal.input
+
+import scoop.terminal.protocol.*
+import scoop.terminal.event.*
+import scoop.time.Duration
+
+internal fun InputParser.acceptByte(byte: Int, now: Duration) {
+    if ((mode == InputMode.Ss3 || mode == InputMode.LinuxFunction) && (byte < 64 || byte > 126)) {
+        emit(InputItem.Invalid("invalid byte in terminal function key"))
+        startKey(byte, now)
+        return
+    }
+    when (mode) {
+        case InputMode.Ground -> startKey(byte, now)
+        case InputMode.Escape -> when (byte) {
+            case 27 -> { emit(userKey(KeyCode.Esc)); startKey(byte, now) }
+            case 91 -> { mode = InputMode.Csi }
+            case 79 -> { mode = InputMode.Ss3 }
+            case _ -> { alt = true; startKey(byte, now) }
+        }
+        case InputMode.Utf8 -> continueUtf8(byte, now)
+        case InputMode.Paste -> acceptPaste(byte)
+        case InputMode.Mouse -> {
+            pending.add(byte.toByte())
+            if (pending.size == 3L) decodeComplete { decodeLegacyMouse(pending) }
+        }
+        case InputMode.Csi -> acceptCsi(byte, now)
+        case InputMode.Ss3 -> decodeComplete { decodeLegacyKey("", byte.toChar()) }
+        case InputMode.LinuxFunction -> decodeComplete {
+            if (byte < 65 || byte > 69) invalidInput("unknown Linux function key")
+            userKey(KeyCode.F(byte - 64))
+        }
+    }
+}
+
+internal fun InputParser.decodeComplete(decode: () -> InputItem) {
+    val item = try { decode() } catch (error: InputDecodeException) { InputItem.Invalid(error.detail) }
+    emit(item)
+}
+
+private fun InputParser.acceptCsi(byte: Int, now: Duration) {
+    if (pending.size == 0L && byte == 77) {
+        mode = InputMode.Mouse
+    } else if (pending.size == 0L && byte == 91) {
+        mode = InputMode.LinuxFunction
+    } else if (byte >= 64 && byte <= 126) {
+        val body = String.fromUtf8(pending)
+        if (byte == 126 && body == "200") {
+            reset()
+            mode = InputMode.Paste
+        } else decodeComplete { decodeCsi(body, byte.toChar(), raw) }
+    } else if (byte >= 32 && byte <= 63) {
+        pending.add(byte.toByte())
+    } else {
+        emit(InputItem.Invalid("invalid byte in terminal escape sequence"))
+        startKey(byte, now)
+    }
+}
+
+private val pasteEnd: Array<Byte> = "\u001b[201~".toByteArray()
+
+private fun InputParser.acceptPaste(byte: Int) {
+    pending.add(byte.toByte())
+    if (pending.size < pasteEnd.size) return
+    val start = pending.size - pasteEnd.size
+    for (index in 0L..<pasteEnd.size) {
+        if (pending[start + index] != pasteEnd[index]) return
+    }
+    for (index in 0L..<pasteEnd.size) pending.removeAt(pending.size - 1L)
+    emit(InputItem.User(Event.Paste(String.fromUtf8Lossy(pending))))
+}

@@ -1,0 +1,87 @@
+package scoop.terminal.protocol
+
+import scoop.collections.ArrayDeque
+import scoop.terminal.event.*
+import scoop.terminal.internal.input.*
+import scoop.time.Duration
+
+public class InputParser public constructor(internal val escapeDelay: Duration = Duration.milliseconds(50L)) {
+    internal var mode: InputMode = InputMode.Ground
+    internal val pending: ArrayList<Byte> = ArrayList<Byte>()
+    internal val output: ArrayDeque<InputItem> = ArrayDeque<InputItem>()
+    internal var escapeStarted: Duration? = None
+    internal var alt: Boolean = false
+    internal var utf8Width: Long = 0L
+    internal var raw: Boolean = true
+    private var lastTime: Duration = Duration.ZERO
+    private var ended: Boolean = false
+
+    init {
+        if (escapeDelay < Duration.ZERO) throw IllegalArgumentException(Some("negative Escape delay"))
+    }
+
+    public val hasPending: Boolean get() = output.size != 0L
+
+    public fun feed(bytes: List<Byte>, now: Duration, rawMode: Boolean = true) {
+        observeTime(now, false)
+        raw = rawMode
+        for (byte in bytes) acceptByte(byte.toInt() and 255, now)
+    }
+
+    public fun advance(now: Duration) { observeTime(now, true) }
+
+    public fun feedResize(columns: Long, rows: Long) {
+        if (ended) throw IllegalStateException(Some("input parser has ended"))
+        if (columns < 0L || rows < 0L) throw IllegalArgumentException(Some("negative terminal size"))
+        output.addLast(InputItem.User(Event.Resize(columns, rows)))
+    }
+
+    private fun observeTime(now: Duration, allowImmediate: Boolean) {
+        if (ended) throw IllegalStateException(Some("input parser has ended"))
+        if (now < lastTime) throw IllegalArgumentException(Some("terminal input time moved backwards"))
+        lastTime = now
+        if (escapeStarted != None && (allowImmediate || escapeDelay != Duration.ZERO)
+            && now - escapeStarted!! >= escapeDelay) expireEscape()
+    }
+
+    public val escapeRemaining: Duration? get() {
+        if (escapeStarted == None) return None
+        val elapsed = lastTime - escapeStarted!!
+        return Some(if (elapsed >= escapeDelay) Duration.ZERO else escapeDelay - elapsed)
+    }
+
+    public fun next(): InputItem? = output.removeFirstOrNone()
+
+    public fun finish() {
+        if (ended) return
+        if (mode == InputMode.Escape) output.addLast(userKey(KeyCode.Esc))
+        else if (mode != InputMode.Ground) output.addLast(InputItem.Invalid("incomplete terminal input at EOF"))
+        reset()
+        ended = true
+    }
+
+    internal fun reset() {
+        mode = InputMode.Ground
+        pending.clear()
+        escapeStarted = None
+        alt = false
+        utf8Width = 0L
+    }
+
+    internal fun emit(item: InputItem) {
+        output.addLast(item)
+        reset()
+    }
+
+    private fun expireEscape() {
+        val item = when (mode) {
+            case InputMode.Escape -> userKey(KeyCode.Esc)
+            case InputMode.Csi -> if (pending.size == 0L)
+                userKey(KeyCode.Char('['), KeyModifiers().with(KeyModifier.Alt))
+                else InputItem.Invalid("incomplete terminal escape sequence")
+            case InputMode.Ss3 -> userKey(KeyCode.Char('O'), KeyModifiers().with(KeyModifier.Alt))
+            case _ -> InputItem.Invalid("incomplete terminal escape sequence")
+        }
+        emit(item)
+    }
+}

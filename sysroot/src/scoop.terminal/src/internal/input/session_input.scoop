@@ -1,0 +1,41 @@
+package scoop.terminal.internal.input
+
+import scoop.terminal.protocol.*
+import scoop.collections.ArrayDeque
+import scoop.terminal.*
+import scoop.terminal.event.*
+import scoop.terminal.internal.platform.*
+import scoop.time.Duration
+
+internal class SessionInput(escapeDelay: Duration) {
+    internal val reader: SessionReader = SessionReader(escapeDelay)
+    internal val deferred: ArrayDeque<Event> = ArrayDeque<Event>()
+    private var ready: Event? = None
+
+    internal fun initialize(terminal: TerminalHandle) { reader.initialize(terminal) }
+
+    internal fun read(terminal: TerminalHandle): Event {
+        poll(terminal, None)
+        val event = ready!!
+        ready = None
+        return event
+    }
+
+    internal fun poll(terminal: TerminalHandle, timeout: Duration?): Boolean {
+        if (ready != None) return true
+        ready = deferred.removeFirstOrNone()
+        if (ready != None) return true
+        val started = inputNow()
+        while (true) {
+            when (reader.next(terminal, inputRemaining(started, timeout))) {
+                case None -> return false
+                case Some(InputItem.User(event)) -> { ready = Some(event); return true }
+                case Some(InputItem.Invalid(detail)) -> throw TerminalInputException(detail)
+                // Unsolicited device replies are not user input.
+                case Some(_) -> {}
+            }
+            if (reader.exhausted) throw TerminalDisconnectedException()
+            if (reader.parser.output.size == 0L && inputExpired(started, timeout)) return false
+        }
+    }
+}

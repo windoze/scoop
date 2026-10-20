@@ -1,0 +1,23 @@
+package scoop.terminal.asyncio
+
+import scoop.asyncio.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.terminal.*
+
+public suspend fun AsyncByteSink.queue(vararg commands: Command) {
+    ensureActive()
+    for (command in commands) writeText(command.toAnsiString())
+}
+
+public suspend fun AsyncByteSink.execute(vararg commands: Command) {
+    queue(*commands)
+    flush()
+}
+
+internal suspend fun AsyncByteSink.writeText(text: String) {
+    val bytes = text.toByteArray()
+    NativeByteBuffer.allocate(bytes.size).use suspend { output ->
+        output.writeBytes(bytes)
+        writeFully(output)
+    }
+}

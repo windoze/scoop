@@ -80,6 +80,19 @@ path = "native/udp_receive.c"
 path = "native/udp_send.c"
 
 [[native.sources]]
+path = "native/tty.c"
+[[native.sources]]
+path = "native/tty_open.c"
+[[native.sources]]
+path = "native/tty_poll.c"
+[[native.sources]]
+path = "native/tty_read.c"
+[[native.sources]]
+path = "native/tty_write.c"
+[[native.sources]]
+path = "native/tty_timer.c"
+
+[[native.sources]]
 path = "../../vendor/libuv/src/fs-poll.c"
 
 [[native.sources]]

@@ -1,0 +1,59 @@
+package scoop.terminal.style
+
+public enum Color {
+    Reset, Black, DarkGrey, Red, DarkRed, Green, DarkGreen, Yellow, DarkYellow,
+    Blue, DarkBlue, Magenta, DarkMagenta, Cyan, DarkCyan, White, Grey,
+    AnsiValue(val value: Int), Rgb(val red: Int, val green: Int, val blue: Int)
+
+    public companion object {
+        public fun parseOrNone(text: String): Color? = parseColorName(text)
+        public fun parse(text: String): Color = when (parseOrNone(text)) {
+            case Some(color) -> color
+            case None -> throw IllegalArgumentException(Some("unknown terminal color"))
+        }
+        public fun parseAnsiOrNone(text: String): Color? = parseAnsiColor(text)
+    }
+}
+
+public enum Colored {
+    ForegroundColor(val color: Color), BackgroundColor(val color: Color), UnderlineColor(val color: Color)
+
+    public fun toAnsiString(): String = when (this) {
+        case ForegroundColor(color) -> colorParameters(color, 38)
+        case BackgroundColor(color) -> colorParameters(color, 48)
+        case UnderlineColor(color) -> colorParameters(color, 58)
+    }
+
+    public companion object {
+        public fun parseAnsiOrNone(text: String): Colored? = parseColored(text)
+    }
+}
+
+public struct Colors(val foreground: Color? = None, val background: Color? = None)
+
+internal fun requireColorByte(value: Int) {
+    if (value < 0 || value > 255) throw IllegalArgumentException(Some("color component outside 0..255"))
+}
+
+internal fun colorParameters(color: Color, channel: Int): String {
+    val value = when (color) {
+        case Color.Reset -> return (channel + 1).toString()
+        case Color.Black -> "5;0"; case Color.DarkRed -> "5;1"
+        case Color.DarkGreen -> "5;2"; case Color.DarkYellow -> "5;3"
+        case Color.DarkBlue -> "5;4"; case Color.DarkMagenta -> "5;5"
+        case Color.DarkCyan -> "5;6"; case Color.Grey -> "5;7"
+        case Color.DarkGrey -> "5;8"; case Color.Red -> "5;9"
+        case Color.Green -> "5;10"; case Color.Yellow -> "5;11"
+        case Color.Blue -> "5;12"; case Color.Magenta -> "5;13"
+        case Color.Cyan -> "5;14"; case Color.White -> "5;15"
+        case Color.AnsiValue(index) -> {
+            requireColorByte(index)
+            "5;" + index.toString()
+        }
+        case Color.Rgb(red, green, blue) -> {
+            requireColorByte(red); requireColorByte(green); requireColorByte(blue)
+            "2;" + red.toString() + ";" + green.toString() + ";" + blue.toString()
+        }
+    }
+    return channel.toString() + ";" + value
+}

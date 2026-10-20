@@ -1,0 +1,51 @@
+package scoop.terminal.internal.input
+
+import scoop.terminal.protocol.*
+import scoop.terminal.event.*
+import scoop.test.*
+import scoop.time.Duration
+
+internal fun expectEmpty(parser: InputParser) {
+    when (parser.next()) {
+        case None -> return
+        case Some(_) -> fail(Some("unexpected trailing input"))
+    }
+}
+
+internal fun expectUser(parser: InputParser, expected: Event) {
+    when (parser.next()) {
+        case Some(InputItem.User(event)) -> assertTrue(event == expected, Some("unexpected terminal event"))
+        case _ -> fail(Some("expected a terminal user event"))
+    }
+}
+
+internal fun expectInvalid(parser: InputParser) {
+    when (parser.next()) {
+        case Some(InputItem.Invalid(detail)) -> assertTrue(detail != "")
+        case _ -> fail(Some("expected invalid terminal input"))
+    }
+}
+
+internal fun key(code: KeyCode, modifiers: KeyModifiers = KeyModifiers(),
+    kind: KeyEventKind = KeyEventKind.Press, state: KeyEventState = KeyEventState()): Event =
+    Event.Key(KeyEvent(code, modifiers, kind, state))
+
+internal fun assertSplitEvents(bytes: List<Byte>, expected: List<Event>, raw: Boolean = true) {
+    for (cut in 0L..bytes.size) {
+        val parser = InputParser()
+        parser.feed(Array<Byte>(cut) { index -> bytes[index] }, Duration.ZERO, raw)
+        parser.feed(Array<Byte>(bytes.size - cut) { index -> bytes[index + cut] }, Duration.ZERO, raw)
+        parser.finish()
+        for (event in expected) expectUser(parser, event)
+        expectEmpty(parser)
+    }
+    val parser = InputParser()
+    for (byte in bytes) parser.feed([byte], Duration.ZERO, raw)
+    parser.finish()
+    for (event in expected) expectUser(parser, event)
+    expectEmpty(parser)
+}
+
+internal fun assertSplitText(text: String, expected: List<Event>, raw: Boolean = true) {
+    assertSplitEvents(text.toByteArray(), expected, raw)
+}

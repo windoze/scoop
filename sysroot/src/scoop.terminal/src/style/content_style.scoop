@@ -1,0 +1,22 @@
+package scoop.terminal.style
+
+public struct ContentStyle(
+    val foregroundColor: Color? = None,
+    val backgroundColor: Color? = None,
+    val underlineColor: Color? = None,
+    val attributes: Attributes = Attributes()
+) {
+    public fun withForegroundColor(color: Color?): ContentStyle =
+        ContentStyle(color, backgroundColor, underlineColor, attributes)
+    public fun withBackgroundColor(color: Color?): ContentStyle =
+        ContentStyle(foregroundColor, color, underlineColor, attributes)
+    public fun withUnderlineColor(color: Color?): ContentStyle =
+        ContentStyle(foregroundColor, backgroundColor, color, attributes)
+    public fun withAttribute(attribute: Attribute): ContentStyle =
+        ContentStyle(foregroundColor, backgroundColor, underlineColor, attributes.with(attribute))
+    public fun withoutAttribute(attribute: Attribute): ContentStyle =
+        ContentStyle(foregroundColor, backgroundColor, underlineColor, attributes.without(attribute))
+    public fun <T : ToString> apply(content: T): StyledContent<T> = StyledContent(this, content)
+}
+
+public fun <T : ToString> T.styled(style: ContentStyle = ContentStyle()): StyledContent<T> = style.apply(this)

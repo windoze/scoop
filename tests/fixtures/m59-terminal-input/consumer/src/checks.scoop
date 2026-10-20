@@ -1,0 +1,31 @@
+import scoop.platform.io.standardOutput
+import scoop.terminal.*
+import scoop.terminal.event.*
+import scoop.terminal.screen.SetTitle
+
+fun check(value: Boolean, message: String) {
+    if (!value) {
+        eprintln(message)
+        throw IllegalStateException(Some(message))
+    }
+}
+
+fun stage(name: String) {
+    standardOutput.execute(SetTitle(name))
+    gcCollect()
+}
+
+fun key(character: Char): Event = Event.Key(KeyEvent(KeyCode.Char(character)))
+fun expect(actual: Event, expected: Event, message: String) { check(actual == expected, message) }
+fun installResize(mode: Int) { @Unsafe { check(nativeInstall(mode) == 0, "install prior signal") } }
+fun verifyResize() {
+    @Unsafe {
+        val result = nativeVerify()
+        check(result == 1, "prior signal behavior/restoration: " + result.toString())
+    }
+}
+
+@Extern(name = "m59_install_resize")
+private fun nativeInstall(mode: Int): Int
+@Extern(name = "m59_verify_resize")
+private fun nativeVerify(): Int

@@ -1,0 +1,32 @@
+package scoop.terminal.event
+
+public enum KeyModifier {
+    Shift, Alt, Control, Super, Hyper, Meta
+
+    internal val mask: UInt get() = when (this) {
+        case Shift -> 1u; case Alt -> 2u; case Control -> 4u
+        case Super -> 8u; case Hyper -> 16u; case Meta -> 32u
+    }
+}
+
+public struct KeyModifiers(val bits: UInt = 0u) {
+    public val isEmpty: Boolean get() = bits == 0u
+    public fun has(modifier: KeyModifier): Boolean = (bits and modifier.mask) != 0u
+    public fun with(modifier: KeyModifier): KeyModifiers = KeyModifiers(bits or modifier.mask)
+    public fun without(modifier: KeyModifier): KeyModifiers = KeyModifiers(bits and modifier.mask.inv())
+}
+
+public enum KeyState {
+    Keypad, CapsLock, NumLock
+
+    internal val mask: UInt get() = when (this) {
+        case Keypad -> 1u; case CapsLock -> 2u; case NumLock -> 4u
+    }
+}
+
+public struct KeyEventState(val bits: UInt = 0u) {
+    public val isEmpty: Boolean get() = bits == 0u
+    public fun has(state: KeyState): Boolean = (bits and state.mask) != 0u
+    public fun with(state: KeyState): KeyEventState = KeyEventState(bits or state.mask)
+    public fun without(state: KeyState): KeyEventState = KeyEventState(bits and state.mask.inv())
+}

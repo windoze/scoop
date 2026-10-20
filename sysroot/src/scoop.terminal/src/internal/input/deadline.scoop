@@ -1,0 +1,13 @@
+package scoop.terminal.internal.input
+
+import scoop.platform.time.MonotonicTimeSource
+import scoop.time.Duration
+
+internal fun inputNow(): Duration = MonotonicTimeSource.markNow().reading
+internal fun inputExpired(started: Duration, timeout: Duration?): Boolean =
+    timeout != None && inputNow() - started >= timeout!!
+internal fun inputRemaining(started: Duration, timeout: Duration?): Duration? {
+    if (timeout == None) return None
+    val elapsed = inputNow() - started
+    return Some(if (elapsed >= timeout!!) Duration.ZERO else timeout!! - elapsed)
+}

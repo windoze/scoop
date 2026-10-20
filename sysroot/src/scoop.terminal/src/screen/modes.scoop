@@ -1,0 +1,27 @@
+package scoop.terminal.screen
+
+import scoop.terminal.Command
+
+public object EnableLineWrap : Command {
+    public override fun writeAnsi(writer: TextWriter) { writer.write("\u001b[?7h") }
+}
+
+public object DisableLineWrap : Command {
+    public override fun writeAnsi(writer: TextWriter) { writer.write("\u001b[?7l") }
+}
+
+public object EnterAlternateScreen : Command {
+    public override fun writeAnsi(writer: TextWriter) { writer.write("\u001b[?1049h") }
+}
+
+public object LeaveAlternateScreen : Command {
+    public override fun writeAnsi(writer: TextWriter) { writer.write("\u001b[?1049l") }
+}
+
+public object BeginSynchronizedUpdate : Command {
+    public override fun writeAnsi(writer: TextWriter) { writer.write("\u001b[?2026h") }
+}
+
+public object EndSynchronizedUpdate : Command {
+    public override fun writeAnsi(writer: TextWriter) { writer.write("\u001b[?2026l") }
+}

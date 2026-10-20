@@ -1,0 +1,49 @@
+package scoop.terminal.style
+
+import scoop.terminal.Command
+import scoop.terminal.toAnsiString
+
+public struct SetStyle(val style: ContentStyle) : Command {
+    public override fun writeAnsi(writer: TextWriter) { writer.write(styleSequence(style, isColorOutputEnabled())) }
+}
+
+internal fun styleSequence(style: ContentStyle, colors: Boolean): String {
+    val background = when (style.backgroundColor) {
+        case Some(color) -> Colored.BackgroundColor(color).toAnsiString()
+        case None -> ""
+    }
+    val foreground = when (style.foregroundColor) {
+        case Some(color) -> Colored.ForegroundColor(color).toAnsiString()
+        case None -> ""
+    }
+    val underline = when (style.underlineColor) {
+        case Some(color) -> Colored.UnderlineColor(color).toAnsiString()
+        case None -> ""
+    }
+    val writer = StringWriter()
+    if (colors) {
+        if (background != "") writer.write("\u001b[" + background + "m")
+        if (foreground != "") writer.write("\u001b[" + foreground + "m")
+        if (underline != "") writer.write("\u001b[" + underline + "m")
+    }
+    SetAttributes(style.attributes).writeAnsi(writer)
+    return writer.toString()
+}
+
+public struct StyledContent<T : ToString>(val style: ContentStyle, val content: T) : Command, ToString {
+    public override fun writeAnsi(writer: TextWriter) {
+        val text = content.toString()
+        val colors = isColorOutputEnabled()
+        writer.write(styleSequence(style, colors))
+        writer.write(text)
+        if (!style.attributes.isEmpty) {
+            ResetColor.writeAnsi(writer)
+        } else if (colors) {
+            if (style.backgroundColor != None) writer.write("\u001b[49m")
+            if (style.foregroundColor != None) writer.write("\u001b[39m")
+            if (style.underlineColor != None) writer.write("\u001b[59m")
+        }
+    }
+
+    public override fun toString(): String = toAnsiString()
+}

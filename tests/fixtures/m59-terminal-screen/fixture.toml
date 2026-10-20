@@ -1,0 +1,24 @@
+schema = 1
+name = "m59-terminal-screen"
+inputs = ["consumer"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m59", "terminal", "prebuilt", "gc"]
+variants = [{name = "debug", vars = {mode = []}}, {name = "release", vars = {mode = ["--release"]}}]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${fixture}/consumer", {each = "${mode}"}, {each = "${link_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+env = {SCOOP_GC_STRESS_MOVE = "1"}
+exit = 0
+stdout = {hex = "1b5b3f32303236681b5b3f376c1b5b324a1b5b334a1b5b33541b5b383b32343b3830741b5d303b53636f6f70071b5b3f37681b5b3f323032366c"}
+stderr = ""

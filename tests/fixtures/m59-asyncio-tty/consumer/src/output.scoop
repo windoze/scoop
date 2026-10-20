@@ -1,0 +1,28 @@
+import scoop.asyncio.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.time.Duration
+
+suspend fun blockedOutput(loop: EventLoop, scope: CoroutineScope, tty: AsyncTty) {
+    NativeByteBuffer.allocate(4096L).use suspend { buffer ->
+        buffer.writeBytes(Array<Byte>(4096L) { _ -> 32 })
+        flow(true)
+        try {
+            val pending = scope.launch suspend { tty.writeFully(buffer) }
+            loop.sleep(Duration.milliseconds(10L))
+            var borrowed = false
+            try { buffer.clear() } catch (_: IllegalStateException) { borrowed = true }
+            check(borrowed, "output stop keeps write pending without blocking loop")
+            pending.cancel()
+            pending.join()
+            check(buffer.readPosition < 4096L, "cancelled blocked write retains unsent bytes")
+            buffer.clear()
+        } finally { flow(false) }
+    }
+}
+
+private fun flow(stopped: Boolean) {
+    @Unsafe { check(nativeFlow(if (stopped) 1 else 0) == 0, "TTY output flow control") }
+}
+
+@Extern(name = "m59_tty_flow")
+private fun nativeFlow(stopped: Int): Int

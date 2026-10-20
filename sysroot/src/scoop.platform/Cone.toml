@@ -60,3 +60,16 @@ path = "native/socket_open.c"
 path = "native/socket_io.c"
 [[native.sources]]
 path = "native/resolve.c"
+
+[[native.sources]]
+path = "native/tty/session.c"
+[[native.sources]]
+path = "native/tty/control.c"
+[[native.sources]]
+path = "native/tty/input.c"
+[[native.sources]]
+path = "native/tty/resize_linux.c"
+when = {os = "linux"}
+[[native.sources]]
+path = "native/tty/resize_darwin.c"
+when = {os = "darwin"}

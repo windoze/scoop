@@ -1,0 +1,54 @@
+package scoop.terminal.internal.input
+
+import scoop.terminal.protocol.*
+import scoop.terminal.event.*
+import scoop.test.*
+
+@Test
+private class QueryTest {
+    @Test
+    fun `cursor and device queries only accept their own reply shape`() {
+        val cursor = QueryReply(QueryKind.Cursor)
+        assertFalse(cursor.accept(InputItem.DeviceStatus(0L)).hasItem())
+        assertFalse(cursor.accept(InputItem.DeviceAttributes(false, [1L, 2L])).hasItem())
+        when (cursor.accept(InputItem.CursorPosition(8L, 3L))) {
+            case Some(InputItem.CursorPosition(column, row)) -> {
+                assertEquals(8L, column)
+                assertEquals(3L, row)
+            }
+            case _ -> fail(Some("missing cursor reply"))
+        }
+        val secondary = QueryReply(QueryKind.Secondary)
+        assertFalse(secondary.accept(InputItem.DeviceAttributes(false, [1L])).hasItem())
+        when (secondary.accept(InputItem.DeviceAttributes(true, [0L, 100L, 0L]))) {
+            case Some(InputItem.DeviceAttributes(kind, parameters)) -> {
+                assertTrue(kind)
+                assertEquals(100L, parameters[1L])
+            }
+            case _ -> fail(Some("missing secondary attributes"))
+        }
+    }
+
+    @Test
+    fun `keyboard probe waits for primary attributes and preserves zero and unknown flags`() {
+        for (bits in [0u, 15u, 4294967295u]) {
+            val reply = QueryReply(QueryKind.Keyboard)
+            assertFalse(reply.accept(InputItem.KeyboardFlags(KeyboardEnhancementFlags(bits))).hasItem())
+            assertFalse(reply.accept(InputItem.DeviceAttributes(true, [1L])).hasItem())
+            when (reply.accept(InputItem.DeviceAttributes(false, [1L, 2L]))) {
+                case Some(InputItem.KeyboardFlags(flags)) -> assertEquals(bits, flags.bits)
+                case _ -> fail(Some("missing keyboard flags"))
+            }
+        }
+    }
+
+    @Test
+    fun `primary attributes without keyboard flags means unsupported`() {
+        val reply = QueryReply(QueryKind.Keyboard)
+        assertFalse(reply.accept(InputItem.CursorPosition(0L, 0L)).hasItem())
+        when (reply.accept(InputItem.DeviceAttributes(false, [1L, 2L]))) {
+            case Some(InputItem.DeviceAttributes(false, _)) -> {}
+            case _ -> fail(Some("unsupported keyboard protocol was not identified"))
+        }
+    }
+}

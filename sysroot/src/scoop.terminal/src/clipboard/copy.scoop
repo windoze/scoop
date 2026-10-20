@@ -1,0 +1,21 @@
+package scoop.terminal.clipboard
+
+import scoop.io.encoding.Base64
+import scoop.terminal.Command
+
+public struct CopyToClipboard(
+    val content: Array<Byte>,
+    val destination: ClipboardSelection = ClipboardSelection.clipboard
+) : Command {
+    public override fun writeAnsi(writer: TextWriter) {
+        val selected = destination.toString()
+        val encoded = Base64.Default.encode(content)
+        writer.write("\u001b]52;" + selected + ";" + encoded + "\u001b\\")
+    }
+
+    public companion object {
+        public fun fromText(text: String,
+            destination: ClipboardSelection = ClipboardSelection.clipboard): CopyToClipboard =
+            CopyToClipboard(text.toByteArray(), destination)
+    }
+}

@@ -11,7 +11,7 @@ public interface AsyncTcpStream : AsyncByteStream, AsyncCloseable {
 
 private class ShutdownProgress { var submitted: Boolean = false }
 
-internal class TcpStream(private val owner: OwnedSocket,
+internal class TcpStream(private val owner: OwnedEndpoint,
     public override val localAddress: SocketAddress, public override val peerAddress: SocketAddress) : AsyncTcpStream {
     public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long =
         transferTcp(owner, buffer, count, false)

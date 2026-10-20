@@ -1,0 +1,43 @@
+package scoop.terminal
+
+import scoop.platform.io.ByteSink
+import scoop.platform.io.Utf8Writer
+
+public interface Command {
+    public fun writeAnsi(writer: TextWriter)
+}
+
+public fun Command.toAnsiString(): String {
+    val writer = StringWriter()
+    writeAnsi(writer)
+    return writer.toString()
+}
+
+public fun TextWriter.queue(vararg commands: Command) {
+    for (command in commands) command.writeAnsi(this)
+}
+
+public fun ByteSink.queue(vararg commands: Command) {
+    val writer = Utf8Writer(this)
+    for (command in commands) command.writeAnsi(writer)
+}
+
+public fun ByteSink.execute(vararg commands: Command) {
+    queue(*commands)
+    flush()
+}
+
+public struct Print<T : ToString>(val content: T) : Command {
+    public override fun writeAnsi(writer: TextWriter) { writer.write(content.toString()) }
+}
+
+internal fun requireTerminalParameter(value: Long, minimum: Long = 0L) {
+    if (value < minimum || value > 65535L) {
+        throw IllegalArgumentException(Some("terminal parameter outside supported range"))
+    }
+}
+
+internal fun writeCsiParameter(writer: TextWriter, value: Long, suffix: String) {
+    requireTerminalParameter(value)
+    writer.write("\u001b[" + value.toString() + suffix)
+}

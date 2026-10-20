@@ -1,0 +1,79 @@
+import scoop.platform.env.environmentVariable
+import scoop.platform.io.*
+import scoop.platform.system.*
+import scoop.terminal.*
+import scoop.terminal.screen.SetTitle
+
+class ExpectedFailure : Exception(None)
+
+fun unavailable() {
+    for (attempt in 0L..<2L) {
+        var rejected = false
+        try { TerminalSession.open().close() }
+        catch (error: PlatformException) {
+            rejected = true
+            check(error.nativeError != None)
+            check(error.nativeError!!.domain == NativeErrorDomain.PosixErrno)
+        }
+        check(rejected)
+    }
+    println("terminal unavailable: ok")
+}
+
+fun main() {
+    if (environmentVariable("M59_NO_TTY") != None) { unavailable(); return }
+    check(isTerminal(StandardStream.Input) && isTerminal(StandardStream.Output))
+    val flags = inputNonblocking()
+    check(flags >= 0)
+    val session = TerminalSession.open()
+    check(!session.isClosed && !session.isRawMode && inputNonblocking() == flags)
+    val size = session.size()
+    check(size.columns == 20L && size.rows == 8L)
+    check(size.widthPixels == 0L && size.heightPixels == 0L)
+    var busy = false
+    try { TerminalSession.open().close() }
+    catch (error: PlatformException) { busy = true }
+    check(busy)
+    session.use {
+        session.withRawMode {
+            check(session.isRawMode)
+            stage(session, "raw-outer")
+            session.withRawMode { stage(session, "raw-inner") }
+            check(session.isRawMode)
+            stage(session, "raw-after-inner")
+        }
+        check(!session.isRawMode)
+        session.disableRawMode()
+        stage(session, "restored")
+        try {
+            session.withRawMode { stage(session, "raw-throw"); throw ExpectedFailure() }
+        } catch (error: ExpectedFailure) { check(!session.isRawMode) }
+        stage(session, "after-throw")
+        session.enableRawMode()
+        session.enableRawMode()
+        stage(session, "raw-close")
+    }
+    session.close()
+    check(session.isClosed && inputNonblocking() == flags)
+    var closed = false
+    try { session.flush() } catch (error: IllegalStateException) { closed = true }
+    check(closed)
+    standardOutput.execute(SetTitle("closed"))
+    acknowledge()
+    redirected()
+    check(inputNonblocking() == flags, "stdin O_NONBLOCK changed")
+    standardOutput.execute(SetTitle("finished"))
+}
+
+fun redirected() {
+    redirect()
+    try {
+        check(!isTerminal(StandardStream.Input) && !isTerminal(StandardStream.Output))
+        TerminalSession.open().use { session ->
+            check(session.size().columns == 26L && session.size().rows == 11L)
+            stage(session, "redirected")
+            session.enableRawMode()
+            stage(session, "redirected-raw")
+        }
+    } finally { restore() }
+}

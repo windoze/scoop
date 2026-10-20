@@ -1,0 +1,40 @@
+schema = 1
+name = "m59-terminal-session"
+inputs = ["consumer"]
+tools = ["scoop", "scoopc", "terminal-host"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m59", "terminal", "pty", "native", "gc"]
+variants = [{name = "debug", vars = {mode = []}}, {name = "release", vars = {mode = ["--release"]}}]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${fixture}/consumer", {each = "${mode}"}, {each = "${link_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "session"
+argv = ["${terminal-host}", "session", "${build.result.output}"]
+env = {SCOOP_GC_STRESS_MOVE = "1"}
+exit = 0
+stdout = "terminal session: ok\n"
+stderr = ""
+
+[[steps]]
+name = "already_raw"
+argv = ["${terminal-host}", "session-raw", "${build.result.output}"]
+env = {SCOOP_GC_STRESS_MOVE = "1"}
+exit = 0
+stdout = "terminal session-raw: ok\n"
+stderr = ""
+
+[[steps]]
+name = "unavailable"
+argv = ["${build.result.output}"]
+env = {M59_NO_TTY = "1", SCOOP_GC_STRESS_MOVE = "1"}
+exit = 0
+stdout = "terminal unavailable: ok\n"
+stderr = ""

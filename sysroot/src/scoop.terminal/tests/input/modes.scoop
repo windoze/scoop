@@ -1,0 +1,45 @@
+package scoop.terminal.event
+
+import scoop.terminal.*
+import scoop.test.*
+
+@Test
+private class InputModesTest {
+    @Test
+    fun `input mode commands match protocol ordering`() {
+        assertEquals("\u001b[?1000h\u001b[?1002h\u001b[?1003h\u001b[?1015h\u001b[?1006h", EnableMouseCapture.toAnsiString())
+        assertEquals("\u001b[?1006l\u001b[?1015l\u001b[?1003l\u001b[?1002l\u001b[?1000l", DisableMouseCapture.toAnsiString())
+        assertEquals("\u001b[?1004h", EnableFocusChange.toAnsiString())
+        assertEquals("\u001b[?1004l", DisableFocusChange.toAnsiString())
+        assertEquals("\u001b[?2004h", EnableBracketedPaste.toAnsiString())
+        assertEquals("\u001b[?2004l", DisableBracketedPaste.toAnsiString())
+        val flags = KeyboardEnhancementFlags().with(KeyboardEnhancement.DisambiguateEscapeCodes)
+            .with(KeyboardEnhancement.ReportEventTypes).with(KeyboardEnhancement.ReportAlternateKeys)
+            .with(KeyboardEnhancement.ReportAllKeysAsEscapeCodes)
+        assertEquals("\u001b[>15u", PushKeyboardEnhancementFlags(flags).toAnsiString())
+        assertEquals("\u001b[>0u", PushKeyboardEnhancementFlags(KeyboardEnhancementFlags()).toAnsiString())
+        assertEquals("\u001b[<1u", PopKeyboardEnhancementFlags.toAnsiString())
+        val writer = StringWriter()
+        assertFailsWith<IllegalArgumentException> { PushKeyboardEnhancementFlags(KeyboardEnhancementFlags(16u)).writeAnsi(writer) }
+        assertEquals("", writer.toString())
+    }
+
+    @Test
+    fun `modifier state and enhancement sets are typed immutable values`() {
+        val modifiers = KeyModifiers().with(KeyModifier.Alt).with(KeyModifier.Control)
+        assertTrue(modifiers.has(KeyModifier.Alt))
+        assertFalse(modifiers.without(KeyModifier.Alt).has(KeyModifier.Alt))
+        assertTrue(modifiers.without(KeyModifier.Alt).has(KeyModifier.Control))
+        assertTrue(KeyModifiers().isEmpty)
+        val state = KeyEventState().with(KeyState.Keypad).with(KeyState.NumLock)
+        assertTrue(state.has(KeyState.Keypad))
+        assertFalse(state.without(KeyState.NumLock).has(KeyState.NumLock))
+        val flags = KeyboardEnhancementFlags().with(KeyboardEnhancement.ReportEventTypes)
+        assertTrue(flags.has(KeyboardEnhancement.ReportEventTypes))
+        assertTrue(flags.without(KeyboardEnhancement.ReportEventTypes).isEmpty)
+        val event = KeyEvent(KeyCode.Char('a'))
+        assertTrue(event.kind == KeyEventKind.Press)
+        assertTrue(event.modifiers.isEmpty)
+        assertTrue(event.state.isEmpty)
+    }
+}

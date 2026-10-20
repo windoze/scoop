@@ -1,0 +1,16 @@
+schema = 1
+[cone]
+group = "test"
+name = "m59.terminal.session"
+version = "0.1.0"
+kind = "executable"
+
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"scoop:scoop.platform" = "0.1.0"
+"scoop:scoop.terminal" = "0.1.0"
+
+[native]
+c_flags = ["-std=c11", "-Wall", "-Wextra", "-Werror"]
+[[native.sources]]
+path = "native/probe.c"

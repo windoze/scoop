@@ -1,0 +1,46 @@
+package scoop.terminal.internal.input
+
+import scoop.terminal.protocol.*
+import scoop.terminal.event.*
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class MouseInputTest {
+    @Test
+    fun `SGR reports buttons drags motion wheels and modifiers`() {
+        val numbers = ["0", "1", "2", "32", "33", "34", "35", "64", "65", "66", "67"]
+        val kinds = [MouseEventKind.Down(MouseButton.Left), MouseEventKind.Down(MouseButton.Middle),
+            MouseEventKind.Down(MouseButton.Right), MouseEventKind.Drag(MouseButton.Left),
+            MouseEventKind.Drag(MouseButton.Middle), MouseEventKind.Drag(MouseButton.Right),
+            MouseEventKind.Moved, MouseEventKind.ScrollUp, MouseEventKind.ScrollDown,
+            MouseEventKind.ScrollLeft, MouseEventKind.ScrollRight]
+        for (index in 0L..<numbers.size) {
+            assertSplitText("\u001b[<" + numbers[index] + ";300;42M", [Event.Mouse(MouseEvent(kinds[index], 299L, 41L))])
+        }
+        assertSplitText("\u001b[<29;1;65536m", [Event.Mouse(MouseEvent(MouseEventKind.Up(MouseButton.Middle),
+            0L, 65535L, KeyModifiers().with(KeyModifier.Shift).with(KeyModifier.Alt).with(KeyModifier.Control)))])
+    }
+
+    @Test
+    fun `traditional and rxvt mouse encodings retain their coordinate biases`() {
+        assertSplitText("\u001b[M !!", [Event.Mouse(MouseEvent(MouseEventKind.Down(MouseButton.Left), 0L, 0L))])
+        assertSplitText("\u001b[M#\"#", [Event.Mouse(MouseEvent(MouseEventKind.Up(MouseButton.Left), 1L, 2L))])
+        assertSplitText("\u001b[96;700;900M", [Event.Mouse(MouseEvent(MouseEventKind.ScrollUp, 699L, 899L))])
+        assertSplitText("\u001b[<2;1;2;m", [Event.Mouse(MouseEvent(MouseEventKind.Up(MouseButton.Right), 0L, 1L))])
+    }
+
+    @Test
+    fun `mouse range errors consume only their report`() {
+        val reports = ["\u001b[<0;0;1M", "\u001b[<0;1;0M", "\u001b[<0;65537;1M",
+            "\u001b[<256;1;1M", "\u001b[<128;1;1M", "\u001b[<0;1;1;2M",
+            "\u001b[31;1;1M", "\u001b[M  !", "\u001b[M\u001f!!"]
+        for (report in reports) {
+            val parser = InputParser()
+            parser.feed((report + "x").toByteArray(), Duration.ZERO)
+            expectInvalid(parser)
+            expectUser(parser, key(KeyCode.Char('x')))
+            expectEmpty(parser)
+        }
+    }
+}

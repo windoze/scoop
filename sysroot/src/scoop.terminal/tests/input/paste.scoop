@@ -1,0 +1,44 @@
+package scoop.terminal.internal.input
+
+import scoop.terminal.protocol.*
+import scoop.terminal.event.*
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class PasteInputTest {
+    @Test
+    fun `paste preserves controls and partial terminators at every byte split`() {
+        val content = " 中😀\r\n\u0000\u001b[201x\u001b[200~ "
+        assertSplitText("\u001b[200~" + content + "\u001b[201~x", [
+            Event.Paste(content), key(KeyCode.Char('x'))
+        ])
+        assertSplitText("\u001b[200~\u001b[201~\u001b[200~a\u001b[201~", [Event.Paste(""), Event.Paste("a")])
+    }
+
+    @Test
+    fun `only paste uses lossy UTF-8 decoding`() {
+        val bytes = ArrayList<Byte>()
+        for (byte in "\u001b[200~".toByteArray()) bytes.add(byte)
+        bytes.add(0xff.toByte())
+        bytes.add(0xe4.toByte())
+        for (byte in "x\u001b[201~".toByteArray()) bytes.add(byte)
+        assertSplitEvents(bytes, [Event.Paste("��x")])
+    }
+
+    @Test
+    fun `paste has no Escape deadline and EOF reports truncation once`() {
+        val parser = InputParser()
+        parser.feed("\u001b[200~hello\u001b[20".toByteArray(), Duration.ZERO)
+        parser.advance(Duration.seconds(100L))
+        expectEmpty(parser)
+        assertTrue(parser.escapeRemaining == None)
+        parser.feed("1~".toByteArray(), Duration.seconds(101L))
+        expectUser(parser, Event.Paste("hello"))
+        parser.feed("\u001b[200~unfinished".toByteArray(), Duration.seconds(101L))
+        parser.finish()
+        expectInvalid(parser)
+        parser.finish()
+        expectEmpty(parser)
+    }
+}

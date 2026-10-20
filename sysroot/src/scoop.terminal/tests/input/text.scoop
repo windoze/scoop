@@ -1,0 +1,77 @@
+package scoop.terminal.internal.input
+
+import scoop.terminal.protocol.*
+import scoop.terminal.event.*
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class InputTextTest {
+    @Test
+    fun `UTF-8 and Unicode uppercase survive every split`() {
+        val shift = KeyModifiers().with(KeyModifier.Shift)
+        assertSplitText("aZÉΩЯ𐐀中😀ǅ", [
+            key(KeyCode.Char('a')), key(KeyCode.Char('Z'), shift), key(KeyCode.Char('É'), shift),
+            key(KeyCode.Char('Ω'), shift), key(KeyCode.Char('Я'), shift), key(KeyCode.Char('𐐀'), shift),
+            key(KeyCode.Char('中')), key(KeyCode.Char('😀')), key(KeyCode.Char('ǅ'))
+        ])
+        assertTrue(isUppercaseKey('\u2160'))
+        assertFalse(isUppercaseKey('\u2170'))
+        assertFalse(isUppercaseKey('['))
+        assertFalse(isUppercaseKey('@'))
+    }
+
+    @Test
+    fun `control bytes retain raw and cooked distinctions`() {
+        val control = KeyModifiers().with(KeyModifier.Control)
+        assertSplitText("\r\n\t\u007f\u0000\u0001\u001a\u001c\u001d\u001e\u001f", [
+            key(KeyCode.Enter), key(KeyCode.Char('j'), control), key(KeyCode.Tab), key(KeyCode.Backspace),
+            key(KeyCode.Char(' '), control), key(KeyCode.Char('a'), control), key(KeyCode.Char('z'), control),
+            key(KeyCode.Char('4'), control), key(KeyCode.Char('5'), control),
+            key(KeyCode.Char('6'), control), key(KeyCode.Char('7'), control)
+        ])
+        assertSplitText("\n\r", [key(KeyCode.Enter), key(KeyCode.Enter)], false)
+    }
+
+    @Test
+    fun `Alt characters and controls survive fragmented UTF-8`() {
+        val alt = KeyModifiers().with(KeyModifier.Alt)
+        assertSplitText("\u001b中\u001bA\u001b\u0001", [
+            key(KeyCode.Char('中'), alt), key(KeyCode.Char('A'), alt.with(KeyModifier.Shift)),
+            key(KeyCode.Char('a'), alt.with(KeyModifier.Control))
+        ])
+    }
+
+    @Test
+    fun `bad UTF-8 consumes only the malformed prefix`() {
+        val parser = InputParser()
+        parser.feed([0xe2.toByte(), 0x82.toByte(), 120.toByte(), 0xff.toByte(), 121.toByte()], Duration.ZERO)
+        expectInvalid(parser)
+        expectUser(parser, key(KeyCode.Char('x')))
+        expectInvalid(parser)
+        expectUser(parser, key(KeyCode.Char('y')))
+        expectEmpty(parser)
+        for (bytes in [
+            [0xed.toByte(), 0xa0.toByte(), 0x80.toByte()],
+            [0xe0.toByte(), 0x80.toByte(), 0x80.toByte()],
+            [0xf4.toByte(), 0x90.toByte(), 0x80.toByte(), 0x80.toByte()]
+        ]) {
+            parser.feed(bytes, Duration.ZERO)
+            expectInvalid(parser)
+            expectEmpty(parser)
+        }
+    }
+
+    @Test
+    fun `ordinary incomplete UTF-8 waits until EOF`() {
+        val parser = InputParser()
+        parser.feed([0xe4.toByte(), 0xb8.toByte()], Duration.ZERO)
+        parser.advance(Duration.seconds(20L))
+        expectEmpty(parser)
+        parser.finish()
+        expectInvalid(parser)
+        expectEmpty(parser)
+        parser.finish()
+        assertFailsWith<IllegalStateException> { parser.feed("".toByteArray(), Duration.seconds(20L)) }
+    }
+}

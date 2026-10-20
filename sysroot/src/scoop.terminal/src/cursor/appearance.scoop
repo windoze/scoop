@@ -1,0 +1,45 @@
+package scoop.terminal.cursor
+
+import scoop.terminal.Command
+
+public object SavePosition : Command {
+    public override fun writeAnsi(writer: TextWriter) { writer.write("\u001b7") }
+}
+
+public object RestorePosition : Command {
+    public override fun writeAnsi(writer: TextWriter) { writer.write("\u001b8") }
+}
+
+public object Hide : Command {
+    public override fun writeAnsi(writer: TextWriter) { writer.write("\u001b[?25l") }
+}
+
+public object Show : Command {
+    public override fun writeAnsi(writer: TextWriter) { writer.write("\u001b[?25h") }
+}
+
+public object EnableBlinking : Command {
+    public override fun writeAnsi(writer: TextWriter) { writer.write("\u001b[?12h") }
+}
+
+public object DisableBlinking : Command {
+    public override fun writeAnsi(writer: TextWriter) { writer.write("\u001b[?12l") }
+}
+
+public enum SetCursorStyle : Command {
+    DefaultUserShape, BlinkingBlock, SteadyBlock, BlinkingUnderScore,
+    SteadyUnderScore, BlinkingBar, SteadyBar
+
+    public override fun writeAnsi(writer: TextWriter) {
+        val code = when (this) {
+            case DefaultUserShape -> "0"
+            case BlinkingBlock -> "1"
+            case SteadyBlock -> "2"
+            case BlinkingUnderScore -> "3"
+            case SteadyUnderScore -> "4"
+            case BlinkingBar -> "5"
+            case SteadyBar -> "6"
+        }
+        writer.write("\u001b[" + code + " q")
+    }
+}

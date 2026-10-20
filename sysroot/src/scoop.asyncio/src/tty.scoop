@@ -1,0 +1,51 @@
+package scoop.asyncio
+
+import scoop.platform.memory.NativeByteBuffer
+import scoop.time.Duration
+
+public struct TtySize(val columns: Long, val rows: Long, val widthPixels: Long, val heightPixels: Long)
+public enum TtyRead { Bytes(val count: Long), Resize(val columns: Long, val rows: Long), End, TimedOut }
+
+public interface AsyncTty : AsyncByteSink, AsyncCloseable {
+    public val isClosed: Boolean
+    public suspend fun receive(buffer: NativeByteBuffer, count: Long, timeout: Duration? = None): TtyRead
+    public suspend fun size(): TtySize
+    public suspend fun isRawMode(): Boolean
+    public suspend fun enableRawMode()
+    public suspend fun disableRawMode()
+}
+
+internal class TtyEndpoint(internal val owner: OwnedEndpoint) : AsyncTty {
+    internal var pendingResize: TtyRead? = None
+    public override val isClosed: Boolean get() = owner.isClosed
+
+    public override suspend fun receive(buffer: NativeByteBuffer, count: Long, timeout: Duration?): TtyRead =
+        receiveTty(this, buffer, count, timeout)
+    public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long = writeTty(owner, buffer, count)
+    public override suspend fun flush() { owner.loop.requireJob(); owner.reserve(true).dispose() }
+    public override suspend fun close() { owner.close() }
+
+    public override suspend fun size(): TtySize = when (controlTty(owner, TtyControl.Size)) {
+        case IoResult.TtySizeValue(size) -> size
+        case _ -> throw IllegalStateException(Some("TTY size returned no value"))
+    }
+    public override suspend fun isRawMode(): Boolean = when (controlTty(owner, TtyControl.ReadMode)) {
+        case IoResult.TtyMode(raw) -> raw
+        case _ -> throw IllegalStateException(Some("TTY mode returned no value"))
+    }
+    public override suspend fun enableRawMode() { controlTty(owner, TtyControl.Enable) }
+    public override suspend fun disableRawMode() { controlTty(owner, TtyControl.Disable) }
+}
+
+internal suspend fun openTtyOnLoop(loop: LibuvEventLoop): AsyncTty {
+    val job = loop.requireJob()
+    return suspendCoroutine<AsyncTty> { continuation ->
+        val operation = LoopOperation(loop.state, loop.state.nextOperation(),
+            { native, id -> @Unsafe { return@LoopOperation nativeStatus(id, nativeTtyOpen(native, id)) } },
+            { _, _ -> },
+            { event, selected -> finishEndpointCreation<AsyncTty>(loop, EndpointKind.Tty, event.result, selected,
+                continuation, { owner -> TtyEndpoint(owner) }) })
+        operation.subscribe(job)
+        loop.state.submit(operation)
+    }
+}

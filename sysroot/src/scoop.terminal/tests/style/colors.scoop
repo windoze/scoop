@@ -1,0 +1,78 @@
+package scoop.terminal.style
+
+import scoop.terminal.*
+import scoop.test.*
+
+@Test
+private class ColorTest {
+    @Test
+    fun `basic palette uses the same ANSI slots across all channels`() {
+        val colors = [Color.Black, Color.DarkRed, Color.DarkGreen, Color.DarkYellow,
+            Color.DarkBlue, Color.DarkMagenta, Color.DarkCyan, Color.Grey,
+            Color.DarkGrey, Color.Red, Color.Green, Color.Yellow,
+            Color.Blue, Color.Magenta, Color.Cyan, Color.White]
+        for (index in 0L..<colors.size) {
+            assertEquals("38;5;" + index.toString(), Colored.ForegroundColor(colors[index]).toAnsiString())
+            assertEquals("48;5;" + index.toString(), Colored.BackgroundColor(colors[index]).toAnsiString())
+            assertEquals("58;5;" + index.toString(), Colored.UnderlineColor(colors[index]).toAnsiString())
+        }
+    }
+
+    @Test
+    fun `RGB indexed and default colors preserve exact SGR parameters`() {
+        assertEquals("38;2;0;128;255", Colored.ForegroundColor(Color.Rgb(0, 128, 255)).toAnsiString())
+        assertEquals("48;5;255", Colored.BackgroundColor(Color.AnsiValue(255)).toAnsiString())
+        assertEquals("39", Colored.ForegroundColor(Color.Reset).toAnsiString())
+        assertEquals("49", Colored.BackgroundColor(Color.Reset).toAnsiString())
+        assertEquals("59", Colored.UnderlineColor(Color.Reset).toAnsiString())
+    }
+
+    @Test
+    fun `name and ANSI parsers reject malformed or out of range input`() {
+        assertTrue(Color.parse("DaRk_BlUe") == Color.DarkBlue)
+        assertTrue(Color.parseOrNone("unknown") == None)
+        assertFailsWith<IllegalArgumentException> { Color.parse("unknown") }
+        assertTrue(Color.parseAnsiOrNone("5;9") == Some(Color.Red))
+        assertTrue(Color.parseAnsiOrNone("5;16") == Some(Color.AnsiValue(16)))
+        assertTrue(Color.parseAnsiOrNone("2;1;2;3") == Some(Color.Rgb(1, 2, 3)))
+        for (text in ["", "5;", "5;-1", "5;256", "5;1;2", "2;1;2", "2;1;2;3;4",
+            "5;+1", "5; 1", "5;999999999999999999999999999", "5;１"]) {
+            assertTrue(Color.parseAnsiOrNone(text) == None)
+        }
+        assertTrue(Colored.parseAnsiOrNone("59") == Some(Colored.UnderlineColor(Color.Reset)))
+        assertTrue(Colored.parseAnsiOrNone("38;2;1;2;3") == Some(Colored.ForegroundColor(Color.Rgb(1, 2, 3))))
+        assertTrue(Colored.parseAnsiOrNone("48;5;200") == Some(Colored.BackgroundColor(Color.AnsiValue(200))))
+        for (text in ["39;0", "37", "38;5;256", "58;2;1;2", "0;5;1"]) {
+            assertTrue(Colored.parseAnsiOrNone(text) == None)
+        }
+    }
+
+    @Test
+    fun `set colors combines channels and validates before output`() {
+        forceColorOutput(true)
+        try {
+            assertEquals("\u001b[38;5;9;48;5;4m", SetColors(Colors(Some(Color.Red), Some(Color.DarkBlue))).toAnsiString())
+            assertEquals("", SetColors(Colors()).toAnsiString())
+            assertEquals("\u001b[49m", SetColors(Colors(background = Some(Color.Reset))).toAnsiString())
+            val writer = StringWriter()
+            assertFailsWith<IllegalArgumentException> {
+                SetColors(Colors(Some(Color.Green), Some(Color.Rgb(0, -1, 0)))).writeAnsi(writer)
+            }
+            assertEquals("", writer.toString())
+        } finally { resetColorOutput() }
+    }
+
+    @Test
+    fun `disabled colors emit nothing without clearing attributes`() {
+        forceColorOutput(false)
+        try {
+            val writer = StringWriter()
+            writer.queue(SetForegroundColor(Color.Red), SetBackgroundColor(Color.Reset),
+                SetUnderlineColor(Color.Rgb(1, 2, 3)), SetColors(Colors(Some(Color.White))),
+                SetAttribute(Attribute.Bold))
+            assertEquals("\u001b[1m", writer.toString())
+            assertEquals("\u001b[0m", ResetColor.toAnsiString())
+            assertFailsWith<IllegalArgumentException> { SetForegroundColor(Color.AnsiValue(256)).toAnsiString() }
+        } finally { resetColorOutput() }
+    }
+}

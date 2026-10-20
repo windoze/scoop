@@ -1,0 +1,43 @@
+package scoop.asyncio
+
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.memory.NativeByteBorrow
+import scoop.platform.io.WriteZeroException
+
+private class TtyWriteProgress { var count: Long = 0L }
+
+internal suspend fun writeTty(owner: OwnedEndpoint, buffer: NativeByteBuffer, count: Long): Long {
+    val job = owner.loop.requireJob()
+    val reservation = owner.reserve(true)
+    try {
+        val borrowed = borrowTty(buffer, count, true)
+        val progress = TtyWriteProgress()
+        try {
+            if (count == 0L) return 0L
+            return suspendCoroutine<Long> { continuation ->
+                val operation = LoopOperation(owner.loop.state, owner.loop.state.nextOperation(),
+                    { _, id -> @Unsafe {
+                        return@LoopOperation nativeStatus(id, nativeTtyWrite(owner.pointer, id, borrowed.pointer(), count))
+                    } },
+                    { _, id -> @Unsafe { nativeTtyCancelWrite(owner.pointer, id) } },
+                    { event, selected ->
+                        progress.count = resultProgress(event.result)
+                        when (completionFailure("TTY write", event.result, selected)) {
+                            case Some(error) -> continuation.resumeWithException(error)
+                            case None -> {
+                                if (progress.count == 0L) continuation.resumeWithException(WriteZeroException())
+                                else continuation.resume(progress.count)
+                            }
+                        }
+                    })
+                operation.subscribe(job)
+                owner.attach(operation, true)
+                owner.loop.state.submit(operation)
+            }
+        } finally { @Unsafe { borrowed.complete(progress.count) } }
+    } finally { reservation.dispose() }
+}
+
+internal fun borrowTty(buffer: NativeByteBuffer, count: Long, writing: Boolean): NativeByteBorrow {
+    @Unsafe { return if (writing) buffer.borrowReadable(count) else buffer.borrowWritable(count) }
+}

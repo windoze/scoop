@@ -1,0 +1,91 @@
+package scoop.terminal.style
+
+import scoop.terminal.*
+import scoop.test.*
+
+private class FailingContent(val failure: Throwable) : ToString {
+    public override fun toString(): String { throw failure }
+}
+
+@Test
+private class ContentStyleTest {
+    @Test
+    fun `attribute sets are values and keep distinct underline variants`() {
+        val original = Attributes().with(Attribute.Bold).with(Attribute.NotOverLined)
+        val derived = original.without(Attribute.Bold).toggled(Attribute.Undercurled)
+        assertTrue(original.has(Attribute.Bold))
+        assertFalse(original.has(Attribute.Undercurled))
+        assertFalse(derived.has(Attribute.Bold))
+        assertTrue(derived.has(Attribute.NotOverLined))
+        assertTrue(derived.has(Attribute.Undercurled))
+        assertTrue(Attributes().with(Attribute.Reset).without(Attribute.Reset).isEmpty)
+        assertEquals("\u001b[4:3m\u001b[55m", SetAttributes(derived).toAnsiString())
+        assertEquals("\u001b[1m\u001b[55m", SetAttributes(original.with(Attribute.Bold)).toAnsiString())
+        val writer = StringWriter()
+        assertFailsWith<IllegalArgumentException> { SetAttributes(Attributes(0x80000001u)).writeAnsi(writer) }
+        assertEquals("", writer.toString())
+    }
+
+    @Test
+    fun `all SGR attributes have independent protocol encodings`() {
+        val expected = ["0", "1", "2", "3", "4", "4:2", "4:3", "4:4", "4:5",
+            "5", "6", "7", "8", "9", "20", "21", "22", "23", "24", "25",
+            "27", "28", "29", "51", "52", "53", "54", "55"]
+        assertEquals(expected.size, allAttributes.size)
+        for (index in 0L..<expected.size) {
+            assertEquals("\u001b[" + expected[index] + "m", SetAttribute(allAttributes[index]).toAnsiString())
+        }
+    }
+
+    @Test
+    fun `color only styles reset exactly the selected channels`() {
+        forceColorOutput(true)
+        try {
+            val style = ContentStyle(Some(Color.Red), Some(Color.DarkBlue), Some(Color.Rgb(1, 2, 3)))
+            assertEquals("\u001b[48;5;4m\u001b[38;5;9m\u001b[58;2;1;2;3m中😀"
+                + "\u001b[49m\u001b[39m\u001b[59m", style.apply("中😀").toString())
+            assertEquals("\u001b[58;5;9mx\u001b[59m",
+                "x".styled(ContentStyle(underlineColor = Some(Color.Red))).toAnsiString())
+            assertEquals("plain", "plain".styled().toString())
+        } finally { resetColorOutput() }
+    }
+
+    @Test
+    fun `attribute styles reset all and derived styles preserve their source`() {
+        forceColorOutput(true)
+        try {
+            val source = ContentStyle(foregroundColor = Some(Color.Red))
+            val derived = source.withBackgroundColor(Some(Color.Blue)).withAttribute(Attribute.Bold)
+            assertTrue(source.backgroundColor == None)
+            assertTrue(source.attributes.isEmpty)
+            assertEquals("\u001b[48;5;12m\u001b[38;5;9m\u001b[1m42\u001b[0m", derived.apply(42).toString())
+            assertTrue(derived.withoutAttribute(Attribute.Bold).attributes.isEmpty)
+        } finally { resetColorOutput() }
+    }
+
+    @Test
+    fun `disabled color style has no stray color reset`() {
+        forceColorOutput(false)
+        try {
+            val style = ContentStyle(Some(Color.Green), None, Some(Color.Red))
+            assertEquals("text", style.apply("text").toString())
+            assertEquals("\u001b[4mtext\u001b[0m", style.withAttribute(Attribute.Underlined).apply("text").toString())
+        } finally { resetColorOutput() }
+    }
+
+    @Test
+    fun `invalid styles and failing content leave the writer untouched`() {
+        forceColorOutput(true)
+        try {
+            val writer = StringWriter()
+            assertFailsWith<IllegalArgumentException> {
+                SetStyle(ContentStyle(Some(Color.Rgb(0, 0, 256)), Some(Color.Blue))).writeAnsi(writer)
+            }
+            val failure = Throwable()
+            assertSame(failure, assertFailsWith<Throwable> {
+                ContentStyle(Some(Color.Blue)).apply(FailingContent(failure)).writeAnsi(writer)
+            })
+            assertEquals("", writer.toString())
+        } finally { resetColorOutput() }
+    }
+}

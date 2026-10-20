@@ -1,0 +1,56 @@
+package scoop.terminal
+
+import scoop.terminal.cursor.*
+import scoop.test.*
+
+@Test
+private class CursorCommandsTest {
+    @Test
+    fun `absolute coordinates are zero based and use wide arithmetic`() {
+        assertEquals("\u001b[1;1H", MoveTo(0L, 0L).toAnsiString())
+        assertEquals("\u001b[3;8H", MoveTo(7L, 2L).toAnsiString())
+        assertEquals("\u001b[65536;65536H", MoveTo(65535L, 65535L).toAnsiString())
+        assertEquals("\u001b[65536G", MoveToColumn(65535L).toAnsiString())
+        assertEquals("\u001b[1d", MoveToRow(0L).toAnsiString())
+    }
+
+    @Test
+    fun `relative movements retain protocol zero and line semantics`() {
+        val writer = StringWriter()
+        writer.queue(MoveUp(0L), MoveDown(2L), MoveRight(3L), MoveLeft(4L),
+            MoveToNextLine(5L), MoveToPreviousLine(6L))
+        assertEquals("\u001b[0A\u001b[2B\u001b[3C\u001b[4D\u001b[5E\u001b[6F", writer.toString())
+    }
+
+    @Test
+    fun `save restore visibility and blinking use upstream sequences`() {
+        val writer = StringWriter()
+        writer.queue(SavePosition, Hide, EnableBlinking, DisableBlinking, Show, RestorePosition)
+        assertEquals("\u001b7\u001b[?25l\u001b[?12h\u001b[?12l\u001b[?25h\u001b8", writer.toString())
+    }
+
+    @Test
+    fun `all cursor shapes retain the required intermediate space`() {
+        val writer = StringWriter()
+        writer.queue(SetCursorStyle.DefaultUserShape, SetCursorStyle.BlinkingBlock,
+            SetCursorStyle.SteadyBlock, SetCursorStyle.BlinkingUnderScore,
+            SetCursorStyle.SteadyUnderScore, SetCursorStyle.BlinkingBar, SetCursorStyle.SteadyBar)
+        assertEquals("\u001b[0 q\u001b[1 q\u001b[2 q\u001b[3 q\u001b[4 q\u001b[5 q\u001b[6 q", writer.toString())
+    }
+
+    @Test
+    fun `invalid coordinates reject before any bytes are written`() {
+        val invalid: Array<Command> = [
+            MoveTo(1L, -1L) as Command, MoveTo(65536L, 0L) as Command,
+            MoveToColumn(-1L) as Command, MoveToRow(Long.MAX_VALUE) as Command,
+            MoveUp(-1L) as Command, MoveDown(65536L) as Command,
+            MoveLeft(-1L) as Command, MoveRight(-1L) as Command,
+            MoveToNextLine(-1L) as Command, MoveToPreviousLine(-1L) as Command
+        ]
+        for (command in invalid) {
+            val writer = StringWriter()
+            assertFailsWith<IllegalArgumentException> { command.writeAnsi(writer) }
+            assertEquals("", writer.toString())
+        }
+    }
+}

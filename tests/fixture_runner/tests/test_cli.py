@@ -15,6 +15,23 @@ from fixture_runner.model import EnvironmentError
 
 
 class EnvironmentTests(unittest.TestCase):
+    @patch("fixture_runner.cli.platform.machine", return_value="x86_64")
+    @patch("fixture_runner.cli.platform.system", return_value="Linux")
+    def test_terminal_host_is_required_only_when_selected(self, *_):
+        with tempfile.TemporaryDirectory() as directory:
+            repo, work = self.prepare(directory)
+            args = arguments([])
+            environment(repo, work, [SimpleNamespace(data={"tools": []})], args)
+            fixtures = [SimpleNamespace(data={"tools": ["terminal-host"]})]
+            with self.assertRaisesRegex(EnvironmentError, "required executable is missing"):
+                environment(repo, work, fixtures, args)
+            binary = repo / "terminal-host"
+            binary.write_text("#!/bin/sh\nexit 0\n")
+            binary.chmod(0o755)
+            args = arguments(["--terminal-host", str(binary)])
+            common = environment(repo, work, fixtures, args)
+            self.assertEqual(common["terminal-host"], str(binary.resolve()))
+
     def test_shared_language_core_preserves_sysroot_and_reuses_unchanged_sources(self):
         with tempfile.TemporaryDirectory() as directory:
             repo, work = self.prepare(directory)

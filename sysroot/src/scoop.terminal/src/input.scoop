@@ -1,0 +1,4 @@
+package scoop.terminal
+
+public class TerminalDisconnectedException public constructor() :
+    Exception(Some("terminal input disconnected"))

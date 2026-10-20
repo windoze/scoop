@@ -1,0 +1,35 @@
+package scoop.terminal.internal.input
+
+import scoop.terminal.protocol.*
+import scoop.terminal.*
+import scoop.terminal.event.TerminalInputException
+import scoop.terminal.internal.platform.*
+import scoop.time.Duration
+
+internal fun SessionInput.query(terminal: TerminalHandle, kind: QueryKind, timeout: Duration): InputItem {
+    reader.receiveAvailable(terminal)
+    while (true) {
+        when (reader.parser.next()) {
+            case None -> break
+            case Some(InputItem.User(event)) -> deferred.addLast(event)
+            case Some(InputItem.Invalid(detail)) -> throw TerminalInputException(detail)
+            case Some(_) -> {}
+        }
+    }
+    val reply = QueryReply(kind)
+    terminal.sendQuery(reply.command)
+    val started = inputNow()
+    while (true) {
+        when (reader.next(terminal, inputRemaining(started, Some(timeout)))) {
+            case None -> throw TerminalQueryTimeoutException()
+            case Some(InputItem.User(event)) -> deferred.addLast(event)
+            case Some(InputItem.Invalid(detail)) -> throw TerminalInputException(detail)
+            case Some(item) -> {
+                val result = reply.accept(item)
+                if (result.hasItem()) return result!!
+            }
+        }
+        if (reader.exhausted) throw TerminalDisconnectedException()
+        if (reader.parser.output.size == 0L && inputExpired(started, Some(timeout))) throw TerminalQueryTimeoutException()
+    }
+}

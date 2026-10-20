@@ -9,7 +9,7 @@ internal suspend fun connectTcpOnLoop(loop: LibuvEventLoop, address: SocketAddre
         val operation = LoopOperation(loop.state, loop.state.nextOperation(),
             { native, id -> @Unsafe { return@LoopOperation nativeStatus(id, nativeTcpConnect(native, id, target)) } },
             { native, id -> @Unsafe { nativeTcpConnectCancel(native, id) } },
-            { event, selected -> finishSocketCreation<AsyncTcpStream>(loop, SocketKind.Tcp, event.result, selected, continuation,
+            { event, selected -> finishEndpointCreation<AsyncTcpStream>(loop, EndpointKind.Tcp, event.result, selected, continuation,
                 { owner -> TcpStream(owner, tcpAddress(owner.pointer, false), tcpAddress(owner.pointer, true)) }) })
         operation.subscribe(job)
         loop.state.submit(operation)
@@ -24,7 +24,7 @@ internal suspend fun listenTcpOnLoop(loop: LibuvEventLoop, address: SocketAddres
         val operation = LoopOperation(loop.state, loop.state.nextOperation(),
             { native, id -> @Unsafe { return@LoopOperation nativeStatus(id, nativeTcpListen(native, id, target, backlog, reuse)) } },
             { native, id -> @Unsafe { nativeTcpConnectCancel(native, id) } },
-            { event, selected -> finishSocketCreation<AsyncTcpListener>(loop, SocketKind.Tcp, event.result, selected, continuation,
+            { event, selected -> finishEndpointCreation<AsyncTcpListener>(loop, EndpointKind.Tcp, event.result, selected, continuation,
                 { owner -> TcpListener(owner, tcpAddress(owner.pointer, false)) }) })
         operation.subscribe(job)
         loop.state.submit(operation)

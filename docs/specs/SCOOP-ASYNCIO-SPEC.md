@@ -1,12 +1,14 @@
 # Scoop 异步 I/O 库规范
 
-版本：M49 已实施基线，含 M54 待实施扩展。本文规定普通 Cone `scoop:scoop.asyncio:0.1.0` 的合同；既有实现及三目标验证见 [M49 验收](../milestone49/ACCEPTANCE.md)，第 9 节的新增范围见 [M54 设计](../milestone54/DESIGN.md)。
+版本：M49／M54／M59。本文规定普通 Cone `scoop:scoop.asyncio:0.1.0` 的合同；既有能力三目标验证见 [M49 验收](../milestone49/ACCEPTANCE.md)，第 9 节扩展见 [M54 实施记录](../milestone54/PROGRESS.md)，第 10 节 TTY 见 [M59 实施记录](../milestone59/PROGRESS.md)。
 
 ## 1. 分层与目标
 
 源码位于 `sysroot/src/scoop.asyncio/`，显式依赖 core、std、platform，测试依赖 scoop.test；公共声明属于 `scoop.asyncio`。不默认导入，不引入 compiler-known role、runtime 调度入口或新的 ABI。任务树使用语言规范 11.9.1～11.9.2；路径、地址、错误、时间和 buffer 直接复用平台库与标准库。
 
-首版支持 aarch64-apple-darwin、x86_64-unknown-linux-gnu、x86_64-unknown-linux-musl。LibuvEventLoop 使用固定的 libuv 1.53.0，源码、许可证和各目标 native 输入随 Cone 发布；不查找系统 libuv。C11 shim 只管理 native I/O、稳定存储及完成记录，worker／callback 不进入 managed 代码。TLS、HTTP 属于各自库，文件监听、进程／TTY 和任意 fd 接管不在本版范围；M54 为实际缓存与下载补齐文件／目录操作。
+库内 C shim 的完成记录 kind 与 Scoop 解码保持一致：既有通用／网络事件保留原编号，使用 `0x000–0x0ff` 段；文件／目录事件使用 `0x100–0x1ff` 段，依次为 Metadata `0x100`、Position `0x101`、Temporary `0x102`、DirectoryName `0x103`；TTY 事件使用 `0x200–0x2ff` 段，Resize 为 `0x200`、Timeout 为 `0x201`。两类新增事件分别在自己的段内追加，保留已有编号；未分配值仍按非法完成记录处理。此编号仅用于该 Cone 的 native 接口，不属于 runtime ABI 或公共 Scoop 枚举身份。
+
+首版支持 aarch64-apple-darwin、x86_64-unknown-linux-gnu、x86_64-unknown-linux-musl。LibuvEventLoop 使用固定的 libuv 1.53.0，源码、许可证和各目标 native 输入随 Cone 发布；不查找系统 libuv。C11 shim 只管理 native I/O、稳定存储及完成记录，worker／callback 不进入 managed 代码。TLS、HTTP 属于各自库，文件监听、进程和任意 fd 接管不在本版范围；M54 为实际缓存与下载补齐第 9 节的基础能力；M59 增加第 10 节的自有 TTY。
 
 Linux C 工具链同时需要所选 libc 的开发头文件和对应架构的 Linux UAPI 头文件（包括 linux/errqueue.h）。只带 musl libc 的 musl-gcc 包装器须补齐内核头文件搜索路径，可通过普通 --cc 包装脚本配置；不把 glibc 用户态头文件加入 musl 的搜索路径。
 
@@ -21,6 +23,7 @@ public interface EventLoop {
     public suspend fun listenTcp(address: SocketAddress, backlog: Int = 128, reuseAddress: Boolean = false): AsyncTcpListener
     public suspend fun bindUdp(address: SocketAddress, reuseAddress: Boolean = false): AsyncUdpSocket
     public suspend fun openFile(path: Path, options: OpenOptions = OpenOptions()): AsyncFile
+    public suspend fun openTty(): AsyncTty
 }
 public class LibuvEventLoop public constructor() : EventLoop
 public fun <T> EventLoop.runWithResult(block: suspend (CoroutineScope) -> T): T
@@ -221,3 +224,49 @@ work 实现 Closeable，提供 isClosed；未使用、完成或失败的 work �
 文件能力独立验证真实 metadata／seek／truncate、排他临时创建、同文件系统替换、目录分批遍历、worker 取消与迟到结果；组合磁盘缓存和下载续传。连接竞速验证单族迟到／失败、不同候选交错、成功竞争、总取消及失败不污染父 scope。SOCKS5 使用独立 loopback 对端覆盖分段、认证和两种 DNS 模式。
 
 NativeWork 验证正常完成、登记失败、未开始撤销、运行中取消、异常清理和 moving GC，实际消费者包含 TLS 系统验证；不为仅存在于测试中的虚构工作扩展接口。三个目标运行对应库测试和生产消费者。
+
+## 10. 自有 TTY
+
+```scoop
+public struct TtySize(val columns: Long, val rows: Long,
+    val widthPixels: Long, val heightPixels: Long)
+public enum TtyRead {
+    Bytes(val count: Long), Resize(val columns: Long, val rows: Long), End, TimedOut
+}
+public interface AsyncTty : AsyncByteSink, AsyncCloseable {
+    public val isClosed: Boolean
+    public suspend fun receive(buffer: NativeByteBuffer, count: Long,
+        timeout: Duration? = None): TtyRead
+    public suspend fun size(): TtySize
+    public suspend fun isRawMode(): Boolean
+    public suspend fun enableRawMode()
+    public suspend fun disableRawMode()
+}
+```
+
+openTty 通过 platform 的共同 owner 取得实际终端与 resize 通知，每进程最多
+一个活动 owner，包括同步 terminal 会话。失败清理所有已取得的资源；取消
+选定后才完成的 open 先关闭未交付 owner。库不接管调用者 fd，不改变 stdin
+的 O_NONBLOCK，不增加后台读取线程。
+
+receive 同时等待字节与 resize，使用 libuv poll 观察自有 fd，实际 read 为
+非阻塞 syscall。正 count 返回正 Bytes、End、Resize 或 TimedOut；count 为 0
+在状态、参数和取消检查后返回 Bytes(0)，不表示 EOF。None 无限等待，非负
+timeout 使用单调总时间；零不等待。resize 可合并为最后实际尺寸，通知本身
+不占用字节 buffer。收到 End 后后续正 receive 继续返回 End。
+
+同一资源允许各一个 receive 和 writeFrom 同时在途；模式和尺寸控制要求两个
+方向都空闲。flush 沿无缓冲输出合同。所有原生操作在所属 loop 线程执行；
+不把同步阻塞 poll／write 包在 suspend 函数内。SIGWINCH 沿终端规范的
+Linux self-pipe／Darwin kqueue 实现，由 libuv poll 观察通知 fd，避免另装
+libuv signal handler 改变应用原 disposition。
+
+取消停止 poll／timer 后记录一次终止，借用按实际字节进度提交后才恢复。
+取消已经选定时到达的 resize 保留给下一次 receive；End 保留为输入终态。
+单次取消不关闭健康 TTY。关闭拒绝新操作，结束在途等待，等待借用释放和
+全部 libuv close callback，再恢复 raw 并释放共同 owner；run 收尾同样执行。
+原生错误保留 PosixErrno／Libuv 来源；恢复失败也继续消费所有资源。
+
+disableRawMode 和 isRawMode 允许已取消 Job 在所属活动 loop 中进行清理，
+不因此接受其他被取消的 I/O。模式的幂等、快照与恢复沿终端规范第 7 节。
+async raw 作用域使用这两个入口和 useAsync，GC 不承担恢复。

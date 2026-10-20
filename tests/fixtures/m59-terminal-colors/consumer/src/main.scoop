@@ -1,0 +1,13 @@
+import scoop.platform.io.standardOutput
+import scoop.terminal.*
+import scoop.terminal.style.*
+
+fun main() {
+    standardOutput.queue(SetForegroundColor(Color.Red), Print("a"))
+    forceColorOutput(true)
+    standardOutput.queue(SetBackgroundColor(Color.DarkBlue), Print("b"))
+    forceColorOutput(false)
+    standardOutput.queue(SetUnderlineColor(Color.Green), Print("c"))
+    resetColorOutput()
+    standardOutput.execute(SetForegroundColor(Color.Reset), Print(availableColorCount()), Print("\n"))
+}
