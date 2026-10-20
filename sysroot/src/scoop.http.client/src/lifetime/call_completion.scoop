@@ -37,7 +37,9 @@ internal class ClientCallCompletion(val call: ClientCall) : Continuation<Unit> {
                 index += 1L
             }
             if (call.client.closing && clientPresent(cleanup)) {
-                if (clientPresent(bearerCleanup) && cleanup!! === bearerCleanup!!.error) {
+                if (clientPresent(call.openedWebSocket)) {
+                    call.client.closeFailure = appendClientCleanup(call.client.closeFailure, cleanup!!)
+                } else if (clientPresent(bearerCleanup) && cleanup!! === bearerCleanup!!.error) {
                     if (!bearerCleanup!!.closeReported) {
                         bearerCleanup!!.closeReported = true
                         call.client.closeFailure = Some(clientCombined(call.client.closeFailure, cleanup!!))
@@ -63,6 +65,8 @@ internal class ClientCallCompletion(val call: ClientCall) : Continuation<Unit> {
                 result.resume(ClientCallResult.Failed(recorded!!, bodyStarted))
             else result.resumeWithException(failure!!)
         } else if (clientPresent(followUp)) result.resume(ClientCallResult.FollowUp(followUp!!))
+        else if (clientPresent(call.openedWebSocket))
+            result.resume(ClientCallResult.Response(ClientFinalResult.WebSocket(HttpWebSocketResult.Opened(call.openedWebSocket!!))))
         else result.resumeWithException(IoClosedException())
     }
 }

@@ -8,6 +8,7 @@ import scoop.url.UrlOrigin
 
 internal class ClientPoolEntry(val origin: UrlOrigin, first: ClientCall, now: TimeMark) {
     val route: ClientRoute = first.route
+    val webSocket: Boolean = clientPresent(first.sequence.webSocket)
     var connection: ClientConnection? = None
     var initial: ClientCall? = Some(first)
     var connecting: Boolean = true

@@ -1,11 +1,9 @@
 package scoop.http.client
 
-import scoop.asyncio.IoClosedException
-import scoop.http.*
 
 internal suspend fun executeClientAttempt(state: ClientState, request: HttpRequest, caller: Job,
     sequence: ClientRequestSequence): ClientCallResult {
-    validateClientRequest(state.config, request)
+    if (!clientPresent(sequence.webSocket)) validateClientRequest(state.config, request)
     return suspendCoroutine<ClientCallResult> { continuation ->
         val call = ClientCall(state, request, caller, sequence, continuation)
         val scope = state.lock.withLock {
@@ -26,6 +24,14 @@ internal suspend fun executeClientAttempt(state: ClientState, request: HttpReque
     }
 }
 private suspend fun runClientCall(call: ClientCall) {
+    try { runClientCallScope(call) }
+    catch (error: Throwable) {
+        if (clientPresent(call.openedWebSocket)) failClientCall(call, error)
+        throw error
+    } finally { closeFailedClientWebSocket(call) }
+}
+
+private suspend fun runClientCallScope(call: ClientCall) {
     coroutineScope suspend { scope ->
         call.lock.withLock { call.scope = Some(scope) }
         val jobListener = scope.job.invokeOnCancellation { error -> cancelClientCall(call, error) }
@@ -41,6 +47,7 @@ private suspend fun runClientCall(call: ClientCall) {
                 if (clientPresent(proxy)) prepareClientAuthentication(call, proxy!!)
                 prepareClientAuthentication(call, call.authentication)
                 prepareClientCookies(call)
+                prepareClientWebSocket(call)
             }
             catch (error: Throwable) { failClientCall(call, error, true) }
             requireClientCall(call)
@@ -98,38 +105,6 @@ private suspend fun runClientCall(call: ClientCall) {
             finally { stopClientDeadlines(call) }
         }
     }
-}
-
-private suspend fun deliverClientResponse(call: ClientCall, head: HttpResponseHead) {
-    val followUp = if (call.cacheStatus == HttpCacheStatus.Unsatisfied) None else planClientResponseFollowUp(call, head)
-    settleClientContinue(call, false)
-    if (clientPresent(followUp)) { selectClientFollowUp(call, followUp!!); return }
-    try { beginClientCacheResponse(call, head) }
-    catch (error: Throwable) { failClientCall(call, error, true) }
-    requireClientCall(call)
-    val response = HttpResponse(call, head)
-    call.lock.withLock { call.responseInput = Some(response.input) }
-    val result = call.lock.withLock {
-        requireClientCallUnlocked(call)
-        call.stopUpload = !call.request.options.duplex
-        val saved = call.result!!
-        call.result = None
-        saved
-    }
-    result.resume(ClientCallResult.Response(response))
-}
-
-private fun selectClientFollowUp(call: ClientCall, followUp: ClientFollowUp) {
-    call.lock.withLock {
-        requireClientCallUnlocked(call)
-        call.followUp = Some(followUp)
-        call.abandoned = true; call.ending = true; call.stopUpload = true
-    }
-}
-
-private fun requireClientCallUnlocked(call: ClientCall) {
-    if (clientPresent(call.failure)) throw call.failure!!
-    if (call.ending) throw IoClosedException()
 }
 
 private suspend fun cleanupClientExchange(call: ClientCall) {

@@ -1,0 +1,52 @@
+package scoop.http.client
+
+import scoop.collections.emptyList
+import scoop.http.*
+import scoop.http.asyncio.WebSocketSessionOptions
+import scoop.url.Url
+
+public class HttpWebSocketRequest public constructor(public val url: Url,
+    fields: List<HttpField> = emptyList<HttpField>(), public val options: HttpCallOptions = HttpCallOptions()) {
+    public val fields: Array<HttpField> = fields.toArray()
+    internal val httpUrl: Url = clientWebSocketHttpUrl(url)
+    init {
+        if (url.scheme != Some("ws") && url.scheme != Some("wss"))
+            throw IllegalArgumentException(Some("WebSocket request requires ws or wss"))
+        if (options.duplex || options.expectContinue)
+            throw IllegalArgumentException(Some("WebSocket handshake has an empty request body"))
+        if (options.cacheMode == HttpCacheMode.OnlyIfCached || HttpCacheControl.parseFields(this.fields).contains("only-if-cached"))
+            throw IllegalArgumentException(Some("WebSocket handshake cannot use only-if-cached"))
+        for (field in this.fields) if (field.hasName("Expect".toByteArray()))
+            throw IllegalArgumentException(Some("WebSocket handshake cannot wait for Continue"))
+    }
+}
+
+public class HttpWebSocketOptions public constructor(protocols: List<String> = emptyList<String>(),
+    deflateOffers: List<WebSocketDeflateOffer> = emptyList<WebSocketDeflateOffer>(),
+    public val session: WebSocketSessionOptions = WebSocketSessionOptions()) {
+    public val protocols: Array<String> = protocols.toArray()
+    public val deflateOffers: Array<WebSocketDeflateOffer> = deflateOffers.toArray()
+}
+
+internal fun clientWebSocketHttpUrl(url: Url): Url {
+    if (url.encodedFragment != None) throw IllegalArgumentException(Some("WebSocket URL cannot contain a fragment"))
+    val scheme = when (url.scheme) {
+        case Some("ws") -> "http"
+        case Some("http") -> "http"
+        case Some("wss") -> "https"
+        case Some("https") -> "https"
+        else -> throw IllegalArgumentException(Some("WebSocket handshake requires an HTTP or WebSocket URL"))
+    }
+    val result = url.toBuilder().setScheme(Some(scheme)).build()
+    result.httpOrigin()
+    return result
+}
+
+internal fun clientWebSocketUrl(url: Url): Url =
+    url.toBuilder().setScheme(Some(if (url.scheme == Some("http")) "ws" else "wss")).build()
+
+internal fun clientWebSocketOptions(options: HttpCallOptions): HttpCallOptions =
+    HttpCallOptions(decoding = options.decoding, timeouts = options.timeouts, onInformational = options.onInformational,
+        redirects = options.redirects, retries = options.retries, authentication = options.authentication,
+        proxy = options.proxy, useCookies = options.useCookies, cookieContext = options.cookieContext,
+        cacheMode = HttpCacheMode.Bypass)

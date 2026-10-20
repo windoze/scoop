@@ -1,0 +1,61 @@
+schema = 1
+name = "m54-client-websocket-secure"
+inputs = ["consumer", "peer.py"]
+support = [
+    "../m54-client-websocket/consumer/src/session.scoop",
+    "../m54-client-websocket/peer_server.py",
+    "../m54-client-websocket/wire.py",
+    "../m54-client-idle/wire.py",
+    "../m54-client-network/peer.py",
+    "../../../sysroot/src/scoop.crypto/test-certificates/src/root.scoop",
+    "../../../sysroot/src/scoop.crypto/test-certificates/src/server.scoop",
+    "../../../sysroot/src/scoop.crypto/test-certificates/src/intermediate.scoop",
+    "../../../sysroot/src/scoop.crypto/test-certificates/src/client.scoop",
+]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m54", "http", "websocket", "asyncio", "lifetime", "prebuilt", "gc"]
+variants = [{name = "debug", vars = {mode = []}}, {name = "release", vars = {mode = ["--release"]}}]
+
+[[steps]]
+name = "source"
+files = [
+    {copy = {from = "${fixture}/consumer", to = "${work}/consumer"}},
+    {copy = {from = "${fixture}/peer.py", to = "${work}/peer.py"}},
+    {copy = {from = "${repo}/tests/fixtures/m54-client-websocket/peer_server.py", to = "${work}/peer_server.py"}},
+    {copy = {from = "${repo}/tests/fixtures/m54-client-websocket/wire.py", to = "${work}/wire.py"}},
+    {copy = {from = "${repo}/sysroot/src/scoop.crypto/test-certificates/src/root.scoop", to = "${work}/consumer/src/root.scoop"}},
+    {copy = {from = "${repo}/tests/fixtures/m54-client-websocket/consumer/src/session.scoop", to = "${work}/consumer/src/session.scoop"}},
+    {copy = {from = "${repo}/tests/fixtures/m54-client-idle/wire.py", to = "${work}/h2_wire.py"}},
+    {copy = {from = "${repo}/tests/fixtures/m54-client-network/peer.py", to = "${work}/network_support.py"}},
+    {copy = {from = "${repo}/sysroot/src/scoop.crypto/test-certificates/src/server.scoop", to = "${work}/consumer/src/server.scoop"}},
+    {copy = {from = "${repo}/sysroot/src/scoop.crypto/test-certificates/src/intermediate.scoop", to = "${work}/consumer/src/intermediate.scoop"}},
+    {copy = {from = "${repo}/sysroot/src/scoop.crypto/test-certificates/src/client.scoop", to = "${work}/consumer/src/client.scoop"}},
+]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${work}/consumer", {each = "${mode}"}, {each = "${link_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "run"
+timeout = 1800
+argv = ["python3", "${work}/peer.py", "${build.result.output}", "${work}/consumer/src", "${work}/certificates"]
+exit = 0
+stdout = "client WebSocket WSS H2 coexistence ALPN identity and compression passed\n"
+stderr = ""
+
+[[steps]]
+name = "warm"
+argv = ["${scoop}", "build", "${work}/consumer", {each = "${mode}"}, {each = "${link_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${warm.result.observations.child_invocations}", equals = []}]

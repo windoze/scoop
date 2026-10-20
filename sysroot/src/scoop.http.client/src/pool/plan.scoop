@@ -45,7 +45,7 @@ internal fun planClientPool(state: ClientState): ClientPoolPlan {
         }
         ClientPoolPlan(actions.toArray(), delay,
             state.closing && state.calls.size == 0L && state.connections.size == 0L && state.retryWaits.size == 0L &&
-                state.downloads.size == 0L && state.eventSources.size == 0L)
+                state.downloads.size == 0L && state.eventSources.size == 0L && state.webSockets.size == 0L)
     }
 }
 
@@ -63,7 +63,7 @@ private fun planClientPoolClose(state: ClientState): ClientPoolPlan = state.lock
     }
     ClientPoolPlan(actions.toArray(), None,
         state.calls.size == 0L && state.connections.size == 0L && state.retryWaits.size == 0L &&
-            state.downloads.size == 0L && state.eventSources.size == 0L)
+            state.downloads.size == 0L && state.eventSources.size == 0L && state.webSockets.size == 0L)
 }
 
 private fun waitingClientCall(call: ClientCall): Boolean = call.lock.withLock {
@@ -111,7 +111,7 @@ private fun maintainClientPool(state: ClientState, now: TimeMark, actions: Array
 
 private fun assignClientLease(state: ClientState, call: ClientCall, now: TimeMark, actions: ArrayList<ClientPoolAction>): Boolean {
     for (entry in state.connections) {
-        if (entry.origin != call.request.origin || !sameClientRoute(entry.route, call.route) ||
+        if (entry.origin != call.request.origin || !sameClientRoute(entry.route, call.route) || entry.webSocket != clientPresent(call.sequence.webSocket) ||
             entry.connecting || entry.closing || entry.draining) continue
         if (clientPresent(entry.initial) && entry.initial!! !== call) continue
         val connection = entry.connection!!
@@ -148,7 +148,7 @@ private fun reserveClientConnection(state: ClientState, call: ClientCall, now: T
     for (entry in state.connections) {
         if (entry.origin == call.request.origin) {
             sameOrigin += 1L
-            if (sameClientRoute(entry.route, call.route) &&
+            if (sameClientRoute(entry.route, call.route) && entry.webSocket == clientPresent(call.sequence.webSocket) &&
                 (entry.connecting || entry.h2cPending || clientPresent(entry.initial))) return
         }
     }
@@ -167,7 +167,7 @@ private fun reserveClientConnection(state: ClientState, call: ClientCall, now: T
     }
     if (!admitted) return
     val entry = ClientPoolEntry(call.request.origin, call, now)
-    entry.h2cPending = call.request.origin.scheme == "http" && state.config.cleartext == HttpCleartextProtocol.H2cUpgrade
+    entry.h2cPending = !entry.webSocket && call.request.origin.scheme == "http" && state.config.cleartext == HttpCleartextProtocol.H2cUpgrade
     state.connections.add(entry)
     actions.add(ClientPoolAction.Dial(call, entry))
 }
@@ -176,7 +176,7 @@ private fun drainClientUnusedRoute(state: ClientState, call: ClientCall, sameOri
     var oldest: ClientPoolEntry? = None
     for (entry in state.connections) {
         val sameOrigin = entry.origin == call.request.origin
-        if ((sameOriginOnly && !sameOrigin) || (sameOrigin && sameClientRoute(entry.route, call.route)) ||
+        if ((sameOriginOnly && !sameOrigin) || (sameOrigin && sameClientRoute(entry.route, call.route) && entry.webSocket == clientPresent(call.sequence.webSocket)) ||
             entry.connecting || entry.closing || entry.draining || entry.active != 0L || clientPresent(entry.initial)) continue
         if (!clientPresent(oldest) || entry.idle < oldest!!.idle) oldest = Some(entry)
     }

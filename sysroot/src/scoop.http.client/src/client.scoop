@@ -51,6 +51,10 @@ public class HttpClient internal constructor(internal val state: ClientState) : 
         openClientSse(state, request, options)
     public suspend fun <T> withSse(request: HttpRequest, options: HttpSseOptions = HttpSseOptions(),
         block: suspend (HttpEventSource) -> T): T = openSse(request, options).useAsync(block)
+    public suspend fun openWebSocket(request: HttpWebSocketRequest, options: HttpWebSocketOptions = HttpWebSocketOptions()): HttpWebSocketResult =
+        openClientWebSocket(state, request, options)
+    public suspend fun <T> withWebSocket(request: HttpWebSocketRequest, options: HttpWebSocketOptions = HttpWebSocketOptions(),
+        block: suspend (HttpWebSocketResult) -> T): T = openWebSocket(request, options).useAsync(block)
     public fun clearAuthenticationCache(authenticator: HttpAuthenticator) { clearClientAuthenticationCache(state, authenticator) }
     public override suspend fun close() { closeClient(state) }
 }

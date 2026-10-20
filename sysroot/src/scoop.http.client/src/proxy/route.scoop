@@ -14,8 +14,8 @@ internal suspend fun selectClientRoute(call: ClientCall) {
         case Http(endpoint) -> {
             call.proxyAuthentication = Some(ClientCallAuthentication(ClientAuthenticationScope.Proxy(endpoint)))
             val config = call.client.config
-            if (call.request.origin.scheme == "http" && config.cleartext == HttpCleartextProtocol.Http1 &&
-                config.http1RequestVersion == HttpVersion.Http11 && call.request.method != "CONNECT")
+            if (call.request.origin.scheme == "http" && (clientPresent(call.sequence.webSocket) || (config.cleartext == HttpCleartextProtocol.Http1 &&
+                config.http1RequestVersion == HttpVersion.Http11)) && call.request.method != "CONNECT")
                 ClientRoute.HttpForward(endpoint)
             else ClientRoute.HttpTunnel(endpoint)
         }

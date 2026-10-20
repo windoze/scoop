@@ -1,0 +1,44 @@
+package scoop.http.client
+
+import scoop.asyncio.AsyncByteSource
+import scoop.asyncio.AsyncCloseable
+import scoop.collections.emptyList
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.url.Url
+
+public class HttpWebSocketSession internal constructor(internal val state: ClientWebSocketState, call: ClientCall,
+    public val head: HttpResponseHead, negotiation: WebSocketNegotiation) : AsyncCloseable {
+    public val url: Url = clientWebSocketUrl(call.request.url)
+    public val redirectHistory: Array<HttpRedirect> = Array<HttpRedirect>(call.sequence.history.size) { index ->
+        val previous = call.sequence.history[index]
+        HttpRedirect(clientWebSocketUrl(previous.url), previous.method, previous.head,
+            clientWebSocketUrl(previous.nextUrl), previous.nextMethod)
+    }
+    public val retryCount: Long = call.sequence.retryCount
+    public val authenticationCount: Long = call.sequence.authenticationCount
+    public val proxyAuthenticationCount: Long = call.sequence.proxyAuthenticationCount
+    public val protocol: String? = negotiation.protocol
+    public val deflate: WebSocketDeflateNegotiation? = negotiation.deflate
+    public val isClosed: Boolean get() = state.session.isClosed
+    public val peerClose: WebSocketClose? get() = state.session.peerClose
+    public val sentClose: WebSocketClose? get() = state.session.sentClose
+    public val failure: Throwable? get() = state.session.failure
+
+    public suspend fun beginMessage(type: WebSocketMessageType, compress: Boolean = true): WebSocketMessageWriter =
+        state.session.beginMessage(type, compress)
+    public suspend fun receive(): WebSocketMessage? = state.session.receive()
+    public suspend fun sendText(text: String, compress: Boolean = true) { state.session.sendText(text, compress) }
+    public suspend fun sendBinary(bytes: List<Byte>, compress: Boolean = true) { state.session.sendBinary(bytes, compress) }
+    public suspend fun send(type: WebSocketMessageType, source: AsyncByteSource, compress: Boolean = true) {
+        val active = ClientWebSocketSource(state.client)
+        try { context(active) { state.session.send(type, source, compress) } }
+        finally { state.client.lock.withLock { active.running = false } }
+    }
+    public suspend fun ping(payload: List<Byte> = emptyList<Byte>()) { state.session.ping(payload) }
+    public suspend fun pong(payload: List<Byte> = emptyList<Byte>()) { state.session.pong(payload) }
+    public suspend fun shutdownGracefully(value: WebSocketClose = WebSocketClose(Some(1000U))): WebSocketClose =
+        state.session.shutdownGracefully(value)
+    public suspend fun awaitClosed() { state.session.awaitClosed() }
+    public override suspend fun close() { state.session.close() }
+}

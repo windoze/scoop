@@ -7,7 +7,7 @@ import scoop.url.UrlParseException
 internal class ClientRedirect(val request: HttpRequest, val history: HttpRedirect)
 
 internal fun planClientRedirect(request: HttpRequest, head: HttpResponseHead, options: HttpRedirectOptions,
-    history: List<HttpRedirect>): ClientRedirect? {
+    history: List<HttpRedirect>, webSocket: Boolean = false): ClientRedirect? {
     if (!options.enabled || (head.status != 301U && head.status != 302U && head.status != 303U && head.status != 307U && head.status != 308U))
         return None
     val location = try { HttpLocation.parseFields(head.fields) }
@@ -15,10 +15,19 @@ internal fun planClientRedirect(request: HttpRequest, head: HttpResponseHead, op
         throw HttpRedirectException(HttpRedirectFailure.InvalidLocation, request.url, head, cause = Some(error))
     }
     if (!clientPresent(location)) return None
-    val destination = try { location!!.resolve(request.url) }
+    val resolved = try { location!!.resolve(request.url) }
     catch (error: UrlParseException) {
         throw HttpRedirectException(HttpRedirectFailure.InvalidLocation, request.url, head, cause = Some(error))
     }
+    val destination = if (webSocket) {
+        if (resolved.scheme != Some("http") && resolved.scheme != Some("https") &&
+            resolved.scheme != Some("ws") && resolved.scheme != Some("wss"))
+            throw HttpRedirectException(HttpRedirectFailure.UnsupportedScheme, request.url, head, Some(resolved))
+        try { clientWebSocketHttpUrl(resolved) }
+        catch (error: IllegalArgumentException) {
+            throw HttpRedirectException(HttpRedirectFailure.InvalidLocation, request.url, head, Some(resolved), Some(error))
+        }
+    } else resolved
     if (destination.scheme != Some("http") && destination.scheme != Some("https"))
         throw HttpRedirectException(HttpRedirectFailure.UnsupportedScheme, request.url, head, Some(destination))
     if (!options.allowHttpsToHttp && request.origin.scheme == "https" && destination.scheme == Some("http"))

@@ -444,11 +444,23 @@ HttpSseReconnectOptions 提供 initialDelay（默认 3 秒）、maxDelay（默�
 
 ### 10.2 HTTP/1.1 WebSocket
 
-WebSocket 仅实现 RFC 6455 的 HTTP/1.1 Upgrade，`wss` 使用仅提供 http/1.1 的独立 TLS 连接。即使同 origin 已有 H2 池连接，也不尝试 RFC 8441。握手验证、SHA-1、mask 随机值、帧编解码、分片、UTF-8、Ping／Pong、Close 和消息上限分别使用 HTTP／crypto 的公共能力。
+WebSocket 仅实现 RFC 6455 的 HTTP/1.1 Upgrade，`wss` 使用仅提供 http/1.1 的独立 TLS 连接。该入口固定使用 HTTP/1.1；普通 HTTP 请求的 versionPolicy、cleartext 与 http1RequestVersion 不改变 WebSocket 的协议。同 origin 已有 H2 池连接时仍使用单独的 H1 连接，不尝试 RFC 8441。握手验证、随机 key、SHA-1、mask、帧编解码、分片、UTF-8、Ping／Pong、Close 和消息上限使用 HTTP／crypto 的公共能力。
 
-`withWebSocket(request, block)`／显式 open 返回 AsyncCloseable session，支持 suspend send、receive、ping 和 close handshake；应用读写可并行，同方向串行。有限缓冲与协议处理允许控制帧推进，消息发送不会把任意大 payload 先收集到内存。permessage-deflate 为显式扩展，协商与帧状态在 HTTP，raw DEFLATE 与 context takeover 在 compression。
+`HttpWebSocketRequest(url, fields = 空列表, options = HttpCallOptions())` 接受无 fragment 的 ws／wss URL，保存字段快照与普通请求选项；握手固定 GET 和空正文。Host、Upgrade、Connection、Sec-WebSocket-*、正文定界由 HTTP 握手库生成，调用者不能覆盖；duplex、Expect／expectContinue 与仅缓存请求不适用。`HttpWebSocketOptions(protocols = 空列表, deflateOffers = 空列表, session = WebSocketSessionOptions())` 保存有序子协议、显式 permessage-deflate 提议和底层会话配置的快照。每次实际握手生成新的 key，响应只能选择已提议的协议与扩展。
 
-Upgrade 成功后把未消费后缀与传输所有权交给 WebSocket session，连接不回到 HTTP 池。HTTP 握手失败仍交付可检查的 HTTP 响应并由调用方关闭；升级成功后的重连由应用明确发起，不能重放应用消息。
+`HttpClient.openWebSocket(request, options = HttpWebSocketOptions()): HttpWebSocketResult` 挂起至握手的最终结果。HttpWebSocketResult 实现 AsyncCloseable，只有 `Opened(HttpWebSocketSession)` 与 `Rejected(HttpResponse, Throwable)` 两种结果；Rejected 的原因是实际握手验证异常，HTTP 响应及其流仍由调用者检查和关闭。`withWebSocket(request, options, block)` 将同一结果传给 suspend block，并在结束时关闭结果拥有的资源。没有取得完整 HTTP 头部的传输／协议失败，以及普通策略回调的失败，继续直接抛出原始异常。
+
+握手复用现有请求的重定向、有限重试、Basic／Bearer／Digest、代理、Cookie 和信息响应回调，使用同一个 client 的认证与 Cookie 状态。本地响应缓存固定绕过，不以旧的 101 建立会话。URL 库负责 ws／wss 与对应 http／https 握手地址的组件转换；认证、Cookie 和代理选择使用实际 HTTP 握手地址，保留原始编码路径和 query。重定向接受 http／https 或 ws／wss 的等价地址，继续遵守 origin、凭据剥离、HTTPS 降级、次数与循环规则；不能接受其他 scheme 或含 fragment 的 WebSocket 目的地。
+
+握手连接按普通池名额与排队截止准入，但与普通请求的连接用途分开，不借用既有 H2 连接。HTTP／HTTPS 代理、CONNECT 和 SOCKS5 复用既有路由实现，目标 WSS 的 TLS 仍只提供 http/1.1。成功后移交完整未消费后缀和唯一传输关闭责任，连接从 HTTP 池移除；会话在 client 的独立集合中登记，不再占用 HTTP 请求的池名额，也不能被池复用或闲置淘汰。
+
+HttpWebSocketSession 实现 AsyncCloseable，公开最终 ws／wss url、实际 head、重定向历史、retryCount、authenticationCount、proxyAuthenticationCount、协商的 protocol／deflate，以及 isClosed、peerClose、sentClose、failure。历史使用对应的 WebSocket URL，Rejected 内的 HttpResponse 保留实际 HTTP 握手地址。会话直接组合 AsyncWebSocketSession，提供 beginMessage、receive、sendText、sendBinary、send(type, source)、ping、pong、shutdownGracefully、awaitClosed 与 close；消息和 writer 沿用 HTTP asyncio 的公共类型、有限缓冲、背压、借用和同方向并发规则。
+
+permessage-deflate 默认关闭；提议、协商、帧状态在 HTTP，raw DEFLATE、窗口与 context takeover 在 compression。传输接管或会话初始化失败时必须关闭已经取得的连接，不能把已切换的连接归还 HTTP 池，也不能丢掉实际清理原因。请求上传与适用的 Digest 空正文验证完成后才发布成功会话。
+
+普通 HTTP 的 total 和阶段截止覆盖本次握手、重定向／重试与交付前收尾，成功移交后结束；它们不成为 WebSocket 会话的存活期限。Rejected 的响应继续遵守普通 HTTP body 生命周期。会话操作由各自调用方 Job 取消，关闭握手使用 WebSocketSessionOptions.closeTimeout。client.close 同时关闭空闲和活动会话，并通过 HTTP asyncio 的 awaitClosed 等待真实来源、子任务、I/O 和资源清理；不轮询 isClosed，不在底层 transport 刚开始关闭时提前移除会话。
+
+send(type, source) 的来源及其子任务不能等待同一 client 的 close，该自等待立即报 IllegalStateException；会话自身的关闭自等待由 HTTP asyncio 拒绝。其他任务正常关闭并等待实际结果，主原因与真实清理异常保留且不重复附加。升级成功后的重连由应用明确发起，不能自动重放应用消息。
 
 ## 11. 扩展、错误与可观察性
 

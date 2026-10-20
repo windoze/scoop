@@ -103,6 +103,7 @@
 | HTTP 非预期 EOF 分类 | HttpException.isUnexpectedEof 由实际 HTTP 后端报告，保留原码、作用域与先前协议错误 | Darwin 普通模式的 EOF 消费者与续传网络回归通过两种构建及复用，共 4 个变体、12 个步骤进程；未启用 GC stress |
 | client SSE 事件源 | 复用普通请求、自动解码与 SseSource，显式重连、ID／retry、204 终止，共享总截止与累计进度，关闭等待活动操作及子树 | Darwin 两项正式 fixture 通过 debug／release 与构建复用，共 4 个变体、12 个步骤进程；30 个网络场景、20 个生命周期场景及 10 个配置／请求反例通过，下载与续传生命周期回归另通过 4 个变体、12 个步骤进程；未启用 GC stress |
 | WebSocket 来源收尾与关闭观察 | HTTP asyncio 的来源发送使用结构化子作用域；本地／对端关闭等待来源子树和真实借用结束，awaitClosed 提供可取消的实际关闭观察 | Darwin 新生命周期 fixture 的 23 个场景通过 debug／release 与复用，共 2 个变体、6 个步骤进程；WSS／permessage-deflate 组合另通过 2 个变体、6 个步骤进程；未启用 GC stress |
+| client HTTP/1.1 WebSocket | 纯 Scoop 复用统一请求策略和底层会话，固定 H1.1／独立 WSS ALPN，成功移交后释放池名额；拒绝响应保留可消费 body，client 关闭等待会话和发送来源子树 | Darwin 五项正式 fixture 通过 debug／release 与复用，共 10 个变体、30 个步骤进程；36 个独立网络场景、20 个生命周期场景及 25 个配置反例通过；未启用 GC stress |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -438,9 +439,13 @@ SSE 高层事件源复用普通 HTTP 请求与 SseSource，支持 POST、自动�
 
 WebSocket 高层接入前，普通消费者复现了 HTTP asyncio 的 close 未取消 send(type, source) 中挂起来源的问题。修复位于所属库：来源读取在独立子作用域内运行，关闭取消该子作用域并等待来源、子任务和 finally；读写等待者先恢复、操作清理完成后才释放资源，避免彼此等待。新增 awaitClosed 观察完整资源关闭，单独取消观察者不影响会话。实际清理异常保留原对象，内部收尾取消不制造正常关闭失败，同一来源回调的关闭自等待明确拒绝。23 个场景覆盖本地／owner／调用方取消、Context 与子树、并发关闭、延迟双向 NativeByteBorrow、来源及传输错误、EOF 观察和真实 TCP 对端关闭；WSS 与压缩消息同步回归。
 
+高层 WebSocket 的 open／with 入口返回成功会话或拥有真实 HTTP 响应的拒绝结果。独立 Python 对端覆盖新握手 key、重定向、重试、Cookie、坏握手、压缩消息、Basic／Bearer 刷新／Digest 空实体验证、HTTP／HTTPS 代理、CONNECT、TLS-in-TLS 与 SOCKS5。WSS 与同 origin 的活动 H2 连接共存并保持原 H2 复用，无 ALPN 回退及客户端证书认证通过；普通 HTTP 版本配置不改变 WS 的 H1.1 握手。升级后 HTTP 总截止停止，拒绝响应继续受原截止约束；client.close 等待发送来源、子任务及真实清理，关闭自等待被拒绝且保留清理异常原对象。
+
+普通 HTTP 连接池、响应解码与 SSE 三项相关回归另通过 6 个变体、18 个步骤进程；17 个生产 Cone 与 runtime 已通过正式准备入口更新。本轮均为普通模式，GC stress 仍待全部功能完成后执行。
+
 ## 后续工作
 
-继续完成 WebSocket 高层组合、拦截器和可观察性。每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
+继续完成拦截器和可观察性。每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
 
 ## 验证安排
 
@@ -525,3 +530,5 @@ Cookie 与缓存基础能力验收期间，清理环境代理库测试和 Cookie
 续传及普通下载回归完成后，清理已被新验证替代的 6 个旧下载 target，释放约 1.17 GiB；当前消费者、源码、生产库、SDK、缓存与原始记录保留。
 
 SSE 最终普通验证完成后，清理 8 个已被修正后结果替代的 EOF／SSE target，释放约 1.22 GiB；最终消费者、下载回归、源码、生产库、SDK、缓存与原始记录保留。
+
+WebSocket 高层组合验收后，清理 7 个已被最终结果替代的旧握手／生命周期 target，按文件大小计约 936 MiB；最终消费者、普通 HTTP 回归、源码、生产库、SDK、缓存与原始记录保留。

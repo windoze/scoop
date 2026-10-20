@@ -1,0 +1,48 @@
+package scoop.http.client
+
+import scoop.asyncio.IoClosedException
+import scoop.http.HttpResponseHead
+
+internal suspend fun deliverClientResponse(call: ClientCall, head: HttpResponseHead) {
+    val followUp = if (call.cacheStatus == HttpCacheStatus.Unsatisfied) None else planClientResponseFollowUp(call, head)
+    settleClientContinue(call, false)
+    if (clientPresent(followUp)) { selectClientFollowUp(call, followUp!!); return }
+    if (clientPresent(call.sequence.webSocket)) {
+        val result = finishClientWebSocket(call, head)
+        when (result) {
+            case Opened(_) -> return
+            case Rejected(_, _) -> publishClientResult(call, ClientFinalResult.WebSocket(result))
+        }
+        return
+    }
+    try { beginClientCacheResponse(call, head) }
+    catch (error: Throwable) { failClientCall(call, error, true) }
+    requireClientCall(call)
+    val response = HttpResponse(call, head)
+    call.lock.withLock { call.responseInput = Some(response.input) }
+    call.lock.withLock { call.stopUpload = !call.request.options.duplex }
+    publishClientResult(call, ClientFinalResult.Http(response))
+}
+
+private fun publishClientResult(call: ClientCall, value: ClientFinalResult) {
+    val result = call.lock.withLock {
+        requireClientCallUnlocked(call)
+        val saved = call.result!!
+        call.result = None
+        saved
+    }
+    result.resume(ClientCallResult.Response(value))
+}
+
+internal fun selectClientFollowUp(call: ClientCall, followUp: ClientFollowUp) {
+    call.lock.withLock {
+        requireClientCallUnlocked(call)
+        call.followUp = Some(followUp)
+        call.abandoned = true; call.ending = true; call.stopUpload = true
+    }
+}
+
+private fun requireClientCallUnlocked(call: ClientCall) {
+    if (clientPresent(call.failure)) throw call.failure!!
+    if (call.ending) throw IoClosedException()
+}

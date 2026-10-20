@@ -34,6 +34,8 @@ private class ClientOwnerCompletion(val state: ClientState) : Continuation<Unit>
         if (clientPresent(error) && !(error!! is CancellationException)) failure = Some(clientCombined(failure, error!!))
         try { state.tls.close() }
         catch (cleanup: Throwable) { failure = Some(clientCombined(failure, cleanup)) }
+        try { state.webSocketTls?.close() }
+        catch (cleanup: Throwable) { failure = Some(clientCombined(failure, cleanup)) }
         val finalFailure = failure
         val (hold, waiters) = state.lock.withLock {
             state.closing = true; state.closed = true; state.closeFailure = finalFailure
@@ -56,6 +58,7 @@ internal suspend fun closeClient(state: ClientState) {
     if (state.lock.withLock { state.closed }) return
     checkClientDownloadClose(state)
     checkClientSseClose(state)
+    checkClientWebSocketClose(state)
     clientJob(state.loop, false)
     suspendCoroutine<Unit> { continuation ->
         val closed = state.lock.withLock {

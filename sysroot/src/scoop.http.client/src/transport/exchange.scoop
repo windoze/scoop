@@ -18,7 +18,7 @@ internal suspend fun openClientExchange(call: ClientCall, connection: ClientConn
     val request = call.request
     return when (connection) {
         case Http1(value) -> {
-            val version = call.client.config.http1RequestVersion
+            val version = if (clientPresent(call.sequence.webSocket)) HttpVersion.Http11 else call.client.config.http1RequestVersion
             validateClientHttp1Request(request, version)
             val framing = if (request.body.trailerNames.size != 0L) Http1BodyFraming.Chunked else when (request.contentLength) {
                 case Some(0L) -> Http1BodyFraming.Empty
@@ -27,7 +27,7 @@ internal suspend fun openClientExchange(call: ClientCall, connection: ClientConn
             }
             val entry = call.lock.withLock { call.lease!! }
             val upgrading = call.client.lock.withLock { entry.h2cPending }
-            val head = clientRequestHead(call, version)
+            val head = when (call.webSocketHandshake) { case Some(handshake) -> handshake.request; case None -> clientRequestHead(call, version) }
             val prepared = if (upgrading) prepareHttp2Upgrade(head, call.client.config.http2Settings) else head
             val output = try { value.sendRequest(prepared, framing, writeIdle = call.timeouts.writeIdle) }
             catch (error: Throwable) { recordClientIoFailure(call, error); throw error }

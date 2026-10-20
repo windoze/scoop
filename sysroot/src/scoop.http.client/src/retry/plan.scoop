@@ -5,7 +5,7 @@ import scoop.time.Duration
 
 internal fun planClientResponseFollowUp(call: ClientCall, head: HttpResponseHead): ClientFollowUp? {
     val sequence = call.sequence
-    val redirect = planClientRedirect(call.originalRequest, head, sequence.redirects, sequence.history)
+    val redirect = planClientRedirect(call.originalRequest, head, sequence.redirects, sequence.history, clientPresent(sequence.webSocket))
     if (clientPresent(redirect)) return Some(ClientFollowUp.Redirect(redirect!!))
     val target = if (head.status == 407U && clientUsesForwardProxy(call)) call.proxyAuthentication!! else call.authentication
     val authentication = planClientAuthentication(call, head, target)

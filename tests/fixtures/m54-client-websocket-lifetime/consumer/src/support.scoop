@@ -1,0 +1,38 @@
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.*
+import scoop.http.client.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+import scoop.tls.TlsTrustSource
+import scoop.url.Url
+
+internal class ClientWsGate {
+    var ready: Boolean = false
+    private var waiter: Continuation<Unit>? = None
+    fun signal() { ready = true; val saved = waiter; waiter = None; saved?.resume(Unit) }
+    suspend fun await() { suspendCoroutine<Unit> { next -> if (ready) next.resume(Unit) else waiter = Some(next) } }
+}
+internal class ClientWsFailure { var value: Throwable? = None }
+internal class ClientWsMarker(val value: String)
+context(marker: ClientWsMarker)
+internal fun clientWsMarker(): String = marker.value
+internal fun <T> clientWsPresent(value: T?): Boolean = when (value) { case Some(_) -> true; case None -> false }
+internal suspend fun clientWsFailure(block: suspend () -> Unit): Throwable {
+    try { block() } catch (error: Throwable) { return error }
+    throw IllegalStateException(Some("expected client WebSocket failure"))
+}
+internal suspend fun clientWsIgnoreClose(block: suspend () -> Unit) { try { block() } catch (_: Throwable) {} }
+internal fun clientWsConfig(trust: TrustStore): HttpClientConfig =
+    HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
+        retries = HttpRetryOptions(maxRetries = 0L), pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 1L))
+internal fun clientWsField(name: String, value: String): HttpField = HttpField(name.toByteArray(), value.toByteArray())
+internal suspend fun clientWsOpen(client: HttpClient, url: Url, options: HttpCallOptions = HttpCallOptions()): HttpWebSocketSession =
+    when (client.openWebSocket(HttpWebSocketRequest(url, options = options))) {
+        case Opened(session) -> session
+        case Rejected(response, error) -> { response.close(); throw error }
+    }
+internal suspend fun clientWsWrite(output: AsyncByteSink, text: String) {
+    val bytes = text.toByteArray()
+    NativeByteBuffer.allocate(bytes.size).use suspend { buffer -> buffer.writeBytes(bytes); output.writeFully(buffer) }
+}

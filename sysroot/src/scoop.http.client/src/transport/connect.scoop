@@ -99,18 +99,20 @@ internal suspend fun <T> connectClientOrigin(call: ClientCall, entry: ClientPool
     try {
         requireClientCall(call)
         if (call.request.origin.scheme == "http") {
-            val protocol = if (config.cleartext == HttpCleartextProtocol.Http2PriorKnowledge) HttpProtocol.Http2 else HttpProtocol.Http1
+            val protocol = if (!clientPresent(call.sequence.webSocket) && config.cleartext == HttpCleartextProtocol.Http2PriorKnowledge) HttpProtocol.Http2 else HttpProtocol.Http1
             return adoptClientConnection(call, entry, transport, protocol)
         }
-        val tls = connectClientTls(call, transport, clientTlsPeer(call.request.origin.host), call.client.tls)
+        val context = if (clientPresent(call.sequence.webSocket)) clientWebSocketTls(call.client) else call.client.tls
+        requireClientCall(call)
+        val tls = connectClientTls(call, transport, clientTlsPeer(call.request.origin.host), context)
         try {
-            val allowed: Array<HttpProtocol> = when (config.versionPolicy) {
+            val allowed: Array<HttpProtocol> = if (clientPresent(call.sequence.webSocket)) [HttpProtocol.Http1] else when (config.versionPolicy) {
                 case Auto -> [HttpProtocol.Http2, HttpProtocol.Http1]
                 case Http1Only -> [HttpProtocol.Http1]
                 case Http2Only -> [HttpProtocol.Http2]
             }
             val selected: List<Byte>? = when (tls.connectionInfo.alpn) { case Some(bytes) -> Some(bytes); case None -> None }
-            val protocol = selectHttpAlpn(selected, allowed, config.versionPolicy != HttpVersionPolicy.Http2Only)
+            val protocol = selectHttpAlpn(selected, allowed, clientPresent(call.sequence.webSocket) || config.versionPolicy != HttpVersionPolicy.Http2Only)
             requireClientCall(call)
             return adoptClientConnection(call, entry, tls, protocol)
         } catch (error: Throwable) {

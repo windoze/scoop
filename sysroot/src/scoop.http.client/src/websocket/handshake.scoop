@@ -1,0 +1,81 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+
+internal fun validateClientWebSocket(request: HttpWebSocketRequest, options: HttpWebSocketOptions) {
+    WebSocketHandshake.create(request.url, options.protocols, options.deflateOffers, request.fields)
+}
+
+internal fun prepareClientWebSocket(call: ClientCall) {
+    val options = call.sequence.webSocket ?: return
+    val fields = ArrayList<HttpField>()
+    for (field in call.request.fields) fields.add(field)
+    addClientAcceptEncoding(fields, call.request, call.client.config)
+    when (call.route) {
+        case HttpForward(endpoint) -> for (field in clientProxyAuthorization(call, endpoint)) fields.add(field)
+        else -> {}
+    }
+    call.webSocketHandshake = Some(WebSocketHandshake.create(clientWebSocketUrl(call.request.url), options.protocols,
+        options.deflateOffers, fields, clientUsesForwardProxy(call)))
+}
+
+internal suspend fun finishClientWebSocket(call: ClientCall, head: HttpResponseHead): HttpWebSocketResult {
+    val handshake = call.webSocketHandshake!!
+    val negotiation = try { handshake.accept(head) }
+    catch (error: WebSocketHandshakeException) { return rejectClientWebSocket(call, head, error) }
+    catch (error: HttpFieldParseException) { return rejectClientWebSocket(call, head, error) }
+    call.upload!!.join()
+    requireClientCall(call)
+    val plan = clientResponseDecoding(call, head, None)
+    ClientResponseCodec(call, plan, head).useAsync suspend { codec ->
+        codec.readAllBytes(0L)
+        Unit
+    }
+    requireClientCall(call)
+    val exchange = call.exchange!!
+    if (!(exchange is ClientH1Exchange)) throw IllegalStateException(Some("WebSocket handshake requires an HTTP/1 exchange"))
+    val transport = (exchange as ClientH1Exchange).connection.takeTransport()
+    try {
+        detachClientWebSocketLease(call)
+        requireClientCall(call)
+        val session = AsyncWebSocketSession.takeOwnership(transport, call.client.scope!!, HttpRole.Client,
+            call.sequence.webSocket!!.session, negotiation.deflate)
+        try {
+            val state = ClientWebSocketState(call.client, session)
+            val result = HttpWebSocketSession(state, call, head, negotiation)
+            registerClientWebSocket(state)
+            call.lock.withLock { call.openedWebSocket = Some(result); call.readDone = true }
+            requireClientCall(call)
+            return HttpWebSocketResult.Opened(result)
+        } catch (error: Throwable) {
+            try { session.close() } catch (cleanup: Throwable) { throw ResourceUseException(error, cleanup) }
+            throw error
+        }
+    } catch (error: Throwable) {
+        try { transport.close() } catch (cleanup: Throwable) { throw ResourceUseException(error, cleanup) }
+        throw error
+    }
+}
+
+private fun rejectClientWebSocket(call: ClientCall, head: HttpResponseHead, error: Throwable): HttpWebSocketResult {
+    val response = HttpResponse(call, head)
+    call.lock.withLock { call.responseInput = Some(response.input); call.stopUpload = true }
+    return HttpWebSocketResult.Rejected(response, error)
+}
+
+private fun detachClientWebSocketLease(call: ClientCall) {
+    val entry = call.lock.withLock { val saved = call.lease!!; call.lease = None; saved }
+    call.client.lock.withLock { entry.active -= 1L }
+    removeClientPoolEntry(call.client, entry)
+}
+
+internal suspend fun closeFailedClientWebSocket(call: ClientCall) {
+    val session = call.lock.withLock { call.openedWebSocket } ?: return
+    if (!clientPresent(clientCallFailure(call))) return
+    nonCancellableScope<Unit> suspend { _ ->
+        try { session.close() }
+        catch (error: Throwable) { call.lock.withLock { call.cleanupFailure = appendClientCleanup(call.cleanupFailure, error) } }
+    }
+}

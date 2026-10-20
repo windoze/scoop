@@ -1,0 +1,68 @@
+import scoop.asyncio.*
+import scoop.crypto.testdata.rootPem
+import scoop.crypto.x509.TrustStore
+import scoop.http.*
+import scoop.http.client.*
+import scoop.test.*
+import scoop.text.*
+import scoop.tls.TlsTrustSource
+import scoop.url.Url
+
+fun main(args: Array<String>) {
+    try { runProxyWs(args[1L], args[2L].toInt()) }
+    catch (error: Exception) { eprintln(error.message ?: "tunneled WebSocket fixture failed"); throw error }
+    println("tunneled client WebSocket case passed: " + args[1L])
+}
+
+private fun runProxyWs(mode: String, port: Int) {
+    val socks = mode.startsWith("socks-")
+    val secure = !socks || mode == "socks-wss"
+    val url = Url.parse((if (secure) "wss" else "ws") + "://localhost:9443/resource?q=%2f")
+    val proxy = Url.parse((if (socks) "socks5" else if (mode == "secure-connect") "https" else "http") +
+        "://127.0.0.1:" + port.toString())
+    TrustStore.fromPem(rootPem()).use { trust ->
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val credentials = AtomicLong(0L)
+            val provider = HttpAuthenticator.basic(proxy.toBuilder().setScheme(Some("http")).build().httpOrigin()) suspend { request ->
+                assertEquals(Some(proxy), request.proxyUrl)
+                assertEquals(Some("https"), request.request.url.scheme)
+                credentials.fetchAdd(1L); HttpPasswordCredentials("proxy", "secret")
+            }
+            val tls = HttpClientTlsConfig(TlsTrustSource.Store(trust))
+            val route: HttpProxy = if (socks) HttpProxy.Socks5(HttpSocks5Endpoint(proxy,
+                if (mode == "socks-auth") Some(Socks5Credentials.fromUtf8("代理", "secret\u{0000}")) else None,
+                if (mode == "socks-local") Socks5Resolution.Local else Socks5Resolution.Proxy))
+                else HttpProxy.Http(HttpProxyEndpoint(proxy, tls,
+                    authorization = if (mode == "connect-auth") None else Some(HttpCredentials.withToken68("Basic", "cHJveHk6c2VjcmV0")),
+                    authentication = HttpAuthenticationOptions(if (mode == "connect-auth") [provider] else Array<HttpAuthenticator>(0L) { _ -> provider })))
+            val client = HttpClient.open(scope, HttpClientConfig(tls = tls, proxy = HttpProxySelector.fixed(route),
+                versionPolicy = HttpVersionPolicy.Http2Only, cleartext = HttpCleartextProtocol.Http2PriorKnowledge,
+                http1RequestVersion = HttpVersion.Http10, retries = HttpRetryOptions(maxRetries = 0L)))
+            try {
+                val options = HttpCallOptions(onInformational = suspend { _ ->
+                    throw IllegalStateException(Some("proxy information reached origin callback"))
+                })
+                client.withWebSocket(HttpWebSocketRequest(url, [
+                    HttpField("Authorization".toByteArray(), "Bearer origin".toByteArray(), true),
+                    HttpField("Cookie".toByteArray(), "origin=cookie".toByteArray())
+                ], options)) suspend { result ->
+                    when (result) {
+                        case Opened(session) -> {
+                            assertEquals(HttpVersion.Http11, session.head.version)
+                            assertEquals(if (mode == "connect-auth") 1L else 0L, session.proxyAuthenticationCount)
+                            assertEquals(0L, session.authenticationCount)
+                            assertEquals("tunneled", session.receive()!!.readText())
+                            session.sendText("through proxy")
+                            assertEquals("echo:through proxy", session.receive()!!.readText())
+                            session.shutdownGracefully()
+                        }
+                        case Rejected(_, error) -> throw error
+                    }
+                }
+                assertEquals(if (mode == "connect-auth") 1L else 0L, credentials.load())
+            } finally { client.close() }
+            assertTrue(client.isClosed)
+        }
+    }
+}
