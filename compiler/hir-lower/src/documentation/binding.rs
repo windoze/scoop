@@ -64,6 +64,7 @@ impl Lowerer {
             resolver.current_owner = captured.scope.owner;
             resolver.type_params_in_scope = captured.scope.parameters;
             resolver.link_documentation_signature(&mut declaration, &context.types, &index, world);
+            declaration.relations = resolver.documentation_relations(declaration.target);
             if let Some(comment) = captured.comment {
                 declaration.comment = Some(resolver.bind_documentation(
                     declaration.target,

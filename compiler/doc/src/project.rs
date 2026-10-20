@@ -9,6 +9,7 @@ mod annotations;
 mod bindings;
 mod comments;
 mod keys;
+mod relations;
 mod requirements;
 mod signatures;
 mod visibility;
@@ -144,6 +145,7 @@ impl Projection<'_> {
                 .map(|comment| self.comment(comment))
                 .transpose()?,
             property: self.property(item.target)?,
+            relations: self.relations(item)?,
         })
     }
 

@@ -1,6 +1,10 @@
 use super::*;
 
 fn with_annotations(source: &str) -> ConeInput {
+    project(&lower_with_core(&annotation_core(), source, true).unwrap())
+}
+
+pub(super) fn annotation_core() -> support::TrustedCoreFixture {
     let text = format!(
         "{}\n{}",
         include_str!(
@@ -11,8 +15,7 @@ fn with_annotations(source: &str) -> ConeInput {
     let mut core = complete_core_file();
     core.declarations
         .extend(scoop_parser::parse(&text).unwrap().declarations);
-    let core = support::trusted_core_from_source(core, &text);
-    project(&lower_with_core(&core, source, true).unwrap())
+    support::trusted_core_from_source(core, &text)
 }
 
 #[test]

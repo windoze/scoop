@@ -3,6 +3,7 @@ use super::*;
 mod catalog;
 mod content;
 mod links;
+mod relations;
 mod sources;
 
 fn item(key: &str, name: &str, kind: ApiKind, parent: Option<&str>) -> ApiItem {
@@ -31,6 +32,7 @@ fn item(key: &str, name: &str, kind: ApiKind, parent: Option<&str>) -> ApiItem {
         },
         comment: None,
         property: None,
+        relations: Vec::new(),
     }
 }
 

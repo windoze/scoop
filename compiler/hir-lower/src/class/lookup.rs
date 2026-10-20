@@ -4,6 +4,22 @@ mod candidates;
 mod interface_members;
 
 impl Lowerer {
+    pub(crate) fn visible_methods(&mut self, ty: TypeId) -> Vec<crate::CallableCandidate> {
+        let names = self
+            .method_candidates(ty)
+            .into_iter()
+            .filter_map(|(candidate, _, _)| {
+                self.function_accessor_kind(candidate.function)
+                    .is_none()
+                    .then(|| self.source_function_name(candidate.function).to_owned())
+            })
+            .collect::<std::collections::BTreeSet<_>>();
+        names
+            .into_iter()
+            .flat_map(|name| self.methods_by_name(ty, &name))
+            .collect()
+    }
+
     /// All visible methods named `name` on a receiver type (M7 overload
     /// candidates). A class contributes its own methods followed by
     /// the base chain nearest-first; an overriding signature suppresses

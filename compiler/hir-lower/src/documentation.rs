@@ -16,6 +16,7 @@ mod constructors;
 mod functions;
 mod nominals;
 mod properties;
+mod relations;
 mod signatures;
 mod symbols;
 mod synthesized;
@@ -139,6 +140,7 @@ impl Lowerer {
                 signature,
                 type_parameters: scope.parameters.clone(),
                 comment: None,
+                relations: Vec::new(),
             },
             comment,
             scope,

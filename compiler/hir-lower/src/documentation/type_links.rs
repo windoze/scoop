@@ -51,20 +51,19 @@ impl Lowerer {
                     result.push(Part::Source(ast::Span::new(position, *start)));
                 }
                 let span = ast::Span::new(*start, *end);
-                let symbol =
-                    path.first().and_then(|first| {
-                        let path = ast::QualifiedNameSyntax {
-                            first: first.clone(),
-                            rest: path
-                                .windows(2)
-                                .map(|pair| ast::QualifiedNameTailSyntax {
-                                    dot_span: ast::Span::new(pair[0].span.end, pair[1].span.start),
-                                    identifier: pair[1].clone(),
-                                })
-                                .collect(),
-                            span,
-                        };
-                        self.documentation_symbols(declaration.target, &path, index, world)
+                let symbol = path.first().and_then(|first| {
+                    let path = ast::QualifiedNameSyntax {
+                        first: first.clone(),
+                        rest: path
+                            .windows(2)
+                            .map(|pair| ast::QualifiedNameTailSyntax {
+                                dot_span: ast::Span::new(pair[0].span.end, pair[1].span.start),
+                                identifier: pair[1].clone(),
+                            })
+                            .collect(),
+                        span,
+                    };
+                    self.documentation_symbols(declaration.target, &path, index, world)
                             .ok()
                             .and_then(|symbols| match symbols.as_slice() {
                                 [
@@ -83,7 +82,7 @@ impl Lowerer {
                                 ] => Some(*symbol),
                                 _ => None,
                             })
-                    });
+                });
                 result.push(match symbol {
                     Some(symbol) => Part::LinkedSource { span, symbol },
                     None => Part::SourceType { span, ty: *ty },

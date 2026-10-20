@@ -1,0 +1,11 @@
+public import api.Base as VisibleBase
+import api.Readable
+
+/** Specializes [VisibleBase.copy] for integers. */
+public class Child : VisibleBase<Int>(42) {
+    public override fun number(): Int = 2
+}
+
+public interface Left : Readable<Int> {}
+public interface Right : Readable<Int> {}
+public interface Diamond : Left, Right {}

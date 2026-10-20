@@ -53,6 +53,25 @@ pub struct DocumentationDeclaration {
     /// Names in the original binder scope, including enclosing declarations.
     pub type_parameters: Vec<crate::TypeParamDecl>,
     pub comment: Option<DocumentationComment>,
+    pub relations: Vec<DocumentationRelation>,
+}
+
+#[derive(Clone, Debug)]
+pub struct DocumentationRelation {
+    pub kind: DocumentationRelationKind,
+    pub target: DocumentationSymbol,
+    pub signature: String,
+    pub origin: String,
+    pub visibility: DeclaredVisibility,
+    /// Imported annotations are available even when no dependency page is selected.
+    pub hidden: bool,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum DocumentationRelationKind {
+    Supertype,
+    Inherited,
+    Overrides,
 }
 
 /// Written syntax is preserved verbatim; inferred and generated types always

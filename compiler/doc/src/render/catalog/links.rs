@@ -37,6 +37,16 @@ impl SiteCatalog<'_> {
             extensions: Vec::new(),
         };
         for (_, item) in self.items.values().filter(|(owner, _)| owner.key == *key) {
+            for relation in &item.relations {
+                inputs.symbols.insert(
+                    relation.target.clone(),
+                    self.declaration_url(&relation.target),
+                );
+                inputs.bindings.push((
+                    relation.target.clone(),
+                    self.relation_visible(cone, relation),
+                ));
+            }
             let tokens = item.signature.iter().chain(item.receiver.iter()).chain(
                 item.equality_requirements
                     .iter()
@@ -91,5 +101,15 @@ impl SiteCatalog<'_> {
             }
         }
         Ok(inputs)
+    }
+
+    pub(in crate::render) fn relation_visible(
+        &self,
+        cone: &ConeInput,
+        relation: &ApiRelation,
+    ) -> bool {
+        (relation.public || self.private || cone.executable)
+            && (!self.known.contains(&relation.target)
+                || self.routes.contains_key(&relation.target))
     }
 }

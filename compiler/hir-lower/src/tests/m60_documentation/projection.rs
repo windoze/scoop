@@ -3,6 +3,7 @@ use scoop_doc::{ApiItem, ApiKind, ConeInput, LinkTarget, Visibility};
 
 mod annotations;
 mod identity;
+mod relations;
 mod visibility;
 
 pub(super) fn project(output: &hir::DependencyHirOutput) -> ConeInput {

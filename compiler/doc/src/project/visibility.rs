@@ -106,7 +106,7 @@ impl Projection<'_> {
             })
     }
 
-    fn externally_inheritable(
+    pub(super) fn externally_inheritable(
         &self,
         owner: hir::SourceNominalId,
         active: &mut std::collections::HashSet<hir::SourceNominalId>,

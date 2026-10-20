@@ -23,6 +23,7 @@ pub(in crate::render) struct ItemView {
     children: Vec<ItemView>,
     related: Vec<LinkView>,
     extensions: Vec<LinkView>,
+    relations: Vec<LinkView>,
 }
 
 #[derive(Serialize)]
@@ -102,6 +103,26 @@ impl SiteRenderer<'_, '_> {
             visibility: item.visibility,
             synthesized: item.synthesized,
             signature,
+            relations: item
+                .relations
+                .iter()
+                .filter(|relation| self.catalog.relation_visible(cone, relation))
+                .map(|relation| {
+                    let mut link = LinkView::new(
+                        &relation.signature,
+                        page,
+                        self.catalog.declaration_url(&relation.target),
+                    );
+                    link.kind = match relation.kind {
+                        RelationKind::Supertype => "Supertype",
+                        RelationKind::Inherited => "Inherited",
+                        RelationKind::Overrides => "Overrides",
+                    }
+                    .into();
+                    link.summary = relation.origin.clone();
+                    link
+                })
+                .collect(),
             receiver: item
                 .receiver
                 .as_ref()

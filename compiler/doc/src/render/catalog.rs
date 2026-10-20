@@ -16,6 +16,7 @@ pub struct SiteCatalog<'a> {
     pub(super) groups: BTreeMap<SymbolKey, Route>,
     pub(super) overloads: BTreeMap<Vec<SymbolKey>, Route>,
     known: BTreeSet<SymbolKey>,
+    private: bool,
 }
 
 pub(super) struct Page<'a> {
@@ -35,6 +36,7 @@ impl<'a> SiteCatalog<'a> {
             groups: BTreeMap::new(),
             overloads: BTreeMap::new(),
             known: BTreeSet::new(),
+            private: options.document_private_items,
         };
         for cone in inputs {
             if catalog.cones.insert(cone.key.clone(), cone).is_some() {

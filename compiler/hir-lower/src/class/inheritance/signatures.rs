@@ -9,7 +9,7 @@ impl Lowerer {
             .is_some_and(|method| method.modifier == hir::MethodModifier::Abstract)
     }
 
-    pub(in crate::class) fn instantiated_signature(
+    pub(crate) fn instantiated_signature(
         &mut self,
         method: FunctionId,
         owner_arguments: &[TypeId],

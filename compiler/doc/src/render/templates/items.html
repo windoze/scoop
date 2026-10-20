@@ -10,6 +10,7 @@
   </div>
   <div class="badges"><span>{{ entry.visibility }}</span>{% if entry.synthesized %}<span>compiler-derived</span>{% endif %}</div>
   <pre class="signature"><code>{% for token in entry.signature %}{{ type_token(token) }}{% endfor %}</code></pre>
+  {% if entry.relations %}<ul class="relations">{% for link in entry.relations %}<li><span class="kind">{{ link.kind }}</span> {% if link.href %}<a href="{{ link.href }}"><code>{{ link.text }}</code></a>{% else %}<code>{{ link.text }}</code> <small>(no generated documentation)</small>{% endif %}{% if link.summary %}<small> · {{ link.summary }}</small>{% endif %}</li>{% endfor %}</ul>{% endif %}
   {% if entry.receiver %}<p>Extension receiver: <code>{{ type_token(entry.receiver) }}</code></p>{% endif %}
   {% if entry.equality_requirements is not none %}
   <p class="availability">This derived operation is available when each field or payload type supports same-type equality.{% if entry.equality_requirements %} Required types: {% for component in entry.equality_requirements %}<code>{{ type_token(component) }}</code>{% if not loop.last %}, {% endif %}{% endfor %}.{% endif %}</p>

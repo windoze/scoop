@@ -48,6 +48,24 @@ pub struct ApiItem {
     pub location: SourceLocation,
     pub comment: Option<Comment>,
     pub property: Option<PropertyCapability>,
+    pub relations: Vec<ApiRelation>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ApiRelation {
+    pub kind: RelationKind,
+    pub target: SymbolKey,
+    pub signature: String,
+    pub origin: String,
+    pub public: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum RelationKind {
+    Supertype,
+    Inherited,
+    Overrides,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
