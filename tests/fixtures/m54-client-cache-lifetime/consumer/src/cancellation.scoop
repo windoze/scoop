@@ -30,6 +30,7 @@ internal fun cacheCancellation(trust: TrustStore, stage: String, mode: String, c
                     client.withResponse(HttpRequest.get(url, options = options)) suspend { response -> response.body.bytes(16L) }
                 }
             } catch (error: Throwable) { failed.value = Some(error) }
+            finally { probe.entered.signal() }
         }
         probe.entered.await()
         val closing = if (mode == "client") Some(scope.launch suspend {
@@ -37,6 +38,7 @@ internal fun cacheCancellation(trust: TrustStore, stage: String, mode: String, c
         }) else None
         if (mode == "caller") executing.cancel()
         try {
+            assertTrue(probe.active.load(), Some("request finished before the selected cache callback"))
             probe.cancelled.await()
             assertFalse(executing.isCompleted || probe.cleaned.load())
             probe.release.signal(); probe.cleaning.await()

@@ -33,20 +33,29 @@ private fun cacheCallbackFailure(trust: TrustStore, stage: String) {
     }
 }
 
-fun main() {
-    TrustStore.fromPem(rootPem()).use { trust ->
-        for (stage in ["lookup", "begin", "write", "commit"]) {
-            try {
-                cacheCallbackFailure(trust, stage)
-                for (mode in ["caller", "client"]) cacheCancellation(trust, stage, mode, false)
-                cacheCancellation(trust, stage, "client", true)
-            } catch (error: AssertionFailure) {
-                println(stage + ": " + error.kind + " " + (error.message ?: "failure") + " at " + error.location.line.toString())
-                throw error
-            }
-        }
-        cacheCancellation(trust, "lookup", "total", false)
-        cacheCancellation(trust, "commit", "total", false)
+fun main(args: Array<String>) {
+    assertEquals(4L, args.size)
+    val stage = args[1L]
+    val mode = args[2L]
+    val cleanupError = when (args[3L]) {
+        case "plain" -> false
+        case "cleanup" -> true
+        else -> throw IllegalArgumentException()
     }
-    println("client cache callback cancellation cleanup and failure classification passed")
+    assertTrue(stage == "lookup" || stage == "begin" || stage == "write" || stage == "commit")
+    TrustStore.fromPem(rootPem()).use { trust ->
+        try {
+            if (mode == "failure") {
+                assertFalse(cleanupError)
+                cacheCallbackFailure(trust, stage)
+            } else {
+                assertTrue(mode == "caller" || mode == "client" || mode == "total")
+                cacheCancellation(trust, stage, mode, cleanupError)
+            }
+        } catch (error: AssertionFailure) {
+            println(stage + " " + mode + ": " + error.kind + " " + (error.message ?: "failure") + " at " + error.location.line.toString())
+            throw error
+        }
+    }
+    println("cache lifetime case passed")
 }
