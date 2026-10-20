@@ -1,0 +1,97 @@
+package scoop.http.asyncio
+
+internal fun abortWs(state: WsState, error: Throwable?) {
+    if (state.closing) return
+    if (!present(state.failure) && present(error)) state.failure = error
+    state.closing = true
+}
+
+internal suspend fun closeWs(state: WsState) {
+    if (!state.lock.withLock { state.closed }) {
+        checkWsCloseContext(state)
+        httpJob(state.loop, false)
+        state.lock.withLock { abortWs(state, None) }
+        driveWs(state)
+    }
+    awaitWsClosed(state)
+}
+
+internal suspend fun awaitWsClosed(state: WsState) {
+    suspendCoroutine<Unit> { continuation ->
+        val actions = ArrayList<() -> Unit>()
+        state.lock.withLock {
+            if (state.closed) finishWsCloser(continuation, state.closeFailure, actions)
+            else state.closeWaiters.add(continuation)
+        }
+        for (action in actions) action()
+        driveWs(state)
+    }
+}
+
+internal fun advanceWsClose(state: WsState, actions: ArrayList<() -> Unit>): Boolean {
+    if (!state.ownerCancellationStarted) {
+        state.ownerCancellationStarted = true
+        val owner = state.ownerJob!!
+        val source = state.sourceJob
+        actions.add { source?.cancel(); owner.cancel() }
+        return true
+    }
+    if (state.inputBusy || state.outputBusy) return false
+    finishWsOperations(state, actions)
+    if (state.reading || state.writing) return false
+    if (!state.transportClosing) {
+        state.transportClosing = true
+        actions.add { startWsClose(state) }
+        return true
+    }
+    if (!state.transportClosed) return false
+    state.closeFailure = releaseWsResources(state, state.closeFailure)
+    if (present(state.closeFailure)) state.failure = appendWsFailure(state.failure, state.closeFailure!!)
+    state.closed = true
+    val failure = state.failure ?: wsClosed(state)
+    for (wait in state.shutdownWaiters) {
+        if (wsClean(state)) succeedWsWait(wait, state.peerClose!!, actions)
+        else failWsWait(wait, failure, actions)
+    }
+    state.shutdownWaiters.clear()
+    if (present(state.incoming)) {
+        state.incoming!!.discarded = !state.incoming!!.life.complete
+        state.incoming!!.data = None
+        detachWsLife(state.incoming!!.life, actions)
+    }
+    if (present(state.outgoing)) detachWsLife(state.outgoing!!.life, actions)
+    state.incoming = None; state.outgoing = None; state.automaticPong = None; state.wire = None
+    val listener = state.ownerListener
+    val owner = state.ownerWaiter
+    state.ownerListener = None; state.ownerWaiter = None; state.ownerJob = None; state.ownerScope = None; state.timer = None
+    actions.add { if (present(listener)) listener!!.dispose(); if (present(owner)) owner!!.resume(Unit) }
+    for (waiter in state.closeWaiters) finishWsCloser(waiter, state.closeFailure, actions)
+    state.closeWaiters.clear()
+    finishWsObservers(state, actions)
+    return true
+}
+
+private fun finishWsCloser(waiter: Continuation<Unit>, failure: Throwable?, actions: ArrayList<() -> Unit>) {
+    actions.add { if (present(failure)) waiter.resumeWithException(failure!!) else waiter.resume(Unit) }
+}
+
+private fun startWsClose(state: WsState) {
+    val job = state.ownerJob!!
+    val loop = state.loop
+    context(job) { context(loop) { startCoroutine<Unit>(suspend {
+        nonCancellableScope<Unit> suspend { _ -> state.owner.close() }
+    }, WsCloseCompletion(state)) } }
+}
+
+private class WsCloseCompletion(val state: WsState) : Continuation<Unit> {
+    public override fun resume(value: Unit) { finish(None) }
+    public override fun resumeWithException(exception: Throwable) { finish(Some(exception)) }
+    private fun finish(failure: Throwable?) {
+        state.lock.withLock {
+            state.transportClosed = true
+            if (present(failure)) state.closeFailure = appendWsFailure(state.closeFailure, failure!!)
+            Unit
+        }
+        driveWs(state)
+    }
+}

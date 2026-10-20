@@ -40,9 +40,8 @@ fn fingerprints(
     objects: &[ScoopLirObjectCandidateV1<'_>],
 ) -> Result<TypeFingerprintSetV1, StrongTypeFingerprintError> {
     let registrations = bind_type_registrations_v1(
-        fixture.verified_patch_sites(),
+        fixture.object_data(),
         fixture.type_registration_plan.clone(),
-    )
-    .unwrap();
+    );
     compute_strong_type_fingerprints_v1(registrations, &fixture.canonical_shapes, objects)
 }

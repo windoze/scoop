@@ -1,0 +1,35 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.crypto.testdata.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.platform.net.*
+import scoop.tls.*
+import scoop.url.Url
+
+internal fun clientTestTrust(): TrustStore = TrustStore.fromPem(rootPem())
+
+internal fun clientTestConfig(trust: TrustStore, version: HttpVersion = HttpVersion.Http11): HttpClientConfig =
+    HttpClientConfig(cleartext = if (version == HttpVersion.Http2) HttpCleartextProtocol.Http2PriorKnowledge else HttpCleartextProtocol.Http1,
+        http1RequestVersion = if (version == HttpVersion.Http10) HttpVersion.Http10 else HttpVersion.Http11,
+        tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)))
+
+internal fun clientTestUrl(listener: AsyncTcpListener, path: String = "/"): Url =
+    Url.parse("http://127.0.0.1:" + listener.localAddress.port.toString() + path)
+
+internal suspend fun clientTestListen(loop: EventLoop): AsyncTcpListener =
+    loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
+
+internal suspend fun sendClientTestText(connection: AsyncHttp1Connection, status: UInt, text: String) {
+    val bytes = text.toByteArray()
+    connection.sendResponse(HttpResponseHead(HttpVersion.Http11, status, Some("actual reason".toByteArray())),
+        Http1BodyFraming.Length(bytes.size)).useAsync suspend { output ->
+        writeBodyText(output, text)
+        output.finish()
+    }
+}
+
+internal class ClientTestResponseHolder { var value: HttpResponse? = None }
+internal class ClientTestFailureHolder { var value: Throwable? = None }

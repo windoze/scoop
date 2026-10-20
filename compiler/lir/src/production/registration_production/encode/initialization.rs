@@ -126,15 +126,12 @@ fn encode_initialization_registration_schedule(
     schedule: &StrongInitializationRegistrationSchedulePlanV1,
 ) -> Result<(), scoop_wire::cbor::EncodeError> {
     match schedule {
-        StrongInitializationRegistrationSchedulePlanV1::EagerStartup {
-            gateway,
-            gateway_definition_patch,
-        } => {
-            encoder.map(3)?;
+        StrongInitializationRegistrationSchedulePlanV1::EagerStartup { gateway } => {
+            encoder.map(2)?;
             encode_unsigned_field(encoder, 0, 1)?;
             encoder.field(1)?;
             encode_initialization_callable_ref(encoder, **gateway)?;
-            encode_field(encoder, 2, gateway_definition_patch)
+            Ok(())
         }
         StrongInitializationRegistrationSchedulePlanV1::LazyAccess => encode_empty_sum(encoder, 2),
     }

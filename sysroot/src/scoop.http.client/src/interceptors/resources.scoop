@@ -1,0 +1,28 @@
+package scoop.http.client
+
+internal fun rememberClientInvocationResult(invocation: ClientInvocation, result: HttpCallResult) {
+    val resource = clientResultResource(result)
+    invocation.client.lock.withLock {
+        for (saved in invocation.resources) if (saved.resource === resource) return@withLock
+        invocation.resources.add(ClientInvocationResource(resource))
+    }
+}
+
+internal suspend fun closeClientInvocationResults(invocation: ClientInvocation, keep: HttpCallResult?) {
+    val retained = when (keep) { case Some(value) -> Some(clientResultResource(value)); case None -> None }
+    nonCancellableScope<Unit> suspend { _ ->
+        for (saved in invocation.resources) {
+            if (saved.closed || (clientPresent(retained) && saved.resource === retained!!)) continue
+            saved.closed = true
+            try { saved.resource.close() }
+            catch (error: Throwable) {
+                invocation.client.lock.withLock {
+                    invocation.cleanupFailure = if (clientPresent(invocation.failure))
+                        collectClientSecondary(invocation.failure!!, invocation.cleanupFailure, error)
+                        else appendClientCleanup(invocation.cleanupFailure, error)
+                    Unit
+                }
+            }
+        }
+    }
+}

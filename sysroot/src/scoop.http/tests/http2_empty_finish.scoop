@@ -1,0 +1,126 @@
+package scoop.http
+
+import scoop.test.*
+
+private fun checkFinished2(events: List<Http2Event>, id: Int, value: String = "") {
+    assertEquals(1, ends2(events, id))
+    var trailers = 0
+    for (event in events) when (event) {
+        case Trailers(streamId, fields) -> {
+            if (streamId == id) {
+                trailers += 1
+                assertEquals(if (value == "") 0L else 1L, fields.size)
+                if (value != "") {
+                    assertEquals("x-end", String.fromUtf8(fields[0L].name))
+                    assertEquals(value, String.fromUtf8(fields[0L].value))
+                }
+            }
+        }
+        else -> {}
+    }
+    assertEquals(1, trailers)
+}
+
+@Test private class Http2EmptyFinishTests {
+    @Test fun `an empty request finishes at zero stream window before or after its headers`() {
+        for (beforeOutput in [true, false]) {
+            withHttp2(Http2Session.client(), Http2Session.server(settings = Http2Settings(initialWindowSize = 0U))) { client, server ->
+                drive2(client, server)
+                val id = client.submitRequest(request2("POST"), false)
+                if (!beforeOutput) drive2(client, server)
+                client.finish(id)
+                assertTrue(client.hasPendingOutput(id))
+                drive2(client, server)
+                val received = events2(server)
+                assertEquals(1L, requests2(received).size)
+                assertEquals(0L, data2(received, id).size)
+                checkFinished2(received, id)
+                assertFalse(client.hasPendingOutput(id))
+                server.submitResponse(id, HttpResponseHead(HttpVersion.Http2, 204U))
+                drive2(client, server)
+                assertTrue(closed2(events2(client), id, 0U))
+                assertEquals(0, ends2(events2(server), id))
+            }
+        }
+    }
+
+    @Test fun `finishing an exactly exhausted stream window sends empty or nonempty trailers`() {
+        for (value in ["", "done"]) {
+            withHttp2(Http2Session.client(), Http2Session.server(settings = Http2Settings(initialWindowSize = 3U))) { client, server ->
+                drive2(client, server)
+                val id = client.submitRequest(request2("POST"), false)
+                assertEquals(3L, write2(client, id, "abc".toByteArray()))
+                drive2(client, server)
+                assertEquals("abc", String.fromUtf8(data2(events2(server), id)))
+                val fields: List<HttpField> = if (value == "") ArrayList<HttpField>() else [HttpField("x-end".toByteArray(), value.toByteArray())]
+                client.finish(id, fields)
+                drive2(client, server)
+                val received = events2(server)
+                assertEquals(0L, data2(received, id).size)
+                checkFinished2(received, id, value)
+                assertFalse(client.hasPendingOutput(id))
+                server.consume(id, 3L)
+            }
+        }
+    }
+
+    @Test fun `queued data must obtain flow credit before trailers can end the stream`() {
+        withHttp2(Http2Session.client(), Http2Session.server(settings = Http2Settings(initialWindowSize = 3U))) { client, server ->
+            drive2(client, server)
+            val id = client.submitRequest(request2("POST"), false)
+            assertEquals(4L, write2(client, id, "abcd".toByteArray()))
+            client.finish(id, [HttpField("x-end".toByteArray(), "done".toByteArray())])
+            drive2(client, server)
+            val partial = events2(server)
+            assertEquals("abc", String.fromUtf8(data2(partial, id)))
+            assertEquals(0, ends2(partial, id))
+            assertTrue(client.hasPendingOutput(id))
+            assertFalse(client.wantsWrite)
+            server.consume(id, 3L)
+            drive2(client, server)
+            val received = events2(server)
+            assertEquals("d", String.fromUtf8(data2(received, id)))
+            checkFinished2(received, id, "done")
+            assertFalse(client.hasPendingOutput(id))
+            server.consume(id, 1L)
+        }
+    }
+
+    @Test fun `empty finishes on existing and new streams ignore an exhausted connection window`() {
+        withHttp2(Http2Session.client(), Http2Session.server(settings = Http2Settings(initialWindowSize = 131070U))) { client, server ->
+            drive2(client, server)
+            val first = client.submitRequest(request2("POST"), false)
+            val bytes = Array<Byte>(65535L) { _ -> 42.toByte() }
+            assertEquals(bytes.size, write2(client, first, bytes))
+            drive2(client, server, 8192L)
+            assertEquals(bytes.size, data2(events2(server), first).size)
+            client.finish(first)
+            val second = client.submitRequest(request2(), false)
+            client.finish(second)
+            drive2(client, server)
+            val received = events2(server)
+            checkFinished2(received, first)
+            checkFinished2(received, second)
+            assertFalse(client.hasPendingOutput(first) || client.hasPendingOutput(second))
+            server.consume(first, bytes.size)
+        }
+    }
+
+    @Test fun `empty response finish follows informational and final headers with a zero window`() {
+        withHttp2(Http2Session.client(settings = Http2Settings(initialWindowSize = 0U)), Http2Session.server()) { client, server ->
+            val id = client.submitRequest(request2())
+            drive2(client, server)
+            server.submitResponse(id, HttpResponseHead(HttpVersion.Http2, 103U), false)
+            server.submitResponse(id, HttpResponseHead(HttpVersion.Http2, 200U), false)
+            server.finish(id)
+            drive2(client, server)
+            val received = events2(client)
+            val heads = responses2(received)
+            assertEquals(2L, heads.size)
+            assertEquals(103U, heads[0L].status)
+            assertEquals(200U, heads[1L].status)
+            checkFinished2(received, id)
+            assertFalse(server.hasPendingOutput(id))
+        }
+    }
+}

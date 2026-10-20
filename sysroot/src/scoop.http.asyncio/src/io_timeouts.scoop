@@ -1,0 +1,31 @@
+package scoop.http.asyncio
+
+import scoop.http.HttpProtocol
+import scoop.time.Duration
+import scoop.time.TimeMark
+
+public struct HttpIoTimeoutOptions(val readIdle: Duration? = None, val writeIdle: Duration? = None)
+
+public enum HttpIoDirection { Read, Write }
+
+public class HttpIoTimeoutException public constructor(
+    public val direction: HttpIoDirection, public val protocol: HttpProtocol, public val streamId: Int,
+    public val limit: Duration, public val elapsed: Duration
+) : Exception(Some("HTTP I/O idle timeout"))
+
+internal fun httpIdleLimit(limit: Duration?) {
+    if (limit != None && limit!! < Duration.ZERO) throw IllegalArgumentException(Some("negative HTTP idle timeout"))
+}
+
+internal fun requireHttpIoTimeouts(options: HttpIoTimeoutOptions) {
+    httpIdleLimit(options.readIdle); httpIdleLimit(options.writeIdle)
+}
+
+internal class HttpIoClock(val direction: HttpIoDirection, val protocol: HttpProtocol, val streamId: Int,
+    val limit: Duration, var progress: TimeMark) {
+    fun remaining(now: TimeMark): Duration = limit - (now - progress)
+    fun expired(now: TimeMark): HttpIoTimeoutException? {
+        val elapsed = now - progress
+        return if (elapsed >= limit) Some(HttpIoTimeoutException(direction, protocol, streamId, limit, elapsed)) else None
+    }
+}

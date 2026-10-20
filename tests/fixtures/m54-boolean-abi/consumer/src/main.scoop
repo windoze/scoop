@@ -1,0 +1,54 @@
+private fun expectBoolean(actual: Boolean, expected: Boolean, message: String) {
+    if (actual) {
+        if (!expected) throw IllegalStateException(Some(message))
+    } else if (expected) throw IllegalStateException(Some(message))
+}
+
+private interface Predicate {
+    fun evaluate(value: Boolean): Boolean
+}
+
+private class Negation : Predicate {
+    override fun evaluate(value: Boolean): Boolean = !value
+}
+
+private fun negate(value: Boolean): Boolean = !value
+private fun throughAction(action: (Boolean) -> Boolean, value: Boolean): Boolean = action(value)
+private fun <T : Equals<T>> genericEquals(left: T, right: T): Boolean = left == right
+
+private class BooleanFailure : Throwable()
+private fun checkedEquals(left: Boolean, right: Boolean, fail: Boolean): Boolean {
+    if (fail) throw BooleanFailure()
+    return left == right
+}
+
+private fun exercise(mode: String, incomplete: Boolean, predicate: Predicate) {
+    val expected = if (incomplete) false else mode != "write-failure"
+    val value = !incomplete && mode != "write-failure"
+    expectBoolean(expected == (!incomplete && mode != "write-failure"), true, "runtime equality lost a Boolean bit")
+    expectBoolean(value != !expected, true, "runtime inequality lost a Boolean bit")
+    expectBoolean(genericEquals(value, expected), true, "generic equality differs")
+    expectBoolean(negate(!value), expected, "direct Boolean result differs")
+    expectBoolean(predicate.evaluate(!value), expected, "interface Boolean result differs")
+    expectBoolean(throughAction({ argument -> !argument }, !value), expected, "closure Boolean result differs")
+    expectBoolean(value.toString() == (if (expected) "true" else "false"), true, "runtime Boolean text differs")
+    expectBoolean(value.hash() == expected.hash(), true, "runtime Boolean hash differs")
+    var cleanups = 0L
+    val result = try { checkedEquals(value, expected, false) } finally { cleanups += 1L }
+    expectBoolean(result, true, "Boolean invoke result differs")
+    val caught = try {
+        checkedEquals(value, expected, true)
+        false
+    } catch (_: BooleanFailure) {
+        true
+    } finally { cleanups += 1L }
+    expectBoolean(caught && cleanups == 2L, true, "Boolean invoke lost exception cleanup")
+}
+
+fun main(args: Array<String>) {
+    val predicate: Predicate = Negation()
+    for (mode in [args[1L], "write-failure", "abandon"]) {
+        for (incomplete in [false, true]) exercise(mode, incomplete, predicate)
+    }
+    println("Boolean calls preserve truth through runtime, dispatch and cleanup")
+}

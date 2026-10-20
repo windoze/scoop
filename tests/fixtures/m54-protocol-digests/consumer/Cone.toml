@@ -1,0 +1,12 @@
+schema = 1
+
+[cone]
+group = "scoop.tests"
+name = "m54-protocol-digests"
+version = "0.1.0"
+kind = "executable"
+
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"scoop:scoop.std" = "0.1.0"
+"scoop:scoop.crypto" = "0.1.0"

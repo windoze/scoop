@@ -25,15 +25,12 @@ static const uint64_t node_scan[] = {4, 16, 24, 32, 40};
       .minimum_size = sizeof(type), .instance_alignment = _Alignof(type) }
 static const ScoopTypeDescriptor task_td = {
     .type_id = 1, .instance_shape = FIXED_SHAPE(ScoopTaskContext),
-    .object_scan = task_scan,
-};
+    .object_scan = task_scan};
 static const ScoopTypeDescriptor node_td = {
     .type_id = 2, .instance_shape = FIXED_SHAPE(ScoopContextNode),
-    .object_scan = node_scan,
-};
+    .object_scan = node_scan};
 static const ScoopTypeDescriptor payload_td = {
-    .type_id = 3, .instance_shape = FIXED_SHAPE(Payload),
-};
+    .type_id = 3, .instance_shape = FIXED_SHAPE(Payload)};
 
 static void frame_init(uintptr_t frame[4]) {
     frame[0] = frame[1] = frame[3] = 0;

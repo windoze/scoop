@@ -1,0 +1,83 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+
+internal suspend fun adoptWs(transport: AsyncByteStream, owner: AsyncCloseable, scope: CoroutineScope,
+    role: HttpRole, options: WebSocketSessionOptions, deflate: WebSocketDeflateNegotiation?): AsyncWebSocketSession {
+    val loop = currentEventLoop()
+    val caller = httpJob(loop, true)
+    if (scope.job.isCompleted) throw IllegalStateException(Some("WebSocket scope is closed"))
+    scope.job.ensureActive()
+    val state = allocateWs(transport, owner, loop, role, options, deflate)
+    try {
+        scope.launch suspend {
+            coroutineScope<Unit> suspend { owned ->
+                val job = httpJob(loop, true)
+                suspendCoroutine<Unit> { continuation ->
+                    state.lock.withLock {
+                        caller.ensureActive(); job.ensureActive()
+                        state.ownerScope = Some(owned)
+                        state.ownerJob = Some(job)
+                        state.ownerWaiter = Some(continuation)
+                        state.adopted = true
+                    }
+                    val listener = job.invokeOnCancellation { error ->
+                        state.lock.withLock { if (!state.closing) abortWs(state, Some(error)); Unit }
+                        driveWs(state)
+                    }
+                    val closed = state.lock.withLock {
+                        if (state.closed) true else { state.ownerListener = Some(listener); false }
+                    }
+                    if (closed) listener.dispose()
+                }
+            }
+        }
+        if (!state.lock.withLock { state.adopted }) {
+            caller.ensureActive(); scope.job.ensureActive()
+            throw IllegalStateException(Some("WebSocket owner could not be registered"))
+        }
+        driveWs(state)
+        caller.ensureActive()
+        return AsyncWebSocketSession(state)
+    } catch (error: Throwable) {
+        if (!state.lock.withLock { state.adopted }) throw releaseWsResources(state, Some(error))!!
+        failWsOperation(state, error)
+    }
+}
+
+private fun allocateWs(transport: AsyncByteStream, owner: AsyncCloseable, loop: EventLoop,
+    role: HttpRole, options: WebSocketSessionOptions, negotiated: WebSocketDeflateNegotiation?): WsState {
+    val encoder = WebSocketFrameEncoder(role, present(negotiated))
+    val decoder = WebSocketFrameDecoder(role, present(negotiated), options.incomingLimits)
+    val input = try { NativeByteBuffer.allocate(options.inputBufferBytes) }
+        catch (error: Throwable) {
+            val first = messageCleanup(Some(error)) { decoder.close() }
+            throw messageCleanup(first) { encoder.close() }!!
+        }
+    try {
+        val payload = if (options.outgoingFrameBytes < 125L) 125L else options.outgoingFrameBytes
+        val output = NativeByteBuffer.allocate(payload + 14L)
+        try {
+            val deflate = when (negotiated) {
+                case Some(value) -> Some(createWsDeflate(value, role, options))
+                case None -> None
+            }
+            try { return WsState(transport, owner, role, loop, options, encoder, decoder, input, output, deflate) }
+            catch (error: Throwable) { throw messageCleanup(Some(error)) { if (present(deflate)) deflate!!.close() }!! }
+        } catch (error: Throwable) { throw messageCleanup(Some(error)) { output.close() }!! }
+    } catch (error: Throwable) {
+        var failure = messageCleanup(Some(error)) { input.close() }
+        failure = messageCleanup(failure) { decoder.close() }
+        throw messageCleanup(failure) { encoder.close() }!!
+    }
+}
+
+internal fun releaseWsResources(state: WsState, failure: Throwable?): Throwable? {
+    var result = messageCleanup(failure) { if (present(state.deflate)) state.deflate!!.close() }
+    result = messageCleanup(result) { state.decoder.close() }
+    result = messageCleanup(result) { state.encoder.close() }
+    result = messageCleanup(result) { state.input.close() }
+    return messageCleanup(result) { state.output.close() }
+}

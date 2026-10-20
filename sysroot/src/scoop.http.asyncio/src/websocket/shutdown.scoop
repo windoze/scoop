@@ -1,0 +1,87 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.http.*
+
+internal fun beginWsShutdown(state: WsState, value: WebSocketClose, waitForPeer: Boolean) {
+    if (!present(state.shutdown)) state.shutdown = Some(WsShutdown(value, waitForPeer))
+    else if (!waitForPeer) state.shutdown!!.waitForPeer = false
+    if (present(state.incoming) && !state.incoming!!.life.complete) {
+        val message = state.incoming!!
+        message.discarded = true
+        message.data = None
+        message.offset = 0L
+    }
+}
+
+internal suspend fun shutdownWs(state: WsState, value: WebSocketClose): WebSocketClose {
+    checkWsCloseContext(state)
+    val job = httpJob(state.loop, true)
+    val listener = job.invokeOnCancellation { error ->
+        state.lock.withLock { abortWs(state, Some(error)) }
+        driveWs(state)
+    }
+    try {
+        job.ensureActive()
+        return suspendCoroutine<WebSocketClose> { continuation ->
+            val wait = WsWait<WebSocketClose>(continuation)
+            val actions = ArrayList<() -> Unit>()
+            state.lock.withLock {
+                if (state.closed) {
+                    if (wsClean(state)) succeedWsWait(wait, state.peerClose!!, actions)
+                    else failWsWait(wait, state.failure ?: wsClosed(state), actions)
+                } else {
+                    state.shutdownWaiters.add(wait)
+                    if (!state.closing) beginWsShutdown(state, value, true)
+                }
+                Unit
+            }
+            for (action in actions) action()
+            driveWs(state)
+        }
+    } finally { listener.dispose() }
+}
+
+internal fun advanceWsShutdown(state: WsState, actions: ArrayList<() -> Unit>): Boolean {
+    if (!present(state.shutdown)) return false
+    val shutdown = state.shutdown!!
+    if (present(state.sentClose) && (!shutdown.waitForPeer || present(state.peerClose))) {
+        abortWs(state, None)
+        return true
+    }
+    if (shutdown.timerStarted) return false
+    shutdown.timerStarted = true
+    actions.add { startWsTimer(state) }
+    return true
+}
+
+private fun startWsTimer(state: WsState) {
+    val scope = state.lock.withLock { if (state.closing) None else state.ownerScope }
+    if (!present(scope)) return
+    val loop = state.loop
+    try {
+        context(loop) {
+            val timer = scope!!.launch suspend {
+                try {
+                    loop.sleep(state.options.closeTimeout)
+                    state.lock.withLock {
+                        if (!state.closing) abortWs(state, Some(WebSocketSessionException(WebSocketFailureKind.CloseTimeout,
+                            "the Close handshake timed out", state.peerClose)))
+                        Unit
+                    }
+                    driveWs(state)
+                } catch (_: CancellationException) {}
+                catch (error: Throwable) {
+                    state.lock.withLock { abortWs(state, Some(error)) }
+                    driveWs(state)
+                }
+            }
+            val closed = state.lock.withLock { if (state.closing) true else { state.timer = Some(timer); false } }
+            if (closed) timer.cancel()
+            Unit
+        }
+    } catch (error: Throwable) {
+        state.lock.withLock { abortWs(state, Some(error)) }
+        driveWs(state)
+    }
+}

@@ -1,0 +1,82 @@
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+
+private fun check(value: Boolean, detail: String) {
+    if (!value) throw IllegalStateException(Some(detail))
+}
+
+private fun transfer(from: Http2Session, to: Http2Session, size: Long) {
+    NativeByteBuffer.allocate(size).use { buffer ->
+        while (true) {
+            buffer.clear()
+            val count = from.takeOutput(buffer)
+            if (count == 0L) break
+            check(to.receive(buffer) == count, "complete protocol input")
+            check(buffer.readableBytes == 0L, "input fully consumed")
+        }
+    }
+}
+
+private fun exercise(flushSettings: Boolean, size: Long) {
+    Http2Session.client().use { client ->
+        Http2Session.server().use { server ->
+            val request = HttpRequestHead(HttpVersion.Http2, "GET".toByteArray(),
+                HttpRequestTarget.Http2("https".toByteArray(), "example.test".toByteArray(), "/".toByteArray()))
+            val accepted = client.submitRequest(request)
+            transfer(client, server, size)
+            if (flushSettings) {
+                transfer(server, client, size)
+                transfer(client, server, size)
+            }
+            server.goAway(lastStreamId = Some(accepted))
+            server.submitResponse(accepted, HttpResponseHead(HttpVersion.Http2, 200U), false)
+            NativeByteBuffer.allocate(4L).use { buffer ->
+                buffer.writeBytes("kept".toByteArray())
+                check(server.writeBody(accepted, buffer) == 4L, "accepted response body")
+            }
+            server.finish(accepted)
+            transfer(server, client, size)
+            transfer(client, server, size)
+            var goAway = 0; var heads = 0; var bytes = 0L; var ends = 0; var closed = 0
+            val body = ArrayList<Byte>()
+            while (true) {
+                val event = client.nextEvent()
+                when (event) { case None -> break; case Some(_) -> {} }
+                when (event!!) {
+                    case GoAway(last, code, _, local) -> {
+                        check(last == accepted && code == 0U && !local, "remote GOAWAY")
+                        goAway += 1
+                    }
+                    case Response(id, head) -> {
+                        check(id == accepted && head.status == 200U, "completed response head")
+                        heads += 1
+                    }
+                    case Data(id, data) -> {
+                        check(id == accepted, "completed response body stream")
+                        for (value in data) body.add(value)
+                        bytes += data.size
+                    }
+                    case End(id) -> { check(id == accepted, "completed response end"); ends += 1 }
+                    case StreamClosed(id, code) -> {
+                        check(id == accepted && code == 0U, "normal stream close")
+                        closed += 1
+                    }
+                    case Failure(error) -> throw error
+                    else -> {}
+                }
+            }
+            check(goAway == 1 && heads == 1 && ends == 1 && closed == 1, "one completed exchange")
+            check(bytes == 4L && String.fromUtf8(body) == "kept", "body survives deferred ACK")
+            client.consume(accepted, bytes)
+            check(!client.wantsRead && !client.wantsWrite, "session is drained")
+        }
+    }
+}
+
+fun main() {
+    for (size in [7L, 65536L]) {
+        exercise(false, size)
+        exercise(true, size)
+    }
+    println("HTTP2 draining preserves responses with queued SETTINGS ACK")
+}

@@ -1,0 +1,52 @@
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.http.client.*
+import scoop.test.*
+import scoop.tls.TlsTrustSource
+
+internal fun observerSourceCleanup(trust: TrustStore) {
+    withObserverRuntime suspend { _, scope, listener, url ->
+        val childStarted = ObserverGate()
+        val release = ObserverGate()
+        val completed = ObserverGate()
+        val done = ObserverGate()
+        val childFinished = AtomicBoolean(false)
+        val sourceFinished = AtomicBoolean(false)
+        val serving = scope.launch suspend {
+            AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                assertEquals(1L, connection.receiveRequest()!!.body.readAllBytes(1L).size)
+                connection.sendResponse(HttpResponseHead(HttpVersion.Http11, 200U), Http1BodyFraming.Length(4L)).useAsync suspend { output ->
+                    observerWrite(output, "body"); output.finish()
+                }
+                done.await()
+            }
+        }
+        val body = RequestBody.fromProducer(Some(1L)) suspend { output ->
+            try {
+                coroutineScope<Unit> suspend { children ->
+                    children.launch suspend { childStarted.signal(); release.await(); childFinished.store(true) }
+                    observerWrite(output, "x")
+                }
+            } finally { sourceFinished.store(true) }
+        }
+        val observer = HttpObserver(suspend { event ->
+            if (event.kind == HttpCallEventKind.Completed) {
+                assertTrue(childFinished.load() && sourceFinished.load())
+                assertEquals(1L, event.metrics.requestBodyBytes)
+                assertEquals(4L, event.metrics.responseBodyBytes)
+                completed.signal()
+            }
+        })
+        val client = HttpClient.open(scope, HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)), observer = Some(observer)))
+        try {
+            val response = client.execute(HttpRequest(url, "POST", body = body))
+            assertEquals("body", response.body.text(4L))
+            childStarted.await()
+            assertFalse(completed.ready || sourceFinished.load() || childFinished.load())
+            release.signal(); completed.await(); response.close()
+            ensureActive()
+        } finally { release.signal(); done.signal(); client.close(); serving.join() }
+    }
+}

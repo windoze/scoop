@@ -19,6 +19,15 @@ pub(super) enum WorkingStatement<'a> {
     },
 }
 
+impl WorkingStatement<'_> {
+    pub(super) fn can_unwind(&self) -> bool {
+        match self {
+            Self::Mir { statement, .. } => matches!(statement.kind, mir::StatementKind::Call(_)),
+            Self::Suspend { .. } => true,
+        }
+    }
+}
+
 pub(super) fn collect<'a>(body: &'a mir::Body, sites: &'a [CallSite]) -> WorkingCfg<'a> {
     let mut pending = vec![Vec::new(); body.blocks.len()];
     let mut calls = HashMap::new();

@@ -1,0 +1,8 @@
+schema = 1
+[cone]
+kind = "executable"
+group = "scoop.tests"
+name = "m54-coroutine-scope-boundary"
+version = "0.1.0"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"

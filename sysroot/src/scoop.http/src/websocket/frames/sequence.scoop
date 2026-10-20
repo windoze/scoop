@@ -1,0 +1,58 @@
+package scoop.http
+
+internal class WebSocketSequence(private val compressionEnabled: Boolean, private val maxBytes: Long) : Closeable {
+    private var message: WebSocketMessageType? = None
+    private var validator: WebSocketMessageValidator? = None
+    private var bytes: Long = 0L
+    var hasCloseFrame: Boolean = false
+    val isMessageOpen: Boolean get() = when (message) { case Some(_) -> true; case None -> false }
+
+    fun check(head: WebSocketFrameHead) {
+        if (webSocketControl(head.opcode)) {
+            if (!head.isFinal || head.isCompressed || head.payloadLength > 125L)
+                webSocketFrameError("control frames require FIN, no RSV1 and at most 125 payload bytes")
+            if (hasCloseFrame && head.opcode == WebSocketOpcode.Close) webSocketFrameError("duplicate Close frame")
+            return
+        }
+        if (hasCloseFrame) webSocketFrameError("data frame after Close")
+        if (head.opcode == WebSocketOpcode.Continuation) {
+            if (!isMessageOpen || head.isCompressed) webSocketFrameError("invalid continuation frame")
+        } else {
+            if (isMessageOpen) webSocketFrameError("new data frame before the previous message ended")
+            if (head.isCompressed && !compressionEnabled) webSocketFrameError("RSV1 requires negotiated compression")
+        }
+        if (head.payloadLength > maxBytes - bytes) throw WebSocketFrameException(1009U, "message exceeds its wire byte limit")
+    }
+
+    fun begin(head: WebSocketFrameHead) {
+        if (webSocketControl(head.opcode)) return
+        if (head.opcode != WebSocketOpcode.Continuation) {
+            val type = if (head.opcode == WebSocketOpcode.Text) WebSocketMessageType.Text else WebSocketMessageType.Binary
+            val created: WebSocketMessageValidator? = if (head.isCompressed) None else Some(WebSocketMessageValidator(type, maxBytes))
+            message = Some(type)
+            validator = created
+        }
+        bytes += head.payloadLength
+    }
+
+    fun receive(head: WebSocketFrameHead, data: Array<Byte>) {
+        if (webSocketControl(head.opcode)) return
+        when (validator) { case Some(value) -> value.receive(data); case None -> {} }
+    }
+
+    fun finish(head: WebSocketFrameHead) {
+        if (webSocketControl(head.opcode) || !head.isFinal) return
+        when (validator) { case Some(value) -> value.finish(); case None -> {} }
+        close()
+    }
+
+    fun closeFrame() { close(); hasCloseFrame = true }
+
+    public override fun close() {
+        val owned = validator
+        validator = None
+        message = None
+        bytes = 0L
+        when (owned) { case Some(value) -> value.close(); case None -> {} }
+    }
+}

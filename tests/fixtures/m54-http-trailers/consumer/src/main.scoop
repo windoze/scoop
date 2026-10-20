@@ -1,0 +1,75 @@
+import scoop.bytes.ByteArrayBuilder
+import scoop.http.*
+import scoop.platform.concurrent.Thread
+import scoop.platform.memory.NativeByteBuffer
+
+private fun check(value: Boolean) { if (!value) throw IllegalStateException(Some("HTTP trailer check failed")) }
+
+private fun encode(declaration: HttpTrailerDeclaration): Array<Byte> {
+    val output = ByteArrayBuilder()
+    Http1Encoder(HttpRole.Client).use { encoder ->
+        val head = HttpRequestHead(HttpVersion.Http11, "POST".toByteArray(),
+            HttpRequestTarget.Http1("/".toByteArray()), [declaration.toHttpField()])
+        output.append(encoder.beginRequest(head, Http1BodyFraming.Chunked))
+        val bytes = "请求".toByteArray()
+        NativeByteBuffer.allocate(bytes.size).use { buffer ->
+            buffer.writeBytes(bytes)
+            while (buffer.readableBytes != 0L) output.append(encoder.writeBody(buffer, 1L))
+        }
+        try {
+            encoder.finish([HttpField("Host".toByteArray(), "other.test".toByteArray())])
+            check(false)
+        } catch (_: IllegalArgumentException) { check(encoder.isMessageOpen) }
+        val fields = [HttpField("X-End".toByteArray(), "one".toByteArray()),
+            HttpField("x-end".toByteArray(), [255.toByte()])]
+        declaration.requireDeclared(fields)
+        output.append(encoder.finish(fields))
+        check(!encoder.isMessageOpen)
+    }
+    return output.toByteArray()
+}
+
+private fun exercise(declaration: HttpTrailerDeclaration) {
+    val wire = encode(declaration)
+    val body = ByteArrayBuilder()
+    val heads = ArrayList<HttpRequestHead>()
+    val trailers = ArrayList<HttpField>()
+    Http1Decoder.server().use { decoder ->
+        NativeByteBuffer.allocate(3L).use { input ->
+            var offset = 0L
+            while (offset < wire.size) {
+                val count = if (wire.size - offset < 3L) wire.size - offset else 3L
+                input.clear(); input.writeBytes(wire, offset, count)
+                check(decoder.receive(input) == count)
+                offset += count
+                while (true) {
+                    val event = decoder.nextEvent()
+                    when (event) {
+                        case None -> break
+                        case Some(_) -> when (event!!) {
+                            case Request(head) -> heads.add(head)
+                            case Data(bytes) -> body.append(bytes)
+                            case Trailers(fields) -> { for (field in fields) trailers.add(field) }
+                            else -> {}
+                        }
+                    }
+                }
+            }
+            decoder.endInput()
+        }
+    }
+    check(heads.size == 1L)
+    check(parseHttpTokenFields(heads[0L].fields, "Trailer").size == 2L)
+    check(String.fromUtf8(body.toByteArray()) == "请求")
+    check(trailers.size == 2L && String.fromUtf8(trailers[0L].value) == "one")
+    check(trailers[1L].value[0L] == 255.toByte())
+    declaration.requireDeclared(trailers)
+}
+
+fun main() {
+    val declaration = HttpTrailerDeclaration(["X-End", "Content-Digest", "x-END"])
+    Thread.start { exercise(declaration) }.use { first ->
+        Thread.start { exercise(declaration) }.use { second -> first.join(); second.join() }
+    }
+    println("HTTP trailer declarations preserve streamed fields and message boundaries")
+}

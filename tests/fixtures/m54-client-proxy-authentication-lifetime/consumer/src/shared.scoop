@@ -1,0 +1,53 @@
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.http.client.*
+
+internal fun lifeSharedCancellation(trust: TrustStore) {
+    withLifeRuntime suspend { _, scope, listener ->
+        val proxy = lifeUrl(listener)
+        val entered = LifeGate()
+        val release = LifeGate()
+        val cancelled = AtomicBoolean(false)
+        val loads = AtomicLong(0L)
+        val provider = HttpAuthenticator.bearer(proxy.httpOrigin()) suspend { request ->
+            lifeCheck(request.proxyUrl == Some(proxy) && lifeContext() == "loading")
+            loads.fetchAdd(1L)
+            val registration = currentJobOrNone()!!.invokeOnCancellation { _ -> cancelled.store(true) }
+            try {
+                entered.signal(); release.await()
+                lifeCheck(lifeContext() == "loading")
+                HttpBearerTokens("shared")
+            } finally { registration.dispose() }
+        }
+        val serving = scope.launch suspend {
+            AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                val request = connection.receiveRequest()!!
+                lifeCheck(lifeToken(request.head) == Some("shared"))
+                request.body.readAllBytes(0L); lifeRespond(connection, 200U, "done")
+            }
+        }
+        try {
+            withHttpClient(lifeConfig(trust, lifeSelector(HttpProxyEndpoint(proxy,
+                authentication = HttpAuthenticationOptions([provider]))))) suspend { client ->
+                val failure = LifeFailure()
+                val first = context(LifeContext("loading")) { scope.launch suspend {
+                    try { client.execute(HttpRequest.get(lifeTarget())).close() }
+                    catch (error: Throwable) { failure.value = Some(error) }
+                    lifeCheck(lifeContext() == "loading")
+                } }
+                entered.await()
+                val second = context(LifeContext("waiting")) { scope.async<Unit> suspend {
+                    lifeDone(client, HttpRequest.get(lifeTarget()))
+                    lifeCheck(lifeContext() == "waiting")
+                } }
+                first.cancel(); first.join()
+                lifeCheck(failure.value!! is CancellationException)
+                lifeCheck(!cancelled.load() && !second.isCompleted && loads.load() == 1L)
+                release.signal(); second.await()
+                lifeCheck(!cancelled.load())
+            }
+        } finally { release.signal() }
+        serving.join()
+    }
+}

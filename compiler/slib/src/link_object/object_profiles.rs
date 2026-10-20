@@ -13,12 +13,9 @@ pub struct ValidatedScoopLirObjectEnvelopeV1 {
 }
 
 impl ValidatedScoopLirObjectEnvelopeV1 {
-    pub(in crate::link_object) fn after_digest_patch(
-        mut sections: ValidatedBuiltinObjectSectionInventoryV1,
-        bytes: &[u8],
+    pub(in crate::link_object) fn from_sections(
+        sections: ValidatedBuiltinObjectSectionInventoryV1,
     ) -> Self {
-        // Digest slots cannot alter the parsed section, symbol or relocation structure.
-        sections.envelope.content_digest = scoop_wire::sha256(bytes);
         Self { sections }
     }
 

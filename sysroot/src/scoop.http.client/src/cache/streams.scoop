@@ -1,0 +1,52 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.HttpField
+import scoop.platform.io.UnexpectedEofException
+import scoop.platform.memory.NativeByteBuffer
+
+internal class ClientCachedResponseStream(private val snapshot: HttpCacheSnapshot) : ClientResponseStream {
+    private var remaining: Long = snapshot.bodyLength
+    public override val isReadComplete: Boolean get() = remaining == 0L
+    public override val trailers: Array<HttpField>? get() = if (isReadComplete) Some(snapshot.trailers) else None
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long {
+        if (remaining == 0L || count == 0L) return 0L
+        val before = buffer.writePosition
+        val read = try { snapshot.body.readInto(buffer, if (count < remaining) count else remaining) }
+        finally { remaining -= buffer.writePosition - before }
+        if (read == 0L) throw UnexpectedEofException()
+        return read
+    }
+}
+
+internal class ClientEmptyCachedResponse : ClientResponseStream {
+    public override val isReadComplete: Boolean get() = true
+    public override val trailers: Array<HttpField>? get() = Some<Array<HttpField>>([])
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long = 0L
+}
+
+internal fun clientCacheWriteSource(call: ClientCall, source: AsyncByteSource): AsyncByteSource {
+    val cache = call.cache ?: return source
+    val writer = cache.writer ?: return source
+    return ClientCacheWriteSource(source, writer)
+}
+
+private class ClientCacheWriteSource(private val source: AsyncByteSource, private val writer: HttpCacheWriter) : AsyncByteSource {
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long {
+        val before = buffer.writePosition
+        val read = source.readInto(buffer, count)
+        if (read > 0L) {
+            NativeByteBuffer.allocate(if (read < 8192L) read else 8192L).use suspend { copy ->
+                var offset = 0L
+                while (offset < read) {
+                    val size = if (read - offset < 8192L) read - offset else 8192L
+                    copy.clear()
+                    copy.writeBytes(buffer.getBytes(before + offset, size))
+                    writer.writeFully(copy)
+                    offset += size
+                }
+            }
+        }
+        return read
+    }
+}

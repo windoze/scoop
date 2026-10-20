@@ -1,0 +1,116 @@
+package scoop.http
+
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+internal fun transferChunks2(from: Http2Session, to: Http2Session, capacity: Long = 7L): Array<Http2OutputChunk> {
+    val chunks = ArrayList<Http2OutputChunk>()
+    val buffer = NativeByteBuffer.allocate(capacity)
+    try {
+        while (true) {
+            buffer.clear()
+            val part = from.takeOutputChunk(buffer)
+            assertEquals(part.count, buffer.readableBytes)
+            if (part.count == 0L) {
+                assertEquals(0, part.streamId)
+                assertTrue(part.kind == Http2OutputKind.Control)
+                return chunks.toArray()
+            }
+            chunks.add(part)
+            assertEquals(part.count, to.receive(buffer))
+        }
+    } finally { buffer.close() }
+}
+
+private fun checkOutputChunks2(chunks: Array<Http2OutputChunk>, id: Int, kind: Http2OutputKind) {
+    assertTrue(chunks.size > 0L)
+    for (part in chunks) {
+        assertTrue(part.count > 0L)
+        assertEquals(id, part.streamId)
+        assertTrue(part.kind == kind)
+    }
+}
+
+@Test private class Http2OutputChunkTests {
+    @Test fun `a deferred body does not label control bytes and an empty end retains the stream`() {
+        withHttp2 { client, server ->
+            drive2(client, server)
+            val id = client.submitRequest(request2("POST"), false)
+            drive2(client, server)
+            NativeByteBuffer.allocate(1L).use { buffer ->
+                val empty = client.takeOutputChunk(buffer)
+                assertEquals(0L, empty.count)
+                assertEquals(0, empty.streamId)
+                assertTrue(empty.kind == Http2OutputKind.Control)
+            }
+            receive2(client, frame2(6, 0, 0, "12345678".toByteArray()))
+            checkOutputChunks2(transferChunks2(client, server), 0, Http2OutputKind.Control)
+            assertFalse(client.hasPendingOutput(id))
+            client.finish(id)
+            checkOutputChunks2(transferChunks2(client, server), id, Http2OutputKind.Headers)
+            val received = events2(server)
+            assertEquals(0L, data2(received, id).size)
+            assertEquals(1, ends2(received, id))
+        }
+    }
+
+    @Test fun `output chunks distinguish connection bytes headers data and trailers`() {
+        withHttp2 { client, server ->
+            checkOutputChunks2(transferChunks2(client, server, 1L), 0, Http2OutputKind.Control)
+            checkOutputChunks2(transferChunks2(server, client, 2L), 0, Http2OutputKind.Control)
+            checkOutputChunks2(transferChunks2(client, server), 0, Http2OutputKind.Control)
+            val id = client.submitRequest(request2("POST"), false)
+            checkOutputChunks2(transferChunks2(client, server, 2L), id, Http2OutputKind.Headers)
+            assertFalse(client.hasPendingOutput(id))
+            assertEquals(4L, write2(client, id, "body".toByteArray()))
+            client.finish(id, [HttpField("x-end".toByteArray(), "yes".toByteArray())])
+            var data = false
+            var headers = false
+            for (part in transferChunks2(client, server, 3L)) {
+                assertEquals(id, part.streamId)
+                when (part.kind) {
+                    case Data -> data = true
+                    case Headers -> headers = true
+                    case Control -> fail(Some("stream output became control bytes"))
+                }
+            }
+            assertTrue(data && headers)
+            assertFalse(client.hasPendingOutput(id))
+            val received = events2(server)
+            assertEquals("body", String.fromUtf8(data2(received, id)))
+            assertEquals(1, ends2(received, id))
+            var trailer = false
+            for (event in received) when (event) {
+                case Trailers(stream, fields) -> {
+                    assertEquals(id, stream)
+                    assertEquals("yes", String.fromUtf8(fields[0L].value))
+                    trailer = true
+                }
+                else -> {}
+            }
+            assertTrue(trailer)
+        }
+    }
+
+    @Test fun `zero capacity and invalid counts do not consume output and closed sessions remain rejected`() {
+        withHttp2 { client, server ->
+            NativeByteBuffer.allocate(1L).use { buffer ->
+                val zero = client.takeOutputChunk(buffer, 0L)
+                assertEquals(0L, zero.count)
+                assertEquals(0, zero.streamId)
+                assertTrue(zero.kind == Http2OutputKind.Control)
+                assertEquals(0L, buffer.readableBytes)
+                assertFailsWith<IllegalArgumentException> { client.takeOutputChunk(buffer, -1L) }
+                assertFailsWith<IllegalArgumentException> { client.takeOutputChunk(buffer, 2L) }
+                assertEquals(0L, buffer.readableBytes)
+            }
+            drive2(client, server)
+            val id = client.submitRequest(request2())
+            checkOutputChunks2(transferChunks2(client, server), id, Http2OutputKind.Headers)
+            NativeByteBuffer.allocate(1L).use { buffer ->
+                client.close()
+                assertFailsWith<IllegalStateException> { client.takeOutputChunk(buffer, 0L) }
+            }
+        }
+    }
+}

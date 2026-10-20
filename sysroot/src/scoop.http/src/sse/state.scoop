@@ -1,0 +1,102 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.charset.*
+import scoop.text.*
+
+internal class SseState(private val limits: SseLimits, initialLastEventId: String) {
+    private var line: ByteArrayBuilder = ByteArrayBuilder()
+    private var data: ArrayList<String> = ArrayList<String>()
+    private var dataBytes: Long = 0L
+    private var firstLine: Boolean = true
+    private var skipLf: Boolean = false
+    private var eventType: String = ""
+    private var idBuffer: String = initialLastEventId
+    private var blockId: String? = None
+    var lastEventId: String = initialLastEventId
+    var retryMilliseconds: Long? = None
+    var pending: SseEvent? = None
+    var ended: Boolean = false
+    val hasPending: Boolean get() = when (pending) { case None -> false; case Some(_) -> true }
+
+    fun accept(byte: Byte) {
+        if (skipLf) {
+            skipLf = false
+            if (byte == 10.toByte()) return
+        }
+        if (byte == 13.toByte() || byte == 10.toByte()) {
+            skipLf = byte == 13.toByte()
+            finishLine()
+        } else {
+            if (line.size == limits.maxLineBytes) throw SseLimitException(SseLimitKind.LineBytes, limits.maxLineBytes)
+            line.append(byte)
+        }
+    }
+
+    fun discardIncomplete() {
+        line = ByteArrayBuilder()
+        data = ArrayList<String>()
+        resetBlock()
+        idBuffer = lastEventId
+    }
+
+    private fun finishLine() {
+        val text = if (line.size == 0L) "" else Charset.Utf8.decodeLossy(line.toByteArray(), CharsetDecodeOptions(
+            bom = if (firstLine) CharsetBomPolicy.Consume else CharsetBomPolicy.Preserve))
+        firstLine = false
+        line.clear()
+        if (text.byteLength == 0L) { dispatch(); return }
+        val colon = text.indexOf(':')
+        if (colon == 0L) return
+        val name = if (colon < 0L) text else text.substring(0L, colon)
+        var value = if (colon < 0L) "" else text.substring(colon + 1L)
+        if (value.startsWith(" ")) value = value.substring(1L)
+        when (name) {
+            case "data" -> appendData(value)
+            case "event" -> eventType = value
+            case "id" -> if (value.indexOf('\u0000') < 0L) { idBuffer = value; blockId = Some(value) }
+            case "retry" -> when (sseRetry(value)) { case Some(milliseconds) -> retryMilliseconds = Some(milliseconds); case None -> {} }
+            else -> {}
+        }
+    }
+
+    private fun appendData(value: String) {
+        val separator = if (data.size == 0L) 0L else 1L
+        val remaining = limits.maxEventBytes - dataBytes
+        if (separator > remaining || value.byteLength > remaining - separator)
+            throw SseLimitException(SseLimitKind.EventBytes, limits.maxEventBytes)
+        dataBytes += separator + value.byteLength
+        data.add(value)
+    }
+
+    private fun dispatch() {
+        lastEventId = idBuffer
+        if (data.size > 0L) {
+            val text = StringBuilder()
+            for (index in 0L..<data.size) {
+                if (index > 0L) text.append("\n")
+                text.append(data[index])
+            }
+            pending = Some(SseEvent(if (eventType.byteLength == 0L) "message" else eventType, text.toString(), blockId, lastEventId))
+        }
+        resetBlock()
+    }
+
+    private fun resetBlock() {
+        data.clear()
+        dataBytes = 0L
+        eventType = ""
+        blockId = None
+    }
+}
+
+private fun sseRetry(value: String): Long? {
+    if (value.byteLength == 0L) return None
+    var result = 0L
+    for (byte in value.toByteArray()) {
+        val digit = byte.toUByte().toLong() - 48L
+        if (digit < 0L || digit > 9L) return None
+        result = if (result > (Long.MAX_VALUE - digit) / 10L) Long.MAX_VALUE else result * 10L + digit
+    }
+    return Some(result)
+}

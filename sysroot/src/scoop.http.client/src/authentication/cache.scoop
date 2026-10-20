@@ -1,0 +1,23 @@
+package scoop.http.client
+
+internal fun clearClientAuthenticationCache(state: ClientState, authenticator: HttpAuthenticator) {
+    if (state.lock.withLock { state.closed }) return
+    clientJob(state.loop, false)
+    clearClientDigestCache(state, authenticator)
+    val flights = state.lock.withLock {
+        val active = ArrayList<ClientBearerFlight>()
+        var index = state.bearerEntries.size
+        while (index > 0L) {
+            index -= 1L
+            val entry = state.bearerEntries[index]
+            if (entry.authenticator !== authenticator) continue
+            entry.discard = true; entry.value = None
+            when (entry.flight) {
+                case Some(flight) -> active.add(flight)
+                case None -> state.bearerEntries.removeAt(index)
+            }
+        }
+        active.toArray()
+    }
+    for (flight in flights) stopClientBearerFlight(flight)
+}

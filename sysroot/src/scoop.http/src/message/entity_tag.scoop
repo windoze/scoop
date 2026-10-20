@@ -1,0 +1,59 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+
+public class HttpEntityTag private constructor(public val opaque: Array<Byte>, public val isWeak: Boolean) {
+    public constructor(opaque: List<Byte>, isWeak: Boolean = false) : this(checkedEntityTag(opaque), isWeak) {}
+
+    public fun stronglyMatches(other: HttpEntityTag): Boolean = !isWeak && !other.isWeak && weaklyMatches(other)
+    public fun weaklyMatches(other: HttpEntityTag): Boolean = httpBytesEqual(opaque, other.opaque)
+    public fun toByteArray(): Array<Byte> {
+        val output = ByteArrayBuilder()
+        output.append((if (isWeak) "W/\"" else "\"").toByteArray())
+        output.append(opaque)
+        output.append(34.toByte())
+        return output.toByteArray()
+    }
+    public fun toHttpField(): HttpField = HttpField("ETag".toByteArray(), toByteArray())
+
+    public companion object {
+        public fun parse(value: List<Byte>): HttpEntityTag {
+            val reader = HttpFieldReader("ETag", value)
+            reader.skipOws()
+            val result = read(reader)
+            reader.skipOws()
+            if (!reader.ended) reader.fail("unexpected text after entity tag")
+            return result
+        }
+        public fun parse(value: String): HttpEntityTag = parse(value.toByteArray())
+        public fun parseOrNone(value: List<Byte>): HttpEntityTag? {
+            try { return Some(parse(value)) }
+            catch (_: HttpFieldParseException) { return None }
+        }
+        public fun parseOrNone(value: String): HttpEntityTag? = parseOrNone(value.toByteArray())
+
+        internal fun read(reader: HttpFieldReader): HttpEntityTag {
+            val weak = reader.peek() == 87
+            if (weak) { reader.position += 1L; reader.expect(47) }
+            reader.expect(34)
+            val start = reader.position
+            while (reader.peek() != 34) {
+                if (reader.ended) reader.fail("unterminated entity tag")
+                if (!entityTagByte(reader.peek())) reader.fail("invalid entity tag byte")
+                reader.position += 1L
+            }
+            val bytes = reader.slice(start, reader.position)
+            reader.position += 1L
+            return HttpEntityTag(bytes, weak)
+        }
+    }
+}
+
+private fun entityTagByte(value: Int): Boolean = value == 33 || (value >= 35 && value != 127 && value <= 255)
+
+private fun checkedEntityTag(value: List<Byte>): Array<Byte> {
+    val bytes = value.toArray()
+    for (byte in bytes) if (!entityTagByte(byte.toUByte().toInt()))
+        throw IllegalArgumentException(Some("invalid entity tag byte"))
+    return bytes
+}

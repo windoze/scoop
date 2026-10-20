@@ -1,0 +1,38 @@
+package scoop.http
+
+import scoop.crypto.secureRandomBytes
+import scoop.text.toHexString
+
+public class MultipartBoundary private constructor(public val value: String, internal val bytes: Array<Byte>)
+    : Equals<MultipartBoundary>, Hash, ToString {
+    public constructor(value: String) : this(value, checkedBoundary(value.toByteArray())) {}
+    public override operator fun equals(other: MultipartBoundary): Boolean = value == other.value
+    public override fun hash(): Long = value.hash()
+    public override fun toString(): String = value
+    public fun toMediaType(subtype: String = "form-data"): HttpMediaType =
+        HttpMediaType("multipart", subtype, [HttpParameter("boundary", bytes)])
+
+    public companion object {
+        public fun generate(): MultipartBoundary = MultipartBoundary("scoop-" + secureRandomBytes(24L).toHexString())
+        public fun fromMediaType(mediaType: HttpMediaType): MultipartBoundary {
+            if (mediaType.type != "multipart") throw IllegalArgumentException(Some("expected a multipart media type"))
+            val parameter = mediaType.parameter("boundary") ?: throw IllegalArgumentException(Some("missing multipart boundary"))
+            val bytes = checkedBoundary(parameter.value)
+            return MultipartBoundary(String.fromUtf8(bytes), bytes)
+        }
+    }
+}
+
+private fun checkedBoundary(value: List<Byte>): Array<Byte> {
+    if (value.size < 1L || value.size > 70L || value[value.size - 1L] == 32.toByte())
+        throw IllegalArgumentException(Some("multipart boundary must contain 1 to 70 ASCII characters without trailing space"))
+    for (byte in value) {
+        val c = byte.toUByte().toInt()
+        val alpha = (c >= 65 && c <= 90) || (c >= 97 && c <= 122)
+        val digit = c >= 48 && c <= 57
+        if (!alpha && !digit && c != 39 && c != 40 && c != 41 && c != 43 && c != 95 && c != 44 &&
+            c != 45 && c != 46 && c != 47 && c != 58 && c != 61 && c != 63 && c != 32)
+            throw IllegalArgumentException(Some("invalid multipart boundary character"))
+    }
+    return value.toArray()
+}

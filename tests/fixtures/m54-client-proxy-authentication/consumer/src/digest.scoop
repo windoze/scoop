@@ -1,0 +1,83 @@
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.*
+import scoop.http.client.*
+import scoop.time.Duration
+import scoop.url.Url
+
+internal fun authDigest(mode: String, proxy: Url, target: Url, trust: TrustStore) {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { _ ->
+        val calls = AtomicLong(0L)
+        val started = AtomicLong(0L)
+        val provider = HttpAuthenticator.digest(proxy.httpOrigin(), algorithms = [
+            if (mode == "digest-connect") HttpDigestAlgorithm.Sha512_256Sess else HttpDigestAlgorithm.Sha256Sess
+        ], preferIntegrity = true) suspend { request ->
+            calls.fetchAdd(1L)
+            authCheck(request.proxyUrl == Some(proxy) && request.request.url.httpOrigin() != proxy.httpOrigin())
+            authCheck(request.challenge!!.scheme == "digest" && request.attempt == if (calls.load() == 1L || mode == "digest-clear") 1L else 0L)
+            authCheck(authContext() == "application")
+            loop.sleep(Duration.milliseconds(2L))
+            HttpPasswordCredentials("Mufasa", "Circle of Life")
+        }
+        val endpoint = HttpProxyEndpoint(proxy, authTls(trust), authentication = HttpAuthenticationOptions([provider]))
+        val h2 = mode == "digest-h2-connect"
+        withHttpClient<Unit>(authConfig(trust, authSelector(endpoint), h2 = h2)) suspend { client ->
+            context(AuthContext("application")) {
+                val body = if (mode == "digest-connect" || mode == "digest-bad-connect" || mode == "digest-nohash") authOnce(started)
+                    else if (mode == "digest-gzip") RequestBody.fromProducerFactory(Some(7L)) suspend {
+                        suspend { output -> started.fetchAdd(1L); authWrite(output, "payload") }
+                    }.compressed()
+                    else if (h2) RequestBody.Empty else RequestBody.fromText("payload")
+                val request = HttpRequest(target, if (h2) "GET" else "POST", body = body, options = authContinue())
+                if (mode == "digest-bad-connect" || mode == "digest-bad-trailer" || mode == "digest-nohash") {
+                    val error = authFailure<HttpAuthenticationException> suspend {
+                        client.withResponse(request) suspend { response -> response.body.text(4L); Unit }
+                    }
+                    authCheck(error.url == proxy && error.reason == if (mode == "digest-nohash")
+                        HttpAuthenticationFailure.BodyNotReplayable else HttpAuthenticationFailure.InvalidResponse)
+                    if (mode == "digest-bad-connect") authCheck(error.head!!.status == 299U)
+                    if (mode == "digest-bad-trailer") authCheck(error.head!!.status == 200U)
+                } else {
+                    authDone(client, request, proxyCount = if (mode == "digest-stale") 2L else 1L,
+                        version = if (h2) HttpVersion.Http2 else HttpVersion.Http11)
+                    if (mode == "digest-domain" || mode == "digest-clear") {
+                        if (mode == "digest-clear") client.clearAuthenticationCache(provider)
+                        val next = if (mode == "digest-domain") Url.parse("http://other.invalid:" + target.httpOrigin().port.toString() + "/outside?q=2")
+                            else target.resolve("/second?q=2")
+                        authDone(client, HttpRequest.get(next), proxyCount = if (mode == "digest-clear") 1L else 0L)
+                    }
+                }
+                authCheck(calls.load() == if (mode == "digest-domain" || mode == "digest-clear") 2L else 1L)
+                authCheck(started.load() == if (mode == "digest-connect") 1L else if (mode == "digest-gzip") 2L else 0L)
+            }
+        }
+    }
+}
+
+internal fun authDouble(proxy: Url, trust: TrustStore) {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { _ ->
+        val proxyCalls = AtomicLong(0L)
+        val originCalls = AtomicLong(0L)
+        val target = proxy.resolve("/resource?q=%2F")
+        val provider = HttpAuthenticator.digest(proxy.httpOrigin(), algorithms = [HttpDigestAlgorithm.Sha256Sess],
+            preferIntegrity = true) suspend { request ->
+            val calls = if (request.proxyUrl == None) originCalls else proxyCalls
+            authCheck(request.proxyUrl == None || request.proxyUrl == Some(proxy))
+            val number = calls.fetchAdd(1L)
+            authCheck(request.attempt == if (number == 0L) 1L else 0L)
+            authCheck(authContext() == "application")
+            HttpPasswordCredentials("Mufasa", "Circle of Life")
+        }
+        val options = HttpAuthenticationOptions([provider])
+        val endpoint = HttpProxyEndpoint(proxy, authentication = options)
+        withHttpClient(authConfig(trust, authSelector(endpoint), options)) suspend { client ->
+            context(AuthContext("application")) {
+                authDone(client, HttpRequest.get(target), originCount = 1L)
+                authDone(client, HttpRequest.get(target.resolve("/second?q=2")), proxyCount = 0L)
+                authCheck(proxyCalls.load() == 2L && originCalls.load() == 2L)
+            }
+        }
+    }
+}

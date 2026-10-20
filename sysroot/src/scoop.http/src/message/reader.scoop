@@ -1,0 +1,109 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.collections.HashSet
+import scoop.text.lowercaseAscii
+
+public class HttpFieldParseException public constructor(
+    public val field: String, public val byteOffset: Long, public val detail: String,
+    public val cause: Throwable? = None
+) : Exception(Some(field + " at byte " + byteOffset.toString() + ": " + detail))
+
+internal class HttpFieldReader(val field: String, data: List<Byte>) {
+    val bytes: Array<Byte> = data.toArray()
+    var position: Long = 0L
+    val ended: Boolean get() = position == bytes.size
+    fun peek(): Int = if (ended) -1 else bytes[position].toUByte().toInt()
+    fun fail(detail: String): Nothing = throw HttpFieldParseException(field, position, detail)
+    fun failAt(offset: Long, detail: String): Nothing = throw HttpFieldParseException(field, offset, detail)
+    fun skipOws() { while (peek() == 32 || peek() == 9) position += 1L }
+    fun expect(value: Int) {
+        if (peek() != value) fail("expected '" + value.toChar().toString() + "'")
+        position += 1L
+    }
+    fun token(): String {
+        val start = position
+        while (httpTokenByte(peek())) position += 1L
+        if (start == position) fail("expected HTTP token")
+        return String.fromUtf8(slice(start, position))
+    }
+    fun slice(start: Long, end: Long): Array<Byte> = Array<Byte>(end - start) { index -> bytes[start + index] }
+
+    fun decimal(saturating: Boolean = false): Long {
+        if (peek() < 48 || peek() > 57) fail("expected nonnegative decimal integer")
+        var value = 0L
+        while (peek() >= 48 && peek() <= 57) {
+            val digit = (peek() - 48).toLong()
+            if (value > (Long.MAX_VALUE - digit) / 10L) {
+                if (!saturating) fail("decimal integer exceeds Long")
+                value = Long.MAX_VALUE
+            } else value = value * 10L + digit
+            position += 1L
+        }
+        return value
+    }
+
+    fun tokenList(): Array<String> {
+        val result = ArrayList<String>()
+        skipOws()
+        while (!ended) {
+            if (peek() == 44) { position += 1L; skipOws(); continue }
+            result.add(token().lowercaseAscii())
+            skipOws()
+            if (!ended) { expect(44); skipOws() }
+        }
+        return result.toArray()
+    }
+
+    fun parameterValue(): (Array<Byte>, Boolean) {
+        if (peek() != 34) return (token().toByteArray(), false)
+        position += 1L
+        val value = ByteArrayBuilder()
+        while (!ended) {
+            var current = peek()
+            if (current == 34) { position += 1L; return (value.toByteArray(), true) }
+            if (current == 92) {
+                position += 1L
+                if (ended) fail("incomplete quoted-pair")
+                current = peek()
+            }
+            if (!httpQuotedByte(current)) fail("invalid quoted-string byte")
+            value.append(current.toByte())
+            position += 1L
+        }
+        fail("unterminated quoted-string")
+    }
+
+    fun parameters(allowEmpty: Boolean = false, allowBws: Boolean = false): Array<HttpParameter> {
+        val result = ArrayList<HttpParameter>()
+        val names = HashSet<String>()
+        skipOws()
+        while (!ended) {
+            expect(59); skipOws()
+            if (allowEmpty && (ended || peek() == 59)) continue
+            val start = position
+            val name = token().lowercaseAscii()
+            if (!names.add(name)) failAt(start, "duplicate parameter " + name)
+            if (allowBws) skipOws()
+            expect(61)
+            if (allowBws) skipOws()
+            val offset = position
+            val (value, quoted) = parameterValue()
+            result.add(HttpParameter(name, value, quoted, offset, field))
+            skipOws()
+        }
+        return result.toArray()
+    }
+}
+
+internal fun httpTokenByte(c: Int): Boolean =
+    (c >= 48 && c <= 57) || (c >= 65 && c <= 90) || (c >= 97 && c <= 122) ||
+    c == 33 || c == 35 || c == 36 || c == 37 || c == 38 || c == 39 || c == 42 ||
+    c == 43 || c == 45 || c == 46 || c == 94 || c == 95 || c == 96 || c == 124 || c == 126
+
+internal fun httpQuotedByte(c: Int): Boolean = c == 9 || (c >= 32 && c != 127 && c <= 255)
+
+internal fun httpNormalizedToken(text: String): String {
+    if (!httpToken(text.toByteArray())) throw IllegalArgumentException(Some("invalid HTTP token"))
+    return text.lowercaseAscii()
+}

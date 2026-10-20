@@ -52,8 +52,8 @@ fn dependency_parent_interface_and_dispatch_survive_the_registration_wire() {
             );
         }
         let mut extra_field = bytes.clone();
-        assert_eq!(&extra_field[..2], &[0xb8, 27]);
-        extra_field[1] = 31;
+        assert_eq!(&extra_field[..2], &[0xb8, 25]);
+        extra_field[1] = 26;
         extra_field.extend_from_slice(&[0x18, 31, 0]);
         assert!(decode_canonical::<DecodedStrongTypeRegistrationPlanV2>(&extra_field).is_err());
     }
@@ -80,10 +80,6 @@ fn v2_uses_the_same_complete_local_definition_checks() {
         },
         Options {
             omit_descriptor_diagnostic: true,
-            ..Options::default()
-        },
-        Options {
-            omit_layout_patch: true,
             ..Options::default()
         },
     ] {

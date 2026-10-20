@@ -1,0 +1,40 @@
+package scoop.http
+
+public enum WebSocketOpcode { Continuation, Text, Binary, Close, Ping, Pong }
+public enum WebSocketMessageType { Text, Binary }
+
+public class WebSocketFrameHead public constructor(
+    public val opcode: WebSocketOpcode, public val payloadLength: Long,
+    public val isFinal: Boolean = true, public val isCompressed: Boolean = false
+) {
+    init { if (payloadLength < 0L) throw IllegalArgumentException(Some("negative WebSocket frame length")) }
+}
+
+public class WebSocketFrameLimits public constructor(
+    public val maxFrameBytes: Long = 16777216L, public val maxMessageBytes: Long = 67108864L,
+    public val dataChunkBytes: Long = 8192L
+) {
+    init {
+        if (maxFrameBytes < 0L || maxMessageBytes < 0L || dataChunkBytes <= 0L)
+            throw IllegalArgumentException(Some("invalid WebSocket frame limits"))
+    }
+}
+
+public enum WebSocketFrameEvent {
+    FrameStarted(WebSocketFrameHead), Data(Array<Byte>), FrameEnded,
+    Ping(Array<Byte>), Pong(Array<Byte>), Close(WebSocketClose), End
+}
+
+public class WebSocketFrameException public constructor(
+    public val closeCode: UInt, public val detail: String, public val byteOffset: Long? = None,
+    public val cause: Throwable? = None
+) : Exception(Some("WebSocket frame: " + detail))
+
+internal fun webSocketControl(opcode: WebSocketOpcode): Boolean = when (opcode) {
+    case Close -> true
+    case Ping -> true
+    case Pong -> true
+    else -> false
+}
+
+internal fun webSocketFrameError(detail: String): Nothing = throw WebSocketFrameException(1002U, detail)

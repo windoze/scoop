@@ -1,0 +1,45 @@
+package scoop.http
+
+import scoop.collections.emptyList
+import scoop.url.Url
+
+public fun httpProxyRequest(url: Url, method: List<Byte> = "GET".toByteArray(),
+    fields: List<HttpField> = emptyList<HttpField>(), version: HttpVersion = HttpVersion.Http11): HttpRequestHead {
+    if (version == HttpVersion.Http2) throw IllegalArgumentException(Some("absolute-form requires HTTP/1"))
+    if (!httpToken(method)) throw IllegalArgumentException(Some("invalid HTTP method token"))
+    if (httpBytesEqual(method, "CONNECT".toByteArray()))
+        throw IllegalArgumentException(Some("CONNECT requires an authority-form target"))
+    val origin = url.httpOrigin()
+    if (origin.scheme != "http" && origin.scheme != "https")
+        throw IllegalArgumentException(Some("HTTP proxy request requires an http or https URL"))
+    val authority = origin.authority(url.authority!!.port != None)
+    return HttpRequestHead(version, method, HttpRequestTarget.Http1(url.httpAbsoluteTarget().toByteArray()),
+        proxyFields(fields, Some(authority)))
+}
+
+public fun httpConnectRequest(url: Url, fields: List<HttpField> = emptyList<HttpField>(),
+    version: HttpVersion = HttpVersion.Http11): HttpRequestHead {
+    val authority = url.httpOrigin().authority(true)
+    val target = if (version == HttpVersion.Http2) HttpRequestTarget.Connect(authority.toByteArray())
+        else HttpRequestTarget.Http1(authority.toByteArray())
+    return HttpRequestHead(version, "CONNECT".toByteArray(), target,
+        proxyFields(fields, if (version == HttpVersion.Http2) None else Some(authority)))
+}
+
+public fun httpConnectAccepted(response: HttpResponseHead): Boolean = response.status >= 200U && response.status < 300U
+
+private fun proxyFields(fields: List<HttpField>, authority: String?): Array<HttpField> {
+    val result = ArrayList<HttpField>()
+    for (field in fields) {
+        if (!httpToken(field.name)) throw IllegalArgumentException(Some("invalid proxy request field name"))
+        if (httpAsciiEqual(field.name, "host".toByteArray()))
+            throw IllegalArgumentException(Some("proxy request Host is derived from the target URL"))
+        requireHttpValue(field.value)
+        result.add(field)
+    }
+    when (authority) {
+        case Some(value) -> result.add(HttpField("Host".toByteArray(), value.toByteArray()))
+        case None -> {}
+    }
+    return result.toArray()
+}

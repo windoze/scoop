@@ -1,0 +1,43 @@
+package scoop.http.client
+
+import scoop.http.HttpResponseHead
+import scoop.time.Duration
+
+internal fun planClientResponseFollowUp(call: ClientCall, head: HttpResponseHead): ClientFollowUp? {
+    val sequence = call.sequence
+    val redirect = planClientRedirect(call.originalRequest, head, sequence.redirects, sequence.history, clientPresent(sequence.webSocket))
+    if (clientPresent(redirect)) return Some(ClientFollowUp.Redirect(redirect!!))
+    val target = if (head.status == 407U && clientUsesForwardProxy(call)) call.proxyAuthentication!! else call.authentication
+    val authentication = planClientAuthentication(call, head, target)
+    if (clientPresent(authentication)) return Some(ClientFollowUp.Authenticate(authentication!!))
+    val options = sequence.retries
+    if (sequence.retryCount >= options.maxRetries || !call.request.body.isReplayable ||
+        !clientRetryMethod(options, call.request.method)) return None
+    for (status in options.statuses) {
+        if (head.status == status) return Some(ClientFollowUp.Retry(clientRetryDelay(options, sequence.retryCount, Some(head))))
+    }
+    return None
+}
+
+internal fun planClientFailureRetry(sequence: ClientRequestSequence, request: HttpRequest,
+    failure: ClientIoFailure, bodyStarted: Boolean): Duration? {
+    val options = sequence.retries
+    if (!options.connectionFailures || sequence.retryCount >= options.maxRetries) return None
+    val allowed = clientRetryMethod(options, request.method)
+    when (failure.reason) {
+        case Connection -> if (!allowed || !request.body.isReplayable) return None
+        case NotProcessed -> {
+            if (bodyStarted && !request.body.isReplayable) return None
+            if (!allowed) {
+                if (sequence.unprocessedRetryUsed) return None
+                sequence.unprocessedRetryUsed = true
+            }
+        }
+    }
+    return Some(clientRetryDelay(options, sequence.retryCount))
+}
+
+private fun clientRetryMethod(options: HttpRetryOptions, method: String): Boolean {
+    for (candidate in options.methods) if (candidate == method) return true
+    return false
+}

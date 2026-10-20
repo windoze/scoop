@@ -2,6 +2,7 @@ package scoop.platform.fs
 
 import scoop.platform.io.*
 import scoop.platform.native.fileOpenFlags
+import scoop.platform.native.decodeFileMetadata
 import scoop.platform.memory.NativeByteBuffer
 import scoop.platform.system.OsString
 
@@ -140,7 +141,7 @@ public class File private constructor(private val context: OsString?) : ByteSour
     public fun metadata(): FileMetadata = withDescriptor { fd ->
         @Unsafe {
             val (data, error) = nativeMetadata(fd, None, true)
-            return@withDescriptor fileMetadata(data, error, context)
+            return@withDescriptor decodeFileMetadata(data, error, context)
         }
     }
 
@@ -159,10 +160,6 @@ public class File private constructor(private val context: OsString?) : ByteSour
 
 
     release { if (descriptor >= 0) { @Unsafe { nativeClose(descriptor) } } }
-}
-
-internal fun requireMode(mode: Int) {
-    if (mode < 0 || mode > 0xfff) throw IllegalArgumentException(Some("invalid POSIX mode"))
 }
 
 @Extern(name = "scoop_platform_file_open", captureErrno = true)

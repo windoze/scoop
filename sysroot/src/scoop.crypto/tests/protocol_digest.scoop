@@ -1,0 +1,55 @@
+package scoop.crypto
+
+import scoop.io.encoding.Base64
+import scoop.test.*
+import scoop.text.*
+
+@Test
+private class ProtocolDigestTests {
+    @Test
+    fun `protocol digest standard and empty vectors`() {
+        checkVector(DigestAlgorithm.Sha1, "abc", "a9993e364706816aba3e25717850c26c9cd0d89d")
+        checkVector(DigestAlgorithm.Md5, "abc", "900150983cd24fb0d6963f7d28e17f72")
+        checkVector(DigestAlgorithm.Sha512_256, "abc",
+            "53048e2681941ef99b2e29b76b4c7dabe4c2d0c634fc6d46e0e2f13107e7af23")
+        checkVector(DigestAlgorithm.Sha1, "", "da39a3ee5e6b4b0d3255bfef95601890afd80709")
+        checkVector(DigestAlgorithm.Md5, "", "d41d8cd98f00b204e9800998ecf8427e")
+        checkVector(DigestAlgorithm.Sha512_256, "",
+            "c672b8d1ef56ed28ab87c3622c5114069bdd3ad7b8f9737498d0c01ecef0967a")
+    }
+
+    @Test
+    fun `WebSocket accept and HTTP digest credentials`() {
+        val challenge = "dGhlIHNhbXBsZSBub25jZQ==258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+        assertEquals("s3pPLMBiTxaQ9kYGzzhZRbK+xOo=",
+            Base64.Default.encode(digest(DigestAlgorithm.Sha1, challenge.toByteArray())))
+        checkVector(DigestAlgorithm.Md5, "Mufasa:testrealm@host.com:Circle Of Life",
+            "939e7578ed9e3c518a452acee763bce9")
+    }
+
+    @Test
+    fun `protocol digest state and HMAC algorithm boundary`() {
+        val algorithms = [DigestAlgorithm.Sha1, DigestAlgorithm.Md5, DigestAlgorithm.Sha512_256]
+        SecretKey.fromBytes("key".toByteArray()).use { key ->
+            for (algorithm in algorithms) {
+                Digest(algorithm).use { context ->
+                    context.update("a".toByteArray())
+                    context.update("".toByteArray())
+                    gcCollect()
+                    context.update("bc".toByteArray())
+                    assertEquals(digest(algorithm, "abc".toByteArray()).toHexString(), context.finish().toHexString())
+                    assertFailsWith<IllegalStateException> { context.finish() }
+                    assertFailsWith<IllegalStateException> { context.update("d".toByteArray()) }
+                }
+                assertFailsWith<IllegalArgumentException> { hmac(algorithm, key, "abc".toByteArray()) }
+                assertFailsWith<IllegalArgumentException> {
+                    verifyHmac(algorithm, key, "abc".toByteArray(), "".toByteArray())
+                }
+            }
+        }
+    }
+
+    private fun checkVector(algorithm: DigestAlgorithm, text: String, expected: String) {
+        assertEquals(expected, digest(algorithm, text.toByteArray()).toHexString())
+    }
+}

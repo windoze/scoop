@@ -21,8 +21,7 @@ static const ScoopTypeDescriptor resource_td = {
     .instance_shape = {.instance_kind = SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1,
                        .minimum_size = sizeof(Resource),
                        .instance_alignment = 8},
-    .release_hook = release_resource,
-};
+    .release_hook = release_resource};
 
 static Resource *place(ScoopGcBlockMeta *block, size_t word, uint64_t index) {
     Resource *resource = (void *)((char *)scoop_heap_block_base(block) + word * sizeof(uint64_t));

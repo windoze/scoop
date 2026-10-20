@@ -1,0 +1,96 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp2Connection
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class HttpClientBackgroundStreamFailureTest {
+    @Test
+    fun `queued write idle cancels a suspended producer and retains its cleanup failure without releasing its slot early`() {
+        exerciseClientBackgroundFailure(false)
+    }
+
+    @Test
+    fun `a peer reset after final headers cancels an idle duplex producer without a body reader`() {
+        exerciseClientBackgroundFailure(true)
+    }
+}
+
+private fun exerciseClientBackgroundFailure(peerReset: Boolean) {
+    val limit = clientTimeoutTestDuration()
+    withClientTimeoutTest(version = HttpVersion.Http2) suspend { loop, scope, listener, base ->
+        val config = HttpClientConfig(cleartext = base.cleartext, tls = base.tls,
+            pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 1L, maxStreamsPerHttp2 = 1L))
+        val reset = BodyTestGate()
+        val done = BodyTestGate()
+        val followingAccepted = AtomicBoolean(false)
+        val serving = scope.launch suspend {
+            AsyncHttp2Connection.takeOwnershipAsServer(listener.accept(), scope,
+                settings = Http2Settings(initialWindowSize = 0U)).useAsync suspend { connection ->
+                val first = connection.acceptRequest()!!.stream
+                assertEquals(1, first.id)
+                first.sendResponse(HttpResponseHead(HttpVersion.Http2, 200U), false)
+                reset.await()
+                if (peerReset) first.close()
+                val second = connection.acceptRequest()!!.stream
+                followingAccepted.store(true)
+                assertEquals(3, second.id); second.readAllBytes(0L)
+                second.sendResponse(HttpResponseHead(HttpVersion.Http2, 204U))
+                done.await()
+            }
+        }
+        val cleanup = ClientIdleCleanup(!peerReset)
+        try {
+            withHttpClient(config) suspend { client ->
+                try {
+                    val delivered = BodyTestGate()
+                    val queued = BodyTestGate()
+                    val body = RequestBody.fromProducer(Some(6L)) suspend { output ->
+                        delivered.await()
+                        cleanup.useAsync suspend { _ ->
+                            writeBodyText(output, "queued"); queued.signal()
+                            loop.sleep(Duration.seconds(60L))
+                            fail(Some("background failure did not cancel the producer"))
+                        }
+                    }
+                    val options = HttpCallOptions(duplex = true,
+                        timeouts = Some(HttpTimeoutOptions(writeIdle = if (peerReset) None else Some(limit))))
+                    val response = client.execute(HttpRequest.post(clientTestUrl(listener), body, options = options))
+                    assertEquals(200U, response.status)
+                    delivered.signal(); queued.await(); reset.signal()
+                    loop.sleep(limit + Duration.milliseconds(100L))
+                    assertTrue(cleanup.started.load())
+                    assertEquals(1L, cleanup.closes)
+                    val following = scope.async suspend { client.execute(HttpRequest.get(clientTestUrl(listener))) }
+                    loop.sleep(Duration.milliseconds(20L))
+                    assertFalse(following.isCompleted)
+                    assertFalse(followingAccepted.load())
+                    cleanup.release.signal()
+                    val next = following.await()
+                    assertEquals(204U, next.status); next.body.bytes(0L); next.close()
+                    if (peerReset) {
+                        val error = expectBodyFailure<HttpException> suspend { response.close() }
+                        assertTrue(error.scope == HttpFailureScope.Stream)
+                        assertEquals(8, error.code)
+                    } else {
+                        val error = expectBodyFailure<ResourceUseException> suspend { response.close() }
+                        assertSame(cleanup.failure, error.cleanupFailure)
+                        val primary = error.primaryFailure
+                        assertTrue(primary is HttpTimeoutException)
+                        if (primary is HttpTimeoutException) {
+                            checkClientTimeout(primary, HttpTimeoutPhase.WriteIdle, limit, sent = 6L)
+                            checkClientIdleCause(primary, HttpProtocol.Http2, 1)
+                        }
+                    }
+                    response.close()
+                    assertTrue(followingAccepted.load())
+                } finally { cleanup.release.signal(); reset.signal() }
+            }
+        } finally { cleanup.release.signal(); reset.signal(); done.signal() }
+        serving.join()
+        assertFalse(scope.job.isCancelled)
+    }
+}

@@ -1,0 +1,44 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+
+public class SseSource private constructor(private val reader: SseReader) : AsyncCloseable {
+    public constructor(source: AsyncByteSource, limits: SseLimits = SseLimits(), initialLastEventId: String = "", bufferSize: Long = 8192L)
+        : this(createSseReader(source, None, limits, initialLastEventId, bufferSize)) {}
+
+    public companion object {
+        public fun <T> takeOwnership(source: T, limits: SseLimits = SseLimits(), initialLastEventId: String = "", bufferSize: Long = 8192L): SseSource
+            where T : AsyncByteSource, T : AsyncCloseable =
+            SseSource(createSseReader(source, Some<AsyncCloseable>(source), limits, initialLastEventId, bufferSize))
+    }
+
+    public val isFinished: Boolean get() = reader.decoder.isFinished
+    public val isClosed: Boolean get() = reader.io.isClosed
+    public val lastEventId: String get() = reader.decoder.lastEventId
+    public val retryMilliseconds: Long? get() = reader.decoder.retryMilliseconds
+    public val failure: Throwable? get() = reader.io.failure
+    public suspend fun next(): SseEvent? = reader.next()
+    public override suspend fun close() { reader.io.close() }
+}
+
+private fun createSseReader(source: AsyncByteSource, owner: AsyncCloseable?, limits: SseLimits, initialLastEventId: String, bufferSize: Long): SseReader {
+    val loop = currentEventLoop()
+    val job = httpJob(loop, true)
+    if (bufferSize <= 0L) throw IllegalArgumentException(Some("SSE buffer size must be positive"))
+    val decoder = SseDecoder(limits, initialLastEventId)
+    val input = try { NativeByteBuffer.allocate(bufferSize) }
+        catch (error: Throwable) {
+            val failure = messageCleanup(Some(error)) { decoder.close() }
+            throw failure!!
+        }
+    try {
+        job.ensureActive()
+        return SseReader(source, owner, loop, decoder, input)
+    } catch (error: Throwable) {
+        var failure = messageCleanup(Some(error)) { input.close() }
+        failure = messageCleanup(failure) { decoder.close() }
+        throw failure!!
+    }
+}

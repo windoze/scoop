@@ -1,0 +1,71 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.collections.HashSet
+import scoop.text.*
+import scoop.url.PercentEncoding
+
+public class HttpParameter internal constructor(
+    public val name: String, public val value: Array<Byte>, public val wasQuoted: Boolean,
+    internal val valueOffset: Long, internal val sourceField: String
+) {
+    public constructor(name: String, value: List<Byte>, quoted: Boolean = false)
+        : this(httpNormalizedToken(name), checkedHttpParameter(value), quoted, 0L, "HTTP parameter") {}
+
+    public fun decodeExtended(allowIso88591: Boolean = false): HttpExtendedValue = decodeHttpExtended(this, allowIso88591)
+
+    public companion object {
+        public fun extended(name: String, text: String, language: String = ""): HttpParameter {
+            if (name.length == 0L) throw IllegalArgumentException(Some("empty extended parameter name"))
+            for (byte in name.toByteArray()) if (!httpAttributeByte(byte.toUByte().toInt()))
+                throw IllegalArgumentException(Some("invalid extended parameter name"))
+            if (!httpLanguageTag(language)) throw IllegalArgumentException(Some("invalid extended parameter language"))
+            val value = ("UTF-8'" + language + "'" + PercentEncoding.encode(text)).toByteArray()
+            return HttpParameter(name.lowercaseAscii() + "*", value, false, 0L, "HTTP parameter")
+        }
+    }
+}
+
+internal fun checkedHttpParameter(value: List<Byte>): Array<Byte> {
+    val bytes = value.toArray()
+    for (byte in bytes) if (!httpQuotedByte(byte.toUByte().toInt()))
+        throw IllegalArgumentException(Some("invalid HTTP parameter byte"))
+    return bytes
+}
+
+internal fun uniqueHttpParameters(parameters: List<HttpParameter>): Array<HttpParameter> {
+    val copied = parameters.toArray()
+    val names = HashSet<String>()
+    for (parameter in copied) {
+        if (!names.add(parameter.name)) throw IllegalArgumentException(Some("duplicate HTTP parameter " + parameter.name))
+    }
+    return copied
+}
+
+internal fun findHttpParameter(parameters: List<HttpParameter>, name: String): HttpParameter? {
+    val normalized = name.lowercaseAscii()
+    for (parameter in parameters) if (parameter.name == normalized) return Some(parameter)
+    return None
+}
+
+internal fun encodeHttpParameters(primary: String, parameters: List<HttpParameter>): Array<Byte> {
+    val output = ByteArrayBuilder()
+    output.append(primary.toByteArray())
+    for (parameter in parameters) {
+        output.append("; ".toByteArray()); output.append(parameter.name.toByteArray()); output.append(61.toByte())
+        appendHttpParameterValue(output, parameter.value, parameter.wasQuoted)
+    }
+    return output.toByteArray()
+}
+
+internal fun appendHttpParameterValue(output: ByteArrayBuilder, value: List<Byte>, quoted: Boolean) {
+    if (!quoted && httpToken(value)) output.append(value)
+    else {
+        output.append(34.toByte())
+        for (byte in value) {
+            if (byte == 34.toByte() || byte == 92.toByte()) output.append(92.toByte())
+            output.append(byte)
+        }
+        output.append(34.toByte())
+    }
+}

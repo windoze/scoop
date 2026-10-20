@@ -1,0 +1,54 @@
+package scoop.http
+
+import scoop.charset.Charset
+import scoop.collections.emptyList
+import scoop.text.lowercaseAscii
+
+public class HttpFilename internal constructor(
+    public val text: String?, public val language: String?, public val extendedFailure: HttpFieldParseException?
+)
+
+public class HttpContentDisposition private constructor(
+    public val disposition: String, public val parameters: Array<HttpParameter>, public val originalValue: Array<Byte>?
+) {
+    public constructor(disposition: String, parameters: List<HttpParameter> = emptyList<HttpParameter>())
+        : this(httpNormalizedToken(disposition), uniqueHttpParameters(parameters), None) {}
+
+    public fun parameter(name: String): HttpParameter? = findHttpParameter(parameters, name)
+    public fun toByteArray(): Array<Byte> = encodeHttpParameters(disposition, parameters)
+    public fun toHttpField(): HttpField = HttpField("Content-Disposition".toByteArray(), toByteArray())
+
+    public fun filename(allowIso88591: Boolean = false): HttpFilename {
+        var failure: HttpFieldParseException? = None
+        when (parameter("filename*")) {
+            case Some(value) -> {
+                try {
+                    val decoded = value.decodeExtended(allowIso88591)
+                    return HttpFilename(Some(decoded.text), Some(decoded.language), None)
+                } catch (error: HttpFieldParseException) { failure = Some(error) }
+            }
+            case None -> {}
+        }
+        val text = when (parameter("filename")) {
+            case Some(value) -> Some(Charset.Iso8859_1.decode(value.value))
+            case None -> None
+        }
+        return HttpFilename(text, None, failure)
+    }
+
+    public companion object {
+        public fun parse(value: List<Byte>): HttpContentDisposition {
+            val reader = HttpFieldReader("Content-Disposition", value)
+            reader.skipOws()
+            val disposition = reader.token().lowercaseAscii()
+            val parameters = reader.parameters(allowBws = true)
+            return HttpContentDisposition(disposition, parameters, Some(reader.bytes))
+        }
+        public fun parse(value: String): HttpContentDisposition = parse(value.toByteArray())
+        public fun parseOrNone(value: List<Byte>): HttpContentDisposition? {
+            try { return Some(parse(value)) }
+            catch (_: HttpFieldParseException) { return None }
+        }
+        public fun parseOrNone(value: String): HttpContentDisposition? = parseOrNone(value.toByteArray())
+    }
+}

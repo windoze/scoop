@@ -1,0 +1,33 @@
+package scoop.http
+
+internal fun readWebSocketExtensions(value: List<Byte>): Array<WebSocketExtension> {
+    val reader = HttpFieldReader("Sec-WebSocket-Extensions", value)
+    val result = ArrayList<WebSocketExtension>()
+    reader.skipOws()
+    while (!reader.ended) {
+        if (reader.peek() == 44) { reader.position += 1L; reader.skipOws(); continue }
+        val name = reader.token()
+        val parameters = ArrayList<WebSocketExtensionParameter>()
+        reader.skipOws()
+        while (reader.peek() == 59) {
+            reader.position += 1L; reader.skipOws()
+            val parameter = reader.token()
+            reader.skipOws()
+            var text: String? = None
+            var quoted = false
+            if (reader.peek() == 61) {
+                reader.position += 1L; reader.skipOws()
+                val offset = reader.position
+                val (bytes, wasQuoted) = reader.parameterValue()
+                if (!httpToken(bytes)) reader.failAt(offset, "extension parameter value must be a token")
+                text = Some(String.fromUtf8(bytes)); quoted = wasQuoted
+                reader.skipOws()
+            }
+            parameters.add(WebSocketExtensionParameter(parameter, text, quoted))
+        }
+        result.add(WebSocketExtension(name, parameters))
+        if (!reader.ended) { reader.expect(44); reader.skipOws() }
+    }
+    if (result.size == 0L) reader.fail("expected a WebSocket extension")
+    return result.toArray()
+}

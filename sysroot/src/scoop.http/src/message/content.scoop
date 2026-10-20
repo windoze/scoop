@@ -1,0 +1,7 @@
+package scoop.http
+
+public fun httpResponseAllowsContent(head: HttpResponseHead, requestMethod: List<Byte>): Boolean {
+    if (httpBytesEqual(requestMethod, "HEAD".toByteArray())) return false
+    if (head.status < 200U || head.status == 204U || head.status == 205U || head.status == 304U) return false
+    return !(httpBytesEqual(requestMethod, "CONNECT".toByteArray()) && httpConnectAccepted(head))
+}

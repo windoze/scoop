@@ -1,0 +1,28 @@
+package scoop.http.asyncio
+
+import scoop.platform.io.WriteZeroException
+
+internal suspend fun writeH1Wire(state: H1State, bytes: Array<Byte>) {
+    var offset = 0L
+    while (offset < bytes.size) {
+        state.output.clear()
+        val count = if (bytes.size - offset < state.output.writableBytes) bytes.size - offset else state.output.writableBytes
+        state.output.writeBytes(bytes, offset, count)
+        while (state.output.readableBytes > 0L) {
+            val pending = state.output.readableBytes
+            beginH1Io(state, false)
+            val written = state.transport.writeFrom(state.output, pending)
+            httpProgress(written, pending)
+            if (written == 0L) throw WriteZeroException()
+            progressH1Io(state, false, true)
+        }
+        offset += count
+    }
+    flushH1Transport(state)
+}
+
+internal suspend fun flushH1Transport(state: H1State) {
+    beginH1Io(state, false)
+    state.transport.flush()
+    progressH1Io(state, false, false)
+}

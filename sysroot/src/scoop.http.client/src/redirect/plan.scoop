@@ -1,0 +1,59 @@
+package scoop.http.client
+
+import scoop.http.*
+import scoop.url.Url
+import scoop.url.UrlParseException
+
+internal class ClientRedirect(val request: HttpRequest, val history: HttpRedirect)
+
+internal fun planClientRedirect(request: HttpRequest, head: HttpResponseHead, options: HttpRedirectOptions,
+    history: List<HttpRedirect>, webSocket: Boolean = false): ClientRedirect? {
+    if (!options.enabled || (head.status != 301U && head.status != 302U && head.status != 303U && head.status != 307U && head.status != 308U))
+        return None
+    val location = try { HttpLocation.parseFields(head.fields) }
+    catch (error: HttpFieldParseException) {
+        throw HttpRedirectException(HttpRedirectFailure.InvalidLocation, request.url, head, cause = Some(error))
+    }
+    if (!clientPresent(location)) return None
+    val resolved = try { location!!.resolve(request.url) }
+    catch (error: UrlParseException) {
+        throw HttpRedirectException(HttpRedirectFailure.InvalidLocation, request.url, head, cause = Some(error))
+    }
+    val destination = if (webSocket) {
+        if (resolved.scheme != Some("http") && resolved.scheme != Some("https") &&
+            resolved.scheme != Some("ws") && resolved.scheme != Some("wss"))
+            throw HttpRedirectException(HttpRedirectFailure.UnsupportedScheme, request.url, head, Some(resolved))
+        try { clientWebSocketHttpUrl(resolved) }
+        catch (error: IllegalArgumentException) {
+            throw HttpRedirectException(HttpRedirectFailure.InvalidLocation, request.url, head, Some(resolved), Some(error))
+        }
+    } else resolved
+    if (destination.scheme != Some("http") && destination.scheme != Some("https"))
+        throw HttpRedirectException(HttpRedirectFailure.UnsupportedScheme, request.url, head, Some(destination))
+    if (!options.allowHttpsToHttp && request.origin.scheme == "https" && destination.scheme == Some("http"))
+        throw HttpRedirectException(HttpRedirectFailure.HttpsDowngrade, request.url, head, Some(destination))
+    val origin = try { destination.httpOrigin() }
+    catch (error: UrlParseException) {
+        throw HttpRedirectException(HttpRedirectFailure.InvalidLocation, request.url, head, Some(destination), Some(error))
+    }
+    if (history.size >= options.maxRedirects)
+        throw HttpRedirectException(HttpRedirectFailure.LimitExceeded, request.url, head, Some(destination))
+    val droppingBody = (head.status == 303U && request.method != "HEAD") ||
+        ((head.status == 301U || head.status == 302U) && request.method == "POST")
+    val method = if (droppingBody) "GET" else request.method
+    if (sameRedirectTarget(request.url, request.method, destination, method))
+        throw HttpRedirectException(HttpRedirectFailure.Loop, request.url, head, Some(destination))
+    for (previous in history) {
+        if (sameRedirectTarget(previous.url, previous.method, destination, method))
+            throw HttpRedirectException(HttpRedirectFailure.Loop, request.url, head, Some(destination))
+    }
+    if (!droppingBody && !request.body.isReplayable)
+        throw HttpRedirectException(HttpRedirectFailure.BodyNotReplayable, request.url, head, Some(destination))
+    val fields = redirectedClientFields(request, droppingBody, origin != request.origin)
+    val next = HttpRequest(destination, method, fields, if (droppingBody) RequestBody.Empty else request.body,
+        if (droppingBody) redirectedClientOptions(request.options) else request.options)
+    return Some(ClientRedirect(next, HttpRedirect(request.url, request.method, head, destination, method)))
+}
+
+private fun sameRedirectTarget(first: Url, firstMethod: String, second: Url, secondMethod: String): Boolean =
+    firstMethod == secondMethod && first.httpOrigin() == second.httpOrigin() && first.httpRequestTarget() == second.httpRequestTarget()

@@ -23,12 +23,12 @@ typedef struct {
   http_fields fields;
   http_bytes method, target, reason, protocol, field_name, field_value;
   size_t header_bytes, start_line_bytes;
+  int64_t message_starts;
   http1_method *first_method, *last_method;
   int server, failed, ended, switched;
 } http1;
 
 void http1_callbacks(http1 *state);
 int http1_fail(http1 *state, int code, const char *message);
-int http1_method_code(const uint8_t *name, size_t length);
 
 #endif

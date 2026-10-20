@@ -14,7 +14,7 @@ internal class TlsLock {
 }
 
 internal enum RequestKind { Handshake, Read, Write, Flush, Shutdown }
-internal enum RetryKind { Ready, Input, Output, Finished }
+internal enum RetryKind { Ready, Input, Output, Verification, Finished }
 
 internal class TlsRequest(
     val kind: RequestKind,
@@ -49,6 +49,7 @@ internal class TlsConnection(
     var inputBusy: Boolean = false
     var inputOwner: TlsRequest? = None
     var outputBusy: Boolean = false
+    var verificationBusy: Boolean = false
     var inputEnded: Boolean = false
     var inputEpoch: Long = 0L
     var outputEpoch: Long = 0L

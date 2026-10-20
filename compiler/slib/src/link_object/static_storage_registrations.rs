@@ -8,6 +8,3 @@ mod strong_fingerprints;
 pub use binding::*;
 pub use shape_fingerprints::*;
 pub use strong_fingerprints::*;
-
-#[cfg(test)]
-mod tests;

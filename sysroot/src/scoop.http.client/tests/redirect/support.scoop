@@ -1,0 +1,46 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.collections.emptyList
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.url.Url
+
+internal fun redirectTestHead(status: UInt = 302U, location: String = "/after"): HttpResponseHead =
+    HttpResponseHead(HttpVersion.Http11, status, Some("redirect reason".toByteArray()),
+        [HttpField("Location".toByteArray(), location.toByteArray())])
+
+internal fun redirectTestRequest(method: String = "POST", body: RequestBody = RequestBody.fromText("body"),
+    fields: List<HttpField> = emptyList<HttpField>(), options: HttpCallOptions = HttpCallOptions()): HttpRequest =
+    HttpRequest(Url.parse("http://example.test/before#saved"), method, fields, body, options)
+
+internal fun redirectTestPlan(request: HttpRequest, status: UInt = 302U, location: String = "/after"): ClientRedirect =
+    planClientRedirect(request, redirectTestHead(status, location), HttpRedirectOptions(), emptyList<HttpRedirect>())!!
+
+internal fun withClientRedirectTest(version: HttpVersion = HttpVersion.Http11,
+    redirects: HttpRedirectOptions = HttpRedirectOptions(), timeouts: HttpTimeoutOptions = HttpTimeoutOptions(),
+    block: suspend (EventLoop, CoroutineScope, AsyncTcpListener, HttpClientConfig) -> Unit) {
+    clientTestTrust().use { trust ->
+        val base = clientTestConfig(trust, version)
+        val config = HttpClientConfig(cleartext = base.cleartext, tls = base.tls, redirects = redirects, timeouts = timeouts,
+            pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 1L, maxStreamsPerHttp2 = 1L))
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            clientTestListen(loop).useAsync suspend { listener -> block(loop, scope, listener, config) }
+        }
+    }
+}
+
+internal class RedirectTestSource(val source: BodyTestSource) : AsyncByteSource, AsyncCloseable {
+    val cancelled: BodyTestGate = BodyTestGate()
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long {
+        val listener = currentJobOrNone()!!.invokeOnCancellation { _ -> cancelled.signal() }
+        try { return source.readInto(buffer, count) }
+        finally { listener.dispose() }
+    }
+    public override suspend fun close() {
+        val listener = currentJobOrNone()!!.invokeOnCancellation { _ -> cancelled.signal() }
+        try { source.close() }
+        finally { listener.dispose() }
+    }
+}

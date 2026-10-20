@@ -1,0 +1,56 @@
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.*
+import scoop.http.client.*
+import scoop.test.*
+import scoop.tls.TlsTrustSource
+import scoop.url.Url
+
+internal fun extensionCache(trust: TrustStore, url: Url) {
+    val state = ExtensionState()
+    val storage = MemoryHttpCache()
+    val interceptor = HttpInterceptor(suspend { chain -> state.calls += 1L; chain.proceed() })
+    val callback: suspend (HttpAttempt) -> List<HttpField> = suspend { attempt ->
+        state.attempts += 1L
+        assertEquals(1L, attempt.number)
+        assertEquals(HttpAttemptReason.Initial, attempt.reason)
+        [extensionField("Authorization", "Bearer " + state.token), extensionField("X-Variant", state.variant)]
+    }
+    LibuvEventLoop().run suspend { _ ->
+        withHttpClient(HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
+            interceptors = [interceptor], onAttempt = Some(callback), cache = Some(HttpCacheOptions(storage)))) suspend { client ->
+            for (index in 0L..<6L) {
+                state.token = if (index >= 4L) "two" else "one"
+                state.variant = if (index >= 2L && index < 4L) "b" else "a"
+                client.withResponse(HttpRequest.get(url)) suspend { response ->
+                    assertEquals(if (index % 2L == 0L) HttpCacheStatus.Network else HttpCacheStatus.Hit, response.cacheStatus)
+                    assertEquals(state.token + ":" + state.variant, response.body.text(32L))
+                }
+            }
+        }
+    }
+    assertEquals(6L, state.calls); assertEquals(6L, state.attempts)
+    assertEquals(3L, storage.entryCount)
+}
+
+internal fun extensionExplicitAuthentication(trust: TrustStore, url: Url) {
+    val state = ExtensionState()
+    val provider = HttpAuthenticator.basic(url.httpOrigin()) suspend { _ ->
+        state.credentials += 1L
+        HttpPasswordCredentials("wrong", "wrong")
+    }
+    val callback: suspend (HttpAttempt) -> List<HttpField> = suspend { _ ->
+        state.attempts += 1L
+        [extensionField("Authorization", "Bearer explicit")]
+    }
+    LibuvEventLoop().run suspend { _ ->
+        withHttpClient(HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)), onAttempt = Some(callback),
+            authentication = HttpAuthenticationOptions([provider]))) suspend { client ->
+            client.withResponse(HttpRequest.get(url)) suspend { response ->
+                assertEquals(401U, response.status)
+                assertEquals(0L, response.body.bytes(0L).size)
+            }
+        }
+    }
+    assertEquals(1L, state.attempts); assertEquals(0L, state.credentials)
+}

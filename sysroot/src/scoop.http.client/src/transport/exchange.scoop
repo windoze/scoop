@@ -1,0 +1,85 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.*
+
+internal interface ClientResponseStream : AsyncByteSource {
+    public val isReadComplete: Boolean
+    public val trailers: Array<HttpField>?
+}
+
+internal interface ClientExchange : ClientResponseStream, AsyncByteStream, AsyncCloseable {
+    public val version: HttpVersion
+    public suspend fun receiveResponse(): HttpResponseHead
+    public suspend fun finish(trailers: List<HttpField>)
+}
+
+internal suspend fun openClientExchange(call: ClientCall, connection: ClientConnection): ClientExchange {
+    val request = call.request
+    return when (connection) {
+        case Http1(value) -> {
+            val version = if (clientPresent(call.sequence.webSocket)) HttpVersion.Http11 else call.client.config.http1RequestVersion
+            validateClientHttp1Request(request, version)
+            val framing = if (request.body.trailerNames.size != 0L) Http1BodyFraming.Chunked else when (request.contentLength) {
+                case Some(0L) -> Http1BodyFraming.Empty
+                case Some(length) -> Http1BodyFraming.Length(length)
+                case None -> Http1BodyFraming.Chunked
+            }
+            val entry = call.lock.withLock { call.lease!! }
+            val upgrading = call.client.lock.withLock { entry.h2cPending }
+            val head = if (clientPresent(call.webSocketHandshake)) clientWebSocketRequestHead(call) else clientRequestHead(call, version)
+            val prepared = if (upgrading) prepareHttp2Upgrade(head, call.client.config.http2Settings) else head
+            val output = try { value.sendRequest(prepared, framing, writeIdle = call.timeouts.writeIdle) }
+            catch (error: Throwable) { recordClientIoFailure(call, error); throw error }
+            val exchange = ClientH1Exchange(call, value, output, version, call.timeouts.readIdle)
+            if (upgrading) ClientH2cExchange(call, entry, exchange) else exchange
+        }
+        case Http2(value) -> {
+            val stream = try {
+                value.openRequest(clientRequestHead(call, HttpVersion.Http2), false, clientIoTimeouts(call))
+            } catch (error: Throwable) { recordClientIoFailure(call, error, true); throw error }
+            bindClientHttp2Stream(call, stream)
+            ClientH2Exchange(call, stream)
+        }
+    }
+}
+
+private fun clientRequestHead(call: ClientCall, version: HttpVersion): HttpRequestHead {
+    val request = call.request
+    val fields = clientRequestFields(call, version)
+    when (call.route) {
+        case HttpForward(endpoint) -> {
+            for (field in clientProxyAuthorization(call, endpoint)) fields.add(field)
+            return httpProxyRequest(request.url, request.methodBytes, fields, version)
+        }
+        else -> {}
+    }
+    val authority = request.origin.authority(request.url.authority!!.port != None).toByteArray()
+    if (version != HttpVersion.Http2) fields.add(HttpField("Host".toByteArray(), authority))
+    val targetBytes = clientRequestTargetBytes(call)
+    val target = if (request.method == "CONNECT") HttpRequestTarget.Connect(targetBytes)
+        else if (version == HttpVersion.Http2) HttpRequestTarget.Http2(request.origin.scheme.toByteArray(), authority, targetBytes)
+        else HttpRequestTarget.Http1(targetBytes)
+    return HttpRequestHead(version, request.methodBytes, target, fields)
+}
+
+internal fun clientRequestFields(call: ClientCall, version: HttpVersion): ArrayList<HttpField> {
+    val request = call.request
+    val fields = ArrayList<HttpField>()
+    for (field in request.fields) if (!field.hasName("Content-Length".toByteArray())) fields.add(field)
+    addClientAcceptEncoding(fields, request, call.client.config)
+    if (version == HttpVersion.Http2 || request.body.trailerNames.size == 0L) {
+        when (request.contentLength) {
+            case Some(length) -> fields.add(HttpField("Content-Length".toByteArray(), length.toString().toByteArray()))
+            case None -> {}
+        }
+    }
+    return fields
+}
+
+internal fun clientRequestTargetBytes(call: ClientCall): Array<Byte> {
+    val request = call.originalRequest
+    return (if (request.method == "CONNECT") request.origin.authority(true)
+        else if (clientUsesForwardProxy(call)) request.url.httpAbsoluteTarget()
+        else request.url.httpRequestTarget()).toByteArray()
+}

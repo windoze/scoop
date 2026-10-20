@@ -1,0 +1,81 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+@Test private class MultipartSourceCancellationTests {
+    @Test fun `nextPart and body reads share one operation and concurrent closes wait for the real borrow`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val endpoint = MpPendingSource()
+            val source = MultipartSource.takeOwnership(endpoint, MultipartBoundary("b"), bufferSize = 3L)
+            val part = source.nextPart()!!
+            val reading = scope.launch suspend {
+                expectMessageFailure<CancellationException> suspend { part.body.discard(20L) }
+                ensureActive()
+            }
+            try {
+                assertTrue(endpoint.pending.running)
+                expectMessageFailure<IllegalStateException> suspend { source.nextPart() }
+                NativeByteBuffer.allocate(1L).use suspend { buffer ->
+                    expectMessageFailure<IllegalStateException> suspend { part.body.readInto(buffer, 1L) }
+                }
+                assertFalse(present(source.failure))
+                val first = scope.launch suspend { part.body.close() }
+                val second = scope.launch suspend { source.close() }
+                assertTrue(endpoint.pending.job!!.isCancelled)
+                assertFalse(reading.isCompleted || first.isCompleted || second.isCompleted)
+                assertEquals(0, endpoint.pending.closes)
+                assertFailsWith<IllegalStateException> { endpoint.pending.buffer!!.close() }
+                gcCollect()
+                endpoint.pending.complete()
+                reading.join(); first.join(); second.join()
+                assertFalse(reading.isCancelled)
+                assertTrue(part.body.isClosed && source.isClosed && endpoint.pending.buffer!!.isClosed)
+                assertEquals(1, endpoint.pending.closes)
+                ensureActive()
+            } finally {
+                if (endpoint.pending.running) endpoint.pending.complete()
+                source.close()
+            }
+        }
+    }
+
+    @Test fun `a cancelled nextPart can finish cleanup while the borrowed endpoint stays open`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val input = PendingMessageSource()
+            val source = MultipartSource(input, MultipartBoundary("b"))
+            val reading = scope.launch suspend { try { source.nextPart() } finally { source.close() } }
+            try {
+                reading.cancel()
+                assertTrue(input.running && input.job!!.isCancelled)
+                assertFalse(reading.isCompleted)
+                input.complete(); reading.join()
+                assertTrue(source.isClosed && input.buffer!!.isClosed)
+                assertEquals(0, input.closes)
+                assertTrue(source.failure!! is CancellationException)
+            } finally {
+                if (input.running) input.complete()
+                source.close(); input.close()
+            }
+        }
+    }
+}
+
+private class MpPendingSource : AsyncByteSource, AsyncCloseable {
+    val pending: PendingMessageSource = PendingMessageSource()
+    private val prefix: Array<Byte> = "--b\r\n\r\n".toByteArray()
+    private var offset: Long = 0L
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long {
+        if (offset == prefix.size) return pending.readInto(buffer, count)
+        val remaining = prefix.size - offset
+        val read = if (count < remaining) count else remaining
+        buffer.writeBytes(prefix, offset, read)
+        offset += read
+        return read
+    }
+    public override suspend fun close() { pending.close() }
+}

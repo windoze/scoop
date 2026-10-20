@@ -1,0 +1,90 @@
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.client.*
+import scoop.time.Duration
+import scoop.url.Url
+
+internal fun authBearer(mode: String, proxy: Url, target: Url, trust: TrustStore) {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { _ ->
+        val refresh = mode == "bearer-refresh-connect"
+        val loads = AtomicLong(0L)
+        val refreshes = AtomicLong(0L)
+        val started = AtomicLong(0L)
+        val provider = HttpAuthenticator.bearer(proxy.httpOrigin(), sendWithoutChallenge = refresh,
+            refreshTokens = suspend { request ->
+                authCheck(request.proxyUrl == Some(proxy) && request.request.url == target && request.attempt == 1L)
+                authCheck(request.tokens.accessToken == "old" && request.tokens.refreshToken == Some("local refresh token"))
+                authCheck(authContext() == "application" && started.load() == 0L)
+                loop.sleep(Duration.milliseconds(2L)); refreshes.fetchAdd(1L)
+                Some(HttpBearerTokens("fresh"))
+            }) suspend { request ->
+            authCheck(request.proxyUrl == Some(proxy) && request.request.url == target && request.attempt == if (refresh) 0L else 1L)
+            authCheck(authContext() == "application" && started.load() == 0L)
+            loads.fetchAdd(1L)
+            HttpBearerTokens(if (refresh) "old" else "fresh", Some("local refresh token"))
+        }
+        val endpoint = HttpProxyEndpoint(proxy, authTls(trust), authentication = HttpAuthenticationOptions([provider]))
+        withHttpClient(authConfig(trust, authSelector(endpoint))) suspend { client ->
+            context(AuthContext("application")) { authDone(client, HttpRequest.post(target, authOnce(started), options = authContinue())) }
+        }
+        authCheck(loads.load() == 1L && refreshes.load() == if (refresh) 1L else 0L)
+        authCheck(started.load() == 1L)
+    }
+}
+
+internal fun authNested(mode: String, proxy: Url, token: Url, target: Url, trust: TrustStore) {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { _ ->
+        val owner = AuthClient()
+        val calls = AtomicLong(0L)
+        val provider = if (mode == "nested-basic-forward") HttpAuthenticator.basic(proxy.httpOrigin()) suspend { request ->
+            authCheck(request.proxyUrl == Some(proxy) && request.request.url == target && request.attempt == 1L)
+            authCheck(authContext() == "application")
+            authDone(owner.value!!, HttpRequest.get(token), proxyCount = 0L)
+            calls.fetchAdd(1L); HttpPasswordCredentials("nested", "password")
+        } else HttpAuthenticator.bearer(proxy.httpOrigin(), sendWithoutChallenge = false) suspend { request ->
+            authCheck(request.proxyUrl == Some(proxy) && request.request.url == target && request.attempt == 1L)
+            authCheck(authContext() == "application")
+            authDone(owner.value!!, HttpRequest.get(token), proxyCount = 0L)
+            calls.fetchAdd(1L); HttpBearerTokens("nested")
+        }
+        val route = HttpProxy.Http(HttpProxyEndpoint(proxy, authTls(trust), authentication = HttpAuthenticationOptions([provider])))
+        val selector = HttpProxySelector(suspend { request -> if (request.url == token) HttpProxy.Direct else route })
+        withHttpClient(authConfig(trust, selector)) suspend { client ->
+            owner.value = Some(client)
+            context(AuthContext("application")) { authDone(client, HttpRequest.get(target)) }
+        }
+        authCheck(calls.load() == 1L)
+    }
+}
+
+internal fun authIsolation(proxy: Url, trust: TrustStore) {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { _ ->
+        val loads = AtomicLong(0L)
+        val target = proxy.resolve("/resource")
+        val provider = HttpAuthenticator.bearer(proxy.httpOrigin()) suspend { request ->
+            authCheck(request.request.url == target && request.attempt == 0L && !authPresent(request.challenge))
+            authCheck(request.proxyUrl == None || request.proxyUrl == Some(proxy))
+            val number = loads.fetchAdd(1L) + 1L
+            HttpBearerTokens((if (request.proxyUrl == None) "origin-" else "proxy-") + number.toString())
+        }
+        val options = HttpAuthenticationOptions([provider])
+        val first = authSelector(HttpProxyEndpoint(proxy, authentication = options))
+        val second = authSelector(HttpProxyEndpoint(proxy, authentication = options))
+        withHttpClient(authConfig(trust, HttpProxySelector.direct(), options)) suspend { client ->
+            context(AuthContext("application")) {
+                authDone(client, HttpRequest.get(target), proxyCount = 0L)
+                for (selector in [first, second, first])
+                    authDone(client, HttpRequest.get(target, options = HttpCallOptions(proxy = Some(selector))), proxyCount = 0L)
+                authCheck(loads.load() == 3L)
+                client.clearAuthenticationCache(provider)
+                for (selector in [first, second])
+                    authDone(client, HttpRequest.get(target, options = HttpCallOptions(proxy = Some(selector))), proxyCount = 0L)
+                authDone(client, HttpRequest.get(target), proxyCount = 0L)
+                authCheck(loads.load() == 6L)
+            }
+        }
+    }
+}

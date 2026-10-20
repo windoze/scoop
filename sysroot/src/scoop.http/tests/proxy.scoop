@@ -1,0 +1,96 @@
+package scoop.http
+
+import scoop.test.*
+import scoop.url.Url
+import scoop.url.UrlParseException
+
+@Test private class HttpProxyRequestTests {
+    @Test fun `absolute targets preserve URL components while Host and credentials remain distinct`() {
+        val fields = [HttpField("Proxy-Authorization".toByteArray(), [255.toByte()], true),
+            HttpField("X-Repeat".toByteArray(), "a".toByteArray()), HttpField("X-Repeat".toByteArray(), "b".toByteArray())]
+        val request = httpProxyRequest(Url.parse("https://user:secret@BÜCHER.example:443/a%2fb?q=%23+#local"), "CUSTOM".toByteArray(), fields)
+        assertEquals("CUSTOM", String.fromUtf8(request.method))
+        assertEquals("https://xn--bcher-kva.example:443/a%2Fb?q=%23+", proxyTarget(request))
+        assertEquals("xn--bcher-kva.example:443", String.fromUtf8(request.fields[3L].value))
+        assertEquals(4L, request.fields.size)
+        assertTrue(request.fields[0L].neverIndex && httpBytesEqual(request.fields[0L].value, [255.toByte()]))
+        assertEquals("a", String.fromUtf8(request.fields[1L].value))
+        assertEquals("b", String.fromUtf8(request.fields[2L].value))
+        val empty = httpProxyRequest(Url.parse("http://example.test?#x"), version = HttpVersion.Http10)
+        assertEquals("http://example.test/?", proxyTarget(empty))
+        assertEquals("example.test", String.fromUtf8(empty.fields[0L].value))
+        assertTrue(empty.version == HttpVersion.Http10)
+    }
+
+    @Test fun `CONNECT uses an explicit port and IPv6 brackets in both protocol models`() {
+        for ((text, authority) in [("https://example.test/ignored?x#f", "example.test:443"),
+            ("http://u:p@127.0.0.1:8080/", "127.0.0.1:8080"),
+            ("wss://[::1]/", "[0000:0000:0000:0000:0000:0000:0000:0001]:443"),
+            ("ws://example.test/", "example.test:80")]) {
+            val url = Url.parse(text)
+            for (version in [HttpVersion.Http10, HttpVersion.Http11, HttpVersion.Http2]) {
+                val request = httpConnectRequest(url, version = version)
+                assertEquals("CONNECT", String.fromUtf8(request.method))
+                assertEquals(authority, proxyTarget(request))
+                assertEquals(if (version == HttpVersion.Http2) 0L else 1L, request.fields.size)
+                if (version != HttpVersion.Http2) assertEquals(authority, String.fromUtf8(request.fields[0L].value))
+                assertTrue(when (request.target) { case Connect(_) -> version == HttpVersion.Http2; else -> version != HttpVersion.Http2 })
+            }
+        }
+    }
+
+    @Test fun `invalid targets methods and duplicate routing fields fail without generating wire bytes`() {
+        val url = Url.parse("http://example.test/")
+        for (method in ["", "G ET", "G\rET", "CONNECT"]) {
+            assertFailsWith<IllegalArgumentException> { httpProxyRequest(url, method.toByteArray()) }
+        }
+        assertEquals("connect", String.fromUtf8(httpProxyRequest(url, "connect".toByteArray()).method))
+        assertFailsWith<IllegalArgumentException> { httpProxyRequest(url, version = HttpVersion.Http2) }
+        assertFailsWith<IllegalArgumentException> { httpProxyRequest(Url.parse("ws://example.test/")) }
+        for (text in ["/relative", "file:///x", "https://example.test:0/"]) {
+            assertFailsWith<UrlParseException> { httpConnectRequest(Url.parse(text)) }
+            assertFailsWith<UrlParseException> { httpProxyRequest(Url.parse(text)) }
+        }
+        for (field in [HttpField("hOsT".toByteArray(), "other".toByteArray()),
+            HttpField(":path".toByteArray(), "/".toByteArray()), HttpField("Bad Name".toByteArray(), "".toByteArray()),
+            HttpField("X".toByteArray(), "bad\nvalue".toByteArray())]) {
+            assertFailsWith<IllegalArgumentException> { httpProxyRequest(url, fields = [field]) }
+            assertFailsWith<IllegalArgumentException> { httpConnectRequest(url, [field]) }
+        }
+    }
+
+    @Test fun `all successful CONNECT status codes switch and rejection keeps its ordinary body`() {
+        for (status in [100U, 101U, 199U, 200U, 201U, 204U, 299U, 300U, 407U, 502U])
+            assertEquals(status >= 200U && status < 300U, httpConnectAccepted(HttpResponseHead(HttpVersion.Http11, status)))
+        Http1Decoder.client().use { decoder ->
+            decoder.expectResponse(httpConnectRequest(Url.parse("https://example.test/")).method)
+            val events = collectHttp1(decoder, "HTTP/1.1 407 Auth\r\nContent-Length: 4\r\n\r\ndeny".toByteArray())
+            assertFalse(httpConnectAccepted(http1Responses(events)[0L]))
+            assertEquals("deny", String.fromUtf8(http1Data(events)))
+            assertFalse(decoder.isSwitched)
+        }
+    }
+
+    @Test fun `constructed HTTP2 CONNECT requests use the native stream and body path`() {
+        withHttp2 { client, server ->
+            val id = client.submitRequest(httpConnectRequest(Url.parse("https://example.test/"), version = HttpVersion.Http2), false)
+            drive2(client, server)
+            assertEquals("example.test:443", proxyTarget(requests2(events2(server))[0L]))
+            server.submitResponse(id, HttpResponseHead(HttpVersion.Http2, 200U), false)
+            assertEquals(3L, write2(server, id, "raw".toByteArray()))
+            server.finish(id)
+            client.finish(id)
+            drive2(client, server)
+            val received = events2(client)
+            assertTrue(httpConnectAccepted(responses2(received)[0L]))
+            assertEquals("raw", String.fromUtf8(data2(received, id)))
+            client.consume(id, 3L)
+        }
+    }
+}
+
+private fun proxyTarget(request: HttpRequestHead): String = when (request.target) {
+    case Http1(value) -> String.fromUtf8(value)
+    case Connect(value) -> String.fromUtf8(value)
+    else -> fail(Some("unexpected target model"))
+}

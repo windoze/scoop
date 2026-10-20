@@ -1,0 +1,127 @@
+package scoop.asyncio
+
+import scoop.platform.fs.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.system.*
+import scoop.test.*
+
+@Test
+private class AsyncFileControlTest {
+    @Test
+    fun `seeking truncating and metadata preserve the actual file position`() {
+        IoTestDirectory().use { tree ->
+            val path = tree.child("data")
+            path.writeText("abcdef")
+            val loop: EventLoop = LibuvEventLoop()
+            loop.run suspend { _ ->
+                loop.openFile(path, OpenOptions(write = true)).useAsync suspend { file ->
+                    val before = file.metadata()
+                    assertTrue(before.kind == FileKind.Regular)
+                    assertEquals(6L, before.size)
+                    assertEquals(path.metadata().permissions, before.permissions)
+                    assertEquals(path.metadata().modifiedAt, before.modifiedAt)
+                    assertEquals(0L, file.position())
+                    NativeByteBuffer.allocate(8L).use suspend { bytes ->
+                        file.readFully(bytes, 2L)
+                        assertEquals(2L, file.position())
+                        file.seek(8L)
+                        assertEquals(6L, file.size())
+                        bytes.clear()
+                        bytes.writeByte(42)
+                        file.writeFully(bytes)
+                        assertEquals(9L, file.position())
+                        assertEquals(9L, file.size())
+                        file.seek(6L)
+                        bytes.clear()
+                        file.readFully(bytes, 3L)
+                        assertEquals(0.toByte(), bytes.readByte())
+                        assertEquals(0.toByte(), bytes.readByte())
+                        assertEquals(42.toByte(), bytes.readByte())
+                        file.truncate(2L)
+                        assertEquals(9L, file.position())
+                        assertEquals(2L, file.size())
+                        bytes.clear()
+                        assertEquals(0L, file.readInto(bytes, 1L))
+                        file.seek(0L)
+                        file.readFully(bytes, 2L)
+                        assertEquals(97.toByte(), bytes.readByte())
+                        assertEquals(98.toByte(), bytes.readByte())
+                        file.truncate(5L)
+                        assertEquals(2L, file.position())
+                        bytes.clear()
+                        file.readFully(bytes, 3L)
+                        for (index in 0L..<3L) assertEquals(0.toByte(), bytes.getByte(index))
+                        file.syncData()
+                        file.syncAll()
+                        assertEquals(5L, file.metadata().size)
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `append follows the OS and positions retain all 64 bits`() {
+        IoTestDirectory().use { tree ->
+            val path = tree.child("append")
+            path.writeText("ab")
+            val loop: EventLoop = LibuvEventLoop()
+            loop.run suspend { _ ->
+                loop.openFile(path, OpenOptions(write = true, append = true)).useAsync suspend { file ->
+                    file.seek(0L)
+                    NativeByteBuffer.allocate(1L).use suspend { bytes ->
+                        bytes.writeByte(99)
+                        file.writeFully(bytes)
+                    }
+                    assertEquals(3L, file.position())
+                    assertEquals(3L, file.size())
+                    file.seek(4294967297L)
+                    assertEquals(4294967297L, file.position())
+                    assertEquals(3L, file.size())
+                    file.truncate(4294967298L)
+                    assertEquals(4294967298L, file.size())
+                    assertEquals(4294967297L, file.position())
+                    file.truncate(3L)
+                }
+            }
+            assertEquals("abc", path.readText())
+        }
+    }
+
+    @Test
+    fun `invalid controls preserve errno path and subsequent usability`() {
+        IoTestDirectory().use { tree ->
+            val path = tree.child("readonly")
+            path.writeText("abc")
+            val fifo = tree.child("fifo")
+            makeFifo(fifo)
+            val loop: EventLoop = LibuvEventLoop()
+            loop.run suspend { _ ->
+                loop.openFile(path).useAsync suspend { file ->
+                    try { file.seek(-1L); fail(Some("negative seek accepted")) }
+                    catch (_: IllegalArgumentException) {}
+                    try { file.truncate(-1L); fail(Some("negative size accepted")) }
+                    catch (_: IllegalArgumentException) {}
+                    try { file.truncate(0L); fail(Some("read only file truncated")) }
+                    catch (error: PlatformException) {
+                        assertTrue(error.nativeError!!.domain == NativeErrorDomain.PosixErrno)
+                        assertEquals(path.toOsString(), error.context!!)
+                    }
+                    assertEquals(0L, file.position())
+                    assertEquals(3L, file.size())
+                    file.seek(2L)
+                    assertEquals(2L, file.position())
+                }
+                loop.openFile(fifo, OpenOptions(write = true)).useAsync suspend { file ->
+                    assertTrue(file.metadata().kind == FileKind.Fifo)
+                    try { file.position(); fail(Some("FIFO reported a position")) }
+                    catch (error: PlatformException) {
+                        assertTrue(error.nativeError!!.domain == NativeErrorDomain.PosixErrno)
+                        assertEquals(fifo.toOsString(), error.context!!)
+                    }
+                    assertTrue(file.metadata().kind == FileKind.Fifo)
+                }
+            }
+        }
+    }
+}

@@ -1,17 +1,26 @@
 package scoop.asyncio
 
+import scoop.asyncio.native.NativeWork
 import scoop.time.Duration
 import scoop.platform.net.*
 import scoop.platform.system.OsString
 import scoop.platform.fs.*
 
 public interface EventLoop {
+    @Unsafe public suspend fun runNativeWork(work: NativeWork)
     public fun run(block: suspend (CoroutineScope) -> Unit)
     public suspend fun sleep(duration: Duration)
     public suspend fun resolve(host: OsString, port: Int, family: AddressFamily? = None): Array<SocketAddress>
     public suspend fun openFile(path: Path, options: OpenOptions = OpenOptions()): AsyncFile
+    public suspend fun metadata(path: Path, followLinks: Boolean = true): FileMetadata
+    public suspend fun moveFile(source: Path, destination: Path, replaceExisting: Boolean = false)
+    public suspend fun deleteFile(path: Path)
+    public suspend fun createDirectories(path: Path, mode: Int = 0x1ff)
+    public suspend fun createTempFile(parent: Path? = None, prefix: String = "scoop-"): TemporaryFile
+    public suspend fun openDirectory(path: Path): AsyncDirectoryEntries
     public suspend fun bindUdp(address: SocketAddress, reuseAddress: Boolean = false): AsyncUdpSocket
     public suspend fun connectTcp(address: SocketAddress): AsyncTcpStream
+    public suspend fun connectTcp(host: OsString, port: Int, options: TcpConnectOptions = TcpConnectOptions()): AsyncTcpStream
     public suspend fun listenTcp(address: SocketAddress, backlog: Int = 128, reuseAddress: Boolean = false): AsyncTcpListener
 }
 

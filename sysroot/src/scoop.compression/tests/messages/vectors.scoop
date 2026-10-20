@@ -1,0 +1,96 @@
+package scoop.compression
+
+import scoop.collections.emptyList
+import scoop.text.*
+import scoop.test.*
+
+@Test
+private class DeflateMessageVectorTests {
+    @Test
+    fun `RFC messages final blocks and zero padding work with one byte buffers`() {
+        for ((hex, text) in [("f248cdc9c90700", "Hello"), ("f348cdc9c9070000", "Hello"),
+            ("010500faff48656c6c6f00", "Hello"), ("00", ""),
+            ("f348cdc9c907000bcf2fca49010000", "HelloWorld")]) {
+            DeflateMessageDecoder().use { decoder ->
+                assertEquals(text, String.fromUtf8(decodeDeflateMessage(decoder, hex.hexToByteArray(), 1L, 1L)))
+            }
+        }
+        for (hex in ["", "f248cdc9c907", "f248cdc9c9070000"]) {
+            DeflateMessageDecoder().use { decoder ->
+                val error = assertFailsWith<CompressionException> { decodeDeflateMessage(decoder, hex.hexToByteArray(), 1L, 1L) }
+                assertTrue(error.kind == CompressionFailureKind.Truncated)
+            }
+        }
+        DeflateMessageDecoder().use { decoder ->
+            val error = assertFailsWith<CompressionException> { decodeDeflateMessage(decoder, "f348cdc9c9078000".hexToByteArray()) }
+            assertTrue(error.kind == CompressionFailureKind.InvalidData)
+        }
+    }
+
+    @Test
+    fun `independent zlib messages require the retained history on the second message`() {
+        DeflateMessageDecoder().use { decoder ->
+            assertEquals(deflateContextText, String.fromUtf8(decodeDeflateMessage(decoder, deflateContextFirst.hexToByteArray())))
+            decoder.nextMessage()
+            gcCollect()
+            assertEquals(0L, decoder.totals.inputBytes)
+            assertEquals(0L, decoder.totals.outputBytes)
+            assertEquals(deflateContextText, String.fromUtf8(decodeDeflateMessage(decoder, deflateContextSecond.hexToByteArray(), 1L)))
+        }
+        DeflateMessageDecoder(contextTakeover = false).use { decoder ->
+            decodeDeflateMessage(decoder, deflateContextFirst.hexToByteArray())
+            decoder.nextMessage()
+            val error = assertFailsWith<CompressionException> { decodeDeflateMessage(decoder, deflateContextSecond.hexToByteArray()) }
+            assertTrue(error.kind == CompressionFailureKind.InvalidData)
+            assertSame(error, decoder.failure!!)
+            assertFailsWith<IllegalStateException> { decoder.nextMessage() }
+        }
+    }
+
+    @Test
+    fun `encoders honor context choices windows and repeated empty messages`() {
+        for (window in 9..15) {
+            for (takeover in [false, true]) {
+                DeflateMessageEncoder(DeflateOptions(windowBits = window), takeover).use { encoder ->
+                    DeflateMessageDecoder(window, takeover).use { decoder ->
+                        var first: String = ""
+                        for (index in 0..4) {
+                            val text = if (index < 2) deflateContextText else ""
+                            val encoded = encodeDeflateMessage(encoder, text.toByteArray())
+                            assertEquals(text, String.fromUtf8(decodeDeflateMessage(decoder, encoded)))
+                            if (index == 0) first = encoded.toHexString()
+                            if (index == 1) {
+                                if (takeover) assertTrue(encoded.toHexString().length < first.length)
+                                else assertEquals(first, encoded.toHexString())
+                            }
+                            if (index >= 2) assertEquals("00", encoded.toHexString())
+                            encoder.nextMessage(); decoder.nextMessage()
+                            assertEquals(0L, encoder.totals.outputBytes)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `output limits and totals restart for each message`() {
+        DeflateMessageDecoder(maxOutputBytes = Some(5L)).use { decoder ->
+            for (index in 0..1) {
+                assertEquals("Hello", String.fromUtf8(decodeDeflateMessage(decoder, "f248cdc9c90700".hexToByteArray(), 1L, 1L)))
+                decoder.nextMessage()
+                assertEquals(0L, decoder.totals.inputBytes)
+            }
+        }
+        DeflateMessageDecoder(maxOutputBytes = Some(0L)).use { decoder ->
+            assertEquals(0L, decodeDeflateMessage(decoder, "00".hexToByteArray()).size)
+        }
+        val decoder = DeflateMessageDecoder(maxOutputBytes = Some(4L))
+        val error = assertFailsWith<CompressionException> { decodeDeflateMessage(decoder, "f248cdc9c90700".hexToByteArray()) }
+        assertTrue(error.kind == CompressionFailureKind.OutputLimit)
+        assertSame(error, decoder.failure!!)
+        decoder.close(); decoder.close(); gcCollect()
+        assertTrue(error.detail.length > 0L)
+        assertFailsWith<IllegalStateException> { decodeDeflateMessage(decoder, emptyList<Byte>()) }
+    }
+}

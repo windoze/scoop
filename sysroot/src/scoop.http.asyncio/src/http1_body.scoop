@@ -26,7 +26,7 @@ public class AsyncHttp1Body internal constructor(private val state: H1State, int
         }, suspend {
             if (count == 0L) return@h1Operation 0L
             readH1Body(state, body, buffer, count)
-        })
+        }, body.readIdle)
         if (count != 0L) closeAfterH1Input(state, body)
         return progress
     }

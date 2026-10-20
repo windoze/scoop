@@ -1,0 +1,11 @@
+--- a/inflate.c
++++ b/inflate.c
+@@ -79,7 +79,7 @@
+     state->lencode = state->distcode = state->next = state->codes;
+     state->back = -1;
+ #ifdef INFLATE_STRICT
+-    state->dmax = 32768U;
++    state->dmax = state->wrap ? 32768U : (1U << state->wbits);
+ #endif
+ #ifdef INFLATE_ALLOW_INVALID_DISTANCE_TOOFAR_ARRR
+     state->sane = 1;

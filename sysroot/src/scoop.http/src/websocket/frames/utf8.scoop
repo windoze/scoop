@@ -1,0 +1,53 @@
+package scoop.http
+
+import scoop.charset.*
+import scoop.platform.memory.NativeByteBuffer
+
+internal class WebSocketUtf8 private constructor(
+    private val engine: CharsetTranscoder, private val input: NativeByteBuffer, private val output: NativeByteBuffer
+) : Closeable {
+    fun receive(bytes: Array<Byte>) {
+        var offset = 0L
+        while (offset < bytes.size) {
+            input.clear()
+            val count = if (bytes.size - offset < input.capacity) bytes.size - offset else input.capacity
+            input.writeBytes(bytes, offset, count)
+            transfer(false)
+            if (input.readableBytes != 0L) throw IllegalStateException(Some("UTF-8 validator left unconsumed input"))
+            offset += count
+        }
+    }
+
+    fun finish() { input.clear(); transfer(true) }
+
+    private fun transfer(ending: Boolean) {
+        try {
+            while (true) {
+                output.clear()
+                val step = engine.process(input, output, ending)
+                if (step.state != CharsetState.NeedOutput) return
+            }
+        } catch (error: CharsetException) {
+            throw WebSocketFrameException(1007U, "invalid message UTF-8", cause = Some(error))
+        }
+    }
+
+    public override fun close() {
+        try { engine.close() }
+        finally { try { input.close() } finally { output.close() } }
+    }
+
+    companion object {
+        fun create(): WebSocketUtf8 {
+            val input = NativeByteBuffer.allocate(4096L)
+            try {
+                val output = NativeByteBuffer.allocate(4096L)
+                try {
+                    val engine = CharsetTranscoder(Charset.Utf8, Charset.Utf8,
+                        CharsetTranscodeOptions(decode = CharsetDecodeOptions(bom = CharsetBomPolicy.Preserve)))
+                    return WebSocketUtf8(engine, input, output)
+                } catch (error: Throwable) { output.close(); throw error }
+            } catch (error: Throwable) { input.close(); throw error }
+        }
+    }
+}

@@ -11,27 +11,22 @@ pub(crate) fn verified_layout_code_link_object_members() -> crate::FinalCodeObje
         fixture.plan.scoop_lir_members()[0].member_id(),
         &fixture.bytes,
     )];
-    let patch_sites = previous.entry().patch_sites();
+    let builtins = previous.entry().builtins();
     let surface = scoop_lir::StrongRegistrationProductionSurfaceV2::empty(
         selection().target(),
         &foundation,
         production.digest_finalization_plan(),
     )
     .unwrap();
-    let types =
-        crate::bind_type_registrations_v1(patch_sites.clone(), surface.types().clone()).unwrap();
+    let types = crate::bind_type_registrations_v1(builtins.clone(), surface.types().clone());
     let types = crate::compute_strong_type_fingerprints_v2(
         types,
         production.canonical_shape_definitions(),
         &objects,
     )
     .unwrap();
-    let initializations = crate::bind_initialization_registrations_v1(
-        patch_sites,
-        surface.initialization_units().clone(),
-    )
-    .unwrap();
-    let previous_image = previous.runtime_images().fingerprint();
+    let initializations = surface.initialization_units().clone();
+    let previous_image = previous.runtime_image();
     let registrations = previous_image.registrations();
     let initializations = crate::compute_strong_initialization_fingerprints_v2(
         initializations,
@@ -39,7 +34,7 @@ pub(crate) fn verified_layout_code_link_object_members() -> crate::FinalCodeObje
         production.canonical_shape_definitions(),
     )
     .unwrap();
-    let patched = crate::patch_strong_registration_fingerprints_v2(
+    let patched = crate::collect_registration_objects_v2(
         registrations.safepoints().clone(),
         registrations.callables().clone(),
         types,
@@ -58,8 +53,7 @@ pub(crate) fn verified_layout_code_link_object_members() -> crate::FinalCodeObje
         compatibility,
     )
     .unwrap();
-    let image = crate::patch_runtime_image_fingerprint_v2(image).unwrap();
-    let final_objects = crate::patch_entry_production_v2(image, previous.entry().clone()).unwrap();
+    let final_objects = crate::FinalRuntimeObjectsV1::new(image, previous.entry().clone());
     assert_eq!(final_objects.objects(), previous.objects());
     let member_plan = &fixture.plan.scoop_lir_members()[0];
     let member = SlibMember::new(

@@ -1,0 +1,58 @@
+package scoop.http.client
+
+import scoop.asyncio.currentEventLoop
+import scoop.platform.fs.Path
+import scoop.platform.system.PlatformErrorKind
+import scoop.platform.system.PlatformException
+
+internal class ClientCacheClosure {
+    private val lock: ClientLock = ClientLock()
+    private var started: Boolean = false
+    private var done: Boolean = false
+    private var failure: Throwable? = None
+    private val waiters: ArrayList<Continuation<Unit>> = ArrayList<Continuation<Unit>>()
+
+    suspend fun close(action: suspend () -> Unit) {
+        val first = lock.withLock { if (started) false else { started = true; true } }
+        if (first) {
+            var failed: Throwable? = None
+            try { nonCancellableScope<Unit> suspend { _ -> action() } }
+            catch (error: Throwable) { failed = Some(error) }
+            val result = failed
+            val waiting = lock.withLock {
+                done = true; failure = result
+                val saved = waiters.toArray(); waiters.clear(); saved
+            }
+            for (waiter in waiting) when (failed) {
+                case Some(error) -> waiter.resumeWithException(error)
+                case None -> waiter.resume(Unit)
+            }
+            if (clientPresent(failed)) throw failed!!
+        } else {
+            suspendCoroutine<Unit> { continuation ->
+                val finished = lock.withLock { if (done) true else { waiters.add(continuation); false } }
+                if (finished) when (lock.withLock { failure }) {
+                    case Some(error) -> continuation.resumeWithException(error)
+                    case None -> continuation.resume(Unit)
+                }
+            }
+        }
+    }
+}
+
+internal suspend fun deleteClientCacheFile(path: Path) {
+    try { currentEventLoop().deleteFile(path) }
+    catch (error: PlatformException) { if (error.kind != PlatformErrorKind.NotFound) throw error }
+}
+
+internal suspend fun deleteClientCacheFiles(paths: List<Path>) {
+    if (paths.size == 0L) return
+    nonCancellableScope<Unit> suspend { _ ->
+        var failure: Throwable? = None
+        for (path in paths) {
+            try { deleteClientCacheFile(path) }
+            catch (error: Throwable) { failure = Some(clientCombined(failure, error)) }
+        }
+        if (clientPresent(failure)) throw failure!!
+    }
+}

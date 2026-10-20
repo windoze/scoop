@@ -1,0 +1,93 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.compression.*
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+import scoop.text.hexToByteArray
+
+@Test
+private class AsyncWebSocketDeflateFailureTests {
+    @Test
+    fun `compressed format truncation and decoded UTF8 failures keep their close codes and causes`() {
+        val vectors: Array<(String, UInt, Boolean)> = [
+            ("ff", 1002U, true), ("f248cdc9c907", 1002U, true), ("", 1002U, true),
+            ("fa0f00", 1007U, false)
+        ]
+        for ((payload, code, compressionFailure) in vectors) {
+            withRawWebSocket(deflate = Some(negotiatedWsDeflate())) suspend { _, _, client, peer ->
+                peer.send(WebSocketOpcode.Text, payload.hexToByteArray(), compressed = true)
+                val error = expectMessageFailure<WebSocketFrameException> suspend { client.receive()!!.readBytes() }
+                assertEquals(code, error.closeCode)
+                if (compressionFailure) assertTrue(error.cause!! is CompressionException)
+                assertEquals(code, WebSocketClose.parse(peer.receive()._2).code!!)
+                assertTrue(client.isClosed && present(client.failure))
+            }
+        }
+    }
+
+    @Test
+    fun `compressed wire limits and decoded limits are enforced independently`() {
+        val values: Array<WebSocketSessionOptions> = [
+            WebSocketSessionOptions(maxDecompressedMessageBytes = 4L),
+            WebSocketSessionOptions(WebSocketFrameLimits(maxFrameBytes = 2L), maxDecompressedMessageBytes = 100L)
+        ]
+        for (options in values) {
+            withRawWebSocket(options, Some(negotiatedWsDeflate())) suspend { _, _, client, peer ->
+                peer.send(WebSocketOpcode.Text, "f248cdc9c90700".hexToByteArray(), compressed = true)
+                val error = expectMessageFailure<WebSocketFrameException> suspend { client.receive()!!.readBytes() }
+                assertEquals(1009U, error.closeCode)
+                assertEquals(1009U, WebSocketClose.parse(peer.receive()._2).code!!)
+            }
+        }
+        assertEquals(7L, WebSocketSessionOptions(WebSocketFrameLimits(maxMessageBytes = 7L)).maxDecompressedMessageBytes)
+        assertFailsWith<IllegalArgumentException> { WebSocketSessionOptions(maxDecompressedMessageBytes = -1L) }
+    }
+
+    @Test
+    fun `compressed text validates accepted plaintext and rejects an unfinished UTF8 code point`() {
+        for (incomplete in [false, true]) {
+            withRawWebSocket(deflate = Some(negotiatedWsDeflate())) suspend { _, _, client, _ ->
+                val writer = client.beginMessage(WebSocketMessageType.Text)
+                NativeByteBuffer.allocate(1L).use suspend { input ->
+                    input.writeByte((if (incomplete) 240 else 255).toByte())
+                    if (incomplete) {
+                        assertEquals(1L, writer.writeFrom(input, 1L))
+                        writer.flush()
+                    }
+                    val error = expectMessageFailure<WebSocketFrameException> suspend {
+                        if (incomplete) writer.finish() else writer.writeFrom(input, 1L)
+                        Unit
+                    }
+                    assertEquals(1007U, error.closeCode)
+                    assertEquals(1L, input.readPosition)
+                    assertTrue(client.isClosed && !writer.isComplete)
+                    assertFalse(present(client.sentClose))
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `local encoding window eight is rejected before ownership while receiving window eight is allowed`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            for (role in [HttpRole.Client, HttpRole.Server]) {
+                val (a, b) = rawPair(loop, scope)
+                val parameters = if (role == HttpRole.Client) negotiatedWsDeflate(clientWindow = 8)
+                    else negotiatedWsDeflate(serverWindow = 8)
+                try {
+                    expectMessageFailure<IllegalArgumentException> suspend {
+                        AsyncWebSocketSession.takeOwnership(a, scope, role, deflate = Some(parameters))
+                    }
+                    assertEquals(0, a.closes)
+                } finally { a.close(); b.close() }
+            }
+        }
+        withRawWebSocket(deflate = Some(negotiatedWsDeflate(serverWindow = 8, clientWindow = 9))) suspend { _, _, client, peer ->
+            peer.send(WebSocketOpcode.Text, "f248cdc9c90700".hexToByteArray(), compressed = true)
+            assertEquals("Hello", client.receive()!!.readText())
+        }
+    }
+}

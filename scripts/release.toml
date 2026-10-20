@@ -3,6 +3,13 @@ llvm = "22.1.8"
 openssl = "3.5.9"
 llhttp = "9.4.3"
 nghttp2 = "1.70.0"
+libidn2 = "2.3.8"
+libunistring = "1.4.2"
+libiconv = "1.19"
+uriparser = "1.0.2"
+zstd = "1.5.7"
+zlib-ng = "2.3.3"
+brotli = "1.2.0"
 
 [targets.aarch64-apple-darwin]
 cpu = "generic"

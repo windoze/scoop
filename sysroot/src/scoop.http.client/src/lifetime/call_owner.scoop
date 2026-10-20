@@ -1,0 +1,147 @@
+package scoop.http.client
+
+
+internal suspend fun executeClientAttempt(state: ClientState, request: HttpRequest, caller: Job,
+    sequence: ClientRequestSequence): ClientCallResult {
+    if (!clientPresent(sequence.webSocket)) validateClientRequest(state.config, request)
+    return suspendCoroutine<ClientCallResult> { continuation ->
+        val call = ClientCall(state, request, caller, sequence, continuation)
+        val scope = state.lock.withLock {
+            if (state.closing) throw HttpClientClosedException()
+            state.calls.add(call)
+            state.scope!!
+        }
+        try {
+            scope.launch suspend {
+                suspendCoroutine<Unit> { hold ->
+                    call.lock.withLock { call.hold = Some(hold) }
+                    startCoroutine<Unit>(suspend { runClientCall(call) }, ClientCallCompletion(call))
+                }
+            }
+            if (!call.lock.withLock { clientPresent(call.hold) || call.completed })
+                finishUnstartedClientCall(call, CancellationException())
+        } catch (error: Throwable) { finishUnstartedClientCall(call, error) }
+    }
+}
+private suspend fun runClientCall(call: ClientCall) {
+    if (clientPresent(call.observation)) runObservedClientCall(call) else runClientCallWork(call)
+}
+
+internal suspend fun runClientCallWork(call: ClientCall) {
+    try { runClientCallScope(call) }
+    catch (error: Throwable) {
+        if (clientPresent(call.openedWebSocket)) failClientCall(call, error)
+        throw error
+    } finally { closeFailedClientWebSocket(call) }
+}
+
+private suspend fun runClientCallScope(call: ClientCall) {
+    coroutineScope suspend { scope ->
+        call.lock.withLock { call.scope = Some(scope) }
+        val jobListener = scope.job.invokeOnCancellation { error -> cancelClientCall(call, error) }
+        val caller = call.lock.withLock { val saved = call.caller!!; call.caller = None; saved }
+        val callerListener = caller.invokeOnCancellation { error -> cancelClientCall(call, error, true) }
+        call.lock.withLock { call.jobListener = Some(jobListener); call.callerListener = Some(callerListener) }
+        try {
+            if (!clientPresent(call.observation)) startClientDeadline(call, scope, HttpTimeoutPhase.Total, call.timeouts.total, call.started)
+            requireClientCall(call)
+            emitClientEvent(call, HttpCallEventKind.AttemptStarted)
+            try {
+                selectClientRoute(call)
+                val proxy = call.proxyAuthentication
+                if (clientPresent(proxy)) prepareClientAuthentication(call, proxy!!)
+                prepareClientAuthentication(call, call.authentication)
+                prepareClientCookies(call)
+                prepareClientWebSocket(call)
+                prepareClientAttempt(call)
+            }
+            catch (error: Throwable) { failClientCall(call, error, true) }
+            requireClientCall(call)
+            val cached = try { prepareClientCache(call) }
+                catch (error: Throwable) { failClientCall(call, error, true); None }
+            requireClientCall(call)
+            if (clientPresent(cached)) {
+                call.lock.withLock { call.uploadDone = true; call.uploadComplete = true }
+                observeClientResponseHeaders(call, cached!!, true)
+                emitClientEvent(call, HttpCallEventKind.ResponseHeaders)
+                deliverClientResponse(call, cached!!)
+                awaitClientCallEnd(call)
+                return@coroutineScope
+            }
+            startClientDeadline(call, scope, HttpTimeoutPhase.PoolAcquire, call.timeouts.poolAcquire)
+            val connection = when (awaitClientConnection(call)) {
+                case Connected(_connection) -> _connection
+                case Authenticate(session) -> {
+                    requireClientCall(call)
+                    selectClientFollowUp(call, ClientFollowUp.Authenticate(session))
+                    return@coroutineScope
+                }
+            }
+            emitClientEvent(call, HttpCallEventKind.ConnectionAcquired)
+            markClientCacheSent(call)
+            val exchange = openClientExchange(call, connection)
+            call.lock.withLock { call.exchange = Some(exchange); call.responseStream = Some<ClientResponseStream>(exchange) }
+            observeClientRequestHeaders(call, exchange.version)
+            emitClientEvent(call, HttpCallEventKind.RequestHeaders)
+            val headersDeadline = startClientDeadline(call, scope, HttpTimeoutPhase.ResponseHeaders, call.timeouts.responseHeaders)
+            val uploading = scope.launch suspend { sendClientBody(call, exchange) }
+            call.lock.withLock { call.upload = Some(uploading) }
+            while (true) {
+                val head = exchange.receiveResponse()
+                observeClientResponseHeaders(call, head)
+                if (head.status < 200U && head.status != 101U) {
+                    if (head.status == 100U) settleClientContinue(call, true)
+                    emitClientEvent(call, HttpCallEventKind.ResponseHeaders)
+                    try { call.request.options.onInformational(head) }
+                    catch (error: Throwable) { failClientUserCallback(call, error); throw error }
+                    continue
+                }
+                requireClientCall(call)
+                finishClientDeadline(headersDeadline)
+                requireClientCall(call)
+                markClientCacheReceived(call)
+                prepareClientDigestResponse(call, head)
+                saveClientCookies(call, head)
+                val prepared = try { prepareClientCacheResponse(call, head) }
+                    catch (error: Throwable) { failClientCall(call, error, true); None }
+                requireClientCall(call)
+                emitClientEvent(call, HttpCallEventKind.ResponseHeaders)
+                if (clientPresent(prepared)) deliverClientResponse(call, prepared!!)
+                else selectClientFollowUp(call, ClientFollowUp.CacheRefresh)
+                break
+            }
+            awaitClientCallEnd(call)
+        } catch (error: Throwable) { failClientCall(call, error) }
+        finally {
+            val uploading = call.lock.withLock { call.upload }
+            if (clientPresent(uploading)) uploading!!.cancel()
+            try { cleanupClientExchange(call) }
+            finally { stopClientDeadlines(call, clientPresent(call.observation)) }
+        }
+    }
+}
+
+private suspend fun cleanupClientExchange(call: ClientCall) {
+    val input = call.lock.withLock { call.responseInput }
+    if (clientPresent(input)) {
+        try { input!!.closeCodecs() }
+        catch (error: Throwable) { call.lock.withLock { call.cleanupFailure = Some(clientCombined(call.cleanupFailure, error)) } }
+    }
+    try { cleanupClientCache(call) }
+    catch (error: Throwable) { call.lock.withLock { call.cleanupFailure = Some(clientCombined(call.cleanupFailure, error)) } }
+    val exchange = call.lock.withLock { call.exchange }
+    if (clientPresent(exchange)) {
+        try { exchange!!.close() }
+        catch (error: Throwable) { call.lock.withLock { call.cleanupFailure = Some(clientCombined(call.cleanupFailure, error)) } }
+    }
+    if (clientPresent(input)) input!!.awaitReadCompletion()
+}
+
+private fun finishUnstartedClientCall(call: ClientCall, error: Throwable) {
+    val unstarted = call.lock.withLock {
+        if (call.completed || clientPresent(call.hold)) return@withLock false
+        call.failure = Some(error)
+        true
+    }
+    if (unstarted) ClientCallCompletion(call).finish(None)
+}

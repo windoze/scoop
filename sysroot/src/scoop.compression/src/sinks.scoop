@@ -1,0 +1,44 @@
+package scoop.compression
+
+import scoop.platform.io.ByteSink
+import scoop.platform.memory.NativeByteBuffer
+
+public class CompressionSink private constructor(private val stream: SyncCompressionSink) : ByteSink, Closeable {
+    public constructor(sink: ByteSink, options: CompressionOptions = CompressionOptions.Zstd(ZstdOptions()),
+        bufferSize: Long = 8192L) : this(SyncCompressionSink(sink,
+            compressionIoResources(createCompressionEncoder(options), bufferSize, true), None)) {}
+
+    public companion object {
+        public fun <T> takeOwnership(sink: T, options: CompressionOptions = CompressionOptions.Zstd(ZstdOptions()),
+            bufferSize: Long = 8192L): CompressionSink where T : ByteSink, T : Closeable =
+            CompressionSink(SyncCompressionSink(sink,
+                compressionIoResources(createCompressionEncoder(options), bufferSize, true), Some(sink)))
+    }
+
+    public val totals: CompressionTotals get() = stream.totals
+    public val failure: Throwable? get() = stream.failure
+    public override fun writeFrom(buffer: NativeByteBuffer, count: Long): Long = stream.writeFrom(buffer, count)
+    public override fun flush() { stream.flush() }
+    public fun finish() { stream.finish() }
+    public override fun close() { stream.close() }
+}
+
+public class DecompressionSink private constructor(private val stream: SyncCompressionSink) : ByteSink, Closeable {
+    public constructor(sink: ByteSink, options: DecompressionOptions = DecompressionOptions(),
+        bufferSize: Long = 8192L) : this(SyncCompressionSink(sink,
+            compressionIoResources(createCompressionDecoder(options), bufferSize, false), None)) {}
+
+    public companion object {
+        public fun <T> takeOwnership(sink: T, options: DecompressionOptions = DecompressionOptions(),
+            bufferSize: Long = 8192L): DecompressionSink where T : ByteSink, T : Closeable =
+            DecompressionSink(SyncCompressionSink(sink,
+                compressionIoResources(createCompressionDecoder(options), bufferSize, false), Some(sink)))
+    }
+
+    public val totals: CompressionTotals get() = stream.totals
+    public val failure: Throwable? get() = stream.failure
+    public override fun writeFrom(buffer: NativeByteBuffer, count: Long): Long = stream.writeFrom(buffer, count)
+    public override fun flush() { stream.flush() }
+    public fun finish() { stream.finish() }
+    public override fun close() { stream.close() }
+}

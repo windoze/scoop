@@ -1,0 +1,43 @@
+package scoop.http
+
+import scoop.time.Duration
+import scoop.time.Instant
+
+public enum HttpRetryAfter : ToString {
+    DelaySeconds(Long), At(Instant)
+
+    public fun delayFrom(now: Instant): Duration = when (this) {
+        case DelaySeconds(value) -> Duration.seconds(retrySeconds(value))
+        case At(value) -> if (value <= now) Duration.ZERO else value - now
+    }
+    public override fun toString(): String = when (this) {
+        case DelaySeconds(value) -> retrySeconds(value).toString()
+        case At(value) -> HttpDate.format(value)
+    }
+    public fun toHttpField(): HttpField = HttpField("Retry-After".toByteArray(), toString().toByteArray())
+
+    public companion object {
+        public fun parse(value: List<Byte>, reference: Instant, caseInsensitive: Boolean = false): HttpRetryAfter {
+            val reader = HttpFieldReader("Retry-After", value)
+            reader.skipOws()
+            if (reader.peek() < 48 || reader.peek() > 57) return At(parseHttpDate(reader, reference, caseInsensitive))
+            val number = reader.decimal()
+            reader.skipOws()
+            if (!reader.ended) reader.fail("unexpected text after Retry-After seconds")
+            return DelaySeconds(number)
+        }
+        public fun parse(value: String, reference: Instant, caseInsensitive: Boolean = false): HttpRetryAfter =
+            parse(value.toByteArray(), reference, caseInsensitive)
+        public fun parseOrNone(value: List<Byte>, reference: Instant, caseInsensitive: Boolean = false): HttpRetryAfter? {
+            try { return Some(parse(value, reference, caseInsensitive)) }
+            catch (_: HttpFieldParseException) { return None }
+        }
+        public fun parseOrNone(value: String, reference: Instant, caseInsensitive: Boolean = false): HttpRetryAfter? =
+            parseOrNone(value.toByteArray(), reference, caseInsensitive)
+    }
+}
+
+private fun retrySeconds(value: Long): Long {
+    if (value < 0L) throw IllegalArgumentException(Some("negative Retry-After seconds"))
+    return value
+}

@@ -1,0 +1,79 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+@Test private class WebSocketFrameEncoderTests {
+    @Test fun `client payload masking continues across short writes and fresh frames`() {
+        WebSocketFrameEncoder(HttpRole.Client).use { encoder ->
+            val first = wfEncode(encoder, WebSocketFrameHead(WebSocketOpcode.Text, 5L), "Hello".toByteArray(), 2L)
+            val second = wfEncode(encoder, WebSocketFrameHead(WebSocketOpcode.Binary, 3L), wfBytes([0, 255, 128]), 1L)
+            assertEquals(129.toByte(), first[0L]); assertEquals(133.toByte(), first[1L])
+            assertEquals(132.toByte(), wfEncode(encoder, WebSocketFrameHead(WebSocketOpcode.Ping, 4L), "ping".toByteArray())[1L])
+            WebSocketFrameDecoder(HttpRole.Server).use { decoder ->
+                val bytes = ByteArrayBuilder().append(first).append(second).toByteArray()
+                wfAssertBytes(ByteArrayBuilder().append("Hello".toByteArray()).append(wfBytes([0, 255, 128])).toByteArray(),
+                    wfPayload(wfFeed(decoder, bytes, 2L)))
+            }
+            assertTrue(!encoder.isFrameOpen && !encoder.isMessageOpen)
+        }
+    }
+
+    @Test fun `invalid counts and unfinished frames can be corrected without losing payload`() {
+        WebSocketFrameEncoder(HttpRole.Server).use { encoder -> NativeByteBuffer.allocate(3L).use { input ->
+            input.writeBytes("abc".toByteArray())
+            assertFailsWith<IllegalStateException> { encoder.writePayload(input) }
+            encoder.beginFrame(WebSocketFrameHead(WebSocketOpcode.Binary, 2L))
+            assertFailsWith<IllegalStateException> { encoder.beginFrame(WebSocketFrameHead(WebSocketOpcode.Ping, 0L)) }
+            assertFailsWith<IllegalArgumentException> { encoder.writePayload(input, -1L) }
+            assertFailsWith<IndexOutOfBoundsException> { encoder.writePayload(input, 4L) }
+            assertFailsWith<IllegalArgumentException> { encoder.writePayload(input, 3L) }
+            assertEquals(0L, input.readPosition)
+            assertEquals(0L, encoder.writePayload(input, 0L).size)
+            assertEquals("a", String.fromUtf8(encoder.writePayload(input, 1L)))
+            assertFailsWith<IllegalStateException> { encoder.finishFrame() }
+            assertEquals("b", String.fromUtf8(encoder.writePayload(input, 1L)))
+            encoder.finishFrame()
+            assertEquals("c", String.fromUtf8(input.readBytes(1L)))
+            assertTrue(when (encoder.failure) { case None -> true; case Some(_) -> false })
+        } }
+    }
+
+    @Test fun `fragment sequencing preserves text state while allowing control frames`() {
+        WebSocketFrameEncoder(HttpRole.Server).use { encoder ->
+            val wire = ByteArrayBuilder().append(wfEncode(encoder, WebSocketFrameHead(WebSocketOpcode.Text, 1L, false), wfBytes([226])))
+            assertTrue(encoder.isMessageOpen)
+            assertFailsWith<WebSocketFrameException> { encoder.beginFrame(WebSocketFrameHead(WebSocketOpcode.Binary, 0L)) }
+            wire.append(wfEncode(encoder, WebSocketFrameHead(WebSocketOpcode.Ping, 1L), "p".toByteArray()))
+            wire.append(wfEncode(encoder, WebSocketFrameHead(WebSocketOpcode.Continuation, 2L), wfBytes([130, 172])))
+            assertTrue(!encoder.isMessageOpen)
+            WebSocketFrameDecoder(HttpRole.Client).use { decoder ->
+                assertEquals("€", String.fromUtf8(wfPayload(wfFeed(decoder, wire.toByteArray()))))
+            }
+            wfEncode(encoder, WebSocketFrameHead(WebSocketOpcode.Close, 0L), "".toByteArray())
+            assertTrue(encoder.hasCloseFrame)
+            assertFailsWith<WebSocketFrameException> { encoder.beginFrame(WebSocketFrameHead(WebSocketOpcode.Binary, 0L)) }
+            assertFailsWith<WebSocketFrameException> { encoder.beginFrame(WebSocketFrameHead(WebSocketOpcode.Close, 0L)) }
+            wfEncode(encoder, WebSocketFrameHead(WebSocketOpcode.Pong, 0L), "".toByteArray())
+        }
+    }
+
+    @Test fun `actual text and Close payload failures retain input consumption and prevent reuse`() {
+        for (opcode in [WebSocketOpcode.Text, WebSocketOpcode.Close]) {
+            val encoder = WebSocketFrameEncoder(HttpRole.Server)
+            NativeByteBuffer.allocate(1L).use { input ->
+                input.writeInt8(128.toByte())
+                encoder.beginFrame(WebSocketFrameHead(opcode, 1L))
+                val error = assertFailsWith<WebSocketFrameException> { encoder.writePayload(input); encoder.finishFrame() }
+                assertEquals(if (opcode == WebSocketOpcode.Text) 1007U else 1002U, error.closeCode)
+                assertEquals(1L, input.readPosition)
+                input.clear(); input.writeInt8(97.toByte())
+                assertFailsWith<IllegalStateException> { encoder.beginFrame(WebSocketFrameHead(WebSocketOpcode.Binary, 1L)) }
+                assertTrue(encoder.failure!! is WebSocketFrameException)
+            }
+            encoder.close(); encoder.close()
+            assertTrue(encoder.isClosed && !encoder.isFrameOpen && !encoder.isMessageOpen)
+        }
+    }
+}

@@ -1,0 +1,39 @@
+package scoop.http.client
+
+import scoop.asyncio.AsyncByteSink
+import scoop.platform.io.WriteZeroException
+import scoop.platform.memory.NativeByteBuffer
+
+private class ClientDownloadCount(var written: Long)
+
+internal suspend fun copyClientDownload(download: ClientDownload, response: HttpResponse, destination: AsyncByteSink,
+    options: HttpDownloadOptions, offset: Long, total: Long?, resumed: Long = 0L, expected: Long? = None): Long {
+    val count = ClientDownloadCount(offset)
+    reportClientDownloadProgress(download, response, options, offset, total, resumed)
+    NativeByteBuffer.allocate(options.bufferSize).use suspend { buffer ->
+        while (true) {
+            download.requireActive()
+            buffer.clear()
+            val received = response.body.readInto(buffer, buffer.capacity)
+            if (received == 0L) break
+            if (clientPresent(expected) && received > expected!! - (count.written - offset))
+                throw HttpResumeException(HttpResumeFailureReason.InvalidRange, "response exceeds its byte range", Some(response.head))
+            while (buffer.readableBytes > 0L) {
+                val written = destination.writeFrom(buffer, buffer.readableBytes)
+                if (written == 0L) throw WriteZeroException()
+                count.written += written
+                reportClientDownloadProgress(download, response, options, count.written, total, resumed)
+            }
+        }
+    }
+    if (clientPresent(expected) && count.written - offset != expected!!)
+        throw HttpResumeException(HttpResumeFailureReason.IncompleteRange, "response did not complete its byte range", Some(response.head))
+    return count.written
+}
+
+internal suspend fun reportClientDownloadProgress(download: ClientDownload, response: HttpResponse,
+    options: HttpDownloadOptions, written: Long, total: Long?, resumed: Long) {
+    download.requireActive()
+    options.onProgress(HttpDownloadProgress(response.url, written, total, resumed))
+    download.requireActive()
+}

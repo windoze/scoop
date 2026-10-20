@@ -1,0 +1,33 @@
+package scoop.http.client
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.crypto.digest
+import scoop.text.toHexString
+
+internal fun clientDigestHash(algorithm: HttpDigestAlgorithm, parts: List<Array<Byte>>): String {
+    val input = ByteArrayBuilder()
+    for (part in parts) input.append(part)
+    return digest(clientDigestAlgorithm(algorithm), input.toByteArray()).toHexString()
+}
+
+internal fun clientDigestProof(use: ClientDigestUse, method: List<Byte>, entity: String?): String {
+    val challenge = use.nonce.challenge
+    val a2 = ByteArrayBuilder()
+    a2.append(method); a2.append(58.toByte()); a2.append(use.uri)
+    if (challenge.qop == Some("auth-int")) {
+        a2.append(58.toByte()); a2.append(entity!!.toByteArray())
+    }
+    val ha2 = digest(clientDigestAlgorithm(challenge.algorithm), a2.toByteArray()).toHexString()
+    val input = ByteArrayBuilder()
+    input.append(use.ha1.toByteArray()); input.append(58.toByte()); input.append(challenge.nonce); input.append(58.toByte())
+    when (challenge.qop) {
+        case Some(qop) -> {
+            input.append(use.nc.toByteArray()); input.append(58.toByte())
+            input.append(use.nonce.cnonce.toByteArray()); input.append(58.toByte())
+            input.append(qop.toByteArray()); input.append(58.toByte())
+        }
+        case None -> {}
+    }
+    input.append(ha2.toByteArray())
+    return digest(clientDigestAlgorithm(challenge.algorithm), input.toByteArray()).toHexString()
+}

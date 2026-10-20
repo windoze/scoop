@@ -4,13 +4,16 @@
 
 static int begin(llhttp_t *parser) {
   http1 *s = parser->data;
+  s->message_starts += 1;
   s->header_bytes = s->start_line_bytes = 0;
   http_bytes_clear(&s->protocol);
   if (!s->server) {
     if (!s->first_method)
       return http1_fail(s, -2,
                         "HTTP/1 response has no corresponding request method");
-    parser->method = s->first_method->method;
+    /* Response CONNECT switches only after its 2xx status is known. */
+    parser->method =
+        s->first_method->method == HTTP_HEAD ? HTTP_HEAD : HTTP_GET;
   }
   return 0;
 }

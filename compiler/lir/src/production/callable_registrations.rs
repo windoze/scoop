@@ -4,10 +4,9 @@ use std::fmt;
 
 pub use scoop_identity::PersistentCallableBodyId;
 use scoop_identity::{
-    ConeIdentity, DefinitionAtomRole, DigestNodeId, DigestNodeKey, DigestPatchIntentId,
-    DigestPatchIntentKey, DigestSemanticFieldRole, LinkageClass, ObjectDefinitionAtomId,
-    ObjectDefinitionPlanId, ObjectDefinitionPlanKey, PersistentSymbolError, PersistentSymbolKey,
-    PersistentSymbolRequest, StrongDefinitionEntity, StrongDefinitionRole,
+    ConeIdentity, DefinitionAtomRole, DigestNodeId, DigestNodeKey, LinkageClass,
+    ObjectDefinitionAtomId, ObjectDefinitionPlanId, ObjectDefinitionPlanKey, PersistentSymbolError,
+    PersistentSymbolKey, PersistentSymbolRequest, StrongDefinitionEntity, StrongDefinitionRole,
 };
 
 use crate::{
@@ -33,7 +32,6 @@ pub struct StrongCallableRegistrationPlanV1 {
 
     body_definition_node: DigestNodeId,
     definition_owner: crate::RegistrationDefinitionOwner,
-    body_definition_patch: DigestPatchIntentId,
 }
 
 impl StrongCallableRegistrationPlanV1 {
@@ -74,10 +72,6 @@ impl StrongCallableRegistrationPlanV1 {
 
     pub const fn body_definition_node(self) -> DigestNodeId {
         self.body_definition_node
-    }
-
-    pub const fn body_definition_patch(self) -> DigestPatchIntentId {
-        self.body_definition_patch
     }
 }
 
@@ -235,15 +229,6 @@ fn build_registration(
 
     let body_definition_node =
         require_digest_node(digests, DigestNodeKey::object_definition(body_primary_atom))?;
-    let body_definition_patch = require_patch(
-        body_definition_node,
-        DigestPatchIntentKey::new(
-            body_definition_node.id(),
-            registration_definition.id(),
-            DefinitionAtomRole::Primary,
-            DigestSemanticFieldRole::CallableBodyDefinition,
-        ),
-    )?;
 
     Ok(StrongCallableRegistrationPlanV1 {
         body,
@@ -257,7 +242,6 @@ fn build_registration(
 
         body_definition_node: body_definition_node.id(),
         definition_owner,
-        body_definition_patch,
     })
 }
 
@@ -317,20 +301,6 @@ fn require_digest_node(
         ))
 }
 
-fn require_patch(
-    node: &DigestNodeV1,
-    expected: DigestPatchIntentKey,
-) -> Result<DigestPatchIntentId, StrongCallableRegistrationPlanBuildError> {
-    node.patch_intents()
-        .iter()
-        .find(|patch| patch.key() == &expected)
-        .map(|patch| patch.id())
-        .ok_or(StrongCallableRegistrationPlanBuildError::MissingPatch {
-            node: node.id(),
-            expected: Box::new(expected),
-        })
-}
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StrongCallableRegistrationPlanBuildError {
     Hash(scoop_wire::HashError),
@@ -367,10 +337,7 @@ pub enum StrongCallableRegistrationPlanBuildError {
         node: DigestNodeId,
         actual: Vec<DigestInputRefV1>,
     },
-    RegistrationObjectPatches {
-        node: DigestNodeId,
-        actual: Vec<DigestPatchIntentKey>,
-    },
+
     RegistrationDigestMismatch {
         body: PersistentCallableBodyId,
         expected: DigestNodeId,
@@ -380,15 +347,6 @@ pub enum StrongCallableRegistrationPlanBuildError {
         node: DigestNodeId,
         expected: Vec<DigestInputRefV1>,
         actual: Vec<DigestInputRefV1>,
-    },
-    PatchSet {
-        node: DigestNodeId,
-        expected: Box<DigestPatchIntentKey>,
-        actual: Vec<DigestPatchIntentKey>,
-    },
-    MissingPatch {
-        node: DigestNodeId,
-        expected: Box<DigestPatchIntentKey>,
     },
 }
 

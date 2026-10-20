@@ -1,0 +1,56 @@
+package scoop.http
+
+import scoop.collections.emptyList
+
+public class WebSocketExtensionParameter public constructor(
+    name: String, value: String? = None, quoted: Boolean = false
+) {
+    public val name: String = webSocketToken(name)
+    public val value: String? = when (value) { case Some(text) -> Some(webSocketToken(text)); case None -> None }
+    public val wasQuoted: Boolean = quoted
+}
+
+public class WebSocketExtension public constructor(name: String,
+    parameters: List<WebSocketExtensionParameter> = emptyList<WebSocketExtensionParameter>()) {
+    public val name: String = webSocketToken(name)
+    public val parameters: Array<WebSocketExtensionParameter> = parameters.toArray()
+
+    public fun toByteArray(): Array<Byte> {
+        val output = StringBuilder().append(name)
+        for (parameter in parameters) {
+            output.append("; ").append(parameter.name)
+            when (parameter.value) {
+                case Some(value) -> {
+                    output.append("=")
+                    if (parameter.wasQuoted) output.append("\"")
+                    output.append(value)
+                    if (parameter.wasQuoted) output.append("\"")
+                }
+                case None -> {}
+            }
+        }
+        return output.toString().toByteArray()
+    }
+
+    public fun toHttpField(): HttpField = HttpField("Sec-WebSocket-Extensions".toByteArray(), toByteArray())
+
+    public companion object {
+        public fun parse(value: List<Byte>): Array<WebSocketExtension> = readWebSocketExtensions(value)
+        public fun parse(value: String): Array<WebSocketExtension> = parse(value.toByteArray())
+        public fun parseOrNone(value: List<Byte>): Array<WebSocketExtension>? {
+            try { return Some(parse(value)) } catch (_: HttpFieldParseException) { return None }
+        }
+        public fun parseOrNone(value: String): Array<WebSocketExtension>? = parseOrNone(value.toByteArray())
+        public fun parseFields(fields: List<HttpField>): Array<WebSocketExtension> {
+            val result = ArrayList<WebSocketExtension>()
+            for (field in fields.findAll("Sec-WebSocket-Extensions".toByteArray()))
+                for (extension in parse(field.value)) result.add(extension)
+            return result.toArray()
+        }
+    }
+}
+
+internal fun webSocketToken(value: String): String {
+    if (!httpToken(value.toByteArray())) throw IllegalArgumentException(Some("invalid WebSocket token"))
+    return value
+}

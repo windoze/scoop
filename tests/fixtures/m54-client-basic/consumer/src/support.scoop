@@ -1,0 +1,83 @@
+import scoop.asyncio.*
+import scoop.collections.emptyList
+import scoop.crypto.x509.TrustStore
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.http.client.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.*
+import scoop.tls.TlsTrustSource
+import scoop.url.Url
+
+internal fun basicCheck(value: Boolean, detail: String = "Basic authentication integration check failed") {
+    if (!value) throw IllegalStateException(Some(detail))
+}
+
+internal fun <T> basicPresent(value: T?): Boolean = when (value) { case Some(_) -> true; case None -> false }
+
+internal suspend fun <E : Throwable> basicFailure(block: suspend () -> Unit): E {
+    try { block() }
+    catch (error: Throwable) { if (error is E) return error; throw error }
+    throw IllegalStateException(Some("expected Basic authentication failure"))
+}
+
+internal fun basicConfig(trust: TrustStore, authentication: HttpAuthenticationOptions = HttpAuthenticationOptions(),
+    h2: Boolean = false, retries: HttpRetryOptions = HttpRetryOptions(maxRetries = 0L)): HttpClientConfig =
+    HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)), authentication = authentication,
+        cleartext = if (h2) HttpCleartextProtocol.Http2PriorKnowledge else HttpCleartextProtocol.Http1,
+        retries = retries, pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 1L))
+
+internal fun basicUrl(listener: AsyncTcpListener): Url =
+    Url.parse("http://127.0.0.1:" + listener.localAddress.port.toString() + "/private/start")
+
+internal fun withBasicRuntime(block: suspend (EventLoop, CoroutineScope, AsyncTcpListener) -> Unit) {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { scope ->
+        loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).useAsync suspend { listener ->
+            block(loop, scope, listener)
+            basicCheck(!scope.job.isCancelled)
+        }
+    }
+}
+
+internal fun basicField(name: String, value: String): HttpField = HttpField(name.toByteArray(), value.toByteArray())
+
+internal suspend fun basicWrite(output: AsyncByteSink, text: String) {
+    val bytes = text.toByteArray()
+    NativeByteBuffer.allocate(bytes.size).use suspend { buffer ->
+        buffer.writeBytes(bytes)
+        output.writeFully(buffer)
+    }
+}
+
+internal suspend fun basicRespond(connection: AsyncHttp1Connection, status: UInt, text: String = "",
+    extra: List<HttpField> = emptyList<HttpField>()) {
+    val fields = ArrayList<HttpField>()
+    fields.add(basicField("Connection", "close"))
+    for (field in extra) fields.add(field)
+    connection.sendResponse(HttpResponseHead(HttpVersion.Http11, status, Some("actual Basic response".toByteArray()), fields),
+        Http1BodyFraming.Length(text.toByteArray().size)).useAsync suspend { output ->
+        if (text.length != 0L) basicWrite(output, text)
+        output.finish()
+    }
+}
+
+internal class BasicGate {
+    private var ready: Boolean = false
+    private var waiter: Continuation<Unit>? = None
+    fun signal() {
+        ready = true
+        val saved = waiter; waiter = None
+        saved?.resume(Unit)
+    }
+    suspend fun await() {
+        suspendCoroutine<Unit> { continuation ->
+            if (ready) continuation.resume(Unit) else waiter = Some(continuation)
+        }
+    }
+}
+
+internal class BasicFailureHolder { var value: Throwable? = None }
+internal class BasicContext(val name: String)
+context(value: BasicContext)
+internal fun basicContext(): String = value.name

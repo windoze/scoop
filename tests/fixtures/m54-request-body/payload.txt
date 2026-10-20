@@ -1,0 +1,1 @@
+文件正文：Scoop preserves ordered bytes.

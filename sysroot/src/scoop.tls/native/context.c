@@ -38,7 +38,8 @@ ScoopCryptoResult scoop_tls_context_new(int server, int minimum, int maximum,
            SSL_CTX_set_max_proto_version(ctx->ssl, maximum);
   if (ok && !server) {
     SSL_CTX_set_verify(ctx->ssl, SSL_VERIFY_PEER, NULL);
-    SSL_CTX_set1_cert_store(ctx->ssl, (X509_STORE *)(uintptr_t)store);
+    if (store)
+      SSL_CTX_set1_cert_store(ctx->ssl, (X509_STORE *)(uintptr_t)store);
   }
   if (ok && alpn_size > 0 && alpn_size <= 65535) {
     ctx->alpn = OPENSSL_memdup(alpn, (size_t)alpn_size);
@@ -57,21 +58,6 @@ ScoopCryptoResult scoop_tls_context_new(int server, int minimum, int maximum,
     return result;
   }
   return scoop_crypto_ok((uintptr_t)ctx);
-}
-
-ScoopCryptoResult scoop_tls_context_identity(uint64_t value, uint64_t key,
-                                             const uint64_t *certificates,
-                                             int64_t count) {
-  ERR_clear_error();
-  SSL_CTX *ctx = ((ScoopTlsContext *)(uintptr_t)value)->ssl;
-  int ok = count > 0 &&
-           SSL_CTX_use_certificate(ctx, (X509 *)(uintptr_t)certificates[0]) &&
-           SSL_CTX_use_PrivateKey(ctx, (EVP_PKEY *)(uintptr_t)key) &&
-           SSL_CTX_check_private_key(ctx);
-  for (int64_t i = 1; ok && i < count; ++i)
-    ok = SSL_CTX_add1_chain_cert(ctx, (X509 *)(uintptr_t)certificates[i]);
-  return ok ? scoop_crypto_ok(0)
-            : scoop_crypto_fail("TLS certificate and private key setup failed");
 }
 
 void scoop_tls_context_free(uint64_t value) {

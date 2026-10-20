@@ -1,0 +1,103 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class HttpClientContinueHttp2Test {
+    @Test
+    fun `HTTP2 Continue opens only its own stream and callbacks retain each request Context`() {
+        withClientContinueTest(HttpVersion.Http2) suspend { _, scope, listener, config ->
+            val firstStarted = AtomicBoolean(false)
+            val secondStarted = AtomicBoolean(false)
+            val serving = scope.launch suspend {
+                AsyncHttp2Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    val first = connection.acceptRequest()!!
+                    val second = connection.acceptRequest()!!
+                    assertTrue(httpExpectsContinue(first.head.fields) && httpExpectsContinue(second.head.fields))
+                    second.stream.sendResponse(HttpResponseHead(HttpVersion.Http2, 100U), false)
+                    assertEquals("second", String.fromUtf8(second.stream.readAllBytes(6L)))
+                    second.stream.sendResponse(HttpResponseHead(HttpVersion.Http2, 200U), false)
+                    writeBodyText(second.stream, "b"); second.stream.finish()
+                    assertFalse(firstStarted.load())
+                    assertTrue(secondStarted.load())
+                    first.stream.sendResponse(HttpResponseHead(HttpVersion.Http2, 100U), false)
+                    assertEquals("first", String.fromUtf8(first.stream.readAllBytes(5L)))
+                    first.stream.sendResponse(HttpResponseHead(HttpVersion.Http2, 200U), false)
+                    writeBodyText(first.stream, "a"); first.stream.finish()
+                }
+            }
+            withHttpClient(config) suspend { client ->
+                val first = scope.launch suspend {
+                    context(BodyTestContext("first")) {
+                        checkContinueStream(client, listener, "first", "a", firstStarted)
+                    }
+                }
+                val second = scope.launch suspend {
+                    context(BodyTestContext("second")) {
+                        checkContinueStream(client, listener, "second", "b", secondStarted)
+                    }
+                }
+                first.join(); second.join()
+            }
+            serving.join()
+        }
+    }
+
+    @Test
+    fun `an early HTTP2 final response suppresses even a duplex producer and other streams continue`() {
+        withClientContinueTest(HttpVersion.Http2) suspend { _, scope, listener, config ->
+            val started = AtomicBoolean(false)
+            val serving = scope.launch suspend {
+                AsyncHttp2Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    val first = connection.acceptRequest()!!
+                    assertTrue(httpExpectsContinue(first.head.fields))
+                    first.stream.sendResponse(HttpResponseHead(HttpVersion.Http2, 413U), false)
+                    writeBodyText(first.stream, "stop"); first.stream.finish()
+                    val next = connection.acceptRequest()!!
+                    assertEquals(3, next.stream.id)
+                    next.stream.readAllBytes(0L)
+                    next.stream.sendResponse(HttpResponseHead(HttpVersion.Http2, 204U))
+                }
+            }
+            withHttpClient(config) suspend { client ->
+                val body = RequestBody.fromProducer(Some(4L)) suspend { output ->
+                    started.store(true)
+                    writeBodyText(output, "body")
+                }
+                val options = HttpCallOptions(duplex = true, expectContinue = true, continueWait = Duration.seconds(60L))
+                client.withResponse(HttpRequest.post(clientTestUrl(listener), body, options = options)) suspend { response ->
+                    assertEquals(413U, response.status)
+                    assertFalse(started.load())
+                    assertEquals("stop", String.fromUtf8(response.body.readAllBytes(4L)))
+                }
+                client.withResponse(HttpRequest.get(clientTestUrl(listener))) suspend { response ->
+                    assertEquals(204U, response.status)
+                    response.body.readAllBytes(0L)
+                    Unit
+                }
+                assertFalse(started.load())
+            }
+            serving.join()
+        }
+    }
+}
+
+private suspend fun checkContinueStream(client: HttpClient, listener: AsyncTcpListener, text: String, reply: String, started: AtomicBoolean) {
+    val body = RequestBody.fromProducer(Some(text.byteLength)) suspend { output ->
+        assertFalse(started.exchange(true))
+        assertEquals(text, currentBodyTestContext())
+        writeBodyText(output, text)
+    }
+    val options = HttpCallOptions(expectContinue = true, continueWait = Duration.seconds(60L),
+        onInformational = suspend { head ->
+            assertEquals(100U, head.status)
+            assertEquals(text, currentBodyTestContext())
+        })
+    client.withResponse(HttpRequest.post(clientTestUrl(listener, "/" + text), body, options = options)) suspend { response ->
+        assertEquals(reply, String.fromUtf8(response.body.readAllBytes(1L)))
+    }
+}

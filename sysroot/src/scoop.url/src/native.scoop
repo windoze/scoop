@@ -1,0 +1,83 @@
+package scoop.url
+
+import scoop.collections.emptyList
+
+@CLayout internal struct NativeUrlResult(val value: Ptr<Byte>?, val code: Int, val offset: Long)
+@CLayout internal struct NativeUrlText(val data: Ptr<Byte>?, val size: Long)
+
+internal fun parseNativeUrl(input: IriInput): Url {
+    @Unsafe {
+        val bytes = input.text.toByteArray()
+        val result = bytes.withDataPointer { data, count -> @Unsafe { return@withDataPointer urlParse(data, count) } }
+        return finishNativeUrl(result, emptyList<UrlAuthority>(), Some(input.locations))
+    }
+}
+
+internal fun resolveNativeUrl(base: Url, reference: Url): Url {
+    @Unsafe {
+        val baseBytes = base.toString().toByteArray()
+        val referenceBytes = reference.toString().toByteArray()
+        val result = baseBytes.withDataPointer { left, leftSize ->
+            @Unsafe {
+                return@withDataPointer referenceBytes.withDataPointer { right, rightSize ->
+                    @Unsafe { return@withDataPointer urlResolve(left, leftSize, right, rightSize) }
+                }
+            }
+        }
+        val reusable = ArrayList<UrlAuthority>()
+        if (reference.authority != None) reusable.add(reference.authority!!)
+        if (base.authority != None) reusable.add(base.authority!!)
+        return finishNativeUrl(result, reusable, None)
+    }
+}
+
+internal fun finishNativeUrl(result: NativeUrlResult, reusable: List<UrlAuthority>, locations: Array<Long>?): Url {
+    val position = if (result.offset < 0L || !hasUrlValue(locations)) None else Some(locations!![result.offset])
+    checkUriCode(result.code, UrlComponent.Reference, position)
+    val handle = result.value!!
+    try { return snapshotUrl(handle, reusable) }
+    finally { @Unsafe { urlFree(handle) } }
+}
+
+internal fun copyUrlBytes(result: NativeUrlText): Array<Byte> =
+    Array<Byte>(result.size) { index -> @Unsafe { return@Array result.data!!.load(index) } }
+
+internal fun nativeUrlPart(handle: Ptr<Byte>, part: Int): String? {
+    @Unsafe {
+        val result = urlPart(handle, part)
+        if (result.data == None) return None
+        return Some(String.fromUtf8(copyUrlBytes(result)))
+    }
+}
+
+internal fun setNativeUrlPart(handle: Ptr<Byte>, part: Int, value: String?, component: UrlComponent) {
+    @Unsafe {
+        val code = if (value == None) urlSet(handle, part, None, 0L)
+        else value!!.toByteArray().withDataPointer { data, count -> @Unsafe { return@withDataPointer urlSet(handle, part, Some(data), count) } }
+        checkUriCode(code, component)
+    }
+}
+
+internal fun urlNativeIpv4(text: String): Array<Byte>? {
+    @Unsafe {
+        val result = urlEmpty()
+        checkUriCode(result.code, UrlComponent.Host)
+        val handle = result.value!!
+        try {
+            setNativeUrlPart(handle, 2, Some(text), UrlComponent.Host)
+            if (urlHostKind(handle) != 1) return None
+            return Some(copyUrlBytes(urlAddress(handle)))
+        } finally { urlFree(handle) }
+    }
+}
+
+@Extern(name = "scoop_url_parse") private fun urlParse(data: Ptr<Byte>, count: Long): NativeUrlResult
+@Extern(name = "scoop_url_resolve") private fun urlResolve(base: Ptr<Byte>, baseCount: Long, reference: Ptr<Byte>, referenceCount: Long): NativeUrlResult
+@Extern(name = "scoop_url_part") private fun urlPart(handle: Ptr<Byte>, part: Int): NativeUrlText
+@Extern(name = "scoop_url_set") private fun urlSet(handle: Ptr<Byte>, part: Int, data: Ptr<Byte>?, count: Long): Int
+@Extern(name = "scoop_url_empty") internal fun urlEmpty(): NativeUrlResult
+@Extern(name = "scoop_url_finish") internal fun urlFinish(handle: Ptr<Byte>): Int
+@Extern(name = "scoop_url_host_kind") internal fun urlHostKind(handle: Ptr<Byte>): Int
+@Extern(name = "scoop_url_address") internal fun urlAddress(handle: Ptr<Byte>): NativeUrlText
+@Extern(name = "scoop_url_free") internal fun urlFree(handle: Ptr<Byte>)
+@Extern(name = "scoop_url_version") internal fun urlVersion(): Ptr<Byte>

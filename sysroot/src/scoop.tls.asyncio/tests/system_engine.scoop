@@ -1,0 +1,104 @@
+package scoop.tls.asyncio
+
+import scoop.asyncio.*
+import scoop.asyncio.native.NativeWork
+import scoop.crypto.native.certificateHandle
+import scoop.crypto.PrivateKey
+import scoop.crypto.testdata.rootPem
+import scoop.crypto.testdata.serverKeyPem
+import scoop.crypto.x509.Certificate
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+import scoop.tls.*
+import scoop.tls.native.TlsEngine
+import scoop.tls.native.TlsStepKind
+import scoop.tls.testnative.systemCertificatePem
+
+internal fun systemServerContext(options: TlsOptions): TlsServerContext =
+    Certificate.fromPem(systemCertificatePem()).use { certificate ->
+        PrivateKey.fromPem(serverKeyPem()).use { key -> TlsServerContext([certificate], key, options) }
+    }
+
+@Test
+private class AsyncPlatformVerifierTests {
+    @Test
+    fun `suspended isolated platform verification resumes the same engine and preserves rejection`() {
+        for (version in [TlsVersion.Tls12, TlsVersion.Tls13]) {
+            val loop: EventLoop = LibuvEventLoop()
+            loop.run suspend { _ ->
+                for (accepted in [true, false]) {
+                    val options = TlsOptions(version, version)
+                    val context = openTlsClientContext(TlsTrustSource.System, options)
+                    val config = systemServerContext(options)
+                    val client = TlsEngine.client(context, TlsPeerName.Dns(if (accepted) "localhost" else "wrong.invalid"))
+                    val server = TlsEngine.server(config)
+                    context.close(); config.close()
+                    try {
+                        if (accepted) {
+                            platformHandshake(loop, client, server)
+                            assertTrue(client.connectionInfo.version == version)
+                        } else {
+                            try { platformHandshake(loop, client, server); fail(Some("wrong system peer accepted")) }
+                            catch (error: TlsException) {
+                                assertTrue(error.kind == TlsFailureKind.Verification)
+                                assertTrue(error.verifyCode != 0L)
+                            }
+                        }
+                    } finally { client.close(); server.close() }
+                }
+            }
+        }
+    }
+}
+
+private suspend fun platformHandshake(loop: EventLoop, client: TlsEngine, server: TlsEngine) {
+    NativeByteBuffer.allocate(19L).use suspend { buffer ->
+        var clientDone = false
+        var serverDone = false
+        var verified = false
+        while (!clientDone || !serverDone) {
+            var resumed = false
+            if (!clientDone) {
+                val kind = client.handshake().kind
+                clientDone = kind == TlsStepKind.Done
+                if (kind == TlsStepKind.WantVerification) {
+                    assertFalse(verified)
+                    isolatedWork(client).use suspend { work ->
+                        gcCollect()
+                        @Unsafe {
+                            loop.runNativeWork(work)
+                            work.withResult<Unit> { pointer -> @Unsafe { client.completeVerification(isolatedResult(pointer)) } }
+                        }
+                    }
+                    verified = true
+                    resumed = true
+                }
+            }
+            if (!serverDone) serverDone = server.handshake().kind == TlsStepKind.Done
+            val moved = transferEngine(client, server, buffer) + transferEngine(server, client, buffer)
+            if (!clientDone || !serverDone) assertTrue(resumed || moved > 0L)
+        }
+        assertTrue(verified)
+    }
+}
+
+private fun transferEngine(from: TlsEngine, to: TlsEngine, buffer: NativeByteBuffer): Long {
+    buffer.clear()
+    val count = if (from.pendingOutput < to.inputCapacity) from.pendingOutput else to.inputCapacity
+    if (count == 0L) return 0L
+    val taken = from.takeCiphertext(buffer, if (count < buffer.capacity) count else buffer.capacity)
+    while (buffer.readableBytes > 0L) to.receiveCiphertext(buffer)
+    return taken
+}
+
+private fun isolatedWork(client: TlsEngine): NativeWork = Certificate.fromPem(rootPem()).use { root ->
+    @Unsafe {
+        val pointer = newIsolated(client.takeVerification(), certificateHandle(root))
+        return@use NativeWork.takeOwnership(pointer, isolatedExecutor(), isolatedReleaser())
+    }
+}
+
+@Extern(name = "scoop_test_tls_isolated_work_new") private fun newIsolated(work: Ptr<Unit>, root: ULong): Ptr<Unit>
+@Extern(name = "scoop_test_tls_isolated_work_result") private fun isolatedResult(work: Ptr<Unit>): Ptr<Unit>
+@Extern(name = "scoop_test_tls_isolated_work_executor") private fun isolatedExecutor(): FunPtr<(Ptr<Unit>) -> Unit>
+@Extern(name = "scoop_test_tls_isolated_work_releaser") private fun isolatedReleaser(): FunPtr<(Ptr<Unit>) -> Unit>

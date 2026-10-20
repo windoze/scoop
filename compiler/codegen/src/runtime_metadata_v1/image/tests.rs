@@ -4,20 +4,20 @@ use inkwell::module::Linkage;
 use inkwell::values::AnyValue;
 use scoop_identity::{
     CborIdentityRecord, ConeCoordinate, ConeImageSupportRole, CoreBuiltinNominal,
-    DefinitionAtomRole, DefinitionAtomSubkey, DigestNodeId, DigestNodeKey, DigestPatchIntentKey,
-    DigestSemanticFieldRole, ExactTypeKey, LinkageClass, ObjectDefinitionAtomKey,
-    ObjectDefinitionPlanKey, PersistentExactTypeId, PersistentSymbolKey, PersistentSymbolRequest,
-    PersistentSymbolRequestTable, StrongDefinitionEntity, StrongDefinitionRole,
+    DefinitionAtomRole, DefinitionAtomSubkey, DigestNodeKey, ExactTypeKey, LinkageClass,
+    ObjectDefinitionAtomKey, ObjectDefinitionPlanKey, PersistentExactTypeId, PersistentSymbolKey,
+    PersistentSymbolRequest, PersistentSymbolRequestTable, StrongDefinitionEntity,
+    StrongDefinitionRole,
 };
 use scoop_lir::{
     CanonicalLirFoundation, ConeImagePlanV1, ConeLirFoundation, DigestFinalizationPlanV1,
     DigestInputRefV1, DigestNodeV1, RegistrationIdentitySurfaceV1,
 };
 
-use super::{DIGEST_SIZE, IMAGE_DESCRIPTOR_SIZE, emit_cone_image_v1};
+use super::{IMAGE_DESCRIPTOR_SIZE, emit_cone_image_v1};
 
 #[test]
-fn image_emission_preserves_the_closed_plan_and_zero_patch() {
+fn image_emission_preserves_the_complete_plan() {
     let coordinate = ConeCoordinate::reserved_single_file();
     let (foundation, digests) = image_fixture(coordinate.clone(), Some(unit_exact_type()));
     let registrations = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
@@ -45,10 +45,7 @@ fn image_emission_preserves_the_closed_plan_and_zero_patch() {
     assert_eq!(emitted.image().get_linkage(), Linkage::External);
     assert_eq!(emitted.image().get_visibility(), GlobalVisibility::Hidden);
     assert!(emitted.image().is_constant());
-    assert_eq!(emitted.patch().intent(), plan.fingerprint_patch());
-    assert_eq!(emitted.patch().definition(), plan.definition_plan());
     assert_eq!(emitted.primary_atom(), plan.primary_atom());
-    assert_eq!(emitted.patch().atom(), plan.primary_atom());
     assert_eq!(
         emitted.support_atoms().dependencies().atom(),
         plan.support_atoms().dependencies()
@@ -72,11 +69,16 @@ fn image_emission_preserves_the_closed_plan_and_zero_patch() {
             .global()
             .is_constant()
     );
-    assert_eq!(emitted.patch().byte_offset(), 96);
-    assert_eq!(emitted.patch().byte_size(), DIGEST_SIZE);
     let image_ir = emitted.image().print_to_string().to_string();
     assert!(image_ir.contains("hidden constant"), "{image_ir}");
-    assert!(image_ir.contains("zeroinitializer"), "{image_ir}");
+    assert_eq!(
+        emitted
+            .image()
+            .get_value_type()
+            .into_struct_type()
+            .count_fields(),
+        16
+    );
     assert!(
         image_ir.contains(&IMAGE_DESCRIPTOR_SIZE.to_string()),
         "{image_ir}"
@@ -143,7 +145,7 @@ fn image_fixture(
     )
     .unwrap();
     let image_plan = CborIdentityRecord::from_key(image_plan_key).unwrap();
-    let image_plan_id = image_plan.id();
+
     let image_atoms = image_atoms(image_plan.id());
     let image_symbol = PersistentSymbolRequest::new(
         PersistentSymbolKey::ImageDescriptor(producer),
@@ -173,15 +175,9 @@ fn image_fixture(
     let foundation = ConeLirFoundation::try_new(producer, canonical).unwrap();
 
     let image_key = DigestNodeKey::runtime_image(producer);
-    let image_node_id = DigestNodeId::from_key(&image_key).unwrap();
-    let image_patch = DigestPatchIntentKey::new(
-        image_node_id,
-        image_plan_id,
-        DefinitionAtomRole::Primary,
-        DigestSemanticFieldRole::RuntimeImage,
-    );
+
     let inputs = nodes.iter().map(DigestInputRefV1::from_node).collect();
-    nodes.push(DigestNodeV1::new(image_key, inputs, vec![image_patch]).unwrap());
+    nodes.push(DigestNodeV1::new(image_key, inputs).unwrap());
     let digest_plan = DigestFinalizationPlanV1::new(nodes, &foundation).unwrap();
     (foundation, digest_plan)
 }

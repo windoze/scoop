@@ -18,6 +18,8 @@ import package_licenses
 import package_native
 from build_llvm import HOSTS, VERSION
 from build_support import RELEASE_CONFIG, ROOT
+from build_text_backends import PACKAGES as TEXT_PACKAGES
+from compression_backends import PACKAGES as COMPRESSION_PACKAGES
 
 TOOLS = ("scoop", "scoopc", "scoop-link")
 
@@ -47,19 +49,25 @@ def prepare_targets(args, targets, binaries, environment):
             native = ["--cc", cc]
             openssl += native
         run_script("build_openssl.py", openssl, environment)
-        run_script(
-            "build_nghttp2.py",
-            [
-                "--target",
-                target,
-                "--build-dir",
-                args.work_dir / "nghttp2" / target,
-                "--jobs",
-                args.jobs,
-                *native,
-            ],
-            environment,
-        )
+        for script, directory in (
+            ("build_nghttp2.py", "nghttp2"),
+            ("build_text_backends.py", "text"),
+            ("build_uriparser.py", "uriparser"),
+            ("build_compression.py", "compression"),
+        ):
+            run_script(
+                script,
+                [
+                    "--target",
+                    target,
+                    "--build-dir",
+                    args.work_dir / directory / target,
+                    "--jobs",
+                    args.jobs,
+                    *native,
+                ],
+                environment,
+            )
         if "linux" in target:
             unwind = [
                 "--target",
@@ -125,6 +133,14 @@ def assemble(root, targets, binaries, args, release):
         destination.mkdir(parents=True)
         for cone in cones:
             shutil.copy2(source / f"{cone['name']}.slib", destination)
+        shutil.copytree(source / "include", destination / "include")
+        for _, _, _, libraries, _ in TEXT_PACKAGES:
+            for library in libraries:
+                shutil.copy2(source / library, destination / library)
+        shutil.copy2(source / "liburiparser.a", destination / "liburiparser.a")
+        for package in COMPRESSION_PACKAGES:
+            for library in package["libraries"]:
+                shutil.copy2(source / library, destination / library)
         shutil.copytree(source / "runtime", destination / "runtime")
         for component, libraries in (
             ("openssl", ("libcrypto.a", "libssl.a")),
@@ -156,7 +172,13 @@ def assemble(root, targets, binaries, args, release):
         f"openssl = {json.dumps(release['openssl'])}",
         f"llhttp = {json.dumps(release['llhttp'])}",
         f"nghttp2 = {json.dumps(release['nghttp2'])}",
+        f"uriparser = {json.dumps(release['uriparser'])}",
         f"host_libraries = {json.dumps(sorted(path.name for path in native))}",
+    ]
+    manifest += [f"{name} = {json.dumps(release[name])}" for name, *_ in TEXT_PACKAGES]
+    manifest += [
+        f"{package['name']} = {json.dumps(release[package['name']])}"
+        for package in COMPRESSION_PACKAGES
     ]
     uv = (sysroot / "vendor/libuv/include/uv/version.h").read_text()
     uv_version = ".".join(

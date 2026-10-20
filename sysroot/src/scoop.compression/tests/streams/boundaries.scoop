@@ -1,0 +1,64 @@
+package scoop.compression
+
+import scoop.test.*
+import scoop.platform.io.*
+import scoop.platform.memory.NativeByteBuffer
+
+@Test
+private class CompressionStreamBoundaryTests {
+    @Test
+    fun `streams reject trailing data even when it arrives after a complete frame`() {
+        for (format in [CompressionFormat.Zlib, CompressionFormat.RawDeflate, CompressionFormat.Brotli]) {
+            val vector = compressionVector(format)
+            val bytes = joinCompressionBytes(vector, "extra".toByteArray())
+            DecompressionSource(ShortCompressionSource(bytes), DecompressionOptions(format), 1L).use { source ->
+                val error = assertFailsWith<CompressionException> { source.readAllBytes() }
+                assertTrue(error.kind == CompressionFailureKind.InvalidData)
+            }
+            DecompressionSink(ShortCompressionSink(), DecompressionOptions(format), 1L).use { sink ->
+                sink.writeAllBytes(vector)
+                val error = assertFailsWith<CompressionException> { sink.writeAllBytes("extra".toByteArray()) }
+                assertTrue(error.kind == CompressionFailureKind.InvalidData)
+            }
+        }
+    }
+
+    @Test
+    fun `sources and sinks detect truncated input and enforce output limits`() {
+        for (format in [CompressionFormat.Gzip, CompressionFormat.Zlib, CompressionFormat.RawDeflate,
+            CompressionFormat.Brotli, CompressionFormat.Zstd]) {
+            val vector = compressionVector(format)
+            val truncated = Array<Byte>(vector.size - 1L) { index -> vector[index] }
+            DecompressionSource(ShortCompressionSource(truncated), DecompressionOptions(format), 1L).use { source ->
+                val error = assertFailsWith<CompressionException> { source.readAllBytes() }
+                assertTrue(error.kind == CompressionFailureKind.Truncated)
+            }
+            DecompressionSink(ShortCompressionSink(), DecompressionOptions(format), 1L).use { sink ->
+                sink.writeAllBytes(truncated)
+                val error = assertFailsWith<CompressionException> { sink.finish() }
+                assertTrue(error.kind == CompressionFailureKind.Truncated)
+            }
+            val output = ShortCompressionSink()
+            val options = DecompressionOptions(format, maxOutputBytes = Some(3L))
+            DecompressionSink(output, options, 1L).use { sink ->
+                val error = assertFailsWith<CompressionException> { sink.writeAllBytes(vector); sink.finish() }
+                assertTrue(error.kind == CompressionFailureKind.OutputLimit)
+                assertTrue(output.bytes.size <= 3L)
+            }
+        }
+    }
+
+    @Test
+    fun `zero and invalid transfer counts do not consume the source`() {
+        val input = ShortCompressionSource("abc".toByteArray())
+        CompressionSource(input).use { source ->
+            NativeByteBuffer.allocate(4L).use { output ->
+                assertEquals(0L, source.readInto(output, 0L))
+                assertFailsWith<IllegalArgumentException> { source.readInto(output, -1L) }
+                assertFailsWith<IndexOutOfBoundsException> { source.readInto(output, 5L) }
+                assertEquals(0, input.calls)
+                assertEquals("abc", String.fromUtf8(decompress(source.readAllBytes())))
+            }
+        }
+    }
+}

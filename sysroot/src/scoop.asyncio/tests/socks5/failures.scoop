@@ -1,0 +1,115 @@
+package scoop.asyncio
+
+import scoop.platform.io.UnexpectedEofException
+import scoop.platform.io.WriteZeroException
+import scoop.test.*
+
+@Test
+private class AsyncSocks5FailureTest {
+    @Test
+    fun `method negotiation rejects wrong versions unoffered methods and authentication downgrade`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            expectSocks5Failure([4, 0], Socks5Phase.Method, None)
+            expectSocks5Failure([5, -1], Socks5Phase.Method, Some(255.toUByte()))
+            expectSocks5Failure([5, 1], Socks5Phase.Method, Some(1.toUByte()))
+            val credentials = Socks5Credentials.fromUtf8("u", "p")
+            val script = expectSocks5Failure([5, 0], Socks5Phase.Method, Some(0.toUByte()), Some(credentials))
+            assertSocks5Bytes([5, 1, 2], script.sent.toByteArray())
+        }
+    }
+
+    @Test
+    fun `authentication failures keep their own version and status semantics`() {
+        val identity = Some(Socks5Credentials.fromUtf8("u", "p"))
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            expectSocks5Failure([5, 2, 2, 0], Socks5Phase.Authentication, None, identity)
+            val script = expectSocks5Failure([5, 2, 1, 7], Socks5Phase.Authentication, Some(7.toUByte()), identity)
+            assertSocks5Bytes([5, 1, 2, 1, 1, 117, 1, 112], script.sent.toByteArray())
+        }
+    }
+
+    @Test
+    fun `every CONNECT rejection preserves the actual reply code`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            for (code in [1, 2, 3, 4, 5, 6, 7, 8, 255]) {
+                expectSocks5Failure([5, 0, 5, code.toByte(), 0, 1],
+                    Socks5Phase.Connect, Some(code.toUByte()))
+            }
+        }
+    }
+
+    @Test
+    fun `malformed CONNECT headers and bound addresses fail without returning a tunnel`() {
+        val invalid: Array<Array<Byte>> = [
+            [5, 0, 4, 0, 0, 1],
+            [5, 0, 5, 0, 1, 1],
+            [5, 0, 5, 0, 0, 2],
+            [5, 0, 5, 0, 0, 3, 0],
+            [5, 0, 5, 0, 0, 3, 1, 0],
+            [5, 0, 5, 0, 0, 3, 1, -1]
+        ]
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            for (bytes in invalid) expectSocks5Failure(bytes, Socks5Phase.Connect, None)
+        }
+    }
+
+    @Test
+    fun `truncation zero writes and transport failures preserve their original errors`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            val truncated: Array<Array<Byte>> = [[], [5], [5, 0, 5, 0], [5, 0, 5, 0, 0, 4, 0]]
+            for (bytes in truncated) {
+                val script = Socks5Script(bytes)
+                try { AsyncSocks5Tunnel.takeOwnership(script, socks5IpTarget()); fail() }
+                catch (_: UnexpectedEofException) {}
+                assertTrue(script.closed)
+                assertEquals(1L, script.closes)
+            }
+            val zero = Socks5Script(socks5SuccessInput())
+            zero.zeroWrite = true
+            try { AsyncSocks5Tunnel.takeOwnership(zero, socks5IpTarget()); fail() }
+            catch (_: WriteZeroException) {}
+            assertTrue(zero.closed)
+            val broken = Socks5Script(socks5SuccessInput())
+            broken.failRead = true
+            try { AsyncSocks5Tunnel.takeOwnership(broken, socks5IpTarget()); fail() }
+            catch (error: Throwable) { assertSame(broken.failure, error) }
+            assertTrue(broken.closed)
+        }
+    }
+
+    @Test
+    fun `handshake and close errors are both retained`() {
+        val script = Socks5Script([4, 0])
+        script.failClose = true
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            try { AsyncSocks5Tunnel.takeOwnership(script, socks5IpTarget()); fail() }
+            catch (error: ResourceUseException) {
+                val primary = error.primaryFailure as Socks5Exception
+                assertTrue(primary.phase == Socks5Phase.Method)
+                assertSame(script.cleanup, error.cleanupFailure)
+            }
+            assertEquals(1L, script.closes)
+            assertTrue(script.closed)
+            assertFalse(scope.job.isCancelled)
+        }
+    }
+}
+
+private suspend fun expectSocks5Failure(bytes: Array<Byte>, phase: Socks5Phase, code: UByte?,
+    credentials: Socks5Credentials? = None): Socks5Script {
+    val script = Socks5Script(bytes)
+    try { AsyncSocks5Tunnel.takeOwnership(script, socks5IpTarget(), credentials); fail() }
+    catch (error: Socks5Exception) {
+        assertTrue(error.phase == phase)
+        assertTrue(code == error.replyCode)
+    }
+    assertTrue(script.closed)
+    assertEquals(1L, script.closes)
+    return script
+}

@@ -9,6 +9,12 @@ public struct CertificateValidationFailure(val code: Long, val depth: Int, val d
 
 public class TrustStore private constructor(private var handle: ULong) : Closeable {
     public companion object {
+        public fun fromPem(text: String): TrustStore {
+            val certificates = parseCertificatesPem(text)
+            try { return fromCertificates(certificates) }
+            finally { for (certificate in certificates) certificate.close() }
+        }
+
         public fun fromCertificates(anchors: List<Certificate>): TrustStore {
             @Unsafe {
                 val store = TrustStore(cryptoValue(storeNew(), "create trust store"))

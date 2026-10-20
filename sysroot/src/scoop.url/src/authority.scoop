@@ -1,0 +1,68 @@
+package scoop.url
+
+public class UrlAuthority internal constructor(
+    public val encodedUserInfo: String?,
+    public val encodedHost: String,
+    public val port: Int?,
+    internal val hostKind: Int,
+    internal val resolution: HostResolution
+) : Equals<UrlAuthority>, Hash, ToString {
+    public override fun toString(): String = render(true, false)
+    public override operator fun equals(other: UrlAuthority): Boolean = toString() == other.toString()
+    public override fun hash(): Long = toString().hash()
+
+    internal fun render(userInfo: Boolean, iri: Boolean): String {
+        val output = StringBuilder()
+        if (userInfo && encodedUserInfo != None) {
+            output.append(if (iri) iriDisplay(encodedUserInfo!!) else encodedUserInfo!!).append("@")
+        }
+        var host = encodedHost
+        if (iri) {
+            host = when (resolution) {
+                case HostResolution.Dns(name) -> name.unicode
+                else -> iriDisplay(encodedHost)
+            }
+        }
+        if (hostKind == 2 || hostKind == 3) output.append("[").append(host).append("]")
+        else output.append(host)
+        if (port != None) output.append(":").append(port!!.toString())
+        return output.toString()
+    }
+
+    public fun networkHost(): UrlHost = when (resolution) {
+        case HostResolution.Dns(name) -> UrlHost.Dns(stripRootDot(name.ascii))
+        case HostResolution.Ipv4(bytes) -> UrlHost.Ipv4(bytes)
+        case HostResolution.Ipv6(bytes) -> UrlHost.Ipv6(bytes)
+        case HostResolution.Invalid(detail, None) -> throw UrlParseException(UrlComponent.Host, None, detail)
+        case HostResolution.Invalid(detail, Some(error)) -> throw UrlParseException(UrlComponent.Host, None, detail, Some(error))
+    }
+}
+
+public class UrlOrigin internal constructor(
+    public val scheme: String, public val host: UrlHost, public val port: Int
+) : Equals<UrlOrigin>, Hash, ToString {
+    public override operator fun equals(other: UrlOrigin): Boolean = scheme == other.scheme && host == other.host && port == other.port
+    public override fun hash(): Long = (scheme.hash() * 31L + host.hash()) * 31L + port.hash()
+    public fun authority(includeDefaultPort: Boolean = false): String =
+        host.authorityText() + (if (includeDefaultPort || port != defaultUrlPort(scheme)) ":" + port.toString() else "")
+    public override fun toString(): String = scheme + "://" + authority()
+}
+
+internal fun isNetworkScheme(scheme: String?): Boolean =
+    scheme != None && (scheme!! == "http" || scheme!! == "https" || scheme!! == "ws" || scheme!! == "wss")
+
+internal fun defaultUrlPort(scheme: String): Int = if (scheme == "https" || scheme == "wss") 443 else 80
+
+internal fun urlPort(text: String?): Int? {
+    if (text == None) return None
+    if (text!!.length == 0L) urlError(UrlComponent.Port, "explicit port cannot be empty")
+    var value = 0
+    for (character in text!!) {
+        val digit = character.code - 48
+        if (digit < 0 || digit > 9 || value > 6553 || (value == 6553 && digit > 5)) {
+            urlError(UrlComponent.Port, "port must be decimal in 0..65535")
+        }
+        value = value * 10 + digit
+    }
+    return Some(value)
+}

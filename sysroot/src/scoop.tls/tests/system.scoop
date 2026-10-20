@@ -1,0 +1,109 @@
+package scoop.tls
+
+import scoop.crypto.native.certificateHandle
+import scoop.crypto.testdata.*
+import scoop.crypto.x509.*
+import scoop.platform.net.IpAddress
+import scoop.test.*
+import scoop.tls.native.*
+import scoop.tls.testnative.systemCertificatePem
+
+@Test
+private class TlsSystemTrustTests {
+    @Test
+    fun `explicit trust source retains Store behavior without requesting system verification`() {
+        for (version in [TlsVersion.Tls12, TlsVersion.Tls13]) {
+            TrustStore.fromPem(rootPem()).use { store ->
+                TlsClientContext(TlsTrustSource.Store(store), TlsOptions(version, version)).use { context ->
+                    store.close()
+                    TlsEngine.client(context, TlsPeerName.Dns("localhost")).use { client ->
+                        context.close()
+                        systemServerContext().use { config -> TlsEngine.server(config).use { server -> handshake(client, server) } }
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `system verification rejects the untrusted test CA with a retained platform reason`() {
+        TlsClientContext().use { context ->
+            TlsEngine.client(context, TlsPeerName.Dns("localhost")).use { client ->
+                context.close()
+                systemServerContext().use { config -> TlsEngine.server(config).use { server ->
+                    reachVerification(client, server)
+                    client.verify()
+                    val error = assertFailsWith<TlsException> { client.handshake() }
+                    assertTrue(error.kind == TlsFailureKind.Verification)
+                    assertTrue(error.verifyCode != 0L)
+                    assertTrue(error.detail != "")
+                } }
+            }
+        }
+    }
+
+    @Test
+    fun `isolated platform trust verifies both protocol versions DNS IP and retained identity`() {
+        for (version in [TlsVersion.Tls12, TlsVersion.Tls13]) {
+            for (peer in [TlsPeerName.Dns("localhost"), TlsPeerName.Ip(IpAddress.IPV4_LOOPBACK)]) {
+                val identity = TlsIdentity.fromPem(clientPem() + intermediatePem(), serverKeyPem())
+                try {
+                    TlsClientContext(TlsTrustSource.System, TlsOptions(version, version), Some(identity)).use { context ->
+                        identity.close()
+                        TlsEngine.client(context, peer).use { client ->
+                            context.close()
+                            systemServerContext().use { config -> TlsEngine.server(config).use { server ->
+                                reachVerification(client, server)
+                                Certificate.fromPem(rootPem()).use { root -> assertTrue(isolatedVerification(client, root)) }
+                                handshake(client, server, 7L)
+                                assertTrue(client.connectionInfo.version == version)
+                            } }
+                        }
+                    }
+                } finally { identity.close() }
+            }
+        }
+    }
+
+    @Test
+    fun `platform validation preserves name time usage and trust failures`() {
+        val peers = [TlsPeerName.Dns("other.invalid"), TlsPeerName.Ip(IpAddress.parse("127.0.0.2")),
+            TlsPeerName.Dns("localhost"), TlsPeerName.Dns("localhost"), TlsPeerName.Dns("localhost")]
+        val valid = systemCertificatePem()
+        val leaves = [valid, valid, systemCertificatePem(expired = true), systemCertificatePem(clientPem()), valid]
+        for (index in 0L..<peers.size) {
+            TlsClientContext().use { context -> TlsEngine.client(context, peers[index]).use { client ->
+                systemServerContext(leaf = leaves[index]).use { config -> TlsEngine.server(config).use { server ->
+                    reachVerification(client, server)
+                    Certificate.fromPem(if (index == 4L) clientPem() else rootPem()).use { root ->
+                        assertFalse(isolatedVerification(client, root))
+                    }
+                    val failure = assertFailsWith<TlsException> { client.handshake() }
+                    assertTrue(failure.kind == TlsFailureKind.Verification)
+                    assertTrue(failure.verifyCode != 0L)
+                } }
+            } }
+        }
+    }
+
+    @Test
+    fun `verification work owns its native inputs after SSL and configuration close`() {
+        val context = TlsClientContext()
+        val client = TlsEngine.client(context, TlsPeerName.Dns("localhost"))
+        try {
+            systemServerContext().use { config -> TlsEngine.server(config).use { server ->
+                reachVerification(client, server)
+                @Unsafe {
+                    val work = client.takeVerification()
+                    try {
+                        client.close(); context.close(); config.close(); server.close()
+                        gcCollect()
+                        Certificate.fromPem(rootPem()).use { root ->
+                            @Unsafe { assertEquals(1, verifyIsolated(work, certificateHandle(root))) }
+                        }
+                    } finally { freeVerification(work) }
+                }
+            } }
+        } finally { client.close(); context.close() }
+    }
+}

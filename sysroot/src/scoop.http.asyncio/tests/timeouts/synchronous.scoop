@@ -1,0 +1,37 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.time.sleep
+import scoop.test.*
+import scoop.time.Duration
+
+private class SynchronousWrite : AsyncByteStream, AsyncCloseable {
+    var closes: Int = 0
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long = 0L
+    public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long {
+        sleep(Duration.milliseconds(150L))
+        buffer.readBytes(count)
+        return count
+    }
+    public override suspend fun flush() {}
+    public override suspend fun close() { closes += 1 }
+}
+
+@Test private class SynchronousHttpIdleTests {
+    @Test fun `a synchronous transport completion cannot erase an expired idle limit`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val transport = SynchronousWrite()
+            val client = AsyncHttp1Connection.takeOwnershipAsClient(transport, scope)
+            try {
+                try { client.sendRequest(request(), writeIdle = Some(Duration.milliseconds(50L))); fail(Some("late synchronous write succeeded")) }
+                catch (error: HttpIoTimeoutException) {
+                    assertTrue(error.direction == HttpIoDirection.Write && error.elapsed >= Duration.milliseconds(150L))
+                }
+                assertTrue(client.isClosed && !scope.job.isCancelled)
+                assertEquals(1, transport.closes)
+            } finally { client.close() }
+        }
+    }
+}

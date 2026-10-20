@@ -81,9 +81,6 @@ pub struct StrongTypeRegistrationPlan<D, C> {
 
     pub(super) descriptor_definition_node: DigestNodeId,
     pub(super) layout_fingerprint_node: DigestNodeId,
-
-    pub(super) descriptor_definition_patch: DigestPatchIntentId,
-    pub(super) layout_fingerprint_patch: DigestPatchIntentId,
 }
 
 impl<D: Copy, C> StrongTypeRegistrationPlan<D, C> {
@@ -161,14 +158,6 @@ impl<D: Copy, C> StrongTypeRegistrationPlan<D, C> {
 
     pub const fn layout_fingerprint_node(&self) -> DigestNodeId {
         self.layout_fingerprint_node
-    }
-
-    pub const fn descriptor_definition_patch(&self) -> DigestPatchIntentId {
-        self.descriptor_definition_patch
-    }
-
-    pub const fn layout_fingerprint_patch(&self) -> DigestPatchIntentId {
-        self.layout_fingerprint_patch
     }
 }
 

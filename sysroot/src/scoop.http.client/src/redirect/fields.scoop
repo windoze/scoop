@@ -1,0 +1,28 @@
+package scoop.http.client
+
+import scoop.http.HttpField
+import scoop.http.hasName
+
+internal fun redirectedClientFields(request: HttpRequest, droppingBody: Boolean, crossOrigin: Boolean): Array<HttpField> {
+    val fields = ArrayList<HttpField>()
+    for (field in request.suppliedFields) {
+        if (crossOrigin && (field.hasName("Authorization".toByteArray()) || field.hasName("Cookie".toByteArray()))) continue
+        if (droppingBody && redirectBodyField(field)) continue
+        fields.add(field)
+    }
+    return fields.toArray()
+}
+
+private fun redirectBodyField(field: HttpField): Boolean {
+    for (name in ["Content-Length", "Content-Type", "Content-Encoding", "Content-Language", "Content-Location",
+        "Content-Range", "Content-Disposition", "Content-MD5", "Digest", "Content-Digest", "Repr-Digest", "Trailer", "Expect"]) {
+        if (field.hasName(name.toByteArray())) return true
+    }
+    return false
+}
+
+internal fun redirectedClientOptions(options: HttpCallOptions): HttpCallOptions =
+    HttpCallOptions(duplex = false, expectContinue = false, continueWait = options.continueWait,
+        decoding = options.decoding, timeouts = options.timeouts, onInformational = options.onInformational,
+        redirects = options.redirects, retries = options.retries, authentication = options.authentication, proxy = options.proxy,
+        useCookies = options.useCookies, cookieContext = options.cookieContext, cacheMode = options.cacheMode)

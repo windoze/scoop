@@ -1,0 +1,41 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.platform.memory.*
+import scoop.test.*
+
+internal class PendingMessageSink(val expected: Byte = 45.toByte()) : AsyncByteSink, AsyncCloseable {
+    private var continuation: Continuation<Long>? = None
+    private var borrow: NativeByteBorrow? = None
+    var pause: Boolean = false
+    var buffer: NativeByteBuffer? = None
+    var job: Job? = None
+    var running: Boolean = false
+    var closes: Int = 0
+
+    public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long {
+        assertFalse(running)
+        if (!pause) { buffer.skip(count); return count }
+        running = true
+        this.buffer = Some(buffer)
+        val current = currentJobOrNone()!!
+        job = Some(current)
+        @Unsafe { borrow = Some(buffer.borrowReadable(count)) }
+        try {
+            val written = suspendCoroutine<Long> { next -> continuation = Some(next) }
+            current.ensureActive()
+            return written
+        } finally { running = false }
+    }
+
+    fun complete() {
+        val lease = borrow!!
+        val next = continuation!!
+        borrow = None; continuation = None
+        @Unsafe { assertEquals(expected, lease.pointer()!!.load(0L)); lease.complete(1L) }
+        next.resume(1L)
+    }
+
+    public override suspend fun flush() {}
+    public override suspend fun close() { assertFalse(running); closes += 1 }
+}

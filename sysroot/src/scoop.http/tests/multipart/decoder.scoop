@@ -1,0 +1,80 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+@Test private class MultipartDecoderTests {
+    @Test fun `preamble folded repeated fields padding and epilogue survive arbitrary input splits`() {
+        val wire = ("preamble\r\n--AaB \t\r\nX-Name: one \r\n\t two\r\nX-Name: three\r\nContent-Length: 999\r\n\r\nfirst\r\n" +
+            "--AaB\r\n\r\nsecond\r\n\r\n--AaB-- \t\r\nepilogue").toByteArray()
+        for (chunk in [1L, 2L, 7L, 1024L]) MultipartDecoder(MultipartBoundary("AaB")).use { decoder ->
+            val got = feedMp(decoder, wire, chunk)
+            assertEquals(2L, got.parts.size)
+            assertEquals(1L, got.ends)
+            assertEquals("one two", String.fromUtf8(got.parts[0L].head.fields[0L].value))
+            assertEquals("three", String.fromUtf8(got.parts[0L].head.fields[1L].value))
+            assertTrue(got.parts[0L].head.bodyLength == None)
+            assertEquals("first", String.fromUtf8(got.parts[0L].body.toByteArray()))
+            assertEquals("second\r\n", String.fromUtf8(got.parts[1L].body.toByteArray()))
+            assertTrue(got.parts[0L].ended && got.parts[1L].ended && decoder.isComplete && decoder.isFinished)
+        }
+    }
+
+    @Test fun `binary body and partial boundary candidates retain every byte with single byte events`() {
+        val boundary = MultipartBoundary("boundary42")
+        val body = ByteArrayBuilder().append("--boundary4X\r\n--bound\r\r\n--boundary4Y".toByteArray())
+            .append(Array<Byte>(256L) { index -> index.toByte() }).append("\r\n--boundary4".toByteArray()).toByteArray()
+        val head = MultipartPartHead([HttpField("X-Raw".toByteArray(), [255.toByte()])], Some(body.size))
+        val wire = encodeMp(boundary, [(head, body)])
+        for (chunk in [1L, 19L, 1024L]) MultipartDecoder(boundary, MultipartLimits(dataChunkBytes = 1L)).use { decoder ->
+            val got = feedMp(decoder, wire, chunk)
+            assertTrue(httpBytesEqual(body, got.parts[0L].body.toByteArray()))
+            assertEquals(255.toByte(), got.parts[0L].head.fields[0L].value[0L])
+            assertEquals(1L, got.largestData)
+            assertEquals(1L, got.ends)
+        }
+    }
+
+    @Test fun `empty entities empty parts and closing delimiters without a final line ending are accepted`() {
+        for (wire in ["--b--", "--b-- \t", "--b--\r\nignored"]) MultipartDecoder(MultipartBoundary("b")).use { decoder ->
+            val got = feedMp(decoder, wire.toByteArray(), 1L)
+            assertEquals(0L, got.parts.size)
+            assertEquals(1L, got.ends)
+        }
+        for (wire in ["--b\r\n\r\n--b--", "--b\r\n\r\n\r\n--b--\r\n"]) MultipartDecoder(MultipartBoundary("b")).use { decoder ->
+            val got = feedMp(decoder, wire.toByteArray())
+            assertEquals(1L, got.parts.size)
+            assertEquals(0L, got.parts[0L].body.size)
+            assertTrue(got.parts[0L].ended)
+        }
+    }
+
+    @Test fun `pending events stop input and completion waits for outer EOF`() {
+        val decoder = MultipartDecoder(MultipartBoundary("b"), MultipartLimits(dataChunkBytes = 2L))
+        val wire = "--b\r\n\r\nabcd\r\n--b--\r\ntrailer".toByteArray()
+        val capture = MpCapture()
+        NativeByteBuffer.allocate(wire.size).use { buffer ->
+            buffer.writeBytes(wire)
+            assertEquals(7L, decoder.receive(buffer))
+            assertEquals(0L, decoder.receive(buffer))
+            assertEquals(7L, buffer.readPosition)
+            capture.drain(decoder)
+            while (buffer.readableBytes > 0L) {
+                assertTrue(decoder.receive(buffer) > 0L)
+                capture.drain(decoder)
+            }
+            assertTrue(decoder.isComplete && !decoder.isFinished)
+            assertEquals(0L, capture.ends)
+            decoder.endInput(); decoder.endInput()
+            assertFalse(decoder.isFinished)
+            capture.drain(decoder)
+            assertTrue(decoder.isFinished)
+            assertFailsWith<IllegalStateException> { decoder.receive(buffer, 0L) }
+        }
+        decoder.close()
+        gcCollect()
+        assertEquals("abcd", String.fromUtf8(capture.parts[0L].body.toByteArray()))
+        assertTrue(decoder.isClosed && decoder.isComplete)
+    }
+}

@@ -1,18 +1,17 @@
 use scoop_identity::{
     CallableBodyKey, CanonicalIdentifier, CborIdentityRecord, ConeIdentity, DeclarationScope,
-    DefinitionAtomRole, DefinitionAtomSubkey, DefinitionOwnerChain, DigestNodeId, DigestNodeKey,
-    DigestPatchIntentKey, DigestSemanticFieldRole, LinkageClass, ObjectDefinitionAtomKey,
-    ObjectDefinitionPlanKey, PackagePath, PersistentFunctionId, PersistentSymbolKey,
-    PersistentSymbolRequest, PersistentSymbolRequestTable, RuntimeIdentityRecord,
-    SourceDeclarationKey, SourceDeclarationSite, StrongCallableDefinitionOwner,
-    StrongDefinitionEntity, StrongDefinitionRole,
+    DefinitionAtomRole, DefinitionAtomSubkey, DefinitionOwnerChain, DigestNodeKey, LinkageClass,
+    ObjectDefinitionAtomKey, ObjectDefinitionPlanKey, PackagePath, PersistentFunctionId,
+    PersistentSymbolKey, PersistentSymbolRequest, PersistentSymbolRequestTable,
+    RuntimeIdentityRecord, SourceDeclarationKey, SourceDeclarationSite,
+    StrongCallableDefinitionOwner, StrongDefinitionEntity, StrongDefinitionRole,
 };
 
 use super::*;
 use crate::{CanonicalLirFoundation, DigestNodeV1};
 
 #[test]
-fn joins_every_callable_to_its_entry_definition_and_digest_writers() {
+fn joins_every_callable_to_its_entry_definition_and_content_nodes() {
     let fixture = Fixture::new(Options::default());
 
     let plans = fixture.build().unwrap();
@@ -33,17 +32,6 @@ fn joins_every_callable_to_its_entry_definition_and_digest_writers() {
         assert_eq!(
             plan.entry_symbol().key(),
             PersistentSymbolKey::CallableBody(plan.body())
-        );
-        let body = fixture
-            .digests
-            .nodes()
-            .iter()
-            .find(|node| node.id() == plan.body_definition_node())
-            .unwrap();
-        assert!(
-            body.patch_intents()
-                .iter()
-                .any(|patch| patch.id() == plan.body_definition_patch())
         );
     }
 }
@@ -103,18 +91,6 @@ fn requires_the_callable_body_definition_node() {
     );
 }
 
-#[test]
-fn requires_the_body_digest_writer() {
-    assert!(matches!(
-        Fixture::new(Options {
-            omit_body_patch: true,
-            ..Options::default()
-        })
-        .build(),
-        Err(StrongCallableRegistrationPlanBuildError::MissingPatch { .. })
-    ));
-}
-
 #[derive(Clone, Copy, Default)]
 struct Options {
     omit_last_registration: bool,
@@ -123,8 +99,6 @@ struct Options {
     omit_registration_primary: bool,
 
     omit_body_object: bool,
-
-    omit_body_patch: bool,
 }
 
 struct RegistrationArtifacts {
@@ -326,28 +300,9 @@ fn digest_plan(
     let mut image_inputs = Vec::new();
     for (index, registration) in registrations.iter().enumerate() {
         let body_key = DigestNodeKey::object_definition(registration.body_primary.id());
-        let body_source = DigestNodeId::from_key(&body_key).unwrap();
-        let body_patch = DigestPatchIntentKey::new(
-            body_source,
-            registration.registration_definition.id(),
-            DefinitionAtomRole::Primary,
-            DigestSemanticFieldRole::CallableBodyDefinition,
-        );
-        let body = (!options.omit_body_object || index != 0).then(|| {
-            DigestNodeV1::new(
-                body_key,
-                Vec::new(),
-                if (options.omit_body_patch && index == 0)
-                    || (options.omit_last_registration && index == 1)
-                    || (options.omit_registration_primary && index == 0)
-                {
-                    Vec::new()
-                } else {
-                    vec![body_patch]
-                },
-            )
-            .unwrap()
-        });
+
+        let body = (!options.omit_body_object || index != 0)
+            .then(|| DigestNodeV1::new(body_key, Vec::new()).unwrap());
 
         if let Some(body) = body {
             image_inputs.push(DigestInputRefV1::from_node(&body));
@@ -358,7 +313,6 @@ fn digest_plan(
         DigestNodeV1::new(
             DigestNodeKey::runtime_image(ConeIdentity::SINGLE_FILE),
             image_inputs,
-            Vec::new(),
         )
         .unwrap(),
     );

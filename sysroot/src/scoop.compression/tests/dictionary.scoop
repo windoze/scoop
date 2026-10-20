@@ -1,0 +1,63 @@
+package scoop.compression
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+private fun dictionaryPlaintext(): String =
+    "GET /documents/42/content HTTP/1.1\r\nHost: example.test\r\nContent-Type: application/json\r\n\r\n"
+
+@Test
+private class CompressionDictionaryTests {
+    @Test
+    fun `independent dictionary frame requires the matching copied dictionary`() {
+        val vector = dictionaryCompressedVector()
+        val required = assertFailsWith<CompressionException> { decompress(vector) }
+        assertTrue(required.kind == CompressionFailureKind.DictionaryRequired)
+        val original = testCompressionDictionary()
+        val mutable = MutableArray<Byte>(original.size) { index -> original[index] }
+        CompressionDictionary.fromByteArray(mutable).use { dictionary ->
+            mutable[4L] = (mutable[4L].toInt() xor 1).toByte()
+            assertEquals(dictionaryPlaintext(), String.fromUtf8(chunkedDecompress(vector,
+                DecompressionOptions(dictionary = Some(dictionary)))))
+            CompressionDictionary.fromByteArray(mutable).use { wrong ->
+                val mismatch = assertFailsWith<CompressionException> {
+                    decompress(vector, DecompressionOptions(dictionary = Some(wrong)))
+                }
+                assertTrue(mismatch.kind == CompressionFailureKind.DictionaryMismatch)
+            }
+        }
+    }
+
+    @Test
+    fun `encoder and decoder own dictionary state after the wrapper closes`() {
+        val dictionary = CompressionDictionary.fromByteArray(testCompressionDictionary())
+        val options = CompressionOptions.Zstd(ZstdOptions(dictionary = Some(dictionary)))
+        CompressionEncoder(options).use { encoder ->
+            CompressionDecoder(DecompressionOptions(dictionary = Some(dictionary))).use { decoder ->
+                dictionary.close(); dictionary.close(); gcCollect()
+                assertFailsWith<IllegalStateException> { CompressionEncoder(options) }
+                NativeByteBuffer.allocate(512L).use { input ->
+                    NativeByteBuffer.allocate(512L).use { output ->
+                        input.writeBytes(dictionaryPlaintext().toByteArray())
+                        val compressed = ByteArrayBuilder()
+                        while (input.readableBytes > 0L) {
+                            output.clear()
+                            val step = encoder.process(input, output)
+                            compressed.append(output.readBytes(step.produced))
+                        }
+                        while (true) {
+                            output.clear()
+                            val step = encoder.finish(output)
+                            compressed.append(output.readBytes(step.produced))
+                            if (step.state == CompressionState.Finished) break
+                        }
+                        input.clear(); input.writeBytes(compressed.toByteArray()); output.clear()
+                        while (decoder.process(input, output, endInput = true).state != CompressionState.Finished) {}
+                        assertEquals(dictionaryPlaintext(), String.fromUtf8(output.readBytes(output.readableBytes)))
+                    }
+                }
+            }
+        }
+    }
+}

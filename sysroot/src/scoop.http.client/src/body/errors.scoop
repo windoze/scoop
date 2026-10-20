@@ -1,0 +1,11 @@
+package scoop.http.client
+
+public class RequestBodyConsumedException public constructor() :
+    Exception(Some("this request body has already been used")) {}
+
+public class RequestBodyLengthException public constructor(
+    public val expectedLength: Long, public val transferredBytes: Long, public val rejectedBytes: Long = 0L
+) : Exception(Some("request body does not match its declared length")) {}
+
+public class RequestBodyLimitException public constructor(public val maxBytes: Long, public val actualBytes: Long) :
+    Exception(Some("buffered request body exceeds its byte limit")) {}

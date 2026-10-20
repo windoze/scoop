@@ -1,0 +1,60 @@
+schema = 1
+name = "m54-tls-system"
+inputs = ["consumer"]
+support = [
+    "../../../sysroot/src/scoop.crypto/test-certificates",
+    "../../../sysroot/src/scoop.tls/test-native",
+    "../../../sysroot/src/scoop.tls/native/tls.h",
+    "../../../sysroot/src/scoop.tls/native/system.h",
+    "../../../sysroot/src/scoop.tls/native/verification_darwin.h",
+    "../../../sysroot/src/scoop.crypto/native/common.h",
+    "../../../sysroot/src/scoop.crypto/native/target.h",
+    "../../../sysroot/src/scoop.tls/tests/identity_peer_script.scoop",
+]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m54", "tls", "crypto", "asyncio", "prebuilt"]
+variants = [{name = "debug", vars = {mode = []}}, {name = "release", vars = {mode = ["--release"]}}]
+
+[[steps]]
+name = "source"
+files = [
+    {copy = {from = "${fixture}/consumer", to = "${work}/consumer"}},
+    {copy = {from = "${repo}/sysroot/src/scoop.crypto/test-certificates", to = "${work}/support/src/scoop.crypto/test-certificates"}},
+    {copy = {from = "${repo}/sysroot/src/scoop.tls/test-native", to = "${work}/support/src/scoop.tls/test-native"}},
+    {copy = {from = "${repo}/sysroot/src/scoop.tls/native/tls.h", to = "${work}/support/src/scoop.tls/native/tls.h"}},
+    {copy = {from = "${repo}/sysroot/src/scoop.tls/native/system.h", to = "${work}/support/src/scoop.tls/native/system.h"}},
+    {copy = {from = "${repo}/sysroot/src/scoop.tls/native/verification_darwin.h", to = "${work}/support/src/scoop.tls/native/verification_darwin.h"}},
+    {copy = {from = "${repo}/sysroot/src/scoop.crypto/native/common.h", to = "${work}/support/src/scoop.crypto/native/common.h"}},
+    {copy = {from = "${repo}/sysroot/src/scoop.crypto/native/target.h", to = "${work}/support/src/scoop.crypto/native/target.h"}},
+    {copy = {from = "${repo}/sysroot/src/scoop.tls/tests/identity_peer_script.scoop", to = "${work}/consumer/src/peer_script.scoop"}},
+    {symlink = {from = "${sysroot}/lib", to = "${work}/support/lib"}},
+]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${work}/consumer", {each = "${mode}"}, {each = "${link_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${build.result.observations.child_invocations.length}", equals = 3}]
+
+[[steps]]
+name = "run"
+timeout = 900
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "System TLS verification composes synchronous and native-worker paths with independent mTLS\n"
+stderr = ""
+
+[[steps]]
+name = "warm"
+argv = ["${scoop}", "build", "${work}/consumer", {each = "${mode}"}, {each = "${link_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${warm.result.observations.child_invocations}", equals = []}]

@@ -1,0 +1,60 @@
+package scoop.asyncio
+
+import scoop.platform.memory.NativeByteBuffer
+import scoop.time.Duration
+
+internal class LimitedCollectSource(private val bytes: Array<Byte>) : AsyncByteSource, AsyncCloseable {
+    var position: Long = 0L
+    var calls: Long = 0L
+    var closes: Long = 0L
+    var lastRequested: Long = 0L
+    var largestRequested: Long = 0L
+    var failAt: Long? = None
+    var invalidProgress: Long? = None
+    var buffer: NativeByteBuffer? = None
+    val failure: Throwable = Throwable()
+
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long {
+        this.buffer = Some(buffer)
+        calls += 1L
+        lastRequested = count
+        if (count > largestRequested) largestRequested = count
+        currentEventLoop().sleep(Duration.nanoseconds(1L))
+        if (failAt != None && position >= failAt!!) throw failure
+        when (invalidProgress) { case Some(value) -> return value; case None -> {} }
+        val remaining = bytes.size - position
+        val amount = if (remaining < count) remaining else count
+        buffer.writeBytes(bytes, position, amount)
+        position += amount
+        return amount
+    }
+    public override suspend fun close() { closes += 1L }
+}
+
+internal class HeldLimitProbe(private val extraByte: Boolean) : AsyncByteSource {
+    val started: CollectGate = CollectGate()
+    val release: CollectGate = CollectGate()
+    var calls: Long = 0L
+    var completedBytes: Long = 0L
+    var buffer: NativeByteBuffer? = None
+
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long {
+        calls += 1L
+        this.buffer = Some(buffer)
+        if (calls == 1L) { buffer.writeByte(65); completedBytes += 1L; return 1L }
+        @Unsafe {
+            val borrow = buffer.borrowWritable(1L)
+            var progress = 0L
+            try {
+                started.signal()
+                release.await()
+                if (extraByte) {
+                    borrow.pointer()!!.store(66.toByte())
+                    progress = 1L
+                    completedBytes += 1L
+                }
+                return progress
+            } finally { borrow.complete(progress) }
+        }
+    }
+}

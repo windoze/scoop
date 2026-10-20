@@ -1,0 +1,78 @@
+package scoop.asyncio
+
+import scoop.platform.env.environmentVariable
+import scoop.platform.net.*
+import scoop.platform.system.OsString
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class AsyncTcpResolutionDeadlineTest {
+    @Test
+    fun `queued DNS timeout cancels both native work items without cancelling the caller`() {
+        val backend = LibuvEventLoop()
+        val loop: EventLoop = backend
+        val limit = when (environmentVariable("SCOOP_GC_STRESS_MOVE")) {
+            case Some(_) -> Duration.seconds(3L)
+            case None -> Duration.milliseconds(50L)
+        }
+        loop.run suspend { scope ->
+            loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).useAsync suspend { listener ->
+                val fence = WorkFence(backend)
+                fence.start(); fence.waitStarted()
+                val host = OsString.fromString("localhost")
+                try {
+                    try {
+                        loop.connectTcp(host, listener.localAddress.port, TcpConnectOptions(resolveTimeout = Some(limit)))
+                        fail(Some("blocked DNS connected"))
+                    } catch (error: TcpConnectException) {
+                        checkResolutionTimeout(error, host, listener.localAddress.port, limit)
+                    }
+                    assertFalse(scope.job.isCancelled)
+                } finally { fence.close() }
+                verifyAfterTcpTimeout(loop, listener)
+            }
+        }
+    }
+
+    @Test
+    fun `a timed out family cannot replace candidates already supplied by the other family`() {
+        val available = SocketAddress(IpAddress.IPV4_LOOPBACK, 80)
+        val late = SocketAddress(IpAddress.IPV6_LOOPBACK, 80)
+        val plan = TcpConnectPlan(1L)
+        plan.resolved(AddressFamily.Ipv4, [available])
+        assertTrue(plan.needsResolutionDelay)
+        plan.resolved(AddressFamily.Ipv6, [])
+        assertTrue(plan.resolutionComplete)
+        assertFalse(plan.needsResolutionDelay)
+        plan.resolved(AddressFamily.Ipv6, [late])
+        assertEquals(available, plan.takeNext()!!)
+        plan.attemptFailed()
+        assertTrue(plan.exhausted)
+        assertTrue(plan.takeNext() == None)
+    }
+
+    @Test
+    fun `caller cancellation retains its type and closes both configured deadline tasks`() {
+        val backend = LibuvEventLoop()
+        val loop: EventLoop = backend
+        loop.run suspend { scope ->
+            loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).useAsync suspend { listener ->
+                val fence = WorkFence(backend)
+                fence.start(); fence.waitStarted()
+                val long = Some(Duration.seconds(3600L))
+                try {
+                    val connecting = scope.launch suspend {
+                        loop.connectTcp(OsString.fromString("localhost"), listener.localAddress.port,
+                            TcpConnectOptions(resolveTimeout = long, connectTimeout = long))
+                    }
+                    backend.state.post { connecting.cancel() }
+                    connecting.join()
+                    assertTrue(connecting.isCancelled)
+                    assertFalse(scope.job.isCancelled)
+                } finally { fence.close() }
+                verifyAfterTcpTimeout(loop, listener)
+            }
+        }
+    }
+}

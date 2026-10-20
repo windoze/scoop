@@ -5,30 +5,35 @@ import scoop.http.*
 import scoop.platform.memory.NativeByteBuffer
 
 internal suspend fun adoptH2(transport: AsyncByteStream, owner: AsyncCloseable, scope: CoroutineScope,
-    create: () -> Http2Session, settings: Http2Settings, onEvent: (Http2Notice) -> Unit, upgrading: Boolean): AsyncHttp2Connection {
+    create: () -> Http2Session, settings: Http2Settings, ioTimeouts: HttpIoTimeoutOptions,
+    onEvent: (Http2Notice) -> Unit, upgrading: Boolean, captureTimings: Boolean = false): AsyncHttp2Connection {
     val loop = currentEventLoop()
     val caller = httpJob(loop, true)
     if (scope.job.isCompleted) throw IllegalStateException(Some("HTTP connection scope is closed"))
     scope.job.ensureActive()
-    val state = allocateH2(create(), transport, owner, loop, settings.maxConcurrentStreams.toLong(), onEvent, upgrading)
+    requireHttpIoTimeouts(ioTimeouts)
+    val state = allocateH2(create(), transport, owner, loop, settings.maxConcurrentStreams.toLong(), ioTimeouts, onEvent, upgrading, captureTimings)
     try {
         scope.launch suspend {
-            val job = httpJob(loop, true)
-            suspendCoroutine<Unit> { continuation ->
-                state.lock.withLock {
-                    caller.ensureActive(); job.ensureActive()
-                    state.ownerJob = Some(job)
-                    state.ownerWaiter = Some(continuation)
-                    state.adopted = true
+            coroutineScope<Unit> suspend { owned ->
+                val job = httpJob(loop, true)
+                suspendCoroutine<Unit> { continuation ->
+                    state.lock.withLock {
+                        caller.ensureActive(); job.ensureActive()
+                        state.ownerScope = Some(owned)
+                        state.ownerJob = Some(job)
+                        state.ownerWaiter = Some(continuation)
+                        state.adopted = true
+                    }
+                    val listener = job.invokeOnCancellation { error ->
+                        state.lock.withLock { terminateH2(state, error) }
+                        driveH2(state)
+                    }
+                    val closed = state.lock.withLock {
+                        if (state.closed) true else { state.ownerListener = Some(listener); false }
+                    }
+                    if (closed) listener.dispose()
                 }
-                val listener = job.invokeOnCancellation { error ->
-                    state.lock.withLock { terminateH2(state, error) }
-                    driveH2(state)
-                }
-                val closed = state.lock.withLock {
-                    if (state.closed) true else { state.ownerListener = Some(listener); false }
-                }
-                if (closed) listener.dispose()
             }
         }
         if (!state.lock.withLock { state.adopted }) {
@@ -54,14 +59,15 @@ internal suspend fun adoptH2(transport: AsyncByteStream, owner: AsyncCloseable, 
 }
 
 private fun allocateH2(session: Http2Session, transport: AsyncByteStream, owner: AsyncCloseable,
-    loop: EventLoop, capacity: Long, onEvent: (Http2Notice) -> Unit, upgrading: Boolean): H2State {
+    loop: EventLoop, capacity: Long, ioTimeouts: HttpIoTimeoutOptions,
+    onEvent: (Http2Notice) -> Unit, upgrading: Boolean, captureTimings: Boolean): H2State {
     val input = try { NativeByteBuffer.allocate(16384L) }
         catch (error: Throwable) { session.close(); throw error }
     val output = try { NativeByteBuffer.allocate(16384L) }
         catch (error: Throwable) { session.close(); input.close(); throw error }
-    val state = H2State(session, transport, owner, loop, input, output, capacity, onEvent)
+    val state = H2State(session, transport, owner, loop, input, output, capacity, ioTimeouts, onEvent, captureTimings)
     if (upgrading) {
-        val stream = H2Stream(1)
+        val stream = H2Stream(1, ioTimeouts)
         if (session.role == HttpRole.Client) { stream.sendStarted = true; stream.sendEnded = true }
         else { stream.inputEnded = true; stream.trailers = Some(ArrayList<HttpField>().toArray()) }
         state.streams[1] = stream

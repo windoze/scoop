@@ -43,10 +43,9 @@ pub(crate) fn prepare(
         &bridges,
     )
     .map_err(BuiltinObjectProductionError::StrongRelocations)?;
-    let patch_sites =
-        ScoopLirDigestPatchSitesV1::new(relocations, (bindings.digest_patches).to_vec());
+    let builtins = relocations;
     let stackmaps = read_scoop_stackmaps_v1(
-        patch_sites.builtins().clone(),
+        builtins.clone(),
         production.safepoint_semantics(),
         &candidates,
     )
@@ -55,8 +54,7 @@ pub(crate) fn prepare(
         target_selection: emitted.target_selection(),
         foundation: emitted.foundation().clone(),
         production: emitted.into_production(),
-        c_bridge_profile: generated.profile().clone(),
-        patch_sites,
+        builtins,
         stackmaps,
         bindings,
     })

@@ -4,13 +4,15 @@ import scoop.asyncio.*
 import scoop.collections.*
 import scoop.http.*
 import scoop.platform.memory.NativeByteBuffer
+import scoop.time.TimeMark
 
 public enum Http2Notice {
-    Settings(Array<Http2Setting>, Boolean), StreamClosed(Int, UInt),
+    Settings(Array<Http2Setting>, Boolean), StreamClosed(Int, UInt), StreamFailure(Int, Throwable),
     GoAway(Int, UInt, Array<Byte>, Boolean), IgnoredField(Int, HttpField), Failure(HttpException)
 }
 
-internal class H2Stream(val id: Int) {
+internal class H2Stream(val id: Int, val ioTimeouts: HttpIoTimeoutOptions) {
+    var firstResponseByteAt: TimeMark? = None
     val data: ArrayDeque<Array<Byte>> = ArrayDeque<Array<Byte>>()
     var offset: Long = 0L
     val responses: ArrayDeque<HttpResponseHead> = ArrayDeque<HttpResponseHead>()
@@ -26,6 +28,11 @@ internal class H2Stream(val id: Int) {
     var reader: H2BodyOperation? = None
     var writer: H2BodyOperation? = None
     var responseWaiter: H2Wait<HttpResponseHead>? = None
+    var readIdle: H2Idle? = None
+    var writeIdle: H2Idle? = None
+    var outputDirty: Boolean = false
+    var idleTimers: Long = 0L
+    val idleCloseWaiters: ArrayList<Continuation<Unit>> = ArrayList<Continuation<Unit>>()
 }
 
 internal enum H2BodyKind { Read, Write, Flush }
@@ -35,7 +42,8 @@ internal class H2BodyOperation(val kind: H2BodyKind, val wait: H2Wait<Long>,
 internal class H2State(
     val session: Http2Session, val transport: AsyncByteStream, val owner: AsyncCloseable,
     val loop: EventLoop, val input: NativeByteBuffer, val output: NativeByteBuffer,
-    val requestCapacity: Long, val onEvent: (Http2Notice) -> Unit
+    val requestCapacity: Long, val ioTimeouts: HttpIoTimeoutOptions, val onEvent: (Http2Notice) -> Unit,
+    val captureTimings: Boolean
 ) {
     val lock: HttpLock = HttpLock()
     val streams: HashMap<Int, H2Stream> = HashMap<Int, H2Stream>()
@@ -47,6 +55,8 @@ internal class H2State(
     var inputBusy: Boolean = false
     var outputBusy: Boolean = false
     var outputDirty: Boolean = false
+    var outputStreamId: Int = 0
+    var outputKind: Http2OutputKind = Http2OutputKind.Control
     var goAwayPending: Boolean = false
     var goAwaySerialized: Boolean = false
     val flushing: ArrayList<(H2Stream, H2BodyOperation)> = ArrayList<(H2Stream, H2BodyOperation)>()
@@ -60,6 +70,8 @@ internal class H2State(
     var transportClosing: Boolean = false
     var transportClosed: Boolean = false
     var ownerJob: Job? = None
+    var ownerScope: CoroutineScope? = None
+    var idleTimers: Long = 0L
     var ownerWaiter: Continuation<Unit>? = None
     var ownerListener: Disposable? = None
     val closeWaiters: ArrayList<Continuation<Unit>> = ArrayList<Continuation<Unit>>()

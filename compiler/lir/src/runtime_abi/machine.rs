@@ -140,21 +140,6 @@ impl TargetEhSupportV1 {
     }
 }
 
-impl crate::CBridgeTargetSupportV1 {
-    pub const fn machine_contract(self) -> CompilerNativeContractV1 {
-        use crate::FloatKind::{F32, F64};
-        use CompilerNativeValueV1::{Float as F, Integer as I, Pointer as P};
-        match self {
-            Self::Memcpy => leaf(&[P, P, I(64)], P),
-            Self::Memset => leaf(&[P, I(32), I(64)], P),
-            Self::TlvBootstrap | Self::TlsGetAddr => leaf(&[P], P),
-            Self::Fmodf => leaf(&[F(F32), F(F32)], F(F32)),
-            Self::Fmod => leaf(&[F(F64), F(F64)], F(F64)),
-            Self::DarwinErrno | Self::LinuxErrno => leaf(&[], P),
-        }
-    }
-}
-
 const fn leaf(
     parameters: &'static [CompilerNativeValueV1],
     result: CompilerNativeValueV1,

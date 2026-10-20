@@ -1,0 +1,78 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.platform.env.environmentVariable
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.time.sleep
+import scoop.test.*
+import scoop.time.Duration
+
+@Test private class Http2IdleTests {
+    @Test fun `zero read idle permits buffered response and body completion`() {
+        withHttp2(clientTimeouts = HttpIoTimeoutOptions(readIdle = Some(Duration.ZERO))) suspend { _, pair ->
+            val stream = pair.client.openRequest(request2())
+            pair.server.acceptRequest()!!.stream.sendResponse(response2())
+            pair.clientEvents.closed.await()
+            assertEquals(200U, stream.receiveResponse().status)
+            NativeByteBuffer.allocate(1L).use suspend { buffer ->
+                assertEquals(0L, stream.readInto(buffer, 0L))
+                assertEquals(0L, stream.readInto(buffer, 1L))
+            }
+            assertFalse(pair.client.isClosed)
+        }
+    }
+
+    @Test fun `closing a waiting stream cancels its long timer and leaves the connection usable`() {
+        withHttp2 suspend { scope, pair ->
+            val stream = pair.client.openRequest(request2(), ioTimeouts = HttpIoTimeoutOptions(readIdle = Some(Duration.seconds(60L))))
+            pair.server.acceptRequest()
+            val caught = AtomicBoolean(false)
+            val reading = scope.launch suspend {
+                try { stream.receiveResponse(); fail(Some("closed response wait succeeded")) }
+                catch (_: IoClosedException) { caught.store(true) }
+            }
+            stream.close(); stream.close(); reading.join()
+            assertTrue(caught.load() && !scope.job.isCancelled)
+            val other = pair.client.openRequest(request2())
+            pair.server.acceptRequest()!!.stream.sendResponse(response2())
+            assertEquals(200U, other.receiveResponse().status)
+            assertEquals(0, pair.clientRaw.closes)
+        }
+    }
+
+    @Test fun `producer pauses with no queued output do not count as write idle`() {
+        val limit = if (present(environmentVariable("SCOOP_GC_STRESS_MOVE"))) Duration.seconds(5L)
+            else Duration.milliseconds(300L)
+        withHttp2 suspend { _, pair ->
+            val stream = pair.client.openRequest(request2("POST"), false,
+                HttpIoTimeoutOptions(writeIdle = Some(limit)))
+            val incoming = pair.server.acceptRequest()!!
+            sendBytes(stream, "a".toByteArray()); stream.flush()
+            sleep(limit + Duration.milliseconds(350L))
+            sendBytes(stream, "b".toByteArray()); stream.finish()
+            assertEquals("ab", String.fromUtf8(receiveBytes(incoming.stream)))
+            incoming.stream.sendResponse(response2())
+            assertEquals(200U, stream.receiveResponse().status)
+            assertFalse(pair.client.isClosed)
+        }
+    }
+
+    @Test fun `read idle resets only its stream over a shared TLS transport`() {
+        withTlsHttp2 suspend { scope, pair ->
+            val stream = pair.client.openRequest(request2(), ioTimeouts = HttpIoTimeoutOptions(readIdle = Some(Duration.milliseconds(100L))))
+            pair.server.acceptRequest()
+            try { stream.receiveResponse(); fail(Some("stalled TLS stream succeeded")) }
+            catch (error: HttpIoTimeoutException) {
+                assertTrue(error.protocol == HttpProtocol.Http2 && error.direction == HttpIoDirection.Read)
+                assertEquals(stream.id, error.streamId)
+            }
+            stream.close()
+            val other = pair.client.openRequest(request2())
+            pair.server.acceptRequest()!!.stream.sendResponse(response2())
+            assertEquals(200U, other.receiveResponse().status)
+            assertTrue(!scope.job.isCancelled && !pair.client.isClosed)
+            assertEquals(0, pair.clientRaw.closes)
+        }
+    }
+}

@@ -2,14 +2,13 @@ use la_arena::Arena;
 use scoop_identity::{
     CallableBodyKey, CanonicalIdentifier, CborIdentityRecord, ConeIdentity, DeclarationScope,
     DefinitionAtomRole, DefinitionAtomSubkey, DefinitionOwnerChain, DigestNodeId, DigestNodeKey,
-    DigestPatchIntentKey, DigestSemanticFieldRole, ExactTypeKey, GeneratedCallableKey,
-    InitializationCallableRole, InitializationUnitKey, LinkageClass, ObjectDefinitionAtomKey,
-    ObjectDefinitionPlanKey, PackagePath, PersistentCallableBodyId, PersistentExactTypeId,
-    PersistentGeneratedCallableId, PersistentInitializationUnitId, PersistentPropertyId,
-    PersistentStaticStorageId, PersistentSymbolKey, PersistentSymbolRequest,
-    PersistentSymbolRequestTable, PersistentTypeId, PropertyOwner, RuntimeIdentityRecord,
-    SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind, StrongCallableDefinitionOwner,
-    StrongDefinitionEntity, StrongDefinitionRole,
+    ExactTypeKey, GeneratedCallableKey, InitializationCallableRole, InitializationUnitKey,
+    LinkageClass, ObjectDefinitionAtomKey, ObjectDefinitionPlanKey, PackagePath,
+    PersistentCallableBodyId, PersistentExactTypeId, PersistentGeneratedCallableId,
+    PersistentInitializationUnitId, PersistentPropertyId, PersistentStaticStorageId,
+    PersistentSymbolKey, PersistentSymbolRequest, PersistentSymbolRequestTable, PersistentTypeId,
+    PropertyOwner, RuntimeIdentityRecord, SourceDeclarationKey, SourceDeclarationSite,
+    SourceNominalKind, StrongCallableDefinitionOwner, StrongDefinitionEntity, StrongDefinitionRole,
 };
 
 use super::*;
@@ -53,7 +52,7 @@ fn joins_unit_storage_callable_and_digest_relations() {
         plan.schedule().gateway().unwrap().body(),
         fixture.gateway.unwrap()
     );
-    assert!(plan.schedule().gateway_definition_patch().is_some());
+
     assert_eq!(
         fixture
             .foundation
@@ -68,7 +67,7 @@ fn joins_unit_storage_callable_and_digest_relations() {
 }
 
 #[test]
-fn lazy_unit_has_no_gateway_input_or_patch() {
+fn lazy_unit_has_no_gateway_input() {
     let fixture = Fixture::new(Options {
         lazy: true,
         ..Options::default()
@@ -149,27 +148,6 @@ fn requires_cell_registration_and_diagnostic_definition_surfaces() {
             actual,
             ..
         }) if actual.is_empty()
-    ));
-}
-
-#[test]
-fn requires_schedule_specific_patch_writers() {
-    assert!(matches!(
-        Fixture::new(Options {
-            omit_gateway_patch: true,
-            ..Options::default()
-        })
-        .build(),
-        Err(StrongInitializationUnitRegistrationPlanBuildError::GatewayPatchSet { .. })
-    ));
-    assert!(matches!(
-        Fixture::new(Options {
-            lazy: true,
-            unexpected_lazy_gateway_patch: true,
-            ..Options::default()
-        })
-        .build(),
-        Err(StrongInitializationUnitRegistrationPlanBuildError::GatewayPatchSet { .. })
     ));
 }
 

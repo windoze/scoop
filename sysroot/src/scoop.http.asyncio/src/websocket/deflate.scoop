@@ -1,0 +1,67 @@
+package scoop.http.asyncio
+
+import scoop.compression.*
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+
+internal class WsDeflate(
+    val negotiated: WebSocketDeflateNegotiation,
+    val encoder: DeflateMessageEncoder, val decoder: DeflateMessageDecoder,
+    val encoderInput: NativeByteBuffer, val encoderOutput: NativeByteBuffer,
+    val decoderInput: NativeByteBuffer, val decoderOutput: NativeByteBuffer,
+    private val owned: ArrayList<Closeable>
+) : Closeable {
+    var encodingValidator: WebSocketMessageValidator? = None
+    var decodingValidator: WebSocketMessageValidator? = None
+    var encoderFinished: Boolean = false
+    var decoderFinished: Boolean = false
+    var decodingPending: Boolean = false
+    var decodingFinishing: Boolean = false
+
+    public override fun close() {
+        val encoding = encodingValidator
+        val decoding = decodingValidator
+        encodingValidator = None; decodingValidator = None
+        var failure = messageCleanup(None) { if (present(encoding)) encoding!!.close() }
+        failure = messageCleanup(failure) { if (present(decoding)) decoding!!.close() }
+        failure = releaseWsDeflate(owned, failure)
+        if (present(failure)) throw failure!!
+    }
+}
+
+internal fun createWsDeflate(negotiated: WebSocketDeflateNegotiation, role: HttpRole,
+    options: WebSocketSessionOptions): WsDeflate {
+    val client = role == HttpRole.Client
+    val sendWindow = if (client) negotiated.clientWindowBits else negotiated.serverWindowBits
+    val receiveWindow = if (client) negotiated.serverWindowBits else negotiated.clientWindowBits
+    val sendTakeover = !(if (client) negotiated.clientNoContextTakeover else negotiated.serverNoContextTakeover)
+    val receiveTakeover = !(if (client) negotiated.serverNoContextTakeover else negotiated.clientNoContextTakeover)
+    val owned = ArrayList<Closeable>()
+    try {
+        val encoder = DeflateMessageEncoder(DeflateOptions(windowBits = sendWindow), sendTakeover)
+        owned.add(encoder)
+        val decoder = DeflateMessageDecoder(receiveWindow, receiveTakeover, Some(options.maxDecompressedMessageBytes))
+        owned.add(decoder)
+        val encoderInput = NativeByteBuffer.allocate(options.outgoingFrameBytes)
+        owned.add(encoderInput)
+        val encoderOutput = NativeByteBuffer.allocate(options.outgoingFrameBytes)
+        owned.add(encoderOutput)
+        val decoderInput = NativeByteBuffer.allocate(options.incomingLimits.dataChunkBytes)
+        owned.add(decoderInput)
+        val decoderOutput = NativeByteBuffer.allocate(options.incomingLimits.dataChunkBytes)
+        owned.add(decoderOutput)
+        return WsDeflate(negotiated, encoder, decoder, encoderInput, encoderOutput, decoderInput, decoderOutput, owned)
+    } catch (error: Throwable) { throw releaseWsDeflate(owned, Some(error))!! }
+}
+
+private fun releaseWsDeflate(owned: ArrayList<Closeable>, initial: Throwable?): Throwable? {
+    var failure = initial
+    var index = owned.size
+    while (index > 0L) {
+        index -= 1L
+        val item = owned[index]
+        failure = messageCleanup(failure) { item.close() }
+    }
+    owned.clear()
+    return failure
+}

@@ -13,6 +13,7 @@ internal fun drive(state: TlsConnection) {
                 if (state.closing) changed = advanceClose(state, actions)
                 else {
                     changed = advanceProtocol(state)
+                    if (!state.closing) changed = planVerification(state, actions) || changed
                     if (!state.closing) changed = planTransfers(state, actions) || changed
                     if (!state.closing) changed = finishRequests(state, actions) || changed
                 }

@@ -1,0 +1,33 @@
+package scoop.compression
+
+import scoop.platform.memory.NativeByteBuffer
+
+public class CompressionEncoder public constructor(
+    options: CompressionOptions = CompressionOptions.Zstd(ZstdOptions())
+) : Closeable {
+    private val codec: CompressionCodec = createCompressionEncoder(options)
+    public val format: CompressionFormat get() = codec.format
+    public val totals: CompressionTotals get() = codec.totals
+    public val failure: Throwable? get() = codec.failure
+
+    public fun process(input: NativeByteBuffer, output: NativeByteBuffer, count: Long = input.readableBytes): CompressionStep =
+        codec.step(Some(input), count, output, output.writableBytes, 0)
+    public fun flush(output: NativeByteBuffer): CompressionStep = codec.step(None, 0L, output, output.writableBytes, 1)
+    public fun finish(output: NativeByteBuffer): CompressionStep = codec.step(None, 0L, output, output.writableBytes, 2)
+    public override fun close() { codec.close() }
+}
+
+public class CompressionDecoder public constructor(options: DecompressionOptions = DecompressionOptions()) : Closeable {
+    private val codec: CompressionCodec = createCompressionDecoder(options)
+    public val format: CompressionFormat get() = codec.format
+    public val totals: CompressionTotals get() = codec.totals
+    public val failure: Throwable? get() = codec.failure
+
+    public fun process(input: NativeByteBuffer, output: NativeByteBuffer, count: Long = input.readableBytes,
+        endInput: Boolean = false): CompressionStep = codec.step(Some(input), count, output, output.writableBytes, if (endInput) 2 else 0)
+    public override fun close() { codec.close() }
+}
+
+public fun compressionBackendVersion(format: CompressionFormat): String {
+    @Unsafe { return String.fromCString(compressionVersion(compressionFormatCode(format))) }
+}

@@ -1,0 +1,57 @@
+package scoop.http.client
+
+import scoop.asyncio.AsyncCloseable
+import scoop.platform.time.MonotonicTimeSource
+
+internal class ClientInvocationResource(val resource: AsyncCloseable) { var closed: Boolean = false }
+
+internal class ClientInvocation(val client: ClientState, val caller: Job, val sequence: ClientRequestSequence) {
+    var job: Job? = None
+    var registered: Boolean = false
+    var published: Boolean = false
+    var selected: HttpCallResult? = None
+    var failure: Throwable? = None
+    var cleanupFailure: Throwable? = None
+    val resources: ArrayList<ClientInvocationResource> = ArrayList<ClientInvocationResource>()
+
+    fun requireActive() {
+        val error = client.lock.withLock { failure }
+        if (clientPresent(error)) throw error!!
+        caller.ensureActive()
+        ensureActive()
+        val limit = sequence.timeouts.total
+        if (clientPresent(limit) && MonotonicTimeSource.markNow() - sequence.started!! >= limit!!)
+            throw clientSequenceTimeout(client, sequence, None)
+    }
+}
+
+internal fun stopClientInvocation(invocation: ClientInvocation, reason: Throwable) {
+    val job: Job? = invocation.client.lock.withLock {
+        if (invocation.published) return@withLock None
+        if (!clientPresent(invocation.failure)) invocation.failure = Some(reason)
+        invocation.job
+    }
+    job?.cancel()
+}
+
+internal fun recordClientInvocationFailure(invocation: ClientInvocation, error: Throwable) {
+    invocation.client.lock.withLock {
+        if (!clientPresent(invocation.failure)) invocation.failure = Some(error)
+        else invocation.cleanupFailure = collectClientSecondary(invocation.failure!!, invocation.cleanupFailure, error)
+        Unit
+    }
+}
+
+internal fun clientInvocationFailure(invocation: ClientInvocation): Throwable? = invocation.client.lock.withLock {
+    if (clientPresent(invocation.cleanupFailure)) Some(clientCombined(invocation.failure, invocation.cleanupFailure!!))
+    else invocation.failure
+}
+
+context(invocation: ClientInvocation)
+private fun boundClientInvocation(): ClientInvocation = invocation
+
+internal fun checkClientInvocationClose(client: ClientState) {
+    val invocation = try { Some(boundClientInvocation()) } catch (_: MissingContextException) { None }
+    if (clientPresent(invocation) && invocation!!.client === client && client.lock.withLock { invocation!!.registered })
+        throw IllegalStateException(Some("cannot await client.close from its active interceptor"))
+}

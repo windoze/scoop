@@ -1,0 +1,14 @@
+package scoop.http
+
+import scoop.time.Instant
+
+public object HttpCookieDate {
+    public fun parse(value: List<Byte>): Instant = parseCookieDate(HttpFieldReader("Expires", value))
+    public fun parse(value: String): Instant = parse(value.toByteArray())
+    public fun parseOrNone(value: List<Byte>): Instant? {
+        try { return Some(parse(value)) }
+        catch (_: HttpFieldParseException) { return None }
+    }
+    public fun parseOrNone(value: String): Instant? = parseOrNone(value.toByteArray())
+    public fun format(value: Instant): String = httpDateText(value, 1601, "Cookie date")
+}

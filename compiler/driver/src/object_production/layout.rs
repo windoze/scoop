@@ -17,8 +17,7 @@ pub(crate) struct PreparedLayoutObjects {
     pub(crate) target_selection: ValidatedLirTargetSelection,
     pub(crate) foundation: ConeLirFoundation,
     pub(crate) production: ConeProductionSectionV2,
-    pub(crate) c_bridge_profile: CBridgeToolchainProfileV1,
-    pub(crate) patch_sites: ScoopLirDigestPatchSitesV1,
+    pub(crate) builtins: VerifiedBuiltinObjectStrongRelocationSetV1,
     stackmaps: ScoopStackmapSetV1,
     bindings: PlannedObjectBindings,
 }

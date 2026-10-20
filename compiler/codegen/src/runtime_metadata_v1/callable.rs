@@ -2,9 +2,8 @@ use inkwell::context::Context;
 use inkwell::module::{Linkage, Module as LlvmModule};
 use inkwell::values::GlobalValue;
 use scoop_lir::{
-    ConeIdentity, DigestPatchIntentId, ObjectDefinitionAtomId, ObjectDefinitionPlanId,
-    PersistentCallableBodyId, StrongCallableRegistrationPlanSetV1,
-    StrongCallableRegistrationPlanV1,
+    ConeIdentity, ObjectDefinitionAtomId, PersistentCallableBodyId,
+    StrongCallableRegistrationPlanSetV1, StrongCallableRegistrationPlanV1,
 };
 
 use super::{RuntimeMetadataV1Types, registration_identity_value};
@@ -14,66 +13,27 @@ mod context_keys;
 
 const METADATA_ABI_VERSION: u64 = scoop_lir::RUNTIME_METADATA_ABI_VERSION_V1 as u64;
 const CALLABLE_REGISTRATION_DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5043_414c;
-const CALLABLE_REGISTRATION_DESCRIPTOR_SIZE: u64 = 176;
-const BODY_DEFINITION_FINGERPRINT_OFFSET: u64 = 120;
-const DIGEST_SIZE: u64 = 32;
+const CALLABLE_REGISTRATION_DESCRIPTOR_SIZE: u64 = 144;
 
-/// One graph-managed digest slot in an emitted callable registration.
-#[derive(Clone, Copy, Debug)]
-pub struct CallableRegistrationPatchSiteV1<'ctx> {
-    intent: DigestPatchIntentId,
-    definition: ObjectDefinitionPlanId,
-    atom: ObjectDefinitionAtomId,
-    owner: GlobalValue<'ctx>,
-    byte_offset: u64,
-}
-
-impl<'ctx> CallableRegistrationPatchSiteV1<'ctx> {
-    pub const fn intent(self) -> DigestPatchIntentId {
-        self.intent
-    }
-
-    pub const fn definition(self) -> ObjectDefinitionPlanId {
-        self.definition
-    }
-
-    pub const fn atom(self) -> ObjectDefinitionAtomId {
-        self.atom
-    }
-
-    pub const fn owner(self) -> GlobalValue<'ctx> {
-        self.owner
-    }
-
-    pub const fn byte_offset(self) -> u64 {
-        self.byte_offset
-    }
-
-    pub const fn byte_size(self) -> u64 {
-        DIGEST_SIZE
-    }
-}
-
-/// One fully emitted provisional callable registration and its two slots.
+/// One emitted runtime callable registration.
 #[derive(Clone, Copy, Debug)]
 pub struct EmittedStrongCallableRegistrationV1<'ctx> {
+    primary_atom: ObjectDefinitionAtomId,
     body: PersistentCallableBodyId,
     descriptor: GlobalValue<'ctx>,
-
-    body_definition_patch: CallableRegistrationPatchSiteV1<'ctx>,
 }
 
 impl<'ctx> EmittedStrongCallableRegistrationV1<'ctx> {
+    pub const fn primary_atom(self) -> ObjectDefinitionAtomId {
+        self.primary_atom
+    }
+
     pub const fn body(self) -> PersistentCallableBodyId {
         self.body
     }
 
     pub const fn descriptor(self) -> GlobalValue<'ctx> {
         self.descriptor
-    }
-
-    pub const fn body_definition_patch(self) -> CallableRegistrationPatchSiteV1<'ctx> {
-        self.body_definition_patch
     }
 }
 
@@ -96,7 +56,7 @@ impl<'ctx> EmittedStrongCallableRegistrationSetV1<'ctx> {
 }
 
 /// Emit every strong callable registration from the closed LIR production
-/// plan. Both graph-managed digest fields remain zero until finalization.
+/// plan.
 pub(crate) fn emit_strong_callable_registrations_v1<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
@@ -178,7 +138,6 @@ fn emit_registration<'ctx>(
 
     let i32 = context.i32_type();
     let i64 = context.i64_type();
-    let zero_digest = types.digest.const_zero();
     let prefix = types.descriptor_prefix.const_named_struct(&[
         i64.const_int(CALLABLE_REGISTRATION_DESCRIPTOR_MAGIC, false)
             .into(),
@@ -195,7 +154,6 @@ fn emit_registration<'ctx>(
     let value = types.callable_registration_descriptor.const_named_struct(&[
         prefix.into(),
         identity.into(),
-        zero_digest.into(),
         entry.as_global_value().as_pointer_value().into(),
         keys.into(),
         i64.const_int(key_count, false).into(),
@@ -205,16 +163,9 @@ fn emit_registration<'ctx>(
     crate::emission::apply_persistent_linkage(&descriptor, descriptor_request, true)?;
 
     Ok(EmittedStrongCallableRegistrationV1 {
+        primary_atom: plan.primary_atom(),
         body: plan.body(),
         descriptor,
-
-        body_definition_patch: CallableRegistrationPatchSiteV1 {
-            intent: plan.body_definition_patch(),
-            definition: plan.definition_plan(),
-            atom: plan.primary_atom(),
-            owner: descriptor,
-            byte_offset: BODY_DEFINITION_FINGERPRINT_OFFSET,
-        },
     })
 }
 

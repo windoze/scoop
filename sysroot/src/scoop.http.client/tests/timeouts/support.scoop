@@ -1,0 +1,36 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.HttpVersion
+import scoop.platform.env.environmentVariable
+import scoop.test.*
+import scoop.time.Duration
+
+// Moving collection makes the initial connection and protocol work substantially slower.
+internal fun clientTimeoutTestDuration(): Duration =
+    if (clientPresent(environmentVariable("SCOOP_GC_STRESS_MOVE"))) Duration.seconds(15L) else Duration.seconds(1L)
+
+internal fun withClientTimeoutTest(timeouts: HttpTimeoutOptions = HttpTimeoutOptions(),
+    version: HttpVersion = HttpVersion.Http11,
+    tcpConnect: TcpConnectOptions = TcpConnectOptions(),
+    block: suspend (EventLoop, CoroutineScope, AsyncTcpListener, HttpClientConfig) -> Unit) {
+    clientTestTrust().use { trust ->
+        val base = clientTestConfig(trust, version)
+        val config = HttpClientConfig(cleartext = base.cleartext, tls = base.tls, timeouts = timeouts, tcpConnect = tcpConnect,
+            pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 1L, maxStreamsPerHttp2 = 2L))
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            clientTestListen(loop).useAsync suspend { listener -> block(loop, scope, listener, config) }
+        }
+    }
+}
+
+internal fun checkClientTimeout(error: HttpTimeoutException, phase: HttpTimeoutPhase, limit: Duration,
+    sent: Long = 0L, encoded: Long = 0L, received: Long = 0L) {
+    assertTrue(error.phase == phase)
+    assertTrue(error.limit == limit)
+    assertTrue(error.elapsed >= limit)
+    assertEquals(sent, error.requestBodyBytes)
+    assertEquals(encoded, error.encodedResponseBodyBytes)
+    assertEquals(received, error.responseBodyBytes)
+}

@@ -1,0 +1,74 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.collections.emptyList
+import scoop.test.*
+
+@Test
+private class HttpCacheControlTests {
+    @Test
+    fun `quoted commas extensions empty arguments and optional arguments remain distinct`() {
+        val original = " \tNo-Store, max-age=\"00060\", X-Note=\"a,b;\\\"c\\\\d\", max-stale, x-empty=\"\", ,\t"
+        val parsed = HttpCacheControl.parse(original)
+        assertEquals(5L, parsed.directives.size)
+        assertEquals(original, String.fromUtf8(parsed.originalValues[0L]))
+        assertTrue(parsed.contains("NO-STORE"))
+        assertFalse(parsed.contains("private"))
+        assertEquals(60L, parsed.single("MAX-AGE")!!.deltaSeconds())
+        assertTrue(parsed.single("max-age")!!.wasQuoted)
+        assertEquals("a,b;\"c\\d", String.fromUtf8(parsed.single("x-note")!!.value!!))
+        assertTrue(when (parsed.single("max-stale")!!.value) { case None -> true; case Some(_) -> false })
+        assertEquals(0L, parsed.single("x-empty")!!.value!!.size)
+        assertTrue(when (parsed.single("missing")) { case None -> true; case Some(_) -> false })
+        assertEquals("no-store, max-age=00060, x-note=\"a,b;\\\"c\\\\d\", max-stale, x-empty=\"\"", String.fromUtf8(parsed.toByteArray()))
+        assertEquals("Cache-Control", String.fromUtf8(parsed.toHttpField().name))
+        assertEquals(String.fromUtf8(parsed.toByteArray()), String.fromUtf8(parsed.toHttpField().value))
+    }
+
+    @Test
+    fun `multiple field lines preserve duplicates and strict single lookup reports the second source`() {
+        val fields = [HttpField("Cache-Control".toByteArray(), "max-age=10".toByteArray()),
+            HttpField("Content-Type".toByteArray(), "text/plain".toByteArray()),
+            HttpField("cache-control".toByteArray(), "\tMAX-AGE=20, no-transform".toByteArray())]
+        val parsed = HttpCacheControl.parseFields(fields)
+        assertEquals(3L, parsed.directives.size)
+        assertEquals(2L, parsed.originalValues.size)
+        assertEquals("\tMAX-AGE=20, no-transform", String.fromUtf8(parsed.originalValues[1L]))
+        val all = parsed.findAll("max-age")
+        assertEquals(2L, all.size)
+        assertEquals(10L, all[0L].deltaSeconds())
+        assertEquals(20L, all[1L].deltaSeconds())
+        val duplicate = assertFailsWith<HttpFieldParseException> { parsed.single("max-age") }
+        assertEquals("Cache-Control", duplicate.field)
+        assertEquals(1L, duplicate.byteOffset)
+        assertEquals("max-age=10, max-age=20, no-transform", String.fromUtf8(parsed.toByteArray()))
+        assertEquals(0L, HttpCacheControl.parseFields(emptyList<HttpField>()).directives.size)
+        assertEquals(0L, HttpCacheControl.parse(",, \t,").directives.size)
+        assertEquals(0L, HttpCacheControl(emptyList<HttpCacheDirective>()).toByteArray().size)
+    }
+
+    @Test
+    fun `raw byte and directive snapshots survive mutation and reject malformed syntax`() {
+        val wire = ByteArrayBuilder()
+        wire.append("x-note=\"".toByteArray()); wire.append(255.toByte()); wire.append(34.toByte())
+        val bytes = wire.toByteArray()
+        val mutable = MutableArray<Byte>(bytes.size) { index -> bytes[index] }
+        val parsed = HttpCacheControl.parse(mutable)
+        mutable[8L] = 0.toByte()
+        assertEquals(255.toByte(), parsed.single("x-note")!!.value!![0L])
+        assertEquals(255.toByte(), parsed.toByteArray()[8L])
+        assertEquals(255.toByte(), parsed.originalValues[0L][8L])
+        val input = MutableArray<HttpCacheDirective>(1L) { _ -> HttpCacheDirective("no-store") }
+        val snapshot = HttpCacheControl(input)
+        input[0L] = HttpCacheDirective("public")
+        assertTrue(snapshot.contains("no-store"))
+        assertEquals(0L, snapshot.originalValues.size)
+        for (text in ["=1", "max-age =1", "max-age= 1", "no-store;public", "x=", "x=\"unterminated",
+            "x=\"a\"tail", "x=\"bad\r\n\"", "no-store\r\npublic"]) {
+            assertEquals("Cache-Control", assertFailsWith<HttpFieldParseException> { HttpCacheControl.parse(text) }.field)
+            assertTrue(when (HttpCacheControl.parseOrNone(text)) { case None -> true; case Some(_) -> false })
+        }
+        assertFailsWith<IllegalArgumentException> { HttpCacheDirective("not a token") }
+        assertFailsWith<IllegalArgumentException> { HttpCacheDirective("x", [10.toByte()]) }
+    }
+}

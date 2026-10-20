@@ -3,8 +3,7 @@ use std::collections::BTreeMap;
 use object::macho;
 use scoop_identity::{
     CborIdentityRecord, ConeCoordinate, ConeImageSupportRole, DefinitionAtomRole,
-    DefinitionAtomSubkey, DigestNodeId, DigestNodeKey, DigestPatchIntentKey,
-    DigestSemanticFieldRole, ExactTypeKey, LinkageClass, ObjectDefinitionAtomId,
+    DefinitionAtomSubkey, DigestNodeKey, ExactTypeKey, LinkageClass, ObjectDefinitionAtomId,
     ObjectDefinitionAtomKey, ObjectDefinitionPlanId, ObjectDefinitionPlanKey,
     PersistentExactTypeId, PersistentSymbolKey, PersistentSymbolRequest,
     PersistentSymbolRequestTable, StrongDefinitionEntity, StrongDefinitionRole,
@@ -15,17 +14,14 @@ use scoop_lir::{
     ObjectSymbolSurfaceV1, ProducerUnitPartitionV1, RegistrationIdentitySurfaceV1,
 };
 
-use super::finalization::write_runtime_image_digest;
 mod record;
 use super::*;
-use crate::ScoopLirDigestPatchSitesV1;
 use crate::link_object::generated_c_objects::tests::profile;
 use crate::link_object::{
-    CanonicalScoopLirObjectUnitSetV1, DigestPatchSiteV1, EntryProductionBranchV1,
-    PlannedLinkObjectMemberSetV1, PlannedMemberStrongObjectSymbolsV1,
-    PlannedStrongObjectSymbolRoleV1, PlannedStrongObjectSymbolSetV1, ScoopLirObjectCandidateV1,
-    bind_entry_production_v1, read_generated_c_objects_v1,
-    verify_builtin_object_strong_relocations_v1,
+    CanonicalScoopLirObjectUnitSetV1, EntryProductionBranchV1, PlannedLinkObjectMemberSetV1,
+    PlannedMemberStrongObjectSymbolsV1, PlannedStrongObjectSymbolRoleV1,
+    PlannedStrongObjectSymbolSetV1, ScoopLirObjectCandidateV1, bind_entry_production_v1,
+    read_generated_c_objects_v1, verify_builtin_object_strong_relocations_v1,
 };
 use record::expected_image_record;
 
@@ -33,29 +29,23 @@ const MINIMUM_OS: u32 = 0x000d_0100;
 const SDK: u32 = 0x000e_0200;
 
 #[test]
-fn binds_the_image_digest_slot_and_patches_it() {
-    let mut fixture = fixture(false);
-    let image = bind_cone_image_v1(&fixture.patch_sites, fixture.plan).unwrap();
+fn binds_the_image_to_its_existing_member() {
+    let fixture = fixture(false);
+    let image = bind_cone_image_v1(&fixture.builtins, fixture.plan).unwrap();
     assert_eq!(image.member(), fixture.member);
-    let fingerprint = [0xa5; 32];
-    write_runtime_image_digest(&mut fixture.bytes, image.image_patch(), &fingerprint).unwrap();
-    let start = image.image_patch().checked_offset() as usize;
-    assert_eq!(&fixture.bytes[start..start + 32], &fingerprint);
 }
 
 #[test]
 fn binds_the_library_entry_without_root_slots() {
     let fixture = fixture(false);
-    let entry =
-        bind_entry_production_v1(fixture.patch_sites, EntryProductionPlanV1::Library).unwrap();
+    let entry = bind_entry_production_v1(fixture.builtins, EntryProductionPlanV1::Library).unwrap();
     assert!(matches!(entry.branch(), EntryProductionBranchV1::Library));
 }
 
 struct Fixture {
     plan: ConeImagePlanV1,
-    patch_sites: crate::link_object::ScoopLirDigestPatchSitesV1,
+    builtins: crate::link_object::VerifiedBuiltinObjectStrongRelocationSetV1,
     member: crate::SlibMemberId,
-    bytes: Vec<u8>,
 }
 
 fn fixture(with_type_registration: bool) -> Fixture {
@@ -113,15 +103,8 @@ fn fixture(with_type_registration: bool) -> Fixture {
     let foundation = ConeLirFoundation::try_new(producer, canonical).unwrap();
 
     let image_key = DigestNodeKey::runtime_image(producer);
-    let image_node_id = DigestNodeId::from_key(&image_key).unwrap();
-    let image_patch = DigestPatchIntentKey::new(
-        image_node_id,
-        definition_id,
-        DefinitionAtomRole::Primary,
-        DigestSemanticFieldRole::RuntimeImage,
-    );
-    let image_node =
-        scoop_lir::DigestNodeV1::new(image_key, Vec::new(), vec![image_patch]).unwrap();
+
+    let image_node = scoop_lir::DigestNodeV1::new(image_key, Vec::new()).unwrap();
     let digest_plan = DigestFinalizationPlanV1::new(vec![image_node], &foundation).unwrap();
     let registrations = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
     let plan = ConeImagePlanV1::new(
@@ -175,17 +158,10 @@ fn fixture(with_type_registration: bool) -> Fixture {
         &[],
     )
     .unwrap();
-    let provisional = [DigestPatchSiteV1::new(
-        plan.fingerprint_patch(),
-        member,
-        u64::try_from(object.section_offset).unwrap() + 96,
-    )];
-    let patch_sites = ScoopLirDigestPatchSitesV1::new(builtins, (provisional).to_vec());
     Fixture {
         plan,
-        patch_sites,
+        builtins,
         member,
-        bytes: object.bytes,
     }
 }
 
@@ -273,7 +249,6 @@ fn image_support_key(
 
 struct ObjectFixture {
     bytes: Vec<u8>,
-    section_offset: usize,
 }
 
 fn image_object(
@@ -285,7 +260,7 @@ fn image_object(
     let locations = image_locations(plan, type_registration.map(|(_, atom)| atom));
     let section_size = locations.values().map(|(_, end)| *end).max().unwrap();
     let mut section = vec![0; usize::try_from(section_size).unwrap()];
-    section[..240].copy_from_slice(&expected_image_record(plan));
+    section[..208].copy_from_slice(&expected_image_record(plan));
     copy_atom_bytes(
         &mut section,
         locations[&support.coordinate_group()].0,
@@ -340,7 +315,7 @@ fn image_object(
         support.array_size_overflow_message(),
     ];
     let mut relocation_targets = vec![0_u32, 1, 2, 3, 4, 5, 6, 7, 8, 9];
-    let mut relocation_offsets = vec![16_u32, 32, 48, 128, 144, 160, 176, 192, 208, 224];
+    let mut relocation_offsets = vec![16_u32, 32, 48, 96, 112, 128, 144, 160, 176, 192];
     if let Some((definition, _)) = type_registration {
         relocation_offsets.push(u32::try_from(locations[&support.type_registrations()].0).unwrap());
         let target = definition;
@@ -373,12 +348,8 @@ fn image_object(
 pub(crate) fn empty_image_object_for_link_decode_test(
     symbols: &PlannedMemberStrongObjectSymbolsV1,
     plan: &ConeImagePlanV1,
-) -> (Vec<u8>, u64) {
-    let object = image_object(symbols, plan, None);
-    (
-        object.bytes,
-        u64::try_from(object.section_offset).unwrap() + 96,
-    )
+) -> Vec<u8> {
+    image_object(symbols, plan, None).bytes
 }
 
 fn image_locations(
@@ -387,8 +358,8 @@ fn image_locations(
 ) -> BTreeMap<ObjectDefinitionAtomId, (u64, u64)> {
     let support = plan.support_atoms();
     let mut locations = BTreeMap::new();
-    locations.insert(plan.primary_atom(), (0, 240));
-    let mut cursor = 240;
+    locations.insert(plan.primary_atom(), (0, 208));
+    let mut cursor = 208;
     for (atom, size, alignment) in [
         (
             support.coordinate_group(),
@@ -543,10 +514,7 @@ fn build_macho(
         push_u64(&mut bytes, value);
     }
     bytes.extend_from_slice(&strings);
-    ObjectFixture {
-        bytes,
-        section_offset: usize::try_from(section_offset).unwrap(),
-    }
+    ObjectFixture { bytes }
 }
 
 fn copy_atom_bytes(section: &mut [u8], start: u64, value: &[u8]) {

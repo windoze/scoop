@@ -1,0 +1,72 @@
+package scoop.compression
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.platform.memory.NativeByteBuffer
+import scoop.text.*
+import scoop.test.*
+
+internal fun compressionCases(): Array<CompressionOptions> = [
+    CompressionOptions.Gzip(GzipOptions()), CompressionOptions.Zlib(DeflateOptions()),
+    CompressionOptions.RawDeflate(DeflateOptions()), CompressionOptions.Brotli(BrotliOptions()),
+    CompressionOptions.Zstd(ZstdOptions())
+]
+
+internal fun compressionVector(format: CompressionFormat): Array<Byte> = (when (format) {
+    case Gzip -> "1f8b08000000000002fff348cdc9c9d751084ececf2f500400898ab03c0d000000"
+    case Zlib -> "789cf348cdc9c9d751084ececf2f5004001f5f0466"
+    case RawDeflate -> "f348cdc9c9d751084ececf2f500400"
+    case Brotli -> "0b068048656c6c6f2c2053636f6f702103"
+    case Zstd -> "28b52ffd045869000048656c6c6f2c2053636f6f70211d5bd446"
+}).hexToByteArray()
+
+internal fun joinCompressionBytes(left: List<Byte>, right: List<Byte>): Array<Byte> {
+    val result = ByteArrayBuilder()
+    result.append(left); result.append(right)
+    return result.toByteArray()
+}
+
+internal fun chunkedCompress(data: List<Byte>, options: CompressionOptions, chunk: Long = 1L): Array<Byte> {
+    return NativeByteBuffer.allocate(chunk).use { input ->
+        NativeByteBuffer.allocate(1L).use { output ->
+            CompressionEncoder(options).use { encoder ->
+                val result = ByteArrayBuilder()
+                var offset = 0L
+                while (true) {
+                    input.compact()
+                    val count = if (data.size - offset < input.writableBytes) data.size - offset else input.writableBytes
+                    input.writeBytes(data, offset, count); offset += count
+                    output.clear()
+                    val step = if (input.readableBytes == 0L && offset == data.size) encoder.finish(output) else encoder.process(input, output)
+                    result.append(output.readBytes(step.produced))
+                    if (step.state == CompressionState.Finished) break
+                }
+                assertEquals(data.size, encoder.totals.inputBytes)
+                assertEquals(result.size, encoder.totals.outputBytes)
+                result.toByteArray()
+            }
+        }
+    }
+}
+
+internal fun chunkedDecompress(data: List<Byte>, options: DecompressionOptions, chunk: Long = 1L): Array<Byte> {
+    return NativeByteBuffer.allocate(chunk).use { input ->
+        NativeByteBuffer.allocate(1L).use { output ->
+            CompressionDecoder(options).use { decoder ->
+                val result = ByteArrayBuilder()
+                var offset = 0L
+                while (true) {
+                    input.compact()
+                    val count = if (data.size - offset < input.writableBytes) data.size - offset else input.writableBytes
+                    input.writeBytes(data, offset, count); offset += count
+                    output.clear()
+                    val step = decoder.process(input, output, endInput = offset == data.size)
+                    result.append(output.readBytes(step.produced))
+                    if (step.state == CompressionState.Finished) break
+                }
+                assertEquals(data.size, decoder.totals.inputBytes)
+                assertEquals(result.size, decoder.totals.outputBytes)
+                result.toByteArray()
+            }
+        }
+    }
+}

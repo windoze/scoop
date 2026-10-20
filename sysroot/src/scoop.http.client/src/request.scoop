@@ -1,0 +1,90 @@
+package scoop.http.client
+
+import scoop.collections.emptyList
+import scoop.http.*
+import scoop.url.Url
+import scoop.url.UrlOrigin
+
+public class HttpRequest public constructor(
+    public val url: Url,
+    public val method: String = "GET",
+    fields: List<HttpField> = emptyList<HttpField>(),
+    public val body: RequestBody = RequestBody.Empty,
+    public val options: HttpCallOptions = HttpCallOptions()
+) {
+    internal val methodBytes: Array<Byte> = method.toByteArray()
+    internal val origin: UrlOrigin = requestOrigin(url)
+    internal val suppliedFields: Array<HttpField> = fields.toArray()
+    private val metadata: ClientRequestMetadata = prepareRequestFields(methodBytes, body, suppliedFields, options.expectContinue)
+    public val fields: Array<HttpField> get() = metadata.fields
+    internal val contentLength: Long? get() = metadata.contentLength
+    internal val expectsContinue: Boolean get() = metadata.expectsContinue
+
+    public companion object {
+        public fun get(url: Url, fields: List<HttpField> = emptyList<HttpField>(), options: HttpCallOptions = HttpCallOptions()): HttpRequest =
+            HttpRequest(url, "GET", fields, RequestBody.Empty, options)
+        public fun head(url: Url, fields: List<HttpField> = emptyList<HttpField>(), options: HttpCallOptions = HttpCallOptions()): HttpRequest =
+            HttpRequest(url, "HEAD", fields, RequestBody.Empty, options)
+        public fun post(url: Url, body: RequestBody, fields: List<HttpField> = emptyList<HttpField>(), options: HttpCallOptions = HttpCallOptions()): HttpRequest =
+            HttpRequest(url, "POST", fields, body, options)
+        public fun put(url: Url, body: RequestBody, fields: List<HttpField> = emptyList<HttpField>(), options: HttpCallOptions = HttpCallOptions()): HttpRequest =
+            HttpRequest(url, "PUT", fields, body, options)
+        public fun patch(url: Url, body: RequestBody, fields: List<HttpField> = emptyList<HttpField>(), options: HttpCallOptions = HttpCallOptions()): HttpRequest =
+            HttpRequest(url, "PATCH", fields, body, options)
+        public fun delete(url: Url, fields: List<HttpField> = emptyList<HttpField>(), options: HttpCallOptions = HttpCallOptions()): HttpRequest =
+            HttpRequest(url, "DELETE", fields, RequestBody.Empty, options)
+    }
+}
+
+private fun requestOrigin(url: Url): UrlOrigin {
+    val origin = url.httpOrigin()
+    if (origin.scheme != "http" && origin.scheme != "https")
+        throw IllegalArgumentException(Some("HTTP request URL must use http or https"))
+    return origin
+}
+
+private class ClientRequestMetadata(val fields: Array<HttpField>, val contentLength: Long?, val expectsContinue: Boolean)
+
+private fun prepareRequestFields(method: Array<Byte>, body: RequestBody, fields: List<HttpField>, expectContinue: Boolean): ClientRequestMetadata {
+    if (!isHttpToken(method)) throw IllegalArgumentException(Some("invalid HTTP method token"))
+    val snapshot = requestBodyFields(body, fields)
+    for (field in snapshot) {
+        field.validate()
+        if (field.hasName("Host".toByteArray()) || field.hasName("Transfer-Encoding".toByteArray()))
+            throw IllegalArgumentException(Some("HTTP client generates authority and transfer framing"))
+        if (field.hasName("Proxy-Authorization".toByteArray()))
+            throw IllegalArgumentException(Some("proxy credentials belong to the proxy endpoint"))
+    }
+    val length = parseHttpContentLength(snapshot)
+    if (length != None && body.contentLength != None && length!! != body.contentLength!!)
+        throw IllegalArgumentException(Some("Content-Length conflicts with request body length"))
+    val actualLength = if (length != None) length else body.contentLength
+    val present = httpExpectsContinue(snapshot)
+    val adding = expectContinue && actualLength != Some(0L) && !present
+    val prepared = if (adding) {
+        val result = ArrayList<HttpField>()
+        for (field in snapshot) result.add(field)
+        result.add(HttpField("Expect".toByteArray(), "100-continue".toByteArray()))
+        result.toArray()
+    } else snapshot
+    return ClientRequestMetadata(prepared, actualLength, (present || adding) && actualLength != Some(0L))
+}
+
+internal fun validateClientRequest(config: HttpClientConfig, request: HttpRequest) {
+    if (request.origin.scheme != "http") return
+    if (config.versionPolicy == HttpVersionPolicy.Http2Only && config.cleartext == HttpCleartextProtocol.Http1)
+        throw IllegalArgumentException(Some("cleartext HTTP/2-only requests require prior knowledge or an explicit upgrade"))
+    if (config.cleartext == HttpCleartextProtocol.Http1) validateClientHttp1Request(request, config.http1RequestVersion)
+}
+
+internal fun validateClientHttp1Request(request: HttpRequest, version: HttpVersion) {
+    if (request.options.duplex)
+        throw IllegalArgumentException(Some("HTTP/1 cannot perform a duplex upload"))
+    if (version != HttpVersion.Http10) return
+    if (request.body.trailerNames.size != 0L)
+        throw IllegalArgumentException(Some("HTTP/1.0 cannot send request trailers"))
+    if (request.contentLength == None)
+        throw IllegalArgumentException(Some("HTTP/1.0 request body requires a known length"))
+    if (request.expectsContinue)
+        throw IllegalArgumentException(Some("Continue waiting requires HTTP/1.1 or HTTP/2"))
+}

@@ -1,0 +1,52 @@
+internal fun boundaryCheck(value: Boolean, detail: String) {
+    if (!value) throw IllegalStateException(Some(detail))
+}
+
+internal class BoundaryResult : Continuation<Unit> {
+    var done: Boolean = false
+    var failure: Throwable? = None
+    public override fun resume(value: Unit) { boundaryCheck(!done, "duplicate success"); done = true }
+    public override fun resumeWithException(error: Throwable) {
+        boundaryCheck(!done, "duplicate failure"); failure = Some(error); done = true
+    }
+    fun finish(expected: Throwable? = None) {
+        boundaryCheck(done, "scope did not finish")
+        when (failure) {
+            case Some(error) -> when (expected) { case Some(value) -> boundaryCheck(error === value, "failure identity changed"); case None -> throw error }
+            case None -> when (expected) { case Some(_) -> boundaryCheck(false, "expected failure was lost"); case None -> {} }
+        }
+    }
+}
+
+internal class BoundaryGate {
+    private var open: Boolean = false
+    private var waiter: Continuation<Unit>? = None
+    suspend fun await() {
+        suspendCoroutine<Unit> { next -> if (open) next.resume(Unit) else waiter = Some(next) }
+    }
+    fun signal() {
+        open = true
+        val next = waiter; waiter = None
+        next?.resume(Unit)
+    }
+}
+
+internal class BoundaryPause {
+    var waiter: CancellableContinuation<Unit>? = None
+    suspend fun await() { suspendCancellableCoroutine<Unit> { next -> waiter = Some(next) } }
+    fun signal() { boundaryCheck(waiter!!.tryResume(Unit), "unexpected pause cancellation") }
+}
+
+internal class BoundaryState {
+    var root: Job? = None
+    var pending: Job? = None
+    var sibling: Job? = None
+    var cleaning: Boolean = false
+    var cleaned: Boolean = false
+    var caught: Boolean = false
+    var siblingCancelled: Boolean = false
+}
+
+internal class BoundaryContext(val value: String)
+context(value: BoundaryContext)
+internal fun boundaryContext(): String = value.value

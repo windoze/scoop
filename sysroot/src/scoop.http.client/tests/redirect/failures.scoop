@@ -1,0 +1,82 @@
+package scoop.http.client
+
+import scoop.collections.emptyList
+import scoop.http.*
+import scoop.test.*
+import scoop.url.Url
+
+@Test
+private class HttpClientRedirectFailuresTest {
+    @Test
+    fun `redirect policy errors retain their typed reason and response metadata`() {
+        val request = redirectTestRequest()
+        for ((location, reason) in [("ftp://example.test/file", HttpRedirectFailure.UnsupportedScheme),
+            ("https:/missing-host", HttpRedirectFailure.InvalidLocation),
+            ("/bad path", HttpRedirectFailure.InvalidLocation)]) {
+            val head = redirectTestHead(location = location)
+            val error = assertFailsWith<HttpRedirectException> {
+                planClientRedirect(request, head, HttpRedirectOptions(), emptyList<HttpRedirect>())
+            }
+            assertTrue(error.reason == reason)
+            assertSame(request.url, error.url)
+            assertSame(head, error.head)
+        }
+        val head = HttpResponseHead(HttpVersion.Http11, 302U, fields = [
+            HttpField("Location".toByteArray(), "/one".toByteArray()), HttpField("Location".toByteArray(), "/two".toByteArray())])
+        val repeated = assertFailsWith<HttpRedirectException> {
+            planClientRedirect(request, head, HttpRedirectOptions(), emptyList<HttpRedirect>())
+        }
+        assertTrue(repeated.reason == HttpRedirectFailure.InvalidLocation)
+        assertTrue(repeated.cause!! is HttpFieldParseException)
+    }
+
+    @Test
+    fun `HTTPS downgrade requires an explicit override and redirect limits accept zero`() {
+        assertFailsWith<IllegalArgumentException> { HttpRedirectOptions(maxRedirects = -1L) }
+        val request = HttpRequest.get(Url.parse("https://example.test/before"))
+        val head = redirectTestHead(location = "http://example.test/after")
+        val downgrade = assertFailsWith<HttpRedirectException> {
+            planClientRedirect(request, head, HttpRedirectOptions(), emptyList<HttpRedirect>())
+        }
+        assertTrue(downgrade.reason == HttpRedirectFailure.HttpsDowngrade)
+        assertEquals("http://example.test/after", downgrade.destination!!.toString())
+        assertTrue(clientPresent(planClientRedirect(request, head, HttpRedirectOptions(allowHttpsToHttp = true), emptyList<HttpRedirect>())))
+        val limit = assertFailsWith<HttpRedirectException> {
+            planClientRedirect(request, redirectTestHead(), HttpRedirectOptions(maxRedirects = 0L), emptyList<HttpRedirect>())
+        }
+        assertTrue(limit.reason == HttpRedirectFailure.LimitExceeded)
+        val first = redirectTestPlan(request)
+        val reached = assertFailsWith<HttpRedirectException> {
+            planClientRedirect(first.request, redirectTestHead(location = "/third"), HttpRedirectOptions(maxRedirects = 1L), [first.history])
+        }
+        assertTrue(reached.reason == HttpRedirectFailure.LimitExceeded)
+    }
+
+    @Test
+    fun `redirect loops ignore fragments and default ports while method changes remain valid`() {
+        val original = redirectTestRequest()
+        val rewritten = redirectTestPlan(original, 303U, "http://example.test:80/before#new")
+        assertEquals("GET", rewritten.request.method)
+        val same = assertFailsWith<HttpRedirectException> {
+            planClientRedirect(rewritten.request, redirectTestHead(302U, "/before#another"), HttpRedirectOptions(), [rewritten.history])
+        }
+        assertTrue(same.reason == HttpRedirectFailure.Loop)
+        val first = redirectTestPlan(redirectTestRequest("GET"))
+        val cycle = assertFailsWith<HttpRedirectException> {
+            planClientRedirect(first.request, redirectTestHead(302U, "/before#other"), HttpRedirectOptions(), [first.history])
+        }
+        assertTrue(cycle.reason == HttpRedirectFailure.Loop)
+    }
+
+    @Test
+    fun `preserved single use bodies are refused without acquiring their producer`() {
+        val started = AtomicBoolean(false)
+        val body = RequestBody.fromProducer(Some(4L)) suspend { output -> started.store(true); writeBodyText(output, "body") }
+        val request = redirectTestRequest(body = body, options = HttpCallOptions(expectContinue = true))
+        val error = assertFailsWith<HttpRedirectException> { redirectTestPlan(request, 307U) }
+        assertTrue(error.reason == HttpRedirectFailure.BodyNotReplayable)
+        assertFalse(started.load())
+        assertSame(RequestBody.Empty, redirectTestPlan(request, 302U).request.body)
+        assertFalse(started.load())
+    }
+}

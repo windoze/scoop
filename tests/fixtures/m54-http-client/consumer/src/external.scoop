@@ -1,0 +1,30 @@
+import scoop.asyncio.*
+import scoop.crypto.testdata.rootPem
+import scoop.crypto.x509.TrustStore
+import scoop.http.*
+import scoop.http.client.*
+import scoop.tls.TlsTrustSource
+import scoop.url.Url
+
+fun runExternalClient(url: Url) {
+    TrustStore.fromPem(rootPem()).use { trust ->
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            val config = HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)))
+            withHttpClient(config) suspend { client ->
+                val information = ArrayList<UInt>()
+                val options = HttpCallOptions(onInformational = suspend { head -> information.add(head.status) })
+                val fields = [HttpField("X-Repeat".toByteArray(), "one".toByteArray()), HttpField("x-repeat".toByteArray(), "two".toByteArray())]
+                val request = HttpRequest(url, "PATCH", fields, RequestBody.fromText("external body 中文"), options)
+                client.withResponse(request) suspend { response ->
+                    check(response.status == 207U && response.version == HttpVersion.Http11)
+                    check(String.fromUtf8(response.head.reason!!) == "Independent response")
+                    check(String.fromUtf8(response.body.readAllBytes(100L)) == "Python response 中文")
+                    check(response.body.isComplete)
+                }
+                check(information.size == 1L && information[0L] == 103U)
+            }
+        }
+    }
+    println("external HTTP1 client exchange passed")
+}

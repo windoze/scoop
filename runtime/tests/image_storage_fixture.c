@@ -58,9 +58,7 @@ static void setup_records(ScoopStorageFixture *fixture, bool both_eager) {
                          sizeof data->type),
         .registration = identity(1),
         .runtime_type_id = 1,
-        .descriptor = td,
-        .descriptor_fingerprint = {{1}},
-        .layout_fingerprint = {{1}}};
+        .descriptor = td};
     data->types[0] = &data->type;
     data->string_object.header.td = td;
     data->string_object.length = 3;
@@ -91,8 +89,6 @@ static void setup_records(ScoopStorageFixture *fixture, bool both_eager) {
             .allocation_extent = 8,
             .required_alignment = 8,
             .scan_program = reference ? data->reference_scan : data->empty,
-            .scan_fingerprint = {{1}},
-            .layout_fingerprint = {{1}},
             .initial_template = {(const uint8_t *)data->empty, 0},
             .initial_relocations = (const void *)data->empty};
         data->storage_table[index] = &data->storages[index];
@@ -125,7 +121,6 @@ static void setup_records(ScoopStorageFixture *fixture, bool both_eager) {
             .prefix = prefix(SCOOP_CALLABLE_REGISTRATION_DESCRIPTOR_MAGIC_V1,
                              sizeof data->callables[index]),
             .registration = identity((uint8_t)(index + 1)),
-            .body_definition_fingerprint = {{(uint8_t)(index + 1)}},
             .entry = bodies[index]};
         data->callable_table[index] = &data->callables[index];
         uintptr_t address = (uintptr_t)bodies[index];
@@ -153,8 +148,6 @@ static void setup_records(ScoopStorageFixture *fixture, bool both_eager) {
             .ensure_entry = index == 0 ? ensure_a : ensure_b};
         if (eager) {
             data->units[index].startup_gateway_callable_id.bytes[0] =
-                index == 0 ? 4 : 8;
-            data->units[index].startup_gateway_definition_fingerprint.bytes[0] =
                 index == 0 ? 4 : 8;
             data->units[index].startup_gateway =
                 index == 0 ? gateway_a : gateway_b;
@@ -188,7 +181,6 @@ void scoop_test_storage_setup(ScoopStorageFixture *fixture, bool both_eager) {
     data->image = (ScoopImageDescriptorV1){
         .prefix = prefix(SCOOP_IMAGE_DESCRIPTOR_MAGIC_V1, sizeof data->image),
         .cone = {name, name, name, {{1}}},
-        .runtime_image_fingerprint = {{1}},
         .dependencies = (const void *)data->empty,
         .static_storages = data->storage_table,
         .static_storage_count = STORAGE_COUNT - 1,
@@ -207,9 +199,7 @@ void scoop_test_storage_setup(ScoopStorageFixture *fixture, bool both_eager) {
             prefix(SCOOP_ROOT_ENTRY_DESCRIPTOR_MAGIC_V1, sizeof data->root),
         .owner_cone_identity = {{1}},
         .callable_id = {{1}},
-        .source_signature_fingerprint = {{1}},
         .gateway_callable_id = {{7}},
-        .gateway_definition_fingerprint = {{7}},
         .failure_root = &data->storages[ROOT_FAILURE],
         .gateway = root_gateway};
 }

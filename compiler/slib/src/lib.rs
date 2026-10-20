@@ -50,7 +50,7 @@ pub use layout_compile_decode::*;
 
 mod dependency_reachability;
 mod runtime_image_records;
-pub use runtime_image_records::RuntimeImageRecords;
+pub(crate) use runtime_image_records::RuntimeImageRecords;
 mod program_link;
 pub use program_link::*;
 mod link_support;

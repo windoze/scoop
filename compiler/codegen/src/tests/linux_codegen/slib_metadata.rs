@@ -1,4 +1,5 @@
 use super::slib_support::SlibObjects;
+use object::{Object, ObjectSection, ObjectSymbol};
 use scoop_slib::*;
 
 #[test]
@@ -13,7 +14,6 @@ fn elf_static_immortal_and_lazy_initialization_registrations() {
             directory.path(),
         );
         let builtins = fixture.builtins(&fixture.objects);
-        let sites = fixture.sites(builtins.clone());
         let production = fixture.emitted.production().registration_production();
         let immortals = compute_strong_immortal_object_fingerprints_v1(
             production.immortal_objects().clone(),
@@ -21,26 +21,22 @@ fn elf_static_immortal_and_lazy_initialization_registrations() {
         )
         .expect("ELF immortal String registration ABIs");
         assert_eq!(immortals.fingerprints().len(), 2);
-        let storages =
-            bind_static_storage_registrations_v1(&sites, production.static_storages().clone())
-                .expect("ELF static storage digest slots");
+        let storages = production.static_storages();
         assert_eq!(storages.registrations().len(), 7);
-        assert_storage_slots(&storages, &fixture.objects);
-        let initializations =
-            bind_initialization_registrations_v1(&sites, production.initialization_units().clone())
-                .unwrap();
+        assert_storage_records(storages, &builtins, &fixture.objects);
+        let initializations = production.initialization_units().clone();
         assert_eq!(initializations.registrations().len(), 2);
         assert!(
             initializations
                 .registrations()
                 .iter()
-                .all(|registration| registration.gateway_definition_patch().is_none())
+                .all(|registration| registration.schedule().gateway().is_none())
         );
     }
 }
 
 #[test]
-fn elf_encoded_storage_digest_slots() {
+fn elf_encoded_storage_records() {
     let directory = tempfile::tempdir().unwrap();
     for target in [
         scoop_target_data::LINUX_X86_64_GNU_ID,
@@ -51,13 +47,13 @@ fn elf_encoded_storage_digest_slots() {
                 super::slib_metadata_fixture::encoded_only(target, initial),
                 directory.path(),
             );
-            check_storage_slots(&fixture);
+            check_storage_records(&fixture);
         }
     }
 }
 
 #[test]
-fn elf_partitioned_zeroed_storage_digest_slots() {
+fn elf_partitioned_zeroed_storage_records() {
     let directory = tempfile::tempdir().unwrap();
     for target in [
         scoop_target_data::LINUX_X86_64_GNU_ID,
@@ -67,42 +63,50 @@ fn elf_partitioned_zeroed_storage_digest_slots() {
             super::slib_metadata_fixture::zeroed_odr_only(target),
             directory.path(),
         );
-        check_storage_slots(&fixture);
+        check_storage_records(&fixture);
     }
 }
 
-fn check_storage_slots(fixture: &SlibObjects) {
-    let sites = fixture.sites(fixture.builtins(&fixture.objects));
-    let data = bind_static_storage_registrations_v1(
-        &sites,
-        fixture
-            .emitted
-            .production()
-            .registration_production()
-            .static_storages()
-            .clone(),
-    )
-    .unwrap();
+fn check_storage_records(fixture: &SlibObjects) {
+    let builtins = fixture.builtins(&fixture.objects);
+    let data = fixture
+        .emitted
+        .production()
+        .registration_production()
+        .static_storages()
+        .clone();
     assert_eq!(data.registrations().len(), 1);
-    assert_storage_slots(&data, &fixture.objects);
+    assert_storage_records(&data, &builtins, &fixture.objects);
 }
 
-fn assert_storage_slots(
+fn assert_storage_records(
     data: &StaticStorageRegistrationDataV1,
+    builtins: &VerifiedBuiltinObjectStrongRelocationSetV1,
     objects: &[(SlibMemberId, Vec<u8>)],
 ) {
     for registration in data.registrations() {
-        for patch in [
-            registration.scan_fingerprint_patch(),
-            registration.layout_fingerprint_patch(),
-        ] {
-            let bytes = &objects
-                .iter()
-                .find(|(member, _)| *member == patch.member())
-                .unwrap()
-                .1;
-            let offset = usize::try_from(patch.checked_offset()).unwrap();
-            assert_eq!(&bytes[offset..offset + 32], &[0; 32]);
-        }
+        let member = builtins
+            .member_plan()
+            .member_for_definition(registration.registration_definition_plan())
+            .unwrap();
+        let bytes = &objects.iter().find(|(id, _)| *id == member).unwrap().1;
+        let file = object::File::parse(bytes.as_slice()).unwrap();
+        let symbol = file
+            .symbol_by_name(registration.registration_symbol().symbol().as_str())
+            .unwrap();
+        let section = file
+            .section_by_index(symbol.section_index().unwrap())
+            .unwrap();
+        let offset = usize::try_from(symbol.address() - section.address()).unwrap();
+        let record = &section.data().unwrap()[offset..offset + 200];
+        assert_eq!(
+            u64::from_le_bytes(record[0..8].try_into().unwrap()),
+            0x5343_4f4f_5053_544f
+        );
+        assert_eq!(
+            u32::from_le_bytes(record[8..12].try_into().unwrap()),
+            scoop_lir::RUNTIME_METADATA_ABI_VERSION_V1
+        );
+        assert_eq!(u32::from_le_bytes(record[12..16].try_into().unwrap()), 200);
     }
 }

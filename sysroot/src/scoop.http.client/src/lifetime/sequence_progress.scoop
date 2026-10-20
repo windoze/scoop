@@ -1,0 +1,28 @@
+package scoop.http.client
+
+import scoop.platform.time.MonotonicTimeSource
+
+internal fun continueClientSequence(client: ClientState, request: HttpRequest, previous: ClientRequestSequence,
+    call: ClientCall): ClientRequestSequence {
+    val next = ClientRequestSequence(client.config, request, previous.started)
+    val (sent, encoded, decoded) = call.lock.withLock {
+        (call.requestBodyBytes, call.encodedResponseBodyBytes, call.responseBodyBytes)
+    }
+    next.requestBodyBytes = sent; next.encodedResponseBodyBytes = encoded; next.responseBodyBytes = decoded
+    return next
+}
+
+internal fun clientSequenceTimeout(client: ClientState, sequence: ClientRequestSequence, last: ClientCall?): HttpTimeoutException {
+    val active = client.lock.withLock {
+        var current = last
+        for (call in client.calls) if (call.sequence === sequence) current = Some(call)
+        current
+    }
+    val progress = when (active) {
+        case Some(call) -> call.lock.withLock { (call.requestBodyBytes, call.encodedResponseBodyBytes, call.responseBodyBytes) }
+        case None -> (sequence.requestBodyBytes, sequence.encodedResponseBodyBytes, sequence.responseBodyBytes)
+    }
+    val (sent, encoded, decoded) = progress
+    return HttpTimeoutException(HttpTimeoutPhase.Total, sequence.timeouts.total!!,
+        MonotonicTimeSource.markNow() - sequence.started!!, sent, encoded, decoded)
+}

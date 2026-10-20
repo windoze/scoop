@@ -1,0 +1,107 @@
+// Official PSL vectors: CC0; see sysroot/vendor/publicsuffix/test_psl.txt.
+package scoop.http
+
+import scoop.idna.Idna
+import scoop.test.*
+
+@Test
+private class PublicSuffixVectorTests {
+    @Test
+    fun `bundled data matches the official registrable domain vectors`() {
+        val list = PublicSuffixList.bundled()
+        assertEquals("2026-10-17_18-52-06_UTC", list.version!!)
+        assertEquals("52b71b3c4576ff77450cc7ebcfc7f34a916af3f9", list.revision!!)
+        assertEquals(10398L, list.ruleCount)
+        for ((input, expected) in officialPublicSuffixVectors()) {
+            val result = list.lookupOrNone(input)
+            val actual = when (result) { case None -> None; case Some(match) -> match.registrableDomain }
+            val canonical = when (expected) { case None -> None; case Some(name) -> Some(Idna.toAscii(name)) }
+            assertTrue(actual == canonical, Some(input))
+        }
+        assertEquals("github.io", list.lookup("a.github.io").publicSuffix)
+        assertTrue(list.lookup("a.github.io").isPrivate)
+        assertEquals("io", list.lookup("a.github.io", includePrivate = false).publicSuffix)
+        gcCollect()
+        assertEquals("example.co.uk", list.lookup("www.example.co.uk").registrableDomain!!)
+    }
+}
+
+private fun officialPublicSuffixVectors(): Array<(String, String?)> = [
+    ("COM", None),
+    ("example.COM", Some("example.com")),
+    ("WwW.example.COM", Some("example.com")),
+    (".com", None),
+    (".example", None),
+    (".example.com", None),
+    (".example.example", None),
+    ("example", None),
+    ("example.example", Some("example.example")),
+    ("b.example.example", Some("example.example")),
+    ("a.b.example.example", Some("example.example")),
+    ("biz", None),
+    ("domain.biz", Some("domain.biz")),
+    ("b.domain.biz", Some("domain.biz")),
+    ("a.b.domain.biz", Some("domain.biz")),
+    ("com", None),
+    ("example.com", Some("example.com")),
+    ("b.example.com", Some("example.com")),
+    ("a.b.example.com", Some("example.com")),
+    ("uk.com", None),
+    ("example.uk.com", Some("example.uk.com")),
+    ("b.example.uk.com", Some("example.uk.com")),
+    ("a.b.example.uk.com", Some("example.uk.com")),
+    ("test.ac", Some("test.ac")),
+    ("mm", None),
+    ("c.mm", None),
+    ("b.c.mm", Some("b.c.mm")),
+    ("a.b.c.mm", Some("b.c.mm")),
+    ("jp", None),
+    ("test.jp", Some("test.jp")),
+    ("www.test.jp", Some("test.jp")),
+    ("ac.jp", None),
+    ("test.ac.jp", Some("test.ac.jp")),
+    ("www.test.ac.jp", Some("test.ac.jp")),
+    ("kyoto.jp", None),
+    ("test.kyoto.jp", Some("test.kyoto.jp")),
+    ("ide.kyoto.jp", None),
+    ("b.ide.kyoto.jp", Some("b.ide.kyoto.jp")),
+    ("a.b.ide.kyoto.jp", Some("b.ide.kyoto.jp")),
+    ("c.kobe.jp", None),
+    ("b.c.kobe.jp", Some("b.c.kobe.jp")),
+    ("a.b.c.kobe.jp", Some("b.c.kobe.jp")),
+    ("city.kobe.jp", Some("city.kobe.jp")),
+    ("www.city.kobe.jp", Some("city.kobe.jp")),
+    ("ck", None),
+    ("test.ck", None),
+    ("b.test.ck", Some("b.test.ck")),
+    ("a.b.test.ck", Some("b.test.ck")),
+    ("www.ck", Some("www.ck")),
+    ("www.www.ck", Some("www.ck")),
+    ("us", None),
+    ("test.us", Some("test.us")),
+    ("www.test.us", Some("test.us")),
+    ("ak.us", None),
+    ("test.ak.us", Some("test.ak.us")),
+    ("www.test.ak.us", Some("test.ak.us")),
+    ("k12.ak.us", None),
+    ("test.k12.ak.us", Some("test.k12.ak.us")),
+    ("www.test.k12.ak.us", Some("test.k12.ak.us")),
+    ("食狮.com.cn", Some("食狮.com.cn")),
+    ("食狮.公司.cn", Some("食狮.公司.cn")),
+    ("www.食狮.公司.cn", Some("食狮.公司.cn")),
+    ("shishi.公司.cn", Some("shishi.公司.cn")),
+    ("公司.cn", None),
+    ("食狮.中国", Some("食狮.中国")),
+    ("www.食狮.中国", Some("食狮.中国")),
+    ("shishi.中国", Some("shishi.中国")),
+    ("中国", None),
+    ("xn--85x722f.com.cn", Some("xn--85x722f.com.cn")),
+    ("xn--85x722f.xn--55qx5d.cn", Some("xn--85x722f.xn--55qx5d.cn")),
+    ("www.xn--85x722f.xn--55qx5d.cn", Some("xn--85x722f.xn--55qx5d.cn")),
+    ("shishi.xn--55qx5d.cn", Some("shishi.xn--55qx5d.cn")),
+    ("xn--55qx5d.cn", None),
+    ("xn--85x722f.xn--fiqs8s", Some("xn--85x722f.xn--fiqs8s")),
+    ("www.xn--85x722f.xn--fiqs8s", Some("xn--85x722f.xn--fiqs8s")),
+    ("shishi.xn--fiqs8s", Some("shishi.xn--fiqs8s")),
+    ("xn--fiqs8s", None)
+]

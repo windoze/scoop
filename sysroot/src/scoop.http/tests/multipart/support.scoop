@@ -1,0 +1,70 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+internal class MpPart(val head: MultipartPartHead) {
+    val body: ByteArrayBuilder = ByteArrayBuilder()
+    var ended: Boolean = false
+}
+internal class MpCapture {
+    val parts: ArrayList<MpPart> = ArrayList<MpPart>()
+    var ends: Long = 0L
+    var largestData: Long = 0L
+    fun drain(decoder: MultipartDecoder) {
+        while (true) when (decoder.nextEvent()) {
+            case None -> return
+            case Some(MultipartEvent.PartStarted(head)) -> {
+                if (parts.size != 0L) assertTrue(parts[parts.size - 1L].ended)
+                parts.add(MpPart(head))
+            }
+            case Some(MultipartEvent.Data(bytes)) -> {
+                assertTrue(parts.size != 0L && !parts[parts.size - 1L].ended)
+                parts[parts.size - 1L].body.append(bytes)
+                if (bytes.size > largestData) largestData = bytes.size
+            }
+            case Some(MultipartEvent.PartEnded) -> {
+                assertTrue(parts.size != 0L && !parts[parts.size - 1L].ended)
+                parts[parts.size - 1L].ended = true
+            }
+            case Some(MultipartEvent.End) -> ends += 1L
+        }
+    }
+}
+
+internal fun feedMp(decoder: MultipartDecoder, bytes: List<Byte>, chunk: Long = 7L, eof: Boolean = true): MpCapture {
+    val capture = MpCapture()
+    NativeByteBuffer.allocate(chunk).use { buffer ->
+        var offset = 0L
+        while (offset < bytes.size) {
+            buffer.clear()
+            val count = if (bytes.size - offset > chunk) chunk else bytes.size - offset
+            buffer.writeBytes(bytes, offset, count)
+            offset += count
+            while (buffer.readableBytes != 0L) {
+                val consumed = decoder.receive(buffer)
+                capture.drain(decoder)
+                assertTrue(consumed > 0L)
+            }
+        }
+    }
+    if (eof) { decoder.endInput(); capture.drain(decoder) }
+    return capture
+}
+
+internal fun encodeMp(boundary: MultipartBoundary, parts: List<(MultipartPartHead, Array<Byte>)>): Array<Byte> {
+    val output = ByteArrayBuilder()
+    MultipartEncoder(boundary).use { encoder ->
+        for ((head, bytes) in parts) {
+            output.append(encoder.beginPart(head))
+            NativeByteBuffer.allocate(bytes.size).use { buffer ->
+                buffer.writeBytes(bytes)
+                while (buffer.readableBytes > 0L) output.append(encoder.writeBody(buffer, 1L))
+            }
+            output.append(encoder.endPart())
+        }
+        output.append(encoder.finish())
+    }
+    return output.toByteArray()
+}

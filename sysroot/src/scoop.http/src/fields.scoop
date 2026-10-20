@@ -1,13 +1,19 @@
 package scoop.http
 
+internal fun httpBytesEqual(left: List<Byte>, right: List<Byte>): Boolean {
+    if (left.size != right.size) return false
+    var index = 0L
+    while (index < left.size) {
+        if (left[index] != right[index]) return false
+        index += 1L
+    }
+    return true
+}
+
 internal fun httpToken(bytes: List<Byte>): Boolean {
     if (bytes.size == 0L) return false
     for (byte in bytes) {
-        val c = byte.toUByte().toInt()
-        if ((c >= 48 && c <= 57) || (c >= 65 && c <= 90) || (c >= 97 && c <= 122)) continue
-        if (c == 33 || c == 35 || c == 36 || c == 37 || c == 38 || c == 39 || c == 42 ||
-            c == 43 || c == 45 || c == 46 || c == 94 || c == 95 || c == 96 || c == 124 || c == 126) continue
-        return false
+        if (!httpTokenByte(byte.toUByte().toInt())) return false
     }
     return true
 }

@@ -2,9 +2,8 @@ use std::collections::BTreeMap;
 
 use object::macho;
 use scoop_identity::{
-    DefinitionAtomRole, DefinitionAtomSubkey, DigestPatchIntentId, ObjectDefinitionAtomId,
-    ObjectDefinitionAtomKey, ObjectDefinitionPlanId, ObjectDefinitionPlanKey,
-    StrongDefinitionEntity, StrongDefinitionRole,
+    DefinitionAtomRole, DefinitionAtomSubkey, ObjectDefinitionAtomId, ObjectDefinitionAtomKey,
+    ObjectDefinitionPlanId, ObjectDefinitionPlanKey, StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_lir::{
     StrongCallableRegistrationPlanSetV1, StrongInitializationCallableRefPlanV1,
@@ -17,12 +16,11 @@ use crate::link_object::{PlannedMemberStrongObjectSymbolsV1, PlannedStrongObject
 use super::record::{callable_record, initialization_record};
 
 const COMMAND_BYTES: u32 = 72 + 4 * 80 + 24 + 80;
-const CALLABLE_REGISTRATION_SIZE: u64 = 176;
+const CALLABLE_REGISTRATION_SIZE: u64 = 144;
 const TEXT_FILE_OFFSET: u32 = 32 + COMMAND_BYTES;
 
 pub(super) struct ObjectFixture {
     pub(super) bytes: Vec<u8>,
-    pub(super) patch_offsets: Vec<(DigestPatchIntentId, u64)>,
 }
 
 #[derive(Clone, Copy)]
@@ -49,7 +47,7 @@ pub(super) fn object_bytes(
                 * CALLABLE_REGISTRATION_SIZE,
         8,
     );
-    let readonly_size = registration_relative + 320;
+    let readonly_size = registration_relative + 288;
     let cstring_base = readonly_base + readonly_size;
     let diagnostic = plan
         .semantic()
@@ -109,7 +107,7 @@ pub(super) fn object_bytes(
         plan.registration_primary_atom(),
         2,
         readonly_base + registration_relative,
-        320,
+        288,
     );
     insert_location(
         &mut locations,
@@ -133,7 +131,7 @@ pub(super) fn object_bytes(
             .copy_from_slice(&callable_record(*callable));
     }
     readonly[usize::try_from(registration_relative).unwrap()
-        ..usize::try_from(registration_relative + 320).unwrap()]
+        ..usize::try_from(registration_relative + 288).unwrap()]
         .copy_from_slice(&initialization_record(plan));
     let mut cstring = vec![0; usize::try_from(cstring_size).unwrap()];
     cstring[..diagnostic.len()].copy_from_slice(&diagnostic);
@@ -248,21 +246,7 @@ pub(super) fn object_bytes(
     }
     bytes.extend_from_slice(&strings);
 
-    let registration_file = readonly_file_offset + registration_relative;
-    let mut patch_offsets = Vec::new();
-    if let Some(intent) = plan.schedule().gateway_definition_patch() {
-        patch_offsets.push((intent, registration_file + 280));
-    }
-    for callable in callable_plans.registrations() {
-        let callable_file =
-            readonly_file_offset + callable_registration_relative(callable_plans, callable.body());
-        patch_offsets.push((callable.body_definition_patch(), callable_file + 120));
-    }
-    patch_offsets.sort_unstable_by_key(|(intent, _)| *intent);
-    ObjectFixture {
-        bytes,
-        patch_offsets,
-    }
+    ObjectFixture { bytes }
 }
 
 fn relocations(
@@ -293,13 +277,13 @@ fn relocations(
         plan.schedule()
     {
         items.push((
-            registration + 312,
+            registration + 280,
             primary_symbol_index(symbols, gateway.body_definition_plan()),
         ));
     }
     for callable in callable_plans.registrations() {
         items.push((
-            callable_registration_relative(callable_plans, callable.body()) + 152,
+            callable_registration_relative(callable_plans, callable.body()) + 120,
             primary_symbol_index(symbols, callable.body_definition_plan()),
         ));
     }

@@ -24,8 +24,7 @@ static const size_t sizes[] = {
     2056,
     GC_REGULAR_MAX - 16,
     GC_REGULAR_MAX,
-    GC_REGULAR_MAX + 16,
-};
+    GC_REGULAR_MAX + 16};
 #define SIZE_COUNT (sizeof sizes / sizeof sizes[0])
 
 static void *allocate(const ScoopTypeDescriptor *td) {

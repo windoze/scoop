@@ -1,0 +1,88 @@
+package scoop.url
+
+import scoop.bytes.ByteArrayBuilder
+
+internal class IriInput(val text: String, val locations: Array<Long>)
+
+internal fun iriScalar(code: Int, query: Boolean): Boolean {
+    if (code >= 0xA0 && code <= 0xD7FF) return true
+    if (code >= 0xF900 && code <= 0xFDCF) return true
+    if (code >= 0xFDF0 && code <= 0xFFEF) return true
+    if (code >= 0x10000 && code <= 0xDFFFD && (code and 0xFFFF) <= 0xFFFD) return true
+    if (code >= 0xE1000 && code <= 0xEFFFD) return true
+    return query && ((code >= 0xE000 && code <= 0xF8FF) ||
+        (code >= 0xF0000 && code <= 0x10FFFD && (code and 0xFFFF) <= 0xFFFD))
+}
+
+internal fun prepareIri(text: String): IriInput {
+    val bytes = text.toByteArray()
+    val output = ByteArrayBuilder()
+    val locations = ArrayList<Long>()
+    var offset = 0L
+    var skip = 0
+    var query = false
+    var fragment = false
+    for (character in text) {
+        if (skip > 0) { skip -= 1; continue }
+        val code = character.code
+        if (code <= 32 || code == 127 || code == 92 || (code >= 128 && !iriScalar(code, query))) {
+            urlError(UrlComponent.Reference, "character is not allowed in an IRI", Some(offset))
+        }
+        if (code == 37) {
+            if (bytes.size - offset < 3L) urlError(UrlComponent.Reference, "incomplete percent escape", Some(offset))
+            val high = hexDigit(bytes[offset + 1L].toInt())
+            val low = hexDigit(bytes[offset + 2L].toInt())
+            if (high < 0 || low < 0) urlError(UrlComponent.Reference, "invalid percent escape", Some(offset))
+            appendPercent(output, (high * 16 + low).toByte())
+            locations.add(offset); locations.add(offset + 1L); locations.add(offset + 2L)
+            offset += 3L
+            skip = 2
+        } else if (code < 128) {
+            output.append(code.toByte()); locations.add(offset)
+            offset += 1L
+            if (code == 63 && !fragment) query = true
+            if (code == 35) { fragment = true; query = false }
+        } else {
+            val count = if (code <= 0x7FF) 2L else if (code <= 0xFFFF) 3L else 4L
+            for (index in 0L..<count) {
+                appendPercent(output, bytes[offset + index])
+                locations.add(offset + index); locations.add(offset + index); locations.add(offset + index)
+            }
+            offset += count
+        }
+    }
+    locations.add(bytes.size)
+    return IriInput(String.fromUtf8(output.toByteArray()), locations.toArray())
+}
+
+internal fun iriDisplay(text: String, query: Boolean = false): String {
+    val bytes = text.toByteArray()
+    val output = StringBuilder()
+    var index = 0L
+    while (index < bytes.size) {
+        if (bytes[index] != 37.toByte()) {
+            output.append((bytes[index].toInt() and 255).toChar())
+            index += 1L
+            continue
+        }
+        val start = index
+        val decoded = ByteArrayBuilder()
+        while (index + 2L < bytes.size && bytes[index] == 37.toByte()) {
+            decoded.append((hexDigit(bytes[index + 1L].toInt()) * 16 + hexDigit(bytes[index + 2L].toInt())).toByte())
+            index += 3L
+        }
+        val unicode = String.fromUtf8OrNone(decoded.toByteArray())
+        if (unicode == None) output.append(text.slice(start, index))
+        else {
+            for (character in unicode!!) {
+                if (character.code >= 128 && iriScalar(character.code, query)) output.append(character)
+                else {
+                    val encoded = ByteArrayBuilder()
+                    for (byte in character.toString().toByteArray()) appendPercent(encoded, byte)
+                    output.append(String.fromUtf8(encoded.toByteArray()))
+                }
+            }
+        }
+    }
+    return output.toString()
+}

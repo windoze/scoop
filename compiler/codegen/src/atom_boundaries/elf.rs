@@ -1,6 +1,6 @@
 //! Normalize emitted ELF aliases without changing their owning storage.
 
-use object::{Object, ObjectSymbol, SectionIndex};
+use object::{ObjectSymbol, SectionIndex};
 
 use super::*;
 use crate::elf_object::{ElfObject, error};
@@ -31,8 +31,7 @@ pub(crate) fn existing_pair(
     let start_name = boundary.start().symbol();
     let end_name = boundary.end().symbol();
     let start = output
-        .file
-        .symbol_by_name(start_name.as_str())
+        .original_symbol(start_name.as_str())
         .ok_or_else(|| CodegenError(format!("missing ELF atom start `{start_name}`")))?;
     let section = start
         .section_index()

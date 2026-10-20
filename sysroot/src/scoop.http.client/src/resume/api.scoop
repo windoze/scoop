@@ -1,0 +1,28 @@
+package scoop.http.client
+
+import scoop.http.HttpResponseHead
+import scoop.platform.fs.Path
+
+public enum HttpResumeMismatch { Restart, Fail }
+public enum HttpResumeFailureReason {
+    MissingMetadata, InvalidMetadata, UnreliableValidator, RequestChanged,
+    RepresentationChanged, InvalidRange, IncompleteRange, UnexpectedStatus
+}
+
+public class HttpResumeOptions public constructor(
+    public val partialFile: Path,
+    public val metadataFile: Path,
+    public val mismatch: HttpResumeMismatch = HttpResumeMismatch.Restart,
+    public val maxMetadataBytes: Long = 65536L
+) {
+    init {
+        if (maxMetadataBytes <= 0L) throw IllegalArgumentException(Some("resume metadata limit must be positive"))
+        if (partialFile.normalizeLexically() == metadataFile.normalizeLexically())
+            throw IllegalArgumentException(Some("resume data and metadata need different paths"))
+    }
+}
+
+public class HttpResumeException public constructor(
+    public val reason: HttpResumeFailureReason, public val detail: String,
+    public val head: HttpResponseHead? = None, public val cause: Throwable? = None
+) : Exception(Some(detail))

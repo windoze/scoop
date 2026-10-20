@@ -1,0 +1,76 @@
+package scoop.http
+
+import scoop.io.encoding.Base64
+import scoop.test.*
+import scoop.url.Url
+
+@Test private class WebSocketHandshakeTests {
+    @Test fun `RFC handshake binds its exact key and selected protocol`() {
+        val handshake = wsSample()
+        assertEquals("dGhlIHNhbXBsZSBub25jZQ==", handshake.key)
+        assertEquals("chat", handshake.protocols[0L])
+        assertEquals("superchat", handshake.protocols[1L])
+        val response = handshake.response(Some("chat"))
+        assertEquals("s3pPLMBiTxaQ9kYGzzhZRbK+xOo=", String.fromUtf8(response.fields.findAll("sec-websocket-accept".toByteArray())[0L].value))
+        val negotiated = handshake.accept(response)
+        assertTrue(negotiated.protocol == Some("chat"))
+        assertTrue(when (negotiated.deflate) { case None -> true; case Some(_) -> false })
+        assertTrue(handshake.accept(handshake.response()).protocol == None)
+        val spaced = wsResponse(wsFields(response.fields, "Sec-WebSocket-Accept", [" \ts3pPLMBiTxaQ9kYGzzhZRbK+xOo=\t "]))
+        assertTrue(handshake.accept(spaced).protocol == Some("chat"))
+    }
+
+    @Test fun `request generation uses URL origins and independently generated nonces`() {
+        val protocols = ArrayList<String>()
+        protocols.add("Case"); protocols.add("case")
+        val headers = ArrayList<HttpField>()
+        headers.add(HttpField("Authorization".toByteArray(), "Bearer token".toByteArray(), true))
+        val url = Url.parse("wss://user:secret@BÜCHER.example:443/a%2fb?q=%23+")
+        val handshake = WebSocketHandshake.create(url, protocols, fields = headers)
+        protocols.clear(); headers.clear()
+        assertEquals(2L, handshake.protocols.size)
+        assertTrue(handshake.request.fields[0L].neverIndex)
+        assertEquals("xn--bcher-kva.example:443", String.fromUtf8(handshake.request.fields.findAll("Host".toByteArray())[0L].value))
+        assertEquals("/a%2Fb?q=%23+", wsTarget(handshake.request))
+        assertEquals(16L, Base64.Default.decode(handshake.key).size)
+        val proxy = WebSocketHandshake.create(url, absoluteForm = true)
+        assertTrue(proxy.key != handshake.key)
+        assertEquals("https://xn--bcher-kva.example:443/a%2Fb?q=%23+", wsTarget(proxy.request))
+        val ipv6 = WebSocketHandshake.create(Url.parse("ws://[::1]"), absoluteForm = true)
+        assertEquals("http://[0000:0000:0000:0000:0000:0000:0000:0001]/", wsTarget(ipv6.request))
+        assertEquals("[0000:0000:0000:0000:0000:0000:0000:0001]", String.fromUtf8(ipv6.request.fields.findAll("Host".toByteArray())[0L].value))
+        assertEquals(handshake.key, WebSocketHandshake.parse(handshake.request).key)
+        assertTrue(handshake.accept(handshake.response(Some("Case"))).protocol == Some("Case"))
+    }
+
+    @Test fun `creation rejects invalid URLs protocols and reserved or injected fields`() {
+        assertFailsWith<IllegalArgumentException> { WebSocketHandshake.create(Url.parse("https://example.com")) }
+        assertFailsWith<IllegalArgumentException> { WebSocketHandshake.create(Url.parse("ws://example.com/#")) }
+        val url = Url.parse("ws://example.com")
+        for (protocols in [[""], ["bad name"], ["x", "x"]])
+            assertFailsWith<IllegalArgumentException> { WebSocketHandshake.create(url, protocols) }
+        for (name in ["Host", "connection", "UPGRADE", "Sec-WebSocket-Key", "Sec-WebSocket-Other", "Content-Length", "Transfer-Encoding"])
+            assertFailsWith<IllegalArgumentException> { WebSocketHandshake.create(url, fields = [wsField(name, "x")]) }
+        assertFailsWith<IllegalArgumentException> { WebSocketHandshake.create(url, fields = [wsField("X", "x\r\ny")]) }
+        assertFailsWith<IllegalArgumentException> { wsSample().response(fields = [wsField("Sec-WebSocket-Accept", "x")]) }
+    }
+
+    @Test fun `request token lists accept HTTP casing without folding subprotocol names`() {
+        val sample = wsSample().request
+        var fields = wsFields(sample.fields, "Upgrade", ["h2c, WebSocket"])
+        fields = wsFields(fields, "Connection", ["keep-alive", "uPgRaDe"])
+        fields = wsFields(fields, "Sec-WebSocket-Protocol", [", Case,", "case"])
+        fields = wsFields(fields, "Content-Length", ["0"])
+        val handshake = WebSocketHandshake.parse(wsRequest(fields))
+        assertEquals("Case", handshake.protocols[0L])
+        assertEquals("case", handshake.protocols[1L])
+        assertTrue(handshake.accept(handshake.response(Some("case"))).protocol == Some("case"))
+        assertFailsWith<WebSocketHandshakeException> { handshake.response(Some("CASE")) }
+    }
+}
+
+private fun wsTarget(head: HttpRequestHead): String = when (head.target) {
+    case Http1(bytes) -> String.fromUtf8(bytes)
+    case Http2(_, _, _) -> throw IllegalStateException()
+    case Connect(_) -> throw IllegalStateException()
+}

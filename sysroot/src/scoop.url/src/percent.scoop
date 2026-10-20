@@ -1,0 +1,89 @@
+package scoop.url
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.text.contains
+
+public object PercentEncoding {
+    public fun encode(bytes: List<Byte>): String = encodeUrlBytes(bytes, false, "")
+    public fun encode(text: String): String = encode(text.toByteArray())
+    public fun decode(text: String): Array<Byte> = decodeUrlBytes(text, false)
+    public fun decodeUtf8(text: String): String = urlUtf8(decode(text), UrlComponent.PercentEncoding)
+}
+
+internal fun hexDigit(value: Int): Int =
+    if (value >= 48 && value <= 57) value - 48
+    else if (value >= 65 && value <= 70) value - 55
+    else if (value >= 97 && value <= 102) value - 87 else -1
+
+internal fun isUnreserved(value: Int): Boolean =
+    (value >= 65 && value <= 90) || (value >= 97 && value <= 122) ||
+    (value >= 48 && value <= 57) || value == 45 || value == 46 || value == 95 || value == 126
+
+internal fun appendPercent(output: ByteArrayBuilder, value: Byte) {
+    val number = value.toInt() and 255
+    val digits = "0123456789ABCDEF"
+    output.append(37.toByte())
+    output.append(digits[(number shr 4).toLong()].code.toByte())
+    output.append(digits[(number and 15).toLong()].code.toByte())
+}
+
+internal fun encodeUrlBytes(bytes: List<Byte>, form: Boolean, allowed: String): String {
+    val output = ByteArrayBuilder()
+    for (byte in bytes) {
+        val value = byte.toInt() and 255
+        if (isUnreserved(value) || (value < 128 && allowed.contains(value.toChar()))) output.append(byte)
+        else if (form && value == 32) output.append(43.toByte())
+        else appendPercent(output, byte)
+    }
+    return String.fromUtf8(output.toByteArray())
+}
+
+internal fun decodeUrlBytes(text: String, form: Boolean): Array<Byte> {
+    val input = text.toByteArray()
+    val output = ByteArrayBuilder()
+    var index = 0L
+    while (index < input.size) {
+        val value = input[index].toInt() and 255
+        if (value == 37) {
+            if (input.size - index < 3L) urlError(UrlComponent.PercentEncoding, "incomplete percent escape", Some(index))
+            val high = hexDigit(input[index + 1L].toInt())
+            val low = hexDigit(input[index + 2L].toInt())
+            if (high < 0 || low < 0) urlError(UrlComponent.PercentEncoding, "invalid percent escape", Some(index))
+            output.append((high * 16 + low).toByte())
+            index += 3L
+        } else {
+            output.append(if (form && value == 43) 32.toByte() else input[index])
+            index += 1L
+        }
+    }
+    return output.toByteArray()
+}
+
+internal fun urlUtf8(bytes: List<Byte>, component: UrlComponent): String {
+    val decoded = String.fromUtf8OrNone(bytes)
+    if (decoded == None) urlError(component, "percent-decoded component is not UTF-8")
+    return decoded!!
+}
+
+internal fun canonicalEncoded(text: String, component: UrlComponent): String {
+    val input = text.toByteArray()
+    val output = ByteArrayBuilder()
+    var index = 0L
+    while (index < input.size) {
+        val byte = input[index]
+        val value = byte.toInt() and 255
+        if (value <= 32 || value >= 127 || value == 92) urlError(component, "encoded components require URI ASCII", Some(index))
+        if (value == 37) {
+            if (input.size - index < 3L) urlError(component, "incomplete percent escape", Some(index))
+            val high = hexDigit(input[index + 1L].toInt())
+            val low = hexDigit(input[index + 2L].toInt())
+            if (high < 0 || low < 0) urlError(component, "invalid percent escape", Some(index))
+            appendPercent(output, (high * 16 + low).toByte())
+            index += 3L
+        } else {
+            output.append(byte)
+            index += 1L
+        }
+    }
+    return String.fromUtf8(output.toByteArray())
+}

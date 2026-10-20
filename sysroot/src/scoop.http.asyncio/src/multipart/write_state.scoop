@@ -1,0 +1,48 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.http.MultipartEncoder
+import scoop.platform.io.WriteZeroException
+import scoop.platform.memory.NativeByteBuffer
+
+internal class MultipartWriteState(val encoder: MultipartEncoder, val output: NativeByteBuffer) {
+    var current: MultipartPartWriter? = None
+    var pending: Array<Byte> = []
+    var finished: Boolean = false
+
+    suspend fun drain(sink: AsyncByteSink): Long {
+        val bytes = pending
+        var offset = 0L
+        while (offset < bytes.size) {
+            ensureActive()
+            output.clear()
+            val available = output.writableBytes
+            val count = if (bytes.size - offset < available) bytes.size - offset else available
+            output.writeBytes(bytes, offset, count)
+            while (output.readableBytes > 0L) {
+                ensureActive()
+                val requested = output.readableBytes
+                val beforeRead = output.readPosition
+                val beforeWrite = output.writePosition
+                val written = sink.writeFrom(output, requested)
+                httpProgress(written, requested)
+                if (output.readPosition - beforeRead != written || output.writePosition != beforeWrite)
+                    throw IllegalStateException(Some("inconsistent multipart sink progress"))
+                if (written == 0L) throw WriteZeroException()
+            }
+            offset += count
+        }
+        output.clear()
+        pending = []
+        return bytes.size
+    }
+
+    fun close() {
+        when (current) { case Some(part) -> part.closed = true; case None -> {} }
+        current = None
+        pending = []
+        var failure = messageCleanup(None) { output.close() }
+        failure = messageCleanup(failure) { encoder.close() }
+        when (failure) { case Some(error) -> throw error; case None -> {} }
+    }
+}

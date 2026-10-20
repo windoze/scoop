@@ -1,4 +1,4 @@
-#include "tls.h"
+#include "system.h"
 #include <openssl/x509v3.h>
 
 ScoopCryptoResult scoop_tls_session_new(uint64_t value, int server,
@@ -17,6 +17,7 @@ ScoopCryptoResult scoop_tls_session_new(uint64_t value, int server,
   int ok = session->ssl &&
            BIO_new_bio_pair(&internal, 16384, &session->network, 16384);
   if (ok) {
+    SSL_set_app_data(session->ssl, session);
     SSL_set_bio(session->ssl, internal, internal);
     SSL_set_mode(session->ssl, SSL_MODE_ENABLE_PARTIAL_WRITE);
     if (server) {
@@ -48,6 +49,9 @@ ScoopCryptoResult scoop_tls_session_new(uint64_t value, int server,
 void scoop_tls_session_free(uint64_t value) {
   ScoopTlsSession *session = (ScoopTlsSession *)(uintptr_t)value;
   if (session) {
+    scoop_tls_verification_free(session->verification);
+    if (session->verification_result.error)
+      scoop_crypto_error_free(session->verification_result.error);
     SSL_free(session->ssl);
     BIO_free(session->network);
     scoop_tls_context_free((uintptr_t)session->context);

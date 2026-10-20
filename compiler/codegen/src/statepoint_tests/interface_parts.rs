@@ -36,8 +36,7 @@ fn expected() -> ExpectedSafepoints {
             )
         })
         .collect(),
-        functions: ["f", "g", "h"]
-            .map(|name| (name.into(), GcEffect::Managed))
+        functions: BTreeMap::from(["f", "g", "h"].map(|name| (name.into(), GcEffect::Managed)))
             .into(),
     }
 }

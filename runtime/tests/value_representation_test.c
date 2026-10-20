@@ -21,16 +21,14 @@ static const uint64_t array_scan[] = {SCOOP_REFS_ARRAY, 16, 32, 16,
 static const ScoopTypeDescriptor leaf_td = {
     .instance_shape = {.instance_kind = SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1,
                        .minimum_size = 24,
-                       .instance_alignment = 8},
-};
+                       .instance_alignment = 8}};
 static const ScoopTypeDescriptor zst_box_td = {
     .instance_shape = {.instance_kind = SCOOP_TYPE_INSTANCE_BOXED_VALUE_V1,
                        .inline_storage_kind = SCOOP_INLINE_STORAGE_ZERO_SIZED_V1,
                        .minimum_size = 16,
                        .instance_alignment = 16,
                        .inline_offset = 16,
-                       .inline_alignment = 16},
-};
+                       .inline_alignment = 16}};
 static const ScoopTypeDescriptor ref_box_td = {
     .instance_shape = {.instance_kind = SCOOP_TYPE_INSTANCE_BOXED_VALUE_V1,
                        .inline_storage_kind = SCOOP_INLINE_STORAGE_INLINE_V1,
@@ -40,16 +38,14 @@ static const ScoopTypeDescriptor ref_box_td = {
                        .inline_size = 16,
                        .inline_alignment = 16,
                        .inline_scan = value_scan},
-    .object_scan = box_scan,
-};
+    .object_scan = box_scan};
 static const ScoopTypeDescriptor zst_array_td = {
     .instance_shape = {.instance_kind = SCOOP_TYPE_INSTANCE_INLINE_ARRAY_V1,
                        .inline_storage_kind = SCOOP_INLINE_STORAGE_ZERO_SIZED_V1,
                        .minimum_size = 32,
                        .instance_alignment = 16,
                        .inline_offset = 32,
-                       .inline_alignment = 16},
-};
+                       .inline_alignment = 16}};
 static const ScoopTypeDescriptor ref_array_td = {
     .instance_shape = {.instance_kind = SCOOP_TYPE_INSTANCE_INLINE_ARRAY_V1,
                        .inline_storage_kind = SCOOP_INLINE_STORAGE_INLINE_V1,
@@ -60,16 +56,14 @@ static const ScoopTypeDescriptor ref_array_td = {
                        .inline_stride = 16,
                        .inline_alignment = 16,
                        .inline_scan = value_scan},
-    .object_scan = array_scan,
-};
+    .object_scan = array_scan};
 static const ScoopTypeDescriptor zst_target_td = {
     .instance_shape = {.instance_kind = SCOOP_TYPE_INSTANCE_INLINE_ARRAY_V1,
                        .inline_storage_kind = SCOOP_INLINE_STORAGE_ZERO_SIZED_V1,
                        .minimum_size = 32,
                        .instance_alignment = 16,
                        .inline_offset = 32,
-                       .inline_alignment = 16},
-};
+                       .inline_alignment = 16}};
 static const ScoopTypeDescriptor ref_target_td = {
     .instance_shape = {.instance_kind = SCOOP_TYPE_INSTANCE_INLINE_ARRAY_V1,
                        .inline_storage_kind = SCOOP_INLINE_STORAGE_INLINE_V1,
@@ -80,8 +74,7 @@ static const ScoopTypeDescriptor ref_target_td = {
                        .inline_stride = 16,
                        .inline_alignment = 16,
                        .inline_scan = value_scan},
-    .object_scan = array_scan,
-};
+    .object_scan = array_scan};
 static const ScoopTypeDescriptor bytes_td = {
     .instance_shape = {.instance_kind = SCOOP_TYPE_INSTANCE_INLINE_BYTES_V1,
                        .inline_storage_kind = SCOOP_INLINE_STORAGE_INLINE_V1,
@@ -90,8 +83,7 @@ static const ScoopTypeDescriptor bytes_td = {
                        .inline_offset = 24,
                        .inline_size = 1,
                        .inline_stride = 1,
-                       .inline_alignment = 1},
-};
+                       .inline_alignment = 1}};
 
 typedef struct TestPayload {
     void *reference;

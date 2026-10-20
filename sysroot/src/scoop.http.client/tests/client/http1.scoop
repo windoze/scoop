@@ -1,0 +1,136 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.test.*
+
+@Test
+private class HttpClientHttp1Test {
+    @Test
+    fun `execute returns real final metadata and preserves producer and observer Context`() {
+        clientTestTrust().use { trust ->
+            val loop: EventLoop = LibuvEventLoop()
+            loop.run suspend { scope ->
+                clientTestListen(loop).useAsync suspend { listener ->
+                    val serving = scope.launch suspend {
+                        AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                            val request = connection.receiveRequest()!!
+                            assertEquals("POST", String.fromUtf8(request.head.method))
+                            assertEquals("/actual?q=1", when (request.head.target) { case Http1(bytes) -> String.fromUtf8(bytes); else -> "" })
+                            assertEquals("client body", String.fromUtf8(request.body.readAllBytes(100L)))
+                            connection.sendResponse(HttpResponseHead(HttpVersion.Http11, 103U,
+                                fields = [HttpField("Link".toByteArray(), "</x>".toByteArray())])).finish()
+                            sendClientTestText(connection, 404U, "missing")
+                        }
+                    }
+                    val client = context(BodyTestContext("client")) { HttpClient.open(scope, clientTestConfig(trust)) }
+                    try {
+                        val calls = ArrayList<String>()
+                        val body = RequestBody.fromProducer suspend { sink ->
+                            assertEquals("request", currentBodyTestContext())
+                            writeBodyText(sink, "client body")
+                        }
+                        val options = HttpCallOptions(onInformational = suspend { head ->
+                            assertEquals(103U, head.status)
+                            assertEquals("request", currentBodyTestContext())
+                            calls.add("observed")
+                        })
+                        context(BodyTestContext("request")) {
+                            client.withResponse(HttpRequest.post(clientTestUrl(listener, "/actual?q=1#fragment"), body, options = options)) suspend { response ->
+                                assertEquals(404U, response.status)
+                                assertTrue(response.version == HttpVersion.Http11)
+                                assertEquals("actual reason", String.fromUtf8(response.head.reason!!))
+                                assertTrue(response.wireContentLength == Some(7L))
+                                val error = assertFailsWith<HttpStatusException> { response.requireSuccess() }
+                                assertSame(response.head, error.head)
+                                assertEquals("missing", String.fromUtf8(response.body.readAllBytes(100L)))
+                                assertTrue(response.body.isComplete)
+                                assertEquals(0L, response.trailers!!.size)
+                            }
+                        }
+                        assertEquals(1L, calls.size)
+                        serving.join()
+                        assertFalse(scope.job.isCancelled)
+                    } finally { client.close() }
+                    assertTrue(client.isClosed)
+                    client.close()
+                    expectBodyFailure<HttpClientClosedException> suspend { client.execute(HttpRequest.get(clientTestUrl(listener))); Unit }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `HTTP 1.0 sends fixed lengths and receives its real version without chunking`() {
+        clientTestTrust().use { trust ->
+            val loop: EventLoop = LibuvEventLoop()
+            loop.run suspend { scope ->
+                clientTestListen(loop).useAsync suspend { listener ->
+                    val serving = scope.launch suspend {
+                        AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                            val incoming = connection.receiveRequest()!!
+                            assertTrue(incoming.head.version == HttpVersion.Http10)
+                            assertEquals("data", String.fromUtf8(incoming.body.readAllBytes(4L)))
+                            connection.sendResponse(HttpResponseHead(HttpVersion.Http10, 204U)).finish()
+                        }
+                    }
+                    withHttpClient(clientTestConfig(trust, HttpVersion.Http10)) suspend { client ->
+                        val unknown = RequestBody.fromProducer suspend { _ -> }
+                        expectBodyFailure<IllegalArgumentException> suspend {
+                            client.execute(HttpRequest.post(clientTestUrl(listener), unknown)); Unit
+                        }
+                        client.withResponse(HttpRequest.post(clientTestUrl(listener), RequestBody.fromText("data"))) suspend { response ->
+                            assertTrue(response.version == HttpVersion.Http10)
+                            assertEquals(204U, response.status)
+                            assertEquals(0L, response.body.readAllBytes(0L).size)
+                        }
+                    }
+                    serving.join()
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `early final responses are readable before a suspended source finishes`() {
+        clientTestTrust().use { trust ->
+            val loop: EventLoop = LibuvEventLoop()
+            loop.run suspend { scope ->
+                clientTestListen(loop).useAsync suspend { listener ->
+                    val source = BodyTestSource("late data".toByteArray())
+                    source.holdRead = true
+                    source.holdClose = true
+                    val serverDone = BodyTestGate()
+                    val serving = scope.launch suspend {
+                        AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                            connection.receiveRequest()
+                            source.started.await()
+                            sendClientTestText(connection, 413U, "stop")
+                            serverDone.await()
+                        }
+                    }
+                    withHttpClient(clientTestConfig(trust)) suspend { client ->
+                        val body = RequestBody.fromSourceFactory suspend { source }
+                        val response = client.execute(HttpRequest.post(clientTestUrl(listener), body))
+                        assertEquals(413U, response.status)
+                        assertEquals("stop", String.fromUtf8(response.body.readAllBytes(4L)))
+                        assertEquals(0L, source.closes)
+                        val closing = scope.launch suspend { response.close() }
+                        assertFalse(closing.isCompleted)
+                        source.release.signal()
+                        source.closeStarted.await()
+                        assertFalse(closing.isCompleted)
+                        source.closeRelease.signal()
+                        closing.join()
+                        assertEquals(1L, source.closes)
+                        assertTrue(source.buffer!!.isClosed)
+                    }
+                    serverDone.signal()
+                    serving.join()
+                    assertFalse(scope.job.isCancelled)
+                }
+            }
+        }
+    }
+}

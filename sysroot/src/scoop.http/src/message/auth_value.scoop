@@ -1,0 +1,56 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+
+internal class HttpAuthValue(val scheme: String, val token68: String?, val parameters: Array<HttpParameter>) {
+    fun toByteArray(): Array<Byte> {
+        val output = ByteArrayBuilder()
+        output.append(scheme.toByteArray())
+        when (token68) {
+            case Some(token) -> { output.append(32.toByte()); output.append(token.toByteArray()) }
+            case None -> if (parameters.size > 0L) {
+                output.append(32.toByte())
+                appendHttpAuthParameters(output, parameters)
+            }
+        }
+        return output.toByteArray()
+    }
+}
+
+internal fun httpAuthWithParameters(scheme: String, parameters: List<HttpParameter>): HttpAuthValue =
+    HttpAuthValue(httpNormalizedToken(scheme), None, uniqueHttpParameters(parameters))
+
+internal fun httpAuthWithToken68(scheme: String, token: String): HttpAuthValue {
+    val bytes = token.toByteArray()
+    var index = 0L
+    while (index < bytes.size && httpToken68Byte(bytes[index].toUByte().toInt())) index += 1L
+    if (index == 0L) throw IllegalArgumentException(Some("empty authentication token68"))
+    while (index < bytes.size && bytes[index] == 61.toByte()) index += 1L
+    if (index != bytes.size) throw IllegalArgumentException(Some("invalid authentication token68"))
+    return HttpAuthValue(httpNormalizedToken(scheme), Some(token), [])
+}
+
+internal fun httpToken68Byte(c: Int): Boolean =
+    (c >= 48 && c <= 57) || (c >= 65 && c <= 90) || (c >= 97 && c <= 122) ||
+    c == 45 || c == 46 || c == 95 || c == 126 || c == 43 || c == 47
+
+internal fun appendHttpAuthParameters(output: ByteArrayBuilder, parameters: List<HttpParameter>) {
+    var first = true
+    for (parameter in parameters) {
+        if (!first) output.append(", ".toByteArray())
+        output.append(parameter.name.toByteArray()); output.append(61.toByte())
+        appendHttpParameterValue(output, parameter.value, parameter.wasQuoted)
+        first = false
+    }
+}
+
+internal fun combinedHttpAuthFields(fields: List<HttpField>, fieldName: String): Array<Byte> {
+    val output = ByteArrayBuilder()
+    var first = true
+    for (field in fields.findAll(fieldName.toByteArray())) {
+        if (!first) output.append(", ".toByteArray())
+        output.append(field.value)
+        first = false
+    }
+    return output.toByteArray()
+}

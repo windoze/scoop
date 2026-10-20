@@ -1,0 +1,121 @@
+package scoop.asyncio
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.collections.listOf
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.*
+import scoop.test.*
+
+@Test
+private class AsyncSocks5HandshakeTest {
+    @Test
+    fun `short transfers retain the complete tunnel suffix and decode IPv4 binding`() {
+        val script = Socks5Script(socks5Joined(socks5SuccessInput(), [42, 73]))
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            val tunnel = AsyncSocks5Tunnel.takeOwnership(script, socks5IpTarget())
+            assertEquals(12L, script.position)
+            when (tunnel.boundAddress) {
+                case Ip(address) -> assertEquals(SocketAddress(IpAddress.IPV4_LOOPBACK, 8080), address)
+                case _ -> fail()
+            }
+            NativeByteBuffer.allocate(2L).use suspend { bytes ->
+                gcCollect()
+                tunnel.readFully(bytes)
+                assertSocks5Bytes([42, 73], bytes.readBytes(2L))
+                bytes.clear()
+                bytes.writeBytes(listOf<Byte>(10, 20))
+                tunnel.writeFully(bytes)
+                tunnel.flush()
+            }
+            assertSocks5Bytes([5, 1, 0, 5, 1, 0, 1, 127, 0, 0, 1, 31, -112, 10, 20], script.sent.toByteArray())
+            assertEquals(3L, script.flushes)
+            tunnel.close()
+            assertTrue(tunnel.isClosed)
+            tunnel.close()
+            assertEquals(1L, script.closes)
+        }
+    }
+
+    @Test
+    fun `proxy DNS sends the ASCII name while local DNS sends an actual IP address`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            val remote = Socks5Script(socks5SuccessInput())
+            AsyncSocks5Tunnel.takeOwnership(remote, Socks5Address.Domain("example.invalid", 443)).close()
+            val expected = ByteArrayBuilder()
+            expected.append(listOf<Byte>(5, 1, 0, 5, 1, 0, 3, 15))
+            expected.append("example.invalid".toByteArray()).append(listOf<Byte>(1, -69))
+            assertSocks5Bytes(expected.toByteArray(), remote.sent.toByteArray())
+
+            val local = Socks5Script(socks5SuccessInput())
+            AsyncSocks5Tunnel.takeOwnership(local, Socks5Address.Domain("127.0.0.1", 8080),
+                resolution = Socks5Resolution.Local).close()
+            assertSocks5Bytes([5, 1, 0, 5, 1, 0, 1, 127, 0, 0, 1, 31, -112], local.sent.toByteArray())
+        }
+    }
+
+    @Test
+    fun `IPv6 and domain bound addresses retain their wire values`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            val bytes = ByteArrayBuilder()
+            bytes.append(listOf<Byte>(5, 0, 5, 0, 0, 4)).append(IpAddress.IPV6_LOOPBACK.toByteArray()).append(listOf<Byte>(0, 80))
+            val ipv6 = Socks5Script(bytes.toByteArray())
+            AsyncSocks5Tunnel.takeOwnership(ipv6,
+                Socks5Address.Ip(SocketAddress(IpAddress.IPV6_LOOPBACK, 80))).useAsync suspend { tunnel ->
+                when (tunnel.boundAddress) {
+                    case Ip(address) -> assertEquals(SocketAddress(IpAddress.IPV6_LOOPBACK, 80), address)
+                    case _ -> fail()
+                }
+            }
+            val expected = ByteArrayBuilder()
+            expected.append(listOf<Byte>(5, 1, 0, 5, 1, 0, 4)).append(IpAddress.IPV6_LOOPBACK.toByteArray()).append(listOf<Byte>(0, 80))
+            assertSocks5Bytes(expected.toByteArray(), ipv6.sent.toByteArray())
+
+            val domain = Socks5Script([5, 0, 5, 0, 0, 3, 1, 120, 0, 80])
+            AsyncSocks5Tunnel.takeOwnership(domain, socks5IpTarget()).useAsync suspend { tunnel ->
+                when (tunnel.boundAddress) {
+                    case Domain(name, port) -> { assertEquals("x", name); assertEquals(80, port) }
+                    case _ -> fail()
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `UTF8 credentials authenticate with byte lengths and no method downgrade`() {
+        val identity = Socks5Credentials.fromUtf8("用户", "口令")
+        val script = Socks5Script([5, 2, 1, 0, 5, 0, 0, 1, 127, 0, 0, 1, 0, 80])
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            AsyncSocks5Tunnel.takeOwnership(script, socks5IpTarget(), Some(identity)).close()
+            val expected = ByteArrayBuilder()
+            expected.append(listOf<Byte>(5, 1, 2, 1, 6)).append("用户".toByteArray())
+            expected.append(6.toByte()).append("口令".toByteArray())
+            expected.append(listOf<Byte>(5, 1, 0, 1, 127, 0, 0, 1, 31, -112))
+            assertSocks5Bytes(expected.toByteArray(), script.sent.toByteArray())
+            assertEquals(3L, script.flushes)
+        }
+    }
+
+    @Test
+    fun `maximum length opaque credentials fit the bounded handshake buffer`() {
+        val username = Array<Byte>(255L) { _ -> 255.toByte() }
+        val password = Array<Byte>(255L) { _ -> 0.toByte() }
+        val identity = Socks5Credentials(username, password)
+        val script = Socks5Script([5, 2, 1, 0, 5, 0, 0, 1, 127, 0, 0, 1, 0, 80])
+        script.writeSize = 1024L
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            AsyncSocks5Tunnel.takeOwnership(script, socks5IpTarget(), Some(identity)).close()
+            val actual = script.sent.toByteArray()
+            assertEquals(526L, actual.size)
+            assertEquals(1.toByte(), actual[3L])
+            assertEquals(255.toByte(), actual[4L])
+            assertEquals(255.toByte(), actual[260L])
+            for (index in 5L..<260L) assertEquals(255.toByte(), actual[index])
+            for (index in 261L..<516L) assertEquals(0.toByte(), actual[index])
+        }
+    }
+}

@@ -1,0 +1,48 @@
+package scoop.platform.net
+
+import scoop.text.*
+
+public class IpNetwork public constructor(address: IpAddress, public val prefixLength: Int) : Equals<IpNetwork>, Hash, ToString {
+    public val address: IpAddress = networkAddress(address, prefixLength)
+    public val family: AddressFamily get() = address.family
+
+    public fun contains(candidate: IpAddress): Boolean {
+        if (candidate.family != family) return false
+        val expected = address.toByteArray()
+        val actual = candidate.toByteArray()
+        for (index in 0L..<expected.size) {
+            val mask = networkMask(prefixLength, index)
+            if ((actual[index].toInt() and mask) != (expected[index].toInt() and 255)) return false
+        }
+        return true
+    }
+
+    public override operator fun equals(other: IpNetwork): Boolean = prefixLength == other.prefixLength && address == other.address
+    public override fun hash(): Long = address.hash() * 31L + prefixLength.hash()
+    public override fun toString(): String = address.toString() + "/" + prefixLength.toString()
+
+    public companion object {
+        public fun parse(text: String): IpNetwork {
+            val separator = text.indexOf('/')
+            if (separator <= 0L) throw IllegalArgumentException(Some("CIDR requires an IP address and prefix length"))
+            val prefix = decimal(text.slice(separator + 1L, text.length))
+            if (prefix > 128u) throw IllegalArgumentException(Some("CIDR prefix length is out of range"))
+            return IpNetwork(IpAddress.parse(text.slice(0L, separator)), prefix.toInt())
+        }
+    }
+}
+
+private fun networkAddress(address: IpAddress, prefixLength: Int): IpAddress {
+    val bits = if (address.family == AddressFamily.Ipv4) 32 else 128
+    if (prefixLength < 0 || prefixLength > bits || address.scopeId != 0u)
+        throw IllegalArgumentException(Some("CIDR requires an unscoped address and valid prefix length"))
+    val bytes = address.toByteArray()
+    return IpAddress.fromByteArray(Array<Byte>(bytes.size) { index ->
+        (bytes[index].toInt() and networkMask(prefixLength, index)).toByte()
+    })
+}
+
+private fun networkMask(prefixLength: Int, index: Long): Int {
+    val remaining = prefixLength.toLong() - index * 8L
+    return if (remaining <= 0L) 0 else if (remaining >= 8L) 255 else (255 shl (8L - remaining)) and 255
+}

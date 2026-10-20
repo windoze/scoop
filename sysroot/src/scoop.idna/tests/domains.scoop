@@ -1,0 +1,129 @@
+package scoop.idna
+
+import scoop.test.*
+
+@Test
+private class IdnaDomainTests {
+    @Test
+    fun `UTS46 nontransitional mapping NFC and A-label round trips`() {
+        checkName("Example.COM", "example.com", "example.com")
+        checkName("faß.de", "xn--fa-hia.de", "faß.de")
+        checkName("ς.gr", "xn--3xa.gr", "ς.gr")
+        checkName("e\u{0301}.example", "xn--9ca.example", "é.example")
+        checkName("Ａ。Ｂ．Ｃ｡", "a.b.c.", "a.b.c.")
+        checkName("BÜCHER.example", "xn--bcher-kva.example", "bücher.example")
+        checkName("XN--BCHER-KVA.example", "xn--bcher-kva.example", "bücher.example")
+        assertEquals("xn--fa-hia", Idna.labelToAscii("faß"))
+        assertEquals("faß", Idna.labelToUnicode("xn--fa-hia"))
+        assertEquals("15.1.0", Idna.unicodeVersion)
+    }
+
+    @Test
+    fun `validated names retain both representations after native cleanup`() {
+        val name = Idna.parse("BÜCHER。example.")
+        gcCollect()
+        assertEquals("xn--bcher-kva.example.", name.ascii)
+        assertEquals("bücher.example.", name.unicode)
+        val second = Idna.parse(name.ascii)
+        assertEquals(name.unicode, second.unicode)
+        assertEquals(".", Idna.parse("。").ascii)
+        assertFailsWith<IdnaException> { Idna.parse("0a.א") }
+        assertFailsWith<IdnaException> { Idna.parse("a_b") }
+    }
+
+    @Test
+    fun `STD3-disallowed characters are rejected instead of deleted`() {
+        for (input in ["a_b", "a/b", "a＠b", "a＿b", "a b", "a@b", "a:b", "a\u{0000}b", "a\tb", "a\u{007f}b"]) {
+            assertFailsWith<IdnaException> { Idna.toAscii(input) }
+            assertTrue(Idna.toAsciiOrNone(input) == None)
+            assertTrue(Idna.toUnicodeOrNone(input) == None)
+        }
+        val error = assertFailsWith<IdnaException> { Idna.toAscii("valid.a_b") }
+        assertTrue(error.kind == IdnaFailureKind.Disallowed)
+        assertTrue(error.code == None)
+        assertEquals(1L, error.labelIndex!!)
+    }
+
+    @Test
+    fun `ContextJ ContextO and Bidi use the same rules for Unicode and A-labels`() {
+        assertEquals("xn--ll-0ea.cat", Idna.toAscii("l·l.cat"))
+        for (input in ["a·b.cat", "xn--ab-0ea.cat", "a・b.test", "͵a.test", "a\u{200d}b.test"]) {
+            val error = assertFailsWith<IdnaException> { Idna.toAscii(input) }
+            assertTrue(error.kind == IdnaFailureKind.Context)
+            assertTrue(error.code != None)
+            assertTrue(Idna.toUnicodeOrNone(input) == None)
+        }
+        val bidi = assertFailsWith<IdnaException> { Idna.toAscii("אa.test") }
+        assertTrue(bidi.kind == IdnaFailureKind.Bidi)
+        assertEquals("क्\u{200d}ष.test", Idna.toUnicode(Idna.toAscii("क्\u{200d}ष.test")))
+        assertEquals("カ・ナ.test", Idna.toUnicode(Idna.toAscii("カ・ナ.test")))
+    }
+
+    @Test
+    fun `root empty labels bad A-labels and single-label separators`() {
+        assertEquals(".", Idna.toAscii("。"))
+        assertEquals(".", Idna.toUnicode("."))
+        for (input in ["", "..", ".a", "a..b", "a.b..", "-a", "a-", "ab--cd", "xn--", "xn--a", "xn--abc-"]) {
+            assertTrue(Idna.toAsciiOrNone(input) == None)
+            assertTrue(Idna.toUnicodeOrNone(input) == None)
+        }
+        for (input in [".", "a.b", "a。b", "a．b", "a｡b", "example."]) {
+            assertFailsWith<IdnaException> { Idna.labelToAscii(input) }
+            assertFailsWith<IdnaException> { Idna.labelToUnicode(input) }
+        }
+    }
+
+    @Test
+    fun `DNS label and wire length boundaries include the root label`() {
+        val label = letters(63L)
+        assertEquals(label, Idna.labelToAscii(label))
+        assertFailsWith<IdnaException> { Idna.labelToAscii(letters(64L)) }
+        var accented = ""
+        for (_ in 0..<57) { accented += "é" }
+        assertEquals("xn--9ca" + letters(56L), Idna.labelToAscii(accented))
+        val tooLongLabel = accented + "é"
+        val labelError = assertFailsWith<IdnaException> { Idna.labelToAscii(tooLongLabel) }
+        assertTrue(labelError.kind == IdnaFailureKind.NameTooLong)
+        val valid = label + "." + label + "." + label + "." + letters(61L)
+        assertEquals(valid, Idna.toAscii(valid))
+        assertEquals(valid + ".", Idna.toAscii(valid + "."))
+        val error = assertFailsWith<IdnaException> { Idna.toAscii(valid + "a") }
+        assertTrue(error.kind == IdnaFailureKind.NameTooLong)
+        gcCollect()
+        assertEquals(valid, Idna.toUnicode(valid))
+    }
+
+    @Test
+    fun `Bidi constraints apply across labels including decoded A-labels`() {
+        assertEquals("123.example", Idna.toAscii("123.example"))
+        for (input in ["0a.א", "123.xn--4db", "àˇ.א", "xn--0ca88g.xn--4db", "א0٠א", "א7٧ת", "א-\u{0300}.test", "ا١۱.test"]) {
+            val error = assertFailsWith<IdnaException> { Idna.toAscii(input) }
+            assertTrue(error.kind == IdnaFailureKind.Bidi)
+            assertTrue(Idna.toUnicodeOrNone(input) == None)
+        }
+        checkName("א0א.example", "xn--0-zhcb.example", "א0א.example")
+    }
+
+    @Test
+    fun `length checks use NFC and the final A-label representation`() {
+        var decomposed = ""
+        var composed = ""
+        for (_ in 0..<32) {
+            decomposed += "e\u{0301}"
+            composed += "é"
+        }
+        val input = decomposed + "." + decomposed + "." + decomposed + "." + decomposed
+        val unicode = composed + "." + composed + "." + composed + "." + composed
+        assertEquals(Idna.toAscii(unicode), Idna.toAscii(input))
+        assertEquals(unicode, Idna.toUnicode(input))
+    }
+}
+
+private fun letters(count: Long): String = String.fromUtf8(Array<Byte>(count) { _ -> 97.toByte() })
+
+private fun checkName(input: String, ascii: String, unicode: String) {
+    assertEquals(ascii, Idna.toAscii(input))
+    gcCollect()
+    assertEquals(unicode, Idna.toUnicode(ascii))
+    assertEquals(unicode, Idna.toUnicode(input))
+}

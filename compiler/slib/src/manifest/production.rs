@@ -232,16 +232,6 @@ impl SingleConeProductionManifestV1 {
         &self.code
     }
 
-    pub fn runtime_image_records(&self) -> &crate::RuntimeImageRecords {
-        self.code
-            .production()
-            .link_objects()
-            .final_objects()
-            .runtime_images()
-            .fingerprint()
-            .records()
-    }
-
     pub const fn runtime_image_fingerprint(&self) -> RuntimeImageFingerprint {
         self.projection().runtime_image_fingerprint()
     }
@@ -261,11 +251,9 @@ impl SingleConeProductionManifestV1 {
 
 impl WireEncode for SingleConeProductionManifestV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(2)?;
+        encoder.map(1)?;
         encoder.field(11)?;
-        self.odr_members().encode(encoder)?;
-        encoder.field(14)?;
-        self.runtime_image_records().encode(encoder)
+        self.odr_members().encode(encoder)
     }
 }
 

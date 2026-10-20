@@ -1,0 +1,25 @@
+import scoop.asyncio.*
+import scoop.platform.net.*
+import scoop.platform.system.OsString
+import scoop.test.*
+
+fun main() {
+    for (host in ["127.0.0.1", "::1"])
+        tcpTraceCase("success-" + host) { tcpTraceConnection("success", host) }
+    for (mode in ["off", "failure", "resolve-zero", "connect-zero", "cancel", "secondary"])
+        tcpTraceCase(mode) { tcpTraceConnection(mode, "127.0.0.1") }
+    for (phase in [TcpConnectPhase.Resolve, TcpConnectPhase.Connect]) {
+        for (kind in [TcpConnectEventKind.Started, TcpConnectEventKind.Finished])
+            tcpTraceCase("callback-" + (if (phase == TcpConnectPhase.Resolve) "resolve" else "connect") +
+                (if (kind == TcpConnectEventKind.Started) "-start" else "-finish")) { tcpTraceCallback(phase, kind) }
+    }
+    println("TCP phase observation preserves timing context failures and socket ownership")
+}
+
+private fun tcpTraceCase(name: String, block: () -> Unit) {
+    try { block() }
+    catch (error: AssertionFailure) {
+        eprintln(name + " " + error.kind + " " + (error.message ?: "failure") + " at " + error.location.file + ":" + error.location.line.toString())
+        throw error
+    } catch (error: Throwable) { eprintln("failed TCP trace case: " + name); throw error }
+}

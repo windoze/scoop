@@ -121,6 +121,7 @@ impl WireEncode for DefinitionSymbolPlanV1 {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ObjectSymbolSurfaceV1 {
     plans: Vec<DefinitionSymbolPlanV1>,
+    symbol_owners: BTreeMap<PersistentSymbolKey, ObjectDefinitionPlanId>,
     atom_boundary_indices: BTreeMap<ObjectDefinitionAtomId, (usize, usize)>,
 }
 
@@ -132,6 +133,8 @@ impl ObjectSymbolSurfaceV1 {
     ) {
         self.plans
             .retain(|plan| !definitions.contains(&plan.definition_plan));
+        self.symbol_owners
+            .retain(|_, definition| !definitions.contains(definition));
         for plan in &mut self.plans {
             plan.atom_boundaries
                 .retain(|boundary| !atoms.contains(&boundary.atom));
@@ -155,15 +158,10 @@ impl ObjectSymbolSurfaceV1 {
         let mut symbol_owners = BTreeMap::new();
         for definition in definitions.plans() {
             let definition_plan = definition.plan();
-            let key = foundation
-                .definition_plan(definition_plan)
-                .ok_or(ObjectSymbolSurfaceBuildError::MissingDefinitionKey(
-                    definition_plan,
-                ))?
-                .key();
             let record = foundation.definition_plan(definition_plan).ok_or(
                 ObjectSymbolSurfaceBuildError::MissingDefinitionKey(definition_plan),
             )?;
+            let key = record.key();
             let (entity, definition_role) = foundation.definition_subject(record).ok_or(
                 ObjectSymbolSurfaceBuildError::UnknownDefinitionSubject(definition_plan),
             )?;
@@ -221,6 +219,7 @@ impl ObjectSymbolSurfaceV1 {
         let atom_boundary_indices = atom_boundary_indices(&plans);
         Ok(Self {
             plans,
+            symbol_owners,
             atom_boundary_indices,
         })
     }
@@ -240,6 +239,17 @@ impl ObjectSymbolSurfaceV1 {
             .binary_search_by_key(&definition_plan, |plan| plan.definition_plan)
             .ok()
             .map(|index| &self.plans[index])
+    }
+
+    pub fn definition(
+        &self,
+        owner: StrongDefinitionEntity,
+        role: StrongDefinitionRole,
+    ) -> Option<&DefinitionSymbolPlanV1> {
+        let symbol = owner.primary_symbol_key(role)?;
+        let definition = *self.symbol_owners.get(&symbol)?;
+        self.plan(definition)
+            .filter(|plan| plan.owner() == owner && plan.definition_role() == role)
     }
 }
 

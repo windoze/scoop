@@ -16,3 +16,4 @@ kind = "library"
 [test-dependencies]
 "scoop:scoop.test" = "0.1.0"
 "scoop.tests:crypto-certificates" = { version = "0.1.0", path = "../scoop.crypto/test-certificates" }
+"scoop.tests:tls-system-native" = { version = "0.1.0", path = "../scoop.tls/test-native" }

@@ -1,0 +1,59 @@
+package scoop.http
+
+import scoop.test.*
+
+@Test
+private class HttpResponseContentTest {
+    @Test
+    fun `response content depends on exact method and status rather than representation metadata`() {
+        val fields = [HttpField("Content-Encoding".toByteArray(), "gzip".toByteArray()),
+            HttpField("Content-Length".toByteArray(), "123".toByteArray())]
+        for (status in [200U, 201U, 203U, 206U, 301U, 400U, 500U, 999U]) {
+            val head = HttpResponseHead(HttpVersion.Http11, status, fields = fields)
+            assertTrue(httpResponseAllowsContent(head, "GET".toByteArray()))
+            assertTrue(httpResponseAllowsContent(head, "head".toByteArray()))
+            assertFalse(httpResponseAllowsContent(head, "HEAD".toByteArray()))
+        }
+        for (status in [100U, 101U, 103U, 199U, 204U, 205U, 304U]) {
+            assertFalse(httpResponseAllowsContent(HttpResponseHead(HttpVersion.Http2, status), "GET".toByteArray()))
+        }
+        for (status in [200U, 201U, 206U, 299U]) {
+            val head = HttpResponseHead(HttpVersion.Http2, status)
+            assertFalse(httpResponseAllowsContent(head, "CONNECT".toByteArray()))
+            assertTrue(httpResponseAllowsContent(head, "connect".toByteArray()))
+        }
+        assertTrue(httpResponseAllowsContent(HttpResponseHead(HttpVersion.Http2, 407U), "CONNECT".toByteArray()))
+    }
+}
+
+@Test
+private class HttpMediaTypeFieldsTest {
+    @Test
+    fun `a single Content-Type retains its source bytes while absence stays explicit`() {
+        assertTrue(when (HttpMediaType.parseFields(ArrayList<HttpField>())) { case None -> true; case Some(_) -> false })
+        val value = " Text/Plain; charset=\"ISO-8859-1\" "
+        val media = HttpMediaType.parseFields([HttpField("X-Other".toByteArray(), "value".toByteArray()),
+            HttpField("content-TYPE".toByteArray(), value.toByteArray())])!!
+        assertEquals("text", media.type)
+        assertEquals("plain", media.subtype)
+        assertEquals("ISO-8859-1", String.fromUtf8(media.parameter("charset")!!.value))
+        assertEquals(value, String.fromUtf8(media.originalValue!!))
+        val error = assertFailsWith<HttpFieldParseException> {
+            HttpMediaType.parseFields([HttpField("Content-Type".toByteArray(), "text plain".toByteArray())])
+        }
+        assertEquals("Content-Type", error.field)
+        assertEquals(4L, error.byteOffset)
+    }
+
+    @Test
+    fun `Content-Type never combines repeated fields even when their values are equal`() {
+        for (second in ["text/plain", "application/json"]) {
+            val fields = [HttpField("Content-Type".toByteArray(), "text/plain".toByteArray()),
+                HttpField("content-type".toByteArray(), second.toByteArray())]
+            val error = assertFailsWith<HttpFieldParseException> { HttpMediaType.parseFields(fields) }
+            assertEquals("Content-Type", error.field)
+            assertEquals(0L, error.byteOffset)
+            assertEquals(second, String.fromUtf8(fields[1L].value))
+        }
+    }
+}

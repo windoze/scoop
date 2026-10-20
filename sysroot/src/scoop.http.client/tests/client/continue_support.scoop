@@ -1,0 +1,15 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.HttpVersion
+
+internal fun withClientContinueTest(version: HttpVersion = HttpVersion.Http11,
+    block: suspend (EventLoop, CoroutineScope, AsyncTcpListener, HttpClientConfig) -> Unit) {
+    clientTestTrust().use { trust ->
+        val config = clientTestConfig(trust, version)
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            clientTestListen(loop).useAsync suspend { listener -> block(loop, scope, listener, config) }
+        }
+    }
+}

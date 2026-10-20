@@ -1,0 +1,97 @@
+package scoop.tls.asyncio
+
+import scoop.asyncio.*
+import scoop.crypto.CryptoException
+import scoop.crypto.testdata.*
+import scoop.platform.fs.*
+import scoop.platform.system.*
+import scoop.test.*
+import scoop.tls.*
+
+@Test
+private class AsyncTlsCaFileTests {
+    @Test
+    fun `asynchronous CA file contexts compose a multi-certificate bundle and retained identity`() {
+        CaTestDirectory().use { tree ->
+            val path = tree.path.resolve(Path.fromString("ca bundle 中.pem"))
+            path.writeText(rootPem() + intermediatePem())
+            TlsIdentity.fromPem(clientPem() + intermediatePem(), serverKeyPem()).use { identity ->
+                val loop: EventLoop = LibuvEventLoop()
+                loop.run suspend { scope ->
+                    val context = openTlsClientContext(path, TlsOptions(TlsVersion.Tls13, TlsVersion.Tls13), Some(identity))
+                    try {
+                        identity.close()
+                        verifyCaConnection(scope, context)
+                    } finally { context.close() }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `asynchronous CA file loading preserves open decoding and PEM errors`() {
+        CaTestDirectory().use { tree ->
+            val missing = tree.path.resolve(Path.fromString("missing.pem"))
+            val malformed = tree.path.resolve(Path.fromString("bad.pem"))
+            val encoding = tree.path.resolve(Path.fromString("encoding.pem"))
+            val empty = tree.path.resolve(Path.fromString("empty.pem"))
+            malformed.writeText(rootPem() + "trailing")
+            encoding.writeAllBytes([255.toByte()])
+            empty.writeText("")
+            val loop: EventLoop = LibuvEventLoop()
+            loop.run suspend { _ ->
+                try { openTlsClientContext(missing); fail(Some("missing CA file accepted")) }
+                catch (error: PlatformException) {
+                    assertTrue(error.nativeError!!.domain == NativeErrorDomain.PosixErrno)
+                    assertEquals(missing.decodeUtf8(), error.context!!.decodeUtf8())
+                }
+                for (path in [malformed, empty]) {
+                    try { openTlsClientContext(path); fail(Some("invalid CA file accepted")) }
+                    catch (error: CryptoException) { assertEquals("parse certificate bundle", error.operation) }
+                }
+                try { openTlsClientContext(encoding); fail(Some("invalid UTF8 accepted")) }
+                catch (error: CharacterCodingException) { assertEquals(0L, error.byteOffset) }
+            }
+        }
+    }
+
+    @Test
+    fun `a pre-cancelled CA load preserves its identity and a later load still succeeds`() {
+        CaTestDirectory().use { tree ->
+            val path = tree.path.resolve(Path.fromString("root.pem"))
+            path.writeText(rootPem())
+            TlsIdentity.fromPem(clientPem() + intermediatePem(), serverKeyPem()).use { identity ->
+                val loop: EventLoop = LibuvEventLoop()
+                loop.run suspend { scope ->
+                    val cancelled = scope.launch suspend {
+                        currentJobOrNone()!!.cancel()
+                        try { openTlsClientContext(path, identity = Some(identity)); fail(Some("cancelled CA load succeeded")) }
+                        catch (_: CancellationException) { assertFalse(identity.isClosed) }
+                    }
+                    cancelled.join()
+                    assertTrue(cancelled.isCancelled)
+                    openTlsClientContext(path, identity = Some(identity)).use { Unit }
+                    assertFalse(identity.isClosed)
+                }
+            }
+        }
+    }
+}
+
+private suspend fun verifyCaConnection(scope: CoroutineScope, context: TlsClientContext) {
+    val (clientRaw, serverRaw) = rawPair(currentEventLoop(), scope)
+    val serverConfig = serverContext(TlsOptions())
+    try {
+        val accepting = scope.async<AsyncTlsStream> suspend { AsyncTlsStream.takeOwnershipAsServer(serverRaw, serverConfig) }
+        val client = AsyncTlsStream.takeOwnershipAsClient(clientRaw, context, TlsPeerName.Dns("localhost"))
+        val server = accepting.await()
+        context.close(); serverConfig.close()
+        try { assertTrue(client.connectionInfo.version == TlsVersion.Tls13) }
+        finally { client.close(); server.close() }
+    } finally { serverConfig.close() }
+}
+
+private class CaTestDirectory : Disposable {
+    val path: Path = createTempDirectory(prefix = "scoop-async-tls-ca-")
+    public override fun dispose() { path.deleteRecursively() }
+}

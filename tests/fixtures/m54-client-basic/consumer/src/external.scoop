@@ -1,0 +1,74 @@
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.*
+import scoop.http.client.*
+import scoop.time.Duration
+import scoop.url.Url
+
+internal fun basicChallenge(url: Url, trust: TrustStore) {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { scope ->
+        val started = AtomicLong(0L)
+        val credentials = AtomicLong(0L)
+        val observed = AtomicLong(0L)
+        val provider = HttpAuthenticator.basic(url.httpOrigin(), realm = Some<List<Byte>>("private".toByteArray())) suspend { request ->
+            basicCheck(basicContext() == "challenge" && request.request.url == url && request.attempt == 1L)
+            basicCheck(request.challenge!!.scheme == "basic" && started.load() == 0L)
+            loop.sleep(Duration.milliseconds(5L))
+            basicCheck(basicContext() == "challenge")
+            credentials.fetchAdd(1L)
+            HttpPasswordCredentials("Jose\u{0301}", "pa\u{0308}ss:word")
+        }
+        val body = RequestBody.fromProducerWithTrailers(["X-Upload"], Some(7L)) suspend { output ->
+            basicCheck(basicContext() == "challenge")
+            started.fetchAdd(1L)
+            basicWrite(output, "payload")
+            [basicField("X-Upload", "once")]
+        }.compressed()
+        withHttpClient(basicConfig(trust, HttpAuthenticationOptions([provider]))) suspend { client ->
+            context(BasicContext("challenge")) {
+                client.withResponse(HttpRequest.post(url, body, options = HttpCallOptions(expectContinue = true,
+                    continueWait = Duration.seconds(3600L), onInformational = suspend { head ->
+                        basicCheck(head.status == 100U || head.status == 103U)
+                        observed.fetchAdd(1L)
+                        Unit
+                    }))) suspend { response ->
+                    basicCheck(response.status == 200U && response.authenticationCount == 1L && response.retryCount == 0L)
+                    basicCheck(response.body.text(4L) == "done")
+                    basicCheck(String.fromUtf8(response.trailers!![0L].value) == "gzip")
+                }
+            }
+        }
+        basicCheck(started.load() == 1L && credentials.load() == 1L && observed.load() == 2L)
+        basicCheck(!scope.job.isCancelled)
+    }
+}
+
+internal fun basicRedirect(first: Url, second: Url, trust: TrustStore) {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { scope ->
+        val calls = AtomicLong(0L)
+        val original = HttpAuthenticator.basic(first.httpOrigin()) suspend { request ->
+            basicCheck(basicContext() == "redirect")
+            basicCheck(request.attempt == calls.fetchAdd(1L) + 1L)
+            HttpPasswordCredentials("café", "pä:ss")
+        }
+        val destination = HttpAuthenticator.basic(second.httpOrigin()) suspend { request ->
+            basicCheck(request.attempt == 3L && request.request.url.httpOrigin() == second.httpOrigin())
+            calls.fetchAdd(1L)
+            HttpPasswordCredentials("second", "destination")
+        }
+        withHttpClient(basicConfig(trust)) suspend { client ->
+            context(BasicContext("redirect")) {
+                client.withResponse(HttpRequest.post(first, RequestBody.Empty, [
+                    basicField("Cookie", "caller=value"), basicField("X-Keep", "same")
+                ], HttpCallOptions(authentication = Some(HttpAuthenticationOptions([original, destination]))))) suspend { response ->
+                    basicCheck(response.authenticationCount == 3L && response.retryCount == 0L)
+                    basicCheck(response.redirectHistory.size == 3L && response.url.httpOrigin() == second.httpOrigin())
+                    basicCheck(response.body.text(4L) == "done")
+                }
+            }
+        }
+        basicCheck(calls.load() == 3L && !scope.job.isCancelled)
+    }
+}

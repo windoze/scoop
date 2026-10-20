@@ -1,0 +1,83 @@
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.client.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.time.Duration
+
+internal fun digestCancellation(trust: TrustStore, mode: String, failsCleanup: Boolean = false, wrapsCleanup: Boolean = false) {
+    withDigestRuntime suspend { _, scope, listener ->
+        val url = digestUrl(listener)
+        val entered = DigestGate()
+        val cancelled = DigestGate()
+        val release = DigestGate()
+        val cleaning = DigestGate()
+        val finish = DigestGate()
+        val closed = AtomicBoolean(false)
+        val cleanupFailure = Throwable()
+        val provider = HttpAuthenticator.digest(url.httpOrigin(), sendWithoutChallenge = true) suspend { _ ->
+            val registration = currentJobOrNone()!!.invokeOnCancellation { _ -> cancelled.signal() }
+            try {
+                entered.signal()
+                release.await()
+                HttpPasswordCredentials("user", "password")
+            } finally {
+                cleaning.signal()
+                finish.await()
+                closed.store(true)
+                registration.dispose()
+                if (failsCleanup) {
+                    if (wrapsCleanup) throw ResourceUseException(CancellationException(), cleanupFailure)
+                    throw cleanupFailure
+                } else Unit
+            }
+        }
+        val serving = scope.launch suspend { digestChallengeOnce(listener, scope) }
+        val client = HttpClient.open(scope, digestConfig(trust, provider))
+        val failure = DigestFailureHolder()
+        val closeFailure = DigestFailureHolder()
+        val executing = scope.launch suspend {
+            try {
+                val options = HttpCallOptions(timeouts = if (mode == "total")
+                    Some(HttpTimeoutOptions(total = Some(Duration.seconds(15L)))) else None)
+                client.execute(HttpRequest.get(url, options = options)).close()
+            } catch (error: Throwable) { failure.value = Some(error) }
+        }
+        entered.await()
+        val closing = if (mode == "client") Some(scope.launch suspend {
+            try { client.close() } catch (error: Throwable) { closeFailure.value = Some(error) }
+        }) else None
+        if (mode == "caller") executing.cancel()
+        try {
+            cancelled.await()
+            digestCheck(!executing.isCompleted && !closed.load())
+            if (digestPresent(closing)) digestCheck(!closing!!.isCompleted)
+            release.signal()
+            cleaning.await()
+            digestCheck(!executing.isCompleted && !closed.load())
+            finish.signal()
+            executing.join()
+            closing?.join()
+            digestCheck(closed.load())
+            val error = failure.value!!
+            if (failsCleanup) {
+                digestCheck(error is ResourceUseException, "authentication cleanup failure was discarded")
+                if (error is ResourceUseException) digestCheck(error.cleanupFailure === cleanupFailure)
+            }
+            val primary = if (error is ResourceUseException) error.primaryFailure else error
+            when (mode) {
+                case "caller" -> digestCheck(primary is CancellationException)
+                case "client" -> digestCheck(primary is HttpClientClosedException)
+                else -> {
+                    digestCheck(primary is HttpTimeoutException)
+                    if (primary is HttpTimeoutException) digestCheck(primary.phase == HttpTimeoutPhase.Total)
+                }
+            }
+            if (mode == "client" && failsCleanup) digestCheck(closeFailure.value!! === cleanupFailure)
+            else digestCheck(!digestPresent(closeFailure.value))
+        } finally {
+            release.signal(); finish.signal()
+            client.close()
+        }
+        serving.join()
+    }
+}

@@ -1,0 +1,41 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.time.Duration
+
+internal fun clientTcpConnectOptions(call: ClientCall): TcpConnectOptions {
+    val options = call.client.config.tcpConnect
+    val callback = options.onEvent
+    val onEvent: ((TcpConnectEvent) -> Unit)? = if (!clientPresent(call.observation) && !clientPresent(callback)) None
+        else Some({ event: TcpConnectEvent ->
+            observeClientTcp(call, event)
+            try { if (clientPresent(callback)) callback!!(event) }
+            catch (error: Throwable) { failClientUserCallback(call, error); throw error }
+            Unit
+        })
+    return TcpConnectOptions(options.resolutionDelay, options.attemptDelay, options.maxConcurrentAttempts,
+        call.timeouts.resolve, call.timeouts.connect, onEvent)
+}
+
+internal fun mapClientNetworkTimeout(call: ClientCall, error: Throwable): Throwable {
+    if (call.lock.withLock { call.userCallbackFailed }) return error
+    if (error is ResourceUseException) {
+        val mapped = mapClientNetworkTimeout(call, error.primaryFailure)
+        return if (mapped === error.primaryFailure) error else ResourceUseException(mapped, error.cleanupFailure)
+    }
+    if (error is TcpConnectTimeoutException)
+        return clientNetworkTimeout(call, HttpTimeoutPhase.Connect, error.limit, error.elapsed, error)
+    if (error is TcpConnectException) {
+        for (failure in error.resolutionFailures) {
+            val cause = failure.cause
+            if (cause is TcpResolutionTimeoutException)
+                return clientNetworkTimeout(call, HttpTimeoutPhase.Resolve, cause.limit, cause.elapsed, error)
+        }
+    }
+    return error
+}
+
+private fun clientNetworkTimeout(call: ClientCall, phase: HttpTimeoutPhase, limit: Duration, elapsed: Duration,
+    cause: Throwable): HttpTimeoutException = call.lock.withLock {
+    HttpTimeoutException(phase, limit, elapsed, call.requestBodyBytes, call.encodedResponseBodyBytes, call.responseBodyBytes, Some(cause))
+}

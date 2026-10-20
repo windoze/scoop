@@ -85,7 +85,6 @@ static void setup(Fixture *fixture) {
                                           bytes(data->names[i]),
                                           bytes(data->version),
                                           {{(uint8_t)(i + 1)}}};
-        image->runtime_image_fingerprint.bytes[0] = 1;
         image->dependencies = data->dependencies[i];
         image->static_storages =
             (const ScoopStaticStorageDescriptorV1 *const *)data->empty;
@@ -112,9 +111,7 @@ static void setup(Fixture *fixture) {
             prefix(SCOOP_ROOT_ENTRY_DESCRIPTOR_MAGIC_V1, sizeof data->root),
         .owner_cone_identity = data->images[ROOT].cone.identity,
         .callable_id = {{1}},
-        .source_signature_fingerprint = {{2}},
-        .gateway_callable_id = {{3}},
-        .gateway_definition_fingerprint = {{4}}};
+        .gateway_callable_id = {{3}}};
     for (size_t i = 0; i < 4; i++) {
         data->callables[i].prefix =
             prefix(SCOOP_CALLABLE_REGISTRATION_DESCRIPTOR_MAGIC_V1,

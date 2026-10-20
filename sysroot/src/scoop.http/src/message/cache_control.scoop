@@ -1,0 +1,110 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.text.lowercaseAscii
+
+public class HttpCacheControl private constructor(
+    public val directives: Array<HttpCacheDirective>, public val originalValues: Array<Array<Byte>>
+) {
+    public constructor(directives: List<HttpCacheDirective>) : this(directives.toArray(), []) {}
+
+    public fun findAll(name: String): Array<HttpCacheDirective> {
+        val normalized = httpNormalizedToken(name)
+        val result = ArrayList<HttpCacheDirective>()
+        for (directive in directives) if (directive.name == normalized) result.add(directive)
+        return result.toArray()
+    }
+    public fun contains(name: String): Boolean {
+        val normalized = httpNormalizedToken(name)
+        for (directive in directives) if (directive.name == normalized) return true
+        return false
+    }
+    public fun single(name: String): HttpCacheDirective? {
+        val found = findAll(name)
+        if (found.size > 1L) throw HttpFieldParseException("Cache-Control", found[1L].nameOffset, "duplicate cache directive " + name)
+        return if (found.size == 0L) None else Some(found[0L])
+    }
+
+    public fun toByteArray(): Array<Byte> {
+        val output = ByteArrayBuilder()
+        var first = true
+        for (directive in directives) {
+            if (!first) output.append(", ".toByteArray())
+            appendCacheDirective(output, directive)
+            first = false
+        }
+        return output.toByteArray()
+    }
+    public fun toHttpField(): HttpField = HttpField("Cache-Control".toByteArray(), toByteArray())
+
+    public companion object {
+        public fun parse(value: List<Byte>): HttpCacheControl {
+            val reader = HttpFieldReader("Cache-Control", value)
+            val result = ArrayList<HttpCacheDirective>()
+            reader.skipOws()
+            while (!reader.ended) {
+                if (reader.peek() == 44) { reader.position += 1L; reader.skipOws(); continue }
+                val start = reader.position
+                val name = reader.token().lowercaseAscii()
+                var valueOffset = reader.position
+                var value: Array<Byte>? = None
+                var quoted = false
+                if (reader.peek() == 61) {
+                    reader.position += 1L
+                    valueOffset = reader.position
+                    val parsed = reader.parameterValue()
+                    value = Some(parsed._1)
+                    quoted = parsed._2
+                }
+                result.add(HttpCacheDirective(name, value, quoted, start, valueOffset, Some(reader.bytes)))
+                reader.skipOws()
+                if (!reader.ended) { reader.expect(44); reader.skipOws() }
+            }
+            return HttpCacheControl(result.toArray(), [reader.bytes])
+        }
+        public fun parse(value: String): HttpCacheControl = parse(value.toByteArray())
+        public fun parseOrNone(value: List<Byte>): HttpCacheControl? {
+            try { return Some(parse(value)) }
+            catch (_: HttpFieldParseException) { return None }
+        }
+        public fun parseOrNone(value: String): HttpCacheControl? = parseOrNone(value.toByteArray())
+
+        public fun parseFields(fields: List<HttpField>): HttpCacheControl {
+            val directives = ArrayList<HttpCacheDirective>()
+            val originals = ArrayList<Array<Byte>>()
+            for (field in fields.findAll("cache-control".toByteArray())) {
+                val parsed = parse(field.value)
+                for (directive in parsed.directives) directives.add(directive)
+                originals.add(parsed.originalValues[0L])
+            }
+            return HttpCacheControl(directives.toArray(), originals.toArray())
+        }
+    }
+}
+
+private fun cacheSecondsDirective(name: String): Boolean =
+    name == "max-age" || name == "s-maxage" || name == "min-fresh" || name == "max-stale" ||
+    name == "stale-while-revalidate" || name == "stale-if-error"
+
+private fun cacheFlagDirective(name: String): Boolean =
+    name == "no-store" || name == "no-transform" || name == "only-if-cached" || name == "must-revalidate" ||
+    name == "must-understand" || name == "proxy-revalidate" || name == "public" || name == "immutable"
+
+private fun appendCacheDirective(output: ByteArrayBuilder, directive: HttpCacheDirective) {
+    output.append(directive.name.toByteArray())
+    when (directive.value) {
+        case None -> if (cacheSecondsDirective(directive.name) && directive.name != "max-stale") directive.deltaSeconds()
+        case Some(bytes) -> {
+            if (cacheFlagDirective(directive.name)) directive.failAt(0L, "cache directive does not allow an argument")
+            output.append(61.toByte())
+            if (cacheSecondsDirective(directive.name)) {
+                directive.deltaSeconds()
+                output.append(bytes)
+            } else {
+                val fields = directive.name == "no-cache" || directive.name == "private"
+                if (fields) directive.fieldNames()
+                appendHttpParameterValue(output, bytes, fields || directive.wasQuoted)
+            }
+        }
+    }
+}

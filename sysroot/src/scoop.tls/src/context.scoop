@@ -3,11 +3,22 @@ package scoop.tls
 import scoop.crypto.PrivateKey
 import scoop.crypto.native.*
 import scoop.crypto.x509.*
+import scoop.platform.fs.*
 import scoop.tls.native.*
 
 public class TlsClientContext private constructor(private val state: ContextState) : Closeable {
-    public constructor(trustStore: TrustStore, options: TlsOptions = TlsOptions())
-        : this(clientState(trustStore, options)) {}
+    public companion object {
+        internal fun takeOwnership(handle: ULong): TlsClientContext = TlsClientContext(ContextState(handle))
+
+        public fun fromCaFile(path: Path, options: TlsOptions = TlsOptions(), identity: TlsIdentity? = None): TlsClientContext =
+            TrustStore.fromPem(path.readText()).use { store -> TlsClientContext(store, options, identity) }
+    }
+
+    public constructor(trustStore: TrustStore, options: TlsOptions = TlsOptions(), identity: TlsIdentity? = None)
+        : this(storeState(trustStore, options, identity)) {}
+
+    public constructor(trust: TlsTrustSource = TlsTrustSource.System, options: TlsOptions = TlsOptions(), identity: TlsIdentity? = None)
+        : this(trustState(trust, options, identity)) {}
 
     internal fun newSession(peer: TlsPeerName): ULong {
         val (kind, bytes) = peerData(peer)
@@ -30,25 +41,44 @@ public class TlsServerContext private constructor(private val state: ContextStat
     public override fun close() { state.dispose() }
 }
 
-private fun clientState(trustStore: TrustStore, options: TlsOptions): ContextState {
+private fun trustState(trust: TlsTrustSource, options: TlsOptions, identity: TlsIdentity?): ContextState {
+    when (trust) {
+        case Store(store) -> return storeState(store, options, identity)
+        case System -> @Unsafe {
+            val work = prepareSystemContext(options, identity)
+            try { runSystemContext(work); return ContextState(takeSystemContextHandle(work)) }
+            finally { freeSystemContext(work) }
+        }
+    }
+}
+
+private fun storeState(trustStore: TrustStore, options: TlsOptions, identity: TlsIdentity?): ContextState {
+    @Unsafe { return ContextState(clientHandle(trustStoreHandle(trustStore), options, identity)) }
+}
+
+internal fun clientHandle(store: ULong, options: TlsOptions, identity: TlsIdentity?): ULong {
     val alpn = encodeOptions(options)
-    @Unsafe { return ContextState(newContext(false, options, alpn, trustStoreHandle(trustStore))) }
+    @Unsafe {
+        val handle = newContext(false, options, alpn, store)
+        try {
+            identity?.configure(handle)
+            return handle
+        } catch (error: Throwable) {
+            contextFree(handle)
+            throw error
+        }
+    }
 }
 
 private fun serverState(certificates: List<Certificate>, privateKey: PrivateKey, options: TlsOptions): ContextState {
     val alpn = encodeOptions(options)
-    if (certificates.size == 0L) throw IllegalArgumentException(Some("TLS server requires a certificate chain"))
-    @Unsafe {
-        val key = privateKeyHandle(privateKey)
-        val chain = Array<ULong>(certificates.size) { index -> @Unsafe { return@Array certificateHandle(certificates[index]) } }
+    return TlsIdentity(certificates, privateKey).use { identity ->
         val handle = newContext(true, options, alpn, 0UL)
         try {
-            chain.withDataPointer { pointer, count ->
-                @Unsafe { tlsValue(contextIdentity(handle, key, pointer, count), "configure TLS server identity") }
-            }
-            return ContextState(handle)
+            identity.configure(handle)
+            ContextState(handle)
         } catch (error: Throwable) {
-            contextFree(handle)
+            @Unsafe { contextFree(handle) }
             throw error
         }
     }

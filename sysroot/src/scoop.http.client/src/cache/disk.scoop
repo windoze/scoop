@@ -1,0 +1,150 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.platform.fs.Path
+import scoop.text.startsWith
+import scoop.text.endsWith
+
+public class DiskHttpCache private constructor(
+    public val directory: Path,
+    public val maxBytes: Long,
+    public val maxEntryBytes: Long,
+    public val maxEntries: Long,
+    public val maxMetadataBytes: Long,
+    public val syncOnCommit: Boolean
+) : HttpCache {
+    private val lock: ClientLock = ClientLock()
+    private val entries: ArrayList<ClientDiskCacheEntry> = ArrayList<ClientDiskCacheEntry>()
+    private val writers: ArrayList<ClientDiskCacheWriter> = ArrayList<ClientDiskCacheWriter>()
+    private var used: Long = 0L
+    init {
+        if (maxBytes <= 0L || maxEntryBytes <= 0L || maxEntries <= 0L || maxMetadataBytes <= 0L)
+            throw IllegalArgumentException(Some("HTTP cache limits must be positive"))
+    }
+    public val sizeBytes: Long get() = lock.withLock { used }
+    public val entryCount: Long get() = lock.withLock { entries.size }
+
+    public companion object {
+        public suspend fun open(directory: Path, maxBytes: Long = 268435456L, maxEntryBytes: Long = 67108864L,
+            maxEntries: Long = 1024L, maxMetadataBytes: Long = 1048576L, syncOnCommit: Boolean = false): DiskHttpCache {
+            val cache = DiskHttpCache(directory, maxBytes, maxEntryBytes, maxEntries, maxMetadataBytes, syncOnCommit)
+            val loop = currentEventLoop()
+            loop.createDirectories(directory)
+            loop.openDirectory(directory).useAsync suspend { listing ->
+                while (true) {
+                    val item = listing.next() ?: break
+                    val name = String.fromUtf8OrNone(item.name.toByteArray()) ?: continue
+                    if (name.startsWith("pending-http-cache-")) { deleteClientCacheFile(item.path); continue }
+                    if (!name.startsWith("entry-") || !name.endsWith(".scoop-http-cache")) continue
+                    val saved = readClientDiskCacheEntry(item.path, cache.maxMetadataBytes)
+                    if (!clientPresent(saved)) { deleteClientCacheFile(item.path); continue }
+                    val entry = saved!!
+                    if (entry.bodyLength > cache.maxEntryBytes || entry.fileSize > cache.maxBytes) {
+                        deleteClientCacheFile(entry.path)
+                        continue
+                    }
+                    cache.accept(entry)
+                }
+            }
+            return cache
+        }
+    }
+
+    public override suspend fun lookup(request: HttpCacheRequest): HttpCacheSnapshot? {
+        val selected: ClientDiskCacheEntry? = lock.withLock {
+            var index = entries.size
+            while (index > 0L) {
+                index -= 1L
+                val entry = entries[index]
+                if (!entry.record.matches(request)) continue
+                entries.removeAt(index); entries.add(entry); entry.readers += 1L
+                return@withLock Some(entry)
+            }
+            None
+        }
+        val entry = selected ?: return None
+        try { return Some<HttpCacheSnapshot>(ClientDiskCacheSnapshot(this, entry, currentEventLoop().openFile(entry.path))) }
+        catch (error: Throwable) {
+            try { release(entry) }
+            catch (cleanup: Throwable) { throw ResourceUseException(error, cleanup) }
+            throw error
+        }
+    }
+
+    public override suspend fun begin(record: HttpCacheRecord): HttpCacheWriter? {
+        val limit = if (maxEntryBytes < maxBytes) maxEntryBytes else maxBytes
+        val length = parseHttpContentLength(record.head.fields)
+        if (clientPresent(length) && length!! > limit) return None
+        val writer = ClientDiskCacheWriter(this, record, limit)
+        lock.withLock { writers.add(writer) }
+        return Some<HttpCacheWriter>(writer)
+    }
+
+    public override suspend fun invalidate(partition: String, url: String) {
+        val retired = lock.withLock {
+            val paths = ArrayList<Path>()
+            var index = entries.size
+            while (index > 0L) {
+                index -= 1L
+                val key = entries[index].record.key
+                if (key.partition == partition && key.url == url) retire(index, paths)
+            }
+            for (writer in writers) if (writer.record.key.partition == partition && writer.record.key.url == url)
+                writer.discard.store(true)
+            paths.toArray()
+        }
+        deleteClientCacheFiles(retired)
+    }
+
+    public suspend fun clear() {
+        val retired = lock.withLock {
+            val paths = ArrayList<Path>()
+            while (entries.size > 0L) retire(entries.size - 1L, paths)
+            for (writer in writers) writer.discard.store(true)
+            paths.toArray()
+        }
+        deleteClientCacheFiles(retired)
+    }
+
+    private suspend fun accept(entry: ClientDiskCacheEntry) { publishEntry(entry, None) }
+    internal suspend fun publish(entry: ClientDiskCacheEntry, writer: ClientDiskCacheWriter) { publishEntry(entry, Some(writer)) }
+    private suspend fun publishEntry(entry: ClientDiskCacheEntry, writer: ClientDiskCacheWriter?) {
+        val retired = lock.withLock {
+            val paths = ArrayList<Path>()
+            if (clientPresent(writer)) {
+                forget(writer!!)
+                if (writer!!.discard.load()) { paths.add(entry.path); return@withLock paths.toArray() }
+            }
+            for (previous in entries) if (replacedClientCacheVariant(previous.record, entry.record) &&
+                previous.record.responseDate > entry.record.responseDate) {
+                paths.add(entry.path); return@withLock paths.toArray()
+            }
+            var index = entries.size
+            while (index > 0L) {
+                index -= 1L
+                if (!replacedClientCacheVariant(entries[index].record, entry.record)) continue
+                retire(index, paths)
+            }
+            while (entries.size >= maxEntries || used > maxBytes - entry.fileSize) retire(0L, paths)
+            entries.add(entry); used += entry.fileSize
+            if (clientPresent(writer)) writer!!.published.store(true)
+            paths.toArray()
+        }
+        deleteClientCacheFiles(retired)
+    }
+
+    internal fun abandon(writer: ClientDiskCacheWriter) { lock.withLock { forget(writer) } }
+    private fun forget(writer: ClientDiskCacheWriter) {
+        for (index in 0L..<writers.size) if (writers[index] === writer) { writers.removeAt(index); return }
+    }
+    private fun retire(index: Long, paths: MutableList<Path>) {
+        val entry = entries[index]
+        entries.removeAt(index); used -= entry.fileSize; entry.retired = true
+        if (entry.readers == 0L) paths.add(entry.path)
+    }
+    internal suspend fun release(entry: ClientDiskCacheEntry) {
+        val deleting = lock.withLock { entry.readers -= 1L; entry.readers == 0L && entry.retired }
+        if (deleting) deleteClientCacheFiles([entry.path])
+    }
+}

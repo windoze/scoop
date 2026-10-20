@@ -1,0 +1,95 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.time.MonotonicTimeSource
+import scoop.platform.time.elapsedNow
+import scoop.test.*
+import scoop.time.Duration
+
+@Test private class Http1IdleTests {
+    @Test fun `read idle waits for actual close and concurrent callers share cleanup`() {
+        withHttp1 suspend { scope, a, _, client, _ ->
+            client.sendRequest(request()).finish()
+            val release = AsyncGate()
+            a.closeGate = Some(release)
+            val caught = AtomicBoolean(false)
+            val reading = scope.launch suspend {
+                try { client.receiveResponse(readIdle = Some(Duration.milliseconds(100L))); fail(Some("stalled headers succeeded")) }
+                catch (error: HttpIoTimeoutException) {
+                    assertTrue(error.protocol == HttpProtocol.Http1 && error.direction == HttpIoDirection.Read)
+                    assertEquals(0, error.streamId); assertTrue(error.elapsed >= error.limit)
+                    caught.store(true)
+                }
+            }
+            a.closeStarted.await()
+            val first = scope.launch suspend { client.close() }
+            val second = scope.launch suspend { client.close() }
+            assertFalse(caught.load() || reading.isCompleted || first.isCompleted || second.isCompleted)
+            release.signal(); reading.join(); first.join(); second.join()
+            assertTrue(caught.load() && client.isClosed && !scope.job.isCancelled)
+            assertEquals(1, a.closes)
+        }
+    }
+
+    @Test fun `short writes refresh idle and preserve the message caller Job`() {
+        val limit = Duration.milliseconds(500L)
+        withHttp1 suspend { scope, a, _, client, server ->
+            a.writeLimit = 8L; a.writeDelay = Duration.milliseconds(75L)
+            val caller = currentJobOrNone()!!
+            val writer = client.sendRequest(request("POST"), Http1BodyFraming.Length(64L), writeIdle = Some(limit))
+            val began = MonotonicTimeSource.markNow()
+            sendBytes(writer, Array<Byte>(64L) { _ -> 97.toByte() })
+            assertTrue(began.elapsedNow() > limit)
+            writer.finish()
+            assertSame(caller, a.writeJob!!)
+            assertEquals(64L, receiveBytes(server.receiveRequest()!!.body).size)
+            server.sendResponse(response()).finish()
+            assertEquals(200U, client.receiveResponse(readIdle = Some(Duration.seconds(60L))).head.status)
+            assertSame(caller, a.readJob!!)
+            assertFalse(scope.job.isCancelled)
+        }
+    }
+
+    @Test fun `writer retains idle for flush and preserves the independent cleanup failure`() {
+        withHttp1 suspend { scope, a, _, client, _ ->
+            val writer = client.sendRequest(request("POST"), Http1BodyFraming.Length(1L), writeIdle = Some(Duration.milliseconds(100L)))
+            a.flushGate = Some(AsyncGate()); a.failClose = true
+            NativeByteBuffer.allocate(1L).use suspend { buffer ->
+                buffer.writeBytes("x".toByteArray())
+                try { writer.writeFrom(buffer, 1L); fail(Some("stalled flush succeeded")) }
+                catch (error: ResourceUseException) {
+                    val timeout = error.primaryFailure as HttpIoTimeoutException
+                    assertTrue(timeout.direction == HttpIoDirection.Write && timeout.elapsed >= timeout.limit)
+                    assertTrue(error.cleanupFailure is CleanupFailure)
+                }
+                assertEquals(1L, buffer.readPosition)
+                buffer.clear()
+            }
+            assertTrue(client.isClosed && !scope.job.isCancelled)
+            assertEquals(1, a.closes)
+        }
+    }
+
+    @Test fun `body idle starts on reading rather than during application pauses`() {
+        withHttp1 suspend { _, a, _, client, server ->
+            client.sendRequest(request()).finish()
+            receiveBytes(server.receiveRequest()!!.body)
+            val writer = server.sendResponse(response(), Http1BodyFraming.Length(1L))
+            val incoming = client.receiveResponse(readIdle = Some(Duration.milliseconds(300L)))
+            NativeByteBuffer.allocate(1L).use suspend { buffer ->
+                val reads = a.reads
+                assertEquals(0L, incoming.body.readInto(buffer, 0L))
+                assertEquals(reads, a.reads)
+                currentEventLoop().sleep(Duration.milliseconds(650L))
+                assertFalse(client.isClosed)
+                sendBytes(writer, "x".toByteArray()); writer.finish()
+                assertEquals(1L, incoming.body.readInto(buffer, 1L))
+                assertEquals("x", String.fromUtf8(buffer.readBytes(1L)))
+                buffer.clear()
+                assertEquals(0L, incoming.body.readInto(buffer, 1L))
+            }
+        }
+    }
+}

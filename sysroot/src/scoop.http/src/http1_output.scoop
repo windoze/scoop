@@ -11,13 +11,7 @@ internal fun http1VersionText(version: HttpVersion): String = when (version) {
 }
 
 internal fun requireHttp1Method(method: Array<Byte>) {
-    @Unsafe {
-        val known = method.withDataPointer { pointer, length ->
-            @Unsafe { return@withDataPointer http1KnownMethod(pointer, length) }
-        }
-        if (known == 0) throw HttpException("encode HTTP/1", HttpProtocol.Http1, HttpFailureScope.Operation,
-            0, "llhttp 9.4.3", 6, "llhttp 9.4.3 does not support this HTTP/1 method")
-    }
+    if (!httpToken(method)) throw IllegalArgumentException(Some("invalid HTTP method token"))
 }
 
 internal fun appendHttp1Field(output: ByteArrayBuilder, field: HttpField) {
@@ -28,10 +22,10 @@ internal fun appendHttp1Field(output: ByteArrayBuilder, field: HttpField) {
 
 internal fun http1ResponseKind(head: HttpResponseHead, method: Array<Byte>): Http1HeadKind {
     if (head.status < 100U || head.status > 999U) throw IllegalArgumentException(Some("HTTP status requires three digits"))
-    if (head.status == 101U || (httpAsciiEqual(method, "CONNECT".toByteArray()) && head.status >= 200U && head.status < 300U))
+    if (head.status == 101U || (httpBytesEqual(method, "CONNECT".toByteArray()) && head.status >= 200U && head.status < 300U))
         return Http1HeadKind.Switch
     if (head.status < 200U || head.status == 204U) return Http1HeadKind.Forbidden
-    if (head.status == 304U || httpAsciiEqual(method, "HEAD".toByteArray())) return Http1HeadKind.Metadata
+    if (head.status == 304U || httpBytesEqual(method, "HEAD".toByteArray())) return Http1HeadKind.Metadata
     return Http1HeadKind.Response
 }
 

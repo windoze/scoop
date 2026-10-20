@@ -1,0 +1,58 @@
+package scoop.http
+
+import scoop.Result
+import scoop.flatMap
+import scoop.time.Instant
+import scoop.url.*
+
+public enum HttpCookieRejection { EmptyPair, InvalidDomain, DomainMismatch, PublicSuffix, InsecureTransport, SameSiteWithoutSecure, InvalidPrefix }
+
+public class HttpCookie internal constructor(
+    public val pair: HttpCookiePair, public val host: UrlHost, public val hostOnly: Boolean, public val path: Array<Byte>,
+    public val expiresAt: Instant?, public val secure: Boolean, public val httpOnly: Boolean, public val sameSite: HttpCookieSameSite
+) {
+    public fun isExpired(now: Instant): Boolean = when (expiresAt) { case None -> false; case Some(date) -> date <= now }
+    public fun matches(url: Url, now: Instant): Boolean {
+        if (isExpired(now)) return false
+        val origin = url.httpOrigin()
+        if (secure && !secureCookieScheme(origin.scheme)) return false
+        if (hostOnly) { if (origin.host != host) return false }
+        else if (!HttpCookieRules.domainMatches(origin.host, host)) return false
+        val encodedPath = if (url.encodedPath.length == 0L) "/" else url.encodedPath
+        return HttpCookieRules.pathMatches(encodedPath.toByteArray(), path)
+    }
+    public fun allowsSameSite(isSameSiteRequest: Boolean, isTopLevelNavigation: Boolean, isSafeMethod: Boolean): Boolean = when (sameSite) {
+        case HttpCookieSameSite.None -> true
+        case HttpCookieSameSite.Strict -> isSameSiteRequest
+        case HttpCookieSameSite.Lax -> isSameSiteRequest || (isTopLevelNavigation && isSafeMethod)
+        case HttpCookieSameSite.Default -> isSameSiteRequest || (isTopLevelNavigation && isSafeMethod)
+    }
+    public fun allowsSetting(isSameSiteRequest: Boolean, isTopLevelNavigation: Boolean): Boolean =
+        sameSite == HttpCookieSameSite.None || isSameSiteRequest || isTopLevelNavigation
+}
+
+internal fun resolveHttpCookie(value: HttpSetCookie, url: Url, now: Instant, suffixes: PublicSuffixList, maximum: Long): Result<HttpCookie, HttpCookieRejection> {
+    val expiry = value.expiryFrom(now, maximum)
+    val origin = url.httpOrigin()
+    if (value.pair.name.size == 0L && value.pair.value.size == 0L) return Result.Failure(HttpCookieRejection.EmptyPair)
+    return resolveCookieDomain(origin, value.domain, suffixes).flatMap { (host, hostOnly) ->
+        finishHttpCookie(value, url.encodedPath, origin.scheme, expiry, host, hostOnly)
+    }
+}
+
+private fun finishHttpCookie(value: HttpSetCookie, encodedPath: String, scheme: String, expiry: Instant?, host: UrlHost, hostOnly: Boolean): Result<HttpCookie, HttpCookieRejection> {
+    val path = when (value.path) {
+        case Some(bytes) -> if (bytes.size > 0L && bytes[0L] == 47.toByte()) bytes else HttpCookieRules.defaultPath(encodedPath)
+        case None -> HttpCookieRules.defaultPath(encodedPath)
+    }
+    if (value.secure && !secureCookieScheme(scheme)) return Result.Failure(HttpCookieRejection.InsecureTransport)
+    if (value.sameSite == HttpCookieSameSite.None && !value.secure) return Result.Failure(HttpCookieRejection.SameSiteWithoutSecure)
+    val securePrefix = cookiePrefix(value.pair.name, "__secure-")
+    val hostPrefix = cookiePrefix(value.pair.name, "__host-")
+    val hasPath = when (value.path) { case None -> false; case Some(_) -> true }
+    if (((securePrefix || hostPrefix) && !value.secure) ||
+        (hostPrefix && (!hostOnly || !hasPath || !httpBytesEqual(path, "/".toByteArray()))) ||
+        (value.pair.name.size == 0L && (cookiePrefix(value.pair.value, "__secure-") || cookiePrefix(value.pair.value, "__host-"))))
+        return Result.Failure(HttpCookieRejection.InvalidPrefix)
+    return Result.Success(HttpCookie(value.pair, host, hostOnly, path, expiry, value.secure, value.httpOnly, value.sameSite))
+}

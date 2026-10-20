@@ -1,0 +1,57 @@
+import scoop.bytes.ByteArrayBuilder
+import scoop.compression.*
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+
+fun compressMessage(encoder: DeflateMessageEncoder, bytes: List<Byte>): Array<Byte> =
+    NativeByteBuffer.allocate(bytes.size).use { input ->
+        input.writeBytes(bytes)
+        NativeByteBuffer.allocate(7L).use { output ->
+            val result = ByteArrayBuilder()
+            while (true) {
+                output.clear()
+                val step = if (input.readableBytes > 0L) encoder.process(input, output) else encoder.finishMessage(output)
+                result.append(output.readBytes(step.produced))
+                if (step.state == CompressionState.Finished) break
+            }
+            result.toByteArray()
+        }
+    }
+
+private fun collect(output: NativeByteBuffer, result: ByteArrayBuilder, validator: WebSocketMessageValidator) {
+    val bytes = output.readBytes(output.readableBytes)
+    validator.receive(bytes)
+    result.append(bytes)
+}
+
+fun decompressMessage(decoder: DeflateMessageDecoder, events: List<WebSocketFrameEvent>, limit: Long): String =
+    WebSocketMessageValidator(WebSocketMessageType.Text, limit).use { validator ->
+        NativeByteBuffer.allocate(7L).use { input ->
+            NativeByteBuffer.allocate(3L).use { output ->
+                val result = ByteArrayBuilder()
+                for (event in events) {
+                    when (event) {
+                        case Data(bytes) -> {
+                            input.clear(); input.writeBytes(bytes)
+                            while (true) {
+                                output.clear()
+                                val step = decoder.process(input, output)
+                                collect(output, result, validator)
+                                if (input.readableBytes == 0L && step.state != CompressionState.NeedOutput) break
+                            }
+                        }
+                        else -> {}
+                    }
+                }
+                while (true) {
+                    output.clear()
+                    val step = decoder.finishMessage(output)
+                    collect(output, result, validator)
+                    if (step.state == CompressionState.Finished) break
+                }
+                validator.finish()
+                check(validator.byteCount == result.size && validator.isFinished)
+                String.fromUtf8(result.toByteArray())
+            }
+        }
+    }

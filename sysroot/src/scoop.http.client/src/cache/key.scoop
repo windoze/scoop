@@ -1,0 +1,56 @@
+package scoop.http.client
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.bytes.ByteOrder
+import scoop.crypto.DigestAlgorithm
+import scoop.crypto.digest
+import scoop.crypto.secureRandomBytes
+import scoop.collections.emptyList
+import scoop.http.*
+import scoop.text.toHexString
+
+internal fun clientCachePartition(config: HttpClientConfig): String? {
+    val cache = config.cache ?: return None
+    return Some(cache.partition ?: secureRandomBytes(16L).toHexString())
+}
+
+internal fun clientRequestSnapshotFields(call: ClientCall): Array<HttpField> {
+    val fields = clientRequestFields(call, HttpVersion.Http11)
+    when (call.route) {
+        case HttpForward(endpoint) -> for (field in clientProxyAuthorization(call, endpoint)) fields.add(field)
+        else -> {}
+    }
+    fields.add(HttpField("Host".toByteArray(),
+        call.request.origin.authority(call.request.url.authority!!.port != None).toByteArray()))
+    return fields.toArray()
+}
+
+internal fun clientCacheKey(call: ClientCall): HttpCacheKey {
+    return HttpCacheKey(call.client.cachePartition!!, clientCacheUrl(call.request.url), clientRequestIdentity(call))
+}
+
+internal fun clientRequestIdentity(call: ClientCall): String {
+    val output = ByteArrayBuilder()
+    val use = call.authentication.digestUse
+    if (clientPresent(use)) {
+        val challenge = use!!.nonce.challenge
+        cacheIdentityPart(output, "Digest".toByteArray())
+        cacheIdentityPart(output, clientDigestName(challenge.algorithm).toByteArray())
+        cacheIdentityPart(output, challenge.realm)
+        cacheIdentityPart(output, use!!.session.secret!!.ha1.toByteArray())
+    } else {
+        cacheIdentityPart(output, "Authorization".toByteArray())
+        cacheIdentityPart(output, clientCacheFieldFingerprint(call.request.fields, "Authorization").toByteArray())
+    }
+    cacheIdentityPart(output, clientCacheFieldFingerprint(call.request.fields, "Cookie").toByteArray())
+    val identity = call.client.config.tls.identity
+    if (call.request.origin.scheme == "https" && clientPresent(identity))
+        cacheIdentityPart(output, identity!!.leafCertificateSha256)
+    else cacheIdentityPart(output, emptyList<Byte>())
+    return digest(DigestAlgorithm.Sha256, output.toByteArray()).toHexString()
+}
+
+private fun cacheIdentityPart(output: ByteArrayBuilder, value: List<Byte>) {
+    output.writeInt64(value.size, ByteOrder.BigEndian)
+    output.append(value)
+}

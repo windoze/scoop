@@ -3,53 +3,13 @@ use inkwell::context::Context;
 use inkwell::module::{Linkage, Module as LlvmModule};
 use inkwell::types::{IntType, StructType};
 use inkwell::values::{GlobalValue, StructValue};
-use scoop_lir::{
-    ConeImagePlanV1, DigestPatchIntentId, ObjectDefinitionAtomId, ObjectDefinitionPlanId,
-    PersistentSymbolRequest,
-};
+use scoop_lir::{ConeImagePlanV1, ObjectDefinitionAtomId, PersistentSymbolRequest};
 
 use super::RuntimeMetadataV1Types;
 
 const METADATA_ABI_VERSION: u64 = scoop_lir::RUNTIME_METADATA_ABI_VERSION_V1 as u64;
 const IMAGE_DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5049_4d47;
-const IMAGE_DESCRIPTOR_SIZE: u64 = 240;
-const RUNTIME_IMAGE_FINGERPRINT_OFFSET: u64 = 96;
-const DIGEST_SIZE: u64 = 32;
-
-/// The sole graph-managed patch site inside one emitted image descriptor.
-#[derive(Clone, Copy, Debug)]
-pub struct RuntimeImagePatchSiteV1<'ctx> {
-    intent: DigestPatchIntentId,
-    definition: ObjectDefinitionPlanId,
-    atom: ObjectDefinitionAtomId,
-    owner: GlobalValue<'ctx>,
-}
-
-impl<'ctx> RuntimeImagePatchSiteV1<'ctx> {
-    pub const fn intent(self) -> DigestPatchIntentId {
-        self.intent
-    }
-
-    pub const fn definition(self) -> ObjectDefinitionPlanId {
-        self.definition
-    }
-
-    pub const fn atom(self) -> ObjectDefinitionAtomId {
-        self.atom
-    }
-
-    pub const fn owner(self) -> GlobalValue<'ctx> {
-        self.owner
-    }
-
-    pub const fn byte_offset(self) -> u64 {
-        RUNTIME_IMAGE_FINGERPRINT_OFFSET
-    }
-
-    pub const fn byte_size(self) -> u64 {
-        DIGEST_SIZE
-    }
-}
+const IMAGE_DESCRIPTOR_SIZE: u64 = 208;
 
 #[derive(Clone, Copy, Debug)]
 pub struct EmittedConeImageSupportAtomV1<'ctx> {
@@ -133,13 +93,12 @@ impl<'ctx> EmittedConeImageSupportAtomsV1<'ctx> {
     }
 }
 
-/// Fully emitted per-Cone image and its single provisional digest slot.
+/// Emitted per-Cone image and its actual supporting data.
 #[derive(Clone, Copy, Debug)]
 pub struct EmittedConeImageV1<'ctx> {
     image: GlobalValue<'ctx>,
     primary_atom: ObjectDefinitionAtomId,
     support_atoms: EmittedConeImageSupportAtomsV1<'ctx>,
-    patch: RuntimeImagePatchSiteV1<'ctx>,
 }
 
 impl<'ctx> EmittedConeImageV1<'ctx> {
@@ -153,10 +112,6 @@ impl<'ctx> EmittedConeImageV1<'ctx> {
 
     pub const fn support_atoms(self) -> EmittedConeImageSupportAtomsV1<'ctx> {
         self.support_atoms
-    }
-
-    pub const fn patch(self) -> RuntimeImagePatchSiteV1<'ctx> {
-        self.patch
     }
 }
 
@@ -268,11 +223,9 @@ pub(crate) fn emit_cone_image_v1<'ctx>(
         i32.const_int(METADATA_ABI_VERSION, false).into(),
         i32.const_int(IMAGE_DESCRIPTOR_SIZE, false).into(),
     ]);
-    let zero_digest = types.digest.const_zero();
     let image_value = types.image_descriptor.const_named_struct(&[
         prefix_value.into(),
         cone.into(),
-        zero_digest.into(),
         dependency_table.as_pointer_value().into(),
         i64.const_int(plan.dependencies().len() as u64, false)
             .into(),
@@ -334,12 +287,6 @@ pub(crate) fn emit_cone_image_v1<'ctx>(
                 support_atoms.array_size_overflow_message(),
                 array_size_overflow_message,
             ),
-        },
-        patch: RuntimeImagePatchSiteV1 {
-            intent: plan.fingerprint_patch(),
-            definition: plan.definition_plan(),
-            atom: plan.primary_atom(),
-            owner: image,
         },
     }
 }

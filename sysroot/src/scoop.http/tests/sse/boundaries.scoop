@@ -1,0 +1,65 @@
+package scoop.http
+
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+@Test
+private class SseBoundaryTests {
+    @Test
+    fun `one pending event stops consumption and split CRLF retains its remaining LF`() {
+        NativeByteBuffer.allocate(32L).use { input -> SseDecoder().use { decoder ->
+            input.writeBytes("data:one\r\n\r\ndata:two\r\n\r\n".toByteArray())
+            assertEquals(11L, decoder.receive(input))
+            assertEquals(0L, decoder.receive(input))
+            assertEquals(11L, input.readPosition)
+            assertEquals("one", decoder.nextEvent()!!.data)
+            assertEquals(12L, decoder.receive(input))
+            assertEquals("two", decoder.nextEvent()!!.data)
+            assertEquals(1L, decoder.receive(input))
+            decoder.endInput()
+            assertTrue(decoder.isFinished)
+        } }
+    }
+
+    @Test
+    fun `line and decoded data byte limits cover UTF8 newlines and empty events`() {
+        SseDecoder(SseLimits(6L, 1L)).use { decoder ->
+            assertEquals("x", feedSse(decoder, "data:x\n\n".toByteArray())[0L].data)
+        }
+        SseDecoder(SseLimits(maxEventBytes = 4L)).use { decoder ->
+            assertEquals("雪\n", feedSse(decoder, "data:雪\ndata\n\n".toByteArray())[0L].data)
+        }
+        SseDecoder(SseLimits(maxEventBytes = 0L)).use { decoder ->
+            assertEquals("", feedSse(decoder, "data\n\n".toByteArray())[0L].data)
+        }
+        for ((limits, text, expected) in [(SseLimits(5L, 100L), "data:x", SseLimitKind.LineBytes),
+            (SseLimits(maxEventBytes = 3L), "data:雪\ndata\n", SseLimitKind.EventBytes)]) {
+            SseDecoder(limits).use { decoder ->
+                val error = assertFailsWith<SseLimitException> { feedSse(decoder, text.toByteArray()) }
+                assertTrue(error.kind == expected)
+                assertTrue(decoder.failure!! is SseLimitException)
+                assertFailsWith<IllegalStateException> { decoder.nextEvent() }
+            }
+        }
+    }
+
+    @Test
+    fun `argument failures preserve state and parser failures release native borrows`() {
+        assertFailsWith<IllegalArgumentException> { SseLimits(-1L) }
+        assertFailsWith<IllegalArgumentException> { SseLimits(maxEventBytes = -1L) }
+        for (id in ["a\r", "a\n", "a\u0000"]) assertFailsWith<IllegalArgumentException> { SseDecoder(initialLastEventId = id) }
+        SseDecoder(SseLimits(1L)).use { decoder -> NativeByteBuffer.allocate(3L).use { input ->
+            input.writeBytes("abc".toByteArray())
+            assertFailsWith<IllegalArgumentException> { decoder.receive(input, -1L) }
+            assertFailsWith<IndexOutOfBoundsException> { decoder.receive(input, 4L) }
+            assertEquals(0L, decoder.receive(input, 0L))
+            assertEquals(0L, input.readPosition)
+            assertTrue(when (decoder.failure) { case None -> true; case Some(_) -> false })
+            val error = assertFailsWith<SseLimitException> { decoder.receive(input) }
+            assertEquals(1L, error.limit)
+            assertEquals(2L, input.readPosition)
+            input.clear()
+            input.writeByte(97.toByte())
+        } }
+    }
+}

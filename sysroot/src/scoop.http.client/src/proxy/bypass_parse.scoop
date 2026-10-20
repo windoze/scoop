@@ -1,0 +1,61 @@
+package scoop.http.client
+
+import scoop.platform.net.IpNetwork
+import scoop.text.*
+import scoop.url.*
+
+internal fun parseClientProxyBypass(text: String): Array<ClientProxyBypassRule> {
+    val rules = ArrayList<ClientProxyBypassRule>()
+    for (item in text.split(',')) {
+        val value = item.trim()
+        if (value.length == 0L) continue
+        if (value == "*") { rules.add(ClientProxyBypassRule(ClientProxyBypassTarget.Any)); continue }
+        rules.add(parseClientProxyBypassRule(value))
+    }
+    return rules.toArray()
+}
+
+private fun parseClientProxyBypassRule(value: String): ClientProxyBypassRule {
+    val (name, port) = splitClientProxyBypassPort(value)
+    if (name.contains('/')) return ClientProxyBypassRule(ClientProxyBypassTarget.Network(IpNetwork.parse(name)), port)
+    var host = name
+    val subdomainsOnly = host.startsWith('.') || host.startsWith("*.")
+    if (host.startsWith("*.")) host = host.slice(2L, host.length)
+    else if (host.startsWith('.')) host = host.slice(1L, host.length)
+    if (host.contains('*')) throw IllegalArgumentException(Some("invalid NO_PROXY wildcard"))
+    val url = Url.parse("//" + (if (host.contains(':')) "[" + host + "]" else host))
+    val authority = url.authority ?: throw IllegalArgumentException(Some("NO_PROXY requires a host"))
+    if (authority.encodedUserInfo != None || authority.port != None || url.encodedPath != "" ||
+        url.encodedQuery != None || url.encodedFragment != None)
+        throw IllegalArgumentException(Some("NO_PROXY entry must contain only a host or CIDR and optional port"))
+    val normalized = authority.networkHost()
+    val dns = when (normalized) { case Dns(_) -> true; else -> false }
+    if (subdomainsOnly && !dns) throw IllegalArgumentException(Some("NO_PROXY subdomain rule requires a DNS name"))
+    return ClientProxyBypassRule(ClientProxyBypassTarget.Host(normalized, subdomainsOnly), port)
+}
+
+private fun splitClientProxyBypassPort(value: String): (String, Int?) {
+    if (value.startsWith('[')) {
+        val end = value.indexOf(']')
+        if (end <= 1L) throw IllegalArgumentException(Some("invalid bracketed NO_PROXY address"))
+        val host = value.slice(1L, end)
+        if (!host.contains(':')) throw IllegalArgumentException(Some("NO_PROXY brackets require IPv6"))
+        if (end + 1L == value.length) return (host, None)
+        if (value[end + 1L] != ':') throw IllegalArgumentException(Some("invalid NO_PROXY port separator"))
+        return (host, Some(parseClientProxyBypassPort(value.slice(end + 2L, value.length))))
+    }
+    var colons = 0L
+    for (character in value) if (character == ':') colons += 1L
+    if (colons != 1L) return (value, None)
+    val separator = value.indexOf(':')
+    return (value.slice(0L, separator), Some(parseClientProxyBypassPort(value.slice(separator + 1L, value.length))))
+}
+
+private fun parseClientProxyBypassPort(text: String): Int {
+    if (text.length == 0L) throw IllegalArgumentException(Some("empty NO_PROXY port"))
+    for (character in text) if (character < '0' || character > '9')
+        throw IllegalArgumentException(Some("NO_PROXY port must be decimal"))
+    val port = text.toIntOrNone() ?: throw IllegalArgumentException(Some("invalid NO_PROXY port"))
+    if (port < 1 || port > 65535) throw IllegalArgumentException(Some("NO_PROXY port is out of range"))
+    return port
+}

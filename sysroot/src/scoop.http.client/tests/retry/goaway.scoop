@@ -1,0 +1,65 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.test.*
+
+@Test
+private class HttpClientRetryGoAwayTest {
+    @Test
+    fun `an unprocessed GOAWAY stream is retried on a new connection`() {
+        withClientRetryTest(version = HttpVersion.Http2) suspend { _, scope, listener, config ->
+            val done = BodyTestGate()
+            val serving = scope.launch suspend {
+                listener.accept().useAsync suspend { socket ->
+                    RetryTestHttp2Peer(socket).use suspend { peer ->
+                        val (first, _) = peer.request()
+                        assertEquals(1, first)
+                        peer.session.goAway(lastStreamId = Some(0)); peer.flush()
+                    }
+                }
+                listener.accept().useAsync suspend { socket ->
+                    RetryTestHttp2Peer(socket).use suspend { peer ->
+                        val (id, _) = peer.request()
+                        assertEquals(1, id); assertEquals("", peer.body(id))
+                        peer.respond(id); done.await()
+                    }
+                }
+            }
+            try {
+                withHttpClient(config) suspend { client ->
+                    client.withResponse(HttpRequest.get(clientTestUrl(listener))) suspend { response ->
+                        assertEquals(1L, response.retryCount); assertEquals("done", response.body.text(4L))
+                    }
+                }
+            } finally { done.signal() }
+            serving.join()
+            assertFalse(scope.job.isCancelled)
+        }
+    }
+
+    @Test
+    fun `a different HTTP2 reset is not interpreted as an unprocessed request`() {
+        withClientRetryTest(version = HttpVersion.Http2) suspend { _, scope, listener, config ->
+            val done = BodyTestGate()
+            val serving = scope.launch suspend {
+                listener.accept().useAsync suspend { socket ->
+                    RetryTestHttp2Peer(socket).use suspend { peer ->
+                        val (id, _) = peer.request()
+                        peer.session.reset(id, 8U); peer.flush(); done.await()
+                    }
+                }
+            }
+            try {
+                withHttpClient(config) suspend { client ->
+                    val failure = expectBodyFailure<HttpException> suspend {
+                        client.execute(HttpRequest.get(clientTestUrl(listener))).close()
+                    }
+                    assertEquals(8, failure.code)
+                }
+            } finally { done.signal() }
+            serving.join()
+            assertFalse(scope.job.isCancelled)
+        }
+    }
+}

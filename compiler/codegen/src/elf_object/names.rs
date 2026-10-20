@@ -11,7 +11,7 @@ impl ElfObject<'_> {
     ) -> Result<(), CodegenError> {
         if name.is_empty()
             || name.as_bytes().contains(&0)
-            || self.file.symbol_by_name(name).is_some()
+            || self.original_symbols.contains_key(name.as_bytes())
             || !self.names.insert(name.to_owned())
         {
             return Err(CodegenError(format!(
@@ -19,22 +19,21 @@ impl ElfObject<'_> {
             )));
         }
         let symbol = self
-            .file
-            .symbol_by_name(previous)
+            .original_symbol(previous)
             .ok_or_else(|| CodegenError(format!("missing ELF symbol `{previous}`")))?;
         if symbol.is_local() || symbol.section_index().is_none() {
             return Err(CodegenError(
                 "renamed ELF contribution must be an external definition".into(),
             ));
         }
-        let name_offset = u32::try_from(self.strings.len()).map_err(error)?;
-        self.strings.extend_from_slice(name.as_bytes());
-        self.strings.push(0);
         let offset = symbol
             .index()
             .0
             .checked_mul(24)
             .ok_or_else(|| error("symbol offset overflows"))?;
+        let name_offset = u32::try_from(self.strings.len()).map_err(error)?;
+        self.strings.extend_from_slice(name.as_bytes());
+        self.strings.push(0);
         let entry = self
             .symbols
             .get_mut(offset..offset + 24)

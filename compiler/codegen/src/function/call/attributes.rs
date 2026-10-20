@@ -76,6 +76,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         call: inkwell::values::CallSiteValue<'ctx>,
         safepoint: scoop_lir::SafepointId,
     ) {
+        statepoint::mark_nonduplicable(self.context, call);
         call.add_attribute(
             AttributeLoc::Function,
             self.context

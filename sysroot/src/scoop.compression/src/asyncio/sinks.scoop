@@ -1,0 +1,45 @@
+package scoop.compression.asyncio
+
+import scoop.asyncio.*
+import scoop.compression.*
+import scoop.platform.memory.NativeByteBuffer
+
+public class AsyncCompressionSink private constructor(private val stream: AsyncCompressionSinkImpl) : AsyncByteSink, AsyncCloseable {
+    public constructor(sink: AsyncByteSink, options: CompressionOptions = CompressionOptions.Zstd(ZstdOptions()),
+        bufferSize: Long = 8192L) : this(AsyncCompressionSinkImpl(sink, currentEventLoop(),
+            compressionIoResources(createCompressionEncoder(options), bufferSize, true), None)) {}
+
+    public companion object {
+        public fun <T> takeOwnership(sink: T, options: CompressionOptions = CompressionOptions.Zstd(ZstdOptions()),
+            bufferSize: Long = 8192L): AsyncCompressionSink where T : AsyncByteSink, T : AsyncCloseable =
+            AsyncCompressionSink(AsyncCompressionSinkImpl(sink, currentEventLoop(),
+                compressionIoResources(createCompressionEncoder(options), bufferSize, true), Some(sink)))
+    }
+
+    public val totals: CompressionTotals get() = stream.totals
+    public val failure: Throwable? get() = stream.failure
+    public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long = stream.writeFrom(buffer, count)
+    public override suspend fun flush() { stream.flush() }
+    public suspend fun finish() { stream.finish() }
+    public override suspend fun close() { stream.close() }
+}
+
+public class AsyncDecompressionSink private constructor(private val stream: AsyncCompressionSinkImpl) : AsyncByteSink, AsyncCloseable {
+    public constructor(sink: AsyncByteSink, options: DecompressionOptions = DecompressionOptions(),
+        bufferSize: Long = 8192L) : this(AsyncCompressionSinkImpl(sink, currentEventLoop(),
+            compressionIoResources(createCompressionDecoder(options), bufferSize, false), None)) {}
+
+    public companion object {
+        public fun <T> takeOwnership(sink: T, options: DecompressionOptions = DecompressionOptions(),
+            bufferSize: Long = 8192L): AsyncDecompressionSink where T : AsyncByteSink, T : AsyncCloseable =
+            AsyncDecompressionSink(AsyncCompressionSinkImpl(sink, currentEventLoop(),
+                compressionIoResources(createCompressionDecoder(options), bufferSize, false), Some(sink)))
+    }
+
+    public val totals: CompressionTotals get() = stream.totals
+    public val failure: Throwable? get() = stream.failure
+    public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long = stream.writeFrom(buffer, count)
+    public override suspend fun flush() { stream.flush() }
+    public suspend fun finish() { stream.finish() }
+    public override suspend fun close() { stream.close() }
+}

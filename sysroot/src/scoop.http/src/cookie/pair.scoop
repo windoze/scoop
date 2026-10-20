@@ -1,0 +1,60 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+
+public class HttpCookiePair private constructor(public val name: Array<Byte>, public val value: Array<Byte>) {
+    public constructor(name: List<Byte>, value: List<Byte>) : this(checkedCookieBytes(name, true), checkedCookieBytes(value, false)) {}
+    public constructor(name: String, value: String)
+        : this(checkedCookieBytes(name.toByteArray(), true), checkedCookieBytes(value.toByteArray(), false)) {}
+
+    init {
+        if (name.size > 4096L || value.size > 4096L - name.size)
+            throw IllegalArgumentException(Some("Cookie name and value exceed 4096 bytes"))
+    }
+
+    public fun toByteArray(): Array<Byte> {
+        val output = ByteArrayBuilder()
+        if (name.size > 0L) { output.append(name); output.append(61.toByte()) }
+        output.append(value)
+        return output.toByteArray()
+    }
+
+    public companion object {
+        internal fun read(reader: HttpFieldReader): HttpCookiePair {
+            val offset = reader.position
+            val part = readCookiePart(reader)
+            val name = if (part._3) part._1 else Array<Byte>(0L) { _ -> 0.toByte() }
+            val value = if (part._3) part._2 else part._1
+            try { return HttpCookiePair(name, value) }
+            catch (_: IllegalArgumentException) { reader.failAt(offset, "Cookie name and value exceed 4096 bytes") }
+        }
+    }
+}
+
+public class HttpCookieAttribute private constructor(public val name: Array<Byte>, public val value: Array<Byte>?) {
+    public constructor(name: List<Byte>, value: List<Byte>? = None)
+        : this(checkedCookieBytes(name, true), checkedCookieOptional(value)) {}
+    public constructor(name: String, value: List<Byte>? = None)
+        : this(checkedCookieBytes(name.toByteArray(), true), checkedCookieOptional(value)) {}
+    public constructor(name: String, value: String)
+        : this(checkedCookieBytes(name.toByteArray(), true), Some<Array<Byte>>(checkedCookieBytes(value.toByteArray(), false))) {}
+
+    public fun hasName(name: String): Boolean = httpAsciiEqual(this.name, name.toByteArray())
+    public fun toByteArray(): Array<Byte> {
+        val output = ByteArrayBuilder()
+        output.append(name)
+        when (value) {
+            case None -> {}
+            case Some(bytes) -> { output.append(61.toByte()); output.append(bytes) }
+        }
+        return output.toByteArray()
+    }
+
+    public companion object {
+        internal fun read(reader: HttpFieldReader): HttpCookieAttribute {
+            val part = readCookiePart(reader)
+            val value: Array<Byte>? = if (part._3) Some(part._2) else None
+            return HttpCookieAttribute(part._1, value)
+        }
+    }
+}

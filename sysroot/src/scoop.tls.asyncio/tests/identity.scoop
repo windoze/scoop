@@ -1,0 +1,94 @@
+package scoop.tls.asyncio
+
+import scoop.asyncio.*
+import scoop.crypto.testdata.*
+import scoop.crypto.x509.TrustStore
+import scoop.platform.concurrent.Thread
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+import scoop.tls.*
+
+@Test
+private class AsyncTlsIdentityTests {
+    @Test
+    fun `identity contexts remain usable by asynchronous TLS after the identity has closed`() {
+        for (version in [TlsVersion.Tls12, TlsVersion.Tls13]) verifyAsyncIdentity(version)
+    }
+
+    @Test
+    fun `identity and context can close during a handshake whose cancellation awaits real cleanup`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val (clientRaw, serverRaw) = rawPair(loop, scope)
+            val identity = TlsIdentity.fromPem(clientPem() + intermediatePem(), serverKeyPem())
+            val context = TrustStore.fromPem(rootPem()).use { store -> TlsClientContext(store, identity = Some(identity)) }
+            val release = AsyncGate()
+            val returned = AtomicBoolean(false)
+            clientRaw.closeGate = Some(release)
+            try {
+                val connecting = scope.launch suspend {
+                    try {
+                        val unexpected = AsyncTlsStream.takeOwnershipAsClient(clientRaw, context, TlsPeerName.Dns("localhost"))
+                        unexpected.close()
+                        fail(Some("a cancelled identity handshake succeeded"))
+                    } catch (_: CancellationException) { returned.store(true) }
+                }
+                clientRaw.readStarted.await()
+                identity.close(); context.close()
+                val canceller = Thread.start { connecting.cancel() }
+                clientRaw.closeStarted.await()
+                assertFalse(returned.load() || connecting.isCompleted)
+                assertTrue(identity.isClosed)
+                release.signal()
+                connecting.join()
+                canceller.join()
+                assertTrue(returned.load())
+                assertEquals(1, clientRaw.closes)
+            } finally {
+                release.signal()
+                identity.close(); context.close()
+                if (clientRaw.closes == 0) clientRaw.close()
+                serverRaw.close()
+            }
+        }
+    }
+}
+
+private fun verifyAsyncIdentity(version: TlsVersion) {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { scope ->
+        val options = TlsOptions(version, version)
+        val clientConfig = TlsIdentity.fromPem(clientPem() + intermediatePem(), serverKeyPem()).use { identity ->
+            TrustStore.fromPem(rootPem()).use { store -> TlsClientContext(store, options, Some(identity)) }
+        }
+        val serverConfig = serverContext(options)
+        try {
+            val (clientRaw, serverRaw) = rawPair(loop, scope)
+            val accepting = scope.async<AsyncTlsStream> suspend { AsyncTlsStream.takeOwnershipAsServer(serverRaw, serverConfig) }
+            val client = AsyncTlsStream.takeOwnershipAsClient(clientRaw, clientConfig, TlsPeerName.Dns("localhost"))
+            val server = accepting.await()
+            clientConfig.close(); serverConfig.close()
+            try {
+                val serving = scope.launch suspend {
+                    NativeByteBuffer.allocate(4L).use suspend { buffer ->
+                        server.readFully(buffer, 4L)
+                        assertEquals("mtls", String.fromUtf8(buffer.readBytes(4L)))
+                        buffer.clear(); buffer.writeBytes("peer".toByteArray())
+                        server.writeFully(buffer)
+                        server.shutdownGracefully()
+                    }
+                }
+                assertTrue(client.connectionInfo.version == version)
+                NativeByteBuffer.allocate(4L).use suspend { buffer ->
+                    buffer.writeBytes("mtls".toByteArray())
+                    client.writeFully(buffer)
+                    buffer.clear()
+                    client.readFully(buffer, 4L)
+                    assertEquals("peer", String.fromUtf8(buffer.readBytes(4L)))
+                    client.shutdownGracefully()
+                }
+                serving.join()
+            } finally { client.close(); server.close() }
+        } finally { clientConfig.close(); serverConfig.close() }
+    }
+}

@@ -1,0 +1,20 @@
+import scoop.crypto.testdata.rootPem
+import scoop.crypto.x509.TrustStore
+import scoop.platform.concurrent.Thread
+import scoop.url.Url
+
+private fun runMain(args: Array<String>) {
+    digestCheck(args.size == 4L)
+    TrustStore.fromPem(rootPem()).use { trust ->
+        Thread.start { digestExternal(args[1L], Url.parse(args[2L]), trust) }.use { thread ->
+            digestExternal(args[1L], Url.parse(args[3L]), trust)
+            thread.join()
+        }
+    }
+    println("client Digest " + args[1L])
+}
+
+fun main(args: Array<String>) {
+    try { runMain(args) }
+    catch (error: Throwable) { digestReport(error); throw error }
+}

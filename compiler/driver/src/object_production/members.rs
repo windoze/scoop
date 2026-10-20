@@ -17,7 +17,6 @@ pub enum BuiltinObjectProducerV1 {
 pub(super) struct UnboundScoopLirObject {
     pub(in crate::object_production) units: Vec<ObjectDefinitionPlanId>,
     pub(in crate::object_production) bytes: Vec<u8>,
-    pub(in crate::object_production) digest_patches: Vec<UnboundDigestPatch>,
 }
 
 #[derive(Clone, Debug)]
@@ -26,31 +25,12 @@ pub(super) struct UnboundGeneratedCBridgeObject {
     pub(in crate::object_production) bytes: Vec<u8>,
 }
 
-#[derive(Clone, Copy, Debug)]
-pub(super) struct UnboundDigestPatch {
-    pub(in crate::object_production) intent: scoop_identity::DigestPatchIntentId,
-    pub(in crate::object_production) checked_object_offset: u64,
-}
-
-impl UnboundDigestPatch {
-    pub(super) fn from_codegen(
-        location: ProvisionalStrongDigestPatchLocationV1,
-        offset: u64,
-    ) -> Self {
-        Self {
-            intent: location.intent(),
-            checked_object_offset: offset,
-        }
-    }
-}
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct PlannedObjectBindings {
     pub(in crate::object_production) member_plan: PlannedLinkObjectMemberSetV1,
     pub(in crate::object_production) scoop_lir_members: Vec<PlannedScoopLirObjectInputV1>,
     pub(in crate::object_production) generated_c_bridge_members:
         Vec<PlannedGeneratedCBridgeObjectInputV1>,
-    pub(in crate::object_production) digest_patches: Vec<DigestPatchSiteV1>,
 }
 
 pub(super) fn plan_objects(
@@ -84,16 +64,9 @@ pub(super) fn plan_objects(
     .map_err(BuiltinObjectProductionError::MemberPlan)?;
 
     let mut scoop_lir_members = Vec::with_capacity(scoop_lir_sources.len());
-    let mut digest_patches = Vec::new();
     for source in scoop_lir_sources {
         let member = scoop_member_for_units(&member_plan, &source.units)?;
-        for patch in source.digest_patches {
-            digest_patches.push(DigestPatchSiteV1::new(
-                patch.intent,
-                member.member_id(),
-                patch.checked_object_offset,
-            ));
-        }
+
         scoop_lir_members.push(PlannedScoopLirObjectInputV1 {
             plan: member.clone(),
             bytes: source.bytes,
@@ -115,7 +88,6 @@ pub(super) fn plan_objects(
         member_plan,
         scoop_lir_members,
         generated_c_bridge_members,
-        digest_patches,
     })
 }
 

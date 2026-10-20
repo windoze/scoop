@@ -1,0 +1,77 @@
+import scoop.http.*
+import scoop.platform.concurrent.Thread
+import scoop.platform.memory.NativeByteBuffer
+import scoop.text.hexToByteArray
+import scoop.text.toHexString
+
+private fun check(value: Boolean) {
+    if (!value) throw IllegalStateException(Some("HTTP2 output metadata check failed"))
+}
+
+private fun request(path: String, fields: List<HttpField> = ArrayList<HttpField>()): HttpRequestHead =
+    HttpRequestHead(HttpVersion.Http2, "POST".toByteArray(),
+        HttpRequestTarget.Http2("https".toByteArray(), "example.test".toByteArray(), path.toByteArray()), fields)
+
+private fun drain(session: Http2Session, trace: StringBuilder, capacity: Long) {
+    NativeByteBuffer.allocate(capacity).use { buffer ->
+        while (true) {
+            buffer.clear()
+            val part = session.takeOutputChunk(buffer)
+            check(part.count == buffer.readableBytes)
+            if (part.count == 0L) {
+                check(part.streamId == 0 && part.kind == Http2OutputKind.Control)
+                break
+            }
+            val kind = when (part.kind) { case Control -> 0; case Headers -> 1; case Data -> 2 }
+            trace.append(kind.toString()).append(":").append(part.streamId.toString()).append(":")
+                .append(part.count.toString()).append(":").append(buffer.readBytes(part.count).toHexString()).append("\n")
+        }
+    }
+}
+
+private fun body(session: Http2Session, stream: Int, text: String) {
+    val bytes = text.toByteArray()
+    NativeByteBuffer.allocate(bytes.size).use { buffer ->
+        buffer.writeBytes(bytes)
+        check(session.writeBody(stream, buffer) == bytes.size)
+    }
+}
+
+private fun exercise(head: HttpRequestHead): String = Http2Session.client(
+    limits = Http2Limits(headers = HttpHeaderLimits(maxFieldBytes = 65536L))).use { session ->
+    val trace = StringBuilder().append("begin\n")
+    drain(session, trace, 3L)
+    NativeByteBuffer.allocate(9L).use { buffer ->
+        buffer.writeBytes("000000040000000000".hexToByteArray())
+        check(session.receive(buffer) == 9L)
+    }
+    drain(session, trace, 5L)
+    val first = session.submitRequest(head, false)
+    val second = session.submitRequest(request("/other"), false)
+    check(first == 1 && second == 3)
+    body(session, first, "first")
+    body(session, second, "two")
+    session.finish(first, [HttpField("x-end".toByteArray(), "done".toByteArray())])
+    drain(session, trace, 4093L)
+    session.finish(second)
+    drain(session, trace, 2L)
+    session.reset(second)
+    drain(session, trace, 2L)
+    check(!session.hasPendingOutput(first) && !session.hasPendingOutput(second))
+    check(session.bufferedOutputBytes == 0L)
+    trace.append("end").toString()
+}
+
+private class TraceResult { var value: String? = None }
+
+fun main() {
+    val value = Array<Byte>(40000L) { _ -> 122.toByte() }
+    val head = request("/large", [HttpField("x-large".toByteArray(), value)])
+    val result = TraceResult()
+    Thread.start { result.value = Some(exercise(head)) }.use { thread ->
+        val first = exercise(head)
+        thread.join()
+        println(first)
+        println(result.value!!)
+    }
+}

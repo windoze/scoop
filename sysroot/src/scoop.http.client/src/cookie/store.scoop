@@ -1,0 +1,53 @@
+package scoop.http.client
+
+import scoop.http.HttpCookie
+import scoop.http.HttpCookieRules
+import scoop.time.Instant
+import scoop.url.UrlHost
+
+internal class ClientStoredCookie(var cookie: HttpCookie, var lastAccess: Instant)
+
+internal fun sameClientCookieKey(first: HttpCookie, second: HttpCookie): Boolean =
+    first.host == second.host && first.hostOnly == second.hostOnly &&
+        clientBytesEqual(first.pair.name, second.pair.name) && clientBytesEqual(first.path, second.path)
+
+internal fun pruneClientCookies(entries: MutableList<ClientStoredCookie>, now: Instant) {
+    var index = entries.size
+    while (index > 0L) { index -= 1L; if (entries[index].cookie.isExpired(now)) entries.removeAt(index) }
+}
+
+internal fun clientCookieOverlaysSecure(entries: List<ClientStoredCookie>, cookie: HttpCookie): Boolean {
+    for (entry in entries) {
+        val previous = entry.cookie
+        if (previous.secure && clientBytesEqual(previous.pair.name, cookie.pair.name) &&
+            (HttpCookieRules.domainMatches(previous.host, cookie.host) || HttpCookieRules.domainMatches(cookie.host, previous.host)) &&
+            HttpCookieRules.pathMatches(cookie.path, previous.path)) return true
+    }
+    return false
+}
+
+internal fun storeClientCookie(entries: MutableList<ClientStoredCookie>, cookie: HttpCookie, now: Instant) {
+    for (index in 0L..<entries.size) {
+        val previous = entries[index]
+        if (!sameClientCookieKey(previous.cookie, cookie)) continue
+        if (cookie.isExpired(now)) entries.removeAt(index)
+        else { previous.cookie = cookie; previous.lastAccess = now }
+        return
+    }
+    if (!cookie.isExpired(now)) entries.add(ClientStoredCookie(cookie, now))
+}
+
+internal fun trimClientCookies(entries: MutableList<ClientStoredCookie>, host: UrlHost?, limit: Long) {
+    while (true) {
+        var count = 0L
+        var oldest = -1L
+        for (index in 0L..<entries.size) {
+            val entry = entries[index]
+            if (clientPresent(host) && entry.cookie.host != host!!) continue
+            count += 1L
+            if (oldest < 0L || entry.lastAccess < entries[oldest].lastAccess) oldest = index
+        }
+        if (count <= limit) return
+        entries.removeAt(oldest)
+    }
+}

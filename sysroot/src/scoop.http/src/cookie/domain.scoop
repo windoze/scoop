@@ -1,0 +1,42 @@
+package scoop.http
+
+import scoop.Result
+import scoop.idna.*
+import scoop.platform.net.IpAddress
+import scoop.text.*
+import scoop.url.*
+
+internal typealias CookieDomainResult = Result<(UrlHost, Boolean), HttpCookieRejection>
+
+internal fun resolveCookieDomain(origin: UrlOrigin, attribute: Array<Byte>?, suffixes: PublicSuffixList): CookieDomainResult {
+    val value = when (attribute) { case None -> return Result.Success((origin.host, true)); case Some(bytes) -> bytes }
+    if (value.size == 0L) return Result.Success((origin.host, true))
+    for (byte in value) if (byte.toUByte().toInt() >= 128) return Result.Failure(HttpCookieRejection.InvalidDomain)
+    val text = String.fromUtf8(value)
+    if (text.endsWith(".")) return Result.Failure(HttpCookieRejection.InvalidDomain)
+    when (origin.host) {
+        case Dns(host) -> {
+            if (text == host) return Result.Success((origin.host, suffixes.lookup(origin)!!.publicSuffix == host))
+            val name = try { Idna.parse(text) } catch (error: IdnaException) {
+                if (error.kind == IdnaFailureKind.Backend) throw error
+                return Result.Failure(HttpCookieRejection.InvalidDomain)
+            }
+            if (suffixes.lookup(name).publicSuffix == name.ascii) {
+                if (host == name.ascii) return Result.Success((origin.host, true))
+                return Result.Failure(HttpCookieRejection.PublicSuffix)
+            }
+            val domain = UrlHost.Dns(name.ascii)
+            return if (HttpCookieRules.domainMatches(origin.host, domain)) Result.Success((domain, false))
+                else Result.Failure(HttpCookieRejection.DomainMismatch)
+        }
+        case Ipv4(bytes) -> return cookieIpDomain(origin.host, bytes, text)
+        case Ipv6(bytes) -> return cookieIpDomain(origin.host, bytes, text)
+    }
+}
+
+private fun cookieIpDomain(host: UrlHost, bytes: Array<Byte>, text: String): CookieDomainResult {
+    val parsed = try { IpAddress.parse(text) }
+        catch (_: IllegalArgumentException) { return Result.Failure(HttpCookieRejection.InvalidDomain) }
+    if (parsed.scopeId != 0U || !httpBytesEqual(bytes, parsed.toByteArray())) return Result.Failure(HttpCookieRejection.DomainMismatch)
+    return Result.Success((host, false))
+}

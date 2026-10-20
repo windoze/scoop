@@ -1,0 +1,5 @@
+package scoop.tls
+
+import scoop.crypto.x509.TrustStore
+
+public enum TlsTrustSource { System, Store(TrustStore) }

@@ -1,0 +1,52 @@
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.*
+import scoop.test.*
+import scoop.text.endsWith
+
+internal fun eofAsync(truncated: Boolean) {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { scope ->
+        loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).useAsync suspend { listener ->
+            val server = scope.launch suspend {
+                listener.accept().useAsync suspend { peer ->
+                    NativeByteBuffer.allocate(256L).use suspend { buffer ->
+                        var request = ""
+                        while (!request.endsWith("\r\n\r\n")) {
+                            buffer.clear()
+                            val count = peer.readInto(buffer, buffer.capacity)
+                            assertTrue(count > 0L)
+                            request += String.fromUtf8(buffer.getBytes(0L, count))
+                        }
+                        buffer.clear()
+                        buffer.writeBytes((if (truncated) "HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\nab"
+                            else "HTTP/1.1 200 OK\r\nConnection: close\r\n\r\nab").toByteArray())
+                        peer.writeFully(buffer)
+                    }
+                }
+            }
+            AsyncHttp1Connection.takeOwnershipAsClient(loop.connectTcp(listener.localAddress), scope).useAsync suspend { client ->
+                client.sendRequest(HttpRequestHead(HttpVersion.Http11, "GET".toByteArray(), HttpRequestTarget.Http1("/".toByteArray()),
+                    [HttpField("Host".toByteArray(), "localhost".toByteArray())])).finish()
+                val response = client.receiveResponse()
+                val failure = EofFailure()
+                try {
+                    val bytes = response.body.readAllBytes(16L)
+                    assertFalse(truncated)
+                    assertEquals("ab", String.fromUtf8(bytes))
+                    assertTrue(response.body.isComplete)
+                } catch (error: HttpException) { failure.error = Some(error) }
+                if (truncated) {
+                    assertTrue(when (failure.error) { case Some(_) -> true; case None -> false })
+                    assertTrue(failure.error!!.isUnexpectedEof)
+                } else assertTrue(when (failure.error) { case None -> true; case Some(_) -> false })
+                response.body.close()
+            }
+            server.join()
+        }
+    }
+}
+
+private class EofFailure { var error: HttpException? = None }

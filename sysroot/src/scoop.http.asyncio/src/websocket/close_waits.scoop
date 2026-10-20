@@ -1,0 +1,50 @@
+package scoop.http.asyncio
+
+// Release application waiters before waiting for their operation cleanup.
+internal fun finishWsOperations(state: WsState, actions: ArrayList<() -> Unit>) {
+    val failure = state.failure ?: wsClosed(state)
+    if (present(state.reader)) {
+        failWsWait(state.reader!!.wait, state.failure ?: wsInterrupted(state), actions)
+        state.reader = None
+    }
+    if (present(state.receiving)) {
+        if (wsClean(state)) succeedWsWait(state.receiving!!, None, actions)
+        else failWsWait(state.receiving!!, failure, actions)
+        state.receiving = None
+    }
+    if (present(state.writer)) { failWsWait(state.writer!!.wait, failure, actions); state.writer = None }
+}
+
+internal suspend fun observeWsClosed(state: WsState) {
+    checkWsCloseContext(state)
+    httpJob(state.loop, true)
+    suspendCancellableCoroutine<Unit> { continuation ->
+        val actions = ArrayList<() -> Unit>()
+        state.lock.withLock {
+            if (state.closed) finishWsObserver(continuation, state.closeFailure, actions)
+            else state.closeObservers.add(continuation)
+        }
+        continuation.invokeOnCancellation { _ ->
+            state.lock.withLock {
+                var index = 0L
+                while (index < state.closeObservers.size) {
+                    if (state.closeObservers[index] === continuation) { state.closeObservers.removeAt(index); break }
+                    index += 1L
+                }
+            }
+        }
+        for (action in actions) action()
+    }
+}
+
+internal fun finishWsObservers(state: WsState, actions: ArrayList<() -> Unit>) {
+    for (observer in state.closeObservers) finishWsObserver(observer, state.closeFailure, actions)
+    state.closeObservers.clear()
+}
+
+private fun finishWsObserver(observer: CancellableContinuation<Unit>, failure: Throwable?, actions: ArrayList<() -> Unit>) {
+    actions.add {
+        if (present(failure)) observer.tryResumeWithException(failure!!) else observer.tryResume(Unit)
+        Unit
+    }
+}

@@ -1,0 +1,57 @@
+package scoop.http.client
+
+import scoop.asyncio.IoClosedException
+import scoop.time.Duration
+
+internal suspend fun driveClientPool(state: ClientState, scope: CoroutineScope) {
+    var timer: Job? = None
+    try {
+        while (true) {
+            if (clientPresent(timer)) { timer!!.cancel(); timer = None }
+            val plan = planClientPool(state)
+            for (action in plan.actions) {
+                when (action) {
+                    case Dial(call, entry) -> { stopClientDeadline(call.poolDeadline); startClientDial(state, call, entry) }
+                    case Upgrade(work) -> startClientUpgrade(work)
+                    case Reject(call, error) -> failClientCall(call, error)
+                    case Deliver(call, entry, waiter) -> {
+                        stopClientDeadline(call.poolDeadline)
+                        val error = call.lock.withLock {
+                            if (call.ending) Some(call.failure ?: IoClosedException()) else None
+                        }
+                        if (clientPresent(error)) waiter.resumeWithException(error!!) else waiter.resume(ClientConnectResult.Connected(entry.connection!!))
+                    }
+                    case Close(entry) -> closeClientPoolEntry(state, entry, entry.connection!!)
+                }
+            }
+            if (plan.done) return
+            if (plan.actions.size != 0L) continue
+            if (clientPresent(plan.delay) && !state.lock.withLock { state.closing }) {
+                val delay = plan.delay!!
+                timer = Some(scope.launch suspend {
+                    try {
+                        if (delay > Duration.ZERO) state.loop.sleep(delay)
+                        wakeClient(state)
+                    } catch (_: CancellationException) {
+                    } catch (error: Throwable) {
+                        state.lock.withLock { state.closeFailure = Some(clientCombined(state.closeFailure, error)) }
+                        stopClient(state)
+                    }
+                })
+            }
+            suspendCoroutine<Unit> { continuation ->
+                val immediate = state.lock.withLock {
+                    if (state.dirty) true else { state.wake = Some(continuation); false }
+                }
+                if (immediate) continuation.resume(Unit)
+            }
+        }
+    } finally { if (clientPresent(timer)) timer!!.cancel() }
+}
+
+private suspend fun closeClientPoolEntry(state: ClientState, entry: ClientPoolEntry, connection: ClientConnection) {
+    try { closeClientConnection(connection) }
+    catch (error: Throwable) {
+        state.lock.withLock { state.closeFailure = Some(clientCombined(state.closeFailure, error)) }
+    } finally { removeClientPoolEntry(state, entry) }
+}

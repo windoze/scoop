@@ -1,0 +1,39 @@
+import scoop.asyncio.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.*
+import scoop.platform.system.OsString
+import scoop.test.*
+import scoop.time.Duration
+
+internal fun tcpTraceCallback(phase: TcpConnectPhase, kind: TcpConnectEventKind) {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { scope ->
+        loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).useAsync suspend { listener ->
+            val state = TcpTraceState()
+            val serving = scope.launch suspend {
+                try {
+                    listener.accept().useAsync suspend { stream ->
+                        NativeByteBuffer.allocate(1L).use suspend { buffer -> assertEquals(0L, stream.readInto(buffer, 1L)) }
+                        state.closed.signal()
+                    }
+                } catch (_: CancellationException) {}
+            }
+            val callback: (TcpConnectEvent) -> Unit = { event ->
+                assertEquals("callback", tcpTraceMarker())
+                state.events.add(event)
+                if (event.phase == phase && event.kind == kind) throw state.failure
+            }
+            try {
+                context(TcpTraceMarker("callback")) {
+                    val options = TcpConnectOptions(resolutionDelay = Duration.ZERO, attemptDelay = Duration.ZERO, onEvent = Some(callback))
+                    val failure = tcpTraceFailure suspend { loop.connectTcp(OsString.fromString("127.0.0.1"), listener.localAddress.port, options); Unit }
+                    assertSame(state.failure, failure)
+                }
+                val last = state.events[state.events.size - 1L]
+                assertEquals(phase, last.phase); assertEquals(kind, last.kind)
+                if (phase == TcpConnectPhase.Connect && kind == TcpConnectEventKind.Finished) state.closed.await()
+                ensureActive()
+            } finally { serving.cancel(); serving.join() }
+        }
+    }
+}

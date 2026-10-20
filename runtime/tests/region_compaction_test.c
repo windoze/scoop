@@ -15,8 +15,7 @@ static const ScoopTypeDescriptor wide_td = {
     .instance_shape = {.instance_kind = SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1,
                        .minimum_size = WIDE_SIZE,
                        .instance_alignment = 16},
-    .release_hook = release_wide,
-};
+    .release_hook = release_wide};
 
 static void compact_round(bool pin_region) {
     void *objects[2 * PAIR_COUNT] = {0};

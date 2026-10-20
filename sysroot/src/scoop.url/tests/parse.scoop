@@ -1,0 +1,60 @@
+package scoop.url
+
+import scoop.test.*
+
+@Test
+private class UrlParseTests {
+    @Test
+    fun `Unicode IRI components and percent escapes retain their boundaries`() {
+        val url = Url.parse("HTTPS://BÜCHER.example./路径/%2f?q=é%26x#片段")
+        assertEquals("https://xn--bcher-kva.example./%E8%B7%AF%E5%BE%84/%2F?q=%C3%A9%26x#%E7%89%87%E6%AE%B5", url.toString())
+        assertEquals("https://bücher.example./路径/%2F?q=é%26x#片段", url.toIriString())
+        assertEquals("/%E8%B7%AF%E5%BE%84/%2F?q=%C3%A9%26x", url.httpRequestTarget())
+        assertEquals("xn--bcher-kva.example", url.httpOrigin().host.toString())
+        gcCollect()
+        assertEquals(url, url.toBuilder().build())
+    }
+
+    @Test
+    fun `missing and empty components remain distinct`() {
+        val empty = Url.parse("")
+        assertTrue(empty.scheme == None)
+        assertTrue(empty.authority == None)
+        assertEquals("", empty.encodedPath)
+        val url = Url.parse("http://example?#")
+        assertTrue(url.encodedQuery != None)
+        assertEquals("", url.encodedQuery!!)
+        assertEquals("", url.encodedFragment!!)
+        assertEquals("http://example?#", url.toString())
+        assertEquals("/?", url.httpRequestTarget())
+        assertTrue(Url.parse("http://example") != url)
+        assertEquals("urn:example:animal:ferret:nose", Url.parse("urn:example:animal:ferret:nose").toString())
+    }
+
+    @Test
+    fun `HTTP origins normalize names ports and address representations`() {
+        assertEquals(Url.parse("http://EXAMPLE.:080/a").httpOrigin(), Url.parse("http://example").httpOrigin())
+        assertTrue(Url.parse("ws://example").httpOrigin() != Url.parse("http://example").httpOrigin())
+        assertEquals(Url.parse("http://[::1]").httpOrigin(), Url.parse("http://[0:0:0:0:0:0:0:1]:80").httpOrigin())
+        assertEquals("[0000:0000:0000:0000:0000:0000:0000:0001]", Url.parse("http://[::1]").httpOrigin().authority())
+        assertEquals(Url.parse("http://127.0.0.1").httpOrigin(), Url.parse("http://%31%32%37.0.0.1").httpOrigin())
+        for (host in ["127.1", "0177.0.0.1", "0x7f000001", "2130706433", "1.2.3.999", "a_b", ".", "", "%FF", "[v1.a]"]) {
+            val url = Url.parse("http://" + host)
+            assertFailsWith<UrlParseException> { url.httpOrigin() }
+        }
+        assertFailsWith<UrlParseException> { Url.parse("http://example:0").httpOrigin() }
+        assertEquals("custom://a_b", Url.parse("custom://a_b").toString())
+    }
+
+    @Test
+    fun `invalid URI syntax and port ranges report format errors`() {
+        for (input in ["http://a/%", "http://a/%0X", "http://a\\b", "http://a\r\nb", "http://a b", "http://a:", "http://a:65536", "http://a:-1", "http://[::1", "http://[fe80::1%25eth0]"]) {
+            assertTrue(Url.parseOrNone(input) == None)
+        }
+        val error = assertFailsWith<UrlParseException> { Url.parse("é/\t") }
+        assertEquals(3L, error.offset!!)
+        val syntax = assertFailsWith<UrlParseException> { Url.parse("é/[") }
+        assertEquals(3L, syntax.offset!!)
+        assertEquals("http://a/%FF", Url.parse("http://a/%FF").toIriString())
+    }
+}

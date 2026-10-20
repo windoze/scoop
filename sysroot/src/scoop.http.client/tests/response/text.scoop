@@ -1,0 +1,85 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.charset.*
+import scoop.collections.emptyList
+import scoop.http.*
+import scoop.test.*
+
+@Test
+private class HttpClientResponseTextTest {
+    @Test
+    fun `text delegates declared charsets and BOM rules while UTF8 is the default`() {
+        val messages: Array<(Array<Byte>, Array<HttpField>, String)> = [
+            ("\uFEFF中文".toByteArray(), emptyList<HttpField>().toArray(), "中文"),
+            (Charset.Iso8859_1.encode("café"), [responseTestField("Content-Type", "text/plain; charset=ISO-8859-1")], "café"),
+            (Charset.Utf16LE.encode("中文", CharsetEncodeOptions(emitBom = true)),
+                [responseTestField("Content-Type", "text/plain; charset=UTF-16")], "中文")]
+        withResponseTestHttp1(suspend { connection ->
+            for ((bytes, fields, text) in messages) {
+                connection.receiveRequest()!!.body.readAllBytes(0L)
+                sendResponseTestBytes(connection, bytes, fields)
+            }
+        }, suspend { client, url ->
+            for ((bytes, fields, text) in messages) {
+                client.withResponse(HttpRequest.get(url)) suspend { response ->
+                    assertEquals(text, response.body.text(bytes.size))
+                    assertTrue(response.body.contentLength == Some(bytes.size))
+                }
+            }
+        })
+    }
+
+    @Test
+    fun `text metadata failures do not consume bytes and explicit charset overrides them`() {
+        val messages = [[responseTestField("Content-Type", "text/plain; charset=unknown-scoop-charset")],
+            [responseTestField("Content-Type", "text plain")],
+            [responseTestField("Content-Type", "text/plain"), responseTestField("Content-Type", "text/plain")]]
+        withResponseTestHttp1(suspend { connection ->
+            for (fields in messages) {
+                connection.receiveRequest()!!.body.readAllBytes(0L)
+                sendResponseTestBytes(connection, Charset.Iso8859_1.encode("café"), fields)
+            }
+        }, suspend { client, url ->
+            var index = 0L
+            for (fields in messages) {
+                val attempt = index
+                client.withResponse(HttpRequest.get(url)) suspend { response ->
+                    if (attempt == 0L) expectBodyFailure<UnsupportedCharsetException> suspend { response.body.text(4L); Unit }
+                    else expectBodyFailure<HttpFieldParseException> suspend { response.body.text(4L); Unit }
+                    assertFalse(response.body.isComplete)
+                    assertEquals("café", response.body.text(4L, Some(Charset.Iso8859_1)))
+                    assertEquals(fields.size, response.fields.findAll("Content-Type".toByteArray()).size)
+                }
+                index += 1L
+            }
+        })
+    }
+
+    @Test
+    fun `strict and replacement text decoding preserve completed HTTP messages`() {
+        val malformed = [65.toByte(), 255.toByte(), 66.toByte()]
+        withResponseTestHttp1(suspend { connection ->
+            for (action in [CharsetErrorAction.Strict, CharsetErrorAction.Replace]) {
+                connection.receiveRequest()!!.body.readAllBytes(0L)
+                sendResponseTestBytes(connection, malformed, emptyList<HttpField>())
+            }
+            connection.receiveRequest()!!.body.readAllBytes(0L)
+            sendResponseTestBytes(connection, "\uFEFFok".toByteArray(), emptyList<HttpField>())
+        }, suspend { client, url ->
+            for (action in [CharsetErrorAction.Strict, CharsetErrorAction.Replace]) {
+                client.withResponse(HttpRequest.get(url)) suspend { response ->
+                    if (action == CharsetErrorAction.Strict) {
+                        val error = expectBodyFailure<CharsetException> suspend { response.body.text(3L); Unit }
+                        assertTrue(error.kind == CharsetFailureKind.MalformedInput)
+                    } else assertEquals("A\uFFFDB", response.body.text(3L, malformedInput = action))
+                    assertTrue(response.body.isComplete)
+                    assertEquals(0L, response.body.bytes(0L).size)
+                }
+            }
+            client.withResponse(HttpRequest.get(url)) suspend { response ->
+                assertEquals("\uFEFFok", response.body.text(5L, options = CharsetDecodeOptions(bom = CharsetBomPolicy.Preserve)))
+            }
+        })
+    }
+}

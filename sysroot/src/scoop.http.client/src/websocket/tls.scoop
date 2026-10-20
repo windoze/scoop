@@ -1,0 +1,25 @@
+package scoop.http.client
+
+import scoop.tls.*
+import scoop.tls.asyncio.openTlsClientContext
+
+internal suspend fun clientWebSocketTls(client: ClientState): TlsClientContext {
+    if (client.config.versionPolicy == HttpVersionPolicy.Http1Only) return client.tls
+    val existing = client.lock.withLock { client.webSocketTls }
+    if (clientPresent(existing)) return existing!!
+    val options = client.config.tls
+    val created = openTlsClientContext(options.trust,
+        TlsOptions(options.minimum, options.maximum, ["http/1.1".toByteArray()]), options.identity)
+    try {
+        val selected = client.lock.withLock {
+            if (client.closing) throw HttpClientClosedException()
+            if (!clientPresent(client.webSocketTls)) client.webSocketTls = Some(created)
+            client.webSocketTls!!
+        }
+        if (selected !== created) created.close()
+        return selected
+    } catch (error: Throwable) {
+        try { created.close() } catch (cleanup: Throwable) { throw ResourceUseException(error, cleanup) }
+        throw error
+    }
+}

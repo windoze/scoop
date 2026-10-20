@@ -1,0 +1,86 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.test.*
+import scoop.time.Duration
+import scoop.tls.*
+import scoop.url.Url
+
+@Test
+private class AsyncWebSocketTlsTests {
+    @Test
+    fun `WSS upgrades HTTP1 TLS and keeps ordinary and compressed message ownership`() {
+        for (compressed in [false, true]) {
+            val loop: EventLoop = LibuvEventLoop()
+            loop.run suspend { scope ->
+                val (a, b) = rawPair(loop, scope)
+                val (tlsClient, tlsServer) = tlsPair(scope, a, b, TlsOptions(alpn = ["http/1.1".toByteArray()]))
+                assertTrue(selectHttpAlpn(alpnBytes(tlsClient.connectionInfo.alpn), [HttpProtocol.Http1]) == HttpProtocol.Http1)
+                val httpClient = AsyncHttp1Connection.takeOwnershipAsClient(tlsClient, scope)
+                val httpServer = AsyncHttp1Connection.takeOwnershipAsServer(tlsServer, scope)
+                val options = WebSocketSessionOptions(WebSocketFrameLimits(dataChunkBytes = 5L), 13L, 7L,
+                    closeTimeout = Duration.seconds(60L))
+                val offers = ArrayList<WebSocketDeflateOffer>()
+                if (compressed) offers.add(WebSocketDeflateOffer(true, false, Some(10), WebSocketWindowBits.Limit(9)))
+                val handshake = WebSocketHandshake.create(Url.parse("wss://localhost/chat"), ["chat"], offers)
+                try {
+                    val serving = scope.launch suspend {
+                        val request = httpServer.receiveRequest()!!
+                        assertEquals(0L, receiveBytes(request.body).size)
+                        val parsed = WebSocketHandshake.parse(request.head)
+                        val selected = if (compressed) Some(WebSocketDeflate(true, false, Some(10), Some(9))) else None
+                        val reply = parsed.response(Some("chat"), selected)
+                        val negotiated = parsed.accept(reply)
+                        httpServer.sendResponse(reply).finish()
+                        val session = AsyncWebSocketSession.takeOwnership(httpServer.takeTransport(), scope, HttpRole.Server,
+                            options, negotiated.deflate)
+                        try {
+                            httpServer.close()
+                            val message = session.receive()!!
+                            assertTrue(message.isCompressed == compressed)
+                            assertEquals("secure 🌍 stream", message.readText())
+                            session.ping("tls".toByteArray())
+                            session.sendText("secure reply")
+                            assertFalse(present(session.receive()))
+                            assertEquals("secure", session.peerClose!!.reason)
+                        } finally { session.close() }
+                    }
+                    httpClient.sendRequest(handshake.request).finish()
+                    val response = httpClient.receiveResponse()
+                    val negotiated = handshake.accept(response.head)
+                    assertTrue(negotiated.protocol == Some("chat"))
+                    assertEquals(0L, receiveBytes(response.body).size)
+                    val session = AsyncWebSocketSession.takeOwnership(httpClient.takeTransport(), scope, HttpRole.Client,
+                        options, negotiated.deflate)
+                    try {
+                        httpClient.close()
+                        session.sendText("secure 🌍 stream")
+                        val message = session.receive()!!
+                        assertTrue(message.isCompressed == compressed)
+                        assertEquals("secure reply", message.readText())
+                        session.shutdownGracefully(WebSocketClose(Some(1000U), "secure"))
+                        serving.join()
+                        assertFalse(present(session.failure))
+                    } finally { session.close() }
+                } finally { httpClient.close(); httpServer.close() }
+                assertEquals(1, a.closes); assertEquals(1, b.closes)
+            }
+        }
+    }
+
+    @Test
+    fun `WSS protocol selection rejects an HTTP2 ALPN result`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val (a, b) = rawPair(loop, scope)
+            val (client, server) = tlsPair(scope, a, b,
+                TlsOptions(alpn = ["h2".toByteArray(), "http/1.1".toByteArray()]))
+            try {
+                assertFailsWith<HttpNegotiationException> {
+                    selectHttpAlpn(alpnBytes(client.connectionInfo.alpn), [HttpProtocol.Http1])
+                }
+            } finally { client.close(); server.close() }
+        }
+    }
+}

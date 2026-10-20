@@ -8,7 +8,6 @@ mod runtime;
 #[derive(Default)]
 struct DigestNodeDraft {
     inputs: BTreeSet<DigestNodeKey>,
-    patches: BTreeSet<DigestPatchIntentKey>,
 }
 
 pub(super) struct DigestGraphWriter<'foundation> {
@@ -51,16 +50,13 @@ impl<'foundation> DigestGraphWriter<'foundation> {
                 .static_storages()
                 .storages()
                 .iter()
-                .map(|value| (value.storage(), value.layout(), value.scan())),
-        )?;
+                .map(|value| (value.layout(), value.scan())),
+        );
         self.project_initialization_units(
-            initialization
-                .units()
-                .iter()
-                .map(|value| (value.unit(), value.schedule())),
+            initialization.units().iter().map(|value| value.schedule()),
         )?;
         self.project_entry(entry_source)?;
-        self.project_image()?;
+        self.project_image();
         self.finish()
     }
 
@@ -78,7 +74,7 @@ impl<'foundation> DigestGraphWriter<'foundation> {
             .foundation
             .resolve_definition_atom(plan, DefinitionAtomRole::Primary)
             .map_err(|source| DigestProjectionError::PrimaryAtom { plan, source })?;
-        Ok(StrongDefinition { plan, primary })
+        Ok(StrongDefinition { primary })
     }
 
     fn ensure(&mut self, key: DigestNodeKey) {
@@ -88,26 +84,6 @@ impl<'foundation> DigestGraphWriter<'foundation> {
     fn input(&mut self, node: DigestNodeKey, input: DigestNodeKey) {
         self.nodes.entry(input).or_default();
         self.nodes.entry(node).or_default().inputs.insert(input);
-    }
-
-    fn patch(
-        &mut self,
-        node: DigestNodeKey,
-        target: ObjectDefinitionPlanId,
-        role: DigestSemanticFieldRole,
-    ) -> Result<(), DigestProjectionError> {
-        let source = DigestNodeId::from_key(&node).map_err(DigestProjectionError::Identity)?;
-        self.nodes
-            .entry(node)
-            .or_default()
-            .patches
-            .insert(DigestPatchIntentKey::new(
-                source,
-                target,
-                DefinitionAtomRole::Primary,
-                role,
-            ));
-        Ok(())
     }
 
     fn finish(self) -> Result<DigestFinalizationPlanV1, DigestProjectionError> {
@@ -120,8 +96,7 @@ impl<'foundation> DigestGraphWriter<'foundation> {
                     .into_iter()
                     .map(digest_input)
                     .collect::<Result<Vec<_>, _>>()?;
-                DigestNodeV1::new(key, inputs, draft.patches.into_iter().collect())
-                    .map_err(DigestProjectionError::Node)
+                DigestNodeV1::new(key, inputs).map_err(DigestProjectionError::Node)
             })
             .collect::<Result<Vec<_>, _>>()?;
         DigestFinalizationPlanV1::new(nodes, self.foundation).map_err(DigestProjectionError::Plan)
@@ -130,7 +105,6 @@ impl<'foundation> DigestGraphWriter<'foundation> {
 
 #[derive(Clone, Copy)]
 struct StrongDefinition {
-    plan: ObjectDefinitionPlanId,
     primary: ObjectDefinitionAtomId,
 }
 

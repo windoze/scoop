@@ -1,0 +1,95 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.platform.fs.Path
+import scoop.time.Duration
+import scoop.platform.time.MonotonicTimeSource
+
+internal suspend fun runClientDownload(state: ClientState, request: HttpRequest, destination: Path,
+    options: HttpDownloadOptions, resume: HttpResumeOptions? = None): HttpDownloadResult {
+    if (!clientPresent(destination.fileName)) throw IllegalArgumentException(Some("download destination needs a file name"))
+    if (clientPresent(resume)) validateClientResumeRequest(request, destination, resume!!)
+    val download = ClientDownload(state, clientJob(state.loop, true), ClientRequestSequence(state.config, request))
+    var result: HttpDownloadResult? = None
+    try {
+        val ready = context(download) {
+            coroutineScope<HttpDownloadResult> suspend { scope ->
+                registerClientDownload(download, scope.job)
+                val listener = scope.job.invokeOnCancellation { reason ->
+                    state.lock.withLock {
+                        if (!clientPresent(download.failure)) download.failure = Some(reason)
+                        Unit
+                    }
+                }
+                val timer = startClientDownloadTimer(download, scope)
+                try {
+                    download.requireActive()
+                    if (clientPresent(resume)) prepareClientResume(download, request, destination, options, resume!!)
+                    else prepareClientDownload(download, request, destination, options)
+                } catch (error: Throwable) { recordClientDownloadFailure(download, error); throw error }
+                finally { timer?.cancel(); listener.dispose() }
+            }
+        }
+        download.requireActive()
+        state.lock.withLock {
+            if (state.closing) throw HttpClientClosedException()
+            if (clientPresent(download.failure)) throw download.failure!!
+            download.committing = true
+        }
+        nonCancellableScope<Unit> suspend { _ ->
+            state.loop.moveFile(download.output!!.path, destination, options.replaceExisting)
+            download.committed = true
+        }
+        result = Some(ready)
+    } catch (error: Throwable) { recordClientDownloadFailure(download, error) }
+    finally {
+        try { cleanupClientDownload(download) }
+        catch (error: Throwable) {
+            state.lock.withLock { download.cleanupFailure = appendClientCleanup(download.cleanupFailure, error) }
+        }
+        unregisterClientDownload(download)
+    }
+    val failure = clientDownloadFailure(download)
+    if (clientPresent(failure)) throw failure!!
+    return result!!
+}
+
+private fun registerClientDownload(download: ClientDownload, job: Job) {
+    download.client.lock.withLock {
+        if (download.client.closing) throw HttpClientClosedException()
+        download.job = Some(job)
+        download.registered = true
+        download.client.downloads.add(download)
+    }
+}
+
+private fun unregisterClientDownload(download: ClientDownload) {
+    val state = download.client
+    state.lock.withLock {
+        if (!download.registered) return@withLock
+        var index = 0L
+        while (index < state.downloads.size) {
+            if (state.downloads[index] === download) { state.downloads.removeAt(index); break }
+            index += 1L
+        }
+        download.registered = false
+        download.job = None
+        if (state.closing && clientPresent(download.cleanupFailure))
+            state.closeFailure = appendClientCleanup(state.closeFailure, download.cleanupFailure!!)
+        Unit
+    }
+    wakeClient(state)
+}
+
+private fun startClientDownloadTimer(download: ClientDownload, scope: CoroutineScope): Job? {
+    val limit = download.sequence.timeouts.total ?: return None
+    return Some(scope.launch suspend {
+        try {
+            val remaining = limit - (MonotonicTimeSource.markNow() - download.sequence.started!!)
+            if (remaining > Duration.ZERO) download.client.loop.sleep(remaining)
+            stopClientDownload(download, download.timeout())
+        } catch (error: Throwable) {
+            if (!(error is CancellationException)) stopClientDownload(download, error)
+        }
+    })
+}

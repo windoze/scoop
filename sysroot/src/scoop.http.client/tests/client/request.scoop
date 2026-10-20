@@ -1,0 +1,43 @@
+package scoop.http.client
+
+import scoop.http.*
+import scoop.test.*
+import scoop.url.Url
+
+@Test
+private class HttpClientRequestTest {
+    @Test
+    fun `request snapshots preserve duplicate fields method case and explicit lengths`() {
+        val fields = ArrayList<HttpField>()
+        fields.add(HttpField("X-Repeat".toByteArray(), "first".toByteArray()))
+        fields.add(HttpField("x-repeat".toByteArray(), "second".toByteArray()))
+        fields.add(HttpField("Content-Length".toByteArray(), "004, 4".toByteArray()))
+        val body = RequestBody.fromText("test")
+        val request = HttpRequest(Url.parse("https://user:pass@EXAMPLE.com/path?q=1#local"), "m-SEARCH", fields, body)
+        fields.clear()
+        assertEquals("m-SEARCH", request.method)
+        assertEquals(2L, request.fields.findAll("X-Repeat".toByteArray()).size)
+        assertTrue(request.contentLength == Some(4L))
+        assertEquals("example.com", request.origin.host.toString())
+        assertEquals(0L, request.fields.findAll("Authorization".toByteArray()).size)
+        assertSame(body, request.body)
+    }
+
+    @Test
+    fun `request construction rejects conflicting framing and invalid network metadata`() {
+        val url = Url.parse("https://example.com/")
+        for (method in ["", "BAD METHOD", "Méthod"]) {
+            assertFailsWith<IllegalArgumentException> { HttpRequest(url, method) }
+        }
+        for (name in ["Host", ":authority", "Transfer-Encoding", "Bad Name"]) {
+            assertFailsWith<IllegalArgumentException> { HttpRequest(url, fields = [HttpField(name.toByteArray(), "x".toByteArray())]) }
+        }
+        assertFailsWith<IllegalArgumentException> {
+            HttpRequest.post(url, RequestBody.fromText("four"), [HttpField("Content-Length".toByteArray(), "3".toByteArray())])
+        }
+        assertFailsWith<IllegalArgumentException> { HttpRequest.get(Url.parse("ws://example.com/")) }
+        assertFailsWith<IllegalArgumentException> {
+            HttpClientConfig(versionPolicy = HttpVersionPolicy.Http1Only, cleartext = HttpCleartextProtocol.Http2PriorKnowledge)
+        }
+    }
+}

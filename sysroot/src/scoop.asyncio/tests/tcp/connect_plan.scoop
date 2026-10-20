@@ -1,0 +1,107 @@
+package scoop.asyncio
+
+import scoop.platform.net.*
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class AsyncTcpConnectPlanTest {
+    @Test
+    fun `connection options use RFC delays and reject invalid values`() {
+        val options = TcpConnectOptions()
+        assertEquals(Duration.milliseconds(50L), options.resolutionDelay)
+        assertEquals(Duration.milliseconds(250L), options.attemptDelay)
+        assertEquals(2L, options.maxConcurrentAttempts)
+        val immediate = TcpConnectOptions(Duration.ZERO, Duration.ZERO, 1L)
+        assertEquals(Duration.ZERO, immediate.attemptDelay)
+        assertFailsWith<IllegalArgumentException> { TcpConnectOptions(resolutionDelay = Duration.nanoseconds(-1L)) }
+        assertFailsWith<IllegalArgumentException> { TcpConnectOptions(attemptDelay = Duration.seconds(-1L)) }
+        assertFailsWith<IllegalArgumentException> { TcpConnectOptions(maxConcurrentAttempts = 0L) }
+    }
+
+    @Test
+    fun `IPv4 waits only for initial IPv6 resolution and an empty result releases it`() {
+        val a4 = SocketAddress(IpAddress.IPV4_LOOPBACK, 80)
+        val a6 = SocketAddress(IpAddress.IPV6_LOOPBACK, 80)
+        val preferred = TcpConnectPlan(2L)
+        preferred.resolved(AddressFamily.Ipv4, [a4])
+        assertTrue(preferred.needsResolutionDelay)
+        assertTrue(preferred.takeNext() == None)
+        preferred.resolved(AddressFamily.Ipv6, [a6])
+        assertEquals(a6, preferred.takeNext()!!)
+
+        val late = TcpConnectPlan(2L)
+        late.resolved(AddressFamily.Ipv4, [a4])
+        late.resolutionDelayElapsed()
+        assertEquals(a4, late.takeNext()!!)
+        late.resolved(AddressFamily.Ipv6, [a6])
+        assertFalse(late.needsResolutionDelay)
+        assertTrue(late.takeNext() == None)
+        late.attemptDelayElapsed(late.generation)
+        assertEquals(a6, late.takeNext()!!)
+
+        val failed = TcpConnectPlan(2L)
+        failed.resolved(AddressFamily.Ipv4, [a4])
+        failed.resolved(AddressFamily.Ipv6, [])
+        assertEquals(a4, failed.takeNext()!!)
+    }
+
+    @Test
+    fun `candidate order interleaves families removes duplicates and limits active attempts`() {
+        val a4 = SocketAddress(IpAddress.IPV4_LOOPBACK, 80)
+        val b4 = SocketAddress(IpAddress.IPV4_LOOPBACK, 81)
+        val a6 = SocketAddress(IpAddress.IPV6_LOOPBACK, 80)
+        val b6 = SocketAddress(IpAddress.IPV6_LOOPBACK, 81)
+        val plan = TcpConnectPlan(2L)
+        plan.resolved(AddressFamily.Ipv6, [a6, a6, b6])
+        plan.resolved(AddressFamily.Ipv4, [a4, b4, a4])
+        assertEquals(a6, plan.takeNext()!!)
+        assertTrue(plan.takeNext() == None)
+        plan.attemptDelayElapsed(plan.generation)
+        assertEquals(a4, plan.takeNext()!!)
+        plan.attemptDelayElapsed(plan.generation)
+        assertTrue(plan.takeNext() == None)
+        plan.attemptFailed()
+        assertEquals(b6, plan.takeNext()!!)
+        plan.attemptFailed()
+        assertEquals(b4, plan.takeNext()!!)
+        plan.attemptFailed()
+        assertFalse(plan.exhausted)
+        plan.attemptFailed()
+        assertTrue(plan.exhausted)
+        assertTrue(plan.takeNext() == None)
+    }
+
+    @Test
+    fun `failure advances immediately but a stale timer cannot advance a new attempt`() {
+        val first = SocketAddress(IpAddress.IPV6_LOOPBACK, 80)
+        val second = SocketAddress(IpAddress.IPV6_LOOPBACK, 81)
+        val third = SocketAddress(IpAddress.IPV6_LOOPBACK, 82)
+        val plan = TcpConnectPlan(3L)
+        plan.resolved(AddressFamily.Ipv6, [first, second, third])
+        assertEquals(first, plan.takeNext()!!)
+        val old = plan.generation
+        plan.attemptFailed()
+        assertEquals(second, plan.takeNext()!!)
+        plan.attemptDelayElapsed(old)
+        assertTrue(plan.takeNext() == None)
+        plan.attemptDelayElapsed(plan.generation)
+        assertEquals(third, plan.takeNext()!!)
+        plan.attemptFailed()
+        plan.attemptFailed()
+        assertFalse(plan.exhausted)
+        plan.resolved(AddressFamily.Ipv4, [])
+        assertTrue(plan.exhausted)
+    }
+
+    @Test
+    fun `empty DNS results finish without inventing a connection attempt`() {
+        val plan = TcpConnectPlan(1L)
+        plan.resolved(AddressFamily.Ipv6, [])
+        assertFalse(plan.exhausted)
+        assertTrue(plan.takeNext() == None)
+        plan.resolved(AddressFamily.Ipv4, [])
+        assertTrue(plan.exhausted)
+        assertEquals(0L, plan.generation)
+    }
+}

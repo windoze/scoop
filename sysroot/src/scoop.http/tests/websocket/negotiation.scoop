@@ -1,0 +1,55 @@
+package scoop.http
+
+import scoop.test.*
+import scoop.url.Url
+
+@Test private class WebSocketNegotiationTests {
+    @Test fun `negotiation retains actual response and applies client sending hints`() {
+        val offered = WebSocketDeflateOffer(true, true, Some(12), WebSocketWindowBits.Limit(11))
+        val handshake = WebSocketHandshake.create(Url.parse("ws://example.com"), deflateOffers = [offered])
+        val response = handshake.response(deflate = Some(WebSocketDeflate(true, false, Some(10))))
+        val negotiated = handshake.accept(response).deflate!!
+        assertTrue(negotiated.offer.clientNoContextTakeover)
+        assertTrue(!negotiated.response.clientNoContextTakeover)
+        assertTrue(negotiated.clientNoContextTakeover && negotiated.serverNoContextTakeover)
+        assertEquals(11, negotiated.clientWindowBits)
+        assertEquals(10, negotiated.serverWindowBits)
+        assertTrue(negotiated.response.clientMaxWindowBits == None)
+        val smaller = handshake.accept(handshake.response(deflate = Some(WebSocketDeflate(true, false, Some(9), Some(8))))).deflate!!
+        assertEquals(8, smaller.clientWindowBits)
+        assertEquals(9, smaller.serverWindowBits)
+        assertFailsWith<WebSocketHandshakeException> { handshake.response(deflate = Some(WebSocketDeflate())) }
+    }
+
+    @Test fun `invalid or unsupported extension offers can fall through to a later valid offer`() {
+        val handshake = wsOffered("unknown; x, permessage-deflate; bad, permessage-deflate; server_max_window_bits=9, permessage-deflate; client_max_window_bits")
+        assertEquals(4L, handshake.extensions.size)
+        val response = handshake.response(Some("superchat"), Some(WebSocketDeflate(clientMaxWindowBits = Some(13))))
+        val result = handshake.accept(response)
+        assertTrue(result.protocol == Some("superchat"))
+        val negotiated = result.deflate!!
+        assertTrue(negotiated.offer.clientMaxWindowBits == WebSocketWindowBits.Any)
+        assertEquals(13, negotiated.clientWindowBits)
+        assertEquals(15, negotiated.serverWindowBits)
+        assertTrue(when (handshake.accept(handshake.response()).deflate) { case None -> true; case Some(_) -> false })
+    }
+
+    @Test fun `extension response cannot invent repeat or silently repair a negotiation`() {
+        val plain = wsSample()
+        assertFailsWith<WebSocketHandshakeException> { plain.response(deflate = Some(WebSocketDeflate())) }
+        val handshake = wsOffered("permessage-deflate; server_no_context_takeover; server_max_window_bits=12; client_max_window_bits=11")
+        val fields = handshake.response().fields
+        for (value in ["other", "permessage-deflate", "permessage-deflate; server_no_context_takeover",
+            "permessage-deflate; server_no_context_takeover; server_max_window_bits=13",
+            "permessage-deflate; server_no_context_takeover; server_max_window_bits=12; client_max_window_bits=12",
+            "permessage-deflate; server_no_context_takeover; server_max_window_bits=12; client_max_window_bits",
+            "permessage-deflate; server_no_context_takeover; server_no_context_takeover; server_max_window_bits=12"]) {
+            assertFailsWith<WebSocketHandshakeException> { handshake.accept(wsResponse(wsFields(fields, "Sec-WebSocket-Extensions", [value]))) }
+        }
+        val valid = "permessage-deflate; server_no_context_takeover; server_max_window_bits=12"
+        assertFailsWith<WebSocketHandshakeException> { handshake.accept(wsResponse(wsFields(fields, "Sec-WebSocket-Extensions", [valid, valid]))) }
+        assertFailsWith<HttpFieldParseException> { handshake.accept(wsResponse(wsFields(fields, "Sec-WebSocket-Extensions", ["permessage-deflate; x=\"a b\""]))) }
+        val never = wsOffered("permessage-deflate")
+        assertFailsWith<WebSocketHandshakeException> { never.response(deflate = Some(WebSocketDeflate(clientMaxWindowBits = Some(10)))) }
+    }
+}

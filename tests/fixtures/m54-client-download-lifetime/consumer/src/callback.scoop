@@ -1,0 +1,47 @@
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.client.*
+import scoop.platform.fs.Path
+import scoop.test.*
+
+internal fun downloadCallbackFailure(trust: TrustStore, directory: Path, nested: Boolean) {
+    downloadWithServer(directory) suspend { _, _, url, serving ->
+        val failure = IoClosedException()
+        val recorded = DownloadFailure()
+        try {
+            withHttpClient(downloadConfig(trust)) suspend { client ->
+                try {
+                    client.download(HttpRequest.get(url), directory.resolve(Path.fromString("result")),
+                        HttpDownloadOptions(onProgress = suspend { progress ->
+                            if (progress.bytesWritten > 0L) {
+                                if (nested) coroutineScope<Unit> suspend { scope -> scope.launch suspend { throw failure }; Unit }
+                                else throw failure
+                            }
+                            Unit
+                        }))
+                } catch (error: Throwable) { recorded.value = Some(error) }
+                ensureActive()
+                assertSame(failure, recorded.value!!)
+                assertEquals(0L, downloadFiles(directory))
+                assertFalse(client.isClosed)
+            }
+        } finally { serving.signal() }
+    }
+}
+
+internal fun downloadSelfClose(trust: TrustStore, directory: Path) {
+    downloadWithServer(directory) suspend { _, _, url, serving ->
+        try {
+            withHttpClient(downloadConfig(trust)) suspend { client ->
+                val failed = DownloadFailure()
+                try {
+                    client.download(HttpRequest.get(url), directory.resolve(Path.fromString("result")),
+                        HttpDownloadOptions(onProgress = suspend { progress -> if (progress.bytesWritten > 0L) client.close(); Unit }))
+                } catch (error: Throwable) { failed.value = Some(error) }
+                assertTrue(failed.value!! is IllegalStateException)
+                assertFalse(client.isClosed)
+                assertEquals(0L, downloadFiles(directory))
+            }
+        } finally { serving.signal() }
+    }
+}

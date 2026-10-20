@@ -1,0 +1,70 @@
+package scoop.asyncio
+
+import scoop.collections.HashSet
+import scoop.platform.net.*
+
+private class TcpFamilyCandidates {
+    var addresses: Array<SocketAddress> = []
+    var next: Long = 0L
+    var finished: Boolean = false
+    val available: Boolean get() = next < addresses.size
+}
+
+internal class TcpConnectPlan(private val maximum: Long) {
+    private val ipv4: TcpFamilyCandidates = TcpFamilyCandidates()
+    private val ipv6: TcpFamilyCandidates = TcpFamilyCandidates()
+    private val seen: HashSet<SocketAddress> = HashSet<SocketAddress>()
+    private var previous: AddressFamily = AddressFamily.Ipv4
+    private var started: Boolean = false
+    private var resolutionReady: Boolean = false
+    private var attemptReady: Boolean = true
+    private var pending: Long = 0L
+    private var attemptGeneration: Long = 0L
+    val generation: Long get() = attemptGeneration
+    val resolutionComplete: Boolean get() = ipv4.finished && ipv6.finished
+
+    fun isResolved(family: AddressFamily): Boolean = if (family == AddressFamily.Ipv4) ipv4.finished else ipv6.finished
+
+    val needsResolutionDelay: Boolean get() =
+        !started && !resolutionReady && ipv4.available && !ipv6.finished
+
+    val exhausted: Boolean get() =
+        ipv4.finished && ipv6.finished && !ipv4.available && !ipv6.available && pending == 0L
+
+    fun resolved(family: AddressFamily, addresses: Array<SocketAddress>) {
+        if (isResolved(family)) return
+        val unique = ArrayList<SocketAddress>()
+        for (address in addresses) if (seen.add(address)) unique.add(address)
+        val queue = if (family == AddressFamily.Ipv4) ipv4 else ipv6
+        queue.addresses = unique.toArray()
+        queue.finished = true
+    }
+
+    fun resolutionDelayElapsed() { resolutionReady = true }
+
+    fun attemptDelayElapsed(id: Long) {
+        if (id == attemptGeneration) attemptReady = true
+    }
+
+    fun attemptFailed() {
+        pending -= 1L
+        attemptReady = true
+    }
+
+    fun takeNext(): SocketAddress? {
+        if (pending >= maximum || !attemptReady || needsResolutionDelay) return None
+        if (!ipv4.available && !ipv6.available) return None
+        val family = if (previous == AddressFamily.Ipv4 && ipv6.available) AddressFamily.Ipv6
+            else if (previous == AddressFamily.Ipv6 && ipv4.available) AddressFamily.Ipv4
+            else if (ipv6.available) AddressFamily.Ipv6 else AddressFamily.Ipv4
+        val queue = if (family == AddressFamily.Ipv4) ipv4 else ipv6
+        val result = queue.addresses[queue.next]
+        queue.next += 1L
+        previous = family
+        started = true
+        pending += 1L
+        attemptReady = false
+        attemptGeneration += 1L
+        return Some(result)
+    }
+}

@@ -1,0 +1,65 @@
+package scoop.asyncio
+
+import scoop.platform.fs.*
+import scoop.platform.system.*
+import scoop.test.*
+
+@Test
+private class AsyncFileMetadataTest {
+    @Test
+    fun `path metadata preserves raw bytes links and native errors`() {
+        IoTestDirectory().use { tree ->
+            val raw: Array<Byte> = [97, -1, 32, 98]
+            val name = if (operatingSystem == OperatingSystem.Linux) OsString.fromByteArray(raw)
+                else OsString.fromString("信息 空格")
+            val path = tree.path.resolve(Path.fromOsString(name))
+            path.writeText("test")
+            val link = tree.child("link")
+            link.createSymbolicLink(path)
+            val loop: EventLoop = LibuvEventLoop()
+            loop.run suspend { _ ->
+                val info = loop.metadata(path)
+                assertTrue(info.kind == FileKind.Regular)
+                assertEquals(4L, info.size)
+                assertEquals(path.metadata().permissions, info.permissions)
+                assertEquals(path.metadata().modifiedAt, info.modifiedAt)
+                assertTrue(loop.metadata(tree.path).kind == FileKind.Directory)
+                assertTrue(loop.metadata(link, followLinks = false).kind == FileKind.SymbolicLink)
+                assertTrue(loop.metadata(link).kind == FileKind.Regular)
+                gcCollect()
+                path.delete()
+                assertTrue(loop.metadata(link, followLinks = false).kind == FileKind.SymbolicLink)
+                try { loop.metadata(link); fail(Some("dangling link resolved")) }
+                catch (error: PlatformException) {
+                    assertTrue(error.kind == PlatformErrorKind.NotFound)
+                    assertTrue(error.nativeError!!.domain == NativeErrorDomain.PosixErrno)
+                    assertEquals(link.toOsString(), error.context!!)
+                }
+                try { loop.metadata(path); fail(Some("missing raw path resolved")) }
+                catch (error: PlatformException) { assertEquals(path.toOsString(), error.context!!) }
+            }
+        }
+    }
+
+    @Test
+    fun `file metadata follows the open descriptor after a path is replaced`() {
+        IoTestDirectory().use { tree ->
+            val path = tree.child("original")
+            val moved = tree.child("moved")
+            path.writeText("original")
+            val loop: EventLoop = LibuvEventLoop()
+            loop.run suspend { _ ->
+                loop.openFile(path, OpenOptions(write = true)).useAsync suspend { file ->
+                    path.moveTo(moved)
+                    path.writeText("new")
+                    gcCollect()
+                    assertEquals(8L, file.metadata().size)
+                    assertEquals(3L, loop.metadata(path).size)
+                    file.truncate(4L)
+                    assertEquals(4L, loop.metadata(moved).size)
+                    assertEquals(3L, loop.metadata(path).size)
+                }
+            }
+        }
+    }
+}

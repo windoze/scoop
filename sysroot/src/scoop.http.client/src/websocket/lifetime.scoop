@@ -1,0 +1,68 @@
+package scoop.http.client
+
+import scoop.http.asyncio.AsyncWebSocketSession
+
+internal class ClientWebSocketState(val client: ClientState, val session: AsyncWebSocketSession) {
+    var closing: Boolean = false
+    var closed: Boolean = false
+}
+internal class ClientWebSocketSource(val client: ClientState) { var running: Boolean = true }
+
+internal fun registerClientWebSocket(state: ClientWebSocketState) {
+    val owner = state.client.lock.withLock {
+        if (state.client.closing) throw HttpClientClosedException()
+        state.client.webSockets.add(state)
+        state.client.scope!!.job
+    }
+    val loop = state.client.loop
+    context(owner) { context(loop) {
+        startCoroutine<Unit>(suspend {
+            nonCancellableScope<Unit> suspend { _ -> state.session.awaitClosed() }
+        }, ClientWebSocketCompletion(state))
+    } }
+}
+
+internal fun stopClientWebSocket(state: ClientWebSocketState) {
+    val owner: Job? = state.client.lock.withLock {
+        if (state.closed || state.closing) return@withLock None
+        state.closing = true
+        Some(state.client.scope!!.job)
+    }
+    if (!clientPresent(owner)) return
+    val job = owner!!
+    val loop = state.client.loop
+    context(job) { context(loop) {
+        startCoroutine<Unit>(suspend {
+            nonCancellableScope<Unit> suspend { _ -> state.session.close() }
+        }, ClientWebSocketCompletion(state))
+    } }
+}
+
+private class ClientWebSocketCompletion(val state: ClientWebSocketState) : Continuation<Unit> {
+    public override fun resume(value: Unit) { finish(None) }
+    public override fun resumeWithException(exception: Throwable) { finish(Some(exception)) }
+    private fun finish(failure: Throwable?) {
+        state.client.lock.withLock {
+            if (state.closed) return@withLock
+            state.closed = true
+            var index = 0L
+            while (index < state.client.webSockets.size) {
+                if (state.client.webSockets[index] === state) { state.client.webSockets.removeAt(index); break }
+                index += 1L
+            }
+            if (state.client.closing && clientPresent(failure))
+                state.client.closeFailure = appendClientCleanup(state.client.closeFailure, failure!!)
+            Unit
+        }
+        wakeClient(state.client)
+    }
+}
+
+context(source: ClientWebSocketSource)
+private fun boundClientWebSocketSource(): ClientWebSocketSource = source
+
+internal fun checkClientWebSocketClose(client: ClientState) {
+    val source = try { Some(boundClientWebSocketSource()) } catch (_: MissingContextException) { None }
+    if (clientPresent(source) && source!!.client === client && client.lock.withLock { source!!.running })
+        throw IllegalStateException(Some("cannot await client close from its active WebSocket send source"))
+}

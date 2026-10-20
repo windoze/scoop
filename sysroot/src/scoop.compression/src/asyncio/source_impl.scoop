@@ -1,0 +1,42 @@
+package scoop.compression.asyncio
+
+import scoop.asyncio.*
+import scoop.compression.*
+import scoop.platform.memory.NativeByteBuffer
+
+internal class AsyncCompressionSourceImpl(
+    private val source: AsyncByteSource, loop: EventLoop, resources: CompressionIoResources, owner: AsyncCloseable?
+) : AsyncByteSource, AsyncCloseable {
+    private val state: CompressionReadState = CompressionReadState(resources)
+    private val guard: AsyncCompressionOwner = AsyncCompressionOwner(resources, owner, loop)
+    val totals: CompressionTotals get() = state.totals
+    val failure: Throwable? get() = guard.failure
+
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long = guard.operation<Long>(
+        { requireCompressionTransfer(count, buffer.writableBytes) },
+        suspend { if (count == 0L) 0L else readSome(buffer, count) }
+    )
+
+    private suspend fun readSome(buffer: NativeByteBuffer, count: Long): Long {
+        while (true) {
+            ensureActive()
+            if (state.finished) return 0L
+            if (state.needsInput) fill()
+            ensureActive()
+            val step = state.step(buffer, count)
+            if (step.produced > 0L) return step.produced
+        }
+    }
+
+    private suspend fun fill() {
+        val input = state.buffer
+        input.compact()
+        val before = input.writePosition
+        val requested = input.writableBytes
+        val count = source.readInto(input, requested)
+        requireCompressionProgress(count, requested, input.writePosition - before)
+        state.acceptInput(count)
+    }
+
+    public override suspend fun close() { closeCompression(guard) }
+}

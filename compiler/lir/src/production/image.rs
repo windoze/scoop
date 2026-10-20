@@ -1,25 +1,22 @@
 use std::fmt;
 
 pub use scoop_identity::{
-    ConeCoordinate, ConeImageSupportRole, DefinitionAtomSubkey, DigestPatchIntentId,
-    ObjectDefinitionAtomKey, ObjectDefinitionPlanId, ObjectDefinitionPlanKey, PersistentSymbolKey,
+    ConeCoordinate, ConeImageSupportRole, DefinitionAtomSubkey, ObjectDefinitionAtomKey,
+    ObjectDefinitionPlanId, ObjectDefinitionPlanKey, PersistentSymbolKey,
 };
 use scoop_identity::{
     ConeIdentity, DecodedConeCoordinate, DecodedPersistentId, DecodedPersistentSymbolRequest,
-    DefinitionAtomRole, DigestNodeId, DigestPatchIntentKey, DigestSemanticFieldRole, LinkageClass,
-    ObjectDefinitionAtomId, PersistentCallableBodyId, PersistentExactTypeId,
-    PersistentImmortalObjectId, PersistentInitializationUnitId, PersistentSafepointSiteId,
-    PersistentStaticStorageId, PersistentSymbolError, PersistentSymbolRequest,
-    StrongDefinitionEntity, StrongDefinitionRole,
+    DefinitionAtomRole, LinkageClass, ObjectDefinitionAtomId, PersistentCallableBodyId,
+    PersistentExactTypeId, PersistentImmortalObjectId, PersistentInitializationUnitId,
+    PersistentSafepointSiteId, PersistentStaticStorageId, PersistentSymbolError,
+    PersistentSymbolRequest, StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_wire::{
     Decoder, Encoder, HashError, RuntimeEncode, RuntimeEncodeError, RuntimeEncoder, WireDecode,
     WireEncode, WireError,
 };
 
-use crate::{
-    ConeLirFoundation, DigestFinalizationPlanV1, DigestInputRefV1, RegistrationIdentitySurfaceV1,
-};
+use crate::{ConeLirFoundation, DigestFinalizationPlanV1, RegistrationIdentitySurfaceV1};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ConeRecordV1 {
@@ -207,11 +204,6 @@ pub enum ConeImagePlanBuildError {
         actual: Vec<ObjectDefinitionAtomKey>,
     },
     MissingDigestNode,
-    RegistrationInputs {
-        expected: Vec<DigestNodeId>,
-        actual: Vec<DigestNodeId>,
-    },
-    MissingFingerprintPatch(DigestPatchIntentId),
 }
 
 impl fmt::Display for ConeImagePlanBuildError {
@@ -221,38 +213,6 @@ impl fmt::Display for ConeImagePlanBuildError {
 }
 
 impl std::error::Error for ConeImagePlanBuildError {}
-
-fn validate_registration_inputs(
-    inputs: &[DigestInputRefV1],
-    digests: &DigestFinalizationPlanV1,
-) -> Result<(), ConeImagePlanBuildError> {
-    let mut expected = digests
-        .nodes()
-        .iter()
-        .filter(|node| {
-            node.patch_intents().iter().any(|patch| {
-                matches!(
-                    patch.key().semantic_field_role(),
-                    DigestSemanticFieldRole::CallableBodyDefinition
-                        | DigestSemanticFieldRole::NormalizedStackmap
-                        | DigestSemanticFieldRole::DescriptorDefinition
-                        | DigestSemanticFieldRole::Layout
-                        | DigestSemanticFieldRole::Scan
-                        | DigestSemanticFieldRole::GatewayDefinition
-                )
-            })
-        })
-        .map(|node| node.id())
-        .collect::<Vec<_>>();
-    expected.sort_unstable();
-    let mut actual = inputs.iter().map(|input| input.node()).collect::<Vec<_>>();
-    actual.sort_unstable();
-    if actual == expected {
-        Ok(())
-    } else {
-        Err(ConeImagePlanBuildError::RegistrationInputs { expected, actual })
-    }
-}
 
 fn semantic_ids<I: scoop_identity::PersistentId>(
     entries: &[crate::RegistrationIdentityV1<I>],

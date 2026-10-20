@@ -1,0 +1,59 @@
+package scoop.http
+
+import scoop.test.*
+
+@Test
+private class HttpContentRangeTests {
+    @Test
+    fun `partial responses expose known or unknown complete lengths and preserve source bytes`() {
+        val original = "\tByTeS 0000-0499/1234 \t"
+        val parsed = HttpContentRange.parse(original.toByteArray())
+        assertEquals(0L, parsed.range!!.first)
+        assertEquals(499L, parsed.range!!.last)
+        assertEquals(500L, parsed.range!!.length)
+        assertEquals(1234L, parsed.completeLength!!)
+        assertEquals(original, String.fromUtf8(parsed.originalValue!!))
+        assertEquals("bytes 0-499/1234", parsed.toString())
+        assertEquals("Content-Range", String.fromUtf8(parsed.toHttpField().name))
+        assertEquals(parsed.toString(), String.fromUtf8(parsed.toHttpField().value))
+        val unknown = HttpContentRange(HttpResolvedRange(500L, 999L))
+        assertTrue(unknown.completeLength == None)
+        assertEquals("bytes 500-999/*", unknown.toString())
+        assertEquals(500L, HttpContentRange.parse(unknown.toString()).range!!.length)
+        assertEquals("bytes 1-1/2", HttpContentRange(HttpResolvedRange(1L, 1L), Some(2L)).toString())
+    }
+
+    @Test
+    fun `unsatisfied responses permit zero length and interval arithmetic remains checked`() {
+        for (total in [0L, 1234L, Long.MAX_VALUE]) {
+            val value = HttpContentRange.unsatisfied(total)
+            val parsed = HttpContentRange.parse(value.toByteArray())
+            assertTrue(when (parsed.range) { case None -> true; case Some(_) -> false })
+            assertEquals(total, parsed.completeLength!!)
+            assertEquals("bytes */" + total.toString(), value.toString())
+        }
+        val largest = HttpContentRange.parse("bytes 1-9223372036854775807/*")
+        assertEquals(Long.MAX_VALUE, largest.range!!.length)
+        assertEquals(Long.MAX_VALUE, largest.range!!.last)
+        assertEquals("1-9223372036854775807", largest.range!!.toString())
+        assertFailsWith<IllegalArgumentException> { HttpResolvedRange(0L, Long.MAX_VALUE) }
+        assertFailsWith<IllegalArgumentException> { HttpResolvedRange(-1L, 0L) }
+        assertFailsWith<IllegalArgumentException> { HttpResolvedRange(3L, 2L) }
+        assertFailsWith<IllegalArgumentException> { HttpContentRange(HttpResolvedRange(0L, 5L), Some(5L)) }
+        assertFailsWith<IllegalArgumentException> { HttpContentRange.unsatisfied(-1L) }
+    }
+
+    @Test
+    fun `invalid content ranges never become reusable partial content`() {
+        for (text in ["", "items 0-1/3", "bytes=0-1/3", "bytes  0-1/3", "bytes\t0-1/3", "bytes 0-/3",
+            "bytes -1/3", "bytes 0 -1/3", "bytes 0-1 /3", "bytes 0-1/ 3", "bytes 0-0/0", "bytes 0-2/2",
+            "bytes */*", "bytes */-1", "bytes 2-1/3", "bytes 0-1/3,4-5/6", "bytes 0-1/3\r\n"]) {
+            assertEquals("Content-Range", assertFailsWith<HttpFieldParseException> { HttpContentRange.parse(text) }.field)
+            assertTrue(when (HttpContentRange.parseOrNone(text)) { case None -> true; case Some(_) -> false })
+        }
+        assertEquals(8L, assertFailsWith<HttpFieldParseException> { HttpContentRange.parse("bytes */*") }.byteOffset)
+        assertEquals(8L, assertFailsWith<HttpFieldParseException> { HttpContentRange.parse("bytes 9-8/10") }.byteOffset)
+        assertEquals(8L, assertFailsWith<HttpFieldParseException> { HttpContentRange.parse("bytes 0-9223372036854775807/*") }.byteOffset)
+        assertEquals(26L, assertFailsWith<HttpFieldParseException> { HttpContentRange.parse("bytes */9223372036854775808") }.byteOffset)
+    }
+}

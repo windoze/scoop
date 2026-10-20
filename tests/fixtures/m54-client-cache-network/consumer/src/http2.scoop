@@ -1,0 +1,41 @@
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp2Connection
+import scoop.http.client.*
+import scoop.test.*
+
+internal fun cacheHttp2(trust: TrustStore) {
+    withCacheRuntime suspend { _, scope, listener, url ->
+        val finish = CacheGate()
+        val serving = scope.launch suspend {
+            AsyncHttp2Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                val first = connection.acceptRequest()!!
+                first.stream.sendResponse(HttpResponseHead(HttpVersion.Http2, 200U,
+                    fields = [cacheField("Cache-Control", "max-age=0"), cacheField("ETag", "\"h2\"")]), false)
+                cacheWrite(first.stream, "multiplexed")
+                first.stream.finish([cacheField("Checksum", "h2")])
+                val validating = connection.acceptRequest()!!
+                assertEquals(3, validating.stream.id)
+                assertEquals("\"h2\"", String.fromUtf8(validating.head.fields.findAll("If-None-Match".toByteArray())[0L].value))
+                validating.stream.sendResponse(HttpResponseHead(HttpVersion.Http2, 304U,
+                    fields = [cacheField("Cache-Control", "max-age=60")]), true)
+                finish.await()
+            }
+        }
+        try {
+            withHttpClient(cacheConfig(trust, MemoryHttpCache(), CacheClock(), h2 = true)) suspend { client ->
+                cacheGet(client, url, "multiplexed", HttpCacheStatus.Network)
+                cacheGet(client, url, "multiplexed", HttpCacheStatus.Revalidated)
+                client.withResponse(HttpRequest.get(url)) suspend { response ->
+                    assertEquals(HttpVersion.Http2, response.version)
+                    assertEquals(HttpCacheStatus.Hit, response.cacheStatus)
+                    assertEquals("multiplexed", response.body.text(64L))
+                    assertEquals(1L, response.trailers!!.size)
+                    assertEquals("h2", String.fromUtf8(response.trailers!![0L].value))
+                }
+            }
+        } finally { finish.signal() }
+        serving.join()
+    }
+}

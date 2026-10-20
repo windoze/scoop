@@ -1,0 +1,49 @@
+package scoop.compression
+
+import scoop.platform.memory.NativeByteBuffer
+
+@CLayout internal struct NativeCompressionOptions(
+    val format: Int, val encoding: Int, val level: Int, val window: Int,
+    val strategy: Int, val checksum: Int, val concatenate: Int,
+    val maxOutput: Long, val maxWindow: Long
+)
+@CLayout internal struct NativeCompressionInfo(val memory: Long, val kind: Int, val code: Int)
+@CLayout internal struct NativeCompressionStep(
+    val consumed: Long, val produced: Long, val memory: Long, val status: Int, val kind: Int, val code: Int
+)
+
+internal fun callCompression(handle: ULong, input: NativeByteBuffer?, count: Long,
+    output: NativeByteBuffer, capacity: Long, action: Int): NativeCompressionStep {
+    @Unsafe {
+        val write = output.borrowWritable(capacity)
+        val result = try {
+            when (input) {
+                case None -> compressionProcess(handle, None, 0L, write.pointer(), write.length, action)
+                case Some(buffer) -> {
+                    val read = buffer.borrowReadable(count)
+                    val step = try { compressionProcess(handle, read.pointer(), read.length, write.pointer(), write.length, action) }
+                    catch (error: Throwable) { read.complete(0L); throw error }
+                    read.complete(step.consumed)
+                    step
+                }
+            }
+        } catch (error: Throwable) { write.complete(0L); throw error }
+        write.complete(result.produced)
+        return result
+    }
+}
+
+@Unsafe internal fun <T> withCompressionBytes(bytes: Array<Byte>?, block: (Ptr<Byte>?, Long) -> T): T = when (bytes) {
+    case None -> block(None, 0L)
+    case Some(value) -> value.withDataPointer { data, count -> @Unsafe { return@withDataPointer block(Some(data), count) } }
+}
+
+@Extern(name = "scoop_compression_new") internal fun compressionNew(options: NativeCompressionOptions, dictionary: Ptr<Byte>?, size: Long): ULong
+@Extern(name = "scoop_compression_message_new") internal fun compressionMessageNew(options: NativeCompressionOptions, takeover: Int): ULong
+@Extern(name = "scoop_compression_next_message") internal fun compressionNextMessage(handle: ULong): NativeCompressionInfo
+@Extern(name = "scoop_compression_info") internal fun compressionInfo(handle: ULong): NativeCompressionInfo
+@Extern(name = "scoop_compression_error") internal fun compressionMessage(handle: ULong): Ptr<Byte>
+@Extern(name = "scoop_compression_version") internal fun compressionVersion(format: Int): Ptr<Byte>
+@Extern(name = "scoop_compression_free") internal fun compressionFree(handle: ULong)
+@Extern(name = "scoop_compression_gzip") internal fun compressionGzip(handle: ULong, name: Ptr<Byte>?, nameSize: Long, comment: Ptr<Byte>?, commentSize: Long, mtime: UInt, hcrc: Int)
+@Extern(name = "scoop_compression_process") private fun compressionProcess(handle: ULong, input: Ptr<Byte>?, count: Long, output: Ptr<Byte>?, capacity: Long, action: Int): NativeCompressionStep

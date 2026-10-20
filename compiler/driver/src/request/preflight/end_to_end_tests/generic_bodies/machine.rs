@@ -203,7 +203,7 @@ fn actual_generic_library_emits_shared_odr_objects() {
                 scoop_codegen::EmittedConeObjectMemberKindV1::CallableBody { body, .. } => {
                     Some(body)
                 }
-                scoop_codegen::EmittedConeObjectMemberKindV1::NonCallable { .. } => None,
+                scoop_codegen::EmittedConeObjectMemberKindV1::NonCallable => None,
             })
             .collect::<Vec<_>>();
         let mut expected_members = lir

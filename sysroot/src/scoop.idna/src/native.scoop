@@ -1,0 +1,31 @@
+package scoop.idna
+
+@CLayout internal struct IdnaResult(val data: Ptr<Byte>?, val size: Long, val code: Int, val label: Long)
+
+internal fun convertIdna(text: String, mode: Int, operation: String): String {
+    val bytes = text.toByteArray()
+    @Unsafe {
+        val result = bytes.withDataPointer { pointer, count ->
+            @Unsafe {
+                if (mode < 4) return@withDataPointer idnaDomain(pointer, count, mode)
+                return@withDataPointer idnaPunycode(pointer, count, mode == 5)
+            }
+        }
+        if (result.code != 0) {
+            val detail = String.fromCString(idnaMessage(result.code))
+            throw IdnaException(operation, failureKind(result.code, mode),
+                if (result.code > -1000) Some(result.code) else None, detail,
+                if (result.label < 0L) None else Some(result.label))
+        }
+        try {
+            val output = Array<Byte>(result.size) { index -> @Unsafe { return@Array result.data!!.load(index) } }
+            return String.fromUtf8(output)
+        } finally { idnaFree(result.data) }
+    }
+}
+
+@Extern(name = "scoop_idna_domain") private fun idnaDomain(data: Ptr<Byte>, count: Long, mode: Int): IdnaResult
+@Extern(name = "scoop_idna_punycode") private fun idnaPunycode(data: Ptr<Byte>, count: Long, decode: Boolean): IdnaResult
+@Extern(name = "scoop_idna_message") private fun idnaMessage(code: Int): Ptr<Byte>
+@Extern(name = "scoop_idna_free") private fun idnaFree(data: Ptr<Byte>?)
+@Extern(name = "scoop_idna_version") internal fun idnaVersion(): Ptr<Byte>

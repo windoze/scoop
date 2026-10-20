@@ -140,19 +140,18 @@ fn elf_switch_tables_have_owned_ranges_and_follow_callable_odr_selection() {
             let table = file
                 .section_by_index(start.section_index().unwrap())
                 .unwrap();
-            let expected_name = if odr {
-                format!(".rodata.{}", plan.primary_symbol().symbol())
-            } else {
-                ".rodata".into()
-            };
-            assert_eq!(table.name().unwrap(), expected_name);
+            assert_eq!(table.name().unwrap(), ".rodata.scoop.constants");
             assert_eq!(start.section_index(), Some(table.index()));
             assert_eq!(end.section_index(), start.section_index());
             assert_eq!(start.address(), 0);
-            if with_constant && !odr {
-                assert!(end.address() < table.size());
-            } else {
-                assert_eq!(end.address(), table.size());
+            assert_eq!(end.address(), table.size());
+            if with_constant {
+                let strings = file.section_by_name(".rodata.str1.1").unwrap();
+                assert_ne!(strings.index(), table.index());
+                assert_eq!(
+                    strings.data().unwrap(),
+                    b"already-owned callable constant\0"
+                );
             }
             // LLVM can make one case the fallthrough instead of a table entry.
             let entries = table.relocations().count();

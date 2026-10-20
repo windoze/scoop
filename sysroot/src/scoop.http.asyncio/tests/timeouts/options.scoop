@@ -1,0 +1,64 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.test.*
+import scoop.time.Duration
+
+@Test private class HttpIdleOptionsTests {
+    @Test fun `invalid idle options fail before transport ownership or stream creation`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val (a, b) = rawPair(loop, scope)
+            val negative = Some(Duration.nanoseconds(-1L))
+            try {
+                try {
+                    AsyncHttp1Connection.takeOwnershipAsClient(a, scope, ioTimeouts = HttpIoTimeoutOptions(readIdle = negative))
+                    fail(Some("negative H1 timeout accepted"))
+                } catch (_: IllegalArgumentException) {}
+                try {
+                    AsyncHttp2Connection.takeOwnershipAsClient(a, scope, ioTimeouts = HttpIoTimeoutOptions(writeIdle = negative))
+                    fail(Some("negative H2 timeout accepted"))
+                } catch (_: IllegalArgumentException) {}
+                assertEquals(0L, a.reads + a.writes); assertEquals(0, a.closes)
+            } finally { a.close(); b.close() }
+        }
+        withHttp2 suspend { _, pair ->
+            try {
+                pair.client.openRequest(request2(), ioTimeouts = HttpIoTimeoutOptions(readIdle = Some(Duration.nanoseconds(-1L))))
+                fail(Some("negative stream timeout accepted"))
+            } catch (_: IllegalArgumentException) {}
+            assertEquals(1, pair.client.openRequest(request2()).id)
+        }
+    }
+
+    @Test fun `message overrides validate before encoding and None overrides connection defaults`() {
+        withHttp1(clientTimeouts = HttpIoTimeoutOptions(Some(Duration.ZERO), Some(Duration.ZERO))) suspend { _, a, _, client, server ->
+            try { client.sendRequest(request(), writeIdle = Some(Duration.nanoseconds(-1L))); fail(Some("negative message timeout accepted")) }
+            catch (_: IllegalArgumentException) {}
+            assertEquals(0L, a.writes)
+            assertTrue(client.isReusable)
+            client.sendRequest(request(), writeIdle = None).finish()
+            receiveBytes(server.receiveRequest()!!.body)
+            server.sendResponse(response()).finish()
+            try { client.receiveResponse(readIdle = Some(Duration.nanoseconds(-1L))); fail(Some("negative read timeout accepted")) }
+            catch (_: IllegalArgumentException) {}
+            assertEquals(0L, a.reads)
+            val incoming = client.receiveResponse(readIdle = None)
+            assertEquals(200U, incoming.head.status)
+            assertEquals(0L, receiveBytes(incoming.body).size)
+            assertTrue(client.ioTimeouts.readIdle == Some(Duration.ZERO) && client.ioTimeouts.writeIdle == Some(Duration.ZERO))
+        }
+    }
+
+    @Test fun `zero read idle expires before transport I O but preserves the caller Job`() {
+        withHttp1 suspend { scope, a, _, client, _ ->
+            client.sendRequest(request()).finish()
+            try { client.receiveResponse(readIdle = Some(Duration.ZERO)); fail(Some("zero idle read waited")) }
+            catch (error: HttpIoTimeoutException) {
+                assertTrue(error.direction == HttpIoDirection.Read && error.limit == Duration.ZERO)
+            }
+            assertEquals(0L, a.reads)
+            assertTrue(client.isClosed && !scope.job.isCancelled)
+        }
+    }
+}

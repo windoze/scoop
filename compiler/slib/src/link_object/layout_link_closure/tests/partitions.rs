@@ -124,10 +124,9 @@ fn layout_finalizer_keeps_disjoint_partitions_and_encodes_the_original_definitio
         native_surface(consumer_id, vec![], vec![]),
     )
     .unwrap();
-    let runtime =
+    let external =
         verify_runtime_and_eh_requirements_v1(source, scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
             .unwrap();
-    let external = without_target_support_for_test(runtime);
 
     let partitions = finalize_layout_partitioned_undefined_symbol_requirements_v1(
         current,

@@ -1,0 +1,56 @@
+package scoop.http
+
+import scoop.collections.emptyList
+import scoop.test.*
+import scoop.time.Instant
+
+@Test
+private class HttpAgeTests {
+    @Test
+    fun `Age preserves nonnegative seconds and saturates decimal overflow`() {
+        for ((input, expected) in [("0", 0L), (" \t00042\t ", 42L), ("2147483648", 2147483648L),
+            ("9223372036854775807", Long.MAX_VALUE), ("9223372036854775808", Long.MAX_VALUE),
+            ("999999999999999999999999999999", Long.MAX_VALUE)]) {
+            val age = HttpAge.parse(input)
+            assertEquals(expected, age.seconds)
+            assertEquals(input, String.fromUtf8(age.originalValue!!))
+            assertEquals(expected.toString(), String.fromUtf8(age.toHttpField().value))
+        }
+        assertTrue(when (HttpAge(42L).originalValue) { case None -> true; case Some(_) -> false })
+        assertFailsWith<IllegalArgumentException> { HttpAge(-1L) }
+    }
+
+    @Test
+    fun `the first list member and the first field are selected without fallback`() {
+        assertEquals(42L, HttpAge.parse(" 42 , invalid, 300").seconds)
+        val fields = [HttpField("Age".toByteArray(), "10, 20".toByteArray()), HttpField("aGe".toByteArray(), "30".toByteArray())]
+        assertEquals(10L, HttpAge.parseFields(fields)!!.seconds)
+        val invalid = [HttpField("Age".toByteArray(), "bad, 20".toByteArray()), HttpField("age".toByteArray(), "30".toByteArray())]
+        assertFailsWith<HttpFieldParseException> { HttpAge.parseFields(invalid) }
+        assertTrue(when (HttpAge.parseFieldsOrNone(invalid)) { case None -> true; case Some(_) -> false })
+        assertTrue(when (HttpAge.parseFields(emptyList<HttpField>())) { case None -> true; case Some(_) -> false })
+        assertTrue(when (HttpAge.parseOrNone(", 30")) { case None -> true; case Some(_) -> false })
+    }
+
+    @Test
+    fun `invalid first values retain original offsets and unrelated seconds stay strict`() {
+        for ((input, offset) in [("", 0L), (" -1", 1L), ("+1", 0L), ("\"1\"", 0L), ("1.0", 1L),
+            ("1 2", 2L), ("1x, 3", 1L), ("999999999999999999999x, 1", 21L)]) {
+            val error = assertFailsWith<HttpFieldParseException> { HttpAge.parse(input) }
+            assertEquals("Age", error.field)
+            assertEquals(offset, error.byteOffset)
+            assertTrue(when (HttpAge.parseOrNone(input)) { case None -> true; case Some(_) -> false })
+        }
+        assertFailsWith<HttpFieldParseException> { HttpRange.parse("bytes=9223372036854775808-") }
+        assertFailsWith<HttpFieldParseException> { HttpRetryAfter.parse("9223372036854775808", Instant.fromEpochSeconds(0L)) }
+    }
+
+    @Test
+    fun `parsed bytes own their snapshot across mutation and collection`() {
+        val bytes = MutableArray<Byte>(3L) { index -> (49L + index).toByte() }
+        val age = HttpAge.parse(bytes)
+        bytes[0L] = 0.toByte(); gcCollect()
+        assertEquals(123L, age.seconds)
+        assertEquals("123", String.fromUtf8(age.originalValue!!))
+    }
+}

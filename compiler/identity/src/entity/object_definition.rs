@@ -434,6 +434,7 @@ pub enum DefinitionAtomSubkey {
     SafepointSite(PersistentSafepointSiteId),
     StructuralPath(StructuralDefinitionPath),
     ConeImageSupport(ConeImageSupportRole),
+    BackendReadOnlyData,
 }
 
 impl WireEncode for DefinitionAtomSubkey {
@@ -448,6 +449,7 @@ impl WireEncode for DefinitionAtomSubkey {
             Self::SafepointSite(id) => encode_value_sum(encoder, 7, id),
             Self::StructuralPath(path) => encode_value_sum(encoder, 8, path),
             Self::ConeImageSupport(role) => encode_value_sum(encoder, 9, role),
+            Self::BackendReadOnlyData => encode_empty_sum(encoder, 10),
         }
     }
 }

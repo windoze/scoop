@@ -1,0 +1,70 @@
+package scoop.http
+
+import scoop.collections.emptyList
+import scoop.test.*
+import scoop.url.Url
+import scoop.url.UrlParseException
+
+@Test
+private class HttpLocationTest {
+    @Test
+    fun `Location preserves URI commas empty references and original field bytes`() {
+        val value = " \t../next,a?x=1,2#part\t "
+        val location = HttpLocation.parse(value)
+        assertEquals("../next,a?x=1,2#part", location.reference.toString())
+        assertEquals(value, String.fromUtf8(location.originalValue!!))
+        assertEquals("../next,a?x=1,2#part", String.fromUtf8(location.toHttpField().value))
+        assertTrue(location.toHttpField().hasName("Location".toByteArray()))
+        assertEquals("", HttpLocation.parse(" \t").reference.toString())
+        assertEquals("mailto:reader@example.test", HttpLocation.parse("mailto:reader@example.test").reference.toString())
+    }
+
+    @Test
+    fun `Location resolves relative references and inherits only an absent fragment`() {
+        val base = Url.parse("https://example.test/a/b?old=1#saved")
+        for ((reference, expected) in [("../c", "https://example.test/c#saved"),
+            ("?new=2", "https://example.test/a/b?new=2#saved"),
+            ("", "https://example.test/a/b?old=1#saved"),
+            ("#", "https://example.test/a/b?old=1#"),
+            ("/c#new", "https://example.test/c#new"),
+            ("//other.test/c", "https://other.test/c#saved"),
+            ("http://other.test/c", "http://other.test/c#saved")]) {
+            assertEquals(expected, HttpLocation.parse(reference).resolve(base).toString())
+        }
+    }
+
+    @Test
+    fun `Location rejects repeated singleton fields without splitting a URI comma`() {
+        assertTrue(when (HttpLocation.parseFields(emptyList<HttpField>())) { case None -> true; else -> false })
+        val field = HttpField("location".toByteArray(), "/a,b".toByteArray())
+        assertEquals("/a,b", HttpLocation.parseFields([field])!!.reference.toString())
+        val error = assertFailsWith<HttpFieldParseException> { HttpLocation.parseFields([field, field]) }
+        assertEquals("Location", error.field)
+        assertEquals(0L, error.byteOffset)
+    }
+
+    @Test
+    fun `Location maps URL errors to original byte offsets and retains their causes`() {
+        for ((value, offset) in [(" /bad path ", 5L), ("\t/%x0", 2L), ("  /bad\\path", 6L),
+            ("/bad\r\n", 4L), (" /x%", 3L)]) {
+            val error = assertFailsWith<HttpFieldParseException> { HttpLocation.parse(value) }
+            assertEquals("Location", error.field)
+            assertEquals(offset, error.byteOffset)
+            assertTrue(error.cause!! is UrlParseException)
+            assertTrue(when (HttpLocation.parseOrNone(value)) { case None -> true; else -> false })
+        }
+    }
+
+    @Test
+    fun `Location requires URI bytes while explicit IRI construction uses URL encoding`() {
+        val iri = "https://example.test/路径?q=文字"
+        val built = HttpLocation(Url.parse(iri))
+        assertTrue(when (built.originalValue) { case None -> true; else -> false })
+        for (byte in built.toByteArray()) assertTrue(byte.toUByte().toInt() < 128)
+        assertTrue(HttpLocation.parse(built.toByteArray()).reference == built.reference)
+        val error = assertFailsWith<HttpFieldParseException> { HttpLocation.parse(" /路径") }
+        assertEquals(2L, error.byteOffset)
+        val invalid = [47.toByte(), 255.toByte()]
+        assertTrue(when (HttpLocation.parseOrNone(invalid)) { case None -> true; else -> false })
+    }
+}

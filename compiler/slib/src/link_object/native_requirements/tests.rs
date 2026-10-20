@@ -21,6 +21,23 @@ use crate::{
     verify_current_cone_strong_relocation_closure_v1, verify_dependency_strong_requirements_v1,
 };
 
+mod generated_c;
+
+#[test]
+fn unresolved_scoop_symbols_do_not_become_native_requirements() {
+    let producer = ConeIdentity::SINGLE_FILE;
+    let object = fixture_for_producer(producer, "missingScoopTarget");
+    let symbol = b"_scoop$missing_callable";
+    let member = verified_member_with_undefined(&object, symbol);
+    let native = native_surface(producer, Vec::new(), Vec::new());
+    assert!(matches!(
+        verify_source_external_requirements_v1(dependency_closure(member), native),
+        Err(SourceExternalRequirementValidationError::UnresolvedScoopSymbol {
+            symbol: actual, ..
+        }) if actual == symbol
+    ));
+}
+
 #[test]
 fn resolves_source_extern_uses_and_preserves_unclassified_externals() {
     let producer = ConeIdentity::SINGLE_FILE;

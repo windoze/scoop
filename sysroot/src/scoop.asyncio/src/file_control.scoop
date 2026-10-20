@@ -1,0 +1,74 @@
+package scoop.asyncio
+
+import scoop.platform.fs.FileMetadata
+
+internal suspend fun fileMetadata(owner: OwnedFile): FileMetadata {
+    val job = owner.loop.requireJob()
+    return fileControl<FileMetadata>(owner, job, "file metadata",
+        { id -> @Unsafe { return@fileControl nativeFileMetadata(owner.pointer, id) } },
+        { result -> metadataResult(result) })
+}
+
+internal suspend fun filePosition(owner: OwnedFile, offset: Long, current: Boolean): Long {
+    val job = owner.loop.requireJob()
+    if (offset < 0L) throw IllegalArgumentException(Some("negative file position"))
+    return fileControl<Long>(owner, job, "file seek",
+        { id -> @Unsafe { return@fileControl nativeFileSeek(owner.pointer, id, offset, current) } },
+        { result -> when (result) {
+            case Position(value) -> value
+            case _ -> throw IllegalStateException(Some("seek returned no position"))
+        } })
+}
+
+internal suspend fun truncateFile(owner: OwnedFile, size: Long) {
+    val job = owner.loop.requireJob()
+    if (size < 0L) throw IllegalArgumentException(Some("negative file size"))
+    fileControl<Unit>(owner, job, "file truncate",
+        { id -> @Unsafe { return@fileControl nativeFileTruncate(owner.pointer, id, size) } },
+        { result -> requireFileDone(result) })
+}
+
+internal suspend fun syncFile(owner: OwnedFile, dataOnly: Boolean) {
+    val job = owner.loop.requireJob()
+    fileControl<Unit>(owner, job, "file sync",
+        { id -> @Unsafe { return@fileControl nativeFileSync(owner.pointer, id, dataOnly) } },
+        { result -> requireFileDone(result) })
+}
+
+private fun requireFileDone(result: IoResult) {
+    when (result) {
+        case Done -> {}
+        case _ -> throw IllegalStateException(Some("file operation returned an invalid completion"))
+    }
+}
+
+private suspend fun <R> fileControl(owner: OwnedFile, job: Job, operationName: String,
+    start: (Long) -> Int, result: (IoResult) -> R): R {
+    val reservation = owner.reserve()
+    try {
+        return suspendCoroutine<R> { continuation ->
+            val operation = LoopOperation(owner.loop.state, owner.loop.state.nextOperation(),
+                { _, id -> nativeStatus(id, start(id)) },
+                { native, id -> @Unsafe { nativeWorkCancel(native, id) } },
+                { event, selected ->
+                    val failure = completionFailure(operationName, event.result, selected, Some(owner.context))
+                    when (failure) {
+                        case Some(error) -> continuation.resumeWithException(error)
+                        case None -> {
+                            val value = try { result(event.result) }
+                            catch (error: Throwable) { continuation.resumeWithException(error); return@LoopOperation }
+                            continuation.resume(value)
+                        }
+                    }
+                })
+            operation.subscribe(job)
+            owner.attach(operation)
+            owner.loop.state.submit(operation)
+        }
+    } finally { reservation.dispose() }
+}
+
+@Extern(name = "scoop_io_file_metadata") private fun nativeFileMetadata(file: Ptr<Unit>, id: Long): Int
+@Extern(name = "scoop_io_file_seek") private fun nativeFileSeek(file: Ptr<Unit>, id: Long, offset: Long, current: Boolean): Int
+@Extern(name = "scoop_io_file_truncate") private fun nativeFileTruncate(file: Ptr<Unit>, id: Long, size: Long): Int
+@Extern(name = "scoop_io_file_sync") private fun nativeFileSync(file: Ptr<Unit>, id: Long, dataOnly: Boolean): Int

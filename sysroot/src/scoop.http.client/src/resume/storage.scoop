@@ -1,0 +1,66 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.platform.fs.Path
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.system.PlatformErrorKind
+import scoop.platform.system.PlatformException
+
+internal suspend fun loadClientResumeRecord(options: HttpResumeOptions): ClientResumeRecord? {
+    try {
+        return currentEventLoop().openFile(options.metadataFile).useAsync suspend { file ->
+            Some(decodeClientResumeRecord(file.readAllBytes(options.maxMetadataBytes)))
+        }
+    } catch (error: PlatformException) {
+        if (error.kind == PlatformErrorKind.NotFound) return None
+        throw error
+    } catch (error: ReadLimitException) { resumeMetadataError("resume metadata exceeds its limit", Some(error)) }
+}
+
+internal suspend fun saveClientResumeRecord(bytes: Array<Byte>, options: HttpResumeOptions, sync: Boolean) {
+    val loop = currentEventLoop()
+    val temporary = loop.createTempFile(Some(options.metadataFile.parent ?: Path.fromString(".")), "pending-http-resume-")
+    var failed: Throwable? = None
+    try {
+        NativeByteBuffer.allocate(bytes.size).use suspend { buffer -> buffer.writeBytes(bytes); temporary.file.writeFully(buffer) }
+        if (sync) temporary.file.syncAll()
+        temporary.close()
+        ensureActive()
+        nonCancellableScope<Unit> suspend { _ -> loop.moveFile(temporary.path, options.metadataFile, true) }
+    } catch (error: Throwable) { failed = Some(error) }
+    finally {
+        try { closeClientResumeTemporary(temporary) }
+        catch (error: Throwable) { failed = appendClientCleanup(failed, error) }
+    }
+    if (clientPresent(failed)) throw failed!!
+}
+
+private suspend fun closeClientResumeTemporary(temporary: TemporaryFile) {
+    nonCancellableScope<Unit> suspend { _ ->
+        var failed: Throwable? = None
+        try { temporary.close() } catch (error: Throwable) { failed = Some(error) }
+        try { deleteClientCacheFile(temporary.path) }
+        catch (error: Throwable) { failed = appendClientCleanup(failed, error) }
+        if (clientPresent(failed)) throw failed!!
+    }
+}
+
+internal suspend fun selectClientResumeRange(original: HttpRequest, offset: Long, options: HttpResumeOptions): ClientResumeRange? {
+    if (offset == 0L) return None
+    val record = loadClientResumeRecord(options)
+    val reason: HttpResumeFailureReason? = when (record) {
+        case None -> Some(HttpResumeFailureReason.MissingMetadata)
+        case Some(value) -> {
+            if (value.originalUrl != clientCacheUrl(original.url)) Some(HttpResumeFailureReason.RequestChanged)
+            else if (!clientPresent(value.etag)) Some(HttpResumeFailureReason.UnreliableValidator)
+            else if (clientPresent(value.length) && offset > value.length!!) Some(HttpResumeFailureReason.InvalidRange)
+            else None
+        }
+    }
+    if (clientPresent(reason)) {
+        if (options.mismatch == HttpResumeMismatch.Fail)
+            throw HttpResumeException(reason!!, "partial download cannot be resumed with its saved metadata")
+        return None
+    }
+    return Some(ClientResumeRange(record!!, offset, offset))
+}

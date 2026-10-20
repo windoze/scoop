@@ -1,0 +1,78 @@
+package scoop.http.asyncio
+
+import scoop.platform.time.MonotonicTimeSource
+import scoop.time.Duration
+
+internal fun startH2Idle(idle: H2Idle) {
+    val state = idle.state
+    val scope = state.lock.withLock { if (idle.active && !state.closing) state.ownerScope else None }
+    if (!present(scope)) { finishH2Idle(idle); return }
+    try {
+        val timer = launchH2Idle(scope!!, idle)
+        val (entered, stopped) = state.lock.withLock {
+            if (idle.active) idle.timer = Some(timer)
+            (idle.entered, !idle.active)
+        }
+        if (!entered) finishH2Idle(idle)
+        else if (stopped) timer.cancel()
+    } catch (error: Throwable) {
+        state.lock.withLock { terminateH2(state, error) }
+        finishH2Idle(idle)
+    }
+}
+
+private fun launchH2Idle(scope: CoroutineScope, idle: H2Idle): Job {
+    val state = idle.state
+    val loop = state.loop
+    context(loop) {
+        return scope.launch suspend {
+            state.lock.withLock { idle.entered = true }
+            try { runH2Idle(idle) }
+            catch (_: CancellationException) {}
+            catch (error: Throwable) { state.lock.withLock { terminateH2(state, error) } }
+            finally { finishH2Idle(idle) }
+        }
+    }
+}
+
+private suspend fun runH2Idle(idle: H2Idle) {
+    val state = idle.state
+    while (true) {
+        val remaining = state.lock.withLock {
+            if (idle.active && !state.closing) Some(idle.clock.remaining(MonotonicTimeSource.markNow())) else None
+        }
+        if (remaining == None) return
+        if (remaining!! > Duration.ZERO) state.loop.sleep(remaining!!)
+        val actions = ArrayList<() -> Unit>()
+        val expired = state.lock.withLock {
+            if (!idle.active || state.closing) false else {
+                val error = idle.clock.expired(MonotonicTimeSource.markNow())
+                if (present(error)) resetH2Stream(state, idle.stream, error!!, 8U, actions)
+                present(error)
+            }
+        }
+        for (action in actions) action()
+        driveH2(state)
+        if (expired) return
+    }
+}
+
+private fun finishH2Idle(idle: H2Idle) {
+    val state = idle.state
+    val stream = idle.stream
+    val actions = ArrayList<() -> Unit>()
+    state.lock.withLock {
+        if (idle.finished) return@withLock
+        idle.finished = true; idle.active = false; idle.timer = None
+        if (present(stream.readIdle) && stream.readIdle!! === idle) stream.readIdle = None
+        if (present(stream.writeIdle) && stream.writeIdle!! === idle) stream.writeIdle = None
+        stream.idleTimers -= 1L; state.idleTimers -= 1L
+        if (stream.idleTimers == 0L) {
+            for (waiter in stream.idleCloseWaiters) actions.add { waiter.resume(Unit) }
+            stream.idleCloseWaiters.clear()
+        }
+        Unit
+    }
+    for (action in actions) action()
+    driveH2(state)
+}

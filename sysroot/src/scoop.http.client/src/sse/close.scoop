@@ -1,0 +1,87 @@
+package scoop.http.client
+
+import scoop.asyncio.EventLoop
+import scoop.asyncio.IoClosedException
+
+internal fun stopClientSse(state: ClientSseState, reason: Throwable, explicit: Boolean = false) {
+    val job: Job? = state.client.lock.withLock {
+        if (state.closed || state.finished) return@withLock None
+        if (!clientPresent(state.failure)) { state.failure = Some(reason); state.explicitClose = explicit }
+        state.closing = true
+        state.active
+    }
+    job?.cancel()
+    startClientSseClose(state)
+}
+
+internal suspend fun closeClientSse(state: ClientSseState) {
+    if (state.client.lock.withLock { state.closed }) return
+    checkClientSseClose(state.client, Some(state))
+    clientJob(state.client.loop, false)
+    stopClientSse(state, IoClosedException(), true)
+    awaitClientSseClose(state)
+    val failure = state.client.lock.withLock { state.cleanupFailure }
+    if (clientPresent(failure)) throw failure!!
+}
+
+internal suspend fun awaitClientSseClose(state: ClientSseState) {
+    suspendCoroutine<Unit> { continuation ->
+        val closed = state.client.lock.withLock {
+            if (state.closed) true else { state.closeWaiters.add(continuation); false }
+        }
+        if (closed) continuation.resume(Unit)
+    }
+}
+
+internal fun startClientSseClose(state: ClientSseState) {
+    val job: Job? = state.client.lock.withLock {
+        if (!state.closing || state.running || state.cleanupStarted) return@withLock None
+        state.cleanupStarted = true
+        Some(state.client.scope!!.job)
+    }
+    if (!clientPresent(job)) return
+    val owner: Job = job!!
+    val loop: EventLoop = state.client.loop
+    context(loop) { context(owner) {
+        startCoroutine<Unit>(suspend {
+            nonCancellableScope<Unit> suspend { _ ->
+                val timer = state.client.lock.withLock { val saved = state.timer; state.timer = None; saved }
+                timer?.cancel()
+                timer?.join()
+                closeClientSseResponse(state)
+            }
+        }, ClientSseCloseCompletion(state))
+    } }
+}
+
+private class ClientSseCloseCompletion(val state: ClientSseState) : Continuation<Unit> {
+    public override fun resume(value: Unit) { finish(None) }
+    public override fun resumeWithException(exception: Throwable) { finish(Some(exception)) }
+
+    private fun finish(error: Throwable?) {
+        val waiters = state.client.lock.withLock {
+            if (clientPresent(error)) {
+                state.cleanupFailure = when (state.failure) {
+                    case Some(primary) -> collectClientSecondary(primary, state.cleanupFailure, error!!)
+                    case None -> appendClientCleanup(state.cleanupFailure, error!!)
+                }
+            }
+            state.closed = true
+            if (state.registered) {
+                var index = 0L
+                while (index < state.client.eventSources.size) {
+                    if (state.client.eventSources[index] === state) { state.client.eventSources.removeAt(index); break }
+                    index += 1L
+                }
+                state.registered = false
+            }
+            if (state.client.closing && clientPresent(state.cleanupFailure))
+                state.client.closeFailure = appendClientCleanup(state.client.closeFailure, state.cleanupFailure!!)
+            val saved = state.closeWaiters.toArray()
+            state.closeWaiters.clear()
+            saved
+        }
+        wakeClient(state.client)
+        for (waiter in waiters) waiter.resume(Unit)
+    }
+}

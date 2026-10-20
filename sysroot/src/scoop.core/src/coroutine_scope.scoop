@@ -1,4 +1,4 @@
-public class Deferred<T> internal constructor(parent: Job?) : Job(parent) {
+public class Deferred<T> internal constructor(parent: Job?, propagatesFailure: Boolean = true) : Job(parent, propagatesFailure) {
     private var result: MaybeUninit<T> = MaybeUninit<T>.uninit()
 
     internal fun succeed(value: T) {
@@ -58,9 +58,14 @@ private class StructuredCompletion<T>(val task: Deferred<T>) : Continuation<T> {
     public override fun resumeWithException(exception: Throwable) { task.finishBody(Some(exception)) }
 }
 
-public suspend fun <T> coroutineScope(block: suspend (CoroutineScope) -> T): T {
-    val parent = currentJobOrNone()
-    val task = Deferred<T>(parent)
+public suspend fun <T> coroutineScope(block: suspend (CoroutineScope) -> T): T =
+    runCoroutineScope(currentJobOrNone(), block)
+
+public suspend fun <T> nonCancellableScope(block: suspend (CoroutineScope) -> T): T =
+    runCoroutineScope(None, block)
+
+private suspend fun <T> runCoroutineScope(parent: Job?, block: suspend (CoroutineScope) -> T): T {
+    val task = Deferred<T>(parent, false)
     when (parent) {
         case Some(owner) -> owner.attach(task)
         case None -> {}

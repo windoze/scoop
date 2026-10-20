@@ -1,0 +1,47 @@
+package scoop.http.client
+
+internal fun collectClientSecondary(primary: Throwable, existing: Throwable?, error: Throwable): Throwable? {
+    val selected = selectClientSecondary(primary, error) ?: return existing
+    return appendClientCleanup(existing, selected)
+}
+
+private fun selectClientSecondary(primary: Throwable, error: Throwable): Throwable? {
+    if (sameClientFailure(primary, error) || containsClientCleanup(Some(primary), error) || error is CancellationException ||
+        (primary is HttpClientClosedException && error is HttpClientClosedException) ||
+        (primary is HttpTimeoutException && error is HttpTimeoutException && primary.phase == error.phase)) return None
+    if (error is ResourceUseException) {
+        return combineClientCleanupParts(error, selectClientSecondary(primary, error.primaryFailure),
+            selectClientSecondary(primary, error.cleanupFailure))
+    }
+    return Some(error)
+}
+
+internal fun appendClientCleanup(existing: Throwable?, addition: Throwable): Throwable? {
+    val fresh = unseenClientCleanup(existing, addition) ?: return existing
+    return Some(clientCombined(existing, fresh))
+}
+
+private fun unseenClientCleanup(existing: Throwable?, addition: Throwable): Throwable? {
+    if (!clientPresent(existing)) return Some(addition)
+    if (containsClientCleanup(existing, addition)) return None
+    if (addition is ResourceUseException) {
+        return combineClientCleanupParts(addition, unseenClientCleanup(existing, addition.primaryFailure),
+            unseenClientCleanup(existing, addition.cleanupFailure))
+    }
+    return Some(addition)
+}
+
+private fun combineClientCleanupParts(original: ResourceUseException, first: Throwable?, second: Throwable?): Throwable? {
+    if (!clientPresent(first)) return second
+    if (!clientPresent(second)) return first
+    if (first!! === original.primaryFailure && second!! === original.cleanupFailure) return Some<Throwable>(original)
+    return Some<Throwable>(ResourceUseException(first!!, second!!))
+}
+
+private fun containsClientCleanup(existing: Throwable?, addition: Throwable): Boolean {
+    val value = existing ?: return false
+    if (value === addition) return true
+    if (value is ResourceUseException)
+        return containsClientCleanup(Some(value.primaryFailure), addition) || containsClientCleanup(Some(value.cleanupFailure), addition)
+    return false
+}

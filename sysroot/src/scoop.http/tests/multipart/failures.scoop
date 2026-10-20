@@ -1,0 +1,56 @@
+package scoop.http
+
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+@Test private class MultipartFailureTests {
+    @Test fun `invalid fields delimiters and incomplete EOF are explicit parse failures`() {
+        for (wire in ["", "no boundary", "--b\r", "--b-", "--b--\r", "--bX\r\n",
+            "--b\r\nX: value\n\n", "--b\r\nX: value\rX", "--b\r\n value\r\n\r\n",
+            "--b\r\nBad Name: x\r\n\r\n", "--b\r\nName\r\n\r\n", "--b\r\n: x\r\n\r\n",
+            "--b\r\nX: \u0000\r\n\r\n", "--b\r\n\r\nbody", "--b\r\n\r\nbody\r\n--b-\r\n",
+            "--b\r\n\r\nbody\r\n--bX\r\n", "--b\r\n\r\nbody\r\n--b--\n"]) {
+            val decoder = MultipartDecoder(MultipartBoundary("b"))
+            assertFailsWith<MultipartParseException> { feedMp(decoder, wire.toByteArray(), 1L) }
+            assertTrue(when (decoder.failure) { case Some(_) -> true; case None -> false })
+            assertFailsWith<IllegalStateException> { decoder.nextEvent() }
+            decoder.close(); decoder.close()
+            assertTrue(decoder.isClosed)
+        }
+    }
+
+    @Test fun `parser failure consumes only the attempted prefix and releases the native borrow`() {
+        val decoder = MultipartDecoder(MultipartBoundary("b"))
+        NativeByteBuffer.allocate(32L).use { buffer ->
+            buffer.writeBytes("--bXremaining".toByteArray())
+            val error = assertFailsWith<MultipartParseException> { decoder.receive(buffer) }
+            assertEquals(3L, error.byteOffset)
+            assertEquals(4L, buffer.readPosition)
+            assertEquals("remaining", String.fromUtf8(buffer.readBytes(buffer.readableBytes)))
+            buffer.clear()
+            buffer.writeBytes("reused".toByteArray())
+            assertEquals("reused", String.fromUtf8(buffer.readBytes(6L)))
+        }
+        decoder.close()
+        assertFalse(decoder.isComplete)
+    }
+
+    @Test fun `argument failures preserve the decoder while close abandons pending events`() {
+        val decoder = MultipartDecoder(MultipartBoundary("b"))
+        val wire = "--b\r\n\r\nbody\r\n--b--".toByteArray()
+        NativeByteBuffer.allocate(wire.size).use { buffer ->
+            buffer.writeBytes(wire)
+            assertFailsWith<IllegalArgumentException> { decoder.receive(buffer, -1L) }
+            assertFailsWith<IndexOutOfBoundsException> { decoder.receive(buffer, wire.size + 1L) }
+            assertEquals(0L, decoder.receive(buffer, 0L))
+            assertEquals(0L, buffer.readPosition)
+            assertEquals(7L, decoder.receive(buffer))
+            assertTrue(when (decoder.failure) { case None -> true; case Some(_) -> false })
+            decoder.close()
+            assertFalse(decoder.isComplete)
+            assertFailsWith<IllegalStateException> { decoder.nextEvent() }
+            buffer.clear()
+        }
+        assertFailsWith<IllegalStateException> { decoder.endInput() }
+    }
+}

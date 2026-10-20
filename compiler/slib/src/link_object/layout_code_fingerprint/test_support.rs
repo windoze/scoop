@@ -39,7 +39,6 @@ pub(crate) fn with_empty_layout_code_fixture<R>(
     let member_plan = &objects
         .final_objects()
         .entry()
-        .patch_sites()
         .builtins()
         .member_plan()
         .scoop_lir_members()[0];
@@ -96,7 +95,6 @@ pub(crate) fn with_empty_layout_code_fixture<R>(
         .link_objects()
         .final_objects()
         .entry()
-        .patch_sites()
         .builtins()
         .strong_relocations()
         .clone();
@@ -117,10 +115,9 @@ pub(crate) fn with_empty_layout_code_fixture<R>(
     let source =
         verify_source_external_requirements_after_external_shape_v1(&shape, native.clone())
             .unwrap();
-    let runtime =
+    let external =
         verify_runtime_and_eh_requirements_v1(source, scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
             .unwrap();
-    let external = crate::link_object::without_target_support_for_test(runtime);
     let partitions =
         finalize_layout_partitioned_undefined_symbol_requirements_v1(current, external, &shape)
             .unwrap();

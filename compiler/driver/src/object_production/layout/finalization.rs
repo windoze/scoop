@@ -47,17 +47,12 @@ impl PreparedLayoutObjects {
     pub(crate) fn finalize_metadata(
         &self,
         undefined: &slib::FinalizedLayoutUndefinedSymbolRequirementPartitionsV1,
-    ) -> Result<slib::VerifiedEntryPatchSetV2, BuiltinObjectProductionError> {
-        let image = bind_cone_image_v1(
-            &self.patch_sites.clone(),
-            self.production.image_plan().clone(),
-        )
-        .map_err(BuiltinObjectProductionError::ConeImage)?;
-        let entry = bind_entry_production_v1(
-            self.patch_sites.clone(),
-            self.production.entry_plan().clone(),
-        )
-        .map_err(BuiltinObjectProductionError::EntryProduction)?;
+    ) -> Result<slib::FinalRuntimeObjectsV2, BuiltinObjectProductionError> {
+        let image = bind_cone_image_v1(&self.builtins, self.production.image_plan().clone())
+            .map_err(BuiltinObjectProductionError::ConeImage)?;
+        let entry =
+            bind_entry_production_v1(self.builtins.clone(), self.production.entry_plan().clone())
+                .map_err(BuiltinObjectProductionError::EntryProduction)?;
         let registrations = registrations::finalize(self, undefined)?;
         let compatibility = slib::CompatibilityRecord::new(
             self.target_selection,
@@ -66,9 +61,6 @@ impl PreparedLayoutObjects {
         .map_err(BuiltinObjectProductionError::Compatibility)?;
         let image = slib::compute_runtime_image_fingerprint_v2(image, registrations, compatibility)
             .map_err(BuiltinObjectProductionError::RuntimeImageFingerprint)?;
-        let image = slib::patch_runtime_image_fingerprint_v2(image)
-            .map_err(BuiltinObjectProductionError::RuntimeImagePatch)?;
-        slib::patch_entry_production_v2(image, entry)
-            .map_err(BuiltinObjectProductionError::EntryPatch)
+        Ok(slib::FinalRuntimeObjectsV2::new(image, entry))
     }
 }

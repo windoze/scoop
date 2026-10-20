@@ -1,0 +1,41 @@
+package scoop.compression
+
+import scoop.platform.io.ByteSource
+import scoop.platform.memory.NativeByteBuffer
+
+internal class SyncCompressionSource(
+    private val source: ByteSource, resources: CompressionIoResources, owner: Closeable?
+) : ByteSource, Closeable {
+    private val state: CompressionReadState = CompressionReadState(resources)
+    private val guard: SyncCompressionOwner = SyncCompressionOwner(resources, owner)
+    val totals: CompressionTotals get() = state.totals
+    val failure: Throwable? get() = guard.failure
+
+    public override fun readInto(buffer: NativeByteBuffer, count: Long): Long {
+        guard.enter()
+        try {
+            requireCompressionTransfer(count, buffer.writableBytes)
+            if (count == 0L) return 0L
+            try {
+                while (true) {
+                    if (state.finished) return 0L
+                    if (state.needsInput) fill()
+                    val step = state.step(buffer, count)
+                    if (step.produced > 0L) return step.produced
+                }
+            } catch (error: Throwable) { guard.failure = Some(error); throw error }
+        } finally { guard.leave() }
+    }
+
+    private fun fill() {
+        val input = state.buffer
+        input.compact()
+        val before = input.writePosition
+        val requested = input.writableBytes
+        val count = source.readInto(input, requested)
+        requireCompressionProgress(count, requested, input.writePosition - before)
+        state.acceptInput(count)
+    }
+
+    public override fun close() { guard.close() }
+}

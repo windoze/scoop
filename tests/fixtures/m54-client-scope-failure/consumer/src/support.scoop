@@ -1,0 +1,53 @@
+import scoop.asyncio.*
+import scoop.platform.memory.NativeByteBuffer
+
+internal fun scopeCheck(value: Boolean, detail: String) {
+    if (!value) throw IllegalStateException(Some(detail))
+}
+
+internal class ScopeGate {
+    private var open: Boolean = false
+    private var waiter: Continuation<Unit>? = None
+    suspend fun await() {
+        suspendCoroutine<Unit> { next -> if (open) next.resume(Unit) else waiter = Some(next) }
+    }
+    fun signal() {
+        open = true
+        val next = waiter; waiter = None
+        next?.resume(Unit)
+    }
+}
+
+internal class ScopeFailure {
+    val error: Throwable = Throwable()
+    val cleaning: ScopeGate = ScopeGate()
+    val release: ScopeGate = ScopeGate()
+    var cleaned: Boolean = false
+    var pending: CancellableContinuation<Unit>? = None
+    var caught: Throwable? = None
+}
+
+internal class ScopeContext(val value: String)
+context(value: ScopeContext)
+internal fun scopeContext(): String = value.value
+
+internal suspend fun failInScope(state: ScopeFailure) {
+    coroutineScope<Unit> suspend { scope ->
+        scope.launch suspend {
+            try { suspendCancellableCoroutine<Unit> { next -> state.pending = Some(next) } }
+            finally {
+                state.cleaning.signal(); state.release.await()
+                scopeCheck(scopeContext() == "request", "cleanup lost its request Context")
+                state.cleaned = true
+            }
+        }
+        scope.async<Unit> suspend { throw state.error }; Unit
+    }
+}
+
+internal suspend fun scopeWrite(output: AsyncByteSink, text: String) {
+    val bytes = text.toByteArray()
+    NativeByteBuffer.allocate(bytes.size).use suspend { buffer ->
+        buffer.writeBytes(bytes); output.writeFully(buffer)
+    }
+}

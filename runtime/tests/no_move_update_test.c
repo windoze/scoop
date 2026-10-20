@@ -13,8 +13,7 @@ static const ScoopTypeDescriptor release_td = {
     .instance_shape = {.instance_kind = SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1,
                        .minimum_size = sizeof(NurseryNode),
                        .instance_alignment = 8},
-    .release_hook = release_leaf,
-};
+    .release_hook = release_leaf};
 
 static void collect_without_movement(bool minor) {
     ScoopGcMetrics before = nursery_metrics();

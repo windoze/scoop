@@ -1,0 +1,58 @@
+private class Gate {
+    var waiting: Continuation<Int>? = None
+    suspend fun next(): Int = suspendCoroutine<Int> { continuation -> waiting = Some(continuation) }
+    fun deliver(value: Int) {
+        val continuation = waiting!!
+        waiting = None
+        continuation.resume(value)
+    }
+}
+
+private class Completion : Continuation<Int> {
+    var result: Int? = None
+    public override fun resume(value: Int) { result = Some(value) }
+    public override fun resumeWithException(exception: Throwable) { throw exception }
+}
+
+private class Held(val text: String)
+private class HeldCompletion : Continuation<Held> {
+    var result: Held? = None
+    public override fun resume(value: Held) { result = Some(value) }
+    public override fun resumeWithException(exception: Throwable) { throw exception }
+}
+
+private suspend fun <T> retain(gate: Gate, value: T): T {
+    val a = gate.next(); val b = gate.next(); val c = gate.next()
+    val d = gate.next(); val e = gate.next(); val f = gate.next()
+    val g = gate.next(); val h = gate.next(); val i = gate.next()
+    val j = gate.next(); val k = gate.next(); val l = gate.next()
+    if (a + b + c + d + e + f + g + h + i + j + k + l != 78) throw IllegalStateException()
+    gcCollect()
+    return value
+}
+
+private suspend fun accumulate(gate: Gate, label: String): Int {
+    val a = gate.next(); val b = gate.next(); val c = gate.next()
+    val d = gate.next(); val e = gate.next(); val f = gate.next()
+    val g = gate.next(); val h = gate.next(); val i = gate.next()
+    val j = gate.next(); val k = gate.next(); val l = gate.next()
+    gcCollect()
+    if (label != "retained across every dispatch") throw IllegalStateException()
+    return a + b + c + d + e + f + g + h + i + j + k + l
+}
+
+fun main() {
+    val first = Gate(); val second = Gate()
+    val a = Completion(); val b = Completion()
+    val third = Gate(); val held = HeldCompletion()
+    startCoroutine<Int>(suspend { accumulate(first, "retained across every dispatch") }, a)
+    startCoroutine<Int>(suspend { accumulate(second, "retained across every dispatch") }, b)
+    startCoroutine<Held>(suspend { retain(third, Held("generic value")) }, held)
+    for (index in 1..12) {
+        gcCollect()
+        first.deliver(index); second.deliver(index * 2); third.deliver(index)
+    }
+    if (a.result != Some(78) || b.result != Some(156)) throw IllegalStateException()
+    if (held.result!!.text != "generic value") throw IllegalStateException()
+    println("coroutine jump tables retain code and live values")
+}

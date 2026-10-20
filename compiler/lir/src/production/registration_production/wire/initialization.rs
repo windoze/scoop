@@ -117,7 +117,6 @@ impl WireDecode for DecodedStrongInitializationCallableRefPlanV1 {
 enum DecodedStrongInitializationRegistrationSchedulePlanV1 {
     EagerStartup {
         gateway: Box<DecodedStrongInitializationCallableRefPlanV1>,
-        gateway_definition_patch: DecodedPersistentId<DigestPatchIntentId>,
     },
     LazyAccess,
 }
@@ -125,14 +124,11 @@ enum DecodedStrongInitializationRegistrationSchedulePlanV1 {
 impl WireEncode for DecodedStrongInitializationRegistrationSchedulePlanV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
-            Self::EagerStartup {
-                gateway,
-                gateway_definition_patch,
-            } => {
-                encoder.map(3)?;
+            Self::EagerStartup { gateway } => {
+                encoder.map(2)?;
                 encode_unsigned_field(encoder, 0, 1)?;
                 encode_field(encoder, 1, gateway.as_ref())?;
-                encode_field(encoder, 2, gateway_definition_patch)
+                Ok(())
             }
             Self::LazyAccess => encode_empty_sum(encoder, 2),
         }
@@ -145,12 +141,11 @@ impl WireDecode for DecodedStrongInitializationRegistrationSchedulePlanV1 {
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
             1 => {
-                require_sum_length(decoder, length, 3)?;
+                require_sum_length(decoder, length, 2)?;
                 Ok(Self::EagerStartup {
                     gateway: Box::new(
                         decoder.field(1, DecodedStrongInitializationCallableRefPlanV1::decode)?,
                     ),
-                    gateway_definition_patch: decoder.field(2, DecodedPersistentId::decode)?,
                 })
             }
             2 => {

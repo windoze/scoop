@@ -120,6 +120,15 @@ public class NativeByteBuffer private constructor() : Closeable {
         }
     }
 
+    public fun getBytes(index: Long, count: Long): Array<Byte> {
+        return withState {
+            requireOpen()
+            requireCount(count)
+            if (index < 0L || index > writer || count > writer - index) throw IndexOutOfBoundsException()
+            return@withState Array<Byte>(count) { offset -> @Unsafe { return@Array memory!!.load(index + offset) } }
+        }
+    }
+
     public fun setByte(index: Long, value: Byte) {
         withState {
             requireMutable()

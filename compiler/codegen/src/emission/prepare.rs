@@ -7,7 +7,6 @@ pub(super) struct CallableCodePlan {
 
 pub(super) struct PreparedCallableModule<'ctx> {
     pub llvm: LlvmModule<'ctx>,
-    pub runtime_metadata: EmittedStrongRuntimeMetadataV1,
     pub plan: CallableCodePlan,
 }
 
@@ -23,8 +22,8 @@ pub(super) fn prepare_non_callable_strong_llvm_module<
     machine: &TargetMachine,
     profile: ValidatedBackendProfile,
     expected_safepoints: &statepoint::ExpectedSafepoints,
-) -> Result<(LlvmModule<'ctx>, EmittedStrongRuntimeMetadataV1), CodegenError> {
-    let (llvm, runtime_metadata) = emit_llvm_module_with_surface(
+) -> Result<LlvmModule<'ctx>, CodegenError> {
+    let (llvm, ()) = emit_llvm_module_with_surface(
         context,
         module,
         production.canonical_definitions(),
@@ -36,23 +35,23 @@ pub(super) fn prepare_non_callable_strong_llvm_module<
         profile,
         StrongObjectEmissionSelection::NonCallable,
         |context, llvm, _, bounds_message, array_size_message| {
-            let runtime_metadata = runtime_metadata_v1::emit_strong_runtime_metadata_v1(
-                context,
-                llvm,
-                profile,
-                production,
-                bounds_message,
-                array_size_message,
-            )?;
-            let (runtime_metadata, emitted_initialization_units) = runtime_metadata.into_parts();
+            let emitted_initialization_units =
+                runtime_metadata_v1::emit_strong_runtime_metadata_v1(
+                    context,
+                    llvm,
+                    profile,
+                    production,
+                    bounds_message,
+                    array_size_message,
+                )?;
             let initialization_units =
                 initialization_unit_globals(module, &emitted_initialization_units)?;
-            Ok((runtime_metadata, initialization_units))
+            Ok(((), initialization_units))
         },
     )?;
 
     optimize_and_lower_module(&llvm, machine, profile, expected_safepoints)?;
-    Ok((llvm, runtime_metadata))
+    Ok(llvm)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -67,7 +66,7 @@ pub(super) fn prepare_callable_strong_llvm_module<'ctx, D, C, I>(
     function: &Function,
 ) -> Result<PreparedCallableModule<'ctx>, CodegenError> {
     let body = function.callable_body.id();
-    let (llvm, mut runtime_metadata) = emit_llvm_module_with_surface(
+    let (llvm, ()) = emit_llvm_module_with_surface(
         context,
         module,
         production.canonical_definitions(),
@@ -90,14 +89,7 @@ pub(super) fn prepare_callable_strong_llvm_module<'ctx, D, C, I>(
     crate::metadata_sections::place_immutable_metadata(&llvm, profile);
     let safepoints = statepoint::optimize(&llvm, machine, expected, profile)?;
     let has_unwind = prune_unused_personalities(&llvm);
-    runtime_metadata_v1::emit_callable_safepoints(
-        context,
-        &llvm,
-        production,
-        body,
-        &safepoints,
-        &mut runtime_metadata,
-    )?;
+    runtime_metadata_v1::emit_callable_safepoints(context, &llvm, production, body, &safepoints)?;
     if profile.lir_target_profile().native_object_format() == scoop_lir::NativeObjectFormat::Elf64 {
         elf_symbols.prepare(&llvm)?;
     }
@@ -105,7 +97,6 @@ pub(super) fn prepare_callable_strong_llvm_module<'ctx, D, C, I>(
     statepoint::lower(&llvm, machine)?;
     Ok(PreparedCallableModule {
         llvm,
-        runtime_metadata,
         plan: CallableCodePlan {
             safepoints,
             has_unwind,

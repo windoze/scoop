@@ -1,0 +1,70 @@
+import scoop.asyncio.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.*
+import scoop.tls.*
+import scoop.tls.asyncio.AsyncTlsStream
+
+// This fixture signals and resumes on its single event loop.
+private class ReadStarted {
+    private var open: Boolean = false
+    private var waiting: Continuation<Unit>? = None
+
+    fun signal() {
+        val continuation = waiting
+        waiting = None
+        open = true
+        continuation?.resume(Unit)
+    }
+
+    suspend fun await() {
+        suspendCoroutine<Unit> { continuation ->
+            if (open) continuation.resume(Unit) else waiting = Some(continuation)
+        }
+    }
+}
+
+private class PendingIdentityTransport(val inner: AsyncTcpStream) : AsyncByteStream, AsyncCloseable {
+    val started: ReadStarted = ReadStarted()
+    var closes: Int = 0
+
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long {
+        started.signal()
+        return inner.readInto(buffer, count)
+    }
+    public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long = inner.writeFrom(buffer, count)
+    public override suspend fun flush() { inner.flush() }
+    public override suspend fun close() { closes += 1; inner.close() }
+}
+
+fun cancelIdentityHandshake() {
+    val context = identityContext(TlsVersion.Tls13)
+    val loop: EventLoop = LibuvEventLoop()
+    try {
+        loop.run suspend { scope ->
+            val listener = loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
+            try {
+                val connecting = scope.async<AsyncTcpStream> suspend { loop.connectTcp(listener.localAddress) }
+                val server = listener.accept()
+                val raw = PendingIdentityTransport(connecting.await())
+                val cancelled = AtomicBoolean(false)
+                try {
+                    val handshaking = scope.launch suspend {
+                        try {
+                            val unexpected = AsyncTlsStream.takeOwnershipAsClient(raw, context, TlsPeerName.Dns("localhost"))
+                            unexpected.close()
+                            throw IllegalStateException(Some("unexpected handshake completion"))
+                        } catch (_: CancellationException) { cancelled.store(true) }
+                    }
+                    raw.started.await()
+                    context.close()
+                    handshaking.cancel()
+                    handshaking.join()
+                    check(cancelled.load() && raw.closes == 1)
+                } finally {
+                    if (raw.closes == 0) raw.close()
+                    server.close()
+                }
+            } finally { listener.close() }
+        }
+    } finally { context.close() }
+}

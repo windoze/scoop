@@ -1,0 +1,111 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.collections.emptyList
+import scoop.collections.Map
+import scoop.collections.sorted
+import scoop.collections.sortedBy
+import scoop.http.*
+import scoop.platform.time.SystemClock
+import scoop.time.Clock
+import scoop.time.Instant
+import scoop.url.Url
+
+public enum HttpCacheMode { Default, Bypass, Reload, OnlyIfCached }
+public enum HttpCacheStatus { Network, Hit, Revalidated, Unsatisfied }
+
+public class HttpCacheOptions public constructor(
+    public val storage: HttpCache,
+    public val partition: String? = None,
+    public val clock: Clock = SystemClock
+)
+
+public class HttpCacheKey public constructor(
+    public val partition: String, public val url: String, public val identity: String
+) : Equals<HttpCacheKey>, Hash {
+    public override operator fun equals(other: HttpCacheKey): Boolean =
+        partition == other.partition && url == other.url && identity == other.identity
+    public override fun hash(): Long = (partition.hash() * 31L + url.hash()) * 31L + identity.hash()
+}
+
+public class HttpCacheRequest public constructor(public val key: HttpCacheKey, fields: List<HttpField>) {
+    public val fields: Array<HttpField> = fields.toArray()
+    internal val fingerprints: Map<String, String> = clientCacheFingerprints(this.fields)
+    internal fun fieldFingerprint(name: String): String = fingerprints[name] ?: clientEmptyCacheFingerprint
+}
+
+public class HttpCacheVary public constructor(name: String, public val fingerprint: String) {
+    public val name: String = HttpVary([name]).names[0L]
+    init { if (this.name == "*") throw IllegalArgumentException(Some("wildcard Vary cannot identify a reusable cache entry")) }
+}
+
+public class HttpCacheRecord public constructor(
+    public val key: HttpCacheKey,
+    public val head: HttpResponseHead,
+    public val sentAt: Instant,
+    public val receivedAt: Instant,
+    vary: List<HttpCacheVary> = emptyList<HttpCacheVary>()
+) {
+    public val vary: Array<HttpCacheVary> = vary.sortedBy<HttpCacheVary, String> { field -> field.name }.toArray()
+    internal val parsedDate: Instant? = clientCacheDate(head.fields, "Date", receivedAt)
+    internal val responseDate: Instant = parsedDate ?: receivedAt
+    init {
+        for (index in 1L..<this.vary.size) if (this.vary[index - 1L].name == this.vary[index].name)
+            throw IllegalArgumentException(Some("duplicate cache Vary field"))
+    }
+    public fun matches(request: HttpCacheRequest): Boolean {
+        if (key != request.key) return false
+        for (field in vary) if (field.fingerprint != request.fieldFingerprint(field.name)) return false
+        return true
+    }
+
+    public companion object {
+        public fun fromResponse(request: HttpCacheRequest, head: HttpResponseHead, sentAt: Instant, receivedAt: Instant): HttpCacheRecord {
+            val names = HttpVary.parseFields(head.fields).names.sorted()
+            val vary = ArrayList<HttpCacheVary>()
+            var previous: String? = None
+            for (name in names) {
+                if (name == "*") throw IllegalArgumentException(Some("wildcard Vary cannot identify a reusable cache entry"))
+                if (previous == Some(name)) continue
+                vary.add(HttpCacheVary(name, request.fieldFingerprint(name)))
+                previous = Some(name)
+            }
+            return HttpCacheRecord(request.key, clientStoredCacheHead(clientCacheWithDate(head, receivedAt)), sentAt, receivedAt, vary)
+        }
+    }
+}
+
+public interface HttpCacheSnapshot : AsyncCloseable {
+    public val record: HttpCacheRecord
+    public val body: AsyncByteSource
+    public val bodyLength: Long
+    public val trailers: Array<HttpField>
+}
+
+public interface HttpCacheWriter : AsyncByteSink, AsyncCloseable {
+    public suspend fun commit(trailers: List<HttpField>)
+}
+
+public interface HttpCache {
+    public suspend fun lookup(request: HttpCacheRequest): HttpCacheSnapshot?
+    public suspend fun begin(record: HttpCacheRecord): HttpCacheWriter?
+    public suspend fun invalidate(partition: String, url: String)
+}
+
+internal fun clientCacheUrl(url: Url): String = url.httpOrigin().toString() + url.httpRequestTarget()
+
+internal fun sameClientCacheVariant(first: HttpCacheRecord, second: HttpCacheRecord): Boolean {
+    if (first.key != second.key || first.vary.size != second.vary.size) return false
+    for (index in 0L..<first.vary.size) {
+        if (first.vary[index].name != second.vary[index].name ||
+            first.vary[index].fingerprint != second.vary[index].fingerprint) return false
+    }
+    return true
+}
+
+internal fun replacedClientCacheVariant(first: HttpCacheRecord, second: HttpCacheRecord): Boolean {
+    if (first.key != second.key) return false
+    if (first.vary.size != second.vary.size) return true
+    for (index in 0L..<first.vary.size) if (first.vary[index].name != second.vary[index].name) return true
+    return sameClientCacheVariant(first, second)
+}

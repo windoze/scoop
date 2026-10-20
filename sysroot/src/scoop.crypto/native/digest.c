@@ -9,6 +9,12 @@ const char *scoop_crypto_digest_name(int algorithm) {
     return "SHA384";
   case 2:
     return "SHA512";
+  case 3:
+    return "SHA1";
+  case 4:
+    return "MD5";
+  case 5:
+    return "SHA512-256";
   default:
     return NULL;
   }

@@ -8,7 +8,6 @@ pub(crate) struct SelectedImage {
     pub name: String,
     pub coordinate: [Vec<u8>; 3],
     pub cone: [u8; 32],
-    pub fingerprint: [u8; 32],
     pub dependencies: Vec<[u8; 32]>,
     pub tables: [Vec<String>; 6],
     pub traps: [(String, &'static [u8]); 2],
@@ -39,16 +38,11 @@ impl SelectedImage {
                 b"array size overflow\0".as_slice(),
             ),
         ];
-        let fingerprint = artifact
-            .runtime_image_records()
-            .fingerprint_for_definitions(selected)
-            .map_err(error)?;
         Ok(Self {
             name: object_symbol(production.image_symbol, profile),
             coordinate: [coordinate.group(), coordinate.name(), coordinate.version()]
                 .map(|part| part.as_bytes().to_vec()),
             cone: *artifact.identity().as_array(),
-            fingerprint: *fingerprint.as_array(),
             dependencies: artifact
                 .manifest()
                 .direct_dependencies()

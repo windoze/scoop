@@ -1,0 +1,37 @@
+package scoop.http.client
+
+import scoop.crypto.DigestAlgorithm
+
+public enum HttpDigestAlgorithm { Sha512_256, Sha512_256Sess, Sha256, Sha256Sess, Md5, Md5Sess }
+
+internal class ClientDigestAuthentication(
+    algorithms: List<HttpDigestAlgorithm>, val preferIntegrity: Boolean,
+    val credentials: suspend (HttpAuthenticationRequest) -> HttpPasswordCredentials
+) {
+    val algorithms: Array<HttpDigestAlgorithm> = algorithms.toArray()
+}
+
+internal fun clientDigestAlgorithm(value: HttpDigestAlgorithm): DigestAlgorithm = when (value) {
+    case Sha512_256 -> DigestAlgorithm.Sha512_256
+    case Sha512_256Sess -> DigestAlgorithm.Sha512_256
+    case Sha256 -> DigestAlgorithm.Sha256
+    case Sha256Sess -> DigestAlgorithm.Sha256
+    case Md5 -> DigestAlgorithm.Md5
+    case Md5Sess -> DigestAlgorithm.Md5
+}
+
+internal fun clientDigestName(value: HttpDigestAlgorithm): String = when (value) {
+    case Sha512_256 -> "SHA-512-256"
+    case Sha512_256Sess -> "SHA-512-256-sess"
+    case Sha256 -> "SHA-256"
+    case Sha256Sess -> "SHA-256-sess"
+    case Md5 -> "MD5"
+    case Md5Sess -> "MD5-sess"
+}
+
+internal fun clientDigestIsSession(value: HttpDigestAlgorithm): Boolean = when (value) {
+    case Sha512_256Sess -> true
+    case Sha256Sess -> true
+    case Md5Sess -> true
+    else -> false
+}

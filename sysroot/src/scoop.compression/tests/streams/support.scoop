@@ -1,0 +1,62 @@
+package scoop.compression
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.platform.io.*
+import scoop.platform.memory.NativeByteBuffer
+
+internal class ShortCompressionSource(val bytes: Array<Byte>) : ByteSource, Closeable {
+    var position: Long = 0L
+    var calls: Int = 0
+    var closes: Int = 0
+    var failAfter: Long = Long.MAX_VALUE
+    val error: Throwable = Throwable()
+
+    public override fun readInto(buffer: NativeByteBuffer, count: Long): Long {
+        calls += 1
+        if (position >= failAfter) throw error
+        var size = if (count < 2L) count else 2L
+        if (size > bytes.size - position) size = bytes.size - position
+        buffer.writeBytes(bytes, position, size)
+        position += size
+        return size
+    }
+
+    public override fun close() { closes += 1 }
+}
+
+internal class ShortCompressionSink : ByteSink, Closeable {
+    val bytes: ByteArrayBuilder = ByteArrayBuilder()
+    var closes: Int = 0
+    var flushes: Int = 0
+    var failAfter: Long = Long.MAX_VALUE
+    var failAfterProgress: Boolean = false
+    var failClose: Boolean = false
+    var zero: Boolean = false
+    val error: Throwable = Throwable()
+    val cleanup: Throwable = Throwable()
+
+    public override fun writeFrom(buffer: NativeByteBuffer, count: Long): Long {
+        if (bytes.size >= failAfter) throw error
+        if (zero) return 0L
+        val size = if (count < 2L) count else 2L
+        bytes.append(buffer.readBytes(size))
+        if (failAfterProgress) throw error
+        return size
+    }
+
+    public override fun flush() { flushes += 1 }
+    public override fun close() { closes += 1; if (failClose) throw cleanup }
+}
+
+internal fun readSmallCompression(source: ByteSource): Array<Byte> {
+    val result = ByteArrayBuilder()
+    NativeByteBuffer.allocate(3L).use { buffer ->
+        while (true) {
+            buffer.clear()
+            val count = source.readInto(buffer, 1L)
+            if (count == 0L) break
+            result.append(buffer.readBytes(count))
+        }
+    }
+    return result.toByteArray()
+}

@@ -1,0 +1,85 @@
+package scoop.http.client
+
+import scoop.http.*
+import scoop.text.lastIndexOf
+import scoop.text.startsWith
+import scoop.text.substring
+
+internal class ClientAuthenticationSession(
+    val scope: ClientAuthenticationScope,
+    val authenticator: HttpAuthenticator,
+    val challenge: HttpAuthChallenge?,
+    val path: String,
+    val rejectedBearer: ClientBearerValue? = None,
+    var digest: ClientDigestSession? = None
+) {
+    var field: HttpField? = None
+    var bearerValue: ClientBearerValue? = None
+}
+
+internal suspend fun prepareClientAuthentication(call: ClientCall, authentication: ClientCallAuthentication) {
+    val scope = authentication.scope
+    val request = call.originalRequest
+    if (scope.hasExplicitCredentials(call)) return
+    val sequence = call.sequence
+    var selected: ClientAuthenticationSession? = None
+    var index = sequence.authenticationSessions.size
+    while (index > 0L) {
+        index -= 1L
+        val session = sequence.authenticationSessions[index]
+        if (sameClientAuthenticationScope(session.scope, scope) && session.authenticator.origin == scope.origin(call) &&
+            (scope.isProxy || clientAuthenticationPath(request).startsWith(session.path)) &&
+            (!clientPresent(session.digest) || clientDigestCovers(scope, session.digest!!.nonce.challenge, request))) {
+            selected = Some(session); break
+        }
+    }
+    if (!clientPresent(selected)) {
+        for (provider in scope.options(call).providers) {
+            if (provider.origin == scope.origin(call) && provider.sendWithoutChallenge) {
+                val available = when (provider.provider) {
+                    case Digest(options) -> cachedClientDigest(call, scope, provider, options)
+                    else -> Some(ClientAuthenticationSession(scope, provider, None, "/"))
+                }
+                if (!clientPresent(available)) continue
+                val session = available!!
+                sequence.authenticationSessions.add(session)
+                selected = Some(session)
+                break
+            }
+        }
+    }
+    if (!clientPresent(selected)) return
+    val session = selected!!
+    val field = when (session.authenticator.provider) {
+        case Basic(provider) -> session.field ?: clientBasicField(call, session, provider)
+        case Bearer(provider) -> {
+            val value = awaitClientBearer(call, session, provider)
+            requireClientCall(call)
+            session.bearerValue = Some(value)
+            value.field
+        }
+        case Digest(provider) -> clientDigestField(call, authentication, session, provider)
+    }
+    requireClientCall(call)
+    session.field = Some(field)
+    authentication.session = Some(session)
+    if (!scope.isProxy) {
+        val fields = ArrayList<HttpField>()
+        for (value in request.suppliedFields) fields.add(value)
+        fields.add(field)
+        call.request = HttpRequest(request.url, request.method, fields, request.body, request.options)
+    }
+}
+
+internal fun hasClientAuthorization(request: HttpRequest): Boolean {
+    for (field in request.suppliedFields) if (field.hasName("Authorization".toByteArray())) return true
+    return false
+}
+
+internal fun clientAuthenticationPath(request: HttpRequest): String =
+    if (request.url.encodedPath.length == 0L) "/" else request.url.encodedPath
+
+internal fun clientAuthenticationDirectory(request: HttpRequest): String {
+    val path = clientAuthenticationPath(request)
+    return path.substring(0L, path.lastIndexOf('/') + 1L)
+}

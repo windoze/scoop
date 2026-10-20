@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "scoop.tests"
+name = "m54-constructor-capture-consumer"
+version = "0.1.0"
+kind = "executable"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"scoop.tests:m54-constructor-captures" = {version = "0.1.0", path = "../provider"}

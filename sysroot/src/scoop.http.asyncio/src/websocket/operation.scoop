@@ -1,0 +1,69 @@
+package scoop.http.asyncio
+
+internal fun wsClosed(state: WsState): WebSocketSessionException =
+    WebSocketSessionException(WebSocketFailureKind.Closed, "the session is closing or closed", state.peerClose)
+
+internal fun wsInterrupted(state: WsState): WebSocketSessionException =
+    WebSocketSessionException(WebSocketFailureKind.InterruptedMessage, "closing interrupted an unfinished message", state.peerClose)
+
+internal fun wsOpen(state: WsState) {
+    if (state.closing || present(state.shutdown)) throw (state.failure ?: wsClosed(state))
+}
+
+internal fun wsClean(state: WsState): Boolean =
+    !present(state.failure) && present(state.peerClose) && present(state.sentClose)
+
+internal suspend fun <P, T> wsOperation(state: WsState, reading: Boolean, prepare: () -> P,
+    block: suspend (P) -> T): T {
+    val job = httpJob(state.loop, true)
+    val prepared = state.lock.withLock {
+        if (if (reading) state.reading else state.writing)
+            throw IllegalStateException(Some("WebSocket direction is busy"))
+        val value = prepare()
+        if (reading) state.reading = true else state.writing = true
+        value
+    }
+    val listener = job.invokeOnCancellation { error ->
+        state.lock.withLock { abortWs(state, Some(error)) }
+        driveWs(state)
+    }
+    var result: T? = None
+    var failed: Throwable? = None
+    try {
+        job.ensureActive()
+        result = Some(block(prepared))
+    } catch (error: Throwable) {
+        failed = Some(error)
+        state.lock.withLock { recordWsOperationFailure(state, error) }
+    } finally {
+        listener.dispose()
+        state.lock.withLock { if (reading) state.reading = false else state.writing = false }
+        driveWs(state)
+    }
+    if (present(failed) || state.lock.withLock { state.closing }) {
+        try { awaitWsClosed(state) } catch (_: Throwable) {}
+        val failure = state.lock.withLock { state.failure }
+        if (present(failure)) throw failure!!
+        if (present(failed)) throw (if (failed!! is CancellationException) wsClosed(state) else failed!!)
+    }
+    return result!!
+}
+
+internal suspend fun failWsOperation(state: WsState, error: Throwable): Nothing {
+    state.lock.withLock { recordWsOperationFailure(state, error) }
+    driveWs(state)
+    try { awaitWsClosed(state) } catch (_: Throwable) {}
+    throw state.lock.withLock { state.failure ?: error }
+}
+
+internal suspend fun closeWsLife(state: WsState, life: WsLife) {
+    if (!state.lock.withLock { state.closed }) httpJob(state.loop, false)
+    val actions = ArrayList<() -> Unit>()
+    val incomplete = state.lock.withLock {
+        life.closed = true
+        detachWsLife(life, actions)
+        !life.complete
+    }
+    for (action in actions) action()
+    if (incomplete) closeWs(state)
+}

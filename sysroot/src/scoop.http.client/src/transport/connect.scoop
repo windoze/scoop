@@ -1,0 +1,150 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.platform.net.*
+import scoop.platform.time.MonotonicTimeSource
+import scoop.tls.*
+import scoop.url.UrlHost
+
+internal enum ClientConnection { Http1(AsyncHttp1Connection), Http2(AsyncHttp2Connection) }
+internal enum ClientConnectResult<T> { Connected(T), Authenticate(ClientAuthenticationSession) }
+
+internal suspend fun closeClientConnection(connection: ClientConnection) {
+    when (connection) { case Http1(value) -> value.close(); case Http2(value) -> value.close() }
+}
+
+internal suspend fun awaitClientConnection(call: ClientCall): ClientConnectResult<ClientConnection> = suspendCoroutine<ClientConnectResult<ClientConnection>> { continuation ->
+    call.lock.withLock {
+        if (call.ending) throw (call.failure ?: CancellationException())
+        call.dialWaiter = Some(continuation)
+    }
+    observeClientPoolQueued(call)
+    call.client.lock.withLock { call.client.waiting.addLast(call) }
+    wakeClient(call.client)
+}
+
+internal fun startClientDial(state: ClientState, call: ClientCall, entry: ClientPoolEntry) {
+    val scope = call.lock.withLock { call.scope }
+    if (!clientPresent(scope) || call.lock.withLock { call.ending }) {
+        removeClientPoolEntry(state, entry)
+        return
+    }
+    val entered = AtomicBoolean(false)
+    try {
+        scope!!.launch suspend {
+            entered.store(true)
+            try {
+                when (connectClient(call, entry)) {
+                    case Authenticate(session) -> {
+                        val waiter = call.lock.withLock { val saved = call.dialWaiter; call.dialWaiter = None; saved }
+                        removeClientPoolEntry(state, entry)
+                        if (clientPresent(waiter)) waiter!!.resume(ClientConnectResult.Authenticate(session))
+                    }
+                    case Connected(_connection) -> {
+                        val connection = _connection
+                        if (call.lock.withLock { call.ending } || state.lock.withLock { state.closing }) {
+                            try { closeClientConnection(connection) }
+                            finally { removeClientPoolEntry(state, entry) }
+                        } else {
+                            state.lock.withLock {
+                                entry.connection = Some(connection)
+                                entry.connecting = false
+                                entry.idle = entry.created
+                            }
+                            wakeClient(state)
+                        }
+                    }
+                }
+            } catch (error: Throwable) {
+                val waiter = call.lock.withLock { val saved = call.dialWaiter; call.dialWaiter = None; saved }
+                removeClientPoolEntry(state, entry)
+                if (clientPresent(waiter)) waiter!!.resumeWithException(error)
+                else if (!(error is CancellationException)) failClientCall(call, error)
+            }
+        }
+        if (!entered.load()) {
+            cancelClientCall(call, CancellationException())
+            removeClientPoolEntry(state, entry)
+        }
+    } catch (error: Throwable) {
+        failClientCall(call, error)
+        removeClientPoolEntry(state, entry)
+    }
+}
+
+private suspend fun connectClient(call: ClientCall, entry: ClientPoolEntry): ClientConnectResult<ClientConnection> {
+    val state = call.client
+    val (host, port) = clientRouteAddress(call)
+    val tcp = connectClientSocket(call, host, port)
+    try {
+        val connected = MonotonicTimeSource.markNow()
+        state.lock.withLock { entry.created = connected }
+        requireClientCall(call)
+        return when (call.route) {
+            case Direct -> ClientConnectResult.Connected(connectClientOrigin(call, entry, tcp))
+            case HttpForward(endpoint) -> connectClientHttpProxy(call, entry, tcp, endpoint, true)
+            case HttpTunnel(endpoint) -> connectClientHttpProxy(call, entry, tcp, endpoint, false)
+            case Socks5(endpoint) -> ClientConnectResult.Connected(connectClientSocks5(call, entry, tcp, endpoint))
+        }
+    } catch (error: Throwable) {
+        try { tcp.close() } catch (cleanup: Throwable) { throw ResourceUseException(error, cleanup) }
+        throw error
+    }
+}
+
+internal suspend fun <T> connectClientOrigin(call: ClientCall, entry: ClientPoolEntry, transport: T): ClientConnection
+    where T : AsyncByteStream, T : AsyncCloseable {
+    val config = call.client.config
+    try {
+        requireClientCall(call)
+        if (call.request.origin.scheme == "http") {
+            val protocol = if (!clientPresent(call.sequence.webSocket) && config.cleartext == HttpCleartextProtocol.Http2PriorKnowledge) HttpProtocol.Http2 else HttpProtocol.Http1
+            return adoptClientConnection(call, entry, transport, protocol)
+        }
+        val context = if (clientPresent(call.sequence.webSocket)) clientWebSocketTls(call.client) else call.client.tls
+        requireClientCall(call)
+        val tls = connectClientTls(call, transport, clientTlsPeer(call.request.origin.host), context)
+        try {
+            val allowed: Array<HttpProtocol> = if (clientPresent(call.sequence.webSocket)) [HttpProtocol.Http1] else when (config.versionPolicy) {
+                case Auto -> [HttpProtocol.Http2, HttpProtocol.Http1]
+                case Http1Only -> [HttpProtocol.Http1]
+                case Http2Only -> [HttpProtocol.Http2]
+            }
+            val selected: List<Byte>? = when (tls.connectionInfo.alpn) { case Some(bytes) -> Some(bytes); case None -> None }
+            val protocol = selectHttpAlpn(selected, allowed, clientPresent(call.sequence.webSocket) || config.versionPolicy != HttpVersionPolicy.Http2Only)
+            requireClientCall(call)
+            return adoptClientConnection(call, entry, tls, protocol)
+        } catch (error: Throwable) {
+            try { tls.close() } catch (cleanup: Throwable) { throw ResourceUseException(error, cleanup) }
+            throw error
+        }
+    } catch (error: Throwable) {
+        try { transport.close() } catch (cleanup: Throwable) { throw ResourceUseException(error, cleanup) }
+        throw error
+    }
+}
+
+internal fun clientTlsPeer(host: UrlHost): TlsPeerName = when (host) {
+    case Dns(name) -> TlsPeerName.Dns(name)
+    case Ipv4(bytes) -> TlsPeerName.Ip(IpAddress.fromByteArray(bytes))
+    case Ipv6(bytes) -> TlsPeerName.Ip(IpAddress.fromByteArray(bytes))
+}
+
+internal suspend fun <T> adoptClientConnection(call: ClientCall, entry: ClientPoolEntry, transport: T, protocol: HttpProtocol): ClientConnection
+    where T : AsyncByteStream, T : AsyncCloseable {
+    val state = call.client
+    val scope = state.lock.withLock {
+        if (state.closing) throw HttpClientClosedException()
+        state.scope!!
+    }
+    val config = state.config
+    return when (protocol) {
+        case Http1 -> ClientConnection.Http1(AsyncHttp1Connection.takeOwnershipAsClient(transport, scope, config.http1Receive, config.http1Limits,
+            captureTimings = clientPresent(config.observer)))
+        case Http2 -> ClientConnection.Http2(AsyncHttp2Connection.takeOwnershipAsClient(transport, scope,
+            config.http2Receive, config.http2Limits, config.http2Settings, onEvent = { notice -> clientPoolNotice(state, entry, notice) },
+            captureTimings = clientPresent(config.observer)))
+    }
+}

@@ -1,0 +1,86 @@
+package scoop.asyncio
+
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.*
+import scoop.platform.system.OsString
+import scoop.test.*
+
+@Test
+private class AsyncTcpConnectCancellationTest {
+    @Test
+    fun `cancelling queued resolution stops both families before connection submission`() {
+        val backend = LibuvEventLoop()
+        val loop: EventLoop = backend
+        loop.run suspend { scope ->
+            val listener = loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
+            val host = OsString.fromString("127.0.0.1")
+            val fence = WorkFence(backend)
+            fence.start()
+            fence.waitStarted()
+            try {
+                val before = scope.launch suspend { loop.connectTcp(host, listener.localAddress.port) }
+                before.cancel()
+                before.join()
+                assertTrue(before.isCancelled)
+                val pending = scope.launch suspend { loop.connectTcp(host, listener.localAddress.port) }
+                backend.state.post { pending.cancel() }
+                pending.join()
+                assertTrue(pending.isCancelled)
+                assertFalse(scope.job.isCancelled)
+                gcCollect()
+            } finally { fence.close() }
+            val client = loop.connectTcp(host, listener.localAddress.port)
+            val peer = listener.accept()
+            verifyConnectedStreams(client, peer)
+        }
+    }
+
+    @Test
+    fun `completed DNS results are drained when cancellation wins before delivery`() {
+        val backend = LibuvEventLoop()
+        val loop: EventLoop = backend
+        loop.run suspend { scope ->
+            val listener = loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
+            val host = OsString.fromString("localhost")
+            val pending = scope.launch suspend { loop.connectTcp(host, listener.localAddress.port) }
+            val fence = WorkFence(backend)
+            fence.start(cancelAfterPriorWork = Some(pending))
+            try {
+                pending.join()
+                assertTrue(pending.isCancelled)
+                assertFalse(scope.job.isCancelled)
+                gcCollect()
+            } finally { fence.close() }
+            val client = loop.connectTcp(host, listener.localAddress.port)
+            val peer = listener.accept()
+            verifyConnectedStreams(client, peer)
+        }
+    }
+
+    @Test
+    fun `queued competing successes and late rejected sockets close without closing the winner`() {
+        val backend = LibuvEventLoop()
+        val loop: EventLoop = backend
+        loop.run suspend { scope ->
+            val (_, first, firstPeer) = tcpPair(loop, scope)
+            val (_, second, secondPeer) = tcpPair(loop, scope)
+            val (_, late, latePeer) = tcpPair(loop, scope)
+            val mailbox = TcpRaceMailbox(backend)
+            assertTrue(mailbox.send(TcpRaceEvent.Connected(first)))
+            assertTrue(mailbox.send(TcpRaceEvent.Connected(second)))
+            when (mailbox.next()) {
+                case Connected(stream) -> assertSame(first, stream)
+                case _ -> fail(Some("connection event missing"))
+            }
+            mailbox.close()
+            assertFalse(mailbox.send(TcpRaceEvent.Connected(late)))
+            mailbox.closeUnselected(late)
+            NativeByteBuffer.allocate(1L).use suspend { bytes ->
+                assertEquals(0L, secondPeer.readInto(bytes, 1L))
+                assertEquals(0L, latePeer.readInto(bytes, 1L))
+            }
+            verifyConnectedStreams(first, firstPeer)
+            mailbox.close()
+        }
+    }
+}

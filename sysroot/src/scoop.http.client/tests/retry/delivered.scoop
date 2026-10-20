@@ -1,0 +1,43 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.test.*
+
+@Test
+private class HttpClientRetryDeliveredTest {
+    @Test
+    fun `a delivered response is never replaced after a truncated body`() {
+        withClientRetryTest suspend { _, scope, listener, config ->
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    connection.receiveRequest()!!.body.readAllBytes(0L)
+                    connection.sendResponse(HttpResponseHead(HttpVersion.Http11, 200U), Http1BodyFraming.Length(5L)).useAsync suspend { output ->
+                        writeBodyText(output, "ab"); output.flush()
+                    }
+                }
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    val incoming = connection.receiveRequest()!!
+                    when (incoming.head.target) {
+                        case Http1(bytes) -> assertEquals("/manual", String.fromUtf8(bytes))
+                        else -> fail(Some("expected an HTTP/1 target"))
+                    }
+                    incoming.body.readAllBytes(0L)
+                    sendClientTestText(connection, 200U, "next")
+                }
+            }
+            withHttpClient(config) suspend { client ->
+                val response = client.execute(HttpRequest.get(clientTestUrl(listener, "/first")))
+                assertEquals(0L, response.retryCount)
+                expectBodyFailure<Throwable> suspend { response.body.text(5L); Unit }
+                response.close()
+                client.withResponse(HttpRequest.get(clientTestUrl(listener, "/manual"))) suspend { next ->
+                    assertEquals(0L, next.retryCount); assertEquals("next", next.body.text(4L))
+                }
+            }
+            serving.join()
+            assertFalse(scope.job.isCancelled)
+        }
+    }
+}

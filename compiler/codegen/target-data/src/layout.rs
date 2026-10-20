@@ -30,28 +30,12 @@ const DARWIN: TargetLayoutDescription = TargetLayoutDescription {
     stack_alignment: 16,
     maximum_managed_alignment: 16,
     maximum_managed_object_size: i64::MAX as u64,
-    c_bridge_support: &[
-        CBridgeTargetSupportV1::Memcpy,
-        CBridgeTargetSupportV1::Memset,
-        CBridgeTargetSupportV1::TlvBootstrap,
-        CBridgeTargetSupportV1::Fmodf,
-        CBridgeTargetSupportV1::Fmod,
-        CBridgeTargetSupportV1::DarwinErrno,
-    ],
 };
 const LINUX: TargetLayoutDescription = TargetLayoutDescription {
     canonical_triple: "x86_64-unknown-linux-gnu",
     llvm_data_layout: "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128",
     object_format: NativeObjectFormat::Elf64,
     native_symbol_normalization: NativeSymbolNormalization::ElfIdentity,
-    c_bridge_support: &[
-        CBridgeTargetSupportV1::Memcpy,
-        CBridgeTargetSupportV1::Memset,
-        CBridgeTargetSupportV1::TlsGetAddr,
-        CBridgeTargetSupportV1::Fmodf,
-        CBridgeTargetSupportV1::Fmod,
-        CBridgeTargetSupportV1::LinuxErrno,
-    ],
     ..DARWIN
 };
 

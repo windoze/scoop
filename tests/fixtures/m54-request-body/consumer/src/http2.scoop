@@ -1,0 +1,80 @@
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.http.client.RequestBody
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.*
+
+private fun request(path: String): HttpRequestHead = HttpRequestHead(HttpVersion.Http2, "POST".toByteArray(),
+    HttpRequestTarget.Http2("http".toByteArray(), "localhost".toByteArray(), path.toByteArray()))
+
+private suspend fun serveBodyStreams(connection: AsyncHttp2Connection, name: String) {
+    val cancelled = connection.acceptRequest()!!
+    val incoming = connection.acceptRequest()!!
+    NativeByteBuffer.allocate(6L).use suspend { buffer ->
+        incoming.stream.readFully(buffer)
+        check(String.fromUtf8(buffer.readBytes(6L)) == "begin|")
+    }
+    incoming.stream.sendResponse(HttpResponseHead(HttpVersion.Http2, 200U), false)
+    writeText(incoming.stream, "ready")
+    incoming.stream.flush()
+    check(String.fromUtf8(incoming.stream.readAllBytes()) == name)
+    writeText(incoming.stream, "done")
+    incoming.stream.finish()
+    cancelled.stream.close()
+}
+
+private suspend fun cancelBody(stream: AsyncHttp2Stream, scope: CoroutineScope) {
+    val started = BodyGate()
+    val bytes = RequestBody.fromByteArray(Array<Byte>(1024L) { _ -> 65.toByte() })
+    val producer = RequestBody.fromProducer suspend { sink ->
+        writeText(sink, "x")
+        started.signal()
+        bytes.writeTo(sink, 17L)
+        Unit
+    }
+    val writing = scope.launch suspend {
+        try { producer.writeTo(stream); throw IllegalStateException(Some("backpressure did not suspend upload")) }
+        finally { stream.close() }
+    }
+    started.await()
+    check(!writing.isCompleted)
+    writing.cancel()
+    writing.join()
+    check(writing.isCancelled)
+    ensureActive()
+}
+
+suspend fun runBodyHttp2(loop: EventLoop, scope: CoroutineScope, factory: RequestBody, name: String) {
+    val listener = loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
+    try {
+        val serving = scope.launch suspend {
+            val server = AsyncHttp2Connection.takeOwnershipAsServer(listener.accept(), scope,
+                settings = Http2Settings(initialWindowSize = 7U))
+            try { serveBodyStreams(server, name) } finally { server.close() }
+        }
+        val client = AsyncHttp2Connection.takeOwnershipAsClient(loop.connectTcp(listener.localAddress), scope,
+            limits = Http2Limits(maxPendingBodyBytes = 8L))
+        try {
+            cancelBody(client.openRequest(request("/cancel"), false), scope)
+            val stream = client.openRequest(request("/duplex"), false)
+            val producer = RequestBody.fromProducer(Some(6L + name.toByteArray().size)) suspend { sink ->
+                writeText(sink, "begin|")
+                sink.flush()
+                check(stream.receiveResponse().status == 200U)
+                NativeByteBuffer.allocate(5L).use suspend { buffer ->
+                    stream.readFully(buffer)
+                    check(String.fromUtf8(buffer.readBytes(5L)) == "ready")
+                }
+                factory.writeTo(sink, 1L)
+                Unit
+            }
+            check(producer.writeTo(stream, 3L) == 6L + name.toByteArray().size)
+            stream.finish()
+            check(String.fromUtf8(stream.readAllBytes()) == "done")
+            stream.close()
+            serving.join()
+            check(!scope.job.isCancelled)
+        } finally { client.close() }
+    } finally { listener.close() }
+}

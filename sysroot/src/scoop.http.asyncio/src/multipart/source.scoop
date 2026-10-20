@@ -1,0 +1,44 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+
+public class MultipartSource private constructor(private val reader: MultipartReader) : AsyncCloseable {
+    public constructor(source: AsyncByteSource, boundary: MultipartBoundary, limits: MultipartLimits = MultipartLimits(), bufferSize: Long = 8192L)
+        : this(createMultipartReader(source, None, boundary, limits, bufferSize)) {}
+
+    public companion object {
+        public fun <T> takeOwnership(source: T, boundary: MultipartBoundary, limits: MultipartLimits = MultipartLimits(), bufferSize: Long = 8192L): MultipartSource
+            where T : AsyncByteSource, T : AsyncCloseable =
+            MultipartSource(createMultipartReader(source, Some<AsyncCloseable>(source), boundary, limits, bufferSize))
+    }
+
+    public val isClosed: Boolean get() = reader.io.isClosed
+    public val isFinished: Boolean get() = reader.finished
+    public val failure: Throwable? get() = reader.io.failure
+    public suspend fun nextPart(): MultipartPart? = reader.nextPart()
+    public override suspend fun close() { reader.io.close() }
+}
+
+public class MultipartPart internal constructor(public val head: MultipartPartHead, public val body: MultipartBody)
+public class MultipartDiscardLimitException public constructor(public val maxBytes: Long)
+    : Exception(Some("multipart discard exceeds " + maxBytes.toString() + " bytes"))
+
+private fun createMultipartReader(source: AsyncByteSource, owner: AsyncCloseable?, boundary: MultipartBoundary,
+    limits: MultipartLimits, bufferSize: Long): MultipartReader {
+    val loop = currentEventLoop()
+    val job = httpJob(loop, true)
+    if (bufferSize <= 0L) throw IllegalArgumentException(Some("multipart buffer size must be positive"))
+    val decoder = MultipartDecoder(boundary, limits)
+    val input = try { NativeByteBuffer.allocate(bufferSize) }
+        catch (error: Throwable) { throw messageCleanup(Some(error)) { decoder.close() }!! }
+    try {
+        job.ensureActive()
+        return MultipartReader(source, owner, loop, MultipartReadState(decoder, input))
+    } catch (error: Throwable) {
+        var failure = messageCleanup(Some(error)) { input.close() }
+        failure = messageCleanup(failure) { decoder.close() }
+        throw failure!!
+    }
+}

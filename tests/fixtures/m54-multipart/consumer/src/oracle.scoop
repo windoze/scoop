@@ -1,0 +1,17 @@
+import scoop.http.*
+import scoop.platform.fs.*
+import scoop.text.*
+
+fun compareExternal(path: Path) {
+    for (line in path.readText().split('\n')) {
+        if (line.byteLength == 0L) continue
+        val fields = line.split('|')
+        check(fields.size == 4L)
+        val boundary = MultipartBoundary(fields[0L])
+        val parts = readMultipart(boundary, fields[3L].hexToByteArray(), fields[1L].toLong(), fields[2L].toLong())
+        val output = StringBuilder().append("D")
+        for ((_, bytes) in parts) output.append("|").append(bytes.toHexString())
+        println(output.toString())
+        println("E|" + writeMultipart(boundary, parts).toHexString())
+    }
+}

@@ -13,15 +13,20 @@ impl ConeLirFoundation {
         record: &DefinitionPlanRecord,
     ) -> Option<(StrongDefinitionEntity, S)> {
         match (record.key().owner(), record.key().definition_role()) {
-            (ObjectDefinitionPlanOwner::Strong { entity, .. }, ObjectDefinitionPlanRole::Strong(role)) => Some((entity, role)),
-            (ObjectDefinitionPlanOwner::Odr { member }, ObjectDefinitionPlanRole::OdrMemberPrimary) => {
-                self.callable_bodies().iter().find_map(|body| {
-                    matches!(body.key().kind(), CallableBodyKeyKind::Odr(id) if id.member() == member)
-                        .then_some((StrongDefinitionEntity::callable_body(body.id()), S::CallableBody))
-                }).or_else(|| self.as_canonical().odr_members.iter()
-                    .find(|record| record.id() == member)
-                    .and_then(|record| member_subject(record.key())))
-            }
+            (
+                ObjectDefinitionPlanOwner::Strong { entity, .. },
+                ObjectDefinitionPlanRole::Strong(role),
+            ) => Some((entity, role)),
+            (
+                ObjectDefinitionPlanOwner::Odr { member },
+                ObjectDefinitionPlanRole::OdrMemberPrimary,
+            ) => self
+                .odr_callable_body(member)
+                .map(|body| (StrongDefinitionEntity::callable_body(body), S::CallableBody))
+                .or_else(|| {
+                    self.odr_member(member)
+                        .and_then(|record| member_subject(record.key()))
+                }),
             _ => None,
         }
     }
@@ -44,24 +49,16 @@ impl ConeLirFoundation {
             // Callable bodies follow dependency order.
             let body = self
                 .callable_bodies()
-                .iter()
-                .find(|record| record.id() == body)?;
+                .get(self.callable_body_position(body)?)?;
             match body.key().kind() {
                 CallableBodyKeyKind::Odr(member) => member.member(),
-                CallableBodyKeyKind::ReleaseHook { .. } => self
-                    .as_canonical()
-                    .odr_members
-                    .iter()
-                    .find(|record| member_subject(record.key()) == Some((entity, role)))?
-                    .id(),
+                CallableBodyKeyKind::ReleaseHook { .. } => {
+                    self.odr_member_for_subject(entity, role)?
+                }
                 _ => return None,
             }
         } else {
-            self.as_canonical()
-                .odr_members
-                .iter()
-                .find(|record| member_subject(record.key()) == Some((entity, role)))?
-                .id()
+            self.odr_member_for_subject(entity, role)?
         };
         let id = ObjectDefinitionPlanId::from_key(&ObjectDefinitionPlanKey::odr(member)).ok()?;
         self.definition_plan(id)

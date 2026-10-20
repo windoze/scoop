@@ -1,0 +1,35 @@
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.client.*
+import scoop.test.*
+import scoop.url.Url
+import scoop.url.UrlParseException
+
+internal fun clientWsValidation(trust: TrustStore) {
+    for (text in ["http://localhost", "https://localhost", "ftp://localhost", "/relative", "ws://localhost#", "wss://localhost#part"])
+        assertFailsWith<IllegalArgumentException> { HttpWebSocketRequest(Url.parse(text)); Unit }
+    assertFailsWith<UrlParseException> { HttpWebSocketRequest(Url.parse("ws://localhost:0")); Unit }
+    val userInfo = HttpWebSocketRequest(Url.parse("ws://name:password@localhost/path"))
+    assertEquals("/path", userInfo.url.httpRequestTarget())
+    assertEquals(0L, userInfo.fields.size)
+    val url = Url.parse("ws://127.0.0.1:1/")
+    for (options in [HttpCallOptions(duplex = true), HttpCallOptions(expectContinue = true), HttpCallOptions(cacheMode = HttpCacheMode.OnlyIfCached)])
+        assertFailsWith<IllegalArgumentException> { HttpWebSocketRequest(url, options = options); Unit }
+    for (field in [clientWsField("Expect", "100-continue"), clientWsField("Cache-Control", "only-if-cached")])
+        assertFailsWith<IllegalArgumentException> { HttpWebSocketRequest(url, [field]); Unit }
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { scope ->
+        val client = HttpClient.open(scope, clientWsConfig(trust))
+        try {
+            for (name in ["Host", "Connection", "Upgrade", "Sec-WebSocket-Key", "Sec-WebSocket-Version",
+                "Sec-WebSocket-Protocol", "Sec-WebSocket-Extensions", "Sec-WebSocket-Accept", "Content-Length", "Transfer-Encoding"]) {
+                val error = clientWsFailure suspend { client.openWebSocket(HttpWebSocketRequest(url, [clientWsField(name, "x")])); Unit }
+                assertTrue(error is IllegalArgumentException)
+            }
+            for (protocols in [["chat", "chat"], ["bad protocol"], [""]]) {
+                val error = clientWsFailure suspend { client.openWebSocket(HttpWebSocketRequest(url), HttpWebSocketOptions(protocols)); Unit }
+                assertTrue(error is IllegalArgumentException)
+            }
+        } finally { client.close() }
+    }
+}

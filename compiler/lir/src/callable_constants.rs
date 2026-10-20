@@ -1,9 +1,6 @@
 //! Physical constant contributions owned by a callable's machine body.
 
-use scoop_identity::{
-    DefinitionAtomSubkey, StructuralDefinitionPath, StructuralDefinitionSiteRole,
-    StructuralPathSegment,
-};
+use scoop_identity::DefinitionAtomSubkey;
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum CallableConstantKind {
@@ -17,12 +14,7 @@ impl CallableConstantKind {
     pub fn subkey(self) -> DefinitionAtomSubkey {
         match self {
             Self::Relocatable => DefinitionAtomSubkey::Singleton,
-            Self::ReadOnly => {
-                DefinitionAtomSubkey::StructuralPath(StructuralDefinitionPath::from_first(
-                    StructuralPathSegment::new(StructuralDefinitionSiteRole::SyntheticValue, 0),
-                    [],
-                ))
-            }
+            Self::ReadOnly => DefinitionAtomSubkey::BackendReadOnlyData,
         }
     }
 }

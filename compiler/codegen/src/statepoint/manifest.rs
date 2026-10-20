@@ -1,4 +1,5 @@
 use super::*;
+use std::rc::Rc;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) struct ExpectedRoot {
@@ -62,7 +63,8 @@ pub(super) struct ExpectedSite {
 #[derive(Clone, Debug)]
 pub(crate) struct ExpectedSafepoints {
     pub(super) sites: BTreeMap<u64, ExpectedSite>,
-    pub(super) functions: BTreeMap<String, GcEffect>,
+    // Every retained callable plan shares this immutable Cone-wide table.
+    pub(super) functions: Rc<BTreeMap<String, GcEffect>>,
 }
 
 impl ExpectedSafepoints {
@@ -210,7 +212,10 @@ pub(crate) fn expectations(module: &scoop_lir::Module) -> Result<ExpectedSafepoi
             }
         }
     }
-    Ok(ExpectedSafepoints { sites, functions })
+    Ok(ExpectedSafepoints {
+        sites,
+        functions: Rc::new(functions),
+    })
 }
 
 fn relocating_roots(live: &scoop_lir::StatepointLiveSet) -> ExpectedStatepoint {

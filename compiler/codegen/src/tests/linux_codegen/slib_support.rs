@@ -11,8 +11,6 @@ pub(super) struct SlibObjects {
     plans: PlannedLinkObjectMemberSetV1,
     symbols: PlannedStrongObjectSymbolSetV1,
     bridge_objects: GeneratedCObjectSetV1,
-    patches: Vec<DigestPatchSiteV1>,
-    profile: scoop_lir::CBridgeToolchainProfileV1,
     c_objects: Vec<(SlibMemberId, Vec<u8>)>,
 }
 
@@ -110,33 +108,12 @@ impl SlibObjects {
             })
             .collect::<Vec<_>>();
         objects.sort_by_key(|(member, _)| *member);
-        let mut patches = emitted
-            .members()
-            .iter()
-            .flat_map(|member| {
-                let id = plans
-                    .member_for_definition(member.units().definition_plans()[0])
-                    .unwrap();
-                member.digest_patches().iter().map(move |patch| {
-                    DigestPatchSiteV1::new(
-                        patch.location().intent(),
-                        id,
-                        patch.checked_object_offset(),
-                    )
-                })
-            })
-            .collect::<Vec<_>>();
-
-        patches.sort_unstable_by_key(|patch| patch.intent());
-
         Self {
             emitted,
             objects,
             plans,
             symbols,
             bridge_objects,
-            patches,
-            profile: invocation.profile().clone(),
             c_objects,
         }
     }
@@ -160,13 +137,6 @@ impl SlibObjects {
             self.bridge_objects.clone(),
             &c_candidates(&self.c_objects),
         )
-    }
-
-    pub fn sites(
-        &self,
-        builtins: VerifiedBuiltinObjectStrongRelocationSetV1,
-    ) -> ScoopLirDigestPatchSitesV1 {
-        ScoopLirDigestPatchSitesV1::new(builtins, (self.patches).to_vec())
     }
 }
 

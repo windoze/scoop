@@ -10,8 +10,7 @@ pub(super) struct Options {
     pub(super) omit_registration_symbol: bool,
     pub(super) omit_descriptor_symbol: bool,
     pub(super) omit_layout_symbol: bool,
-    pub(super) omit_descriptor_patch: bool,
-    pub(super) omit_layout_patch: bool,
+
     pub(super) omit_descriptor_diagnostic: bool,
     pub(super) extra_descriptor_atom: bool,
     pub(super) first_type_has_itable: bool,

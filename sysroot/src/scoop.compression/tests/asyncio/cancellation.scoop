@@ -1,0 +1,91 @@
+package scoop.compression
+
+import scoop.asyncio.*
+import scoop.compression.asyncio.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+@Test
+private class AsyncCompressionCancellationTests {
+    @Test
+    fun `concurrent close waits for a delayed read and leaves its caller Job active`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val pending = PendingCompressionTransfer(false)
+            val source = AsyncDecompressionSource.takeOwnership(PendingCompressionSource(pending), bufferSize = 4L)
+            NativeByteBuffer.allocate(4L).use suspend { output ->
+                val reader = scope.launch suspend {
+                    expectAsyncCompressionFailure<CancellationException> suspend { source.readInto(output, 4L) }
+                    ensureActive()
+                }
+                try {
+                    assertTrue(pending.running)
+                    val first = scope.launch suspend { source.close() }
+                    val second = scope.launch suspend { source.close() }
+                    assertTrue(pending.job!!.isCancelled)
+                    assertFalse(reader.isCompleted)
+                    assertFalse(first.isCompleted)
+                    assertFalse(second.isCompleted)
+                    assertEquals(0, pending.closes)
+                    assertFalse(pending.buffer!!.isClosed)
+                    assertFailsWith<IllegalStateException> { pending.buffer!!.clear() }
+                    gcCollect()
+                    pending.complete()
+                    first.join(); second.join(); reader.join()
+                    assertFalse(reader.isCancelled)
+                    assertTrue(pending.buffer!!.isClosed)
+                    assertEquals(1, pending.closes)
+                    assertEquals(0L, output.writePosition)
+                    output.clear()
+                    expectAsyncCompressionFailure<IoClosedException> suspend { source.readInto(output, 1L) }
+                    ensureActive()
+                } finally {
+                    if (pending.running) pending.complete()
+                    source.close()
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `write backpressure bounds input and cancellation waits before finally closes`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val pending = PendingCompressionTransfer(true)
+            val sink = AsyncCompressionSink.takeOwnership(PendingCompressionSink(pending), CompressionOptions.Gzip(GzipOptions()), 1L)
+            NativeByteBuffer.allocate(16384L).use suspend { input ->
+                input.writeBytes(Array<Byte>(16384L) { index -> index.toByte() })
+                val writer = scope.launch suspend {
+                    try { sink.writeFully(input) }
+                    finally { sink.close() }
+                }
+                try {
+                    assertTrue(pending.running)
+                    assertTrue(input.readPosition > 0L && input.readPosition <= 8192L)
+                    assertFalse(writer.isCompleted)
+                    assertEquals(0L, sink.totals.outputBytes)
+                    NativeByteBuffer.allocate(1L).use suspend { other ->
+                        other.writeByte(1.toByte())
+                        expectAsyncCompressionFailure<IllegalStateException> suspend { sink.writeFrom(other, 1L) }
+                    }
+                    writer.cancel()
+                    assertFalse(writer.isCompleted)
+                    assertEquals(0, pending.closes)
+                    assertFailsWith<IllegalStateException> { pending.buffer!!.close() }
+                    gcCollect()
+                    pending.complete()
+                    writer.join()
+                    assertTrue(writer.isCancelled)
+                    assertEquals(1L, sink.totals.outputBytes)
+                    assertEquals(1, pending.closes)
+                    assertTrue(pending.buffer!!.isClosed)
+                    input.clear()
+                    ensureActive()
+                } finally {
+                    if (pending.running) pending.complete()
+                    sink.close()
+                }
+            }
+        }
+    }
+}

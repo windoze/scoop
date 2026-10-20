@@ -1,0 +1,48 @@
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.*
+import scoop.platform.time.MonotonicTimeSource
+import scoop.test.*
+import scoop.time.Duration
+
+internal fun http2ReceiveTiming(port: Int, capture: Boolean) {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { scope ->
+        val tcp = loop.connectTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, port))
+        AsyncHttp2Connection.takeOwnershipAsClient(tcp, scope, captureTimings = capture).useAsync suspend { connection ->
+            val first = connection.openRequest(timingHttp2Head("/first"))
+            val other = connection.openRequest(timingHttp2Head("/other"), false)
+            try {
+                assertEquals(200U, other.receiveResponse().status)
+                assertTrue(other.isReadComplete)
+                assertEquals(capture, timingPresent(other.firstResponseByteAt))
+                assertFalse(timingPresent(first.firstResponseByteAt))
+                timingWriteGate(other, 1)
+                if (capture) {
+                    val deadline = MonotonicTimeSource.markNow()
+                    while (!timingPresent(first.firstResponseByteAt)) {
+                        assertTrue(MonotonicTimeSource.markNow() - deadline < Duration.seconds(10L))
+                        loop.sleep(Duration.milliseconds(1L))
+                    }
+                }
+                val captured = first.firstResponseByteAt
+                timingWriteGate(other, 2); other.finish()
+                assertEquals(200U, first.receiveResponse().status)
+                assertEquals("done", String.fromUtf8(first.readAllBytes(4L)))
+                assertEquals(captured, first.firstResponseByteAt)
+                if (capture) assertTrue(captured!! >= other.firstResponseByteAt!!)
+                else assertFalse(timingPresent(captured))
+            } finally { first.close(); other.close() }
+        }
+    }
+}
+
+private fun timingHttp2Head(path: String): HttpRequestHead = HttpRequestHead(HttpVersion.Http2, "GET".toByteArray(),
+    HttpRequestTarget.Http2("http".toByteArray(), "test".toByteArray(), path.toByteArray()))
+
+private suspend fun timingWriteGate(stream: AsyncHttp2Stream, value: Int) {
+    NativeByteBuffer.allocate(1L).use suspend { buffer -> buffer.writeByte(value.toByte()); stream.writeFully(buffer) }
+    stream.flush()
+}

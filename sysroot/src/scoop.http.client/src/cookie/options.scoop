@@ -1,0 +1,18 @@
+package scoop.http.client
+
+import scoop.http.HttpCookieHeader
+import scoop.http.HttpResponseHead
+import scoop.url.Url
+import scoop.url.UrlOrigin
+
+public interface CookieJar {
+    public suspend fun load(request: HttpRequest): HttpCookieHeader
+    public suspend fun save(request: HttpRequest, response: HttpResponseHead)
+}
+
+public class HttpCookieContext public constructor(
+    public val site: Url? = None,
+    public val isTopLevelNavigation: Boolean = false
+) {
+    internal val origin: UrlOrigin? = if (clientPresent(site)) Some(site!!.httpOrigin()) else None
+}

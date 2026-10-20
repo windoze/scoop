@@ -21,6 +21,7 @@ uint64_t scoop_http2_new(int32_t server, http2_config config,
     goto fail;
   http2_header_callbacks(callbacks);
   http2_event_callbacks(callbacks);
+  http2_input_setup(h, callbacks);
   nghttp2_option_set_no_auto_window_update(options, 1);
   nghttp2_option_set_no_rfc9113_leading_and_trailing_ws_validation(
       options, config.edge_whitespace);
@@ -62,6 +63,7 @@ void scoop_http2_free(uint64_t handle) {
   http_events_clear(&h->events);
   http_event_free(h->headers);
   http_bytes_clear(&h->output);
+  http_bytes_clear(&h->input.progress);
   free(h);
 }
 
@@ -69,35 +71,25 @@ const char *scoop_http2_error(uint64_t handle) {
   return ((http2 *)(uintptr_t)handle)->error.text;
 }
 
-http_step scoop_http2_receive(uint64_t handle, const uint8_t *data,
-                              int64_t size) {
-  http2 *h = (http2 *)(uintptr_t)handle;
-  if (h->ended || h->failed)
-    return (http_step){0, http2_result(h, NGHTTP2_ERR_INVALID_STATE)};
-  nghttp2_ssize count =
-      nghttp2_session_mem_recv2(h->session, data, (size_t)size);
-  if (count < 0) {
-    h->failed = 1;
-    return (http_step){0, http2_result(h, (int)count)};
-  }
-  return (http_step){count, 0};
-}
-
-http_step scoop_http2_output(uint64_t handle, uint8_t *data, int64_t capacity) {
+http2_output scoop_http2_output(uint64_t handle, uint8_t *data,
+                                int64_t capacity) {
   http2 *h = (http2 *)(uintptr_t)handle;
   if (h->failed)
-    return (http_step){0, http2_result(h, NGHTTP2_ERR_INVALID_STATE)};
+    return (http2_output){0, http2_result(h, NGHTTP2_ERR_INVALID_STATE), 0,
+                          HTTP2_OUTPUT_CONTROL};
   if (h->output_offset == h->output.size) {
     h->output_offset = h->output.size = 0;
     const uint8_t *bytes;
     nghttp2_ssize size = nghttp2_session_mem_send2(h->session, &bytes);
     if (size < 0) {
       h->failed = 1;
-      return (http_step){0, http2_result(h, (int)size)};
+      return (http2_output){0, http2_result(h, (int)size), 0,
+                            HTTP2_OUTPUT_CONTROL};
     }
     if (!http_bytes_append(&h->output, bytes, (size_t)size)) {
       h->failed = 1;
-      return (http_step){0, http2_result(h, NGHTTP2_ERR_NOMEM)};
+      return (http2_output){0, http2_result(h, NGHTTP2_ERR_NOMEM), 0,
+                            HTTP2_OUTPUT_CONTROL};
     }
   }
   size_t count = h->output.size - h->output_offset;
@@ -106,7 +98,8 @@ http_step scoop_http2_output(uint64_t handle, uint8_t *data, int64_t capacity) {
   if (count)
     memcpy(data, h->output.data + h->output_offset, count);
   h->output_offset += count;
-  return (http_step){(int64_t)count, 0};
+  return (http2_output){(int64_t)count, 0, count ? h->output_stream_id : 0,
+                        count ? h->output_kind : HTTP2_OUTPUT_CONTROL};
 }
 
 int32_t scoop_http2_wants(uint64_t handle, int32_t write) {
@@ -121,7 +114,8 @@ int32_t scoop_http2_wants(uint64_t handle, int32_t write) {
 int32_t scoop_http2_pending(uint64_t handle, int32_t id) {
   http2 *h = (http2 *)(uintptr_t)handle;
   http2_stream *s = http2_find(h, id);
-  return h->output_offset != h->output.size ||
+  return (h->output_offset != h->output.size && h->output_stream_id == id &&
+          h->output_kind != HTTP2_OUTPUT_CONTROL) ||
          (s && !s->closed && !s->reset &&
           (s->pending_headers || s->send_end_pending ||
            s->body_offset != s->body.size));
@@ -141,12 +135,18 @@ int32_t scoop_http2_end(uint64_t handle) {
   http2 *h = (http2 *)(uintptr_t)handle;
   if (h->ended)
     return 0;
+  if (h->failed)
+    return h->error.code;
   h->ended = 1;
   if (nghttp2_session_want_read(h->session)) {
     h->failed = 1;
     return http2_result(h, NGHTTP2_ERR_EOF);
   }
   return 0;
+}
+
+int32_t scoop_http2_is_unexpected_eof(int32_t code) {
+  return code == NGHTTP2_ERR_EOF;
 }
 
 int32_t scoop_http2_goaway(uint64_t handle, int32_t last, uint32_t code,

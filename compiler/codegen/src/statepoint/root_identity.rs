@@ -14,9 +14,11 @@ pub(crate) fn mark_root_identity<'ctx>(
     let intrinsic = inkwell::intrinsics::Intrinsic::find("llvm.fake.use")
         .and_then(|intrinsic| intrinsic.get_declaration(module, &[]))
         .ok_or_else(|| CodegenError("LLVM lacks required llvm.fake.use intrinsic".into()))?;
-    let instruction = builder
+    let call = builder
         .build_call(intrinsic, &[value.into()], "")
-        .map_err(|error| CodegenError(format!("retain GC leaf use: {error}")))?
+        .map_err(|error| CodegenError(format!("retain GC leaf use: {error}")))?;
+    mark_nonduplicable(context, call);
+    let instruction = call
         .try_as_basic_value()
         .expect_instruction("llvm.fake.use returns void");
     let (source_kind, source_index) = match source {

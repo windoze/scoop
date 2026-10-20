@@ -1,0 +1,99 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.test.*
+import scoop.time.Duration
+import scoop.url.Url
+
+@Test
+private class HttpClientNetworkTimeoutTest {
+    @Test
+    fun `DNS stage failures keep the complete lower error and call overrides permit the next connection`() {
+        for (resolution in [true, false]) {
+            val options = HttpTimeoutOptions(resolve = if (resolution) Some(Duration.ZERO) else None,
+                connect = Some(Duration.ZERO), tlsHandshake = None)
+            withClientTimeoutTest(options) suspend { _, scope, listener, config ->
+                val started = AtomicBoolean(false)
+                val serving = scope.launch suspend {
+                    AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                        assertEquals("send", String.fromUtf8(connection.receiveRequest()!!.body.readAllBytes(4L)))
+                        sendClientTestText(connection, 200U, "ok")
+                    }
+                }
+                withHttpClient(config) suspend { client ->
+                    val url = Url.parse("http://localhost:" + listener.localAddress.port.toString() + "/")
+                    val body = RequestBody.fromProducer(Some(4L)) suspend { output ->
+                        assertFalse(started.exchange(true)); writeBodyText(output, "send")
+                    }
+                    val error = expectBodyFailure<HttpTimeoutException> suspend {
+                        client.execute(HttpRequest.post(url, body)); Unit
+                    }
+                    checkClientTimeout(error, if (resolution) HttpTimeoutPhase.Resolve else HttpTimeoutPhase.Connect, Duration.ZERO)
+                    val cause = error.cause!!
+                    if (resolution) {
+                        assertTrue(cause is TcpConnectException)
+                        if (cause is TcpConnectException) {
+                            assertEquals(0L, cause.attempts.size)
+                            assertEquals(2L, cause.resolutionFailures.size)
+                            for (failure in cause.resolutionFailures) assertTrue(failure.cause is TcpResolutionTimeoutException)
+                        }
+                    } else assertTrue(cause is TcpConnectTimeoutException)
+                    assertFalse(started.load())
+                    val disabled = HttpTimeoutOptions(resolve = None, connect = None, tlsHandshake = None)
+                    client.withResponse(HttpRequest.post(url, body, options = HttpCallOptions(timeouts = Some(disabled)))) suspend { response ->
+                        assertEquals("ok", response.body.text(2L))
+                    }
+                    assertTrue(started.load())
+                }
+                serving.join()
+                assertFalse(scope.job.isCancelled)
+            }
+        }
+    }
+
+    @Test
+    fun `IP literals skip DNS and cleartext skips TLS while reused connections skip every network stage`() {
+        val zero = Some(Duration.ZERO)
+        withClientTimeoutTest(HttpTimeoutOptions(resolve = zero, connect = zero, tlsHandshake = zero)) suspend { _, scope, listener, config ->
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    for (_ in 0L..1L) {
+                        connection.receiveRequest()!!.body.readAllBytes(0L)
+                        sendClientTestText(connection, 200U, "ok")
+                    }
+                }
+            }
+            withHttpClient(config) suspend { client ->
+                val request = HttpRequest.get(clientTestUrl(listener))
+                val error = expectBodyFailure<HttpTimeoutException> suspend { client.execute(request); Unit }
+                checkClientTimeout(error, HttpTimeoutPhase.Connect, Duration.ZERO)
+                assertFalse(clientPresent(error.cause))
+                client.withResponse(HttpRequest.get(clientTestUrl(listener),
+                    options = HttpCallOptions(timeouts = Some(HttpTimeoutOptions(resolve = zero, connect = None, tlsHandshake = zero))))) suspend { response ->
+                    assertEquals("ok", response.body.text(2L))
+                }
+                client.withResponse(request) suspend { response -> assertEquals("ok", response.body.text(2L)) }
+            }
+            serving.join()
+        }
+    }
+
+    @Test
+    fun `unified network settings replace lower TCP timeout fields without changing racing controls`() {
+        val lower = TcpConnectOptions(Duration.ZERO, Duration.ZERO, 1L, Some(Duration.ZERO), Some(Duration.ZERO))
+        withClientTimeoutTest(tcpConnect = lower) suspend { _, scope, listener, config ->
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    connection.receiveRequest()!!.body.readAllBytes(0L)
+                    sendClientTestText(connection, 200U, "ok")
+                }
+            }
+            withHttpClient(config) suspend { client ->
+                val url = Url.parse("http://localhost:" + listener.localAddress.port.toString() + "/")
+                client.withResponse(HttpRequest.get(url)) suspend { response -> assertEquals("ok", response.body.text(2L)) }
+            }
+            serving.join()
+        }
+    }
+}

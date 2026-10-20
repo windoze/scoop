@@ -1,19 +1,15 @@
 use scoop_lir::{
     CanonicalCallableAbiOwnerV1, CanonicalCallableAbiV1, CanonicalCallableAbisV1, ConeLirFoundation,
 };
-use scoop_slib::{CallableDefinitionAbiV1, VerifiedEntryPatchSetV2};
+use scoop_slib::{CallableDefinitionAbiV1, FinalRuntimeObjectsV2};
 use scoop_wire::Digest256;
 
 pub(super) fn check_inputs(
-    finalized: &VerifiedEntryPatchSetV2,
+    finalized: &FinalRuntimeObjectsV2,
     foundation: &ConeLirFoundation,
     canonical: &CanonicalCallableAbisV1,
 ) {
-    let callables = finalized
-        .runtime_images()
-        .fingerprint()
-        .registrations()
-        .callables();
+    let callables = finalized.runtime_image().registrations().callables();
     let original = callables
         .fingerprints()
         .iter()

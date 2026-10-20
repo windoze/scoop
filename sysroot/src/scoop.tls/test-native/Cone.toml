@@ -1,0 +1,32 @@
+schema = 1
+[cone]
+group = "scoop.tests"
+name = "tls-system-native"
+version = "0.1.0"
+kind = "library"
+
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"scoop:scoop.std" = "0.1.0"
+"scoop:scoop.crypto" = "0.1.0"
+"scoop.tests:crypto-certificates" = { version = "0.1.0", path = "../../scoop.crypto/test-certificates" }
+
+[native]
+include = [
+    {path = "../../../lib/aarch64-apple-darwin/openssl/include", when = {os = "darwin"}},
+    {path = "../../../lib/x86_64-unknown-linux-gnu/openssl/include", when = {env = "gnu"}},
+    {path = "../../../lib/x86_64-unknown-linux-musl/openssl/include", when = {env = "musl"}},
+]
+c_flags = ["-std=c11", "-Wall", "-Wextra", "-Werror"]
+
+[[native.sources]]
+path = "native/trust.c"
+
+[[native.sources]]
+path = "native/pool.c"
+
+[[native.sources]]
+path = "native/isolated_work.c"
+
+[[native.sources]]
+path = "native/certificate.c"

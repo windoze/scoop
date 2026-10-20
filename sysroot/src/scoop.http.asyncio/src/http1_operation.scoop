@@ -1,13 +1,16 @@
 package scoop.http.asyncio
 
 import scoop.asyncio.*
-import scoop.platform.io.WriteZeroException
+import scoop.time.Duration
 
-internal suspend fun <T> h1Operation(state: H1State, reading: Boolean, validate: () -> Unit, block: suspend () -> T): T =
-    h1PreparedOperation<Unit, T>(state, reading, validate, suspend { _ -> block() })
+internal suspend fun <T> h1Operation(state: H1State, reading: Boolean, validate: () -> Unit,
+    block: suspend () -> T, idle: Duration? = None): T =
+    h1PreparedOperation<Unit, T>(state, reading, validate, suspend { _ -> block() }, idle)
 
-internal suspend fun <P, T> h1PreparedOperation(state: H1State, reading: Boolean, prepare: () -> P, block: suspend (P) -> T): T {
+internal suspend fun <P, T> h1PreparedOperation(state: H1State, reading: Boolean, prepare: () -> P,
+    block: suspend (P) -> T, idle: Duration? = None): T {
     val job = httpJob(state.loop, true)
+    httpIdleLimit(idle)
     val prepared = state.lock.withLock {
         h1Open(state)
         if (if (reading) state.readBusy else state.writeBusy) throw IllegalStateException(Some("HTTP/1 direction is busy"))
@@ -19,15 +22,26 @@ internal suspend fun <P, T> h1PreparedOperation(state: H1State, reading: Boolean
         state.lock.withLock { terminateH1(state, error) }
         driveH1Close(state)
     }
-    val result = try { job.ensureActive(); block(prepared) }
+    val result = try { job.ensureActive(); withH1Idle<T>(state, reading, idle, suspend { block(prepared) }) }
     catch (error: Throwable) {
+        val selected = state.lock.withLock { state.primary }
+        val failure = if (present(selected)) h1ClosedFailure(error, selected!!) else error
         listener.dispose()
         endH1Operation(state, reading)
-        failH1Operation(state, error)
+        failH1Operation(state, failure)
     }
     listener.dispose()
     endH1Operation(state, reading)
     return result
+}
+
+private fun h1ClosedFailure(error: Throwable, selected: Throwable): Throwable {
+    if (error is IoClosedException) return selected
+    if (error is ResourceUseException) {
+        val primary = h1ClosedFailure(error.primaryFailure, selected)
+        if (primary !== error.primaryFailure) return ResourceUseException(primary, error.cleanupFailure)
+    }
+    return error
 }
 
 private fun endH1Operation(state: H1State, reading: Boolean) {
@@ -42,21 +56,4 @@ internal suspend fun failH1Operation(state: H1State, primary: Throwable): Nothin
         case Some(error) -> throw ResourceUseException(primary, error)
         case None -> throw primary
     }
-}
-
-internal suspend fun writeH1Wire(state: H1State, bytes: Array<Byte>) {
-    var offset = 0L
-    while (offset < bytes.size) {
-        state.output.clear()
-        val count = if (bytes.size - offset < state.output.writableBytes) bytes.size - offset else state.output.writableBytes
-        state.output.writeBytes(bytes, offset, count)
-        while (state.output.readableBytes > 0L) {
-            val pending = state.output.readableBytes
-            val written = state.transport.writeFrom(state.output, pending)
-            httpProgress(written, pending)
-            if (written == 0L) throw WriteZeroException()
-        }
-        offset += count
-    }
-    state.transport.flush()
 }

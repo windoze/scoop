@@ -1,10 +1,10 @@
 use inkwell::context::Context;
 use scoop_identity::{
     CborIdentityRecord, ConeCoordinate, ConeImageSupportRole, DefinitionAtomRole,
-    DefinitionAtomSubkey, DigestNodeId, DigestNodeKey, DigestPatchIntentKey,
-    DigestSemanticFieldRole, LinkageClass, ObjectDefinitionAtomId, ObjectDefinitionAtomKey,
-    ObjectDefinitionPlanId, ObjectDefinitionPlanKey, PersistentSymbolKey, PersistentSymbolRequest,
-    PersistentSymbolRequestTable, StrongDefinitionEntity, StrongDefinitionRole,
+    DefinitionAtomSubkey, DigestNodeKey, LinkageClass, ObjectDefinitionAtomId,
+    ObjectDefinitionAtomKey, ObjectDefinitionPlanId, ObjectDefinitionPlanKey, PersistentSymbolKey,
+    PersistentSymbolRequest, PersistentSymbolRequestTable, StrongDefinitionEntity,
+    StrongDefinitionRole,
 };
 use scoop_lir::{
     CanonicalLirFoundation, ConeLirFoundation, ConeProductionSectionV1, ConeProductionSectionV2,
@@ -15,8 +15,8 @@ use scoop_lir::{
 use super::emit_strong_runtime_metadata_v1;
 
 #[test]
-fn emits_the_closed_runtime_surface_and_exact_patch_sidecar() {
-    let (production, definition, primary_atom, patch_intent, symbol) = production();
+fn emits_the_complete_runtime_surface_and_atom_boundaries() {
+    let (production, symbol) = production();
     let context = Context::create();
     let llvm = context.create_module("strong-runtime-metadata");
     let producer = production.image_plan().cone().identity();
@@ -59,14 +59,7 @@ fn emits_the_closed_runtime_surface_and_exact_patch_sidecar() {
         emitted.producer(),
         production.image_plan().cone().identity()
     );
-    assert_eq!(emitted.patch_locations().len(), 1);
-    let patch = emitted.patch_locations()[0];
-    assert_eq!(patch.intent(), patch_intent);
-    assert_eq!(patch.definition(), definition);
-    assert_eq!(patch.atom(), primary_atom);
-    assert_eq!(patch.owner(), symbol);
-    assert_eq!(patch.offset_within_owner(), 96);
-    assert_eq!(patch.width_bytes(), 32);
+    assert!(emitted.registrations().is_empty());
     assert!(
         llvm.get_global(symbol.symbol().as_str())
             .unwrap()
@@ -116,7 +109,7 @@ fn emits_the_closed_runtime_surface_and_exact_patch_sidecar() {
 
 #[test]
 fn v2_production_emits_the_unchanged_runtime_metadata_abi() {
-    let (production, definition, primary_atom, patch_intent, symbol) = production_v2();
+    let (production, symbol) = production_v2();
     let context = Context::create();
     let llvm = context.create_module("strong-runtime-metadata-v2");
     let producer = production.image_plan().cone().identity();
@@ -155,25 +148,17 @@ fn v2_production_emits_the_unchanged_runtime_metadata_abi() {
     )
     .unwrap();
 
-    let [patch] = emitted.patch_locations() else {
-        panic!("the V2 image must retain the single runtime-image patch")
-    };
-    assert_eq!(patch.intent(), patch_intent);
-    assert_eq!(patch.definition(), definition);
-    assert_eq!(patch.atom(), primary_atom);
-    assert_eq!(patch.owner(), symbol);
-    assert_eq!(patch.offset_within_owner(), 96);
-    assert_eq!(patch.width_bytes(), 32);
+    assert!(emitted.registrations().is_empty());
+    assert!(
+        llvm.get_global(symbol.symbol().as_str())
+            .unwrap()
+            .get_initializer()
+            .is_some()
+    );
     llvm.verify().unwrap();
 }
 
-fn production() -> (
-    ConeProductionSectionV1,
-    ObjectDefinitionPlanId,
-    ObjectDefinitionAtomId,
-    scoop_identity::DigestPatchIntentId,
-    PersistentSymbolRequest,
-) {
+fn production() -> (ConeProductionSectionV1, PersistentSymbolRequest) {
     let coordinate = ConeCoordinate::reserved_single_file();
     let producer = coordinate.identity().unwrap();
     let definition = CborIdentityRecord::from_key(
@@ -187,7 +172,6 @@ fn production() -> (
     .unwrap();
     let definition_id = definition.id();
     let atoms = image_atoms(definition_id);
-    let primary_atom = atoms[0].id();
     let symbol = PersistentSymbolRequest::new(
         PersistentSymbolKey::ImageDescriptor(producer),
         LinkageClass::ConeStrong,
@@ -200,15 +184,8 @@ fn production() -> (
     let foundation = ConeLirFoundation::try_new(producer, canonical).unwrap();
 
     let image_key = DigestNodeKey::runtime_image(producer);
-    let image_id = DigestNodeId::from_key(&image_key).unwrap();
-    let patch_key = DigestPatchIntentKey::new(
-        image_id,
-        definition_id,
-        DefinitionAtomRole::Primary,
-        DigestSemanticFieldRole::RuntimeImage,
-    );
-    let patch_intent = scoop_identity::DigestPatchIntentId::from_key(&patch_key).unwrap();
-    let image = DigestNodeV1::new(image_key, Vec::new(), vec![patch_key]).unwrap();
+
+    let image = DigestNodeV1::new(image_key, Vec::new()).unwrap();
     let digests = DigestFinalizationPlanV1::new(vec![image], &foundation).unwrap();
     let registrations = StrongRegistrationProductionSurfaceV1::empty(
         scoop_target_data::DARWIN_AARCH64,
@@ -229,22 +206,10 @@ fn production() -> (
         scoop_lir::CanonicalShapeAbisV1::new(Vec::new(), &foundation).unwrap(),
     )
     .unwrap();
-    (
-        production,
-        definition_id,
-        primary_atom,
-        patch_intent,
-        symbol,
-    )
+    (production, symbol)
 }
 
-fn production_v2() -> (
-    ConeProductionSectionV2,
-    ObjectDefinitionPlanId,
-    ObjectDefinitionAtomId,
-    scoop_identity::DigestPatchIntentId,
-    PersistentSymbolRequest,
-) {
+fn production_v2() -> (ConeProductionSectionV2, PersistentSymbolRequest) {
     let coordinate = ConeCoordinate::reserved_single_file();
     let producer = coordinate.identity().unwrap();
     let definition = CborIdentityRecord::from_key(
@@ -258,7 +223,6 @@ fn production_v2() -> (
     .unwrap();
     let definition_id = definition.id();
     let atoms = image_atoms(definition_id);
-    let primary_atom = atoms[0].id();
     let symbol = PersistentSymbolRequest::new(
         PersistentSymbolKey::ImageDescriptor(producer),
         LinkageClass::ConeStrong,
@@ -271,15 +235,8 @@ fn production_v2() -> (
     let foundation = ConeLirFoundation::try_new(producer, canonical).unwrap();
 
     let image_key = DigestNodeKey::runtime_image(producer);
-    let image_id = DigestNodeId::from_key(&image_key).unwrap();
-    let patch_key = DigestPatchIntentKey::new(
-        image_id,
-        definition_id,
-        DefinitionAtomRole::Primary,
-        DigestSemanticFieldRole::RuntimeImage,
-    );
-    let patch_intent = scoop_identity::DigestPatchIntentId::from_key(&patch_key).unwrap();
-    let image = DigestNodeV1::new(image_key, Vec::new(), vec![patch_key]).unwrap();
+
+    let image = DigestNodeV1::new(image_key, Vec::new()).unwrap();
     let digests = DigestFinalizationPlanV1::new(vec![image], &foundation).unwrap();
     let registrations = StrongRegistrationProductionSurfaceV2::empty(
         scoop_target_data::DARWIN_AARCH64,
@@ -300,13 +257,7 @@ fn production_v2() -> (
         scoop_lir::CanonicalShapeAbisV1::new(Vec::new(), &foundation).unwrap(),
     )
     .unwrap();
-    (
-        production,
-        definition_id,
-        primary_atom,
-        patch_intent,
-        symbol,
-    )
+    (production, symbol)
 }
 
 fn image_atoms(

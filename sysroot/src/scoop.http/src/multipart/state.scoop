@@ -1,0 +1,112 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+
+internal enum MultipartPhase { Preamble, Headers, Body, Delimiter, ClosingDash, Padding, DelimiterLf, Epilogue }
+
+internal class MultipartState(boundary: MultipartBoundary, val limits: MultipartLimits) {
+    private val matcher: MultipartMatcher = MultipartMatcher(boundary)
+    private val headers: MultipartHeaders = MultipartHeaders(limits)
+    private var phase: MultipartPhase = MultipartPhase.Preamble
+    private var body: ByteArrayBuilder = ByteArrayBuilder()
+    private var partActive: Boolean = false
+    private var parts: Long = 0L
+    private var closing: Boolean = false
+    private var padding: Long = 0L
+    private var endNeeded: Boolean = false
+    private var pending: MultipartEvent? = None
+    var offset: Long = 0L
+    var complete: Boolean = false
+    var ended: Boolean = false
+    val hasPending: Boolean get() = when (pending) { case Some(_) -> true; case None -> false }
+
+    fun accept(byte: Byte) {
+        val at = offset
+        offset = multipartAdd(offset, 1L)
+        when (phase) {
+            case Preamble -> { if (matcher.accept(byte, None)) startDelimiter() }
+            case Body -> { if (matcher.accept(byte, Some(body))) startDelimiter() }
+            case Headers -> when (headers.accept(byte, at)) {
+                case Some(head) -> { phase = MultipartPhase.Body; matcher.reset(); pending = Some(MultipartEvent.PartStarted(head)) }
+                case None -> {}
+            }
+            case Delimiter -> {
+                if (byte == 45.toByte()) phase = MultipartPhase.ClosingDash
+                else paddingByte(byte)
+            }
+            case ClosingDash -> {
+                if (byte != 45.toByte()) fail("closing delimiter requires two hyphens")
+                closing = true
+                phase = MultipartPhase.Padding
+            }
+            case Padding -> paddingByte(byte)
+            case DelimiterLf -> {
+                if (byte != 10.toByte()) fail("delimiter CR must be followed by LF")
+                finishDelimiter()
+            }
+            case Epilogue -> {}
+        }
+        flushBody(phase != MultipartPhase.Body)
+    }
+
+    private fun startDelimiter() {
+        phase = MultipartPhase.Delimiter
+        padding = 0L
+        closing = false
+    }
+
+    private fun paddingByte(byte: Byte) {
+        if (byte == 32.toByte() || byte == 9.toByte()) {
+            if (padding == limits.maxBoundaryPaddingBytes)
+                throw MultipartLimitException(MultipartLimitKind.BoundaryPaddingBytes, limits.maxBoundaryPaddingBytes)
+            padding += 1L
+            phase = MultipartPhase.Padding
+        } else if (byte == 13.toByte()) phase = MultipartPhase.DelimiterLf
+        else fail("invalid delimiter suffix")
+    }
+
+    private fun finishDelimiter() {
+        if (closing) { complete = true; phase = MultipartPhase.Epilogue }
+        else {
+            if (parts == limits.maxParts) throw MultipartLimitException(MultipartLimitKind.Parts, limits.maxParts)
+            parts += 1L
+            phase = MultipartPhase.Headers
+        }
+        if (partActive) pending = Some(MultipartEvent.PartEnded)
+        partActive = !closing
+    }
+
+    fun flushBody(force: Boolean) {
+        if (hasPending || body.size == 0L || (!force && body.size < limits.dataChunkBytes)) return
+        val bytes = body.toByteArray()
+        val count = if (bytes.size > limits.dataChunkBytes) limits.dataChunkBytes else bytes.size
+        pending = Some(MultipartEvent.Data(if (count == bytes.size) bytes else Array<Byte>(count) { index -> bytes[index] }))
+        body = ByteArrayBuilder()
+        if (count < bytes.size) body.append(Array<Byte>(bytes.size - count) { index -> bytes[count + index] })
+    }
+
+    fun take(): MultipartEvent? {
+        val result = pending
+        pending = None
+        flushBody(true)
+        if (!hasPending && endNeeded) { pending = Some(MultipartEvent.End); endNeeded = false }
+        return result
+    }
+
+    fun endInput() {
+        if (ended) return
+        if (phase == MultipartPhase.Padding && closing) finishDelimiter()
+        if (!complete) throw MultipartParseException(offset, "input ended before a complete closing delimiter")
+        ended = true
+        if (hasPending) endNeeded = true else pending = Some(MultipartEvent.End)
+    }
+
+    fun discard() {
+        headers.clear()
+        body = ByteArrayBuilder()
+        pending = None
+        endNeeded = false
+    }
+
+    private fun fail(detail: String) { throw MultipartParseException(offset - 1L, detail) }
+}

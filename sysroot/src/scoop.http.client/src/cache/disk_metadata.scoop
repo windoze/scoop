@@ -1,0 +1,123 @@
+package scoop.http.client
+
+import scoop.bytes.*
+import scoop.http.*
+import scoop.time.Instant
+
+public class HttpCacheFormatException public constructor(public val detail: String) : Exception(Some(detail))
+internal class ClientCacheMetadataLimit : Exception(None)
+internal val clientCacheFileMagic: ULong = 0x5343484341434801UL
+
+internal fun encodeClientCacheMetadata(record: HttpCacheRecord, trailers: List<HttpField>, limit: Long): Array<Byte> {
+    val output = ByteArrayBuilder()
+    cacheWriteBytes(output, record.key.partition.toByteArray(), limit)
+    cacheWriteBytes(output, record.key.url.toByteArray(), limit)
+    cacheWriteBytes(output, record.key.identity.toByteArray(), limit)
+    requireCacheMetadataRoom(output, 30L, limit)
+    output.writeUInt8(when (record.head.version) { case Http10 -> 0.toUByte(); case Http11 -> 1.toUByte(); case Http2 -> 2.toUByte() })
+    output.writeUInt32(record.head.status, ByteOrder.BigEndian)
+    output.writeUInt8(if (record.head.neverIndexStatus) 1.toUByte() else 0.toUByte())
+    output.writeInt64(record.sentAt.epochSeconds, ByteOrder.BigEndian)
+    output.writeInt32(record.sentAt.nanosecondsOfSecond, ByteOrder.BigEndian)
+    output.writeInt64(record.receivedAt.epochSeconds, ByteOrder.BigEndian)
+    output.writeInt32(record.receivedAt.nanosecondsOfSecond, ByteOrder.BigEndian)
+    when (record.head.reason) {
+        case Some(reason) -> cacheWriteBytes(output, reason, limit)
+        case None -> { requireCacheMetadataRoom(output, 8L, limit); output.writeInt64(-1L, ByteOrder.BigEndian) }
+    }
+    cacheWriteFields(output, record.head.fields, limit)
+    requireCacheMetadataRoom(output, 8L, limit)
+    output.writeInt64(record.vary.size, ByteOrder.BigEndian)
+    for (field in record.vary) {
+        cacheWriteBytes(output, field.name.toByteArray(), limit)
+        cacheWriteBytes(output, field.fingerprint.toByteArray(), limit)
+    }
+    cacheWriteFields(output, trailers, limit)
+    return output.toByteArray()
+}
+
+private fun cacheWriteBytes(output: ByteArrayBuilder, bytes: List<Byte>, limit: Long) {
+    requireCacheMetadataRoom(output, 8L, limit)
+    requireCacheMetadataRoom(output, bytes.size, limit - 8L)
+    output.writeInt64(bytes.size, ByteOrder.BigEndian)
+    output.append(bytes)
+}
+
+private fun cacheWriteFields(output: ByteArrayBuilder, fields: List<HttpField>, limit: Long) {
+    requireCacheMetadataRoom(output, 8L, limit)
+    output.writeInt64(fields.size, ByteOrder.BigEndian)
+    for (field in fields) {
+        cacheWriteBytes(output, field.name, limit)
+        cacheWriteBytes(output, field.value, limit)
+        requireCacheMetadataRoom(output, 1L, limit)
+        output.writeUInt8(if (field.neverIndex) 1.toUByte() else 0.toUByte())
+    }
+}
+
+private fun requireCacheMetadataRoom(output: ByteArrayBuilder, extra: Long, limit: Long) {
+    if (extra > limit - output.size) throw ClientCacheMetadataLimit()
+}
+
+internal fun decodeClientCacheMetadata(bytes: Array<Byte>): (HttpCacheRecord, Array<HttpField>) {
+    val input = ByteArrayReader(bytes)
+    try {
+        val key = HttpCacheKey(cacheReadText(input), cacheReadText(input), cacheReadText(input))
+        val version = when (input.readUInt8().toInt()) {
+            case 0 -> HttpVersion.Http10
+            case 1 -> HttpVersion.Http11
+            case 2 -> HttpVersion.Http2
+            else -> throw HttpCacheFormatException("invalid cached HTTP version")
+        }
+        val status = input.readUInt32(ByteOrder.BigEndian)
+        if (status < 200U || status > 599U) throw HttpCacheFormatException("invalid cached HTTP status")
+        val neverIndex = cacheReadBoolean(input)
+        val sent = cacheReadInstant(input)
+        val received = cacheReadInstant(input)
+        val reasonLength = input.readInt64(ByteOrder.BigEndian)
+        val reason: List<Byte>? = if (reasonLength == -1L) None else Some<List<Byte>>(input.readBytes(reasonLength))
+        val fields = cacheReadFields(input)
+        val vary = ArrayList<HttpCacheVary>()
+        val count = cacheReadCount(input, 16L)
+        for (_ in 0L..<count) vary.add(HttpCacheVary(cacheReadText(input), cacheReadText(input)))
+        val trailers = cacheReadFields(input)
+        if (input.remaining != 0L) throw HttpCacheFormatException("trailing cache metadata")
+        return (HttpCacheRecord(key, HttpResponseHead(version, status, reason, fields, neverIndex), sent, received, vary), trailers)
+    } catch (_: IndexOutOfBoundsException) { throw HttpCacheFormatException("truncated cache metadata") }
+    catch (_: IllegalArgumentException) { throw HttpCacheFormatException("invalid cache metadata value") }
+    catch (_: CharacterCodingException) { throw HttpCacheFormatException("invalid cache metadata text") }
+}
+
+private fun cacheReadText(input: ByteArrayReader): String =
+    String.fromUtf8(input.readBytes(input.readInt64(ByteOrder.BigEndian)))
+
+private fun cacheReadBoolean(input: ByteArrayReader): Boolean = when (input.readUInt8().toInt()) {
+    case 0 -> false
+    case 1 -> true
+    else -> throw HttpCacheFormatException("invalid cache metadata flag")
+}
+
+private fun cacheReadInstant(input: ByteArrayReader): Instant {
+    val seconds = input.readInt64(ByteOrder.BigEndian)
+    val nanos = input.readInt32(ByteOrder.BigEndian)
+    if (nanos < 0 || nanos >= 1000000000) throw HttpCacheFormatException("invalid cache timestamp")
+    return Instant.fromEpochSeconds(seconds, nanos.toLong())
+}
+
+private fun cacheReadCount(input: ByteArrayReader, minimum: Long): Long {
+    val count = input.readInt64(ByteOrder.BigEndian)
+    if (count < 0L || count > input.remaining / minimum) throw HttpCacheFormatException("invalid cache item count")
+    return count
+}
+
+private fun cacheReadFields(input: ByteArrayReader): Array<HttpField> {
+    val fields = ArrayList<HttpField>()
+    val count = cacheReadCount(input, 17L)
+    for (_ in 0L..<count) {
+        val name = input.readBytes(input.readInt64(ByteOrder.BigEndian))
+        val value = input.readBytes(input.readInt64(ByteOrder.BigEndian))
+        val field = HttpField(name, value, cacheReadBoolean(input))
+        field.validate()
+        fields.add(field)
+    }
+    return fields.toArray()
+}

@@ -1,0 +1,63 @@
+package scoop.http.client
+
+import scoop.asyncio.TcpConnectEvent
+import scoop.asyncio.TcpConnectEventKind
+import scoop.asyncio.TcpConnectPhase
+import scoop.http.HttpVersion
+import scoop.platform.time.MonotonicTimeSource
+import scoop.time.TimeMark
+
+internal enum ClientObservedPhase { Connect, ProxyTls, ProxyHandshake, OriginTls }
+
+internal fun observeClientTcp(call: ClientCall, event: TcpConnectEvent) {
+    val observation = call.observation ?: return
+    call.lock.withLock {
+        val previous = if (event.phase == TcpConnectPhase.Resolve) observation.resolve else observation.connect
+        val timing = if (event.kind == TcpConnectEventKind.Started) Some(HttpPhaseTiming(event.at))
+            else finishClientPhase(previous, event.at)
+        if (event.phase == TcpConnectPhase.Resolve) observation.resolve = timing else observation.connect = timing
+        Unit
+    }
+}
+
+internal fun observeClientPhase(call: ClientCall, phase: ClientObservedPhase, started: Boolean) {
+    val observation = call.observation ?: return
+    val now = MonotonicTimeSource.markNow()
+    call.lock.withLock {
+        val previous = when (phase) {
+            case Connect -> observation.connect
+            case ProxyTls -> observation.proxyTls
+            case ProxyHandshake -> observation.proxyHandshake
+            case OriginTls -> observation.originTls
+        }
+        val timing = if (started) Some(HttpPhaseTiming(now)) else finishClientPhase(previous, now)
+        when (phase) {
+            case Connect -> observation.connect = timing
+            case ProxyTls -> observation.proxyTls = timing
+            case ProxyHandshake -> observation.proxyHandshake = timing
+            case OriginTls -> observation.originTls = timing
+        }
+    }
+}
+
+// The pool planner already holds call.lock.
+internal fun observeClientPoolGranted(call: ClientCall, now: TimeMark) {
+    val observation = call.observation ?: return
+    observation.queue = finishClientPhase(observation.queue, now)
+}
+
+// The pool planner holds both the client and call locks.
+internal fun observeClientLease(call: ClientCall, entry: ClientPoolEntry, connection: ClientConnection) {
+    val observation = call.observation ?: return
+    observation.connectionReused = Some(!clientPresent(entry.initial))
+    observation.version = Some(when (connection) {
+        case Http2(_) -> HttpVersion.Http2
+        case Http1(_) -> if (clientPresent(call.sequence.webSocket)) HttpVersion.Http11 else call.client.config.http1RequestVersion
+    })
+}
+
+internal fun observeClientPoolQueued(call: ClientCall) {
+    val observation = call.observation ?: return
+    val now = MonotonicTimeSource.markNow()
+    call.lock.withLock { observation.queue = Some(HttpPhaseTiming(now)) }
+}

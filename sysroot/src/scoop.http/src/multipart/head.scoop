@@ -1,0 +1,43 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.collections.emptyList
+
+public class MultipartPartHead private constructor(
+    public val fields: Array<HttpField>, public val bodyLength: Long?, internal val encoded: Array<Byte>
+) {
+    public constructor(fields: List<HttpField> = emptyList<HttpField>(), bodyLength: Long? = None)
+        : this(fields.toArray(), checkedPartLength(bodyLength), multipartHeaders(fields, true)) {}
+    public fun toByteArray(): Array<Byte> = encoded
+
+    public companion object {
+        public fun formData(name: String, filename: String? = None, contentType: HttpMediaType? = None,
+            bodyLength: Long? = None): MultipartPartHead {
+            val parameters = ArrayList<HttpParameter>()
+            parameters.add(HttpParameter("name", name.toByteArray(), true))
+            when (filename) { case Some(value) -> parameters.add(HttpParameter("filename", value.toByteArray(), true)); case None -> {} }
+            val fields = ArrayList<HttpField>()
+            fields.add(HttpContentDisposition("form-data", parameters).toHttpField())
+            when (contentType) { case Some(value) -> fields.add(value.toHttpField()); case None -> {} }
+            return MultipartPartHead(fields, bodyLength)
+        }
+        internal fun parsed(fields: Array<HttpField>): MultipartPartHead = MultipartPartHead(fields, None, multipartHeaders(fields, false))
+    }
+}
+
+private fun checkedPartLength(length: Long?): Long? {
+    if (length != None && length!! < 0L) throw IllegalArgumentException(Some("negative multipart body length"))
+    return length
+}
+
+private fun multipartHeaders(fields: List<HttpField>, validate: Boolean): Array<Byte> {
+    val output = ByteArrayBuilder()
+    for (field in fields) {
+        if (validate) {
+            if (!httpToken(field.name)) throw IllegalArgumentException(Some("invalid multipart field name"))
+            requireHttpValue(field.value)
+        }
+        output.append(field.name).append(": ".toByteArray()).append(field.value).append("\r\n".toByteArray())
+    }
+    return output.append("\r\n".toByteArray()).toByteArray()
+}

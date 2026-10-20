@@ -1,0 +1,79 @@
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.*
+import scoop.http.client.*
+import scoop.time.Duration
+import scoop.url.Url
+
+internal fun bearerChallenge(url: Url, trust: TrustStore) {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { scope ->
+        val started = AtomicLong(0L)
+        val credentials = AtomicLong(0L)
+        val observed = AtomicLong(0L)
+        val provider = HttpAuthenticator.bearer(url.httpOrigin(), sendWithoutChallenge = false, realm = Some<List<Byte>>("private".toByteArray())) suspend { request ->
+            bearerCheck(bearerContext() == "challenge" && request.request.url == url && request.attempt == 1L)
+            bearerCheck(request.challenge!!.scheme == "bearer" && started.load() == 0L)
+            loop.sleep(Duration.milliseconds(5L))
+            bearerCheck(bearerContext() == "challenge")
+            credentials.fetchAdd(1L)
+            HttpBearerTokens("opaque.-_~+/==", Some("local token"))
+        }
+        val body = RequestBody.fromProducerWithTrailers(["X-Upload"], Some(7L)) suspend { output ->
+            bearerCheck(bearerContext() == "challenge")
+            started.fetchAdd(1L)
+            bearerWrite(output, "payload")
+            [bearerField("X-Upload", "once")]
+        }.compressed()
+        withHttpClient(bearerConfig(trust, HttpAuthenticationOptions([provider]))) suspend { client ->
+            context(BearerContext("challenge")) {
+                client.withResponse(HttpRequest.post(url, body, options = HttpCallOptions(expectContinue = true,
+                    continueWait = Duration.seconds(3600L), onInformational = suspend { head ->
+                        bearerCheck(head.status == 100U || head.status == 103U)
+                        observed.fetchAdd(1L)
+                        Unit
+                    }))) suspend { response ->
+                    bearerCheck(response.status == 200U && response.authenticationCount == 1L && response.retryCount == 0L)
+                    bearerCheck(response.body.text(4L) == "done")
+                    bearerCheck(String.fromUtf8(response.trailers!![0L].value) == "gzip")
+                }
+            }
+        }
+        bearerCheck(started.load() == 1L && credentials.load() == 1L && observed.load() == 2L)
+        bearerCheck(!scope.job.isCancelled)
+    }
+}
+
+internal fun bearerRedirect(first: Url, second: Url, trust: TrustStore) {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { scope ->
+        val loads = AtomicLong(0L)
+        val refreshes = AtomicLong(0L)
+        val original = HttpAuthenticator.bearer(first.httpOrigin(), refreshTokens = suspend { request ->
+            bearerCheck(bearerContext() == "redirect" && request.attempt == 1L)
+            bearerCheck(request.tokens.accessToken == "old" && request.tokens.refreshToken == Some("local"))
+            loop.sleep(Duration.milliseconds(5L))
+            bearerCheck(bearerContext() == "redirect")
+            refreshes.fetchAdd(1L); Some(HttpBearerTokens("new"))
+        }) suspend { request ->
+            bearerCheck(bearerContext() == "redirect" && request.attempt == 0L)
+            loads.fetchAdd(1L); HttpBearerTokens("old", Some("local"))
+        }
+        val destination = HttpAuthenticator.bearer(second.httpOrigin()) suspend { request ->
+            bearerCheck(request.attempt == 1L && request.request.url.httpOrigin() == second.httpOrigin())
+            loads.fetchAdd(1L); HttpBearerTokens("second")
+        }
+        withHttpClient(bearerConfig(trust)) suspend { client ->
+            context(BearerContext("redirect")) {
+                client.withResponse(HttpRequest.post(first, RequestBody.Empty, [
+                    bearerField("Cookie", "caller=value"), bearerField("X-Keep", "same")
+                ], HttpCallOptions(authentication = Some(HttpAuthenticationOptions([original, destination]))))) suspend { response ->
+                    bearerCheck(response.authenticationCount == 1L && response.retryCount == 0L)
+                    bearerCheck(response.redirectHistory.size == 3L && response.url.httpOrigin() == second.httpOrigin())
+                    bearerCheck(response.body.text(4L) == "done")
+                }
+            }
+        }
+        bearerCheck(loads.load() == 2L && refreshes.load() == 1L && !scope.job.isCancelled)
+    }
+}

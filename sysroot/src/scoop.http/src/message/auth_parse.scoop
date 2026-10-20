@@ -1,0 +1,68 @@
+package scoop.http
+
+import scoop.collections.HashSet
+import scoop.text.lowercaseAscii
+
+internal fun readHttpAuthValue(reader: HttpFieldReader, allowNextScheme: Boolean): HttpAuthValue {
+    val scheme = reader.token().lowercaseAscii()
+    val schemeEnd = reader.position
+    while (reader.peek() == 32) reader.position += 1L
+    val spaced = reader.position != schemeEnd
+    if (reader.peek() == 9) {
+        val tab = reader.position
+        reader.skipOws()
+        if (!reader.ended && reader.peek() != 44) reader.failAt(tab, "expected SP before authentication data")
+    }
+    if (reader.ended || (!spaced && reader.peek() == 44)) return HttpAuthValue(scheme, None, [])
+    if (!spaced) reader.failAt(schemeEnd, "expected SP before authentication data")
+    val token = readHttpToken68(reader)
+    when (token) {
+        case Some(_) -> return HttpAuthValue(scheme, token, [])
+        case None -> return HttpAuthValue(scheme, None, readHttpAuthParameters(reader, allowNextScheme))
+    }
+}
+
+private fun readHttpToken68(reader: HttpFieldReader): String? {
+    val start = reader.position
+    while (httpToken68Byte(reader.peek())) reader.position += 1L
+    if (reader.position == start) return None
+    while (reader.peek() == 61) reader.position += 1L
+    val end = reader.position
+    reader.skipOws()
+    if (reader.ended || reader.peek() == 44) return Some(String.fromUtf8(reader.slice(start, end)))
+    reader.position = start
+    return None
+}
+
+internal fun readHttpAuthParameters(reader: HttpFieldReader, allowNextScheme: Boolean): Array<HttpParameter> {
+    val result = ArrayList<HttpParameter>()
+    val names = HashSet<String>()
+    var afterComma = false
+    while (!reader.ended) {
+        if (reader.peek() == 44) {
+            reader.position += 1L; reader.skipOws(); afterComma = true
+            continue
+        }
+        if (afterComma && allowNextScheme && !nextHttpAuthParameter(reader)) break
+        val start = reader.position
+        val name = reader.token().lowercaseAscii()
+        if (!names.add(name)) reader.failAt(start, "duplicate authentication parameter " + name)
+        reader.skipOws(); reader.expect(61); reader.skipOws()
+        val offset = reader.position
+        val (value, quoted) = reader.parameterValue()
+        result.add(HttpParameter(name, value, quoted, offset, reader.field))
+        reader.skipOws()
+        if (!reader.ended && reader.peek() != 44) reader.fail("expected comma after authentication parameter")
+    }
+    return result.toArray()
+}
+
+private fun nextHttpAuthParameter(reader: HttpFieldReader): Boolean {
+    val start = reader.position
+    while (httpTokenByte(reader.peek())) reader.position += 1L
+    val token = reader.position != start
+    reader.skipOws()
+    val parameter = token && reader.peek() == 61
+    reader.position = start
+    return parameter
+}

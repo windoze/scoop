@@ -149,24 +149,6 @@ pub(super) fn build_registration<D: StrongDescriptorReference, C: Clone>(
         DigestNodeKey::object_definition(descriptor_primary_atom),
     )?;
     let layout_fingerprint_node = require_digest_node(digests, DigestNodeKey::layout(layout))?;
-    let descriptor_definition_patch = require_patch(
-        descriptor_definition_node,
-        DigestPatchIntentKey::new(
-            descriptor_definition_node.id(),
-            registration_definition.id(),
-            DefinitionAtomRole::Primary,
-            DigestSemanticFieldRole::DescriptorDefinition,
-        ),
-    )?;
-    let layout_fingerprint_patch = require_patch(
-        layout_fingerprint_node,
-        DigestPatchIntentKey::new(
-            layout_fingerprint_node.id(),
-            registration_definition.id(),
-            DefinitionAtomRole::Primary,
-            DigestSemanticFieldRole::Layout,
-        ),
-    )?;
 
     Ok(StrongTypeRegistrationPlan {
         definition_owner,
@@ -187,7 +169,5 @@ pub(super) fn build_registration<D: StrongDescriptorReference, C: Clone>(
 
         descriptor_definition_node: descriptor_definition_node.id(),
         layout_fingerprint_node: layout_fingerprint_node.id(),
-        descriptor_definition_patch,
-        layout_fingerprint_patch,
     })
 }

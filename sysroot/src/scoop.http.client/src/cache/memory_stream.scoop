@@ -1,0 +1,72 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.bytes.ByteArrayBuilder
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+
+internal class ClientMemoryCacheWriter(val owner: MemoryHttpCache, val record: HttpCacheRecord, val limit: Long) : HttpCacheWriter {
+    val discard: AtomicBoolean = AtomicBoolean(false)
+    private val lock: ClientLock = ClientLock()
+    private val closed: AtomicBoolean = AtomicBoolean(false)
+    private var output: ByteArrayBuilder? = Some(ByteArrayBuilder())
+
+    public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long = lock.withLock {
+        if (closed.load()) throw IoClosedException()
+        if (count < 0L) throw IllegalArgumentException(Some("negative cache write count"))
+        if (count > buffer.readableBytes) throw IndexOutOfBoundsException()
+        if (clientPresent(output) && count > limit - output!!.size) { discard.store(true); output = None }
+        if (discard.load()) { output = None; buffer.skip(count) }
+        else output!!.append(buffer.readBytes(count))
+        count
+    }
+    public override suspend fun flush() { if (closed.load()) throw IoClosedException() }
+    public override suspend fun commit(trailers: List<HttpField>) {
+        lock.withLock {
+            if (!closed.compareAndSet(false, true)) throw IoClosedException()
+            val bytes = output; output = None
+            try {
+                if (discard.load()) { owner.abandon(this); return@withLock }
+                val value = bytes!!.toByteArray()
+                val expected = parseHttpContentLength(record.head.fields)
+                if (clientPresent(expected) && expected!! != value.size)
+                    throw IllegalStateException(Some("cached body length does not match Content-Length"))
+                owner.publish(this, value, trailers.toArray())
+            } catch (error: Throwable) { owner.abandon(this); throw error }
+        }
+    }
+    public override suspend fun close() {
+        val first = lock.withLock {
+            if (!closed.compareAndSet(false, true)) false
+            else { output = None; true }
+        }
+        if (!first) return
+        owner.abandon(this)
+    }
+}
+
+internal class ClientMemoryCacheSnapshot(entry: ClientMemoryCacheEntry) : HttpCacheSnapshot {
+    public override val record: HttpCacheRecord = entry.record
+    public override val bodyLength: Long = entry.bytes.size
+    public override val trailers: Array<HttpField> = entry.trailers
+    private val source: ClientMemoryCacheSource = ClientMemoryCacheSource(entry.bytes)
+    public override val body: AsyncByteSource get() = source
+    public override suspend fun close() { source.close() }
+}
+
+internal class ClientMemoryCacheSource(private val bytes: Array<Byte>) : AsyncByteSource {
+    private val lock: ClientLock = ClientLock()
+    private var closed: Boolean = false
+    private var position: Long = 0L
+    fun close() { lock.withLock { closed = true } }
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long = lock.withLock {
+        if (closed) throw IoClosedException()
+        if (count < 0L) throw IllegalArgumentException(Some("negative cache read count"))
+        if (count > buffer.writableBytes) throw IndexOutOfBoundsException()
+        val remaining = bytes.size - position
+        val actual = if (count < remaining) count else remaining
+        buffer.writeBytes(bytes, position, actual)
+        position += actual
+        actual
+    }
+}

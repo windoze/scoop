@@ -1,0 +1,64 @@
+package scoop.asyncio
+
+import scoop.platform.fs.*
+import scoop.platform.system.OsString
+
+public interface AsyncDirectoryEntries : AsyncCloseable {
+    public suspend fun next(): DirectoryEntry?
+}
+
+internal class WorkerDirectory(private val owner: OwnedDirectory) : AsyncDirectoryEntries {
+    public override suspend fun next(): DirectoryEntry? {
+        val job = owner.loop.requireJob()
+        val name: OsString? = when (owner.reserve()) {
+            case None -> None
+            case Some(reservation) -> try { nextDirectoryName(owner, job) }
+                finally { reservation.dispose() }
+        }
+        return when (name) {
+            case Some(value) -> Some(DirectoryEntry(value, owner.path.resolve(Path.fromOsString(value))))
+            case None -> { owner.close(); None }
+        }
+    }
+
+    public override suspend fun close() { owner.close() }
+}
+
+internal suspend fun openDirectoryOnLoop(loop: LibuvEventLoop, path: Path): AsyncDirectoryEntries {
+    val job = loop.requireJob()
+    val context = path.toOsString()
+    return suspendCoroutine<AsyncDirectoryEntries> { continuation ->
+        val operation = LoopOperation(loop.state, loop.state.nextOperation(),
+            { native, id -> @Unsafe {
+                return@LoopOperation path.withNativePath { name -> @Unsafe {
+                    return@withNativePath nativeStatus(id, nativeDirectoryOpen(native, id, name))
+                } }
+            } },
+            { native, id -> @Unsafe { nativeWorkCancel(native, id) } },
+            { event, selected ->
+                when (event.result) {
+                    case Created(pointer) -> {
+                        val owner = OwnedDirectory(loop, pointer, path)
+                        loop.state.retain(owner)
+                        when (selected) {
+                            case None -> continuation.resume(WorkerDirectory(owner))
+                            case Some(error) -> owner.closeOnLoop { cleanup ->
+                                continuation.resumeWithException(when (cleanup) {
+                                    case None -> error
+                                    case Some(other) -> ResourceUseException(error, other)
+                                })
+                            }
+                        }
+                    }
+                    case _ -> continuation.resumeWithException(
+                        completionFailure("open directory", event.result, selected, Some(context))
+                            ?: IllegalStateException(Some("directory open returned no handle")))
+                }
+            })
+        operation.subscribe(job)
+        loop.state.submit(operation)
+    }
+}
+
+@Extern(name = "scoop_io_directory_open")
+private fun nativeDirectoryOpen(loop: Ptr<Unit>, id: Long, path: Ptr<Byte>): Int

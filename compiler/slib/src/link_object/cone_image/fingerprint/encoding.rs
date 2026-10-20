@@ -4,7 +4,7 @@ use super::*;
 
 pub(super) struct RuntimeImageFingerprintInputV1<'proof, D, C, I> {
     pub(super) image: &'proof ConeImageDataV1,
-    pub(super) registrations: &'proof VerifiedStrongRegistrationPatchSetV1<D, C, I>,
+    pub(super) registrations: &'proof RegistrationObjectSetV1<D, C, I>,
     pub(super) runtime_abi: RuntimeAbiFingerprint,
     pub(super) target_profile: TargetProfileFingerprint,
 }
@@ -38,7 +38,7 @@ where
         output: &mut crate::RuntimeImageRecords,
     ) -> Result<(), RuntimeEncodeError> {
         let fingerprints = self.registrations.static_storages();
-        let plans = fingerprints.shapes().registrations().plan().registrations();
+        let plans = fingerprints.shapes().registrations().registrations();
         let records = plans.iter().zip(fingerprints.fingerprints());
         for (plan, fingerprint) in records {
             let mut encoder = RuntimeEncoder::new();
@@ -48,7 +48,7 @@ where
                 fingerprint.layout(),
                 fingerprint.scan(),
             )?;
-            output.push(0, plan.registration_definition_plan(), encoder.into_bytes());
+            output.push(0, encoder.into_bytes());
         }
         Ok(())
     }
@@ -70,7 +70,7 @@ where
                 plan.type_registration(),
                 plan.definition_owner(),
             )?;
-            output.push(1, plan.registration_definition_plan(), encoder.into_bytes());
+            output.push(1, encoder.into_bytes());
         }
         Ok(())
     }
@@ -80,7 +80,7 @@ where
         output: &mut crate::RuntimeImageRecords,
     ) -> Result<(), RuntimeEncodeError> {
         let fingerprints = self.registrations.initializations();
-        let plans = fingerprints.registrations().plan().registrations();
+        let plans = fingerprints.registrations().registrations();
         let records = plans.iter().zip(fingerprints.fingerprints());
         for (plan, fingerprint) in records {
             let mut encoder = RuntimeEncoder::new();
@@ -88,7 +88,7 @@ where
                 .gateway_body()
                 .zip(fingerprint.gateway_definition());
             runtime_encode_strong_initialization_record_v1(&mut encoder, plan, gateway)?;
-            output.push(2, plan.registration_definition_plan(), encoder.into_bytes());
+            output.push(2, encoder.into_bytes());
         }
         Ok(())
     }
@@ -108,7 +108,7 @@ where
                 fingerprint.descriptor_definition().as_array(),
                 fingerprint.layout().as_array(),
             )?;
-            output.push(3, plan.definition_plan(), encoder.into_bytes());
+            output.push(3, encoder.into_bytes());
         }
         Ok(())
     }
@@ -127,7 +127,7 @@ where
                 *plan,
                 fingerprint.stackmap().as_array(),
             )?;
-            output.push(4, plan.definition_plan(), encoder.into_bytes());
+            output.push(4, encoder.into_bytes());
         }
         Ok(())
     }
@@ -150,7 +150,7 @@ where
                 *plan,
                 fingerprint.body_definition().as_array(),
             )?;
-            output.push(5, plan.definition_plan(), encoder.into_bytes());
+            output.push(5, encoder.into_bytes());
         }
         Ok(())
     }

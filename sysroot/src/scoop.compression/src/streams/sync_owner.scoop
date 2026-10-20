@@ -1,0 +1,35 @@
+package scoop.compression
+
+internal class SyncCompressionOwner(val resources: CompressionIoResources, private val owner: Closeable?) : Closeable {
+    private val busy: AtomicBoolean = AtomicBoolean(false)
+    private var closed: Boolean = false
+    var failure: Throwable? = None
+
+    fun enter() {
+        acquire()
+        if (closed || compressionPresent(failure)) {
+            leave()
+            throw IllegalStateException(Some("compression stream is closed or failed"))
+        }
+    }
+
+    private fun acquire() {
+        if (!busy.compareAndSet(false, true)) throw IllegalStateException(Some("compression stream is already in use"))
+    }
+
+    fun leave() { busy.store(false) }
+
+    public override fun close() {
+        acquire()
+        try {
+            if (closed) return
+            closed = true
+            var error = compressionCleanup(None) { resources.close() }
+            when (owner) {
+                case Some(value) -> { error = compressionCleanup(error) { value.close() } }
+                case None -> {}
+            }
+            throwCompressionFailure(error)
+        } finally { leave() }
+    }
+}

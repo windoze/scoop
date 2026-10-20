@@ -1,14 +1,14 @@
-//! Owned three-way undefined-use proof for the M23-6 layout profile.
+//! Undefined-use partitions for the M23-6 layout profile.
 
 use scoop_identity::ConeIdentity;
 use scoop_lir::ExternalStrongShapeSubjectV1;
 
 use super::CanonicalObjectDefinitionRequirementV1;
 use crate::link_object::{
-    BuiltinExternalRequirementsV1, CanonicalUndefinedRelocationUseV1,
-    CanonicalUndefinedSymbolRequirementSetV1, UndefinedSymbolRequirementFinalizationError,
-    VerifiedCrossConeStrongRequirementClosureV1, VerifiedCurrentConeUndefinedRequirementClosureV1,
-    VerifiedExternalShapeRequirementClosureV1, finalize_undefined_symbol_requirements_v1,
+    CanonicalUndefinedRelocationUseV1, CanonicalUndefinedSymbolRequirementSetV1,
+    UndefinedSymbolRequirementFinalizationError, VerifiedCrossConeStrongRequirementClosureV1,
+    VerifiedCurrentConeUndefinedRequirementClosureV1, VerifiedExternalShapeRequirementClosureV1,
+    VerifiedRuntimeAndEhRequirementClosureV1, finalize_undefined_symbol_requirements_v1,
 };
 
 /// One general-shape use projected from the verified Link closure.
@@ -70,10 +70,16 @@ impl FinalizedLayoutUndefinedSymbolRequirementPartitionsV1 {
         &self,
         use_site: &CanonicalUndefinedRelocationUseV1,
     ) -> Option<CanonicalObjectDefinitionRequirementV1> {
-        let requirement = self
+        let index = self
             .external_shape
-            .iter()
-            .find(|requirement| requirement.use_site() == use_site)?;
+            .binary_search_by_key(&super::super::use_key(use_site), |requirement| {
+                super::super::use_key(requirement.use_site())
+            })
+            .ok()?;
+        let requirement = &self.external_shape[index];
+        if requirement.use_site() != use_site {
+            return None;
+        }
         Some(
             CanonicalObjectDefinitionRequirementV1::DependencyShapeStrong {
                 provider: requirement.provider(),
@@ -86,7 +92,7 @@ impl FinalizedLayoutUndefinedSymbolRequirementPartitionsV1 {
 /// Finalizes all three M23-6 partitions against the same relocation closure.
 pub fn finalize_layout_partitioned_undefined_symbol_requirements_v1(
     current_cone: VerifiedCurrentConeUndefinedRequirementClosureV1,
-    external: BuiltinExternalRequirementsV1,
+    external: VerifiedRuntimeAndEhRequirementClosureV1,
     external_shape: &VerifiedExternalShapeRequirementClosureV1<'_>,
 ) -> Result<
     FinalizedLayoutUndefinedSymbolRequirementPartitionsV1,
@@ -111,7 +117,7 @@ pub fn finalize_layout_partitioned_undefined_symbol_requirements_v1(
             subject: import.subject(),
         });
     }
-    let cross_cone = external.cross_cone_closure().clone();
+    let cross_cone = external.source_closure().cross_cone_closure().clone();
     let legacy = finalize_undefined_symbol_requirements_v1(current_cone, external);
     Ok(FinalizedLayoutUndefinedSymbolRequirementPartitionsV1 {
         legacy,

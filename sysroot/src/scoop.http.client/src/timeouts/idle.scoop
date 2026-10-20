@@ -1,0 +1,34 @@
+package scoop.http.client
+
+import scoop.http.asyncio.*
+
+internal fun clientIoTimeouts(call: ClientCall): HttpIoTimeoutOptions =
+    HttpIoTimeoutOptions(call.timeouts.readIdle, call.timeouts.writeIdle)
+
+internal fun mapClientIoTimeout(call: ClientCall, error: Throwable): Throwable {
+    if (error is ResourceUseException) {
+        val primary = mapClientIoTimeout(call, error.primaryFailure)
+        return if (primary === error.primaryFailure) error else ResourceUseException(primary, error.cleanupFailure)
+    }
+    if (error is HttpIoTimeoutException) {
+        val phase = when (error.direction) {
+            case Read -> HttpTimeoutPhase.ReadIdle
+            case Write -> HttpTimeoutPhase.WriteIdle
+        }
+        return call.lock.withLock {
+            HttpTimeoutException(phase, error.limit, error.elapsed, call.requestBodyBytes,
+                call.encodedResponseBodyBytes, call.responseBodyBytes, Some(error))
+        }
+    }
+    return error
+}
+
+internal fun sameClientFailure(first: Throwable, second: Throwable): Boolean {
+    if (first === second) return true
+    if (first is ResourceUseException && second is ResourceUseException)
+        return first.cleanupFailure === second.cleanupFailure && sameClientFailure(first.primaryFailure, second.primaryFailure)
+    if (first is HttpTimeoutException && second is HttpTimeoutException)
+        return first.phase == second.phase && clientPresent(first.cause) && clientPresent(second.cause) &&
+            first.cause!! === second.cause!!
+    return false
+}

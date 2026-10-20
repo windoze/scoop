@@ -1,0 +1,33 @@
+package scoop.compression
+
+import scoop.platform.system.*
+
+public enum CompressionFailureKind {
+    InvalidData, Truncated, DictionaryRequired, DictionaryMismatch, OutputLimit, WindowLimit, Backend
+}
+
+public class CompressionException public constructor(
+    public val operation: String, public val format: CompressionFormat,
+    public val kind: CompressionFailureKind, public val backendCode: Int, public val detail: String
+) : Exception(Some(operation + ": " + detail))
+
+internal fun compressionError(kind: Int, code: Int, detail: String, format: CompressionFormat): Throwable {
+    if (kind == 8) return IllegalArgumentException(Some(detail))
+    if (kind == 9) return PlatformException("allocate compression memory", PlatformErrorKind.NoMemory,
+        if (code == 0) None else Some(NativeError(NativeErrorDomain.PosixErrno, code)))
+    if (kind == 10) return ArithmeticException()
+    return CompressionException("compression codec", format, when (kind) {
+        case 1 -> CompressionFailureKind.InvalidData
+        case 2 -> CompressionFailureKind.Truncated
+        case 3 -> CompressionFailureKind.DictionaryRequired
+        case 4 -> CompressionFailureKind.DictionaryMismatch
+        case 5 -> CompressionFailureKind.OutputLimit
+        case 6 -> CompressionFailureKind.WindowLimit
+        else -> CompressionFailureKind.Backend
+    }, code, detail)
+}
+
+internal fun compressionTrailing(format: CompressionFormat): Nothing =
+    throw CompressionException("decompress", format, CompressionFailureKind.InvalidData, 0, "trailing compressed data")
+
+internal fun <T> compressionPresent(value: T?): Boolean = when (value) { case Some(_) -> true; case None -> false }

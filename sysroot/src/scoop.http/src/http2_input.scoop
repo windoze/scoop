@@ -1,0 +1,16 @@
+package scoop.http
+
+public struct Http2InputProgress(val streamId: Int, val count: Long)
+public struct Http2ReceiveResult(val count: Long, val progress: Array<Http2InputProgress>)
+
+@Unsafe internal fun http2ReadInputProgress(handle: ULong): Array<Http2InputProgress> {
+    val size = http2InputProgressCount(handle)
+    val result = ArrayList<Http2InputProgress>()
+    var index = 0L
+    while (index < size) {
+        val value = http2InputProgress(handle, index)
+        result.add(Http2InputProgress(value.streamId, value.count))
+        index += 1L
+    }
+    return result.toArray()
+}

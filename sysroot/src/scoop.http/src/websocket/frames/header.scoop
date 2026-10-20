@@ -1,0 +1,64 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.crypto.secureRandomBytes
+
+internal class WebSocketWireHead(val head: WebSocketFrameHead, val mask: Array<Byte>)
+internal class WebSocketEncodedHead(val bytes: Array<Byte>, val mask: Array<Byte>)
+
+internal fun webSocketHeaderSize(bytes: Array<Byte>): Long {
+    val length = bytes[1L].toUByte().toInt() and 127
+    val masked = (bytes[1L].toUByte().toInt() and 128) != 0
+    return 2L + (if (length == 126) 2L else if (length == 127) 8L else 0L) + (if (masked) 4L else 0L)
+}
+
+internal fun readWebSocketHeader(bytes: Array<Byte>, role: HttpRole): WebSocketWireHead {
+    val flags = bytes[0L].toUByte().toInt()
+    if ((flags and 48) != 0) webSocketFrameError("RSV2 and RSV3 must be zero")
+    val opcode = when (flags and 15) {
+        case 0 -> WebSocketOpcode.Continuation
+        case 1 -> WebSocketOpcode.Text
+        case 2 -> WebSocketOpcode.Binary
+        case 8 -> WebSocketOpcode.Close
+        case 9 -> WebSocketOpcode.Ping
+        case 10 -> WebSocketOpcode.Pong
+        else -> webSocketFrameError("reserved WebSocket opcode")
+    }
+    val masked = (bytes[1L].toUByte().toInt() and 128) != 0
+    if (masked != (role == HttpRole.Server)) webSocketFrameError("mask bit does not match the peer role")
+    val code = bytes[1L].toUByte().toInt() and 127
+    val extended = if (code == 126) 2L else if (code == 127) 8L else 0L
+    var length = if (extended == 0L) code.toLong() else 0L
+    if (code == 127 && (bytes[2L].toUByte().toInt() and 128) != 0) webSocketFrameError("frame length has its high bit set")
+    var index = 0L
+    while (index < extended) { length = (length shl 8L) or bytes[2L + index].toUByte().toLong(); index += 1L }
+    if ((code == 126 && length < 126L) || (code == 127 && length < 65536L)) webSocketFrameError("nonminimal frame length")
+    val mask: Array<Byte> = if (masked) Array<Byte>(4L) { offset -> bytes[2L + extended + offset] } else []
+    return WebSocketWireHead(WebSocketFrameHead(opcode, length, (flags and 128) != 0, (flags and 64) != 0), mask)
+}
+
+internal fun encodeWebSocketHeader(head: WebSocketFrameHead, role: HttpRole): WebSocketEncodedHead {
+    val opcode = when (head.opcode) {
+        case Continuation -> 0
+        case Text -> 1
+        case Binary -> 2
+        case Close -> 8
+        case Ping -> 9
+        case Pong -> 10
+    }
+    val output = ByteArrayBuilder().append((opcode or (if (head.isFinal) 128 else 0) or (if (head.isCompressed) 64 else 0)).toByte())
+    val masked = if (role == HttpRole.Client) 128 else 0
+    val length = head.payloadLength
+    if (length < 126L) output.append((masked or length.toInt()).toByte())
+    else {
+        output.append((masked or (if (length <= 65535L) 126 else 127)).toByte())
+        var shift = if (length <= 65535L) 8L else 56L
+        while (shift >= 0L) { output.append(((length shr shift) and 255L).toByte()); shift -= 8L }
+    }
+    val mask: Array<Byte> = if (role == HttpRole.Client) secureRandomBytes(4L) else []
+    output.append(mask)
+    return WebSocketEncodedHead(output.toByteArray(), mask)
+}
+
+internal fun webSocketMask(byte: Byte, mask: Array<Byte>, offset: Long): Byte =
+    if (mask.size == 0L) byte else (byte.toUByte().toInt() xor mask[offset % 4L].toUByte().toInt()).toByte()

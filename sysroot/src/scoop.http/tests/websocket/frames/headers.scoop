@@ -1,0 +1,50 @@
+package scoop.http
+
+import scoop.test.*
+
+@Test private class WebSocketFrameHeaderTests {
+    @Test fun `RFC masked and unmasked Hello frames survive single byte input`() {
+        val masked = wfBytes([129, 133, 55, 250, 33, 61, 127, 159, 77, 81, 88])
+        WebSocketFrameDecoder(HttpRole.Server).use { decoder ->
+            val events = wfFeed(decoder, masked)
+            assertEquals("Hello", String.fromUtf8(wfPayload(events)))
+            val head = wfFirstHead(events)
+            assertTrue(head.opcode == WebSocketOpcode.Text && head.isFinal && !head.isCompressed)
+            assertEquals(5L, head.payloadLength)
+            assertTrue(decoder.isFinished && !decoder.hasCloseFrame)
+        }
+        WebSocketFrameDecoder(HttpRole.Client).use { decoder ->
+            assertEquals("Hello", String.fromUtf8(wfPayload(wfFeed(decoder, wfPacket(129, "Hello".toByteArray())))))
+        }
+    }
+
+    @Test fun `length encodings are minimal through the largest signed payload length`() {
+        for ((length, expected) in [(125L, wfBytes([130, 125])), (126L, wfBytes([130, 126, 0, 126])),
+            (65535L, wfBytes([130, 126, 255, 255])), (65536L, wfBytes([130, 127, 0, 0, 0, 0, 0, 1, 0, 0])),
+            (Long.MAX_VALUE, wfBytes([130, 127, 127, 255, 255, 255, 255, 255, 255, 255]))]) {
+            WebSocketFrameEncoder(HttpRole.Server).use { encoder ->
+                val actual = encoder.beginFrame(WebSocketFrameHead(WebSocketOpcode.Binary, length))
+                wfAssertBytes(expected, actual)
+                WebSocketFrameDecoder(HttpRole.Client, limits = WebSocketFrameLimits(Long.MAX_VALUE, Long.MAX_VALUE)).use { decoder ->
+                    val head = wfFirstHead(wfFeed(decoder, actual, eof = false))
+                    assertEquals(length, head.payloadLength)
+                    assertTrue(!decoder.isFinished)
+                }
+                assertTrue(encoder.isFrameOpen && encoder.isMessageOpen)
+            }
+        }
+    }
+
+    @Test fun `a large advertised frame produces a short chunk without allocating its payload`() {
+        WebSocketFrameDecoder(HttpRole.Client, limits = WebSocketFrameLimits(dataChunkBytes = 4096L)).use { decoder ->
+            val header = wfBytes([130, 127, 0, 0, 0, 0, 0, 1, 0, 0])
+            assertEquals(65536L, wfFirstHead(wfFeed(decoder, header, 10L, false)).payloadLength)
+            val events = wfFeed(decoder, "part".toByteArray(), 4L, false)
+            assertEquals(1L, events.size)
+            assertEquals("part", String.fromUtf8(wfPayload(events)))
+            assertTrue(!decoder.isFinished)
+            decoder.close()
+            assertTrue(decoder.isClosed && !decoder.isFinished)
+        }
+    }
+}

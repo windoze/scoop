@@ -1,0 +1,25 @@
+package scoop.http.client
+
+internal suspend fun runObservedClientCall(call: ClientCall) {
+    coroutineScope<Unit> suspend { scope ->
+        call.lock.withLock { call.observerScope = Some(scope) }
+        try {
+            startClientDeadline(call, scope, HttpTimeoutPhase.Total, call.timeouts.total, call.started)
+            try { runClientCallWork(call) }
+            catch (error: Throwable) { failClientCall(call, error, true) }
+            releaseClientLease(call)
+            finishClientObservation(call)
+            emitClientEvent(call, HttpCallEventKind.Completed)
+        } finally {
+            try { closeFailedClientWebSocket(call) }
+            finally {
+                stopClientDeadlines(call)
+                call.lock.withLock { call.observerScope = None }
+            }
+        }
+    }
+}
+
+// The caller holds call.lock. An intentional response.close remains abandonment.
+internal fun clientObservedCallAcceptsCancellation(call: ClientCall): Boolean =
+    clientPresent(call.observerScope) && (!call.abandoned || clientPresent(call.followUp))

@@ -62,7 +62,7 @@ outside:
     let machine = profile.create_target_machine().unwrap();
     let llvm = parse(&context, source);
     let mut expected = manifest(None);
-    expected.functions.insert("f".into(), GcEffect::NoGc);
+    Rc::make_mut(&mut expected.functions).insert("f".into(), GcEffect::NoGc);
     crate::statepoint::rewrite(&llvm, &machine, &expected, profile).unwrap();
     llvm.verify().unwrap();
     let ir = llvm.print_to_string().to_string();

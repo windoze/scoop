@@ -1,0 +1,51 @@
+package scoop.http
+
+import scoop.collections.*
+import scoop.idna.*
+import scoop.text.*
+
+public class PublicSuffixParseException public constructor(
+    public val line: Long, public val detail: String, public val cause: Throwable? = None
+) : Exception(Some("public suffix list at line " + line.toString() + ": " + detail))
+
+internal fun parsePublicSuffixList(text: String): PublicSuffixList {
+    val rules = HashMap<String, Int>()
+    var privateRules = false
+    var version: String? = None
+    var revision: String? = None
+    var count = 0L
+    var number = 0L
+    for (input in text.split('\n')) {
+        number += 1L
+        val line = input.trim()
+        if (line.length == 0L) continue
+        if (line.startsWith("//")) {
+            if (line == "// ===BEGIN PRIVATE DOMAINS===") privateRules = true
+            if (line == "// ===BEGIN ICANN DOMAINS===") privateRules = false
+            if (line.startsWith("// VERSION:")) version = Some(line.slice(11L, line.length).trim())
+            if (line.startsWith("// COMMIT:")) revision = Some(line.slice(10L, line.length).trim())
+            continue
+        }
+        val token = line.substringBefore(' ').substringBefore('\t')
+        val wildcard = token == "*" || token.startsWith("*.")
+        val exception = token.startsWith("!")
+        val bare = if (token == "*") "" else if (wildcard) token.slice(2L, token.length)
+            else if (exception) token.slice(1L, token.length) else token
+        val name = if (token == "*") "" else publicSuffixRuleName(bare, number)
+        if (exception && !name.contains('.')) throw PublicSuffixParseException(number, "exception requires at least two labels")
+        val bit = (if (wildcard) 2 else if (exception) 4 else 1) shl (if (privateRules) 3 else 0)
+        val previous = rules.getOrDefault(name, 0)
+        if ((previous and bit) == 0) count += 1L
+        rules.put(name, previous or bit)
+    }
+    return PublicSuffixList(rules, count, version, revision)
+}
+
+private fun publicSuffixRuleName(text: String, line: Long): String {
+    val normalized = try { Idna.toAscii(text) } catch (error: IdnaException) {
+        if (error.kind == IdnaFailureKind.Backend) throw error
+        throw PublicSuffixParseException(line, "invalid rule domain", Some(error))
+    }
+    if (normalized.endsWith(".")) throw PublicSuffixParseException(line, "rule cannot end with a root dot")
+    return normalized
+}

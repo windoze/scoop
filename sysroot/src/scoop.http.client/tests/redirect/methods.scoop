@@ -1,0 +1,98 @@
+package scoop.http.client
+
+import scoop.collections.emptyList
+import scoop.http.*
+import scoop.test.*
+import scoop.time.Duration
+import scoop.url.Url
+
+@Test
+private class HttpClientRedirectMethodsTest {
+    @Test
+    fun `redirect methods follow status semantics without folding extension method case`() {
+        for (status in [301U, 302U, 303U, 307U, 308U]) {
+            for (method in ["POST", "HEAD", "PUT", "GET", "post", "M-SEARCH"]) {
+                val request = redirectTestRequest(method)
+                val redirect = redirectTestPlan(request, status)
+                val dropping = (status == 303U && method != "HEAD") ||
+                    ((status == 301U || status == 302U) && method == "POST")
+                assertEquals(if (dropping) "GET" else method, redirect.request.method)
+                assertSame(if (dropping) RequestBody.Empty else request.body, redirect.request.body)
+                assertEquals("http://example.test/after#saved", redirect.request.url.toString())
+                assertEquals(method, redirect.history.method)
+                assertEquals(redirect.request.method, redirect.history.nextMethod)
+                assertSame(request.url, redirect.history.url)
+                assertTrue(redirect.history.head.status == status)
+                assertEquals("redirect reason", String.fromUtf8(redirect.history.head.reason!!))
+            }
+        }
+    }
+
+    @Test
+    fun `GET rewrites discard representation fields and continue or duplex state`() {
+        val fields = ArrayList<HttpField>()
+        for (name in ["Content-Type", "Content-Encoding", "Content-Language", "Content-Location", "Content-Range",
+            "Content-Disposition", "Content-MD5", "Digest", "Content-Digest", "Repr-Digest", "Trailer"]) {
+            fields.add(HttpField(name.toByteArray(), "old".toByteArray()))
+        }
+        fields.add(HttpField("CONTENT-LENGTH".toByteArray(), "4".toByteArray()))
+        fields.add(HttpField("Expect".toByteArray(), "100-continue".toByteArray()))
+        fields.add(HttpField("X-Keep".toByteArray(), "one".toByteArray(), true))
+        fields.add(HttpField("x-keep".toByteArray(), "two".toByteArray()))
+        val timeouts = HttpTimeoutOptions(total = Some(Duration.seconds(5L)))
+        val options = HttpCallOptions(duplex = true, expectContinue = true, timeouts = Some(timeouts))
+        val redirected = redirectTestPlan(redirectTestRequest(fields = fields, options = options)).request
+        assertSame(RequestBody.Empty, redirected.body)
+        assertTrue(redirected.contentLength == Some(0L))
+        assertFalse(redirected.options.duplex || redirected.options.expectContinue || redirected.expectsContinue)
+        assertSame(timeouts, redirected.options.timeouts!!)
+        assertEquals(2L, redirected.fields.size)
+        assertEquals("one", String.fromUtf8(redirected.fields[0L].value))
+        assertTrue(redirected.fields[0L].neverIndex)
+        assertEquals("two", String.fromUtf8(redirected.fields[1L].value))
+    }
+
+    @Test
+    fun `preserving a compressed trailer body regenerates its owned fields without acquiring it`() {
+        val calls = AtomicLong(0L)
+        val body = RequestBody.fromProducerWithTrailersFactory(["X-End"], Some(4L)) suspend {
+            calls.fetchAdd(1L);
+            suspend { output -> writeBodyText(output, "body"); [HttpField("X-End".toByteArray(), "end".toByteArray())] }
+        }.compressed()
+        val request = redirectTestRequest(body = body, options = HttpCallOptions(expectContinue = true))
+        val next = redirectTestPlan(request, 307U).request
+        assertSame(body, next.body)
+        assertEquals(1L, next.fields.findAll("Content-Encoding".toByteArray()).size)
+        assertEquals("gzip", String.fromUtf8(next.fields.findAll("Content-Encoding".toByteArray())[0L].value))
+        assertEquals(1L, next.fields.findAll("Trailer".toByteArray()).size)
+        assertTrue(next.expectsContinue)
+        assertEquals(0L, calls.load())
+    }
+
+    @Test
+    fun `only a change of canonical origin removes caller credentials and cookies`() {
+        val fields = [HttpField("Authorization".toByteArray(), "Bearer secret".toByteArray(), true),
+            HttpField("Cookie".toByteArray(), "session=secret".toByteArray()),
+            HttpField("X-Keep".toByteArray(), "ok".toByteArray())]
+        val request = HttpRequest(Url.parse("http://EXAMPLE.test:80/before"), fields = fields)
+        for ((target, kept) in [("/after", true), ("http://example.test/after", true),
+            ("http://example.test:81/after", false), ("http://other.test/after", false), ("https://example.test/after", false)]) {
+            val next = redirectTestPlan(request, 308U, target).request
+            assertEquals(if (kept) 1L else 0L, next.fields.findAll("authorization".toByteArray()).size)
+            assertEquals(if (kept) 1L else 0L, next.fields.findAll("cookie".toByteArray()).size)
+            assertEquals(1L, next.fields.findAll("x-keep".toByteArray()).size)
+        }
+    }
+
+    @Test
+    fun `disabled redirects missing locations and non redirect statuses return the original response`() {
+        val request = redirectTestRequest()
+        val repeated = HttpResponseHead(HttpVersion.Http11, 302U, fields =
+            [HttpField("Location".toByteArray(), "bad path".toByteArray()), HttpField("Location".toByteArray(), "/other".toByteArray())])
+        assertFalse(clientPresent(planClientRedirect(request, repeated, HttpRedirectOptions(enabled = false), emptyList<HttpRedirect>())))
+        for (status in [200U, 300U, 304U, 305U, 306U, 399U]) {
+            assertFalse(clientPresent(planClientRedirect(request, redirectTestHead(status), HttpRedirectOptions(), emptyList<HttpRedirect>())))
+        }
+        assertFalse(clientPresent(planClientRedirect(request, HttpResponseHead(HttpVersion.Http11, 302U), HttpRedirectOptions(), emptyList<HttpRedirect>())))
+    }
+}

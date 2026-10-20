@@ -1,7 +1,6 @@
 use scoop_identity::{
-    CborIdentityRecord, ConeCoordinate, ConeIdentity, ConeImageSupportRole, CoreBuiltinNominal,
-    DefinitionAtomRole, DefinitionAtomSubkey, DigestNodeId, DigestNodeKey, DigestPatchIntentKey,
-    DigestSemanticFieldRole, ExactTypeKey, LinkageClass, ObjectDefinitionAtomKey,
+    CborIdentityRecord, ConeCoordinate, ConeIdentity, ConeImageSupportRole, DefinitionAtomRole,
+    DefinitionAtomSubkey, DigestNodeKey, LinkageClass, ObjectDefinitionAtomKey,
     ObjectDefinitionPlanKey, PersistentExactTypeId, PersistentSymbolKey, PersistentSymbolRequest,
     PersistentSymbolRequestTable, StrongDefinitionEntity, StrongDefinitionRole,
 };
@@ -38,25 +37,6 @@ fn cone_record_runtime_encoding_uses_declared_field_order() {
 }
 
 #[test]
-fn image_requires_every_record_digest_field_as_a_direct_input() {
-    let coordinate = ConeCoordinate::reserved_single_file();
-    let exact = unit_exact_type();
-    let (foundation, digest_plan) = image_fixture(coordinate.clone(), Some(exact), false, true);
-    let registrations = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
-
-    assert!(matches!(
-        ConeImagePlanV1::new(
-            coordinate,
-            &[scoop_identity::ConeIdentity::CORE],
-            &foundation,
-            &registrations,
-            &digest_plan
-        ),
-        Err(ConeImagePlanBuildError::RegistrationInputs { .. })
-    ));
-}
-
-#[test]
 fn image_rejects_the_obsolete_primary_only_atom_shape() {
     let coordinate = ConeCoordinate::reserved_single_file();
     let (foundation, digest_plan) = image_fixture(coordinate.clone(), None, true, false);
@@ -74,53 +54,6 @@ fn image_rejects_the_obsolete_primary_only_atom_shape() {
     ));
 }
 
-#[test]
-fn image_rejects_non_registration_direct_inputs() {
-    let coordinate = ConeCoordinate::reserved_single_file();
-    let (foundation, digest_plan) = image_fixture(coordinate.clone(), None, true, true);
-    let primary = foundation
-        .resolve_definition_atom(
-            foundation.definition_plans()[0].id(),
-            DefinitionAtomRole::Primary,
-        )
-        .unwrap()
-        .1;
-    let extra = DigestNodeV1::new(
-        DigestNodeKey::object_definition(primary),
-        Vec::new(),
-        Vec::new(),
-    )
-    .unwrap();
-    let image = digest_plan
-        .nodes()
-        .iter()
-        .find(|node| node.key() == &DigestNodeKey::runtime_image(coordinate.identity().unwrap()))
-        .unwrap();
-    let image = DigestNodeV1::new(
-        *image.key(),
-        vec![DigestInputRefV1::from_node(&extra)],
-        image
-            .patch_intents()
-            .iter()
-            .map(|patch| *patch.key())
-            .collect(),
-    )
-    .unwrap();
-    let digest_plan = DigestFinalizationPlanV1::new(vec![extra, image], &foundation).unwrap();
-    let registrations = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
-
-    assert!(matches!(
-        ConeImagePlanV1::new(
-            coordinate,
-            &[scoop_identity::ConeIdentity::CORE],
-            &foundation,
-            &registrations,
-            &digest_plan
-        ),
-        Err(ConeImagePlanBuildError::RegistrationInputs { .. })
-    ));
-}
-
 pub(super) fn image_fixture(
     coordinate: ConeCoordinate,
     registration: Option<PersistentExactTypeId>,
@@ -135,7 +68,7 @@ pub(super) fn image_fixture(
     )
     .unwrap();
     let image_plan = CborIdentityRecord::from_key(image_plan_key).unwrap();
-    let image_plan_id = image_plan.id();
+
     let mut image_atoms = image_atoms(image_plan.id());
     if !include_support_atoms {
         image_atoms.truncate(1);
@@ -180,20 +113,8 @@ pub(super) fn image_fixture(
         ))
         .unwrap();
         let key = DigestNodeKey::object_definition(primary.id());
-        let node = DigestNodeId::from_key(&key).unwrap();
-        nodes.push(
-            DigestNodeV1::new(
-                key,
-                Vec::new(),
-                vec![DigestPatchIntentKey::new(
-                    node,
-                    registration_plan.id(),
-                    DefinitionAtomRole::Primary,
-                    DigestSemanticFieldRole::DescriptorDefinition,
-                )],
-            )
-            .unwrap(),
-        );
+
+        nodes.push(DigestNodeV1::new(key, Vec::new()).unwrap());
         image_atoms.extend([primary, registration_primary]);
         plans.push(descriptor);
         plans.push(registration_plan);
@@ -206,19 +127,13 @@ pub(super) fn image_fixture(
     let foundation = ConeLirFoundation::try_new(producer, canonical).unwrap();
 
     let image_key = DigestNodeKey::runtime_image(producer);
-    let image_node_id = DigestNodeId::from_key(&image_key).unwrap();
-    let image_patch = DigestPatchIntentKey::new(
-        image_node_id,
-        image_plan_id,
-        DefinitionAtomRole::Primary,
-        DigestSemanticFieldRole::RuntimeImage,
-    );
+
     let inputs = if image_depends_on_registration {
         nodes.iter().map(DigestInputRefV1::from_node).collect()
     } else {
         Vec::new()
     };
-    let image_node = DigestNodeV1::new(image_key, inputs, vec![image_patch]).unwrap();
+    let image_node = DigestNodeV1::new(image_key, inputs).unwrap();
     nodes.push(image_node);
     let digest_plan = DigestFinalizationPlanV1::new(nodes, &foundation).unwrap();
     (foundation, digest_plan)
@@ -294,11 +209,4 @@ fn image_atoms(
     keys.into_iter()
         .map(|key| CborIdentityRecord::from_key(key).unwrap())
         .collect()
-}
-
-fn unit_exact_type() -> PersistentExactTypeId {
-    PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(
-        CoreBuiltinNominal::Unit.identity_record().id(),
-    ))
-    .unwrap()
 }

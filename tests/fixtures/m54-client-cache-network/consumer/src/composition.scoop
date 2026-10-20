@@ -1,0 +1,58 @@
+import scoop.asyncio.*
+import scoop.collections.emptyList
+import scoop.crypto.x509.TrustStore
+import scoop.http.*
+import scoop.http.client.*
+import scoop.platform.fs.Path
+import scoop.test.*
+import scoop.url.Url
+
+internal fun cacheDiskNetwork(trust: TrustStore, url: Url, directory: Path) {
+    val clock = CacheClock()
+    LibuvEventLoop().run suspend { _ ->
+        val first = DiskHttpCache.open(directory)
+        withHttpClient(cacheConfig(trust, first, clock, Some("persistent"))) suspend { client ->
+            cacheGet(client, url, "on-disk", HttpCacheStatus.Network)
+        }
+        val reopened = DiskHttpCache.open(directory)
+        withHttpClient(cacheConfig(trust, reopened, clock, Some("persistent"))) suspend { client ->
+            cacheGet(client, url, "on-disk", HttpCacheStatus.Hit)
+        }
+        reopened.clear()
+    }
+}
+
+private class CacheCookieObserver : CookieJar {
+    var saves: Long = 0L
+    public override suspend fun load(request: HttpRequest): HttpCookieHeader = HttpCookieHeader(emptyList<HttpCookiePair>())
+    public override suspend fun save(request: HttpRequest, response: HttpResponseHead) { saves += 1L }
+}
+
+internal fun cacheCookies(trust: TrustStore, url: Url) {
+    val storage = MemoryHttpCache()
+    val clock = CacheClock()
+    val jar = CacheCookieObserver()
+    LibuvEventLoop().run suspend { _ ->
+        withHttpClient(cacheConfig(trust, storage, clock, jar = Some(jar))) suspend { client ->
+            cacheGet(client, url, "original", HttpCacheStatus.Network)
+            clock.advance(10L)
+            cacheGet(client, url, "original", HttpCacheStatus.Revalidated)
+            cacheGet(client, url, "original", HttpCacheStatus.Hit)
+            assertEquals(2L, jar.saves)
+        }
+    }
+}
+
+internal fun cacheDigest(trust: TrustStore, url: Url) {
+    val provider = HttpAuthenticator.digest(url.httpOrigin(), algorithms = [HttpDigestAlgorithm.Sha256], preferIntegrity = true,
+        credentials = suspend { _ -> HttpPasswordCredentials("Mufasa", "Circle of Life") })
+    val storage = MemoryHttpCache()
+    LibuvEventLoop().run suspend { _ ->
+        withHttpClient(cacheConfig(trust, storage, CacheClock(), authentication = HttpAuthenticationOptions([provider]))) suspend { client ->
+            cacheGet(client, url, "authenticated", HttpCacheStatus.Network)
+            cacheGet(client, url, "authenticated", HttpCacheStatus.Hit)
+            cacheGet(client, url, "authenticated", HttpCacheStatus.Hit)
+            assertEquals(1L, storage.entryCount)
+        }
+    }
+}

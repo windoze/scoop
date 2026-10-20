@@ -1,0 +1,79 @@
+package scoop.http.asyncio
+
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+
+internal fun prepareWsOutput(state: WsState): Boolean {
+    if (state.outputBusy || present(state.wire)) return false
+    if (present(state.shutdown) && !present(state.sentClose)) {
+        val value = state.shutdown!!.value
+        encodeWsControl(state, WebSocketOpcode.Close, value.toByteArray())
+        state.wire = Some(WsWireAction.Close(value))
+        return true
+    }
+    if (present(state.automaticPong)) {
+        val bytes = state.automaticPong!!
+        state.automaticPong = None
+        encodeWsControl(state, WebSocketOpcode.Pong, bytes)
+        state.wire = Some(WsWireAction.AutomaticPong)
+        return true
+    }
+    if (present(state.shutdown) || !present(state.writer) || state.writer!!.prepared) return false
+    val request = state.writer!!
+    when (request.action) {
+        case Data(message, buffer, count) -> {
+            encodeWsData(state, message, buffer, count, false)
+            request.accepted = count
+        }
+        case Finish(message) -> encodeWsData(state, message, state.output, 0L, true)
+        case Flush -> state.output.clear()
+        case Ping(bytes) -> encodeWsControl(state, WebSocketOpcode.Ping, bytes)
+        case Pong(bytes) -> encodeWsControl(state, WebSocketOpcode.Pong, bytes)
+    }
+    request.prepared = true
+    state.wire = Some(WsWireAction.Application(request))
+    return true
+}
+
+private fun encodeWsData(state: WsState, message: WsOutgoing, buffer: NativeByteBuffer, count: Long, isFinal: Boolean) {
+    val opcode = if (!message.first) WebSocketOpcode.Continuation
+        else if (message.type == WebSocketMessageType.Text) WebSocketOpcode.Text else WebSocketOpcode.Binary
+    val header = state.encoder.beginFrame(WebSocketFrameHead(opcode, count, isFinal, message.first && message.isCompressed))
+    val bytes = if (count == 0L) "".toByteArray() else state.encoder.writePayload(buffer, count)
+    state.encoder.finishFrame()
+    message.first = false
+    state.output.clear()
+    state.output.writeBytes(header)
+    state.output.writeBytes(bytes)
+}
+
+private fun encodeWsControl(state: WsState, opcode: WebSocketOpcode, bytes: Array<Byte>) {
+    state.output.clear()
+    state.output.writeBytes(bytes)
+    val header = state.encoder.beginFrame(WebSocketFrameHead(opcode, bytes.size))
+    val payload = state.encoder.writePayload(state.output, bytes.size)
+    state.encoder.finishFrame()
+    state.output.clear()
+    state.output.writeBytes(header)
+    state.output.writeBytes(payload)
+}
+
+internal fun finishWsWire(state: WsState, actions: ArrayList<() -> Unit>) {
+    val wire = state.wire!!
+    state.wire = None
+    state.output.clear()
+    when (wire) {
+        case Close(value) -> state.sentClose = Some(value)
+        case AutomaticPong -> {}
+        case Application(request) -> {
+            request.flushed = true
+            when (request.action) {
+                case Finish(message) -> { completeWsLife(message.life, actions); state.outgoing = None }
+                case Ping(_) -> { if (!request.pongSeen) return }
+                else -> {}
+            }
+            state.writer = None
+            succeedWsWait(request.wait, request.accepted, actions)
+        }
+    }
+}

@@ -1,0 +1,33 @@
+package scoop.http.client
+
+import scoop.http.*
+
+internal fun validateClientSseRequest(request: HttpRequest, options: HttpSseOptions): String {
+    if (clientPresent(options.reconnect) && !request.body.isReplayable)
+        throw HttpSseException(HttpSseFailureReason.BodyNotReplayable, request.url)
+    if (request.options.cacheMode == HttpCacheMode.OnlyIfCached || HttpCacheControl.parseFields(request.fields).contains("only-if-cached"))
+        throw IllegalArgumentException(Some("SSE requires a network response"))
+    val ids = request.fields.findAll("Last-Event-ID".toByteArray())
+    if (ids.size > 1L || (ids.size != 0L && clientPresent(options.initialLastEventId)))
+        throw IllegalArgumentException(Some("SSE needs a single initial Last-Event-ID"))
+    val id = options.initialLastEventId ?: if (ids.size == 0L) "" else String.fromUtf8(ids[0L].value)
+    HttpField("Last-Event-ID".toByteArray(), id.toByteArray()).validate()
+    return id
+}
+
+internal fun clientSseRequest(state: ClientSseState): HttpRequest {
+    val original = state.original
+    val fields = ArrayList<HttpField>()
+    for (field in original.suppliedFields) if (!field.hasName("Last-Event-ID".toByteArray())) fields.add(field)
+    if (!clientCacheHas(original.fields, "Accept")) fields.add(HttpField("Accept".toByteArray(), "text/event-stream".toByteArray()))
+    if (!clientCacheHas(original.fields, "Cache-Control")) fields.add(HttpField("Cache-Control".toByteArray(), "no-cache".toByteArray()))
+    if (state.lastEventId != "") fields.add(HttpField("Last-Event-ID".toByteArray(), state.lastEventId.toByteArray()))
+    val options = original.options
+    val decoding = options.decoding ?: state.client.config.decoding
+    val prepared = HttpCallOptions(duplex = options.duplex, expectContinue = options.expectContinue, continueWait = options.continueWait,
+        decoding = Some(HttpDecodingOptions(HttpContentDecoding.Automatic, decoding.bufferSize, decoding.maxWindowBytes)),
+        timeouts = options.timeouts, onInformational = options.onInformational, redirects = options.redirects,
+        retries = options.retries, authentication = options.authentication, proxy = options.proxy,
+        useCookies = options.useCookies, cookieContext = options.cookieContext, cacheMode = HttpCacheMode.Bypass)
+    return HttpRequest(original.url, original.method, fields, original.body, prepared)
+}

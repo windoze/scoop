@@ -1,0 +1,66 @@
+package scoop.http
+
+import scoop.time.Instant
+
+public enum HttpCookieSameSite { Default, Strict, Lax, None }
+
+internal class CookieAttributes(
+    val expires: Instant?, val maxAge: Long?, val domain: Array<Byte>?, val path: Array<Byte>?,
+    val secure: Boolean, val httpOnly: Boolean, val sameSite: HttpCookieSameSite
+)
+
+internal fun interpretCookieAttributes(attributes: List<HttpCookieAttribute>): CookieAttributes {
+    var expires: Instant? = None
+    var maxAge: Long? = None
+    var domain: Array<Byte>? = None
+    var path: Array<Byte>? = None
+    var secure = false
+    var httpOnly = false
+    var sameSite = HttpCookieSameSite.Default
+    for (attribute in attributes) {
+        val value: Array<Byte> = when (attribute.value) { case None -> []; case Some(bytes) -> bytes }
+        if (value.size > 1024L) continue
+        if (attribute.hasName("expires")) {
+            when (HttpCookieDate.parseOrNone(value)) { case None -> {}; case Some(date) -> expires = Some(date) }
+        } else if (attribute.hasName("max-age")) {
+            when (cookieMaxAge(value)) { case None -> {}; case Some(seconds) -> maxAge = Some(seconds) }
+        } else if (attribute.hasName("domain")) domain = Some(cookieDomainBytes(value))
+        else if (attribute.hasName("path")) path = Some(value)
+        else if (attribute.hasName("secure")) secure = true
+        else if (attribute.hasName("httponly")) httpOnly = true
+        else if (attribute.hasName("samesite")) {
+            sameSite = if (httpAsciiEqual(value, "strict".toByteArray())) HttpCookieSameSite.Strict
+                else if (httpAsciiEqual(value, "lax".toByteArray())) HttpCookieSameSite.Lax
+                else if (httpAsciiEqual(value, "none".toByteArray())) HttpCookieSameSite.None else HttpCookieSameSite.Default
+        }
+    }
+    return CookieAttributes(expires, maxAge, domain, path, secure, httpOnly, sameSite)
+}
+
+private fun cookieDomainBytes(value: Array<Byte>): Array<Byte> {
+    val start = if (value.size > 0L && value[0L] == 46.toByte()) 1L else 0L
+    return Array<Byte>(value.size - start) { index ->
+        val c = value[start + index].toUByte().toInt()
+        (if (c >= 65 && c <= 90) c + 32 else c).toByte()
+    }
+}
+
+private fun cookieMaxAge(value: List<Byte>): Long? {
+    if (value.size == 0L) return None
+    val negative = value[0L] == 45.toByte()
+    var index = if (negative) 1L else 0L
+    if (index == value.size) return None
+    var amount = 0L
+    var overflow = false
+    while (index < value.size) {
+        val digit = value[index].toUByte().toLong() - 48L
+        if (digit < 0L || digit > 9L) return None
+        if (!overflow) {
+            if (amount > (Long.MAX_VALUE - digit) / 10L) overflow = true
+            else amount = amount * 10L + digit
+        }
+        index += 1L
+    }
+    if (overflow) return Some(if (negative) Long.MIN_VALUE else Long.MAX_VALUE)
+    return Some(if (negative) -amount else amount)
+}

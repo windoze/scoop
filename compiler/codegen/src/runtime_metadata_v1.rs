@@ -16,33 +16,25 @@ mod image;
 pub(crate) use image::emit_cone_image_v1;
 pub use image::{
     EmittedConeImageSupportAtomV1, EmittedConeImageSupportAtomsV1, EmittedConeImageV1,
-    RuntimeImagePatchSiteV1,
 };
 
 mod entry;
 pub(crate) use entry::emit_entry_production_v1;
-pub use entry::{EmittedEntryProductionV1, EmittedRootEntryV1, RootEntryPatchSiteV1};
+pub use entry::{EmittedEntryProductionV1, EmittedRootEntryV1};
 
 mod safepoint;
 pub(crate) use safepoint::emit_strong_safepoint_registrations_v1;
 pub use safepoint::{
     EmittedStrongSafepointRegistrationSetV1, EmittedStrongSafepointRegistrationV1,
-    SafepointRegistrationPatchSiteV1,
 };
 
 mod callable;
 pub(crate) use callable::emit_strong_callable_registrations_v1;
-pub use callable::{
-    CallableRegistrationPatchSiteV1, EmittedStrongCallableRegistrationSetV1,
-    EmittedStrongCallableRegistrationV1,
-};
+pub use callable::{EmittedStrongCallableRegistrationSetV1, EmittedStrongCallableRegistrationV1};
 
 mod type_registration;
 pub(crate) use type_registration::emit_strong_type_registrations_v1;
-pub use type_registration::{
-    EmittedStrongTypeRegistrationSetV1, EmittedStrongTypeRegistrationV1,
-    TypeRegistrationPatchSiteV1,
-};
+pub use type_registration::{EmittedStrongTypeRegistrationSetV1, EmittedStrongTypeRegistrationV1};
 
 mod immortal_registration;
 pub(crate) use immortal_registration::emit_strong_immortal_object_registrations_v1;
@@ -53,8 +45,7 @@ pub use immortal_registration::{
 mod initialization;
 pub(crate) use initialization::emit_strong_initialization_unit_registrations_v1;
 pub use initialization::{
-    EmittedStrongInitializationUnitRegistrationSetV1,
-    EmittedStrongInitializationUnitRegistrationV1, InitializationRegistrationPatchSiteV1,
+    EmittedStrongInitializationUnitRegistrationSetV1, EmittedStrongInitializationUnitRegistrationV1,
 };
 
 mod static_storage;
@@ -62,11 +53,9 @@ pub(crate) use static_storage::emit_strong_static_storage_registrations_v1;
 pub use static_storage::{
     EmittedStaticStorageInitialStateV1, EmittedStaticStorageRelocationTableV1,
     EmittedStrongStaticStorageRegistrationSetV1, EmittedStrongStaticStorageRegistrationV1,
-    StaticStorageRegistrationPatchSiteV1,
 };
 
 mod production;
-pub use production::{EmittedStrongRuntimeMetadataV1, ProvisionalStrongDigestPatchLocationV1};
 pub(crate) use production::{
     emit_callable_metadata_v1, emit_callable_safepoints, emit_strong_runtime_metadata_v1,
 };
@@ -185,7 +174,7 @@ const STATIC_IMMORTAL_RELOCATION: ExpectedStruct = ExpectedStruct {
 };
 const STATIC_STORAGE_DESCRIPTOR: ExpectedStruct = ExpectedStruct {
     name: "ScoopStaticStorageDescriptorV1",
-    size: 264,
+    size: 200,
     alignment: 8,
     fields: expected_fields!(
         "prefix" => 0,
@@ -197,16 +186,14 @@ const STATIC_STORAGE_DESCRIPTOR: ExpectedStruct = ExpectedStruct {
         "allocation_extent" => 144,
         "required_alignment" => 152,
         "scan_program" => 160,
-        "scan_fingerprint" => 168,
-        "layout_fingerprint" => 200,
-        "initial_template" => 232,
-        "initial_relocations" => 248,
-        "initial_relocation_count" => 256,
+        "initial_template" => 168,
+        "initial_relocations" => 184,
+        "initial_relocation_count" => 192,
     ),
 };
 const TYPE_REGISTRATION_DESCRIPTOR: ExpectedStruct = ExpectedStruct {
     name: "ScoopTypeRegistrationDescriptorV1",
-    size: 208,
+    size: 144,
     alignment: 8,
     fields: expected_fields!(
         "prefix" => 0,
@@ -214,21 +201,18 @@ const TYPE_REGISTRATION_DESCRIPTOR: ExpectedStruct = ExpectedStruct {
         "runtime_type_id" => 120,
         "reserved_zero" => 128,
         "descriptor" => 136,
-        "descriptor_fingerprint" => 144,
-        "layout_fingerprint" => 176,
     ),
 };
 const CALLABLE_REGISTRATION_DESCRIPTOR: ExpectedStruct = ExpectedStruct {
     name: "ScoopCallableRegistrationDescriptorV1",
-    size: 176,
+    size: 144,
     alignment: 8,
     fields: expected_fields!(
         "prefix" => 0,
         "registration" => 16,
-        "body_definition_fingerprint" => 120,
-        "entry" => 152,
-        "context_keys" => 160,
-        "context_key_count" => 168,
+        "entry" => 120,
+        "context_keys" => 128,
+        "context_key_count" => 136,
     ),
 };
 const IMMORTAL_OBJECT_DESCRIPTOR: ExpectedStruct = ExpectedStruct {
@@ -246,7 +230,7 @@ const IMMORTAL_OBJECT_DESCRIPTOR: ExpectedStruct = ExpectedStruct {
 };
 const INITIALIZATION_UNIT_DESCRIPTOR: ExpectedStruct = ExpectedStruct {
     name: "ScoopInitializationUnitDescriptorV1",
-    size: 320,
+    size: 288,
     alignment: 8,
     fields: expected_fields!(
         "prefix" => 0,
@@ -262,13 +246,12 @@ const INITIALIZATION_UNIT_DESCRIPTOR: ExpectedStruct = ExpectedStruct {
         "initializer_entry" => 232,
         "ensure_entry" => 240,
         "startup_gateway_callable_id" => 248,
-        "startup_gateway_definition_fingerprint" => 280,
-        "startup_gateway" => 312,
+        "startup_gateway" => 280,
     ),
 };
 const SAFEPOINT_REGISTRATION_DESCRIPTOR: ExpectedStruct = ExpectedStruct {
     name: "ScoopSafepointRegistrationDescriptorV1",
-    size: 200,
+    size: 168,
     alignment: 8,
     fields: expected_fields!(
         "prefix" => 0,
@@ -277,46 +260,42 @@ const SAFEPOINT_REGISTRATION_DESCRIPTOR: ExpectedStruct = ExpectedStruct {
         "site_role" => 128,
         "root_pair_count" => 132,
         "owner_callable_id" => 136,
-        "normalized_stackmap_fingerprint" => 168,
     ),
 };
 const ROOT_ENTRY_DESCRIPTOR: ExpectedStruct = ExpectedStruct {
     name: "ScoopRootEntryDescriptorV1",
-    size: 192,
+    size: 128,
     alignment: 8,
     fields: expected_fields!(
         "prefix" => 0,
         "owner_cone_identity" => 16,
         "callable_id" => 48,
-        "source_signature_fingerprint" => 80,
-        "gateway_callable_id" => 112,
-        "gateway_definition_fingerprint" => 144,
-        "failure_root" => 176,
-        "gateway" => 184,
+        "gateway_callable_id" => 80,
+        "failure_root" => 112,
+        "gateway" => 120,
     ),
 };
 const IMAGE_DESCRIPTOR: ExpectedStruct = ExpectedStruct {
     name: "ScoopImageDescriptorV1",
-    size: 240,
+    size: 208,
     alignment: 8,
     fields: expected_fields!(
         "prefix" => 0,
         "cone" => 16,
-        "runtime_image_fingerprint" => 96,
-        "dependencies" => 128,
-        "dependency_count" => 136,
-        "static_storages" => 144,
-        "static_storage_count" => 152,
-        "immortal_objects" => 160,
-        "immortal_object_count" => 168,
-        "initialization_units" => 176,
-        "initialization_unit_count" => 184,
-        "type_registrations" => 192,
-        "type_registration_count" => 200,
-        "safepoints" => 208,
-        "safepoint_count" => 216,
-        "callables" => 224,
-        "callable_count" => 232,
+        "dependencies" => 96,
+        "dependency_count" => 104,
+        "static_storages" => 112,
+        "static_storage_count" => 120,
+        "immortal_objects" => 128,
+        "immortal_object_count" => 136,
+        "initialization_units" => 144,
+        "initialization_unit_count" => 152,
+        "type_registrations" => 160,
+        "type_registration_count" => 168,
+        "safepoints" => 176,
+        "safepoint_count" => 184,
+        "callables" => 192,
+        "callable_count" => 200,
     ),
 };
 /// All LLVM aggregate types in the private runtime metadata ABI.
@@ -414,8 +393,6 @@ impl<'ctx> RuntimeMetadataV1Types<'ctx> {
                 i64.into(),
                 i64.into(),
                 ptr.into(),
-                digest.into(),
-                digest.into(),
                 byte_span.into(),
                 ptr.into(),
                 i64.into(),
@@ -429,8 +406,6 @@ impl<'ctx> RuntimeMetadataV1Types<'ctx> {
                 i64.into(),
                 i64.into(),
                 ptr.into(),
-                digest.into(),
-                digest.into(),
             ],
             false,
         );
@@ -438,7 +413,6 @@ impl<'ctx> RuntimeMetadataV1Types<'ctx> {
             &[
                 descriptor_prefix.into(),
                 registration_identity.into(),
-                digest.into(),
                 ptr.into(),
                 ptr.into(),
                 i64.into(),
@@ -471,7 +445,6 @@ impl<'ctx> RuntimeMetadataV1Types<'ctx> {
                 ptr.into(),
                 ptr.into(),
                 digest.into(),
-                digest.into(),
                 ptr.into(),
             ],
             false,
@@ -484,15 +457,12 @@ impl<'ctx> RuntimeMetadataV1Types<'ctx> {
                 i32.into(),
                 i32.into(),
                 digest.into(),
-                digest.into(),
             ],
             false,
         );
         let root_entry_descriptor = context.struct_type(
             &[
                 descriptor_prefix.into(),
-                digest.into(),
-                digest.into(),
                 digest.into(),
                 digest.into(),
                 digest.into(),
@@ -505,7 +475,6 @@ impl<'ctx> RuntimeMetadataV1Types<'ctx> {
             &[
                 descriptor_prefix.into(),
                 cone_record.into(),
-                digest.into(),
                 ptr.into(),
                 i64.into(),
                 ptr.into(),

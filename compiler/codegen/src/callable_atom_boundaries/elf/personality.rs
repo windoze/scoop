@@ -26,8 +26,7 @@ pub(super) fn materialize(
 ) -> Result<SectionIndex, CodegenError> {
     const NAME: &str = "DW.ref.scoop_eh_personality";
     let symbol = output
-        .file
-        .symbol_by_name(NAME)
+        .original_symbol(NAME)
         .ok_or_else(|| error("missing LLVM personality indirection"))?;
     let section = symbol
         .section_index()

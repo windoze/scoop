@@ -1,0 +1,66 @@
+package scoop.tls
+
+import scoop.crypto.PrivateKey
+import scoop.crypto.DigestAlgorithm
+import scoop.crypto.digest
+import scoop.crypto.native.*
+import scoop.crypto.x509.*
+import scoop.tls.native.*
+
+public class TlsIdentity private constructor(retained: RetainedTlsIdentity) : Closeable {
+    private var handle: ULong = retained.handle
+    private val held: AtomicBoolean = AtomicBoolean(false)
+    public val leafCertificateSha256: Array<Byte> = retained.leafCertificateSha256
+
+    public constructor(certificates: List<Certificate>, privateKey: PrivateKey)
+        : this(retainIdentity(certificates, privateKey)) {}
+
+    public companion object {
+        public fun fromPem(certificates: String, privateKey: String): TlsIdentity {
+            val chain = parseCertificatesPem(certificates)
+            try { return PrivateKey.fromPem(privateKey).use { key -> TlsIdentity(chain, key) } }
+            finally { for (certificate in chain) certificate.close() }
+        }
+    }
+
+    private fun <T> locked(block: () -> T): T {
+        while (!held.compareAndSet(false, true, MemoryOrder.Acquire, MemoryOrder.Relaxed)) { }
+        try { return block() }
+        finally { held.store(false, MemoryOrder.Release) }
+    }
+
+    public val isClosed: Boolean get() = locked { handle == 0UL }
+
+    internal fun configure(context: ULong) {
+        locked {
+            if (handle == 0UL) throw IllegalStateException(Some("TLS identity is closed"))
+            @Unsafe { tlsValue(contextIdentity(context, handle), "configure TLS identity") }
+            Unit
+        }
+    }
+
+    public override fun close() {
+        locked {
+            val owned = handle
+            handle = 0UL
+            if (owned != 0UL) @Unsafe { identityFree(owned) }
+            Unit
+        }
+    }
+}
+
+private struct RetainedTlsIdentity(val handle: ULong, val leafCertificateSha256: Array<Byte>)
+
+private fun retainIdentity(certificates: List<Certificate>, privateKey: PrivateKey): RetainedTlsIdentity {
+    val chain = certificates.toArray()
+    if (chain.size == 0L) throw IllegalArgumentException(Some("TLS identity requires a certificate chain"))
+    val fingerprint = digest(DigestAlgorithm.Sha256, chain[0L].toDer())
+    @Unsafe {
+        val key = privateKeyHandle(privateKey)
+        val handles = Array<ULong>(chain.size) { index -> @Unsafe { return@Array certificateHandle(chain[index]) } }
+        return handles.withDataPointer { pointer, count ->
+            @Unsafe { return@withDataPointer RetainedTlsIdentity(
+                tlsValue(identityNew(key, pointer, count), "create TLS identity"), fingerprint) }
+        }
+    }
+}

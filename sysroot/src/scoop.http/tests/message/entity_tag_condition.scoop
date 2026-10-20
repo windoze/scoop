@@ -1,0 +1,65 @@
+package scoop.http
+
+import scoop.test.*
+
+@Test
+private class HttpEntityTagConditionTests {
+    @Test
+    fun `conditional lists preserve commas inside tags strength duplicates and original bytes`() {
+        val opaque = "x\\y"
+        val original = " , W/\"a,b\", \"" + opaque + "\", \"a,b\", \"\",, "
+        val parsed = HttpEntityTagCondition.parse(original)
+        assertFalse(parsed.isWildcard)
+        assertEquals(4L, parsed.tags.size)
+        assertEquals(original, String.fromUtf8(parsed.originalValue!!))
+        assertTrue(parsed.tags[0L].isWeak)
+        assertEquals(opaque, String.fromUtf8(parsed.tags[1L].opaque))
+        assertTrue(parsed.tags[0L].weaklyMatches(parsed.tags[2L]))
+        assertFalse(parsed.tags[0L].stronglyMatches(parsed.tags[2L]))
+        assertEquals(0L, parsed.tags[3L].opaque.size)
+        val canonical = "W/\"a,b\", \"" + opaque + "\", \"a,b\", \"\""
+        assertEquals(canonical, String.fromUtf8(parsed.toByteArray()))
+        assertEquals("If-Match", String.fromUtf8(parsed.toIfMatchField().name))
+        assertEquals("If-None-Match", String.fromUtf8(parsed.toIfNoneMatchField().name))
+        assertEquals(canonical, String.fromUtf8(parsed.toIfNoneMatchField().value))
+    }
+
+    @Test
+    fun `wildcard empty list and a literal star tag remain distinct immutable conditions`() {
+        val wildcard = HttpEntityTagCondition.parse(" \t*\t ", "If-Match")
+        assertTrue(wildcard.isWildcard)
+        assertEquals(0L, wildcard.tags.size)
+        assertEquals("*", String.fromUtf8(wildcard.toByteArray()))
+        assertEquals("*", String.fromUtf8(HttpEntityTagCondition.wildcard().toIfMatchField().value))
+        val star = HttpEntityTagCondition.parse("\"*\"")
+        assertFalse(star.isWildcard)
+        assertEquals("*", String.fromUtf8(star.tags[0L].opaque))
+        for (text in ["", ",, \t,"]) {
+            val empty = HttpEntityTagCondition.parse(text)
+            assertFalse(empty.isWildcard)
+            assertEquals(0L, empty.tags.size)
+            assertEquals(0L, empty.toByteArray().size)
+        }
+        val first = HttpEntityTag.parse("\"first\"")
+        val input = MutableArray<HttpEntityTag>(2L) { _ -> first }
+        val copied = HttpEntityTagCondition(input)
+        input[0L] = HttpEntityTag.parse("\"second\"")
+        gcCollect()
+        assertEquals(2L, copied.tags.size)
+        assertTrue(copied.tags[0L].stronglyMatches(first))
+        assertTrue(copied.tags[0L].stronglyMatches(copied.tags[1L]))
+        assertTrue(when (copied.originalValue) { case None -> true; case Some(_) -> false })
+    }
+
+    @Test
+    fun `mixed wildcards missing separators and invalid tags retain the selected field name`() {
+        for (text in ["*,\"a\"", "\"a\",*", ",*", "*,", "\"a\" \"b\"", "W/ \"a\"", "\"a\\\"b\"", "\"a\"\r\n"]) {
+            val error = assertFailsWith<HttpFieldParseException> { HttpEntityTagCondition.parse(text, "If-Match") }
+            assertEquals("If-Match", error.field)
+            assertTrue(when (HttpEntityTagCondition.parseOrNone(text)) { case None -> true; case Some(_) -> false })
+        }
+        val defaultError = assertFailsWith<HttpFieldParseException> { HttpEntityTagCondition.parse("*,\"a\"") }
+        assertEquals("If-None-Match", defaultError.field)
+        assertEquals(1L, defaultError.byteOffset)
+    }
+}

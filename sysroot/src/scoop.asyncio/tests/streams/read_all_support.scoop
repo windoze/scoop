@@ -1,0 +1,43 @@
+package scoop.asyncio
+
+import scoop.platform.memory.NativeByteBuffer
+
+internal class CollectGate {
+    private var ready: Boolean = false
+    private var waiter: Continuation<Unit>? = None
+    fun signal() {
+        ready = true
+        val continuation = waiter
+        waiter = None
+        continuation?.resume(Unit)
+    }
+    suspend fun await() {
+        suspendCoroutine<Unit> { continuation ->
+            if (ready) continuation.resume(Unit) else waiter = Some(continuation)
+        }
+    }
+}
+
+internal class HeldCollectSource : AsyncByteSource {
+    val started: CollectGate = CollectGate()
+    val release: CollectGate = CollectGate()
+    var buffer: NativeByteBuffer? = None
+    var calls: Int = 0
+
+    public override suspend fun readInto(target: NativeByteBuffer, count: Long): Long {
+        calls += 1
+        buffer = Some(target)
+        if (calls > 1) return 0L
+        @Unsafe {
+            val borrow = target.borrowWritable(1L)
+            var completed = 0L
+            try {
+                started.signal()
+                release.await()
+                borrow.pointer()!!.store(73.toByte())
+                completed = 1L
+                return completed
+            } finally { borrow.complete(completed) }
+        }
+    }
+}

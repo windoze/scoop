@@ -1,9 +1,8 @@
 use std::fmt;
 
 use scoop_identity::{
-    CallableBodyKey, DefinitionAtomRole, DigestNodeId, DigestNodeKey, DigestPatchIntentId,
-    DigestPatchIntentKey, DigestSemanticFieldRole, ExecutableEntryIdentity, LinkageClass,
-    ObjectDefinitionAtomId, ObjectDefinitionPlanId, ObjectDefinitionPlanKey,
+    CallableBodyKey, DefinitionAtomRole, DigestNodeId, DigestNodeKey, ExecutableEntryIdentity,
+    LinkageClass, ObjectDefinitionAtomId, ObjectDefinitionPlanId, ObjectDefinitionPlanKey,
     ObjectDefinitionPlanOwner, ObjectDefinitionPlanRole, PersistentCallableBodyId,
     PersistentStaticStorageId, PersistentSymbolError, PersistentSymbolKey, PersistentSymbolRequest,
     StaticStorageKey, StrongDefinitionEntity, StrongDefinitionEntityKind, StrongDefinitionRole,
@@ -96,19 +95,9 @@ pub(super) fn build_executable(
     )?;
     let gateway_atom = require_primary_atom(foundation, gateway_definition)?;
 
-    let source_node = require_digest_node(digests, DigestNodeKey::source_signature(main.body()))?;
-    let source_signature_patch = require_patch(
-        source_node,
-        root_descriptor_definition,
-        DigestSemanticFieldRole::SourceSignature,
-    )?;
-    let gateway_node =
-        require_digest_node(digests, DigestNodeKey::object_definition(gateway_atom))?;
-    let gateway_definition_patch = require_patch(
-        gateway_node,
-        root_descriptor_definition,
-        DigestSemanticFieldRole::GatewayDefinition,
-    )?;
+    require_digest_node(digests, DigestNodeKey::source_signature(main.body()))?;
+
+    require_digest_node(digests, DigestNodeKey::object_definition(gateway_atom))?;
 
     Ok(ExecutableEntryPlanV1 {
         root_cone,
@@ -120,8 +109,6 @@ pub(super) fn build_executable(
         gateway,
         root_descriptor_symbol,
         root_descriptor_definition,
-        source_signature_patch,
-        gateway_definition_patch,
     })
 }
 
@@ -264,29 +251,6 @@ fn require_digest_node(
         .ok_or(EntryProductionPlanBuildError::MissingDigestNode(id))
 }
 
-fn require_patch(
-    source: &crate::DigestNodeV1,
-    target_definition: ObjectDefinitionPlanId,
-    field: DigestSemanticFieldRole,
-) -> Result<DigestPatchIntentId, EntryProductionPlanBuildError> {
-    let key = DigestPatchIntentKey::new(
-        source.id(),
-        target_definition,
-        DefinitionAtomRole::Primary,
-        field,
-    );
-    let id = DigestPatchIntentId::from_key(&key).map_err(EntryProductionPlanBuildError::Hash)?;
-    source
-        .patch_intents()
-        .iter()
-        .any(|record| record.id() == id && record.key() == &key)
-        .then_some(id)
-        .ok_or(EntryProductionPlanBuildError::MissingPatch(
-            source.id(),
-            field,
-        ))
-}
-
 fn require_callable_registration(
     registrations: &RegistrationIdentitySurfaceV1,
     body: PersistentCallableBodyId,
@@ -354,7 +318,6 @@ pub enum EntryProductionPlanBuildError {
         actual: Vec<ObjectDefinitionAtomId>,
     },
     MissingDigestNode(DigestNodeId),
-    MissingPatch(DigestNodeId, DigestSemanticFieldRole),
 }
 
 impl fmt::Display for EntryProductionPlanBuildError {

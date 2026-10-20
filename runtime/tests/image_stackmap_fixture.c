@@ -86,7 +86,6 @@ void scoop_test_stackmap_setup(ScoopStackmapFixture *fixture) {
                        sizeof data->sites[index]},
             .registration = {.linkage_kind = SCOOP_REGISTRATION_LINKAGE_STRONG_V1,
                              .semantic_id = {{(uint8_t)(77 + index)}}},
-            .normalized_stackmap_fingerprint = {{33}},
             .safepoint_id = 11 + index,
             .site_role = SCOOP_SAFEPOINT_MANAGED_POLL_V1,
             .root_pair_count = index == 0 ? 1 : 0,

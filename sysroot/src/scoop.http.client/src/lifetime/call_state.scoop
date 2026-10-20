@@ -1,0 +1,174 @@
+package scoop.http.client
+
+import scoop.asyncio.IoClosedException
+import scoop.http.asyncio.AsyncHttp2Connection
+import scoop.http.WebSocketHandshake
+import scoop.http.HttpField
+import scoop.time.TimeMark
+
+internal class ClientCall(
+    val client: ClientState, val originalRequest: HttpRequest, caller: Job, val sequence: ClientRequestSequence,
+    result: Continuation<ClientCallResult>
+) {
+    var request: HttpRequest = originalRequest
+    var route: ClientRoute = ClientRoute.Direct
+    val authentication: ClientCallAuthentication = ClientCallAuthentication(ClientAuthenticationScope.Origin)
+    var proxyAuthentication: ClientCallAuthentication? = None
+    var bearerCleanup: ClientBearerCleanup? = None
+    val timeouts: HttpTimeoutOptions = sequence.timeouts
+    val started: TimeMark? = sequence.started
+    val observation: ClientObservation? = if (clientPresent(client.config.observer)) Some(ClientObservation(sequence)) else None
+    private val baseDeadlines: Boolean = timeouts.total != None || timeouts.poolAcquire != None || timeouts.responseHeaders != None ||
+        timeouts.resolve != None || timeouts.connect != None || timeouts.tlsHandshake != None
+    val usesDeadlines: Boolean get() = baseDeadlines || (timeouts.proxyHandshake != None && clientNeedsProxyHandshake(route))
+    val tracksProgress: Boolean get() = clientPresent(observation) || usesDeadlines || timeouts.readIdle != None || timeouts.writeIdle != None
+    val lock: ClientLock = ClientLock()
+    var caller: Job? = Some(caller)
+    var result: Continuation<ClientCallResult>? = Some(result)
+    var followUp: ClientFollowUp? = None
+    var webSocketHandshake: WebSocketHandshake? = None
+    var openedWebSocket: HttpWebSocketSession? = None
+    var attemptFields: Array<HttpField> = []
+    var attemptAuthorization: Boolean = false
+    var ioFailure: ClientIoFailure? = None
+    var uploadIoFailure: Throwable? = None
+    var userCallbackFailed: Boolean = false
+    var scope: CoroutineScope? = None
+    var observerScope: CoroutineScope? = None
+    var hold: Continuation<Unit>? = None
+    var callerListener: Disposable? = None
+    var jobListener: Disposable? = None
+    var dialWaiter: Continuation<ClientConnectResult<ClientConnection>>? = None
+    var upgradeWaiter: Continuation<AsyncHttp2Connection>? = None
+    var continueDecision: Boolean? = None
+    var continueWaiter: CancellableContinuation<Boolean>? = None
+    var endWaiter: Continuation<Unit>? = None
+    var lease: ClientPoolEntry? = None
+    var exchange: ClientExchange? = None
+    var responseStream: ClientResponseStream? = None
+    var cache: ClientCallCache? = None
+    var cacheStatus: HttpCacheStatus = HttpCacheStatus.Network
+    var http2StreamId: Int? = None
+    var responseInput: ClientResponseInput? = None
+    val deadlines: ArrayList<ClientDeadline> = ArrayList<ClientDeadline>()
+    var poolDeadline: ClientDeadline? = None
+    var requestBodyBytes: Long = sequence.requestBodyBytes
+    var encodedResponseBodyBytes: Long = sequence.encodedResponseBodyBytes
+    var responseBodyBytes: Long = sequence.responseBodyBytes
+    var upload: Job? = None
+    var bodyStarted: Boolean = false
+    var readDone: Boolean = false
+    var uploadDone: Boolean = false
+    var uploadComplete: Boolean = false
+    var stopUpload: Boolean = false
+    var ending: Boolean = false
+    var abandoned: Boolean = false
+    var completed: Boolean = false
+    var failure: Throwable? = None
+    var failureObserved: Boolean = false
+    var cleanupFailure: Throwable? = None
+    var observedCleanupFailure: Throwable? = None
+    val closeWaiters: ArrayList<Continuation<Unit>> = ArrayList<Continuation<Unit>>()
+}
+
+internal fun wakeClientCall(call: ClientCall) {
+    val wake: Continuation<Unit>? = call.lock.withLock {
+        if (!call.ending && !(call.readDone && call.uploadDone)) return@withLock None
+        val saved = call.endWaiter; call.endWaiter = None; saved
+    }
+    if (clientPresent(wake)) wake!!.resume(Unit)
+}
+
+internal fun cancelClientCall(call: ClientCall, error: Throwable, external: Boolean = false) {
+    val result: (CoroutineScope?, CoroutineScope?, Continuation<ClientConnectResult<ClientConnection>>?, Continuation<Unit>?, Continuation<AsyncHttp2Connection>?) = call.lock.withLock {
+        if (call.completed) return@withLock (None, None, None, None, None)
+        if (((!call.ending && !call.abandoned) || (external && clientObservedCallAcceptsCancellation(call))) && !clientPresent(call.failure))
+            call.failure = Some(error)
+        call.ending = true
+        val waiter = call.dialWaiter; call.dialWaiter = None
+        val end = call.endWaiter; call.endWaiter = None
+        val upgrade = call.upgradeWaiter; call.upgradeWaiter = None;
+        val observer: CoroutineScope? = if (external || !call.abandoned || clientPresent(call.failure) || clientPresent(call.cleanupFailure))
+            call.observerScope else None;
+        (call.scope, observer, waiter, end, upgrade)
+    }
+    val (scope, observation, dial, wake, upgrade) = result
+    if (clientPresent(scope)) scope!!.job.cancel()
+    if (clientPresent(observation)) observation!!.job.cancel()
+    if (clientPresent(dial)) dial!!.resumeWithException(error)
+    if (clientPresent(wake)) wake!!.resume(Unit)
+    if (clientPresent(upgrade)) upgrade!!.resumeWithException(error)
+    wakeClient(call.client)
+}
+
+internal fun failClientCall(call: ClientCall, error: Throwable, preserveSecondary: Boolean = false) {
+    val failure = if (call.lock.withLock { call.userCallbackFailed }) error else mapClientIoTimeout(call, error)
+    call.lock.withLock {
+        if (call.completed || (clientPresent(call.failure) && sameClientFailure(call.failure!!, failure))) return@withLock
+        if (failure is ResourceUseException && clientPresent(call.failure) && clientPresent(call.cleanupFailure) &&
+            sameClientFailure(call.failure!!, failure.primaryFailure) && sameClientFailure(call.cleanupFailure!!, failure.cleanupFailure))
+            return@withLock
+        if (call.abandoned) {
+            if (failure is ResourceUseException) call.cleanupFailure = Some(clientCombined(call.cleanupFailure, failure.cleanupFailure))
+            else if (!(failure is CancellationException)) call.cleanupFailure = Some(clientCombined(call.cleanupFailure, failure))
+        } else if (!clientPresent(call.failure)) call.failure = Some(failure)
+        else if (failure is ResourceUseException || preserveSecondary)
+            call.cleanupFailure = collectClientSecondary(call.failure!!, call.cleanupFailure, failure)
+        Unit
+    }
+    cancelClientCall(call, failure)
+}
+
+internal fun clientCallFailure(call: ClientCall): Throwable? = call.lock.withLock {
+    when (call.cleanupFailure) {
+        case Some(cleanup) -> Some(clientCombined(call.failure, cleanup))
+        case None -> call.failure
+    }
+}
+
+internal fun observeClientCallFailure(call: ClientCall): Throwable? {
+    return call.lock.withLock {
+        val failure = when (call.cleanupFailure) {
+            case Some(cleanup) -> Some(clientCombined(call.failure, cleanup))
+            case None -> call.failure
+        }
+        if (clientPresent(failure)) {
+            call.failureObserved = true
+            call.observedCleanupFailure = call.cleanupFailure
+        }
+        failure
+    }
+}
+
+internal fun unobservedClientCleanup(call: ClientCall): Throwable? = call.lock.withLock {
+    newClientCleanup(call.cleanupFailure, call.observedCleanupFailure)
+}
+
+private fun newClientCleanup(failure: Throwable?, observed: Throwable?): Throwable? {
+    val error = failure ?: return None
+    if (!clientPresent(observed)) return failure
+    if (error === observed!!) return None
+    if (error is ResourceUseException) {
+        val previous = newClientCleanup(Some(error.primaryFailure), observed)
+        if (!clientPresent(previous)) return Some(error.cleanupFailure)
+        if (previous!! !== error.primaryFailure) return Some(clientCombined(previous, error.cleanupFailure))
+    }
+    return failure
+}
+
+internal fun requireClientCall(call: ClientCall) {
+    checkClientDeadlines(call)
+    val error = call.lock.withLock { call.failure }
+    if (clientPresent(error)) throw error!!
+    if (call.lock.withLock { call.ending || call.completed }) throw IoClosedException()
+}
+
+internal suspend fun awaitClientCallEnd(call: ClientCall) {
+    suspendCoroutine<Unit> { continuation ->
+        val immediate = call.lock.withLock {
+            if (call.ending || (call.readDone && call.uploadDone)) true
+            else { call.endWaiter = Some(continuation); false }
+        }
+        if (immediate) continuation.resume(Unit)
+    }
+}

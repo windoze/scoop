@@ -1,0 +1,108 @@
+package scoop.tls
+
+import scoop.collections.emptyList
+import scoop.crypto.*
+import scoop.crypto.testdata.*
+import scoop.crypto.x509.*
+import scoop.test.*
+import scoop.tls.native.*
+
+@Test
+private class TlsIdentityTests {
+    @Test
+    fun `identity retains a chain snapshot and contexts retain it after all input owners close`() {
+        val leaf = Certificate.fromPem(clientPem())
+        val intermediate = Certificate.fromPem(intermediatePem())
+        val key = PrivateKey.fromPem(serverKeyPem())
+        val identity = try {
+            val certificates = ArrayList<Certificate>()
+            certificates.add(leaf); certificates.add(intermediate)
+            val result = TlsIdentity(certificates, key)
+            certificates.clear()
+            result
+        } finally { leaf.close(); intermediate.close(); key.close() }
+        identity.use {
+            assertFalse(identity.isClosed)
+            identityClientContext(identity, TlsOptions(TlsVersion.Tls12, TlsVersion.Tls12)).use { first ->
+                identityClientContext(identity, TlsOptions(TlsVersion.Tls13, TlsVersion.Tls13)).use { second ->
+                    identity.close()
+                    assertTrue(identity.isClosed)
+                    retainedIdentitySession(first, TlsVersion.Tls12)
+                    retainedIdentitySession(second, TlsVersion.Tls13)
+                }
+            }
+        }
+        assertTrue(identity.isClosed)
+    }
+
+    @Test
+    fun `identity rejects an empty chain mismatched key and malformed PEM input`() {
+        PrivateKey.fromPem(rootKeyPem()).use { wrong ->
+            assertFailsWith<IllegalArgumentException> { TlsIdentity(emptyList<Certificate>(), wrong) }
+            Certificate.fromPem(clientPem()).use { leaf ->
+                val error = assertFailsWith<TlsException> { TlsIdentity([leaf], wrong) }
+                assertTrue(error.kind == TlsFailureKind.Configuration)
+            }
+        }
+        assertFailsWith<CryptoException> { TlsIdentity.fromPem("", serverKeyPem()) }
+        assertFailsWith<CryptoException> { TlsIdentity.fromPem(clientPem(), "invalid key") }
+        assertFailsWith<CryptoException> { TlsIdentity.fromPem(clientPem() + "trailing", serverKeyPem()) }
+        TlsIdentity.fromPem(clientPem() + intermediatePem(), serverKeyPem()).use { assertFalse(it.isClosed) }
+    }
+
+    @Test
+    fun `closed identity inputs and closed identity configuration fail without consuming the trust store`() {
+        val leaf = Certificate.fromPem(clientPem())
+        val key = PrivateKey.fromPem(serverKeyPem())
+        try {
+            leaf.close()
+            assertFailsWith<IllegalStateException> { TlsIdentity([leaf], key) }
+            Certificate.fromPem(clientPem()).use { valid ->
+                key.close()
+                assertFailsWith<IllegalStateException> { TlsIdentity([valid], key) }
+            }
+        } finally { leaf.close(); key.close() }
+        TlsIdentity.fromPem(clientPem() + intermediatePem(), serverKeyPem()).use { identity ->
+            TrustStore.fromPem(rootPem()).use { store ->
+                identity.close()
+                assertFailsWith<IllegalStateException> { TlsClientContext(store, identity = Some(identity)) }
+                TlsClientContext(store).use { context ->
+                    TlsEngine.client(context, TlsPeerName.Dns("localhost")).use { Unit }
+                }
+                identity.close()
+            }
+        }
+    }
+
+    @Test
+    fun `a client identity does not bypass server trust purpose or DNS verification`() {
+        TlsIdentity.fromPem(clientPem() + intermediatePem(), serverKeyPem()).use { identity ->
+            val wrongName = handshakeFailure(identityClientContext(identity), serverContext(), TlsPeerName.Dns("wrong.test"))
+            assertTrue(wrongName.kind == TlsFailureKind.Verification)
+            val wrongPurpose = handshakeFailure(identityClientContext(identity), serverContext(leaf = clientPem()),
+                TlsPeerName.Dns("localhost"))
+            assertTrue(wrongPurpose.kind == TlsFailureKind.Verification)
+            TrustStore.fromCertificates(emptyList<Certificate>()).use { store ->
+                val untrusted = handshakeFailure(TlsClientContext(store, identity = Some(identity)),
+                    serverContext(), TlsPeerName.Dns("localhost"))
+                assertTrue(untrusted.kind == TlsFailureKind.Verification)
+            }
+        }
+    }
+}
+
+internal fun identityClientContext(identity: TlsIdentity, options: TlsOptions = TlsOptions()): TlsClientContext =
+    TrustStore.fromPem(rootPem()).use { store -> TlsClientContext(store, options, Some(identity)) }
+
+private fun retainedIdentitySession(context: TlsClientContext, version: TlsVersion) {
+    TlsEngine.client(context, TlsPeerName.Dns("localhost")).use { client ->
+        context.close()
+        serverContext(TlsOptions(version, version)).use { serverConfig ->
+            TlsEngine.server(serverConfig).use { server ->
+                serverConfig.close()
+                handshake(client, server, 37L)
+                assertTrue(client.connectionInfo.version == version)
+            }
+        }
+    }
+}

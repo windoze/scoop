@@ -7,7 +7,7 @@ impl SlibObjects {
         &self,
         stackmaps: ScoopStackmapSetV1,
     ) -> VerifiedStrongCallableFingerprintSetV1 {
-        let sites = self.sites(stackmaps.builtins().clone());
+        let sites = stackmaps.builtins().clone();
         let requirements = self.requirements(sites.clone());
         let objects = candidates(&self.objects);
         let registrations = bind_callable_registrations_v1(
@@ -17,8 +17,7 @@ impl SlibObjects {
                 .registration_production()
                 .callables()
                 .clone(),
-        )
-        .unwrap();
+        );
         let bodies = compute_strong_callable_body_object_fingerprints_v1(
             registrations,
             stackmaps,
@@ -35,13 +34,12 @@ impl SlibObjects {
 
     pub fn requirements(
         &self,
-        sites: ScoopLirDigestPatchSitesV1,
+        sites: VerifiedBuiltinObjectStrongRelocationSetV1,
     ) -> CanonicalUndefinedSymbolRequirementSetV1 {
-        let strong = sites.builtins().strong_relocations().clone();
+        let strong = sites.strong_relocations().clone();
         let bridges = self.emitted.production().generated_bridge_plan().clone();
-        let current =
-            verify_current_cone_undefined_requirements_v1(strong.clone(), bridges.clone())
-                .expect("current Cone requirements");
+        let current = verify_current_cone_undefined_requirements_v1(strong.clone(), bridges)
+            .expect("current Cone requirements");
         let native = scoop_lir::CanonicalNativeExternalRequirementSurfaceV1::from_foundation(
             self.emitted.target(),
             self.emitted.foundation(),
@@ -55,9 +53,6 @@ impl SlibObjects {
         let runtime =
             verify_runtime_and_eh_requirements_v1(source, self.emitted.target_selection())
                 .expect("runtime and EH requirements");
-        let external =
-            classify_c_bridge_target_support_requirements_v1(runtime, &bridges, &self.profile)
-                .expect("target support requirements");
-        finalize_undefined_symbol_requirements_v1(current, external)
+        finalize_undefined_symbol_requirements_v1(current, runtime)
     }
 }

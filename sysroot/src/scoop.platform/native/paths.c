@@ -1,4 +1,5 @@
 #define _GNU_SOURCE 1
+#include "paths.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -17,9 +18,7 @@ int64_t scoop_platform_string_length(const char *text) { return (int64_t)strlen(
 
 int scoop_platform_path_mkdir(const char *path, int mode) { return mkdir(path, (mode_t)mode); }
 int scoop_platform_path_delete(const char *path) { return remove(path); }
-int scoop_platform_path_symlink(const char *link, const char *target) {
-    return symlink(target, link);
-}
+int scoop_platform_path_symlink(const char *link, const char *target) { return symlink(target, link); }
 
 int scoop_platform_path_move(const char *source, const char *destination, bool replace) {
     if (replace)
@@ -47,10 +46,12 @@ const char *scoop_platform_temporary_directory(void) {
     return configured != NULL && configured[0] != '\0' ? configured : "/tmp";
 }
 
+int scoop_platform_file_temporary(char *pattern) { return mkostemp(pattern, O_CLOEXEC); }
+
 int scoop_platform_path_temporary(char *pattern, bool directory) {
     if (directory)
         return mkdtemp(pattern) == NULL ? -1 : 0;
-    int fd = mkostemp(pattern, O_CLOEXEC);
+    int fd = scoop_platform_file_temporary(pattern);
     if (fd < 0)
         return -1;
     /* No descriptor escapes this operation; close once, and remove on failure. */

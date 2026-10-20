@@ -1,0 +1,17 @@
+package scoop.compression
+
+import scoop.platform.io.ByteSource
+import scoop.platform.io.ByteSink
+import scoop.platform.io.copyTo
+
+public fun ByteSource.compressTo(destination: ByteSink, options: CompressionOptions = CompressionOptions.Zstd(ZstdOptions()),
+    bufferSize: Long = 8192L): CompressionTotals = CompressionSource(this, options, bufferSize).use { source ->
+    source.copyTo(destination, bufferSize)
+    source.totals
+}
+
+public fun ByteSource.decompressTo(destination: ByteSink, options: DecompressionOptions = DecompressionOptions(),
+    bufferSize: Long = 8192L): CompressionTotals = DecompressionSource(this, options, bufferSize).use { source ->
+    source.copyTo(destination, bufferSize)
+    source.totals
+}

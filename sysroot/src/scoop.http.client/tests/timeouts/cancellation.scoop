@@ -1,0 +1,46 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class HttpClientTimeoutCancellationTest {
+    @Test
+    fun `explicit cancellation and client close retain their result and dispose long timeout jobs`() {
+        val long = Some(Duration.seconds(3600L))
+        for (cancelCaller in [true, false]) {
+            withClientTimeoutTest(HttpTimeoutOptions(long, long, long)) suspend { _, scope, listener, config ->
+                val observed = BodyTestGate()
+                val done = BodyTestGate()
+                val serving = scope.launch suspend {
+                    AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                        connection.receiveRequest()!!.body.readAllBytes(0L)
+                        connection.sendResponse(HttpResponseHead(HttpVersion.Http11, 103U)).finish()
+                        done.await()
+                    }
+                }
+                val client = HttpClient.open(scope, config)
+                try {
+                    val failure = ClientTestFailureHolder()
+                    val executing = scope.launch suspend {
+                        try {
+                            client.execute(HttpRequest.get(clientTestUrl(listener),
+                                options = HttpCallOptions(onInformational = suspend { _ -> observed.signal() })))
+                            fail(Some("cancelled request succeeded"))
+                        } catch (error: Throwable) { failure.value = Some(error) }
+                    }
+                    observed.await()
+                    if (cancelCaller) executing.cancel() else client.close()
+                    executing.join()
+                    if (cancelCaller) assertTrue(failure.value!! is CancellationException)
+                    else assertTrue(failure.value!! is HttpClientClosedException)
+                } finally { client.close(); done.signal() }
+                serving.join()
+                assertFalse(scope.job.isCancelled)
+            }
+        }
+    }
+}

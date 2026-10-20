@@ -1,0 +1,44 @@
+import scoop.compression.*
+import scoop.charset.Charset
+import scoop.url.Url
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.concurrent.Thread
+import scoop.bytes.ByteArrayBuilder
+
+private fun exercise() {
+    val text = Url.parse("https://bücher.example/中文?q=日本").toIriString()
+    val bytes = Charset.Utf16LE.encode(text)
+    val cases = [CompressionOptions.Gzip(GzipOptions()), CompressionOptions.Zlib(DeflateOptions()),
+        CompressionOptions.RawDeflate(DeflateOptions()), CompressionOptions.Brotli(BrotliOptions()),
+        CompressionOptions.Zstd(ZstdOptions())]
+    for (options in cases) {
+        NativeByteBuffer.allocate(bytes.size).use { input ->
+            input.writeBytes(bytes)
+            NativeByteBuffer.allocate(1L).use { output ->
+                CompressionEncoder(options).use { encoder ->
+                    val result = ByteArrayBuilder()
+                    while (true) {
+                        output.clear()
+                        val step = if (input.readableBytes > 0L) encoder.process(input, output) else encoder.finish(output)
+                        gcCollect()
+                        result.append(output.readBytes(step.produced))
+                        if (step.state == CompressionState.Finished) break
+                    }
+                    val decoded = decompress(result.toByteArray(), DecompressionOptions(options.format))
+                    if (Charset.Utf16LE.decode(decoded) != text) throw IllegalStateException()
+                    if (encoder.totals.inputBytes != bytes.size) throw IllegalStateException()
+                    if (encoder.totals.outputBytes != result.size) throw IllegalStateException()
+                    Unit
+                }
+            }
+        }
+    }
+}
+
+fun main() {
+    val first = Thread.start { exercise() }
+    val second = Thread.start { exercise() }
+    try { first.join() } finally { second.join() }
+    exercise()
+    println("independent compression codecs")
+}

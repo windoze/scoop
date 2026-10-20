@@ -1,0 +1,30 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.MultipartSource
+import scoop.test.*
+
+internal suspend fun collectRequestBody(body: RequestBody, bufferSize: Long = 7L): Array<Byte> {
+    val output = BodyTestSink()
+    val written = body.writeTo(output, bufferSize)
+    assertEquals(output.bytes.size, written)
+    assertEquals(0L, output.closes)
+    return output.bytes.toByteArray()
+}
+
+internal suspend fun readBodyParts(body: RequestBody, expected: List<String>) {
+    val input = BodyTestSource(collectRequestBody(body))
+    val boundary = MultipartBoundary.fromMediaType(body.contentType!!)
+    MultipartSource(input, boundary, MultipartLimits(dataChunkBytes = 3L), 5L).useAsync suspend { source ->
+        for (value in expected) {
+            val part = source.nextPart()!!
+            assertEquals(value, String.fromUtf8(part.body.readAllBytes(10000L)))
+            assertTrue(part.body.isComplete)
+            part.body.close()
+        }
+        assertTrue(when (source.nextPart()) { case None -> true; case Some(_) -> false })
+        assertTrue(source.isFinished)
+    }
+    assertEquals(0L, input.closes)
+}

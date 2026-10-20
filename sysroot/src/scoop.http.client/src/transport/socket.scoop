@@ -1,0 +1,59 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.platform.net.*
+import scoop.platform.system.OsString
+import scoop.tls.TlsClientContext
+import scoop.tls.TlsPeerName
+import scoop.tls.asyncio.AsyncTlsStream
+import scoop.url.UrlHost
+
+internal suspend fun connectClientSocket(call: ClientCall, host: UrlHost, port: Int): AsyncTcpStream {
+    return when (host) {
+        case Dns(name) -> {
+            val options = clientTcpConnectOptions(call)
+            try { call.client.loop.connectTcp(OsString.fromString(name), port, options) }
+            catch (error: Throwable) {
+                val mapped = mapClientNetworkTimeout(call, error)
+                recordClientIoFailure(call, mapped)
+                throw mapped
+            }
+        }
+        case Ipv4(bytes) -> connectClientAddress(call, SocketAddress(IpAddress.fromByteArray(bytes), port))
+        case Ipv6(bytes) -> connectClientAddress(call, SocketAddress(IpAddress.fromByteArray(bytes), port))
+    }
+}
+
+private suspend fun connectClientAddress(call: ClientCall, address: SocketAddress): AsyncTcpStream {
+    observeClientPhase(call, ClientObservedPhase.Connect, true)
+    val deadline = startClientDeadline(call, call.scope!!, HttpTimeoutPhase.Connect, call.timeouts.connect)
+    try {
+        requireClientCall(call)
+        return finishClientNetworkStage(call, deadline, call.client.loop.connectTcp(address))
+    } catch (error: Throwable) { recordClientIoFailure(call, error); throw error }
+    finally { stopClientDeadline(deadline); observeClientPhase(call, ClientObservedPhase.Connect, false) }
+}
+
+internal suspend fun <T> connectClientTls(call: ClientCall, transport: T, peer: TlsPeerName, context: TlsClientContext,
+    phase: ClientObservedPhase = ClientObservedPhase.OriginTls): AsyncTlsStream
+    where T : AsyncByteStream, T : AsyncCloseable {
+    observeClientPhase(call, phase, true)
+    val deadline = startClientDeadline(call, call.scope!!, HttpTimeoutPhase.TlsHandshake, call.timeouts.tlsHandshake)
+    try {
+        requireClientCall(call)
+        return finishClientNetworkStage(call, deadline, AsyncTlsStream.takeOwnershipAsClient(transport, context, peer))
+    } catch (error: Throwable) { recordClientIoFailure(call, error); throw error }
+    finally { stopClientDeadline(deadline); observeClientPhase(call, phase, false) }
+}
+
+internal suspend fun <T : AsyncCloseable> finishClientNetworkStage(call: ClientCall, deadline: ClientDeadline?, connection: T): T {
+    try {
+        requireClientCall(call)
+        finishClientDeadline(deadline)
+        requireClientCall(call)
+        return connection
+    } catch (error: Throwable) {
+        try { connection.close() } catch (cleanup: Throwable) { throw ResourceUseException(error, cleanup) }
+        throw error
+    }
+}

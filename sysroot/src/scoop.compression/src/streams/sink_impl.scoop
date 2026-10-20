@@ -1,0 +1,69 @@
+package scoop.compression
+
+import scoop.platform.io.ByteSink
+import scoop.platform.io.WriteZeroException
+import scoop.platform.memory.NativeByteBuffer
+
+internal class SyncCompressionSink(
+    private val sink: ByteSink, resources: CompressionIoResources, owner: Closeable?
+) : ByteSink, Closeable {
+    private val state: CompressionWriteState = CompressionWriteState(resources)
+    private val guard: SyncCompressionOwner = SyncCompressionOwner(resources, owner)
+    val totals: CompressionTotals get() = state.totals
+    val failure: Throwable? get() = guard.failure
+
+    public override fun writeFrom(buffer: NativeByteBuffer, count: Long): Long {
+        guard.enter()
+        try {
+            requireCompressionTransfer(count, buffer.readableBytes)
+            state.requireWritable()
+            if (count == 0L) return 0L
+            try {
+                while (true) {
+                    drain()
+                    val step = state.process(buffer, count)
+                    drain()
+                    if (step.consumed > 0L) return step.consumed
+                }
+            } catch (error: Throwable) { guard.failure = Some(error); throw error }
+        } finally { guard.leave() }
+    }
+
+    private fun drain() {
+        val output = state.buffer
+        while (output.readableBytes > 0L) {
+            val requested = output.readableBytes
+            val before = output.readPosition
+            val count = try { sink.writeFrom(output, requested) }
+            finally { state.recordOutput(output.readPosition - before) }
+            requireCompressionProgress(count, requested, output.readPosition - before)
+            if (count == 0L) throw WriteZeroException()
+        }
+        output.clear()
+    }
+
+    public override fun flush() {
+        guard.enter()
+        try {
+            drain()
+            while (true) {
+                val step = state.flushStep()
+                drain()
+                if (step.state != CompressionState.NeedOutput) break
+            }
+            sink.flush()
+        } catch (error: Throwable) { guard.failure = Some(error); throw error }
+        finally { guard.leave() }
+    }
+
+    fun finish() {
+        guard.enter()
+        try {
+            drain()
+            while (!state.finished) { state.finishStep(); drain() }
+        } catch (error: Throwable) { guard.failure = Some(error); throw error }
+        finally { guard.leave() }
+    }
+
+    public override fun close() { guard.close() }
+}

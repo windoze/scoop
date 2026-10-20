@@ -1,0 +1,20 @@
+import scoop.crypto.*
+import scoop.io.encoding.Base64
+import scoop.text.*
+
+fun main() {
+    val input = "dGhlIHNhbXBsZSBub25jZQ==258EAFA5-E914-47DA-95CA-C5AB0DC85B11".toByteArray()
+    if (Base64.Default.encode(digest(DigestAlgorithm.Sha1, input)) != "s3pPLMBiTxaQ9kYGzzhZRbK+xOo=")
+        throw IllegalStateException()
+    Digest(DigestAlgorithm.Sha512_256).use { state ->
+        state.update("a".toByteArray())
+        gcCollect()
+        state.update("bc".toByteArray())
+        if (state.finish().toHexString() != "53048e2681941ef99b2e29b76b4c7dabe4c2d0c634fc6d46e0e2f13107e7af23")
+            throw IllegalStateException()
+        Unit
+    }
+    if (digest(DigestAlgorithm.Md5, "Mufasa:testrealm@host.com:Circle Of Life".toByteArray()).toHexString() !=
+        "939e7578ed9e3c518a452acee763bce9") throw IllegalStateException()
+    println("HTTP protocol digests")
+}

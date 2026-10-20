@@ -12,8 +12,7 @@
 
 enum {
     TEST_REGISTER_CAPACITY = 32,
-    TEST_OUTPUT_CAPACITY = 512,
-};
+    TEST_OUTPUT_CAPACITY = 512};
 
 struct _Unwind_Context {
     uintptr_t region_start;
@@ -34,8 +33,7 @@ static const uint8_t cleanup_lsda[] = {
     0,
     4,
     32,
-    0,
-};
+    0};
 
 static const uint8_t catch_lsda[] = {
     SCOOP_EH_DW_PE_OMIT,
@@ -52,8 +50,7 @@ static const uint8_t catch_lsda[] = {
     0,
     0,
     0,
-    0,
-};
+    0};
 
 static _Noreturn void test_fail(const char *condition, int line) {
     fprintf(stderr, "EH personality test failed at line %d: %s\n", line,

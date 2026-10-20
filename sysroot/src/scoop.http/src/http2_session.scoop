@@ -70,13 +70,22 @@ public class Http2Session private constructor(private var handle: ULong, public 
         }
     }
 
-    public fun receive(buffer: NativeByteBuffer, count: Long = buffer.readableBytes): Long {
+    public fun receive(buffer: NativeByteBuffer, count: Long = buffer.readableBytes): Long =
+        receiveBytes(nativeHandle(), buffer, count, false)
+
+    public fun receiveWithProgress(buffer: NativeByteBuffer, count: Long = buffer.readableBytes): Http2ReceiveResult {
         val owned = nativeHandle()
+        val received = receiveBytes(owned, buffer, count, true)
+        if (received == 0L) return Http2ReceiveResult(0L, ArrayList<Http2InputProgress>().toArray())
+        @Unsafe { return Http2ReceiveResult(received, http2ReadInputProgress(owned)) }
+    }
+
+    private fun receiveBytes(owned: ULong, buffer: NativeByteBuffer, count: Long, capture: Boolean): Long {
         if (count < 0L || count > buffer.readableBytes) throw IllegalArgumentException(Some("invalid HTTP/2 input count"))
         if (count == 0L) return 0L
         @Unsafe {
             val step = buffer.withReadableBytes { pointer, _ ->
-                @Unsafe { return@withReadableBytes http2Receive(owned, pointer!!, count) }
+                @Unsafe { return@withReadableBytes http2Receive(owned, pointer!!, count, if (capture) 1 else 0) }
             }
             buffer.skip(step.count)
             check(step.code, "receive HTTP/2", 0, HttpFailureScope.Connection)
@@ -84,17 +93,26 @@ public class Http2Session private constructor(private var handle: ULong, public 
         }
     }
 
-    public fun takeOutput(buffer: NativeByteBuffer, count: Long = buffer.writableBytes): Long {
+    public fun takeOutput(buffer: NativeByteBuffer, count: Long = buffer.writableBytes): Long =
+        takeOutputChunk(buffer, count).count
+
+    public fun takeOutputChunk(buffer: NativeByteBuffer, count: Long = buffer.writableBytes): Http2OutputChunk {
         val owned = nativeHandle()
         if (count < 0L || count > buffer.writableBytes) throw IllegalArgumentException(Some("invalid HTTP/2 output capacity"))
-        if (count == 0L) return 0L
+        if (count == 0L) return Http2OutputChunk(0L, 0, Http2OutputKind.Control)
         @Unsafe {
             val borrow = buffer.borrowWritable(count)
             val step = try { http2Output(owned, borrow.pointer()!!, count) }
                 catch (error: Throwable) { borrow.complete(0L); throw error }
             borrow.complete(step.count)
             check(step.code, "produce HTTP/2 output", 0, HttpFailureScope.Connection)
-            return step.count
+            val kind = when (step.kind) {
+                case 0 -> Http2OutputKind.Control
+                case 1 -> Http2OutputKind.Headers
+                case 2 -> Http2OutputKind.Data
+                else -> throw IllegalStateException(Some("invalid native HTTP/2 output kind"))
+            }
+            return Http2OutputChunk(step.count, step.streamId, kind)
         }
     }
 

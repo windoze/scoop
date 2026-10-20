@@ -1,0 +1,27 @@
+import scoop.asyncio.*
+import scoop.compression.asyncio.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.time.Duration
+
+internal suspend fun cancelledCompressionRead(loop: EventLoop, scope: CoroutineScope,
+    client: AsyncTcpStream, server: AsyncTcpStream) {
+    client.useAsync suspend { connection -> server.useAsync suspend { peer ->
+        NativeByteBuffer.allocate(4L).use suspend { output ->
+            val reading = scope.launch suspend {
+                AsyncDecompressionSource(connection).useAsync suspend { source -> source.readInto(output, 4L) }
+            }
+            loop.sleep(Duration.nanoseconds(1L))
+            gcCollect()
+            reading.cancel(); reading.join()
+            check(reading.isCancelled)
+            check(output.writePosition == 0L)
+            output.clear()
+            NativeByteBuffer.allocate(1L).use suspend { input ->
+                input.writeByte(42.toByte()); peer.writeFully(input)
+            }
+            connection.readFully(output, 1L)
+            check(output.readByte() == 42.toByte())
+            ensureActive()
+        }
+    } }
+}

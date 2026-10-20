@@ -6,8 +6,7 @@ static const ScoopTypeDescriptor wide_td = {
     .type_id = 804,
     .instance_shape = {.instance_kind = SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1,
                        .minimum_size = 30000,
-                       .instance_alignment = 16},
-};
+                       .instance_alignment = 16}};
 
 int main(void) {
     const ScoopTypeDescriptor *types[] = {&nursery_node_td, &wide_td};
