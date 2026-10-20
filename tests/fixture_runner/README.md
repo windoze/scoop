@@ -71,6 +71,7 @@ stderr = ""
 顶层还可声明 `support`、`vars`、`variants`；每个变体只有 `name`、`vars`、`env`。
 未写 variants 时运行 `normal`。变体按顺序执行，各有独立 `${work}`，共享本次私有
 `${cache}` 与 `${sysroot}`。GC 正确性专测可用 `env = { SCOOP_GC_STRESS_MOVE = "1" }`，只影响该变体。
+普通预编译库功能用例使用批次共享的 `${cache}`，复用相同依赖的构建与链接准备。
 多 Cone 提交真实 `Cone.toml`，按普通 `copy` 步骤布置，runner 不合成入口或 manifest。
 native companion 显式作为 input，并用普通 argv 步骤调用 `${cc}`、`${ar}`，指定
 `{each = "${cc_args}"}` 和输出；随后传 `--library-path`。

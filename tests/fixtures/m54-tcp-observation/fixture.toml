@@ -12,7 +12,7 @@ files = [{copy = {from = "${fixture}/consumer", to = "${work}/consumer"}}]
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", "${work}/consumer", {each = "${mode}"}, {each = "${link_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json"]
+argv = ["${scoop}", "build", "${work}/consumer", {each = "${mode}"}, {each = "${link_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -30,7 +30,7 @@ stderr = ""
 
 [[steps]]
 name = "warm"
-argv = ["${scoop}", "build", "${work}/consumer", {each = "${mode}"}, {each = "${link_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json"]
+argv = ["${scoop}", "build", "${work}/consumer", {each = "${mode}"}, {each = "${link_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
 exit = 0
 stdout = ""
 stderr = ""
