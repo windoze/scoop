@@ -30,6 +30,7 @@ client manifest 没有 native 构建项。URL／IDNA、压缩、字符集、TLS�
 - MIR 保留挂起调用异常后继需要的旧值；LLVM safepoint、statepoint 与根恢复标记保持不可复制。四个 GC 正确性 fixture 专门覆盖分支加载、guarded unwrap、协程异常活跃值和 site 不可复制，不用于普通功能压力验收。
 - core 的作用域失败边界与 `nonCancellableScope`、协议取消、来源关闭和真实 native borrow 收尾已分别修复并验证。client 的缓存、下载、SSE、WebSocket、拦截器与 observer 保留主失败、清理异常和实际子树完成。
 - HTTP/2 在 GOAWAY 排空后丢弃待发 SETTINGS ACK 时，不再把 nghttp2 的 `SESSION_CLOSING` 误报为连接失败。旧 SDK 的确定性失败已复现，修复仅位于 HTTP 适配层；独立 ACK、异步排空、未发送拒绝、连接池和重试五项组合在 Darwin／GNU／musl 均已通过。
+- client 库编译采样定位到 LIR 符号与 ODR 定义的重复线性扫描；已改用已有排序和共享 callable 索引，同时修复删除 atom 后 foundation 索引仍返回旧记录的问题。key／linkage、定义顺序和 wire 保持，删除后查询的独立回归在旧实现确定失败。
 
 ## 验证安排
 
@@ -49,16 +50,17 @@ GC stress 只用于 GC 正确性的定向测试。普通功能与完整功能验
 | HTTP/2 ACK 修复 | GNU／musl 的 HTTP、HTTP asyncio 与 client 候选库构建成功；每目标五项普通回归全部通过，各 10 个变体、30 个进程 |
 | GNU 库与普通消费者 | 其他 10 个相关库的 debug／release 已通过；client 库验收尚待完成。剩余普通 fixture 正在逐项运行，已完成结果保留 |
 | musl 库与普通消费者 | 其他 10 个相关库的 debug／release 已通过；client 库验收尚待完成。剩余普通 fixture 正在逐项运行，已完成结果保留 |
-| 合并后的 Linux 集成 | 已在独立 checkout 构建三个新 release 工具，正在准备相应 SDK；随后分别验证 native 强／弱引用、Basic／H2 和 observer。原固定版本批次继续运行 |
+| 合并后的 Linux 集成 | 三个 release 工具及 GNU／musl 的 17 个 Cone／runtime 准备完成；native 强／弱引用、Basic／H2 和 observer 每目标四项全部通过，各 10 个变体、32 个进程 |
+| LIR 查询修复 | fmt／workspace clippy、1,245 项相关 Rust 测试与 1 项 doctest 通过；observer 的 debug／release 真实网络运行及无子进程 warm 构建通过。相同消费者的 debug `.slib` 字节与链接计划完全一致 |
 
-GNU client 首轮构建被系统 OOM 终止，内核记录已确认原因。大型库测试改为串行，普通 fixture 每目标使用一个 worker；重试完成前不将该库记为通过。此前普通批次因调整资源与切换已修复 SDK 而中止，保留已通过条目，仅续跑未完成部分。
+GNU 和 musl 的 client 库首次 debug 编译均被系统 OOM 终止，内核记录已确认；musl 单进程匿名 RSS 约 42 GiB。普通批次已在当前用例完成后正常中止并保存报告，为单个大型库编译留出内存，后续仅续跑未完成部分。局部查询修复的单次消费者编译为 82.90→79.62 秒，不据此声称稳定的整体加速或 OOM 已解决；client 两目标的 debug／release 仍待独立重试。
 
 已结束的旧 target 和诊断输出按批清理，保留需要复用的工具、源码、生产 SDK、缓存及实际报告。原始日志、JSON、历史进度副本与缓存归档均位于仓库外的 `scoop-work/m54`；本页不保存逐次流水账。
 
 ## 后续工作
 
 1. 完成 GNU／musl 剩余 client 库 profile 与普通功能消费者；修复真实失败并复验受影响范围。
-2. 完成合并后 Linux SDK 和必要集成回归，保留旧批次的实际版本与结果。
+2. 在 Linux 使用已验证的合并后 SDK 验收查询修复与剩余组合，保留旧批次的实际版本与结果。
 3. 汇总三目标最终结果，核对设计矩阵与分发资料，再更新 milestone／roadmap 为完成。
 
 HTTP/3、HTTP/2 WebSocket 和设计中列出的高级连接能力不属于本期。URL 保留 RFC 3986／3987 profile，IDNA 固定 Unicode 15.1；CPU codec 计算、DNS／native work 的实际终止及磁盘缓存单实例协调等边界遵守各自规范，不由 client 绕过。

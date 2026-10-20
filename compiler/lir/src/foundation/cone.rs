@@ -1,11 +1,12 @@
+use std::collections::BTreeMap;
 use std::fmt;
 use std::rc::Rc;
 
 use scoop_identity::{
-    ConeIdentity, DecodedCallableBodyKey, DecodedCallableBodyKeyKind, DefinitionAtomRole,
-    DefinitionOwner, GeneratedBridgeAtomId, LinkageClass, ObjectDefinitionAtomId,
-    ObjectDefinitionPlanId, ObjectDefinitionPlanOwner, OdrGroupId, OdrMemberId,
-    PersistentCallableBodyId, PersistentExactTypeId, PersistentStaticStorageId,
+    CallableBodyKeyKind, ConeIdentity, DecodedCallableBodyKey, DecodedCallableBodyKeyKind,
+    DefinitionAtomRole, DefinitionOwner, GeneratedBridgeAtomId, LinkageClass,
+    ObjectDefinitionAtomId, ObjectDefinitionPlanId, ObjectDefinitionPlanOwner, OdrGroupId,
+    OdrMemberId, PersistentCallableBodyId, PersistentExactTypeId, PersistentStaticStorageId,
     PersistentSymbolKey, PersistentSymbolRequest, SafepointId, StorageRole,
 };
 use scoop_wire::{Encoder, RuntimeDecodeError, WireEncode, decode_runtime};
@@ -25,6 +26,7 @@ pub struct ConeLirFoundation {
     producer: ConeIdentity,
     canonical: Rc<CanonicalLirFoundation>,
     atom_index: Rc<DefinitionAtomIndex>,
+    odr_callable_bodies: Rc<BTreeMap<OdrMemberId, PersistentCallableBodyId>>,
 }
 
 impl ConeLirFoundation {
@@ -118,6 +120,16 @@ impl ConeLirFoundation {
         Self {
             producer,
             atom_index: Rc::new(DefinitionAtomIndex::new(&foundation.definition_atoms)),
+            odr_callable_bodies: Rc::new(
+                foundation
+                    .callable_bodies
+                    .iter()
+                    .filter_map(|body| match body.key().kind() {
+                        CallableBodyKeyKind::Odr(member) => Some((member.member(), body.id())),
+                        _ => None,
+                    })
+                    .collect(),
+            ),
             canonical: Rc::new(foundation),
         }
     }
@@ -182,8 +194,16 @@ impl ConeLirFoundation {
     pub(crate) fn odr_member(&self, id: OdrMemberId) -> Option<&super::OdrMemberRecord> {
         self.canonical
             .odr_members
-            .iter()
-            .find(|record| record.id() == id)
+            .binary_search_by_key(&id, |record| record.id())
+            .ok()
+            .map(|index| &self.canonical.odr_members[index])
+    }
+
+    pub(crate) fn odr_callable_body(
+        &self,
+        member: OdrMemberId,
+    ) -> Option<PersistentCallableBodyId> {
+        self.odr_callable_bodies.get(&member).copied()
     }
 
     pub(crate) fn callable_bodies(&self) -> &[super::CallableBodyRecord] {
@@ -331,7 +351,7 @@ impl ConeLirFoundation {
     }
 
     pub(crate) fn contains_symbol_request(&self, request: PersistentSymbolRequest) -> bool {
-        self.canonical.symbol_requests.requests().contains(&request)
+        self.canonical.symbol_requests.contains(request)
     }
 
     pub(crate) fn bridge_units(&self) -> &[super::BridgeUnitRecord] {

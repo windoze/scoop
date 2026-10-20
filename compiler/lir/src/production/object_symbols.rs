@@ -155,15 +155,10 @@ impl ObjectSymbolSurfaceV1 {
         let mut symbol_owners = BTreeMap::new();
         for definition in definitions.plans() {
             let definition_plan = definition.plan();
-            let key = foundation
-                .definition_plan(definition_plan)
-                .ok_or(ObjectSymbolSurfaceBuildError::MissingDefinitionKey(
-                    definition_plan,
-                ))?
-                .key();
             let record = foundation.definition_plan(definition_plan).ok_or(
                 ObjectSymbolSurfaceBuildError::MissingDefinitionKey(definition_plan),
             )?;
+            let key = record.key();
             let (entity, definition_role) = foundation.definition_subject(record).ok_or(
                 ObjectSymbolSurfaceBuildError::UnknownDefinitionSubject(definition_plan),
             )?;

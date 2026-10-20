@@ -3,6 +3,37 @@ use std::collections::BTreeSet;
 use super::*;
 
 #[test]
+fn pruning_foundation_atoms_updates_queries_and_preserves_the_original() {
+    let fixture = fixture(true);
+    let filtered = fixture.foundation.without_codegen_records(
+        &BTreeSet::new(),
+        &BTreeSet::new(),
+        &BTreeSet::from([fixture.eh_frame.id()]),
+    );
+    assert_eq!(
+        filtered.resolve_definition_atom(fixture.plan.id(), DefinitionAtomRole::EhFrame),
+        Err(crate::DefinitionAtomResolutionError::Missing)
+    );
+    assert_eq!(
+        filtered.resolve_definition_atom(fixture.plan.id(), DefinitionAtomRole::Primary),
+        Ok((fixture.plan.id(), fixture.primary.id()))
+    );
+    assert_eq!(
+        filtered
+            .definition_atoms_for_plan(fixture.plan.id())
+            .map(|atom| atom.id())
+            .collect::<Vec<_>>(),
+        vec![fixture.primary.id()]
+    );
+    assert_eq!(
+        fixture
+            .foundation
+            .resolve_definition_atom(fixture.plan.id(), DefinitionAtomRole::EhFrame),
+        Ok((fixture.plan.id(), fixture.eh_frame.id()))
+    );
+}
+
+#[test]
 fn removing_codegen_records_updates_boundary_queries_without_changing_wire() {
     let fixture = fixture(true);
     let mut surface = ObjectSymbolSurfaceV1::from_foundation(&fixture.foundation).unwrap();
