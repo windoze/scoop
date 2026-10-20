@@ -16,9 +16,11 @@ use crate::ValidatedLirFoundation;
 
 mod atoms;
 mod codegen;
+mod definitions;
 mod native;
 
 use atoms::DefinitionAtomIndex;
+use definitions::DefinitionLookup;
 
 /// The physical producer and its single canonical LIR identity foundation.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -27,6 +29,7 @@ pub struct ConeLirFoundation {
     canonical: Rc<CanonicalLirFoundation>,
     atom_index: Rc<DefinitionAtomIndex>,
     odr_callable_bodies: Rc<BTreeMap<OdrMemberId, PersistentCallableBodyId>>,
+    definition_lookup: Rc<DefinitionLookup>,
 }
 
 impl ConeLirFoundation {
@@ -120,6 +123,7 @@ impl ConeLirFoundation {
         Self {
             producer,
             atom_index: Rc::new(DefinitionAtomIndex::new(&foundation.definition_atoms)),
+            definition_lookup: Rc::new(DefinitionLookup::new(&foundation)),
             odr_callable_bodies: Rc::new(
                 foundation
                     .callable_bodies

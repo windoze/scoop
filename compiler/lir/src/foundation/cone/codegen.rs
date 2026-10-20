@@ -44,6 +44,9 @@ impl ConeLirFoundation {
         canonical
             .definition_atoms
             .retain(|record| !atoms.contains(&record.id()));
+        if !members.is_empty() {
+            result.definition_lookup = Rc::new(DefinitionLookup::new(canonical));
+        }
         if !atoms.is_empty() {
             result.atom_index = Rc::new(DefinitionAtomIndex::new(&canonical.definition_atoms));
         }

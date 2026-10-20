@@ -281,6 +281,8 @@ LIR 保存目标上完整的类型布局、值表示、字段 offset、alignment
 
 definition、ODR member 与 symbol request 的查询复用各自已有的 canonical 排序；symbol request 命中仍须同时匹配 key 和 linkage。callable body 保留依赖顺序，通过与不可变 body 表共享的 member→body 索引解析 ODR 定义，不为每个定义扫描整张 callable 表。codegen 删除 atom 后同步更新 foundation 的 plan/role 与位置索引，保留原 foundation 的共享查询结果；这些查询优化不增加语义复核或 wire 数据。
 
+foundation 按 typed entity／role 反查 ODR 定义时，共享一次建立的 subject→member 与 body→位置索引；保留 Strong 定义优先、原表中首个匹配项及缺失记录的行为。codegen 删除 ODR member 后更新相关索引，原 foundation 与克隆仍各自返回所属记录，不因索引复用跳过实际类型、引用或格式检查。
+
 对象 symbol surface 同样为 atom boundary 建立一次查询索引，按 atom 的 typed identity 返回既有边界符号；逐 callable／safepoint 发射只查询实际需要的 atom，不重复建立整个 Cone 的 boundary 表。codegen 删除未发射的定义或 atom 后同步更新索引，不能返回已删除记录；索引不写入 wire，也不改变既有 symbol 或定义顺序。
 
 callable 对象发射直接借用 production 中已有的 runtime scan 计划，按 body identity 取得本函数的扫描树与 Context key；不在每个 LLVM module 中重新扫描全部函数来构造相同计划。Context cell 与扫描 atom 的边界也通过上述索引取得；无 callable 输出的 metadata module 不另建扫描计划。实际扫描内容、发射顺序和 GC 契约保持。
