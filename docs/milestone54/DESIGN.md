@@ -154,7 +154,7 @@ libidn2／libunistring／libiconv 按其库许可交付对应源码、修改说�
 | M54-3 统一 client 主线 | scoped client、request／response、H1／H2／ALPN、连接池、body 背压、早期响应、超时／取消；真实 HTTPS H1／H2 上传下载与单流取消 |
 | M54-4 请求策略与存储 | 重试／重定向、认证／代理、Cookie、内容编码、私有缓存、下载续传；组合可重放与单次 body，失败和取消不提交结果 |
 | M54-5 长连接与可观察性 | SSE、H1 WebSocket／WSS、permessage-deflate、suspend hooks、事件与诊断；与普通 H2 流并行，回调／取消互不污染 |
-| M54-6 三目标收尾 | API 用例、生产 `.slib` 消费、moving GC、相关正式 CLI fixture、依赖与分发资料；记录真实结果，更新 roadmap 状态 |
+| M54-6 三目标收尾 | API 用例、生产 `.slib` 消费、相关正式 CLI fixture、GC 契约改动的定向正确性测试、依赖与分发资料；记录真实结果，更新 roadmap 状态 |
 
 每批只做其实际需要的底层修复，不以新增通用框架作为验收前提。任一必需能力发现下层问题，回到所属库完成修复和独立回归；不能以“客户端已经有替代路径”跳过。
 
@@ -174,7 +174,7 @@ libidn2／libunistring／libiconv 按其库许可交付对应源码、修改说�
 
 同 Cone 的 scoop.test 验证库行为；少量正式文件 fixture 验证 API 组合、编译诊断、`.slib` 消费和 native 链接，不保存大规模 IR 快照。各特性有独立用例和组合用例，错误规则有对应失败检查。时序用明确同步点、loopback 动态端口和可控制的对端；不依赖公网稳定性，不通过删掉源或工具证明缓存复用。
 
-三个目标为 aarch64-apple-darwin、x86_64-unknown-linux-gnu、x86_64-unknown-linux-musl。分别运行适用的 debug／release／moving GC，不能以能生成 ELF 代替 Linux 运行。验收规模按实际变化确定；只有涉及编译器或 runtime 时才扩大相应回归，不把每批普通文档／库迭代都绑定到完整编译器验收。
+三个目标为 aarch64-apple-darwin、x86_64-unknown-linux-gnu、x86_64-unknown-linux-musl。分别运行适用的 debug／release，不能以能生成 ELF 代替 Linux 运行；GC stress 只用于 GC 正确性的定向测试，不作为普通功能或全量验收的运行模式。验收规模按实际变化确定；只有涉及编译器或 runtime 时才扩大相应回归，不把每批普通文档／库迭代都绑定到完整编译器验收。
 
 测试未通过的能力不能以文档状态或预编译包存在代替。最终进度文档只保留验证范围、结果概要、失败闭合与必要限制，原始日志／报告保存在仓库外。
 
