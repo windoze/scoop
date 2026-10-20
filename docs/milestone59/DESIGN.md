@@ -1,6 +1,6 @@
 # M59 设计：crossterm 的 Scoop 移植与 PTY 交互验收
 
-状态：实施中。日期：2026-10-20。本文记录移植范围、库与平台边界、实施顺序及测试方案；公共合同见[终端库规范](../specs/SCOOP-TERMINAL-SPEC.md)，实际实现与验证见[实施记录](PROGRESS.md)，参考项目的测试结果不算作 Scoop 的完成证据。
+状态：已完成。日期：2026-10-20。本文记录移植范围、库与平台边界、实施顺序及测试方案；公共合同见[终端库规范](../specs/SCOOP-TERMINAL-SPEC.md)，三目标实现、验收和限制见[实施记录](PROGRESS.md)，参考项目的测试结果不算作 Scoop 的完成证据。
 
 依据：[语言规范](../specs/SCOOP-SPEC.md)第 11～14、16 章、[运行时规范](../specs/SCOOP-RUNTIME-SPEC.md)、[实现规范](../specs/SCOOP-IMPL-SPEC.md)、[库 API 风格](../specs/SCOOP-API-STYLE.md)、[平台库规范](../specs/SCOOP-PLATFORM-SPEC.md)、[异步 I/O 规范](../specs/SCOOP-ASYNCIO-SPEC.md)及 [M52 工具链与 sysroot 分发](../milestone52/DESIGN.md)。
 

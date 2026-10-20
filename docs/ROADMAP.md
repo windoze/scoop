@@ -689,12 +689,13 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 全部挂起点为真正尾调用的协程直接转交 completion，省掉自身状态机；同步正文在 suspend ABI／状态机转换前内联。简单计数循环用外层 poll 覆盖有界内层，并单独验证受限向量化与移动 GC。
 - 面向 60 fps 桌面与低配置 PC，同时验收分配、minor／full 与 stop-wait 尾部、RSS、编译成本和代码体积。本轮原型与机制实验保留原基线和限制，未计为生产优化；M56 的已完成范围不变。
 
-### M59 crossterm 的 Scoop 移植与 PTY 交互验收（实施中，[设计](milestone59/DESIGN.md)、[规范](specs/SCOOP-TERMINAL-SPEC.md)、[进度](milestone59/PROGRESS.md)）
+### M59 crossterm 的 Scoop 移植与 PTY 交互验收（已完成，[设计](milestone59/DESIGN.md)、[规范](specs/SCOOP-TERMINAL-SPEC.md)、[验收记录](milestone59/PROGRESS.md)）
 
 - 以 crossterm 0.29.0 为基线，提供普通 `scoop.terminal` Cone：Scoop 实现命令、样式、事件与增量解析，C11 shim 处理 Unix TTY、raw mode、尺寸、等待和 resize 通知。
 - 首版覆盖现有 Darwin／GNU／musl 三目标；公共类型与内部平台源码边界允许后续 Windows 接入，本期不添加 Windows 实现或 manifest 占位。
 - 参考 atto-ui 的 portable-pty＋vt100 测试 host，启动真实 Scoop 程序、维护虚拟屏幕并注入交互；补齐查询回包、精确 cell／协议断言、终端状态恢复和退出排空，沿用普通 fixture 步骤。
-- 同步 read／poll 与查询共用单一输入通道；异步适配作为独立 Cone，先补齐 asyncio 的 TTY、取消与关闭合同，再完成相应验收。
+- 同步 read／poll 与查询共用单一输入通道；独立 `scoop.terminal.asyncio` 复用公共协议实现，使用实际异步 TTY、取消与关闭合同。
+- 三目标各 15 项 M59 fixture、30 个变体、68 个进程通过；Linux 两种 libc 各 62 项终端单测、3 项异步输出单测和 11 项相关网络回归通过，GNU／musl 的 tmux 3.6 smoke 通过。GUI 终端抽查与协议支持的限制见验收记录。
 
 ## 4. 待补齐清单（backlog）
 

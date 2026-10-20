@@ -1,20 +1,20 @@
 # M59 实施记录
 
-状态：实施中。依据：[设计](DESIGN.md)、[终端库规范](../specs/SCOOP-TERMINAL-SPEC.md)。按功能完成本机验证后提交，最后进行 Linux 三目标范围内的完整验收；Windows 不在本期实现范围。
+状态：已完成。依据：[设计](DESIGN.md)、[终端库规范](../specs/SCOOP-TERMINAL-SPEC.md)。按功能提交，本机与 Linux GNU／musl 验收已闭合；最终范围与限制见第 14 节。Windows 不在本期实现范围。
 
 ## 1. 功能进度
 
 | 功能 | 状态 | 验证 |
 | --- | --- | --- |
-| 公共合同与普通 Cone | 已建立；后续功能逐项补规范 | 文档检查，开发 sysroot 已发布新 Cone |
-| 命令／光标／屏幕 | 本机完成，PTY／Linux 随后验收 | 14 项单测 debug 与 release＋moving GC 均通过；3 项消费者 fixture、6 个变体通过 |
-| 样式与颜色策略 | 本机完成，PTY／Linux 随后验收 | 新增 11 项单测；全库 25 项 debug 与 release＋moving GC 均通过；2 项消费者 fixture、4 个变体通过 |
-| 事件数据与增量 parser | 本机完成，PTY／Linux 随后验收 | 新增 29 项单测；全库 54 项 debug 与 release＋moving GC 均通过；事件消费者 fixture 两个变体通过 |
-| Unix 会话、raw、resize、read／poll、查询 | 本机完成；Linux 随后验收 | 会话、输入、查询各自的 debug／release PTY fixture 通过 |
-| PTY host 与交互 fixture | 输出、输入、查询、raw、信号恢复与 asyncio TTY 本机完成 | host 5 项测试、runner 51 项规则测试通过；各 PTY fixture 的 debug／release 变体通过 |
-| Kitty／OSC 52 与组合覆盖 | 本机完成；Linux 随后验收 | Kitty 协议／探测单测和 PTY 场景通过；OSC 52 的 3 项单测及两个 PTY 消费者变体通过 |
-| asyncio TTY 与 terminal.asyncio | 本机完成；Linux 随后验收 | TTY、异步输入／查询的 debug／release PTY fixture、输出单测及相关 TCP／UDP 回归通过 |
-| Linux GNU／musl 验收与清理 | 待实施 | — |
+| 公共合同与普通 Cone | 已完成 | 三目标开发 sysroot 包含 terminal 与 terminal.asyncio |
+| 命令／光标／屏幕 | 已完成 | 编码、流组合与三目标 PTY 屏幕验收通过 |
+| 样式与颜色策略 | 已完成 | 颜色／属性、NO_COLOR 与三目标消费者通过 |
+| 事件数据与增量 parser | 已完成 | 分片、非法输入、查询回复、Unicode 与组合测试通过 |
+| Unix 会话、raw、resize、read／poll、查询 | 已完成 | 三目标会话、输入、查询的 debug／release PTY fixture 通过 |
+| PTY host 与交互 fixture | 已完成 | host 5 项、runner 51 项通过；三目标全部 M59 fixture 通过 |
+| Kitty／OSC 52 与组合覆盖 | 已完成 | 协议／探测单测和三目标 PTY 场景通过 |
+| asyncio TTY 与 terminal.asyncio | 已完成 | 三目标 TTY、异步输入／查询、输出单测及相关 TCP／UDP 回归通过 |
+| Linux GNU／musl 验收与清理 | 已完成 | 详见第 14 节；保留 release 工具，已清理不用的 dev 产物 |
 
 ## 2. 工作约定与环境
 
@@ -105,3 +105,36 @@ TCP 取消／关闭 3 项和 UDP 8 项回归在 release＋moving GC 下通过。
 新增 3 项异步输出单测和 2 项协议接口单测在 release＋moving GC 下通过，覆盖短写、UTF-8、编码失败、flush、无进展、resize 与字节前缀共存、结束状态及共享请求编码。Rust fmt／Clippy 与空白检查通过；异步生产文件最长 78 行。开发 sysroot 已包含 14 个 Cone。再次使用 Cargo 清理 dev 产物 25.4 GiB，target 约 722 MiB，release 工具保留。
 
 本机阶段汇总运行全部 15 项 M59 文件 fixture：30 个 debug／release 变体、68 个进程全部通过。Linux GNU／musl 的同范围验收继续单独记录。
+
+## 14. 三目标最终验收
+
+| 范围 | Darwin ARM64 | Linux GNU x86-64 | Linux musl x86-64 |
+| --- | --- | --- | --- |
+| 全部 M59 文件 fixture | 15／15；30 变体、68 进程 | 15／15；30 变体、68 进程 | 15／15；30 变体、68 进程 |
+| 终端库单测 | 第 3～13 节分批验证 | 62／62，release＋moving GC | 62／62，release＋moving GC |
+| 异步命令输出单测 | 3／3，release＋moving GC | 3／3，release＋moving GC | 3／3，release＋moving GC |
+| TCP 取消／关闭及 UDP 回归 | 11／11，release＋moving GC | 11／11，release＋moving GC | 11／11，release＋moving GC |
+| 真实 tmux 3.6 smoke | 未执行 | 同步／异步均通过 | 同步／异步均通过 |
+
+三目标文件 fixture 合计 90 个变体、204 个构建／运行进程；执行程序启用
+moving GC，覆盖真实 `.slib` 消费、debug／release、PTY 交互与恢复。Linux
+host 的 5 项测试及 fixture runner 的 51 项规则测试通过。没有为终端库
+重复执行整个编译器 fixture 集；移植中发现的 Mach-O 修复已按第 5 节单独验收。
+
+nuc12 使用 Ubuntu 26.04.1、glibc 2.43／musl 1.2.5、本机 LLVM 22.1.2，
+目标 libunwind 从固定 LLVM 22.1.8 源码准备；Darwin 工具使用 LLVM 22.1.8。
+musl 首次准备缺少 `linux/mman.h` 搜索路径，按 scripts/README 的既定办法
+为 musl-gcc 添加独立 Linux UAPI 目录后闭合；没有加入 libc 头混用或产品规避。
+Linux 检查了实际 SIGWINCH self-pipe、五种原 disposition 的共存／恢复，以及
+异步 poll 通知和原生资源关闭。
+
+tmux smoke 使用独立 socket 和真实 Scoop 程序，验证 CPR、Unicode 宽字符列数、
+resize、按键及同步／异步 raw 恢复，最后比较进入前后的实际 termios 并关闭
+测试 server。未逐一人工检查 macOS／Linux 的 GUI 终端产品；协议发送成功
+不表示所有终端实现都支持对应能力。vt100 不支持的 DECAWM 用原始序列验收，
+OSC 52 只捕获协议，不改变宿主剪贴板；其余兼容差异与无请求 ID 的查询限制
+见终端规范。
+
+所有功能按提交完成，最后本机 target 约 722 MiB、Linux target 约 1.1 GiB，
+保留已验证的 release 工具。原始日志在仓库外，源码、缓存和测试工具仍可复用；
+M47／M57 的既有文档修改未纳入本里程碑。
