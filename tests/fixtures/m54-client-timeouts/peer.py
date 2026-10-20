@@ -46,8 +46,11 @@ def serve_http2(connection):
     while not (5 in ended and reset):
         kind, flags, stream, payload = frame(connection)
         if kind == 1:
-            assert stream in (1, 3, 5) and stream not in headers and flags & 4
-            headers.add(stream)
+            assert stream in (1, 3, 5) and flags & 4
+            if stream in headers:
+                assert stream not in ended and flags == 5 and not payload
+            else:
+                headers.add(stream)
             if flags & 1:
                 ended.add(stream)
         elif kind == 0:

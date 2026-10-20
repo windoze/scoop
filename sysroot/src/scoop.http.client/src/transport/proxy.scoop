@@ -14,7 +14,7 @@ internal suspend fun connectClientHttpProxy(call: ClientCall, entry: ClientPoolE
     val options = endpoint.tls
     val tls = openTlsClientContext(options.trust,
         TlsOptions(options.minimum, options.maximum, ["http/1.1".toByteArray()]), options.identity).use suspend { context ->
-        connectClientTls(call, tcp, clientTlsPeer(endpoint.address.host), context)
+        connectClientTls(call, tcp, clientTlsPeer(endpoint.address.host), context, ClientObservedPhase.ProxyTls)
     }
     try {
         val selected: List<Byte>? = when (tls.connectionInfo.alpn) { case Some(bytes) -> Some(bytes); case None -> None }
@@ -44,13 +44,14 @@ internal suspend fun connectClientSocks5(call: ClientCall, entry: ClientPoolEntr
         case Ipv4(bytes) -> Socks5Address.Ip(SocketAddress(IpAddress.fromByteArray(bytes), origin.port))
         case Ipv6(bytes) -> Socks5Address.Ip(SocketAddress(IpAddress.fromByteArray(bytes), origin.port))
     }
+    observeClientPhase(call, ClientObservedPhase.ProxyHandshake, true)
     val deadline = startClientDeadline(call, call.scope!!, HttpTimeoutPhase.ProxyHandshake, call.timeouts.proxyHandshake)
     val tunnel = try {
         requireClientCall(call)
         finishClientNetworkStage(call, deadline,
             AsyncSocks5Tunnel.takeOwnership(tcp, destination, endpoint.credentials, endpoint.resolution))
     } catch (error: Throwable) { recordClientIoFailure(call, error); throw error }
-    finally { stopClientDeadline(deadline) }
+    finally { stopClientDeadline(deadline); observeClientPhase(call, ClientObservedPhase.ProxyHandshake, false) }
     return connectClientOrigin(call, entry, tunnel)
 }
 

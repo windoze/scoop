@@ -40,7 +40,7 @@ public class HttpResponseBody internal constructor(private val input: ClientResp
         val call = input.call
         val reader = clientJob(call.client.loop, true)
         if (!busy.compareAndSet(false, true)) throw IllegalStateException(Some("HTTP response body already has a reader"))
-        val listener = reader.invokeOnCancellation { error -> cancelClientCall(call, error) }
+        val listener = reader.invokeOnCancellation { error -> cancelClientCall(call, error, true) }
         try { return block(input) }
         finally { listener.dispose(); busy.store(false) }
     }

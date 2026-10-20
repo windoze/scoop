@@ -37,7 +37,8 @@ public class HttpClientConfig public constructor(
     public val cookieJar: CookieJar? = None,
     public val cache: HttpCacheOptions? = None,
     interceptors: List<HttpInterceptor> = emptyList<HttpInterceptor>(),
-    public val onAttempt: (suspend (HttpAttempt) -> List<HttpField>)? = None
+    public val onAttempt: (suspend (HttpAttempt) -> List<HttpField>)? = None,
+    public val observer: HttpObserver? = None
 ) {
     public val interceptors: Array<HttpInterceptor> = interceptors.toArray()
     init {

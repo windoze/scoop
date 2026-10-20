@@ -14,6 +14,7 @@ internal suspend fun sendClientBytes(call: ClientCall, destination: ClientExchan
         Unit
     }
     if (call.tracksProgress) requireClientCall(call)
+    if (written > 0L && clientPresent(call.observation)) emitClientEvent(call, HttpCallEventKind.RequestProgress)
     return written
 }
 

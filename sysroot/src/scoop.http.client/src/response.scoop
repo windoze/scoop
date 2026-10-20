@@ -14,6 +14,7 @@ public class HttpResponse internal constructor(internal val call: ClientCall, pu
     public val authenticationCount: Long = call.sequence.authenticationCount
     public val proxyAuthenticationCount: Long = call.sequence.proxyAuthenticationCount
     public val cacheStatus: HttpCacheStatus = call.cacheStatus
+    public val metrics: HttpAttemptMetrics? get() = clientMetrics(call)
     public val wireContentLength: Long? = parseHttpContentLength(head.fields)
     internal val input: ClientResponseInput = ClientResponseInput(call, clientResponseDecoding(call, head, wireContentLength), head)
     public val body: HttpResponseBody = HttpResponseBody(input, head.fields)

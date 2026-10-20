@@ -25,22 +25,25 @@ internal suspend fun connectClientSocket(call: ClientCall, host: UrlHost, port: 
 }
 
 private suspend fun connectClientAddress(call: ClientCall, address: SocketAddress): AsyncTcpStream {
+    observeClientPhase(call, ClientObservedPhase.Connect, true)
     val deadline = startClientDeadline(call, call.scope!!, HttpTimeoutPhase.Connect, call.timeouts.connect)
     try {
         requireClientCall(call)
         return finishClientNetworkStage(call, deadline, call.client.loop.connectTcp(address))
     } catch (error: Throwable) { recordClientIoFailure(call, error); throw error }
-    finally { stopClientDeadline(deadline) }
+    finally { stopClientDeadline(deadline); observeClientPhase(call, ClientObservedPhase.Connect, false) }
 }
 
-internal suspend fun <T> connectClientTls(call: ClientCall, transport: T, peer: TlsPeerName, context: TlsClientContext): AsyncTlsStream
+internal suspend fun <T> connectClientTls(call: ClientCall, transport: T, peer: TlsPeerName, context: TlsClientContext,
+    phase: ClientObservedPhase = ClientObservedPhase.OriginTls): AsyncTlsStream
     where T : AsyncByteStream, T : AsyncCloseable {
+    observeClientPhase(call, phase, true)
     val deadline = startClientDeadline(call, call.scope!!, HttpTimeoutPhase.TlsHandshake, call.timeouts.tlsHandshake)
     try {
         requireClientCall(call)
         return finishClientNetworkStage(call, deadline, AsyncTlsStream.takeOwnershipAsClient(transport, context, peer))
     } catch (error: Throwable) { recordClientIoFailure(call, error); throw error }
-    finally { stopClientDeadline(deadline) }
+    finally { stopClientDeadline(deadline); observeClientPhase(call, phase, false) }
 }
 
 internal suspend fun <T : AsyncCloseable> finishClientNetworkStage(call: ClientCall, deadline: ClientDeadline?, connection: T): T {

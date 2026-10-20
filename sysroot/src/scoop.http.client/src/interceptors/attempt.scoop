@@ -37,6 +37,7 @@ internal suspend fun prepareClientAttempt(call: ClientCall) {
     val snapshot = HttpAttempt(call)
     val active = ClientAttemptCallback(call)
     val added = try { context(active) { callback(snapshot).toArray() } }
+        catch (error: Throwable) { failClientUserCallback(call, error); throw error }
         finally { call.client.lock.withLock { active.active = false } }
     requireClientCall(call)
     val names = HashSet<String>()

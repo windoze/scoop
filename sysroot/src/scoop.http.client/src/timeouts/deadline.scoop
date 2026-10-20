@@ -67,16 +67,19 @@ internal fun finishClientPoolWait(call: ClientCall, now: TimeMark): HttpTimeoutE
     val expired = selectExpiredClientDeadline(call, now)
     if (clientPresent(expired)) return expired
     if (clientPresent(call.poolDeadline)) call.poolDeadline!!.active = false
+    observeClientPoolGranted(call, now)
     return None
 }
 
-internal fun stopClientDeadlines(call: ClientCall) {
+internal fun stopClientDeadlines(call: ClientCall, keepTotal: Boolean = false) {
     val deadlines = call.lock.withLock {
         val saved = call.deadlines.toArray()
         call.deadlines.clear(); call.poolDeadline = None
+        if (keepTotal) for (deadline in saved) if (deadline.phase == HttpTimeoutPhase.Total) call.deadlines.add(deadline)
         saved
     }
     for (deadline in deadlines) {
+        if (keepTotal && deadline.phase == HttpTimeoutPhase.Total) continue
         if (deadline.phase == HttpTimeoutPhase.Total) finishClientDeadline(Some(deadline))
         else stopClientDeadline(Some(deadline))
     }

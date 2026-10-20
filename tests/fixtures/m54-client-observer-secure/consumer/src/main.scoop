@@ -1,0 +1,23 @@
+import scoop.asyncio.*
+import scoop.crypto.testdata.rootPem
+import scoop.crypto.x509.TrustStore
+import scoop.http.client.*
+import scoop.test.*
+import scoop.text.toInt
+
+fun main(args: Array<String>) {
+    try {
+        TrustStore.fromPem(rootPem()).use { trust ->
+            when (args[1L]) {
+                "direct" -> observedDirectTls(trust, args[2L].toInt(), false)
+                "tls-failure" -> observedDirectTls(trust, args[2L].toInt(), true)
+                "forward" -> observedForwardTls(trust, args[2L].toInt())
+                else -> observedProxyTls(trust, args[2L].toInt(), args[1L])
+            }
+        }
+        println("secure observer case passed: " + args[1L])
+    } catch (error: AssertionFailure) {
+        eprintln(error.kind + " " + (error.message ?: "failure") + " at " + error.location.file + ":" + error.location.line.toString())
+        throw error
+    } catch (error: Exception) { eprintln(error.message ?: "secure observer failed"); throw error }
+}

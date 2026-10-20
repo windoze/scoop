@@ -17,10 +17,11 @@ internal class ClientCall(
     var bearerCleanup: ClientBearerCleanup? = None
     val timeouts: HttpTimeoutOptions = sequence.timeouts
     val started: TimeMark? = sequence.started
+    val observation: ClientObservation? = if (clientPresent(client.config.observer)) Some(ClientObservation(sequence)) else None
     private val baseDeadlines: Boolean = timeouts.total != None || timeouts.poolAcquire != None || timeouts.responseHeaders != None ||
         timeouts.resolve != None || timeouts.connect != None || timeouts.tlsHandshake != None
     val usesDeadlines: Boolean get() = baseDeadlines || (timeouts.proxyHandshake != None && clientNeedsProxyHandshake(route))
-    val tracksProgress: Boolean get() = usesDeadlines || timeouts.readIdle != None || timeouts.writeIdle != None
+    val tracksProgress: Boolean get() = clientPresent(observation) || usesDeadlines || timeouts.readIdle != None || timeouts.writeIdle != None
     val lock: ClientLock = ClientLock()
     var caller: Job? = Some(caller)
     var result: Continuation<ClientCallResult>? = Some(result)
@@ -31,7 +32,9 @@ internal class ClientCall(
     var attemptAuthorization: Boolean = false
     var ioFailure: ClientIoFailure? = None
     var uploadIoFailure: Throwable? = None
+    var userCallbackFailed: Boolean = false
     var scope: CoroutineScope? = None
+    var observerScope: CoroutineScope? = None
     var hold: Continuation<Unit>? = None
     var callerListener: Disposable? = None
     var jobListener: Disposable? = None
@@ -76,18 +79,22 @@ internal fun wakeClientCall(call: ClientCall) {
     if (clientPresent(wake)) wake!!.resume(Unit)
 }
 
-internal fun cancelClientCall(call: ClientCall, error: Throwable) {
-    val result: (CoroutineScope?, Continuation<ClientConnectResult<ClientConnection>>?, Continuation<Unit>?, Continuation<AsyncHttp2Connection>?) = call.lock.withLock {
-        if (call.completed) return@withLock (None, None, None, None)
-        if (!call.ending && !call.abandoned && !clientPresent(call.failure)) call.failure = Some(error)
+internal fun cancelClientCall(call: ClientCall, error: Throwable, external: Boolean = false) {
+    val result: (CoroutineScope?, CoroutineScope?, Continuation<ClientConnectResult<ClientConnection>>?, Continuation<Unit>?, Continuation<AsyncHttp2Connection>?) = call.lock.withLock {
+        if (call.completed) return@withLock (None, None, None, None, None)
+        if (((!call.ending && !call.abandoned) || (external && clientObservedCallAcceptsCancellation(call))) && !clientPresent(call.failure))
+            call.failure = Some(error)
         call.ending = true
         val waiter = call.dialWaiter; call.dialWaiter = None
         val end = call.endWaiter; call.endWaiter = None
         val upgrade = call.upgradeWaiter; call.upgradeWaiter = None;
-        (call.scope, waiter, end, upgrade)
+        val observer: CoroutineScope? = if (external || !call.abandoned || clientPresent(call.failure) || clientPresent(call.cleanupFailure))
+            call.observerScope else None;
+        (call.scope, observer, waiter, end, upgrade)
     }
-    val (scope, dial, wake, upgrade) = result
+    val (scope, observation, dial, wake, upgrade) = result
     if (clientPresent(scope)) scope!!.job.cancel()
+    if (clientPresent(observation)) observation!!.job.cancel()
     if (clientPresent(dial)) dial!!.resumeWithException(error)
     if (clientPresent(wake)) wake!!.resume(Unit)
     if (clientPresent(upgrade)) upgrade!!.resumeWithException(error)
@@ -95,7 +102,7 @@ internal fun cancelClientCall(call: ClientCall, error: Throwable) {
 }
 
 internal fun failClientCall(call: ClientCall, error: Throwable, preserveSecondary: Boolean = false) {
-    val failure = mapClientIoTimeout(call, error)
+    val failure = if (call.lock.withLock { call.userCallbackFailed }) error else mapClientIoTimeout(call, error)
     call.lock.withLock {
         if (call.completed || (clientPresent(call.failure) && sameClientFailure(call.failure!!, failure))) return@withLock
         if (failure is ResourceUseException && clientPresent(call.failure) && clientPresent(call.cleanupFailure) &&
@@ -105,9 +112,8 @@ internal fun failClientCall(call: ClientCall, error: Throwable, preserveSecondar
             if (failure is ResourceUseException) call.cleanupFailure = Some(clientCombined(call.cleanupFailure, failure.cleanupFailure))
             else if (!(failure is CancellationException)) call.cleanupFailure = Some(clientCombined(call.cleanupFailure, failure))
         } else if (!clientPresent(call.failure)) call.failure = Some(failure)
-        else if (failure is ResourceUseException) call.cleanupFailure = Some(clientCombined(call.cleanupFailure, failure.cleanupFailure))
-        else if (preserveSecondary && !(failure is CancellationException))
-            call.cleanupFailure = Some(clientCombined(call.cleanupFailure, failure))
+        else if (failure is ResourceUseException || preserveSecondary)
+            call.cleanupFailure = collectClientSecondary(call.failure!!, call.cleanupFailure, failure)
         Unit
     }
     cancelClientCall(call, failure)

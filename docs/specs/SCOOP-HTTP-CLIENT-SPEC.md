@@ -480,11 +480,25 @@ onAttempt 返回本轮额外字段，适合签名或时间戳；每次后续尝�
 
 ### 11.2 可观察性与错误
 
-用户回调在短锁和 native callback 外执行。H2 的共享驱动不能挂起等待某个调用的 observer；事件以有限的调用状态／队列交付，积压时阻止该调用继续相应步骤，不无限分配或停住整个连接。回调抛出影响当前调用，正常向调用者传播；不能吞掉用户异常再自动重试。
+HttpClientConfig.observer 是可选的 HttpObserver；其构造参数为 `suspend (HttpCallEvent) -> Unit`。未配置时不分配观察状态，不启用协议首字节采样，也不额外读取观察时钟。观察器只在 client 配置，连接是否采样不随复用者切换。普通 HTTP、SSE 与下载使用相同调用事件；WebSocket 只观察 HTTP 握手，成功升级后的消息不计入握手事件或字节。
 
-记录队列、DNS、连接、TLS、头部、首字节和结束时刻，以及各方向实际字节数、选择的协议、连接是否复用和尝试原因。默认日志不输出 Authorization、Proxy-Authorization、Cookie 或 body；URL 使用明确的脱敏展示。连接信息不在本期增加证书链检查接口。
+每个逻辑请求拥有一个不可变 HttpCallInfo 对象，保存最初的 method、脱敏 urlDisplay 和 startedAt；同一重定向／重试／认证循环的事件引用同一对象，以对象身份区分并发请求。应用链直接返回其他调用的结果时，只有实际执行的调用产生尝试事件。SSE 的显式重连及续传的新 Range 请求分别有自己的 HttpCallInfo。每个 HttpCallEvent 包含 kind、call、不可变 HttpAttemptMetrics 快照和可选 failure。HttpCallEventKind 为 AttemptStarted、ConnectionAcquired、RequestHeaders、RequestProgress、ResponseHeaders、ResponseProgress、Completed。
 
-`HttpClientException` 用于高层策略失败，保存 stage、attempt、Url 的适当展示、已知进度及原因；下层 HttpException、TlsException、PlatformException 保留可区分的类型与原码。`HttpTimeoutException` 标明阶段；`CancellationException` 不被包装成网络故障。重定向上限、不可重放、认证循环、未知内容编码与池关闭分别有可识别原因，不靠解析 message 分支。
+AttemptStarted 在已登记的尝试进入准备步骤前交付；ConnectionAcquired 表示取得实际连接 lease；RequestHeaders 表示请求头已经交给协议层，不宣称对端已收到。ResponseHeaders 包含每个信息响应及最终响应，缓存命中也有其缓存响应的头部事件；命中不伪造连接取得或请求提交事件。RequestProgress／ResponseProgress 在相应正文操作确认了非零进度后交付，不按固定字节数分块，也不要求上传和读取之间有全序。Completed 对应一次尝试收尾，包括选择后续尝试和调用者提前关闭正文；它不等于正文必然完整消费。观察器自身失败后停止该尝试的新通知，已在途通知仍须实际退出。
+
+HttpAttemptMetrics 固定保存本次 number、reason、method、urlDisplay、startedAt、可选 finishedAt，以及 queue、resolve、connect、proxyTls、proxyHandshake、originTls。各阶段为可选 HttpPhaseTiming(startedAt, finishedAt)：None 表示未进入该阶段，结束尚未发生时 finishedAt 为 None。queue 从实际排池开始，到取得拨号名额／既有连接 lease 或退出等待结束；首次拨号等待后的 lease 交付不覆盖原结束时间。DNS 与候选 TCP 连接时间由 asyncio 的实际阶段通知采集，直接 IP 连接只产生 connect；代理与目标 TLS 分开记录，CONNECT／SOCKS 协商另记 proxyHandshake。复用连接不复制前一次调用的 DNS、连接或 TLS 时间。
+
+快照同时公开 requestHeadersAt、responseHeadersAt、firstResponseByteAt、可选 version、connectionReused、status 与 cacheStatus。响应头时间和 status 指向最近一次实际响应头；304 再验证仍保留线上的 304，缓存命中则记录缓存响应的状态且没有本次协商 version。firstResponseByteAt 使用 HTTP 协议库确认的首个归属输入时间，包含信息响应；H1 的部分头部失败仍保留已确认时间，H2 不把控制帧或其他流的活动算给本流。HTTP／TLS 定界、压缩和平台时钟精度决定其观测边界，不声称是网络包的硬件时间。
+
+requestBodyBytes、encodedResponseBodyBytes、responseBodyBytes 分别是实际交给 HTTP 层的请求表示字节、移除 HTTP 定界后的响应表示字节、解码后的响应字节，排除 HTTP／TLS 控制开销；失败操作已经确认的部分进度仍计入。三个计数与超时诊断一致，沿同一逻辑请求的尝试累计，不在重定向／重试时清零。HttpResponse.metrics 和 HttpWebSocketSession.metrics 返回本次尝试的当前不可变快照；未开启观察时为 None，WebSocket 指标只涵盖握手。
+
+回调保留产生该事件的 Context，在短锁、native callback 和 H2 共享驱动之外执行。调用主流程、上传者和响应读取者分别在自己的步骤背压，每个方向至多一个在途通知；同一 observer 可以被并发调用。库只保存固定大小的尝试状态和正在执行的通知，不建立无界事件队列。挂起某条 H2 流的回调不阻止共享驱动处理其他流。
+
+所有通知仍属于调用寿命，受 caller 取消、client.close 和原 total 截止控制。Completed 在该尝试的上传、读取、来源、连接任务和清理子树实际收尾后、最终完成发布前执行，通知本身也受相同取消与截止约束；已有取消时按普通已取消 Context 交付，回调需要挂起清理可自行使用 nonCancellableScope。client.close 等待在途回调及其 finally；从回调或其子任务等待同一 client.close 或所属 response／body.close 会自等待，立即报 IllegalStateException。回调失败保留原异常对象，已有主失败时只附加新清理失败一次；即使异常与网络错误同类型或同对象，也不能因此自动重试。已经交付响应后发生的失败通过正文操作或 close 报告。
+
+urlDisplay 只保留 origin 和明确的路径脱敏标记，去掉 userinfo、query 和 fragment。HttpCallEvent.formatSummary() 仅输出方法、该展示、事件种类、尝试号及有限指标，不输出 Authorization、Proxy-Authorization、Cookie、任意头部、body 或 Throwable.message。事件中的原始 failure 留给显式诊断处理；连接信息不在本期增加证书链检查接口。
+
+高层重定向、认证、不可重放、内容编码和池关闭使用各自已有的类型化异常；下层 HttpException、TlsException、PlatformException 保留类型与原码，HttpTimeoutException 标明阶段，CancellationException 不包装成网络故障。尝试、阶段时间与进度由事件快照提供，不要求把全部底层错误再套入统一异常壳，也不靠解析 message 决定策略。
 
 ## 12. 默认调用形态
 

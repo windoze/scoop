@@ -131,6 +131,7 @@ private fun assignClientLease(state: ClientState, call: ClientCall, now: TimeMar
             val saved = call.dialWaiter
             if (clientPresent(saved)) {
                 call.dialWaiter = None; call.lease = Some(entry)
+                observeClientLease(call, entry, connection)
             }
             saved
         }

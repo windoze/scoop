@@ -22,7 +22,7 @@ internal class ClientCallCompletion(val call: ClientCall) : Continuation<Unit> {
         if (clientPresent(jobListener)) jobListener!!.dispose()
         val (hold, waiters, result) = call.lock.withLock {
             val saved = call.hold
-            call.hold = None; call.scope = None; call.upload = None; call.caller = None; call.responseInput = None
+            call.hold = None; call.scope = None; call.observerScope = None; call.upload = None; call.caller = None; call.responseInput = None
             val waiting = call.closeWaiters.toArray(); call.closeWaiters.clear()
             val pending = call.result; call.result = None;
             (saved, waiting, pending)
@@ -61,7 +61,7 @@ internal class ClientCallCompletion(val call: ClientCall) : Continuation<Unit> {
         val failure = clientCallFailure(call)
         val (followUp, recorded, bodyStarted) = call.lock.withLock { (call.followUp, call.ioFailure, call.bodyStarted) }
         if (clientPresent(failure)) {
-            if (!clientPresent(cleanup) && clientPresent(recorded) && recorded!!.cause === failure!!)
+            if (!call.userCallbackFailed && !clientPresent(cleanup) && clientPresent(recorded) && recorded!!.cause === failure!!)
                 result.resume(ClientCallResult.Failed(recorded!!, bodyStarted))
             else result.resumeWithException(failure!!)
         } else if (clientPresent(followUp)) result.resume(ClientCallResult.FollowUp(followUp!!))

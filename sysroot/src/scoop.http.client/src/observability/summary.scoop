@@ -1,0 +1,31 @@
+package scoop.http.client
+
+import scoop.http.HttpVersion
+
+internal fun clientObservedUrl(request: HttpRequest): String = request.origin.toString() + "/[redacted]"
+
+internal fun formatClientCallEvent(event: HttpCallEvent): String {
+    val metrics = event.metrics
+    val output = StringBuilder().append(metrics.method).append(" ").append(metrics.urlDisplay)
+        .append(" event=").append(clientEventName(event.kind)).append(" attempt=").append(metrics.number.toString())
+        .append(" requestBytes=").append(metrics.requestBodyBytes.toString())
+        .append(" encodedResponseBytes=").append(metrics.encodedResponseBodyBytes.toString())
+        .append(" responseBytes=").append(metrics.responseBodyBytes.toString())
+    if (clientPresent(metrics.status)) output.append(" status=").append(metrics.status!!.toString())
+    if (clientPresent(metrics.version)) output.append(" version=").append(when (metrics.version!!) {
+        case Http10 -> "1.0"; case Http11 -> "1.1"; case Http2 -> "2"
+    })
+    if (clientPresent(metrics.connectionReused)) output.append(" reused=").append(if (metrics.connectionReused!!) "true" else "false")
+    if (clientPresent(event.failure)) output.append(" failed=true")
+    return output.toString()
+}
+
+private fun clientEventName(kind: HttpCallEventKind): String = when (kind) {
+    case AttemptStarted -> "attempt-started"
+    case ConnectionAcquired -> "connection-acquired"
+    case RequestHeaders -> "request-headers"
+    case RequestProgress -> "request-progress"
+    case ResponseHeaders -> "response-headers"
+    case ResponseProgress -> "response-progress"
+    case Completed -> "completed"
+}

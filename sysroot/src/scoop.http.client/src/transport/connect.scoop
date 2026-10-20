@@ -20,6 +20,7 @@ internal suspend fun awaitClientConnection(call: ClientCall): ClientConnectResul
         if (call.ending) throw (call.failure ?: CancellationException())
         call.dialWaiter = Some(continuation)
     }
+    observeClientPoolQueued(call)
     call.client.lock.withLock { call.client.waiting.addLast(call) }
     wakeClient(call.client)
 }
@@ -140,8 +141,10 @@ internal suspend fun <T> adoptClientConnection(call: ClientCall, entry: ClientPo
     }
     val config = state.config
     return when (protocol) {
-        case Http1 -> ClientConnection.Http1(AsyncHttp1Connection.takeOwnershipAsClient(transport, scope, config.http1Receive, config.http1Limits))
+        case Http1 -> ClientConnection.Http1(AsyncHttp1Connection.takeOwnershipAsClient(transport, scope, config.http1Receive, config.http1Limits,
+            captureTimings = clientPresent(config.observer)))
         case Http2 -> ClientConnection.Http2(AsyncHttp2Connection.takeOwnershipAsClient(transport, scope,
-            config.http2Receive, config.http2Limits, config.http2Settings, onEvent = { notice -> clientPoolNotice(state, entry, notice) }))
+            config.http2Receive, config.http2Limits, config.http2Settings, onEvent = { notice -> clientPoolNotice(state, entry, notice) },
+            captureTimings = clientPresent(config.observer)))
     }
 }

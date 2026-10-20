@@ -48,7 +48,7 @@ internal fun stopClient(state: ClientState) {
         (state.calls.toArray(), state.retryWaits.toArray(), active.toArray(), state.downloads.toArray(), state.eventSources.toArray(),
             state.webSockets.toArray(), state.invocations.toArray())
     }
-    for (call in calls) cancelClientCall(call, HttpClientClosedException())
+    for (call in calls) cancelClientCall(call, HttpClientClosedException(), true)
     for (waiting in retryWaits) waiting.cancel()
     for (flight in bearers) stopClientBearerFlight(flight)
     for (download in downloads) stopClientDownload(download, HttpClientClosedException())

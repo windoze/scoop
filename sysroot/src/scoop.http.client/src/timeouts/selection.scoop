@@ -32,7 +32,8 @@ internal fun selectClientTimeout(deadline: ClientDeadline, elapsed: Duration): H
     val call = deadline.call
     if (!deadline.active) return None
     deadline.active = false
-    if (call.ending || call.completed || clientPresent(call.failure) || clientPresent(call.cleanupFailure)) return None
+    val observedTotal = deadline.phase == HttpTimeoutPhase.Total && clientObservedCallAcceptsCancellation(call)
+    if ((call.ending && !observedTotal) || call.completed || clientPresent(call.failure) || clientPresent(call.cleanupFailure)) return None
     val selected = HttpTimeoutException(deadline.phase, deadline.limit, elapsed,
         call.requestBodyBytes, call.encodedResponseBodyBytes, call.responseBodyBytes)
     call.failure = Some(selected)

@@ -1,0 +1,68 @@
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.http.client.*
+import scoop.platform.net.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+import scoop.url.Url
+
+internal class ObserverGate {
+    var ready: Boolean = false
+    private val waiters: ArrayList<Continuation<Unit>> = ArrayList<Continuation<Unit>>()
+    fun signal() {
+        ready = true
+        val saved = waiters.toArray(); waiters.clear()
+        for (waiter in saved) waiter.resume(Unit)
+    }
+    suspend fun await() { suspendCoroutine<Unit> { next -> if (ready) next.resume(Unit) else waiters.add(next) } }
+}
+internal class ObserverFailure { var value: Throwable? = None }
+internal class ObserverMarker(val text: String)
+internal class ObserverOwner { var client: HttpClient? = None; var response: HttpResponse? = None }
+context(marker: ObserverMarker)
+internal fun observerMarker(): String = marker.text
+internal fun <T> observerPresent(value: T?): Boolean = when (value) { case Some(_) -> true; case None -> false }
+internal suspend fun observerFailure(block: suspend () -> Unit): Throwable {
+    try { block() } catch (error: Throwable) { return error }
+    throw IllegalStateException(Some("expected observer failure"))
+}
+internal suspend fun observerIgnoreClose(client: HttpClient) { try { client.close() } catch (_: Throwable) {} }
+internal fun observerCleanupCount(error: Throwable, target: Throwable): Long {
+    if (error === target) return 1L
+    if (error is ResourceUseException)
+        return observerCleanupCount(error.primaryFailure, target) + observerCleanupCount(error.cleanupFailure, target)
+    return 0L
+}
+internal fun observerPrimary(error: Throwable): Throwable =
+    if (error is ResourceUseException) observerPrimary(error.primaryFailure) else error
+internal fun withObserverRuntime(block: suspend (EventLoop, CoroutineScope, AsyncTcpListener, Url) -> Unit) {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { scope ->
+        loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).useAsync suspend { listener ->
+            block(loop, scope, listener, Url.parse("http://127.0.0.1:" + listener.localAddress.port.toString() + "/"))
+        }
+    }
+}
+internal suspend fun observerResponse(client: HttpClient, url: Url) {
+    client.withResponse(HttpRequest.get(url)) suspend { response -> assertEquals("body", response.body.text(4L)) }
+}
+
+internal suspend fun observerWrite(destination: AsyncByteSink, text: String) {
+    val bytes = text.toByteArray()
+    NativeByteBuffer.allocate(bytes.size).use suspend { buffer -> buffer.writeBytes(bytes); destination.writeFully(buffer) }
+}
+
+internal suspend fun observerServe(scope: CoroutineScope, listener: AsyncTcpListener, where: HttpCallEventKind, done: ObserverGate) {
+    AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+        if (where == HttpCallEventKind.ConnectionAcquired) { done.await(); return@useAsync }
+        val request = connection.receiveRequest()!!
+        assertEquals(if (where == HttpCallEventKind.RequestProgress) 1L else 0L, request.body.readAllBytes(1L).size)
+        if (where != HttpCallEventKind.RequestHeaders && where != HttpCallEventKind.RequestProgress) {
+            connection.sendResponse(HttpResponseHead(HttpVersion.Http11, 200U), Http1BodyFraming.Length(4L)).useAsync suspend { output ->
+                observerWrite(output, "body"); output.finish()
+            }
+        }
+        done.await()
+    }
+}

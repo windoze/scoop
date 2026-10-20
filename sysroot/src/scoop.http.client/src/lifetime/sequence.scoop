@@ -8,6 +8,8 @@ internal class ClientRequestSequence(config: HttpClientConfig, request: HttpRequ
     val webSocket: HttpWebSocketOptions? = None) {
     val timeouts: HttpTimeoutOptions = request.options.timeouts ?: config.timeouts
     val started: TimeMark? = if (timeouts.total != None) Some(startedAt ?: MonotonicTimeSource.markNow()) else None
+    val info: HttpCallInfo? = if (clientPresent(config.observer))
+        Some(HttpCallInfo(request, started ?: startedAt ?: MonotonicTimeSource.markNow())) else None
     val redirects: HttpRedirectOptions = request.options.redirects ?: config.redirects
     val retries: HttpRetryOptions = request.options.retries ?: config.retries
     val authentication: HttpAuthenticationOptions = request.options.authentication ?: config.authentication

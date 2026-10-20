@@ -1,6 +1,6 @@
 # M54 实施进度
 
-状态：实施中。完整范围见[设计](DESIGN.md)，本页只记录实际实现与验证；先完成全部功能，再统一执行 GC stress 与最终三目标验收。
+状态：功能实现完成，最终验收未完成。完整范围见[设计](DESIGN.md)，本页只记录实际实现与验证；全部功能已完成普通验证，接下来统一执行 GC stress 与最终三目标验收。
 
 ## 已完成的功能
 
@@ -104,6 +104,7 @@
 | client SSE 事件源 | 复用普通请求、自动解码与 SseSource，显式重连、ID／retry、204 终止，共享总截止与累计进度，关闭等待活动操作及子树 | Darwin 两项正式 fixture 通过 debug／release 与构建复用，共 4 个变体、12 个步骤进程；30 个网络场景、20 个生命周期场景及 10 个配置／请求反例通过，下载与续传生命周期回归另通过 4 个变体、12 个步骤进程；未启用 GC stress |
 | WebSocket 来源收尾与关闭观察 | HTTP asyncio 的来源发送使用结构化子作用域；本地／对端关闭等待来源子树和真实借用结束，awaitClosed 提供可取消的实际关闭观察 | Darwin 新生命周期 fixture 的 23 个场景通过 debug／release 与复用，共 2 个变体、6 个步骤进程；WSS／permessage-deflate 组合另通过 2 个变体、6 个步骤进程；未启用 GC stress |
 | client HTTP/1.1 WebSocket | 纯 Scoop 复用统一请求策略和底层会话，固定 H1.1／独立 WSS ALPN，成功移交后释放池名额；拒绝响应保留可消费 body，client 关闭等待会话和发送来源子树 | Darwin 五项正式 fixture 通过 debug／release 与复用，共 10 个变体、30 个步骤进程；36 个独立网络场景、20 个生命周期场景及 25 个配置反例通过；未启用 GC stress |
+| client 可观察性 | 可选 suspend observer、不可变尝试快照、实际阶段与首字节时间、累计正文进度和脱敏摘要；通知归属调用寿命，H2 共享驱动不执行挂起回调 | Darwin 三项正式 fixture 通过 debug／release 与复用，共 6 个变体、18 个步骤进程；13 个网络、80 个生命周期及 7 个 TLS／代理场景通过；本轮未启用 GC stress |
 
 正式 fixture `m54-protocol-digests` 在 Darwin 的 debug／release 两个变体通过，共 6 个进程；覆盖生产 `.slib` 跨 Cone 消费、moving GC 和构建缓存复用。该结果不代替尚未进行的 Linux 验证。
 
@@ -451,9 +452,15 @@ asyncio 已提供可选 TCP 阶段通知：双族解析和整个候选连接序�
 
 HTTP 首响应字节采样已在协议库完成：HTTP/1 使用 llhttp 消息开始计数，将部分起始行、信息响应和流水线响应与实际读取时间配对，头部 EOF 后仍能读取已确认的时间；HTTP/2 复用流输入进度，只记录实际归属该流的输入。采样默认关闭，不改变消息事件与默认接收路径。独立 fixture 在 Darwin 普通模式通过 debug／release 及构建复用，共 2 个变体、6 个步骤进程；对端空 trailer 结束帧与新增断言的参数写法已修正。候选 17 个 Cone 与 runtime 已准备成功，未运行 GC stress。
 
+client 的 suspend observer 已完成：每次尝试记录排池、DNS、TCP、代理 TLS、CONNECT／SOCKS、目标 TLS、头部和首响应字节；连接复用和缓存命中只公开本次实际发生的阶段。普通 HTTP、下载、SSE 与 WebSocket 握手共用事件和累计进度，日志摘要不包含凭据、任意字段、正文或异常文本。Completed 等待请求来源、I/O 与清理子树结束，回调本身仍受原取消和总截止控制；回调失败保留原对象且不能取得网络重试资格。
+
+三项新 fixture 的 100 个场景在 Darwin 普通模式通过两种构建及复用，覆盖 Context、取消 finally、子任务、自等待拒绝、H2 单流回调背压、压缩字节计数、信息响应、部分头部 EOF、认证／重试／重定向、缓存和 WS 升级后资源交付。修正了重定向正常停止上传被误报为回调失败的问题；H2 测试对端的发送结束参数和多等待者门闩修正后复验通过。17 个生产 Cone 与 runtime 已通过正式准备入口更新。
+
+拦截器网络／生命周期、响应解码、调用超时和 idle 五项普通回归另通过 10 个变体、30 个步骤进程。超时对端原先拒绝合法的空 END_STREAM trailer HEADERS，补齐该结束形式后单独复验通过。Linux 配套 release 命令已更新；清理本机 4 个过期 target（约 809 MiB），以及 Linux 392 个已结束 fixture target（约 22.26 GiB）和旧 Rust debug target，保留源码、SDK、release 工具、缓存和日志。
+
 ## 后续工作
 
-继续完成可观察性及所需的底层时间采样。每个功能独立验证和提交，最终完成 GNU／musl 的实际运行及三个目标组合验收。
+设计范围内的功能实现和普通回归已完成。剩余工作为统一 GC stress、GNU／musl 实际运行及三个目标组合验收；最终验收尚未完成。
 
 ## 验证安排
 

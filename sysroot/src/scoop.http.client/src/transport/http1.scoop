@@ -13,7 +13,11 @@ internal class ClientH1Exchange(val call: ClientCall, val connection: AsyncHttp1
     public override val trailers: Array<HttpField>? get() = when (input) { case Some(body) -> body.trailers; case None -> None }
     public override suspend fun receiveResponse(): HttpResponseHead {
         val response = try { connection.receiveResponse(readIdle = readIdle) }
-        catch (error: Throwable) { recordClientIoFailure(call, error); throw error }
+        catch (error: Throwable) {
+            if (clientPresent(call.observation)) observeClientFirstByte(call, connection.pendingResponseFirstByteAt)
+            recordClientIoFailure(call, error); throw error
+        }
+        observeClientFirstByte(call, response.firstByteAt)
         if (response.head.status < 200U && response.head.status != 101U) {
             response.body.useAsync suspend { body -> body.readAllBytes(0L); Unit }
         } else input = Some(response.body)

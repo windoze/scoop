@@ -1,0 +1,60 @@
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.*
+import scoop.http.client.*
+import scoop.test.*
+import scoop.tls.*
+import scoop.url.Url
+
+internal fun observedDirectTls(trust: TrustStore, port: Int, failing: Boolean) {
+    val log = ObservationLog()
+    val url = Url.parse("https://localhost:" + port.toString() + "/resource")
+    LibuvEventLoop().run suspend { _ ->
+        val tls = HttpClientTlsConfig(TlsTrustSource.Store(trust), maximum = if (failing) TlsVersion.Tls12 else TlsVersion.Tls13)
+        withHttpClient(HttpClientConfig(tls = tls, observer = Some(log.observer()), retries = HttpRetryOptions(maxRetries = 0L))) suspend { client ->
+            if (failing) {
+                val failure = observationFailure suspend { client.execute(HttpRequest.get(url)); Unit }
+                assertTrue(failure is TlsException)
+                assertSame(failure, log.ofKind(HttpCallEventKind.Completed)[0L].failure!!)
+            } else {
+                observationGet(client, url, "body")
+                observationGet(client, url.resolve("/reuse"), "body")
+            }
+        }
+    }
+    val completed = log.ofKind(HttpCallEventKind.Completed)
+    assertEquals(if (failing) 1L else 2L, completed.size)
+    val first = completed[0L].metrics
+    checkObservationPhases(first)
+    assertTrue(observationPresent(first.resolve) && observationPresent(first.connect) && observationPresent(first.originTls))
+    assertFalse(observationPresent(first.proxyTls) || observationPresent(first.proxyHandshake))
+    assertTrue(first.connect!!.finishedAt!! <= first.originTls!!.startedAt)
+    if (failing) {
+        assertFalse(observationPresent(first.version) || observationPresent(first.requestHeadersAt) || observationPresent(first.firstResponseByteAt))
+    } else {
+        assertEquals(Some(HttpVersion.Http2), first.version)
+        assertTrue(first.originTls!!.finishedAt!! <= first.requestHeadersAt!!)
+        assertEquals(Some(false), first.connectionReused)
+        assertEquals(Some(true), completed[1L].metrics.connectionReused)
+        assertFalse(observationPresent(completed[1L].metrics.resolve) || observationPresent(completed[1L].metrics.connect) ||
+            observationPresent(completed[1L].metrics.originTls))
+    }
+}
+
+internal fun observedForwardTls(trust: TrustStore, port: Int) {
+    val log = ObservationLog()
+    val url = Url.parse("http://origin.invalid/resource?q=QUERY_SECRET")
+    val endpoint = Url.parse("https://127.0.0.1:" + port.toString())
+    LibuvEventLoop().run suspend { _ ->
+        val tls = HttpClientTlsConfig(TlsTrustSource.Store(trust))
+        val proxy = HttpProxy.Http(HttpProxyEndpoint(endpoint, tls))
+        val config = HttpClientConfig(tls = tls, observer = Some(log.observer()), proxy = HttpProxySelector.fixed(proxy))
+        withHttpClient(config) suspend { client -> observationGet(client, url, "body") }
+    }
+    val metrics = log.ofKind(HttpCallEventKind.Completed)[0L].metrics
+    checkObservationPhases(metrics)
+    assertTrue(observationPresent(metrics.connect) && observationPresent(metrics.proxyTls))
+    assertFalse(observationPresent(metrics.resolve) || observationPresent(metrics.proxyHandshake) || observationPresent(metrics.originTls))
+    assertEquals(Some(HttpVersion.Http11), metrics.version)
+    assertEquals("http://origin.invalid/[redacted]", metrics.urlDisplay)
+}

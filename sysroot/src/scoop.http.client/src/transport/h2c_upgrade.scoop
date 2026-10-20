@@ -63,7 +63,7 @@ private suspend fun adoptClientUpgrade(work: ClientUpgrade): AsyncHttp2Connectio
         return AsyncHttp2Connection.takeOwnershipAsUpgradedClient(transport, owner, call.request.methodBytes,
             config.http2Settings, config.http2Receive, config.http2Limits,
             ioTimeouts = clientIoTimeouts(call),
-            onEvent = { notice -> clientPoolNotice(state, work.entry, notice) })
+            onEvent = { notice -> clientPoolNotice(state, work.entry, notice) }, captureTimings = clientPresent(config.observer))
     } catch (error: Throwable) {
         try { transport.close() } catch (cleanup: Throwable) { throw ResourceUseException(error, cleanup) }
         throw error

@@ -6,6 +6,7 @@ import scoop.http.asyncio.*
 
 internal suspend fun <T> connectClientHttpTunnel(call: ClientCall, transport: T, endpoint: HttpProxyEndpoint): ClientConnectResult<HttpTransport>
     where T : AsyncByteStream, T : AsyncCloseable {
+    observeClientPhase(call, ClientObservedPhase.ProxyHandshake, true)
     val deadline = startClientDeadline(call, call.scope!!, HttpTimeoutPhase.ProxyHandshake, call.timeouts.proxyHandshake)
     try {
         requireClientCall(call)
@@ -48,5 +49,5 @@ internal suspend fun <T> connectClientHttpTunnel(call: ClientCall, transport: T,
             }
         }
     } catch (error: Throwable) { recordClientIoFailure(call, error); throw error }
-    finally { stopClientDeadline(deadline) }
+    finally { stopClientDeadline(deadline); observeClientPhase(call, ClientObservedPhase.ProxyHandshake, false) }
 }

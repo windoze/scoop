@@ -5,11 +5,20 @@ import scoop.time.Duration
 
 internal fun clientTcpConnectOptions(call: ClientCall): TcpConnectOptions {
     val options = call.client.config.tcpConnect
+    val callback = options.onEvent
+    val onEvent: ((TcpConnectEvent) -> Unit)? = if (!clientPresent(call.observation) && !clientPresent(callback)) None
+        else Some({ event: TcpConnectEvent ->
+            observeClientTcp(call, event)
+            try { if (clientPresent(callback)) callback!!(event) }
+            catch (error: Throwable) { failClientUserCallback(call, error); throw error }
+            Unit
+        })
     return TcpConnectOptions(options.resolutionDelay, options.attemptDelay, options.maxConcurrentAttempts,
-        call.timeouts.resolve, call.timeouts.connect)
+        call.timeouts.resolve, call.timeouts.connect, onEvent)
 }
 
 internal fun mapClientNetworkTimeout(call: ClientCall, error: Throwable): Throwable {
+    if (call.lock.withLock { call.userCallbackFailed }) return error
     if (error is ResourceUseException) {
         val mapped = mapClientNetworkTimeout(call, error.primaryFailure)
         return if (mapped === error.primaryFailure) error else ResourceUseException(mapped, error.cleanupFailure)

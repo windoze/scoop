@@ -33,6 +33,7 @@ internal class ClientResponseInput(val call: ClientCall, val plan: ClientRespons
             checkClientDeadlines(call)
             val expired = observeClientCallFailure(call)
             if (clientPresent(expired)) throw expired!!
+            if (result > 0L && clientPresent(call.observation)) context(job) { emitClientEvent(call, HttpCallEventKind.ResponseProgress) }
             if (result == 0L || (plan.formats.size == 0L && call.responseStream!!.isReadComplete)) {
                 context(job) { commitClientCache(call) }
                 requireClientCall(call)
@@ -70,6 +71,7 @@ internal class ClientResponseInput(val call: ClientCall, val plan: ClientRespons
     }
 
     public override suspend fun close() {
+        checkClientObservedResponseClose(call)
         if (call.lock.withLock { call.completed }) {
             if (closed.compareAndSet(false, true)) reportClientResponseCloseFailure(call)
             return
@@ -77,7 +79,7 @@ internal class ClientResponseInput(val call: ClientCall, val plan: ClientRespons
         clientJob(call.client.loop, false)
         closed.store(true)
         call.lock.withLock { call.abandoned = true; call.ending = true }
-        cancelClientCall(call, CancellationException())
+        cancelClientCall(call, CancellationException(), true)
         awaitClientResponseClose(call)
         reportClientResponseCloseFailure(call)
     }
