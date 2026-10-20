@@ -4,10 +4,12 @@
 //! header fields are written here, so RELA, COMDAT, merge-entry sizes, and TLS
 //! details do not need to be reconstructed through a second object writer.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
-use object::read::elf::{ElfFile64, FileHeader, SectionHeader};
-use object::{LittleEndian as LE, Object, ObjectSection, ObjectSymbol, SectionIndex, elf};
+use object::read::elf::{ElfFile64, ElfSymbol, FileHeader, SectionHeader};
+use object::{
+    LittleEndian as LE, Object, ObjectSection, ObjectSymbol, SectionIndex, SymbolIndex, elf,
+};
 use scoop_lir::LinkageClass;
 
 use crate::CodegenError;
@@ -22,6 +24,7 @@ pub(crate) struct ElfObject<'a> {
     strings: Vec<u8>,
     symtab: SectionIndex,
     strtab: SectionIndex,
+    original_symbols: BTreeMap<&'a [u8], SymbolIndex>,
     names: BTreeSet<String>,
     section_strings: Option<(SectionIndex, Vec<u8>)>,
 }
@@ -60,6 +63,12 @@ impl<'a> ElfObject<'a> {
             .to_vec();
         let symbols = symtab.data().map_err(error)?.to_vec();
         let symtab = symtab.index();
+        let mut original_symbols = BTreeMap::new();
+        for symbol in file.symbols() {
+            if let Ok(name) = symbol.name_bytes() {
+                original_symbols.entry(name).or_insert(symbol.index());
+            }
+        }
         Ok(Self {
             file,
             bytes: bytes.to_vec(),
@@ -67,9 +76,18 @@ impl<'a> ElfObject<'a> {
             strings,
             symtab,
             strtab,
+            original_symbols,
             names: BTreeSet::new(),
             section_strings: None,
         })
+    }
+
+    pub(crate) fn original_symbol(
+        &self,
+        name: &str,
+    ) -> Option<ElfSymbol<'a, '_, elf::FileHeader64<LE>>> {
+        let index = self.original_symbols.get(name.as_bytes())?;
+        self.file.symbol_by_index(*index).ok()
     }
 
     pub(crate) fn boundary(
@@ -81,7 +99,7 @@ impl<'a> ElfObject<'a> {
     ) -> Result<(), CodegenError> {
         if name.as_bytes().contains(&0)
             || name.is_empty()
-            || self.file.symbol_by_name(name).is_some()
+            || self.original_symbols.contains_key(name.as_bytes())
             || !self.names.insert(name.to_owned())
         {
             return Err(CodegenError(format!(
@@ -119,8 +137,7 @@ impl<'a> ElfObject<'a> {
         end: bool,
     ) -> Result<(), CodegenError> {
         let symbol = self
-            .file
-            .symbol_by_name(name)
+            .original_symbol(name)
             .ok_or_else(|| CodegenError(format!("ELF atom boundary `{name}` is missing")))?;
         if symbol.section_index().is_none() || symbol.is_local() {
             return Err(CodegenError(format!(

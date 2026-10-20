@@ -12,8 +12,7 @@ pub(super) fn materialize(path: &Path, plan: &DefinitionSymbolPlanV1) -> Result<
     let mut output = ElfObject::read(&bytes)?;
     let primary_name = plan.primary_symbol().symbol();
     let primary = output
-        .file
-        .symbol_by_name(primary_name.as_str())
+        .original_symbol(primary_name.as_str())
         .ok_or_else(|| CodegenError(format!("ELF callable `{primary_name}` is missing")))?;
     let primary_section = primary
         .section_index()

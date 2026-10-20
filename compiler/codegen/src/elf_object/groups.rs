@@ -9,8 +9,7 @@ impl ElfObject<'_> {
         sections: &[SectionIndex],
     ) -> Result<(), CodegenError> {
         let symbol = self
-            .file
-            .symbol_by_name(signature)
+            .original_symbol(signature)
             .ok_or_else(|| CodegenError(format!("missing ELF COMDAT signature `{signature}`")))?;
         let group = self
             .file
