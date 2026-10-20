@@ -151,3 +151,7 @@ Darwin 完整正式 CLI 验收发现旧夹具将 Int 移到 hidden package 时�
 ## D1：真实内置库的功能验证
 
 使用配套 release 工具显式选择 19 个内置库，以 no-deps／deny-doc-warnings 在 Darwin 生成共同站点：19 次前端调用、2,163 个输出文件。静态检查通过 2,160 个 HTML 页面、134,027 个本地链接、733 个内嵌源码页面及 6,065 个搜索条目，没有缺失页面／锚点、重复 ID 或原始文件 URL。现有源码产生 27 条普通编译 warning，文档 warning 为零；浏览器工具限制仍在，不将静态检查冒充实际离线浏览器验收。三目标功能验收完成后再开始全库注释与发行文档集成。
+
+Linux 全工作区单测、集成测试与 doctest 已执行完毕；首轮 14 项 runtime／linker／toolchain 测试因遗漏 SCOOP_SYSROOT 找不到已准备的 unwind 资源，补齐环境后全部定向复验通过，85 项 driver 测试直接通过。两目标的文档 CLI 用例均通过；需要运行程序的 3 项注解用例留待更新后的 runtime 单独复验。GNU／musl 完整 CLI 回归已经启动。
+
+维护脚本的独立 runtime_builder 锁文件漏列新增文档依赖，使 --locked 拒绝构建。补齐 5 个依赖包，不更新已有包版本；本机 fmt／workspace clippy、独立 locked/offline 解析通过，Linux 使用该锁文件完成 GNU／musl 各 19 个内置库与 runtime 的维护脚本准备。另清理 61 份已被替代的本机增量快照，约 7.44 GiB 文件逻辑大小，保留最新配置快照及正在使用的产物。
