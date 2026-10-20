@@ -96,6 +96,8 @@ smart cast 分析使用已有 BindingId、类型约束及带实际 LoopId 的控
 
 依赖声明 catalog 在构建时按 typed nominal owner 与成员名、operator role、constructor、dispatch slot 和 context parameter 需求建立查询索引；property accessor 和 intrinsic 使用各自 typed key 索引。重复成员查询只访问匹配候选，不重扫全依赖声明集合。索引保留原实体顺序、可见性与 intrinsic 唯一性语义，候选共享不可变的接口、源码与默认参数模板，不改变持久身份或产物格式。
 
+Export HIR lowering 的结构类型与完整函数签名通过结构键查询已有 typed ID，不逐次扫描类型 arena。函数键包含 suspend effect、可选 receiver、按序参数和返回类型；nominal application 继续使用原专用索引。类型索引与 arena 属于同一候选状态，失败试算一起丢弃；命中不分配新 ID，新类型仍按原分配顺序进入完整输出。索引仅为当前 lowering 的内部数据，不写入 metadata 或兼容性规则。
+
 候选局部约束求解可以先把已确定的参数、可选 receiver 与 suspend effect 传给 lambda，再用正文推断尚未确定的返回类型。这个部分期望仅存在于 lowering 的推断上下文，不是缺少返回类型的 HIR 函数类型；提交 lambda 时其参数、返回值、捕获和正文仍全部确定。当前 Cone 与依赖模板调用使用同一推断路径，不按扩展名或库名特判。
 
 `SemanticHir` 保存已检查的声明与正文，对外有两个不同的输出合同：

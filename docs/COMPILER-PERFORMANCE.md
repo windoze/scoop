@@ -34,3 +34,9 @@
 - catalog 一次建立 nominal owner 下的名称、operator、constructor、slot、context parameter 和 property 索引；accessor 与 intrinsic 直接按 typed key 查询。成员、顶层函数候选共享不可变接口与模板，类型描述生成复用同一组索引。保留原声明顺序及 intrinsic 的唯一匹配要求。
 - 首轮 `scoop.std` 对照的修复前结果有波动；补测为修复前 7.88 / 7.80 s、修复后 7.48 / 7.53 s，平均减少约 4%，峰值内存相当。实现消除了每次查询遍历全部依赖声明的成本，但此项不占完整编译耗时的大部分。
 - 格式化、workspace lint、HIR 867 项和 HIR lowering 1496 项通过；41 个正式 CLI fixture、42 个普通变体通过。新增跨库组合使用不同类型的同名成员，覆盖构造器重载、默认实参、可写与计算属性、operator、泛型成员和接口分派，另复验 17 个实参推断及 14 个分派用例。
+
+## 类型与函数签名驻留
+
+- Export HIR 使用与具体化阶段相同的结构键去重方式；类型与完整函数签名维护 typed ID 索引，使用现有持久化容器随候选一起复制和回退。所有类型分配入口同步索引，名义应用及原有 ID 分配顺序保持。
+- `scoop.std` 修复前两次 8.19 / 7.50 s，修复后 7.45 / 7.51 s。修复前首轮波动较大，后续数值接近，当前输入尚不能稳定量化本项的独立耗时收益；不据此宣称百分比改善。线性驻留扫描已从实现中移除，避免结构类型和签名增长时累计二次比较。
+- 格式化、workspace lint、HIR 867 项和 HIR lowering 1497 项通过；52 个 CLI fixture、67 个普通变体通过。新增 typed HIR 断言区分 receiver、suspend、参数和返回类型，运行用例组合重载回退、泛型 tuple、嵌套 tuple 和 receiver 函数容器；49 个既有 receiver 用例的正负诊断与运行结果保持通过。

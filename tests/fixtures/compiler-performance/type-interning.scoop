@@ -1,0 +1,25 @@
+fun <T> identity(value: T): T = value
+
+fun <T> pairApply(value: (T, T), transform: ((T, T)) -> T): T = transform(value)
+
+fun choose(transform: ((Int, Int)) -> String): Int = -1
+fun choose(transform: ((Int, Int)) -> Int): Int = transform((20, 22))
+
+fun main() {
+    println(choose { pair ->
+        val once: (Int) -> Int = { value -> value }
+        val local = (once(pair._1), pair._2)
+        local._1 + local._2
+    })
+    val pair = identity((20, 22))
+    println(pairApply(pair) { value -> value._1 + value._2 })
+    val nested = identity((pair, ("nested", true)))
+    println(nested._1._1 + nested._1._2)
+
+    val add: Int.(Int) -> Int = { this + it }
+    val flat: (Int, Int) -> Int = add
+    println(flat(20, 22))
+    val functions: Any = [add]
+    println(functions is Array<Int.(Int) -> Int>)
+    println(functions is Array<(Int, Int) -> Int>)
+}

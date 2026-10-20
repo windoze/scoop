@@ -554,7 +554,10 @@ pub(crate) struct Lowerer {
     pub(crate) property_identity_records: HashMap<hir::PropertyId, hir::HirPropertyIdentity>,
     pub(crate) field_identity_builder: hir::HirFieldIdentityBuilder,
     pub(crate) types: Shared<Arena<Type>>,
+    type_by_kind: imbl::HashMap<Type, TypeId>,
     pub(crate) function_types: Shared<Arena<hir::FunctionType>>,
+    function_type_by_signature:
+        imbl::HashMap<(bool, Option<TypeId>, Vec<TypeId>, TypeId), hir::FunctionTypeId>,
     pub(crate) lambdas: SnapshotArena<hir::Lambda>,
     pub(crate) anonymous_functions: SnapshotArena<hir::AnonymousFunction>,
     /// Generated callable body names are reserved before lowering their
