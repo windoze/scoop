@@ -107,6 +107,15 @@ fn documentation_pipeline_checks_bodies_and_shares_hir_with_artifact_production(
     );
     assert!(ordinary.documentation().is_none());
     assert_artifacts_equal(&combined, &ordinary);
+    let artifact_bytes = std::fs::read(&artifact_path).unwrap();
+    for text in [SOURCE, "文档 [Missing]."] {
+        assert!(
+            !artifact_bytes
+                .windows(text.len())
+                .any(|window| window == text.as_bytes()),
+            "source and documentation text must stay outside the slib"
+        );
+    }
 
     std::fs::write(
         root.join("src/main.scoop"),

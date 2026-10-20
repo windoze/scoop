@@ -12,6 +12,7 @@ pub struct ConeInput {
     pub key: ConeKey,
     pub name: String,
     pub executable: bool,
+    /// Only sources whose text is available. Locations may refer to absent sources.
     pub sources: Vec<SourceInput>,
     pub items: Vec<ApiItem>,
     pub bindings: Vec<ExportBinding>,

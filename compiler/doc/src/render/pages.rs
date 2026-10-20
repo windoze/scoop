@@ -25,16 +25,18 @@ impl SiteRenderer<'_, '_> {
             title: "Packages".into(),
             links: packages,
         });
-        sections.push(Section {
-            title: "Source files".into(),
-            links: cone
-                .sources
-                .iter()
-                .map(|source| {
-                    LinkView::new(&source.path, &home, Some(routes::source(key, &source.key)))
-                })
-                .collect(),
-        });
+        if !cone.sources.is_empty() {
+            sections.push(Section {
+                title: "Source files".into(),
+                links: cone
+                    .sources
+                    .iter()
+                    .map(|source| {
+                        LinkView::new(&source.path, &home, Some(routes::source(key, &source.key)))
+                    })
+                    .collect(),
+            });
+        }
         if !overview.dependencies.is_empty() {
             sections.push(Section {
                 title: "Dependencies".into(),

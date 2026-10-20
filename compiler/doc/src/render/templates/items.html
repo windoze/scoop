@@ -3,7 +3,7 @@
   {% if entry.group_anchor %}<span id="{{ entry.group_anchor }}" class="group-anchor"></span>{% endif %}
   <div class="declaration-heading">
     <h2><span class="kind">{{ entry.kind }}</span> {{ entry.name }}</h2>
-    <a class="source-link" href="{{ entry.source.href }}">{{ entry.source.text }}</a>
+    {% if entry.source %}<a class="source-link" href="{{ entry.source.href }}">{{ entry.source.text }}</a>{% endif %}
   </div>
   <div class="badges"><span>{{ entry.visibility }}</span>{% if entry.synthesized %}<span>compiler-derived</span>{% endif %}</div>
   <pre class="signature"><code>{% for token in entry.signature %}{% if token.href %}<a href="{{ token.href }}">{{ token.text }}</a>{% elif token.unavailable %}<span title="No generated documentation for this type">{{ token.text }}</span>{% else %}{{ token.text }}{% endif %}{% endfor %}</code></pre>

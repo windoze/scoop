@@ -2,6 +2,7 @@ use super::*;
 
 mod catalog;
 mod content;
+mod sources;
 
 fn item(key: &str, name: &str, kind: ApiKind, parent: Option<&str>) -> ApiItem {
     ApiItem {

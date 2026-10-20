@@ -17,7 +17,7 @@ pub(in crate::render) struct ItemView {
     comment: String,
     tags: Vec<TagView>,
     property: Option<PropertyView>,
-    source: LinkView,
+    source: Option<LinkView>,
     children: Vec<ItemView>,
     related: Vec<LinkView>,
 }
@@ -75,11 +75,21 @@ impl SiteRenderer<'_, '_> {
                 }
             })
             .collect();
-        let source_url = format!(
-            "{}#L{}",
-            routes::source(&cone.key, &item.location.source),
-            item.location.line
-        );
+        let source = cone
+            .sources
+            .iter()
+            .any(|source| source.key == item.location.source)
+            .then(|| {
+                LinkView::new(
+                    format!("source · line {}", item.location.line),
+                    page,
+                    Some(format!(
+                        "{}#L{}",
+                        routes::source(&cone.key, &item.location.source),
+                        item.location.line
+                    )),
+                )
+            });
         let group_anchor = self
             .catalog
             .groups
@@ -123,11 +133,7 @@ impl SiteRenderer<'_, '_> {
                 getter: self.accessor(&property.getter),
                 setter: property.setter.as_ref().map(|setter| self.accessor(setter)),
             }),
-            source: LinkView::new(
-                format!("source · line {}", item.location.line),
-                page,
-                Some(source_url),
-            ),
+            source,
             children: children
                 .into_iter()
                 .map(|child| self.item_view(child, page))
