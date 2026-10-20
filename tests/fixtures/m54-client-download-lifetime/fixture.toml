@@ -1,6 +1,6 @@
 schema = 1
 name = "m54-client-download-lifetime"
-inputs = ["consumer"]
+inputs = ["consumer", "run.py"]
 support = ["../../../sysroot/src/scoop.crypto/test-certificates/src/root.scoop", "../m54-client-download/consumer/src/support.scoop"]
 tools = ["scoop", "scoopc"]
 targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
@@ -27,7 +27,7 @@ diagnostics = []
 [[steps]]
 name = "run"
 timeout = 3600
-argv = ["${build.result.output}", "${work}/files"]
+argv = ["python3", "${fixture}/run.py", "${build.result.output}", "${work}/files"]
 exit = 0
 stdout = "client download cancellation callbacks cleanup and close ownership passed\n"
 stderr = ""

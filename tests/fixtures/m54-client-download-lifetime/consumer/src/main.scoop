@@ -5,30 +5,36 @@ import scoop.platform.fs.Path
 import scoop.test.*
 
 fun main(args: Array<String>) {
+    assertTrue(args.size >= 3L)
     val root = Path.fromString(args[1L])
+    val name = args[2L]
     assertFailsWith<IllegalArgumentException> { HttpDownloadOptions(bufferSize = 0L) }
     assertFailsWith<IllegalArgumentException> { HttpDownloadOptions(bufferSize = -1L) }
     TrustStore.fromPem(rootPem()).use { trust ->
-        for (last in [false, true]) for (mode in ["caller", "client"]) for (cleanup in ["none", "direct", "wrapped", "nested"]) {
-            val name = last.toString() + "-" + mode + "-" + cleanup
-            try { downloadCancellation(trust, root.resolve(Path.fromString(name)), last, mode, cleanup) }
-            catch (error: AssertionFailure) { reportDownloadAssertion(name, error); throw error }
-        }
-        for (last in [false, true]) {
-            val name = last.toString() + "-total"
-            try { downloadCancellation(trust, root.resolve(Path.fromString(name)), last, "total", "wrapped") }
-            catch (error: AssertionFailure) { reportDownloadAssertion(name, error); throw error }
-        }
-        for (nested in [false, true]) {
-            val name = "callback-" + nested.toString()
-            try { downloadCallbackFailure(trust, root.resolve(Path.fromString(name)), nested) }
-            catch (error: AssertionFailure) { reportDownloadAssertion(name, error); throw error }
-        }
-        downloadSelfClose(trust, root.resolve(Path.fromString("self-close")))
-        downloadFileFailure(trust, root.resolve(Path.fromString("file-error")))
-        downloadInvalidPath(trust)
+        try {
+            when (name) {
+                case "cancel" -> {
+                    assertEquals(6L, args.size)
+                    downloadCancellation(trust, root, downloadBoolean(args[3L]), args[4L], args[5L])
+                }
+                case "callback" -> {
+                    assertEquals(4L, args.size)
+                    downloadCallbackFailure(trust, root, downloadBoolean(args[3L]))
+                }
+                case "self-close" -> { assertEquals(3L, args.size); downloadSelfClose(trust, root) }
+                case "file-error" -> { assertEquals(3L, args.size); downloadFileFailure(trust, root) }
+                case "invalid-path" -> { assertEquals(3L, args.size); downloadInvalidPath(trust) }
+                else -> throw IllegalArgumentException()
+            }
+        } catch (error: AssertionFailure) { reportDownloadAssertion(name, error); throw error }
     }
-    println("client download cancellation callbacks cleanup and close ownership passed")
+    println("download lifetime case passed")
+}
+
+private fun downloadBoolean(value: String): Boolean = when (value) {
+    case "false" -> false
+    case "true" -> true
+    else -> throw IllegalArgumentException()
 }
 
 private fun reportDownloadAssertion(name: String, error: AssertionFailure) {

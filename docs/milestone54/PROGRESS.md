@@ -468,6 +468,8 @@ client 的 suspend observer 已完成：每次尝试记录排池、DNS、TCP、�
 
 缓存生命周期的 18 个独立场景分别启动消费者，保留原有 10 秒 total 时限，并检查请求提前结束时确实进入了被测回调。Cookie、Cookie 网络组合与缓存生命周期均通过 Darwin debug／release 的压力验收，随后直接复用相同产物完成普通运行；协议断言、默认构造、完整 PSL 和清理顺序覆盖均保留。
 
+下载生命周期的 23 个场景和拦截器生命周期的 32 个场景同样分别启动消费者，保留原有 10 秒／2 秒 total 时限；请求提前结束会唤醒测试，并检查被测回调确已开始。原连续压力运行在进入回调前耗尽截止，测试却继续等待进入信号；修正测试后，两项均通过 Darwin debug／release 的 full moving、构建复用和同产物普通运行，保留取消、清理失败、子树等待与 HTTP/2 隔离覆盖。
+
 复用 M53 已完成的工具与目标资源，改动的库通过正常准备／构建入口更新。先运行本机相关测试，待功能组合稳定后在 Linux 完整验证；普通库改动不重复运行无关编译器全量测试。原始日志、fixture 工作区与本期构建缓存保存在仓库外的 `scoop-work/m54`。
 
 Linux 使用 nuc12 上的独立 checkout；已构建配套命令及 GNU／musl 的 OpenSSL、nghttp2、文本、URL、压缩和 libunwind 资源。宿主 LLVM 为 22.1.2，libunwind 源码为固定的 22.1.8。输入、输出进度两个 fixture 已分别通过 GNU／musl 的 debug／release，共 8 个变体、24 个步骤进程，覆盖 native 按值返回、独立线协议、full moving 与正常构建复用；其余功能的 Linux 组合验收继续推进。

@@ -13,6 +13,7 @@ private class InterceptorHold(val child: Boolean, val failCleanup: Boolean) {
     val cleaning: InterceptorGate = InterceptorGate()
     val release: InterceptorGate = InterceptorGate()
     val cleanup: Throwable = ResourceUseException(Throwable(), Throwable())
+    var active: Boolean = false
     var finished: Boolean = false
     suspend fun hold() {
         if (child) coroutineScope<Unit> suspend { scope -> scope.launch suspend { waitForStop() }; Unit }
@@ -20,7 +21,7 @@ private class InterceptorHold(val child: Boolean, val failCleanup: Boolean) {
     }
     private suspend fun waitForStop() {
         assertEquals("callback", interceptorMarker())
-        try { started.signal(); suspendCancellableCoroutine<Unit> { _ -> } }
+        try { active = true; started.signal(); suspendCancellableCoroutine<Unit> { _ -> } }
         finally {
             cleaning.signal(); release.await(); finished = true
             if (failCleanup) throw ResourceUseException(CancellationException(), cleanup)
@@ -61,7 +62,7 @@ internal fun interceptorLifetime(trust: TrustStore, where: String, stop: String,
                     client.execute(HttpRequest.get(url, options = options))
                 }
             } catch (error: Throwable) { failed.value = Some(error) }
-            assertTrue(source.finished)
+            finally { source.started.signal() }
             if (stop != "caller") ensureActive()
         }
         source.started.await()
@@ -70,6 +71,7 @@ internal fun interceptorLifetime(trust: TrustStore, where: String, stop: String,
         })
         if (stop == "caller") running.cancel()
         try {
+            assertTrue(source.active, Some("request finished before the selected interceptor"))
             source.cleaning.await()
             assertFalse(source.finished || running.isCompleted || client.isClosed)
             if (stop == "client") assertFalse(closing!!.isCompleted)

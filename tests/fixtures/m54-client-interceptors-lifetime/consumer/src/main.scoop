@@ -1,27 +1,34 @@
 import scoop.crypto.testdata.rootPem
 import scoop.crypto.x509.TrustStore
-import scoop.test.AssertionFailure
+import scoop.test.*
 
-fun main() {
+fun main(args: Array<String>) {
+    assertTrue(args.size >= 2L)
+    val name = args[1L]
     TrustStore.fromPem(rootPem()).use { trust ->
-        for (where in ["before", "after", "attempt"]) {
-            for (child in [false, true]) {
-                for (stop in ["caller", "client", "total"])
-                    interceptorCase(where + "-" + stop + "-" + child.toString()) {
-                        interceptorLifetime(trust, where, stop, child, true)
-                    }
-                interceptorCase(where + "-clean-" + child.toString()) {
-                    interceptorLifetime(trust, where, "client", child, false)
+        interceptorCase(name) {
+            when (name) {
+                case "lifetime" -> {
+                    assertEquals(6L, args.size)
+                    interceptorLifetime(trust, args[2L], args[3L], interceptorBoolean(args[4L]), interceptorBoolean(args[5L]))
                 }
-                interceptorCase(where + "-self-wait-" + child.toString()) {
-                    interceptorSelfWait(trust, where, child)
+                case "self-wait" -> {
+                    assertEquals(4L, args.size)
+                    interceptorSelfWait(trust, args[2L], interceptorBoolean(args[3L]))
                 }
+                case "concurrent-proceed" -> { assertEquals(2L, args.size); interceptorConcurrentProceed(trust) }
+                case "http2-shared-driver" -> { assertEquals(2L, args.size); interceptorHttp2(trust) }
+                else -> throw IllegalArgumentException()
             }
         }
-        interceptorCase("concurrent-proceed") { interceptorConcurrentProceed(trust) }
-        interceptorCase("http2-shared-driver") { interceptorHttp2(trust) }
     }
-    println("client interceptor cancellation deadlines cleanup self-wait and HTTP2 isolation passed")
+    println("interceptor lifetime case passed")
+}
+
+private fun interceptorBoolean(value: String): Boolean = when (value) {
+    case "false" -> false
+    case "true" -> true
+    else -> throw IllegalArgumentException()
 }
 
 private fun interceptorCase(name: String, block: () -> Unit) {

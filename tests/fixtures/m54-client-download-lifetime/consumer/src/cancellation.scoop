@@ -21,6 +21,7 @@ internal fun downloadCancellation(trust: TrustStore, directory: Path, last: Bool
                         HttpDownloadOptions(replaceExisting = true, onProgress = suspend { value -> probe.progress(value) }))
                 }
             } catch (error: Throwable) { failed.value = Some(error) }
+            finally { probe.entered.signal() }
         }
         probe.entered.await()
         val closing = if (mode == "client") Some(scope.launch suspend {
@@ -28,6 +29,7 @@ internal fun downloadCancellation(trust: TrustStore, directory: Path, last: Bool
         }) else None
         if (mode == "caller") downloading.cancel()
         try {
+            assertTrue(probe.active, Some("request finished before the selected download callback"))
             probe.cancelled.await()
             assertFalse(downloading.isCompleted || probe.cleaned.load())
             probe.release.signal(); probe.cleaning.await()
