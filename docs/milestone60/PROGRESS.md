@@ -8,7 +8,7 @@
 | --- | --- |
 | 设计与路线图 | 已提交；已核对本地引用、M52 当前状态及源码布局 |
 | M60-A：文档前端与注解 | 文档注释、Markdown／tag、普通 core 注解及 typed HIR 文档视图已完成；正式命令诊断随 B 接入 |
-| M60-B：单 Cone 闭环 | 待实施 |
+| M60-B：单 Cone 闭环 | 已完成可缓存渲染输入、可见性及文档注解投影；协议、CLI 与站点渲染继续实施 |
 | M60-C：多 Cone 与更新复用 | 待实施 |
 | M60-D：实际库及跨平台验收 | 待实施 |
 
@@ -49,3 +49,13 @@ CurrentConeSources 接收与选中源码身份、顺序一致的整理后注释�
 本机 fmt／workspace clippy、16 项 HIR 文档定向测试通过，包括真实 core 全部源码的文档请求、跨 Cone alias／成员、同名导入歧义、Unicode／CRLF、M55 条件、嵌套 binder、合成 equals、局部声明排除、普通构建无文档 warning，以及函数体错误仍拒绝输出。真实 core 的 DocHidden／DocAlias 按其 annotation identity 返回，已有说明正确关联且没有文档 warning。测试修正了 struct 字段与自动访问 property 的重复候选，并验证 context 参数直接归属 logical property。
 
 本阶段未提供 CLI、持久化渲染输入、可见性筛选、继承关系的页面展示或 HTML；这些继续在 B／C 完成，不能从 HIR 测试推定站点验收已通过。清理约 498 MiB 不再使用的后端增量缓存，保留前端缓存、release 配套工具及开发 sysroot。Linux 完整验收仍在本机功能闭合后执行。
+
+## B1：可缓存渲染输入与展示筛选
+
+`scoop-doc` 直接消费完成后的 Export HIR、文档视图和已读源码，生成可序列化的展示输入；保留原签名、原 binder 名称、分段 package、源码／warning 位置、绑定链接及公开 re-export 的真实目标。路由通过现有 annotation target 的持久身份投影统一生成；参数使用实际 owner 和位置，派生 equals 使用 nominal owner 与派生角色，object 的类型／值 binding 指向同一源码条目。输入顺序与 arena 变化不改变对应路由。
+
+公开筛选使用 effective lookup／inheritance domain，支持公开 open 类型的 protected 成员，以及 sealed 类型经公开 open 后代提供的扩展点；私有容器不泄漏公开子项。property 保存 getter／setter 的实际可见性。DocHidden 作用于真实目标及文档后代，字段与 logical property 分开，构造参数及源码原文保留；DocAlias 按 core 身份收集、合并重复关键词，并对空白关键词保存准确 warning。用户同名注解不产生文档效果，private 展示模式不取消隐藏。
+
+本机 fmt／workspace clippy 和 24 项 HIR 文档测试通过（新增 8 项投影组合测试）；真实 core 全部源码完成展示投影且无文档 warning。覆盖 JSON 输入往返、Unicode／CRLF、泛型推断类型、M55／context、重载及稳定地址、private setter、sealed／protected、精确 use-site 与注解 alias。测试修正了 inheritance domain 自身 subclass 约束的递归解释。清理四份已被替代的前端增量缓存，约 5.16 GiB 文件逻辑大小，保留当前验证缓存及 release 工具。
+
+此提交提供站点的渲染输入，尚未接入 single-Cone 文档协议、CLI、页面目录／HTML／搜索、继承成员页面或增量发布；完整命令与 Linux 验收继续实施。

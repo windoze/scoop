@@ -71,4 +71,25 @@ fn m60_documentation_projects_real_core_sources_and_canonical_annotations() {
         panic!("DocAlias has an annotation identity");
     };
     assert_eq!(docs.alias_annotation, Some(alias));
+    let input = scoop_doc::project_cone(
+        &output.output().export,
+        docs,
+        &scoop_identity::ConeCoordinate::reserved_core(),
+        scoop_identity::RequestedConeKind::Library,
+    )
+    .unwrap();
+    assert!(input.warnings.is_empty(), "{:?}", input.warnings);
+    let integer = input
+        .items
+        .iter()
+        .find(|item| item.kind == scoop_doc::ApiKind::Struct && item.name == "Int")
+        .unwrap();
+    assert!(integer.aliases.contains(&"integer".into()));
+    assert!(
+        input
+            .visible_items(false)
+            .iter()
+            .any(|item| item.key == integer.key)
+    );
+    assert!(input.sources.iter().all(|source| !source.text.is_empty()));
 }

@@ -45,10 +45,13 @@ pub struct DocumentationDeclaration {
     pub parent: Option<DocumentationTarget>,
     pub kind: DocumentationKind,
     pub name: String,
+    pub package: Vec<String>,
     pub origin: DefinitionOrigin,
     pub visibility: DeclaredVisibility,
     pub synthesized: bool,
     pub signature: Vec<DocumentationSignaturePart>,
+    /// Names in the original binder scope, including enclosing declarations.
+    pub type_parameters: Vec<crate::TypeParamDecl>,
     pub comment: Option<DocumentationComment>,
 }
 

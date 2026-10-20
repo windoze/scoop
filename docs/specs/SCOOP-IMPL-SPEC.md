@@ -84,6 +84,10 @@ when 的 AST 明确区分无 subject、表达式 subject 与 val subject 声明�
 
 待绑定的文档引用在原定义处使用正常名称查询的作用域、层级、访问域与 direct dependency 集合解析。普通 Markdown URL 不参与语言查询；源码注解的文档效果按实际 core identity 识别。文档输出区分已解析引用和已诊断的无效引用，类型信息始终完整；文档 warning 单独保存并绑定 SourceIdentity，不改变普通编译 warning，也不导致跳过正文错误。该视图只用于当前请求和工具本地文档输入，不写入 `.slib`，不改变普通机器生产的输出格式。
 
+文档 stage 将该视图及 Export 中本次已读取的完整源码投影为可序列化的渲染输入。显式签名保留作者写法，推断类型用原声明的 binder 名称呈现；package 保存实际分段，不从显示名称反推。页面锚点由既有持久声明身份的 typed 编码产生；类型／context 参数等子项使用真实 owner 和语义位置，派生 equality 使用实际 nominal owner 与派生角色，不使用请求内 arena 序号或具体化实例作路由身份。渲染输入保留已解析链接、声明与源码位置、结构化 warning、实际 property 能力及文档注解效果，使站点目录或展示选项改变时可直接重用。路由键仅用于站点寻址，不成为新的语言身份或产物验证合同。
+
+公开展示使用 HIR 的 effective lookup 与 inheritance domain，并计入词法 owner；公开且允许外部继承的类型中的 protected 成员可展示。`DocHidden` 的实际目标和后代从 API 目录移除，但不删源码或构造参数文本；`DocAlias` 仅按 core 注解身份提取静态字符串，空白关键词产生带应用位置的文档 warning。文档缓存保留筛选前数据及诊断，private 展示选项和 warning 政策不要求重做 HIR。
+
 HIR 完成名称解析、类型检查、重载与泛型实参选择、可见性、继承与覆写、模式穷尽性、构造／初始化规则、常量、效果及 FFI 声明检查。源码与依赖声明遵守同一语言规则；文件发现顺序、声明存储位置和 provider 读取顺序不能改变结果。
 
 HIR metadata 保存并直接提供已生成的来源形状与 representation 数据；按实际格式和 typed 引用解析，不以另一份 source inventory 重新比较字段、variant、CLayout 或 intrinsic 形状，也不保留只由测试调用的来源资格包装与语义复核 API。语言规则仍由 HIR lowering 在产生这些结果时完成。

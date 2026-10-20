@@ -92,6 +92,18 @@ impl Lowerer {
             return;
         }
         let origin = self.definition_origin(span);
+        let package = match self
+            .top_level_namespaces
+            .source_namespace(self.current_file)
+        {
+            crate::namespace::TopLevelLookupLayer::CorePrelude => Vec::new(),
+            crate::namespace::TopLevelLookupLayer::CurrentPackage(package) => self
+                .top_level_namespaces
+                .package_segments(package)
+                .into_iter()
+                .map(str::to_owned)
+                .collect(),
+        };
         let scope = DocumentationScope {
             file: self.current_file,
             owner: self.current_owner,
@@ -117,10 +129,12 @@ impl Lowerer {
                 parent,
                 kind,
                 name: name.into(),
+                package,
                 origin,
                 visibility,
                 synthesized: false,
                 signature,
+                type_parameters: scope.parameters.clone(),
                 comment: None,
             },
             comment,

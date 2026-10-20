@@ -10,6 +10,7 @@ mod combinations;
 mod declarations;
 mod dependencies;
 mod links;
+mod projection;
 mod scopes;
 mod sysroot;
 mod warnings;
