@@ -165,3 +165,9 @@ fmt／workspace clippy、21 项 statepoint 专测通过；新精确回归覆盖�
 Linux 全量文件验收发现 `m31-ssa-roots` 的 release 期望仍保留已消除的 closure。核对差异后，只更新该 LIR 期望：捕获 Pair 在创建点复制为普通值，两个引用槽在两次 gcCollect 上保持活跃；删除环境分配、私有 invoke／bridge、TD 与 layout，其余调用仅有局部索引重排。debug 期望保持原样，未修改生产实现或运行断言。
 
 格式检查通过；本机和 GNU 各复跑三个变体、12 个进程、三个 golden，全部通过，涵盖强制移动、minor、异常、Context 与独立重链接。GNU 此前同批其余 63 项结果继续保留。Linux workspace 全量 Rust 测试和 fixture runner 单测也已通过；剩余文件集合继续分批验收。
+
+## 2026-10-20：保留外部 box 的接口检查
+
+Linux 全量验收的三项 release 相等性失败在 Darwin 同样复现。原因是普通外部 nominal 的 box 表由 provider 提供，消费方 MIR 中空的本地 itable 被分配消除误当成完整集合，进而将 `42 as Any is Equals<Int>` 折叠为 false。先补实现规范 2.19，再对这类接口判断保留运行期检查；本地完整表、exact payload 拆箱与其他来源事实保持，不新增跨过程分析或接口目录。
+
+fmt／workspace clippy、26 项 MIR 优化专测通过。重建 Darwin 全部 12 个 core／标准库与 runtime 后，三个原失败 fixture 和五个 M58 优化 fixture 共 19 变体／47 进程全部通过，包含普通／移动 GC／minor、接口正反例、安全转换、跨库消费及独立重链接。Linux 原失败报告保留，按新代码重建两目标 sysroot 后继续完整验收。

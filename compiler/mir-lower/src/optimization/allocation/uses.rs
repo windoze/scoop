@@ -167,6 +167,14 @@ fn instance_test(module: &mir::Module, payload: &mir::Type, target: &mir::Type) 
         .class();
     let target = match target {
         mir::Type::Interface(interface) => {
+            // Imported nominal boxes keep their tables in the provider. An
+            // absent local table does not disprove interface conformance.
+            if matches!(
+                module.meta.source_exact_types.get(payload)?.owner(),
+                mir::SourceExactTypeOwner::Cone(provider) if provider != module.cone
+            ) {
+                return None;
+            }
             return Some(
                 module.classes[source]
                     .itables

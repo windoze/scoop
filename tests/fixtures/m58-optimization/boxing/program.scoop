@@ -78,8 +78,22 @@ fun badCast(value: Int): Boolean {
     return boxed as Boolean
 }
 
+fun importedInterfaces(value: Int) {
+    val boxed: Any = value
+    check(boxed is Equals<Int>)
+    check(boxed is Hash)
+    check(!(boxed is Read))
+    gcCollect()
+    check((boxed as Equals<Int>).equals(value))
+    check(when (boxed as? Equals<Int>) {
+        case Some(equal) -> equal.equals(value)
+        case None -> false
+    })
+}
+
 fun main() {
     snapshots()
+    importedInterfaces(42)
     check(boxedRead(37) == 37)
     check(loops(0) == 0 && loops(1) == 3 && loops(8) == 73)
     check(retained(true) == 11 && retained(false) == 22)
