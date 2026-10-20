@@ -21,7 +21,7 @@ context(value: CookieMarker)
 internal fun cookieMarker(): String = value.text
 
 internal class CookieCallbacks(
-    val storage: MemoryCookieJar = MemoryCookieJar(),
+    val storage: MemoryCookieJar = MemoryCookieJar(suffixes = PublicSuffixList.parse("com\n")),
     private val loading: suspend (HttpRequest) -> Unit = suspend { _ -> },
     private val saving: suspend (HttpRequest, HttpResponseHead) -> Unit = suspend { _, _ -> }
 ) : CookieJar {

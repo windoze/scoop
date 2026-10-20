@@ -16,8 +16,18 @@ json = "stderr"
 diagnostics = []
 
 [[steps]]
-name = "run"
-argv = ["${build.result.output}"]
+name = "bundled"
+argv = ["${build.result.output}", "bundled"]
+env = {SCOOP_GC_STRESS_MOVE = "0", SCOOP_GC_STRESS_MINOR = "1"}
+exit = 0
+stdout = "client cookie scopes expiry SameSite storage and concurrent access passed\n"
+stderr = ""
+
+[[steps]]
+name = "moving"
+timeout = 1800
+argv = ["${build.result.output}", "custom"]
+env = {SCOOP_GC_STRESS_MOVE = "1", SCOOP_GC_STRESS_MINOR = "0"}
 exit = 0
 stdout = "client cookie scopes expiry SameSite storage and concurrent access passed\n"
 stderr = ""

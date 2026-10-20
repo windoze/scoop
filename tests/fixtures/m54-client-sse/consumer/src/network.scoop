@@ -16,7 +16,7 @@ internal fun sseNetwork(trust: TrustStore, mode: String, url: Url) {
     val loop: EventLoop = LibuvEventLoop()
     loop.run suspend { _ ->
         val cache = MemoryHttpCache()
-        withHttpClient(sseConfig(trust, cache = Some(HttpCacheOptions(cache)), jar = Some<CookieJar>(MemoryCookieJar()))) suspend { client ->
+        withHttpClient(sseConfig(trust, cache = Some(HttpCacheOptions(cache)), jar = Some<CookieJar>(MemoryCookieJar(suffixes = PublicSuffixList.parse("com\n"))))) suspend { client ->
             if (mode == "cache") {
                 client.withResponse(HttpRequest.get(url)) suspend { response -> assertEquals("cached", response.body.text(1024L)) }
                 assertEquals(1L, cache.entryCount)

@@ -2,8 +2,8 @@ import scoop.http.*
 import scoop.http.client.*
 import scoop.test.*
 
-internal suspend fun cookieScopes() {
-    val jar = MemoryCookieJar()
+internal suspend fun cookieScopes(suffixes: PublicSuffixList) {
+    val jar = MemoryCookieJar(suffixes = suffixes)
     cookieSave(jar, ["host=h; HttpOnly", "domain=d; Domain=example.com; Path=/", "deep=p; Path=/dir/deep"])
     assertEquals("host=h; domain=d", cookieLoad(jar))
     assertEquals("deep=p; host=h; domain=d", cookieLoad(jar, "https://example.com/dir/deep/next"))
@@ -26,8 +26,8 @@ internal suspend fun cookieScopes() {
     assertEquals("host=wide; domain=d", cookieLoad(jar))
 }
 
-internal suspend fun cookieRejections() {
-    val jar = MemoryCookieJar()
+internal suspend fun cookieRejections(suffixes: PublicSuffixList) {
+    val jar = MemoryCookieJar(suffixes = suffixes)
     cookieSave(jar, ["a=1; Domain=com", "a=1; Domain=elsewhere.com", "a=1; Domain=example.com.",
         "__Host-x=1; Secure; Domain=example.com; Path=/", "__Secure-x=1", "a=1; SameSite=None", "broken=\nvalue"])
     assertEquals(0L, jar.snapshot().size)
@@ -49,8 +49,8 @@ internal suspend fun cookieRejections() {
     for (index in 0L..<bytes.size) assertEquals(bytes[index], loaded[index])
 }
 
-internal suspend fun cookieSecureOverlay() {
-    val jar = MemoryCookieJar()
+internal suspend fun cookieSecureOverlay(suffixes: PublicSuffixList) {
+    val jar = MemoryCookieJar(suffixes = suffixes)
     cookieSave(jar, ["sid=secure; Domain=example.com; Path=/login; Secure"])
     cookieSave(jar, ["sid=plain; Domain=example.com; Path=/login", "sid=shadow; Path=/login/deep",
         "sid=gone; Domain=example.com; Path=/login; Max-Age=0", "sid=bad; Path=/login; Secure"], "http://sub.example.com/login")

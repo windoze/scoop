@@ -10,7 +10,7 @@ import scoop.url.Url
 internal fun cookieExternal(trust: TrustStore, mode: String, url: Url, other: Url) {
     LibuvEventLoop().run suspend { _ ->
         if (mode == "sequence") { cookieExternalSequence(trust, url); return@run }
-        val jar = MemoryCookieJar()
+        val jar = MemoryCookieJar(suffixes = PublicSuffixList.parse("com\n"))
         val target = if (mode == "proxy") Url.parse("http://origin.invalid/resource") else url
         cookieSeed(jar, target, "seed=1; Path=/")
         if (mode == "manual") cookieSeed(jar, other, "other=2; Path=/")

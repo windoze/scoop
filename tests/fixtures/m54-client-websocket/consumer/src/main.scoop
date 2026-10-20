@@ -30,7 +30,7 @@ private fun runWsCase(args: Array<String>) {
                     initialDelay = Duration.ZERO, maxDelay = Duration.ZERO),
                 pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 1L),
                 timeouts = HttpTimeoutOptions(poolAcquire = Some(Duration.seconds(5L))),
-                cookieJar = if (mode == "cookie") Some<CookieJar>(MemoryCookieJar()) else None)
+                cookieJar = if (mode == "cookie") Some<CookieJar>(MemoryCookieJar(suffixes = PublicSuffixList.parse("com\n"))) else None)
             val client = HttpClient.open(scope, config)
             try {
                 val request = HttpWebSocketRequest(url, [HttpField("X-Client".toByteArray(), "scoop".toByteArray())])

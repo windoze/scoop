@@ -21,7 +21,7 @@ internal fun downloadNetwork(trust: TrustStore, mode: String, url: Url, director
         ]) else HttpAuthenticationOptions()
         val cache: HttpCache? = if (mode == "cache") Some<HttpCache>(MemoryHttpCache()) else None
         val config = HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)), authentication = authentication,
-            cookieJar = Some<CookieJar>(MemoryCookieJar()), cache = when (cache) {
+            cookieJar = Some<CookieJar>(MemoryCookieJar(suffixes = PublicSuffixList.parse("com\n"))), cache = when (cache) {
                 case Some(storage) -> Some(HttpCacheOptions(storage)); case None -> None
             })
         val callOptions = HttpCallOptions(decoding = if (mode == "raw") Some(HttpDecodingOptions(HttpContentDecoding.Raw)) else None)

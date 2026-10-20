@@ -1,12 +1,13 @@
+import scoop.http.PublicSuffixList
 import scoop.asyncio.*
 import scoop.http.client.*
 import scoop.platform.concurrent.Thread
 import scoop.test.*
 import scoop.time.*
 
-internal suspend fun cookieStorage() {
+internal suspend fun cookieStorage(suffixes: PublicSuffixList) {
     val clock = CookieClock()
-    val capacity = MemoryCookieJar(clock = clock, maxCookies = 3L, maxCookiesPerDomain = 2L, maxLifetimeSeconds = 100L)
+    val capacity = MemoryCookieJar(suffixes = suffixes, clock = clock, maxCookies = 3L, maxCookiesPerDomain = 2L, maxLifetimeSeconds = 100L)
     cookieSave(capacity, ["first=1; Path=/one", "second=2; Path=/two"])
     clock.advance()
     assertEquals("first=1", cookieLoad(capacity, "https://example.com/one"))
@@ -18,7 +19,7 @@ internal suspend fun cookieStorage() {
     cookieSave(capacity, ["fifth=5; Path=/"], "https://third.test/")
     assertEquals(3L, capacity.snapshot().size)
     assertEquals("", cookieLoad(capacity, "https://example.com/one"))
-    val jar = MemoryCookieJar(clock = clock, maxLifetimeSeconds = 100L)
+    val jar = MemoryCookieJar(suffixes = suffixes, clock = clock, maxLifetimeSeconds = 100L)
     cookieSave(jar, ["session=s", "short=1; Max-Age=2", "long=2; Max-Age=1000; Expires=Thu, 01 Jan 1970 00:00:00 GMT"])
     assertEquals(Some(clock.value + Duration.seconds(100L)), jar.snapshot()[2L].expiresAt)
     val snapshot = jar.snapshot()
@@ -38,9 +39,9 @@ internal suspend fun cookieStorage() {
     jar.clear()
     assertEquals(0L, jar.snapshot().size)
     assertEquals("session", String.fromUtf8(snapshot[0L].pair.name))
-    assertFailsWith<IllegalArgumentException> { MemoryCookieJar(maxCookies = 0L) }
-    assertFailsWith<IllegalArgumentException> { MemoryCookieJar(maxCookiesPerDomain = -1L) }
-    assertFailsWith<IllegalArgumentException> { MemoryCookieJar(maxLifetimeSeconds = -1L) }
+    assertFailsWith<IllegalArgumentException> { MemoryCookieJar(suffixes = suffixes, maxCookies = 0L) }
+    assertFailsWith<IllegalArgumentException> { MemoryCookieJar(suffixes = suffixes, maxCookiesPerDomain = -1L) }
+    assertFailsWith<IllegalArgumentException> { MemoryCookieJar(suffixes = suffixes, maxLifetimeSeconds = -1L) }
     clock.value = Instant.MAX - Duration.seconds(10L)
     cookieSave(jar, ["edge=e; Max-Age=100"])
     assertEquals(Some(Instant.MAX), jar.snapshot()[0L].expiresAt)
@@ -48,8 +49,8 @@ internal suspend fun cookieStorage() {
     assertEquals("", cookieLoad(jar))
 }
 
-internal fun cookieConcurrent() {
-    val jar = MemoryCookieJar(maxCookies = 200L, maxCookiesPerDomain = 100L)
+internal fun cookieConcurrent(suffixes: PublicSuffixList) {
+    val jar = MemoryCookieJar(suffixes = suffixes, maxCookies = 200L, maxCookiesPerDomain = 100L)
     Thread.start { cookieConcurrentWorker(jar, "first.test") }.use { thread -> cookieConcurrentWorker(jar, "second.test"); thread.join() }
     assertEquals(100L, jar.snapshot().size)
 }
