@@ -75,27 +75,33 @@ impl Lowerer {
             Option<Vec<hir::Statement>>,
         ) -> Option<hir::When>,
     ) -> Option<(hir::When, hir::Expr)> {
-        let defer_else = when
-            .else_body
-            .as_ref()
-            .is_some_and(|body| expected.is_none() && self.value_block_requires_expected(body));
         let mut arms: Vec<Option<ValueArm>> = (0..when.arms.len()).map(|_| None).collect();
+        let mut failures = (0..when.arms.len()).map(|_| None).collect::<Vec<_>>();
+        let mut else_failure = None;
         for (index, arm) in when.arms.iter().enumerate() {
-            if !(expected.is_none() && heads[index].requires_expected) {
-                let branch_expected = if heads[index].body_reachable {
-                    expected
-                } else {
-                    None
-                };
-                arms[index] = Some(self.lower_value_arm(arm, &heads[index], branch_expected)?);
-            }
+            let branch_expected = if heads[index].body_reachable {
+                expected
+            } else {
+                None
+            };
+            arms[index] = self.probe_contextual_value(
+                heads[index].context_requirement,
+                branch_expected,
+                &mut failures[index],
+                |this, expected| this.lower_value_arm(arm, &heads[index], expected),
+            )?;
         }
         let mut else_value = match &when.else_body {
-            Some(body) if !defer_else => {
+            Some(body) => {
                 let branch_expected = if else_reachable { expected } else { None };
-                Some(self.lower_value_block(body, branch_expected)?)
+                self.probe_contextual_value(
+                    self.value_block_context_requirement(body),
+                    branch_expected,
+                    &mut else_failure,
+                    |this, expected| this.lower_value_block(body, expected),
+                )?
             }
-            _ => None,
+            None => None,
         };
         let has_hint = arms.iter().zip(&heads).any(|(arm, plan)| {
             plan.body_reachable
@@ -107,36 +113,53 @@ impl Lowerer {
                 .as_ref()
                 .is_some_and(|body| body.value.as_ref().is_some()));
         if !has_hint {
-            let arm_seed = when
+            let mut seeds = when
                 .arms
                 .iter()
                 .enumerate()
                 .filter(|(index, _)| {
                     heads[*index].body_reachable
                         && arms[*index].is_none()
-                        && (expected.is_none() && heads[*index].requires_expected)
+                        && failures[*index].is_none()
                 })
                 .filter_map(|(index, arm)| {
                     self.value_block_default_seed_rank(&arm.body)
-                        .map(|rank| (rank, index, arm))
+                        .map(|rank| (rank, Some(index)))
                 })
-                .max_by_key(|(rank, _, _)| *rank);
-            let else_rank = (else_reachable && else_value.is_none())
+                .collect::<Vec<_>>();
+            let else_rank = (else_reachable && else_value.is_none() && else_failure.is_none())
                 .then(|| {
                     when.else_body
                         .as_ref()
                         .and_then(|body| self.value_block_default_seed_rank(body))
                 })
                 .flatten();
-            if let Some((rank, index, arm)) = arm_seed
-                && Some(rank) >= else_rank
-            {
-                arms[index] = Some(self.lower_value_arm(arm, &heads[index], None)?);
-            } else if else_rank.is_some() && defer_else {
-                else_value = Some(self.lower_value_block(
-                    when.else_body.as_ref().expect("deferred else exists"),
-                    None,
-                )?);
+            seeds.extend(else_rank.map(|rank| (rank, None)));
+            seeds.sort_by_key(|seed| std::cmp::Reverse(*seed));
+            for (_, index) in seeds {
+                let ready = if let Some(index) = index {
+                    arms[index] = self.probe_contextual_value(
+                        ExpressionContextRequirement::Unresolved,
+                        None,
+                        &mut failures[index],
+                        |this, expected| {
+                            this.lower_value_arm(&when.arms[index], &heads[index], expected)
+                        },
+                    )?;
+                    arms[index].is_some()
+                } else {
+                    let body = when.else_body.as_ref().expect("an else seed has a body");
+                    else_value = self.probe_contextual_value(
+                        ExpressionContextRequirement::Unresolved,
+                        None,
+                        &mut else_failure,
+                        |this, expected| this.lower_value_block(body, expected),
+                    )?;
+                    else_value.is_some()
+                };
+                if ready {
+                    break;
+                }
             }
         }
         let mut hint_types: Vec<_> = arms
@@ -166,14 +189,21 @@ impl Lowerer {
                 } else {
                     None
                 };
-                arms[index] = Some(self.lower_value_arm(arm, &heads[index], branch_expected)?);
+                arms[index] = Some(self.finish_contextual_value(
+                    branch_expected,
+                    &mut failures[index],
+                    |this, expected| this.lower_value_arm(arm, &heads[index], expected),
+                )?);
             }
         }
-        if defer_else {
+        if else_value.is_none()
+            && let Some(body) = &when.else_body
+        {
             let branch_expected = if else_reachable { hint } else { None };
-            else_value = Some(self.lower_value_block(
-                when.else_body.as_ref().expect("deferred else exists"),
+            else_value = Some(self.finish_contextual_value(
                 branch_expected,
+                &mut else_failure,
+                |this, expected| this.lower_value_block(body, expected),
             )?);
         }
         let mut arms: Vec<ValueArm> = arms

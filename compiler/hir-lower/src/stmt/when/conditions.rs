@@ -74,7 +74,7 @@ impl Lowerer {
             scope: self.scopes.clone(),
             facts: self.smart_casts.clone(),
             coverage: primary.coverage,
-            requires_expected: self.value_block_requires_expected(&arm.body),
+            context_requirement: self.value_block_context_requirement(&arm.body),
             body_reachable: *reachable && primary_completes && guard_completes,
         };
         *reachable = *reachable

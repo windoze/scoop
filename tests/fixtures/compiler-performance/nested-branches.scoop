@@ -1,0 +1,7 @@
+fun <T> same(value: T): T = value
+
+fun main() {
+    val seed: Int = 42
+    val result = same(if (true) { same(if (true) { same(if (true) { same(if (true) { same(if (true) { same(if (true) { same(if (true) { same(if (true) { same(if (true) { same(if (true) { same(if (true) { same(if (true) { same(if (true) { same(if (true) { same(if (true) { same(if (true) { same(if (true) { same(if (true) { same(if (true) { same(if (true) { same(if (true) { same(if (true) { same(if (true) { same(if (true) { same(if (true) { same(if (true) { same(if (true) { same(if (true) { same(if (true) { same(if (true) { same(if (true) { same(if (true) { seed } else { seed }) } else { seed }) } else { seed }) } else { seed }) } else { seed }) } else { seed }) } else { seed }) } else { seed }) } else { seed }) } else { seed }) } else { seed }) } else { seed }) } else { seed }) } else { seed }) } else { seed }) } else { seed }) } else { seed }) } else { seed }) } else { seed }) } else { seed }) } else { seed }) } else { seed }) } else { seed }) } else { seed }) } else { seed }) } else { seed }) } else { seed }) } else { seed }) } else { seed }) } else { seed }) } else { seed }) } else { seed })
+    println(result)
+}
