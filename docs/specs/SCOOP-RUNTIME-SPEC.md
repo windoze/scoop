@@ -6,6 +6,8 @@
 
 运行时提供 managed 对象分配、精确移动 GC、类型检查与动态分派所需的数据、异常展开、一次性初始化、Task-local Context 和 FFI 支持。运行时不得重新进行源码名称解析、重载选择或泛型实例化。构建缓存与产物更新属于实现规范 2.6～2.8；移除缓存内容复核不增加运行时补充验证或新 ABI。实际 image 注册、GC 根更新、对象边界和 native 调用契约保持。
 
+函数条件与成员调用要求属于编译期合同（语言规范3.2.2～3.2.4、实现规范2.11、2.13），具体化后只产生已有的普通调用、构造与 singleton 访问。不增加 runtime 约束检查、dictionary、TypeDescriptor 字段或按调用点作用域分派的 ABI。
+
 M42 的平台无关标准基础库按 [标准基础库规范](SCOOP-STDLIB-SPEC.md) 完全使用普通 Scoop Cone 实现，只通过公开 core API 使用既有运行时能力。集合、排序、文本和字节处理、数值文本转换、RNG、日期／时间运算均不增加 runtime helper、native 后备或专用 ABI；Clock／TimeSource 只有普通库接口，没有系统取时实现。库代码触发的实际 GC、异常或 ABI 缺陷必须先在对应底层修复并建立独立回归，不能将缺陷处理转移成库专用绕行。
 
 受支持目标使用 little-endian、64-bit data/code pointer 和 natural 8-byte metadata alignment。所有大小、数量、对齐和地址范围计算必须检查溢出及实际存储边界；不满足目标表示或 ABI 的输入必须拒绝。
@@ -170,6 +172,8 @@ closure 不能直接作为 FunPtr 交给 native。静态 FunPtr 与 4.3 的 mana
 每个需要运行期求值的顶层属性、singleton 和 delegated extension application 有独立初始化单元。其 GC-free cell 位于 managed heap 外，size 16、alignment 8，保存 `state: u64` 与 `owner_thread: pointer`。状态为 Uninitialized、Initializing、Initialized 或 Failed。
 
 同一 singleton 的所有访问使用同一 ensure、published root 与 cell。generic companion 按完整宿主 application 区分状态；同一 application 跨 Cone 只初始化一次，不同 application 不因布局相同而合并。宿主构造、类型查询和 const 读取不隐式初始化 companion。
+
+M55 的 companion bound、投影存在性与成员要求查询同样不触发初始化；正文或默认参数中实际求值的 `T.Companion` 在具体化后使用本节原有的 ensure、root 与 cell，不为不同要求或消费方创建另一份状态。
 
 winner 完成全部初始化后，先发布 property storage 或 singleton root，再以 release 语义发布 Initialized。waiter 以 acquire 观察终态后重新读取 storage。Initializing 期间不能读取临时 singleton；构造中的 receiver 只由正常 managed root 保活。ZST storage 也保留 initializer、ensure、cell 和副作用。
 
