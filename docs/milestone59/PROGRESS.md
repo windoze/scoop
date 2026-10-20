@@ -11,7 +11,7 @@
 | 样式与颜色策略 | 本机完成，PTY／Linux 随后验收 | 新增 11 项单测；全库 25 项 debug 与 release＋moving GC 均通过；2 项消费者 fixture、4 个变体通过 |
 | 事件数据与增量 parser | 本机完成，PTY／Linux 随后验收 | 新增 29 项单测；全库 54 项 debug 与 release＋moving GC 均通过；事件消费者 fixture 两个变体通过 |
 | Unix 会话、raw、resize、read／poll、查询 | 待实施 | — |
-| PTY host 与交互 fixture | 待实施 | — |
+| PTY host 与交互 fixture | host 与输出交互本机完成；输入／恢复随会话补齐 | host 4 项测试、runner 51 项规则测试通过；PTY 输出 fixture 两个变体通过 |
 | Kitty／OSC 52 与组合覆盖 | Kitty 数据、命令及解析已实现；OSC 52 与 PTY 组合待实施 | Kitty 分片、释放、锁定状态与能力回复已有单测 |
 | asyncio TTY 与 terminal.asyncio | 待实施 | — |
 | Linux GNU／musl 验收与清理 | 待实施 | — |
@@ -51,3 +51,11 @@
 新增 29 项单测，以固定向量覆盖每个两段切分位置及逐字节输入；另测 Escape 截止时间、零等待、数字溢出、Unicode 标量、坐标下溢、非法输入重同步、粘贴部分结束标记和 EOF。旧式 F15～F20 对照 xterm 修正上游偏差；Kitty 标志解析完整十进制数字，256 修饰字段保留全部位，释放事件不伪造修饰状态。
 
 全库 54 项 debug、release＋moving GC 测试通过；后者完整运行一次，后续按实际改动选测，避免反复执行全部分片组合。独立消费者验证公开 enum／struct 的跨 Cone 值传递、GC 和全部输入模式命令，两种构建模式共 4 个进程通过。预编译 sysroot 已重新发布。Scoop 生产文件最大 78 行，生成的 Unicode 范围表 117 行；生成脚本 Ruff 通过。Rust dev 产物再清理 6.0 GiB，target 剩余约 654 MiB；release 工具保留。
+
+## 7. PTY host 与真实输出
+
+独立 Rust host 固定 portable-pty 0.9.0／vt100 0.16.2，以普通工具参数接入 fixture runner；不新增 fixture DSL，不自动构建测试工具。读取线程只传字节，主线程维护精确 cell、raw output 和查询 callback。查询在实际解析位置取光标；正常退出同时等待子进程及 reader EOF，错误／中断路径显式终止 PTY 进程组并回收 reader。
+
+host 的 4 项测试覆盖全部查询切分位置、Kitty 零标志与不回复的区别、真实 PTY 输出排空、空格／空行、交互、resize 和失败清理。runner 51 项规则测试通过。首个 Scoop PTY fixture 在 debug 与 release＋moving GC 下通过，共 4 个进程；覆盖 RGB／索引色／样式复位、光标保存、Unicode 宽字符覆盖、擦除、滚动、备用屏幕、标题和尺寸变化，比较实际 termios 未被纯输出改变。
+
+验证发现 vt100 0.16.2 不实现 DECAWM；关闭自动换行改用精确原始序列断言，不扩大 host 为新终端模拟器。Rust fmt／Clippy 与 Python Ruff 均通过，host 最长文件约 200 行。
