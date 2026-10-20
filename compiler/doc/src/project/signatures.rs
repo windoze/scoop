@@ -15,6 +15,14 @@ impl Projection<'_> {
                     hir::DocumentationSignaturePart::Source(span) => {
                         (source[span.start as usize..span.end as usize].into(), None)
                     }
+                    hir::DocumentationSignaturePart::LinkedSource { span, symbol } => (
+                        source[span.start as usize..span.end as usize].into(),
+                        Some(self.symbol(*symbol)?),
+                    ),
+                    hir::DocumentationSignaturePart::SourceType { span, ty } => (
+                        source[span.start as usize..span.end as usize].into(),
+                        self.type_link(*ty)?,
+                    ),
                     hir::DocumentationSignaturePart::Type(ty) => (
                         hir::type_name_with_params(self.export, *ty, &declaration.type_parameters),
                         self.type_link(*ty)?,

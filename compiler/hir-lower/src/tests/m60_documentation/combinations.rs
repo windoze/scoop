@@ -73,13 +73,19 @@ fn m60_documentation_retains_context_receiver_and_member_requirements() {
         comment.tags[2].kind,
         Tag::Receiver(Target::Declaration(Source::Receiver(_)))
     ));
-    assert!(
-        inspect
-            .signature
-            .iter()
-            .any(|part| matches!(part, Part::Source(span)
-        if source[span.start as usize..span.end as usize].contains("requires(x: T)")))
-    );
+    let written = inspect
+        .signature
+        .iter()
+        .filter_map(|part| match part {
+            Part::Source(span)
+            | Part::LinkedSource { span, .. }
+            | Part::SourceType { span, .. } => {
+                Some(&source[span.start as usize..span.end as usize])
+            }
+            _ => None,
+        })
+        .collect::<String>();
+    assert!(written.contains("requires(x: T)"));
     let property = named(&output, Kind::Property, "label");
     assert!(
         docs.declarations

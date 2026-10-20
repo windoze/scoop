@@ -9,6 +9,7 @@ impl Lowerer {
             self.end_type_annotations(ty_ref, ty);
         }
         let ty = ty?;
+        self.document_type_use(ty_ref, ty);
         if matches!(
             self.types[ty],
             Type::Struct(_) | Type::Class(_) | Type::Enum(_) | Type::Interface(_)

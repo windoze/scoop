@@ -19,6 +19,7 @@ mod properties;
 mod signatures;
 mod symbols;
 mod synthesized;
+mod type_links;
 
 #[derive(Clone)]
 pub(crate) struct DocumentationContext {
@@ -26,6 +27,7 @@ pub(crate) struct DocumentationContext {
     declarations: Vec<CapturedDeclaration>,
     targets: HashSet<Target>,
     warnings: Vec<ast::Diagnostic>,
+    types: BTreeMap<(usize, u32, u32), (Vec<ast::Ident>, hir::TypeId)>,
 }
 
 #[derive(Clone)]
@@ -49,6 +51,7 @@ impl DocumentationContext {
             declarations: Vec::new(),
             targets: HashSet::new(),
             warnings: Vec::new(),
+            types: BTreeMap::new(),
         };
         for (file, source) in sources.iter().enumerate() {
             for comment in &source.documents {

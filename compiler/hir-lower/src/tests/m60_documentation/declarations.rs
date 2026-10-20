@@ -25,7 +25,11 @@ fn m60_documentation_projects_source_signatures_and_inferred_types() {
         .signature
         .iter()
         .filter_map(|part| match part {
-            Part::Source(span) => Some(&source[span.start as usize..span.end as usize]),
+            Part::Source(span)
+            | Part::LinkedSource { span, .. }
+            | Part::SourceType { span, .. } => {
+                Some(&source[span.start as usize..span.end as usize])
+            }
             _ => None,
         })
         .collect::<String>();

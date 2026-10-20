@@ -61,6 +61,14 @@ pub struct DocumentationDeclaration {
 pub enum DocumentationSignaturePart {
     Text(String),
     Source(Span),
+    LinkedSource {
+        span: Span,
+        symbol: DocumentationSymbol,
+    },
+    SourceType {
+        span: Span,
+        ty: TypeId,
+    },
     Type(TypeId),
 }
 

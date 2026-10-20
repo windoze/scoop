@@ -51,6 +51,24 @@ fn m60_documentation_projection_preserves_binder_names_source_aliases_and_markdo
     assert_eq!(read.package, ["one.two", "api"]);
     let count = item(&input, ApiKind::Function, "count");
     assert_eq!(signature(count), "public fun count(value: Count = 2): Int");
+    assert_eq!(
+        count
+            .signature
+            .iter()
+            .find(|part| part.text == "Count")
+            .unwrap()
+            .link,
+        Some(item(&input, ApiKind::TypeAlias, "Count").key.clone())
+    );
+    let cell = item(&input, ApiKind::Class, "Cell");
+    assert_eq!(
+        cell.signature
+            .iter()
+            .find(|part| part.text == "Element" && part.link.is_some())
+            .unwrap()
+            .link,
+        Some(item(&input, ApiKind::TypeParameter, "Element").key.clone())
+    );
     assert_eq!(count.location.line, 10);
     assert_eq!(input.warnings.len(), 1);
     let warning = &input.warnings[0];
