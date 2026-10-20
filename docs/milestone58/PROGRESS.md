@@ -159,3 +159,9 @@ fmt／workspace clippy、21 项 statepoint 专测通过；新精确回归覆盖�
 重建本分支全部 12 个 core／标准库 Cone 与生产 runtime，HTTP asyncio 的失败按上节闭合。以新 core 运行整组 M58：20 个 fixture、58 变体、98 进程全部通过，含强制移动 GC、minor、含引用 clone／unbox、嵌套闭包、真正挂起、跨线程恢复、异常与并发 poll 根恢复。21 项 statepoint 专测同时覆盖 Darwin、GNU、musl 的实际机器对象。
 
 额外常量清理的隔离对照未见明显编译或运行代价，text／文件大小不变，见性能记录第 15 节。诊断 dump 与 benchmark 临时源码均已恢复，已完成的工具、可执行文件和 fixture 缓存已清理，仅保留仓库外报告／日志；GNU／musl 完整运行验收仍在独立 worktree 进行。
+
+## 2026-10-20：旧 SSA roots 优化快照对齐
+
+Linux 全量文件验收发现 `m31-ssa-roots` 的 release 期望仍保留已消除的 closure。核对差异后，只更新该 LIR 期望：捕获 Pair 在创建点复制为普通值，两个引用槽在两次 gcCollect 上保持活跃；删除环境分配、私有 invoke／bridge、TD 与 layout，其余调用仅有局部索引重排。debug 期望保持原样，未修改生产实现或运行断言。
+
+格式检查通过；本机和 GNU 各复跑三个变体、12 个进程、三个 golden，全部通过，涵盖强制移动、minor、异常、Context 与独立重链接。GNU 此前同批其余 63 项结果继续保留。Linux workspace 全量 Rust 测试和 fixture runner 单测也已通过；剩余文件集合继续分批验收。
