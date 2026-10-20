@@ -49,23 +49,23 @@ GC stress 只用于 GC 正确性的定向测试。普通功能与完整功能验
 | main 合并后的本机工具 | `a183651fa` 合入 main `2f7411e5a`；fmt／workspace clippy、530 项相关 Rust 测试、51 项 runner 测试通过，三个 release 命令及 17 个 Cone／runtime 重建成功 |
 | main 合并后的本机集成 | native 要求、Basic／H2 和 observer 三项普通 fixture 全部通过，共 6 个变体、20 个进程；保留 M54 的 native 链接与 safepoint 合同 |
 | HTTP/2 ACK 修复 | GNU／musl 的 HTTP、HTTP asyncio 与 client 候选库构建成功；每目标五项普通回归全部通过，各 10 个变体、30 个进程 |
-| GNU 库与普通消费者 | 其他 10 个相关库的 debug／release 已通过；client 库验收尚待完成。剩余普通 fixture 正在逐项运行，已完成结果保留 |
-| musl 库与普通消费者 | 其他 10 个相关库的 debug／release 已通过；client 库验收尚待完成。剩余普通 fixture 正在逐项运行，已完成结果保留 |
+| GNU 库与普通消费者 | 其他 10 个相关库的 debug／release 均已通过，每种模式 636 项、无失败或跳过；client 库验收仍在进行。剩余普通 fixture 在大型库测试后续跑，保留已完成结果 |
+| musl 库与普通消费者 | 其他 10 个相关库的 debug／release 均已通过，每种模式 636 项、无失败或跳过；client 库验收尚待完成。剩余普通 fixture 在大型库测试后续跑，保留已完成结果 |
 | 合并后的 Linux 集成 | 三个 release 工具及 GNU／musl 的 17 个 Cone／runtime 准备完成；native 强／弱引用、Basic／H2 和 observer 每目标四项全部通过，各 10 个变体、32 个进程 |
 | LIR 查询修复 | fmt／workspace clippy、1,245 项相关 Rust 测试与 1 项 doctest 通过；observer 的 debug／release 真实网络运行及无子进程 warm 构建通过。相同消费者的 debug `.slib` 字节与链接计划完全一致 |
-| Darwin client 整库 | `d8a3a4c9d` 的普通 debug 运行通过全部 164 项测试，release 仍在运行；此前只有部分筛选运行，未计为整库通过 |
-| GC effect 表共享 | 独立保留／共享回归在旧实现确定失败；LLVM 22.1 下的 workspace clippy、25 项 statepoint 与 12 项对象划分测试通过，整库编译的内存与产物对照待完成 |
+| Darwin client 整库 | `d63babb49` 的普通 debug／release 各 164 项全部通过，无失败、跳过或未运行项；修复前的 `d8a3a4c9d` 两种模式也各 164 项通过。完整 debug `.slib` 的 1,090,825,020 字节与修复前完全一致 |
+| GC effect 表共享 | 独立保留／共享回归在旧实现确定失败；LLVM 22.1 下的 workspace clippy、25 项 statepoint 与 12 项对象划分测试通过。三个 release 工具在本机与 Linux 构建成功，本机默认工具也已更新 |
+| GC 定向正确性 | 四项专测均已有三个目标的通过记录。本轮只补齐缺失的 musl 分支加载专测，debug／release 共 2 个变体、6 个进程通过；其余沿用现有记录 |
 
-GNU 和 musl 的 client 库首次 debug 编译均被系统 OOM 终止，内核记录已确认；musl 单进程匿名 RSS 约 42 GiB。普通批次已在当前用例完成后正常中止并保存报告，为单个大型库编译留出内存，后续仅续跑未完成部分。局部查询修复的单次消费者编译为 82.90→79.62 秒，不据此声称稳定的整体加速或 OOM 已解决；client 两目标的 debug／release 仍待独立重试。
+GNU 和 musl 的 client 库首次 debug 编译均被系统 OOM 终止，内核记录已确认；musl 单进程匿名 RSS 约 42 GiB。普通批次已在当前用例完成后正常中止并保存报告，为单个大型库编译留出内存，后续仅续跑未完成部分。独立 GNU 重试进一步定位到 GC effect 表副本，在约 49 GiB RSS 时主动停止旧实现的编译；这次中止不记为新 OOM 或通过。
 
-独立 GNU 重试的采样及对象保留路径进一步定位到 GC effect 表副本；在约 50 GiB RSS 时主动停止旧实现的编译，保留记录后改用共享表验证。这次中止不记为新 OOM 或通过。一次局部 Rust 测试误用了环境中的 LLVM 23，已改用项目要求的 LLVM 22.1 重跑相关 37 项并全部通过。
+共享表后的 Darwin 整库对照中，debug 最大 RSS 从 74.84 降至 31.74 GiB，release 从 68.67 降至 29.84 GiB。对应单次耗时为 810→794 秒和 850→810 秒，不据此声称稳定的整体加速；Linux 内存峰值与两个目标的 client debug／release 结果仍须实际验证。
 
 已结束的旧 target 和诊断输出按批清理，保留需要复用的工具、源码、生产 SDK、缓存及实际报告。原始日志、JSON、历史进度副本与缓存归档均位于仓库外的 `scoop-work/m54`；本页不保存逐次流水账。
 
 ## 后续工作
 
-1. 完成三目标 client 库 profile 与 GNU／musl 剩余普通功能消费者；验证共享表修复的实际内存与产物，修复真实失败并复验受影响范围。
-2. 在 Linux 使用已验证的合并后 SDK 验收查询修复与剩余组合，保留旧批次的实际版本与结果。
-3. 汇总三目标最终结果，核对设计矩阵与分发资料，再更新 milestone／roadmap 为完成。
+1. 完成 GNU／musl client 库 profile 与剩余普通功能消费者；记录实际内存峰值，修复真实失败并复验受影响范围。
+2. 汇总三目标最终结果，核对设计矩阵与分发资料，再更新 milestone／roadmap 为完成；保留旧批次的实际版本与结果。
 
 HTTP/3、HTTP/2 WebSocket 和设计中列出的高级连接能力不属于本期。URL 保留 RFC 3986／3987 profile，IDNA 固定 Unicode 15.1；CPU codec 计算、DNS／native work 的实际终止及磁盘缓存单实例协调等边界遵守各自规范，不由 client 绕过。
