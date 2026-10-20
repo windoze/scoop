@@ -1,6 +1,6 @@
 # M54 实施进度
 
-状态：功能实现完成，三目标最终验收仍在进行。完整范围见[设计](DESIGN.md)，本页记录当前实现、实际验证和未完成项；运行中的批次不记为已通过。
+状态：已完成（2026-10-20）。完整范围见[设计](DESIGN.md)，本页记录实现、三目标实际验收和必要限制；历史通过记录保留原有版本与运行模式。
 
 ## 已完成的功能
 
@@ -30,8 +30,10 @@ client manifest 没有 native 构建项。URL／IDNA、压缩、字符集、TLS�
 - MIR 保留挂起调用异常后继需要的旧值；LLVM safepoint、statepoint 与根恢复标记保持不可复制。四个 GC 正确性 fixture 专门覆盖分支加载、guarded unwrap、协程异常活跃值和 site 不可复制，不用于普通功能压力验收。
 - core 的作用域失败边界与 `nonCancellableScope`、协议取消、来源关闭和真实 native borrow 收尾已分别修复并验证。client 的缓存、下载、SSE、WebSocket、拦截器与 observer 保留主失败、清理异常和实际子树完成。
 - HTTP/2 在 GOAWAY 排空后丢弃待发 SETTINGS ACK 时，不再把 nghttp2 的 `SESSION_CLOSING` 误报为连接失败。旧 SDK 的确定性失败已复现，修复仅位于 HTTP 适配层；独立 ACK、异步排空、未发送拒绝、连接池和重试五项组合在 Darwin／GNU／musl 均已通过。
-- client 库编译采样定位到 LIR 符号与 ODR 定义的重复线性扫描；已改用已有排序和共享 callable 索引，同时修复删除 atom 后 foundation 索引仍返回旧记录的问题。key／linkage、定义顺序和 wire 保持，删除后查询的独立回归在旧实现确定失败。
+- client 库编译采样定位到 LIR 符号与 ODR 定义的重复线性扫描；已改用已有排序、共享 callable 索引及 typed entity／role 反查索引，同时修复删除 atom 后 foundation 索引仍返回旧记录的问题。删除 ODR member 后同步更新索引，保持 Strong 优先、首个匹配项、key／linkage、定义顺序和 wire；删除后查询的独立回归在旧实现确定失败。
 - codegen 的每个已生成 callable 计划原先保留一份整库 GC effect 表，导致大库编译持续累积副本。现共享这份只读表，各函数的 site 与根分组仍独立保存；不改变 GC、优化或产物合同。
+- 删除 runtime 不读取的内容指纹字段及其 ELF 槽位查询、对象复制和回填流水线。实际需要的内容摘要保留在产物 metadata 中；runtime contract 更新为 14、metadata ABI 更新为 9，旧产物与开发 sysroot 必须重建。
+- Shape 发射复用 symbol surface 已有的主符号索引；ELF atom 边界、可见性与 COMDAT 操作复用每个原对象的一份名称索引，消除逐 atom 的重复全表扫描。读取本对象只服务实际产物与 GC 数据，不接管普通 native 符号解析。
 
 ## 验证安排
 
@@ -49,23 +51,24 @@ GC stress 只用于 GC 正确性的定向测试。普通功能与完整功能验
 | main 合并后的本机工具 | `a183651fa` 合入 main `2f7411e5a`；fmt／workspace clippy、530 项相关 Rust 测试、51 项 runner 测试通过，三个 release 命令及 17 个 Cone／runtime 重建成功 |
 | main 合并后的本机集成 | native 要求、Basic／H2 和 observer 三项普通 fixture 全部通过，共 6 个变体、20 个进程；保留 M54 的 native 链接与 safepoint 合同 |
 | HTTP/2 ACK 修复 | GNU／musl 的 HTTP、HTTP asyncio 与 client 候选库构建成功；每目标五项普通回归全部通过，各 10 个变体、30 个进程 |
-| GNU 库与普通消费者 | 其他 10 个相关库的 debug／release 均已通过，每种模式 636 项、无失败或跳过；client 库验收仍在进行。剩余普通 fixture 在大型库测试后续跑，保留已完成结果 |
-| musl 库与普通消费者 | 其他 10 个相关库的 debug／release 均已通过，每种模式 636 项、无失败或跳过；client 库验收尚待完成。剩余普通 fixture 在大型库测试后续跑，保留已完成结果 |
+| GNU 库与普通消费者 | 130 个 M54 fixture 均已有通过报告；本轮续跑 60 项全部通过，共 120 个变体、374 个进程，并复用前批已通过的 2 项。其他 10 个相关库每种模式 636 项、client debug／release 各 164 项通过；`4505e4861` 的 ABI 9 整库 debug 再次 164 项通过 |
+| musl 库与普通消费者 | 130 个 M54 fixture 均已有通过报告。普通批次 79 项通过，唯一 TCP 用例失败已修正并闭合；保留原批次 79／1 的实际报告。其他 10 个相关库每种模式 636 项、client debug／release 各 164 项通过；ABI 9 sysroot 与整库 release 完成 |
 | 合并后的 Linux 集成 | 三个 release 工具及 GNU／musl 的 17 个 Cone／runtime 准备完成；native 强／弱引用、Basic／H2 和 observer 每目标四项全部通过，各 10 个变体、32 个进程 |
 | LIR 查询修复 | fmt／workspace clippy、1,245 项相关 Rust 测试与 1 项 doctest 通过；observer 的 debug／release 真实网络运行及无子进程 warm 构建通过。相同消费者的 debug `.slib` 字节与链接计划完全一致 |
-| Darwin client 整库 | `d63babb49` 的普通 debug／release 各 164 项全部通过，无失败、跳过或未运行项；修复前的 `d8a3a4c9d` 两种模式也各 164 项通过。完整 debug `.slib` 的 1,090,825,020 字节与修复前完全一致 |
+| Darwin client 整库与 ABI 9 消费 | 普通 debug／release 各 164 项已有通过记录；ABI 9 与 Shape 索引修复后的 debug 再次 164 项通过。native 要求、Boolean ABI、Basic／H2、observer 四项正式消费者通过，共 8 个变体、26 个进程 |
 | GC effect 表共享 | 独立保留／共享回归在旧实现确定失败；LLVM 22.1 下的 workspace clippy、25 项 statepoint 与 12 项对象划分测试通过。三个 release 工具在本机与 Linux 构建成功，本机默认工具也已更新 |
+| runtime metadata 与 ELF 索引 | ABI 9 的类型化身份、LIR、产物、codegen 与链接定向回归，本机 1,038 项、Linux 309 项通过；后续 ELF 索引修复的本机 18 项、Linux 30 项对象与真实链接回归通过。两端 fmt／workspace clippy 与三个 release 工具构建通过 |
+| ODR 反查索引 | 本机与 Linux 的 fmt／workspace clippy 及 643／656 项 LIR／产物／对象生成回归通过，覆盖原记录与克隆、删除成员和缺失 body 的查询行为；observer 的三目标 debug／release 网络运行及 warm 构建通过。Linux 最后复验 TCP 与 observer，每目标 4 个变体、12 个进程全部通过 |
 | GC 定向正确性 | 四项专测均已有三个目标的通过记录。本轮只补齐缺失的 musl 分支加载专测，debug／release 共 2 个变体、6 个进程通过；其余沿用现有记录 |
 
-GNU 和 musl 的 client 库首次 debug 编译均被系统 OOM 终止，内核记录已确认；musl 单进程匿名 RSS 约 42 GiB。普通批次已在当前用例完成后正常中止并保存报告，为单个大型库编译留出内存，后续仅续跑未完成部分。独立 GNU 重试进一步定位到 GC effect 表副本，在约 49 GiB RSS 时主动停止旧实现的编译；这次中止不记为新 OOM 或通过。
+musl 的 TCP 失败来自测试假定宿主 `localhost` 同时提供 IPv4／IPv6。相同 native 解析参数的独立探针确认了 glibc／musl 的实际结果差异；用例改为连接其绑定的数值 loopback 地址，并将运行超时收紧到 30 秒，保留双线程、两种连接并发配置及流所有权断言。三个目标的 debug／release 与 warm 构建均复验通过，不改变解析库行为。最终汇总以新报告关闭这一失败，没有用旧通过记录覆盖失败。
 
-共享表后的 Darwin 整库对照中，debug 最大 RSS 从 74.84 降至 31.74 GiB，release 从 68.67 降至 29.84 GiB。对应单次耗时为 810→794 秒和 850→810 秒，不据此声称稳定的整体加速；Linux 内存峰值与两个目标的 client debug／release 结果仍须实际验证。
+大型 client 库编译的 OOM 已定位到每个 callable 计划重复保留整库 GC effect 表，并通过共享只读表修复。Darwin 整库对照中，debug 最大 RSS 从 74.84 降至 31.74 GiB，release 从 68.67 降至 29.84 GiB；修复后的 GNU debug／release 与 musl debug 也全部通过，峰值为 24.17～25.79 GiB。诊断中主动停止的编译不计为测试失败、新 OOM 或通过。
+
+删除无用指纹回填并复用 Shape 索引后，本机完整 client debug 的单次耗时从 793.8 降至 621.6 秒，峰值为 29.02 GiB。Shape 索引修改前后的 ABI 9 测试 `.slib` 字节相同；该比较不跨 metadata ABI。进一步修复逐 atom 三次全表查找的 ELF 边界路径后，GNU 完整 debug 的单次耗时从 2,180.5 降至 1,266.0 秒，峰值为 22.82 GiB；该对照包含这三项修复，不把约 42% 的改善归于单一索引。musl 整库 release 164 项通过，峰值为 19.88 GiB；其运行与 GNU 普通 fixture 重叠，不作为独立性能对照。上述单次结果不作为所有程序的稳定性能承诺。
 
 已结束的旧 target 和诊断输出按批清理，保留需要复用的工具、源码、生产 SDK、缓存及实际报告。原始日志、JSON、历史进度副本与缓存归档均位于仓库外的 `scoop-work/m54`；本页不保存逐次流水账。
 
-## 后续工作
-
-1. 完成 GNU／musl client 库 profile 与剩余普通功能消费者；记录实际内存峰值，修复真实失败并复验受影响范围。
-2. 汇总三目标最终结果，核对设计矩阵与分发资料，再更新 milestone／roadmap 为完成；保留旧批次的实际版本与结果。
+## 范围边界
 
 HTTP/3、HTTP/2 WebSocket 和设计中列出的高级连接能力不属于本期。URL 保留 RFC 3986／3987 profile，IDNA 固定 Unicode 15.1；CPU codec 计算、DNS／native work 的实际终止及磁盘缓存单实例协调等边界遵守各自规范，不由 client 绕过。

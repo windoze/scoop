@@ -4,6 +4,8 @@
 
 统一布局包含十七个内置 Cone 的源码、预编译产物、公开 C 头与 runtime 对象。本期新增 `scoop.http.client`、`scoop.idna`、`scoop.url`、`scoop.charset` 和单个 `scoop.compression` Cone。OpenSSL、nghttp2、文本、URL、压缩后端的静态库和 Linux libunwind 随目标资源交付；libuv、llhttp 与 Ryu 编入实际使用它们的 Cone／runtime。LLVM 原始源码归档、补丁和许可证另存于同版本的 `llvm-sources` 包。
 
+运行时契约更新为 14，metadata ABI 更新为 9。本期工具配套新的目标 runtime 与预编译库；旧开发 sysroot 需要通过既有准备脚本重新生成。
+
 纯 Scoop 的 `scoop.http.client` 在既有 HTTP、TLS 和 asyncio 库之上统一 HTTP/1.x／HTTP/2 与 ALPN，提供连接池、流式上传下载、完整生命周期超时、取消和 suspend 回调。请求策略包括重定向、重试、Basic／Bearer／Digest、mTLS、HTTP／HTTPS／SOCKS5 代理、Cookie 和私有内存／磁盘缓存；同时提供 multipart、断点续传、SSE、HTTP/1.1 WebSocket／WSS、permessage-deflate 与可观察性接口。URL、协议、压缩、TLS 和系统 I/O 能力由各自所属库提供。
 
 `scoop.idna` 使用 libidn2／libunistring，不需要 ICU，IDNA 数据基线为 Unicode 15.1。`scoop.url` 使用 uriparser，提供 RFC 3986 URL／IRI 解析、拼装、相对引用和网络 origin，不包含浏览器全部 WHATWG 容错。`scoop.charset` 提供固定编码集合的内存及增量转换；`scoop.compression` 在同一 Cone 中提供 zstd、gzip、zlib／raw DEFLATE 和 Brotli 的内存、同步流与异步流。
@@ -12,6 +14,6 @@ HTTP/1 固定使用 llhttp 9.4.3。发送与客户端响应关联支持任意合
 
 HTTP/3、HTTP/2 WebSocket，以及跨 origin H2 合并、证书固定／对端链检查接口、TLS 会话恢复控制／0-RTT、主动 H2 PING 保活留待后续。
 
-仓库中的准备、LLVM 构建和打包脚本供维护者显式调用；常规 CLI 测试和 CI 不自动运行打包，也不要求先生成归档。M54 功能实现与本机普通验证已完成，最终 GNU／musl 组合验收仍在进行，具体验证范围见仓库的 M54 实施进度。此包的部署配置、源码 revision 与实际组件列表见 `toolchain.toml`。
+仓库中的准备、LLVM 构建和打包脚本供维护者显式调用；常规 CLI 测试和 CI 不自动运行打包，也不要求先生成归档。M54 功能实现与三目标验收已完成，库测试、正式消费者、复用范围和失败闭合见仓库的 M54 验收记录。此包的部署配置、源码 revision 与实际组件列表见 `toolchain.toml`。
 
 项目维护者尚未选定 Scoop 自身的 LICENSE 时，包只用于当前本地构建和功能验收；此说明不授予新的对外分发许可。已有第三方许可随组件保留。

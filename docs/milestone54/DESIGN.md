@@ -1,6 +1,6 @@
 # M54 设计：统一 HTTP client 与配套基础库
 
-状态：实施中。日期：2026-10-18。本文规定 M54 的完整实施与验收目标，已完成项与实际验证范围见[进度](PROGRESS.md)；未完成的条目不因写入设计而视为已交付。
+状态：已完成。日期：2026-10-20。本文规定 M54 的完整实施范围，实际交付、三目标验收结果与必要限制见[验收记录](PROGRESS.md)。
 
 依据：[语言规范](../specs/SCOOP-SPEC.md)第 11.9、11.13、11.18、12～14 节／章、[运行时规范](../specs/SCOOP-RUNTIME-SPEC.md)、[实现规范](../specs/SCOOP-IMPL-SPEC.md)、[库 API 风格](../specs/SCOOP-API-STYLE.md)、[M49](../milestone49/DESIGN.md)、[M51](../milestone51/DESIGN.md)、[M52](../milestone52/DESIGN.md)与 [M53](../milestone53/DESIGN.md)。本期以普通库交付为主；合法源码暴露的编译器、GC、ABI、产物或链接缺陷在所属层按规范修复，不新增 client 专用的语言、runtime、stage 或缓存机制。
 

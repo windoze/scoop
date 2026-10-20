@@ -2,7 +2,7 @@
 
 旧 identity-only 产物 profile、平行来源 reader 和发布/Link 凭证策略退役；三个完整生产 profile 升为 `/3`，descriptor 只保留实际必需 section 清单，旧产物与缓存重建。此调整不改变 runtime C ABI、String 表示、初始化或 GC 语义；类型、对象范围和实际引用检查仍在对应消费边界完成。具体格式见实现规范 2.6 与 M23-2 设计 8.3。
 
-静态存储与初始化失败根按其实际值类型引用 layout/scan。当前 Cone 只发射自身拥有的布局与扫描定义；外来类型的静态根复用共有依赖查询取得的完整 value-layout 和 scan 记录，保留实际 provider、typed identity、定义与 relocation，不因本地持有该类型的值而重发射 foreign Strong。layout/scan 指纹节点引用已经解析的实际记录，不要求该类型在当前 Cone 定义；指纹补丁目标仍须属于当前产物。MIR 必须携带生成失败根所需的实际 Any 声明，LIR 不再缺省重建固定 core 身份。static-storage 语义记录新增 field 32 保存 layout provider，完整记录使用 fields 1～32；语义投影使用 fields 1～10 与 32。共有 strong-production 两种格式当前为 /13、/14；在静态根的 /11、/12 之后增加实际 callable 正文的 canonical LIR 摘要（实现规范 §2.5），旧产物和缓存重建。runtime C ABI、String 表示、初始化状态与失败缓存语义不变，不引入 ODR 或多 image 启动。
+静态存储与初始化失败根按其实际值类型引用 layout/scan。当前 Cone 只发射自身拥有的布局与扫描定义；外来类型的静态根复用共有依赖查询取得的完整 value-layout 和 scan 记录，保留实际 provider、typed identity、定义与 relocation，不因本地持有该类型的值而重发射 foreign Strong。layout/scan 指纹节点引用已经解析的实际记录，不要求该类型在当前 Cone 定义。MIR 必须携带生成失败根所需的实际 Any 声明，LIR 不再缺省重建固定 core 身份。static-storage 语义记录新增 field 32 保存 layout provider，完整记录使用 fields 1～32；语义投影使用 fields 1～10 与 32。共有 strong-production 两种格式当前为 /13、/14；在静态根的 /11、/12 之后增加实际 callable 正文的 canonical LIR 摘要（实现规范 §2.5），旧产物和缓存重建。runtime C ABI、String 表示、初始化状态与失败缓存语义不变，不引入 ODR 或多 image 启动。
 
 普通 catch 的绑定必须可以像其他引用值一样离开 handler：匹配 native payload 后，在绑定变量前物化一次 managed 异常对象，后续返回、存储和捕获使用该对象；native unwind record 仍按既有 cleanup 规则释放。初始化 catch 复用这次物化，不再次复制。每次 throw 仍创建独立 native payload，runtime C ABI 不变。
 
@@ -665,12 +665,12 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - nghttp2 1.70.0 只构建静态协议库，通过既有 `native.libraries` 按 archive 成员选择；排除应用、示例、工具、测试和文档目标，不重复编入上游对象。
 - 完成两个普通 Cone 的三目标 debug／release／moving GC 验收：每目标 50 项内存协议测试、26 项异步测试及 6 组独立消费者通过；包括 TLS 单流取消、双向背压、协议切换、并发关闭与原生对端互操作。Darwin／GNU 宿主包搬迁后，三目标 HTTP 消费、缓存复用和两个 link 入口均通过；本期不做函数级裁剪。
 
-### M54 统一 HTTP client 与配套基础库（实施中，[设计](milestone54/DESIGN.md)、[进度](milestone54/PROGRESS.md)、[客户端规范](specs/SCOOP-HTTP-CLIENT-SPEC.md)）
+### M54 统一 HTTP client 与配套基础库（已完成，[设计](milestone54/DESIGN.md)、[验收](milestone54/PROGRESS.md)、[客户端规范](specs/SCOOP-HTTP-CLIENT-SPEC.md)）
 
 - 在 M53 协议库之上提供纯 Scoop `scoop.http.client`，统一 HTTP/1.x／HTTP/2、ALPN、连接池、流式 body、suspend、背压、完整生命周期超时与单请求取消。
 - 独立交付 [IDNA](specs/SCOOP-IDNA-SPEC.md)、[URL](specs/SCOOP-URL-SPEC.md)、[字符集](specs/SCOOP-CHARSET-SPEC.md)和单个 [compression Cone](specs/SCOOP-COMPRESSION-SPEC.md)；IDNA 不要求 ICU，压缩采用 zstd，并支持 gzip／deflate／Brotli 的同步与异步流。
 - 在所属 HTTP、crypto、TLS、asyncio／platform 库补齐方法／消息工具、摘要、mTLS／系统信任、文件操作、地址族竞速与代理，不在 client 中增加 workaround。完成重定向／重试、认证、Cookie、私有缓存、下载续传、multipart、SSE 与 HTTP/1.1 WebSocket。
-- HTTP/3、HTTP/2 WebSocket、跨 origin H2 合并、证书固定／对端链检查接口、TLS 会话恢复控制／0-RTT、主动 H2 PING 保活留待后续；不引入占位接口。已实现功能与逐项验证见实施进度，最终三目标组合验收尚未完成。
+- HTTP/3、HTTP/2 WebSocket、跨 origin H2 合并、证书固定／对端链检查接口、TLS 会话恢复控制／0-RTT、主动 H2 PING 保活留待后续；不引入占位接口。三目标库测试、正式消费者、网络组合与缓存复用验收已完成，实际版本、复用范围和失败闭合见验收记录。
 
 ### M55 泛型函数条件与成员调用要求（已完成，[设计](milestone55/DESIGN.md)、[验收](milestone55/PROGRESS.md)）
 
