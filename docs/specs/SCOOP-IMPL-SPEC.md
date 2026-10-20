@@ -679,7 +679,9 @@ single-Cone 编译请求显式携带 Production 或 Test 用途，默认 Product
 
 前端输入显式标明仅用于测试的 direct dependency 身份，在同一已加载的依赖语义数据上按源码角色收集名称候选。package binding 在按实体合并前筛选直接来源，qualified-type 索引保留来源贡献以复用相同数据；选中真实 nominal 后的静态成员遍历不按原始声明 Cone 再次排除实体。不为生产与测试分别加载或完整校验相同的依赖闭包，不在下游 IR 重做定义处名称查找。
 
-依赖使用 exact version，全部为 library，同一 group:name 只允许一个版本。构建图解析实际依赖、版本、target/ABI/schema 与 locator，诊断循环和歧义；不为复用已完成节点重读其产物或重算语义／内容摘要。canonical 顺序逐次从“全部依赖已完成”的 ready set 中取 coordinate bytes 最小者；不按输入顺序或并发完成顺序决定。
+依赖使用 exact version，全部为 library，同一 group:name 只允许一个版本。构建图解析实际依赖、版本、target/ABI/schema 与 locator，诊断循环和歧义；不为复用已完成节点重读其产物或重算语义／内容摘要。canonical 记录顺序由静态依赖图生成，逐次取全部前驱已排序的 coordinate bytes 最小者，不按输入顺序或并发完成顺序决定。实际执行使用依赖完成后的 ready set，按 canonical 顺序优先启动可运行节点；独立源码 Cone 可以并发，每个 child 仍只编译一个 Cone。
+
+`scoop build/run/test` 的 `-j N`／`--jobs N` 指定同时运行的编译 child 上限，N 必须为正，默认使用宿主可用并行度。并发数只影响调度，不进入语言身份、编译键、产物格式或 machine protocol。缓存更新判定与锁内重查先于 child 请求准备；命中节点不占用编译 worker，缺失的显式观察沿相同调度执行。同键锁覆盖实际编译／观察到结果发布，不在运行 child 时释放。持有运行任务的锁时，其他键的锁获取不得阻塞该任务完成与释放锁；繁忙键延期到后续调度。节点成功后立即供其 dependents 使用；观察记录和 warning 按 canonical 顺序汇集。
 
 非 core Cone 未显式声明 core 时，注入 `scoop:scoop.core:0.1.0` direct edge；core 不依赖自身。core 是普通库，显式 locator 遵守同一发现规则。缺省 sysroot 来源为 `lib/<canonical-target-triple>/scoop.core.slib`；不读取或枚举随包 `src/scoop.core`。已选来源损坏或不兼容时直接报错，缺失目标产物时报告目标、coordinate 和路径，不回退到源码或其他目标。
 
@@ -753,7 +755,7 @@ machine transport 为一次 request/response 的 length-prefixed canonical CBOR�
 
 诊断具有明确 Error/Warning severity，primary 与 notes 保存实际 Cone、logical source 和 byte span。源码读取等文件级错误仅有实际 host path、没有字节区间时，使用独立的 HostPath origin（wire tag 5），不得丢失路径或伪造区间；已有 HostPathSpan 编码保持。产物错误保存 container/manifest/member/section 与 wire field path，I/O 错误不伪装成源码位置。human 与逐行 JSON 使用同一结构化记录，写 stderr；stdout 留给被执行程序。缓存中的 warning 在本次显示时附加 locator，不丢失原位置。显示源码诊断时仅按需读取涉及的文件以计算行列，同一轮显示共享读取结果；此读取不参与缓存更新判定。
 
-工具中断停止后续构建，向当前 child 传递信号并回收进程，保留真实 signal。某节点失败后不启动 dependent 或 program-link。
+工具中断停止后续构建，向所有正在运行的 child 传递信号并回收进程，保留真实 signal。某节点失败后停止派发新节点，不启动 dependent 或 program-link，并等待已启动的 child 收尾；失败节点不发布结果，已经成功的节点继续遵循普通缓存规则。已收集失败按 canonical 顺序选择报告，不能因为完成时间不同而重排同一组诊断。
 
 ### 2.8 程序链接与最终结果复用
 

@@ -10,7 +10,7 @@ struct LockCheckingRunner {
 
 impl SingleConeCompilerRunner for LockCheckingRunner {
     fn invoke(
-        &mut self,
+        &self,
         tool: &ResolvedPairedScoopc,
         request: &ScoopcRequestEnvelopeV1,
         io: &ChildIoPlan,
@@ -50,12 +50,12 @@ fn ordinary_and_observed_misses_share_the_compile_cache_lock() {
             .open(lock.path())
             .unwrap();
         drop(lock);
-        let mut runner = LockCheckingRunner { file };
+        let runner = LockCheckingRunner { file };
         assert!(matches!(
             prepared.execute_ordinary_source(
                 ConeIdentity::CORE,
                 &[],
-                &mut runner,
+                &runner,
                 RequestCorrelationId::from_array([34; 16]),
             ),
             Err(OrdinarySourceExecutionError::ChildFailure(_))

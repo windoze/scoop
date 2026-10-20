@@ -16,6 +16,7 @@ mod ordinary_execution;
 pub use error::PrepareBuildGraphError;
 pub use observation::{BuildDumpRequest, DumpScope};
 pub use ordinary_execution::OrdinarySourceExecutionError;
+pub(crate) use ordinary_execution::{PendingSourceExecution, PreparedSourceExecution};
 
 pub use model::{
     ChildRequestPlanError, CompileCacheKeyError, ManifestSourceInput, PreparedArtifactCandidate,
