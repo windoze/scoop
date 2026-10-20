@@ -24,6 +24,8 @@ scoop build my-cone --target x86_64-unknown-linux-musl
 "scoop:scoop.http.client" = "0.1.0"
 ```
 
+完整的 client 入门程序及其直接依赖见安装目录中的 `src/scoop.http.client/README.md`；压缩内存操作、同步文件流和异步流示例见 `src/scoop.compression/README.md`。
+
 `scoop.idna`、`scoop.url`、`scoop.charset` 和 `scoop.compression` 也可分别作为普通依赖使用。IDNA 不要求 ICU；URL、文本和压缩所需的 native 静态库、头文件、源码与许可已经随工具包提供。压缩的同步与异步流共用一个 Cone。
 
 Darwin 默认最低版本由发行配置确定；`MACOSX_DEPLOYMENT_TARGET` 可显式选择兼容的部署版本。默认 runtime 的最低要求不能高于所选版本。较老系统的支持必须另经实际验证，不能通过降低此变量得到保证。
