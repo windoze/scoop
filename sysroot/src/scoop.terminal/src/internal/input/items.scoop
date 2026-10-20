@@ -9,6 +9,8 @@ internal enum InputItem {
     DeviceStatus(val status: Long), Invalid(val detail: String)
 }
 
+internal fun InputItem?.hasItem(): Boolean = when (this) { case None -> false; case Some(_) -> true }
+
 internal enum InputMode { Ground, Escape, Csi, Ss3, LinuxFunction, Mouse, Utf8, Paste }
 
 internal class InputDecodeException internal constructor(public val detail: String) : Exception(Some(detail))

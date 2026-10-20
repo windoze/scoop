@@ -1,0 +1,63 @@
+package scoop.terminal.internal.input
+
+import scoop.terminal.*
+import scoop.terminal.event.KeyboardEnhancementFlags
+import scoop.terminal.event.TerminalInputException
+import scoop.terminal.internal.platform.*
+import scoop.time.Duration
+
+internal enum QueryKind { Cursor, Primary, Secondary, Keyboard }
+
+internal class QueryReply(private val kind: QueryKind) {
+    private var keyboard: KeyboardEnhancementFlags? = None
+
+    internal fun accept(item: InputItem): InputItem? = when (item) {
+        case InputItem.CursorPosition(_, _) -> if (kind == QueryKind.Cursor) Some(item) else None
+        case InputItem.KeyboardFlags(flags) -> {
+            if (kind == QueryKind.Keyboard) keyboard = Some(flags)
+            None
+        }
+        case InputItem.DeviceAttributes(secondary, _) -> {
+            if (kind == QueryKind.Keyboard && !secondary) {
+                if (keyboard == None) Some(item) else Some(InputItem.KeyboardFlags(keyboard!!))
+            } else if ((kind == QueryKind.Primary && !secondary) || (kind == QueryKind.Secondary && secondary))
+                Some(item)
+            else None
+        }
+        case _ -> None
+    }
+}
+
+internal fun SessionInput.query(terminal: TerminalHandle, kind: QueryKind, timeout: Duration): InputItem {
+    reader.receiveAvailable(terminal)
+    while (true) {
+        when (reader.parser.next()) {
+            case None -> break
+            case Some(InputItem.User(event)) -> deferred.addLast(event)
+            case Some(InputItem.Invalid(detail)) -> throw TerminalInputException(detail)
+            case Some(_) -> {}
+        }
+    }
+    val command = when (kind) {
+        case Cursor -> "\u001b[6n"
+        case Primary -> "\u001b[c"
+        case Secondary -> "\u001b[>c"
+        case Keyboard -> "\u001b[?u\u001b[c"
+    }
+    terminal.sendQuery(command)
+    val started = inputNow()
+    val reply = QueryReply(kind)
+    while (true) {
+        when (reader.next(terminal, inputRemaining(started, Some(timeout)))) {
+            case None -> throw TerminalQueryTimeoutException()
+            case Some(InputItem.User(event)) -> deferred.addLast(event)
+            case Some(InputItem.Invalid(detail)) -> throw TerminalInputException(detail)
+            case Some(item) -> {
+                val result = reply.accept(item)
+                if (result.hasItem()) return result!!
+            }
+        }
+        if (reader.exhausted) throw TerminalDisconnectedException()
+        if (reader.parser.output.size == 0L && inputExpired(started, Some(timeout))) throw TerminalQueryTimeoutException()
+    }
+}

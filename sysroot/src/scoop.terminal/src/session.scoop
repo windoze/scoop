@@ -3,7 +3,7 @@ package scoop.terminal
 import scoop.platform.io.ByteSink
 import scoop.platform.memory.NativeByteBuffer
 import scoop.terminal.internal.platform.*
-import scoop.terminal.internal.input.SessionInput
+import scoop.terminal.internal.input.*
 import scoop.terminal.event.Event
 import scoop.time.Duration
 
@@ -55,6 +55,13 @@ public class TerminalSession private constructor(escapeDelay: Duration) : ByteSi
     public fun poll(timeout: Duration): Boolean {
         if (timeout < Duration.ZERO) throw IllegalArgumentException(Some("negative terminal poll timeout"))
         return withTerminal { input.poll(it, Some(timeout)) }
+    }
+
+    internal fun query(kind: QueryKind, timeout: Duration): InputItem {
+        if (timeout < Duration.ZERO) throw IllegalArgumentException(Some("negative terminal query timeout"))
+        return withTerminal { handle ->
+            QueryRawScope(handle).use { input.query(handle, kind, timeout) }
+        }
     }
 
     public override fun writeFrom(buffer: NativeByteBuffer, count: Long): Long =

@@ -1,0 +1,75 @@
+package scoop.terminal.internal.input
+
+import scoop.terminal.*
+import scoop.terminal.event.Event
+import scoop.terminal.internal.platform.*
+import scoop.time.Duration
+
+internal class SessionReader(escapeDelay: Duration) {
+    internal val parser: InputParser = InputParser(escapeDelay)
+    private var ended: Boolean = false
+    internal val exhausted: Boolean get() = ended && parser.output.size == 0L
+    private var previous: TerminalSize = TerminalSize(0L, 0L, 0L, 0L)
+
+    internal fun initialize(terminal: TerminalHandle) { previous = terminal.size() }
+
+    internal fun next(terminal: TerminalHandle, timeout: Duration?): InputItem? {
+        val started = inputNow()
+        while (true) {
+            val queued = parser.next()
+            if (queued.hasItem()) return queued
+            if (ended) throw TerminalDisconnectedException()
+            val immediate = terminal.waitInput(Some(Duration.ZERO))
+            if (immediate != 0) {
+                receive(terminal, immediate)
+                val item = parser.next()
+                if (item.hasItem()) return item
+                if (inputExpired(started, timeout)) {
+                    if (!ended) {
+                        val more = terminal.waitInput(Some(Duration.ZERO))
+                        if (more == 0) parser.advance(inputNow()) else receive(terminal, more)
+                    }
+                    val last = parser.next()
+                    if (last.hasItem()) return last
+                    if (ended) throw TerminalDisconnectedException()
+                    return None
+                }
+                continue
+            }
+            parser.advance(inputNow())
+            val item = parser.next()
+            if (item.hasItem()) return item
+            if (inputExpired(started, timeout)) return None
+            val delay = shorter(inputRemaining(started, timeout), parser.escapeRemaining)
+            receive(terminal, terminal.waitInput(delay))
+        }
+    }
+
+    internal fun receiveAvailable(terminal: TerminalHandle) {
+        if (!ended) receive(terminal, terminal.waitInput(Some(Duration.ZERO)))
+    }
+
+    private fun receive(terminal: TerminalHandle, flags: Int) {
+        if ((flags and 2) != 0) {
+            val size = terminal.size()
+            if (size.columns != previous.columns || size.rows != previous.rows) {
+                parser.output.addLast(InputItem.User(Event.Resize(size.columns, size.rows)))
+                previous = size
+            }
+        }
+        if ((flags and 5) == 0) return
+        when (terminal.readInput((flags and 4) != 0)) {
+            case None -> {}
+            case Some(bytes) -> {
+                if (bytes.size == 0L) { ended = true; parser.finish() }
+                else parser.feed(bytes, inputNow(), terminal.isRaw)
+            }
+        }
+    }
+}
+
+private fun shorter(first: Duration?, second: Duration?): Duration? {
+    if (first == None) return second
+    if (second == None) return first
+    return Some(if (first!! < second!!) first!! else second!!)
+}

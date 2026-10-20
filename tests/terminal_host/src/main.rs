@@ -1,6 +1,7 @@
 mod clipboard;
 mod input;
 mod output;
+mod query;
 mod session;
 
 use anyhow::{Context, Result, bail};
@@ -25,10 +26,10 @@ fn run() -> Result<()> {
     if args.next().is_some()
         || !matches!(
             scenario,
-            "output" | "session" | "session-raw" | "clipboard" | "input"
+            "output" | "session" | "session-raw" | "clipboard" | "input" | "query"
         )
     {
-        bail!("usage: terminal-host output|session|session-raw|clipboard|input PROGRAM");
+        bail!("usage: terminal-host output|session|session-raw|clipboard|input|query PROGRAM");
     }
     let command = CommandBuilder::new(program);
     let mut host = if scenario == "session-raw" {
@@ -42,6 +43,7 @@ fn run() -> Result<()> {
         "output" => output::check(&mut host),
         "clipboard" => clipboard::check(&mut host),
         "input" => input::check(&mut host),
+        "query" => query::check(&mut host),
         _ => session::check(&mut host),
     }
     .and_then(|()| host.finish());

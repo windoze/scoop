@@ -257,11 +257,50 @@ UTF-8 内容；直接构造接受任意不可变字节数组。编码复用 std 
 或 multiplexer 执行；库不调用桌面剪贴板服务，不增加 OSC 52 读取能力。
 自动测试仅观察 PTY 协议。
 
-## 9. 后续功能的既定合同
+## 9. 会话查询
 
-查询与异步适配仍属于 M59 的交付范围。具体公共声明在各自实现前增加到本文；以下约束已经确定：
+package `scoop.terminal`：
 
-- 查询默认等待 1 秒，超时抛 `TerminalQueryTimeoutException`；能力探测的正常“不支持”单独表达。查询回复与普通输入由同一读取者分流，不能吞掉用户事件。
+```scoop
+public struct CursorPosition(val column: Long, val row: Long)
+public enum DeviceAttributeKind { Primary, Secondary }
+public fun TerminalSession.cursorPosition(
+    timeout: Duration = Duration.seconds(1L)): CursorPosition
+public fun TerminalSession.deviceAttributes(kind: DeviceAttributeKind = DeviceAttributeKind.Primary,
+    timeout: Duration = Duration.seconds(1L)): Array<Long>
+public fun TerminalSession.keyboardEnhancementFlags(
+    timeout: Duration = Duration.seconds(1L)): KeyboardEnhancementFlags?
+public fun TerminalSession.supportsKeyboardEnhancement(
+    timeout: Duration = Duration.seconds(1L)): Boolean
+public class TerminalQueryTimeoutException : Exception
+```
+
+CPR 返回零基列／行；设备属性返回收到的有序数字，不猜测终端品牌。
+负 timeout 非法；默认 1 秒，零只检查当时已有的完整回复。等待使用一个单调
+总截止时间，收到用户事件、无关回复、EINTR 或分片均不重新开始计时。
+该时限约束回复等待；查询字节的写出及 termios 恢复仍服从同步 OS 操作合同。
+
+每次查询持有同一会话的操作权，经该会话实际终端写出并从同一 parser 收取；
+stdout 重定向不改变查询端点。需要时临时启用 raw，成功、超时或异常均恢复
+进入前模式；原已启用 raw 的会话保持 raw。正文与恢复同时失败沿 ResourceUseException。
+
+发送前清理已完成的内部回复，并非阻塞读取一次当前可读数据做同样分流；
+用户事件保留原顺序，部分前缀保留。等待期间用户事件进入会话队列，随后
+read／poll 仍可交付，不能被查询吞掉。解析错误消费后抛 TerminalInputException；
+EOF 沿 7.1 报告断开。无关／迟到回复在无匹配查询时丢弃，不成为用户事件。
+终端协议没有请求 ID；旧回复在新请求发出后才到达，或仍在尚未读到的 OS
+缓冲区时，可能与同种新回复无法区分。本库不保证协议无法提供的关联。
+
+键盘增强探测按 [Kitty 探测协议](https://sw.kovidgoyal.net/kitty/keyboard-protocol/#detection-of-support-for-this-protocol)
+依次发送 `CSI ? u` 和主设备属性 `CSI c`，以主设备
+属性回复结束这次探测。此前收到的 Kitty flags 返回 Some（包括 0 和未知位）；
+只收到主设备属性返回 None，表示不支持。两种回复都缺失或缺少结束回复
+则超时，不能把超时当作不支持。supportsKeyboardEnhancement 仅检查是否 Some。
+
+## 10. 后续功能的既定合同
+
+异步适配仍属于 M59 的交付范围。具体公共声明在实现前增加到本文；以下约束已经确定：
+
 - 异步 raw 作用域按现有 useAsync 合同在正常返回、异常与取消后清理。
 - 同步和异步不能同时读取同一会话。异步通过单独 `scoop.terminal.asyncio` 交付，先补齐 asyncio 的实际 TTY 操作、取消与关闭，不使用阻塞 suspend 包装。
 
