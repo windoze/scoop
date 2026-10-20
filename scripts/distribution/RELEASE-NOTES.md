@@ -1,4 +1,10 @@
-# M54 统一 HTTP client 与配套基础库
+# M60 API 文档与内置库文档交付
+
+新增 `scoop doc`，支持多 Cone、完整类型检查、声明与类型链接、继承／扩展导航、静态搜索及按输入变化复用。源代码直接嵌入 HTML；`.slib` 不增加完整源码或注释正文。渲染输入缺少源码文本时省略对应的源码展示和链接。
+
+发行包的十九个生产内置 Cone 统一提供声明说明，包含此前新增的 `scoop.terminal` 和 `scoop.terminal.asyncio`。打包流程用配套工具为各发行目标生成文档，并在全部生成成功后归档。安装根的 `docs/index.html` 可进入 Darwin 或 GNU／musl 的完整离线站点。
+
+## M54 统一 HTTP client 与配套基础库
 
 本期提供 Darwin/AArch64、Linux/GNU amd64 两类宿主工具包，覆盖 Darwin、GNU、musl 三个既有目标。宿主包包含 `scoop`、`scoopc`、`scoop-link`，以及 LLVM 22.1.8 的所需动态依赖。M47 延后，不附带 generator。
 

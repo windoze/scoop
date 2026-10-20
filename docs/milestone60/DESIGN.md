@@ -262,7 +262,7 @@ M52 的 `sysroot/src` 可作为显式文档 root；处理 core 本身时沿用�
 
 `package_toolchain.py` 沿既有生产库清单及该宿主支持的 target，在预编译资源准备完成后，调用本次配套 `scoop doc`，显式选择全部内置库源码 root，并以 `--no-deps` 保持完整的显式文档集合。每个 target 生成一个共同站点，跨库链接使用该 target 的实际声明目录，文档 warning 按失败处理。不能只复制开发机遗留站点，也不能因文档生成改选依赖或重建不需要的机器产物。
 
-发行 SYSROOT 下的 `docs/index.html` 提供目标入口，站点位于 `docs/<canonical-target-triple>/`，包含全部内置库页面、内嵌源码、搜索和本地资源。Darwin 包生成 Darwin 站点，Linux 包分别生成 GNU／musl 站点；全部必要文档成功后才归档发行包，失败保留上一次完整归档。打包验收检查目标及 Cone 清单、跨库导航、源码与资源、离线搜索、更新复用和解压后的相对链接。`.slib` 仍不包含完整源码或注释正文。
+发行 SYSROOT 下的 `docs/index.html` 提供目标入口，站点位于 `docs/<canonical-target-triple>/`，包含全部内置库页面、内嵌源码、搜索和本地资源；站点更新记录只保留在打包工作目录。Darwin 包生成 Darwin 站点，Linux 包分别生成 GNU／musl 站点；全部必要文档成功后才归档发行包，失败保留上一次完整归档。打包验收检查目标及 Cone 清单、跨库导航、源码与资源、离线搜索、更新复用和解压后的相对链接。`.slib` 仍不包含完整源码或注释正文。
 
 ## 9. 更新判断、失败与诊断
 
