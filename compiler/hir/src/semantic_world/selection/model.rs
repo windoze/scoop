@@ -69,43 +69,37 @@ impl<'a> ImportedDependencyDefinitionSource<'a> {
 }
 
 /// An owned source-level callable candidate obtained through one direct
-/// dependency binding. It owns the interface needed by lowering after the
+/// dependency binding. It shares the interface needed by lowering after the
 /// borrowed artifact views have been released.
 #[derive(Clone, Debug)]
 pub struct ImportedDependencyCallableCandidate {
     pub(super) binding: DirectImportedTargetBinding,
-    pub(super) provider: ConeIdentity,
-    pub(super) interface: CallableDeclarationRecordV1,
-    pub(super) source: Option<CallableSourceInterfaceV1>,
-    pub(super) capability: Option<ParamFreeNominalCallableV1>,
-    pub(super) default_templates: BTreeMap<ExportDefaultTemplateKeyV1, ExportDefaultTemplateV1>,
-    pub(super) definition_sources: Arc<ImportedDependencyDefinitionSources>,
-    pub(super) callable_body: Option<Arc<crate::ExportGenericCallableBodyV1>>,
+    pub(super) entry: Arc<super::catalog::CallableCatalogEntry>,
 }
 
 impl ImportedDependencyCallableCandidate {
     pub fn callable_body(&self) -> Option<&crate::ExportGenericCallableBodyV1> {
-        self.callable_body.as_deref()
+        self.entry.callable_body.as_deref()
     }
 
     pub const fn target(&self) -> ImportedTarget {
         self.binding.target()
     }
 
-    pub const fn provider(&self) -> ConeIdentity {
-        self.provider
+    pub fn provider(&self) -> ConeIdentity {
+        self.entry.provider
     }
 
-    pub const fn interface(&self) -> &CallableDeclarationRecordV1 {
-        &self.interface
+    pub fn interface(&self) -> &CallableDeclarationRecordV1 {
+        &self.entry.interface
     }
 
-    pub const fn source_interface(&self) -> Option<&CallableSourceInterfaceV1> {
-        self.source.as_ref()
+    pub fn source_interface(&self) -> Option<&CallableSourceInterfaceV1> {
+        self.entry.source.as_ref()
     }
 
-    pub const fn capability(&self) -> Option<&ParamFreeNominalCallableV1> {
-        self.capability.as_ref()
+    pub fn capability(&self) -> Option<&ParamFreeNominalCallableV1> {
+        self.entry.capability.as_ref()
     }
 
     pub const fn binding(&self) -> &DirectImportedTargetBinding {
@@ -116,14 +110,14 @@ impl ImportedDependencyCallableCandidate {
         &self,
         key: ExportDefaultTemplateKeyV1,
     ) -> Option<&ExportDefaultTemplateV1> {
-        self.default_templates.get(&key)
+        self.entry.default_templates.get(&key)
     }
 
     pub fn definition_source(
         &self,
         source: &crate::ExportDefinitionSourceV1,
     ) -> Option<ImportedDependencyDefinitionSource<'_>> {
-        self.definition_sources.resolve(source)
+        self.entry.definition_sources.resolve(source)
     }
 }
 

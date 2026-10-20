@@ -69,7 +69,8 @@ pub(super) struct DependencyCatalog {
     pub(super) nominals: BTreeMap<crate::SourceNominalId, Arc<super::ImportedNominalDeclaration>>,
     pub(super) nominal_visibilities: BTreeMap<crate::SourceNominalId, crate::DeclaredVisibilityV1>,
     pub(super) consumer: ConeIdentity,
-    pub(super) callables: BTreeMap<CallableTemplateOrigin, CallableCatalogEntry>,
+    pub(super) callables: BTreeMap<CallableTemplateOrigin, Arc<CallableCatalogEntry>>,
+    pub(super) indexes: super::indexes::CatalogIndexes,
     pub(super) bodies: BTreeMap<crate::DefaultCallableDeclarationV1, super::ImportedCallableBody>,
     pub(super) generated_callables:
         BTreeMap<scoop_identity::PersistentGeneratedCallableId, GeneratedCallableCatalogEntry>,
@@ -373,7 +374,7 @@ impl ImportedSemanticWorld<'_> {
                     .and_then(|owner| bodies.get(&owner))
                     .map(|source| Arc::clone(&source.body)),
                 };
-                if callables.insert(declaration, entry).is_some() {
+                if callables.insert(declaration, Arc::new(entry)).is_some() {
                     return Err(
                         ImportedDependencySelectionPlanBuildError::DuplicateCallable(declaration),
                     );
@@ -449,6 +450,7 @@ impl ImportedSemanticWorld<'_> {
                 }
             }
         }
+        let indexes = super::indexes::CatalogIndexes::new(&callables, &properties);
         Ok(ImportedDependencySelectionPlan {
             catalog: Arc::new(DependencyCatalog {
                 static_namespaces,
@@ -456,6 +458,7 @@ impl ImportedSemanticWorld<'_> {
                 nominal_visibilities,
                 consumer: self.current,
                 callables,
+                indexes,
                 bodies,
                 generated_callables,
                 callback_registrations,

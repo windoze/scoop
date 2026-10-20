@@ -1,0 +1,19 @@
+import performance.indexes.Meter
+import performance.indexes.Other
+import performance.indexes.Reader
+import performance.indexes.offset
+
+fun read(value: Reader): Int = value.read()
+
+fun main() {
+    val meter = Meter()
+    meter.value = 40
+    println(meter.adjust())
+    println(meter.adjust("typed overload"))
+    println((meter + Meter(2)).read())
+    println(read(meter))
+    println(meter.doubled)
+    println(meter.map { value -> value + 2 })
+    println(read(Other(3)))
+    println(offset(20))
+}
