@@ -89,7 +89,7 @@
 | Boolean Scoop ABI | 标量参数和结果使用 i1 zeroext，定义、调用、间接分派和 statepoint 保持一致；现有目标指纹升级后正常重建产物 | GNU 旧工具最小复现 1／255 两个真值比较失败；237 项 codegen、6 项 ABI 分类、387 项 LIR、253 项产物测试及 workspace clippy 通过，Darwin 正式消费者 8 个变体、26 个步骤进程通过；GNU／musl 各 10 个 fixture、20 个变体、70 个步骤进程通过 |
 | LLVM safepoint 不可复制 | 普通 safepoint 调用、显式 statepoint 和逻辑根恢复标记统一携带 noduplicate；保留现有优化管线与机器层约束 | Darwin 239 项、Linux 253 项 codegen 测试及 workspace clippy 通过；最小 IR 核对三目标机器栈映射，四项正式回归在每目标各通过 8 个变体、34 个步骤进程，原代理消费者通过两种构建及 full moving |
 | client 显式代理 | 纯 Scoop 组合 HTTP／HTTPS 转发、CONNECT、SOCKS5、本地／代理 DNS、两层 TLS 与目标 H2；suspend selector、静态代理凭据、路由池隔离及协商截止 | Darwin 30 个网络场景与 10 个 selector 生命周期场景通过 debug／release、双 native 线程、full moving 与复用；158 项 client 库测试通过两种构建，生产库与连接池／重试组合最终通过 8 个变体、24 个步骤进程 |
-| client 代理认证 | Basic／Bearer／Digest 共用认证实现，按 origin 与代理实例分开保存 token、刷新和 nonce；CONNECT 拒绝先关闭并归还名额，回调随后执行；转发与隧道分别验证响应摘要 | Darwin 新增 28 个独立协议场景、12 个挂起／清理场景，通过 debug／release 普通测试；正式库消费及原有认证、代理、连接池、重试共 11 个 fixture、22 个变体、66 个步骤进程全部通过，GC stress 延后统一执行 |
+| client 代理认证 | Basic／Bearer／Digest 共用认证实现，按 origin 与代理实例分开保存 token、刷新和 nonce；CONNECT 拒绝先关闭并归还名额，回调随后执行；转发与隧道分别验证响应摘要 | Darwin 新增 28 个独立协议场景、12 个挂起／清理场景，通过 debug／release 普通测试；正式库消费及原有认证、代理、连接池、重试共 11 个 fixture、22 个变体、66 个步骤进程全部通过，均按普通功能验收 |
 | IP CIDR 网络 | platform.IpNetwork 提供 IPv4／IPv6 网络归一化、前缀检查、包含判断与值比较；地址解析仍使用 IpAddress，上层不重复实现位掩码 | Darwin 正式消费者通过 debug／release 和构建复用；808 个 Python ipaddress 独立向量覆盖全部前缀长度、内外边界，另验证无效输入、IPv4-mapped IPv6、scope 及 URL／socket 地址组合；未启用 GC stress |
 | 重定位要求查找 | 对已按 use-site 排序的普通、跨 Cone callable 和布局要求使用二分查找，仍按完整引用匹配，保留原始分区与编码 | 普通 client 测试构建采样定位到重复线性扫描；141 项产物／链接单测及 workspace clippy 通过，新增多成员命中与同位置不同符号拒绝覆盖；HTTP 库重建和正式消费者 debug／release、构建复用通过，未启用 GC stress |
 | Cookie 站点比较 | HTTP 的 HttpCookieRules.sameSite 复用规范 URL origin 与 PSL，按 scheme 和可注册域比较，处理 ws／wss、安全 scheme、IP 与无可注册域的 host | Darwin 正式消费者 debug／release 和构建复用通过；22 组对称用例在两个 native 线程中覆盖 ICANN／PRIVATE、PSL 通配／例外、IDNA、根点、端口和 IPv4／IPv6；未启用 GC stress |
@@ -420,7 +420,7 @@ Digest 的 95 个独立场景包括 57 个协议、17 个生命周期、14 个�
 
 显式代理已通过正常入口更新生产 sysroot。真实独立对端验证 absolute-form、全部 2xx CONNECT、同包隧道后缀、TLS-in-TLS 与独立信任、SOCKS 地址／凭据、H2 prior knowledge／Upgrade、HTTP/1.0、路由切换和 origin Digest；代理凭据不进入隧道后的目标请求。selector 在每次实际尝试前执行，保留原 Context、回调异常及取消后的真实清理。新增 CONNECT／SOCKS5 已开始协商后的超时用例均确认未启动目标 producer，并在同一 client 的单连接名额下继续完成下一请求；测试明确 Unit 回调类型后通过。原连接池与重试正式用例同时回归，未重复未修改的编译器全量测试。
 
-合并后的 GNU Digest 主协议用例通过两种构建、full moving 与复用；Digest 组合的 debug 批次通过，release late-401 触及原 180 秒进程时限。原 release 二进制在保留原对端等待规则的独立运行中正常完成，用时约 185 秒，其中 43,139 次 full GC 耗时约 181 秒；该场景的测试进程时限已提高到 600 秒，未改产品截止或对端规则。复用原二进制完成 late-401、late-nextnonce、clear-active 三个场景及无子进程的正常构建复用，其余 release 场景沿用该批次中断前已通过的结果。musl 的 Bearer 与 Digest 主用例均已通过两种构建；显式代理及池、重试、网络主机组合在 GNU 全部通过，共 10 个变体、30 个步骤进程。musl 已通过池回归，尚未完成的其余压力批次已按用户要求停止，保留实际完成结果，待全部功能完成后统一验收。
+合并后的 GNU Digest 主协议用例通过两种构建、full moving 与复用；Digest 组合的 debug 批次通过，release late-401 触及原 180 秒进程时限。原 release 二进制在保留原对端等待规则的独立运行中正常完成，用时约 185 秒，其中 43,139 次 full GC 耗时约 181 秒；该场景的测试进程时限已提高到 600 秒，未改产品截止或对端规则。复用原二进制完成 late-401、late-nextnonce、clear-active 三个场景及无子进程的正常构建复用，其余 release 场景沿用该批次中断前已通过的结果。musl 的 Bearer 与 Digest 主用例均已通过两种构建；显式代理及池、重试、网络主机组合在 GNU 全部通过，共 10 个变体、30 个步骤进程。musl 已通过池回归，尚未完成的其余压力批次已按用户要求停止，保留实际完成结果，剩余普通功能验收继续使用正常运行模式。
 
 Cookie 的保存回调在取消后抛出清理异常时，首轮网络用例复现了同一异常被两层捕获重复汇总。回调边界现在先记录真实结果，再按本次调用已选择的失败退出，清理对象只汇总一次；load／save 的取消、total 和 client.close 均等待真实 finally 结束，回调错误不取得网络重试资格。Jar 的原始字节、编码路径、IDNA／IP、PRIVATE PSL、显式 SameSite、替换顺序及过期／容量淘汰通过独立消费者验证。生产 sysroot 的 17 个 Cone 与 runtime 已通过正式准备入口更新。
 
@@ -442,7 +442,7 @@ WebSocket 高层接入前，普通消费者复现了 HTTP asyncio 的 close 未�
 
 高层 WebSocket 的 open／with 入口返回成功会话或拥有真实 HTTP 响应的拒绝结果。独立 Python 对端覆盖新握手 key、重定向、重试、Cookie、坏握手、压缩消息、Basic／Bearer 刷新／Digest 空实体验证、HTTP／HTTPS 代理、CONNECT、TLS-in-TLS 与 SOCKS5。WSS 与同 origin 的活动 H2 连接共存并保持原 H2 复用，无 ALPN 回退及客户端证书认证通过；普通 HTTP 版本配置不改变 WS 的 H1.1 握手。升级后 HTTP 总截止停止，拒绝响应继续受原截止约束；client.close 等待发送来源、子任务及真实清理，关闭自等待被拒绝且保留清理异常原对象。
 
-普通 HTTP 连接池、响应解码与 SSE 三项相关回归另通过 6 个变体、18 个步骤进程；17 个生产 Cone 与 runtime 已通过正式准备入口更新。本轮均为普通模式，GC stress 仍待全部功能完成后执行。
+普通 HTTP 连接池、响应解码与 SSE 三项相关回归另通过 6 个变体、18 个步骤进程；17 个生产 Cone 与 runtime 已通过正式准备入口更新。本轮均为普通模式，后续普通功能验收继续使用正常运行模式。
 
 应用拦截器与每次尝试回调已完成：普通响应和 WebSocket 握手共用有序 suspend 链，重定向／重试／认证只重算本轮附加字段；未交付结果由链关闭，重复及逃逸 proceed 被拒绝。尝试回调在缓存查询前执行，使 Authorization 与 Vary 参与实际缓存身份，并保留代理转发字段与每轮 WebSocket key。回调取消、总截止、client.close 和子任务清理保持原始失败及真实清理对象，H2 其他流继续推进。
 
@@ -465,6 +465,8 @@ client 的 suspend observer 已完成：每次尝试记录排池、DNS、TCP、�
 ## 验证安排
 
 按用户明确的范围，GC stress 只用于验证 GC 正确性的定向测试，普通功能及全量验收使用正常运行模式。此前启动的整批压力测试已停止，保留实际结果与原始记录；不继续以压力模式覆盖全部库或客户端功能，中止批次不记为整批通过。
+
+普通 M54 功能 fixture 已移除强制 GC stress 的环境设置，四个 GC 正确性专测保留各自的定向配置。117 个普通预编译库消费者改用 runner 既有的批次共享缓存；两项代表用例在 Darwin 通过 debug／release、实际运行及无子进程的构建复用，共 4 个变体、12 个步骤进程。同一组用例的缓存由约 1010 MiB 降至 508 MiB，协议与构建复用断言保持原要求。
 
 普通模式复验发现并修复 HTTP/2 排空后的 SETTINGS ACK 误报：nghttp2 在 GOAWAY 后正常丢弃待发 ACK 时，HTTP 适配层不再将 SESSION_CLOSING 变成连接失败。独立后端诊断及旧 SDK 消费者均复现原错误；修正后的独立 ACK 用例、异步排空、未发送请求拒绝、client 连接池及重试组合，在 Darwin 普通模式通过 10 个变体、30 个步骤进程。修复位于 HTTP 协议库，GNU／musl 的对应复验仍待完成。
 
