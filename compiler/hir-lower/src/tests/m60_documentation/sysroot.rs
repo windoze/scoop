@@ -14,8 +14,13 @@ fn m60_documentation_projects_real_core_sources_and_canonical_annotations() {
     let mut texts = Vec::new();
     let mut contexts = Vec::new();
     let mut documentation = Vec::new();
-    for path in paths {
-        let text = std::fs::read_to_string(&path).unwrap();
+    for (index, path) in paths.into_iter().enumerate() {
+        let mut text = std::fs::read_to_string(&path).unwrap();
+        if index == 0 {
+            text.push_str("\npublic fun documentationInferredInteger() = 42\n");
+            text.push_str("public fun documentationInferredBoolean() = true\n");
+            text.push_str("public fun documentationInferredString() = \"text\"\n");
+        }
         let identity = core_source_identity(&format!(
             "src/{}",
             path.file_name().unwrap().to_str().unwrap()
@@ -92,4 +97,26 @@ fn m60_documentation_projects_real_core_sources_and_canonical_annotations() {
             .any(|item| item.key == integer.key)
     );
     assert!(input.sources.iter().all(|source| !source.text.is_empty()));
+    for (function, nominal) in [
+        ("documentationInferredInteger", "Int"),
+        ("documentationInferredBoolean", "Boolean"),
+        ("documentationInferredString", "String"),
+    ] {
+        let function = input
+            .items
+            .iter()
+            .find(|item| item.name == function)
+            .unwrap();
+        let nominal = input
+            .items
+            .iter()
+            .find(|item| item.name == nominal && item.parent.is_none())
+            .unwrap();
+        assert!(
+            function
+                .signature
+                .iter()
+                .any(|token| token.link.as_ref() == Some(&nominal.key))
+        );
+    }
 }

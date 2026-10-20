@@ -117,6 +117,8 @@ pub enum DocumentationLink {
 pub enum DocumentationSymbol {
     Current(DocumentationTarget),
     Imported(AnnotationTargetV1),
+    /// A conditional source declaration, independent of any exact machine use.
+    ImportedDerivedEquality(crate::SourceNominalId),
 }
 
 #[derive(Clone, Debug)]

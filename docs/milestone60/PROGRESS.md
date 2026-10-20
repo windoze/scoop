@@ -85,3 +85,11 @@ driver 复用完整正常 HIR，在同一次结果中投影文档；仅文档随
 按新增要求明确源码原文嵌入生成的 HTML，API 只链接站点内源码页和行锚点；渲染输入没有对应文本时，省略源码页、链接及空源码目录。`.slib` 继续仅保存 SourceRecord 元数据，完整源码与注释正文只进入本地文档输入。正常编译的必需输入缺失仍是 I/O 错误。
 
 本机 fmt／workspace clippy 无警告；7 项渲染测试通过，其中新增两项覆盖嵌入文本、HTML 转义、原始文件地址不进入输出、部分／全部源码不可用。两项 driver 集成测试通过，确认联合生成文档与普通生产的 `.slib` 一致，归档不含测试的完整源码和文档正文。源码不可用用渲染输入直接表达，没有删除、移走或隐藏实际编译输入。
+
+## B4：扩展导航与派生成员条件
+
+扩展函数／property 保留实际 receiver 类型与声明链接，类型页列出扩展及其声明 Cone，扩展仍使用原 package 页面。派生 equality 页面展示字段／payload 在原 binder 中的类型要求；跨 Cone 链接可以指向未具体化的条件派生声明，沿普通同签名成员规则排除用户自定义 equality，不新增机器调用或具体化结果。
+
+推断 primitive 类型导航分别使用 Defined／Imported core 协议中的真实声明身份，类型参数链接原 binder；不会因某类型尚未触发成员加载而漏掉导航。真实 core 投影测试覆盖自身的推断 Int／Boolean／String。
+
+本机 fmt／workspace clippy 无警告，28 项相关 HIR 测试、7 项渲染测试和两项 driver 集成测试通过。首次测试发现导入 primitive 链接误依赖按需成员表，已改为直接读取完整 core 协议并复测通过。覆盖扩展函数和 property、M55／context 组合、generic／conditional／显式 equality、原 binder 名称，以及文档查询不改变机器派生选择。

@@ -88,6 +88,8 @@ when 的 AST 明确区分无 subject、表达式 subject 与 val subject 声明�
 
 文档中的源码原文直接嵌入生成的 HTML；源码导航仅链接站点内生成的页面与行锚点，不引用原始文件的 `file://` 地址。渲染输入没有对应源码文本时，省略其源码页、展示区和链接，不凭位置记录重建源码。完整源码仅用于当前请求和工具本地文档输入，不写入 `.slib`；持久 `SourceRecord` 继续只保存身份、摘要、长度及位置元数据。正常编译所需的源文件缺失仍按实际 I/O 错误处理。
 
+扩展 receiver 的导航由实际 receiver 目标及完成后的类型投影产生，扩展仍归属声明 Cone／package。派生 equality 保留声明 owner 和字段／payload 的原 binder 类型要求，页面明确其适用性取决于各组成类型的同类型 equality；不把条件声明展示为任意实例均可调用。跨 Cone 文档查询沿已加载的 nominal 表示与既有同签名成员查询确定派生声明，保存原 nominal owner／派生角色，不为文档解析选择、生成或具体化机器调用。core 自身的推断 primitive 类型链接沿 DefinedCoreProtocols 指向真实当前声明，普通 Cone 沿已导入的协议指向实际 core 声明。
+
 公开展示使用 HIR 的 effective lookup 与 inheritance domain，并计入词法 owner；公开且允许外部继承的类型中的 protected 成员可展示。`DocHidden` 的实际目标和后代从 API 目录移除，但不删源码或构造参数文本；`DocAlias` 仅按 core 注解身份提取静态字符串，空白关键词产生带应用位置的文档 warning。文档缓存保留筛选前数据及诊断，private 展示选项和 warning 政策不要求重做 HIR。
 
 HIR 完成名称解析、类型检查、重载与泛型实参选择、可见性、继承与覆写、模式穷尽性、构造／初始化规则、常量、效果及 FFI 声明检查。源码与依赖声明遵守同一语言规则；文件发现顺序、声明存储位置和 provider 读取顺序不能改变结果。

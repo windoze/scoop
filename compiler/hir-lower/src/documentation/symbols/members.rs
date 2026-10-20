@@ -59,6 +59,11 @@ impl Lowerer {
                 return vec![Symbol::Current(Source::Field(field).into())];
             }
         } else if let Some(owner) = self.imported_nominal_owner(ty) {
+            if name == "equals"
+                && let Ok(Some(owner)) = self.imported_derived_equality_declaration(ty)
+            {
+                result.push(Symbol::ImportedDerivedEquality(owner));
+            }
             let targets = [BindingNamespace::Type, BindingNamespace::Value]
                 .into_iter()
                 .flat_map(|namespace| {

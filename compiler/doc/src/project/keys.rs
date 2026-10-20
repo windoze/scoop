@@ -46,6 +46,9 @@ impl Projection<'_> {
         match symbol {
             hir::DocumentationSymbol::Current(target) => self.target(target),
             hir::DocumentationSymbol::Imported(target) => Ok(SymbolKey::declaration(target)?),
+            hir::DocumentationSymbol::ImportedDerivedEquality(owner) => {
+                Ok(SymbolKey::derived_equality(owner)?)
+            }
         }
     }
 }

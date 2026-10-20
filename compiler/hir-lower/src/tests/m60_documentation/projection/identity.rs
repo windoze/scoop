@@ -42,6 +42,9 @@ fn m60_documentation_projection_routes_survive_arena_and_source_order_changes() 
     }
     let equality = item(&first, ApiKind::Function, "equals");
     assert!(equality.synthesized);
+    let requirements = equality.equality_requirements.as_ref().unwrap();
+    assert_eq!(requirements.components.len(), 1);
+    assert_eq!(requirements.components[0].text, "Element");
     assert!(
         signature(equality).contains("Record<Element>"),
         "{}",

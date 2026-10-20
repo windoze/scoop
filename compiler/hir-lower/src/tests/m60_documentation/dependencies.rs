@@ -1,5 +1,7 @@
 use super::*;
 
+mod derived;
+
 #[test]
 fn m60_documentation_resolves_dependency_aliases_members_without_selecting_machine_uses() {
     let source = r#"

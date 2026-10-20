@@ -5,7 +5,7 @@ mod annotations;
 mod identity;
 mod visibility;
 
-fn project(output: &hir::DependencyHirOutput) -> ConeInput {
+pub(super) fn project(output: &hir::DependencyHirOutput) -> ConeInput {
     let output = output.output();
     scoop_doc::project_cone(
         &output.export,
@@ -16,7 +16,7 @@ fn project(output: &hir::DependencyHirOutput) -> ConeInput {
     .unwrap()
 }
 
-fn item<'a>(input: &'a ConeInput, kind: ApiKind, name: &str) -> &'a ApiItem {
+pub(super) fn item<'a>(input: &'a ConeInput, kind: ApiKind, name: &str) -> &'a ApiItem {
     input
         .items
         .iter()
@@ -88,11 +88,16 @@ fn m60_documentation_projection_retains_context_and_m55_contracts() {
         public fun <T> Int.inspect(value: T): Int
             where requires(x: T) { x.read(): Int } = 1
         public val inferred = 42
+        public val Int.successor: Int get() = 1
         "#,
         )
         .unwrap(),
     );
     let inspect = item(&input, ApiKind::Function, "inspect");
+    assert_eq!(inspect.receiver.as_ref().unwrap().text, "Int");
+    assert!(inspect.receiver.as_ref().unwrap().link.is_some());
+    let property = item(&input, ApiKind::Property, "successor");
+    assert_eq!(property.receiver, inspect.receiver);
     let signature = signature(inspect);
     assert!(signature.contains("context(request: String)"));
     assert!(signature.contains("fun <T> Int.inspect(value: T): Int"));

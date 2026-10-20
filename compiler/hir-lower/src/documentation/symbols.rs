@@ -108,6 +108,7 @@ fn canonical_symbols(symbols: Vec<Symbol>) -> Result<Vec<Symbol>, &'static str> 
                 symbol,
                 Symbol::Current(Target::Declaration(Source::Callable(Callable::Function(_))))
                     | Symbol::Current(Target::DerivedFunction(_))
+                    | Symbol::ImportedDerivedEquality(_)
                     | Symbol::Imported(Imported::Callable(hir::AnnotationCallableV1::Declaration(
                         scoop_identity::CallableTemplateOrigin::Function(_)
                             | scoop_identity::CallableTemplateOrigin::GenericFunction(_)

@@ -24,7 +24,22 @@ fn html_escapes_source_signatures_markdown_and_renders_property_capabilities() {
     });
     let mut parameter = item("parameter", "T", ApiKind::TypeParameter, Some("box"));
     parameter.comment = Some(comment("Element type."));
-    let inputs = [cone("a", vec![owner, property, parameter])];
+    let mut equality = item("equals", "equals", ApiKind::Function, Some("box"));
+    equality.equality_requirements = Some(EqualityRequirements {
+        components: vec![SignatureToken {
+            text: "T".into(),
+            link: Some(parameter.key.clone()),
+        }],
+    });
+    let mut extension = item("extension", "describe", ApiKind::Function, None);
+    extension.receiver = Some(SignatureToken {
+        text: owner.name.clone(),
+        link: Some(owner.key.clone()),
+    });
+    let inputs = [cone(
+        "a",
+        vec![owner, property, parameter, equality, extension],
+    )];
     let catalog = SiteCatalog::new(&inputs, SiteOptions::default()).unwrap();
     let files = render(&catalog);
     let page = &catalog.routes[&SymbolKey("box".into())].page;
@@ -35,6 +50,10 @@ fn html_escapes_source_signatures_markdown_and_renders_property_capabilities() {
     assert!(html.contains("get: public"));
     assert!(html.contains("set: private"));
     assert!(html.contains("Element type."));
+    assert!(html.contains("same-type equality"));
+    assert!(html.contains("<h3>Extensions</h3>"));
+    let extension_page = &catalog.routes[&SymbolKey("extension".into())].page;
+    assert!(files[extension_page].contains("Extension receiver:"));
     for key in ["box", "value", "get", "set", "parameter"] {
         assert_target_exists(
             &files,

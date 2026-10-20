@@ -9,6 +9,7 @@ mod annotations;
 mod bindings;
 mod comments;
 mod keys;
+mod requirements;
 mod signatures;
 mod visibility;
 
@@ -134,6 +135,8 @@ impl Projection<'_> {
                 .unwrap_or_default(),
             synthesized: item.synthesized,
             signature: self.signature(item)?,
+            receiver: self.receiver(item)?,
+            equality_requirements: self.equality_requirements(item)?,
             location: self.location(item.origin.file as usize, item.origin.span)?,
             comment: item
                 .comment

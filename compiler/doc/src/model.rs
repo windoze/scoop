@@ -43,6 +43,8 @@ pub struct ApiItem {
     pub aliases: Vec<String>,
     pub synthesized: bool,
     pub signature: Vec<SignatureToken>,
+    pub receiver: Option<SignatureToken>,
+    pub equality_requirements: Option<EqualityRequirements>,
     pub location: SourceLocation,
     pub comment: Option<Comment>,
     pub property: Option<PropertyCapability>,
@@ -52,6 +54,12 @@ pub struct ApiItem {
 pub struct SignatureToken {
     pub text: String,
     pub link: Option<SymbolKey>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EqualityRequirements {
+    /// Actual field/payload types in the declaration's original binder scope.
+    pub components: Vec<SignatureToken>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

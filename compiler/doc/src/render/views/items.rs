@@ -14,12 +14,15 @@ pub(in crate::render) struct ItemView {
     visibility: Visibility,
     synthesized: bool,
     signature: Vec<TokenView>,
+    receiver: Option<TokenView>,
+    equality_requirements: Option<Vec<TokenView>>,
     comment: String,
     tags: Vec<TagView>,
     property: Option<PropertyView>,
     source: Option<LinkView>,
     children: Vec<ItemView>,
     related: Vec<LinkView>,
+    extensions: Vec<LinkView>,
 }
 
 #[derive(Serialize)]
@@ -62,18 +65,7 @@ impl SiteRenderer<'_, '_> {
         let signature = item
             .signature
             .iter()
-            .map(|token| {
-                let href = token
-                    .link
-                    .as_ref()
-                    .and_then(|key| self.catalog.declaration_url(key))
-                    .map(|url| routes::relative(page, &url));
-                TokenView {
-                    text: token.text.clone(),
-                    unavailable: token.link.is_some() && href.is_none(),
-                    href,
-                }
-            })
+            .map(|token| self.type_token(token, page))
             .collect();
         let source = cone
             .sources
@@ -110,6 +102,17 @@ impl SiteRenderer<'_, '_> {
             visibility: item.visibility,
             synthesized: item.synthesized,
             signature,
+            receiver: item
+                .receiver
+                .as_ref()
+                .map(|receiver| self.type_token(receiver, page)),
+            equality_requirements: item.equality_requirements.as_ref().map(|requirements| {
+                requirements
+                    .components
+                    .iter()
+                    .map(|component| self.type_token(component, page))
+                    .collect()
+            }),
             comment: item
                 .comment
                 .as_ref()
@@ -142,6 +145,41 @@ impl SiteRenderer<'_, '_> {
                 .into_iter()
                 .map(|child| self.item_link(child, page))
                 .collect(),
+            extensions: self
+                .catalog
+                .items
+                .values()
+                .filter(|(_, extension)| {
+                    extension
+                        .receiver
+                        .as_ref()
+                        .and_then(|receiver| receiver.link.as_ref())
+                        == Some(&item.key)
+                })
+                .map(|(owner, extension)| {
+                    let mut link = self.item_link(extension, page);
+                    link.text = extension
+                        .signature
+                        .iter()
+                        .map(|part| part.text.as_str())
+                        .collect();
+                    link.summary = owner.name.clone();
+                    link
+                })
+                .collect(),
+        }
+    }
+
+    fn type_token(&self, token: &SignatureToken, page: &str) -> TokenView {
+        let href = token
+            .link
+            .as_ref()
+            .and_then(|key| self.catalog.declaration_url(key))
+            .map(|url| routes::relative(page, &url));
+        TokenView {
+            text: token.text.clone(),
+            unavailable: token.link.is_some() && href.is_none(),
+            href,
         }
     }
 

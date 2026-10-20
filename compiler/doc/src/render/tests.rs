@@ -21,6 +21,8 @@ fn item(key: &str, name: &str, kind: ApiKind, parent: Option<&str>) -> ApiItem {
             text: format!("public {name}"),
             link: None,
         }],
+        receiver: None,
+        equality_requirements: None,
         location: SourceLocation {
             source: SourceKey("source".into()),
             range: TextRange { start: 0, end: 1 },

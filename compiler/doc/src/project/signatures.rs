@@ -25,7 +25,7 @@ impl Projection<'_> {
             .collect()
     }
 
-    fn type_link(&self, ty: hir::TypeId) -> Result<Option<SymbolKey>> {
+    pub(super) fn type_link(&self, ty: hir::TypeId) -> Result<Option<SymbolKey>> {
         use hir::Type as T;
         let export = self.export;
         let nominal = match &export.types[ty] {
@@ -40,7 +40,12 @@ impl Projection<'_> {
             T::Any => self.intrinsic(hir::IntrinsicTypeKind::Any),
             T::Ptr(_) => self.intrinsic(hir::IntrinsicTypeKind::Ptr),
             T::FunPtr(_) => self.intrinsic(hir::IntrinsicTypeKind::FunPtr),
-            T::Tuple(_) | T::Function(_) | T::Param(_) | T::Companion(_) => None,
+            T::Param(parameter) => {
+                return self.declarations.keys().find(|target| {
+                    matches!(target, Target::TypeParameter { parameter: candidate, .. } if candidate == parameter)
+                }).map(|target| self.target(*target)).transpose();
+            }
+            T::Tuple(_) | T::Function(_) | T::Companion(_) => None,
         };
         nominal
             .map(|owner| {
@@ -51,9 +56,51 @@ impl Projection<'_> {
     }
 
     fn intrinsic(&self, kind: hir::IntrinsicTypeKind) -> Option<hir::SourceNominalId> {
-        self.export
-            .imported_intrinsic_types
-            .get(&kind)
-            .map(|value| value.declaration.owner())
+        match &self.export.core_protocols {
+            hir::CoreProtocols::Imported(core) => {
+                use hir::{IntrinsicTypeKind as K, SourceNominalId as N};
+                let core = core.fundamental_types();
+                Some(match kind {
+                    K::Unit => N::Concrete(core.unit().persistent()),
+                    K::Integer(kind) => N::Concrete(core.integer(kind).persistent()),
+                    K::Boolean => N::Concrete(core.boolean().persistent()),
+                    K::Char => N::Concrete(core.character().persistent()),
+                    K::Float(kind) => N::Concrete(core.floating(kind).persistent()),
+                    K::String => N::Concrete(core.string().persistent()),
+                    K::Array => N::GenericTemplate(core.array().persistent()),
+                    K::MutableArray => N::GenericTemplate(core.mutable_array().persistent()),
+                    K::Ptr => N::GenericTemplate(core.ptr().persistent()),
+                    K::FunPtr => N::GenericTemplate(core.fun_ptr().persistent()),
+                    K::Any => N::Concrete(core.any().persistent()),
+                    K::Nothing => N::Concrete(core.nothing().persistent()),
+                    K::Atomic(_) | K::MaybeUninit => return None,
+                })
+            }
+            hir::CoreProtocols::Defined(core) => {
+                use hir::{IntrinsicTypeKind as K, NominalOwner as N};
+                let core = &core.fundamental_types;
+                let owner = match kind {
+                    K::Unit => N::Struct(core.unit),
+                    K::Integer(kind) => N::Struct(core.integers.owner(kind)),
+                    K::Boolean => N::Struct(core.boolean),
+                    K::Char => N::Struct(core.character),
+                    K::Float(hir::FloatKind::F32) => N::Struct(core.float),
+                    K::Float(hir::FloatKind::F64) => N::Struct(core.double),
+                    K::String => N::Class(core.string),
+                    K::Array => N::Class(core.array),
+                    K::MutableArray => N::Class(core.mutable_array),
+                    K::Ptr => N::Struct(core.ptr),
+                    K::FunPtr => N::Struct(core.fun_ptr),
+                    K::Any => N::Class(core.any),
+                    K::Nothing => N::Class(core.nothing),
+                    K::Atomic(_) | K::MaybeUninit => return None,
+                };
+                Some(match owner {
+                    N::Struct(id) => self.export.nominal_identities[id].declaration_id(),
+                    N::Class(id) => self.export.nominal_identities[id].declaration_id(),
+                    _ => unreachable!("fundamental protocols identify structs and classes"),
+                })
+            }
+        }
     }
 }
