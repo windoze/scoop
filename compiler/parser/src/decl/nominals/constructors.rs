@@ -1,6 +1,160 @@
 use super::*;
 
 impl Parser {
+    pub(super) fn parse_primary_constructor(&mut self) -> Result<ClassConstructorDecl, Diagnostic> {
+        let constructor_doc_start = self.pos;
+        let starts_new_line = self.peek().newline_before;
+        let mut constructor_annotations = Vec::new();
+        let mut constructor_visibility = VisibilitySyntax::Omitted;
+        loop {
+            if matches!(self.peek().kind, TokenKind::At) {
+                constructor_annotations.extend(self.parse_annotations()?);
+                continue;
+            }
+            if visibility_token(&self.peek().kind).is_some() {
+                if !matches!(constructor_visibility, VisibilitySyntax::Omitted) {
+                    return Err(Diagnostic::at(
+                        self.peek().span,
+                        "a constructor may have only one visibility modifier",
+                    ));
+                }
+                constructor_visibility = self.parse_visibility()?;
+                continue;
+            }
+            break;
+        }
+        let explicit_constructor = if matches!(&self.peek().kind, TokenKind::Ident(text) if text == "constructor")
+        {
+            Some(self.bump())
+        } else {
+            None
+        };
+        // A bodyless class may be followed by another declaration. Its
+        // leading annotations and visibility are not constructor modifiers.
+        if explicit_constructor.is_none()
+            && starts_new_line
+            && !matches!(self.peek().kind, TokenKind::LParen)
+        {
+            self.pos = constructor_doc_start;
+            return Ok(ClassConstructorDecl::Omitted);
+        }
+        if (!constructor_annotations.is_empty()
+            || !matches!(constructor_visibility, VisibilitySyntax::Omitted))
+            && explicit_constructor.is_none()
+        {
+            return Err(Diagnostic::at(
+                self.peek().span,
+                "primary constructor annotations or visibility require the `constructor` keyword",
+            ));
+        }
+        if explicit_constructor.is_some() && !matches!(self.peek().kind, TokenKind::LParen) {
+            return Err(Diagnostic::at(
+                self.peek().span,
+                "an explicit primary constructor requires a parameter list",
+            ));
+        }
+        let constructor = if matches!(self.peek().kind, TokenKind::LParen) {
+            let open = self.bump();
+            let mut parameters = Vec::new();
+            let mut vararg_span = None;
+            if !matches!(self.peek().kind, TokenKind::RParen) {
+                loop {
+                    let doc_start = self.pos;
+                    let annotations = self.parse_annotations()?;
+                    let modifier_span = self.parse_vararg_modifier(&mut vararg_span)?;
+                    let member_visibility = self.parse_visibility()?;
+                    let override_span = if matches!(&self.peek().kind, TokenKind::Ident(text) if text == "override")
+                    {
+                        Some(self.bump().span)
+                    } else {
+                        None
+                    };
+                    let first = self.peek().clone();
+                    let property = match first.kind {
+                        TokenKind::Val => {
+                            self.pos += 1;
+                            PrimaryParameterProperty::Val
+                        }
+                        TokenKind::Var => {
+                            self.pos += 1;
+                            PrimaryParameterProperty::Var
+                        }
+                        _ => PrimaryParameterProperty::Plain,
+                    };
+                    if !property.is_property()
+                        && (!matches!(member_visibility, VisibilitySyntax::Omitted)
+                            || override_span.is_some())
+                    {
+                        return Err(Diagnostic::at(
+                            first.span,
+                            "primary constructor member visibility and `override` require `val` or `var`",
+                        ));
+                    }
+                    let parameter_name = self.expect_ident("primary constructor parameter name")?;
+                    self.expect("`:`", |k| matches!(k, TokenKind::Colon))?;
+                    let ty = self.parse_type_ref()?;
+                    let (syntax, end) = self.parse_parameter_syntax(modifier_span, ty.span.end)?;
+                    let documented = PrimaryClassParameter {
+                        annotations,
+                        property,
+                        member_visibility: property.is_property().then_some(member_visibility),
+                        is_override: override_span.is_some(),
+                        span: Span::new(
+                            modifier_span
+                                .map(|span| span.start)
+                                .or(match member_visibility {
+                                    VisibilitySyntax::Explicit { span, .. } => Some(span.start),
+                                    VisibilitySyntax::Omitted => None,
+                                })
+                                .or_else(|| override_span.map(|span| span.start))
+                                .unwrap_or(first.span.start),
+                            end,
+                        ),
+                        name: parameter_name,
+                        ty,
+                        syntax,
+                    };
+                    self.attach_documentation(doc_start, documented.span);
+                    parameters.push(documented);
+                    if matches!(self.peek().kind, TokenKind::Comma) {
+                        self.bump();
+                    } else {
+                        break;
+                    }
+                }
+            }
+            let end = self
+                .expect("`)`", |k| matches!(k, TokenKind::RParen))?
+                .span
+                .end;
+            let constructor_start = constructor_annotations
+                .first()
+                .map(|annotation| annotation.span.start)
+                .into_iter()
+                .chain(match constructor_visibility {
+                    VisibilitySyntax::Explicit { span, .. } => Some(span.start),
+                    VisibilitySyntax::Omitted => None,
+                })
+                .chain(
+                    explicit_constructor
+                        .as_ref()
+                        .map(|keyword| keyword.span.start),
+                )
+                .min()
+                .unwrap_or(open.span.start);
+            self.attach_documentation(constructor_doc_start, Span::new(constructor_start, end));
+            ClassConstructorDecl::Declared(PrimaryConstructorDecl {
+                annotations: constructor_annotations,
+                visibility: constructor_visibility,
+                parameters,
+                span: Span::new(constructor_start, end),
+            })
+        } else {
+            ClassConstructorDecl::Omitted
+        };
+        Ok(constructor)
+    }
+
     pub(super) fn parse_init_block(&mut self) -> Result<InitBlockDecl, Diagnostic> {
         let keyword = self.bump();
         if !matches!(self.peek().kind, TokenKind::LBrace) {
@@ -35,6 +189,7 @@ impl Parser {
         let mut vararg_span = None;
         if !matches!(self.peek().kind, TokenKind::RParen) {
             loop {
+                let doc_start = self.pos;
                 let annotations = self.parse_annotations()?;
                 let modifier_span = self.parse_vararg_modifier(&mut vararg_span)?;
                 if matches!(self.peek().kind, TokenKind::Val | TokenKind::Var) {
@@ -47,7 +202,7 @@ impl Parser {
                 self.expect("`:`", |kind| matches!(kind, TokenKind::Colon))?;
                 let ty = self.parse_type_ref()?;
                 let (syntax, end) = self.parse_parameter_syntax(modifier_span, ty.span.end)?;
-                params.push(Param {
+                let documented = Param {
                     annotations,
                     span: Span::new(
                         modifier_span.map_or(name.span.start, |span| span.start),
@@ -56,7 +211,9 @@ impl Parser {
                     name,
                     ty,
                     syntax,
-                });
+                };
+                self.attach_documentation(doc_start, documented.span);
+                params.push(documented);
                 if matches!(self.peek().kind, TokenKind::Comma) {
                     self.bump();
                 } else {

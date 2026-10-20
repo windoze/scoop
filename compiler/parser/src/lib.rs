@@ -7,6 +7,7 @@
 //! `scoop-ast` (the output data channel).
 
 mod decl;
+mod documentation;
 mod expr;
 mod header;
 mod lexer;
@@ -88,6 +89,8 @@ mod tests_m5;
 mod tests_m55_requirements;
 #[cfg(test)]
 mod tests_m6;
+#[cfg(test)]
+mod tests_m60_docs;
 #[cfg(test)]
 mod tests_m8;
 #[cfg(test)]

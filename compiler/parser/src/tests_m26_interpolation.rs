@@ -44,7 +44,11 @@ fn nested_interpolation_uses_one_callable_identity_sequence() {
 #[test]
 fn expression_comments_and_string_braces_do_not_close_interpolation() {
     let source = "f\"${if (true) { \"}\" /* } */ } else { // }\n \"x\" }}\"";
-    let (tokens, diagnostics) = lex(source);
+    let crate::lexer::Lexed {
+        tokens,
+        diagnostics,
+        ..
+    } = lex(source);
     assert!(diagnostics.is_empty(), "{diagnostics:?}");
     assert_eq!(
         tokens
@@ -100,7 +104,11 @@ fn unfinished_string_modes_have_finite_spanned_diagnostics() {
         ("f\"${1", "unterminated string interpolation"),
         ("\"\"\"unfinished", "unterminated raw string literal"),
     ] {
-        let (tokens, errors) = lex(source);
+        let crate::lexer::Lexed {
+            tokens,
+            diagnostics: errors,
+            ..
+        } = lex(source);
         assert!(matches!(tokens.last().unwrap().kind, TokenKind::Eof));
         assert_eq!(errors.len(), 1, "{source}: {errors:?}");
         assert_eq!(errors[0].message, message);
@@ -110,7 +118,11 @@ fn unfinished_string_modes_have_finite_spanned_diagnostics() {
 
 #[test]
 fn ordinary_strings_never_tokenize_interpolation() {
-    let (tokens, errors) = lex("\"$name ${unknown}\"");
+    let crate::lexer::Lexed {
+        tokens,
+        diagnostics: errors,
+        ..
+    } = lex("\"$name ${unknown}\"");
     assert!(errors.is_empty());
     assert!(matches!(&tokens[0].kind, TokenKind::Str(value) if value == "$name ${unknown}"));
 }

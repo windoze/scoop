@@ -18,7 +18,11 @@ fn expression_literal(source: &str) -> IntegerLiteralSyntax {
 }
 
 fn lexeme(source: &str) -> IntegerLiteralLexeme {
-    let (tokens, diagnostics) = lex(source);
+    let crate::lexer::Lexed {
+        tokens,
+        diagnostics,
+        ..
+    } = lex(source);
     assert!(
         diagnostics.is_empty(),
         "unexpected diagnostics: {diagnostics:?}"
@@ -240,7 +244,7 @@ fn overflows_report_the_complete_literal_span() {
         format!("0b1{}", "0".repeat(64)),
         "0x1_0000_0000_0000_0000".to_string(),
     ] {
-        let (_, diagnostics) = lex(&source);
+        let crate::lexer::Lexed { diagnostics, .. } = lex(&source);
         assert_eq!(diagnostics.len(), 1, "source: {source}");
         let diagnostic = &diagnostics[0];
         let span = diagnostic.span.expect("lexical diagnostics have spans");
@@ -292,7 +296,7 @@ fn rejects_missing_digits_invalid_digits_and_bad_separators() {
             "integer separators must appear between two valid digits",
         ),
     ] {
-        let (_, diagnostics) = lex(source);
+        let crate::lexer::Lexed { diagnostics, .. } = lex(source);
         assert_eq!(diagnostics.len(), 1, "source: {source}");
         let diagnostic = &diagnostics[0];
         let actual = diagnostic.span.expect("lexical diagnostics have spans");
@@ -305,7 +309,11 @@ fn rejects_missing_digits_invalid_digits_and_bad_separators() {
 fn rejects_long_before_unsigned_and_unknown_suffixes_as_one_lexeme() {
     for suffix in ["lu", "lU", "Lu", "LU", "uu", "ll", "ulx", "word"] {
         let source = format!("1{suffix}");
-        let (tokens, diagnostics) = lex(&source);
+        let crate::lexer::Lexed {
+            tokens,
+            diagnostics,
+            ..
+        } = lex(&source);
         assert_eq!(diagnostics.len(), 1, "source: {source}");
         assert_eq!(tokens.len(), 2, "bad suffix retains one recovery token");
         assert!(matches!(tokens[0].kind, TokenKind::Error));
@@ -336,7 +344,7 @@ fn malformed_integer_recovery_preserves_the_next_declaration_boundary() {
 
 #[test]
 fn lexer_recovers_multiple_malformed_integer_lexemes_in_source_order() {
-    let (_, diagnostics) = lex("0x 1__2 4lu");
+    let crate::lexer::Lexed { diagnostics, .. } = lex("0x 1__2 4lu");
     assert_eq!(diagnostics.len(), 3);
     let spans: Vec<_> = diagnostics
         .iter()

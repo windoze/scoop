@@ -42,23 +42,23 @@ impl Parser {
                     match &self.peek().kind {
                     TokenKind::Fun => self
                         .parse_prefixed_member_function(prefix, FunctionContext::TypeBody)
-                        .map(|method| methods.push(method)),
+                        .map(|method| { self.attach_documentation(start, method.span); methods.push(method); }),
                     TokenKind::Val | TokenKind::Var => self
                         .parse_property(prefix, PropertyContext::ValueType)
-                        .map(|property| properties.push(property)),
+                        .map(|property| { self.attach_documentation(start, property.span); properties.push(property); }),
                     TokenKind::Struct
                     | TokenKind::Enum
                     | TokenKind::Class
                     | TokenKind::Interface => self
                         .parse_nested_nominal(prefix)
-                        .map(|declaration| nested.push(declaration)),
-                    TokenKind::Ident(text) if text == "annotation" => self.parse_annotation_class(prefix).map(Box::new).map(NestedTypeDecl::AnnotationClass).map(|declaration| nested.push(declaration)),
+                        .map(|declaration| { self.attach_documentation(start, declaration.span()); nested.push(declaration); }),
+                    TokenKind::Ident(text) if text == "annotation" => self.parse_annotation_class(prefix).map(Box::new).map(NestedTypeDecl::AnnotationClass).map(|declaration| { self.attach_documentation(start, declaration.span()); nested.push(declaration); }),
                     TokenKind::Ident(text) if text == "object" => {
                         self.require_unmodified_nominal_prefix(&prefix, "object")?;
                         self.parse_object(prefix.annotations, prefix.visibility)
                             .map(Box::new)
                             .map(NestedTypeDecl::Object)
-                            .map(|declaration| nested.push(declaration))
+                            .map(|declaration| { self.attach_documentation(start, declaration.span()); nested.push(declaration); })
                     }
                     TokenKind::Ident(text) if text == "companion" => {
                         self.require_unmodified_nominal_prefix(&prefix, "companion object")?;
@@ -69,7 +69,7 @@ impl Parser {
                             ));
                         }
                         self.parse_companion_object(prefix.annotations, prefix.visibility)
-                            .map(|declaration| companion = Some(declaration))
+                            .map(|declaration| { self.attach_documentation(start, declaration.span); companion = Some(declaration); })
                     }
                     TokenKind::Ident(text) if text == "init" => Err(Diagnostic::at(
                         self.peek().span,
@@ -83,7 +83,7 @@ impl Parser {
                         "secondary constructors are not allowed in enums",
                     )),
                     TokenKind::Ident(text) if text == "typealias" => {
-                        self.parse_type_alias(prefix).map(Box::new).map(NestedTypeDecl::TypeAlias).map(|declaration| nested.push(declaration))
+                        self.parse_type_alias(prefix).map(Box::new).map(NestedTypeDecl::TypeAlias).map(|declaration| { self.attach_documentation(start, declaration.span()); nested.push(declaration); })
                     }
                     _ => Err(Diagnostic::at(
                         self.peek().span,
@@ -93,7 +93,10 @@ impl Parser {
                 .and_then(|()| self.expect_statement_end())
             } else {
                 self.parse_variant(annotations)
-                    .map(|variant| variants.push(variant))
+                    .map(|variant| {
+                        self.attach_documentation(start, variant.span);
+                        variants.push(variant);
+                    })
                     .and_then(|()| self.expect_variant_end())
             };
             if let Err(diagnostic) = parsed {
@@ -242,19 +245,21 @@ impl Parser {
             }
             TokenKind::LParen => {
                 self.bump();
+                let mut doc_start = self.pos;
                 let mut annotations = self.parse_annotations()?;
                 self.skip_parameter_compatibility_modifiers();
                 if matches!(
                     self.peek().kind,
                     TokenKind::Val | TokenKind::Var | TokenKind::Vararg
                 ) {
-                    let (fields, end) = self.parse_constructor_fields(annotations)?;
+                    let (fields, end) = self.parse_constructor_fields(annotations, doc_start)?;
                     (VariantDeclKind::Constructor(fields), end)
                 } else {
                     let mut fields = Vec::new();
                     loop {
                         let ty = self.parse_type_ref()?;
                         let span = ty.span;
+                        self.attach_documentation(doc_start, span);
                         fields.push(scoop_ast::PositionalVariantFieldDecl {
                             annotations,
                             ty,
@@ -264,6 +269,7 @@ impl Parser {
                             break;
                         }
                         self.bump();
+                        doc_start = self.pos;
                         annotations = self.parse_annotations()?;
                     }
                     let close = self.expect("`)`", |kind| matches!(kind, TokenKind::RParen))?;
@@ -289,6 +295,7 @@ impl Parser {
     fn parse_constructor_fields(
         &mut self,
         mut annotations: Vec<Annotation>,
+        mut doc_start: usize,
     ) -> Result<(Vec<VariantFieldDecl>, u32), Diagnostic> {
         let mut fields = Vec::new();
         let mut vararg_span = None;
@@ -305,6 +312,10 @@ impl Parser {
             self.expect("`:`", |k| matches!(k, TokenKind::Colon))?;
             let ty = self.parse_type_ref()?;
             let (syntax, end) = self.parse_parameter_syntax(modifier_span, ty.span.end)?;
+            self.attach_documentation(
+                doc_start,
+                Span::new(modifier_span.map_or(val.span.start, |span| span.start), end),
+            );
             fields.push(VariantFieldDecl {
                 annotations,
                 span: Span::new(modifier_span.map_or(val.span.start, |span| span.start), end),
@@ -314,6 +325,7 @@ impl Parser {
             });
             if matches!(self.peek().kind, TokenKind::Comma) {
                 self.bump();
+                doc_start = self.pos;
                 annotations = self.parse_annotations()?;
             } else {
                 break;
@@ -334,6 +346,7 @@ impl Parser {
         }
         let mut fields = Vec::new();
         loop {
+            let doc_start = self.pos;
             let annotations = self.parse_annotations()?;
             let field_name = self.expect_ident("field name")?;
             self.expect("`:`", |k| matches!(k, TokenKind::Colon))?;
@@ -344,6 +357,7 @@ impl Parser {
                     "variant field defaults require the constructor-style form (milestone M4)",
                 ));
             }
+            self.attach_documentation(doc_start, Span::new(field_name.span.start, ty.span.end));
             fields.push(VariantFieldDecl {
                 annotations,
                 span: Span::new(field_name.span.start, ty.span.end),

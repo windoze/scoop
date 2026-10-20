@@ -140,6 +140,7 @@ mod tests {
         IdentifiedParsedSource::new(
             identity,
             SourceFile {
+                documentation: Vec::new(),
                 package: PackageSyntax::RootPackage,
                 imports: Vec::new(),
                 declarations: Vec::new(),

@@ -72,6 +72,20 @@ impl Parser {
     }
 
     fn parse_statement(&mut self) -> Result<Statement, Diagnostic> {
+        let start = self.pos;
+        let statement = self.parse_statement_inner()?;
+        if matches!(
+            statement.kind,
+            StatementKind::LocalFunction(_)
+                | StatementKind::LocalType(_)
+                | StatementKind::TypeAlias(_)
+        ) {
+            self.attach_documentation(start, statement.span);
+        }
+        Ok(statement)
+    }
+
+    fn parse_statement_inner(&mut self) -> Result<Statement, Diagnostic> {
         if self.starts_local_type() {
             let declaration = self.parse_local_type()?;
             return Ok(Statement {

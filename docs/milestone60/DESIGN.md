@@ -1,8 +1,8 @@
 # M60 设计：`scoop doc` 与多 Cone API 文档
 
-状态：设计完成，待实施。日期：2026-10-20。依据：[调研与建议](../scoop-doc/INVESTIGATION.md)、[语言规范](../specs/SCOOP-SPEC.md) §9.4、§12、§13.1、[实现规范](../specs/SCOOP-IMPL-SPEC.md) §2.1、§2.2、§2.7、§2.12，以及 [M52 工具链分发](../milestone52/DESIGN.md)。当前代码复核基线：`abf17c32`。
+状态：实施中，进度见 [PROGRESS.md](PROGRESS.md)。设计日期：2026-10-20。依据：[调研与建议](../scoop-doc/INVESTIGATION.md)、[语言规范](../specs/SCOOP-SPEC.md) §9.4、§12、§13.1、[实现规范](../specs/SCOOP-IMPL-SPEC.md) §2.1、§2.2、§2.7、§2.12，以及 [M52 工具链分发](../milestone52/DESIGN.md)。设计复核基线：`abf17c32`。
 
-本期把调研收敛为可实施的工具链功能：一个或多个源码 Cone 经正常 parser／HIR 检查后，生成可离线浏览、交叉链接和搜索的 HTML API 站点。本文确定设计与验收范围；尚未修改语言规范、实现编译器功能或执行实现验收。
+本期把调研收敛为可实施的工具链功能：一个或多个源码 Cone 经正常 parser／HIR 检查后，生成可离线浏览、交叉链接和搜索的 HTML API 站点。本文确定完整设计与验收范围；已实施及尚未完成的部分分别记录在实施记录中。
 
 ## 1. 目标与范围
 

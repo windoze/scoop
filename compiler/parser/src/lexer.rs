@@ -8,6 +8,7 @@
 
 use scoop_ast::{Diagnostic, IntegerRadix, IntegerSuffix, Span};
 
+mod comments;
 mod floating;
 mod identifiers;
 mod integers;
@@ -15,10 +16,17 @@ mod interpolation;
 mod literals;
 mod token;
 
+pub(crate) use comments::LexicalDocComment;
 use interpolation::InterpolationMode;
 pub(crate) use token::{IntegerLiteralLexeme, Token, TokenKind};
 
-pub(crate) fn lex(source: &str) -> (Vec<Token>, Vec<Diagnostic>) {
+pub(crate) struct Lexed {
+    pub tokens: Vec<Token>,
+    pub diagnostics: Vec<Diagnostic>,
+    pub documentation: Vec<LexicalDocComment>,
+}
+
+pub(crate) fn lex(source: &str) -> Lexed {
     Lexer::new(source).run()
 }
 
@@ -27,6 +35,7 @@ struct Lexer<'a> {
     pos: usize,
     newline_before: bool,
     interpolations: Vec<InterpolationMode>,
+    documentation: Vec<LexicalDocComment>,
 }
 
 impl<'a> Lexer<'a> {
@@ -36,10 +45,11 @@ impl<'a> Lexer<'a> {
             pos: 0,
             newline_before: false,
             interpolations: Vec::new(),
+            documentation: Vec::new(),
         }
     }
 
-    fn run(mut self) -> (Vec<Token>, Vec<Diagnostic>) {
+    fn run(mut self) -> Lexed {
         let mut tokens = Vec::new();
         let mut diagnostics = Vec::new();
         loop {
@@ -64,14 +74,18 @@ impl<'a> Lexer<'a> {
                 });
                 continue;
             }
-            if let Err(diagnostic) = self.skip_trivia() {
+            if let Err(diagnostic) = self.skip_trivia(tokens.len()) {
                 diagnostics.push(diagnostic);
                 tokens.push(Token {
                     kind: TokenKind::Eof,
                     span: self.span_from(self.pos),
                     newline_before: std::mem::take(&mut self.newline_before),
                 });
-                return (tokens, diagnostics);
+                return Lexed {
+                    tokens,
+                    diagnostics,
+                    documentation: self.documentation,
+                };
             }
             let start = self.pos;
             let newline_before = std::mem::take(&mut self.newline_before);
@@ -89,7 +103,11 @@ impl<'a> Lexer<'a> {
                     span: self.span_from(start),
                     newline_before,
                 });
-                return (tokens, diagnostics);
+                return Lexed {
+                    tokens,
+                    diagnostics,
+                    documentation: self.documentation,
+                };
             };
             let kind = match self.lex_token(c, start) {
                 Ok(kind) => kind,
@@ -315,55 +333,6 @@ impl<'a> Lexer<'a> {
 
     /// Skips whitespace and comments, recording newlines in
     /// `newline_before`.
-    fn skip_trivia(&mut self) -> Result<(), Diagnostic> {
-        loop {
-            match self.peek_char() {
-                Some(' ' | '\t' | '\r') => self.pos += 1,
-                Some('\n') => {
-                    self.pos += 1;
-                    self.newline_before = true;
-                }
-                Some('/') if self.source[self.pos + 1..].starts_with('/') => {
-                    while let Some(c) = self.peek_char() {
-                        if c == '\n' {
-                            break;
-                        }
-                        self.pos += c.len_utf8();
-                    }
-                }
-                Some('/') if self.source[self.pos + 1..].starts_with('*') => {
-                    self.skip_block_comment()?;
-                }
-                _ => return Ok(()),
-            }
-        }
-    }
-
-    /// `pos` is at the opening `/*`. M2 block comments do not nest.
-    fn skip_block_comment(&mut self) -> Result<(), Diagnostic> {
-        let start = self.pos;
-        self.pos += 2;
-        loop {
-            match self.peek_char() {
-                None => {
-                    return Err(Diagnostic::at(
-                        self.span_from(start),
-                        "unterminated block comment",
-                    ));
-                }
-                Some('*') if self.source[self.pos + 1..].starts_with('/') => {
-                    self.pos += 2;
-                    return Ok(());
-                }
-                Some('\n') => {
-                    self.pos += 1;
-                    self.newline_before = true;
-                }
-                Some(c) => self.pos += c.len_utf8(),
-            }
-        }
-    }
-
     fn lex_ident(&mut self) -> Result<TokenKind, Diagnostic> {
         let start = self.pos;
         while let Some(c) = self.peek_char() {
