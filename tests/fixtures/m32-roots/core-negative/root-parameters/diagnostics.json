@@ -18,7 +18,7 @@
     "notes": [],
     "origin": {
       "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
-      "end": 3469,
+      "end": 4938,
       "kind": "source",
       "path": "src/array_list.scoop",
       "start": 0
@@ -31,10 +31,10 @@
     "notes": [],
     "origin": {
       "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
-      "end": 376,
+      "end": 1092,
       "kind": "source",
       "path": "src/inspection.scoop",
-      "start": 373
+      "start": 1089
     },
     "severity": "error"
   },
@@ -57,10 +57,10 @@
     "notes": [],
     "origin": {
       "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
-      "end": 558,
+      "end": 1606,
       "kind": "source",
       "path": "src/inspection.scoop",
-      "start": 555
+      "start": 1603
     },
     "severity": "error"
   },
@@ -70,10 +70,10 @@
     "notes": [],
     "origin": {
       "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
-      "end": 406,
+      "end": 1607,
       "kind": "source",
       "path": "src/foreign_callback.scoop",
-      "start": 403
+      "start": 1604
     },
     "severity": "error"
   },
@@ -83,10 +83,10 @@
     "notes": [],
     "origin": {
       "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
-      "end": 483,
+      "end": 1684,
       "kind": "source",
       "path": "src/foreign_callback.scoop",
-      "start": 309
+      "start": 1510
     },
     "severity": "error"
   },
@@ -174,10 +174,10 @@
     "notes": [],
     "origin": {
       "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
-      "end": 2148,
+      "end": 5633,
       "kind": "source",
       "path": "src/inspection.scoop",
-      "start": 2057
+      "start": 5542
     },
     "severity": "error"
   },
@@ -187,10 +187,10 @@
     "notes": [],
     "origin": {
       "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
-      "end": 2357,
+      "end": 5967,
       "kind": "source",
       "path": "src/inspection.scoop",
-      "start": 2271
+      "start": 5881
     },
     "severity": "error"
   },
@@ -213,10 +213,10 @@
     "notes": [],
     "origin": {
       "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
-      "end": 804,
+      "end": 1409,
       "kind": "source",
       "path": "src/characters.scoop",
-      "start": 711
+      "start": 1316
     },
     "severity": "error"
   },
@@ -226,10 +226,10 @@
     "notes": [],
     "origin": {
       "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
-      "end": 563,
+      "end": 1026,
       "kind": "source",
       "path": "src/floating.scoop",
-      "start": 468
+      "start": 931
     },
     "severity": "error"
   },
@@ -239,10 +239,10 @@
     "notes": [],
     "origin": {
       "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
-      "end": 4379,
+      "end": 9152,
       "kind": "source",
       "path": "src/floating.scoop",
-      "start": 4282
+      "start": 9055
     },
     "severity": "error"
   },
@@ -252,10 +252,10 @@
     "notes": [],
     "origin": {
       "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
-      "end": 3555,
+      "end": 7416,
       "kind": "source",
       "path": "src/integer_int.scoop",
-      "start": 3452
+      "start": 7313
     },
     "severity": "error"
   },
@@ -265,10 +265,10 @@
     "notes": [],
     "origin": {
       "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
-      "end": 3683,
+      "end": 7657,
       "kind": "source",
       "path": "src/integer_int16.scoop",
-      "start": 3578
+      "start": 7552
     },
     "severity": "error"
   },
@@ -278,10 +278,10 @@
     "notes": [],
     "origin": {
       "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
-      "end": 3600,
+      "end": 7562,
       "kind": "source",
       "path": "src/integer_int8.scoop",
-      "start": 3496
+      "start": 7458
     },
     "severity": "error"
   },
@@ -291,10 +291,10 @@
     "notes": [],
     "origin": {
       "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
-      "end": 3523,
+      "end": 7497,
       "kind": "source",
       "path": "src/integer_long.scoop",
-      "start": 3428
+      "start": 7402
     },
     "severity": "error"
   },
@@ -304,10 +304,10 @@
     "notes": [],
     "origin": {
       "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
-      "end": 3473,
+      "end": 7246,
       "kind": "source",
       "path": "src/integer_uint.scoop",
-      "start": 3366
+      "start": 7139
     },
     "severity": "error"
   },
@@ -317,10 +317,10 @@
     "notes": [],
     "origin": {
       "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
-      "end": 3707,
+      "end": 7480,
       "kind": "source",
       "path": "src/integer_uint16.scoop",
-      "start": 3598
+      "start": 7371
     },
     "severity": "error"
   },
@@ -330,10 +330,10 @@
     "notes": [],
     "origin": {
       "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
-      "end": 3626,
+      "end": 7387,
       "kind": "source",
       "path": "src/integer_uint8.scoop",
-      "start": 3518
+      "start": 7279
     },
     "severity": "error"
   },
@@ -343,10 +343,10 @@
     "notes": [],
     "origin": {
       "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
-      "end": 3538,
+      "end": 7311,
       "kind": "source",
       "path": "src/integer_ulong.scoop",
-      "start": 3440
+      "start": 7213
     },
     "severity": "error"
   },
@@ -356,10 +356,10 @@
     "notes": [],
     "origin": {
       "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
-      "end": 1139,
+      "end": 2975,
       "kind": "source",
       "path": "src/types.scoop",
-      "start": 1040
+      "start": 2876
     },
     "severity": "error"
   },
@@ -369,10 +369,10 @@
     "notes": [],
     "origin": {
       "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
-      "end": 2202,
+      "end": 3812,
       "kind": "source",
       "path": "src/strings.scoop",
-      "start": 2098
+      "start": 3708
     },
     "severity": "error"
   }

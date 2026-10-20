@@ -18,7 +18,7 @@
     "notes": [],
     "origin": {
       "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
-      "end": 3469,
+      "end": 4938,
       "kind": "source",
       "path": "src/array_list.scoop",
       "start": 0
@@ -44,10 +44,10 @@
     "notes": [],
     "origin": {
       "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
-      "end": 483,
+      "end": 1684,
       "kind": "source",
       "path": "src/foreign_callback.scoop",
-      "start": 309
+      "start": 1510
     },
     "severity": "error"
   },
@@ -83,10 +83,10 @@
     "notes": [],
     "origin": {
       "cone": "5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d",
-      "end": 2150,
+      "end": 3760,
       "kind": "source",
       "path": "src/strings.scoop",
-      "start": 2145
+      "start": 3755
     },
     "severity": "error"
   }
