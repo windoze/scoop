@@ -1,6 +1,7 @@
 package relocated
 
 import Equals
+import DocAlias
 import Add
 import Compare
 import IndexGet
