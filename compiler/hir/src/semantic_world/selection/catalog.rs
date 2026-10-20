@@ -468,9 +468,9 @@ impl ImportedSemanticWorld<'_> {
                 annotated_targets,
                 annotated_types,
             }),
-            callables: BTreeMap::new(),
-            constants: BTreeMap::new(),
-            type_aliases: BTreeMap::new(),
+            callables: Default::default(),
+            constants: Default::default(),
+            type_aliases: Default::default(),
         })
     }
 }

@@ -4,6 +4,7 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+imbl.workspace = true
 la-arena.workspace = true
 scoop-ast.workspace = true
 scoop-identity.workspace = true

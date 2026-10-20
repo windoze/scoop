@@ -37,7 +37,7 @@ pub(crate) fn build(
             objects: &lowerer.objects,
             singleton_values: &lowerer.singleton_values,
             functions: lowerer.functions.as_arena(),
-            properties: &lowerer.properties,
+            properties: lowerer.properties.as_arena(),
             type_aliases: &lowerer.type_aliases,
             nominal_identities: nominals,
             enum_member_identities: enum_members,

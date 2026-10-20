@@ -40,9 +40,9 @@ use catalog::DependencyCatalog;
 #[derive(Clone, Debug)]
 pub struct ImportedDependencySelectionPlan {
     catalog: Arc<DependencyCatalog>,
-    callables: BTreeMap<CallableTemplateOrigin, SelectedImportedDependencyCallable>,
-    constants: BTreeMap<PersistentPropertyId, SelectedImportedDependencyConstant>,
-    type_aliases: BTreeMap<PersistentTypeAliasId, SelectedImportedDependencyTypeAlias>,
+    callables: imbl::OrdMap<CallableTemplateOrigin, SelectedImportedDependencyCallable>,
+    constants: imbl::OrdMap<PersistentPropertyId, SelectedImportedDependencyConstant>,
+    type_aliases: imbl::OrdMap<PersistentTypeAliasId, SelectedImportedDependencyTypeAlias>,
 }
 
 impl ImportedDependencySelectionPlan {
@@ -81,9 +81,9 @@ impl ImportedDependencySelectionPlan {
                 annotated_targets: BTreeMap::new(),
                 annotated_types: BTreeMap::new(),
             }),
-            callables: BTreeMap::new(),
-            constants: BTreeMap::new(),
-            type_aliases: BTreeMap::new(),
+            callables: Default::default(),
+            constants: Default::default(),
+            type_aliases: Default::default(),
         }
     }
 
@@ -295,9 +295,9 @@ impl ImportedDependencySelectionPlan {
     pub fn finish(self) -> SelectedImportedDependencySet {
         SelectedImportedDependencySet {
             consumer: self.catalog.consumer,
-            callables: self.callables,
-            constants: self.constants,
-            type_aliases: self.type_aliases,
+            callables: self.callables.into_iter().collect(),
+            constants: self.constants.into_iter().collect(),
+            type_aliases: self.type_aliases.into_iter().collect(),
         }
     }
 
