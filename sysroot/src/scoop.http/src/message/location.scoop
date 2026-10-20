@@ -11,7 +11,7 @@ public class HttpLocation private constructor(
     /**
      * The parsed absolute or relative URL reference.
      */
-    public val reference: Url, 
+    public val reference: Url,
     /**
      * The original parsed field-value bytes, or None for a programmatically constructed value.
      */

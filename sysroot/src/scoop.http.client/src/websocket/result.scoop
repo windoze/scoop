@@ -2,9 +2,24 @@ package scoop.http.client
 
 import scoop.asyncio.AsyncCloseable
 
+/**
+ * An opened session or a consumable rejection response plus handshake error. Both variants require
+ * close.
+ */
 public enum HttpWebSocketResult : AsyncCloseable {
-    Opened(HttpWebSocketSession), Rejected(HttpResponse, Throwable)
+    /**
+     * The handshake succeeded and owns an active WebSocket session.
+     */
+    Opened(HttpWebSocketSession),
+        /**
+         * The handshake was rejected; the HTTP response body remains available together with the
+         * validation error.
+         */
+        Rejected(HttpResponse, Throwable)
 
+    /**
+     * Closes the opened session or the rejected handshake response.
+     */
     public override suspend fun close() {
         when (this) { case Opened(session) -> session.close(); case Rejected(response, _) -> response.close() }
     }

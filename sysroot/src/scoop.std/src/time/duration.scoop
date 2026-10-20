@@ -10,7 +10,7 @@ public class Duration private constructor(
     /**
      * The whole-second component rounded toward negative infinity.
      */
-    public val floorSeconds: Long, 
+    public val floorSeconds: Long,
     /**
      * The nonnegative fractional component in 0..999999999.
      */

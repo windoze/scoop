@@ -13,7 +13,7 @@ public class WebSocketHandshakeException public constructor(
     /**
      * The protocol failure explanation.
      */
-    public val detail: String, 
+    public val detail: String,
     /**
      * The handshake field involved, when known.
      */
@@ -27,7 +27,7 @@ public class WebSocketNegotiation internal constructor(
     /**
      * The selected offered subprotocol, or None.
      */
-    public val protocol: String?, 
+    public val protocol: String?,
         /**
          * Effective permessage-deflate negotiation, or None when disabled.
          */
@@ -42,7 +42,7 @@ public class WebSocketHandshake internal constructor(
     /**
      * The validated upgrade request head.
      */
-    public val request: HttpRequestHead, 
+    public val request: HttpRequestHead,
         /**
          * The validated base64 client nonce used to verify Sec-WebSocket-Accept.
          */
@@ -50,7 +50,7 @@ public class WebSocketHandshake internal constructor(
     /**
      * The offered subprotocol tokens in request order.
      */
-    public val protocols: Array<String>, 
+    public val protocols: Array<String>,
         /**
          * The parsed offered extensions.
          */

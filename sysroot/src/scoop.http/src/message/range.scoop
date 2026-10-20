@@ -11,7 +11,7 @@ public class HttpRange private constructor(
     /**
      * Requested byte intervals in their original order.
      */
-    public val ranges: Array<HttpByteRange>, 
+    public val ranges: Array<HttpByteRange>,
         /**
          * The original parsed field-value bytes, or None for a programmatically constructed value.
          */

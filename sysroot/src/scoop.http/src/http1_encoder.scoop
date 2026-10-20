@@ -7,19 +7,19 @@ import scoop.text.*
 /**
  * The explicit body-delimiting rule selected before encoding an HTTP/1 message.
  */
-public enum Http1BodyFraming { 
+public enum Http1BodyFraming {
     /**
      * No body bytes are permitted.
      */
-    Empty, 
+    Empty,
     /**
      * Exactly the supplied nonnegative body length must be written before finish.
      */
-    Length(Long), 
+    Length(Long),
     /**
      * Writes chunked framing and permits trailers at finish.
      */
-    Chunked, 
+    Chunked,
     /**
      * Response body ends when the transport closes; the caller must close the connection after
      * output.

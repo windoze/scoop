@@ -11,7 +11,7 @@ public class HttpCacheControl private constructor(
     /**
      * All directives in field order, retaining duplicates.
      */
-    public val directives: Array<HttpCacheDirective>, 
+    public val directives: Array<HttpCacheDirective>,
         /**
          * The original field-value byte sequences, preserving field order.
          */

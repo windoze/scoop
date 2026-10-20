@@ -9,11 +9,11 @@ public class HttpEntityTagCondition private constructor(
     /**
      * Whether this condition matches any current representation.
      */
-    public val isWildcard: Boolean, 
+    public val isWildcard: Boolean,
         /**
          * The explicitly listed tags when the condition is not a wildcard.
          */
-        public val tags: Array<HttpEntityTag>, 
+        public val tags: Array<HttpEntityTag>,
         /**
          * The original parsed field-value bytes, or None for a programmatically constructed value.
          */

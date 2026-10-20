@@ -12,11 +12,11 @@ public class HttpFilename internal constructor(
     /**
      * The selected decoded filename, or None when unavailable.
      */
-    public val text: String?, 
+    public val text: String?,
         /**
          * The language tag from a valid extended filename.
          */
-        public val language: String?, 
+        public val language: String?,
         /**
          * The filename* decoding error retained when fallback was needed.
          */
@@ -31,11 +31,11 @@ public class HttpContentDisposition private constructor(
     /**
      * The normalized disposition token.
      */
-    public val disposition: String, 
+    public val disposition: String,
         /**
          * The parsed named parameters in their stored order.
          */
-        public val parameters: Array<HttpParameter>, 
+        public val parameters: Array<HttpParameter>,
         /**
          * The original parsed field-value bytes, or None for a programmatically constructed value.
          */

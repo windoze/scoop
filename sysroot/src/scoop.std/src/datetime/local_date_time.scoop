@@ -15,7 +15,7 @@ public class LocalDateTime public constructor(
     /**
      * The calendar-date component.
      */
-    public val date: LocalDate, 
+    public val date: LocalDate,
     /**
      * The local-time component.
      */

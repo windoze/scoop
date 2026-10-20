@@ -11,7 +11,7 @@ public class MultipartPartHead private constructor(
     /**
      * Ordered fields belonging to this part.
      */
-    public val fields: Array<HttpField>, 
+    public val fields: Array<HttpField>,
         /**
          * The encoder's expected body byte count, or None when unknown.
          */

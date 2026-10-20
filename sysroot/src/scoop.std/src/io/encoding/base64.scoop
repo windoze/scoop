@@ -4,7 +4,7 @@ package scoop.io.encoding
  * A strict Base64 codec with standard or URL-safe alphabet and an explicit padding policy.
  * Decoding rejects invalid alphabet, padding, and nonzero unused tail bits.
  */
-public class Base64 private constructor(private val urlSafe: Boolean, 
+public class Base64 private constructor(private val urlSafe: Boolean,
     /**
      * The padding rule used for encoding and decoding.
      */
@@ -12,15 +12,15 @@ public class Base64 private constructor(private val urlSafe: Boolean,
     /**
      * Controls whether trailing equals signs are emitted and accepted.
      */
-    public enum PaddingOption { 
+    public enum PaddingOption {
         /**
          * Emit padding and require it when a final partial group needs it.
          */
-        Required, 
+        Required,
         /**
          * Omit padding and reject padded input.
          */
-        Absent, 
+        Absent,
         /**
          * Emit padding, while accepting valid input with or without padding.
          */

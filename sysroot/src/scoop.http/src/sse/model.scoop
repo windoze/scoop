@@ -7,7 +7,7 @@ public class SseLimits public constructor(
     /**
      * The maximum byte length of a single event-stream line.
      */
-    public val maxLineBytes: Long = 65536L, 
+    public val maxLineBytes: Long = 65536L,
     /**
      * The maximum accumulated event-data byte count.
      */
@@ -20,11 +20,11 @@ public class SseLimits public constructor(
 /**
  * The SSE input limit that was exceeded.
  */
-public enum SseLimitKind { 
+public enum SseLimitKind {
     /**
      * A single input line exceeded its byte limit.
      */
-    LineBytes, 
+    LineBytes,
     /**
      * Accumulated event data exceeded its byte limit.
      */
@@ -37,7 +37,7 @@ public class SseLimitException public constructor(
     /**
      * The configured limit category that was exceeded.
      */
-    public val kind: SseLimitKind, 
+    public val kind: SseLimitKind,
     /**
      * The configured maximum for that category.
      */
@@ -51,15 +51,15 @@ public class SseEvent internal constructor(
     /**
      * The dispatched event type, defaulting to message.
      */
-    public val event: String, 
+    public val event: String,
         /**
          * Data lines joined with newline separators.
          */
-        public val data: String, 
+        public val data: String,
         /**
          * The ID explicitly set in this event, if any.
          */
-        public val id: String?, 
+        public val id: String?,
         /**
          * The persistent last-event ID when this event was dispatched.
          */

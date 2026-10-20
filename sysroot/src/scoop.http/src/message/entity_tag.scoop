@@ -9,7 +9,7 @@ public class HttpEntityTag private constructor(
     /**
      * The opaque tag bytes without quotes or weak prefix.
      */
-    public val opaque: Array<Byte>, 
+    public val opaque: Array<Byte>,
     /**
      * Whether the tag carries the weak W/ marker.
      */

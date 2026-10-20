@@ -10,7 +10,7 @@ public enum HttpRetryAfter : ToString {
     /**
      * Wait the supplied nonnegative whole seconds.
      */
-    DelaySeconds(Long), 
+    DelaySeconds(Long),
         /**
          * Wait until the supplied absolute instant.
          */

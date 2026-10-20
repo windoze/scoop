@@ -14,11 +14,11 @@ public class HttpSetCookie private constructor(
     /**
      * The cookie name/value pair.
      */
-    public val pair: HttpCookiePair, 
+    public val pair: HttpCookiePair,
         /**
          * Ordered original cookie attributes.
          */
-        public val attributes: Array<HttpCookieAttribute>, 
+        public val attributes: Array<HttpCookieAttribute>,
         /**
          * The original parsed field-value bytes, or None for a programmatically constructed value.
          */

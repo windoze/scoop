@@ -3,15 +3,15 @@ package scoop.http
 /**
  * The client_max_window_bits offer form: omitted, valueless permission, or an explicit limit.
  */
-public enum WebSocketWindowBits { 
+public enum WebSocketWindowBits {
     /**
      * The offer omits client_max_window_bits.
      */
-    Absent, 
+    Absent,
     /**
      * The offer permits selection without supplying its own numeric limit.
      */
-    Any, 
+    Any,
     /**
      * The offer supplies a window-bit limit in 8..15.
      */

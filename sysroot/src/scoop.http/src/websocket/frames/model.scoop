@@ -3,27 +3,27 @@ package scoop.http
 /**
  * The data or control operation encoded by a WebSocket frame.
  */
-public enum WebSocketOpcode { 
+public enum WebSocketOpcode {
     /**
      * Continues an already-started fragmented data message.
      */
-    Continuation, 
+    Continuation,
     /**
      * Starts a UTF-8 text message.
      */
-    Text, 
+    Text,
     /**
      * Starts a binary message.
      */
-    Binary, 
+    Binary,
     /**
      * Carries the connection close status and reason.
      */
-    Close, 
+    Close,
     /**
      * Carries a ping control payload.
      */
-    Ping, 
+    Ping,
     /**
      * Carries a pong control payload.
      */
@@ -31,11 +31,11 @@ public enum WebSocketOpcode {
 /**
  * The logical type of a complete or fragmented data message.
  */
-public enum WebSocketMessageType { 
+public enum WebSocketMessageType {
     /**
      * Message bytes must form valid UTF-8 after decompression.
      */
-    Text, 
+    Text,
     /**
      * Message bytes have no implicit text encoding.
      */
@@ -48,7 +48,7 @@ public class WebSocketFrameHead public constructor(
     /**
      * The frame operation.
      */
-    public val opcode: WebSocketOpcode, 
+    public val opcode: WebSocketOpcode,
         /**
          * The exact nonnegative payload byte count.
          */
@@ -56,7 +56,7 @@ public class WebSocketFrameHead public constructor(
     /**
      * The FIN bit, ending a data message when true.
      */
-    public val isFinal: Boolean = true, 
+    public val isFinal: Boolean = true,
         /**
          * The RSV1 compressed-message marker, legal only in negotiated message positions.
          */
@@ -72,7 +72,7 @@ public class WebSocketFrameLimits public constructor(
     /**
      * Maximum accepted frame payload bytes.
      */
-    public val maxFrameBytes: Long = 16777216L, 
+    public val maxFrameBytes: Long = 16777216L,
         /**
          * Maximum accepted message bytes under the frame parser's message accounting.
          */
@@ -95,11 +95,11 @@ public enum WebSocketFrameEvent {
     /**
      * Begins a data frame with its decoded head.
      */
-    FrameStarted(WebSocketFrameHead), 
+    FrameStarted(WebSocketFrameHead),
         /**
          * An owned, unmasked data payload chunk; compressed bytes still require inflation.
          */
-        Data(Array<Byte>), 
+        Data(Array<Byte>),
         /**
          * The announced frame payload has ended.
          */
@@ -107,15 +107,15 @@ public enum WebSocketFrameEvent {
     /**
      * A complete ping control payload.
      */
-    Ping(Array<Byte>), 
+    Ping(Array<Byte>),
         /**
          * A complete pong control payload.
          */
-        Pong(Array<Byte>), 
+        Pong(Array<Byte>),
         /**
          * A validated close-frame payload.
          */
-        Close(WebSocketClose), 
+        Close(WebSocketClose),
         /**
          * The decoder reached its terminal input state.
          */
@@ -130,11 +130,11 @@ public class WebSocketFrameException public constructor(
     /**
      * The WebSocket close code appropriate for this failure.
      */
-    public val closeCode: UInt, 
+    public val closeCode: UInt,
         /**
          * The protocol failure explanation.
          */
-        public val detail: String, 
+        public val detail: String,
         /**
          * The zero-based input byte position, when available.
          */

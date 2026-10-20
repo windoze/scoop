@@ -23,7 +23,7 @@ public class Instant private constructor(
     /**
      * Whole seconds since 1970-01-01T00:00:00Z, rounded toward negative infinity.
      */
-    public val epochSeconds: Long, 
+    public val epochSeconds: Long,
     /**
      * The nonnegative fractional nanoseconds within the epoch second.
      */

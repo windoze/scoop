@@ -8,7 +8,7 @@ public class WebSocketMessageValidator public constructor(
     /**
      * Whether the validated message is text or binary.
      */
-    public val type: WebSocketMessageType, 
+    public val type: WebSocketMessageType,
     /**
      * The maximum accepted message size in bytes.
      */

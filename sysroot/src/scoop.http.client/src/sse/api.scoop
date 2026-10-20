@@ -5,16 +5,50 @@ import scoop.http.*
 import scoop.time.Duration
 import scoop.url.Url
 
+/**
+ * SSE parser limits, buffer size, initial event ID, and optional reconnection policy. Reconnection
+ * is disabled unless explicitly configured.
+ */
 public class HttpSseOptions public constructor(
-    public val limits: SseLimits = SseLimits(), public val bufferSize: Long = 8192L,
-    public val initialLastEventId: String? = None, public val reconnect: HttpSseReconnectOptions? = None
+    /**
+     * SSE line and event-data byte bounds.
+     */
+    public val limits: SseLimits = SseLimits(),
+        /**
+         * The positive input-buffer size.
+         */
+        public val bufferSize: Long = 8192L,
+    /**
+     * An optional starting Last-Event-ID value.
+     */
+    public val initialLastEventId: String? = None,
+        /**
+         * Optional reconnection policy; None ends after the current stream.
+         */
+        public val reconnect: HttpSseReconnectOptions? = None
 ) {
     init { if (bufferSize <= 0L) throw IllegalArgumentException(Some("SSE buffer size must be positive")) }
 }
 
+/**
+ * Cancellable SSE reconnection delays, optional attempt bound, and a callback before reconnecting.
+ */
 public class HttpSseReconnectOptions public constructor(
-    public val initialDelay: Duration = Duration.seconds(3L), public val maxDelay: Duration = Duration.seconds(30L),
+    /**
+     * The initial reconnect delay before a server retry hint.
+     */
+    public val initialDelay: Duration = Duration.seconds(3L),
+        /**
+         * The maximum selected reconnect delay.
+         */
+        public val maxDelay: Duration = Duration.seconds(30L),
+    /**
+     * Optional maximum reconnect count; None leaves the count unbounded.
+     */
     public val maxReconnects: Long? = None,
+    /**
+     * Suspend callback receiving the next reconnect decision.
+     */
     public val onReconnect: suspend (HttpSseReconnect) -> Unit = suspend { _ -> }
 ) {
     init {
@@ -23,32 +57,118 @@ public class HttpSseReconnectOptions public constructor(
     }
 }
 
+/**
+ * A reconnect snapshot containing attempt number, selected delay, URL, current event ID, and
+ * preceding failure.
+ */
 public class HttpSseReconnect internal constructor(
-    public val number: Long, public val delay: Duration, public val url: Url,
-    public val lastEventId: String, public val cause: Throwable?
+    /**
+     * The reconnect attempt number.
+     */
+    public val number: Long,
+        /**
+         * The selected wait before reconnecting.
+         */
+        public val delay: Duration,
+        /**
+         * The URL selected for reconnect.
+         */
+        public val url: Url,
+    /**
+     * The last accepted event ID forwarded to the next request.
+     */
+    public val lastEventId: String,
+        /**
+         * The preceding failure, or None after ordinary EOF.
+         */
+        public val cause: Throwable?
 )
 
-public enum HttpSseFailureReason { UnexpectedStatus, UnsupportedContentType, BodyNotReplayable }
+/**
+ * The reason an HTTP response or request cannot be used as an SSE source.
+ */
+public enum HttpSseFailureReason {
+    /**
+     * SSE requires status 200, or 204 to stop reconnection.
+     */
+    UnexpectedStatus,
+    /**
+     * The response is not text/event-stream.
+     */
+    UnsupportedContentType,
+    /**
+     * A requested reconnect would reuse a one-shot request body.
+     */
+    BodyNotReplayable }
 
+/**
+ * An SSE setup or reconnection failure with the URL and response head when available.
+ */
 public class HttpSseException public constructor(
-    public val reason: HttpSseFailureReason, public val url: Url, public val head: HttpResponseHead? = None
+    /**
+     * The SSE setup or replay failure category.
+     */
+    public val reason: HttpSseFailureReason,
+        /**
+         * The URL involved.
+         */
+        public val url: Url,
+        /**
+         * The response head when one was received.
+         */
+        public val head: HttpResponseHead? = None
 ) : Exception(Some(when (reason) {
     case UnexpectedStatus -> "SSE requires status 200 or 204"
     case UnsupportedContentType -> "SSE requires text/event-stream"
     case BodyNotReplayable -> "SSE reconnect requires a replayable request body"
 }))
 
+/**
+ * An owned serial SSE event source. It tracks last-event ID and retry delay across explicitly
+ * enabled reconnects; close cancels and awaits pending work.
+ */
 public class HttpEventSource internal constructor(private val state: ClientSseState, private val info: ClientSseInfo) : AsyncCloseable {
+    /**
+     * The current stream's final URL, updated after reconnects.
+     */
     public val url: Url get() = state.client.lock.withLock { info.url }
+    /**
+     * The current stream's response head.
+     */
     public val head: HttpResponseHead get() = state.client.lock.withLock { info.head }
+    /**
+     * The persistent last-event ID.
+     */
     public val lastEventId: String get() = state.client.lock.withLock { state.lastEventId }
+    /**
+     * The currently selected reconnect delay.
+     */
     public val retryDelay: Duration get() = state.client.lock.withLock { state.delay }
+    /**
+     * The number of reconnects performed.
+     */
     public val reconnectCount: Long get() = state.client.lock.withLock { state.reconnects }
+    /**
+     * Whether event production has reached its terminal state.
+     */
     public val isFinished: Boolean get() = state.client.lock.withLock { state.finished }
+    /**
+     * Whether explicit close has completed.
+     */
     public val isClosed: Boolean get() = state.client.lock.withLock { state.closed }
+    /**
+     * The terminal stream or cleanup failure, if any.
+     */
     public val failure: Throwable? get() = state.client.lock.withLock {
         if (state.explicitClose) state.cleanupFailure else clientSseFailure(state)
     }
+    /**
+     * Returns the next event, suspending through enabled reconnects, or None when event production
+     * ends. Only one reader may be active.
+     */
     public suspend fun next(): SseEvent? = readClientSse(state)
+    /**
+     * Cancels pending reads/reconnects and awaits stream and call cleanup.
+     */
     public override suspend fun close() { closeClientSse(state) }
 }

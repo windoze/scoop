@@ -4,7 +4,14 @@ import scoop.bytes.*
 import scoop.http.*
 import scoop.time.Instant
 
-public class HttpCacheFormatException public constructor(public val detail: String) : Exception(Some(detail))
+/**
+ * Stored cache metadata is malformed or unsupported.
+ */
+public class HttpCacheFormatException public constructor(
+    /**
+     * The stored-metadata format failure explanation.
+     */
+    public val detail: String) : Exception(Some(detail))
 internal class ClientCacheMetadataLimit : Exception(None)
 internal val clientCacheFileMagic: ULong = 0x5343484341434801UL
 

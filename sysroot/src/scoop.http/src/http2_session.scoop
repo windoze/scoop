@@ -6,7 +6,7 @@ import scoop.platform.memory.NativeByteBuffer
  * An owned in-memory HTTP/2 session. Serialize calls, drain events and output, and acknowledge
  * received DATA only after consumption. It owns no network transport.
  */
-public class Http2Session private constructor(private var handle: ULong, 
+public class Http2Session private constructor(private var handle: ULong,
     /**
      * The fixed client/server role of this codec.
      */

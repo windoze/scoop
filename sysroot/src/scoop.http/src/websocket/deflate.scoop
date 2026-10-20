@@ -59,7 +59,7 @@ public class WebSocketDeflateNegotiation internal constructor(
     /**
      * The offer that accepted the negotiated response.
      */
-    public val offer: WebSocketDeflateOffer, 
+    public val offer: WebSocketDeflateOffer,
         /**
          * The selected response parameters.
          */

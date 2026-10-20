@@ -9,7 +9,7 @@ public class HttpCookiePair private constructor(
     /**
      * The copied cookie name or attribute-name bytes.
      */
-    public val name: Array<Byte>, 
+    public val name: Array<Byte>,
     /**
      * The copied cookie value or optional attribute-value bytes.
      */
@@ -55,7 +55,7 @@ public class HttpCookieAttribute private constructor(
     /**
      * The copied cookie name or attribute-name bytes.
      */
-    public val name: Array<Byte>, 
+    public val name: Array<Byte>,
     /**
      * The copied cookie value or optional attribute-value bytes.
      */

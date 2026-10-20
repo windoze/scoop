@@ -3,45 +3,197 @@ package scoop.http.client
 import scoop.http.HttpVersion
 import scoop.time.TimeMark
 
+/**
+ * A suspend observer of immutable call-event snapshots. Callbacks run outside the shared HTTP/2
+ * driver; callback failures participate in call failure and cleanup.
+ */
 public class HttpObserver public constructor(internal val onEvent: suspend (HttpCallEvent) -> Unit)
 
+/**
+ * The stage or progress change reported to the observer.
+ */
 public enum HttpCallEventKind {
-    AttemptStarted, ConnectionAcquired, RequestHeaders, RequestProgress, ResponseHeaders, ResponseProgress, Completed
+    /**
+     * A concrete request attempt has begun.
+     */
+    AttemptStarted,
+        /**
+         * A reusable or newly established connection has been acquired.
+         */
+        ConnectionAcquired,
+        /**
+         * Request headers reached their recorded send point.
+         */
+        RequestHeaders,
+        /**
+         * Outgoing body progress changed.
+         */
+        RequestProgress,
+        /**
+         * Final response headers were received.
+         */
+        ResponseHeaders,
+        /**
+         * Incoming body progress changed.
+         */
+        ResponseProgress,
+        /**
+         * The attempt and its required cleanup completed or failed.
+         */
+        Completed
 }
 
-public class HttpCallInfo internal constructor(request: HttpRequest, public val startedAt: TimeMark) {
+/**
+ * Stable call identity for observers, with method, a redacted URL display, and a monotonic start
+ * mark.
+ */
+public class HttpCallInfo internal constructor(request: HttpRequest,
+    /**
+     * The monotonic start mark.
+     */
+    public val startedAt: TimeMark) {
+    /**
+     * The case-sensitive request method.
+     */
     public val method: String = request.method
+    /**
+     * The origin followed by a redacted path marker; query, fragment, and user information are
+     * omitted.
+     */
     public val urlDisplay: String = clientObservedUrl(request)
 }
 
-public class HttpPhaseTiming internal constructor(public val startedAt: TimeMark, public val finishedAt: TimeMark? = None)
+/**
+ * Monotonic phase start and optional finish marks; unfinished phases retain None.
+ */
+public class HttpPhaseTiming internal constructor(
+    /**
+     * The monotonic start mark.
+     */
+    public val startedAt: TimeMark,
+    /**
+     * The monotonic completion mark, or None while still active.
+     */
+    public val finishedAt: TimeMark? = None)
 
+/**
+ * An immutable snapshot of actual attempt phases, connection facts, response status, and body-byte
+ * counters. Unperformed phases remain None.
+ */
 public class HttpAttemptMetrics internal constructor(call: ClientCall, observation: ClientObservation) {
+    /**
+     * The observed attempt number.
+     */
     public val number: Long = observation.number
+    /**
+     * Why this attempt was made.
+     */
     public val reason: HttpAttemptReason = observation.reason
+    /**
+     * The case-sensitive request method.
+     */
     public val method: String = call.request.method
+    /**
+     * The origin followed by a redacted path marker; query, fragment, and user information are
+     * omitted.
+     */
     public val urlDisplay: String = clientObservedUrl(call.request)
+    /**
+     * The monotonic start mark.
+     */
     public val startedAt: TimeMark = observation.startedAt
+    /**
+     * The monotonic completion mark, or None while still active.
+     */
     public val finishedAt: TimeMark? = observation.finishedAt
+    /**
+     * Actual pool-capacity wait timing, when performed.
+     */
     public val queue: HttpPhaseTiming? = observation.queue
+    /**
+     * Actual name-resolution timing, when performed.
+     */
     public val resolve: HttpPhaseTiming? = observation.resolve
+    /**
+     * Actual TCP establishment timing, when performed.
+     */
     public val connect: HttpPhaseTiming? = observation.connect
+    /**
+     * TLS timing for an HTTPS proxy, when performed.
+     */
     public val proxyTls: HttpPhaseTiming? = observation.proxyTls
+    /**
+     * CONNECT or SOCKS5 handshake timing, when performed.
+     */
     public val proxyHandshake: HttpPhaseTiming? = observation.proxyHandshake
+    /**
+     * TLS timing for the origin connection, when performed.
+     */
     public val originTls: HttpPhaseTiming? = observation.originTls
+    /**
+     * The recorded outgoing-header milestone.
+     */
     public val requestHeadersAt: TimeMark? = observation.requestHeadersAt
+    /**
+     * The recorded final-response-header milestone.
+     */
     public val responseHeadersAt: TimeMark? = observation.responseHeadersAt
+    /**
+     * The first recorded incoming-response-byte milestone.
+     */
     public val firstResponseByteAt: TimeMark? = observation.firstResponseByteAt
+    /**
+     * The selected HTTP protocol version, once known.
+     */
     public val version: HttpVersion? = observation.version
+    /**
+     * Whether an existing connection was reused, once known.
+     */
     public val connectionReused: Boolean? = observation.connectionReused
+    /**
+     * The final response status, once available.
+     */
     public val status: UInt? = observation.status
+    /**
+     * The response's cache/network origin.
+     */
     public val cacheStatus: HttpCacheStatus = call.cacheStatus
+    /**
+     * Outgoing request body bytes transferred so far.
+     */
     public val requestBodyBytes: Long = call.requestBodyBytes
+    /**
+     * Incoming body bytes before content decoding.
+     */
     public val encodedResponseBodyBytes: Long = call.encodedResponseBodyBytes
+    /**
+     * Body bytes delivered after content decoding.
+     */
     public val responseBodyBytes: Long = call.responseBodyBytes
 }
 
-public class HttpCallEvent internal constructor(public val kind: HttpCallEventKind, public val call: HttpCallInfo,
-    public val metrics: HttpAttemptMetrics, public val failure: Throwable?) {
+/**
+ * An observer event combining stable call information, an attempt snapshot, and any failure.
+ */
+public class HttpCallEvent internal constructor(
+    /**
+     * The event's phase or progress category.
+     */
+    public val kind: HttpCallEventKind,
+    /**
+     * Stable information about the logical call.
+     */
+    public val call: HttpCallInfo,
+    /**
+     * The immutable attempt snapshot at this event.
+     */
+    public val metrics: HttpAttemptMetrics,
+        /**
+         * The failure associated with the event, if any.
+         */
+        public val failure: Throwable?) {
+    /**
+     * Formats a compact summary using redacted URL information and observed metrics.
+     */
     public fun formatSummary(): String = formatClientCallEvent(this)
 }

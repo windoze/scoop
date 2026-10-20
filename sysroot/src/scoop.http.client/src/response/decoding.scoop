@@ -3,11 +3,34 @@ package scoop.http.client
 import scoop.compression.CompressionFormat
 import scoop.http.*
 
-public enum HttpContentDecoding { Automatic, Raw }
+/**
+ * Whether response content codings are decoded before body delivery.
+ */
+public enum HttpContentDecoding {
+    /**
+     * Decodes supported gzip, zlib deflate, Brotli, and zstd layers in reverse coding order.
+     */
+    Automatic,
+    /**
+     * Delivers encoded representation bytes unchanged.
+     */
+    Raw }
 
+/**
+ * Content-decoding mode, transfer buffer size, and maximum compression window.
+ */
 public class HttpDecodingOptions public constructor(
+    /**
+     * Automatic decoding or raw encoded bytes.
+     */
     public val mode: HttpContentDecoding = HttpContentDecoding.Automatic,
+    /**
+     * The positive transfer-buffer size for decoding.
+     */
     public val bufferSize: Long = 8192L,
+    /**
+     * The maximum compression window accepted by the decoder.
+     */
     public val maxWindowBytes: Long? = None
 ) {
     init {
@@ -17,7 +40,14 @@ public class HttpDecodingOptions public constructor(
     }
 }
 
-public class HttpUnsupportedContentCodingException public constructor(public val coding: String)
+/**
+ * Automatic response decoding encountered an unsupported content coding.
+ */
+public class HttpUnsupportedContentCodingException public constructor(
+    /**
+     * The unsupported normalized content-coding token.
+     */
+    public val coding: String)
     : Exception(Some("unsupported HTTP content coding: " + coding))
 
 internal class ClientResponseDecoding(val options: HttpDecodingOptions, val formats: Array<CompressionFormat>, val contentLength: Long?)

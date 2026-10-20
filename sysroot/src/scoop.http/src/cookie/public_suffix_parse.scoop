@@ -11,11 +11,11 @@ public class PublicSuffixParseException public constructor(
     /**
      * The one-based input line containing the invalid rule.
      */
-    public val line: Long, 
+    public val line: Long,
         /**
          * The parse or negotiation failure explanation.
          */
-        public val detail: String, 
+        public val detail: String,
         /**
          * The underlying failure when available.
          */

@@ -10,11 +10,11 @@ public class HttpMediaType private constructor(
     /**
      * The normalized top-level media type token.
      */
-    public val type: String, 
+    public val type: String,
         /**
          * The normalized media subtype token.
          */
-        public val subtype: String, 
+        public val subtype: String,
         /**
          * The parsed named parameters in their stored order.
          */

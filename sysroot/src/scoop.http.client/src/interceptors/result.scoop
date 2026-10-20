@@ -2,9 +2,23 @@ package scoop.http.client
 
 import scoop.asyncio.AsyncCloseable
 
+/**
+ * The owned result returned through the interceptor chain: an ordinary response or WebSocket
+ * upgrade result.
+ */
 public enum HttpCallResult : AsyncCloseable {
-    Response(HttpResponse), WebSocket(HttpWebSocketResult)
+    /**
+     * An owned HTTP response whose body remains consumable.
+     */
+    Response(HttpResponse),
+        /**
+         * An owned opened session or rejected WebSocket handshake response.
+         */
+        WebSocket(HttpWebSocketResult)
 
+    /**
+     * Closes the owned response or session represented by this result.
+     */
     public override suspend fun close() { clientResultResource(this).close() }
 }
 

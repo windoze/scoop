@@ -14,7 +14,7 @@ public class OffsetDateTime public constructor(
     /**
      * The local date and time component.
      */
-    public val dateTime: LocalDateTime, 
+    public val dateTime: LocalDateTime,
     /**
      * The fixed offset used to interpret the local component.
      */

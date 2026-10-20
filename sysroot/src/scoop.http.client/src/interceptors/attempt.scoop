@@ -6,17 +6,66 @@ import scoop.text.lowercaseAscii
 import scoop.text.startsWith
 import scoop.url.Url
 
-public enum HttpAttemptReason { Initial, Redirect, Retry, Authentication, ProxyAuthentication, CacheRefresh }
+/**
+ * The reason another concrete HTTP attempt is being performed.
+ */
+public enum HttpAttemptReason {
+    /**
+     * The initial network attempt.
+     */
+    Initial,
+    /**
+     * An attempt following a redirect.
+     */
+    Redirect,
+    /**
+     * An attempt after a retryable failure or configured status.
+     */
+    Retry,
+    /**
+     * An origin authentication retry.
+     */
+    Authentication,
+    /**
+     * A proxy authentication retry.
+     */
+    ProxyAuthentication,
+    /**
+     * An attempt validating or refreshing a cached representation.
+     */
+    CacheRefresh }
 
+/**
+ * A snapshot of the concrete request target, prepared fields, route, and attempt number supplied
+ * to onAttempt.
+ */
 public class HttpAttempt internal constructor(call: ClientCall) {
+    /**
+     * The request sequence's current attempt number.
+     */
     public val number: Long = call.sequence.attemptNumber
+    /**
+     * Why this attempt was started.
+     */
     public val reason: HttpAttemptReason = call.sequence.attemptReason
+    /**
+     * The request selected for this concrete attempt.
+     */
     public val request: HttpRequest = call.request
+    /**
+     * The exact prepared request-target bytes.
+     */
     public val requestTarget: Array<Byte> = clientRequestTargetBytes(call)
+    /**
+     * A snapshot of fields prepared before onAttempt additions.
+     */
     public val fields: Array<HttpField> = when (call.webSocketHandshake) {
         case Some(handshake) -> handshake.request.fields.toArray()
         case None -> clientRequestSnapshotFields(call)
     }
+    /**
+     * The selected proxy endpoint, or None for a direct route.
+     */
     public val proxyUrl: Url? = when (call.route) {
         case Direct -> None
         case HttpForward(endpoint) -> Some(endpoint.url)

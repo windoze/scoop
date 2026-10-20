@@ -2,9 +2,22 @@ package scoop.http.client
 
 import scoop.http.*
 
+/**
+ * A bounded in-memory cache with least-recently-used eviction. Entries become visible only after a
+ * successful commit.
+ */
 public class MemoryHttpCache public constructor(
+    /**
+     * Maximum total accounted storage bytes.
+     */
     public val maxBytes: Long = 33554432L,
+    /**
+     * Maximum body bytes accepted for one entry.
+     */
     public val maxEntryBytes: Long = 8388608L,
+    /**
+     * Maximum committed entry count.
+     */
     public val maxEntries: Long = 1024L
 ) : HttpCache {
     private val lock: ClientLock = ClientLock()
@@ -15,9 +28,19 @@ public class MemoryHttpCache public constructor(
         if (maxBytes <= 0L || maxEntryBytes <= 0L || maxEntries <= 0L)
             throw IllegalArgumentException(Some("HTTP cache limits must be positive"))
     }
+    /**
+     * Current accounted committed storage bytes.
+     */
     public val sizeBytes: Long get() = lock.withLock { used }
+    /**
+     * Current committed entry count.
+     */
     public val entryCount: Long get() = lock.withLock { entries.size }
 
+    /**
+     * Returns an owned matching representation snapshot, or None. The caller closes a returned
+     * snapshot.
+     */
     public override suspend fun lookup(request: HttpCacheRequest): HttpCacheSnapshot? = lock.withLock {
         var index = entries.size
         while (index > 0L) {
@@ -30,6 +53,10 @@ public class MemoryHttpCache public constructor(
         None
     }
 
+    /**
+     * Starts a tentative body write or returns None when storage declines it; only commit
+     * publishes the entry.
+     */
     public override suspend fun begin(record: HttpCacheRecord): HttpCacheWriter? {
         val limit = if (maxEntryBytes < maxBytes) maxEntryBytes else maxBytes
         val length = parseHttpContentLength(record.head.fields)
@@ -39,6 +66,9 @@ public class MemoryHttpCache public constructor(
         return Some<HttpCacheWriter>(writer)
     }
 
+    /**
+     * Invalidates all identities and Vary variants for the selected partition and URL.
+     */
     public override suspend fun invalidate(partition: String, url: String) {
         lock.withLock {
             var index = entries.size
@@ -52,6 +82,9 @@ public class MemoryHttpCache public constructor(
         }
     }
 
+    /**
+     * Invalidates all entries and prevents existing tentative writes from publishing.
+     */
     public fun clear() { lock.withLock {
         entries.clear(); used = 0L
         for (writer in writers) writer.discard.store(true)

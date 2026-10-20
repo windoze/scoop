@@ -21,15 +21,15 @@ public struct Http1Limits(
 /**
  * Controls handling of additional input after a message declared that the connection closes.
  */
-public enum Http1AfterClose { 
+public enum Http1AfterClose {
     /**
      * Rejects additional message bytes after a closing message.
      */
-    Reject, 
+    Reject,
     /**
      * Discards additional input after a closing message.
      */
-    Discard, 
+    Discard,
     /**
      * Allows parsing another message after a closing message as an explicit compatibility choice.
      */

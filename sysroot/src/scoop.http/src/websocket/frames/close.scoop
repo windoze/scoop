@@ -11,7 +11,7 @@ public class WebSocketClose public constructor(
     /**
      * The optional wire close status code.
      */
-    public val code: UInt? = None, 
+    public val code: UInt? = None,
     /**
      * The close reason text, requiring a status code when nonempty.
      */

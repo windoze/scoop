@@ -3,15 +3,15 @@ package scoop.http
 /**
  * Identifies control, header, or DATA bytes copied out of a session.
  */
-public enum Http2OutputKind { 
+public enum Http2OutputKind {
     /**
      * Connection or stream control-frame bytes.
      */
-    Control, 
+    Control,
     /**
      * Header-block frame bytes.
      */
-    Headers, 
+    Headers,
     /**
      * Body DATA-frame bytes.
      */

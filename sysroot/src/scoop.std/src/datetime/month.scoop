@@ -7,47 +7,47 @@ public enum Month : Equals<Month>, Compare<Month>, Hash, ToString {
     /**
      * Gregorian month 1, January.
      */
-    January, 
+    January,
         /**
          * Gregorian month 2, February.
          */
-        February, 
+        February,
         /**
          * Gregorian month 3, March.
          */
-        March, 
+        March,
         /**
          * Gregorian month 4, April.
          */
-        April, 
+        April,
         /**
          * Gregorian month 5, May.
          */
-        May, 
+        May,
         /**
          * Gregorian month 6, June.
          */
-        June, 
+        June,
         /**
          * Gregorian month 7, July.
          */
-        July, 
+        July,
         /**
          * Gregorian month 8, August.
          */
-        August, 
+        August,
         /**
          * Gregorian month 9, September.
          */
-        September, 
+        September,
         /**
          * Gregorian month 10, October.
          */
-        October, 
+        October,
         /**
          * Gregorian month 11, November.
          */
-        November, 
+        November,
         /**
          * Gregorian month 12, December.
          */

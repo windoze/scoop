@@ -10,11 +10,11 @@ public class LocalDate public constructor(
     /**
      * The proleptic Gregorian year, including year zero.
      */
-    public val year: Int, 
+    public val year: Int,
     /**
      * The one-based month number in 1..12.
      */
-    public val monthNumber: Int, 
+    public val monthNumber: Int,
     /**
      * The one-based day within the validated month.
      */

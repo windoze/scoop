@@ -7,7 +7,7 @@ public class HttpAge private constructor(
     /**
      * The age value in whole seconds.
      */
-    public val seconds: Long, 
+    public val seconds: Long,
     /**
      * The original parsed field-value bytes, or None for a programmatically constructed value.
      */

@@ -7,27 +7,27 @@ public enum DayOfWeek : Equals<DayOfWeek>, Compare<DayOfWeek>, Hash, ToString {
     /**
      * ISO weekday 1, Monday.
      */
-    Monday, 
+    Monday,
         /**
          * ISO weekday 2, Tuesday.
          */
-        Tuesday, 
+        Tuesday,
         /**
          * ISO weekday 3, Wednesday.
          */
-        Wednesday, 
+        Wednesday,
         /**
          * ISO weekday 4, Thursday.
          */
-        Thursday, 
+        Thursday,
         /**
          * ISO weekday 5, Friday.
          */
-        Friday, 
+        Friday,
         /**
          * ISO weekday 6, Saturday.
          */
-        Saturday, 
+        Saturday,
         /**
          * ISO weekday 7, Sunday.
          */

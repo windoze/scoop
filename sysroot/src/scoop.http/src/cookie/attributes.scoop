@@ -5,19 +5,19 @@ import scoop.time.Instant
 /**
  * SameSite policy associated with a cookie.
  */
-public enum HttpCookieSameSite { 
+public enum HttpCookieSameSite {
     /**
      * Uses the library's Lax behavior when no recognized SameSite value is supplied.
      */
-    Default, 
+    Default,
     /**
      * Allows only same-site requests.
      */
-    Strict, 
+    Strict,
     /**
      * Allows same-site requests or safe top-level navigations.
      */
-    Lax, 
+    Lax,
     /**
      * Allows cross-site use, requiring Secure when the cookie is resolved.
      */

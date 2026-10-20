@@ -1,11 +1,39 @@
 package scoop.http.client
 
+/**
+ * A one-shot request body was used more than once.
+ */
 public class RequestBodyConsumedException public constructor() :
     Exception(Some("this request body has already been used")) {}
 
+/**
+ * A producer ended before, or attempted to write beyond, its declared body length.
+ */
 public class RequestBodyLengthException public constructor(
-    public val expectedLength: Long, public val transferredBytes: Long, public val rejectedBytes: Long = 0L
+    /**
+     * The declared exact body length.
+     */
+    public val expectedLength: Long,
+        /**
+         * Bytes accepted before the mismatch.
+         */
+        public val transferredBytes: Long,
+        /**
+         * The excess write size rejected before transfer, or zero for an early end.
+         */
+        public val rejectedBytes: Long = 0L
 ) : Exception(Some("request body does not match its declared length")) {}
 
-public class RequestBodyLimitException public constructor(public val maxBytes: Long, public val actualBytes: Long) :
+/**
+ * A buffering request-body operation exceeded its explicit byte limit.
+ */
+public class RequestBodyLimitException public constructor(
+    /**
+     * The explicit buffering maximum.
+     */
+    public val maxBytes: Long,
+    /**
+     * The observed byte count that exceeded the maximum.
+     */
+    public val actualBytes: Long) :
     Exception(Some("buffered request body exceeds its byte limit")) {}

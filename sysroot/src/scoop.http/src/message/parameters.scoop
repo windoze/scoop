@@ -12,11 +12,11 @@ public class HttpParameter internal constructor(
     /**
      * The normalized parameter name, including any extended-value asterisk.
      */
-    public val name: String, 
+    public val name: String,
         /**
          * Parameter bytes after quoted-string unescaping.
          */
-        public val value: Array<Byte>, 
+        public val value: Array<Byte>,
         /**
          * Whether the source used quoted-string syntax.
          */

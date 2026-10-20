@@ -8,7 +8,7 @@ public enum Http2Event {
     /**
      * A stream ID and its initial request head.
      */
-    Request(Int, HttpRequestHead), 
+    Request(Int, HttpRequestHead),
         /**
          * A stream ID and response head, including informational responses.
          */
@@ -16,11 +16,11 @@ public enum Http2Event {
     /**
      * A stream ID and owned DATA payload; acknowledge actual application consumption with consume.
      */
-    Data(Int, Array<Byte>), 
+    Data(Int, Array<Byte>),
         /**
          * A stream ID and trailing regular fields.
          */
-        Trailers(Int, Array<HttpField>), 
+        Trailers(Int, Array<HttpField>),
         /**
          * The peer ended its sending direction for this stream.
          */
@@ -28,7 +28,7 @@ public enum Http2Event {
     /**
      * A stream fully closed with the supplied HTTP/2 error code.
      */
-    StreamClosed(Int, UInt), 
+    StreamClosed(Int, UInt),
         /**
          * The last stream ID, error code, debug bytes, and whether this GOAWAY was sent locally.
          */
@@ -36,11 +36,11 @@ public enum Http2Event {
     /**
      * Received settings entries and whether the frame is an acknowledgement.
      */
-    Settings(Array<Http2Setting>, Boolean), 
+    Settings(Array<Http2Setting>, Boolean),
         /**
          * A stream ID and regular field ignored under the receive compatibility policy.
          */
-        IgnoredField(Int, HttpField), 
+        IgnoredField(Int, HttpField),
         /**
          * An asynchronous send-side protocol failure with its affected scope.
          */

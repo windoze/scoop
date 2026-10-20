@@ -175,3 +175,5 @@ terminal 补充 376 处说明，覆盖 ANSI 输出与刷新、坐标与范围、
 std 补充 843 处说明，覆盖集合与排序、惰性序列、Option／Result、字节编解码、文本、日期时间、随机数与 UUID。fmt／workspace clippy、严格文档生成通过，468 页／22,401 个本地入口／123 个源码页／901 个搜索条目有效，编译及文档 warning 均为零。
 
 http 补充 710 处说明，明确 HTTP/1 定界与切换、HTTP/2 流控／输入输出进度、字段解析与原始字节、Cookie／公共后缀、multipart、SSE、WebSocket 握手和帧状态。fmt／workspace clippy、严格文档生成及页面／入口静态检查通过，文档 warning 为零。
+
+http.client 补充 565 处说明，覆盖请求体重放、响应消费、认证／重试、缓存／Cookie、连接池／代理、超时／观察、下载续传、SSE 和 WebSocket。fmt／workspace clippy、严格文档生成通过，240 页／14,259 个本地入口／139 个源码页／627 个搜索条目有效，文档 warning 为零。至此 19 个生产库的公开声明说明均已补齐；一并清理注释展开引入的行尾空白。

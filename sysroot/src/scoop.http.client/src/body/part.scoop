@@ -3,13 +3,30 @@ package scoop.http.client
 import scoop.collections.emptyList
 import scoop.http.*
 
-public class RequestBodyPart public constructor(public val body: RequestBody, fields: List<HttpField> = emptyList<HttpField>()) {
+/**
+ * A multipart part combining a body plan with derived validated fields. HTTP trailers are not
+ * permitted inside individual parts.
+ */
+public class RequestBodyPart public constructor(
+    /**
+     * The part's body plan.
+     */
+    public val body: RequestBody, fields: List<HttpField> = emptyList<HttpField>()) {
+    /**
+     * Validated part fields and the body's declared length.
+     */
     public val head: MultipartPartHead = MultipartPartHead(requestBodyFields(body, fields), body.contentLength)
     init {
         if (body.trailerNames.size != 0L) throw IllegalArgumentException(Some("multipart parts cannot carry HTTP trailers"))
     }
 
+    /**
+     * Factories for multipart form-data parts.
+     */
     public companion object {
+        /**
+         * Creates a form-data part with a name, optional filename, and the supplied body plan.
+         */
         public fun formData(name: String, body: RequestBody, filename: String? = None): RequestBodyPart =
             RequestBodyPart(body, MultipartPartHead.formData(name, filename).fields)
     }

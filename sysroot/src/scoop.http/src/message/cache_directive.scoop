@@ -8,11 +8,11 @@ public class HttpCacheDirective internal constructor(
     /**
      * The ASCII-lowercase directive token.
      */
-    public val name: String, 
+    public val name: String,
         /**
          * The optional argument bytes after quoted-string decoding.
          */
-        public val value: Array<Byte>?, 
+        public val value: Array<Byte>?,
         /**
          * Whether the parsed argument used quoted-string syntax.
          */

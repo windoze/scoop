@@ -2,7 +2,34 @@ package scoop.http.client
 
 import scoop.crypto.DigestAlgorithm
 
-public enum HttpDigestAlgorithm { Sha512_256, Sha512_256Sess, Sha256, Sha256Sess, Md5, Md5Sess }
+/**
+ * The Digest authentication hash algorithm, with separate session variants.
+ */
+public enum HttpDigestAlgorithm {
+    /**
+     * SHA-512/256 Digest hashing.
+     */
+    Sha512_256,
+    /**
+     * SHA-512/256 with Digest session-key derivation.
+     */
+    Sha512_256Sess,
+    /**
+     * SHA-256 Digest hashing.
+     */
+    Sha256,
+    /**
+     * SHA-256 with Digest session-key derivation.
+     */
+    Sha256Sess,
+    /**
+     * Legacy MD5 Digest hashing.
+     */
+    Md5,
+    /**
+     * Legacy MD5 with the Digest session-key derivation.
+     */
+    Md5Sess }
 
 internal class ClientDigestAuthentication(
     algorithms: List<HttpDigestAlgorithm>, val preferIntegrity: Boolean,

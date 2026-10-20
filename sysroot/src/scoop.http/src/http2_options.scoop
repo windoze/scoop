@@ -3,11 +3,11 @@ package scoop.http
 /**
  * Policy for an invalid received regular field; pseudo-field validation remains protocol-defined.
  */
-public enum Http2InvalidRegularField { 
+public enum Http2InvalidRegularField {
     /**
      * Reports and ignores the invalid regular field.
      */
-    Ignore, 
+    Ignore,
     /**
      * Rejects the stream carrying the invalid regular field.
      */

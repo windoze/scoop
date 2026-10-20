@@ -9,7 +9,7 @@ public class YearMonth public constructor(
     /**
      * The proleptic Gregorian year, including year zero.
      */
-    public val year: Int, 
+    public val year: Int,
     /**
      * The one-based month number in 1..12.
      */

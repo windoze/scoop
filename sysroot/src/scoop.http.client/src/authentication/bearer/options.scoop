@@ -3,13 +3,44 @@ package scoop.http.client
 import scoop.http.HttpAuthChallenge
 import scoop.url.Url
 
-public class HttpBearerTokens public constructor(public val accessToken: String, public val refreshToken: String? = None)
+/**
+ * An access token and optional provider-owned refresh token. The refresh token is passed to
+ * callbacks rather than sent as Authorization.
+ */
+public class HttpBearerTokens public constructor(
+    /**
+     * The token used in Bearer Authorization.
+     */
+    public val accessToken: String,
+    /**
+     * Optional provider metadata passed back when refreshing the access token.
+     */
+    public val refreshToken: String? = None)
 
+/**
+ * A rejected Bearer challenge with the previous token pair and current origin/proxy authentication
+ * context.
+ */
 public class HttpBearerRefreshRequest internal constructor(
+    /**
+     * The request requiring credentials or refreshed tokens.
+     */
     public val request: HttpRequest,
+    /**
+     * The selected peer challenge; optional for preemptive credential loading.
+     */
     public val challenge: HttpAuthChallenge,
+    /**
+     * The authentication attempt number for this request sequence.
+     */
     public val attempt: Long,
+    /**
+     * The previously loaded tokens being refreshed.
+     */
     public val tokens: HttpBearerTokens,
+    /**
+     * The proxy endpoint when handling proxy authentication, otherwise None.
+     */
     public val proxyUrl: Url? = None
 )
 

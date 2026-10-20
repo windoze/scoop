@@ -10,7 +10,7 @@ public class HttpNegotiationException public constructor(
     /**
      * The negotiation operation that failed.
      */
-    public val operation: String, 
+    public val operation: String,
     /**
      * The parse or negotiation failure explanation.
      */

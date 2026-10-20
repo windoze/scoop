@@ -8,7 +8,7 @@ public class HttpContentRange private constructor(
     /**
      * The satisfied inclusive byte interval, or None for an unsatisfied range.
      */
-    public val range: HttpResolvedRange?, 
+    public val range: HttpResolvedRange?,
         /**
          * The complete representation length when known.
          */

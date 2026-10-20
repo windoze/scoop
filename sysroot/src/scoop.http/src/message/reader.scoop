@@ -12,11 +12,11 @@ public class HttpFieldParseException public constructor(
     /**
      * The HTTP field whose interpretation failed.
      */
-    public val field: String, 
+    public val field: String,
         /**
          * The zero-based byte offset in the field input.
          */
-        public val byteOffset: Long, 
+        public val byteOffset: Long,
         /**
          * The parse or negotiation failure explanation.
          */

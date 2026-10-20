@@ -13,11 +13,11 @@ public class PublicSuffixMatch internal constructor(
     /**
      * The normalized ASCII domain without a trailing dot.
      */
-    public val domain: String, 
+    public val domain: String,
         /**
          * The effective public suffix selected by the rule set.
          */
-        public val publicSuffix: String, 
+        public val publicSuffix: String,
         /**
          * The public suffix plus one preceding label, or None if no such label exists.
          */
@@ -25,7 +25,7 @@ public class PublicSuffixMatch internal constructor(
     /**
      * The selected exact, wildcard, or exception rule, when explicitly present.
      */
-    public val rule: String?, 
+    public val rule: String?,
         /**
          * Whether the selected rule came from the private section.
          */
@@ -37,7 +37,7 @@ public class PublicSuffixMatch internal constructor(
  * private-section rules. Lookup performs no network update.
  */
 public class PublicSuffixList internal constructor(
-    private val rules: Map<String, Int>, 
+    private val rules: Map<String, Int>,
         /**
          * The number of parsed suffix rules.
          */
@@ -45,7 +45,7 @@ public class PublicSuffixList internal constructor(
     /**
      * The version marker supplied by the rule-list text, if present.
      */
-    public val version: String?, 
+    public val version: String?,
         /**
          * The revision marker supplied by the rule-list text, if present.
          */

@@ -10,11 +10,11 @@ public enum Http1Event {
     /**
      * A complete incoming request head.
      */
-    Request(HttpRequestHead), 
+    Request(HttpRequestHead),
         /**
          * An incoming response head, including informational responses.
          */
-        Response(HttpResponseHead), 
+        Response(HttpResponseHead),
         /**
          * An owned body-byte chunk.
          */
@@ -22,11 +22,11 @@ public enum Http1Event {
     /**
      * Ordered trailer fields after the body.
      */
-    Trailers(Array<HttpField>), 
+    Trailers(Array<HttpField>),
         /**
          * The current message ended; the Boolean indicates that the connection must close.
          */
-        End(Boolean), 
+        End(Boolean),
         /**
          * The decoder reached a protocol-switch boundary and leaves the unread suffix in the input
          * buffer.
@@ -44,7 +44,7 @@ public struct Http1ReceiveResult(val count: Long, val startedMessages: Long)
  * An incremental in-memory HTTP/1 decoder. Register client request methods in order, feed bytes,
  * and drain events; serialize operations on one instance and close it explicitly.
  */
-public class Http1Decoder private constructor(private var handle: ULong, 
+public class Http1Decoder private constructor(private var handle: ULong,
     /**
      * The fixed client/server role of this codec.
      */

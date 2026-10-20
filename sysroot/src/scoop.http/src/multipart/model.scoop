@@ -8,7 +8,7 @@ public class MultipartLimits public constructor(
     /**
      * Maximum bytes in a part's header block.
      */
-    public val maxHeaderBytes: Long = 65536L, 
+    public val maxHeaderBytes: Long = 65536L,
         /**
          * Maximum fields in one part.
          */
@@ -16,7 +16,7 @@ public class MultipartLimits public constructor(
     /**
      * Maximum parts in the message.
      */
-    public val maxParts: Long = 1024L, 
+    public val maxParts: Long = 1024L,
         /**
          * Maximum permitted padding bytes on a boundary line.
          */
@@ -35,19 +35,19 @@ public class MultipartLimits public constructor(
 /**
  * The multipart parsing limit that was exceeded.
  */
-public enum MultipartLimitKind { 
+public enum MultipartLimitKind {
     /**
      * A part header block exceeded its byte limit.
      */
-    HeaderBytes, 
+    HeaderBytes,
     /**
      * A part contained too many header fields.
      */
-    Fields, 
+    Fields,
     /**
      * The message contained too many parts.
      */
-    Parts, 
+    Parts,
     /**
      * Padding on a boundary line exceeded its byte limit.
      */
@@ -59,7 +59,7 @@ public class MultipartLimitException public constructor(
     /**
      * The configured limit category that was exceeded.
      */
-    public val kind: MultipartLimitKind, 
+    public val kind: MultipartLimitKind,
     /**
      * The configured maximum for that category.
      */
@@ -72,7 +72,7 @@ public class MultipartParseException public constructor(
     /**
      * The zero-based input byte position, when available.
      */
-    public val byteOffset: Long, 
+    public val byteOffset: Long,
     /**
      * The protocol failure explanation.
      */
@@ -81,19 +81,19 @@ public class MultipartParseException public constructor(
 /**
  * Ordered multipart part, data, and completion events.
  */
-public enum MultipartEvent { 
+public enum MultipartEvent {
     /**
      * A complete part header begins the next part.
      */
-    PartStarted(MultipartPartHead), 
+    PartStarted(MultipartPartHead),
     /**
      * Owned body bytes from the current part, excluding boundary syntax.
      */
-    Data(Array<Byte>), 
+    Data(Array<Byte>),
     /**
      * The current part body has ended.
      */
-    PartEnded, 
+    PartEnded,
     /**
      * The multipart message reached its validated end.
      */

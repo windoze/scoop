@@ -3,11 +3,11 @@ package scoop.http
 /**
  * The HTTP framing family selected for a connection.
  */
-public enum HttpProtocol { 
+public enum HttpProtocol {
     /**
      * HTTP/1 text-message framing.
      */
-    Http1, 
+    Http1,
     /**
      * HTTP/2 binary framing and multiplexed streams.
      */
@@ -15,15 +15,15 @@ public enum HttpProtocol {
 /**
  * The protocol version represented by a message head.
  */
-public enum HttpVersion { 
+public enum HttpVersion {
     /**
      * HTTP/1.0 message syntax.
      */
-    Http10, 
+    Http10,
     /**
      * HTTP/1.1 message syntax.
      */
-    Http11, 
+    Http11,
     /**
      * HTTP/2 message semantics.
      */
@@ -31,11 +31,11 @@ public enum HttpVersion {
 /**
  * Selects client or server responsibilities for parsing, framing, and masking.
  */
-public enum HttpRole { 
+public enum HttpRole {
     /**
      * The endpoint initiates requests and receives responses.
      */
-    Client, 
+    Client,
     /**
      * The endpoint receives requests and sends responses.
      */
@@ -43,15 +43,15 @@ public enum HttpRole {
 /**
  * The protocol state affected by a failure.
  */
-public enum HttpFailureScope { 
+public enum HttpFailureScope {
     /**
      * The requested operation failed.
      */
-    Operation, 
+    Operation,
     /**
      * One HTTP/2 stream failed.
      */
-    Stream, 
+    Stream,
     /**
      * The connection-level protocol state failed.
      */
@@ -100,7 +100,7 @@ public class HttpException public constructor(
  * An owned snapshot of HTTP field name and value bytes. Duplicate fields and original ordering
  * remain distinct; text decoding is explicit.
  */
-public class HttpField public constructor(name: List<Byte>, value: List<Byte>, 
+public class HttpField public constructor(name: List<Byte>, value: List<Byte>,
     /**
      * Whether header compression must avoid indexing this field.
      */

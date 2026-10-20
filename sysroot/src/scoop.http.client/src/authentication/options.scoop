@@ -5,40 +5,108 @@ import scoop.http.HttpAuthChallenge
 import scoop.url.Url
 import scoop.url.UrlOrigin
 
-public enum HttpBasicCharset { Iso8859_1, Utf8 }
+/**
+ * The configured character encoding for Basic username/password data.
+ */
+public enum HttpBasicCharset {
+    /**
+     * Uses ISO-8859-1 unless challenge negotiation selects the supported alternative.
+     */
+    Iso8859_1,
+    /**
+     * Uses UTF-8 for Basic credential text.
+     */
+    Utf8 }
 
-public class HttpPasswordCredentials public constructor(public val username: String, public val password: String)
+/**
+ * The username and password returned by a password-based credential provider.
+ */
+public class HttpPasswordCredentials public constructor(
+    /**
+     * The authentication username.
+     */
+    public val username: String,
+    /**
+     * The authentication password, retained for the selected provider operation.
+     */
+    public val password: String)
 
+/**
+ * The request, optional challenge, authentication-attempt count, and optional proxy endpoint
+ * supplied to a credential provider.
+ */
 public class HttpAuthenticationRequest internal constructor(
+    /**
+     * The request requiring credentials or refreshed tokens.
+     */
     public val request: HttpRequest,
+    /**
+     * The selected peer challenge; optional for preemptive credential loading.
+     */
     public val challenge: HttpAuthChallenge?,
+    /**
+     * The authentication attempt number for this request sequence.
+     */
     public val attempt: Long,
+    /**
+     * The proxy endpoint when handling proxy authentication, otherwise None.
+     */
     public val proxyUrl: Url? = None
 )
 
+/**
+ * Ordered authentication providers and a finite retry limit. Origin and proxy authentication
+ * maintain independent state.
+ */
 public class HttpAuthenticationOptions public constructor(
     providers: List<HttpAuthenticator> = emptyList<HttpAuthenticator>(),
+    /**
+     * Maximum authentication retries; zero disables retries.
+     */
     public val maxAttempts: Long = 3L
 ) {
+    /**
+     * Providers considered in configured order.
+     */
     public val providers: Array<HttpAuthenticator> = providers.toArray()
     init {
         if (maxAttempts < 0L) throw IllegalArgumentException(Some("negative authentication attempt limit"))
     }
 }
 
+/**
+ * An authentication provider scoped to an exact origin and optional realm, with explicit
+ * preemptive-send policy.
+ */
 public class HttpAuthenticator private constructor(
+    /**
+     * The exact normalized origin allowed to use this provider.
+     */
     public val origin: UrlOrigin,
     realm: List<Byte>?,
+    /**
+     * Whether known credentials/authentication state may be sent before a new challenge.
+     */
     public val sendWithoutChallenge: Boolean,
     internal val provider: ClientAuthenticationProvider
 ) {
+    /**
+     * The optional exact realm-byte restriction.
+     */
     public val realm: Array<Byte>? = when (realm) { case Some(value) -> Some(value.toArray()); case None -> None }
     init {
         if (origin.scheme != "http" && origin.scheme != "https")
             throw IllegalArgumentException(Some("authentication origin must use http or https"))
     }
 
+    /**
+     * Origin-scoped Basic, Bearer, and Digest provider factories.
+     */
     public companion object {
+        /**
+         * Creates a Digest provider with ordered algorithm preferences, optional integrity
+         * preference, and suspend credential loading.
+         */
         public fun digest(
             origin: UrlOrigin,
             realm: List<Byte>? = None,
@@ -51,6 +119,10 @@ public class HttpAuthenticator private constructor(
             HttpAuthenticator(origin, realm, sendWithoutChallenge,
                 ClientAuthenticationProvider.Digest(ClientDigestAuthentication(algorithms, preferIntegrity, credentials)))
 
+        /**
+         * Creates a Bearer provider with suspend token loading and optional refresh after a
+         * challenge.
+         */
         public fun bearer(
             origin: UrlOrigin,
             realm: List<Byte>? = None,
@@ -61,6 +133,10 @@ public class HttpAuthenticator private constructor(
             HttpAuthenticator(origin, realm, sendWithoutChallenge,
                 ClientAuthenticationProvider.Bearer(ClientBearerAuthentication(loadTokens, refreshTokens)))
 
+        /**
+         * Creates a Basic provider with explicit charset, realm, and preemptive-send policy;
+         * credentials are loaded through the suspend callback.
+         */
         public fun basic(
             origin: UrlOrigin,
             realm: List<Byte>? = None,

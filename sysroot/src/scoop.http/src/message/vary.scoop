@@ -10,7 +10,7 @@ public class HttpVary private constructor(
     /**
      * The normalized request-field names controlling selection.
      */
-    public val names: Array<String>, 
+    public val names: Array<String>,
     /**
      * The original field-value byte sequences, preserving field order.
      */

@@ -4,27 +4,94 @@ import scoop.asyncio.*
 import scoop.http.*
 import scoop.url.Url
 
-public class HttpResponse internal constructor(internal val call: ClientCall, public val head: HttpResponseHead) : AsyncCloseable {
+/**
+ * Final response headers plus a single-consumer body. Non-2xx responses are ordinary values until
+ * requireSuccess is called; the caller must close the response.
+ */
+public class HttpResponse internal constructor(internal val call: ClientCall,
+    /**
+     * The final response or accepted handshake head.
+     */
+    public val head: HttpResponseHead) : AsyncCloseable {
+    /**
+     * The final response protocol version.
+     */
     public val version: HttpVersion get() = head.version
+    /**
+     * The final status code.
+     */
     public val status: UInt get() = head.status
+    /**
+     * Ordered response fields, retaining original content-coding metadata.
+     */
     public val fields: Array<HttpField> get() = head.fields
+    /**
+     * The final URL after redirects.
+     */
     public val url: Url get() = call.request.url
+    /**
+     * Completed redirect steps in order.
+     */
     public val redirectHistory: Array<HttpRedirect> = call.sequence.history.toArray()
+    /**
+     * The number of retries before this result.
+     */
     public val retryCount: Long = call.sequence.retryCount
+    /**
+     * The number of origin authentication retries before this result.
+     */
     public val authenticationCount: Long = call.sequence.authenticationCount
+    /**
+     * The number of proxy authentication retries before this result.
+     */
     public val proxyAuthenticationCount: Long = call.sequence.proxyAuthenticationCount
+    /**
+     * Whether this response came from network, cache, or validation.
+     */
     public val cacheStatus: HttpCacheStatus = call.cacheStatus
+    /**
+     * The latest optional attempt-metrics snapshot.
+     */
     public val metrics: HttpAttemptMetrics? get() = clientMetrics(call)
+    /**
+     * Content-Length from the wire headers, which is not necessarily the decoded body length.
+     */
     public val wireContentLength: Long? = parseHttpContentLength(head.fields)
     internal val input: ClientResponseInput = ClientResponseInput(call, clientResponseDecoding(call, head, wireContentLength), head)
+    /**
+     * The single forward-only response-body cursor.
+     */
     public val body: HttpResponseBody = HttpResponseBody(input, head.fields)
+    /**
+     * Complete trailers after successful body completion, or None while incomplete.
+     */
     public val trailers: Array<HttpField>? get() = if (body.isComplete) call.responseStream!!.trailers else None
+    /**
+     * Returns this response for status 200..299; otherwise throws HttpStatusException without
+     * replacing the caller's close responsibility.
+     */
     public fun requireSuccess(): HttpResponse {
         if (status < 200U || status >= 300U) throw HttpStatusException(head, url)
         return this
     }
+    /**
+     * Closes the body and awaits call cleanup, releasing or retiring the underlying
+     * connection/stream.
+     */
     public override suspend fun close() { body.close() }
 }
 
-public class HttpStatusException public constructor(public val head: HttpResponseHead, public val url: Url)
+/**
+ * requireSuccess rejected a response outside the 2xx status range; the response head and URL
+ * remain available.
+ */
+public class HttpStatusException public constructor(
+    /**
+     * The rejected final response head.
+     */
+    public val head: HttpResponseHead,
+    /**
+     * The URL that produced the status.
+     */
+    public val url: Url)
     : Exception(Some("HTTP status " + head.status.toString()))

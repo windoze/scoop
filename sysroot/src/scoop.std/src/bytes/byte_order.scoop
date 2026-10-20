@@ -3,11 +3,11 @@ package scoop.bytes
 /**
  * The order of bytes within a multibyte numeric value.
  */
-public enum ByteOrder { 
+public enum ByteOrder {
     /**
      * Stores the most significant byte first.
      */
-    BigEndian, 
+    BigEndian,
     /**
      * Stores the least significant byte first.
      */

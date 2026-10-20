@@ -6,40 +6,156 @@ import scoop.http.*
 import scoop.time.Duration
 import scoop.tls.*
 
-public enum HttpVersionPolicy { Auto, Http1Only, Http2Only }
-public enum HttpCleartextProtocol { Http1, Http2PriorKnowledge, H2cUpgrade }
+/**
+ * Restricts the HTTP protocol versions the client may negotiate.
+ */
+public enum HttpVersionPolicy {
+    /**
+     * Negotiates HTTP/2 or HTTP/1.1 through TLS ALPN, with explicit cleartext policy.
+     */
+    Auto,
+    /**
+     * Permits only HTTP/1 connections.
+     */
+    Http1Only,
+    /**
+     * Requires HTTP/2; cleartext must explicitly select prior knowledge or h2c upgrade.
+     */
+    Http2Only }
+/**
+ * Selects how an unencrypted HTTP connection begins.
+ */
+public enum HttpCleartextProtocol {
+    /**
+     * Begins directly with HTTP/1 messages.
+     */
+    Http1,
+    /**
+     * Begins directly with the HTTP/2 connection preface.
+     */
+    Http2PriorKnowledge,
+    /**
+     * Attempts an explicit HTTP/1.1 h2c upgrade.
+     */
+    H2cUpgrade }
 
+/**
+ * Origin or proxy TLS trust, protocol bounds, and optional client identity. Default trust uses the
+ * system store.
+ */
 public class HttpClientTlsConfig public constructor(
+    /**
+     * System or explicit trust anchors used for certificate verification.
+     */
     public val trust: TlsTrustSource = TlsTrustSource.System,
+    /**
+     * The lowest permitted TLS version.
+     */
     public val minimum: TlsVersion = TlsVersion.Tls12,
+    /**
+     * The highest permitted TLS version.
+     */
     public val maximum: TlsVersion = TlsVersion.Tls13,
+    /**
+     * The optional client certificate and private-key identity.
+     */
     public val identity: TlsIdentity? = None
 )
 
+/**
+ * Immutable client defaults for protocols, pooling, transport, policy, storage, and callbacks.
+ * Per-call options override selected policies.
+ */
 public class HttpClientConfig public constructor(
+    /**
+     * Allowed protocol versions and TLS ALPN selection.
+     */
     public val versionPolicy: HttpVersionPolicy = HttpVersionPolicy.Auto,
+    /**
+     * Explicit protocol strategy for unencrypted HTTP.
+     */
     public val cleartext: HttpCleartextProtocol = HttpCleartextProtocol.Http1,
+    /**
+     * The HTTP/1.0 or HTTP/1.1 version emitted for HTTP/1 requests.
+     */
     public val http1RequestVersion: HttpVersion = HttpVersion.Http11,
+    /**
+     * Origin TLS trust, version bounds, and client identity.
+     */
     public val tls: HttpClientTlsConfig = HttpClientTlsConfig(),
+    /**
+     * Connection and HTTP/2 stream capacities and retirement policy.
+     */
     public val pool: HttpConnectionPoolOptions = HttpConnectionPoolOptions(),
+    /**
+     * Address selection and TCP connection-attempt options.
+     */
     public val tcpConnect: TcpConnectOptions = TcpConnectOptions(),
+    /**
+     * HTTP/1 parser compatibility policy.
+     */
     public val http1Receive: Http1ReceiveOptions = Http1ReceiveOptions(),
+    /**
+     * Local HTTP/1 parser limits.
+     */
     public val http1Limits: Http1Limits = Http1Limits(),
+    /**
+     * HTTP/2 receive compatibility policy.
+     */
     public val http2Receive: Http2ReceiveOptions = Http2ReceiveOptions(),
+    /**
+     * Local HTTP/2 memory and framing limits.
+     */
     public val http2Limits: Http2Limits = Http2Limits(),
+    /**
+     * HTTP/2 settings advertised to peers.
+     */
     public val http2Settings: Http2Settings = Http2Settings(),
+    /**
+     * Response content-decoding policy.
+     */
     public val decoding: HttpDecodingOptions = HttpDecodingOptions(),
+    /**
+     * Call and phase timeouts, including body lifetime.
+     */
     public val timeouts: HttpTimeoutOptions = HttpTimeoutOptions(),
+    /**
+     * Redirect count, enablement, and HTTPS downgrade policy.
+     */
     public val redirects: HttpRedirectOptions = HttpRedirectOptions(),
+    /**
+     * Retry conditions, method eligibility, and backoff policy.
+     */
     public val retries: HttpRetryOptions = HttpRetryOptions(),
+    /**
+     * Origin authentication providers and attempt limit.
+     */
     public val authentication: HttpAuthenticationOptions = HttpAuthenticationOptions(),
+    /**
+     * Per-request proxy selection, direct by default.
+     */
     public val proxy: HttpProxySelector = HttpProxySelector.direct(),
+    /**
+     * Optional cookie storage; None disables automatic cookie handling.
+     */
     public val cookieJar: CookieJar? = None,
+    /**
+     * Optional private-response cache and partition settings.
+     */
     public val cache: HttpCacheOptions? = None,
     interceptors: List<HttpInterceptor> = emptyList<HttpInterceptor>(),
+    /**
+     * Optional suspend callback producing extra fields for each actual attempt.
+     */
     public val onAttempt: (suspend (HttpAttempt) -> List<HttpField>)? = None,
+    /**
+     * Optional suspend observer for call progress and timing snapshots.
+     */
     public val observer: HttpObserver? = None
 ) {
+    /**
+     * Ordered suspend interceptors around the logical call.
+     */
     public val interceptors: Array<HttpInterceptor> = interceptors.toArray()
     init {
         if (http1RequestVersion == HttpVersion.Http2)
@@ -51,19 +167,67 @@ public class HttpClientConfig public constructor(
     }
 }
 
+/**
+ * Per-call policy overrides and request-lifetime behavior. None inherits client defaults; duplex
+ * requires HTTP/2.
+ */
 public class HttpCallOptions public constructor(
+    /**
+     * Allows response processing while upload continues; requires HTTP/2.
+     */
     public val duplex: Boolean = false,
+    /**
+     * Requests 100-continue gating for a nonempty upload.
+     */
     public val expectContinue: Boolean = false,
+    /**
+     * How long to wait for Continue before proceeding with the upload; must be nonnegative.
+     */
     public val continueWait: Duration = Duration.seconds(1L),
+    /**
+     * Overrides the client's response content-decoding policy. None inherits the client default.
+     */
     public val decoding: HttpDecodingOptions? = None,
+    /**
+     * Overrides the client's call and phase timeouts, including body lifetime. None inherits the
+     * client default.
+     */
     public val timeouts: HttpTimeoutOptions? = None,
+    /**
+     * Suspend callback for informational response heads before the final response.
+     */
     public val onInformational: suspend (HttpResponseHead) -> Unit = suspend { _ -> },
+    /**
+     * Overrides the client's redirect count, enablement, and HTTPS downgrade policy. None inherits
+     * the client default.
+     */
     public val redirects: HttpRedirectOptions? = None,
+    /**
+     * Overrides the client's retry conditions, method eligibility, and backoff policy. None
+     * inherits the client default.
+     */
     public val retries: HttpRetryOptions? = None,
+    /**
+     * Overrides the client's origin authentication providers and attempt limit. None inherits the
+     * client default.
+     */
     public val authentication: HttpAuthenticationOptions? = None,
+    /**
+     * Overrides the client's per-request proxy selection, direct by default. None inherits the
+     * client default.
+     */
     public val proxy: HttpProxySelector? = None,
+    /**
+     * Whether this call uses the configured cookie jar.
+     */
     public val useCookies: Boolean = true,
+    /**
+     * Explicit site/navigation context for SameSite-aware cookie selection.
+     */
     public val cookieContext: HttpCookieContext? = None,
+    /**
+     * The per-call cache policy.
+     */
     public val cacheMode: HttpCacheMode = HttpCacheMode.Default
 ) {
     init {
