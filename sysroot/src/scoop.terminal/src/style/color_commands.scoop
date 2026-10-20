@@ -1,0 +1,41 @@
+package scoop.terminal.style
+
+import scoop.terminal.Command
+
+public struct SetForegroundColor(val color: Color) : Command {
+    public override fun writeAnsi(writer: TextWriter) { writeColor(writer, Colored.ForegroundColor(color)) }
+}
+
+public struct SetBackgroundColor(val color: Color) : Command {
+    public override fun writeAnsi(writer: TextWriter) { writeColor(writer, Colored.BackgroundColor(color)) }
+}
+
+public struct SetUnderlineColor(val color: Color) : Command {
+    public override fun writeAnsi(writer: TextWriter) { writeColor(writer, Colored.UnderlineColor(color)) }
+}
+
+private fun writeColor(writer: TextWriter, color: Colored) {
+    val parameters = color.toAnsiString()
+    if (isColorOutputEnabled()) writer.write("\u001b[" + parameters + "m")
+}
+
+public struct SetColors(val colors: Colors) : Command {
+    public override fun writeAnsi(writer: TextWriter) {
+        val foreground = when (colors.foreground) {
+            case Some(color) -> Colored.ForegroundColor(color).toAnsiString()
+            case None -> ""
+        }
+        val background = when (colors.background) {
+            case Some(color) -> Colored.BackgroundColor(color).toAnsiString()
+            case None -> ""
+        }
+        if (!isColorOutputEnabled()) return
+        val parameters = if (foreground == "") background
+            else if (background == "") foreground else foreground + ";" + background
+        if (parameters != "") writer.write("\u001b[" + parameters + "m")
+    }
+}
+
+public object ResetColor : Command {
+    public override fun writeAnsi(writer: TextWriter) { writer.write("\u001b[0m") }
+}

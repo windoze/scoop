@@ -1,0 +1,69 @@
+package scoop.terminal.style
+
+import scoop.text.lowercaseAscii
+import scoop.text.split
+import scoop.text.indexOf
+
+internal fun parseColorName(text: String): Color? = when (text.lowercaseAscii()) {
+    case "reset" -> Some(Color.Reset); case "black" -> Some(Color.Black)
+    case "dark_grey" -> Some(Color.DarkGrey); case "red" -> Some(Color.Red)
+    case "dark_red" -> Some(Color.DarkRed); case "green" -> Some(Color.Green)
+    case "dark_green" -> Some(Color.DarkGreen); case "yellow" -> Some(Color.Yellow)
+    case "dark_yellow" -> Some(Color.DarkYellow); case "blue" -> Some(Color.Blue)
+    case "dark_blue" -> Some(Color.DarkBlue); case "magenta" -> Some(Color.Magenta)
+    case "dark_magenta" -> Some(Color.DarkMagenta); case "cyan" -> Some(Color.Cyan)
+    case "dark_cyan" -> Some(Color.DarkCyan); case "white" -> Some(Color.White)
+    case "grey" -> Some(Color.Grey)
+    else -> None
+}
+
+private val indexedColors: Array<Color> = [
+    Color.Black, Color.DarkRed, Color.DarkGreen, Color.DarkYellow,
+    Color.DarkBlue, Color.DarkMagenta, Color.DarkCyan, Color.Grey,
+    Color.DarkGrey, Color.Red, Color.Green, Color.Yellow,
+    Color.Blue, Color.Magenta, Color.Cyan, Color.White
+]
+
+private fun parseColorByte(text: String): Int? {
+    if (text.byteLength == 0L) return None
+    var value = 0
+    for (character in text) {
+        if (character < '0' || character > '9') return None
+        value = value * 10 + character.code - 48
+        if (value > 255) return None
+    }
+    return Some(value)
+}
+
+internal fun parseAnsiColor(text: String): Color? {
+    val fields = text.split(';')
+    if (fields.size == 2L && fields[0L] == "5") {
+        val index = parseColorByte(fields[1L]) ?: return None
+        return Some(if (index < 16) indexedColors[index.toLong()] else Color.AnsiValue(index))
+    }
+    if (fields.size == 4L && fields[0L] == "2") {
+        val red = parseColorByte(fields[1L]) ?: return None
+        val green = parseColorByte(fields[2L]) ?: return None
+        val blue = parseColorByte(fields[3L]) ?: return None
+        return Some(Color.Rgb(red, green, blue))
+    }
+    return None
+}
+
+internal fun parseColored(text: String): Colored? {
+    when (text) {
+        case "39" -> return Some(Colored.ForegroundColor(Color.Reset))
+        case "49" -> return Some(Colored.BackgroundColor(Color.Reset))
+        case "59" -> return Some(Colored.UnderlineColor(Color.Reset))
+        else -> {}
+    }
+    val separator = text.indexOf(';')
+    if (separator < 0L) return None
+    val color = parseAnsiColor(text.slice(separator + 1L, text.length)) ?: return None
+    return when (text.slice(0L, separator)) {
+        case "38" -> Some(Colored.ForegroundColor(color))
+        case "48" -> Some(Colored.BackgroundColor(color))
+        case "58" -> Some(Colored.UnderlineColor(color))
+        else -> None
+    }
+}

@@ -1,0 +1,64 @@
+package scoop.terminal.style
+
+import scoop.terminal.Command
+
+public enum Attribute {
+    Reset, Bold, Dim, Italic, Underlined, DoubleUnderlined, Undercurled,
+    Underdotted, Underdashed, SlowBlink, RapidBlink, Reverse, Hidden, CrossedOut,
+    Fraktur, NoBold, NormalIntensity, NoItalic, NoUnderline, NoBlink, NoReverse,
+    NoHidden, NotCrossedOut, Framed, Encircled, OverLined, NotFramedOrEncircled, NotOverLined
+
+    internal val index: Int get() = when (this) {
+        case Reset -> 0; case Bold -> 1; case Dim -> 2; case Italic -> 3
+        case Underlined -> 4; case DoubleUnderlined -> 5; case Undercurled -> 6
+        case Underdotted -> 7; case Underdashed -> 8; case SlowBlink -> 9
+        case RapidBlink -> 10; case Reverse -> 11; case Hidden -> 12; case CrossedOut -> 13
+        case Fraktur -> 14; case NoBold -> 15; case NormalIntensity -> 16; case NoItalic -> 17
+        case NoUnderline -> 18; case NoBlink -> 19; case NoReverse -> 20; case NoHidden -> 21
+        case NotCrossedOut -> 22; case Framed -> 23; case Encircled -> 24; case OverLined -> 25
+        case NotFramedOrEncircled -> 26; case NotOverLined -> 27
+    }
+
+    public fun sgr(): String = when (this) {
+        case Reset -> "0"; case Bold -> "1"; case Dim -> "2"; case Italic -> "3"
+        case Underlined -> "4"; case DoubleUnderlined -> "4:2"; case Undercurled -> "4:3"
+        case Underdotted -> "4:4"; case Underdashed -> "4:5"; case SlowBlink -> "5"
+        case RapidBlink -> "6"; case Reverse -> "7"; case Hidden -> "8"; case CrossedOut -> "9"
+        case Fraktur -> "20"; case NoBold -> "21"; case NormalIntensity -> "22"; case NoItalic -> "23"
+        case NoUnderline -> "24"; case NoBlink -> "25"; case NoReverse -> "27"; case NoHidden -> "28"
+        case NotCrossedOut -> "29"; case Framed -> "51"; case Encircled -> "52"; case OverLined -> "53"
+        case NotFramedOrEncircled -> "54"; case NotOverLined -> "55"
+    }
+}
+
+internal val allAttributes: Array<Attribute> = [
+    Attribute.Reset, Attribute.Bold, Attribute.Dim, Attribute.Italic, Attribute.Underlined,
+    Attribute.DoubleUnderlined, Attribute.Undercurled, Attribute.Underdotted, Attribute.Underdashed,
+    Attribute.SlowBlink, Attribute.RapidBlink, Attribute.Reverse, Attribute.Hidden, Attribute.CrossedOut,
+    Attribute.Fraktur, Attribute.NoBold, Attribute.NormalIntensity, Attribute.NoItalic, Attribute.NoUnderline,
+    Attribute.NoBlink, Attribute.NoReverse, Attribute.NoHidden, Attribute.NotCrossedOut, Attribute.Framed,
+    Attribute.Encircled, Attribute.OverLined, Attribute.NotFramedOrEncircled, Attribute.NotOverLined
+]
+
+public struct Attributes(val bits: UInt = 0u) {
+    public val isEmpty: Boolean get() = bits == 0u
+    public fun has(attribute: Attribute): Boolean = (bits and (1u shl attribute.index.toLong())) != 0u
+    public fun with(attribute: Attribute): Attributes = Attributes(bits or (1u shl attribute.index.toLong()))
+    public fun without(attribute: Attribute): Attributes = Attributes(bits and (1u shl attribute.index.toLong()).inv())
+    public fun toggled(attribute: Attribute): Attributes = Attributes(bits xor (1u shl attribute.index.toLong()))
+}
+
+public struct SetAttribute(val attribute: Attribute) : Command {
+    public override fun writeAnsi(writer: TextWriter) { writer.write("\u001b[" + attribute.sgr() + "m") }
+}
+
+public struct SetAttributes(val attributes: Attributes) : Command {
+    public override fun writeAnsi(writer: TextWriter) {
+        if ((attributes.bits and 0xf0000000u) != 0u) {
+            throw IllegalArgumentException(Some("unknown terminal attribute bits"))
+        }
+        for (attribute in allAttributes) {
+            if (attributes.has(attribute)) SetAttribute(attribute).writeAnsi(writer)
+        }
+    }
+}

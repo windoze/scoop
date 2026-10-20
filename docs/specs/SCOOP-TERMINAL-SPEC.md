@@ -65,7 +65,29 @@ package `scoop.terminal.screen`。命令均实现 Command。
 
 参数检查在编码时完成，失败在该命令输出前抛 IllegalArgumentException。没有通用终端能力探测保证这些命令生效，调用者按实际终端选择使用。
 
-## 5. 后续功能的既定合同
+## 5. 颜色与样式
+
+package `scoop.terminal.style`：
+
+- `Color` 是值 enum：Reset、Black、DarkGrey、Red、DarkRed、Green、DarkGreen、Yellow、DarkYellow、Blue、DarkBlue、Magenta、DarkMagenta、Cyan、DarkCyan、White、Grey、`AnsiValue(value: Int)`、`Rgb(red: Int, green: Int, blue: Int)`。通道／索引范围为 `0..255`，编码前检查，非法值抛 IllegalArgumentException。
+- `Color.parseOrNone(text)`／`parse(text)` 接受上述基础色的 ASCII 大小写无关名字，复合名字使用下划线；失败分别为 None／IllegalArgumentException，不回退成 White。`parseAnsiOrNone` 接受严格的 `5;n` 或 `2;r;g;b`，仅十进制数字；0～15 索引归一成对应基础色，其余为 AnsiValue。
+- `Colored` 的 ForegroundColor／BackgroundColor／UnderlineColor 包含 Color。`toAnsiString` 返回 SGR 参数而非完整 CSI；`parseAnsiOrNone` 接受 `38/48/58;5;n`、`38/48/58;2;r;g;b` 和 `39/49/59`。该参数转换不受颜色输出策略影响。
+- `SetForegroundColor`／`SetBackgroundColor`／`SetUnderlineColor`、`SetColors(Colors(foreground: Color? = None, background: Color? = None))` 均为 Command。基础色沿上游编码为 256 色槽，RGB 使用 24 位序列；SetColors 在同一 SGR 中按前景、背景顺序写出。None 表示不改变，Reset 表示恢复默认值。没有颜色时不输出。
+- `ResetColor` 是 singleton Command，始终发送 `CSI 0m`，同时复位颜色和属性。
+
+`forceColorOutput(enabled)` 用进程级原子覆盖控制颜色，`resetColorOutput()` 恢复环境策略，`isColorOutputEnabled()` 查询当前决定。无显式覆盖时，非空 NO_COLOR 禁用颜色；空值或未定义不禁用。环境策略在查询时读取，不使用隐含的一次初始化缓存。`availableColorCount()` 按 COLORTERM、再 TERM 推断：含 truecolor／24bit 返回 65535，含 256 返回 256，其余返回 8；只报告环境提示。
+
+禁色时颜色命令仍验证参数，但完全不输出，不发送空 SGR 导致意外复位。显式属性命令与 ResetColor 不被 NO_COLOR 禁用。这里有意修正上游禁色时部分命令仍生成空 SGR 的行为。
+
+`Attribute` 包含上游 0.29 的 28 项 SGR 属性：Reset、Bold、Dim、Italic、Underlined、DoubleUnderlined、Undercurled、Underdotted、Underdashed、SlowBlink、RapidBlink、Reverse、Hidden、CrossedOut、Fraktur、NoBold、NormalIntensity、NoItalic、NoUnderline、NoBlink、NoReverse、NoHidden、NotCrossedOut、Framed、Encircled、OverLined、NotFramedOrEncircled、NotOverLined。扩展下划线使用 `4:2..5`，不能与 Bold 等普通 SGR 混淆。
+
+`Attributes(bits: UInt = 0u)` 是普通透明 struct，bits 为本库逻辑位集，按上面 28 项的声明顺序占据 bit 0～27，不是 OS bitmask。`with(attribute)`、`without(attribute)`、`toggled(attribute)` 返回新值，`has(attribute)` 和 `isEmpty` 查询；复制后修改派生值不影响原值。`SetAttribute(attribute)` 与 `SetAttributes(attributes)` 为 Command，集合输出按声明顺序，重复属性只输出一次；编码时遇到 bit 28～31 非零，在输出前抛 IllegalArgumentException。
+
+`ContentStyle(foregroundColor: Color? = None, backgroundColor: Color? = None, underlineColor: Color? = None, attributes: Attributes = Attributes())` 是不可变值。withForegroundColor／withBackgroundColor／withUnderlineColor／withAttribute／withoutAttribute 返回派生值；`apply<T : ToString>(content)` 返回 `StyledContent<T>`。`T.styled(style = ContentStyle())` 提供同样的普通扩展。
+
+`SetStyle(style)` 依次写出背景、前景、下划线颜色和属性；缺省字段不复位其他状态。StyledContent 保存 style 与 content，实现 Command 和 ToString；先取得文本，再写入样式、文本和结束复位。没有属性时分别复位所设置的背景／前景／下划线颜色（49／39／59）；有属性时使用 SGR 0 整体复位。禁色时不生成只为颜色配对的结束复位。复位到默认值，不承诺恢复此前任意终端样式；写入失败遵守普通部分输出规则。下划线颜色使用 59 复位，是对上游只复位前景色问题的有意修正。
+
+## 6. 后续功能的既定合同
 
 样式、事件、Unix 会话、PTY 交互、OSC 52 与异步适配均属于 M59 的交付范围，不因命令部分先完成而移出里程碑。后续功能的具体公共声明在各自实现前增加到本文；以下约束已经确定：
 
