@@ -428,6 +428,8 @@ immortal object 的登记身份与 ODR ABI 直接消费现有登记计划及 can
 
 静态存储、初始化和 type registration 直接使用已有计划及 definition/member 分配。scan／layout、实际 descriptor 和 gateway body 的内容摘要只供产物计算使用，复用已有 canonical shape ABI、atom 范围、typed 引用和 callable 结果。发布不重读初值、cell、诊断文字、登记指针表，不重新比较生产副本或建立物理验证资格链。实际读取仍检查范围和缺失引用。
 
+shape 发射按 typed owner 与 role 查询同一 symbol surface 在构建时已建立的主符号到 definition 映射。唯一性由该表的构建边界检查，后续查询不再次遍历完整 definition 集合；裁剪实际 definition 时同步移除对应索引。查询继续报告缺失引用，计划顺序与产物编码不变。
+
 Code 指纹直接编码已有的定义、undefined requirements、native contracts、imports 与最终成员目录。计算和归档组装不重建这些集合来比较副本，也不再次比对所有组件的 producer／target 或复制的 relocation 闭包。已有结果直接进入 metadata 和内容摘要；当前编码、范围读取及真实链接引用错误正常处理。
 
 Scoop LIR 与 generated-C 的 external requirements 保留实际对象中的未定义符号、重定位和所需链接库。Scoop 的 current／dependency／ODR 身份、源码 FFI 合同及 runtime／EH 引用按各自已有规则分类，其余普通 native 符号直接交给 program-link，不要求存在 Scoop extern 声明或 target-helper 登记项。不重建 definition／atom 集合、扫描必需调用覆盖或证明机器 relocation 与模板相同；没有对应定义或导入的 Scoop mangled 符号仍是引用错误。

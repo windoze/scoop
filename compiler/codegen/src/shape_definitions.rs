@@ -260,21 +260,11 @@ fn require_definition(
     owner: StrongDefinitionEntity,
     role: StrongDefinitionRole,
 ) -> Result<&scoop_lir::DefinitionSymbolPlanV1, CodegenError> {
-    let mut matches = surface
-        .plans()
-        .iter()
-        .filter(|plan| plan.owner() == owner && plan.definition_role() == role);
-    let definition = matches.next().ok_or_else(|| {
+    surface.definition(owner, role).ok_or_else(|| {
         CodegenError(format!(
             "canonical strong definition is missing owner {owner:?} role {role:?}"
         ))
-    })?;
-    if matches.next().is_some() {
-        return Err(CodegenError(format!(
-            "canonical strong definition duplicates owner {owner:?} role {role:?}"
-        )));
-    }
-    Ok(definition)
+    })
 }
 
 pub(super) fn descriptor_diagnostic_atom(
