@@ -5,14 +5,32 @@ import scoop.platform.io.*
 import scoop.platform.memory.NativeByteBuffer
 import scoop.platform.system.*
 
+/**
+ * A received datagram's sender, delivered byte count, and whether its payload was truncated.
+ */
 public struct Datagram(val source: SocketAddress, val count: Long, val truncated: Boolean)
 private class ReceiveResult { var value: (NativeDatagram, Int)? = None }
 
+/**
+ * An owned blocking datagram socket preserving message boundaries.
+ */
 public class UdpSocket private constructor(private val file: File) : Closeable {
+    /**
+     * Queries the actual bound UDP endpoint.
+     */
     public fun localAddress(): SocketAddress = file.socketAddress(false)
+    /**
+     * Whether this owned resource has been closed.
+     */
     public val isClosed: Boolean get() = file.isClosed
 
+    /**
+     * Binds UDP sockets with explicit address-reuse selection.
+     */
     public companion object {
+        /**
+         * Binds an owned UDP socket to the specified endpoint.
+         */
         public fun bind(address: SocketAddress, reuseAddress: Boolean = false): UdpSocket {
             val file = File.newOwner()
             val socket = UdpSocket(file)
@@ -25,6 +43,9 @@ public class UdpSocket private constructor(private val file: File) : Closeable {
         }
     }
 
+    /**
+     * Sends one datagram from count readable bytes and advances the buffer by the sent count.
+     */
     public fun sendTo(buffer: NativeByteBuffer, destination: SocketAddress, count: Long = buffer.readableBytes): Long =
         file.withDescriptor { descriptor ->
             requireTransfer(count, buffer.readableBytes)
@@ -41,6 +62,10 @@ public class UdpSocket private constructor(private val file: File) : Closeable {
             }
         }
 
+    /**
+     * Receives one datagram into the writable region, returning sender, byte count, and truncation
+     * status.
+     */
     public fun receiveFrom(buffer: NativeByteBuffer, count: Long = buffer.writableBytes): Datagram =
         file.withDescriptor { descriptor ->
             requireTransfer(count, buffer.writableBytes)
@@ -60,6 +85,9 @@ public class UdpSocket private constructor(private val file: File) : Closeable {
             Datagram(socketAddress(packet.source, error), packet.count, packet.truncated)
         }
 
+    /**
+     * Closes the owned native descriptor; subsequent I/O through this owner is invalid.
+     */
     public override fun close() { file.close() }
 }
 

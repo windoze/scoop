@@ -5,21 +5,50 @@ import scoop.bytes.ByteArrayBuilder
 import scoop.http.*
 import scoop.platform.memory.NativeByteBuffer
 
+/**
+ * A single incoming message exposed as a byte source. Its cursor advances once; aggregation
+ * methods collect only unread content.
+ */
 public class WebSocketMessage internal constructor(private val state: WsState, private val message: WsIncoming)
     : AsyncByteSource, AsyncCloseable {
+    /**
+     * The Text or Binary message category.
+     */
     public val type: WebSocketMessageType get() = message.type
+    /**
+     * Whether this particular message uses negotiated compression.
+     */
     public val isCompressed: Boolean get() = message.isCompressed
+    /**
+     * Whether this body or message reached its successful boundary.
+     */
     public val isComplete: Boolean get() = state.lock.withLock { message.life.complete }
+    /**
+     * Whether this body or message has been closed.
+     */
     public val isClosed: Boolean get() = state.lock.withLock { message.life.closed }
 
+    /**
+     * Reads decoded message bytes under bounded backpressure; compression limits apply to decoded
+     * content.
+     */
     public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long =
         wsOperation<Unit, Long>(state, true, {
             checkWsMessage(state, message)
             httpCount(count, buffer.writableBytes)
         }, suspend { _ -> if (count == 0L) 0L else readWsMessage(state, message, buffer, count) })
 
+    /**
+     * Collects the remaining unread message bytes.
+     */
     public suspend fun readBytes(): Array<Byte> = readAll(false)
+    /**
+     * Collects the remaining content of a Text message as UTF-8 text.
+     */
     public suspend fun readText(): String = String.fromUtf8(readAll(true))
+    /**
+     * Closes the message. Abandoning an incomplete message aborts its session.
+     */
     public override suspend fun close() { closeWsLife(state, message.life) }
 
     private suspend fun readAll(text: Boolean): Array<Byte> =

@@ -6,12 +6,36 @@ import scoop.platform.io.checkNativeStatus
 import scoop.platform.system.OsString
 import scoop.text.*
 
-public enum AddressFamily { Ipv4, Ipv6 }
+/**
+ * The supported IP address families.
+ */
+public enum AddressFamily {
+    /**
+     * The four-byte IPv4 address family.
+     */
+    Ipv4,
+    /**
+     * The sixteen-byte IPv6 address family.
+     */
+    Ipv6 }
 
+/**
+ * An immutable numeric IP address with family and optional IPv6 scope identifier. Parsing does not
+ * perform DNS resolution.
+ */
 public class IpAddress private constructor(internal val native: NativeSocketAddress) : Equals<IpAddress>, Hash, ToString {
+    /**
+     * The address's IPv4 or IPv6 family.
+     */
     public val family: AddressFamily get() = if (native.family == 4) AddressFamily.Ipv4 else AddressFamily.Ipv6
+    /**
+     * The IPv6 scope identifier, or zero when no scope is selected.
+     */
     public val scopeId: UInt get() = native.scopeId
 
+    /**
+     * Copies the four or sixteen address bytes in network order.
+     */
     public fun toByteArray(): Array<Byte> = Array<Byte>(if (native.family == 4) 4L else 16L) { index ->
         val word = when (index / 4L) {
             case 0L -> native.a
@@ -22,13 +46,23 @@ public class IpAddress private constructor(internal val native: NativeSocketAddr
         ((word shr ((3L - index % 4L) * 8L)) and 255u).toByte()
     }
 
+    /**
+     * Compares the complete normalized address identity, including its relevant family, scope,
+     * prefix, or port.
+     */
     public override operator fun equals(other: IpAddress): Boolean =
         native.family == other.native.family && native.scopeId == other.native.scopeId &&
         native.a == other.native.a && native.b == other.native.b && native.c == other.native.c && native.d == other.native.d
 
+    /**
+     * Hashes the same address identity used by equality.
+     */
     public override fun hash(): Long = (((native.a.hash() * 31L + native.b.hash()) * 31L +
         native.c.hash()) * 31L + native.d.hash()) * 31L + native.scopeId.hash() + native.family.toLong()
 
+    /**
+     * Returns numeric address notation without performing name resolution.
+     */
     public override fun toString(): String {
         val bytes = MutableArray<Byte>(46L) { 0.toByte() }
         @Unsafe {
@@ -43,12 +77,31 @@ public class IpAddress private constructor(internal val native: NativeSocketAddr
         }
     }
 
+    /**
+     * Numeric address parsing, construction, and wildcard/loopback constants.
+     */
     public companion object {
+        /**
+         * The IPv4 unspecified address for wildcard binding.
+         */
         public val IPV4_ANY: IpAddress = IpAddress(NativeSocketAddress(4, 0, 0u, 0u, 0u, 0u, 0u))
+        /**
+         * The IPv4 loopback address.
+         */
         public val IPV4_LOOPBACK: IpAddress = IpAddress(NativeSocketAddress(4, 0, 0u, 0x7f000001u, 0u, 0u, 0u))
+        /**
+         * The IPv6 unspecified address for wildcard binding.
+         */
         public val IPV6_ANY: IpAddress = IpAddress(NativeSocketAddress(6, 0, 0u, 0u, 0u, 0u, 0u))
+        /**
+         * The IPv6 loopback address.
+         */
         public val IPV6_LOOPBACK: IpAddress = IpAddress(NativeSocketAddress(6, 0, 0u, 0u, 0u, 0u, 1u))
 
+        /**
+         * Creates an address from exactly four or sixteen network-order bytes and a compatible
+         * scope identifier.
+         */
         public fun fromByteArray(bytes: List<Byte>, scopeId: UInt = 0u): IpAddress {
             if (bytes.size != 4L && bytes.size != 16L) throw IllegalArgumentException(Some("IP address requires 4 or 16 bytes"))
             if (bytes.size == 4L && scopeId != 0u) throw IllegalArgumentException(Some("IPv4 does not have a scope"))
@@ -57,6 +110,9 @@ public class IpAddress private constructor(internal val native: NativeSocketAddr
                 word(snapshot, 0L), word(snapshot, 4L), word(snapshot, 8L), word(snapshot, 12L)))
         }
 
+        /**
+         * Parses a numeric IP literal without resolving a DNS name.
+         */
         public fun parse(text: String): IpAddress {
             val separator = text.indexOf('%')
             val literal = if (separator < 0L) text else text.slice(0L, separator)

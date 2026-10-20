@@ -3,6 +3,10 @@ package scoop.platform.memory
 import scoop.bytes.ByteOrder
 import scoop.platform.system.*
 
+/**
+ * Owned growable native byte storage with separate read and write positions. Outstanding native
+ * borrows restrict mutation and closure; explicitly close the buffer after use.
+ */
 public class NativeByteBuffer private constructor() : Closeable {
     private var memory: Ptr<Byte>? = None
     private var storageCapacity: Long = 0L
@@ -12,14 +16,38 @@ public class NativeByteBuffer private constructor() : Closeable {
     private var borrowed: Boolean = false
     private val stateLock: AtomicBoolean = AtomicBoolean(false)
 
+    /**
+     * The allocated byte capacity.
+     */
     public val capacity: Long get() = withState { requireOpen(); storageCapacity }
+    /**
+     * The absolute offset of the next readable byte.
+     */
     public val readPosition: Long get() = withState { requireOpen(); reader }
+    /**
+     * The absolute offset immediately after initialized written bytes.
+     */
     public val writePosition: Long get() = withState { requireOpen(); writer }
+    /**
+     * The byte count between read and write positions.
+     */
     public val readableBytes: Long get() = withState { requireOpen(); writer - reader }
+    /**
+     * The remaining capacity after the write position.
+     */
     public val writableBytes: Long get() = withState { requireOpen(); storageCapacity - writer }
+    /**
+     * Whether this owned resource has been closed.
+     */
     public val isClosed: Boolean get() = withState { closed }
 
+    /**
+     * Allocates owned native storage with initially empty readable content.
+     */
     public companion object {
+        /**
+         * Allocates the requested nonnegative capacity with both positions initially zero.
+         */
         public fun allocate(capacity: Long = 0L): NativeByteBuffer {
             requireCount(capacity)
             val result = NativeByteBuffer()
@@ -74,6 +102,10 @@ public class NativeByteBuffer private constructor() : Closeable {
         }
     }
 
+    /**
+     * Grows storage when needed to provide at least count additional writable bytes, preserving
+     * positions and initialized content.
+     */
     public fun ensureWritable(count: Long) {
         withState {
             requireMutable()
@@ -86,6 +118,9 @@ public class NativeByteBuffer private constructor() : Closeable {
         }
     }
 
+    /**
+     * Resets both positions to zero without promising to erase stored memory.
+     */
     public fun clear() {
         withState {
             requireMutable()
@@ -94,6 +129,9 @@ public class NativeByteBuffer private constructor() : Closeable {
         }
     }
 
+    /**
+     * Moves unread bytes to offset zero and resets positions around that content.
+     */
     public fun compact() {
         withState {
             requireMutable()
@@ -106,6 +144,9 @@ public class NativeByteBuffer private constructor() : Closeable {
         }
     }
 
+    /**
+     * Advances the read position by count available bytes.
+     */
     public fun skip(count: Long) {
         withState {
             requireReadable(count)
@@ -113,6 +154,9 @@ public class NativeByteBuffer private constructor() : Closeable {
         }
     }
 
+    /**
+     * Reads an initialized byte at an absolute index without moving either position.
+     */
     public fun getByte(index: Long): Byte {
         return withState {
             requireIndex(index)
@@ -120,6 +164,9 @@ public class NativeByteBuffer private constructor() : Closeable {
         }
     }
 
+    /**
+     * Copies an initialized absolute byte range without moving either position.
+     */
     public fun getBytes(index: Long, count: Long): Array<Byte> {
         return withState {
             requireOpen()
@@ -129,6 +176,9 @@ public class NativeByteBuffer private constructor() : Closeable {
         }
     }
 
+    /**
+     * Replaces an initialized byte at an absolute index without moving either position.
+     */
     public fun setByte(index: Long, value: Byte) {
         withState {
             requireMutable()
@@ -137,9 +187,18 @@ public class NativeByteBuffer private constructor() : Closeable {
         }
     }
 
+    /**
+     * Reads one byte and advances the read position.
+     */
     public fun readByte(): Byte = readInt8()
+    /**
+     * Appends one byte and advances the write position.
+     */
     public fun writeByte(value: Byte) { writeInt8(value) }
 
+    /**
+     * Copies count readable bytes into an independent array and advances the read position.
+     */
     public fun readBytes(count: Long): Array<Byte> {
         return withState {
             requireReadable(count)
@@ -150,6 +209,10 @@ public class NativeByteBuffer private constructor() : Closeable {
         }
     }
 
+    /**
+     * Copies exactly count readable bytes into the selected array region and advances the read
+     * position.
+     */
     public fun readInto(array: MutableArray<Byte>, offset: Long = 0L, count: Long = array.size - offset) {
         withState {
             requireReadable(count)
@@ -163,6 +226,9 @@ public class NativeByteBuffer private constructor() : Closeable {
         }
     }
 
+    /**
+     * Appends the selected array region and advances the write position.
+     */
     public fun writeBytes(array: List<Byte>, offset: Long = 0L, count: Long = array.size - offset) {
         requireArrayRange(array.size, offset, count)
         @Unsafe {
@@ -211,28 +277,100 @@ public class NativeByteBuffer private constructor() : Closeable {
         }
     }
 
+    /**
+     * Reads 1 bytes as Int8 and advances the read position.
+     */
     public fun readInt8(): Int8 = read(1L, ByteOrder.BigEndian).toByte()
+    /**
+     * Reads 1 bytes as UInt8 and advances the read position.
+     */
     public fun readUInt8(): UInt8 = read(1L, ByteOrder.BigEndian).toUByte()
+    /**
+     * Reads 2 bytes as Int16 in the selected byte order and advances the read position.
+     */
     public fun readInt16(order: ByteOrder): Int16 = read(2L, order).toShort()
+    /**
+     * Reads 2 bytes as UInt16 in the selected byte order and advances the read position.
+     */
     public fun readUInt16(order: ByteOrder): UInt16 = read(2L, order).toUShort()
+    /**
+     * Reads 4 bytes as Int32 in the selected byte order and advances the read position.
+     */
     public fun readInt32(order: ByteOrder): Int32 = read(4L, order).toInt()
+    /**
+     * Reads 4 bytes as UInt32 in the selected byte order and advances the read position.
+     */
     public fun readUInt32(order: ByteOrder): UInt32 = read(4L, order).toUInt()
+    /**
+     * Reads 8 bytes as Int64 in the selected byte order and advances the read position.
+     */
     public fun readInt64(order: ByteOrder): Int64 = read(8L, order).toLong()
+    /**
+     * Reads 8 bytes as UInt64 in the selected byte order and advances the read position.
+     */
     public fun readUInt64(order: ByteOrder): UInt64 = read(8L, order)
+    /**
+     * Reads 4 bytes as Float in the selected byte order and advances the read position.
+     */
     public fun readFloat(order: ByteOrder): Float = Float.fromBits(readInt32(order))
+    /**
+     * Reads 8 bytes as Double in the selected byte order and advances the read position.
+     */
     public fun readDouble(order: ByteOrder): Double = Double.fromBits(readInt64(order))
 
+    /**
+     * Appends 1 bytes representing Int8 and advances the write position.
+     */
     public fun writeInt8(value: Int8) { write(value.toULong(), 1L, ByteOrder.BigEndian) }
+    /**
+     * Appends 1 bytes representing UInt8 and advances the write position.
+     */
     public fun writeUInt8(value: UInt8) { write(value.toULong(), 1L, ByteOrder.BigEndian) }
+    /**
+     * Appends 2 bytes representing Int16 in the selected byte order and advances the write
+     * position.
+     */
     public fun writeInt16(value: Int16, order: ByteOrder) { write(value.toULong(), 2L, order) }
+    /**
+     * Appends 2 bytes representing UInt16 in the selected byte order and advances the write
+     * position.
+     */
     public fun writeUInt16(value: UInt16, order: ByteOrder) { write(value.toULong(), 2L, order) }
+    /**
+     * Appends 4 bytes representing Int32 in the selected byte order and advances the write
+     * position.
+     */
     public fun writeInt32(value: Int32, order: ByteOrder) { write(value.toULong(), 4L, order) }
+    /**
+     * Appends 4 bytes representing UInt32 in the selected byte order and advances the write
+     * position.
+     */
     public fun writeUInt32(value: UInt32, order: ByteOrder) { write(value.toULong(), 4L, order) }
+    /**
+     * Appends 8 bytes representing Int64 in the selected byte order and advances the write
+     * position.
+     */
     public fun writeInt64(value: Int64, order: ByteOrder) { write(value.toULong(), 8L, order) }
+    /**
+     * Appends 8 bytes representing UInt64 in the selected byte order and advances the write
+     * position.
+     */
     public fun writeUInt64(value: UInt64, order: ByteOrder) { write(value, 8L, order) }
+    /**
+     * Appends 4 bytes representing Float in the selected byte order and advances the write
+     * position.
+     */
     public fun writeFloat(value: Float, order: ByteOrder) { writeInt32(value.toBits(), order) }
+    /**
+     * Appends 8 bytes representing Double in the selected byte order and advances the write
+     * position.
+     */
     public fun writeDouble(value: Double, order: ByteOrder) { writeInt64(value.toBits(), order) }
 
+    /**
+     * Borrows the readable pointer and length only for the callback; the pointer must not escape.
+     * This operation does not consume bytes.
+     */
     @Unsafe
     public fun <R> withReadableBytes(block: (Ptr<Byte>?, Long) -> R): R {
         val borrow = beginBorrow(None, false)
@@ -240,6 +378,10 @@ public class NativeByteBuffer private constructor() : Closeable {
         finally { borrow.complete(0L) }
     }
 
+    /**
+     * Borrows writable native storage for the callback, then advances the write position by the
+     * returned valid count.
+     */
     @Unsafe
     public fun withWritableBytes(block: (Ptr<Byte>?, Long) -> Long): Long {
         val borrow = beginBorrow(None, true)
@@ -249,9 +391,17 @@ public class NativeByteBuffer private constructor() : Closeable {
         return count
     }
 
+    /**
+     * Begins an explicit readable borrow of count bytes. Complete it once with the consumed count
+     * after native access ends.
+     */
     @Unsafe
     public fun borrowReadable(count: Long): NativeByteBorrow = beginBorrow(Some(count), false)
 
+    /**
+     * Begins an explicit writable borrow of count bytes. Complete it once with the produced count
+     * after native access ends.
+     */
     @Unsafe
     public fun borrowWritable(count: Long): NativeByteBorrow = beginBorrow(Some(count), true)
 
@@ -278,6 +428,9 @@ public class NativeByteBuffer private constructor() : Closeable {
         }
     }
 
+    /**
+     * Releases native storage; an outstanding borrow prevents closure.
+     */
     public override fun close() {
         withState {
             if (closed) return@withState

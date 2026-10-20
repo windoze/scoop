@@ -2,6 +2,10 @@ package scoop.platform.io
 
 import scoop.platform.memory.NativeByteBuffer
 
+/**
+ * A synchronous read-ahead adapter. Its ordinary constructor borrows the source; takeOwnership
+ * transfers source cleanup responsibility. Operations on one adapter must not overlap.
+ */
 public class BufferedSource private constructor(
     private val source: ByteSource,
     private val internalBuffer: NativeByteBuffer,
@@ -10,15 +14,28 @@ public class BufferedSource private constructor(
     private var closed: Boolean = false
     private var active: Boolean = false
     private var eof: Boolean = false
+    /**
+     * Whether this owned resource has been closed.
+     */
     public val isClosed: Boolean get() = closed
 
     public constructor(source: ByteSource, capacity: Long = 8192L) : this(source, newIoBuffer(capacity), None) {}
 
+    /**
+     * Factories with explicit underlying-endpoint ownership transfer.
+     */
     public companion object {
+        /**
+         * Creates a buffer that assumes close responsibility for the underlying source.
+         */
         public fun <T> takeOwnership(source: T, capacity: Long = 8192L): BufferedSource
             where T : ByteSource, T : Closeable = BufferedSource(source, newIoBuffer(capacity), Some(source))
     }
 
+    /**
+     * Reads into the selected writable region, returning actual bytes and permitting short reads.
+     * Zero for a positive request denotes EOF.
+     */
     public override fun readInto(buffer: NativeByteBuffer, count: Long): Long {
         requireIdle(closed, active)
         requireTransfer(count, buffer.writableBytes)
@@ -38,6 +55,9 @@ public class BufferedSource private constructor(
         } finally { active = false }
     }
 
+    /**
+     * Closes internal buffering and the source only when ownership was transferred.
+     */
     public override fun close() {
         if (closed) return
         requireIdle(closed, active)
@@ -47,6 +67,11 @@ public class BufferedSource private constructor(
 
 }
 
+/**
+ * A synchronous buffered output adapter. Its ordinary constructor borrows the sink; takeOwnership
+ * transfers cleanup responsibility. Close flushes pending output and cleans up owned resources
+ * even if flushing fails.
+ */
 public class BufferedSink private constructor(
     private val sink: ByteSink,
     private val internalBuffer: NativeByteBuffer,
@@ -54,15 +79,28 @@ public class BufferedSink private constructor(
 ) : ByteSink, Closeable {
     private var closed: Boolean = false
     private var active: Boolean = false
+    /**
+     * Whether this owned resource has been closed.
+     */
     public val isClosed: Boolean get() = closed
 
     public constructor(sink: ByteSink, capacity: Long = 8192L) : this(sink, newIoBuffer(capacity), None) {}
 
+    /**
+     * Factories with explicit underlying-endpoint ownership transfer.
+     */
     public companion object {
+        /**
+         * Creates a buffer that assumes close responsibility for the underlying sink.
+         */
         public fun <T> takeOwnership(sink: T, capacity: Long = 8192L): BufferedSink
             where T : ByteSink, T : Closeable = BufferedSink(sink, newIoBuffer(capacity), Some(sink))
     }
 
+    /**
+     * Consumes the selected readable region, returning the actual accepted byte count and
+     * permitting short writes.
+     */
     public override fun writeFrom(buffer: NativeByteBuffer, count: Long): Long {
         requireIdle(closed, active)
         requireTransfer(count, buffer.readableBytes)
@@ -82,6 +120,9 @@ public class BufferedSink private constructor(
         finally { internalBuffer.compact() }
     }
 
+    /**
+     * Writes all pending buffered bytes and flushes the underlying sink.
+     */
     public override fun flush() {
         requireIdle(closed, active)
         active = true
@@ -90,6 +131,9 @@ public class BufferedSink private constructor(
     }
 
     // Flushes pending output, then closes owned resources even when flushing fails.
+    /**
+     * Flushes output, then releases internal buffering and an owned sink even when flushing fails.
+     */
     public override fun close() {
         if (closed) return
         requireIdle(closed, active)

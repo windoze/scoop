@@ -3,6 +3,10 @@ package scoop.platform.net
 import scoop.platform.fs.File
 import scoop.platform.io.failNative
 
+/**
+ * The native socket-address bridge representation, including family, port, IPv6 scope, and address
+ * words.
+ */
 @CLayout
 public struct NativeSocketAddress(
     val family: Int, val port: Int, val scopeId: UInt,

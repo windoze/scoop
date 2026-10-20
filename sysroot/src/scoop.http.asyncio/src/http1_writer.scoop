@@ -5,8 +5,15 @@ import scoop.http.*
 import scoop.platform.memory.NativeByteBuffer
 import scoop.time.Duration
 
+/**
+ * The single active output body of an HTTP/1 exchange. Explicit finish writes the selected framing
+ * terminator and trailers.
+ */
 public class AsyncHttp1Writer internal constructor(private val state: H1State, private val body: H1Output)
     : AsyncByteSink, AsyncCloseable {
+    /**
+     * Whether the output message was finished successfully.
+     */
     public val isComplete: Boolean get() = state.lock.withLock { body.life.completed }
 
     private fun requireActive() {
@@ -15,6 +22,9 @@ public class AsyncHttp1Writer internal constructor(private val state: H1State, p
             throw IllegalStateException(Some("this is not the active HTTP/1 output body"))
     }
 
+    /**
+     * Writes body bytes according to the selected framing, allowing short progress.
+     */
     public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long =
         h1PreparedOperation<(Long, Array<Byte>), Long>(state, false, {
             requireActive()
@@ -27,10 +37,16 @@ public class AsyncHttp1Writer internal constructor(private val state: H1State, p
             prefix
         }, body.writeIdle)
 
+    /**
+     * Drains accepted output and flushes the transport without ending the body.
+     */
     public override suspend fun flush() {
         h1Operation<Unit>(state, false, { if (!body.life.completed) requireActive() }, suspend { flushH1Transport(state) }, body.writeIdle)
     }
 
+    /**
+     * Finishes the selected body framing and sends allowed trailers, then completes this writer.
+     */
     public suspend fun finish(trailers: List<HttpField> = ArrayList<HttpField>()) {
         h1PreparedOperation<Array<Byte>, Unit>(state, false, { requireActive(); state.encoder.finish(trailers) }, suspend { bytes ->
             writeH1Wire(state, bytes)
@@ -53,6 +69,10 @@ public class AsyncHttp1Writer internal constructor(private val state: H1State, p
         else if (body.finalResponse && present(body.request)) closeAfterH1Input(state, body.request!!.body)
     }
 
+    /**
+     * Closes the writer; abandoning unfinished output closes the connection rather than pretending
+     * a complete message was sent.
+     */
     public override suspend fun close() {
         httpJob(state.loop, false)
         val incomplete = state.lock.withLock {

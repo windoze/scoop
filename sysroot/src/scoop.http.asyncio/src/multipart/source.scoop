@@ -4,25 +4,70 @@ import scoop.asyncio.*
 import scoop.http.*
 import scoop.platform.memory.NativeByteBuffer
 
+/**
+ * A sequential multipart reader over a borrowed source by default. Finish or explicitly discard
+ * the current part before requesting another.
+ */
 public class MultipartSource private constructor(private val reader: MultipartReader) : AsyncCloseable {
     public constructor(source: AsyncByteSource, boundary: MultipartBoundary, limits: MultipartLimits = MultipartLimits(), bufferSize: Long = 8192L)
         : this(createMultipartReader(source, None, boundary, limits, bufferSize)) {}
 
+    /**
+     * Factories that transfer underlying endpoint cleanup responsibility.
+     */
     public companion object {
+        /**
+         * Creates the adapter and assumes cleanup responsibility for the supplied asynchronous
+         * endpoint.
+         */
         public fun <T> takeOwnership(source: T, boundary: MultipartBoundary, limits: MultipartLimits = MultipartLimits(), bufferSize: Long = 8192L): MultipartSource
             where T : AsyncByteSource, T : AsyncCloseable =
             MultipartSource(createMultipartReader(source, Some<AsyncCloseable>(source), boundary, limits, bufferSize))
     }
 
+    /**
+     * Whether adapter cleanup has completed.
+     */
     public val isClosed: Boolean get() = reader.io.isClosed
+    /**
+     * Whether the complete protocol boundary or input end has been reached.
+     */
     public val isFinished: Boolean get() = reader.finished
+    /**
+     * The retained terminal exception, or None before failure.
+     */
     public val failure: Throwable? get() = reader.io.failure
+    /**
+     * Receives the next part head and body, or None after the final multipart boundary.
+     */
     public suspend fun nextPart(): MultipartPart? = reader.nextPart()
+    /**
+     * Closes parser/writer state and an endpoint whose ownership was transferred; borrowed
+     * endpoints retain their own cleanup responsibility.
+     */
     public override suspend fun close() { reader.io.close() }
 }
 
-public class MultipartPart internal constructor(public val head: MultipartPartHead, public val body: MultipartBody)
-public class MultipartDiscardLimitException public constructor(public val maxBytes: Long)
+/**
+ * A received multipart header paired with its single-pass body.
+ */
+public class MultipartPart internal constructor(
+    /**
+     * The parsed part header.
+     */
+    public val head: MultipartPartHead,
+    /**
+     * The body that must be consumed or explicitly discarded before advancing.
+     */
+    public val body: MultipartBody)
+/**
+ * Discarding a multipart body exceeded the caller's explicit byte limit.
+ */
+public class MultipartDiscardLimitException public constructor(
+    /**
+     * The maximum permitted discarded byte count.
+     */
+    public val maxBytes: Long)
     : Exception(Some("multipart discard exceeds " + maxBytes.toString() + " bytes"))
 
 private fun createMultipartReader(source: AsyncByteSource, owner: AsyncCloseable?, boundary: MultipartBoundary,

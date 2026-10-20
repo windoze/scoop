@@ -6,9 +6,35 @@ import scoop.http.*
 import scoop.platform.memory.NativeByteBuffer
 import scoop.time.TimeMark
 
+/**
+ * A non-suspending notification delivered outside the native/session lock. An observer exception
+ * terminates the connection.
+ */
 public enum Http2Notice {
-    Settings(Array<Http2Setting>, Boolean), StreamClosed(Int, UInt), StreamFailure(Int, Throwable),
-    GoAway(Int, UInt, Array<Byte>, Boolean), IgnoredField(Int, HttpField), Failure(HttpException)
+    /**
+     * Received or acknowledged peer SETTINGS entries.
+     */
+    Settings(Array<Http2Setting>, Boolean),
+        /**
+         * A stream reached its final protocol state with an error code.
+         */
+        StreamClosed(Int, UInt),
+        /**
+         * A particular stream encountered an exception.
+         */
+        StreamFailure(Int, Throwable),
+    /**
+     * A GOAWAY boundary with last stream, code, debug bytes, and direction information.
+     */
+    GoAway(Int, UInt, Array<Byte>, Boolean),
+        /**
+         * The backend ignored a field for the specified stream.
+         */
+        IgnoredField(Int, HttpField),
+        /**
+         * The HTTP/2 protocol session failed.
+         */
+        Failure(HttpException)
 }
 
 internal class H2Stream(val id: Int, val ioTimeouts: HttpIoTimeoutOptions) {

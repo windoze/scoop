@@ -4,13 +4,49 @@ import scoop.http.HttpProtocol
 import scoop.time.Duration
 import scoop.time.TimeMark
 
+/**
+ * Optional read-idle and write-idle deadlines for protocol I/O progress.
+ */
 public struct HttpIoTimeoutOptions(val readIdle: Duration? = None, val writeIdle: Duration? = None)
 
-public enum HttpIoDirection { Read, Write }
+/**
+ * The I/O direction whose idle deadline expired.
+ */
+public enum HttpIoDirection {
+    /**
+     * Waiting for input progress.
+     */
+    Read,
+    /**
+     * Waiting for output progress.
+     */
+    Write }
 
+/**
+ * Reports an idle timeout with protocol, stream, direction, configured limit, and measured elapsed
+ * time.
+ */
 public class HttpIoTimeoutException public constructor(
-    public val direction: HttpIoDirection, public val protocol: HttpProtocol, public val streamId: Int,
-    public val limit: Duration, public val elapsed: Duration
+    /**
+     * The I/O direction that made insufficient progress.
+     */
+    public val direction: HttpIoDirection,
+        /**
+         * The affected HTTP protocol.
+         */
+        public val protocol: HttpProtocol,
+        /**
+         * The affected protocol stream identifier.
+         */
+        public val streamId: Int,
+    /**
+     * The configured idle timeout.
+     */
+    public val limit: Duration,
+        /**
+         * The measured idle duration at failure.
+         */
+        public val elapsed: Duration
 ) : Exception(Some("HTTP I/O idle timeout"))
 
 internal fun httpIdleLimit(limit: Duration?) {

@@ -8,6 +8,10 @@ import scoop.platform.io.failNative
 import scoop.platform.memory.nativeMemoryFree
 import scoop.platform.system.OsString
 
+/**
+ * Returns a snapshot of process arguments as operating-system byte strings, including the program
+ * argument.
+ */
 public fun arguments(): Array<OsString> {
     @Unsafe {
         return Array<OsString>(nativeArgumentCount().toLong()) { index ->
@@ -16,8 +20,16 @@ public fun arguments(): Array<OsString> {
     }
 }
 
+/**
+ * Returns the selected process environment value, or None when absent. Operating-system bytes need
+ * not be valid UTF-8.
+ */
 public fun environmentVariable(name: String): OsString? = environmentVariable(OsString.fromString(name))
 
+/**
+ * Returns the selected process environment value, or None when absent. Operating-system bytes need
+ * not be valid UTF-8.
+ */
 public fun environmentVariable(name: OsString): OsString? {
     val bytes = name.toByteArray()
     if (bytes.size == 0L) throw IllegalArgumentException(Some("empty environment name"))
@@ -36,6 +48,9 @@ public fun environmentVariable(name: OsString): OsString? {
     }
 }
 
+/**
+ * Returns a snapshot of process environment names and values.
+ */
 public fun environment(): Map<OsString, OsString> {
     val result = LinkedHashMap<OsString, OsString>()
     @Unsafe {
@@ -57,6 +72,9 @@ public fun environment(): Map<OsString, OsString> {
     return result.toMap()
 }
 
+/**
+ * Queries the current working directory.
+ */
 public fun currentDirectory(): Path {
     @Unsafe {
         val (pointer, error) = nativeCurrentDirectory()
@@ -66,6 +84,9 @@ public fun currentDirectory(): Path {
     }
 }
 
+/**
+ * Returns the available home directory or None when none can be determined.
+ */
 public fun homeDirectory(): Path? {
     when (environmentVariable("HOME")) {
         case Some(value) -> if (value.toByteArray().size != 0L) return Some(Path.fromOsString(value))
@@ -82,6 +103,9 @@ public fun homeDirectory(): Path? {
     }
 }
 
+/**
+ * Returns the configured or platform-default directory for temporary files.
+ */
 public fun temporaryDirectory(): Path {
     @Unsafe { return Path.fromOsString(copyNativeString(nativeTemporaryDirectory())) }
 }

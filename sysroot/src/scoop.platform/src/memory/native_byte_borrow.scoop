@@ -1,20 +1,35 @@
 package scoop.platform.memory
 
+/**
+ * An explicit native-buffer borrow retaining its owner until completion. It must be completed
+ * exactly once after all native access ends.
+ */
 public class NativeByteBorrow internal constructor(
     owner: NativeByteBuffer,
     private val address: Ptr<Byte>?,
+    /**
+     * The maximum number of bytes covered by this borrow.
+     */
     public val length: Long,
     private val writable: Boolean
 ) {
     private var owner: NativeByteBuffer? = Some(owner)
     private val active: AtomicBoolean = AtomicBoolean(true)
 
+    /**
+     * Returns the borrowed native address, or None for an empty region. Access after completion is
+     * invalid.
+     */
     @Unsafe
     public fun pointer(): Ptr<Byte>? {
         if (!active.load()) throw IllegalStateException(Some("buffer borrow has ended"))
         return address
     }
 
+    /**
+     * Ends the borrow and advances the appropriate owner cursor by a valid consumed/produced
+     * count. Repeated completion is rejected.
+     */
     @Unsafe
     public fun complete(count: Long) {
         if (!active.compareAndSet(true, false)) throw IllegalStateException(Some("buffer borrow has ended"))

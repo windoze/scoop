@@ -4,9 +4,20 @@ import scoop.platform.io.checkNativeStatus
 import scoop.platform.io.failNative
 import scoop.time.Duration
 
-public class ConditionVariable public constructor(public val mutex: Mutex) : Disposable {
+/**
+ * A native condition variable associated with one mutex. Wait while holding that mutex and recheck
+ * the application predicate after waking.
+ */
+public class ConditionVariable public constructor(
+    /**
+     * The mutex released during waiting and reacquired before return.
+     */
+    public val mutex: Mutex) : Disposable {
     private var native: Ptr<Unit>? = None
     private val active: AtomicLong = AtomicLong(0L)
+    /**
+     * Whether native condition-variable state has been released.
+     */
     public val isDisposed: Boolean get() = native == None
 
     init {
@@ -26,7 +37,15 @@ public class ConditionVariable public constructor(public val mutex: Mutex) : Dis
         finally { active.fetchSub(1L, MemoryOrder.Relaxed) }
     }
 
+    /**
+     * Atomically releases the held mutex while waiting, then reacquires it. The timed overload
+     * returns false on timeout; a wake does not prove the application predicate.
+     */
     public fun await() { wait(None) }
+    /**
+     * Atomically releases the held mutex while waiting, then reacquires it. The timed overload
+     * returns false on timeout; a wake does not prove the application predicate.
+     */
     public fun await(timeout: Duration): Boolean {
         if (timeout.floorSeconds < 0L) throw IllegalArgumentException(Some("negative condition timeout"))
         return wait(Some(timeout))
@@ -43,7 +62,14 @@ public class ConditionVariable public constructor(public val mutex: Mutex) : Dis
         }
     }
 
+    /**
+     * Wakes one eligible waiter; callers must still protect the shared predicate with the
+     * associated mutex.
+     */
     public fun signal() { notify(false) }
+    /**
+     * Wakes all eligible waiters so they can recheck their predicates.
+     */
     public fun broadcast() { notify(true) }
     private fun notify(all: Boolean) {
         withNative { pointer ->
@@ -54,6 +80,9 @@ public class ConditionVariable public constructor(public val mutex: Mutex) : Dis
         }
     }
 
+    /**
+     * Destroys the condition variable; disposal with an active wait is rejected.
+     */
     public override fun dispose() {
         if (native == None) return
         if (active.load(MemoryOrder.Relaxed) != 0L) throw IllegalStateException(Some("condition wait is active"))

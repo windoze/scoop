@@ -5,10 +5,38 @@ import scoop.platform.io.checkNative
 import scoop.platform.io.failNative
 import scoop.platform.memory.nativeMemoryFree
 
-public enum OperatingSystem { Darwin, Linux }
-public enum Architecture { Aarch64, X86_64 }
+/**
+ * The operating-system family selected by the compilation target.
+ */
+public enum OperatingSystem {
+    /**
+     * The Darwin operating-system family.
+     */
+    Darwin,
+    /**
+     * The Linux operating-system family.
+     */
+    Linux }
+/**
+ * The processor architecture selected by the compilation target.
+ */
+public enum Architecture {
+    /**
+     * The 64-bit Arm architecture.
+     */
+    Aarch64,
+    /**
+     * The 64-bit x86 architecture.
+     */
+    X86_64 }
 
+/**
+ * The operating-system family of the compiled target.
+ */
 public val operatingSystem: OperatingSystem = currentOperatingSystem()
+/**
+ * The architecture of the compiled target.
+ */
 public val architecture: Architecture = currentArchitecture()
 
 private fun currentOperatingSystem(): OperatingSystem {
@@ -19,6 +47,9 @@ private fun currentArchitecture(): Architecture {
     @Unsafe { return if (nativeArchitecture() == 0) Architecture.Aarch64 else Architecture.X86_64 }
 }
 
+/**
+ * The number of logical processors reported by the operating system.
+ */
 public val logicalProcessorCount: Long get() {
     @Unsafe {
         val (count, error) = nativeProcessorCount()
@@ -26,6 +57,9 @@ public val logicalProcessorCount: Long get() {
     }
 }
 
+/**
+ * Returns the operating system's version description.
+ */
 public fun systemVersion(): String {
     @Unsafe {
         val (pointer, error) = nativeSystemVersion()

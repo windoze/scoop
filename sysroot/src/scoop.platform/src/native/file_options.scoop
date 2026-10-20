@@ -2,11 +2,17 @@ package scoop.platform.native
 
 import scoop.platform.fs.OpenOptions
 
+/**
+ * Rejects mode values outside the supported permission-bit range.
+ */
 public fun requireFileMode(mode: Int) {
     if (mode < 0 || mode > 0xfff) throw IllegalArgumentException(Some("invalid POSIX mode"))
 }
 
 // Maps checked open options to the shared native file helper flags, not OS O_* values.
+/**
+ * Validates public open options and maps them to platform native flags.
+ */
 public fun fileOpenFlags(options: OpenOptions): Int {
     if ((!options.read && !options.write) ||
         ((options.append || options.truncate || options.create || options.createNew) && !options.write) ||

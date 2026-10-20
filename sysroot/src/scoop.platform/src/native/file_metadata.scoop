@@ -6,6 +6,10 @@ import scoop.platform.io.failNative
 import scoop.platform.system.OsString
 import scoop.time.Instant
 
+/**
+ * The native filesystem metadata bridge layout, including timestamps split into seconds and
+ * nanoseconds.
+ */
 @CLayout
 public struct NativeFileMetadata(
     val kind: Int, val permissions: Int, val size: Long,
@@ -15,6 +19,10 @@ public struct NativeFileMetadata(
     val createdSeconds: Long, val createdNanos: Long
 )
 
+/**
+ * Converts native metadata to the public snapshot or reports the supplied native failure and
+ * context.
+ */
 public fun decodeFileMetadata(data: NativeFileMetadata, error: Int, context: OsString?): FileMetadata {
     if (data.kind < 0) failNative("metadata", error, context)
     val kind = when (data.kind) {

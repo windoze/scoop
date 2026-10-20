@@ -3,13 +3,39 @@ package scoop.http.asyncio
 import scoop.asyncio.*
 import scoop.http.*
 
-public class Http2IncomingRequest internal constructor(public val head: HttpRequestHead, public val stream: AsyncHttp2Stream)
+/**
+ * A received request head paired with its independently controlled HTTP/2 stream.
+ */
+public class Http2IncomingRequest internal constructor(
+    /**
+     * The received protocol head, preserving the original ordered fields.
+     */
+    public val head: HttpRequestHead,
+    /**
+     * The stream used to read the request body and send its response.
+     */
+    public val stream: AsyncHttp2Stream)
 
+/**
+ * No new stream was submitted because the HTTP/2 connection is draining.
+ */
 public class Http2ConnectionDrainingException public constructor() :
     Exception(Some("HTTP/2 connection is draining; no new request was submitted"))
 
+/**
+ * An owned multiplexed HTTP/2 connection driven by structured tasks in the supplied scope.
+ * Per-stream cancellation resets only that stream; connection or scope closure ends shared
+ * transport I/O.
+ */
 public class AsyncHttp2Connection internal constructor(internal val state: H2State) : AsyncCloseable {
+    /**
+     * Factories that transfer an established transport to structured protocol tasks.
+     */
     public companion object {
+        /**
+         * Takes an already-established transport as an HTTP client. The supplied scope owns
+         * connection tasks; TCP connection and TLS handshake must already be complete.
+         */
         public suspend fun <T> takeOwnershipAsClient(transport: T, scope: CoroutineScope,
             options: Http2ReceiveOptions = Http2ReceiveOptions(), limits: Http2Limits = Http2Limits(),
             settings: Http2Settings = Http2Settings(), ioTimeouts: HttpIoTimeoutOptions = HttpIoTimeoutOptions(),
@@ -17,6 +43,10 @@ public class AsyncHttp2Connection internal constructor(internal val state: H2Sta
             where T : AsyncByteStream, T : AsyncCloseable =
             adoptH2(transport, transport, scope, { Http2Session.client(options, limits, settings) }, settings, ioTimeouts, onEvent, false, captureTimings)
 
+        /**
+         * Takes an already-established transport as an HTTP server. The supplied scope owns
+         * connection tasks; TCP connection and TLS handshake must already be complete.
+         */
         public suspend fun <T> takeOwnershipAsServer(transport: T, scope: CoroutineScope,
             options: Http2ReceiveOptions = Http2ReceiveOptions(), limits: Http2Limits = Http2Limits(),
             settings: Http2Settings = Http2Settings(), ioTimeouts: HttpIoTimeoutOptions = HttpIoTimeoutOptions(),
@@ -24,6 +54,10 @@ public class AsyncHttp2Connection internal constructor(internal val state: H2Sta
             where T : AsyncByteStream, T : AsyncCloseable =
             adoptH2(transport, transport, scope, { Http2Session.server(options, limits, settings) }, settings, ioTimeouts, onEvent, false)
 
+        /**
+         * Takes transport ownership after a completed HTTP/1 h2c switch, preserving stream 1 and
+         * using the actual upgrade SETTINGS. New client streams begin at 3.
+         */
         public suspend fun <T> takeOwnershipAsUpgradedClient(transport: T, scope: CoroutineScope, requestMethod: List<Byte>,
             settings: Http2Settings = Http2Settings(), options: Http2ReceiveOptions = Http2ReceiveOptions(),
             limits: Http2Limits = Http2Limits(), ioTimeouts: HttpIoTimeoutOptions = HttpIoTimeoutOptions(),
@@ -32,6 +66,10 @@ public class AsyncHttp2Connection internal constructor(internal val state: H2Sta
             adoptH2(transport, transport, scope, { Http2Session.upgradedClient(requestMethod, settings, options, limits) },
                 settings, ioTimeouts, onEvent, true, captureTimings)
 
+        /**
+         * Takes transport ownership after a completed HTTP/1 h2c switch, preserving stream 1 and
+         * using the actual upgrade SETTINGS. New client streams begin at 3.
+         */
         public suspend fun <T> takeOwnershipAsUpgradedServer(transport: T, scope: CoroutineScope, requestMethod: List<Byte>,
             settingsPayload: List<Byte>, options: Http2ReceiveOptions = Http2ReceiveOptions(), limits: Http2Limits = Http2Limits(),
             settings: Http2Settings = Http2Settings(), ioTimeouts: HttpIoTimeoutOptions = HttpIoTimeoutOptions(),
@@ -42,14 +80,34 @@ public class AsyncHttp2Connection internal constructor(internal val state: H2Sta
                 settings, ioTimeouts, onEvent, true)
     }
 
+    /**
+     * The local HTTP client or server role.
+     */
     public val role: HttpRole get() = state.session.role
+    /**
+     * The default I/O idle deadlines used by this connection.
+     */
     public val ioTimeouts: HttpIoTimeoutOptions get() = state.ioTimeouts
+    /**
+     * Whether connection cleanup has completed.
+     */
     public val isClosed: Boolean get() = state.lock.withLock { state.closed }
+    /**
+     * Whether new requests are disallowed while existing streams drain.
+     */
     public val isDraining: Boolean get() = state.lock.withLock { state.acceptingEnded }
+    /**
+     * Stream 1 associated with a successful h2c upgrade, or None for a connection established
+     * directly as HTTP/2.
+     */
     public val upgradedStream: AsyncHttp2Stream? get() = state.lock.withLock {
         when (state.upgrade) { case Some(stream) -> Some(AsyncHttp2Stream(state, stream)); case None -> None }
     }
 
+    /**
+     * Submits a request and returns its stream. Set endStream false when an upload body or
+     * trailers will follow; draining connections reject before submission.
+     */
     public suspend fun openRequest(head: HttpRequestHead, endStream: Boolean = true,
         ioTimeouts: HttpIoTimeoutOptions = this.ioTimeouts): AsyncHttp2Stream {
         val job = httpJob(state.loop, true)
@@ -69,8 +127,16 @@ public class AsyncHttp2Connection internal constructor(internal val state: H2Sta
         catch (error: Throwable) { result.close(); throw error }
     }
 
+    /**
+     * Waits for a server-side incoming request, or None after the connection stops accepting
+     * requests.
+     */
     public suspend fun acceptRequest(): Http2IncomingRequest? = acceptH2(state)
 
+    /**
+     * Sends an explicit GOAWAY notification with selected code, debug data, and optional
+     * last-stream boundary.
+     */
     public suspend fun goAway(code: UInt = 0U, debugData: List<Byte> = ArrayList<Byte>(), lastStreamId: Int? = None) {
         flushH2Connection(state) {
             if (state.goAwayPending) throw IllegalStateException(Some("HTTP/2 GOAWAY send is busy"))
@@ -81,5 +147,9 @@ public class AsyncHttp2Connection internal constructor(internal val state: H2Sta
         }
     }
 
+    /**
+     * Cancels and joins shared connection I/O and closes the owned transport. This is local
+     * cleanup, distinct from explicitly sending GOAWAY.
+     */
     public override suspend fun close() { closeH2(state) }
 }

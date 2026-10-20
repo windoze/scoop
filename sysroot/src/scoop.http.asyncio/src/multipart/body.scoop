@@ -3,15 +3,35 @@ package scoop.http.asyncio
 import scoop.asyncio.*
 import scoop.platform.memory.NativeByteBuffer
 
+/**
+ * The current multipart part body, ending at its boundary rather than at transport EOF.
+ */
 public class MultipartBody internal constructor(private val reader: MultipartReader) : AsyncByteSource, AsyncCloseable {
     internal var complete: Boolean = false
     internal var closed: Boolean = false
     internal var data: Array<Byte> = Array<Byte>(0L) { _ -> 0.toByte() }
     internal var offset: Long = 0L
+    /**
+     * Whether this body or message reached its successful boundary.
+     */
     public val isComplete: Boolean get() = complete
+    /**
+     * Whether this body or message has been closed.
+     */
     public val isClosed: Boolean get() = closed || reader.io.isClosed
+    /**
+     * Reads part bytes up to the current boundary and advances the destination buffer.
+     */
     public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long = reader.read(this, buffer, count)
+    /**
+     * Consumes and discards remaining part bytes up to an explicit limit, returning the discarded
+     * count.
+     */
     public suspend fun discard(maxBytes: Long): Long = reader.discard(this, maxBytes)
+    /**
+     * Closes this body; unfinished-body cleanup follows the multipart reader's abort behavior
+     * rather than an unbounded drain.
+     */
     public override suspend fun close() { reader.closeBody(this) }
 
     internal fun clear() { data = Array<Byte>(0L) { _ -> 0.toByte() }; offset = 0L }

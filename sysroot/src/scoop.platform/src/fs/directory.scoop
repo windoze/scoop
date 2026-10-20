@@ -4,15 +4,28 @@ import scoop.platform.io.checkNativeStatus
 import scoop.platform.io.failNative
 import scoop.platform.system.OsString
 
+/**
+ * One directory entry's native name and path relative to the enumerated directory.
+ */
 public struct DirectoryEntry(val name: OsString, val path: Path)
 
+/**
+ * An owned, single-pass directory cursor implementing both Iterable and Iterator. Close it when
+ * finished or when abandoning enumeration.
+ */
 public class DirectoryEntries private constructor(private val path: Path)
     : Iterable<DirectoryEntry>, Iterator<DirectoryEntry>, Closeable {
     private var directory: Ptr<Unit>? = None
     private var finished: Boolean = false
     private var active: Boolean = false
+    /**
+     * Whether the directory handle has been closed.
+     */
     public val isClosed: Boolean get() = directory == None
 
+    /**
+     * Directory cursor construction used by path enumeration.
+     */
     public companion object {
         internal fun open(path: Path): DirectoryEntries {
             val result = DirectoryEntries(path)
@@ -27,8 +40,14 @@ public class DirectoryEntries private constructor(private val path: Path)
         }
     }
 
+    /**
+     * Returns this same single-pass cursor; it does not restart directory enumeration.
+     */
     public override operator fun iterator(): Iterator<DirectoryEntry> = this
 
+    /**
+     * Returns the next entry, or None when enumeration is exhausted.
+     */
     public override fun next(): DirectoryEntry? {
         if (finished) return None
         if (directory == None) throw IllegalStateException(Some("directory is closed"))
@@ -61,6 +80,9 @@ public class DirectoryEntries private constructor(private val path: Path)
         }
     }
 
+    /**
+     * Closes the directory enumeration handle.
+     */
     public override fun close() {
         if (directory == None) return
         if (active) throw IllegalStateException(Some("directory operation is active"))

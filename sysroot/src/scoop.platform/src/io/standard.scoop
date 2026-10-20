@@ -12,9 +12,30 @@ private class StandardSink(private val descriptor: Int) : ByteSink {
     public override fun flush() {}
 }
 
+/**
+ * A borrowed view of the process standard input stream; it does not expose ownership of the
+ * process descriptor.
+ */
 public val standardInput: ByteSource = StandardSource()
+/**
+ * A borrowed view of the process standard output stream; it does not expose ownership of the
+ * process descriptor.
+ */
 public val standardOutput: ByteSink = StandardSink(1)
+/**
+ * A borrowed view of the process standard error stream; it does not expose ownership of the
+ * process descriptor.
+ */
 public val standardError: ByteSink = StandardSink(2)
+/**
+ * Returns a separately owned duplicate of standard input, which the caller must close.
+ */
 public fun duplicateStandardInput(): File = File.duplicateDescriptor(0)
+/**
+ * Returns a separately owned duplicate of standard output, which the caller must close.
+ */
 public fun duplicateStandardOutput(): File = File.duplicateDescriptor(1)
+/**
+ * Returns a separately owned duplicate of standard error, which the caller must close.
+ */
 public fun duplicateStandardError(): File = File.duplicateDescriptor(2)

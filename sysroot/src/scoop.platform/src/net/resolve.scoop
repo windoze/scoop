@@ -3,9 +3,17 @@ package scoop.platform.net
 import scoop.platform.fs.withNativeString
 import scoop.platform.system.*
 
+/**
+ * Performs a blocking host/service lookup, optionally restricting address family, and returns
+ * candidate socket addresses.
+ */
 public fun resolve(host: String, port: Int, family: AddressFamily? = None): Array<SocketAddress> =
     resolve(OsString.fromString(host), port, family)
 
+/**
+ * Performs a blocking host/service lookup, optionally restricting address family, and returns
+ * candidate socket addresses.
+ */
 public fun resolve(host: OsString, port: Int, family: AddressFamily? = None): Array<SocketAddress> {
     requirePort(port)
     val selector = when (family) {

@@ -2,6 +2,10 @@ package scoop.platform.fs
 
 import scoop.platform.system.OsString
 
+/**
+ * Borrows a NUL-terminated native encoding for the callback. Embedded NUL is rejected and the
+ * pointer must not escape.
+ */
 @Unsafe
 public fun <R> OsString.withNativeString(block: (Ptr<Byte>) -> R): R {
     val source = toByteArray()
@@ -13,9 +17,16 @@ public fun <R> OsString.withNativeString(block: (Ptr<Byte>) -> R): R {
     return bytes.withDataPointer { pointer, _ -> block(pointer) }
 }
 
+/**
+ * Borrows the path as a NUL-terminated native byte string for the callback only.
+ */
 @Unsafe
 public fun <R> Path.withNativePath(block: (Ptr<Byte>) -> R): R = toOsString().withNativeString(block)
 
+/**
+ * Copies a readable NUL-terminated native byte string into OsString. The unsafe caller must keep
+ * the full region valid.
+ */
 @Unsafe
 public fun copyNativeString(pointer: Ptr<Byte>): OsString {
     val length = nativeStringLength(pointer)

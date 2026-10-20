@@ -1,14 +1,107 @@
 package scoop.platform.system
 
+/**
+ * A portable classification of operating-system failures, with native details retained separately.
+ */
 public enum PlatformErrorKind {
-    NotFound, AlreadyExists, PermissionDenied, NotDirectory, IsDirectory,
-    InvalidInput, NoMemory, NoSpace, BrokenPipe, ConnectionRefused, ConnectionReset,
-    AddressInUse, AddressUnavailable, TimedOut, Interrupted, WouldBlock, Unsupported, Other
+    /**
+     * The requested resource does not exist.
+     */
+    NotFound,
+        /**
+         * The operation requires an absent destination.
+         */
+        AlreadyExists,
+        /**
+         * Access was denied.
+         */
+        PermissionDenied,
+        /**
+         * A required path component is not a directory.
+         */
+        NotDirectory,
+        /**
+         * The selected entry is a directory where a file is required.
+         */
+        IsDirectory,
+    /**
+     * The native operation rejected its arguments.
+     */
+    InvalidInput,
+        /**
+         * The native operation could not allocate required memory.
+         */
+        NoMemory,
+        /**
+         * The storage destination has insufficient space.
+         */
+        NoSpace,
+        /**
+         * The output pipe has no reader.
+         */
+        BrokenPipe,
+        /**
+         * The remote endpoint refused the connection.
+         */
+        ConnectionRefused,
+        /**
+         * The connection was reset.
+         */
+        ConnectionReset,
+    /**
+     * The requested local address is already in use.
+     */
+    AddressInUse,
+        /**
+         * The requested address is unavailable on this host.
+         */
+        AddressUnavailable,
+        /**
+         * The native operation timed out.
+         */
+        TimedOut,
+        /**
+         * A native wait was interrupted.
+         */
+        Interrupted,
+        /**
+         * The operation cannot progress without waiting.
+         */
+        WouldBlock,
+        /**
+         * The requested operation is unsupported.
+         */
+        Unsupported,
+        /**
+         * A native failure outside the portable categories.
+         */
+        Other
 }
 
-public enum NativeErrorDomain { PosixErrno, AddressResolution, Libuv }
+/**
+ * Identifies how a native error code must be interpreted.
+ */
+public enum NativeErrorDomain {
+    /**
+     * A POSIX errno value.
+     */
+    PosixErrno,
+    /**
+     * A native address-resolution error code.
+     */
+    AddressResolution,
+    /**
+     * A libuv error code.
+     */
+    Libuv }
 
+/**
+ * A native error domain and code with optional underlying system code.
+ */
 public struct NativeError(val domain: NativeErrorDomain, val code: Int, val systemCode: Int? = None) {
+    /**
+     * The portable classification corresponding to this native error.
+     */
     public val kind: PlatformErrorKind get() {
         @Unsafe {
             val domainCode = when (domain) {
@@ -22,10 +115,26 @@ public struct NativeError(val domain: NativeErrorDomain, val code: Int, val syst
     }
 }
 
+/**
+ * A platform-operation failure with portable kind, optional native error, and native-byte path or
+ * operation context.
+ */
 public class PlatformException public constructor(
+    /**
+     * The operation that failed.
+     */
     public val operation: String,
+    /**
+     * The portable failure category.
+     */
     public val kind: PlatformErrorKind,
+    /**
+     * The original native error, when available.
+     */
     public val nativeError: NativeError? = None,
+    /**
+     * An optional native-byte path or other operation-specific context.
+     */
     public val context: OsString? = None
 ) : Exception(Some(platformErrorMessage(operation, nativeError, context)))
 

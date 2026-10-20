@@ -3,15 +3,42 @@ package scoop.platform.io
 import scoop.bytes.ByteArrayBuilder
 import scoop.platform.memory.NativeByteBuffer
 
+/**
+ * Reads all remaining bytes and validates them as UTF-8.
+ */
 public fun ByteSource.readText(): String = decodeBytes(readAllBytes(), false)
+/**
+ * Reads all remaining bytes as UTF-8, replacing malformed sequences.
+ */
 public fun ByteSource.readTextLossy(): String = decodeBytes(readAllBytes(), true)
+/**
+ * Reads one UTF-8 line without its line ending, returning None when EOF occurs before any bytes.
+ */
 public fun ByteSource.readLine(): String? = readLineBytes(this, false)
+/**
+ * Reads one line with replacement for malformed UTF-8, returning None at empty EOF.
+ */
 public fun ByteSource.readLineLossy(): String? = readLineBytes(this, true)
+/**
+ * Writes the complete UTF-8 encoding of the text without appending a newline.
+ */
 public fun ByteSink.writeText(text: String) { writeAllBytes(text.toByteArray()) }
+/**
+ * Writes UTF-8 text followed by a newline.
+ */
 public fun ByteSink.writeLine(text: String) { writeText(text); writeText("\n") }
 
+/**
+ * Adapts a borrowed byte sink to TextWriter without assuming close responsibility.
+ */
 public class Utf8Writer public constructor(private val sink: ByteSink) : TextWriter {
+    /**
+     * Writes the complete UTF-8 encoding to the borrowed sink.
+     */
     public override fun write(text: String) { sink.writeText(text) }
+    /**
+     * Flushes the borrowed byte sink.
+     */
     public fun flush() { sink.flush() }
 }
 

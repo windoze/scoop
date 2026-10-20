@@ -3,8 +3,47 @@ package scoop.platform.fs
 import scoop.platform.native.NativeFileMetadata
 import scoop.time.Instant
 
-public enum FileKind { Regular, Directory, SymbolicLink, BlockDevice, CharacterDevice, Fifo, Socket, Other }
+/**
+ * The operating-system kind of a filesystem entry.
+ */
+public enum FileKind {
+    /**
+     * An ordinary file.
+     */
+    Regular,
+    /**
+     * A directory.
+     */
+    Directory,
+    /**
+     * A symbolic link when metadata does not follow it.
+     */
+    SymbolicLink,
+    /**
+     * A block device.
+     */
+    BlockDevice,
+    /**
+     * A character device.
+     */
+    CharacterDevice,
+    /**
+     * A named pipe.
+     */
+    Fifo,
+    /**
+     * A filesystem socket node.
+     */
+    Socket,
+    /**
+     * A filesystem kind outside the listed categories.
+     */
+    Other }
 
+/**
+ * A metadata snapshot containing kind, byte size, permission bits, access/modification/change
+ * times, and optional creation time.
+ */
 public struct FileMetadata(
     val kind: FileKind, val size: Long, val permissions: Int,
     val accessedAt: Instant, val modifiedAt: Instant, val changedAt: Instant, val createdAt: Instant?
