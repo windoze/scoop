@@ -667,6 +667,10 @@ single-Cone 编译请求显式携带 Production 或 Test 用途，默认 Product
 
 文档成功响应携带渲染输入位置及独立的文档 warning，普通编译 warning 仍保留原分类；渲染输入包含页面目录组装所需的声明、typed 路由和诊断。仅文档成功没有 artifact summary。文档请求不与 observation-only 混用；仅文档可输出 AST／HIR dump，不能请求尚未执行的 MIR／LIR dump。普通编译不整理或报告文档问题；语言正文、默认值或可见性错误仍阻止文档输出，失败不覆盖之前的结果。工具本地 JSON 随编译器版本更新，不是 `.slib` section 或独立分发合同。
 
+文档渲染先汇总所有选中 Cone 的可见声明和 typed 路由，再生成页面与链接。Cone、package、类型、函数 overload 组与源码页使用完整身份确定的相对路径；显示名称与文件路径独立，成员、参数及 accessor 保留实际目标锚点。多目标引用连接到完整的可见 overload 集；解析成功但未生成页面的目标保留文本并注明缺少文档，不伪造 URL 或新增名称诊断。页面包含签名、tag、可见性与 property 能力、原文源码行及公开 re-export 的实际来源。
+
+`scoop-doc` 使用 pulldown-cmark 处理 Markdown，使用 MiniJinja 的内置模板与 HTML 转义生成页面；原始 HTML 当作文本显示，不执行代码示例或活动 URL。站点共享样式和脚本保存在本地，导航在无 JavaScript 时仍可用；搜索索引通过普通静态 JavaScript 加载，覆盖 Cone／package、名称、声明种类、摘要、DocAlias 及可见 re-export，不使用 fetch、CDN 或外部服务。渲染只消费投影、README 内容与调用方已确定的资源路由，不重新发现或读取源码。
+
 `scoop test [root-input]` 使用同一构建图，只对 manifest 根 Cone 启用 Test 用途：发现根的生产与测试依赖，依赖节点仍按 Production 构建，不递归启用依赖自身的测试。根按 executable 产物规划和链接，保留源码 manifest 及 ConeIdentity。测试编译键包含用途、每个源码的角色、测试源码选择与测试依赖语义；本机源码实际路径、修改时间和大小参与更新判定，诊断显示 locator 与 span 不进入键；生产键不包含这些测试配置。测试源码或配置改变不使未改变的生产依赖缓存失效。
 
 测试程序发布到 `target/<canonical-target-triple>/<profile>/tests/<cone-name>`，`--target-dir` 替换 target 根目录，`--no-run` 完成构建和链接后返回。运行直接使用本次成功构建确定的已有或新生成 executable，不制作 execution copy；失败构建不得运行旧文件。过滤和忽略选择不改变测试编译产物；最终报告需要独立的用例结果通道，不能仅凭进程退出码判定整轮执行完成。

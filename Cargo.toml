@@ -57,6 +57,7 @@ rustix = { version = "1.1", features = ["fs"] }
 signal-hook = "0.4.4"
 unicode-ident = "1.0.26"
 pulldown-cmark = { version = "0.13.4", default-features = false, features = ["html"] }
+minijinja = { version = "3.0.1", features = ["serde"] }
 
 scoop-wire = { path = "compiler/wire" }
 scoop-process = { path = "compiler/process" }

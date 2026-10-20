@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }} · Scoop API</title>
+  <link rel="stylesheet" href="{{ style }}">
+</head>
+<body>
+  <a class="skip" href="#content">Skip to content</a>
+  <header class="topbar">
+    <a class="brand" href="{{ home }}">Scoop <span>API</span></a>
+    <form action="{{ search }}" method="get" role="search">
+      <label for="search-input">Search API</label>
+      <input id="search-input" type="search" name="q" placeholder="Name, alias, or description">
+      <button type="submit">Search</button>
+    </form>
+  </header>
+  <div class="layout">
+    <nav class="sidebar" aria-label="Documentation">
+      <h2>Cones</h2>
+      <ul>{% for link in cones %}<li><a href="{{ link.href }}"{% if current == link.text %} aria-current="true"{% endif %}>{{ link.text }}</a></li>{% endfor %}</ul>
+      {% if packages %}<h2>Packages</h2>
+      <ul>{% for link in packages %}<li><a href="{{ link.href }}">{{ link.text }}</a></li>{% endfor %}</ul>{% endif %}
+      <p class="offline">Generated locally.<br>Available offline.</p>
+    </nav>
+    <main id="content">
+      {% if current %}<p class="eyebrow">{{ current }}</p>{% endif %}
+      <h1>{{ title }}</h1>
+      {{ content | safe }}
+    </main>
+  </div>
+  <footer>Scoop API documentation</footer>
+</body>
+</html>

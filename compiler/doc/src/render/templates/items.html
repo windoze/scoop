@@ -1,0 +1,25 @@
+{% macro declaration(entry) %}
+<article id="{{ entry.anchor }}" class="declaration">
+  {% if entry.group_anchor %}<span id="{{ entry.group_anchor }}" class="group-anchor"></span>{% endif %}
+  <div class="declaration-heading">
+    <h2><span class="kind">{{ entry.kind }}</span> {{ entry.name }}</h2>
+    <a class="source-link" href="{{ entry.source.href }}">{{ entry.source.text }}</a>
+  </div>
+  <div class="badges"><span>{{ entry.visibility }}</span>{% if entry.synthesized %}<span>compiler-derived</span>{% endif %}</div>
+  <pre class="signature"><code>{% for token in entry.signature %}{% if token.href %}<a href="{{ token.href }}">{{ token.text }}</a>{% elif token.unavailable %}<span title="No generated documentation for this type">{{ token.text }}</span>{% else %}{{ token.text }}{% endif %}{% endfor %}</code></pre>
+  {% if entry.property %}
+  <p class="capabilities">
+    <span{% if entry.property.getter.anchor %} id="{{ entry.property.getter.anchor }}"{% endif %}>get: {{ entry.property.getter.visibility }}</span>
+    {% if entry.property.setter %}<span{% if entry.property.setter.anchor %} id="{{ entry.property.setter.anchor }}"{% endif %}>set: {{ entry.property.setter.visibility }}</span>{% else %}<span>read-only</span>{% endif %}
+  </p>
+  {% endif %}
+  {% if entry.comment %}<div class="prose">{{ entry.comment | safe }}</div>{% endif %}
+  {% if entry.tags %}<dl class="tags">{% for tag in entry.tags %}
+    <dt>@{{ tag.kind }}{% if tag.label %} {% if tag.href %}<a href="{{ tag.href }}">{{ tag.label }}</a>{% else %}{{ tag.label }}{% endif %}{% endif %}</dt>
+    <dd class="prose">{{ tag.body | safe }}</dd>
+  {% endfor %}</dl>{% endif %}
+  {% if entry.related %}<ul class="related">{% for link in entry.related %}<li><span class="kind">{{ link.kind }}</span> <a href="{{ link.href }}">{{ link.text }}</a></li>{% endfor %}</ul>{% endif %}
+  {% for child in entry.children %}{{ declaration(child) }}{% endfor %}
+</article>
+{% endmacro %}
+{% for entry in items %}{{ declaration(entry) }}{% endfor %}

@@ -399,6 +399,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c12b4033ffaa92fbf9df03df38d19324f52bad130dd223f811734a8006dd2d69"
 
 [[package]]
+name = "minijinja"
+version = "3.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "789a6b737c4a13bec43cd3c1b982aa8a8a192ff4bf444e0fb1fd5a324f064fd1"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "object"
 version = "0.37.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -585,6 +594,8 @@ dependencies = [
 name = "scoop-doc"
 version = "0.0.0"
 dependencies = [
+ "minijinja",
+ "pathdiff",
  "pulldown-cmark",
  "scoop-ast",
  "scoop-hir",

@@ -8,7 +8,7 @@
 | --- | --- |
 | 设计与路线图 | 已提交；已核对本地引用、M52 当前状态及源码布局 |
 | M60-A：文档前端与注解 | 文档注释、Markdown／tag、普通 core 注解及 typed HIR 文档视图已完成；正式命令诊断随 B 接入 |
-| M60-B：单 Cone 闭环 | 已完成渲染输入、可见性、文档注解与 single-Cone 协议／driver；CLI 与站点渲染继续实施 |
+| M60-B：单 Cone 闭环 | 已完成渲染输入、single-Cone 协议／driver、HTML／源码页／搜索渲染；CLI 与继承关系展示继续实施 |
 | M60-C：多 Cone 与更新复用 | 待实施 |
 | M60-D：实际库及跨平台验收 | 待实施 |
 
@@ -69,3 +69,13 @@ driver 复用完整正常 HIR，在同一次结果中投影文档；仅文档随
 本机 fmt／workspace clippy 无警告；31 项协议测试及两组 driver 集成测试通过。集成测试以真实 core 验证 Darwin／GNU／musl 三目标的仅文档路径，以普通库验证 Production 排除测试目录、Unicode／CRLF warning 的准确 span、DocAlias、HIR dump、联合与普通编译产物一致、独立 warning 以及正文错误不覆盖旧输入。协议测试覆盖三种输出往返、非法用途／输入／dump 组合和独立文档诊断；同步更新协议 frame 的长度断言。
 
 本次尚未提供用户侧 `scoop doc`、HTML／搜索、站点缓存与发布。正式 CLI fixture 和 Linux 完整验证继续随 B／C／D 闭合。
+
+## B3：全站目录与静态页面渲染
+
+先根据完整 Cone 身份、实际 typed 声明和筛选结果建立页面目录，再生成 Cone／package／类型／函数组、成员及参数锚点、源码行和共享搜索。函数重载保留独立声明地址；跨声明作用域的解析结果生成列出全部可见目标及其签名／所属 Cone 的组页。显示名称与输出路径分开，root 顺序、同名条目和不同 package 分段不覆盖页面。缺少文档目标保留文字；隐藏条目及其 re-export 不进入所选页面和搜索。
+
+引入 MiniJinja 3.0.1；已复核官方包、发布记录和 Rust 1.70 要求。模板显式开启 HTML 转义，Markdown 原始 HTML 按文本呈现；签名、源码、标识符、tag 和 property getter／setter 能力使用实际投影。README 渲染消费调用方提供的资源路由，不自行读取或扫描文件。搜索使用本地静态索引脚本，包含名称、种类、所属 Cone／package、摘要、alias 和 re-export；无 JavaScript 时仍可从导航进入页面。
+
+本机 fmt／workspace clippy 无警告，19 项文档测试通过（新增 5 项渲染组合测试）。验证跨 Cone／overload 链接、隐藏与 private 筛选、源文件转义、成员／accessor 锚点、README 资源和非法活动 URL；HTML parser 检查样例 6 页、46 个本地链接、唯一锚点及资源存在，搜索脚本通过 Node 语法检查。浏览器工具的 URL 安全策略拒绝 `file://`，本次未把实际离线浏览器验证计为通过。
+
+清理 66 份已被替代的增量快照，约 3.59 GiB 文件逻辑大小，保留每个 crate 配置的最新快照。渲染层尚未接入用户命令、README 资源复制、更新记录与原子站点发布；继承／覆写关系的页面内容、真实库站点和 Linux 验收继续完成。
