@@ -1,0 +1,37 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+
+internal class ClientLock {
+    private val held: AtomicBoolean = AtomicBoolean(false)
+    fun <T> withLock(block: () -> T): T {
+        while (!held.compareAndSet(false, true, MemoryOrder.Acquire, MemoryOrder.Relaxed)) {}
+        try { return block() }
+        finally { held.store(false, MemoryOrder.Release) }
+    }
+}
+
+internal fun <T> clientPresent(value: T?): Boolean = when (value) { case Some(_) -> true; case None -> false }
+
+internal fun clientJob(loop: EventLoop, active: Boolean): Job {
+    if (currentEventLoop() !== loop) throw IllegalStateException(Some("HTTP client belongs to another event loop"))
+    val job = currentJobOrNone() ?: throw IllegalStateException(Some("HTTP client operation requires a Job"))
+    if (job.isCompleted) throw IllegalStateException(Some("HTTP client operation requires an active Job"))
+    if (active) job.ensureActive()
+    return job
+}
+
+internal fun clientCombined(primary: Throwable?, cleanup: Throwable): Throwable =
+    when (primary) { case Some(error) -> ResourceUseException(error, cleanup); case None -> cleanup }
+
+public class HttpClientClosedException public constructor() : Exception(Some("HTTP client is closed"))
+
+internal fun clientBytesEqual(first: List<Byte>, second: List<Byte>): Boolean {
+    if (first.size != second.size) return false
+    var index = 0L
+    while (index < first.size) {
+        if (first[index] != second[index]) return false
+        index += 1L
+    }
+    return true
+}

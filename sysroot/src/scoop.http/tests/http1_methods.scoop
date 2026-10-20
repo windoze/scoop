@@ -1,0 +1,90 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+@Test
+private class Http1MethodTests {
+    @Test
+    fun `extension methods preserve every token byte on the wire`() {
+        val punctuation = ByteArrayBuilder().append("M!#%&'*+-.^_`|~09".toByteArray()).append(36.toByte()).toByteArray()
+        for (method in ["CUSTOM".toByteArray(), "head".toByteArray(), "connect".toByteArray(), punctuation]) {
+            for (version in [HttpVersion.Http10, HttpVersion.Http11]) {
+                Http1Encoder(HttpRole.Client).use { encoder ->
+                    val expectedVersion = if (version == HttpVersion.Http10) "1.0" else "1.1"
+                    val bytes = encoder.beginRequest(HttpRequestHead(version, method, HttpRequestTarget.Http1("/raw%2f".toByteArray())))
+                    assertEquals(String.fromUtf8(method) + " /raw%2f HTTP/" + expectedVersion + "\r\n\r\n", String.fromUtf8(bytes))
+                    assertEquals(0L, encoder.finish().size)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `extension and lowercase methods use ordinary response body framing`() {
+        for (method in ["CUSTOM", "head", "connect", "Head", "Connect"]) {
+            val output = ByteArrayBuilder()
+            Http1Encoder(HttpRole.Server).use { encoder ->
+                output.append(encoder.beginResponse(HttpResponseHead(HttpVersion.Http11, 200U), method.toByteArray(),
+                    Http1BodyFraming.Length(3L)))
+                NativeByteBuffer.allocate(3L).use { body ->
+                    body.writeBytes("yes".toByteArray())
+                    output.append(encoder.writeBody(body))
+                }
+                output.append(encoder.finish())
+                assertFalse(encoder.isSwitched)
+                assertFalse(encoder.mustClose)
+            }
+            Http1Decoder.client().use { decoder ->
+                decoder.expectResponse(method.toByteArray())
+                val events = collectHttp1(decoder, output.toByteArray(), 2L)
+                assertEquals("yes", String.fromUtf8(http1Data(events)))
+                assertEquals(1L, http1EndCount(events))
+                assertFalse(decoder.isSwitched)
+            }
+        }
+    }
+
+    @Test
+    fun `mixed method contexts survive informational responses and moving GC`() {
+        Http1Decoder.client().use { decoder ->
+            for (method in ["CUSTOM", "HEAD", "head", "connect"]) decoder.expectResponse(method.toByteArray())
+            gcCollect()
+            val input = "HTTP/1.1 100 Continue\r\n\r\nHTTP/1.1 200 OK\r\nContent-Length: 3\r\n\r\none" +
+                "HTTP/1.1 103 Early\r\n\r\nHTTP/1.1 200 OK\r\nContent-Length: 99\r\n\r\n" +
+                "HTTP/1.1 200 OK\r\nContent-Length: 3\r\n\r\ntwo" +
+                "HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nthree"
+            val events = collectHttp1(decoder, input.toByteArray(), 5L)
+            assertEquals("onetwothree", String.fromUtf8(http1Data(events)))
+            assertEquals(6L, http1Responses(events).size)
+            assertEquals(6L, http1EndCount(events))
+            assertFalse(decoder.isSwitched)
+        }
+    }
+
+    @Test
+    fun `invalid method tokens fail before changing message or response state`() {
+        val invalid = ["".toByteArray(), "BAD METHOD".toByteArray(), "GET\r\nX:".toByteArray(),
+            "GET/".toByteArray(), [0.toByte()], [128.toByte()], [127.toByte()]]
+        Http1Decoder.client().use { decoder ->
+            Http1Encoder(HttpRole.Client).use { encoder ->
+                Http1Encoder(HttpRole.Server).use { responder ->
+                    for (method in invalid) {
+                        assertFailsWith<IllegalArgumentException> { decoder.expectResponse(method) }
+                        assertFailsWith<IllegalArgumentException> {
+                            encoder.beginRequest(HttpRequestHead(HttpVersion.Http11, method, HttpRequestTarget.Http1("/".toByteArray())))
+                        }
+                        assertFailsWith<IllegalArgumentException> {
+                            responder.beginResponse(HttpResponseHead(HttpVersion.Http11, 200U), method)
+                        }
+                        assertFalse(encoder.isMessageOpen)
+                        assertFalse(responder.isMessageOpen)
+                    }
+                }
+            }
+            decoder.expectResponse("EXTENSION".toByteArray())
+            assertEquals(1L, http1EndCount(collectHttp1(decoder, "HTTP/1.1 204 No Content\r\n\r\n".toByteArray())))
+        }
+    }
+}

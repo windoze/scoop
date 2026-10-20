@@ -76,6 +76,7 @@ open 对象保持 `0 <= readPosition <= writePosition <= capacity`，只有 `[0,
 ### 4.2 字节、数组与数值
 
 - readByte()/writeByte(Byte) 顺序访问单字节；getByte(index: Long)/setByte(index: Long, value: Byte) 只访问已初始化的绝对下标，不改游标。
+- getBytes(index: Long, count: Long): Array<Byte> 返回已初始化绝对区间的独立副本，不改读写游标，也可读取已消费的前缀。count 非负，index 位于 `[0, writePosition]`，且 count 不超过 `writePosition-index`；writer 位置仅允许空区间。负 count 抛 IllegalArgumentException，区间越界抛 IndexOutOfBoundsException。范围检查与复制使用一次状态同步，借用期间仍可读取已初始化区域；关闭后即使空区间也抛 IllegalStateException。
 - readBytes(count: Long): Array<Byte> 返回独立副本，分配与复制成功后才消费输入。
 - readInto(array: MutableArray<Byte>, offset: Long = 0L, count: Long = array.size-offset) 复制到受检数组区间；writeBytes(array: List<Byte>, offset: Long = 0L, count: Long = array.size-offset) 接收只读字节列表。先验证两侧区间，在现有 writable 借用内、状态锁外取得所选输入区间的快照后复制，完成后才提交游标；用户 getter 可查询缓冲区，重入修改遵守 4.3 的借用规则；count 为负抛 IllegalArgumentException，数组区间非法抛 IndexOutOfBoundsException。
 - read/writeInt8、UInt8、Int16、UInt16、Int32、UInt32、Int64、UInt64、Float、Double 提供相应定宽读写；write 的首参数为 value，除单字节外都必须显式传入 `scoop.bytes.ByteOrder`。浮点按位型编码，包括 NaN 与负零。
@@ -88,7 +89,7 @@ open 对象保持 `0 <= readPosition <= writePosition <= capacity`，只有 `[0,
 
 writable block 必须初始化返回值 n 指定的完整前缀；仅正常返回且 `0 <= n <= writableBytes` 时提交 writePosition。无效 n 抛 IllegalArgumentException，抛异常或无效返回都不提交游标，已修改的尾部仍不能 safe 读取。库只检查范围，不证明 native 初始化事实。
 
-block 是普通非 suspend callback，可分配 managed 对象、抛异常及进行同步 C 调用。owner 跨 callback 与 finally 保持 live root，GC 可移动 wrapper；native 地址保持稳定，不 pin wrapper。finally 清除借用状态。借用中拒绝 close、ensureWritable、clear、compact、skip、顺序读写、绝对写和嵌套借用，修改前抛 IllegalStateException；只读属性及 getByte 仍可用。
+block 是普通非 suspend callback，可分配 managed 对象、抛异常及进行同步 C 调用。owner 跨 callback 与 finally 保持 live root，GC 可移动 wrapper；native 地址保持稳定，不 pin wrapper。finally 清除借用状态。借用中拒绝 close、ensureWritable、clear、compact、skip、顺序读写、绝对写和嵌套借用，修改前抛 IllegalStateException；只读属性及 getByte／getBytes 仍可用。
 
 pointer 不得逃出 callback、保留给异步操作或跨挂起使用；writable callback 不读取未初始化尾部或改写借用区外字节。同步与异步借用共同使用 4.5 的状态同步边界；callback 在状态锁外执行。不增加逃逸分析、静态 borrow checker 或 managed ownership 类型。
 
@@ -169,6 +170,14 @@ EOF 时自动关闭枚举句柄，之后 next 仍返回 None；提前 close 后�
 ### 6.4 native 传输、信号与错误
 
 阻塞 open/read/write、文件 metadata／同步、目录和路径操作使用 NativeSafe。read/write 只在没有交付字节的 EINTR 时重试，一次传输受平台 ssize_t／实际 syscall 上限限制。errno 在本次失败后立即保存，任何信号状态恢复或返回握手都不能覆盖它。
+
+供 asyncio 的实际文件工作复用，`scoop.platform.native.NativeFileMetadata` 公开既有 GC-free CLayout 记录：kind、permissions 为 Int，其余 size 及四组秒／纳秒为 Long；创建时间纳秒为负表示不可用。普通 `decodeFileMetadata(data, error, context)` 将它转换为 FileMetadata，复用同步文件的种类、时间和错误映射；失败记录的 kind 为负，error 是原调用中保存的 errno。共享 C 头声明既有 metadata、seek、truncate helper，不在 asyncio 再实现 stat 字段转换或 OS 偏移规则。
+
+共享路径头公开既有 `path_mkdir`、`path_delete`、`path_move` helper，分别沿 mkdir、remove 和排他／替换 rename 的 OS 合同。`scoop.platform.native.requireFileMode(mode: Int): Unit` 统一同步文件、目录与 asyncio 的权限参数检查；有效范围为 0..0xfff，非法值抛 IllegalArgumentException，不增加独立的文件系统规则。
+
+`scoop.platform.native.temporaryPathPattern(parent: Path, prefix: String): Path` 检查 prefix 并构造尾部为 XXXXXX 的路径模板；默认父目录复用既有 `scoop.platform.env.temporaryDirectory()`，这些步骤不创建文件。同步临时路径工厂与 asyncio 共用这些步骤。共享 `scoop_platform_file_temporary(char *pattern)` 通过 mkostemp(O_CLOEXEC) 一次排他创建并返回仍然打开的读写 fd，实际名称写回调用者拥有的模板；文件初始权限为 0600、长度与位置为零。原同步 createTempFile 复用该 helper 后关闭 fd，异步工厂则交付文件 owner。
+
+`native/directory.h` 声明既有 directory_open／directory_next／directory_close helper，供 asyncio 调度同一 opendir／readdir／closedir 实现。next 跳过点目录，返回名称借用到本句柄的下一次读取或关闭之前；NULL 且 errno 为零表示 EOF，NULL 且 errno 非零表示错误。异步调用者必须在同一次串行工作内复制名称，不跨工作保留 readdir 的内部存储。
 
 safe fd 输出不因断开的 pipe/socket 默认杀死进程。Linux 普通 fd 写入仅屏蔽当前线程的 SIGPIPE，保存旧 mask/pending，只消费本次写入新增的 SIGPIPE，再恢复 mask；不消费已有 pending，也不安装进程级 handler。Darwin 内核的普通 fd 写入发出进程定向 SIGPIPE，使用真实 F_SETNOSIGPIPE 选项抑制；该选项属于打开文件描述，同一描述的别名可见，标准输出也在实际写入当前 fd 时设置。socket 专用输出使用对应 MSG_NOSIGNAL/SO_NOSIGPIPE。所有目标保持用户 signal handler，不以成功 no-op 模拟保护。
 
@@ -254,6 +263,8 @@ communicate(input: List<Byte>? = None): ProcessOutput 收集 stdout/stderr 的�
 
 `scoop.platform.net.AddressFamily { Ipv4, Ipv6 }` 区分 IPv4／IPv6。不可变 IpAddress 保存地址位与 IPv6 scopeId: UInt，实现 Equals、Hash、ToString；fromByteArray 接受 List<Byte> 的 4 或 16 字节快照副本，IPv4 不接受非零 scope。toByteArray 返回独立数组。parse(String) 只解析 IP 字面量，IPv6 可带 `%数字` scope，不解析接口名或域名；toString 输出标准数字文本与非零 scope。提供 IPV4_ANY、IPV4_LOOPBACK、IPV6_ANY、IPV6_LOOPBACK。
 
+`IpNetwork(address: IpAddress, prefixLength: Int)` 表示 IPv4／IPv6 CIDR 网络，实现 Equals、Hash、ToString；address 保存按前缀掩码清除主机位后的网络地址，prefixLength 分别限于 0..32 和 0..128。网络不绑定接口，构造拒绝非零 scopeId，`contains(address)` 按同一地址族的地址位匹配，不比较被查询地址的 scopeId，也不把 IPv4-mapped IPv6 当作 IPv4。`parse(String)` 接受一个 IP 字面量、一个 `/` 和无符号十进制前缀长度，复用 IpAddress.parse，不进行 DNS；非法地址、缺少前缀及越界均报 IllegalArgumentException。toString 输出规范化网络地址和前缀长度。CIDR 的解析、规范化与包含判断属于 platform，代理等上层策略直接组合此类型。
+
 SocketAddress(address: IpAddress, port: Int) 检查 0..65535，实现 Equals／Hash／ToString。parse 接受 `IPv4:port` 或 `[IPv6%scope]:port`；端口为十进制数字，不接受缺失、负值或溢出。bind 端口 0 由 OS 分配，返回后的 localAddress() 查询给出实际值。
 
 resolve(host: OsString, port: Int, family: AddressFamily? = None) 与 String 重载使用阻塞 getaddrinfo，返回实际地址数组，不承诺排序或去重。名称与 IP parse 分开，不做 IDNA 或隐式构造器联网；名称字节不含 NUL。错误保存 AddressResolution 的 EAI code；仅 EAI_SYSTEM 另保存同次 errno。native 结果在复制后 freeaddrinfo，包括复制失败路径；不使用外部 DNS 服务作为测试前提。
@@ -283,5 +294,7 @@ socket 输出在 Linux 使用 MSG_NOSIGNAL，Darwin 在新建／accept 后设置
 这是普通 GC-free C helper 边界，不提供 managed File／TcpStream 的私有句柄访问。使用者自行拥有新获得的 fd，可交给其事件后端；只能移交一次。native 头文件作为实际 include 输入参与普通构建，预编译 `.slib` 消费不再次编译这些 helper。错误、对象身份与缓存沿既有合同处理，不增加 runtime API 或特殊 native dependency 机制。
 
 `OsString.withNativeString<R>((Ptr<Byte>) -> R)` 与 `Path.withNativePath<R>((Ptr<Byte>) -> R)` 是 fs package 的公开 Unsafe 同步扩展：检查 NUL、保持原始字节并追加终止 NUL，指针只在 callback 内有效，不得保留或交给尚未完成的异步操作；异步使用者须在 callback 内复制到自己的 native 存储。`scoop.platform.native.fileOpenFlags(options: OpenOptions): Int` 供同步 File 与 asyncio 的 native 适配复用 6.1 的参数检查，返回 file_open helper 的稳定位组合（read=1、write=2、append=4、create=8、createNew=16、truncate=32），不是系统 O_* 值。OpenOptions 只表达文件打开配置，不暴露 native 位布局成员；应用通过 File.open 或 EventLoop.openFile 使用配置。
+
+`copyNativeString(pointer: Ptr<Byte>): OsString` 同样是 fs package 的公开 Unsafe 同步函数。调用方保证指针指向在整个调用期间稳定、可读且以 NUL 终止的存储；函数复制首个 NUL 之前的原始字节，不做 UTF-8 转换、不保留指针、不释放输入，返回独立快照。原生结果的分配和释放继续由拥有该结果的库负责，asyncio 用此入口接收临时名称和目录项。
 
 `native/io.h` 声明 fd_read／fd_write／fd_close；`native/files.h` 声明 file_open／file_sync。read／write 使用 4～6 章的短传输及 EINTR 规则，close 只调用一次 raw close，syncData 在 Darwin 可用 fsync 实现。`socket_native.h` 还声明 resolve／resolve_next／resolve_address／resolve_free；ScoopResolution 保存 owned addrinfo 链、原始 EAI code、可选的同次 errno。以上函数不进入 managed 代码，可直接从工作线程调用；错误必须在返回时立即保存，资源只能释放一次。

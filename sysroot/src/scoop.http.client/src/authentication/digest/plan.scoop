@@ -1,0 +1,41 @@
+package scoop.http.client
+
+import scoop.http.*
+
+internal fun planClientDigest(call: ClientCall, head: HttpResponseHead, authentication: ClientCallAuthentication,
+    authenticator: HttpAuthenticator,
+    provider: ClientDigestAuthentication, challenges: List<HttpAuthChallenge>): ClientAuthenticationSession? {
+    val scope = authentication.scope
+    val challenge = chooseClientDigestChallenge(call, head, scope, authenticator, provider, challenges) ?: return None
+    val previous = authentication.session
+    val rejected = if (clientPresent(previous) && previous!!.authenticator === authenticator) authentication.digestUse else None
+    val session = call.client.lock.withLock {
+        val detached = clientPresent(rejected) && rejected!!.session.entry.discard
+        var cached: ClientDigestEntry? = None
+        for (entry in call.client.digestEntries) {
+            if (!detached && entry.authenticator === authenticator && sameClientAuthenticationScope(entry.scope, scope) &&
+                sameClientDigestKey(entry.nonce.challenge, challenge)) {
+                cached = Some(entry); break
+            }
+        }
+        val same = clientPresent(rejected) && sameClientDigestKey(rejected!!.nonce.challenge, challenge)
+        val newer = same && clientPresent(cached) &&
+            !clientBytesEqual(cached!!.nonce.challenge.nonce, rejected!!.nonce.challenge.nonce)
+        if (same && !newer && clientPresent(previous!!.challenge) &&
+            (!challenge.stale || clientBytesEqual(challenge.nonce, rejected!!.nonce.challenge.nonce)))
+            throw HttpAuthenticationException(HttpAuthenticationFailure.Rejected, scope.url(call), Some(head))
+        requireClientAuthenticationFollowUp(call, head, scope)
+        val entry = if (clientPresent(cached)) cached!! else {
+            val created = ClientDigestEntry(scope, authenticator, ClientDigestNonce(challenge))
+            created.discard = detached
+            if (!created.discard) call.client.digestEntries.add(created)
+            created
+        }
+        if (clientPresent(cached) && !newer) entry.nonce = if (clientBytesEqual(entry.nonce.challenge.nonce, challenge.nonce))
+            ClientDigestNonce(challenge, entry.nonce.numbers) else ClientDigestNonce(challenge)
+        val selected = ClientDigestSession(entry, entry.nonce)
+        if (same) selected.secret = rejected!!.session.secret
+        selected
+    }
+    return Some(ClientAuthenticationSession(scope, authenticator, Some(session.nonce.challenge.original), "/", digest = Some(session)))
+}

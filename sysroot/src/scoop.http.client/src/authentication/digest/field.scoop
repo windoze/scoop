@@ -1,0 +1,62 @@
+package scoop.http.client
+
+import scoop.charset.Charset
+import scoop.http.*
+import scoop.text.toHexString
+
+internal suspend fun clientDigestField(call: ClientCall, authentication: ClientCallAuthentication, session: ClientAuthenticationSession,
+    provider: ClientDigestAuthentication): HttpField {
+    val previous = session.digest!!
+    val nonce = call.client.lock.withLock { previous.entry.nonce }
+    val selection = ClientDigestSession(previous.entry, nonce)
+    if (sameClientDigestKey(previous.nonce.challenge, nonce.challenge)) selection.secret = previous.secret
+    session.digest = Some(selection)
+    val secret = selection.secret ?: clientDigestSecret(call, selection, provider)
+    selection.secret = Some(secret)
+    val challenge = nonce.challenge
+    val entity = if (challenge.qop == Some("auth-int")) Some(clientDigestEntity(call, session.scope, challenge.algorithm)) else None
+    requireClientCall(call)
+    val count = call.client.lock.withLock {
+        if (nonce.numbers.count == 4294967295L)
+            throw HttpAuthenticationException(HttpAuthenticationFailure.LimitExceeded, session.scope.url(call))
+        nonce.numbers.count += 1L
+        nonce.numbers.count
+    }
+    val nc = Array<Byte>(4L) { index -> (count shr ((3L - index) * 8L)).toByte() }.toHexString()
+    val ha1 = if (clientDigestIsSession(challenge.algorithm)) clientDigestHash(challenge.algorithm,
+        [secret.ha1.toByteArray(), ":".toByteArray(), challenge.nonce, ":".toByteArray(), nonce.cnonce.toByteArray()]) else secret.ha1
+    val use = ClientDigestUse(selection, session.scope.target(call), ha1, nc)
+    val parameters = ArrayList<HttpParameter>()
+    addDigestUsername(parameters, secret, challenge)
+    parameters.add(HttpParameter("realm", challenge.realm, quoted = true))
+    parameters.add(HttpParameter("nonce", challenge.nonce, quoted = true))
+    parameters.add(HttpParameter("uri", use.uri, quoted = true))
+    parameters.add(HttpParameter("response", clientDigestProof(use, session.scope.method(call), entity).toByteArray(), quoted = true))
+    parameters.add(HttpParameter("algorithm", clientDigestName(challenge.algorithm).toByteArray()))
+    if (clientPresent(challenge.opaque)) parameters.add(HttpParameter("opaque", challenge.opaque!!, quoted = true))
+    when (challenge.qop) {
+        case Some(qop) -> {
+            parameters.add(HttpParameter("qop", qop.toByteArray()))
+            parameters.add(HttpParameter("nc", nc.toByteArray()))
+        }
+        case None -> {}
+    }
+    if (clientPresent(challenge.qop) || clientDigestIsSession(challenge.algorithm))
+        parameters.add(HttpParameter("cnonce", nonce.cnonce.toByteArray(), quoted = true))
+    authentication.digestUse = Some(use)
+    return session.scope.field(HttpCredentials("Digest", parameters))
+}
+
+private fun addDigestUsername(parameters: ArrayList<HttpParameter>, secret: ClientDigestSecret, challenge: ClientDigestChallenge) {
+    val charset = if (challenge.utf8) Charset.Utf8 else Charset.Iso8859_1
+    if (challenge.userhash) {
+        val username = clientDigestHash(challenge.algorithm, [charset.encode(secret.username), ":".toByteArray(), challenge.realm])
+        parameters.add(HttpParameter("username", username.toByteArray(), quoted = true))
+        parameters.add(HttpParameter("userhash", "true".toByteArray()))
+        return
+    }
+    var ascii = true
+    for (character in secret.username) if (character.code > 127) ascii = false
+    parameters.add(if (ascii) HttpParameter("username", secret.username.toByteArray(), quoted = true)
+        else HttpParameter.extended("username", secret.username))
+}

@@ -1,0 +1,66 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.assertEquals
+
+fun wfBytes(values: List<Int>): Array<Byte> = Array<Byte>(values.size) { index -> values[index].toByte() }
+fun wfAssertBytes(expected: List<Byte>, actual: List<Byte>) {
+    assertEquals(expected.size, actual.size)
+    for (index in 0L..<expected.size) assertEquals(expected[index], actual[index])
+}
+fun wfPacket(first: Int, payload: List<Byte>): Array<Byte> =
+    ByteArrayBuilder().append(first.toByte()).append(payload.size.toByte()).append(payload).toByteArray()
+
+fun wfDrain(decoder: WebSocketFrameDecoder, events: ArrayList<WebSocketFrameEvent>) {
+    while (true) {
+        val next = decoder.nextEvent()
+        when (next) { case Some(_) -> events.add(next!!); case None -> return }
+    }
+}
+
+fun wfFeed(decoder: WebSocketFrameDecoder, bytes: List<Byte>, chunk: Long = 1L, eof: Boolean = true): Array<WebSocketFrameEvent> {
+    val result = ArrayList<WebSocketFrameEvent>()
+    NativeByteBuffer.allocate(chunk).use { buffer ->
+        var offset = 0L
+        while (offset < bytes.size) {
+            buffer.clear()
+            val count = if (bytes.size - offset < chunk) bytes.size - offset else chunk
+            buffer.writeBytes(bytes, offset, count)
+            while (buffer.readableBytes > 0L) {
+                val used = decoder.receive(buffer)
+                val previous = result.size
+                wfDrain(decoder, result)
+                if (used == 0L && result.size == previous) throw IllegalStateException(Some("frame decoder made no progress"))
+            }
+            offset += count
+        }
+        if (eof) { decoder.endInput(); wfDrain(decoder, result) }
+        Unit
+    }
+    return result.toArray()
+}
+
+fun wfPayload(events: List<WebSocketFrameEvent>): Array<Byte> {
+    val result = ByteArrayBuilder()
+    for (event in events) { when (event) { case Data(bytes) -> result.append(bytes); else -> {} } }
+    return result.toByteArray()
+}
+
+fun wfEncode(encoder: WebSocketFrameEncoder, head: WebSocketFrameHead, bytes: List<Byte>, chunk: Long = 3L): Array<Byte> {
+    val result = ByteArrayBuilder().append(encoder.beginFrame(head))
+    NativeByteBuffer.allocate(bytes.size).use { input ->
+        input.writeBytes(bytes)
+        while (input.readableBytes > 0L) {
+            val count = if (input.readableBytes < chunk) input.readableBytes else chunk
+            result.append(encoder.writePayload(input, count))
+        }
+        encoder.finishFrame()
+    }
+    return result.toByteArray()
+}
+
+fun wfFirstHead(events: List<WebSocketFrameEvent>): WebSocketFrameHead = when (events[0L]) {
+    case FrameStarted(value) -> value
+    else -> throw IllegalStateException(Some("expected frame head"))
+}

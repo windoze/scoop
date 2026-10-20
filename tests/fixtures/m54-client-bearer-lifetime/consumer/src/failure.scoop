@@ -1,0 +1,53 @@
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.http.client.*
+import scoop.platform.system.PlatformErrorKind
+import scoop.platform.system.PlatformException
+import scoop.time.Duration
+
+internal fun bearerSharedFailure(trust: TrustStore, nested: Boolean) {
+    withBearerRuntime suspend { _, scope, listener ->
+        val url = bearerUrl(listener)
+        val entered = BearerGate()
+        val release = BearerGate()
+        val loads = AtomicLong(0L)
+        val original = PlatformException("shared load callback", PlatformErrorKind.ConnectionReset)
+        val provider = HttpAuthenticator.bearer(url.httpOrigin()) suspend { _ ->
+            loads.fetchAdd(1L); entered.signal(); release.await()
+            if (nested) coroutineScope<Unit> suspend { child ->
+                child.async<Unit> suspend { throw original }; Unit
+            }
+            throw original
+        }
+        val serving = scope.launch suspend {
+            AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                val request = connection.receiveRequest()!!
+                bearerCheck(bearerToken(request.head) == Some("manual"))
+                request.body.readAllBytes(0L); bearerRespond(connection, 200U, "done")
+            }
+        }
+        try {
+            withHttpClient(bearerConfig(trust, HttpAuthenticationOptions([provider]), retries = HttpRetryOptions(
+                maxRetries = 2L, initialDelay = Duration.ZERO, maxDelay = Duration.ZERO))) suspend { client ->
+                val firstFailure = BearerFailureHolder()
+                val secondFailure = BearerFailureHolder()
+                val first = scope.launch suspend {
+                    try { client.execute(HttpRequest.get(url)).close() }
+                    catch (error: Throwable) { firstFailure.value = Some(error) }
+                }
+                entered.await()
+                val second = scope.launch suspend {
+                    try { client.execute(HttpRequest.get(url)).close() }
+                    catch (error: Throwable) { secondFailure.value = Some(error) }
+                }
+                bearerCheck(loads.load() == 1L)
+                release.signal(); first.join(); second.join()
+                bearerCheck(firstFailure.value!! === original && secondFailure.value!! === original)
+                bearerDone(client, HttpRequest.get(url, fields = [bearerField("Authorization", "Bearer manual")]))
+                bearerCheck(loads.load() == 1L && !scope.job.isCancelled)
+            }
+        } finally { release.signal() }
+        serving.join()
+    }
+}

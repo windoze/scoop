@@ -1,0 +1,65 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class HttpClientRedirectTotalTest {
+    @Test
+    fun `redirect cleanup consumes the original total deadline and keeps confirmed sent bytes`() {
+        val limit = clientTimeoutTestDuration()
+        withClientRedirectTest(timeouts = HttpTimeoutOptions(total = Some(limit))) suspend { loop, scope, listener, config ->
+            val source = BodyTestSource("send".toByteArray())
+            source.holdClose = true
+            val watched = RedirectTestSource(source)
+            val done = BodyTestGate()
+            val accepted = BodyTestGate()
+            val secondSeen = AtomicBoolean(false)
+            val first = scope.launch suspend {
+                val socket = listener.accept()
+                accepted.signal()
+                AsyncHttp1Connection.takeOwnershipAsServer(socket, scope).useAsync suspend { connection ->
+                    assertEquals("send", String.fromUtf8(connection.receiveRequest()!!.body.readAllBytes(4L)))
+                    connection.sendResponse(redirectTestHead(), Http1BodyFraming.Length(10L)).useAsync suspend { output ->
+                        output.flush(); done.await()
+                    }
+                }
+            }
+            val second = scope.launch suspend {
+                accepted.await()
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    secondSeen.store(true)
+                    connection.receiveRequest()!!.body.readAllBytes(0L)
+                    connection.sendResponse(HttpResponseHead(HttpVersion.Http11, 204U)).finish()
+                }
+            }
+            try {
+                withHttpClient(config) suspend { client ->
+                    val failure = ClientTestFailureHolder()
+                    val executing = scope.launch suspend {
+                        val body = RequestBody.fromSourceFactory(Some(4L)) suspend { watched }
+                        try { client.execute(HttpRequest.post(clientTestUrl(listener), body)).close() }
+                        catch (error: Throwable) { failure.value = Some(error) }
+                    }
+                    try {
+                        watched.cancelled.await()
+                        loop.sleep(limit + Duration.milliseconds(10L))
+                        assertFalse(executing.isCompleted || secondSeen.load())
+                        source.closeRelease.signal()
+                        executing.join()
+                        val error = failure.value!!
+                        assertTrue(error is HttpTimeoutException)
+                        if (error is HttpTimeoutException) checkClientTimeout(error, HttpTimeoutPhase.Total, limit, sent = 4L)
+                        assertFalse(secondSeen.load())
+                        assertTrue(source.buffer!!.isClosed)
+                    } finally { source.closeRelease.signal() }
+                }
+            } finally { source.closeRelease.signal(); done.signal(); second.cancel() }
+            first.join(); second.join()
+            assertFalse(scope.job.isCancelled)
+        }
+    }
+}

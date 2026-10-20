@@ -1,0 +1,51 @@
+package scoop.url
+
+import scoop.test.*
+import scoop.text.toHexString
+
+@Test
+private class UrlCodecTests {
+    @Test
+    fun `percent codec preserves arbitrary bytes and distinguishes UTF8 decoding`() {
+        val bytes: Array<Byte> = [0.toByte(), 32.toByte(), 43.toByte(), 47.toByte(), 255.toByte()]
+        assertEquals("%00%20%2B%2F%FF", PercentEncoding.encode(bytes))
+        assertEquals("00202b2fff", PercentEncoding.decode("%00%20+%2f%ff").toHexString())
+        assertEquals("你好", PercentEncoding.decodeUtf8("%E4%BD%A0%E5%A5%BD"))
+        assertEquals("a+b", PercentEncoding.decodeUtf8("a+b"))
+        for (value in ["%", "%0", "%GG"]) assertFailsWith<UrlParseException> { PercentEncoding.decode(value) }
+        assertFailsWith<UrlParseException> { PercentEncoding.decodeUtf8("%FF") }
+        assertFailsWith<UrlParseException> { PercentEncoding.decodeUtf8("%C3%28") }
+    }
+
+    @Test
+    fun `query parameters retain order repeats absent values empty values and raw bytes`() {
+        val query = UrlQuery.parse("a&a=&b=x+y&a=%26%3D&bytes=%FF")
+        assertEquals(5L, query.entries.size)
+        val values = query.getAll("a")
+        assertEquals(3L, values.size)
+        assertTrue(values[0L] == None)
+        assertEquals("", values[1L]!!)
+        assertEquals("&=", values[2L]!!)
+        assertEquals("x+y", query.getAll("b")[0L]!!)
+        assertEquals("ff", query.entries[4L].valueBytes!!.toHexString())
+        assertFailsWith<UrlParseException> { query.entries[4L].value }
+        assertEquals("a&a=&b=x%2By&a=%26%3D&bytes=%FF", query.toString())
+        assertEquals("a&a=&a=%26%3D&bytes=%FF", query.remove("b").toString())
+        assertEquals("b=x%2By&bytes=%FF&a=new", query.set("a", Some("new")).toString())
+        assertEquals("&&", UrlQuery.parse("&&").toString())
+        assertEquals(0L, UrlQuery.parse("").entries.size)
+    }
+
+    @Test
+    fun `form encoding alone gives the plus sign its space meaning`() {
+        val form = FormUrlEncoded.parse("a=x+y&a=x%2By&novalue&empty=")
+        assertEquals("x y", form.getAll("a")[0L]!!)
+        assertEquals("x+y", form.getAll("a")[1L]!!)
+        assertEquals("a=x+y&a=x%2By&novalue&empty=", FormUrlEncoded.encode(form))
+        assertEquals("a=x%20y&a=x%2By&novalue&empty=", form.toString())
+        val source = MutableArray<Byte>(1L) { _ -> 65.toByte() }
+        val query = UrlQuery().addBytes(source, Some<List<Byte>>(source))
+        source[0L] = 66.toByte()
+        assertEquals("A=A", query.toString())
+    }
+}

@@ -1,0 +1,51 @@
+package scoop.http.client
+
+import scoop.http.*
+import scoop.test.*
+import scoop.time.Duration
+import scoop.url.Url
+
+@Test
+private class HttpClientContinueFieldsTest {
+    @Test
+    fun `Continue options preserve extensions and avoid duplicate or empty body expectations`() {
+        val url = Url.parse("http://example.test/")
+        val body = RequestBody.fromText("four")
+        val options = HttpCallOptions(expectContinue = true)
+        val request = HttpRequest.post(url, body, [HttpField("Expect".toByteArray(),
+            "other=\"a,b\"; x=one".toByteArray()), HttpField("Content-Length".toByteArray(), "004".toByteArray())], options)
+        assertTrue(request.expectsContinue)
+        assertTrue(request.contentLength == Some(4L))
+        val fields = request.fields.findAll("Expect".toByteArray())
+        assertEquals(2L, fields.size)
+        assertEquals("other=\"a,b\"; x=one", String.fromUtf8(fields[0L].value))
+        assertEquals("100-continue", String.fromUtf8(fields[1L].value))
+        val explicit = HttpRequest.post(url, body, [HttpField("Expect".toByteArray(), "100-CoNtInUe".toByteArray())], options)
+        assertEquals(1L, explicit.fields.findAll("Expect".toByteArray()).size)
+        assertTrue(explicit.expectsContinue)
+        val empty = HttpRequest.get(url, options = options)
+        assertFalse(empty.expectsContinue)
+        assertEquals(0L, empty.fields.findAll("Expect".toByteArray()).size)
+        val extension = HttpRequest.post(url, body, [HttpField("Expect".toByteArray(), "100-continue=other".toByteArray())])
+        assertFalse(extension.expectsContinue)
+    }
+
+    @Test
+    fun `Continue rejects negative intervals malformed fields and HTTP10 waiting`() {
+        assertFailsWith<IllegalArgumentException> { HttpCallOptions(continueWait = Duration.nanoseconds(-1L)) }
+        assertFailsWith<HttpFieldParseException> {
+            HttpRequest.get(Url.parse("http://example.test/"), [HttpField("Expect".toByteArray(), "100 continue".toByteArray())])
+        }
+        withClientContinueTest(HttpVersion.Http10) suspend { _, _, listener, config ->
+            val url = clientTestUrl(listener)
+            listener.close()
+            withHttpClient(config) suspend { client ->
+                expectBodyFailure<IllegalArgumentException> suspend {
+                    client.execute(HttpRequest.post(url, RequestBody.fromText("four"), options = HttpCallOptions(expectContinue = true)))
+                    Unit
+                }
+                Unit
+            }
+        }
+    }
+}

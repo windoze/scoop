@@ -1,0 +1,42 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.HttpField
+import scoop.test.*
+
+@Test
+private class RequestBodyTrailersLifecycleTest {
+    @Test
+    fun `cancelling trailer production waits for the producer owned source to close`() {
+        val source = BodyTestSource("body".toByteArray())
+        source.holdClose = true
+        val delivered = AtomicBoolean(false)
+        val body = RequestBody.fromProducerWithTrailers(["X-End"]) suspend { output ->
+            source.useAsync suspend { input ->
+                input.copyTo(output)
+                [HttpField("X-End".toByteArray(), "done".toByteArray())]
+            }
+        }
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val output = BodyTestSink()
+            val sending = scope.launch suspend {
+                body.writeWithTrailersTo(output)
+                delivered.store(true)
+            }
+            source.closeStarted.await()
+            try {
+                sending.cancel()
+                assertFalse(sending.isCompleted)
+                assertEquals("body", String.fromUtf8(output.bytes.toByteArray()))
+                gcCollect()
+            } finally { source.closeRelease.signal() }
+            sending.join()
+            assertTrue(sending.isCancelled)
+            assertFalse(delivered.load())
+            assertEquals(1L, source.closes)
+            assertEquals(0L, output.closes)
+            assertFalse(scope.job.isCancelled)
+        }
+    }
+}

@@ -57,16 +57,14 @@ static const ScoopTypeDescriptor small_td = {
                        .minimum_size = sizeof(Resource),
                        .instance_alignment = _Alignof(Resource)},
     .object_scan = child_scan,
-    .release_hook = release_resource,
-};
+    .release_hook = release_resource};
 static const ScoopTypeDescriptor large_td = {
     .type_id = 2,
     .instance_shape = {.instance_kind = SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1,
                        .minimum_size = sizeof(LargeResource),
                        .instance_alignment = _Alignof(LargeResource)},
     .object_scan = child_scan,
-    .release_hook = release_resource,
-};
+    .release_hook = release_resource};
 static ScoopTypeDescriptor no_hook_td;
 
 static Resource *allocate(const ScoopTypeDescriptor *td, uint64_t handle, bool ready) {

@@ -319,6 +319,12 @@ impl PersistentSymbolRequestTable {
         &self.requests
     }
 
+    pub fn contains(&self, request: PersistentSymbolRequest) -> bool {
+        self.requests
+            .binary_search_by(|candidate| compare_requests(candidate, &request))
+            .is_ok_and(|index| self.requests[index] == request)
+    }
+
     pub fn into_requests(self) -> Vec<PersistentSymbolRequest> {
         self.requests
     }
@@ -534,6 +540,21 @@ mod tests {
         assert_eq!(hex(&encode(&table).unwrap()).chars().next(), Some('8'));
 
         let conflicting = PersistentSymbolRequest::new(body_key, LinkageClass::OdrWeak).unwrap();
+        assert!(table.contains(body));
+        assert!(table.contains(storage));
+        assert!(!table.contains(conflicting));
+        assert!(!PersistentSymbolRequestTable::empty().contains(body));
+        assert!(
+            !table.contains(
+                PersistentSymbolRequest::new(
+                    PersistentSymbolKey::CallableBody(PersistentCallableBodyId(
+                        ConeIdentity::CORE.0
+                    )),
+                    LinkageClass::ConeStrong,
+                )
+                .unwrap()
+            )
+        );
         assert_eq!(
             PersistentSymbolRequestTable::new(vec![body, conflicting]),
             Err(PersistentSymbolError::DuplicateRequest(body_key))

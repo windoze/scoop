@@ -13,8 +13,7 @@ static const ScoopTypeDescriptor array_td = {
                        .inline_stride = 8,
                        .inline_alignment = 8,
                        .inline_scan = element_scan},
-    .object_scan = array_scan,
-};
+    .object_scan = array_scan};
 static unsigned released;
 static void release_object(void *object) {
     assert(((NurseryNode *)object)->value == 99);
@@ -25,8 +24,7 @@ static const ScoopTypeDescriptor release_td = {
     .instance_shape = {.instance_kind = SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1,
                        .minimum_size = sizeof(NurseryNode),
                        .instance_alignment = 8},
-    .release_hook = release_object,
-};
+    .release_hook = release_object};
 
 static void check_old_cycle(void **roots) {
     roots[0] = nursery_node(10);

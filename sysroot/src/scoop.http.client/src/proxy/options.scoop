@@ -1,0 +1,60 @@
+package scoop.http.client
+
+import scoop.collections.Map
+import scoop.asyncio.Socks5Credentials
+import scoop.asyncio.Socks5Resolution
+import scoop.http.HttpCredentials
+import scoop.http.HttpResponseHead
+import scoop.url.Url
+import scoop.url.UrlHost
+
+public enum HttpProxy { Direct, Http(HttpProxyEndpoint), Socks5(HttpSocks5Endpoint) }
+
+public class HttpProxySelector public constructor(internal val select: suspend (HttpRequest) -> HttpProxy) {
+    public companion object {
+        public fun direct(): HttpProxySelector = fixed(HttpProxy.Direct)
+        public fun fromEnvironment(tls: HttpClientTlsConfig = HttpClientTlsConfig()): HttpProxySelector =
+            clientEnvironmentProxy(currentClientProxyEnvironment(), tls)
+        public fun fromEnvironment(variables: Map<String, String>, tls: HttpClientTlsConfig = HttpClientTlsConfig()): HttpProxySelector =
+            clientEnvironmentProxy(variables, tls)
+        public fun fixed(proxy: HttpProxy): HttpProxySelector = HttpProxySelector(suspend { _ -> proxy })
+    }
+}
+
+public class HttpProxyEndpoint public constructor(
+    public val url: Url,
+    public val tls: HttpClientTlsConfig = HttpClientTlsConfig(),
+    public val authorization: HttpCredentials? = None,
+    public val authentication: HttpAuthenticationOptions = HttpAuthenticationOptions()
+) {
+    internal val address: ClientProxyAddress = clientProxyAddress(url, false)
+}
+
+public class HttpSocks5Endpoint public constructor(
+    public val url: Url,
+    public val credentials: Socks5Credentials? = None,
+    public val resolution: Socks5Resolution = Socks5Resolution.Proxy
+) {
+    internal val address: ClientProxyAddress = clientProxyAddress(url, true)
+}
+
+public class HttpProxyConnectException internal constructor(
+    public val proxyUrl: Url, public val responseHead: HttpResponseHead
+) : Exception(Some("HTTP proxy rejected CONNECT with status " + responseHead.status.toString()))
+
+internal class ClientProxyAddress(val host: UrlHost, val port: Int, val secure: Boolean)
+
+private fun clientProxyAddress(url: Url, socks: Boolean): ClientProxyAddress {
+    val scheme = url.scheme
+    if (if (socks) scheme != Some("socks5") else scheme != Some("http") && scheme != Some("https"))
+        throw IllegalArgumentException(Some("proxy URL has an invalid scheme"))
+    if (url.authority == None || (url.encodedPath != "" && url.encodedPath != "/") ||
+        url.encodedQuery != None || url.encodedFragment != None)
+        throw IllegalArgumentException(Some("proxy URL must contain only an authority and optional root path"))
+    val authority = url.authority!!
+    if (authority.encodedUserInfo != None)
+        throw IllegalArgumentException(Some("proxy URL must not contain userinfo"))
+    val port = authority.port ?: (if (socks) 1080 else if (scheme == Some("https")) 443 else 80)
+    if (port == 0) throw IllegalArgumentException(Some("proxy port must be positive"))
+    return ClientProxyAddress(authority.networkHost(), port, scheme == Some("https"))
+}

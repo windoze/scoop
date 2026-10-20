@@ -105,48 +105,13 @@ pub(super) fn plan_for_entry(source: ExecutableEntryIdentity) -> EntryProduction
     .unwrap()
     .id();
     let source_key = DigestNodeKey::source_signature(main.body());
-    let source_id = DigestNodeId::from_key(&source_key).unwrap();
-    let source_node = DigestNodeV1::new(
-        source_key,
-        Vec::new(),
-        vec![DigestPatchIntentKey::new(
-            source_id,
-            definition_plan(
-                producer,
-                StrongDefinitionEntity::root_entry(producer),
-                StrongDefinitionRole::RootEntryDescriptor,
-            ),
-            DefinitionAtomRole::Primary,
-            DigestSemanticFieldRole::SourceSignature,
-        )],
-    )
-    .unwrap();
+
+    let source_node = DigestNodeV1::new(source_key, Vec::new()).unwrap();
     let gateway_key = DigestNodeKey::object_definition(gateway_atom);
-    let gateway_id = DigestNodeId::from_key(&gateway_key).unwrap();
-    let gateway_definition_node = DigestNodeV1::new(
-        gateway_key,
-        Vec::new(),
-        vec![DigestPatchIntentKey::new(
-            gateway_id,
-            definition_plan(
-                producer,
-                StrongDefinitionEntity::root_entry(producer),
-                StrongDefinitionRole::RootEntryDescriptor,
-            ),
-            DefinitionAtomRole::Primary,
-            DigestSemanticFieldRole::GatewayDefinition,
-        )],
-    )
-    .unwrap();
+
+    let gateway_definition_node = DigestNodeV1::new(gateway_key, Vec::new()).unwrap();
     let mut nodes = vec![source_node, gateway_definition_node];
-    nodes.push(
-        DigestNodeV1::new(
-            DigestNodeKey::runtime_image(producer),
-            Vec::new(),
-            Vec::new(),
-        )
-        .unwrap(),
-    );
+    nodes.push(DigestNodeV1::new(DigestNodeKey::runtime_image(producer), Vec::new()).unwrap());
     let digests = DigestFinalizationPlanV1::new(nodes, &foundation).unwrap();
     let registrations = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
     EntryProductionPlanV1::new(

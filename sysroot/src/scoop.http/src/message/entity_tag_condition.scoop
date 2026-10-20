@@ -1,0 +1,54 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+
+public class HttpEntityTagCondition private constructor(
+    public val isWildcard: Boolean, public val tags: Array<HttpEntityTag>, public val originalValue: Array<Byte>?
+) {
+    public constructor(tags: List<HttpEntityTag>) : this(false, tags.toArray(), None) {}
+
+    public fun toByteArray(): Array<Byte> {
+        if (isWildcard) return "*".toByteArray()
+        val output = ByteArrayBuilder()
+        var first = true
+        for (tag in tags) {
+            if (!first) output.append(", ".toByteArray())
+            output.append(tag.toByteArray())
+            first = false
+        }
+        return output.toByteArray()
+    }
+    public fun toIfMatchField(): HttpField = HttpField("If-Match".toByteArray(), toByteArray())
+    public fun toIfNoneMatchField(): HttpField = HttpField("If-None-Match".toByteArray(), toByteArray())
+
+    public companion object {
+        public fun wildcard(): HttpEntityTagCondition = HttpEntityTagCondition(true, [], None)
+
+        public fun parse(value: List<Byte>, fieldName: String = "If-None-Match"): HttpEntityTagCondition {
+            val reader = HttpFieldReader(fieldName, value)
+            reader.skipOws()
+            if (reader.peek() == 42) {
+                reader.position += 1L
+                reader.skipOws()
+                if (!reader.ended) reader.fail("wildcard cannot be combined with entity tags")
+                return HttpEntityTagCondition(true, [], Some(reader.bytes))
+            }
+            val tags = ArrayList<HttpEntityTag>()
+            while (!reader.ended) {
+                if (reader.peek() == 44) { reader.position += 1L; reader.skipOws(); continue }
+                tags.add(HttpEntityTag.read(reader))
+                reader.skipOws()
+                if (!reader.ended) { reader.expect(44); reader.skipOws() }
+            }
+            return HttpEntityTagCondition(false, tags.toArray(), Some(reader.bytes))
+        }
+        public fun parse(value: String, fieldName: String = "If-None-Match"): HttpEntityTagCondition =
+            parse(value.toByteArray(), fieldName)
+        public fun parseOrNone(value: List<Byte>, fieldName: String = "If-None-Match"): HttpEntityTagCondition? {
+            try { return Some(parse(value, fieldName)) }
+            catch (_: HttpFieldParseException) { return None }
+        }
+        public fun parseOrNone(value: String, fieldName: String = "If-None-Match"): HttpEntityTagCondition? =
+            parseOrNone(value.toByteArray(), fieldName)
+    }
+}

@@ -1,0 +1,67 @@
+package scoop.http
+
+import scoop.charset.CharsetException
+import scoop.test.*
+
+@Test private class WebSocketFrameMessageTests {
+    @Test fun `message validation carries UTF8 state across arbitrary chunks and counts the BOM`() {
+        WebSocketMessageValidator(WebSocketMessageType.Text, 7L).use { validator ->
+            for (byte in "\uFEFF😀".toByteArray()) validator.receive([byte])
+            validator.receive("".toByteArray())
+            assertEquals(7L, validator.byteCount)
+            validator.finish()
+            assertTrue(validator.isFinished && !validator.isClosed)
+            assertFailsWith<IllegalStateException> { validator.finish() }
+            assertFailsWith<IllegalStateException> { validator.receive("".toByteArray()) }
+        }
+        WebSocketMessageValidator(WebSocketMessageType.Binary, 2L).use { validator ->
+            validator.receive(wfBytes([255, 128])); validator.finish()
+            assertEquals(2L, validator.byteCount)
+        }
+    }
+
+    @Test fun `message limits and incomplete UTF8 fail without inventing completion`() {
+        WebSocketMessageValidator(WebSocketMessageType.Text, 1L).use { validator ->
+            validator.receive("a".toByteArray())
+            assertEquals(1009U, assertFailsWith<WebSocketFrameException> { validator.receive("b".toByteArray()) }.closeCode)
+            assertTrue(!validator.isFinished && validator.failure!! is WebSocketFrameException)
+            assertEquals(1L, validator.byteCount)
+            assertFailsWith<IllegalStateException> { validator.finish() }
+        }
+        WebSocketMessageValidator(WebSocketMessageType.Text, 4L).use { validator ->
+            validator.receive(wfBytes([240, 159]))
+            val error = assertFailsWith<WebSocketFrameException> { validator.finish() }
+            assertEquals(1007U, error.closeCode)
+            assertTrue(error.cause!! is CharsetException)
+            assertTrue(!validator.isFinished)
+        }
+        assertFailsWith<IllegalArgumentException> { WebSocketMessageValidator(WebSocketMessageType.Binary, -1L) }
+    }
+
+    @Test fun `closing incomplete text releases state without an implicit finish`() {
+        val validator = WebSocketMessageValidator(WebSocketMessageType.Text, 4L)
+        validator.receive(wfBytes([226]))
+        validator.close(); validator.close()
+        assertTrue(validator.isClosed && !validator.isFinished)
+        assertTrue(when (validator.failure) { case None -> true; case Some(_) -> false })
+        WebSocketMessageValidator(WebSocketMessageType.Text, 0L).use { empty -> empty.finish(); assertTrue(empty.isFinished) }
+    }
+
+    @Test fun `reentrant input cannot close the validator or poison the active operation`() {
+        WebSocketMessageValidator(WebSocketMessageType.Binary, 1L).use { validator ->
+            validator.receive(ReentrantWsBytes(validator))
+            validator.finish()
+            assertTrue(validator.isFinished && !validator.isClosed)
+        }
+    }
+}
+
+private class ReentrantWsBytes(private val validator: WebSocketMessageValidator) : List<Byte> {
+    public override val size: Long get() = 1L
+    public override operator fun iterator(): Iterator<Byte> = wfBytes([97]).iterator()
+    public override operator fun get(index: Long): Byte {
+        assertEquals(0L, index)
+        assertFailsWith<IllegalStateException> { validator.close() }
+        return 97.toByte()
+    }
+}

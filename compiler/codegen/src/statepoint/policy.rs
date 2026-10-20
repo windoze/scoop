@@ -62,7 +62,14 @@ pub(crate) fn optimize(
             (scoop_lir::OptimizationMode::Release, false) => {
                 // No PRE or backedge splitting: sites and logical root restores
                 // must stay unique until the physical root plan is finalized.
-                "sroa,mem2reg,instcombine<no-verify-fixpoint>,early-cse,reassociate,constraint-elimination,correlated-propagation,sccp,instcombine<no-verify-fixpoint>,gvn<no-pre;no-load-pre;no-split-backedge-load-pre>,bdce,memcpyopt,dse,adce,early-cse<memssa>,unreachableblockelim"
+                concat!(
+                    "sroa,mem2reg,instcombine<no-verify-fixpoint>,early-cse,reassociate,",
+                    "constraint-elimination,correlated-propagation,sccp,",
+                    "instcombine<no-verify-fixpoint>,",
+                    "gvn<no-pre;no-load-pre;no-split-backedge-load-pre>,bdce,memcpyopt,dse,adce,",
+                    "simplifycfg<no-speculate-blocks;no-hoist-common-insts;no-sink-common-insts>,",
+                    "early-cse<memssa>,unreachableblockelim"
+                )
             }
         };
         function

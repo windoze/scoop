@@ -1,0 +1,47 @@
+private class Item(val text: String)
+
+private fun <T> pack(vararg values: T): Array<T> = values
+private fun append(values: Array<Int>, last: Int): Array<Int> = pack(*values, last)
+private fun <T> surround(first: T, values: Array<T>, last: T): Array<T> = pack(first, *values, last)
+
+private class Gate {
+    var waiting: Continuation<Unit>? = None
+    suspend fun wait() { suspendCoroutine<Unit> { continuation -> waiting = Some(continuation) } }
+    fun open() {
+        val continuation = waiting!!
+        waiting = None
+        continuation.resume(Unit)
+    }
+}
+
+private class Completion : Continuation<Array<Item>> {
+    var result: Array<Item>? = None
+    public override fun resume(value: Array<Item>) { result = Some(value) }
+    public override fun resumeWithException(exception: Throwable) { throw exception }
+}
+
+private suspend fun assemble(gate: Gate, values: Array<Item>): Array<Item> {
+    gate.wait()
+    val joined = surround(Item("first"), values, Item("last"))
+    gcCollect()
+    gate.wait()
+    return pack(*joined, Item("after"))
+}
+
+fun main() {
+    val numbers = append(surround(1, [2, 3], 4), 5)
+    if (numbers.size != 5L || numbers[0] != 1 || numbers[4] != 5) throw IllegalStateException()
+    val empty: Array<Int> = []
+    if (append(empty, 9)[0] != 9) throw IllegalStateException()
+
+    val gate = Gate(); val completion = Completion()
+    startCoroutine<Array<Item>>(suspend { assemble(gate, [Item("middle")]) }, completion)
+    gcCollect()
+    gate.open()
+    gcCollect()
+    gate.open()
+    val result = completion.result!!
+    if (result.size != 4L || result[0].text != "first" || result[1].text != "middle" ||
+        result[2].text != "last" || result[3].text != "after") throw IllegalStateException()
+    println("callable C strings retain their own array support ranges")
+}

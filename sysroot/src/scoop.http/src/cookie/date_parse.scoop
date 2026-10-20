@@ -1,0 +1,81 @@
+package scoop.http
+
+import scoop.datetime.*
+import scoop.time.Instant
+
+internal fun parseCookieDate(reader: HttpFieldReader): Instant {
+    var year = -1; var month = -1; var day = -1
+    var hour = -1; var minute = -1; var second = -1
+    var dayOffset = 0L; var yearOffset = 0L; var timeOffset = 0L
+    while (!reader.ended) {
+        if (cookieDateDelimiter(reader.peek())) { reader.position += 1L; continue }
+        val start = reader.position
+        while (!reader.ended && !cookieDateDelimiter(reader.peek())) reader.position += 1L
+        val end = reader.position
+        if (hour < 0) when (cookieDateTime(reader.bytes, start, end)) {
+            case Some(time) -> {
+                hour = time._1; minute = time._2; second = time._3; timeOffset = start
+                continue
+            }
+            case None -> {}
+        }
+        if (day < 0) when (cookieDateNumber(reader.bytes, start, end, 1, 2)) {
+            case Some(value) -> { day = value._1; dayOffset = start; continue }
+            case None -> {}
+        }
+        if (month < 0) {
+            val parsed = cookieDateMonth(reader.bytes, start, end)
+            if (parsed > 0) { month = parsed; continue }
+        }
+        if (year < 0) when (cookieDateNumber(reader.bytes, start, end, 2, 4)) {
+            case Some(value) -> { year = value._1; yearOffset = start }
+            case None -> {}
+        }
+    }
+    if (year < 0 || month < 0 || day < 0 || hour < 0) reader.fail("incomplete Cookie date")
+    if (year >= 70 && year <= 99) year += 1900
+    else if (year <= 69) year += 2000
+    if (year < 1601 || year > 9999) reader.failAt(yearOffset, "Cookie date year must be 1601..9999")
+    if (hour > 23 || minute > 59 || second > 59) reader.failAt(timeOffset, "invalid Cookie time")
+    val date = try { LocalDate(year, month, day) }
+        catch (_: IllegalArgumentException) { reader.failAt(dayOffset, "invalid Cookie calendar date") }
+    return LocalDateTime(date, LocalTime(hour, minute, second)).toInstant(UtcOffset.ZERO)
+}
+
+private fun cookieDateDelimiter(c: Int): Boolean = c == 9 || (c >= 32 && c <= 47) ||
+    (c >= 59 && c <= 64) || (c >= 91 && c <= 96) || (c >= 123 && c <= 126)
+
+private fun cookieDateNumber(bytes: Array<Byte>, start: Long, end: Long, minimum: Int, maximum: Int): (Int, Long)? {
+    var index = start
+    var value = 0
+    while (index < end) {
+        val digit = bytes[index].toUByte().toInt() - 48
+        if (digit < 0 || digit > 9) break
+        if (index - start == maximum.toLong()) return None
+        value = value * 10 + digit; index += 1L
+    }
+    return if (index - start < minimum.toLong()) None else Some((value, index))
+}
+
+private fun cookieDateTime(bytes: Array<Byte>, start: Long, end: Long): (Int, Int, Int)? {
+    val first = cookieDateNumber(bytes, start, end, 1, 2)
+    when (first) { case None -> return None; case Some(_) -> {} }
+    if (first!!._2 == end || bytes[first!!._2] != 58.toByte()) return None
+    val second = cookieDateNumber(bytes, first!!._2 + 1L, end, 1, 2)
+    when (second) { case None -> return None; case Some(_) -> {} }
+    if (second!!._2 == end || bytes[second!!._2] != 58.toByte()) return None
+    val third = cookieDateNumber(bytes, second!!._2 + 1L, end, 1, 2)
+    return when (third) { case None -> None; case Some(value) -> Some((first!!._1, second!!._1, value._1)) }
+}
+
+private fun cookieDateMonth(bytes: Array<Byte>, start: Long, end: Long): Int {
+    if (end - start < 3L) return -1
+    for (index in 0L..<12L) {
+        var matches = true
+        for (offset in 0L..<3L) {
+            if ((bytes[start + offset].toUByte().toInt() or 32) != (httpDateMonths[index][offset].code or 32)) matches = false
+        }
+        if (matches) return index.toInt() + 1
+    }
+    return -1
+}

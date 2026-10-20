@@ -2,19 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-int http1_method_code(const uint8_t *name, size_t length) {
-#define METHOD(number, symbol, text)                                           \
-  if (length == sizeof(#text) - 1 && memcmp(name, #text, length) == 0)         \
-    return number;
-  HTTP_ALL_METHOD_MAP(METHOD)
-#undef METHOD
-  return -1;
-}
-
-int32_t scoop_http1_known_method(const uint8_t *name, int64_t length) {
-  return http1_method_code(name, (size_t)length) >= 0;
-}
-
 int http1_fail(http1 *state, int code, const char *message) {
   http_fail(&state->error, code, message);
   llhttp_set_error_reason(&state->parser, state->error.text);
@@ -69,15 +56,16 @@ int32_t scoop_http1_expect(uint64_t handle, const uint8_t *name,
   if (state->server || state->failed || state->ended || state->switched)
     return http_fail(&state->error, -2,
                      "cannot register an HTTP/1 response here");
-  int code = http1_method_code(name, (size_t)length);
-  if (code < 0)
-    return http_fail(&state->error, HPE_INVALID_METHOD,
-                     "llhttp 9.4.3 does not support this HTTP/1 method");
   http1_method *method = calloc(1, sizeof(*method));
   if (!method)
     return http_fail(&state->error, -1,
                      "cannot allocate HTTP/1 request context");
-  method->method = (llhttp_method_t)code;
+  /* Only response framing needs the method; the wire token stays in Scoop. */
+  method->method = HTTP_GET;
+  if (length == 4 && memcmp(name, "HEAD", 4) == 0)
+    method->method = HTTP_HEAD;
+  else if (length == 7 && memcmp(name, "CONNECT", 7) == 0)
+    method->method = HTTP_CONNECT;
   if (state->last_method)
     state->last_method->next = method;
   else
@@ -104,6 +92,7 @@ static int finish_step(http1 *state, llhttp_errno_t code) {
 http_step scoop_http1_receive(uint64_t handle, const uint8_t *data,
                               int64_t length) {
   http1 *state = (http1 *)(uintptr_t)handle;
+  state->message_starts = 0;
   if (state->failed)
     return (http_step){0, state->error.code};
   if (state->ended || state->switched)
@@ -118,6 +107,10 @@ http_step scoop_http1_receive(uint64_t handle, const uint8_t *data,
   return (http_step){consumed, finish_step(state, code)};
 }
 
+int64_t scoop_http1_started_messages(uint64_t handle) {
+  return ((http1 *)(uintptr_t)handle)->message_starts;
+}
+
 int32_t scoop_http1_end(uint64_t handle) {
   http1 *state = (http1 *)(uintptr_t)handle;
   if (state->failed)
@@ -127,6 +120,10 @@ int32_t scoop_http1_end(uint64_t handle) {
   state->ended = 1;
   state->error.code = 0;
   return finish_step(state, llhttp_finish(&state->parser));
+}
+
+int32_t scoop_http1_is_unexpected_eof(int32_t code) {
+  return code == HPE_INVALID_EOF_STATE;
 }
 
 int32_t scoop_http1_resume(uint64_t handle) {

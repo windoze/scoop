@@ -15,9 +15,10 @@ fn loop_load_forwarding_small_unroll_and_unswitch_require_nogc() {
         llvm.set_data_layout(&machine.get_target_data().get_data_layout());
         let expected = ExpectedSafepoints {
             sites: BTreeMap::new(),
-            functions: ["prefix", "small", "unswitch"]
-                .map(|name| (name.to_string(), effect))
-                .into(),
+            functions: BTreeMap::from(
+                ["prefix", "small", "unswitch"].map(|name| (name.to_string(), effect)),
+            )
+            .into(),
         };
         let plan = crate::statepoint::rewrite(&llvm, &machine, &expected, profile).unwrap();
         assert_eq!(plan.site_count(), 0);

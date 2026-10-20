@@ -1,10 +1,9 @@
 use la_arena::Arena;
 use scoop_identity::{
     CanonicalIdentifier, CborIdentityRecord, ConeIdentity, DeclarationScope, DefinitionAtomRole,
-    DefinitionAtomSubkey, DefinitionOwnerChain, DigestNodeId, DigestNodeKey, DigestPatchIntentKey,
-    DigestSemanticFieldRole, ExactTypeKey, LinkageClass, ObjectDefinitionAtomId,
-    ObjectDefinitionAtomKey, ObjectDefinitionPlanKey, PackagePath, PersistentExactTypeId,
-    PersistentFunctionId, PersistentSymbolKey, PersistentSymbolRequest,
+    DefinitionAtomSubkey, DefinitionOwnerChain, DigestNodeKey, ExactTypeKey, LinkageClass,
+    ObjectDefinitionAtomId, ObjectDefinitionAtomKey, ObjectDefinitionPlanKey, PackagePath,
+    PersistentExactTypeId, PersistentFunctionId, PersistentSymbolKey, PersistentSymbolRequest,
     PersistentSymbolRequestTable, PersistentTypeId, SourceDeclarationKey, SourceDeclarationSite,
     SourceNominalKind, StrongDefinitionEntity, StrongDefinitionRole,
 };
@@ -35,8 +34,6 @@ pub(super) struct FixtureOptions {
     pub(super) include_symbols: bool,
 
     pub(super) include_stackmap_nodes: bool,
-
-    pub(super) normalized_stackmap_patch: bool,
 }
 
 impl Default for FixtureOptions {
@@ -50,8 +47,6 @@ impl Default for FixtureOptions {
             include_symbols: true,
 
             include_stackmap_nodes: true,
-
-            normalized_stackmap_patch: true,
         }
     }
 }
@@ -136,19 +131,8 @@ impl Fixture {
                 continue;
             }
             let key = DigestNodeKey::stackmap_record(registration.site);
-            let source = DigestNodeId::from_key(&key).unwrap();
-            let patches = (options.normalized_stackmap_patch && options.include_primary_atoms)
-                .then(|| {
-                    DigestPatchIntentKey::new(
-                        source,
-                        registration.plan.id(),
-                        DefinitionAtomRole::Primary,
-                        DigestSemanticFieldRole::NormalizedStackmap,
-                    )
-                })
-                .into_iter()
-                .collect();
-            let stackmap = DigestNodeV1::new(key, Vec::new(), patches).unwrap();
+
+            let stackmap = DigestNodeV1::new(key, Vec::new()).unwrap();
             image_inputs.push(DigestInputRefV1::from_node(&stackmap));
             nodes.push(stackmap);
         }
@@ -156,7 +140,6 @@ impl Fixture {
             DigestNodeV1::new(
                 DigestNodeKey::runtime_image(ConeIdentity::SINGLE_FILE),
                 image_inputs,
-                Vec::new(),
             )
             .unwrap(),
         );

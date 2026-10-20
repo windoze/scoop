@@ -1,0 +1,56 @@
+package scoop.http
+
+import scoop.test.*
+
+@Test
+private class HttpTrailerDeclarationTest {
+    @Test
+    fun `trailer declarations snapshot and normalize the first occurrence of each name`() {
+        val names = ArrayList<String>()
+        names.add("Content-Digest"); names.add("X-Result"); names.add("content-DIGEST")
+        val declaration = HttpTrailerDeclaration(names)
+        names.add("X-Later")
+        assertEquals(2L, declaration.names.size)
+        assertEquals("content-digest", declaration.names[0L])
+        assertEquals("x-result", declaration.names[1L])
+        assertTrue(declaration.contains("CONTENT-DIGEST"))
+        assertFalse(declaration.contains("X-Later"))
+        val field = declaration.toHttpField()
+        assertTrue(field.hasName("Trailer".toByteArray()))
+        assertEquals("content-digest, x-result", String.fromUtf8(field.value))
+        assertEquals(2L, parseHttpTokenFields([field], "Trailer").size)
+        val empty = HttpTrailerDeclaration(ArrayList<String>())
+        assertEquals(0L, empty.names.size)
+        assertEquals(0L, empty.toHttpField().value.size)
+        empty.requireDeclared(ArrayList<HttpField>())
+    }
+
+    @Test
+    fun `trailer declarations reject header controls but allow late result fields`() {
+        for (name in ["", "bad name", ":status", "é", "Content-Length", "Transfer-Encoding",
+            "hOSt", "Connection", "TE", "Trailer", "Authorization", "Proxy-Authenticate", "Cookie",
+            "Set-Cookie", "Content-Encoding", "Content-Type", "Content-Range", "Expect", "Range",
+            "If-None-Match", "Accept-Encoding", "Cache-Control", "Date", "Location", "Vary"]) {
+            assertFailsWith<IllegalArgumentException> { HttpTrailerDeclaration([name]) }
+        }
+        val declaration = HttpTrailerDeclaration(["Authentication-Info", "Proxy-Authentication-Info",
+            "ETag", "Content-Digest", "Server-Timing", "X-Result"])
+        assertEquals(6L, declaration.names.size)
+        assertFailsWith<IllegalArgumentException> { declaration.contains("bad name") }
+    }
+
+    @Test
+    fun `actual trailer fields may be empty or repeated but must have declared names`() {
+        val declaration = HttpTrailerDeclaration(["X-End", "ETag"])
+        val fields = [HttpField("x-end".toByteArray(), "first".toByteArray()),
+            HttpField("X-END".toByteArray(), [255.toByte()], true)]
+        declaration.requireDeclared(fields)
+        declaration.requireDeclared(ArrayList<HttpField>())
+        assertEquals("first", String.fromUtf8(fields[0L].value))
+        assertTrue(fields[1L].neverIndex)
+        assertEquals(255.toByte(), fields[1L].value[0L])
+        assertFailsWith<IllegalArgumentException> {
+            declaration.requireDeclared([fields[0L], HttpField("X-Other".toByteArray(), "no".toByteArray())])
+        }
+    }
+}

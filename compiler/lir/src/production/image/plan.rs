@@ -16,7 +16,6 @@ pub struct ConeImagePlanV1 {
     definition_plan: ObjectDefinitionPlanId,
     primary_atom: ObjectDefinitionAtomId,
     support_atoms: ConeImageSupportAtomsV1,
-    fingerprint_patch: DigestPatchIntentId,
 }
 
 impl ConeImagePlanV1 {
@@ -70,7 +69,7 @@ impl ConeImagePlanV1 {
         }
         let (primary_atom, support_atoms) = require_image_atoms(foundation, definition_plan)?;
 
-        let image_node = digest_plan
+        digest_plan
             .nodes()
             .iter()
             .find(|node| {
@@ -78,24 +77,6 @@ impl ConeImagePlanV1 {
                     == scoop_identity::DigestOwnerAndRoleKey::RuntimeImage(cone.identity())
             })
             .ok_or(ConeImagePlanBuildError::MissingDigestNode)?;
-        validate_registration_inputs(image_node.direct_inputs(), digest_plan)?;
-        let patch_key = DigestPatchIntentKey::new(
-            image_node.id(),
-            definition_plan,
-            DefinitionAtomRole::Primary,
-            DigestSemanticFieldRole::RuntimeImage,
-        );
-        let fingerprint_patch =
-            DigestPatchIntentId::from_key(&patch_key).map_err(ConeImagePlanBuildError::Hash)?;
-        if !image_node
-            .patch_intents()
-            .iter()
-            .any(|record| record.id() == fingerprint_patch && record.key() == &patch_key)
-        {
-            return Err(ConeImagePlanBuildError::MissingFingerprintPatch(
-                fingerprint_patch,
-            ));
-        }
 
         Ok(Self {
             cone,
@@ -105,7 +86,6 @@ impl ConeImagePlanV1 {
             definition_plan,
             primary_atom,
             support_atoms,
-            fingerprint_patch,
         })
     }
 
@@ -136,15 +116,11 @@ impl ConeImagePlanV1 {
     pub const fn support_atoms(&self) -> ConeImageSupportAtomsV1 {
         self.support_atoms
     }
-
-    pub const fn fingerprint_patch(&self) -> DigestPatchIntentId {
-        self.fingerprint_patch
-    }
 }
 
 impl WireEncode for ConeImagePlanV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(7)?;
+        encoder.map(6)?;
         encoder.field(1)?;
         self.cone.encode(encoder)?;
         encoder.field(2)?;
@@ -156,9 +132,7 @@ impl WireEncode for ConeImagePlanV1 {
         encoder.field(5)?;
         self.definition_plan.encode(encoder)?;
         encoder.field(6)?;
-        self.support_atoms.encode(encoder)?;
-        encoder.field(7)?;
-        self.fingerprint_patch.encode(encoder)
+        self.support_atoms.encode(encoder)
     }
 }
 
@@ -170,12 +144,11 @@ pub struct DecodedConeImagePlanV1 {
     symbol: DecodedPersistentSymbolRequest,
     definition_plan: DecodedPersistentId<ObjectDefinitionPlanId>,
     support_atoms: DecodedConeImageSupportAtomsV1,
-    fingerprint_patch: DecodedPersistentId<DigestPatchIntentId>,
 }
 
 impl WireEncode for DecodedConeImagePlanV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(7)?;
+        encoder.map(6)?;
         encoder.field(1)?;
         self.cone.encode(encoder)?;
         encoder.field(2)?;
@@ -187,15 +160,13 @@ impl WireEncode for DecodedConeImagePlanV1 {
         encoder.field(5)?;
         self.definition_plan.encode(encoder)?;
         encoder.field(6)?;
-        self.support_atoms.encode(encoder)?;
-        encoder.field(7)?;
-        self.fingerprint_patch.encode(encoder)
+        self.support_atoms.encode(encoder)
     }
 }
 
 impl WireDecode for DecodedConeImagePlanV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(7)?;
+        decoder.expect_map(6)?;
         Ok(Self {
             cone: decoder.field(1, DecodedConeRecordV1::decode)?,
             dependencies: decode_ids(decoder, 2)?,
@@ -203,7 +174,6 @@ impl WireDecode for DecodedConeImagePlanV1 {
             symbol: decoder.field(4, DecodedPersistentSymbolRequest::decode)?,
             definition_plan: decoder.field(5, DecodedPersistentId::decode)?,
             support_atoms: decoder.field(6, DecodedConeImageSupportAtomsV1::decode)?,
-            fingerprint_patch: decoder.field(7, DecodedPersistentId::decode)?,
         })
     }
 }

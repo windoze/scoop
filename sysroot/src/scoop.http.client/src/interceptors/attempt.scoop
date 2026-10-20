@@ -1,0 +1,67 @@
+package scoop.http.client
+
+import scoop.collections.HashSet
+import scoop.http.*
+import scoop.text.lowercaseAscii
+import scoop.text.startsWith
+import scoop.url.Url
+
+public enum HttpAttemptReason { Initial, Redirect, Retry, Authentication, ProxyAuthentication, CacheRefresh }
+
+public class HttpAttempt internal constructor(call: ClientCall) {
+    public val number: Long = call.sequence.attemptNumber
+    public val reason: HttpAttemptReason = call.sequence.attemptReason
+    public val request: HttpRequest = call.request
+    public val requestTarget: Array<Byte> = clientRequestTargetBytes(call)
+    public val fields: Array<HttpField> = when (call.webSocketHandshake) {
+        case Some(handshake) -> handshake.request.fields.toArray()
+        case None -> clientRequestSnapshotFields(call)
+    }
+    public val proxyUrl: Url? = when (call.route) {
+        case Direct -> None
+        case HttpForward(endpoint) -> Some(endpoint.url)
+        case HttpTunnel(endpoint) -> Some(endpoint.url)
+        case Socks5(endpoint) -> Some(endpoint.url)
+    }
+}
+
+private class ClientAttemptCallback(val call: ClientCall) { var active: Boolean = true }
+
+internal suspend fun prepareClientAttempt(call: ClientCall) {
+    val callback = call.client.config.onAttempt ?: return
+    val request = call.request
+    val supplied = ArrayList<HttpField>()
+    for (field in request.suppliedFields) supplied.add(field)
+    addClientAcceptEncoding(supplied, request, call.client.config)
+    call.request = HttpRequest(request.url, request.method, supplied, request.body, request.options)
+    val snapshot = HttpAttempt(call)
+    val active = ClientAttemptCallback(call)
+    val added = try { context(active) { callback(snapshot).toArray() } }
+        catch (error: Throwable) { failClientUserCallback(call, error); throw error }
+        finally { call.client.lock.withLock { active.active = false } }
+    requireClientCall(call)
+    val names = HashSet<String>()
+    for (field in snapshot.fields) names.add(String.fromUtf8(field.name).lowercaseAscii())
+    for (field in added) {
+        field.validate()
+        val name = String.fromUtf8(field.name).lowercaseAscii()
+        if (name == "host" || name == "content-length" || name == "transfer-encoding" || name == "connection" ||
+            name == "upgrade" || name == "expect" || name == "trailer" || name == "proxy-authorization" ||
+            (clientPresent(call.sequence.webSocket) && name.startsWith("sec-websocket-")))
+            throw IllegalArgumentException(Some("HTTP attempt callback cannot supply managed field " + name))
+        if (!names.add(name)) throw IllegalArgumentException(Some("HTTP attempt callback cannot replace field " + name))
+        if (name == "authorization") call.attemptAuthorization = true
+        supplied.add(field)
+    }
+    call.attemptFields = added
+    call.request = HttpRequest(request.url, request.method, supplied, request.body, request.options)
+}
+
+context(callback: ClientAttemptCallback)
+private fun boundClientAttemptCallback(): ClientAttemptCallback = callback
+
+internal fun checkClientAttemptClose(client: ClientState) {
+    val callback = try { Some(boundClientAttemptCallback()) } catch (_: MissingContextException) { None }
+    if (clientPresent(callback) && callback!!.call.client === client && client.lock.withLock { callback!!.active })
+        throw IllegalStateException(Some("cannot await client.close from its active attempt callback"))
+}

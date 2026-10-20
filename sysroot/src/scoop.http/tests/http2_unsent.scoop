@@ -1,0 +1,70 @@
+package scoop.http
+
+import scoop.test.*
+
+@Test
+private class Http2UnsentRequestTests {
+    @Test
+    fun `GOAWAY refuses queued requests once while accepted streams finish`() {
+        withHttp2 { client, server ->
+            val accepted = client.submitRequest(request2())
+            drive2(client, server)
+            assertEquals(1L, requests2(events2(server)).size)
+            events2(client)
+            val pending = client.submitRequest(request2("POST"), false)
+            val empty = client.submitRequest(request2())
+            assertEquals(4L, write2(client, pending, "body".toByteArray()))
+            client.finish(pending, [HttpField("x-tail".toByteArray(), "pending".toByteArray())])
+            server.goAway(lastStreamId = Some(accepted))
+            transfer2(server, client)
+            transfer2(client, server)
+            requireUnsentClosures(events2(client), [pending, empty])
+            assertFalse(client.hasPendingOutput(pending) || client.hasPendingOutput(empty))
+            assertEquals(0L, requests2(events2(server)).size)
+            server.submitResponse(accepted, HttpResponseHead(HttpVersion.Http2, 200U), false)
+            assertEquals(4L, write2(server, accepted, "done".toByteArray()))
+            server.finish(accepted)
+            drive2(client, server)
+            val completed = events2(client)
+            assertEquals(1L, responses2(completed).size)
+            assertEquals("done", String.fromUtf8(data2(completed, accepted)))
+            assertEquals(1, ends2(completed, accepted))
+            client.consume(accepted, 4L)
+        }
+    }
+
+    @Test
+    fun `GOAWAY also refuses the first request before any request head was sent`() {
+        withHttp2 { client, server ->
+            drive2(client, server); events2(client); events2(server)
+            val pending = client.submitRequest(request2("POST"), false)
+            assertEquals(4L, write2(client, pending, "body".toByteArray()))
+            client.finish(pending)
+            server.goAway(lastStreamId = Some(0))
+            transfer2(server, client)
+            transfer2(client, server)
+            requireUnsentClosures(events2(client), [pending])
+            assertFalse(client.hasPendingOutput(pending))
+            assertEquals(0L, requests2(events2(server)).size)
+        }
+    }
+}
+
+private fun requireUnsentClosures(events: Array<Http2Event>, ids: Array<Int>) {
+    var total = 0L
+    for (id in ids) {
+        var count = 0L
+        for (event in events) when (event) {
+            case StreamClosed(stream, code) -> if (stream == id) {
+                assertEquals(7U, code)
+                count += 1L
+            }
+            case Failure(_) -> fail(Some("unsent request produced a duplicate backend failure"))
+            else -> {}
+        }
+        assertEquals(1L, count)
+        total += count
+    }
+    assertEquals(ids.size, total)
+}
+

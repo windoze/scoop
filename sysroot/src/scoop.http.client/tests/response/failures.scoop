@@ -1,0 +1,55 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.compression.*
+import scoop.test.*
+
+@Test
+private class HttpClientResponseFailureTest {
+    @Test
+    fun `truncated gzip and raw DEFLATE retain compression errors without a format fallback`() {
+        val gzip = compress("content".toByteArray(), CompressionOptions.Gzip(GzipOptions()))
+        val messages = [("gzip", Array<Byte>(gzip.size - 1L) { index -> gzip[index] }, CompressionFailureKind.Truncated),
+            ("deflate", compress("content".toByteArray(), CompressionOptions.RawDeflate(DeflateOptions())), CompressionFailureKind.InvalidData)]
+        for ((coding, bytes, kind) in messages) {
+            withResponseTestHttp1(suspend { connection ->
+                connection.receiveRequest()!!.body.readAllBytes(0L)
+                sendResponseTestBytes(connection, bytes, [responseTestField("Content-Encoding", coding)])
+            }, suspend { client, url ->
+                val response = client.execute(HttpRequest.get(url))
+                val error = expectBodyFailure<CompressionException> suspend { response.body.bytes(100L); Unit }
+                assertTrue(error.kind == kind)
+                assertFalse(response.body.isComplete)
+                response.close()
+            })
+        }
+    }
+
+    @Test
+    fun `per-call decompression windows and decoded byte limits are distinct`() {
+        val bytes = Array<Byte>(4096L) { index -> (index * 71L).toByte() }
+        val encoded = compress(bytes, CompressionOptions.Zstd(ZstdOptions()))
+        withResponseTestHttp1(suspend { connection ->
+            connection.receiveRequest()!!.body.readAllBytes(0L)
+            sendResponseTestBytes(connection, encoded, [responseTestField("Content-Encoding", "zstd")])
+        }, suspend { client, url ->
+            val options = HttpCallOptions(decoding = Some(HttpDecodingOptions(maxWindowBytes = Some(1024L))))
+            val response = client.execute(HttpRequest.get(url, options = options))
+            val error = expectBodyFailure<CompressionException> suspend { response.body.bytes(4096L); Unit }
+            assertTrue(error.kind == CompressionFailureKind.WindowLimit)
+            response.close()
+        })
+        withResponseTestHttp1(suspend { connection ->
+            connection.receiveRequest()!!.body.readAllBytes(0L)
+            sendResponseTestBytes(connection, compress("abcdef".toByteArray(), CompressionOptions.Gzip(GzipOptions())),
+                [responseTestField("Content-Encoding", "gzip")])
+        }, suspend { client, url ->
+            client.withResponse(HttpRequest.get(url)) suspend { response ->
+                val error = expectBodyFailure<ReadLimitException> suspend { response.body.text(2L); Unit }
+                assertEquals(2L, error.maxBytes)
+                assertFalse(response.body.isComplete)
+                assertEquals("def", response.body.text(3L))
+            }
+        })
+    }
+}

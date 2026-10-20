@@ -1,0 +1,51 @@
+package scoop.url
+
+import scoop.text.*
+
+internal fun snapshotUrl(handle: Ptr<Byte>, reusable: List<UrlAuthority>): Url {
+    @Unsafe {
+        val originalScheme = nativeUrlPart(handle, 0)
+        val scheme = if (originalScheme == None) None else Some(originalScheme!!.lowercaseAscii())
+        if (!sameUrlOption(originalScheme, scheme)) setNativeUrlPart(handle, 0, scheme, UrlComponent.Scheme)
+        val userInfo = nativeUrlPart(handle, 1)
+        val originalHost = nativeUrlPart(handle, 2)
+        val portText = nativeUrlPart(handle, 3)
+        val port = urlPort(portText)
+        val canonicalPort = if (port == None) None else Some(port!!.toString())
+        if (!sameUrlOption(portText, canonicalPort)) setNativeUrlPart(handle, 3, canonicalPort, UrlComponent.Port)
+        var authority: UrlAuthority? = None
+        if (originalHost != None) {
+            val originalKind = urlHostKind(handle)
+            var previous: HostResolution? = None
+            for (candidate in reusable) {
+                if (candidate.encodedHost == originalHost!! && candidate.hostKind == originalKind) {
+                    previous = Some(candidate.resolution)
+                    break
+                }
+            }
+            val resolution = if (hasUrlValue(previous)) previous!! else
+                resolveUrlHost(originalHost!!, originalKind, copyUrlBytes(urlAddress(handle)))
+            val hostText = canonicalUrlHost(originalHost!!, originalKind, resolution, isNetworkScheme(scheme))
+            if (hostText != originalHost!!) {
+                setNativeUrlPart(handle, 2, Some(hostText), UrlComponent.Host)
+            }
+            authority = Some(UrlAuthority(userInfo, nativeUrlPart(handle, 2)!!, port, urlHostKind(handle), resolution))
+        }
+        checkUriCode(urlFinish(handle), UrlComponent.Reference)
+        return Url(scheme, authority, nativeUrlPart(handle, 4)!!, nativeUrlPart(handle, 5), nativeUrlPart(handle, 6), nativeUrlPart(handle, 7)!!)
+    }
+}
+
+private fun canonicalUrlHost(original: String, kind: Int, resolution: HostResolution, network: Boolean): String = when (resolution) {
+    case HostResolution.Dns(name) -> if (network) name.ascii else original
+    case HostResolution.Ipv4(bytes) -> if (network || kind != 0) UrlHost.Ipv4(bytes).authorityText() else original
+    case HostResolution.Ipv6(bytes) -> if (network || kind != 0) UrlHost.Ipv6(bytes).authorityText() else original
+    case HostResolution.Invalid(_, _) -> if (kind == 2 || kind == 3) "[" + original + "]" else original
+}
+
+internal fun <T : Equals<T>> sameUrlOption(left: T?, right: T?): Boolean {
+    if (left == None) return right == None
+    return right != None && left!! == right!!
+}
+
+internal fun <T> hasUrlValue(value: T?): Boolean = when (value) { case None -> false; case Some(_) -> true }

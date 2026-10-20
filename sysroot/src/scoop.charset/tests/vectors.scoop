@@ -1,0 +1,71 @@
+package scoop.charset
+
+import scoop.test.*
+import scoop.text.*
+import scoop.collections.*
+
+@Test
+private class CharsetVectorTests {
+    @Test
+    fun `canonical names are fixed aliases and exclude process dependent names`() {
+        assertEquals(Charset.Utf8, Charset.forName("uTf8"))
+        assertEquals(Charset.Ascii, Charset.forName("ANSI_X3.4-1968"))
+        assertEquals(Charset.Windows1252, Charset.forName("cp1252"))
+        for (name in ["", "CHAR", "WCHAR_T", "UTF-8//IGNORE", "utf-8//translit", "UCS-2-INTERNAL", "UCS-4-SWAPPED", "no-such-charset", "UTF-8\u{0000}bad"]) {
+            assertTrue(Charset.forNameOrNone(name) == None)
+        }
+        assertEquals("1.19", Charset.backendVersion)
+        assertTrue(Charset.availableNames.contains("UTF-8"))
+        assertTrue(Charset.availableNames.contains("GB18030"))
+    }
+
+    @Test
+    fun `published vectors cover the required Unicode and legacy encodings`() {
+        checkVector(Charset.Ascii, "Hello", "48656c6c6f")
+        checkVector(Charset.Iso8859_1, "café\u{0080}", "636166e980")
+        checkVector(Charset.Windows1252, "café€", "636166e980")
+        checkVector(Charset.Utf16LE, "Aé😀", "4100e9003dd800de")
+        checkVector(Charset.Utf16BE, "Aé😀", "004100e9d83dde00")
+        checkVector(Charset.Utf32LE, "Aé😀", "41000000e900000000f60100")
+        checkVector(Charset.Utf32BE, "Aé😀", "00000041000000e90001f600")
+        checkVector(Charset.Gb18030, "中文😀", "d6d0cec49439fc36")
+        checkVector(Charset.Gbk, "中文", "d6d0cec4")
+        checkVector(Charset.Big5, "中文", "a4a4a4e5")
+        checkVector(Charset.ShiftJis, "日本語", "93fa967b8cea")
+        checkVector(Charset.EucJp, "日本語", "c6fccbdcb8ec")
+        checkVector(Charset.Iso2022Jp, "日本語", "1b2442467c4b5c386c1b2842")
+        assertEquals("a\u{0000}b", Charset.Ascii.decode(Charset.Ascii.encode("a\u{0000}b")))
+        assertEquals("", Charset.Gbk.decode(Charset.Gbk.encode("")))
+    }
+
+    @Test
+    fun `strict errors identify the original input byte offset`() {
+        val invalid = assertFailsWith<CharsetException> { Charset.Utf8.decode("61e228a1".hexToByteArray()) }
+        assertTrue(invalid.kind == CharsetFailureKind.MalformedInput)
+        assertEquals(1L, invalid.offset!!)
+        val incomplete = assertFailsWith<CharsetException> { Charset.Utf16LE.decode("610000d8".hexToByteArray()) }
+        assertTrue(incomplete.kind == CharsetFailureKind.IncompleteInput)
+        assertEquals(2L, incomplete.offset!!)
+        val unmappable = assertFailsWith<CharsetException> { Charset.Ascii.encode("abé") }
+        assertTrue(unmappable.kind == CharsetFailureKind.UnmappableCharacter)
+        assertEquals(2L, unmappable.offset!!)
+        assertFailsWith<CharsetException> { Charset.Ascii.encode("a\u{E0001}b") }
+        assertFailsWith<CharsetException> { Charset.Utf32LE.decode("00d80000".hexToByteArray()) }
+    }
+
+    @Test
+    fun `explicit lossy conversion preserves state and never transliterates`() {
+        assertEquals("�(��", Charset.Utf8.decodeLossy("e228a1e282".hexToByteArray()))
+        assertEquals("a�", Charset.Utf16LE.decodeLossy("610000d8".hexToByteArray()))
+        assertEquals("a?b", String.fromUtf8(Charset.Ascii.encodeLossy("a\u{E0001}b")))
+        assertEquals("?", String.fromUtf8(Charset.Ascii.encodeLossy("é")))
+        val japanese = Charset.Iso2022Jp.encodeLossy("日😀本")
+        assertEquals("1b2442467c1b28423f1b24424b5c1b2842", japanese.toHexString())
+        assertEquals("日?本", Charset.Iso2022Jp.decode(japanese))
+    }
+}
+
+private fun checkVector(charset: Charset, text: String, hex: String) {
+    assertEquals(hex, charset.encode(text).toHexString())
+    assertEquals(text, charset.decode(hex.hexToByteArray()))
+}

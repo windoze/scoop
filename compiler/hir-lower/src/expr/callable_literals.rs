@@ -87,6 +87,8 @@ impl Lowerer {
         }
 
         let capture_environment = self.capture_environment();
+        // Nested callables obtain constructor parameters through their captures.
+        let outer_constructor_parameters = std::mem::take(&mut self.constructor_params_in_scope);
         let literal_origin = self.expression_origin(span);
         let definition_path = self
             .definition_paths
@@ -304,6 +306,7 @@ impl Lowerer {
         self.pop_safety_context();
         self.pop_suspension_context();
         self.capture_contexts.pop();
+        self.constructor_params_in_scope = outer_constructor_parameters;
         self.locals = outer_locals;
         self.scopes = outer_scopes;
         self.current_return_ty = outer_return_ty;

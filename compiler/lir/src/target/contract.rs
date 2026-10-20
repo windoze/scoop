@@ -28,7 +28,8 @@ pub enum ScoopAbiClassifier {
 
 impl WireEncode for ScoopAbiClassifier {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.unsigned(3)
+        // Version 4 adds zero extension for scalar Boolean arguments/results.
+        encoder.unsigned(4)
     }
 }
 

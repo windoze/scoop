@@ -70,6 +70,19 @@ impl VerifiedBuiltinObjectStrongRelocationSetV1 {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct MissingObjectDefinitionMemberV1(pub scoop_identity::ObjectDefinitionPlanId);
+impl fmt::Display for MissingObjectDefinitionMemberV1 {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "no object member assigned to definition {:?}",
+            self.0
+        )
+    }
+}
+impl std::error::Error for MissingObjectDefinitionMemberV1 {}
+
 pub fn verify_builtin_object_strong_relocations_v1(
     member_plan: &PlannedLinkObjectMemberSetV1,
     symbol_plan: &PlannedStrongObjectSymbolSetV1,

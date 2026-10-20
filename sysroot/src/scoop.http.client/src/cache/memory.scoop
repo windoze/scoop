@@ -1,0 +1,85 @@
+package scoop.http.client
+
+import scoop.http.*
+
+public class MemoryHttpCache public constructor(
+    public val maxBytes: Long = 33554432L,
+    public val maxEntryBytes: Long = 8388608L,
+    public val maxEntries: Long = 1024L
+) : HttpCache {
+    private val lock: ClientLock = ClientLock()
+    private val entries: ArrayList<ClientMemoryCacheEntry> = ArrayList<ClientMemoryCacheEntry>()
+    private val writers: ArrayList<ClientMemoryCacheWriter> = ArrayList<ClientMemoryCacheWriter>()
+    private var used: Long = 0L
+    init {
+        if (maxBytes <= 0L || maxEntryBytes <= 0L || maxEntries <= 0L)
+            throw IllegalArgumentException(Some("HTTP cache limits must be positive"))
+    }
+    public val sizeBytes: Long get() = lock.withLock { used }
+    public val entryCount: Long get() = lock.withLock { entries.size }
+
+    public override suspend fun lookup(request: HttpCacheRequest): HttpCacheSnapshot? = lock.withLock {
+        var index = entries.size
+        while (index > 0L) {
+            index -= 1L
+            val entry = entries[index]
+            if (!entry.record.matches(request)) continue
+            entries.removeAt(index); entries.add(entry)
+            return@withLock Some<HttpCacheSnapshot>(ClientMemoryCacheSnapshot(entry))
+        }
+        None
+    }
+
+    public override suspend fun begin(record: HttpCacheRecord): HttpCacheWriter? {
+        val limit = if (maxEntryBytes < maxBytes) maxEntryBytes else maxBytes
+        val length = parseHttpContentLength(record.head.fields)
+        if (clientPresent(length) && length!! > limit) return None
+        val writer = ClientMemoryCacheWriter(this, record, limit)
+        lock.withLock { writers.add(writer) }
+        return Some<HttpCacheWriter>(writer)
+    }
+
+    public override suspend fun invalidate(partition: String, url: String) {
+        lock.withLock {
+            var index = entries.size
+            while (index > 0L) {
+                index -= 1L
+                val key = entries[index].record.key
+                if (key.partition == partition && key.url == url) remove(index)
+            }
+            for (writer in writers) if (writer.record.key.partition == partition && writer.record.key.url == url)
+                writer.discard.store(true)
+        }
+    }
+
+    public fun clear() { lock.withLock {
+        entries.clear(); used = 0L
+        for (writer in writers) writer.discard.store(true)
+    } }
+
+    internal fun publish(writer: ClientMemoryCacheWriter, bytes: Array<Byte>, trailers: Array<HttpField>) {
+        lock.withLock {
+            forget(writer)
+            if (writer.discard.load()) return@withLock
+            for (entry in entries) if (replacedClientCacheVariant(entry.record, writer.record) &&
+                entry.record.responseDate > writer.record.responseDate) return@withLock
+            var index = entries.size
+            while (index > 0L) {
+                index -= 1L
+                if (!replacedClientCacheVariant(entries[index].record, writer.record)) continue
+                remove(index)
+            }
+            while (entries.size >= maxEntries || used > maxBytes - bytes.size) remove(0L)
+            entries.add(ClientMemoryCacheEntry(writer.record, bytes, trailers))
+            used += bytes.size
+        }
+    }
+
+    internal fun abandon(writer: ClientMemoryCacheWriter) { lock.withLock { forget(writer) } }
+    private fun forget(writer: ClientMemoryCacheWriter) {
+        for (index in 0L..<writers.size) if (writers[index] === writer) { writers.removeAt(index); return }
+    }
+    private fun remove(index: Long) { used -= entries[index].bytes.size; entries.removeAt(index) }
+}
+
+internal class ClientMemoryCacheEntry(val record: HttpCacheRecord, val bytes: Array<Byte>, val trailers: Array<HttpField>)

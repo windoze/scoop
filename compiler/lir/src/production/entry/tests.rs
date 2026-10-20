@@ -1,12 +1,11 @@
 use scoop_identity::{
     CallableBodyKey, CanonicalIdentifier, CborIdentityRecord, ConeIdentity, DeclarationScope,
-    DefinitionAtomRole, DefinitionAtomSubkey, DefinitionOwnerChain, DigestNodeId, DigestNodeKey,
-    DigestPatchIntentKey, DigestSemanticFieldRole, ExactCallableSignature, ExactTypeKey,
-    ExecutableEntryIdentity, LinkageClass, ObjectDefinitionAtomKey, ObjectDefinitionPlanKey,
-    PackagePath, PersistentCallableBodyId, PersistentExactTypeId, PersistentStaticStorageId,
-    PersistentSymbolKey, PersistentSymbolRequest, PersistentSymbolRequestTable,
-    RuntimeIdentityRecord, SourceDeclarationKey, SourceDeclarationSite, StaticStorageKey,
-    StrongDefinitionEntity, StrongDefinitionRole,
+    DefinitionAtomRole, DefinitionAtomSubkey, DefinitionOwnerChain, DigestNodeKey,
+    ExactCallableSignature, ExactTypeKey, ExecutableEntryIdentity, LinkageClass,
+    ObjectDefinitionAtomKey, ObjectDefinitionPlanKey, PackagePath, PersistentCallableBodyId,
+    PersistentExactTypeId, PersistentStaticStorageId, PersistentSymbolKey, PersistentSymbolRequest,
+    PersistentSymbolRequestTable, RuntimeIdentityRecord, SourceDeclarationKey,
+    SourceDeclarationSite, StaticStorageKey, StrongDefinitionEntity, StrongDefinitionRole,
 };
 
 use super::{EntryProductionPlanBuildError, EntryProductionPlanV1, EntryProductionSourceV1};

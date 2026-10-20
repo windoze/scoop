@@ -1,0 +1,100 @@
+package scoop.url
+
+import scoop.idna.*
+import scoop.text.*
+
+public enum UrlHost : Equals<UrlHost>, Hash, ToString {
+    Dns(val name: String), Ipv4(val bytes: Array<Byte>), Ipv6(val bytes: Array<Byte>)
+
+    public override operator fun equals(other: UrlHost): Boolean = when (this) {
+        case Dns(name) -> when (other) { case Dns(right) -> name == right; else -> false }
+        case Ipv4(bytes) -> when (other) { case Ipv4(right) -> urlBytesEqual(bytes, right); else -> false }
+        case Ipv6(bytes) -> when (other) { case Ipv6(right) -> urlBytesEqual(bytes, right); else -> false }
+    }
+    public override fun hash(): Long = when (this) {
+        case Dns(name) -> name.hash()
+        case Ipv4(bytes) -> hashUrlBytes(bytes, 4L)
+        case Ipv6(bytes) -> hashUrlBytes(bytes, 6L)
+    }
+    public override fun toString(): String = when (this) {
+        case Dns(name) -> name
+        case Ipv4(bytes) -> formatUrlIp(bytes, false)
+        case Ipv6(bytes) -> formatUrlIp(bytes, true)
+    }
+    internal fun authorityText(): String = when (this) {
+        case Ipv6(_) -> "[" + toString() + "]"
+        else -> toString()
+    }
+}
+
+internal fun urlBytesEqual(left: List<Byte>, right: List<Byte>): Boolean {
+    if (left.size != right.size) return false
+    for (index in 0L..<left.size) { if (left[index] != right[index]) return false }
+    return true
+}
+
+private fun hashUrlBytes(bytes: List<Byte>, seed: Long): Long {
+    var result = seed
+    for (byte in bytes) { result = result * 31L + byte.toLong() }
+    return result
+}
+
+private fun formatUrlIp(bytes: List<Byte>, ipv6: Boolean): String {
+    if (bytes.size != (if (ipv6) 16L else 4L)) throw IllegalArgumentException(Some("invalid IP address byte length"))
+    val text = StringBuilder()
+    if (ipv6) {
+        val hex = bytes.toHexString()
+        for (index in 0L..<8L) {
+            if (index > 0L) text.append(":")
+            text.append(hex.slice(index * 4L, index * 4L + 4L))
+        }
+    } else {
+        for (index in 0L..<4L) {
+            if (index > 0L) text.append(".")
+            text.append((bytes[index].toInt() and 255).toString())
+        }
+    }
+    return text.toString()
+}
+
+internal enum HostResolution {
+    Dns(val name: IdnaName), Ipv4(val bytes: Array<Byte>), Ipv6(val bytes: Array<Byte>),
+    Invalid(val detail: String, val cause: Throwable?)
+}
+
+internal fun resolveUrlHost(host: String, kind: Int, address: Array<Byte>): HostResolution {
+    if (kind == 1) return HostResolution.Ipv4(address)
+    if (kind == 2) return HostResolution.Ipv6(address)
+    if (kind == 3) return HostResolution.Invalid("IPvFuture is not an HTTP connection target", None)
+    val decoded = String.fromUtf8OrNone(PercentEncoding.decode(host))
+    if (decoded == None) return HostResolution.Invalid("network host is not UTF-8", None)
+    try {
+        val name = Idna.parse(decoded!!)
+        val canonical = stripRootDot(name.ascii)
+        if (canonical.length == 0L) return HostResolution.Invalid("network host is empty or the DNS root", None)
+        if (numericUrlHost(canonical)) {
+            val bytes = urlNativeIpv4(canonical)
+            if (!hasUrlValue(bytes)) return HostResolution.Invalid("IPv4 requires four decimal octets without leading zeroes", None)
+            return HostResolution.Ipv4(bytes!!)
+        }
+        return HostResolution.Dns(name)
+    } catch (error: IdnaException) {
+        if (error.kind == IdnaFailureKind.Backend) throw error
+        return HostResolution.Invalid(error.detail, Some(error))
+    }
+}
+
+internal fun stripRootDot(host: String): String = if (host.endsWith(".")) host.slice(0L, host.length - 1L) else host
+
+private fun numericUrlHost(host: String): Boolean {
+    for (label in host.split('.')) {
+        if (label.length == 0L) return false
+        if (label.startsWith("0x")) {
+            if (label.length == 2L) return false
+            for (index in 2L..<label.length) { if (hexDigit(label[index].code) < 0) return false }
+        } else {
+            for (character in label) { if (character < '0' || character > '9') return false }
+        }
+    }
+    return true
+}

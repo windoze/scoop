@@ -11,18 +11,8 @@ impl DigestGraphWriter<'_> {
         >,
     ) -> Result<(), DigestProjectionError> {
         for (site, owner) in semantics {
-            let registration = self.definition(
-                StrongDefinitionEntity::safepoint_site(site),
-                StrongDefinitionRole::SafepointRegistration,
-            )?;
-
             let stackmap = DigestNodeKey::stackmap_record(site);
             self.ensure(stackmap);
-            self.patch(
-                stackmap,
-                registration.plan,
-                DigestSemanticFieldRole::NormalizedStackmap,
-            )?;
 
             self.image_inputs.extend([stackmap]);
 
@@ -52,15 +42,6 @@ impl DigestGraphWriter<'_> {
             let body_node = DigestNodeKey::object_definition(definition.primary);
             self.ensure(body_node);
 
-            let registration = self.definition(
-                StrongDefinitionEntity::callable_body(body),
-                StrongDefinitionRole::CallableRegistration,
-            )?;
-            self.patch(
-                body_node,
-                registration.plan,
-                DigestSemanticFieldRole::CallableBodyDefinition,
-            )?;
             self.image_inputs.extend([body_node]);
         }
         Ok(())
@@ -79,17 +60,8 @@ impl DigestGraphWriter<'_> {
                 foundation: self.foundation.producer(),
             });
         }
-        let descriptor = self.definition(
-            StrongDefinitionEntity::root_entry(entry.root_cone()),
-            StrongDefinitionRole::RootEntryDescriptor,
-        )?;
         let source_node = DigestNodeKey::source_signature(entry.main().body());
         self.ensure(source_node);
-        self.patch(
-            source_node,
-            descriptor.plan,
-            DigestSemanticFieldRole::SourceSignature,
-        )?;
 
         let gateway = PersistentCallableBodyId::from_key(&CallableBodyKey::root_gateway(
             entry.root_cone(),
@@ -102,10 +74,7 @@ impl DigestGraphWriter<'_> {
         )?;
         let gateway_node = DigestNodeKey::object_definition(gateway.primary);
         self.ensure(gateway_node);
-        self.patch(
-            gateway_node,
-            descriptor.plan,
-            DigestSemanticFieldRole::GatewayDefinition,
-        )
+
+        Ok(())
     }
 }

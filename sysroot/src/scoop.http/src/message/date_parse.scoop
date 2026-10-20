@@ -1,0 +1,124 @@
+package scoop.http
+
+import scoop.datetime.*
+import scoop.time.Instant
+import scoop.text.lowercaseAscii
+
+private struct HttpDateParts(
+    val year: Int, val month: Int, val day: Int, val hour: Int, val minute: Int, val second: Int,
+    val shortYear: Boolean, val dayOffset: Long, val yearOffset: Long
+)
+
+internal fun parseHttpDate(reader: HttpFieldReader, reference: Instant, insensitive: Boolean): Instant {
+    reader.skipOws()
+    val weekdayOffset = reader.position
+    val weekday = reader.token()
+    val comma = reader.peek() == 44
+    val longName = comma && weekday.length > 3L
+    val weekdayNumber = dateName(reader, weekday, if (longName) httpDateLongWeekdays else httpDateWeekdays,
+        weekdayOffset, insensitive, "weekday")
+    val parts = if (comma) commaDate(reader, longName, insensitive) else asctimeDate(reader, insensitive)
+    reader.skipOws()
+    if (!reader.ended) reader.fail("unexpected text after HTTP date")
+    val year = if (parts.shortYear) obsoleteYear(parts, reference) else parts.year
+    if (year < 1900 || year > 9999) reader.failAt(parts.yearOffset, "HTTP date year must be 1900..9999")
+    val date = try { LocalDate(year, parts.month, parts.day) }
+        catch (_: IllegalArgumentException) { reader.failAt(parts.dayOffset, "invalid HTTP calendar date") }
+    if (date.dayOfWeek.isoDayNumber != weekdayNumber) reader.failAt(weekdayOffset, "weekday does not match HTTP date")
+    val time = LocalTime(parts.hour, parts.minute, if (parts.second == 60) 59 else parts.second)
+    return LocalDateTime(date, time).toInstant(UtcOffset.ZERO)
+}
+
+private fun commaDate(reader: HttpFieldReader, shortYear: Boolean, insensitive: Boolean): HttpDateParts {
+    reader.expect(44); reader.expect(32)
+    val dayOffset = reader.position
+    val day = dateDigits(reader, 2)
+    reader.expect(if (shortYear) 45 else 32)
+    val monthOffset = reader.position
+    val month = dateName(reader, dateWord(reader, 3), httpDateMonths, monthOffset, insensitive, "month")
+    reader.expect(if (shortYear) 45 else 32)
+    val yearOffset = reader.position
+    val year = dateDigits(reader, if (shortYear) 2 else 4)
+    reader.expect(32)
+    val (hour, minute, second) = dateTime(reader)
+    reader.expect(32)
+    val zoneOffset = reader.position
+    val zone = dateWord(reader, 3)
+    if ((if (insensitive) zone.lowercaseAscii() else zone) != (if (insensitive) "gmt" else "GMT"))
+        reader.failAt(zoneOffset, "HTTP date requires GMT")
+    return HttpDateParts(year, month, day, hour, minute, second, shortYear, dayOffset, yearOffset)
+}
+
+private fun asctimeDate(reader: HttpFieldReader, insensitive: Boolean): HttpDateParts {
+    reader.expect(32)
+    val monthOffset = reader.position
+    val month = dateName(reader, dateWord(reader, 3), httpDateMonths, monthOffset, insensitive, "month")
+    reader.expect(32)
+    val dayOffset = reader.position
+    val padded = reader.peek() == 32
+    if (padded) reader.position += 1L
+    val day = dateDigits(reader, if (padded) 1 else 2)
+    reader.expect(32)
+    val (hour, minute, second) = dateTime(reader)
+    reader.expect(32)
+    val yearOffset = reader.position
+    val year = dateDigits(reader, 4)
+    return HttpDateParts(year, month, day, hour, minute, second, false, dayOffset, yearOffset)
+}
+
+private fun dateTime(reader: HttpFieldReader): (Int, Int, Int) {
+    val start = reader.position
+    val hour = dateDigits(reader, 2); reader.expect(58)
+    val minute = dateDigits(reader, 2); reader.expect(58)
+    val second = dateDigits(reader, 2)
+    if (hour > 23) reader.failAt(start, "invalid HTTP date hour")
+    if (minute > 59) reader.failAt(start + 3L, "invalid HTTP date minute")
+    if (second > 60) reader.failAt(start + 6L, "invalid HTTP date second")
+    return (hour, minute, second)
+}
+
+private fun dateDigits(reader: HttpFieldReader, width: Int): Int {
+    var value = 0
+    for (index in 0..<width) {
+        val digit = reader.peek() - 48
+        if (digit < 0 || digit > 9) reader.fail("expected HTTP date digit")
+        value = value * 10 + digit
+        reader.position += 1L
+    }
+    return value
+}
+
+private fun dateWord(reader: HttpFieldReader, width: Int): String {
+    val start = reader.position
+    for (index in 0..<width) {
+        val char = reader.peek()
+        if (char < 0 || char >= 128) reader.fail("expected HTTP date ASCII word")
+        reader.position += 1L
+    }
+    return String.fromUtf8(reader.slice(start, reader.position))
+}
+
+private fun dateName(reader: HttpFieldReader, word: String, names: Array<String>, offset: Long,
+    insensitive: Boolean, kind: String): Int {
+    val selected = if (insensitive) word.lowercaseAscii() else word
+    var index = 0L
+    for (name in names) {
+        if (selected == (if (insensitive) name.lowercaseAscii() else name)) return index.toInt() + 1
+        index += 1L
+    }
+    reader.failAt(offset, "invalid HTTP date " + kind)
+}
+
+private fun obsoleteYear(parts: HttpDateParts, reference: Instant): Int {
+    val now = reference.toLocalDateTime(UtcOffset.ZERO)
+    if (now.year < 1900 || now.year > 9999) throw IllegalArgumentException(Some("HTTP date reference year must be 1900..9999"))
+    val cutoff = LocalDateTime(now.date.plusYears(50L), now.time)
+    val candidate = cutoff.year / 100 * 100 + parts.year
+    val left = [candidate, parts.month, parts.day, parts.hour, parts.minute, if (parts.second == 60) 59 else parts.second]
+    val right = [cutoff.year, cutoff.monthNumber, cutoff.dayOfMonth, cutoff.hour, cutoff.minute, cutoff.second]
+    for (index in 0L..<left.size) {
+        if (left[index] > right[index]) return candidate - 100
+        if (left[index] < right[index]) return candidate
+    }
+    return candidate
+}

@@ -13,6 +13,8 @@ use scoop_wire::encode;
 use super::{ConeLirFoundation, ConeLirFoundationError};
 use crate::CanonicalLirFoundation;
 
+mod definition_lookup;
+
 #[test]
 fn accepts_and_preserves_strong_bodies_and_symbols() {
     let body = strong_body("entry");

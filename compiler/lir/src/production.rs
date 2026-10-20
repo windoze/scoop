@@ -18,9 +18,6 @@ pub use generated_bridges::*;
 mod c_bridge;
 pub use c_bridge::*;
 
-mod c_bridge_support;
-pub use c_bridge_support::*;
-
 mod producer_units;
 pub use producer_units::*;
 

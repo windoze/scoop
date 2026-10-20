@@ -1,0 +1,99 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.collections.emptyList
+import scoop.compression.*
+import scoop.http.*
+import scoop.test.*
+
+@Test
+private class HttpClientResponseNegotiationTest {
+    @Test
+    fun `raw configuration call overrides ranges and explicit encoding proposals remain independent`() {
+        val automatic = HttpCallOptions(decoding = Some(HttpDecodingOptions()))
+        val proposals: Array<String?> = [None, Some("gzip"), Some("gzip, deflate, br, zstd"), Some("identity"), Some("br")]
+        withResponseTestHttp1(suspend { connection ->
+            var index = 0L
+            for (proposal in proposals) {
+                val incoming = connection.receiveRequest()!!
+                val fields = incoming.head.fields.findAll("Accept-Encoding".toByteArray())
+                when (proposal) {
+                    case Some(value) -> { assertEquals(1L, fields.size); assertEquals(value, String.fromUtf8(fields[0L].value)) }
+                    case None -> assertEquals(0L, fields.size)
+                }
+                incoming.body.readAllBytes(0L)
+                val gzip = index == 2L
+                val bytes = if (gzip) compress("wire".toByteArray(), CompressionOptions.Gzip(GzipOptions())) else "wire".toByteArray()
+                sendResponseTestBytes(connection, bytes, [responseTestField("Content-Encoding", if (gzip) "gzip" else "unknown / coding")])
+                index += 1L
+            }
+        }, suspend { client, url ->
+            val requests = [HttpRequest.get(url), HttpRequest.get(url, [responseTestField("Accept-Encoding", "gzip")]),
+                HttpRequest.get(url, options = automatic), HttpRequest.get(url, [responseTestField("Range", "bytes=0-3")]),
+                HttpRequest.get(url, [responseTestField("Range", "bytes=0-3"), responseTestField("Accept-Encoding", "br")])]
+            var index = 0L
+            for (request in requests) {
+                val attempt = index
+                client.withResponse(request) suspend { response ->
+                    assertTrue(response.body.contentLength == (if (attempt == 2L) None else Some(4L)))
+                    assertEquals("wire", response.body.text(4L))
+                }
+                index += 1L
+            }
+        }, HttpDecodingOptions(HttpContentDecoding.Raw))
+    }
+
+    @Test
+    fun `bodyless representation metadata never starts content decoding`() {
+        val messages: Array<(String, UInt)> = [("HEAD", 200U), ("GET", 304U), ("GET", 204U), ("GET", 205U)]
+        withResponseTestHttp1(suspend { connection ->
+            for ((method, status) in messages) {
+                val incoming = connection.receiveRequest()!!
+                assertEquals(method, String.fromUtf8(incoming.head.method))
+                incoming.body.readAllBytes(0L)
+                val fields = ArrayList<HttpField>()
+                fields.add(responseTestField("Content-Encoding", "unsupported / metadata"))
+                if (method == "HEAD" || status == 304U) fields.add(responseTestField("Content-Length", "123"))
+                connection.sendResponse(HttpResponseHead(HttpVersion.Http11, status, fields = fields)).finish()
+            }
+        }, suspend { client, url ->
+            for ((method, status) in messages) {
+                client.withResponse(HttpRequest(url, method)) suspend { response ->
+                    assertEquals(status, response.status)
+                    assertTrue(response.body.contentLength == None)
+                    if (method == "HEAD" || status == 304U) assertTrue(response.wireContentLength == Some(123L))
+                    assertEquals(0L, response.body.bytes(0L).size)
+                    assertTrue(response.body.isComplete)
+                }
+            }
+        })
+    }
+
+    @Test
+    fun `automatic mode reports unsupported and malformed encodings while per-call raw still accepts them`() {
+        for (coding in ["unknown", "gzip / bad"]) {
+            withResponseTestHttp1(suspend { connection ->
+                connection.receiveRequest()!!.body.readAllBytes(0L)
+                sendResponseTestBytes(connection, "bytes".toByteArray(), [responseTestField("Content-Encoding", coding)])
+            }, suspend { client, url ->
+                if (coding == "unknown") {
+                    val error = expectBodyFailure<HttpUnsupportedContentCodingException> suspend { client.execute(HttpRequest.get(url)); Unit }
+                    assertEquals("unknown", error.coding)
+                } else {
+                    expectBodyFailure<HttpFieldParseException> suspend { client.execute(HttpRequest.get(url)); Unit }
+                }
+                Unit
+            })
+        }
+        withResponseTestHttp1(suspend { connection ->
+            val incoming = connection.receiveRequest()!!
+            assertEquals(0L, incoming.head.fields.findAll("Accept-Encoding".toByteArray()).size)
+            incoming.body.readAllBytes(0L)
+            sendResponseTestBytes(connection, "bytes".toByteArray(), [responseTestField("Content-Encoding", "unknown")])
+        }, suspend { client, url ->
+            client.withResponse(HttpRequest.get(url, emptyList<HttpField>(), HttpCallOptions(decoding = Some(HttpDecodingOptions(HttpContentDecoding.Raw))))) suspend { response ->
+                assertEquals("bytes", response.body.text(5L))
+            }
+        })
+    }
+}

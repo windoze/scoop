@@ -1,0 +1,23 @@
+package scoop.http.client
+
+import scoop.asyncio.AsyncCloseable
+
+public enum HttpWebSocketResult : AsyncCloseable {
+    Opened(HttpWebSocketSession), Rejected(HttpResponse, Throwable)
+
+    public override suspend fun close() {
+        when (this) { case Opened(session) -> session.close(); case Rejected(response, _) -> response.close() }
+    }
+}
+
+internal suspend fun openClientWebSocket(client: ClientState, request: HttpWebSocketRequest,
+    options: HttpWebSocketOptions): HttpWebSocketResult {
+    clientJob(client.loop, true)
+    validateClientWebSocket(request, options)
+    val http = HttpRequest.get(request.httpUrl, request.fields, clientWebSocketOptions(request.options))
+    val sequence = ClientRequestSequence(client.config, http, webSocket = Some(options))
+    return when (interceptClientSequence(client, http, sequence)) {
+        case WebSocket(result) -> result
+        case Response(_) -> throw IllegalStateException(Some("WebSocket request returned an ordinary HTTP result"))
+    }
+}

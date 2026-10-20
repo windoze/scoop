@@ -6,7 +6,15 @@ fn compile(source: &str, extension: &str, extra: &[&str]) -> Vec<u8> {
     let input = directory.path().join(format!("input.{extension}"));
     let output = directory.path().join("input.o");
     std::fs::write(&input, source).unwrap();
-    let result = Command::new("gcc")
+    let mut command = Command::new(if cfg!(target_os = "macos") {
+        "clang"
+    } else {
+        "gcc"
+    });
+    if cfg!(target_os = "macos") {
+        command.arg("--target=x86_64-unknown-linux-gnu");
+    }
+    let result = command
         .env("TMPDIR", directory.path())
         .args(["-fPIC", "-fno-common", "-g", "-c"])
         .args(extra)
@@ -99,4 +107,22 @@ fn elf_native_inputs_index_libc_exit_cleanup() {
         assert!(info.requirements.contains("__cxa_atexit"));
         assert!(info.requirements.contains("__cxa_finalize"));
     }
+}
+
+#[test]
+fn elf_weak_imports_do_not_require_optional_hooks_or_data() {
+    let bytes = compile(
+        "extern int required(void);\n\
+         extern int optional_hook(void) __attribute__((weak));\n\
+         extern int optional_data __attribute__((weak));\n\
+         int caller(void) { return required() + (optional_hook ? optional_hook() : 0)\n\
+           + (&optional_data ? optional_data : 0); }\n",
+        "c",
+        &[],
+    );
+    let info = read(&bytes).unwrap();
+    assert!(info.requirements.contains("required"));
+    assert!(!info.requirements.contains("optional_hook"));
+    assert!(!info.requirements.contains("optional_data"));
+    assert_eq!(info.definitions["caller"].kind, NativeSymbolKind::Function);
 }

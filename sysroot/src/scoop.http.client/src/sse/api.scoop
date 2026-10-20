@@ -1,0 +1,54 @@
+package scoop.http.client
+
+import scoop.asyncio.AsyncCloseable
+import scoop.http.*
+import scoop.time.Duration
+import scoop.url.Url
+
+public class HttpSseOptions public constructor(
+    public val limits: SseLimits = SseLimits(), public val bufferSize: Long = 8192L,
+    public val initialLastEventId: String? = None, public val reconnect: HttpSseReconnectOptions? = None
+) {
+    init { if (bufferSize <= 0L) throw IllegalArgumentException(Some("SSE buffer size must be positive")) }
+}
+
+public class HttpSseReconnectOptions public constructor(
+    public val initialDelay: Duration = Duration.seconds(3L), public val maxDelay: Duration = Duration.seconds(30L),
+    public val maxReconnects: Long? = None,
+    public val onReconnect: suspend (HttpSseReconnect) -> Unit = suspend { _ -> }
+) {
+    init {
+        if (initialDelay < Duration.ZERO || maxDelay < initialDelay || (maxReconnects ?: 0L) < 0L)
+            throw IllegalArgumentException(Some("invalid SSE reconnect policy"))
+    }
+}
+
+public class HttpSseReconnect internal constructor(
+    public val number: Long, public val delay: Duration, public val url: Url,
+    public val lastEventId: String, public val cause: Throwable?
+)
+
+public enum HttpSseFailureReason { UnexpectedStatus, UnsupportedContentType, BodyNotReplayable }
+
+public class HttpSseException public constructor(
+    public val reason: HttpSseFailureReason, public val url: Url, public val head: HttpResponseHead? = None
+) : Exception(Some(when (reason) {
+    case UnexpectedStatus -> "SSE requires status 200 or 204"
+    case UnsupportedContentType -> "SSE requires text/event-stream"
+    case BodyNotReplayable -> "SSE reconnect requires a replayable request body"
+}))
+
+public class HttpEventSource internal constructor(private val state: ClientSseState, private val info: ClientSseInfo) : AsyncCloseable {
+    public val url: Url get() = state.client.lock.withLock { info.url }
+    public val head: HttpResponseHead get() = state.client.lock.withLock { info.head }
+    public val lastEventId: String get() = state.client.lock.withLock { state.lastEventId }
+    public val retryDelay: Duration get() = state.client.lock.withLock { state.delay }
+    public val reconnectCount: Long get() = state.client.lock.withLock { state.reconnects }
+    public val isFinished: Boolean get() = state.client.lock.withLock { state.finished }
+    public val isClosed: Boolean get() = state.client.lock.withLock { state.closed }
+    public val failure: Throwable? get() = state.client.lock.withLock {
+        if (state.explicitClose) state.cleanupFailure else clientSseFailure(state)
+    }
+    public suspend fun next(): SseEvent? = readClientSse(state)
+    public override suspend fun close() { closeClientSse(state) }
+}

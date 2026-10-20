@@ -14,7 +14,9 @@ internal fun driveH2(state: H2State) {
                 else {
                     try {
                         changed = receiveH2Events(state, actions)
+                        if (!state.closing) changed = checkH2Idle(state, actions) || changed
                         if (!state.closing) changed = finishH2Operations(state, actions) || changed
+                        if (!state.closing) changed = reconcileH2Idle(state, actions) || changed
                         if (!state.closing) changed = planH2Transfers(state, actions) || changed
                         if (!state.closing) changed = receiveH2Events(state, actions) || changed
                     } catch (error: Throwable) { terminateH2(state, error); changed = true }

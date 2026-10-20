@@ -1,9 +1,9 @@
 use scoop_identity::{
     CborIdentityRecord, ConeCoordinate, ConeImageSupportRole, DefinitionAtomRole,
-    DefinitionAtomSubkey, DigestNodeId, DigestNodeKey, DigestPatchIntentKey,
-    DigestSemanticFieldRole, LinkageClass, ObjectDefinitionAtomId, ObjectDefinitionAtomKey,
-    ObjectDefinitionPlanId, ObjectDefinitionPlanKey, PersistentSymbolKey, PersistentSymbolRequest,
-    PersistentSymbolRequestTable, StrongDefinitionEntity, StrongDefinitionRole,
+    DefinitionAtomSubkey, DigestNodeKey, LinkageClass, ObjectDefinitionAtomId,
+    ObjectDefinitionAtomKey, ObjectDefinitionPlanId, ObjectDefinitionPlanKey, PersistentSymbolKey,
+    PersistentSymbolRequest, PersistentSymbolRequestTable, StrongDefinitionEntity,
+    StrongDefinitionRole,
 };
 use scoop_wire::{decode_canonical, encode};
 
@@ -75,14 +75,8 @@ fn fixture(coordinate: &ConeCoordinate) -> (ConeLirFoundation, DigestFinalizatio
     let foundation = ConeLirFoundation::try_new(producer, canonical).unwrap();
 
     let image_key = DigestNodeKey::runtime_image(producer);
-    let image_id = DigestNodeId::from_key(&image_key).unwrap();
-    let patch = DigestPatchIntentKey::new(
-        image_id,
-        definition_id,
-        DefinitionAtomRole::Primary,
-        DigestSemanticFieldRole::RuntimeImage,
-    );
-    let image = DigestNodeV1::new(image_key, Vec::new(), vec![patch]).unwrap();
+
+    let image = DigestNodeV1::new(image_key, Vec::new()).unwrap();
     let digests = DigestFinalizationPlanV1::new(vec![image], &foundation).unwrap();
     (foundation, digests)
 }

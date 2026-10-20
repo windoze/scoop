@@ -53,6 +53,10 @@ impl DecodedObjectSymbolSurfaceV1 {
             })
             .collect::<Result<Vec<_>, LinkDataError>>()?;
         Ok(ObjectSymbolSurfaceV1 {
+            symbol_owners: plans
+                .iter()
+                .map(|plan| (plan.primary_symbol.key(), plan.definition_plan))
+                .collect(),
             atom_boundary_indices: atom_boundary_indices(&plans),
             plans,
         })

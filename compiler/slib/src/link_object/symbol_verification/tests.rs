@@ -249,7 +249,6 @@ fn build_fixture(producer: ConeIdentity, name: &str, include_associated_atom: bo
 
 pub(in crate::link_object) struct ObjectFixture {
     pub(in crate::link_object) bytes: Vec<u8>,
-    pub(in crate::link_object) section_offset: usize,
     symbol_offset: usize,
     string_indexes: Vec<u32>,
 }
@@ -406,7 +405,6 @@ pub(in crate::link_object) fn object_for_plan_with_deployment(
     bytes.extend_from_slice(&strings);
     ObjectFixture {
         bytes,
-        section_offset: section_offset as usize,
         symbol_offset: symbol_offset as usize,
         string_indexes,
     }

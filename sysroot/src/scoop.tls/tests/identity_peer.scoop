@@ -1,0 +1,83 @@
+package scoop.tls
+
+import scoop.crypto.testdata.*
+import scoop.platform.fs.*
+import scoop.platform.io.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.*
+import scoop.test.*
+import scoop.text.*
+
+@Test
+private class TlsIdentityPeerTests {
+    @Test
+    fun `independent OpenSSL requests the retained client certificate for TLS12 and TLS13`() {
+        for (version in [TlsVersion.Tls12, TlsVersion.Tls13]) {
+            val identity = TlsIdentity.fromPem(clientPem() + intermediatePem(), serverKeyPem())
+            val context = try { identityClientContext(identity, TlsOptions(version, version)) }
+                finally { identity.close() }
+            context.use {
+                withIdentityPeer(version, true) { port ->
+                    TlsStream.takeOwnershipAsClient(TcpStream.connect(SocketAddress(IpAddress.IPV4_LOOPBACK, port)),
+                        context, TlsPeerName.Dns("localhost")).use { stream ->
+                        context.close()
+                        assertTrue(stream.connectionInfo.version == version)
+                        stream.writeAllBytes("mtls".toByteArray())
+                        NativeByteBuffer.allocate(4L).use { input ->
+                            stream.readFully(input)
+                            assertEquals("peer", String.fromUtf8(input.readBytes(4L)))
+                        }
+                        stream.shutdownGracefully()
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `independent OpenSSL rejects absent wrong-purpose and incomplete client identities`() {
+        for (version in [TlsVersion.Tls12, TlsVersion.Tls13]) {
+            val options = TlsOptions(version, version)
+            rejectedIdentityPeer(version, clientContext(options))
+            TlsIdentity.fromPem(serverPem() + intermediatePem(), serverKeyPem()).use { wrongPurpose ->
+                rejectedIdentityPeer(version, identityClientContext(wrongPurpose, options))
+            }
+            TlsIdentity.fromPem(clientPem(), serverKeyPem()).use { missingIntermediate ->
+                rejectedIdentityPeer(version, identityClientContext(missingIntermediate, options))
+            }
+        }
+    }
+}
+
+private fun rejectedIdentityPeer(version: TlsVersion, context: TlsClientContext) {
+    context.use {
+        withIdentityPeer(version, false) { port ->
+            val error = assertFailsWith<TlsException> {
+                TlsStream.takeOwnershipAsClient(TcpStream.connect(SocketAddress(IpAddress.IPV4_LOOPBACK, port)),
+                    context, TlsPeerName.Dns("localhost")).use { stream ->
+                    NativeByteBuffer.allocate(1L).use { input -> stream.readInto(input, 1L) }
+                }
+            }
+            assertTrue(error.kind == TlsFailureKind.Protocol)
+        }
+    }
+}
+
+private fun withIdentityPeer(version: TlsVersion, accepted: Boolean, block: (Int) -> Unit) {
+    InteropDirectory().use { tree ->
+        tree.certificates()
+        tree.child("client.pem").writeText(clientPem())
+        val arguments: Array<String> = ["-u", "-c", identityPeerScript(), tree.child("server.pem").decodeUtf8(),
+            tree.child("server-key.pem").decodeUtf8(), tree.child("root.pem").decodeUtf8(),
+            tree.child("client.pem").decodeUtf8(), if (version == TlsVersion.Tls12) "12" else "13",
+            if (accepted) "accept" else "reject"]
+        val child = peerCommand("python3", arguments).spawn(searchPath = true)
+        try {
+            val port = child.stdout!!.readLine()!!.toIntOrNone()!!
+            block(port)
+            val output = child.communicate()
+            peerSucceeded(output)
+            assertEquals(if (accepted) "accepted\n" else "rejected\n", String.fromUtf8(output.stdout))
+        } finally { child.kill(); child.wait(); child.dispose() }
+    }
+}

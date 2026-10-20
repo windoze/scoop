@@ -1,0 +1,48 @@
+package scoop.charset
+
+import scoop.bytes.ByteOrder
+import scoop.test.*
+import scoop.text.*
+
+@Test
+private class CharsetBomTests {
+    @Test
+    fun `consume preserve and require affect only the first matching signature`() {
+        val bytes = "efbbbf61efbbbf62".hexToByteArray()
+        assertEquals("a\u{FEFF}b", Charset.Utf8.decode(bytes))
+        assertEquals("\u{FEFF}a\u{FEFF}b", Charset.Utf8.decode(bytes, CharsetDecodeOptions(bom = CharsetBomPolicy.Preserve)))
+        assertEquals("a\u{FEFF}b", Charset.Utf8.decode(bytes, CharsetDecodeOptions(bom = CharsetBomPolicy.Require)))
+        val error = assertFailsWith<CharsetException> { Charset.Utf8.decode("a".toByteArray(), CharsetDecodeOptions(bom = CharsetBomPolicy.Require)) }
+        assertTrue(error.kind == CharsetFailureKind.MissingBom)
+        assertEquals("efbbbf61", Charset.Utf8.encode("\u{FEFF}a").toHexString())
+        assertEquals("efbbbfefbbbf61", Charset.Utf8.encode("\u{FEFF}a", CharsetEncodeOptions(emitBom = true)).toHexString())
+    }
+
+    @Test
+    fun `unspecified byte order requires a signature or an explicit choice`() {
+        assertEquals("a", Charset.Utf16.decode("fffe6100".hexToByteArray()))
+        assertEquals("a", Charset.Utf16.decode("feff0061".hexToByteArray()))
+        assertEquals("a", Charset.Utf32.decode("fffe000061000000".hexToByteArray()))
+        assertEquals("a", Charset.Utf32.decode("0000feff00000061".hexToByteArray()))
+        assertFailsWith<CharsetException> { Charset.Utf16.decode("6100".hexToByteArray()) }
+        assertEquals("a", Charset.Utf16.decode("6100".hexToByteArray(), CharsetDecodeOptions(defaultByteOrder = Some(ByteOrder.LittleEndian))))
+        assertEquals("a", Charset.Utf16.decode("feff0061".hexToByteArray(), CharsetDecodeOptions(defaultByteOrder = Some(ByteOrder.LittleEndian))))
+        assertFailsWith<CharsetException> { Charset.Utf32.encode("a") }
+        assertEquals("fffe000061000000", Charset.Utf32.encode("a", CharsetEncodeOptions(emitBom = true, byteOrder = Some(ByteOrder.LittleEndian))).toHexString())
+        assertEquals("0061", Charset.Utf16.encode("a", CharsetEncodeOptions(byteOrder = Some(ByteOrder.BigEndian))).toHexString())
+    }
+
+    @Test
+    fun `explicit endian mismatch and unrelated options fail without changing encodings`() {
+        for (bom in [CharsetBomPolicy.Consume, CharsetBomPolicy.Preserve, CharsetBomPolicy.Require]) {
+            val error = assertFailsWith<CharsetException> { Charset.Utf16LE.decode("feff0061".hexToByteArray(), CharsetDecodeOptions(bom = bom)) }
+            assertTrue(error.kind == CharsetFailureKind.ConflictingBom)
+            assertEquals(0L, error.offset!!)
+        }
+        assertFailsWith<CharsetException> { Charset.Utf32BE.decode("fffe000061000000".hexToByteArray()) }
+        assertFailsWith<CharsetException> { Charset.Gbk.encode("a", CharsetEncodeOptions(emitBom = true)) }
+        assertFailsWith<CharsetException> { Charset.Ascii.decode("a".toByteArray(), CharsetDecodeOptions(bom = CharsetBomPolicy.Require)) }
+        assertFailsWith<CharsetException> { Charset.Utf16LE.encode("a", CharsetEncodeOptions(byteOrder = Some(ByteOrder.BigEndian))) }
+        assertEquals("\u{0000}", Charset.Utf16LE.decode("fffe0000".hexToByteArray()))
+    }
+}

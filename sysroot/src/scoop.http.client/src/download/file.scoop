@@ -1,0 +1,41 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.platform.fs.Path
+
+internal suspend fun prepareClientDownload(download: ClientDownload, request: HttpRequest, destination: Path,
+    options: HttpDownloadOptions): HttpDownloadResult {
+    val loop = download.client.loop
+    val response = executeClientSequence(download.client, request, download.sequence)
+    download.client.lock.withLock { download.responseCall = Some(response.call) }
+    return response.useAsync suspend { value ->
+        value.requireSuccess()
+        val parent = destination.parent ?: Path.fromString(".")
+        val temporary = loop.createTempFile(Some(parent), "pending-http-download-")
+        val output = ClientDownloadFile(temporary.path, temporary.file, true)
+        download.output = Some(output)
+        output.useAsync suspend { owned ->
+            val written = copyClientDownload(download, value, owned.file, options, 0L, value.body.contentLength)
+            download.requireActive()
+            if (options.syncOnCommit) owned.file.syncAll()
+            download.requireActive()
+            HttpDownloadResult(destination, value.url, value.head, value.trailers!!, written)
+        }
+    }
+}
+
+internal suspend fun cleanupClientDownload(download: ClientDownload) {
+    val output = download.output ?: return
+    nonCancellableScope<Unit> suspend { _ ->
+        var failure: Throwable? = None
+        try { output.close() } catch (error: Throwable) { failure = Some(error) }
+        try { if (output.discardOnFailure) deleteClientCacheFile(output.path) }
+        catch (error: Throwable) { failure = Some(clientCombined(failure, error)) }
+        val metadata = download.resumeMetadata
+        if (download.committed && clientPresent(metadata)) {
+            try { deleteClientCacheFile(metadata!!) }
+            catch (error: Throwable) { failure = Some(clientCombined(failure, error)) }
+        }
+        if (clientPresent(failure)) throw failure!!
+    }
+}

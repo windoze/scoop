@@ -10,11 +10,7 @@ impl<'ctx> MetadataModule<'ctx> {
         machine: &TargetMachine,
         profile: ValidatedBackendProfile,
         partition: &ScoopLirObjectPartitionV1,
-        mut emit: impl FnMut(
-            &ScoopLirObjectUnitSetV1,
-            Module<'ctx>,
-            EmittedStrongRuntimeMetadataV1,
-        ) -> Result<T, CodegenError>,
+        mut emit: impl FnMut(&ScoopLirObjectUnitSetV1, Module<'ctx>) -> Result<T, CodegenError>,
     ) -> Result<BTreeMap<ObjectDefinitionPlanId, T>, CodegenError> {
         let units = partition
             .objects()
@@ -22,8 +18,8 @@ impl<'ctx> MetadataModule<'ctx> {
             .filter(|units| units.kind() == ScoopLirObjectKindV1::NonCallable)
             .collect::<Vec<_>>();
         let mut output = BTreeMap::new();
-        self.visit(machine, profile, &units, &mut |units, llvm, metadata| {
-            output.insert(units.definition_plans()[0], emit(units, llvm, metadata)?);
+        self.visit(machine, profile, &units, &mut |units, llvm| {
+            output.insert(units.definition_plans()[0], emit(units, llvm)?);
             Ok(())
         })?;
         Ok(output)
@@ -34,11 +30,7 @@ impl<'ctx> MetadataModule<'ctx> {
         machine: &TargetMachine,
         profile: ValidatedBackendProfile,
         units: &[&ScoopLirObjectUnitSetV1],
-        emit: &mut impl FnMut(
-            &ScoopLirObjectUnitSetV1,
-            Module<'ctx>,
-            EmittedStrongRuntimeMetadataV1,
-        ) -> Result<(), CodegenError>,
+        emit: &mut impl FnMut(&ScoopLirObjectUnitSetV1, Module<'ctx>) -> Result<(), CodegenError>,
     ) -> Result<(), CodegenError> {
         if units.is_empty() {
             return Ok(());
@@ -50,9 +42,9 @@ impl<'ctx> MetadataModule<'ctx> {
                 .flat_map(|units| units.definition_plans().iter().copied())
                 .collect::<Vec<_>>();
             plans.sort_unstable();
-            let (llvm, metadata) = self.project(machine, profile, &plans)?;
+            let llvm = self.project(machine, profile, &plans)?;
             if let [unit] = group {
-                emit(unit, llvm, metadata)?;
+                emit(unit, llvm)?;
             } else {
                 let selected = plans.into_iter().collect::<BTreeSet<_>>();
                 let definitions = self
@@ -61,12 +53,7 @@ impl<'ctx> MetadataModule<'ctx> {
                     .filter(|entry| selected.contains(&entry.plan.definition_plan()))
                     .cloned()
                     .collect();
-                Self {
-                    llvm,
-                    metadata,
-                    definitions,
-                }
-                .visit(machine, profile, group, emit)?;
+                Self { llvm, definitions }.visit(machine, profile, group, emit)?;
             }
         }
         Ok(())

@@ -1,0 +1,45 @@
+package scoop.http
+
+import scoop.test.*
+
+@Test private class MultipartLimitTests {
+    @Test fun `header and field limits count actual input including line endings and folds`() {
+        val wire = "--b\r\nX:a\r\n\r\nx\r\n--b--"
+        MultipartDecoder(MultipartBoundary("b"), MultipartLimits(maxHeaderBytes = 7L, maxFields = 1L)).use { decoder ->
+            assertEquals(1L, feedMp(decoder, wire.toByteArray()).parts.size)
+        }
+        mpLimit(wire, MultipartLimits(maxHeaderBytes = 6L), MultipartLimitKind.HeaderBytes, 6L)
+        mpLimit(wire, MultipartLimits(maxFields = 0L), MultipartLimitKind.Fields, 0L)
+        mpLimit("--b\r\nX:a\r\n\tb\r\n\r\nx\r\n--b--", MultipartLimits(maxHeaderBytes = 10L), MultipartLimitKind.HeaderBytes, 10L)
+        mpLimit("--b\r\nX:a\r\nX:b\r\n\r\nx\r\n--b--", MultipartLimits(maxFields = 1L), MultipartLimitKind.Fields, 1L)
+    }
+
+    @Test fun `part and transport padding limits distinguish empty multipart and empty parts`() {
+        MultipartDecoder(MultipartBoundary("b"), MultipartLimits(maxParts = 0L)).use { decoder ->
+            assertEquals(1L, feedMp(decoder, "--b--".toByteArray()).ends)
+        }
+        mpLimit("--b\r\n\r\n--b--", MultipartLimits(maxParts = 0L), MultipartLimitKind.Parts, 0L)
+        mpLimit("--b\r\n\r\nx\r\n--b\r\n\r\ny\r\n--b--", MultipartLimits(maxParts = 1L), MultipartLimitKind.Parts, 1L)
+        MultipartDecoder(MultipartBoundary("b"), MultipartLimits(maxBoundaryPaddingBytes = 1L)).use { decoder ->
+            assertEquals(1L, feedMp(decoder, "--b \r\n\r\nx\r\n--b--\t".toByteArray()).parts.size)
+        }
+        mpLimit("--b \t\r\n\r\nx\r\n--b--", MultipartLimits(maxBoundaryPaddingBytes = 1L), MultipartLimitKind.BoundaryPaddingBytes, 1L)
+        mpLimit("--b\r\n\r\nx\r\n--b-- \t", MultipartLimits(maxBoundaryPaddingBytes = 1L), MultipartLimitKind.BoundaryPaddingBytes, 1L)
+    }
+
+    @Test fun `invalid configuration is rejected before any input exists`() {
+        assertFailsWith<IllegalArgumentException> { MultipartLimits(maxHeaderBytes = -1L) }
+        assertFailsWith<IllegalArgumentException> { MultipartLimits(maxFields = -1L) }
+        assertFailsWith<IllegalArgumentException> { MultipartLimits(maxParts = -1L) }
+        assertFailsWith<IllegalArgumentException> { MultipartLimits(maxBoundaryPaddingBytes = -1L) }
+        assertFailsWith<IllegalArgumentException> { MultipartLimits(dataChunkBytes = 0L) }
+    }
+}
+
+private fun mpLimit(wire: String, limits: MultipartLimits, kind: MultipartLimitKind, limit: Long) {
+    MultipartDecoder(MultipartBoundary("b"), limits).use { decoder ->
+        val error = assertFailsWith<MultipartLimitException> { feedMp(decoder, wire.toByteArray(), 1L) }
+        assertTrue(error.kind == kind)
+        assertEquals(limit, error.limit)
+    }
+}

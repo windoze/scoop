@@ -1,0 +1,73 @@
+package scoop.http.client
+
+import scoop.charset.Charset
+import scoop.http.*
+import scoop.text.*
+import scoop.url.Url
+
+internal fun chooseClientDigestChallenge(call: ClientCall, head: HttpResponseHead, scope: ClientAuthenticationScope,
+    authenticator: HttpAuthenticator,
+    provider: ClientDigestAuthentication, challenges: List<HttpAuthChallenge>): ClientDigestChallenge? {
+    for (algorithm in provider.algorithms) {
+        for (challenge in challenges) {
+            if (challenge.scheme != "digest") continue
+            val realm = challenge.parameter("realm")
+            val nonce = challenge.parameter("nonce")
+            if (clientPresent(challenge.token68) || !clientPresent(realm) || !clientPresent(nonce) || nonce!!.value.size == 0L)
+                throw HttpAuthenticationException(HttpAuthenticationFailure.InvalidChallenge, scope.url(call), Some(head))
+            if (clientPresent(authenticator.realm) && !clientBytesEqual(authenticator.realm!!, realm!!.value)) continue
+            val selected = challenge.parameter("algorithm")
+            val name = if (clientPresent(selected)) Charset.Iso8859_1.decode(selected!!.value) else "MD5"
+            if (name.lowercaseAscii() != clientDigestName(algorithm).lowercaseAscii()) continue
+            val charset = challenge.parameter("charset")
+            if (clientPresent(charset) && Charset.Iso8859_1.decode(charset!!.value).lowercaseAscii() != "utf-8") continue
+            val offered = challenge.parameter("qop")
+            var qop: String? = None
+            if (clientPresent(offered)) {
+                val values = try { parseHttpTokenFields([HttpField("qop".toByteArray(), offered!!.value)], "qop") }
+                catch (error: HttpFieldParseException) {
+                    throw HttpAuthenticationException(HttpAuthenticationFailure.InvalidChallenge, scope.url(call), Some(head), Some(error))
+                }
+                var auth = false
+                var integrity = false
+                for (value in values) { if (value == "auth") auth = true; if (value == "auth-int") integrity = true }
+                if (!auth && !integrity) continue
+                qop = Some(if (integrity && (provider.preferIntegrity || !auth)) "auth-int" else "auth")
+            }
+            val paths = digestChallengePaths(call, head, scope, challenge)
+            val opaque = challenge.parameter("opaque")
+            val result = ClientDigestChallenge(challenge, algorithm, clientPresent(charset), realm!!.value, nonce!!.value,
+                qop, if (clientPresent(opaque)) Some(opaque!!.value) else None,
+                digestParameterTrue(challenge, "userhash"), digestParameterTrue(challenge, "stale"), paths)
+            if (clientDigestCovers(scope, result, call.originalRequest)) return Some(result)
+        }
+    }
+    return None
+}
+
+private fun digestParameterTrue(challenge: HttpAuthChallenge, name: String): Boolean {
+    val parameter = challenge.parameter(name)
+    return clientPresent(parameter) && Charset.Iso8859_1.decode(parameter!!.value).lowercaseAscii() == "true"
+}
+
+private fun digestChallengePaths(call: ClientCall, head: HttpResponseHead, scope: ClientAuthenticationScope,
+    challenge: HttpAuthChallenge): Array<String> {
+    if (scope.isProxy) return ["/"]
+    val domain = challenge.parameter("domain")
+    if (!clientPresent(domain) || domain!!.value.size == 0L) return ["/"]
+    try {
+        val paths = ArrayList<String>()
+        for (item in Charset.Iso8859_1.decode(domain!!.value).split(' ')) {
+            if (item.length == 0L) continue
+            for (character in item) if (character.code < 33 || character.code > 126) throw IllegalArgumentException()
+            val reference = Url.parse(item)
+            if ((!clientPresent(reference.scheme) && !item.startsWith('/')) || clientPresent(reference.encodedFragment))
+                throw IllegalArgumentException()
+            val url = scope.url(call).resolve(reference)
+            if (url.httpOrigin() == call.request.origin) paths.add(url.httpRequestTarget())
+        }
+        return paths.toArray()
+    } catch (error: Throwable) {
+        throw HttpAuthenticationException(HttpAuthenticationFailure.InvalidChallenge, scope.url(call), Some(head), Some(error))
+    }
+}

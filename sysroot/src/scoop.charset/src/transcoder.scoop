@@ -1,0 +1,53 @@
+package scoop.charset
+
+import scoop.platform.memory.NativeByteBuffer
+
+public class CharsetTranscoder public constructor(
+    public val source: Charset, public val destination: Charset,
+    options: CharsetTranscodeOptions = CharsetTranscodeOptions()
+) : Closeable {
+    private var handle: ULong = createCharset(source, destination, options)
+    private var ending: Boolean = false
+    private var finished: Boolean = false
+    private var failed: Boolean = false
+    private val busy: AtomicBoolean = AtomicBoolean(false)
+
+    public fun process(input: NativeByteBuffer, output: NativeByteBuffer, endInput: Boolean = false): CharsetStep {
+        enter()
+        try {
+            if (handle == 0UL || failed) throw IllegalStateException(Some("transcoder is closed or failed"))
+            val count = input.readableBytes
+            if (ending && count > 0L) throw IllegalStateException(Some("charset input has ended"))
+            if (finished) return CharsetStep(0L, 0L, CharsetState.Finished)
+            val step = processCharset(handle, input, output, endInput || ending)
+            if (endInput && step.consumed == count) ending = true
+            if (step.code != 0) {
+                failed = true
+                checkCharset(step.code, step.backend, "transcode", source.name, destination.name, Some(step.offset))
+            }
+            val state = when (step.status) {
+                case 0 -> CharsetState.NeedInput
+                case 1 -> CharsetState.NeedOutput
+                case 2 -> CharsetState.Finished
+                else -> throw IllegalStateException(Some("invalid charset progress"))
+            }
+            finished = state == CharsetState.Finished
+            return CharsetStep(step.consumed, step.produced, state)
+        } finally { busy.store(false) }
+    }
+
+    private fun enter() {
+        if (!busy.compareAndSet(false, true)) throw IllegalStateException(Some("transcoder is already in use"))
+    }
+
+    public override fun close() {
+        enter()
+        try {
+            val owned = handle
+            handle = 0UL
+            if (owned != 0UL) @Unsafe { charsetFree(owned) }
+        } finally { busy.store(false) }
+    }
+
+    release { if (handle != 0UL) @Unsafe { charsetFree(handle) } }
+}

@@ -1,0 +1,67 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class HttpClientTotalTimeoutTest {
+    @Test
+    fun `an unread response remains covered and its first close reports the unobserved total timeout`() {
+        val limit = clientTimeoutTestDuration()
+        withClientTimeoutTest(HttpTimeoutOptions(total = Some(limit))) suspend { loop, scope, listener, config ->
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    connection.receiveRequest()!!.body.readAllBytes(0L)
+                    sendClientTestText(connection, 200U, "held")
+                }
+            }
+            withHttpClient(config) suspend { client ->
+                val executing = scope.async suspend { client.execute(HttpRequest.get(clientTestUrl(listener))) }
+                val response = executing.await()
+                assertTrue(executing.isCompleted)
+                loop.sleep(limit + Duration.milliseconds(10L))
+                val error = expectBodyFailure<HttpTimeoutException> suspend { response.close() }
+                checkClientTimeout(error, HttpTimeoutPhase.Total, limit)
+                response.close()
+            }
+            serving.join()
+            assertFalse(scope.job.isCancelled)
+        }
+    }
+
+    @Test
+    fun `a pending read waits for cancellation cleanup and reports confirmed request and response progress`() {
+        val limit = clientTimeoutTestDuration()
+        withClientTimeoutTest(HttpTimeoutOptions(total = Some(limit))) suspend { _, scope, listener, config ->
+            val done = BodyTestGate()
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    assertEquals("send", String.fromUtf8(connection.receiveRequest()!!.body.readAllBytes(4L)))
+                    connection.sendResponse(HttpResponseHead(HttpVersion.Http11, 200U), Http1BodyFraming.Length(5L)).useAsync suspend { output ->
+                        writeBodyText(output, "ab"); output.flush()
+                        done.await()
+                    }
+                }
+            }
+            try {
+                withHttpClient(config) suspend { client ->
+                    val response = client.execute(HttpRequest.post(clientTestUrl(listener), RequestBody.fromText("send")))
+                    NativeByteBuffer.allocate(5L).use suspend { buffer ->
+                        response.body.readFully(buffer, 2L)
+                        val error = expectBodyFailure<HttpTimeoutException> suspend { response.body.readInto(buffer, 3L); Unit }
+                        checkClientTimeout(error, HttpTimeoutPhase.Total, limit, sent = 4L, encoded = 2L, received = 2L)
+                        assertEquals("ab", String.fromUtf8(buffer.readBytes(2L)))
+                        assertFalse(buffer.isClosed)
+                    }
+                    response.close()
+                }
+            } finally { done.signal() }
+            serving.join()
+            assertFalse(scope.job.isCancelled)
+        }
+    }
+}

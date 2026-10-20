@@ -1,0 +1,49 @@
+package scoop.http
+
+import scoop.text.*
+import scoop.url.UrlHost
+import scoop.url.UrlOrigin
+
+public object HttpCookieRules {
+    public fun sameSite(first: UrlOrigin, second: UrlOrigin, suffixes: PublicSuffixList): Boolean {
+        if (cookieSiteScheme(first.scheme) != cookieSiteScheme(second.scheme)) return false
+        if (first.host == second.host) return true
+        val left = suffixes.lookup(first) ?: return false
+        val right = suffixes.lookup(second) ?: return false
+        return (left.registrableDomain ?: left.domain) == (right.registrableDomain ?: right.domain)
+    }
+
+    public fun domainMatches(host: UrlHost, domain: UrlHost): Boolean = when (host) {
+        case Dns(name) -> when (domain) {
+            case Dns(suffix) -> name == suffix || name.endsWith("." + suffix)
+            else -> false
+        }
+        case Ipv4(_) -> host == domain
+        case Ipv6(_) -> host == domain
+    }
+
+    public fun defaultPath(encodedPath: List<Byte>): Array<Byte> {
+        if (encodedPath.size == 0L || encodedPath[0L] != 47.toByte()) return "/".toByteArray()
+        var last = 0L
+        for (index in 1L..<encodedPath.size) if (encodedPath[index] == 47.toByte()) last = index
+        if (last == 0L) return "/".toByteArray()
+        return Array<Byte>(last) { index -> encodedPath[index] }
+    }
+    public fun defaultPath(encodedPath: String): Array<Byte> = defaultPath(encodedPath.toByteArray())
+
+    public fun pathMatches(requestPath: List<Byte>, cookiePath: List<Byte>): Boolean {
+        if (cookiePath.size == 0L || requestPath.size < cookiePath.size) return false
+        for (index in 0L..<cookiePath.size) if (requestPath[index] != cookiePath[index]) return false
+        return requestPath.size == cookiePath.size || cookiePath[cookiePath.size - 1L] == 47.toByte() ||
+            requestPath[cookiePath.size] == 47.toByte()
+    }
+    public fun pathMatches(requestPath: String, cookiePath: String): Boolean = pathMatches(requestPath.toByteArray(), cookiePath.toByteArray())
+}
+
+internal fun secureCookieScheme(scheme: String): Boolean = scheme == "https" || scheme == "wss"
+
+private fun cookieSiteScheme(scheme: String): String = when (scheme) {
+    case "ws" -> "http"
+    case "wss" -> "https"
+    else -> scheme
+}

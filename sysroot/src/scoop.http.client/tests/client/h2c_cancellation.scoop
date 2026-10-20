@@ -1,0 +1,103 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class HttpClientH2cCancellationTest {
+    @Test
+    fun `cancellation after 101 and concurrent client close wait for the original producer cleanup`() {
+        withClientH2cTest suspend { loop, scope, listener, config ->
+            val switched = BodyTestGate()
+            val cleanup = BodyTestGate()
+            val release = BodyTestGate()
+            val done = BodyTestGate()
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { h1 ->
+                    val incoming = h1.receiveRequest()!!
+                    incoming.body.readAllBytes(4L)
+                    acceptClientTestUpgrade(h1, scope, incoming.head).useAsync suspend { _ ->
+                        switched.signal()
+                        done.await()
+                    }
+                }
+            }
+            val client = HttpClient.open(scope, config)
+            val failure = ClientTestFailureHolder()
+            val executing = scope.launch suspend {
+                val body = RequestBody.fromProducer(Some(4L)) suspend { output ->
+                    try {
+                        writeBodyText(output, "sent"); output.flush()
+                        loop.sleep(Duration.seconds(100L))
+                    } finally { cleanup.signal(); release.await() }
+                }
+                try { client.execute(HttpRequest.post(clientTestUrl(listener), body)).close() }
+                catch (error: Throwable) { failure.value = Some(error) }
+            }
+            switched.await()
+            executing.cancel()
+            cleanup.await()
+            val closing = scope.launch suspend { client.close() }
+            assertFalse(closing.isCompleted || executing.isCompleted)
+            release.signal()
+            executing.join(); closing.join()
+            assertTrue(failure.value!! is CancellationException)
+            assertTrue(client.isClosed)
+            done.signal()
+            serving.join()
+            assertFalse(scope.job.isCancelled)
+        }
+    }
+
+    @Test
+    fun `cancelling the owner of upgraded stream one leaves the shared HTTP2 connection usable`() {
+        withClientH2cTest suspend { loop, scope, listener, config ->
+            val ready = BodyTestGate()
+            val firstResponse = ClientTestResponseHolder()
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { h1 ->
+                    val incoming = h1.receiveRequest()!!
+                    incoming.body.readAllBytes(0L)
+                    acceptClientTestUpgrade(h1, scope, incoming.head).useAsync suspend { h2 ->
+                        h2.upgradedStream!!.sendResponse(HttpResponseHead(HttpVersion.Http2, 200U), false)
+                        val second = h2.acceptRequest()!!.stream
+                        assertEquals(3, second.id)
+                        second.readAllBytes(0L)
+                        second.sendResponse(HttpResponseHead(HttpVersion.Http2, 200U), false)
+                        writeBodyText(second, "other"); second.finish()
+                        val third = h2.acceptRequest()!!.stream
+                        assertEquals(5, third.id)
+                        third.readAllBytes(0L)
+                        third.sendResponse(HttpResponseHead(HttpVersion.Http2, 204U))
+                    }
+                }
+            }
+            withHttpClient(config) suspend { client ->
+                val executing = scope.launch suspend {
+                    try {
+                        firstResponse.value = Some(client.execute(HttpRequest.get(clientTestUrl(listener))))
+                        ready.signal()
+                        loop.sleep(Duration.seconds(100L))
+                    } catch (_: CancellationException) {}
+                }
+                ready.await()
+                val second = client.execute(HttpRequest.get(clientTestUrl(listener)))
+                executing.cancel(); executing.join()
+                expectBodyFailure<CancellationException> suspend { firstResponse.value!!.body.readAllBytes(1L); Unit }
+                firstResponse.value!!.close()
+                assertEquals("other", String.fromUtf8(second.body.readAllBytes(5L)))
+                second.close()
+                client.withResponse(HttpRequest.get(clientTestUrl(listener))) suspend { response ->
+                    assertEquals(204U, response.status)
+                    response.body.readAllBytes(0L)
+                    Unit
+                }
+            }
+            serving.join()
+            assertFalse(scope.job.isCancelled)
+        }
+    }
+}

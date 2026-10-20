@@ -1,0 +1,124 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.collections.*
+import scoop.io.encoding.Base64
+import scoop.test.*
+import scoop.url.Url
+
+@Test
+private class HttpClientEnvironmentProxyTest {
+    @Test
+    fun `environment selection snapshots lower case precedence and scheme fallback`() {
+        val values = LinkedHashMap<String, String>()
+        values.put("http_proxy", "http://localhost:3128")
+        values.put("HTTP_PROXY", "invalid://ignored")
+        values.put("HTTPS_PROXY", "https://localhost:8443")
+        values.put("ALL_PROXY", "http://localhost:1080")
+        val selector = HttpProxySelector.fromEnvironment(values)
+        values.clear()
+        LibuvEventLoop().run suspend { _ ->
+            val first = environmentHttpEndpoint(selector, "http://example.test/")
+            assertEquals(Some(3128), first.url.authority!!.port)
+            assertTrue(first === environmentHttpEndpoint(selector, "http://other.test/"))
+            assertEquals(Some(8443), environmentHttpEndpoint(selector, "https://example.test/").url.authority!!.port)
+            val empty = HttpProxySelector.fromEnvironment(mapOf(("http_proxy", ""), ("HTTP_PROXY", "invalid://ignored"), ("ALL_PROXY", "localhost:1080")))
+            assertEquals(Some(1080), environmentHttpEndpoint(empty, "http://example.test/").url.authority!!.port)
+            assertTrue(environmentDirect(HttpProxySelector.fromEnvironment(emptyMap<String, String>()), "http://example.test/"))
+        }
+    }
+
+    @Test
+    fun `CGI ignores uppercase HTTP proxy without discarding explicit lower case or HTTPS`() {
+        LibuvEventLoop().run suspend { _ ->
+            val ignored = HttpProxySelector.fromEnvironment(mapOf(("REQUEST_METHOD", "GET"), ("HTTP_PROXY", "invalid://ignored")))
+            assertTrue(environmentDirect(ignored, "http://example.test/"))
+            val selected = HttpProxySelector.fromEnvironment(mapOf(("REQUEST_METHOD", ""), ("HTTP_PROXY", "invalid://ignored"),
+                ("http_proxy", "localhost:3128"), ("HTTPS_PROXY", "localhost:8443")))
+            assertEquals(Some(3128), environmentHttpEndpoint(selected, "http://example.test/").url.authority!!.port)
+            assertEquals(Some(8443), environmentHttpEndpoint(selected, "https://example.test/").url.authority!!.port)
+        }
+    }
+
+    @Test
+    fun `NO PROXY respects IDNA label boundaries wildcard forms and effective ports`() {
+        val cases = [
+            ("example.com", "http://EXAMPLE.com./", true), ("example.com", "http://sub.example.com/", true),
+            ("example.com", "http://badexample.com/", false), (".example.com", "http://example.com/", false),
+            (".example.com", "http://a.example.com/", true), ("*.example.com", "http://example.com/", false),
+            ("*.example.com", "http://a.b.example.com/", true), ("BÜCHER.example.", "https://xn--bcher-kva.example/", true),
+            ("example.com:80", "http://example.com/", true), ("example.com:80", "https://example.com/", false),
+            ("example.com:443", "https://example.com/", true), ("example.com:8080", "http://example.com:8080/", true),
+            (" , localhost , example.com , ", "http://a.example.com/", true), (" , ", "http://localhost/", false),
+            ("*", "https://anywhere.test/", true)
+        ]
+        LibuvEventLoop().run suspend { _ ->
+            for ((rule, url, expected) in cases) {
+                val selector = HttpProxySelector.fromEnvironment(mapOf(("ALL_PROXY", "localhost:3128"), ("NO_PROXY", rule)))
+                assertEquals(expected, environmentDirect(selector, url), Some(rule + " " + url))
+            }
+            val lower = HttpProxySelector.fromEnvironment(mapOf(("ALL_PROXY", "localhost:3128"), ("NO_PROXY", "*"), ("no_proxy", "")))
+            assertFalse(environmentDirect(lower, "http://example.com/"))
+        }
+    }
+
+    @Test
+    fun `NO PROXY uses address bits without DNS mapped family conversion or ambiguous ports`() {
+        val cases = [
+            ("192.0.2.1", "http://192.0.2.1/", true), ("192.0.2.1", "http://192.0.2.2/", false),
+            ("192.0.2.17/24", "http://192.0.2.255/", true), ("192.0.2.17/24", "http://192.0.3.0/", false),
+            ("192.0.2.0/24:80", "http://192.0.2.1/", true), ("192.0.2.0/24:80", "https://192.0.2.1/", false),
+            ("::1", "http://[0:0:0:0:0:0:0:1]/", true), ("[::1]:443", "https://[::1]/", true),
+            ("[::1]:443", "http://[::1]/", false), ("2001:db8::/32", "http://[2001:db8:abcd::1]/", true),
+            ("[2001:db8::/32]:443", "https://[2001:db8::1]/", true), ("2001:db8::/32", "http://[2001:db9::1]/", false),
+            ("0.0.0.0/0", "http://[::ffff:192.0.2.1]/", false), ("0.0.0.0/0", "http://localhost/", false),
+            ("::/0", "http://192.0.2.1/", false), ("::/0", "http://[::1]/", true)
+        ]
+        LibuvEventLoop().run suspend { _ ->
+            for ((rule, url, expected) in cases) {
+                val selector = HttpProxySelector.fromEnvironment(mapOf(("ALL_PROXY", "localhost:3128"), ("NO_PROXY", rule)))
+                assertEquals(expected, environmentDirect(selector, url), Some(rule + " " + url))
+            }
+        }
+    }
+
+    @Test
+    fun `userinfo is decoded once and kept out of proxy URL and SOCKS DNS policy is explicit`() {
+        LibuvEventLoop().run suspend { _ ->
+            val selector = HttpProxySelector.fromEnvironment(mapOf(("HTTP_PROXY", "http://Jose%CC%81:p%C3%A4ss%3A%40@localhost:3128")))
+            val endpoint = environmentHttpEndpoint(selector, "http://example.test/")
+            assertEquals(None, endpoint.url.authority!!.encodedUserInfo)
+            assertEquals("José:päss:@", String.fromUtf8(Base64.Default.decode(endpoint.authorization!!.token68!!)))
+            for ((scheme, expected) in [("socks5", Socks5Resolution.Local), ("socks5h", Socks5Resolution.Proxy)]) {
+                val socks = HttpProxySelector.fromEnvironment(mapOf(("ALL_PROXY", scheme + "://%00:%FF@localhost")))
+                when (socks.select(HttpRequest.get(Url.parse("https://example.test/")))) {
+                    case Socks5(proxy) -> {
+                        assertEquals(expected, proxy.resolution)
+                        assertEquals(Some("socks5"), proxy.url.scheme)
+                        assertEquals(None, proxy.url.authority!!.encodedUserInfo)
+                        assertEquals(0.toByte(), proxy.credentials!!.username[0L])
+                        assertEquals(255.toByte(), proxy.credentials!!.password[0L])
+                    }
+                    else -> throw IllegalStateException()
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `invalid environment syntax is rejected while constructing the selector`() {
+        for (value in ["ftp://localhost", "http://localhost:0", "http://localhost/path", "http://localhost?query", "http://localhost#fragment",
+            "http://u%3Aser:p@localhost", "http://user:p%0Ass@localhost", "http://%FF:p@localhost", "socks5://user@localhost"])
+            assertFailsWith<Exception> { HttpProxySelector.fromEnvironment(mapOf(("HTTP_PROXY", value))) }
+        for (rule in ["example.com:0", "example.com:65536", "example.com:+80", "example.com:", "http://example.com",
+            "example.com/path", "example.com?query", "example.com#fragment", "user@example.com", "a.*.com", "[::1]bad",
+            "[127.0.0.1]:80", "127.0.0.1/33", "::1/129", ".127.0.0.1", "a..b", "[::1"])
+            assertFailsWith<Exception> { HttpProxySelector.fromEnvironment(mapOf(("NO_PROXY", rule))) }
+    }
+}
+
+private suspend fun environmentHttpEndpoint(selector: HttpProxySelector, text: String): HttpProxyEndpoint =
+    when (selector.select(HttpRequest.get(Url.parse(text)))) { case Http(endpoint) -> endpoint; else -> throw IllegalStateException() }
+
+private suspend fun environmentDirect(selector: HttpProxySelector, text: String): Boolean =
+    when (selector.select(HttpRequest.get(Url.parse(text)))) { case Direct -> true; else -> false }

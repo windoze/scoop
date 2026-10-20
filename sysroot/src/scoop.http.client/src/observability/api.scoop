@@ -1,0 +1,47 @@
+package scoop.http.client
+
+import scoop.http.HttpVersion
+import scoop.time.TimeMark
+
+public class HttpObserver public constructor(internal val onEvent: suspend (HttpCallEvent) -> Unit)
+
+public enum HttpCallEventKind {
+    AttemptStarted, ConnectionAcquired, RequestHeaders, RequestProgress, ResponseHeaders, ResponseProgress, Completed
+}
+
+public class HttpCallInfo internal constructor(request: HttpRequest, public val startedAt: TimeMark) {
+    public val method: String = request.method
+    public val urlDisplay: String = clientObservedUrl(request)
+}
+
+public class HttpPhaseTiming internal constructor(public val startedAt: TimeMark, public val finishedAt: TimeMark? = None)
+
+public class HttpAttemptMetrics internal constructor(call: ClientCall, observation: ClientObservation) {
+    public val number: Long = observation.number
+    public val reason: HttpAttemptReason = observation.reason
+    public val method: String = call.request.method
+    public val urlDisplay: String = clientObservedUrl(call.request)
+    public val startedAt: TimeMark = observation.startedAt
+    public val finishedAt: TimeMark? = observation.finishedAt
+    public val queue: HttpPhaseTiming? = observation.queue
+    public val resolve: HttpPhaseTiming? = observation.resolve
+    public val connect: HttpPhaseTiming? = observation.connect
+    public val proxyTls: HttpPhaseTiming? = observation.proxyTls
+    public val proxyHandshake: HttpPhaseTiming? = observation.proxyHandshake
+    public val originTls: HttpPhaseTiming? = observation.originTls
+    public val requestHeadersAt: TimeMark? = observation.requestHeadersAt
+    public val responseHeadersAt: TimeMark? = observation.responseHeadersAt
+    public val firstResponseByteAt: TimeMark? = observation.firstResponseByteAt
+    public val version: HttpVersion? = observation.version
+    public val connectionReused: Boolean? = observation.connectionReused
+    public val status: UInt? = observation.status
+    public val cacheStatus: HttpCacheStatus = call.cacheStatus
+    public val requestBodyBytes: Long = call.requestBodyBytes
+    public val encodedResponseBodyBytes: Long = call.encodedResponseBodyBytes
+    public val responseBodyBytes: Long = call.responseBodyBytes
+}
+
+public class HttpCallEvent internal constructor(public val kind: HttpCallEventKind, public val call: HttpCallInfo,
+    public val metrics: HttpAttemptMetrics, public val failure: Throwable?) {
+    public fun formatSummary(): String = formatClientCallEvent(this)
+}

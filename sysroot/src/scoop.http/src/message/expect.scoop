@@ -1,0 +1,36 @@
+package scoop.http
+
+import scoop.text.lowercaseAscii
+
+public fun httpExpectsContinue(fields: List<HttpField>): Boolean {
+    var found = false
+    for (field in fields.findAll("Expect".toByteArray())) {
+        val reader = HttpFieldReader("Expect", field.value)
+        reader.skipOws()
+        while (!reader.ended) {
+            if (reader.peek() == 44) { reader.position += 1L; reader.skipOws(); continue }
+            if (readHttpExpectation(reader)) found = true
+            reader.skipOws()
+            if (!reader.ended) { reader.expect(44); reader.skipOws() }
+        }
+    }
+    return found
+}
+
+private fun readHttpExpectation(reader: HttpFieldReader): Boolean {
+    val name = reader.token().lowercaseAscii()
+    if (reader.peek() != 61) return name == "100-continue"
+    reader.position += 1L
+    reader.parameterValue()
+    reader.skipOws()
+    while (reader.peek() == 59) {
+        reader.position += 1L
+        reader.skipOws()
+        if (reader.ended || reader.peek() == 59 || reader.peek() == 44) continue
+        reader.token()
+        reader.expect(61)
+        reader.parameterValue()
+        reader.skipOws()
+    }
+    return false
+}

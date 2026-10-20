@@ -5,9 +5,8 @@ use inkwell::values::{AnyValue, GlobalValue, StructValue};
 use scoop_lir::{StaticStorageScanKindV1, StrongStaticStorageInitialStatePlanV1};
 
 use super::{
-    DIGEST_SIZE, EMPTY_RELOCATION_SENTINEL, EMPTY_TEMPLATE_SENTINEL,
-    EmittedStaticStorageInitialStateV1, EmittedStaticStorageRelocationTableV1,
-    LAYOUT_FINGERPRINT_OFFSET, SCAN_FINGERPRINT_OFFSET, STATIC_STORAGE_DESCRIPTOR_MAGIC,
+    EMPTY_RELOCATION_SENTINEL, EMPTY_TEMPLATE_SENTINEL, EmittedStaticStorageInitialStateV1,
+    EmittedStaticStorageRelocationTableV1, STATIC_STORAGE_DESCRIPTOR_MAGIC,
     STATIC_STORAGE_DESCRIPTOR_SIZE, emit_strong_static_storage_registrations_v1,
 };
 use crate::ManagedAddressSpace;
@@ -16,7 +15,7 @@ mod support;
 use support::static_storage_plan;
 
 #[test]
-fn emits_closed_descriptors_scans_initial_state_and_zero_patch_sites() {
+fn emits_descriptors_scans_and_initial_state() {
     let plan = static_storage_plan();
     let context = Context::create();
     let llvm = context.create_module("static-storage-registration");
@@ -52,7 +51,7 @@ fn emits_closed_descriptors_scans_initial_state_and_zero_patch_sites() {
             .unwrap()
             .into_struct_value();
         assert_eq!(constant_u64(prefix, 0), STATIC_STORAGE_DESCRIPTOR_MAGIC);
-        assert_eq!(constant_u64(prefix, 1), 8);
+        assert_eq!(constant_u64(prefix, 1), 9);
         assert_eq!(constant_u64(prefix, 2), STATIC_STORAGE_DESCRIPTOR_SIZE);
         assert_eq!(
             constant_u64(initializer, 2),
@@ -75,37 +74,13 @@ fn emits_closed_descriptors_scans_initial_state_and_zero_patch_sites() {
             expected.semantic().required_alignment()
         );
         assert_eq!(
-            constant_u64(initializer, 13),
+            constant_u64(initializer, 11),
             expected
                 .semantic()
                 .initial_state()
                 .immortal_relocations()
                 .len() as u64
         );
-
-        let patches = [
-            (
-                registration.scan_fingerprint_patch(),
-                expected.scan_fingerprint_patch(),
-                SCAN_FINGERPRINT_OFFSET,
-            ),
-            (
-                registration.layout_fingerprint_patch(),
-                expected.layout_fingerprint_patch(),
-                LAYOUT_FINGERPRINT_OFFSET,
-            ),
-        ];
-        for (patch, intent, offset) in patches {
-            assert_eq!(patch.intent(), intent);
-            assert_eq!(patch.definition(), expected.registration_definition_plan());
-            assert_eq!(patch.atom(), expected.registration_primary_atom());
-            assert_eq!(
-                patch.owner().get_name(),
-                registration.descriptor().get_name()
-            );
-            assert_eq!(patch.byte_offset(), offset);
-            assert_eq!(patch.byte_size(), DIGEST_SIZE);
-        }
 
         let scan = registration
             .scan_program()

@@ -1,0 +1,18 @@
+import scoop.platform.fs.Path
+import scoop.platform.io.*
+import scoop.platform.process.*
+import scoop.platform.system.OsString
+import scoop.text.toInt
+
+internal fun withSocks5Peer(script: Path, scenario: String, block: (Int) -> Unit) {
+    val arguments: Array<OsString> = [OsString.fromString("-u"), script.toOsString(), OsString.fromString(scenario)]
+    val child = Command(Path.fromString("python3"), arguments,
+        stdin = Stdio.Null, stdout = Stdio.Pipe, stderr = Stdio.Pipe).spawn(searchPath = true)
+    try {
+        block(child.stdout!!.readLine()!!.toInt())
+        val output = child.communicate()
+        val passed = when (output.status) { case Exited(code) -> code == 0; case Signaled(_) -> false }
+        if (!passed) throw IllegalStateException(Some(OsString.fromByteArray(output.stderr).decodeUtf8()))
+        check(String.fromUtf8(output.stdout) == "accepted " + scenario + "\n")
+    } finally { child.kill(); child.wait(); child.close() }
+}

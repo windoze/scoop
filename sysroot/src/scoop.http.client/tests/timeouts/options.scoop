@@ -1,0 +1,80 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class HttpClientTimeoutOptionsTest {
+    @Test
+    fun `timeouts reject negative durations and retain explicit zero and absent stages`() {
+        val negative = Some(Duration.nanoseconds(-1L))
+        assertFailsWith<IllegalArgumentException> { HttpTimeoutOptions(total = negative) }
+        assertFailsWith<IllegalArgumentException> { HttpTimeoutOptions(poolAcquire = negative) }
+        assertFailsWith<IllegalArgumentException> { HttpTimeoutOptions(responseHeaders = negative) }
+        assertFailsWith<IllegalArgumentException> { HttpTimeoutOptions(resolve = negative) }
+        assertFailsWith<IllegalArgumentException> { HttpTimeoutOptions(connect = negative) }
+        assertFailsWith<IllegalArgumentException> { HttpTimeoutOptions(tlsHandshake = negative) }
+        assertFailsWith<IllegalArgumentException> { HttpTimeoutOptions(readIdle = negative) }
+        assertFailsWith<IllegalArgumentException> { HttpTimeoutOptions(writeIdle = negative) }
+        val zero = HttpTimeoutOptions(total = Some(Duration.ZERO))
+        assertTrue(zero.total == Some(Duration.ZERO))
+        assertTrue(zero.poolAcquire == None && zero.responseHeaders == None)
+        assertTrue(zero.readIdle == None && zero.writeIdle == None)
+        val thirty = Some(Duration.seconds(30L))
+        assertTrue(zero.resolve == thirty && zero.connect == thirty && zero.tlsHandshake == thirty)
+        val disabled = HttpTimeoutOptions(resolve = None, connect = None, tlsHandshake = None)
+        assertTrue(disabled.resolve == None && disabled.connect == None && disabled.tlsHandshake == None)
+        val idle = HttpTimeoutOptions(readIdle = Some(Duration.ZERO), writeIdle = Some(Duration.ZERO))
+        assertTrue(idle.readIdle == Some(Duration.ZERO) && idle.writeIdle == Some(Duration.ZERO))
+    }
+
+    @Test
+    fun `call options inherit deadlines and an explicit replacement resets the call deadlines`() {
+        withClientTimeoutTest(HttpTimeoutOptions(total = Some(Duration.ZERO))) suspend { _, scope, listener, config ->
+            val started = AtomicBoolean(false)
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    assertEquals("send", String.fromUtf8(connection.receiveRequest()!!.body.readAllBytes(4L)))
+                    sendClientTestText(connection, 200U, "ok")
+                }
+            }
+            withHttpClient(config) suspend { client ->
+                val body = RequestBody.fromProducer(Some(4L)) suspend { output ->
+                    assertFalse(started.exchange(true)); writeBodyText(output, "send")
+                }
+                val failure = expectBodyFailure<HttpTimeoutException> suspend {
+                    client.execute(HttpRequest.post(clientTestUrl(listener), body)); Unit
+                }
+                checkClientTimeout(failure, HttpTimeoutPhase.Total, Duration.ZERO)
+                assertFalse(started.load())
+                client.withResponse(HttpRequest.post(clientTestUrl(listener), body,
+                    options = HttpCallOptions(timeouts = Some(HttpTimeoutOptions())))) suspend { response ->
+                    assertEquals("ok", response.body.text(2L))
+                }
+            }
+            serving.join()
+            assertFalse(scope.job.isCancelled)
+        }
+    }
+
+    @Test
+    fun `successful cleanup cancels every long deadline instead of retaining timer children`() {
+        val long = Some(Duration.seconds(3600L))
+        withClientTimeoutTest(HttpTimeoutOptions(long, long, long, readIdle = long, writeIdle = long)) suspend { _, scope, listener, config ->
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    connection.receiveRequest()!!.body.readAllBytes(0L)
+                    sendClientTestText(connection, 200U, "ok")
+                }
+            }
+            withHttpClient(config) suspend { client ->
+                client.withResponse(HttpRequest.get(clientTestUrl(listener))) suspend { response ->
+                    assertEquals("ok", response.body.text(2L))
+                }
+            }
+            serving.join()
+        }
+    }
+}

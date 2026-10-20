@@ -1,0 +1,55 @@
+schema = 1
+name = "m54-http-client"
+inputs = ["consumer", "payload.txt", "peer.py"]
+support = [
+    "../../../sysroot/src/scoop.crypto/test-certificates/src/root.scoop",
+    "../../../sysroot/src/scoop.crypto/test-certificates/src/server.scoop",
+    "../../../sysroot/src/scoop.crypto/test-certificates/src/intermediate.scoop",
+]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m54", "http", "client", "tls", "asyncio", "prebuilt"]
+variants = [{name = "debug", vars = {mode = []}}, {name = "release", vars = {mode = ["--release"]}}]
+
+[[steps]]
+name = "source"
+files = [
+    {copy = {from = "${fixture}/consumer", to = "${work}/consumer"}},
+    {copy = {from = "${repo}/sysroot/src/scoop.crypto/test-certificates/src/root.scoop", to = "${work}/consumer/src/root.scoop"}},
+    {copy = {from = "${repo}/sysroot/src/scoop.crypto/test-certificates/src/server.scoop", to = "${work}/consumer/src/server.scoop"}},
+    {copy = {from = "${repo}/sysroot/src/scoop.crypto/test-certificates/src/intermediate.scoop", to = "${work}/consumer/src/intermediate.scoop"}},
+]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${work}/consumer", {each = "${mode}"}, {each = "${link_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${build.result.observations.child_invocations.length}", equals = 1}]
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}", "${fixture}/payload.txt"]
+exit = 0
+stdout = "HTTP client streams files and responses through HTTP1 and ALPN HTTP2 with structured cleanup\n"
+stderr = ""
+
+[[steps]]
+name = "external"
+argv = ["python3", "${fixture}/peer.py", "${build.result.output}", "${repo}/sysroot/src/scoop.crypto/test-certificates/src/server.scoop", "${repo}/sysroot/src/scoop.crypto/test-certificates/src/intermediate.scoop", "${work}/external"]
+exit = 0
+stdout = "Python HTTP1 verifies plain TLS ALPN and permitted fallback clients\n"
+stderr = ""
+
+[[steps]]
+name = "warm"
+argv = ["${scoop}", "build", "${work}/consumer", {each = "${mode}"}, {each = "${link_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${warm.result.observations.child_invocations}", equals = []}]

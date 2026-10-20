@@ -1,9 +1,7 @@
-//! Runtime image data, fingerprint encoding and digest patching.
+//! Runtime image data and artifact content fingerprint encoding.
 
 mod fingerprint;
 pub use fingerprint::*;
-mod finalization;
-pub use finalization::*;
 mod verification;
 pub use verification::*;
 

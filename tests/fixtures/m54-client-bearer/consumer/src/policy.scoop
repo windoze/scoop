@@ -1,0 +1,85 @@
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.http.client.*
+import scoop.url.Url
+
+internal fun bearerPolicies(trust: TrustStore, mode: String) {
+    withBearerRuntime suspend { _, scope, listener ->
+        val url = bearerUrl(listener).toBuilder().setEncodedUserInfo(Some("ignored:password")).build()
+        val loads = AtomicLong(0L)
+        val refreshes = AtomicLong(0L)
+        val starts = AtomicLong(0L)
+        val preemptive = mode == "preemptive" || mode == "scope" || mode == "request" || mode == "unknown" ||
+            mode == "forbidden" || mode == "manual" || mode == "zero" || mode == "limit"
+        val succeeds = mode == "challenge" || mode == "realm" || mode == "preemptive"
+        val failed = mode == "token68" || mode == "malformed" || mode == "limit" || mode == "sent"
+        val provider = HttpAuthenticator.bearer(
+            if (mode == "origin") Url.parse("http://example.invalid/").httpOrigin() else url.httpOrigin(),
+            realm = if (mode == "realm" || mode == "realm-miss") Some<List<Byte>>("private".toByteArray()) else None,
+            sendWithoutChallenge = preemptive, refreshTokens = suspend { _ ->
+                refreshes.fetchAdd(1L); Some(HttpBearerTokens("new"))
+            }) suspend { request ->
+            bearerCheck(request.attempt == if (preemptive) 0L else 1L)
+            loads.fetchAdd(1L); HttpBearerTokens("old")
+        }
+        val serving = scope.launch suspend {
+            val attempts = if (mode == "challenge" || mode == "realm" || mode == "limit") 2 else 1
+            for (index in 0..<attempts) {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    val incoming = connection.receiveRequest()!!
+                    val token: String? = if (mode == "manual") Some("manual")
+                        else if (index == 1 && mode == "limit") Some("new")
+                        else if (preemptive || index == 1) Some("old") else None
+                    bearerCheck(bearerToken(incoming.head) == token)
+                    bearerCheck(String.fromUtf8(incoming.body.readAllBytes(4L)) == if (mode == "sent") "once" else "")
+                    if (succeeds && (mode == "preemptive" || index == 1)) bearerRespond(connection, 200U, "done")
+                    else {
+                        val challenge = when (mode) {
+                            case "realm" -> "Bearer realm=\"private\""
+                            case "realm-miss" -> "Bearer realm=\"other\""
+                            case "token68" -> "Bearer opaque=="
+                            case "malformed" -> "Bearer realm=\"unterminated"
+                            case "scope" -> "Bearer error=\"insufficient_scope\""
+                            case "request" -> "Bearer error=\"invalid_request\""
+                            case "unknown" -> "Bearer error=\"extension_error\""
+                            case "unoffered" -> "Digest realm=\"private\", nonce=\"unused\""
+                            else -> "Bearer"
+                        }
+                        bearerRespond(connection, if (mode == "forbidden") 403U else 401U,
+                            if (!failed && !succeeds) "deny" else "", [bearerField("WWW-Authenticate", challenge)])
+                    }
+                }
+            }
+        }
+        val attempts = when (mode) { case "zero" -> 0L; case "limit" -> 1L; else -> 3L }
+        withHttpClient(bearerConfig(trust, HttpAuthenticationOptions([provider], maxAttempts = attempts))) suspend { client ->
+            val fields: Array<HttpField> = if (mode == "manual") [bearerField("Authorization", "Bearer manual")] else []
+            val options = HttpCallOptions(authentication = if (mode == "disabled") Some(HttpAuthenticationOptions()) else None)
+            val body = if (mode == "sent") RequestBody.fromProducer(Some(4L)) suspend { output ->
+                starts.fetchAdd(1L); bearerWrite(output, "once")
+            } else RequestBody.Empty
+            val request = HttpRequest(url, if (mode == "sent") "POST" else "GET", fields, body, options)
+            if (failed) {
+                val error = bearerFailure<HttpAuthenticationException> suspend { client.execute(request).close() }
+                val expected = when (mode) {
+                    case "limit" -> HttpAuthenticationFailure.LimitExceeded
+                    case "sent" -> HttpAuthenticationFailure.BodyNotReplayable
+                    else -> HttpAuthenticationFailure.InvalidChallenge
+                }
+                bearerCheck(error.reason == expected)
+            } else {
+                client.withResponse(request) suspend { response ->
+                    bearerCheck(response.status == if (succeeds) 200U else if (mode == "forbidden") 403U else 401U)
+                    bearerCheck(response.body.text(4L) == if (succeeds) "done" else "deny")
+                    bearerCheck(response.authenticationCount == if (mode == "challenge" || mode == "realm") 1L else 0L)
+                }
+            }
+        }
+        serving.join()
+        bearerCheck(loads.load() == if (mode == "manual") 0L else if (preemptive || succeeds) 1L else 0L)
+        bearerCheck(refreshes.load() == if (mode == "limit") 1L else 0L)
+        bearerCheck(starts.load() == if (mode == "sent") 1L else 0L)
+    }
+}

@@ -1,0 +1,79 @@
+package scoop.asyncio
+
+import scoop.platform.env.temporaryDirectory
+import scoop.platform.fs.*
+import scoop.platform.native.temporaryPathPattern
+
+public struct TemporaryFile(val path: Path, val file: AsyncFile) : AsyncCloseable {
+    public override suspend fun close() { file.close() }
+}
+
+@CLayout
+private struct NativeTemporaryFile(val file: Ptr<Unit>, val path: Ptr<Byte>)
+internal struct CreatedTemporaryFile(val file: Ptr<Unit>, val path: Path)
+
+internal fun takeTemporaryFile(pointer: Ptr<Unit>): CreatedTemporaryFile {
+    @Unsafe {
+        val value = nativeTakeTemporary(pointer)
+        try { return CreatedTemporaryFile(value.file, Path.fromOsString(copyNativeString(value.path))) }
+        finally { nativeFreeTemporaryPath(value.path) }
+    }
+}
+
+internal suspend fun createTemporaryFileOnLoop(loop: LibuvEventLoop, parent: Path?, prefix: String): TemporaryFile {
+    val job = loop.requireJob()
+    val base = parent ?: temporaryDirectory()
+    val pattern = temporaryPathPattern(base, prefix)
+    return suspendCoroutine<TemporaryFile> { continuation ->
+        val operation = LoopOperation(loop.state, loop.state.nextOperation(),
+            { native, id -> @Unsafe {
+                return@LoopOperation pattern.withNativePath { name -> @Unsafe {
+                    return@withNativePath nativeStatus(id, nativeTemporaryFile(native, id, name))
+                } }
+            } },
+            { native, id -> @Unsafe { nativeWorkCancel(native, id) } },
+            { event, selected ->
+                when (event.result) {
+                    case Temporary(value) -> {
+                        val owner = OwnedFile(loop, value.file, value.path.toOsString())
+                        loop.state.retain(owner)
+                        when (selected) {
+                            case None -> continuation.resume(TemporaryFile(value.path, WorkerFile(owner)))
+                            case Some(error) -> discardTemporaryFile(owner, value.path, error, continuation)
+                        }
+                    }
+                    case _ -> continuation.resumeWithException(
+                        completionFailure("create temporary file", event.result, selected, Some(base.toOsString()))
+                            ?: IllegalStateException(Some("temporary creation returned no file")))
+                }
+            })
+        operation.subscribe(job)
+        loop.state.submit(operation)
+    }
+}
+
+private fun discardTemporaryFile(owner: OwnedFile, path: Path, primary: Throwable,
+    continuation: Continuation<TemporaryFile>) {
+    owner.closeOnLoop { closeFailure ->
+        deleteFileForCleanup(owner.loop, path) { deleteFailure ->
+            val cleanup = when (closeFailure) {
+                case None -> deleteFailure
+                case Some(error) -> Some(when (deleteFailure) {
+                    case None -> error
+                    case Some(other) -> ResourceUseException(error, other)
+                })
+            }
+            continuation.resumeWithException(when (cleanup) {
+                case None -> primary
+                case Some(error) -> ResourceUseException(primary, error)
+            })
+        }
+    }
+}
+
+@Extern(name = "scoop_io_file_temporary")
+private fun nativeTemporaryFile(loop: Ptr<Unit>, id: Long, pattern: Ptr<Byte>): Int
+@Extern(name = "scoop_io_temporary_take")
+private fun nativeTakeTemporary(pointer: Ptr<Unit>): NativeTemporaryFile
+@Extern(name = "scoop_io_temporary_path_free")
+private fun nativeFreeTemporaryPath(path: Ptr<Byte>)

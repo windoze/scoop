@@ -26,6 +26,7 @@ internal class SyncPump(
                     throw TlsException("TLS protocol", TlsFailureKind.Protocol, 0UL, 0L, 0, "unexpected close_notify")
                 }
                 case WantRead -> receive()
+                case WantVerification -> engine.verify()
                 case WantWrite -> if (sent == 0L) throw IllegalStateException(Some("TLS output retry has no pending ciphertext"))
             }
         }

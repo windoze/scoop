@@ -1,0 +1,137 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.test.*
+import scoop.time.Duration
+import scoop.tls.TlsTrustSource
+
+@Test
+private class HttpClientPoolLimitsTest {
+    @Test
+    fun `pool options reject nonpositive capacities and invalid lifetimes`() {
+        assertFailsWith<IllegalArgumentException> { HttpConnectionPoolOptions(maxConnectionsPerOrigin = 0L) }
+        assertFailsWith<IllegalArgumentException> { HttpConnectionPoolOptions(maxConnections = -1L) }
+        assertFailsWith<IllegalArgumentException> { HttpConnectionPoolOptions(maxStreamsPerHttp2 = 0L) }
+        assertFailsWith<IllegalArgumentException> { HttpConnectionPoolOptions(idleTimeout = Duration.seconds(-1L)) }
+        assertFailsWith<IllegalArgumentException> { HttpConnectionPoolOptions(maxLifetime = Some(Duration.ZERO)) }
+        assertTrue(HttpConnectionPoolOptions(idleTimeout = Duration.ZERO).idleTimeout == Duration.ZERO)
+    }
+
+    @Test
+    fun `an origin without capacity does not block another origin`() {
+        clientTestTrust().use { trust ->
+            val loop: EventLoop = LibuvEventLoop()
+            loop.run suspend { scope ->
+                clientTestListen(loop).useAsync suspend { first ->
+                    clientTestListen(loop).useAsync suspend { second ->
+                        val a = scope.launch suspend {
+                            AsyncHttp1Connection.takeOwnershipAsServer(first.accept(), scope).useAsync suspend { connection ->
+                                var index = 0L
+                                while (index < 2L) {
+                                    connection.receiveRequest()!!.body.readAllBytes(0L)
+                                    sendClientTestText(connection, 200U, "a")
+                                    index += 1L
+                                }
+                            }
+                        }
+                        val b = scope.launch suspend {
+                            AsyncHttp1Connection.takeOwnershipAsServer(second.accept(), scope).useAsync suspend { connection ->
+                                connection.receiveRequest()!!.body.readAllBytes(0L)
+                                sendClientTestText(connection, 200U, "b")
+                            }
+                        }
+                        val config = HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
+                            pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 1L, maxConnections = 2L))
+                        withHttpClient(config) suspend { client ->
+                            val held = client.execute(HttpRequest.get(clientTestUrl(first)))
+                            val queued = scope.launch suspend {
+                                client.withResponse(HttpRequest.get(clientTestUrl(first))) suspend { response -> response.body.readAllBytes(1L); Unit }
+                            }
+                            client.withResponse(HttpRequest.get(clientTestUrl(second))) suspend { response ->
+                                assertEquals("b", String.fromUtf8(response.body.readAllBytes(1L)))
+                            }
+                            assertFalse(queued.isCompleted)
+                            held.body.readAllBytes(1L); held.close()
+                            queued.join()
+                        }
+                        a.join(); b.join()
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `the global limit waits for active responses then evicts an idle different origin`() {
+        clientTestTrust().use { trust ->
+            val loop: EventLoop = LibuvEventLoop()
+            loop.run suspend { scope ->
+                clientTestListen(loop).useAsync suspend { first ->
+                    clientTestListen(loop).useAsync suspend { second ->
+                        val a = scope.launch suspend {
+                            AsyncHttp1Connection.takeOwnershipAsServer(first.accept(), scope).useAsync suspend { connection ->
+                                connection.receiveRequest()!!.body.readAllBytes(0L)
+                                sendClientTestText(connection, 200U, "a")
+                                assertFalse(clientPresent(connection.receiveRequest()))
+                            }
+                        }
+                        val b = scope.launch suspend {
+                            AsyncHttp1Connection.takeOwnershipAsServer(second.accept(), scope).useAsync suspend { connection ->
+                                connection.receiveRequest()!!.body.readAllBytes(0L)
+                                sendClientTestText(connection, 200U, "b")
+                            }
+                        }
+                        val config = HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
+                            pool = HttpConnectionPoolOptions(maxConnections = 1L))
+                        withHttpClient(config) suspend { client ->
+                            val held = client.execute(HttpRequest.get(clientTestUrl(first)))
+                            val queued = scope.launch suspend {
+                                client.withResponse(HttpRequest.get(clientTestUrl(second))) suspend { response ->
+                                    assertEquals("b", String.fromUtf8(response.body.readAllBytes(1L)))
+                                }
+                            }
+                            assertFalse(queued.isCompleted)
+                            held.body.readAllBytes(1L); held.close()
+                            queued.join()
+                        }
+                        a.join(); b.join()
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `failed connection attempts release the reserved global capacity`() {
+        clientTestTrust().use { trust ->
+            val loop: EventLoop = LibuvEventLoop()
+            loop.run suspend { scope ->
+                val unavailable = clientTestListen(loop)
+                val missing = clientTestUrl(unavailable)
+                unavailable.close()
+                clientTestListen(loop).useAsync suspend { listener ->
+                    val serving = scope.launch suspend {
+                        AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                            connection.receiveRequest()!!.body.readAllBytes(0L)
+                            sendClientTestText(connection, 200U, "ok")
+                        }
+                    }
+                    val config = HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
+                        pool = HttpConnectionPoolOptions(maxConnections = 1L))
+                    withHttpClient(config) suspend { client ->
+                        val failing = scope.launch suspend {
+                            expectBodyFailure<Throwable> suspend { client.execute(HttpRequest.get(missing)); Unit }
+                        }
+                        client.withResponse(HttpRequest.get(clientTestUrl(listener))) suspend { response ->
+                            assertEquals("ok", String.fromUtf8(response.body.readAllBytes(2L)))
+                        }
+                        failing.join()
+                    }
+                    serving.join()
+                    assertFalse(scope.job.isCancelled)
+                }
+            }
+        }
+    }
+}

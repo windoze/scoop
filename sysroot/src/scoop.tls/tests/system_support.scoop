@@ -1,0 +1,42 @@
+package scoop.tls
+
+import scoop.crypto.native.certificateHandle
+import scoop.crypto.PrivateKey
+import scoop.crypto.testdata.serverKeyPem
+import scoop.crypto.x509.Certificate
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+import scoop.tls.native.*
+import scoop.tls.testnative.systemCertificatePem
+
+internal fun systemServerContext(options: TlsOptions = TlsOptions(), leaf: String = systemCertificatePem()): TlsServerContext =
+    Certificate.fromPem(leaf).use { certificate ->
+        PrivateKey.fromPem(serverKeyPem()).use { key -> TlsServerContext([certificate], key, options) }
+    }
+
+internal fun reachVerification(client: TlsEngine, server: TlsEngine) {
+    NativeByteBuffer.allocate(17L).use { staging ->
+        while (true) {
+            val kind = client.handshake().kind
+            if (kind == TlsStepKind.WantVerification) return@use
+            assertTrue(kind != TlsStepKind.Done)
+            server.handshake()
+            assertTrue(transfer(client, server, staging) + transfer(server, client, staging) > 0L)
+        }
+    }
+}
+
+internal fun isolatedVerification(engine: TlsEngine, anchor: Certificate): Boolean {
+    @Unsafe {
+        val work = engine.takeVerification()
+        try {
+            gcCollect()
+            val verified = verifyIsolated(work, certificateHandle(anchor)) == 1
+            engine.completeVerification(work)
+            return verified
+        } finally { freeVerification(work) }
+    }
+}
+
+@Extern(name = "scoop_test_tls_isolated_verify")
+internal fun verifyIsolated(work: Ptr<Unit>, anchor: ULong): Int

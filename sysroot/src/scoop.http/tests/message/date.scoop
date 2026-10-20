@@ -1,0 +1,77 @@
+package scoop.http
+
+import scoop.time.Instant
+import scoop.text.*
+import scoop.test.*
+
+@Test
+private class HttpDateTests {
+    @Test
+    fun `all three HTTP date forms decode the RFC example and generated dates use UTC`() {
+        val reference = Instant.parse("2026-10-18T00:00:00Z")
+        val expected = Instant.fromEpochSeconds(784111777L)
+        for (value in ["Sun, 06 Nov 1994 08:49:37 GMT", "Sunday, 06-Nov-94 08:49:37 GMT", "Sun Nov  6 08:49:37 1994",
+            "Sun Nov 06 08:49:37 1994", " \tSun, 06 Nov 1994 08:49:37 GMT\t "]) {
+            assertEquals(expected, HttpDate.parse(value, reference))
+        }
+        for ((value, seconds) in [("Mon, 01 Jan 1900 00:00:00 GMT", -2208988800L),
+            ("Wed, 31 Dec 1969 23:59:59 GMT", -1L), ("Thu, 01 Jan 1970 00:00:00 GMT", 0L),
+            ("Tue, 29 Feb 2000 12:34:56 GMT", 951827696L), ("Sun, 18 Oct 2026 11:22:33 GMT", 1792322553L),
+            ("Fri, 31 Dec 9999 23:59:59 GMT", 253402300799L)]) {
+            assertEquals(seconds, HttpDate.parse(value.toByteArray(), reference).epochSeconds)
+            assertEquals(value, HttpDate.format(Instant.fromEpochSeconds(seconds, 999999999L)))
+        }
+    }
+
+    @Test
+    fun `obsolete years use the explicit fifty calendar year boundary including time of day`() {
+        val now = Instant.parse("2026-10-18T00:00:00Z")
+        assertEquals(Instant.parse("2005-01-01T00:00:00Z"), HttpDate.parse("Saturday, 01-Jan-05 00:00:00 GMT", now))
+        assertEquals(Instant.parse("2075-01-01T00:00:00Z"), HttpDate.parse("Tuesday, 01-Jan-75 00:00:00 GMT", now))
+        val old = Instant.parse("1994-11-06T08:49:37Z")
+        assertEquals(Instant.parse("2044-11-06T08:49:37Z"), HttpDate.parse("Sunday, 06-Nov-44 08:49:37 GMT", old))
+        assertEquals(Instant.parse("1944-11-06T08:49:38Z"), HttpDate.parse("Monday, 06-Nov-44 08:49:38 GMT", old))
+        val leap = Instant.parse("2024-02-29T00:00:00Z")
+        assertEquals(Instant.parse("2074-02-28T00:00:00Z"), HttpDate.parse("Wednesday, 28-Feb-74 00:00:00 GMT", leap))
+        assertEquals(Instant.parse("1974-03-01T00:00:00Z"), HttpDate.parse("Friday, 01-Mar-74 00:00:00 GMT", leap))
+        assertEquals(Instant.parse("2000-02-29T00:00:00Z"), HttpDate.parse("Tuesday, 29-Feb-00 00:00:00 GMT", Instant.parse("2050-01-01T00:00:00Z")))
+        assertFailsWith<IllegalArgumentException> { HttpDate.parse("Sunday, 06-Nov-94 08:49:37 GMT", Instant.MIN) }
+    }
+
+    @Test
+    fun `calendar weekday time widths and malformed bytes report field offsets`() {
+        val now = Instant.parse("2026-10-18T00:00:00Z")
+        for ((value, offset) in [("Mon, 06 Nov 1994 08:49:37 GMT", 0L), ("Sun, 31 Feb 1994 08:49:37 GMT", 5L),
+            ("Sun, 06 Xxx 1994 08:49:37 GMT", 8L), ("Sun, 06 Nov 1899 08:49:37 GMT", 12L),
+            ("Sun, 06 Nov 1994 24:49:37 GMT", 17L), ("Sun, 06 Nov 1994 08:60:37 GMT", 20L),
+            ("Sun, 06 Nov 1994 08:49:61 GMT", 23L), ("Sun, 06 Nov 1994 08:49:37 UTC", 26L)]) {
+            val error = assertFailsWith<HttpFieldParseException> { HttpDate.parse(value, now) }
+            assertEquals("HTTP-date", error.field)
+            assertEquals(offset, error.byteOffset)
+            assertTrue(HttpDate.parseOrNone(value, now) == None)
+        }
+        for (value in ["Sun, 6 Nov 1994 08:49:37 GMT", "Sun, 06  Nov 1994 08:49:37 GMT",
+            "Sun Nov 6 08:49:37 1994", "Sunday, 06 Nov 1994 08:49:37 GMT", "Sun, 06-Nov-94 08:49:37 GMT",
+            "Sun, 06 Nov 1994 8:49:37 GMT", "Sun, 06 Nov 1994 08:49 GMT", "Sun, 06 Nov 1994 08:49:37 GMT\r\n",
+            "Thu, 29 Feb 1900 00:00:00 GMT", "Sun, 06 Nov 1994 08:49:37 +0000", "Sun, 06 Nov 1994 08:49:37 GMT extra"]) {
+            assertFailsWith<HttpFieldParseException> { HttpDate.parse(value, now) }
+        }
+        val bytes = MutableArray<Byte>(29L) { index -> "Sun, 06 Nov 1994 08:49:37 GMT".toByteArray()[index] }
+        bytes[8L] = 255.toByte()
+        assertEquals(8L, assertFailsWith<HttpFieldParseException> { HttpDate.parse(bytes, now) }.byteOffset)
+        assertFailsWith<IllegalArgumentException> { HttpDate.format(Instant.MIN) }
+        assertFailsWith<IllegalArgumentException> { HttpDate.format(Instant.MAX) }
+    }
+
+    @Test
+    fun `cache case matching is explicit and leap seconds never extend expiration`() {
+        val now = Instant.parse("2026-10-18T00:00:00Z")
+        val lower = "sUN, 06 nOV 1994 08:49:37 gMt"
+        assertFailsWith<HttpFieldParseException> { HttpDate.parse(lower, now) }
+        assertEquals("Sun, 06 Nov 1994 08:49:37 GMT", HttpDate.format(HttpDate.parse(lower, now, caseInsensitive = true)))
+        assertFailsWith<HttpFieldParseException> { HttpDate.parse("Sun, 06 Nov 1994 08:49:37 utc", now, caseInsensitive = true) }
+        val leap = HttpDate.parse("Sat, 31 Dec 2016 23:59:60 GMT", now)
+        assertEquals(Instant.parse("2016-12-31T23:59:59Z"), leap)
+        assertEquals("Sat, 31 Dec 2016 23:59:59 GMT", HttpDate.format(leap))
+    }
+}

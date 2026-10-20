@@ -108,10 +108,9 @@ private class Http1EncodeTests {
     }
 
     @Test
-    fun `sending rejects unknown methods injection and conflicting framing`() {
+    fun `sending rejects invalid methods injection and conflicting framing`() {
         Http1Encoder(HttpRole.Client).use { encoder ->
-            val error = assertFailsWith<HttpException> { encoder.beginRequest(requestHead(method = "CUSTOM")) }
-            assertEquals("llhttp 9.4.3", error.backend)
+            assertFailsWith<IllegalArgumentException> { encoder.beginRequest(requestHead(method = "BAD METHOD")) }
             assertFailsWith<IllegalArgumentException> {
                 encoder.beginRequest(requestHead(fields = [HttpField("X-Bad".toByteArray(), "one\r\nInjected: two".toByteArray())]))
             }

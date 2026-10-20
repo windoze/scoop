@@ -1,0 +1,19 @@
+package scoop.http.client
+
+import scoop.platform.time.MonotonicTimeSource
+import scoop.time.Duration
+
+internal fun startClientSseTimer(state: ClientSseState) {
+    val limit = state.sequence.timeouts.total ?: return
+    val scope = state.client.lock.withLock { state.client.scope!! }
+    val timer = scope.launch suspend {
+        try {
+            val remaining = limit - (MonotonicTimeSource.markNow() - state.sequence.started!!)
+            if (remaining > Duration.ZERO) state.client.loop.sleep(remaining)
+            stopClientSse(state, state.timeout())
+        } catch (error: Throwable) {
+            if (!(error is CancellationException)) stopClientSse(state, error)
+        }
+    }
+    state.client.lock.withLock { state.timer = Some(timer) }
+}

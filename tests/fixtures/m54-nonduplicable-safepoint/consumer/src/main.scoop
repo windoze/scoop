@@ -1,0 +1,29 @@
+import scoop.platform.concurrent.Thread
+
+private class Kept(val text: String)
+
+private fun verify(value: Boolean, detail: String = "conditional safepoint check failed") {
+    if (!value) throw IllegalStateException(Some(detail))
+}
+
+private fun select(root: Kept, first: Boolean, number: Long, count: Long): String {
+    val condition = first && number == 1L
+    verify(count == (if (condition) 0L else 1L))
+    return if (condition) root.text + "-left" else root.text + "-right"
+}
+
+private fun exercise(args: Array<String>) {
+    val kept = Kept(args[1L] + "-value")
+    try {
+        val result = select(kept, args[1L] == "left", args[2L].length, args[3L].length)
+        verify(result == args[1L] + "-value-" + args[4L], "conditional result mismatch")
+    } catch (error: IllegalStateException) {
+        verify(args[4L] == "error" && error.message == Some("conditional safepoint check failed"), "unexpected failure")
+    }
+    verify(kept.text == args[1L] + "-value", "root changed across conditional call or exception")
+}
+
+fun main(args: Array<String>) {
+    Thread.start { exercise(args) }.use { thread -> exercise(args); thread.join() }
+    println("conditional safepoint " + args[4L])
+}

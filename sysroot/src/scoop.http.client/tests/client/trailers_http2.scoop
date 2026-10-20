@@ -1,0 +1,65 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.test.*
+
+@Test
+private class HttpClientTrailersHttp2Test {
+    @Test
+    fun `HTTP2 keeps per-stream trailers and explicit lengths across parallel factory sends`() {
+        clientTestTrust().use { trust ->
+            val loop: EventLoop = LibuvEventLoop()
+            loop.run suspend { scope ->
+                clientTestListen(loop).useAsync suspend { listener ->
+                    val done = BodyTestGate()
+                    val serving = scope.launch suspend {
+                        AsyncHttp2Connection.takeOwnershipAsServer(listener.accept(), scope,
+                            settings = Http2Settings(initialWindowSize = 3U)).useAsync suspend { connection ->
+                            val requests = [connection.acceptRequest()!!, connection.acceptRequest()!!]
+                            for (incoming in requests) {
+                                val path = when (incoming.head.target) {
+                                    case Http2(_, _, value) -> String.fromUtf8(value)
+                                    else -> throw IllegalStateException()
+                                }
+                                val text = String.fromUtf8(incoming.stream.readAllBytes(10L))
+                                assertEquals("/" + text, path)
+                                assertTrue(parseHttpContentLength(incoming.head.fields) == Some(text.toByteArray().size))
+                                val fields = incoming.stream.trailers!!
+                                assertEquals(1L, fields.size)
+                                assertEquals(text, String.fromUtf8(fields[0L].value))
+                                assertTrue(fields[0L].neverIndex)
+                                incoming.stream.sendResponse(HttpResponseHead(HttpVersion.Http2, 204U))
+                            }
+                            done.await()
+                        }
+                    }
+                    val body = RequestBody.fromProducerWithTrailersFactory(["X-Context"]) suspend {
+                        val text = currentBodyTestContext();
+                        suspend { output ->
+                            writeBodyText(output, text)
+                            [HttpField("X-Context".toByteArray(), text.toByteArray(), true)]
+                        }
+                    }
+                    withHttpClient(clientTestConfig(trust, HttpVersion.Http2)) suspend { client ->
+                        val sending = ArrayList<Deferred<Unit>>()
+                        for (text in ["first", "second"]) {
+                            sending.add(context(BodyTestContext(text)) { scope.async suspend {
+                                val fields = [HttpField("Content-Length".toByteArray(), text.toByteArray().size.toString().toByteArray())]
+                                client.withResponse(HttpRequest.post(clientTestUrl(listener, "/" + text), body, fields)) suspend { response ->
+                                    assertEquals(204U, response.status)
+                                    assertEquals(0L, response.body.readAllBytes(0L).size)
+                                }
+                            } })
+                        }
+                        for (job in sending) job.await()
+                    }
+                    done.signal()
+                    serving.join()
+                    assertFalse(scope.job.isCancelled)
+                }
+            }
+        }
+    }
+}

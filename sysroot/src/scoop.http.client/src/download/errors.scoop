@@ -1,0 +1,21 @@
+package scoop.http.client
+
+internal fun recordClientDownloadFailure(download: ClientDownload, error: Throwable) {
+    download.client.lock.withLock {
+        val primary = download.failure
+        if (!clientPresent(primary)) {
+            if (error is ResourceUseException) {
+                download.failure = Some(error.primaryFailure)
+                download.cleanupFailure = collectClientSecondary(error.primaryFailure, download.cleanupFailure, error.cleanupFailure)
+            } else download.failure = Some(error)
+        } else download.cleanupFailure = collectClientSecondary(primary!!, download.cleanupFailure, error)
+        Unit
+    }
+}
+
+internal fun clientDownloadFailure(download: ClientDownload): Throwable? = download.client.lock.withLock {
+    when (download.cleanupFailure) {
+        case Some(cleanup) -> Some(clientCombined(download.failure, cleanup))
+        case None -> download.failure
+    }
+}

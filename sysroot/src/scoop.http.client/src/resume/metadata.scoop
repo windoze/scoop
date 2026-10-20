@@ -1,0 +1,61 @@
+package scoop.http.client
+
+import scoop.bytes.*
+import scoop.http.*
+
+private val clientResumeMagic: ULong = 0x53434852534d0001UL
+
+internal fun encodeClientResumeRecord(record: ClientResumeRecord, limit: Long): Array<Byte> {
+    val output = ByteArrayBuilder()
+    output.writeUInt64(clientResumeMagic, ByteOrder.BigEndian)
+    resumeWriteBytes(output, record.originalUrl.toByteArray(), limit)
+    resumeWriteBytes(output, record.url.toByteArray(), limit)
+    resumeWriteBytes(output, record.identity.toByteArray(), limit)
+    if (limit - output.size < 16L) resumeMetadataError("resume metadata exceeds its limit")
+    output.writeInt64(record.length ?: -1L, ByteOrder.BigEndian)
+    output.writeInt64(record.encodings.size, ByteOrder.BigEndian)
+    for (encoding in record.encodings) resumeWriteBytes(output, encoding.toByteArray(), limit)
+    resumeWriteBytes(output, record.etag?.toByteArray() ?: Array<Byte>(0L) { _ -> 0.toByte() }, limit)
+    return output.toByteArray()
+}
+
+private fun resumeWriteBytes(output: ByteArrayBuilder, value: List<Byte>, limit: Long) {
+    if (limit - output.size < 8L || value.size > limit - output.size - 8L) resumeMetadataError("resume metadata exceeds its limit")
+    output.writeInt64(value.size, ByteOrder.BigEndian)
+    output.append(value)
+}
+
+internal fun decodeClientResumeRecord(bytes: Array<Byte>): ClientResumeRecord {
+    val input = ByteArrayReader(bytes)
+    try {
+        if (input.readUInt64(ByteOrder.BigEndian) != clientResumeMagic) resumeMetadataError("invalid resume metadata format")
+        val original = resumeReadText(input)
+        val url = resumeReadText(input)
+        val identity = resumeReadText(input)
+        val size = input.readInt64(ByteOrder.BigEndian)
+        if (size < -1L) resumeMetadataError("invalid resumed representation length")
+        val count = input.readInt64(ByteOrder.BigEndian)
+        if (count < 0L || count > input.remaining / 8L) resumeMetadataError("invalid resume encoding count")
+        val encodings = ArrayList<String>()
+        for (_ in 0L..<count) {
+            val name = resumeReadText(input)
+            if (!isHttpToken(name.toByteArray())) resumeMetadataError("invalid resume content encoding")
+            encodings.add(name)
+        }
+        val tag = input.readBytes(input.readInt64(ByteOrder.BigEndian))
+        val etag: HttpEntityTag? = if (tag.size == 0L) None else Some(HttpEntityTag.parse(tag))
+        if (etag?.isWeak ?: false) resumeMetadataError("resume validator must be strong")
+        if (input.remaining != 0L) resumeMetadataError("trailing resume metadata")
+        return ClientResumeRecord(original, url, identity, encodings.toArray(), if (size == -1L) None else Some(size), etag)
+    } catch (error: IndexOutOfBoundsException) { resumeMetadataError("truncated resume metadata", Some(error)) }
+    catch (error: IllegalArgumentException) { resumeMetadataError("invalid resume metadata value", Some(error)) }
+    catch (error: CharacterCodingException) { resumeMetadataError("invalid resume metadata text", Some(error)) }
+    catch (error: HttpFieldParseException) { resumeMetadataError("invalid resume validator", Some(error)) }
+}
+
+private fun resumeReadText(input: ByteArrayReader): String =
+    String.fromUtf8(input.readBytes(input.readInt64(ByteOrder.BigEndian)))
+
+internal fun resumeMetadataError(detail: String, cause: Throwable? = None): Nothing {
+    throw HttpResumeException(HttpResumeFailureReason.InvalidMetadata, detail, cause = cause)
+}

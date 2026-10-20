@@ -1,0 +1,107 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class HttpClientHeadersTimeoutTest {
+    @Test
+    fun `zero response header timeout commits the head without starting the body producer`() {
+        withClientTimeoutTest suspend { _, scope, listener, config ->
+            val done = BodyTestGate()
+            val started = AtomicBoolean(false)
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    assertEquals("POST", String.fromUtf8(connection.receiveRequest()!!.head.method))
+                    done.await()
+                }
+            }
+            try {
+                withHttpClient(config) suspend { client ->
+                    val body = RequestBody.fromProducer(Some(4L)) suspend { output ->
+                        started.store(true); writeBodyText(output, "send")
+                    }
+                    val error = expectBodyFailure<HttpTimeoutException> suspend {
+                        client.execute(HttpRequest.post(clientTestUrl(listener), body,
+                            options = HttpCallOptions(timeouts = Some(HttpTimeoutOptions(responseHeaders = Some(Duration.ZERO)))))); Unit
+                    }
+                    checkClientTimeout(error, HttpTimeoutPhase.ResponseHeaders, Duration.ZERO)
+                    assertFalse(started.load())
+                }
+            } finally { done.signal() }
+            serving.join()
+            assertFalse(scope.job.isCancelled)
+        }
+    }
+
+    @Test
+    fun `header waiting includes a suspended informational callback and the Continue gate`() {
+        val limit = clientTimeoutTestDuration()
+        withClientTimeoutTest suspend { loop, scope, listener, config ->
+            val done = BodyTestGate()
+            val observed = AtomicBoolean(false)
+            val acquired = AtomicBoolean(false)
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    assertTrue(httpExpectsContinue(connection.receiveRequest()!!.head.fields))
+                    connection.sendResponse(HttpResponseHead(HttpVersion.Http11, 103U)).finish()
+                    done.await()
+                }
+            }
+            try {
+                withHttpClient(config) suspend { client ->
+                    val body = RequestBody.fromProducer(Some(4L)) suspend { output ->
+                        acquired.store(true); writeBodyText(output, "send")
+                    }
+                    val options = HttpCallOptions(expectContinue = true, continueWait = Duration.seconds(3600L),
+                        timeouts = Some(HttpTimeoutOptions(responseHeaders = Some(limit))), onInformational = suspend { head ->
+                            assertEquals(103U, head.status); observed.store(true)
+                            loop.sleep(Duration.seconds(3600L))
+                        })
+                    val error = expectBodyFailure<HttpTimeoutException> suspend {
+                        client.execute(HttpRequest.post(clientTestUrl(listener), body, options = options)); Unit
+                    }
+                    checkClientTimeout(error, HttpTimeoutPhase.ResponseHeaders, limit)
+                    assertTrue(observed.load()); assertFalse(acquired.load())
+                }
+            } finally { done.signal() }
+            serving.join()
+            assertFalse(scope.job.isCancelled)
+        }
+    }
+
+    @Test
+    fun `final headers stop their deadline while the application delays body consumption`() {
+        val limit = clientTimeoutTestDuration()
+        withClientTimeoutTest(HttpTimeoutOptions(responseHeaders = Some(limit))) suspend { loop, scope, listener, config ->
+            val release = BodyTestGate()
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    connection.receiveRequest()!!.body.readAllBytes(0L)
+                    connection.sendResponse(HttpResponseHead(HttpVersion.Http11, 200U), Http1BodyFraming.Length(2L)).useAsync suspend { output ->
+                        writeBodyText(output, "a"); output.flush()
+                        release.await()
+                        writeBodyText(output, "b"); output.finish()
+                    }
+                }
+            }
+            try {
+                withHttpClient(config) suspend { client ->
+                    client.withResponse(HttpRequest.get(clientTestUrl(listener))) suspend { response ->
+                        NativeByteBuffer.allocate(1L).use suspend { prefix ->
+                            response.body.readFully(prefix); assertEquals(97.toByte(), prefix.readByte())
+                        }
+                        loop.sleep(limit + Duration.milliseconds(10L))
+                        release.signal()
+                        assertEquals("b", response.body.text(1L))
+                    }
+                }
+            } finally { release.signal() }
+            serving.join()
+        }
+    }
+}

@@ -1,0 +1,45 @@
+package scoop.http
+
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+@Test private class WebSocketFrameLimitTests {
+    @Test fun `frame and fragmented message limits stop at the known header boundary`() {
+        for ((wire, limits, consumed) in [(wfBytes([130, 6, 1, 2, 3, 4, 5, 6]), WebSocketFrameLimits(maxFrameBytes = 5L), 2L),
+            (wfBytes([2, 3, 1, 2, 3, 128, 3, 4, 5, 6]), WebSocketFrameLimits(maxMessageBytes = 5L), 7L)]) {
+            WebSocketFrameDecoder(HttpRole.Client, limits = limits).use { decoder -> NativeByteBuffer.allocate(wire.size).use { input ->
+                input.writeBytes(wire)
+                val events = ArrayList<WebSocketFrameEvent>()
+                val error = assertFailsWith<WebSocketFrameException> {
+                    while (input.readableBytes > 0L) { decoder.receive(input); wfDrain(decoder, events) }
+                }
+                assertEquals(1009U, error.closeCode)
+                assertEquals(consumed, input.readPosition)
+                assertTrue(error.byteOffset == Some(consumed))
+                input.clear(); input.writeInt8(42.toByte())
+                assertEquals(42.toByte(), input.readInt8())
+            } }
+        }
+    }
+
+    @Test fun `invalid configuration counts and zero input leave valid state available`() {
+        assertFailsWith<IllegalArgumentException> { WebSocketFrameLimits(-1L) }
+        assertFailsWith<IllegalArgumentException> { WebSocketFrameLimits(maxMessageBytes = -1L) }
+        assertFailsWith<IllegalArgumentException> { WebSocketFrameLimits(dataChunkBytes = 0L) }
+        assertFailsWith<IllegalArgumentException> { WebSocketFrameHead(WebSocketOpcode.Binary, -1L) }
+        WebSocketFrameDecoder(HttpRole.Client).use { decoder -> NativeByteBuffer.allocate(2L).use { input ->
+            input.writeBytes(wfBytes([130, 0]))
+            assertFailsWith<IllegalArgumentException> { decoder.receive(input, -1L) }
+            assertFailsWith<IndexOutOfBoundsException> { decoder.receive(input, 3L) }
+            assertEquals(0L, decoder.receive(input, 0L))
+            assertEquals(0L, input.readPosition)
+            assertEquals(2L, decoder.receive(input))
+            val events = ArrayList<WebSocketFrameEvent>()
+            wfDrain(decoder, events)
+            assertEquals(2L, events.size)
+            decoder.endInput(); wfDrain(decoder, events)
+            assertTrue(decoder.isFinished)
+            assertFailsWith<IllegalStateException> { decoder.receive(input, 0L) }
+        } }
+    }
+}

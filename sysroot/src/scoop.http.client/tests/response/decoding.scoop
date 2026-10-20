@@ -1,0 +1,70 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.compression.*
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+@Test
+private class HttpClientResponseDecodingTest {
+    @Test
+    fun `all HTTP content codings decode incrementally while wire metadata stays unchanged`() {
+        val text = "内容 café"
+        val variants: Array<(String, CompressionOptions)> = [
+            ("gzip", CompressionOptions.Gzip(GzipOptions())), ("deflate", CompressionOptions.Zlib(DeflateOptions())),
+            ("br", CompressionOptions.Brotli(BrotliOptions())), ("zstd", CompressionOptions.Zstd(ZstdOptions()))]
+        withResponseTestHttp1(suspend { connection ->
+            for ((coding, options) in variants) {
+                val incoming = connection.receiveRequest()!!
+                assertEquals("gzip, deflate, br, zstd", String.fromUtf8(incoming.head.fields.findAll("Accept-Encoding".toByteArray())[0L].value))
+                incoming.body.readAllBytes(0L)
+                sendResponseTestBytes(connection, compress(text.toByteArray(), options), [responseTestField("Content-Encoding", coding)])
+            }
+        }, suspend { client, url ->
+            for ((coding, options) in variants) {
+                client.withResponse(HttpRequest.get(url)) suspend { response ->
+                    assertTrue(response.wireContentLength == Some(compress(text.toByteArray(), options).size))
+                    assertTrue(response.body.contentLength == None)
+                    assertEquals(coding, String.fromUtf8(response.fields.findAll("Content-Encoding".toByteArray())[0L].value))
+                    assertEquals(text, String.fromUtf8(response.body.bytes(text.toByteArray().size)))
+                    assertTrue(response.body.isComplete)
+                    assertEquals(0L, response.trailers!!.size)
+                    assertEquals(0L, response.body.bytes(0L).size)
+                }
+            }
+        }, HttpDecodingOptions(bufferSize = 2L))
+    }
+
+    @Test
+    fun `stacked split encoding fields decode in reverse order before trailers become visible`() {
+        val text = "stacked 中文"
+        val encoded = compress(compress(text.toByteArray(), CompressionOptions.Gzip(GzipOptions())), CompressionOptions.Zlib(DeflateOptions()))
+        withResponseTestHttp1(suspend { connection ->
+            connection.receiveRequest()!!.body.readAllBytes(0L)
+            sendResponseTestBytes(connection, encoded,
+                [responseTestField("Content-Encoding", "X-GZip, , identity"), responseTestField("content-encoding", "DeFlAtE")],
+                true, [responseTestField("X-End", "verified")])
+        }, suspend { client, url ->
+            client.withResponse(HttpRequest.get(url)) suspend { response ->
+                NativeByteBuffer.allocate(text.toByteArray().size).use suspend { buffer ->
+                    response.body.readFully(buffer)
+                    assertEquals(text, String.fromUtf8(buffer.readBytes(buffer.readableBytes)))
+                }
+                assertFalse(response.body.isComplete)
+                assertTrue(when (response.trailers) { case None -> true; case Some(_) -> false })
+                assertEquals(0L, response.body.readAllBytes(0L).size)
+                assertTrue(response.body.isComplete)
+                assertEquals("verified", String.fromUtf8(response.trailers!![0L].value))
+            }
+        }, HttpDecodingOptions(bufferSize = 1L))
+    }
+
+    @Test
+    fun `decoding options reject invalid local sizes before creating a client`() {
+        assertFailsWith<IllegalArgumentException> { HttpDecodingOptions(bufferSize = 0L) }
+        assertFailsWith<IllegalArgumentException> { HttpDecodingOptions(maxWindowBytes = Some(0L)) }
+        assertFailsWith<IllegalArgumentException> { HttpDecodingOptions(maxWindowBytes = Some(-1L)) }
+        assertEquals(8192L, HttpDecodingOptions().bufferSize)
+    }
+}

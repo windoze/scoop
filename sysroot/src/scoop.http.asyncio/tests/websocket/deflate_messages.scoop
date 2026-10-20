@@ -1,0 +1,106 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+import scoop.text.toHexString
+import scoop.time.Duration
+
+@Test
+private class AsyncWebSocketDeflateMessageTests {
+    @Test
+    fun `compressed duplex messages mix text binary empty and ordinary messages`() {
+        val options = WebSocketSessionOptions(WebSocketFrameLimits(dataChunkBytes = 5L), 7L, 7L,
+            closeTimeout = Duration.seconds(60L))
+        for (takeover in [false, true]) {
+            val negotiated = negotiatedWsDeflate(10, 9, !takeover, !takeover)
+            withWebSockets(options, Some(negotiated)) suspend { scope, a, b, client, server ->
+                a.writeLimit = 3L; b.writeLimit = 5L
+                val values: Array<String> = ["压缩 🌍 message", "", "ordinary", "压缩 🌍 message"]
+                val serving = scope.launch suspend {
+                    for (index in 0L..<values.size) {
+                        val message = server.receive()!!
+                        assertTrue(message.isCompressed == (index != 2L))
+                        assertEquals(values[index], message.readText())
+                        assertTrue(message.isComplete)
+                        server.sendBinary(values[index].toByteArray(), index != 2L)
+                    }
+                }
+                for (index in 0L..<values.size) {
+                    client.sendText(values[index], index != 2L)
+                    val message = client.receive()!!
+                    assertTrue(message.type == WebSocketMessageType.Binary)
+                    assertTrue(message.isCompressed == (index != 2L))
+                    assertEquals(values[index], String.fromUtf8(message.readBytes()))
+                }
+                serving.join()
+                assertTrue(client.deflate!! === negotiated && server.deflate!! === negotiated)
+                client.shutdownGracefully()
+                assertFalse(present(server.receive()))
+            }
+        }
+    }
+
+    @Test
+    fun `compressed writer flush exposes text before FIN and still permits control frames`() {
+        val options = WebSocketSessionOptions(WebSocketFrameLimits(dataChunkBytes = 3L), 7L, 4L)
+        withWebSockets(options, Some(negotiatedWsDeflate())) suspend { scope, _, _, client, server ->
+            val prefixSeen = AsyncGate()
+            val prefix = "split 🌍".toByteArray()
+            val receiving = scope.launch suspend {
+                val message = server.receive()!!
+                assertTrue(message.isCompressed)
+                NativeByteBuffer.allocate(prefix.size).use suspend { buffer ->
+                    message.readFully(buffer, prefix.size)
+                    assertEquals("split 🌍", String.fromUtf8(buffer.readBytes(prefix.size)))
+                }
+                assertFalse(message.isComplete)
+                prefixSeen.signal()
+                assertEquals(" suffix", message.readText())
+                assertTrue(message.isComplete)
+            }
+            val writer = client.beginMessage(WebSocketMessageType.Text)
+            assertTrue(writer.isCompressed)
+            sendBytes(writer, prefix)
+            writer.flush()
+            prefixSeen.await()
+            writer.flush()
+            client.ping("between fragments".toByteArray())
+            sendBytes(writer, " suffix".toByteArray())
+            writer.finish()
+            receiving.join()
+            assertTrue(writer.isComplete)
+            writer.close()
+        }
+    }
+
+    @Test
+    fun `only the first frame sets RSV1 and plain messages leave the sending history intact`() {
+        val options = WebSocketSessionOptions(outgoingFrameBytes = 3L)
+        for (noContext in [false, true]) {
+            val negotiated = negotiatedWsDeflate(clientNoContext = noContext)
+            withRawWebSocket(options, Some(negotiated)) suspend { scope, _, client, peer ->
+                val writing = scope.launch suspend {
+                    client.sendText(wsContextText)
+                    client.sendText("ordinary", false)
+                    client.sendText(wsContextText)
+                    client.pong("control".toByteArray())
+                }
+                val first = wsRawMessage(peer, 3L)
+                assertTrue(first._1.isCompressed)
+                val plain = wsRawMessage(peer, 3L)
+                assertFalse(plain._1.isCompressed)
+                assertEquals("ordinary", String.fromUtf8(plain._2))
+                val second = wsRawMessage(peer, 3L)
+                assertTrue(second._1.isCompressed)
+                if (noContext) assertEquals(first._2.toHexString(), second._2.toHexString())
+                else assertTrue(second._2.size < first._2.size)
+                val (control, payload) = peer.receive()
+                assertTrue(control.opcode == WebSocketOpcode.Pong && !control.isCompressed)
+                assertEquals("control", String.fromUtf8(payload))
+                writing.join()
+            }
+        }
+    }
+}

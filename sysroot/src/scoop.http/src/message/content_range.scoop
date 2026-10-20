@@ -1,0 +1,71 @@
+package scoop.http
+
+public class HttpContentRange private constructor(
+    public val range: HttpResolvedRange?, public val completeLength: Long?,
+    public val originalValue: Array<Byte>?
+) : ToString {
+    public constructor(range: HttpResolvedRange, completeLength: Long? = None)
+        : this(Some(range), checkedContentLength(range, completeLength), None) {}
+
+    public override fun toString(): String {
+        val part = when (range) { case Some(value) -> value.toString(); case None -> "*" }
+        val length = when (completeLength) { case Some(value) -> value.toString(); case None -> "*" }
+        return "bytes " + part + "/" + length
+    }
+    public fun toByteArray(): Array<Byte> = toString().toByteArray()
+    public fun toHttpField(): HttpField = HttpField("Content-Range".toByteArray(), toByteArray())
+
+    public companion object {
+        public fun unsatisfied(completeLength: Long): HttpContentRange {
+            if (completeLength < 0L) throw IllegalArgumentException(Some("negative representation length"))
+            return HttpContentRange(None, Some(completeLength), None)
+        }
+
+        public fun parse(value: List<Byte>): HttpContentRange {
+            val reader = HttpFieldReader("Content-Range", value)
+            readBytesUnit(reader)
+            reader.expect(32)
+            val range: HttpResolvedRange? = if (reader.peek() == 42) {
+                reader.position += 1L
+                None
+            } else {
+                val first = reader.decimal()
+                reader.expect(45)
+                val offset = reader.position
+                val last = reader.decimal()
+                try { Some(HttpResolvedRange(first, last)) }
+                catch (_: IllegalArgumentException) { reader.failAt(offset, "invalid or unrepresentable byte interval") }
+            }
+            reader.expect(47)
+            val lengthOffset = reader.position
+            val length: Long? = if (reader.peek() == 42) {
+                reader.position += 1L
+                None
+            } else Some(reader.decimal())
+            when (range) {
+                case None -> if (length == None) reader.failAt(lengthOffset, "unsatisfied range needs a known length")
+                case Some(value) -> when (length) {
+                    case Some(total) -> if (total <= value.last) reader.failAt(lengthOffset, "complete length does not exceed range endpoint")
+                    case None -> {}
+                }
+            }
+            reader.skipOws()
+            if (!reader.ended) reader.fail("unexpected text after Content-Range")
+            return HttpContentRange(range, length, Some(reader.bytes))
+        }
+        public fun parse(value: String): HttpContentRange = parse(value.toByteArray())
+        public fun parseOrNone(value: List<Byte>): HttpContentRange? {
+            try { return Some(parse(value)) }
+            catch (_: HttpFieldParseException) { return None }
+        }
+        public fun parseOrNone(value: String): HttpContentRange? = parseOrNone(value.toByteArray())
+    }
+}
+
+private fun checkedContentLength(range: HttpResolvedRange, length: Long?): Long? {
+    when (length) {
+        case Some(total) -> if (total <= range.last) throw IllegalArgumentException(Some("complete length does not exceed range endpoint"))
+        case None -> {}
+    }
+    return length
+}

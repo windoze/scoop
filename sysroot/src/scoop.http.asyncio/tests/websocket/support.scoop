@@ -1,0 +1,106 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.bytes.ByteArrayBuilder
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+internal fun withWebSockets(options: WebSocketSessionOptions = WebSocketSessionOptions(),
+    deflate: WebSocketDeflateNegotiation? = None,
+    block: suspend (CoroutineScope, ObservedTransport, ObservedTransport, AsyncWebSocketSession, AsyncWebSocketSession) -> Unit) {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { scope ->
+        val (a, b) = rawPair(loop, scope)
+        val client = AsyncWebSocketSession.takeOwnership(a, scope, HttpRole.Client, options, deflate)
+        val server = AsyncWebSocketSession.takeOwnership(b, scope, HttpRole.Server, options, deflate)
+        try { block(scope, a, b, client, server) }
+        finally { client.close(); server.close() }
+    }
+}
+
+internal class RawWebSocketPeer(val transport: ObservedTransport, role: HttpRole = HttpRole.Server,
+    compression: Boolean = false) : Closeable {
+    private val encoder: WebSocketFrameEncoder = WebSocketFrameEncoder(role, compression)
+    private val decoder: WebSocketFrameDecoder = WebSocketFrameDecoder(role, compression)
+    private val input: NativeByteBuffer = NativeByteBuffer.allocate(4096L)
+
+    suspend fun send(opcode: WebSocketOpcode, bytes: Array<Byte>, isFinal: Boolean = true, compressed: Boolean = false) {
+        val wire = ByteArrayBuilder()
+        wire.append(encoder.beginFrame(WebSocketFrameHead(opcode, bytes.size, isFinal, compressed)))
+        NativeByteBuffer.allocate(bytes.size).use suspend { buffer ->
+            buffer.writeBytes(bytes)
+            wire.append(encoder.writePayload(buffer))
+            encoder.finishFrame()
+            buffer.clear()
+            buffer.ensureWritable(wire.size)
+            buffer.writeBytes(wire.toByteArray())
+            transport.writeFully(buffer)
+            transport.flush()
+        }
+    }
+
+    suspend fun receive(): (WebSocketFrameHead, Array<Byte>) {
+        val bytes = ByteArrayBuilder()
+        var head: WebSocketFrameHead? = None
+        while (true) {
+            when (val event = decoder.nextEvent()) {
+                case Some(WebSocketFrameEvent.FrameStarted(value)) -> head = Some(value)
+                case Some(WebSocketFrameEvent.Data(value)) -> bytes.append(value)
+                case Some(WebSocketFrameEvent.FrameEnded) -> return (head!!, bytes.toByteArray())
+                case Some(WebSocketFrameEvent.Ping(value)) -> return (WebSocketFrameHead(WebSocketOpcode.Ping, value.size), value)
+                case Some(WebSocketFrameEvent.Pong(value)) -> return (WebSocketFrameHead(WebSocketOpcode.Pong, value.size), value)
+                case Some(WebSocketFrameEvent.Close(value)) -> {
+                    val raw = value.toByteArray()
+                    return (WebSocketFrameHead(WebSocketOpcode.Close, raw.size), raw)
+                }
+                case Some(WebSocketFrameEvent.End) -> fail(Some("unexpected raw WebSocket EOF"))
+                case None -> {
+                    if (input.readableBytes != 0L) decoder.receive(input)
+                    else {
+                        input.clear()
+                        if (transport.readInto(input, input.writableBytes) == 0L) decoder.endInput()
+                    }
+                }
+            }
+        }
+    }
+
+    public override fun close() { try { encoder.close() } finally { try { decoder.close() } finally { input.close() } } }
+}
+
+internal fun withRawWebSocket(options: WebSocketSessionOptions = WebSocketSessionOptions(),
+    deflate: WebSocketDeflateNegotiation? = None,
+    block: suspend (CoroutineScope, ObservedTransport, AsyncWebSocketSession, RawWebSocketPeer) -> Unit) {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { scope ->
+        val (a, b) = rawPair(loop, scope)
+        val client = AsyncWebSocketSession.takeOwnership(a, scope, HttpRole.Client, options, deflate)
+        val peer = RawWebSocketPeer(b, compression = present(deflate))
+        try { block(scope, a, client, peer) }
+        finally { client.close(); b.close(); peer.close() }
+    }
+}
+
+internal class WebSocketTestTransport(val source: AsyncByteSource, val sink: AsyncByteSink) : AsyncByteStream, AsyncCloseable {
+    var closes: Int = 0
+    var failClose: Boolean = false
+    var closeGate: AsyncGate? = None
+    val closeStarted: AsyncGate = AsyncGate()
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long = source.readInto(buffer, count)
+    public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long = sink.writeFrom(buffer, count)
+    public override suspend fun flush() { sink.flush() }
+    public override suspend fun close() {
+        closes += 1
+        closeStarted.signal()
+        when (closeGate) { case Some(gate) -> gate.await(); case None -> {} }
+        if (failClose) throw CleanupFailure()
+    }
+}
+
+internal class WebSocketWaitingSource : AsyncByteSource {
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long =
+        suspendCancellableCoroutine<Long> { _ -> }
+}
+
+internal class WebSocketSlot { var value: AsyncWebSocketSession? = None }

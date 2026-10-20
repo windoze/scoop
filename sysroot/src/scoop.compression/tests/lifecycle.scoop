@@ -1,0 +1,79 @@
+package scoop.compression
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+@Test
+private class CompressionLifecycleTests {
+    @Test
+    fun `flush emits a sync point and later input can finish the same stream`() {
+        for (options in compressionCases()) {
+            NativeByteBuffer.allocate(16L).use { input ->
+                NativeByteBuffer.allocate(1L).use { output ->
+                    CompressionEncoder(options).use { encoder ->
+                        val result = ByteArrayBuilder()
+                        input.writeBytes("hello".toByteArray())
+                        while (input.readableBytes > 0L) {
+                            output.clear()
+                            val step = encoder.process(input, output)
+                            result.append(output.readBytes(step.produced))
+                        }
+                        while (true) {
+                            output.clear()
+                            val step = encoder.flush(output)
+                            result.append(output.readBytes(step.produced))
+                            if (step.state == CompressionState.NeedInput) break
+                        }
+                        checkSyncPrefix(result.toByteArray(), options.format)
+                        input.clear(); input.writeBytes("world".toByteArray())
+                        while (input.readableBytes > 0L) {
+                            output.clear()
+                            val step = encoder.process(input, output)
+                            result.append(output.readBytes(step.produced))
+                        }
+                        while (true) {
+                            output.clear()
+                            val step = encoder.finish(output)
+                            result.append(output.readBytes(step.produced))
+                            if (step.state == CompressionState.Finished) break
+                        }
+                        assertEquals("helloworld", String.fromUtf8(decompress(result.toByteArray(), DecompressionOptions(options.format))))
+                        input.clear(); input.writeByte(1.toByte())
+                        assertFailsWith<IllegalStateException> { encoder.process(input, output) }
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `failure retains copied diagnostics and close releases all borrows`() {
+        NativeByteBuffer.allocate(16L).use { input ->
+            input.writeBytes("invalid".toByteArray())
+            NativeByteBuffer.allocate(16L).use { output ->
+                val decoder = CompressionDecoder()
+                val failure = assertFailsWith<CompressionException> { decoder.process(input, output, endInput = true) }
+                assertSame(failure, decoder.failure!!)
+                input.clear(); output.clear()
+                assertFailsWith<IllegalStateException> { decoder.process(input, output) }
+                decoder.close(); decoder.close()
+                gcCollect()
+                assertTrue(failure.detail.length > 0L)
+                assertFailsWith<IllegalStateException> { decoder.process(input, output) }
+            }
+        }
+    }
+}
+
+private fun checkSyncPrefix(data: List<Byte>, format: CompressionFormat) {
+    NativeByteBuffer.allocate(data.size).use { input ->
+        input.writeBytes(data)
+        NativeByteBuffer.allocate(64L).use { output ->
+            CompressionDecoder(DecompressionOptions(format)).use { decoder ->
+                while (input.readableBytes > 0L) decoder.process(input, output)
+                assertEquals("hello", String.fromUtf8(output.readBytes(output.readableBytes)))
+            }
+        }
+    }
+}

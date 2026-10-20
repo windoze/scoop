@@ -1,0 +1,48 @@
+package scoop.http
+
+import scoop.collections.emptyList
+import scoop.test.*
+
+@Test
+private class HttpVaryTests {
+    @Test
+    fun `Vary retains duplicate selectors and any wildcard prevents ordinary selection`() {
+        val vary = HttpVary.parse(" \tAccept-Encoding, , ACCEPT-LANGUAGE, accept-encoding, * , x* , ")
+        assertEquals(5L, vary.names.size)
+        assertEquals("accept-encoding", vary.names[0L])
+        assertTrue(vary.isWildcard && vary.contains("ACCEPT-LANGUAGE"))
+        assertFalse(vary.contains("authorization"))
+        assertEquals("accept-encoding, accept-language, accept-encoding, *, x*", String.fromUtf8(vary.toHttpField().value))
+        assertFalse(HttpVary.parse("x*").isWildcard)
+        assertEquals(0L, HttpVary.parse(" , ,\t").names.size)
+    }
+
+    @Test
+    fun `repeated fields and public construction preserve independent snapshots`() {
+        val fields = [HttpField("Vary".toByteArray(), "Accept, X-Foo".toByteArray()),
+            HttpField("vary".toByteArray(), "*, ACCEPT".toByteArray()), HttpField("Content-Type".toByteArray(), "text/plain".toByteArray())]
+        val vary = HttpVary.parseFields(fields)
+        assertEquals(4L, vary.names.size)
+        assertEquals(2L, vary.originalValues.size)
+        assertEquals("*, ACCEPT", String.fromUtf8(vary.originalValues[1L]))
+        assertTrue(vary.isWildcard)
+        val names = ArrayList<String>(); names.add("ACCEPT"); names.add("X-Test")
+        val made = HttpVary(names)
+        names.clear(); gcCollect()
+        assertEquals("accept, x-test", String.fromUtf8(made.toByteArray()))
+        assertEquals(0L, made.originalValues.size)
+        assertEquals(0L, HttpVary.parseFields(emptyList<HttpField>()).names.size)
+    }
+
+    @Test
+    fun `invalid list structure is not treated as a reusable empty Vary`() {
+        for ((input, offset) in [("\"Accept\"", 0L), ("Accept X-Foo", 7L), ("Accept;q=1", 6L), ("X:bad", 1L),
+            ("Accept, é", 8L), ("Accept\r", 6L)]) {
+            val error = assertFailsWith<HttpFieldParseException> { HttpVary.parse(input) }
+            assertEquals("Vary", error.field)
+            assertEquals(offset, error.byteOffset)
+            assertTrue(when (HttpVary.parseOrNone(input)) { case None -> true; case Some(_) -> false })
+        }
+        for (name in ["", "with space", "é", "a,b", "a:b"]) assertFailsWith<IllegalArgumentException> { HttpVary([name]) }
+    }
+}

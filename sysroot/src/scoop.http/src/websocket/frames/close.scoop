@@ -1,0 +1,44 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.charset.*
+
+public class WebSocketClose public constructor(public val code: UInt? = None, public val reason: String = "") {
+    init {
+        if (code == None && reason.byteLength > 0L)
+            throw IllegalArgumentException(Some("WebSocket close reason requires a code"))
+        if (code != None && !webSocketCloseCode(code!!)) throw IllegalArgumentException(Some("invalid WebSocket close code"))
+        if (reason.byteLength > 123L) throw IllegalArgumentException(Some("WebSocket close reason exceeds 123 UTF-8 bytes"))
+    }
+
+    public fun toByteArray(): Array<Byte> {
+        val result = ByteArrayBuilder()
+        when (code) {
+            case Some(value) -> {
+                result.append((value shr 8L).toByte()).append((value and 255U).toByte())
+                result.append(reason.toByteArray())
+            }
+            case None -> {}
+        }
+        return result.toByteArray()
+    }
+
+    public companion object {
+        public fun parse(data: List<Byte>): WebSocketClose {
+            val bytes = data.toArray()
+            if (bytes.size == 0L) return WebSocketClose()
+            if (bytes.size == 1L || bytes.size > 125L) webSocketFrameError("invalid Close payload length")
+            val code = (bytes[0L].toUByte().toUInt() shl 8L) or bytes[1L].toUByte().toUInt()
+            val reason = try {
+                Charset.Utf8.decode(Array<Byte>(bytes.size - 2L) { index -> bytes[index + 2L] },
+                    CharsetDecodeOptions(bom = CharsetBomPolicy.Preserve))
+            } catch (error: CharsetException) { throw WebSocketFrameException(1007U, "invalid Close reason UTF-8", cause = Some(error)) }
+            try { return WebSocketClose(Some(code), reason) }
+            catch (_: IllegalArgumentException) { webSocketFrameError("invalid Close status code") }
+        }
+    }
+}
+
+private fun webSocketCloseCode(code: UInt): Boolean =
+    (code >= 3000U && code <= 4999U) || code == 1000U || code == 1001U || code == 1002U || code == 1003U ||
+    (code >= 1007U && code <= 1014U)

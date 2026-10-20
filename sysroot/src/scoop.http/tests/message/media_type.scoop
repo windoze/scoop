@@ -1,0 +1,90 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.text.*
+import scoop.test.*
+
+@Test
+private class HttpMediaTypeTests {
+    @Test
+    fun `media type tokens parameters and quoted delimiters retain their meaning`() {
+        for (value in ["text/html;charset=utf-8", "Text/HTML;Charset=\"utf-8\"", "Text/HTML;Charset=\"utf\\-8\""]) {
+            val media = HttpMediaType.parse(value)
+            assertEquals("text", media.type)
+            assertEquals("html", media.subtype)
+            assertEquals("utf-8", String.fromUtf8(media.parameter("CHARSET")!!.value))
+            assertEquals(value, String.fromUtf8(media.originalValue!!))
+        }
+        val media = HttpMediaType.parse(" \tApplication/Problem+Json ; ; profile=\"https://example.test/a;b,c\"; x=\"a\\\"b\\\\c\"; \t")
+        assertEquals("application", media.type)
+        assertEquals("problem+json", media.subtype)
+        assertEquals(2L, media.parameters.size)
+        assertEquals("profile", media.parameters[0L].name)
+        assertEquals("https://example.test/a;b,c", String.fromUtf8(media.parameters[0L].value))
+        assertEquals("a\"b\\c", String.fromUtf8(media.parameters[1L].value))
+        assertTrue(media.parameters[1L].wasQuoted)
+        assertEquals("application/problem+json; profile=\"https://example.test/a;b,c\"; x=\"a\\\"b\\\\c\"", String.fromUtf8(media.toByteArray()))
+        assertTrue(when (media.parameter("missing")) { case None -> true; else -> false })
+        assertEquals("", String.fromUtf8(HttpMediaType.parse("text/plain; empty=\"\"").parameter("empty")!!.value))
+    }
+
+    @Test
+    fun `syntax failures identify original byte positions and duplicate names`() {
+        for ((value, offset) in [("", 0L), ("text", 4L), ("text/", 5L), ("text /html", 4L),
+            ("text/ html", 5L), ("text/html;x= utf", 12L), ("text/html;x=\"abc", 16L),
+            ("text/html;\r\nx=a", 10L), ("text/html;a=1;A=1", 14L)]) {
+            val error = assertFailsWith<HttpFieldParseException> { HttpMediaType.parse(value) }
+            assertEquals("Content-Type", error.field)
+            assertEquals(offset, error.byteOffset)
+            assertTrue(error.detail.length > 0L)
+            assertTrue(when (HttpMediaType.parseOrNone(value)) { case None -> true; else -> false })
+        }
+        for (value in ["text/html; x =a", "text/html; x", "text/html; x=", "text/html, application/json",
+            "text/html;x=\"a\"tail", "text/html;x=\"a\\", "text/html;x=\"a\nb\"", "text/html;x=\"a\\\rb\"",
+            "text/html;x=\"\u{007f}\"", "text/html;x=\"\u{0000}\"", "text/中文", "text/html;未知=x"]) {
+            assertFailsWith<HttpFieldParseException> { HttpMediaType.parse(value) }
+        }
+    }
+
+    @Test
+    fun `constructed fields copy bytes quote values and reject invalid parameters`() {
+        val bytes = MutableArray<Byte>(1L) { _ -> 233.toByte() }
+        val parameter = HttpParameter("NAME", bytes)
+        bytes[0L] = 65.toByte()
+        val media = HttpMediaType("APPLICATION", "octet-stream", [parameter, HttpParameter("empty", "".toByteArray())])
+        gcCollect()
+        assertEquals("e9", parameter.value.toHexString())
+        val encoded = media.toByteArray()
+        assertEquals("application/octet-stream; name=\"", String.fromUtf8(Array<Byte>(32L) { index -> encoded[index] }))
+        val field = media.toHttpField()
+        assertEquals("Content-Type", String.fromUtf8(field.name))
+        val parsed = HttpMediaType.parse(field.value)
+        assertEquals("e9", parsed.parameter("name")!!.value.toHexString())
+        assertTrue(when (media.originalValue) { case None -> true; else -> false })
+        assertFailsWith<IllegalArgumentException> { HttpMediaType("", "json") }
+        assertFailsWith<IllegalArgumentException> { HttpMediaType("text", "plain;evil") }
+        assertFailsWith<IllegalArgumentException> { HttpParameter("中文", "a".toByteArray()) }
+        assertFailsWith<IllegalArgumentException> { HttpParameter("x", "a\rb".toByteArray()) }
+        assertFailsWith<IllegalArgumentException> { HttpMediaType("text", "plain", [HttpParameter("a", "1".toByteArray()), HttpParameter("A", "1".toByteArray())]) }
+        val copied = MutableArray<Byte>(field.value.size) { index -> field.value[index] }
+        val snapshot = HttpMediaType.parse(copied)
+        copied[0L] = 88.toByte()
+        assertEquals("application", snapshot.type)
+        assertEquals(field.value.toHexString(), snapshot.originalValue!!.toHexString())
+    }
+
+    @Test
+    fun `HTTP1 delivers non UTF8 field bytes to the media type parser unchanged`() {
+        val wire = ByteArrayBuilder()
+        wire.append("POST / HTTP/1.1\r\nHost: example.test\r\nContent-Type: text/plain; title=\"".toByteArray())
+        wire.append(233.toByte())
+        wire.append("\"\r\nContent-Length: 0\r\n\r\n".toByteArray())
+        Http1Decoder.server().use { decoder ->
+            val requests = http1Requests(collectHttp1(decoder, wire.toByteArray()))
+            val field = requests[0L].fields.findAll("content-type".toByteArray())[0L]
+            val media = HttpMediaType.parse(field.value)
+            assertEquals("e9", media.parameter("title")!!.value.toHexString())
+            assertEquals("text", media.type)
+        }
+    }
+}

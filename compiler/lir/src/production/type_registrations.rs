@@ -5,8 +5,7 @@ use std::fmt;
 pub use scoop_identity::PersistentExactTypeId;
 use scoop_identity::{
     ConeIdentity, DefinitionAtomRole, DefinitionAtomSubkey, DigestNodeId, DigestNodeKey,
-    DigestPatchIntentId, DigestPatchIntentKey, DigestSemanticFieldRole, LinkageClass,
-    ObjectDefinitionAtomId, ObjectDefinitionAtomKey, ObjectDefinitionIdentityError,
+    LinkageClass, ObjectDefinitionAtomId, ObjectDefinitionAtomKey, ObjectDefinitionIdentityError,
     ObjectDefinitionPlanId, ObjectDefinitionPlanKey, ObjectDefinitionPlanOwner, PersistentLayoutId,
     PersistentSymbolError, PersistentSymbolKey, PersistentSymbolRequest, RepresentationRole,
     RuntimeTypeId, StrongDefinitionEntity, StrongDefinitionEntityKind, StrongDefinitionRole,
@@ -185,10 +184,7 @@ pub enum StrongTypeRegistrationPlanBuildError {
         node: DigestNodeId,
         actual: Vec<DigestInputRefV1>,
     },
-    RegistrationObjectPatches {
-        node: DigestNodeId,
-        actual: Vec<DigestPatchIntentKey>,
-    },
+
     RegistrationDigestMismatch {
         exact_type: PersistentExactTypeId,
         expected: DigestNodeId,
@@ -198,15 +194,6 @@ pub enum StrongTypeRegistrationPlanBuildError {
         node: DigestNodeId,
         expected: Vec<DigestInputRefV1>,
         actual: Vec<DigestInputRefV1>,
-    },
-    PatchSet {
-        node: DigestNodeId,
-        expected: Box<DigestPatchIntentKey>,
-        actual: Vec<DigestPatchIntentKey>,
-    },
-    MissingPatch {
-        node: DigestNodeId,
-        expected: Box<DigestPatchIntentKey>,
     },
 }
 

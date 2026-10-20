@@ -1,0 +1,25 @@
+package scoop.http.client
+
+import scoop.http.HttpCookieRules
+import scoop.platform.net.IpAddress
+import scoop.platform.net.IpNetwork
+import scoop.url.UrlHost
+import scoop.url.UrlOrigin
+
+internal enum ClientProxyBypassTarget { Any, Host(UrlHost, Boolean), Network(IpNetwork) }
+
+internal class ClientProxyBypassRule(val target: ClientProxyBypassTarget, val port: Int? = None) {
+    fun matches(origin: UrlOrigin): Boolean {
+        if (clientPresent(port) && port!! != origin.port) return false
+        return when (target) {
+            case Any -> true
+            case Host(host, subdomainsOnly) ->
+                (!subdomainsOnly || origin.host != host) && HttpCookieRules.domainMatches(origin.host, host)
+            case Network(network) -> when (origin.host) {
+                case Ipv4(bytes) -> network.contains(IpAddress.fromByteArray(bytes))
+                case Ipv6(bytes) -> network.contains(IpAddress.fromByteArray(bytes))
+                case Dns(_) -> false
+            }
+        }
+    }
+}

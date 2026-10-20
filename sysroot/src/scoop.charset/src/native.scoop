@@ -1,0 +1,70 @@
+package scoop.charset
+
+import scoop.platform.memory.NativeByteBuffer
+
+@CLayout internal struct NativeCharsetText(val data: Ptr<Byte>?, val size: Long, val code: Int, val backend: Int)
+@CLayout internal struct NativeCharsetResult(val handle: ULong, val code: Int, val backend: Int)
+@CLayout internal struct NativeCharsetOptions(
+    val inputBom: Int, val sourceOrder: Int, val destinationOrder: Int,
+    val emitBom: Int, val replaceInput: Int, val replaceOutput: Int
+)
+@CLayout internal struct NativeCharsetStep(
+    val consumed: Long, val produced: Long, val offset: Long, val status: Int, val code: Int, val backend: Int
+)
+
+internal fun canonicalCharset(name: String): String {
+    @Unsafe {
+        val bytes = name.toByteArray()
+        val result = bytes.withDataPointer { data, count -> @Unsafe { return@withDataPointer charsetName(data, count) } }
+        if (result.code == 1) throw UnsupportedCharsetException(name)
+        return charsetText(result, "resolve charset", name)
+    }
+}
+
+internal fun charsetText(result: NativeCharsetText, operation: String, name: String = ""): String {
+    @Unsafe {
+        try {
+            checkCharset(result.code, result.backend, operation, name, "UTF-32LE")
+            val bytes = Array<Byte>(result.size) { index -> @Unsafe { return@Array result.data!!.load(index) } }
+            return String.fromUtf8(bytes)
+        } finally { charsetTextFree(result.data) }
+    }
+}
+
+internal fun createCharset(source: Charset, destination: Charset, options: CharsetTranscodeOptions): ULong {
+    @Unsafe {
+        val config = charsetOptions(options)
+        val left = source.name.toByteArray()
+        val right = destination.name.toByteArray()
+        val result = left.withDataPointer { input, inputSize ->
+            @Unsafe { return@withDataPointer right.withDataPointer { output, outputSize ->
+                @Unsafe { return@withDataPointer charsetNew(input, inputSize, output, outputSize, config) }
+            } }
+        }
+        checkCharset(result.code, result.backend, "create transcoder", source.name, destination.name)
+        return result.handle
+    }
+}
+
+internal fun processCharset(handle: ULong, input: NativeByteBuffer, output: NativeByteBuffer, endInput: Boolean): NativeCharsetStep {
+    @Unsafe {
+        val read = input.borrowReadable(input.readableBytes)
+        val result = try {
+            val write = output.borrowWritable(output.writableBytes)
+            val step = try { charsetProcess(handle, read.pointer(), read.length, write.pointer(), write.length, if (endInput) 1 else 0) }
+            catch (error: Throwable) { write.complete(0L); throw error }
+            write.complete(step.produced)
+            step
+        } catch (error: Throwable) { read.complete(0L); throw error }
+        read.complete(result.consumed)
+        return result
+    }
+}
+
+@Extern(name = "scoop_charset_name") private fun charsetName(data: Ptr<Byte>, count: Long): NativeCharsetText
+@Extern(name = "scoop_charset_text_free") internal fun charsetTextFree(data: Ptr<Byte>?)
+@Extern(name = "scoop_charset_names") internal fun charsetNames(): NativeCharsetText
+@Extern(name = "scoop_charset_version") internal fun charsetVersion(): Int
+@Extern(name = "scoop_charset_new") private fun charsetNew(source: Ptr<Byte>, sourceSize: Long, destination: Ptr<Byte>, destinationSize: Long, options: NativeCharsetOptions): NativeCharsetResult
+@Extern(name = "scoop_charset_process") private fun charsetProcess(handle: ULong, input: Ptr<Byte>?, inputSize: Long, output: Ptr<Byte>?, outputSize: Long, endInput: Int): NativeCharsetStep
+@Extern(name = "scoop_charset_free") internal fun charsetFree(handle: ULong)

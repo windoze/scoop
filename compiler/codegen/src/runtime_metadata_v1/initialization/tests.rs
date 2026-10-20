@@ -5,9 +5,8 @@ use inkwell::module::Linkage;
 use inkwell::values::{GlobalValue, StructValue, UnnamedAddress};
 
 use super::{
-    DIGEST_SIZE, GATEWAY_DEFINITION_FINGERPRINT_OFFSET, INITIALIZATION_UNIT_DESCRIPTOR_MAGIC,
-    INITIALIZATION_UNIT_DESCRIPTOR_SIZE, METADATA_ABI_VERSION,
-    emit_strong_initialization_unit_registrations_v1,
+    INITIALIZATION_UNIT_DESCRIPTOR_MAGIC, INITIALIZATION_UNIT_DESCRIPTOR_SIZE,
+    METADATA_ABI_VERSION, emit_strong_initialization_unit_registrations_v1,
 };
 use support::initialization_plan;
 
@@ -115,7 +114,7 @@ fn emits_one_registration_with_its_cell_and_diagnostic() {
     );
     assert_eq!(
         descriptor
-            .get_field_at_index(14)
+            .get_field_at_index(13)
             .unwrap()
             .into_pointer_value(),
         llvm.get_function(
@@ -131,22 +130,6 @@ fn emits_one_registration_with_its_cell_and_diagnostic() {
         .as_global_value()
         .as_pointer_value()
     );
-    let gateway_patch = registration.gateway_definition_patch().unwrap();
-    assert_eq!(
-        gateway_patch.intent(),
-        expected.schedule().gateway_definition_patch().unwrap()
-    );
-    assert_eq!(
-        gateway_patch.definition(),
-        expected.registration_definition_plan()
-    );
-    assert_eq!(gateway_patch.atom(), expected.registration_primary_atom());
-    assert_eq!(
-        gateway_patch.byte_offset(),
-        GATEWAY_DEFINITION_FINGERPRINT_OFFSET
-    );
-    assert_eq!(gateway_patch.byte_size(), DIGEST_SIZE);
-
     let ir = llvm.print_to_string().to_string();
     assert!(!ir.contains("scoop_image_initialization_units"));
     assert!(!ir.contains("scoop.init.cell."));
@@ -156,7 +139,7 @@ fn emits_one_registration_with_its_cell_and_diagnostic() {
 }
 
 #[test]
-fn lazy_registration_has_no_gateway_or_gateway_patch() {
+fn lazy_registration_has_no_gateway() {
     let plan = initialization_plan(true);
     let expected = &plan.registrations()[0];
     let context = Context::create();
@@ -172,7 +155,6 @@ fn lazy_registration_has_no_gateway_or_gateway_patch() {
     .unwrap();
     let registration = emitted.registrations()[0];
 
-    assert!(registration.gateway_definition_patch().is_none());
     let descriptor = registration
         .registration_descriptor()
         .get_initializer()
@@ -189,13 +171,6 @@ fn lazy_registration_has_no_gateway_or_gateway_patch() {
     assert!(
         descriptor
             .get_field_at_index(13)
-            .unwrap()
-            .into_struct_value()
-            .is_null()
-    );
-    assert!(
-        descriptor
-            .get_field_at_index(14)
             .unwrap()
             .into_pointer_value()
             .is_null()

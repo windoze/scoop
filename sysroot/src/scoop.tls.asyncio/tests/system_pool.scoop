@@ -1,0 +1,42 @@
+package scoop.tls.asyncio
+
+import scoop.asyncio.*
+import scoop.asyncio.native.NativeWork
+import scoop.time.Duration
+
+internal class HeldNativePool : Closeable {
+    private val pointer: Ptr<Unit> = createPool()
+    private var closed: Boolean = false
+
+    suspend fun start(scope: CoroutineScope, loop: EventLoop) {
+        @Unsafe {
+            val count = poolSize().toLong()
+            var index = 0L
+            while (index < count) {
+                val work = NativeWork.takeOwnership(retainPool(pointer), poolExecutor(), poolReleaser())
+                scope.launch suspend {
+                    try { @Unsafe { loop.runNativeWork(work) } }
+                    finally { work.close() }
+                }
+                index += 1L
+            }
+            loop.sleep(Duration.nanoseconds(1L))
+            waitPool(pointer)
+        }
+    }
+
+    public override fun close() {
+        if (closed) return
+        closed = true
+        @Unsafe { closePool(pointer) }
+    }
+}
+
+private fun createPool(): Ptr<Unit> { @Unsafe { return newPool() } }
+@Extern(name = "scoop_test_tls_pool_size") private fun poolSize(): UInt
+@Extern(name = "scoop_test_tls_pool_new") private fun newPool(): Ptr<Unit>
+@Extern(name = "scoop_test_tls_pool_retain") private fun retainPool(pool: Ptr<Unit>): Ptr<Unit>
+@Extern(name = "scoop_test_tls_pool_wait") private fun waitPool(pool: Ptr<Unit>)
+@Extern(name = "scoop_test_tls_pool_close") private fun closePool(pool: Ptr<Unit>)
+@Extern(name = "scoop_test_tls_pool_executor") private fun poolExecutor(): FunPtr<(Ptr<Unit>) -> Unit>
+@Extern(name = "scoop_test_tls_pool_releaser") private fun poolReleaser(): FunPtr<(Ptr<Unit>) -> Unit>

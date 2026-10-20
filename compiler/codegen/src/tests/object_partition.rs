@@ -5,6 +5,7 @@ use object::{Object, ObjectSymbol};
 use super::*;
 
 mod constants;
+mod cstrings;
 mod no_gc;
 mod optimized;
 mod switches;
@@ -201,25 +202,8 @@ fn emitted_object_set_owns_temporary_members() {
     let mut non_callable_members = 0;
     for member in emitted.members() {
         match member.kind() {
-            EmittedConeObjectMemberKindV1::NonCallable {
-                runtime_metadata,
-                digest_patches,
-            } => {
+            EmittedConeObjectMemberKindV1::NonCallable => {
                 non_callable_members += 1;
-                assert_eq!(
-                    digest_patches.len(),
-                    runtime_metadata.patch_locations().len()
-                );
-                let bytes = std::fs::read(member.path()).unwrap();
-                for (materialization, location) in digest_patches
-                    .iter()
-                    .zip(runtime_metadata.patch_locations())
-                {
-                    assert_eq!(materialization.location(), *location);
-                    let start = usize::try_from(materialization.checked_object_offset()).unwrap();
-                    let end = start + usize::from(location.width_bytes());
-                    assert!(bytes[start..end].iter().all(|byte| *byte == 0));
-                }
             }
             EmittedConeObjectMemberKindV1::CallableBody { .. } => {}
         }

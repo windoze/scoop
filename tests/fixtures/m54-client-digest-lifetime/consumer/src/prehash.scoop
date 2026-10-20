@@ -1,0 +1,110 @@
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.http.client.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.time.Duration
+
+private class DigestSource(val holding: Boolean, val cleanup: Throwable?) : AsyncByteSource, AsyncCloseable {
+    val entered: DigestGate = DigestGate()
+    val cancelled: DigestGate = DigestGate()
+    val release: DigestGate = DigestGate()
+    val cleaning: DigestGate = DigestGate()
+    val finish: DigestGate = DigestGate()
+    var closed: Boolean = false
+    private var consumed: Boolean = false
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long {
+        if (consumed || count == 0L) return 0L
+        digestCheck(digestContext() == "prehash")
+        val registration = currentJobOrNone()!!.invokeOnCancellation { _ -> cancelled.signal() }
+        try {
+            entered.signal()
+            if (holding) release.await()
+            buffer.writeBytes("sent".toByteArray()); consumed = true
+            return 4L
+        } finally { registration.dispose() }
+    }
+    public override suspend fun close() {
+        cleaning.signal()
+        if (holding) finish.await()
+        closed = true
+        if (digestPresent(cleanup)) throw cleanup!!
+    }
+}
+
+internal fun digestPrehash(trust: TrustStore, mode: String, failCleanup: Boolean) {
+    withDigestRuntime suspend { _, scope, listener ->
+        val url = digestUrl(listener)
+        val cleanup = Throwable()
+        val first = DigestSource(true, if (failCleanup) Some(cleanup) else None)
+        val second = DigestSource(false, None)
+        val created = AtomicLong(0L)
+        val callbacks = AtomicLong(0L)
+        val provider = HttpAuthenticator.digest(url.httpOrigin()) suspend { _ ->
+            digestCheck(digestContext() == "prehash")
+            callbacks.fetchAdd(1L); HttpPasswordCredentials("user", "password")
+        }
+        val body = RequestBody.fromSourceFactory(Some(4L)) suspend {
+            if (created.fetchAdd(1L) == 0L) first else { digestCheck(first.closed); second }
+        }
+        val serving = scope.launch suspend {
+            digestChallengeOnce(listener, scope, true)
+            if (mode == "success" && !failCleanup) {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    val request = connection.receiveRequest()!!
+                    connection.sendResponse(HttpResponseHead(HttpVersion.Http11, 100U),
+                        Http1BodyFraming.Empty).useAsync suspend { output -> output.finish() }
+                    digestCheck(String.fromUtf8(request.body.readAllBytes(4L)) == "sent")
+                    digestRespond(connection, 200U, "done")
+                }
+            }
+        }
+        val client = HttpClient.open(scope, digestConfig(trust, provider))
+        val failure = DigestFailureHolder()
+        val closeFailure = DigestFailureHolder()
+        val executing = scope.launch suspend {
+            context(DigestContext("prehash")) {
+                try {
+                    val options = HttpCallOptions(expectContinue = true, continueWait = Duration.seconds(3600L),
+                        timeouts = if (mode == "total") Some(HttpTimeoutOptions(total = Some(Duration.seconds(15L)))) else None)
+                    client.withResponse(HttpRequest.post(url, body, options = options)) suspend { response ->
+                        digestCheck(response.authenticationCount == 1L && response.body.text(4L) == "done")
+                    }
+                } catch (error: Throwable) { failure.value = Some(error) }
+            }
+        }
+        first.entered.await()
+        val closing = if (mode == "client") Some(scope.launch suspend {
+            try { client.close() } catch (error: Throwable) { closeFailure.value = Some(error) }
+        }) else None
+        if (mode == "caller") executing.cancel()
+        try {
+            if (mode != "success") first.cancelled.await()
+            digestCheck(!executing.isCompleted && !first.closed && created.load() == 1L)
+            first.release.signal(); first.cleaning.await()
+            digestCheck(!executing.isCompleted && !first.closed)
+            first.finish.signal(); executing.join(); closing?.join()
+            digestCheck(first.closed && callbacks.load() == 1L)
+            if (mode == "success" && !failCleanup) {
+                if (digestPresent(failure.value)) throw failure.value!!
+                digestCheck(created.load() == 2L && second.closed)
+            } else {
+                val error = failure.value!!
+                val primary = if (error is ResourceUseException) error.primaryFailure else error
+                if (mode == "success") digestCheck(error === cleanup)
+                else {
+                    if (failCleanup) { digestCheck(error is ResourceUseException); if (error is ResourceUseException) digestCheck(error.cleanupFailure === cleanup) }
+                    when (mode) {
+                        case "caller" -> digestCheck(primary is CancellationException)
+                        case "client" -> digestCheck(primary is HttpClientClosedException)
+                        else -> { digestCheck(primary is HttpTimeoutException); if (primary is HttpTimeoutException) digestCheck(primary.phase == HttpTimeoutPhase.Total) }
+                    }
+                }
+                digestCheck(created.load() == 1L)
+                if (mode == "client" && failCleanup) digestCheck(closeFailure.value!! === cleanup)
+            }
+        } finally { first.release.signal(); first.finish.signal(); client.close() }
+        serving.join()
+    }
+}

@@ -1,15 +1,21 @@
 package scoop.http
 
+@CLayout internal struct NativeHttp2Output(val count: Long, val code: Int, val streamId: Int, val kind: Int)
+@CLayout internal struct NativeHttp2InputProgress(val count: Long, val streamId: Int)
+
 @Extern(name = "scoop_http2_new") internal fun http2New(server: Int, config: NativeHttp2Config, settings: NativeHttp2Settings, upgrading: Int): ULong
 @Extern(name = "scoop_http2_free") internal fun http2Free(handle: ULong)
 @Extern(name = "scoop_http2_error") internal fun http2Error(handle: ULong): Ptr<Byte>
-@Extern(name = "scoop_http2_receive") internal fun http2Receive(handle: ULong, data: Ptr<Byte>, size: Long): NativeHttpStep
-@Extern(name = "scoop_http2_output") internal fun http2Output(handle: ULong, data: Ptr<Byte>, capacity: Long): NativeHttpStep
+@Extern(name = "scoop_http2_receive") internal fun http2Receive(handle: ULong, data: Ptr<Byte>, size: Long, capture: Int): NativeHttpStep
+@Extern(name = "scoop_http2_input_progress_count") internal fun http2InputProgressCount(handle: ULong): Long
+@Extern(name = "scoop_http2_input_progress") internal fun http2InputProgress(handle: ULong, index: Long): NativeHttp2InputProgress
+@Extern(name = "scoop_http2_output") internal fun http2Output(handle: ULong, data: Ptr<Byte>, capacity: Long): NativeHttp2Output
 @Extern(name = "scoop_http2_wants") internal fun http2Wants(handle: ULong, write: Int): Int
 @Extern(name = "scoop_http2_pending") internal fun http2Pending(handle: ULong, id: Int): Int
 @Extern(name = "scoop_http2_buffered") internal fun http2Buffered(handle: ULong): Long
 @Extern(name = "scoop_http2_next") internal fun http2Next(handle: ULong): ULong
 @Extern(name = "scoop_http2_end") internal fun http2End(handle: ULong): Int
+@GCLeaf @Extern(name = "scoop_http2_is_unexpected_eof") internal fun http2IsUnexpectedEof(code: Int): Int
 @Extern(name = "scoop_http2_goaway") internal fun http2Goaway(handle: ULong, last: Int, code: UInt, data: Ptr<Byte>, size: Long): Int
 @Extern(name = "scoop_http2_upgrade") internal fun http2Upgrade(handle: ULong, data: Ptr<Byte>, size: Long, head: Int): Int
 
@@ -24,5 +30,9 @@ package scoop.http
 @Extern(name = "scoop_http2_reset") internal fun http2Reset(handle: ULong, id: Int, code: UInt): Int
 
 internal fun http2Failure(operation: String, code: Int, detail: String, streamId: Int = 0,
-    scope: HttpFailureScope = HttpFailureScope.Operation): HttpException =
-    HttpException(operation, HttpProtocol.Http2, scope, streamId, "nghttp2 1.70.0", code, detail)
+    scope: HttpFailureScope = HttpFailureScope.Operation): HttpException {
+    @Unsafe {
+        return HttpException(operation, HttpProtocol.Http2, scope, streamId, "nghttp2 1.70.0", code, detail,
+            http2IsUnexpectedEof(code) != 0)
+    }
+}

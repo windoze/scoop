@@ -4,9 +4,7 @@ use scoop_identity::{
     DecodedNativeLibraryBinding, DecodedPersistentId, DefinitionAtomRole, GeneratedBridgeUnitId,
     NativeExternalContractFingerprint, ObjectDefinitionAtomId, OdrMemberId,
 };
-use scoop_lir::{
-    CBridgeTargetSupportRequirementId, RuntimeSymbolContractId, TargetEhRequirementId,
-};
+use scoop_lir::{RuntimeSymbolContractId, TargetEhRequirementId};
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
 use super::{
@@ -36,8 +34,7 @@ impl WireEncode for FinalUndefinedSymbolRequirementV1 {
             }
             Self::RuntimeAbi { contract } => encode_one_field_sum(encoder, 5, contract),
             Self::TargetEhSupport { contract } => encode_one_field_sum(encoder, 6, contract),
-            Self::CBridgeTargetSupport { contract } => encode_one_field_sum(encoder, 7, contract),
-            Self::NativeSymbol { symbol } => encode_native_symbol(encoder, symbol),
+            Self::Native { symbol } => encode_native_requirement(encoder, symbol),
         }
     }
 }
@@ -110,10 +107,7 @@ pub(super) enum DecodedFinalUndefinedSymbolRequirementV1 {
     TargetEhSupport {
         contract: DecodedFixedBytesV1<TargetEhRequirementId>,
     },
-    CBridgeTargetSupport {
-        contract: DecodedFixedBytesV1<CBridgeTargetSupportRequirementId>,
-    },
-    NativeSymbol {
+    Native {
         symbol: Vec<u8>,
     },
 }
@@ -134,8 +128,7 @@ impl WireEncode for DecodedFinalUndefinedSymbolRequirementV1 {
             }
             Self::RuntimeAbi { contract } => encode_one_field_sum(encoder, 5, contract),
             Self::TargetEhSupport { contract } => encode_one_field_sum(encoder, 6, contract),
-            Self::CBridgeTargetSupport { contract } => encode_one_field_sum(encoder, 7, contract),
-            Self::NativeSymbol { symbol } => encode_native_symbol(encoder, symbol),
+            Self::Native { symbol } => encode_native_requirement(encoder, symbol),
         }
     }
 }
@@ -177,11 +170,11 @@ impl WireDecode for DecodedFinalUndefinedSymbolRequirementV1 {
                     .field(1, DecodedFixedBytesV1::decode)
                     .map(|contract| Self::TargetEhSupport { contract })
             }
-            7 => {
+            10 => {
                 expect_sum_length(decoder, fields, 2)?;
                 decoder
-                    .field(1, DecodedFixedBytesV1::decode)
-                    .map(|contract| Self::CBridgeTargetSupport { contract })
+                    .field(1, Decoder::owned_bytes)
+                    .map(|symbol| Self::Native { symbol })
             }
             9 => {
                 expect_sum_length(decoder, fields, 2)?;
@@ -189,25 +182,9 @@ impl WireDecode for DecodedFinalUndefinedSymbolRequirementV1 {
                     .field(1, DecodedPersistentId::decode)
                     .map(|member| Self::OdrMember { member })
             }
-            10 => {
-                expect_sum_length(decoder, fields, 2)?;
-                decoder
-                    .field(1, Decoder::owned_bytes)
-                    .map(|symbol| Self::NativeSymbol { symbol })
-            }
             tag => Err(wire_error(decoder, WireErrorKind::UnknownTag { tag })),
         }
     }
-}
-
-fn encode_native_symbol(
-    encoder: &mut Encoder,
-    symbol: &[u8],
-) -> Result<(), scoop_wire::cbor::EncodeError> {
-    encoder.map(2)?;
-    encode_tag(encoder, 10)?;
-    encoder.field(1)?;
-    encoder.bytes(symbol)
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -294,8 +271,7 @@ impl WireDecode for DecodedCanonicalUndefinedSymbolRequirementV1 {
     }
 }
 
-/// Untrusted wire projection. It can only be promoted by comparing it with
-/// the set rebuilt from verified object relocations and requirement registries.
+/// Wire projection of the artifact's recorded undefined-symbol requirements.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DecodedCanonicalUndefinedSymbolRequirementSetV1 {
     requirements: Vec<DecodedCanonicalUndefinedSymbolRequirementV1>,
@@ -582,6 +558,16 @@ fn encode_one_field_sum(
 fn encode_tag(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::cbor::EncodeError> {
     encoder.field(0)?;
     encoder.unsigned(tag)
+}
+
+fn encode_native_requirement(
+    encoder: &mut Encoder,
+    symbol: &[u8],
+) -> Result<(), scoop_wire::cbor::EncodeError> {
+    encoder.map(2)?;
+    encode_tag(encoder, 10)?;
+    encoder.field(1)?;
+    encoder.bytes(symbol)
 }
 
 fn decode_u8(decoder: &mut Decoder<'_>) -> Result<u8, WireError> {

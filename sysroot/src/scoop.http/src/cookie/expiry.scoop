@@ -1,0 +1,22 @@
+package scoop.http
+
+import scoop.time.Instant
+
+internal fun cookieExpiry(expires: Instant?, maxAge: Long?, now: Instant, maximum: Long): Instant? {
+    if (maximum < 0L) throw IllegalArgumentException(Some("negative Cookie lifetime limit"))
+    when (maxAge) {
+        case Some(seconds) -> return Some(if (seconds <= 0L) Instant.MIN else cookieDeadline(now, if (seconds > maximum) maximum else seconds))
+        case None -> {}
+    }
+    return when (expires) {
+        case None -> None
+        case Some(date) -> {
+            val limit = cookieDeadline(now, maximum)
+            Some(if (date > limit) limit else date)
+        }
+    }
+}
+
+private fun cookieDeadline(now: Instant, seconds: Long): Instant =
+    if (seconds > Instant.MAX.epochSeconds - now.epochSeconds) Instant.MAX
+    else Instant.fromEpochSeconds(now.epochSeconds + seconds, now.nanosecondsOfSecond.toLong())

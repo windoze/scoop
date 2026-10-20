@@ -1,0 +1,105 @@
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.client.*
+import scoop.test.*
+import scoop.time.Duration
+
+private class SseCleanupProbe(val nested: Boolean) {
+    val entered: SseGate = SseGate()
+    val cancelled: SseGate = SseGate()
+    val release: SseGate = SseGate()
+    val cleaning: SseGate = SseGate()
+    val finish: SseGate = SseGate()
+    val cleaned: AtomicBoolean = AtomicBoolean(false)
+    val cleanup: Throwable = ResourceUseException(Throwable(), Throwable())
+    suspend fun waitInCallback() {
+        assertEquals("callback", sseMarker())
+        val job = currentJobOrNone()!!
+        val registration = job.invokeOnCancellation { _ -> cancelled.signal() }
+        try { entered.signal(); release.await(); job.ensureActive() }
+        finally {
+            cleaning.signal(); finish.await()
+            cleaned.store(true); registration.dispose()
+            if (nested) throw ResourceUseException(CancellationException(), cleanup)
+        }
+    }
+}
+
+internal fun sseCallbackCancellation(trust: TrustStore, mode: String, child: Boolean, nested: Boolean) {
+    withSsePeer("callback") suspend { _, scope, url, _ ->
+        val client = HttpClient.open(scope, sseConfig(trust))
+        val probe = SseCleanupProbe(nested)
+        val failed = SseFailure()
+        val closeFailure = SseFailure()
+        val options = HttpCallOptions(timeouts = if (mode == "total") Some(HttpTimeoutOptions(total = Some(Duration.seconds(10L)))) else None)
+        val reconnect = HttpSseReconnectOptions(Duration.ZERO, Duration.ZERO, Some(1L), suspend { _ ->
+            if (child) coroutineScope<Unit> suspend { children -> children.launch suspend { probe.waitInCallback() }; Unit }
+            else probe.waitInCallback()
+        })
+        val source = client.openSse(HttpRequest.get(url, options = options), HttpSseOptions(reconnect = Some(reconnect)))
+        assertEquals("body", source.next()!!.data)
+        val reading = scope.launch suspend {
+            try { context(SseMarker("callback")) { source.next() } }
+            catch (error: Throwable) { failed.value = Some(error) }
+        }
+        probe.entered.await()
+        val closing = if (mode == "client" || mode == "close") Some(scope.launch suspend {
+            try { if (mode == "client") client.close() else source.close() }
+            catch (error: Throwable) { closeFailure.value = Some(error) }
+        }) else None
+        if (mode == "caller") reading.cancel()
+        try {
+            probe.cancelled.await()
+            assertFalse(reading.isCompleted || probe.cleaned.load() || source.isClosed)
+            probe.release.signal(); probe.cleaning.await()
+            assertFalse(reading.isCompleted || probe.cleaned.load() || source.isClosed)
+            if (ssePresent(closing)) assertFalse(closing!!.isCompleted)
+            probe.finish.signal(); reading.join(); closing?.join()
+            assertTrue(probe.cleaned.load() && source.isClosed)
+            val failure = failed.value!!
+            if (nested) {
+                assertTrue(failure is ResourceUseException)
+                assertSame(probe.cleanup, (failure as ResourceUseException).cleanupFailure)
+            } else assertFalse(failure is ResourceUseException)
+            val primary = if (failure is ResourceUseException) failure.primaryFailure else failure
+            when (mode) {
+                "caller" -> assertTrue(primary is CancellationException)
+                "client" -> assertTrue(primary is HttpClientClosedException)
+                "close" -> assertTrue(primary is IoClosedException)
+                else -> assertTrue(primary is HttpTimeoutException)
+            }
+            if ((mode == "client" || mode == "close") && nested) assertSame(probe.cleanup, closeFailure.value!!)
+            else assertFalse(ssePresent(closeFailure.value))
+            if (mode == "close" && nested) assertSame(probe.cleanup, source.failure!!)
+        } finally { probe.release.signal(); probe.finish.signal(); client.close() }
+    }
+}
+
+internal fun sseDuplexUpload(trust: TrustStore) {
+    withSsePeer("duplex") suspend { _, scope, url, _ ->
+        val client = HttpClient.open(scope, sseConfig(trust, true))
+        val probe = SseCleanupProbe(true)
+        val failure = SseFailure()
+        val body = RequestBody.fromProducer(Some(0L)) suspend { _ -> probe.waitInCallback() }
+        val source = context(SseMarker("callback")) {
+            client.openSse(HttpRequest(url, "POST", body = body, options = HttpCallOptions(duplex = true)))
+        }
+        assertEquals("body", source.next()!!.data)
+        assertFalse(probe.cleaned.load())
+        val closing = scope.launch suspend {
+            try { client.close() } catch (error: Throwable) { failure.value = Some(error) }
+        }
+        try {
+            probe.cancelled.await()
+            probe.release.signal(); probe.cleaning.await()
+            assertFalse(closing.isCompleted || source.isClosed || probe.cleaned.load())
+            probe.finish.signal(); closing.join()
+            assertTrue(client.isClosed && source.isClosed && probe.cleaned.load())
+            assertSame(probe.cleanup, failure.value!!)
+            val error = source.failure!!
+            assertTrue(error is ResourceUseException)
+            assertTrue((error as ResourceUseException).primaryFailure is HttpClientClosedException)
+            assertSame(probe.cleanup, (error as ResourceUseException).cleanupFailure)
+        } finally { probe.release.signal(); probe.finish.signal(); client.close() }
+    }
+}

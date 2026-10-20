@@ -2,6 +2,7 @@ package scoop.http.asyncio
 
 import scoop.asyncio.IoClosedException
 import scoop.platform.io.WriteZeroException
+import scoop.platform.time.MonotonicTimeSource
 
 internal fun planH2Transfers(state: H2State, actions: ArrayList<() -> Unit>): Boolean {
     var changed = false
@@ -12,7 +13,10 @@ internal fun planH2Transfers(state: H2State, actions: ArrayList<() -> Unit>): Bo
         } else {
             if (state.output.readableBytes == 0L && state.session.wantsWrite) {
                 state.output.clear()
-                changed = state.session.takeOutput(state.output) != 0L
+                val chunk = state.session.takeOutputChunk(state.output)
+                state.outputStreamId = chunk.streamId
+                state.outputKind = chunk.kind
+                changed = chunk.count != 0L
             }
             if (state.output.readableBytes != 0L) {
                 state.outputBusy = true
@@ -69,15 +73,23 @@ private class H2TransferCompletion(val state: H2State, val input: Boolean, val r
                 try {
                     if (present(failure)) throw failure!!
                     httpProgress(count, requested)
+                    if (count == 0L && !input) throw WriteZeroException()
+                    val now = MonotonicTimeSource.markNow()
+                    if (count > 0L) checkH2Idle(state, actions, now)
                     if (input) {
                         if (count == 0L) { state.session.endInput(); terminateH2(state, IoClosedException()) }
                         else while (state.input.readableBytes != 0L) {
-                            if (state.session.receive(state.input) == 0L)
+                            val consumed = if (state.idleTimers == 0L && !state.captureTimings) state.session.receive(state.input) else {
+                                val result = state.session.receiveWithProgress(state.input)
+                                progressH2Input(state, result.progress, now)
+                                result.count
+                            }
+                            if (consumed == 0L)
                                 throw IllegalStateException(Some("HTTP/2 input made no progress"))
                         }
                     } else {
-                        if (count == 0L) throw WriteZeroException()
                         state.outputDirty = true
+                        progressH2Output(state, now)
                     }
                 } catch (error: Throwable) {
                     if (input) {
@@ -112,11 +124,17 @@ private class H2FlushCompletion(val state: H2State) : Continuation<Unit> {
             state.outputDirty = false
             if (!state.closing && present(failure)) terminateH2(state, failure!!)
             if (!state.closing) {
+                checkH2Idle(state, actions)
+                for (stream in state.streams.values) stream.outputDirty = false
                 for ((stream, entry) in state.flushing) {
                     if (!entry.wait.released) finishH2Body(state, stream, entry, 0L, None, actions)
                 }
                 for (wait in state.flushingConnection) succeedH2Wait(wait, Unit, actions)
                 state.flushing.clear(); state.flushingConnection.clear()
+                for (stream in state.streams.values) {
+                    if (present(stream.writeIdle) && !present(stream.writer) && !h2PendingOutput(state, stream))
+                        stopH2Idle(stream, false, actions)
+                }
             }
             Unit
         }

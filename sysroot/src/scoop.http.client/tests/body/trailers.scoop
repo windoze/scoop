@@ -1,0 +1,117 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.test.*
+import scoop.time.Duration
+import scoop.url.Url
+
+@Test
+private class RequestBodyTrailersTest {
+    @Test
+    fun `trailer factories keep body and trailing fields in each sending Context`() {
+        val calls = AtomicLong(0L)
+        val body = RequestBody.fromProducerWithTrailersFactory(["X-Context", "X-Context"]) suspend {
+            calls.fetchAdd(1L)
+            val value = currentBodyTestContext();
+            suspend { sink ->
+                currentEventLoop().sleep(Duration.nanoseconds(1L))
+                assertEquals(value, currentBodyTestContext())
+                writeBodyText(sink, value)
+                [HttpField("X-Context".toByteArray(), value.toByteArray()),
+                    HttpField("x-context".toByteArray(), [255.toByte()], true)]
+            }
+        }
+        assertTrue(body.isReplayable)
+        assertEquals(1L, body.trailerNames.size)
+        assertEquals(0L, calls.load())
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val jobs = ArrayList<Deferred<Unit>>()
+            for (value in ["first", "second"]) {
+                jobs.add(context(BodyTestContext(value)) { scope.async suspend {
+                    val sink = BodyTestSink()
+                    val result = body.writeWithTrailersTo(sink, 1L)
+                    assertEquals(value, String.fromUtf8(sink.bytes.toByteArray()))
+                    assertEquals(sink.bytes.size, result.transferredBytes)
+                    assertEquals(value, String.fromUtf8(result.trailers[0L].value))
+                    assertEquals(255.toByte(), result.trailers[1L].value[0L])
+                    assertTrue(result.trailers[1L].neverIndex)
+                    assertEquals(0L, sink.closes + sink.flushes)
+                } })
+            }
+            for (job in jobs) job.await()
+        }
+        assertEquals(2L, calls.load())
+    }
+
+    @Test
+    fun `trailer snapshots and the byte-only guard do not prematurely consume a producer`() {
+        val names = ArrayList<String>()
+        names.add("X-End")
+        val fields = ArrayList<HttpField>()
+        fields.add(HttpField("X-End".toByteArray(), "done".toByteArray()))
+        val calls = AtomicLong(0L)
+        val saved = BodySinkCapture()
+        val body = RequestBody.fromProducerWithTrailers(names, Some(3L)) suspend { sink ->
+            calls.fetchAdd(1L)
+            saved.sink = Some(sink)
+            writeBodyText(sink, "abc")
+            fields
+        }
+        names.add("X-Later")
+        assertEquals(1L, body.trailerNames.size)
+        assertFalse(body.isReplayable)
+        assertFailsWith<IllegalArgumentException> { RequestBodyPart(body) }
+        assertFailsWith<IllegalArgumentException> {
+            HttpRequest.post(Url.parse("http://example.test/"), body,
+                [HttpField("Trailer".toByteArray(), "X-End".toByteArray())])
+        }
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            val sink = BodyTestSink()
+            expectBodyFailure<IllegalArgumentException> suspend { body.writeTo(sink) }
+            expectBodyFailure<IllegalArgumentException> suspend { body.writeWithTrailersTo(sink, 0L) }
+            assertEquals(0L, calls.load())
+            val result = body.writeWithTrailersTo(sink)
+            fields.add(HttpField("X-Later".toByteArray(), "later".toByteArray()))
+            assertEquals(3L, result.transferredBytes)
+            assertEquals(1L, result.trailers.size)
+            assertEquals("abc", String.fromUtf8(sink.bytes.toByteArray()))
+            expectBodyFailure<RequestBodyConsumedException> suspend { body.writeWithTrailersTo(sink) }
+            expectBodyFailure<IoClosedException> suspend { saved.sink!!.flush() }
+            assertEquals(0L, sink.closes + sink.flushes)
+        }
+        assertEquals(1L, calls.load())
+    }
+
+    @Test
+    fun `trailer results cannot hide length declaration or caught output failures`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val sink = BodyTestSink()
+            val short = RequestBody.fromProducerWithTrailers(["X-End"], Some(4L)) suspend { output ->
+                writeBodyText(output, "abc")
+                [HttpField("X-End".toByteArray(), "done".toByteArray())]
+            }
+            val failure = expectBodyFailure<RequestBodyLengthException> suspend { short.writeWithTrailersTo(sink) }
+            assertEquals(3L, failure.transferredBytes)
+            val undeclared = RequestBody.fromProducerWithTrailers(["X-End"], Some(3L)) suspend { output ->
+                writeBodyText(output, "abc")
+                [HttpField("X-Other".toByteArray(), "no".toByteArray())]
+            }
+            expectBodyFailure<IllegalArgumentException> suspend { undeclared.writeWithTrailersTo(sink) }
+            assertEquals("abcabc", String.fromUtf8(sink.bytes.toByteArray()))
+            val failing = BodyTestSink()
+            failing.failAfterProgress = true
+            val caught = RequestBody.fromProducerWithTrailers(["X-End"]) suspend { output ->
+                try { writeBodyText(output, "four") }
+                catch (error: Throwable) { assertSame(failing.failure, error) }
+                [HttpField("X-End".toByteArray(), "not delivered".toByteArray())]
+            }
+            assertSame(failing.failure, expectBodyFailure<Throwable> suspend { caught.writeWithTrailersTo(failing) })
+            assertEquals("fo", String.fromUtf8(failing.bytes.toByteArray()))
+            assertFalse(scope.job.isCancelled)
+        }
+    }
+}

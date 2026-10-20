@@ -4,14 +4,13 @@ use super::{CborIdentityKey, private};
 use crate::{
     CallableApplicationKey, CallbackApplicationKey, CallbackRegistrationKey,
     CanonicalCAbiFunctionSignature, CanonicalCAbiLayout, CanonicalCAbiLayoutFingerprint,
-    CanonicalCAbiSignatureFingerprint, DigestNodeId, DigestNodeKey, DigestPatchIntentId,
-    DigestPatchIntentKey, DispatchSlotKey, DispatchTableKey, EnumVariantFieldKey,
-    EnumVariantIdentityError, EnumVariantIdentityKey, ExactTypeKey, ExportBindingKey,
-    FieldIdentityError, FieldIdentityKey, GeneratedBridgeAtomId, GeneratedBridgeAtomKey,
-    GeneratedBridgeUnitId, GeneratedBridgeUnitKey, GeneratedCallableIdentityError,
-    GeneratedCallableKey, GeneratedNominalIdentityError, GeneratedNominalKey, ImmortalObjectKey,
-    InitializationUnitKey, LayoutKey, LocalBindingKey, LocalValueKey,
-    NativeExternalContractFingerprint, NativeExternalContractFingerprintInput,
+    CanonicalCAbiSignatureFingerprint, DigestNodeId, DigestNodeKey, DispatchSlotKey,
+    DispatchTableKey, EnumVariantFieldKey, EnumVariantIdentityError, EnumVariantIdentityKey,
+    ExactTypeKey, ExportBindingKey, FieldIdentityError, FieldIdentityKey, GeneratedBridgeAtomId,
+    GeneratedBridgeAtomKey, GeneratedBridgeUnitId, GeneratedBridgeUnitKey,
+    GeneratedCallableIdentityError, GeneratedCallableKey, GeneratedNominalIdentityError,
+    GeneratedNominalKey, ImmortalObjectKey, InitializationUnitKey, LayoutKey, LocalBindingKey,
+    LocalValueKey, NativeExternalContractFingerprint, NativeExternalContractFingerprintInput,
     NativeExternalSymbolKey, NativeLinkRequirementId, NativeLinkRequirementKey,
     ObjectDefinitionAtomId, ObjectDefinitionAtomKey, ObjectDefinitionPlanId,
     ObjectDefinitionPlanKey, OdrGroupId, OdrMemberId, OdrMemberKey, PersistentAnnotationId,
@@ -223,7 +222,3 @@ impl_hash_identity_key!(
     ObjectDefinitionAtomId::from_key
 );
 impl_hash_identity_key!(DigestNodeKey => DigestNodeId, DigestNodeId::from_key);
-impl_hash_identity_key!(
-    DigestPatchIntentKey => DigestPatchIntentId,
-    DigestPatchIntentId::from_key
-);

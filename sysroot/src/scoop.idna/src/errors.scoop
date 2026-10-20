@@ -1,0 +1,24 @@
+package scoop.idna
+
+public enum IdnaFailureKind { InvalidLabel, InvalidAlabel, Disallowed, Context, Bidi, NameTooLong, Backend }
+
+public class IdnaException public constructor(
+    public val operation: String,
+    public val kind: IdnaFailureKind,
+    public val code: Int?,
+    public val detail: String,
+    public val labelIndex: Long? = None
+) : Exception(Some(operation + ": " + detail))
+
+internal fun failureKind(code: Int, mode: Int): IdnaFailureKind = when (code) {
+    -100, -101, -102, -201, -209, -1002 -> IdnaFailureKind.Backend
+    -205, -206, -1004 -> IdnaFailureKind.NameTooLong
+    -305, -306, -307, -308 -> IdnaFailureKind.Context
+    -310 -> IdnaFailureKind.Bidi
+    -207, -208, -314 -> IdnaFailureKind.InvalidAlabel
+    -203 -> if (mode < 4) IdnaFailureKind.NameTooLong else IdnaFailureKind.InvalidLabel
+    -202, -204 -> if (mode < 4) IdnaFailureKind.InvalidAlabel else IdnaFailureKind.InvalidLabel
+    -304, -309, -311, -312, -313, -1003 -> IdnaFailureKind.Disallowed
+    -200, -300, -301, -302, -303, -1000, -1001, -1005 -> IdnaFailureKind.InvalidLabel
+    else -> IdnaFailureKind.Backend
+}

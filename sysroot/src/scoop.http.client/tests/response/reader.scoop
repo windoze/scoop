@@ -1,0 +1,43 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.compression.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+@Test
+private class HttpClientResponseReaderTest {
+    @Test
+    fun `bounded copy owns the reader across sink suspension and leaves the sink borrowed`() {
+        withResponseTestHttp1(suspend { connection ->
+            connection.receiveRequest()!!.body.readAllBytes(0L)
+            sendResponseTestBytes(connection, compress("abcdef".toByteArray(), CompressionOptions.Gzip(GzipOptions())),
+                [responseTestField("Content-Encoding", "gzip")])
+        }, suspend { client, url ->
+            coroutineScope suspend { scope ->
+                client.withResponse(HttpRequest.get(url)) suspend { response ->
+                    expectBodyFailure<IllegalArgumentException> suspend { response.body.bytes(-1L); Unit }
+                    expectBodyFailure<IllegalArgumentException> suspend { response.body.copyTo(BodyTestSink(), 0L); Unit }
+                    val sink = BodyTestSink()
+                    sink.holdWrite = true
+                    val copying = scope.async suspend { response.body.copyTo(sink, 3L) }
+                    sink.started.await()
+                    try {
+                        expectBodyFailure<IllegalStateException> suspend { response.body.bytes(6L); Unit }
+                        expectBodyFailure<IllegalStateException> suspend { response.body.text(6L); Unit }
+                        NativeByteBuffer.allocate(1L).use suspend { buffer ->
+                            expectBodyFailure<IllegalStateException> suspend { response.body.readInto(buffer, 1L); Unit }
+                            Unit
+                        }
+                        assertFalse(copying.isCompleted)
+                    } finally { sink.release.signal() }
+                    assertEquals(6L, copying.await())
+                    assertEquals("abcdef", String.fromUtf8(sink.bytes.toByteArray()))
+                    assertEquals(0L, sink.closes + sink.flushes)
+                    assertTrue(sink.calls >= 3L)
+                    assertEquals("", response.body.text(0L))
+                }
+            }
+        })
+    }
+}

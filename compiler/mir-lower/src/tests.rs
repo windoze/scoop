@@ -5,6 +5,7 @@ use scoop_hir::Span;
 mod basic_lowering;
 mod callbacks;
 mod control_flow;
+mod coroutine_liveness;
 mod coroutine_pending;
 mod coroutine_sync;
 mod coroutine_tail;

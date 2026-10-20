@@ -1,0 +1,80 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+@Test private class MultipartSourceTests {
+    @Test fun `parts require consumption and preserve short reads metadata and outer EOF`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            val input = MessageTestSource("--b\r\nX: one\r\n\r\nfirst\r\n--b\r\n\r\nsecond\r\n--b--\r\nepilogue".toByteArray())
+            val source = MultipartSource(input, MultipartBoundary("b"), MultipartLimits(dataChunkBytes = 2L), 3L)
+            assertEquals(0, input.reads)
+            val first = source.nextPart()!!
+            assertEquals("one", String.fromUtf8(first.head.fields[0L].value))
+            expectMessageFailure<IllegalStateException> suspend { source.nextPart() }
+            NativeByteBuffer.allocate(2L).use suspend { buffer ->
+                assertEquals(0L, first.body.readInto(buffer, 0L))
+                expectMessageFailure<IllegalArgumentException> suspend { first.body.readInto(buffer, -1L) }
+                expectMessageFailure<IndexOutOfBoundsException> suspend { first.body.readInto(buffer, 3L) }
+            }
+            assertFalse(present(source.failure))
+            assertEquals("first", String.fromUtf8(receiveBytes(first.body)))
+            first.body.close()
+            assertTrue(first.body.isComplete && first.body.isClosed && !source.isClosed)
+            val second = source.nextPart()!!
+            assertEquals("second", String.fromUtf8(receiveBytes(second.body)))
+            assertTrue(second.body.isComplete)
+            assertFalse(present(source.nextPart()))
+            val reads = input.reads
+            assertFalse(present(source.nextPart()))
+            assertEquals(reads, input.reads)
+            assertTrue(source.isFinished)
+            source.close()
+            assertEquals(0, input.closes)
+            input.close()
+        }
+    }
+
+    @Test fun `closing an unread part stops the entire source without draining or overreading`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            val bytes = ("--b\r\n\r\n" + "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz" + "\r\n--b--").toByteArray()
+            val input = MessageTestSource(bytes, 1000L)
+            val source = MultipartSource.takeOwnership(input, MultipartBoundary("b"), bufferSize = 16L)
+            val part = source.nextPart()!!
+            assertTrue(input.position <= 23L && input.position < bytes.size)
+            val position = input.position
+            part.body.close(); part.body.close(); source.close()
+            assertTrue(part.body.isClosed && !part.body.isComplete && source.isClosed)
+            assertFalse(source.isFinished)
+            assertEquals(position, input.position)
+            assertEquals(1, input.closes)
+            expectMessageFailure<IoClosedException> suspend { source.nextPart() }
+        }
+    }
+
+    @Test fun `explicit discard handles exact limits and empty bodies without consuming later parts`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { _ ->
+            val input = MessageTestSource("--b\r\n\r\nabcd\r\n--b\r\n\r\n\r\n--b--".toByteArray(), 3L)
+            MultipartSource.takeOwnership(input, MultipartBoundary("b"), bufferSize = 5L).useAsync suspend { source ->
+                val first = source.nextPart()!!
+                NativeByteBuffer.allocate(1L).use suspend { buffer ->
+                    assertEquals(1L, first.body.readInto(buffer, 1L))
+                    assertEquals(97.toByte(), buffer.readInt8())
+                }
+                expectMessageFailure<IllegalArgumentException> suspend { first.body.discard(-1L) }
+                assertFalse(present(source.failure))
+                assertEquals(3L, first.body.discard(3L))
+                assertTrue(first.body.isComplete)
+                val second = source.nextPart()!!
+                assertEquals(0L, second.body.discard(0L))
+                assertFalse(present(source.nextPart()))
+            }
+            assertEquals(1, input.closes)
+        }
+    }
+}

@@ -1,0 +1,137 @@
+package scoop.tls.asyncio
+
+import scoop.asyncio.*
+import scoop.crypto.testdata.*
+import scoop.crypto.x509.TrustStore
+import scoop.platform.concurrent.Thread
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+import scoop.time.Duration
+import scoop.tls.*
+import scoop.tls.native.TlsEngine
+
+@Test
+private class AsyncTlsSystemTests {
+    @Test
+    fun `system factory uses the loop and actual platform verification rejects an untrusted peer`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val context = openTlsClientContext()
+            val config = systemServerContext(TlsOptions())
+            try {
+                val (a, b) = rawPair(loop, scope)
+                val serving = scope.launch suspend {
+                    try { AsyncTlsStream.takeOwnershipAsServer(b, config).close() }
+                    catch (_: Throwable) {}
+                }
+                try {
+                    val unexpected = AsyncTlsStream.takeOwnershipAsClient(a, context, TlsPeerName.Dns("localhost"))
+                    unexpected.close()
+                    fail(Some("untrusted system peer accepted"))
+                } catch (error: TlsException) {
+                    assertTrue(error.kind == TlsFailureKind.Verification)
+                    assertTrue(error.verifyCode != 0L)
+                    assertEquals(1, a.closes)
+                }
+                serving.join()
+            } finally { context.close(); config.close() }
+        }
+    }
+
+    @Test
+    fun `Store factory retains its explicit CA and supports normal asynchronous TLS`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val context = TrustStore.fromPem(rootPem()).use suspend { store ->
+                openTlsClientContext(TlsTrustSource.Store(store), TlsOptions(TlsVersion.Tls13, TlsVersion.Tls13))
+            }
+            val config = systemServerContext(TlsOptions())
+            try {
+                val (a, b) = rawPair(loop, scope)
+                val serving = scope.launch suspend {
+                    AsyncTlsStream.takeOwnershipAsServer(b, config).useAsync suspend { server ->
+                        server.shutdownGracefully()
+                    }
+                }
+                AsyncTlsStream.takeOwnershipAsClient(a, context, TlsPeerName.Dns("localhost")).useAsync suspend { client ->
+                    context.close(); config.close()
+                    assertTrue(client.connectionInfo.version == TlsVersion.Tls13)
+                    client.shutdownGracefully()
+                }
+                serving.join()
+            } finally { context.close(); config.close() }
+        }
+    }
+
+    @Test
+    fun `queued system configuration cancellation preserves caller identity ownership`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val identity = TlsIdentity.fromPem(clientPem() + intermediatePem(), serverKeyPem())
+            val pool = HeldNativePool()
+            try {
+                pool.start(scope, loop)
+                val opening = scope.launch suspend {
+                    try {
+                        val context = openTlsClientContext(identity = Some(identity))
+                        context.close()
+                        fail(Some("queued configuration was not cancelled"))
+                    } catch (_: CancellationException) {}
+                }
+                loop.sleep(Duration.nanoseconds(1L))
+                Thread.start { opening.cancel() }.join()
+                opening.join()
+                assertFalse(identity.isClosed)
+                val preCancelled = scope.launch suspend {
+                    currentJobOrNone()!!.cancel()
+                    try { openTlsClientContext(identity = Some(identity)); fail(Some("cancelled factory accepted")) }
+                    catch (_: CancellationException) {}
+                }
+                preCancelled.join()
+            } finally { pool.close(); identity.close() }
+        }
+    }
+
+    @Test
+    fun `pending verification cancellation waits for transport cleanup before releasing SSL`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val context = openTlsClientContext()
+            val config = systemServerContext(TlsOptions())
+            val pool = HeldNativePool()
+            val releaseClose = AsyncGate()
+            try {
+                pool.start(scope, loop)
+                val (a, b) = rawPair(loop, scope)
+                a.closeGate = Some(releaseClose)
+                val state = TlsConnection(TlsEngine.client(context, TlsPeerName.Dns("localhost")),
+                    a, a, loop, currentJobOrNone()!!, NativeByteBuffer.allocate(16384L), NativeByteBuffer.allocate(16384L))
+                val serving = scope.launch suspend {
+                    try { AsyncTlsStream.takeOwnershipAsServer(b, config).close() }
+                    catch (_: Throwable) {}
+                }
+                val returned = AtomicBoolean(false)
+                val connecting = scope.launch suspend {
+                    try { request(state, RequestKind.Handshake, None, 0L); fail(Some("queued verification completed")) }
+                    catch (_: CancellationException) { returned.store(true) }
+                }
+                while (!state.lock.withLock { state.verificationBusy }) loop.sleep(Duration.milliseconds(1L))
+                context.close(); config.close()
+                Thread.start { connecting.cancel() }.join()
+                a.closeStarted.await()
+                gcCollect()
+                assertFalse(returned.load() || connecting.isCompleted)
+                assertFalse(state.lock.withLock { state.closed })
+                val closing = scope.launch suspend { closeConnection(state) }
+                assertFalse(closing.isCompleted)
+                releaseClose.signal()
+                connecting.join(); closing.join(); serving.join()
+                assertTrue(returned.load())
+                assertTrue(state.lock.withLock { state.closed })
+                assertEquals(1, a.closes)
+            } finally {
+                releaseClose.signal(); pool.close(); context.close(); config.close()
+            }
+        }
+    }
+}

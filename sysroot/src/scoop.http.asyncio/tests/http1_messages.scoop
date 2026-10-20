@@ -81,6 +81,7 @@ private class AsyncHttp1MessageTests {
             val incoming = client.receiveResponse()
             assertEquals("through EOF", String.fromUtf8(receiveBytes(incoming.body)))
             assertTrue(client.isClosed && incoming.body.isComplete)
+            assertFalse(client.isReusable || server.isReusable)
             NativeByteBuffer.allocate(1L).use suspend { buffer -> assertEquals(0L, incoming.body.readInto(buffer, 1L)) }
             serving.join()
             assertEquals(1, a.closes); assertEquals(1, b.closes)

@@ -1,0 +1,29 @@
+package scoop.http
+
+fun wsField(name: String, value: String): HttpField = HttpField(name.toByteArray(), value.toByteArray())
+
+fun wsSample(): WebSocketHandshake = WebSocketHandshake.parse(HttpRequestHead(HttpVersion.Http11,
+    "GET".toByteArray(), HttpRequestTarget.Http1("/chat".toByteArray()), [
+        wsField("Host", "server.example.com"), wsField("Upgrade", "websocket"), wsField("Connection", "Upgrade"),
+        wsField("Sec-WebSocket-Key", "dGhlIHNhbXBsZSBub25jZQ=="), wsField("Sec-WebSocket-Version", "13"),
+        wsField("Sec-WebSocket-Protocol", "chat, superchat")
+    ]))
+
+fun wsFields(fields: List<HttpField>, name: String, values: List<String>): Array<HttpField> {
+    val result = ArrayList<HttpField>()
+    for (field in fields) if (!httpAsciiEqual(field.name, name.toByteArray())) result.add(field)
+    for (value in values) result.add(wsField(name, value))
+    return result.toArray()
+}
+
+fun wsRequest(fields: List<HttpField>): HttpRequestHead {
+    val sample = wsSample().request
+    return HttpRequestHead(sample.version, sample.method, sample.target, fields)
+}
+
+fun wsResponse(fields: List<HttpField>): HttpResponseHead = HttpResponseHead(HttpVersion.Http11, 101U, fields = fields)
+
+fun wsExtension(value: String): WebSocketExtension = WebSocketExtension.parse(value)[0L]
+
+fun wsOffered(text: String): WebSocketHandshake = WebSocketHandshake.parse(wsRequest(
+    wsFields(wsSample().request.fields, "Sec-WebSocket-Extensions", [text])))

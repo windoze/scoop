@@ -1,0 +1,105 @@
+package scoop.http.client
+
+import scoop.charset.Charset
+import scoop.collections.emptyList
+import scoop.crypto.digest
+import scoop.http.*
+import scoop.text.hexToByteArrayOrNone
+import scoop.text.lowercaseAscii
+import scoop.text.toHexString
+
+internal fun prepareClientDigestResponse(call: ClientCall, head: HttpResponseHead) {
+    val origin = call.authentication.digestUse
+    if (clientPresent(origin)) prepareClientDigestUse(call, head, origin!!)
+    val proxy = clientForwardProxyDigest(call)
+    if (clientPresent(proxy)) prepareClientDigestUse(call, head, proxy!!)
+}
+
+internal fun clientForwardProxyDigest(call: ClientCall): ClientDigestUse? =
+    if (clientUsesForwardProxy(call)) call.proxyAuthentication!!.digestUse else None
+
+internal fun verifyClientConnectDigest(call: ClientCall, head: HttpResponseHead) {
+    val use = call.proxyAuthentication!!.digestUse ?: return
+    prepareClientDigestUse(call, head, use)
+    if (use.nonce.challenge.qop == Some("auth-int"))
+        finishClientDigestResponse(call, head, use,
+            Some(digest(clientDigestAlgorithm(use.nonce.challenge.algorithm), emptyList<Byte>()).toHexString()), None)
+}
+
+private fun prepareClientDigestUse(call: ClientCall, head: HttpResponseHead, use: ClientDigestUse) {
+    use.responseInfo = parseClientDigestInfo(call, head, use, head.fields)
+    if (use.nonce.challenge.qop != Some("auth-int") && clientPresent(use.responseInfo))
+        verifyClientDigestInfo(call, head, use, use.responseInfo!!, None)
+}
+
+internal fun finishClientDigestResponse(call: ClientCall, head: HttpResponseHead, use: ClientDigestUse, entity: String?,
+    trailers: Array<HttpField>?) {
+    val extra = if (clientPresent(trailers)) parseClientDigestInfo(call, head, use, trailers!!) else None
+    if (!clientPresent(extra) && use.nonce.challenge.qop != Some("auth-int")) return
+    var info = use.responseInfo
+    if (clientPresent(extra)) {
+        if (!clientPresent(info)) info = extra
+        else {
+            val parameters = ArrayList<HttpParameter>()
+            for (parameter in info!!.parameters) parameters.add(parameter)
+            for (parameter in extra!!.parameters) parameters.add(parameter)
+            info = try { Some(HttpAuthenticationInfo(parameters)) }
+            catch (error: IllegalArgumentException) { throw digestResponseError(call, head, use, Some(error)) }
+        }
+    }
+    if (clientPresent(info)) verifyClientDigestInfo(call, head, use, info!!, entity)
+}
+
+private fun parseClientDigestInfo(call: ClientCall, head: HttpResponseHead, use: ClientDigestUse,
+    fields: List<HttpField>): HttpAuthenticationInfo? {
+    val name = use.scope.infoField
+    if (fields.findAll(name.toByteArray()).size == 0L) return None
+    try { return Some(HttpAuthenticationInfo.parseFields(fields, name)) }
+    catch (error: HttpFieldParseException) { throw digestResponseError(call, head, use, Some(error)) }
+}
+
+private fun verifyClientDigestInfo(call: ClientCall, head: HttpResponseHead, use: ClientDigestUse,
+    info: HttpAuthenticationInfo, entity: String?) {
+    val qop = info.parameter("qop")
+    val cnonce = info.parameter("cnonce")
+    val nc = info.parameter("nc")
+    val proof = info.parameter("rspauth")
+    if (clientPresent(qop)) {
+        if (Some(Charset.Iso8859_1.decode(qop!!.value).lowercaseAscii()) != use.nonce.challenge.qop ||
+            !clientPresent(proof) || !clientPresent(cnonce) || !clientPresent(nc)) throw digestResponseError(call, head, use)
+    }
+    if (clientPresent(cnonce) && !clientBytesEqual(cnonce!!.value, use.nonce.cnonce.toByteArray()))
+        throw digestResponseError(call, head, use)
+    if (clientPresent(nc) && (nc!!.value.size != 8L ||
+        Charset.Iso8859_1.decode(nc!!.value).lowercaseAscii() != use.nc)) throw digestResponseError(call, head, use)
+    if (clientPresent(proof)) {
+        if (clientPresent(use.nonce.challenge.qop) && (!clientPresent(cnonce) || !clientPresent(nc)))
+            throw digestResponseError(call, head, use)
+        val actual = Charset.Iso8859_1.decode(proof!!.value).hexToByteArrayOrNone()
+        val expected = clientDigestProof(use, emptyList<Byte>(), entity).hexToByteArrayOrNone()!!
+        if (!clientPresent(actual) || !clientBytesEqual(actual!!, expected)) throw digestResponseError(call, head, use)
+    }
+    val next = info.parameter("nextnonce")
+    if (clientPresent(next)) {
+        if (next!!.value.size == 0L) throw digestResponseError(call, head, use)
+        advanceClientDigestNonce(call, use, next!!.value)
+    }
+}
+
+private fun advanceClientDigestNonce(call: ClientCall, use: ClientDigestUse, nonce: Array<Byte>) {
+    if (clientBytesEqual(use.nonce.challenge.nonce, nonce)) return
+    call.client.lock.withLock {
+        val entry = use.session.entry
+        if (entry.discard || entry.nonce.numbers !== use.nonce.numbers) return@withLock
+        val old = entry.nonce.challenge
+        val parameters = ArrayList<HttpParameter>()
+        for (parameter in old.original.parameters) if (parameter.name != "nonce" && parameter.name != "stale") parameters.add(parameter)
+        parameters.add(HttpParameter("nonce", nonce, quoted = true))
+        entry.nonce = ClientDigestNonce(ClientDigestChallenge(HttpAuthChallenge("Digest", parameters), old.algorithm, old.utf8,
+            old.realm, nonce, old.qop, old.opaque, old.userhash, false, old.paths))
+    }
+}
+
+private fun digestResponseError(call: ClientCall, head: HttpResponseHead, use: ClientDigestUse,
+    cause: Throwable? = None): HttpAuthenticationException =
+    HttpAuthenticationException(HttpAuthenticationFailure.InvalidResponse, use.scope.url(call), Some(head), cause)

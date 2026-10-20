@@ -1,4 +1,5 @@
 #define _GNU_SOURCE 1
+#include "directory.h"
 #include <dirent.h>
 #include <errno.h>
 #include <string.h>

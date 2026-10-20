@@ -12,8 +12,7 @@ static const ScoopTypeDescriptor bytes_td = {
     .type_id = 911,
     .instance_shape = {.instance_kind = SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1,
                        .minimum_size = 512,
-                       .instance_alignment = 8},
-};
+                       .instance_alignment = 8}};
 
 static void observe_discard(void *base, size_t size) {
     uintptr_t address = (uintptr_t)base;

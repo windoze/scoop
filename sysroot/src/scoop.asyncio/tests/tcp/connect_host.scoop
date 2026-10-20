@@ -1,0 +1,115 @@
+package scoop.asyncio
+
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.*
+import scoop.platform.system.*
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class AsyncTcpConnectHostTest {
+    @Test
+    fun `numeric hosts connect both families and transfer through the selected stream`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            for (ip in [IpAddress.IPV4_LOOPBACK, IpAddress.IPV6_LOOPBACK]) {
+                val listener = loop.listenTcp(SocketAddress(ip, 0))
+                val connecting = scope.async<AsyncTcpStream> suspend {
+                    loop.connectTcp(OsString.fromString(ip.toString()), listener.localAddress.port)
+                }
+                val peer = listener.accept()
+                val client = connecting.await()
+                assertEquals(listener.localAddress, client.peerAddress)
+                assertEquals(client.localAddress, peer.peerAddress)
+                verifyConnectedStreams(client, peer)
+                client.close()
+                peer.close()
+                listener.close()
+                assertFalse(scope.job.isCancelled)
+            }
+        }
+    }
+
+    @Test
+    fun `a failed localhost candidate does not cancel its successful sibling or caller`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val listener = loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
+            val sibling = scope.async<Int> suspend { loop.sleep(Duration.milliseconds(1L)); 42 }
+            val client = loop.connectTcp(OsString.fromString("localhost"), listener.localAddress.port,
+                TcpConnectOptions(attemptDelay = Duration.seconds(60L)))
+            val peer = listener.accept()
+            assertEquals(listener.localAddress, client.peerAddress)
+            assertFalse(scope.job.isCancelled)
+            assertEquals(42, sibling.await())
+            verifyConnectedStreams(client, peer)
+            client.close()
+            peer.close()
+            listener.close()
+        }
+    }
+
+    @Test
+    fun `all failures retain native causes and catching them leaves the caller usable`() {
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val reserved = loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
+            val address = reserved.localAddress
+            reserved.close()
+            val host = OsString.fromString("127.0.0.1")
+            try { loop.connectTcp(host, address.port); fail(Some("closed port connected")) }
+            catch (error: TcpConnectException) {
+                assertEquals(host, error.host)
+                assertEquals(address.port, error.port)
+                assertEquals(1L, error.attempts.size)
+                assertEquals(address, error.attempts[0L].address)
+                val failure = error.attempts[0L].cause as PlatformException
+                assertTrue(failure.nativeError!!.domain == NativeErrorDomain.Libuv)
+                assertTrue(failure.nativeError!!.code < 0)
+                assertEquals(1L, error.resolutionFailures.size)
+                assertTrue(error.resolutionFailures[0L].family == AddressFamily.Ipv6)
+                val resolution = error.resolutionFailures[0L].cause as PlatformException
+                assertTrue(resolution.nativeError!!.domain == NativeErrorDomain.AddressResolution)
+                assertEquals(host, resolution.context!!)
+            }
+            assertFalse(scope.job.isCancelled)
+            val listener = loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
+            val client = loop.connectTcp(host, listener.localAddress.port)
+            val peer = listener.accept()
+            verifyConnectedStreams(client, peer)
+        }
+    }
+
+    @Test
+    fun `invalid hosts ports and loop bindings keep their original exception types`() {
+        val loop: EventLoop = LibuvEventLoop()
+        val other: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            try { loop.connectTcp(OsString.fromString("127.0.0.1"), -1); fail() }
+            catch (_: IllegalArgumentException) {}
+            try { loop.connectTcp(OsString.fromString("127.0.0.1"), 65536); fail() }
+            catch (_: IllegalArgumentException) {}
+            val invalid: Array<Byte> = [49, 0, 50]
+            try { loop.connectTcp(OsString.fromByteArray(invalid), 80); fail() }
+            catch (_: IllegalArgumentException) {}
+            try { other.connectTcp(OsString.fromString("127.0.0.1"), 80); fail() }
+            catch (_: IllegalStateException) {}
+            assertFalse(scope.job.isCancelled)
+            loop.sleep(Duration.nanoseconds(1L))
+        }
+    }
+}
+
+internal suspend fun verifyConnectedStreams(client: AsyncTcpStream, peer: AsyncTcpStream) {
+    NativeByteBuffer.allocate(2L).use suspend { bytes ->
+        bytes.writeByte(42)
+        peer.writeFully(bytes)
+        bytes.clear()
+        gcCollect()
+        client.readFully(bytes, 1L)
+        assertEquals(42.toByte(), bytes.readByte())
+        client.shutdownOutput()
+        bytes.clear()
+        assertEquals(0L, peer.readInto(bytes, 1L))
+    }
+}

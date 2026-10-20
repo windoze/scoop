@@ -119,17 +119,3 @@ pub(super) fn require_digest_node(
         .find(|node| node.key() == &key)
         .ok_or(StrongTypeRegistrationPlanBuildError::MissingDigestNode(key))
 }
-
-pub(super) fn require_patch(
-    node: &DigestNodeV1,
-    expected: DigestPatchIntentKey,
-) -> Result<DigestPatchIntentId, StrongTypeRegistrationPlanBuildError> {
-    node.patch_intents()
-        .iter()
-        .find(|patch| patch.key() == &expected)
-        .map(|patch| patch.id())
-        .ok_or(StrongTypeRegistrationPlanBuildError::MissingPatch {
-            node: node.id(),
-            expected: Box::new(expected),
-        })
-}

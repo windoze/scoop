@@ -1,0 +1,45 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.platform.system.PlatformErrorKind
+import scoop.platform.system.PlatformException
+import scoop.test.*
+
+@Test
+private class HttpClientRetryUserFailureTest {
+    @Test
+    fun `user producers and informational callbacks cannot turn their errors into network retries`() {
+        val failures: Array<Throwable> = [PlatformException("user producer", PlatformErrorKind.BrokenPipe),
+            HttpException("user callback", HttpProtocol.Http2, HttpFailureScope.Stream, 1, "user", 7, "not a peer refusal")]
+        for (failure in failures) {
+            for (producer in [true, false]) {
+                withClientRetryTest suspend { _, scope, listener, config ->
+                    val done = BodyTestGate()
+                    val serving = scope.launch suspend {
+                        AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                            connection.receiveRequest()
+                            if (!producer) sendRetryTestStatus(connection, 103U)
+                            done.await()
+                        }
+                    }
+                    val body = if (producer) RequestBody.fromProducerFactory suspend {
+                        suspend { _ -> throw failure }
+                    } else RequestBody.Empty
+                    val options = if (producer) HttpCallOptions() else HttpCallOptions(onInformational = suspend { _ -> throw failure })
+                    try {
+                        withHttpClient(config) suspend { client ->
+                            val caught = expectBodyFailure<Throwable> suspend {
+                                client.execute(HttpRequest(clientTestUrl(listener), "PUT", body = body, options = options)).close()
+                            }
+                            assertSame(failure, caught)
+                        }
+                    } finally { done.signal() }
+                    serving.join()
+                    assertFalse(scope.job.isCancelled)
+                }
+            }
+        }
+    }
+}

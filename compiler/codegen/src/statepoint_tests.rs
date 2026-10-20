@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::rc::Rc;
 
 use inkwell::context::Context;
 use inkwell::memory_buffer::MemoryBuffer;
@@ -12,6 +13,8 @@ use crate::ValidatedBackendProfile;
 mod atomic_refs;
 #[path = "statepoint_tests/bounded_loops.rs"]
 mod bounded_loops;
+#[path = "statepoint_tests/branch_loads.rs"]
+mod branch_loads;
 #[path = "statepoint_tests/call_frame.rs"]
 mod call_frame;
 #[path = "statepoint_tests/constant_roots.rs"]
@@ -20,14 +23,20 @@ mod constant_roots;
 mod copied_aggregate;
 #[path = "statepoint_tests/copies.rs"]
 mod copies;
+#[path = "statepoint_tests/guarded_unwrap.rs"]
+mod guarded_unwrap;
 #[path = "statepoint_tests/interface_parts.rs"]
 mod interface_parts;
 #[path = "statepoint_tests/late_branches.rs"]
 mod late_branches;
 #[path = "statepoint_tests/loops.rs"]
 mod loops;
+#[path = "statepoint_tests/manifest.rs"]
+mod manifest_selection;
 #[path = "statepoint_tests/nogc_loops.rs"]
 mod nogc_loops;
+#[path = "statepoint_tests/nonduplicable.rs"]
+mod nonduplicable;
 #[path = "statepoint_tests/optimized.rs"]
 mod optimized;
 #[path = "statepoint_tests/ranges.rs"]
@@ -62,7 +71,7 @@ fn manifest(site: Option<(u64, ExpectedStatepoint)>) -> ExpectedSafepoints {
             })
             .into_iter()
             .collect(),
-        functions: BTreeMap::from([("f".to_string(), GcEffect::Managed)]),
+        functions: BTreeMap::from([("f".to_string(), GcEffect::Managed)]).into(),
     }
 }
 
@@ -90,4 +99,28 @@ fn assert_machine_site_count(path: &std::path::Path, expected: usize) {
         u32::from_le_bytes(data[12..16].try_into().unwrap()) as usize,
         expected
     );
+}
+
+fn assert_machine_root_counts(path: &std::path::Path, expected: &ExpectedSafepoints) {
+    use object::{Object, ObjectSection};
+    let bytes = std::fs::read(path).unwrap();
+    let object = object::File::parse(bytes.as_slice()).unwrap();
+    let section = object
+        .section_by_name("__llvm_stackmaps")
+        .or_else(|| object.section_by_name(".llvm_stackmaps"))
+        .unwrap();
+    let parsed = scoop_slib::parse_llvm_stackmap_section_v3(section.data().unwrap()).unwrap();
+    let actual = parsed
+        .functions()
+        .iter()
+        .flat_map(|function| function.records())
+        .map(|record| (record.safepoint_id(), record.locations().len()))
+        .collect::<BTreeMap<_, _>>();
+    assert_eq!(parsed.record_count(), actual.len());
+    let expected = expected
+        .sites
+        .keys()
+        .map(|id| (*id, 3 + 2 * expected.root_count(*id).unwrap()))
+        .collect::<BTreeMap<_, _>>();
+    assert_eq!(actual, expected);
 }

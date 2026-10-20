@@ -4,8 +4,8 @@ use std::fmt;
 
 pub use scoop_identity::PersistentImmortalObjectId;
 use scoop_identity::{
-    ConeIdentity, DefinitionAtomRole, DigestNodeId, DigestNodeKey, DigestPatchIntentKey,
-    LinkageClass, ObjectDefinitionAtomId, ObjectDefinitionIdentityError, ObjectDefinitionPlanId,
+    ConeIdentity, DefinitionAtomRole, DigestNodeId, DigestNodeKey, LinkageClass,
+    ObjectDefinitionAtomId, ObjectDefinitionIdentityError, ObjectDefinitionPlanId,
     ObjectDefinitionPlanKey, PersistentExactTypeId, PersistentSymbolError, PersistentSymbolKey,
     PersistentSymbolRequest, StrongDefinitionEntity, StrongDefinitionRole,
 };
@@ -351,22 +351,10 @@ pub enum StrongImmortalObjectRegistrationPlanBuildError {
         node: DigestNodeId,
         actual: Vec<DigestInputRefV1>,
     },
-    RegistrationObjectPatches {
-        node: DigestNodeId,
-        actual: Vec<DigestPatchIntentKey>,
-    },
+
     ImmortalObjectInputs {
         node: DigestNodeId,
         actual: Vec<DigestInputRefV1>,
-    },
-    ImmortalObjectPatches {
-        node: DigestNodeId,
-        actual: Vec<DigestPatchIntentKey>,
-    },
-    PatchSet {
-        node: DigestNodeId,
-        expected: Box<DigestPatchIntentKey>,
-        actual: Vec<DigestPatchIntentKey>,
     },
 }
 

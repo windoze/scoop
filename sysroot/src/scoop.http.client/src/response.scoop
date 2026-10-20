@@ -1,0 +1,30 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.url.Url
+
+public class HttpResponse internal constructor(internal val call: ClientCall, public val head: HttpResponseHead) : AsyncCloseable {
+    public val version: HttpVersion get() = head.version
+    public val status: UInt get() = head.status
+    public val fields: Array<HttpField> get() = head.fields
+    public val url: Url get() = call.request.url
+    public val redirectHistory: Array<HttpRedirect> = call.sequence.history.toArray()
+    public val retryCount: Long = call.sequence.retryCount
+    public val authenticationCount: Long = call.sequence.authenticationCount
+    public val proxyAuthenticationCount: Long = call.sequence.proxyAuthenticationCount
+    public val cacheStatus: HttpCacheStatus = call.cacheStatus
+    public val metrics: HttpAttemptMetrics? get() = clientMetrics(call)
+    public val wireContentLength: Long? = parseHttpContentLength(head.fields)
+    internal val input: ClientResponseInput = ClientResponseInput(call, clientResponseDecoding(call, head, wireContentLength), head)
+    public val body: HttpResponseBody = HttpResponseBody(input, head.fields)
+    public val trailers: Array<HttpField>? get() = if (body.isComplete) call.responseStream!!.trailers else None
+    public fun requireSuccess(): HttpResponse {
+        if (status < 200U || status >= 300U) throw HttpStatusException(head, url)
+        return this
+    }
+    public override suspend fun close() { body.close() }
+}
+
+public class HttpStatusException public constructor(public val head: HttpResponseHead, public val url: Url)
+    : Exception(Some("HTTP status " + head.status.toString()))

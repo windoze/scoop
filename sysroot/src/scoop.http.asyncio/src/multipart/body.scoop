@@ -1,0 +1,18 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.platform.memory.NativeByteBuffer
+
+public class MultipartBody internal constructor(private val reader: MultipartReader) : AsyncByteSource, AsyncCloseable {
+    internal var complete: Boolean = false
+    internal var closed: Boolean = false
+    internal var data: Array<Byte> = Array<Byte>(0L) { _ -> 0.toByte() }
+    internal var offset: Long = 0L
+    public val isComplete: Boolean get() = complete
+    public val isClosed: Boolean get() = closed || reader.io.isClosed
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long = reader.read(this, buffer, count)
+    public suspend fun discard(maxBytes: Long): Long = reader.discard(this, maxBytes)
+    public override suspend fun close() { reader.closeBody(this) }
+
+    internal fun clear() { data = Array<Byte>(0L) { _ -> 0.toByte() }; offset = 0L }
+}

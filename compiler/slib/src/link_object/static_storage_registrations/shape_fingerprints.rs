@@ -80,7 +80,7 @@ impl StaticStorageShapeFingerprintSetV1 {
 pub fn compute_strong_static_storage_shape_fingerprints_v1(
     registrations: StaticStorageRegistrationDataV1,
 ) -> Result<StaticStorageShapeFingerprintSetV1, StrongStaticStorageShapeFingerprintError> {
-    let planned = registrations.plan().registrations();
+    let planned = registrations.registrations();
     let mut fingerprints = Vec::with_capacity(planned.len());
     for plan in planned {
         let semantic = plan.semantic();

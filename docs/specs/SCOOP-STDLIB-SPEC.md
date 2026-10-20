@@ -387,7 +387,7 @@ Scoop 的类型名不是值；传 codec 时写 `LocalDate.Companion`、`Int.Comp
 
 ## 10. M42 之外
 
-独立 math 包（含数学函数、BigInteger、Decimal）、正则、完整 Unicode 数据与算法、压缩、密码学、更多格式库、持久化不可变集合均另行排期。系统库负责文件/网络/进程/线程、熵、实际 wall/monotonic 取时、sleep/timer、时区数据库和 native resource。M42 不预置空实现或运行期“尚未支持”分支。
+独立 math 包（含数学函数、BigInteger、Decimal）、正则、完整 Unicode 数据与算法、更多格式库、持久化不可变集合均另行排期。密码学已由 M51 的独立 [crypto 库](SCOOP-CRYPTO-SPEC.md)承担；M54 的 [IDNA](SCOOP-IDNA-SPEC.md)、[URL](SCOOP-URL-SPEC.md)、[压缩](SCOOP-COMPRESSION-SPEC.md)和[字符集](SCOOP-CHARSET-SPEC.md)同样属于独立 Cone，不改变 std 只依赖 core、纯 Scoop 的边界。系统库负责文件/网络/进程/线程、熵、实际 wall/monotonic 取时、sleep/timer、时区数据库和 native resource。M42 不预置空实现或运行期“尚未支持”分支。
 
 ## 11. 参考来源
 

@@ -5,13 +5,12 @@ use module::semantic_module;
 use la_arena::Arena;
 use scoop_identity::{
     CanonicalIdentifier, CborIdentityRecord, DeclarationScope, DefinitionAtomRole,
-    DefinitionAtomSubkey, DefinitionOwnerChain, DigestNodeId, DigestNodeKey, DigestPatchIntentKey,
-    DigestSemanticFieldRole, ExactTypeKey, GeneratedCallableKey, InitializationCallableRole,
-    InitializationUnitKey, ObjectDefinitionAtomKey, ObjectDefinitionPlanKey, PackagePath,
-    PersistentExactTypeId, PersistentGeneratedCallableId, PersistentPropertyId,
-    PersistentSymbolKey, PersistentSymbolRequest, PersistentSymbolRequestTable, PersistentTypeId,
-    PropertyOwner, SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
-    StrongDefinitionEntity, StrongDefinitionRole,
+    DefinitionAtomSubkey, DefinitionOwnerChain, DigestNodeKey, ExactTypeKey, GeneratedCallableKey,
+    InitializationCallableRole, InitializationUnitKey, ObjectDefinitionAtomKey,
+    ObjectDefinitionPlanKey, PackagePath, PersistentExactTypeId, PersistentGeneratedCallableId,
+    PersistentPropertyId, PersistentSymbolKey, PersistentSymbolRequest,
+    PersistentSymbolRequestTable, PersistentTypeId, PropertyOwner, SourceDeclarationKey,
+    SourceDeclarationSite, SourceNominalKind, StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_lir::{
     AbiReturn, BasicBlock, CallTargets, CallableBodyIdentity, CallingConvention,
@@ -163,12 +162,7 @@ pub(super) fn initialization_plan(lazy: bool) -> StrongInitializationUnitRegistr
 
     let foundation =
         ConeLirFoundation::try_new(scoop_lir::ConeIdentity::SINGLE_FILE, canonical).unwrap();
-    let digests = digest_plan(
-        &foundation,
-        semantic.schedule().gateway(),
-        &registration,
-        &callables,
-    );
+    let digests = digest_plan(&foundation, semantic.schedule().gateway(), &callables);
     let identities = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
     StrongInitializationUnitRegistrationPlanSetV1::new(
         &foundation,
@@ -215,25 +209,14 @@ fn definition_artifacts(
 fn digest_plan(
     foundation: &ConeLirFoundation,
     gateway: Option<scoop_lir::PersistentCallableBodyId>,
-    registration: &DefinitionArtifacts,
     callables: &[CallableArtifacts],
 ) -> DigestFinalizationPlanV1 {
     let callable_objects = callables
         .iter()
         .map(|callable| {
             let key = DigestNodeKey::object_definition(callable.body_definition.primary.id());
-            let id = DigestNodeId::from_key(&key).unwrap();
-            let patches = if Some(callable.body) == gateway {
-                vec![DigestPatchIntentKey::new(
-                    id,
-                    registration.definition.id(),
-                    DefinitionAtomRole::Primary,
-                    DigestSemanticFieldRole::GatewayDefinition,
-                )]
-            } else {
-                Vec::new()
-            };
-            DigestNodeV1::new(key, Vec::new(), patches).unwrap()
+
+            DigestNodeV1::new(key, Vec::new()).unwrap()
         })
         .collect::<Vec<_>>();
 
@@ -248,7 +231,6 @@ fn digest_plan(
         DigestNodeV1::new(
             DigestNodeKey::runtime_image(scoop_lir::ConeIdentity::SINGLE_FILE),
             image_inputs,
-            Vec::new(),
         )
         .unwrap(),
     );

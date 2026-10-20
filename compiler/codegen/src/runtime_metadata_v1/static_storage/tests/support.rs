@@ -1,13 +1,13 @@
 use la_arena::Arena;
 use scoop_identity::{
     CanonicalIdentifier, CborIdentityRecord, ConeIdentity, DeclarationScope, DefinitionAtomRole,
-    DefinitionAtomSubkey, DefinitionOwnerChain, DigestNodeId, DigestNodeKey, DigestPatchIntentKey,
-    DigestSemanticFieldRole, ExactTypeKey, ImmortalObjectKey, ImmortalObjectOwner, LinkageClass,
-    ObjectDefinitionAtomKey, ObjectDefinitionPlanKey, PackagePath, PersistentExactTypeId,
-    PersistentLayoutId, PersistentPropertyId, PersistentSymbolKey, PersistentSymbolRequest,
-    PersistentSymbolRequestTable, PersistentTypeId, PropertyOwner, SourceDeclarationKey,
-    SourceDeclarationSite, SourceNominalKind, StrongDefinitionEntity, StrongDefinitionRole,
-    StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
+    DefinitionAtomSubkey, DefinitionOwnerChain, DigestNodeKey, ExactTypeKey, ImmortalObjectKey,
+    ImmortalObjectOwner, LinkageClass, ObjectDefinitionAtomKey, ObjectDefinitionPlanKey,
+    PackagePath, PersistentExactTypeId, PersistentLayoutId, PersistentPropertyId,
+    PersistentSymbolKey, PersistentSymbolRequest, PersistentSymbolRequestTable, PersistentTypeId,
+    PropertyOwner, SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
+    StrongDefinitionEntity, StrongDefinitionRole, StructuralDefinitionPath,
+    StructuralDefinitionSiteRole, StructuralPathSegment,
 };
 use scoop_lir::{
     CanonicalCAbiMetadata, CanonicalLirFoundation, ConeLirFoundation, DigestFinalizationPlanV1,
@@ -260,31 +260,11 @@ fn digest_plan(
     let mut image_inputs = Vec::new();
     for ((semantic, shape), storage) in semantics.storages().iter().zip(shapes).zip(storages) {
         let layout_key = DigestNodeKey::layout(shape.layout);
-        let layout_id = DigestNodeId::from_key(&layout_key).unwrap();
-        let layout = DigestNodeV1::new(
-            layout_key,
-            Vec::new(),
-            vec![DigestPatchIntentKey::new(
-                layout_id,
-                storage.registration_definition.id(),
-                DefinitionAtomRole::Primary,
-                DigestSemanticFieldRole::Layout,
-            )],
-        )
-        .unwrap();
+
+        let layout = DigestNodeV1::new(layout_key, Vec::new()).unwrap();
         let scan_key = DigestNodeKey::scan(shape.scan);
-        let scan_id = DigestNodeId::from_key(&scan_key).unwrap();
-        let scan = DigestNodeV1::new(
-            scan_key,
-            Vec::new(),
-            vec![DigestPatchIntentKey::new(
-                scan_id,
-                storage.registration_definition.id(),
-                DefinitionAtomRole::Primary,
-                DigestSemanticFieldRole::Scan,
-            )],
-        )
-        .unwrap();
+
+        let scan = DigestNodeV1::new(scan_key, Vec::new()).unwrap();
         assert_eq!(semantic.storage(), storage.storage);
         image_inputs.extend([
             DigestInputRefV1::from_node(&layout),
@@ -297,7 +277,6 @@ fn digest_plan(
         DigestNodeV1::new(
             DigestNodeKey::runtime_image(ConeIdentity::SINGLE_FILE),
             image_inputs,
-            Vec::new(),
         )
         .unwrap(),
     );

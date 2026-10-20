@@ -9,11 +9,10 @@ use scoop_lir::{
 
 use crate::SlibMemberId;
 use crate::link_object::{
-    CanonicalScoopLirObjectUnitSetV1, CanonicalUndefinedSymbolRequirementSetV1, DigestPatchSiteV1,
-    PlannedLinkObjectMemberSetV1, PlannedStrongObjectSymbolSetV1, ScoopLirDigestPatchSitesV1,
-    ScoopLirObjectCandidateV1, ScoopStackmapSetV1, VerifiedBuiltinObjectStrongRelocationSetV1,
-    read_generated_c_objects_v1, read_scoop_stackmaps_v1,
-    verify_builtin_object_strong_relocations_v1,
+    CanonicalScoopLirObjectUnitSetV1, CanonicalUndefinedSymbolRequirementSetV1,
+    PlannedLinkObjectMemberSetV1, PlannedStrongObjectSymbolSetV1, ScoopLirObjectCandidateV1,
+    ScoopStackmapSetV1, VerifiedBuiltinObjectStrongRelocationSetV1, read_generated_c_objects_v1,
+    read_scoop_stackmaps_v1, verify_builtin_object_strong_relocations_v1,
 };
 
 pub(crate) mod macho;
@@ -36,7 +35,6 @@ pub(crate) struct Fixture {
     pub(crate) immortal_registration_plan: StrongImmortalObjectRegistrationPlanSetV1,
     pub(crate) static_storage_registration_plan: StrongStaticStorageRegistrationPlanSetV1,
     pub(crate) initialization_registration_plan: StrongInitializationUnitRegistrationPlanSetV1,
-    pub(crate) provisional_patch_sites: Vec<DigestPatchSiteV1>,
     pub(crate) member: SlibMemberId,
     pub(crate) object_bytes: Vec<u8>,
 }
@@ -103,11 +101,6 @@ impl Fixture {
             &[],
         )
         .unwrap();
-        let provisional_patch_sites = object
-            .patch_offsets
-            .iter()
-            .map(|(intent, offset)| DigestPatchSiteV1::new(*intent, member, *offset))
-            .collect();
         Self {
             builtins,
             semantic_plan,
@@ -119,7 +112,6 @@ impl Fixture {
             immortal_registration_plan: inputs.immortal_registration_plan,
             static_storage_registration_plan: inputs.static_storage_registration_plan,
             initialization_registration_plan: inputs.initialization_registration_plan,
-            provisional_patch_sites,
             member,
             object_bytes: object.bytes,
         }
@@ -134,11 +126,8 @@ impl Fixture {
             .unwrap()
     }
 
-    pub(crate) fn verified_patch_sites(&self) -> ScoopLirDigestPatchSitesV1 {
-        ScoopLirDigestPatchSitesV1::new(
-            self.builtins.clone(),
-            (self.provisional_patch_sites).to_vec(),
-        )
+    pub(crate) fn object_data(&self) -> VerifiedBuiltinObjectStrongRelocationSetV1 {
+        self.builtins.clone()
     }
 
     pub(crate) fn undefined_requirements(&self) -> CanonicalUndefinedSymbolRequirementSetV1 {

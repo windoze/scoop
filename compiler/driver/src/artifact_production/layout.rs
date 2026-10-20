@@ -73,7 +73,7 @@ impl<'ir> CrossConeLayoutArtifactMetadataInputV1<'ir> {
             .foundation
             .with_native_library_requirements(self.native_libraries)
             .with_native_cxx(self.native_cxx);
-        let strong = prepared.patch_sites.builtins().strong_relocations().clone();
+        let strong = prepared.builtins.strong_relocations().clone();
         let defined =
             slib::CanonicalDefinedLinkSymbolOwnerSetV1::from_verified_strong_closure(&strong)
                 .map_err(ObjectError::DefinedSymbols)?;

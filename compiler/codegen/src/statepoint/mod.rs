@@ -55,6 +55,14 @@ pub(crate) use manifest::{ExpectedSafepoints, expectations};
 pub(crate) use policy::rewrite;
 pub(crate) use policy::{configure_function, lower, optimize};
 
+/// Each safepoint and typed leaf restoration denotes one physical IR site.
+pub(crate) fn mark_nonduplicable(context: &Context, call: CallSiteValue<'_>) {
+    call.add_attribute(
+        AttributeLoc::Function,
+        context.create_enum_attribute(Attribute::get_named_enum_kind_id("noduplicate"), 0),
+    );
+}
+
 #[cfg(test)]
 #[path = "../statepoint_tests.rs"]
 mod tests;

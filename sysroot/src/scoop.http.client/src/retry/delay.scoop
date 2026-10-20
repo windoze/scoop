@@ -1,0 +1,35 @@
+package scoop.http.client
+
+import scoop.http.*
+import scoop.platform.random.SystemRandom
+import scoop.platform.time.SystemClock
+import scoop.time.Duration
+
+internal fun clientRetryDelay(options: HttpRetryOptions, completedRetries: Long, head: HttpResponseHead? = None): Duration {
+    var delay = options.initialDelay
+    if (delay > Duration.ZERO) {
+        var index = 0L
+        while (index < completedRetries && delay < options.maxDelay) {
+            delay = if (delay >= options.maxDelay - delay) options.maxDelay else delay + delay
+            index += 1L
+        }
+        if (options.jitter) delay = jitterClientRetryDelay(delay)
+    }
+    if (!options.respectRetryAfter) return delay
+    val fields = when (head) {
+        case Some(response) -> response.fields.findAll("Retry-After".toByteArray())
+        case None -> return delay
+    }
+    if (fields.size != 1L) return delay
+    val now = SystemClock.now()
+    val required = HttpRetryAfter.parseOrNone(fields[0L].value, now)?.delayFrom(now) ?: return delay
+    return if (required > delay) required else delay
+}
+
+private fun jitterClientRetryDelay(delay: Duration): Duration {
+    val scale = 1000000L
+    val fraction = SystemRandom.nextLong(scale + 1L)
+    val whole = delay / scale
+    val remainder = delay - whole * scale
+    return whole * fraction + (remainder * fraction) / scale
+}

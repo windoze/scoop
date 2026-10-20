@@ -1,0 +1,123 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class HttpClientContinueHttp1Test {
+    @Test
+    fun `HTTP1 waits through 103 and explicit or generated Continue retains the request Context`() {
+        for (automatic in [false, true]) withClientContinueTest suspend { _, scope, listener, config ->
+            val started = AtomicBoolean(false)
+            val observed = BodyTestGate()
+            val information = ArrayList<UInt>()
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { h1 ->
+                    val incoming = h1.receiveRequest()!!
+                    assertTrue(httpExpectsContinue(incoming.head.fields))
+                    h1.sendResponse(HttpResponseHead(HttpVersion.Http11, 103U)).finish()
+                    observed.await()
+                    assertFalse(started.load())
+                    h1.sendResponse(HttpResponseHead(HttpVersion.Http11, 100U)).finish()
+                    assertEquals("body", String.fromUtf8(incoming.body.readAllBytes(4L)))
+                    h1.sendResponse(HttpResponseHead(HttpVersion.Http11, 100U)).finish()
+                    sendClientTestText(h1, 200U, "ok")
+                }
+            }
+            withHttpClient(config) suspend { client ->
+                val body = RequestBody.fromProducer(Some(4L)) suspend { output ->
+                    assertFalse(started.exchange(true))
+                    assertEquals("request", currentBodyTestContext())
+                    writeBodyText(output, "body")
+                }
+                val fields: Array<HttpField> = if (automatic) [] else [HttpField("Expect".toByteArray(), "100-CoNtInUe".toByteArray())]
+                val options = HttpCallOptions(expectContinue = automatic, continueWait = Duration.seconds(60L),
+                    onInformational = suspend { head ->
+                        assertEquals("request", currentBodyTestContext())
+                        information.add(head.status)
+                        if (head.status == 103U) { assertFalse(started.load()); observed.signal() }
+                        Unit
+                    })
+                context(BodyTestContext("request")) {
+                    client.withResponse(HttpRequest.post(clientTestUrl(listener), body, fields, options)) suspend { response ->
+                        assertEquals("ok", String.fromUtf8(response.body.readAllBytes(2L)))
+                    }
+                }
+                assertEquals(3L, information.size)
+                assertEquals(103U, information[0L])
+                assertEquals(100U, information[1L]); assertEquals(100U, information[2L])
+            }
+            serving.join()
+        }
+    }
+
+    @Test
+    fun `Continue expiry allows upload and late information never repeats the producer`() {
+        for (wait in [Duration.ZERO, Duration.milliseconds(2L)]) withClientContinueTest suspend { _, scope, listener, config ->
+            val started = AtomicBoolean(false)
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { h1 ->
+                    val incoming = h1.receiveRequest()!!
+                    assertTrue(httpExpectsContinue(incoming.head.fields))
+                    assertEquals("body", String.fromUtf8(incoming.body.readAllBytes(4L)))
+                    h1.sendResponse(HttpResponseHead(HttpVersion.Http11, 100U)).finish()
+                    sendClientTestText(h1, 200U, "ok")
+                }
+            }
+            withHttpClient(config) suspend { client ->
+                val body = RequestBody.fromProducer(Some(4L)) suspend { output ->
+                    assertFalse(started.exchange(true))
+                    writeBodyText(output, "body")
+                }
+                client.withResponse(HttpRequest.post(clientTestUrl(listener), body,
+                    options = HttpCallOptions(expectContinue = true, continueWait = wait))) suspend { response ->
+                    assertEquals("ok", String.fromUtf8(response.body.readAllBytes(2L)))
+                }
+                assertTrue(started.load())
+            }
+            serving.join()
+        }
+    }
+
+    @Test
+    fun `an early final response leaves a single-use body unconsumed for a later explicit request`() {
+        withClientContinueTest suspend { _, scope, listener, config ->
+            val started = AtomicBoolean(false)
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { first ->
+                    assertTrue(httpExpectsContinue(first.receiveRequest()!!.head.fields))
+                    sendClientTestText(first, 417U, "no")
+                }
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { second ->
+                    val incoming = second.receiveRequest()!!
+                    assertFalse(started.load())
+                    second.sendResponse(HttpResponseHead(HttpVersion.Http11, 100U)).finish()
+                    assertEquals("body", String.fromUtf8(incoming.body.readAllBytes(4L)))
+                    sendClientTestText(second, 200U, "yes")
+                }
+            }
+            withHttpClient(config) suspend { client ->
+                val body = RequestBody.fromProducer(Some(4L)) suspend { output ->
+                    assertFalse(started.exchange(true))
+                    writeBodyText(output, "body")
+                }
+                assertFalse(body.isReplayable)
+                val request = HttpRequest.post(clientTestUrl(listener), body,
+                    options = HttpCallOptions(expectContinue = true, continueWait = Duration.seconds(60L)))
+                client.withResponse(request) suspend { response ->
+                    assertEquals(417U, response.status)
+                    assertFalse(started.load())
+                    assertEquals("no", String.fromUtf8(response.body.readAllBytes(2L)))
+                }
+                client.withResponse(request) suspend { response ->
+                    assertEquals(200U, response.status)
+                    assertEquals("yes", String.fromUtf8(response.body.readAllBytes(3L)))
+                }
+            }
+            serving.join()
+        }
+    }
+}

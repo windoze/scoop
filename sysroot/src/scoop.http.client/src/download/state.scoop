@@ -1,0 +1,55 @@
+package scoop.http.client
+
+import scoop.asyncio.AsyncFile
+import scoop.asyncio.AsyncCloseable
+import scoop.platform.fs.Path
+import scoop.platform.time.MonotonicTimeSource
+
+internal class ClientDownloadFile(val path: Path, val file: AsyncFile, val discardOnFailure: Boolean) : AsyncCloseable {
+    public override suspend fun close() { file.close() }
+}
+
+internal class ClientDownload(val client: ClientState, val caller: Job, initial: ClientRequestSequence) {
+    var sequence: ClientRequestSequence = initial
+    var job: Job? = None
+    var registered: Boolean = false
+    var committing: Boolean = false
+    var committed: Boolean = false
+    var failure: Throwable? = None
+    var cleanupFailure: Throwable? = None
+    var responseCall: ClientCall? = None
+    var output: ClientDownloadFile? = None
+    var resumeMetadata: Path? = None
+
+    fun requireActive() {
+        val current = client.lock.withLock { failure }
+        if (clientPresent(current)) throw current!!
+        caller.ensureActive()
+        ensureActive()
+        val limit = sequence.timeouts.total
+        if (clientPresent(limit) && MonotonicTimeSource.markNow() - sequence.started!! >= limit!!) throw timeout()
+    }
+
+    fun timeout(): HttpTimeoutException {
+        val (current, previous) = client.lock.withLock { (sequence, responseCall) }
+        return clientSequenceTimeout(client, current, previous)
+    }
+}
+
+internal fun stopClientDownload(download: ClientDownload, reason: Throwable) {
+    val job: Job? = download.client.lock.withLock {
+        if (download.committing) return@withLock None
+        if (!clientPresent(download.failure)) download.failure = Some(reason)
+        download.job
+    }
+    job?.cancel()
+}
+
+context(download: ClientDownload)
+private fun boundClientDownload(): ClientDownload = download
+
+internal fun checkClientDownloadClose(state: ClientState) {
+    val current = try { Some(boundClientDownload()) } catch (_: MissingContextException) { None }
+    if (clientPresent(current) && current!!.client === state && state.lock.withLock { current!!.registered })
+        throw IllegalStateException(Some("cannot await client.close from an active download"))
+}

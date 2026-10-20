@@ -1,0 +1,34 @@
+import scoop.crypto.testdata.rootPem
+import scoop.crypto.x509.TrustStore
+import scoop.platform.concurrent.Thread
+
+private fun exercise(mode: String, trust: TrustStore) {
+    when (mode) {
+        case "basic-caller" -> lifeCancellation(trust, "basic", "caller")
+        case "bearer-total" -> lifeCancellation(trust, "bearer", "total")
+        case "digest-close" -> lifeCancellation(trust, "digest", "close")
+        case "failure-basic" -> lifeCallbackFailure(trust, "basic")
+        case "failure-bearer" -> lifeCallbackFailure(trust, "bearer")
+        case "failure-digest" -> lifeCallbackFailure(trust, "digest")
+        case "shared-cancel" -> lifeSharedCancellation(trust)
+        case "shared-refresh" -> lifeSharedRefresh(trust, false)
+        case "shared-refresh-clear" -> lifeSharedRefresh(trust, true)
+        case "clear-scopes" -> lifeClearScopes(trust)
+        case "source" -> lifeSourceCleanup(trust, false)
+        case "source-failure" -> lifeSourceCleanup(trust, true)
+        else -> throw IllegalArgumentException()
+    }
+}
+private fun report(error: Throwable) {
+    if (error is Exception) println(error.message ?: "no exception message")
+    if (error is ResourceUseException) { report(error.primaryFailure); report(error.cleanupFailure) }
+}
+fun main(args: Array<String>) {
+    try {
+        lifeCheck(args.size == 2L)
+        TrustStore.fromPem(rootPem()).use { trust ->
+            Thread.start { exercise(args[1L], trust) }.use { thread -> exercise(args[1L], trust); thread.join() }
+        }
+        println("proxy authentication lifetime " + args[1L])
+    } catch (error: Throwable) { report(error); throw error }
+}

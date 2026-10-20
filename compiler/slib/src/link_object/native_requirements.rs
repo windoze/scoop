@@ -116,7 +116,21 @@ fn verify_source_external_requirements_from_candidates_v1(
         .collect::<BTreeMap<_, _>>();
     let mut source_external_requirements = Vec::new();
     let mut remaining_external_candidates = Vec::new();
+    let scoop_prefix = native_requirements
+        .target()
+        .contract()
+        .native_symbol_normalization()
+        .compiler_generated_object_symbol("scoop$");
     for binding in candidates {
+        if binding.symbol().starts_with(scoop_prefix.as_bytes()) {
+            return Err(
+                SourceExternalRequirementValidationError::UnresolvedScoopSymbol {
+                    member: binding.source_member(),
+                    atom: binding.containing_atom(),
+                    symbol: binding.symbol().to_vec(),
+                },
+            );
+        }
         if let Some(requirement) = requirements.get(binding.symbol()) {
             if binding
                 .relocation_form()
@@ -151,8 +165,13 @@ fn verify_source_external_requirements_from_candidates_v1(
     })
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum SourceExternalRequirementValidationError {
+    UnresolvedScoopSymbol {
+        member: crate::SlibMemberId,
+        atom: scoop_identity::ObjectDefinitionAtomId,
+        symbol: Vec<u8>,
+    },
     TlsRelocationContractMismatch {
         contract: scoop_identity::NativeExternalContractFingerprint,
         form: VerifiedObjectRelocationFormV1,

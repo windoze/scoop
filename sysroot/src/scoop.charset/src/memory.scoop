@@ -1,0 +1,22 @@
+package scoop.charset
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.platform.memory.NativeByteBuffer
+
+internal fun transcodeCharset(data: List<Byte>, source: Charset, destination: Charset, options: CharsetTranscodeOptions): Array<Byte> {
+    return NativeByteBuffer.allocate(data.size).use { input ->
+        input.writeBytes(data)
+        NativeByteBuffer.allocate(4096L).use { output ->
+            CharsetTranscoder(source, destination, options).use { engine ->
+                val result = ByteArrayBuilder()
+                while (true) {
+                    output.clear()
+                    val step = engine.process(input, output, true)
+                    result.append(output.readBytes(step.produced))
+                    if (step.state == CharsetState.Finished) break
+                }
+                result.toByteArray()
+            }
+        }
+    }
+}

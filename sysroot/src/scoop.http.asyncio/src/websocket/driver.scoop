@@ -1,0 +1,34 @@
+package scoop.http.asyncio
+
+internal fun driveWs(state: WsState) {
+    val start = state.lock.withLock {
+        if (state.driving) false else { state.driving = true; true }
+    }
+    if (!start) return
+    while (true) {
+        val actions = ArrayList<() -> Unit>()
+        val again = state.lock.withLock {
+            var changed = false
+            if (!state.closed) {
+                if (state.closing) changed = advanceWsClose(state, actions)
+                else {
+                    try { changed = advanceWsInput(state, actions) }
+                    catch (error: Throwable) { failWsInput(state, error); changed = true }
+                    if (!state.closing) {
+                        try {
+                            changed = advanceWsShutdown(state, actions) || changed
+                            if (!state.closing) {
+                                changed = prepareWsOutput(state) || changed
+                                planWsTransfers(state, actions)
+                            }
+                        } catch (error: Throwable) { abortWs(state, Some(error)); changed = true }
+                    }
+                }
+            }
+            if (!changed && actions.size == 0L) state.driving = false
+            changed || actions.size != 0L
+        }
+        if (!again) return
+        for (action in actions) action()
+    }
+}

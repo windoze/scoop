@@ -1,0 +1,41 @@
+package scoop.compression.asyncio
+
+import scoop.asyncio.*
+import scoop.compression.*
+import scoop.platform.memory.NativeByteBuffer
+
+public class AsyncCompressionSource private constructor(private val stream: AsyncCompressionSourceImpl) : AsyncByteSource, AsyncCloseable {
+    public constructor(source: AsyncByteSource, options: CompressionOptions = CompressionOptions.Zstd(ZstdOptions()),
+        bufferSize: Long = 8192L) : this(AsyncCompressionSourceImpl(source, currentEventLoop(),
+            compressionIoResources(createCompressionEncoder(options), bufferSize, true), None)) {}
+
+    public companion object {
+        public fun <T> takeOwnership(source: T, options: CompressionOptions = CompressionOptions.Zstd(ZstdOptions()),
+            bufferSize: Long = 8192L): AsyncCompressionSource where T : AsyncByteSource, T : AsyncCloseable =
+            AsyncCompressionSource(AsyncCompressionSourceImpl(source, currentEventLoop(),
+                compressionIoResources(createCompressionEncoder(options), bufferSize, true), Some(source)))
+    }
+
+    public val totals: CompressionTotals get() = stream.totals
+    public val failure: Throwable? get() = stream.failure
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long = stream.readInto(buffer, count)
+    public override suspend fun close() { stream.close() }
+}
+
+public class AsyncDecompressionSource private constructor(private val stream: AsyncCompressionSourceImpl) : AsyncByteSource, AsyncCloseable {
+    public constructor(source: AsyncByteSource, options: DecompressionOptions = DecompressionOptions(),
+        bufferSize: Long = 8192L) : this(AsyncCompressionSourceImpl(source, currentEventLoop(),
+            compressionIoResources(createCompressionDecoder(options), bufferSize, false), None)) {}
+
+    public companion object {
+        public fun <T> takeOwnership(source: T, options: DecompressionOptions = DecompressionOptions(),
+            bufferSize: Long = 8192L): AsyncDecompressionSource where T : AsyncByteSource, T : AsyncCloseable =
+            AsyncDecompressionSource(AsyncCompressionSourceImpl(source, currentEventLoop(),
+                compressionIoResources(createCompressionDecoder(options), bufferSize, false), Some(source)))
+    }
+
+    public val totals: CompressionTotals get() = stream.totals
+    public val failure: Throwable? get() = stream.failure
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long = stream.readInto(buffer, count)
+    public override suspend fun close() { stream.close() }
+}

@@ -1,0 +1,79 @@
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.client.*
+import scoop.platform.io.UnexpectedEofException
+import scoop.test.*
+import scoop.time.Duration
+import scoop.tls.TlsTrustSource
+import scoop.url.Url
+
+internal fun observedWebSocket(trust: TrustStore, url: Url, opened: Boolean) {
+    val log = ObservationLog()
+    LibuvEventLoop().run suspend { _ ->
+        withHttpClient(observationConfig(trust, log)) suspend { client ->
+            val target = url.toBuilder().setScheme(Some("ws")).build()
+            client.withWebSocket(HttpWebSocketRequest(target)) suspend { result ->
+                when (result) {
+                    case Opened(session) -> {
+                        assertTrue(opened)
+                        assertEquals(1L, log.ofKind(HttpCallEventKind.Completed).size)
+                        assertTrue(observationPresent(session.metrics!!.finishedAt))
+                        assertEquals(Some(101U), session.metrics!!.status)
+                        val count = log.events.size
+                        assertEquals("observed", session.receive()!!.readText())
+                        session.shutdownGracefully()
+                        assertEquals(count, log.events.size)
+                        assertEquals(0L, session.metrics!!.responseBodyBytes)
+                    }
+                    case Rejected(response, _) -> {
+                        assertFalse(opened)
+                        assertEquals("denied", response.body.text(6L))
+                    }
+                }
+            }
+        }
+    }
+    val completed = log.ofKind(HttpCallEventKind.Completed)
+    assertEquals(1L, completed.size)
+    assertEquals(if (opened) 0L else 6L, completed[0L].metrics.responseBodyBytes)
+}
+
+internal fun observedSse(trust: TrustStore, url: Url) {
+    val log = ObservationLog()
+    LibuvEventLoop().run suspend { _ ->
+        withHttpClient(observationConfig(trust, log)) suspend { client ->
+            client.withSse(HttpRequest.get(url)) suspend { source ->
+                assertEquals("observed", source.next()!!.data)
+                assertFalse(observationPresent(source.next()))
+                assertTrue(source.isFinished)
+            }
+        }
+    }
+    val completed = log.ofKind(HttpCallEventKind.Completed)
+    assertEquals(1L, completed.size)
+    assertEquals("data: observed\n\n".toByteArray().size, completed[0L].metrics.responseBodyBytes)
+}
+
+internal fun observedWebSocketFailure(trust: TrustStore, url: Url, timeout: Boolean) {
+    val failure = UnexpectedEofException()
+    val observer = HttpObserver(suspend { event ->
+        if (event.kind == HttpCallEventKind.Completed && event.metrics.status == Some(101U)) {
+            if (timeout) suspendCancellableCoroutine<Unit> { _ -> } else throw failure
+        }
+    })
+    LibuvEventLoop().run suspend { _ ->
+        val config = HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)), observer = Some(observer),
+            retries = HttpRetryOptions(maxRetries = 2L))
+        withHttpClient(config) suspend { client ->
+            val options = HttpCallOptions(timeouts = if (timeout) Some(HttpTimeoutOptions(total = Some(Duration.seconds(2L)))) else None)
+            val request = HttpWebSocketRequest(url.toBuilder().setScheme(Some("ws")).build(), options = options)
+            val selected = observationFailure suspend { client.openWebSocket(request); Unit }
+            if (timeout) {
+                assertTrue(selected is HttpTimeoutException)
+                assertEquals(HttpTimeoutPhase.Total, (selected as HttpTimeoutException).phase)
+            } else assertSame(failure, selected)
+            ensureActive()
+            observationGet(client, url.resolve("/probe"), "probe")
+        }
+    }
+}

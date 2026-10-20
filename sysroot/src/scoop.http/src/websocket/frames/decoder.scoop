@@ -1,0 +1,82 @@
+package scoop.http
+
+import scoop.platform.memory.NativeByteBuffer
+
+public class WebSocketFrameDecoder public constructor(public val role: HttpRole, compressionEnabled: Boolean = false,
+    limits: WebSocketFrameLimits = WebSocketFrameLimits()) : Closeable {
+    private val state: WebSocketReadState = WebSocketReadState(role, compressionEnabled, limits)
+    private val busy: AtomicBoolean = AtomicBoolean(false)
+    private var closed: Boolean = false
+    private var error: Throwable? = None
+    public val isClosed: Boolean get() = closed
+    public val isFinished: Boolean get() = state.finished
+    public val hasCloseFrame: Boolean get() = state.hasCloseFrame
+    public val closeFrame: WebSocketClose? get() = state.closeFrame
+    public val failure: Throwable? get() = error
+
+    public fun receive(buffer: NativeByteBuffer, count: Long = buffer.readableBytes): Long = withUse {
+        requireOpen()
+        if (state.inputEnded) throw IllegalStateException(Some("WebSocket input has ended"))
+        if (count < 0L) throw IllegalArgumentException(Some("negative WebSocket input count"))
+        if (count > buffer.readableBytes) throw IndexOutOfBoundsException()
+        if (count == 0L) return@withUse 0L
+        try { state.pump() } catch (failure: Throwable) { fail(failure) }
+        if (state.hasPending) return@withUse 0L
+        @Unsafe {
+            val borrow = buffer.borrowReadable(count)
+            var consumed = 0L
+            try {
+                val pointer = borrow.pointer()!!
+                while (consumed < count && !state.hasPending) {
+                    val byte = pointer.load(consumed)
+                    consumed += 1L
+                    state.accept(byte)
+                }
+                state.flushData()
+                return@withUse consumed
+            } catch (failure: Throwable) { fail(failure) }
+            finally { borrow.complete(consumed) }
+        }
+    }
+
+    public fun nextEvent(): WebSocketFrameEvent? = withUse {
+        requireOpen()
+        try {
+            state.pump()
+            val result = state.pending
+            state.pending = None
+            when (result) { case Some(WebSocketFrameEvent.End) -> state.finished = true; else -> {} }
+            result
+        } catch (failure: Throwable) { fail(failure) }
+    }
+
+    public fun endInput() {
+        withUse {
+            requireOpen()
+            state.inputEnded = true
+            try { state.pump() } catch (failure: Throwable) { fail(failure) }
+            Unit
+        }
+    }
+
+    public override fun close() { withUse { if (!closed) { closed = true; state.close() }; Unit } }
+
+    private fun requireOpen() {
+        if (closed) throw IllegalStateException(Some("WebSocket frame decoder is closed"))
+        when (error) { case Some(_) -> throw IllegalStateException(Some("WebSocket frame decoder failed")); case None -> {} }
+    }
+
+    private fun fail(failure: Throwable): Nothing {
+        var result: Throwable = failure
+        if (failure is WebSocketFrameException && failure.byteOffset == None)
+            result = WebSocketFrameException(failure.closeCode, failure.detail, Some(state.position), failure.cause)
+        try { state.close() } catch (cleanup: Throwable) { result = ResourceUseException(result, cleanup) }
+        error = Some(result)
+        throw result
+    }
+
+    private fun <T> withUse(block: () -> T): T {
+        if (!busy.compareAndSet(false, true)) throw IllegalStateException(Some("WebSocket frame decoder is already in use"))
+        try { return block() } finally { busy.store(false) }
+    }
+}

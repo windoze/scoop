@@ -1,0 +1,48 @@
+package scoop.http.client
+
+import scoop.asyncio.AsyncByteSink
+import scoop.http.HttpVersion
+import scoop.platform.memory.NativeByteBuffer
+
+private class ClientUploadStoppedException : Exception(Some("final response stopped further request body output"))
+
+internal suspend fun sendClientBody(call: ClientCall, exchange: ClientExchange) {
+    var complete = false
+    try {
+        if (!awaitClientContinue(call)) return
+        val sink = RequestBodySink(ClientUploadSink(call, exchange), call.request.contentLength)
+        try {
+            call.lock.withLock { call.bodyStarted = true }
+            val result = call.request.body.writeWithTrailersTo(sink)
+            sink.finish()
+            try { exchange.finish(result.trailers) }
+            catch (error: Throwable) { recordClientUploadIoFailure(call, error, exchange.version == HttpVersion.Http2); throw error }
+            complete = true
+        } finally { sink.end() }
+    } catch (_: ClientUploadStoppedException) {
+    } catch (error: Throwable) {
+        val transport = call.lock.withLock { call.uploadIoFailure }
+        failClientCall(call, error, !clientPresent(transport) || !sameClientFailure(transport!!, error))
+    }
+    finally {
+        val finished = complete
+        call.lock.withLock { call.uploadDone = true; call.uploadComplete = finished }
+        wakeClientCall(call)
+    }
+}
+
+private class ClientUploadSink(val call: ClientCall, val destination: ClientExchange) : AsyncByteSink {
+    private fun requireSending() {
+        requireClientCall(call)
+        if (call.lock.withLock { call.stopUpload }) throw ClientUploadStoppedException()
+    }
+    public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long {
+        requireSending()
+        return sendClientBytes(call, destination, buffer, count)
+    }
+    public override suspend fun flush() {
+        requireSending()
+        try { destination.flush() }
+        catch (error: Throwable) { recordClientUploadIoFailure(call, error, destination.version == HttpVersion.Http2); throw error }
+    }
+}

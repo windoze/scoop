@@ -28,13 +28,11 @@ fn v2_type_data_preserves_descriptor_layout_and_registration_digests() {
         &fixture.object_bytes,
     )];
     let v1 = bind_type_registrations_v1(
-        fixture.verified_patch_sites(),
+        fixture.object_data(),
         fixture.type_registration_plan.clone(),
-    )
-    .unwrap();
-    let v2 = bind_type_registrations_v1(fixture.verified_patch_sites(), plans()).unwrap();
-    assert!(!v2.registrations().is_empty());
-    assert_eq!(v1.registrations(), v2.registrations());
+    );
+    let v2 = bind_type_registrations_v1(fixture.object_data(), plans());
+    assert!(!v2.plan().registrations().is_empty());
     let v1 = compute_strong_type_fingerprints_v1(v1, &fixture.canonical_shapes, &objects).unwrap();
     let v2 = compute_strong_type_fingerprints_v2(v2, &fixture.canonical_shapes, &objects).unwrap();
     assert_eq!(v1.fingerprints(), v2.fingerprints());

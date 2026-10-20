@@ -1,0 +1,24 @@
+import scoop.test.*
+import scoop.http.HttpException
+import scoop.text.toInt
+
+fun main(args: Array<String>) {
+    try {
+        if (args[1L] == "http1") {
+            http1StartProgress()
+            http1ReceiveTiming(false)
+            http1ReceiveTiming(true)
+            http1FailedHeaderTiming(false)
+            http1FailedHeaderTiming(true)
+        } else http2ReceiveTiming(args[2L].toInt(), args[1L] == "on")
+    } catch (error: AssertionFailure) {
+        eprintln(error.kind + " " + (error.message ?: "failure") + " at " + error.location.file + ":" + error.location.line.toString())
+        throw error
+    } catch (error: HttpException) {
+        eprintln(error.operation + " " + error.detail + " code=" + error.code.toString() + " stream=" + error.streamId.toString())
+        throw error
+    }
+    println("HTTP response timing case passed: " + args[1L])
+}
+
+internal fun <T> timingPresent(value: T?): Boolean = when (value) { case Some(_) -> true; case None -> false }

@@ -1,0 +1,107 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.collections.emptyList
+import scoop.http.*
+import scoop.platform.fs.*
+import scoop.platform.memory.NativeByteBuffer
+
+internal enum ClientResumeStep { Complete(HttpDownloadResult), Continue(ClientResumeRange), Restart }
+
+internal suspend fun prepareClientResume(download: ClientDownload, original: HttpRequest, destination: Path,
+    options: HttpDownloadOptions, resume: HttpResumeOptions): HttpDownloadResult {
+    val file = download.client.loop.openFile(resume.partialFile, OpenOptions(write = true, create = true))
+    val output = ClientDownloadFile(resume.partialFile, file, false)
+    download.output = Some(output)
+    download.resumeMetadata = Some(resume.metadataFile)
+    return output.useAsync suspend { owned ->
+        var range = selectClientResumeRange(original, owned.file.size(), resume)
+        while (true) {
+            download.requireActive()
+            val selected = range
+            val response = executeClientResumeRequest(download, clientResumeRequest(download.client.config, original, selected))
+            val step = response.useAsync suspend { value ->
+                consumeClientResume(download, original, destination, owned.file, value, selected, options, resume)
+            }
+            when (step) {
+                case Complete(result) -> {
+                    download.requireActive()
+                    if (options.syncOnCommit) owned.file.syncAll()
+                    download.requireActive()
+                    return@useAsync result
+                }
+                case Continue(next) -> range = Some(next)
+                case Restart -> range = None
+            }
+        }
+    }
+}
+
+private suspend fun consumeClientResume(download: ClientDownload, original: HttpRequest, destination: Path, file: AsyncFile,
+    response: HttpResponse, range: ClientResumeRange?, options: HttpDownloadOptions, resume: HttpResumeOptions): ClientResumeStep {
+    if (response.status == 200U) {
+        if (clientPresent(range) && resume.mismatch == HttpResumeMismatch.Fail)
+            throw HttpResumeException(HttpResumeFailureReason.RepresentationChanged, "server returned a full response to a range request", Some(response.head))
+        val record = clientResumeRecord(original, response)
+        val bytes = encodeClientResumeRecord(record, resume.maxMetadataBytes)
+        file.truncate(0L); file.seek(0L)
+        saveClientResumeRecord(bytes, resume, options.syncOnCommit)
+        val count = copyClientResumeSegment(download, response, file, options, 0L, record.length, 0L, None)
+        if (!clientPresent(record.length))
+            saveClientResumeRecord(encodeClientResumeRecord(record.withLength(count), resume.maxMetadataBytes), resume, options.syncOnCommit)
+        return ClientResumeStep.Complete(HttpDownloadResult(destination, response.url, response.head, response.trailers!!, count))
+    }
+    if (response.status == 206U) {
+        val selected = range ?: throw HttpResumeException(HttpResumeFailureReason.UnexpectedStatus,
+            "server returned a partial representation without a range request", Some(response.head))
+        val part = try { clientResumePartialRange(selected, response) }
+            catch (error: HttpResumeException) {
+                if (resume.mismatch == HttpResumeMismatch.Restart) return ClientResumeStep.Restart
+                throw error
+            }
+        val total = part.completeLength!!
+        val record = selected.record.withLength(total)
+        val bytes = encodeClientResumeRecord(record, resume.maxMetadataBytes)
+        file.seek(selected.offset)
+        saveClientResumeRecord(bytes, resume, options.syncOnCommit)
+        val count = copyClientResumeSegment(download, response, file, options, selected.offset,
+            Some(total), selected.resumed, Some(part.range!!.length))
+        if (count == total) return ClientResumeStep.Complete(
+            HttpDownloadResult(destination, response.url, response.head, response.trailers!!, count, selected.resumed))
+        return ClientResumeStep.Continue(ClientResumeRange(record, count, selected.resumed))
+    }
+    if (response.status == 416U && clientPresent(range)) {
+        if (!clientResumeAlreadyComplete(range!!, response)) {
+            if (resume.mismatch == HttpResumeMismatch.Restart) return ClientResumeStep.Restart
+            throw HttpResumeException(HttpResumeFailureReason.InvalidRange, "range failure does not prove a complete file", Some(response.head))
+        }
+        NativeByteBuffer.allocate(options.bufferSize).use suspend { buffer ->
+            while (true) { buffer.clear(); if (response.body.readInto(buffer, buffer.capacity) == 0L) break }
+        }
+        reportClientDownloadProgress(download, response, options, range!!.offset, Some(range!!.offset), range!!.resumed)
+        return ClientResumeStep.Complete(HttpDownloadResult(destination, response.url, response.head,
+            response.trailers ?: emptyList<HttpField>().toArray(), range!!.offset, range!!.resumed))
+    }
+    response.requireSuccess()
+    throw HttpResumeException(HttpResumeFailureReason.UnexpectedStatus, "resume needs a complete or validated partial representation", Some(response.head))
+}
+
+private suspend fun copyClientResumeSegment(download: ClientDownload, response: HttpResponse, file: AsyncFile,
+    options: HttpDownloadOptions, offset: Long, total: Long?, resumed: Long, expected: Long?): Long {
+    val integrity = clientResumeIntegrity(response.call)
+    try { return copyClientDownload(download, response, file, options, offset, total, resumed, expected) }
+    catch (error: Throwable) {
+        if (integrity && !response.body.isComplete) {
+            try { nonCancellableScope<Unit> suspend { _ -> file.truncate(offset); file.seek(offset) } }
+            catch (cleanup: Throwable) { throw ResourceUseException(error, cleanup) }
+        }
+        throw error
+    }
+}
+
+private fun clientResumeIntegrity(call: ClientCall): Boolean {
+    val origin = call.authentication.digestUse
+    val proxy = clientForwardProxyDigest(call)
+    return (clientPresent(origin) && origin!!.nonce.challenge.qop == Some("auth-int")) ||
+        (clientPresent(proxy) && proxy!!.nonce.challenge.qop == Some("auth-int"))
+}

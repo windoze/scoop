@@ -1,27 +1,21 @@
 use super::*;
 
 impl PreparedLayoutObjects {
-    pub(crate) fn verify_callable_metadata(
+    pub(crate) fn callable_metadata(
         &self,
-    ) -> Result<
-        (
-            slib::CallableRegistrationDataV1,
-            slib::SafepointRegistrationDataV1,
-        ),
-        BuiltinObjectProductionError,
-    > {
+    ) -> (
+        slib::CallableRegistrationDataV1,
+        slib::SafepointRegistrationDataV1,
+    ) {
         let callables = bind_callable_registrations_v1(
-            self.patch_sites.clone(),
+            self.builtins.clone(),
             self.production.callable_registrations().clone(),
-        )
-        .map_err(BuiltinObjectProductionError::CallableRegistrations)?;
+        );
         let safepoints = bind_safepoint_registrations_v1(
             self.stackmaps.clone(),
-            self.patch_sites.clone(),
             self.production.safepoint_registrations().clone(),
-        )
-        .map_err(BuiltinObjectProductionError::SafepointRegistrations)?;
-        Ok((callables, safepoints))
+        );
+        (callables, safepoints)
     }
 
     pub(crate) fn fingerprint_callable_objects(
@@ -43,11 +37,10 @@ impl PreparedLayoutObjects {
 pub(super) fn finalize(
     input: &PreparedLayoutObjects,
     undefined: &slib::FinalizedLayoutUndefinedSymbolRequirementPartitionsV1,
-) -> Result<slib::VerifiedStrongRegistrationPatchSetV2, BuiltinObjectProductionError> {
+) -> Result<slib::RegistrationObjectSetV2, BuiltinObjectProductionError> {
     let candidates = input.candidates();
     let production = &input.production;
-    let patches = &input.patch_sites;
-    let (callables, safepoints) = input.verify_callable_metadata()?;
+    let (callables, safepoints) = input.callable_metadata();
     let safepoints = compute_strong_safepoint_fingerprints_v1(safepoints)
         .map_err(BuiltinObjectProductionError::SafepointFingerprints)?;
 
@@ -58,9 +51,10 @@ pub(super) fn finalize(
     )
     .map_err(BuiltinObjectProductionError::CallableFingerprints)?;
 
-    let types =
-        slib::bind_type_registrations_v1(patches.clone(), production.type_registrations().clone())
-            .map_err(BuiltinObjectProductionError::TypeRegistrations)?;
+    let types = slib::bind_type_registrations_v1(
+        input.builtins.clone(),
+        production.type_registrations().clone(),
+    );
     let types = slib::compute_strong_type_fingerprints_v2(
         types,
         production.canonical_shape_definitions(),
@@ -74,11 +68,7 @@ pub(super) fn finalize(
     )
     .map_err(BuiltinObjectProductionError::ImmortalObjectFingerprints)?;
 
-    let storages = bind_static_storage_registrations_v1(
-        patches,
-        production.static_storage_registrations().clone(),
-    )
-    .map_err(BuiltinObjectProductionError::StaticStorageRegistrations)?;
+    let storages = production.static_storage_registrations().clone();
     let storages = compute_strong_static_storage_shape_fingerprints_v1(storages)
         .map_err(BuiltinObjectProductionError::StaticStorageShapeFingerprints)?;
     let storages = compute_strong_static_storage_fingerprints_v1(
@@ -87,11 +77,7 @@ pub(super) fn finalize(
     )
     .map_err(BuiltinObjectProductionError::StaticStorageFingerprints)?;
 
-    let initializations = slib::bind_initialization_registrations_v1(
-        patches,
-        production.initialization_registrations().clone(),
-    )
-    .map_err(BuiltinObjectProductionError::InitializationRegistrations)?;
+    let initializations = production.initialization_registrations().clone();
     let initializations = slib::compute_strong_initialization_fingerprints_v2(
         initializations,
         callables.body_objects(),
@@ -99,7 +85,7 @@ pub(super) fn finalize(
     )
     .map_err(BuiltinObjectProductionError::InitializationFingerprints)?;
 
-    slib::patch_strong_registration_fingerprints_v2(
+    slib::collect_registration_objects_v2(
         safepoints,
         callables,
         types,
@@ -108,5 +94,5 @@ pub(super) fn finalize(
         initializations,
         &candidates,
     )
-    .map_err(BuiltinObjectProductionError::RegistrationPatch)
+    .map_err(BuiltinObjectProductionError::RegistrationObjects)
 }

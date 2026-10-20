@@ -49,15 +49,6 @@ pub(in crate::production) fn attach_image(
         .iter_mut()
         .find(|node| node.id() == image.id())
         .unwrap();
-    *current = DigestNodeV1::new(
-        *image.key(),
-        current.direct_inputs().to_vec(),
-        image
-            .patch_intents()
-            .iter()
-            .map(|patch| *patch.key())
-            .collect(),
-    )
-    .unwrap();
+    *current = DigestNodeV1::new(*image.key(), current.direct_inputs().to_vec()).unwrap();
     *digests = DigestFinalizationPlanV1::new(nodes, foundation).unwrap();
 }

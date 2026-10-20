@@ -1,11 +1,10 @@
 use la_arena::Arena;
 use scoop_identity::{
     CanonicalIdentifier, CborIdentityRecord, ConeIdentity, DeclarationScope, DefinitionAtomRole,
-    DefinitionAtomSubkey, DefinitionOwnerChain, DigestNodeId, DigestNodeKey, DigestPatchIntentKey,
-    DigestSemanticFieldRole, ExactTypeKey, ImmortalObjectKey, ImmortalObjectOwner, LayoutKey,
-    LinkageClass, ObjectDefinitionAtomId, ObjectDefinitionAtomKey, ObjectDefinitionPlanId,
-    ObjectDefinitionPlanKey, PackagePath, PersistentExactTypeId, PersistentFunctionId,
-    PersistentImmortalObjectId, PersistentLayoutId, PersistentPropertyId,
+    DefinitionAtomSubkey, DefinitionOwnerChain, DigestNodeKey, ExactTypeKey, ImmortalObjectKey,
+    ImmortalObjectOwner, LayoutKey, LinkageClass, ObjectDefinitionAtomId, ObjectDefinitionAtomKey,
+    ObjectDefinitionPlanId, ObjectDefinitionPlanKey, PackagePath, PersistentExactTypeId,
+    PersistentFunctionId, PersistentImmortalObjectId, PersistentLayoutId, PersistentPropertyId,
     PersistentSafepointSiteId, PersistentScanId, PersistentStaticStorageId, PersistentSymbolKey,
     PersistentSymbolRequest, PersistentSymbolRequestTable, PersistentTypeId, PropertyOwner,
     RepresentationRole, ScanKey, SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
@@ -68,7 +67,6 @@ pub(crate) fn inputs() -> SemanticInputs {
         &foundation,
         body.id(),
         &registrations,
-        &callable_registration,
         &type_registration,
         &static_storage,
     );
@@ -157,7 +155,6 @@ fn digest_plan(
     foundation: &ConeLirFoundation,
     body: scoop_identity::PersistentCallableBodyId,
     registrations: &[RegistrationArtifacts],
-    callable_registration: &CallableRegistrationArtifacts,
     type_registration: &TypeRegistrationArtifacts,
     static_storage: &StaticStorageArtifacts,
 ) -> DigestFinalizationPlanV1 {
@@ -166,18 +163,8 @@ fn digest_plan(
     let mut body_inputs = Vec::new();
     for registration in registrations {
         let stackmap_key = DigestNodeKey::stackmap_record(registration.site);
-        let stackmap_source = DigestNodeId::from_key(&stackmap_key).unwrap();
-        let stackmap = DigestNodeV1::new(
-            stackmap_key,
-            Vec::new(),
-            vec![DigestPatchIntentKey::new(
-                stackmap_source,
-                registration.plan.id(),
-                DefinitionAtomRole::Primary,
-                DigestSemanticFieldRole::NormalizedStackmap,
-            )],
-        )
-        .unwrap();
+
+        let stackmap = DigestNodeV1::new(stackmap_key, Vec::new()).unwrap();
         body_inputs.push(DigestInputRefV1::from_node(&stackmap));
         image_inputs.push(DigestInputRefV1::from_node(&stackmap));
         nodes.push(stackmap);
@@ -190,48 +177,18 @@ fn digest_plan(
     ))
     .unwrap();
     let body_key = DigestNodeKey::object_definition(body_primary);
-    let body_source = DigestNodeId::from_key(&body_key).unwrap();
-    let body_node = DigestNodeV1::new(
-        body_key,
-        body_inputs,
-        vec![DigestPatchIntentKey::new(
-            body_source,
-            callable_registration.plan.id(),
-            DefinitionAtomRole::Primary,
-            DigestSemanticFieldRole::CallableBodyDefinition,
-        )],
-    )
-    .unwrap();
+
+    let body_node = DigestNodeV1::new(body_key, body_inputs).unwrap();
     image_inputs.push(DigestInputRefV1::from_node(&body_node));
     nodes.push(body_node);
 
     let descriptor_key =
         DigestNodeKey::object_definition(type_registration.descriptor_primary.id());
-    let descriptor_source = DigestNodeId::from_key(&descriptor_key).unwrap();
-    let descriptor = DigestNodeV1::new(
-        descriptor_key,
-        Vec::new(),
-        vec![DigestPatchIntentKey::new(
-            descriptor_source,
-            type_registration.registration_plan.id(),
-            DefinitionAtomRole::Primary,
-            DigestSemanticFieldRole::DescriptorDefinition,
-        )],
-    )
-    .unwrap();
+
+    let descriptor = DigestNodeV1::new(descriptor_key, Vec::new()).unwrap();
     let layout_key = DigestNodeKey::layout(type_registration.layout.id());
-    let layout_source = DigestNodeId::from_key(&layout_key).unwrap();
-    let layout = DigestNodeV1::new(
-        layout_key,
-        Vec::new(),
-        vec![DigestPatchIntentKey::new(
-            layout_source,
-            type_registration.registration_plan.id(),
-            DefinitionAtomRole::Primary,
-            DigestSemanticFieldRole::Layout,
-        )],
-    )
-    .unwrap();
+
+    let layout = DigestNodeV1::new(layout_key, Vec::new()).unwrap();
     image_inputs.extend([
         DigestInputRefV1::from_node(&descriptor),
         DigestInputRefV1::from_node(&layout),
@@ -239,31 +196,11 @@ fn digest_plan(
     nodes.extend([descriptor, layout]);
 
     let static_layout_key = DigestNodeKey::layout(static_storage.layout.id());
-    let static_layout_source = DigestNodeId::from_key(&static_layout_key).unwrap();
-    let static_layout = DigestNodeV1::new(
-        static_layout_key,
-        Vec::new(),
-        vec![DigestPatchIntentKey::new(
-            static_layout_source,
-            static_storage.registration_plan.id(),
-            DefinitionAtomRole::Primary,
-            DigestSemanticFieldRole::Layout,
-        )],
-    )
-    .unwrap();
+
+    let static_layout = DigestNodeV1::new(static_layout_key, Vec::new()).unwrap();
     let static_scan_key = DigestNodeKey::scan(static_storage.scan.id());
-    let static_scan_source = DigestNodeId::from_key(&static_scan_key).unwrap();
-    let static_scan = DigestNodeV1::new(
-        static_scan_key,
-        Vec::new(),
-        vec![DigestPatchIntentKey::new(
-            static_scan_source,
-            static_storage.registration_plan.id(),
-            DefinitionAtomRole::Primary,
-            DigestSemanticFieldRole::Scan,
-        )],
-    )
-    .unwrap();
+
+    let static_scan = DigestNodeV1::new(static_scan_key, Vec::new()).unwrap();
     image_inputs.extend([
         DigestInputRefV1::from_node(&static_layout),
         DigestInputRefV1::from_node(&static_scan),
@@ -273,7 +210,6 @@ fn digest_plan(
         DigestNodeV1::new(
             DigestNodeKey::runtime_image(foundation.producer()),
             image_inputs,
-            Vec::new(),
         )
         .unwrap(),
     );

@@ -1,0 +1,40 @@
+package scoop.charset
+
+import scoop.bytes.ByteOrder
+
+public enum CharsetBomPolicy { Consume, Preserve, Require }
+public enum CharsetErrorAction { Strict, Replace }
+public enum CharsetState { NeedInput, NeedOutput, Finished }
+
+public class CharsetDecodeOptions public constructor(
+    public val bom: CharsetBomPolicy = CharsetBomPolicy.Consume,
+    public val defaultByteOrder: ByteOrder? = None
+)
+
+public class CharsetEncodeOptions public constructor(
+    public val emitBom: Boolean = false,
+    public val byteOrder: ByteOrder? = None
+)
+
+public class CharsetTranscodeOptions public constructor(
+    public val decode: CharsetDecodeOptions = CharsetDecodeOptions(),
+    public val encode: CharsetEncodeOptions = CharsetEncodeOptions(),
+    public val malformedInput: CharsetErrorAction = CharsetErrorAction.Strict,
+    public val unmappableOutput: CharsetErrorAction = CharsetErrorAction.Strict
+)
+
+public struct CharsetStep(val consumed: Long, val produced: Long, val state: CharsetState)
+
+internal fun charsetOptions(options: CharsetTranscodeOptions): NativeCharsetOptions = NativeCharsetOptions(
+    when (options.decode.bom) { case Consume -> 0; case Preserve -> 1; case Require -> 2 },
+    charsetOrder(options.decode.defaultByteOrder), charsetOrder(options.encode.byteOrder),
+    if (options.encode.emitBom) 1 else 0,
+    if (options.malformedInput == CharsetErrorAction.Replace) 1 else 0,
+    if (options.unmappableOutput == CharsetErrorAction.Replace) 1 else 0
+)
+
+private fun charsetOrder(order: ByteOrder?): Int = when (order) {
+    case None -> 0
+    case Some(ByteOrder.BigEndian) -> 1
+    case Some(ByteOrder.LittleEndian) -> 2
+}

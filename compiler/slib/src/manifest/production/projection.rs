@@ -16,12 +16,12 @@ where
     C: Clone,
 {
     let final_objects = link_objects.final_objects();
-    let runtime_image = final_objects.runtime_images().fingerprint();
+    let runtime_image = final_objects.runtime_image();
     let registrations = runtime_image.registrations();
 
     let distribution = link_distribution(cone, dependency_identities)?;
     let output = output(final_objects)?;
-    let odr_members = CanonicalOdrMemberDirectoryV1::from_patch_set(registrations)
+    let odr_members = CanonicalOdrMemberDirectoryV1::from_registrations(registrations)
         .map_err(ProductionCodeProjectionError::OdrMembers)?;
     let projection = SingleConeProductionCodeProjectionV1 {
         distribution,
@@ -75,7 +75,7 @@ fn link_distribution(
 }
 
 fn output<D, C, I>(
-    final_objects: &crate::link_object::VerifiedEntryPatchSetV1<D, C, I>,
+    final_objects: &crate::link_object::FinalRuntimeObjectsV1<D, C, I>,
 ) -> Result<SingleConeProductionOutputV1, ProductionCodeProjectionError>
 where
     D: scoop_lir::StrongDescriptorReference,
@@ -86,8 +86,7 @@ where
         EntryProductionBranchV1::Executable(entry) => {
             let plan = entry.plan();
             let gateway = final_objects
-                .runtime_images()
-                .fingerprint()
+                .runtime_image()
                 .registrations()
                 .callables()
                 .fingerprints()

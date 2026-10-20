@@ -1,0 +1,5 @@
+package scoop.http
+
+public enum Http2OutputKind { Control, Headers, Data }
+
+public struct Http2OutputChunk(val count: Long, val streamId: Int, val kind: Http2OutputKind)

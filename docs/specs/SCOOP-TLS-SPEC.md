@@ -1,22 +1,22 @@
 # Scoop TLS 库规范
 
-版本：M51。实现状态见 [M51 进度](../milestone51/PROGRESS.md)。本规范与[密码库规范](SCOOP-CRYPTO-SPEC.md)共同规定三个普通库的边界。
+版本：M51 已实施基线，含第 8 节的 M54 扩展。既有实现状态见 [M51 进度](../milestone51/PROGRESS.md)，新增范围与实施状态见 [M54 设计](../milestone54/DESIGN.md)及[进度](../milestone54/PROGRESS.md)。本规范与[密码库规范](SCOOP-CRYPTO-SPEC.md)共同规定三个普通库的边界。
 
 ## 1. 分层
 
 `scoop:scoop.tls:0.1.0` 提供配置、公共协议引擎和同步流，依赖 crypto、platform 和实际使用的基础库，链接同一目标 OpenSSL libssl；不依赖 asyncio／libuv。`scoop:scoop.tls.asyncio:0.1.0` 依赖 TLS 和 asyncio，复用公共引擎与平台 NativeByteBuffer／NativeByteBorrow，不重复编译后端。
 
-不提供 HTTP／DTLS／QUIC、客户端证书认证、自动重连、会话恢复 API、0-RTT、动态 SNI 或用户证书验证 callback，不新增 runtime ABI。C 仅管理 SSL_CTX、SSL、有限 BIO pair 和自有配置，不访问 runtime 私有头、不保存 managed 引用、不恢复 continuation。
+不提供 HTTP／DTLS／QUIC、自动重连、会话恢复 API、0-RTT、动态 SNI 或用户证书验证 callback，不新增 runtime ABI。客户端证书身份与系统信任按第 8 节在 M54 补齐。C 仅管理 SSL_CTX、SSL、有限 BIO pair、自有配置及必要的平台信任工作，不访问 runtime 私有头、不保存 managed 引用、不恢复 continuation。
 
 ## 2. 配置与身份
 
-TlsClientContext 显式接收 crypto TrustStore；TlsServerContext 接收 Certificate 链和 PrivateKey，创建时检查证书／私钥匹配并保留 native 引用。配置创建后不可变，允许多个连接共享；上下文实现 Closeable，close 后禁止新会话，已有 SSL 保留必要引用。单个对象关闭不执行 OPENSSL_cleanup。
+M51 的 TlsClientContext 显式接收 crypto TrustStore，M54 的系统来源工厂与可选客户端身份见第 8 节；TlsServerContext 接收 Certificate 链和 PrivateKey，创建时检查证书／私钥匹配并保留 native 引用。配置创建后不可变，允许多个连接共享；上下文实现 Closeable，close 后禁止新会话，已有 SSL 保留必要引用。单个对象关闭不执行 OPENSSL_cleanup。
 
 客户端必须提供 TlsPeerName，DNS 与 IP 分开。DNS 非空、无 NUL、ASCII／A-label，分别设置 SNI 和主机名验证；IP 使用 4／16 字节 SAN 验证，不设置 DNS SNI。默认验证信任链、时间、用途和目标名称，没有跳过验证的高层开关。身份不从实际连接地址推导。TLS 不预先重复执行一次完整 crypto 链验证。
 
 默认 TLS 1.2～1.3，允许显式限定为其中一个版本；使用上游正常密码配置。ALPN 为独立协议字节串列表，每项 1～255 字节，总编码长度至多 65535；服务端按自身顺序选共同项。双方配置 ALPN 而无共同项时报握手错误，未协商返回 None。协商信息提供实际 TLS 版本与可选 ALPN。
 
-`TlsVersion { Tls12, Tls13 }`，`TlsOptions(minimum = Tls12, maximum = Tls13, alpn = 空列表)`。上下文构造为 `TlsClientContext(trustStore, options)` 和 `TlsServerContext(certificates, privateKey, options)`；certificates 非空，顺序为叶证书、其后发送的中间证书，根无需发送。`TlsPeerName { Dns(String), Ip(IpAddress) }` 在 TLS 层将 platform 的地址转成 crypto 的内存身份。`TlsConnectionInfo(version, alpn)` 返回协商数据的独立副本。
+`TlsVersion { Tls12, Tls13 }`，`TlsOptions(minimum = Tls12, maximum = Tls13, alpn = 空列表)`。上下文构造为 `TlsClientContext(trustStore, options, identity = None)` 和 `TlsServerContext(certificates, privateKey, options)`；certificates 非空，顺序为叶证书、其后发送的中间证书，根无需发送。`TlsPeerName { Dns(String), Ip(IpAddress) }` 在 TLS 层将 platform 的地址转成 crypto 的内存身份。`TlsConnectionInfo(version, alpn)` 返回协商数据的独立副本。
 
 ## 3. 所有权与引擎
 
@@ -24,7 +24,7 @@ TlsClientContext 显式接收 crypto TrustStore；TlsServerContext 接收 Certif
 
 每个会话使用固定容量 BIO pair 和独立密文 staging buffer，不使用 SSL_set_fd 或 socket BIO。`scoop.tls.native` 提供有限同步握手、明文读写、shutdown、密文输入输出步骤。结果包含进度、WANT_READ／WANT_WRITE、close_notify 或已复制的错误。
 
-公开 `TlsEngine.client(context, peer)`／`server(context)` 创建显式 Closeable 会话。handshake、read、write、shutdown 返回 `TlsStep(kind, count)`，kind 为 Done／WantRead／WantWrite／Closed；read／write 使用 Unsafe NativeByteBorrow，调用者负责串行与借用有效期。receiveCiphertext／takeCiphertext 消费／填充 NativeByteBuffer 的实际前缀；inputCapacity、pendingOutput 为 BIO 当前可写／可读量，endInput 标记传输 EOF。connectionInfo 仅在完成握手后使用。引擎不执行传输，不保留临时 managed 数据地址。适配器使用的明文前缀上限为 16384 字节，内部 BIO 容量不属于 ABI。
+公开 `TlsEngine.client(context, peer)`／`server(context)` 创建显式 Closeable 会话。handshake、read、write、shutdown 返回 `TlsStep(kind, count)`，M51 的 kind 为 Done／WantRead／WantWrite／Closed，M54 为系统验证增加第 8.3 节的 WantVerification；read／write 使用 Unsafe NativeByteBorrow，调用者负责串行与借用有效期。receiveCiphertext／takeCiphertext 消费／填充 NativeByteBuffer 的实际前缀；inputCapacity、pendingOutput 为 BIO 当前可写／可读量，endInput 标记传输 EOF。connectionInfo 仅在完成握手后使用。引擎不执行传输，不保留临时 managed 数据地址。适配器使用的明文前缀上限为 16384 字节，内部 BIO 容量不属于 ABI。
 
 `TlsException` 保存 operation、kind、OpenSSL code、verifyCode、systemError 和 detail；`TlsFailureKind` 区分 Configuration、Verification、Protocol、Truncated、UnconsumedData。错误数据在同次 C 调用中复制；底层 I/O 异常仍按原类型传播。
 
@@ -65,3 +65,55 @@ shutdownGracefully 独占读写方向，排出已接受输出，发出并等待�
 ## 7. 验证
 
 各 Cone 的 scoop.test 与生产外部消费者覆盖算法、身份、TLS 1.2／1.3、ALPN、短传输、背压、双向并发、取消、关闭、moving GC 和独立 OpenSSL 对端。使用 loopback 动态端口、明确同步点和测试 CA，不依赖公网或系统信任。三个目标分别运行 debug／release／moving GC，不能以静态发射代替 Linux 运行；完整要求见 M51 设计第 12 节。
+
+## 8. M54 身份与系统信任
+
+### 8.1 客户端身份
+
+提供不可变配置 `TlsIdentity(certificates: List<Certificate>, privateKey: PrivateKey)`，证书链非空，按叶证书到中间证书排序。创建时检查叶证书／私钥匹配，独立保留每张证书和私钥的 native 引用，实现 Closeable；显式关闭原 Certificate／PrivateKey wrapper 不使 identity 失效。isClosed 查询关闭状态，close 幂等；关闭后的身份不能配置新上下文。构造期间输入 wrapper 仍须有效，不允许其他使用者并发关闭它们。
+
+`leafCertificateSha256: Array<Byte>` 返回配置的本地叶证书 DER 的 SHA-256 摘要。构造时使用 crypto 计算并保存独立不可变快照，关闭原 Certificate／PrivateKey 或 identity 后仍可读取；同一叶证书具有相同摘要，中间证书链的改变不改变它。上层私有缓存可用它区分本地客户端身份；该属性不查询对端证书、不包含私钥，也不增加连接检查或证书固定功能。
+
+`TlsIdentity.fromPem(certificates: String, privateKey: String)` 调用 crypto 的完整 bundle 与私钥 parser，在所有出口释放临时 wrapper。空链抛 IllegalArgumentException，已关闭输入抛 IllegalStateException，PEM 解析保留 CryptoException，证书／私钥不匹配以 TlsFailureKind.Configuration 报告；不通过导出／重新解析 PEM 来取得输入的所有权。
+
+TlsClientContext 的最后一个可选参数为 identity，默认 None，旧的 `TlsClientContext(trustStore, options)` 调用仍合法。向 SSL_CTX 配置身份时取得独立 native 引用，因此 identity 关闭不影响已创建上下文，上下文关闭也不影响已有 SSL。身份的配置／关闭使用短临界区，不在其中执行 I/O 或用户代码。服务端原构造入口使用同一身份检查与 OpenSSL 配置路径，不增加另一套证书链复制实现。对端请求证书时按 TLS 协议发送配置的身份，不动态执行用户选择 callback。
+
+客户端身份只影响本地配置与发送，服务端证书链、用途和 URL 名称验证继续执行。不同 identity 的连接不得在上层误用同一池键。mTLS 不扩展为证书固定、对端证书链查询或 TLS session 管理接口。
+
+### 8.2 信任来源
+
+引入 `TlsTrustSource { System, Store(TrustStore) }`；显式 Store 沿用 M51 的 OpenSSL 验证。CA 文件便利入口读取字节后调用 crypto 的 TrustStore.fromPem；同步入口在 TLS，异步入口在 TLS asyncio，后者使用 AsyncFile。System 不代表跳过验证或使用空 TrustStore。
+
+显式文件入口为同步的 `TlsClientContext.fromCaFile(path: Path, options = TlsOptions(), identity = None)`，以及 `scoop.tls.asyncio.openTlsClientContext(caFile: Path, options = TlsOptions(), identity = None)`。两者读取完整 UTF-8 PEM bundle、关闭文件，构造临时 TrustStore 后由上下文保留 native 引用，再释放临时 store；不混入系统根。异步入口使用当前 EventLoop.openFile、AsyncByteSource.readAllBytes 和 useAsync，打开／读取／关闭均可挂起，取消沿文件操作的真实收尾合同完成。
+
+文件 I/O、UTF-8 解码与 PEM 解析保留原错误类型；空文件或含坏尾部的 bundle 失败，不交付部分信任上下文。options 与可选 identity 遵守普通上下文构造合同，identity 在工厂返回前须保持有效。读取失败不关闭借入的身份；成功后改变 CA 文件或关闭身份不影响已创建上下文。系统来源工厂仍按下文独立实现。
+
+Linux 的 System 装载目标运行环境的系统 CA 配置，保留加载失败、权限和格式错误；路径属于平台集成数据，不能使用构建机前缀或打包机证书。Darwin 的 System 使用系统信任验证，尊重系统／管理员／用户的 TLS 信任设置，不能将导出的根证书列表宣称为完整等价的系统政策。默认禁止验证过程触发额外 AIA／OCSP／CRL 网络获取，与现有离线验证边界一致。
+
+系统信任集成和平台 native 链验证属于 scoop.tls。Darwin 通过目标条件链接 Security／CoreFoundation；Linux 继续使用目标 OpenSSL 和实际 CA 数据。普通 platform 只提供所需文件／OS 原语，不依赖 crypto，crypto 保持内存库。系统策略失败统一保存 TlsFailureKind.Verification 与实际平台原因，不能自动改用另一套更宽松验证。
+
+System 的配置装载提供同步与 suspend 工厂；`scoop.tls.asyncio.openTlsClientContext(trust, options, identity)` 通过 asyncio 的 native work 等待可能阻塞的系统操作。所有输入先保留 native 副本／引用，worker 不访问 managed 对象；取消后关闭未交付上下文，不能在 web client 的 EventLoop 线程直接读取系统 keychain 或同步 CA 文件。
+
+同步入口为 `TlsClientContext(trust: TlsTrustSource = TlsTrustSource.System, options = TlsOptions(), identity = None)`；原 TrustStore 构造重载保留。异步工厂的 trust 默认同样为 System，Store 路径只做内存配置。两条 System 路径先建立未发布的上下文并保留身份，再执行相同的原生装载工作，成功才交付；装载错误为 Configuration，保留原生原因及系统错误码。
+
+Linux 使用 SSL_CERT_FILE 和 SSL_CERT_DIR 的运行时设置，后者是冒号分隔的证书目录；显式空值禁用对应来源，显式指定的非空路径失败不回退。未设置文件变量时依次检查 /etc/ssl/certs/ca-certificates.crt、/etc/pki/tls/certs/ca-bundle.crt、/etc/ssl/ca-bundle.pem、/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem、/etc/ssl/cert.pem，使用首个存在的文件；只跳过不存在的默认候选。未设置目录变量时检查 /etc/ssl/certs、/etc/pki/tls/certs，使用存在的目录。文件按 OpenSSL 的系统 CA bundle 格式装载，目录选择其小写八位十六进制哈希加十进制序号的证书文件名（如 0123abcd.0），通过同一 PEM 装载器建立快照；其他目录项不作为 CA 输入。装载工作完成时必须含至少一张证书，空来源失败。
+
+目录快照在工厂的同步调用或 native worker 中读完，保留实际目录遍历、证书读取／权限和 PEM 格式错误；不使用会吞掉读取错误的延迟哈希查找。上下文创建后的 Linux CA 文件变化通过创建新上下文生效，握手不再读取原目录。此处不调用带构建前缀的 OpenSSL default-path 装载。
+
+### 8.3 验证等待与共同引擎
+
+需要系统异步验证时，公共引擎增加明确的 WantVerification 步骤，利用 OpenSSL client 的 retry-verify 机制暂停握手。TLS 层建立拥有证书链与策略输入的验证工作，取得完成结果后继续同一握手；不在 native certificate callback 内 suspend，不从 worker 恢复 Scoop continuation。
+
+同步适配执行并等待同一验证工作，异步适配通过 asyncio native work 挂起。共同引擎、输入／输出背压和 SSL 重试规则保持一致，验证工作存活期间持有必需 native 引用。此工作仅供 TLS 适配组合，不作为新的用户证书 callback、证书链检查或信任插件 API。
+
+每条验证路径只运行其真正负责的信任链检查；OpenSSL 仍检查握手和证书持有证明，系统策略路径不再机械重跑一次等价的全链验证。DNS／IP 名称、时间与用途是必要验证输入，不能因切换后端遗漏。系统失败、关闭或取消后等待验证工作结束才释放其引用；M51 的 TLS 单操作取消关闭整条 TLS 连接的合同保持不变。
+
+WantVerification 期间，适配器从 TlsEngine 取走唯一的待执行工作，工作拥有独立的叶证书、未信任链、验证参数与信任来源引用；worker 不访问原 SSL。同步执行或 NativeWork 正常完成后，适配器在原引擎的串行区内移交结果，再重试原操作。取消／关闭时丢弃结果并释放工作，等实际工作返回后才释放 SSL。异步连接记录 verificationBusy，沿用既有请求 Job 和 startCoroutine，不增加逐步骤 Job。
+
+`scoop.tls.native` 的装载／验证工作接口只用于库适配：准备与取走操作交付一个稳定 native 指针，执行／释放入口由真正的 C 函数指针提供，结果读取或向引擎移交只能在执行结束后发生，每份工作由调用方恰好释放一次。它们均受 Unsafe 合同约束；不允许和 SSL 步骤并发移交结果，不允许指针或错误结果重复消费。Darwin 以 SecPolicyCreateSSL 的服务端用途及 DNS／IP 名称创建 SecTrust，显式关闭网络获取；失败保留 SecTrust 的实际错误码与描述，TLS 不再对同一链调用 X509_verify_cert。
+
+### 8.4 验证
+
+使用独立 OpenSSL mTLS 对端验证合法身份、缺少身份、错误私钥／链、服务器拒绝、共享配置关闭和取消。显式 CA 文件覆盖多证书、非法 bundle 与读取失败。系统信任测试在各目标验证装载／验证路径，并以隔离测试信任配置覆盖成功、拒绝和名称不符，不修改开发机真实系统信任设置，不以依赖公网站点作为成功条件。
+
+补充验证工作暂停／恢复、运行中取消、迟到成功、系统错误与 moving GC。再组合 HTTPS／H2：一个请求取消只 reset HTTP 流，不能取消连接 owner 的 TLS read／write。上述检查独立于 M51 已完成记录。

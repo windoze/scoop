@@ -1,0 +1,35 @@
+import scoop.crypto.testdata.*
+import scoop.platform.fs.*
+import scoop.platform.io.*
+import scoop.platform.process.*
+import scoop.platform.system.OsString
+import scoop.text.toInt
+import scoop.tls.TlsVersion
+import scoop.tls.identityPeerScript
+import scoop.tls.testnative.systemCertificatePem
+
+fun withPeer(version: TlsVersion, block: (Int) -> Unit) {
+    val directory = createTempDirectory(prefix = "scoop-system-peer-")
+    try {
+        val chain = directory.resolve(Path.fromString("server.pem"))
+        val key = directory.resolve(Path.fromString("key.pem"))
+        val root = directory.resolve(Path.fromString("root.pem"))
+        val expected = directory.resolve(Path.fromString("client.pem"))
+        chain.writeText(systemCertificatePem())
+        key.writeText(serverKeyPem())
+        root.writeText(rootPem())
+        expected.writeText(clientPem())
+        val arguments: Array<String> = ["-u", "-c", identityPeerScript(300), chain.decodeUtf8(), key.decodeUtf8(),
+            root.decodeUtf8(), expected.decodeUtf8(), if (version == TlsVersion.Tls12) "12" else "13", "accept"]
+        val child = Command(Path.fromString("python3"),
+            Array<OsString>(arguments.size) { index -> OsString.fromString(arguments[index]) },
+            stdin = Stdio.Null, stdout = Stdio.Pipe, stderr = Stdio.Pipe).spawn(searchPath = true)
+        try {
+            block(child.stdout!!.readLine()!!.toInt())
+            val output = child.communicate()
+            val succeeded = when (output.status) { case Exited(code) -> code == 0; case Signaled(_) -> false }
+            if (!succeeded) throw IllegalStateException(Some(OsString.fromByteArray(output.stderr).decodeUtf8()))
+            check(String.fromUtf8(output.stdout) == "accepted\n")
+        } finally { child.kill(); child.wait(); child.dispose() }
+    } finally { directory.deleteRecursively() }
+}

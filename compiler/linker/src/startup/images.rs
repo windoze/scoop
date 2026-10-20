@@ -10,14 +10,13 @@ typedef struct ScoopImageDescriptorV1 {
     uint64_t magic;
     uint32_t abi_version, struct_size;
     ScoopByteSpanV1 coordinate[3];
-    uint8_t cone[32], runtime_image_fingerprint[32];
+    uint8_t cone[32];
     const uint8_t (*dependencies)[32];
     uint64_t dependency_count;
     ScoopImageTableV1 tables[6];
 } ScoopImageDescriptorV1;
-_Static_assert(sizeof(ScoopImageDescriptorV1) == 240, "image ABI size");
-_Static_assert(offsetof(ScoopImageDescriptorV1, runtime_image_fingerprint) == 96, "image digest offset");
-_Static_assert(offsetof(ScoopImageDescriptorV1, tables) == 144, "image tables offset");
+_Static_assert(sizeof(ScoopImageDescriptorV1) == 208, "image ABI size");
+_Static_assert(offsetof(ScoopImageDescriptorV1, tables) == 112, "image tables offset");
 typedef struct ScoopRootEntryDescriptorV1 ScoopRootEntryDescriptorV1;
 "#;
 
@@ -66,7 +65,7 @@ pub(super) fn emit(source: &mut String, images: &[SelectedImage], section: &str)
         writeln!(source, "const ScoopImageDescriptorV1 image_{index} __asm__(\"{}\") __attribute__((used, visibility(\"hidden\"), section(\"{section}\"))) = {{", image.name).unwrap();
         writeln!(
             source,
-            "    UINT64_C(0x53434f4f50494d47), {}, 240,\n    {{",
+            "    UINT64_C(0x53434f4f50494d47), {}, 208,\n    {{",
             scoop_lir::RUNTIME_METADATA_ABI_VERSION_V1
         )
         .unwrap();
@@ -80,9 +79,8 @@ pub(super) fn emit(source: &mut String, images: &[SelectedImage], section: &str)
         }
         writeln!(
             source,
-            "    }},\n    {{{}}},\n    {{{}}},\n    dependencies_{index}, {},\n    {{",
+            "    }},\n    {{{}}},\n    dependencies_{index}, {},\n    {{",
             initializer(&image.cone),
-            initializer(&image.fingerprint),
             image.dependencies.len()
         )
         .unwrap();

@@ -1,0 +1,78 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.test.*
+
+@Test
+private class HttpTrailerEncodingTest {
+    @Test
+    fun `HTTP1 rejects forbidden trailers without prematurely ending a chunked message`() {
+        Http1Encoder(HttpRole.Client).use { encoder ->
+            val declaration = HttpTrailerDeclaration(["X-End", "ETag"])
+            val head = HttpRequestHead(HttpVersion.Http11, "POST".toByteArray(),
+                HttpRequestTarget.Http1("/".toByteArray()), [declaration.toHttpField()])
+            val wire = ByteArrayBuilder().append(encoder.beginRequest(head, Http1BodyFraming.Chunked))
+            for (name in ["Content-Length", "Transfer-Encoding", "hOSt", "Authorization", "Content-Type", "Connection"]) {
+                assertFailsWith<IllegalArgumentException> {
+                    encoder.finish([HttpField(name.toByteArray(), "no".toByteArray())])
+                }
+                assertTrue(encoder.isMessageOpen)
+            }
+            val fields = [HttpField("X-End".toByteArray(), "first".toByteArray()),
+                HttpField("x-end".toByteArray(), [255.toByte()])]
+            declaration.requireDeclared(fields)
+            wire.append(encoder.finish(fields))
+            assertFalse(encoder.isMessageOpen)
+            Http1Decoder.server().use { decoder ->
+                val events = collectHttp1(decoder, wire.toByteArray(), 3L)
+                assertEquals(1L, http1EndCount(events))
+                var count = 0
+                for (event in events) when (event) {
+                    case Trailers(actual) -> {
+                        assertEquals(2L, actual.size)
+                        assertEquals("first", String.fromUtf8(actual[0L].value))
+                        assertEquals(255.toByte(), actual[1L].value[0L])
+                        count += 1
+                    }
+                    else -> {}
+                }
+                assertEquals(1, count)
+            }
+        }
+    }
+
+    @Test
+    fun `HTTP2 rejects the same forbidden fields before submitting END_STREAM`() {
+        withHttp2 { client, server ->
+            val declaration = HttpTrailerDeclaration(["X-End"])
+            val id = client.submitRequest(request2("POST", fields = [declaration.toHttpField()]), false)
+            drive2(client, server)
+            events2(server)
+            for (name in ["Content-Length", "Transfer-Encoding", "hOSt", "Authorization", "Content-Type", "Connection"]) {
+                assertFailsWith<IllegalArgumentException> {
+                    client.finish(id, [HttpField(name.toByteArray(), "no".toByteArray())])
+                }
+            }
+            val fields = [HttpField("X-End".toByteArray(), "first".toByteArray()),
+                HttpField("x-end".toByteArray(), [255.toByte()], true)]
+            declaration.requireDeclared(fields)
+            client.finish(id, fields)
+            drive2(client, server, 3L)
+            val events = events2(server)
+            assertEquals(1, ends2(events, id))
+            var count = 0
+            for (event in events) when (event) {
+                case Trailers(stream, actual) -> {
+                    assertEquals(id, stream)
+                    assertEquals(2L, actual.size)
+                    assertEquals("first", String.fromUtf8(actual[0L].value))
+                    assertEquals(255.toByte(), actual[1L].value[0L])
+                    assertTrue(actual[1L].neverIndex)
+                    count += 1
+                }
+                else -> {}
+            }
+            assertEquals(1, count)
+        }
+    }
+}

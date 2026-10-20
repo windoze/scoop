@@ -1,0 +1,60 @@
+package scoop.http.client
+
+import scoop.http.*
+import scoop.platform.time.SystemClock
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class HttpClientRetryOptionsTest {
+    @Test
+    fun `retry configuration snapshots methods and rejects invalid input`() {
+        val methods = ArrayList<String>(); methods.add("POST")
+        val statuses = ArrayList<UInt>(); statuses.add(503U)
+        val options = HttpRetryOptions(methods = methods, statuses = statuses)
+        methods.clear(); statuses.clear()
+        assertEquals("POST", options.methods[0L]); assertEquals(503U, options.statuses[0L])
+        assertEquals(2L, HttpRetryOptions().maxRetries)
+        assertFailsWith<IllegalArgumentException> { HttpRetryOptions(maxRetries = -1L) }
+        assertFailsWith<IllegalArgumentException> { HttpRetryOptions(methods = ["bad method"]) }
+        assertFailsWith<IllegalArgumentException> { HttpRetryOptions(statuses = [199U]) }
+        assertFailsWith<IllegalArgumentException> { HttpRetryOptions(statuses = [600U]) }
+        assertFailsWith<IllegalArgumentException> { HttpRetryOptions(initialDelay = -Duration.seconds(1L)) }
+        assertFailsWith<IllegalArgumentException> { HttpRetryOptions(maxDelay = Duration.ZERO) }
+    }
+
+    @Test
+    fun `backoff saturates without overflowing or iterating through a huge retry count`() {
+        val options = HttpRetryOptions(initialDelay = Duration.milliseconds(100L), maxDelay = Duration.seconds(1L), jitter = false)
+        assertTrue(clientRetryDelay(options, 0L) == Duration.milliseconds(100L))
+        assertTrue(clientRetryDelay(options, 1L) == Duration.milliseconds(200L))
+        assertTrue(clientRetryDelay(options, Long.MAX_VALUE) == Duration.seconds(1L))
+        assertTrue(clientRetryDelay(immediateClientRetryOptions(), Long.MAX_VALUE) == Duration.ZERO)
+        val maximum = Duration.seconds(Long.MAX_VALUE)
+        val huge = HttpRetryOptions(initialDelay = maximum, maxDelay = maximum)
+        for (index in 0..15) {
+            val delay = clientRetryDelay(huge, Long.MAX_VALUE)
+            assertTrue(delay >= Duration.ZERO && delay <= maximum, Some(index.toString()))
+        }
+    }
+
+    @Test
+    fun `Retry After supplies a minimum delay and duplicate or malformed values are ignored`() {
+        val options = HttpRetryOptions(initialDelay = Duration.milliseconds(100L), maxDelay = Duration.seconds(1L), jitter = false)
+        val field = HttpField("Retry-After".toByteArray(), "2".toByteArray())
+        val response = HttpResponseHead(HttpVersion.Http11, 503U, fields = [field])
+        assertTrue(clientRetryDelay(options, 0L, Some(response)) == Duration.seconds(2L))
+        val duplicate = HttpResponseHead(HttpVersion.Http11, 503U, fields = [field, field])
+        assertTrue(clientRetryDelay(options, 0L, Some(duplicate)) == options.initialDelay)
+        val invalid = HttpResponseHead(HttpVersion.Http11, 503U,
+            fields = [HttpField("Retry-After".toByteArray(), "bad".toByteArray())])
+        assertTrue(clientRetryDelay(options, 0L, Some(invalid)) == options.initialDelay)
+        val disabled = HttpRetryOptions(initialDelay = Duration.ZERO, respectRetryAfter = false)
+        assertTrue(clientRetryDelay(disabled, 0L, Some(response)) == Duration.ZERO)
+        val future = HttpDate.format(SystemClock.now() + Duration.seconds(20L))
+        val dated = HttpResponseHead(HttpVersion.Http11, 503U,
+            fields = [HttpField("Retry-After".toByteArray(), future.toByteArray())])
+        val delay = clientRetryDelay(options, 0L, Some(dated))
+        assertTrue(delay > Duration.seconds(10L) && delay <= Duration.seconds(20L))
+    }
+}

@@ -8,7 +8,7 @@ pub(crate) fn complete_requirements(
 {
     let bridge_plan = input.production.generated_bridge_plan();
     let current = verify_current_cone_undefined_requirements_v1(
-        input.patch_sites.builtins().strong_relocations().clone(),
+        input.builtins.strong_relocations().clone(),
         bridge_plan.clone(),
     )
     .map_err(BuiltinObjectProductionError::CurrentConeRequirements)?;
@@ -17,12 +17,6 @@ pub(crate) fn complete_requirements(
             .map_err(BuiltinObjectProductionError::SourceExternalRequirements)?;
     let runtime = verify_runtime_and_eh_requirements_v1(source, input.target_selection)
         .map_err(BuiltinObjectProductionError::RuntimeAndEhRequirements)?;
-    let external = classify_c_bridge_target_support_requirements_v1(
-        runtime,
-        bridge_plan,
-        &input.c_bridge_profile,
-    )
-    .map_err(BuiltinObjectProductionError::CBridgeTargetSupportRequirements)?;
-    slib::finalize_layout_partitioned_undefined_symbol_requirements_v1(current, external, shape)
+    slib::finalize_layout_partitioned_undefined_symbol_requirements_v1(current, runtime, shape)
         .map_err(BuiltinObjectProductionError::UndefinedSymbols)
 }

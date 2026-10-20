@@ -2,14 +2,11 @@ use std::fmt;
 
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
-use super::{
-    DigestKind, DigestNodeKey, DigestNodeKeyError, DigestOwnerAndRoleKey, DigestPatchIntentKey,
-    DigestSemanticFieldRole,
-};
+use super::{DigestKind, DigestNodeKey, DigestNodeKeyError, DigestOwnerAndRoleKey};
 use crate::{
-    ConeIdentity, DecodedPersistentId, DefinitionAtomRole, DigestNodeId, ObjectDefinitionAtomId,
-    ObjectDefinitionPlanId, PersistentCallableBodyId, PersistentId, PersistentIdResolver,
-    PersistentLayoutId, PersistentSafepointSiteId, PersistentScanId,
+    ConeIdentity, DecodedPersistentId, ObjectDefinitionAtomId, ObjectDefinitionPlanId,
+    PersistentCallableBodyId, PersistentId, PersistentIdResolver, PersistentLayoutId,
+    PersistentSafepointSiteId, PersistentScanId,
 };
 
 impl WireDecode for DigestKind {
@@ -22,22 +19,6 @@ impl WireDecode for DigestKind {
             6 => Ok(Self::ObjectDefinition),
             7 => Ok(Self::StackmapRecord),
             10 => Ok(Self::RuntimeImage),
-            tag => Err(unknown_tag(decoder, tag)),
-        }
-    }
-}
-
-impl WireDecode for DigestSemanticFieldRole {
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        match decoder.unsigned()? {
-            2 => Ok(Self::SourceSignature),
-            3 => Ok(Self::Layout),
-            4 => Ok(Self::Scan),
-            5 => Ok(Self::DescriptorDefinition),
-            6 => Ok(Self::CallableBodyDefinition),
-            7 => Ok(Self::GatewayDefinition),
-            8 => Ok(Self::NormalizedStackmap),
-            9 => Ok(Self::RuntimeImage),
             tag => Err(unknown_tag(decoder, tag)),
         }
     }
@@ -207,108 +188,6 @@ impl<E: fmt::Display> fmt::Display for DigestNodeKeyResolutionError<E> {
 
 impl<E: std::error::Error + 'static> std::error::Error for DigestNodeKeyResolutionError<E> {}
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct DecodedDigestPatchIntentKey {
-    source: DecodedPersistentId<DigestNodeId>,
-    target_definition: DecodedPersistentId<ObjectDefinitionPlanId>,
-    atom_role: DefinitionAtomRole,
-    semantic_field_role: DigestSemanticFieldRole,
-}
-
-impl DecodedDigestPatchIntentKey {
-    pub const fn decoded_source(self) -> DecodedPersistentId<DigestNodeId> {
-        self.source
-    }
-
-    pub const fn target_definition(self) -> DecodedPersistentId<ObjectDefinitionPlanId> {
-        self.target_definition
-    }
-
-    pub const fn atom_role(self) -> DefinitionAtomRole {
-        self.atom_role
-    }
-
-    pub const fn semantic_field_role(self) -> DigestSemanticFieldRole {
-        self.semantic_field_role
-    }
-
-    pub fn resolve<R, E>(
-        self,
-        resolver: &mut R,
-    ) -> Result<DigestPatchIntentKey, DigestPatchIntentResolutionError<E>>
-    where
-        R: DigestPatchIntentResolver<E>,
-    {
-        let source = resolver
-            .resolve(self.source)
-            .map_err(DigestPatchIntentResolutionError::Source)?;
-        let target_definition = resolver
-            .resolve(self.target_definition)
-            .map_err(DigestPatchIntentResolutionError::Target)?;
-        Ok(DigestPatchIntentKey::new(
-            source,
-            target_definition,
-            self.atom_role,
-            self.semantic_field_role,
-        ))
-    }
-}
-
-impl WireEncode for DecodedDigestPatchIntentKey {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(4)?;
-        encoder.field(1)?;
-        self.source.encode(encoder)?;
-        encoder.field(2)?;
-        self.target_definition.encode(encoder)?;
-        encoder.field(3)?;
-        self.atom_role.encode(encoder)?;
-        encoder.field(4)?;
-        self.semantic_field_role.encode(encoder)
-    }
-}
-
-impl WireDecode for DecodedDigestPatchIntentKey {
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(4)?;
-        Ok(Self {
-            source: decoder.field(1, DecodedPersistentId::decode)?,
-            target_definition: decoder.field(2, DecodedPersistentId::decode)?,
-            atom_role: decoder.field(3, DefinitionAtomRole::decode)?,
-            semantic_field_role: decoder.field(4, DigestSemanticFieldRole::decode)?,
-        })
-    }
-}
-
-pub trait DigestPatchIntentResolver<E>:
-    PersistentIdResolver<DigestNodeId, Error = E>
-    + PersistentIdResolver<ObjectDefinitionPlanId, Error = E>
-{
-}
-
-impl<T, E> DigestPatchIntentResolver<E> for T where
-    T: PersistentIdResolver<DigestNodeId, Error = E>
-        + PersistentIdResolver<ObjectDefinitionPlanId, Error = E>
-{
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum DigestPatchIntentResolutionError<E> {
-    Source(E),
-    Target(E),
-}
-
-impl<E: fmt::Display> fmt::Display for DigestPatchIntentResolutionError<E> {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Source(error) => error.fmt(formatter),
-            Self::Target(error) => error.fmt(formatter),
-        }
-    }
-}
-
-impl<E: std::error::Error + 'static> std::error::Error for DigestPatchIntentResolutionError<E> {}
-
 fn decode_sum_header(decoder: &mut Decoder<'_>) -> Result<(u64, u64), WireError> {
     let fields = decoder.map()?;
     let tag = decoder.field(0, Decoder::unsigned)?;
@@ -367,42 +246,28 @@ fn encode_value_sum(
 mod tests {
     use scoop_wire::{WireErrorKind, decode_canonical, encode};
 
-    use super::{DecodedDigestNodeKey, DecodedDigestPatchIntentKey, DigestNodeKeyResolutionError};
+    use super::{DecodedDigestNodeKey, DigestNodeKeyResolutionError};
     use crate::{
-        ConeIdentity, DefinitionAtomRole, DigestNodeId, DigestNodeKey, DigestPatchIntentKey,
-        DigestSemanticFieldRole, ObjectDefinitionPlanId, PendingIdentityValidation,
+        ConeIdentity, DigestNodeId, DigestNodeKey, PendingIdentityValidation,
         PersistentCallableBodyId,
     };
 
     #[test]
-    fn node_and_patch_keys_resolve_all_typed_references() {
+    fn node_keys_resolve_all_typed_references() {
         let body = PersistentCallableBodyId(ConeIdentity::SINGLE_FILE.0);
         let node_key = DigestNodeKey::source_signature(body);
         let node = DigestNodeId::from_key(&node_key).unwrap();
-        let target_definition = ObjectDefinitionPlanId(ConeIdentity::SINGLE_FILE.0);
-        let patch_key = DigestPatchIntentKey::new(
-            node,
-            target_definition,
-            DefinitionAtomRole::RuntimeRecord,
-            DigestSemanticFieldRole::SourceSignature,
-        );
-
         let mut pending = PendingIdentityValidation::new();
         pending.register_authority(body).unwrap();
         pending
             .register_authority(ConeIdentity::SINGLE_FILE)
             .unwrap();
         pending.register_authority(node).unwrap();
-        pending.register_authority(target_definition).unwrap();
         let mut identities = pending.finish().unwrap();
 
         let decoded_node =
             decode_canonical::<DecodedDigestNodeKey>(&encode(&node_key).unwrap()).unwrap();
         assert_eq!(decoded_node.resolve(&mut identities).unwrap(), node_key);
-
-        let decoded_patch =
-            decode_canonical::<DecodedDigestPatchIntentKey>(&encode(&patch_key).unwrap()).unwrap();
-        assert_eq!(decoded_patch.resolve(&mut identities).unwrap(), patch_key);
     }
 
     #[test]
@@ -431,19 +296,5 @@ mod tests {
         )
         .unwrap_err();
         assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 11 });
-
-        let body = PersistentCallableBodyId(ConeIdentity::SINGLE_FILE.0);
-        let node_key = DigestNodeKey::source_signature(body);
-        let node = DigestNodeId::from_key(&node_key).unwrap();
-        let mut bytes = encode(&DigestPatchIntentKey::new(
-            node,
-            ObjectDefinitionPlanId(ConeIdentity::SINGLE_FILE.0),
-            DefinitionAtomRole::RuntimeRecord,
-            DigestSemanticFieldRole::SourceSignature,
-        ))
-        .unwrap();
-        *bytes.last_mut().unwrap() = 10;
-        let error = decode_canonical::<DecodedDigestPatchIntentKey>(&bytes).unwrap_err();
-        assert_eq!(error.kind(), &WireErrorKind::UnknownTag { tag: 10 });
     }
 }

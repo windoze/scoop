@@ -5,8 +5,8 @@ use super::{
     FinalUndefinedSymbolRequirementV1, finalize_undefined_symbol_requirements_v1,
 };
 use crate::link_object::{
-    BuiltinExternalRequirementsV1, VerifiedCrossConeStrongRequirementClosureV1,
-    VerifiedCurrentConeUndefinedRequirementClosureV1,
+    VerifiedCrossConeStrongRequirementClosureV1, VerifiedCurrentConeUndefinedRequirementClosureV1,
+    VerifiedRuntimeAndEhRequirementClosureV1,
 };
 use scoop_identity::{ConeIdentity, StrongCallableDefinitionOwner};
 use scoop_lir::ExternalStrongShapeSubjectV1;
@@ -21,9 +21,8 @@ pub struct FinalizedUndefinedSymbolRequirementPartitionsV1 {
     cross_cone: VerifiedCrossConeStrongRequirementClosureV1,
 }
 
-/// Complete requirement authority used while normalizing object-definition
-/// relocations. The profile mode is retained so a cross-Cone proof cannot be
-/// silently collapsed to its legacy partition.
+/// Requirements used while normalizing object-definition relocations, including
+/// the dependency partitions for the selected profile.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VerifiedObjectDefinitionRequirementSetV1 {
     mode: ObjectDefinitionRequirementModeV1,
@@ -78,11 +77,13 @@ impl VerifiedObjectDefinitionRequirementSetV1 {
         &self,
         use_site: &CanonicalUndefinedRelocationUseV1,
     ) -> Option<CanonicalObjectDefinitionRequirementV1> {
-        if let Some(requirement) = self
-            .legacy()
-            .requirements()
-            .iter()
-            .find(|requirement| requirement.use_site() == use_site)
+        let key = super::use_key(use_site);
+        let legacy = self.legacy().requirements();
+        if let Some(requirement) = legacy
+            .binary_search_by_key(&key, |requirement| super::use_key(requirement.use_site()))
+            .ok()
+            .map(|index| &legacy[index])
+            .filter(|requirement| requirement.use_site() == use_site)
         {
             return Some(CanonicalObjectDefinitionRequirementV1::Legacy(
                 requirement.requirement(),
@@ -93,10 +94,12 @@ impl VerifiedObjectDefinitionRequirementSetV1 {
             ObjectDefinitionRequirementModeV1::CrossCone(partitions) => partitions.cross_cone(),
             ObjectDefinitionRequirementModeV1::Layout(partitions) => partitions.cross_cone(),
         };
-        if let Some(requirement) = cross_cone
-            .requirements()
-            .iter()
-            .find(|requirement| requirement.use_site() == use_site)
+        let requirements = cross_cone.requirements();
+        if let Some(requirement) = requirements
+            .binary_search_by_key(&key, |requirement| super::use_key(requirement.use_site()))
+            .ok()
+            .map(|index| &requirements[index])
+            .filter(|requirement| requirement.use_site() == use_site)
         {
             let import = cross_cone
                 .semantic_imports()
@@ -156,9 +159,9 @@ impl FinalizedUndefinedSymbolRequirementPartitionsV1 {
 
 pub fn finalize_partitioned_undefined_symbol_requirements_v1(
     current_cone: VerifiedCurrentConeUndefinedRequirementClosureV1,
-    external: BuiltinExternalRequirementsV1,
+    external: VerifiedRuntimeAndEhRequirementClosureV1,
 ) -> FinalizedUndefinedSymbolRequirementPartitionsV1 {
-    let cross_cone = external.cross_cone_closure().clone();
+    let cross_cone = external.source_closure().cross_cone_closure().clone();
     let legacy = finalize_undefined_symbol_requirements_v1(current_cone, external);
     FinalizedUndefinedSymbolRequirementPartitionsV1 { legacy, cross_cone }
 }

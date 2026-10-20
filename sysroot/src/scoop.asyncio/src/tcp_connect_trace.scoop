@@ -1,0 +1,42 @@
+package scoop.asyncio
+
+import scoop.platform.time.MonotonicTimeSource
+import scoop.time.TimeMark
+
+public enum TcpConnectPhase { Resolve, Connect }
+public enum TcpConnectEventKind { Started, Finished }
+
+public class TcpConnectEvent internal constructor(
+    public val phase: TcpConnectPhase, public val kind: TcpConnectEventKind, public val at: TimeMark
+)
+
+internal class TcpConnectTrace(private val callback: (TcpConnectEvent) -> Unit) {
+    private var resolving: Boolean = false
+    private var resolved: Boolean = false
+    private var connecting: Boolean = false
+    private var connected: Boolean = false
+    private var failed: Boolean = false
+
+    fun start(phase: TcpConnectPhase) {
+        if (failed) return
+        when (phase) {
+            case Resolve -> { if (resolving) return; resolving = true }
+            case Connect -> { if (connecting) return; connecting = true }
+        }
+        notify(phase, TcpConnectEventKind.Started)
+    }
+
+    fun finish(phase: TcpConnectPhase) {
+        if (failed) return
+        when (phase) {
+            case Resolve -> { if (!resolving || resolved) return; resolved = true }
+            case Connect -> { if (!connecting || connected) return; connected = true }
+        }
+        notify(phase, TcpConnectEventKind.Finished)
+    }
+
+    private fun notify(phase: TcpConnectPhase, kind: TcpConnectEventKind) {
+        try { callback(TcpConnectEvent(phase, kind, MonotonicTimeSource.markNow())) }
+        catch (error: Throwable) { failed = true; throw error }
+    }
+}

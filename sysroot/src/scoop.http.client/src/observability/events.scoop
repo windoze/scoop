@@ -1,0 +1,58 @@
+package scoop.http.client
+
+private class ClientObserverCallback(val call: ClientCall) { var active: Boolean = true }
+
+internal suspend fun emitClientEvent(call: ClientCall, kind: HttpCallEventKind) {
+    val observation = call.observation ?: return
+    if (kind != HttpCallEventKind.Completed) requireClientCall(call)
+    val observer = call.client.config.observer!!
+    val metrics = call.lock.withLock {
+        if (observation.stopped) None else Some(HttpAttemptMetrics(call, observation))
+    } ?: return
+    val event = HttpCallEvent(kind, call.sequence.info!!, metrics,
+        if (kind == HttpCallEventKind.Completed) clientCallFailure(call) else None)
+    val active = ClientObserverCallback(call)
+    try { context(active) { observer.onEvent(event) } }
+    catch (error: Throwable) {
+        if (error is CancellationException && (currentJobOrNone()?.isCancelled ?: false)) throw error
+        call.lock.withLock { observation.stopped = true }
+        failClientUserCallback(call, error)
+        throw error
+    } finally { call.lock.withLock { active.active = false } }
+    if (kind != HttpCallEventKind.Completed) { ensureActive(); requireClientCall(call) }
+}
+
+internal fun failClientUserCallback(call: ClientCall, error: Throwable) {
+    val cancelled = currentJobOrNone()?.isCancelled ?: false
+    call.lock.withLock {
+        call.userCallbackFailed = true
+        val primary = call.failure
+        if (clientPresent(primary)) call.cleanupFailure = collectClientSecondary(primary!!, call.cleanupFailure, error)
+        else if (!(call.abandoned && cancelled && error is CancellationException)) call.failure = Some(error)
+        Unit
+    }
+    cancelClientCall(call, error)
+}
+
+context(callback: ClientObserverCallback)
+private fun boundClientObserverCallback(): ClientObserverCallback = callback
+
+private fun activeClientObserverCallback(): ClientCall? {
+    val callback = try { Some(boundClientObserverCallback()) } catch (_: MissingContextException) { None }
+    if (!clientPresent(callback)) return None
+    return callback!!.call.lock.withLock { if (callback!!.active) Some(callback!!.call) else None }
+}
+
+internal fun checkClientObserverClose(client: ClientState) {
+    if (!clientPresent(client.config.observer)) return
+    val call = activeClientObserverCallback()
+    if (clientPresent(call) && call!!.client === client)
+        throw IllegalStateException(Some("cannot await client.close from its active observer"))
+}
+
+internal fun checkClientObservedResponseClose(call: ClientCall) {
+    if (!clientPresent(call.observation)) return
+    val active = activeClientObserverCallback()
+    if (clientPresent(active) && active!! === call)
+        throw IllegalStateException(Some("cannot await response.close from its active observer"))
+}

@@ -109,8 +109,7 @@ public class Http1Encoder public constructor(public val role: HttpRole) : Closea
         if (framing == Http1BodyFraming.Chunked) {
             output.append("0\r\n".toByteArray())
             for (field in trailers) {
-                if (httpAsciiEqual(field.name, "content-length".toByteArray()) || httpAsciiEqual(field.name, "transfer-encoding".toByteArray()))
-                    throw IllegalArgumentException(Some("HTTP trailer cannot change body framing"))
+                requireHttpTrailerName(field.name)
                 appendHttp1Field(output, field)
             }
             output.append("\r\n".toByteArray())

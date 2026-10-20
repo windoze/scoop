@@ -1,0 +1,28 @@
+schema = 1
+[cone]
+group = "scoop"
+name = "scoop.url"
+version = "0.1.0"
+kind = "library"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"scoop:scoop.std" = "0.1.0"
+"scoop:scoop.idna" = "0.1.0"
+[test-dependencies]
+"scoop:scoop.test" = "0.1.0"
+[native]
+include = [
+    {path = "../../lib/aarch64-apple-darwin/include", when = {os = "darwin"}},
+    {path = "../../lib/x86_64-unknown-linux-gnu/include", when = {env = "gnu"}},
+    {path = "../../lib/x86_64-unknown-linux-musl/include", when = {env = "musl"}},
+]
+c_flags = ["-std=c11", "-Wall", "-Wextra", "-Werror", "-DURI_STATIC_BUILD", "-DURI_NO_UNICODE"]
+[[native.libraries]]
+name = "uriparser"
+kind = "static"
+[[native.sources]]
+path = "native/parse.c"
+[[native.sources]]
+path = "native/components.c"
+[[native.sources]]
+path = "native/serialize.c"

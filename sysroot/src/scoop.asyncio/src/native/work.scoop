@@ -1,0 +1,57 @@
+package scoop.asyncio.native
+
+import scoop.asyncio.IoLock
+
+private enum WorkPhase { Ready, Running, Complete, Failed, Reading, Closed }
+
+public class NativeWork private constructor(
+    private val payload: Ptr<Unit>,
+    private val execute: FunPtr<(Ptr<Unit>) -> Unit>,
+    private val release: FunPtr<(Ptr<Unit>) -> Unit>
+) : Closeable {
+    private val lock: IoLock = IoLock()
+    private var phase: WorkPhase = WorkPhase.Ready
+
+    public companion object {
+        @Unsafe
+        public fun takeOwnership(payload: Ptr<Unit>, execute: FunPtr<(Ptr<Unit>) -> Unit>,
+            release: FunPtr<(Ptr<Unit>) -> Unit>): NativeWork = NativeWork(payload, execute, release)
+    }
+
+    public val isClosed: Boolean get() = lock.withLock { phase == WorkPhase.Closed }
+
+    internal fun begin(): (Ptr<Unit>, FunPtr<(Ptr<Unit>) -> Unit>) = lock.withLock {
+        if (phase != WorkPhase.Ready) throw IllegalStateException(Some("native work can only run once"))
+        phase = WorkPhase.Running
+        return@withLock (payload, execute)
+    }
+
+    internal fun complete(success: Boolean) {
+        lock.withLock { phase = if (success) WorkPhase.Complete else WorkPhase.Failed }
+    }
+
+    @Unsafe
+    public fun <R> withResult(block: (Ptr<Unit>) -> R): R {
+        lock.withLock {
+            if (phase != WorkPhase.Complete) throw IllegalStateException(Some("native work has no available result"))
+            phase = WorkPhase.Reading
+        }
+        try { return block(payload) }
+        finally { lock.withLock { phase = WorkPhase.Complete } }
+    }
+
+    public override fun close() {
+        val dispose = lock.withLock {
+            if (phase == WorkPhase.Running || phase == WorkPhase.Reading)
+                throw IllegalStateException(Some("native work is borrowed"))
+            if (phase == WorkPhase.Closed) false else {
+                phase = WorkPhase.Closed
+                true
+            }
+        }
+        if (dispose) @Unsafe { nativeRelease(payload, release) }
+    }
+}
+
+@Extern(name = "scoop_io_native_work_release")
+private fun nativeRelease(payload: Ptr<Unit>, release: FunPtr<(Ptr<Unit>) -> Unit>)

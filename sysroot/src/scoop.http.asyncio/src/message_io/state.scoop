@@ -1,0 +1,52 @@
+package scoop.http.asyncio
+
+import scoop.Result
+import scoop.getOrThrow
+import scoop.asyncio.*
+
+internal class MessageIo<T>(endpoint: T, var owner: AsyncCloseable?, val loop: EventLoop, cleanup: () -> Unit) {
+    var endpoint: T? = Some(endpoint)
+    var cleanup: (() -> Unit)? = Some(cleanup)
+    val lock: HttpLock = HttpLock()
+    var running: Boolean = false
+    var active: Job? = None
+    var closing: Boolean = false
+    var closed: Boolean = false
+    var cleanupStarted: Boolean = false
+    var closeJob: Job? = None
+    val closeWaiters: ArrayList<Continuation<Unit>> = ArrayList<Continuation<Unit>>()
+    private var operationFailure: Throwable? = None
+    val isClosed: Boolean get() = lock.withLock { closed }
+    val failure: Throwable? get() = lock.withLock { operationFailure }
+
+    suspend fun <R> run(validate: () -> Unit, block: suspend (T) -> R): R {
+        httpJob(loop, true)
+        val source = lock.withLock {
+            if (closing || closed) throw IoClosedException()
+            if (present(operationFailure)) throw IllegalStateException(Some("HTTP message stream has failed"))
+            if (running) throw IllegalStateException(Some("HTTP message stream is already in use"))
+            validate()
+            running = true
+            endpoint!!
+        }
+        try {
+            val result = coroutineScope<Result<R, Throwable>> suspend { scope ->
+                val stop = lock.withLock { active = Some(scope.job); closing }
+                if (stop) scope.job.cancel()
+                try {
+                    ensureActive()
+                    Result.Success<R, Throwable>(block(source))
+                } catch (error: Throwable) { Result.Failure<R, Throwable>(error) }
+            }
+            return result.getOrThrow()
+        } catch (error: Throwable) {
+            lock.withLock { operationFailure = Some(error) }
+            throw error
+        } finally {
+            lock.withLock { running = false; active = None }
+            startMessageClose(this)
+        }
+    }
+
+    suspend fun close() { closeMessageIo(this) }
+}

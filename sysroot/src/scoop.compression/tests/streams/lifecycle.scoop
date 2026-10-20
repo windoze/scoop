@@ -1,0 +1,72 @@
+package scoop.compression
+
+import scoop.test.*
+import scoop.platform.io.*
+
+@Test
+private class CompressionStreamLifecycleTests {
+    @Test
+    fun `ownership transfers only after construction and close never finishes a stream`() {
+        val source = ShortCompressionSource("abc".toByteArray())
+        assertFailsWith<IllegalArgumentException> { CompressionSource.takeOwnership(source, bufferSize = 0L) }
+        assertEquals(0, source.closes)
+        val encoded = CompressionSource.takeOwnership(source)
+        encoded.close(); encoded.close()
+        assertEquals(1, source.closes)
+        assertEquals(0, source.calls)
+        val compressed = ShortCompressionSource(compressionVector(CompressionFormat.Zstd))
+        val decoded = DecompressionSource.takeOwnership(compressed)
+        decoded.close(); decoded.close()
+        assertEquals(1, compressed.closes)
+        val output = ShortCompressionSink()
+        assertFailsWith<IllegalArgumentException> { CompressionSink.takeOwnership(output, bufferSize = -1L) }
+        assertEquals(0, output.closes)
+        val sink = CompressionSink.takeOwnership(output, CompressionOptions.Gzip(GzipOptions()), 1L)
+        sink.writeAllBytes("abc".toByteArray())
+        val before = output.bytes.size
+        sink.close(); sink.close()
+        assertEquals(before, output.bytes.size)
+        assertEquals(0, output.flushes)
+        assertEquals(1, output.closes)
+        val plain = ShortCompressionSink()
+        val inverse = DecompressionSink.takeOwnership(plain)
+        inverse.close(); inverse.close()
+        assertEquals(1, plain.closes)
+    }
+
+    @Test
+    fun `I O failures retain identity progress and cleanup causes`() {
+        val input = ShortCompressionSource("abc".toByteArray())
+        input.failAfter = 0L
+        CompressionSource(input).use { source ->
+            val error = assertFailsWith<Throwable> { source.readAllBytes() }
+            assertSame(input.error, error)
+            assertSame(error, source.failure!!)
+        }
+        val output = ShortCompressionSink()
+        output.failAfterProgress = true
+        CompressionSink(output, CompressionOptions.Gzip(GzipOptions()), 1L).use { sink ->
+            val error = assertFailsWith<Throwable> { sink.writeAllBytes("abc".toByteArray()) }
+            assertSame(output.error, error)
+            assertSame(error, sink.failure!!)
+            assertEquals(1L, sink.totals.outputBytes)
+        }
+        val failing = ShortCompressionSink()
+        failing.failAfter = 0L; failing.failClose = true
+        val combined = assertFailsWith<ResourceUseException> {
+            CompressionSink.takeOwnership(failing).use { sink -> sink.writeAllBytes("abc".toByteArray()); sink.finish() }
+        }
+        assertSame(failing.error, combined.primaryFailure)
+        assertSame(failing.cleanup, combined.cleanupFailure)
+        assertEquals(1, failing.closes)
+    }
+
+    @Test
+    fun `a sink that stops accepting bytes fails without spinning`() {
+        val output = ShortCompressionSink()
+        output.zero = true
+        CompressionSink(output).use { sink ->
+            assertFailsWith<WriteZeroException> { sink.writeAllBytes("abc".toByteArray()); sink.finish() }
+        }
+    }
+}

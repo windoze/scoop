@@ -367,7 +367,7 @@ public suspend fun AsyncByteSink.queue(vararg commands: Command)
 public suspend fun AsyncByteSink.execute(vararg commands: Command)
 ```
 
-会话拥有 EventLoop.openTty 的资源，沿 asyncio 第 9 节的 loop／Job、取消、
+会话拥有 EventLoop.openTty 的资源，沿 asyncio 第 10 节的 loop／Job、取消、
 借用与关闭合同；同步与异步共用进程独占，不接管外部 fd。所有 suspend 操作
 要求所属 loop 和活动 Job；disableRawMode、isRawMode、close 允许取消后的清理。
 完全关闭后重复 close 为空操作。

@@ -1,0 +1,34 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+
+public class HttpAuthenticationInfo private constructor(public val parameters: Array<HttpParameter>) {
+    public constructor(parameters: List<HttpParameter>) : this(uniqueHttpParameters(parameters)) {}
+
+    public fun parameter(name: String): HttpParameter? = findHttpParameter(parameters, name)
+    public fun toByteArray(): Array<Byte> {
+        val output = ByteArrayBuilder()
+        appendHttpAuthParameters(output, parameters)
+        return output.toByteArray()
+    }
+    public fun toAuthenticationInfoField(): HttpField = HttpField("Authentication-Info".toByteArray(), toByteArray())
+    public fun toProxyAuthenticationInfoField(): HttpField = HttpField("Proxy-Authentication-Info".toByteArray(), toByteArray())
+
+    public companion object {
+        public fun parse(value: List<Byte>, fieldName: String = "Authentication-Info"): HttpAuthenticationInfo {
+            val reader = HttpFieldReader(fieldName, value)
+            reader.skipOws()
+            return HttpAuthenticationInfo(readHttpAuthParameters(reader, false))
+        }
+        public fun parse(value: String, fieldName: String = "Authentication-Info"): HttpAuthenticationInfo =
+            parse(value.toByteArray(), fieldName)
+        public fun parseOrNone(value: List<Byte>, fieldName: String = "Authentication-Info"): HttpAuthenticationInfo? {
+            try { return Some(parse(value, fieldName)) }
+            catch (_: HttpFieldParseException) { return None }
+        }
+        public fun parseOrNone(value: String, fieldName: String = "Authentication-Info"): HttpAuthenticationInfo? =
+            parseOrNone(value.toByteArray(), fieldName)
+        public fun parseFields(fields: List<HttpField>, fieldName: String = "Authentication-Info"): HttpAuthenticationInfo =
+            parse(combinedHttpAuthFields(fields, fieldName), fieldName)
+    }
+}

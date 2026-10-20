@@ -278,13 +278,13 @@ fn strong_writer_projects_the_complete_executable_production_section() {
         .nodes()
         .iter()
         .filter(|node| {
-            node.patch_intents().iter().any(|patch| {
-                !matches!(
-                    patch.key().semantic_field_role(),
-                    scoop_identity::DigestSemanticFieldRole::RuntimeImage
-                        | scoop_identity::DigestSemanticFieldRole::SourceSignature
-                )
-            })
+            matches!(
+                node.kind(),
+                scoop_identity::DigestKind::ObjectDefinition
+                    | scoop_identity::DigestKind::Layout
+                    | scoop_identity::DigestKind::Scan
+                    | scoop_identity::DigestKind::StackmapRecord
+            )
         })
         .map(lir::DigestInputRefV1::from_node)
         .collect::<std::collections::BTreeSet<_>>();

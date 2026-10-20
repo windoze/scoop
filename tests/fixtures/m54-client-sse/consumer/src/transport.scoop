@@ -1,0 +1,62 @@
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.*
+import scoop.http.client.*
+import scoop.platform.net.*
+import scoop.test.*
+import scoop.time.Duration
+import scoop.tls.*
+import scoop.url.Url
+
+internal fun sseTransport(trust: TrustStore, mode: String, url: Url, notifyPort: Int) {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { _ ->
+        withHttpClient(sseConfig(trust, mode == "h2-eof" || mode == "h2-protocol")) suspend { client ->
+            val calls = AtomicLong(0L)
+            val reconnect = HttpSseReconnectOptions(Duration.ZERO, Duration.ZERO, Some(if (mode == "refused") 2L else 1L), suspend { event ->
+                calls.fetchAdd(1L)
+                assertEquals("one", event.lastEventId)
+                if (mode == "refused" && event.number == 1L) assertFalse(ssePresent(event.cause))
+                else {
+                    assertTrue(ssePresent(event.cause))
+                    val error = event.cause!!
+                    if (mode == "refused") assertTrue(error is TcpConnectException)
+                    else if (mode == "h2-eof") {
+                        assertTrue(error is HttpException)
+                        assertTrue((error as HttpException).isUnexpectedEof)
+                    } else {
+                        assertTrue(error is TlsException)
+                        assertEquals(TlsFailureKind.Truncated, (error as TlsException).kind)
+                    }
+                }
+            })
+            client.withSse(HttpRequest.get(url), HttpSseOptions(reconnect = Some(reconnect))) suspend { source ->
+                assertEquals(if (mode == "tls-eof" || mode == "refused") HttpVersion.Http11 else HttpVersion.Http2, source.head.version)
+                assertEquals("body", source.next()!!.data)
+                loop.connectTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, notifyPort)).useAsync suspend { signal ->
+                    sseWrite(signal, "go")
+                    assertEquals("x", String.fromUtf8(signal.readAllBytes(1L)))
+                }
+                if (mode == "refused") {
+                    val error = sseFailure suspend { source.next(); Unit }
+                    assertTrue(error is TcpConnectException)
+                    assertSame(error, source.failure!!)
+                    assertEquals(2L, calls.load())
+                } else if (mode == "h2-protocol") {
+                    val error = sseFailure suspend { source.next(); Unit }
+                    assertTrue(error is HttpException)
+                    assertEquals(1, (error as HttpException).code)
+                    assertFalse((error as HttpException).isUnexpectedEof)
+                    assertSame(error, source.failure!!)
+                    assertEquals(0L, calls.load())
+                } else {
+                    assertFalse(ssePresent(source.next()))
+                    assertEquals(204U, source.head.status)
+                    assertEquals(1L, calls.load())
+                    assertFalse(ssePresent(source.failure))
+                }
+                assertTrue(source.isClosed)
+            }
+        }
+    }
+}

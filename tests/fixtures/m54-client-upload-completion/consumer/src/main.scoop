@@ -1,0 +1,114 @@
+import scoop.asyncio.*
+import scoop.crypto.testdata.rootPem
+import scoop.crypto.x509.TrustStore
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.http.client.*
+import scoop.platform.concurrent.Thread
+import scoop.platform.net.*
+import scoop.time.Duration
+import scoop.tls.TlsTrustSource
+import scoop.url.Url
+
+private fun exercise(trust: TrustStore, redirect: Boolean, fail: Boolean) {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { scope ->
+        loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).useAsync suspend { listener ->
+            val url = Url.parse("http://127.0.0.1:" + listener.localAddress.port.toString() + "/start")
+            val first = CompletionSource(true, fail)
+            val next = CompletionSource(false, false)
+            val opened = AtomicLong(0L)
+            val accepted = CompletionGate()
+            val firstDone = CompletionGate()
+            val nextDone = CompletionGate()
+            val one = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    accepted.signal()
+                    completionCheck(String.fromUtf8(connection.receiveRequest()!!.body.readAllBytes(4L)) == "sent")
+                    first.cleaning.await()
+                    val fields: Array<HttpField> = if (redirect)
+                        [HttpField("Location".toByteArray(), "/next".toByteArray())] else []
+                    connection.sendResponse(HttpResponseHead(HttpVersion.Http11, if (redirect) 307U else 503U, fields = fields),
+                        Http1BodyFraming.Length(10L)).useAsync suspend { output ->
+                        output.flush(); firstDone.await()
+                    }
+                }
+            }
+            val two = if (fail) None else Some(scope.launch suspend {
+                accepted.await()
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    completionCheck(first.closed)
+                    completionCheck(String.fromUtf8(connection.receiveRequest()!!.body.readAllBytes(4L)) == "sent")
+                    connection.sendResponse(HttpResponseHead(HttpVersion.Http11, 200U),
+                        Http1BodyFraming.Length(4L)).useAsync suspend { output ->
+                        completionWrite(output); output.finish()
+                    }
+                    nextDone.await()
+                }
+            })
+            val statuses: Array<UInt> = if (redirect) [] else [503U]
+            val retries = HttpRetryOptions(maxRetries = 1L, statuses = statuses,
+                initialDelay = Duration.ZERO, maxDelay = Duration.ZERO, jitter = false)
+            val config = HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)), retries = retries,
+                pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 1L))
+            try {
+                withHttpClient(config) suspend { client ->
+                    val body = RequestBody.fromSourceFactory(Some(4L)) suspend {
+                        if (opened.fetchAdd(1L) == 0L) first else next
+                    }
+                    val result = CompletionFailure()
+                    val executing = scope.launch suspend {
+                        try {
+                            client.withResponse(HttpRequest.put(url, body)) suspend { response ->
+                                completionCheck(response.body.text(4L) == "done")
+                                completionCheck(response.retryCount == if (redirect) 0L else 1L)
+                                completionCheck(response.redirectHistory.size == if (redirect) 1L else 0L)
+                            }
+                        } catch (error: Throwable) { result.value = Some(error) }
+                    }
+                    first.cancelled.await()
+                    completionCheck(!executing.isCompleted && opened.load() == 1L && !first.closed)
+                    first.release.signal()
+                    executing.join()
+                    if (fail) {
+                        completionCheck(result.value!! === first.failure && opened.load() == 1L)
+                    } else {
+                        when (result.value) { case Some(error) -> throw error; case None -> {} }
+                        completionCheck(opened.load() == 2L && first.closed && next.closed)
+                    }
+                }
+            } finally {
+                first.release.signal(); firstDone.signal(); nextDone.signal()
+                two?.cancel()
+            }
+            one.join(); two?.join()
+            completionCheck(!scope.job.isCancelled)
+        }
+    }
+}
+
+private fun runMain(args: Array<String>) {
+    completionCheck(args.size == 3L)
+    val redirect = args[1L] == "redirect"
+    val fail = args[2L] == "failure"
+    TrustStore.fromPem(rootPem()).use { trust ->
+        Thread.start { exercise(trust, redirect, fail) }.use { thread ->
+            exercise(trust, redirect, fail)
+            thread.join()
+        }
+    }
+    println("upload completion " + args[1L] + " " + args[2L])
+}
+
+private fun reportFailure(error: Throwable) {
+    if (error is Exception) println(error.message ?: "no exception message")
+    if (error is ResourceUseException) {
+        println("primary:"); reportFailure(error.primaryFailure)
+        println("cleanup:"); reportFailure(error.cleanupFailure)
+    }
+}
+
+fun main(args: Array<String>) {
+    try { runMain(args) }
+    catch (error: Throwable) { reportFailure(error); throw error }
+}

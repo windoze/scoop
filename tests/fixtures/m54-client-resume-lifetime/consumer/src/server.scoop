@@ -1,0 +1,50 @@
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.platform.fs.Path
+import scoop.platform.net.*
+import scoop.test.*
+import scoop.url.Url
+
+internal fun resumeWithServer(directory: Path, mode: String, responses: Long,
+    block: suspend (EventLoop, CoroutineScope, Url, DownloadGate) -> Unit) {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { scope ->
+        loop.createDirectories(directory)
+        loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).useAsync suspend { listener ->
+            val finish = DownloadGate()
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    for (index in 0L..<responses) {
+                        val request = connection.receiveRequest()!!
+                        assertEquals(0L, request.head.fields.findAll("Range".toByteArray()).size)
+                        request.body.close()
+                        val fields = ArrayList<HttpField>()
+                        if (mode != "no-etag")
+                            fields.add(downloadField("ETag", if (mode == "weak" || mode == "restart-weak") "W/\"one\"" else "\"one\""))
+                        if (mode == "duplicate") fields.add(downloadField("ETag", "\"one\""))
+                        val status = if (mode == "unsolicited") 206U else if (mode == "empty") 204U else 200U
+                        if (mode == "unsolicited") fields.add(downloadField("Content-Range", "bytes 0-3/4"))
+                        val text = if (mode == "empty") "" else if (index == 0L) "body" else "new"
+                        val framing = if (mode == "empty") Http1BodyFraming.Empty else Http1BodyFraming.Length(text.toByteArray().size)
+                        connection.sendResponse(HttpResponseHead(HttpVersion.Http11, status, fields = fields), framing).useAsync suspend { writer ->
+                            if (text.toByteArray().size != 0L) downloadWrite(writer, text)
+                            writer.finish()
+                        }
+                    }
+                    finish.await()
+                }
+            }
+            try { block(loop, scope, Url.parse("http://127.0.0.1:" + listener.localAddress.port.toString() + "/"), finish) }
+            finally { finish.signal() }
+            serving.join()
+        }
+    }
+}
+
+internal suspend fun resumeFailure(block: suspend () -> Unit): Throwable {
+    val failure = DownloadFailure()
+    try { block() } catch (error: Throwable) { failure.value = Some(error) }
+    assertTrue(downloadPresent(failure.value))
+    return failure.value!!
+}

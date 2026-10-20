@@ -1,0 +1,48 @@
+package scoop.http
+
+public class HttpCacheDirective internal constructor(
+    public val name: String, public val value: Array<Byte>?, public val wasQuoted: Boolean,
+    internal val nameOffset: Long, private val valueOffset: Long, private val sourceValue: Array<Byte>?
+) {
+    public constructor(name: String, value: List<Byte>? = None) : this(httpNormalizedToken(name),
+        when (value) { case Some(bytes) -> Some(checkedHttpParameter(bytes)); case None -> None }, false, 0L, 0L, None) {}
+    public constructor(name: String, value: List<Byte>) : this(name, Some<List<Byte>>(value)) {}
+
+    public fun deltaSeconds(): Long {
+        val reader = HttpFieldReader("Cache-Control", requiredValue())
+        try {
+            val result = reader.decimal(saturating = true)
+            if (!reader.ended) reader.fail("invalid delta-seconds")
+            return result
+        } catch (error: HttpFieldParseException) { failAt(error.byteOffset, error.detail) }
+    }
+
+    public fun fieldNames(): Array<String> {
+        val bytes = requiredValue()
+        try { return HttpFieldReader("Cache-Control", bytes).tokenList() }
+        catch (error: HttpFieldParseException) { failAt(error.byteOffset, error.detail) }
+    }
+
+    private fun requiredValue(): Array<Byte> = when (value) {
+        case Some(bytes) -> bytes
+        case None -> failAt(0L, "cache directive requires an argument")
+    }
+
+    internal fun failAt(offset: Long, detail: String): Nothing {
+        var sourceOffset = valueOffset + offset
+        when (sourceValue) {
+            case Some(source) -> if (wasQuoted) {
+                sourceOffset = valueOffset + 1L
+                var decoded = 0L
+                while (decoded < offset) {
+                    if (source[sourceOffset] == 92.toByte()) sourceOffset += 1L
+                    sourceOffset += 1L
+                    decoded += 1L
+                }
+                if (source[sourceOffset] == 92.toByte()) sourceOffset += 1L
+            }
+            case None -> {}
+        }
+        throw HttpFieldParseException("Cache-Control", sourceOffset, name + ": " + detail)
+    }
+}

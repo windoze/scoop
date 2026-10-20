@@ -1,0 +1,49 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.collections.emptyList
+import scoop.http.*
+
+public class AsyncWebSocketSession internal constructor(private val state: WsState) : AsyncCloseable {
+    public companion object {
+        public suspend fun <T> takeOwnership(transport: T, scope: CoroutineScope, role: HttpRole,
+            options: WebSocketSessionOptions = WebSocketSessionOptions(),
+            deflate: WebSocketDeflateNegotiation? = None): AsyncWebSocketSession
+            where T : AsyncByteStream, T : AsyncCloseable = adoptWs(transport, transport, scope, role, options, deflate)
+    }
+
+    public val role: HttpRole get() = state.role
+    public val deflate: WebSocketDeflateNegotiation? get() = when (state.deflate) {
+        case Some(value) -> Some(value.negotiated)
+        case None -> None
+    }
+    public val isClosed: Boolean get() = state.lock.withLock { state.closed }
+    public val peerClose: WebSocketClose? get() = state.lock.withLock { state.peerClose }
+    public val sentClose: WebSocketClose? get() = state.lock.withLock { state.sentClose }
+    public val failure: Throwable? get() = state.lock.withLock { state.failure }
+
+    public suspend fun beginMessage(type: WebSocketMessageType, compress: Boolean = true): WebSocketMessageWriter =
+        wsOperation<WsOutgoing, WebSocketMessageWriter>(state, false, { beginWsMessage(state, type, compress) }, suspend { message ->
+            val job = httpJob(state.loop, true)
+            listenWsLife(state, message.life, job)
+            job.ensureActive()
+            WebSocketMessageWriter(state, message)
+        })
+
+    public suspend fun receive(): WebSocketMessage? = receiveWsMessage(state)
+    public suspend fun sendText(text: String, compress: Boolean = true) {
+        sendWsBytes(state, WebSocketMessageType.Text, text.toByteArray(), compress)
+    }
+    public suspend fun sendBinary(bytes: List<Byte>, compress: Boolean = true) {
+        sendWsBytes(state, WebSocketMessageType.Binary, bytes.toArray(), compress)
+    }
+    public suspend fun send(type: WebSocketMessageType, source: AsyncByteSource, compress: Boolean = true) {
+        sendWsSource(state, type, source, compress)
+    }
+    public suspend fun ping(payload: List<Byte> = emptyList<Byte>()) { sendWsControl(state, true, payload) }
+    public suspend fun pong(payload: List<Byte> = emptyList<Byte>()) { sendWsControl(state, false, payload) }
+    public suspend fun shutdownGracefully(value: WebSocketClose = WebSocketClose(Some(1000U))): WebSocketClose =
+        shutdownWs(state, value)
+    public suspend fun awaitClosed() { observeWsClosed(state) }
+    public override suspend fun close() { closeWs(state) }
+}

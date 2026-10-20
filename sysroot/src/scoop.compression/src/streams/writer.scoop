@@ -1,0 +1,36 @@
+package scoop.compression
+
+import scoop.platform.memory.NativeByteBuffer
+
+internal class CompressionWriteState(val resources: CompressionIoResources) {
+    private var written: Long = 0L
+    var finished: Boolean = false
+    val buffer: NativeByteBuffer get() = resources.buffer
+    val totals: CompressionTotals get() = CompressionTotals(resources.codec.totals.inputBytes, written)
+
+    fun requireWritable() {
+        if (finished) throw IllegalStateException(Some("compression sink has finished"))
+    }
+
+    fun recordOutput(count: Long) { written = addCompressionCount(written, count) }
+
+    fun process(input: NativeByteBuffer, count: Long): CompressionStep {
+        val codec = resources.codec
+        if (codec.finished) compressionTrailing(codec.format)
+        val step = codec.step(Some(input), count, buffer, buffer.writableBytes, 0)
+        if (codec.finished && step.consumed < count) compressionTrailing(codec.format)
+        if (step.consumed == 0L && step.produced == 0L && step.state == CompressionState.NeedInput) {
+            throw IllegalStateException(Some("compression codec made no input progress"))
+        }
+        return step
+    }
+
+    fun flushStep(): CompressionStep = resources.codec.step(None, 0L, buffer, buffer.writableBytes,
+        if (resources.encoding) 1 else 0)
+
+    fun finishStep(): CompressionStep {
+        val step = resources.codec.step(None, 0L, buffer, buffer.writableBytes, 2)
+        if (step.state == CompressionState.Finished) finished = true
+        return step
+    }
+}

@@ -1,0 +1,101 @@
+package scoop.asyncio
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.collections.listOf
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.*
+import scoop.test.*
+import scoop.time.Duration
+
+internal class Socks5Script(private val input: Array<Byte>) : AsyncByteStream, AsyncCloseable {
+    val sent: ByteArrayBuilder = ByteArrayBuilder()
+    var readSize: Long = 1L
+    var writeSize: Long = 2L
+    var position: Long = 0L
+    var flushes: Long = 0L
+    var closes: Long = 0L
+    var closed: Boolean = false
+    var zeroWrite: Boolean = false
+    var failRead: Boolean = false
+    var failClose: Boolean = false
+    var holdRead: Boolean = false
+    var holdClose: Boolean = false
+    var heldBuffer: NativeByteBuffer? = None
+    val failure: Throwable = Throwable()
+    val cleanup: Throwable = Throwable()
+    val readStarted: CollectGate = CollectGate()
+    val readRelease: CollectGate = CollectGate()
+    val closeStarted: CollectGate = CollectGate()
+    val closeRelease: CollectGate = CollectGate()
+
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long {
+        currentEventLoop().sleep(Duration.nanoseconds(1L))
+        if (failRead) throw failure
+        if (holdRead) {
+            heldBuffer = Some(buffer)
+            @Unsafe {
+                val borrow = buffer.borrowWritable(1L)
+                var completed = 0L
+                try {
+                    readStarted.signal()
+                    readRelease.await()
+                    borrow.pointer()!!.store(input[position])
+                    position += 1L
+                    completed = 1L
+                    return completed
+                } finally { borrow.complete(completed) }
+            }
+        }
+        var amount = if (count < readSize) count else readSize
+        if (amount > input.size - position) amount = input.size - position
+        buffer.writeBytes(input, position, amount)
+        position += amount
+        return amount
+    }
+
+    public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long {
+        currentEventLoop().sleep(Duration.nanoseconds(1L))
+        if (zeroWrite) return 0L
+        val amount = if (count < writeSize) count else writeSize
+        sent.append(buffer.readBytes(amount))
+        return amount
+    }
+
+    public override suspend fun flush() { flushes += 1L }
+
+    public override suspend fun close() {
+        closes += 1L
+        closeStarted.signal()
+        if (holdClose) closeRelease.await()
+        closed = true
+        if (failClose) throw cleanup
+    }
+}
+
+internal fun socks5Joined(first: Array<Byte>, second: Array<Byte>): Array<Byte> =
+    ByteArrayBuilder().append(first).append(second).toByteArray()
+
+internal fun socks5SuccessInput(): Array<Byte> = [5, 0, 5, 0, 0, 1, 127, 0, 0, 1, 31, -112]
+internal fun socks5IpTarget(): Socks5Address = Socks5Address.Ip(SocketAddress(IpAddress.IPV4_LOOPBACK, 8080))
+
+internal fun assertSocks5Bytes(expected: Array<Byte>, actual: Array<Byte>) {
+    assertEquals(expected.size, actual.size)
+    for (index in 0L..<expected.size) assertEquals(expected[index], actual[index])
+}
+
+internal suspend fun serveSocks5Ip(peer: AsyncTcpStream, suffix: Array<Byte>) {
+    NativeByteBuffer.allocate(32L).use suspend { bytes ->
+        peer.readFully(bytes, 3L)
+        assertSocks5Bytes([5, 1, 0], bytes.readBytes(3L))
+        bytes.clear()
+        bytes.writeBytes(listOf<Byte>(5, 0))
+        peer.writeFully(bytes)
+        bytes.clear()
+        peer.readFully(bytes, 10L)
+        assertSocks5Bytes([5, 1, 0, 1, 127, 0, 0, 1, 31, -112], bytes.readBytes(10L))
+        bytes.clear()
+        bytes.writeBytes(listOf<Byte>(5, 0, 0, 1, 127, 0, 0, 1, 31, -112))
+        bytes.writeBytes(suffix)
+        peer.writeFully(bytes)
+    }
+}

@@ -1,0 +1,40 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.platform.memory.NativeByteBuffer
+
+internal suspend fun MultipartReader.discard(body: MultipartBody, maxBytes: Long): Long {
+    try {
+        return io.run({
+            requireBody(body)
+            if (maxBytes < 0L) throw IllegalArgumentException(Some("negative multipart discard limit"))
+        }) suspend { source ->
+            val capacity = if (maxBytes >= 8192L) 8192L else maxBytes + 1L
+            NativeByteBuffer.allocate(capacity).use suspend { buffer ->
+                var total = 0L
+                while (true) {
+                    buffer.clear()
+                    val remaining = maxBytes - total
+                    val count = if (remaining < capacity) remaining + 1L else capacity
+                    val read = readBody(source, body, buffer, count)
+                    if (read == 0L) break
+                    if (read > remaining) throw MultipartDiscardLimitException(maxBytes)
+                    total += read
+                }
+                total
+            }
+        }
+    } catch (error: MultipartDiscardLimitException) {
+        try { io.close() }
+        catch (cleanup: Throwable) { throw ResourceUseException(error, cleanup) }
+        throw error
+    }
+}
+
+internal suspend fun MultipartReader.closeBody(body: MultipartBody) {
+    if (body.closed || io.isClosed) { body.closed = true; body.clear(); return }
+    httpJob(io.loop, false)
+    if (body.complete) { body.closed = true; body.clear(); return }
+    try { io.close() }
+    finally { body.closed = true; body.clear() }
+}

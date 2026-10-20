@@ -81,7 +81,6 @@ mod generated_c_atom_boundaries;
 mod llvm_types;
 mod machine_types;
 mod module_context;
-mod object_materialization;
 mod object_partition;
 mod runtime_metadata_v1;
 mod shape_definitions;
@@ -112,25 +111,20 @@ pub(crate) use llvm_types::*;
 mod floating;
 pub(crate) use floating::{float_constant, float_type};
 pub(crate) use module_context::*;
-pub use object_materialization::EmittedStrongDigestPatchMaterializationV1;
 pub use object_partition::{
     ScoopLirObjectKindV1, ScoopLirObjectPartitionError, ScoopLirObjectPartitionV1,
     ScoopLirObjectUnitSetV1,
 };
 pub use runtime_metadata_v1::{
-    CallableRegistrationPatchSiteV1, EmittedConeImageSupportAtomV1, EmittedConeImageSupportAtomsV1,
-    EmittedConeImageV1, EmittedEntryProductionV1, EmittedRootEntryV1,
-    EmittedStaticStorageInitialStateV1, EmittedStaticStorageRelocationTableV1,
-    EmittedStrongCallableRegistrationSetV1, EmittedStrongCallableRegistrationV1,
-    EmittedStrongImmortalObjectRegistrationSetV1, EmittedStrongImmortalObjectRegistrationV1,
-    EmittedStrongInitializationUnitRegistrationSetV1,
-    EmittedStrongInitializationUnitRegistrationV1, EmittedStrongRuntimeMetadataV1,
-    EmittedStrongSafepointRegistrationSetV1, EmittedStrongSafepointRegistrationV1,
-    EmittedStrongStaticStorageRegistrationSetV1, EmittedStrongStaticStorageRegistrationV1,
-    EmittedStrongTypeRegistrationSetV1, EmittedStrongTypeRegistrationV1,
-    InitializationRegistrationPatchSiteV1, ProvisionalStrongDigestPatchLocationV1,
-    RootEntryPatchSiteV1, RuntimeImagePatchSiteV1, SafepointRegistrationPatchSiteV1,
-    StaticStorageRegistrationPatchSiteV1, TypeRegistrationPatchSiteV1,
+    EmittedConeImageSupportAtomV1, EmittedConeImageSupportAtomsV1, EmittedConeImageV1,
+    EmittedEntryProductionV1, EmittedRootEntryV1, EmittedStaticStorageInitialStateV1,
+    EmittedStaticStorageRelocationTableV1, EmittedStrongCallableRegistrationSetV1,
+    EmittedStrongCallableRegistrationV1, EmittedStrongImmortalObjectRegistrationSetV1,
+    EmittedStrongImmortalObjectRegistrationV1, EmittedStrongInitializationUnitRegistrationSetV1,
+    EmittedStrongInitializationUnitRegistrationV1, EmittedStrongSafepointRegistrationSetV1,
+    EmittedStrongSafepointRegistrationV1, EmittedStrongStaticStorageRegistrationSetV1,
+    EmittedStrongStaticStorageRegistrationV1, EmittedStrongTypeRegistrationSetV1,
+    EmittedStrongTypeRegistrationV1,
 };
 use target::ManagedAddressSpace;
 pub use target::{LlvmVersion, TargetProfileId, ValidatedBackendProfile, linked_llvm_version};

@@ -1,0 +1,98 @@
+package scoop.http.client
+
+import scoop.asyncio.IoClosedException
+import scoop.http.asyncio.*
+
+internal class ClientUpgrade(val call: ClientCall, val entry: ClientPoolEntry, val source: AsyncHttp1Connection)
+
+internal suspend fun awaitClientUpgrade(call: ClientCall, entry: ClientPoolEntry, source: AsyncHttp1Connection): AsyncHttp2Connection =
+    suspendCoroutine<AsyncHttp2Connection> { continuation ->
+        call.lock.withLock {
+            if (call.ending) throw (call.failure ?: CancellationException())
+            call.upgradeWaiter = Some(continuation)
+        }
+        val queued = call.client.lock.withLock {
+            if (call.client.closing) false
+            else { call.client.upgrades.addLast(ClientUpgrade(call, entry, source)); true }
+        }
+        if (queued) wakeClient(call.client) else cancelClientCall(call, HttpClientClosedException())
+    }
+
+internal fun startClientUpgrade(work: ClientUpgrade) {
+    val call = work.call
+    val scope = call.lock.withLock { call.scope }
+    if (!clientPresent(scope) || call.lock.withLock { call.ending }) {
+        finishClientH2cOffer(call.client, work.entry, true)
+        return
+    }
+    val entered = AtomicBoolean(false)
+    try {
+        scope!!.launch suspend {
+            entered.store(true)
+            try {
+                val connection = context(scope!!.job) { adoptClientUpgrade(work) }
+                deliverClientUpgrade(work, connection)
+            } catch (error: Throwable) {
+                val waiter = call.lock.withLock { val saved = call.upgradeWaiter; call.upgradeWaiter = None; saved }
+                finishClientH2cOffer(call.client, work.entry, true)
+                if (clientPresent(waiter)) waiter!!.resumeWithException(error)
+                else if (!(error is CancellationException)) failClientCall(call, error)
+            }
+        }
+        if (!entered.load()) {
+            cancelClientCall(call, CancellationException())
+            finishClientH2cOffer(call.client, work.entry, true)
+        }
+    } catch (error: Throwable) {
+        failClientCall(call, error)
+        finishClientH2cOffer(call.client, work.entry, true)
+    }
+}
+
+private suspend fun adoptClientUpgrade(work: ClientUpgrade): AsyncHttp2Connection {
+    val call = work.call
+    val state = call.client
+    val owner = state.lock.withLock {
+        if (state.closing) throw HttpClientClosedException()
+        state.scope!!
+    }
+    requireClientCall(call)
+    val transport = work.source.takeTransport()
+    try {
+        val config = state.config
+        return AsyncHttp2Connection.takeOwnershipAsUpgradedClient(transport, owner, call.request.methodBytes,
+            config.http2Settings, config.http2Receive, config.http2Limits,
+            ioTimeouts = clientIoTimeouts(call),
+            onEvent = { notice -> clientPoolNotice(state, work.entry, notice) }, captureTimings = clientPresent(config.observer))
+    } catch (error: Throwable) {
+        try { transport.close() } catch (cleanup: Throwable) { throw ResourceUseException(error, cleanup) }
+        throw error
+    }
+}
+
+private suspend fun deliverClientUpgrade(work: ClientUpgrade, connection: AsyncHttp2Connection) {
+    val call = work.call
+    val waiter = call.lock.withLock { val saved = call.upgradeWaiter; call.upgradeWaiter = None; saved }
+    val failure: Throwable? = call.client.lock.withLock {
+        if (call.client.closing) Some(HttpClientClosedException())
+        else if (!clientPresent(waiter)) Some(IoClosedException())
+        else {
+            val error = call.lock.withLock { if (call.ending) Some(call.failure ?: IoClosedException()) else None }
+            if (!clientPresent(error)) {
+                work.entry.connection = Some(ClientConnection.Http2(connection))
+                work.entry.h2cPending = false
+            }
+            error
+        }
+    }
+    if (clientPresent(failure)) {
+        var error = failure!!
+        try { connection.close() } catch (cleanup: Throwable) { error = clientCombined(Some(error), cleanup) }
+        finishClientH2cOffer(call.client, work.entry, true)
+        if (clientPresent(waiter)) waiter!!.resumeWithException(error)
+        else if (error is ResourceUseException) failClientCall(call, error)
+    } else {
+        waiter!!.resume(connection)
+        wakeClient(call.client)
+    }
+}

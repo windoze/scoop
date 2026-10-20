@@ -1,17 +1,24 @@
 package scoop.http.asyncio
 
-internal fun resetH2Stream(state: H2State, stream: H2Stream, error: Throwable, code: UInt, actions: ArrayList<() -> Unit>) {
+import scoop.asyncio.IoClosedException
+
+internal fun resetH2Stream(state: H2State, stream: H2Stream, error: Throwable, code: UInt,
+    actions: ArrayList<() -> Unit>, notifyFailure: Boolean = true) {
     if (stream.disposed) return
     stream.failure = Some(error)
     if (state.closing) return
     try { state.session.reset(stream.id, code) }
     catch (failure: Throwable) { terminateH2(state, failure); return }
-    releaseH2Stream(state, stream, error, actions)
+    releaseH2Stream(state, stream, error, actions, notifyFailure)
 }
 
-internal fun releaseH2Stream(state: H2State, stream: H2Stream, error: Throwable, actions: ArrayList<() -> Unit>) {
+internal fun releaseH2Stream(state: H2State, stream: H2Stream, error: Throwable,
+    actions: ArrayList<() -> Unit>, notifyFailure: Boolean = true) {
+    if (stream.disposed) return
+    stopH2Idle(stream, actions)
     stream.disposed = true
     stream.failure = Some(error)
+    if (notifyFailure) notifyH2(state, Http2Notice.StreamFailure(stream.id, error), actions)
     stream.data.clear(); stream.offset = 0L
     stream.responses.clear()
     if (present(stream.reader)) finishH2Body(state, stream, stream.reader!!, 0L, Some(error), actions)
@@ -32,6 +39,26 @@ internal fun releaseH2Stream(state: H2State, stream: H2Stream, error: Throwable,
 internal fun retireH2Stream(state: H2State, stream: H2Stream, actions: ArrayList<() -> Unit>) {
     if (!stream.closed || stream.data.size != 0L || stream.responses.size != 0L ||
         present(stream.reader) || present(stream.writer) || present(stream.responseWaiter)) return
+    if (!state.closed && h2PendingOutput(state, stream)) return
+    stopH2Idle(stream, actions)
     state.streams.remove(stream.id)
     detachH2Stream(stream, actions)
+}
+
+internal suspend fun closeH2Stream(state: H2State, stream: H2Stream) {
+    if (state.lock.withLock { stream.disposed && stream.idleTimers == 0L }) return
+    httpJob(state.loop, false)
+    suspendCoroutine<Unit> { continuation ->
+        val actions = ArrayList<() -> Unit>()
+        val done = state.lock.withLock {
+            if (!stream.disposed) {
+                if (state.closed) releaseH2Stream(state, stream, IoClosedException(), actions, false)
+                else resetH2Stream(state, stream, IoClosedException(), 8U, actions, false)
+            }
+            if (stream.idleTimers == 0L) true else { stream.idleCloseWaiters.add(continuation); false }
+        }
+        for (action in actions) action()
+        driveH2(state)
+        if (done) continuation.resume(Unit)
+    }
 }

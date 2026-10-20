@@ -1,0 +1,103 @@
+package scoop.charset
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+import scoop.text.*
+
+@Test
+private class CharsetStreamingTests {
+    @Test
+    fun `one byte input and output retain multibyte and shift state`() {
+        for (charset in [Charset.Utf8, Charset.Utf16LE, Charset.Utf16BE, Charset.Utf32LE, Charset.Utf32BE,
+            Charset.Gb18030, Charset.Gbk, Charset.Big5, Charset.ShiftJis, Charset.EucJp, Charset.Iso2022Jp]) {
+            val text = "A日本B"
+            val encoded = charset.encode(text)
+            for (chunk in [1L, 2L, 3L]) {
+                val decoded = chunkedCharset(encoded, charset, Charset.Utf8, chunk, 1L)
+                assertEquals(text, String.fromUtf8(decoded))
+                assertEquals(encoded.toHexString(), chunkedCharset(text.toByteArray(), Charset.Utf8, charset, 1L, chunk).toHexString())
+            }
+        }
+        val signature = "fffe610000fe6200".hexToByteArray()
+        assertEquals("a\u{FE00}b", String.fromUtf8(chunkedCharset(signature, Charset.Utf16, Charset.Utf8, 1L, 1L)))
+    }
+
+    @Test
+    fun `replacement and absolute errors are independent of chunk boundaries`() {
+        val options = CharsetTranscodeOptions(malformedInput = CharsetErrorAction.Replace)
+        assertEquals("�(��", String.fromUtf8(chunkedCharset("e228a1e282".hexToByteArray(), Charset.Utf8, Charset.Utf8, 1L, 1L, options)))
+        val text = "日😀本".toByteArray()
+        val lossy = CharsetTranscodeOptions(unmappableOutput = CharsetErrorAction.Replace)
+        assertEquals("日?本", Charset.Iso2022Jp.decode(chunkedCharset(text, Charset.Utf8, Charset.Iso2022Jp, 1L, 1L, lossy)))
+        val error = assertFailsWith<CharsetException> { chunkedCharset("e697a5e69cacff".hexToByteArray(), Charset.Utf8, Charset.Utf8, 1L, 1L) }
+        assertEquals(6L, error.offset!!)
+        val truncated = assertFailsWith<CharsetException> { chunkedCharset("61e282".hexToByteArray(), Charset.Utf8, Charset.Utf8, 1L, 1L) }
+        assertTrue(truncated.kind == CharsetFailureKind.IncompleteInput)
+        assertEquals(1L, truncated.offset!!)
+    }
+
+    @Test
+    fun `empty input and output do not imply EOF and finish remains explicit`() {
+        NativeByteBuffer.allocate(8L).use { input ->
+            NativeByteBuffer.allocate(0L).use { output ->
+                CharsetTranscoder(Charset.Utf8, Charset.Utf8).use { engine ->
+                    assertTrue(engine.process(input, output).state == CharsetState.NeedOutput)
+                    output.ensureWritable(8L)
+                    assertTrue(engine.process(input, output).state == CharsetState.NeedInput)
+                    input.writeBytes("a".toByteArray())
+                    assertTrue(engine.process(input, output).state == CharsetState.NeedInput)
+                    assertEquals("a", String.fromUtf8(output.readBytes(1L)))
+                    assertTrue(engine.process(input, output, true).state == CharsetState.Finished)
+                    assertTrue(engine.process(input, output).state == CharsetState.Finished)
+                    input.clear(); input.writeByte(65.toByte())
+                    assertFailsWith<IllegalStateException> { engine.process(input, output) }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `errors and close release borrows and prohibit further conversion`() {
+        NativeByteBuffer.allocate(8L).use { input ->
+            NativeByteBuffer.allocate(8L).use { output ->
+                val engine = CharsetTranscoder(Charset.Utf8, Charset.Ascii)
+                input.writeBytes("é".toByteArray())
+                assertFailsWith<IllegalStateException> { engine.process(input, input) }
+                assertFailsWith<CharsetException> { engine.process(input, output, true) }
+                input.clear(); output.clear()
+                assertFailsWith<IllegalStateException> { engine.process(input, output) }
+                engine.close(); engine.close()
+                assertFailsWith<IllegalStateException> { engine.process(input, output) }
+                input.writeByte(65.toByte()); output.writeByte(66.toByte())
+            }
+        }
+    }
+}
+
+private fun chunkedCharset(data: List<Byte>, source: Charset, destination: Charset, inputSize: Long, outputSize: Long,
+    options: CharsetTranscodeOptions = CharsetTranscodeOptions()): Array<Byte> {
+    return NativeByteBuffer.allocate(inputSize).use { input ->
+        NativeByteBuffer.allocate(outputSize).use { output ->
+            CharsetTranscoder(source, destination, options).use { engine ->
+                val result = ByteArrayBuilder()
+                var cursor = 0L
+                while (true) {
+                    input.compact()
+                    val remaining = data.size - cursor
+                    val count = if (remaining < input.writableBytes) remaining else input.writableBytes
+                    input.writeBytes(data, cursor, count)
+                    cursor += count
+                    output.clear()
+                    val readable = input.readableBytes
+                    val step = engine.process(input, output, cursor == data.size)
+                    assertEquals(readable - step.consumed, input.readableBytes)
+                    assertEquals(step.produced, output.readableBytes)
+                    result.append(output.readBytes(step.produced))
+                    if (step.state == CharsetState.Finished) break
+                }
+                result.toByteArray()
+            }
+        }
+    }
+}

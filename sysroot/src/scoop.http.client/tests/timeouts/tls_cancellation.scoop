@@ -1,0 +1,34 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class HttpClientTlsDeadlineCancellationTest {
+    @Test
+    fun `caller cancellation and client close retain their result while the TLS handshake is pending`() {
+        val long = Some(Duration.seconds(3600L))
+        for (cancelCaller in [true, false]) {
+            withClientTimeoutTest(HttpTimeoutOptions(resolve = long, connect = long, tlsHandshake = long)) suspend { _, scope, listener, config ->
+                val observed = BodyTestGate()
+                val serving = scope.launch suspend { observeStalledClientTls(listener, observed) }
+                val client = HttpClient.open(scope, config)
+                try {
+                    val failure = ClientTestFailureHolder()
+                    val executing = scope.launch suspend {
+                        try { client.execute(HttpRequest.get(clientTlsTimeoutUrl(listener))).close() }
+                        catch (error: Throwable) { failure.value = Some(error) }
+                    }
+                    observed.await()
+                    if (cancelCaller) executing.cancel() else client.close()
+                    executing.join()
+                    if (cancelCaller) assertTrue(failure.value!! is CancellationException)
+                    else assertTrue(failure.value!! is HttpClientClosedException)
+                } finally { client.close() }
+                serving.join()
+                assertFalse(scope.job.isCancelled)
+            }
+        }
+    }
+}

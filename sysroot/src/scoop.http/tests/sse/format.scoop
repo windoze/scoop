@@ -1,0 +1,62 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.test.*
+import scoop.text.hexToByteArray
+
+@Test
+private class SseFormatTests {
+    @Test
+    fun `HTML examples preserve empty data multiline data and incomplete final blocks`() {
+        val events = parseSse(": test stream\n\ndata: first event\nid: 1\n\ndata:second event\nid\n\ndata:  third event\n\n")
+        assertEquals(3L, events.size)
+        assertEquals("first event", events[0L].data)
+        assertTrue(events[0L].id == Some("1"))
+        assertEquals("second event", events[1L].data)
+        assertTrue(events[1L].id == Some(""))
+        assertEquals(" third event", events[2L].data)
+        assertTrue(events[2L].id == None)
+        assertEquals("", events[2L].lastEventId)
+        val empty = parseSse("data\n\ndata\ndata\n\ndata:\n")
+        assertEquals(2L, empty.size)
+        assertEquals("", empty[0L].data)
+        assertEquals("\n", empty[1L].data)
+    }
+
+    @Test
+    fun `all line endings and arbitrary byte splits preserve Unicode and only the first BOM is removed`() {
+        val text = "\u{FEFF}data: 雪😀\r\ndata: second\r\rdata:\u{FEFF}x\n\n"
+        for (chunk in [1L, 2L, 3L, 7L, 64L]) {
+            val events = parseSse(text, chunk)
+            assertEquals(2L, events.size)
+            assertEquals("雪😀\nsecond", events[0L].data)
+            assertEquals("\u{FEFF}x", events[1L].data)
+        }
+        assertEquals(0L, parseSse("\u{FEFF}\u{FEFF}data:x\n\n").size)
+        assertEquals(0L, parseSse("\n\u{FEFF}data:x\n\n").size)
+    }
+
+    @Test
+    fun `field names are literal and one space is removed after the first colon`() {
+        val events = parseSse("event: discarded\n\nDATA: ignored\nData: ignored\n:comment\nunknown:x\n" +
+            "data:  x:y\ndata:\tz\nevent: first\nevent: update\n\ndata\nevent:\n\n")
+        assertEquals(2L, events.size)
+        assertEquals("update", events[0L].event)
+        assertEquals(" x:y\n\tz", events[0L].data)
+        assertEquals("message", events[1L].event)
+        assertEquals("", events[1L].data)
+        assertEquals("message", parseSse("event: discarded\n\ndata:x\n\n")[0L].event)
+    }
+
+    @Test
+    fun `malformed and truncated UTF8 within completed lines use charset replacement`() {
+        val wire = ByteArrayBuilder()
+        wire.append("data:".toByteArray()); wire.append("e228a1e282".hexToByteArray()); wire.append("\r\n\r\n".toByteArray())
+        for (chunk in [1L, 3L, 32L]) SseDecoder().use { decoder ->
+            val events = feedSse(decoder, wire.toByteArray(), chunk)
+            assertEquals(1L, events.size)
+            assertEquals("�(��", events[0L].data)
+            decoder.endInput()
+        }
+    }
+}

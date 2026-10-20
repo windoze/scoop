@@ -1,0 +1,17 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.http.MultipartPartHead
+import scoop.platform.memory.NativeByteBuffer
+
+public class MultipartPartWriter internal constructor(private val writer: MultipartWriter, public val head: MultipartPartHead)
+    : AsyncByteSink, AsyncCloseable {
+    internal var complete: Boolean = false
+    internal var closed: Boolean = false
+    public val isComplete: Boolean get() = complete
+    public val isClosed: Boolean get() = closed || writer.io.isClosed
+    public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long = writer.write(this, buffer, count)
+    public override suspend fun flush() { writer.flush(Some(this)) }
+    public suspend fun finish() { writer.finishPart(this) }
+    public override suspend fun close() { writer.closePart(this) }
+}

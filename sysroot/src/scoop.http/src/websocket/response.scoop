@@ -1,0 +1,61 @@
+package scoop.http
+
+import scoop.text.lowercaseAscii
+
+internal fun acceptWebSocketResponse(handshake: WebSocketHandshake, response: HttpResponseHead): WebSocketNegotiation {
+    if (response.version != HttpVersion.Http11 || response.status != 101U)
+        throw WebSocketHandshakeException("expected HTTP/1.1 status 101")
+    val fields = response.fields
+    requireWebSocketUpgrade(fields)
+    if (webSocketSingleField(fields, "Upgrade", true)!!.lowercaseAscii() != "websocket")
+        throw WebSocketHandshakeException("unexpected Upgrade protocol", Some("Upgrade"))
+    if (webSocketSingleField(fields, "Sec-WebSocket-Accept", true)!! != webSocketAccept(handshake.key))
+        throw WebSocketHandshakeException("Accept does not match this request key", Some("Sec-WebSocket-Accept"))
+    for (name in ["Content-Length", "Transfer-Encoding"]) if (fields.findAll(name.toByteArray()).size != 0L)
+        throw WebSocketHandshakeException("status 101 cannot contain body framing", Some(name))
+    val protocol = webSocketSingleField(fields, "Sec-WebSocket-Protocol", false)
+    checkWebSocketProtocol(handshake, protocol)
+    val extensions = WebSocketExtension.parseFields(fields)
+    if (extensions.size > 1L) webSocketDeflateError("multiple negotiated WebSocket extensions")
+    val deflate: WebSocketDeflateNegotiation? = if (extensions.size == 0L) None
+        else Some(matchWebSocketDeflate(handshake, WebSocketDeflate.parse(extensions[0L])))
+    return WebSocketNegotiation(protocol, deflate)
+}
+
+internal fun webSocketResponse(handshake: WebSocketHandshake, protocol: String?, deflate: WebSocketDeflate?,
+    fields: List<HttpField>): HttpResponseHead {
+    checkWebSocketProtocol(handshake, protocol)
+    val headers = webSocketExtraFields(fields)
+    headers.add(webSocketField("Upgrade", "websocket"))
+    headers.add(webSocketField("Connection", "Upgrade"))
+    headers.add(webSocketField("Sec-WebSocket-Accept", webSocketAccept(handshake.key)))
+    when (protocol) { case Some(value) -> headers.add(webSocketField("Sec-WebSocket-Protocol", value)); case None -> {} }
+    when (deflate) {
+        case Some(value) -> { matchWebSocketDeflate(handshake, value); headers.add(value.toExtension().toHttpField()) }
+        case None -> {}
+    }
+    return HttpResponseHead(HttpVersion.Http11, 101U, Some<List<Byte>>("Switching Protocols".toByteArray()), headers)
+}
+
+private fun checkWebSocketProtocol(handshake: WebSocketHandshake, selected: String?) {
+    when (selected) {
+        case Some(value) -> {
+            val reader = HttpFieldReader("Sec-WebSocket-Protocol", value.toByteArray())
+            reader.token()
+            if (!reader.ended) reader.fail("response must select exactly one subprotocol")
+            for (protocol in handshake.protocols) if (protocol == value) return
+            throw WebSocketHandshakeException("subprotocol was not offered", Some("Sec-WebSocket-Protocol"))
+        }
+        case None -> {}
+    }
+}
+
+private fun matchWebSocketDeflate(handshake: WebSocketHandshake, response: WebSocketDeflate): WebSocketDeflateNegotiation {
+    for (extension in handshake.extensions) {
+        when (WebSocketDeflateOffer.parseOrNone(extension)) {
+            case Some(offer) -> if (offer.accepts(response)) return WebSocketDeflateNegotiation(offer, response)
+            case None -> {}
+        }
+    }
+    webSocketDeflateError("response does not match a valid permessage-deflate offer")
+}

@@ -1,0 +1,68 @@
+package scoop.compression.asyncio
+
+import scoop.asyncio.*
+import scoop.compression.*
+
+private enum CompressionOutcome<T> { Value(val value: T), Error(val error: Throwable) }
+
+internal class CompressionAsyncLock {
+    private val held: AtomicBoolean = AtomicBoolean(false)
+    fun <T> withLock(block: () -> T): T {
+        while (!held.compareAndSet(false, true, MemoryOrder.Acquire, MemoryOrder.Relaxed)) {}
+        try { return block() }
+        finally { held.store(false, MemoryOrder.Release) }
+    }
+}
+
+internal class AsyncCompressionOwner(
+    val resources: CompressionIoResources, val owner: AsyncCloseable?, val loop: EventLoop
+) {
+    val lock: CompressionAsyncLock = CompressionAsyncLock()
+    var running: Boolean = false
+    var active: Job? = None
+    var closing: Boolean = false
+    var closed: Boolean = false
+    var cleanupStarted: Boolean = false
+    var closeJob: Job? = None
+    val closeWaiters: ArrayList<Continuation<Unit>> = ArrayList<Continuation<Unit>>()
+    private var operationFailure: Throwable? = None
+    val failure: Throwable? get() = lock.withLock { operationFailure }
+
+    suspend fun <T> operation(validate: () -> Unit, block: suspend () -> T): T {
+        requireAsyncCompressionJob(loop, true)
+        lock.withLock {
+            if (closing || closed) throw IoClosedException()
+            if (compressionPresent(operationFailure)) throw IllegalStateException(Some("compression stream has failed"))
+            if (running) throw IllegalStateException(Some("compression stream is already in use"))
+            running = true
+        }
+        var advancing = false
+        try {
+            validate()
+            advancing = true
+            val outcome = coroutineScope<CompressionOutcome<T>> suspend { scope ->
+                val stop = lock.withLock { active = Some(scope.job); closing }
+                if (stop) scope.job.cancel()
+                try {
+                    ensureActive()
+                    CompressionOutcome.Value(block())
+                } catch (error: Throwable) { CompressionOutcome.Error(error) }
+            }
+            return when (outcome) { case Value(value) -> value; case Error(error) -> throw error }
+        } catch (error: Throwable) {
+            if (advancing) lock.withLock { operationFailure = Some(error) }
+            throw error
+        } finally {
+            lock.withLock { running = false; active = None }
+            startCompressionClose(this)
+        }
+    }
+}
+
+internal fun requireAsyncCompressionJob(loop: EventLoop, cancellable: Boolean): Job {
+    if (currentEventLoop() !== loop) throw IllegalStateException(Some("compression stream belongs to another event loop"))
+    val job = currentJobOrNone() ?: throw IllegalStateException(Some("compression I/O requires a Job"))
+    if (job.isCompleted) throw IllegalStateException(Some("compression I/O requires an active Job"))
+    if (cancellable) job.ensureActive()
+    return job
+}

@@ -1,0 +1,73 @@
+package scoop.http.client
+
+import scoop.asyncio.IoClosedException
+import scoop.http.SseEvent
+
+internal suspend fun openClientSse(client: ClientState, request: HttpRequest, options: HttpSseOptions): HttpEventSource {
+    clientJob(client.loop, true)
+    val state = ClientSseState(client, request, options, validateClientSseRequest(request, options))
+    client.lock.withLock {
+        if (client.closing) throw HttpClientClosedException()
+        state.registered = true
+        client.eventSources.add(state)
+    }
+    try {
+        runClientSseOperation<Unit>(state) suspend {
+            startClientSseTimer(state)
+            openClientSseResponse(state)
+        }
+    } catch (error: Throwable) {
+        recordClientSseFailure(state, error)
+        startClientSseClose(state)
+        awaitClientSseClose(state)
+        throw client.lock.withLock { clientSseFailure(state)!! }
+    }
+    return HttpEventSource(state, state.info!!)
+}
+
+internal suspend fun readClientSse(state: ClientSseState): SseEvent? {
+    val finished = state.client.lock.withLock {
+        if (state.running) throw IllegalStateException(Some("an SSE operation is already active"))
+        val failure = clientSseFailure(state)
+        if (clientPresent(failure)) throw failure!!
+        state.finished
+    }
+    if (finished) return None
+    return runClientSseOperation<SseEvent?>(state) suspend { receiveClientSse(state) }
+}
+
+private suspend fun <T> runClientSseOperation(state: ClientSseState, block: suspend () -> T): T {
+    clientJob(state.client.loop, false)
+    state.client.lock.withLock {
+        if (state.running) throw IllegalStateException(Some("an SSE operation is already active"))
+        val failure = clientSseFailure(state)
+        if (clientPresent(failure)) throw failure!!
+        if (state.closing || state.closed) throw IoClosedException()
+        state.running = true
+    }
+    var result: T? = None
+    try {
+        result = Some(context(state) {
+            coroutineScope<T> suspend { scope ->
+                state.client.lock.withLock { state.active = Some(scope.job) }
+                val listener = scope.job.invokeOnCancellation { reason -> stopClientSse(state, reason) }
+                try { state.requireActive(); block() }
+                catch (error: Throwable) { recordClientSseFailure(state, error); throw error }
+                finally { listener.dispose() }
+            }
+        })
+        state.requireActive()
+    } catch (error: Throwable) { recordClientSseFailure(state, error) }
+    finally {
+        state.client.lock.withLock { state.active = None; state.running = false }
+        startClientSseClose(state)
+    }
+    if (state.client.lock.withLock { state.closing }) awaitClientSseClose(state)
+    val failure = state.client.lock.withLock { clientSseFailure(state) }
+    if (clientPresent(failure)) throw failure!!
+    return result!!
+}
+
+internal fun finishClientSse(state: ClientSseState) {
+    state.client.lock.withLock { state.finished = true; state.closing = true }
+}

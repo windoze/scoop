@@ -1,0 +1,54 @@
+package scoop.compression
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+internal fun encodeDeflateMessage(encoder: DeflateMessageEncoder, data: List<Byte>,
+    chunk: Long = 17L, capacity: Long = 17L): Array<Byte> {
+    return NativeByteBuffer.allocate(chunk).use { input ->
+        NativeByteBuffer.allocate(capacity).use { output ->
+            val result = ByteArrayBuilder()
+            var offset = 0L
+            while (true) {
+                input.compact()
+                val count = if (data.size - offset < input.writableBytes) data.size - offset else input.writableBytes
+                input.writeBytes(data, offset, count); offset += count
+                output.clear()
+                val step = if (input.readableBytes > 0L) encoder.process(input, output) else encoder.finishMessage(output)
+                result.append(output.readBytes(step.produced))
+                if (step.state == CompressionState.Finished) break
+            }
+            assertEquals(data.size, encoder.totals.inputBytes)
+            assertEquals(result.size, encoder.totals.outputBytes)
+            result.toByteArray()
+        }
+    }
+}
+
+internal fun decodeDeflateMessage(decoder: DeflateMessageDecoder, data: List<Byte>,
+    chunk: Long = 17L, capacity: Long = 17L): Array<Byte> {
+    return NativeByteBuffer.allocate(chunk).use { input ->
+        NativeByteBuffer.allocate(capacity).use { output ->
+            val result = ByteArrayBuilder()
+            var offset = 0L
+            while (true) {
+                input.compact()
+                val count = if (data.size - offset < input.writableBytes) data.size - offset else input.writableBytes
+                input.writeBytes(data, offset, count); offset += count
+                output.clear()
+                val step = if (input.readableBytes > 0L) decoder.process(input, output) else decoder.finishMessage(output)
+                result.append(output.readBytes(step.produced))
+                if (step.state == CompressionState.Finished) break
+            }
+            assertEquals(data.size, decoder.totals.inputBytes)
+            assertEquals(result.size, decoder.totals.outputBytes)
+            result.toByteArray()
+        }
+    }
+}
+
+internal val deflateContextText: String = "hello shared message dictionary phrase hello shared message dictionary phrase " +
+    "hello shared message dictionary phrase hello shared message dictionary phrase "
+internal val deflateContextFirst: String = "ca48cdc9c95728ce482c4a4d51c84d2d2e4e4c4f5548c94c2ec9cccf4b2caa5428c8284a2c4e55c81808650000"
+internal val deflateContextSecond: String = "1accca0000"

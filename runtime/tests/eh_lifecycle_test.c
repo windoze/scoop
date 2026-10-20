@@ -37,13 +37,11 @@ static const ScoopTypeDescriptor test_exception_td = {
     .vtable = NULL,
     .itables = NULL,
     .itable_count = 0,
-    .diagnostic_name = {(const uint8_t *)"test.M25Exception", sizeof("test.M25Exception") - 1},
-};
+    .diagnostic_name = {(const uint8_t *)"test.M25Exception", sizeof("test.M25Exception") - 1}};
 
 enum {
     TEST_CAPACITY = 8,
-    CONCURRENT_THREAD_COUNT = 4,
-};
+    CONCURRENT_THREAD_COUNT = 4};
 
 static _Thread_local ScoopThreadState test_thread;
 static const void *published_objects[TEST_CAPACITY];

@@ -1,0 +1,80 @@
+package scoop.compression
+
+import scoop.collections.emptyList
+import scoop.platform.memory.NativeByteBuffer
+import scoop.text.*
+import scoop.test.*
+
+@Test
+private class DeflateMessageBoundaryTests {
+    @Test
+    fun `raw decoding enforces the negotiated window within a single output buffer`() {
+        val data = deflateWindowPayload.hexToByteArray()
+        DeflateMessageDecoder(8).use { decoder ->
+            val error = assertFailsWith<CompressionException> { decodeDeflateMessage(decoder, data, data.size, 8192L) }
+            assertTrue(error.kind == CompressionFailureKind.InvalidData)
+        }
+        DeflateMessageDecoder(9).use { decoder ->
+            val decoded = decodeDeflateMessage(decoder, data, data.size, 8192L)
+            assertEquals(deflateWindowPlain + deflateWindowPlain, decoded.toHexString())
+        }
+        DeflateMessageDecoder(8).use { decoder ->
+            assertEquals("Hello", String.fromUtf8(decodeDeflateMessage(decoder, "f248cdc9c90700".hexToByteArray())))
+        }
+        assertFailsWith<IllegalArgumentException> { DeflateMessageEncoder(DeflateOptions(windowBits = 8)) }
+        assertFailsWith<IllegalArgumentException> { DeflateMessageEncoder(DeflateOptions(windowBits = 16)) }
+        assertFailsWith<IllegalArgumentException> { DeflateMessageEncoder(DeflateOptions(level = 10)) }
+        assertFailsWith<IllegalArgumentException> { DeflateMessageDecoder(7) }
+        assertFailsWith<IllegalArgumentException> { DeflateMessageDecoder(16) }
+        assertFailsWith<IllegalArgumentException> { DeflateMessageDecoder(maxOutputBytes = Some(-1L)) }
+    }
+
+    @Test
+    fun `message advancement requires finished output and parameter failures do not consume input`() {
+        NativeByteBuffer.allocate(1L).use { input ->
+            input.writeByte(65.toByte())
+            NativeByteBuffer.allocate(0L).use { full ->
+                DeflateMessageEncoder().use { encoder ->
+                    assertFailsWith<IllegalStateException> { encoder.nextMessage() }
+                    assertFailsWith<IllegalArgumentException> { encoder.process(input, full, -1L) }
+                    assertFailsWith<IndexOutOfBoundsException> { encoder.process(input, full, 2L) }
+                    assertEquals(1L, input.readableBytes)
+                    assertEquals(0L, encoder.totals.inputBytes)
+                    assertTrue(encoder.finishMessage(full).state == CompressionState.NeedOutput)
+                    assertFailsWith<IllegalStateException> { encoder.nextMessage() }
+                    assertFailsWith<IllegalStateException> { encoder.process(input, full) }
+                    assertEquals("00", encodeDeflateMessage(encoder, emptyList<Byte>()).toHexString())
+                    assertTrue(encoder.finishMessage(full).state == CompressionState.Finished)
+                    encoder.nextMessage()
+                    encodeDeflateMessage(encoder, "A".toByteArray())
+                    encoder.close()
+                    assertFailsWith<IllegalStateException> { encoder.nextMessage() }
+                    Unit
+                }
+                DeflateMessageDecoder().use { decoder ->
+                    assertFailsWith<IllegalStateException> { decoder.nextMessage() }
+                    assertFailsWith<IndexOutOfBoundsException> { decoder.process(input, full, 2L) }
+                    assertEquals(1L, input.readableBytes)
+                    assertEquals("Hello", String.fromUtf8(decodeDeflateMessage(decoder, "f248cdc9c90700".hexToByteArray(), 1L, 1L)))
+                    assertTrue(decoder.finishMessage(full).state == CompressionState.Finished)
+                    decoder.nextMessage()
+                    assertEquals(0L, decoder.totals.outputBytes)
+                }
+            }
+        }
+    }
+}
+
+// Python zlib: 300 independent bytes repeated once, Z_SYNC_FLUSH with its final four bytes removed.
+private val deflateWindowPlain: String =
+    "f901242ada5bb8ec4cf28ba03c4c2ab8c6c9f8d4ddc35e99d0fe3fd702282b27625012cb211e498a6e6afc2cf7b0200eb6fdbdf5e6b9a993c0415a038b7016bd" +
+    "8263f2aca853605ab8a78dcbba728c7c590ec4a1a6f30306f0c659e96400177855f16f0e5118e0164e356e03c8327fd856637d1ff079cd929e8bb0f8d0ad10069f" +
+    "887e1995d1e9fbeb65a35c127f477b677ec205bce6e559cdf32f8b45f384c698843c909d14209250f5040c4120d23d948026c9ba6b9c28528da969ca1f3e5054" +
+    "f8bacc224336258b3acd584e8aaf11ce6d2c575513bdc5bacbf6869a35b2201fe22eeb6288bff6bd59a42b3c348d9a1ba88906227a51bb3980c6bd159f94c55a7" +
+    "338e28787f7635c54197c21f23e2493c1c56558964d55ae7ba52aa77f22c574ddfbefc39c828a47a03869"
+private val deflateWindowPayload: String =
+    "fac9a8a2752b7ac71b9f4fdd0b6c7cb4761c3bf9e3caddc371332ffcb3bfcea4a1ad9e1420745a51ceb32b2feb8fcef70d0a7cdbfeeefdfa6ce7cac9071ca398" +
+    "bb0bc4f636257f5ab32238216ac7f2ded3bb8a7a6a22f98e2c5cf69999edc3b1c897290ce215a11ff3f902251e88f999e6319f30aabf11965c2bffa1f2eca479dd" +
+    "1b7e5c582bc036bfa34e72eac597bf5fa72e8e11aa77af4eaf3bc4bae7d9d3c8b39ff5bb5d3fb71c9bd1623361ae88c2a480af2c3c8e0a976ca734a89ddc953d" +
+    "4723a87765e62979bb80901fbbce28399ba9765b9d8df0eb5a2f782e57273c5478efd15da7bfb5cd32dda420ff48ef7552c7fe6f7b239768db98f4ce925ed1c9a654" +
+    "15b8dbb2e1d85ed1f9538e46155b3c6a6fff9e1c132259a3f8c94e65f2c1a3a911d37c43d7552fd55a5eaf74b4e4eeeff787e73475b92fb0c8fc391a5644871500"

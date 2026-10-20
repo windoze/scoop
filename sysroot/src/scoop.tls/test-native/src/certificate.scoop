@@ -1,0 +1,23 @@
+package scoop.tls.testnative
+
+import scoop.crypto.PrivateKey
+import scoop.crypto.native.*
+import scoop.crypto.testdata.*
+import scoop.crypto.x509.Certificate
+
+// Keep platform-policy tests current without weakening the TLS validity rules.
+public fun systemCertificatePem(template: String = serverPem(), expired: Boolean = false): String =
+    Certificate.fromPem(template).use { leaf ->
+        Certificate.fromPem(rootPem()).use { root ->
+            PrivateKey.fromPem(rootKeyPem()).use { key ->
+                @Unsafe {
+                    val result = shortCertificate(certificateHandle(leaf), certificateHandle(root),
+                        privateKeyHandle(key), if (expired) 1 else 0)
+                    return@use String.fromUtf8(cryptoBytes(result, "create system trust test certificate"))
+                }
+            }
+        }
+    }
+
+@Extern(name = "scoop_test_tls_short_certificate")
+private fun shortCertificate(leaf: ULong, root: ULong, key: ULong, expired: Int): CryptoResult

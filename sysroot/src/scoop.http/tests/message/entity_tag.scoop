@@ -1,0 +1,66 @@
+package scoop.http
+
+import scoop.collections.emptyList
+import scoop.test.*
+
+@Test
+private class HttpEntityTagTests {
+    @Test
+    fun `strong and weak comparisons follow the RFC matrix without normalizing opaque bytes`() {
+        for ((left, right, strong, weak) in [("W/\"1\"", "W/\"1\"", false, true),
+            ("W/\"1\"", "W/\"2\"", false, false), ("W/\"1\"", "\"1\"", false, true),
+            ("\"1\"", "\"1\"", true, true), ("\"A\"", "\"a\"", false, false),
+            ("\"%2f\"", "\"/\"", false, false)]) {
+            val first = HttpEntityTag.parse(left)
+            val second = HttpEntityTag.parse(right)
+            assertEquals(strong, first.stronglyMatches(second))
+            assertEquals(weak, first.weaklyMatches(second))
+        }
+        val tag = HttpEntityTag.parse(" \tW/\"xyzzy\"\t ")
+        assertTrue(tag.isWeak)
+        assertEquals("xyzzy", String.fromUtf8(tag.opaque))
+        assertEquals("W/\"xyzzy\"", String.fromUtf8(tag.toByteArray()))
+        assertEquals("ETag", String.fromUtf8(tag.toHttpField().name))
+        assertEquals("W/\"xyzzy\"", String.fromUtf8(tag.toHttpField().value))
+    }
+
+    @Test
+    fun `empty tags literal backslashes and non UTF8 opaque bytes survive copying and GC`() {
+        assertEquals("\"\"", String.fromUtf8(HttpEntityTag(emptyList<Byte>()).toByteArray()))
+        assertEquals(0L, HttpEntityTag.parse("\"\"").opaque.size)
+        val backslash = "a\\b"
+        val parsed = HttpEntityTag.parse("\"" + backslash + "\"")
+        assertEquals(backslash, String.fromUtf8(parsed.opaque))
+        assertEquals("\"" + backslash + "\"", String.fromUtf8(parsed.toByteArray()))
+        val original: Array<Byte> = [33.toByte(), 35.toByte(), 44.toByte(), 92.toByte(), 126.toByte(), 128.toByte(), 255.toByte()]
+        val input = MutableArray<Byte>(original.size) { index -> original[index] }
+        val tag = HttpEntityTag(input, isWeak = true)
+        input[0L] = 0.toByte()
+        gcCollect()
+        val encoded = tag.toByteArray()
+        assertEquals(original.size + 4L, encoded.size)
+        for (index in 0L..<original.size) {
+            assertEquals(original[index], tag.opaque[index])
+            assertEquals(original[index], encoded[index + 3L])
+        }
+        val restored = HttpEntityTag.parse(encoded)
+        assertTrue(restored.isWeak && restored.weaklyMatches(tag))
+    }
+
+    @Test
+    fun `malformed prefixes whitespace quotes and forbidden bytes report their original positions`() {
+        for (text in ["", "tag", "w/\"tag\"", "W /\"tag\"", "W/ \"tag\"", "\"a b\"", "\"unfinished", "\"a\", \"b\"",
+            "\"a\\\"b\"", "\"tag\"\r\n"]) {
+            assertEquals("ETag", assertFailsWith<HttpFieldParseException> { HttpEntityTag.parse(text) }.field)
+            assertTrue(when (HttpEntityTag.parseOrNone(text)) { case None -> true; case Some(_) -> false })
+        }
+        for (code in [0, 9, 10, 13, 32, 127]) {
+            val bytes: Array<Byte> = [34.toByte(), code.toByte(), 34.toByte()]
+            assertEquals(1L, assertFailsWith<HttpFieldParseException> { HttpEntityTag.parse(bytes) }.byteOffset)
+            assertFailsWith<IllegalArgumentException> { HttpEntityTag([code.toByte()]) }
+        }
+        assertFailsWith<IllegalArgumentException> { HttpEntityTag([34.toByte()]) }
+        assertEquals(0L, assertFailsWith<HttpFieldParseException> { HttpEntityTag.parse("w/\"tag\"") }.byteOffset)
+        assertEquals(2L, assertFailsWith<HttpFieldParseException> { HttpEntityTag.parse("W/ \"tag\"") }.byteOffset)
+    }
+}

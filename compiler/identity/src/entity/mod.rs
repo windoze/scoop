@@ -88,10 +88,8 @@ pub use dependency_callable::{
     DecodedDependencyCallableDeclarationId, DependencyCallableDeclarationId,
 };
 pub use digest::{
-    DecodedDigestNodeKey, DecodedDigestOwnerAndRoleKey, DecodedDigestPatchIntentKey, DigestKind,
-    DigestNodeKey, DigestNodeKeyError, DigestNodeKeyResolutionError, DigestOwnerAndRoleKey,
-    DigestOwnerResolver, DigestPatchIntentKey, DigestPatchIntentResolutionError,
-    DigestPatchIntentResolver, DigestSemanticFieldRole,
+    DecodedDigestNodeKey, DecodedDigestOwnerAndRoleKey, DigestKind, DigestNodeKey,
+    DigestNodeKeyError, DigestNodeKeyResolutionError, DigestOwnerAndRoleKey, DigestOwnerResolver,
 };
 pub use dispatch::{
     DecodedDispatchSlotKey, DecodedDispatchTableKey, DecodedOptionalExactInterface,

@@ -8,7 +8,7 @@ use scoop_wire::{Encoder, WireEncode};
 
 use super::{
     CallableDefinitionAbiV1, OdrAbiFingerprintV1, OdrMemberAbiV1, PlannedStrongObjectSymbolRoleV1,
-    RegistrationAbiV1, VerifiedStrongRegistrationPatchSetV1,
+    RegistrationAbiV1, RegistrationObjectSetV1,
 };
 
 mod wire;
@@ -89,8 +89,8 @@ pub struct CanonicalOdrMemberDirectoryV1 {
 impl CanonicalOdrMemberDirectoryV1 {
     /// Join existing content fingerprints with the already verified primary
     /// definitions. No object parsing or fingerprint computation is repeated.
-    pub fn from_patch_set<D, C, I>(
-        patch_set: &VerifiedStrongRegistrationPatchSetV1<D, C, I>,
+    pub fn from_registrations<D, C, I>(
+        patch_set: &RegistrationObjectSetV1<D, C, I>,
     ) -> Result<Self, OdrMemberDirectoryProjectionError>
     where
         D: scoop_lir::StrongDescriptorReference,
@@ -100,7 +100,6 @@ impl CanonicalOdrMemberDirectoryV1 {
             .callables()
             .body_objects()
             .registrations()
-            .patch_sites()
             .builtins()
             .strong_relocations();
         let physical = closure

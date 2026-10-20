@@ -3,7 +3,6 @@ use std::collections::BTreeMap;
 
 struct PreparedCallableObject {
     path: std::path::PathBuf,
-    runtime_metadata: EmittedStrongRuntimeMetadataV1,
     plan: CallableCodePlan,
     backend_constants: std::collections::BTreeSet<scoop_lir::CallableConstantKind>,
 }
@@ -76,7 +75,6 @@ pub(super) fn emit_object_set_with_production<
             body,
             PreparedCallableObject {
                 path,
-                runtime_metadata: prepared.runtime_metadata,
                 plan: prepared.plan,
                 backend_constants,
             },
@@ -96,7 +94,7 @@ pub(super) fn emit_object_set_with_production<
     )
     .map_err(|error| CodegenError(error.to_string()))?;
     let metadata_context = Context::create();
-    let (metadata_llvm, metadata) = prepare_non_callable_strong_llvm_module(
+    let metadata_llvm = prepare_non_callable_strong_llvm_module(
         &metadata_context,
         module,
         &production,
@@ -104,16 +102,10 @@ pub(super) fn emit_object_set_with_production<
         profile,
         &expected_safepoints.without_body_sites(),
     )?;
-    let metadata = metadata_partition::MetadataModule::new(
-        metadata_llvm,
-        metadata,
-        production.canonical_definitions(),
-    )?;
-    let mut metadata_members = metadata.map_partitions(
-        &machine,
-        profile,
-        &partition,
-        |units, llvm, runtime_metadata| {
+    let metadata =
+        metadata_partition::MetadataModule::new(metadata_llvm, production.canonical_definitions())?;
+    let mut metadata_members =
+        metadata.map_partitions(&machine, profile, &partition, |units, llvm| {
             let path = backing
                 .path()
                 .join(format!("{}.o", units.definition_plans()[0]));
@@ -124,22 +116,12 @@ pub(super) fn emit_object_set_with_production<
                 production.canonical_definitions(),
                 units.definition_plans(),
             )?;
-            let digest_patches = object_materialization::resolve_digest_patch_materializations_v1(
-                &path,
-                module.meta.target_profile,
-                production.canonical_definitions(),
-                &runtime_metadata,
-            )?;
             Ok(EmittedConeObjectMemberV1 {
                 units: units.clone(),
                 path,
-                kind: EmittedConeObjectMemberKind::NonCallable {
-                    runtime_metadata,
-                    digest_patches,
-                },
+                kind: EmittedConeObjectMemberKindV1::NonCallable,
             })
-        },
-    )?;
+        })?;
     let mut members = Vec::with_capacity(partition.objects().len());
     for units in partition.objects() {
         let member = match units.kind() {
@@ -161,12 +143,6 @@ pub(super) fn emit_object_set_with_production<
         };
         members.push(member);
     }
-    let mut patches = members
-        .iter()
-        .flat_map(|member| member.digest_patches())
-        .map(|patch| patch.location())
-        .collect::<Vec<_>>();
-    patches.sort_unstable_by_key(|patch| patch.intent());
     Ok(EmittedConeObjectSet {
         optimization: profile.optimization(),
         target_selection: profile.lir_target_selection(),
@@ -185,12 +161,7 @@ fn finish_callable_object(
     profile: ValidatedBackendProfile,
     body: scoop_lir::PersistentCallableBodyId,
 ) -> Result<EmittedConeObjectMemberV1, CodegenError> {
-    let PreparedCallableObject {
-        path,
-        runtime_metadata,
-        plan: _,
-        backend_constants: _,
-    } = prepared;
+    let PreparedCallableObject { path, .. } = prepared;
     let definition = units
         .definition_plans()
         .iter()
@@ -220,19 +191,9 @@ fn finish_callable_object(
         surface,
         &registrations,
     )?;
-    let digest_patches = object_materialization::resolve_digest_patch_materializations_v1(
-        &path,
-        profile.lir_target_profile(),
-        surface,
-        &runtime_metadata,
-    )?;
     Ok(EmittedConeObjectMemberV1 {
         units: units.clone(),
         path,
-        kind: EmittedConeObjectMemberKind::CallableBody {
-            body,
-            runtime_metadata,
-            digest_patches,
-        },
+        kind: EmittedConeObjectMemberKindV1::CallableBody { body },
     })
 }

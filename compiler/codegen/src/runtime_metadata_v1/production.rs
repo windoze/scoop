@@ -1,10 +1,6 @@
 use inkwell::context::Context;
 use inkwell::module::Module as LlvmModule;
 use inkwell::values::GlobalValue;
-use scoop_lir::{
-    ConeIdentity, DigestPatchIntentId, ObjectDefinitionAtomId, ObjectDefinitionPlanId,
-    PersistentSymbolRequest,
-};
 
 use super::{
     EmittedEntryProductionV1, EmittedStaticStorageInitialStateV1,
@@ -20,114 +16,7 @@ use crate::target::ValidatedBackendProfile;
 
 mod callable;
 pub(crate) use callable::{emit_callable_metadata_v1, emit_callable_safepoints};
-mod digest;
-use digest::{PatchParts, PatchSiteParts, record_patch};
-
-/// Object-independent location of one provisional digest slot emitted by
-/// codegen. The packager resolves the typed owner symbol and offset against
-/// the verified object; it never rediscovers a slot from descriptor bytes.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct ProvisionalStrongDigestPatchLocationV1 {
-    intent: DigestPatchIntentId,
-    definition: ObjectDefinitionPlanId,
-    atom: ObjectDefinitionAtomId,
-    owner: PersistentSymbolRequest,
-    offset_within_owner: u64,
-    width_bytes: u8,
-}
-
-impl ProvisionalStrongDigestPatchLocationV1 {
-    pub const fn intent(self) -> DigestPatchIntentId {
-        self.intent
-    }
-
-    pub const fn definition(self) -> ObjectDefinitionPlanId {
-        self.definition
-    }
-
-    pub const fn atom(self) -> ObjectDefinitionAtomId {
-        self.atom
-    }
-
-    pub const fn owner(self) -> PersistentSymbolRequest {
-        self.owner
-    }
-
-    pub const fn offset_within_owner(self) -> u64 {
-        self.offset_within_owner
-    }
-
-    pub const fn width_bytes(self) -> u8 {
-        self.width_bytes
-    }
-}
-
-/// Complete provisional runtime-metadata result for one strong Cone.
-///
-/// LLVM values deliberately do not escape this product. The only data needed
-/// by object packaging is the canonical, typed patch-location set below.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct EmittedStrongRuntimeMetadataV1 {
-    producer: ConeIdentity,
-    patch_locations: Vec<ProvisionalStrongDigestPatchLocationV1>,
-}
-
-/// LLVM-local emission proof used to connect generated function bodies to
-/// their canonical initialization registrations. Only the
-/// packaging projection escapes codegen.
-pub(crate) struct EmittedStrongRuntimeMetadataModuleV1<'ctx> {
-    packaging: EmittedStrongRuntimeMetadataV1,
-    initialization_units: EmittedStrongInitializationUnitRegistrationSetV1<'ctx>,
-}
-
-impl<'ctx> EmittedStrongRuntimeMetadataModuleV1<'ctx> {
-    #[cfg(test)]
-    pub(crate) const fn producer(&self) -> ConeIdentity {
-        self.packaging.producer()
-    }
-
-    #[cfg(test)]
-    pub(crate) fn patch_locations(&self) -> &[ProvisionalStrongDigestPatchLocationV1] {
-        self.packaging.patch_locations()
-    }
-
-    pub(crate) fn into_parts(
-        self,
-    ) -> (
-        EmittedStrongRuntimeMetadataV1,
-        EmittedStrongInitializationUnitRegistrationSetV1<'ctx>,
-    ) {
-        (self.packaging, self.initialization_units)
-    }
-}
-
-impl EmittedStrongRuntimeMetadataV1 {
-    pub const fn producer(&self) -> ConeIdentity {
-        self.producer
-    }
-
-    pub fn patch_locations(&self) -> &[ProvisionalStrongDigestPatchLocationV1] {
-        &self.patch_locations
-    }
-
-    pub(crate) fn select_definitions(&self, definitions: &[ObjectDefinitionPlanId]) -> Self {
-        Self {
-            producer: self.producer,
-            patch_locations: self
-                .patch_locations
-                .iter()
-                .copied()
-                .filter(|patch| definitions.binary_search(&patch.definition).is_ok())
-                .collect(),
-        }
-    }
-}
-
-/// Emit the complete runtime-metadata surface described by one closed strong
-/// production section and return its exact provisional digest locations.
-///
-/// The caller owns the LLVM module under construction. On failure that module
-/// must be discarded; no partially emitted module is a successful product.
+/// Emit complete runtime records and return initialization globals needed by codegen.
 pub(crate) fn emit_strong_runtime_metadata_v1<
     'ctx,
     D: scoop_lir::StrongDescriptorReference,
@@ -140,7 +29,7 @@ pub(crate) fn emit_strong_runtime_metadata_v1<
     production: &scoop_lir::ConeProductionSection<D, C, I>,
     array_bounds_message: GlobalValue<'ctx>,
     array_size_overflow_message: GlobalValue<'ctx>,
-) -> Result<EmittedStrongRuntimeMetadataModuleV1<'ctx>, CodegenError> {
+) -> Result<EmittedStrongInitializationUnitRegistrationSetV1<'ctx>, CodegenError> {
     let types = emit_strong_type_registrations_v1(
         context,
         llvm,
@@ -172,47 +61,6 @@ pub(crate) fn emit_strong_runtime_metadata_v1<
         array_size_overflow_message,
     );
 
-    let producer = production.image_plan().cone().identity();
-    let mut patches = Vec::new();
-    for registration in types.registrations() {
-        let registration = *registration;
-        for patch in [
-            registration.descriptor_definition_patch(),
-            registration.layout_fingerprint_patch(),
-        ] {
-            record_patch(production, &mut patches, patch.into_parts())?;
-        }
-    }
-    for registration in static_storages.registrations() {
-        let registration = *registration;
-        for patch in [
-            registration.scan_fingerprint_patch(),
-            registration.layout_fingerprint_patch(),
-        ] {
-            record_patch(production, &mut patches, patch.into_parts())?;
-        }
-    }
-    for registration in initialization_units.registrations() {
-        let registration = *registration;
-        if let Some(patch) = registration.gateway_definition_patch() {
-            record_patch(production, &mut patches, patch.into_parts())?;
-        }
-    }
-    if let EmittedEntryProductionV1::Executable(entry) = entry {
-        record_patch(
-            production,
-            &mut patches,
-            PatchParts::from_entry(entry.source_signature_patch()),
-        )?;
-        record_patch(
-            production,
-            &mut patches,
-            PatchParts::from_entry(entry.gateway_definition_patch()),
-        )?;
-    }
-    record_patch(production, &mut patches, image.patch().into_parts())?;
-
-    patches.sort_unstable_by_key(|patch| patch.intent);
     emit_global_atom_boundaries_v1(
         llvm,
         production.canonical_definitions(),
@@ -226,13 +74,7 @@ pub(crate) fn emit_strong_runtime_metadata_v1<
             image,
         )?,
     )?;
-    Ok(EmittedStrongRuntimeMetadataModuleV1 {
-        packaging: EmittedStrongRuntimeMetadataV1 {
-            producer,
-            patch_locations: patches,
-        },
-        initialization_units,
-    })
+    Ok(initialization_units)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -247,10 +89,7 @@ fn runtime_global_atoms<'ctx, D, C, I>(
 ) -> Result<Vec<GlobalAtomMaterializationV1<'ctx>>, CodegenError> {
     let mut atoms = Vec::new();
     atoms.extend(types.registrations().iter().map(|registration| {
-        GlobalAtomMaterializationV1::new(
-            registration.descriptor_definition_patch().atom(),
-            registration.descriptor(),
-        )
+        GlobalAtomMaterializationV1::new(registration.primary_atom(), registration.descriptor())
     }));
 
     for (emitted, plan) in immortal_objects.registrations().iter().zip(
@@ -320,7 +159,7 @@ fn runtime_global_atoms<'ctx, D, C, I>(
     if let EmittedEntryProductionV1::Executable(emitted) = entry {
         let definition = production
             .canonical_definitions()
-            .plan(emitted.source_signature_patch().definition())
+            .plan(emitted.definition())
             .ok_or_else(|| {
                 CodegenError(
                     "root entry definition is absent from canonical symbol plan".to_string(),

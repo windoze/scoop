@@ -40,7 +40,15 @@ pub(crate) fn present(
             {
                 Some(CallableConstantKind::Relocatable)
             }
-            (NativeObjectFormat::Elf64, ".data.rel.ro") => Some(CallableConstantKind::Relocatable),
+            (NativeObjectFormat::Elf64, name)
+                if is_section(
+                    name,
+                    ".data.rel.ro",
+                    plan.primary_symbol().symbol().as_str(),
+                ) =>
+            {
+                Some(CallableConstantKind::Relocatable)
+            }
             _ => None,
         };
         if let Some(kind) = kind.filter(|_| section.size() != 0) {
@@ -74,4 +82,12 @@ pub(crate) fn elf_readonly_extent<'data>(
         .min()
         .unwrap_or(section.size());
     (end != 0).then_some((section.index(), end))
+}
+
+pub(crate) fn is_section(name: &str, base: &str, callable: &str) -> bool {
+    name == base
+        || name
+            .strip_prefix(base)
+            .and_then(|suffix| suffix.strip_prefix('.'))
+            == Some(callable)
 }

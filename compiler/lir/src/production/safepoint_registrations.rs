@@ -4,8 +4,7 @@ use std::fmt;
 
 pub use scoop_identity::ObjectDefinitionAtomId;
 use scoop_identity::{
-    ConeIdentity, DefinitionAtomRole, DigestNodeId, DigestNodeKey, DigestPatchIntentId,
-    DigestPatchIntentKey, DigestSemanticFieldRole, ObjectDefinitionPlanId,
+    ConeIdentity, DefinitionAtomRole, DigestNodeId, DigestNodeKey, ObjectDefinitionPlanId,
     PersistentCallableBodyId, PersistentSafepointSiteId, PersistentSymbolError,
     PersistentSymbolKey, PersistentSymbolRequest, SafepointId, SafepointSiteRole,
     StrongDefinitionEntity, StrongDefinitionRole,
@@ -30,7 +29,6 @@ pub struct StrongSafepointRegistrationPlanV1 {
     primary_atom: ObjectDefinitionAtomId,
     definition_owner: crate::RegistrationDefinitionOwner,
     normalized_stackmap_fingerprint_node: DigestNodeId,
-    normalized_stackmap_patch: DigestPatchIntentId,
 }
 
 impl StrongSafepointRegistrationPlanV1 {
@@ -72,10 +70,6 @@ impl StrongSafepointRegistrationPlanV1 {
 
     pub const fn normalized_stackmap_fingerprint_node(self) -> DigestNodeId {
         self.normalized_stackmap_fingerprint_node
-    }
-
-    pub const fn normalized_stackmap_patch(self) -> DigestPatchIntentId {
-        self.normalized_stackmap_patch
     }
 }
 
@@ -230,15 +224,6 @@ fn build_registration(
     }
 
     let stackmap = require_digest_node(digests, DigestNodeKey::stackmap_record(site))?;
-    let normalized_stackmap_patch = require_only_patch(
-        stackmap,
-        DigestPatchIntentKey::new(
-            stackmap.id(),
-            definition.id(),
-            DefinitionAtomRole::Primary,
-            DigestSemanticFieldRole::NormalizedStackmap,
-        ),
-    )?;
 
     Ok(StrongSafepointRegistrationPlanV1 {
         site,
@@ -251,7 +236,6 @@ fn build_registration(
         primary_atom,
         definition_owner,
         normalized_stackmap_fingerprint_node: stackmap.id(),
-        normalized_stackmap_patch,
     })
 }
 
@@ -264,20 +248,6 @@ fn require_digest_node(
         .iter()
         .find(|node| node.key() == &key)
         .ok_or(StrongSafepointRegistrationPlanBuildError::MissingDigestNode(key))
-}
-
-fn require_only_patch(
-    node: &DigestNodeV1,
-    expected: DigestPatchIntentKey,
-) -> Result<DigestPatchIntentId, StrongSafepointRegistrationPlanBuildError> {
-    match node.patch_intents() {
-        [patch] if patch.key() == &expected => Ok(patch.id()),
-        actual => Err(StrongSafepointRegistrationPlanBuildError::PatchSet {
-            node: node.id(),
-            expected: Box::new(expected),
-            actual: actual.iter().map(|patch| *patch.key()).collect(),
-        }),
-    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -326,15 +296,6 @@ pub enum StrongSafepointRegistrationPlanBuildError {
     ObjectDefinitionInputs {
         node: DigestNodeId,
         actual: Vec<DigestInputRefV1>,
-    },
-    ObjectDefinitionPatches {
-        node: DigestNodeId,
-        actual: Vec<DigestPatchIntentKey>,
-    },
-    PatchSet {
-        node: DigestNodeId,
-        expected: Box<DigestPatchIntentKey>,
-        actual: Vec<DigestPatchIntentKey>,
     },
 }
 

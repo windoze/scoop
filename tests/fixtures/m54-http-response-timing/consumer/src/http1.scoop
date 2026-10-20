@@ -1,0 +1,78 @@
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.time.MonotonicTimeSource
+import scoop.test.*
+import scoop.time.*
+
+private class TimedHttp1Transport(val truncate: Boolean = false) : AsyncByteStream, AsyncCloseable {
+    private var index: Long = 0L
+    private var offset: Long = 0L
+    private val chunks: Array<Array<Byte>> = if (truncate) ["H".toByteArray()] else ["H".toByteArray(), timingResponses.toByteArray()]
+    var secondReadAt: TimeMark? = None
+    var closed: Boolean = false
+
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long {
+        if (index == chunks.size || count == 0L) return 0L
+        if (index == 1L && offset == 0L) {
+            secondReadAt = Some(MonotonicTimeSource.markNow())
+            currentEventLoop().sleep(Duration.milliseconds(1L))
+        }
+        val chunk = chunks[index]
+        val remaining = chunk.size - offset
+        val actual = if (remaining < count) remaining else count
+        buffer.writeBytes(chunk, offset, actual)
+        offset += actual
+        if (offset == chunk.size) { offset = 0L; index += 1L }
+        return actual
+    }
+    public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long { buffer.skip(count); return count }
+    public override suspend fun flush() {}
+    public override suspend fun close() { closed = true }
+}
+
+internal fun http1ReceiveTiming(capture: Boolean) {
+    LibuvEventLoop().run suspend { scope ->
+        val transport = TimedHttp1Transport()
+        AsyncHttp1Connection.takeOwnershipAsClient(transport, scope, captureTimings = capture).useAsync suspend { connection ->
+            assertFalse(timingPresent(connection.pendingResponseFirstByteAt))
+            val head = HttpRequestHead(HttpVersion.Http11, "GET".toByteArray(), HttpRequestTarget.Http1("/".toByteArray()),
+                [HttpField("Host".toByteArray(), "test".toByteArray())])
+            for (_ in 0..<2) connection.sendRequest(head).useAsync suspend { output -> output.finish() }
+            val informational = connection.receiveResponse()
+            assertEquals(100U, informational.head.status)
+            assertEquals(0L, informational.body.readAllBytes(0L).size)
+            val first = connection.receiveResponse()
+            assertEquals(200U, first.head.status)
+            assertEquals(0L, first.body.readAllBytes(0L).size)
+            val second = connection.receiveResponse()
+            assertEquals(204U, second.head.status)
+            assertEquals(0L, second.body.readAllBytes(0L).size)
+            assertTrue(connection.isReusable)
+            assertFalse(timingPresent(connection.pendingResponseFirstByteAt))
+            if (capture) {
+                assertTrue(informational.firstByteAt!! < transport.secondReadAt!!)
+                assertTrue(first.firstByteAt!! >= transport.secondReadAt!!)
+                assertEquals(first.firstByteAt, second.firstByteAt)
+            } else assertFalse(timingPresent(informational.firstByteAt) || timingPresent(first.firstByteAt) || timingPresent(second.firstByteAt))
+        }
+        assertTrue(transport.closed)
+    }
+}
+
+internal fun http1FailedHeaderTiming(capture: Boolean) {
+    LibuvEventLoop().run suspend { scope ->
+        val transport = TimedHttp1Transport(true)
+        AsyncHttp1Connection.takeOwnershipAsClient(transport, scope, captureTimings = capture).useAsync suspend { connection ->
+            val head = HttpRequestHead(HttpVersion.Http11, "GET".toByteArray(), HttpRequestTarget.Http1("/".toByteArray()),
+                [HttpField("Host".toByteArray(), "test".toByteArray())])
+            connection.sendRequest(head).useAsync suspend { output -> output.finish() }
+            try { connection.receiveResponse(); fail(Some("truncated header must fail")) }
+            catch (error: HttpException) { assertTrue(error.isUnexpectedEof) }
+            assertTrue(connection.isClosed)
+            assertEquals(capture, timingPresent(connection.pendingResponseFirstByteAt))
+        }
+        assertTrue(transport.closed)
+    }
+}

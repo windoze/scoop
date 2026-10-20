@@ -17,6 +17,7 @@ import scoop.tls.*
             case -2 -> TlsFailureKind.Truncated
             case -3 -> TlsFailureKind.Verification
             case -4 -> TlsFailureKind.UnconsumedData
+            case -5 -> TlsFailureKind.Configuration
             else -> TlsFailureKind.Protocol
         }
         try { cryptoValue(CryptoResult(0UL, result.error), operation) }
@@ -27,12 +28,15 @@ import scoop.tls.*
         case 1 -> TlsStepKind.WantRead
         case 2 -> TlsStepKind.WantWrite
         case 3 -> TlsStepKind.Closed
+        case 4 -> TlsStepKind.WantVerification
         else -> throw IllegalStateException(Some("invalid TLS step status"))
     }, result.count)
 }
 
 @Extern(name = "scoop_tls_context_new") internal fun contextNew(server: Int, minimum: Int, maximum: Int, alpn: Ptr<Byte>, size: Long, store: ULong): CryptoResult
-@Extern(name = "scoop_tls_context_identity") internal fun contextIdentity(handle: ULong, key: ULong, chain: Ptr<ULong>, count: Long): CryptoResult
+@Extern(name = "scoop_tls_identity_new") internal fun identityNew(key: ULong, chain: Ptr<ULong>, count: Long): CryptoResult
+@Extern(name = "scoop_tls_identity_free") internal fun identityFree(handle: ULong)
+@Extern(name = "scoop_tls_context_identity") internal fun contextIdentity(handle: ULong, identity: ULong): CryptoResult
 @Extern(name = "scoop_tls_context_free") internal fun contextFree(handle: ULong)
 @Extern(name = "scoop_tls_session_new") internal fun sessionNew(context: ULong, server: Int, nameKind: Int, name: Ptr<Byte>?, size: Long): CryptoResult
 @Extern(name = "scoop_tls_session_free") internal fun sessionFree(handle: ULong)

@@ -53,7 +53,7 @@ where
     D: super::LinkDescriptorReference,
     C: super::LinkDispatchCallableReference + Clone,
 {
-    let builtins = registrations.patch_sites().builtins();
+    let builtins = registrations.builtins();
     let planned = registrations.plan().registrations();
     let mut fingerprints = Vec::with_capacity(planned.len());
     for plan in planned {

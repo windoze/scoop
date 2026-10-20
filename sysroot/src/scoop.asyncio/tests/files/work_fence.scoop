@@ -7,13 +7,21 @@ internal class WorkFence(private val loop: LibuvEventLoop) {
     private var completed: Boolean = false
     private var waiter: Continuation<Unit>? = None
 
-    suspend fun start(spare: UInt = 0u) {
+    suspend fun start(spare: UInt = 0u, cancelAfterPriorWork: Job? = None) {
         suspendCoroutine<Unit> { continuation ->
             val operation = LoopOperation(loop.state, loop.state.nextOperation(),
                 { native, id -> @Unsafe {
                     val result = createFence(native, id, spare)
                     if (result.status < 0) return@LoopOperation nativeStatus(id, result.status)
                     pointer = result.pointer
+                    when (cancelAfterPriorWork) {
+                        case Some(job) -> {
+                            // All gates running means earlier work has returned, before loop delivery.
+                            waitFence(pointer!!)
+                            job.cancel()
+                        }
+                        case None -> {}
+                    }
                     loop.state.ready.add { continuation.resume(Unit) }
                     return@LoopOperation IoStart.Pending
                 } }, { _, _ -> },

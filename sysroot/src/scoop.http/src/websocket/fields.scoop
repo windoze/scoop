@@ -1,0 +1,75 @@
+package scoop.http
+
+import scoop.collections.HashSet
+import scoop.text.*
+
+internal fun webSocketField(name: String, value: String): HttpField = HttpField(name.toByteArray(), value.toByteArray())
+
+internal fun webSocketExtraFields(fields: List<HttpField>): ArrayList<HttpField> {
+    val result = ArrayList<HttpField>()
+    for (field in fields) {
+        if (!httpToken(field.name)) throw IllegalArgumentException(Some("invalid WebSocket field name"))
+        requireHttpValue(field.value)
+        val name = String.fromUtf8(field.name).lowercaseAscii()
+        if (name == "host" || name == "upgrade" || name == "connection" || name.startsWith("sec-websocket-") ||
+            name == "content-length" || name == "transfer-encoding")
+            throw IllegalArgumentException(Some("WebSocket handshake manages field " + name))
+        result.add(field)
+    }
+    return result
+}
+
+internal fun webSocketSingleField(fields: List<HttpField>, name: String, required: Boolean): String? {
+    val values = fields.findAll(name.toByteArray())
+    if (values.size == 0L && !required) return None
+    if (values.size != 1L) throw WebSocketHandshakeException("expected one " + name + " field", Some(name))
+    val value = httpTrim(values[0L].value, 0L, values[0L].value.size)
+    if (value.size == 0L) throw WebSocketHandshakeException("empty " + name + " field", Some(name))
+    for (byte in value) if (byte.toUByte().toInt() > 127)
+        throw WebSocketHandshakeException("expected ASCII " + name + " field", Some(name))
+    return Some(String.fromUtf8(value))
+}
+
+internal fun requireWebSocketUpgrade(fields: List<HttpField>) {
+    var upgrade = false
+    for (field in fields.findAll("Upgrade".toByteArray())) {
+        val reader = HttpFieldReader("Upgrade", field.value)
+        reader.skipOws()
+        while (!reader.ended) {
+            if (reader.peek() == 44) { reader.position += 1L; reader.skipOws(); continue }
+            val name = reader.token()
+            val versioned = reader.peek() == 47
+            if (versioned) { reader.position += 1L; reader.token() }
+            if (!versioned && name.lowercaseAscii() == "websocket") upgrade = true
+            reader.skipOws()
+            if (!reader.ended) { reader.expect(44); reader.skipOws() }
+        }
+    }
+    if (!upgrade) throw WebSocketHandshakeException("missing websocket Upgrade", Some("Upgrade"))
+    var connection = false
+    for (field in fields.findAll("Connection".toByteArray()))
+        for (token in HttpFieldReader("Connection", field.value).tokenList()) if (token == "upgrade") connection = true
+    if (!connection) throw WebSocketHandshakeException("missing Upgrade connection token", Some("Connection"))
+}
+
+internal fun readWebSocketProtocols(fields: List<HttpField>): Array<String> {
+    val result = ArrayList<String>()
+    val seen = HashSet<String>()
+    val values = fields.findAll("Sec-WebSocket-Protocol".toByteArray())
+    for (field in values) {
+        val reader = HttpFieldReader("Sec-WebSocket-Protocol", field.value)
+        reader.skipOws()
+        while (!reader.ended) {
+            if (reader.peek() == 44) { reader.position += 1L; reader.skipOws(); continue }
+            val start = reader.position
+            val protocol = reader.token()
+            if (!seen.add(protocol)) reader.failAt(start, "duplicate WebSocket subprotocol")
+            result.add(protocol)
+            reader.skipOws()
+            if (!reader.ended) { reader.expect(44); reader.skipOws() }
+        }
+    }
+    if (values.size > 0L && result.size == 0L)
+        throw WebSocketHandshakeException("empty WebSocket subprotocol list", Some("Sec-WebSocket-Protocol"))
+    return result.toArray()
+}

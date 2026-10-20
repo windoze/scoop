@@ -1,0 +1,47 @@
+package scoop.http.client
+
+import scoop.http.*
+import scoop.url.Url
+
+public class HttpInterceptor public constructor(internal val intercept: suspend (HttpCallChain) -> HttpCallResult)
+
+public class HttpCallChain internal constructor(internal val invocation: ClientInvocation,
+    internal val next: Long, public val request: HttpRequest) {
+    public val suppliedFields: Array<HttpField> = request.suppliedFields.toArray()
+    public val webSocketOptions: HttpWebSocketOptions? = invocation.sequence.webSocket
+    internal var active: Boolean = true
+    internal var proceeded: Boolean = false
+
+    public suspend fun proceed(url: Url = request.url, method: String = request.method,
+        fields: List<HttpField> = suppliedFields, body: RequestBody = request.body): HttpCallResult {
+        invocation.client.lock.withLock {
+            if (!active || proceeded) throw IllegalStateException(Some("HTTP interceptor chain can proceed only once while active"))
+            proceeded = true
+        }
+        invocation.requireActive()
+        val selected = HttpRequest(url, method, fields, body, request.options)
+        if (clientPresent(webSocketOptions)) {
+            if (method != "GET" || body.contentLength != Some(0L) || !body.isReplayable || body.trailerNames.size != 0L)
+                throw IllegalArgumentException(Some("WebSocket interceptor requires GET with a replayable empty body"))
+            val websocket = HttpWebSocketRequest(clientWebSocketUrl(url), fields, request.options)
+            validateClientWebSocket(websocket, webSocketOptions!!)
+        }
+        return invokeClientInterceptor(invocation, next, selected)
+    }
+}
+
+internal suspend fun invokeClientInterceptor(invocation: ClientInvocation, index: Long, request: HttpRequest): HttpCallResult {
+    invocation.requireActive()
+    val interceptors = invocation.client.config.interceptors
+    if (index == interceptors.size) {
+        val result = runClientSequence(invocation.client, request, invocation.sequence)
+        rememberClientInvocationResult(invocation, result)
+        return result
+    }
+    val chain = HttpCallChain(invocation, index + 1L, request)
+    try {
+        val result = interceptors[index].intercept(chain)
+        rememberClientInvocationResult(invocation, result)
+        return result
+    } finally { invocation.client.lock.withLock { chain.active = false } }
+}

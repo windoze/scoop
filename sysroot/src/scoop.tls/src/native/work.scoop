@@ -1,0 +1,47 @@
+package scoop.tls.native
+
+import scoop.crypto.native.CryptoResult
+import scoop.tls.*
+
+@CLayout internal struct NativeTlsWork(val pointer: Ptr<Unit>?, val error: ULong)
+
+@Unsafe
+internal fun workPointer(result: NativeTlsWork, operation: String): Ptr<Unit> {
+    tlsValue(CryptoResult(0UL, result.error), operation)
+    return result.pointer!!
+}
+
+@Unsafe
+public fun prepareSystemContext(options: TlsOptions, identity: TlsIdentity?): Ptr<Unit> {
+    val handle = clientHandle(0UL, options, identity)
+    try { return workPointer(systemContextNew(handle), "prepare system TLS trust") }
+    catch (error: Throwable) {
+        contextFree(handle)
+        throw error
+    }
+}
+
+@Unsafe
+internal fun takeSystemContextHandle(work: Ptr<Unit>): ULong {
+    checkedStep(systemContextResult(work), "load system TLS trust")
+    return systemContextTake(work)
+}
+
+@Unsafe
+public fun takeSystemContext(work: Ptr<Unit>): TlsClientContext =
+    TlsClientContext.takeOwnership(takeSystemContextHandle(work))
+
+@Extern(name = "scoop_tls_system_context_new") private fun systemContextNew(context: ULong): NativeTlsWork
+@Extern(name = "scoop_tls_system_context_result") private fun systemContextResult(work: Ptr<Unit>): NativeTlsStep
+@Extern(name = "scoop_tls_system_context_take") private fun systemContextTake(work: Ptr<Unit>): ULong
+@Extern(name = "scoop_tls_system_context_run") public fun runSystemContext(work: Ptr<Unit>)
+@Extern(name = "scoop_tls_system_context_free") public fun freeSystemContext(work: Ptr<Unit>)
+@Extern(name = "scoop_tls_system_context_executor") public fun systemContextExecutor(): FunPtr<(Ptr<Unit>) -> Unit>
+@Extern(name = "scoop_tls_system_context_releaser") public fun systemContextReleaser(): FunPtr<(Ptr<Unit>) -> Unit>
+
+@Extern(name = "scoop_tls_verification_take") internal fun takeVerification(handle: ULong): NativeTlsWork
+@Extern(name = "scoop_tls_verification_complete") internal fun completeVerification(handle: ULong, work: Ptr<Unit>): CryptoResult
+@Extern(name = "scoop_tls_verification_run") public fun runVerification(work: Ptr<Unit>)
+@Extern(name = "scoop_tls_verification_free") public fun freeVerification(work: Ptr<Unit>)
+@Extern(name = "scoop_tls_verification_executor") public fun verificationExecutor(): FunPtr<(Ptr<Unit>) -> Unit>
+@Extern(name = "scoop_tls_verification_releaser") public fun verificationReleaser(): FunPtr<(Ptr<Unit>) -> Unit>

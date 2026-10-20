@@ -1,0 +1,99 @@
+package scoop.http.client
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.bytes.ByteOrder
+import scoop.collections.HashMap
+import scoop.collections.Map
+import scoop.crypto.DigestAlgorithm
+import scoop.crypto.digest
+import scoop.http.*
+import scoop.text.lowercaseAscii
+import scoop.text.toHexString
+import scoop.time.Instant
+
+internal val clientEmptyCacheFingerprint: String = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+
+internal fun clientCacheFingerprints(fields: List<HttpField>): Map<String, String> {
+    val result = HashMap<String, String>()
+    for (field in fields) {
+        val name = String.fromUtf8(field.name).lowercaseAscii()
+        if (!result.containsKey(name)) result.put(name, clientCacheFieldFingerprint(fields, name))
+    }
+    return result
+}
+
+internal fun clientCacheFieldFingerprint(fields: List<HttpField>, name: String): String {
+    val output = ByteArrayBuilder()
+    for (field in fields) if (field.hasName(name.toByteArray())) {
+        output.writeInt64(field.value.size, ByteOrder.BigEndian)
+        output.append(field.value)
+    }
+    return digest(DigestAlgorithm.Sha256, output.toByteArray()).toHexString()
+}
+
+internal fun clientCacheField(fields: List<HttpField>, name: String): HttpField? {
+    var found: HttpField? = None
+    for (field in fields) if (field.hasName(name.toByteArray())) {
+        if (clientPresent(found)) return None
+        found = Some(field)
+    }
+    return found
+}
+
+internal fun clientCacheHas(fields: List<HttpField>, name: String): Boolean {
+    for (field in fields) if (field.hasName(name.toByteArray())) return true
+    return false
+}
+
+internal fun clientCacheDate(fields: List<HttpField>, name: String, reference: Instant): Instant? {
+    val field = clientCacheField(fields, name) ?: return None
+    return HttpDate.parseOrNone(field.value, reference, true)
+}
+
+internal fun clientStoredCacheHead(head: HttpResponseHead): HttpResponseHead {
+    val connection = parseHttpTokenFields(head.fields, "connection")
+    val kept = ArrayList<HttpField>()
+    for (field in head.fields) {
+        val name = String.fromUtf8(field.name).lowercaseAscii()
+        if (clientCacheHopField(name)) continue
+        var excluded = false
+        for (option in connection) if (option == name) excluded = true
+        if (!excluded) kept.add(field)
+    }
+    return HttpResponseHead(head.version, head.status, clientCacheReason(head), kept, head.neverIndexStatus)
+}
+
+private fun clientCacheHopField(name: String): Boolean =
+    name == "connection" || name == "keep-alive" || name == "proxy-authenticate" || name == "proxy-authorization" ||
+        name == "te" || name == "trailer" || name == "transfer-encoding" || name == "upgrade"
+
+internal fun clientCacheWithAge(head: HttpResponseHead, seconds: Long): HttpResponseHead {
+    val fields = ArrayList<HttpField>()
+    for (field in head.fields) if (!field.hasName("Age".toByteArray())) fields.add(field)
+    fields.add(HttpAge(seconds).toHttpField())
+    return HttpResponseHead(head.version, head.status, clientCacheReason(head), fields, head.neverIndexStatus)
+}
+
+internal fun clientCacheWithDate(head: HttpResponseHead, receivedAt: Instant): HttpResponseHead {
+    if (clientCacheHas(head.fields, "Date")) return head
+    val fields = ArrayList<HttpField>()
+    for (field in head.fields) fields.add(field)
+    fields.add(HttpField("Date".toByteArray(), HttpDate.format(receivedAt).toByteArray()))
+    return HttpResponseHead(head.version, head.status, clientCacheReason(head), fields, head.neverIndexStatus)
+}
+
+internal fun clientMergeCachedHead(stored: HttpResponseHead, validating: HttpResponseHead, receivedAt: Instant): HttpResponseHead {
+    val fresh = clientStoredCacheHead(clientCacheWithDate(validating, receivedAt))
+    val fields = ArrayList<HttpField>()
+    for (field in stored.fields) {
+        if (field.hasName("Age".toByteArray())) continue
+        var replaced = false
+        for (current in fresh.fields) if (current.hasName(field.name)) replaced = true
+        if (!replaced) fields.add(field)
+    }
+    for (field in fresh.fields) fields.add(field)
+    return HttpResponseHead(validating.version, stored.status, clientCacheReason(stored), fields, stored.neverIndexStatus)
+}
+
+internal fun clientCacheReason(head: HttpResponseHead): List<Byte>? =
+    when (head.reason) { case Some(value) -> Some<List<Byte>>(value); case None -> None }

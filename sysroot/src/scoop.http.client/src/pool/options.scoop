@@ -1,0 +1,18 @@
+package scoop.http.client
+
+import scoop.time.Duration
+
+public class HttpConnectionPoolOptions public constructor(
+    public val maxConnectionsPerOrigin: Long = 8L,
+    public val maxConnections: Long = 64L,
+    public val maxStreamsPerHttp2: Long = 100L,
+    public val idleTimeout: Duration = Duration.seconds(60L),
+    public val maxLifetime: Duration? = None
+) {
+    init {
+        if (maxConnectionsPerOrigin <= 0L || maxConnections <= 0L || maxStreamsPerHttp2 <= 0L)
+            throw IllegalArgumentException(Some("HTTP connection and stream limits must be positive"))
+        if (idleTimeout < Duration.ZERO || (clientPresent(maxLifetime) && maxLifetime!! <= Duration.ZERO))
+            throw IllegalArgumentException(Some("invalid HTTP connection lifetime"))
+    }
+}

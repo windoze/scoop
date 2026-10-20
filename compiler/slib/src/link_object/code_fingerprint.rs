@@ -11,7 +11,7 @@ use scoop_wire::{Encoder, HashError, WireEncode, domain_separated_cbor_hash};
 
 use super::{
     CanonicalDefinedLinkSymbolOwnerSetV1, CanonicalUndefinedSymbolRequirementSetV1,
-    VerifiedEntryPatchSetV1,
+    FinalRuntimeObjectsV1,
 };
 use crate::{
     CodeFingerprint, LinkMemberFingerprint, SingleConeProductionCodeProjectionV1, SlibMemberId,
@@ -73,7 +73,7 @@ pub struct FinalCodeObjectSetV1<
     C = scoop_lir::StrongTypeDispatchCallableRefV1,
     I = scoop_identity::PersistentInitializationUnitId,
 > {
-    final_objects: VerifiedEntryPatchSetV1<D, C, I>,
+    final_objects: FinalRuntimeObjectsV1<D, C, I>,
     projection: CodeLinkObjectMemberSetV1,
 }
 
@@ -85,10 +85,10 @@ pub type FinalCodeObjectSetV2 = FinalCodeObjectSetV1<
 
 impl<D: scoop_lir::StrongDescriptorReference, C: Clone, I> FinalCodeObjectSetV1<D, C, I> {
     pub const fn producer(&self) -> ConeIdentity {
-        self.final_objects.entry().patch_sites().producer()
+        self.final_objects.entry().builtins().producer()
     }
 
-    pub const fn final_objects(&self) -> &VerifiedEntryPatchSetV1<D, C, I> {
+    pub const fn final_objects(&self) -> &FinalRuntimeObjectsV1<D, C, I> {
         &self.final_objects
     }
 
@@ -103,21 +103,21 @@ impl<D: scoop_lir::StrongDescriptorReference, C: Clone, I> FinalCodeObjectSetV1<
 
 /// Pair final object data with the archive directory used by Code fingerprints.
 pub fn build_code_link_object_members_v1(
-    final_objects: VerifiedEntryPatchSetV1,
+    final_objects: FinalRuntimeObjectsV1,
     directory: &[SlibMemberRecord],
 ) -> Result<FinalCodeObjectSetV1, CodeObjectProjectionError> {
     build_code_link_object_members(final_objects, directory)
 }
 
 pub fn build_code_link_object_members_v2(
-    final_objects: crate::VerifiedEntryPatchSetV2,
+    final_objects: crate::FinalRuntimeObjectsV2,
     directory: &[SlibMemberRecord],
 ) -> Result<FinalCodeObjectSetV2, CodeObjectProjectionError> {
     build_code_link_object_members(final_objects, directory)
 }
 
 fn build_code_link_object_members<D, C, I>(
-    final_objects: VerifiedEntryPatchSetV1<D, C, I>,
+    final_objects: FinalRuntimeObjectsV1<D, C, I>,
     directory: &[SlibMemberRecord],
 ) -> Result<FinalCodeObjectSetV1<D, C, I>, CodeObjectProjectionError>
 where
@@ -183,7 +183,6 @@ impl CodeFingerprintDataV1 {
             .link_objects()
             .final_objects()
             .entry()
-            .patch_sites()
             .builtins()
             .c_bridge_production()
             .production()
@@ -286,7 +285,6 @@ impl CodeFingerprintInputV1<'_> {
             .link_objects()
             .final_objects()
             .entry()
-            .patch_sites()
             .builtins()
             .c_bridge_production()
             .production()

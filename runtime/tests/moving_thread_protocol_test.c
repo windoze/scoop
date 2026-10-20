@@ -35,8 +35,7 @@ static const ScoopTypeDescriptor leaf_td = {
     .vtable = NULL,
     .itables = NULL,
     .itable_count = 0,
-    .diagnostic_name = {(const uint8_t *)"ThreadProtocolLeaf", sizeof("ThreadProtocolLeaf") - 1},
-};
+    .diagnostic_name = {(const uint8_t *)"ThreadProtocolLeaf", sizeof("ThreadProtocolLeaf") - 1}};
 
 static const ScoopTypeDescriptor *const registered_types[] = {&leaf_td};
 

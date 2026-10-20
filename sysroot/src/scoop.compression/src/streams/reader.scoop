@@ -1,0 +1,28 @@
+package scoop.compression
+
+import scoop.platform.memory.NativeByteBuffer
+
+internal class CompressionReadState(val resources: CompressionIoResources) {
+    private var inputEnded: Boolean = false
+    var needsInput: Boolean = true
+    var finished: Boolean = false
+    val buffer: NativeByteBuffer get() = resources.buffer
+    val totals: CompressionTotals get() = resources.codec.totals
+
+    fun acceptInput(count: Long) {
+        needsInput = false
+        if (count == 0L) inputEnded = true
+        else if (resources.codec.finished) compressionTrailing(resources.codec.format)
+    }
+
+    fun step(output: NativeByteBuffer, count: Long): CompressionStep {
+        val codec = resources.codec
+        val finishing = inputEnded && (!resources.encoding || buffer.readableBytes == 0L)
+        val step = codec.step(Some(buffer), buffer.readableBytes, output, count, if (finishing) 2 else 0)
+        if (codec.finished && buffer.readableBytes > 0L) compressionTrailing(codec.format)
+        finished = codec.finished && (resources.encoding || inputEnded)
+        needsInput = !inputEnded && buffer.readableBytes == 0L &&
+            (step.state == CompressionState.NeedInput || codec.finished)
+        return step
+    }
+}

@@ -1,0 +1,79 @@
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.platform.concurrent.Thread
+import scoop.platform.memory.NativeByteBuffer
+import scoop.text.endsWith
+
+private suspend fun writeSent(writer: AsyncHttp1Writer) {
+    NativeByteBuffer.allocate(4L).use suspend { buffer ->
+        buffer.writeBytes("sent".toByteArray()); writer.writeFully(buffer)
+    }
+}
+
+private fun exercise(mode: String) {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { scope ->
+        val body = if (mode == "length" || mode == "eof") "no" else ""
+        val length = if (mode == "eof") "" else "Content-Length: " + body.length.toString() + "\r\n"
+        val requestClose = mode == "request"
+        val connection = if (requestClose) "" else "Connection: close\r\n"
+        val transport = EarlyCloseTransport("HTTP/1.1 401 Unauthorized\r\n" + connection + length + "\r\n" + body)
+        AsyncHttp1Connection.takeOwnershipAsClient(transport, scope).useAsync suspend { client ->
+            val fields: Array<HttpField> = if (requestClose)
+                [HttpField("Host".toByteArray(), "example.test".toByteArray()), HttpField("Connection".toByteArray(), "close".toByteArray())]
+                else [HttpField("Host".toByteArray(), "example.test".toByteArray())]
+            val head = HttpRequestHead(HttpVersion.Http11, "POST".toByteArray(), HttpRequestTarget.Http1("/".toByteArray()), fields)
+            val incomplete = mode == "abandon" || mode == "short"
+            val writer = client.sendRequest(head, Http1BodyFraming.Length(if (incomplete) 8L else 4L))
+            writeSent(writer)
+            if (mode == "finished") writer.finish()
+            val response = client.receiveResponse()
+            checkEarlyClose(response.head.status == 401U, "final response was lost")
+            checkEarlyClose(String.fromUtf8(response.body.readAllBytes(2L)) == body, "final response body differs")
+            checkEarlyClose(response.body.isComplete && !client.isReusable, "closing response must not be reusable")
+            if (mode == "finished") {
+                checkEarlyClose(client.isClosed && transport.closes == 1L, "completed request did not close promptly")
+            } else {
+                checkEarlyClose(!client.isClosed && transport.closes == 0L, "final response closed an unfinished request writer")
+                checkEarlyClose(!writer.isComplete, "unfinished writer was reported as complete")
+                if (mode == "short") {
+                    val rejected = try { writer.finish(); false } catch (_: IllegalStateException) { true }
+                    checkEarlyClose(rejected && !writer.isComplete, "short request was accepted")
+                }
+                if (mode == "write-failure") {
+                    val failure = Throwable()
+                    transport.writeFailure = Some(failure)
+                    val failed = try { writer.finish(); false } catch (error: Throwable) { error === failure }
+                    checkEarlyClose(failed && !writer.isComplete, "actual output failure was lost")
+                } else if (incomplete) writer.close() else writer.finish()
+                checkEarlyClose(client.isClosed && transport.closes == 1L, "writer cleanup did not close the connection")
+                checkEarlyClose(writer.isComplete == (!incomplete && mode != "write-failure"), "writer completion status differs")
+            }
+            checkEarlyClose(String.fromUtf8(transport.output.toByteArray()).endsWith("\r\n\r\nsent"), "request bytes differ")
+            checkEarlyClose(response.body.readAllBytes(0L).size == 0L, "completed body must still read EOF")
+            response.body.close(); writer.close(); client.close()
+            checkEarlyClose(transport.closes == 1L, "owned transport closed more than once")
+        }
+        checkEarlyClose(!scope.job.isCancelled, "normal close cancelled the parent")
+    }
+}
+
+private fun runMain() {
+    for (mode in ["empty", "length", "eof", "request", "abandon", "short", "write-failure", "finished"]) {
+        Thread.start { exercise(mode) }.use { thread -> exercise(mode); thread.join() }
+    }
+    println("HTTP1 early closing responses preserve writer cleanup")
+}
+
+private fun reportFailure(error: Throwable) {
+    if (error is Exception) println(error.message ?: "no exception message")
+    if (error is ResourceUseException) {
+        reportFailure(error.primaryFailure); reportFailure(error.cleanupFailure)
+    }
+}
+
+fun main() {
+    try { runMain() }
+    catch (error: Throwable) { reportFailure(error); throw error }
+}

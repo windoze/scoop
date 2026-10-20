@@ -1,0 +1,27 @@
+package scoop.asyncio
+
+import scoop.platform.fs.*
+import scoop.platform.native.requireFileMode
+import scoop.platform.system.*
+
+internal suspend fun createDirectoriesOnLoop(loop: LibuvEventLoop, path: Path, mode: Int) {
+    loop.requireJob()
+    requireFileMode(mode)
+    createParents(loop, path, mode)
+}
+
+private suspend fun createParents(loop: LibuvEventLoop, path: Path, mode: Int) {
+    try { createDirectoryOnLoop(loop, path, mode); return }
+    catch (error: PlatformException) {
+        if (error.kind == PlatformErrorKind.AlreadyExists) {
+            if (loop.metadata(path).kind == FileKind.Directory) return
+            throw error
+        }
+        if (error.kind != PlatformErrorKind.NotFound || path.parent == None) throw error
+    }
+    createParents(loop, path.parent!!, mode)
+    try { createDirectoryOnLoop(loop, path, mode) }
+    catch (error: PlatformException) {
+        if (error.kind != PlatformErrorKind.AlreadyExists || loop.metadata(path).kind != FileKind.Directory) throw error
+    }
+}

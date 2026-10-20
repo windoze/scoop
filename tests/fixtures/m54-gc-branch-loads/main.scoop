@@ -1,0 +1,46 @@
+class Reader(val bytes: Array<Byte>) {
+    var position: Long = 0L
+    fun peek(): Int = if (position < bytes.size) bytes[position].toInt() and 255 else -1
+    fun expect(value: Int) {
+        if (peek() != value) throw IllegalArgumentException()
+        position += 1L
+    }
+}
+
+fun digits(reader: Reader, width: Int): Int {
+    gcCollect()
+    var result = 0
+    for (index in 0..<width) {
+        val digit = reader.peek() - 48
+        if (digit < 0 || digit > 9) throw IllegalArgumentException()
+        result = result * 10 + digit
+        reader.position += 1L
+    }
+    return result
+}
+
+fun parsePair(reader: Reader): Int {
+    val padded = reader.peek() == 32
+    if (padded) reader.position += 1L
+    val first = digits(reader, if (padded) 1 else 2)
+    reader.expect(32)
+    val second = digits(reader, 2)
+    return first * 100 + second
+}
+
+fun main(args: Array<String>) {
+    val first = Reader(" 6 42".toByteArray())
+    val second = Reader("16 07".toByteArray())
+    if (parsePair(first) != 642 || first.position != 5L) throw IllegalStateException()
+    if (parsePair(second) != 1607 || second.position != 5L) throw IllegalStateException()
+    var selected = first
+    if (args.size > 1L) selected = second
+    gcCollect()
+    selected.position = 0L
+    if (args.size > 1L) {
+        if (selected !== second || first.position != 5L) throw IllegalStateException()
+    } else {
+        if (selected !== first || second.position != 5L) throw IllegalStateException()
+    }
+    println("branch loads keep relocated references")
+}

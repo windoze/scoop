@@ -28,7 +28,9 @@ pub(super) fn read(bytes: &[u8]) -> Result<NativeObjectInfo, LinkError> {
             continue;
         }
         if symbol.is_undefined() {
-            requirements.insert(name);
+            if !symbol.is_weak() {
+                requirements.insert(name);
+            }
             continue;
         }
         let kind = match symbol.kind() {
@@ -67,5 +69,11 @@ pub(super) fn read(bytes: &[u8]) -> Result<NativeObjectInfo, LinkError> {
     })
 }
 
-#[cfg(all(test, target_os = "linux", target_arch = "x86_64"))]
+#[cfg(all(
+    test,
+    any(
+        all(target_os = "linux", target_arch = "x86_64"),
+        all(target_os = "macos", target_arch = "aarch64")
+    )
+))]
 mod tests;

@@ -1,0 +1,25 @@
+package scoop.http.client
+
+import scoop.charset.Charset
+import scoop.collections.listOf
+import scoop.http.HttpMediaType
+import scoop.http.HttpParameter
+import scoop.json.Json
+import scoop.url.FormUrlEncoded
+import scoop.url.UrlQuery
+
+internal fun textRequestBody(text: String, charset: Charset): RequestBody {
+    val mediaType = HttpMediaType("text", "plain", listOf(HttpParameter("charset", charset.name.toByteArray())))
+    return RequestBody.fromByteArray(charset.encode(text), Some(mediaType))
+}
+
+internal fun <T> jsonRequestBody(value: T, codec: ValueEncoder<T>, maxBytes: Long): RequestBody {
+    if (maxBytes < 0L) throw IllegalArgumentException(Some("negative JSON request body limit"))
+    val bytes = Json.encodeToString(value, codec).toByteArray()
+    if (bytes.size > maxBytes) throw RequestBodyLimitException(maxBytes, bytes.size)
+    return RequestBody.fromByteArray(bytes, Some(HttpMediaType("application", "json")))
+}
+
+internal fun formRequestBody(parameters: UrlQuery): RequestBody =
+    RequestBody.fromByteArray(FormUrlEncoded.encode(parameters).toByteArray(),
+        Some(HttpMediaType("application", "x-www-form-urlencoded")))

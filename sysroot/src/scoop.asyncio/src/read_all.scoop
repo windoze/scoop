@@ -1,0 +1,36 @@
+package scoop.asyncio
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.platform.memory.NativeByteBuffer
+
+public class ReadLimitException public constructor(public val maxBytes: Long) :
+    Exception(Some("input exceeds its explicit byte limit")) {}
+
+public suspend fun AsyncByteSource.readAllBytes(): Array<Byte> = collectBytes(this, None)
+
+public suspend fun AsyncByteSource.readAllBytes(maxBytes: Long): Array<Byte> {
+    if (maxBytes < 0L) throw IllegalArgumentException(Some("negative input byte limit"))
+    return collectBytes(this, Some(maxBytes))
+}
+
+private suspend fun collectBytes(source: AsyncByteSource, maxBytes: Long?): Array<Byte> {
+    ensureActive()
+    val bytes = ByteArrayBuilder()
+    val capacity = if (maxBytes != None && maxBytes!! < 8192L) maxBytes!! + 1L else 8192L
+    val buffer = NativeByteBuffer.allocate(capacity)
+    try {
+        while (true) {
+            ensureActive()
+            buffer.clear()
+            var requested = capacity
+            if (maxBytes != None && maxBytes!! - bytes.size < requested)
+                requested = maxBytes!! - bytes.size + 1L
+            val count = source.readInto(buffer, requested)
+            requireProgress(count, requested)
+            ensureActive()
+            if (count == 0L) return bytes.toByteArray()
+            if (maxBytes != None && count > maxBytes!! - bytes.size) throw ReadLimitException(maxBytes!!)
+            bytes.append(buffer.readBytes(count))
+        }
+    } finally { buffer.close() }
+}

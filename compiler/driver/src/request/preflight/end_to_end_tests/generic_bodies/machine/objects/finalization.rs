@@ -1,8 +1,8 @@
 use super::*;
 use scoop_identity::PersistentSafepointSiteId;
 use scoop_slib::{
-    CallableDefinitionAbiV1, DigestPatchSiteV1, ObjectDefinitionFingerprintV1, OdrMemberAbiV1,
-    RegistrationAbiV1, VerifiedEntryPatchSetV2,
+    CallableDefinitionAbiV1, FinalRuntimeObjectsV2, ObjectDefinitionFingerprintV1, OdrMemberAbiV1,
+    RegistrationAbiV1,
 };
 
 #[derive(Debug, Eq, PartialEq)]
@@ -45,18 +45,17 @@ fn append_member(fingerprint: OdrMemberAbiV1, records: &mut Vec<Vec<u8>>) {
 }
 
 pub(super) fn check(
-    finalized: &VerifiedEntryPatchSetV2,
+    finalized: &FinalRuntimeObjectsV2,
     canonical: &scoop_lir::CanonicalCallableAbisV1,
 ) -> BTreeMap<PersistentCallableBodyId, CallableFingerprints> {
-    let image = finalized.runtime_images().fingerprint();
+    let image = finalized.runtime_image();
     let registrations = image.registrations();
     let callables = registrations.callables();
     let plans = callables.body_objects().registrations();
     let mut fingerprints = BTreeMap::new();
-    for ((computed, verified), plan) in callables
+    for (computed, plan) in callables
         .fingerprints()
         .iter()
-        .zip(plans.registrations())
         .zip(plans.plan().registrations())
     {
         let fingerprint = computed.registration();
@@ -83,11 +82,6 @@ pub(super) fn check(
             }
             _ => panic!("the body fingerprint must use its actual owner"),
         }
-        check_patch(
-            finalized,
-            verified.body_definition_patch(),
-            computed.body_definition().as_array(),
-        );
         assert!(
             fingerprints
                 .insert(
@@ -103,19 +97,13 @@ pub(super) fn check(
         );
     }
     let safepoints = registrations.safepoints();
-    for ((computed, verified), plan) in safepoints
+    for (computed, plan) in safepoints
         .fingerprints()
         .iter()
-        .zip(safepoints.registrations().registrations())
         .zip(safepoints.registrations().plan().registrations())
     {
         let fingerprint = computed.registration();
         check_identity(plan.definition_owner(), fingerprint);
-        check_patch(
-            finalized,
-            verified.normalized_stackmap_patch(),
-            computed.stackmap().as_array(),
-        );
         fingerprints
             .get_mut(&plan.owner())
             .unwrap()
@@ -123,11 +111,6 @@ pub(super) fn check(
             .push((plan.site(), fingerprint, computed.stackmap()));
     }
     assert_ne!(image.fingerprint().as_array(), &[0; 32]);
-    check_patch(
-        finalized,
-        image.image().image_patch(),
-        image.fingerprint().as_array(),
-    );
     fingerprints
 }
 
@@ -145,15 +128,4 @@ fn check_identity(owner: RegistrationDefinitionOwner, fingerprint: RegistrationA
         }
         _ => panic!("the definition fingerprint must use the registration's actual owner"),
     }
-}
-
-fn check_patch(finalized: &VerifiedEntryPatchSetV2, patch: DigestPatchSiteV1, expected: &[u8; 32]) {
-    let object = finalized
-        .objects()
-        .iter()
-        .find(|object| object.member() == patch.member())
-        .unwrap();
-    let start = usize::try_from(patch.checked_offset()).unwrap();
-    assert_eq!(patch.width_bytes(), 32);
-    assert_eq!(&object.bytes()[start..start + 32], expected);
 }

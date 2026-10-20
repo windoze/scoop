@@ -1,13 +1,15 @@
-//! Bind the runtime image plan to its generated digest slot.
+//! The image plan and its existing object member assignment.
 
 use crate::SlibMemberId;
-use crate::link_object::{DigestPatchSiteV1, MissingDigestPatchSiteV1, ScoopLirDigestPatchSitesV1};
+use crate::link_object::{
+    MissingObjectDefinitionMemberV1, VerifiedBuiltinObjectStrongRelocationSetV1,
+};
 use scoop_lir::ConeImagePlanV1;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ConeImageDataV1 {
     plan: ConeImagePlanV1,
-    image_patch: DigestPatchSiteV1,
+    member: SlibMemberId,
 }
 impl ConeImageDataV1 {
     pub const fn producer(&self) -> scoop_identity::ConeIdentity {
@@ -17,17 +19,17 @@ impl ConeImageDataV1 {
         &self.plan
     }
     pub const fn member(&self) -> SlibMemberId {
-        self.image_patch.member()
-    }
-    pub const fn image_patch(&self) -> DigestPatchSiteV1 {
-        self.image_patch
+        self.member
     }
 }
 
 pub fn bind_cone_image_v1(
-    patch_sites: &ScoopLirDigestPatchSitesV1,
+    builtins: &VerifiedBuiltinObjectStrongRelocationSetV1,
     plan: ConeImagePlanV1,
-) -> Result<ConeImageDataV1, MissingDigestPatchSiteV1> {
-    let image_patch = patch_sites.require_site(plan.fingerprint_patch())?;
-    Ok(ConeImageDataV1 { plan, image_patch })
+) -> Result<ConeImageDataV1, MissingObjectDefinitionMemberV1> {
+    let member = builtins
+        .member_plan()
+        .member_for_definition(plan.definition_plan())
+        .ok_or(MissingObjectDefinitionMemberV1(plan.definition_plan()))?;
+    Ok(ConeImageDataV1 { plan, member })
 }

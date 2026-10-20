@@ -1,0 +1,137 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class AsyncWebSocketControlTests {
+    @Test
+    fun `ping requires a matching pong and a completed flush while reads stay independent`() {
+        withRawWebSocket suspend { scope, raw, client, peer ->
+            val release = AsyncGate()
+            raw.flushGate = Some(release)
+            val done = AtomicBoolean(false)
+            val ping = scope.launch suspend { client.ping("match".toByteArray()); done.store(true) }
+            try {
+                val (head, bytes) = peer.receive()
+                assertTrue(head.opcode == WebSocketOpcode.Ping)
+                assertEquals("match", String.fromUtf8(bytes))
+                raw.flushStarted.await()
+                expectMessageFailure<IllegalStateException> suspend { client.sendText("busy") }
+                expectMessageFailure<IllegalStateException> suspend { client.pong() }
+                peer.send(WebSocketOpcode.Pong, "wrong".toByteArray())
+                peer.send(WebSocketOpcode.Text, "first".toByteArray())
+                assertEquals("first", client.receive()!!.readText())
+                assertFalse(done.load())
+                peer.send(WebSocketOpcode.Pong, bytes)
+                peer.send(WebSocketOpcode.Text, "second".toByteArray())
+                assertEquals("second", client.receive()!!.readText())
+                assertFalse(done.load())
+                release.signal()
+                ping.join()
+                assertTrue(done.load())
+                assertFalse(client.isClosed)
+            } finally { release.signal(); ping.join() }
+        }
+    }
+
+    @Test
+    fun `automatic pong follows the complete active frame and coalesces pending replies`() {
+        withRawWebSocket(WebSocketSessionOptions(outgoingFrameBytes = 4L)) suspend { scope, raw, client, peer ->
+            val release = AsyncGate()
+            raw.writeGate = Some(release)
+            raw.writeLimit = 1L
+            val writer = client.beginMessage(WebSocketMessageType.Binary)
+            NativeByteBuffer.allocate(4L).use suspend { buffer ->
+                buffer.writeBytes("data".toByteArray())
+                val sending = scope.launch suspend { assertEquals(4L, writer.writeFrom(buffer, 4L)) }
+                try {
+                    raw.writeStarted.await()
+                    peer.send(WebSocketOpcode.Ping, "first".toByteArray())
+                    peer.send(WebSocketOpcode.Ping, "latest".toByteArray())
+                    peer.send(WebSocketOpcode.Text, "barrier".toByteArray())
+                    assertEquals("barrier", client.receive()!!.readText())
+                    assertFalse(sending.isCompleted)
+                    release.signal()
+                    val (data, bytes) = peer.receive()
+                    assertTrue(data.opcode == WebSocketOpcode.Binary && !data.isFinal)
+                    assertEquals("data", String.fromUtf8(bytes))
+                    val (pong, payload) = peer.receive()
+                    assertTrue(pong.opcode == WebSocketOpcode.Pong)
+                    assertEquals("latest", String.fromUtf8(payload))
+                    sending.join()
+                    writer.finish()
+                    assertTrue(peer.receive()._1.opcode == WebSocketOpcode.Continuation)
+                } finally { release.signal(); sending.join(); writer.close() }
+            }
+        }
+    }
+
+    @Test
+    fun `unread large frames apply backpressure and graceful close drains bounded chunks`() {
+        val options = WebSocketSessionOptions(WebSocketFrameLimits(dataChunkBytes = 7L), inputBufferBytes = 11L,
+            closeTimeout = Duration.seconds(60L))
+        withRawWebSocket(options) suspend { scope, raw, client, peer ->
+            peer.send(WebSocketOpcode.Binary, Array<Byte>(257L) { it.toByte() })
+            val message = client.receive()!!
+            currentEventLoop().sleep(Duration.milliseconds(1L))
+            val reads = raw.reads
+            currentEventLoop().sleep(Duration.milliseconds(1L))
+            assertEquals(reads, raw.reads)
+            NativeByteBuffer.allocate(8192L).use suspend { buffer ->
+                val count = message.readInto(buffer, 8192L)
+                assertTrue(count > 0L && count <= 7L)
+            }
+            val closing = scope.async<WebSocketClose> suspend { client.shutdownGracefully() }
+            assertTrue(peer.receive()._1.opcode == WebSocketOpcode.Close)
+            peer.send(WebSocketOpcode.Close, WebSocketClose(Some(1000U), "reply").toByteArray())
+            assertEquals("reply", closing.await().reason)
+            assertFalse(message.isComplete)
+            val error = expectMessageFailure<WebSocketSessionException> suspend { message.readBytes() }
+            assertTrue(error.kind == WebSocketFailureKind.InterruptedMessage)
+            assertTrue(client.isClosed)
+            assertFalse(present(client.failure))
+        }
+    }
+
+    @Test
+    fun `peer close interrupts fragments without inventing message EOF`() {
+        withRawWebSocket suspend { scope, _, client, peer ->
+            peer.send(WebSocketOpcode.Text, "part".toByteArray(), false)
+            val message = client.receive()!!
+            NativeByteBuffer.allocate(4L).use suspend { buffer -> message.readFully(buffer, 4L) }
+            val reading = scope.launch suspend {
+                val error = expectMessageFailure<WebSocketSessionException> suspend { message.readText() }
+                assertTrue(error.kind == WebSocketFailureKind.InterruptedMessage)
+                assertTrue(error.peerClose!!.code == Some(1001U))
+                assertFalse(message.isComplete)
+            }
+            peer.send(WebSocketOpcode.Close, WebSocketClose(Some(1001U), "leaving").toByteArray())
+            val (head, bytes) = peer.receive()
+            assertTrue(head.opcode == WebSocketOpcode.Close)
+            assertEquals("leaving", WebSocketClose.parse(bytes).reason)
+            reading.join()
+            assertFalse(present(client.receive()))
+            assertFalse(present(client.failure))
+        }
+    }
+
+    @Test
+    fun `simultaneous shutdown calls retain the first close and wait for peer response`() {
+        withRawWebSocket suspend { scope, _, client, peer ->
+            val first = scope.async<WebSocketClose> suspend { client.shutdownGracefully(WebSocketClose(Some(1000U), "first")) }
+            val second = scope.async<WebSocketClose> suspend { client.shutdownGracefully(WebSocketClose(Some(1001U), "second")) }
+            val (head, bytes) = peer.receive()
+            assertTrue(head.opcode == WebSocketOpcode.Close)
+            assertEquals("first", WebSocketClose.parse(bytes).reason)
+            assertFalse(first.isCompleted || second.isCompleted)
+            peer.send(WebSocketOpcode.Close, WebSocketClose(Some(1000U), "peer").toByteArray())
+            assertEquals("peer", first.await().reason)
+            assertEquals("peer", second.await().reason)
+            assertEquals("first", client.sentClose!!.reason)
+        }
+    }
+}

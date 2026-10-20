@@ -1,0 +1,55 @@
+import scoop.asyncio.*
+import scoop.crypto.testdata.rootPem
+import scoop.crypto.x509.TrustStore
+import scoop.http.client.*
+import scoop.platform.concurrent.Thread
+import scoop.time.Duration
+import scoop.tls.TlsTrustSource
+
+internal fun networkCheck(value: Boolean) {
+    if (!value) throw IllegalStateException(Some("client network deadline check failed"))
+}
+
+internal suspend fun networkFailure(block: suspend () -> Unit): HttpTimeoutException {
+    try { block() }
+    catch (error: HttpTimeoutException) { return error }
+    throw IllegalStateException(Some("expected a network deadline"))
+}
+
+internal fun networkPhase(error: HttpTimeoutException, phase: HttpTimeoutPhase, limit: Duration) {
+    networkCheck(error.phase == phase && error.limit == limit && error.elapsed >= limit)
+    networkCheck(error.requestBodyBytes == 0L && error.encodedResponseBodyBytes == 0L && error.responseBodyBytes == 0L)
+}
+
+private fun exercise(mode: String, port: String, trust: TrustStore) {
+    val lower = TcpConnectOptions(Duration.ZERO, Duration.ZERO, 1L, Some(Duration.ZERO), Some(Duration.ZERO))
+    val config = HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)), tcpConnect = lower,
+        pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 1L))
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { scope ->
+        withHttpClient(config) suspend { client ->
+            when (mode) {
+                case "clear" -> networkClear(client, port)
+                case "zero-tls" -> networkTlsFailure(client, port, mode)
+                case "tls" -> networkTlsFailure(client, port, mode)
+                case "total" -> networkTlsFailure(client, port, mode)
+                case "reuse" -> networkTlsReuse(client, port, loop)
+                else -> throw IllegalArgumentException(Some("unknown network fixture mode"))
+            }
+        }
+        networkCheck(!scope.job.isCancelled)
+    }
+}
+
+fun main(args: Array<String>) {
+    networkCheck(args.size == 3L)
+    val mode = args[1L]
+    val port = args[2L]
+    TrustStore.fromPem(rootPem()).use { trust ->
+        Thread.start { exercise(mode, port, trust) }.use { thread ->
+            exercise(mode, port, trust)
+            thread.join()
+        }
+    }
+    println("network " + mode)
+}

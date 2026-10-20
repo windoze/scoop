@@ -205,7 +205,7 @@ crossterm 的 EventStream 是可选能力。Scoop 同步终端库保持独立，
 它们只处理数据，不暴露内部 fd 或 loop。异步会话用输入／输出方向限制冲突，
 关闭等待在途会话操作释放状态；已读入字节在取消路径仍交给同一 parser。
 
-M49 的公开范围不包含 TTY；M59 在 asyncio 规范第 9 节增加 openTty、带字节／resize／超时结果的 receive、输出和模式控制。同步与异步共用 platform 的 native TTY owner，统一独占与实际 termios 恢复。使用 libuv poll 观察自有非阻塞 TTY 与通知 fd，避免 libuv signal 另装 handler 改变原 disposition。只有有具体需要的操作才成为公开能力，不为 terminal 开放整个私有 loop 或泛化任意 fd 接管。
+M49 的公开范围不包含 TTY；M59 在 asyncio 规范第 10 节增加 openTty、带字节／resize／超时结果的 receive、输出和模式控制。同步与异步共用 platform 的 native TTY owner，统一独占与实际 termios 恢复。使用 libuv poll 观察自有非阻塞 TTY 与通知 fd，避免 libuv signal 另装 handler 改变原 disposition。只有有具体需要的操作才成为公开能力，不为 terminal 开放整个私有 loop 或泛化任意 fd 接管。
 
 异步合同至少包括：唯一读取者、取消与完成竞争的一次结果选择、真实 native 停止后解除 buffer 借用、读取取消不丢失已排队事件、关闭排空 native callback、恢复终端状态，以及 loop 退出后的资源失效。同步 signal 机制与 libuv signal 不能同时争用同一会话。
 

@@ -1,0 +1,58 @@
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.client.*
+import scoop.platform.fs.Path
+import scoop.test.*
+import scoop.time.Duration
+
+internal fun resumeCancellation(trust: TrustStore, directory: Path, last: Boolean, mode: String, nested: Boolean) {
+    resumeWithServer(directory, "cancel", 1L) suspend { _, scope, url, _ ->
+        val target = directory.resolve(Path.fromString("result"))
+        val resume = HttpResumeOptions(directory.resolve(Path.fromString("partial")), directory.resolve(Path.fromString("metadata")))
+        downloadStore(target, "original")
+        val client = HttpClient.open(scope, downloadConfig(trust))
+        val probe = DownloadProbe(last, if (nested) "nested" else "none")
+        val failed = DownloadFailure()
+        val closed = DownloadFailure()
+        val downloading = scope.launch suspend {
+            try {
+                context(DownloadMarker("download-context")) {
+                    val options = HttpCallOptions(timeouts = if (mode == "total") Some(HttpTimeoutOptions(total = Some(Duration.seconds(10L)))) else None)
+                    client.resumeDownload(HttpRequest.get(url, options = options), target, resume,
+                        HttpDownloadOptions(replaceExisting = true, onProgress = suspend { value -> probe.progress(value) }))
+                }
+            } catch (error: Throwable) { failed.value = Some(error) }
+        }
+        probe.entered.await()
+        val closing = if (mode == "client") Some(scope.launch suspend {
+            try { client.close() } catch (error: Throwable) { closed.value = Some(error) }
+        }) else None
+        if (mode == "caller") downloading.cancel()
+        try {
+            probe.cancelled.await()
+            assertFalse(downloading.isCompleted || probe.cleaned.load())
+            probe.release.signal(); probe.cleaning.await()
+            assertFalse(downloading.isCompleted || probe.cleaned.load())
+            if (downloadPresent(closing)) assertFalse(closing!!.isCompleted)
+            probe.finish.signal(); downloading.join(); closing?.join()
+            assertTrue(probe.cleaned.load())
+            assertEquals("original", String.fromUtf8(downloadRead(target)))
+            assertEquals(if (last) "body" else "", String.fromUtf8(downloadRead(resume.partialFile)))
+            assertTrue(downloadExists(resume.metadataFile))
+            assertEquals(3L, downloadFiles(directory))
+            val failure = failed.value!!
+            if (nested) {
+                assertTrue(failure is ResourceUseException)
+                if (failure is ResourceUseException) assertSame(probe.cleanup, failure.cleanupFailure)
+            } else assertFalse(failure is ResourceUseException)
+            val primary = if (failure is ResourceUseException) failure.primaryFailure else failure
+            when (mode) {
+                "caller" -> assertTrue(primary is CancellationException)
+                "client" -> assertTrue(primary is HttpClientClosedException)
+                else -> assertTrue(primary is HttpTimeoutException)
+            }
+            if (mode == "client" && nested) assertSame(probe.cleanup, closed.value!!)
+            else assertFalse(downloadPresent(closed.value))
+        } finally { probe.release.signal(); probe.finish.signal(); client.close() }
+    }
+}

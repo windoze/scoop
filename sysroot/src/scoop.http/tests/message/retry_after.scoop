@@ -1,0 +1,41 @@
+package scoop.http
+
+import scoop.time.Duration
+import scoop.time.Instant
+import scoop.test.*
+
+@Test
+private class HttpRetryAfterTests {
+    @Test
+    fun `delay seconds and HTTP dates remain distinct and produce nonnegative relative waits`() {
+        val now = Instant.parse("1994-11-06T08:49:30.25Z")
+        val delay = HttpRetryAfter.parse(" 00120\t", now)
+        assertEquals(Duration.seconds(120L), delay.delayFrom(now))
+        assertEquals("120", delay.toString())
+        assertTrue(when (delay) { case DelaySeconds(120L) -> true; else -> false })
+        val date = HttpRetryAfter.parse("Sun, 06 Nov 1994 08:49:37 GMT", now)
+        assertEquals(Duration.seconds(6L, 750000000L), date.delayFrom(now))
+        assertEquals(Duration.ZERO, date.delayFrom(Instant.parse("1994-11-06T08:49:38Z")))
+        val field = date.toHttpField()
+        assertEquals("Retry-After", String.fromUtf8(field.name))
+        assertEquals("Sun, 06 Nov 1994 08:49:37 GMT", String.fromUtf8(field.value))
+        assertEquals("Sun, 06 Nov 1994 08:49:37 GMT", HttpRetryAfter.parse("sun, 06 nov 1994 08:49:37 gmt", now, true).toString())
+        assertEquals(Duration.ZERO, HttpRetryAfter.parse("0", now).delayFrom(now))
+    }
+
+    @Test
+    fun `large delays avoid nanosecond conversion and overflow invalid dates and signs fail`() {
+        val now = Instant.parse("2026-10-18T00:00:00Z")
+        val largest = HttpRetryAfter.parse("9223372036854775807", now)
+        assertEquals(Long.MAX_VALUE, largest.delayFrom(now).floorSeconds)
+        assertEquals("9223372036854775807", largest.toString())
+        assertEquals(18L, assertFailsWith<HttpFieldParseException> { HttpRetryAfter.parse("9223372036854775808", now) }.byteOffset)
+        for (value in ["", "+1", "-1", "1.0", "1s", "1,2", "1 2", "0x01", "Fri, 31 Dec 1999 23:59:61 GMT"]) {
+            val error = assertFailsWith<HttpFieldParseException> { HttpRetryAfter.parse(value, now) }
+            assertEquals("Retry-After", error.field)
+            assertTrue(when (HttpRetryAfter.parseOrNone(value, now)) { case None -> true; else -> false })
+        }
+        assertFailsWith<IllegalArgumentException> { HttpRetryAfter.DelaySeconds(-1L).toString() }
+        assertFailsWith<IllegalArgumentException> { HttpRetryAfter.DelaySeconds(-1L).delayFrom(now) }
+    }
+}

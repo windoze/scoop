@@ -1,0 +1,45 @@
+import scoop.crypto.testdata.rootPem
+import scoop.crypto.x509.TrustStore
+import scoop.platform.concurrent.Thread
+import scoop.url.Url
+
+private fun exercise(args: Array<String>, first: Long, trust: TrustStore) {
+    val mode = args[1L]
+    when (mode) {
+        case "policy" -> basicPolicies(trust, args[2L])
+        case "credentials" -> basicCredentialFailures(trust, args[2L])
+        case "cancel" -> basicCancellation(trust, args[2L])
+        case "cancel-cleanup" -> basicCancellation(trust, args[2L], true)
+        case "cancel-wrapped-cleanup" -> basicCancellation(trust, args[2L], true, true)
+        case "cleanup" -> basicSourceCleanup(trust, args[2L] == "failure")
+        case "selection" -> basicSelection(trust)
+        case "http2" -> basicHttp2(trust)
+        case "challenge" -> basicChallenge(Url.parse(args[first]), trust)
+        case "redirect" -> basicRedirect(Url.parse(args[first]), Url.parse(args[first + 1L]), trust)
+        else -> throw IllegalArgumentException(Some("unknown Basic fixture mode"))
+    }
+}
+
+private fun runMain(args: Array<String>) {
+    basicCheck(args.size == 2L || args.size == 3L || args.size == 6L)
+    TrustStore.fromPem(rootPem()).use { trust ->
+        Thread.start { exercise(args, 2L, trust) }.use { thread ->
+            exercise(args, 4L, trust)
+            thread.join()
+        }
+    }
+    println("client Basic " + args[1L])
+}
+
+private fun reportFailure(error: Throwable) {
+    if (error is Exception) println(error.message ?: "no exception message")
+    if (error is ResourceUseException) {
+        println("primary:"); reportFailure(error.primaryFailure)
+        println("cleanup:"); reportFailure(error.cleanupFailure)
+    }
+}
+
+fun main(args: Array<String>) {
+    try { runMain(args) }
+    catch (error: Throwable) { reportFailure(error); throw error }
+}

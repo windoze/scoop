@@ -27,12 +27,10 @@ fn binds_object_bytes_to_member_ids_only_through_their_canonical_units() {
         UnboundScoopLirObject {
             units: vec![entry.id()],
             bytes: b"entry".to_vec(),
-            digest_patches: Vec::new(),
         },
         UnboundScoopLirObject {
             units: vec![image.id()],
             bytes: b"image".to_vec(),
-            digest_patches: Vec::new(),
         },
     ];
 
@@ -93,7 +91,6 @@ fn binds_generated_c_bytes_from_the_actual_singleton_unit_set() {
         vec![UnboundScoopLirObject {
             units: vec![image.id()],
             bytes: b"image".to_vec(),
-            digest_patches: Vec::new(),
         }],
         vec![UnboundGeneratedCBridgeObject {
             unit: unit.id(),

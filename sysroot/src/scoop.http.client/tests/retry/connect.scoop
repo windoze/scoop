@@ -1,0 +1,48 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.test.*
+import scoop.time.Duration
+import scoop.url.Url
+
+@Test
+private class HttpClientRetryConnectTest {
+    @Test
+    fun `direct and resolved connection refusal can recover without consuming a request body early`() {
+        for (resolved in [false, true]) {
+            val delay = Duration.seconds(2L)
+            val retries = HttpRetryOptions(initialDelay = delay, maxDelay = delay, jitter = false)
+            withClientRetryTest(retries) suspend { loop, scope, listener, config ->
+                val address = listener.localAddress
+                val url = if (resolved) Url.parse("http://localhost:" + address.port.toString() + "/") else clientTestUrl(listener)
+                listener.close()
+                val started = AtomicLong(0L)
+                val body = RequestBody.fromProducerFactory(Some(0L)) suspend {
+                    started.fetchAdd(1L);
+                    suspend { _ -> }
+                }
+                withHttpClient(config) suspend { client ->
+                    val executing = scope.async suspend { client.execute(HttpRequest(url, "PUT", body = body)) }
+                    waitForClientRetryBackoff(loop, client)
+                    assertEquals(0L, started.load())
+                    loop.listenTcp(address).useAsync suspend { recovered ->
+                        val serving = scope.launch suspend {
+                            AsyncHttp1Connection.takeOwnershipAsServer(recovered.accept(), scope).useAsync suspend { connection ->
+                                connection.receiveRequest()!!.body.readAllBytes(0L)
+                                sendClientTestText(connection, 200U, "ready")
+                            }
+                        }
+                        executing.await().useAsync suspend { response ->
+                            assertTrue(response.retryCount >= 1L && response.retryCount <= 2L)
+                            assertEquals("ready", response.body.text(5L))
+                        }
+                        serving.join()
+                    }
+                }
+                assertEquals(1L, started.load())
+                assertFalse(scope.job.isCancelled)
+            }
+        }
+    }
+}

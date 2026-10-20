@@ -14,30 +14,27 @@ use crate::link_object::{
     runtime_encode_strong_initialization_record_v1, runtime_encode_strong_static_storage_record_v1,
     runtime_encode_type_record_v1,
 };
-use crate::{CompatibilityRecord, RuntimeImageFingerprint, VerifiedStrongRegistrationPatchSetV1};
+use crate::{CompatibilityRecord, RegistrationObjectSetV1, RuntimeImageFingerprint};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct VerifiedRuntimeImageFingerprintV1<
+pub struct RuntimeImageContentV1<
     D = scoop_lir::StrongTypeDescriptorRefV1,
     C = scoop_lir::StrongTypeDispatchCallableRefV1,
     I = scoop_identity::PersistentInitializationUnitId,
 > {
     image: ConeImageDataV1,
-    registrations: VerifiedStrongRegistrationPatchSetV1<D, C, I>,
+    registrations: RegistrationObjectSetV1<D, C, I>,
     compatibility: CompatibilityRecord,
     fingerprint: RuntimeImageFingerprint,
-    records: crate::RuntimeImageRecords,
 }
 
-pub type VerifiedRuntimeImageFingerprintV2 = VerifiedRuntimeImageFingerprintV1<
+pub type RuntimeImageContentV2 = RuntimeImageContentV1<
     scoop_lir::StrongTypeDescriptorRefV2,
     scoop_lir::StrongTypeDispatchCallableRefV2,
     scoop_lir::StrongInitializationDependencyRefV2,
 >;
 
-impl<D: scoop_lir::StrongDescriptorReference, C: Clone, I>
-    VerifiedRuntimeImageFingerprintV1<D, C, I>
-{
+impl<D: scoop_lir::StrongDescriptorReference, C: Clone, I> RuntimeImageContentV1<D, C, I> {
     pub const fn producer(&self) -> ConeIdentity {
         self.image.producer()
     }
@@ -46,7 +43,7 @@ impl<D: scoop_lir::StrongDescriptorReference, C: Clone, I>
         &self.image
     }
 
-    pub const fn registrations(&self) -> &VerifiedStrongRegistrationPatchSetV1<D, C, I> {
+    pub const fn registrations(&self) -> &RegistrationObjectSetV1<D, C, I> {
         &self.registrations
     }
 
@@ -57,33 +54,29 @@ impl<D: scoop_lir::StrongDescriptorReference, C: Clone, I>
     pub const fn fingerprint(&self) -> RuntimeImageFingerprint {
         self.fingerprint
     }
-
-    pub const fn records(&self) -> &crate::RuntimeImageRecords {
-        &self.records
-    }
 }
 
 pub fn compute_runtime_image_fingerprint_v1(
     image: ConeImageDataV1,
-    registrations: VerifiedStrongRegistrationPatchSetV1,
+    registrations: RegistrationObjectSetV1,
     compatibility: CompatibilityRecord,
-) -> Result<VerifiedRuntimeImageFingerprintV1, RuntimeImageFingerprintError> {
+) -> Result<RuntimeImageContentV1, RuntimeImageFingerprintError> {
     compute_runtime_image_fingerprint(image, registrations, compatibility)
 }
 
 pub fn compute_runtime_image_fingerprint_v2(
     image: ConeImageDataV1,
-    registrations: crate::VerifiedStrongRegistrationPatchSetV2,
+    registrations: crate::RegistrationObjectSetV2,
     compatibility: CompatibilityRecord,
-) -> Result<VerifiedRuntimeImageFingerprintV2, RuntimeImageFingerprintError> {
+) -> Result<RuntimeImageContentV2, RuntimeImageFingerprintError> {
     compute_runtime_image_fingerprint(image, registrations, compatibility)
 }
 
 fn compute_runtime_image_fingerprint<D, C, I>(
     image: ConeImageDataV1,
-    registrations: VerifiedStrongRegistrationPatchSetV1<D, C, I>,
+    registrations: RegistrationObjectSetV1<D, C, I>,
     compatibility: CompatibilityRecord,
-) -> Result<VerifiedRuntimeImageFingerprintV1<D, C, I>, RuntimeImageFingerprintError>
+) -> Result<RuntimeImageContentV1<D, C, I>, RuntimeImageFingerprintError>
 where
     D: scoop_lir::StrongDescriptorReference,
     C: Clone,
@@ -99,12 +92,11 @@ where
     let fingerprint = records
         .fingerprint()
         .map_err(RuntimeImageFingerprintError::Hash)?;
-    Ok(VerifiedRuntimeImageFingerprintV1 {
+    Ok(RuntimeImageContentV1 {
         image,
         registrations,
         compatibility,
         fingerprint,
-        records,
     })
 }
 

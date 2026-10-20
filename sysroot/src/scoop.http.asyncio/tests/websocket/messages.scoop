@@ -1,0 +1,147 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class AsyncWebSocketMessageTests {
+    @Test
+    fun `short duplex messages preserve UTF8 empty messages and close reasons`() {
+        val options = WebSocketSessionOptions(WebSocketFrameLimits(dataChunkBytes = 2L), 3L, 3L,
+            closeTimeout = Duration.seconds(60L))
+        withWebSockets(options) suspend { scope, a, b, client, server ->
+            a.writeLimit = 2L; b.writeLimit = 2L
+            val values: Array<String> = ["hello 🌍", "", "\uFEFF中文é"]
+            val serving = scope.launch suspend {
+                for (expected in values) {
+                    val incoming = server.receive()!!
+                    assertTrue(incoming.type == WebSocketMessageType.Text)
+                    assertEquals(expected, incoming.readText())
+                    assertTrue(incoming.isComplete)
+                    assertEquals(0L, incoming.readBytes().size)
+                    server.sendBinary(expected.toByteArray())
+                    incoming.close()
+                    assertTrue(incoming.isClosed)
+                }
+            }
+            for (text in values) {
+                client.sendText(text)
+                val incoming = client.receive()!!
+                assertTrue(incoming.type == WebSocketMessageType.Binary)
+                assertEquals(text, String.fromUtf8(incoming.readBytes()))
+            }
+            serving.join()
+            val close = client.shutdownGracefully(WebSocketClose(Some(1000U), "finished"))
+            assertEquals("finished", close.reason)
+            assertEquals("finished", server.shutdownGracefully().reason)
+            assertTrue(client.isClosed && server.isClosed)
+            assertFalse(present(client.failure) || present(server.failure))
+            assertFalse(present(client.receive()) || present(server.receive()))
+            assertEquals(1, a.closes); assertEquals(1, b.closes)
+        }
+    }
+
+    @Test
+    fun `stream writer returns bounded progress and finish emits the final continuation`() {
+        withRawWebSocket(WebSocketSessionOptions(outgoingFrameBytes = 1L)) suspend { scope, _, client, peer ->
+            val writing = scope.launch suspend {
+                val writer = client.beginMessage(WebSocketMessageType.Text)
+                NativeByteBuffer.allocate(4L).use suspend { buffer ->
+                    buffer.writeBytes("🌍".toByteArray())
+                    while (buffer.readableBytes != 0L) assertEquals(1L, writer.writeFrom(buffer, buffer.readableBytes))
+                    writer.flush()
+                    assertFalse(writer.isComplete)
+                    writer.finish()
+                    assertTrue(writer.isComplete)
+                    writer.finish()
+                    writer.close()
+                }
+            }
+            for (index in 0L..<4L) {
+                val (head, bytes) = peer.receive()
+                assertTrue(head.opcode == (if (index == 0L) WebSocketOpcode.Text else WebSocketOpcode.Continuation))
+                assertFalse(head.isFinal)
+                assertEquals(1L, bytes.size)
+                assertEquals("🌍".toByteArray()[index], bytes[0L])
+            }
+            val (end, bytes) = peer.receive()
+            assertTrue(end.opcode == WebSocketOpcode.Continuation)
+            assertTrue(end.isFinal)
+            assertEquals(0L, bytes.size)
+            writing.join()
+            client.sendText("")
+            val (empty, _) = peer.receive()
+            assertTrue(empty.opcode == WebSocketOpcode.Text)
+            assertTrue(empty.isFinal)
+        }
+    }
+
+    @Test
+    fun `borrowed asynchronous source is streamed without closing it`() {
+        withWebSockets(WebSocketSessionOptions(outgoingFrameBytes = 5L)) suspend { scope, _, _, client, server ->
+            val source = MessageTestSource("source with repeated reads".toByteArray(), 3L)
+            val writing = scope.launch suspend { client.send(WebSocketMessageType.Binary, source) }
+            assertEquals("source with repeated reads", String.fromUtf8(server.receive()!!.readBytes()))
+            writing.join()
+            assertEquals(0, source.closes)
+            assertTrue(source.reads > 2)
+        }
+    }
+
+    @Test
+    fun `invalid arguments and unfinished message sequencing keep the connection usable`() {
+        withWebSockets suspend { _, a, _, client, server ->
+            val writer = client.beginMessage(WebSocketMessageType.Binary)
+            NativeByteBuffer.allocate(4L).use suspend { buffer ->
+                val before = a.writes
+                assertEquals(0L, writer.writeFrom(buffer, 0L))
+                expectMessageFailure<IllegalArgumentException> suspend { writer.writeFrom(buffer, -1L) }
+                expectMessageFailure<IndexOutOfBoundsException> suspend { writer.writeFrom(buffer, 1L) }
+                expectMessageFailure<IllegalStateException> suspend { client.beginMessage(WebSocketMessageType.Text) }
+                assertEquals(before, a.writes)
+                assertFalse(client.isClosed)
+                buffer.writeBytes("abcd".toByteArray())
+                writer.writeFully(buffer)
+                val message = server.receive()!!
+                expectMessageFailure<IllegalStateException> suspend { server.receive() }
+                expectMessageFailure<IllegalStateException> suspend { message.readText() }
+                expectMessageFailure<IndexOutOfBoundsException> suspend { message.readInto(buffer, 1L) }
+                writer.finish()
+                assertEquals("abcd", String.fromUtf8(message.readBytes()))
+                assertTrue(message.isComplete)
+                assertFalse(client.isClosed || server.isClosed)
+                expectMessageFailure<IllegalStateException> suspend { writer.writeFrom(buffer, 0L) }
+            }
+        }
+    }
+
+    @Test
+    fun `read helpers consume only the remaining message bytes`() {
+        withWebSockets suspend { _, _, _, client, server ->
+            client.sendText("prefix body")
+            val message = server.receive()!!
+            NativeByteBuffer.allocate(7L).use suspend { buffer ->
+                message.readFully(buffer, 7L)
+                assertEquals("prefix ", String.fromUtf8(buffer.readBytes(7L)))
+            }
+            assertEquals("body", message.readText())
+            message.close()
+            expectMessageFailure<WebSocketSessionException> suspend { message.readBytes() }
+            assertFalse(server.isClosed)
+        }
+    }
+
+    @Test
+    fun `idle peer handles ping without application receive and control payloads fit small output`() {
+        withWebSockets(WebSocketSessionOptions(outgoingFrameBytes = 1L)) suspend { _, _, _, client, server ->
+            client.ping(Array<Byte>(125L) { it.toByte() })
+            server.ping("peer".toByteArray())
+            client.pong("unsolicited".toByteArray())
+            expectMessageFailure<IllegalArgumentException> suspend { client.ping(Array<Byte>(126L) { 0.toByte() }) }
+            assertFalse(client.isClosed || server.isClosed)
+        }
+    }
+}

@@ -1,6 +1,6 @@
 //! Project one metadata module onto its already planned physical definitions.
 
-use crate::{CodegenError, EmittedStrongRuntimeMetadataV1, target::ValidatedBackendProfile};
+use crate::{CodegenError, target::ValidatedBackendProfile};
 use inkwell::module::{Linkage, Module};
 use inkwell::passes::PassBuilderOptions;
 use inkwell::targets::TargetMachine;
@@ -18,22 +18,18 @@ mod partitions;
 
 pub(super) struct MetadataModule<'ctx> {
     llvm: Module<'ctx>,
-    metadata: EmittedStrongRuntimeMetadataV1,
+
     definitions: Vec<index::MetadataDefinition>,
 }
 
 impl<'ctx> MetadataModule<'ctx> {
     pub(super) fn new(
         llvm: Module<'ctx>,
-        metadata: EmittedStrongRuntimeMetadataV1,
+
         surface: &ObjectSymbolSurfaceV1,
     ) -> Result<Self, CodegenError> {
         let definitions = index::collect(&llvm, surface)?;
-        Ok(Self {
-            llvm,
-            metadata,
-            definitions,
-        })
+        Ok(Self { llvm, definitions })
     }
 
     pub(super) fn project(
@@ -41,7 +37,7 @@ impl<'ctx> MetadataModule<'ctx> {
         machine: &TargetMachine,
         profile: ValidatedBackendProfile,
         definitions: &[ObjectDefinitionPlanId],
-    ) -> Result<(Module<'ctx>, EmittedStrongRuntimeMetadataV1), CodegenError> {
+    ) -> Result<Module<'ctx>, CodegenError> {
         let llvm = self.llvm.clone();
         let selected = definitions.iter().copied().collect::<BTreeSet<_>>();
         let mut declarations: Vec<&(String, String)> = Vec::new();
@@ -110,7 +106,7 @@ impl<'ctx> MetadataModule<'ctx> {
                 crate::elf_llvm::apply_visibility(function.as_global_value());
             }
         }
-        Ok((llvm, self.metadata.select_definitions(definitions)))
+        Ok(llvm)
     }
 }
 

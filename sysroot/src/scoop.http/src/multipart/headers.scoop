@@ -1,0 +1,81 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+
+internal class MultipartHeaders(val limits: MultipartLimits) {
+    private var fields: ArrayList<HttpField> = ArrayList<HttpField>()
+    private var line: ByteArrayBuilder = ByteArrayBuilder()
+    private var value: ByteArrayBuilder = ByteArrayBuilder()
+    private var name: Array<Byte>? = None
+    private var size: Long = 0L
+    private var start: Long = 0L
+    private var cr: Boolean = false
+
+    fun accept(byte: Byte, offset: Long): MultipartPartHead? {
+        if (size == limits.maxHeaderBytes) throw MultipartLimitException(MultipartLimitKind.HeaderBytes, limits.maxHeaderBytes)
+        size += 1L
+        if (cr) {
+            if (byte != 10.toByte()) throw MultipartParseException(offset, "field CR must be followed by LF")
+            cr = false
+            val bytes = line.toByteArray()
+            line = ByteArrayBuilder()
+            if (bytes.size == 0L) {
+                commit()
+                val head = MultipartPartHead.parsed(fields.toArray())
+                clear()
+                return Some(head)
+            }
+            acceptLine(bytes)
+            return None
+        }
+        if (line.size == 0L) start = offset
+        val c = byte.toUByte().toInt()
+        if (c == 13) cr = true
+        else {
+            if ((c < 32 && c != 9) || c == 127) throw MultipartParseException(offset, "invalid field control byte")
+            line.append(byte)
+        }
+        return None
+    }
+
+    private fun acceptLine(bytes: Array<Byte>) {
+        if (bytes[0L] == 32.toByte() || bytes[0L] == 9.toByte()) {
+            if (!hasName) throw MultipartParseException(start, "field continuation has no preceding field")
+            value.append(32.toByte()).append(httpTrim(bytes, 0L, bytes.size))
+            return
+        }
+        commit()
+        if (fields.size == limits.maxFields) throw MultipartLimitException(MultipartLimitKind.Fields, limits.maxFields)
+        var colon = 0L
+        while (colon < bytes.size && bytes[colon] != 58.toByte()) {
+            if (!httpTokenByte(bytes[colon].toUByte().toInt())) throw MultipartParseException(start + colon, "invalid field name")
+            colon += 1L
+        }
+        if (colon == 0L || colon == bytes.size) throw MultipartParseException(start + colon, "field requires a name and colon")
+        val length = colon
+        name = Some(Array<Byte>(length) { index -> bytes[index] })
+        value.append(httpTrim(bytes, colon + 1L, bytes.size))
+    }
+
+    private val hasName: Boolean get() = when (name) { case Some(_) -> true; case None -> false }
+    private fun commit() {
+        when (name) {
+            case Some(bytes) -> {
+                val raw = value.toByteArray()
+                fields.add(HttpField(bytes, httpTrim(raw, 0L, raw.size)))
+            }
+            case None -> {}
+        }
+        name = None
+        value = ByteArrayBuilder()
+    }
+
+    fun clear() {
+        fields = ArrayList<HttpField>()
+        line = ByteArrayBuilder()
+        value = ByteArrayBuilder()
+        name = None
+        cr = false
+        size = 0L
+    }
+}

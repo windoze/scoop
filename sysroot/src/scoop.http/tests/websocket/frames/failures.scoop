@@ -1,0 +1,73 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.test.*
+
+@Test private class WebSocketFrameFailureTests {
+    @Test fun `reserved opcodes bits role masks and nonminimal lengths are protocol errors`() {
+        for (wire in [wfBytes([131, 0]), wfBytes([162, 0]), wfBytes([146, 0]), wfBytes([194, 0]),
+            wfBytes([130, 128, 0, 0, 0, 0]), wfBytes([9, 0]), wfBytes([137, 126, 0, 126]),
+            wfBytes([130, 126, 0, 125]), wfBytes([130, 127, 0, 0, 0, 0, 0, 0, 255, 255]),
+            wfBytes([130, 127, 128, 0, 0, 0, 0, 0, 0, 0])]) {
+            WebSocketFrameDecoder(HttpRole.Client).use { decoder ->
+                val error = assertFailsWith<WebSocketFrameException> { wfFeed(decoder, wire) }
+                assertEquals(1002U, error.closeCode)
+                assertTrue(error.byteOffset != None && decoder.failure!! is WebSocketFrameException)
+                assertFailsWith<IllegalStateException> { decoder.nextEvent() }
+            }
+        }
+        WebSocketFrameDecoder(HttpRole.Server).use { decoder ->
+            assertEquals(1002U, assertFailsWith<WebSocketFrameException> { wfFeed(decoder, wfBytes([130, 0])) }.closeCode)
+        }
+    }
+
+    @Test fun `continuation ordering and data after Close cannot form new messages`() {
+        for (wire in [wfBytes([128, 0]), wfBytes([2, 0, 130, 0]), wfBytes([66, 0, 192, 0]),
+            wfBytes([136, 0, 130, 0]), wfBytes([136, 0, 136, 0])]) {
+            WebSocketFrameDecoder(HttpRole.Client, true).use { decoder ->
+                assertEquals(1002U, assertFailsWith<WebSocketFrameException> { wfFeed(decoder, wire) }.closeCode)
+            }
+        }
+        WebSocketFrameEncoder(HttpRole.Server).use { encoder ->
+            for (head in [WebSocketFrameHead(WebSocketOpcode.Continuation, 0L), WebSocketFrameHead(WebSocketOpcode.Ping, 126L),
+                WebSocketFrameHead(WebSocketOpcode.Pong, 0L, false), WebSocketFrameHead(WebSocketOpcode.Text, 0L, true, true)])
+                assertFailsWith<WebSocketFrameException> { encoder.beginFrame(head) }
+            encoder.beginFrame(WebSocketFrameHead(WebSocketOpcode.Binary, 0L)); encoder.finishFrame()
+            assertTrue(when (encoder.failure) { case None -> true; case Some(_) -> false })
+        }
+    }
+
+    @Test fun `invalid UTF8 is rejected across frame and input boundaries`() {
+        for (data in [wfBytes([128]), wfBytes([192, 175]), wfBytes([224, 128, 128]), wfBytes([237, 160, 128]),
+            wfBytes([244, 144, 128, 128]), wfBytes([226, 130])]) {
+            WebSocketFrameDecoder(HttpRole.Client).use { decoder ->
+                assertEquals(1007U, assertFailsWith<WebSocketFrameException> { wfFeed(decoder, wfPacket(129, data)) }.closeCode)
+            }
+        }
+        WebSocketFrameDecoder(HttpRole.Client).use { decoder ->
+            val wire = ByteArrayBuilder().append(wfPacket(1, wfBytes([226]))).append(wfPacket(128, wfBytes([65]))).toByteArray()
+            assertEquals(1007U, assertFailsWith<WebSocketFrameException> { wfFeed(decoder, wire) }.closeCode)
+        }
+        WebSocketFrameDecoder(HttpRole.Client).use { decoder ->
+            assertEquals(1007U, assertFailsWith<WebSocketFrameException> { wfFeed(decoder, wfPacket(136, wfBytes([3, 232, 255]))) }.closeCode)
+        }
+    }
+
+    @Test fun `every incomplete header or payload prefix fails at EOF without synthetic completion`() {
+        val full = wfBytes([129, 133, 55, 250, 33, 61, 127, 159, 77, 81, 88])
+        var count = 1L
+        while (count < full.size) {
+            val size = count
+            val prefix = Array<Byte>(size) { index -> full[index] }
+            WebSocketFrameDecoder(HttpRole.Server).use { decoder ->
+                val error = assertFailsWith<WebSocketFrameException> { wfFeed(decoder, prefix) }
+                assertEquals(1002U, error.closeCode)
+                assertTrue(error.byteOffset == Some(size) && !decoder.isFinished)
+            }
+            count += 1L
+        }
+        WebSocketFrameDecoder(HttpRole.Client).use { decoder ->
+            assertEquals(1002U, assertFailsWith<WebSocketFrameException> { wfFeed(decoder, wfBytes([2, 0])) }.closeCode)
+        }
+    }
+}

@@ -1,14 +1,13 @@
 use scoop_identity::{
     CanonicalIdentifier, CborIdentityRecord, ConeIdentity, DeclarationScope, DefinitionAtomRole,
-    DefinitionAtomSubkey, DefinitionOwnerChain, DigestNodeId, DigestNodeKey, DigestPatchIntentKey,
-    DigestSemanticFieldRole, ExactTypeKey, ImmortalObjectKey, ImmortalObjectOwner, LayoutKey,
-    LinkageClass, ObjectDefinitionAtomKey, ObjectDefinitionPlanKey, PackagePath,
-    PersistentExactTypeId, PersistentImmortalObjectId, PersistentLayoutId, PersistentPropertyId,
-    PersistentScanId, PersistentStaticStorageId, PersistentSymbolKey, PersistentSymbolRequest,
-    PersistentSymbolRequestTable, PersistentTypeId, PropertyOwner, RepresentationRole, ScanKey,
-    ScanRole, SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind, StaticStorageKey,
-    StrongDefinitionEntity, StrongDefinitionRole, StructuralDefinitionPath,
-    StructuralDefinitionSiteRole, StructuralPathSegment,
+    DefinitionAtomSubkey, DefinitionOwnerChain, DigestNodeKey, ExactTypeKey, ImmortalObjectKey,
+    ImmortalObjectOwner, LayoutKey, LinkageClass, ObjectDefinitionAtomKey, ObjectDefinitionPlanKey,
+    PackagePath, PersistentExactTypeId, PersistentImmortalObjectId, PersistentLayoutId,
+    PersistentPropertyId, PersistentScanId, PersistentStaticStorageId, PersistentSymbolKey,
+    PersistentSymbolRequest, PersistentSymbolRequestTable, PersistentTypeId, PropertyOwner,
+    RepresentationRole, ScanKey, ScanRole, SourceDeclarationKey, SourceDeclarationSite,
+    SourceNominalKind, StaticStorageKey, StrongDefinitionEntity, StrongDefinitionRole,
+    StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
 };
 
 use super::*;
@@ -19,7 +18,7 @@ use crate::{
 };
 
 #[test]
-fn joins_every_storage_to_its_shape_definitions_and_digest_writers() {
+fn joins_every_storage_to_its_shape_definitions_and_content_nodes() {
     let fixture = Fixture::new(Options::default());
 
     let plans = fixture.build().unwrap();
@@ -45,19 +44,6 @@ fn joins_every_storage_to_its_shape_definitions_and_digest_writers() {
         assert_eq!(
             plan.scan_symbol().key(),
             PersistentSymbolKey::ScanProgram(semantic.scan())
-        );
-
-        assert!(
-            node(&fixture.digests, plan.layout_fingerprint_node())
-                .patch_intents()
-                .iter()
-                .any(|patch| patch.id() == plan.layout_fingerprint_patch())
-        );
-        assert!(
-            node(&fixture.digests, plan.scan_fingerprint_node())
-                .patch_intents()
-                .iter()
-                .any(|patch| patch.id() == plan.scan_fingerprint_patch())
         );
     }
 }
@@ -155,25 +141,6 @@ fn requires_the_initial_state_specific_associated_atoms() {
     ));
 }
 
-#[test]
-fn requires_layout_and_scan_digest_writers() {
-    for options in [
-        Options {
-            omit_layout_patch: true,
-            ..Options::default()
-        },
-        Options {
-            omit_scan_patch: true,
-            ..Options::default()
-        },
-    ] {
-        assert!(matches!(
-            Fixture::new(options).build(),
-            Err(StrongStaticStorageRegistrationPlanBuildError::MissingPatch { .. })
-        ));
-    }
-}
-
 #[derive(Clone, Copy, Default)]
 struct Options {
     omit_last_registration: bool,
@@ -182,8 +149,6 @@ struct Options {
     omit_layout_symbol: bool,
     omit_scan_symbol: bool,
 
-    omit_layout_patch: bool,
-    omit_scan_patch: bool,
     omit_template_atom: bool,
 }
 
@@ -307,7 +272,7 @@ impl Fixture {
         canonical.set_symbol_requests(PersistentSymbolRequestTable::new(symbols).unwrap());
 
         let foundation = ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
-        let digests = digest_plan(&foundation, &shape, &storages, options);
+        let digests = digest_plan(&foundation, &shape);
         let identities = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
         let mut semantic_storages = storages
             .iter()
@@ -426,55 +391,13 @@ fn storage_artifacts(name: &str) -> StorageArtifacts {
     }
 }
 
-fn digest_plan(
-    foundation: &ConeLirFoundation,
-    shape: &ShapeArtifacts,
-    storages: &[StorageArtifacts; 2],
-    options: Options,
-) -> DigestFinalizationPlanV1 {
+fn digest_plan(foundation: &ConeLirFoundation, shape: &ShapeArtifacts) -> DigestFinalizationPlanV1 {
     let layout_key = DigestNodeKey::layout(shape.layout.id());
-    let layout_id = DigestNodeId::from_key(&layout_key).unwrap();
+
     let scan_key = DigestNodeKey::scan(shape.scan.id());
-    let scan_id = DigestNodeId::from_key(&scan_key).unwrap();
-    let registration_definitions = storages
-        .iter()
-        .enumerate()
-        .filter(|(index, _)| !(options.omit_last_registration && *index == 1))
-        .collect::<Vec<_>>();
-    let layout = DigestNodeV1::new(
-        layout_key,
-        Vec::new(),
-        registration_definitions
-            .iter()
-            .filter(|(index, _)| !(options.omit_layout_patch && *index == 0))
-            .map(|(_, artifacts)| {
-                DigestPatchIntentKey::new(
-                    layout_id,
-                    artifacts.registration_definition.id(),
-                    DefinitionAtomRole::Primary,
-                    DigestSemanticFieldRole::Layout,
-                )
-            })
-            .collect(),
-    )
-    .unwrap();
-    let scan = DigestNodeV1::new(
-        scan_key,
-        Vec::new(),
-        registration_definitions
-            .iter()
-            .filter(|(index, _)| !(options.omit_scan_patch && *index == 0))
-            .map(|(_, artifacts)| {
-                DigestPatchIntentKey::new(
-                    scan_id,
-                    artifacts.registration_definition.id(),
-                    DefinitionAtomRole::Primary,
-                    DigestSemanticFieldRole::Scan,
-                )
-            })
-            .collect(),
-    )
-    .unwrap();
+
+    let layout = DigestNodeV1::new(layout_key, Vec::new()).unwrap();
+    let scan = DigestNodeV1::new(scan_key, Vec::new()).unwrap();
 
     let mut nodes = vec![layout.clone(), scan.clone()];
     let image_inputs = vec![
@@ -485,7 +408,6 @@ fn digest_plan(
         DigestNodeV1::new(
             DigestNodeKey::runtime_image(ConeIdentity::SINGLE_FILE),
             image_inputs,
-            Vec::new(),
         )
         .unwrap(),
     );
@@ -518,10 +440,6 @@ fn primary(
 
 fn symbol(key: PersistentSymbolKey) -> PersistentSymbolRequest {
     PersistentSymbolRequest::new(key, LinkageClass::ConeStrong).unwrap()
-}
-
-fn node(plan: &DigestFinalizationPlanV1, id: DigestNodeId) -> &DigestNodeV1 {
-    plan.nodes().iter().find(|node| node.id() == id).unwrap()
 }
 
 fn exact_type(name: &str) -> PersistentExactTypeId {

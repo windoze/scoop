@@ -1,0 +1,30 @@
+package scoop.idna
+
+public class IdnaName internal constructor(public val ascii: String, public val unicode: String)
+
+public object Idna {
+    public val backendVersion: String get() { @Unsafe { return String.fromCString(idnaVersion()) } }
+    public val unicodeVersion: String get() = "15.1.0"
+
+    public fun parse(domain: String): IdnaName = parseIdna(domain)
+
+    public fun toAscii(domain: String): String = convertIdna(domain, 0, "IDNA to ASCII")
+    public fun toUnicode(domain: String): String = convertIdna(domain, 1, "IDNA to Unicode")
+    public fun labelToAscii(label: String): String = convertIdna(label, 2, "IDNA label to ASCII")
+    public fun labelToUnicode(label: String): String = convertIdna(label, 3, "IDNA label to Unicode")
+    public fun toAsciiOrNone(domain: String): String? = tryIdna(domain, 0, "IDNA to ASCII")
+    public fun toUnicodeOrNone(domain: String): String? = tryIdna(domain, 1, "IDNA to Unicode")
+}
+
+public object Punycode {
+    public fun encode(text: String): String = convertIdna(text, 4, "Punycode encode")
+    public fun decode(text: String): String = convertIdna(text, 5, "Punycode decode")
+}
+
+private fun tryIdna(text: String, mode: Int, operation: String): String? {
+    try { return Some(convertIdna(text, mode, operation)) }
+    catch (error: IdnaException) {
+        if (error.kind == IdnaFailureKind.Backend) throw error
+        return None
+    }
+}

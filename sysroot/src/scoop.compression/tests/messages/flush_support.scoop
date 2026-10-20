@@ -1,0 +1,67 @@
+package scoop.compression
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+internal fun deflateMessagePrefix(encoder: DeflateMessageEncoder, data: List<Byte>, capacity: Long = 1L): Array<Byte> =
+    NativeByteBuffer.allocate(data.size).use { input ->
+        NativeByteBuffer.allocate(capacity).use { output ->
+            input.writeBytes(data)
+            val result = ByteArrayBuilder()
+            while (input.readableBytes > 0L) {
+                output.clear()
+                val step = encoder.process(input, output)
+                result.append(output.readBytes(step.produced))
+            }
+            while (true) {
+                output.clear()
+                val step = encoder.flush(output)
+                result.append(output.readBytes(step.produced))
+                assertTrue(step.state != CompressionState.Finished)
+                if (step.state == CompressionState.NeedInput) break
+            }
+            result.toByteArray()
+        }
+    }
+
+internal fun readDeflatePrefix(decoder: DeflateMessageDecoder, data: List<Byte>, capacity: Long = 1L): Array<Byte> =
+    NativeByteBuffer.allocate(data.size).use { input ->
+        NativeByteBuffer.allocate(capacity).use { output ->
+            input.writeBytes(data)
+            val result = ByteArrayBuilder()
+            var pending = true
+            while (input.readableBytes > 0L || pending) {
+                output.clear()
+                val step = decoder.process(input, output)
+                result.append(output.readBytes(step.produced))
+                assertTrue(step.state != CompressionState.Finished)
+                pending = step.state == CompressionState.NeedOutput
+            }
+            result.toByteArray()
+        }
+    }
+
+internal fun finishDeflateOutput(encoder: DeflateMessageEncoder): Array<Byte> =
+    NativeByteBuffer.allocate(1L).use { output ->
+        val result = ByteArrayBuilder()
+        while (true) {
+            output.clear()
+            val step = encoder.finishMessage(output)
+            result.append(output.readBytes(step.produced))
+            if (step.state == CompressionState.Finished) break
+        }
+        result.toByteArray()
+    }
+
+internal fun finishDeflateInput(decoder: DeflateMessageDecoder): Array<Byte> =
+    NativeByteBuffer.allocate(1L).use { output ->
+        val result = ByteArrayBuilder()
+        while (true) {
+            output.clear()
+            val step = decoder.finishMessage(output)
+            result.append(output.readBytes(step.produced))
+            if (step.state == CompressionState.Finished) break
+        }
+        result.toByteArray()
+    }

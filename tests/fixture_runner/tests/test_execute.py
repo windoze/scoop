@@ -4,6 +4,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
@@ -13,6 +14,44 @@ from fixture_runner.schema import validate
 
 
 class ExecutionTests(unittest.TestCase):
+    def test_runtime_environment_is_inherited_and_can_be_overridden(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            data = {
+                "schema": 1,
+                "name": "runtime-environment",
+                "inputs": [],
+                "variants": [
+                    {"name": "inherited", "vars": {"expected": "1\n"}},
+                    {
+                        "name": "normal",
+                        "vars": {"expected": "0\n"},
+                        "env": {"SCOOP_GC_STRESS_MOVE": "0"},
+                    },
+                ],
+                "steps": [
+                    {
+                        "name": "read",
+                        "argv": [
+                            "${python}",
+                            "-c",
+                            "import os; print(os.environ['SCOOP_GC_STRESS_MOVE'])",
+                        ],
+                        "exit": 0,
+                        "stdout": "${expected}",
+                        "stderr": "",
+                    }
+                ],
+            }
+            validate(data)
+            fixture = Fixture(
+                base / "fixture.toml", base, data["name"], data, frozenset(), frozenset()
+            )
+            with patch.dict("os.environ", {"SCOOP_GC_STRESS_MOVE": "1"}):
+                result = execute(fixture, {"python": sys.executable}, base / "work")
+            self.assertEqual(result.status, "passed", result.message)
+            self.assertEqual((result.variants, result.processes), (2, 2))
+
     def test_background_signal_files_and_readonly_goldens(self):
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)

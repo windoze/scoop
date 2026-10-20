@@ -136,13 +136,35 @@ static int frame_sent(nghttp2_session *session, const nghttp2_frame *frame,
     if ((frame->hd.type == NGHTTP2_HEADERS || frame->hd.type == NGHTTP2_DATA) &&
         (frame->hd.flags & NGHTTP2_FLAG_END_STREAM))
       s->send_end_pending = 0;
+    if (http2_finish_ready(h, s))
+      return NGHTTP2_ERR_CALLBACK_FAILURE;
   }
   return frame->hd.type == NGHTTP2_GOAWAY ? goaway(user_data, frame, 1) : 0;
+}
+
+static int frame_sending(nghttp2_session *session, const nghttp2_frame *frame,
+                         void *user_data) {
+  (void)session;
+  http2 *h = user_data;
+  h->output_stream_id = frame->hd.stream_id;
+  h->output_kind = frame->hd.type == NGHTTP2_HEADERS ? HTTP2_OUTPUT_HEADERS
+                                                     : HTTP2_OUTPUT_CONTROL;
+  return 0;
 }
 
 static int frame_not_sent(nghttp2_session *session, const nghttp2_frame *frame,
                           int code, void *user_data) {
   (void)session;
+  /* A drained session may discard its remaining SETTINGS acknowledgement. */
+  if (frame->hd.type == NGHTTP2_SETTINGS &&
+      (frame->hd.flags & NGHTTP2_FLAG_ACK) &&
+      code == NGHTTP2_ERR_SESSION_CLOSING)
+    return 0;
+  /* nghttp2 follows this unsent request with StreamClosed(REFUSED_STREAM). */
+  if (frame->hd.type == NGHTTP2_HEADERS &&
+      frame->headers.cat == NGHTTP2_HCAT_REQUEST &&
+      code == NGHTTP2_ERR_START_STREAM_NOT_ALLOWED)
+    return 0;
   http2 *h = user_data;
   http_event *event = http_event_new(HTTP_EVENT_ERROR);
   if (!event)
@@ -165,6 +187,8 @@ void http2_event_callbacks(nghttp2_session_callbacks *callbacks) {
   nghttp2_session_callbacks_set_on_stream_close_callback(callbacks,
                                                          stream_close);
   nghttp2_session_callbacks_set_on_frame_send_callback(callbacks, frame_sent);
+  nghttp2_session_callbacks_set_before_frame_send_callback(callbacks,
+                                                           frame_sending);
   nghttp2_session_callbacks_set_on_frame_not_send_callback(callbacks,
                                                            frame_not_sent);
 }

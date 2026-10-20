@@ -1,12 +1,14 @@
 # Scoop 异步 I/O 库规范
 
-版本：M49／M59。本文规定普通 Cone `scoop:scoop.asyncio:0.1.0` 的合同；原有能力三目标验证见 [M49 验收](../milestone49/ACCEPTANCE.md)，TTY 进度见 [M59 实施记录](../milestone59/PROGRESS.md)。
+版本：M49／M54／M59。本文规定普通 Cone `scoop:scoop.asyncio:0.1.0` 的合同；既有能力三目标验证见 [M49 验收](../milestone49/ACCEPTANCE.md)，第 9 节扩展见 [M54 实施记录](../milestone54/PROGRESS.md)，第 10 节 TTY 见 [M59 实施记录](../milestone59/PROGRESS.md)。
 
 ## 1. 分层与目标
 
 源码位于 `sysroot/src/scoop.asyncio/`，显式依赖 core、std、platform，测试依赖 scoop.test；公共声明属于 `scoop.asyncio`。不默认导入，不引入 compiler-known role、runtime 调度入口或新的 ABI。任务树使用语言规范 11.9.1～11.9.2；路径、地址、错误、时间和 buffer 直接复用平台库与标准库。
 
-首版支持 aarch64-apple-darwin、x86_64-unknown-linux-gnu、x86_64-unknown-linux-musl。LibuvEventLoop 使用固定的 libuv 1.53.0，源码、许可证和各目标 native 输入随 Cone 发布；不查找系统 libuv。C11 shim 只管理 native I/O、稳定存储及完成记录，worker／callback 不进入 managed 代码。TLS、HTTP、异步目录遍历、文件监听、进程和任意 fd 接管不在本版范围；M59 增加第 9 节的自有 TTY。
+库内 C shim 的完成记录 kind 与 Scoop 解码保持一致：既有通用／网络事件保留原编号，使用 `0x000–0x0ff` 段；文件／目录事件使用 `0x100–0x1ff` 段，依次为 Metadata `0x100`、Position `0x101`、Temporary `0x102`、DirectoryName `0x103`；TTY 事件使用 `0x200–0x2ff` 段，Resize 为 `0x200`、Timeout 为 `0x201`。两类新增事件分别在自己的段内追加，保留已有编号；未分配值仍按非法完成记录处理。此编号仅用于该 Cone 的 native 接口，不属于 runtime ABI 或公共 Scoop 枚举身份。
+
+首版支持 aarch64-apple-darwin、x86_64-unknown-linux-gnu、x86_64-unknown-linux-musl。LibuvEventLoop 使用固定的 libuv 1.53.0，源码、许可证和各目标 native 输入随 Cone 发布；不查找系统 libuv。C11 shim 只管理 native I/O、稳定存储及完成记录，worker／callback 不进入 managed 代码。TLS、HTTP 属于各自库，文件监听、进程和任意 fd 接管不在本版范围；M54 为实际缓存与下载补齐第 9 节的基础能力；M59 增加第 10 节的自有 TTY。
 
 Linux C 工具链同时需要所选 libc 的开发头文件和对应架构的 Linux UAPI 头文件（包括 linux/errqueue.h）。只带 musl libc 的 musl-gcc 包装器须补齐内核头文件搜索路径，可通过普通 --cc 包装脚本配置；不把 glibc 用户态头文件加入 musl 的搜索路径。
 
@@ -68,11 +70,17 @@ public suspend fun AsyncByteSink.writeFrom(buffer: NativeByteBuffer): Long
 public suspend fun AsyncByteSource.readFully(buffer: NativeByteBuffer, count: Long = buffer.writableBytes)
 public suspend fun AsyncByteSink.writeFully(buffer: NativeByteBuffer, count: Long = buffer.readableBytes)
 public suspend fun AsyncByteSource.copyTo(destination: AsyncByteSink, bufferSize: Long = 8192L): Long
+public suspend fun AsyncByteSource.readAllBytes(): Array<Byte>
+public suspend fun AsyncByteSource.readAllBytes(maxBytes: Long): Array<Byte>
 ```
 
 count 非负且不超过 buffer 当前可用区间。零长度字节流请求在状态及取消检查后返回零，不执行 native I/O、不表示 EOF。正 read 允许短读，零表示 EOF；正 write 允许短写，零抛平台 WriteZeroException。readFully 不足抛平台 UnexpectedEofException；各扩展保留已提交进度，不回滚或重发。copyTo 不接管任一端关闭责任，不自动 flush。
 
 省略 count 的基本操作扩展取 buffer 当前可用长度后转发。readFully／writeFully 先检查取消与 buffer 范围，零长度不调用端点；copyTo 要求 bufferSize 为正，内部 buffer 在退出时释放。组合扩展检查端点返回的进度在本次请求范围内，不把非法返回值当作正常结束。
+
+readAllBytes 从当前位置读取到 EOF，以至多 8192 字节的原生缓冲处理短读，返回剩余内容的独立数组；它是调用者显式要求的内存汇集，不预先读取文件大小或接管输入端关闭责任。每次读取前及接受实际结果前检查取消，输入异常及取消保留实际原因，不返回伪装成完整结果的部分数组。底层调用实际结束后才释放内部缓冲；UTF-8 或其他字符集解释由调用者使用现有文本能力完成。
+
+带 maxBytes 的重载要求上限非负，参数错误在读取和分配缓冲前报告；无参数入口保持显式读取全部内容的行为。结果至多包含 maxBytes 个字节，空输入在零上限下成功；恰好达到上限后仍需确认 EOF。为了区分完整内容与超限，最多额外读取一个字节，超限抛 ReadLimitException 并公开 maxBytes，不交付部分数组。输入实际位置保留在已读前缀之后，不回滚或关闭来源；调用者可继续读取剩余内容。计数和探测大小避免 maxBytes + 1 的溢出，Long.MAX_VALUE 也是合法上限。接受迟到结果时若已取消，等待真实借用结束后交付取消，不把迟到 EOF 或超限改成成功。
 
 read 推进 writer，write 推进 reader，返回前解除平台规范 4.5 的 NativeByteBorrow。取消／关闭也提交已知实际前缀。单次 native 调用选择后端可表示的合法前缀，不溢出截断。借用期间拒绝释放、扩容、清空、游标变更及重复借用；native 只保存稳定 allocation 指针，managed 表保活 owner。路径、DNS 等 managed 字节在提交 worker 前复制到请求自有 native 存储。
 
@@ -117,12 +125,17 @@ resolve 保留 OsString 原始名称字节，port 检查 0..65535，family None 
 
 ```scoop
 public interface AsyncFile : AsyncByteSource, AsyncByteSink, AsyncCloseable {
+    public suspend fun metadata(): FileMetadata
+    public suspend fun size(): Long
+    public suspend fun position(): Long
+    public suspend fun seek(position: Long)
+    public suspend fun truncate(size: Long)
     public suspend fun syncData()
     public suspend fun syncAll()
 }
 ```
 
-openFile 使用 Path／OpenOptions 的已有合同。文件 open／read／write／sync／close 在 libuv worker 调用 platform 的 GC-free helper，保留 PosixErrno。顺序 read／write 共用文件位置，同一文件的 read／write／sync 同时最多一个。flush 不等于 sync；不使用 uv_fs 的额外 close／sync 语义。worker 只接收 native 存储，立即记录错误。已开始的阻塞操作可能推迟取消和 run 退出，不承诺固定时延。
+openFile 使用 Path／OpenOptions 的已有合同。文件 open／read／write／metadata／seek／truncate／sync／close 在 libuv worker 调用 platform 的 GC-free helper，保留 PosixErrno。顺序 read／write 共用文件位置，同一文件的读写、查询、位置／长度控制与 sync 同时最多一个。flush 不等于 sync；不使用 uv_fs 的额外 close／sync 语义。worker 只接收 native 存储，立即记录错误。已开始的阻塞操作可能推迟取消和 run 退出，不承诺固定时延。
 
 ## 8. 实现边界与验收
 
@@ -130,7 +143,89 @@ native request 持有预留完成节点；C callback 仅存状态和进度、入
 
 主要验收为同 Cone scoop.test：真实 loopback 动态端口、无公网 DNS、真实文件、Context、取消／关闭竞争、部分进度、原始错误、SIGPIPE 及 moving GC。竞争用明确同步点，测试源码和工具始终存在。详细边界见 [M49 设计第 14 节](../milestone49/DESIGN.md#142-异步-io)。
 
-## 9. 自有 TTY
+## 9. M54 基础能力补齐
+
+### 9.1 文件与目录
+
+AsyncFile 增加 suspend 的 metadata、size、position、seek(position)、truncate(size)，语义复用 platform File；读写、位置查询／变更、truncate 与 sync 共用该句柄的串行操作边界。seek／truncate 的参数和偏移范围在提交前检查，失败不凭空改变已记录位置。不能在异步方法体内直接调用同步 File API。
+
+具体签名为 `metadata(): FileMetadata`、`size(): Long`、`position(): Long`、`seek(position: Long): Unit` 与 `truncate(size: Long): Unit`，均为 suspend 函数；size 复用 metadata 的实际 OS 查询。seek 是绝对非负位置，truncate 不改变文件位置；seek 越过 EOF 后写入的空洞和 append 行为沿 OS 合同。负参数在原生提交前抛 IllegalArgumentException，底层错误保留 PlatformException 的 errno 和原路径。
+
+路径查询入口为 `EventLoop.metadata(path: Path, followLinks: Boolean = true): FileMetadata`，与句柄查询复用 platform 的同一原生结构及转换。路径先取得原生副本，完成事件携带独立的结果记录，managed 复制并释放该记录后才恢复 continuation。文件查询与位置／长度操作沿 OwnedFile 的串行登记、关闭和取消路径；排队取消不执行 syscall，已开始的操作等实际完成后结束。若取消或关闭获胜，已经发生的 seek／truncate 不回滚，之后观察到的文件位置与长度以 OS 为准。
+
+文件系统入口沿 EventLoop.openFile 的方式增加 `metadata(path, followLinks)`、`moveFile(source, destination, replaceExisting)`、`deleteFile(path)`、`createDirectories(path)`、`openDirectory(path)` 与 `createTempFile(parent, prefix)`，返回类型复用 FileMetadata／Path 等既有值。move 的排他／替换和跨文件系统错误沿 platform 合同，不暗中 copy+delete。
+
+路径修改的具体入口为 suspend 的 `EventLoop.moveFile(source: Path, destination: Path, replaceExisting: Boolean = false): Unit`、`deleteFile(path: Path): Unit` 与 `createDirectories(path: Path, mode: Int = 0x1ff): Unit`。deleteFile 删除文件、链接本身或空目录，不递归删除目录内容；moveFile 保留源内容，默认排他，替换时沿同一文件系统 rename 合同。move 失败的 context 为 destination，其他修改为对应 path；保留本次 syscall 的 errno。
+
+createDirectories 逐层调用共享 mkdir helper，缺少父目录时继续创建父目录；已经存在的目录成功，普通文件占用目录位置或其他错误照常报告。mode 复用 platform 的 0..0xfff 校验并受 OS umask 影响，不修改已存在目录的权限。每次 mkdir 和确认已有目录的 metadata 都通过 worker 等待，层间取消不再提交下一项；已创建目录与已生效的移动／删除不回滚。所有路径在工作排队前取得 native 副本，排队取消不执行 syscall，已经开始则等待实际完成。
+
+createTempFile 以一次 native 排他创建返回实际 Path 与拥有句柄的 AsyncFile，避免先创建路径再重新打开；结果为有名的普通 TemporaryFile 值。取消先获胜而 native 创建成功时，关闭未交付句柄并清理本次未交付的临时文件；已交付后是否删除由调用者负责。失败或清理错误保留真实原因，不执行目录来源审计。
+
+具体入口为 suspend 的 `EventLoop.createTempFile(parent: Path? = None, prefix: String = "scoop-"): TemporaryFile`。TemporaryFile 是带只读 path／file 字段的普通 struct，实现 AsyncCloseable，其 close 只关闭同一个 AsyncFile，不隐式删除已交付路径。父目录默认沿 platform 的 TMPDIR 选择，prefix 拒绝 NUL 与路径分隔符；文件以 0600（受 umask 影响）、读写和 close-on-exec 创建，初始位置与长度均为零。
+
+路径模板与排他 native 创建由 platform 共享 helper 提供；创建失败保留父目录 context 和立即 errno。迟到的成功结果先纳入正常 OwnedFile 生命周期，再执行不可由本次取消中断的 close 和 delete；两项清理都尝试完成，失败以 ResourceUseException 与原取消／关闭原因组合，不能遗失清理错误或向调用方交付部分结果。成功交付后，路径和文件句柄拥有普通文件的独立生命周期。
+
+`AsyncDirectoryEntries` 为 AsyncCloseable 的单遍枚举器，`next(): DirectoryEntry?` 可挂起，正常 EOF 关闭句柄，提前退出须 close。名称在 native 返回前复制，跳过点目录，不一次性把任意大目录收集到数组。缓存淘汰或启动扫描使用此公共能力。
+
+具体入口为 suspend 的 `EventLoop.openDirectory(path: Path): AsyncDirectoryEntries`；目录项复用 platform 的 DirectoryEntry，保持原始名称字节和 OS 枚举顺序，不额外查询每个条目的 metadata。同一目录同时最多一个 next，冲突报 IllegalStateException；正常 EOF 被记住，后续 next 等待同一次关闭后继续返回 None，显式提前关闭后的 next 报 IoClosedException。next 遵守所属 loop／Job 约束，close 沿已有资源清理合同允许取消中的 finally 和幂等关闭。
+
+open／next／close 均由 worker 调用 platform 的目录 helper。next 在本次工作内复制一个名称，managed 取得独立快照并释放原生副本；关闭等待正在进行的 readdir 及结果消费结束。排队取消不推进目录，已经执行的 next 不回退 OS 位置，迟到名称仍被释放。open 取消后取得的句柄必须在恢复调用方前关闭；循环退出也收尾未关闭的目录，不把所有名称预先收集进数组。
+
+上述工作使用既有 libuv worker 和 platform 的 GC-free 文件 helper；必要 helper 先在 platform 补齐，再由 asyncio 调度。路径、输入数据和输出存储在提交前取得稳定 native 副本，errno 在 worker 内立即记录。已开始的 syscall 取消仍等 after-work；迟到结果和 close 按第 3 节收尾。
+
+### 9.2 地址族竞速与 SOCKS5
+
+增加 `EventLoop.connectTcp(host: OsString, port, options)` 的域名重载，提供 RFC 8305 所需的双族解析、候选交错和延迟启动。默认 resolution delay 50 ms、connection attempt delay 250 ms，可配置；默认同时在途的 TCP 候选不超过 2 个。先获得的可用地址不必等待另一族全部解析完成，全部失败保存实际尝试错误。
+
+选择一个成功连接后关闭其他未交付连接，等待竞速子任务和 native 结果收尾。候选普通失败在该任务内转成结果，不能传播并取消本来可能成功的候选。参数仍为 OsString，不隐式 IDNA；传入 SocketAddress 的既有接口保持不变。配置变化只影响本次连接，不建立全局 DNS 缓存、TTL 推测或 HTTPS records 实现。
+
+具体入口为 `EventLoop.connectTcp(host: OsString, port: Int, options: TcpConnectOptions = TcpConnectOptions()): AsyncTcpStream`。TcpConnectOptions 为不可变配置，包含 `resolutionDelay: Duration = Duration.milliseconds(50)`、`attemptDelay: Duration = Duration.milliseconds(250)`、`maxConcurrentAttempts: Long = 2L`，以及默认均为 None 的 `resolveTimeout: Duration?`／`connectTimeout: Duration?`。所有配置时长必须非负，并行数必须为正。零间隔允许立即推进，零超时表示进入该阶段即到期；实际在途数仍受并行数限制，单地址入口不应用这些竞速策略。
+
+两族分别调用既有异步 resolve，族内保留系统结果顺序并去除重复地址。IPv6 已有结果时立即开始；IPv4 先到且 IPv6 未结束时，最多等待一次 resolutionDelay，IPv6 失败或空结果提前解除等待。开始后优先选上次尝试的另一族，不因尚未返回的族阻塞已有候选。相邻尝试默认间隔 attemptDelay；任何候选失败可以提前开始下一项，达到并行上限时等待空位，迟到的旧定时通知不能越过新间隔。
+
+全部候选失败抛 TcpConnectException，保留 host、port、`attempts: Array<TcpConnectionFailure>` 与 `resolutionFailures: Array<TcpResolutionFailure>`。两个记录分别含 address／family 及原始 cause，按各自完成顺序保存；解析成功但没有地址不伪造 OS 错误。此异常在调用方可正常捕获，不预先取消其 Job 或兄弟任务；参数及错误 loop 仍报原状态／参数异常。成功交付前发生总取消时关闭已选中的连接；清理失败以 ResourceUseException 保留，不遗失迟到连接的关闭错误。
+
+resolveTimeout 从开始双族解析前取同一个单调时钟起点，直到两族各自交付结果。截止到期只取消尚未完成的族，并将其记为 TcpResolutionFailure，cause 为 TcpResolutionTimeoutException，保存 host／port／family、limit 与 elapsed；已经获得的候选仍可连接。迟到解析结果正常释放，不替换已结束族的候选，也不使成功的另一族失败。零解析超时不提交 DNS 工作，最终没有候选时仍通过 TcpConnectException 交付两族的明确超时原因。
+
+connectTimeout 从第一个候选即将启动时开始，对整个候选序列共享，失败和交错启动不重置它。到期抛 TcpConnectTimeoutException，保存 host／port、limit／elapsed 和当时已记录的 attempts／resolutionFailures；零连接超时不提交 TCP 尝试。阶段完成与新尝试前也检查单调截止，已经选择的外部取消保持原异常。两类超时都取消有关任务并等待实际 native 工作与未交付 socket 清理完成，再返回调用方；计时器随竞速作用域结束，不留下长时间等待的子任务。
+
+TcpConnectOptions.onEvent 是可选的普通 `(TcpConnectEvent) -> Unit` 回调，默认 None。事件保存 phase（TcpConnectPhase.Resolve／Connect）、kind（TcpConnectEventKind.Started／Finished）和单调 TimeMark。Resolve 覆盖双族解析，Connect 从首个候选开始；两个阶段可以重叠，各自至多通知一次开始与结束，不为每个候选保留事件历史。零截止仍表示进入过对应阶段；没有可用地址时没有 Connect 事件。成功连接导致未完成的解析／竞速任务取消时，未结束阶段的 Finished 在这些任务实际收尾后交付。
+
+通知在 Scoop 连接流程、内部锁外执行，保留原 Context；未配置回调不增加阶段采样时钟。回调应快速返回，上层挂起 observer 可以只在这里记录状态，再于自己的调用步骤交付。回调抛出后停止后续通知，取消并等待连接任务，关闭未交付的 socket，再向调用者报告原异常；已有主失败保持在 ResourceUseException.primaryFailure，通知或实际关闭的新失败按发生顺序附加。这里不包装普通 TCP／解析错误，也不增加客户端私有 DNS 或连接竞速路径。
+
+提供 SOCKS5 的普通异步握手适配，支持无认证和 RFC 1929 用户名／密码、CONNECT、IPv4／IPv6／ASCII 域名目的地、本地解析或代理解析。用户凭据和长度在写出前检查；reply 错误保留协议码。使用已有 AsyncByteStream，按 takeOwnership 规则接管，成功交付隧道与完整前缀，失败清理；不让 HTTP client 手写 SOCKS 报文或同步 DNS。
+
+具体入口为 suspend 的 `AsyncSocks5Tunnel.takeOwnership(transport, destination: Socks5Address, credentials: Socks5Credentials? = None, resolution: Socks5Resolution = Proxy)`，transport 同时实现 AsyncByteStream 与 AsyncCloseable。Socks5Address 为 `Ip(SocketAddress)` 或 `Domain(String, Int)`，Socks5Resolution 为 Local／Proxy；返回的 AsyncSocks5Tunnel 实现同一异步流及关闭接口，并公开 boundAddress 和 isClosed。目标端口在 0..65535，域名为 1..255 字节的可打印 ASCII 且不含空格，不做 IDNA 或 DNS 标签规范化；IP 不能携带 SOCKS5 无法表示的非零 IPv6 scopeId。
+
+Socks5Credentials 以 List<Byte> 接收用户名与密码，分别保存独立 Array<Byte> 快照，长度均为 1..255；`fromUtf8(username, password)` 是明确的文本便利入口，长度按 UTF-8 字节计算。无凭据时只提议无认证方法，有凭据时只提议用户名／密码方法，不自动降为无认证。协议不规定这些凭据字节的字符集，不输出凭据内容。
+
+Proxy 模式把域名原样放入 CONNECT，Local 模式在写出握手前以当前 EventLoop.resolve 解析，并使用系统返回的第一个地址；空结果报明确失败，不伪造原生错误。调用者可显式传 Ip 选择其他候选；一次隧道握手只发送一次 CONNECT，失败后不能在同一流上改目标重试。IP 目的地不执行 DNS，Local／Proxy 均不更改已有地址。
+
+配置、目标与活动 Job／loop 检查通过后接管传输；此前失败仍由调用者负责关闭。接管后所有解析、写入、flush、读取及取消失败都等待真实操作结束并关闭未交付传输，清理失败使用 ResourceUseException。握手使用有界缓冲及 readFully／writeFully，每一阶段排出输出；读取只消费当前回复的确切长度，因此和回复同次到达的隧道数据完整保留在底层流中，返回后直接从隧道读取，不丢弃或重复前缀。
+
+Socks5Exception 保存 phase（Method／Authentication／Connect）及可选 replyCode；拒绝的方法、认证状态和 CONNECT REP 保留实际协议字节。非法版本、保留字段、地址类型或绑定域名报对应阶段的格式错误；底层 I/O、解析和取消保持原异常。交付后的流沿普通 AsyncByteStream 的双向、取消与背压合同；close 固定 loop 归属，可在取消 finally 中完成，并发关闭等待同一次底层收尾，之后幂等。
+
+### 9.3 领域库的 native 阻塞工作
+
+TLS 的系统信任装载及平台验证需要能够挂起等待 native 工作。为这一实际使用者，在 `scoop.asyncio.native` 提供受 Unsafe 约束的 NativeWork 资源与 `EventLoop.runNativeWork(work)`；它复用现有 DNS／文件的 uv_queue_work 提交、取消与完成机制，不建立第二个线程池。
+
+NativeWork 持有调用库构造的稳定 native 参数、GC-free 执行入口、结果存储和释放入口。worker 不调用 Scoop 回调、分配 managed 对象或恢复 continuation；结果的实际类型与提取由调用库的普通 FFI 声明负责。工作返回后，managed 调用方才能取得结果并构造 Scoop 值。它不是可执行任意 suspend／Scoop lambda 的 runBlocking 或通用调度框架。
+
+runNativeWork 期间借用 work，禁止重复提交和关闭；登记前失败不转移所有权。取消获胜也须等执行结束、复制错误和解除借用后返回，调用方在 finally 关闭 work。外部通知、Job 取消与 continuation 恢复保持锁外；native ABI 是普通库间接口，不新增 runtime functions 或 compiler-known 类型。
+
+具体入口为 Unsafe 的 `NativeWork.takeOwnership(payload: Ptr<Unit>, execute: FunPtr<(Ptr<Unit>) -> Unit>, release: FunPtr<(Ptr<Unit>) -> Unit>)` 和 `EventLoop.runNativeWork(work): Unit`。payload 由领域库原生代码分配，执行／释放指针必须来自可在对应线程调用的原生函数；不能使用仅支持已注册 Scoop 线程同步调用的静态 Scoop callback，也不能把 ForeignCallback 的 trampoline 单独交给 worker。执行函数在 payload 中保存结果及错误，不跨 C 边界展开异常；释放函数销毁同一份输入与未交付结果。
+
+work 是一次性资源：开始提交后，不论完成、提交失败或取消都不能再次运行；loop／Job 的前置检查失败不开始提交。正常等待返回后，通过 Unsafe 的 `work.withResult(block: (Ptr<Unit>) -> R): R` 在 managed 侧读取领域结果；回调不能挂起或让借出的指针逃逸。结果读取期间也禁止再次读取、提交或关闭，回调结束后解除借用。没有成功等待结果时 withResult 报状态错误；领域工作自身的失败仍由领域库从结果中解释。
+
+work 实现 Closeable，提供 isClosed；未使用、完成或失败的 work 均可关闭，释放入口恰好调用一次。其本地状态采用普通同步保护；执行与释放原生入口、结果回调及 continuation 恢复均不在状态锁内运行。runNativeWork 不接管关闭责任，EventLoop 通过既有在途操作等待实际 after-work，调用者在 finally 中关闭 work。
+
+### 9.4 验证
+
+文件能力独立验证真实 metadata／seek／truncate、排他临时创建、同文件系统替换、目录分批遍历、worker 取消与迟到结果；组合磁盘缓存和下载续传。连接竞速验证单族迟到／失败、不同候选交错、成功竞争、总取消及失败不污染父 scope。SOCKS5 使用独立 loopback 对端覆盖分段、认证和两种 DNS 模式。
+
+NativeWork 验证正常完成、登记失败、未开始撤销、运行中取消、异常清理和 moving GC，实际消费者包含 TLS 系统验证；不为仅存在于测试中的虚构工作扩展接口。三个目标运行对应库测试和生产消费者。
+
+## 10. 自有 TTY
 
 ```scoop
 public struct TtySize(val columns: Long, val rows: Long,

@@ -1,0 +1,76 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.compression.*
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp2Connection
+import scoop.test.*
+
+@Test
+private class HttpClientRedirectHttp2Test {
+    @Test
+    fun `HTTP2 redirects release one stream and replay compressed trailers in the original Context`() {
+        withClientRedirectTest(HttpVersion.Http2) suspend { _, scope, listener, config ->
+            val done = BodyTestGate()
+            val serving = scope.launch suspend {
+                AsyncHttp2Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    for (index in 1..2) {
+                        val incoming = connection.acceptRequest()!!
+                        assertEquals(index * 2 - 1, incoming.stream.id)
+                        assertTrue(httpExpectsContinue(incoming.head.fields))
+                        incoming.stream.sendResponse(HttpResponseHead(HttpVersion.Http2, 100U), false)
+                        assertEquals(1L, incoming.head.fields.findAll("Content-Encoding".toByteArray()).size)
+                        assertEquals(1L, incoming.head.fields.findAll("Trailer".toByteArray()).size)
+                        val encoded = incoming.stream.readAllBytes(100L)
+                        assertEquals("payload", String.fromUtf8(decompress(encoded, DecompressionOptions(CompressionFormat.Gzip))))
+                        assertEquals(index.toString(), String.fromUtf8(incoming.stream.trailers!![0L].value))
+                        incoming.stream.sendResponse(HttpResponseHead(HttpVersion.Http2, 103U), false)
+                        if (index == 1) incoming.stream.sendResponse(HttpResponseHead(HttpVersion.Http2, 307U, fields =
+                            [HttpField("Location".toByteArray(), "/final".toByteArray()),
+                                HttpField("Content-Encoding".toByteArray(), "unneeded-coding".toByteArray())]), false)
+                        else {
+                            incoming.stream.sendResponse(HttpResponseHead(HttpVersion.Http2, 200U), false)
+                            writeBodyText(incoming.stream, "done")
+                            incoming.stream.finish()
+                        }
+                    }
+                    done.await()
+                }
+            }
+            val factories = AtomicLong(0L)
+            val observed = AtomicLong(0L)
+            val body = RequestBody.fromProducerWithTrailersFactory(["X-End"], Some(7L)) suspend {
+                assertEquals("redirect call", currentBodyTestContext())
+                val index = factories.fetchAdd(1L) + 1L;
+                suspend { output ->
+                    assertEquals("redirect call", currentBodyTestContext())
+                    writeBodyText(output, "payload")
+                    [HttpField("X-End".toByteArray(), index.toString().toByteArray())]
+                }
+            }.compressed()
+            val options = HttpCallOptions(expectContinue = true, onInformational = suspend { head ->
+                assertTrue(head.status == 100U || head.status == 103U)
+                assertEquals("redirect call", currentBodyTestContext())
+                observed.fetchAdd(1L)
+                Unit
+            })
+            try {
+                withHttpClient(config) suspend { client ->
+                    context(BodyTestContext("redirect call")) {
+                        client.withResponse(HttpRequest.post(clientTestUrl(listener, "/first"), body, options = options)) suspend { response ->
+                            assertTrue(response.version == HttpVersion.Http2)
+                            assertEquals("done", response.body.text(10L))
+                            assertEquals(1L, response.redirectHistory.size)
+                            assertTrue(response.redirectHistory[0L].head.version == HttpVersion.Http2)
+                            assertTrue(when (response.redirectHistory[0L].head.reason) { case None -> true; else -> false })
+                        }
+                    }
+                }
+            } finally { done.signal() }
+            serving.join()
+            assertEquals(2L, factories.load())
+            assertEquals(4L, observed.load())
+            assertFalse(scope.job.isCancelled)
+        }
+    }
+}

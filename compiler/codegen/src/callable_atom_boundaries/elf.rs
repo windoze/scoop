@@ -12,8 +12,7 @@ pub(super) fn materialize(path: &Path, plan: &DefinitionSymbolPlanV1) -> Result<
     let mut output = ElfObject::read(&bytes)?;
     let primary_name = plan.primary_symbol().symbol();
     let primary = output
-        .file
-        .symbol_by_name(primary_name.as_str())
+        .original_symbol(primary_name.as_str())
         .ok_or_else(|| CodegenError(format!("ELF callable `{primary_name}` is missing")))?;
     let primary_section = primary
         .section_index()
@@ -37,11 +36,21 @@ pub(super) fn materialize(path: &Path, plan: &DefinitionSymbolPlanV1) -> Result<
         let extent = if boundary.atom() == readonly_atom {
             let (section, end) = crate::callable_constants::elf_readonly_extent(&output.file, plan)
                 .ok_or_else(|| error("missing callable read-only constants"))?;
+            output.rename_section(section, ".rodata.scoop.constants")?;
             Some((section, 0, end))
         } else if boundary.atom() == constants_atom {
             let section = output
                 .file
-                .section_by_name(".data.rel.ro")
+                .sections()
+                .find(|section| {
+                    section.name().ok().is_some_and(|name| {
+                        crate::callable_constants::is_section(
+                            name,
+                            ".data.rel.ro",
+                            primary_name.as_str(),
+                        )
+                    })
+                })
                 .ok_or_else(|| error("missing callable constants"))?;
             let index = section.index();
             let size = section.size();

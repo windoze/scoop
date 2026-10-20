@@ -45,7 +45,7 @@ pub(super) fn push_relocations(
                 * u32::try_from(SAFEPOINT_REGISTRATION_SIZE).unwrap();
             let callable_bytes =
                 u32::try_from(index).unwrap() * u32::try_from(CALLABLE_REGISTRATION_SIZE).unwrap();
-            push_u32(bytes, safepoint_bytes + callable_bytes + 152);
+            push_u32(bytes, safepoint_bytes + callable_bytes + 120);
             let relocation_target = target;
             push_u32(bytes, planned_index(relocation_target) | 3 << 25 | 1 << 27);
         }
@@ -223,8 +223,8 @@ pub(super) fn push_relocations(
             for (offset, target) in [
                 (128, planned_index(storage_target)),
                 (160, planned_index(scan_target)),
-                (232, u32::try_from(index * 2).unwrap()),
-                (248, u32::try_from(index * 2 + 1).unwrap()),
+                (168, u32::try_from(index * 2).unwrap()),
+                (184, u32::try_from(index * 2 + 1).unwrap()),
             ] {
                 push_u32(
                     bytes,

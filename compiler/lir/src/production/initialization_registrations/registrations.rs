@@ -4,8 +4,7 @@ use std::fmt;
 
 use scoop_identity::{
     ConeIdentity, DefinitionAtomRole, DefinitionAtomSubkey, DigestNodeId, DigestNodeKey,
-    DigestPatchIntentId, DigestPatchIntentKey, DigestSemanticFieldRole, LinkageClass,
-    ObjectDefinitionAtomId, ObjectDefinitionAtomKey, ObjectDefinitionIdentityError,
+    LinkageClass, ObjectDefinitionAtomId, ObjectDefinitionAtomKey, ObjectDefinitionIdentityError,
     ObjectDefinitionPlanId, PersistentCallableBodyId, PersistentInitializationUnitId,
     PersistentStaticStorageId, PersistentSymbolError, PersistentSymbolKey, PersistentSymbolRequest,
     StrongDefinitionEntity, StrongDefinitionRole,
@@ -165,21 +164,6 @@ pub enum StrongInitializationUnitRegistrationPlanBuildError {
         leaf: InitializationObjectLeafV1,
         node: DigestNodeId,
         actual: Vec<DigestInputRefV1>,
-    },
-    ObjectLeafPatches {
-        leaf: InitializationObjectLeafV1,
-        node: DigestNodeId,
-        actual: Vec<DigestPatchIntentKey>,
-    },
-    PatchSet {
-        node: DigestNodeId,
-        expected: Box<DigestPatchIntentKey>,
-        actual: Vec<DigestPatchIntentKey>,
-    },
-    GatewayPatchSet {
-        registration: ObjectDefinitionPlanId,
-        expected: Option<Box<DigestPatchIntentKey>>,
-        actual: Vec<DigestPatchIntentKey>,
     },
 }
 

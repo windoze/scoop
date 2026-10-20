@@ -1,0 +1,34 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.time.Duration
+
+internal class MessageTestSink(val chunkSize: Long = 1L) : AsyncByteSink, AsyncCloseable {
+    val bytes: ArrayList<Byte> = ArrayList<Byte>()
+    var writes: Int = 0
+    var flushes: Int = 0
+    var closes: Int = 0
+    var maxRequested: Long = 0L
+    var failAfter: Long? = None
+    var failFlush: Boolean = false
+    var failClose: Boolean = false
+    var badProgress: Int = 0
+
+    public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long {
+        writes += 1
+        if (count > maxRequested) maxRequested = count
+        currentEventLoop().sleep(Duration.nanoseconds(1L))
+        if (present(failAfter) && bytes.size >= failAfter!!) throw TransportFailure()
+        if (badProgress == 1) return -1L
+        if (badProgress == 2) return count + 1L
+        if (badProgress == 3) return 1L
+        if (badProgress == 4) { buffer.ensureWritable(1L); buffer.readInt8(); buffer.writeInt8(42.toByte()); return 1L }
+        val amount = if (count < chunkSize) count else chunkSize
+        for (byte in buffer.readBytes(amount)) bytes.add(byte)
+        return amount
+    }
+
+    public override suspend fun flush() { flushes += 1; if (failFlush) throw TransportFailure() }
+    public override suspend fun close() { closes += 1; if (failClose) throw CleanupFailure() }
+}

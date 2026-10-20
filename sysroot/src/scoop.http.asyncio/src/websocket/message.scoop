@@ -1,0 +1,94 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.bytes.ByteArrayBuilder
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+
+public class WebSocketMessage internal constructor(private val state: WsState, private val message: WsIncoming)
+    : AsyncByteSource, AsyncCloseable {
+    public val type: WebSocketMessageType get() = message.type
+    public val isCompressed: Boolean get() = message.isCompressed
+    public val isComplete: Boolean get() = state.lock.withLock { message.life.complete }
+    public val isClosed: Boolean get() = state.lock.withLock { message.life.closed }
+
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long =
+        wsOperation<Unit, Long>(state, true, {
+            checkWsMessage(state, message)
+            httpCount(count, buffer.writableBytes)
+        }, suspend { _ -> if (count == 0L) 0L else readWsMessage(state, message, buffer, count) })
+
+    public suspend fun readBytes(): Array<Byte> = readAll(false)
+    public suspend fun readText(): String = String.fromUtf8(readAll(true))
+    public override suspend fun close() { closeWsLife(state, message.life) }
+
+    private suspend fun readAll(text: Boolean): Array<Byte> =
+        wsOperation<Unit, Array<Byte>>(state, true, {
+            checkWsMessage(state, message)
+            if (text && message.type != WebSocketMessageType.Text)
+                throw IllegalStateException(Some("readText requires a Text message"))
+        }, suspend { _ ->
+            val bytes = ByteArrayBuilder()
+            NativeByteBuffer.allocate(state.options.incomingLimits.dataChunkBytes).use suspend { buffer ->
+                while (true) {
+                    buffer.clear()
+                    val count = readWsMessage(state, message, buffer, buffer.writableBytes)
+                    if (count == 0L) break
+                    bytes.append(buffer.readBytes(count))
+                }
+            }
+            bytes.toByteArray()
+        })
+}
+
+private fun checkWsMessage(state: WsState, message: WsIncoming) {
+    if (message.life.closed) throw wsClosed(state)
+    if (!message.life.complete && !message.discarded &&
+        (!present(state.incoming) || state.incoming!! !== message))
+        throw IllegalStateException(Some("this is not the active WebSocket message"))
+}
+
+internal suspend fun receiveWsMessage(state: WsState): WebSocketMessage? =
+    wsOperation<Unit, WebSocketMessage?>(state, true, {
+        if (!state.closing && !present(state.shutdown) && present(state.incoming)) {
+            val message = state.incoming!!
+            if (message.taken && !message.life.complete)
+                throw IllegalStateException(Some("previous WebSocket message is unfinished"))
+        }
+        Unit
+    }, suspend { _ ->
+        val message = suspendCoroutine<WsIncoming?> { continuation ->
+            val wait = WsWait<WsIncoming?>(continuation)
+            val actions = ArrayList<() -> Unit>()
+            state.lock.withLock {
+                if (state.closed) {
+                    if (wsClean(state)) succeedWsWait(wait, None, actions)
+                    else failWsWait(wait, state.failure ?: wsClosed(state), actions)
+                } else state.receiving = Some(wait)
+            }
+            for (action in actions) action()
+            driveWs(state)
+        }
+        when (message) {
+            case None -> None
+            case Some(value) -> {
+                val job = httpJob(state.loop, true)
+                listenWsLife(state, value.life, job)
+                job.ensureActive()
+                Some(WebSocketMessage(state, value))
+            }
+        }
+    })
+
+internal suspend fun readWsMessage(state: WsState, message: WsIncoming, buffer: NativeByteBuffer, count: Long): Long =
+    suspendCoroutine<Long> { continuation ->
+        val wait = WsWait<Long>(continuation)
+        val actions = ArrayList<() -> Unit>()
+        state.lock.withLock {
+            if (message.life.complete) succeedWsWait(wait, 0L, actions)
+            else if (state.closed) failWsWait(wait, state.failure ?: wsInterrupted(state), actions)
+            else state.reader = Some(WsReadRequest(message, buffer, count, wait))
+        }
+        for (action in actions) action()
+        driveWs(state)
+    }

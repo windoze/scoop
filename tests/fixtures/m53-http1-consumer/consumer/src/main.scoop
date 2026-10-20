@@ -9,11 +9,9 @@ fun main() {
     val output = ByteArrayBuilder()
     Http1Encoder(HttpRole.Client).use { encoder ->
         try {
-            encoder.beginRequest(HttpRequestHead(HttpVersion.Http11, "CUSTOM".toByteArray(), target))
-            throw IllegalStateException(Some("unsupported method was accepted"))
-        } catch (error: HttpException) {
-            if (error.code != 6 || error.backend != "llhttp 9.4.3") throw error
-        }
+            encoder.beginRequest(HttpRequestHead(HttpVersion.Http11, "BAD METHOD".toByteArray(), target))
+            throw IllegalStateException(Some("invalid method was accepted"))
+        } catch (error: IllegalArgumentException) {}
         val field = HttpField("X-Value".toByteArray(), [255.toByte()], true)
         output.append(encoder.beginRequest(HttpRequestHead(HttpVersion.Http11, "POST".toByteArray(), target, [field]), Http1BodyFraming.Chunked))
         NativeByteBuffer.allocate(2L).use { body ->

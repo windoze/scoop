@@ -21,7 +21,7 @@ fn elf_type_registrations_hash_descriptor_diagnostic_and_itable_data() {
                 odr_point(&mut module);
             }
             let fixture = SlibObjects::new(module, directory.path());
-            let sites = fixture.sites(fixture.builtins(&fixture.objects));
+            let sites = fixture.builtins(&fixture.objects);
             let data = bind_type_registrations_v1(
                 sites,
                 fixture
@@ -30,9 +30,8 @@ fn elf_type_registrations_hash_descriptor_diagnostic_and_itable_data() {
                     .registration_production()
                     .types()
                     .clone(),
-            )
-            .unwrap();
-            assert_eq!(data.registrations().len(), 4);
+            );
+            assert_eq!(data.plan().registrations().len(), 4);
             assert!(data.plan().registrations().iter().any(|plan| matches!(
                 plan.itable_directory(),
                 scoop_lir::TypeDescriptorITableDirectoryV1::Defined(_)

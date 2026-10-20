@@ -1,0 +1,38 @@
+package scoop.charset
+
+public enum CharsetFailureKind {
+    MalformedInput, IncompleteInput, UnmappableCharacter, MissingBom, ConflictingBom, InvalidOptions, Backend
+}
+
+public class UnsupportedCharsetException public constructor(public val name: String) :
+    Exception(Some("unsupported charset: " + name))
+
+public class CharsetException public constructor(
+    public val operation: String, public val source: String, public val destination: String,
+    public val kind: CharsetFailureKind, public val offset: Long?,
+    public val backendCode: Int?, public val detail: String
+) : Exception(Some(operation + ": " + detail))
+
+internal fun checkCharset(code: Int, backend: Int, operation: String, source: String, destination: String, offset: Long? = None) {
+    if (code == 0) return
+    val kind = when (code) {
+        case 3 -> CharsetFailureKind.MalformedInput
+        case 4 -> CharsetFailureKind.UnmappableCharacter
+        case 5 -> CharsetFailureKind.IncompleteInput
+        case 6 -> CharsetFailureKind.MissingBom
+        case 7 -> CharsetFailureKind.ConflictingBom
+        case 8 -> CharsetFailureKind.InvalidOptions
+        else -> CharsetFailureKind.Backend
+    }
+    val detail = when (kind) {
+        case MalformedInput -> "invalid byte sequence"
+        case IncompleteInput -> "incomplete byte sequence at end of input"
+        case UnmappableCharacter -> "character cannot be represented in the destination charset"
+        case MissingBom -> "a byte order mark or an explicit default byte order is required"
+        case ConflictingBom -> "byte order mark conflicts with the selected byte order"
+        case InvalidOptions -> "BOM or byte order option does not apply to the selected charset"
+        case Backend -> "libiconv failed with code " + backend.toString()
+    }
+    throw CharsetException(operation, source, destination, kind, offset,
+        if (backend == 0) None else Some(backend), detail)
+}

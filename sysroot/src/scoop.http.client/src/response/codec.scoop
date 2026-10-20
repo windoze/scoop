@@ -1,0 +1,64 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.compression.DecompressionOptions
+import scoop.compression.asyncio.AsyncDecompressionSource
+import scoop.http.HttpResponseHead
+import scoop.platform.memory.NativeByteBuffer
+
+internal class ClientResponseCodec(private val call: ClientCall, private val plan: ClientResponseDecoding,
+    head: HttpResponseHead) : AsyncByteSource, AsyncCloseable {
+    private val incoming: AsyncByteSource = if (call.tracksProgress) ClientResponseWireSource(call) else call.responseStream!!
+    private val wire: AsyncByteSource = clientCacheWriteSource(call, incoming)
+    private val proxyDigest: ClientDigestResponseSource? = when (if (clientResponseFromCache(call)) None else clientForwardProxyDigest(call)) {
+        case Some(use) -> Some(ClientDigestResponseSource(call, head, use, wire))
+        case None -> None
+    }
+    private val digest: ClientDigestResponseSource? = when (if (clientResponseFromCache(call)) None else call.authentication.digestUse) {
+        case Some(use) -> Some(ClientDigestResponseSource(call, head, use, proxyDigest ?: wire))
+        case None -> None
+    }
+    private val original: AsyncByteSource = digest ?: proxyDigest ?: wire
+    private var source: AsyncByteSource = original
+    private var prepared: Boolean = false
+    private val codecs: ArrayList<AsyncDecompressionSource> = ArrayList<AsyncDecompressionSource>()
+
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long {
+        if (!prepared) {
+            for (format in plan.formats) {
+                ensureActive()
+                val decoder = AsyncDecompressionSource(source,
+                    DecompressionOptions(format, maxWindowBytes = plan.options.maxWindowBytes), plan.options.bufferSize)
+                val stopped = call.lock.withLock {
+                    if (call.ending || call.completed) true else { codecs.add(decoder); false }
+                }
+                if (stopped) {
+                    val error = IoClosedException()
+                    try { decoder.close() }
+                    catch (cleanup: Throwable) { throw ResourceUseException(error, cleanup) }
+                    throw error
+                }
+                source = decoder
+            }
+            prepared = true
+        }
+        return source.readInto(buffer, count)
+    }
+
+    public override suspend fun close() {
+        val owned = call.lock.withLock { val saved = codecs.toArray(); codecs.clear(); saved }
+        var failure: Throwable? = None
+        var index = owned.size
+        while (index > 0L) {
+            index -= 1L
+            try { owned[index].close() }
+            catch (error: Throwable) { failure = Some(clientCombined(failure, error)) }
+        }
+        source = original
+        try { digest?.close() }
+        catch (error: Throwable) { failure = Some(clientCombined(failure, error)) }
+        try { proxyDigest?.close() }
+        catch (error: Throwable) { failure = Some(clientCombined(failure, error)) }
+        if (clientPresent(failure)) throw failure!!
+    }
+}

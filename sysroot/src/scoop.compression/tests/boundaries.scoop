@@ -1,0 +1,68 @@
+package scoop.compression
+
+import scoop.test.*
+import scoop.text.*
+import scoop.collections.emptyList
+import scoop.platform.memory.NativeByteBuffer
+
+@Test
+private class CompressionBoundaryTests {
+    @Test
+    fun `output limits allow exact EOF and count across concatenated members`() {
+        for (options in compressionCases()) {
+            val empty = compress(emptyList<Byte>(), options)
+            assertEquals(0L, decompress(empty, DecompressionOptions(options.format, maxOutputBytes = Some(0L))).size)
+            val data = compress("abc".toByteArray(), options)
+            assertEquals("abc", String.fromUtf8(decompress(data, DecompressionOptions(options.format, maxOutputBytes = Some(3L)))))
+            val error = assertFailsWith<CompressionException> { decompress(data, DecompressionOptions(options.format, maxOutputBytes = Some(2L))) }
+            assertTrue(error.kind == CompressionFailureKind.OutputLimit)
+        }
+        for (options in [CompressionOptions.Gzip(GzipOptions()), CompressionOptions.Zstd(ZstdOptions())]) {
+            val data = joinCompressionBytes(compress("ab".toByteArray(), options), compress("cd".toByteArray(), options))
+            val error = assertFailsWith<CompressionException> { decompress(data, DecompressionOptions(options.format, maxOutputBytes = Some(3L))) }
+            assertTrue(error.kind == CompressionFailureKind.OutputLimit)
+        }
+    }
+
+    @Test
+    fun `gzip members zstd frames and skippable frames compose without losing suffixes`() {
+        for (options in [CompressionOptions.Gzip(GzipOptions()), CompressionOptions.Zstd(ZstdOptions())]) {
+            val data = joinCompressionBytes(compress("ab".toByteArray(), options), compress("cd".toByteArray(), options))
+            assertEquals("abcd", String.fromUtf8(chunkedDecompress(data, DecompressionOptions(options.format))))
+            assertFailsWith<CompressionException> { decompress(data, DecompressionOptions(options.format, mode = DecompressionMode.Single)) }
+        }
+        val skipped = "502a4d1803000000616263".hexToByteArray()
+        val frame = compressionVector(CompressionFormat.Zstd)
+        val data = joinCompressionBytes(joinCompressionBytes(skipped, frame), skipped)
+        assertEquals("Hello, Scoop!", String.fromUtf8(chunkedDecompress(data, DecompressionOptions())))
+        assertEquals(0L, decompress(skipped).size)
+        for (format in [CompressionFormat.Zlib, CompressionFormat.RawDeflate, CompressionFormat.Brotli]) {
+            assertFailsWith<CompressionException> { decompress(joinCompressionBytes(compressionVector(format), "x".toByteArray()), DecompressionOptions(format)) }
+        }
+    }
+
+    @Test
+    fun `single frame engine leaves the protocol suffix unread`() {
+        val frame = compressionVector(CompressionFormat.Gzip)
+        NativeByteBuffer.allocate(frame.size + 1L).use { input ->
+            input.writeBytes(frame); input.writeByte(65.toByte())
+            NativeByteBuffer.allocate(128L).use { output ->
+                CompressionDecoder(DecompressionOptions(CompressionFormat.Gzip, mode = DecompressionMode.Single)).use { decoder ->
+                    val step = decoder.process(input, output)
+                    assertTrue(step.state == CompressionState.Finished)
+                    assertEquals(frame.size, step.consumed)
+                    assertEquals(1L, input.readableBytes)
+                    assertEquals(65.toByte(), input.readByte())
+                    assertEquals("Hello, Scoop!", String.fromUtf8(output.readBytes(step.produced)))
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `zstd window bounds are distinct from output bounds`() {
+        val vector = compressionVector(CompressionFormat.Zstd)
+        val error = assertFailsWith<CompressionException> { decompress(vector, DecompressionOptions(maxWindowBytes = Some(1024L))) }
+        assertTrue(error.kind == CompressionFailureKind.WindowLimit)
+    }
+}

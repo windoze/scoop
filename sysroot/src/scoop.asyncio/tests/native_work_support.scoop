@@ -1,0 +1,34 @@
+package scoop.asyncio
+
+import scoop.asyncio.native.NativeWork
+
+internal class NativeWorkProbe(allowed: Boolean = true) : Closeable {
+    private val pointer: Ptr<Unit> = createProbe(allowed)
+    val work: NativeWork = createWork(pointer)
+    val started: Int get() { @Unsafe { return count(pointer, 0) } }
+    val finished: Int get() { @Unsafe { return count(pointer, 1) } }
+    val released: Int get() { @Unsafe { return count(pointer, 2) } }
+    val foreign: Int get() { @Unsafe { return count(pointer, 3) } }
+    fun waitStarted() { @Unsafe { waitStarted(pointer) } }
+    fun allow() { @Unsafe { allow(pointer) } }
+    fun result(): Int { @Unsafe { return work.withResult { value -> @Unsafe { return@withResult result(value) } } } }
+    public override fun close() {
+        work.close()
+        @Unsafe { freeProbe(pointer) }
+    }
+}
+
+private fun createProbe(allowed: Boolean): Ptr<Unit> { @Unsafe { return newProbe(allowed) } }
+private fun createWork(probe: Ptr<Unit>): NativeWork {
+    @Unsafe { return NativeWork.takeOwnership(newWork(probe), executeFunction(), releaseFunction()) }
+}
+
+@Extern(name = "scoop_test_native_probe_new") private fun newProbe(allowed: Boolean): Ptr<Unit>
+@Extern(name = "scoop_test_native_probe_free") private fun freeProbe(probe: Ptr<Unit>)
+@Extern(name = "scoop_test_native_work_new") private fun newWork(probe: Ptr<Unit>): Ptr<Unit>
+@Extern(name = "scoop_test_native_execute") private fun executeFunction(): FunPtr<(Ptr<Unit>) -> Unit>
+@Extern(name = "scoop_test_native_release") private fun releaseFunction(): FunPtr<(Ptr<Unit>) -> Unit>
+@Extern(name = "scoop_test_native_wait") private fun waitStarted(probe: Ptr<Unit>)
+@Extern(name = "scoop_test_native_allow") private fun allow(probe: Ptr<Unit>)
+@Extern(name = "scoop_test_native_count") private fun count(probe: Ptr<Unit>, kind: Int): Int
+@Extern(name = "scoop_test_native_result") private fun result(work: Ptr<Unit>): Int

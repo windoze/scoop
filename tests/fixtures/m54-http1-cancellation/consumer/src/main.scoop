@@ -1,0 +1,100 @@
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.platform.concurrent.Thread
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.*
+
+private fun check(value: Boolean) { if (!value) throw IllegalStateException(Some("HTTP cancellation check failed")) }
+
+private class Gate {
+    private val held: AtomicBoolean = AtomicBoolean(false)
+    private var opened: Boolean = false
+    private var waiter: Continuation<Unit>? = None
+    private fun <T> locked(block: () -> T): T {
+        while (!held.compareAndSet(false, true)) {}
+        try { return block() } finally { held.store(false) }
+    }
+    fun signal() {
+        val saved = locked { opened = true; val previous = waiter; waiter = None; previous }
+        saved?.resume(Unit)
+    }
+    suspend fun await() {
+        suspendCoroutine<Unit> { continuation ->
+            val immediate = locked { if (opened) true else { waiter = Some(continuation); false } }
+            if (immediate) continuation.resume(Unit)
+        }
+    }
+}
+
+private class HeldRead(private val raw: AsyncTcpStream) : AsyncByteStream, AsyncCloseable {
+    var hold: Boolean = false
+    val started: Gate = Gate()
+    val release: Gate = Gate()
+    val closed: Gate = Gate()
+    private val closing: AtomicBoolean = AtomicBoolean(false)
+    var closes: Long = 0L
+
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long {
+        if (hold) { started.signal(); release.await() }
+        if (closing.load()) throw IoClosedException()
+        return raw.readInto(buffer, count)
+    }
+    public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long = raw.writeFrom(buffer, count)
+    public override suspend fun flush() { raw.flush() }
+    public override suspend fun close() {
+        closing.store(true); closes += 1L
+        raw.close()
+        closed.signal()
+    }
+}
+
+fun main() {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { scope ->
+        loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).useAsync suspend { listener ->
+            val done = Gate()
+            val serving = scope.launch suspend {
+                AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { server ->
+                    server.receiveRequest()!!.body.readAllBytes(0L)
+                    server.sendResponse(HttpResponseHead(HttpVersion.Http11, 200U), Http1BodyFraming.Length(1L))
+                    done.await()
+                }
+            }
+            val transport = HeldRead(loop.connectTcp(listener.localAddress))
+            val client = AsyncHttp1Connection.takeOwnershipAsClient(transport, scope)
+            try {
+                check(client.isReusable)
+                client.sendRequest(HttpRequestHead(HttpVersion.Http11, "GET".toByteArray(),
+                    HttpRequestTarget.Http1("/".toByteArray()), [HttpField("Host".toByteArray(), "localhost".toByteArray())])).finish()
+                val response = client.receiveResponse()
+                check(!client.isReusable)
+                transport.hold = true
+                val cancelled = AtomicBoolean(false)
+                NativeByteBuffer.allocate(1L).use suspend { buffer ->
+                    val reading = scope.launch suspend {
+                        try { response.body.readInto(buffer, 1L); check(false) }
+                        catch (_: CancellationException) { cancelled.store(true) }
+                        finally { buffer.clear(); client.close() }
+                    }
+                    transport.started.await()
+                    Thread.start { reading.cancel() }.use suspend { cancelling ->
+                        transport.closed.await()
+                        val first = scope.launch suspend { client.close() }
+                        val second = scope.launch suspend { client.close() }
+                        check(!reading.isCompleted && !first.isCompleted && !second.isCompleted)
+                        transport.release.signal()
+                        reading.join(); first.join(); second.join()
+                        cancelling.join()
+                    }
+                    check(cancelled.load() && client.isClosed && !client.isReusable)
+                    check(transport.closes == 1L)
+                    buffer.clear()
+                }
+            } finally { client.close(); done.signal() }
+            serving.join()
+            check(!scope.job.isCancelled)
+        }
+    }
+    println("HTTP1 cancellation retains its cause through completed transport cleanup")
+}

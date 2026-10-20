@@ -1,0 +1,76 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.platform.memory.NativeByteBuffer
+
+public class MultipartEncoder public constructor(public val boundary: MultipartBoundary) : Closeable {
+    private val guard: MultipartGuard = MultipartGuard()
+    private var part: MultipartPartHead? = None
+    private var written: Long = 0L
+    private var closed: Boolean = false
+    private var finished: Boolean = false
+    public val isClosed: Boolean get() = closed
+    public val isFinished: Boolean get() = finished
+    public val isPartOpen: Boolean get() = when (part) { case Some(_) -> true; case None -> false }
+
+    public fun beginPart(head: MultipartPartHead): Array<Byte> = guard.withUse {
+        requireOpen()
+        if (isPartOpen) throw IllegalStateException(Some("multipart part is still open"))
+        val output = ByteArrayBuilder().append("--".toByteArray()).append(boundary.bytes).append("\r\n".toByteArray())
+            .append(head.encoded).toByteArray()
+        part = Some(head)
+        written = 0L
+        output
+    }
+
+    public fun writeBody(buffer: NativeByteBuffer, count: Long = buffer.readableBytes): Array<Byte> = guard.withUse {
+        requireOpen()
+        val head = part ?: throw IllegalStateException(Some("multipart part is not open"))
+        if (count < 0L) throw IllegalArgumentException(Some("negative multipart input count"))
+        if (count > buffer.readableBytes) throw IndexOutOfBoundsException()
+        val total = multipartAdd(written, count)
+        if (head.bodyLength != None && total > head.bodyLength!!)
+            throw IllegalArgumentException(Some("multipart body exceeds its declared length"))
+        val bytes = buffer.readBytes(count)
+        written = total
+        bytes
+    }
+
+    public fun endPart(): Array<Byte> = guard.withUse {
+        requireOpen()
+        val head = part ?: throw IllegalStateException(Some("multipart part is not open"))
+        if (head.bodyLength != None && written != head.bodyLength!!)
+            throw IllegalStateException(Some("multipart body has not reached its declared length"))
+        val output = "\r\n".toByteArray()
+        part = None
+        output
+    }
+
+    public fun finish(): Array<Byte> = guard.withUse {
+        requireOpen()
+        if (isPartOpen) throw IllegalStateException(Some("multipart part is still open"))
+        val output = ByteArrayBuilder().append("--".toByteArray()).append(boundary.bytes).append("--\r\n".toByteArray()).toByteArray()
+        finished = true
+        output
+    }
+
+    public override fun close() {
+        guard.withUse { closed = true; part = None; Unit }
+    }
+
+    private fun requireOpen() {
+        if (closed || finished) throw IllegalStateException(Some("multipart encoder is closed or finished"))
+    }
+
+    public companion object {
+        public fun contentLength(boundary: MultipartBoundary, parts: List<MultipartPartHead>): Long? {
+            var total = boundary.bytes.size + 6L
+            var known = true
+            for (part in parts) {
+                total = multipartAdd(total, multipartAdd(boundary.bytes.size + 6L, part.encoded.size))
+                when (part.bodyLength) { case Some(length) -> total = multipartAdd(total, length); case None -> known = false }
+            }
+            return if (known) Some(total) else None
+        }
+    }
+}

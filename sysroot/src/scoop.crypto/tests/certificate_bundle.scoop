@@ -1,0 +1,53 @@
+package scoop.crypto
+
+import scoop.crypto.x509.*
+import scoop.crypto.testdata.*
+import scoop.test.*
+import scoop.time.Instant
+
+@Test
+private class CertificateBundleTests {
+    @Test
+    fun `bundle preserves order duplicates and independent certificate lifetime`() {
+        val certificates = parseCertificatesPem(" \t\r\n" + serverPem() + "\n" + intermediatePem() + "\r\n" + serverPem() + " \n")
+        try {
+            assertEquals(3L, certificates.size)
+            assertEquals("CN=localhost", certificates[0L].subject)
+            assertEquals("CN=Scoop M51 Intermediate", certificates[1L].subject)
+            certificates[0L].close()
+            gcCollect()
+            assertEquals("CN=localhost", certificates[2L].subject)
+            certificates[1L].publicKey().use { issuer -> assertTrue(certificates[2L].verifySignature(issuer)) }
+        } finally { for (certificate in certificates) certificate.close() }
+    }
+
+    @Test
+    fun `PEM trust store retains anchors after temporary bundle release`() {
+        TrustStore.fromPem(rootPem()).use { store ->
+            gcCollect()
+            Certificate.fromPem(serverPem()).use { leaf ->
+                Certificate.fromPem(intermediatePem()).use { intermediate ->
+                    val result = store.verify(leaf, Instant.fromEpochSeconds(1800000000L), CertificatePurpose.ServerAuth,
+                        [intermediate], Some(PeerIdentity.Dns("localhost")))
+                    assertTrue(result.isSuccess)
+                    assertTrue(store.verify(leaf, Instant.fromEpochSeconds(1800000000L), CertificatePurpose.ServerAuth).isFailure)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `bundle rejects empty corrupt and unrelated segments without skipping`() {
+        val broken = "-----BEGIN CERTIFICATE-----\nAAAA\n-----END CERTIFICATE-----\n"
+        for (text in ["", " \t\r\n", "comment\n" + rootPem(), rootPem() + "comment\n" + rootPem(),
+            rootPem() + serverKeyPem(), rootPem() + broken, broken + rootPem(), rootPem() + "trailing",
+            rootPem() + "\u{0000}" + intermediatePem(), "-----BEGIN CERTIFICATE-----broken\n" + rootPem()]) {
+            assertFailsWith<CryptoException> { parseCertificatesPem(text) }
+            assertFailsWith<CryptoException> { TrustStore.fromPem(text) }
+        }
+        assertFailsWith<CryptoException> { Certificate.fromPem(rootPem() + intermediatePem()) }
+        val valid = parseCertificatesPem(rootPem())
+        try { assertEquals(1L, valid.size) }
+        finally { for (certificate in valid) certificate.close() }
+    }
+}

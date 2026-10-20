@@ -1,0 +1,61 @@
+package scoop.http
+
+import scoop.collections.HashSet
+import scoop.text.*
+
+internal fun httpLanguageTag(text: String): Boolean {
+    if (text.length == 0L) return true
+    val normalized = text.lowercaseAscii()
+    val parts = normalized.split('-')
+    for (part in parts) {
+        if (part.length == 0L || part.length > 8L) return false
+        for (char in part) if (!languageLetter(char) && !languageDigit(char)) return false
+    }
+    for (tag in grandfatheredHttpLanguages) if (normalized == tag) return true
+    if (parts[0L] == "x") return parts.size > 1L
+    if (parts[0L].length < 2L || !languageLetters(parts[0L])) return false
+    var index = 1L
+    if (parts[0L].length <= 3L) {
+        var extlangs = 0
+        while (index < parts.size && extlangs < 3 && parts[index].length == 3L && languageLetters(parts[index])) {
+            index += 1L; extlangs += 1
+        }
+    }
+    if (index < parts.size && parts[index].length == 4L && languageLetters(parts[index])) index += 1L
+    if (index < parts.size && ((parts[index].length == 2L && languageLetters(parts[index])) ||
+        (parts[index].length == 3L && languageDigits(parts[index])))) index += 1L
+    val variants = HashSet<String>()
+    while (index < parts.size && languageVariant(parts[index])) {
+        if (!variants.add(parts[index])) return false
+        index += 1L
+    }
+    val extensions = HashSet<String>()
+    while (index < parts.size && parts[index].length == 1L && parts[index] != "x") {
+        if (!extensions.add(parts[index])) return false
+        index += 1L
+        val start = index
+        while (index < parts.size && parts[index].length >= 2L) index += 1L
+        if (index == start) return false
+    }
+    if (index < parts.size && parts[index] == "x") return index + 1L < parts.size
+    return index == parts.size
+}
+
+private fun languageLetter(char: Char): Boolean = char >= 'a' && char <= 'z'
+private fun languageDigit(char: Char): Boolean = char >= '0' && char <= '9'
+private fun languageLetters(text: String): Boolean {
+    for (char in text) if (!languageLetter(char)) return false
+    return true
+}
+private fun languageDigits(text: String): Boolean {
+    for (char in text) if (!languageDigit(char)) return false
+    return true
+}
+private fun languageVariant(text: String): Boolean = text.length >= 5L || (text.length == 4L && languageDigit(text[0L]))
+
+// RFC 5646 section 2.1 grandfathered forms; no registry lookup is needed for syntax.
+private val grandfatheredHttpLanguages: Array<String> = [
+    "en-gb-oed", "i-ami", "i-bnn", "i-default", "i-enochian", "i-hak", "i-klingon", "i-lux", "i-mingo",
+    "i-navajo", "i-pwn", "i-tao", "i-tay", "i-tsu", "sgn-be-fr", "sgn-be-nl", "sgn-ch-de", "art-lojban",
+    "cel-gaulish", "no-bok", "no-nyn", "zh-guoyu", "zh-hakka", "zh-min", "zh-min-nan", "zh-xiang"
+]

@@ -1,9 +1,9 @@
 use scoop_identity::{
     CapabilityId, CborIdentityRecord, ConeCoordinate, ConeIdentity, ConeImageSupportRole,
-    DefinitionAtomRole, DefinitionAtomSubkey, DigestNodeId, DigestNodeKey, DigestPatchIntentKey,
-    DigestSemanticFieldRole, LinkageClass, ObjectDefinitionAtomId, ObjectDefinitionAtomKey,
-    ObjectDefinitionPlanId, ObjectDefinitionPlanKey, PersistentSymbolKey, PersistentSymbolRequest,
-    PersistentSymbolRequestTable, StrongDefinitionEntity, StrongDefinitionRole,
+    DefinitionAtomRole, DefinitionAtomSubkey, DigestNodeKey, LinkageClass, ObjectDefinitionAtomId,
+    ObjectDefinitionAtomKey, ObjectDefinitionPlanId, ObjectDefinitionPlanKey, PersistentSymbolKey,
+    PersistentSymbolRequest, PersistentSymbolRequestTable, StrongDefinitionEntity,
+    StrongDefinitionRole,
 };
 use scoop_lir::{
     AppleClangCompilerIdentityV1, CBridgeProductionSetV1, CBridgeToolchainProfileV1,
@@ -37,8 +37,8 @@ mod sections;
 
 pub(super) use archive::complete_artifact;
 use objects::{finalized_link_object_fixture, link_object_fixture, link_object_plan};
+use production::selection;
 pub(super) use production::{c_bridge_profile, cone};
-use production::{digest_patch_intent, selection};
 pub(crate) use production::{image_atoms, strong_production_fixture};
 use sections::{empty_hir_library_section, empty_mir_library_section};
 

@@ -4,6 +4,23 @@
 #include "http.h"
 #include <nghttp2/nghttp2.h>
 
+enum { HTTP2_OUTPUT_CONTROL, HTTP2_OUTPUT_HEADERS, HTTP2_OUTPUT_DATA };
+typedef struct {
+  int64_t count;
+  int32_t code, stream_id, kind;
+} http2_output;
+
+typedef struct {
+  int64_t count;
+  int32_t stream_id;
+} http2_input_progress;
+typedef struct {
+  http_bytes progress;
+  size_t payload_left, magic_left, header_left;
+  int32_t stream_id;
+  int capture, began;
+} http2_input;
+
 typedef struct {
   int64_t header_bytes, field_bytes, fields, continuations;
   int64_t send_header_bytes, pending_body_bytes;
@@ -18,7 +35,7 @@ typedef struct http2_stream {
   int32_t id;
   int closed, reset, head_request, connect_request;
   int received_final, received_trailers, sent_final, send_open, send_eof;
-  int send_end_pending;
+  int send_end_pending, end_headers_queued;
   size_t pending_headers;
   int64_t remaining, unconsumed;
   http_bytes body;
@@ -37,6 +54,8 @@ typedef struct {
   size_t header_bytes, header_count;
   http_bytes output;
   size_t output_offset;
+  int32_t output_stream_id, output_kind;
+  http2_input input;
   http_error error;
 } http2;
 
@@ -47,8 +66,11 @@ void http2_stream_free(http2 *h, http2_stream *stream);
 void http2_stream_maybe_free(http2 *h, http2_stream *stream);
 nghttp2_nv *http2_nv(const http_fields *fields);
 nghttp2_data_provider2 http2_provider(http2_stream *stream);
+int http2_queue_trailers(http2 *h, http2_stream *stream);
+int http2_finish_ready(http2 *h, http2_stream *stream);
 void http2_header_callbacks(nghttp2_session_callbacks *callbacks);
 void http2_event_callbacks(nghttp2_session_callbacks *callbacks);
+void http2_input_setup(http2 *h, nghttp2_session_callbacks *callbacks);
 int http2_push_simple(http2 *h, int kind, int32_t id, uint32_t flags);
 
 #endif

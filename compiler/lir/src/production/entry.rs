@@ -1,9 +1,8 @@
 use scoop_identity::{
     DecodedExactCallableSignature, DecodedPersistentId, DecodedPersistentSymbolRequest,
-    DigestPatchIntentId, ExactCallableSignature, ExecutableEntryIdentity, MainCallableBodyId,
-    ObjectDefinitionPlanId, PersistentCallableBodyId, PersistentStaticStorageId,
-    PersistentSymbolError, PersistentSymbolKey, PersistentSymbolRequest,
-    SourceSignatureFingerprint,
+    ExactCallableSignature, ExecutableEntryIdentity, MainCallableBodyId, ObjectDefinitionPlanId,
+    PersistentCallableBodyId, PersistentStaticStorageId, PersistentSymbolError,
+    PersistentSymbolKey, PersistentSymbolRequest, SourceSignatureFingerprint,
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
@@ -37,8 +36,6 @@ pub struct ExecutableEntryPlanV1 {
     gateway: PersistentCallableBodyId,
     root_descriptor_symbol: PersistentSymbolRequest,
     root_descriptor_definition: ObjectDefinitionPlanId,
-    source_signature_patch: DigestPatchIntentId,
-    gateway_definition_patch: DigestPatchIntentId,
 }
 
 impl ExecutableEntryPlanV1 {
@@ -78,14 +75,6 @@ impl ExecutableEntryPlanV1 {
         self.root_descriptor_definition
     }
 
-    pub const fn source_signature_patch(&self) -> DigestPatchIntentId {
-        self.source_signature_patch
-    }
-
-    pub const fn gateway_definition_patch(&self) -> DigestPatchIntentId {
-        self.gateway_definition_patch
-    }
-
     pub fn failure_root_registration_symbol(
         &self,
     ) -> Result<PersistentSymbolRequest, PersistentSymbolError> {
@@ -105,7 +94,7 @@ impl ExecutableEntryPlanV1 {
 
 impl WireEncode for ExecutableEntryPlanV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(11)?;
+        encoder.map(9)?;
         encoder.field(1)?;
         self.root_cone.encode(encoder)?;
         encoder.field(2)?;
@@ -123,11 +112,7 @@ impl WireEncode for ExecutableEntryPlanV1 {
         encoder.field(8)?;
         self.root_descriptor_symbol.encode(encoder)?;
         encoder.field(9)?;
-        self.root_descriptor_definition.encode(encoder)?;
-        encoder.field(10)?;
-        self.source_signature_patch.encode(encoder)?;
-        encoder.field(11)?;
-        self.gateway_definition_patch.encode(encoder)
+        self.root_descriptor_definition.encode(encoder)
     }
 }
 
@@ -178,13 +163,11 @@ pub struct DecodedExecutableEntryPlanV1 {
     gateway: DecodedPersistentId<PersistentCallableBodyId>,
     root_descriptor_symbol: DecodedPersistentSymbolRequest,
     root_descriptor_definition: DecodedPersistentId<ObjectDefinitionPlanId>,
-    source_signature_patch: DecodedPersistentId<DigestPatchIntentId>,
-    gateway_definition_patch: DecodedPersistentId<DigestPatchIntentId>,
 }
 
 impl WireEncode for DecodedExecutableEntryPlanV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(11)?;
+        encoder.map(9)?;
         encoder.field(1)?;
         self.root_cone.encode(encoder)?;
         encoder.field(2)?;
@@ -202,17 +185,13 @@ impl WireEncode for DecodedExecutableEntryPlanV1 {
         encoder.field(8)?;
         self.root_descriptor_symbol.encode(encoder)?;
         encoder.field(9)?;
-        self.root_descriptor_definition.encode(encoder)?;
-        encoder.field(10)?;
-        self.source_signature_patch.encode(encoder)?;
-        encoder.field(11)?;
-        self.gateway_definition_patch.encode(encoder)
+        self.root_descriptor_definition.encode(encoder)
     }
 }
 
 impl WireDecode for DecodedExecutableEntryPlanV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(11)?;
+        decoder.expect_map(9)?;
         Ok(Self {
             root_cone: decoder.field(1, DecodedPersistentId::decode)?,
             declaration: decoder
@@ -224,8 +203,6 @@ impl WireDecode for DecodedExecutableEntryPlanV1 {
             gateway: decoder.field(7, DecodedPersistentId::decode)?,
             root_descriptor_symbol: decoder.field(8, DecodedPersistentSymbolRequest::decode)?,
             root_descriptor_definition: decoder.field(9, DecodedPersistentId::decode)?,
-            source_signature_patch: decoder.field(10, DecodedPersistentId::decode)?,
-            gateway_definition_patch: decoder.field(11, DecodedPersistentId::decode)?,
         })
     }
 }

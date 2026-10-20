@@ -1,0 +1,37 @@
+import scoop.crypto.PrivateKey
+import scoop.crypto.testdata.*
+import scoop.crypto.x509.Certificate
+import scoop.crypto.x509.TrustStore
+import scoop.platform.concurrent.Thread
+import scoop.test.*
+import scoop.text.toHexString
+import scoop.tls.*
+
+private val clientFingerprint: String = "bae194b040dd8ccbe7f4a406ba93c14b020bec8739d32b8a77058de4a028e1a7"
+private val serverFingerprint: String = "1ace0a4658cb813364caa82219f2bbdc394f0b13daae8a0fc9e2ff6ee9283061"
+
+fun main() {
+    val identity = Certificate.fromPem(clientPem()).use { leaf ->
+        PrivateKey.fromPem(serverKeyPem()).use { key -> TlsIdentity([leaf], key) }
+    }
+    assertEquals(clientFingerprint, identity.leafCertificateSha256.toHexString())
+    TlsIdentity.fromPem(clientPem() + intermediatePem(), serverKeyPem()).use { chain ->
+        assertEquals(clientFingerprint, chain.leafCertificateSha256.toHexString())
+    }
+    TlsIdentity.fromPem(serverPem() + intermediatePem(), serverKeyPem()).use { server ->
+        assertEquals(serverFingerprint, server.leafCertificateSha256.toHexString())
+    }
+    TrustStore.fromPem(rootPem()).use { trust ->
+        TlsClientContext(trust, identity = Some(identity)).use { context ->
+            identity.close()
+            assertTrue(identity.isClosed)
+        }
+    }
+    val reader = Thread.start {
+        for (_ in 0L..<100L) assertEquals(clientFingerprint, identity.leafCertificateSha256.toHexString())
+    }
+    try {
+        for (_ in 0L..<100L) { identity.close(); assertEquals(clientFingerprint, identity.leafCertificateSha256.toHexString()) }
+    } finally { reader.join() }
+    println("TLS local identity fingerprints remain stable after input and identity closure")
+}

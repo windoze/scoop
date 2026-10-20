@@ -1,0 +1,40 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.charset.*
+import scoop.http.*
+import scoop.test.*
+
+@Test
+private class HttpClientResponseJsonTest {
+    @Test
+    fun `JSON requires strict UTF8 and retains parser and typed codec failures`() {
+        val messages = ["\uFEFF\"中文\"".toByteArray(), "123".toByteArray(), "\"x\" trailing".toByteArray(),
+            [34.toByte(), 255.toByte(), 34.toByte()]]
+        val codec = ValueDecoderFunction<String> { decoder -> decoder.singleValue().readString() }
+        withResponseTestHttp1(suspend { connection ->
+            for (bytes in messages) {
+                connection.receiveRequest()!!.body.readAllBytes(0L)
+                sendResponseTestBytes(connection, bytes, [responseTestField("Content-Type", "application/json; charset=ISO-8859-1")])
+            }
+        }, suspend { client, url ->
+            var index = 0L
+            for (bytes in messages) {
+                val attempt = index
+                client.withResponse(HttpRequest.get(url)) suspend { response ->
+                    when (attempt) {
+                        case 0L -> assertEquals("中文", response.body.json(codec, bytes.size))
+                        case 3L -> { expectBodyFailure<CharsetException> suspend { response.body.json(codec, bytes.size); Unit } }
+                        else -> {
+                            val error = expectBodyFailure<DecodingException> suspend { response.body.json(codec, bytes.size); Unit }
+                            assertEquals("", error.path)
+                        }
+                    }
+                    assertTrue(response.body.isComplete)
+                    assertEquals(0L, response.body.readAllBytes(0L).size)
+                }
+                index += 1L
+            }
+        })
+    }
+}

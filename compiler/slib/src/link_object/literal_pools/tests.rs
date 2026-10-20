@@ -74,6 +74,63 @@ fn fixed_width_literals_keep_their_element_bounds() {
     assert!(pools.at(ordinal, 24).is_none());
 }
 
+#[test]
+fn local_table_starts_at_its_referenced_symbol_after_other_constants() {
+    let (bytes, mut sections) = table();
+    sections.envelope.symbols[0].value = 12;
+    let pools = LiteralPools::read(&bytes, &sections, &[]).unwrap();
+    let ordinal = NonZeroU32::new(2).unwrap();
+    assert_eq!(pools.at(ordinal, 12).unwrap().bytes(), &bytes[12..]);
+    assert!(pools.at(ordinal, 4).is_none());
+    assert!(pools.at(ordinal, 13).is_none());
+}
+
+#[test]
+fn local_tables_end_at_adjacent_tables_and_owned_constants() {
+    let (_, mut sections) = table();
+    for address in [8, 12, 20] {
+        add_table(&mut sections, address);
+    }
+    let ordinal = NonZeroU32::new(2).unwrap();
+    let atoms = [4..8, 16..20];
+    assert_eq!(
+        tables::ranges(&sections, ordinal, &atoms),
+        [8..12, 12..16, 20..24]
+    );
+}
+
+#[test]
+fn several_table_payloads_and_their_relocations_remain_separate() {
+    let (bytes, mut sections) = table();
+    add_table(&mut sections, 12);
+    let ordinal = NonZeroU32::new(2).unwrap();
+    let pools = LiteralPools::read(&bytes, &sections, &[]).unwrap();
+    assert_eq!(pools.at(ordinal, 4).unwrap().bytes(), &bytes[4..12]);
+    assert_eq!(pools.at(ordinal, 12).unwrap().bytes(), &bytes[12..]);
+    assert!(pools.at(ordinal, 8).is_none());
+
+    let mut relocation = sections.envelope.relocations[0];
+    relocation.containing_section_ordinal = ordinal;
+    sections.envelope.relocations.push(relocation);
+    let pools = LiteralPools::read(&bytes, &sections, &[]).unwrap();
+    assert!(pools.at(ordinal, 4).is_none());
+    assert_eq!(pools.at(ordinal, 12).unwrap().bytes(), &bytes[12..]);
+}
+
+fn add_table(sections: &mut ValidatedBuiltinObjectSectionInventoryV1, address: u64) {
+    let index = sections.envelope.symbols.len() as u32;
+    let mut symbol = sections.envelope.symbols[0].clone();
+    symbol.table_index = index;
+    symbol.value = address;
+    sections.envelope.symbols.push(symbol);
+    let mut relocation = sections.envelope.relocations[0];
+    relocation.shape = ObjectRelocationShapeV1::DarwinArm64(DarwinArm64RelocationShapeV1::Page21 {
+        target: DarwinArm64RelocationTargetV1::SymbolTableIndex(index),
+        explicit_addend: None,
+    });
+    sections.envelope.relocations.push(relocation);
+}
+
 fn table() -> (Vec<u8>, ValidatedBuiltinObjectSectionInventoryV1) {
     let bytes: Vec<u8> = [0, 0, 0, 0].into_iter().chain(1..=20).collect();
     let sections = vec![

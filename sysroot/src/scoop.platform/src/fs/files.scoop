@@ -3,6 +3,10 @@ package scoop.platform.fs
 import scoop.platform.io.*
 import scoop.platform.memory.NativeByteBuffer
 import scoop.platform.memory.nativeMemoryFree
+import scoop.platform.native.decodeFileMetadata
+import scoop.platform.native.requireFileMode
+import scoop.platform.native.temporaryPathPattern
+import scoop.platform.env.temporaryDirectory
 import scoop.platform.system.*
 
 public fun Path.readAllBytes(): Array<Byte> = File.open(this).use { it.readAllBytes() }
@@ -57,7 +61,7 @@ public fun Path.metadata(followLinks: Boolean = true): FileMetadata {
         return this.withNativePath { pointer ->
             @Unsafe {
                 val (data, error) = nativeMetadata(-1, Some(pointer), followLinks)
-                return@withNativePath fileMetadata(data, error, Some(this.toOsString()))
+                return@withNativePath decodeFileMetadata(data, error, Some(this.toOsString()))
             }
         }
     }
@@ -72,7 +76,7 @@ public fun Path.exists(followLinks: Boolean = true): Boolean {
 }
 
 public fun Path.createDirectory(mode: Int = 0x1ff) {
-    requireMode(mode)
+    requireFileMode(mode)
     @Unsafe {
         this.withNativePath { pointer ->
             @Unsafe {
@@ -180,13 +184,9 @@ private fun outputOptions(append: Boolean): OpenOptions =
     OpenOptions(read = false, write = true, create = true, append = append, truncate = !append)
 
 private fun temporaryPath(parent: Path?, prefix: String, directory: Boolean): Path {
-    val bytes = prefix.toByteArray()
-    for (byte in bytes) {
-        if (byte == 0 || byte == 47) throw IllegalArgumentException(Some("invalid temporary path prefix"))
-    }
+    val base = parent ?: temporaryDirectory()
+    val pattern = temporaryPathPattern(base, prefix).toOsString().toByteArray()
     @Unsafe {
-        val base = parent ?: Path.fromOsString(copyNativeString(nativeTemporaryDirectory()))
-        val pattern = base.resolve(Path.fromString(prefix + "XXXXXX")).toOsString().toByteArray()
         if (pattern.size == Long.MAX_VALUE) throw ArithmeticException()
         val writable = MutableArray<Byte>(pattern.size + 1L) { index -> if (index == pattern.size) 0.toByte() else pattern[index] }
         return writable.withDataPointer { pointer, _ ->

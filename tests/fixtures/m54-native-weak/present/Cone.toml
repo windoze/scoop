@@ -1,0 +1,15 @@
+schema = 1
+[cone]
+kind = "executable"
+group = "scoop.tests"
+name = "m54-native-weak-present"
+version = "0.1.0"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"scoop:scoop.std" = "0.1.0"
+[native]
+c_flags = ["-std=c11", "-Wall", "-Wextra", "-Werror"]
+[[native.sources]]
+path = "../native/optional.c"
+[[native.sources]]
+path = "../native/provider.c"

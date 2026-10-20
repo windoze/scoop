@@ -92,7 +92,6 @@ impl StrongInitializationCallableRefPlanV1 {
 pub enum StrongInitializationRegistrationSchedulePlanV1 {
     EagerStartup {
         gateway: Box<StrongInitializationCallableRefPlanV1>,
-        gateway_definition_patch: DigestPatchIntentId,
     },
     LazyAccess,
 }
@@ -101,16 +100,6 @@ impl StrongInitializationRegistrationSchedulePlanV1 {
     pub fn gateway(&self) -> Option<&StrongInitializationCallableRefPlanV1> {
         match self {
             Self::EagerStartup { gateway, .. } => Some(gateway),
-            Self::LazyAccess => None,
-        }
-    }
-
-    pub const fn gateway_definition_patch(&self) -> Option<DigestPatchIntentId> {
-        match self {
-            Self::EagerStartup {
-                gateway_definition_patch,
-                ..
-            } => Some(*gateway_definition_patch),
             Self::LazyAccess => None,
         }
     }

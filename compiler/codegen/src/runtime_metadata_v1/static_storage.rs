@@ -5,9 +5,8 @@ use inkwell::module::{Linkage, Module as LlvmModule};
 use inkwell::types::ArrayType;
 use inkwell::values::GlobalValue;
 use scoop_lir::{
-    ConeIdentity, DigestPatchIntentId, ObjectDefinitionAtomId, ObjectDefinitionPlanId,
-    PersistentScanId, PersistentStaticStorageId, RefScan, StrongStaticStorageRegistrationPlanSetV1,
-    StrongStaticStorageRegistrationPlanV1,
+    ConeIdentity, PersistentScanId, PersistentStaticStorageId, RefScan,
+    StrongStaticStorageRegistrationPlanSetV1, StrongStaticStorageRegistrationPlanV1,
 };
 
 use super::RuntimeMetadataV1Types;
@@ -21,51 +20,11 @@ use initial_state::{emit_initial_state, emit_private_constant};
 
 const METADATA_ABI_VERSION: u64 = scoop_lir::RUNTIME_METADATA_ABI_VERSION_V1 as u64;
 const STATIC_STORAGE_DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5053_544f;
-const STATIC_STORAGE_DESCRIPTOR_SIZE: u64 = 264;
-const SCAN_FINGERPRINT_OFFSET: u64 = 168;
-const LAYOUT_FINGERPRINT_OFFSET: u64 = 200;
-const DIGEST_SIZE: u64 = 32;
+const STATIC_STORAGE_DESCRIPTOR_SIZE: u64 = 200;
 const EMPTY_TEMPLATE_SENTINEL: &str = "scoop.metadata.static.template.empty.v1";
 const EMPTY_RELOCATION_SENTINEL: &str = "scoop.metadata.static.relocations.empty.v1";
 
-/// One graph-managed digest slot in an emitted static-storage registration.
-#[derive(Clone, Copy, Debug)]
-pub struct StaticStorageRegistrationPatchSiteV1<'ctx> {
-    intent: DigestPatchIntentId,
-    definition: ObjectDefinitionPlanId,
-    atom: ObjectDefinitionAtomId,
-    owner: GlobalValue<'ctx>,
-    byte_offset: u64,
-}
-
-impl<'ctx> StaticStorageRegistrationPatchSiteV1<'ctx> {
-    pub const fn intent(self) -> DigestPatchIntentId {
-        self.intent
-    }
-
-    pub const fn definition(self) -> ObjectDefinitionPlanId {
-        self.definition
-    }
-
-    pub const fn atom(self) -> ObjectDefinitionAtomId {
-        self.atom
-    }
-
-    pub const fn owner(self) -> GlobalValue<'ctx> {
-        self.owner
-    }
-
-    pub const fn byte_offset(self) -> u64 {
-        self.byte_offset
-    }
-
-    pub const fn byte_size(self) -> u64 {
-        DIGEST_SIZE
-    }
-}
-
-/// One fully emitted provisional static-storage registration and its three
-/// digest slots.
+/// One emitted static-storage registration.
 #[derive(Clone, Copy, Debug)]
 pub struct EmittedStrongStaticStorageRegistrationV1<'ctx> {
     storage: PersistentStaticStorageId,
@@ -73,9 +32,6 @@ pub struct EmittedStrongStaticStorageRegistrationV1<'ctx> {
     storage_value: GlobalValue<'ctx>,
     scan_program: GlobalValue<'ctx>,
     initial_state: EmittedStaticStorageInitialStateV1<'ctx>,
-
-    scan_fingerprint_patch: StaticStorageRegistrationPatchSiteV1<'ctx>,
-    layout_fingerprint_patch: StaticStorageRegistrationPatchSiteV1<'ctx>,
 }
 
 impl<'ctx> EmittedStrongStaticStorageRegistrationV1<'ctx> {
@@ -98,14 +54,6 @@ impl<'ctx> EmittedStrongStaticStorageRegistrationV1<'ctx> {
     pub const fn initial_state(self) -> EmittedStaticStorageInitialStateV1<'ctx> {
         self.initial_state
     }
-
-    pub const fn scan_fingerprint_patch(self) -> StaticStorageRegistrationPatchSiteV1<'ctx> {
-        self.scan_fingerprint_patch
-    }
-
-    pub const fn layout_fingerprint_patch(self) -> StaticStorageRegistrationPatchSiteV1<'ctx> {
-        self.layout_fingerprint_patch
-    }
 }
 
 /// Canonically ordered emission result for every static storage in one Cone.
@@ -126,7 +74,6 @@ impl<'ctx> EmittedStrongStaticStorageRegistrationSetV1<'ctx> {
 }
 
 /// Emit every strong static-storage registration from its closed LIR plan.
-/// All graph-managed digest fields remain zero until finalization.
 pub(crate) fn emit_strong_static_storage_registrations_v1<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
@@ -218,7 +165,6 @@ fn emit_registration<'ctx>(
 
     let i32 = context.i32_type();
     let i64 = context.i64_type();
-    let zero_digest = types.digest.const_zero();
     let prefix = types.descriptor_prefix.const_named_struct(&[
         i64.const_int(STATIC_STORAGE_DESCRIPTOR_MAGIC, false).into(),
         i32.const_int(METADATA_ABI_VERSION, false).into(),
@@ -250,8 +196,6 @@ fn emit_registration<'ctx>(
         i64.const_int(semantic.allocation_extent(), false).into(),
         i64.const_int(semantic.required_alignment(), false).into(),
         scan_program.as_pointer_value().into(),
-        zero_digest.into(),
-        zero_digest.into(),
         template_span.into(),
         initial_state
             .relocations()
@@ -270,22 +214,12 @@ fn emit_registration<'ctx>(
     )?);
     descriptor.set_initializer(&value);
 
-    let patch = |intent, byte_offset| StaticStorageRegistrationPatchSiteV1 {
-        intent,
-        definition: plan.registration_definition_plan(),
-        atom: plan.registration_primary_atom(),
-        owner: descriptor,
-        byte_offset,
-    };
     Ok(EmittedStrongStaticStorageRegistrationV1 {
         storage: semantic.storage(),
         descriptor,
         storage_value,
         scan_program,
         initial_state,
-
-        scan_fingerprint_patch: patch(plan.scan_fingerprint_patch(), SCAN_FINGERPRINT_OFFSET),
-        layout_fingerprint_patch: patch(plan.layout_fingerprint_patch(), LAYOUT_FINGERPRINT_OFFSET),
     })
 }
 

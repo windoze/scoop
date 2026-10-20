@@ -108,7 +108,7 @@ impl LinkIdentityClosureSectionV1 {
         D: scoop_lir::StrongDescriptorReference,
         C: Clone,
     {
-        let builtins = objects.final_objects().entry().patch_sites().builtins();
+        let builtins = objects.final_objects().entry().builtins();
         Self {
             materializations: materializations(builtins.member_plan()),
             defined_symbols: defined_symbols.clone(),

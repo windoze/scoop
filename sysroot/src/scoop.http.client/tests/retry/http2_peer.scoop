@@ -1,0 +1,71 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.bytes.ByteArrayBuilder
+import scoop.http.*
+import scoop.platform.io.UnexpectedEofException
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+// A synchronous protocol session driven by a real socket, independent of the client owner.
+internal class RetryTestHttp2Peer(val socket: AsyncTcpStream) : Closeable {
+    val session: Http2Session = Http2Session.server()
+
+    suspend fun flush() {
+        NativeByteBuffer.allocate(4096L).use suspend { buffer ->
+            while (true) {
+                buffer.clear()
+                if (session.takeOutput(buffer) == 0L) break
+                socket.writeFully(buffer)
+            }
+        }
+    }
+
+    private suspend fun next(): Http2Event {
+        while (true) {
+            flush()
+            val ready = session.nextEvent()
+            if (clientPresent(ready)) return ready!!
+            NativeByteBuffer.allocate(4096L).use suspend { buffer ->
+                if (socket.readInto(buffer, buffer.writableBytes) == 0L) throw UnexpectedEofException()
+                session.receive(buffer)
+                assertEquals(0L, buffer.readableBytes)
+            }
+        }
+    }
+
+    suspend fun request(): (Int, HttpRequestHead) {
+        while (true) {
+            when (next()) {
+                case Request(id, head) -> return (id, head)
+                case Failure(error) -> throw error
+                else -> {}
+            }
+        }
+    }
+
+    suspend fun body(id: Int): String {
+        val bytes = ByteArrayBuilder()
+        while (true) {
+            when (next()) {
+                case Data(stream, data) -> { assertEquals(id, stream); bytes.append(data); session.consume(id, data.size) }
+                case End(stream) -> { assertEquals(id, stream); return String.fromUtf8(bytes.toByteArray()) }
+                case Failure(error) -> throw error
+                else -> {}
+            }
+        }
+    }
+
+    suspend fun respond(id: Int, status: UInt = 200U, text: String = "done") {
+        session.submitResponse(id, HttpResponseHead(HttpVersion.Http2, status), false)
+        val bytes = text.toByteArray()
+        NativeByteBuffer.allocate(bytes.size).use { buffer ->
+            buffer.writeBytes(bytes)
+            assertEquals(bytes.size, session.writeBody(id, buffer))
+        }
+        session.finish(id)
+        flush()
+    }
+
+    public override fun close() { session.close() }
+}

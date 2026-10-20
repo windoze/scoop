@@ -1,0 +1,30 @@
+package scoop.http.client
+
+import scoop.asyncio.AsyncCloseable
+
+public enum HttpCallResult : AsyncCloseable {
+    Response(HttpResponse), WebSocket(HttpWebSocketResult)
+
+    public override suspend fun close() { clientResultResource(this).close() }
+}
+
+internal fun clientResultResource(result: HttpCallResult): AsyncCloseable = when (result) {
+    case Response(response) -> response
+    case WebSocket(value) -> when (value) {
+        case Opened(session) -> session
+        case Rejected(response, _) -> response
+    }
+}
+
+internal fun clientResultOwner(result: HttpCallResult): ClientState = when (result) {
+    case Response(response) -> response.call.client
+    case WebSocket(value) -> when (value) {
+        case Opened(session) -> session.state.client
+        case Rejected(response, _) -> response.call.client
+    }
+}
+
+internal fun clientResultIsWebSocket(result: HttpCallResult): Boolean = when (result) {
+    case Response(_) -> false
+    case WebSocket(_) -> true
+}

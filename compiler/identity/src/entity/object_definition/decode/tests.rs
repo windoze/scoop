@@ -211,7 +211,7 @@ fn object_definition_decoders_reject_unknown_tags() {
     assert_unknown::<ObjectDefinitionPlanRole>(b"\xa1\x00\x03", 3);
     assert_unknown::<DefinitionAtomRole>(b"\x0a", 10);
     assert_unknown::<ConeImageSupportRole>(b"\x0d", 13);
-    assert_unknown::<DecodedDefinitionAtomSubkey>(b"\xa1\x00\x0a", 10);
+    assert_unknown::<DecodedDefinitionAtomSubkey>(b"\xa1\x00\x0b", 11);
 }
 
 fn assert_unknown<T: scoop_wire::WireDecode + std::fmt::Debug>(bytes: &[u8], tag: u64) {
@@ -329,6 +329,10 @@ fn atom_cases() -> Vec<(DefinitionAtomRole, DefinitionAtomSubkey)> {
         (
             DefinitionAtomRole::RuntimeRecord,
             DefinitionAtomSubkey::ConeImageSupport(ConeImageSupportRole::Dependencies),
+        ),
+        (
+            DefinitionAtomRole::AddressTakenConstant,
+            DefinitionAtomSubkey::BackendReadOnlyData,
         ),
     ]
 }

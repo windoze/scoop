@@ -1,0 +1,71 @@
+package scoop.http.asyncio
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+
+internal class MultipartWriter(sink: AsyncByteSink, owner: AsyncCloseable?, loop: EventLoop, private val state: MultipartWriteState) {
+    val finished: Boolean get() = state.finished
+    val io: MessageIo<AsyncByteSink> = MessageIo<AsyncByteSink>(sink, owner, loop) { state.close() }
+
+    suspend fun beginPart(head: MultipartPartHead): MultipartPartWriter = io.run({
+        val part = MultipartPartWriter(this, head)
+        val bytes = state.encoder.beginPart(head)
+        state.current = Some(part)
+        state.pending = bytes
+    }) suspend { sink ->
+        state.drain(sink)
+        state.current!!
+    }
+
+    suspend fun write(part: MultipartPartWriter, buffer: NativeByteBuffer, count: Long): Long = io.run({
+        requirePart(part)
+        httpCount(count, buffer.readableBytes)
+        val capacity = state.output.capacity
+        val prefix = if (count < capacity) count else capacity
+        state.pending = state.encoder.writeBody(buffer, prefix)
+    }) suspend { sink -> state.drain(sink) }
+
+    suspend fun finishPart(part: MultipartPartWriter) {
+        io.run({ requirePart(part); state.pending = state.encoder.endPart() }) suspend { sink ->
+            state.drain(sink)
+            part.complete = true
+            state.current = None
+            Unit
+        }
+    }
+
+    suspend fun finish() {
+        io.run({ state.pending = state.encoder.finish() }) suspend { sink ->
+            state.drain(sink)
+            sink.flush()
+            state.finished = true
+            Unit
+        }
+    }
+
+    suspend fun flush(part: MultipartPartWriter?) {
+        io.run({
+            when (part) {
+                case Some(value) -> {
+                    if (value.closed) throw IoClosedException()
+                    if (!value.complete) requirePart(value)
+                }
+                case None -> {}
+            }
+        }) suspend { sink -> sink.flush() }
+    }
+
+    suspend fun closePart(part: MultipartPartWriter) {
+        if (part.closed || io.isClosed) { part.closed = true; return }
+        httpJob(io.loop, false)
+        try { if (!part.complete) io.close() }
+        finally { part.closed = true }
+    }
+
+    private fun requirePart(part: MultipartPartWriter) {
+        if (part.closed) throw IoClosedException()
+        if (part.complete || !present(state.current) || state.current!! !== part)
+            throw IllegalStateException(Some("this is not the active multipart output part"))
+    }
+}

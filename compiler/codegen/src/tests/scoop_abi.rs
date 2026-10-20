@@ -1,5 +1,6 @@
 use super::*;
 
+mod boolean;
 mod zst;
 
 fn aggregate_type() -> LirType {

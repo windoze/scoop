@@ -2,8 +2,8 @@ use inkwell::context::Context;
 use inkwell::module::{Linkage, Module as LlvmModule};
 use inkwell::values::GlobalValue;
 use scoop_lir::{
-    ConeIdentity, DigestPatchIntentId, ObjectDefinitionAtomId, ObjectDefinitionPlanId,
-    PersistentExactTypeId, StrongTypeRegistrationPlan, StrongTypeRegistrationPlanSet,
+    ConeIdentity, ObjectDefinitionAtomId, PersistentExactTypeId, StrongTypeRegistrationPlan,
+    StrongTypeRegistrationPlanSet,
 };
 
 use super::RuntimeMetadataV1Types;
@@ -11,72 +11,27 @@ use crate::CodegenError;
 
 const METADATA_ABI_VERSION: u64 = scoop_lir::RUNTIME_METADATA_ABI_VERSION_V1 as u64;
 const TYPE_REGISTRATION_DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5054_5950;
-const TYPE_REGISTRATION_DESCRIPTOR_SIZE: u64 = 208;
-const DESCRIPTOR_DEFINITION_FINGERPRINT_OFFSET: u64 = 144;
-const LAYOUT_FINGERPRINT_OFFSET: u64 = 176;
-const DIGEST_SIZE: u64 = 32;
+const TYPE_REGISTRATION_DESCRIPTOR_SIZE: u64 = 144;
 
-/// One graph-managed digest slot in an emitted type registration.
-#[derive(Clone, Copy, Debug)]
-pub struct TypeRegistrationPatchSiteV1<'ctx> {
-    intent: DigestPatchIntentId,
-    definition: ObjectDefinitionPlanId,
-    atom: ObjectDefinitionAtomId,
-    owner: GlobalValue<'ctx>,
-    byte_offset: u64,
-}
-
-impl<'ctx> TypeRegistrationPatchSiteV1<'ctx> {
-    pub const fn intent(self) -> DigestPatchIntentId {
-        self.intent
-    }
-
-    pub const fn definition(self) -> ObjectDefinitionPlanId {
-        self.definition
-    }
-
-    pub const fn atom(self) -> ObjectDefinitionAtomId {
-        self.atom
-    }
-
-    pub const fn owner(self) -> GlobalValue<'ctx> {
-        self.owner
-    }
-
-    pub const fn byte_offset(self) -> u64 {
-        self.byte_offset
-    }
-
-    pub const fn byte_size(self) -> u64 {
-        DIGEST_SIZE
-    }
-}
-
-/// One fully emitted provisional type registration and its three slots.
+/// One emitted runtime type registration.
 #[derive(Clone, Copy, Debug)]
 pub struct EmittedStrongTypeRegistrationV1<'ctx> {
+    primary_atom: ObjectDefinitionAtomId,
     exact_type: PersistentExactTypeId,
     descriptor: GlobalValue<'ctx>,
-
-    descriptor_definition_patch: TypeRegistrationPatchSiteV1<'ctx>,
-    layout_fingerprint_patch: TypeRegistrationPatchSiteV1<'ctx>,
 }
 
 impl<'ctx> EmittedStrongTypeRegistrationV1<'ctx> {
+    pub const fn primary_atom(self) -> ObjectDefinitionAtomId {
+        self.primary_atom
+    }
+
     pub const fn exact_type(self) -> PersistentExactTypeId {
         self.exact_type
     }
 
     pub const fn descriptor(self) -> GlobalValue<'ctx> {
         self.descriptor
-    }
-
-    pub const fn descriptor_definition_patch(self) -> TypeRegistrationPatchSiteV1<'ctx> {
-        self.descriptor_definition_patch
-    }
-
-    pub const fn layout_fingerprint_patch(self) -> TypeRegistrationPatchSiteV1<'ctx> {
-        self.layout_fingerprint_patch
     }
 }
 
@@ -98,7 +53,6 @@ impl<'ctx> EmittedStrongTypeRegistrationSetV1<'ctx> {
 }
 
 /// Emit every strong type registration from the closed LIR production plan.
-/// The three graph-managed digest fields remain zero until finalization.
 pub(crate) fn emit_strong_type_registrations_v1<
     'ctx,
     D: scoop_lir::StrongDescriptorReference,
@@ -146,7 +100,6 @@ fn emit_registration<'ctx, D: Copy, C>(
 
     let i32 = context.i32_type();
     let i64 = context.i64_type();
-    let zero_digest = types.digest.const_zero();
     let prefix = types.descriptor_prefix.const_named_struct(&[
         i64.const_int(TYPE_REGISTRATION_DESCRIPTOR_MAGIC, false)
             .into(),
@@ -166,8 +119,6 @@ fn emit_registration<'ctx, D: Copy, C>(
         i64.const_int(plan.runtime_type().get(), false).into(),
         i64.const_zero().into(),
         type_descriptor.as_pointer_value().into(),
-        zero_digest.into(),
-        zero_digest.into(),
     ]);
     descriptor.set_constant(true);
     descriptor.set_initializer(&value);
@@ -176,22 +127,10 @@ fn emit_registration<'ctx, D: Copy, C>(
         scoop_lir::RegistrationDefinitionOwner::Odr { .. } => Linkage::WeakODR,
     });
 
-    let patch = |intent, byte_offset| TypeRegistrationPatchSiteV1 {
-        intent,
-        definition: plan.definition_plan(),
-        atom: plan.primary_atom(),
-        owner: descriptor,
-        byte_offset,
-    };
     Ok(EmittedStrongTypeRegistrationV1 {
+        primary_atom: plan.primary_atom(),
         exact_type: plan.exact_type(),
         descriptor,
-
-        descriptor_definition_patch: patch(
-            plan.descriptor_definition_patch(),
-            DESCRIPTOR_DEFINITION_FINGERPRINT_OFFSET,
-        ),
-        layout_fingerprint_patch: patch(plan.layout_fingerprint_patch(), LAYOUT_FINGERPRINT_OFFSET),
     })
 }
 

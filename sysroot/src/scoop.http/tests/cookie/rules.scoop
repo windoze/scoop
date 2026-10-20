@@ -1,0 +1,80 @@
+package scoop.http
+
+import scoop.getOrElse
+import scoop.errorOrNone
+import scoop.test.*
+import scoop.time.Instant
+import scoop.url.Url
+
+@Test
+private class HttpCookieRuleTests {
+    @Test
+    fun `default paths and path matching use exact encoded byte boundaries`() {
+        for ((input, expected) in [("", "/"), ("relative", "/"), ("/", "/"), ("/one", "/"), ("/one/", "/one"),
+            ("/a/b", "/a"), ("/a%2Fb/c", "/a%2Fb"), ("/a//b", "/a/")]) {
+            assertEquals(expected, String.fromUtf8(HttpCookieRules.defaultPath(input)))
+        }
+        for ((request, path, expected) in [("/a", "/a", true), ("/ab", "/a", false), ("/a/b", "/a", true),
+            ("/a/b", "/a/", true), ("/A", "/a", false), ("/a%2Fb", "/a", false),
+            ("/a%2Fb/c", "/a%2Fb", true), ("/a/../b", "/b", false), ("", "/", false)]) {
+            assertEquals(expected, HttpCookieRules.pathMatches(request, path))
+        }
+    }
+
+    @Test
+    fun `host only and Domain cookies use canonical names and default directories`() {
+        val url = Url.parse("https://WWW.EXAMPLE.COM./dir/item")
+        val scope = cookieRuleList()
+        val hostOnly = acceptedTestCookie("sid=x; HttpOnly", url, scope)
+        assertTrue(hostOnly.hostOnly && hostOnly.httpOnly)
+        assertEquals("www.example.com", hostOnly.host.toString())
+        assertEquals("/dir", String.fromUtf8(hostOnly.path))
+        assertTrue(hostOnly.matches(Url.parse("https://www.example.com/dir/next"), cookieTestNow()))
+        assertFalse(hostOnly.matches(Url.parse("https://sub.www.example.com/dir/next"), cookieTestNow()))
+        val domain = acceptedTestCookie("sid=x; Domain=.EXAMPLE.com; Path=/", url, scope)
+        assertFalse(domain.hostOnly)
+        assertTrue(domain.matches(Url.parse("http://a.example.com/"), cookieTestNow()))
+        assertFalse(domain.matches(Url.parse("http://badexample.com/"), cookieTestNow()))
+        assertTrue(HttpCookieRules.domainMatches(url.httpOrigin().host, domain.host))
+        assertEquals("/dir", String.fromUtf8(acceptedTestCookie("a=b; Path=relative", url, scope).path))
+        assertTrue(acceptedTestCookie("a=b; Domain=.", url, scope).hostOnly)
+    }
+
+    @Test
+    fun `public suffixes invalid domains and private suffixes reject scope widening`() {
+        val scope = cookieRuleList()
+        val url = Url.parse("https://www.example.com/")
+        assertCookieRejected("a=b; Domain=com", url, scope, HttpCookieRejection.PublicSuffix)
+        assertCookieRejected("a=b; Domain=evil.com", url, scope, HttpCookieRejection.DomainMismatch)
+        for (domain in ["example.com.", "..example.com", "xn--a.com", "foo_bar.com", "公司.cn"]) {
+            assertCookieRejected("a=b; Domain=" + domain, url, scope, HttpCookieRejection.InvalidDomain)
+        }
+        assertTrue(acceptedTestCookie("a=b; Domain=com", Url.parse("https://com/"), scope).hostOnly)
+        assertCookieRejected("a=b; Domain=github.io", Url.parse("https://a.github.io/"), scope, HttpCookieRejection.PublicSuffix)
+        val international = acceptedTestCookie("a=b; Domain=xn--85x722f.xn--55qx5d.cn", Url.parse("https://www.食狮.公司.cn/"), scope)
+        assertEquals("xn--85x722f.xn--55qx5d.cn", international.host.toString())
+    }
+
+    @Test
+    fun `IP Domain attributes compare addresses and never use DNS suffix matching`() {
+        val scope = cookieRuleList()
+        val ipv4 = acceptedTestCookie("a=b; Domain=127.0.0.1", Url.parse("http://127.0.0.1/"), scope)
+        assertFalse(ipv4.hostOnly)
+        assertTrue(ipv4.matches(Url.parse("http://127.0.0.1/"), cookieTestNow()))
+        assertFalse(ipv4.matches(Url.parse("http://127.0.0.2/"), cookieTestNow()))
+        assertCookieRejected("a=b; Domain=127.0.0.2", Url.parse("http://127.0.0.1/"), scope, HttpCookieRejection.DomainMismatch)
+        assertCookieRejected("a=b; Domain=0.0.1", Url.parse("http://127.0.0.1/"), scope, HttpCookieRejection.InvalidDomain)
+        val ipv6 = acceptedTestCookie("a=b; Domain=::1", Url.parse("http://[0:0:0:0:0:0:0:1]/"), scope)
+        assertTrue(ipv6.matches(Url.parse("http://[::1]/"), cookieTestNow()))
+        assertCookieRejected("a=b; Domain=2001:db8::1", Url.parse("http://[::1]/"), scope, HttpCookieRejection.DomainMismatch)
+        assertFalse(HttpCookieRules.domainMatches(ipv4.host, ipv6.host))
+    }
+}
+
+internal fun cookieRuleList(): PublicSuffixList = PublicSuffixList.parse("com\nio\n公司.cn\n// ===BEGIN PRIVATE DOMAINS===\ngithub.io\n")
+internal fun cookieTestNow(): Instant = Instant.parse("2026-10-18T00:00:00Z")
+internal fun acceptedTestCookie(text: String, url: Url, suffixes: PublicSuffixList): HttpCookie =
+    HttpSetCookie.parse(text).resolve(url, cookieTestNow(), suffixes).getOrElse { _ -> fail(Some("Cookie rejected: " + text)) }
+internal fun assertCookieRejected(text: String, url: Url, suffixes: PublicSuffixList, reason: HttpCookieRejection) {
+    assertTrue(HttpSetCookie.parse(text).resolve(url, cookieTestNow(), suffixes).errorOrNone() == Some(reason), Some(text))
+}

@@ -1,0 +1,50 @@
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+internal val timingResponses: String = "TTP/1.1 100 Continue\r\n\r\nHTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\nHTTP/1.1 204 No Content\r\n\r\n"
+
+internal fun http1StartProgress() {
+    Http1Decoder.client().use { decoder ->
+        decoder.expectResponse("GET".toByteArray()); decoder.expectResponse("GET".toByteArray())
+        NativeByteBuffer.allocate(256L).use { buffer ->
+            assertEquals(0L, decoder.receiveWithProgress(buffer).count)
+            buffer.writeBytes("H".toByteArray())
+            val first = decoder.receiveWithProgress(buffer)
+            assertEquals(1L, first.count); assertEquals(1L, first.startedMessages)
+            assertFalse(timingPresent(decoder.nextEvent()))
+            buffer.clear(); buffer.writeBytes(timingResponses.toByteArray())
+            val rest = decoder.receiveWithProgress(buffer)
+            assertEquals(timingResponses.toByteArray().size, rest.count)
+            assertEquals(2L, rest.startedMessages)
+            assertEquals(0L, decoder.receiveWithProgress(buffer, 0L).startedMessages)
+            val statuses = ArrayList<UInt>()
+            var ended = 0L
+            while (true) {
+                val event = decoder.nextEvent() ?: break
+                when (event) {
+                    case Response(head) -> statuses.add(head.status)
+                    case End(_) -> ended += 1L
+                    case Trailers(fields) -> assertEquals(0L, fields.size)
+                    else -> throw IllegalStateException(Some("unexpected decoder event"))
+                }
+            }
+            assertEquals(3L, ended); assertEquals(3L, statuses.size)
+            assertEquals(100U, statuses[0L]); assertEquals(200U, statuses[1L]); assertEquals(204U, statuses[2L])
+        }
+    }
+    Http1Decoder.client().use { decoder ->
+        decoder.expectResponse("GET".toByteArray())
+        NativeByteBuffer.allocate(128L).use { buffer ->
+            buffer.writeBytes("H".toByteArray()); assertEquals(1L, decoder.receive(buffer))
+            buffer.clear(); buffer.writeBytes("TTP/1.1 204 No Content\r\n\r\n".toByteArray())
+            assertEquals(0L, decoder.receiveWithProgress(buffer).startedMessages)
+        }
+    }
+    Http1Decoder.server().use { decoder ->
+        NativeByteBuffer.allocate(128L).use { buffer ->
+            buffer.writeBytes("GET / HTTP/1.1\r\nHost: test\r\n\r\nGET /next HTTP/1.1\r\nHost: test\r\n\r\n".toByteArray())
+            assertEquals(2L, decoder.receiveWithProgress(buffer).startedMessages)
+        }
+    }
+}

@@ -1,0 +1,50 @@
+package scoop.http
+
+import scoop.collections.emptyList
+import scoop.test.*
+
+@Test
+private class HttpAuthenticationInfoTests {
+    @Test
+    fun `authentication info combines fields and retains Digest completion parameters`() {
+        val fields = [HttpField("Authentication-Info".toByteArray(), "nextnonce = \"n,2\", qop=auth".toByteArray()),
+            HttpField("authentication-info".toByteArray(), "rspauth=\"abc\", cnonce=\"c\", nc=00000001".toByteArray()),
+            HttpField("Proxy-Authentication-Info".toByteArray(), "nextnonce=proxy".toByteArray())]
+        val parsed = HttpAuthenticationInfo.parseFields(fields)
+        assertEquals(5L, parsed.parameters.size)
+        assertEquals("n,2", String.fromUtf8(parsed.parameter("NEXTNONCE")!!.value))
+        assertTrue(parsed.parameter("rspauth")!!.wasQuoted)
+        assertEquals("00000001", String.fromUtf8(parsed.parameter("nc")!!.value))
+        assertEquals("Authentication-Info", String.fromUtf8(parsed.toAuthenticationInfoField().name))
+        assertEquals("Proxy-Authentication-Info", String.fromUtf8(parsed.toProxyAuthenticationInfoField().name))
+        val proxy = HttpAuthenticationInfo.parseFields(fields, "Proxy-Authentication-Info")
+        assertEquals("proxy", String.fromUtf8(proxy.parameter("nextnonce")!!.value))
+        assertEquals("n,2", String.fromUtf8(HttpAuthenticationInfo.parse(parsed.toByteArray()).parameter("nextnonce")!!.value))
+    }
+
+    @Test
+    fun `empty lists and copied extension bytes have the ordinary parameter contract`() {
+        assertEquals(0L, HttpAuthenticationInfo.parse(" , ,\t,").parameters.size)
+        assertEquals(0L, HttpAuthenticationInfo(emptyList<HttpParameter>()).toByteArray().size)
+        assertEquals(0L, HttpAuthenticationInfo.parseFields(emptyList<HttpField>()).parameters.size)
+        val input = MutableArray<Byte>(1L) { _ -> 255.toByte() }
+        val info = HttpAuthenticationInfo([HttpParameter("extension", input, quoted = true)])
+        input[0L] = 0.toByte(); gcCollect()
+        assertEquals(255.toByte(), HttpAuthenticationInfo.parse(info.toByteArray()).parameter("extension")!!.value[0L])
+        assertTrue(when (info.parameter("absent")) { case None -> true; case Some(_) -> false })
+    }
+
+    @Test
+    fun `malformed info and cross field duplicates are not silently discarded`() {
+        for (value in ["Digest nc=1", "nc", "nc=", "nc=1 nc=2", "nc=1, NC=2", "nc=\"x\\", "nc=\"x\r\""]) {
+            assertEquals("Authentication-Info", assertFailsWith<HttpFieldParseException> { HttpAuthenticationInfo.parse(value) }.field)
+            assertTrue(when (HttpAuthenticationInfo.parseOrNone(value)) { case None -> true; case Some(_) -> false })
+        }
+        val fields = [HttpField("Authentication-Info".toByteArray(), "nc=1".toByteArray()),
+            HttpField("Authentication-Info".toByteArray(), "NC=2".toByteArray())]
+        assertEquals(6L, assertFailsWith<HttpFieldParseException> { HttpAuthenticationInfo.parseFields(fields) }.byteOffset)
+        assertFailsWith<IllegalArgumentException> {
+            HttpAuthenticationInfo([HttpParameter("n", "1".toByteArray()), HttpParameter("N", "2".toByteArray())])
+        }
+    }
+}

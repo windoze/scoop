@@ -1,0 +1,87 @@
+package scoop.http.asyncio
+
+import scoop.collections.toMutableList
+import scoop.http.*
+import scoop.platform.time.MonotonicTimeSource
+import scoop.time.Duration
+import scoop.time.TimeMark
+
+internal class H2Idle(val state: H2State, val stream: H2Stream, val clock: HttpIoClock) {
+    var active: Boolean = true
+    var entered: Boolean = false
+    var finished: Boolean = false
+    var timer: Job? = None
+}
+
+internal fun h2PendingOutput(state: H2State, stream: H2Stream): Boolean =
+    stream.outputDirty || (state.output.readableBytes != 0L && state.outputStreamId == stream.id &&
+        state.outputKind != Http2OutputKind.Control) || state.session.hasPendingOutput(stream.id)
+
+internal fun reconcileH2Idle(state: H2State, actions: ArrayList<() -> Unit>): Boolean {
+    var changed = false
+    for (stream in state.streams.values.toMutableList()) {
+        changed = updateH2Idle(state, stream, true, present(stream.reader) || present(stream.responseWaiter), actions) || changed
+        if (!stream.disposed)
+            changed = updateH2Idle(state, stream, false, present(stream.writer) || h2PendingOutput(state, stream), actions) || changed
+    }
+    return changed
+}
+
+private fun updateH2Idle(state: H2State, stream: H2Stream, reading: Boolean, pending: Boolean,
+    actions: ArrayList<() -> Unit>): Boolean {
+    val limit = if (reading) stream.ioTimeouts.readIdle else stream.ioTimeouts.writeIdle
+    if (!pending || limit == None) { stopH2Idle(stream, reading, actions); return false }
+    val existing = if (reading) stream.readIdle else stream.writeIdle
+    if (present(existing)) return false
+    val clock = HttpIoClock(if (reading) HttpIoDirection.Read else HttpIoDirection.Write,
+        HttpProtocol.Http2, stream.id, limit!!, MonotonicTimeSource.markNow())
+    if (limit!! == Duration.ZERO) {
+        resetH2Stream(state, stream, clock.expired(clock.progress)!!, 8U, actions)
+        return true
+    }
+    val idle = H2Idle(state, stream, clock)
+    if (reading) stream.readIdle = Some(idle) else stream.writeIdle = Some(idle)
+    stream.idleTimers += 1L; state.idleTimers += 1L
+    actions.add { startH2Idle(idle) }
+    return false
+}
+
+internal fun stopH2Idle(stream: H2Stream, reading: Boolean, actions: ArrayList<() -> Unit>) {
+    val idle = (if (reading) stream.readIdle else stream.writeIdle) ?: return
+    if (reading) stream.readIdle = None else stream.writeIdle = None
+    idle.active = false
+    val timer = idle.timer; idle.timer = None
+    if (present(timer)) actions.add { timer!!.cancel() }
+}
+
+internal fun stopH2Idle(stream: H2Stream, actions: ArrayList<() -> Unit>) {
+    stopH2Idle(stream, true, actions); stopH2Idle(stream, false, actions)
+}
+
+internal fun checkH2Idle(state: H2State, actions: ArrayList<() -> Unit>,
+    now: TimeMark = MonotonicTimeSource.markNow()): Boolean {
+    if (state.idleTimers == 0L) return false
+    var changed = false
+    for (stream in state.streams.values.toMutableList()) {
+        val read = if (present(stream.readIdle)) stream.readIdle!!.clock.expired(now) else None
+        val error = if (present(read)) read else if (present(stream.writeIdle)) stream.writeIdle!!.clock.expired(now) else None
+        if (present(error)) { resetH2Stream(state, stream, error!!, 8U, actions); changed = true }
+    }
+    return changed
+}
+
+internal fun progressH2Input(state: H2State, progress: Array<Http2InputProgress>, now: TimeMark) {
+    for (entry in progress) {
+        if (entry.count <= 0L) continue
+        val stream = state.streams[entry.streamId] ?: continue
+        if (state.captureTimings && !present(stream.firstResponseByteAt)) stream.firstResponseByteAt = Some(now)
+        if (present(stream.readIdle)) stream.readIdle!!.clock.progress = now
+    }
+}
+
+internal fun progressH2Output(state: H2State, now: TimeMark) {
+    if (state.outputKind == Http2OutputKind.Control) return
+    val stream = state.streams[state.outputStreamId] ?: return
+    stream.outputDirty = true
+    if (present(stream.writeIdle)) stream.writeIdle!!.clock.progress = now
+}

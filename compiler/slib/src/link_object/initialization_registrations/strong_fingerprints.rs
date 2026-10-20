@@ -108,7 +108,7 @@ fn compute_strong_initialization_fingerprints<D>(
     callable_bodies: &VerifiedStrongCallableBodyObjectFingerprintSetV1,
     canonical: &scoop_lir::CanonicalShapeAbisV1,
 ) -> Result<InitializationFingerprintSetV1<D>, StrongInitializationFingerprintError> {
-    let planned = registrations.plan().registrations();
+    let planned = registrations.registrations();
     let mut fingerprints = Vec::with_capacity(planned.len());
     let mut odr_definitions = Vec::new();
     for plan in planned {

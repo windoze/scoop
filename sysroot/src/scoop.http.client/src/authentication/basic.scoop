@@ -1,0 +1,40 @@
+package scoop.http.client
+
+import scoop.charset.Charset
+import scoop.charset.normalizeNfc
+import scoop.http.HttpCredentials
+import scoop.http.HttpField
+import scoop.io.encoding.Base64
+import scoop.text.lowercaseAscii
+
+internal suspend fun clientBasicField(call: ClientCall, session: ClientAuthenticationSession,
+    provider: ClientBasicAuthentication): HttpField {
+    var utf8 = provider.charset == HttpBasicCharset.Utf8
+    val challenge = session.challenge
+    if (clientPresent(challenge)) {
+        val charset = challenge!!.parameter("charset")
+        if (clientPresent(charset) && Charset.Iso8859_1.decode(charset!!.value).lowercaseAscii() == "utf-8")
+            utf8 = true
+    }
+    val credentials = provider.credentials(session.scope.request(call, challenge))
+    requireClientCall(call)
+    try { return session.scope.field(clientBasicCredentials(credentials, utf8)) }
+    catch (_: IllegalArgumentException) {
+        throw HttpAuthenticationException(HttpAuthenticationFailure.InvalidCredentials, session.scope.url(call))
+    }
+}
+
+internal fun clientBasicCredentials(credentials: HttpPasswordCredentials, utf8: Boolean): HttpCredentials {
+    val username = if (utf8) normalizeNfc(credentials.username) else credentials.username
+    val password = if (utf8) normalizeNfc(credentials.password) else credentials.password
+    for (character in username) {
+        if (character.code < 32 || character.code == 127 || character == ':')
+            throw IllegalArgumentException(Some("invalid Basic username"))
+    }
+    for (character in password) {
+        if (character.code < 32 || character.code == 127)
+            throw IllegalArgumentException(Some("invalid Basic password"))
+    }
+    val charset = if (utf8) Charset.Utf8 else Charset.Iso8859_1
+    return HttpCredentials.withToken68("Basic", Base64.Default.encode(charset.encode(username + ":" + password)))
+}

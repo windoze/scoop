@@ -1,0 +1,42 @@
+package scoop.asyncio
+
+import scoop.platform.concurrent.yield
+import scoop.platform.fs.*
+import scoop.platform.time.*
+import scoop.time.Duration
+import scoop.test.*
+
+@Test
+private class AsyncFileControlCompletionTest {
+    @Test
+    fun `late truncate cancellation preserves the already completed file change`() {
+        IoTestDirectory().use { tree ->
+            val path = tree.child("data")
+            path.writeText("data")
+            val backend = LibuvEventLoop()
+            val loop: EventLoop = backend
+            loop.run suspend { scope ->
+                loop.openFile(path, OpenOptions(write = true)).useAsync suspend { file ->
+                    file.seek(4L)
+                    val truncating = scope.launch suspend { file.truncate(2L) }
+                    backend.state.post {
+                        // Observe the real syscall before the loop delivers its completion.
+                        val start = MonotonicTimeSource.markNow()
+                        while (path.metadata().size != 2L) {
+                            assertTrue(start.elapsedNow() < Duration.seconds(10L), Some("truncate did not execute"))
+                            yield()
+                        }
+                        truncating.cancel()
+                    }
+                    truncating.join()
+                    assertTrue(truncating.isCancelled)
+                    assertEquals(2L, file.size())
+                    assertEquals(4L, file.position())
+                    file.seek(0L)
+                    file.syncAll()
+                }
+            }
+            assertEquals("da", path.readText())
+        }
+    }
+}

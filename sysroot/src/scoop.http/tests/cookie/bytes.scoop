@@ -1,0 +1,77 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.test.*
+
+@Test
+private class HttpCookieBytesTests {
+    @Test
+    fun `Cookie request lists preserve duplicate names quoting percent bytes and anonymous values`() {
+        val header = HttpCookieHeader.parse("; SID = first ; SID=\"a,b\\c%2F\"; sid=second; anonymous; =v=x; ;")
+        assertEquals(5L, header.pairs.size)
+        assertEquals("SID", String.fromUtf8(header.pairs[0L].name))
+        assertEquals("\"a,b\\c%2F\"", String.fromUtf8(header.pairs[1L].value))
+        assertEquals("sid", String.fromUtf8(header.pairs[2L].name))
+        assertEquals(0L, header.pairs[3L].name.size)
+        assertEquals("anonymous", String.fromUtf8(header.pairs[3L].value))
+        assertEquals("SID=first; SID=\"a,b\\c%2F\"; sid=second; anonymous; v=x", String.fromUtf8(header.toByteArray()))
+        assertTrue(header.toHttpField().neverIndex)
+        val fields = [HttpField("Cookie".toByteArray(), "a=1".toByteArray()), HttpField("cookie".toByteArray(), "b=2; a=3".toByteArray()),
+            HttpField("Set-Cookie".toByteArray(), "c=4".toByteArray())]
+        assertEquals("a=1; b=2; a=3", String.fromUtf8(HttpCookieHeader.parseFields(fields).toByteArray()))
+        assertEquals(0L, HttpCookieHeader.parse("; ;\t;").pairs.size)
+    }
+
+    @Test
+    fun `Set Cookie retains raw attributes and one field never becomes a comma list`() {
+        val value = " SID = \"a,b\\c%2F\" ; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Secure; Unknown=; Flag; Unknown=last "
+        val cookie = HttpSetCookie.parse(value)
+        assertEquals("\"a,b\\c%2F\"", String.fromUtf8(cookie.pair.value))
+        assertEquals(5L, cookie.attributes.size)
+        assertEquals(value, String.fromUtf8(cookie.originalValue!!))
+        assertTrue(cookie.attributes[0L].hasName("EXPIRES"))
+        assertTrue(when (cookie.attributes[1L].value) { case None -> true; case Some(_) -> false })
+        assertEquals(0L, cookie.attributes[2L].value!!.size)
+        assertEquals("last", String.fromUtf8(cookie.attributes[4L].value!!))
+        assertTrue(cookie.toHttpField().neverIndex)
+        assertEquals("1, b=2", String.fromUtf8(HttpSetCookie.parse("a=1, b=2").pair.value))
+        assertEquals("=foo=bar", String.fromUtf8(HttpSetCookie(HttpCookiePair("", "foo=bar")).toByteArray()))
+        assertEquals("foo=bar", String.fromUtf8(HttpSetCookie.parse("=foo=bar").pair.value))
+    }
+
+    @Test
+    fun `binary snapshots and public constructors retain only legal component boundaries`() {
+        val input = MutableArray<Byte>(3L) { index -> if (index == 0L) 255.toByte() else if (index == 1L) 9.toByte() else 97.toByte() }
+        val pair = HttpCookiePair("name".toByteArray(), input)
+        val attrs = ArrayList<HttpCookieAttribute>()
+        attrs.add(HttpCookieAttribute("Extension", Some<List<Byte>>(input)))
+        val cookie = HttpSetCookie(pair, attrs)
+        input[0L] = 0.toByte(); attrs.clear(); gcCollect()
+        val parsed = HttpSetCookie.parse(cookie.toByteArray())
+        assertEquals(255.toByte(), parsed.pair.value[0L])
+        assertEquals(9.toByte(), parsed.attributes[0L].value!![1L])
+        for (value in ["\r", "\n", ";", " value", "value\t"]) {
+            assertFailsWith<IllegalArgumentException> { HttpCookiePair("n", value) }
+            assertFailsWith<IllegalArgumentException> { HttpCookieAttribute("x", value) }
+        }
+        assertFailsWith<IllegalArgumentException> { HttpCookiePair("a=b", "v") }
+        assertFailsWith<IllegalArgumentException> { HttpCookieAttribute("a=b") }
+    }
+
+    @Test
+    fun `prohibited controls reject the whole field and name value limits do not count attributes`() {
+        for (code in [0, 8, 10, 13, 31, 127]) {
+            val bytes: Array<Byte> = [97.toByte(), 61.toByte(), 49.toByte(), 59.toByte(), code.toByte()]
+            assertEquals(4L, assertFailsWith<HttpFieldParseException> { HttpSetCookie.parse(bytes) }.byteOffset)
+            assertTrue(when (HttpCookieHeader.parseOrNone(bytes)) { case None -> true; case Some(_) -> false })
+        }
+        val value = Array<Byte>(4095L) { _ -> 97.toByte() }
+        val valid = HttpCookiePair([110.toByte()], value)
+        assertEquals(4097L, valid.toByteArray().size)
+        assertEquals(4095L, HttpSetCookie.parse(valid.toByteArray()).pair.value.size)
+        val tooLong = ByteArrayBuilder(); tooLong.append(valid.toByteArray()); tooLong.append(97.toByte())
+        assertFailsWith<HttpFieldParseException> { HttpSetCookie.parse(tooLong.toByteArray()) }
+        assertFailsWith<IllegalArgumentException> { HttpCookiePair("nn".toByteArray(), value) }
+        assertTrue(HttpSetCookie.parse("a = b\tc").pair.value.size == 3L)
+    }
+}

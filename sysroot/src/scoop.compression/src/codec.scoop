@@ -1,0 +1,101 @@
+package scoop.compression
+
+import scoop.platform.memory.NativeByteBuffer
+
+internal class CompressionCodec(
+    private var handle: ULong, private var pressure: Long,
+    val format: CompressionFormat, private val encoding: Boolean
+) : Closeable {
+    private val busy: AtomicBoolean = AtomicBoolean(false)
+    private var phase: Int = 0
+    private var inputEnded: Boolean = false
+    var failure: Throwable? = None
+    private var received: Long = 0L
+    private var delivered: Long = 0L
+
+    val totals: CompressionTotals get() = CompressionTotals(received, delivered)
+    val finished: Boolean get() = phase == 3
+
+    fun step(input: NativeByteBuffer?, count: Long, output: NativeByteBuffer, capacity: Long, action: Int): CompressionStep {
+        enter()
+        try {
+            if (phase >= 4) throw IllegalStateException(Some("compression codec is closed or failed"))
+            if (count < 0L || capacity < 0L) throw IllegalArgumentException(Some("negative codec buffer count"))
+            val readable = when (input) { case Some(buffer) -> buffer.readableBytes; case None -> 0L }
+            if (count > readable || capacity > output.writableBytes) throw IndexOutOfBoundsException()
+            if ((inputEnded || phase == 3) && count > 0L) throw IllegalStateException(Some("compression input has ended"))
+            if (phase == 3) return CompressionStep(0L, 0L, CompressionState.Finished)
+            if (encoding && ((phase == 1 && action != 1) || (phase == 2 && action != 2))) {
+                throw IllegalStateException(Some("complete the active flush or finish first"))
+            }
+            val native = callCompression(handle, input, count, output, capacity, if (inputEnded) 2 else action)
+            if (encoding && action != 0) phase = action
+            account(native.memory)
+            received = addCompressionCount(received, native.consumed)
+            delivered = addCompressionCount(delivered, native.produced)
+            if (!encoding && action == 2 && native.consumed == count) inputEnded = true
+            checkFailure(native.kind, native.code)
+            val state = when (native.status) {
+                case 0 -> CompressionState.NeedInput
+                case 1 -> CompressionState.NeedOutput
+                case 2 -> CompressionState.Finished
+                else -> throw IllegalStateException(Some("invalid compression progress"))
+            }
+            if (state == CompressionState.Finished) phase = 3
+            else if (phase == 1 && state == CompressionState.NeedInput) phase = 0
+            return CompressionStep(native.consumed, native.produced, state)
+        } finally { busy.store(false) }
+    }
+
+    fun nextMessage() {
+        enter()
+        try {
+            if (phase != 3) throw IllegalStateException(Some("finish the current DEFLATE message first"))
+            @Unsafe {
+                val info = compressionNextMessage(handle)
+                account(info.memory)
+                checkFailure(info.kind, info.code)
+            }
+            phase = 0
+            inputEnded = false
+            received = 0L
+            delivered = 0L
+        } finally { busy.store(false) }
+    }
+
+    private fun checkFailure(kind: Int, code: Int) {
+        if (kind == 0) return
+        @Unsafe {
+            val error = compressionError(kind, code, String.fromCString(compressionMessage(handle)), format)
+            phase = 4
+            failure = Some(error)
+            throw error
+        }
+    }
+
+    private fun account(memory: Long) {
+        @Unsafe { gcAdjustPressure(memory - pressure) }
+        pressure = memory
+    }
+
+    private fun enter() {
+        if (!busy.compareAndSet(false, true)) throw IllegalStateException(Some("compression codec is already in use"))
+    }
+
+    public override fun close() {
+        enter()
+        try {
+            val owned = handle
+            handle = 0UL
+            phase = 5
+            if (owned != 0UL) @Unsafe { compressionFree(owned); gcAdjustPressure(-pressure); pressure = 0L }
+        } finally { busy.store(false) }
+    }
+
+    release { if (handle != 0UL) @Unsafe { compressionFree(handle); gcAdjustPressure(-pressure) } }
+}
+
+internal fun addCompressionCount(left: Long, right: Long): Long {
+    if (right > Long.MAX_VALUE - left) throw ArithmeticException()
+    return left + right
+}

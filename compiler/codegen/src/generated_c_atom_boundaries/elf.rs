@@ -1,4 +1,4 @@
-use object::{Object, ObjectSymbol};
+use object::ObjectSymbol;
 use scoop_lir::LinkageClass;
 
 use super::*;
@@ -12,8 +12,7 @@ pub(super) fn materialize(
     for definition in atoms {
         let name = definition.primary_symbol().symbol();
         let primary = output
-            .file
-            .symbol_by_name(name.as_str())
+            .original_symbol(name.as_str())
             .ok_or_else(|| CodegenError(format!("missing ELF bridge definition `{name}`")))?;
         let section_index = primary
             .section_index()

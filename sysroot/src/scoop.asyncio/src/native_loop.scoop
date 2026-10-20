@@ -2,6 +2,7 @@ package scoop.asyncio
 
 import scoop.platform.system.*
 import scoop.platform.net.Datagram
+import scoop.platform.fs.FileMetadata
 
 @CLayout
 internal struct NativeCreated(val pointer: Ptr<Unit>?, val status: Int)
@@ -10,6 +11,7 @@ internal struct NativeRecord(val id: Long, val kind: Int, val code: Int, val cou
 
 internal enum IoResult {
     Done, Bytes(Long), Eof, Created(Ptr<Unit>), Addresses(Ptr<Unit>?), Packet(Datagram), Failed(NativeError, Long),
+    Metadata(FileMetadata), Position(Long), Temporary(CreatedTemporaryFile), DirectoryName(OsString),
     TtyResize(Long, Long), TtyTimeout, TtySizeValue(TtySize), TtyMode(Boolean)
 }
 internal struct NativeEvent(val id: Long, val result: IoResult)
@@ -30,8 +32,14 @@ internal fun decodeEvent(record: NativeRecord): NativeEvent = NativeEvent(record
     case 7 -> IoResult.Failed(NativeError(NativeErrorDomain.AddressResolution, record.code,
         if (record.count < 0L) None else Some(record.count.toInt())), 0L)
     case 8 -> IoResult.Packet(takeDatagram(record.resource!!))
-    case 9 -> IoResult.TtyResize(record.count shr 32L, record.count and 4294967295L)
-    case 10 -> IoResult.TtyTimeout
+    // File and directory events: 0x100..0x1ff, matching native/loop.h.
+    case 0x100 -> IoResult.Metadata(takeFileMetadata(record.resource!!))
+    case 0x101 -> IoResult.Position(record.count)
+    case 0x102 -> IoResult.Temporary(takeTemporaryFile(record.resource!!))
+    case 0x103 -> IoResult.DirectoryName(takeDirectoryName(record.resource!!))
+    // TTY events: 0x200..0x2ff, matching native/loop.h.
+    case 0x200 -> IoResult.TtyResize(record.count shr 32L, record.count and 4294967295L)
+    case 0x201 -> IoResult.TtyTimeout
     else -> throw IllegalStateException(Some("invalid native I/O event"))
 })
 

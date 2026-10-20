@@ -51,6 +51,9 @@ path = "native/signature.c"
 path = "native/certificate.c"
 
 [[native.sources]]
+path = "native/certificate_bundle.c"
+
+[[native.sources]]
 path = "native/certificate_names.c"
 
 [[native.sources]]

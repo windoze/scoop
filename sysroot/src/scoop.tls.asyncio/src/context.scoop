@@ -1,0 +1,33 @@
+package scoop.tls.asyncio
+
+import scoop.asyncio.*
+import scoop.asyncio.native.NativeWork
+import scoop.crypto.x509.TrustStore
+import scoop.platform.fs.Path
+import scoop.tls.*
+import scoop.tls.native.*
+
+public suspend fun openTlsClientContext(trust: TlsTrustSource = TlsTrustSource.System,
+    options: TlsOptions = TlsOptions(), identity: TlsIdentity? = None): TlsClientContext {
+    val loop = currentEventLoop()
+    requireJob(loop, true)
+    when (trust) {
+        case Store(store) -> return TlsClientContext(store, options, identity)
+        case System -> @Unsafe {
+            val work = NativeWork.takeOwnership(prepareSystemContext(options, identity),
+                systemContextExecutor(), systemContextReleaser())
+            return work.use suspend { native ->
+                @Unsafe {
+                    loop.runNativeWork(native)
+                    return@use native.withResult { pointer -> @Unsafe { return@withResult takeSystemContext(pointer) } }
+                }
+            }
+        }
+    }
+}
+
+public suspend fun openTlsClientContext(caFile: Path, options: TlsOptions = TlsOptions(),
+    identity: TlsIdentity? = None): TlsClientContext {
+    val bytes = currentEventLoop().openFile(caFile).useAsync suspend { file -> file.readAllBytes() }
+    return TrustStore.fromPem(String.fromUtf8(bytes)).use { store -> TlsClientContext(store, options, identity) }
+}

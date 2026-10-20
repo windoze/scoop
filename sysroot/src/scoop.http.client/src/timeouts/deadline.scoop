@@ -1,0 +1,86 @@
+package scoop.http.client
+
+import scoop.platform.time.MonotonicTimeSource
+import scoop.time.Duration
+import scoop.time.TimeMark
+
+internal class ClientDeadline(val call: ClientCall, val phase: HttpTimeoutPhase, val limit: Duration, val started: TimeMark) {
+    var active: Boolean = true
+    var timer: Job? = None
+}
+
+internal fun startClientDeadline(call: ClientCall, scope: CoroutineScope, phase: HttpTimeoutPhase,
+    limit: Duration?, started: TimeMark? = None): ClientDeadline? {
+    if (limit == None) return None
+    val deadline = ClientDeadline(call, phase, limit!!, started ?: MonotonicTimeSource.markNow())
+    call.lock.withLock {
+        call.deadlines.add(deadline)
+        if (phase == HttpTimeoutPhase.PoolAcquire) call.poolDeadline = Some(deadline)
+        Unit
+    }
+    val timer = scope.launch suspend {
+        try {
+            val remaining = deadline.limit - (MonotonicTimeSource.markNow() - deadline.started)
+            if (remaining > Duration.ZERO) call.client.loop.sleep(remaining)
+            expireClientDeadline(deadline)
+        } catch (_: CancellationException) {
+        } catch (error: Throwable) { failClientCall(call, error) }
+    }
+    val stopped = call.lock.withLock { deadline.timer = Some(timer); !deadline.active }
+    if (stopped) timer.cancel()
+    return Some(deadline)
+}
+
+private fun expireClientDeadline(deadline: ClientDeadline) {
+    val call = deadline.call
+    val now = MonotonicTimeSource.markNow()
+    val error = call.lock.withLock { if (deadline.active) selectExpiredClientDeadline(call, now) else None }
+    if (clientPresent(error)) cancelClientCall(call, error!!)
+}
+
+internal fun finishClientDeadline(deadline: ClientDeadline?) {
+    if (!clientPresent(deadline)) return
+    val value = deadline!!
+    try {
+        val elapsed = MonotonicTimeSource.markNow() - value.started
+        val error = value.call.lock.withLock {
+            if (elapsed >= value.limit) selectClientTimeout(value, elapsed)
+            else { value.active = false; None }
+        }
+        if (clientPresent(error)) cancelClientCall(value.call, error!!)
+    } catch (error: Throwable) { failClientCall(value.call, error) }
+    finally { stopClientDeadline(deadline) }
+}
+
+internal fun stopClientDeadline(deadline: ClientDeadline?) {
+    if (!clientPresent(deadline)) return
+    val value = deadline!!
+    val timer = value.call.lock.withLock {
+        value.active = false
+        val saved = value.timer; value.timer = None; saved
+    }
+    if (clientPresent(timer)) timer!!.cancel()
+}
+
+// The pool planner holds call.lock while granting capacity.
+internal fun finishClientPoolWait(call: ClientCall, now: TimeMark): HttpTimeoutException? {
+    val expired = selectExpiredClientDeadline(call, now)
+    if (clientPresent(expired)) return expired
+    if (clientPresent(call.poolDeadline)) call.poolDeadline!!.active = false
+    observeClientPoolGranted(call, now)
+    return None
+}
+
+internal fun stopClientDeadlines(call: ClientCall, keepTotal: Boolean = false) {
+    val deadlines = call.lock.withLock {
+        val saved = call.deadlines.toArray()
+        call.deadlines.clear(); call.poolDeadline = None
+        if (keepTotal) for (deadline in saved) if (deadline.phase == HttpTimeoutPhase.Total) call.deadlines.add(deadline)
+        saved
+    }
+    for (deadline in deadlines) {
+        if (keepTotal && deadline.phase == HttpTimeoutPhase.Total) continue
+        if (deadline.phase == HttpTimeoutPhase.Total) finishClientDeadline(Some(deadline))
+        else stopClientDeadline(Some(deadline))
+    }
+}

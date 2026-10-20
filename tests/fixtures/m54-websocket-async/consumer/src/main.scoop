@@ -1,0 +1,105 @@
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.platform.concurrent.Thread
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.*
+import scoop.text.toInt
+import scoop.time.Duration
+import scoop.url.Url
+
+fun main(args: Array<String>) {
+    try {
+        if (args.size == 3L && args[1L] == "--server") runServer(args[2L].toInt())
+        else if (args.size == 3L && args[1L] == "--peer") runClient(args[2L].toInt())
+        else {
+            val worker = Thread.start { runPair() }
+            try { runPair() } finally { worker.join() }
+        }
+        println("WebSocket async sessions preserve upgrade suffixes stream messages and close cleanly")
+    } catch (error: Exception) {
+        eprintln(error.message ?: "WebSocket fixture failed without a message")
+        throw error
+    }
+}
+
+fun check(value: Boolean, location: SourceLocation = currentSourceLocation()) {
+    if (!value) throw IllegalStateException(Some("WebSocket fixture assertion at " + location.file + ":" + location.line.toString()))
+}
+
+fun sessionOptions(): WebSocketSessionOptions = WebSocketSessionOptions(
+    WebSocketFrameLimits(dataChunkBytes = 7L), inputBufferBytes = 19L, outgoingFrameBytes = 17L,
+    closeTimeout = Duration.seconds(60L))
+
+private fun runPair() {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { scope ->
+        val listener = loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
+        try {
+            val serving = scope.launch suspend { serveUpgrade(listener.accept(), scope) }
+            useUpgrade(loop, scope, listener.localAddress)
+            serving.join()
+        } finally { listener.close() }
+    }
+}
+
+private fun runClient(port: Int) {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { scope -> useUpgrade(loop, scope, SocketAddress(IpAddress.IPV4_LOOPBACK, port)) }
+}
+
+private fun runServer(port: Int) {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { scope ->
+        val listener = loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, port))
+        try {
+            println("PORT|" + listener.localAddress.port.toString())
+            flushOutput()
+            serveUpgrade(listener.accept(), scope)
+        } finally { listener.close() }
+    }
+}
+
+private suspend fun useUpgrade(loop: EventLoop, scope: CoroutineScope, address: SocketAddress) {
+    val handshake = WebSocketHandshake.create(Url.parse("ws://localhost/chat?x=%2f"), ["chat"])
+    val connection = AsyncHttp1Connection.takeOwnershipAsClient(loop.connectTcp(address), scope)
+    try {
+        connection.sendRequest(handshake.request).finish()
+        val response = connection.receiveResponse()
+        check(handshake.accept(response.head).protocol == Some("chat"))
+        NativeByteBuffer.allocate(1L).use suspend { buffer -> check(response.body.readInto(buffer, 1L) == 0L) }
+        val session = AsyncWebSocketSession.takeOwnership(connection.takeTransport(), scope, HttpRole.Client, sessionOptions())
+        try {
+            connection.close()
+            check(connection.isClosed && response.body.isComplete)
+            check(session.receive()!!.readText() == "ready 🌍")
+            gcCollect()
+            val text = "chunk 🌍 across frames"
+            val writer = session.beginMessage(WebSocketMessageType.Text)
+            NativeByteBuffer.allocate(text.byteLength).use suspend { buffer ->
+                buffer.writeBytes(text.toByteArray())
+                check(writer.writeFrom(buffer, 8L) == 8L)
+                writer.writeFully(buffer)
+                writer.finish()
+            }
+            check(writer.isComplete)
+            writer.close()
+            check(session.receive()!!.readText() == "ack:" + text)
+            session.ping("health".toByteArray())
+            session.pong("oneway".toByteArray())
+            val bytes = Array<Byte>(257L) { index -> index.toByte() }
+            session.sendBinary(bytes)
+            val message = session.receive()!!
+            check(message.type == WebSocketMessageType.Binary)
+            val echo = message.readBytes()
+            check(echo.size == bytes.size)
+            for (index in 0L..<bytes.size) check(echo[index] == bytes[index])
+            check(message.isComplete)
+            val peer = session.shutdownGracefully(WebSocketClose(Some(1000U), "finished"))
+            check(peer.code == Some(1000U) && peer.reason == "finished")
+            check(session.isClosed)
+            check(when (session.receive()) { case None -> true; case Some(_) -> false })
+            check(when (session.failure) { case None -> true; case Some(_) -> false })
+        } finally { session.close() }
+    } finally { connection.close() }
+}

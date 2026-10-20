@@ -29,10 +29,28 @@ path = "native/timer.c"
 path = "native/work.c"
 
 [[native.sources]]
+path = "native/native_work.c"
+
+[[native.sources]]
 path = "native/file_open.c"
 
 [[native.sources]]
 path = "native/file_io.c"
+
+[[native.sources]]
+path = "native/file_metadata.c"
+
+[[native.sources]]
+path = "native/file_temporary.c"
+
+[[native.sources]]
+path = "native/paths.c"
+
+[[native.sources]]
+path = "native/directory.c"
+
+[[native.sources]]
+path = "native/directory_next.c"
 
 [[native.sources]]
 path = "native/resolve.c"

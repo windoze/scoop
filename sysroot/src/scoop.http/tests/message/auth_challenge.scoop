@@ -1,0 +1,97 @@
+package scoop.http
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.test.*
+
+@Test
+private class HttpAuthChallengeTests {
+    @Test
+    fun `RFC challenge list retains schemes quoted commas and escaped quotes`() {
+        val parsed = HttpAuthChallenge.parseList("Basic realm=\"simple\", Newauth realm=\"apps\", " +
+            "type=1, title=\"Login to \\\"apps\\\"\", Digest realm = \"a,b\", qop=\"auth,auth-int\"")
+        assertEquals(3L, parsed.size)
+        assertEquals("basic", parsed[0L].scheme)
+        assertEquals("simple", authParameterText(parsed[0L], "REALM"))
+        assertEquals("newauth", parsed[1L].scheme)
+        assertEquals(3L, parsed[1L].parameters.size)
+        assertEquals("Login to \"apps\"", authParameterText(parsed[1L], "title"))
+        assertTrue(parsed[1L].parameter("realm")!!.wasQuoted)
+        assertFalse(parsed[1L].parameter("type")!!.wasQuoted)
+        assertEquals("a,b", authParameterText(parsed[2L], "realm"))
+        assertEquals("auth,auth-int", authParameterText(parsed[2L], "qop"))
+        assertEquals("WWW-Authenticate", String.fromUtf8(parsed[0L].toWwwAuthenticateField().name))
+        assertEquals("Proxy-Authenticate", String.fromUtf8(parsed[0L].toProxyAuthenticateField().name))
+    }
+
+    @Test
+    fun `token68 and parameter lists use complete grammar independent of scheme`() {
+        for (token in ["a", "ABC012-._~+/", "a=", "a==", "abc====", "realm="]) {
+            val parsed = HttpAuthChallenge.parse("Unknown " + token)
+            assertEquals(token, parsed.token68!!)
+            assertEquals(0L, parsed.parameters.size)
+            assertEquals("unknown " + token, String.fromUtf8(HttpAuthChallenge.withToken68("UNKNOWN", token).toByteArray()))
+        }
+        assertEquals("x", authParameterText(HttpAuthChallenge.parse("Digest realm=x"), "realm"))
+        val parsed = HttpAuthChallenge.parseList(", \tNegotiate\t, , Basic , realm =\t\"\", , charset=UTF-8, Digest realm=other, ,")
+        assertEquals(3L, parsed.size)
+        assertEquals(0L, parsed[0L].parameters.size)
+        assertEquals("", authParameterText(parsed[1L], "realm"))
+        assertEquals("UTF-8", authParameterText(parsed[1L], "charset"))
+        assertEquals(0L, HttpAuthChallenge.parseList(",, \t,").size)
+    }
+
+    @Test
+    fun `repeated fields can continue one challenge and retain separate realms`() {
+        val fields = [HttpField("WWW-Authenticate".toByteArray(), "Digest realm=first".toByteArray()),
+            HttpField("www-authenticate".toByteArray(), "nonce=\"n,1\", BASIC realm=second".toByteArray()),
+            HttpField("Proxy-Authenticate".toByteArray(), "Basic realm=proxy".toByteArray()),
+            HttpField("WWW-Authenticate".toByteArray(), "Basic realm=third".toByteArray())]
+        val parsed = HttpAuthChallenge.parseFields(fields)
+        assertEquals(3L, parsed.size)
+        assertEquals("n,1", authParameterText(parsed[0L], "nonce"))
+        assertEquals("second", authParameterText(parsed[1L], "realm"))
+        assertEquals("third", authParameterText(parsed[2L], "realm"))
+        assertEquals("proxy", authParameterText(HttpAuthChallenge.parseFields(fields, "Proxy-Authenticate")[0L], "realm"))
+        val repeated = [fields[0L], HttpField("WWW-Authenticate".toByteArray(), "REALM=second".toByteArray())]
+        assertEquals(20L, assertFailsWith<HttpFieldParseException> { HttpAuthChallenge.parseFields(repeated) }.byteOffset)
+    }
+
+    @Test
+    fun `challenge parameters own copied bytes including non UTF8 and explicit quoting`() {
+        val input = MutableArray<Byte>(3L) { index -> if (index == 0L) 255.toByte() else if (index == 1L) 92.toByte() else 34.toByte() }
+        val parameters = ArrayList<HttpParameter>()
+        parameters.add(HttpParameter("REALM", input, quoted = true))
+        val challenge = HttpAuthChallenge("Basic", parameters)
+        input[0L] = 0.toByte(); parameters.clear(); gcCollect()
+        val parsed = HttpAuthChallenge.parse(challenge.toByteArray())
+        assertEquals(255.toByte(), parsed.parameter("realm")!!.value[0L])
+        assertEquals(92.toByte(), parsed.parameter("realm")!!.value[1L])
+        assertEquals(34.toByte(), parsed.parameter("realm")!!.value[2L])
+        assertTrue(parsed.parameter("realm")!!.wasQuoted)
+        val quoted = HttpAuthChallenge("Basic", [HttpParameter("realm", "simple".toByteArray(), quoted = true)])
+        assertEquals("basic realm=\"simple\"", String.fromUtf8(quoted.toByteArray()))
+        val bytes = ByteArrayBuilder(); bytes.append("Basic realm=\"".toByteArray()); bytes.append(255.toByte()); bytes.append(34.toByte())
+        assertEquals(255.toByte(), HttpAuthChallenge.parse(bytes.toByteArray()).parameter("realm")!!.value[0L])
+    }
+
+    @Test
+    fun `invalid challenge structure and duplicate parameters retain byte diagnostics`() {
+        for (value in ["Digest realm=x, REALM=y", "Basic =x", "Bearer ab==cd", "Digest realm=\"unfinished",
+            "Basic\trealm=x", "Digest \trealm=x", "Digest realm=x nonce=y", "Digest realm=\"x\"; nonce=y",
+            "Digest realm=\"a\r\nb\"", "Basic abc==, nonce=x"]) {
+            assertEquals("WWW-Authenticate", assertFailsWith<HttpFieldParseException> { HttpAuthChallenge.parseList(value) }.field)
+        }
+        assertEquals(16L, assertFailsWith<HttpFieldParseException> { HttpAuthChallenge.parse("Digest realm=x, REALM=y") }.byteOffset)
+        assertEquals(5L, assertFailsWith<HttpFieldParseException> { HttpAuthChallenge.parse("Basic\trealm=x") }.byteOffset)
+        for (value in ["", "Basic realm=x, Bearer abc", "Basic ab==,", "Digest a=\"x\\"]) {
+            assertTrue(when (HttpAuthChallenge.parseOrNone(value)) { case None -> true; case Some(_) -> false })
+        }
+        assertFailsWith<IllegalArgumentException> { HttpAuthChallenge("Basic ") }
+        assertFailsWith<IllegalArgumentException> { HttpAuthChallenge("Digest", [HttpParameter("A", "x".toByteArray()), HttpParameter("a", "y".toByteArray())]) }
+        for (token in ["", "=", "ab=c", "abc ", "a!", "\u00ff"]) {
+            assertFailsWith<IllegalArgumentException> { HttpAuthChallenge.withToken68("Bearer", token) }
+        }
+    }
+}
+
+private fun authParameterText(challenge: HttpAuthChallenge, name: String): String = String.fromUtf8(challenge.parameter(name)!!.value)

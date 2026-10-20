@@ -1,0 +1,33 @@
+package scoop.http
+
+import scoop.collections.emptyList
+import scoop.crypto.*
+import scoop.io.encoding.Base64
+import scoop.url.Url
+
+public class WebSocketHandshakeException public constructor(public val detail: String, public val field: String? = None)
+    : Exception(Some("WebSocket handshake: " + detail))
+
+public class WebSocketNegotiation internal constructor(
+    public val protocol: String?, public val deflate: WebSocketDeflateNegotiation?
+)
+
+public class WebSocketHandshake internal constructor(
+    public val request: HttpRequestHead, public val key: String,
+    public val protocols: Array<String>, public val extensions: Array<WebSocketExtension>
+) {
+    public fun accept(response: HttpResponseHead): WebSocketNegotiation = acceptWebSocketResponse(this, response)
+    public fun response(protocol: String? = None, deflate: WebSocketDeflate? = None,
+        fields: List<HttpField> = emptyList<HttpField>()): HttpResponseHead = webSocketResponse(this, protocol, deflate, fields)
+
+    public companion object {
+        public fun create(url: Url, protocols: List<String> = emptyList<String>(),
+            deflateOffers: List<WebSocketDeflateOffer> = emptyList<WebSocketDeflateOffer>(),
+            fields: List<HttpField> = emptyList<HttpField>(), absoluteForm: Boolean = false): WebSocketHandshake =
+            createWebSocketHandshake(url, protocols, deflateOffers, fields, absoluteForm)
+        public fun parse(request: HttpRequestHead): WebSocketHandshake = parseWebSocketHandshake(request)
+    }
+}
+
+internal fun webSocketAccept(key: String): String =
+    Base64.Default.encode(digest(DigestAlgorithm.Sha1, (key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").toByteArray()))

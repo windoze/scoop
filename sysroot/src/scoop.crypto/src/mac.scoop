@@ -29,6 +29,8 @@ public class SecretKey private constructor(private var handle: ULong) : Closeabl
 }
 
 public fun hmac(algorithm: DigestAlgorithm, key: SecretKey, data: List<Byte>): Array<Byte> {
+    if (algorithm != DigestAlgorithm.Sha256 && algorithm != DigestAlgorithm.Sha384 && algorithm != DigestAlgorithm.Sha512)
+        throw IllegalArgumentException(Some("HMAC requires SHA-256, SHA-384, or SHA-512"))
     val handle = key.nativeHandle()
     val bytes = data.toArray()
     @Unsafe { return bytes.withDataPointer { pointer, count ->

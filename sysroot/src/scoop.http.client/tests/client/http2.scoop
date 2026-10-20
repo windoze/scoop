@@ -1,0 +1,65 @@
+package scoop.http.client
+
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+@Test
+private class HttpClientHttp2Test {
+    @Test
+    fun `HTTP2 duplex keeps uploading after execute returns and consumes trailers`() {
+        clientTestTrust().use { trust ->
+            val loop: EventLoop = LibuvEventLoop()
+            loop.run suspend { scope ->
+                clientTestListen(loop).useAsync suspend { listener ->
+                    val serverDone = BodyTestGate()
+                    val serving = scope.launch suspend {
+                        AsyncHttp2Connection.takeOwnershipAsServer(listener.accept(), scope,
+                            settings = Http2Settings(initialWindowSize = 5U)).useAsync suspend { connection ->
+                            val incoming = connection.acceptRequest()!!
+                            NativeByteBuffer.allocate(5L).use suspend { buffer ->
+                                incoming.stream.readFully(buffer)
+                                assertEquals("begin", String.fromUtf8(buffer.readBytes(5L)))
+                            }
+                            incoming.stream.sendResponse(HttpResponseHead(HttpVersion.Http2, 200U), false)
+                            writeBodyText(incoming.stream, "ready")
+                            incoming.stream.flush()
+                            assertEquals("tail", String.fromUtf8(incoming.stream.readAllBytes(4L)))
+                            incoming.stream.finish([HttpField("X-End".toByteArray(), "yes".toByteArray())])
+                            serverDone.await()
+                        }
+                    }
+                    withHttpClient(clientTestConfig(trust, HttpVersion.Http2)) suspend { client ->
+                        val ready = BodyTestGate()
+                        val consumed = BodyTestGate()
+                        val holder = ClientTestResponseHolder()
+                        val body = RequestBody.fromProducer(Some(9L)) suspend { output ->
+                            writeBodyText(output, "begin")
+                            output.flush()
+                            ready.await()
+                            val response = holder.value!!
+                            NativeByteBuffer.allocate(5L).use suspend { buffer ->
+                                response.body.readFully(buffer)
+                                assertEquals("ready", String.fromUtf8(buffer.readBytes(5L)))
+                            }
+                            writeBodyText(output, "tail")
+                            consumed.signal()
+                        }
+                        val response = client.execute(HttpRequest.post(clientTestUrl(listener), body, options = HttpCallOptions(duplex = true)))
+                        holder.value = Some(response)
+                        assertTrue(response.version == HttpVersion.Http2)
+                        ready.signal()
+                        consumed.await()
+                        assertEquals(0L, response.body.readAllBytes(0L).size)
+                        assertEquals("yes", String.fromUtf8(response.trailers!![0L].value))
+                        response.close()
+                    }
+                    serverDone.signal()
+                    serving.join()
+                }
+            }
+        }
+    }
+}

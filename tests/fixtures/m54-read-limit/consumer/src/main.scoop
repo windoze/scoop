@@ -1,0 +1,94 @@
+import scoop.asyncio.*
+import scoop.platform.concurrent.Thread
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.*
+
+private fun check(value: Boolean) {
+    if (!value) throw IllegalStateException(Some("bounded read integration check failed"))
+}
+
+private fun checkBytes(expected: Array<Byte>, offset: Long, actual: Array<Byte>) {
+    check(expected.size - offset == actual.size)
+    for (index in 0L..<actual.size) check(expected[offset + index] == actual[index])
+}
+
+private suspend fun sendBytes(destination: AsyncByteSink, bytes: Array<Byte>) {
+    NativeByteBuffer.allocate(bytes.size).use suspend { buffer ->
+        buffer.writeBytes(bytes)
+        destination.writeFully(buffer)
+    }
+}
+
+private suspend fun limited(source: AsyncByteSource, bytes: Array<Byte>, limit: Long) {
+    try { source.readAllBytes(limit); throw IllegalStateException(Some("oversized input completed")) }
+    catch (error: ReadLimitException) { check(error.maxBytes == limit) }
+    gcCollect()
+    val rest = source.readAllBytes(bytes.size - limit - 1L)
+    checkBytes(bytes, limit + 1L, rest)
+}
+
+private suspend fun exerciseFile(loop: EventLoop, bytes: Array<Byte>) {
+    val temporary = loop.createTempFile(prefix = "m54-limit-文件 ")
+    try {
+        sendBytes(temporary.file, bytes)
+        for (limit in [0L, 3L, 11L]) {
+            temporary.file.seek(0L)
+            try { temporary.file.readAllBytes(limit); throw IllegalStateException(Some("oversized file completed")) }
+            catch (error: ReadLimitException) { check(error.maxBytes == limit) }
+            check(temporary.file.position() == limit + 1L)
+            val rest = temporary.file.readAllBytes(bytes.size - limit - 1L)
+            checkBytes(bytes, limit + 1L, rest)
+        }
+        temporary.file.seek(0L)
+        checkBytes(bytes, 0L, temporary.file.readAllBytes(bytes.size))
+        check(temporary.file.readAllBytes(0L).size == 0L)
+        temporary.file.seek(0L)
+        checkBytes(bytes, 0L, temporary.file.readAllBytes(Long.MAX_VALUE))
+    } finally {
+        temporary.close()
+        loop.deleteFile(temporary.path)
+    }
+}
+
+private suspend fun exerciseTcp(loop: EventLoop, scope: CoroutineScope, bytes: Array<Byte>) {
+    val listener = loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
+    try {
+        val serving = scope.launch suspend {
+            for (_ in 0..<3) {
+                listener.accept().useAsync suspend { peer ->
+                    sendBytes(peer, bytes)
+                    peer.shutdownOutput()
+                    check(String.fromUtf8(peer.readAllBytes(2L)) == "ok")
+                }
+            }
+        }
+        for (limit in [0L, 3L, bytes.size - 1L]) {
+            loop.connectTcp(listener.localAddress).useAsync suspend { stream ->
+                limited(stream, bytes, limit)
+                sendBytes(stream, "ok".toByteArray())
+                stream.shutdownOutput()
+            }
+            check(!scope.job.isCancelled)
+        }
+        serving.join()
+    } finally { listener.close() }
+}
+
+private fun exercise() {
+    val bytes = "prefix:中🌍:tail".toByteArray()
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { scope ->
+        exerciseFile(loop, bytes)
+        exerciseTcp(loop, scope, bytes)
+    }
+}
+
+fun main() {
+    Thread.start { exercise() }.use { first ->
+        Thread.start { exercise() }.use { second ->
+            first.join()
+            second.join()
+        }
+    }
+    println("bounded asynchronous reads preserve file and TCP progress")
+}

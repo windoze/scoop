@@ -174,6 +174,6 @@ attributes #1 = { "statepoint-id"="7" }
         machine
             .write_to_file(&llvm, inkwell::targets::FileType::Object, &output)
             .unwrap();
-        assert_machine_site_count(&output, plan.site_count());
+        assert_machine_root_counts(&output, &plan);
     }
 }

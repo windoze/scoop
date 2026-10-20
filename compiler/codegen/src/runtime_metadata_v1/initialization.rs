@@ -7,10 +7,9 @@ use inkwell::module::{Linkage, Module as LlvmModule};
 use inkwell::types::StructType;
 use inkwell::values::{FunctionValue, GlobalValue, StructValue};
 use scoop_lir::{
-    ConeIdentity, DigestPatchIntentId, ObjectDefinitionAtomId, ObjectDefinitionPlanId,
-    PersistentInitializationUnitId, PersistentSymbolRequest, StrongInitializationCallableRefPlanV1,
-    StrongInitializationRegistrationSchedulePlanV1, StrongInitializationUnitRegistrationPlan,
-    StrongInitializationUnitRegistrationPlanSet,
+    ConeIdentity, ObjectDefinitionAtomId, PersistentInitializationUnitId, PersistentSymbolRequest,
+    StrongInitializationCallableRefPlanV1, StrongInitializationRegistrationSchedulePlanV1,
+    StrongInitializationUnitRegistrationPlan, StrongInitializationUnitRegistrationPlanSet,
 };
 
 use super::RuntimeMetadataV1Types;
@@ -19,44 +18,7 @@ use crate::target::ValidatedBackendProfile;
 
 const METADATA_ABI_VERSION: u64 = scoop_lir::RUNTIME_METADATA_ABI_VERSION_V1 as u64;
 const INITIALIZATION_UNIT_DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5049_4e49;
-const INITIALIZATION_UNIT_DESCRIPTOR_SIZE: u64 = 320;
-const GATEWAY_DEFINITION_FINGERPRINT_OFFSET: u64 = 280;
-const DIGEST_SIZE: u64 = 32;
-
-#[derive(Clone, Copy, Debug)]
-pub struct InitializationRegistrationPatchSiteV1<'ctx> {
-    intent: DigestPatchIntentId,
-    definition: ObjectDefinitionPlanId,
-    atom: ObjectDefinitionAtomId,
-    owner: GlobalValue<'ctx>,
-    byte_offset: u64,
-}
-
-impl<'ctx> InitializationRegistrationPatchSiteV1<'ctx> {
-    pub const fn intent(self) -> DigestPatchIntentId {
-        self.intent
-    }
-
-    pub const fn definition(self) -> ObjectDefinitionPlanId {
-        self.definition
-    }
-
-    pub const fn atom(self) -> ObjectDefinitionAtomId {
-        self.atom
-    }
-
-    pub const fn owner(self) -> GlobalValue<'ctx> {
-        self.owner
-    }
-
-    pub const fn byte_offset(self) -> u64 {
-        self.byte_offset
-    }
-
-    pub const fn byte_size(self) -> u64 {
-        DIGEST_SIZE
-    }
-}
+const INITIALIZATION_UNIT_DESCRIPTOR_SIZE: u64 = 288;
 
 #[derive(Clone, Copy, Debug)]
 pub struct EmittedStrongInitializationUnitRegistrationV1<'ctx> {
@@ -65,8 +27,6 @@ pub struct EmittedStrongInitializationUnitRegistrationV1<'ctx> {
     diagnostic_atom: ObjectDefinitionAtomId,
     diagnostic: GlobalValue<'ctx>,
     registration_descriptor: GlobalValue<'ctx>,
-
-    gateway_definition_patch: Option<InitializationRegistrationPatchSiteV1<'ctx>>,
 }
 
 impl<'ctx> EmittedStrongInitializationUnitRegistrationV1<'ctx> {
@@ -89,12 +49,6 @@ impl<'ctx> EmittedStrongInitializationUnitRegistrationV1<'ctx> {
     pub const fn registration_descriptor(self) -> GlobalValue<'ctx> {
         self.registration_descriptor
     }
-
-    pub const fn gateway_definition_patch(
-        self,
-    ) -> Option<InitializationRegistrationPatchSiteV1<'ctx>> {
-        self.gateway_definition_patch
-    }
 }
 
 #[derive(Clone, Debug)]
@@ -114,8 +68,7 @@ impl<'ctx> EmittedStrongInitializationUnitRegistrationSetV1<'ctx> {
 }
 
 /// Emit the `ic` cell and its single runtime-registration `nr`
-/// definitions for every initialization unit. Graph-managed digest slots stay
-/// zero until the object-backed finalizer patches them.
+/// definitions for every initialization unit.
 pub(crate) fn emit_strong_initialization_unit_registrations_v1<'ctx, D: Clone>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
@@ -228,7 +181,6 @@ fn emit_registration<'ctx, D>(
         initializer.as_global_value().as_pointer_value().into(),
         ensure.as_global_value().as_pointer_value().into(),
         gateway_id.into(),
-        zero_digest.into(),
         gateway_entry.into(),
     ]);
     let registration = define_global(
@@ -240,23 +192,12 @@ fn emit_registration<'ctx, D>(
         registration_value.into(),
     );
 
-    let gateway_definition_patch = plan.schedule().gateway_definition_patch().map(|intent| {
-        InitializationRegistrationPatchSiteV1 {
-            intent,
-            definition: plan.registration_definition_plan(),
-            atom: plan.registration_primary_atom(),
-            owner: registration,
-            byte_offset: GATEWAY_DEFINITION_FINGERPRINT_OFFSET,
-        }
-    });
     Ok(EmittedStrongInitializationUnitRegistrationV1 {
         unit: semantic.unit(),
         cell,
         diagnostic_atom: plan.diagnostic_atom(),
         diagnostic,
         registration_descriptor: registration,
-
-        gateway_definition_patch,
     })
 }
 

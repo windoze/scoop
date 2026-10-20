@@ -1,0 +1,74 @@
+package scoop.asyncio
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.*
+
+internal suspend fun negotiateSocks5(transport: AsyncByteStream, destination: Socks5Address,
+    credentials: Socks5Credentials?, resolution: Socks5Resolution, loop: EventLoop): Socks5Address {
+    val address = resolveSocks5Address(loop, destination, resolution)
+    return NativeByteBuffer.allocate(513L).use suspend { buffer ->
+        val method: Byte = when (credentials) { case None -> 0.toByte(); case Some(_) -> 2.toByte() }
+        sendSocks5Packet(transport, buffer, [5, 1, method])
+        val selection = readSocks5Packet(transport, buffer, 2L)
+        if (selection[0L] != 5) throw Socks5Exception(Socks5Phase.Method, None, "invalid SOCKS5 method reply version")
+        if (selection[1L] != method) throw Socks5Exception(Socks5Phase.Method,
+            Some(selection[1L].toUByte()), "SOCKS5 proxy did not select the offered authentication method")
+        when (credentials) {
+            case None -> {}
+            case Some(identity) -> authenticateSocks5(transport, buffer, identity)
+        }
+        sendSocks5Packet(transport, buffer, socks5ConnectRequest(address))
+        val reply = readSocks5Packet(transport, buffer, 4L)
+        if (reply[0L] != 5 || reply[2L] != 0) {
+            throw Socks5Exception(Socks5Phase.Connect, None, "invalid SOCKS5 CONNECT reply header")
+        }
+        if (reply[1L] != 0) throw Socks5Exception(Socks5Phase.Connect,
+            Some(reply[1L].toUByte()), "SOCKS5 proxy rejected CONNECT")
+        readSocks5BoundAddress(transport, buffer, reply[3L])
+    }
+}
+
+private suspend fun authenticateSocks5(transport: AsyncByteStream, buffer: NativeByteBuffer,
+    credentials: Socks5Credentials) {
+    val bytes = ByteArrayBuilder()
+    bytes.append(1.toByte()).append(credentials.username.size.toByte()).append(credentials.username)
+    bytes.append(credentials.password.size.toByte()).append(credentials.password)
+    sendSocks5Packet(transport, buffer, bytes.toByteArray())
+    val reply = readSocks5Packet(transport, buffer, 2L)
+    if (reply[0L] != 1) throw Socks5Exception(Socks5Phase.Authentication, None, "invalid SOCKS5 authentication version")
+    if (reply[1L] != 0) throw Socks5Exception(Socks5Phase.Authentication,
+        Some(reply[1L].toUByte()), "SOCKS5 proxy rejected credentials")
+}
+
+private suspend fun readSocks5BoundAddress(transport: AsyncByteStream,
+    buffer: NativeByteBuffer, kind: Byte): Socks5Address {
+    val count = when (kind) {
+        case 1 -> 4L
+        case 4 -> 16L
+        case 3 -> readSocks5Packet(transport, buffer, 1L)[0L].toUByte().toLong()
+        case _ -> throw Socks5Exception(Socks5Phase.Connect, None, "invalid SOCKS5 address type")
+    }
+    val bytes = readSocks5Packet(transport, buffer, count)
+    if (kind == 3 && !validSocks5Domain(bytes)) {
+        throw Socks5Exception(Socks5Phase.Connect, None, "invalid SOCKS5 bound domain")
+    }
+    val portBytes = readSocks5Packet(transport, buffer, 2L)
+    val port = portBytes[0L].toUByte().toInt() * 256 + portBytes[1L].toUByte().toInt()
+    return if (kind == 3) Socks5Address.Domain(String.fromUtf8(bytes), port)
+        else Socks5Address.Ip(SocketAddress(IpAddress.fromByteArray(bytes), port))
+}
+
+private suspend fun sendSocks5Packet(transport: AsyncByteStream, buffer: NativeByteBuffer, bytes: Array<Byte>) {
+    buffer.clear()
+    buffer.writeBytes(bytes)
+    transport.writeFully(buffer)
+    ensureActive()
+    transport.flush()
+}
+
+private suspend fun readSocks5Packet(transport: AsyncByteStream, buffer: NativeByteBuffer, count: Long): Array<Byte> {
+    buffer.clear()
+    transport.readFully(buffer, count)
+    return buffer.readBytes(count)
+}

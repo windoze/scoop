@@ -1,0 +1,23 @@
+package scoop.url
+
+public enum UrlComponent { Reference, Scheme, Authority, UserInfo, Host, Port, Path, Query, Fragment, PercentEncoding }
+
+public class UrlParseException public constructor(
+    public val component: UrlComponent,
+    public val offset: Long?,
+    public val detail: String,
+    public val cause: Throwable? = None
+) : Exception(Some(detail))
+
+public class UrlBackendException internal constructor(public val code: Int, detail: String) : Exception(Some(detail))
+
+internal fun urlError(component: UrlComponent, detail: String, offset: Long? = None): Nothing =
+    throw UrlParseException(component, offset, detail)
+
+internal fun checkUriCode(code: Int, component: UrlComponent, offset: Long? = None) {
+    if (code == 0) return
+    if (code == 1 || code == 5 || code == 9 || (code >= 12 && code <= 15)) {
+        urlError(component, if (code == 5) "relative resolution requires an absolute base" else "invalid URI component", offset)
+    }
+    throw UrlBackendException(code, "uriparser failed with code " + code.toString())
+}

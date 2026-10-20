@@ -241,6 +241,7 @@ fn emit_llvm_module_with_surface<'ctx, R>(
                 )?;
                 if selection.defines_callable(identity.owner()) {
                     llvm_global.set_initializer(&context.const_string(bytes, true));
+                    crate::metadata_sections::set_section(llvm_global, profile.c_string_section());
                 }
                 globals.push(Some(llvm_global));
             }

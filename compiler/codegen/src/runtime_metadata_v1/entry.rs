@@ -3,8 +3,7 @@ use inkwell::module::{Linkage, Module as LlvmModule};
 use inkwell::types::{FunctionType, StructType};
 use inkwell::values::{FunctionValue, GlobalValue};
 use scoop_lir::{
-    DigestPatchIntentId, EntryProductionPlanV1, ExecutableEntryPlanV1, ObjectDefinitionPlanId,
-    PersistentSymbolRequest,
+    EntryProductionPlanV1, ExecutableEntryPlanV1, ObjectDefinitionPlanId, PersistentSymbolRequest,
 };
 
 use super::RuntimeMetadataV1Types;
@@ -12,61 +11,22 @@ use crate::CodegenError;
 
 const METADATA_ABI_VERSION: u64 = scoop_lir::RUNTIME_METADATA_ABI_VERSION_V1 as u64;
 const ROOT_ENTRY_DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5045_4e54;
-const ROOT_ENTRY_DESCRIPTOR_SIZE: u64 = 192;
-const SOURCE_SIGNATURE_FINGERPRINT_OFFSET: u64 = 80;
-const GATEWAY_DEFINITION_FINGERPRINT_OFFSET: u64 = 144;
-const DIGEST_SIZE: u64 = 32;
+const ROOT_ENTRY_DESCRIPTOR_SIZE: u64 = 128;
 
-/// One graph-managed digest slot in an executable root descriptor.
+/// Emitted executable root descriptor.
 #[derive(Clone, Copy, Debug)]
-pub struct RootEntryPatchSiteV1<'ctx> {
-    intent: DigestPatchIntentId,
+pub struct EmittedRootEntryV1<'ctx> {
     definition: ObjectDefinitionPlanId,
-    owner: GlobalValue<'ctx>,
-    byte_offset: u64,
+    descriptor: GlobalValue<'ctx>,
 }
 
-impl<'ctx> RootEntryPatchSiteV1<'ctx> {
-    pub const fn intent(self) -> DigestPatchIntentId {
-        self.intent
-    }
-
+impl<'ctx> EmittedRootEntryV1<'ctx> {
     pub const fn definition(self) -> ObjectDefinitionPlanId {
         self.definition
     }
 
-    pub const fn owner(self) -> GlobalValue<'ctx> {
-        self.owner
-    }
-
-    pub const fn byte_offset(self) -> u64 {
-        self.byte_offset
-    }
-
-    pub const fn byte_size(self) -> u64 {
-        DIGEST_SIZE
-    }
-}
-
-/// Fully emitted executable root descriptor and its two provisional slots.
-#[derive(Clone, Copy, Debug)]
-pub struct EmittedRootEntryV1<'ctx> {
-    descriptor: GlobalValue<'ctx>,
-    source_signature_patch: RootEntryPatchSiteV1<'ctx>,
-    gateway_definition_patch: RootEntryPatchSiteV1<'ctx>,
-}
-
-impl<'ctx> EmittedRootEntryV1<'ctx> {
     pub const fn descriptor(self) -> GlobalValue<'ctx> {
         self.descriptor
-    }
-
-    pub const fn source_signature_patch(self) -> RootEntryPatchSiteV1<'ctx> {
-        self.source_signature_patch
-    }
-
-    pub const fn gateway_definition_patch(self) -> RootEntryPatchSiteV1<'ctx> {
-        self.gateway_definition_patch
     }
 }
 
@@ -80,8 +40,7 @@ pub enum EmittedEntryProductionV1<'ctx> {
 /// Emit the canonical runtime metadata v1 entry surface.
 ///
 /// A library plan emits no root symbol. An executable plan defines exactly
-/// one root descriptor and leaves its two digest slots zero for graph
-/// finalization. The gateway body and failure-root registration may be
+/// one complete root descriptor. The gateway body and failure-root registration may be
 /// defined before or after this call, but their declarations must have the
 /// exact ABI types and strong Cone linkage.
 pub(crate) fn emit_entry_production_v1<'ctx>(
@@ -128,14 +87,11 @@ fn emit_root_entry_v1<'ctx>(
         i32.const_int(METADATA_ABI_VERSION, false).into(),
         i32.const_int(ROOT_ENTRY_DESCRIPTOR_SIZE, false).into(),
     ]);
-    let zero_digest = types.digest.const_zero();
     let descriptor_value = types.root_entry_descriptor.const_named_struct(&[
         prefix.into(),
         digest_value(context, types.digest, plan.root_cone().as_array()).into(),
         digest_value(context, types.digest, plan.main().body().as_array()).into(),
-        zero_digest.into(),
         digest_value(context, types.digest, plan.gateway().as_array()).into(),
-        zero_digest.into(),
         failure_root.as_pointer_value().into(),
         gateway.as_global_value().as_pointer_value().into(),
     ]);
@@ -149,19 +105,8 @@ fn emit_root_entry_v1<'ctx>(
     descriptor.set_initializer(&descriptor_value);
 
     Ok(EmittedRootEntryV1 {
+        definition: plan.root_descriptor_definition(),
         descriptor,
-        source_signature_patch: RootEntryPatchSiteV1 {
-            intent: plan.source_signature_patch(),
-            definition: plan.root_descriptor_definition(),
-            owner: descriptor,
-            byte_offset: SOURCE_SIGNATURE_FINGERPRINT_OFFSET,
-        },
-        gateway_definition_patch: RootEntryPatchSiteV1 {
-            intent: plan.gateway_definition_patch(),
-            definition: plan.root_descriptor_definition(),
-            owner: descriptor,
-            byte_offset: GATEWAY_DEFINITION_FINGERPRINT_OFFSET,
-        },
     })
 }
 

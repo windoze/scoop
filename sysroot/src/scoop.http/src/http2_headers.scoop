@@ -30,6 +30,7 @@ internal class Http2Fields internal constructor() : Closeable {
 
     internal fun addRegular(fields: List<HttpField>, trailers: Boolean = false) {
         for (field in fields) {
+            if (trailers) requireHttpTrailerName(field.name)
             val name = Array<Byte>(field.name.size) { index ->
                 val byte = field.name[index].toUByte().toInt()
                 (if (byte >= 65 && byte <= 90) byte + 32 else byte).toByte()
@@ -42,23 +43,13 @@ internal class Http2Fields internal constructor() : Closeable {
             if (token == "te" && !httpAsciiEqual(field.value, "trailers".toByteArray()))
                 throw IllegalArgumentException(Some("HTTP/2 TE must be trailers"))
             if (token == "content-length") {
-                if (trailers || length >= 0L) throw IllegalArgumentException(Some("invalid repeated or trailer Content-Length"))
+                if (length >= 0L) throw IllegalArgumentException(Some("invalid repeated Content-Length"))
                 length = httpContentLength(field.value)
             }
         }
     }
 
     public override fun close() { @Unsafe { http2FieldsFree(handle) } }
-}
-
-internal fun httpBytesEqual(left: List<Byte>, right: List<Byte>): Boolean {
-    if (left.size != right.size) return false
-    var index = 0L
-    while (index < left.size) {
-        if (left[index] != right[index]) return false
-        index += 1L
-    }
-    return true
 }
 
 internal fun http2RequestFields(head: HttpRequestHead): Http2Fields {

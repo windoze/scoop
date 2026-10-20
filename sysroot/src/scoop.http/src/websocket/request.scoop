@@ -1,0 +1,74 @@
+package scoop.http
+
+import scoop.collections.HashSet
+import scoop.crypto.secureRandomBytes
+import scoop.io.encoding.Base64
+import scoop.url.Url
+
+internal fun createWebSocketHandshake(url: Url, protocols: List<String>, offers: List<WebSocketDeflateOffer>,
+    fields: List<HttpField>, absoluteForm: Boolean): WebSocketHandshake {
+    val origin = url.httpOrigin()
+    if (origin.scheme != "ws" && origin.scheme != "wss")
+        throw IllegalArgumentException(Some("WebSocket URL requires ws or wss"))
+    if (url.encodedFragment != None) throw IllegalArgumentException(Some("WebSocket URL cannot contain a fragment"))
+    val copied = protocols.toArray()
+    val names = HashSet<String>()
+    for (protocol in copied) {
+        webSocketToken(protocol)
+        if (!names.add(protocol)) throw IllegalArgumentException(Some("duplicate WebSocket subprotocol"))
+    }
+    val headers = webSocketExtraFields(fields)
+    val key = Base64.Default.encode(secureRandomBytes(16L))
+    headers.add(webSocketField("Host", origin.authority(url.authority!!.port != None)))
+    headers.add(webSocketField("Upgrade", "websocket"))
+    headers.add(webSocketField("Connection", "Upgrade"))
+    headers.add(webSocketField("Sec-WebSocket-Key", key))
+    headers.add(webSocketField("Sec-WebSocket-Version", "13"))
+    if (copied.size > 0L) {
+        val value = StringBuilder()
+        var separator = false
+        for (protocol in copied) {
+            if (separator) value.append(", ")
+            value.append(protocol)
+            separator = true
+        }
+        headers.add(webSocketField("Sec-WebSocket-Protocol", value.toString()))
+    }
+    val extensions = ArrayList<WebSocketExtension>()
+    for (offer in offers) { val extension = offer.toExtension(); extensions.add(extension); headers.add(extension.toHttpField()) }
+    val target = if (absoluteForm)
+        url.toBuilder().setScheme(Some(if (origin.scheme == "ws") "http" else "https")).build().httpAbsoluteTarget()
+        else url.httpRequestTarget()
+    val request = HttpRequestHead(HttpVersion.Http11, "GET".toByteArray(), HttpRequestTarget.Http1(target.toByteArray()), headers)
+    return WebSocketHandshake(request, key, copied, extensions.toArray())
+}
+
+internal fun parseWebSocketHandshake(request: HttpRequestHead): WebSocketHandshake {
+    if (request.version != HttpVersion.Http11 || !httpBytesEqual(request.method, "GET".toByteArray()))
+        throw WebSocketHandshakeException("expected HTTP/1.1 GET")
+    when (request.target) {
+        case Http1(bytes) -> if (bytes.size == 0L) throw WebSocketHandshakeException("empty HTTP/1 request target")
+        case Http2(_, _, _) -> throw WebSocketHandshakeException("expected an HTTP/1 request target")
+        case Connect(_) -> throw WebSocketHandshakeException("expected an HTTP/1 request target")
+    }
+    val fields = request.fields
+    webSocketSingleField(fields, "Host", true)
+    requireWebSocketUpgrade(fields)
+    val key = webSocketSingleField(fields, "Sec-WebSocket-Key", true)!!
+    val validKey = when (Base64.Default.decodeOrNone(key)) { case Some(bytes) -> bytes.size == 16L; case None -> false }
+    if (!validKey)
+        throw WebSocketHandshakeException("key must encode exactly 16 bytes", Some("Sec-WebSocket-Key"))
+    if (webSocketSingleField(fields, "Sec-WebSocket-Version", true)!! != "13")
+        throw WebSocketHandshakeException("only WebSocket version 13 is supported", Some("Sec-WebSocket-Version"))
+    if (fields.findAll("Transfer-Encoding".toByteArray()).size != 0L)
+        throw WebSocketHandshakeException("upgrade request cannot use Transfer-Encoding", Some("Transfer-Encoding"))
+    val length = webSocketSingleField(fields, "Content-Length", false)
+    when (length) {
+        case Some(value) -> {
+            val reader = HttpFieldReader("Content-Length", value.toByteArray())
+            if (reader.decimal() != 0L || !reader.ended) reader.fail("WebSocket request body must be empty")
+        }
+        case None -> {}
+    }
+    return WebSocketHandshake(request, key, readWebSocketProtocols(fields), WebSocketExtension.parseFields(fields))
+}
