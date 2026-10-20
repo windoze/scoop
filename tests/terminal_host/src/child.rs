@@ -23,7 +23,12 @@ impl OwnedChild {
             if unsafe { libc::kill(-pid, libc::SIGKILL) } == -1 {
                 let error = std::io::Error::last_os_error();
                 if error.raw_os_error() != Some(libc::ESRCH) {
-                    return Err(error).context("kill PTY process group");
+                    // Darwin can report EPERM for a group whose last member
+                    // just exited. Reap it instead of reporting a false cleanup failure.
+                    self.poll()?;
+                    if self.status.is_none() {
+                        return Err(error).context("kill PTY process group");
+                    }
                 }
             }
             self.group_finished = true;

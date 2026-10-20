@@ -70,3 +70,12 @@ fn real_pty_interaction_resize_and_failure_cleanup() {
     host.cleanup().unwrap();
     host.cleanup().unwrap();
 }
+
+#[test]
+fn real_pty_exit_before_expected_output_is_reaped() {
+    let mut command = CommandBuilder::new("/bin/sh");
+    command.args(["-c", "exit 17"]);
+    let mut host = Terminal::spawn(command, 12, 5).unwrap();
+    assert!(host.wait_output(0, b"missing").is_err());
+    host.cleanup().unwrap();
+}

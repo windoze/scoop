@@ -14,6 +14,7 @@ pub struct Terminal {
     pub parser: vt100::Parser<Protocol>,
     pub raw: Vec<u8>,
     pub interrupted: Arc<AtomicBool>,
+    pub initial_termios: nix::sys::termios::Termios,
     master: Box<dyn MasterPty + Send>,
     child: OwnedChild,
     writer: Box<dyn Write + Send>,
@@ -26,6 +27,19 @@ pub struct Terminal {
 
 impl Terminal {
     pub fn spawn(mut command: CommandBuilder, columns: u16, rows: u16) -> Result<Self> {
+        Self::spawn_configured(&mut command, columns, rows, false)
+    }
+
+    pub fn spawn_raw(mut command: CommandBuilder, columns: u16, rows: u16) -> Result<Self> {
+        Self::spawn_configured(&mut command, columns, rows, true)
+    }
+
+    fn spawn_configured(
+        command: &mut CommandBuilder,
+        columns: u16,
+        rows: u16,
+        raw: bool,
+    ) -> Result<Self> {
         command.env("TERM", "xterm-256color");
         command.env("COLORTERM", "truecolor");
         command.env_remove("NO_COLOR");
@@ -33,8 +47,18 @@ impl Terminal {
         let reader = pair.master.try_clone_reader()?;
         let writer = pair.master.take_writer()?;
         let fd = pair.master.as_raw_fd().context("PTY master has no fd")?;
+        let mut initial_termios = pair.master.get_termios().context("initial PTY termios")?;
+        if raw {
+            nix::sys::termios::cfmakeraw(&mut initial_termios);
+            let borrowed = unsafe { std::os::fd::BorrowedFd::borrow_raw(fd) };
+            nix::sys::termios::tcsetattr(
+                borrowed,
+                nix::sys::termios::SetArg::TCSANOW,
+                &initial_termios,
+            )?;
+        }
         let child = OwnedChild {
-            child: pair.slave.spawn_command(command)?,
+            child: pair.slave.spawn_command(command.clone())?,
             status: None,
             group_finished: false,
         };
@@ -49,6 +73,7 @@ impl Terminal {
             parser: vt100::Parser::new_with_callbacks(rows, columns, 0, Protocol::default()),
             raw: Vec::new(),
             interrupted: Arc::new(AtomicBool::new(false)),
+            initial_termios,
             master: pair.master,
             child,
             writer,

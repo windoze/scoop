@@ -1,0 +1,24 @@
+package scoop.terminal
+
+public fun <R> TerminalSession.withRawMode(block: () -> R): R {
+    val scope = RawModeScope(this)
+    scope.enter()
+    return scope.use { block() }
+}
+
+private class RawModeScope(private val session: TerminalSession) : Closeable {
+    private var changed: Boolean = false
+    fun enter() {
+        session.withTerminal { terminal ->
+            if (!terminal.isRaw) {
+                terminal.setRaw(true)
+                changed = true
+            }
+            Unit
+        }
+    }
+    public override fun close() {
+        if (changed && !session.isClosed) session.disableRawMode()
+        changed = false
+    }
+}

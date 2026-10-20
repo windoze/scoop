@@ -131,7 +131,57 @@ CSI-u 支持 Unicode 标量、修饰键、Press／Repeat／Release、锁定状�
 
 光标位置、主／次设备属性、设备状态和 Kitty 标志回复只产生内部回复，不成为用户 Event。CPR 的行列允许 1～65536。`CSI row;column R` 与旧式带修饰的 F3 有固有歧义，两个普通数字字段优先解释为 CPR；F3 使用 SS3、`13~` 或无参数 `CSI R`。Kitty 标志按完整十进制数字解析，设备属性保留实际参数。回复与用户事件的队列顺序不会因为 feed 分片变化。
 
-## 7. 后续功能的既定合同
+## 7. 终端会话、尺寸与 raw mode
+
+package `scoop.terminal`：
+
+```scoop
+public enum StandardStream { Input, Output, Error }
+public fun isTerminal(stream: StandardStream): Boolean
+public struct TerminalSize(val columns: Long, val rows: Long,
+    val widthPixels: Long, val heightPixels: Long)
+public class TerminalSession : ByteSink, Closeable {
+    public companion object { public fun open(): TerminalSession }
+    public val isClosed: Boolean
+    public val isRawMode: Boolean
+    public fun size(): TerminalSize
+    public fun enableRawMode()
+    public fun disableRawMode()
+}
+public fun <R> TerminalSession.withRawMode(block: () -> R): R
+```
+
+`isTerminal` 只检测选定的标准端点，返回 Boolean，不打开会话。会话先使用 stdin
+指向的 TTY；stdin 不是 TTY 时打开当前进程的控制终端。Unix 通过终端路径重新
+打开自有读写句柄，不用 dup 后改变共享 file status flags。打开成功不会修改原
+stdin／stdout 的 O_NONBLOCK；stdout 重定向时会话仍写入自己的 TTY。没有可用
+TTY 或原生调用失败抛带 PosixErrno 的 PlatformException，不回退为普通管道输入。
+
+进程内同时至多存在一个打开的输入会话，重复打开以原生 EBUSY 报错。会话操作
+由调用方串行使用；与正在执行的操作并发或重入会立即抛 IllegalStateException，
+不会关闭正在使用的句柄。公共 API 不暴露 fd、termios 或平台标志。
+
+`size` 返回 OS 当前报告的列、行和像素尺寸；0 表示 OS 未提供该字段，不能猜成
+80×24。输出仍使用普通 ByteSink：writeFrom 遵守 buffer 借用、短写与读位置推进
+规则，直接写入 TTY；flush 检查会话打开，因为此层没有用户态缓冲，不等待终端
+显示完毕。调用者可继续组合 BufferedSink／execute。
+
+首次 enableRawMode 保存调用时实际 termios，使用平台 raw 转换后设置；重复启用
+不覆盖快照。disableRawMode 恢复保存的快照，重复禁用为空操作。isRawMode 表示
+本会话是否拥有一次尚未恢复的 raw 变更，不声称能够观察外部程序修改。
+进入前已经 raw 的终端也保存并恢复原状态。
+
+withRawMode 使用现有 use 清理规则，只有本次启用才在离开时禁用；同一会话嵌套
+调用不会提前恢复外层状态。正文与恢复同时失败合并为 ResourceUseException。
+调用方不应在该作用域内手工改变 raw 所有权；提前关闭整个会话则由 close 恢复，
+作用域退出不重复操作已关闭句柄。
+
+close 在恢复失败后仍尝试关闭其他自有资源；消费句柄后会话保持关闭，即使关闭
+报告错误。重复 close 幂等，其他已关闭会话操作抛 IllegalStateException。
+显式 close／use 是终端恢复和资源释放的必要入口；本会话不注册 GC／atexit
+恢复钩子，不让 GC 线程执行 tcsetattr 或阻塞等待。
+
+## 8. 后续功能的既定合同
 
 Unix 会话、PTY 交互、OSC 52 与异步适配均属于 M59 的交付范围，不因前面的功能先完成而移出里程碑。后续功能的具体公共声明在各自实现前增加到本文；以下约束已经确定：
 

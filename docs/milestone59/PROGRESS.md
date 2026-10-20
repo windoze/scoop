@@ -10,7 +10,7 @@
 | 命令／光标／屏幕 | 本机完成，PTY／Linux 随后验收 | 14 项单测 debug 与 release＋moving GC 均通过；3 项消费者 fixture、6 个变体通过 |
 | 样式与颜色策略 | 本机完成，PTY／Linux 随后验收 | 新增 11 项单测；全库 25 项 debug 与 release＋moving GC 均通过；2 项消费者 fixture、4 个变体通过 |
 | 事件数据与增量 parser | 本机完成，PTY／Linux 随后验收 | 新增 29 项单测；全库 54 项 debug 与 release＋moving GC 均通过；事件消费者 fixture 两个变体通过 |
-| Unix 会话、raw、resize、read／poll、查询 | 待实施 | — |
+| Unix 会话、raw、resize、read／poll、查询 | 会话、raw、尺寸本机完成；通知与输入／查询待实施 | PTY 会话 fixture 两个变体、8 个进程通过；输出交互回归通过 |
 | PTY host 与交互 fixture | host 与输出交互本机完成；输入／恢复随会话补齐 | host 4 项测试、runner 51 项规则测试通过；PTY 输出 fixture 两个变体通过 |
 | Kitty／OSC 52 与组合覆盖 | Kitty 数据、命令及解析已实现；OSC 52 与 PTY 组合待实施 | Kitty 分片、释放、锁定状态与能力回复已有单测 |
 | asyncio TTY 与 terminal.asyncio | 待实施 | — |
@@ -59,3 +59,11 @@
 host 的 4 项测试覆盖全部查询切分位置、Kitty 零标志与不回复的区别、真实 PTY 输出排空、空格／空行、交互、resize 和失败清理。runner 51 项规则测试通过。首个 Scoop PTY fixture 在 debug 与 release＋moving GC 下通过，共 4 个进程；覆盖 RGB／索引色／样式复位、光标保存、Unicode 宽字符覆盖、擦除、滚动、备用屏幕、标题和尺寸变化，比较实际 termios 未被纯输出改变。
 
 验证发现 vt100 0.16.2 不实现 DECAWM；关闭自动换行改用精确原始序列断言，不扩大 host 为新终端模拟器。Rust fmt／Clippy 与 Python Ruff 均通过，host 最长文件约 200 行。
+
+## 8. Unix 会话与 raw 生命周期
+
+完成 TerminalSession、标准端点 TTY 检测、原生尺寸、自有 TTY sink、raw 幂等开关和 withRawMode。Unix Scoop 适配与 C shim 通过显式平台源码选择接入，公共 API 不暴露 fd／termios。原生句柄独立打开，不改变 stdin 的 O_NONBLOCK；重复会话以 EBUSY 失败。关闭先尝试恢复，再消费句柄，恢复失败仍继续关闭；无 GC／atexit 终端恢复钩子。
+
+真实 PTY fixture 覆盖普通初态及已 raw 初态、嵌套作用域、异常恢复、重复启停／关闭、独占会话、关闭后操作、stdin／stdout 重定向后的控制终端使用、独立文件状态和无 TTY 的连续失败。debug／release 两个变体的 8 个进程均在 moving GC 下通过；之前的 PTY 输出 fixture 回归通过。host 新增退出早于预期输出的回收回归，5 项测试通过。
+
+恢复检查按 termios 语义字段比较，排除 Darwin 内核在恢复 ICANON 时自动设置的 PENDIN 动态位；依据见 [host 说明](../../tests/terminal_host/README.md)。输入端只比较本功能承诺不改变的 O_NONBLOCK，避免把既有平台输出流设置的防 SIGPIPE 状态误判为会话修改。C 严格告警检查、Rust fmt／Clippy 通过；新生产文件均不超过 84 行。

@@ -1,0 +1,19 @@
+package scoop.terminal.internal.platform
+
+@CLayout
+internal struct NativeSize(val columns: Long, val rows: Long, val widthPixels: Long, val heightPixels: Long)
+
+@Extern(name = "scoop_terminal_is_tty")
+internal fun nativeIsTerminal(stream: Int): Boolean
+@Extern(name = "scoop_terminal_open", captureErrno = true)
+internal fun nativeOpen(): (Ptr<Unit>?, Int)
+@Extern(name = "scoop_terminal_close", captureErrno = true)
+internal fun nativeClose(terminal: Ptr<Unit>): (Int, Int)
+@Extern(name = "scoop_terminal_set_raw", captureErrno = true)
+internal fun nativeRaw(terminal: Ptr<Unit>, enabled: Boolean): (Int, Int)
+@GCLeaf @Extern(name = "scoop_terminal_raw_enabled")
+internal fun nativeRawEnabled(terminal: Ptr<Unit>): Boolean
+@Extern(name = "scoop_terminal_get_size", captureErrno = true)
+internal fun nativeSize(terminal: Ptr<Unit>): (NativeSize, Int)
+@Extern(name = "scoop_terminal_write", captureErrno = true)
+internal fun nativeWrite(terminal: Ptr<Unit>, data: Ptr<Byte>, count: Long): (Long, Int)

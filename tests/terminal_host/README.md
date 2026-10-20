@@ -19,6 +19,11 @@ Linux GNU host 可启动当前机器能运行的 GNU／musl Scoop 程序。
 固定的 vt100 0.16.2 不模拟 DECAWM（自动换行开关）；该命令检查原始序列，
 不根据模拟器的换行结果判断真实终端行为。
 
+`session`／`session-raw` 场景检查 raw 嵌套、异常恢复、重复关闭、独立 fd 和重定向。
+在启动程序前保存 PTY 属性，按 flag、控制字符、速率及 Linux line discipline
+比较设置。排除动态 PENDIN 位：[Darwin 内核](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/tty.c)
+恢复 ICANON 时会设置它，读入字符后再清除；测试不改变被测终端来强求位级相等。
+
 读取线程只传递字节，主线程按顺序维护虚拟屏幕并发送输入和查询回复。
 查询 callback 在查询发生的位置读取光标，支持分片；Kitty 不回复与返回 0 分开。
 正常结束等待进程退出及 PTY EOF，检查读取结果并 join；失败／超时终止独立

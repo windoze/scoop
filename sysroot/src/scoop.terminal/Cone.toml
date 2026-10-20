@@ -6,6 +6,12 @@ name = "scoop.terminal"
 version = "0.1.0"
 kind = "library"
 
+[[sources]]
+path = "src"
+[[sources]]
+path = "platform/unix"
+when = {os = ["darwin", "linux"]}
+
 [dependencies]
 "scoop:scoop.core" = "0.1.0"
 "scoop:scoop.std" = "0.1.0"
@@ -13,3 +19,13 @@ kind = "library"
 
 [test-dependencies]
 "scoop:scoop.test" = "0.1.0"
+
+[native]
+c_flags = ["-std=c11", "-Wall", "-Wextra", "-Werror"]
+
+[[native.sources]]
+path = "native/unix/session.c"
+when = {os = ["darwin", "linux"]}
+[[native.sources]]
+path = "native/unix/control.c"
+when = {os = ["darwin", "linux"]}

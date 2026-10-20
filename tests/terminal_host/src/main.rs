@@ -1,4 +1,5 @@
 mod output;
+mod session;
 
 use anyhow::{Context, Result, bail};
 use portable_pty::CommandBuilder;
@@ -14,15 +15,27 @@ fn main() {
 
 fn run() -> Result<()> {
     let mut args = std::env::args_os().skip(1);
-    let scenario = args.next().context("usage: terminal-host output PROGRAM")?;
+    let scenario = args
+        .next()
+        .context("usage: terminal-host SCENARIO PROGRAM")?;
     let program = args.next().context("missing Scoop executable")?;
-    if args.next().is_some() || scenario != "output" {
-        bail!("usage: terminal-host output PROGRAM");
+    let scenario = scenario.to_str().context("scenario must be UTF-8")?;
+    if args.next().is_some() || !matches!(scenario, "output" | "session" | "session-raw") {
+        bail!("usage: terminal-host output|session|session-raw PROGRAM");
     }
-    let mut host = Terminal::spawn(CommandBuilder::new(program), 20, 8)?;
+    let command = CommandBuilder::new(program);
+    let mut host = if scenario == "session-raw" {
+        Terminal::spawn_raw(command, 20, 8)?
+    } else {
+        Terminal::spawn(command, 20, 8)?
+    };
     let interrupt = signal_hook::flag::register(SIGINT, host.interrupted.clone())?;
     let terminate = signal_hook::flag::register(SIGTERM, host.interrupted.clone())?;
-    let result = output::check(&mut host).and_then(|()| host.finish());
+    let result = match scenario {
+        "output" => output::check(&mut host),
+        _ => session::check(&mut host),
+    }
+    .and_then(|()| host.finish());
     if result.is_err() {
         eprintln!("{}", host.diagnostics());
     }
@@ -34,6 +47,6 @@ fn run() -> Result<()> {
         (Err(error), _) | (_, Err(error)) => return Err(error),
         (Ok(()), Ok(())) => {}
     }
-    println!("terminal output: ok");
+    println!("terminal {scenario}: ok");
     Ok(())
 }
