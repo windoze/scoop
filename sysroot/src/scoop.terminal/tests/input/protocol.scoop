@@ -1,0 +1,36 @@
+package scoop.terminal.internal.input
+
+import scoop.terminal.protocol.*
+import scoop.terminal.event.Event
+import scoop.terminal.event.KeyCode
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class TerminalProtocolTest {
+    @Test
+    fun `resize preserves pending bytes and shares the completed queue`() {
+        val parser = InputParser()
+        parser.feed([97.toByte(), 195.toByte()], Duration.ZERO)
+        parser.feedResize(0L, 15L)
+        assertTrue(parser.hasPending)
+        expectUser(parser, key(KeyCode.Char('a')))
+        expectUser(parser, Event.Resize(0L, 15L))
+        assertFalse(parser.hasPending)
+        parser.feed([169.toByte()], Duration.ZERO)
+        expectUser(parser, key(KeyCode.Char('é')))
+        assertFailsWith<IllegalArgumentException> { parser.feedResize(-1L, 1L) }
+        parser.finish()
+        parser.finish()
+        assertFailsWith<IllegalStateException> { parser.feedResize(1L, 1L) }
+        expectEmpty(parser)
+    }
+
+    @Test
+    fun `shared requests encode cursor attributes and Kitty detection`() {
+        assertEquals("\u001b[6n", QueryReply(QueryKind.Cursor).command)
+        assertEquals("\u001b[c", QueryReply(QueryKind.Primary).command)
+        assertEquals("\u001b[>c", QueryReply(QueryKind.Secondary).command)
+        assertEquals("\u001b[?u\u001b[c", QueryReply(QueryKind.Keyboard).command)
+    }
+}

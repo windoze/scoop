@@ -1,0 +1,40 @@
+package scoop.terminal.asyncio
+
+import scoop.asyncio.*
+
+public suspend fun <R> AsyncTerminalSession.withRawMode(block: suspend () -> R): R {
+    val scope = RawModeScope(this, false)
+    withAccess(true, true) suspend { scope.enter() }
+    return scope.useAsync suspend { block() }
+}
+
+internal class RawModeScope(private val session: AsyncTerminalSession,
+    private val reserved: Boolean) : AsyncCloseable {
+    private var changed: Boolean = false
+    internal suspend fun enter() {
+        if (!session.raw.load()) {
+            session.changeRaw(true)
+            changed = true
+        }
+    }
+    public override suspend fun close() {
+        if (changed && !session.gate.isClosing && !session.isClosed) {
+            if (reserved) session.changeRaw(false) else session.disableRawMode()
+        }
+        changed = false
+    }
+}
+
+internal suspend fun AsyncTerminalSession.changeRaw(enabled: Boolean) {
+    try { if (enabled) tty.enableRawMode() else tty.disableRawMode() }
+    catch (primary: Throwable) {
+        try { refreshRaw() }
+        catch (cleanup: Throwable) { throw ResourceUseException(primary, cleanup) }
+        throw primary
+    }
+    refreshRaw()
+}
+
+private suspend fun AsyncTerminalSession.refreshRaw() {
+    if (!gate.isClosing && !isClosed) raw.store(tty.isRawMode())
+}

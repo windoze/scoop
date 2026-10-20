@@ -1,10 +1,11 @@
-package scoop.terminal.internal.input
+package scoop.terminal.protocol
 
 import scoop.collections.ArrayDeque
 import scoop.terminal.event.*
+import scoop.terminal.internal.input.*
 import scoop.time.Duration
 
-internal class InputParser internal constructor(internal val escapeDelay: Duration = Duration.milliseconds(50L)) {
+public class InputParser public constructor(internal val escapeDelay: Duration = Duration.milliseconds(50L)) {
     internal var mode: InputMode = InputMode.Ground
     internal val pending: ArrayList<Byte> = ArrayList<Byte>()
     internal val output: ArrayDeque<InputItem> = ArrayDeque<InputItem>()
@@ -19,13 +20,21 @@ internal class InputParser internal constructor(internal val escapeDelay: Durati
         if (escapeDelay < Duration.ZERO) throw IllegalArgumentException(Some("negative Escape delay"))
     }
 
-    internal fun feed(bytes: List<Byte>, now: Duration, rawMode: Boolean = true) {
+    public val hasPending: Boolean get() = output.size != 0L
+
+    public fun feed(bytes: List<Byte>, now: Duration, rawMode: Boolean = true) {
         observeTime(now, false)
         raw = rawMode
         for (byte in bytes) acceptByte(byte.toInt() and 255, now)
     }
 
-    internal fun advance(now: Duration) { observeTime(now, true) }
+    public fun advance(now: Duration) { observeTime(now, true) }
+
+    public fun feedResize(columns: Long, rows: Long) {
+        if (ended) throw IllegalStateException(Some("input parser has ended"))
+        if (columns < 0L || rows < 0L) throw IllegalArgumentException(Some("negative terminal size"))
+        output.addLast(InputItem.User(Event.Resize(columns, rows)))
+    }
 
     private fun observeTime(now: Duration, allowImmediate: Boolean) {
         if (ended) throw IllegalStateException(Some("input parser has ended"))
@@ -35,15 +44,15 @@ internal class InputParser internal constructor(internal val escapeDelay: Durati
             && now - escapeStarted!! >= escapeDelay) expireEscape()
     }
 
-    internal val escapeRemaining: Duration? get() {
+    public val escapeRemaining: Duration? get() {
         if (escapeStarted == None) return None
         val elapsed = lastTime - escapeStarted!!
         return Some(if (elapsed >= escapeDelay) Duration.ZERO else escapeDelay - elapsed)
     }
 
-    internal fun next(): InputItem? = output.removeFirstOrNone()
+    public fun next(): InputItem? = output.removeFirstOrNone()
 
-    internal fun finish() {
+    public fun finish() {
         if (ended) return
         if (mode == InputMode.Escape) output.addLast(userKey(KeyCode.Esc))
         else if (mode != InputMode.Ground) output.addLast(InputItem.Invalid("incomplete terminal input at EOF"))

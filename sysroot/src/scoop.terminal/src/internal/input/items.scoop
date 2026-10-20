@@ -1,13 +1,7 @@
 package scoop.terminal.internal.input
 
+import scoop.terminal.protocol.*
 import scoop.terminal.event.*
-
-internal enum InputItem {
-    User(val event: Event), CursorPosition(val column: Long, val row: Long),
-    KeyboardFlags(val flags: KeyboardEnhancementFlags),
-    DeviceAttributes(val secondary: Boolean, val parameters: Array<Long>),
-    DeviceStatus(val status: Long), Invalid(val detail: String)
-}
 
 internal fun InputItem?.hasItem(): Boolean = when (this) { case None -> false; case Some(_) -> true }
 

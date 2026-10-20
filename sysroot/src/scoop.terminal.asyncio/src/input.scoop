@@ -1,0 +1,36 @@
+package scoop.terminal.asyncio
+
+import scoop.collections.ArrayDeque
+import scoop.terminal.TerminalDisconnectedException
+import scoop.terminal.event.*
+import scoop.terminal.protocol.InputItem
+import scoop.time.Duration
+
+internal class SessionInput(internal val reader: SessionReader) {
+    internal val deferred: ArrayDeque<Event> = ArrayDeque<Event>()
+    private var ready: Event? = None
+
+    internal suspend fun read(): Event {
+        poll(None)
+        val event = ready!!
+        ready = None
+        return event
+    }
+
+    internal suspend fun poll(timeout: Duration?): Boolean {
+        if (ready != None) return true
+        ready = deferred.removeFirstOrNone()
+        if (ready != None) return true
+        val started = inputNow()
+        while (true) {
+            when (reader.next(inputRemaining(started, timeout))) {
+                case None -> return false
+                case Some(InputItem.User(event)) -> { ready = Some(event); return true }
+                case Some(InputItem.Invalid(detail)) -> throw TerminalInputException(detail)
+                case Some(_) -> {}
+            }
+            if (reader.exhausted) throw TerminalDisconnectedException()
+            if (!reader.parser.hasPending && inputExpired(started, timeout)) return false
+        }
+    }
+}

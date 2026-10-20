@@ -1,5 +1,6 @@
 package scoop.terminal.internal.input
 
+import scoop.terminal.protocol.*
 import scoop.terminal.*
 import scoop.terminal.event.Event
 import scoop.terminal.internal.platform.*
@@ -53,7 +54,7 @@ internal class SessionReader(escapeDelay: Duration) {
         if ((flags and 2) != 0) {
             val size = terminal.size()
             if (size.columns != previous.columns || size.rows != previous.rows) {
-                parser.output.addLast(InputItem.User(Event.Resize(size.columns, size.rows)))
+                parser.feedResize(size.columns, size.rows)
                 previous = size
             }
         }

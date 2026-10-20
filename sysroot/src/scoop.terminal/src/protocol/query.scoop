@@ -1,0 +1,32 @@
+package scoop.terminal.protocol
+
+import scoop.terminal.event.KeyboardEnhancementFlags
+
+public enum QueryKind { Cursor, Primary, Secondary, Keyboard }
+
+public class QueryReply public constructor(private val kind: QueryKind) {
+    private var keyboard: KeyboardEnhancementFlags? = None
+
+    public val command: String get() = when (kind) {
+        case Cursor -> "\u001b[6n"
+        case Primary -> "\u001b[c"
+        case Secondary -> "\u001b[>c"
+        case Keyboard -> "\u001b[?u\u001b[c"
+    }
+
+    public fun accept(item: InputItem): InputItem? = when (item) {
+        case InputItem.CursorPosition(_, _) -> if (kind == QueryKind.Cursor) Some(item) else None
+        case InputItem.KeyboardFlags(flags) -> {
+            if (kind == QueryKind.Keyboard) keyboard = Some(flags)
+            None
+        }
+        case InputItem.DeviceAttributes(secondary, _) -> {
+            if (kind == QueryKind.Keyboard && !secondary) {
+                if (keyboard == None) Some(item) else Some(InputItem.KeyboardFlags(keyboard!!))
+            } else if ((kind == QueryKind.Primary && !secondary) || (kind == QueryKind.Secondary && secondary))
+                Some(item)
+            else None
+        }
+        case _ -> None
+    }
+}

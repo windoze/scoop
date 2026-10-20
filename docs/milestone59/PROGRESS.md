@@ -13,7 +13,7 @@
 | Unix 会话、raw、resize、read／poll、查询 | 本机完成；Linux 随后验收 | 会话、输入、查询各自的 debug／release PTY fixture 通过 |
 | PTY host 与交互 fixture | 输出、输入、查询、raw、信号恢复与 asyncio TTY 本机完成 | host 5 项测试、runner 51 项规则测试通过；各 PTY fixture 的 debug／release 变体通过 |
 | Kitty／OSC 52 与组合覆盖 | 本机完成；Linux 随后验收 | Kitty 协议／探测单测和 PTY 场景通过；OSC 52 的 3 项单测及两个 PTY 消费者变体通过 |
-| asyncio TTY 与 terminal.asyncio | TTY 本机完成；终端异步适配待完成 | TTY 的 debug／release PTY fixture 和相关 TCP／UDP 回归通过 |
+| asyncio TTY 与 terminal.asyncio | 本机完成；Linux 随后验收 | TTY、异步输入／查询的 debug／release PTY fixture、输出单测及相关 TCP／UDP 回归通过 |
 | Linux GNU／musl 验收与清理 | 待实施 | — |
 
 ## 2. 工作约定与环境
@@ -95,3 +95,13 @@ Linux 使用非阻塞 self-pipe，保留原 handler、mask 及一次性语义，
 真实 PTY 验证同步／异步相互独占、参数与借用检查、定时器在等待输入时继续运行、取消后继续读取、输出流控暂停下的取消及剩余字节、resize、规范模式 EOF、并发关闭、取消 Job 中恢复 raw，以及 loop 收尾关闭逸出资源。两个变体、4 个进程在 moving GC 下通过；连同同步会话／输入／查询回归，共 8 个变体、20 个进程通过。
 
 TCP 取消／关闭 3 项和 UDP 8 项回归在 release＋moving GC 下通过。C 严格告警检查、Rust fmt／Clippy、空白检查通过；新增生产文件最长 77 行，共用 owner 121 行。开发 sysroot 已发布，target 约 771 MiB；Linux 与 terminal.asyncio 验收仍待后续完成。
+
+## 13. 独立终端异步适配
+
+完成普通 scoop.terminal.asyncio Cone：AsyncTerminalSession、异步 read／poll、查询、raw 作用域和 AsyncByteSink 命令输出。同步与异步通过公开的纯协议 InputParser／InputItem／QueryReply 复用同一实现，不使用跨 Cone 私有访问。输入／输出各一个在途操作，查询及控制占两方向；关闭唤醒等待并等会话状态释放。取消后的实际读取进度仍进入 parser，保留已完成事件和部分前缀。
+
+真实 PTY 的异步输入／查询在 debug、release＋moving GC 下通过，覆盖前缀跨取消、排队事件的取消检查、读写双向进展、Escape、鼠标／focus／paste／Kitty、错误恢复、resize、EOF、嵌套及异常／取消 raw 恢复、并发关闭、loop 收尾及错误 context。查询沿用同步版固定应答，另测取消后用户事件保留与真实 termios；同步输入／查询回归通过。
+
+新增 3 项异步输出单测和 2 项协议接口单测在 release＋moving GC 下通过，覆盖短写、UTF-8、编码失败、flush、无进展、resize 与字节前缀共存、结束状态及共享请求编码。Rust fmt／Clippy 与空白检查通过；异步生产文件最长 78 行。开发 sysroot 已包含 14 个 Cone。再次使用 Cargo 清理 dev 产物 25.4 GiB，target 约 722 MiB，release 工具保留。
+
+本机阶段汇总运行全部 15 项 M59 文件 fixture：30 个 debug／release 变体、68 个进程全部通过。Linux GNU／musl 的同范围验收继续单独记录。

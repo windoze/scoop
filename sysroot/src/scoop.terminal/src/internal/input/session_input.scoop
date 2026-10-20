@@ -1,5 +1,6 @@
 package scoop.terminal.internal.input
 
+import scoop.terminal.protocol.*
 import scoop.collections.ArrayDeque
 import scoop.terminal.*
 import scoop.terminal.event.*

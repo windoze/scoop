@@ -1,0 +1,10 @@
+package scoop.terminal.protocol
+
+import scoop.terminal.event.*
+
+public enum InputItem {
+    User(val event: Event), CursorPosition(val column: Long, val row: Long),
+    KeyboardFlags(val flags: KeyboardEnhancementFlags),
+    DeviceAttributes(val secondary: Boolean, val parameters: Array<Long>),
+    DeviceStatus(val status: Long), Invalid(val detail: String)
+}

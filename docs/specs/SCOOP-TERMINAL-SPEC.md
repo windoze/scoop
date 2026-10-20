@@ -113,7 +113,7 @@ public enum Event {
 
 ### 6.1 字节、时间与恢复
 
-内部 parser 只接收字节、单调时间读数和当前 raw 状态，不读取 fd 或墙上时钟。一次 feed 可产生多项结果，按输入顺序排队；结果区分用户 Event、设备回复与非法输入。普通 UTF-8 严格验证，粘贴载荷才使用有损解码。普通大写字符按 Unicode 17.0 的 Uppercase 属性附加 Shift，与上游 Unicode 判断方式一致；不把该局部判断扩展成新语言能力。
+Parser 只接收字节、单调时间读数和当前 raw 状态，不读取 fd 或墙上时钟。一次 feed 可产生多项结果，按输入顺序排队；结果区分用户 Event、设备回复与非法输入。普通 UTF-8 严格验证，粘贴载荷才使用有损解码。普通大写字符按 Unicode 17.0 的 Uppercase 属性附加 Shift，与上游 Unicode 判断方式一致；不把该局部判断扩展成新语言能力。
 
 - 完整的 UTF-8 标量立即产生一个字符事件；非法首字节消费该字节，非法续字节先结束坏前缀，再从该续字节重新解析，后续合法字符不丢失。完整但非法的标量消费其编码。未完成的普通 UTF-8 等待后续字节或 EOF。
 - CR 为 Enter；LF 在非 raw 时为 Enter，在 raw 时为 Ctrl+J；Tab、DEL 分别为 Tab、Backspace；NUL 为 Ctrl+空格。其余 C0 按上游 Ctrl 字符映射，Escape 单独处理。
@@ -130,6 +130,44 @@ public enum Event {
 CSI-u 支持 Unicode 标量、修饰键、Press／Repeat／Release、锁定状态、F13～F35、keypad、媒体和左右修饰键。修饰字段允许 1～256，以支持所有八个位；省略／空的可选字段使用协议默认值。显式非法事件类型或 Unicode 标量属于非法输入。带 Shift 的 alternate shifted codepoint 替换字符并移除 Shift，沿上游事件表示；base-layout 字段验证后忽略。本期不请求 associated-text；收到第三字段时验证其标量再忽略，与上游未暴露该字段的边界一致。修饰键释放保持报文中的实际修饰位，不强行补上被释放的键。
 
 光标位置、主／次设备属性、设备状态和 Kitty 标志回复只产生内部回复，不成为用户 Event。CPR 的行列允许 1～65536。`CSI row;column R` 与旧式带修饰的 F3 有固有歧义，两个普通数字字段优先解释为 CPR；F3 使用 SS3、`13~` 或无参数 `CSI R`。Kitty 标志按完整十进制数字解析，设备属性保留实际参数。回复与用户事件的队列顺序不会因为 feed 分片变化。
+
+### 6.3 同步与异步共用的协议接口
+
+package `scoop.terminal.protocol` 提供无 I/O 的公开协议接口，供独立的
+terminal.asyncio Cone 复用，不复制 parser 或通过可见性例外访问内部声明：
+
+```scoop
+public enum InputItem {
+    User(val event: Event), CursorPosition(val column: Long, val row: Long),
+    KeyboardFlags(val flags: KeyboardEnhancementFlags),
+    DeviceAttributes(val secondary: Boolean, val parameters: Array<Long>),
+    DeviceStatus(val status: Long), Invalid(val detail: String)
+}
+public class InputParser(escapeDelay: Duration = Duration.milliseconds(50L)) {
+    public val hasPending: Boolean
+    public val escapeRemaining: Duration?
+    public fun feed(bytes: List<Byte>, now: Duration, rawMode: Boolean = true)
+    public fun advance(now: Duration)
+    public fun feedResize(columns: Long, rows: Long)
+    public fun next(): InputItem?
+    public fun finish()
+}
+public enum QueryKind { Cursor, Primary, Secondary, Keyboard }
+public class QueryReply(kind: QueryKind) {
+    public val command: String
+    public fun accept(item: InputItem): InputItem?
+}
+```
+
+InputParser 由单一读取者串行使用。next 消费一项已完成结果，None 不表示 EOF；
+hasPending 只报告已完成队列。feedResize 接受非负行列，将 Resize 追加到同一
+队列，不结束字节前缀。finish 幂等并保留队列，之后 feed／advance／feedResize
+报状态错误。escapeRemaining 相对于最后一次 feed／advance 的显式时间计算。
+
+QueryReply 为一次查询保存必要状态；command 是第 9 节规定的请求序列，
+accept 忽略不匹配项，匹配时返回结果；Kitty flags 必须等主设备属性结束回复。
+调用方负责用户事件排队、非法项、截止时间和 I/O，不把 QueryReply 当作通用事件
+消费器。完成后不复用同一个 QueryReply 发起新查询。
 
 ## 7. 终端会话、尺寸与 raw mode
 
@@ -297,11 +335,60 @@ EOF 沿 7.1 报告断开。无关／迟到回复在无匹配查询时丢弃，�
 只收到主设备属性返回 None，表示不支持。两种回复都缺失或缺少结束回复
 则超时，不能把超时当作不支持。supportsKeyboardEnhancement 仅检查是否 Some。
 
-## 10. 后续功能的既定合同
+## 10. 异步终端适配
 
-异步适配仍属于 M59 的交付范围。具体公共声明在实现前增加到本文；以下约束已经确定：
+普通 Cone `scoop:scoop.terminal.asyncio:0.1.0` 显式依赖 core、std、platform、
+terminal、asyncio，package `scoop.terminal.asyncio`：
 
-- 异步 raw 作用域按现有 useAsync 合同在正常返回、异常与取消后清理。
-- 同步和异步不能同时读取同一会话。异步通过单独 `scoop.terminal.asyncio` 交付，先补齐 asyncio 的实际 TTY 操作、取消与关闭，不使用阻塞 suspend 包装。
+```scoop
+public class AsyncTerminalSession : AsyncByteSink, AsyncCloseable {
+    public companion object {
+        public suspend fun open(loop: EventLoop,
+            escapeDelay: Duration = Duration.milliseconds(50L)): AsyncTerminalSession
+    }
+    public val isClosed: Boolean
+    public suspend fun size(): TerminalSize
+    public suspend fun isRawMode(): Boolean
+    public suspend fun enableRawMode()
+    public suspend fun disableRawMode()
+    public suspend fun read(): Event
+    public suspend fun poll(timeout: Duration): Boolean
+}
+public suspend fun <R> AsyncTerminalSession.withRawMode(block: suspend () -> R): R
+public suspend fun AsyncTerminalSession.cursorPosition(
+    timeout: Duration = Duration.seconds(1L)): CursorPosition
+public suspend fun AsyncTerminalSession.deviceAttributes(kind: DeviceAttributeKind = DeviceAttributeKind.Primary,
+    timeout: Duration = Duration.seconds(1L)): Array<Long>
+public suspend fun AsyncTerminalSession.keyboardEnhancementFlags(
+    timeout: Duration = Duration.seconds(1L)): KeyboardEnhancementFlags?
+public suspend fun AsyncTerminalSession.supportsKeyboardEnhancement(
+    timeout: Duration = Duration.seconds(1L)): Boolean
+public suspend fun AsyncByteSink.queue(vararg commands: Command)
+public suspend fun AsyncByteSink.execute(vararg commands: Command)
+```
+
+会话拥有 EventLoop.openTty 的资源，沿 asyncio 第 9 节的 loop／Job、取消、
+借用与关闭合同；同步与异步共用进程独占，不接管外部 fd。所有 suspend 操作
+要求所属 loop 和活动 Job；disableRawMode、isRawMode、close 允许取消后的清理。
+完全关闭后重复 close 为空操作。
+
+同一会话可各有一个输入和输出操作在途；read／poll 共用输入方向，查询及
+尺寸／模式控制同时占用两个方向，冲突报 IllegalStateException。普通 read／poll
+不隐式启用 raw。完成事件、Escape 延迟、超时、非法输入和 EOF 沿第 7.1 节；
+协议解析和查询匹配复用第 6.3 节。已排队事件可直接返回，但仍检查当前 Job。
+
+取消选定后，已经读入的字节仍按实际进度进入 parser；已完成的用户事件及部分
+前缀保留，下一次健康读取继续消费。取消不是关闭。close 先拒绝新操作、关闭
+TTY 并唤醒在途等待，再等待这些会话操作释放自身状态；返回后没有 native 借用
+或仍占用输入／输出的操作。loop 收尾由 AsyncTty 恢复与关闭底层终端。
+
+查询语义沿第 9 节，实际写入和等待均 suspend；回复总 timeout 从请求写完开始，
+不约束写出及模式恢复。关闭／取消也恢复临时 raw，正文与清理双重失败沿
+ResourceUseException。withRawMode 只恢复本次引入的改变，支持嵌套；正文期间
+不允许手工改变 raw 所有权。正在关闭的会话由 close 承担恢复。
+
+异步 queue 逐条先编码到 UTF-8 字节，再用 AsyncByteSink.writeFully 完成写出；
+execute 成功后恰好 flush 一次。编码失败不写出当前命令，之前命令已输出的
+字节不回滚；取消与部分写入沿 asyncio 合同。适配器不关闭调用者的 sink。
 
 终端恢复不依赖 GC release hook 或进程退出钩子。core.exit、SIGKILL 等无法展开作用域的退出不保证终端模式恢复。

@@ -1,12 +1,13 @@
 package scoop.terminal
 
+import scoop.terminal.protocol.*
 import scoop.terminal.event.KeyboardEnhancementFlags
 import scoop.terminal.internal.input.*
 import scoop.time.Duration
 
 public struct CursorPosition(val column: Long, val row: Long)
 public enum DeviceAttributeKind { Primary, Secondary }
-public class TerminalQueryTimeoutException : Exception(Some("terminal query timed out"))
+public class TerminalQueryTimeoutException public constructor() : Exception(Some("terminal query timed out"))
 
 public fun TerminalSession.cursorPosition(timeout: Duration = Duration.seconds(1L)): CursorPosition =
     when (query(QueryKind.Cursor, timeout)) {

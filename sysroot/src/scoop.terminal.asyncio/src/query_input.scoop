@@ -1,0 +1,34 @@
+package scoop.terminal.asyncio
+
+import scoop.asyncio.AsyncByteSink
+import scoop.terminal.*
+import scoop.terminal.event.TerminalInputException
+import scoop.terminal.protocol.*
+import scoop.time.Duration
+
+internal suspend fun SessionInput.query(sink: AsyncByteSink, kind: QueryKind, timeout: Duration): InputItem {
+    reader.receiveAvailable()
+    while (reader.parser.hasPending) {
+        when (reader.parser.next()!!) {
+            case User(event) -> deferred.addLast(event)
+            case Invalid(detail) -> throw TerminalInputException(detail)
+            case _ -> {}
+        }
+    }
+    val reply = QueryReply(kind)
+    sink.writeText(reply.command)
+    val started = inputNow()
+    while (true) {
+        when (reader.next(inputRemaining(started, Some(timeout)))) {
+            case None -> throw TerminalQueryTimeoutException()
+            case Some(InputItem.User(event)) -> deferred.addLast(event)
+            case Some(InputItem.Invalid(detail)) -> throw TerminalInputException(detail)
+            case Some(item) -> when (reply.accept(item)) {
+                case Some(result) -> return result
+                case None -> {}
+            }
+        }
+        if (reader.exhausted) throw TerminalDisconnectedException()
+        if (!reader.parser.hasPending && inputExpired(started, Some(timeout))) throw TerminalQueryTimeoutException()
+    }
+}

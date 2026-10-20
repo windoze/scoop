@@ -1,0 +1,19 @@
+package scoop.terminal.asyncio
+
+import scoop.platform.time.MonotonicTimeSource
+import scoop.time.Duration
+
+internal fun inputNow(): Duration = MonotonicTimeSource.markNow().reading
+internal fun inputExpired(started: Duration, timeout: Duration?): Boolean =
+    timeout != None && inputNow() - started >= timeout!!
+internal fun inputRemaining(started: Duration, timeout: Duration?): Duration? {
+    if (timeout == None) return None
+    val elapsed = inputNow() - started
+    return Some(if (elapsed >= timeout!!) Duration.ZERO else timeout!! - elapsed)
+}
+
+internal fun shorter(first: Duration?, second: Duration?): Duration? {
+    if (first == None) return second
+    if (second == None) return first
+    return Some(if (first!! < second!!) first!! else second!!)
+}

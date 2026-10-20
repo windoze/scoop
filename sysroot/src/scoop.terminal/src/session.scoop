@@ -1,5 +1,6 @@
 package scoop.terminal
 
+import scoop.terminal.protocol.*
 import scoop.platform.io.ByteSink
 import scoop.platform.memory.NativeByteBuffer
 import scoop.terminal.internal.platform.*

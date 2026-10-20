@@ -1,3 +1,5 @@
+mod async_input;
+mod asyncio_tty;
 mod clipboard;
 mod input;
 mod output;
@@ -26,11 +28,19 @@ fn run() -> Result<()> {
     if args.next().is_some()
         || !matches!(
             scenario,
-            "output" | "session" | "session-raw" | "clipboard" | "input" | "query" | "asyncio-tty"
+            "output"
+                | "session"
+                | "session-raw"
+                | "clipboard"
+                | "input"
+                | "query"
+                | "asyncio-tty"
+                | "async-input"
+                | "async-query"
         )
     {
         bail!(
-            "usage: terminal-host output|session|session-raw|clipboard|input|query|asyncio-tty PROGRAM"
+            "unknown scenario; expected output, session, session-raw, clipboard, input, query, asyncio-tty, async-input or async-query"
         );
     }
     let command = CommandBuilder::new(program);
@@ -45,8 +55,9 @@ fn run() -> Result<()> {
         "output" => output::check(&mut host),
         "clipboard" => clipboard::check(&mut host),
         "input" => input::check(&mut host),
-        "query" => query::check(&mut host),
+        "query" | "async-query" => query::check(&mut host, scenario == "async-query"),
         "asyncio-tty" => asyncio_tty::check(&mut host),
+        "async-input" => async_input::check(&mut host),
         _ => session::check(&mut host),
     }
     .and_then(|()| host.finish());
@@ -64,4 +75,3 @@ fn run() -> Result<()> {
     println!("terminal {scenario}: ok");
     Ok(())
 }
-mod asyncio_tty;
