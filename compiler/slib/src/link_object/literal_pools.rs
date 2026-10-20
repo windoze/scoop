@@ -3,10 +3,11 @@
 use std::num::NonZeroU32;
 
 use super::{
-    BuiltinObjectSectionRoleV1, DarwinArm64RelocationShapeV1, DarwinArm64RelocationTargetV1,
-    ObjectDefinitionReadError as Error, ObjectDefinitionV1, ObjectRelocationShapeV1,
-    ObjectSymbolKindV1, ObservedObjectSectionV1, ValidatedBuiltinObjectSectionInventoryV1,
+    ObjectDefinitionReadError as Error, ObjectDefinitionV1, ObservedObjectSectionV1,
+    ValidatedBuiltinObjectSectionInventoryV1,
 };
+
+mod local_tables;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) enum ObjectLiteral {
@@ -60,36 +61,51 @@ impl LiteralPools {
                 .and_then(NonZeroU32::new)
                 .ok_or(Error::UnsupportedSectionOrdinal { index: u32::MAX })?;
             let invalid = || Error::InvalidSectionByteRange { section: ordinal };
-            let (width, byte_size) = if let Some(width) = literal_width(section) {
-                (width, section.byte_size())
-            } else if let Some(size) = local_table_size(sections, ordinal, definitions) {
-                (usize::try_from(size).map_err(|_| invalid())?, size)
+            let spans = if let Some(width) = literal_width(section) {
+                vec![(0, section.byte_size(), width)]
             } else {
-                continue;
+                local_tables::ranges(sections, ordinal, definitions)
+                    .into_iter()
+                    .map(|(offset, size)| {
+                        Ok((offset, size, usize::try_from(size).map_err(|_| invalid())?))
+                    })
+                    .collect::<Result<Vec<_>, Error>>()?
             };
-            let start = section.file_offset().ok_or_else(invalid)?;
-            let end = start.checked_add(byte_size).ok_or_else(invalid)?;
-            let bytes = object
-                .get(
-                    usize::try_from(start).map_err(|_| invalid())?
-                        ..usize::try_from(end).map_err(|_| invalid())?,
-                )
-                .ok_or_else(invalid)?;
-            if bytes.len() % width != 0 {
-                return Err(invalid());
+            for (offset, byte_size, width) in spans {
+                let start = section
+                    .file_offset()
+                    .and_then(|start| start.checked_add(offset))
+                    .ok_or_else(invalid)?;
+                let end = start.checked_add(byte_size).ok_or_else(invalid)?;
+                let bytes = object
+                    .get(
+                        usize::try_from(start).map_err(|_| invalid())?
+                            ..usize::try_from(end).map_err(|_| invalid())?,
+                    )
+                    .ok_or_else(invalid)?;
+                if bytes.len() % width != 0 {
+                    return Err(invalid());
+                }
+                pools.push(LiteralPool {
+                    section: ordinal,
+                    address: section
+                        .virtual_address()
+                        .checked_add(offset)
+                        .ok_or_else(invalid)?,
+                    width,
+                    bytes: bytes.to_vec(),
+                });
             }
-            pools.push(LiteralPool {
-                section: ordinal,
-                address: section.virtual_address(),
-                width,
-                bytes: bytes.to_vec(),
-            });
         }
         Ok(Self(pools))
     }
 
     pub(super) fn at(&self, section: NonZeroU32, address: u64) -> Option<ObjectLiteral> {
-        let pool = self.0.iter().find(|pool| pool.section == section)?;
+        let pool = self.0.iter().find(|pool| {
+            pool.section == section
+                && address >= pool.address
+                && address - pool.address < pool.bytes.len() as u64
+        })?;
         let offset = usize::try_from(address.checked_sub(pool.address)?).ok()?;
         if offset % pool.width != 0 {
             return None;
@@ -102,63 +118,6 @@ impl LiteralPools {
             _ => Some(ObjectLiteral::ByteSpan(bytes.to_vec())),
         }
     }
-}
-
-fn local_table_size(
-    sections: &ValidatedBuiltinObjectSectionInventoryV1,
-    ordinal: NonZeroU32,
-    definitions: &[ObjectDefinitionV1],
-) -> Option<u64> {
-    let envelope = sections.envelope();
-    let section = &envelope.sections()[ordinal.get() as usize - 1];
-    if section.segment_name() != b"__TEXT"
-        || section.section_name() != b"__const"
-        || section.byte_size() == 0
-    {
-        return None;
-    }
-    let end = definitions
-        .iter()
-        .flat_map(|definition| definition.atoms())
-        .filter(|atom| atom.section_ordinal() == ordinal)
-        .map(|atom| atom.start())
-        .min()
-        .unwrap_or(section.virtual_address().checked_add(section.byte_size())?);
-    let size = end.checked_sub(section.virtual_address())?;
-    if size == 0
-        || envelope.relocations().iter().any(|relocation| {
-            relocation.containing_section_ordinal() == ordinal && relocation.offset() < size
-        })
-    {
-        return None;
-    }
-    envelope
-        .relocations()
-        .iter()
-        .any(|relocation| {
-            if sections.roles()[relocation.containing_section_ordinal().get() as usize - 1]
-                != BuiltinObjectSectionRoleV1::Text
-            {
-                return false;
-            }
-            let ObjectRelocationShapeV1::DarwinArm64(
-                DarwinArm64RelocationShapeV1::Page21 { target, .. }
-                | DarwinArm64RelocationShapeV1::PageOffset12 { target, .. },
-            ) = relocation.shape()
-            else {
-                return false;
-            };
-            let DarwinArm64RelocationTargetV1::SymbolTableIndex(index) = target else {
-                return false;
-            };
-            envelope.symbols().iter().any(|symbol| {
-                symbol.table_index() == index
-                    && symbol.kind() == ObjectSymbolKindV1::LocalSectionDefinition
-                    && symbol.section_ordinal() == Some(ordinal)
-                    && symbol.value() == section.virtual_address()
-            })
-        })
-        .then_some(size)
 }
 
 #[cfg(test)]

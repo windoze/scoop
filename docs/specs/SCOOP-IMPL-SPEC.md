@@ -392,7 +392,7 @@ LLVM 在机器发射中由 switch 生成的引用查找表同样属于该 callab
 
 ELF 的非合并 `.rodata`（ODR body 为 `.rodata.<primary symbol>`）也可承载 LLVM 生成的分支跳转表，其相对重定位指向同一 callable 内的代码。后端表位于该段前缀，范围止于首个已有 atom 的起点（没有已有 atom 时止于段尾）；后续字符串等已有定义保持各自范围，空前缀不产生后端 atom。该前缀使用 AddressTakenConstant／StructuralPath(SyntheticValue, 0) 的独立后端常量 atom，并与 callable 一同进入 COMDAT；它与 Singleton 引用表可以同时存在，未发射的 atom 在机器输出后移除。沿用已有 subkey 编码，不新增源码身份、产物 section 版本或 runtime ABI；`.rodata.cst4/8/16` 的数值 literal pool 保持原路径。
 
-Mach-O 的数值跳转表可以位于 __TEXT,__const 的前缀，与后续已有边界的字符串等常量共享同一段。该局部表的范围止于首个已归属 atom（无 atom 时止于段尾），由代码到段首局部符号的实际引用识别；表内不含 relocation，其完整 bytes 参与 callable 内容指纹。不能因同段存在其他常量而拒绝正常 LLVM 输出，也不能把后续 atom 或其 relocation 纳入数值表。
+Mach-O 的数值跳转／查找表可以位于 __TEXT,__const 的前缀，与后续已有边界的字符串等常量共享同一段。该前缀止于首个已归属 atom（无 atom 时止于段尾）；同一函数可产生多个数值表，按代码实际引用的局部表符号起点划分范围，每个表止于下一起点或前缀末尾。表内不含 relocation，各自完整 bytes 参与 callable 内容指纹。不能假定每个表都从段首开始，也不能因同段存在其他常量而拒绝正常 LLVM 输出，或把后续 atom 及其 relocation 纳入数值表。固定宽度 literal pool 继续按元素宽度取值。
 
 C extern 按 2.4 的 DirectC/StorageBridge 计划发射。DirectC 使用真实 native symbol 和完整目标 C ABI，不生成或经过 outbound storage bridge；对象中的调用 relocation 直接表达该 native 引用。只有实际采用 StorageBridge 的调用才要求相应 generated-C unit；callback、native global/TLS 等其他桥接用途照常保留。两种路径均保留相同的 native contract 与 library requirement，不因省去 bridge 丢失链接需求。
 

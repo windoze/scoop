@@ -1,8 +1,33 @@
 use super::*;
 use crate::link_object::{
-    ObjectEnvelopeFormatV1, ObjectSectionFlagsV1, ObjectSymbolAttributesV1,
-    ObservedObjectRelocationV1, ObservedObjectSymbolV1, ValidatedObjectEnvelopeV1,
+    BuiltinObjectSectionRoleV1, DarwinArm64RelocationShapeV1, DarwinArm64RelocationTargetV1,
+    ObjectEnvelopeFormatV1, ObjectRelocationShapeV1, ObjectSectionFlagsV1,
+    ObjectSymbolAttributesV1, ObjectSymbolKindV1, ObservedObjectRelocationV1,
+    ObservedObjectSymbolV1, ValidatedObjectEnvelopeV1,
 };
+
+#[test]
+fn distinct_referenced_tables_in_one_section_keep_their_own_bytes() {
+    let (bytes, mut sections) = table();
+    let mut second = sections.envelope.symbols[0].clone();
+    second.table_index = 1;
+    second.name = b"second_table".to_vec();
+    second.value = 12;
+    sections.envelope.symbols.push(second);
+    let mut relocation = sections.envelope.relocations[0];
+    relocation.shape =
+        ObjectRelocationShapeV1::DarwinArm64(DarwinArm64RelocationShapeV1::PageOffset12 {
+            target: DarwinArm64RelocationTargetV1::SymbolTableIndex(1),
+            explicit_addend: None,
+        });
+    sections.envelope.relocations.push(relocation);
+    let pools = LiteralPools::read(&bytes, &sections, &[]).unwrap();
+    let ordinal = NonZeroU32::new(2).unwrap();
+    assert_eq!(pools.at(ordinal, 4).unwrap().bytes(), &bytes[4..12]);
+    assert_eq!(pools.at(ordinal, 12).unwrap().bytes(), &bytes[12..]);
+    assert!(pools.at(ordinal, 5).is_none());
+    assert!(pools.at(ordinal, 24).is_none());
+}
 
 #[test]
 fn local_table_preserves_the_complete_referenced_byte_span() {

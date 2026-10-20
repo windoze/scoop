@@ -9,7 +9,7 @@
 | 公共合同与普通 Cone | 已建立；后续功能逐项补规范 | 文档检查，开发 sysroot 已发布新 Cone |
 | 命令／光标／屏幕 | 本机完成，PTY／Linux 随后验收 | 14 项单测 debug 与 release＋moving GC 均通过；3 项消费者 fixture、6 个变体通过 |
 | 样式与颜色策略 | 本机完成，PTY／Linux 随后验收 | 新增 11 项单测；全库 25 项 debug 与 release＋moving GC 均通过；2 项消费者 fixture、4 个变体通过 |
-| 事件数据与增量 parser | 待实施 | — |
+| 事件数据与增量 parser | 实施中 | 54 项全库 debug 测试通过；release＋moving GC 与使用方验证进行中 |
 | Unix 会话、raw、resize、read／poll、查询 | 待实施 | — |
 | PTY host 与交互 fixture | 待实施 | — |
 | Kitty／OSC 52 与组合覆盖 | 待实施 | — |
@@ -37,3 +37,9 @@
 完成基础色、索引色、RGB、前景／背景／下划线颜色、28 项属性和不可变 ContentStyle／StyledContent，以及 NO_COLOR、显式覆盖和环境色数提示。基础色保持上游色槽；禁色时不生成空 SGR，下划线颜色以 59 复位。非法颜色和属性位集在输出前检查。生产文件最大 69 行。
 
 新增 11 项单测覆盖全部属性编码、颜色解析、组合与复位、禁色、无效参数、内容转换异常和 Unicode。全库 25 项测试在 debug、release＋moving GC 下均通过。两个独立消费者 fixture 在两种构建模式下共执行 8 次程序，检查真实缓冲输出、GC、NO_COLOR 与 COLORTERM 的独立进程环境；全部通过。开发 sysroot 已重新发布，文档与源码空白检查通过。
+
+## 5. 移植暴露的 Mach-O 查找表问题
+
+键盘 parser 的 `letterKey` 返回带载荷 enum，LLVM 在 release 下为同一函数生成两张数值查找表。原 Mach-O literal pool 只接受段首表，第二个局部符号被拒绝，导致正常库不能生成 `.slib`。实现规范先明确多表边界，再按代码实际引用的局部符号起点划分表，保留后续已有 atom 和固定宽度 literal pool 的原有规则。没有关闭优化、跳过引用处理或新增 ABI。
+
+新增独立 `m59-terminal-key-switch` fixture，旧工具在 release 下复现相同错误；修复后 debug／release＋moving GC 均通过。4 项 literal pool 测试（含新增多表专测）和 6 项 callable registration／fingerprint 回归通过，workspace fmt／Clippy 通过。该修复作为独立功能提交。
