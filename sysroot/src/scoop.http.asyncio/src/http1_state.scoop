@@ -5,6 +5,7 @@ import scoop.collections.ArrayDeque
 import scoop.http.*
 import scoop.platform.memory.NativeByteBuffer
 import scoop.time.Duration
+import scoop.time.TimeMark
 
 internal class H1BodyLifetime {
     var completed: Boolean = false
@@ -30,11 +31,14 @@ internal class H1Output(val finalResponse: Boolean, val request: H1RequestContex
 internal class H1State(
     val decoder: Http1Decoder, val encoder: Http1Encoder,
     val transport: AsyncByteStream, val owner: AsyncCloseable, val loop: EventLoop,
-    val input: NativeByteBuffer, val output: NativeByteBuffer, val ioTimeouts: HttpIoTimeoutOptions
+    val input: NativeByteBuffer, val output: NativeByteBuffer, val ioTimeouts: HttpIoTimeoutOptions,
+    val captureTimings: Boolean
 ) {
     val lock: HttpLock = HttpLock()
     val events: ArrayDeque<Http1Event> = ArrayDeque<Http1Event>()
     val requests: ArrayDeque<H1RequestContext> = ArrayDeque<H1RequestContext>()
+    val responseStarts: ArrayDeque<TimeMark>? = if (captureTimings) Some(ArrayDeque<TimeMark>()) else None
+    var inputReceivedAt: TimeMark? = None
     var clientPending: Long = 0L
     var incoming: H1Input? = None
     var outgoing: H1Output? = None

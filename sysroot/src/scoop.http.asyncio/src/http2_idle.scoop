@@ -72,8 +72,10 @@ internal fun checkH2Idle(state: H2State, actions: ArrayList<() -> Unit>,
 
 internal fun progressH2Input(state: H2State, progress: Array<Http2InputProgress>, now: TimeMark) {
     for (entry in progress) {
-        val stream = state.streams[entry.streamId]
-        if (entry.count > 0L && present(stream) && present(stream!!.readIdle)) stream!!.readIdle!!.clock.progress = now
+        if (entry.count <= 0L) continue
+        val stream = state.streams[entry.streamId] ?: continue
+        if (state.captureTimings && !present(stream.firstResponseByteAt)) stream.firstResponseByteAt = Some(now)
+        if (present(stream.readIdle)) stream.readIdle!!.clock.progress = now
     }
 }
 

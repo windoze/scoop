@@ -13,9 +13,9 @@ public class AsyncHttp2Connection internal constructor(internal val state: H2Sta
         public suspend fun <T> takeOwnershipAsClient(transport: T, scope: CoroutineScope,
             options: Http2ReceiveOptions = Http2ReceiveOptions(), limits: Http2Limits = Http2Limits(),
             settings: Http2Settings = Http2Settings(), ioTimeouts: HttpIoTimeoutOptions = HttpIoTimeoutOptions(),
-            onEvent: (Http2Notice) -> Unit = { _ -> }): AsyncHttp2Connection
+            onEvent: (Http2Notice) -> Unit = { _ -> }, captureTimings: Boolean = false): AsyncHttp2Connection
             where T : AsyncByteStream, T : AsyncCloseable =
-            adoptH2(transport, transport, scope, { Http2Session.client(options, limits, settings) }, settings, ioTimeouts, onEvent, false)
+            adoptH2(transport, transport, scope, { Http2Session.client(options, limits, settings) }, settings, ioTimeouts, onEvent, false, captureTimings)
 
         public suspend fun <T> takeOwnershipAsServer(transport: T, scope: CoroutineScope,
             options: Http2ReceiveOptions = Http2ReceiveOptions(), limits: Http2Limits = Http2Limits(),
@@ -27,10 +27,10 @@ public class AsyncHttp2Connection internal constructor(internal val state: H2Sta
         public suspend fun <T> takeOwnershipAsUpgradedClient(transport: T, scope: CoroutineScope, requestMethod: List<Byte>,
             settings: Http2Settings = Http2Settings(), options: Http2ReceiveOptions = Http2ReceiveOptions(),
             limits: Http2Limits = Http2Limits(), ioTimeouts: HttpIoTimeoutOptions = HttpIoTimeoutOptions(),
-            onEvent: (Http2Notice) -> Unit = { _ -> }): AsyncHttp2Connection
+            onEvent: (Http2Notice) -> Unit = { _ -> }, captureTimings: Boolean = false): AsyncHttp2Connection
             where T : AsyncByteStream, T : AsyncCloseable =
             adoptH2(transport, transport, scope, { Http2Session.upgradedClient(requestMethod, settings, options, limits) },
-                settings, ioTimeouts, onEvent, true)
+                settings, ioTimeouts, onEvent, true, captureTimings)
 
         public suspend fun <T> takeOwnershipAsUpgradedServer(transport: T, scope: CoroutineScope, requestMethod: List<Byte>,
             settingsPayload: List<Byte>, options: Http2ReceiveOptions = Http2ReceiveOptions(), limits: Http2Limits = Http2Limits(),

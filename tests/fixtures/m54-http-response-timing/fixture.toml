@@ -1,0 +1,44 @@
+schema = 1
+name = "m54-http-response-timing"
+inputs = ["consumer", "peer.py"]
+support = ["../m54-client-idle/wire.py"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m54", "asyncio", "prebuilt", "gc", "tcp"]
+variants = [{name = "debug", vars = {mode = []}}, {name = "release", vars = {mode = ["--release"]}}]
+
+[[steps]]
+name = "source"
+files = [
+    {copy = {from = "${fixture}/consumer", to = "${work}/consumer"}},
+    {copy = {from = "${fixture}/peer.py", to = "${work}/peer.py"}},
+    {copy = {from = "${repo}/tests/fixtures/m54-client-idle/wire.py", to = "${work}/wire.py"}},
+]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${work}/consumer", {each = "${mode}"}, {each = "${link_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${build.result.observations.child_invocations.length}", equals = 1}]
+
+[[steps]]
+name = "run"
+timeout = 180
+argv = ["python3", "${work}/peer.py", "${build.result.output}"]
+exit = 0
+stdout = "HTTP response first-byte timing preserves partial headers pipeline and stream attribution\n"
+stderr = ""
+
+[[steps]]
+name = "warm"
+argv = ["${scoop}", "build", "${work}/consumer", {each = "${mode}"}, {each = "${link_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${warm.result.observations.child_invocations}", equals = []}]

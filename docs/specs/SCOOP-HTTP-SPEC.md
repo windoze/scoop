@@ -30,6 +30,8 @@ HttpException 的 isUnexpectedEof 明确表示该错误是否来自后端确认�
 
 Http1Decoder 的 client／server 工厂固定接收角色、选项和局部字段限制；对象实现 Closeable，调用者串行使用。receive 消费 NativeByteBuffer 中的实际前缀，nextEvent 取走已完成事件，endInput 明确交付 EOF。关闭后不能继续推进；关闭本身不执行 I/O。
 
+receiveWithProgress 使用相同输入合同，返回 Http1ReceiveResult(count, startedMessages)。startedMessages 是本次消费中新开始的消息数，直接来自 llhttp 的 message-begin 回调，信息响应与最终响应分别计数；部分起始行也会开始一条消息，不必等到完整头部。零输入返回两个零，普通 receive 与该入口可以交替使用；已经由普通 receive 消费的开始不在下一次重报。该计数不改变消息事件，也不另行解析起始行或推测响应边界。
+
 client 在发送每个请求时按顺序登记方法上下文。信息响应不移除此上下文，最终响应结束后才移除。HEAD 响应没有 body；成功 CONNECT 与 101 交付切换事件，保留同次输入的全部未消费后缀。没有对应请求上下文的响应是调用状态错误，不能靠接收宽容选项补足。
 
 CONNECT 只有 2xx 响应按隧道成功处理；100／103 等信息响应仍等待同一请求的最终响应，407 等拒绝响应按普通 Content-Length、chunked 或 EOF 定界读取正文。llhttp 的方法状态主要服务请求端 CONNECT 暂停，不能将客户端的 CONNECT 上下文直接用于其无条件切换判断；适配层在取得响应状态后通过正常 headers-complete 回调声明成功切换，保留原始请求方法与响应字段。
@@ -145,6 +147,10 @@ H1 按顺序关联请求与响应，同一方向只允许一个消息 body 操�
 
 AsyncHttp1Connection 的 takeOwnershipAsClient／takeOwnershipAsServer 接收传输与 CoroutineScope。sendRequest／sendResponse 返回 AsyncHttp1Writer，每条消息用 finish 完成；receiveRequest 在正常 EOF 返回 None，receiveResponse 逐条交付信息／最终响应及 AsyncHttp1Body。body 在消费完数据及结束标记后公开已完成状态和 trailer，之后读取返回零；显式 close 未完成的 body 会关闭连接。服务端按接收顺序使用对应请求方法发送响应，拒绝升级后恢复 HTTP/1；接受切换后通过 takeTransport 移交前缀及传输。H1 的实际读写属于调用操作的 Job，连接另登记一个负责存活与本地关闭的 scope 子任务。
 
+HTTP/1 客户端工厂可选 captureTimings（默认 false）。开启后，Http1IncomingResponse.firstByteAt 保存包含该响应开始字节的底层 read 完成时的单调 TimeMark，缺省关闭时为 None；信息响应各有自己的值。开始边界来自 receiveWithProgress，时间随待交付的响应开始记录按序保存，跨多次读取的部分起始行和同批读取的流水线响应均正确配对。同次读取的新响应可以具有相同时间。此值表示 HTTP 可见输入的观测时间，不声称是网卡接收时间，也不把完整头部到达时间代替首字节。
+
+AsyncHttp1Connection.pendingResponseFirstByteAt 返回下一条尚未交付完整响应头的开始时间，尚无开始或未开启采样时为 None。该只读状态在输入失败后仍可读取，使头部尚未完整就超时／EOF 的调用也能保留已经确认的首字节；完整响应交付后，时间归入 Http1IncomingResponse，连接上的查询继续指向下一条待交付响应。
+
 客户端最终响应已经定界完成且协议要求关闭连接时，若请求 writer 仍未结束，先交付响应并保留该 writer 的收尾机会；不在响应返回之前使它失效。连接立即失去复用资格，当前 writer 正常 finish 后执行本地关闭，显式 close／取消仍放弃未完成的上传并关闭连接。没有活动 writer 时按原有规则关闭。此规则同样覆盖空响应、EOF 定界和请求声明的 Connection: close，不掩盖实际传输写入失败或非法消息长度。
 
 `AsyncHttp1Connection.isReusable` 是已知协议状态的只读快照：连接开放、没有在途读写或未结束的消息／请求关联，且没有已知 EOF、关闭要求或协议切换时为 true。新建的空闲连接也可以为 true；完成所有信息／最终响应和双向正文之前为 false。它复用本连接的编解码状态，不发送探测、不读取 socket，不保证尚未观察到的对端关闭不会使下一次操作失败。池使用这一事实判断复用资格，不能自己重建 HTTP/1 持久连接或切换规则。
@@ -152,6 +158,8 @@ AsyncHttp1Connection 的 takeOwnershipAsClient／takeOwnershipAsServer 接收传
 H2 连接所有者作为调用者提供的 CoroutineScope 的子任务登记。共享传输读写使用该所有者的 Job；请求／流等待使用请求自己的 Job。请求取消只发出对应 RST_STREAM、丢弃该流剩余 body 并释放其等待，不取消共享 TLS read／write 的 Job。连接所有者取消关闭整条连接并完成所有流收尾。每次 native 步骤不另建 Job。
 
 AsyncHttp2Connection 的 client／server 所有权工厂接收相同的 HTTP/2 options、limits、settings，以及可选的普通 onEvent 回调。openRequest 返回 AsyncHttp2Stream，acceptRequest 返回请求头与流；客户端流的 receiveResponse 逐条返回信息／最终响应，服务端流用 sendResponse 发送。流实现 AsyncByteStream／AsyncCloseable，readInto 与 writeFrom 允许双向并行，同一方向只能有一个等待；finish 提交结束标记和 trailer，flush 等待该流已接受的输出进入底层传输并完成其 flush，不等待对端确认。close 放弃本流余下数据并提交 CANCEL，不关闭共享连接。
+
+HTTP/2 客户端及 upgraded-client 工厂同样可选 captureTimings（默认 false）。开启后 AsyncHttp2Stream.firstResponseByteAt 保存第一次由 receiveWithProgress 确认归属到该流的输入观测 TimeMark，尚无该流输入或未开启时为 None；这个值包含可能的信息响应，后续最终响应不重置。帧头尚未完整归属时不预先填入时间，其他流和连接控制帧不能填入本流的值。共享驱动只更新固定的流状态，不在此调用挂起 observer。两种协议未开启采样时沿原接收路径运行。
 
 HTTP/2 的 upgraded 所有权工厂另外接收已完成 HTTP/1 请求的方法与协商 SETTINGS，upgradedStream 交付关联的 stream 1；服务端这一流的请求输入已经完成。goAway 提交并发送协议结束通知，关闭仍由独立的 close 负责；停止接收新请求且已无排队请求时 acceptRequest 返回 None。SETTINGS、忽略字段、流关闭、GOAWAY 和后端失败通过 Http2Notice 回调交付，回调在 native 返回后、锁外执行，不可挂起；回调抛出异常会结束连接。
 

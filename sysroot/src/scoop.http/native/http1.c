@@ -92,6 +92,7 @@ static int finish_step(http1 *state, llhttp_errno_t code) {
 http_step scoop_http1_receive(uint64_t handle, const uint8_t *data,
                               int64_t length) {
   http1 *state = (http1 *)(uintptr_t)handle;
+  state->message_starts = 0;
   if (state->failed)
     return (http_step){0, state->error.code};
   if (state->ended || state->switched)
@@ -104,6 +105,10 @@ http_step scoop_http1_receive(uint64_t handle, const uint8_t *data,
   if (code != HPE_OK)
     consumed = llhttp_get_error_pos(&state->parser) - (const char *)data;
   return (http_step){consumed, finish_step(state, code)};
+}
+
+int64_t scoop_http1_started_messages(uint64_t handle) {
+  return ((http1 *)(uintptr_t)handle)->message_starts;
 }
 
 int32_t scoop_http1_end(uint64_t handle) {

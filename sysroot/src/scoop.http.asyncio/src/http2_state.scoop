@@ -4,6 +4,7 @@ import scoop.asyncio.*
 import scoop.collections.*
 import scoop.http.*
 import scoop.platform.memory.NativeByteBuffer
+import scoop.time.TimeMark
 
 public enum Http2Notice {
     Settings(Array<Http2Setting>, Boolean), StreamClosed(Int, UInt), StreamFailure(Int, Throwable),
@@ -11,6 +12,7 @@ public enum Http2Notice {
 }
 
 internal class H2Stream(val id: Int, val ioTimeouts: HttpIoTimeoutOptions) {
+    var firstResponseByteAt: TimeMark? = None
     val data: ArrayDeque<Array<Byte>> = ArrayDeque<Array<Byte>>()
     var offset: Long = 0L
     val responses: ArrayDeque<HttpResponseHead> = ArrayDeque<HttpResponseHead>()
@@ -40,7 +42,8 @@ internal class H2BodyOperation(val kind: H2BodyKind, val wait: H2Wait<Long>,
 internal class H2State(
     val session: Http2Session, val transport: AsyncByteStream, val owner: AsyncCloseable,
     val loop: EventLoop, val input: NativeByteBuffer, val output: NativeByteBuffer,
-    val requestCapacity: Long, val ioTimeouts: HttpIoTimeoutOptions, val onEvent: (Http2Notice) -> Unit
+    val requestCapacity: Long, val ioTimeouts: HttpIoTimeoutOptions, val onEvent: (Http2Notice) -> Unit,
+    val captureTimings: Boolean
 ) {
     val lock: HttpLock = HttpLock()
     val streams: HashMap<Int, H2Stream> = HashMap<Int, H2Stream>()

@@ -3,6 +3,7 @@ package scoop.http.asyncio
 import scoop.asyncio.*
 import scoop.http.*
 import scoop.platform.io.UnexpectedEofException
+import scoop.platform.time.MonotonicTimeSource
 import scoop.time.Duration
 
 internal suspend fun nextH1Event(state: H1State): Http1Event? {
@@ -24,13 +25,19 @@ internal suspend fun nextH1Event(state: H1State): Http1Event? {
             progressH1Io(state, true, count > 0L)
             state.lock.withLock {
                 h1Open(state)
+                if (count > 0L && state.captureTimings) state.inputReceivedAt = Some(MonotonicTimeSource.markNow())
                 if (count == 0L) { state.inputEnded = true; state.decoder.endInput() }
                 Unit
             }
         }
         state.lock.withLock {
             h1Open(state)
-            if (state.input.readableBytes != 0L) state.decoder.receive(state.input)
+            if (state.input.readableBytes != 0L) {
+                if (state.captureTimings) {
+                    val received = state.decoder.receiveWithProgress(state.input)
+                    for (_ in 0L..<received.startedMessages) state.responseStarts!!.addLast(state.inputReceivedAt!!)
+                } else state.decoder.receive(state.input)
+            }
             while (true) {
                 val event = state.decoder.nextEvent()
                 if (!present(event)) break
@@ -106,7 +113,10 @@ internal suspend fun receiveH1Response(state: H1State, readIdle: Duration?): Htt
         when (next!!) {
             case Response(head) -> {
                 if (head.status >= 200U || head.status == 101U) state.lock.withLock { state.clientPending -= 1L }
-                Http1IncomingResponse(head, AsyncHttp1Body(state, incomingH1(state, readIdle, head.status >= 200U || head.status == 101U)))
+                val firstByteAt = state.lock.withLock {
+                    if (state.captureTimings) Some(state.responseStarts!!.removeFirst()) else None
+                }
+                Http1IncomingResponse(head, AsyncHttp1Body(state, incomingH1(state, readIdle, head.status >= 200U || head.status == 101U)), firstByteAt)
             }
             else -> throw IllegalStateException(Some("expected an HTTP/1 response head"))
         }

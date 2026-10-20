@@ -23,6 +23,7 @@ typedef struct {
   http_fields fields;
   http_bytes method, target, reason, protocol, field_name, field_value;
   size_t header_bytes, start_line_bytes;
+  int64_t message_starts;
   http1_method *first_method, *last_method;
   int server, failed, ended, switched;
 } http1;

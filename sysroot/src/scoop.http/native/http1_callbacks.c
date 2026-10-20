@@ -4,6 +4,7 @@
 
 static int begin(llhttp_t *parser) {
   http1 *s = parser->data;
+  s->message_starts += 1;
   s->header_bytes = s->start_line_bytes = 0;
   http_bytes_clear(&s->protocol);
   if (!s->server) {

@@ -4,16 +4,18 @@ import scoop.asyncio.*
 import scoop.http.*
 import scoop.platform.memory.NativeByteBuffer
 import scoop.time.Duration
+import scoop.time.TimeMark
 
 public class Http1IncomingRequest internal constructor(public val head: HttpRequestHead, public val body: AsyncHttp1Body)
-public class Http1IncomingResponse internal constructor(public val head: HttpResponseHead, public val body: AsyncHttp1Body)
+public class Http1IncomingResponse internal constructor(public val head: HttpResponseHead, public val body: AsyncHttp1Body,
+    public val firstByteAt: TimeMark?)
 
 public class AsyncHttp1Connection internal constructor(internal val state: H1State) : AsyncCloseable {
     public companion object {
         public suspend fun <T> takeOwnershipAsClient(transport: T, scope: CoroutineScope,
             options: Http1ReceiveOptions = Http1ReceiveOptions(), limits: Http1Limits = Http1Limits(),
-            ioTimeouts: HttpIoTimeoutOptions = HttpIoTimeoutOptions()): AsyncHttp1Connection
-            where T : AsyncByteStream, T : AsyncCloseable = adoptH1(transport, transport, scope, HttpRole.Client, options, limits, ioTimeouts)
+            ioTimeouts: HttpIoTimeoutOptions = HttpIoTimeoutOptions(), captureTimings: Boolean = false): AsyncHttp1Connection
+            where T : AsyncByteStream, T : AsyncCloseable = adoptH1(transport, transport, scope, HttpRole.Client, options, limits, ioTimeouts, captureTimings)
 
         public suspend fun <T> takeOwnershipAsServer(transport: T, scope: CoroutineScope,
             options: Http1ReceiveOptions = Http1ReceiveOptions(), limits: Http1Limits = Http1Limits(),
@@ -24,6 +26,9 @@ public class AsyncHttp1Connection internal constructor(internal val state: H1Sta
     public val role: HttpRole get() = state.encoder.role
     public val ioTimeouts: HttpIoTimeoutOptions get() = state.ioTimeouts
     public val isClosed: Boolean get() = state.lock.withLock { state.closed }
+    public val pendingResponseFirstByteAt: TimeMark? get() = state.lock.withLock {
+        if (state.captureTimings) state.responseStarts!!.firstOrNone() else None
+    }
     public val isReusable: Boolean get() = state.lock.withLock {
         !state.closing && !state.inputEnded && !state.closeAfterOutput && !state.readBusy && !state.writeBusy &&
             !present(state.incoming) && !present(state.outgoing) && state.clientPending == 0L &&
@@ -44,13 +49,14 @@ public class AsyncHttp1Connection internal constructor(internal val state: H1Sta
 }
 
 private suspend fun adoptH1(transport: AsyncByteStream, owner: AsyncCloseable, scope: CoroutineScope,
-    role: HttpRole, options: Http1ReceiveOptions, limits: Http1Limits, ioTimeouts: HttpIoTimeoutOptions): AsyncHttp1Connection {
+    role: HttpRole, options: Http1ReceiveOptions, limits: Http1Limits, ioTimeouts: HttpIoTimeoutOptions,
+    captureTimings: Boolean = false): AsyncHttp1Connection {
     val loop = currentEventLoop()
     val caller = httpJob(loop, true)
     if (scope.job.isCompleted) throw IllegalStateException(Some("HTTP connection scope is closed"))
     scope.job.ensureActive()
     requireHttpIoTimeouts(ioTimeouts)
-    val state = allocateH1(transport, owner, loop, role, options, limits, ioTimeouts)
+    val state = allocateH1(transport, owner, loop, role, options, limits, ioTimeouts, captureTimings)
     try {
         scope.launch suspend {
             val job = httpJob(loop, true)
@@ -91,10 +97,10 @@ private suspend fun adoptH1(transport: AsyncByteStream, owner: AsyncCloseable, s
 }
 
 private fun allocateH1(transport: AsyncByteStream, owner: AsyncCloseable, loop: EventLoop,
-    role: HttpRole, options: Http1ReceiveOptions, limits: Http1Limits, ioTimeouts: HttpIoTimeoutOptions): H1State {
+    role: HttpRole, options: Http1ReceiveOptions, limits: Http1Limits, ioTimeouts: HttpIoTimeoutOptions, captureTimings: Boolean): H1State {
     val decoder = if (role == HttpRole.Client) Http1Decoder.client(options, limits) else Http1Decoder.server(options, limits)
     val input = try { NativeByteBuffer.allocate(16384L) }
         catch (error: Throwable) { decoder.close(); throw error }
-    try { return H1State(decoder, Http1Encoder(role), transport, owner, loop, input, NativeByteBuffer.allocate(16384L), ioTimeouts) }
+    try { return H1State(decoder, Http1Encoder(role), transport, owner, loop, input, NativeByteBuffer.allocate(16384L), ioTimeouts, captureTimings) }
     catch (error: Throwable) { decoder.close(); input.close(); throw error }
 }

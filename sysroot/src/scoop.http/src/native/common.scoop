@@ -41,6 +41,7 @@ package scoop.http
 @Extern(name = "scoop_http1_free") internal fun http1Free(handle: ULong)
 @Extern(name = "scoop_http1_expect") internal fun http1Expect(handle: ULong, name: Ptr<Byte>, size: Long): Int
 @Extern(name = "scoop_http1_receive") internal fun http1Receive(handle: ULong, data: Ptr<Byte>, size: Long): NativeHttpStep
+@Extern(name = "scoop_http1_started_messages") internal fun http1StartedMessages(handle: ULong): Long
 @Extern(name = "scoop_http1_end") internal fun http1End(handle: ULong): Int
 @GCLeaf @Extern(name = "scoop_http1_is_unexpected_eof") internal fun http1IsUnexpectedEof(code: Int): Int
 @Extern(name = "scoop_http1_resume") internal fun http1Resume(handle: ULong): Int

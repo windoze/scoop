@@ -79,7 +79,7 @@ private class H2TransferCompletion(val state: H2State, val input: Boolean, val r
                     if (input) {
                         if (count == 0L) { state.session.endInput(); terminateH2(state, IoClosedException()) }
                         else while (state.input.readableBytes != 0L) {
-                            val consumed = if (state.idleTimers == 0L) state.session.receive(state.input) else {
+                            val consumed = if (state.idleTimers == 0L && !state.captureTimings) state.session.receive(state.input) else {
                                 val result = state.session.receiveWithProgress(state.input)
                                 progressH2Input(state, result.progress, now)
                                 result.count

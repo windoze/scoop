@@ -7,6 +7,8 @@ public enum Http1Event {
     Trailers(Array<HttpField>), End(Boolean), Switch
 }
 
+public struct Http1ReceiveResult(val count: Long, val startedMessages: Long)
+
 public class Http1Decoder private constructor(private var handle: ULong, public val role: HttpRole) : Closeable {
     public companion object {
         public fun client(options: Http1ReceiveOptions = Http1ReceiveOptions(), limits: Http1Limits = Http1Limits()): Http1Decoder =
@@ -66,6 +68,13 @@ public class Http1Decoder private constructor(private var handle: ULong, public 
     }
 
     public fun endInput() { @Unsafe { check(http1End(nativeHandle()), "finish HTTP/1 input") } }
+
+    public fun receiveWithProgress(buffer: NativeByteBuffer, count: Long = buffer.readableBytes): Http1ReceiveResult {
+        val consumed = receive(buffer, count)
+        if (count == 0L) return Http1ReceiveResult(0L, 0L)
+        @Unsafe { return Http1ReceiveResult(consumed, http1StartedMessages(nativeHandle())) }
+    }
+
     public fun resumeHttp1() { @Unsafe { check(http1Resume(nativeHandle()), "decline HTTP/1 upgrade", HttpFailureScope.Operation) } }
 
     public fun nextEvent(): Http1Event? {

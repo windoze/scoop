@@ -6,13 +6,13 @@ import scoop.platform.memory.NativeByteBuffer
 
 internal suspend fun adoptH2(transport: AsyncByteStream, owner: AsyncCloseable, scope: CoroutineScope,
     create: () -> Http2Session, settings: Http2Settings, ioTimeouts: HttpIoTimeoutOptions,
-    onEvent: (Http2Notice) -> Unit, upgrading: Boolean): AsyncHttp2Connection {
+    onEvent: (Http2Notice) -> Unit, upgrading: Boolean, captureTimings: Boolean = false): AsyncHttp2Connection {
     val loop = currentEventLoop()
     val caller = httpJob(loop, true)
     if (scope.job.isCompleted) throw IllegalStateException(Some("HTTP connection scope is closed"))
     scope.job.ensureActive()
     requireHttpIoTimeouts(ioTimeouts)
-    val state = allocateH2(create(), transport, owner, loop, settings.maxConcurrentStreams.toLong(), ioTimeouts, onEvent, upgrading)
+    val state = allocateH2(create(), transport, owner, loop, settings.maxConcurrentStreams.toLong(), ioTimeouts, onEvent, upgrading, captureTimings)
     try {
         scope.launch suspend {
             coroutineScope<Unit> suspend { owned ->
@@ -60,12 +60,12 @@ internal suspend fun adoptH2(transport: AsyncByteStream, owner: AsyncCloseable, 
 
 private fun allocateH2(session: Http2Session, transport: AsyncByteStream, owner: AsyncCloseable,
     loop: EventLoop, capacity: Long, ioTimeouts: HttpIoTimeoutOptions,
-    onEvent: (Http2Notice) -> Unit, upgrading: Boolean): H2State {
+    onEvent: (Http2Notice) -> Unit, upgrading: Boolean, captureTimings: Boolean): H2State {
     val input = try { NativeByteBuffer.allocate(16384L) }
         catch (error: Throwable) { session.close(); throw error }
     val output = try { NativeByteBuffer.allocate(16384L) }
         catch (error: Throwable) { session.close(); input.close(); throw error }
-    val state = H2State(session, transport, owner, loop, input, output, capacity, ioTimeouts, onEvent)
+    val state = H2State(session, transport, owner, loop, input, output, capacity, ioTimeouts, onEvent, captureTimings)
     if (upgrading) {
         val stream = H2Stream(1, ioTimeouts)
         if (session.role == HttpRole.Client) { stream.sendStarted = true; stream.sendEnded = true }
