@@ -34,6 +34,7 @@ pub(super) fn prepare_non_callable_strong_llvm_module<
         machine,
         profile,
         StrongObjectEmissionSelection::NonCallable,
+        &GlobalReferences::all(module),
         |context, llvm, _, bounds_message, array_size_message| {
             let emitted_initialization_units =
                 runtime_metadata_v1::emit_strong_runtime_metadata_v1(
@@ -64,8 +65,10 @@ pub(super) fn prepare_callable_strong_llvm_module<'ctx, D, C, I>(
     profile: ValidatedBackendProfile,
     expected: &statepoint::ExpectedSafepoints,
     function: &Function,
+    declarations: &ConeDeclarations,
 ) -> Result<PreparedCallableModule<'ctx>, CodegenError> {
     let body = function.callable_body.id();
+    let references = GlobalReferences::for_function(module, function, declarations);
     let (llvm, ()) = emit_llvm_module_with_surface(
         context,
         module,
@@ -77,12 +80,18 @@ pub(super) fn prepare_callable_strong_llvm_module<'ctx, D, C, I>(
         machine,
         profile,
         StrongObjectEmissionSelection::CallableBody(function),
+        &references,
         |context, llvm, _, _, _| {
             Ok((
                 runtime_metadata_v1::emit_callable_metadata_v1(
                     context, llvm, profile, production, body,
                 )?,
-                declare_initialization_unit_globals(context, llvm, module, production)?,
+                declare_initialization_unit_globals(
+                    context,
+                    llvm,
+                    &declarations.initialization_units,
+                    &references.initialization_units,
+                )?,
             ))
         },
     )?;

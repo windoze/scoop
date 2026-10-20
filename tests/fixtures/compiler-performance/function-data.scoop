@@ -1,0 +1,25 @@
+struct Number(val value: Int)
+class Unrelated(val text: String)
+
+var evaluations = 0
+fun seed(): Int { evaluations += 1; return 40 }
+val initial = seed()
+val greeting = "selected data"
+val unrelated = Unrelated("other data")
+
+fun number(value: Int): Any = Number(value)
+fun read(value: Any): Int = (value as Number).value
+fun <T> last(values: Array<T>): T = values[values.size - 1L]
+fun unused(value: Unrelated): String = value.text
+
+fun main() {
+    val values = [number(initial), number(2)]
+    println(read(values[0L]) + read(last(values)))
+    println(greeting)
+    println(evaluations)
+    try {
+        read("different type")
+    } catch (_: ClassCastException) {
+        println("cast checked")
+    }
+}

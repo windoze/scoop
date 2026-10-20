@@ -3,6 +3,10 @@ use super::*;
 mod callable_declarations;
 use callable_declarations::CallableDeclarations;
 
+mod global_declarations;
+mod global_references;
+use global_references::{ConeDeclarations, GlobalReferences};
+
 mod initialization;
 #[cfg(test)]
 pub(crate) use initialization::initialization_unit_globals_from_pairs;
@@ -62,13 +66,20 @@ fn emit_llvm_module_with_surface<'ctx, R>(
     machine: &TargetMachine,
     profile: ValidatedBackendProfile,
     selection: StrongObjectEmissionSelection<'_>,
+    references: &GlobalReferences,
     emit_runtime_metadata: impl FnOnce(
         &'ctx Context,
         &LlvmModule<'ctx>,
         &inkwell::targets::TargetData,
         GlobalValue<'ctx>,
         GlobalValue<'ctx>,
-    ) -> Result<(R, Vec<GlobalValue<'ctx>>), CodegenError>,
+    ) -> Result<
+        (
+            R,
+            BTreeMap<scoop_lir::InitializationUnitId, GlobalValue<'ctx>>,
+        ),
+        CodegenError,
+    >,
 ) -> Result<(LlvmModule<'ctx>, R), CodegenError> {
     let managed_address_space = profile.managed_address_space_contract();
     let llvm = context.create_module("scoop");
@@ -77,20 +88,15 @@ fn emit_llvm_module_with_surface<'ctx, R>(
     llvm.set_triple(&machine.get_triple());
     llvm.set_data_layout(&managed_address_space.data_layout(&target_data));
 
-    let ptr_ty = context.ptr_type(AddressSpace::default());
-    let i8_ty = context.i8_type();
-    let i64_ty = context.i64_type();
-
     let metadata_types = runtime_metadata_v1::RuntimeMetadataV1Types::new(context);
     let td_ty = metadata_types.type_descriptor();
-    // Declare every local and external descriptor before building any
-    // initializer. Semantic edges resolve through typed ids; symbols are read
-    // only from the selected entity at final emission.
-    let type_tds: Vec<GlobalValue> = module
-        .meta
-        .type_descriptors
+    // Metadata initializers use the complete graph; callable modules need
+    // only their typed references, without declarations for unrelated data.
+    let type_tds = references
+        .local_descriptors
         .iter()
-        .map(|(_, descriptor)| {
+        .map(|&id| {
+            let descriptor = &module.meta.type_descriptors[id];
             let concrete_td = metadata_types.type_descriptor_storage(
                 u32::try_from(descriptor.relations.related_types().len())
                     .expect("function arity fits its metadata count"),
@@ -102,34 +108,35 @@ fn emit_llvm_module_with_surface<'ctx, R>(
                 selection.defines_non_callable(),
             )?;
             global.set_constant(true);
-            Ok(global)
+            Ok((id, global))
         })
-        .collect::<Result<_, CodegenError>>()?;
-    let external_type_tds: Vec<GlobalValue> = module
-        .meta
-        .external_type_descriptors
+        .collect::<Result<BTreeMap<_, _>, CodegenError>>()?;
+    let external_type_tds = references
+        .external_descriptors
         .iter()
-        .map(|(_, descriptor)| {
+        .map(|&id| {
+            let descriptor = &module.meta.external_type_descriptors[id];
             let symbol = descriptor.expected_symbol().symbol();
             let global = llvm.add_global(td_ty, None, symbol.as_str());
             global.set_linkage(inkwell::module::Linkage::External);
-            global
+            (id, global)
         })
-        .collect();
+        .collect::<BTreeMap<_, _>>();
     let type_descriptor_globals = TypeDescriptorGlobals {
         local: &type_tds,
         external: &external_type_tds,
     };
-    let string_td = type_descriptor_global(
-        module.meta.well_known_type_descriptors.string,
-        type_descriptor_globals,
-    )?;
-    let array_tds: Vec<GlobalValue> = module
-        .meta
+    let array_tds = references
         .arrays
         .iter()
-        .map(|(_, array)| type_descriptor_global(array.type_descriptor, type_descriptor_globals))
-        .collect::<Result<_, _>>()?;
+        .map(|&id| {
+            type_descriptor_global(
+                module.meta.arrays[id].type_descriptor,
+                type_descriptor_globals,
+            )
+            .map(|global| (id, global))
+        })
+        .collect::<Result<BTreeMap<_, _>, _>>()?;
 
     let bounds_message = emit_cone_trap_message(
         context,
@@ -154,131 +161,16 @@ fn emit_llvm_module_with_surface<'ctx, R>(
         selection.defines_non_callable(),
     )?;
 
-    // Ordinary globals are disjoint from descriptor identities.
-    let mut globals: Vec<Option<GlobalValue>> = Vec::with_capacity(module.globals.len());
-    for (_, global) in module.globals.iter() {
-        match &global.init {
-            GlobalInit::ImportedStorage { definition, ty } => {
-                let scoop_lir::ShapeLinkContractV1::StaticStorage { storage_projection } =
-                    definition.contract()
-                else {
-                    return Err(CodegenError(format!(
-                        "imported storage `{}` has a non-storage contract",
-                        definition.symbol()
-                    )));
-                };
-                let logical_ty = basic_ty(
-                    context,
-                    &module.structs,
-                    &module.enums,
-                    managed_address_space,
-                    ty,
-                )?;
-                let logical_size = target_data.get_store_size(&logical_ty);
-                let logical_alignment = target_data.get_abi_alignment(&logical_ty);
-                if logical_size != storage_projection.byte_size()
-                    || u64::from(logical_alignment) != storage_projection.required_alignment()
-                {
-                    return Err(CodegenError(format!(
-                        "imported storage `{}` disagrees with its value layout",
-                        definition.symbol()
-                    )));
-                }
-                let storage_ty = if logical_size == 0 {
-                    i8_ty.into()
-                } else {
-                    logical_ty
-                };
-                let llvm_global = llvm.add_global(storage_ty, None, definition.symbol());
-                llvm_global.set_alignment(logical_alignment);
-                globals.push(Some(llvm_global));
-            }
-            GlobalInit::StringConst { identity, value } => {
-                // { ptr td, i64 gc_word, i64 len, [N x i8] data }
-                // (runtime spec 2.4; the 16-byte header is M9).
-                let bytes = value.as_bytes();
-                let ty = context.struct_type(
-                    &[
-                        ptr_ty.into(),
-                        i64_ty.into(),
-                        i64_ty.into(),
-                        i8_ty.array_type(bytes.len() as u32).into(),
-                    ],
-                    false,
-                );
-                let llvm_global =
-                    llvm.add_global(ty, Some(managed_address_space.inkwell()), global.symbol());
-                llvm_global.set_constant(true);
-                if selection.defines_non_callable() {
-                    llvm_global.set_initializer(&context.const_struct(
-                        &[
-                            string_td.as_pointer_value().into(),
-                            i64_ty.const_zero().into(),
-                            i64_ty.const_int(bytes.len() as u64, false).into(),
-                            context.const_string(bytes, false).into(),
-                        ],
-                        false,
-                    ));
-                }
-                apply_persistent_linkage(
-                    &llvm_global,
-                    identity.symbol_request(),
-                    selection.defines_non_callable(),
-                )?;
-                globals.push(Some(llvm_global));
-            }
-            GlobalInit::CString { identity, value } => {
-                // [N+1 x i8] c"...\00" (e.g. trap messages), emitted as a
-                // callable-owned support atom with a stable boundary symbol.
-                let bytes = value.as_bytes();
-                let ty = i8_ty.array_type(bytes.len() as u32 + 1);
-                let llvm_global = llvm.add_global(ty, None, global.symbol());
-                llvm_global.set_constant(true);
-                apply_persistent_linkage(
-                    &llvm_global,
-                    identity.symbol_request(),
-                    selection.defines_callable(identity.owner()),
-                )?;
-                if selection.defines_callable(identity.owner()) {
-                    llvm_global.set_initializer(&context.const_string(bytes, true));
-                    crate::metadata_sections::set_section(llvm_global, profile.c_string_section());
-                }
-                globals.push(Some(llvm_global));
-            }
-            GlobalInit::Storage { .. } | GlobalInit::RawStorage { .. } => {
-                let emitter = storage::StorageEmitter {
-                    context,
-                    llvm: &llvm,
-                    module,
-                    target_data: &target_data,
-                    managed_address_space,
-                    globals: &globals,
-                    surface,
-                    profile,
-                    define: selection.defines_non_callable(),
-                };
-                globals.push(Some(emitter.emit(global)?));
-            }
-        }
-    }
-    atom_boundaries::emit_global_atom_boundaries_v1(
+    let globals = global_declarations::emit(
+        context,
         &llvm,
+        module,
         surface,
-        module.globals.iter().filter_map(|(_, global)| {
-            let GlobalInit::CString { identity, .. } = &global.init else {
-                return None;
-            };
-            if !selection.defines_callable(identity.owner()) {
-                return None;
-            }
-            let owner = llvm
-                .get_global(identity.symbol())
-                .expect("the callable C string was emitted above");
-            Some(atom_boundaries::GlobalAtomMaterializationV1::new(
-                identity.atom_record().id(),
-                owner,
-            ))
-        }),
+        &target_data,
+        profile,
+        selection,
+        references,
+        type_descriptor_globals,
     )?;
     // Declare selected symbols before bodies to preserve forward and recursive
     // targets without introducing LLVM's automatic `.N` renaming.
@@ -403,14 +295,12 @@ fn emit_llvm_module_with_surface<'ctx, R>(
         if !matches!(selection, StrongObjectEmissionSelection::CallableBody(_)) {
             crate::elf_llvm::prepare(&llvm, surface)?;
         }
-        for global in external_type_tds {
+        for &global in external_type_tds.values() {
             crate::elf_llvm::apply_visibility(global);
         }
-        for ((_, global), emitted) in module.globals.iter().zip(&globals) {
-            if matches!(global.init, GlobalInit::ImportedStorage { .. }) {
-                crate::elf_llvm::apply_visibility(
-                    emitted.expect("imported storage has an LLVM global"),
-                );
+        for (&id, &emitted) in &globals {
+            if matches!(module.globals[id].init, GlobalInit::ImportedStorage { .. }) {
+                crate::elf_llvm::apply_visibility(emitted);
             }
         }
         for &id in &declarations.external {
@@ -507,7 +397,8 @@ pub(crate) fn emit_llvm_module<'ctx>(
         machine,
         profile,
         StrongObjectEmissionSelection::CompleteTestModule,
-        |_, _, _, _, _| Ok(((), Vec::new())),
+        &GlobalReferences::all(module),
+        |_, _, _, _, _| Ok(((), BTreeMap::new())),
     )
     .map(|(llvm, ())| llvm)
 }

@@ -8,6 +8,7 @@ mod constants;
 mod cstrings;
 mod no_gc;
 mod optimized;
+mod references;
 mod switches;
 
 #[test]

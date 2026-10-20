@@ -165,13 +165,10 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .into(),
             Value::RootScan(id) => self.root_scans[arena_index(id)].into(),
             Value::ContextKeyCell(key) => self.runtime_scans.context_cell(key)?.into(),
-            Value::Global(id) => self.globals[arena_index(id)]
-                .expect("ordinary globals are emitted")
-                .as_pointer_value()
-                .into(),
-            Value::InitializationUnit(id) => self.initialization_units[arena_index(id)]
-                .as_pointer_value()
-                .into(),
+            Value::Global(id) => self.globals[&id].as_pointer_value().into(),
+            Value::InitializationUnit(id) => {
+                self.initialization_units[&id].as_pointer_value().into()
+            }
             Value::CArgumentStorage(_) => {
                 return Err(CodegenError(
                     "C argument storage address escaped its native-safe call operand".to_string(),

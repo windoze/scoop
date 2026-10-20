@@ -92,7 +92,7 @@ pub(crate) fn llvm_constant<'ctx>(
     context: &'ctx Context,
     structs: &StructDefs,
     enums: &EnumDefs,
-    globals: &[Option<GlobalValue<'ctx>>],
+    globals: &BTreeMap<scoop_lir::GlobalId, GlobalValue<'ctx>>,
     managed_address_space: ManagedAddressSpace,
     expected_lir_ty: &LirType,
     value: &LirConstantImage,
@@ -155,8 +155,7 @@ pub(crate) fn llvm_constant<'ctx>(
                 ));
             }
             let pointer = globals
-                .get(global.into_raw().into_u32() as usize)
-                .and_then(|global| *global)
+                .get(global)
                 .ok_or_else(|| {
                     CodegenError(format!(
                         "global constant references unavailable global {}",

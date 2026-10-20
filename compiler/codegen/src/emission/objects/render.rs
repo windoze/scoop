@@ -17,13 +17,18 @@ pub fn render_llvm_ir_members(
             CodegenError(format!("cannot build strong production section: {error}"))
         })?;
     let expected_safepoints = statepoint::expectations(module)?;
+    let metadata_safepoints = expected_safepoints.without_body_sites();
+    let mut callable_safepoints = expected_safepoints.into_functions();
+    let declarations = ConeDeclarations::new(module, &production)?;
     let machine = profile.create_target_machine()?;
     let mut callables = BTreeMap::new();
     let elf_symbols = crate::elf_llvm::SymbolPlanIndex::new(production.canonical_definitions());
+    let context = Context::create();
     for function in module.callable_bodies() {
-        let context = Context::create();
         let body = function.callable_body.id();
-        let selected_safepoints = expected_safepoints.for_function(function.symbol())?;
+        let selected_safepoints = callable_safepoints
+            .remove(function.symbol())
+            .expect("the manifest collects every callable body");
         let prepared = prepare_callable_strong_llvm_module(
             &context,
             module,
@@ -33,12 +38,14 @@ pub fn render_llvm_ir_members(
             profile,
             &selected_safepoints,
             function,
+            &declarations,
         )?;
         callables.insert(
             body,
             (prepared.llvm.print_to_string().to_string(), prepared.plan),
         );
     }
+    drop(context);
     let constants = scoop_lir::CallableConstantKind::ALL.into_iter().collect();
     let foundation = finalization::finalize_production(
         input,
@@ -62,7 +69,7 @@ pub fn render_llvm_ir_members(
         &production,
         &machine,
         profile,
-        &expected_safepoints.without_body_sites(),
+        &metadata_safepoints,
     )?;
     let metadata =
         metadata_partition::MetadataModule::new(metadata_llvm, production.canonical_definitions())?;

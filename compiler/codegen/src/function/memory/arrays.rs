@@ -7,7 +7,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         &self,
         id: ArrayTypeId,
     ) -> (&ArrayType, GlobalValue<'ctx>) {
-        (&self.arrays[id], self.array_tds[arena_index(id)])
+        (&self.arrays[id], self.array_tds[&id])
     }
 
     /// Address of element `index` of an array object: the element

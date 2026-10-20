@@ -25,7 +25,7 @@
 //! rediscovers CFG liveness. Every `HeapStore` / `ArraySet` still emits the
 //! monotonic card mark reserved for a future generational collector.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::Path;
 
 use inkwell::attributes::{Attribute, AttributeLoc};

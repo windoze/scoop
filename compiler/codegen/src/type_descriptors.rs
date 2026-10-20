@@ -6,8 +6,8 @@ use crate::shape_definitions::{
 
 #[derive(Clone, Copy)]
 pub(super) struct TypeDescriptorGlobals<'a, 'ctx> {
-    pub(super) local: &'a [GlobalValue<'ctx>],
-    pub(super) external: &'a [GlobalValue<'ctx>],
+    pub(super) local: &'a BTreeMap<scoop_lir::TypeDescriptorId, GlobalValue<'ctx>>,
+    pub(super) external: &'a BTreeMap<scoop_lir::ExternalTypeDescriptorId, GlobalValue<'ctx>>,
 }
 
 pub(super) fn type_descriptor_global<'ctx>(
@@ -17,12 +17,12 @@ pub(super) fn type_descriptor_global<'ctx>(
     match reference {
         TypeDescriptorRef::Local(id) => globals
             .local
-            .get(arena_index(id))
+            .get(&id)
             .copied()
             .ok_or_else(|| CodegenError(format!("invalid local TypeDescriptor id {id:?}"))),
         TypeDescriptorRef::External(id) => globals
             .external
-            .get(arena_index(id))
+            .get(&id)
             .copied()
             .ok_or_else(|| CodegenError(format!("invalid external TypeDescriptor id {id:?}"))),
     }
@@ -51,8 +51,9 @@ pub(super) fn emit_strong_type_descriptors_v1<'ctx>(
         module,
         surface,
     };
-    for ((_, td), global) in module.meta.type_descriptors.iter().zip(type_globals.local) {
-        emit_type_descriptor(&emission, *global, td, shapes)?;
+    for (id, td) in module.meta.type_descriptors.iter() {
+        let global = type_descriptor_global(TypeDescriptorRef::Local(id), type_globals)?;
+        emit_type_descriptor(&emission, global, td, shapes)?;
     }
     Ok(())
 }

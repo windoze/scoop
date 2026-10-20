@@ -377,7 +377,9 @@ codegen 的 LLVM 发射入口只接收当前 Cone 的完整 LIR；不在后端�
 
 发射前的 ABI 规划入口只消费 LIR 定义的布局／签名数据，不读取 HIR 或重新解释 MIR 正文。具体 LLVM 初始化、CPU/features、data layout、机器栈与过程 ABI 规则归 codegen；目标布局描述与 backend contract 作为完整数据传递。Scoop producer 消费 LIR target/backend，generated-C 源码生成消费 LIR target/C toolchain 合同。宿主 compiler/SDK/sysroot 路径、环境与命令构造归 toolchain，driver 执行 generated-C 编译后将对象交回现有对象边界处理。输出可以有多个对象，物理分片数量与文件名不是 Cone 或实体身份。
 
-逐 callable 发射使用的整库函数 GC effect 表建立一次，函数计划及优化后计划共享这份只读数据。每个函数的 site 集合与根分组独立保存；保留已生成函数计划时不逐份复制整库属性表。共享只改变进程内所有权，不改变 GC effect 选择、safepoint 身份、输出或 ABI。
+逐 callable 发射使用的整库函数 GC effect 表建立一次，函数计划及优化后计划共享这份只读数据。每个函数的 site 集合在入口按所属 body 分组一次，与根分组独立保存；不为每个函数重新扫描整库 site 集合。保留已生成函数计划时不逐份复制整库属性表。共享只改变进程内所有权，不改变 GC effect 选择、safepoint 身份、输出或 ABI。
+
+每个 callable 的 LLVM module 只声明正文实际引用的类型描述符、数组描述符、普通全局量和初始化登记，并完整发射该 body 所属的 C 字符串等关联定义。归属和初始化登记的查询表按 Cone 建立一次；元数据分区仍取得其完整定义。逐函数 module 可复用同一个 LLVM Context，但对象、ODR、registration 与 GC 的物理选择边界保持独立，不以合并函数对象消除准备开销。
 
 元数据对象按已经确定的物理定义集合投影。实现先按对象序列逐层拆分候选模块，再从较小的模块生成最终对象，避免为每个对象重复复制全部 LLVM 元数据。每层只保留所选定义及其实际引用声明，沿用同一别名、TLS 边界与可见性处理；拆分过程不改变最终对象划分、符号、布局、注册内容或 ABI。
 
