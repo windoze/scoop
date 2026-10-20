@@ -67,16 +67,22 @@ int scoop_terminal_close(scoop_terminal *terminal) {
     return error == 0 ? 0 : -1;
 }
 
-int64_t scoop_terminal_write(scoop_terminal *terminal, const void *data, int64_t count) {
+int64_t scoop_terminal_try_write(scoop_terminal *terminal, const void *data, int64_t count) {
     if (count == 0)
         return 0;
     size_t length = count > INT_MAX ? INT_MAX : (size_t)count;
+    ssize_t result;
+    do {
+        result = write(terminal->fd, data, length);
+    } while (result < 0 && errno == EINTR);
+    return result;
+}
+
+int64_t scoop_terminal_write(scoop_terminal *terminal, const void *data, int64_t count) {
     for (;;) {
-        ssize_t result = write(terminal->fd, data, length);
+        int64_t result = scoop_terminal_try_write(terminal, data, count);
         if (result >= 0)
             return result;
-        if (errno == EINTR)
-            continue;
         if (errno != EAGAIN && errno != EWOULDBLOCK)
             return -1;
         struct pollfd wait = {.fd = terminal->fd, .events = POLLOUT};

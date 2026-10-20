@@ -56,6 +56,7 @@ public class LibuvEventLoop public constructor() : EventLoop {
 
     public override suspend fun openFile(path: Path, options: OpenOptions): AsyncFile =
         openFileOnLoop(this, path, options)
+    public override suspend fun openTty(): AsyncTty = openTtyOnLoop(this)
 
     public override suspend fun connectTcp(address: SocketAddress): AsyncTcpStream = connectTcpOnLoop(this, address)
     public override suspend fun listenTcp(address: SocketAddress, backlog: Int, reuseAddress: Boolean): AsyncTcpListener =

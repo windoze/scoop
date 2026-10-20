@@ -19,22 +19,3 @@ when = {os = ["darwin", "linux"]}
 
 [test-dependencies]
 "scoop:scoop.test" = "0.1.0"
-
-[native]
-c_flags = ["-std=c11", "-Wall", "-Wextra", "-Werror"]
-
-[[native.sources]]
-path = "native/unix/session.c"
-when = {os = ["darwin", "linux"]}
-[[native.sources]]
-path = "native/unix/control.c"
-when = {os = ["darwin", "linux"]}
-[[native.sources]]
-path = "native/unix/resize_linux.c"
-when = {os = "linux"}
-[[native.sources]]
-path = "native/unix/resize_darwin.c"
-when = {os = "darwin"}
-[[native.sources]]
-path = "native/unix/input.c"
-when = {os = ["darwin", "linux"]}

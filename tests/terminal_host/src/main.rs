@@ -26,10 +26,12 @@ fn run() -> Result<()> {
     if args.next().is_some()
         || !matches!(
             scenario,
-            "output" | "session" | "session-raw" | "clipboard" | "input" | "query"
+            "output" | "session" | "session-raw" | "clipboard" | "input" | "query" | "asyncio-tty"
         )
     {
-        bail!("usage: terminal-host output|session|session-raw|clipboard|input|query PROGRAM");
+        bail!(
+            "usage: terminal-host output|session|session-raw|clipboard|input|query|asyncio-tty PROGRAM"
+        );
     }
     let command = CommandBuilder::new(program);
     let mut host = if scenario == "session-raw" {
@@ -44,6 +46,7 @@ fn run() -> Result<()> {
         "clipboard" => clipboard::check(&mut host),
         "input" => input::check(&mut host),
         "query" => query::check(&mut host),
+        "asyncio-tty" => asyncio_tty::check(&mut host),
         _ => session::check(&mut host),
     }
     .and_then(|()| host.finish());
@@ -61,3 +64,4 @@ fn run() -> Result<()> {
     println!("terminal {scenario}: ok");
     Ok(())
 }
+mod asyncio_tty;

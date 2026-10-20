@@ -11,9 +11,9 @@
 | 样式与颜色策略 | 本机完成，PTY／Linux 随后验收 | 新增 11 项单测；全库 25 项 debug 与 release＋moving GC 均通过；2 项消费者 fixture、4 个变体通过 |
 | 事件数据与增量 parser | 本机完成，PTY／Linux 随后验收 | 新增 29 项单测；全库 54 项 debug 与 release＋moving GC 均通过；事件消费者 fixture 两个变体通过 |
 | Unix 会话、raw、resize、read／poll、查询 | 本机完成；Linux 随后验收 | 会话、输入、查询各自的 debug／release PTY fixture 通过 |
-| PTY host 与交互 fixture | 输出、输入、raw 与信号恢复本机完成；查询／异步随后补齐 | host 5 项测试、runner 51 项规则测试通过；各 PTY fixture 的 debug／release 变体通过 |
+| PTY host 与交互 fixture | 输出、输入、查询、raw、信号恢复与 asyncio TTY 本机完成 | host 5 项测试、runner 51 项规则测试通过；各 PTY fixture 的 debug／release 变体通过 |
 | Kitty／OSC 52 与组合覆盖 | 本机完成；Linux 随后验收 | Kitty 协议／探测单测和 PTY 场景通过；OSC 52 的 3 项单测及两个 PTY 消费者变体通过 |
-| asyncio TTY 与 terminal.asyncio | 待实施 | — |
+| asyncio TTY 与 terminal.asyncio | TTY 本机完成；终端异步适配待完成 | TTY 的 debug／release PTY fixture 和相关 TCP／UDP 回归通过 |
 | Linux GNU／musl 验收与清理 | 待实施 | — |
 
 ## 2. 工作约定与环境
@@ -87,3 +87,11 @@ Linux 使用非阻塞 self-pipe，保留原 handler、mask 及一次性语义，
 完成光标位置、主／次设备属性、键盘增强 flags 和支持检测。查询复用输入 reader、parser 与总截止时间，保留交错用户事件和 poll 已保留的事件；发送前丢弃已完成的旧内部回复。无请求 ID 的协议关联限制已写入规范，不把同类迟到回复宣称为可完全区分。Kitty 以主设备属性结束探测，区分 Some(0)、None 和超时。
 
 新增 3 项 Query 单测在 debug 与 release＋moving GC 下通过；同步输入 fixture 回归通过。查询 PTY fixture 的两个变体、4 个进程通过，覆盖 stdout／stdin 重定向、分片回复、用户事件保序、无关回复、正／零超时、缺少 Kitty 结束回复、解析错误、已排队旧回复和现有 raw 作用域。最终实际 termios 恢复；Rust fmt／Clippy 与 C 严格告警检查通过。Scoop 新文件最长 75 行，开发 sysroot 已发布。
+
+## 12. asyncio 的真实 TTY
+
+完成 EventLoop.openTty 和 AsyncTty，提供字节／resize／超时／EOF 接收、非阻塞输出、尺寸及 raw 控制。同步与异步的 native TTY owner 移至 platform，由两个实际使用者共享进程独占和恢复；libuv poll 观察自有 TTY 与原有通知 fd，不重新安装 signal handler。现有 TCP／UDP 的私有资源生命周期扩为三个端点共用，没有开放任意 fd 接管或私有 loop。
+
+真实 PTY 验证同步／异步相互独占、参数与借用检查、定时器在等待输入时继续运行、取消后继续读取、输出流控暂停下的取消及剩余字节、resize、规范模式 EOF、并发关闭、取消 Job 中恢复 raw，以及 loop 收尾关闭逸出资源。两个变体、4 个进程在 moving GC 下通过；连同同步会话／输入／查询回归，共 8 个变体、20 个进程通过。
+
+TCP 取消／关闭 3 项和 UDP 8 项回归在 release＋moving GC 下通过。C 严格告警检查、Rust fmt／Clippy、空白检查通过；新增生产文件最长 77 行，共用 owner 121 行。开发 sysroot 已发布，target 约 771 MiB；Linux 与 terminal.asyncio 验收仍待后续完成。

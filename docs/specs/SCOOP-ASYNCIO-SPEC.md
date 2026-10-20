@@ -1,12 +1,12 @@
 # Scoop 异步 I/O 库规范
 
-版本：M49。本文规定普通 Cone `scoop:scoop.asyncio:0.1.0` 的合同；实现及三目标验证见 [M49 验收](../milestone49/ACCEPTANCE.md)。
+版本：M49／M59。本文规定普通 Cone `scoop:scoop.asyncio:0.1.0` 的合同；原有能力三目标验证见 [M49 验收](../milestone49/ACCEPTANCE.md)，TTY 进度见 [M59 实施记录](../milestone59/PROGRESS.md)。
 
 ## 1. 分层与目标
 
 源码位于 `sysroot/src/scoop.asyncio/`，显式依赖 core、std、platform，测试依赖 scoop.test；公共声明属于 `scoop.asyncio`。不默认导入，不引入 compiler-known role、runtime 调度入口或新的 ABI。任务树使用语言规范 11.9.1～11.9.2；路径、地址、错误、时间和 buffer 直接复用平台库与标准库。
 
-首版支持 aarch64-apple-darwin、x86_64-unknown-linux-gnu、x86_64-unknown-linux-musl。LibuvEventLoop 使用固定的 libuv 1.53.0，源码、许可证和各目标 native 输入随 Cone 发布；不查找系统 libuv。C11 shim 只管理 native I/O、稳定存储及完成记录，worker／callback 不进入 managed 代码。TLS、HTTP、异步目录遍历、文件监听、进程／TTY 和任意 fd 接管不在本版范围。
+首版支持 aarch64-apple-darwin、x86_64-unknown-linux-gnu、x86_64-unknown-linux-musl。LibuvEventLoop 使用固定的 libuv 1.53.0，源码、许可证和各目标 native 输入随 Cone 发布；不查找系统 libuv。C11 shim 只管理 native I/O、稳定存储及完成记录，worker／callback 不进入 managed 代码。TLS、HTTP、异步目录遍历、文件监听、进程和任意 fd 接管不在本版范围；M59 增加第 9 节的自有 TTY。
 
 Linux C 工具链同时需要所选 libc 的开发头文件和对应架构的 Linux UAPI 头文件（包括 linux/errqueue.h）。只带 musl libc 的 musl-gcc 包装器须补齐内核头文件搜索路径，可通过普通 --cc 包装脚本配置；不把 glibc 用户态头文件加入 musl 的搜索路径。
 
@@ -21,6 +21,7 @@ public interface EventLoop {
     public suspend fun listenTcp(address: SocketAddress, backlog: Int = 128, reuseAddress: Boolean = false): AsyncTcpListener
     public suspend fun bindUdp(address: SocketAddress, reuseAddress: Boolean = false): AsyncUdpSocket
     public suspend fun openFile(path: Path, options: OpenOptions = OpenOptions()): AsyncFile
+    public suspend fun openTty(): AsyncTty
 }
 public class LibuvEventLoop public constructor() : EventLoop
 public fun <T> EventLoop.runWithResult(block: suspend (CoroutineScope) -> T): T
@@ -128,3 +129,49 @@ openFile 使用 Path／OpenOptions 的已有合同。文件 open／read／write�
 native request 持有预留完成节点；C callback 仅存状态和进度、入 native 队列，managed 在 NativeSafe 返回握手后消费。操作编号在完成消费前不复用。managed 使用普通带类型操作与结果，不以可空字段猜测不同事件。提交同步失败走同一释放路径。libuv 及相关系统库按语言规范 12.2.1～12.2.3 的普通 native 输入链接；三目标不启用 io_uring。
 
 主要验收为同 Cone scoop.test：真实 loopback 动态端口、无公网 DNS、真实文件、Context、取消／关闭竞争、部分进度、原始错误、SIGPIPE 及 moving GC。竞争用明确同步点，测试源码和工具始终存在。详细边界见 [M49 设计第 14 节](../milestone49/DESIGN.md#142-异步-io)。
+
+## 9. 自有 TTY
+
+```scoop
+public struct TtySize(val columns: Long, val rows: Long,
+    val widthPixels: Long, val heightPixels: Long)
+public enum TtyRead {
+    Bytes(val count: Long), Resize(val columns: Long, val rows: Long), End, TimedOut
+}
+public interface AsyncTty : AsyncByteSink, AsyncCloseable {
+    public val isClosed: Boolean
+    public suspend fun receive(buffer: NativeByteBuffer, count: Long,
+        timeout: Duration? = None): TtyRead
+    public suspend fun size(): TtySize
+    public suspend fun isRawMode(): Boolean
+    public suspend fun enableRawMode()
+    public suspend fun disableRawMode()
+}
+```
+
+openTty 通过 platform 的共同 owner 取得实际终端与 resize 通知，每进程最多
+一个活动 owner，包括同步 terminal 会话。失败清理所有已取得的资源；取消
+选定后才完成的 open 先关闭未交付 owner。库不接管调用者 fd，不改变 stdin
+的 O_NONBLOCK，不增加后台读取线程。
+
+receive 同时等待字节与 resize，使用 libuv poll 观察自有 fd，实际 read 为
+非阻塞 syscall。正 count 返回正 Bytes、End、Resize 或 TimedOut；count 为 0
+在状态、参数和取消检查后返回 Bytes(0)，不表示 EOF。None 无限等待，非负
+timeout 使用单调总时间；零不等待。resize 可合并为最后实际尺寸，通知本身
+不占用字节 buffer。收到 End 后后续正 receive 继续返回 End。
+
+同一资源允许各一个 receive 和 writeFrom 同时在途；模式和尺寸控制要求两个
+方向都空闲。flush 沿无缓冲输出合同。所有原生操作在所属 loop 线程执行；
+不把同步阻塞 poll／write 包在 suspend 函数内。SIGWINCH 沿终端规范的
+Linux self-pipe／Darwin kqueue 实现，由 libuv poll 观察通知 fd，避免另装
+libuv signal handler 改变应用原 disposition。
+
+取消停止 poll／timer 后记录一次终止，借用按实际字节进度提交后才恢复。
+取消已经选定时到达的 resize 保留给下一次 receive；End 保留为输入终态。
+单次取消不关闭健康 TTY。关闭拒绝新操作，结束在途等待，等待借用释放和
+全部 libuv close callback，再恢复 raw 并释放共同 owner；run 收尾同样执行。
+原生错误保留 PosixErrno／Libuv 来源；恢复失败也继续消费所有资源。
+
+disableRawMode 和 isRawMode 允许已取消 Job 在所属活动 loop 中进行清理，
+不因此接受其他被取消的 I/O。模式的幂等、快照与恢复沿终端规范第 7 节。
+async raw 作用域使用这两个入口和 useAsync，GC 不承担恢复。

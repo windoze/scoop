@@ -5,7 +5,7 @@ import scoop.platform.net.Datagram
 
 private class ReceiveProgress { var count: Long = 0L }
 
-internal suspend fun receiveUdp(owner: OwnedSocket, buffer: NativeByteBuffer, count: Long): Datagram {
+internal suspend fun receiveUdp(owner: OwnedEndpoint, buffer: NativeByteBuffer, count: Long): Datagram {
     val job = owner.loop.requireJob()
     val reservation = owner.reserve(false)
     try {
@@ -15,7 +15,7 @@ internal suspend fun receiveUdp(owner: OwnedSocket, buffer: NativeByteBuffer, co
 }
 
 @Unsafe
-private suspend fun receiveBorrowed(owner: OwnedSocket, buffer: NativeByteBuffer, count: Long, job: Job): Datagram {
+private suspend fun receiveBorrowed(owner: OwnedEndpoint, buffer: NativeByteBuffer, count: Long, job: Job): Datagram {
     val borrowed = buffer.borrowWritable(count)
     val progress = ReceiveProgress()
     try {

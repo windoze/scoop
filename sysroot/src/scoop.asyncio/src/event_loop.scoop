@@ -10,6 +10,7 @@ public interface EventLoop {
     public suspend fun sleep(duration: Duration)
     public suspend fun resolve(host: OsString, port: Int, family: AddressFamily? = None): Array<SocketAddress>
     public suspend fun openFile(path: Path, options: OpenOptions = OpenOptions()): AsyncFile
+    public suspend fun openTty(): AsyncTty
     public suspend fun bindUdp(address: SocketAddress, reuseAddress: Boolean = false): AsyncUdpSocket
     public suspend fun connectTcp(address: SocketAddress): AsyncTcpStream
     public suspend fun listenTcp(address: SocketAddress, backlog: Int = 128, reuseAddress: Boolean = false): AsyncTcpListener

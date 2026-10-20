@@ -51,7 +51,7 @@
 
 | 组成 | 职责 | 依赖 |
 | --- | --- | --- |
-| `scoop:scoop.terminal:0.1.0` | 命令、样式、事件值、增量 parser、同步终端会话与 Unix shim | core、std、platform；测试依赖 scoop.test |
+| `scoop:scoop.terminal:0.1.0` | 命令、样式、事件值、增量 parser、同步终端会话与 Unix 适配；native TTY owner 由 platform 供同步／异步共用 | core、std、platform；测试依赖 scoop.test |
 | `scoop:scoop.terminal.asyncio:0.1.0` | 异步读取、等待、取消与关闭，使用 terminal 的协议逻辑 | terminal、asyncio 及直接使用的基础库 |
 | Rust PTY test host | 启动 Scoop 可执行文件、模拟终端、发送输入、断言屏幕和协议 | 仅测试使用；portable-pty、vt100 等 |
 
@@ -201,7 +201,7 @@ core 的 `exit` 走 `_exit`，不运行 finally、release 或 atexit；SIGKILL �
 
 crossterm 的 EventStream 是可选能力。Scoop 同步终端库保持独立，异步使用单独的 `scoop.terminal.asyncio`；两者复用输入 parser、事件值与查询状态，不能为 EventStream 复制一套协议实现。
 
-现有 asyncio 的公开范围明确排除 TTY。实现异步事件前，需要先在 asyncio 规范中增加实际需要的 TTY 操作与 native 生命周期，使用现有 libuv 的 [TTY](https://docs.libuv.org/en/v1.x/tty.html)／[signal](https://docs.libuv.org/en/v1.x/signal.html)能力。只有有具体需要的操作才成为公开能力，不为 terminal 开放整个私有 loop 或泛化任意 fd 接管。
+M49 的公开范围不包含 TTY；M59 在 asyncio 规范第 9 节增加 openTty、带字节／resize／超时结果的 receive、输出和模式控制。同步与异步共用 platform 的 native TTY owner，统一独占与实际 termios 恢复。使用 libuv poll 观察自有非阻塞 TTY 与通知 fd，避免 libuv signal 另装 handler 改变原 disposition。只有有具体需要的操作才成为公开能力，不为 terminal 开放整个私有 loop 或泛化任意 fd 接管。
 
 异步合同至少包括：唯一读取者、取消与完成竞争的一次结果选择、真实 native 停止后解除 buffer 借用、读取取消不丢失已排队事件、关闭排空 native callback、恢复终端状态，以及 loop 退出后的资源失效。同步 signal 机制与 libuv signal 不能同时争用同一会话。
 

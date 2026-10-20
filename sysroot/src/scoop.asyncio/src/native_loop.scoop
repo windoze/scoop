@@ -9,7 +9,8 @@ internal struct NativeCreated(val pointer: Ptr<Unit>?, val status: Int)
 internal struct NativeRecord(val id: Long, val kind: Int, val code: Int, val count: Long, val resource: Ptr<Unit>?)
 
 internal enum IoResult {
-    Done, Bytes(Long), Eof, Created(Ptr<Unit>), Addresses(Ptr<Unit>?), Packet(Datagram), Failed(NativeError, Long)
+    Done, Bytes(Long), Eof, Created(Ptr<Unit>), Addresses(Ptr<Unit>?), Packet(Datagram), Failed(NativeError, Long),
+    TtyResize(Long, Long), TtyTimeout, TtySizeValue(TtySize), TtyMode(Boolean)
 }
 internal struct NativeEvent(val id: Long, val result: IoResult)
 internal enum IoStart { Pending, Finished(NativeEvent) }
@@ -29,6 +30,8 @@ internal fun decodeEvent(record: NativeRecord): NativeEvent = NativeEvent(record
     case 7 -> IoResult.Failed(NativeError(NativeErrorDomain.AddressResolution, record.code,
         if (record.count < 0L) None else Some(record.count.toInt())), 0L)
     case 8 -> IoResult.Packet(takeDatagram(record.resource!!))
+    case 9 -> IoResult.TtyResize(record.count shr 32L, record.count and 4294967295L)
+    case 10 -> IoResult.TtyTimeout
     else -> throw IllegalStateException(Some("invalid native I/O event"))
 })
 

@@ -1,6 +1,7 @@
 #define _GNU_SOURCE 1
 #include "terminal.h"
 #include <errno.h>
+#include <limits.h>
 #include <poll.h>
 #include <unistd.h>
 
@@ -28,7 +29,7 @@ int scoop_terminal_wait(scoop_terminal *terminal, int milliseconds) {
 }
 
 int64_t scoop_terminal_read(scoop_terminal *terminal, void *bytes, int64_t count, bool hung_up) {
-    ssize_t result = read(terminal->fd, bytes, (size_t)count);
+    ssize_t result = read(terminal->fd, bytes, count > INT_MAX ? INT_MAX : (size_t)count);
     if (result < 0 && hung_up && (errno == EIO || errno == EAGAIN || errno == EWOULDBLOCK))
         return 0;
     return result;

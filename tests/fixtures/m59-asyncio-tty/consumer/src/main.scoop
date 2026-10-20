@@ -1,0 +1,73 @@
+import scoop.asyncio.*
+import scoop.platform.io.standardOutput
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.time.*
+import scoop.terminal.*
+import scoop.terminal.screen.SetTitle
+import scoop.time.Duration
+
+fun main() {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { scope ->
+        loop.openTty().useAsync suspend { tty ->
+            ownership(loop, tty)
+            basic(tty)
+            tty.enableRawMode()
+            val size = tty.size()
+            check(size.columns == 20L && size.rows == 8L, "initial TTY size")
+            progress(loop, scope, tty)
+            cancellation(loop, scope, tty)
+            blockedOutput(loop, scope, tty)
+            NativeByteBuffer.allocate(8L).use suspend { buffer ->
+                stage(tty, "tty-resize")
+                check(tty.receive(buffer, 8L) == TtyRead.Resize(35L, 15L), "async resize")
+                check(buffer.writePosition == 0L, "resize leaves buffer unchanged")
+                readByte(tty, 107)
+            }
+            tty.disableRawMode()
+            check(!tty.isRawMode(), "disabled raw mode")
+            stage(tty, "tty-restored")
+            readByte(tty, 10)
+        }
+        lifecycle(loop, scope)
+    }
+    standardOutput.execute(SetTitle("tty-loop-closed"))
+    TerminalSession.open().use { session -> session.read() }
+    val endLoop: EventLoop = LibuvEventLoop()
+    endLoop.run suspend { _ ->
+        endLoop.openTty().useAsync suspend { tty ->
+            NativeByteBuffer.allocate(1L).use suspend { buffer ->
+                stage(tty, "tty-eof")
+                check(tty.receive(buffer, 1L) == TtyRead.End, "canonical EOF")
+                check(tty.receive(buffer, 1L) == TtyRead.End, "stable EOF")
+            }
+        }
+    }
+    standardOutput.execute(SetTitle("tty-finished"))
+}
+
+suspend fun basic(tty: AsyncTty) {
+    NativeByteBuffer.allocate(1L).use suspend { buffer ->
+        check(tty.receive(buffer, 0L) == TtyRead.Bytes(0L), "zero receive")
+        check(tty.receive(buffer, 1L, Some(Duration.ZERO)) == TtyRead.TimedOut, "zero timeout")
+        val start = MonotonicTimeSource.markNow()
+        check(tty.receive(buffer, 1L, Some(Duration.milliseconds(20L))) == TtyRead.TimedOut, "finite timeout")
+        check(start.elapsedNow() >= Duration.milliseconds(20L), "timeout must not complete early")
+        var rejected = false
+        try { tty.receive(buffer, 1L, Some(Duration.nanoseconds(-1L))) }
+        catch (_: IllegalArgumentException) { rejected = true }
+        check(rejected, "negative timeout")
+        rejected = false
+        try { tty.receive(buffer, 2L) }
+        catch (_: IndexOutOfBoundsException) { rejected = true }
+        check(rejected, "buffer bounds")
+        buffer.clear()
+    }
+}
+
+suspend fun progress(loop: EventLoop, scope: CoroutineScope, tty: AsyncTty) {
+    val pending = scope.launch suspend { readByte(tty, 116) }
+    loop.sleep(Duration.milliseconds(10L))
+    stage(tty, "tty-tick")
+    pending.join()
+}
