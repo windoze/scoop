@@ -1,8 +1,25 @@
 package scoop.terminal.clipboard
 
+/**
+ * One OSC 52 clipboard/selection destination.
+ */
 public enum ClipboardType {
-    Clipboard, Primary, Other(val selector: Char)
+    /**
+     * The conventional clipboard selector.
+     */
+    Clipboard,
+        /**
+         * The primary selection selector.
+         */
+        Primary,
+        /**
+         * Another explicitly supplied OSC 52 selector.
+         */
+        Other(val selector: Char)
 
+    /**
+     * Returns this destination's protocol selector character.
+     */
     public fun selector(): Char = when (this) {
         case Clipboard -> 'c'
         case Primary -> 'p'
@@ -10,7 +27,13 @@ public enum ClipboardType {
     }
 }
 
+/**
+ * An ordered set of OSC 52 destination selectors.
+ */
 public struct ClipboardSelection(val destinations: Array<ClipboardType>) : ToString {
+    /**
+     * Serializes the selected protocol characters.
+     */
     public override fun toString(): String {
         val writer = StringWriter()
         for (destination in destinations) {
@@ -21,10 +44,22 @@ public struct ClipboardSelection(val destinations: Array<ClipboardType>) : ToStr
         return writer.toString()
     }
 
+    /**
+     * Common clipboard selections and validated selector parsing.
+     */
     public companion object {
+        /**
+         * The conventional clipboard destination.
+         */
         public val clipboard: ClipboardSelection = ClipboardSelection([ClipboardType.Clipboard])
+        /**
+         * The primary-selection destination.
+         */
         public val primary: ClipboardSelection = ClipboardSelection([ClipboardType.Primary])
 
+        /**
+         * Parses valid selector characters, returning None for invalid input.
+         */
         public fun parseOrNone(text: String): ClipboardSelection? {
             val values = ArrayList<ClipboardType>()
             for (selector in text) {
@@ -38,6 +73,9 @@ public struct ClipboardSelection(val destinations: Array<ClipboardType>) : ToStr
             return Some(ClipboardSelection(Array<ClipboardType>(values.size) { index -> values[index] }))
         }
 
+        /**
+         * Parses selector characters or throws for invalid input.
+         */
         public fun parse(text: String): ClipboardSelection = parseOrNone(text)
             ?: throw IllegalArgumentException(Some("invalid clipboard selection"))
     }

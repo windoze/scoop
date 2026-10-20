@@ -2,9 +2,32 @@ package scoop.terminal.protocol
 
 import scoop.terminal.event.*
 
+/**
+ * One parser result, separating user events, query replies, and malformed input.
+ */
 public enum InputItem {
-    User(val event: Event), CursorPosition(val column: Long, val row: Long),
+    /**
+     * An ordinary user-facing event.
+     */
+    User(val event: Event),
+        /**
+         * A cursor-position reply with zero-based column and row.
+         */
+        CursorPosition(val column: Long, val row: Long),
+    /**
+     * A reported enhanced-keyboard flag set.
+     */
     KeyboardFlags(val flags: KeyboardEnhancementFlags),
+    /**
+     * Primary or secondary device-attribute parameters.
+     */
     DeviceAttributes(val secondary: Boolean, val parameters: Array<Long>),
-    DeviceStatus(val status: Long), Invalid(val detail: String)
+    /**
+     * A device-status reply value.
+     */
+    DeviceStatus(val status: Long),
+        /**
+         * Malformed or incomplete terminal protocol input with an explanation.
+         */
+        Invalid(val detail: String)
 }

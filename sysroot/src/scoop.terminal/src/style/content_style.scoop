@@ -1,22 +1,46 @@
 package scoop.terminal.style
 
+/**
+ * An immutable combination of optional foreground/background/underline colors and SGR attributes.
+ */
 public struct ContentStyle(
     val foregroundColor: Color? = None,
     val backgroundColor: Color? = None,
     val underlineColor: Color? = None,
     val attributes: Attributes = Attributes()
 ) {
+    /**
+     * Returns a copy with the selected optional foreground color.
+     */
     public fun withForegroundColor(color: Color?): ContentStyle =
         ContentStyle(color, backgroundColor, underlineColor, attributes)
+    /**
+     * Returns a copy with the selected optional background color.
+     */
     public fun withBackgroundColor(color: Color?): ContentStyle =
         ContentStyle(foregroundColor, color, underlineColor, attributes)
+    /**
+     * Returns a copy with the selected optional underline color.
+     */
     public fun withUnderlineColor(color: Color?): ContentStyle =
         ContentStyle(foregroundColor, backgroundColor, color, attributes)
+    /**
+     * Returns a copy with the selected attribute included.
+     */
     public fun withAttribute(attribute: Attribute): ContentStyle =
         ContentStyle(foregroundColor, backgroundColor, underlineColor, attributes.with(attribute))
+    /**
+     * Returns a copy without the selected attribute.
+     */
     public fun withoutAttribute(attribute: Attribute): ContentStyle =
         ContentStyle(foregroundColor, backgroundColor, underlineColor, attributes.without(attribute))
+    /**
+     * Pairs this style with content without writing to a terminal.
+     */
     public fun <T : ToString> apply(content: T): StyledContent<T> = StyledContent(this, content)
 }
 
+/**
+ * Pairs the receiver with a style for later ANSI serialization.
+ */
 public fun <T : ToString> T.styled(style: ContentStyle = ContentStyle()): StyledContent<T> = style.apply(this)

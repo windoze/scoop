@@ -3,7 +3,14 @@ package scoop.terminal.style
 import scoop.terminal.Command
 import scoop.terminal.toAnsiString
 
+/**
+ * Applies the selected style without printing content or automatically restoring it.
+ */
 public struct SetStyle(val style: ContentStyle) : Command {
+    /**
+     * Writes this command's ANSI representation to the supplied writer without flushing it.
+     * Parameter validation happens before or during serialization.
+     */
     public override fun writeAnsi(writer: TextWriter) { writer.write(styleSequence(style, isColorOutputEnabled())) }
 }
 
@@ -30,7 +37,15 @@ internal fun styleSequence(style: ContentStyle, colors: Boolean): String {
     return writer.toString()
 }
 
+/**
+ * Serializes style, content, and the corresponding reset commands. It restores terminal defaults
+ * for changed channels rather than saving and restoring an arbitrary prior style.
+ */
 public struct StyledContent<T : ToString>(val style: ContentStyle, val content: T) : Command, ToString {
+    /**
+     * Writes this command's ANSI representation to the supplied writer without flushing it.
+     * Parameter validation happens before or during serialization.
+     */
     public override fun writeAnsi(writer: TextWriter) {
         val text = content.toString()
         val colors = isColorOutputEnabled()
@@ -45,5 +60,8 @@ public struct StyledContent<T : ToString>(val style: ContentStyle, val content: 
         }
     }
 
+    /**
+     * Returns the complete ANSI-styled content string using the current color policy.
+     */
     public override fun toString(): String = toAnsiString()
 }

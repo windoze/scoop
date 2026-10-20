@@ -5,9 +5,18 @@ import scoop.text.contains
 
 private val colorOverride: AtomicInt = AtomicInt(-1)
 
+/**
+ * Sets a process-wide explicit color-output decision, overriding the environment-derived policy.
+ */
 public fun forceColorOutput(enabled: Boolean) { colorOverride.store(if (enabled) 1 else 0) }
+/**
+ * Clears the explicit color decision so environment policy applies again.
+ */
 public fun resetColorOutput() { colorOverride.store(-1) }
 
+/**
+ * Returns the explicit override when set; otherwise a nonempty NO_COLOR disables color output.
+ */
 public fun isColorOutputEnabled(): Boolean {
     val decision = colorOverride.load()
     if (decision >= 0) return decision != 0
@@ -17,6 +26,10 @@ public fun isColorOutputEnabled(): Boolean {
     }
 }
 
+/**
+ * Estimates color capability from COLORTERM or TERM: 65535 for true-color markers, 256 for a
+ * 256-color marker, otherwise 8. This does not probe the terminal.
+ */
 public fun availableColorCount(): Long {
     val value = when (environmentVariable("COLORTERM")) {
         case Some(text) -> Some(text)

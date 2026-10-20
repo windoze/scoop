@@ -5,16 +5,39 @@ import scoop.terminal.event.KeyboardEnhancementFlags
 import scoop.terminal.internal.input.*
 import scoop.time.Duration
 
+/**
+ * A zero-based cursor cell coordinate.
+ */
 public struct CursorPosition(val column: Long, val row: Long)
-public enum DeviceAttributeKind { Primary, Secondary }
+/**
+ * Selects primary capability attributes or secondary identification attributes.
+ */
+public enum DeviceAttributeKind {
+    /**
+     * Primary terminal capability attributes.
+     */
+    Primary,
+    /**
+     * Secondary terminal identification attributes.
+     */
+    Secondary }
+/**
+ * A terminal query did not obtain its matching reply before the requested deadline.
+ */
 public class TerminalQueryTimeoutException public constructor() : Exception(Some("terminal query timed out"))
 
+/**
+ * Queries the terminal's zero-based cursor position within a bounded wait.
+ */
 public fun TerminalSession.cursorPosition(timeout: Duration = Duration.seconds(1L)): CursorPosition =
     when (query(QueryKind.Cursor, timeout)) {
         case InputItem.CursorPosition(column, row) -> CursorPosition(column, row)
         case _ -> throw IllegalStateException(Some("unexpected cursor query result"))
     }
 
+/**
+ * Queries the selected device-attribute family and returns its numeric parameters.
+ */
 public fun TerminalSession.deviceAttributes(kind: DeviceAttributeKind = DeviceAttributeKind.Primary,
     timeout: Duration = Duration.seconds(1L)): Array<Long> {
     val request = if (kind == DeviceAttributeKind.Primary) QueryKind.Primary else QueryKind.Secondary
@@ -24,6 +47,10 @@ public fun TerminalSession.deviceAttributes(kind: DeviceAttributeKind = DeviceAt
     }
 }
 
+/**
+ * Queries enhanced-keyboard support; None means the terminal completed the capability probe
+ * without reporting flags.
+ */
 public fun TerminalSession.keyboardEnhancementFlags(
     timeout: Duration = Duration.seconds(1L)): KeyboardEnhancementFlags? = when (query(QueryKind.Keyboard, timeout)) {
     case InputItem.KeyboardFlags(flags) -> Some(flags)
@@ -31,5 +58,8 @@ public fun TerminalSession.keyboardEnhancementFlags(
     case _ -> throw IllegalStateException(Some("unexpected keyboard query result"))
 }
 
+/**
+ * Returns whether the terminal reports enhanced-keyboard flags during the bounded query.
+ */
 public fun TerminalSession.supportsKeyboardEnhancement(timeout: Duration = Duration.seconds(1L)): Boolean =
     keyboardEnhancementFlags(timeout) != None

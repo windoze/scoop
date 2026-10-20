@@ -1,5 +1,9 @@
 package scoop.terminal
 
+/**
+ * Runs the block with raw mode enabled and restores the previous raw-mode state on normal or
+ * exceptional exit.
+ */
 public fun <R> TerminalSession.withRawMode(block: () -> R): R {
     val scope = RawModeScope(this)
     scope.enter()

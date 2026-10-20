@@ -5,6 +5,10 @@ import scoop.terminal.event.*
 import scoop.terminal.internal.input.*
 import scoop.time.Duration
 
+/**
+ * A pure incremental terminal byte parser. Feed monotonically nondecreasing times so Escape
+ * ambiguity can expire deterministically; parser methods perform no terminal I/O.
+ */
 public class InputParser public constructor(internal val escapeDelay: Duration = Duration.milliseconds(50L)) {
     internal var mode: InputMode = InputMode.Ground
     internal val pending: ArrayList<Byte> = ArrayList<Byte>()
@@ -20,16 +24,28 @@ public class InputParser public constructor(internal val escapeDelay: Duration =
         if (escapeDelay < Duration.ZERO) throw IllegalArgumentException(Some("negative Escape delay"))
     }
 
+    /**
+     * Whether a parsed item is ready to remove.
+     */
     public val hasPending: Boolean get() = output.size != 0L
 
+    /**
+     * Consumes a byte chunk at the supplied monotonic elapsed time and raw-mode interpretation.
+     */
     public fun feed(bytes: List<Byte>, now: Duration, rawMode: Boolean = true) {
         observeTime(now, false)
         raw = rawMode
         for (byte in bytes) acceptByte(byte.toInt() and 255, now)
     }
 
+    /**
+     * Advances parser time without new bytes and expires pending Escape ambiguity when due.
+     */
     public fun advance(now: Duration) { observeTime(now, true) }
 
+    /**
+     * Queues a resize event with nonnegative terminal dimensions.
+     */
     public fun feedResize(columns: Long, rows: Long) {
         if (ended) throw IllegalStateException(Some("input parser has ended"))
         if (columns < 0L || rows < 0L) throw IllegalArgumentException(Some("negative terminal size"))
@@ -44,14 +60,24 @@ public class InputParser public constructor(internal val escapeDelay: Duration =
             && now - escapeStarted!! >= escapeDelay) expireEscape()
     }
 
+    /**
+     * The remaining Escape ambiguity delay, or None when no Escape sequence is pending.
+     */
     public val escapeRemaining: Duration? get() {
         if (escapeStarted == None) return None
         val elapsed = lastTime - escapeStarted!!
         return Some(if (elapsed >= escapeDelay) Duration.ZERO else escapeDelay - elapsed)
     }
 
+    /**
+     * Removes the next queued item, or None when the queue is empty.
+     */
     public fun next(): InputItem? = output.removeFirstOrNone()
 
+    /**
+     * Marks input ended, emitting a lone Escape key or an invalid incomplete sequence as needed.
+     * Repeated finish is harmless.
+     */
     public fun finish() {
         if (ended) return
         if (mode == InputMode.Escape) output.addLast(userKey(KeyCode.Esc))

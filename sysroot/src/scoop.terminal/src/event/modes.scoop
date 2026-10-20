@@ -2,30 +2,72 @@ package scoop.terminal.event
 
 import scoop.terminal.Command
 
+/**
+ * Enables the supported mouse reporting modes, including SGR coordinate reports.
+ */
 public object EnableMouseCapture : Command {
+    /**
+     * Writes this command's ANSI representation to the supplied writer without flushing it.
+     * Parameter validation happens before or during serialization.
+     */
     public override fun writeAnsi(writer: TextWriter) {
         writer.write("\u001b[?1000h\u001b[?1002h\u001b[?1003h\u001b[?1015h\u001b[?1006h")
     }
 }
 
+/**
+ * Disables the mouse reporting modes enabled by this library.
+ */
 public object DisableMouseCapture : Command {
+    /**
+     * Writes this command's ANSI representation to the supplied writer without flushing it.
+     * Parameter validation happens before or during serialization.
+     */
     public override fun writeAnsi(writer: TextWriter) {
         writer.write("\u001b[?1006l\u001b[?1015l\u001b[?1003l\u001b[?1002l\u001b[?1000l")
     }
 }
 
+/**
+ * Requests focus-gained and focus-lost reports.
+ */
 public object EnableFocusChange : Command {
+    /**
+     * Writes this command's ANSI representation to the supplied writer without flushing it.
+     * Parameter validation happens before or during serialization.
+     */
     public override fun writeAnsi(writer: TextWriter) { writer.write("\u001b[?1004h") }
 }
 
+/**
+ * Stops focus-change reporting.
+ */
 public object DisableFocusChange : Command {
+    /**
+     * Writes this command's ANSI representation to the supplied writer without flushing it.
+     * Parameter validation happens before or during serialization.
+     */
     public override fun writeAnsi(writer: TextWriter) { writer.write("\u001b[?1004l") }
 }
 
+/**
+ * Requests bracketed-paste begin/end delimiters around pasted text.
+ */
 public object EnableBracketedPaste : Command {
+    /**
+     * Writes this command's ANSI representation to the supplied writer without flushing it.
+     * Parameter validation happens before or during serialization.
+     */
     public override fun writeAnsi(writer: TextWriter) { writer.write("\u001b[?2004h") }
 }
 
+/**
+ * Stops bracketed-paste reporting.
+ */
 public object DisableBracketedPaste : Command {
+    /**
+     * Writes this command's ANSI representation to the supplied writer without flushing it.
+     * Parameter validation happens before or during serialization.
+     */
     public override fun writeAnsi(writer: TextWriter) { writer.write("\u001b[?2004l") }
 }

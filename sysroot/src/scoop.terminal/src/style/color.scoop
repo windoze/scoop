@@ -1,34 +1,167 @@
 package scoop.terminal.style
 
+/**
+ * A terminal palette, indexed, RGB, or default-reset color. RGB components and palette indices are
+ * validated when serialized.
+ */
 public enum Color {
-    Reset, Black, DarkGrey, Red, DarkRed, Green, DarkGreen, Yellow, DarkYellow,
-    Blue, DarkBlue, Magenta, DarkMagenta, Cyan, DarkCyan, White, Grey,
-    AnsiValue(val value: Int), Rgb(val red: Int, val green: Int, val blue: Int)
+    /**
+     * The terminal's default color for the selected channel.
+     */
+    Reset,
+        /**
+         * The Black entry in the terminal's configurable base palette; its exact RGB appearance
+         * belongs to the terminal theme.
+         */
+        Black,
+        /**
+         * The DarkGrey entry in the terminal's configurable base palette; its exact RGB appearance
+         * belongs to the terminal theme.
+         */
+        DarkGrey,
+        /**
+         * The Red entry in the terminal's configurable base palette; its exact RGB appearance
+         * belongs to the terminal theme.
+         */
+        Red,
+        /**
+         * The DarkRed entry in the terminal's configurable base palette; its exact RGB appearance
+         * belongs to the terminal theme.
+         */
+        DarkRed,
+        /**
+         * The Green entry in the terminal's configurable base palette; its exact RGB appearance
+         * belongs to the terminal theme.
+         */
+        Green,
+        /**
+         * The DarkGreen entry in the terminal's configurable base palette; its exact RGB
+         * appearance belongs to the terminal theme.
+         */
+        DarkGreen,
+        /**
+         * The Yellow entry in the terminal's configurable base palette; its exact RGB appearance
+         * belongs to the terminal theme.
+         */
+        Yellow,
+        /**
+         * The DarkYellow entry in the terminal's configurable base palette; its exact RGB
+         * appearance belongs to the terminal theme.
+         */
+        DarkYellow,
+    /**
+     * The Blue entry in the terminal's configurable base palette; its exact RGB appearance belongs
+     * to the terminal theme.
+     */
+    Blue,
+        /**
+         * The DarkBlue entry in the terminal's configurable base palette; its exact RGB appearance
+         * belongs to the terminal theme.
+         */
+        DarkBlue,
+        /**
+         * The Magenta entry in the terminal's configurable base palette; its exact RGB appearance
+         * belongs to the terminal theme.
+         */
+        Magenta,
+        /**
+         * The DarkMagenta entry in the terminal's configurable base palette; its exact RGB
+         * appearance belongs to the terminal theme.
+         */
+        DarkMagenta,
+        /**
+         * The Cyan entry in the terminal's configurable base palette; its exact RGB appearance
+         * belongs to the terminal theme.
+         */
+        Cyan,
+        /**
+         * The DarkCyan entry in the terminal's configurable base palette; its exact RGB appearance
+         * belongs to the terminal theme.
+         */
+        DarkCyan,
+        /**
+         * The White entry in the terminal's configurable base palette; its exact RGB appearance
+         * belongs to the terminal theme.
+         */
+        White,
+        /**
+         * The Grey entry in the terminal's configurable base palette; its exact RGB appearance
+         * belongs to the terminal theme.
+         */
+        Grey,
+    /**
+     * An indexed ANSI palette color in 0..255.
+     */
+    AnsiValue(val value: Int),
+        /**
+         * A true-color triple whose components must each be in 0..255.
+         */
+        Rgb(val red: Int, val green: Int, val blue: Int)
 
+    /**
+     * Named-color and ANSI color-parameter parsing.
+     */
     public companion object {
+        /**
+         * Parses a supported named color, returning None for unrecognized input.
+         */
         public fun parseOrNone(text: String): Color? = parseColorName(text)
+        /**
+         * Parses a supported named color or throws for unrecognized input.
+         */
         public fun parse(text: String): Color = when (parseOrNone(text)) {
             case Some(color) -> color
             case None -> throw IllegalArgumentException(Some("unknown terminal color"))
         }
+        /**
+         * Parses a supported ANSI color parameter representation, returning None for invalid
+         * input.
+         */
         public fun parseAnsiOrNone(text: String): Color? = parseAnsiColor(text)
     }
 }
 
+/**
+ * Associates a color with foreground, background, or underline channel.
+ */
 public enum Colored {
-    ForegroundColor(val color: Color), BackgroundColor(val color: Color), UnderlineColor(val color: Color)
+    /**
+     * A foreground-channel color.
+     */
+    ForegroundColor(val color: Color),
+        /**
+         * A background-channel color.
+         */
+        BackgroundColor(val color: Color),
+        /**
+         * An underline-channel color.
+         */
+        UnderlineColor(val color: Color)
 
+    /**
+     * Returns the SGR color parameter text for the selected channel, without the surrounding CSI
+     * command.
+     */
     public fun toAnsiString(): String = when (this) {
         case ForegroundColor(color) -> colorParameters(color, 38)
         case BackgroundColor(color) -> colorParameters(color, 48)
         case UnderlineColor(color) -> colorParameters(color, 58)
     }
 
+    /**
+     * Parses ANSI color parameters while retaining their channel.
+     */
     public companion object {
+        /**
+         * Parses color parameters and returns their channel and value, or None on invalid input.
+         */
         public fun parseAnsiOrNone(text: String): Colored? = parseColored(text)
     }
 }
 
+/**
+ * Optional foreground and background selections; absent channels are left unchanged.
+ */
 public struct Colors(val foreground: Color? = None, val background: Color? = None)
 
 internal fun requireColorByte(value: Int) {

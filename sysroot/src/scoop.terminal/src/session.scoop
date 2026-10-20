@@ -8,23 +8,61 @@ import scoop.terminal.internal.input.*
 import scoop.terminal.event.Event
 import scoop.time.Duration
 
-public enum StandardStream { Input, Output, Error }
+/**
+ * Selects a process standard descriptor for terminal detection.
+ */
+public enum StandardStream {
+    /**
+     * Standard input, descriptor 0.
+     */
+    Input,
+    /**
+     * Standard output, descriptor 1.
+     */
+    Output,
+    /**
+     * Standard error, descriptor 2.
+     */
+    Error }
 
+/**
+ * Tests whether the selected standard descriptor refers to a terminal.
+ */
 public fun isTerminal(stream: StandardStream): Boolean {
     val number = when (stream) { case Input -> 0; case Output -> 1; case Error -> 2 }
     @Unsafe { return nativeIsTerminal(number) }
 }
 
+/**
+ * Terminal dimensions in character cells and platform-reported pixels.
+ */
 public struct TerminalSize(val columns: Long, val rows: Long, val widthPixels: Long, val heightPixels: Long)
 
+/**
+ * An owned synchronous terminal session with input parsing, queries, byte output, and raw-mode
+ * restoration. Operations on one session must not overlap.
+ */
 public class TerminalSession private constructor(escapeDelay: Duration) : ByteSink, Closeable {
     private val terminal: TerminalHandle = TerminalHandle()
     private val input: SessionInput = SessionInput(escapeDelay)
     private val active: AtomicBoolean = AtomicBoolean(false)
+    /**
+     * Whether the native terminal handle has been closed.
+     */
     public val isClosed: Boolean get() = withState { terminal.isClosed }
+    /**
+     * Whether this session currently has raw mode enabled.
+     */
     public val isRawMode: Boolean get() = withTerminal { it.isRaw }
 
+    /**
+     * Opens owned terminal sessions independently of redirected standard streams.
+     */
     public companion object {
+        /**
+         * Opens the terminal and initializes input parsing with a nonnegative Escape ambiguity
+         * delay.
+         */
         public fun open(escapeDelay: Duration = Duration.milliseconds(50L)): TerminalSession {
             val session = TerminalSession(escapeDelay)
             session.terminal.open()
@@ -49,10 +87,25 @@ public class TerminalSession private constructor(escapeDelay: Duration) : ByteSi
         block(terminal)
     }
 
+    /**
+     * Queries current character-cell and pixel dimensions.
+     */
     public fun size(): TerminalSize = withTerminal { it.size() }
+    /**
+     * Enables raw input mode, retaining the state needed for restoration.
+     */
     public fun enableRawMode() { withTerminal { it.setRaw(true) } }
+    /**
+     * Restores the mode saved before raw input was enabled.
+     */
     public fun disableRawMode() { withTerminal { it.setRaw(false) } }
+    /**
+     * Waits for the next user-facing event, preserving query replies for query processing.
+     */
     public fun read(): Event = withTerminal { input.read(it) }
+    /**
+     * Waits up to a nonnegative duration and reports whether a user event is ready.
+     */
     public fun poll(timeout: Duration): Boolean {
         if (timeout < Duration.ZERO) throw IllegalArgumentException(Some("negative terminal poll timeout"))
         return withTerminal { input.poll(it, Some(timeout)) }
@@ -65,10 +118,21 @@ public class TerminalSession private constructor(escapeDelay: Duration) : ByteSi
         }
     }
 
+    /**
+     * Writes up to count readable bytes to the terminal and advances the input buffer.
+     */
     public override fun writeFrom(buffer: NativeByteBuffer, count: Long): Long =
         withTerminal { it.write(buffer, count) }
+    /**
+     * Checks the unbuffered terminal session state; queued library commands are written
+     * immediately.
+     */
     public override fun flush() { withTerminal {} }
 
+    /**
+     * Restores terminal state and closes the owned handle; close cannot overlap another session
+     * operation.
+     */
     public override fun close() {
         withState {
             if (!terminal.isClosed) terminal.close()

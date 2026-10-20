@@ -169,3 +169,5 @@ URL、crypto、compression 和 asyncio 补充 568 处声明说明，明确不可
 platform 与 http.asyncio 补充 577 处说明，覆盖文件／进程／网络资源、原生缓冲区借用、HTTP 消息生命周期、多路复用取消、multipart、SSE 和 WebSocket。严格文档生成通过，275 页／15,581 个本地入口／99 个源码页／690 个搜索条目有效；文档 warning 为零，现有普通编译 warning 不影响文档验收。
 
 core 注释使内置声明字节位置改变，同步 6 个 core-negative 诊断夹具的位置，类型、消息与其他字段不变，16 个用例／16 个进程复验通过。另补齐既有非法 @Test + @Intrinsic 组合新增的文档注解兼容性诊断，该用例单进程复验通过。
+
+terminal 补充 376 处说明，覆盖 ANSI 输出与刷新、坐标与范围、输入解析、查询匹配、raw mode 恢复、颜色策略及剪贴板协议边界。fmt／workspace clippy、严格文档生成通过，156 页／7,020 个本地入口／44 个源码页／535 个搜索条目有效；文档 warning 为零。
