@@ -54,9 +54,9 @@ OpenJDK 的[逃逸分析与标量替换研究报告](https://cr.openjdk.org/~csl
 
 ## 2. 协程包装：在状态机生成前区分同步与尾部调用
 
-### 2.1 当前顺序造成的成本
+### 2.1 基线顺序造成的成本
 
-当前 [pipeline.rs](../../compiler/mir-lower/src/pipeline.rs) 先执行 `transform_suspend_abis()`，再执行 `coroutine::transform()`；普通 `optimization::run()` 则在 [current.rs](../../compiler/mir-lower/src/current.rs) 的 `lower_with_dependencies()` 返回后运行。普通内联器的 [protocol_entries](../../compiler/mir-lower/src/optimization/inline/policy.rs) 还主动排除了 coroutine entry、driver、resume 和 start helper。不能期待简单增大当前 inline 阈值解决此问题。
+调研基线的 [pipeline.rs](../../compiler/mir-lower/src/pipeline.rs) 先执行 `transform_suspend_abis()`，再执行 `coroutine::transform()`；普通 `optimization::run()` 则在 [current.rs](../../compiler/mir-lower/src/current.rs) 的 `lower_with_dependencies()` 返回后运行。普通内联器的 [protocol_entries](../../compiler/mir-lower/src/optimization/inline/policy.rs) 还主动排除了 coroutine entry、driver、resume 和 start helper。不能期待简单增大普通 inline 阈值解决此问题；本期已增加下述 ABI 转换前的同步正文内联。
 
 `transform_suspend_abis()` 把返回类型改成 `CoroutineStep<T>` 并追加 `Continuation<T>`。完全没有 suspend site 的函数已经是 `CoroutineLowering::Immediate`，不建 frame。当前 [coroutine.rs](../../compiler/mir-lower/src/coroutine.rs) 根据登记的调用点分析 site，不因为 callee 本身是 Immediate 就自动忽略它。
 
@@ -187,21 +187,18 @@ LLVM 的 [DevirtSCCRepeatedPass](https://llvm.org/doxygen/classllvm_1_1DevirtSCC
 
 ### 4.3 初版调度与停止条件
 
-普通 MIR 优化阶段可先对照最多 1／2／3／4 轮，以 3 轮作为待验证的起始选择；不是已经确定的性能最优值。每轮大致为：
+普通 MIR 优化现选择最多三轮，并在活动函数没有改写时提前停止。精确用例覆盖一／二／三轮逐步暴露的机会；生产对照见性能记录第 13 节，没有宣称三轮是性能最优值。内联使用跨轮不变的正文模板，后续只重访本轮发生改写的函数，不建立通用 caller 工作队列。当前调度为：
 
 ```text
-affected_functions = optimizable_functions
-for round in 0 .. max_rounds:
-    changed = devirtualize(affected_functions)
-    changed |= inline(affected_functions, existing_inline_state)
-    changed |= simplify(affected_functions)
-    facts = analyze_allocation_uses(affected_functions)
-    rewrites = plan_box_and_closure_elision(facts)
-    changed |= apply_local_elision(rewrites)
-    changed |= simplify(affected_functions)
-    if not changed:
+active = optimizable_functions
+inliner = session_with_stable_templates_and_growth_state()
+for round in 0 .. 3:
+    changed = devirtualize(active)
+    changed |= inline_and_simplify(active, inliner)
+    changed |= analyze_elide_and_simplify_allocations(active)
+    if changed.is_empty():
         break
-    affected_functions = changed_and_dependent_callers(changed)
+    active = changed
 ```
 
 逃逸分析是为当前改写提供事实的分析步骤；堆分配消除与 closure 消除是实际消费者，复用同一来源／别名检查，分别替换 payload 与捕获字段。这里的计划只是函数内一次改写所需的私有数据，不引入新的 IR 或通用 pass 框架；没有可替换使用时，即使 NoEscape 也保留对象。首版通过值替换删掉对象，不把所有 NoEscape 对象自动改成栈对象。
@@ -244,11 +241,11 @@ for round in 0 .. max_rounds:
 
 2026-10-20 核对生产代码后，普通对象的 TLAB cursor 检查／推进、条件 poll、单引用字段卡表屏障已有 codegen 快路径；TLAB 完成发布仍调用 runtime，范围屏障等也并非全部内联。不能把 M56 已完成的部分再次列为新收益。
 
-| 候选 | 当前路径与建议 | 边界 |
+| 候选 | 调研时的路径与建议 | 边界 |
 | --- | --- | --- |
 | box／unbox | LIR 已有专门指令，codegen 仍调用 C；unbox 还取得 heap lock、查询 exact size 并检查 shape。先做 M58-B 的局部消除，剩余静态布局已知的操作再考虑分配／类型检查／load／copy IR | 含引用 payload 必须跨分配 safepoint 保活并恢复；保留必要动态类型检查，C 边界与生成代码职责分别表达，不复制热路径校验 |
 | String byteLength／byteAt | `strings.c` 前者只读 len，后者为边界检查加 byte load，适合直接生成 IR，暴露重复读取与检查消除机会 | 字符数量 length 要扫描 UTF-8，不等同于 byteLength；UTF-8 解码等复杂算法先保留 C |
 | Array clone | codegen 已知 source／target 的元素和布局，当前仍调用 C clone；可复用分配 IR、memcpy 与必要范围屏障 | source 必须在目标分配后使用 relocation 更新地址；名义 Array／MutableArray TD 仍分别正确 |
 | is-instance／itable lookup | 先利用 exact receiver 与 devirt 消除；剩余可考虑 exact TD 指针比较快路径 | 父类、接口、函数类型变体等动态关系不能全部退化成指针相等；复杂慢路径保留 runtime |
 
-这部分最初为源码核对；用户随后明确将候选的分项实现、验证和性能对照纳入 M58，安排在 LLVM 管线优化之后。String 有界读取已完成本机迁移与对照，其他项仍待实施，详见 [迁移记录](RUNTIME-IR.md) 与 PROGRESS。优先在 typed MIR／LIR 保留语义，codegen 只负责最终布局／GC 相关发射；不把上游语义分析搬到 codegen，不一次性将整个 C runtime 展开。收益依据应是消失的调用、重复检查、root frame 与复制，以及 LLVM 获得的静态信息；GC 协调、分配慢路径、异常和 OS 操作继续留在 runtime。
+这部分最初为源码核对；用户随后明确将候选的分项实现、验证和性能对照纳入 M58，安排在 LLVM 管线优化之后。String 有界读取、静态 exact unbox 和数组 clone 已完成实现与本机对照，动态类型关系继续使用现有 runtime 路径，详见 [迁移记录](RUNTIME-IR.md) 与 PROGRESS。优先在 typed MIR／LIR 保留语义，codegen 只负责最终布局／GC 相关发射；不把上游语义分析搬到 codegen，不一次性将整个 C runtime 展开。收益依据应是消失的调用、重复检查、root frame 与复制，以及 LLVM 获得的静态信息；GC 协调、分配慢路径、异常和 OS 操作继续留在 runtime。

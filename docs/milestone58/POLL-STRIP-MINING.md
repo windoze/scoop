@@ -117,7 +117,7 @@ poll 变少会延长另一个线程请求 GC 后等待当前块结束的时间�
 
 本机 fmt／workspace clippy、25 项 MIR 优化单测、18 项 statepoint 专测通过。两个新源码 fixture 共五变体、九次程序运行，覆盖 Int／Long、负／零上界、1／15／63／64／65／129／1025 次、Long 最大值附近、回绕算术、break／continue、普通／moving／minor 并发 GC，以及 class／interface／tuple／Option 引用跨循环存活。并发测试使用 32 次真实收集，避免测试 collector 无间隔持续请求造成无关的 mutator 饥饿。
 
-标量 64 相对逐轮 poll 的 checksum 程序约快 38%，递推程序约快 4%；text 增加 64 bytes，编译时间约增加 0.5%。stop-wait p99 基本不变，但单线程出现一次 1.99 ms 最大值异常，不能据此宣称尾延迟完全不回退。详见 [性能记录第 11 节](PERFORMANCE.md#11-外层-poll标量有界内层)。块大小选择、受限 SIMD 和 Linux 验收继续独立推进。
+标量 64 相对逐轮 poll 的 checksum 程序约快 38%，递推程序约快 4%；text 增加 64 bytes，编译时间约增加 0.5%。stop-wait p99 基本不变，但单线程出现一次 1.99 ms 最大值异常，不能据此宣称尾延迟完全不回退。详见 [性能记录第 11 节](PERFORMANCE.md#11-外层-poll标量有界内层)。后续块大小选择、受限 SIMD 和 Linux 验收见下一节。
 
 ## 7. 受限整数内层 SIMD 与默认块大小
 
@@ -127,6 +127,8 @@ LLVM 普通标量阶段后检查真实 CFG：单块自循环、计数 phi 唯一
 
 资格允许尝试，不保证向量化发生。源码递推循环暴露出 LLVM missed-optimization remark 会污染现有 child 协议 stderr；局部 pass 期间忽略 remark，结束后恢复原 handler，其他诊断沿原路径保留。源码 fixture 验证无法向量化时仍正常编译、运行，不把它变为新的语言限制。
 
-本机 fmt／workspace clippy 通过；25 项 MIR 优化与 20 项 statepoint 专测通过，追加了 body 副本 local 身份检查、三个目标的向量指令／两条唯一机器 stackmap／AS1 根恢复、变量上限与原子路径的排除，以及同函数 invoke／异常出口组合。源码覆盖补充 checksum、循环后的真实异常，并与先前并发 moving／minor 根用例共同通过。Linux 真实运行仍在最终跨平台验收中执行。
+本机 fmt／workspace clippy 通过；25 项 MIR 优化与 20 项 statepoint 专测通过，追加了 body 副本 local 身份检查、三个目标的向量指令／两条唯一机器 stackmap／AS1 根恢复、变量上限与原子路径的排除，以及同函数 invoke／异常出口组合。源码覆盖补充 checksum、循环后的真实异常，并与先前并发 moving／minor 根用例共同通过。GNU／musl 完整运行验收通过。
+
+Linux 双 E core 对照的 checksum 约 −48.4%，递推约 +1.3%，text +320 bytes。单 mutator 的 stop-wait p99 基本持平；四 mutator 的两轮 p99 方向相反，不能认定稳定改善或退化。首轮每 mutator 5 亿次与加长到 15 亿次的样本、编译成本和共享主机限制均保留在[性能记录第 16 节](PERFORMANCE.md#16-linux-双-e-core-的分块与请求响应)，默认 64 保持。
 
 同一轮五策略对照中，64 次 SIMD 相对逐轮 poll 的 checksum 总耗时约 −48%，相对标量 64 再减约 14%；递推程序没有稳定加速，因此不沿用首轮的小幅收益作通用结论。256 次只比 64 再快约 5.5%，四 worker stop-wait p99／max 为 70／309 μs，64 为 64／139 μs；保留较小的 64。text 相对逐轮增加 212 bytes，编译时间无明显变化。首轮 1.99 ms outlier 在本轮未复现，但原样保留；结果不是墙钟暂停上界。完整方法与数据见 [性能记录第 12 节](PERFORMANCE.md#12-整数内层-simd-与块大小选择)。临时 16／256 编译器修改已逐字恢复，最终代码没有实验开关。

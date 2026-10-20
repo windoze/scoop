@@ -1,6 +1,6 @@
 # M58：短暂停 GC、局部分配消除与循环 poll 分块
 
-状态：实施中，分项进度与验证见 [PROGRESS.md](PROGRESS.md)。2026-10-19 从远端 `main` 的 `c3b8942db` 建立 `codex/m58`；当前在主仓库直接实施，M56 的完成范围与验收记录保持原样。
+状态：已完成，分项实现、验收与清理见 [PROGRESS.md](PROGRESS.md)，性能及限制见 [PERFORMANCE.md](PERFORMANCE.md)。2026-10-19 从远端 `main` 的 `c3b8942db` 建立 `codex/m58`；在主仓库直接实施，M56 的完成范围与验收记录保持原样。
 
 ## 1. 目标与范围
 
@@ -19,7 +19,7 @@ Scoop 主要面向 PC／桌面应用，包括 60 fps GUI。本期优先改善分
 
 本期不以全程序逃逸分析、普通对象栈化、部分逃逸重物化、continuation 池或并发 collector 为前置。简单 class 标量替换是同一分析的后续实际消费者，按收益证据扩展，不要求一次覆盖所有局部分配。
 
-## 2. 基线与已有证据
+## 2. 调研基线与已有证据
 
 本轮实验基于 `04d28e763`，并在 `c3b8942db` 上复核相关源码：M55 未修改本轮涉及的 GC、MIR 普通优化、coroutine lowering、LIR safepoint 和 LLVM poll 策略实现。测量仍标注原基线，不视为最新 main 的重新计时；M55 的逐 callable 声明裁剪已有独立验收，不纳入 M58 的收益。
 
@@ -50,13 +50,13 @@ Full 先处理两处局部工作：在单 source 且既有目标容量上界都�
 
 普通优化采用有界的 `devirt → inline → simplify → 逃逸／使用分析 → box／closure 消除 → simplify` 统一迭代。内联 forEach 后才可把 action 关联到具体 closure，下一轮解析并内联 invoke，再以捕获快照替换环境字段、删除分配；closure 消除后原先被它捕获的 box 又可能被下一轮消除。未知调用导致的旧保留结论随正文变化重新计算，不能只在全部内联结束后分析一次。
 
-无实际改写时提前停止，先对照最多 1／2／3／4 轮。跨轮保留原始 caller cost、累计增长与展开历史，不能反复调用现有入口来重置限制。固定点只指当前规则与策略下不再变化，达到轮次上限不等于收敛，详见[统一迭代设计](ALLOCATION-ELISION.md#4-内联去虚拟化与分配消除的统一迭代)。
+当前实现最多三轮，活动函数无实际改写时提前停止；不声称该轮数性能最优或耗尽所有可能机会。跨轮保留原始 caller cost、累计增长与展开历史，不能反复调用现有入口来重置限制。固定点只指当前规则与策略下不再变化，达到轮次上限不等于收敛，详见[统一迭代设计](ALLOCATION-ELISION.md#4-内联去虚拟化与分配消除的统一迭代)。
 
 closure 消除要求所有使用都可替换，不仅是 NoEscape。Scoop 捕获不可重新绑定的 binding；值类型复制完整值，引用复制引用，保留创建点和求值顺序，捕获的引用对象仍可变。循环外创建、循环内多次调用是首批正例；身份／地址观察、剩余调用或发布仍保留。环境消失后，捕获值继续走普通精确 roots。
 
 尾随闭包构成的作用域式 API／DSL 是代表负载。本期实际对照采用 each、scope 和局部 box，观察高频轻量正文、多层包装的累计分配与调用成本；嵌套遍历按具体内外层回边判断候选生命周期。Result 操作等可沿同一机制受益，但未单列其性能结果。withLock／use 等还需要当前内联器尚未支持的 callee EH 克隆，列为后续有明确消费者的扩展；首批保留清理路径，不把增加轮次当作已覆盖所有 DSL。各项实测及 each 的耗时／footprint 取舍见 [性能记录](PERFORMANCE.md#13-局部装箱作用域闭包与嵌套遍历)。
 
-动态分配与静态支持产物分别验收。当前删掉 ClosureAlloc 不会自动避免所有 TD／layout 生成；迭代结束后，仅在相关实例、callable 引用及现行输出要求均已消失时省掉私有环境 TD／layout／scan 和无用 invoke／bridge。同 class 的其他实例、共享函数类型信息与实际 Strong／ODR 引用照常保留，MIR 记录保持完整。
+动态分配与静态支持产物分别验收。实例消除之后，在 LIR 准备阶段根据实际引用选择支持产物；仅在相关实例、callable 引用及现行输出要求均已消失时省掉私有环境 TD／layout／scan 和无用 invoke／bridge。同 class 的其他实例、共享函数类型信息与实际 Strong／ODR 引用照常保留，MIR 记录保持完整。
 
 这条路径不需要通用栈对象头、栈地址与堆引用混用、额外扫描协议或对象生命周期 ABI。后续简单 class 可使用字段局部值，按实际消费者扩展。具体转移规则、循环限制、闭包支持产物、构造器副作用和测试见 [ESCAPE-ANALYSIS.md](ESCAPE-ANALYSIS.md)。
 
@@ -72,11 +72,13 @@ closure 消除要求所有使用都可替换，不仅是 NoEscape。Scoop 捕获
 
 同步内联后的 CFG 可以再次产生尾调用候选。无帧的 tail wrapper 仍可能返回 Suspended，不能因其不再有自身 site／frame 就把它当成同步叶子。尾转交在 ABI 转换时保持完整参数和原 step 返回，与本函数剩余 site 一起决定是否生成状态机；同步恢复、跨线程、失败与唯一完成协议保持。
 
-C1／C2 均已完成本机实现及相关验证。C2 使用稳定 source-signature 模板、既有成本与六层展开限制，并同步改写私有 call-site；具体范围和未内联路径见 [局部消除设计](ALLOCATION-ELISION.md)。性能对照隔离两种机制，C2 的四层非尾包装结果见 [性能记录](PERFORMANCE.md#10-状态机生成前同步-suspend-内联)。Linux 组合验收仍待完成。
+状态机消除不能改变 debug／release 之间的依赖语义。私有 driver／adapter 与内部 ODR saved slot 保留实际 foundation、Code 和 Link 数据，不进入公共 callable／type／layout bridge；普通 nominal 的 suspend 装箱 adapter 在优化前确定有限 receiver slot 支持。跨库验收只替换 provider 的优化模式，保留已编译中间库，验证签名、链接、真正挂起与移动 GC。
+
+C1／C2 均已完成实现及三平台相关验证。C2 使用稳定 source-signature 模板、既有成本与六层展开限制，并同步改写私有 call-site；具体范围和未内联路径见 [局部消除设计](ALLOCATION-ELISION.md)。性能对照隔离两种机制，C2 的四层非尾包装结果见 [性能记录](PERFORMANCE.md#10-状态机生成前同步-suspend-内联)。GNU／musl 完整组合验收通过。
 
 ## 6. M58-D：外层 poll 覆盖有界内层
 
-标量分块与受限整数内层 SIMD 已实现并通过本机验证，范围与默认 64 次的依据见 [分块记录](POLL-STRIP-MINING.md#7-受限整数内层-simd-与默认块大小)。首版只处理整数／布尔局部运算；数组访问不计入生产分块支持，Linux 运行验证继续执行。
+标量分块与受限整数内层 SIMD 已实现并通过三平台运行验证，范围与默认 64 次的依据见 [分块记录](POLL-STRIP-MINING.md#7-受限整数内层-simd-与默认块大小)。首版只处理整数／布尔局部运算；数组访问不计入生产分块支持。Linux 双 E core 的 checksum 约 −48.4%、递推约 +1.3%；多 mutator 尾部没有稳定改善，见[性能记录第 16 节](PERFORMANCE.md#16-linux-双-e-core-的分块与请求响应)。
 
 初版只处理稳定边界、非负单调归纳变量、无调用／分配／异常边及复杂跳转的简单循环。`N` 是编译期的内层最大次数；末块采用 `min(N, n - i)`，不要求补满，不先计算可能溢出的 `i + N`。保留入口 poll；外层正常生成 site 和 root plan，内层的有界事实由实际 CFG 结构维持。
 
@@ -88,7 +90,7 @@ C1／C2 均已完成本机实现及相关验证。C2 使用稳定 source-signatu
 
 本轮增加 [LLVM codegen 优化](LLVM-CODEGEN.md)：先补范围推导与 NoGc 标量优化，再按真实源码对照评估 memcpyopt、aggressive-instcombine、vector-combine 和小范围循环优化。普通优化始终先于最终 roots 和 RS4GC；该工作与 D 的内层资格分析分别验收，不扩大到 LTO 或通用 pass 调度。
 
-LLVM 优化之后继续落实 [runtime C → IR 候选](ALLOCATION-ELISION.md)：重新核对已有实现，再优先评估静态布局拆箱、String byteLength／byteAt 与静态数组复制。每项先明确 fast path 可依赖的 typed 事实，再修改规范、实现、做真实移动 GC 与性能对照；复杂检查和运行时协调沿原慢路径。String 有界读取、静态布局拆箱与数组 clone 已完成本机实现与对照，范围与剩余工作见 [迁移记录](RUNTIME-IR.md)，不能把早期审计当作整个迁移完成。
+LLVM 优化之后继续落实 [runtime C → IR 候选](ALLOCATION-ELISION.md)：重新核对已有实现，再优先评估静态布局拆箱、String byteLength／byteAt 与静态数组复制。每项先明确 fast path 可依赖的 typed 事实，再修改规范、实现、做真实移动 GC 与性能对照；复杂检查和运行时协调沿原慢路径。String 有界读取、静态布局拆箱与数组 clone 已完成实现、对照和 GNU／musl 完整组合验收，具体范围见 [迁移记录](RUNTIME-IR.md)。
 
 先实施 A 的两个 minor 改动和 B 的 box 消费者，两者独立；B 随后在同一迭代中补齐 forEach 闭包消除与无用支持产物清理。用 full 对照决定 A 的后续局部改动，并完成 C；D 先交付正确分块，再单独启用内层 SIMD。所有优化按功能提交，保留独立前后对照，不能用一个总体总分掩盖暂停或 footprint 回退。
 
@@ -112,8 +114,8 @@ LLVM 优化之后继续落实 [runtime C → IR 候选](ALLOCATION-ELISION.md)�
 | 内存 | 峰值与稳定 RSS、元数据、空闲后回落和重新打开成本；不能把延迟释放到计时外算作净收益 |
 | 编译与产物 | release 编译时间／峰值内存、机器码体积、实际分配及 poll 数；优化 IR 断言保持小而精确 |
 | 正确性 | 真实源码与产物闭环、移动 GC、pin／release、含引用聚合值、协程 race、异常／Context、循环末块与退出路径 |
-| 平台与桌面 | Darwin／GNU／musl；单／多 mutator、低核数／低配置、实际输入／布局／绘制帧循环与漏帧率 |
+| 平台与桌面 | Darwin／GNU／musl；单／多 mutator、限制到两个 E core 的响应。实际 GUI 帧循环、漏帧率与低内存电脑留作应用集成验证，不从内核 benchmark 推断 |
 
 普通语义 fixture 验证结果与诊断，优化专测才检查分配、site、roots 和必要机器码。文档修改本身无需重跑编译器全量测试；生产变更按仓库格式化／lint 和正式 CLI fixture 流程验收。
 
-本轮调研未使用 nuc12。仓库外实验源码、runtime 对照、私有工具链／sysroot 与原始结果已清理；生产源码没有临时修改。后续若在 nuc12 实验，必须另建独立 worktree，结束时恢复并清理自己的改动和产物。
+最初调研未使用 nuc12；实施验收另建独立 worktree，使用独立 target／sysroot。实验源码、工具与缓存随验证结束清理，原始报告／日志保留在仓库外；临时生产源码改动必须恢复，不能占用其他任务分支。最终范围与清理记录见 PROGRESS。

@@ -1,28 +1,28 @@
 # M58 实施与验收记录
 
-状态：实施中。分支 `codex/m58`，主仓库 `/Users/chenxu/repos/scoop`；保留工作区中其他任务的 M47／M57 未提交内容，不纳入 M58 提交。按 [DESIGN.md](DESIGN.md) 完成全部 A–D 后再做整体验收；当前结果不代表里程碑完成。
+状态：已完成。分支 `codex/m58`，主仓库 `/Users/chenxu/repos/scoop`。A–D、LLVM codegen 和首批 runtime C→IR 的实现、正确性验收、性能对照及清理均已收尾；收益与限制见 [PERFORMANCE.md](PERFORMANCE.md)。
 
 ## 分项状态
 
 | 功能 | 当前状态与证据 |
 | --- | --- |
-| A：年轻 small block 整块退役 | 已实现；本机 GC 专测 32 项、新源码 fixture 四个变体通过，Linux 待验证 |
-| A：无引用大对象跳过 remembered scan | 已实现；本机 nursery 专测 10 项、新源码 fixture 三个变体通过，Linux 待验证 |
-| A：full 必要容量早判 | 已实现；本机 region 专测 7 项、新源码 fixture 三个变体通过，Linux 待验证 |
-| A：starts bitmap 枚举 | 已实现；本机 GC 专测 35 项、M58 runtime 四个源码 fixture／13 变体通过，Linux 待验证 |
-| B：统一优化迭代 | 已实现三轮上限与无变化早停；本机 MIR 单测 122 项、新旧优化源码回归通过，Linux 待验证 |
-| B：函数内来源／逃逸分析与 box 消除 | 已实现，接入同一迭代；本机 typed MIR 专测与源码／移动 GC 回归通过，Linux 待验证 |
-| B：closure 实例消除 | 已实现，复用来源／循环分析；本机五项 typed MIR 专测、源码与移动 GC 回归通过，Linux 待验证 |
-| B：closure 私有支持产物清理 | 已实现 LIR 准备时的实际引用选择；本机 160 项 LIR 单测、源码／跨库／callback 回归通过，Linux 待验证 |
-| C：tail completion 转交 | 已实现 release 本地直接调用的整函数无帧转交；typed MIR、普通／移动 GC／跨线程源码回归通过，Linux 待验证 |
-| C：状态机生成前同步内联 | 已实现本地同步正文与 call-site 同步改写；19 项协程、23 项优化单测及源码组合通过。四层包装运行约 −32%、分配约 −74.5%、text −21 KB，Linux 待验证 |
-| D：外层 poll 循环分块、受限内层 SIMD | 已实现标量分块及实际结构限定的整数 SIMD；默认 64 次，本机并发 moving／minor、三目标精确 IR／site／根／EH 通过。checksum 约 −48%，text +212 bytes，stop-wait p99 未见明显回退；Linux 待运行验收 |
-| LLVM codegen：范围与 NoGc 标量补齐 | 本机实现与相关验证通过；实际内核暂无可信运行时间收益，后续候选逐项评估 |
+| A：年轻 small block 整块退役 | 已实现；本机 GC 专测 32 项、新源码 fixture 四个变体通过，GNU／musl 完整验收通过 |
+| A：无引用大对象跳过 remembered scan | 已实现；本机 nursery 专测 10 项、新源码 fixture 三个变体通过，GNU／musl 完整验收通过 |
+| A：full 必要容量早判 | 已实现；本机 region 专测 7 项、新源码 fixture 三个变体通过，GNU／musl 完整验收通过 |
+| A：starts bitmap 枚举 | 已实现；本机 GC 专测 35 项、M58 runtime 四个源码 fixture／13 变体通过，GNU／musl 完整验收通过 |
+| B：统一优化迭代 | 已实现三轮上限与无变化早停；本机 MIR 单测 122 项、新旧优化源码回归通过，GNU／musl 完整验收通过 |
+| B：函数内来源／逃逸分析与 box 消除 | 已实现，接入同一迭代；本机 typed MIR 专测与源码／移动 GC 回归通过，GNU／musl 完整验收通过 |
+| B：closure 实例消除 | 已实现，复用来源／循环分析；本机五项 typed MIR 专测、源码与移动 GC 回归通过，GNU／musl 完整验收通过 |
+| B：closure 私有支持产物清理 | 已实现 LIR 准备时的实际引用选择；本机 160 项 LIR 单测、源码／跨库／callback 回归通过，GNU／musl 完整验收通过 |
+| C：tail completion 转交 | 已实现 release 本地直接调用的整函数无帧转交；typed MIR、普通／移动 GC／跨线程源码回归通过，GNU／musl 完整验收通过 |
+| C：状态机生成前同步内联 | 已实现本地同步正文与 call-site 同步改写；19 项协程、23 项优化单测及源码组合通过。四层包装运行约 −32%、分配约 −74.5%、text −21 KB，GNU／musl 完整验收通过 |
+| D：外层 poll 循环分块、受限内层 SIMD | 已实现标量分块及实际结构限定的整数 SIMD；默认 64 次，并发 moving／minor、三目标精确 IR／site／根／EH 与 GNU／musl 完整验收通过。M4／Linux 双 E core 的 checksum 约 −48%；Linux 递推约 +1.3%，低核数尾部限制见性能记录第 16 节 |
+| LLVM codegen：范围与 NoGc 标量补齐 | 本机实现与相关验证通过；实际内核暂无可信运行时间收益，其余候选已按实测取舍 |
 | LLVM codegen：按值复制 | 两条 release 管线增加 memcpyopt；17 项 statepoint 专测及源码三变体通过，text −616 bytes，运行与编译时间基本持平 |
 | LLVM codegen：NoGc 循环 | 启用 load elimination、最多四次完整 unroll、受限 unswitch；18 项 statepoint 专测、源码九变体及旧循环七变体通过。实际递推／四步处理／不变分支分别约 3×／2×／20% 收益，循环 text +256 bytes，编译约 +0.4% |
 | native helper 链接边界 | 已删除未登记外部符号的编译期拒绝，交由 linker 解析；141 项对象产物回归与真实 Darwin loop-idiom 程序通过 |
 | runtime C → LLVM IR 小函数 | String 有界读取已实现，本机精确 IR 与源码十一变体通过；重建两版 core 后字符遍历约 −7.6%，byteLength 单项未见明确收益。静态 unbox 已完成，值／含引用扫描分别约 −19.4%／−28.7%；数组 clone 已完成，小数组约 −15%，stop-wait 未见稳定尾部回退；见 [迁移记录](RUNTIME-IR.md) |
-| 性能与跨平台 | A 的本机生产前后矩阵已记录于 [PERFORMANCE.md](PERFORMANCE.md)；A–D 本机性能矩阵已完成；GNU／musl 完整验收及最终清理待完成 |
+| 性能与跨平台 | A 的本机生产前后矩阵已记录于 [PERFORMANCE.md](PERFORMANCE.md)；A–D 本机性能矩阵已完成；GNU／musl 完整验收、双 E core 对照及最终清理已完成 |
 
 ## 2026-10-20：LLVM 范围推导与 NoGc 标量补齐
 
@@ -183,3 +183,22 @@ fmt／workspace clippy、MIR 与 MIR lowering 共 397 项测试通过；追加 O
 GNU 全量验收的 19 项 native-link 失败均只有全镜像 `ELF system imports` 总数增加一项，native 输入、archive 成员选择和符号绑定不变。该计数还包含 runtime／后端引用，不属于这些 fixture 的输入选择合同。先调整 fixture runner 文档，再从 native-link-plan 投影及 40 份 GNU／musl 期望中移除这一行；具体输入、顺序、绑定和未知字段仍严格比较，生产 linker 诊断不变。外部符号能否解析继续由真实链接和运行验证，不恢复编译器白名单。
 
 Ruff 格式化／lint 与 50 项 Python 单测通过；GNU／musl 各运行全部 63 项 native-link fixture，其中 44 项通过、19 项按目标不适用，共 61 变体／306 进程／35 个 golden，包含独立重链接、callback、异常和移动 GC。原失败报告保留，完整文件验收从未完成部分继续。
+
+## 2026-10-20：Linux 完整验收
+
+nuc12 使用独立 worktree、target 和 sysroot，没有改动 M54 工作区。编译器链接 LLVM 22.1.8，fixture 的独立 llc 为系统 22.1.2，C 工具链为 GCC 15.2.0；GNU／musl 各自重建全部 12 个 core／标准库 Cone 与 runtime。先 fmt／workspace clippy，再完成 5,060 项 Rust 测试（零失败、零忽略）和 50 项 Python 测试。生产修正后补跑相关 MIR、布局导出和源码组合，未重复整套 Rust 测试。
+
+| 目标 | 发现／完整覆盖 | 通过 | 按目标不适用 | 变体 | 进程 | golden |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| x86_64-unknown-linux-gnu | 4359／4359 | 4326 | 33 | 4969 | 16944 | 70 |
+| x86_64-unknown-linux-musl | 4359／4359 | 4323 | 36 | 4965 | 16908 | 70 |
+
+文件验收分批执行，保留已通过结果；发生修正后复跑相关集合，再继续未完成部分。此前 SSA roots 快照、外部 box 接口判断、优化模式独立的协程发布和 native 链接快照问题均按前述记录闭合。末次生产修正 `f53ba4b08` 后，GNU／musl 的整组 M58 加 M42 grouping、M31 ODR 回归各 23 个 fixture／63 变体／136 进程通过；后续 `3e7b9f683` 只修正测试投影，两平台 native-link 各 306 进程通过。真实强制移动／minor、根恢复、异常、跨线程协程、独立链接与混合构建模式均在覆盖内。
+
+## 2026-10-20：最终性能与清理
+
+Linux 双 E core 的 checksum 约 −48.4%、递推约 +1.3%，text +320 bytes。四 mutator 首轮 p99 上升后，仅针对该指标以三倍输入再做七对复核；方向反转，两轮原始结果全部保留，不能认定稳定尾部改善或退化。编译时间、事件数、最坏值与共享主机负载限制见 [性能记录第 16 节](PERFORMANCE.md#16-linux-双-e-core-的分块与请求响应)。M58 保留默认 64，不提供 GUI 帧期限保证。
+
+临时 MIR／LLVM 开关与诊断源码均已恢复或删除。本机定向 Cargo 清理最近释放约 13.7 GiB，保留可复用依赖；本次 sysroot、实验脚本、传输 bundle、锁／构建记录和已完成 fixture 产物已清理。nuc12 的独立 worktree `/home/chenxu/repos/scoop-m58-20261020` 及工作目录 `/home/chenxu/repos/scoop-work/m58-20261020` 已移除，包括独立 target、LLVM 副本、sysroot、基线工具和 benchmark 产物；未修改或终止其他任务的工作区与进程。
+
+原始日志和逐次报告保留于仓库外 `/Users/chenxu/repos/scoop-work/m58-validation`，Linux 完整记录为其中的 `linux-validation.tar.gz`，解读后的性能数据在 `linux/`。不向仓库提交原始日志或归档。M47、M57 和 ROADMAP 的其他任务修改保留，未纳入 M58 提交。

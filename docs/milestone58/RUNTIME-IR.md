@@ -28,4 +28,4 @@ LIR 的已有 boxed descriptor 保留选定 shape 的 payload offset，不另推
 
 相对 `171b70ed6` 的 11 对生产程序测量，小型无引用／含引用数组复制均约快 15%，大数组没有明确变化；text +380 bytes，文件不变，编译成本基本持平。因为 wrapper 握手改为普通分配慢路径握手，另以保留源码 loop poll 的一百万次 clone 测 stop-wait：单／四 worker 的每轮 p99 中位数为 13 → 11／74 → 60 µs，最坏单样本 99 → 118／161 → 140 µs，没有稳定尾部回退的证据。带观测点的 runtime 与生产计时分开；这不代表通用 GUI 或无调度噪声的暂停上界。完整方法见 [性能记录](PERFORMANCE.md#9-静态数组-clone-迁移)。
 
-首批三个 runtime 迁移候选均完成本机实现、验证和对照；GNU／musl 的最终组合验收仍待完成。GC 协调与分配慢路径继续由 runtime 负责。
+首批三个 runtime 迁移候选均完成实现、验证和对照；GNU／musl 完整组合验收通过，范围见 [实施记录](PROGRESS.md)。GC 协调与分配慢路径继续由 runtime 负责。
