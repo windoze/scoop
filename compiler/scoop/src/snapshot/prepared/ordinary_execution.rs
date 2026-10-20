@@ -19,6 +19,25 @@ impl PreparedBuildGraph {
         runner: &mut impl SingleConeCompilerRunner,
         request_id: RequestCorrelationId,
     ) -> Result<(CompletedNode, bool), OrdinarySourceExecutionError> {
+        self.execute_source_output(identity, completed, runner, request_id, None)
+            .map(|(node, invoked, _)| (node, invoked))
+    }
+
+    pub(crate) fn execute_source_output(
+        &mut self,
+        identity: ConeIdentity,
+        completed: &[&CompletedNode],
+        runner: &mut impl SingleConeCompilerRunner,
+        request_id: RequestCorrelationId,
+        documentation: Option<&std::path::Path>,
+    ) -> Result<
+        (
+            CompletedNode,
+            bool,
+            Option<Box<scoop_protocol::ScoopcSuccessV1>>,
+        ),
+        OrdinarySourceExecutionError,
+    > {
         use OrdinarySourceExecutionError as Error;
         if !matches!(
             self.nodes.get(&identity),
@@ -39,6 +58,7 @@ impl PreparedBuildGraph {
                     .missing_dumps(identity, &dumps)
                     .map_err(Error::Observation)?
                     .is_none()
+                && documentation.is_none()
             {
                 return self
                     .finish_result(
@@ -48,7 +68,7 @@ impl PreparedBuildGraph {
                         CompletedNodeOrigin::CacheHit,
                         &dumps,
                     )
-                    .map(|node| (node, false));
+                    .map(|node| (node, false, None));
             }
         }
         let lock = store.acquire_exclusive(key).map_err(Error::CacheStore)?;
@@ -82,6 +102,27 @@ impl PreparedBuildGraph {
                     }
                 }
             }
+            let documented = if let Some(path) = documentation {
+                let invocation = self
+                    .child_documentation_plan(identity, request_id, completed, path, false)
+                    .map_err(Error::RequestPlan)?;
+                match runner
+                    .invoke(&self.compiler, invocation.request(), invocation.io())
+                    .map_err(Error::ChildTransport)?
+                {
+                    ScoopcResponseEnvelopeV1::Success { result, .. }
+                        if result.documentation().is_some() =>
+                    {
+                        Some(result)
+                    }
+                    ScoopcResponseEnvelopeV1::Failure { diagnostics, .. } => {
+                        return Err(Error::ChildFailure(diagnostics));
+                    }
+                    _ => return Err(Error::UnexpectedResponse),
+                }
+            } else {
+                None
+            };
             return self
                 .finish_result(
                     identity,
@@ -90,11 +131,15 @@ impl PreparedBuildGraph {
                     CompletedNodeOrigin::CacheHit,
                     &dumps,
                 )
-                .map(|node| (node, missing.is_some()));
+                .map(|node| (node, missing.is_some() || documented.is_some(), documented));
         }
-        let invocation = self
-            .child_invocation_plan(identity, request_id, completed)
-            .map_err(Error::RequestPlan)?;
+        let invocation = match documentation {
+            Some(path) => {
+                self.child_documentation_plan(identity, request_id, completed, path, true)
+            }
+            None => self.child_invocation_plan(identity, request_id, completed),
+        }
+        .map_err(Error::RequestPlan)?;
         let success = match runner
             .invoke(&self.compiler, invocation.request(), invocation.io())
             .map_err(Error::ChildTransport)?
@@ -126,16 +171,18 @@ impl PreparedBuildGraph {
                 &dumps,
             )
         })();
-        result.map(|node| (node, true)).map_err(|source| {
-            if success.warnings().is_empty() {
-                source
-            } else {
-                Error::ProducedOutput {
-                    source: Box::new(source),
-                    warnings: success.warnings().to_vec(),
+        result
+            .map(|node| (node, true, documentation.map(|_| success.clone())))
+            .map_err(|source| {
+                if success.warnings().is_empty() {
+                    source
+                } else {
+                    Error::ProducedOutput {
+                        source: Box::new(source),
+                        warnings: success.warnings().to_vec(),
+                    }
                 }
-            }
-        })
+            })
     }
 
     fn finish_result(

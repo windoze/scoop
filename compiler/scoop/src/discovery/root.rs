@@ -28,31 +28,39 @@ impl BuildGraphRequest {
             purpose,
         } = self.into_parts();
 
-        let root = match root.into_kind() {
-            BuildRootInputKind::ManifestCone(locator) => LoadedRootInput::Manifest(Box::new(
-                cache_root
-                    .load_manifest(&locator)
-                    .map_err(LoadBuildRootError::RootManifest)?,
-            )),
-            BuildRootInputKind::SingleFile(locator) => LoadedRootInput::SingleFile(locator),
-        };
-        Ok(LoadedBuildRoot {
+        LoadedBuildRoot::from_input(
             root,
-            context: BuildContext {
+            BuildContext {
                 artifact_search_roots,
                 cache_root,
                 sysroot,
-                target,
+                target: GraphTarget::Artifact(Box::new(target)),
                 compiler,
                 diagnostics,
                 optimization,
                 purpose,
             },
-        })
+        )
     }
 }
 
 impl LoadedBuildRoot {
+    pub(crate) fn from_input(
+        root: crate::BuildRootInput,
+        context: BuildContext,
+    ) -> Result<Self, LoadBuildRootError> {
+        let root = match root.into_kind() {
+            BuildRootInputKind::ManifestCone(locator) => LoadedRootInput::Manifest(Box::new(
+                context
+                    .cache_root
+                    .load_manifest(&locator)
+                    .map_err(LoadBuildRootError::RootManifest)?,
+            )),
+            BuildRootInputKind::SingleFile(locator) => LoadedRootInput::SingleFile(locator),
+        };
+        Ok(Self { root, context })
+    }
+
     pub fn root_identity(&self) -> ConeIdentity {
         match &self.root {
             LoadedRootInput::Manifest(manifest) => manifest.identity(),

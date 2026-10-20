@@ -1,0 +1,4 @@
+package shared
+
+/// The shared answer.
+public fun answer(): Int = 42

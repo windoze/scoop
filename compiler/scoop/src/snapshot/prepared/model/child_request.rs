@@ -61,12 +61,47 @@ impl PreparedBuildGraph {
         request_id: RequestCorrelationId,
         completed: &[&CompletedNode],
     ) -> Result<ChildInvocationPlanV1, ChildRequestPlanError> {
+        self.child_output_plan(identity, request_id, completed, None)
+    }
+
+    pub(crate) fn child_documentation_plan(
+        &self,
+        identity: ConeIdentity,
+        request_id: RequestCorrelationId,
+        completed: &[&CompletedNode],
+        path: &Path,
+        artifact: bool,
+    ) -> Result<ChildInvocationPlanV1, ChildRequestPlanError> {
+        self.child_output_plan(identity, request_id, completed, Some((path, artifact)))
+    }
+
+    fn child_output_plan(
+        &self,
+        identity: ConeIdentity,
+        request_id: RequestCorrelationId,
+        completed: &[&CompletedNode],
+        documentation: Option<(&Path, bool)>,
+    ) -> Result<ChildInvocationPlanV1, ChildRequestPlanError> {
         let completed = completed_map(identity, completed)?;
-        let target = self
-            .context
-            .target
-            .child_request()
-            .map_err(ChildRequestPlanError::Toolchain)?;
+        let production = if documentation.is_some_and(|(_, artifact)| !artifact) {
+            None
+        } else {
+            Some(
+                self.context
+                    .target
+                    .production(self.context.cache_root.as_path())
+                    .map_err(ChildRequestPlanError::Toolchain)?,
+            )
+        };
+        let target = match &production {
+            Some(target) => target
+                .child_request()
+                .map_err(ChildRequestPlanError::Toolchain)?,
+            None => scoop_protocol::TargetSelectionRequestV1::new(
+                self.context.target.canonical_triple().into(),
+            )
+            .map_err(ChildRequestPlanError::Protocol)?,
+        };
         let (current, direct, support, trusted_core, output_path) = match self.nodes.get(&identity)
         {
             Some(PreparedGraphNode::ManifestSource(node)) => {
@@ -108,15 +143,37 @@ impl PreparedBuildGraph {
             }
             None => return Err(ChildRequestPlanError::UnknownNode(identity)),
         };
-        let native_inputs = match self.nodes.get(&identity) {
-            Some(PreparedGraphNode::ManifestSource(node)) => node
-                .snapshot
-                .native
-                .objects()
-                .iter()
-                .map(|path| path_carrier(path))
-                .collect::<Result<Vec<_>, _>>()?,
+        let native_inputs = match (production.as_ref(), self.nodes.get(&identity)) {
+            (Some(_), Some(PreparedGraphNode::ManifestSource(node))) => {
+                let super::SourceNativeInput::Artifact(native) = &node.snapshot.native else {
+                    return Err(ChildRequestPlanError::NativeNotPrepared);
+                };
+                native
+                    .objects()
+                    .iter()
+                    .map(|path| path_carrier(path))
+                    .collect::<Result<Vec<_>, _>>()?
+            }
             _ => Vec::new(),
+        };
+        let mut io = ChildIoPlan::new(
+            self.context.sysroot.as_path().to_path_buf(),
+            self.context.cache_root.as_path().to_path_buf(),
+        );
+        if let Some(target) = production {
+            io = io.with_toolchain(target.c_bridge_toolchain());
+        }
+        let output = match documentation {
+            Some((path, true)) => {
+                scoop_protocol::ScoopcOutputRequestV1::ArtifactWithDocumentation {
+                    artifact: path_carrier(&output_path)?,
+                    documentation: path_carrier(path)?,
+                }
+            }
+            Some((path, false)) => {
+                scoop_protocol::ScoopcOutputRequestV1::Documentation(path_carrier(path)?)
+            }
+            None => scoop_protocol::ScoopcOutputRequestV1::Artifact(path_carrier(&output_path)?),
         };
         let build = ScoopcBuildRequestV1::new(
             current,
@@ -124,7 +181,7 @@ impl PreparedBuildGraph {
             support,
             trusted_core,
             target,
-            path_carrier(&output_path)?,
+            output,
             DiagnosticOutputPolicyV1::Structured,
             match self.dumps.get(&identity) {
                 Some(dump) => StageDumpPolicyV1::Files {
@@ -144,11 +201,7 @@ impl PreparedBuildGraph {
             identity,
             request: ScoopcRequestEnvelopeV1::new(request_id, build),
             output_path,
-            io: ChildIoPlan::new(
-                self.context.sysroot.as_path().to_path_buf(),
-                self.context.cache_root.as_path().to_path_buf(),
-            )
-            .with_toolchain(self.context.target.c_bridge_toolchain()),
+            io,
         })
     }
 
@@ -230,6 +283,7 @@ fn path_carrier(path: &Path) -> Result<HostPathCarrier, ChildRequestPlanError> {
 
 #[derive(Debug)]
 pub enum ChildRequestPlanError {
+    NativeNotPrepared,
     UnknownNode(ConeIdentity),
     PrebuiltNode(ConeIdentity),
     MissingSourceProjection(ConeIdentity),
@@ -253,6 +307,9 @@ pub enum ChildRequestPlanError {
 impl fmt::Display for ChildRequestPlanError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::NativeNotPrepared => {
+                formatter.write_str("documentation-only source has no native production inputs")
+            }
             Self::UnknownNode(identity) => write!(formatter, "unknown prepared Cone {identity}"),
             Self::PrebuiltNode(identity) => {
                 write!(

@@ -12,6 +12,7 @@ mod child;
 mod compiler;
 mod diagnostic;
 mod discovery;
+mod document;
 mod graph;
 mod locator;
 mod materialize;
@@ -30,6 +31,7 @@ pub(crate) use child::{ChildIoPlan, ProductionSingleConeCompilerRunner, SingleCo
 pub use compiler::*;
 pub use diagnostic::*;
 pub use discovery::*;
+pub use document::*;
 pub use graph::*;
 pub use locator::{DependencyLocatorError, LocatorIoOperation};
 pub use program_link::read_built_program;

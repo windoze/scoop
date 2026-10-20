@@ -1,6 +1,7 @@
 use std::ffi::OsString;
 use std::path::PathBuf;
 
+use super::doc::DocArgs;
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use scoop::BuildProfile;
 
@@ -28,6 +29,8 @@ pub(super) enum Command {
     Test(TestArgs),
     /// Link existing artifacts without compiling sources.
     Link(LinkArgs),
+    /// Generate an offline API documentation site from manifest Cones.
+    Doc(DocArgs),
 }
 
 #[derive(Clone, Copy, Default, ValueEnum)]
@@ -206,6 +209,7 @@ impl Command {
             Self::Run(args) => args.options.message_format,
             Self::Test(args) => args.options.message_format,
             Self::Link(args) => args.message_format,
+            Self::Doc(args) => args.message_format,
         }
     }
 }

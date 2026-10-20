@@ -24,13 +24,57 @@ pub use model::{
 
 use model::{
     NonEmptyPreparedArtifactCandidates, PreparedGraphNode, PreparedManifestSourceNode,
-    PreparedPrebuiltArtifactNode, PreparedSingleFileNode,
+    PreparedPrebuiltArtifactNode, PreparedSingleFileNode, SourceNativeInput,
 };
 
 impl ResolvedBuildGraph {
     /// Prepares the graph and actual input paths for compiler child execution.
     pub fn prepare(self) -> Result<PreparedBuildGraph, PrepareBuildGraphError> {
-        Preparer::new(self.into_parts())?.run()
+        Preparer::new(self.into_parts(), false)?.run()
+    }
+
+    pub(crate) fn prepare_documentation(
+        self,
+    ) -> Result<PreparedBuildGraph, PrepareBuildGraphError> {
+        Preparer::new(self.into_parts(), true)?.run()
+    }
+}
+
+impl PreparedBuildGraph {
+    pub(crate) fn prepare_machine_source(
+        &mut self,
+        identity: scoop_identity::ConeIdentity,
+    ) -> Result<(), PrepareBuildGraphError> {
+        let Some(PreparedGraphNode::ManifestSource(node)) = self.nodes.get_mut(&identity) else {
+            return Ok(());
+        };
+        if matches!(node.snapshot.native, SourceNativeInput::Artifact(_)) {
+            return Ok(());
+        }
+        let target = self
+            .context
+            .target
+            .production(self.context.cache_root.as_path())
+            .map_err(PrepareBuildGraphError::Native)?
+            .into_owned();
+        let manifest = self
+            .context
+            .cache_root
+            .load_manifest(&scoop_manifest::ManifestRootLocator::exact_manifest_file(
+                &node.snapshot.manifest_locator,
+            ))
+            .map_err(PrepareBuildGraphError::Manifest)?;
+        let native = scoop_toolchain::prepare_native_objects(
+            &manifest,
+            &target,
+            self.context.optimization,
+            &self.context.sysroot.as_path().join("include"),
+            self.context.cache_root.as_path(),
+        )
+        .map_err(PrepareBuildGraphError::Native)?;
+        node.snapshot.native = SourceNativeInput::Artifact(native);
+        self.context.target = crate::GraphTarget::Artifact(Box::new(target));
+        Ok(())
     }
 }
 
@@ -38,10 +82,11 @@ struct Preparer {
     parts: ResolvedGraphParts,
     staging: PreparedStaging,
     compiler: ResolvedPairedScoopc,
+    documentation: bool,
 }
 
 impl Preparer {
-    fn new(parts: ResolvedGraphParts) -> Result<Self, PrepareBuildGraphError> {
+    fn new(parts: ResolvedGraphParts, documentation: bool) -> Result<Self, PrepareBuildGraphError> {
         let compiler =
             ResolvedPairedScoopc::resolve(&parts.context.compiler, &parts.context.cache_root)
                 .map_err(PrepareBuildGraphError::PairedCompiler)?;
@@ -51,6 +96,7 @@ impl Preparer {
             parts,
             staging,
             compiler,
+            documentation,
         })
     }
 
@@ -74,7 +120,12 @@ impl Preparer {
                         scoop_protocol::CompilationPurpose::Production
                     };
                     let input_root = manifest.real_root().to_path_buf();
-                    let snapshot = select_manifest_input(*manifest, &self.parts.context, purpose)?;
+                    let snapshot = select_manifest_input(
+                        *manifest,
+                        &self.parts.context,
+                        purpose,
+                        self.documentation,
+                    )?;
                     let output_path = self
                         .staging
                         .plan_output(topological_indices[&identity], &identity.to_string())
@@ -131,6 +182,7 @@ fn select_manifest_input(
     manifest: LoadedConeManifest,
     context: &BuildContext,
     purpose: scoop_protocol::CompilationPurpose,
+    documentation: bool,
 ) -> Result<ManifestSourceInput, PrepareBuildGraphError> {
     let discovered = match purpose {
         scoop_protocol::CompilationPurpose::Production => {
@@ -153,14 +205,24 @@ fn select_manifest_input(
     let test_config = (purpose == scoop_protocol::CompilationPurpose::Test)
         .then(|| manifest.parsed().tests().clone());
     let manifest_semantic = manifest.parsed().semantic().clone();
-    let native = scoop_toolchain::prepare_native_objects(
-        &manifest,
-        &context.target,
-        context.optimization,
-        &context.sysroot.as_path().join("include"),
-        context.cache_root.as_path(),
-    )
-    .map_err(PrepareBuildGraphError::Native)?;
+    let native = if documentation {
+        SourceNativeInput::Documentation
+    } else {
+        let target = context
+            .target
+            .production(context.cache_root.as_path())
+            .map_err(PrepareBuildGraphError::Native)?;
+        SourceNativeInput::Artifact(
+            scoop_toolchain::prepare_native_objects(
+                &manifest,
+                &target,
+                context.optimization,
+                &context.sysroot.as_path().join("include"),
+                context.cache_root.as_path(),
+            )
+            .map_err(PrepareBuildGraphError::Native)?,
+        )
+    };
     Ok(ManifestSourceInput {
         identity,
         coordinate,

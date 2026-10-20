@@ -8,8 +8,8 @@
 | --- | --- |
 | 设计与路线图 | 已提交；已核对本地引用、M52 当前状态及源码布局 |
 | M60-A：文档前端与注解 | 文档注释、Markdown／tag、普通 core 注解及 typed HIR 文档视图已完成；正式命令诊断随 B 接入 |
-| M60-B：单 Cone 闭环 | 已完成渲染输入、single-Cone 协议／driver、HTML／源码页／搜索渲染；CLI 与继承关系展示继续实施 |
-| M60-C：多 Cone 与更新复用 | 待实施 |
+| M60-B：单 Cone 闭环 | 已完成渲染输入、协议／driver、HTML／源码页／搜索渲染与 CLI；继承关系展示继续实施 |
+| M60-C：多 Cone 与更新复用 | 独立 root 编排、共享依赖与文档缓存已接入；页面级更新与更多组合验收继续实施 |
 | M60-D：实际库及跨平台验收 | 待实施 |
 
 ## 工作与验证约定
@@ -93,3 +93,13 @@ driver 复用完整正常 HIR，在同一次结果中投影文档；仅文档随
 推断 primitive 类型导航分别使用 Defined／Imported core 协议中的真实声明身份，类型参数链接原 binder；不会因某类型尚未触发成员加载而漏掉导航。真实 core 投影测试覆盖自身的推断 Int／Boolean／String。
 
 本机 fmt／workspace clippy 无警告，28 项相关 HIR 测试、7 项渲染测试和两项 driver 集成测试通过。首次测试发现导入 primitive 链接误依赖按需成员表，已改为直接读取完整 core 协议并复测通过。覆盖扩展函数和 property、M55／context 组合、generic／conditional／显式 equality、原 binder 名称，以及文档查询不改变机器派生选择。
+
+## B5／C1：真实文档命令与站点发布
+
+接入 `scoop doc` 的多 manifest root、目标／输出选择、private、no-deps、warning 政策和成功后打开入口。各 root 独立构建图，按实际 identity 合并相容源码任务；图发现和文档根使用纯目标选择，只有需生产依赖产物时准备 native 输入。复用现有机器缓存、single-Cone runner 和发布锁；源码依赖冷产物联合生成文档，已有机器产物只补文档，文档根不做机器生产或最终链接。
+
+前端文档缓存按实际生产源码状态、依赖选择及配套编译器更新，完整命中不读源码或调用编译器。README 与实际引用资源独立检查状态，复制资源并重写站内地址；缺失资源保留精确 README 位置。站点在同一父目录完成暂存，使用系统目录交换原子替换；类型错误、文档 warning 升级和实际 I/O 失败均保留旧站点。JSON 结果包含站点与各 Cone 入口、渲染状态及真实子编译调用。
+
+本机 fmt／workspace clippy、Ruff 通过。原有 87 项 Scoop 库测试中，协议 11→12 后遗漏更新的固定缓存向量失败，修正后定向复测通过，其余 86 项通过；13 项 CLI 测试、3 项 crate 边界测试、2 项 README 资源测试、53 项 fixture runner 测试通过。正式文档 CLI 的 3 个用例、4 个变体、16 个进程在 Darwin 通过，覆盖完整命中、README／private 更新、缺失页面补齐、Production／目标输入、两个 executable root、冷依赖联合生产、机器命中补文档、显式 root 与 no-deps、root 移除、精确文档／语言诊断及失败保留旧站点。
+
+清理 71 份已被替代的增量快照，约 4.19 GiB 文件逻辑大小。当前站点变化仍统一重渲染所有 Cone；按链接影响范围复用页面、继承／覆写展示、真实库内容和 Linux 完整验收继续实施，尚不宣告 M60 完成。

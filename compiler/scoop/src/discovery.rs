@@ -25,16 +25,18 @@ use crate::{
 mod builder;
 mod plans;
 mod root;
+mod target;
 use builder::DiscoveryBuilder;
 pub use root::LoadedBuildRoot;
 use root::LoadedRootInput;
+pub use target::GraphTarget;
 
 #[derive(Debug)]
 pub(crate) struct BuildContext {
     pub(crate) artifact_search_roots: Vec<ArtifactSearchRoot>,
     pub(crate) cache_root: ArtifactCacheRoot,
     pub(crate) sysroot: TrustedSysrootRoot,
-    pub(crate) target: scoop_toolchain::ResolvedTargetProfile,
+    pub(crate) target: GraphTarget,
     pub(crate) compiler: PairedScoopcLocator,
     pub(crate) diagnostics: DiagnosticsPolicy,
     pub(crate) optimization: scoop_lir::OptimizationMode,
@@ -104,7 +106,7 @@ impl DiscoveredBuildGraph {
         &self.context.sysroot
     }
 
-    pub const fn target(&self) -> &scoop_toolchain::ResolvedTargetProfile {
+    pub const fn target(&self) -> &GraphTarget {
         &self.context.target
     }
 

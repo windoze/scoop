@@ -13,6 +13,10 @@ use super::presentation::Reporter;
 
 pub(super) fn execute(command: Command, reporter: &Reporter) -> BuildResult<Option<ExitStatus>> {
     match command {
+        Command::Doc(args) => {
+            super::doc::execute(args, reporter)?;
+            Ok(None)
+        }
         Command::Build(args) => {
             let mut request = build_request(args.options, args.output, false)?;
             if let (Some(emit), Some(directory)) = (args.emit, args.dump_dir) {
@@ -198,7 +202,7 @@ fn build_request(
     })
 }
 
-fn target(explicit: Option<String>) -> BuildResult<String> {
+pub(super) fn target(explicit: Option<String>) -> BuildResult<String> {
     match explicit {
         Some(target) => Ok(target),
         None => scoop_toolchain::host_target_triple()
@@ -216,9 +220,9 @@ pub(super) fn absolute(cwd: &Path, path: PathBuf) -> BuildResult<PathBuf> {
         cwd.join(path)
     })
 }
-fn paths(cwd: &Path, paths: Vec<PathBuf>) -> BuildResult<Vec<PathBuf>> {
+pub(super) fn paths(cwd: &Path, paths: Vec<PathBuf>) -> BuildResult<Vec<PathBuf>> {
     paths.into_iter().map(|path| absolute(cwd, path)).collect()
 }
-fn config(error: impl std::fmt::Display) -> Box<BuildFailure> {
+pub(super) fn config(error: impl std::fmt::Display) -> Box<BuildFailure> {
     BuildFailure::tool("SCOOP_CLI_CONFIG", BuildFailurePhase::Request, error)
 }

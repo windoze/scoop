@@ -1,0 +1,4 @@
+package example
+
+/// API selected for aarch64-apple-darwin.
+public fun selectedPlatform(): Int = 1

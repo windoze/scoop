@@ -124,6 +124,7 @@ stdin 默认空；cwd 默认 `${work}`；env 继承调用者并应用显式键�
 stdout/stderr 也可显式声明 `{snapshot = "symbols.${target}.txt"}`，沿用 snapshot
 更新规则；正常验收仍比较完整原始字节。仅用于小而受控的结构或工具输出专测；普通功能用例不保存完整符号表。
 `json = "stderr"` 解析 Scoop schema 1 前缀，遇到成功结果即停止，后续字节归程序。
+`scoop doc` 返回 `documentation` 结果，包含站点入口、各 Cone 入口、渲染更新状态和实际编译调用。
 这种模式必须声明完整 `diagnostics` 数组或 JSON 期望文件；仅剥离 display，不改变
 canonical source、span、code、message 或 notes。stdout/stderr 仍严格比较剩余原始字节。
 `json = "stdout"` 用于普通工具的逐行 JSON，保留原 stdout。步骤结果还包含

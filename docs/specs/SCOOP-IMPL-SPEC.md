@@ -671,6 +671,10 @@ single-Cone 编译请求显式携带 Production 或 Test 用途，默认 Product
 
 文档成功响应携带渲染输入位置及独立的文档 warning，普通编译 warning 仍保留原分类；渲染输入包含页面目录组装所需的声明、typed 路由和诊断。仅文档成功没有 artifact summary。文档请求不与 observation-only 混用；仅文档可输出 AST／HIR dump，不能请求尚未执行的 MIR／LIR dump。普通编译不整理或报告文档问题；语言正文、默认值或可见性错误仍阻止文档输出，失败不覆盖之前的结果。工具本地 JSON 随编译器版本更新，不是 `.slib` section 或独立分发合同。
 
+`scoop doc` 接受零个或多个 manifest root，省略时使用 cwd 的 Cone.toml。各 root 独立发现并检查依赖图；只在站点层合并相容的源码文档任务，不建立 synthetic Cone。默认包含显式 root 及图中选中的源码依赖，`--no-deps` 保留全部显式 root；prebuilt 节点保持原消费来源。目标选择与图发现只需要纯 target registry 数据，native 工具与输入仅在确实需要生产依赖 `.slib` 时准备。仅文档 root 没有机器生产、runtime 或最终链接。
+
+文档前端输入记录使用实际 root／target、生产语义配置、选中源码的普通文件状态、依赖选择与结果及配套工具版本判断更新。命中且所需文档结果存在时，不读取源码内容或探测工具，也不读取命中结果复核内容；仅在站点确实需要重新渲染时读取已保存的文档输入。源码依赖的机器产物与文档分别判断缺失：冷产物附带文档，机器命中时仅补文档。README 与其实际引用资源独立决定首页更新。普通文件锁协调同一结果；全部页面、资源、链接和 warning 政策检查成功后替换站点，失败保留旧站点。
+
 文档渲染先汇总所有选中 Cone 的可见声明和 typed 路由，再生成页面与链接。Cone、package、类型、函数 overload 组与源码页使用完整身份确定的相对路径；显示名称与文件路径独立，成员、参数及 accessor 保留实际目标锚点。多目标引用连接到完整的可见 overload 集；解析成功但未生成页面的目标保留文本并注明缺少文档，不伪造 URL 或新增名称诊断。页面包含签名、tag、可见性与 property 能力、原文源码行及公开 re-export 的实际来源。
 
 `scoop-doc` 使用 pulldown-cmark 处理 Markdown，使用 MiniJinja 的内置模板与 HTML 转义生成页面；原始 HTML 当作文本显示，不执行代码示例或活动 URL。站点共享样式和脚本保存在本地，导航在无 JavaScript 时仍可用；搜索索引通过普通静态 JavaScript 加载，覆盖 Cone／package、名称、声明种类、摘要、DocAlias 及可见 re-export，不使用 fetch、CDN 或外部服务。渲染只消费投影、README 内容与调用方已确定的资源路由，不重新发现或读取源码。

@@ -309,9 +309,11 @@ impl ClassifyBuildFailure for PrepareBuildGraphError {
                 BuildFailurePhase::Toolchain,
                 BuildDiagnosticCode::CHILD_TOOL_MISMATCH,
             ),
-            Self::Staging(_) | Self::SourceDiscovery(_) | Self::Native(_) | Self::SingleFile(_) => {
-                phase_only(BuildFailurePhase::SourceSnapshot)
-            }
+            Self::Staging(_)
+            | Self::SourceDiscovery(_)
+            | Self::Native(_)
+            | Self::SingleFile(_)
+            | Self::Manifest(_) => phase_only(BuildFailurePhase::SourceSnapshot),
         }
     }
 }

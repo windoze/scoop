@@ -39,6 +39,26 @@ impl DiscoveredBuildGraph {
 }
 
 impl ResolvedBuildGraph {
+    pub(crate) fn source_manifest(
+        &self,
+        identity: ConeIdentity,
+    ) -> Option<&scoop_manifest::LoadedConeManifest> {
+        match self.nodes.get(&identity) {
+            Some(GraphNode::ManifestSource(manifest)) => Some(manifest),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn prebuilt_fingerprint(
+        &self,
+        identity: ConeIdentity,
+    ) -> Option<scoop_slib::ArtifactFingerprint> {
+        match self.nodes.get(&identity) {
+            Some(GraphNode::Prebuilt(artifact)) => Some(artifact.artifact_fingerprint()),
+            _ => None,
+        }
+    }
+
     pub const fn root_identity(&self) -> ConeIdentity {
         self.root
     }
@@ -105,7 +125,7 @@ impl ResolvedBuildGraph {
         &self.context.sysroot
     }
 
-    pub const fn target(&self) -> &scoop_toolchain::ResolvedTargetProfile {
+    pub const fn target(&self) -> &crate::GraphTarget {
         &self.context.target
     }
 

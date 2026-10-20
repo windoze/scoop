@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_COMPILER_WARNING",
+    "severity": "warning",
+    "message": "documentation reference `MissingSymbol` cannot be resolved",
+    "origin": {
+      "kind": "source",
+      "cone": "bbcfce366c1f96bcf0cf84a717b7bfd762ffb565901d3e6be4c57e48502368a0",
+      "path": "src/api.scoop",
+      "start": 9,
+      "end": 22
+    },
+    "notes": []
+  }
+]
