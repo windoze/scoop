@@ -111,6 +111,10 @@ impl CanonicalMirFoundation {
         &self.callable_signatures
     }
 
+    pub(crate) fn generated_callables(&self) -> &[GeneratedCallableRecord] {
+        &self.generated_callables
+    }
+
     pub fn callable_signature(
         &self,
         subject: crate::CallableSignatureSubject,

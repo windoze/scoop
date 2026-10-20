@@ -170,4 +170,10 @@ Linux 全量文件验收发现 `m31-ssa-roots` 的 release 期望仍保留已消
 
 Linux 全量验收的三项 release 相等性失败在 Darwin 同样复现。原因是普通外部 nominal 的 box 表由 provider 提供，消费方 MIR 中空的本地 itable 被分配消除误当成完整集合，进而将 `42 as Any is Equals<Int>` 折叠为 false。先补实现规范 2.19，再对这类接口判断保留运行期检查；本地完整表、exact payload 拆箱与其他来源事实保持，不新增跨过程分析或接口目录。
 
-fmt／workspace clippy、26 项 MIR 优化专测通过。重建 Darwin 全部 12 个 core／标准库与 runtime 后，三个原失败 fixture 和五个 M58 优化 fixture 共 19 变体／47 进程全部通过，包含普通／移动 GC／minor、接口正反例、安全转换、跨库消费及独立重链接。Linux 原失败报告保留，按新代码重建两目标 sysroot 后继续完整验收。
+fmt／workspace clippy、26 项 MIR 优化专测通过。重建 Darwin 全部 12 个 core／标准库与 runtime 后，三个原失败 fixture 和五个 M58 优化 fixture 共 19 变体／47 进程全部通过，包含普通／移动 GC／minor、接口正反例、安全转换、跨库消费及独立重链接。GNU／musl 也分别重建全部 12 个库与 runtime，四项针对性回归各 9 变体／35 进程通过。原失败报告保留，完整文件验收继续。
+
+## 2026-10-20：优化模式独立的协程发布边界
+
+GNU 全量验收的 M42 组合暴露出 debug core 与 release std 的依赖指纹不一致：被 C1／C2 消除的私有 driver／adapter，以及仅在未优化 frame 中物化的 box receiver slot，进入了公共 bridge。先修订实现规范 2.3，再将私有 CoroutineDriver／CoroutineAdapter 从公共 Strong callable bridge 中排除，保留其实际 foundation／Code 身份；suspend 装箱 adapter 则在优化前确定 receiver slot，使已发布 box 支持不随状态机消除变化。没有放宽真实依赖变化的检查。
+
+fmt／workspace clippy、MIR 与 MIR lowering 共 397 项测试通过。新的三库 fixture 分别用 debug／release 构建 provider 与中间库，再只替换 provider 为另一模式；两方向共 14 个进程通过，涵盖装箱接口、真正挂起、普通／强制移动／minor GC。临时 metadata 诊断程序已删除；完整 core／标准库依赖链复验继续。

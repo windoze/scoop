@@ -96,6 +96,20 @@ fn unoptimized_tail_call_retains_existing_lowering() {
 }
 
 #[test]
+fn private_coroutine_helpers_do_not_change_dependency_signatures() {
+    let source = program(Shape::Exact, 2, false);
+    let debug = lower_tail(&source, false);
+    let release = lower_tail(&source, true);
+    let debug = mir::CanonicalMirFoundation::from_module(&debug).unwrap();
+    let release = mir::CanonicalMirFoundation::from_module(&release).unwrap();
+    assert!(debug.callable_signatures().len() > release.callable_signatures().len());
+    assert_eq!(
+        mir::StrongCallableBridgeSurfaceV1::from_foundation(&debug),
+        mir::StrongCallableBridgeSurfaceV1::from_foundation(&release)
+    );
+}
+
+#[test]
 fn forwarding_callee_is_still_a_suspension_in_its_nontail_caller() {
     let module = lower_tail(&program(Shape::TailThenAdd, 2, false), true);
     assert!(matches!(

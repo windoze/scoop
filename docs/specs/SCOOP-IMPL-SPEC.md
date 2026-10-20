@@ -239,7 +239,7 @@ closure 具有完整捕获字段、类型、invoke 与扫描属性；绑定方�
 
 suspend callable 的执行 ABI 为 `(source args..., Continuation<R>) -> CoroutineStep<R>`，后者仅含 Completed(R) 与 Suspended。输出不保留源码级 suspend call；frame、continuation、恢复入口和 saved slots 均有独立身份和完整类型。跨挂起只保存已初始化的 exact payload，不保存 native block address 或 active EH record。
 
-接口 adapter 的物理 receiver 是具体对象引用；装箱 adapter 挂起时保存的 receiver 使用生成 box 的 exact type，而不伪装成源码 interface。其 `CoroutineSlot<box<T>>` 以 box 的 exact identity 区分，并与 box 一样归属 T 的定义或 application ODR group；扫描仍为一个 managed object 引用。普通 nominal 的 box slot 随已发布的 box 支持输出，纯内部 saved slot 不扩张私有 payload 的发布闭包。
+接口 adapter 的物理 receiver 是具体对象引用；装箱 adapter 挂起时保存的 receiver 使用生成 box 的 exact type，而不伪装成源码 interface。其 `CoroutineSlot<box<T>>` 以 box 的 exact identity 区分，并与 box 一样归属 T 的定义或 application ODR group；扫描仍为一个 managed object 引用。普通 nominal 的 suspend 装箱 adapter 在优化前确定该 receiver slot，并随已发布的 box 支持输出；是否消除 adapter 的状态机不改变这项有限支持。纯内部 saved slot 不扩张私有 payload 的发布闭包。
 
 object 的源码 exact type 与 backing class exact type 是同一对象的两种视图，共用分发表及 receiver adapter。adapter 的 implementor 保留源码 object 身份；backing 表通过类型记录中已有的 `Object { backing }` 关系引用它，不另建 callable 或放宽为任意继承 receiver。
 
@@ -249,7 +249,7 @@ MIR metadata 保存源码声明到实际 callable、constructor、accessor、gen
 
 mir-lower 完成 concrete CFG、dispatch、closure／adapter 与协程执行 ABI 后，由独立优化模块按 2.19 有界交替执行 receiver 实际类型传播、唯一目标去虚拟化、按调用点选择的小函数内联、局部分配替换与常量／CFG 清理；driver 显式传入优化配置。scoop-mir 保持纯数据职责，program-link 不隐藏重编译或导入普通外部正文。
 
-release 默认启用 MIR 优化，debug 保留未优化的完整 MIR；两种模式的阶段 dump 分别记录实际输出，使用相同的实体身份与 ABI。数据流在异常边合并可能抛出时的局部状态，不能只把 block 的最终状态交给 handler。实际表项或闭包 invoke／bridge 完整可用时才改写目标；外部目标使用已经选中的 callable 签名和引用。
+release 默认启用 MIR 优化，debug 保留未优化的完整 MIR；两种模式的阶段 dump 分别记录实际输出，使用相同的实体身份与 ABI。私有 CoroutineDriver／CoroutineAdapter 属于实现正文，其实际身份与签名保留在 MIR foundation 和 Code 中，不进入供依赖消费的 Strong callable bridge；消除这些 helper 不改变依赖语义指纹。数据流在异常边合并可能抛出时的局部状态，不能只把 block 的最终状态交给 handler。实际表项或闭包 invoke／bridge 完整可用时才改写目标；外部目标使用已经选中的 callable 签名和引用。
 
 函数内类型事实为不可达、未知或唯一实际类型。最派生 allocation、已知 box／closure 和 final class 提供事实，复制和合法转换传播，合流只保留一致事实，循环求不动点；未知返回、可变字段和取址后的可变 local 保守处理。base／this initializer 不收窄实际类型，initializing receiver 的使用仍受语言规范中的构造约束；静态 open class 或本 Cone 实现数量不构成全程序闭合。去虚拟化按原 typed slot 查询实际表项，一次生成含完整 callee 与 receiver 适配的新调用分支，保留原 effect、EH、Context 与 continuation。
 
