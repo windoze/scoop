@@ -1,0 +1,52 @@
+package scoop.terminal.screen
+
+import scoop.terminal.Command
+import scoop.terminal.requireTerminalParameter
+import scoop.terminal.writeCsiParameter
+
+public enum ClearType { All, Purge, FromCursorDown, FromCursorUp, CurrentLine, UntilNewLine }
+
+public struct Clear(val type: ClearType) : Command {
+    public override fun writeAnsi(writer: TextWriter) {
+        val suffix = when (type) {
+            case ClearType.All -> "2J"
+            case ClearType.Purge -> "3J"
+            case ClearType.FromCursorDown -> "J"
+            case ClearType.FromCursorUp -> "1J"
+            case ClearType.CurrentLine -> "2K"
+            case ClearType.UntilNewLine -> "K"
+        }
+        writer.write("\u001b[" + suffix)
+    }
+}
+
+public struct ScrollUp(val count: Long) : Command {
+    public override fun writeAnsi(writer: TextWriter) {
+        if (count != 0L) writeCsiParameter(writer, count, "S")
+    }
+}
+
+public struct ScrollDown(val count: Long) : Command {
+    public override fun writeAnsi(writer: TextWriter) {
+        if (count != 0L) writeCsiParameter(writer, count, "T")
+    }
+}
+
+public struct SetSize(val columns: Long, val rows: Long) : Command {
+    public override fun writeAnsi(writer: TextWriter) {
+        requireTerminalParameter(columns, 1L)
+        requireTerminalParameter(rows, 1L)
+        writer.write("\u001b[8;" + rows.toString() + ";" + columns.toString() + "t")
+    }
+}
+
+public struct SetTitle(val title: String) : Command {
+    public override fun writeAnsi(writer: TextWriter) {
+        for (character in title) {
+            if (character.code < 32 || (character.code >= 127 && character.code <= 159)) {
+                throw IllegalArgumentException(Some("terminal title contains a control character"))
+            }
+        }
+        writer.write("\u001b]0;" + title + "\u0007")
+    }
+}

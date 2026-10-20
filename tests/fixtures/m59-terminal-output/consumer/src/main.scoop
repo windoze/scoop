@@ -1,0 +1,16 @@
+import scoop.platform.io.*
+import scoop.terminal.*
+import scoop.terminal.cursor.*
+import scoop.terminal.screen.*
+
+private struct Greeting(val name: String) : Command {
+    public override fun writeAnsi(writer: TextWriter) { writer.write("hello " + name) }
+}
+
+fun main() {
+    BufferedSink(standardOutput, 7L).use { sink ->
+        sink.queue(EnterAlternateScreen, SavePosition, MoveTo(2L, 1L))
+        gcCollect()
+        sink.execute(Greeting("中😀"), RestorePosition, LeaveAlternateScreen, Print("\n"))
+    }
+}

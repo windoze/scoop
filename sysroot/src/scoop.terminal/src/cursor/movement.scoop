@@ -1,0 +1,51 @@
+package scoop.terminal.cursor
+
+import scoop.terminal.Command
+import scoop.terminal.requireTerminalParameter
+import scoop.terminal.writeCsiParameter
+
+public struct MoveTo(val column: Long, val row: Long) : Command {
+    public override fun writeAnsi(writer: TextWriter) {
+        requireTerminalParameter(column)
+        requireTerminalParameter(row)
+        writer.write("\u001b[" + (row + 1L).toString() + ";" + (column + 1L).toString() + "H")
+    }
+}
+
+public struct MoveToColumn(val column: Long) : Command {
+    public override fun writeAnsi(writer: TextWriter) {
+        requireTerminalParameter(column)
+        writer.write("\u001b[" + (column + 1L).toString() + "G")
+    }
+}
+
+public struct MoveToRow(val row: Long) : Command {
+    public override fun writeAnsi(writer: TextWriter) {
+        requireTerminalParameter(row)
+        writer.write("\u001b[" + (row + 1L).toString() + "d")
+    }
+}
+
+public struct MoveUp(val count: Long) : Command {
+    public override fun writeAnsi(writer: TextWriter) { writeCsiParameter(writer, count, "A") }
+}
+
+public struct MoveDown(val count: Long) : Command {
+    public override fun writeAnsi(writer: TextWriter) { writeCsiParameter(writer, count, "B") }
+}
+
+public struct MoveRight(val count: Long) : Command {
+    public override fun writeAnsi(writer: TextWriter) { writeCsiParameter(writer, count, "C") }
+}
+
+public struct MoveLeft(val count: Long) : Command {
+    public override fun writeAnsi(writer: TextWriter) { writeCsiParameter(writer, count, "D") }
+}
+
+public struct MoveToNextLine(val count: Long) : Command {
+    public override fun writeAnsi(writer: TextWriter) { writeCsiParameter(writer, count, "E") }
+}
+
+public struct MoveToPreviousLine(val count: Long) : Command {
+    public override fun writeAnsi(writer: TextWriter) { writeCsiParameter(writer, count, "F") }
+}

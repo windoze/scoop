@@ -1,0 +1,31 @@
+package scoop.terminal
+
+import scoop.bytes.ByteArrayBuilder
+import scoop.platform.io.ByteSink
+import scoop.platform.memory.NativeByteBuffer
+
+internal class RecordingSink(private val chunk: Long = 2L) : ByteSink, Closeable {
+    val bytes: ByteArrayBuilder = ByteArrayBuilder()
+    var flushes: Int = 0
+    var closed: Boolean = false
+    var zero: Boolean = false
+    var failFlush: Boolean = false
+    var failAfter: Long = Long.MAX_VALUE
+    val failure: Throwable = Throwable()
+
+    public override fun writeFrom(buffer: NativeByteBuffer, count: Long): Long {
+        if (bytes.size >= failAfter) throw failure
+        if (zero) return 0L
+        val copied = if (count < chunk) count else chunk
+        bytes.append(buffer.readBytes(copied))
+        return copied
+    }
+
+    public override fun flush() {
+        flushes += 1
+        if (failFlush) throw failure
+    }
+
+    public override fun close() { closed = true }
+    fun text(): String = String.fromUtf8(bytes.toByteArray())
+}

@@ -42,7 +42,7 @@ package `scoop.terminal.cursor`。命令均实现 Command。
 | `MoveUp(count: Long)`、`MoveDown(count: Long)` | `CSI count A/B` |
 | `MoveRight(count: Long)`、`MoveLeft(count: Long)` | `CSI count C/D` |
 | `MoveToNextLine(count: Long)`、`MoveToPreviousLine(count: Long)` | `CSI count E/F`，同时回到第一列 |
-| `SavePosition`、`RestorePosition` | singleton 命令，`CSI s/u` |
+| `SavePosition`、`RestorePosition` | singleton 命令，`ESC 7/8`（DEC 保存／恢复） |
 | `Hide`、`Show` | singleton 命令，`CSI ?25 l/h` |
 | `EnableBlinking`、`DisableBlinking` | singleton 命令，`CSI ?12 h/l` |
 | `SetCursorStyle` | enum 命令：DefaultUserShape、BlinkingBlock、SteadyBlock、BlinkingUnderScore、SteadyUnderScore、BlinkingBar、SteadyBar，对应 `CSI 0..6 SP q` |

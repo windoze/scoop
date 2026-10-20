@@ -1,0 +1,71 @@
+package scoop.terminal
+
+import scoop.platform.io.BufferedSink
+import scoop.platform.io.WriteZeroException
+import scoop.terminal.cursor.MoveTo
+import scoop.terminal.screen.*
+import scoop.test.*
+
+@Test
+private class OutputCommandsTest {
+    @Test
+    fun `commands compose on a text writer and retain Unicode`() {
+        val writer = StringWriter()
+        writer.queue(MoveTo(2L, 4L), Print("中😀"), Print(42L))
+        assertEquals("\u001b[5;3H中😀42", writer.toString())
+        assertEquals("42", Print(42).toAnsiString())
+    }
+
+    @Test
+    fun `queue writes without flushing and execute flushes once`() {
+        val sink = RecordingSink(1L)
+        sink.queue(Print("中"), Print("😀"))
+        assertEquals("中😀", sink.text())
+        assertEquals(0, sink.flushes)
+        sink.execute(Print("!"))
+        assertEquals("中😀!", sink.text())
+        assertEquals(1, sink.flushes)
+        sink.execute()
+        assertEquals(2, sink.flushes)
+        assertFalse(sink.closed)
+    }
+
+    @Test
+    fun `a real buffered sink drains commands in order`() {
+        val sink = RecordingSink()
+        BufferedSink(sink, 64L).use { buffered ->
+            buffered.queue(EnterAlternateScreen, MoveTo(0L, 0L), Print("ready"))
+            assertEquals("", sink.text())
+            buffered.execute(LeaveAlternateScreen)
+            assertEquals("\u001b[?1049h\u001b[1;1Hready\u001b[?1049l", sink.text())
+            assertEquals(1, sink.flushes)
+        }
+        assertFalse(sink.closed)
+    }
+
+    @Test
+    fun `write failures retain progress and stop the batch`() {
+        val sink = RecordingSink()
+        sink.failAfter = 2L
+        assertSame(sink.failure, assertFailsWith<Throwable> { sink.execute(Print("abcd"), Print("later")) })
+        assertEquals("ab", sink.text())
+        assertEquals(0, sink.flushes)
+        val zero = RecordingSink()
+        zero.zero = true
+        assertFailsWith<WriteZeroException> { zero.execute(Print("x")) }
+        assertEquals(0, zero.flushes)
+    }
+
+    @Test
+    fun `encoding and flush failures propagate without closing the sink`() {
+        val sink = RecordingSink()
+        assertFailsWith<IllegalArgumentException> { sink.execute(Print("ok"), MoveTo(-1L, 0L), Print("later")) }
+        assertEquals("ok", sink.text())
+        assertEquals(0, sink.flushes)
+        sink.failFlush = true
+        assertSame(sink.failure, assertFailsWith<Throwable> { sink.execute(Print("!")) })
+        assertEquals("ok!", sink.text())
+        assertEquals(1, sink.flushes)
+        assertFalse(sink.closed)
+    }
+}
