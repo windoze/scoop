@@ -1,12 +1,7 @@
-# TLS system trust test support
+# TLS 平台信任测试辅助库
 
-This ordinary test Cone supplies isolated platform anchors, native work gates,
-and short-lived certificates signed in memory by the existing test CA. The
-server templates keep their SAN and usage extensions. Valid test leaves run
-from yesterday through seven days from now; expired leaves end yesterday.
-Production TLS continues to check the current time and the platform's validity
-policy, and these helpers never modify machine keychains or trust settings.
+这个普通测试 Cone 提供隔离的平台信任锚、原生工作门控，以及由现有测试 CA 在内存中签发的短期证书。服务器模板保留 SAN 和用途扩展；有效证书从昨天起生效、七天后过期，expired 证书在昨天过期。
 
-The fixed M51 certificates intentionally span multiple years and remain
-unchanged. They are unsuitable as positive SecTrust TLS policy inputs because
-macOS limits the validity period even when an anchor is supplied explicitly.
+生产 TLS 继续校验当前时间及平台有效期策略。这些 helper 不修改机器的 keychain 或信任设置。固定 M51 证书有意覆盖多年并保持不变；macOS 即使接收显式信任锚也限制 TLS 叶证书有效期，因此平台正例使用 systemCertificatePem。
+
+公开 Scoop 入口及其生命周期说明见 src/certificate.scoop。本 Cone 不属于发行内置库清单，也不进入 SYSROOT/docs 的生产库站点。

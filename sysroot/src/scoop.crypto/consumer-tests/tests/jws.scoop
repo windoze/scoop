@@ -6,8 +6,14 @@ import scoop.test.*
 import scoop.io.encoding.Base64
 import scoop.text.split
 
+/**
+ * Checks compact JWS and signature representations through published crypto APIs.
+ */
 @Test
 private class JwsConsumerTests {
+    /**
+     * Signs and verifies an EdDSA compact token and checks its key ID and payload bytes.
+     */
     @Test
     fun `public JWS enum keys and verified payload cross Cone boundaries`() {
         PrivateKey.generateEd25519().use { privateKey ->
@@ -22,6 +28,10 @@ private class JwsConsumerTests {
         }
     }
 
+    /**
+     * Checks that raw DER ECDSA signatures and 64-byte ES256 JWS signatures both verify with
+     * the same P-256 key.
+     */
     @Test
     fun `P256 factory and DER signatures compose with fixed width JWS signatures`() {
         PrivateKey.generateP256().use { privateKey ->

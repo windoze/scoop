@@ -30,8 +30,8 @@ public class Xoshiro256StarStar private constructor(state: (ULong, ULong, ULong,
     public constructor(seed: Long) : this(xoshiroSeed(seed)) {}
 
     /**
-     * Produces the requested 0..32 low result bits from the next generator output; invalid counts
-     * throw.
+     * Returns 0..32 high bits of the next generator output in the result's low bits. A zero count
+     * returns zero without advancing the generator; counts outside this range throw.
      */
     public override fun nextBits(bitCount: Int): Int {
         if (bitCount < 0 || bitCount > 32) throw IllegalArgumentException(Some("bitCount must be in 0..32"))

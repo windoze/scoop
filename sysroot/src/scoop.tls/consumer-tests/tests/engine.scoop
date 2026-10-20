@@ -8,8 +8,15 @@ import scoop.tls.*
 import scoop.tls.native.*
 import scoop.test.*
 
+/**
+ * Checks the published memory TLS engine with independently owned crypto inputs.
+ */
 @Test
 private class TlsEngineConsumerTests {
+    /**
+     * Completes a verified in-memory TLS 1.3 handshake after closing the original
+     * certificates, keys, stores, and contexts.
+     */
     @Test
     fun `published TLS engine and crypto types perform a verified handshake`() {
         val root = Certificate.fromPem(rootPem())
@@ -40,6 +47,10 @@ private class TlsEngineConsumerTests {
     }
 }
 
+/**
+ * Transfers currently available ciphertext between the two test engines through a reusable
+ * native buffer.
+ */
 private fun moveCiphertext(from: TlsEngine, to: TlsEngine, buffer: NativeByteBuffer) {
     buffer.clear()
     from.takeCiphertext(buffer)

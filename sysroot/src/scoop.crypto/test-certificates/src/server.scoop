@@ -2,6 +2,9 @@ package scoop.crypto.testdata
 
 // Fixed OpenSSL 3.6.5 CLI test input; dates and extensions are intentional.
 
+/**
+ * Returns the fixed localhost server certificate signed by the fixture intermediate CA.
+ */
 public fun serverPem(): String =
     "-----BEGIN CERTIFICATE-----\n" +
     "MIIByTCCAXCgAwIBAgICEAIwCgYIKoZIzj0EAwIwITEfMB0GA1UEAwwWU2Nvb3Ag\n" +
@@ -16,6 +19,9 @@ public fun serverPem(): String =
     "TKzmi5ZM7yEQkpzwvLxEzgxcVrfVvb0hcAmhog0=\n" +
     "-----END CERTIFICATE-----\n"
 
+/**
+ * Returns the server certificate's public test fixture private key, for test handshakes only.
+ */
 public fun serverKeyPem(): String =
     "-----BEGIN PRIVATE KEY-----\n" +
     "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg4J7bsjg1SuxLJd5M\n" +

@@ -11,8 +11,15 @@ import scoop.test.*
 import scoop.tls.*
 import scoop.tls.asyncio.*
 
+/**
+ * Exercises published asynchronous TLS wrappers with real event-loop and scope ownership.
+ */
 @Test
 private class AsyncTlsConsumerTests {
+    /**
+     * Resolves localhost and round-trips TLS bytes between scoped client/server tasks,
+     * validating resource retention and graceful close.
+     */
     @Test
     fun `published async wrappers compose with M49 scopes and resource helpers`() {
         val loop: EventLoop = LibuvEventLoop()

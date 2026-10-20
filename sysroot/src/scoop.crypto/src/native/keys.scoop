@@ -7,11 +7,11 @@ import scoop.crypto.PublicKey
  * Borrows the native handle of a live PrivateKey. The unsafe caller must keep the owner open
  * throughout native use and must not free the borrowed handle.
  */
+@Unsafe public fun privateKeyHandle(key: PrivateKey): ULong = key.nativeHandle()
 /**
  * Borrows the native handle of a live PublicKey. The unsafe caller must keep the owner open
  * throughout native use and must not free the borrowed handle.
  */
-@Unsafe public fun privateKeyHandle(key: PrivateKey): ULong = key.nativeHandle()
 @Unsafe public fun publicKeyHandle(key: PublicKey): ULong = key.nativeHandle()
 
 @Extern(name = "scoop_crypto_key_generate") internal fun keyGenerate(algorithm: Int, bits: Int): CryptoResult

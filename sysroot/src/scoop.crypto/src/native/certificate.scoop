@@ -8,11 +8,11 @@ import scoop.crypto.x509.PeerIdentity
  * Borrows the native handle of a live Certificate. The unsafe caller must keep the owner open
  * throughout native use and must not free the borrowed handle.
  */
+@Unsafe public fun certificateHandle(value: Certificate): ULong = value.nativeHandle()
 /**
  * Borrows the native handle of a live TrustStore. The unsafe caller must keep the owner open
  * throughout native use and must not free the borrowed handle.
  */
-@Unsafe public fun certificateHandle(value: Certificate): ULong = value.nativeHandle()
 @Unsafe public fun trustStoreHandle(value: TrustStore): ULong = value.nativeHandle()
 
 /**

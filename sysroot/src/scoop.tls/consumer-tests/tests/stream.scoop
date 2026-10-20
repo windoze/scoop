@@ -7,8 +7,15 @@ import scoop.platform.net.*
 import scoop.tls.*
 import scoop.test.*
 
+/**
+ * Checks production synchronous TLS stream ownership through a separate consumer Cone.
+ */
 @Test
 private class TlsStreamConsumerTests {
+    /**
+     * Round-trips bytes over loopback TLS using owned TCP streams, generic resource helpers,
+     * and graceful shutdown.
+     */
     @Test
     fun `production generic ownership entry points carry bidirectional TLS bytes`() {
         consumerClientContext().use { clientConfig -> consumerServerContext().use { serverConfig ->

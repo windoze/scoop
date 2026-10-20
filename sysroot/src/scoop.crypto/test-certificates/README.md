@@ -1,8 +1,5 @@
-# M51 test certificates
+# 固定证书测试资料
 
-Fixed PEM inputs generated with the OpenSSL 3.6.5 CLI. The root is valid from
-2024-01-01 through 2036-01-01, the intermediate through 2035-01-01, and the
-server through 2034-01-01. The server SAN contains localhost, 127.0.0.1 and ::1.
-The expired leaf ends on 2025-01-01; the client leaf only permits clientAuth.
-The included private keys are test inputs. This ordinary Cone only depends on
-core and is used through test-dependencies by crypto and TLS consumers.
+固定 PEM 输入由 OpenSSL 3.6.5 CLI 生成。root 有效期为 2024-01-01 至 2036-01-01，intermediate 至 2035-01-01，server 至 2034-01-01。server 的 SAN 包含 localhost、127.0.0.1 和 ::1；expired 叶证书于 2025-01-01 过期，client 叶证书只允许 clientAuth。日期、用途和扩展都是测试输入的一部分。
+
+包含的私钥是公开测试资料，不用于生产身份。这个普通 Cone 只依赖 core，由 crypto 和 TLS 消费者通过 test-dependencies 使用；每个 PEM 入口的用途说明附在源码声明上。本 Cone 不属于发行内置库清单，也不进入 SYSROOT/docs 的生产库站点。

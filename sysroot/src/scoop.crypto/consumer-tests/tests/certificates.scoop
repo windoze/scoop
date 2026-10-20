@@ -6,8 +6,15 @@ import scoop.crypto.testdata.*
 import scoop.test.*
 import scoop.time.Instant
 
+/**
+ * Exercises certificate ownership and explicit trust from a separate consumer Cone.
+ */
 @Test
 private class CertificateConsumerTests {
+    /**
+     * Validates the localhost chain at a fixed instant, rejects a missing intermediate, and
+     * exports the leaf public key.
+     */
     @Test
     fun `production certificate types trust and default arguments`() {
         Certificate.fromPem(rootPem()).use { root ->

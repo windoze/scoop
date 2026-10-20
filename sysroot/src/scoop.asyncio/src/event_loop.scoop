@@ -15,11 +15,11 @@ public interface EventLoop {
      * Runs a single-use native payload on a worker and waits for completion before releasing its
      * active borrow.
      */
+    @Unsafe public suspend fun runNativeWork(work: NativeWork)
     /**
      * Runs the root structured scope and drives its operations to completion. The loop is
      * single-use and cannot be nested or called from an existing Job.
      */
-    @Unsafe public suspend fun runNativeWork(work: NativeWork)
     public fun run(block: suspend (CoroutineScope) -> Unit)
     /**
      * Suspends for a nonnegative duration and follows current-job cancellation.

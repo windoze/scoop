@@ -12,6 +12,10 @@ typedef struct {
     uv_work_t requests[];
 } TestWorkFence;
 
+/**
+ * Returns the configured libuv worker count, applying the pinned backend's default and
+ * limits.
+ */
 unsigned scoop_test_pool_size(void) {
     /* Match the pinned libuv threadpool's environment selection. */
     char value[16];
@@ -44,6 +48,10 @@ static void fence_finished(uv_work_t *request, int status) {
     }
 }
 
+/**
+ * Queues gates occupying all but spare worker slots. Release the fence before awaiting its
+ * loop completion.
+ */
 ScoopIoCreated scoop_test_fence_create(ScoopIoLoop *loop, int64_t id, unsigned spare) {
     unsigned pool = scoop_test_pool_size();
     if (spare >= pool)
@@ -74,6 +82,10 @@ ScoopIoCreated scoop_test_fence_create(ScoopIoLoop *loop, int64_t id, unsigned s
     return (ScoopIoCreated){fence, 0};
 }
 
+/**
+ * Blocks until every queued gate has entered a worker; call outside the event-loop work
+ * being exercised.
+ */
 void scoop_test_fence_wait(TestWorkFence *fence) {
     pthread_mutex_lock(&fence->mutex);
     while (fence->started != fence->count)
@@ -81,6 +93,9 @@ void scoop_test_fence_wait(TestWorkFence *fence) {
     pthread_mutex_unlock(&fence->mutex);
 }
 
+/**
+ * Unblocks all occupied worker slots so their completion callbacks can finish on the loop.
+ */
 void scoop_test_fence_release(TestWorkFence *fence) {
     pthread_mutex_lock(&fence->mutex);
     fence->released = true;
