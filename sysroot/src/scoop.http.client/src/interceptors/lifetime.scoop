@@ -1,0 +1,89 @@
+package scoop.http.client
+
+import scoop.platform.time.MonotonicTimeSource
+import scoop.time.Duration
+
+internal suspend fun interceptClientSequence(client: ClientState, request: HttpRequest,
+    sequence: ClientRequestSequence): HttpCallResult {
+    if (client.config.interceptors.size == 0L) return runClientSequence(client, request, sequence)
+    val invocation = ClientInvocation(client, clientJob(client.loop, true), sequence)
+    try {
+        context(invocation) {
+            coroutineScope<Unit> suspend { scope ->
+                registerClientInvocation(invocation, scope.job)
+                val listener = scope.job.invokeOnCancellation { reason ->
+                    client.lock.withLock {
+                        if (!clientPresent(invocation.failure)) invocation.failure = Some(reason)
+                        Unit
+                    }
+                }
+                val timer = startClientInvocationTimer(invocation, scope)
+                try {
+                    val selected = invokeClientInterceptor(invocation, 0L, request)
+                    invocation.selected = Some(selected)
+                    if (clientResultIsWebSocket(selected) != clientPresent(sequence.webSocket) || clientResultOwner(selected) !== client)
+                        throw IllegalStateException(Some("HTTP interceptor result must match this client and request kind"))
+                    invocation.requireActive()
+                } catch (error: Throwable) { recordClientInvocationFailure(invocation, error); throw error }
+                finally { timer?.cancel(); listener.dispose() }
+            }
+        }
+        invocation.requireActive()
+    } catch (error: Throwable) { recordClientInvocationFailure(invocation, error) }
+    try {
+        val keep: HttpCallResult? = if (clientPresent(clientInvocationFailure(invocation))) None else invocation.selected
+        closeClientInvocationResults(invocation, keep)
+        if (!clientPresent(clientInvocationFailure(invocation))) {
+            try { invocation.requireActive() }
+            catch (error: Throwable) { recordClientInvocationFailure(invocation, error) }
+        }
+        val published = client.lock.withLock {
+            if (client.closing && !clientPresent(invocation.failure)) invocation.failure = Some(HttpClientClosedException())
+            if (clientPresent(invocation.failure) || clientPresent(invocation.cleanupFailure)) false
+            else { invocation.published = true; true }
+        }
+        if (!published) closeClientInvocationResults(invocation, None)
+    } finally { unregisterClientInvocation(invocation) }
+    val failure = clientInvocationFailure(invocation)
+    if (clientPresent(failure)) throw failure!!
+    return invocation.selected!!
+}
+
+private fun registerClientInvocation(invocation: ClientInvocation, job: Job) {
+    invocation.client.lock.withLock {
+        if (invocation.client.closing) throw HttpClientClosedException()
+        invocation.job = Some(job)
+        invocation.registered = true
+        invocation.client.invocations.add(invocation)
+    }
+}
+
+private fun unregisterClientInvocation(invocation: ClientInvocation) {
+    val client = invocation.client
+    client.lock.withLock {
+        if (!invocation.registered) return@withLock
+        var index = 0L
+        while (index < client.invocations.size) {
+            if (client.invocations[index] === invocation) { client.invocations.removeAt(index); break }
+            index += 1L
+        }
+        invocation.registered = false; invocation.job = None
+        if (client.closing && clientPresent(invocation.cleanupFailure))
+            client.closeFailure = appendClientCleanup(client.closeFailure, invocation.cleanupFailure!!)
+        Unit
+    }
+    wakeClient(client)
+}
+
+private fun startClientInvocationTimer(invocation: ClientInvocation, scope: CoroutineScope): Job? {
+    val limit = invocation.sequence.timeouts.total ?: return None
+    return Some(scope.launch suspend {
+        try {
+            val remaining = limit - (MonotonicTimeSource.markNow() - invocation.sequence.started!!)
+            if (remaining > Duration.ZERO) invocation.client.loop.sleep(remaining)
+            stopClientInvocation(invocation, clientSequenceTimeout(invocation.client, invocation.sequence, None))
+        } catch (error: Throwable) {
+            if (!(error is CancellationException)) stopClientInvocation(invocation, error)
+        }
+    })
+}

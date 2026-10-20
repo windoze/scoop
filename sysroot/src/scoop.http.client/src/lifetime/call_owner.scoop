@@ -48,6 +48,7 @@ private suspend fun runClientCallScope(call: ClientCall) {
                 prepareClientAuthentication(call, call.authentication)
                 prepareClientCookies(call)
                 prepareClientWebSocket(call)
+                prepareClientAttempt(call)
             }
             catch (error: Throwable) { failClientCall(call, error, true) }
             requireClientCall(call)

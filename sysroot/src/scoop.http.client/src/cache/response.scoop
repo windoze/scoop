@@ -70,7 +70,7 @@ internal suspend fun beginClientCacheResponse(call: ClientCall, head: HttpRespon
     if (call.cacheStatus == HttpCacheStatus.Hit || call.cacheStatus == HttpCacheStatus.Unsatisfied) return
     val record = try {
         if (!clientMayStoreCache(call.request, head)) return
-        HttpCacheRecord.fromResponse(HttpCacheRequest(cache.request.key, clientCacheRequestFields(call)),
+        HttpCacheRecord.fromResponse(HttpCacheRequest(cache.request.key, clientRequestSnapshotFields(call)),
             head, cache.sentAt, cache.receivedAt)
     } catch (_: HttpFieldParseException) { return }
     val writer = cache.options.storage.begin(record)

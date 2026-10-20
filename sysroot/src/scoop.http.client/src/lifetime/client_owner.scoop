@@ -59,6 +59,8 @@ internal suspend fun closeClient(state: ClientState) {
     checkClientDownloadClose(state)
     checkClientSseClose(state)
     checkClientWebSocketClose(state)
+    checkClientInvocationClose(state)
+    checkClientAttemptClose(state)
     clientJob(state.loop, false)
     suspendCoroutine<Unit> { continuation ->
         val closed = state.lock.withLock {

@@ -464,7 +464,21 @@ send(type, source) 的来源及其子任务不能等待同一 client 的 close�
 
 ## 11. 扩展、错误与可观察性
 
-提供 suspend 的应用级 interceptor、凭据／代理选择回调与调用事件观察器。应用 interceptor 每个逻辑调用执行一次；需要每次网络尝试签名或观察时使用明确的 attempt 回调，能够看到重定向、重试后的最终方法、URL 和字段。chain 的单次 proceed 与 follow-up 次数由正常调用状态检查，不提供任意替换协议引擎的插件体系。
+### 11.1 应用拦截器与每次尝试回调
+
+HttpClientConfig.interceptors 保存有序 HttpInterceptor 快照。`HttpInterceptor(suspend (HttpCallChain) -> HttpCallResult)` 从外到内执行，返回时按相反顺序退出；没有拦截器时直接使用正常请求流程。HttpCallResult 实现 AsyncCloseable，提供 `Response(HttpResponse)` 与 `WebSocket(HttpWebSocketResult)`，使普通请求与 WebSocket 握手复用一条调用链。返回结果必须与入口种类相符；不相符时报 IllegalStateException 并关闭未交付资源。
+
+HttpCallChain 公开本层 request、未添加 body 元数据的 suppliedFields 和可选 webSocketOptions。`proceed(url = request.url, method = request.method, fields = suppliedFields, body = request.body)` 挂起执行下一层，返回 HttpCallResult；调用级 options 在进入链时确定，proceed 只修改请求目标、方法、显式字段和正文。自动 Content-Type／Content-Encoding／Trailer 由新的正文重新生成，不能把旧自动字段误当成调用者手写字段重复添加。一个链节点至多调用一次 proceed，重叠调用或拦截器返回后的逃逸调用立即报 IllegalStateException。拦截器可以直接返回同一 client 的另一个实际响应／会话而跳过 proceed，其既有登记继续负责正文或会话生命周期；框架关闭已从 proceed 取得但最终没有交付的资源。
+
+应用拦截器在每个 HTTP 逻辑请求的重定向／重试／认证循环之外执行一次。SSE 的每次显式重连与分段续传的新 Range 请求分别进入新的链；WebSocket 消息没有隐式拦截或重放。WebSocket 链使用实际 http／https 握手地址，只允许 GET 与已知为空、可重放且没有 trailer 的正文，并继续验证 ws／wss 对应的 URL 与受管理字段。缓存命中也经过应用链。
+
+应用回调保留原 Context，在独立结构化子作用域中运行；从进入链到最终结果交付前均在 client 登记。原调用的 total 覆盖 proceed 前后的挂起工作，caller 取消或 client.close 会取消它并等待回调、子任务、finally 和未交付资源关闭。链内及其子任务等待同一 client.close 会形成自等待，该调用立即报 IllegalStateException。回调失败保持原始原因，真实清理异常附加一次，不取得网络重试资格。
+
+HttpClientConfig.onAttempt 是可选的 `suspend (HttpAttempt) -> List<HttpField>`。每次尝试在选择路由、取得凭据和 Cookie 后、查缓存和排连接池之前运行一次；因此缓存身份与 Vary 也使用回调实际添加的字段，缓存命中不跳过该准备步骤。HttpAttempt 保存从 1 开始的 number、reason（Initial、Redirect、Retry、Authentication、ProxyAuthentication、CacheRefresh）、准备后的 request、字段快照、实际 requestTarget 与可选 proxyUrl。字段快照含自动 Accept-Encoding、已知正文元数据、Host 和代理转发时已选的 Proxy-Authorization；WebSocket 还含本次 key、协议和扩展提议。普通 HTTP 的协议 framing 与缓存再验证条件仍在后续选择时生成；签名涵盖条件请求字段时，可显式使用 Bypass 关闭自动缓存再验证。CONNECT 的代理凭据属于独立隧道协商，不混入隧道内目标请求的字段快照。
+
+onAttempt 返回本轮额外字段，适合签名或时间戳；每次后续尝试重新计算，不能把上一轮追加字段带到另一 URL。它不能覆盖已有字段或添加 Host、Content-Length、Transfer-Encoding、Connection、Upgrade、Expect、Trailer、Proxy-Authorization；WebSocket 的 Sec-WebSocket-* 同样由握手库管理。修改既有字段属于应用链。回调新增 Authorization 时按调用者显式认证处理；它参与缓存身份，内建认证不覆盖它。回调与结果字段验证的异常保持原类型，且发生在任何网络提交之前。
+
+### 11.2 可观察性与错误
 
 用户回调在短锁和 native callback 外执行。H2 的共享驱动不能挂起等待某个调用的 observer；事件以有限的调用状态／队列交付，积压时阻止该调用继续相应步骤，不无限分配或停住整个连接。回调抛出影响当前调用，正常向调用者传播；不能吞掉用户异常再自动重试。
 

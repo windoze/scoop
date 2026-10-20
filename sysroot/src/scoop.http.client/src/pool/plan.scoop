@@ -45,7 +45,7 @@ internal fun planClientPool(state: ClientState): ClientPoolPlan {
         }
         ClientPoolPlan(actions.toArray(), delay,
             state.closing && state.calls.size == 0L && state.connections.size == 0L && state.retryWaits.size == 0L &&
-                state.downloads.size == 0L && state.eventSources.size == 0L && state.webSockets.size == 0L)
+                state.downloads.size == 0L && state.eventSources.size == 0L && state.webSockets.size == 0L && state.invocations.size == 0L)
     }
 }
 
@@ -63,7 +63,7 @@ private fun planClientPoolClose(state: ClientState): ClientPoolPlan = state.lock
     }
     ClientPoolPlan(actions.toArray(), None,
         state.calls.size == 0L && state.connections.size == 0L && state.retryWaits.size == 0L &&
-            state.downloads.size == 0L && state.eventSources.size == 0L && state.webSockets.size == 0L)
+            state.downloads.size == 0L && state.eventSources.size == 0L && state.webSockets.size == 0L && state.invocations.size == 0L)
 }
 
 private fun waitingClientCall(call: ClientCall): Boolean = call.lock.withLock {

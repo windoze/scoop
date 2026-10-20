@@ -3,6 +3,7 @@ package scoop.http.client
 import scoop.asyncio.IoClosedException
 import scoop.http.asyncio.AsyncHttp2Connection
 import scoop.http.WebSocketHandshake
+import scoop.http.HttpField
 import scoop.time.TimeMark
 
 internal class ClientCall(
@@ -26,6 +27,8 @@ internal class ClientCall(
     var followUp: ClientFollowUp? = None
     var webSocketHandshake: WebSocketHandshake? = None
     var openedWebSocket: HttpWebSocketSession? = None
+    var attemptFields: Array<HttpField> = []
+    var attemptAuthorization: Boolean = false
     var ioFailure: ClientIoFailure? = None
     var uploadIoFailure: Throwable? = None
     var scope: CoroutineScope? = None

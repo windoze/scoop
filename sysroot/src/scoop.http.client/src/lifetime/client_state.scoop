@@ -11,6 +11,7 @@ internal class ClientState(val loop: EventLoop, val config: HttpClientConfig, va
     val downloads: ArrayList<ClientDownload> = ArrayList<ClientDownload>()
     val eventSources: ArrayList<ClientSseState> = ArrayList<ClientSseState>()
     val webSockets: ArrayList<ClientWebSocketState> = ArrayList<ClientWebSocketState>()
+    val invocations: ArrayList<ClientInvocation> = ArrayList<ClientInvocation>()
     var webSocketTls: TlsClientContext? = None
     val bearerEntries: ArrayList<ClientBearerEntry> = ArrayList<ClientBearerEntry>()
     val digestEntries: ArrayList<ClientDigestEntry> = ArrayList<ClientDigestEntry>()
@@ -34,7 +35,7 @@ internal fun wakeClient(state: ClientState) {
 }
 
 internal fun stopClient(state: ClientState) {
-    val (calls, retryWaits, bearers, downloads, eventSources, webSockets) = state.lock.withLock {
+    val (calls, retryWaits, bearers, downloads, eventSources, webSockets, invocations) = state.lock.withLock {
         state.closing = true
         val active = ArrayList<ClientBearerFlight>()
         for (entry in state.bearerEntries) if (clientPresent(entry.flight)) active.add(entry.flight!!)
@@ -44,7 +45,8 @@ internal fun stopClient(state: ClientState) {
         for (source in state.eventSources) {
             if (!source.finished && !clientPresent(source.failure)) source.failure = Some(HttpClientClosedException())
         }
-        (state.calls.toArray(), state.retryWaits.toArray(), active.toArray(), state.downloads.toArray(), state.eventSources.toArray(), state.webSockets.toArray())
+        (state.calls.toArray(), state.retryWaits.toArray(), active.toArray(), state.downloads.toArray(), state.eventSources.toArray(),
+            state.webSockets.toArray(), state.invocations.toArray())
     }
     for (call in calls) cancelClientCall(call, HttpClientClosedException())
     for (waiting in retryWaits) waiting.cancel()
@@ -52,5 +54,6 @@ internal fun stopClient(state: ClientState) {
     for (download in downloads) stopClientDownload(download, HttpClientClosedException())
     for (source in eventSources) stopClientSse(source, HttpClientClosedException())
     for (session in webSockets) stopClientWebSocket(session)
+    for (invocation in invocations) stopClientInvocation(invocation, HttpClientClosedException())
     wakeClient(state)
 }

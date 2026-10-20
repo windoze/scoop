@@ -24,7 +24,7 @@ internal enum ClientAuthenticationScope {
     fun count(sequence: ClientRequestSequence): Long =
         if (isProxy) sequence.proxyAuthenticationCount else sequence.authenticationCount
     fun hasExplicitCredentials(call: ClientCall): Boolean = when (this) {
-        case Origin -> hasClientAuthorization(call.originalRequest)
+        case Origin -> hasClientAuthorization(call.originalRequest) || call.attemptAuthorization
         case Proxy(endpoint) -> clientPresent(endpoint.authorization)
     }
     fun request(call: ClientCall, challenge: HttpAuthChallenge?): HttpAuthenticationRequest =

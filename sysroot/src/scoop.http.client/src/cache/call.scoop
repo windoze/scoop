@@ -21,7 +21,7 @@ internal suspend fun prepareClientCache(call: ClientCall): HttpResponseHead? {
     if (request.options.cacheMode == HttpCacheMode.Bypass || !clientPresent(options) || !clientPresent(control) ||
         control!!.contains("no-store") || !clientCacheEligible(request))
         return if (only) Some(clientCacheUnsatisfied(call)) else None
-    val cache = ClientCallCache(options!!, HttpCacheRequest(clientCacheKey(call), clientCacheRequestFields(call)))
+    val cache = ClientCallCache(options!!, HttpCacheRequest(clientCacheKey(call), clientRequestSnapshotFields(call)))
     call.cache = Some(cache)
     if (!refresh) {
         val saved = cache.options.storage.lookup(cache.request)

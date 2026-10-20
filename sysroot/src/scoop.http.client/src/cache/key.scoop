@@ -14,8 +14,12 @@ internal fun clientCachePartition(config: HttpClientConfig): String? {
     return Some(cache.partition ?: secureRandomBytes(16L).toHexString())
 }
 
-internal fun clientCacheRequestFields(call: ClientCall): Array<HttpField> {
+internal fun clientRequestSnapshotFields(call: ClientCall): Array<HttpField> {
     val fields = clientRequestFields(call, HttpVersion.Http11)
+    when (call.route) {
+        case HttpForward(endpoint) -> for (field in clientProxyAuthorization(call, endpoint)) fields.add(field)
+        else -> {}
+    }
     fields.add(HttpField("Host".toByteArray(),
         call.request.origin.authority(call.request.url.authority!!.port != None).toByteArray()))
     return fields.toArray()

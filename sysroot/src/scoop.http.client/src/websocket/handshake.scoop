@@ -21,6 +21,15 @@ internal fun prepareClientWebSocket(call: ClientCall) {
         options.deflateOffers, fields, clientUsesForwardProxy(call)))
 }
 
+internal fun clientWebSocketRequestHead(call: ClientCall): HttpRequestHead {
+    val head = call.webSocketHandshake!!.request
+    if (call.attemptFields.size == 0L) return head
+    val fields = ArrayList<HttpField>()
+    for (field in head.fields) fields.add(field)
+    for (field in call.attemptFields) fields.add(field)
+    return HttpRequestHead(head.version, head.method, head.target, fields)
+}
+
 internal suspend fun finishClientWebSocket(call: ClientCall, head: HttpResponseHead): HttpWebSocketResult {
     val handshake = call.webSocketHandshake!!
     val negotiation = try { handshake.accept(head) }

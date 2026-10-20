@@ -66,7 +66,7 @@ internal class ClientCallCompletion(val call: ClientCall) : Continuation<Unit> {
             else result.resumeWithException(failure!!)
         } else if (clientPresent(followUp)) result.resume(ClientCallResult.FollowUp(followUp!!))
         else if (clientPresent(call.openedWebSocket))
-            result.resume(ClientCallResult.Response(ClientFinalResult.WebSocket(HttpWebSocketResult.Opened(call.openedWebSocket!!))))
+            result.resume(ClientCallResult.Response(HttpCallResult.WebSocket(HttpWebSocketResult.Opened(call.openedWebSocket!!))))
         else result.resumeWithException(IoClosedException())
     }
 }

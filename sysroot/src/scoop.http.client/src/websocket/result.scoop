@@ -16,8 +16,8 @@ internal suspend fun openClientWebSocket(client: ClientState, request: HttpWebSo
     validateClientWebSocket(request, options)
     val http = HttpRequest.get(request.httpUrl, request.fields, clientWebSocketOptions(request.options))
     val sequence = ClientRequestSequence(client.config, http, webSocket = Some(options))
-    return when (runClientSequence(client, http, sequence)) {
+    return when (interceptClientSequence(client, http, sequence)) {
         case WebSocket(result) -> result
-        case Http(_) -> throw IllegalStateException(Some("WebSocket request returned an ordinary HTTP result"))
+        case Response(_) -> throw IllegalStateException(Some("WebSocket request returned an ordinary HTTP result"))
     }
 }

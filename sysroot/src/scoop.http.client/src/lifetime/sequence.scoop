@@ -22,11 +22,12 @@ internal class ClientRequestSequence(config: HttpClientConfig, request: HttpRequ
     var encodedResponseBodyBytes: Long = 0L
     var responseBodyBytes: Long = 0L
     var lastTransportFailure: Throwable? = None
+    var attemptNumber: Long = 0L
+    var attemptReason: HttpAttemptReason = HttpAttemptReason.Initial
 }
 
 internal enum ClientFollowUp { Redirect(ClientRedirect), Retry(Duration), Authenticate(ClientAuthenticationSession), CacheRefresh }
-internal enum ClientFinalResult { Http(HttpResponse), WebSocket(HttpWebSocketResult) }
-internal enum ClientCallResult { Response(ClientFinalResult), FollowUp(ClientFollowUp), Failed(ClientIoFailure, Boolean) }
+internal enum ClientCallResult { Response(HttpCallResult), FollowUp(ClientFollowUp), Failed(ClientIoFailure, Boolean) }
 
 internal suspend fun executeClientRequest(state: ClientState, request: HttpRequest): HttpResponse {
     val sequence = ClientRequestSequence(state.config, request)
@@ -34,16 +35,17 @@ internal suspend fun executeClientRequest(state: ClientState, request: HttpReque
 }
 
 internal suspend fun executeClientSequence(state: ClientState, request: HttpRequest, sequence: ClientRequestSequence): HttpResponse =
-    when (runClientSequence(state, request, sequence)) {
-        case Http(response) -> response
+    when (interceptClientSequence(state, request, sequence)) {
+        case Response(response) -> response
         case WebSocket(_) -> throw IllegalStateException(Some("ordinary HTTP request returned a WebSocket result"))
     }
 
-internal suspend fun runClientSequence(state: ClientState, request: HttpRequest, sequence: ClientRequestSequence): ClientFinalResult {
+internal suspend fun runClientSequence(state: ClientState, request: HttpRequest, sequence: ClientRequestSequence): HttpCallResult {
     val caller = clientJob(state.loop, true)
     var current = request
     while (true) {
         caller.ensureActive()
+        sequence.attemptNumber += 1L
         sequence.lastTransportFailure = None
         val result = executeClientAttempt(state, current, caller, sequence)
         when (result) {
@@ -51,21 +53,28 @@ internal suspend fun runClientSequence(state: ClientState, request: HttpRequest,
             case FollowUp(ClientFollowUp.Redirect(redirect)) -> {
                 sequence.history.add(redirect.history)
                 current = redirect.request
+                sequence.attemptReason = HttpAttemptReason.Redirect
             }
             case FollowUp(ClientFollowUp.Retry(delay)) -> {
                 awaitClientRetry(state, caller, sequence, delay)
                 sequence.retryCount += 1L
+                sequence.attemptReason = HttpAttemptReason.Retry
             }
             case FollowUp(ClientFollowUp.Authenticate(session)) -> {
                 sequence.authenticationSessions.add(session)
                 if (session.scope.isProxy) sequence.proxyAuthenticationCount += 1L
                 else sequence.authenticationCount += 1L
+                sequence.attemptReason = if (session.scope.isProxy) HttpAttemptReason.ProxyAuthentication else HttpAttemptReason.Authentication
             }
-            case FollowUp(ClientFollowUp.CacheRefresh) -> sequence.cacheRefresh = true
+            case FollowUp(ClientFollowUp.CacheRefresh) -> {
+                sequence.cacheRefresh = true
+                sequence.attemptReason = HttpAttemptReason.CacheRefresh
+            }
             case Failed(failure, bodyStarted) -> {
                 val delay = planClientFailureRetry(sequence, current, failure, bodyStarted) ?: throw failure.cause
                 awaitClientRetry(state, caller, sequence, delay)
                 sequence.retryCount += 1L
+                sequence.attemptReason = HttpAttemptReason.Retry
             }
         }
     }

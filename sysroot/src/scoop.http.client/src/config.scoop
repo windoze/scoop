@@ -1,6 +1,7 @@
 package scoop.http.client
 
 import scoop.asyncio.TcpConnectOptions
+import scoop.collections.emptyList
 import scoop.http.*
 import scoop.time.Duration
 import scoop.tls.*
@@ -34,8 +35,11 @@ public class HttpClientConfig public constructor(
     public val authentication: HttpAuthenticationOptions = HttpAuthenticationOptions(),
     public val proxy: HttpProxySelector = HttpProxySelector.direct(),
     public val cookieJar: CookieJar? = None,
-    public val cache: HttpCacheOptions? = None
+    public val cache: HttpCacheOptions? = None,
+    interceptors: List<HttpInterceptor> = emptyList<HttpInterceptor>(),
+    public val onAttempt: (suspend (HttpAttempt) -> List<HttpField>)? = None
 ) {
+    public val interceptors: Array<HttpInterceptor> = interceptors.toArray()
     init {
         if (http1RequestVersion == HttpVersion.Http2)
             throw IllegalArgumentException(Some("HTTP/1 request version must be 1.0 or 1.1"))

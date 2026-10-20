@@ -1,0 +1,33 @@
+import scoop.crypto.testdata.rootPem
+import scoop.crypto.x509.TrustStore
+import scoop.test.AssertionFailure
+
+fun main() {
+    TrustStore.fromPem(rootPem()).use { trust ->
+        for (where in ["before", "after", "attempt"]) {
+            for (child in [false, true]) {
+                for (stop in ["caller", "client", "total"])
+                    interceptorCase(where + "-" + stop + "-" + child.toString()) {
+                        interceptorLifetime(trust, where, stop, child, true)
+                    }
+                interceptorCase(where + "-clean-" + child.toString()) {
+                    interceptorLifetime(trust, where, "client", child, false)
+                }
+                interceptorCase(where + "-self-wait-" + child.toString()) {
+                    interceptorSelfWait(trust, where, child)
+                }
+            }
+        }
+        interceptorCase("concurrent-proceed") { interceptorConcurrentProceed(trust) }
+        interceptorCase("http2-shared-driver") { interceptorHttp2(trust) }
+    }
+    println("client interceptor cancellation deadlines cleanup self-wait and HTTP2 isolation passed")
+}
+
+private fun interceptorCase(name: String, block: () -> Unit) {
+    try { block() }
+    catch (error: AssertionFailure) {
+        eprintln(name + " " + error.kind + " " + (error.message ?: "failure") + " at " + error.location.file + ":" + error.location.line.toString())
+        throw error
+    } catch (error: Throwable) { eprintln("failed interceptor case: " + name); throw error }
+}
