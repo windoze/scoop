@@ -76,6 +76,10 @@ def h2_body(connection, expected_stream):
             body.extend(payload)
             if flags & 1:
                 return bytes(body)
+        elif kind == 1:
+            assert stream == expected_stream
+            assert flags == 5 and payload == b"", "expected empty request trailers"
+            return bytes(body)
         else:
             control(connection, kind, flags, stream, payload)
 
