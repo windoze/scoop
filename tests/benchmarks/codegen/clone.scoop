@@ -1,0 +1,30 @@
+class Node(val value: Long)
+struct Item(val id: Long, val node: Node)
+
+fun main(args: Array<String>) {
+    var sum = 0L
+    if (args[1L] == "references") {
+        val source = MutableArray<Item>(16L) { i -> Item(i, Node(i + 1L)) }
+        gcCollect()
+        var round = 0L
+        while (round < 100000L) {
+            val copy = source.toArray()
+            val item = copy[round % 16L]
+            sum += item.id + item.node.value
+            round += 1L
+        }
+    } else {
+        val large = args[1L] == "large"
+        val count = if (large) 8192L else 16L
+        val rounds = if (large) 512L else 100000L
+        val source = MutableArray<Long>(count) { i -> i * 3L }
+        gcCollect()
+        var round = 0L
+        while (round < rounds) {
+            val copy = source.toArray()
+            sum += copy[round % count]
+            round += 1L
+        }
+    }
+    println(sum)
+}

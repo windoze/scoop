@@ -127,8 +127,7 @@ fn layout_finalizer_keeps_disjoint_partitions_and_encodes_the_original_definitio
     let runtime =
         verify_runtime_and_eh_requirements_v1(source, scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
             .unwrap();
-    let external =
-        finish_builtin_external_requirements_v1(without_target_support_for_test(runtime)).unwrap();
+    let external = without_target_support_for_test(runtime);
 
     let partitions = finalize_layout_partitioned_undefined_symbol_requirements_v1(
         current,

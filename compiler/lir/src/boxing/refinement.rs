@@ -65,6 +65,7 @@ impl BoxedValueDescriptor {
                     descriptor,
                     descriptor_exact,
                     payload_exact,
+                    payload_offset: shape.inline_offset(),
                     value,
                 }))
             }

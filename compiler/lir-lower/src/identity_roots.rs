@@ -9,6 +9,7 @@ use std::collections::HashMap;
 pub(crate) struct IdentityRoots<'input> {
     input: &'input mir::ConeMirInput,
     immortal_owners: HashMap<mir::ImmortalObjectOwner, lir::MaterializationRoot>,
+    closure_support: crate::closure_support::ClosureSupport,
 }
 
 impl<'input> IdentityRoots<'input> {
@@ -51,7 +52,16 @@ impl<'input> IdentityRoots<'input> {
         Self {
             input,
             immortal_owners,
+            closure_support: crate::closure_support::ClosureSupport::new(input.module()),
         }
+    }
+
+    pub(crate) fn emits_function(&self, function: mir::FunctionId) -> bool {
+        self.closure_support.emits_function(function)
+    }
+
+    pub(crate) fn emits_closure(&self, class: mir::ClosureClassId) -> bool {
+        self.closure_support.emits_closure(class)
     }
 
     pub(crate) fn materializes_type(&self, ty: &mir::Type) -> bool {

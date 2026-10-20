@@ -1,0 +1,39 @@
+@GCLeaf
+@Extern(lib = "m58_large_probe", name = "m58_dirty_longs")
+fun dirtyLongs(values: Ptr<Long>, count: Long)
+
+@Extern(lib = "m58_large_probe", name = "m58_reference_slots")
+fun referenceSlots(): Long
+
+class Node(val value: Long)
+
+@Unsafe
+fun main() {
+    val numbers = Array<Long>(16384L) { index -> index }
+    val references = MutableArray<Node?>(4096L) { _ -> None }
+    gcCollect()
+    val before = referenceSlots()
+    var total = 0L
+    var round = 0L
+    while (round < 4L) {
+        numbers.withDataPointer<Long, Unit> { pointer, count ->
+            @Unsafe { dirtyLongs(pointer, count) }
+        }
+        references[100L] = Some(Node(round))
+        references[4000L] = Some(Node(100L + round))
+        var index = 0L
+        while (index < 20000L) {
+            total += Node(index).value
+            index += 1L
+        }
+        if (references[100L]!!.value != round || references[4000L]!!.value != 100L + round) {
+            throw IllegalStateException()
+        }
+        if (numbers[0L] != 0L || numbers[16383L] != 16383L) {
+            throw IllegalStateException()
+        }
+        round += 1L
+    }
+    if (total != 799960000L || referenceSlots() <= before) throw IllegalStateException()
+    println("large value arrays and remembered reference arrays survive nursery collections")
+}

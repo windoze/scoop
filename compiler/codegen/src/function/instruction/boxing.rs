@@ -1,6 +1,8 @@
 use super::*;
 use scoop_lir::{BoxPayload, BoxPayloadRooting, NoGcRuntimeFunction, UnboxResult};
 
+mod unbox;
+
 /// The frame and entry share one lexical lifetime around a single managed box.
 struct BoxRegionFrame<'ctx>(PointerValue<'ctx>);
 
@@ -64,36 +66,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 self.temps.insert(*out, result);
             }
             Instruction::UnboxValue { object, result } => {
-                let object = self.value(*object)?;
-                let descriptor = self
-                    .value(Value::TypeDescriptor(result.descriptor()))?
-                    .into_pointer_value();
-                match result {
-                    UnboxResult::ZeroSized {
-                        descriptor: value,
-                        out,
-                    } => {
-                        self.box_leaf(
-                            NoGcRuntimeFunction::UnboxZst,
-                            &[object.into(), descriptor.into()],
-                        )?;
-                        let ty = basic_ty(
-                            self.context,
-                            self.structs,
-                            self.enums,
-                            self.managed_address_space,
-                            value.value().representation().storage_type(),
-                        )?;
-                        self.temps.insert(*out, ty.const_zero());
-                    }
-                    UnboxResult::NonZero(place) => {
-                        let destination = self.local_pointer(place.local())?;
-                        self.box_leaf(
-                            NoGcRuntimeFunction::UnboxValue,
-                            &[object.into(), descriptor.into(), destination.into()],
-                        )?;
-                    }
-                }
+                self.emit_unbox(*object, result)?;
             }
             _ => unreachable!("boxing instruction dispatch is exhaustive"),
         }

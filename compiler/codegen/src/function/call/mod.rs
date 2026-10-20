@@ -7,3 +7,4 @@ use callee::PreparedCallee;
 mod dispatch;
 mod managed;
 mod native;
+mod strings;

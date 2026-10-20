@@ -105,6 +105,10 @@ impl CanonicalParamFreeMirTypeExportsV1 {
             let boxed_slot = matches!(role, GeneratedNominalKey::CoroutineSlot { value }
                 if plan.shape_support().iter().any(|root| matches!(root.boxed(),
                     StrongBoxedShapeSupportRoot::Available(boxed) if boxed.exact() == *value)));
+            // ODR saved slots belong to private frames, not the dependency ABI.
+            if matches!(role, GeneratedNominalKey::CoroutineSlot { .. }) && !boxed_slot {
+                continue;
+            }
             if !matches!(root, GeneratedNominalShapeRoot::Odr { .. }) && !boxed_slot {
                 continue;
             }

@@ -107,6 +107,7 @@ pub fn lower_current_cone(
         dependency_mapping,
         objects,
         &signature_types.into_iter().collect::<Vec<_>>(),
+        optimization.coroutine_elision,
     );
     optimization::run(&mut module, &selected_callables, optimization);
     mir::DependencyMirOutput::try_new(module, selected_callables)

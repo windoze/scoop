@@ -1,0 +1,81 @@
+struct Wide(val a: Long, val b: Long, val c: Long, val d: Long,
+            val e: Long, val f: Long, val g: Long, val h: Long)
+
+@NoGC @Unsafe
+fun ranges(source: Ptr<Long>, output: Ptr<Long>, count: Long, n: Long, m: Long) {
+    var k = 0L
+    while (k < count) {
+        val i = source.load(k)
+        var value = -1L
+        if (i >= 0L && i < n && n <= m) {
+            if (i < m) { value = i * 3L + 7L } else { value = -2L }
+        }
+        output.store(k, value)
+        k += 1L
+    }
+}
+
+@NoGC @Unsafe
+fun integers(source: Ptr<Long>, output: Ptr<Long>, count: Long) {
+    var k = 0L
+    while (k < count) {
+        val x = source.load(k)
+        var value = x
+        if (x >= 0L && x < 256L) {
+            value = x.shr(8L) + x.and(255L) * 3L
+        }
+        output.store(k, value)
+        k += 1L
+    }
+}
+
+@NoGC
+fun copyValue(v: Wide): Wide {
+    return Wide(v.b + v.h, v.c - v.g, v.d + v.f, v.e - v.a,
+                v.f + v.b, v.g - v.c, v.h + v.d, v.a - v.e)
+}
+
+@NoGC @Unsafe
+fun copies(source: Ptr<Wide>, output: Ptr<Wide>, count: Long) {
+    var k = 0L
+    while (k < count) {
+        val a = source.load(k)
+        val b = copyValue(a)
+        output.store(k, b)
+        k += 1L
+    }
+}
+
+@Unsafe
+fun main(args: Array<String>) {
+    val rounds = 4096L
+    if (args[1L] == "copies") {
+        val source = Array<Wide>(1024L) { i -> Wide(i, 2L, 3L, 4L, 5L, 6L, 7L, 8L) }
+        val output = MutableArray<Wide>(1024L) { _ -> Wide(0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L) }
+        source.withDataPointer<Wide, Unit>() { from: Ptr<Wide>, count: Long ->
+            @Unsafe { output.withDataPointer<Wide, Unit>() { to: Ptr<Wide>, _: Long ->
+                @Unsafe {
+                    var round = 0L
+                    while (round < rounds) { copies(from, to, count); round += 1L }
+                }
+            } }
+        }
+        println(output[1023L].d)
+    } else {
+        val source = Array<Long>(8192L) { i -> i.and(511L) - 128L }
+        val output = MutableArray<Long>(8192L) { _ -> 0L }
+        source.withDataPointer<Long, Unit>() { from: Ptr<Long>, count: Long ->
+            @Unsafe { output.withDataPointer<Long, Unit>() { to: Ptr<Long>, _: Long ->
+                @Unsafe {
+                    var round = 0L
+                    if (args[1L] == "ranges") {
+                        while (round < rounds) { ranges(from, to, count, 256L, 384L); round += 1L }
+                    } else {
+                        while (round < rounds) { integers(from, to, count); round += 1L }
+                    }
+                }
+            } }
+        }
+        println(output[8191L])
+    }
+}

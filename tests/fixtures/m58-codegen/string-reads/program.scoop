@@ -1,0 +1,33 @@
+fun main() {
+    var text = ""
+    var i = 0L
+    while (i < 4L) {
+        text += "A\u0000é雪🙂"
+        i += 1L
+    }
+    i = 0L
+    while (i < 8L) {
+        gcCollect()
+        val bytes = text.toByteArray()
+        val mutable = text.toMutableByteArray()
+        gcCollect()
+        if (text.byteLength != 44L + i || bytes.size != text.byteLength ||
+            bytes[0L] != 65.toByte() || bytes[1L] != 0.toByte() ||
+            bytes[2L] != (-61).toByte() || bytes[43L] != (-126).toByte() ||
+            mutable[43L] != bytes[43L]) {
+            throw IllegalStateException()
+        }
+        mutable[0L] = 0.toByte()
+        if (bytes[0L] != 65.toByte() || text[0L] != 'A') {
+            throw IllegalStateException()
+        }
+        text += "x"
+        i += 1L
+    }
+    var caught = false
+    try { text[-1L] } catch (_: IndexOutOfBoundsException) { caught = true }
+    if (!caught || "".byteLength != 0L || "".toByteArray().size != 0L) {
+        throw IllegalStateException()
+    }
+    println("String IR reads preserve UTF-8 bytes, copies and moving roots")
+}

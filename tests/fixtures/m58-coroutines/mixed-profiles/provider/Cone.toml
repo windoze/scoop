@@ -1,0 +1,6 @@
+schema = 1
+[cone]
+group = "dev.m58.profiles"
+name = "provider"
+version = "0.1.0"
+kind = "library"

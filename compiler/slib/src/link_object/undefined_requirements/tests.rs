@@ -18,7 +18,7 @@ use super::super::strong_relocation_closure::tests::{
 use super::super::symbol_verification::tests::{fixture_for_producer, fixture_named};
 use super::*;
 use crate::{
-    finish_builtin_external_requirements_v1, verify_current_cone_strong_relocation_closure_v1,
+    verify_current_cone_strong_relocation_closure_v1,
     verify_current_cone_undefined_requirements_v1, verify_dependency_strong_requirements_v1,
     verify_runtime_and_eh_requirements_v1, verify_source_external_requirements_v1,
 };
@@ -43,6 +43,22 @@ fn finalizes_runtime_and_eh_requirements_with_a_fixed_wire_vector() {
         eh.requirements()[0].requirement(),
         FinalUndefinedSymbolRequirementV1::TargetEhSupport { .. }
     ));
+}
+
+#[test]
+fn preserves_unregistered_native_symbols_for_the_linker() {
+    let symbol = b"_bzero";
+    let requirements = final_from_external(classify(symbol));
+    assert_projection_round_trip(&requirements);
+    assert_eq!(requirements.requirements().len(), 1);
+    let requirement = &requirements.requirements()[0];
+    assert_eq!(requirement.use_site().symbol(), symbol);
+    assert_eq!(
+        requirement.requirement(),
+        FinalUndefinedSymbolRequirementV1::NativeSymbol {
+            symbol: symbol.to_vec(),
+        }
+    );
 }
 
 #[test]
@@ -90,10 +106,7 @@ fn finalizes_a_c_bridge_target_support_use() {
         empty_bridge_plan(ConeIdentity::CORE),
     )
     .unwrap();
-    let final_set = finalize_undefined_symbol_requirements_v1(
-        current,
-        finish_builtin_external_requirements_v1(external).unwrap(),
-    );
+    let final_set = finalize_undefined_symbol_requirements_v1(current, external);
     assert_projection_round_trip(&final_set);
 
     assert_eq!(final_set.requirements().len(), 2);
@@ -263,7 +276,7 @@ pub(in crate::link_object) fn empty_final_requirements_for_strong(
 fn seal_without_generated(
     external: crate::VerifiedRuntimeAndEhRequirementClosureV1,
 ) -> BuiltinExternalRequirementsV1 {
-    finish_builtin_external_requirements_v1(without_target_support_for_test(external)).unwrap()
+    without_target_support_for_test(external)
 }
 
 pub(in crate::link_object) fn empty_bridge_plan(

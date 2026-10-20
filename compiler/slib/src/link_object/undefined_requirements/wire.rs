@@ -37,6 +37,7 @@ impl WireEncode for FinalUndefinedSymbolRequirementV1 {
             Self::RuntimeAbi { contract } => encode_one_field_sum(encoder, 5, contract),
             Self::TargetEhSupport { contract } => encode_one_field_sum(encoder, 6, contract),
             Self::CBridgeTargetSupport { contract } => encode_one_field_sum(encoder, 7, contract),
+            Self::NativeSymbol { symbol } => encode_native_symbol(encoder, symbol),
         }
     }
 }
@@ -87,7 +88,7 @@ impl WireEncode for CanonicalUndefinedRelocationUseV1 {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) enum DecodedFinalUndefinedSymbolRequirementV1 {
     OdrMember {
         member: DecodedPersistentId<OdrMemberId>,
@@ -112,6 +113,9 @@ pub(super) enum DecodedFinalUndefinedSymbolRequirementV1 {
     CBridgeTargetSupport {
         contract: DecodedFixedBytesV1<CBridgeTargetSupportRequirementId>,
     },
+    NativeSymbol {
+        symbol: Vec<u8>,
+    },
 }
 
 impl WireEncode for DecodedFinalUndefinedSymbolRequirementV1 {
@@ -131,6 +135,7 @@ impl WireEncode for DecodedFinalUndefinedSymbolRequirementV1 {
             Self::RuntimeAbi { contract } => encode_one_field_sum(encoder, 5, contract),
             Self::TargetEhSupport { contract } => encode_one_field_sum(encoder, 6, contract),
             Self::CBridgeTargetSupport { contract } => encode_one_field_sum(encoder, 7, contract),
+            Self::NativeSymbol { symbol } => encode_native_symbol(encoder, symbol),
         }
     }
 }
@@ -184,9 +189,25 @@ impl WireDecode for DecodedFinalUndefinedSymbolRequirementV1 {
                     .field(1, DecodedPersistentId::decode)
                     .map(|member| Self::OdrMember { member })
             }
+            10 => {
+                expect_sum_length(decoder, fields, 2)?;
+                decoder
+                    .field(1, Decoder::owned_bytes)
+                    .map(|symbol| Self::NativeSymbol { symbol })
+            }
             tag => Err(wire_error(decoder, WireErrorKind::UnknownTag { tag })),
         }
     }
+}
+
+fn encode_native_symbol(
+    encoder: &mut Encoder,
+    symbol: &[u8],
+) -> Result<(), scoop_wire::cbor::EncodeError> {
+    encoder.map(2)?;
+    encode_tag(encoder, 10)?;
+    encoder.field(1)?;
+    encoder.bytes(symbol)
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

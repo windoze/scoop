@@ -28,6 +28,8 @@ use la_arena::RawIdx;
 use scoop_lir::GcEffect;
 
 use crate::CodegenError;
+
+mod bounded_loops;
 use crate::ValidatedBackendProfile;
 use crate::target::ManagedAddressSpace;
 

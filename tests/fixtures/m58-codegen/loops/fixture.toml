@@ -1,0 +1,21 @@
+schema = 1
+name = "m58-codegen-loops"
+root = "program.scoop"
+inputs = ["program.scoop"]
+tools = ["scoop"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m58", "codegen", "optimization", "gc", "abi"]
+variants = [
+  {name = "debug", vars = {profile = "debug"}},
+  {name = "release", vars = {profile = "release"}},
+  {name = "moving", vars = {profile = "release"}, env = {SCOOP_GC_STRESS_MOVE = "1"}},
+]
+
+[[steps]]
+name = "run"
+argv = ["${scoop}", "run", {each = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--profile", "${profile}", "--message-format", "json"]
+exit = 0
+stdout = "NoGc loops preserve zero trips, bounds and moving roots\n"
+stderr = ""
+json = "stderr"
+diagnostics = []

@@ -18,7 +18,7 @@ use crate::link_object::symbol_verification::tests::fixture_for_producer;
 use crate::link_object::undefined_requirements::tests::empty_bridge_plan;
 use crate::link_object::{
     CanonicalObjectDefinitionRequirementV1, VerifiedObjectDefinitionRequirementSetV1,
-    finalize_partitioned_undefined_symbol_requirements_v1, finish_builtin_external_requirements_v1,
+    finalize_partitioned_undefined_symbol_requirements_v1,
     verify_current_cone_undefined_requirements_v1, verify_runtime_and_eh_requirements_v1,
     verify_source_external_requirements_v1, without_target_support_for_test,
 };
@@ -266,8 +266,7 @@ fn finalizer_keeps_legacy_and_cross_cone_uses_disjoint_and_complete() {
     let runtime =
         verify_runtime_and_eh_requirements_v1(source, scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
             .unwrap();
-    let external =
-        finish_builtin_external_requirements_v1(without_target_support_for_test(runtime)).unwrap();
+    let external = without_target_support_for_test(runtime);
 
     let partitions = finalize_partitioned_undefined_symbol_requirements_v1(current, external);
     assert!(partitions.legacy().requirements().is_empty());

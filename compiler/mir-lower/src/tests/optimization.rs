@@ -1,5 +1,10 @@
 use super::*;
 
+mod boxing;
+mod closures;
+mod iterations;
+mod poll_chunks;
+
 fn optimize(module: &mut mir::Module) {
     let selected = mir::SelectedExternalMirSet::empty(module.cone);
     crate::optimization::run(module, &selected, MirOptimizationOptions::RELEASE);

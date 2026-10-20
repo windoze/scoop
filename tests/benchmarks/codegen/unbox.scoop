@@ -1,0 +1,32 @@
+struct Words(val a: Long, val b: Long, val c: Long, val d: Long)
+class Node(val value: Long)
+struct References(val node: Node, val pair: (Long, Node))
+
+fun main(args: Array<String>) {
+    val values = if (args[1L] == "references") {
+        Array<Any>(4096L) { i -> References(Node(i), (i + 1L, Node(i + 2L))) }
+    } else {
+        Array<Any>(4096L) { i -> Words(i, i + 1L, i + 2L, i + 3L) }
+    }
+    gcCollect()
+    var sum = 0L
+    var round = 0L
+    while (round < 1024L) {
+        var i = 0L
+        if (args[1L] == "references") {
+            while (i < values.size) {
+                val value = values[i] as References
+                sum += value.node.value + value.pair._1 + value.pair._2.value
+                i += 1L
+            }
+        } else {
+            while (i < values.size) {
+                val value = values[i] as Words
+                sum += value.a + value.b + value.c + value.d
+                i += 1L
+            }
+        }
+        round += 1L
+    }
+    println(sum)
+}

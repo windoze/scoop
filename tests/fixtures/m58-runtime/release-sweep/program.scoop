@@ -1,0 +1,34 @@
+@Extern(lib = "m58_release_probe", name = "m58_released")
+private fun record(value: Int)
+
+@Extern(lib = "m58_release_probe", name = "m58_release_count")
+private fun count(): Int
+
+class Resource(val value: Int) {
+    release { @Unsafe { record(value) } }
+}
+
+private fun exercise() {
+    val resources = MutableArray<Resource?>(512L) { index -> Some(Resource(index.toInt())) }
+    gcCollect()
+    var index = 0L
+    while (index < resources.size) {
+        if (index % 17L != 0L) resources[index] = None
+        index += 1L
+    }
+    gcCollect()
+    @Unsafe { if (count() != 481) throw IllegalStateException() }
+    index = 0L
+    while (index < resources.size) {
+        if (resources[index]!!.value != index.toInt()) throw IllegalStateException()
+        index += 17L
+    }
+}
+
+fun main() {
+    exercise()
+    gcCollect()
+    gcCollect()
+    @Unsafe { if (count() != 512) throw IllegalStateException() }
+    println("full sweep releases dead resources once and preserves survivors")
+}

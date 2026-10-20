@@ -1,0 +1,41 @@
+class Node(var number: Long)
+struct Pair(val node: Node, val nested: (String, Long))
+struct Empty()
+struct Padded(val tag: Byte, val number: Long)
+@CLayout(packed = 1) struct Packed(val tag: Byte, val number: Double)
+enum Code: Long { Answer = 42L }
+
+@Unsafe fun main() {
+    val node = Node(9L)
+    val values = MutableArray<Any>(5L) { _ -> Empty() }
+    values[0L] = Pair(node, ("left" + "right", 17L))
+    values[1L] = Packed(3.toByte(), 2.5)
+    values[2L] = Code.Answer
+    var original = Padded(7.toByte(), 29L)
+    addressOf(original).cast<Byte>().store(3, 99.toByte())
+    values[4L] = MaybeUninit<Padded>.initialized(original)
+    var i = 0L
+    while (i < 8L) {
+        gcCollect()
+        val first = values[0L] as Pair
+        val packed = values[1L] as Packed
+        val exact = values[2L] as Code
+        val parent = values[2L] as Long
+        val empty = values[3L] as Empty
+        val padded = values[4L] as MaybeUninit<Padded>
+        gcCollect()
+        first.node.number += 1L
+        if (first.node !== node || first.nested._1 != "leftright" ||
+            first.nested._2 != 17L || packed.tag != 3.toByte() || packed.number != 2.5 ||
+            exact != Code.Answer || parent != 42L || empty != Empty() ||
+            addressOf(padded).cast<Byte>().load(3) != 99.toByte()) {
+            throw IllegalStateException()
+        }
+        i += 1L
+    }
+    var caught = false
+    try { val wrong = values[0L] as Packed; println(wrong.tag) }
+    catch (_: ClassCastException) { caught = true }
+    if (!caught || node.number != 17L) { throw IllegalStateException() }
+    println("static unbox preserves layouts, enum parents and moving references")
+}

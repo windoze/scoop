@@ -191,6 +191,7 @@ pub fn lower(
         HashMap::new(),
         Vec::new(),
         &[],
+        false,
     ))
 }
 
@@ -205,6 +206,7 @@ fn lower_with_dependencies(
     imported_dependency_callable_map: ImportedCallableMap,
     imported_singletons: Vec<(mir::ParamFreeMirObjectValueV1, mir::ExternalCallableUseId)>,
     external_signature_types: &[hir::TypeId],
+    coroutine_elision: bool,
 ) -> mir::Module {
     let module = output.module();
     let shape_support = output.materialization().roots();
@@ -216,6 +218,7 @@ fn lower_with_dependencies(
     };
     Lowerer {
         output,
+        coroutine_elision,
         core_protocols: module.core_protocols.clone(),
         functions: Arena::new(),
         extern_functions: Arena::new(),
@@ -371,6 +374,7 @@ struct Lowerer {
     local_values: LocalValueRegistry,
     /// Declaration indices of `Option`'s `Some` / `None` variants.
     coroutines: CoroutineRegistry,
+    coroutine_elision: bool,
     suspend_sources: Vec<SuspendSource>,
     closure_classes: Arena<mir::ClosureClass>,
     closure_invokes: Arena<mir::ClosureInvokeFunction>,

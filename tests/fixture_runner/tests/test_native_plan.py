@@ -21,19 +21,24 @@ PLAN = (
     b'dynamic provider def install="liba" imports=1\n'
     b'  re-export "libb" -> ghi\n'
     b'dynamic binding entry -> "liba" source="libb":helper kind=Symbol weak=false\n'
+    b"ELF system imports=70\n"
     b"startup object references:\n  unrelated_core_symbol\nstartup C:\nint main() {}\n"
 )
 
 
 class NativePlanTests(unittest.TestCase):
-    def test_unrelated_core_and_startup_do_not_change_native_expectation(self):
-        changed = PLAN.replace(b"objects=100", b"objects=200").replace(
-            b"unrelated_core_symbol", b"new_core_symbol"
+    def test_unrelated_program_totals_do_not_change_native_expectation(self):
+        changed = (
+            PLAN.replace(b"objects=100", b"objects=200")
+            .replace(b"unrelated_core_symbol", b"new_core_symbol")
+            .replace(b"ELF system imports=70", b"ELF system imports=71")
         )
         self.assertEqual(native_link_plan(PLAN), native_link_plan(changed))
         self.assertEqual(
             native_link_plan(PLAN),
-            PLAN[PLAN.index(b"link inputs:") : PLAN.index(b"startup object references:")],
+            PLAN[PLAN.index(b"link inputs:") : PLAN.index(b"startup object references:")].replace(
+                b"ELF system imports=70\n", b""
+            ),
         )
 
     def test_semantic_changes_fail_read_only_snapshot_comparison(self):

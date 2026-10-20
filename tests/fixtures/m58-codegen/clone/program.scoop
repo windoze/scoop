@@ -1,0 +1,44 @@
+class Node(val value: Long)
+struct Item(val node: Node, val pair: (Long, String))
+struct Empty()
+struct Padded(val tag: Byte, val value: Long)
+@CLayout(packed = 1) struct Packed(val tag: Byte, val value: Double)
+object Last { var node: Node? = None }
+
+fun copiedReferences(): Array<Item> {
+    val values = MutableArray<Item>(2048L) { i -> Item(Node(i), (i + 1L, "value")) }
+    values[2047L] = Item(Node(9001L), (2048L, "last"))
+    val copy = values.toArray()
+    values[2047L] = Item(Node(-1L), (-1L, "changed"))
+    return copy
+}
+
+@Unsafe fun main() {
+    val copy = copiedReferences()
+    var i = 0L
+    while (i < 4096L) { Last.node = Some(Node(i)); i += 1L }
+    gcCollect()
+    if (copy[0L].node.value != 0L || copy[2047L].node.value != 9001L ||
+        copy[2047L].pair != (2048L, "last")) { throw IllegalStateException() }
+    val mutable = copy.toMutableArray()
+    mutable[0L] = Item(Node(20L), (20L, "new"))
+    if (copy[0L].node.value != 0L || mutable[0L].node.value != 20L) { throw IllegalStateException() }
+    val empty = MutableArray<Empty>(0L) { _ -> Empty() }.toArray()
+    val zst = MutableArray<Empty>(17L) { _ -> Empty() }.toArray()
+    val zstCopy = zst.toMutableArray().toArray()
+    if (empty.size != 0L || zstCopy.size != 17L || zstCopy === zst) { throw IllegalStateException() }
+    val packed = MutableArray<Packed>(3L) { _ -> Packed(7.toByte(), 2.5) }.toArray()
+    var value = Padded(1.toByte(), 42L)
+    addressOf(value).cast<Byte>().store(3, 99.toByte())
+    val wrapper = MaybeUninit<Padded>.initialized(value)
+    val padded = MutableArray<MaybeUninit<Padded>>(1L) { _ -> wrapper }.toArray()[0L]
+    gcCollect()
+    if (packed[2L].value != 2.5 || addressOf(padded).cast<Byte>().load(3) != 99.toByte()) {
+        throw IllegalStateException()
+    }
+    var caught = false
+    try { println(copy[-1L].node.value) }
+    catch (_: IndexOutOfBoundsException) { caught = true }
+    if (!caught) { throw IllegalStateException() }
+    println("array clone preserves roots, storage and independent identity")
+}

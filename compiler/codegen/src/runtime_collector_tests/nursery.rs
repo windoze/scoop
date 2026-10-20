@@ -140,6 +140,44 @@ fn minor_traces_dirty_ranges_and_promotes_pinned_blocks() {
 }
 
 #[test]
+fn retired_nursery_blocks_reset_metadata_and_preserve_promoted_graphs() {
+    let output = compile_and_run(
+        &workspace_root(),
+        "nursery_reuse_test",
+        "runtime/tests/nursery_reuse_test.c",
+        true,
+    );
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        output.stdout,
+        b"retired nursery blocks reset metadata and preserve promoted graphs\n"
+    );
+}
+
+#[test]
+fn pointer_free_large_cards_do_not_hide_required_remembered_references() {
+    let output = compile_and_run(
+        &workspace_root(),
+        "remembered_pointer_free_test",
+        "runtime/tests/remembered_pointer_free_test.c",
+        true,
+    );
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        output.stdout,
+        b"pointer-free large cards are skipped while reference cards retain and update young objects\n"
+    );
+}
+
+#[test]
 fn failed_promotion_reservation_falls_back_without_changing_the_graph() {
     let output = compile_and_run(
         &workspace_root(),

@@ -9,7 +9,7 @@ pub(super) fn materialize(
     descriptors: &mut Arena<lir::TypeDescriptor>,
     refs: &mut TypeDescriptorRefs,
 ) -> StorageResult<()> {
-    for function in required_function_types(module) {
+    for function in required_function_types(module, roots) {
         let ty = mir::Type::Function(function);
         let runtime_type = runtime_type(module, &ty);
         let root = roots.for_type(&ty);
@@ -46,6 +46,9 @@ pub(super) fn materialize(
             .insert(function, lir::TypeDescriptorRef::Local(descriptor));
     }
     for (closure, def) in module.closure_classes.iter() {
+        if !roots.emits_closure(closure) {
+            continue;
+        }
         let (_, size, align, scan) = closure_shape(context, module, enums, def)?;
         let location = mir::GeneratedExactTypeLocation::Closure(closure);
         let runtime_type = generated_runtime_type(module, location);
@@ -95,12 +98,23 @@ pub(super) fn materialize(
     Ok(())
 }
 
-fn required_function_types(module: &mir::Module) -> Vec<mir::FunctionTypeId> {
+fn required_function_types(
+    module: &mir::Module,
+    roots: &IdentityRoots<'_>,
+) -> Vec<mir::FunctionTypeId> {
     let mut required = std::collections::HashSet::new();
-    for (_, closure) in module.closure_classes.iter() {
-        required.insert(closure.function_type);
+    for (class, closure) in module.closure_classes.iter() {
+        if roots.emits_closure(class) {
+            required.insert(closure.function_type);
+        }
     }
-    for (_, function) in module.functions.iter() {
+    for function in module
+        .top_level
+        .iter()
+        .filter(|&&id| roots.emits_function(id))
+        .map(|&id| &module.functions[id])
+        .chain(module.release_hooks.iter().map(|(_, hook)| &hook.code))
+    {
         for (_, block) in function.body.blocks.iter() {
             mir::visit_block_exprs(block, &mut |expression| {
                 if let mir::ExprKind::IsInstance { check_ty, .. } = &expression.kind

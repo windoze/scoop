@@ -47,12 +47,16 @@ fn string_reads_keep_as1_and_do_not_enter_native() {
     }
     let ir = ir_of(&module);
     for declaration in [
-        "declare i64 @scoop_rt_string_byte_length_leaf(ptr addrspace(1))",
         "declare i8 @scoop_rt_string_byte_at_leaf(ptr addrspace(1), i64)",
         "declare i32 @scoop_rt_string_character_at_byte_leaf(ptr addrspace(1), i64)",
     ] {
         assert!(ir.contains(declaration), "missing {declaration}:\n{ir}");
     }
+    assert!(!ir.contains("@scoop_rt_string_byte_length_leaf"), "{ir}");
+    assert!(ir.contains("load i64, ptr addrspace(1)"), "{ir}");
+    assert!(ir.contains("load i8, ptr addrspace(1)"), "{ir}");
+    assert!(ir.contains("icmp ult i64 0, %string.byte_length"), "{ir}");
+    assert!(ir.contains("label %string.invalid"), "{ir}");
     assert!(
         !ir.lines()
             .any(|line| line.contains("call ") && line.contains("enter_native")),
