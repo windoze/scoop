@@ -1,0 +1,67 @@
+package scoop.terminal.internal.input
+
+import scoop.terminal.event.*
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class InputReplyTest {
+    @Test
+    fun `device replies remain distinct from surrounding user input at every split`() {
+        val bytes = "x\u001b[65536;1R\u001b[?0u\u001b[?15u\u001b[?62;1;6c\u001b[>0;4000;0c\u001b[0ny".toByteArray()
+        for (cut in 0L..bytes.size) {
+            val parser = InputParser()
+            parser.feed(Array<Byte>(cut) { index -> bytes[index] }, Duration.ZERO)
+            parser.feed(Array<Byte>(bytes.size - cut) { index -> bytes[index + cut] }, Duration.ZERO)
+            expectUser(parser, key(KeyCode.Char('x')))
+            when (parser.next()) {
+                case Some(InputItem.CursorPosition(column, row)) -> {
+                    assertEquals(0L, column); assertEquals(65535L, row)
+                }
+                case _ -> fail(Some("missing cursor reply"))
+            }
+            for (expected in [0u, 15u]) {
+                when (parser.next()) {
+                    case Some(InputItem.KeyboardFlags(flags)) -> assertEquals(expected, flags.bits)
+                    case _ -> fail(Some("missing keyboard flags reply"))
+                }
+            }
+            when (parser.next()) {
+                case Some(InputItem.DeviceAttributes(secondary, values)) -> {
+                    assertFalse(secondary); assertEquals(3L, values.size)
+                    assertEquals(62L, values[0L]); assertEquals(1L, values[1L]); assertEquals(6L, values[2L])
+                }
+                case _ -> fail(Some("missing primary attributes"))
+            }
+            when (parser.next()) {
+                case Some(InputItem.DeviceAttributes(secondary, values)) -> {
+                    assertTrue(secondary); assertEquals(3L, values.size); assertEquals(4000L, values[1L])
+                }
+                case _ -> fail(Some("missing secondary attributes"))
+            }
+            when (parser.next()) {
+                case Some(InputItem.DeviceStatus(status)) -> assertEquals(0L, status)
+                case _ -> fail(Some("missing device status"))
+            }
+            expectUser(parser, key(KeyCode.Char('y')))
+            expectEmpty(parser)
+        }
+    }
+
+    @Test
+    fun `unknown capability bits remain available and malformed replies do not poison input`() {
+        val parser = InputParser()
+        parser.feed("\u001b[?4294967295u".toByteArray(), Duration.ZERO)
+        when (parser.next()) {
+            case Some(InputItem.KeyboardFlags(flags)) -> assertEquals(4294967295u, flags.bits)
+            case _ -> fail(Some("missing capability bits"))
+        }
+        for (reply in ["\u001b[0;1R", "\u001b[1;0R", "\u001b[1;65537R",
+            "\u001b[?4294967296u", "\u001b[?1;2u", "\u001b[?c", "\u001b[>1;;2c"]) {
+            parser.feed((reply + "x").toByteArray(), Duration.ZERO)
+            expectInvalid(parser)
+            expectUser(parser, key(KeyCode.Char('x')))
+            expectEmpty(parser)
+        }
+    }
+}

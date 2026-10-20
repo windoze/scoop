@@ -1,0 +1,48 @@
+package scoop.terminal.internal.input
+
+import scoop.terminal.event.*
+import scoop.text.split
+
+internal fun decodeMouse(body: String, last: Char, rxvt: Boolean): InputItem {
+    if (last != 'M' && last != 'm') invalidInput("invalid mouse report terminator")
+    val fields = body.split(';')
+    if (fields.size != 3L && !(fields.size == 4L && fields[3L] == "")) invalidInput("invalid mouse report fields")
+    var button = decimal(fields[0L], 255L).toInt()
+    if (rxvt) {
+        if (button < 32) invalidInput("invalid rxvt button number")
+        button -= 32
+    }
+    return mouseItem(button, coordinate(fields[1L]), coordinate(fields[2L]), last == 'm')
+}
+
+internal fun decodeLegacyMouse(bytes: List<Byte>): InputItem {
+    val button = (bytes[0L].toInt() and 255) - 32
+    val column = (bytes[1L].toInt() and 255) - 33
+    val row = (bytes[2L].toInt() and 255) - 33
+    if (button < 0 || column < 0 || row < 0) invalidInput("invalid traditional mouse report")
+    return mouseItem(button, column.toLong(), row.toLong(), false)
+}
+
+private fun mouseItem(bits: Int, column: Long, row: Long, release: Boolean): InputItem {
+    val number = (bits and 3) or ((bits and 192) shr 4L)
+    val drag = (bits and 32) != 0
+    val kind = if (number <= 2) {
+        val button = when (number) {
+            case 0 -> MouseButton.Left; case 1 -> MouseButton.Middle; case _ -> MouseButton.Right
+        }
+        if (drag) MouseEventKind.Drag(button)
+        else if (release) MouseEventKind.Up(button) else MouseEventKind.Down(button)
+    } else if (number == 3) {
+        if (drag) MouseEventKind.Moved else MouseEventKind.Up(MouseButton.Left)
+    } else if (drag && (number == 4 || number == 5)) MouseEventKind.Moved
+    else if (!drag) when (number) {
+        case 4 -> MouseEventKind.ScrollUp; case 5 -> MouseEventKind.ScrollDown
+        case 6 -> MouseEventKind.ScrollLeft; case 7 -> MouseEventKind.ScrollRight
+        case _ -> invalidInput("unsupported mouse button")
+    } else invalidInput("unsupported mouse motion button")
+    var modifiers = KeyModifiers()
+    if ((bits and 4) != 0) modifiers = modifiers.with(KeyModifier.Shift)
+    if ((bits and 8) != 0) modifiers = modifiers.with(KeyModifier.Alt)
+    if ((bits and 16) != 0) modifiers = modifiers.with(KeyModifier.Control)
+    return InputItem.User(Event.Mouse(MouseEvent(kind, column, row, modifiers)))
+}

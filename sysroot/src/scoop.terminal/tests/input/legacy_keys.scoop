@@ -1,0 +1,66 @@
+package scoop.terminal.internal.input
+
+import scoop.terminal.event.*
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class LegacyKeysTest {
+    @Test
+    fun `CSI SS3 and Linux function keys preserve separate frames`() {
+        val inputs = ["\u001b[A", "\u001b[B", "\u001b[C", "\u001b[D", "\u001b[H", "\u001b[F",
+            "\u001bOP", "\u001bOQ", "\u001bOR", "\u001bOS", "\u001bOA", "\u001bOD",
+            "\u001b[[A", "\u001b[[E", "\u001b[P", "\u001b[Q", "\u001b[R", "\u001b[S"]
+        val codes = [KeyCode.Up, KeyCode.Down, KeyCode.Right, KeyCode.Left, KeyCode.Home, KeyCode.End,
+            KeyCode.F(1), KeyCode.F(2), KeyCode.F(3), KeyCode.F(4), KeyCode.Up, KeyCode.Left,
+            KeyCode.F(1), KeyCode.F(5), KeyCode.F(1), KeyCode.F(2), KeyCode.F(3), KeyCode.F(4)]
+        for (index in 0L..<inputs.size) assertSplitText(inputs[index] + "x", [key(codes[index]), key(KeyCode.Char('x'))])
+    }
+
+    @Test
+    fun `numbered keys cover navigation and twenty legacy functions`() {
+        val inputs = ["1", "2", "3", "4", "5", "6", "7", "8",
+            "11", "12", "13", "14", "15", "17", "18", "19", "20", "21", "23", "24", "25", "26", "28", "29", "31", "32", "33", "34"]
+        val codes = [KeyCode.Home, KeyCode.Insert, KeyCode.Delete, KeyCode.End, KeyCode.PageUp, KeyCode.PageDown,
+            KeyCode.Home, KeyCode.End, KeyCode.F(1), KeyCode.F(2), KeyCode.F(3), KeyCode.F(4), KeyCode.F(5),
+            KeyCode.F(6), KeyCode.F(7), KeyCode.F(8), KeyCode.F(9), KeyCode.F(10), KeyCode.F(11), KeyCode.F(12),
+            KeyCode.F(13), KeyCode.F(14), KeyCode.F(15), KeyCode.F(16), KeyCode.F(17), KeyCode.F(18), KeyCode.F(19), KeyCode.F(20)]
+        for (index in 0L..<inputs.size) assertSplitText("\u001b[" + inputs[index] + "~", [key(codes[index])])
+    }
+
+    @Test
+    fun `legacy modifiers event kind lock state and focus survive splitting`() {
+        assertSplitText("\u001b[1;6:2A\u001b[3;129:3~\u001b[Z\u001b[I\u001b[O", [
+            key(KeyCode.Up, KeyModifiers().with(KeyModifier.Shift).with(KeyModifier.Control), KeyEventKind.Repeat),
+            key(KeyCode.Delete, KeyModifiers(), KeyEventKind.Release, KeyEventState().with(KeyState.NumLock)),
+            key(KeyCode.BackTab, KeyModifiers().with(KeyModifier.Shift)), Event.FocusGained, Event.FocusLost
+        ])
+    }
+
+    @Test
+    fun `unknown CSI consumes one frame and resynchronizes on Escape or control`() {
+        val parser = InputParser()
+        parser.feed("\u001b[99~x\u001b[12\u001b[Ay\u001b[3\u0001z".toByteArray(), Duration.ZERO)
+        expectInvalid(parser)
+        expectUser(parser, key(KeyCode.Char('x')))
+        expectInvalid(parser)
+        expectUser(parser, key(KeyCode.Up))
+        expectUser(parser, key(KeyCode.Char('y')))
+        expectInvalid(parser)
+        expectUser(parser, key(KeyCode.Char('a'), KeyModifiers().with(KeyModifier.Control)))
+        expectUser(parser, key(KeyCode.Char('z')))
+        expectEmpty(parser)
+    }
+
+    @Test
+    fun `short function prefixes retain a new Escape or UTF-8 start`() {
+        val parser = InputParser()
+        parser.feed("\u001bO\u001b[A\u001b[[中\u001bOE".toByteArray(), Duration.ZERO)
+        expectInvalid(parser)
+        expectUser(parser, key(KeyCode.Up))
+        expectInvalid(parser)
+        expectUser(parser, key(KeyCode.Char('中')))
+        expectUser(parser, key(KeyCode.KeypadBegin, state = KeyEventState().with(KeyState.Keypad)))
+        expectEmpty(parser)
+    }
+}

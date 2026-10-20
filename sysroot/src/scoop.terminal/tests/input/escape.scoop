@@ -1,0 +1,77 @@
+package scoop.terminal.internal.input
+
+import scoop.terminal.event.*
+import scoop.test.*
+import scoop.time.Duration
+
+@Test
+private class EscapeTimingTest {
+    @Test
+    fun `Escape has an exact configurable deadline`() {
+        val parser = InputParser()
+        parser.feed("\u001b".toByteArray(), Duration.ZERO)
+        parser.advance(Duration.milliseconds(49L))
+        expectEmpty(parser)
+        assertTrue(parser.escapeRemaining!! == Duration.milliseconds(1L))
+        parser.advance(Duration.milliseconds(50L))
+        expectUser(parser, key(KeyCode.Esc))
+        assertTrue(parser.escapeRemaining == None)
+        assertFailsWith<IllegalArgumentException> { parser.advance(Duration.ZERO) }
+        assertFailsWith<IllegalArgumentException> { InputParser(Duration.nanoseconds(-1L)) }
+    }
+
+    @Test
+    fun `bytes before deadline complete a prefix and late bytes start fresh`() {
+        val parser = InputParser()
+        parser.feed("\u001b[".toByteArray(), Duration.ZERO)
+        parser.feed("A".toByteArray(), Duration.milliseconds(49L))
+        expectUser(parser, key(KeyCode.Up))
+        parser.feed("\u001b".toByteArray(), Duration.milliseconds(50L))
+        parser.feed("a".toByteArray(), Duration.milliseconds(100L))
+        expectUser(parser, key(KeyCode.Esc))
+        expectUser(parser, key(KeyCode.Char('a')))
+        expectEmpty(parser)
+    }
+
+    @Test
+    fun `zero delay permits available chunks before idle advancement`() {
+        val parser = InputParser(Duration.ZERO)
+        parser.feed("\u001b".toByteArray(), Duration.ZERO)
+        parser.feed("[".toByteArray(), Duration.ZERO)
+        parser.feed("A".toByteArray(), Duration.ZERO)
+        expectUser(parser, key(KeyCode.Up))
+        parser.feed("\u001b".toByteArray(), Duration.ZERO)
+        expectEmpty(parser)
+        parser.advance(Duration.ZERO)
+        expectUser(parser, key(KeyCode.Esc))
+    }
+
+    @Test
+    fun `short ambiguous prefixes become Alt text and longer prefixes fail once`() {
+        for (character in ['[', 'O']) {
+            val parser = InputParser()
+            parser.feed(("\u001b" + character.toString()).toByteArray(), Duration.ZERO)
+            parser.advance(Duration.milliseconds(50L))
+            expectUser(parser, key(KeyCode.Char(character), KeyModifiers().with(KeyModifier.Alt)))
+            expectEmpty(parser)
+        }
+        val parser = InputParser()
+        parser.feed("\u001b[12;".toByteArray(), Duration.ZERO)
+        parser.advance(Duration.milliseconds(50L))
+        expectInvalid(parser)
+        parser.feed("x".toByteArray(), Duration.milliseconds(50L))
+        expectUser(parser, key(KeyCode.Char('x')))
+    }
+
+    @Test
+    fun `consecutive Escapes remain separate and Alt UTF-8 expires`() {
+        assertSplitText("\u001b\u001b", [key(KeyCode.Esc), key(KeyCode.Esc)])
+        assertSplitText("\u001b\u001b[A", [key(KeyCode.Esc), key(KeyCode.Up)])
+        val parser = InputParser()
+        parser.feed([27.toByte(), 0xe4.toByte()], Duration.ZERO)
+        parser.advance(Duration.milliseconds(50L))
+        expectInvalid(parser)
+        parser.feed("x".toByteArray(), Duration.milliseconds(51L))
+        expectUser(parser, key(KeyCode.Char('x')))
+    }
+}

@@ -1,0 +1,31 @@
+package scoop.terminal.event
+
+import scoop.terminal.Command
+
+public object EnableMouseCapture : Command {
+    public override fun writeAnsi(writer: TextWriter) {
+        writer.write("\u001b[?1000h\u001b[?1002h\u001b[?1003h\u001b[?1015h\u001b[?1006h")
+    }
+}
+
+public object DisableMouseCapture : Command {
+    public override fun writeAnsi(writer: TextWriter) {
+        writer.write("\u001b[?1006l\u001b[?1015l\u001b[?1003l\u001b[?1002l\u001b[?1000l")
+    }
+}
+
+public object EnableFocusChange : Command {
+    public override fun writeAnsi(writer: TextWriter) { writer.write("\u001b[?1004h") }
+}
+
+public object DisableFocusChange : Command {
+    public override fun writeAnsi(writer: TextWriter) { writer.write("\u001b[?1004l") }
+}
+
+public object EnableBracketedPaste : Command {
+    public override fun writeAnsi(writer: TextWriter) { writer.write("\u001b[?2004h") }
+}
+
+public object DisableBracketedPaste : Command {
+    public override fun writeAnsi(writer: TextWriter) { writer.write("\u001b[?2004l") }
+}

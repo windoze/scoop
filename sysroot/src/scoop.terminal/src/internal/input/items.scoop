@@ -1,0 +1,39 @@
+package scoop.terminal.internal.input
+
+import scoop.terminal.event.*
+
+internal enum InputItem {
+    User(val event: Event), CursorPosition(val column: Long, val row: Long),
+    KeyboardFlags(val flags: KeyboardEnhancementFlags),
+    DeviceAttributes(val secondary: Boolean, val parameters: Array<Long>),
+    DeviceStatus(val status: Long), Invalid(val detail: String)
+}
+
+internal enum InputMode { Ground, Escape, Csi, Ss3, LinuxFunction, Mouse, Utf8, Paste }
+
+internal class InputDecodeException internal constructor(public val detail: String) : Exception(Some(detail))
+
+internal fun invalidInput(detail: String): Nothing { throw InputDecodeException(detail) }
+
+internal fun decimal(text: String, maximum: Long): Long {
+    if (text == "") invalidInput("missing terminal protocol number")
+    var value = 0L
+    for (character in text) {
+        val digit = (character.code - 48).toLong()
+        if (digit < 0L || digit > 9L || value > (maximum - digit) / 10L || digit > maximum) {
+            invalidInput("invalid or overflowing terminal protocol number")
+        }
+        value = value * 10L + digit
+    }
+    return value
+}
+
+internal fun scalar(text: String): Char {
+    val value = decimal(text, 1114111L).toInt()
+    if (value >= 55296 && value <= 57343) invalidInput("terminal key is not a Unicode scalar")
+    return value.toChar()
+}
+
+internal fun userKey(code: KeyCode, modifiers: KeyModifiers = KeyModifiers(),
+    kind: KeyEventKind = KeyEventKind.Press, state: KeyEventState = KeyEventState()): InputItem =
+    InputItem.User(Event.Key(KeyEvent(code, modifiers, kind, state)))

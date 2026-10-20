@@ -1,0 +1,48 @@
+package scoop.terminal.internal.input
+
+import scoop.terminal.event.*
+import scoop.time.Duration
+
+internal fun InputParser.startKey(byte: Int, now: Duration) {
+    if (byte == 27) {
+        mode = InputMode.Escape
+        escapeStarted = Some(now)
+    } else if (byte < 128) {
+        emit(withAlt(plainKey(byte, raw)))
+    } else if (byte >= 194 && byte <= 244) {
+        mode = InputMode.Utf8
+        utf8Width = if (byte < 224) 2L else if (byte < 240) 3L else 4L
+        pending.add(byte.toByte())
+    } else emit(InputItem.Invalid("invalid UTF-8 initial byte"))
+}
+
+internal fun InputParser.continueUtf8(byte: Int, now: Duration) {
+    if (byte < 128 || byte > 191) {
+        emit(InputItem.Invalid("invalid UTF-8 continuation byte"))
+        startKey(byte, now)
+        return
+    }
+    pending.add(byte.toByte())
+    if (pending.size < utf8Width) return
+    val text = String.fromUtf8OrNone(pending)
+    if (text == None) emit(InputItem.Invalid("invalid UTF-8 scalar"))
+    else emit(withAlt(characterKey(text!![0L])))
+}
+
+private fun InputParser.withAlt(event: KeyEvent): InputItem =
+    InputItem.User(Event.Key(if (alt)
+        KeyEvent(event.code, event.modifiers.with(KeyModifier.Alt), event.kind, event.state) else event))
+
+private fun characterKey(character: Char): KeyEvent = KeyEvent(KeyCode.Char(character),
+    if (isUppercaseKey(character)) KeyModifiers().with(KeyModifier.Shift) else KeyModifiers())
+
+private fun plainKey(byte: Int, raw: Boolean): KeyEvent {
+    if (byte == 13 || (byte == 10 && !raw)) return KeyEvent(KeyCode.Enter)
+    if (byte == 9) return KeyEvent(KeyCode.Tab)
+    if (byte == 127) return KeyEvent(KeyCode.Backspace)
+    val control = KeyModifiers().with(KeyModifier.Control)
+    if (byte == 0) return KeyEvent(KeyCode.Char(' '), control)
+    if (byte >= 1 && byte <= 26) return KeyEvent(KeyCode.Char((byte + 96).toChar()), control)
+    if (byte >= 28 && byte <= 31) return KeyEvent(KeyCode.Char((byte + 24).toChar()), control)
+    return characterKey(byte.toChar())
+}

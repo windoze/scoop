@@ -9,10 +9,10 @@
 | 公共合同与普通 Cone | 已建立；后续功能逐项补规范 | 文档检查，开发 sysroot 已发布新 Cone |
 | 命令／光标／屏幕 | 本机完成，PTY／Linux 随后验收 | 14 项单测 debug 与 release＋moving GC 均通过；3 项消费者 fixture、6 个变体通过 |
 | 样式与颜色策略 | 本机完成，PTY／Linux 随后验收 | 新增 11 项单测；全库 25 项 debug 与 release＋moving GC 均通过；2 项消费者 fixture、4 个变体通过 |
-| 事件数据与增量 parser | 实施中 | 54 项全库 debug 测试通过；release＋moving GC 与使用方验证进行中 |
+| 事件数据与增量 parser | 本机完成，PTY／Linux 随后验收 | 新增 29 项单测；全库 54 项 debug 与 release＋moving GC 均通过；事件消费者 fixture 两个变体通过 |
 | Unix 会话、raw、resize、read／poll、查询 | 待实施 | — |
 | PTY host 与交互 fixture | 待实施 | — |
-| Kitty／OSC 52 与组合覆盖 | 待实施 | — |
+| Kitty／OSC 52 与组合覆盖 | Kitty 数据、命令及解析已实现；OSC 52 与 PTY 组合待实施 | Kitty 分片、释放、锁定状态与能力回复已有单测 |
 | asyncio TTY 与 terminal.asyncio | 待实施 | — |
 | Linux GNU／musl 验收与清理 | 待实施 | — |
 
@@ -43,3 +43,11 @@
 键盘 parser 的 `letterKey` 返回带载荷 enum，LLVM 在 release 下为同一函数生成两张数值查找表。原 Mach-O literal pool 只接受段首表，第二个局部符号被拒绝，导致正常库不能生成 `.slib`。实现规范先明确多表边界，再按代码实际引用的局部符号起点划分表，保留后续已有 atom 和固定宽度 literal pool 的原有规则。没有关闭优化、跳过引用处理或新增 ABI。
 
 新增独立 `m59-terminal-key-switch` fixture，旧工具在 release 下复现相同错误；修复后 debug／release＋moving GC 均通过。4 项 literal pool 测试（含新增多表专测）和 6 项 callable registration／fingerprint 回归通过，workspace fmt／Clippy 通过。该修复作为独立功能提交。
+
+## 6. 输入事件、模式与增量解析
+
+完成普通值类型 Key／Mouse／Event、类型化修饰键及键盘增强集合，鼠标／focus／paste／Kitty push-pop 命令，以及纯 Scoop 增量 parser。字节、raw 状态和单调时间显式输入，用户事件、设备回复和非法输入分流。覆盖 UTF-8、C0、Alt、CSI／SS3／Linux 功能键、传统／rxvt／SGR 鼠标、focus、paste、Kitty 和查询回复。Unicode 大写字符沿 Uppercase 属性处理，固定 Unicode 17.0 数据并保留许可证及生成脚本。
+
+新增 29 项单测，以固定向量覆盖每个两段切分位置及逐字节输入；另测 Escape 截止时间、零等待、数字溢出、Unicode 标量、坐标下溢、非法输入重同步、粘贴部分结束标记和 EOF。旧式 F15～F20 对照 xterm 修正上游偏差；Kitty 标志解析完整十进制数字，256 修饰字段保留全部位，释放事件不伪造修饰状态。
+
+全库 54 项 debug、release＋moving GC 测试通过；后者完整运行一次，后续按实际改动选测，避免反复执行全部分片组合。独立消费者验证公开 enum／struct 的跨 Cone 值传递、GC 和全部输入模式命令，两种构建模式共 4 个进程通过。预编译 sysroot 已重新发布。Scoop 生产文件最大 78 行，生成的 Unicode 范围表 117 行；生成脚本 Ruff 通过。Rust dev 产物再清理 6.0 GiB，target 剩余约 654 MiB；release 工具保留。

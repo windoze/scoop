@@ -87,9 +87,53 @@ package `scoop.terminal.style`：
 
 `SetStyle(style)` 依次写出背景、前景、下划线颜色和属性；缺省字段不复位其他状态。StyledContent 保存 style 与 content，实现 Command 和 ToString；先取得文本，再写入样式、文本和结束复位。没有属性时分别复位所设置的背景／前景／下划线颜色（49／39／59）；有属性时使用 SGR 0 整体复位。禁色时不生成只为颜色配对的结束复位。复位到默认值，不承诺恢复此前任意终端样式；写入失败遵守普通部分输出规则。下划线颜色使用 59 复位，是对上游只复位前景色问题的有意修正。
 
-## 6. 后续功能的既定合同
+## 6. 输入事件与增量解析
 
-样式、事件、Unix 会话、PTY 交互、OSC 52 与异步适配均属于 M59 的交付范围，不因命令部分先完成而移出里程碑。后续功能的具体公共声明在各自实现前增加到本文；以下约束已经确定：
+package `scoop.terminal.event` 使用普通值类型：
+
+```scoop
+public struct KeyEvent(val code: KeyCode, val modifiers: KeyModifiers = KeyModifiers(),
+    val kind: KeyEventKind = KeyEventKind.Press, val state: KeyEventState = KeyEventState())
+public enum KeyEventKind { Press, Repeat, Release }
+public struct MouseEvent(val kind: MouseEventKind, val column: Long, val row: Long,
+    val modifiers: KeyModifiers = KeyModifiers())
+public enum Event {
+    Key(val event: KeyEvent), Mouse(val event: MouseEvent),
+    FocusGained, FocusLost, Paste(val text: String), Resize(val columns: Long, val rows: Long)
+}
+```
+
+`KeyCode` 包含 Backspace、Enter、Left／Right／Up／Down、Home／End、PageUp／PageDown、Tab／BackTab、Delete／Insert、`F(number: Int)`、`Char(character: Char)`、Null、Esc、CapsLock／ScrollLock／NumLock、PrintScreen、Pause、Menu、KeypadBegin、`Media(code: MediaKeyCode)`、`Modifier(code: ModifierKeyCode)`。MediaKeyCode 与 ModifierKeyCode 的具名值覆盖 crossterm 0.29 对应类型，保留左右修饰键区别。
+
+`KeyModifier` 为 Shift、Alt、Control、Super、Hyper、Meta；`KeyState` 为 Keypad、CapsLock、NumLock。对应 `KeyModifiers(bits: UInt = 0u)`／`KeyEventState(bits: UInt = 0u)` 为透明逻辑位集，按各自声明顺序占位，提供 has／with／without／isEmpty。`MouseButton` 为 Left、Right、Middle；`MouseEventKind` 为 Down／Up／Drag（携带按钮）、Moved、ScrollUp／ScrollDown／ScrollLeft／ScrollRight。传统鼠标协议无法指出释放按钮时，沿上游约定产生 Up(Left)；SGR 小写 m 保留确切按钮。
+
+`KeyboardEnhancement` 为 DisambiguateEscapeCodes、ReportEventTypes、ReportAlternateKeys、ReportAllKeysAsEscapeCodes；`KeyboardEnhancementFlags(bits: UInt = 0u)` 同样提供值集合操作，占 bit 0～3。查询回复保留原始未知位，但 push 命令只接受本期四个已定义位。查询返回 0 表示支持协议且当前没有开启增强，不能当作不支持。
+
+输入模式命令均实现 Command：Enable／DisableMouseCapture 按上游顺序开启／逆序关闭 1000、1002、1003、1015、1006；Enable／DisableFocusChange 使用 1004；Enable／DisableBracketedPaste 使用 2004。PushKeyboardEnhancementFlags(flags) 使用 `CSI >bits u`，PopKeyboardEnhancementFlags 使用 `CSI <1u`。无效 push 位集在输出前抛 IllegalArgumentException。
+
+### 6.1 字节、时间与恢复
+
+内部 parser 只接收字节、单调时间读数和当前 raw 状态，不读取 fd 或墙上时钟。一次 feed 可产生多项结果，按输入顺序排队；结果区分用户 Event、设备回复与非法输入。普通 UTF-8 严格验证，粘贴载荷才使用有损解码。普通大写字符按 Unicode 17.0 的 Uppercase 属性附加 Shift，与上游 Unicode 判断方式一致；不把该局部判断扩展成新语言能力。
+
+- 完整的 UTF-8 标量立即产生一个字符事件；非法首字节消费该字节，非法续字节先结束坏前缀，再从该续字节重新解析，后续合法字符不丢失。完整但非法的标量消费其编码。未完成的普通 UTF-8 等待后续字节或 EOF。
+- CR 为 Enter；LF 在非 raw 时为 Enter，在 raw 时为 Ctrl+J；Tab、DEL 分别为 Tab、Backspace；NUL 为 Ctrl+空格。其余 C0 按上游 Ctrl 字符映射，Escape 单独处理。
+- Escape 判定默认 50 ms，配置必须非负；非零等待从前缀的首个 Escape 起算，时限到达先处理过期前缀，再接受新字节。等待为零时，同一次或连续有数据的 feed 仍可组成序列，显式无输入推进才结束歧义。时间不得倒退。
+- 单独 Escape 到期产生 Esc；仅 `ESC [`／`ESC O` 到期分别为 Alt+[／Alt+O；更长的不完整转义序列到期产生一次非法输入。两个连续 Escape 保留为两个输入，不丢掉第二个。Alt+UTF-8 使用同一 Escape 截止时间；bracketed paste 开始后不再使用该超时。
+- CSI 按终结字节分帧，支持 SS3 和 Linux `ESC [[A..E` 功能键。完整未知或非法序列整体消费，产生一次非法输入。CSI、SS3 和 Linux 功能键前缀内的非法控制／非 ASCII 字节结束已有坏前缀，再从该字节重同步；新的 Escape 开始新的前缀。
+- 旧式 `25/26/28/29/31/32/33/34 ~` 分别为 F13～F20，依据 [xterm 功能键表](https://invisible-island.net/xterm/xterm-function-keys.html)，修正上游 0.29 对 F15～F20 的编号偏差。
+- 传统鼠标固定收取三个原始字节；rxvt 与 SGR 按数字字段解析，允许上游接受的末尾可选分号。协议坐标必须为正数，转换为零基 Long；不允许下溢。普通十进制字段先受检累积，再按具体协议范围检查，不接受符号、空的必填数字、额外字段或溢出。
+- `CSI 200~` 开始粘贴，至第一个完整 `CSI 201~` 结束。期间包括 Escape、换行和近似结束标记在内的载荷均按原样收集；结束标记不进入 Paste，后续字节继续解析。
+- EOF 保留已完成结果，单独 Escape 转为 Esc，其余未完成前缀／粘贴产生一次非法输入，然后结束。非法输入由会话转为 TerminalInputException，消费后可继续读取；EOF／断开的异常合同见下一节。
+
+### 6.2 键盘增强与设备回复
+
+CSI-u 支持 Unicode 标量、修饰键、Press／Repeat／Release、锁定状态、F13～F35、keypad、媒体和左右修饰键。修饰字段允许 1～256，以支持所有八个位；省略／空的可选字段使用协议默认值。显式非法事件类型或 Unicode 标量属于非法输入。带 Shift 的 alternate shifted codepoint 替换字符并移除 Shift，沿上游事件表示；base-layout 字段验证后忽略。本期不请求 associated-text；收到第三字段时验证其标量再忽略，与上游未暴露该字段的边界一致。修饰键释放保持报文中的实际修饰位，不强行补上被释放的键。
+
+光标位置、主／次设备属性、设备状态和 Kitty 标志回复只产生内部回复，不成为用户 Event。CPR 的行列允许 1～65536。`CSI row;column R` 与旧式带修饰的 F3 有固有歧义，两个普通数字字段优先解释为 CPR；F3 使用 SS3、`13~` 或无参数 `CSI R`。Kitty 标志按完整十进制数字解析，设备属性保留实际参数。回复与用户事件的队列顺序不会因为 feed 分片变化。
+
+## 7. 后续功能的既定合同
+
+Unix 会话、PTY 交互、OSC 52 与异步适配均属于 M59 的交付范围，不因前面的功能先完成而移出里程碑。后续功能的具体公共声明在各自实现前增加到本文；以下约束已经确定：
 
 - 事件 parser 增量处理 UTF-8、CSI／SS3、鼠标、focus、paste、Kitty 与设备回复；分片本身不决定事件边界。
 - Escape 判定默认等待 50 ms，可配置非负 Duration。零等待表示下一次无更多可用输入的推进即可判定 Escape。`poll` 使用独立的总截止时间，不能为了完成 Escape 判定越过调用时限。

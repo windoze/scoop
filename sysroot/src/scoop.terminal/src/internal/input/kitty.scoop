@@ -1,0 +1,51 @@
+package scoop.terminal.internal.input
+
+import scoop.terminal.event.*
+import scoop.text.split
+
+internal fun decodeKittyKey(body: String, raw: Boolean): InputItem {
+    val fields = body.split(';')
+    if (fields.size > 3L) invalidInput("too many Kitty key fields")
+    val codes = fields[0L].split(':')
+    if (codes.size > 3L) invalidInput("too many alternate key fields")
+    val value = scalar(codes[0L])
+    val parameters = keyParameters(if (fields.size >= 2L) fields[1L] else "")
+    var code = kittyCode(value, parameters.modifiers, raw)
+    var modifiers = parameters.modifiers
+    if (codes.size >= 2L && codes[1L] != "") {
+        val shifted = scalar(codes[1L])
+        if (modifiers.has(KeyModifier.Shift)) {
+            code = KeyCode.Char(shifted)
+            modifiers = modifiers.without(KeyModifier.Shift)
+        }
+    }
+    if (codes.size == 3L && codes[2L] != "") scalar(codes[2L])
+    if (fields.size == 3L && fields[2L] != "") {
+        for (text in fields[2L].split(':')) {
+            val point = scalar(text).code
+            if (point < 32 || (point >= 127 && point <= 159)) invalidInput("control character in associated text")
+        }
+    }
+    val keypad = value.code >= 57399 && value.code <= 57427
+    val state = if (keypad) parameters.state.with(KeyState.Keypad) else parameters.state
+    return userKey(code, modifiers, parameters.kind, state)
+}
+
+private fun kittyCode(value: Char, modifiers: KeyModifiers, raw: Boolean): KeyCode {
+    val number = value.code
+    if (number >= 57376 && number <= 57398) return KeyCode.F(number - 57363)
+    if (number >= 57399 && number <= 57408) return KeyCode.Char((number - 57399 + 48).toChar())
+    if (number >= 57409 && number <= 57427) return keypadCodes[(number - 57409).toLong()]
+    if (number >= 57428 && number <= 57440) return KeyCode.Media(mediaCodes[(number - 57428).toLong()])
+    if (number >= 57441 && number <= 57454) return KeyCode.Modifier(modifierCodes[(number - 57441).toLong()])
+    return when (number) {
+        case 27 -> KeyCode.Esc; case 13 -> KeyCode.Enter
+        case 10 -> if (raw) KeyCode.Char(value) else KeyCode.Enter
+        case 9 -> if (modifiers.has(KeyModifier.Shift)) KeyCode.BackTab else KeyCode.Tab
+        case 127 -> KeyCode.Backspace
+        case 57358 -> KeyCode.CapsLock; case 57359 -> KeyCode.ScrollLock
+        case 57360 -> KeyCode.NumLock; case 57361 -> KeyCode.PrintScreen
+        case 57362 -> KeyCode.Pause; case 57363 -> KeyCode.Menu
+        case _ -> KeyCode.Char(value)
+    }
+}

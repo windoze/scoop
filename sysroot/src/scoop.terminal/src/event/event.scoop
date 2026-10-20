@@ -1,0 +1,20 @@
+package scoop.terminal.event
+
+public enum Event {
+    Key(val event: KeyEvent), Mouse(val event: MouseEvent),
+    FocusGained, FocusLost, Paste(val text: String), Resize(val columns: Long, val rows: Long)
+}
+
+public enum MouseButton { Left, Right, Middle }
+
+public enum MouseEventKind {
+    Down(val button: MouseButton), Up(val button: MouseButton), Drag(val button: MouseButton),
+    Moved, ScrollUp, ScrollDown, ScrollLeft, ScrollRight
+}
+
+public struct MouseEvent(
+    val kind: MouseEventKind, val column: Long, val row: Long,
+    val modifiers: KeyModifiers = KeyModifiers()
+)
+
+public class TerminalInputException public constructor(public val detail: String) : Exception(Some(detail))
