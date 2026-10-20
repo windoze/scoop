@@ -378,6 +378,13 @@ impl ImportedEntityIndex {
         self.targets.get(&target).map(|entry| entry.target)
     }
 
+    pub(in crate::semantic_world) fn target_provider(
+        &self,
+        target: BindableEntity,
+    ) -> Option<ConeIdentity> {
+        self.targets.get(&target).map(|entry| entry.provider)
+    }
+
     pub(in crate::semantic_world) fn import_target_with_conflict(
         &self,
         target: BindableEntity,

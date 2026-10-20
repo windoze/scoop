@@ -207,11 +207,46 @@ impl Lowerer {
         }
     }
 
-    pub(super) fn documentation_imported_hidden(&self, target: hir::AnnotationTargetV1) -> bool {
+    pub(in crate::documentation) fn documentation_imported_hidden(
+        &self,
+        target: hir::AnnotationTargetV1,
+    ) -> bool {
         self.dependencies.as_ref().is_some_and(|dependencies| {
-            dependencies.annotations(target).iter().any(|annotation| {
-                Some(annotation.annotation) == self.core_source_annotation("DocHidden")
-            })
+            let hidden = |target| {
+                dependencies.annotations(target).iter().any(|annotation| {
+                    Some(annotation.annotation) == self.core_source_annotation("DocHidden")
+                })
+            };
+            if hidden(target) {
+                return true;
+            }
+            let hir::AnnotationTargetV1::Nominal(owner) = target else {
+                return false;
+            };
+            dependencies
+                .nominal_declaration(owner)
+                .is_some_and(|nominal| {
+                    nominal
+                        .identity
+                        .declaration()
+                        .owners()
+                        .owners()
+                        .iter()
+                        .any(|owner| {
+                            use scoop_identity::{
+                                DefinitionOwnerAtom as O, NominalDeclarationOwner as N,
+                            };
+                            match owner {
+                                O::Type(id) => {
+                                    hidden(hir::AnnotationTargetV1::Nominal(N::Concrete(*id)))
+                                }
+                                O::GenericType(id) => hidden(hir::AnnotationTargetV1::Nominal(
+                                    N::GenericTemplate(*id),
+                                )),
+                                _ => false,
+                            }
+                        })
+                })
         })
     }
 }

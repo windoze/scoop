@@ -14,3 +14,9 @@ public open class Base<T> public constructor(public val value: T) {
 public interface Readable<T> {
     public fun read(value: T): T = value
 }
+
+@DocHidden public class HiddenOuter {
+    public class Inner
+}
+@DocHidden public object HiddenObject
+@DocHidden public fun hidden(): Int = 0

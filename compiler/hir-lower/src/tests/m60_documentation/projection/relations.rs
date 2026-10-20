@@ -160,11 +160,17 @@ fn m60_documentation_imported_inheritance_does_not_select_machine_calls_or_hidde
     };
     let mut core = annotations::annotation_core();
     let coordinate = scoop_identity::ConeCoordinate::new("test", "doc-provider", "1.0.0").unwrap();
+    let provider = format!(
+        "{PROVIDER}\n@DocHidden public class HiddenOuter {{ public class Inner }}\n@DocHidden public object HiddenObject\n@DocHidden public fun hidden(): Int = 0"
+    );
     let (foundation, interface) =
-        project_dependency_text(&core, &coordinate, PROVIDER, &["Boolean"]);
+        project_dependency_text(&core, &coordinate, &provider, &["Boolean"]);
     let imported = core.import_dependency_foundation(&coordinate, &foundation, 73);
     let aliases = alias_expansions(interface.type_aliases());
-    let parsed = support::parsed_ordinary_text(CONSUMER);
+    let consumer = format!(
+        "public import api.HiddenOuter.Inner as HiddenAlias\npublic import api.HiddenObject as HiddenValue\npublic import api.hidden as hiddenFunction\npublic import api.Base as VisibleBase\n{CONSUMER}"
+    );
+    let parsed = support::parsed_ordinary_text(&consumer);
     let world = hir::ImportedSemanticWorld::from_dependencies(
         parsed.cone(),
         vec![
@@ -178,7 +184,7 @@ fn m60_documentation_imported_inheritance_does_not_select_machine_calls_or_hidde
         Vec::new(),
     )
     .unwrap();
-    let file = scoop_parser::parse(CONSUMER).unwrap();
+    let file = scoop_parser::parse(&consumer).unwrap();
     let input = crate::CurrentConeSources::try_new(
         &parsed,
         core.foundation.import_core_inputs(&core.interface).unwrap(),
@@ -190,12 +196,22 @@ fn m60_documentation_imported_inheritance_does_not_select_machine_calls_or_hidde
     let input = input
         .with_documentation(vec![ast::IdentifiedSourceDocumentation {
             source: test_source_identity("src/main.scoop"),
-            documentation: scoop_doc::prepare_source(&file, CONSUMER),
+            documentation: scoop_doc::prepare_source(&file, &consumer),
         }])
         .unwrap();
     let output =
         crate::lower_current_cone(scoop_identity::RequestedConeKind::Library, &input).unwrap();
-    check(&project(&output));
+    let projected = project(&output);
+    check(&projected);
+    let bindings = projected
+        .bindings
+        .iter()
+        .map(|binding| binding.name.as_str())
+        .collect::<Vec<_>>();
+    assert!(bindings.contains(&"VisibleBase"), "{bindings:?}");
+    for hidden in ["HiddenAlias", "HiddenValue", "hiddenFunction"] {
+        assert!(!bindings.contains(&hidden), "{bindings:?}");
+    }
     assert_eq!(
         output.output().export.imported_dependency_callables.len(),
         ordinary.output().export.imported_dependency_callables.len()

@@ -58,6 +58,11 @@ for signature in (
 ):
     assert signature in text, signature
 assert "secret" not in text
+for path, page in pages.items():
+    if path.parent.name == "source":
+        continue
+    for hidden in ("HiddenAlias", "HiddenValue", "hiddenFunction"):
+        assert hidden not in "".join(page.text), (path, hidden)
 diamond = "".join(page_for("Diamond").text)
 assert diamond.count("fun read(value: Int): Int") == 1, diamond
 assert any(

@@ -101,7 +101,7 @@ pub fn project_cone(
         executable: kind == RequestedConeKind::Executable,
         sources,
         items,
-        bindings: projection.bindings()?,
+        bindings: projection.bindings(&documentation.hidden_dependency_bindings)?,
         warnings,
     })
 }

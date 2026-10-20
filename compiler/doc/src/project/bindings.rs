@@ -5,10 +5,11 @@ use scoop_identity::{
 };
 
 impl Projection<'_> {
-    pub(super) fn bindings(&self) -> Result<Vec<ExportBinding>> {
+    pub(super) fn bindings(&self, hidden: &[B]) -> Result<Vec<ExportBinding>> {
         self.export
             .export_binding_identities
             .iter()
+            .filter(|binding| !hidden.contains(&binding.key().target()))
             .map(|binding| {
                 let key = binding.key();
                 let target = match key.target() {

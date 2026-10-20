@@ -37,6 +37,7 @@ pub struct ConeDocumentation {
     pub warnings: Vec<Diagnostic>,
     pub hidden_annotation: Option<PersistentAnnotationId>,
     pub alias_annotation: Option<PersistentAnnotationId>,
+    pub hidden_dependency_bindings: Vec<scoop_identity::BindableEntity>,
 }
 
 #[derive(Clone, Debug)]

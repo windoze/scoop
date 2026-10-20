@@ -86,6 +86,16 @@ impl Lowerer {
             warnings,
             hidden_annotation: self.core_source_annotation("DocHidden"),
             alias_annotation: self.core_source_annotation("DocAlias"),
+            hidden_dependency_bindings: world
+                .into_iter()
+                .flat_map(|world| world.public_binding_annotation_scopes())
+                .filter_map(|(binding, scopes)| {
+                    scopes
+                        .into_iter()
+                        .any(|target| self.documentation_imported_hidden(target))
+                        .then_some(binding)
+                })
+                .collect(),
         })
     }
 

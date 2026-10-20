@@ -9,6 +9,7 @@ use scoop_identity::ConeIdentity;
 
 use crate::SourceNominalId;
 
+mod annotation_scopes;
 mod entities;
 mod error;
 mod namespace;

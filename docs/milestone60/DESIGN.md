@@ -135,6 +135,7 @@ README.md 存在时作为 Cone 首页正文，不存在时生成 API 导航首�
 
 - DocHidden 省略目标的 API 页面、成员目录与搜索项；隐藏容器也省略其包含的文档条目。派生类型不因此获得语言层注解继承。
 - re-export 不能把原隐藏声明重新显示出来；标在一个 overload 上只隐藏该声明。`--document-private-items` 不覆盖 DocHidden。
+- 依赖未生成页面时，仍使用已加载接口中目标及词法容器的真实注解筛选 re-export；不依赖另一个 Cone 的页面是否存在来判断隐藏。
 - 隐藏字段／property 不删除构造器签名中的参数；可见签名引用隐藏类型时保留完整类型文字，省略不可用的链接。
 - `@field:DocHidden` 只作用于实际字段，不向 logical property 传播；`@property:DocHidden` 作用于 property。backing storage 本来就不单独作为源码 API 显示。
 - DocAlias 仅为实际呈现的条目添加关键词，不产生可 import 的名称。空白 alias 给出文档 warning 并不进入索引；相同关键词可在索引中合并，静态注解应用仍按原规则保留。

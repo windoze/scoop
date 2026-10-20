@@ -1,4 +1,7 @@
 public import api.Base as VisibleBase
+public import api.HiddenOuter.Inner as HiddenAlias
+public import api.HiddenObject as HiddenValue
+public import api.hidden as hiddenFunction
 import api.Readable
 
 /** Specializes [VisibleBase.copy] for integers. */
