@@ -239,7 +239,7 @@ closure 具有完整捕获字段、类型、invoke 与扫描属性；绑定方�
 
 suspend callable 的执行 ABI 为 `(source args..., Continuation<R>) -> CoroutineStep<R>`，后者仅含 Completed(R) 与 Suspended。输出不保留源码级 suspend call；frame、continuation、恢复入口和 saved slots 均有独立身份和完整类型。跨挂起只保存已初始化的 exact payload，不保存 native block address 或 active EH record。
 
-接口 adapter 的物理 receiver 是具体对象引用；装箱 adapter 挂起时保存的 receiver 使用生成 box 的 exact type，而不伪装成源码 interface。其 `CoroutineSlot<box<T>>` 以 box 的 exact identity 区分，并与 box 一样归属 T 的定义或 application ODR group；扫描仍为一个 managed object 引用。普通 nominal 的 suspend 装箱 adapter 在优化前确定该 receiver slot，并随已发布的 box 支持输出；是否消除 adapter 的状态机不改变这项有限支持。纯内部 saved slot 不扩张私有 payload 的发布闭包。
+接口 adapter 的物理 receiver 是具体对象引用；装箱 adapter 挂起时保存的 receiver 使用生成 box 的 exact type，而不伪装成源码 interface。其 `CoroutineSlot<box<T>>` 以 box 的 exact identity 区分，并与 box 一样归属 T 的定义或 application ODR group；扫描仍为一个 managed object 引用。普通 nominal 的 suspend 装箱 adapter 在优化前确定该 receiver slot，并随已发布的 box 支持输出；是否消除 adapter 的状态机不改变这项有限支持。结构类型／application 的内部 ODR saved slot 由实际 frame 所在实现物化，保留 foundation／Code／Link 数据，不作为公共 type／layout bridge 输出；它们不扩张私有 payload 的发布闭包，也不因优化消除而改变依赖指纹。普通源码 nominal 的有限 slot 支持仍按定义方发布。
 
 object 的源码 exact type 与 backing class exact type 是同一对象的两种视图，共用分发表及 receiver adapter。adapter 的 implementor 保留源码 object 身份；backing 表通过类型记录中已有的 `Object { backing }` 关系引用它，不另建 callable 或放宽为任意继承 receiver。
 

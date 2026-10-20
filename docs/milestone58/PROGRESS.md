@@ -174,6 +174,6 @@ fmt／workspace clippy、26 项 MIR 优化专测通过。重建 Darwin 全部 12
 
 ## 2026-10-20：优化模式独立的协程发布边界
 
-GNU 全量验收的 M42 组合暴露出 debug core 与 release std 的依赖指纹不一致：被 C1／C2 消除的私有 driver／adapter，以及仅在未优化 frame 中物化的 box receiver slot，进入了公共 bridge。先修订实现规范 2.3，再将私有 CoroutineDriver／CoroutineAdapter 从公共 Strong callable bridge 中排除，保留其实际 foundation／Code 身份；suspend 装箱 adapter 则在优化前确定 receiver slot，使已发布 box 支持不随状态机消除变化。没有放宽真实依赖变化的检查。
+GNU 全量验收的 M42 组合暴露出 debug core 与 release std 的依赖指纹不一致：被 C1／C2 消除的私有 driver／adapter，以及按实际 frame 物化的 saved slot，进入了公共 bridge。先修订实现规范 2.3，再将私有 CoroutineDriver／CoroutineAdapter 从公共 Strong callable bridge 中排除，保留实际 foundation／Code 身份；普通 nominal 的 suspend 装箱 adapter 在优化前确定 receiver slot，使已发布 box 支持不随状态机消除变化。内部 ODR saved slot 保留实际实现所需的身份、布局与链接定义，不进入公共 type／layout bridge。没有放宽真实依赖变化的检查。
 
-fmt／workspace clippy、MIR 与 MIR lowering 共 397 项测试通过。新的三库 fixture 分别用 debug／release 构建 provider 与中间库，再只替换 provider 为另一模式；两方向共 14 个进程通过，涵盖装箱接口、真正挂起、普通／强制移动／minor GC。临时 metadata 诊断程序已删除；完整 core／标准库依赖链复验继续。
+fmt／workspace clippy、MIR 与 MIR lowering 共 397 项测试通过；追加 ODR slot 修正后，247 项 MIR 测试和完整布局导出组合通过。三库 fixture 分别用 debug／release 构建 provider 与中间库，再只替换 provider 为另一模式；加入带函数参数的 suspend 包装后，修复前独立复现原 stale-dependency，修复后两个方向均通过。重建 core／std 后，该回归与原 M42 grouping 共三变体／18 进程通过，涵盖装箱接口、真正挂起、普通／强制移动／minor GC。此前其余 22 项本机组合通过，Linux 剩余验收继续；临时 metadata 诊断程序已删除。

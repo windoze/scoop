@@ -2,5 +2,5 @@ package profiles.middle
 
 import profiles.provider.*
 
-public suspend fun value(): Int = (Value(41) as Reader).read()
+public suspend fun value(): Int = (Value(discard(suspend {}) - 1) as Reader).read()
 public suspend fun waitFor(registration: SuspendRegistration<Int>): Int = forwarded(registration)
