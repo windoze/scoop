@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn production_manifest_v8_uses_consumed_fields_in_every_profile() {
+fn production_manifest_v9_uses_consumed_fields_in_every_profile() {
     let current = manifest_single_cone_production_capability();
-    assert_eq!(current.major_version(), 8);
-    let old = CapabilityId::new(current.namespace(), current.name(), 7).unwrap();
+    assert_eq!(current.major_version(), 9);
+    let old = CapabilityId::new(current.namespace(), current.name(), 8).unwrap();
     assert!(CapabilityContractRegistry::contract(&old).is_none());
     let profile = ArtifactCapabilityProfile::CROSS_CONE_GENERIC;
 
@@ -47,7 +47,7 @@ fn shared_provider_references_reject_retired_and_cross_profile_versions_in_every
         (
             lir_cone_production_capability(),
             &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC][..],
-            &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11][..],
+            &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12][..],
         ),
         (
             lir_cross_cone_layout_abi_capability(),

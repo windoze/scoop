@@ -3,7 +3,7 @@
 use std::fmt;
 use std::path::PathBuf;
 
-use scoop_codegen::{EmittedGeneratedCBridgeObjectSetV1, ProvisionalStrongDigestPatchLocationV1};
+use scoop_codegen::EmittedGeneratedCBridgeObjectSetV1;
 use scoop_lir::{
     CanonicalNativeExternalRequirementBuildError, ConeLirFoundation, GeneratedBridgeUnitId,
     LirTargetProfile, ObjectDefinitionPlanId, ProducerUnitPartitionV1, ValidatedLirTargetSelection,
@@ -13,21 +13,20 @@ use scoop_slib::{
     CanonicalGeneratedBridgeObjectUnitSetV1, CanonicalScoopLirObjectUnitSetV1,
     CodeObjectProjectionError, ConeRecord, CrossConeStrongRequirementValidationError,
     CurrentConeUndefinedRequirementValidationError, DefinedLinkSymbolOwnerBuildError,
-    DependencyRecord, DigestPatchSiteV1, EntryPatchError, GeneratedCBridgeObjectCandidateV1,
-    GeneratedCObjectReadError, LinkObjectMemberSetPlanError, MissingDigestPatchSiteV1,
-    ObjectUnitSetError, PlannedGeneratedBridgeObjectMemberV1, PlannedLinkObjectMemberSetV1,
+    DependencyRecord, GeneratedCBridgeObjectCandidateV1, GeneratedCObjectReadError,
+    LinkObjectMemberSetPlanError, MissingObjectDefinitionMemberV1, ObjectUnitSetError,
+    PlannedGeneratedBridgeObjectMemberV1, PlannedLinkObjectMemberSetV1,
     PlannedScoopLirObjectMemberV1, PlannedStrongObjectSymbolSetV1, ProductionCodeProjectionError,
-    RuntimeAndEhRequirementValidationError, RuntimeImageFingerprintError, RuntimeImagePatchError,
-    ScoopLirDigestPatchSitesV1, ScoopLirObjectCandidateV1, ScoopStackmapReadError,
-    ScoopStackmapSetV1, SlibMember, SlibMemberId, SlibMemberRecordError,
-    SourceExternalRequirementValidationError, StrongCallableBodyFingerprintError,
-    StrongCallableFingerprintError, StrongImmortalObjectFingerprintError,
-    StrongInitializationFingerprintError, StrongObjectSymbolPlanningError,
-    StrongRegistrationPatchError, StrongSafepointFingerprintError,
+    RegistrationObjectError, RuntimeAndEhRequirementValidationError, RuntimeImageFingerprintError,
+    ScoopLirObjectCandidateV1, ScoopStackmapReadError, ScoopStackmapSetV1, SlibMember,
+    SlibMemberId, SlibMemberRecordError, SourceExternalRequirementValidationError,
+    StrongCallableBodyFingerprintError, StrongCallableFingerprintError,
+    StrongImmortalObjectFingerprintError, StrongInitializationFingerprintError,
+    StrongObjectSymbolPlanningError, StrongSafepointFingerprintError,
     StrongStaticStorageFingerprintError, StrongStaticStorageShapeFingerprintError,
     StrongTypeFingerprintError, UndefinedSymbolRequirementFinalizationError,
-    bind_callable_registrations_v1, bind_cone_image_v1, bind_entry_production_v1,
-    bind_safepoint_registrations_v1, bind_static_storage_registrations_v1,
+    VerifiedBuiltinObjectStrongRelocationSetV1, bind_callable_registrations_v1, bind_cone_image_v1,
+    bind_entry_production_v1, bind_safepoint_registrations_v1,
     compute_strong_callable_fingerprints_v1, compute_strong_immortal_object_fingerprints_v1,
     compute_strong_safepoint_fingerprints_v1, compute_strong_static_storage_fingerprints_v1,
     compute_strong_static_storage_shape_fingerprints_v1, read_generated_c_objects_v1,

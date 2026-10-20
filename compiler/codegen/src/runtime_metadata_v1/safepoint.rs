@@ -2,9 +2,8 @@ use inkwell::context::Context;
 use inkwell::module::{Linkage, Module as LlvmModule};
 use inkwell::values::{GlobalValue, StructValue};
 use scoop_lir::{
-    ConeIdentity, DigestPatchIntentId, ObjectDefinitionAtomId, ObjectDefinitionPlanId,
-    PersistentSafepointSiteId, StrongSafepointRegistrationPlanSetV1,
-    StrongSafepointRegistrationPlanV1,
+    ConeIdentity, ObjectDefinitionAtomId, PersistentSafepointSiteId,
+    StrongSafepointRegistrationPlanSetV1, StrongSafepointRegistrationPlanV1,
 };
 
 use super::{RuntimeMetadataV1Types, registration_identity_value};
@@ -12,66 +11,27 @@ use crate::CodegenError;
 
 const METADATA_ABI_VERSION: u64 = scoop_lir::RUNTIME_METADATA_ABI_VERSION_V1 as u64;
 const SAFEPOINT_REGISTRATION_DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5053_5054;
-const SAFEPOINT_REGISTRATION_DESCRIPTOR_SIZE: u64 = 200;
-const NORMALIZED_STACKMAP_FINGERPRINT_OFFSET: u64 = 168;
-const DIGEST_SIZE: u64 = 32;
+const SAFEPOINT_REGISTRATION_DESCRIPTOR_SIZE: u64 = 168;
 
-/// One graph-managed digest slot in an emitted safepoint registration.
-#[derive(Clone, Copy, Debug)]
-pub struct SafepointRegistrationPatchSiteV1<'ctx> {
-    intent: DigestPatchIntentId,
-    definition: ObjectDefinitionPlanId,
-    atom: ObjectDefinitionAtomId,
-    owner: GlobalValue<'ctx>,
-    byte_offset: u64,
-}
-
-impl<'ctx> SafepointRegistrationPatchSiteV1<'ctx> {
-    pub const fn intent(self) -> DigestPatchIntentId {
-        self.intent
-    }
-
-    pub const fn definition(self) -> ObjectDefinitionPlanId {
-        self.definition
-    }
-
-    pub const fn atom(self) -> ObjectDefinitionAtomId {
-        self.atom
-    }
-
-    pub const fn owner(self) -> GlobalValue<'ctx> {
-        self.owner
-    }
-
-    pub const fn byte_offset(self) -> u64 {
-        self.byte_offset
-    }
-
-    pub const fn byte_size(self) -> u64 {
-        DIGEST_SIZE
-    }
-}
-
-/// One fully emitted provisional safepoint registration and its two slots.
+/// One emitted runtime safepoint registration.
 #[derive(Clone, Copy, Debug)]
 pub struct EmittedStrongSafepointRegistrationV1<'ctx> {
+    primary_atom: ObjectDefinitionAtomId,
     site: PersistentSafepointSiteId,
     descriptor: GlobalValue<'ctx>,
-
-    normalized_stackmap_patch: SafepointRegistrationPatchSiteV1<'ctx>,
 }
 
 impl<'ctx> EmittedStrongSafepointRegistrationV1<'ctx> {
+    pub const fn primary_atom(self) -> ObjectDefinitionAtomId {
+        self.primary_atom
+    }
+
     pub const fn site(self) -> PersistentSafepointSiteId {
         self.site
     }
 
     pub const fn descriptor(self) -> GlobalValue<'ctx> {
         self.descriptor
-    }
-
-    pub const fn normalized_stackmap_patch(self) -> SafepointRegistrationPatchSiteV1<'ctx> {
-        self.normalized_stackmap_patch
     }
 }
 
@@ -93,7 +53,7 @@ impl<'ctx> EmittedStrongSafepointRegistrationSetV1<'ctx> {
 }
 
 /// Emit all strong safepoint registrations from the closed LIR production
-/// plan. Every graph-managed digest field remains zero until finalization.
+/// plan.
 pub(crate) fn emit_strong_safepoint_registrations_v1<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
@@ -144,7 +104,6 @@ fn emit_registration<'ctx>(
 
     let i32 = context.i32_type();
     let i64 = context.i64_type();
-    let zero_digest = types.digest.const_zero();
     let prefix = types.descriptor_prefix.const_named_struct(&[
         i64.const_int(SAFEPOINT_REGISTRATION_DESCRIPTOR_MAGIC, false)
             .into(),
@@ -167,23 +126,15 @@ fn emit_registration<'ctx>(
             i32.const_int(u64::from(plan.role().tag()), false).into(),
             i32.const_int(u64::from(root_count), false).into(),
             digest_value(context, types.digest, plan.owner().as_array()).into(),
-            zero_digest.into(),
         ]);
     descriptor.set_constant(true);
     descriptor.set_initializer(&value);
     crate::emission::apply_persistent_linkage(&descriptor, request, true)?;
 
     Ok(EmittedStrongSafepointRegistrationV1 {
+        primary_atom: plan.primary_atom(),
         site: plan.site(),
         descriptor,
-
-        normalized_stackmap_patch: SafepointRegistrationPatchSiteV1 {
-            intent: plan.normalized_stackmap_patch(),
-            definition: plan.definition_plan(),
-            atom: plan.primary_atom(),
-            owner: descriptor,
-            byte_offset: NORMALIZED_STACKMAP_FINGERPRINT_OFFSET,
-        },
     })
 }
 

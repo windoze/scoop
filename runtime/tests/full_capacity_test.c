@@ -14,8 +14,7 @@ static const ScoopTypeDescriptor wide_td = {
     .instance_shape = {.instance_kind = SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1,
                        .minimum_size = GC_REGULAR_MAX,
                        .instance_alignment = 16},
-    .release_hook = release_wide,
-};
+    .release_hook = release_wide};
 
 static void *old_object(void) {
     ScoopGcBlockMeta *block = scoop_heap_activate_small_block(SCOOP_BLOCK_MUTATOR, true);

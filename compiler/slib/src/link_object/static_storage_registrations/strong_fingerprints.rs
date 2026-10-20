@@ -85,7 +85,7 @@ pub fn compute_strong_static_storage_fingerprints_v1(
     canonical: &scoop_lir::CanonicalShapeAbisV1,
 ) -> Result<StaticStorageFingerprintSetV1, StrongStaticStorageFingerprintError> {
     let registrations = shapes.registrations();
-    let planned = registrations.plan().registrations();
+    let planned = registrations.registrations();
     let mut fingerprints = Vec::with_capacity(planned.len());
     let mut odr_definitions = Vec::new();
     for (plan, shape) in planned.iter().zip(shapes.fingerprints()) {

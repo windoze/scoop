@@ -10,8 +10,8 @@ fn library_manifest_wire_round_trips_consumed_fields() {
 }
 
 #[test]
-fn manifest_reader_requires_the_current_two_field_shape() {
-    for header in [0xa1, 0xa3, 0xad] {
+fn manifest_reader_requires_the_current_one_field_shape() {
+    for header in [0xa0, 0xa2, 0xad] {
         let mut bytes = library_manifest_bytes();
         bytes[0] = header;
         assert!(decode_canonical::<DecodedSingleConeProductionManifestV1>(&bytes).is_err());
@@ -37,7 +37,5 @@ fn manifest_reader_requires_the_odr_directory_field_even_when_empty() {
 }
 
 pub(crate) fn library_manifest_bytes() -> Vec<u8> {
-    vec![
-        0xa2, 11, 0x80, 14, 0xa2, 1, 0x40, 2, 0x86, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80,
-    ]
+    vec![0xa1, 11, 0x80]
 }

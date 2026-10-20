@@ -26,7 +26,7 @@ impl<D: crate::StrongDescriptorReference, C: Clone + WireEncode, I: WireEncode> 
 
 impl WireEncode for StrongSafepointRegistrationPlanV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(10)?;
+        encoder.map(9)?;
         encode_field(encoder, 1, &self.site())?;
         encode_field(encoder, 2, &self.safepoint())?;
         encode_field(encoder, 3, &self.owner())?;
@@ -36,13 +36,13 @@ impl WireEncode for StrongSafepointRegistrationPlanV1 {
         encode_field(encoder, 7, &self.definition_plan())?;
         encode_field(encoder, 8, &self.primary_atom())?;
         encode_field(encoder, 10, &self.normalized_stackmap_fingerprint_node())?;
-        encode_field(encoder, 12, &self.normalized_stackmap_patch())
+        Ok(())
     }
 }
 
 impl WireEncode for StrongCallableRegistrationPlanV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(9)?;
+        encoder.map(8)?;
         encode_field(encoder, 1, &self.body())?;
         encode_field(encoder, 2, &self.symbol())?;
         encode_field(encoder, 3, &self.definition_plan())?;
@@ -51,7 +51,7 @@ impl WireEncode for StrongCallableRegistrationPlanV1 {
         encode_field(encoder, 6, &self.body_definition_plan())?;
         encode_field(encoder, 7, &self.body_primary_atom())?;
         encode_field(encoder, 9, &self.body_definition_node())?;
-        encode_field(encoder, 12, &self.body_definition_patch())
+        Ok(())
     }
 }
 
@@ -102,7 +102,7 @@ impl WireEncode for StrongImmortalObjectRegistrationPlanV1 {
 impl WireEncode for StrongStaticStorageRegistrationPlanV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         let semantic = self.semantic();
-        encoder.map(28)?;
+        encoder.map(26)?;
         encode_static_semantic_fields(encoder, semantic)?;
         encode_field(encoder, 11, &self.registration_symbol())?;
         encode_field(encoder, 12, &self.registration_definition_plan())?;
@@ -120,8 +120,6 @@ impl WireEncode for StrongStaticStorageRegistrationPlanV1 {
         encode_field(encoder, 23, &self.scan_primary_atom())?;
         encode_field(encoder, 26, &self.layout_fingerprint_node())?;
         encode_field(encoder, 27, &self.scan_fingerprint_node())?;
-        encode_field(encoder, 30, &self.layout_fingerprint_patch())?;
-        encode_field(encoder, 31, &self.scan_fingerprint_patch())?;
         encode_field(encoder, 32, &semantic.layout_provider())
     }
 }

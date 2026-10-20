@@ -1,17 +1,14 @@
 use std::fmt;
 
 use scoop_identity::{
-    CborIdentityRecord, DecodedCborIdentityRecord, DecodedDigestNodeKey,
-    DecodedDigestPatchIntentKey, DecodedPersistentId, DigestKind, DigestNodeId, DigestNodeKey,
-    DigestPatchIntentId, DigestPatchIntentKey, DigestSemanticFieldRole,
+    CborIdentityRecord, DecodedCborIdentityRecord, DecodedDigestNodeKey, DecodedPersistentId,
+    DigestKind, DigestNodeId, DigestNodeKey,
 };
 use scoop_wire::{Decoder, Encoder, HashError, WireDecode, WireEncode, WireError};
 
 mod validation;
 pub use validation::DigestPlanError;
-use validation::{
-    first_duplicate_input, first_duplicate_patch, validate_node_order, validate_plan,
-};
+use validation::{first_duplicate_input, validate_node_order, validate_plan};
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum DigestInputRefV1 {
@@ -139,14 +136,12 @@ impl WireDecode for DecodedDigestInputRefV1 {
 pub struct DigestNodeV1 {
     identity: CborIdentityRecord<DigestNodeId, DigestNodeKey>,
     direct_inputs: Vec<DigestInputRefV1>,
-    patch_intents: Vec<CborIdentityRecord<DigestPatchIntentId, DigestPatchIntentKey>>,
 }
 
 impl DigestNodeV1 {
     pub fn new(
         key: DigestNodeKey,
         mut direct_inputs: Vec<DigestInputRefV1>,
-        patch_keys: Vec<DigestPatchIntentKey>,
     ) -> Result<Self, DigestNodeBuildError> {
         let identity = CborIdentityRecord::from_key(key).map_err(DigestNodeBuildError::Identity)?;
         direct_inputs.sort_unstable_by_key(|input| input.sort_key());
@@ -157,40 +152,9 @@ impl DigestNodeV1 {
             });
         }
 
-        let mut patch_intents = patch_keys
-            .into_iter()
-            .map(|key| {
-                if key.source() != identity.id() {
-                    return Err(DigestNodeBuildError::ForeignPatchSource {
-                        node: identity.id(),
-                        source: key.source(),
-                    });
-                }
-                if !key
-                    .semantic_field_role()
-                    .accepts_source(identity.key().kind())
-                {
-                    return Err(DigestNodeBuildError::PatchSourceKind {
-                        node: identity.id(),
-                        kind: identity.key().kind(),
-                        role: key.semantic_field_role(),
-                    });
-                }
-                CborIdentityRecord::from_key(key).map_err(DigestNodeBuildError::Identity)
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-        patch_intents.sort_unstable_by_key(CborIdentityRecord::id);
-        if let Some(intent) = first_duplicate_patch(&patch_intents) {
-            return Err(DigestNodeBuildError::DuplicatePatchIntent {
-                node: identity.id(),
-                intent,
-            });
-        }
-
         Ok(Self {
             identity,
             direct_inputs,
-            patch_intents,
         })
     }
 
@@ -210,12 +174,6 @@ impl DigestNodeV1 {
         &self.direct_inputs
     }
 
-    pub fn patch_intents(
-        &self,
-    ) -> &[CborIdentityRecord<DigestPatchIntentId, DigestPatchIntentKey>] {
-        &self.patch_intents
-    }
-
     fn sort_key(&self) -> (u32, DigestNodeId) {
         (self.kind().tag(), self.id())
     }
@@ -223,13 +181,11 @@ impl DigestNodeV1 {
 
 impl WireEncode for DigestNodeV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(3)?;
+        encoder.map(2)?;
         encoder.field(1)?;
         self.identity.encode(encoder)?;
         encoder.field(2)?;
-        encode_array(encoder, &self.direct_inputs)?;
-        encoder.field(3)?;
-        encode_array(encoder, &self.patch_intents)
+        encode_array(encoder, &self.direct_inputs)
     }
 }
 
@@ -237,31 +193,25 @@ impl WireEncode for DigestNodeV1 {
 struct DecodedDigestNodeV1 {
     identity: DecodedCborIdentityRecord<DigestNodeId, DecodedDigestNodeKey>,
     direct_inputs: Vec<DecodedDigestInputRefV1>,
-    patch_intents: Vec<DecodedCborIdentityRecord<DigestPatchIntentId, DecodedDigestPatchIntentKey>>,
 }
 
 impl WireEncode for DecodedDigestNodeV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(3)?;
+        encoder.map(2)?;
         encoder.field(1)?;
         self.identity.encode(encoder)?;
         encoder.field(2)?;
-        encode_array(encoder, &self.direct_inputs)?;
-        encoder.field(3)?;
-        encode_array(encoder, &self.patch_intents)
+        encode_array(encoder, &self.direct_inputs)
     }
 }
 
 impl WireDecode for DecodedDigestNodeV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(3)?;
+        decoder.expect_map(2)?;
         Ok(Self {
             identity: decoder.field(1, DecodedCborIdentityRecord::decode)?,
             direct_inputs: decoder.field(2, |decoder| {
                 decoder.decode_array(|decoder, _| DecodedDigestInputRefV1::decode(decoder))
-            })?,
-            patch_intents: decoder.field(3, |decoder| {
-                decoder.decode_array(|decoder, _| DecodedCborIdentityRecord::decode(decoder))
             })?,
         })
     }
@@ -340,19 +290,6 @@ pub enum DigestNodeBuildError {
     DuplicateInput {
         node: DigestNodeId,
         input: DigestNodeId,
-    },
-    ForeignPatchSource {
-        node: DigestNodeId,
-        source: DigestNodeId,
-    },
-    PatchSourceKind {
-        node: DigestNodeId,
-        kind: DigestKind,
-        role: DigestSemanticFieldRole,
-    },
-    DuplicatePatchIntent {
-        node: DigestNodeId,
-        intent: DigestPatchIntentId,
     },
 }
 

@@ -5,13 +5,13 @@ use module::semantic_module;
 use la_arena::Arena;
 use scoop_identity::{
     CanonicalIdentifier, CborIdentityRecord, DeclarationScope, DefinitionAtomRole,
-    DefinitionAtomSubkey, DefinitionOwnerChain, DigestNodeId, DigestNodeKey, DigestPatchIntentKey,
-    DigestSemanticFieldRole, ExactTypeKey, GeneratedCallableKey, InitializationCallableRole,
-    InitializationUnitKey, ObjectDefinitionAtomKey, ObjectDefinitionPlanId,
-    ObjectDefinitionPlanKey, PackagePath, PersistentExactTypeId, PersistentGeneratedCallableId,
-    PersistentPropertyId, PersistentSymbolKey, PersistentSymbolRequest,
-    PersistentSymbolRequestTable, PersistentTypeId, PropertyOwner, SourceDeclarationKey,
-    SourceDeclarationSite, SourceNominalKind, StrongDefinitionEntity, StrongDefinitionRole,
+    DefinitionAtomSubkey, DefinitionOwnerChain, DigestNodeKey, ExactTypeKey, GeneratedCallableKey,
+    InitializationCallableRole, InitializationUnitKey, ObjectDefinitionAtomKey,
+    ObjectDefinitionPlanId, ObjectDefinitionPlanKey, PackagePath, PersistentExactTypeId,
+    PersistentGeneratedCallableId, PersistentPropertyId, PersistentSymbolKey,
+    PersistentSymbolRequest, PersistentSymbolRequestTable, PersistentTypeId, PropertyOwner,
+    SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind, StrongDefinitionEntity,
+    StrongDefinitionRole,
 };
 use scoop_lir::{
     AbiReturn, BasicBlock, CallTargets, CallableBodyIdentity, CallingConvention,
@@ -175,12 +175,7 @@ pub(super) fn inputs(lazy: bool) -> SemanticInputs {
 
     let foundation =
         ConeLirFoundation::try_new(scoop_lir::ConeIdentity::SINGLE_FILE, canonical).unwrap();
-    let digest_plan = digest_plan(
-        &foundation,
-        semantic.schedule().gateway(),
-        &registration,
-        &callables,
-    );
+    let digest_plan = digest_plan(&foundation, &callables);
     let identities = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
     let callable_plan = StrongCallableRegistrationPlanSetV1::new(
         &foundation,
@@ -263,30 +258,13 @@ fn definition_artifacts(
 
 fn digest_plan(
     foundation: &ConeLirFoundation,
-    gateway: Option<scoop_lir::PersistentCallableBodyId>,
-    registration: &DefinitionArtifacts,
     callables: &[CallableArtifacts],
 ) -> DigestFinalizationPlanV1 {
     let callable_objects = callables
         .iter()
         .map(|callable| {
             let key = DigestNodeKey::object_definition(callable.body_definition.primary.id());
-            let id = DigestNodeId::from_key(&key).unwrap();
-            let mut patches = vec![DigestPatchIntentKey::new(
-                id,
-                callable.registration.definition.id(),
-                DefinitionAtomRole::Primary,
-                DigestSemanticFieldRole::CallableBodyDefinition,
-            )];
-            if Some(callable.body) == gateway {
-                patches.push(DigestPatchIntentKey::new(
-                    id,
-                    registration.definition.id(),
-                    DefinitionAtomRole::Primary,
-                    DigestSemanticFieldRole::GatewayDefinition,
-                ));
-            }
-            DigestNodeV1::new(key, Vec::new(), patches).unwrap()
+            DigestNodeV1::new(key, Vec::new()).unwrap()
         })
         .collect::<Vec<_>>();
     let image_inputs = callable_objects
@@ -298,7 +276,6 @@ fn digest_plan(
         DigestNodeV1::new(
             DigestNodeKey::runtime_image(scoop_lir::ConeIdentity::SINGLE_FILE),
             image_inputs,
-            Vec::new(),
         )
         .unwrap(),
     );

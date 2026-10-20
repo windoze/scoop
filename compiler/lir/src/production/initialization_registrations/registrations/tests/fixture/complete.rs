@@ -32,11 +32,6 @@ impl Fixture {
             layouts.push(layout.layout_record().clone());
             scans.push(layout.scan_record().clone());
             let storage = identity.identity_record().id();
-            let registration = definition_artifacts(
-                producer,
-                StrongDefinitionEntity::static_storage(storage),
-                StrongDefinitionRole::RootRegistration,
-            );
             let storage_definition = definition_artifacts(
                 producer,
                 StrongDefinitionEntity::static_storage(storage),
@@ -60,42 +55,15 @@ impl Fixture {
                 symbol(PersistentSymbolKey::Layout(layout.layout_record().id())),
                 symbol(PersistentSymbolKey::ScanProgram(layout.scan_record().id())),
             ]);
-            let layout_node = with_patch(
+            let layout_node = DigestNodeV1::new(
                 DigestNodeKey::layout(layout.layout_record().id()),
                 Vec::new(),
-                registration.definition.id(),
-                DigestSemanticFieldRole::Layout,
-            );
-            let scan_node = with_patch(
-                DigestNodeKey::scan(layout.scan_record().id()),
-                Vec::new(),
-                registration.definition.id(),
-                DigestSemanticFieldRole::Scan,
-            );
+            )
+            .unwrap();
+            let scan_node =
+                DigestNodeV1::new(DigestNodeKey::scan(layout.scan_record().id()), Vec::new())
+                    .unwrap();
             for node in [layout_node, scan_node] {
-                nodes.insert(node.id(), node);
-            }
-        }
-        for body in fixture.foundation.callable_bodies() {
-            let artifacts = callable_artifacts(producer, body.clone());
-            let body_key = DigestNodeKey::object_definition(artifacts.body_definition.primary.id());
-            let body_id = DigestNodeId::from_key(&body_key).unwrap();
-            let original = &nodes[&body_id];
-            let mut patches = original
-                .patch_intents()
-                .iter()
-                .map(|patch| *patch.key())
-                .collect::<Vec<_>>();
-            patches.push(DigestPatchIntentKey::new(
-                body_id,
-                artifacts.registration.definition.id(),
-                DefinitionAtomRole::Primary,
-                DigestSemanticFieldRole::CallableBodyDefinition,
-            ));
-            let body_node =
-                DigestNodeV1::new(body_key, original.direct_inputs().to_vec(), patches).unwrap();
-            {
-                let node = body_node;
                 nodes.insert(node.id(), node);
             }
         }
@@ -103,19 +71,10 @@ impl Fixture {
         let image_id = DigestNodeId::from_key(&image_key).unwrap();
         let inputs = nodes
             .values()
-            .filter(|node| node.id() != image_id && !node.patch_intents().is_empty())
+            .filter(|node| node.id() != image_id)
             .map(DigestInputRefV1::from_node)
             .collect();
-        let image = DigestNodeV1::new(
-            image_key,
-            inputs,
-            nodes[&image_id]
-                .patch_intents()
-                .iter()
-                .map(|patch| *patch.key())
-                .collect(),
-        )
-        .unwrap();
+        let image = DigestNodeV1::new(image_key, inputs).unwrap();
         nodes.insert(image_id, image);
         canonical.set_layouts(layouts).unwrap();
         canonical.set_scans(scans).unwrap();
@@ -130,24 +89,4 @@ impl Fixture {
             RegistrationIdentitySurfaceV1::from_foundation(&fixture.foundation).unwrap();
         fixture
     }
-}
-
-fn with_patch(
-    key: DigestNodeKey,
-    inputs: Vec<DigestInputRefV1>,
-    registration: scoop_identity::ObjectDefinitionPlanId,
-    field: DigestSemanticFieldRole,
-) -> DigestNodeV1 {
-    let source = DigestNodeId::from_key(&key).unwrap();
-    DigestNodeV1::new(
-        key,
-        inputs,
-        vec![DigestPatchIntentKey::new(
-            source,
-            registration,
-            DefinitionAtomRole::Primary,
-            field,
-        )],
-    )
-    .unwrap()
 }

@@ -14,8 +14,7 @@ static const ScoopTypeDescriptor shared_td = {
     .instance_shape = {.instance_kind = SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1,
                        .minimum_size = sizeof(SharedCard),
                        .instance_alignment = 8},
-    .object_scan = shared_scan,
-};
+    .object_scan = shared_scan};
 static SharedCard *shared;
 
 static void *mutator(void *argument) {

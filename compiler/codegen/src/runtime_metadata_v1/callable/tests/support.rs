@@ -1,11 +1,10 @@
 use scoop_identity::{
     CallableBodyKey, CanonicalIdentifier, CborIdentityRecord, ConeIdentity, DeclarationScope,
-    DefinitionAtomRole, DefinitionAtomSubkey, DefinitionOwnerChain, DigestNodeId, DigestNodeKey,
-    DigestPatchIntentKey, DigestSemanticFieldRole, LinkageClass, ObjectDefinitionAtomKey,
-    ObjectDefinitionPlanKey, PackagePath, PersistentFunctionId, PersistentSymbolKey,
-    PersistentSymbolRequest, PersistentSymbolRequestTable, RuntimeIdentityRecord,
-    SourceDeclarationKey, SourceDeclarationSite, StrongCallableDefinitionOwner,
-    StrongDefinitionEntity, StrongDefinitionRole,
+    DefinitionAtomRole, DefinitionAtomSubkey, DefinitionOwnerChain, DigestNodeKey, LinkageClass,
+    ObjectDefinitionAtomKey, ObjectDefinitionPlanKey, PackagePath, PersistentFunctionId,
+    PersistentSymbolKey, PersistentSymbolRequest, PersistentSymbolRequestTable,
+    RuntimeIdentityRecord, SourceDeclarationKey, SourceDeclarationSite,
+    StrongCallableDefinitionOwner, StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_lir::{
     CanonicalLirFoundation, ConeLirFoundation, DigestFinalizationPlanV1, DigestInputRefV1,
@@ -63,22 +62,11 @@ pub(super) fn callable_plan() -> (
     let foundation = ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
 
     let body_key = DigestNodeKey::object_definition(body_primary.id());
-    let body_source = DigestNodeId::from_key(&body_key).unwrap();
-    let body_node = DigestNodeV1::new(
-        body_key,
-        Vec::new(),
-        vec![DigestPatchIntentKey::new(
-            body_source,
-            registration_definition.id(),
-            DefinitionAtomRole::Primary,
-            DigestSemanticFieldRole::CallableBodyDefinition,
-        )],
-    )
-    .unwrap();
+
+    let body_node = DigestNodeV1::new(body_key, Vec::new()).unwrap();
     let image = DigestNodeV1::new(
         DigestNodeKey::runtime_image(ConeIdentity::SINGLE_FILE),
         vec![DigestInputRefV1::from_node(&body_node)],
-        Vec::new(),
     )
     .unwrap();
     let digests = DigestFinalizationPlanV1::new(vec![body_node, image], &foundation).unwrap();

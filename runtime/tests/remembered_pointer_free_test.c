@@ -13,14 +13,12 @@ static const ScoopTypeDescriptor references_td = {
                        .inline_stride = 8,
                        .inline_alignment = 8,
                        .inline_scan = element_scan},
-    .object_scan = array_scan,
-};
+    .object_scan = array_scan};
 static const ScoopTypeDescriptor plain_td = {
     .type_id = 931,
     .instance_shape = {.instance_kind = SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1,
                        .minimum_size = 1 << 20,
-                       .instance_alignment = 8},
-};
+                       .instance_alignment = 8}};
 
 int main(void) {
     const ScoopTypeDescriptor *types[] = {&nursery_node_td, &references_td, &plain_td};

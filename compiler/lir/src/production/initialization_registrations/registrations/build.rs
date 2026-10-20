@@ -84,25 +84,11 @@ pub(super) fn build_registration<D: crate::StrongInitializationDependencyReferen
     let schedule = match semantic.schedule() {
         StrongInitializationSchedulePlanV1::EagerStartup { gateway } => {
             let gateway = require_callable(foundation, identities, gateway, digests)?;
-            let gateway_node = require_digest_node(
-                digests,
-                DigestNodeKey::object_definition(gateway.body_primary_atom()),
-            )?;
-            let expected_patch = DigestPatchIntentKey::new(
-                gateway_node.id(),
-                registration_definition.id(),
-                DefinitionAtomRole::Primary,
-                DigestSemanticFieldRole::GatewayDefinition,
-            );
-            let gateway_definition_patch =
-                require_gateway_patch(digests, registration_definition.id(), expected_patch)?;
             StrongInitializationRegistrationSchedulePlanV1::EagerStartup {
                 gateway: Box::new(gateway),
-                gateway_definition_patch,
             }
         }
         StrongInitializationSchedulePlanV1::LazyAccess => {
-            require_no_gateway_patches(digests, registration_definition.id())?;
             StrongInitializationRegistrationSchedulePlanV1::LazyAccess
         }
     };

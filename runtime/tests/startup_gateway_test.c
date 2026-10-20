@@ -24,14 +24,12 @@ static const ScoopTypeDescriptor failure_type = {
     .instance_shape = {.instance_kind = SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1,
                        .minimum_size = sizeof(Failure),
                        .instance_alignment = 8},
-    .diagnostic_name = {(const uint8_t *)"GatewayFailure", sizeof("GatewayFailure") - 1},
-};
+    .diagnostic_name = {(const uint8_t *)"GatewayFailure", sizeof("GatewayFailure") - 1}};
 static Failure *failure;
 static const uint64_t scan[] = {1, 0};
 static const ScoopStaticStorageDescriptorV1 failure_storage = {
     .writable_base = &failure,
-    .scan_program = scan,
-};
+    .scan_program = scan};
 static uint32_t result;
 
 static void initialize_frame(uintptr_t frame[4]) {

@@ -71,7 +71,6 @@ impl CodeFingerprintDataV2 {
             .link_objects()
             .final_objects()
             .entry()
-            .patch_sites()
             .builtins()
             .c_bridge_production()
             .production()

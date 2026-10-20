@@ -12,11 +12,10 @@ use scoop_lir::{
 
 use crate::SlibMemberId;
 use crate::link_object::{
-    CanonicalScoopLirObjectUnitSetV1, CanonicalUndefinedSymbolRequirementSetV1, DigestPatchSiteV1,
-    PlannedLinkObjectMemberSetV1, PlannedStrongObjectSymbolSetV1, ScoopLirDigestPatchSitesV1,
-    ScoopLirObjectCandidateV1, ScoopStackmapSetV1, VerifiedBuiltinObjectStrongRelocationSetV1,
-    read_generated_c_objects_v1, read_scoop_stackmaps_v1,
-    verify_builtin_object_strong_relocations_v1,
+    CanonicalScoopLirObjectUnitSetV1, CanonicalUndefinedSymbolRequirementSetV1,
+    PlannedLinkObjectMemberSetV1, PlannedStrongObjectSymbolSetV1, ScoopLirObjectCandidateV1,
+    ScoopStackmapSetV1, VerifiedBuiltinObjectStrongRelocationSetV1, read_generated_c_objects_v1,
+    read_scoop_stackmaps_v1, verify_builtin_object_strong_relocations_v1,
 };
 
 pub(super) struct Fixture {
@@ -25,7 +24,6 @@ pub(super) struct Fixture {
     pub(super) plan: StrongInitializationUnitRegistrationPlanSetV1,
     pub(super) callable_plan: StrongCallableRegistrationPlanSetV1,
     pub(super) safepoints: StrongSafepointSemanticPlanSetV1,
-    pub(super) provisional_patch_sites: Vec<DigestPatchSiteV1>,
     pub(super) member: SlibMemberId,
     pub(super) object_bytes: Vec<u8>,
 }
@@ -67,18 +65,12 @@ impl Fixture {
             &[],
         )
         .unwrap();
-        let provisional_patch_sites = object
-            .patch_offsets
-            .iter()
-            .map(|(intent, offset)| DigestPatchSiteV1::new(*intent, member, *offset))
-            .collect();
         Self {
             builtins,
             foundation: inputs.foundation,
             plan: inputs.plan,
             callable_plan: inputs.callable_plan,
             safepoints: inputs.safepoints,
-            provisional_patch_sites,
             member,
             object_bytes: object.bytes,
         }
@@ -91,11 +83,8 @@ impl Fixture {
         )]
     }
 
-    pub(super) fn verified_patch_sites(&self) -> ScoopLirDigestPatchSitesV1 {
-        ScoopLirDigestPatchSitesV1::new(
-            self.builtins.clone(),
-            (self.provisional_patch_sites).to_vec(),
-        )
+    pub(super) fn object_data(&self) -> VerifiedBuiltinObjectStrongRelocationSetV1 {
+        self.builtins.clone()
     }
 
     pub(super) fn verified_stackmaps(&self) -> ScoopStackmapSetV1 {

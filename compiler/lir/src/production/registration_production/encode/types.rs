@@ -5,7 +5,7 @@ impl<D: crate::StrongDescriptorReference, C: WireEncode> WireEncode
 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         let semantic = self.semantic();
-        encoder.map(27)?;
+        encoder.map(25)?;
         encode_field(encoder, 1, &self.exact_type())?;
         encode_field(encoder, 2, &self.runtime_type())?;
         encode_field(encoder, 3, &self.symbol())?;
@@ -20,8 +20,6 @@ impl<D: crate::StrongDescriptorReference, C: WireEncode> WireEncode
         encode_field(encoder, 12, &self.layout_primary_atom())?;
         encode_field(encoder, 14, &self.descriptor_definition_node())?;
         encode_field(encoder, 15, &self.layout_fingerprint_node())?;
-        encode_field(encoder, 18, &self.descriptor_definition_patch())?;
-        encode_field(encoder, 19, &self.layout_fingerprint_patch())?;
         encoder.field(20)?;
         encoder.text(semantic.diagnostic_name())?;
         encode_field(encoder, 21, &semantic.instance_scan())?;

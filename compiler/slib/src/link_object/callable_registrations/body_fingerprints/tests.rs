@@ -13,10 +13,9 @@ fn hashes_normalized_body_code_relocations_and_stackmap_inputs() {
     )];
     let stackmaps = fixture.verified_stackmaps();
     let registrations = bind_callable_registrations_v1(
-        fixture.verified_patch_sites(),
+        fixture.object_data(),
         fixture.callable_registration_plan.clone(),
-    )
-    .unwrap();
+    );
     let registration_objects = registrations;
 
     let fingerprints = compute_strong_callable_body_object_fingerprints_v1(

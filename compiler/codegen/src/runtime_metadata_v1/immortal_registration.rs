@@ -14,7 +14,7 @@ const METADATA_ABI_VERSION: u64 = scoop_lir::RUNTIME_METADATA_ABI_VERSION_V1 as 
 const IMMORTAL_OBJECT_DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5049_4d4d;
 const IMMORTAL_OBJECT_DESCRIPTOR_SIZE: u64 = 152;
 
-/// One fully emitted provisional immortal-object registration.
+/// One fully emitted immortal-object registration.
 #[derive(Clone, Copy, Debug)]
 pub struct EmittedStrongImmortalObjectRegistrationV1<'ctx> {
     object: PersistentImmortalObjectId,

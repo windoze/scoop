@@ -3,23 +3,21 @@ use crate::link_object::native_requirements::tests::{contract_record, native_sur
 use crate::link_object::relocation_verification::tests::add_undefined_symbols;
 use crate::link_object::symbol_verification::tests::object_for_plan_with_deployment;
 use crate::{
-    DigestPatchSiteV1, GeneratedCBridgeObjectCandidateV1, PlannedStrongObjectSymbolRoleV1,
-    PlannedStrongObjectSymbolSetV1, ScoopLirDigestPatchSitesV1, ScoopLirObjectCandidateV1,
-    read_generated_c_objects_v1, verify_builtin_object_strong_relocations_v1,
+    GeneratedCBridgeObjectCandidateV1, PlannedStrongObjectSymbolRoleV1,
+    PlannedStrongObjectSymbolSetV1, ScoopLirObjectCandidateV1,
+    VerifiedBuiltinObjectStrongRelocationSetV1, read_generated_c_objects_v1,
+    verify_builtin_object_strong_relocations_v1,
 };
-use scoop_identity::{
-    ConeIdentity, DefinitionAtomRole, DigestNodeId, DigestNodeKey, DigestPatchIntentKey,
-    DigestSemanticFieldRole, NativeLibraryBinding,
-};
+use scoop_identity::{ConeIdentity, NativeLibraryBinding};
 use scoop_lir::{
-    CBridgeProductionSetV1, CanonicalNativeExternalRequirementSurfaceV1, DigestNodeV1,
-    GeneratedBridgePlanSetV1, ObjectSymbolSurfaceV1,
+    CBridgeProductionSetV1, CanonicalNativeExternalRequirementSurfaceV1, GeneratedBridgePlanSetV1,
+    ObjectSymbolSurfaceV1,
 };
 const MINIMUM_OS: u32 = 0x000d_0100;
 const SDK: u32 = 0x000e_0200;
 
 pub(in crate::link_object) struct SemanticFixture {
-    pub(in crate::link_object) scoop_patch_sites: ScoopLirDigestPatchSitesV1,
+    pub(in crate::link_object) builtins: VerifiedBuiltinObjectStrongRelocationSetV1,
     pub(in crate::link_object) bridge_plan: GeneratedBridgePlanSetV1,
     pub(in crate::link_object) native_requirements: CanonicalNativeExternalRequirementSurfaceV1,
 }
@@ -90,22 +88,6 @@ pub(in crate::link_object) fn semantic_fixture(
         &bridge_objects,
     )
     .unwrap();
-    let image_key = DigestNodeKey::runtime_image(fixture.foundation.producer());
-    let image_node_id = DigestNodeId::from_key(&image_key).unwrap();
-    let image_patch = DigestPatchIntentKey::new(
-        image_node_id,
-        fixture.lir_plan,
-        DefinitionAtomRole::Primary,
-        DigestSemanticFieldRole::RuntimeImage,
-    );
-    let image_node = DigestNodeV1::new(image_key, Vec::new(), vec![image_patch]).unwrap();
-    let image_intent = image_node.patch_intents()[0].id();
-    let patch_sites = [DigestPatchSiteV1::new(
-        image_intent,
-        scoop_member,
-        u64::try_from(scoop_object.section_offset).unwrap() + 16,
-    )];
-    let scoop_patch_sites = ScoopLirDigestPatchSitesV1::new(builtins, (patch_sites).to_vec());
     let contracts = vec![contract_record(
         ConeIdentity::CORE,
         "nativeBridgeDeclaration",
@@ -114,7 +96,7 @@ pub(in crate::link_object) fn semantic_fixture(
     )];
     let native_requirements = native_surface(ConeIdentity::CORE, contracts, Vec::new());
     SemanticFixture {
-        scoop_patch_sites,
+        builtins,
         bridge_plan,
         native_requirements,
     }

@@ -24,9 +24,9 @@ pub(super) fn verify(
     expected_bodies: usize,
 ) -> BTreeMap<PersistentCallableBodyId, CallableFingerprints> {
     let prepared = crate::object_production::layout::prepare(emitted, generated).unwrap();
-    let (callables, safepoints) = prepared.verify_callable_metadata().unwrap();
+    let (callables, safepoints) = prepared.callable_metadata();
     assert_eq!(
-        callables.registrations().len(),
+        callables.plan().registrations().len(),
         prepared
             .production
             .callable_registrations()
@@ -34,7 +34,7 @@ pub(super) fn verify(
             .len()
     );
     assert_eq!(
-        safepoints.registrations().len(),
+        safepoints.plan().registrations().len(),
         prepared
             .production
             .safepoint_registrations()
@@ -53,7 +53,7 @@ pub(super) fn verify(
         })
         .count();
     assert_eq!(actual_odr, expected_bodies);
-    let closure = prepared.patch_sites.builtins().strong_relocations();
+    let closure = prepared.builtins.strong_relocations();
     let owners =
         scoop_slib::CanonicalDefinedLinkSymbolOwnerSetV1::from_verified_strong_closure(closure)
             .unwrap();
@@ -229,8 +229,7 @@ pub(super) fn check(
                         .iter()
                         .find(|registration| registration.body() == body)
                         .unwrap();
-                    check_registration(data, body.as_array(), registration.definition_owner());
-                    assert_eq!(&data[120..152], &[0; 32]);
+                    check_registration(data, body.as_array(), registration.definition_owner(), 144);
                 }
                 (
                     StrongDefinitionRole::SafepointRegistration,
@@ -243,8 +242,7 @@ pub(super) fn check(
                         .iter()
                         .find(|registration| registration.site() == site)
                         .unwrap();
-                    check_registration(data, site.as_array(), registration.definition_owner());
-                    assert_eq!(&data[168..200], &[0; 32]);
+                    check_registration(data, site.as_array(), registration.definition_owner(), 168);
                 }
                 _ => {}
             }
@@ -253,7 +251,17 @@ pub(super) fn check(
     bodies
 }
 
-fn check_registration(data: &[u8], semantic: &[u8; 32], owner: RegistrationDefinitionOwner) {
+fn check_registration(
+    data: &[u8],
+    semantic: &[u8; 32],
+    owner: RegistrationDefinitionOwner,
+    size: u32,
+) {
+    assert_eq!(
+        &data[8..12],
+        &scoop_lir::RUNTIME_METADATA_ABI_VERSION_V1.to_le_bytes()
+    );
+    assert_eq!(&data[12..16], &size.to_le_bytes());
     assert_eq!(&data[20..24], &[0; 4]);
     assert_eq!(&data[24..56], semantic);
     match owner {

@@ -414,25 +414,19 @@ NativeGcLeaf 在两种物理路径上都不发射 enter/leave native、RETURNING
 
 GCLeaf 契约不意味着 pure、readnone、readonly 或 nosync，不能据此删除外部副作用或推导用户数据同步属性。代码中的调用模式必须与所属 Scoop 声明一致，native symbol 去重不改变已选择的模式。直接调用的 ABI 通过与目标 C compiler 的调用交互验证；验收同时检查优化后的机器码，确认 DirectC 没有新增 bridge 调用或桥接缓冲区，GCLeaf 没有 GC 边界操作，不能只凭 LIR 标记或微基准耗时判定。
 
-对象内容 fingerprints 使用实际定义 bytes 和 canonical relocation target；物理地址、archive member 分组或 section ordinal 不得冒充语义身份。每个需要回填的 digest slot 为无 relocation 的 32 bytes，初始为零且有唯一写入者；同一 digest 的镜像必须逐 byte 相等。
+对象内容 fingerprints 使用实际定义 bytes 和 canonical relocation target；物理地址、archive member 分组或 section ordinal 不得冒充语义身份。内容摘要只保存在实际需要它们的产物 metadata 中，不写入 runtime descriptor。runtime 不消费的指纹字段、零槽、patch intent、物理槽位查询及回填阶段全部删除；LLVM 直接发射完整的 runtime record，符号地址由普通 relocation 和最终 linker 绑定。
 
-摘要依赖必须无环，节点仅依赖实际内容所需的上游摘要。规范化对象时，自身与不属于传递依赖的 digest slots 归零，上游 slots 使用已确定值；不能用执行顺序决定哪些 bytes 入 hash。Code、RuntimeImage 与 Artifact 分别覆盖自己的内容，不能建立自引用。
+摘要依赖必须无环，节点仅依赖实际内容所需的上游摘要。Code、RuntimeImage 与 Artifact 分别覆盖自己的内容，不能建立自引用。产物的 RuntimeImage 摘要在生产时计算一次；最终 linker 只按选中的定义建立 image 指针表，不为不可见的 runtime 字段重新编码摘要。
 
-对象中的实际 stackmap 与 LSDA 遵守运行时规范 2.8、5.2。LLVM 机器发射成功后直接使用产出，不执行自建的机器指令、frame chain、stackmap 或 LSDA 全面验证；只读取后续地址、GC 数据和补丁计算实际需要的字段，并复用结果。stackmap 按实际 function relocation 关联 callable，以符号地址加 LLVM instruction offset 取得返回地址，读取并归一化实际根记录；不再次反汇编检查 call/frame chain，也不重建预期 member/function/site 全集做覆盖证明。优化后的 invoke 是否仍存在决定 EH atom 是否保留，不为此重建或比对独立 EH manifest；删除 final/provisional 对象复制、指纹清零后重填及最终字节比较等消费 replay。仅为验证服务的边界和索引删除；仍用于 codegen、重定位、GC 或实际链接选择的索引在同一份 surface 上建立一次。
+对象中的实际 stackmap 与 LSDA 遵守运行时规范 2.8、5.2。LLVM 机器发射成功后直接使用产出，不执行自建的机器指令、frame chain、stackmap 或 LSDA 全面验证；只读取后续地址、GC 数据和产物内容计算实际需要的字段，并复用结果。stackmap 按实际 function relocation 关联 callable，以符号地址加 LLVM instruction offset 取得返回地址，读取并归一化实际根记录；不再次反汇编检查 call/frame chain，也不重建预期 member/function/site 全集做覆盖证明。优化后的 invoke 是否仍存在决定 EH atom 是否保留，不为此重建或比对独立 EH manifest；删除 final/provisional 对象复制、指纹清零后重填及最终字节比较等消费 replay。仅为验证服务的边界和索引删除；仍用于 codegen、重定位、GC 或实际链接选择的索引在同一份 surface 上建立一次。
 
-发布直接接收本次 codegen 与 generated-C 的实际对象、成员分配及生成记录。C bridge 的编译器 profile、源码模板、flags 和 unit 集合不再与自行构造的生产记录重复比对；对象中的 SDK／工具版本也不作为来源证明。所需 section 与符号正常读取，Code 指纹继续消费实际生成记录。删除无生产调用的旧 single-Cone 分级资格流水线；不以另一套 `Verified` 包装保留这些入口。当前完整产物的投影直接采用已有生产计划与最终回填结果，不深比较它们的副本来证明同源。
+发布直接接收本次 codegen 与 generated-C 的实际对象、成员分配及生成记录。C bridge 的编译器 profile、源码模板、flags 和 unit 集合不再与自行构造的生产记录重复比对；对象中的 SDK／工具版本也不作为来源证明。所需 section 与符号正常读取，Code 指纹继续消费实际生成记录。删除无生产调用的旧 single-Cone 分级资格流水线；不以另一套 `Verified` 包装保留这些入口。当前完整产物的投影直接采用已有生产计划与实际对象，不深比较它们的副本来证明同源。
 
-同一次对象生产中的定义、digest patch、stackmap 与各类 registration 处理共享最初解析的 section、符号及 relocation 信息，直接借用原对象字节；不在每个步骤重新计算整包 SHA-256 来证明字节未变化。实际 digest 回填使用已物化的槽位，保留当前写入的范围检查；不再次比对六类 registration 的计划／对象副本，不重数 coverage，不重建最终记录与刚写入的字节逐项比较，也不重复验证先前零槽状态。callable／safepoint registration 直接关联计划与实际 digest 槽位，复用规范化 stackmap 和 canonical ABI，不重新编码记录、核对 context keys 或复查 entry relocation。body 指纹按已解析的 primary／associated atom、实际 relocation 和该 body 的 stackmap 输入计算；runtime scan 同属 associated atom，不从计划重新生成 scan 字节或遍历闭合证明。归一化地址字段不重复比较已经读取的 encoded value。runtime 解析实际 stackmap 建立 GC 索引，不重新编码和计算 normalized stackmap fingerprint；重复 ODR 记录按实际 PC 与 payload 合并。image 与 root entry 直接关联生成计划和已物化 patch；不重新读取 coordinate、诊断文字、registration 指针表或 root 记录来证明与计划相同。entry 的 Library／Executable 分支与可执行计划、实际槽位由同一枚举表示。RuntimeImage 与 root entry 沿用同一规则，完成后更新供产物指纹消费的内容摘要，不复制并清零全部对象、不重新解析未变化的对象结构。首次对象格式检查、实际 definition/body 指纹及运行时记录编码继续保留。
+同一次对象生产中的定义、stackmap 与 registration 处理共享最初解析的 section、符号及 relocation 信息，直接借用原对象字节；不在每个步骤重新计算整包 SHA-256 来证明字节未变化。registration 直接关联 typed 计划与已有的 definition/member 分配，复用规范化 stackmap 和 canonical ABI；不另查符号表定位内容摘要。body 指纹按已解析的 primary／associated atom、实际 relocation 和该 body 的 stackmap 输入计算；runtime scan 同属 associated atom，不从计划重新生成 scan 字节或遍历闭合证明。runtime 解析实际 stackmap 建立 GC 索引，重复 ODR 记录按实际 PC 与 payload 合并。image 与 root entry 直接使用生成计划；Library／Executable 分支由同一完整枚举表示。归档保留原始对象，不为内容摘要复制、清零、回填或重新解析对象。首次对象格式检查、实际 definition/body 指纹及运行时记录编码继续保留。
 
 immortal object 的登记身份与 ODR ABI 直接消费现有登记计划及 canonical shape ABI；RuntimeImage 编码同一计划中的对象大小、对齐与 type registration 引用。不为了取得发布资格再次读取 String payload、重建登记记录、核对指针目标或比较 digest 依赖图。实际对象生成、普通符号引用与 ODR 选择继续使用既有数据。
 
-静态存储登记直接关联计划和 scan／layout digest 槽位；按同一计划计算 layout 与 scan 指纹，并复用 canonical ODR ABI。发布不再次核对初值、scan 字节、空哨兵或所有物理指针，也不为 shape 计算保留物理验证资格链。
-
-初始化登记直接关联计划和 Eager gateway 的 digest 槽位；Lazy 分支没有 gateway。gateway body、node 与指纹作为同一完整值保存，实际指纹按 body id 查询已计算的 callable 结果。发布不重读 cell、诊断文本和登记指针，不深比较 callable／initialization 的生产副本或重放 digest 图。
-
-Type registration 直接关联 descriptor／layout 槽位。descriptor 指纹按已解析 atom 范围读取实际 descriptor、诊断数据及 itable directory，并使用现有 typed 语义归一化指针；layout 指纹消费现有 instance shape。保留读取范围和缺失引用诊断，不再重建预期字节、重验 relocation 全集、对照计划副本或比较 undefined-requirement 闭包来取得计算资格。
-
-digest 槽位直接保存 codegen 返回的 intent、member 和对象偏移，宽度固定为 32 bytes。集合按 intent 建立查询索引；不重新验证 digest plan、重数完整覆盖、读回零槽或扫描重定位来证明物化正确。已不参与生产的 source／definition／atom／role 副本随资格包装删除；实际写入仍检查当前对象范围。
+静态存储、初始化和 type registration 直接使用已有计划及 definition/member 分配。scan／layout、实际 descriptor 和 gateway body 的内容摘要只供产物计算使用，复用已有 canonical shape ABI、atom 范围、typed 引用和 callable 结果。发布不重读初值、cell、诊断文字、登记指针表，不重新比较生产副本或建立物理验证资格链。实际读取仍检查范围和缺失引用。
 
 Code 指纹直接编码已有的定义、undefined requirements、native contracts、imports 与最终成员目录。计算和归档组装不重建这些集合来比较副本，也不再次比对所有组件的 producer／target 或复制的 relocation 闭包。已有结果直接进入 metadata 和内容摘要；当前编码、范围读取及真实链接引用错误正常处理。
 
@@ -444,7 +438,7 @@ undefined requirements 完成普通分类后直接合并、排序，保留 calla
 
 物理 definition 读取只查询实际需要的符号和 atom 边界，建立供地址、relocation 和内容指纹使用的索引。保留缺失符号、歧义定义和本次读取范围的诊断；不比较所有生成符号与计划的全集、重验既定 linkage／primary 位置，也不扫描未归属 section 或 padding 来证明零值及生产覆盖。padding 不属于 definition 的语义内容，不再保存无消费者的 padding-end 资格字段。
 
-Runtime metadata 发射直接使用完整 LIR 计划及当前 LLVM module 中的声明，按实际引用查询缺失符号并生成记录、scan、初始化数据及 digest 槽位；不先完整比较 global／function 的类型、地址空间、可变性、linkage、对齐、初值或 producer 副本，不以再次发射同一记录作为资格验收。digest 位置使用 canonical definition 的 owner／primary 与固定 32-byte 宽度，不重放计划全集以证明 coverage。真实 LLVM 发射、物理边界定位和 ABI／GC 输出回归继续保留。 对象物化仅定位所需 symbol／section 并写入实际边界与 linkage；摘要槽保留本次写入的范围计算，不读回零值或重验槽位全集。已由 LLVM 发射的 global alias 不再重放边界计划，callable 不扫描其他 backend 段证明覆盖；generated-C 使用真实主符号及其 extent，不复查 marker 模板和 plan 副本。 shape 和 callable scan 发射复用已有的 typed identity 与 LLVM global，不重新构造其 initializer 文本、比较同 id 的 payload 副本，或统计 layout／scan／dispatch 与计划的全集。实际所需的定义、scan、Context cell 和边界仍按 typed id 查询，生成 ABI 数据及处理本次缺失引用。
+Runtime metadata 发射直接使用完整 LIR 计划及当前 LLVM module 中的声明，按实际引用查询符号并生成完整记录、scan 和初始化数据。不比较 global／function 的类型、linkage、初值或 producer 副本来证明已完成的发射。对象物化仅处理实际 codegen、relocation、GC 或链接选择需要的边界与 linkage，不读取对象为无人消费的字段回填指纹。已由 LLVM 发射的 global alias 不重放边界计划；generated-C 使用真实主符号及其 extent，不复查 manifest 或 C 模板。
 
 
 Mach-O／ELF 对象按实际目标格式读取 section、符号及 relocation，按标志与本次使用的特殊段分类；Scoop LIR 与 generated-C 使用同一规则，不设来源专属段名／flags 白名单或必须含 text 的资格。版本、优化提示和其他未消费的 load command、section group 不另行审计或保存证明副本；不比较整张物理表的覆盖、分区、padding 与重叠。格式库负责读取所需表，实际地址／索引／内容访问保留局部边界错误。 符号属性按实际位读取，不以描述标志组合或未消费的符号类型拒绝整个对象；relocation 仅解析实际使用的 symbol index，不要求 undefined 符号表每项均有使用，也不以重复名称预审替代本次引用解析。
@@ -500,10 +494,10 @@ bridge unit 是与 producer 无关的 recipe identity；实际 atom 使用 produ
 
 | 位置 / namespace | section 与 major |
 | --- | --- |
-| Manifest / `org.scoop-lang.manifest` | `single-cone-production/8` |
+| Manifest / `org.scoop-lang.manifest` | `single-cone-production/9` |
 | HIR / `org.scoop-lang.hir` | `identity-foundation/10`、`core-bootstrap-interface/16`、`cross-cone-interface/78`、`cross-cone-type-semantics/30` |
 | MIR / `org.scoop-lang.mir` | `identity-foundation/8`、`core-bootstrap-bridge/2`、`cross-cone-param-free-bridge/2`、`cross-cone-type-bridge/19` |
-| LIR / `org.scoop-lang.lir` | `identity-foundation/9`、`cross-cone-param-free-bridge/3`、`cross-cone-layout-abi/16`、`cone-production/12`、`link-identity-closure/17`、`link-support/1` |
+| LIR / `org.scoop-lang.lir` | `identity-foundation/9`、`cross-cone-param-free-bridge/3`、`cross-cone-layout-abi/16`、`cone-production/13`、`link-identity-closure/17`、`link-support/1` |
 
 各 section 按消费用途检查 required inventory。Compile 需要完整语言与相邻 IR 合同；Link 只消费 identity、ABI、对象、native、production 和链接支持数据，不为链接展开 HIR 模板。profile fingerprint 覆盖 descriptor 的实际内容。
 
@@ -521,7 +515,7 @@ manifest 保存 canonical coordinate、ConeIdentity、kind/source form、完整 
 
 显式 artifact、artifact 搜索目录及默认 core 产物的发现共用 `artifact-summaries-v1` 普通摘要记录。按选中实际路径、mtime、大小和所选 target／backend 配置定位；未变化时直接读取已保存的摘要，不打开原归档或重新读取 manifest。路径／输入 metadata 或配置变化后按上述最小读取取得新摘要；普通锁协调同键首次读取，成功后原子发布记录。缺失实际输入仍报告输入错误，记录读取失败正常传播，不扫描或恢复损坏记录。该记录不改变语言身份、语义摘要或源码依赖的失效规则。
 
-production 与 Link metadata 完整保存实际 body/type/site ID、Strong/ODR 定义、shared ABI、object/bridge unit 到 member/range 的映射、digest patch 位置、runtime registrations、image/root entry 归属、defined symbol owners、undefined requirements、native contracts 与逻辑 library requirements。所有表具有 canonical key/payload、明确排序与唯一性；不保存 producer 的绝对搜索路径。
+production 与 Link metadata 完整保存实际 body/type/site ID、Strong/ODR 定义、shared ABI、object/bridge unit 到 member/range 的映射、runtime registrations、image/root entry 归属、defined symbol owners、undefined requirements、native contracts 与逻辑 library requirements。所有表具有 canonical key/payload、明确排序与唯一性；不保存 producer 的绝对搜索路径。
 
 executable entry 保存完整签名以及封闭的声明分支：生产入口引用源码 PersistentFunctionId，测试入口引用 PersistentGeneratedCallableId。测试入口的 generated key 由当前 ConeIdentity 与 TestEntry role 确定，不生成伪造的源码 main identity；两者均通过正常 Strong callable body、root gateway 和 failure-root 链接。HIR 完成入口选择并检查签名，后续 stage 传递实际声明、body 与签名，不重新按名称选择入口。
 
@@ -535,7 +529,7 @@ Export HIR 的当前目标测试目录按语言规范 16.4 保留 typed class／
 
 测试用途产物在可选 manifest section `org.scoop-lang.manifest/test-directory/1` 中保存该目录的展示投影：容器限定名、用例方法名与完整显示名、各自的 Cone-relative 源码路径及一基行列、忽略原因。目录按前端顺序嵌套保存容器与用例，不通过解析显示名恢复关系；可执行调用仍使用 HIR 中的 typed 引用。该 section 不参与 Compile／Link 的语义要求，受普通 ArtifactFingerprint 覆盖；生产产物不写入，测试产物即使无容器也写入空目录。manifest summary 在读取边界解码并复用该投影，缓存命中不重新发现测试或加载完整 HIR。
 
-入口的四种 ABI 形态、完整签名、root gateway 的实际 C ABI 与定义指纹随各层 typed entry 保留，并进入对应语义／ABI fingerprints 和承载它们的 section profile。Link 投影保留精确 entry、gateway 与 failure-root 引用，使 artifact-only 链接无需源码或名称推断。M34 的 runtime ABI contract 12、metadata ABI 8 同时进入兼容检查、runtime 与启动对象的构建输入；旧 ABI 的薄接口、物理签名、poll／card 合同及产物必须重建或拒绝，不能用缺省字段或 bitcast 混用。新 ABI 的 debug／release 仍互通；各批次的实际实现与 section 版本见 [M34 记录](../milestone34/PROGRESS.md)。
+入口的四种 ABI 形态、完整签名、root gateway 的实际 C ABI 与定义指纹随各层 typed entry 保留，并进入对应语义／ABI fingerprints 和承载它们的 section profile。Link 投影保留精确 entry、gateway 与 failure-root 引用，使 artifact-only 链接无需源码或名称推断。当前 runtime ABI contract 14、metadata ABI 9 同时进入兼容检查、runtime 与启动对象的构建输入；旧 ABI 的薄接口、物理签名、poll／card 合同及产物必须重建或拒绝，不能用缺省字段或 bitcast 混用。新 ABI 的 debug／release 仍互通；各批次的实际实现与 section 版本见 [M34 记录](../milestone34/PROGRESS.md)。
 
 operator equals 的成员签名、operator 标记、已绑定调用及必要的派生正文使用既有 callable、模板与 exact-type metadata。`Equals<T>.equals` 的显式 conformance、接口 slot、实现和分派适配使用普通 interface metadata；该 slot 使用源码显式声明的 operator 实现，不按结构比较补齐接口，也不保存 Equals 专用的 core protocol 或条件接口规则。
 
@@ -545,11 +539,11 @@ operator equals 的成员签名、operator 标记、已绑定调用及必要的�
 
 接口方法与实际 metadata 内容的变化按既有 semantic／ABI fingerprints、section profiles 和缓存兼容规则演进。实现迁移时同步更新受影响的格式与 core 产物；M41 删除 core Equality/equalTo，改为普通 Equals/operator equals，旧依赖须按既有失效规则重建。不为库接口迁移增加 runtime 比较 ABI。
 
-`single-cone-production/8` 只保存两个实际消费字段：field 11 为物理 ODR member 目录，field 14 为 runtime image records。field 1～10、12 和 13 不再写入；distribution、output、image owner、typed registration projection、OptimizationMode 副本、重复的 RuntimeImage／Code fingerprint、native contract／library／C++ 和 C bridge production 投影不再作为后续复核材料持久化。RuntimeImage 与 Code fingerprint 使用顶层 manifest 已保存的值，native requirements 使用 LIR foundation，入口使用实际语义与 production 数据。ODR directory 的 member 保存实际 role 与 OdrAbiFingerprint，field 4 保留不用；纯语义 member 不产生空物理条目。删除 production section 的 C bridge 与全量投影重建比较 API；对象生产阶段原有的 Code 输入与指纹公式不变。
+`single-cone-production/9` 只保存 field 11 的物理 ODR member 目录。field 1～10、12～14 不再写入；distribution、output、image owner、typed registration projection、OptimizationMode 副本、重复的 RuntimeImage／Code fingerprint、native contract／library／C++ 和 C bridge production 投影不再作为后续复核材料持久化。RuntimeImage 与 Code fingerprint 使用顶层 manifest 已保存的值，native requirements 使用 LIR foundation，入口使用实际语义与 production 数据。ODR directory 的 member 保存实际 role 与 OdrAbiFingerprint，field 4 保留不用；纯语义 member 不产生空物理条目。删除 production section 的 C bridge 与全量投影重建比较 API；对象生产阶段的实际 Code 输入与指纹公式保留。
 
-`link-identity-closure/16` 只保存三个字段：field 1 为物理成员目录（Scoop member 保留 typed definition 分配，generated-C member 只保存 member id，不复制已无消费者的 unit 列表），field 4 为 defined symbol owners，field 5 为 undefined symbol uses。不再写入只服务消费者重放的 definition atom ranges、patch sites、对象目录副本及 image／entry owner 投影（原 field 2、3、6、7、8）。实际机器对象的生成、重定位和摘要填充仍使用生产端数据，不为生成此 section 再构造上述索引或对象投影。两个 section 的旧格式按版本规则重建；runtime ABI 不变。
+`link-identity-closure/16` 只保存三个字段：field 1 为物理成员目录（Scoop member 保留 typed definition 分配，generated-C member 只保存 member id，不复制已无消费者的 unit 列表），field 4 为 defined symbol owners，field 5 为 undefined symbol uses。不再写入只服务消费者重放的 definition atom ranges、patch sites、对象目录副本及 image／entry owner 投影（原 field 2、3、6、7、8）。实际机器对象的生成、重定位和内容摘要仍使用生产端数据，不为生成此 section 再构造上述索引或对象投影。两个 section 的旧格式按版本规则重建；runtime ABI 不变。
 
-`single-cone-production/8` 的 field 14 保存最终链接实际使用的 runtime image records，编码为 `{1=prefix bytes, 2=six record arrays}`。prefix 是运行时规范 2.8 所定义的 RuntimeAbiFingerprint、TargetProfileFingerprint、canonical Cone record 与 direct dependencies 的连续 runtime 编码；六组记录依次为 static storage、immortal object、initialization、type、safepoint、callable，每项为 `[ObjectDefinitionPlanId, canonical runtime record bytes]`。记录在生产时按运行时规范的表顺序编码一次。最终链接按实际选择的 definition 筛选记录，写入所选条数与保存的记录字节，计算最终 image fingerprint；不为此反向解析对象、重建注册证明或重算各记录的 definition／layout／stackmap 指纹。该字段直接参与最终输出，不是缓存复核材料；读取时解析 typed definition 引用，不与对象或另行重建的记录逐项比较。runtime ABI 与 fingerprint 编码保持不变；缺少该字段的旧 production section 按版本规则重建。
+runtime metadata ABI 9 删除没有运行时消费者的内容指纹字段。相应的 digest patch intent、物理回填位置和对象回填阶段一并删除；LLVM 直接发射完整记录，符号地址由普通重定位完成，归档复用原始对象及已有摘要。RuntimeImageFingerprint 仍由生产端对实际产物内容计算一次并保存在 manifest，最终 linker 只组装选中的记录指针表，不重算该摘要。原 field 14 的 canonical runtime image records 仅供最终链接重算摘要，现无消费者，故不再保存或读取。受影响的格式版本为 `single-cone-production/9`、`cone-production/13`、`strong-production/23`；runtime ABI contract 为 14。旧产物按版本规则重建，不能混用旧记录布局。
 
 `cross-cone-link-closure` 与 `cross-cone-layout-link-closure` 不再作为 metadata section 生成、保存或消费。已保存的 ordinary／layout ABI imports、member、symbol 与 ODR 数据用于实际编译和链接，不另存语义 imports 副本、relocation use 副本、完整对象目录及 coverage digest，也不在读取或发布时重建并比较它们。生产端 Code contribution 直接使用既有的 ordinary 与 physical import 数据，沿用原 capability id 作为该指纹输入的字段名称，保持 Code 指纹公式；这些名称不再注册为 section contract。移除 section 同步改变 cross-Cone profile descriptor／fingerprint，旧 profile 按格式规则重建，不保留旧 reader。runtime ABI 不变。前批取消 native contract Code 副本后失去消费方的 projection reader 与全量比对 API 也一并退役；实际 native contract 编码与指纹输入保留。
 
@@ -998,7 +992,7 @@ OdrMemberKey 为 `{1=group, 2=role, 3=typed discriminator}`，`OdrMemberId = H("
 
 ### 2.14 Runtime image 与初始化
 
-runtime metadata ABI 8、runtime ABI contract 12 的字段与启动协议由运行时规范 2.7、2.8 定义。RootEntry 的物理大小仍为 192 bytes，旧版 ABI 不可混用。每个 `.slib` 保存完整候选 registration 与物理归属；最终 image 表只包含选中的 producer records。
+runtime metadata ABI 9、runtime ABI contract 14 的字段与启动协议由运行时规范 2.7、2.8 定义。RootEntry 的物理大小为 128 bytes，旧版 ABI 不可混用。每个 `.slib` 保存完整候选 registration 与物理归属；最终 image 表只包含选中的 producer records。
 
 image、root entry、main body、root gateway、initializer、ensure、startup gateway 和 release hook 使用各自身份。根、cell、storage 和失败状态完整关联，不以可空函数指针或命名约定推断 unit kind。
 
@@ -1173,4 +1167,4 @@ ODR 只比较 key 与 shared ABI，按实际需要选择物理 member。body 的
 
 OptimizationMode 在 machine request field 9 中编码 Debug=1、Release=2；生产端 Code 输入继续保存模式，production section 不再复制该值；compile cache domain 为 `scoop-cone-compile-cache-v2`，mode 位于 field 13。generated-C flag 的 SelectedOptimization tag 为 15，tag 6 保留不用。
 
-digest kinds 4、8、9，digest owner tags 4、11、9，以及 RegistrationDefinition patch role 1 保留不用。registration 公共 identity 只含 linkage、semantic ID、ODR group/member；body、layout、descriptor、scan 与 normalized-stackmap fingerprints 仍用于所选实现自身的内容、引用及 GC 合同，不作为不同优化正文必须相等的条件。
+digest kinds 4、8、9，digest owner tags 4、11、9，保留不用；全部 runtime digest patch role 与 patch intent 退役。registration 公共 identity 只含 linkage、semantic ID、ODR group/member；body、layout、descriptor、scan 与 normalized-stackmap fingerprints 仍用于所选实现自身的内容、引用及 GC 合同，不作为不同优化正文必须相等的条件。

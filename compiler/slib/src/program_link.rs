@@ -23,7 +23,6 @@ pub struct ProgramLinkArtifact {
         scoop_identity::PersistentExactTypeId,
         lir::LinkValueRepresentation,
     >,
-    pub(crate) runtime_image_records: crate::RuntimeImageRecords,
     pub(crate) native_objects: Vec<crate::NativeLinkObject>,
 }
 
@@ -38,10 +37,6 @@ impl ProgramLinkArtifact {
                     self.identity()
                 ))
             })
-    }
-
-    pub fn runtime_image_records(&self) -> &crate::RuntimeImageRecords {
-        &self.runtime_image_records
     }
 
     pub fn identity(&self) -> ConeIdentity {

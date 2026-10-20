@@ -1,12 +1,11 @@
 use scoop_identity::{
     CanonicalIdentifier, CborIdentityRecord, ConeIdentity, DeclarationScope, DefinitionAtomRole,
-    DefinitionAtomSubkey, DefinitionOwnerChain, DigestNodeId, DigestNodeKey, DigestPatchIntentKey,
-    DigestSemanticFieldRole, DispatchTableKey, ExactTypeKey, LayoutKey, LinkageClass,
-    ObjectDefinitionAtomKey, ObjectDefinitionPlanKey, PackagePath, PersistentDispatchTableId,
-    PersistentExactTypeId, PersistentLayoutId, PersistentScanId, PersistentSymbolKey,
-    PersistentSymbolRequest, PersistentSymbolRequestTable, PersistentTypeId, RepresentationRole,
-    ScanKey, ScanRole, SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind,
-    StrongDefinitionEntity, StrongDefinitionRole,
+    DefinitionAtomSubkey, DefinitionOwnerChain, DigestNodeKey, DispatchTableKey, ExactTypeKey,
+    LayoutKey, LinkageClass, ObjectDefinitionAtomKey, ObjectDefinitionPlanKey, PackagePath,
+    PersistentDispatchTableId, PersistentExactTypeId, PersistentLayoutId, PersistentScanId,
+    PersistentSymbolKey, PersistentSymbolRequest, PersistentSymbolRequestTable, PersistentTypeId,
+    RepresentationRole, ScanKey, ScanRole, SourceDeclarationKey, SourceDeclarationSite,
+    SourceNominalKind, StrongDefinitionEntity, StrongDefinitionRole,
 };
 
 use super::*;
@@ -17,7 +16,7 @@ use crate::{
 use scoop_wire::{decode_canonical, encode};
 
 #[test]
-fn joins_every_type_to_its_descriptor_layout_and_digest_writers() {
+fn joins_every_type_to_its_descriptor_layout_and_content_nodes() {
     let fixture = Fixture::new(Options::default());
 
     let plans = fixture.build().unwrap();
@@ -53,18 +52,6 @@ fn joins_every_type_to_its_descriptor_layout_and_digest_writers() {
                 .unwrap()
                 .runtime_type()
         );
-        assert!(
-            node(&fixture.digests, plan.descriptor_definition_node())
-                .patch_intents()
-                .iter()
-                .any(|patch| patch.id() == plan.descriptor_definition_patch())
-        );
-        assert!(
-            node(&fixture.digests, plan.layout_fingerprint_node())
-                .patch_intents()
-                .iter()
-                .any(|patch| patch.id() == plan.layout_fingerprint_patch())
-        );
     }
 }
 
@@ -74,21 +61,21 @@ fn wire_reader_rejects_type_registrations_without_runtime_relations() {
     let plans = fixture.build().unwrap();
     let plan = &plans.registrations()[0];
     let mut encoded = encode(plan).unwrap();
-    assert_eq!(&encoded[..2], &[0xb8, 27]);
+    assert_eq!(&encoded[..2], &[0xb8, 25]);
     assert_eq!(&encoded[encoded.len() - 5..], &[0x18, 30, 0xa1, 0, 1]);
-    encoded[1] = 26;
+    encoded[1] = 24;
     encoded.truncate(encoded.len() - 5);
     assert!(decode_canonical::<DecodedStrongTypeRegistrationPlanV1>(&encoded).is_err());
-    assert_eq!(&encoded[..2], &[0xb8, 26]);
+    assert_eq!(&encoded[..2], &[0xb8, 24]);
     assert_eq!(&encoded[encoded.len() - 5..], &[0x18, 29, 0xa1, 0, 0]);
-    encoded[1] = 25;
+    encoded.splice(0..2, [0xb7]);
     encoded.truncate(encoded.len() - 5);
     assert!(decode_canonical::<DecodedStrongTypeRegistrationPlanV1>(&encoded).is_err());
     assert_eq!(
         &encoded[encoded.len() - 7..],
         &[0x18, 0x1c, 0xa2, 0, 1, 1, 0]
     );
-    encoded[1] = 24;
+    encoded[0] = 0xb6;
     encoded.truncate(encoded.len() - 7);
 
     assert!(decode_canonical::<DecodedStrongTypeRegistrationPlanV1>(&encoded,).is_err());
@@ -195,35 +182,11 @@ fn requires_the_exact_itable_directory_atom_for_nonempty_itables() {
     ));
 }
 
-#[test]
-fn requires_descriptor_and_layout_digest_writers() {
-    assert!(matches!(
-        Fixture::new(Options {
-            omit_descriptor_patch: true,
-            ..Options::default()
-        })
-        .build(),
-        Err(StrongTypeRegistrationPlanBuildError::MissingPatch { .. })
-    ));
-    assert!(matches!(
-        Fixture::new(Options {
-            omit_layout_patch: true,
-            ..Options::default()
-        })
-        .build(),
-        Err(StrongTypeRegistrationPlanBuildError::MissingPatch { .. })
-    ));
-}
-
 mod fixture;
 use fixture::*;
 mod artifacts;
 use artifacts::*;
 mod digests;
 use digests::*;
-
-fn node(plan: &DigestFinalizationPlanV1, id: DigestNodeId) -> &DigestNodeV1 {
-    plan.nodes().iter().find(|node| node.id() == id).unwrap()
-}
 
 mod v2;

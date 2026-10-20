@@ -125,11 +125,6 @@ fn linux_elf_members_materialize_boundaries_tls_and_odr_groups() {
                         }
                     }
                 }
-                for patch in member.digest_patches() {
-                    let start = patch.checked_object_offset() as usize;
-                    let end = start + patch.location().width_bytes() as usize;
-                    assert!(bytes[start..end].iter().all(|byte| *byte == 0));
-                }
                 if odr
                     && matches!(member.kind(), EmittedConeObjectMemberKindV1::CallableBody { body, .. } if body == odr_body)
                 {

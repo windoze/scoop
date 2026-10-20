@@ -71,7 +71,6 @@ fn layout_code_fingerprint_binds_v2_imports_and_the_required_member_directory() 
         .link_objects()
         .final_objects()
         .entry()
-        .patch_sites()
         .builtins()
         .strong_relocations()
         .clone();

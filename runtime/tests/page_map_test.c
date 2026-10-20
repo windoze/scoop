@@ -9,8 +9,7 @@
 static const uintptr_t addresses[] = {
     UINT64_C(0x0000000000000000), UINT64_C(0x000000001fff0000), UINT64_C(0x0000001000000000),
     UINT64_C(0x0000123456780000), UINT64_C(0x123456789abc0000), UINT64_C(0x8000000000000000),
-    UINT64_C(0xffffffffffff0000),
-};
+    UINT64_C(0xffffffffffff0000)};
 
 int main(void) {
     // Synthetic address keys exercise every uintptr_t bit without dereferencing

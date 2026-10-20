@@ -6,38 +6,20 @@ mod render;
 use emit::emit_object_set_with_production;
 pub use render::render_llvm_ir_members;
 
-/// One verified provisional Scoop object and its exact producer units.
+/// One emitted Scoop object and its exact producer units.
 #[derive(Debug)]
 pub struct EmittedConeObjectMemberV1 {
     units: ScoopLirObjectUnitSetV1,
     path: std::path::PathBuf,
-    kind: EmittedConeObjectMemberKind,
+    kind: EmittedConeObjectMemberKindV1,
 }
 
-#[derive(Debug)]
-enum EmittedConeObjectMemberKind {
-    NonCallable {
-        runtime_metadata: EmittedStrongRuntimeMetadataV1,
-        digest_patches: Vec<EmittedStrongDigestPatchMaterializationV1>,
-    },
-    CallableBody {
-        body: scoop_lir::PersistentCallableBodyId,
-        runtime_metadata: EmittedStrongRuntimeMetadataV1,
-        digest_patches: Vec<EmittedStrongDigestPatchMaterializationV1>,
-    },
-}
-
-/// Borrowed typed contents of one verified provisional member.
+/// The ordinary producer kind for one emitted object.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum EmittedConeObjectMemberKindV1<'a> {
-    NonCallable {
-        runtime_metadata: &'a EmittedStrongRuntimeMetadataV1,
-        digest_patches: &'a [EmittedStrongDigestPatchMaterializationV1],
-    },
+pub enum EmittedConeObjectMemberKindV1 {
+    NonCallable,
     CallableBody {
         body: scoop_lir::PersistentCallableBodyId,
-        runtime_metadata: &'a EmittedStrongRuntimeMetadataV1,
-        digest_patches: &'a [EmittedStrongDigestPatchMaterializationV1],
     },
 }
 
@@ -50,36 +32,12 @@ impl EmittedConeObjectMemberV1 {
         &self.path
     }
 
-    pub fn kind(&self) -> EmittedConeObjectMemberKindV1<'_> {
-        match &self.kind {
-            EmittedConeObjectMemberKind::NonCallable {
-                runtime_metadata,
-                digest_patches,
-            } => EmittedConeObjectMemberKindV1::NonCallable {
-                runtime_metadata,
-                digest_patches,
-            },
-            EmittedConeObjectMemberKind::CallableBody {
-                body,
-                runtime_metadata,
-                digest_patches,
-            } => EmittedConeObjectMemberKindV1::CallableBody {
-                body: *body,
-                runtime_metadata,
-                digest_patches,
-            },
-        }
-    }
-
-    pub fn digest_patches(&self) -> &[EmittedStrongDigestPatchMaterializationV1] {
-        match &self.kind {
-            EmittedConeObjectMemberKind::NonCallable { digest_patches, .. }
-            | EmittedConeObjectMemberKind::CallableBody { digest_patches, .. } => digest_patches,
-        }
+    pub const fn kind(&self) -> EmittedConeObjectMemberKindV1 {
+        self.kind
     }
 }
 
-/// Complete verified provisional Scoop object set retained for `.slib`
+/// Complete Scoop object set retained for `.slib`
 /// packaging. The owned temporary directory keeps every member immutable and
 /// alive for exactly as long as this result.
 #[derive(Debug)]
@@ -153,7 +111,7 @@ impl RenderedConeObjectModuleV1 {
     }
 }
 
-/// Emits provisional objects and retains their production and patch records
+/// Emits complete objects and retains their production records
 /// for `.slib` packaging.
 pub fn emit_object_set(
     input: &scoop_lir::ConeLirOutput,

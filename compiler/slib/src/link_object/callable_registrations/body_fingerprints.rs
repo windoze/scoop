@@ -132,13 +132,13 @@ fn compute_strong_callable_body_object_fingerprints_inner_v1(
     undefined_requirements: VerifiedObjectDefinitionRequirementSetV1,
     scoop_objects: &[ScoopLirObjectCandidateV1<'_>],
 ) -> Result<VerifiedStrongCallableBodyObjectFingerprintSetV1, StrongCallableBodyFingerprintError> {
-    let builtins = registrations.patch_sites().builtins();
+    let builtins = registrations.builtins();
     let objects = scoop_objects
         .iter()
         .map(|object| (object.member(), object.bytes()))
         .collect::<BTreeMap<_, _>>();
     let stackmap_inputs = stackmap_inputs(&stackmaps)?;
-    let mut fingerprints = Vec::with_capacity(registrations.registrations().len());
+    let mut fingerprints = Vec::with_capacity(registrations.plan().registrations().len());
     for plan in registrations.plan().registrations() {
         let member = builtins
             .member_plan()

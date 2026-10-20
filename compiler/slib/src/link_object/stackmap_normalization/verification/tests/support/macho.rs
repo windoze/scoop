@@ -1,7 +1,7 @@
 use object::macho;
 use scoop_identity::{
-    DefinitionAtomRole, DigestPatchIntentId, LinkageClass, ObjectDefinitionPlanId,
-    PersistentSymbolKey, PersistentSymbolRequest, StrongDefinitionRole,
+    DefinitionAtomRole, LinkageClass, ObjectDefinitionPlanId, PersistentSymbolKey,
+    PersistentSymbolRequest, StrongDefinitionRole,
 };
 use scoop_lir::{
     StrongCallableRegistrationPlanSetV1, StrongCallableRegistrationPlanV1,
@@ -34,19 +34,18 @@ use symbols::*;
 
 const TEXT_SIZE: u64 = 16;
 const STACK_SIZE: u64 = 64;
-const SAFEPOINT_REGISTRATION_SIZE: u64 = 200;
-const CALLABLE_REGISTRATION_SIZE: u64 = 176;
+const SAFEPOINT_REGISTRATION_SIZE: u64 = 168;
+const CALLABLE_REGISTRATION_SIZE: u64 = 144;
 const TYPE_DESCRIPTOR_SIZE: u64 = 152;
 const LAYOUT_SIZE: u64 = 8;
-const TYPE_REGISTRATION_SIZE: u64 = 208;
+const TYPE_REGISTRATION_SIZE: u64 = 144;
 const IMMORTAL_REGISTRATION_SIZE: u64 = 152;
 const STATIC_LAYOUT_SIZE: u64 = 8;
-const STATIC_STORAGE_REGISTRATION_SIZE: u64 = 264;
+const STATIC_STORAGE_REGISTRATION_SIZE: u64 = 200;
 const STATIC_EMPTY_SENTINELS_SIZE: u64 = 24;
 
 pub(crate) struct ObjectFixture {
     pub(crate) bytes: Vec<u8>,
-    pub(crate) patch_offsets: Vec<(DigestPatchIntentId, u64)>,
 }
 
 #[allow(clippy::too_many_arguments)]

@@ -24,11 +24,7 @@ fn generated_c_keeps_auxiliary_symbols_without_a_registry() {
     assert_eq!(external.remaining_external_candidates().len(), 1);
 
     let current = verify_current_cone_undefined_requirements_v1(
-        fixture
-            .scoop_patch_sites
-            .builtins()
-            .strong_relocations()
-            .clone(),
+        fixture.builtins.strong_relocations().clone(),
         fixture.bridge_plan,
     )
     .unwrap();
@@ -57,11 +53,7 @@ fn explicit_libc_source_declarations_keep_their_ffi_contract() {
 }
 
 fn runtime_closure(fixture: &SemanticFixture) -> VerifiedRuntimeAndEhRequirementClosureV1 {
-    let strong = fixture
-        .scoop_patch_sites
-        .builtins()
-        .strong_relocations()
-        .clone();
+    let strong = fixture.builtins.strong_relocations().clone();
     let dependencies =
         verify_dependency_strong_requirements_v1(scoop_target_data::DARWIN_AARCH64, strong, &[])
             .unwrap();

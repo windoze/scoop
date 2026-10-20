@@ -5,7 +5,7 @@ pub(super) fn push_registration(
     registration: StrongSafepointRegistrationPlanV1,
 ) {
     push_u64(bytes, 0x5343_4f4f_5053_5054);
-    push_u32(bytes, 8);
+    push_u32(bytes, scoop_lir::RUNTIME_METADATA_ABI_VERSION_V1);
     push_u32(bytes, u32::try_from(SAFEPOINT_REGISTRATION_SIZE).unwrap());
     push_u32(bytes, 1);
     push_u32(bytes, 0);
@@ -16,7 +16,6 @@ pub(super) fn push_registration(
     push_u32(bytes, registration.role().tag());
     push_u32(bytes, registration.root_pair_count());
     bytes.extend_from_slice(registration.owner().as_array());
-    bytes.extend_from_slice(&[0; 32]);
 }
 
 pub(super) fn push_callable_registration(
@@ -24,12 +23,11 @@ pub(super) fn push_callable_registration(
     registration: StrongCallableRegistrationPlanV1,
 ) {
     push_u64(bytes, 0x5343_4f4f_5043_414c);
-    push_u32(bytes, 8);
+    push_u32(bytes, scoop_lir::RUNTIME_METADATA_ABI_VERSION_V1);
     push_u32(bytes, u32::try_from(CALLABLE_REGISTRATION_SIZE).unwrap());
     push_u32(bytes, 1);
     push_u32(bytes, 0);
     bytes.extend_from_slice(registration.body().as_array());
-    bytes.extend_from_slice(&[0; 32]);
     bytes.extend_from_slice(&[0; 32]);
     bytes.extend_from_slice(&[0; 32]);
     push_u64(bytes, 0);
@@ -42,7 +40,7 @@ pub(super) fn push_type_registration(
     registration: &StrongTypeRegistrationPlanV1,
 ) {
     push_u64(bytes, 0x5343_4f4f_5054_5950);
-    push_u32(bytes, 8);
+    push_u32(bytes, scoop_lir::RUNTIME_METADATA_ABI_VERSION_V1);
     push_u32(bytes, u32::try_from(TYPE_REGISTRATION_SIZE).unwrap());
     push_u32(bytes, 1);
     push_u32(bytes, 0);
@@ -52,8 +50,6 @@ pub(super) fn push_type_registration(
     push_u64(bytes, registration.runtime_type().get());
     push_u64(bytes, 0);
     push_u64(bytes, 0);
-    bytes.extend_from_slice(&[0; 32]);
-    bytes.extend_from_slice(&[0; 32]);
 }
 
 pub(super) fn push_type_descriptor(
@@ -96,7 +92,7 @@ pub(super) fn push_immortal_registration(
     registration: StrongImmortalObjectRegistrationPlanV1,
 ) {
     push_u64(bytes, 0x5343_4f4f_5049_4d4d);
-    push_u32(bytes, 8);
+    push_u32(bytes, scoop_lir::RUNTIME_METADATA_ABI_VERSION_V1);
     push_u32(bytes, u32::try_from(IMMORTAL_REGISTRATION_SIZE).unwrap());
     push_u32(bytes, 1);
     push_u32(bytes, 0);
@@ -115,7 +111,7 @@ pub(super) fn push_static_storage_registration(
 ) {
     let semantic = registration.semantic();
     push_u64(bytes, 0x5343_4f4f_5053_544f);
-    push_u32(bytes, 8);
+    push_u32(bytes, scoop_lir::RUNTIME_METADATA_ABI_VERSION_V1);
     push_u32(
         bytes,
         u32::try_from(STATIC_STORAGE_REGISTRATION_SIZE).unwrap(),
@@ -132,8 +128,6 @@ pub(super) fn push_static_storage_registration(
     push_u64(bytes, semantic.allocation_extent());
     push_u64(bytes, semantic.required_alignment());
     push_u64(bytes, 0);
-    bytes.extend_from_slice(&[0; 32]);
-    bytes.extend_from_slice(&[0; 32]);
     push_u64(bytes, 0);
     push_u64(
         bytes,

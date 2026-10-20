@@ -186,13 +186,11 @@ pub struct DecodedStrongStaticStorageRegistrationPlanV1 {
 
     layout_fingerprint_node: DecodedPersistentId<DigestNodeId>,
     scan_fingerprint_node: DecodedPersistentId<DigestNodeId>,
-    layout_fingerprint_patch: DecodedPersistentId<DigestPatchIntentId>,
-    scan_fingerprint_patch: DecodedPersistentId<DigestPatchIntentId>,
 }
 
 impl WireEncode for DecodedStrongStaticStorageRegistrationPlanV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(28)?;
+        encoder.map(26)?;
         self.semantic.encode_fields(encoder)?;
         encode_field(encoder, 11, &self.registration_symbol)?;
         encode_field(encoder, 12, &self.registration_definition_plan)?;
@@ -209,15 +207,13 @@ impl WireEncode for DecodedStrongStaticStorageRegistrationPlanV1 {
         encode_field(encoder, 23, &self.scan_primary_atom)?;
         encode_field(encoder, 26, &self.layout_fingerprint_node)?;
         encode_field(encoder, 27, &self.scan_fingerprint_node)?;
-        encode_field(encoder, 30, &self.layout_fingerprint_patch)?;
-        encode_field(encoder, 31, &self.scan_fingerprint_patch)?;
         encode_field(encoder, 32, &self.semantic.layout_provider)
     }
 }
 
 impl WireDecode for DecodedStrongStaticStorageRegistrationPlanV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(28)?;
+        decoder.expect_map(26)?;
         let storage = decoder.field(1, DecodedPersistentId::decode)?;
         let storage_symbol = decoder.field(2, DecodedPersistentSymbolRequest::decode)?;
         let layout = decoder.field(3, DecodedPersistentId::decode)?;
@@ -247,8 +243,7 @@ impl WireDecode for DecodedStrongStaticStorageRegistrationPlanV1 {
         let scan_primary_atom = decoder.field(23, DecodedPersistentId::decode)?;
         let layout_fingerprint_node = decoder.field(26, DecodedPersistentId::decode)?;
         let scan_fingerprint_node = decoder.field(27, DecodedPersistentId::decode)?;
-        let layout_fingerprint_patch = decoder.field(30, DecodedPersistentId::decode)?;
-        let scan_fingerprint_patch = decoder.field(31, DecodedPersistentId::decode)?;
+
         let layout_provider = decoder.field(32, DecodedPersistentId::decode)?;
         Ok(Self {
             semantic: DecodedStrongStaticStorageSemanticProjectionV1 {
@@ -280,8 +275,6 @@ impl WireDecode for DecodedStrongStaticStorageRegistrationPlanV1 {
 
             layout_fingerprint_node,
             scan_fingerprint_node,
-            layout_fingerprint_patch,
-            scan_fingerprint_patch,
         })
     }
 }

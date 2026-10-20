@@ -5,23 +5,19 @@ use inkwell::types::AnyType;
 use inkwell::values::AnyValue;
 use scoop_identity::{
     CallableBodyKey, CanonicalIdentifier, CborIdentityRecord, ConeIdentity, DeclarationScope,
-    DefinitionAtomRole, DefinitionAtomSubkey, DefinitionOwnerChain, DigestNodeId, DigestNodeKey,
-    DigestPatchIntentKey, DigestSemanticFieldRole, ExactCallableSignature, ExactTypeKey,
-    ExecutableEntryIdentity, LinkageClass, ObjectDefinitionAtomKey, ObjectDefinitionPlanKey,
-    PackagePath, PersistentCallableBodyId, PersistentExactTypeId, PersistentStaticStorageId,
-    PersistentSymbolKey, PersistentSymbolRequest, PersistentSymbolRequestTable,
-    RuntimeIdentityRecord, SourceDeclarationKey, SourceDeclarationSite, StaticStorageKey,
-    StrongDefinitionEntity, StrongDefinitionRole,
+    DefinitionAtomRole, DefinitionAtomSubkey, DefinitionOwnerChain, DigestNodeKey,
+    ExactCallableSignature, ExactTypeKey, ExecutableEntryIdentity, LinkageClass,
+    ObjectDefinitionAtomKey, ObjectDefinitionPlanKey, PackagePath, PersistentCallableBodyId,
+    PersistentExactTypeId, PersistentStaticStorageId, PersistentSymbolKey, PersistentSymbolRequest,
+    PersistentSymbolRequestTable, RuntimeIdentityRecord, SourceDeclarationKey,
+    SourceDeclarationSite, StaticStorageKey, StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_lir::{
     CanonicalLirFoundation, ConeLirFoundation, DigestFinalizationPlanV1, DigestNodeV1,
     EntryProductionPlanV1, EntryProductionSourceV1, RegistrationIdentitySurfaceV1,
 };
 
-use super::{
-    DIGEST_SIZE, EmittedEntryProductionV1, GATEWAY_DEFINITION_FINGERPRINT_OFFSET,
-    ROOT_ENTRY_DESCRIPTOR_SIZE, SOURCE_SIGNATURE_FINGERPRINT_OFFSET, emit_entry_production_v1,
-};
+use super::{EmittedEntryProductionV1, ROOT_ENTRY_DESCRIPTOR_SIZE, emit_entry_production_v1};
 use crate::runtime_metadata_v1::RuntimeMetadataV1Types;
 
 #[test]
@@ -39,7 +35,7 @@ fn library_entry_emission_has_no_root_surface() {
 }
 
 #[test]
-fn executable_entry_emission_preserves_typed_references_and_zero_patches() {
+fn executable_entry_emission_preserves_typed_references() {
     let source = executable_source_entry();
     let generated = CborIdentityRecord::from_key(scoop_identity::GeneratedCallableKey::TestEntry {
         cone: source.root_cone(),
@@ -68,30 +64,7 @@ fn assert_entry_emission(plan: EntryProductionPlanV1) {
     assert_eq!(descriptor.get_linkage(), Linkage::External);
     assert_eq!(descriptor.get_visibility(), GlobalVisibility::Default);
     assert!(descriptor.is_constant());
-    assert_eq!(
-        emitted.source_signature_patch().intent(),
-        entry.source_signature_patch()
-    );
-    assert_eq!(
-        emitted.gateway_definition_patch().intent(),
-        entry.gateway_definition_patch()
-    );
-    for patch in [
-        emitted.source_signature_patch(),
-        emitted.gateway_definition_patch(),
-    ] {
-        assert_eq!(patch.definition(), entry.root_descriptor_definition());
-        assert_eq!(patch.owner(), descriptor);
-        assert_eq!(patch.byte_size(), DIGEST_SIZE);
-    }
-    assert_eq!(
-        emitted.source_signature_patch().byte_offset(),
-        SOURCE_SIGNATURE_FINGERPRINT_OFFSET
-    );
-    assert_eq!(
-        emitted.gateway_definition_patch().byte_offset(),
-        GATEWAY_DEFINITION_FINGERPRINT_OFFSET
-    );
+    assert_eq!(emitted.definition(), entry.root_descriptor_definition());
 
     let types = RuntimeMetadataV1Types::new(&context);
     let failure_root_symbol = entry.failure_root_registration_symbol().unwrap().symbol();
@@ -119,7 +92,13 @@ fn assert_entry_emission(plan: EntryProductionPlanV1) {
         descriptor_ir.contains(&ROOT_ENTRY_DESCRIPTOR_SIZE.to_string()),
         "{descriptor_ir}"
     );
-    assert_eq!(descriptor_ir.matches("zeroinitializer").count(), 2);
+    assert_eq!(
+        descriptor
+            .get_value_type()
+            .into_struct_type()
+            .count_fields(),
+        6
+    );
     assert!(
         descriptor_ir.contains(failure_root_symbol.as_str()),
         "{descriptor_ir}"

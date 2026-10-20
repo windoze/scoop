@@ -1,11 +1,10 @@
 //! Untrusted wire carriers for complete strong registration production.
 
 use scoop_identity::{
-    DecodedPersistentId, DecodedPersistentSymbolRequest, DigestNodeId, DigestPatchIntentId,
-    ObjectDefinitionAtomId, ObjectDefinitionPlanId, PersistentCallableBodyId,
-    PersistentDispatchTableId, PersistentExactTypeId, PersistentImmortalObjectId,
-    PersistentInitializationUnitId, PersistentLayoutId, PersistentSafepointSiteId,
-    PersistentScanId, PersistentStaticStorageId,
+    DecodedPersistentId, DecodedPersistentSymbolRequest, DigestNodeId, ObjectDefinitionAtomId,
+    ObjectDefinitionPlanId, PersistentCallableBodyId, PersistentDispatchTableId,
+    PersistentExactTypeId, PersistentImmortalObjectId, PersistentInitializationUnitId,
+    PersistentLayoutId, PersistentSafepointSiteId, PersistentScanId, PersistentStaticStorageId,
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 

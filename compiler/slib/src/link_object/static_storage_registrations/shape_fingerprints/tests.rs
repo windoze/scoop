@@ -1,5 +1,4 @@
 use super::*;
-use crate::link_object::bind_static_storage_registrations_v1;
 use crate::link_object::stackmap_normalization::verification::tests::support::{
     Corruption, Fixture,
 };
@@ -52,9 +51,5 @@ fn scan_leaf_commits_the_canonical_reference_offsets() {
 }
 
 fn storage_definitions(fixture: &Fixture) -> StaticStorageRegistrationDataV1 {
-    bind_static_storage_registrations_v1(
-        &fixture.verified_patch_sites(),
-        fixture.static_storage_registration_plan.clone(),
-    )
-    .unwrap()
+    fixture.static_storage_registration_plan.clone()
 }

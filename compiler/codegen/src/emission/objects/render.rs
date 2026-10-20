@@ -56,7 +56,7 @@ pub fn render_llvm_ir_members(
     )
     .map_err(|error| CodegenError(error.to_string()))?;
     let metadata_context = Context::create();
-    let (metadata_llvm, metadata) = prepare_non_callable_strong_llvm_module(
+    let metadata_llvm = prepare_non_callable_strong_llvm_module(
         &metadata_context,
         module,
         &production,
@@ -64,13 +64,10 @@ pub fn render_llvm_ir_members(
         profile,
         &expected_safepoints.without_body_sites(),
     )?;
-    let metadata = metadata_partition::MetadataModule::new(
-        metadata_llvm,
-        metadata,
-        production.canonical_definitions(),
-    )?;
+    let metadata =
+        metadata_partition::MetadataModule::new(metadata_llvm, production.canonical_definitions())?;
     let mut metadata_modules =
-        metadata.map_partitions(&machine, profile, &partition, |_, llvm, _| {
+        metadata.map_partitions(&machine, profile, &partition, |_, llvm| {
             Ok(llvm.print_to_string().to_string())
         })?;
     partition

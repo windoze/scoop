@@ -12,6 +12,3 @@ pub use registration_fingerprints::*;
 
 mod verification;
 pub use verification::*;
-
-#[cfg(test)]
-mod tests;

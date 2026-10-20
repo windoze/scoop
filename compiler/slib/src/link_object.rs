@@ -33,9 +33,6 @@ pub use generated_c_objects::*;
 mod builtin_object_set;
 pub use builtin_object_set::*;
 
-mod digest_patch_sites;
-pub use digest_patch_sites::*;
-
 mod digest_fingerprints;
 pub use digest_fingerprints::*;
 
@@ -72,8 +69,8 @@ pub use cone_image::*;
 mod entry_production;
 pub use entry_production::*;
 
-mod strong_registration_finalization;
-pub use strong_registration_finalization::*;
+mod registration_objects;
+pub use registration_objects::*;
 
 mod symbol_planning;
 pub use symbol_planning::*;

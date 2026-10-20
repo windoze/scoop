@@ -20,7 +20,6 @@ pub(super) fn link_object_plan() -> PlannedLinkObjectMemberSetV1 {
 
 pub(super) struct LinkObjectFixture {
     pub(super) bytes: Vec<u8>,
-    pub(super) checked_offset: u64,
     pub(super) plan: PlannedLinkObjectMemberSetV1,
     pub(super) builtins: crate::VerifiedBuiltinObjectStrongRelocationSetV1,
 }
@@ -33,7 +32,7 @@ pub(super) fn link_object_fixture() -> LinkObjectFixture {
     let plan = link_object_plan();
     let symbols =
         PlannedStrongObjectSymbolSetV1::new(selection().target(), &surface, &plan).unwrap();
-    let (bytes, checked_offset) = crate::link_object::empty_image_object_for_link_decode_test(
+    let bytes = crate::link_object::empty_image_object_for_link_decode_test(
         &symbols.members()[0],
         production.image_plan(),
     );
@@ -56,7 +55,6 @@ pub(super) fn link_object_fixture() -> LinkObjectFixture {
     .unwrap();
     LinkObjectFixture {
         bytes,
-        checked_offset,
         plan,
         builtins,
     }
@@ -64,7 +62,7 @@ pub(super) fn link_object_fixture() -> LinkObjectFixture {
 
 pub(super) fn finalized_link_object_fixture() -> (
     ConeProductionSectionV1,
-    crate::VerifiedEntryPatchSetV1,
+    crate::FinalRuntimeObjectsV1,
     crate::CanonicalDefinedLinkSymbolOwnerSetV1,
     crate::CanonicalUndefinedSymbolRequirementSetV1,
 ) {
@@ -76,40 +74,29 @@ pub(super) fn finalized_link_object_fixture() -> (
         fixture.plan.scoop_lir_members()[0].member_id(),
         &fixture.bytes,
     )];
-    let provisional_sites = [crate::DigestPatchSiteV1::new(
-        digest_patch_intent(),
-        fixture.plan.scoop_lir_members()[0].member_id(),
-        fixture.checked_offset,
-    )];
-    let patch_sites =
-        crate::ScoopLirDigestPatchSitesV1::new(fixture.builtins, (provisional_sites).to_vec());
+    let builtins = fixture.builtins;
     let defined_symbols =
         crate::CanonicalDefinedLinkSymbolOwnerSetV1::from_verified_strong_closure(
-            patch_sites.builtins().strong_relocations(),
+            builtins.strong_relocations(),
         )
         .unwrap();
     let registrations = production.registration_production();
     let stackmaps = crate::read_scoop_stackmaps_v1(
-        patch_sites.builtins().clone(),
+        builtins.clone(),
         registrations.safepoint_semantics(),
         &objects,
     )
     .unwrap();
     let safepoint_registrations = crate::bind_safepoint_registrations_v1(
         stackmaps.clone(),
-        patch_sites.clone(),
         registrations.safepoints().clone(),
-    )
-    .unwrap();
+    );
     let safepoints =
         crate::compute_strong_safepoint_fingerprints_v1(safepoint_registrations).unwrap();
-    let callable_registrations = crate::bind_callable_registrations_v1(
-        patch_sites.clone(),
-        registrations.callables().clone(),
-    )
-    .unwrap();
+    let callable_registrations =
+        crate::bind_callable_registrations_v1(builtins.clone(), registrations.callables().clone());
     let callable_objects = callable_registrations;
-    let requirements = empty_undefined_requirements(&patch_sites, &foundation, &production);
+    let requirements = empty_undefined_requirements(&builtins, &foundation, &production);
     let callable_bodies = crate::compute_strong_callable_body_object_fingerprints_v1(
         callable_objects,
         stackmaps,
@@ -123,8 +110,7 @@ pub(super) fn finalized_link_object_fixture() -> (
     )
     .unwrap();
     let type_registrations =
-        crate::bind_type_registrations_v1(patch_sites.clone(), registrations.types().clone())
-            .unwrap();
+        crate::bind_type_registrations_v1(builtins.clone(), registrations.types().clone());
     let types = crate::compute_strong_type_fingerprints_v1(
         type_registrations,
         production.canonical_shape_definitions(),
@@ -136,11 +122,7 @@ pub(super) fn finalized_link_object_fixture() -> (
         production.canonical_shape_definitions(),
     )
     .unwrap();
-    let static_storage_registrations = crate::bind_static_storage_registrations_v1(
-        &patch_sites,
-        registrations.static_storages().clone(),
-    )
-    .unwrap();
+    let static_storage_registrations = registrations.static_storages().clone();
     let static_storage_objects = static_storage_registrations;
     let static_storage_definitions = static_storage_objects;
     let static_storage_shapes =
@@ -151,11 +133,7 @@ pub(super) fn finalized_link_object_fixture() -> (
         production.canonical_shape_definitions(),
     )
     .unwrap();
-    let initialization_registrations = crate::bind_initialization_registrations_v1(
-        &patch_sites,
-        registrations.initialization_units().clone(),
-    )
-    .unwrap();
+    let initialization_registrations = registrations.initialization_units().clone();
     let initialization_objects = initialization_registrations;
     let initialization_definitions = initialization_objects;
     let initializations = crate::compute_strong_initialization_fingerprints_v1(
@@ -165,10 +143,9 @@ pub(super) fn finalized_link_object_fixture() -> (
     )
     .unwrap();
     let image =
-        crate::bind_cone_image_v1(&patch_sites.clone(), production.image_plan().clone()).unwrap();
-    let entry =
-        crate::bind_entry_production_v1(patch_sites, production.entry_plan().clone()).unwrap();
-    let patched = crate::patch_strong_registration_fingerprints_v1(
+        crate::bind_cone_image_v1(&builtins.clone(), production.image_plan().clone()).unwrap();
+    let entry = crate::bind_entry_production_v1(builtins, production.entry_plan().clone()).unwrap();
+    let patched = crate::collect_registration_objects_v1(
         safepoints,
         callables,
         types,
@@ -182,17 +159,16 @@ pub(super) fn finalized_link_object_fixture() -> (
         CompatibilityRecord::new(selection(), ArtifactCapabilityProfile::CROSS_CONE_GENERIC)
             .unwrap();
     let image = crate::compute_runtime_image_fingerprint_v1(image, patched, compatibility).unwrap();
-    let image = crate::patch_runtime_image_fingerprint_v1(image).unwrap();
-    let final_objects = crate::patch_entry_production_v1(image, entry).unwrap();
+    let final_objects = crate::FinalRuntimeObjectsV1::new(image, entry);
     (production, final_objects, defined_symbols, requirements)
 }
 
 fn empty_undefined_requirements(
-    patch_sites: &crate::ScoopLirDigestPatchSitesV1,
+    builtins: &crate::VerifiedBuiltinObjectStrongRelocationSetV1,
     foundation: &ConeLirFoundation,
     production: &ConeProductionSectionV1,
 ) -> crate::CanonicalUndefinedSymbolRequirementSetV1 {
-    let strong = patch_sites.builtins().strong_relocations().clone();
+    let strong = builtins.strong_relocations().clone();
     let current = crate::verify_current_cone_undefined_requirements_v1(
         strong.clone(),
         production.generated_bridge_plan().clone(),

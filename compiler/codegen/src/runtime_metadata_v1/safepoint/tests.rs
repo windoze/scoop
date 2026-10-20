@@ -3,8 +3,8 @@ use inkwell::module::Linkage;
 use scoop_identity::ConeIdentity;
 
 use super::{
-    DIGEST_SIZE, NORMALIZED_STACKMAP_FINGERPRINT_OFFSET, SAFEPOINT_REGISTRATION_DESCRIPTOR_MAGIC,
-    SAFEPOINT_REGISTRATION_DESCRIPTOR_SIZE, emit_strong_safepoint_registrations_v1,
+    SAFEPOINT_REGISTRATION_DESCRIPTOR_MAGIC, SAFEPOINT_REGISTRATION_DESCRIPTOR_SIZE,
+    emit_strong_safepoint_registrations_v1,
 };
 use crate::runtime_metadata_v1::RuntimeMetadataV1Types;
 
@@ -12,7 +12,7 @@ mod support;
 use support::safepoint_plan;
 
 #[test]
-fn emits_closed_strong_record_and_both_zero_patch_sites() {
+fn emits_strong_record_with_owner_and_root_count() {
     let plan = safepoint_plan();
     let expected = plan.registrations()[0];
     let context = Context::create();
@@ -34,18 +34,7 @@ fn emits_closed_strong_record_and_both_zero_patch_sites() {
     let descriptor = registration.descriptor();
     assert_eq!(descriptor.get_linkage(), Linkage::External);
     assert!(descriptor.is_constant());
-    let stackmap_patch = registration.normalized_stackmap_patch();
-    assert_eq!(
-        stackmap_patch.intent(),
-        expected.normalized_stackmap_patch()
-    );
-    assert_eq!(stackmap_patch.definition(), expected.definition_plan());
-    assert_eq!(stackmap_patch.atom(), expected.primary_atom());
-    assert_eq!(
-        stackmap_patch.byte_offset(),
-        NORMALIZED_STACKMAP_FINGERPRINT_OFFSET
-    );
-    assert_eq!(stackmap_patch.byte_size(), DIGEST_SIZE);
+    assert_eq!(registration.primary_atom(), expected.primary_atom());
 
     let initializer = descriptor.get_initializer().unwrap().into_struct_value();
     let prefix = initializer
@@ -56,7 +45,7 @@ fn emits_closed_strong_record_and_both_zero_patch_sites() {
         constant_u64(prefix, 0),
         SAFEPOINT_REGISTRATION_DESCRIPTOR_MAGIC
     );
-    assert_eq!(constant_u64(prefix, 1), 8);
+    assert_eq!(constant_u64(prefix, 1), 9);
     assert_eq!(
         constant_u64(prefix, 2),
         SAFEPOINT_REGISTRATION_DESCRIPTOR_SIZE
@@ -104,13 +93,6 @@ fn emits_closed_strong_record_and_both_zero_patch_sites() {
             types(&context).digest,
             expected.owner().as_array()
         )
-    );
-    assert!(
-        initializer
-            .get_field_at_index(6)
-            .unwrap()
-            .into_struct_value()
-            .is_null()
     );
     llvm.verify().unwrap();
 }

@@ -1,6 +1,4 @@
-use scoop_identity::{
-    ConeIdentity, DigestNodeKey, DigestSemanticFieldRole, LinkageClass, PersistentSymbolKey,
-};
+use scoop_identity::{ConeIdentity, DigestNodeKey, LinkageClass, PersistentSymbolKey};
 
 use super::{StrongSafepointRegistrationPlanBuildError, StrongSafepointRegistrationPlanSetV1};
 
@@ -8,7 +6,7 @@ mod support;
 use support::{Fixture, FixtureOptions};
 
 #[test]
-fn joins_every_semantic_site_to_its_registration_and_digest_writers() {
+fn joins_every_semantic_site_to_its_registration_and_content_nodes() {
     let fixture = Fixture::new(FixtureOptions::default());
     let plan = fixture.build().unwrap();
 
@@ -109,7 +107,6 @@ fn rejects_missing_primary_atom_and_strong_symbol() {
     let no_primary = Fixture::new(FixtureOptions {
         include_primary_atoms: false,
 
-        normalized_stackmap_patch: false,
         ..FixtureOptions::default()
     });
     assert!(matches!(
@@ -133,29 +130,11 @@ fn rejects_missing_stackmap_digest_node() {
     let no_stackmap = Fixture::new(FixtureOptions {
         include_stackmap_nodes: false,
 
-        normalized_stackmap_patch: false,
         ..FixtureOptions::default()
     });
     assert!(matches!(
         no_stackmap.build(),
         Err(StrongSafepointRegistrationPlanBuildError::MissingDigestNode(key))
             if matches!(key.owner_and_role(), scoop_identity::DigestOwnerAndRoleKey::StackmapRecord(_))
-    ));
-}
-
-#[test]
-fn requires_the_normalized_stackmap_patch_writer() {
-    let no_stackmap_patch = Fixture::new(FixtureOptions {
-        normalized_stackmap_patch: false,
-        ..FixtureOptions::default()
-    });
-    assert!(matches!(
-        no_stackmap_patch.build(),
-        Err(StrongSafepointRegistrationPlanBuildError::PatchSet {
-            expected,
-            actual,
-            ..
-        }) if expected.semantic_field_role() == DigestSemanticFieldRole::NormalizedStackmap
-            && actual.is_empty()
     ));
 }

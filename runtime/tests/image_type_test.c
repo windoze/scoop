@@ -91,7 +91,6 @@ static void setup(Fixture *fixture) {
     data->image = (ScoopImageDescriptorV1){
         .prefix = prefix(SCOOP_IMAGE_DESCRIPTOR_MAGIC_V1, sizeof data->image),
         .cone = {name, name, name, {{1}}},
-        .runtime_image_fingerprint = {{1}},
         .dependencies = (const void *)data->empty,
         .static_storages = (const void *)data->empty,
         .immortal_objects = (const void *)data->empty,
@@ -108,18 +107,14 @@ static void setup(Fixture *fixture) {
             prefix(SCOOP_ROOT_ENTRY_DESCRIPTOR_MAGIC_V1, sizeof data->root),
         .owner_cone_identity = {{1}},
         .callable_id = {{1}},
-        .source_signature_fingerprint = {{1}},
-        .gateway_callable_id = {{2}},
-        .gateway_definition_fingerprint = {{2}}};
+        .gateway_callable_id = {{2}}};
     for (size_t index = 0; index < 4; index++) {
         data->types[index] = (ScoopTypeRegistrationDescriptorV1){
             .prefix = prefix(SCOOP_TYPE_REGISTRATION_DESCRIPTOR_MAGIC_V1,
                              sizeof data->types[index]),
             .registration = identity((uint8_t)(index + 1)),
             .runtime_type_id = index + 1,
-            .descriptor = td(data, index),
-            .descriptor_fingerprint = {{1}},
-            .layout_fingerprint = {{1}}};
+            .descriptor = td(data, index)};
         data->type_table[index] = &data->types[index];
         *td(data, index) = (ScoopTypeDescriptor){
             .type_id = index + 1,
@@ -158,7 +153,6 @@ static void setup(Fixture *fixture) {
             .prefix = prefix(SCOOP_CALLABLE_REGISTRATION_DESCRIPTOR_MAGIC_V1,
                              sizeof data->callables[index]),
             .registration = identity((uint8_t)(index + 1)),
-            .body_definition_fingerprint = {{(uint8_t)(index + 1)}},
             .entry = bodies[index]};
         data->callable_table[index] = &data->callables[index];
     }
@@ -170,8 +164,7 @@ static void setup(Fixture *fixture) {
             .registration = identity((uint8_t)(index + 1)),
             .safepoint_id = index + 1,
             .site_role = SCOOP_SAFEPOINT_MANAGED_POLL_V1,
-            .owner_callable_id = {{1}},
-            .normalized_stackmap_fingerprint = {{1}}};
+            .owner_callable_id = {{1}}};
         data->site_table[index] = &data->sites[index];
     }
 }

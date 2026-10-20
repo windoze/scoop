@@ -5,9 +5,8 @@ use std::fmt;
 
 use scoop_identity::{
     CallableBodyKey, DefinitionAtomRole, DigestKind, DigestNodeId, DigestNodeKey,
-    DigestPatchIntentKey, DigestSemanticFieldRole, ObjectDefinitionAtomId,
-    ObjectDefinitionIdentityError, ObjectDefinitionPlanId, PersistentCallableBodyId,
-    StrongDefinitionEntity, StrongDefinitionRole,
+    ObjectDefinitionAtomId, ObjectDefinitionIdentityError, ObjectDefinitionPlanId,
+    PersistentCallableBodyId, StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_wire::HashError;
 

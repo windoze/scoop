@@ -1,19 +1,16 @@
 use scoop_wire::{Encoder, HashError, WireEncode};
 
-use super::DefinitionAtomRole;
 use crate::ids::derive_persistent_id;
 use crate::{
-    ConeIdentity, DigestNodeId, DigestPatchIntentId, ObjectDefinitionAtomId,
-    ObjectDefinitionPlanId, PersistentCallableBodyId, PersistentLayoutId,
-    PersistentSafepointSiteId, PersistentScanId,
+    ConeIdentity, DigestNodeId, ObjectDefinitionAtomId, PersistentCallableBodyId,
+    PersistentLayoutId, PersistentSafepointSiteId, PersistentScanId,
 };
 
 mod decode;
 
 pub use decode::{
-    DecodedDigestNodeKey, DecodedDigestOwnerAndRoleKey, DecodedDigestPatchIntentKey,
-    DigestNodeKeyResolutionError, DigestOwnerResolver, DigestPatchIntentResolutionError,
-    DigestPatchIntentResolver,
+    DecodedDigestNodeKey, DecodedDigestOwnerAndRoleKey, DigestNodeKeyResolutionError,
+    DigestOwnerResolver,
 };
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -185,112 +182,6 @@ impl std::fmt::Display for DigestNodeKeyError {
 
 impl std::error::Error for DigestNodeKeyError {}
 
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub enum DigestSemanticFieldRole {
-    SourceSignature,
-    Layout,
-    Scan,
-    DescriptorDefinition,
-    CallableBodyDefinition,
-    GatewayDefinition,
-    NormalizedStackmap,
-    RuntimeImage,
-}
-
-impl DigestSemanticFieldRole {
-    pub const fn tag(self) -> u32 {
-        match self {
-            Self::SourceSignature => 2,
-            Self::Layout => 3,
-            Self::Scan => 4,
-            Self::DescriptorDefinition => 5,
-            Self::CallableBodyDefinition => 6,
-            Self::GatewayDefinition => 7,
-            Self::NormalizedStackmap => 8,
-            Self::RuntimeImage => 9,
-        }
-    }
-
-    pub const fn accepts_source(self, kind: DigestKind) -> bool {
-        match self {
-            Self::SourceSignature => matches!(kind, DigestKind::SourceSignature),
-            Self::Layout => matches!(kind, DigestKind::Layout),
-            Self::Scan => matches!(kind, DigestKind::Scan),
-            Self::DescriptorDefinition | Self::CallableBodyDefinition | Self::GatewayDefinition => {
-                matches!(kind, DigestKind::ObjectDefinition)
-            }
-            Self::NormalizedStackmap => matches!(kind, DigestKind::StackmapRecord),
-            Self::RuntimeImage => matches!(kind, DigestKind::RuntimeImage),
-        }
-    }
-}
-
-impl WireEncode for DigestSemanticFieldRole {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.unsigned(u64::from(self.tag()))
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct DigestPatchIntentKey {
-    source: DigestNodeId,
-    target_definition: ObjectDefinitionPlanId,
-    atom_role: DefinitionAtomRole,
-    semantic_field_role: DigestSemanticFieldRole,
-}
-
-impl DigestPatchIntentKey {
-    pub const fn new(
-        source: DigestNodeId,
-        target_definition: ObjectDefinitionPlanId,
-        atom_role: DefinitionAtomRole,
-        semantic_field_role: DigestSemanticFieldRole,
-    ) -> Self {
-        Self {
-            source,
-            target_definition,
-            atom_role,
-            semantic_field_role,
-        }
-    }
-
-    pub const fn source(self) -> DigestNodeId {
-        self.source
-    }
-
-    pub const fn target_definition(self) -> ObjectDefinitionPlanId {
-        self.target_definition
-    }
-
-    pub const fn atom_role(self) -> DefinitionAtomRole {
-        self.atom_role
-    }
-
-    pub const fn semantic_field_role(self) -> DigestSemanticFieldRole {
-        self.semantic_field_role
-    }
-}
-
-impl WireEncode for DigestPatchIntentKey {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(4)?;
-        encoder.field(1)?;
-        self.source.encode(encoder)?;
-        encoder.field(2)?;
-        self.target_definition.encode(encoder)?;
-        encoder.field(3)?;
-        self.atom_role.encode(encoder)?;
-        encoder.field(4)?;
-        self.semantic_field_role.encode(encoder)
-    }
-}
-
-impl DigestPatchIntentId {
-    pub fn from_key(key: &DigestPatchIntentKey) -> Result<Self, HashError> {
-        derive_persistent_id("scoop-digest-patch-intent-id-v1", key)
-    }
-}
-
 fn encode_tag(encoder: &mut Encoder, tag: u64) -> Result<(), scoop_wire::cbor::EncodeError> {
     encoder.field(0)?;
     encoder.unsigned(tag)
@@ -311,14 +202,8 @@ fn encode_value_sum(
 mod tests {
     use scoop_wire::encode;
 
-    use super::{
-        DigestKind, DigestNodeKey, DigestOwnerAndRoleKey, DigestPatchIntentKey,
-        DigestSemanticFieldRole,
-    };
-    use crate::{
-        ConeIdentity, DefinitionAtomRole, DigestNodeId, DigestPatchIntentId,
-        ObjectDefinitionPlanId, PersistentCallableBodyId,
-    };
+    use super::{DigestKind, DigestNodeKey, DigestOwnerAndRoleKey};
+    use crate::{ConeIdentity, DigestNodeId, PersistentCallableBodyId};
 
     #[test]
     fn digest_kinds_and_owners_keep_their_independent_wire_tags() {
@@ -364,79 +249,17 @@ mod tests {
                 }
             );
         }
-        assert!(decode_canonical::<DigestSemanticFieldRole>(&[1]).is_err());
     }
 
     #[test]
-    fn semantic_field_roles_close_the_source_kind_matrix() {
-        use DigestKind as K;
-        use DigestSemanticFieldRole as R;
-
-        let cases = [
-            (R::SourceSignature, K::SourceSignature),
-            (R::Layout, K::Layout),
-            (R::Scan, K::Scan),
-            (R::DescriptorDefinition, K::ObjectDefinition),
-            (R::CallableBodyDefinition, K::ObjectDefinition),
-            (R::GatewayDefinition, K::ObjectDefinition),
-            (R::NormalizedStackmap, K::StackmapRecord),
-            (R::RuntimeImage, K::RuntimeImage),
-        ];
-        let all_kinds = [
-            K::SourceSignature,
-            K::Layout,
-            K::Scan,
-            K::ObjectSupport,
-            K::ObjectDefinition,
-            K::StackmapRecord,
-            K::RuntimeImage,
-        ];
-
-        for role in [
-            R::SourceSignature,
-            R::Layout,
-            R::Scan,
-            R::DescriptorDefinition,
-            R::CallableBodyDefinition,
-            R::GatewayDefinition,
-            R::NormalizedStackmap,
-            R::RuntimeImage,
-        ] {
-            for kind in all_kinds {
-                assert_eq!(
-                    role.accepts_source(kind),
-                    cases.contains(&(role, kind)),
-                    "unexpected source matrix result for {role:?} and {kind:?}"
-                );
-            }
-        }
-    }
-
-    #[test]
-    fn node_and_patch_identities_have_fixed_preimages() {
+    fn node_identities_have_fixed_preimages() {
         let source_key =
             DigestNodeKey::source_signature(PersistentCallableBodyId(ConeIdentity::SINGLE_FILE.0));
         let source = DigestNodeId::from_key(&source_key).unwrap();
-        let target_definition = ObjectDefinitionPlanId(ConeIdentity::SINGLE_FILE.0);
-        let patch_key = DigestPatchIntentKey::new(
-            source,
-            target_definition,
-            DefinitionAtomRole::RuntimeRecord,
-            DigestSemanticFieldRole::SourceSignature,
-        );
-
         assert_eq!(
             source.to_string(),
             "68ed239bb24f76f50d6c54b3cd54f985e787d8110f841b2009f2613d4025ce1e"
         );
-        assert_eq!(
-            DigestPatchIntentId::from_key(&patch_key)
-                .unwrap()
-                .to_string(),
-            "3678a782a91d9905b2c16e94b81b33fc29b38614025bb730cf2cc51e7d06e946"
-        );
-        assert_eq!(patch_key.source(), source);
-        assert_eq!(patch_key.target_definition(), target_definition);
         assert_eq!(
             source_key.owner_and_role(),
             DigestOwnerAndRoleKey::SourceSignature(PersistentCallableBodyId(

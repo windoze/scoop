@@ -15,8 +15,7 @@ static const ScoopTypeDescriptor payload_type = {
     .type_id = 1,
     .instance_shape = {.instance_kind = SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1,
                        .minimum_size = sizeof(Payload),
-                       .instance_alignment = _Alignof(Payload)},
-};
+                       .instance_alignment = _Alignof(Payload)}};
 const ScoopTypeDescriptor scoop_td_String = {
     .type_id = 2,
     .instance_shape = {.instance_kind = SCOOP_TYPE_INSTANCE_INLINE_BYTES_V1,
@@ -26,8 +25,7 @@ const ScoopTypeDescriptor scoop_td_String = {
                        .inline_offset = sizeof(ScoopString),
                        .inline_size = 1,
                        .inline_stride = 1,
-                       .inline_alignment = 1},
-};
+                       .inline_alignment = 1}};
 
 typedef struct TestUnit {
     ScoopInitializationCell cell;

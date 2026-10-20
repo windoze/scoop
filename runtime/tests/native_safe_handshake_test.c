@@ -25,8 +25,7 @@ static const ScoopTypeDescriptor leaf_td = {
                        .inline_storage_kind = SCOOP_INLINE_STORAGE_NONE_V1,
                        .minimum_size = sizeof(Leaf),
                        .instance_alignment = _Alignof(Leaf)},
-    .diagnostic_name = {(const uint8_t *)"NativeSafeLeaf", sizeof("NativeSafeLeaf") - 1},
-};
+    .diagnostic_name = {(const uint8_t *)"NativeSafeLeaf", sizeof("NativeSafeLeaf") - 1}};
 static const uint64_t one_root_scan[] = {1, 0};
 
 typedef enum Scenario { RETURN_DURING_SCAN, RETURN_BEFORE_STOP, SILENT_PUBLICATION } Scenario;

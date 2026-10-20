@@ -39,7 +39,6 @@ pub(crate) fn with_empty_layout_code_fixture<R>(
     let member_plan = &objects
         .final_objects()
         .entry()
-        .patch_sites()
         .builtins()
         .member_plan()
         .scoop_lir_members()[0];
@@ -96,7 +95,6 @@ pub(crate) fn with_empty_layout_code_fixture<R>(
         .link_objects()
         .final_objects()
         .entry()
-        .patch_sites()
         .builtins()
         .strong_relocations()
         .clone();

@@ -4,7 +4,6 @@ use inkwell::values::{GlobalValue, StructValue};
 use scoop_identity::ConeIdentity;
 
 use super::{
-    DESCRIPTOR_DEFINITION_FINGERPRINT_OFFSET, DIGEST_SIZE, LAYOUT_FINGERPRINT_OFFSET,
     TYPE_REGISTRATION_DESCRIPTOR_MAGIC, TYPE_REGISTRATION_DESCRIPTOR_SIZE,
     emit_strong_type_registrations_v1,
 };
@@ -14,7 +13,7 @@ mod support;
 use support::type_plan;
 
 #[test]
-fn emits_closed_strong_record_descriptor_and_two_zero_patch_sites() {
+fn emits_strong_record_with_type_descriptor() {
     let plan = type_plan(1);
     let expected = &plan.registrations()[0];
     let context = Context::create();
@@ -31,22 +30,7 @@ fn emits_closed_strong_record_descriptor_and_two_zero_patch_sites() {
     assert_eq!(descriptor.get_linkage(), Linkage::External);
     assert!(descriptor.is_constant());
 
-    assert_patch(
-        registration.descriptor_definition_patch(),
-        expected.descriptor_definition_patch(),
-        expected.definition_plan(),
-        expected.primary_atom(),
-        descriptor,
-        DESCRIPTOR_DEFINITION_FINGERPRINT_OFFSET,
-    );
-    assert_patch(
-        registration.layout_fingerprint_patch(),
-        expected.layout_fingerprint_patch(),
-        expected.definition_plan(),
-        expected.primary_atom(),
-        descriptor,
-        LAYOUT_FINGERPRINT_OFFSET,
-    );
+    assert_eq!(registration.primary_atom(), expected.primary_atom());
 
     let initializer = descriptor.get_initializer().unwrap().into_struct_value();
     let prefix = initializer
@@ -54,7 +38,7 @@ fn emits_closed_strong_record_descriptor_and_two_zero_patch_sites() {
         .unwrap()
         .into_struct_value();
     assert_eq!(constant_u64(prefix, 0), TYPE_REGISTRATION_DESCRIPTOR_MAGIC);
-    assert_eq!(constant_u64(prefix, 1), 8);
+    assert_eq!(constant_u64(prefix, 1), 9);
     assert_eq!(constant_u64(prefix, 2), TYPE_REGISTRATION_DESCRIPTOR_SIZE);
     let identity = initializer
         .get_field_at_index(1)
@@ -88,15 +72,6 @@ fn emits_closed_strong_record_descriptor_and_two_zero_patch_sites() {
             .into_pointer_value(),
         type_descriptor.as_pointer_value()
     );
-    for index in 5..=6 {
-        assert!(
-            initializer
-                .get_field_at_index(index)
-                .unwrap()
-                .into_struct_value()
-                .is_null()
-        );
-    }
     llvm.verify().unwrap();
 }
 
@@ -157,22 +132,6 @@ fn declare_type_descriptor<'ctx>(
     descriptor.set_linkage(Linkage::External);
     descriptor.set_constant(true);
     descriptor
-}
-
-fn assert_patch(
-    patch: super::TypeRegistrationPatchSiteV1<'_>,
-    intent: scoop_lir::DigestPatchIntentId,
-    definition: scoop_lir::ObjectDefinitionPlanId,
-    atom: scoop_lir::ObjectDefinitionAtomId,
-    owner: GlobalValue<'_>,
-    byte_offset: u64,
-) {
-    assert_eq!(patch.intent(), intent);
-    assert_eq!(patch.definition(), definition);
-    assert_eq!(patch.atom(), atom);
-    assert_eq!(patch.byte_offset(), byte_offset);
-    assert_eq!(patch.byte_size(), DIGEST_SIZE);
-    assert_eq!(patch.owner().get_name(), owner.get_name());
 }
 
 fn constant_u64(value: StructValue<'_>, index: u32) -> u64 {

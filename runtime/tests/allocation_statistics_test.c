@@ -12,14 +12,12 @@ static const ScoopTypeDescriptor old_td = {
     .instance_shape = {.instance_kind = SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1,
                        .minimum_size = sizeof(NurseryNode),
                        .instance_alignment = 8},
-    .release_hook = unused_release,
-};
+    .release_hook = unused_release};
 static const ScoopTypeDescriptor large_td = {
     .type_id = 812,
     .instance_shape = {.instance_kind = SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1,
                        .minimum_size = LARGE_BYTES,
-                       .instance_alignment = 8},
-};
+                       .instance_alignment = 8}};
 
 static void *allocate_and_detach(void *argument) {
     (void)argument;

@@ -1,9 +1,5 @@
 use super::*;
 
-pub(crate) fn strong_production() -> ConeProductionSectionV1 {
-    strong_production_fixture(cone().coordinate().clone(), &[ConeIdentity::CORE]).1
-}
-
 pub(crate) fn strong_production_fixture(
     coordinate: ConeCoordinate,
     direct_dependencies: &[ConeIdentity],
@@ -32,14 +28,8 @@ pub(crate) fn strong_production_fixture(
     canonical.set_symbol_requests(PersistentSymbolRequestTable::new(vec![symbol]).unwrap());
     let foundation = ConeLirFoundation::try_new(producer, canonical.clone()).unwrap();
     let image_key = DigestNodeKey::runtime_image(producer);
-    let image_id = DigestNodeId::from_key(&image_key).unwrap();
-    let patch = DigestPatchIntentKey::new(
-        image_id,
-        definition_id,
-        DefinitionAtomRole::Primary,
-        DigestSemanticFieldRole::RuntimeImage,
-    );
-    let image = scoop_lir::DigestNodeV1::new(image_key, Vec::new(), vec![patch]).unwrap();
+
+    let image = scoop_lir::DigestNodeV1::new(image_key, Vec::new()).unwrap();
     let digests = DigestFinalizationPlanV1::new(vec![image], &foundation).unwrap();
 
     let registrations = scoop_lir::StrongRegistrationProductionSurfaceV1::empty(
@@ -142,10 +132,6 @@ pub(in super::super) fn cone() -> ConeRecord {
         ConeSourceForm::Manifest,
     )
     .unwrap()
-}
-
-pub(super) fn digest_patch_intent() -> scoop_identity::DigestPatchIntentId {
-    strong_production().digest_finalization_plan().nodes()[0].patch_intents()[0].id()
 }
 
 pub(super) fn selection() -> ValidatedLirTargetSelection {

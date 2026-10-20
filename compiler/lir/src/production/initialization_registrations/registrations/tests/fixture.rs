@@ -14,8 +14,6 @@ pub(super) struct Options {
     pub(super) omit_cell_symbol: bool,
     pub(super) omit_registration_primary: bool,
     pub(super) omit_diagnostic_atom: bool,
-    pub(super) omit_gateway_patch: bool,
-    pub(super) unexpected_lazy_gateway_patch: bool,
 }
 
 pub(super) struct DefinitionArtifacts {
@@ -244,7 +242,7 @@ impl Fixture {
         canonical.set_symbol_requests(PersistentSymbolRequestTable::new(symbols).unwrap());
 
         let foundation = ConeLirFoundation::try_new(producer, canonical).unwrap();
-        let digests = digest_plan(&foundation, &registration, &callables, options);
+        let digests = digest_plan(&foundation, &callables);
         let identities = RegistrationIdentitySurfaceV1::from_foundation(&foundation).unwrap();
         Self {
             foundation,

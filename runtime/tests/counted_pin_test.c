@@ -19,8 +19,7 @@ static const ScoopTypeDescriptor large_td = {
     .instance_shape = {.instance_kind = SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1,
                        .minimum_size = sizeof(LargeNode),
                        .instance_alignment = 8},
-    .object_scan = nursery_node_scan,
-};
+    .object_scan = nursery_node_scan};
 
 static void test_counts(const ScoopTypeDescriptor *td, size_t count) {
     NurseryNode *objects[128];

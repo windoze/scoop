@@ -3,11 +3,10 @@
 use std::fmt;
 
 use scoop_identity::{
-    ConeIdentity, DefinitionAtomRole, DigestNodeId, DigestNodeKey, DigestPatchIntentId,
-    DigestPatchIntentKey, DigestSemanticFieldRole, LinkageClass, ObjectDefinitionAtomId,
-    ObjectDefinitionAtomKey, ObjectDefinitionIdentityError, ObjectDefinitionPlanId,
-    PersistentSymbolError, PersistentSymbolKey, PersistentSymbolRequest, StrongDefinitionEntity,
-    StrongDefinitionRole,
+    ConeIdentity, DefinitionAtomRole, DigestNodeId, DigestNodeKey, LinkageClass,
+    ObjectDefinitionAtomId, ObjectDefinitionAtomKey, ObjectDefinitionIdentityError,
+    ObjectDefinitionPlanId, PersistentSymbolError, PersistentSymbolKey, PersistentSymbolRequest,
+    StrongDefinitionEntity, StrongDefinitionRole,
 };
 
 use super::{
@@ -41,8 +40,6 @@ pub struct StrongStaticStorageRegistrationPlanV1 {
 
     layout_fingerprint_node: DigestNodeId,
     scan_fingerprint_node: DigestNodeId,
-    layout_fingerprint_patch: DigestPatchIntentId,
-    scan_fingerprint_patch: DigestPatchIntentId,
 }
 
 impl StrongStaticStorageRegistrationPlanV1 {
@@ -112,14 +109,6 @@ impl StrongStaticStorageRegistrationPlanV1 {
 
     pub const fn scan_fingerprint_node(&self) -> DigestNodeId {
         self.scan_fingerprint_node
-    }
-
-    pub const fn layout_fingerprint_patch(&self) -> DigestPatchIntentId {
-        self.layout_fingerprint_patch
-    }
-
-    pub const fn scan_fingerprint_patch(&self) -> DigestPatchIntentId {
-        self.scan_fingerprint_patch
     }
 }
 
@@ -335,24 +324,6 @@ fn build_registration(
     let layout_fingerprint =
         require_digest_node(digests, DigestNodeKey::layout(semantic.layout()))?;
     let scan_fingerprint = require_digest_node(digests, DigestNodeKey::scan(semantic.scan()))?;
-    let layout_fingerprint_patch = require_patch(
-        layout_fingerprint,
-        DigestPatchIntentKey::new(
-            layout_fingerprint.id(),
-            registration_definition.id(),
-            DefinitionAtomRole::Primary,
-            DigestSemanticFieldRole::Layout,
-        ),
-    )?;
-    let scan_fingerprint_patch = require_patch(
-        scan_fingerprint,
-        DigestPatchIntentKey::new(
-            scan_fingerprint.id(),
-            registration_definition.id(),
-            DefinitionAtomRole::Primary,
-            DigestSemanticFieldRole::Scan,
-        ),
-    )?;
 
     Ok(StrongStaticStorageRegistrationPlanV1 {
         semantic: semantic.clone(),
@@ -373,8 +344,6 @@ fn build_registration(
 
         layout_fingerprint_node: layout_fingerprint.id(),
         scan_fingerprint_node: scan_fingerprint.id(),
-        layout_fingerprint_patch,
-        scan_fingerprint_patch,
     })
 }
 
@@ -526,22 +495,6 @@ fn require_digest_node(
         .ok_or(StrongStaticStorageRegistrationPlanBuildError::MissingDigestNode(key))
 }
 
-fn require_patch(
-    node: &DigestNodeV1,
-    expected: DigestPatchIntentKey,
-) -> Result<DigestPatchIntentId, StrongStaticStorageRegistrationPlanBuildError> {
-    node.patch_intents()
-        .iter()
-        .find(|patch| patch.key() == &expected)
-        .map(|patch| patch.id())
-        .ok_or(
-            StrongStaticStorageRegistrationPlanBuildError::MissingPatch {
-                node: node.id(),
-                expected: Box::new(expected),
-            },
-        )
-}
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum StaticStorageObjectLeafV1 {
     Registration,
@@ -624,20 +577,6 @@ pub enum StrongStaticStorageRegistrationPlanBuildError {
         leaf: StaticStorageObjectLeafV1,
         node: DigestNodeId,
         actual: Vec<DigestInputRefV1>,
-    },
-    ObjectLeafPatches {
-        leaf: StaticStorageObjectLeafV1,
-        node: DigestNodeId,
-        actual: Vec<DigestPatchIntentKey>,
-    },
-    PatchSet {
-        node: DigestNodeId,
-        expected: Box<DigestPatchIntentKey>,
-        actual: Vec<DigestPatchIntentKey>,
-    },
-    MissingPatch {
-        node: DigestNodeId,
-        expected: Box<DigestPatchIntentKey>,
     },
 }
 

@@ -8,7 +8,7 @@ pub(crate) fn complete_requirements(
 {
     let bridge_plan = input.production.generated_bridge_plan();
     let current = verify_current_cone_undefined_requirements_v1(
-        input.patch_sites.builtins().strong_relocations().clone(),
+        input.builtins.strong_relocations().clone(),
         bridge_plan.clone(),
     )
     .map_err(BuiltinObjectProductionError::CurrentConeRequirements)?;

@@ -130,7 +130,7 @@ where
         .collect();
     let dependencies = super::dependency_fingerprints::compute(&registrations, &objects)
         .map_err(StrongTypeFingerprintError::Dependencies)?;
-    let mut fingerprints = Vec::with_capacity(registrations.registrations().len());
+    let mut fingerprints = Vec::with_capacity(registrations.plan().registrations().len());
     for (plan, dependency) in registrations
         .plan()
         .registrations()

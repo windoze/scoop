@@ -19,8 +19,7 @@ const ScoopTypeDescriptor scoop_td_String = {
             .inline_stride = 1,
             .inline_alignment = 1,
         },
-    .diagnostic_name = {(const uint8_t *)"String", sizeof("String") - 1},
-};
+    .diagnostic_name = {(const uint8_t *)"String", sizeof("String") - 1}};
 
 void *scoop_gc_alloc_internal(const ScoopTypeDescriptor *td, size_t size) {
     (void)td;

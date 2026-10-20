@@ -3,8 +3,8 @@ use inkwell::module::Linkage;
 use scoop_identity::ConeIdentity;
 
 use super::{
-    BODY_DEFINITION_FINGERPRINT_OFFSET, CALLABLE_REGISTRATION_DESCRIPTOR_MAGIC,
-    CALLABLE_REGISTRATION_DESCRIPTOR_SIZE, DIGEST_SIZE, emit_strong_callable_registrations_v1,
+    CALLABLE_REGISTRATION_DESCRIPTOR_MAGIC, CALLABLE_REGISTRATION_DESCRIPTOR_SIZE,
+    emit_strong_callable_registrations_v1,
 };
 use crate::runtime_metadata_v1::RuntimeMetadataV1Types;
 
@@ -12,7 +12,7 @@ mod support;
 use support::callable_plan;
 
 #[test]
-fn emits_closed_strong_record_entry_and_zero_body_patch_site() {
+fn emits_strong_record_identity_and_entry() {
     let (plan, surface) = callable_plan();
     let expected = plan.registrations()[0];
     let context = Context::create();
@@ -40,12 +40,7 @@ fn emits_closed_strong_record_entry_and_zero_body_patch_site() {
     let descriptor = registration.descriptor();
     assert_eq!(descriptor.get_linkage(), Linkage::External);
     assert!(descriptor.is_constant());
-    let body_patch = registration.body_definition_patch();
-    assert_eq!(body_patch.intent(), expected.body_definition_patch());
-    assert_eq!(body_patch.definition(), expected.definition_plan());
-    assert_eq!(body_patch.atom(), expected.primary_atom());
-    assert_eq!(body_patch.byte_offset(), BODY_DEFINITION_FINGERPRINT_OFFSET);
-    assert_eq!(body_patch.byte_size(), DIGEST_SIZE);
+    assert_eq!(registration.primary_atom(), expected.primary_atom());
 
     let initializer = descriptor.get_initializer().unwrap().into_struct_value();
     let prefix = initializer
@@ -56,7 +51,7 @@ fn emits_closed_strong_record_entry_and_zero_body_patch_site() {
         constant_u64(prefix, 0),
         CALLABLE_REGISTRATION_DESCRIPTOR_MAGIC
     );
-    assert_eq!(constant_u64(prefix, 1), 8);
+    assert_eq!(constant_u64(prefix, 1), 9);
     assert_eq!(
         constant_u64(prefix, 2),
         CALLABLE_REGISTRATION_DESCRIPTOR_SIZE
@@ -84,16 +79,9 @@ fn emits_closed_strong_record_entry_and_zero_body_patch_site() {
                 .is_null()
         );
     }
-    assert!(
-        initializer
-            .get_field_at_index(2)
-            .unwrap()
-            .into_struct_value()
-            .is_null()
-    );
     assert_eq!(
         initializer
-            .get_field_at_index(3)
+            .get_field_at_index(2)
             .unwrap()
             .into_pointer_value(),
         entry.as_global_value().as_pointer_value()

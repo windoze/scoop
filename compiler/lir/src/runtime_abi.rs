@@ -2,7 +2,7 @@
 //! link-object verification.
 
 /// Version shared by emitted runtime records and artifact readers.
-pub const RUNTIME_METADATA_ABI_VERSION_V1: u32 = 8;
+pub const RUNTIME_METADATA_ABI_VERSION_V1: u32 = 9;
 
 use std::collections::BTreeMap;
 use std::fmt;
@@ -67,7 +67,7 @@ impl WireEncode for RuntimeAbiContract {
         for field in 1..=3 {
             encoder.field(field)?;
             encoder.unsigned(match field {
-                1 => 13,
+                1 => 14,
                 3 => 2,
                 _ => INITIAL_SCHEMA,
             })?;
@@ -792,11 +792,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn runtime_abi_contract_versions_exception_reference_semantics() {
-        assert_eq!(hex(&encode(&RuntimeAbiContract).unwrap()), "a3010d02010302");
+    fn runtime_abi_contract_versions_current_metadata_layout() {
+        assert_eq!(hex(&encode(&RuntimeAbiContract).unwrap()), "a3010e02010302");
         assert_eq!(
             RuntimeAbiContract.fingerprint().unwrap().to_string(),
-            "7f6b81cc9c8c1046ac6623fde91708f32aa0170c53f7e75f12466250d1f7be33"
+            "59ffdf49e0a70aed93e58d2a094211793eb4daa234474ebb21a7760be036cb37"
         );
     }
 
@@ -871,7 +871,7 @@ mod tests {
         assert_eq!(allocation.symbol(), RuntimeAbiSymbolV1::AllocationContext);
         assert_eq!(
             allocation.id().to_string(),
-            "a8ce2e2ef92418d730e39184c0b6504b2dd4e2d38832a83ca9b279262db8ba7b"
+            "b740cdb570835de93631ef79eca73cefb5eec79098710ab793a073e83e974d01"
         );
         assert!(
             registry
@@ -927,7 +927,7 @@ mod tests {
                 .unwrap()
                 .id()
                 .to_string(),
-            "d69447bd6bf434c1228363fe11bbbb0841252df5cff6399d10b758e11eecd7b3"
+            "6959831f4677cfdaa65ba01124f463f0084dd22e3cf509c5227bcfddb1eb1c22"
         );
     }
 

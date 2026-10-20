@@ -36,7 +36,6 @@ impl<S: WireEncode> WireEncode for LayoutCodeFingerprintInputV1<'_, S> {
         self.objects
             .final_objects()
             .entry()
-            .patch_sites()
             .builtins()
             .c_bridge_production()
             .production()

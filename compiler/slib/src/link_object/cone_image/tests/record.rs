@@ -1,6 +1,6 @@
 use scoop_lir::ConeImagePlanV1;
 
-pub(super) const IMAGE_DESCRIPTOR_SIZE: usize = 240;
+pub(super) const IMAGE_DESCRIPTOR_SIZE: usize = 208;
 const IMAGE_DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5049_4d47;
 const METADATA_ABI_VERSION: u32 = scoop_lir::RUNTIME_METADATA_ABI_VERSION_V1;
 
@@ -21,29 +21,29 @@ pub(super) fn expected_image_record(plan: &ConeImagePlanV1) -> [u8; IMAGE_DESCRI
         56,
         plan.cone().coordinate().version().len() as u64,
     );
-    write_u64(&mut bytes, 136, plan.dependencies().len() as u64);
+    write_u64(&mut bytes, 104, plan.dependencies().len() as u64);
     write_u64(
         &mut bytes,
-        152,
+        120,
         plan.tables().static_storages().len() as u64,
     );
     write_u64(
         &mut bytes,
-        168,
+        136,
         plan.tables().immortal_objects().len() as u64,
     );
     write_u64(
         &mut bytes,
-        184,
+        152,
         plan.tables().initialization_units().len() as u64,
     );
     write_u64(
         &mut bytes,
-        200,
+        168,
         plan.tables().type_registrations().len() as u64,
     );
-    write_u64(&mut bytes, 216, plan.tables().safepoints().len() as u64);
-    write_u64(&mut bytes, 232, plan.tables().callables().len() as u64);
+    write_u64(&mut bytes, 184, plan.tables().safepoints().len() as u64);
+    write_u64(&mut bytes, 200, plan.tables().callables().len() as u64);
     bytes
 }
 

@@ -1,12 +1,11 @@
 use la_arena::Arena;
 use scoop_identity::{
     CanonicalIdentifier, CborIdentityRecord, ConeIdentity, DeclarationScope, DefinitionAtomRole,
-    DefinitionAtomSubkey, DefinitionOwnerChain, DigestNodeId, DigestNodeKey, DigestPatchIntentKey,
-    DigestSemanticFieldRole, ExactTypeKey, LinkageClass, ObjectDefinitionAtomKey,
-    ObjectDefinitionPlanKey, PackagePath, PersistentExactTypeId, PersistentFunctionId,
-    PersistentSymbolKey, PersistentSymbolRequest, PersistentSymbolRequestTable, PersistentTypeId,
-    SourceDeclarationKey, SourceDeclarationSite, SourceNominalKind, StrongDefinitionEntity,
-    StrongDefinitionRole,
+    DefinitionAtomSubkey, DefinitionOwnerChain, DigestNodeKey, ExactTypeKey, LinkageClass,
+    ObjectDefinitionAtomKey, ObjectDefinitionPlanKey, PackagePath, PersistentExactTypeId,
+    PersistentFunctionId, PersistentSymbolKey, PersistentSymbolRequest,
+    PersistentSymbolRequestTable, PersistentTypeId, SourceDeclarationKey, SourceDeclarationSite,
+    SourceNominalKind, StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_lir::{
     AbiReturn, BasicBlock, CallTarget, CallTargets, CallableBodyIdentity, CanonicalCAbiMetadata,
@@ -64,22 +63,11 @@ pub(super) fn safepoint_plan() -> StrongSafepointRegistrationPlanSetV1 {
     let foundation = ConeLirFoundation::try_new(ConeIdentity::SINGLE_FILE, canonical).unwrap();
 
     let stackmap_key = DigestNodeKey::stackmap_record(safepoint.site_id());
-    let stackmap_id = DigestNodeId::from_key(&stackmap_key).unwrap();
-    let stackmap = DigestNodeV1::new(
-        stackmap_key,
-        Vec::new(),
-        vec![DigestPatchIntentKey::new(
-            stackmap_id,
-            plan.id(),
-            DefinitionAtomRole::Primary,
-            DigestSemanticFieldRole::NormalizedStackmap,
-        )],
-    )
-    .unwrap();
+
+    let stackmap = DigestNodeV1::new(stackmap_key, Vec::new()).unwrap();
     let image = DigestNodeV1::new(
         DigestNodeKey::runtime_image(ConeIdentity::SINGLE_FILE),
         vec![DigestInputRefV1::from_node(&stackmap)],
-        Vec::new(),
     )
     .unwrap();
     let digests = DigestFinalizationPlanV1::new(vec![stackmap, image], &foundation).unwrap();

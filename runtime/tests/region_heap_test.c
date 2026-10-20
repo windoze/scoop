@@ -7,14 +7,12 @@ static const ScoopTypeDescriptor huge_td = {
     .type_id = 901,
     .instance_shape = {.instance_kind = SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1,
                        .minimum_size = HUGE_SIZE,
-                       .instance_alignment = 16},
-};
+                       .instance_alignment = 16}};
 static const ScoopTypeDescriptor wide_td = {
     .type_id = 902,
     .instance_shape = {.instance_kind = SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1,
                        .minimum_size = 30000,
-                       .instance_alignment = 16},
-};
+                       .instance_alignment = 16}};
 
 static void huge_mapping(void) {
     void *root = nursery_allocate(&huge_td, HUGE_SIZE);

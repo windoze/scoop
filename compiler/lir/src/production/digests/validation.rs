@@ -1,9 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use scoop_identity::{
-    CborIdentityRecord, DefinitionAtomRole, DigestKind, DigestNodeId, DigestOwnerAndRoleKey,
-    DigestPatchIntentId, DigestPatchIntentKey, DigestSemanticFieldRole, ObjectDefinitionPlanId,
-};
+use scoop_identity::{DigestKind, DigestNodeId, DigestOwnerAndRoleKey, ObjectDefinitionPlanId};
 
 use super::{DigestInputRefV1, DigestNodeV1};
 
@@ -46,25 +43,6 @@ pub enum DigestPlanError {
         node: DigestNodeId,
         input: DigestNodeId,
     },
-    ForeignPatchSource {
-        node: DigestNodeId,
-        source: DigestNodeId,
-    },
-    PatchSourceKind {
-        node: DigestNodeId,
-        kind: DigestKind,
-        role: DigestSemanticFieldRole,
-    },
-    DuplicatePatchIntent {
-        node: DigestNodeId,
-        intent: DigestPatchIntentId,
-    },
-    DuplicatePatchWriter {
-        first: DigestPatchIntentId,
-        second: DigestPatchIntentId,
-    },
-    MissingPatchTarget(DigestPatchIntentId),
-    AmbiguousPatchTarget(DigestPatchIntentId),
 }
 
 pub(super) fn validate_node_order(nodes: &[DigestNodeV1]) -> Result<(), DigestPlanError> {
@@ -87,14 +65,6 @@ pub(super) fn validate_plan(
         .map(|node| (node.id(), node.kind()))
         .collect::<BTreeMap<_, _>>();
     let mut image = None;
-    let mut writers = BTreeMap::new();
-    let mut targets = BTreeMap::new();
-    for atom in foundation.definition_atoms() {
-        *targets
-            .entry((atom.key().plan(), atom.key().role()))
-            .or_insert(0_usize) += 1;
-    }
-
     for node in nodes {
         validate_owner(node, foundation)?;
         if node.kind() == DigestKind::RuntimeImage {
@@ -109,12 +79,6 @@ pub(super) fn validate_plan(
             return Err(DigestPlanError::DuplicateInput {
                 node: node.id(),
                 input,
-            });
-        }
-        if let Some(intent) = first_duplicate_patch(&node.patch_intents) {
-            return Err(DigestPlanError::DuplicatePatchIntent {
-                node: node.id(),
-                intent,
             });
         }
 
@@ -142,35 +106,6 @@ pub(super) fn validate_plan(
                 });
             }
         }
-
-        for patch in &node.patch_intents {
-            let key = patch.key();
-            if key.source() != node.id() {
-                return Err(DigestPlanError::ForeignPatchSource {
-                    node: node.id(),
-                    source: key.source(),
-                });
-            }
-            if !key.semantic_field_role().accepts_source(node.kind()) {
-                return Err(DigestPlanError::PatchSourceKind {
-                    node: node.id(),
-                    kind: node.kind(),
-                    role: key.semantic_field_role(),
-                });
-            }
-            validate_patch_target(patch.id(), key, &targets)?;
-            let writer_key = (
-                key.target_definition(),
-                key.atom_role(),
-                key.semantic_field_role(),
-            );
-            if let Some(first) = writers.insert(writer_key, patch.id()) {
-                return Err(DigestPlanError::DuplicatePatchWriter {
-                    first,
-                    second: patch.id(),
-                });
-            }
-        }
     }
 
     if image.is_none() {
@@ -186,7 +121,7 @@ fn validate_owner(
     let known = match node.key().owner_and_role() {
         DigestOwnerAndRoleKey::SourceSignature(id) => foundation.contains_callable_body(id),
         // Layout and scan ids are resolved typed references. Their definitions
-        // may belong to a dependency; only physical patch targets must be local.
+        // may belong to a dependency.
         DigestOwnerAndRoleKey::Layout(_) | DigestOwnerAndRoleKey::Scan(_) => true,
         DigestOwnerAndRoleKey::ObjectSupport(id) | DigestOwnerAndRoleKey::ObjectDefinition(id) => {
             foundation.definition_atom(id).is_some()
@@ -207,22 +142,6 @@ fn validate_owner(
         Ok(())
     } else {
         Err(DigestPlanError::UnknownOwner(node.id()))
-    }
-}
-
-fn validate_patch_target(
-    intent: DigestPatchIntentId,
-    key: &DigestPatchIntentKey,
-    targets: &BTreeMap<(ObjectDefinitionPlanId, DefinitionAtomRole), usize>,
-) -> Result<(), DigestPlanError> {
-    let count = targets
-        .get(&(key.target_definition(), key.atom_role()))
-        .copied()
-        .unwrap_or(0);
-    match count {
-        0 => Err(DigestPlanError::MissingPatchTarget(intent)),
-        1 => Ok(()),
-        _ => Err(DigestPlanError::AmbiguousPatchTarget(intent)),
     }
 }
 
@@ -294,17 +213,6 @@ pub(super) fn first_duplicate_input(inputs: &[DigestInputRefV1]) -> Option<Diges
     for pair in inputs.windows(2) {
         if pair[0].sort_key() == pair[1].sort_key() {
             return Some(pair[0].node());
-        }
-    }
-    None
-}
-
-pub(super) fn first_duplicate_patch(
-    patches: &[CborIdentityRecord<DigestPatchIntentId, DigestPatchIntentKey>],
-) -> Option<DigestPatchIntentId> {
-    for pair in patches.windows(2) {
-        if pair[0].id() == pair[1].id() {
-            return Some(pair[0].id());
         }
     }
     None

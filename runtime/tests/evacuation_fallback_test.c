@@ -15,8 +15,7 @@ static const ScoopTypeDescriptor wide_td = {
     .instance_shape = {.instance_kind = SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1,
                        .minimum_size = 30000,
                        .instance_alignment = 16},
-    .release_hook = release_wide,
-};
+    .release_hook = release_wide};
 
 // Publish actual old objects without automatic nursery collections changing the layout.
 static void *old_object(void) {

@@ -44,8 +44,7 @@ static const uint64_t node_scan[] = {1, offsetof(TestNode, child)};
 static const uint64_t pair_scan[] = {
     2,
     offsetof(TestPair, left),
-    offsetof(TestPair, right),
-};
+    offsetof(TestPair, right)};
 
 static const ScoopTypeDescriptor leaf_td = {
     .type_id = 1,
@@ -61,8 +60,7 @@ static const ScoopTypeDescriptor leaf_td = {
     .vtable = NULL,
     .itables = NULL,
     .itable_count = 0,
-    .diagnostic_name = {(const uint8_t *)"TestLeaf", sizeof("TestLeaf") - 1},
-};
+    .diagnostic_name = {(const uint8_t *)"TestLeaf", sizeof("TestLeaf") - 1}};
 
 static const ScoopTypeDescriptor node_td = {
     .type_id = 2,
@@ -78,8 +76,7 @@ static const ScoopTypeDescriptor node_td = {
     .vtable = NULL,
     .itables = NULL,
     .itable_count = 0,
-    .diagnostic_name = {(const uint8_t *)"TestNode", sizeof("TestNode") - 1},
-};
+    .diagnostic_name = {(const uint8_t *)"TestNode", sizeof("TestNode") - 1}};
 
 static const ScoopTypeDescriptor pair_td = {
     .type_id = 3,
@@ -95,8 +92,7 @@ static const ScoopTypeDescriptor pair_td = {
     .vtable = NULL,
     .itables = NULL,
     .itable_count = 0,
-    .diagnostic_name = {(const uint8_t *)"TestPair", sizeof("TestPair") - 1},
-};
+    .diagnostic_name = {(const uint8_t *)"TestPair", sizeof("TestPair") - 1}};
 
 static const ScoopTypeDescriptor large_td = {
     .type_id = 4,
@@ -112,8 +108,7 @@ static const ScoopTypeDescriptor large_td = {
     .vtable = NULL,
     .itables = NULL,
     .itable_count = 0,
-    .diagnostic_name = {(const uint8_t *)"TestLarge", sizeof("TestLarge") - 1},
-};
+    .diagnostic_name = {(const uint8_t *)"TestLarge", sizeof("TestLarge") - 1}};
 
 static const ScoopTypeDescriptor string_td = {
     .type_id = 5,
@@ -133,8 +128,7 @@ static const ScoopTypeDescriptor string_td = {
     .vtable = NULL,
     .itables = NULL,
     .itable_count = 0,
-    .diagnostic_name = {(const uint8_t *)"String", sizeof("String") - 1},
-};
+    .diagnostic_name = {(const uint8_t *)"String", sizeof("String") - 1}};
 
 static const ScoopTypeDescriptor array_i64_td = {
     .type_id = 6,
@@ -154,8 +148,7 @@ static const ScoopTypeDescriptor array_i64_td = {
     .vtable = NULL,
     .itables = NULL,
     .itable_count = 0,
-    .diagnostic_name = {(const uint8_t *)"Array<ULong>", sizeof("Array<ULong>") - 1},
-};
+    .diagnostic_name = {(const uint8_t *)"Array<ULong>", sizeof("Array<ULong>") - 1}};
 
 static const uint64_t pointer_element_scan[] = {1, 0};
 static const uint64_t pointer_array_scan[] = {
@@ -163,8 +156,7 @@ static const uint64_t pointer_array_scan[] = {
     offsetof(ScoopArray, size),
     offsetof(ScoopArray, elements),
     sizeof(void *),
-    (uint64_t)(uintptr_t)pointer_element_scan,
-};
+    (uint64_t)(uintptr_t)pointer_element_scan};
 static const ScoopTypeDescriptor array_ref_td = {
     .type_id = 7,
     .instance_shape =
@@ -180,40 +172,33 @@ static const ScoopTypeDescriptor array_ref_td = {
             .inline_scan = pointer_element_scan,
         },
     .object_scan = pointer_array_scan,
-    .diagnostic_name = {(const uint8_t *)"Array<TestLeaf>", sizeof("Array<TestLeaf>") - 1},
-};
+    .diagnostic_name = {(const uint8_t *)"Array<TestLeaf>", sizeof("Array<TestLeaf>") - 1}};
 
 static const TestLeaf immortal_leaf = {
     .header = {.td = &leaf_td, .gc_word = 0},
-    .value = UINT64_C(0xfeedface),
-};
+    .value = UINT64_C(0xfeedface)};
 
 static const TestLeaf unregistered_immortal = {
     .header = {.td = &leaf_td, .gc_word = 0},
-    .value = UINT64_C(0xbad1dea),
-};
+    .value = UINT64_C(0xbad1dea)};
 
 static TestLeaf unregistered_external = {
     .header = {.td = &leaf_td, .gc_word = 0},
-    .value = UINT64_C(0xdecafbad),
-};
+    .value = UINT64_C(0xdecafbad)};
 
 static void *image_global;
 static void *explicit_root;
 
 static const ScoopStaticStorageDescriptorV1 global_registration = {
     .writable_base = &image_global,
-    .scan_program = one_root_scan,
-};
+    .scan_program = one_root_scan};
 static const ScoopImmortalObjectDescriptorV1 immortal_registration = {
     .object_start = &immortal_leaf,
-    .object_size = sizeof immortal_leaf,
-};
+    .object_size = sizeof immortal_leaf};
 static const ScoopStaticStorageDescriptorV1 *const managed_globals[] = {&global_registration};
 static const ScoopImmortalObjectDescriptorV1 *const immortal_objects[] = {&immortal_registration};
 static const ScoopTypeDescriptor *const registered_types[] = {
-    &leaf_td, &node_td, &pair_td, &large_td, &string_td, &array_i64_td, &array_ref_td,
-};
+    &leaf_td, &node_td, &pair_td, &large_td, &string_td, &array_i64_td, &array_ref_td};
 
 static TestLeaf *new_leaf(uint64_t value) {
     TestLeaf *leaf = scoop_gc_alloc_internal(&leaf_td, sizeof *leaf);
