@@ -139,3 +139,7 @@ driver 复用完整正常 HIR，在同一次结果中投影文档；仅文档随
 新增正式 CLI 组合用例：两个 executable root 分别选择同库的不同版本，同一版本经两个库重导出；检查真实类型／别名链接、并发更新同一输出目录、后续完整命中，以及同 identity 冲突输入失败保留旧站点。README 缺失资源的准确诊断、warning 升级不发布、资源补齐和单独更新均由真实命令验证。
 
 Ruff 通过；Darwin 用例 1 个变体、11 个进程通过，所有站内页面／锚点与资源链接有效，资源更新不重新编译源码。53 项 fixture runner 规则测试通过。随后开始全工作区验证；真实库注释与发行集成仍按约定在功能验证后进行。
+
+## 完整验证中的基线测试修正
+
+首轮全工作区测试到 codegen 时发现既有 C 布局探针仍期望 metadata ABI 8／ImageDescriptor 240 bytes；当前规范及头文件已在基线提交中改为 ABI 9／208 bytes。同步这两项测试常量，本机 fmt／workspace clippy 与该探针定向复测通过；runtime 实现与 ABI 均未改动。已通过的 Scoop、ABI plan、AST 和 codegen 其他单测不重复全量执行，继续剩余工作区测试。
