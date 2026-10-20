@@ -5,22 +5,47 @@ import scoop.decodeTextValue
 import scoop.random.Random
 import scoop.text.toHexString
 
+/**
+ * A 128-bit identifier represented by unsigned high and low halves. Ordering compares those halves
+ * unsigned, and byte conversion uses network byte order.
+ */
 public struct Uuid(val mostSignificantBits: ULong, val leastSignificantBits: ULong)
     : Equals<Uuid>, Compare<Uuid>, Hash, ToString {
+    /**
+     * Compares the stored value components for equality.
+     */
     public override operator fun equals(other: Uuid): Boolean =
         mostSignificantBits == other.mostSignificantBits && leastSignificantBits == other.leastSignificantBits
 
+    /**
+     * Orders the unsigned high 64 bits first, then the unsigned low 64 bits.
+     */
     public override operator fun compareTo(other: Uuid): Long =
         if (mostSignificantBits != other.mostSignificantBits) mostSignificantBits.compareTo(other.mostSignificantBits)
         else leastSignificantBits.compareTo(other.leastSignificantBits)
 
+    /**
+     * Computes a hash consistent with component equality.
+     */
     public override fun hash(): Long = mostSignificantBits.hash() * 31L + leastSignificantBits.hash()
+    /**
+     * Returns the raw high and low bit patterns reinterpreted as signed Long values.
+     */
     public fun toLongs(): (Long, Long) = (mostSignificantBits.toLong(), leastSignificantBits.toLong())
+    /**
+     * Returns 16 bytes in network byte order.
+     */
     public fun toByteArray(): Array<Byte> = Array<Byte>(16L) { index ->
         val part = if (index < 8L) mostSignificantBits else leastSignificantBits;
         (part shr ((7L - index % 8L) * 8L)).toByte()
     }
+    /**
+     * Returns 32 lowercase hexadecimal digits without separators.
+     */
     public fun toHexString(): String = toByteArray().toHexString()
+    /**
+     * Returns lowercase hexadecimal text in the 8-4-4-4-12 grouping.
+     */
     public fun toHexDashString(): String {
         val hex = toHexString()
         return String.fromChars(Array<Char>(36L) { index ->
@@ -32,23 +57,59 @@ public struct Uuid(val mostSignificantBits: ULong, val leastSignificantBits: ULo
             }
         })
     }
+    /**
+     * Returns the lowercase hyphenated UUID representation.
+     */
     public override fun toString(): String = toHexDashString()
 
+    /**
+     * Value construction and serialization helpers.
+     */
     public companion object : ValueEncoder<Uuid>, ValueDecoder<Uuid> {
+        /**
+         * Encodes the value as its canonical text representation.
+         */
         public override fun encode(value: Uuid, encoder: Encoder) { encoder.singleValue().writeString(value.toString()) }
+        /**
+         * Reads a string value and validates it using this type's parser.
+         */
         public override fun decode(decoder: Decoder): Uuid =
             decodeTextValue<Uuid>(decoder, { text -> parseOrNone(text) }, "UUID")
 
+        /**
+         * The UUID whose 128 bits are all zero.
+         */
         public val NIL: Uuid = Uuid(0uL, 0uL)
+        /**
+         * The UUID whose 128 bits are all one.
+         */
         public val MAX: Uuid = Uuid(ULong.MAX_VALUE, ULong.MAX_VALUE)
+        /**
+         * Reinterprets two signed Long bit patterns as the high and low UUID halves.
+         */
         public fun fromLongs(mostSignificantBits: Long, leastSignificantBits: Long): Uuid =
             Uuid(mostSignificantBits.toULong(), leastSignificantBits.toULong())
+        /**
+         * Constructs a UUID from exactly 16 network-order bytes; other sizes throw.
+         */
         public fun fromByteArray(bytes: List<Byte>): Uuid = uuidFromBytes(bytes)
+        /**
+         * Parses UUID hexadecimal text, with or without the standard hyphens, returning None for
+         * malformed or out-of-range input.
+         */
         public fun parseOrNone(text: String): Uuid? = parseUuid(text)
+        /**
+         * Parses UUID hexadecimal text, with or without the standard hyphens or throws
+         * IllegalArgumentException for invalid input.
+         */
         public fun parse(text: String): Uuid = when (parseOrNone(text)) {
             case Some(value) -> value
             case None -> throw IllegalArgumentException(Some("invalid UUID"))
         }
+        /**
+         * Creates a version-4 UUID from the supplied random source and sets the version/variant
+         * bits. Security depends on that source.
+         */
         public fun random(random: Random): Uuid {
             val value = fromByteArray(random.nextBytes(16L))
             return Uuid((value.mostSignificantBits and 0xffffffffffff0fffuL) or 0x4000uL,

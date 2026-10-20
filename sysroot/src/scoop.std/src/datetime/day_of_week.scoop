@@ -1,20 +1,71 @@
 package scoop.datetime
 
+/**
+ * An ISO weekday, numbered Monday = 1 through Sunday = 7.
+ */
 public enum DayOfWeek : Equals<DayOfWeek>, Compare<DayOfWeek>, Hash, ToString {
-    Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday
+    /**
+     * ISO weekday 1, Monday.
+     */
+    Monday, 
+        /**
+         * ISO weekday 2, Tuesday.
+         */
+        Tuesday, 
+        /**
+         * ISO weekday 3, Wednesday.
+         */
+        Wednesday, 
+        /**
+         * ISO weekday 4, Thursday.
+         */
+        Thursday, 
+        /**
+         * ISO weekday 5, Friday.
+         */
+        Friday, 
+        /**
+         * ISO weekday 6, Saturday.
+         */
+        Saturday, 
+        /**
+         * ISO weekday 7, Sunday.
+         */
+        Sunday
 
+    /**
+     * The ISO weekday number, Monday = 1 through Sunday = 7.
+     */
     public val isoDayNumber: Int get() = when (this) {
         case Monday -> 1; case Tuesday -> 2; case Wednesday -> 3; case Thursday -> 4
         case Friday -> 5; case Saturday -> 6; case Sunday -> 7
     }
+    /**
+     * Compares the stored value components for equality.
+     */
     public override operator fun equals(other: DayOfWeek): Boolean = isoDayNumber == other.isoDayNumber
+    /**
+     * Orders values by their chronological or numeric value; only the result sign is significant.
+     */
     public override operator fun compareTo(other: DayOfWeek): Long = isoDayNumber.compareTo(other.isoDayNumber)
+    /**
+     * Computes a hash consistent with component equality.
+     */
     public override fun hash(): Long = isoDayNumber.hash()
+    /**
+     * Returns the English weekday name.
+     */
     public override fun toString(): String = when (this) {
         case Monday -> "Monday"; case Tuesday -> "Tuesday"; case Wednesday -> "Wednesday"
         case Thursday -> "Thursday"; case Friday -> "Friday"; case Saturday -> "Saturday"; case Sunday -> "Sunday"
     }
+    /**
+     * Value construction and serialization helpers.
+     */
     public companion object {
+        /**
+         * Converts an ISO weekday number in 1..7; other values throw.
+         */
         public fun fromIsoDayNumber(isoDayNumber: Int): DayOfWeek = when (isoDayNumber) {
             case 1 -> Monday; case 2 -> Tuesday; case 3 -> Wednesday; case 4 -> Thursday
             case 5 -> Friday; case 6 -> Saturday; case 7 -> Sunday

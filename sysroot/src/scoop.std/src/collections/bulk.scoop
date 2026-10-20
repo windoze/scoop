@@ -1,10 +1,16 @@
 package scoop.collections
 
+/**
+ * Adds each supplied element to the destination. Set overloads report whether membership changed.
+ */
 public fun <T> MutableList<T>.addAll(elements: Iterable<T>) {
     val snapshot = elements.toList()
     for (element in snapshot) add(element)
 }
 
+/**
+ * Adds each supplied element to the destination. Set overloads report whether membership changed.
+ */
 public fun <T> MutableSet<T>.addAll(elements: Iterable<T>): Boolean {
     val snapshot = elements.toList()
     var changed = false
@@ -14,16 +20,25 @@ public fun <T> MutableSet<T>.addAll(elements: Iterable<T>): Boolean {
     return changed
 }
 
+/**
+ * Copies associations into this map; later occurrences replace the value for the same key.
+ */
 public fun <K, V> MutableMap<K, V>.putAll(entries: Iterable<(K, V)>) {
     val snapshot = entries.toList()
     for ((key, value) in snapshot) put(key, value)
 }
 
+/**
+ * Copies associations into this map; later occurrences replace the value for the same key.
+ */
 public fun <K, V> MutableMap<K, V>.putAll(entries: Map<K, V>) {
     val snapshot = entries.toList()
     for ((key, value) in snapshot) put(key, value)
 }
 
+/**
+ * Removes members equal to the supplied elements and reports whether this collection changed.
+ */
 public fun <T> MutableSet<T>.removeAll(elements: Iterable<T>): Boolean {
     val snapshot = elements.toList()
     var changed = false
@@ -68,8 +83,15 @@ private fun <T : Equals<T>> filterList(target: MutableList<T>, elements: Iterabl
     return changed
 }
 
+/**
+ * Removes members equal to the supplied elements and reports whether this collection changed.
+ */
 public fun <T : Equals<T>> MutableList<T>.removeAll(elements: Iterable<T>): Boolean =
     filterList<T>(this, elements, false)
 
+/**
+ * Removes elements not present in the supplied membership collection and reports whether this list
+ * changed.
+ */
 public fun <T : Equals<T>> MutableList<T>.retainAll(elements: Iterable<T>): Boolean =
     filterList<T>(this, elements, true)

@@ -9,9 +9,33 @@ private fun String.trimText(predicate: (Char) -> Boolean, trimLeft: Boolean, tri
     return textRange(chars, start, end)
 }
 
+/**
+ * Removes a contiguous run of matching scalars from both ends. Without a predicate, matching uses
+ * Unicode White_Space.
+ */
 public fun String.trim(predicate: (Char) -> Boolean): String = trimText(predicate, true, true)
+/**
+ * Removes a contiguous run of matching scalars from the beginning. Without a predicate, matching
+ * uses Unicode White_Space.
+ */
 public fun String.trimStart(predicate: (Char) -> Boolean): String = trimText(predicate, true, false)
+/**
+ * Removes a contiguous run of matching scalars from the end. Without a predicate, matching uses
+ * Unicode White_Space.
+ */
 public fun String.trimEnd(predicate: (Char) -> Boolean): String = trimText(predicate, false, true)
+/**
+ * Removes a contiguous run of matching scalars from both ends. Without a predicate, matching uses
+ * Unicode White_Space.
+ */
 public fun String.trim(): String = trim(::isTextWhitespace)
+/**
+ * Removes a contiguous run of matching scalars from the beginning. Without a predicate, matching
+ * uses Unicode White_Space.
+ */
 public fun String.trimStart(): String = trimStart(::isTextWhitespace)
+/**
+ * Removes a contiguous run of matching scalars from the end. Without a predicate, matching uses
+ * Unicode White_Space.
+ */
 public fun String.trimEnd(): String = trimEnd(::isTextWhitespace)

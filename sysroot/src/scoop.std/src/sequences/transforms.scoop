@@ -36,20 +36,52 @@ private class OptionalMappingIterator<T, R>(private val source: Iterator<T>, pri
     }
 }
 
+/**
+ * Evaluation is deferred until iteration. Transforms each element into a lazy sequence in
+ * iteration order.
+ */
 public fun <T, R> Sequence<T>.map(transform: (T) -> R): Sequence<R> =
     FactorySequence<R> { MappingIterator<T, R>(iterator(), transform) }
 
+/**
+ * Evaluation is deferred until iteration. Transforms each element with its zero-based Long index
+ * into a lazy sequence.
+ */
 public fun <T, R> Sequence<T>.mapIndexed(transform: (Long, T) -> R): Sequence<R> =
     FactorySequence<R> { IndexedMappingIterator<T, R>(iterator(), transform) }
 
+/**
+ * Evaluation is deferred until iteration. Transforms each element, retaining and unwrapping only
+ * Some results in a lazy sequence.
+ */
 public fun <T, R> Sequence<T>.mapNotNone(transform: (T) -> R?): Sequence<R> =
     FactorySequence<R> { OptionalMappingIterator<T, R>(iterator(), transform) }
 
+/**
+ * Evaluation is deferred until iteration. Copies elements satisfying the predicate into a lazy
+ * sequence in iteration order.
+ */
 public fun <T> Sequence<T>.filter(predicate: (T) -> Boolean): Sequence<T> =
     mapNotNone<T, T> { value -> if (predicate(value)) Some(value) else None }
 
+/**
+ * Evaluation is deferred until iteration. Copies elements failing the predicate into a lazy
+ * sequence in iteration order.
+ */
 public fun <T> Sequence<T>.filterNot(predicate: (T) -> Boolean): Sequence<T> = filter<T> { value -> !predicate(value) }
+/**
+ * Evaluation is deferred until iteration. Copies and unwraps Some elements into a lazy sequence,
+ * skipping None.
+ */
 public fun <T> Sequence<T?>.filterNotNone(): Sequence<T> = mapNotNone<T?, T> { value -> value }
+/**
+ * Evaluation is deferred until iteration. Runs the action for each element as it is consumed and
+ * yields that same element.
+ */
 public fun <T> Sequence<T>.onEach(action: (T) -> Unit): Sequence<T> = map<T, T> { value -> action(value); value }
+/**
+ * Evaluation is deferred until iteration. Pairs each element with its zero-based Long index as it
+ * is iterated.
+ */
 public fun <T> Sequence<T>.withIndex(): Sequence<IndexedValue<T>> =
     mapIndexed<T, IndexedValue<T>> { index, value -> IndexedValue<T>(index, value) }

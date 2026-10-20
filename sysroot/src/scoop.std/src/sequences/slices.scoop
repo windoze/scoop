@@ -45,19 +45,34 @@ private class DroppingWhileIterator<T>(private val source: Iterator<T>, private 
     }
 }
 
+/**
+ * Evaluation is deferred until iteration. Copies at most the first nonnegative count of elements
+ * into a lazy sequence.
+ */
 public fun <T> Sequence<T>.take(count: Long): Sequence<T> {
     requireCollectionCount(count)
     if (count == 0L) return emptySequence<T>()
     return FactorySequence<T> { TakingIterator<T>(iterator(), count) }
 }
 
+/**
+ * Evaluation is deferred until iteration. Skips the first nonnegative count and copies the
+ * remainder into a lazy sequence.
+ */
 public fun <T> Sequence<T>.drop(count: Long): Sequence<T> {
     requireCollectionCount(count)
     return FactorySequence<T> { DroppingIterator<T>(iterator(), count) }
 }
 
+/**
+ * Evaluation is deferred until iteration. Copies the longest initial run satisfying the predicate.
+ */
 public fun <T> Sequence<T>.takeWhile(predicate: (T) -> Boolean): Sequence<T> =
     FactorySequence<T> { TakingWhileIterator<T>(iterator(), predicate) }
 
+/**
+ * Evaluation is deferred until iteration. Skips the initial run satisfying the predicate and
+ * copies the remainder.
+ */
 public fun <T> Sequence<T>.dropWhile(predicate: (T) -> Boolean): Sequence<T> =
     FactorySequence<T> { DroppingWhileIterator<T>(iterator(), predicate) }

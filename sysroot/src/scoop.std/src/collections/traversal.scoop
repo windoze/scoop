@@ -5,10 +5,16 @@ internal fun nextCollectionCount(value: Long): Long {
     return value + 1L
 }
 
+/**
+ * Runs the action for each element in iteration order.
+ */
 public fun <T> Iterable<T>.forEach(action: (T) -> Unit) {
     for (element in this) action(element)
 }
 
+/**
+ * Runs the action with each element and its zero-based Long index.
+ */
 public fun <T> Iterable<T>.forEachIndexed(action: (Long, T) -> Unit) {
     var index = 0L
     for (element in this) {
@@ -17,17 +23,26 @@ public fun <T> Iterable<T>.forEachIndexed(action: (Long, T) -> Unit) {
     }
 }
 
+/**
+ * Runs the action eagerly for all elements and returns the original iterable.
+ */
 public fun <T> Iterable<T>.onEach(action: (T) -> Unit): Iterable<T> {
     forEach<T>(action)
     return this
 }
 
+/**
+ * Accumulates left to right from the supplied initial value, which is returned for empty input.
+ */
 public fun <T, R> Iterable<T>.fold(initial: R, operation: (R, T) -> R): R {
     var result = initial
     for (element in this) result = operation(result, element)
     return result
 }
 
+/**
+ * Accumulates left to right from the first element, or returns None for empty input.
+ */
 public fun <T> Iterable<T>.reduceOrNone(operation: (T, T) -> T): T? {
     var result: T? = None
     for (element in this) {
@@ -39,31 +54,59 @@ public fun <T> Iterable<T>.reduceOrNone(operation: (T, T) -> T): T? {
     return result
 }
 
+/**
+ * Accumulates left to right from the first element; empty input throws NoSuchElementException.
+ */
 public fun <T> Iterable<T>.reduce(operation: (T, T) -> T): T =
     requireCollectionElement<T>(reduceOrNone<T>(operation))
 
+/**
+ * Counts eligible elements, applying the predicate when supplied.
+ */
 public fun <T> Iterable<T>.count(predicate: (T) -> Boolean): Long {
     var result = 0L
     for (element in this) { if (predicate(element)) result = nextCollectionCount(result) }
     return result
 }
 
+/**
+ * Counts eligible elements, applying the predicate when supplied.
+ */
 public fun <T> Iterable<T>.count(): Long = count<T> { _ -> true }
 
+/**
+ * Returns whether any eligible element exists, applying the predicate when supplied and stopping
+ * at the first match.
+ */
 public fun <T> Iterable<T>.any(predicate: (T) -> Boolean): Boolean {
     for (element in this) { if (predicate(element)) return true }
     return false
 }
 
+/**
+ * Returns whether any eligible element exists, applying the predicate when supplied and stopping
+ * at the first match.
+ */
 public fun <T> Iterable<T>.any(): Boolean = when (iterator().next()) {
     case None -> false
     case Some(_) -> true
 }
 
+/**
+ * Returns whether every element satisfies the predicate; true for empty input.
+ */
 public fun <T> Iterable<T>.all(predicate: (T) -> Boolean): Boolean {
     for (element in this) { if (!predicate(element)) return false }
     return true
 }
 
+/**
+ * Returns whether no eligible element exists, applying the predicate when supplied and stopping at
+ * the first match.
+ */
 public fun <T> Iterable<T>.none(): Boolean = !any<T>()
+/**
+ * Returns whether no eligible element exists, applying the predicate when supplied and stopping at
+ * the first match.
+ */
 public fun <T> Iterable<T>.none(predicate: (T) -> Boolean): Boolean = !any<T>(predicate)

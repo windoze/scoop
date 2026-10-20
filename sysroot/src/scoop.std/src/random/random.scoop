@@ -1,51 +1,124 @@
 package scoop.random
 
+/**
+ * A random-bit source with bounded sampling and byte helpers. Cryptographic suitability is
+ * determined by the implementation; seeded generators are not cryptographic.
+ */
 public interface Random {
+    /**
+     * Produces 0..32 random bits in an Int result; implementations reject counts outside that
+     * range.
+     */
     public fun nextBits(bitCount: Int): Int
 
+    /**
+     * Samples one random bit as a Boolean.
+     */
     public fun nextBoolean(): Boolean = nextBits(1) != 0
+    /**
+     * Samples an Int; bounded overloads use a lower-inclusive, upper-exclusive nonempty range,
+     * with zero as the default lower bound.
+     */
     public fun nextInt(): Int = nextBits(32)
+    /**
+     * Samples a UInt; bounded overloads use a lower-inclusive, upper-exclusive nonempty range,
+     * with zero as the default lower bound.
+     */
     public fun nextUInt(): UInt = nextBits(32).toUInt()
+    /**
+     * Samples a ULong; bounded overloads use a lower-inclusive, upper-exclusive nonempty range,
+     * with zero as the default lower bound.
+     */
     public fun nextULong(): ULong {
         val high = nextBits(32).toUInt().toULong()
         val low = nextBits(32).toUInt().toULong()
         return (high shl 32L) or low
     }
+    /**
+     * Samples a Long; bounded overloads use a lower-inclusive, upper-exclusive nonempty range,
+     * with zero as the default lower bound.
+     */
     public fun nextLong(): Long = nextULong().toLong()
+    /**
+     * Samples a Float in [0, 1) using 24 random bits.
+     */
     public fun nextFloat(): Float = nextBits(24).toFloat() / 16777216f
+    /**
+     * Samples a Double in [0, 1) using 53 random bits.
+     */
     public fun nextDouble(): Double {
         val high = nextBits(26).toULong()
         val low = nextBits(27).toULong()
         return ((high shl 27L) or low).toDouble() / 9007199254740992.0
     }
 
+    /**
+     * Samples an Int; bounded overloads use a lower-inclusive, upper-exclusive nonempty range,
+     * with zero as the default lower bound.
+     */
     public fun nextInt(until: Int): Int = nextInt(0, until)
+    /**
+     * Samples an Int; bounded overloads use a lower-inclusive, upper-exclusive nonempty range,
+     * with zero as the default lower bound.
+     */
     public fun nextInt(from: Int, until: Int): Int {
         if (from >= until) throw IllegalArgumentException(Some("empty random range"))
         val offset = sampleUInt(this, until.toUInt() - from.toUInt())
         return (from.toUInt() + offset).toInt()
     }
+    /**
+     * Samples a UInt; bounded overloads use a lower-inclusive, upper-exclusive nonempty range,
+     * with zero as the default lower bound.
+     */
     public fun nextUInt(until: UInt): UInt = nextUInt(0u, until)
+    /**
+     * Samples a UInt; bounded overloads use a lower-inclusive, upper-exclusive nonempty range,
+     * with zero as the default lower bound.
+     */
     public fun nextUInt(from: UInt, until: UInt): UInt {
         if (from >= until) throw IllegalArgumentException(Some("empty random range"))
         return from + sampleUInt(this, until - from)
     }
+    /**
+     * Samples a Long; bounded overloads use a lower-inclusive, upper-exclusive nonempty range,
+     * with zero as the default lower bound.
+     */
     public fun nextLong(until: Long): Long = nextLong(0L, until)
+    /**
+     * Samples a Long; bounded overloads use a lower-inclusive, upper-exclusive nonempty range,
+     * with zero as the default lower bound.
+     */
     public fun nextLong(from: Long, until: Long): Long {
         if (from >= until) throw IllegalArgumentException(Some("empty random range"))
         val offset = sampleULong(this, until.toULong() - from.toULong())
         return (from.toULong() + offset).toLong()
     }
+    /**
+     * Samples a ULong; bounded overloads use a lower-inclusive, upper-exclusive nonempty range,
+     * with zero as the default lower bound.
+     */
     public fun nextULong(until: ULong): ULong = nextULong(0uL, until)
+    /**
+     * Samples a ULong; bounded overloads use a lower-inclusive, upper-exclusive nonempty range,
+     * with zero as the default lower bound.
+     */
     public fun nextULong(from: ULong, until: ULong): ULong {
         if (from >= until) throw IllegalArgumentException(Some("empty random range"))
         return from + sampleULong(this, until - from)
     }
 
+    /**
+     * Produces a new byte array, or fills the supplied array in the half-open index range and
+     * returns it. Negative sizes and invalid ranges throw.
+     */
     public fun nextBytes(size: Long): Array<Byte> {
         if (size < 0L) throw IllegalArgumentException(Some("negative byte count"))
         return Array<Byte>(size) { _ -> nextBits(8).toByte() }
     }
+    /**
+     * Produces a new byte array, or fills the supplied array in the half-open index range and
+     * returns it. Negative sizes and invalid ranges throw.
+     */
     public fun nextBytes(array: MutableArray<Byte>, fromIndex: Long = 0L, toIndex: Long = array.size): MutableArray<Byte> {
         if (fromIndex < 0L || toIndex < 0L || fromIndex > array.size || toIndex > array.size) throw IndexOutOfBoundsException()
         if (fromIndex > toIndex) throw IllegalArgumentException(Some("reversed byte range"))
@@ -54,7 +127,14 @@ public interface Random {
         return array
     }
 
+    /**
+     * Factories for deterministic pseudorandom generators.
+     */
     public companion object {
+        /**
+         * Creates a repeatable xoshiro256** stream from the supplied seed; it is not
+         * cryptographically secure.
+         */
         public fun seeded(seed: Long): Random = Xoshiro256StarStar(seed)
     }
 }

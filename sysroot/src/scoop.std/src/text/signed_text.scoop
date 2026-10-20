@@ -2,22 +2,54 @@ package scoop.text
 
 import scoop.map
 
+/**
+ * Parses a Byte in radix 2..36, returning None for invalid digits or out-of-range values. An
+ * invalid radix throws IllegalArgumentException.
+ */
 public fun String.toByteOrNone(radix: Int = 10): Byte? =
     parseSignedInteger(this, radix, Int8.MAX_VALUE.toULong()).map<Long, Int8> { value -> value.toByte() }
 
+/**
+ * Parses a Byte in radix 2..36; invalid or out-of-range text throws NumberFormatException and an
+ * invalid radix throws IllegalArgumentException.
+ */
 public fun String.toByte(radix: Int = 10): Byte = requireParsedNumber<Int8>(toByteOrNone(radix))
 
+/**
+ * Parses a Short in radix 2..36, returning None for invalid digits or out-of-range values. An
+ * invalid radix throws IllegalArgumentException.
+ */
 public fun String.toShortOrNone(radix: Int = 10): Short? =
     parseSignedInteger(this, radix, Int16.MAX_VALUE.toULong()).map<Long, Int16> { value -> value.toShort() }
 
+/**
+ * Parses a Short in radix 2..36; invalid or out-of-range text throws NumberFormatException and an
+ * invalid radix throws IllegalArgumentException.
+ */
 public fun String.toShort(radix: Int = 10): Short = requireParsedNumber<Int16>(toShortOrNone(radix))
 
+/**
+ * Parses a Int in radix 2..36, returning None for invalid digits or out-of-range values. An
+ * invalid radix throws IllegalArgumentException.
+ */
 public fun String.toIntOrNone(radix: Int = 10): Int? =
     parseSignedInteger(this, radix, Int.MAX_VALUE.toULong()).map<Long, Int> { value -> value.toInt() }
 
+/**
+ * Parses a Int in radix 2..36; invalid or out-of-range text throws NumberFormatException and an
+ * invalid radix throws IllegalArgumentException.
+ */
 public fun String.toInt(radix: Int = 10): Int = requireParsedNumber<Int>(toIntOrNone(radix))
 
+/**
+ * Parses a Long in radix 2..36, returning None for invalid digits or out-of-range values. An
+ * invalid radix throws IllegalArgumentException.
+ */
 public fun String.toLongOrNone(radix: Int = 10): Long? =
     parseSignedInteger(this, radix, Long.MAX_VALUE.toULong()).map<Long, Long> { value -> value.toLong() }
 
+/**
+ * Parses a Long in radix 2..36; invalid or out-of-range text throws NumberFormatException and an
+ * invalid radix throws IllegalArgumentException.
+ */
 public fun String.toLong(radix: Int = 10): Long = requireParsedNumber<Long>(toLongOrNone(radix))

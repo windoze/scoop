@@ -1,5 +1,9 @@
 package scoop.text
 
+/**
+ * Concatenates this string a nonnegative number of times; zero yields an empty string and size
+ * overflow throws.
+ */
 public fun String.repeat(count: Long): String {
     if (count < 0L) throw IllegalArgumentException(Some("negative repeat count"))
     if (count == 0L || byteLength == 0L) return ""
@@ -23,5 +27,13 @@ private fun String.padding(length: Long, paddingChar: Char): String {
     return paddingChar.toString().repeat(count)
 }
 
+/**
+ * Prepends the padding scalar until the requested nonnegative character length is reached; longer
+ * input is preserved.
+ */
 public fun String.padStart(length: Long, paddingChar: Char = ' '): String = padding(length, paddingChar) + this
+/**
+ * Appends the padding scalar until the requested nonnegative character length is reached; longer
+ * input is preserved.
+ */
 public fun String.padEnd(length: Long, paddingChar: Char = ' '): String = this + padding(length, paddingChar)

@@ -2,22 +2,54 @@ package scoop.text
 
 import scoop.map
 
+/**
+ * Parses a UByte in radix 2..36, returning None for invalid digits or out-of-range values. An
+ * invalid radix throws IllegalArgumentException.
+ */
 public fun String.toUByteOrNone(radix: Int = 10): UByte? =
     parseUnsignedInteger(this, radix, UInt8.MAX_VALUE.toULong()).map<ULong, UInt8> { value -> value.toUByte() }
 
+/**
+ * Parses a UByte in radix 2..36; invalid or out-of-range text throws NumberFormatException and an
+ * invalid radix throws IllegalArgumentException.
+ */
 public fun String.toUByte(radix: Int = 10): UByte = requireParsedNumber<UInt8>(toUByteOrNone(radix))
 
+/**
+ * Parses a UShort in radix 2..36, returning None for invalid digits or out-of-range values. An
+ * invalid radix throws IllegalArgumentException.
+ */
 public fun String.toUShortOrNone(radix: Int = 10): UShort? =
     parseUnsignedInteger(this, radix, UInt16.MAX_VALUE.toULong()).map<ULong, UInt16> { value -> value.toUShort() }
 
+/**
+ * Parses a UShort in radix 2..36; invalid or out-of-range text throws NumberFormatException and an
+ * invalid radix throws IllegalArgumentException.
+ */
 public fun String.toUShort(radix: Int = 10): UShort = requireParsedNumber<UInt16>(toUShortOrNone(radix))
 
+/**
+ * Parses a UInt in radix 2..36, returning None for invalid digits or out-of-range values. An
+ * invalid radix throws IllegalArgumentException.
+ */
 public fun String.toUIntOrNone(radix: Int = 10): UInt? =
     parseUnsignedInteger(this, radix, UInt.MAX_VALUE.toULong()).map<ULong, UInt> { value -> value.toUInt() }
 
+/**
+ * Parses a UInt in radix 2..36; invalid or out-of-range text throws NumberFormatException and an
+ * invalid radix throws IllegalArgumentException.
+ */
 public fun String.toUInt(radix: Int = 10): UInt = requireParsedNumber<UInt>(toUIntOrNone(radix))
 
+/**
+ * Parses a ULong in radix 2..36, returning None for invalid digits or out-of-range values. An
+ * invalid radix throws IllegalArgumentException.
+ */
 public fun String.toULongOrNone(radix: Int = 10): ULong? =
     parseUnsignedInteger(this, radix, ULong.MAX_VALUE.toULong()).map<ULong, ULong> { value -> value.toULong() }
 
+/**
+ * Parses a ULong in radix 2..36; invalid or out-of-range text throws NumberFormatException and an
+ * invalid radix throws IllegalArgumentException.
+ */
 public fun String.toULong(radix: Int = 10): ULong = requireParsedNumber<ULong>(toULongOrNone(radix))

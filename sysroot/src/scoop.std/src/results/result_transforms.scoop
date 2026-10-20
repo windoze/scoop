@@ -1,30 +1,48 @@
 package scoop
 
+/**
+ * Transforms Success while propagating Failure unchanged.
+ */
 public fun <T, E, R> Result<T, E>.map(transform: (T) -> R): Result<R, E> = when (this) {
     case Result.Success(value) -> Result.Success<R, E>(transform(value))
     case Result.Failure(error) -> Result.Failure<R, E>(error)
 }
 
+/**
+ * Transforms Failure while propagating Success unchanged.
+ */
 public fun <T, E, F> Result<T, E>.mapError(transform: (E) -> F): Result<T, F> = when (this) {
     case Result.Success(value) -> Result.Success<T, F>(value)
     case Result.Failure(error) -> Result.Failure<T, F>(transform(error))
 }
 
+/**
+ * Transforms Success with a Result-producing callback while propagating Failure.
+ */
 public fun <T, E, R> Result<T, E>.flatMap(transform: (T) -> Result<R, E>): Result<R, E> = when (this) {
     case Result.Success(value) -> transform(value)
     case Result.Failure(error) -> Result.Failure<R, E>(error)
 }
 
+/**
+ * Maps a failure into a success value, leaving Success unchanged.
+ */
 public fun <T, E> Result<T, E>.recover(transform: (E) -> T): Result<T, E> = when (this) {
     case Result.Success(_) -> this
     case Result.Failure(error) -> Result.Success<T, E>(transform(error))
 }
 
+/**
+ * Runs the action only for Success and returns this result.
+ */
 public fun <T, E> Result<T, E>.onSuccess(action: (T) -> Unit): Result<T, E> = when (this) {
     case Result.Success(value) -> { action(value); this }
     case Result.Failure(_) -> this
 }
 
+/**
+ * Runs the action only for Failure and returns this result.
+ */
 public fun <T, E> Result<T, E>.onFailure(action: (E) -> Unit): Result<T, E> = when (this) {
     case Result.Success(_) -> this
     case Result.Failure(error) -> { action(error); this }

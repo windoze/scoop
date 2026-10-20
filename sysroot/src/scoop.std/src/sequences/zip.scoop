@@ -10,5 +10,9 @@ private class ZippingIterator<T, R>(private val left: Iterator<T>, private val r
     }
 }
 
+/**
+ * Evaluation is deferred until iteration. Pairs elements by position, stopping when either input
+ * ends.
+ */
 public fun <T, R> Sequence<T>.zip(other: Sequence<R>): Sequence<(T, R)> =
     FactorySequence<(T, R)> { ZippingIterator<T, R>(iterator(), other.iterator()) }

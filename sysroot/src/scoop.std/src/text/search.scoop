@@ -4,6 +4,10 @@ private fun requireTextIndex(index: Long, length: Long) {
     if (index < 0L || index > length) throw IndexOutOfBoundsException()
 }
 
+/**
+ * Returns the first matching Unicode-scalar index at or after startIndex, or -1. The starting
+ * index must be in 0..length.
+ */
 public fun String.indexOf(value: String, startIndex: Long = 0L): Long {
     requireTextIndex(startIndex, length)
     val pattern = TextPattern(value)
@@ -20,6 +24,10 @@ public fun String.indexOf(value: String, startIndex: Long = 0L): Long {
     return -1L
 }
 
+/**
+ * Returns the last matching Unicode-scalar start index no greater than startIndex, or -1. The
+ * starting index must be in 0..length.
+ */
 public fun String.lastIndexOf(value: String, startIndex: Long = this.length): Long {
     val length = this.length
     requireTextIndex(startIndex, length)
@@ -38,9 +46,23 @@ public fun String.lastIndexOf(value: String, startIndex: Long = this.length): Lo
     return result
 }
 
+/**
+ * Returns the first matching Unicode-scalar index at or after startIndex, or -1. The starting
+ * index must be in 0..length.
+ */
 public fun String.indexOf(value: Char, startIndex: Long = 0L): Long = indexOf(value.toString(), startIndex)
+/**
+ * Returns the last matching Unicode-scalar start index no greater than startIndex, or -1. The
+ * starting index must be in 0..length.
+ */
 public fun String.lastIndexOf(value: Char, startIndex: Long = this.length): Long = lastIndexOf(value.toString(), startIndex)
+/**
+ * Tests for an exact literal occurrence, without case folding.
+ */
 public operator fun String.contains(value: String): Boolean = indexOf(value) >= 0L
+/**
+ * Tests for an exact literal occurrence, without case folding.
+ */
 public operator fun String.contains(value: Char): Boolean = indexOf(value) >= 0L
 
 private fun String.matchesAt(value: String, start: Long): Boolean {
@@ -51,10 +73,22 @@ private fun String.matchesAt(value: String, start: Long): Boolean {
     return true
 }
 
+/**
+ * Tests for an exact literal prefix, without case folding.
+ */
 public fun String.startsWith(prefix: String): Boolean = matchesAt(prefix, 0L)
+/**
+ * Tests for an exact literal prefix, without case folding.
+ */
 public fun String.startsWith(prefix: Char): Boolean = startsWith(prefix.toString())
+/**
+ * Tests for an exact literal suffix, without case folding.
+ */
 public fun String.endsWith(suffix: String): Boolean {
     val start = length - suffix.length
     return start >= 0L && matchesAt(suffix, start)
 }
+/**
+ * Tests for an exact literal suffix, without case folding.
+ */
 public fun String.endsWith(suffix: Char): Boolean = endsWith(suffix.toString())

@@ -17,6 +17,10 @@ private fun xoshiroSeed(seed: Long): (ULong, ULong, ULong, ULong) {
 private fun rotateLeft(value: ULong, bits: Long): ULong =
     (value shl bits) or (value shr (64L - bits))
 
+/**
+ * A deterministic xoshiro256** generator initialized from a Long seed. It is intended for
+ * repeatable randomized algorithms, not cryptographic secrets.
+ */
 public class Xoshiro256StarStar private constructor(state: (ULong, ULong, ULong, ULong)) : Random {
     private var first: ULong = state._1
     private var second: ULong = state._2
@@ -25,6 +29,10 @@ public class Xoshiro256StarStar private constructor(state: (ULong, ULong, ULong,
 
     public constructor(seed: Long) : this(xoshiroSeed(seed)) {}
 
+    /**
+     * Produces the requested 0..32 low result bits from the next generator output; invalid counts
+     * throw.
+     */
     public override fun nextBits(bitCount: Int): Int {
         if (bitCount < 0 || bitCount > 32) throw IllegalArgumentException(Some("bitCount must be in 0..32"))
         if (bitCount == 0) return 0

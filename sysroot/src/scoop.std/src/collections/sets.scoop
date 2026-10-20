@@ -1,12 +1,35 @@
 package scoop.collections
 
+/**
+ * A collection containing at most one representative of each element according to its membership
+ * rule.
+ */
 public interface Set<T> : Collection<T>, Contains<T> {
+    /**
+     * Tests membership using this set's equality or comparator rule.
+     */
     public override operator fun contains(value: T): Boolean
 }
 
+/**
+ * A set supporting membership changes; add/remove report whether membership changed.
+ */
 public interface MutableSet<T> : Set<T> {
+    /**
+     * Adds an absent member and returns true only when membership changes.
+     */
     public fun add(value: T): Boolean
+    /**
+     * Removes a member and returns true only when it was present.
+     */
     public fun remove(value: T): Boolean
+    /**
+     * Removes all members.
+     */
     public fun clear(): Unit
+    /**
+     * Retains only members also present in the supplied elements and reports whether the set
+     * changed.
+     */
     public fun retainAll(elements: Iterable<T>): Boolean
 }

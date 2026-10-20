@@ -1,28 +1,80 @@
 package scoop.collections
 
+/**
+ * Read access to key-value associations. Missing keys return None; iteration and views expose
+ * entries in the implementation's order.
+ */
 public interface Map<K, V> : IndexGet<K, V?>, Contains<K>, Iterable<Map.Entry<K, V>> {
+    /**
+     * The number of key-value associations.
+     */
     public val size: Long
+    /**
+     * Returns the value associated with the key, or None when absent.
+     */
     public override operator fun get(key: K): V?
+    /**
+     * Tests whether the key has an association.
+     */
     public fun containsKey(key: K): Boolean
+    /**
+     * Tests key membership, not value membership.
+     */
     public override operator fun contains(value: K): Boolean = containsKey(value)
+    /**
+     * A read-only view of the map's current keys.
+     */
     public val keys: Set<K>
+    /**
+     * A read-only view of current values, retaining duplicates.
+     */
     public val values: Collection<V>
+    /**
+     * A read-only view of current key-value entries.
+     */
     public val entries: Collection<Map.Entry<K, V>>
 
+    /**
+     * A key and its associated value, captured together as one map entry.
+     */
     public struct Entry<K, V>(val key: K, val value: V)
 }
 
+/**
+ * A map supporting insertion, replacement, removal, and clearing.
+ */
 public interface MutableMap<K, V> : Map<K, V>, IndexSet<K, V> {
+    /**
+     * Associates the value with the key and returns the previous value, or None for a new key.
+     */
     public fun put(key: K, value: V): V?
+    /**
+     * Associates the value with the key, discarding any previous value.
+     */
     public override operator fun set(key: K, value: V) { put(key, value) }
+    /**
+     * Removes the key and returns its former value, or None if absent.
+     */
     public fun remove(key: K): V?
+    /**
+     * Removes every association.
+     */
     public fun clear(): Unit
 }
 
+/**
+ * Returns whether the collection contains no entries or elements.
+ */
 public fun <K, V> Map<K, V>.isEmpty(): Boolean = size == 0L
 
+/**
+ * Returns whether the collection contains at least one entry or element.
+ */
 public fun <K, V> Map<K, V>.isNotEmpty(): Boolean = size != 0L
 
+/**
+ * Scans values for one equal to the argument.
+ */
 public fun <K, V : Equals<V>> Map<K, V>.containsValue(value: V): Boolean {
     for (entry in this) {
         if (entry.value == value) return true
@@ -30,21 +82,34 @@ public fun <K, V : Equals<V>> Map<K, V>.containsValue(value: V): Boolean {
     return false
 }
 
+/**
+ * Returns the mapped value or throws NoSuchElementException when the key is absent.
+ */
 public fun <K, V> Map<K, V>.getValue(key: K): V = when (get(key)) {
     case Some(value) -> value
     case None -> throw NoSuchElementException("key is absent")
 }
 
+/**
+ * Returns the mapped value, or the supplied fallback when absent.
+ */
 public fun <K, V> Map<K, V>.getOrDefault(key: K, defaultValue: V): V = when (get(key)) {
     case Some(value) -> value
     case None -> defaultValue
 }
 
+/**
+ * Returns the mapped value, computing the fallback only when the key is absent.
+ */
 public fun <K, V> Map<K, V>.getOrElse(key: K, defaultValue: () -> V): V = when (get(key)) {
     case Some(value) -> value
     case None -> defaultValue()
 }
 
+/**
+ * Returns an existing value, or computes, inserts, and returns one for an absent key. This
+ * operation is not a concurrent-map primitive.
+ */
 public fun <K, V> MutableMap<K, V>.getOrPut(key: K, defaultValue: () -> V): V = when (get(key)) {
     case Some(value) -> value
     case None -> {

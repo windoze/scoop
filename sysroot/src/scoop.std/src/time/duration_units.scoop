@@ -1,16 +1,58 @@
 package scoop.time
 
+/**
+ * Constructs an elapsed duration of this many nanoseconds with checked overflow.
+ */
 public fun Int.nanoseconds(): Duration = Duration.nanoseconds(toLong())
+/**
+ * Constructs an elapsed duration of this many nanoseconds with checked overflow.
+ */
 public fun Long.nanoseconds(): Duration = Duration.nanoseconds(this)
+/**
+ * Constructs an elapsed duration of this many microseconds with checked overflow.
+ */
 public fun Int.microseconds(): Duration = Duration.microseconds(toLong())
+/**
+ * Constructs an elapsed duration of this many microseconds with checked overflow.
+ */
 public fun Long.microseconds(): Duration = Duration.microseconds(this)
+/**
+ * Constructs an elapsed duration of this many milliseconds with checked overflow.
+ */
 public fun Int.milliseconds(): Duration = Duration.milliseconds(toLong())
+/**
+ * Constructs an elapsed duration of this many milliseconds with checked overflow.
+ */
 public fun Long.milliseconds(): Duration = Duration.milliseconds(this)
+/**
+ * Constructs an elapsed duration of this many seconds with checked overflow.
+ */
 public fun Int.seconds(): Duration = Duration.seconds(toLong())
+/**
+ * Constructs an elapsed duration of this many seconds with checked overflow.
+ */
 public fun Long.seconds(): Duration = Duration.seconds(this)
+/**
+ * Constructs an elapsed duration of this many minutes with checked overflow.
+ */
 public fun Int.minutes(): Duration = Duration.minutes(toLong())
+/**
+ * Constructs an elapsed duration of this many minutes with checked overflow.
+ */
 public fun Long.minutes(): Duration = Duration.minutes(this)
+/**
+ * Constructs an elapsed duration of this many hours with checked overflow.
+ */
 public fun Int.hours(): Duration = Duration.hours(toLong())
+/**
+ * Constructs an elapsed duration of this many hours with checked overflow.
+ */
 public fun Long.hours(): Duration = Duration.hours(this)
+/**
+ * Constructs an elapsed duration of this many days with checked overflow.
+ */
 public fun Int.days(): Duration = Duration.days(toLong())
+/**
+ * Constructs an elapsed duration of this many days with checked overflow.
+ */
 public fun Long.days(): Duration = Duration.days(this)

@@ -2,20 +2,54 @@ package scoop.datetime
 
 import scoop.decodeTextValue
 
-public class LocalDate public constructor(public val year: Int, public val monthNumber: Int, public val dayOfMonth: Int)
+/**
+ * An immutable proleptic Gregorian date in years -999999999..999999999. Construction validates
+ * month/day combinations; it carries no time zone.
+ */
+public class LocalDate public constructor(
+    /**
+     * The proleptic Gregorian year, including year zero.
+     */
+    public val year: Int, 
+    /**
+     * The one-based month number in 1..12.
+     */
+    public val monthNumber: Int, 
+    /**
+     * The one-based day within the validated month.
+     */
+    public val dayOfMonth: Int)
     : Equals<LocalDate>, Compare<LocalDate>, Hash, ToString, Add<DatePeriod, LocalDate>, Sub<DatePeriod, LocalDate> {
     init {
         if (!validCalendarDate(year, monthNumber, dayOfMonth)) throw IllegalArgumentException(Some("invalid date"))
     }
     public constructor(year: Int, month: Month, dayOfMonth: Int) : this(year, month.number, dayOfMonth) {}
+    /**
+     * The corresponding Gregorian Month value.
+     */
     public val month: Month get() = Month.fromNumber(monthNumber)
+    /**
+     * The year/month portion of this date.
+     */
     public val yearMonth: YearMonth get() = YearMonth(year, monthNumber)
+    /**
+     * The one-based ordinal day in this year.
+     */
     public val dayOfYear: Int get() = (toEpochDays() - calendarEpochDay(year, 1, 1) + 1L).toInt()
+    /**
+     * The ISO weekday calculated from this date.
+     */
     public val dayOfWeek: DayOfWeek get() {
         val shifted = toEpochDays() + 3L
         return DayOfWeek.fromIsoDayNumber((shifted - calendarFloorDiv(shifted, 7L) * 7L + 1L).toInt())
     }
+    /**
+     * Returns signed days since 1970-01-01.
+     */
     public fun toEpochDays(): Long = calendarEpochDay(year, monthNumber, dayOfMonth)
+    /**
+     * Shifts by a signed number of calendar days; unsupported results throw ArithmeticException.
+     */
     public fun plusDays(value: Long): LocalDate = shiftedDays(value, false)
     private fun shiftedDays(value: Long, subtract: Boolean): LocalDate {
         val current = toEpochDays()
@@ -24,42 +58,93 @@ public class LocalDate public constructor(public val year: Int, public val month
         if (value < (if (subtract) -upper else lower) || value > (if (subtract) -lower else upper)) throw ArithmeticException()
         return LocalDate.fromEpochDays(if (subtract) current - value else current + value)
     }
+    /**
+     * Shifts by calendar months, clamping the day to the destination month's last valid day.
+     */
     public fun plusMonths(value: Long): LocalDate {
         val target = shiftedCalendarMonth(year, monthNumber, value)
         val last = calendarMonthLength(target._1, target._2)
         return LocalDate(target._1, target._2, if (dayOfMonth > last) last else dayOfMonth)
     }
+    /**
+     * Shifts by calendar years, clamping February 29 when needed.
+     */
     public fun plusYears(value: Long): LocalDate {
         checkCalendarYearShift(year, value)
         return plusMonths(value * 12L)
     }
+    /**
+     * Returns other minus this in whole calendar days.
+     */
     public fun daysUntil(other: LocalDate): Long = other.toEpochDays() - toEpochDays()
+    /**
+     * Adds combined years/months first, clamping the day, then adds period days.
+     */
     public override operator fun plus(other: DatePeriod): LocalDate =
         plusMonths(other.years.toLong() * 12L + other.months.toLong()).shiftedDays(other.days, false)
+    /**
+     * Subtracts combined years/months first, clamping the day, then subtracts period days.
+     */
     public override operator fun minus(other: DatePeriod): LocalDate =
         plusMonths(-other.years.toLong() * 12L - other.months.toLong()).shiftedDays(other.days, true)
+    /**
+     * Compares the stored value components for equality.
+     */
     public override operator fun equals(other: LocalDate): Boolean =
         year == other.year && monthNumber == other.monthNumber && dayOfMonth == other.dayOfMonth
+    /**
+     * Orders values by their chronological or numeric value; only the result sign is significant.
+     */
     public override operator fun compareTo(other: LocalDate): Long = toEpochDays().compareTo(other.toEpochDays())
+    /**
+     * Computes a hash consistent with component equality.
+     */
     public override fun hash(): Long = (year.hash() * 31L + monthNumber.hash()) * 31L + dayOfMonth.hash()
+    /**
+     * Formats this value as ISO calendar date.
+     */
     public override fun toString(): String = yearMonth.toString() + "-" + calendarTwoDigits(dayOfMonth)
 
+    /**
+     * Value construction and serialization helpers.
+     */
     public companion object : ValueEncoder<LocalDate>, ValueDecoder<LocalDate> {
+        /**
+         * Encodes the value as its canonical text representation.
+         */
         public override fun encode(value: LocalDate, encoder: Encoder) { encoder.singleValue().writeString(value.toString()) }
+        /**
+         * Reads a string value and validates it using this type's parser.
+         */
         public override fun decode(decoder: Decoder): LocalDate =
             decodeTextValue<LocalDate>(decoder, { text -> parseOrNone(text) }, "date")
 
+        /**
+         * The earliest or smallest supported value.
+         */
         public val MIN: LocalDate = LocalDate(-999999999, 1, 1)
+        /**
+         * The latest or largest supported value.
+         */
         public val MAX: LocalDate = LocalDate(999999999, 12, 31)
+        /**
+         * Constructs a date from signed days since 1970-01-01; unsupported values throw.
+         */
         public fun fromEpochDays(value: Long): LocalDate {
             if (value < MIN.toEpochDays() || value > MAX.toEpochDays()) throw IllegalArgumentException(Some("invalid epoch day"))
             val parts = calendarDateFromDay(value)
             return LocalDate(parts._1, parts._2, parts._3)
         }
+        /**
+         * Parses ISO calendar date, returning None for malformed or out-of-range input.
+         */
         public fun parseOrNone(text: String): LocalDate? = when (parseCalendarFields(text, true)) {
             case Some(parts) -> Some(LocalDate(parts._1, parts._2, parts._3))
             case None -> None
         }
+        /**
+         * Parses ISO calendar date or throws IllegalArgumentException for invalid input.
+         */
         public fun parse(text: String): LocalDate = when (parseOrNone(text)) {
             case Some(value) -> value
             case None -> throw IllegalArgumentException(Some("invalid date"))

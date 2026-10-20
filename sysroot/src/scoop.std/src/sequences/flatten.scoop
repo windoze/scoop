@@ -19,7 +19,15 @@ private class FlatteningIterator<T, R>(private val source: Iterator<T>, private 
     }
 }
 
+/**
+ * Evaluation is deferred until iteration. Concatenates each transformed iterable into a lazy
+ * sequence in source order.
+ */
 public fun <T, R> Sequence<T>.flatMap(transform: (T) -> Sequence<R>): Sequence<R> =
     FactorySequence<R> { FlatteningIterator<T, R>(iterator(), transform) }
 
+/**
+ * Evaluation is deferred until iteration. Concatenates the nested iterables into a lazy sequence
+ * in outer and inner iteration order.
+ */
 public fun <T> Sequence<Sequence<T>>.flatten(): Sequence<T> = flatMap<Sequence<T>, T> { value -> value }

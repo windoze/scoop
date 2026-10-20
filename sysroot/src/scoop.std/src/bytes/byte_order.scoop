@@ -1,3 +1,14 @@
 package scoop.bytes
 
-public enum ByteOrder { BigEndian, LittleEndian }
+/**
+ * The order of bytes within a multibyte numeric value.
+ */
+public enum ByteOrder { 
+    /**
+     * Stores the most significant byte first.
+     */
+    BigEndian, 
+    /**
+     * Stores the least significant byte first.
+     */
+    LittleEndian }

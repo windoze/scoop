@@ -2,22 +2,48 @@ package scoop.collections
 
 import scoop.comparisons.Comparator
 
+/**
+ * A mutable set ordered by its comparator. Comparator-equivalent elements share one membership
+ * slot.
+ */
 public class TreeSet<T> public constructor(
+    /**
+     * The comparator used for ordering and, for ordered maps/sets, equivalence.
+     */
     public override val comparator: Comparator<T>
 ) : MutableSortedSet<T> {
     private val elements: TreeMap<T, Unit> = TreeMap<T, Unit>(comparator)
 
+    /**
+     * The number of distinct members.
+     */
     public override val size: Long get() = elements.size
+    /**
+     * Tests membership using this set's equality or comparator rule.
+     */
     public override operator fun contains(value: T): Boolean = elements.containsKey(value)
+    /**
+     * Adds an absent member and returns true only when membership changes.
+     */
     public override fun add(value: T): Boolean = when (elements.putIfAbsent(value, Unit)) {
         case None -> true
         case Some(_) -> false
     }
+    /**
+     * Removes a member and returns true only when it was present.
+     */
     public override fun remove(value: T): Boolean = when (elements.remove(value)) {
         case None -> false
         case Some(_) -> true
     }
+    /**
+     * Removes all members.
+     */
     public override fun clear() { elements.clear() }
+    /**
+     * Iterates this set's members in its defined order; structural changes invalidate the
+     * iterator.
+     */
     public override operator fun iterator(): Iterator<T> = elements.keys.iterator()
 
     private fun key(entry: Map.Entry<T, Unit>?): T? = when (entry) {
@@ -25,13 +51,35 @@ public class TreeSet<T> public constructor(
         case Some(value) -> Some(value.key)
     }
 
+    /**
+     * Returns the least element, or None when empty.
+     */
     public override fun firstOrNone(): T? = key(elements.firstEntryOrNone())
+    /**
+     * Returns the greatest element, or None when empty.
+     */
     public override fun lastOrNone(): T? = key(elements.lastEntryOrNone())
+    /**
+     * Returns the greatest element strictly below the argument, or None.
+     */
     public override fun lower(element: T): T? = key(elements.lowerEntry(element))
+    /**
+     * Returns the greatest element at or below the argument, or None.
+     */
     public override fun floor(element: T): T? = key(elements.floorEntry(element))
+    /**
+     * Returns the least element at or above the argument, or None.
+     */
     public override fun ceiling(element: T): T? = key(elements.ceilingEntry(element))
+    /**
+     * Returns the least element strictly above the argument, or None.
+     */
     public override fun higher(element: T): T? = key(elements.higherEntry(element))
 
+    /**
+     * Retains only members also present in the supplied elements and reports whether the set
+     * changed.
+     */
     public override fun retainAll(elements: Iterable<T>): Boolean {
         val snapshot = elements.toList()
         val keep = TreeSet<T>(comparator)
@@ -44,9 +92,19 @@ public class TreeSet<T> public constructor(
         return changed
     }
 
+    /**
+     * Serialization factories using explicit element or key/value codecs.
+     */
     public companion object {
+        /**
+         * Encodes entries or elements in iteration order using the supplied component codecs.
+         */
         public fun encoder(element: ValueEncoder<T>): ValueEncoder<TreeSet<T>> =
             ValueEncoderFunction<TreeSet<T>> { values, encoder -> encodeElements(values, element, encoder) }
+        /**
+         * Decodes entries or elements into a new collection using the supplied component codecs
+         * and comparator where required.
+         */
         public fun decoder(element: ValueDecoder<T>, comparator: Comparator<T>): ValueDecoder<TreeSet<T>> = ValueDecoderFunction<TreeSet<T>> { decoder ->
             val result = TreeSet<T>(comparator)
             decodeSetInto(decoder, element, result)

@@ -1,11 +1,17 @@
 package scoop.collections
 
+/**
+ * Transforms each element into a new list in iteration order.
+ */
 public fun <T, R> Iterable<T>.map(transform: (T) -> R): List<R> {
     val result = ArrayList<R>()
     for (element in this) result.add(transform(element))
     return ListSnapshot<R>(result.toArray())
 }
 
+/**
+ * Transforms each element with its zero-based Long index into a new list.
+ */
 public fun <T, R> Iterable<T>.mapIndexed(transform: (Long, T) -> R): List<R> {
     val result = ArrayList<R>()
     var index = 0L
@@ -16,6 +22,9 @@ public fun <T, R> Iterable<T>.mapIndexed(transform: (Long, T) -> R): List<R> {
     return ListSnapshot<R>(result.toArray())
 }
 
+/**
+ * Transforms each element, retaining and unwrapping only Some results in a new list.
+ */
 public fun <T, R> Iterable<T>.mapNotNone(transform: (T) -> R?): List<R> {
     val result = ArrayList<R>()
     for (element in this) {
@@ -27,17 +36,29 @@ public fun <T, R> Iterable<T>.mapNotNone(transform: (T) -> R?): List<R> {
     return ListSnapshot<R>(result.toArray())
 }
 
+/**
+ * Copies elements satisfying the predicate into a new list in iteration order.
+ */
 public fun <T> Iterable<T>.filter(predicate: (T) -> Boolean): List<T> {
     val result = ArrayList<T>()
     for (element in this) { if (predicate(element)) result.add(element) }
     return ListSnapshot<T>(result.toArray())
 }
 
+/**
+ * Copies elements failing the predicate into a new list in iteration order.
+ */
 public fun <T> Iterable<T>.filterNot(predicate: (T) -> Boolean): List<T> =
     filter<T> { element -> !predicate(element) }
 
+/**
+ * Copies and unwraps Some elements into a new list, skipping None.
+ */
 public fun <T> Iterable<T?>.filterNotNone(): List<T> = mapNotNone<T?, T> { element -> element }
 
+/**
+ * Concatenates each transformed iterable into a new list in source order.
+ */
 public fun <T, R> Iterable<T>.flatMap(transform: (T) -> Iterable<R>): List<R> {
     val result = ArrayList<R>()
     for (element in this) {
@@ -46,8 +67,15 @@ public fun <T, R> Iterable<T>.flatMap(transform: (T) -> Iterable<R>): List<R> {
     return ListSnapshot<R>(result.toArray())
 }
 
+/**
+ * Concatenates the nested iterables into a new list in outer and inner iteration order.
+ */
 public fun <T> Iterable<Iterable<T>>.flatten(): List<T> = flatMap<Iterable<T>, T> { element -> element }
 
+/**
+ * Returns two lists: matching elements first and nonmatching elements second, each retaining
+ * source order.
+ */
 public fun <T> Iterable<T>.partition(predicate: (T) -> Boolean): (List<T>, List<T>) {
     val matches = ArrayList<T>()
     val others = ArrayList<T>()

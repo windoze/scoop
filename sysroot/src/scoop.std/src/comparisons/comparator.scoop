@@ -1,6 +1,13 @@
 package scoop.comparisons
 
+/**
+ * Defines an ordering: negative means the first value precedes the second, zero means equivalent,
+ * and positive means it follows.
+ */
 public interface Comparator<T> {
+    /**
+     * Compares two values according to this ordering; only the sign of the result matters.
+     */
     public fun compare(left: T, right: T): Long
 }
 
@@ -10,14 +17,26 @@ internal class FunctionComparator<T> internal constructor(
     public override fun compare(left: T, right: T): Long = comparison(left, right)
 }
 
+/**
+ * Wraps the supplied comparison function as a Comparator.
+ */
 public fun <T> comparatorOf(comparison: (T, T) -> Long): Comparator<T> =
     FunctionComparator<T>(comparison)
 
+/**
+ * Uses the element type's compareTo operation as an ascending comparator.
+ */
 public fun <T : Compare<T>> naturalOrder(): Comparator<T> =
     comparatorOf<T> { left, right -> left.compareTo(right) }
 
+/**
+ * Reverses the element type's natural ordering.
+ */
 public fun <T : Compare<T>> reverseOrder(): Comparator<T> = naturalOrder<T>().reversed()
 
+/**
+ * Returns a comparator with the opposite ordering, preserving equality.
+ */
 public fun <T> Comparator<T>.reversed(): Comparator<T> {
     val source = this
     return comparatorOf<T> { left, right -> source.compare(right, left) }

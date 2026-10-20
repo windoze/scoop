@@ -1,35 +1,56 @@
 package scoop
 
+/**
+ * Transforms Some and wraps the result, leaving None unchanged.
+ */
 public fun <T, R> Option<T>.map(transform: (T) -> R): R? = when (this) {
     case Some(value) -> Some(transform(value))
     case None -> None
 }
 
+/**
+ * Transforms Some with an Option-producing callback, leaving None unchanged.
+ */
 public fun <T, R> Option<T>.flatMap(transform: (T) -> R?): R? = when (this) {
     case Some(value) -> transform(value)
     case None -> None
 }
 
+/**
+ * Keeps Some only if its value satisfies the predicate.
+ */
 public fun <T> Option<T>.filter(predicate: (T) -> Boolean): T? = when (this) {
     case Some(value) -> if (predicate(value)) this else None
     case None -> None
 }
 
+/**
+ * Runs the Some callback for a present value or the onNone callback when absent.
+ */
 public fun <T, R> Option<T>.fold(onSome: (T) -> R, onNone: () -> R): R = when (this) {
     case Some(value) -> onSome(value)
     case None -> onNone()
 }
 
+/**
+ * Returns a present value, evaluating the fallback only for None.
+ */
 public fun <T> Option<T>.getOrElse(defaultValue: () -> T): T = when (this) {
     case Some(value) -> value
     case None -> defaultValue()
 }
 
+/**
+ * Keeps Some, evaluating the alternative Option only for None.
+ */
 public fun <T> Option<T>.orElse(defaultValue: () -> T?): T? = when (this) {
     case Some(_) -> this
     case None -> defaultValue()
 }
 
+/**
+ * Maps Some to Success, producing a failure only for None.
+ */
 public fun <T, E> Option<T>.toResult(errorProducer: () -> E): Result<T, E> = when (this) {
     case Some(value) -> Result.Success<T, E>(value)
     case None -> Result.Failure<T, E>(errorProducer())

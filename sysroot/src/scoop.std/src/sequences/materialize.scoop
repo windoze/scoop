@@ -8,19 +8,39 @@ private class SequenceIterable<T>(private val source: Sequence<T>) : Iterable<T>
 
 internal fun <T> Sequence<T>.terminalInput(): Iterable<T> = SequenceIterable<T>(this)
 
+/**
+ * Consumes this sequence. Copies elements in encounter order into a read-only list.
+ */
 public fun <T> Sequence<T>.toList(): List<T> = terminalInput<T>().toList<T>()
 
+/**
+ * Consumes this sequence. Copies elements in encounter order into a new mutable list.
+ */
 public fun <T> Sequence<T>.toMutableList(): MutableList<T> =
     terminalInput<T>().toMutableList<T>()
 
+/**
+ * Consumes this sequence. Copies distinct elements into a read-only set in first-encounter order.
+ */
 public fun <T> Sequence<T>.toSet(): Set<T> where T : Equals<T>, T : Hash =
     terminalInput<T>().toSet<T>()
 
+/**
+ * Consumes this sequence. Copies distinct elements into a new mutable insertion-ordered set.
+ */
 public fun <T> Sequence<T>.toMutableSet(): MutableSet<T> where T : Equals<T>, T : Hash =
     terminalInput<T>().toMutableSet<T>()
 
+/**
+ * Consumes this sequence. Copies associations into a read-only map; later values for equal keys
+ * win.
+ */
 public fun <K, V> Sequence<(K, V)>.toMap(): Map<K, V> where K : Equals<K>, K : Hash =
     terminalInput<(K, V)>().toMap<K, V>()
 
+/**
+ * Consumes this sequence. Copies associations into a new mutable map; later values for equal keys
+ * win.
+ */
 public fun <K, V> Sequence<(K, V)>.toMutableMap(): MutableMap<K, V> where K : Equals<K>, K : Hash =
     terminalInput<(K, V)>().toMutableMap<K, V>()

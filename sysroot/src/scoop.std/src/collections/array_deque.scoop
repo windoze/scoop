@@ -1,10 +1,17 @@
 package scoop.collections
 
+/**
+ * A growable double-ended queue with constant-time indexed ring-buffer access at either end.
+ * Structural changes invalidate active iterators.
+ */
 public class ArrayDeque<T> public constructor() : Collection<T> {
     private var storage: ElementBuffer<T> = ElementBuffer<T>(8L)
     private var head: Long = 0L
     private var elementCount: Long = 0L
     private val structure: ModificationCounter = ModificationCounter()
+    /**
+     * The number of queued elements.
+     */
     public override val size: Long get() = elementCount
 
     private fun position(index: Long): Long {
@@ -23,6 +30,9 @@ public class ArrayDeque<T> public constructor() : Collection<T> {
         head = 0L
     }
 
+    /**
+     * Prepends an element to the queue.
+     */
     public fun addFirst(element: T) {
         ensureRoom()
         head = if (head == 0L) storage.capacity - 1L else head - 1L
@@ -31,6 +41,9 @@ public class ArrayDeque<T> public constructor() : Collection<T> {
         structure.advance()
     }
 
+    /**
+     * Appends an element to the queue.
+     */
     public fun addLast(element: T) {
         ensureRoom()
         storage.write(position(elementCount), element)
@@ -38,9 +51,18 @@ public class ArrayDeque<T> public constructor() : Collection<T> {
         structure.advance()
     }
 
+    /**
+     * Returns the front element without removing it, or None when empty.
+     */
     public fun firstOrNone(): T? = if (elementCount == 0L) None else Some(elementAt(0L))
+    /**
+     * Returns the back element without removing it, or None when empty.
+     */
     public fun lastOrNone(): T? = if (elementCount == 0L) None else Some(elementAt(elementCount - 1L))
 
+    /**
+     * Removes and returns the front element; an empty queue throws NoSuchElementException.
+     */
     public fun removeFirst(): T {
         if (elementCount == 0L) throw NoSuchElementException("empty deque")
         val value = storage.read(head)
@@ -52,6 +74,9 @@ public class ArrayDeque<T> public constructor() : Collection<T> {
         return value
     }
 
+    /**
+     * Removes and returns the back element; an empty queue throws NoSuchElementException.
+     */
     public fun removeLast(): T {
         if (elementCount == 0L) throw NoSuchElementException("empty deque")
         val index = position(elementCount - 1L)
@@ -63,9 +88,18 @@ public class ArrayDeque<T> public constructor() : Collection<T> {
         return value
     }
 
+    /**
+     * Removes the front element, or returns None when empty.
+     */
     public fun removeFirstOrNone(): T? = if (elementCount == 0L) None else Some(removeFirst())
+    /**
+     * Removes the back element, or returns None when empty.
+     */
     public fun removeLastOrNone(): T? = if (elementCount == 0L) None else Some(removeLast())
 
+    /**
+     * Removes all queued elements.
+     */
     public fun clear() {
         if (elementCount == 0L) return
         var index = 0L
@@ -75,11 +109,24 @@ public class ArrayDeque<T> public constructor() : Collection<T> {
         structure.advance()
     }
 
+    /**
+     * Iterates from front to back; structural changes invalidate the iterator.
+     */
     public override operator fun iterator(): Iterator<T> = DequeIterator<T>(this, structure)
 
+    /**
+     * Serialization factories using explicit element or key/value codecs.
+     */
     public companion object {
+        /**
+         * Encodes entries or elements in iteration order using the supplied component codecs.
+         */
         public fun encoder(element: ValueEncoder<T>): ValueEncoder<ArrayDeque<T>> =
             ValueEncoderFunction<ArrayDeque<T>> { values, encoder -> encodeElements(values, element, encoder) }
+        /**
+         * Decodes entries or elements into a new collection using the supplied component codecs
+         * and comparator where required.
+         */
         public fun decoder(element: ValueDecoder<T>): ValueDecoder<ArrayDeque<T>> = ValueDecoderFunction<ArrayDeque<T>> { decoder ->
             val result = ArrayDeque<T>()
             decodeElements(decoder, element) { value -> result.addLast(value) }

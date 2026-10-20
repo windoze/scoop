@@ -2,32 +2,64 @@ package scoop.sequences
 
 import scoop.collections.*
 
+/**
+ * Consumes this sequence. Groups values into lists by the selected key, retaining encounter order
+ * within each group.
+ */
 public fun <T, K, V> Sequence<T>.groupBy(keySelector: (T) -> K, valueTransform: (T) -> V): Map<K, List<V>>
     where K : Equals<K>, K : Hash =
     terminalInput<T>().groupBy<T, K, V>(keySelector, valueTransform)
 
+/**
+ * Consumes this sequence. Groups values into lists by the selected key, retaining encounter order
+ * within each group.
+ */
 public fun <T, K> Sequence<T>.groupBy(keySelector: (T) -> K): Map<K, List<T>>
     where K : Equals<K>, K : Hash =
     terminalInput<T>().groupBy<T, K>(keySelector)
 
+/**
+ * Consumes this sequence. Appends values into the destination's per-key mutable lists and returns
+ * that destination.
+ */
 public fun <T, K, V> Sequence<T>.groupByTo(destination: MutableMap<K, MutableList<V>>, keySelector: (T) -> K, valueTransform: (T) -> V): MutableMap<K, MutableList<V>> =
     terminalInput<T>().groupByTo<T, K, V>(destination, keySelector, valueTransform)
 
+/**
+ * Consumes this sequence. Appends values into the destination's per-key mutable lists and returns
+ * that destination.
+ */
 public fun <T, K> Sequence<T>.groupByTo(destination: MutableMap<K, MutableList<T>>, keySelector: (T) -> K): MutableMap<K, MutableList<T>> =
     terminalInput<T>().groupByTo<T, K>(destination, keySelector)
 
+/**
+ * Consumes this sequence. Builds a map from transformed key-value pairs; later values replace
+ * earlier values for equal keys.
+ */
 public fun <T, K, V> Sequence<T>.associate(transform: (T) -> (K, V)): Map<K, V>
     where K : Equals<K>, K : Hash =
     terminalInput<T>().associate<T, K, V>(transform)
 
+/**
+ * Consumes this sequence. Builds a map using selected keys and optional value transformation; the
+ * last value for each key wins.
+ */
 public fun <T, K, V> Sequence<T>.associateBy(keySelector: (T) -> K, valueTransform: (T) -> V): Map<K, V>
     where K : Equals<K>, K : Hash =
     terminalInput<T>().associateBy<T, K, V>(keySelector, valueTransform)
 
+/**
+ * Consumes this sequence. Builds a map using selected keys and optional value transformation; the
+ * last value for each key wins.
+ */
 public fun <T, K> Sequence<T>.associateBy(keySelector: (T) -> K): Map<K, T>
     where K : Equals<K>, K : Hash =
     terminalInput<T>().associateBy<T, K>(keySelector)
 
+/**
+ * Consumes this sequence. Associates each element with its selected value; later equal elements
+ * replace the stored value.
+ */
 public fun <T, V> Sequence<T>.associateWith(valueSelector: (T) -> V): Map<T, V>
     where T : Equals<T>, T : Hash =
     terminalInput<T>().associateWith<T, V>(valueSelector)

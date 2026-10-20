@@ -12,5 +12,11 @@ private fun String.convertAscii(uppercase: Boolean): String {
     return String.fromChars(chars)
 }
 
+/**
+ * Maps ASCII A-Z to a-z, leaving all other Unicode scalars unchanged.
+ */
 public fun String.lowercaseAscii(): String = convertAscii(false)
+/**
+ * Maps ASCII a-z to A-Z, leaving all other Unicode scalars unchanged.
+ */
 public fun String.uppercaseAscii(): String = convertAscii(true)

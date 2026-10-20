@@ -4,37 +4,95 @@ import scoop.decodeTextValue
 
 import scoop.time.Duration
 
+/**
+ * An immutable time of day with nanosecond precision. Hours are 0..23, minutes/seconds 0..59, and
+ * nanoseconds 0..999999999; leap seconds are not represented.
+ */
 public class LocalTime public constructor(
-    public val hour: Int, public val minute: Int, public val second: Int = 0, public val nanosecond: Int = 0
+    /**
+     * The hour of day in 0..23.
+     */
+    public val hour: Int, 
+        /**
+         * The minute within the hour in 0..59.
+         */
+        public val minute: Int, 
+        /**
+         * The second within the minute in 0..59.
+         */
+        public val second: Int = 0, 
+        /**
+         * The fractional nanosecond within the second in 0..999999999.
+         */
+        public val nanosecond: Int = 0
 ) : Equals<LocalTime>, Compare<LocalTime>, Hash, ToString, Add<Duration, LocalTime>, Sub<Duration, LocalTime> {
     init {
         if (hour < 0 || hour > 23 || minute < 0 || minute > 59 || second < 0 || second > 59 ||
             nanosecond < 0 || nanosecond >= 1000000000) throw IllegalArgumentException(Some("invalid time"))
     }
+    /**
+     * Returns nanoseconds since midnight in 0..<86400000000000.
+     */
     public fun toNanosecondOfDay(): Long =
         (hour.toLong() * 3600L + minute.toLong() * 60L + second.toLong()) * 1000000000L + nanosecond.toLong()
+    /**
+     * Adds a duration and wraps across midnight, discarding whole days.
+     */
     public override operator fun plus(other: Duration): LocalTime =
         LocalTime.fromNanosecondOfDay(shiftedTimeOfDay(this, other, false)._2)
+    /**
+     * Subtracts a duration and wraps across midnight, discarding whole days.
+     */
     public override operator fun minus(other: Duration): LocalTime =
         LocalTime.fromNanosecondOfDay(shiftedTimeOfDay(this, other, true)._2)
+    /**
+     * Compares the stored value components for equality.
+     */
     public override operator fun equals(other: LocalTime): Boolean =
         hour == other.hour && minute == other.minute && second == other.second && nanosecond == other.nanosecond
+    /**
+     * Orders values by their chronological or numeric value; only the result sign is significant.
+     */
     public override operator fun compareTo(other: LocalTime): Long = toNanosecondOfDay().compareTo(other.toNanosecondOfDay())
+    /**
+     * Computes a hash consistent with component equality.
+     */
     public override fun hash(): Long = toNanosecondOfDay().hash()
+    /**
+     * Formats this value as ISO local time.
+     */
     public override fun toString(): String = formatLocalTime(this)
 
+    /**
+     * Value construction and serialization helpers.
+     */
     public companion object : ValueEncoder<LocalTime>, ValueDecoder<LocalTime> {
+        /**
+         * Encodes the value as its canonical text representation.
+         */
         public override fun encode(value: LocalTime, encoder: Encoder) { encoder.singleValue().writeString(value.toString()) }
+        /**
+         * Reads a string value and validates it using this type's parser.
+         */
         public override fun decode(decoder: Decoder): LocalTime =
             decodeTextValue<LocalTime>(decoder, { text -> parseOrNone(text) }, "time")
 
+        /**
+         * Constructs a time from nanoseconds since midnight in 0..<86400000000000.
+         */
         public fun fromNanosecondOfDay(value: Long): LocalTime {
             if (value < 0L || value >= 86400000000000L) throw IllegalArgumentException(Some("invalid nanosecond of day"))
             val seconds = value / 1000000000L
             return LocalTime((seconds / 3600L).toInt(), (seconds / 60L % 60L).toInt(),
                 (seconds % 60L).toInt(), (value % 1000000000L).toInt())
         }
+        /**
+         * Parses ISO local time, returning None for malformed or out-of-range input.
+         */
         public fun parseOrNone(text: String): LocalTime? = parseLocalTime(text)
+        /**
+         * Parses ISO local time or throws IllegalArgumentException for invalid input.
+         */
         public fun parse(text: String): LocalTime = when (parseOrNone(text)) {
             case Some(value) -> value
             case None -> throw IllegalArgumentException(Some("invalid time"))

@@ -1,25 +1,62 @@
 package scoop.collections
 
+/**
+ * A mutable hash set with unspecified iteration order. Stored elements must retain consistent
+ * equality and hashes.
+ */
 public class HashSet<T> public constructor() : MutableSet<T> where T : Equals<T>, T : Hash {
     private val elements: HashMap<T, Unit> = HashMap<T, Unit>()
 
+    /**
+     * The number of distinct members.
+     */
     public override val size: Long get() = elements.size
+    /**
+     * Tests membership using this set's equality or comparator rule.
+     */
     public override operator fun contains(value: T): Boolean = elements.containsKey(value)
+    /**
+     * Adds an absent member and returns true only when membership changes.
+     */
     public override fun add(value: T): Boolean = when (elements.putIfAbsent(value, Unit)) {
         case None -> true
         case Some(_) -> false
     }
+    /**
+     * Removes a member and returns true only when it was present.
+     */
     public override fun remove(value: T): Boolean = when (elements.remove(value)) {
         case None -> false
         case Some(_) -> true
     }
+    /**
+     * Removes all members.
+     */
     public override fun clear() { elements.clear() }
+    /**
+     * Iterates this set's members in its defined order; structural changes invalidate the
+     * iterator.
+     */
     public override operator fun iterator(): Iterator<T> = elements.keys.iterator()
+    /**
+     * Retains only members also present in the supplied elements and reports whether the set
+     * changed.
+     */
     public override fun retainAll(elements: Iterable<T>): Boolean = retainHashed<T>(this, elements)
 
+    /**
+     * Serialization factories using explicit element or key/value codecs.
+     */
     public companion object {
+        /**
+         * Encodes entries or elements in iteration order using the supplied component codecs.
+         */
         public fun encoder(element: ValueEncoder<T>): ValueEncoder<HashSet<T>> =
             ValueEncoderFunction<HashSet<T>> { values, encoder -> encodeElements(values, element, encoder) }
+        /**
+         * Decodes entries or elements into a new collection using the supplied component codecs
+         * and comparator where required.
+         */
         public fun decoder(element: ValueDecoder<T>): ValueDecoder<HashSet<T>> = ValueDecoderFunction<HashSet<T>> { decoder ->
             val result = HashSet<T>()
             decodeSetInto(decoder, element, result)
@@ -28,6 +65,9 @@ public class HashSet<T> public constructor() : MutableSet<T> where T : Equals<T>
     }
 }
 
+/**
+ * Creates a hash map from pairs; the last value for an equal key wins.
+ */
 public fun <K, V> hashMapOf(vararg entries: (K, V)): HashMap<K, V>
     where K : Equals<K>, K : Hash {
     val result = HashMap<K, V>()
@@ -35,6 +75,9 @@ public fun <K, V> hashMapOf(vararg entries: (K, V)): HashMap<K, V>
     return result
 }
 
+/**
+ * Creates a hash set from the distinct supplied elements.
+ */
 public fun <T> hashSetOf(vararg elements: T): HashSet<T> where T : Equals<T>, T : Hash {
     val result = HashSet<T>()
     for (element in elements) result.add(element)

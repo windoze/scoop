@@ -2,52 +2,169 @@ package scoop.time
 
 import scoop.decodeTextValue
 
-public class Duration private constructor(public val floorSeconds: Long, public val nanosecondsOfSecond: Int)
+/**
+ * A signed elapsed duration with nanosecond precision, normalized as floor seconds plus
+ * nonnegative fractional nanoseconds. Arithmetic throws on representational overflow.
+ */
+public class Duration private constructor(
+    /**
+     * The whole-second component rounded toward negative infinity.
+     */
+    public val floorSeconds: Long, 
+    /**
+     * The nonnegative fractional component in 0..999999999.
+     */
+    public val nanosecondsOfSecond: Int)
     : Equals<Duration>, Compare<Duration>, Hash, ToString, Add<Duration, Duration>, Sub<Duration, Duration>,
       Mul<Long, Duration>, Div<Long, Duration>, UnaryMinus<Duration> {
+    /**
+     * Compares the stored value components for equality.
+     */
     public override operator fun equals(other: Duration): Boolean =
         floorSeconds == other.floorSeconds && nanosecondsOfSecond == other.nanosecondsOfSecond
+    /**
+     * Orders values by their chronological or numeric value; only the result sign is significant.
+     */
     public override operator fun compareTo(other: Duration): Long =
         if (floorSeconds != other.floorSeconds) floorSeconds.compareTo(other.floorSeconds)
         else nanosecondsOfSecond.compareTo(other.nanosecondsOfSecond)
+    /**
+     * Computes a hash consistent with component equality.
+     */
     public override fun hash(): Long = floorSeconds.hash() * 31L + nanosecondsOfSecond.hash()
+    /**
+     * Adds another duration with checked representational overflow.
+     */
     public override operator fun plus(other: Duration): Duration =
         Duration.fromParts(addDurationParts(durationParts(this), durationParts(other)))
+    /**
+     * Subtracts another duration with checked representational overflow.
+     */
     public override operator fun minus(other: Duration): Duration =
         Duration.fromParts(addDurationParts(durationParts(this), durationParts(other).negated()))
+    /**
+     * Negates the duration, throwing if the result cannot be represented.
+     */
     public override operator fun unaryMinus(): Duration = Duration.fromParts(durationParts(this).negated())
+    /**
+     * Multiplies by a signed integer with checked overflow.
+     */
     public override operator fun times(other: Long): Duration = Duration.fromParts(multiplyDurationParts(durationParts(this), other))
+    /**
+     * Divides by a signed integer, truncating subnanosecond remainder toward zero; zero divisor or
+     * overflow throws.
+     */
     public override operator fun div(other: Long): Duration = Duration.fromParts(divideDurationParts(durationParts(this), other))
+    /**
+     * Returns the nonnegative magnitude, throwing if it cannot be represented.
+     */
     public val absoluteValue: Duration get() = if (floorSeconds < 0L) -this else this
+    /**
+     * Returns whole seconds truncated toward zero; a result outside Long range throws
+     * ArithmeticException.
+     */
     public val inWholeSeconds: Long get() = if (floorSeconds < 0L && nanosecondsOfSecond != 0) floorSeconds + 1L else floorSeconds
+    /**
+     * Returns whole minutes truncated toward zero; a result outside Long range throws
+     * ArithmeticException.
+     */
     public val inWholeMinutes: Long get() = inWholeSeconds / 60L
+    /**
+     * Returns whole hours truncated toward zero; a result outside Long range throws
+     * ArithmeticException.
+     */
     public val inWholeHours: Long get() = inWholeSeconds / 3600L
+    /**
+     * Returns whole days truncated toward zero; a result outside Long range throws
+     * ArithmeticException.
+     */
     public val inWholeDays: Long get() = inWholeSeconds / 86400L
+    /**
+     * Returns whole milliseconds truncated toward zero; a result outside Long range throws
+     * ArithmeticException.
+     */
     public val inWholeMilliseconds: Long get() = durationWholeUnits(durationParts(this), 1000uL)
+    /**
+     * Returns whole microseconds truncated toward zero; a result outside Long range throws
+     * ArithmeticException.
+     */
     public val inWholeMicroseconds: Long get() = durationWholeUnits(durationParts(this), 1000000uL)
+    /**
+     * Returns whole nanoseconds truncated toward zero; a result outside Long range throws
+     * ArithmeticException.
+     */
     public val inWholeNanoseconds: Long get() = durationWholeUnits(durationParts(this), 1000000000uL)
+    /**
+     * Returns whole seconds truncated toward zero and a signed nanosecond remainder.
+     */
     public fun toComponents(): (Long, Int) =
         (inWholeSeconds, if (floorSeconds < 0L && nanosecondsOfSecond != 0) nanosecondsOfSecond - 1000000000 else nanosecondsOfSecond)
+    /**
+     * Formats the signed duration in ISO duration notation.
+     */
     public fun toIsoString(): String = formatDuration(durationParts(this))
+    /**
+     * Formats this value as ISO duration.
+     */
     public override fun toString(): String = toIsoString()
 
+    /**
+     * Value construction and serialization helpers.
+     */
     public companion object : ValueEncoder<Duration>, ValueDecoder<Duration> {
+        /**
+         * Encodes the value as its canonical text representation.
+         */
         public override fun encode(value: Duration, encoder: Encoder) { encoder.singleValue().writeString(value.toString()) }
+        /**
+         * Reads a string value and validates it using this type's parser.
+         */
         public override fun decode(decoder: Decoder): Duration =
             decodeTextValue<Duration>(decoder, { text -> parseOrNone(text) }, "duration")
 
+        /**
+         * A zero-length duration.
+         */
         public val ZERO: Duration = Duration(0L, 0)
+        /**
+         * Combines whole seconds and an arbitrary signed nanosecond adjustment, normalizing with
+         * checked overflow.
+         */
         public fun seconds(value: Long, nanosecondAdjustment: Long = 0L): Duration {
             val parts = normalizeDuration(value, nanosecondAdjustment)
             return Duration(parts._1, parts._2)
         }
+        /**
+         * Constructs a duration from signed milliseconds with checked overflow.
+         */
         public fun milliseconds(value: Long): Duration = seconds(value / 1000L, (value % 1000L) * 1000000L)
+        /**
+         * Constructs a duration from signed microseconds with checked overflow.
+         */
         public fun microseconds(value: Long): Duration = seconds(value / 1000000L, (value % 1000000L) * 1000L)
+        /**
+         * Constructs a duration from signed nanoseconds with checked overflow.
+         */
         public fun nanoseconds(value: Long): Duration = seconds(0L, value)
+        /**
+         * Constructs a duration from signed minutes with checked overflow.
+         */
         public fun minutes(value: Long): Duration = seconds(value) * 60L
+        /**
+         * Constructs a duration from signed hours with checked overflow.
+         */
         public fun hours(value: Long): Duration = seconds(value) * 3600L
+        /**
+         * Constructs a duration from signed days with checked overflow.
+         */
         public fun days(value: Long): Duration = seconds(value) * 86400L
+        /**
+         * Parses ISO duration, returning None for malformed or out-of-range input.
+         */
         public fun parseOrNone(text: String): Duration? = parseDuration(text)
+        /**
+         * Parses ISO duration or throws IllegalArgumentException for invalid input.
+         */
         public fun parse(text: String): Duration = when (parseOrNone(text)) {
             case Some(value) -> value
             case None -> throw IllegalArgumentException(Some("invalid duration"))

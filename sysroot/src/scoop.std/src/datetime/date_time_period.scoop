@@ -2,18 +2,37 @@ package scoop.datetime
 
 import scoop.time.Duration
 
+/**
+ * A calendar DatePeriod followed by a fixed elapsed Duration. Applying it to a local date-time
+ * applies the date component first.
+ */
 public struct DateTimePeriod(val date: DatePeriod = DatePeriod(), val time: Duration = Duration.ZERO)
     : Equals<DateTimePeriod>, Hash {
+    /**
+     * Compares the stored value components for equality.
+     */
     public override operator fun equals(other: DateTimePeriod): Boolean = date == other.date && time == other.time
+    /**
+     * Computes a hash consistent with component equality.
+     */
     public override fun hash(): Long = date.hash() * 31L + time.hash()
 
+    /**
+     * Value construction and serialization helpers.
+     */
     public companion object : ValueEncoder<DateTimePeriod>, ValueDecoder<DateTimePeriod> {
+        /**
+         * Encodes the named components as keyed fields without normalizing the period.
+         */
         public override fun encode(value: DateTimePeriod, encoder: Encoder) {
             val fields = encoder.keyed()
             DatePeriod.encode(value.date, fields.field("date"))
             Duration.encode(value.time, fields.field("time"))
             fields.end()
         }
+        /**
+         * Decodes the required named components and reconstructs the period.
+         */
         public override fun decode(decoder: Decoder): DateTimePeriod {
             val fields = decoder.keyed()
             val date = DatePeriod.decode(fields.required("date"))

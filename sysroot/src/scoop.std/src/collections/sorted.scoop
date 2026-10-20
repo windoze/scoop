@@ -2,26 +2,81 @@ package scoop.collections
 
 import scoop.comparisons.Comparator
 
+/**
+ * A map ordered by its comparator, with nearest-key queries returning None when no bound exists.
+ */
 public interface SortedMap<K, V> : Map<K, V> {
+    /**
+     * The comparator used for ordering and, for ordered maps/sets, equivalence.
+     */
     public val comparator: Comparator<K>
+    /**
+     * Returns the least-key entry, or None when empty.
+     */
     public fun firstEntryOrNone(): Map.Entry<K, V>?
+    /**
+     * Returns the greatest-key entry, or None when empty.
+     */
     public fun lastEntryOrNone(): Map.Entry<K, V>?
+    /**
+     * Returns the greatest entry strictly below the key, or None.
+     */
     public fun lowerEntry(key: K): Map.Entry<K, V>?
+    /**
+     * Returns the greatest entry at or below the key, or None.
+     */
     public fun floorEntry(key: K): Map.Entry<K, V>?
+    /**
+     * Returns the least entry at or above the key, or None.
+     */
     public fun ceilingEntry(key: K): Map.Entry<K, V>?
+    /**
+     * Returns the least entry strictly above the key, or None.
+     */
     public fun higherEntry(key: K): Map.Entry<K, V>?
 }
 
+/**
+ * An ordered map supporting mutation while preserving its comparator-based key order.
+ */
 public interface MutableSortedMap<K, V> : SortedMap<K, V>, MutableMap<K, V> {}
 
+/**
+ * A set ordered by its comparator, with nearest-element queries returning None when no bound
+ * exists.
+ */
 public interface SortedSet<T> : Set<T> {
+    /**
+     * The comparator used for ordering and, for ordered maps/sets, equivalence.
+     */
     public val comparator: Comparator<T>
+    /**
+     * Returns the least element, or None when empty.
+     */
     public fun firstOrNone(): T?
+    /**
+     * Returns the greatest element, or None when empty.
+     */
     public fun lastOrNone(): T?
+    /**
+     * Returns the greatest element strictly below the argument, or None.
+     */
     public fun lower(element: T): T?
+    /**
+     * Returns the greatest element at or below the argument, or None.
+     */
     public fun floor(element: T): T?
+    /**
+     * Returns the least element at or above the argument, or None.
+     */
     public fun ceiling(element: T): T?
+    /**
+     * Returns the least element strictly above the argument, or None.
+     */
     public fun higher(element: T): T?
 }
 
+/**
+ * An ordered set supporting membership changes.
+ */
 public interface MutableSortedSet<T> : SortedSet<T>, MutableSet<T> {}

@@ -3,12 +3,18 @@ package scoop.collections
 import scoop.comparisons.Comparator
 import scoop.comparisons.naturalOrder
 
+/**
+ * Creates a min-priority queue from the supplied elements using the selected ordering.
+ */
 public fun <T> priorityQueueOf(comparator: Comparator<T>, vararg elements: T): PriorityQueue<T> {
     val result = PriorityQueue<T>(comparator)
     for (element in elements) result.add(element)
     return result
 }
 
+/**
+ * Creates a min-priority queue from the supplied elements using the selected ordering.
+ */
 public fun <T : Compare<T>> priorityQueueOf(vararg elements: T): PriorityQueue<T> =
     priorityQueueOf<T>(naturalOrder<T>(), *elements)
 

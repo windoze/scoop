@@ -1,7 +1,13 @@
 package scoop.collections
 
+/**
+ * An element paired with its zero-based Long iteration index.
+ */
 public struct IndexedValue<T>(val index: Long, val value: T)
 
+/**
+ * Pairs each element with its zero-based Long index as it is iterated.
+ */
 public fun <T> Iterable<T>.withIndex(): Iterable<IndexedValue<T>> = IndexedIterable<T>(this)
 
 private class IndexedIterable<T>(private val source: Iterable<T>) : Iterable<IndexedValue<T>> {
@@ -21,6 +27,9 @@ private class IndexedIterator<T>(private val source: Iterator<T>) : Iterator<Ind
     }
 }
 
+/**
+ * Pairs elements by position, stopping when either input ends.
+ */
 public fun <T, R> Iterable<T>.zip(other: Iterable<R>): List<(T, R)> {
     val result = ArrayList<(T, R)>()
     val left = iterator()
@@ -38,6 +47,10 @@ public fun <T, R> Iterable<T>.zip(other: Iterable<R>): List<(T, R)> {
     return ListSnapshot<(T, R)>(result.toArray())
 }
 
+/**
+ * Produces copied windows at the requested step. Size and step must be positive; incomplete
+ * trailing windows are included only when partialWindows is true.
+ */
 public fun <T> Iterable<T>.windowed(size: Long, step: Long = 1L, partialWindows: Boolean = false): List<List<T>> {
     if (size <= 0L || step <= 0L) throw IllegalArgumentException(Some("non-positive window size or step"))
     val result = ArrayList<List<T>>()
@@ -66,4 +79,8 @@ public fun <T> Iterable<T>.windowed(size: Long, step: Long = 1L, partialWindows:
     return ListSnapshot<List<T>>(result.toArray())
 }
 
+/**
+ * Partitions input into copied, nonoverlapping chunks of positive size; the final chunk may be
+ * shorter.
+ */
 public fun <T> Iterable<T>.chunked(size: Long): List<List<T>> = windowed<T>(size, size, true)

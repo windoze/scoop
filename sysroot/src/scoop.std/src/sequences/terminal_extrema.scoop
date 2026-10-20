@@ -4,14 +4,30 @@ import scoop.collections.*
 
 import scoop.comparisons.Comparator
 
+/**
+ * Consumes this sequence. Traverses the input for its least element in natural order, returning
+ * None when empty.
+ */
 public fun <T : Compare<T>> Sequence<T>.minOrNone(): T? =
     terminalInput<T>().minOrNone<T>()
 
+/**
+ * Consumes this sequence. Traverses the input for its least element under the comparator,
+ * returning None when empty.
+ */
 public fun <T> Sequence<T>.minWithOrNone(comparator: Comparator<T>): T? =
     terminalInput<T>().minWithOrNone<T>(comparator)
 
+/**
+ * Consumes this sequence. Traverses the input for its greatest element in natural order, returning
+ * None when empty.
+ */
 public fun <T : Compare<T>> Sequence<T>.maxOrNone(): T? =
     terminalInput<T>().maxOrNone<T>()
 
+/**
+ * Consumes this sequence. Traverses the input for its greatest element under the comparator,
+ * returning None when empty.
+ */
 public fun <T> Sequence<T>.maxWithOrNone(comparator: Comparator<T>): T? =
     terminalInput<T>().maxWithOrNone<T>(comparator)

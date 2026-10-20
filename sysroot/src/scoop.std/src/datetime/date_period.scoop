@@ -1,10 +1,26 @@
 package scoop.datetime
 
+/**
+ * Calendar years, months, and days. Components are retained separately; applying a period combines
+ * years/months before days and may clamp an end-of-month date.
+ */
 public struct DatePeriod(val years: Int = 0, val months: Int = 0, val days: Long = 0L) : Equals<DatePeriod>, Hash {
+    /**
+     * Compares the stored value components for equality.
+     */
     public override operator fun equals(other: DatePeriod): Boolean = years == other.years && months == other.months && days == other.days
+    /**
+     * Computes a hash consistent with component equality.
+     */
     public override fun hash(): Long = (years.hash() * 31L + months.hash()) * 31L + days.hash()
 
+    /**
+     * Value construction and serialization helpers.
+     */
     public companion object : ValueEncoder<DatePeriod>, ValueDecoder<DatePeriod> {
+        /**
+         * Encodes the named components as keyed fields without normalizing the period.
+         */
         public override fun encode(value: DatePeriod, encoder: Encoder) {
             val fields = encoder.keyed()
             Int.encode(value.years, fields.field("years"))
@@ -12,6 +28,9 @@ public struct DatePeriod(val years: Int = 0, val months: Int = 0, val days: Long
             Long.encode(value.days, fields.field("days"))
             fields.end()
         }
+        /**
+         * Decodes the required named components and reconstructs the period.
+         */
         public override fun decode(decoder: Decoder): DatePeriod {
             val fields = decoder.keyed()
             val years = Int.decode(fields.required("years"))

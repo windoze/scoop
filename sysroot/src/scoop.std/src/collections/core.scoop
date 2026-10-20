@@ -7,6 +7,12 @@ public import List
 public import MutableList
 public import ArrayList
 
+/**
+ * Returns whether the collection contains no entries or elements.
+ */
 public fun <T> Collection<T>.isEmpty(): Boolean = size == 0L
 
+/**
+ * Returns whether the collection contains at least one entry or element.
+ */
 public fun <T> Collection<T>.isNotEmpty(): Boolean = size != 0L

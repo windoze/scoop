@@ -1,6 +1,13 @@
 package scoop.sequences
 
+/**
+ * A lazy source of iterators. Operations run when consumed; iterator-backed sequences permit only
+ * one traversal, while replay depends on the original source.
+ */
 public interface Sequence<T> {
+    /**
+     * Starts a traversal; a one-shot sequence throws when traversed again.
+     */
     public operator fun iterator(): Iterator<T>
 }
 
@@ -22,8 +29,22 @@ private class EmptySequenceIterator<T> : Iterator<T> {
     public override fun next(): T? = None
 }
 
+/**
+ * Creates a repeatable sequence with no elements.
+ */
 public fun <T> emptySequence(): Sequence<T> = FactorySequence<T> { EmptySequenceIterator<T>() }
+/**
+ * Creates a sequence over the supplied arguments in order.
+ */
 public fun <T> sequenceOf(vararg elements: T): Sequence<T> = elements.asSequence<T>()
 
+/**
+ * Adapts the receiver without copying. Iterable receivers create a traversal each time; an
+ * Iterator receiver permits exactly one traversal.
+ */
 public fun <T> Iterable<T>.asSequence(): Sequence<T> = FactorySequence<T> { iterator() }
+/**
+ * Adapts the receiver without copying. Iterable receivers create a traversal each time; an
+ * Iterator receiver permits exactly one traversal.
+ */
 public fun <T> Iterator<T>.asSequence(): Sequence<T> = OnceSequence<T> { this }

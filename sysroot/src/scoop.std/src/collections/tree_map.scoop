@@ -4,16 +4,35 @@ import scoop.comparisons.Comparator
 
 internal struct TreeLocation<K, V>(val node: BTreeNode<K, V>?, val index: Long, val found: Boolean)
 
+/**
+ * A mutable ordered map using the supplied comparator for both order and key equivalence.
+ * Iteration visits ascending keys; comparator-equivalent keys occupy one entry.
+ */
 public class TreeMap<K, V> public constructor(
+    /**
+     * The comparator used for ordering and, for ordered maps/sets, equivalence.
+     */
     public override val comparator: Comparator<K>
 ) : MutableSortedMap<K, V> {
     private val tree: BTree<K, V> = BTree<K, V>()
     private val changes: ModificationCounter = ModificationCounter()
     private val structure: ModificationCounter = ModificationCounter()
 
+    /**
+     * The number of key-value associations.
+     */
     public override val size: Long get() = tree.size
+    /**
+     * A read-only view of the map's current keys.
+     */
     public override val keys: Set<K> get() = MapKeys<K, V>(this)
+    /**
+     * A read-only view of current values, retaining duplicates.
+     */
     public override val values: Collection<V> get() = MapValues<K, V>(this)
+    /**
+     * A read-only view of current key-value entries.
+     */
     public override val entries: Collection<Map.Entry<K, V>> get() = MapEntries<K, V>(this)
 
     private fun compare(key: K, node: BTreeNode<K, V>, index: Long, stamp: RevisionStamp): Long {
@@ -41,12 +60,21 @@ public class TreeMap<K, V> public constructor(
         return TreeLocation<K, V>(None, 0L, false)
     }
 
+    /**
+     * Returns the value associated with the key, or None when absent.
+     */
     public override operator fun get(key: K): V? {
         val location = locate(key)
         return if (location.found) Some(location.node!!.entry(location.index).value) else None
     }
 
+    /**
+     * Tests whether the key has an association.
+     */
     public override fun containsKey(key: K): Boolean = locate(key).found
+    /**
+     * Associates the value with the key and returns the previous value, or None for a new key.
+     */
     public override fun put(key: K, value: V): V? = putEntry(key, value, true)
     internal fun putIfAbsent(key: K, value: V): V? = putEntry(key, value, false)
 
@@ -66,6 +94,9 @@ public class TreeMap<K, V> public constructor(
         return None
     }
 
+    /**
+     * Removes the key and returns its former value, or None if absent.
+     */
     public override fun remove(key: K): V? {
         val location = locate(key)
         if (!location.found) return None
@@ -75,6 +106,9 @@ public class TreeMap<K, V> public constructor(
         return Some(value)
     }
 
+    /**
+     * Removes every association.
+     */
     public override fun clear() {
         if (size == 0L) return
         tree.clear()
@@ -103,25 +137,56 @@ public class TreeMap<K, V> public constructor(
         return candidate
     }
 
+    /**
+     * Returns the least-key entry, or None when empty.
+     */
     public override fun firstEntryOrNone(): Map.Entry<K, V>? {
         val node = tree.first(tree.root)
         return if (node == None) None else Some(node!!.entry(0L))
     }
 
+    /**
+     * Returns the greatest-key entry, or None when empty.
+     */
     public override fun lastEntryOrNone(): Map.Entry<K, V>? {
         val node = tree.last(tree.root)
         return if (node == None) None else Some(node!!.entry(node!!.count - 1L))
     }
 
+    /**
+     * Returns the greatest entry strictly below the key, or None.
+     */
     public override fun lowerEntry(key: K): Map.Entry<K, V>? = bound(key, false, false)
+    /**
+     * Returns the greatest entry at or below the key, or None.
+     */
     public override fun floorEntry(key: K): Map.Entry<K, V>? = bound(key, false, true)
+    /**
+     * Returns the least entry at or above the key, or None.
+     */
     public override fun ceilingEntry(key: K): Map.Entry<K, V>? = bound(key, true, true)
+    /**
+     * Returns the least entry strictly above the key, or None.
+     */
     public override fun higherEntry(key: K): Map.Entry<K, V>? = bound(key, true, false)
+    /**
+     * Iterates key-value entries in this map's order; structural changes invalidate the iterator.
+     */
     public override operator fun iterator(): Iterator<Map.Entry<K, V>> = TreeIterator<K, V>(tree, structure)
 
+    /**
+     * Serialization factories using explicit element or key/value codecs.
+     */
     public companion object {
+        /**
+         * Encodes entries or elements in iteration order using the supplied component codecs.
+         */
         public fun encoder(key: ValueEncoder<K>, value: ValueEncoder<V>): ValueEncoder<TreeMap<K, V>> =
             ValueEncoderFunction<TreeMap<K, V>> { values, encoder -> encodeMap(values, key, value, encoder) }
+        /**
+         * Decodes entries or elements into a new collection using the supplied component codecs
+         * and comparator where required.
+         */
         public fun decoder(key: ValueDecoder<K>, value: ValueDecoder<V>, comparator: Comparator<K>): ValueDecoder<TreeMap<K, V>> =
             ValueDecoderFunction<TreeMap<K, V>> { decoder ->
                 val result = TreeMap<K, V>(comparator)

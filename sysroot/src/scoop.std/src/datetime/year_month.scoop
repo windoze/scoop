@@ -2,39 +2,95 @@ package scoop.datetime
 
 import scoop.decodeTextValue
 
-public class YearMonth public constructor(public val year: Int, public val monthNumber: Int)
+/**
+ * An immutable Gregorian year and month in the same supported year range as LocalDate.
+ */
+public class YearMonth public constructor(
+    /**
+     * The proleptic Gregorian year, including year zero.
+     */
+    public val year: Int, 
+    /**
+     * The one-based month number in 1..12.
+     */
+    public val monthNumber: Int)
     : Equals<YearMonth>, Compare<YearMonth>, Hash, ToString {
     init {
         if (!validCalendarDate(year, monthNumber, 1)) throw IllegalArgumentException(Some("invalid year-month"))
     }
     public constructor(year: Int, month: Month) : this(year, month.number) {}
+    /**
+     * The corresponding Gregorian Month value.
+     */
     public val month: Month get() = Month.fromNumber(monthNumber)
+    /**
+     * The number of days in this month, including leap-year rules.
+     */
     public val lengthOfMonth: Int get() = calendarMonthLength(year, monthNumber)
+    /**
+     * Whether the year is leap under proleptic Gregorian rules.
+     */
     public val isLeapYear: Boolean get() = calendarLeapYear(year)
+    /**
+     * Constructs a date in this month, rejecting an invalid day number.
+     */
     public fun atDay(dayOfMonth: Int): LocalDate = LocalDate(year, monthNumber, dayOfMonth)
+    /**
+     * Shifts by signed calendar months, rejecting unsupported years.
+     */
     public fun plusMonths(value: Long): YearMonth {
         val target = shiftedCalendarMonth(year, monthNumber, value)
         return YearMonth(target._1, target._2)
     }
+    /**
+     * Shifts by signed calendar years, retaining the month and rejecting unsupported years.
+     */
     public fun plusYears(value: Long): YearMonth {
         checkCalendarYearShift(year, value)
         return YearMonth((year.toLong() + value).toInt(), monthNumber)
     }
+    /**
+     * Compares the stored value components for equality.
+     */
     public override operator fun equals(other: YearMonth): Boolean = year == other.year && monthNumber == other.monthNumber
+    /**
+     * Orders values by their chronological or numeric value; only the result sign is significant.
+     */
     public override operator fun compareTo(other: YearMonth): Long =
         if (year != other.year) year.compareTo(other.year) else monthNumber.compareTo(other.monthNumber)
+    /**
+     * Computes a hash consistent with component equality.
+     */
     public override fun hash(): Long = year.hash() * 31L + monthNumber.hash()
+    /**
+     * Formats this value as ISO year-month.
+     */
     public override fun toString(): String = formatCalendarYear(year) + "-" + calendarTwoDigits(monthNumber)
 
+    /**
+     * Value construction and serialization helpers.
+     */
     public companion object : ValueEncoder<YearMonth>, ValueDecoder<YearMonth> {
+        /**
+         * Encodes the value as its canonical text representation.
+         */
         public override fun encode(value: YearMonth, encoder: Encoder) { encoder.singleValue().writeString(value.toString()) }
+        /**
+         * Reads a string value and validates it using this type's parser.
+         */
         public override fun decode(decoder: Decoder): YearMonth =
             decodeTextValue<YearMonth>(decoder, { text -> parseOrNone(text) }, "year-month")
 
+        /**
+         * Parses ISO year-month, returning None for malformed or out-of-range input.
+         */
         public fun parseOrNone(text: String): YearMonth? = when (parseCalendarFields(text, false)) {
             case Some(parts) -> Some(YearMonth(parts._1, parts._2))
             case None -> None
         }
+        /**
+         * Parses ISO year-month or throws IllegalArgumentException for invalid input.
+         */
         public fun parse(text: String): YearMonth = when (parseOrNone(text)) {
             case Some(value) -> value
             case None -> throw IllegalArgumentException(Some("invalid year-month"))

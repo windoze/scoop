@@ -2,12 +2,18 @@ package scoop.collections
 
 import scoop.random.Random
 
+/**
+ * Selects one element using the supplied random source, or returns None for empty input.
+ */
 public fun <T> List<T>.randomOrNone(random: Random): T? {
     val count = size
     if (count == 0L) return None
     return Some(this[if (count == 1L) 0L else random.nextLong(count)])
 }
 
+/**
+ * Selects one element using the supplied random source, or returns None for empty input.
+ */
 public fun <T> Iterable<T>.randomOrNone(random: Random): T? {
     var selected: T? = None
     var count = 0L
@@ -19,16 +25,25 @@ public fun <T> Iterable<T>.randomOrNone(random: Random): T? {
     return selected
 }
 
+/**
+ * Selects one element using the supplied random source; empty input throws NoSuchElementException.
+ */
 public fun <T> List<T>.random(random: Random): T = when (randomOrNone<T>(random)) {
     case Some(value) -> value
     case None -> throw NoSuchElementException("empty collection")
 }
 
+/**
+ * Selects one element using the supplied random source; empty input throws NoSuchElementException.
+ */
 public fun <T> Iterable<T>.random(random: Random): T = when (randomOrNone<T>(random)) {
     case Some(value) -> value
     case None -> throw NoSuchElementException("empty iterable")
 }
 
+/**
+ * Permutes this mutable list in place using the supplied random source.
+ */
 public fun <T> MutableList<T>.shuffle(random: Random) {
     var count = size
     while (count > 1L) {
@@ -42,6 +57,9 @@ public fun <T> MutableList<T>.shuffle(random: Random) {
     }
 }
 
+/**
+ * Copies the elements into a randomly permuted list using the supplied random source.
+ */
 public fun <T> Iterable<T>.shuffled(random: Random): List<T> {
     val result = toMutableList<T>()
     result.shuffle<T>(random)

@@ -1,22 +1,93 @@
 package scoop.datetime
 
+/**
+ * A Gregorian month, numbered January = 1 through December = 12.
+ */
 public enum Month : Equals<Month>, Compare<Month>, Hash, ToString {
-    January, February, March, April, May, June, July, August, September, October, November, December
+    /**
+     * Gregorian month 1, January.
+     */
+    January, 
+        /**
+         * Gregorian month 2, February.
+         */
+        February, 
+        /**
+         * Gregorian month 3, March.
+         */
+        March, 
+        /**
+         * Gregorian month 4, April.
+         */
+        April, 
+        /**
+         * Gregorian month 5, May.
+         */
+        May, 
+        /**
+         * Gregorian month 6, June.
+         */
+        June, 
+        /**
+         * Gregorian month 7, July.
+         */
+        July, 
+        /**
+         * Gregorian month 8, August.
+         */
+        August, 
+        /**
+         * Gregorian month 9, September.
+         */
+        September, 
+        /**
+         * Gregorian month 10, October.
+         */
+        October, 
+        /**
+         * Gregorian month 11, November.
+         */
+        November, 
+        /**
+         * Gregorian month 12, December.
+         */
+        December
 
+    /**
+     * The Gregorian month number in 1..12.
+     */
     public val number: Int get() = when (this) {
         case January -> 1; case February -> 2; case March -> 3; case April -> 4
         case May -> 5; case June -> 6; case July -> 7; case August -> 8
         case September -> 9; case October -> 10; case November -> 11; case December -> 12
     }
+    /**
+     * Compares the stored value components for equality.
+     */
     public override operator fun equals(other: Month): Boolean = number == other.number
+    /**
+     * Orders values by their chronological or numeric value; only the result sign is significant.
+     */
     public override operator fun compareTo(other: Month): Long = number.compareTo(other.number)
+    /**
+     * Computes a hash consistent with component equality.
+     */
     public override fun hash(): Long = number.hash()
+    /**
+     * Returns the English month name.
+     */
     public override fun toString(): String = when (this) {
         case January -> "January"; case February -> "February"; case March -> "March"; case April -> "April"
         case May -> "May"; case June -> "June"; case July -> "July"; case August -> "August"
         case September -> "September"; case October -> "October"; case November -> "November"; case December -> "December"
     }
+    /**
+     * Value construction and serialization helpers.
+     */
     public companion object {
+        /**
+         * Converts a month number in 1..12; other values throw.
+         */
         public fun fromNumber(number: Int): Month = when (number) {
             case 1 -> January; case 2 -> February; case 3 -> March; case 4 -> April
             case 5 -> May; case 6 -> June; case 7 -> July; case 8 -> August
