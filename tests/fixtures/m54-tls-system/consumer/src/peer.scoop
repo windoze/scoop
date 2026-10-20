@@ -19,7 +19,7 @@ fun withPeer(version: TlsVersion, block: (Int) -> Unit) {
         key.writeText(serverKeyPem())
         root.writeText(rootPem())
         expected.writeText(clientPem())
-        val arguments: Array<String> = ["-u", "-c", identityPeerScript(), chain.decodeUtf8(), key.decodeUtf8(),
+        val arguments: Array<String> = ["-u", "-c", identityPeerScript(300), chain.decodeUtf8(), key.decodeUtf8(),
             root.decodeUtf8(), expected.decodeUtf8(), if (version == TlsVersion.Tls12) "12" else "13", "accept"]
         val child = Command(Path.fromString("python3"),
             Array<OsString>(arguments.size) { index -> OsString.fromString(arguments[index]) },

@@ -1,7 +1,8 @@
 package scoop.tls
 
-internal fun identityPeerScript(): String =
+internal fun identityPeerScript(timeoutSeconds: Int = 60): String =
     "import socket, ssl, sys\n" +
+    "timeout = " + timeoutSeconds.toString() + "\n" +
     "certificate, key, root, expected, version, outcome = sys.argv[1:]\n" +
     "context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)\n" +
     "selected = ssl.TLSVersion.TLSv1_2 if version == '12' else ssl.TLSVersion.TLSv1_3\n" +
@@ -12,12 +13,12 @@ internal fun identityPeerScript(): String =
     "with open(expected) as source:\n" +
     "    expected_der = ssl.PEM_cert_to_DER_cert(source.read())\n" +
     "with socket.socket() as listener:\n" +
-    "    listener.settimeout(60)\n" +
+    "    listener.settimeout(timeout)\n" +
     "    listener.bind(('127.0.0.1', 0))\n" +
     "    listener.listen(1)\n" +
     "    print(listener.getsockname()[1], flush=True)\n" +
     "    raw, _ = listener.accept()\n" +
-    "    raw.settimeout(60)\n" +
+    "    raw.settimeout(timeout)\n" +
     "    try:\n" +
     "        connection = context.wrap_socket(raw, server_side=True)\n" +
     "    except ssl.SSLError as error:\n" +
