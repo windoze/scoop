@@ -1,16 +1,82 @@
 package scoop.charset
 
+/**
+ * The text, option, or backend category of a failed conversion.
+ */
 public enum CharsetFailureKind {
-    MalformedInput, IncompleteInput, UnmappableCharacter, MissingBom, ConflictingBom, InvalidOptions, Backend
+    /**
+     * The source contains invalid byte sequences for its encoding.
+     */
+    MalformedInput,
+        /**
+         * Final input ends partway through an encoded sequence.
+         */
+        IncompleteInput,
+        /**
+         * The destination encoding cannot represent a source character.
+         */
+        UnmappableCharacter,
+        /**
+         * The selected decoding policy requires an initial BOM that is absent.
+         */
+        MissingBom,
+        /**
+         * An initial BOM conflicts with the selected encoding or byte order.
+         */
+        ConflictingBom,
+        /**
+         * The selected encoding and conversion options are incompatible.
+         */
+        InvalidOptions,
+        /**
+         * The native converter could not complete the requested operation.
+         */
+        Backend
 }
 
-public class UnsupportedCharsetException public constructor(public val name: String) :
+/**
+ * A requested name or alias is not supported by the conversion backend.
+ */
+public class UnsupportedCharsetException public constructor(
+    /**
+     * The unsupported name supplied by the caller.
+     */
+    public val name: String) :
     Exception(Some("unsupported charset: " + name))
 
+/**
+ * A conversion failure carrying the operation, source and destination encodings, failure kind, and
+ * available byte-offset/backend details.
+ */
 public class CharsetException public constructor(
-    public val operation: String, public val source: String, public val destination: String,
-    public val kind: CharsetFailureKind, public val offset: Long?,
-    public val backendCode: Int?, public val detail: String
+    /**
+     * The conversion operation that failed.
+     */
+    public val operation: String,
+        /**
+         * The source encoding name used for the operation.
+         */
+        public val source: String,
+        /**
+         * The destination encoding name used for the operation.
+         */
+        public val destination: String,
+    /**
+     * The structured category of the conversion failure.
+     */
+    public val kind: CharsetFailureKind,
+        /**
+         * The input byte offset associated with the failure, when available.
+         */
+        public val offset: Long?,
+    /**
+     * The native backend error code, when available.
+     */
+    public val backendCode: Int?,
+        /**
+         * A human-readable explanation of the conversion failure.
+         */
+        public val detail: String
 ) : Exception(Some(operation + ": " + detail))
 
 internal fun checkCharset(code: Int, backend: Int, operation: String, source: String, destination: String, offset: Long? = None) {

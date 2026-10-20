@@ -1,5 +1,8 @@
 package scoop.charset
 
+/**
+ * Returns Unicode text in canonical composition form NFC.
+ */
 public fun normalizeNfc(text: String): String {
     @Unsafe {
         val input = text.toByteArray()

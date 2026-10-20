@@ -2,27 +2,110 @@ package scoop.charset
 
 import scoop.bytes.ByteOrder
 
-public enum CharsetBomPolicy { Consume, Preserve, Require }
-public enum CharsetErrorAction { Strict, Replace }
-public enum CharsetState { NeedInput, NeedOutput, Finished }
+/**
+ * How decoding treats an initial byte-order mark.
+ */
+public enum CharsetBomPolicy {
+    /**
+     * Uses an initial BOM for decoding without preserving it as a character.
+     */
+    Consume,
+    /**
+     * Preserves an initial BOM as a Unicode character in decoded text.
+     */
+    Preserve,
+    /**
+     * Requires the input to begin with the appropriate BOM.
+     */
+    Require }
+/**
+ * Whether malformed input or an unrepresentable output character aborts conversion or is replaced.
+ */
+public enum CharsetErrorAction {
+    /**
+     * Stops conversion and reports a structured [CharsetException].
+     */
+    Strict,
+    /**
+     * Continues conversion using the backend's replacement representation.
+     */
+    Replace }
+/**
+ * The condition required to continue an incremental conversion.
+ */
+public enum CharsetState {
+    /**
+     * Provide more input, or mark the final input when the source has ended.
+     */
+    NeedInput,
+    /**
+     * Drain or replace the output buffer before continuing.
+     */
+    NeedOutput,
+    /**
+     * The final input and encoder state have been completely emitted.
+     */
+    Finished }
 
+/**
+ * BOM handling and fallback byte order for decoding. Explicit-endian encodings retain their own
+ * byte-order contract.
+ */
 public class CharsetDecodeOptions public constructor(
+    /**
+     * The policy applied to an initial byte-order mark.
+     */
     public val bom: CharsetBomPolicy = CharsetBomPolicy.Consume,
+    /**
+     * Fallback order for an encoding whose byte order must otherwise be determined from a BOM.
+     */
     public val defaultByteOrder: ByteOrder? = None
 )
 
+/**
+ * BOM emission and byte-order selection for encoding Unicode text.
+ */
 public class CharsetEncodeOptions public constructor(
+    /**
+     * Whether to emit an initial byte-order mark when supported by the encoding.
+     */
     public val emitBom: Boolean = false,
+    /**
+     * The selected byte order for an encoding that requires an explicit choice.
+     */
     public val byteOrder: ByteOrder? = None
 )
 
+/**
+ * Independent source-decoding and destination-encoding policies for a conversion. Malformed source
+ * bytes and unmappable output characters have separate error actions.
+ */
 public class CharsetTranscodeOptions public constructor(
+    /**
+     * The source BOM and byte-order policy.
+     */
     public val decode: CharsetDecodeOptions = CharsetDecodeOptions(),
+    /**
+     * The destination BOM and byte-order policy.
+     */
     public val encode: CharsetEncodeOptions = CharsetEncodeOptions(),
+    /**
+     * How to handle source bytes that do not form valid encoded text.
+     */
     public val malformedInput: CharsetErrorAction = CharsetErrorAction.Strict,
+    /**
+     * How to handle valid characters unavailable in the destination encoding.
+     */
     public val unmappableOutput: CharsetErrorAction = CharsetErrorAction.Strict
 )
 
+/**
+ * Progress from one incremental conversion call.
+ *
+ * @property consumed The number of input bytes consumed by this call.
+ * @property produced The number of output bytes appended by this call.
+ * @property state Whether the caller must provide input, provide output space, or finish.
+ */
 public struct CharsetStep(val consumed: Long, val produced: Long, val state: CharsetState)
 
 internal fun charsetOptions(options: CharsetTranscodeOptions): NativeCharsetOptions = NativeCharsetOptions(

@@ -1,24 +1,55 @@
 package scoop.json
 
+/**
+ * JSON encoding and decoding through the ordinary [ValueEncoder] and [ValueDecoder] protocols.
+ *
+ * Use the explicit codec overloads for custom representations, or the companion overloads when the
+ * type provides a codec. Malformed input and incompatible values report their path through
+ * [DecodingException] or [EncodingException].
+ */
 public object Json {
+    /**
+     * Encodes one value as a complete JSON document. The companion overload requires the type
+     * companion to implement [ValueEncoder]; the explicit overload uses the supplied codec.
+     */
     public fun <T> encodeToString(value: T): String
         where T.Companion : ValueEncoder<T> = encodeToString(value, T.Companion)
 
+    /**
+     * Parses one complete JSON document and decodes it using the selected codec. Invalid syntax,
+     * trailing input, and a value incompatible with the codec fail with [DecodingException].
+     */
     public fun <T> decodeFromString(text: String): T
         where T.Companion : ValueDecoder<T> = decodeFromString(text, T.Companion)
 
+    /**
+     * Encodes one value as a complete JSON document. The companion overload requires the type
+     * companion to implement [ValueEncoder]; the explicit overload uses the supplied codec.
+     */
     public fun <T> encodeToString(value: T, codec: ValueEncoder<T>): String =
         renderJson(encodeToValue(value, codec).node)
 
+    /**
+     * Parses one complete JSON document and decodes it using the selected codec. Invalid syntax,
+     * trailing input, and a value incompatible with the codec fail with [DecodingException].
+     */
     public fun <T> decodeFromString(text: String, codec: ValueDecoder<T>): T =
         decodeFromValue(JsonValue(JsonParser(text).parse()), codec)
 
+    /**
+     * Runs the codec into a JSON value tree that can be embedded in another JSON document without
+     * converting through text.
+     */
     public fun <T> encodeToValue(value: T, codec: ValueEncoder<T>): JsonValue {
         val encoder = JsonEncoder("")
         codec.encode(value, encoder)
         return JsonValue(encoder.result())
     }
 
+    /**
+     * Decodes an existing JSON value tree using the supplied codec, preserving path information in
+     * decoding errors.
+     */
     public fun <T> decodeFromValue(value: JsonValue, codec: ValueDecoder<T>): T =
         codec.decode(JsonDecoder(value.node, ""))
 }

@@ -1,5 +1,9 @@
 package scoop.test
 
+/**
+ * Checks reference identity rather than value equality and throws [AssertionFailure] for different
+ * objects.
+ */
 public fun <T : ref> assertSame(
     expected: T,
     actual: T,
@@ -11,6 +15,9 @@ public fun <T : ref> assertSame(
     }
 }
 
+/**
+ * Throws [AssertionFailure] when both references identify the same object.
+ */
 public fun <T : ref> assertNotSame(
     expected: T,
     actual: T,

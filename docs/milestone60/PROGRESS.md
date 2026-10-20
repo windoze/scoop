@@ -155,3 +155,9 @@ Darwin 完整正式 CLI 验收发现旧夹具将 Int 移到 hidden package 时�
 Linux 全工作区单测、集成测试与 doctest 已执行完毕；首轮 14 项 runtime／linker／toolchain 测试因遗漏 SCOOP_SYSROOT 找不到已准备的 unwind 资源，补齐环境后全部定向复验通过，85 项 driver 测试直接通过。两目标的文档 CLI 用例均通过；需要运行程序的 3 项注解用例留待更新后的 runtime 单独复验。GNU／musl 完整 CLI 回归已经启动。
 
 维护脚本的独立 runtime_builder 锁文件漏列新增文档依赖，使 --locked 拒绝构建。补齐 5 个依赖包，不更新已有包版本；本机 fmt／workspace clippy、独立 locked/offline 解析通过，Linux 使用该锁文件完成 GNU／musl 各 19 个内置库与 runtime 的维护脚本准备。另清理 61 份已被替代的本机增量快照，约 7.44 GiB 文件逻辑大小，保留最新配置快照及正在使用的产物。
+
+## D2：首批内置库说明
+
+M60 新功能的 Darwin／GNU／musl 专项用例全部通过，Linux 的三个 annotation 正例在更新后的 runtime 上复验闭合。GNU 的 19 库共同站点通过 2,160 页、142,252 个页面及搜索入口链接、733 个源码页和 6,065 个搜索条目的静态检查。三个目标的完整 CLI 回归仍在运行。
+
+为 charset、cli、idna、json、test、terminal.asyncio、tls 和 tls.asyncio 补充 305 处声明说明，包括编解码错误、流状态、资源所有权、异步取消、测试生命周期及真实类型引用。修正 annotation 声明注释应位于 modifiers／annotations 之前的附着位置后，fmt／workspace clippy 和严格文档生成通过；8 库站点 191 页、9,497 个本地链接、73 个内嵌源码页检查通过，没有文档 warning。

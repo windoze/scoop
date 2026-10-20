@@ -5,13 +5,49 @@ import scoop.crypto.native.peerIdentityData
 import scoop.crypto.x509.PeerIdentity
 import scoop.platform.net.IpAddress
 
-public enum TlsVersion { Tls12, Tls13 }
-public enum TlsPeerName { Dns(String), Ip(IpAddress) }
+/**
+ * TLS protocol versions accepted by [TlsOptions].
+ */
+public enum TlsVersion {
+    /**
+     * TLS version 1.2.
+     */
+    Tls12,
+    /**
+     * TLS version 1.3.
+     */
+    Tls13 }
+/**
+ * The expected peer identity checked during a client handshake. DNS names and IP addresses use
+ * their corresponding certificate identity rules.
+ */
+public enum TlsPeerName {
+    /**
+     * The expected DNS host name, also used for the client's server-name indication.
+     */
+    Dns(String),
+    /**
+     * The expected IP address checked against certificate IP-address entries.
+     */
+    Ip(IpAddress) }
+/**
+ * Protocol bounds and ordered ALPN byte strings for a TLS context.
+ *
+ * @property minimum The oldest permitted TLS version.
+ * @property maximum The newest permitted TLS version.
+ * @property alpn Application protocol identifiers, encoded as opaque bytes.
+ */
 public struct TlsOptions(
     val minimum: TlsVersion = TlsVersion.Tls12,
     val maximum: TlsVersion = TlsVersion.Tls13,
     val alpn: List<Array<Byte>> = ArrayList<Array<Byte>>()
 )
+/**
+ * Negotiated protocol information available after a successful handshake.
+ *
+ * @property version The TLS version selected for the connection.
+ * @property alpn The selected application protocol, or None if none was negotiated.
+ */
 public struct TlsConnectionInfo(val version: TlsVersion, val alpn: Array<Byte>?)
 
 internal fun versionCode(version: TlsVersion): Int = when (version) {

@@ -1,25 +1,64 @@
 package scoop.test.execution
 
-public enum TestPhase { Initialization, BeforeTest, Body, AfterTest }
+/**
+ * The stage of test execution in which a failure occurred.
+ */
+public enum TestPhase {
+    /**
+     * Creating the test instance or its actions failed.
+     */
+    Initialization,
+    /**
+     * The setup action failed before the body could run.
+     */
+    BeforeTest,
+    /**
+     * The test body failed.
+     */
+    Body,
+    /**
+     * The cleanup action failed.
+     */
+    AfterTest }
 
+/**
+ * One test action paired with the source location used when an ordinary exception has no assertion
+ * location.
+ */
 public struct TestAction(
     val call: () -> Unit,
     val location: SourceLocation = currentSourceLocation()
 )
 
+/**
+ * A test body with optional setup and cleanup actions. Cleanup runs after an initialized case even
+ * when setup or the body fails.
+ */
 public struct TestActions(
     val body: TestAction,
     val before: TestAction? = None,
     val after: TestAction? = None
 )
 
+/**
+ * A captured exception with its test phase and attributed source location.
+ */
 public struct TestFailure(
     val phase: TestPhase,
     val cause: Throwable,
     val location: SourceLocation
 )
 
+/**
+ * The completed result of executing one initialized test case.
+ */
 public enum TestResult {
+    /**
+     * Initialization and all configured test actions completed successfully.
+     */
     Passed,
+    /**
+     * The primary failure and, when present, an additional cleanup failure.
+     */
     Failed(TestFailure, TestFailure?)
 }

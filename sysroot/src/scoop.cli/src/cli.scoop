@@ -1,11 +1,83 @@
 package scoop.cli
 
+/**
+ * Program name and summary displayed in generated command-line help.
+ *
+ * @property programName The invocation name shown in the usage line.
+ * @property summary A short description of the command.
+ */
 public struct CliConfig(val programName: String, val summary: String = "")
-public enum CliRole { Option, Flag, Argument(Long) }
+/**
+ * How a schema entry consumes command-line tokens: a named option, a Boolean flag, or a zero-based
+ * positional argument.
+ */
+public enum CliRole {
+    /**
+     * Consumes a value associated with one of the entry's option names.
+     */
+    Option,
+    /**
+     * Sets a Boolean value using a positive or negative flag name.
+     */
+    Flag,
+    /**
+     * Consumes a positional value at the given zero-based position.
+     */
+    Argument(Long) }
+/**
+ * Maps an accepted command-line spelling to the value name passed to the decoder.
+ *
+ * @property spelling Text accepted from the command line.
+ * @property wireName The corresponding serialized variant name.
+ */
 public struct CliChoice(val spelling: String, val wireName: String)
-public enum CliElementShape { Text, Choice(Array<CliChoice>) }
-public enum CliValueShape { Text, Flag, Choice(Array<CliChoice>), Repeated(CliElementShape) }
+/**
+ * The permitted element syntax of a repeated command-line value.
+ */
+public enum CliElementShape {
+    /**
+     * Accepts a text token for the element codec to decode.
+     */
+    Text,
+    /**
+     * Restricts each element to the supplied spellings and their wire names.
+     */
+    Choice(Array<CliChoice>) }
+/**
+ * The token shape used to collect input before the application codec decodes it.
+ */
+public enum CliValueShape {
+    /**
+     * Consumes one text value.
+     */
+    Text,
+    /**
+     * Represents a Boolean flag without a separate value token.
+     */
+    Flag,
+    /**
+     * Consumes one of the declared choice spellings.
+     */
+    Choice(Array<CliChoice>),
+    /**
+     * Accumulates multiple values with the specified element shape.
+     */
+    Repeated(CliElementShape) }
 
+/**
+ * One command-line field, including its accepted spellings, positional role, help text, and
+ * decoding key.
+ *
+ * `defaultText` describes a default in help; it does not supply a value to the decoder.
+ * `hasDefault` records whether the codec can supply an omitted value.
+ *
+ * @property sourceName The member name in the application type.
+ * @property wireKey The key supplied to the value decoder.
+ * @property names Positive option or flag spellings.
+ * @property negativeNames Spellings that set a flag to false.
+ * @property required Whether absence is an input error.
+ * @property member Optional reflection metadata for the represented member.
+ */
 public struct CliEntry(
     val sourceName: String,
     val wireKey: String,
@@ -21,14 +93,34 @@ public struct CliEntry(
     val member: Option<ObservedMember> = None
 )
 
+/**
+ * Validated command-line layout paired with the application type and help configuration.
+ * Construction rejects conflicting or invalid entries before parsing input.
+ */
 public class CliSchema<T> public constructor(
-    public val info: TypeInfo<T>, public val config: CliConfig, entries: Array<CliEntry>
+    /**
+     * Reflection metadata for the value produced by the parser.
+     */
+    public val info: TypeInfo<T>,
+        /**
+         * Program name and summary used when rendering help.
+         */
+        public val config: CliConfig, entries: Array<CliEntry>
 ) {
     private val layout: CliLayout = checkedEntries(entries)
+    /**
+     * The validated entries used by token parsing and help rendering.
+     */
     public val entries: Array<CliEntry> = layout.entries
     internal val positions: Array<Long> = layout.positions
 
+    /**
+     * Writes usage and entry descriptions to the supplied writer without closing it.
+     */
     public fun writeHelp(writer: TextWriter): Unit = writeCliHelp(config, entries, positions, writer)
+    /**
+     * Returns the same generated help as [writeHelp] as a string.
+     */
     public fun help(): String {
         val writer = StringWriter()
         writeHelp(writer)
@@ -36,16 +128,47 @@ public class CliSchema<T> public constructor(
     }
 }
 
+/**
+ * Builds command-line schemas from ordinary type metadata and CLI annotations.
+ */
 public object Cli {
+    /**
+     * Derives and validates entries from the supplied type metadata and its CLI annotations.
+     */
     public fun <T> schema(info: TypeInfo<T>, config: CliConfig): CliSchema<T> =
         CliSchema<T>(info, config, automaticEntries(info.type))
 }
 
-public enum CliResult<T> { Parsed(T), HelpRequested }
+/**
+ * A parsed application value or a request to display help without decoding a value.
+ */
+public enum CliResult<T> {
+    /**
+     * Contains the value successfully produced by the application codec.
+     */
+    Parsed(T),
+    /**
+     * Indicates that the caller should display the schema's help text.
+     */
+    HelpRequested }
 
+/**
+ * Collects command-line tokens according to a [CliSchema], then invokes the supplied
+ * [ValueDecoder].
+ *
+ * Use [parse] for arguments alone or [parseCommandLine] for a complete argv containing the program
+ * name. Input and decoding errors throw [DecodingException].
+ */
 public class CliParser<T> public constructor(private val schema: CliSchema<T>, private val codec: ValueDecoder<T>) {
+    /**
+     * Parses arguments starting at index zero; the input must omit the program name.
+     */
     public fun parse(arguments: Array<String>): CliResult<T> = parseFrom(arguments, 0L)
 
+    /**
+     * Parses a complete argv, skipping its first program-name item. An empty argv throws
+     * [DecodingException].
+     */
     public fun parseCommandLine(argv: Array<String>): CliResult<T> {
         if (argv.size == 0L) { throw DecodingException("", "complete argv requires a program item") }
         return parseFrom(argv, 1L)

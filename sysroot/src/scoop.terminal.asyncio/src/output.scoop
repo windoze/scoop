@@ -4,11 +4,18 @@ import scoop.asyncio.*
 import scoop.platform.memory.NativeByteBuffer
 import scoop.terminal.*
 
+/**
+ * Writes each terminal command in order to the asynchronous byte sink without flushing.
+ * Cancellation is checked before output begins.
+ */
 public suspend fun AsyncByteSink.queue(vararg commands: Command) {
     ensureActive()
     for (command in commands) writeText(command.toAnsiString())
 }
 
+/**
+ * Writes each terminal command in order and then flushes the asynchronous byte sink.
+ */
 public suspend fun AsyncByteSink.execute(vararg commands: Command) {
     queue(*commands)
     flush()

@@ -1,12 +1,62 @@
 package scoop.idna
 
-public enum IdnaFailureKind { InvalidLabel, InvalidAlabel, Disallowed, Context, Bidi, NameTooLong, Backend }
+/**
+ * The validation stage or backend failure responsible for an [IdnaException].
+ */
+public enum IdnaFailureKind {
+    /**
+     * The input does not satisfy the required label structure.
+     */
+    InvalidLabel,
+    /**
+     * An ASCII encoded label fails validation or round-trip checks.
+     */
+    InvalidAlabel,
+    /**
+     * The label contains a character forbidden by the IDNA profile.
+     */
+    Disallowed,
+    /**
+     * A context-dependent character occurs in an invalid context.
+     */
+    Context,
+    /**
+     * The label violates bidirectional text rules.
+     */
+    Bidi,
+    /**
+     * A label or complete domain exceeds the supported DNS length.
+     */
+    NameTooLong,
+    /**
+     * The native backend could not complete the conversion.
+     */
+    Backend }
 
+/**
+ * A domain conversion failure with an operation name and structured failure kind. Optional backend
+ * and label information is available when the failing operation can provide it.
+ */
 public class IdnaException public constructor(
+    /**
+     * The conversion operation that failed.
+     */
     public val operation: String,
+    /**
+     * The input-validation or backend category of the failure.
+     */
     public val kind: IdnaFailureKind,
+    /**
+     * The backend error code when one is available.
+     */
     public val code: Int?,
+    /**
+     * A human-readable explanation of the failure.
+     */
     public val detail: String,
+    /**
+     * The zero-based index of the failing label when known.
+     */
     public val labelIndex: Long? = None
 ) : Exception(Some(operation + ": " + detail))
 

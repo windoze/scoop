@@ -1,12 +1,57 @@
 package scoop.tls
 
-public enum TlsFailureKind { Configuration, Verification, Protocol, Truncated, UnconsumedData }
+/**
+ * The configuration, peer verification, or protocol reason a TLS operation failed.
+ */
+public enum TlsFailureKind {
+    /**
+     * The requested TLS configuration is invalid or unavailable.
+     */
+    Configuration,
+    /**
+     * Certificate or peer-identity verification failed.
+     */
+    Verification,
+    /**
+     * The TLS protocol operation failed.
+     */
+    Protocol,
+    /**
+     * The transport ended before a valid TLS close notification.
+     */
+    Truncated,
+    /**
+     * Application data remains where the requested TLS shutdown requires it to be consumed.
+     */
+    UnconsumedData }
 
+/**
+ * A TLS failure with structured operation, TLS/backend, certificate-verification, and system-error
+ * details.
+ */
 public class TlsException public constructor(
+    /**
+     * The handshake, transfer, verification, or configuration operation that failed.
+     */
     public val operation: String,
+    /**
+     * The structured category of the TLS failure.
+     */
     public val kind: TlsFailureKind,
+    /**
+     * The native TLS backend error code reported for the failure.
+     */
     public val code: ULong,
+    /**
+     * The certificate-verification result code reported by the backend.
+     */
     public val verifyCode: Long,
+    /**
+     * The system error associated with the failed native operation.
+     */
     public val systemError: Int,
+    /**
+     * A human-readable description of the failure.
+     */
     public val detail: String
 ) : Exception(Some(operation + ": " + detail))

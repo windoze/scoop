@@ -1,5 +1,9 @@
 package scoop.test
 
+/**
+ * Checks `expected.equals(actual)` using the type's declared or structurally available equality
+ * operation. Failure records expected and actual values when they can be rendered.
+ */
 public fun <T : Equals<T>> assertEquals(
     expected: T,
     actual: T,
@@ -11,6 +15,10 @@ public fun <T : Equals<T>> assertEquals(
     }
 }
 
+/**
+ * Fails if `expected.equals(actual)` is true, using the type's available equality operation and
+ * preserving the assertion call site.
+ */
 public fun <T : Equals<T>> assertNotEquals(
     expected: T,
     actual: T,
@@ -22,6 +30,10 @@ public fun <T : Equals<T>> assertNotEquals(
     }
 }
 
+/**
+ * Checks `expected.equals(actual)` using the type's declared or structurally available equality
+ * operation. Failure records expected and actual values when they can be rendered.
+ */
 public fun <T : !Equals<T>> assertEquals(
     expected: T,
     actual: T,
@@ -33,6 +45,10 @@ public fun <T : !Equals<T>> assertEquals(
     }
 }
 
+/**
+ * Fails if `expected.equals(actual)` is true, using the type's available equality operation and
+ * preserving the assertion call site.
+ */
 public fun <T : !Equals<T>> assertNotEquals(
     expected: T,
     actual: T,

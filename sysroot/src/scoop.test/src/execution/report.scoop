@@ -30,6 +30,10 @@ private fun endCapture(): Long {
     @Unsafe { return nativeEnd() }
 }
 
+/**
+ * Executes one selected test case and emits its structured start and result events for the
+ * command-line test runner.
+ */
 public fun runReportedTestCase(
     caseIndex: String, location: SourceLocation, initialize: () -> TestActions
 ): TestResult {
@@ -51,6 +55,10 @@ public fun runReportedTestCase(
     return result
 }
 
+/**
+ * Emits the final completion event for the generated test runner after all selected cases have
+ * been handled.
+ */
 public fun completeTestRun() {
     @Unsafe {
         if (nativeComplete() < 0) {

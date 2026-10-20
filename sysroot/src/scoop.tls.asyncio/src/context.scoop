@@ -7,6 +7,11 @@ import scoop.platform.fs.Path
 import scoop.tls.*
 import scoop.tls.native.*
 
+/**
+ * Creates a TLS client context for the current event loop and job. System trust loading runs as
+ * native work; the CA-file overload reads the file asynchronously. The returned context must be
+ * closed after use.
+ */
 public suspend fun openTlsClientContext(trust: TlsTrustSource = TlsTrustSource.System,
     options: TlsOptions = TlsOptions(), identity: TlsIdentity? = None): TlsClientContext {
     val loop = currentEventLoop()
@@ -26,6 +31,11 @@ public suspend fun openTlsClientContext(trust: TlsTrustSource = TlsTrustSource.S
     }
 }
 
+/**
+ * Creates a TLS client context for the current event loop and job. System trust loading runs as
+ * native work; the CA-file overload reads the file asynchronously. The returned context must be
+ * closed after use.
+ */
 public suspend fun openTlsClientContext(caFile: Path, options: TlsOptions = TlsOptions(),
     identity: TlsIdentity? = None): TlsClientContext {
     val bytes = currentEventLoop().openFile(caFile).useAsync suspend { file -> file.readAllBytes() }
