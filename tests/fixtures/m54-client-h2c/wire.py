@@ -69,7 +69,14 @@ def begin_http2(connection, offered):
             return
 
 
-def next_request(connection):
+def empty_request_part(kind, flags, stream, payload, pending):
+    assert stream in pending and payload == b"", (kind, flags, stream, payload)
+    assert (kind == 0 and flags in (0, 1)) or (kind == 1 and flags == 5)
+    if flags & 1:
+        pending.remove(stream)
+
+
+def next_request(connection, pending):
     while True:
         kind, flags, stream, payload = frame(connection)
         if kind in (0, 1):
@@ -80,9 +87,17 @@ def next_request(connection):
                 send_frame(connection, 4, 1, 0)
         elif kind == 1:
             assert flags & 4
+            if not payload:
+                empty_request_part(kind, flags, stream, payload, pending)
+                continue
+            assert stream not in pending
+            if not flags & 1:
+                pending.add(stream)
             return stream
+        elif kind == 0:
+            empty_request_part(kind, flags, stream, payload, pending)
         else:
-            assert kind in (0, 8), (kind, flags, stream, payload)
+            assert kind == 8, (kind, flags, stream, payload)
 
 
 def h1_response(connection, body):
@@ -94,7 +109,7 @@ def h1_response(connection, body):
     )
 
 
-def closed(connection, h2=False):
+def closed(connection, h2=False, pending=()):
     while True:
         try:
             first = connection.recv(1)
@@ -105,15 +120,23 @@ def closed(connection, h2=False):
         assert h2, "unexpected request after the response"
         header = first + exact(connection, 8)
         payload = exact(connection, int.from_bytes(header[:3], "big"))
-        assert header[3] in (0, 3, 4, 7, 8), (header, payload)
+        if header[3] in (0, 1):
+            empty_request_part(
+                header[3], header[4], int.from_bytes(header[5:], "big"), payload, pending
+            )
+        else:
+            assert header[3] in (3, 4, 7, 8), (header, payload)
 
 
-def await_reset(connection):
+def await_reset(connection, pending):
     while True:
         kind, flags, stream, payload = frame(connection)
         if kind == 3:
             assert stream == 1 and payload == struct.pack("!I", 8)
             return
-        assert kind in (0, 4, 8), (kind, flags, stream, payload)
+        if kind in (0, 1):
+            empty_request_part(kind, flags, stream, payload, pending)
+            continue
+        assert kind in (4, 8), (kind, flags, stream, payload)
         if kind == 4 and not flags & 1:
             send_frame(connection, 4, 1, 0)

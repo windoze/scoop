@@ -51,14 +51,15 @@ def serve(connection, mode):
     # The H1 response and the H2 suffix are deliberately sent together.
     connection.sendall(wire)
     begin_http2(connection, offered)
-    assert next_request(connection) == 3
+    pending = set()
+    assert next_request(connection, pending) == 3
     send_frame(connection, 1, 4, 3, b"\x88")
     send_frame(connection, 0, 1, 3, b"other" if mode == "cancel" else b"next")
     if mode == "cancel":
-        await_reset(connection)
-        assert next_request(connection) == 5
+        await_reset(connection, pending)
+        assert next_request(connection, pending) == 5
         send_frame(connection, 1, 5, 5, b"\x89")
-    closed(connection, h2=True)
+    closed(connection, h2=True, pending=pending)
 
 
 def exercise(binary, mode):
