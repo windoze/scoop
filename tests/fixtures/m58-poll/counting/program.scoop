@@ -1,0 +1,78 @@
+fun check(ok: Boolean) { if (!ok) throw IllegalStateException() }
+
+fun sumInt(n: Int): Long {
+    var i = 0
+    var sum = 0L
+    while (i < n) { sum += i.toLong() * 3L + 7L; i += 1 }
+    return sum
+}
+
+fun sumLong(n: Long): Long {
+    var i = 0L
+    var sum = 0L
+    while (i < n) { sum += i * 3L + 7L; i += 1L }
+    return sum
+}
+
+fun nearLimit(n: Long): Long {
+    var i = 9223372036854775677L
+    var count = 0L
+    while (i < n) { count += 1L; i += 1L }
+    return count
+}
+
+fun wrapping(n: Int): Int {
+    var i = 0
+    var value = 2147483647
+    while (i < n) { value = value * 3 + i; i += 1 }
+    return value
+}
+
+fun checksum(n: Int): Int {
+    var i = 0
+    var sum = 0
+    while (i < n) {
+        sum += (i * 1664525 + 1013904223).xor(i.shr(8))
+        i += 1
+    }
+    return sum
+}
+
+fun withException(n: Int): Long {
+    var i = 0
+    var sum = 0L
+    while (i < n) { sum += i.toLong() + 1L; i += 1 }
+    try { throw IllegalStateException() }
+    catch (error: IllegalStateException) { return sum }
+}
+
+fun retained(n: Int): Int {
+    var i = 0
+    var sum = 0
+    while (i < n) {
+        i += 1
+        if (i == 2) continue
+        if (i == 5) break
+        check(i > 0)
+        sum += i
+    }
+    return sum
+}
+
+fun main() {
+    val lengths = Array<Long>(9L) { i -> when (i) {
+        0L -> -1L; 1L -> 0L; 2L -> 1L; 3L -> 15L; 4L -> 63L;
+        5L -> 64L; 6L -> 65L; 7L -> 129L; else -> 1025L
+    } }
+    for (n in lengths) {
+        val expected = if (n <= 0L) 0L else n * (n - 1L) / 2L * 3L + n * 7L
+        check(sumInt(n.toInt()) == expected && sumLong(n) == expected)
+    }
+    check(nearLimit(9223372036854775807L) == 130L)
+    check(nearLimit(-1L) == 0L)
+    check(wrapping(65) == 1856165533)
+    check(checksum(65) == 646509759)
+    check(withException(65) == 2145L)
+    check(retained(10) == 8)
+    println("bounded poll chunks preserve counts, limits and control flow")
+}

@@ -1,4 +1,5 @@
 /* Enumerate only old objects intersecting dirty cards, including prior starts. */
+#include "../gc_binding/object.h"
 #include "gc_internal.h"
 #include "heap_internal.h"
 
@@ -20,6 +21,13 @@ static size_t previous_start(const ScoopGcBlockMeta *block, size_t word) {
 
 static void scan_region(ScoopGcRegion *region, ScoopGcObjectRangeVisitor visitor, void *context,
                         bool count_cards) {
+    if (region->large) {
+        const ScoopGcBlockMeta *head = &region->blocks[0];
+        if (!active_head(head) || head->generation != SCOOP_GC_OLD || !head->large_published ||
+            scoop_gc_object_scan((const char *)block_base(head) + GC_LINE_SIZE) == NULL) {
+            return;
+        }
+    }
     size_t bytes = region->large ? region->size : (size_t)region->next_block * GC_BLOCK_SIZE;
     for (size_t card = 0; card < (bytes >> GC_CARD_SHIFT); card++) {
         if (region->cards[card] == 0) {

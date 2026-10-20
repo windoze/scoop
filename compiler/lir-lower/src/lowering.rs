@@ -78,6 +78,7 @@ pub(super) fn lower_graph(
     let local_function_map = module
         .top_level
         .iter()
+        .filter(|&&id| identity_roots.emits_function(id))
         .map(|&id| {
             assert!(
                 callable_bodies.contains_key(&id),
@@ -227,6 +228,7 @@ pub(super) fn lower_graph(
     let mut lowered_functions = module
         .top_level
         .iter()
+        .filter(|&&id| identity_roots.emits_function(id))
         .map(|id| {
             lower_body(
                 callable_bodies[id].clone(),

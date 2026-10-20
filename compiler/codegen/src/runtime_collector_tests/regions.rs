@@ -1,6 +1,44 @@
 use super::{compile_and_run, workspace_root};
 
 #[test]
+fn bitmap_sweep_preserves_boundary_starts_pins_and_release() {
+    let output = compile_and_run(
+        &workspace_root(),
+        "sweep_bitmap_test",
+        "runtime/tests/sweep_bitmap_test.c",
+        true,
+    );
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        output.stdout,
+        b"bitmap sweep preserves boundary starts, pins and exactly-once release after compaction\n"
+    );
+}
+
+#[test]
+fn insufficient_full_capacity_skips_target_sweep_and_retries_after_reclamation() {
+    let output = compile_and_run(
+        &workspace_root(),
+        "full_capacity_test",
+        "runtime/tests/full_capacity_test.c",
+        true,
+    );
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        output.stdout,
+        b"full capacity rejection precedes target sweep and permits later compaction\n"
+    );
+}
+
+#[test]
 fn resolved_forwarding_rejects_invalid_collection_metadata() {
     let output = compile_and_run(
         &workspace_root(),

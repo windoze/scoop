@@ -143,10 +143,11 @@ canonical source、span、code、message 或 notes。stdout/stderr 仍严格比�
 与需要不同 core 声明的专测覆盖，不在每个类规则中重复两次冷构建。
 `normalize` 的公共规则为 `paths`、`newlines`、`native-digests` 和 `native-link-plan`。
 `native-link-plan` 只允许用于显式 snapshot：要求完整 `program-link v3` 的唯一 section
-边界，完整比较 `link inputs:` 到 `startup object references:` 之前的原生链接区段。
+边界，比较 `link inputs:` 到 `startup object references:` 之前的原生链接区段。
 输入顺序、ELF 系统库、archive 成员/选择、DSO load/re-export/rpath 和符号绑定均保留，
 区段内未知新字段也进入比较；缺失或重复边界直接失败。它不保存无关 core 对象数量、
-startup 符号列表或生成 C；这些由 typed 产物/链接测试和真实程序运行负责。
+startup 符号列表、生成 C 或全镜像 `ELF system imports` 总数；系统导入总数包含 runtime
+和后端辅助引用，不是该 fixture 的 native 输入选择合同。真实符号解析由 linker 与程序运行验证。
 `native-digests` 仅用于链接计划：
 将 `native library` 的 `input`、`native object/archive` 的内容 ID、归档 member 的
 `digest`、`dynamic provider` 及其 load/re-export 引用替换为按首次出现编号的标记。

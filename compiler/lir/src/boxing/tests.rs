@@ -14,6 +14,7 @@ fn external_boxed_references_preserve_zst_nonzero_and_recursive_rooting() {
                 assert_eq!(payload.descriptor(), value.descriptor());
             }
             BoxedValueDescriptor::NonZero(value) => {
+                assert_eq!(value.payload_offset(), 16);
                 let expected = value.value().scan().contains_reference();
                 let mut locals = Arena::new();
                 let local = locals.alloc(Local::new(

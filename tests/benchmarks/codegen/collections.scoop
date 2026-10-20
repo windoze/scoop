@@ -1,0 +1,16 @@
+fun scan(values: Array<Long>, limit: Long): Long {
+    var total = 0L
+    var i = 0L
+    while (i < limit) {
+        if (i >= 0L && limit <= values.size) { total += values[i] }
+        i += 1L
+    }
+    return total
+}
+fun main() {
+    val values = Array<Long>(8192L) { i -> i }
+    var round = 0L
+    var total = 0L
+    while (round < 1024L) { total += scan(values, 8192L); round += 1L }
+    println(total)
+}

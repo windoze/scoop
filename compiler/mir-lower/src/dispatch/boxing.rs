@@ -372,6 +372,8 @@ impl Lowerer {
         self.coroutines.record_call_sites(id, lowered.call_sites);
         self.top_level.push(id);
         if signature.is_suspend {
+            // Published box support is independent of state-machine elision.
+            self.coroutine_slot_for(&mir::Type::Class(boxed_class));
             self.suspend_sources.push(SuspendSource {
                 function: id,
                 materialization: identity.materialization(),

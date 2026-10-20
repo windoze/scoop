@@ -5,4 +5,3 @@ native archive $NATIVE_INPUT_0 members=1
   member 0 header=8 payload=68..3604 name="managed.o" digest=$NATIVE_MEMBER_0 selected=true
 native archive $NATIVE_INPUT_1 members=1
   member 0 header=8 payload=68..1300 name="leaf.o" digest=$NATIVE_MEMBER_1 selected=true
-ELF system imports=71

@@ -1,0 +1,9 @@
+package codegen.copy
+public struct Wide(val a: Long, val b: Long,
+    val c: Long, val d: Long, val e: Long, val f: Long,
+    val g: Long, val h: Long)
+@NoGC
+public fun copyValue(v: Wide): Wide {
+    return Wide(v.b + v.h, v.c - v.g, v.d + v.f, v.e - v.a,
+                v.f + v.b, v.g - v.c, v.h + v.d, v.a - v.e)
+}

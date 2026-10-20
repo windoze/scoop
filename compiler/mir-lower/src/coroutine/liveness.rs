@@ -202,7 +202,7 @@ fn working_use_def(
     }
 }
 
-fn suspend_effect(
+pub(crate) fn suspend_effect(
     lowerer: &Lowerer,
     body: &mir::Body,
     statement: &mir::Statement,
@@ -268,12 +268,21 @@ fn suspend_effect(
         }
         mir::CallTarget::Direct(mir::Callee::Extern(_) | mir::Callee::Runtime(_)) => return None,
     };
-    lowerer
-        .coroutines
-        .functions
+    // Source signatures are available before ABI conversion; afterwards the
+    // same semantic result lives in the complete coroutine metadata.
+    let result = lowerer
+        .suspend_sources
         .iter()
-        .find_map(|(_, coroutine)| {
-            (coroutine.function == function)
-                .then(|| (call.clone(), destination, coroutine.source_return.clone()))
-        })
+        .find(|source| source.function == function)
+        .map(|source| source.source_return.clone())
+        .or_else(|| {
+            lowerer
+                .coroutines
+                .functions
+                .iter()
+                .find_map(|(_, coroutine)| {
+                    (coroutine.function == function).then(|| coroutine.source_return.clone())
+                })
+        });
+    result.map(|result| (call.clone(), destination, result))
 }

@@ -1,0 +1,27 @@
+class Node(val value: Long, val next: Node?)
+
+fun verify(nodes: MutableArray<Node?>, stride: Long) {
+    var index = 0L
+    while (index < nodes.size) {
+        val node = nodes[index]!!
+        if (node.value != index || node.next!!.value != -1L) throw IllegalStateException()
+        index += stride
+    }
+}
+
+fun main() {
+    val shared = Node(-1L, None)
+    val nodes = MutableArray<Node?>(550000L) { index -> Some(Node(index, Some(shared))) }
+    gcCollect()
+    verify(nodes, 1L)
+    var index = 0L
+    while (index < nodes.size) {
+        if (index % 8192L != 0L) nodes[index] = None
+        index += 1L
+    }
+    gcCollect()
+    verify(nodes, 8192L)
+    gcCollect()
+    verify(nodes, 8192L)
+    println("dense and sparse full collections preserve live array graphs")
+}

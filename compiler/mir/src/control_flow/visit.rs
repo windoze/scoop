@@ -330,40 +330,49 @@ pub fn walk_expr_mut(expr: &mut Expr, visitor: &mut impl FnMut(&mut Expr)) {
 /// Visit every expression in a block, including call arguments and the terminator.
 pub fn visit_block_exprs(block: &BasicBlock, visitor: &mut impl FnMut(&Expr)) {
     for statement in &block.statements {
-        match &statement.kind {
-            StatementKind::Expr(expr) => visit_expr(expr, visitor),
-            StatementKind::Call(effect) => {
-                let call = match effect {
-                    CallEffect::Unit(call) | CallEffect::Value { call, .. } => call,
-                };
-                for argument in call.operands() {
-                    visit_expr(argument, visitor);
-                }
-            }
-            StatementKind::ValDecl { init, .. } => visit_expr(init, visitor),
-            StatementKind::PublishReleaseReady { receiver, .. } => visit_expr(receiver, visitor),
-            StatementKind::Assign { value, .. } | StatementKind::GlobalAssign { value, .. } => {
-                visit_expr(value, visitor)
-            }
-            StatementKind::ArraySet {
-                array,
-                index,
-                value,
-                ..
-            } => {
-                visit_expr(array, visitor);
-                visit_expr(index, visitor);
-                visit_expr(value, visitor);
-            }
-            StatementKind::FieldSet { object, value, .. }
-            | StatementKind::AtomicFieldStore { object, value, .. } => {
-                visit_expr(object, visitor);
-                visit_expr(value, visitor);
-            }
-            StatementKind::Eh(_) => {}
-        }
+        visit_statement_exprs(statement, visitor);
     }
-    match &block.terminator {
+    visit_terminator_exprs(&block.terminator, visitor);
+}
+
+/// Visit expression trees in their statement evaluation order.
+pub fn visit_statement_exprs(statement: &Statement, visitor: &mut impl FnMut(&Expr)) {
+    match &statement.kind {
+        StatementKind::Expr(expr) => visit_expr(expr, visitor),
+        StatementKind::Call(effect) => {
+            let call = match effect {
+                CallEffect::Unit(call) | CallEffect::Value { call, .. } => call,
+            };
+            for argument in call.operands() {
+                visit_expr(argument, visitor);
+            }
+        }
+        StatementKind::ValDecl { init, .. } => visit_expr(init, visitor),
+        StatementKind::PublishReleaseReady { receiver, .. } => visit_expr(receiver, visitor),
+        StatementKind::Assign { value, .. } | StatementKind::GlobalAssign { value, .. } => {
+            visit_expr(value, visitor)
+        }
+        StatementKind::ArraySet {
+            array,
+            index,
+            value,
+            ..
+        } => {
+            visit_expr(array, visitor);
+            visit_expr(index, visitor);
+            visit_expr(value, visitor);
+        }
+        StatementKind::FieldSet { object, value, .. }
+        | StatementKind::AtomicFieldStore { object, value, .. } => {
+            visit_expr(object, visitor);
+            visit_expr(value, visitor);
+        }
+        StatementKind::Eh(_) => {}
+    }
+}
+
+pub fn visit_terminator_exprs(terminator: &Terminator, visitor: &mut impl FnMut(&Expr)) {
+    match terminator {
         Terminator::Branch { cond, .. } => visit_expr(cond, visitor),
         Terminator::Return { value } => visit_expr(value, visitor),
         Terminator::Throw { exception, .. } => visit_expr(exception, visitor),

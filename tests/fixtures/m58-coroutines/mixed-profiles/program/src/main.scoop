@@ -1,0 +1,26 @@
+import profiles.middle.*
+
+fun check(value: Boolean) { if (!value) throw IllegalStateException() }
+class Done : Continuation<Int> {
+    var calls = 0
+    var result = 0
+    public override fun resume(value: Int) { calls += 1; result = value }
+    public override fun resumeWithException(error: Throwable) { throw error }
+}
+class Gate : SuspendRegistration<Int> {
+    var waiter: Continuation<Int>? = None
+    public override fun register(continuation: Continuation<Int>) { waiter = Some(continuation) }
+}
+fun main() {
+    val immediate = Done()
+    startCoroutine(suspend { value() }, immediate)
+    check(immediate.calls == 1 && immediate.result == 42)
+    val gate = Gate()
+    val delayed = Done()
+    startCoroutine(suspend { waitFor(gate) }, delayed)
+    check(delayed.calls == 0)
+    gcCollect()
+    gate.waiter!!.resume(42)
+    check(delayed.calls == 1 && delayed.result == 42)
+    println("mixed profiles preserve boxed and suspended calls")
+}

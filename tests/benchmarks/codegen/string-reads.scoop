@@ -1,0 +1,28 @@
+fun main(args: Array<String>) {
+    var text = ""
+    var part = 0L
+    while (part < 128L) {
+        text += "A\u0000é雪🙂"
+        part += 1L
+    }
+    var result = 0L
+    var round = 0L
+    if (args[1L] == "length") {
+        while (round < 8000000L) {
+            result += text.byteLength
+            round += 1L
+        }
+    } else if (args[1L] == "bytes") {
+        while (round < 8192L) {
+            val bytes = text.toByteArray()
+            result += bytes[0L].toLong() + bytes[1L].toLong() + bytes[1407L].toLong()
+            round += 1L
+        }
+    } else {
+        while (round < 8192L) {
+            for (character in text) { result += character.code.toLong() }
+            round += 1L
+        }
+    }
+    println(result)
+}

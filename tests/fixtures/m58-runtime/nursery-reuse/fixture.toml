@@ -1,0 +1,36 @@
+schema = 1
+name = "m58-nursery-block-reuse"
+root = "program.scoop"
+inputs = ["program.scoop", "native.c"]
+tools = ["scoop", "cc", "ar"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m58", "gc", "nursery", "barrier"]
+variants = [
+  {name = "debug", vars = {profile = "debug"}},
+  {name = "release", vars = {profile = "release"}},
+  {name = "minor-debug", vars = {profile = "debug"}, env = {SCOOP_GC_STRESS_MINOR = "1"}},
+  {name = "minor-release", vars = {profile = "release"}, env = {SCOOP_GC_STRESS_MINOR = "1"}},
+]
+
+[[steps]]
+name = "native"
+argv = ["${cc}", {each = "${cc_args}"}, "-std=c11", "-Wall", "-Wextra", "-Werror", "-I", "${runtime}/include", "-c", "${fixture}/native.c", "-o", "${work}/native.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive"
+argv = ["${ar}", "rcs", "${work}/libm58_nursery_probe.a", "${work}/native.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "run"
+argv = ["${scoop}", "run", {each = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--library-path", "${work}", "--profile", "${profile}", "--message-format", "json"]
+exit = 0
+stdout = "nursery reuse preserves old-to-young chains and transient values\n"
+stderr = ""
+json = "stderr"
+diagnostics = []

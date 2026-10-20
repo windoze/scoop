@@ -250,7 +250,7 @@ fn emits_m5_arrays() {
     let ir = ir_of(&module);
     assert!(
         ir.lines().any(|line| {
-            line.contains("call ptr addrspace(1) @scoop_rt_array_clone")
+            line.contains("call ptr addrspace(1) @scoop_runtime_alloc_slow")
                 && line.contains(&int_array_symbol)
         }),
         "Int clone must receive the target nominal descriptor:\n{ir}"
@@ -267,11 +267,13 @@ fn emits_m5_arrays() {
     );
     assert!(
         ir.lines().any(|line| {
-            line.contains("call ptr addrspace(1) @scoop_rt_array_clone")
+            line.contains("call ptr addrspace(1) @scoop_runtime_alloc_slow")
                 && line.contains(&point_array_symbol)
         }),
         "Point clone must receive the target nominal descriptor:\n{ir}"
     );
+    assert!(ir.contains("@llvm.memcpy.p1.p1.i64"), "{ir}");
+    assert!(!ir.contains("@scoop_rt_array_clone"), "{ir}");
     let output =
         std::env::temp_dir().join(format!("scoop_codegen_m5_test_{}.o", std::process::id()));
     write_test_object(&module, &output);

@@ -196,6 +196,15 @@ fn zero_sized_box_unbox_have_no_payload_storage_or_result_pointer() {
         "{ir}"
     );
     assert!(ir.contains("\"gc-leaf-function\""), "{ir}");
+    assert!(ir.contains("%unbox.exact = icmp eq ptr"), "{ir}");
+    let fast = ir
+        .split("unbox.fast:")
+        .nth(1)
+        .unwrap()
+        .split("unbox.slow:")
+        .next()
+        .unwrap();
+    assert!(!fast.contains("load ") && !fast.contains("call "), "{fast}");
 }
 
 #[test]
@@ -235,6 +244,18 @@ fn reference_payload_roots_the_same_storage_before_the_managed_box() {
         "{ir}"
     );
     assert!(ir.contains(", ptr %destination)"), "{ir}");
+    let fast = ir
+        .split("unbox.fast:")
+        .nth(1)
+        .unwrap()
+        .split("unbox.slow:")
+        .next()
+        .unwrap();
+    assert!(
+        fast.contains("@llvm.memcpy.p0.p1.i64(ptr align 8 %destination, ptr addrspace(1) align 8 %unbox.payload, i64 24"),
+        "{fast}"
+    );
+    assert!(!fast.contains("@scoop_rt_unbox"), "{fast}");
     assert!(
         ir.contains("box.region.frame = alloca { ptr, ptr, i64 }"),
         "{ir}"
@@ -264,6 +285,14 @@ fn gc_free_payload_uses_the_descriptor_without_a_root_frame() {
     );
     assert!(
         !ir.contains("native_region_roots") && !ir.contains("getelementptr i8, ptr %box.t0"),
+        "{ir}"
+    );
+    assert!(
+        ir.contains("getelementptr i8, ptr addrspace(1) %box.t0, i64 16"),
+        "{ir}"
+    );
+    assert!(
+        ir.contains("@llvm.memcpy.p0.p1.i64(ptr align 8 %destination, ptr addrspace(1) align 8 %unbox.payload, i64 8"),
         "{ir}"
     );
 }

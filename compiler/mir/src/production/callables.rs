@@ -84,6 +84,18 @@ pub struct StrongCallableBridgeSurfaceV1 {
 
 impl StrongCallableBridgeSurfaceV1 {
     pub fn from_foundation(foundation: &CanonicalMirFoundation) -> Self {
+        let private_coroutines = foundation
+            .generated_callables()
+            .iter()
+            .filter(|record| {
+                matches!(
+                    record.key(),
+                    scoop_identity::GeneratedCallableKey::CoroutineDriver { .. }
+                        | scoop_identity::GeneratedCallableKey::CoroutineAdapter { .. }
+                )
+            })
+            .map(CborIdentityRecord::id)
+            .collect::<std::collections::BTreeSet<_>>();
         let mut bridges = foundation
             .callable_signatures()
             .iter()
@@ -91,6 +103,11 @@ impl StrongCallableBridgeSurfaceV1 {
                 let CallableSignatureSubject::Strong(implementation) = record.subject() else {
                     return None;
                 };
+                if let CallableOwner::Generated(id) = implementation
+                    && private_coroutines.contains(&id)
+                {
+                    return None;
+                }
                 Some(StrongCallableBridgeV1::new(
                     implementation,
                     record.signature().clone(),

@@ -7,6 +7,8 @@ mod callbacks;
 mod control_flow;
 mod coroutine_liveness;
 mod coroutine_pending;
+mod coroutine_sync;
+mod coroutine_tail;
 mod coroutines;
 mod function_adapters;
 mod generics;

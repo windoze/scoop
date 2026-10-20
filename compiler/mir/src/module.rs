@@ -854,6 +854,9 @@ pub struct CoroutineFunction {
 #[derive(Debug)]
 pub enum CoroutineLowering {
     Immediate,
+    /// Every suspension returns the callee's step using the original completion.
+    /// This has no local frame, but can still suspend.
+    TailForwarding,
     StateMachine {
         frame: CoroutineFrameId,
         driver: FunctionId,

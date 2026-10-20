@@ -67,6 +67,17 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             )
             .map_err(|error| CodegenError(format!("array allocation size check: {error}")))?;
         self.array_size_check(exceeds_layout, overflow_message, "assembly.size.bytes.ok")?;
+        self.array_allocation_size(layout, total)
+    }
+
+    /// The count is checked above or comes from a valid array of the same layout.
+    pub(in crate::function) fn array_allocation_size(
+        &self,
+        layout: &scoop_lir::ArrayLayoutV1,
+        total: IntValue<'ctx>,
+    ) -> Result<IntValue<'ctx>, CodegenError> {
+        let builder = self.builder;
+        let i64_ty = self.context.i64_type();
         let total_bytes = match layout.storage().kind() {
             scoop_lir::ArrayElementStorageKindV1::ZeroSized { .. } => {
                 i64_ty.const_int(layout.instance().minimum_size(), false)

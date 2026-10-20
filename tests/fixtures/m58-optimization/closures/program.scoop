@@ -1,0 +1,92 @@
+class Counter(var value: Long) {
+    public fun read(): Long = value
+}
+struct Payload(val offset: Long, val counter: Counter)
+class Saved(val action: () -> Long)
+
+fun check(ok: Boolean) { if (!ok) throw IllegalStateException() }
+fun <T> scope(block: () -> T): T = block()
+fun <T> nested(block: () -> T): T = scope(block)
+fun each(values: Array<Long>, action: (Long) -> Unit) {
+    var index = 0L
+    while (index < values.size) {
+        action(values[index])
+        index += 1L
+    }
+}
+
+fun iteration(count: Long) {
+    val counter = Counter(0L)
+    val payload = Payload(5L, counter)
+    val values = Array<Long>(count) { index -> index }
+    each(values) { value ->
+        gcCollect()
+        payload.counter.value += value + payload.offset
+    }
+    check(counter.value == count * (count - 1L) / 2L + count * 5L)
+}
+
+fun boxedCapture(value: Long): Long {
+    val boxed: Any = value
+    return nested { (boxed as Long) + 1L }
+}
+
+fun repeatedTraversal() {
+    val counter = Counter(0L)
+    val values = Array<Long>(3L) { index -> index }
+    var round = 0L
+    while (round < 17L) {
+        val payload = Payload(round, counter)
+        each(values) { value ->
+            gcCollect()
+            payload.counter.value += value + payload.offset
+        }
+        round += 1L
+    }
+    check(counter.value == 459L)
+}
+
+var receiverEvaluations = 0
+fun receiver(): Counter { receiverEvaluations += 1; return Counter(31L) }
+fun boundReceiver() {
+    val action = receiver()::read
+    gcCollect()
+    check(nested(action) == 31L && action() == 31L)
+    check(receiverEvaluations == 1)
+}
+
+fun make(value: Long): () -> Long = { value }
+fun keep(action: () -> Long): Saved = Saved(action)
+fun escapingSibling() {
+    val direct = make(4L)
+    val saved = keep(make(7L))
+    val result = direct()
+    gcCollect()
+    check(result == 4L && saved.action() == 7L)
+    val counter = Counter(11L)
+    val wrapped = scope { keep { counter.value } }
+    counter.value = 19L
+    gcCollect()
+    check(wrapped.action() == 19L)
+}
+
+fun identity() {
+    val first = make(3L)
+    val alias = first
+    val second = make(3L)
+    gcCollect()
+    check(first === alias && !(first === second))
+}
+
+fun main() {
+    iteration(0L)
+    iteration(1L)
+    iteration(17L)
+    repeatedTraversal()
+    check(boxedCapture(41L) == 42L)
+    check(nested { 7L } == 7L)
+    boundReceiver()
+    escapingSibling()
+    identity()
+    println("local closures preserve captures, iteration, receivers and escaping siblings")
+}

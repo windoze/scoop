@@ -41,6 +41,7 @@ mod runtime_eh_lifecycle_tests;
 mod runtime_eh_personality_tests;
 
 mod arrays;
+mod arrays_clone;
 mod arrays_zst;
 mod atomics;
 mod boxing;

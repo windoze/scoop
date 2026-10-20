@@ -108,6 +108,9 @@ pub(crate) fn layouts(
         }
     }
     for (id, def) in module.closure_classes.iter() {
+        if !identity_roots.emits_closure(id) {
+            continue;
+        }
         let (_, size, align, scan) = closure_shape(context, module, enums, def)?;
         let exact =
             generated_exact_type_record(module, mir::GeneratedExactTypeLocation::Closure(id)).id();

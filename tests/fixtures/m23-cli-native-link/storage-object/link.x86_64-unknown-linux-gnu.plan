@@ -1,4 +1,3 @@
 link inputs: startup, cone/member order, runtime/object order, native CRT/libc/LLVM unwind
 native library m23_storage requirement=40c908aba41568be82e113e5c601f71aa608c202ab50cec96f77f4498e1785f0 input=$NATIVE_INPUT_0 origins=dev.programlink:storage-provider:0.1.0, dev.programlink:storage-root:0.1.0
 native object $NATIVE_INPUT_0 slice=0..4224
-ELF system imports=73

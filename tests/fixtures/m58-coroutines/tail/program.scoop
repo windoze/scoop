@@ -1,0 +1,140 @@
+fun check(value: Boolean) { if (!value) throw IllegalStateException() }
+class Request(val value: Int)
+context(request: Request)
+fun current(): Int = request.value
+
+class Gate(val mode: Int, val expectedContext: Int = 0) : SuspendRegistration<Int> {
+    var waiter: Continuation<Int>? = None
+    public override fun register(continuation: Continuation<Int>) {
+        if (expectedContext != 0) check(current() == expectedContext)
+        waiter = Some(continuation)
+        if (mode == 1 || mode == 3) continuation.resume(41)
+        if (mode == 2) continuation.resumeWithException(UnwrapException())
+        if (mode == 3) throw UnwrapException()
+    }
+}
+class Done(val expectedContext: Int = 0) : Continuation<Int> {
+    var calls = 0
+    var value = 0
+    var failure: Throwable? = None
+    public override fun resume(value: Int) {
+        if (expectedContext != 0) check(current() == expectedContext)
+        calls += 1
+        this.value = value
+    }
+    public override fun resumeWithException(exception: Throwable) {
+        calls += 1
+        failure = Some(exception)
+    }
+}
+var arguments = 0
+fun argument(): Int { arguments += 1; return 1 }
+suspend fun leaf(gate: Gate, increment: Int): Int = suspendCoroutine(gate) + increment
+suspend fun first(gate: Gate, increment: Int): Int = leaf(gate, increment)
+suspend fun second(gate: Gate): Int = first(gate, argument())
+suspend fun branch(gate: Gate, route: Int): Int {
+    if (route == 0) return second(gate)
+    if (route == 1) return first(gate, 2)
+    return 17
+}
+suspend fun <T> identity(value: T): T = value
+suspend fun <T> forward(value: T): T = identity(value)
+
+var cleanups = 0
+suspend fun guarded(gate: Gate): Int {
+    try { return branch(gate, 0) }
+    catch (error: UnwrapException) { return 9 }
+    finally { cleanups += 1 }
+}
+suspend fun scoped(gate: Gate): Int = context(Request(7)) { first(gate, 1) }
+
+class UnitGate : SuspendRegistration<Unit> {
+    var waiter: Continuation<Unit>? = None
+    public override fun register(continuation: Continuation<Unit>) { waiter = Some(continuation) }
+}
+class UnitDone : Continuation<Unit> {
+    var calls = 0
+    public override fun resume(value: Unit) { calls += 1 }
+    public override fun resumeWithException(exception: Throwable) { throw exception }
+}
+suspend fun unitLeaf(gate: UnitGate) { suspendCoroutine(gate) }
+suspend fun unitWrapper(gate: UnitGate) { return unitLeaf(gate) }
+suspend fun discardResult(gate: Gate) { first(gate, 1) }
+
+fun duplicate(gate: Gate) {
+    var rejected = false
+    try { gate.waiter!!.resume(99) }
+    catch (error: IllegalStateException) { rejected = true }
+    check(rejected)
+}
+
+fun main() {
+    var mode = 0
+    while (mode < 4) {
+        val gate = Gate(mode)
+        val done = Done()
+        val before = arguments
+        startCoroutine(suspend { branch(gate, 0) }, done)
+        check(arguments == before + 1)
+        if (mode == 0) {
+            check(done.calls == 0)
+            gcCollect()
+            gate.waiter!!.resume(41)
+        }
+        check(done.calls == 1)
+        if (mode < 2) check(done.value == 42)
+        if (mode == 2) check(done.failure!! is UnwrapException)
+        if (mode == 3) check(done.failure!! is IllegalStateException)
+        duplicate(gate)
+        check(done.calls == 1)
+        mode += 1
+    }
+    val failed = Gate(0)
+    val failedDone = Done()
+    startCoroutine(suspend { branch(failed, 1) }, failedDone)
+    val error = UnwrapException()
+    gcCollect()
+    failed.waiter!!.resumeWithException(error)
+    check(failedDone.calls == 1 && failedDone.failure!! === error)
+    duplicate(failed)
+
+    val immediate = Done()
+    startCoroutine(suspend { branch(Gate(0), 2) }, immediate)
+    check(immediate.calls == 1 && immediate.value == 17)
+    val generic = Done()
+    startCoroutine(suspend { forward(42) }, generic)
+    check(generic.calls == 1 && generic.value == 42)
+
+    val guardedGate = Gate(0)
+    val guardedDone = Done()
+    startCoroutine(suspend { guarded(guardedGate) }, guardedDone)
+    check(cleanups == 0 && guardedDone.calls == 0)
+    gcCollect()
+    guardedGate.waiter!!.resumeWithException(UnwrapException())
+    check(cleanups == 1 && guardedDone.calls == 1 && guardedDone.value == 9)
+
+    context(Request(1)) {
+        val gate = Gate(0, 7)
+        val done = Done(1)
+        startCoroutine(suspend { scoped(gate) }, done)
+        check(done.calls == 0 && current() == 1)
+        gcCollect()
+        gate.waiter!!.resume(41)
+        check(done.calls == 1 && done.value == 42 && current() == 1)
+    }
+    val unitGate = UnitGate()
+    val unitDone = UnitDone()
+    startCoroutine(suspend { unitWrapper(unitGate) }, unitDone)
+    check(unitDone.calls == 0)
+    gcCollect()
+    unitGate.waiter!!.resume(Unit)
+    check(unitDone.calls == 1)
+    val discardedGate = Gate(0)
+    val discardedDone = UnitDone()
+    startCoroutine(suspend { discardResult(discardedGate) }, discardedDone)
+    check(discardedDone.calls == 0)
+    gcCollect()
+    discardedGate.waiter!!.resume(41)
+    check(discardedDone.calls == 1)
+    println("tail suspension preserves completion, failure and cleanup")
+}

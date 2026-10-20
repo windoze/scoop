@@ -1,0 +1,43 @@
+class Node(var value: Long)
+struct Payload<T>(val value: T, val nested: (Node, String))
+enum Wrapped { Item(Payload<Node>), Empty }
+
+fun check(ok: Boolean) { if (!ok) throw IllegalStateException() }
+fun <T> roundTrip(value: T): T {
+    val boxed: Any = value
+    gcCollect()
+    return boxed as T
+}
+
+fun references(index: Long) {
+    val node = Node(index)
+    val payload = Payload(node, (Node(index + 1L), "left" + "right"))
+    val boxed: Any = payload
+    val tuple: Any = (Node(index + 2L), "tuple" + "value")
+    val wrapped: Any = Wrapped.Item(payload)
+    var turn = 0
+    while (turn < 3) {
+        gcCollect()
+        val result = boxed as Payload<Node>
+        check(result.value === node && result.nested._1.value == index + 1L)
+        check(result.nested._2 == "leftright")
+        result.value.value += 1L
+        val pair = tuple as (Node, String)
+        check(pair._1.value == index + 2L && pair._2 == "tuplevalue")
+        val item = wrapped as Wrapped
+        check(when (item) { case Item(value) -> value.value === node; case Empty -> false })
+        turn += 1
+    }
+    val generic = roundTrip(payload)
+    check(generic.value.value == index + 3L)
+    check(generic.nested._1.value == index + 1L)
+}
+
+fun main() {
+    var index = 0L
+    while (index < 8L) {
+        references(index)
+        index += 1L
+    }
+    println("boxed aggregate snapshots retain relocated references")
+}

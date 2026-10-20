@@ -15,12 +15,14 @@ mod frame;
 mod intrinsics;
 mod liveness;
 mod sites;
+mod tail;
 
 use adapters::*;
 use construction::*;
 use errors::protocol_error_block;
 use intrinsics::*;
-use liveness::*;
+use liveness::analyze_sites;
+pub(super) use liveness::suspend_effect;
 use sites::*;
 
 #[derive(Clone)]
@@ -71,6 +73,9 @@ pub(super) fn transform(lowerer: &mut Lowerer, module: &hir::Module) {
         let calls = lowerer.coroutines.take_call_sites(function);
         let sites = analyze_sites(lowerer, &lowerer.functions[function].body, &calls);
         if sites.is_empty() {
+            continue;
+        }
+        if lowerer.coroutine_elision && tail::rewrite(lowerer, coroutine, &sites) {
             continue;
         }
         transform_function(lowerer, module, coroutine, sites);

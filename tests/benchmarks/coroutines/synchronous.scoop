@@ -1,0 +1,25 @@
+suspend fun leaf(value: Long): Long = value + 1L
+suspend fun first(value: Long): Long = leaf(value) + 1L
+suspend fun second(value: Long): Long = first(value) + 1L
+suspend fun third(value: Long): Long = second(value) + 1L
+suspend fun fourth(value: Long): Long = third(value) + 1L
+
+class Done : Continuation<Long> {
+    var count = 0L
+    var sum = 0L
+    public override fun resume(value: Long) { count += 1L; sum += value }
+    public override fun resumeWithException(error: Throwable) { throw error }
+}
+
+fun main(args: Array<String>) {
+    val deep = args[1L] == "wrapped"
+    val done = Done()
+    var round = 0L
+    while (round < 50000L) {
+        val value = round
+        startCoroutine(suspend { if (deep) fourth(value) else leaf(value) }, done)
+        round += 1L
+    }
+    if (done.count != 50000L) { throw IllegalStateException() }
+    println(done.sum)
+}

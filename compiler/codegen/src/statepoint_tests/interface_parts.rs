@@ -49,13 +49,29 @@ fn interface_parts_call_invoke_and_relocation_survive_target_codegen() {
         "phi {ptr addrspace(1), ptr} [%a.complete, %left], [%b.complete, %right]",
         "select i1 %choose, {ptr addrspace(1), ptr} %a.complete, {ptr addrspace(1), ptr} %b.complete",
     );
+    let bounded = source.replace(
+        "  %token = invoke token",
+        r#"  br label %bounded
+bounded:
+  %left = phi i32 [64, %entry], [%remaining, %bounded]
+  %sum = phi i32 [0, %entry], [%next, %bounded]
+  %scaled = mul i32 %left, 1664525
+  %mixed = xor i32 %scaled, 1013904223
+  %next = add i32 %sum, %mixed
+  %remaining = sub i32 %left, 1
+  %again = icmp ne i32 %remaining, 0
+  br i1 %again, label %bounded, label %invoke.entry
+invoke.entry:
+  call void (...) @llvm.fake.use(i32 %next)
+  %token = invoke token"#,
+    );
     for target in [
         scoop_target_data::DARWIN_AARCH64_ID,
         scoop_target_data::LINUX_X86_64_GNU_ID,
         scoop_target_data::LINUX_X86_64_MUSL_ID,
     ] {
         for mode in [OptimizationMode::Debug, OptimizationMode::Release] {
-            for source in [source, selected.as_str()] {
+            for source in [source, selected.as_str(), bounded.as_str()] {
                 let profile = ValidatedBackendProfile::for_selection(
                     scoop_target_data::selection(target)
                         .expect("implemented target selected by this consumer"),

@@ -309,7 +309,7 @@ fn signature_changing_closure_dispatch_keeps_its_generated_bridge_identity() {
     ));
 }
 
-fn function_type(
+pub(super) fn function_type(
     harness: &mut Harness,
     parameters: Vec<hir::TypeId>,
     result: hir::TypeId,

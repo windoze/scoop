@@ -10,6 +10,8 @@ use crate::ValidatedBackendProfile;
 
 #[path = "statepoint_tests/atomic_refs.rs"]
 mod atomic_refs;
+#[path = "statepoint_tests/bounded_loops.rs"]
+mod bounded_loops;
 #[path = "statepoint_tests/branch_loads.rs"]
 mod branch_loads;
 #[path = "statepoint_tests/call_frame.rs"]
@@ -18,16 +20,24 @@ mod call_frame;
 mod constant_roots;
 #[path = "statepoint_tests/copied_aggregate.rs"]
 mod copied_aggregate;
+#[path = "statepoint_tests/copies.rs"]
+mod copies;
 #[path = "statepoint_tests/guarded_unwrap.rs"]
 mod guarded_unwrap;
 #[path = "statepoint_tests/interface_parts.rs"]
 mod interface_parts;
+#[path = "statepoint_tests/late_branches.rs"]
+mod late_branches;
 #[path = "statepoint_tests/loops.rs"]
 mod loops;
+#[path = "statepoint_tests/nogc_loops.rs"]
+mod nogc_loops;
 #[path = "statepoint_tests/nonduplicable.rs"]
 mod nonduplicable;
 #[path = "statepoint_tests/optimized.rs"]
 mod optimized;
+#[path = "statepoint_tests/ranges.rs"]
+mod ranges;
 #[path = "statepoint_tests/terminal_poll.rs"]
 mod terminal_poll;
 

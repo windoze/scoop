@@ -136,6 +136,7 @@ use scoop_mir as mir;
 mod error;
 pub use error::*;
 
+mod closure_support;
 mod identity_roots;
 use identity_roots::IdentityRoots;
 

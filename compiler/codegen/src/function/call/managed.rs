@@ -73,8 +73,30 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             invoke.is_some(),
         )?;
 
-        // Allocation is the one codegen-expanded runtime primitive. Its typed
-        // identity selects the expansion; its symbol is not inspected.
+        if invoke.is_none()
+            && let (
+                scoop_lir::CallDestination::Runtime(scoop_lir::RuntimeFunction::NoGc(
+                    operation @ (scoop_lir::NoGcRuntimeFunction::StringByteLength
+                    | scoop_lir::NoGcRuntimeFunction::StringByteAt),
+                )),
+                TypedCallResult::Direct { out, .. },
+            ) = (destination, &result)
+        {
+            let object = self
+                .value(call.args()[0].logical_value())?
+                .into_pointer_value();
+            let length = self.string_byte_length(object)?;
+            let value = if operation == scoop_lir::NoGcRuntimeFunction::StringByteAt {
+                let index = self.value(call.args()[1].logical_value())?.into_int_value();
+                self.string_byte_at(object, index, length)?
+            } else {
+                length
+            };
+            self.temps.insert(*out, value.into());
+            return Ok(());
+        }
+
+        // Typed runtime identities select expansions; symbols are not inspected.
         if destination
             == scoop_lir::CallDestination::Runtime(scoop_lir::RuntimeFunction::Managed(
                 scoop_lir::ManagedRuntimeFunction::Alloc,

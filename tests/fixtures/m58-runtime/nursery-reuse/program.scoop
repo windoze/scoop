@@ -1,0 +1,45 @@
+@Extern(lib = "m58_nursery_probe", name = "m58_minor_count")
+fun minorCount(): Long
+
+class Node(val value: Long, val next: Node?)
+class Holder(var head: Node?)
+
+@Unsafe
+fun main() {
+    val holder = Holder(None)
+    gcCollect()
+    val before = minorCount()
+    var total = 0L
+    var round = 0L
+    while (round < 6L) {
+        var expected = 0L
+        var index = 0L
+        while (index < 10000L) {
+            val keep = index % 257L == 0L
+            val node = Node(index, if (keep) holder.head else None)
+            total += node.value
+            if (keep) {
+                holder.head = Some(node)
+                expected += index
+            }
+            index += 1L
+        }
+        var current = holder.head
+        var actual = 0L
+        while (true) {
+            when (current) {
+                case None -> break
+                case Some(node) -> {
+                    actual += node.value
+                    current = node.next
+                }
+            }
+        }
+        if (actual != expected) throw IllegalStateException()
+        holder.head = None
+        round += 1L
+    }
+    if (total != 299970000L || minorCount() <= before) throw IllegalStateException()
+    gcCollect()
+    println("nursery reuse preserves old-to-young chains and transient values")
+}
