@@ -1,0 +1,137 @@
+//! Complete source documentation, separate from concrete machine entities.
+
+use crate::{
+    AnnotationTargetV1, DeclaredVisibility, DefinitionOrigin, FunctionId, SourceAnnotationTarget,
+    TypeId, TypeParamId,
+};
+use scoop_ast::{Diagnostic, DocText, NonEmptyVec, Span};
+use scoop_identity::PersistentAnnotationId;
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum DocumentationTarget {
+    Declaration(SourceAnnotationTarget),
+    TypeParameter {
+        owner: SourceAnnotationTarget,
+        parameter: TypeParamId,
+    },
+    ContextParameter {
+        owner: SourceAnnotationTarget,
+        index: u32,
+    },
+    AnnotationParameter {
+        annotation: PersistentAnnotationId,
+        index: u32,
+    },
+    DerivedFunction(FunctionId),
+}
+
+impl From<SourceAnnotationTarget> for DocumentationTarget {
+    fn from(target: SourceAnnotationTarget) -> Self {
+        Self::Declaration(target)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct ConeDocumentation {
+    pub declarations: Vec<DocumentationDeclaration>,
+    pub warnings: Vec<Diagnostic>,
+    pub hidden_annotation: Option<PersistentAnnotationId>,
+    pub alias_annotation: Option<PersistentAnnotationId>,
+}
+
+#[derive(Clone, Debug)]
+pub struct DocumentationDeclaration {
+    pub target: DocumentationTarget,
+    pub parent: Option<DocumentationTarget>,
+    pub kind: DocumentationKind,
+    pub name: String,
+    pub origin: DefinitionOrigin,
+    pub visibility: DeclaredVisibility,
+    pub synthesized: bool,
+    pub signature: Vec<DocumentationSignaturePart>,
+    pub comment: Option<DocumentationComment>,
+}
+
+/// Written syntax is preserved verbatim; inferred and generated types always
+/// reference the complete Export HIR type, never an inference placeholder.
+#[derive(Clone, Debug)]
+pub enum DocumentationSignaturePart {
+    Text(String),
+    Source(Span),
+    Type(TypeId),
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum DocumentationKind {
+    Class,
+    Struct,
+    Enum,
+    Interface,
+    Object,
+    Annotation,
+    TypeAlias,
+    Function,
+    Constructor,
+    Property,
+    Field,
+    Variant,
+    Parameter,
+    TypeParameter,
+    ContextParameter,
+    Getter,
+    Setter,
+}
+
+#[derive(Clone, Debug)]
+pub struct DocumentationComment {
+    pub span: Span,
+    pub body: DocumentationMarkdown,
+    pub tags: Vec<DocumentationTag>,
+}
+
+#[derive(Clone, Debug)]
+pub struct DocumentationMarkdown {
+    pub text: DocText,
+    pub definitions: Vec<DocText>,
+    pub references: Vec<DocumentationReference>,
+}
+
+#[derive(Clone, Debug)]
+pub struct DocumentationReference {
+    pub range: Span,
+    pub resolution: DocumentationLink,
+}
+
+#[derive(Clone, Debug)]
+pub enum DocumentationLink {
+    Symbols(NonEmptyVec<DocumentationSymbol>),
+    Url(String),
+    /// A warning explains this reference; rendering retains its label.
+    Unresolved,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum DocumentationSymbol {
+    Current(DocumentationTarget),
+    Imported(AnnotationTargetV1),
+}
+
+#[derive(Clone, Debug)]
+pub struct DocumentationTag {
+    pub kind: DocumentationTagKind,
+    pub label: String,
+    pub span: Span,
+    pub body: DocumentationMarkdown,
+}
+
+#[derive(Clone, Debug)]
+pub enum DocumentationTagKind {
+    Param(DocumentationTarget),
+    Property(DocumentationTarget),
+    Constructor(DocumentationTarget),
+    Receiver(DocumentationTarget),
+    Return(DocumentationTarget),
+    Throws(DocumentationSymbol),
+    See(DocumentationLink),
+    Since,
+}

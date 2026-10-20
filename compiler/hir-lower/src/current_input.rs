@@ -24,6 +24,7 @@ pub struct CurrentConeSources<'input, 'world> {
     world: &'world hir::ImportedSemanticWorld<'input>,
     source_names: BTreeMap<ConeIdentity, String>,
     test_dependencies: BTreeSet<ConeIdentity>,
+    documentation: Option<Vec<ast::SourceDocumentation>>,
 }
 
 impl<'input, 'world> CurrentConeSources<'input, 'world> {
@@ -56,6 +57,7 @@ impl<'input, 'world> CurrentConeSources<'input, 'world> {
             world,
             source_names: BTreeMap::new(),
             test_dependencies: BTreeSet::new(),
+            documentation: None,
         })
     }
 
@@ -89,6 +91,31 @@ impl<'input, 'world> CurrentConeSources<'input, 'world> {
         &self.source_names
     }
 
+    pub fn with_documentation(
+        mut self,
+        documentation: Vec<ast::IdentifiedSourceDocumentation>,
+    ) -> Result<Self, CurrentConeSourceError> {
+        if documentation.len() != self.sources.iter().count()
+            || !documentation
+                .iter()
+                .zip(self.sources.iter())
+                .all(|(doc, source)| &doc.source == source.text().identity())
+        {
+            return Err(CurrentConeSourceError::DocumentationSourcesMismatch);
+        }
+        self.documentation = Some(
+            documentation
+                .into_iter()
+                .map(|source| source.documentation)
+                .collect(),
+        );
+        Ok(self)
+    }
+
+    pub(crate) fn documentation(&self) -> Option<&[ast::SourceDocumentation]> {
+        self.documentation.as_deref()
+    }
+
     pub const fn current_cone(&self) -> ConeIdentity {
         self.sources.cone()
     }
@@ -108,6 +135,7 @@ impl<'input, 'world> CurrentConeSources<'input, 'world> {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CurrentConeSourceError {
+    DocumentationSourcesMismatch,
     TestOnlyCore,
     TestDependencyNotDirect(ConeIdentity),
     CoreImportsOwnProtocols,
@@ -121,6 +149,8 @@ pub enum CurrentConeSourceError {
 impl std::fmt::Display for CurrentConeSourceError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::DocumentationSourcesMismatch => formatter
+                .write_str("documentation must describe the selected parsed sources in order"),
             Self::TestOnlyCore => {
                 formatter.write_str("core is a production dependency, not a test-only dependency")
             }

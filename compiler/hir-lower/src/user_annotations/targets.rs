@@ -10,6 +10,7 @@ impl Lowerer {
     ) {
         let owner = Owner::Struct(id);
         self.annotation_scope(owner, file);
+        self.document_struct(id, source);
         self.annotate_type_bounds(
             Target::Nominal(owner.as_nominal_owner()),
             &source.type_params,
@@ -61,6 +62,7 @@ impl Lowerer {
     pub(crate) fn annotate_enum(&mut self, id: hir::EnumId, source: &ast::EnumDecl, file: usize) {
         let owner = Owner::Enum(id);
         self.annotation_scope(owner, file);
+        self.document_enum(id, source);
         self.annotate_type_bounds(
             Target::Nominal(owner.as_nominal_owner()),
             &source.type_params,
@@ -129,6 +131,7 @@ impl Lowerer {
     ) {
         let owner = Owner::Class(id);
         self.annotation_scope(owner, file);
+        self.document_class(id, source);
         self.annotate_type_bounds(
             Target::Nominal(owner.as_nominal_owner()),
             &source.type_params,
@@ -171,6 +174,7 @@ impl Lowerer {
     ) {
         let owner = Owner::Interface(id);
         self.annotation_scope(owner, file);
+        self.document_interface(id, source);
         self.annotate_type_bounds(
             Target::Nominal(owner.as_nominal_owner()),
             &source.type_params,
@@ -197,6 +201,7 @@ impl Lowerer {
     ) {
         let owner = Owner::Object(id);
         self.annotation_scope(owner, file);
+        self.document_object(id, source);
         self.annotate_parent_specs(
             Target::Nominal(owner.as_nominal_owner()),
             source.supertypes(),

@@ -30,6 +30,7 @@ impl Lowerer {
         property: hir::PropertyId,
         declaration: &ast::PropertyDecl,
     ) {
+        self.document_property(property, declaration);
         self.bind_source_annotations(Target::Property(property), &declaration.annotations);
         if let Some(ty) = &declaration.ty {
             self.annotate_property_type(property, ty);

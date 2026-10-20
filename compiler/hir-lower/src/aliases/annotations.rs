@@ -36,6 +36,7 @@ impl Lowerer {
             self.current_file = alias.file;
             self.current_owner = alias.owner;
             self.type_params_in_scope = alias.parameters;
+            self.document_alias(declaration, &alias.syntax_parameters);
             self.bind_source_annotations(
                 hir::SourceAnnotationTarget::TypeAlias(declaration),
                 &alias.annotations,

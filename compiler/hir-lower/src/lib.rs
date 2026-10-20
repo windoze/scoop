@@ -108,6 +108,7 @@ mod declarations;
 mod defaults;
 mod definition_paths;
 mod derived;
+mod documentation;
 mod effects;
 mod expr;
 mod ffi;
@@ -223,6 +224,7 @@ enum CoreLoweringAuthority {
 struct LoweringCompletion {
     dependencies: hir::ImportedDependencySelectionPlan,
     binding_witness_uses: Vec<hir::ExternalHirBindingWitnessUse>,
+    documentation: Option<hir::ConeDocumentation>,
 }
 
 #[cfg(test)]
@@ -519,6 +521,7 @@ pub fn concretize_output(
 
 #[derive(Clone)]
 pub(crate) struct Lowerer {
+    documentation: Option<Shared<documentation::DocumentationContext>>,
     core: CoreLoweringAuthority,
     dependencies: Option<hir::ImportedDependencySelectionPlan>,
     pub(crate) source_contexts: Shared<Arena<hir::SourceContext>>,

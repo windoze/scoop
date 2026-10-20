@@ -10,6 +10,12 @@ pub struct SourceDocumentation {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IdentifiedSourceDocumentation {
+    pub source: scoop_identity::SourceIdentity,
+    pub documentation: SourceDocumentation,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DocDocument {
     /// The exact AST node recorded by the parser, never a semantic identity.
     pub declaration: Span,

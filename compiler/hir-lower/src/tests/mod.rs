@@ -117,6 +117,7 @@ mod m55_negative;
 mod m55_requirements;
 mod m6;
 mod m60_doc_annotations;
+mod m60_documentation;
 mod m7;
 mod m8;
 mod m9;

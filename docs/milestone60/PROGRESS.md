@@ -7,7 +7,7 @@
 | 分项 | 状态与验证 |
 | --- | --- |
 | 设计与路线图 | 已提交；已核对本地引用、M52 当前状态及源码布局 |
-| M60-A：文档前端与注解 | 文档注释、Markdown／tag 语法及普通 core 注解已完成；typed HIR 投影待接入 |
+| M60-A：文档前端与注解 | 文档注释、Markdown／tag、普通 core 注解及 typed HIR 文档视图已完成；正式命令诊断随 B 接入 |
 | M60-B：单 Cone 闭环 | 待实施 |
 | M60-C：多 Cone 与更新复用 | 待实施 |
 | M60-D：实际库及跨平台验收 | 待实施 |
@@ -39,3 +39,13 @@
 引入前已核对 pulldown-cmark 0.13.4 的维护状态及 Rust 1.71.1 要求，低于 workspace 的 1.85 基线；仅启用实际需要的 HTML 功能。MiniJinja 3.0.1 的 Rust 1.70 要求也已核对，待渲染阶段实际引入。
 
 本机 fmt／workspace clippy 通过；14 项文档语法测试与 15 项 AST 测试通过，覆盖 Unicode／CRLF、装饰前缀／缩进、连续与分隔片段、8 类 tag、代码／HTML 边界、显式引用优先、quoted path、精确 warning span。此阶段尚未提供 `scoop doc` CLI，正式文档 warning fixture 随 CLI 闭环接入。
+
+## A4：HIR 文档视图与引用绑定
+
+CurrentConeSources 接收与选中源码身份、顺序一致的整理后注释；正常 HIR 完整成功后，Output 附带独立文档视图与 warning。声明沿原 AST／typed 目标关联，保存作者签名片段与已完成的推断类型，覆盖主／次构造器、字段／property／accessor、variant payload、annotation 参数、泛型 binder、context、扩展 receiver 和源码可见合成方法。局部函数及其子项不进入视图；内外泛型 binder 保持各自身份，主构造 property 说明不复制为参数说明。
+
+文档链接复用正常 package、import、成员、继承及 direct dependency 查询，保留完整 overload 集、alias 身份及原文件作用域。tag 绑定实际目标，直接说明优先；缺失、歧义、不适用与重复描述产生准确 SourceIdentity／byte span 的文档 warning。查询使用独立语义副本，不增加普通机器调用选择；注释上下文复用现有写时复制存储，避免重载探测重复复制全文。
+
+本机 fmt／workspace clippy、16 项 HIR 文档定向测试通过，包括真实 core 全部源码的文档请求、跨 Cone alias／成员、同名导入歧义、Unicode／CRLF、M55 条件、嵌套 binder、合成 equals、局部声明排除、普通构建无文档 warning，以及函数体错误仍拒绝输出。真实 core 的 DocHidden／DocAlias 按其 annotation identity 返回，已有说明正确关联且没有文档 warning。测试修正了 struct 字段与自动访问 property 的重复候选，并验证 context 参数直接归属 logical property。
+
+本阶段未提供 CLI、持久化渲染输入、可见性筛选、继承关系的页面展示或 HTML；这些继续在 B／C 完成，不能从 HIR 测试推定站点验收已通过。清理约 498 MiB 不再使用的后端增量缓存，保留前端缓存、release 配套工具及开发 sysroot。Linux 完整验收仍在本机功能闭合后执行。

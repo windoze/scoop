@@ -609,6 +609,7 @@ dependencies = [
  "la-arena",
  "rustc_apfloat",
  "scoop-ast",
+ "scoop-doc",
  "scoop-hir",
  "scoop-identity",
  "scoop-mir",
