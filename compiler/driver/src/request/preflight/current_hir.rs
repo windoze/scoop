@@ -23,6 +23,7 @@ impl CurrentConeHirArtifacts {
             .records()
             .iter()
             .map(scoop_hir::ExternalHirReferenceV1::origin)
+            .chain(self.hir.executable_dependency_providers())
             .chain(
                 (current != scoop_identity::ConeIdentity::CORE)
                     .then_some(scoop_identity::ConeIdentity::CORE),

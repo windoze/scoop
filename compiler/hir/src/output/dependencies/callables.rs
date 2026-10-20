@@ -21,6 +21,20 @@ impl<'a> ExecutableDependencyCallableUse<'a> {
 }
 
 impl DependencyHirOutput {
+    /// Reuses committed machine roots, including callable references and dispatch.
+    pub fn executable_dependency_providers(
+        &self,
+    ) -> impl Iterator<Item = scoop_identity::ConeIdentity> + '_ {
+        self.executable_callables.iter().map(|&callee| {
+            let reference =
+                self.output.local.module().imported_dependency_callables[callee].reference();
+            self.imported_dependencies
+                .resolve_callable(reference)
+                .expect("output construction resolved every executable dependency callable")
+                .provider()
+        })
+    }
+
     /// Reuses the actual machine roots collected when this immutable output was
     /// built. Source-only default references do not become executable roots.
     pub fn executable_dependency_callables(
