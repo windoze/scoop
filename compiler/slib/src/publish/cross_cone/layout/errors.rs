@@ -15,6 +15,10 @@ pub enum CrossConeLayoutArtifactValidationError {
         slot: CrossConeClosureArtifactSlotV1,
         source: Box<crate::CrossConeLayoutLinkSectionDecodeError>,
     },
+    CompileSections {
+        slot: CrossConeClosureArtifactSlotV1,
+        source: Box<crate::CompileSectionDecodeError>,
+    },
     Semantic {
         source: Box<crate::CrossConeLayoutSemanticClosureError>,
     },
@@ -43,6 +47,7 @@ impl std::error::Error for CrossConeLayoutArtifactValidationError {
             Self::Envelope { source, .. } => Some(source.as_ref()),
             Self::Graph { source, .. } => Some(source.as_ref()),
             Self::LinkSections { source, .. } => Some(source.as_ref()),
+            Self::CompileSections { source, .. } => Some(source.as_ref()),
             Self::Semantic { source } => Some(source.as_ref()),
             Self::Physical { source } => Some(source.as_ref()),
             Self::Resource { source } => Some(source),

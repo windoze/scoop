@@ -19,10 +19,14 @@ pub(super) fn verify(
     generated: &scoop_codegen::EmittedGeneratedCBridgeObjectSetV1,
     public: &scoop_lir::CrossConeLirBridgeSectionV1,
     imports: &scoop_lir::CanonicalExternalShapeLinkImportsV1,
-    dependencies: &crate::request::preflight::ValidatedExplicitDependencyInputSet,
+    dependencies: (
+        &scoop_slib::ValidatedCrossConeArtifactClosure,
+        &[scoop_slib::DependencyRecord],
+    ),
     source_count: usize,
     expected_bodies: usize,
 ) -> BTreeMap<PersistentCallableBodyId, CallableFingerprints> {
+    let (dependencies, direct_dependencies) = dependencies;
     let prepared = crate::object_production::layout::prepare(emitted, generated).unwrap();
     let (callables, safepoints) = prepared.callable_metadata();
     assert_eq!(
@@ -114,7 +118,6 @@ pub(super) fn verify(
     )
     .unwrap();
     let dependency_owners = dependencies
-        .closure
         .dependency_symbol_owners()
         .cloned()
         .collect::<Vec<_>>();
@@ -141,7 +144,7 @@ pub(super) fn verify(
         .finalize(
             &undefined,
             &cone,
-            dependencies.direct_dependencies(),
+            direct_dependencies,
             source_count,
             Vec::new(),
         )

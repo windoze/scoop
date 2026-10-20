@@ -4,18 +4,18 @@ use std::path::Path;
 use scoop_identity::ConeIdentity;
 use scoop_slib::{self as slib, SlibDiagnostic};
 
+use super::ExplicitDependencyArtifactInput;
 use super::ExplicitDependencyValidationError as Error;
-use super::graph::ValidatedDependencyNode;
 
 mod semantic;
 
 pub(super) fn closure_error(
     source: slib::CrossConeArtifactClosureValidationError,
-    nodes: &BTreeMap<ConeIdentity, ValidatedDependencyNode<'_>>,
+    inputs: &BTreeMap<ConeIdentity, ExplicitDependencyArtifactInput>,
     order: &[ConeIdentity],
 ) -> Box<Error> {
     match location(&source, order)
-        .and_then(|(identity, path)| nodes.get(&identity).map(|node| (node.input.clone(), path)))
+        .and_then(|(identity, path)| inputs.get(&identity).map(|input| (input.clone(), path)))
     {
         Some((input, semantic_path)) => Box::new(Error::ArtifactClosure {
             input,
@@ -46,6 +46,9 @@ fn location(
             )),
             Layout::LinkSections { slot, .. } => {
                 Some((slot_identity(*slot, order)?, "link-sections".to_owned()))
+            }
+            Layout::CompileSections { slot, .. } => {
+                Some((slot_identity(*slot, order)?, "compile-sections".to_owned()))
             }
             Layout::Semantic { source } => semantic::location(source),
             Layout::Physical { source } => Some((source.provider, "objects".to_owned())),

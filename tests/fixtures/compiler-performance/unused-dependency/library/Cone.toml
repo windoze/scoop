@@ -1,0 +1,11 @@
+schema = 1
+
+[cone]
+group = "dev.performance"
+name = "unused-input"
+version = "0.1.0"
+kind = "library"
+
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"scoop:scoop.http.client" = "0.1.0"

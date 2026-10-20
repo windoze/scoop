@@ -265,15 +265,15 @@ impl HirProductionValidatedCrossConeLayoutSections<'_> {
         self.identities.identity_count()
     }
 
-    pub const fn hir_core_production(&self) -> &CoreBootstrapInterfaceSectionV1 {
+    pub fn hir_core_production(&self) -> &CoreBootstrapInterfaceSectionV1 {
         &self.hir_core_production
     }
 
-    pub const fn hir_interface(&self) -> &CrossConeHirInterfaceSectionV1 {
+    pub fn hir_interface(&self) -> &CrossConeHirInterfaceSectionV1 {
         &self.hir_interface
     }
 
-    pub const fn hir_type_semantics(&self) -> &CrossConeTypeSemanticsSectionV1 {
+    pub fn hir_type_semantics(&self) -> &CrossConeTypeSemanticsSectionV1 {
         &self.hir_type_semantics
     }
 

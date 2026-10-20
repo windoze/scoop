@@ -14,13 +14,24 @@ impl<'input> DecodedCrossConeLayoutCompileClosure<'input> {
         LirDependenciesResolvedCrossConeLayoutClosure<'input>,
         CrossConeLayoutSemanticClosureError,
     > {
-        Ok(self
-            .validate_profile_graph()?
+        self.validate_profile_graph()?
             .validate_identities()?
             .validate_foundation_structure()?
             .resolve_hir_sections()?
             .validate_hir_productions()?
             .validate_hir_declarations()?
+            .read_machine_sections()
+    }
+}
+
+impl<'input> HirDeclarationsValidatedCrossConeLayoutClosure<'input> {
+    pub(crate) fn read_machine_sections(
+        self,
+    ) -> Result<
+        LirDependenciesResolvedCrossConeLayoutClosure<'input>,
+        CrossConeLayoutSemanticClosureError,
+    > {
+        Ok(self
             .read_mir_records()?
             .validate_lir_layouts()?
             .validate_ordinary_lir_bridges()?

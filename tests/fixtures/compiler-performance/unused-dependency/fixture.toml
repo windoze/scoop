@@ -1,0 +1,33 @@
+schema = 1
+name = "compiler-performance-unused-dependency"
+inputs = ["library", "consumer"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["compiler-performance", "artifacts", "run"]
+
+[[steps]]
+name = "library"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/library", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-library", "--message-format", "json", "-o", "${work}/artifacts/dev.performance/unused-input/0.1.0/cone.slib"]
+timeout = 120
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "consumer"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/consumer", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json"]
+timeout = 120
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "run"
+argv = ["${consumer.result.output}"]
+exit = 0
+stdout = "42\n"
+stderr = ""

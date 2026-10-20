@@ -511,6 +511,8 @@ bridge unit 是与 producer 无关的 recipe identity；实际 atom 使用 produ
 
 各 section 按消费用途检查 required inventory。Compile 需要完整语言与相邻 IR 合同；Link 只消费 identity、ABI、对象、native、production 和链接支持数据，不为链接展开 HIR 模板。profile fingerprint 覆盖 descriptor 的实际内容。
 
+Compile 在当前源码解析成功后读取依赖的 HIR foundation、声明、core protocol 和 alias 数据；名称查找不要求预先解码 MIR／LIR。HIR 完成后，以当前输出中的实际外部引用和 core protocol 为起点，按 provider 选择机器阶段所需的依赖闭包，再读取这些 provider 的 MIR／LIR 与物理定义记录。声明可见性仍由完整 direct／support 图决定，当前产物仍保存原 manifest 的 direct edges；未使用的依赖不因此成为机器导入。已经读取的 HIR 数据与解析后的 identity key 在后续阶段共享，不重新解码或重放 HIR 检查；机器阶段只追加实际消费的后续层。源码解析失败不加载依赖的语义 payload。正常编译和链接复用普通文件入口，缺失输入及实际读取的格式、引用和 ABI 错误继续报告。
+
 Compile 的依赖读取直接采用保存的 defined symbol owners、ODR member ABI 目录和产物摘要；typed 引用解析到同一份已读 identity 数据。跨产物同名符号归属、ODR key 和 ABI 冲突仍在本次实际合并中处理。为下游编译取得这些数据不读取机器对象、不生成 final／provisional 副本、不重建注册记录或重算 Code／RuntimeImage 摘要，也不要求消费方提供 C bridge 工具配置。已编译产物的对象生成与注册内容由生产阶段负责，摘要统一使用 manifest 中后续实际消费的字段，不另建 Compile／Link 重复摘要，也不为无消费方的对象数量扫描目录。测试不再以改写这些字节后被 Compile 入口拒绝作为验收。
 
 依赖文件通过同一普通 artifact 入口保持文件句柄、一次解析的 manifest 和成员目录。目录给出成员偏移；仅在请求某个 metadata／对象成员时读取该成员，已读成员复用同一份缓冲区。内存产物与文件产物使用同一目录偏移与成员头解析规则，不为未使用成员扫描内容或逐项复核归档。Compile 加载实际所需的 HIR／MIR／LIR metadata，不读机器对象；文件打开、seek、read 的实际错误正常传播，不比较读取前后的文件身份、长度或时间，也不要求文件被替换或删除后继续成功。

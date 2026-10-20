@@ -8,3 +8,10 @@
 - `compiler-performance` fixture 覆盖 32 层普通调用、泛型调用、数组、条件分支、相等比较，以及空数组、裸枚举 variant、lambda 和副作用顺序的组合。
 - macOS / Apple M3 Ultra、LLVM 22.1.8、release 编译器、debug Scoop 产物：原 20 层普通调用约 12.30 s，修复后首次复测 1.54 s；32 层普通调用、泛型调用、数组和条件分支分别为 0.73 / 0.73 / 0.72 / 0.68 s，32 层相等比较为 1.32 s。
 - 验证通过：`cargo fmt --all`、`cargo clippy --workspace --all-targets`、HIR 1496 项测试，以及 34 个正式 CLI fixture（36 个 variant，覆盖新增性能用例、实参推断、lambda 推断和上下文枚举）。整数字面量的错误位置与诊断、跨库产物消费和运行结果均保持通过。
+
+## 按需读取机器依赖
+
+- 当前源码解析成功后才读取依赖 HIR；名称解析保留完整 direct/support 声明图。当前 HIR 选出实际引用的 provider 后，才读取这些 provider 及其 manifest 依赖闭包的 MIR、LIR 与物理定义，并共享已读的 HIR 和实体身份。产物仍记录原来的完整直接依赖边。
+- 同一台机器、相同配置下，声明 core 和 HTTP client 但未使用 HTTP 的小库（15 个传递依赖）首次编译从 23.49 s 降到 5.04 s，修改源码后从 23.97 s 降到 4.77 s；峰值内存从约 6.64 GiB 降到 1.61 GiB。未变输入仍约 10 ms 命中缓存，语法错误约 29 ms 返回。这项选择以 provider 为粒度；实际引用 HTTP 的程序仍需读取相应机器依赖。
+- 产物读取的 249 项测试通过；新增测试直接检查未使用的 MIR/LIR 成员未被读取，保留真实源码、工具和产物。7 个性能 CLI fixture 通过，包括新库的发布、下游消费与运行。
+- driver 首轮 83 项测试中 62 项通过，21 项失败归于三处既有 coroutine 导出／生成类型断言；已在原提交 `abf17c32c` 的独立 checkout 上逐类复现，另行修正这些断言并继续完整验收。格式化与 workspace lint 通过。
