@@ -2,4 +2,3 @@ link inputs: startup, cone/member order, runtime/object order, native CRT/libc/L
 native library m23_cabi requirement=482ae6bcd16ca2e07cd373e55f9a6ad21ee68b67227ccfbebc2b7ee1c8daa51e input=$NATIVE_INPUT_0 origins=dev.programlink:cabi-provider:0.1.0
 native archive $NATIVE_INPUT_0 members=1
   member 0 header=8 payload=68..2964 name="payload.o" digest=$NATIVE_MEMBER_0 selected=true
-ELF system imports=71

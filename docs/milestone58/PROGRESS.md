@@ -177,3 +177,9 @@ fmt／workspace clippy、26 项 MIR 优化专测通过。重建 Darwin 全部 12
 GNU 全量验收的 M42 组合暴露出 debug core 与 release std 的依赖指纹不一致：被 C1／C2 消除的私有 driver／adapter，以及按实际 frame 物化的 saved slot，进入了公共 bridge。先修订实现规范 2.3，再将私有 CoroutineDriver／CoroutineAdapter 从公共 Strong callable bridge 中排除，保留实际 foundation／Code 身份；普通 nominal 的 suspend 装箱 adapter 在优化前确定 receiver slot，使已发布 box 支持不随状态机消除变化。内部 ODR saved slot 保留实际实现所需的身份、布局与链接定义，不进入公共 type／layout bridge。没有放宽真实依赖变化的检查。
 
 fmt／workspace clippy、MIR 与 MIR lowering 共 397 项测试通过；追加 ODR slot 修正后，247 项 MIR 测试和完整布局导出组合通过。三库 fixture 分别用 debug／release 构建 provider 与中间库，再只替换 provider 为另一模式；加入带函数参数的 suspend 包装后，修复前独立复现原 stale-dependency，修复后两个方向均通过。重建 core／std 后，该回归与原 M42 grouping 共三变体／18 进程通过，涵盖装箱接口、真正挂起、普通／强制移动／minor GC。此前其余 22 项本机组合通过，Linux 剩余验收继续；临时 metadata 诊断程序已删除。
+
+## 2026-10-20：native 链接快照聚焦输入与绑定
+
+GNU 全量验收的 19 项 native-link 失败均只有全镜像 `ELF system imports` 总数增加一项，native 输入、archive 成员选择和符号绑定不变。该计数还包含 runtime／后端引用，不属于这些 fixture 的输入选择合同。先调整 fixture runner 文档，再从 native-link-plan 投影及 40 份 GNU／musl 期望中移除这一行；具体输入、顺序、绑定和未知字段仍严格比较，生产 linker 诊断不变。外部符号能否解析继续由真实链接和运行验证，不恢复编译器白名单。
+
+Ruff 格式化／lint 与 50 项 Python 单测通过；GNU／musl 各运行全部 63 项 native-link fixture，其中 44 项通过、19 项按目标不适用，共 61 变体／306 进程／35 个 golden，包含独立重链接、callback、异常和移动 GC。原失败报告保留，完整文件验收从未完成部分继续。
