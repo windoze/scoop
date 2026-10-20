@@ -123,7 +123,7 @@ public enum Event {
 - 旧式 `25/26/28/29/31/32/33/34 ~` 分别为 F13～F20，依据 [xterm 功能键表](https://invisible-island.net/xterm/xterm-function-keys.html)，修正上游 0.29 对 F15～F20 的编号偏差。
 - 传统鼠标固定收取三个原始字节；rxvt 与 SGR 按数字字段解析，允许上游接受的末尾可选分号。协议坐标必须为正数，转换为零基 Long；不允许下溢。普通十进制字段先受检累积，再按具体协议范围检查，不接受符号、空的必填数字、额外字段或溢出。
 - `CSI 200~` 开始粘贴，至第一个完整 `CSI 201~` 结束。期间包括 Escape、换行和近似结束标记在内的载荷均按原样收集；结束标记不进入 Paste，后续字节继续解析。
-- EOF 保留已完成结果，单独 Escape 转为 Esc，其余未完成前缀／粘贴产生一次非法输入，然后结束。非法输入由会话转为 TerminalInputException，消费后可继续读取；EOF／断开的异常合同见下一节。
+- EOF 保留已完成结果，单独 Escape 转为 Esc，其余未完成前缀／粘贴产生一次非法输入，然后结束。非法输入由会话转为 TerminalInputException，消费后可继续读取；EOF／断开的异常合同见第 9 节。
 
 ### 6.2 键盘增强与设备回复
 
@@ -181,7 +181,36 @@ close 在恢复失败后仍尝试关闭其他自有资源；消费句柄后会�
 显式 close／use 是终端恢复和资源释放的必要入口；本会话不注册 GC／atexit
 恢复钩子，不让 GC 线程执行 tcsetattr 或阻塞等待。
 
-## 8. 后续功能的既定合同
+## 8. OSC 52 复制
+
+package `scoop.terminal.clipboard`：
+
+```scoop
+public enum ClipboardType { Clipboard, Primary, Other(val selector: Char) }
+public struct ClipboardSelection(val destinations: Array<ClipboardType>) : ToString
+public struct CopyToClipboard(val content: Array<Byte>,
+    val destination: ClipboardSelection = ClipboardSelection.clipboard) : Command
+```
+
+ClipboardSelection 的 clipboard／primary 为常用值；parse／parseOrNone 从字符串
+构造有序目标序列，toString 按原顺序转换。c／p 对应具名枚举，其他字符使用 Other。
+空序列表示终端默认目标，重复目标及顺序保留；终端可能只采用首个目标。
+
+目标字符接受 ASCII 可打印字符但排除分号；拒绝控制字符、DEL、非 ASCII 和字段
+分隔符，在编码前抛 IllegalArgumentException。直接构造 Other 仍在 toString／
+命令编码时检查。这是对上游任意字符选择器的有意收窄，保证完整的 OSC 字段。
+parseOrNone 对这些非法字符返回 None。
+
+CopyToClipboard.fromText(text, destination = ClipboardSelection.clipboard) 使用
+UTF-8 内容；直接构造接受任意不可变字节数组。编码复用 std Base64.Default，
+输出 `ESC ] 52 ; targets ; padded-base64 ESC \`。目标与 Base64 均在写出前计算；
+空内容有效，不变成读取剪贴板的 `?` 请求。NO_COLOR 不影响复制命令。
+
+构造命令不进行 I/O，只有显式编码／queue／execute 才写出。发送成功不保证终端
+或 multiplexer 执行；库不调用桌面剪贴板服务，不增加 OSC 52 读取能力。
+自动测试仅观察 PTY 协议。
+
+## 9. 后续功能的既定合同
 
 Unix 会话、PTY 交互、OSC 52 与异步适配均属于 M59 的交付范围，不因前面的功能先完成而移出里程碑。后续功能的具体公共声明在各自实现前增加到本文；以下约束已经确定：
 

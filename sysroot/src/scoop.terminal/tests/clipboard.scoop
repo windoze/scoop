@@ -1,0 +1,49 @@
+package scoop.terminal.clipboard
+
+import scoop.terminal.*
+import scoop.terminal.style.*
+import scoop.test.*
+
+@Test
+private class ClipboardTest {
+    @Test
+    fun `clipboard byte and text payloads use padded standard base64`() {
+        assertEquals("\u001b]52;c;Zm9v\u001b\\", CopyToClipboard.fromText("foo").toAnsiString())
+        assertEquals("\u001b]52;p;Zg==\u001b\\",
+            CopyToClipboard.fromText("f", ClipboardSelection.primary).toAnsiString())
+        assertEquals("\u001b]52;c;5LitChtd\u001b\\", CopyToClipboard.fromText("中\n\u001b]").toAnsiString())
+        val bytes: Array<Byte> = [0, 1, 2, -1]
+        assertEquals("\u001b]52;c;AAEC/w==\u001b\\", CopyToClipboard(bytes).toAnsiString())
+    }
+
+    @Test
+    fun `selection preserves order duplicates and terminal default`() {
+        for (text in ["", "c", "p", "cp", "pc", "cpp", "s01234567"]) {
+            assertEquals(text, ClipboardSelection.parse(text).toString())
+        }
+        val selected = ClipboardSelection.parse("pc")
+        assertEquals("\u001b]52;pc;YmFy\u001b\\", CopyToClipboard.fromText("bar", selected).toAnsiString())
+        assertEquals("\u001b]52;;\u001b\\",
+            CopyToClipboard.fromText("", ClipboardSelection.parse("")).toAnsiString())
+        assertTrue(ClipboardSelection.parse("c").destinations[0L] == ClipboardType.Clipboard)
+        assertTrue(ClipboardSelection.parse("s").destinations[0L] == ClipboardType.Other('s'))
+    }
+
+    @Test
+    fun `invalid selectors fail before output and colors do not control copying`() {
+        val writer = StringWriter()
+        for (selector in [';', '\u001b', '\u0007', '\u007f', '\u009b', '中']) {
+            assertFailsWith<IllegalArgumentException> { ClipboardSelection.parse(selector.toString()) }
+            when (ClipboardSelection.parseOrNone(selector.toString())) {
+                case None -> {}
+                case Some(_) -> fail(Some("invalid clipboard selector accepted"))
+            }
+            val selection = ClipboardSelection([ClipboardType.Clipboard, ClipboardType.Other(selector)])
+            assertFailsWith<IllegalArgumentException> { CopyToClipboard.fromText("x", selection).writeAnsi(writer) }
+            assertEquals("", writer.toString())
+        }
+        forceColorOutput(false)
+        try { assertEquals("\u001b]52;c;eA==\u001b\\", CopyToClipboard.fromText("x").toAnsiString()) }
+        finally { resetColorOutput() }
+    }
+}

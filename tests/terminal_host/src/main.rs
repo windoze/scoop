@@ -1,3 +1,4 @@
+mod clipboard;
 mod output;
 mod session;
 
@@ -20,8 +21,10 @@ fn run() -> Result<()> {
         .context("usage: terminal-host SCENARIO PROGRAM")?;
     let program = args.next().context("missing Scoop executable")?;
     let scenario = scenario.to_str().context("scenario must be UTF-8")?;
-    if args.next().is_some() || !matches!(scenario, "output" | "session" | "session-raw") {
-        bail!("usage: terminal-host output|session|session-raw PROGRAM");
+    if args.next().is_some()
+        || !matches!(scenario, "output" | "session" | "session-raw" | "clipboard")
+    {
+        bail!("usage: terminal-host output|session|session-raw|clipboard PROGRAM");
     }
     let command = CommandBuilder::new(program);
     let mut host = if scenario == "session-raw" {
@@ -33,6 +36,7 @@ fn run() -> Result<()> {
     let terminate = signal_hook::flag::register(SIGTERM, host.interrupted.clone())?;
     let result = match scenario {
         "output" => output::check(&mut host),
+        "clipboard" => clipboard::check(&mut host),
         _ => session::check(&mut host),
     }
     .and_then(|()| host.finish());

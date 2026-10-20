@@ -12,7 +12,7 @@
 | 事件数据与增量 parser | 本机完成，PTY／Linux 随后验收 | 新增 29 项单测；全库 54 项 debug 与 release＋moving GC 均通过；事件消费者 fixture 两个变体通过 |
 | Unix 会话、raw、resize、read／poll、查询 | 会话、raw、尺寸本机完成；通知与输入／查询待实施 | PTY 会话 fixture 两个变体、8 个进程通过；输出交互回归通过 |
 | PTY host 与交互 fixture | host 与输出交互本机完成；输入／恢复随会话补齐 | host 4 项测试、runner 51 项规则测试通过；PTY 输出 fixture 两个变体通过 |
-| Kitty／OSC 52 与组合覆盖 | Kitty 数据、命令及解析已实现；OSC 52 与 PTY 组合待实施 | Kitty 分片、释放、锁定状态与能力回复已有单测 |
+| Kitty／OSC 52 与组合覆盖 | Kitty 数据、命令及解析已实现；OSC 52 本机完成；Kitty 会话探测待实施 | Kitty 协议已有单测；OSC 52 新增 3 项单测及两个 PTY 消费者变体通过 |
 | asyncio TTY 与 terminal.asyncio | 待实施 | — |
 | Linux GNU／musl 验收与清理 | 待实施 | — |
 
@@ -67,3 +67,9 @@ host 的 4 项测试覆盖全部查询切分位置、Kitty 零标志与不回复
 真实 PTY fixture 覆盖普通初态及已 raw 初态、嵌套作用域、异常恢复、重复启停／关闭、独占会话、关闭后操作、stdin／stdout 重定向后的控制终端使用、独立文件状态和无 TTY 的连续失败。debug／release 两个变体的 8 个进程均在 moving GC 下通过；之前的 PTY 输出 fixture 回归通过。host 新增退出早于预期输出的回收回归，5 项测试通过。
 
 恢复检查按 termios 语义字段比较，排除 Darwin 内核在恢复 ICANON 时自动设置的 PENDIN 动态位；依据见 [host 说明](../../tests/terminal_host/README.md)。输入端只比较本功能承诺不改变的 O_NONBLOCK，避免把既有平台输出流设置的防 SIGPIPE 状态误判为会话修改。C 严格告警检查、Rust fmt／Clippy 通过；新生产文件均不超过 84 行。
+
+## 9. OSC 52 复制
+
+完成有序 ClipboardSelection、ClipboardType、CopyToClipboard 和 UTF-8 文本便捷入口，复用 std 的标准带填充 Base64。选择器在输出前拒绝控制字符、非 ASCII 和分号；保留默认目标、顺序及重复项。复制不受 NO_COLOR 影响，不引入桌面剪贴板或读取协议。
+
+新增 3 项单测在 debug 和 release＋moving GC 下通过；按 Clipboard 筛选运行，没有重复全部 parser 切分测试。真实 PTY 消费者两个变体、4 个进程通过，核对 UTF-8、二进制与空内容的完整 OSC 52／ST，并确认屏幕和光标不变。host 只捕获数据，未修改宿主剪贴板。开发 sysroot 已发布，Rust fmt／Clippy 通过；生产文件为 21／47 行。
