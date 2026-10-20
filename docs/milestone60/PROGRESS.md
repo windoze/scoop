@@ -143,3 +143,11 @@ Ruff 通过；Darwin 用例 1 个变体、11 个进程通过，所有站内页�
 ## 完整验证中的基线测试修正
 
 首轮全工作区测试到 codegen 时发现既有 C 布局探针仍期望 metadata ABI 8／ImageDescriptor 240 bytes；当前规范及头文件已在基线提交中改为 ABI 9／208 bytes。同步这两项测试常量，本机 fmt／workspace clippy 与该探针定向复测通过；runtime 实现与 ABI 均未改动。已通过的 Scoop、ABI plan、AST 和 codegen 其他单测不重复全量执行，继续剩余工作区测试。
+
+剩余工作区验证发现 21 项 driver 测试仍要求发布内部协程保存槽及 driver／adapter；现行规范和实现已将这些内部实体排除在公共接口之外。调整测试的公共／私有边界，保留公开有限类型、装箱 receiver slot、布局、字段身份及产物往返的精确断言。fmt／workspace clippy 通过，19 项 core 布局测试、1 项有限类型测试及 1 项 bootstrap 测试全部定向复测通过；其余工作区单测、集成测试与 doctest 已通过，没有修改生产 ABI 或导出实现。
+
+Darwin 完整正式 CLI 验收发现旧夹具将 Int 移到 hidden package 时漏导入新增 DocAlias；补齐显式导入后，该夹具的 2 个进程复测通过，全量验收继续运行。Linux 在独立工作树准备配套工具及 GNU／musl 资源，不改动原 checkout。
+
+## D1：真实内置库的功能验证
+
+使用配套 release 工具显式选择 19 个内置库，以 no-deps／deny-doc-warnings 在 Darwin 生成共同站点：19 次前端调用、2,163 个输出文件。静态检查通过 2,160 个 HTML 页面、134,027 个本地链接、733 个内嵌源码页面及 6,065 个搜索条目，没有缺失页面／锚点、重复 ID 或原始文件 URL。现有源码产生 27 条普通编译 warning，文档 warning 为零；浏览器工具限制仍在，不将静态检查冒充实际离线浏览器验收。三目标功能验收完成后再开始全库注释与发行文档集成。

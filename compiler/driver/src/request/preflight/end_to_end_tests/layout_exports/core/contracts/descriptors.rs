@@ -49,6 +49,17 @@ pub(super) fn check(
                     {
                         Some(mir::type_name(input.mir.module(), &mir::Type::Class(id)))
                     }
+                    mir::GeneratedExactTypeLocation::Enum(id)
+                        if matches!(
+                            identity.nominal_record().key(),
+                            GeneratedNominalKey::CoroutineSlot { .. }
+                        ) && input.bridge.types().get(exact).is_none() =>
+                    {
+                        Some(mir::type_name(
+                            input.mir.module(),
+                            &mir::Type::Enum(id, Vec::new()),
+                        ))
+                    }
                     _ => None,
                 }),
         };

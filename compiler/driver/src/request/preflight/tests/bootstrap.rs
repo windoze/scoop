@@ -250,6 +250,22 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
             .len(),
         real_mir.strong.module().meta.generated_exact_types.len()
     );
+    let private_coroutines = real_mir
+        .strong
+        .module()
+        .meta
+        .generated_callables
+        .iter()
+        .map(|entry| entry.identity_record())
+        .filter(|record| {
+            matches!(
+                record.key(),
+                scoop_identity::GeneratedCallableKey::CoroutineDriver { .. }
+                    | scoop_identity::GeneratedCallableKey::CoroutineAdapter { .. }
+            )
+        })
+        .map(|record| record.id())
+        .collect::<std::collections::BTreeSet<_>>();
     assert_eq!(
         real_mir
             .strong
@@ -263,10 +279,13 @@ fn real_trusted_core_sources_form_the_bootstrap_hir_interface() {
             .meta
             .callable_signatures
             .iter()
-            .filter(|record| matches!(
-                record.subject(),
-                scoop_mir::CallableSignatureSubject::Strong(_)
-            ))
+            .filter(|record| match record.subject() {
+                scoop_mir::CallableSignatureSubject::Strong(
+                    scoop_identity::CallableOwner::Generated(id),
+                ) => !private_coroutines.contains(&id),
+                scoop_mir::CallableSignatureSubject::Strong(_) => true,
+                _ => false,
+            })
             .count()
     );
     let expected_lir_shape_roots = shape_plan.roots().to_vec();

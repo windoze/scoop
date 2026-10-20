@@ -1,6 +1,7 @@
 package hidden
 
 import Equals
+import DocAlias
 import Add
 import Sub
 import Mul
