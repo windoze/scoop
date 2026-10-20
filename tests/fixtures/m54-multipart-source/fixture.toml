@@ -18,6 +18,8 @@ checks = [{actual = "${build.result.observations.child_invocations.length}", equ
 
 [[steps]]
 name = "run"
+# Tiny flow-control windows perform over 100,000 full moving collections.
+timeout = 1800
 argv = ["${build.result.output}"]
 env = {SCOOP_GC_STRESS_MOVE = "1"}
 exit = 0
