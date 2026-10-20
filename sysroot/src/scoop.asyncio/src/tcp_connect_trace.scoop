@@ -3,11 +3,47 @@ package scoop.asyncio
 import scoop.platform.time.MonotonicTimeSource
 import scoop.time.TimeMark
 
-public enum TcpConnectPhase { Resolve, Connect }
-public enum TcpConnectEventKind { Started, Finished }
+/**
+ * Distinguishes name resolution from connecting to an address.
+ */
+public enum TcpConnectPhase {
+    /**
+     * An address-family lookup phase.
+     */
+    Resolve,
+    /**
+     * A TCP connection-attempt phase.
+     */
+    Connect }
+/**
+ * The start or completion boundary of a traced phase.
+ */
+public enum TcpConnectEventKind {
+    /**
+     * The phase began.
+     */
+    Started,
+    /**
+     * The phase ended, including failure or cancellation.
+     */
+    Finished }
 
+/**
+ * A phase boundary recorded at a monotonic time mark.
+ */
 public class TcpConnectEvent internal constructor(
-    public val phase: TcpConnectPhase, public val kind: TcpConnectEventKind, public val at: TimeMark
+    /**
+     * The operation phase being observed.
+     */
+    public val phase: TcpConnectPhase,
+        /**
+         * Whether this event starts or finishes the phase.
+         */
+        public val kind: TcpConnectEventKind,
+        /**
+         * The monotonic time mark at the phase boundary.
+         */
+        public val at: TimeMark
 )
 
 internal class TcpConnectTrace(private val callback: (TcpConnectEvent) -> Unit) {

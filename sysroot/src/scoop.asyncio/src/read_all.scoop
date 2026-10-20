@@ -3,11 +3,26 @@ package scoop.asyncio
 import scoop.bytes.ByteArrayBuilder
 import scoop.platform.memory.NativeByteBuffer
 
-public class ReadLimitException public constructor(public val maxBytes: Long) :
+/**
+ * Reports that collection would exceed an explicit input byte limit.
+ */
+public class ReadLimitException public constructor(
+    /**
+     * The caller-supplied maximum number of collected bytes.
+     */
+    public val maxBytes: Long) :
     Exception(Some("input exceeds its explicit byte limit")) {}
 
+/**
+ * Collects the remaining input until EOF. The limited overload throws ReadLimitException if input
+ * exceeds maxBytes; the unlimited overload has no explicit byte limit.
+ */
 public suspend fun AsyncByteSource.readAllBytes(): Array<Byte> = collectBytes(this, None)
 
+/**
+ * Collects the remaining input until EOF. The limited overload throws ReadLimitException if input
+ * exceeds maxBytes; the unlimited overload has no explicit byte limit.
+ */
 public suspend fun AsyncByteSource.readAllBytes(maxBytes: Long): Array<Byte> {
     if (maxBytes < 0L) throw IllegalArgumentException(Some("negative input byte limit"))
     return collectBytes(this, Some(maxBytes))

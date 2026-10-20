@@ -2,9 +2,17 @@ package scoop.crypto.native
 
 import scoop.crypto.CryptoException
 
+/**
+ * The native bridge's value/error pair. Interpret and consume it with the matching operation
+ * helper.
+ */
 @CLayout
 public struct CryptoResult(val value: ULong, val error: ULong)
 
+/**
+ * Converts a native result to its value or raises CryptoException after consuming the backend
+ * error.
+ */
 @Unsafe
 public fun cryptoValue(result: CryptoResult, operation: String): ULong {
     if (result.error != 0UL) {
@@ -16,11 +24,17 @@ public fun cryptoValue(result: CryptoResult, operation: String): ULong {
     return result.value
 }
 
+/**
+ * Checks a native result and consumes its owned byte handle into a managed byte array.
+ */
 @Unsafe
 public fun cryptoBytes(result: CryptoResult, operation: String): Array<Byte> {
     return consumeCryptoBytes(cryptoValue(result, operation))
 }
 
+/**
+ * Copies an owned native byte result into a managed array and releases the native result handle.
+ */
 @Unsafe
 public fun consumeCryptoBytes(handle: ULong): Array<Byte> {
     try {

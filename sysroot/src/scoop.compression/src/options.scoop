@@ -1,44 +1,234 @@
 package scoop.compression
 
-public enum CompressionFormat { Gzip, Zlib, RawDeflate, Brotli, Zstd }
-public enum CompressionState { NeedInput, NeedOutput, Finished }
-public enum DeflateStrategy { Default, Filtered, HuffmanOnly, Rle, Fixed }
-public enum BrotliMode { Generic, Text, Font }
-public enum DecompressionMode { Automatic, Single }
+/**
+ * The explicit compressed wire format. Decoding does not guess the format from input.
+ */
+public enum CompressionFormat {
+    /**
+     * DEFLATE inside gzip headers, trailer, and checksum.
+     */
+    Gzip,
+    /**
+     * DEFLATE inside a zlib wrapper.
+     */
+    Zlib,
+    /**
+     * Raw DEFLATE without gzip or zlib framing.
+     */
+    RawDeflate,
+    /**
+     * The Brotli compressed stream format.
+     */
+    Brotli,
+    /**
+     * The Zstandard frame format.
+     */
+    Zstd }
+/**
+ * The next action required by an incremental codec after consuming and producing the reported byte
+ * counts.
+ */
+public enum CompressionState {
+    /**
+     * Supply more input, or declare the end of input when no more bytes will arrive.
+     */
+    NeedInput,
+    /**
+     * Provide writable output space and continue draining the codec.
+     */
+    NeedOutput,
+    /**
+     * The selected stream or message has reached its terminal boundary.
+     */
+    Finished }
+/**
+ * The DEFLATE backend's match and entropy-coding strategy.
+ */
+public enum DeflateStrategy {
+    /**
+     * The backend's general-purpose match strategy.
+     */
+    Default,
+    /**
+     * A strategy favoring filtered data.
+     */
+    Filtered,
+    /**
+     * Entropy coding without string matching.
+     */
+    HuffmanOnly,
+    /**
+     * Run-length-oriented matching.
+     */
+    Rle,
+    /**
+     * Fixed Huffman codes.
+     */
+    Fixed }
+/**
+ * The content model used by the Brotli encoder.
+ */
+public enum BrotliMode {
+    /**
+     * General binary content.
+     */
+    Generic,
+    /**
+     * Text-oriented modeling.
+     */
+    Text,
+    /**
+     * Font-oriented modeling.
+     */
+    Font }
+/**
+ * Controls frame/member boundaries within the selected format; Automatic does not detect the
+ * format.
+ */
+public enum DecompressionMode {
+    /**
+     * Consumes concatenated gzip members or zstd frames; other formats retain their own
+     * single-stream boundary.
+     */
+    Automatic,
+    /**
+     * Stops at one frame or member boundary for incremental consumers.
+     */
+    Single }
 
+/**
+ * DEFLATE compression level, window bits, and strategy for zlib or raw DEFLATE. Invalid
+ * combinations fail during codec construction.
+ */
 public class DeflateOptions public constructor(
-    public val level: Int = 6, public val windowBits: Int = 15,
+    /**
+     * The DEFLATE compression level passed to the backend.
+     */
+    public val level: Int = 6,
+        /**
+         * The base-two logarithm of the DEFLATE history window size.
+         */
+        public val windowBits: Int = 15,
+    /**
+     * The match and entropy-coding strategy used by DEFLATE.
+     */
     public val strategy: DeflateStrategy = DeflateStrategy.Default
 )
 
+/**
+ * Optional gzip header metadata with copied filename/comment byte arrays. This metadata does not
+ * change the uncompressed payload.
+ */
 public class GzipMetadata public constructor(
     filename: List<Byte>? = None, comment: List<Byte>? = None,
-    public val modifiedUnixSeconds: UInt = 0U, public val headerCrc: Boolean = false
+    /**
+     * The header modification timestamp in unsigned Unix seconds.
+     */
+    public val modifiedUnixSeconds: UInt = 0U,
+        /**
+         * Whether the encoder includes a gzip header CRC.
+         */
+        public val headerCrc: Boolean = false
 ) {
+    /**
+     * An optional copied gzip original-filename field.
+     */
     public val filename: Array<Byte>? = when (filename) { case Some(bytes) -> Some(bytes.toArray()); case None -> None }
+    /**
+     * An optional copied gzip comment field.
+     */
     public val comment: Array<Byte>? = when (comment) { case Some(bytes) -> Some(bytes.toArray()); case None -> None }
 }
 
+/**
+ * DEFLATE parameters and gzip header metadata for a gzip member.
+ */
 public class GzipOptions public constructor(
-    public val level: Int = 6, public val windowBits: Int = 15,
+    /**
+     * The DEFLATE compression level passed to the backend.
+     */
+    public val level: Int = 6,
+        /**
+         * The base-two logarithm of the DEFLATE history window size.
+         */
+        public val windowBits: Int = 15,
+    /**
+     * The match and entropy-coding strategy used by DEFLATE.
+     */
     public val strategy: DeflateStrategy = DeflateStrategy.Default,
+    /**
+     * The gzip header metadata emitted before compressed data.
+     */
     public val metadata: GzipMetadata = GzipMetadata()
 )
 
+/**
+ * Brotli quality, window size, and content mode; invalid values fail at codec construction.
+ */
 public class BrotliOptions public constructor(
-    public val quality: Int = 5, public val windowBits: Int = 22,
+    /**
+     * The encoder's quality level, trading work for compressed size.
+     */
+    public val quality: Int = 5,
+        /**
+         * The base-two logarithm of the Brotli history window size.
+         */
+        public val windowBits: Int = 22,
+    /**
+     * The content model selected for the Brotli encoder.
+     */
     public val mode: BrotliMode = BrotliMode.Generic
 )
 
+/**
+ * Zstandard level, frame checksum selection, and optional dictionary. The default is level 3 with
+ * checksum enabled.
+ */
 public class ZstdOptions public constructor(
-    public val level: Int = 3, public val checksum: Boolean = true,
+    /**
+     * The zstd compression level passed to the backend.
+     */
+    public val level: Int = 3,
+        /**
+         * Whether the encoder emits a frame content checksum.
+         */
+        public val checksum: Boolean = true,
+    /**
+     * An optional zstd dictionary used when constructing the encoder.
+     */
     public val dictionary: CompressionDictionary? = None
 )
 
+/**
+ * A format and its matching encoder settings; generic compression defaults to zstd.
+ */
 public enum CompressionOptions {
-    Gzip(val value: GzipOptions), Zlib(val value: DeflateOptions), RawDeflate(val value: DeflateOptions),
-    Brotli(val value: BrotliOptions), Zstd(val value: ZstdOptions)
+    /**
+     * DEFLATE inside gzip headers, trailer, and checksum. The payload supplies this format's
+     * encoder settings.
+     */
+    Gzip(val value: GzipOptions),
+        /**
+         * DEFLATE inside a zlib wrapper. The payload supplies this format's encoder settings.
+         */
+        Zlib(val value: DeflateOptions),
+        /**
+         * Raw DEFLATE without gzip or zlib framing. The payload supplies this format's encoder
+         * settings.
+         */
+        RawDeflate(val value: DeflateOptions),
+    /**
+     * The Brotli compressed stream format. The payload supplies this format's encoder settings.
+     */
+    Brotli(val value: BrotliOptions),
+        /**
+         * The Zstandard frame format. The payload supplies this format's encoder settings.
+         */
+        Zstd(val value: ZstdOptions)
 
+    /**
+     * The wire format selected by this options variant.
+     */
     public val format: CompressionFormat get() = when (this) {
         case Gzip(_) -> CompressionFormat.Gzip
         case Zlib(_) -> CompressionFormat.Zlib
@@ -48,15 +238,41 @@ public enum CompressionOptions {
     }
 }
 
+/**
+ * An explicit decoder format with optional output/window limits and dictionary. Dictionary and
+ * window-limit support belong to zstd.
+ */
 public class DecompressionOptions public constructor(
+    /**
+     * The required input format; default Zstd does not imply format detection.
+     */
     public val format: CompressionFormat = CompressionFormat.Zstd,
+    /**
+     * An optional zstd dictionary; unsupported format combinations are rejected.
+     */
     public val dictionary: CompressionDictionary? = None,
+    /**
+     * An optional nonnegative limit on uncompressed bytes produced.
+     */
     public val maxOutputBytes: Long? = None,
+    /**
+     * An optional positive zstd window-size limit in bytes.
+     */
     public val maxWindowBytes: Long? = None,
+    /**
+     * Whether to consume supported concatenated frames or stop at one boundary.
+     */
     public val mode: DecompressionMode = DecompressionMode.Automatic
 )
 
+/**
+ * Actual input bytes consumed, output bytes produced, and the next required codec action for one
+ * call.
+ */
 public struct CompressionStep(val consumed: Long, val produced: Long, val state: CompressionState)
+/**
+ * Cumulative actual input and output byte counts, not buffer capacities or requested counts.
+ */
 public struct CompressionTotals(val inputBytes: Long, val outputBytes: Long)
 
 internal fun compressionFormatCode(format: CompressionFormat): Int = when (format) {

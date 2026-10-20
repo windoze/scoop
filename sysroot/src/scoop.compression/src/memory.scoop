@@ -3,9 +3,17 @@ package scoop.compression
 import scoop.bytes.ByteArrayBuilder
 import scoop.platform.memory.NativeByteBuffer
 
+/**
+ * Compresses a complete byte sequence, finishing the format and returning independently owned
+ * result bytes.
+ */
 public fun compress(data: List<Byte>, options: CompressionOptions = CompressionOptions.Zstd(ZstdOptions())): Array<Byte> =
     createCompressionEncoder(options).use { codec -> memoryCompression(data, codec, true) }
 
+/**
+ * Decodes a complete byte sequence in the selected format. Truncation, configured limits, and
+ * unconsumed trailing bytes are errors.
+ */
 public fun decompress(data: List<Byte>, options: DecompressionOptions = DecompressionOptions()): Array<Byte> =
     createCompressionDecoder(options).use { codec -> memoryCompression(data, codec, false) }
 

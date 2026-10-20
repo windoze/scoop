@@ -4,12 +4,20 @@ import scoop.platform.io.ByteSource
 import scoop.platform.io.ByteSink
 import scoop.platform.io.copyTo
 
+/**
+ * Copies a byte source through an encoder into the destination, finishes it, and returns actual
+ * byte totals. The source and destination remain borrowed.
+ */
 public fun ByteSource.compressTo(destination: ByteSink, options: CompressionOptions = CompressionOptions.Zstd(ZstdOptions()),
     bufferSize: Long = 8192L): CompressionTotals = CompressionSource(this, options, bufferSize).use { source ->
     source.copyTo(destination, bufferSize)
     source.totals
 }
 
+/**
+ * Copies and validates a complete compressed stream into the destination, returning actual byte
+ * totals. The source and destination remain borrowed.
+ */
 public fun ByteSource.decompressTo(destination: ByteSink, options: DecompressionOptions = DecompressionOptions(),
     bufferSize: Long = 8192L): CompressionTotals = DecompressionSource(this, options, bufferSize).use { source ->
     source.copyTo(destination, bufferSize)

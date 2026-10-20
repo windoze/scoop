@@ -3,38 +3,88 @@ package scoop.compression
 import scoop.platform.io.ByteSource
 import scoop.platform.memory.NativeByteBuffer
 
+/**
+ * A synchronous compression source adapter with bounded buffering. The ordinary constructor
+ * borrows its endpoint; takeOwnership also assumes endpoint close responsibility. Reading to EOF
+ * completes format validation; early close does not.
+ */
 public class CompressionSource private constructor(private val stream: SyncCompressionSource) : ByteSource, Closeable {
     public constructor(source: ByteSource, options: CompressionOptions = CompressionOptions.Zstd(ZstdOptions()),
         bufferSize: Long = 8192L) : this(SyncCompressionSource(source,
             compressionIoResources(createCompressionEncoder(options), bufferSize, true), None)) {}
 
+    /**
+     * Factories that explicitly transfer endpoint cleanup responsibility.
+     */
     public companion object {
+        /**
+         * Creates an adapter that closes the supplied endpoint during its own cleanup.
+         */
         public fun <T> takeOwnership(source: T, options: CompressionOptions = CompressionOptions.Zstd(ZstdOptions()),
             bufferSize: Long = 8192L): CompressionSource where T : ByteSource, T : Closeable =
             CompressionSource(SyncCompressionSource(source,
                 compressionIoResources(createCompressionEncoder(options), bufferSize, true), Some(source)))
     }
 
+    /**
+     * The actual input accepted and output delivered so far.
+     */
     public val totals: CompressionTotals get() = stream.totals
+    /**
+     * The retained terminal failure, or None before failure.
+     */
     public val failure: Throwable? get() = stream.failure
+    /**
+     * Produces up to count transformed bytes into the writable buffer region. EOF completes the
+     * format; short reads are permitted.
+     */
     public override fun readInto(buffer: NativeByteBuffer, count: Long): Long = stream.readInto(buffer, count)
+    /**
+     * Releases codec state and closes an endpoint whose ownership was transferred. It does not
+     * force incomplete data to finish.
+     */
     public override fun close() { stream.close() }
 }
 
+/**
+ * A synchronous decompression source adapter with bounded buffering. The ordinary constructor
+ * borrows its endpoint; takeOwnership also assumes endpoint close responsibility. Reading to EOF
+ * completes format validation; early close does not.
+ */
 public class DecompressionSource private constructor(private val stream: SyncCompressionSource) : ByteSource, Closeable {
     public constructor(source: ByteSource, options: DecompressionOptions = DecompressionOptions(),
         bufferSize: Long = 8192L) : this(SyncCompressionSource(source,
             compressionIoResources(createCompressionDecoder(options), bufferSize, false), None)) {}
 
+    /**
+     * Factories that explicitly transfer endpoint cleanup responsibility.
+     */
     public companion object {
+        /**
+         * Creates an adapter that closes the supplied endpoint during its own cleanup.
+         */
         public fun <T> takeOwnership(source: T, options: DecompressionOptions = DecompressionOptions(),
             bufferSize: Long = 8192L): DecompressionSource where T : ByteSource, T : Closeable =
             DecompressionSource(SyncCompressionSource(source,
                 compressionIoResources(createCompressionDecoder(options), bufferSize, false), Some(source)))
     }
 
+    /**
+     * The actual input accepted and output delivered so far.
+     */
     public val totals: CompressionTotals get() = stream.totals
+    /**
+     * The retained terminal failure, or None before failure.
+     */
     public val failure: Throwable? get() = stream.failure
+    /**
+     * Produces up to count transformed bytes into the writable buffer region. EOF completes the
+     * format; short reads are permitted.
+     */
     public override fun readInto(buffer: NativeByteBuffer, count: Long): Long = stream.readInto(buffer, count)
+    /**
+     * Releases codec state and closes an endpoint whose ownership was transferred. It does not
+     * force incomplete data to finish.
+     */
     public override fun close() { stream.close() }
 }

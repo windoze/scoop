@@ -3,9 +3,22 @@ package scoop.asyncio
 import scoop.platform.memory.NativeByteBuffer
 import scoop.platform.net.*
 
+/**
+ * An owned datagram socket preserving message boundaries; each receive describes one datagram.
+ */
 public interface AsyncUdpSocket : AsyncCloseable {
+    /**
+     * The actual bound UDP endpoint.
+     */
     public val localAddress: SocketAddress
+    /**
+     * Sends one datagram from count readable buffer bytes to the destination.
+     */
     public suspend fun sendTo(buffer: NativeByteBuffer, destination: SocketAddress, count: Long): Long
+    /**
+     * Receives one datagram into at most count writable bytes and reports its source and
+     * truncation status.
+     */
     public suspend fun receiveFrom(buffer: NativeByteBuffer, count: Long): Datagram
 }
 

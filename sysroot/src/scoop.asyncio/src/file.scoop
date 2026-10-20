@@ -5,13 +5,38 @@ import scoop.platform.native.fileOpenFlags
 import scoop.platform.memory.NativeByteBuffer
 import scoop.platform.system.*
 
+/**
+ * An owned asynchronous file with a shared logical position, explicit seek, truncation, and
+ * durability operations.
+ */
 public interface AsyncFile : AsyncByteSource, AsyncByteSink, AsyncCloseable {
+    /**
+     * Obtains metadata for the open file.
+     */
     public suspend fun metadata(): FileMetadata
+    /**
+     * Returns the current file size in bytes.
+     */
     public suspend fun size(): Long
+    /**
+     * Returns the current logical byte position.
+     */
     public suspend fun position(): Long
+    /**
+     * Sets the logical byte position; negative positions are invalid.
+     */
     public suspend fun seek(position: Long)
+    /**
+     * Sets the file length in bytes according to the open file's write permissions.
+     */
     public suspend fun truncate(size: Long)
+    /**
+     * Requests persistence of file data and metadata needed to retrieve it.
+     */
     public suspend fun syncData()
+    /**
+     * Requests persistence of file data and full associated metadata.
+     */
     public suspend fun syncAll()
 }
 

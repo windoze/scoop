@@ -6,25 +6,84 @@ import scoop.platform.net.*
 import scoop.platform.system.OsString
 import scoop.platform.fs.*
 
+/**
+ * The suspending filesystem, timer, resolver, TCP, UDP, and TTY service installed for a structured
+ * coroutine scope. Resources and operations belong to their creating loop.
+ */
 public interface EventLoop {
+    /**
+     * Runs a single-use native payload on a worker and waits for completion before releasing its
+     * active borrow.
+     */
+    /**
+     * Runs the root structured scope and drives its operations to completion. The loop is
+     * single-use and cannot be nested or called from an existing Job.
+     */
     @Unsafe public suspend fun runNativeWork(work: NativeWork)
     public fun run(block: suspend (CoroutineScope) -> Unit)
+    /**
+     * Suspends for a nonnegative duration and follows current-job cancellation.
+     */
     public suspend fun sleep(duration: Duration)
+    /**
+     * Resolves the host and port, optionally restricted to one address family.
+     */
     public suspend fun resolve(host: OsString, port: Int, family: AddressFamily? = None): Array<SocketAddress>
+    /**
+     * Opens an owned asynchronous file using explicit access, creation, and truncation options.
+     */
     public suspend fun openFile(path: Path, options: OpenOptions = OpenOptions()): AsyncFile
+    /**
+     * Opens an owned asynchronous terminal handle.
+     */
     public suspend fun openTty(): AsyncTty
+    /**
+     * Queries filesystem metadata, optionally following symbolic links.
+     */
     public suspend fun metadata(path: Path, followLinks: Boolean = true): FileMetadata
+    /**
+     * Moves a filesystem entry, replacing the destination only when requested.
+     */
     public suspend fun moveFile(source: Path, destination: Path, replaceExisting: Boolean = false)
+    /**
+     * Deletes the selected filesystem entry.
+     */
     public suspend fun deleteFile(path: Path)
+    /**
+     * Creates missing parent directories with the requested mode, subject to the process umask.
+     */
     public suspend fun createDirectories(path: Path, mode: Int = 0x1ff)
+    /**
+     * Creates a unique temporary file and returns both its path and open handle.
+     */
     public suspend fun createTempFile(parent: Path? = None, prefix: String = "scoop-"): TemporaryFile
+    /**
+     * Opens an owned directory enumeration cursor.
+     */
     public suspend fun openDirectory(path: Path): AsyncDirectoryEntries
+    /**
+     * Binds an owned UDP socket, optionally enabling address reuse.
+     */
     public suspend fun bindUdp(address: SocketAddress, reuseAddress: Boolean = false): AsyncUdpSocket
+    /**
+     * Connects to an IP endpoint, or resolves and races candidates using the supplied host
+     * connection options. The returned stream has independent ownership.
+     */
     public suspend fun connectTcp(address: SocketAddress): AsyncTcpStream
+    /**
+     * Connects to an IP endpoint, or resolves and races candidates using the supplied host
+     * connection options. The returned stream has independent ownership.
+     */
     public suspend fun connectTcp(host: OsString, port: Int, options: TcpConnectOptions = TcpConnectOptions()): AsyncTcpStream
+    /**
+     * Binds and listens for TCP connections with the requested backlog and address-reuse setting.
+     */
     public suspend fun listenTcp(address: SocketAddress, backlog: Int = 128, reuseAddress: Boolean = false): AsyncTcpListener
 }
 
+/**
+ * Returns the EventLoop supplied by the current context binding.
+ */
 context(loop: EventLoop)
 public fun currentEventLoop(): EventLoop = loop
 
@@ -35,12 +94,19 @@ internal fun hasEventLoop(): Boolean {
 
 private class LoopResult<T> { var value: MaybeUninit<T> = MaybeUninit<T>.uninit() }
 
+/**
+ * Runs a structured event-loop scope and returns the block's eventual result after the loop
+ * finishes.
+ */
 public fun <T> EventLoop.runWithResult(block: suspend (CoroutineScope) -> T): T {
     val result = LoopResult<T>()
     run suspend { scope -> result.value = MaybeUninit<T>.initialized(block(scope)) }
     @Unsafe { return result.value.assumeInit() }
 }
 
+/**
+ * Reports an operation attempted on a closed I/O resource.
+ */
 public class IoClosedException public constructor() : Exception(Some("I/O resource is closed"))
 
 internal class IoLock {

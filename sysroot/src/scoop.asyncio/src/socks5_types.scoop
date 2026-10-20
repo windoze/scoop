@@ -2,15 +2,68 @@ package scoop.asyncio
 
 import scoop.platform.net.SocketAddress
 
-public enum Socks5Address { Ip(SocketAddress), Domain(String, Int) }
-public enum Socks5Resolution { Local, Proxy }
-public enum Socks5Phase { Method, Authentication, Connect }
+/**
+ * A SOCKS5 destination or bound endpoint represented by a domain name/port or an IP socket
+ * address.
+ */
+public enum Socks5Address {
+    /**
+     * An already resolved IP endpoint.
+     */
+    Ip(SocketAddress),
+    /**
+     * A domain name and network port, available for proxy-side resolution.
+     */
+    Domain(String, Int) }
+/**
+ * Chooses which side resolves a SOCKS5 domain destination.
+ */
+public enum Socks5Resolution {
+    /**
+     * Resolve the domain using the local event loop before requesting the proxy connection.
+     */
+    Local,
+    /**
+     * Send the domain to the proxy for resolution.
+     */
+    Proxy }
+/**
+ * The SOCKS5 negotiation phase responsible for a failure.
+ */
+public enum Socks5Phase {
+    /**
+     * Authentication-method negotiation.
+     */
+    Method,
+    /**
+     * Username/password authentication.
+     */
+    Authentication,
+    /**
+     * The CONNECT request and proxy reply.
+     */
+    Connect }
 
+/**
+ * Copied username and password bytes for SOCKS5 username/password authentication.
+ */
 public class Socks5Credentials public constructor(username: List<Byte>, password: List<Byte>) {
+    /**
+     * The independent username byte snapshot.
+     */
     public val username: Array<Byte> = socks5CredentialBytes(username)
+    /**
+     * The independent password byte snapshot.
+     */
     public val password: Array<Byte> = socks5CredentialBytes(password)
 
+    /**
+     * UTF-8 convenience construction for SOCKS5 credentials.
+     */
     public companion object {
+        /**
+         * Encodes username and password as UTF-8 and validates protocol lengths.
+         */
         public fun fromUtf8(username: String, password: String): Socks5Credentials =
             Socks5Credentials(username.toByteArray(), password.toByteArray())
     }
@@ -24,8 +77,17 @@ private fun socks5CredentialBytes(bytes: List<Byte>): Array<Byte> {
     return Array<Byte>(count) { index -> bytes[index] }
 }
 
+/**
+ * Reports a SOCKS5 negotiation failure with phase and optional proxy reply code.
+ */
 public class Socks5Exception internal constructor(
+    /**
+     * The negotiation phase that failed.
+     */
     public val phase: Socks5Phase,
+    /**
+     * The proxy's CONNECT reply code when available.
+     */
     public val replyCode: UByte?,
     message: String
 ) : Exception(Some(message))

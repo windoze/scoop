@@ -4,6 +4,11 @@ import scoop.asyncio.IoLock
 
 private enum WorkPhase { Ready, Running, Complete, Failed, Reading, Closed }
 
+/**
+ * Owns a native-only payload and its worker/release callbacks. Work runs once; result borrowing is
+ * allowed only after successful completion. Closing during execution or result borrowing is
+ * rejected.
+ */
 public class NativeWork private constructor(
     private val payload: Ptr<Unit>,
     private val execute: FunPtr<(Ptr<Unit>) -> Unit>,
@@ -12,12 +17,22 @@ public class NativeWork private constructor(
     private val lock: IoLock = IoLock()
     private var phase: WorkPhase = WorkPhase.Ready
 
+    /**
+     * Ownership-transfer construction for native worker payloads.
+     */
     public companion object {
+        /**
+         * Transfers a native payload and matching execute/release functions. The unsafe caller
+         * must satisfy their C ABI and native-memory lifetime contracts.
+         */
         @Unsafe
         public fun takeOwnership(payload: Ptr<Unit>, execute: FunPtr<(Ptr<Unit>) -> Unit>,
             release: FunPtr<(Ptr<Unit>) -> Unit>): NativeWork = NativeWork(payload, execute, release)
     }
 
+    /**
+     * Whether the payload's release callback has already been run.
+     */
     public val isClosed: Boolean get() = lock.withLock { phase == WorkPhase.Closed }
 
     internal fun begin(): (Ptr<Unit>, FunPtr<(Ptr<Unit>) -> Unit>) = lock.withLock {
@@ -30,6 +45,10 @@ public class NativeWork private constructor(
         lock.withLock { phase = if (success) WorkPhase.Complete else WorkPhase.Failed }
     }
 
+    /**
+     * Borrows the payload after successful execution. The pointer must not escape, and close
+     * cannot overlap this callback.
+     */
     @Unsafe
     public fun <R> withResult(block: (Ptr<Unit>) -> R): R {
         lock.withLock {
@@ -40,6 +59,9 @@ public class NativeWork private constructor(
         finally { lock.withLock { phase = WorkPhase.Complete } }
     }
 
+    /**
+     * Runs the release callback once after work is no longer running or borrowed.
+     */
     public override fun close() {
         val dispose = lock.withLock {
             if (phase == WorkPhase.Running || phase == WorkPhase.Reading)

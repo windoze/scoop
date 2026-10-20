@@ -4,12 +4,34 @@ import scoop.platform.net.*
 import scoop.platform.system.OsString
 import scoop.time.Duration
 
+/**
+ * Controls staggered address resolution and connection racing, concurrency, optional phase/overall
+ * deadlines, and trace delivery.
+ */
 public class TcpConnectOptions public constructor(
+    /**
+     * The delay used to stagger address-family resolution.
+     */
     public val resolutionDelay: Duration = Duration.milliseconds(50L),
+    /**
+     * The delay between starting eligible connection candidates.
+     */
     public val attemptDelay: Duration = Duration.milliseconds(250L),
+    /**
+     * The positive maximum number of simultaneously active TCP connection attempts.
+     */
     public val maxConcurrentAttempts: Long = 2L,
+    /**
+     * An optional deadline for address-family resolution.
+     */
     public val resolveTimeout: Duration? = None,
+    /**
+     * An optional overall deadline for the connection procedure.
+     */
     public val connectTimeout: Duration? = None,
+    /**
+     * An optional non-suspending observer of resolution and connect phase transitions.
+     */
     public val onEvent: ((TcpConnectEvent) -> Unit)? = None
 ) {
     init {
@@ -26,22 +48,90 @@ public class TcpConnectOptions public constructor(
     }
 }
 
+/**
+ * A failed concrete address attempt and its original exception.
+ */
 public struct TcpConnectionFailure(val address: SocketAddress, val cause: Throwable)
+/**
+ * A failed address-family resolution and its original exception.
+ */
 public struct TcpResolutionFailure(val family: AddressFamily, val cause: Throwable)
 
+/**
+ * All usable TCP candidates failed; retains individual connection and resolution failures.
+ */
 public class TcpConnectException internal constructor(
+    /**
+     * The originally requested host name.
+     */
     public val host: OsString,
+    /**
+     * The requested destination port.
+     */
     public val port: Int,
+    /**
+     * The concrete candidate failures collected before termination.
+     */
     public val attempts: Array<TcpConnectionFailure>,
+    /**
+     * Address-family lookup failures collected before termination.
+     */
     public val resolutionFailures: Array<TcpResolutionFailure>
 ) : Exception(Some("all TCP connection candidates failed"))
 
+/**
+ * Address resolution exceeded its configured time limit for the specified family.
+ */
 public class TcpResolutionTimeoutException internal constructor(
-    public val host: OsString, public val port: Int, public val family: AddressFamily,
-    public val limit: Duration, public val elapsed: Duration
+    /**
+     * The originally requested host name.
+     */
+    public val host: OsString,
+        /**
+         * The requested destination port.
+         */
+        public val port: Int,
+        /**
+         * The address family whose lookup timed out.
+         */
+        public val family: AddressFamily,
+    /**
+     * The configured timeout duration.
+     */
+    public val limit: Duration,
+        /**
+         * The measured elapsed time when the timeout was reported.
+         */
+        public val elapsed: Duration
 ) : Exception(Some("TCP address resolution timeout"))
 
+/**
+ * The connection procedure exceeded its configured limit; retains completed attempt and resolution
+ * failures.
+ */
 public class TcpConnectTimeoutException internal constructor(
-    public val host: OsString, public val port: Int, public val limit: Duration, public val elapsed: Duration,
-    public val attempts: Array<TcpConnectionFailure>, public val resolutionFailures: Array<TcpResolutionFailure>
+    /**
+     * The originally requested host name.
+     */
+    public val host: OsString,
+        /**
+         * The requested destination port.
+         */
+        public val port: Int,
+        /**
+         * The configured timeout duration.
+         */
+        public val limit: Duration,
+        /**
+         * The measured elapsed time when the timeout was reported.
+         */
+        public val elapsed: Duration,
+    /**
+     * The concrete candidate failures collected before termination.
+     */
+    public val attempts: Array<TcpConnectionFailure>,
+        /**
+         * Address-family lookup failures collected before termination.
+         */
+        public val resolutionFailures: Array<TcpResolutionFailure>
 ) : Exception(Some("TCP connection timeout"))

@@ -2,32 +2,83 @@ package scoop.compression
 
 import scoop.platform.memory.NativeByteBuffer
 
+/**
+ * An RFC 7692 message encoder with explicit message boundaries and context-takeover selection.
+ * Finish each message before starting the next.
+ */
 public class DeflateMessageEncoder public constructor(
     options: DeflateOptions = DeflateOptions(), contextTakeover: Boolean = true
 ) : Closeable {
     private val codec: CompressionCodec = newMessageEncoder(options, contextTakeover)
+    /**
+     * The actual cumulative byte counts accepted and produced by this codec.
+     */
     public val totals: CompressionTotals get() = codec.totals
+    /**
+     * The recorded terminal failure, or None before failure.
+     */
     public val failure: Throwable? get() = codec.failure
 
+    /**
+     * Processes at most count readable input bytes into the writable output region, advancing both
+     * cursors.
+     */
     public fun process(input: NativeByteBuffer, output: NativeByteBuffer, count: Long = input.readableBytes): CompressionStep =
         codec.step(Some(input), count, output, output.writableBytes, 0)
+    /**
+     * Drains a DEFLATE synchronization point without ending the current message.
+     */
     public fun flush(output: NativeByteBuffer): CompressionStep = codec.step(None, 0L, output, output.writableBytes, 1)
+    /**
+     * Ends the current message and drains its remaining output; repeat until Finished.
+     */
     public fun finishMessage(output: NativeByteBuffer): CompressionStep = codec.step(None, 0L, output, output.writableBytes, 2)
+    /**
+     * Starts the next message after the previous one finished, retaining or resetting history
+     * according to context takeover.
+     */
     public fun nextMessage() { codec.nextMessage() }
+    /**
+     * Releases native codec state. Closing does not finish incomplete stream or message data.
+     */
     public override fun close() { codec.close() }
 }
 
+/**
+ * An RFC 7692 message decoder with explicit boundaries, window size, context takeover, and
+ * optional output limit.
+ */
 public class DeflateMessageDecoder public constructor(
     windowBits: Int = 15, contextTakeover: Boolean = true, maxOutputBytes: Long? = None
 ) : Closeable {
     private val codec: CompressionCodec = newMessageDecoder(windowBits, contextTakeover, maxOutputBytes)
+    /**
+     * The actual cumulative byte counts accepted and produced by this codec.
+     */
     public val totals: CompressionTotals get() = codec.totals
+    /**
+     * The recorded terminal failure, or None before failure.
+     */
     public val failure: Throwable? get() = codec.failure
 
+    /**
+     * Processes at most count readable input bytes into the writable output region, advancing both
+     * cursors.
+     */
     public fun process(input: NativeByteBuffer, output: NativeByteBuffer, count: Long = input.readableBytes): CompressionStep =
         codec.step(Some(input), count, output, output.writableBytes, 0)
+    /**
+     * Ends the current message and drains its remaining output; repeat until Finished.
+     */
     public fun finishMessage(output: NativeByteBuffer): CompressionStep = codec.step(None, 0L, output, output.writableBytes, 2)
+    /**
+     * Starts the next message after the previous one finished, retaining or resetting history
+     * according to context takeover.
+     */
     public fun nextMessage() { codec.nextMessage() }
+    /**
+     * Releases native codec state. Closing does not finish incomplete stream or message data.
+     */
     public override fun close() { codec.close() }
 }
 

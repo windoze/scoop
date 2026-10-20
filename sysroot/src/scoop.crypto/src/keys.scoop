@@ -2,24 +2,70 @@ package scoop.crypto
 
 import scoop.crypto.native.*
 
-public enum KeyAlgorithm { Rsa, P256, Ed25519, Other }
+/**
+ * The recognized asymmetric key family; Other represents an imported family outside these
+ * supported operations.
+ */
+public enum KeyAlgorithm {
+    /**
+     * An RSA key.
+     */
+    Rsa,
+    /**
+     * An elliptic-curve key on P-256.
+     */
+    P256,
+    /**
+     * An Ed25519 signing key.
+     */
+    Ed25519,
+    /**
+     * An imported key family not recognized by these operation selectors.
+     */
+    Other }
 
+/**
+ * An owned native asymmetric private key. Operations require a live key; close it when finished.
+ */
 public class PrivateKey private constructor(private var handle: ULong) : Closeable {
+    /**
+     * The recognized key family of this live key.
+     */
     public val algorithm: KeyAlgorithm get() = nativeKeyAlgorithm(nativeHandle())
 
+    /**
+     * Parses private key data into owned native handles.
+     */
     public companion object {
+        /**
+         * Generates an RSA private key. The bit count must be at least 2048 and divisible by 256.
+         */
         public fun generateRsa(bits: Int = 2048): PrivateKey {
             if (bits < 2048 || bits % 256 != 0)
                 throw IllegalArgumentException(Some("RSA bits must be a multiple of 256 and at least 2048"))
             return generateKey(0, bits)
         }
+        /**
+         * Generates a private key on the P-256 elliptic curve.
+         */
         public fun generateP256(): PrivateKey = generateKey(1)
+        /**
+         * Generates an Ed25519 private key.
+         */
         public fun generateEd25519(): PrivateKey = generateKey(2)
 
         private fun generateKey(code: Int, bits: Int = 0): PrivateKey {
             @Unsafe { return PrivateKey(cryptoValue(keyGenerate(code, bits), "generate key")) }
         }
+        /**
+         * Parses PEM input into a new owned PrivateKey; malformed input reports a cryptographic
+         * backend failure.
+         */
         public fun fromPem(pem: String): PrivateKey = PrivateKey(importKey(pem.toByteArray(), true, true))
+        /**
+         * Parses DER input into a new owned PrivateKey; malformed input reports a cryptographic
+         * backend failure.
+         */
         public fun fromDer(der: List<Byte>): PrivateKey = PrivateKey(importKey(der, true, false))
     }
 
@@ -28,9 +74,22 @@ public class PrivateKey private constructor(private var handle: ULong) : Closeab
         return handle
     }
 
+    /**
+     * Returns an independently owned public-key handle that must be closed separately.
+     */
     public fun publicKey(): PublicKey { @Unsafe { return PublicKey(cryptoValue(keyPublic(nativeHandle()), "extract public key")) } }
+    /**
+     * Exports the live PrivateKey as DER data in an independent managed value.
+     */
     public fun toDer(): Array<Byte> { @Unsafe { return cryptoBytes(keyExport(nativeHandle(), 1, 0), "export private key") } }
+    /**
+     * Exports the live PrivateKey as PEM data in an independent managed value.
+     */
     public fun toPem(): String { @Unsafe { return String.fromUtf8Unchecked(cryptoBytes(keyExport(nativeHandle(), 1, 1), "export private key")) } }
+    /**
+     * Releases the native PrivateKey handle. Repeated closes are harmless; other operations after
+     * close fail.
+     */
     public override fun close() {
         val owned = handle
         handle = 0UL
@@ -38,11 +97,28 @@ public class PrivateKey private constructor(private var handle: ULong) : Closeab
     }
 }
 
+/**
+ * An independently owned native asymmetric public key. Close it after use.
+ */
 public class PublicKey internal constructor(private var handle: ULong) : Closeable {
+    /**
+     * The recognized key family of this live key.
+     */
     public val algorithm: KeyAlgorithm get() = nativeKeyAlgorithm(nativeHandle())
 
+    /**
+     * Parses public key data into owned native handles.
+     */
     public companion object {
+        /**
+         * Parses PEM input into a new owned PublicKey; malformed input reports a cryptographic
+         * backend failure.
+         */
         public fun fromPem(pem: String): PublicKey = PublicKey(importKey(pem.toByteArray(), false, true))
+        /**
+         * Parses DER input into a new owned PublicKey; malformed input reports a cryptographic
+         * backend failure.
+         */
         public fun fromDer(der: List<Byte>): PublicKey = PublicKey(importKey(der, false, false))
     }
 
@@ -51,8 +127,18 @@ public class PublicKey internal constructor(private var handle: ULong) : Closeab
         return handle
     }
 
+    /**
+     * Exports the live PublicKey as DER data in an independent managed value.
+     */
     public fun toDer(): Array<Byte> { @Unsafe { return cryptoBytes(keyExport(nativeHandle(), 0, 0), "export public key") } }
+    /**
+     * Exports the live PublicKey as PEM data in an independent managed value.
+     */
     public fun toPem(): String { @Unsafe { return String.fromUtf8Unchecked(cryptoBytes(keyExport(nativeHandle(), 0, 1), "export public key")) } }
+    /**
+     * Releases the native PublicKey handle. Repeated closes are harmless; other operations after
+     * close fail.
+     */
     public override fun close() {
         val owned = handle
         handle = 0UL

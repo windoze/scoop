@@ -2,7 +2,27 @@ package scoop.crypto
 
 import scoop.crypto.native.*
 
-public enum SignatureAlgorithm { RsaPkcs1Sha256, RsaPssSha256, EcdsaP256Sha256Der, Ed25519 }
+/**
+ * Signature schemes with explicit digest and wire encoding; the key family must match the selected
+ * scheme.
+ */
+public enum SignatureAlgorithm {
+    /**
+     * RSA PKCS#1 v1.5 signing with SHA-256.
+     */
+    RsaPkcs1Sha256,
+    /**
+     * RSA-PSS signing with SHA-256.
+     */
+    RsaPssSha256,
+    /**
+     * ECDSA on P-256 with SHA-256 and a DER-encoded signature.
+     */
+    EcdsaP256Sha256Der,
+    /**
+     * Ed25519 signing over the supplied message bytes.
+     */
+    Ed25519 }
 
 private fun signatureCode(algorithm: SignatureAlgorithm, key: KeyAlgorithm): Int {
     val expected = when (algorithm) {
@@ -20,6 +40,9 @@ private fun signatureCode(algorithm: SignatureAlgorithm, key: KeyAlgorithm): Int
     }
 }
 
+/**
+ * Signs the message using a matching live private key and returns the scheme's signature encoding.
+ */
 public fun sign(algorithm: SignatureAlgorithm, key: PrivateKey, data: List<Byte>): Array<Byte> {
     val code = signatureCode(algorithm, key.algorithm)
     val handle = key.nativeHandle()
@@ -29,6 +52,10 @@ public fun sign(algorithm: SignatureAlgorithm, key: PrivateKey, data: List<Byte>
     } }
 }
 
+/**
+ * Verifies a signature with a matching live public key. A signature mismatch returns false;
+ * invalid configuration and backend errors throw.
+ */
 public fun verify(algorithm: SignatureAlgorithm, key: PublicKey, data: List<Byte>, signature: List<Byte>): Boolean {
     val code = signatureCode(algorithm, key.algorithm)
     val handle = key.nativeHandle()

@@ -4,9 +4,16 @@ import scoop.platform.memory.NativeByteBuffer
 
 private enum Socks5CloseAction { Done, Pending, Start(AsyncCloseable) }
 
+/**
+ * An owned negotiated SOCKS5 transport exposing its tunneled bytes as an asynchronous stream.
+ */
 public class AsyncSocks5Tunnel private constructor(
     transport: AsyncByteStream, closeable: AsyncCloseable,
-    private val loop: EventLoop, public val boundAddress: Socks5Address
+    private val loop: EventLoop,
+        /**
+         * The bound endpoint returned by the proxy's successful CONNECT reply.
+         */
+        public val boundAddress: Socks5Address
 ) : AsyncByteStream, AsyncCloseable {
     private val lock: IoLock = IoLock()
     private var stream: AsyncByteStream? = Some(transport)
@@ -14,9 +21,19 @@ public class AsyncSocks5Tunnel private constructor(
     private var closing: Boolean = false
     private var closed: Boolean = false
     private val closeWaiters: ArrayList<Continuation<Unit>> = ArrayList<Continuation<Unit>>()
+    /**
+     * Whether tunnel cleanup has completed.
+     */
     public val isClosed: Boolean get() = lock.withLock { closed }
 
+    /**
+     * Negotiates SOCKS5 while transferring transport cleanup responsibility.
+     */
     public companion object {
+        /**
+         * Negotiates method, optional authentication, and CONNECT on the supplied transport using
+         * the selected destination-resolution policy.
+         */
         public suspend fun <T> takeOwnership(transport: T, destination: Socks5Address,
             credentials: Socks5Credentials? = None, resolution: Socks5Resolution = Socks5Resolution.Proxy): AsyncSocks5Tunnel
             where T : AsyncByteStream, T : AsyncCloseable {
@@ -44,14 +61,26 @@ public class AsyncSocks5Tunnel private constructor(
         }
     }
 
+    /**
+     * Reads tunneled bytes into the writable buffer region.
+     */
     public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long =
         streamForIo().readInto(buffer, count)
 
+    /**
+     * Writes readable buffer bytes through the tunnel.
+     */
     public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long =
         streamForIo().writeFrom(buffer, count)
 
+    /**
+     * Flushes the underlying tunneled transport.
+     */
     public override suspend fun flush() { streamForIo().flush() }
 
+    /**
+     * Closes the owned transport and waits for active I/O cleanup.
+     */
     public override suspend fun close() {
         if (isClosed) return
         val job = requireSocks5Job(loop, false)

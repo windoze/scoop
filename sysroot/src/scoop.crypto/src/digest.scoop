@@ -2,7 +2,35 @@ package scoop.crypto
 
 import scoop.crypto.native.*
 
-public enum DigestAlgorithm { Sha256, Sha384, Sha512, Sha1, Md5, Sha512_256 }
+/**
+ * Digest choices provided by the native backend. MD5 and SHA-1 are available for protocol
+ * compatibility, not collision-resistant signatures.
+ */
+public enum DigestAlgorithm {
+    /**
+     * Sha256 with a 256-bit output.
+     */
+    Sha256,
+    /**
+     * Sha384 with a 384-bit output.
+     */
+    Sha384,
+    /**
+     * Sha512 with a 512-bit output.
+     */
+    Sha512,
+    /**
+     * Sha1 with a 160-bit output. This legacy digest is retained for compatibility.
+     */
+    Sha1,
+    /**
+     * Md5 with a 128-bit output. This legacy digest is retained for compatibility.
+     */
+    Md5,
+    /**
+     * Sha512_256 with a 256-bit output.
+     */
+    Sha512_256 }
 
 internal fun digestCode(algorithm: DigestAlgorithm): Int = when (algorithm) {
     case Sha256 -> 0
@@ -13,6 +41,10 @@ internal fun digestCode(algorithm: DigestAlgorithm): Int = when (algorithm) {
     case Sha512_256 -> 5
 }
 
+/**
+ * An incremental native digest context. Feed data with update, finish once, and close the context.
+ * Finished or failed contexts reject further updates.
+ */
 public class Digest public constructor(algorithm: DigestAlgorithm) : Closeable {
     private var handle: ULong = createDigest(algorithm)
     private var finished: Boolean = false
@@ -21,6 +53,10 @@ public class Digest public constructor(algorithm: DigestAlgorithm) : Closeable {
         if (handle == 0UL || finished) throw IllegalStateException(Some("digest is closed or finished"))
     }
 
+    /**
+     * Adds bytes to the current digest. A backend failure makes this context unusable for further
+     * updates.
+     */
     public fun update(data: List<Byte>) {
         requireActive()
         val bytes = data.toArray()
@@ -31,12 +67,18 @@ public class Digest public constructor(algorithm: DigestAlgorithm) : Closeable {
         } catch (error: Throwable) { finished = true; throw error }
     }
 
+    /**
+     * Finalizes once and returns the digest bytes; the context still needs closing.
+     */
     public fun finish(): Array<Byte> {
         requireActive()
         finished = true
         @Unsafe { return cryptoBytes(digestFinish(handle), "finish digest") }
     }
 
+    /**
+     * Releases the native context. Repeated closes are harmless.
+     */
     public override fun close() {
         val owned = handle
         handle = 0UL
@@ -44,9 +86,16 @@ public class Digest public constructor(algorithm: DigestAlgorithm) : Closeable {
     }
 }
 
+/**
+ * Computes a complete digest and closes the temporary context.
+ */
 public fun digest(algorithm: DigestAlgorithm, data: List<Byte>): Array<Byte> =
     Digest(algorithm).use { context -> context.update(data); context.finish() }
 
+/**
+ * Returns the requested nonnegative number of bytes from the backend's cryptographic random
+ * generator; backend failures propagate.
+ */
 public fun secureRandomBytes(count: Long): Array<Byte> {
     if (count < 0L) throw IllegalArgumentException(Some("negative random byte count"))
     @Unsafe { return cryptoBytes(nativeRandom(count), "secure random") }

@@ -3,9 +3,22 @@ package scoop.asyncio
 import scoop.platform.net.SocketAddress
 import scoop.platform.memory.NativeByteBuffer
 
+/**
+ * An owned connected TCP byte stream with independent input and output and explicit output
+ * half-close.
+ */
 public interface AsyncTcpStream : AsyncByteStream, AsyncCloseable {
+    /**
+     * The local endpoint of the established connection.
+     */
     public val localAddress: SocketAddress
+    /**
+     * The remote endpoint of the established connection.
+     */
     public val peerAddress: SocketAddress
+    /**
+     * Finishes the output direction while allowing the input direction to continue.
+     */
     public suspend fun shutdownOutput()
 }
 

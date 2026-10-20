@@ -2,13 +2,64 @@ package scoop.compression
 
 import scoop.platform.system.*
 
+/**
+ * The codec-level reason for a failed compression or decompression operation.
+ */
 public enum CompressionFailureKind {
-    InvalidData, Truncated, DictionaryRequired, DictionaryMismatch, OutputLimit, WindowLimit, Backend
+    /**
+     * The compressed bytes or framing are invalid.
+     */
+    InvalidData,
+        /**
+         * Input ended before the required frame or stream boundary.
+         */
+        Truncated,
+        /**
+         * The stream requires a dictionary that was not supplied.
+         */
+        DictionaryRequired,
+        /**
+         * The supplied dictionary does not match the stream.
+         */
+        DictionaryMismatch,
+        /**
+         * Decoded output would exceed the configured byte limit.
+         */
+        OutputLimit,
+        /**
+         * The stream requires a window larger than the configured limit.
+         */
+        WindowLimit,
+        /**
+         * A native codec operation failed.
+         */
+        Backend
 }
 
+/**
+ * A codec failure retaining format, operation, reason, backend code, and diagnostic detail.
+ */
 public class CompressionException public constructor(
-    public val operation: String, public val format: CompressionFormat,
-    public val kind: CompressionFailureKind, public val backendCode: Int, public val detail: String
+    /**
+     * The operation that failed.
+     */
+    public val operation: String,
+        /**
+         * The selected wire format.
+         */
+        public val format: CompressionFormat,
+    /**
+     * The portable failure category.
+     */
+    public val kind: CompressionFailureKind,
+        /**
+         * The native backend error code.
+         */
+        public val backendCode: Int,
+        /**
+         * The diagnostic explanation from the codec.
+         */
+        public val detail: String
 ) : Exception(Some(operation + ": " + detail))
 
 internal fun compressionError(kind: Int, code: Int, detail: String, format: CompressionFormat): Throwable {

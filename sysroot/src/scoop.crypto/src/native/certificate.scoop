@@ -4,9 +4,20 @@ import scoop.crypto.x509.Certificate
 import scoop.crypto.x509.TrustStore
 import scoop.crypto.x509.PeerIdentity
 
+/**
+ * Borrows the native handle of a live Certificate. The unsafe caller must keep the owner open
+ * throughout native use and must not free the borrowed handle.
+ */
+/**
+ * Borrows the native handle of a live TrustStore. The unsafe caller must keep the owner open
+ * throughout native use and must not free the borrowed handle.
+ */
 @Unsafe public fun certificateHandle(value: Certificate): ULong = value.nativeHandle()
 @Unsafe public fun trustStoreHandle(value: TrustStore): ULong = value.nativeHandle()
 
+/**
+ * Encodes an expected DNS or IP identity into the native certificate-verification representation.
+ */
 public fun peerIdentityData(identity: PeerIdentity): (Int, Array<Byte>) {
     when (identity) {
         case PeerIdentity.Dns(name) -> {

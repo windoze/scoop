@@ -4,20 +4,51 @@ import scoop.platform.io.UnexpectedEofException
 import scoop.platform.io.WriteZeroException
 import scoop.platform.memory.NativeByteBuffer
 
+/**
+ * A suspending byte source. A positive-size read returns the number written to the buffer; zero
+ * means EOF, and short reads are permitted.
+ */
 public interface AsyncByteSource {
+    /**
+     * Reads at most count bytes into the writable region and advances its write position. Zero for
+     * a positive request denotes EOF.
+     */
     public suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long
 }
 
+/**
+ * A suspending byte sink accepting short writes and an explicit flush operation.
+ */
 public interface AsyncByteSink {
+    /**
+     * Consumes at most count readable bytes, advances the read position, and returns the accepted
+     * count.
+     */
     public suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long
+    /**
+     * Waits for accepted buffered output to reach the underlying sink's flush boundary.
+     */
     public suspend fun flush()
 }
 
+/**
+ * Combines suspending byte input and output without prescribing ownership or half-close behavior.
+ */
 public interface AsyncByteStream : AsyncByteSource, AsyncByteSink {}
 
+/**
+ * Reads into the buffer's entire writable region, allowing a short read.
+ */
 public suspend fun AsyncByteSource.readInto(buffer: NativeByteBuffer): Long = readInto(buffer, buffer.writableBytes)
+/**
+ * Writes from the buffer's entire readable region, allowing a short write.
+ */
 public suspend fun AsyncByteSink.writeFrom(buffer: NativeByteBuffer): Long = writeFrom(buffer, buffer.readableBytes)
 
+/**
+ * Loops until count bytes have been read. Premature EOF throws UnexpectedEofException; an invalid
+ * count is rejected before transfer.
+ */
 public suspend fun AsyncByteSource.readFully(buffer: NativeByteBuffer, count: Long = buffer.writableBytes) {
     ensureActive()
     requireTransfer(count, buffer.writableBytes)
@@ -30,6 +61,9 @@ public suspend fun AsyncByteSource.readFully(buffer: NativeByteBuffer, count: Lo
     }
 }
 
+/**
+ * Loops until count bytes have been accepted. A zero-progress write throws WriteZeroException.
+ */
 public suspend fun AsyncByteSink.writeFully(buffer: NativeByteBuffer, count: Long = buffer.readableBytes) {
     ensureActive()
     requireTransfer(count, buffer.readableBytes)
@@ -42,6 +76,10 @@ public suspend fun AsyncByteSink.writeFully(buffer: NativeByteBuffer, count: Lon
     }
 }
 
+/**
+ * Copies until EOF through a positive-size bounded buffer and returns the transferred byte count.
+ * Both endpoints remain borrowed.
+ */
 public suspend fun AsyncByteSource.copyTo(destination: AsyncByteSink, bufferSize: Long = 8192L): Long {
     ensureActive()
     if (bufferSize <= 0L) throw IllegalArgumentException(Some("buffer capacity must be positive"))
