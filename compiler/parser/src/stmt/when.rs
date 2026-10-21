@@ -8,6 +8,8 @@ use scoop_ast::{
 use crate::lexer::{Token, TokenKind};
 use crate::parser::Parser;
 
+mod arms;
+
 impl Parser {
     pub(super) fn parse_when(&mut self) -> Result<Statement, Diagnostic> {
         let when = self.parse_when_node()?;
@@ -32,47 +34,41 @@ impl Parser {
         let subject = self.parse_when_subject()?;
         let has_subject = !matches!(subject, WhenSubject::Absent);
         self.expect("`{`", |kind| matches!(kind, TokenKind::LBrace))?;
+        let body_depth = self.brace_depth();
         let mut arms = Vec::new();
         let mut else_body = None;
+        let mut reported_after_else = false;
         let close = loop {
             match self.peek().kind {
                 TokenKind::RBrace => break self.bump(),
                 TokenKind::Eof => return self.unexpected("`}`"),
                 _ => {
-                    let start = self.peek().span.start;
-                    let condition = self.parse_when_arm_condition(has_subject)?;
-                    let guard = if matches!(self.peek().kind, TokenKind::If) {
-                        let keyword = self.bump();
-                        if !has_subject {
-                            return Err(Diagnostic::at(
-                                keyword.span,
-                                "when guards require a subject; combine conditions with `&&`",
-                            ));
-                        }
-                        if matches!(&condition, WhenArmCondition::Conditions(values) if values.len() > 1)
-                        {
-                            return Err(Diagnostic::at(
-                                keyword.span,
-                                "a when arm with multiple conditions cannot have a guard",
-                            ));
-                        }
-                        Some(self.parse_expr()?)
-                    } else {
-                        None
-                    };
-                    self.expect("`->`", |kind| matches!(kind, TokenKind::Arrow))?;
-                    let body = self.parse_arm_body()?;
-                    self.expect_statement_end()?;
-                    if matches!(condition, WhenArmCondition::Else) && guard.is_none() {
-                        else_body = Some(body);
-                        break self.expect("`}`", |kind| matches!(kind, TokenKind::RBrace))?;
+                    let start = self.pos;
+                    if else_body.is_some() && !reported_after_else {
+                        let diagnostic = self.unexpected::<()>("`}`").unwrap_err();
+                        self.diagnostics.push(diagnostic);
+                        reported_after_else = true;
                     }
-                    arms.push(WhenArm {
-                        span: Span::new(start, body.span.end),
-                        condition,
-                        guard,
-                        body,
-                    });
+                    match self.parse_when_arm(has_subject) {
+                        Ok(arm) => {
+                            if matches!(arm.condition, WhenArmCondition::Else)
+                                && arm.guard.is_none()
+                            {
+                                if else_body.is_none() {
+                                    else_body = Some(arm.body);
+                                }
+                            } else {
+                                arms.push(arm);
+                            }
+                        }
+                        Err(diagnostic) => {
+                            if self.at_eof() {
+                                return Err(diagnostic);
+                            }
+                            self.diagnostics.push(diagnostic);
+                            self.synchronize_body_item(body_depth, start);
+                        }
+                    }
                 }
             }
         };

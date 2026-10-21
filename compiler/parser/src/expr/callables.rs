@@ -142,34 +142,15 @@ impl Parser {
     }
 
     fn try_parse_lambda_parameters(&mut self) -> Option<Vec<LambdaParam>> {
-        let mut parameters = Vec::new();
-        loop {
-            let annotations = self.parse_annotations().ok()?;
-            self.skip_parameter_compatibility_modifiers();
-            let target = self.parse_pattern().ok()?;
-            let target_span = crate::pattern::pattern_span(&target);
-            let ty = if matches!(self.peek().kind, TokenKind::Colon) {
-                self.bump();
-                Some(self.parse_type_ref().ok()?)
-            } else {
-                None
-            };
-            let end = ty.as_ref().map_or(target_span.end, |ty| ty.span.end);
-            parameters.push(LambdaParam {
-                annotations,
-                target,
-                ty,
-                span: Span::new(target_span.start, end),
-            });
-            if matches!(self.peek().kind, TokenKind::Comma) {
-                self.bump();
-                continue;
-            }
-            if matches!(self.peek().kind, TokenKind::Arrow) {
-                self.bump();
-                return Some(parameters);
-            }
-            return None;
-        }
+        self.with_node(scoop_syntax::SyntaxKind::ParameterList, |parser| {
+            let parsed =
+                parser.parse_delimited_items(crate::parser::ListKind::LambdaParameters, |parser| {
+                    parser.with_node(
+                        scoop_syntax::SyntaxKind::Parameter,
+                        Self::parse_lambda_parameter,
+                    )
+                });
+            parsed.closed.then_some(parsed.items)
+        })
     }
 }

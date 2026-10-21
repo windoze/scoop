@@ -12,11 +12,13 @@ pub(crate) enum ListKind {
     ParenExpressions,
     AnnotationArguments,
     AnnotationElements,
+    LambdaParameters,
 }
 
 impl ListKind {
     pub(super) fn close(self) -> TokenKind {
         match self {
+            Self::LambdaParameters => TokenKind::Arrow,
             Self::FunctionParameters
             | Self::CallArguments
             | Self::TypeElements
@@ -29,6 +31,7 @@ impl ListKind {
 
     pub(super) fn close_label(self) -> &'static str {
         match self {
+            Self::LambdaParameters => "`->`",
             Self::FunctionParameters
             | Self::CallArguments
             | Self::TypeElements
@@ -40,7 +43,10 @@ impl ListKind {
     }
 
     pub(super) fn requires_item(self) -> bool {
-        matches!(self, Self::TypeArguments | Self::TypeParameters)
+        matches!(
+            self,
+            Self::TypeArguments | Self::TypeParameters | Self::LambdaParameters
+        )
     }
 
     pub(super) fn tracks_angles(self) -> bool {
@@ -66,6 +72,18 @@ impl ListKind {
             return true;
         }
         match self {
+            Self::LambdaParameters => matches!(
+                token,
+                TokenKind::At
+                    | TokenKind::LParen
+                    | TokenKind::Minus
+                    | TokenKind::Int(_)
+                    | TokenKind::Float(_)
+                    | TokenKind::Str(_)
+                    | TokenKind::Char(_)
+                    | TokenKind::True
+                    | TokenKind::False
+            ),
             Self::FunctionParameters => matches!(
                 token,
                 TokenKind::At | TokenKind::Vararg | TokenKind::Val | TokenKind::Var
@@ -121,6 +139,10 @@ impl ListKind {
             return true;
         }
         match self {
+            Self::LambdaParameters => matches!(
+                token,
+                TokenKind::Val | TokenKind::Var | TokenKind::Return | TokenKind::Fun
+            ),
             Self::FunctionParameters => {
                 matches!(
                     token,

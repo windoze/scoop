@@ -12,6 +12,7 @@ pub(crate) struct DelimitedItems<T> {
     pub(crate) items: Vec<T>,
     pub(crate) end: u32,
     pub(crate) had_comma: bool,
+    pub(crate) closed: bool,
 }
 
 impl<T> DelimitedItems<T> {
@@ -85,7 +86,8 @@ impl Parser {
             }
             break;
         }
-        let end = if self.peek().kind == close {
+        let closed = self.peek().kind == close;
+        let end = if closed {
             self.bump().span.end
         } else {
             let diagnostic = self.missing_diagnostic(
@@ -99,6 +101,7 @@ impl Parser {
             items,
             end,
             had_comma,
+            closed,
         }
     }
 

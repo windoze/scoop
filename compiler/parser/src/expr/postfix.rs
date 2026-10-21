@@ -123,11 +123,11 @@ impl Parser {
     fn parse_field_access(&mut self, receiver: Expr, safe: bool) -> Result<Expr, Diagnostic> {
         let token = self.peek().clone();
         let (TokenKind::Ident(text) | TokenKind::EscapedIdent(text)) = token.kind else {
-            return self.unexpected("field name or tuple index");
+            return self.missing_name("field name or tuple index");
         };
         if let Some(index) = tuple_index(&text) {
             if safe {
-                return self.unexpected("field name");
+                return self.missing_name("field name");
             }
             self.pos += 1;
             return Ok(Expr::FieldAccess(FieldAccess {

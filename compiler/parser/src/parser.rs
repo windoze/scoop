@@ -383,6 +383,10 @@ impl Parser {
         self.missing(expected, what)
     }
 
+    pub(crate) fn missing_name<T>(&mut self, what: &str) -> Result<T, Diagnostic> {
+        self.missing(scoop_syntax::ExpectedSyntax::Name, what)
+    }
+
     pub(crate) fn expect(
         &mut self,
         what: &str,
