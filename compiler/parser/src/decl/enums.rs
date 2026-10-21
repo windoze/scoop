@@ -1,5 +1,7 @@
 use super::*;
 
+mod fields;
+
 impl Parser {
     /// `enum <name><T, ...>? (: <interface>, ...)? { <variant>, ...
     /// (<fun>, ...)? }` (spec 4.2). The interface list (spec 4.4.3) sits
@@ -262,39 +264,7 @@ impl Parser {
                 let end = value.span().end;
                 (VariantDeclKind::Constant(Box::new(value)), end)
             }
-            TokenKind::LParen => {
-                self.bump();
-                let mut doc_start = self.pos;
-                let mut annotations = self.parse_annotations()?;
-                self.skip_parameter_compatibility_modifiers();
-                if matches!(
-                    self.peek().kind,
-                    TokenKind::Val | TokenKind::Var | TokenKind::Vararg
-                ) {
-                    let (fields, end) = self.parse_constructor_fields(annotations, doc_start)?;
-                    (VariantDeclKind::Constructor(fields), end)
-                } else {
-                    let mut fields = Vec::new();
-                    loop {
-                        let ty = self.parse_type_ref()?;
-                        let span = ty.span;
-                        self.attach_documentation(doc_start, span);
-                        fields.push(scoop_ast::PositionalVariantFieldDecl {
-                            annotations,
-                            ty,
-                            span,
-                        });
-                        if !matches!(self.peek().kind, TokenKind::Comma) {
-                            break;
-                        }
-                        self.bump();
-                        doc_start = self.pos;
-                        annotations = self.parse_annotations()?;
-                    }
-                    let close = self.expect("`)`", |kind| matches!(kind, TokenKind::RParen))?;
-                    (VariantDeclKind::Positional(fields), close.span.end)
-                }
-            }
+            TokenKind::LParen => self.parse_parenthesized_variant_fields()?,
             TokenKind::LBrace => {
                 let (fields, end) = self.parse_named_fields()?;
                 (VariantDeclKind::Named(fields), end)
@@ -307,99 +277,5 @@ impl Parser {
             kind,
             span: Span::new(start, end),
         })
-    }
-
-    /// `(val f: T = default, ...)` — the `(` is the current token and the
-    /// caller has checked that a `val`/`var` follows it.
-    fn parse_constructor_fields(
-        &mut self,
-        mut annotations: Vec<Annotation>,
-        mut doc_start: usize,
-    ) -> Result<(Vec<VariantFieldDecl>, u32), Diagnostic> {
-        let mut fields = Vec::new();
-        let mut vararg_span = None;
-        loop {
-            let modifier_span = self.parse_vararg_modifier(&mut vararg_span)?;
-            if matches!(self.peek().kind, TokenKind::Var) {
-                return Err(Diagnostic::at(
-                    self.peek().span,
-                    "`var` variant fields are not supported (value types are immutable)",
-                ));
-            }
-            let val = self.expect("`val`", |k| matches!(k, TokenKind::Val))?;
-            let field_name = self.expect_ident("field name")?;
-            self.expect("`:`", |k| matches!(k, TokenKind::Colon))?;
-            let ty = self.parse_type_ref()?;
-            let (syntax, end) = self.parse_parameter_syntax(modifier_span, ty.span.end)?;
-            self.attach_documentation(
-                doc_start,
-                Span::new(modifier_span.map_or(val.span.start, |span| span.start), end),
-            );
-            fields.push(VariantFieldDecl {
-                annotations,
-                span: Span::new(modifier_span.map_or(val.span.start, |span| span.start), end),
-                name: field_name,
-                ty,
-                syntax,
-            });
-            if matches!(self.peek().kind, TokenKind::Comma) {
-                self.bump();
-                doc_start = self.pos;
-                annotations = self.parse_annotations()?;
-            } else {
-                break;
-            }
-        }
-        let close = self.expect("`)`", |k| matches!(k, TokenKind::RParen))?;
-        Ok((fields, close.span.end))
-    }
-
-    /// `{ f1: T1, f2: T2 }` — the `{` is the current token. Fields
-    /// separate like variants: commas or newlines. Defaults require the
-    /// constructor-style form.
-    fn parse_named_fields(&mut self) -> Result<(Vec<VariantFieldDecl>, u32), Diagnostic> {
-        self.bump(); // `{`
-        if matches!(self.peek().kind, TokenKind::RBrace) {
-            // A fieldless named variant is outside the M4 subset.
-            return self.unexpected("field declaration");
-        }
-        let mut fields = Vec::new();
-        loop {
-            let doc_start = self.pos;
-            let annotations = self.parse_annotations()?;
-            let field_name = self.expect_ident("field name")?;
-            self.expect("`:`", |k| matches!(k, TokenKind::Colon))?;
-            let ty = self.parse_type_ref()?;
-            if matches!(self.peek().kind, TokenKind::Equal) {
-                return Err(Diagnostic::at(
-                    self.peek().span,
-                    "variant field defaults require the constructor-style form (milestone M4)",
-                ));
-            }
-            self.attach_documentation(doc_start, Span::new(field_name.span.start, ty.span.end));
-            fields.push(VariantFieldDecl {
-                annotations,
-                span: Span::new(field_name.span.start, ty.span.end),
-                name: field_name,
-                ty,
-                syntax: ParameterSyntax::Required,
-            });
-            if matches!(self.peek().kind, TokenKind::Comma) {
-                self.bump();
-            } else {
-                let token = self.peek();
-                if !token.newline_before && !matches!(token.kind, TokenKind::RBrace) {
-                    return self.unexpected("`,` or newline after field");
-                }
-            }
-            if matches!(self.peek().kind, TokenKind::RBrace) {
-                break;
-            }
-            if matches!(self.peek().kind, TokenKind::Eof) {
-                return self.unexpected("`}`");
-            }
-        }
-        let close = self.expect("`}`", |k| matches!(k, TokenKind::RBrace))?;
-        Ok((fields, close.span.end))
     }
 }

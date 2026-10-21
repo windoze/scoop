@@ -26,6 +26,7 @@
 - 聚合语法恢复：扩展到主／次构造器、匿名函数与 context 参数、注解实参／数组、数组表达式和元组表达式／类型，保留各自空项与尾随逗号规则。构造器项和列表 follow 规则按职责拆入子模块；修复单个 `@` 在 EOF 的越界读取。格式化、全 workspace Clippy、parser／doc 的 575 项测试通过，新增各类坏项后的正常同级项、全部源码前缀与既有文档合同验证。
 - lambda／when 恢复：参数表只在消费实际 header 箭头后提交，坏参数旁的完整参数及正文保留；普通 lambda 正文的试探完整回退。when 在所属块内恢复坏 arm，并保持 case／guard／else 规则。缺失成员 selector 明确记录 Name。格式化、全 workspace Clippy 和 parser 的 556 项测试通过，覆盖正常消歧、错误分支、receiver 与后续语句。
 - 模式恢复：位置、tuple 与字段模式复用各自列表边界，坏模式项后的绑定及后续 when arm 可遍历；保留 Unit 简写、括号／tuple 区别和 rest 的位置／唯一性规则。模式的原子与聚合规则拆为独立子模块。格式化、全 workspace Clippy 和 parser 的 559 项测试通过。
+- 字段恢复：struct、enum 三种字段形式与注解声明参数均保留错误项后的同级字段及后续成员，沿用各自空表、默认值、不可变性、换行与逗号规则。字段 grammar 按职责拆入子模块。格式化、全 workspace Clippy 与 parser／doc 的 586 项测试通过。
 
 ## 环境与验证策略
 

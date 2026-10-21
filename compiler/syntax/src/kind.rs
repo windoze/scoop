@@ -111,6 +111,7 @@ syntax_kinds! {
     Declaration,
     FunctionDecl,
     PropertyDecl,
+    FieldDecl,
     StructDecl,
     ClassDecl,
     EnumDecl,

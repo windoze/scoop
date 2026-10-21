@@ -58,6 +58,10 @@ impl Parser {
                 break;
             }
             if kind.starts_item(self) {
+                if kind.allows_newline_separator() && self.peek().newline_before {
+                    required = true;
+                    continue;
+                }
                 let diagnostic = self.missing_diagnostic(
                     ExpectedSyntax::Token(SyntaxKind::Comma),
                     "`,` between list items",

@@ -15,19 +15,24 @@ pub(crate) enum ListKind {
     LambdaParameters,
     PatternElements,
     NamedPatternElements,
+    AnnotationParameters,
+    PositionalVariantFields,
+    NamedVariantFields,
 }
 
 impl ListKind {
     pub(super) fn close(self) -> TokenKind {
         match self {
             Self::LambdaParameters => TokenKind::Arrow,
-            Self::NamedPatternElements => TokenKind::RBrace,
+            Self::NamedPatternElements | Self::NamedVariantFields => TokenKind::RBrace,
             Self::FunctionParameters
             | Self::CallArguments
             | Self::TypeElements
             | Self::ParenExpressions
             | Self::AnnotationArguments
-            | Self::PatternElements => TokenKind::RParen,
+            | Self::PatternElements
+            | Self::AnnotationParameters
+            | Self::PositionalVariantFields => TokenKind::RParen,
             Self::ArrayElements | Self::AnnotationElements => TokenKind::RBracket,
             Self::TypeArguments | Self::TypeParameters => TokenKind::Greater,
         }
@@ -36,13 +41,15 @@ impl ListKind {
     pub(super) fn close_label(self) -> &'static str {
         match self {
             Self::LambdaParameters => "`->`",
-            Self::NamedPatternElements => "`}`",
+            Self::NamedPatternElements | Self::NamedVariantFields => "`}`",
             Self::FunctionParameters
             | Self::CallArguments
             | Self::TypeElements
             | Self::ParenExpressions
             | Self::AnnotationArguments
-            | Self::PatternElements => "`)`",
+            | Self::PatternElements
+            | Self::AnnotationParameters
+            | Self::PositionalVariantFields => "`)`",
             Self::ArrayElements | Self::AnnotationElements => "`]`",
             Self::TypeArguments | Self::TypeParameters => "`>`",
         }
@@ -51,7 +58,11 @@ impl ListKind {
     pub(super) fn requires_item(self) -> bool {
         matches!(
             self,
-            Self::TypeArguments | Self::TypeParameters | Self::LambdaParameters
+            Self::TypeArguments
+                | Self::TypeParameters
+                | Self::LambdaParameters
+                | Self::PositionalVariantFields
+                | Self::NamedVariantFields
         )
     }
 
@@ -71,6 +82,8 @@ impl ListKind {
                 | Self::AnnotationElements
                 | Self::PatternElements
                 | Self::NamedPatternElements
+                | Self::AnnotationParameters
+                | Self::NamedVariantFields
         )
     }
 
@@ -80,6 +93,12 @@ impl ListKind {
             return true;
         }
         match self {
+            Self::AnnotationParameters => matches!(token, TokenKind::Val),
+            Self::PositionalVariantFields => matches!(
+                token,
+                TokenKind::At | TokenKind::LParen | TokenKind::Suspend
+            ),
+            Self::NamedVariantFields => matches!(token, TokenKind::At),
             Self::NamedPatternElements => matches!(token, TokenKind::DotDot),
             Self::PatternElements => matches!(
                 token,
@@ -160,6 +179,18 @@ impl ListKind {
             return true;
         }
         match self {
+            Self::AnnotationParameters | Self::PositionalVariantFields => {
+                Self::FunctionParameters.at_follow(parser)
+            }
+            Self::NamedVariantFields => matches!(
+                token,
+                TokenKind::Fun
+                    | TokenKind::Class
+                    | TokenKind::Struct
+                    | TokenKind::Interface
+                    | TokenKind::Val
+                    | TokenKind::Var
+            ),
             Self::PatternElements | Self::NamedPatternElements => {
                 matches!(token, TokenKind::Arrow | TokenKind::If | TokenKind::Equal)
             }
@@ -237,7 +268,15 @@ impl ListKind {
 
     pub(super) fn at_recovery_follow(self, parser: &Parser) -> bool {
         self.at_follow(parser)
-            && !(matches!(self, Self::FunctionParameters)
-                && matches!(parser.peek().kind, TokenKind::Colon | TokenKind::Equal))
+            && !(matches!(
+                self,
+                Self::FunctionParameters
+                    | Self::AnnotationParameters
+                    | Self::PositionalVariantFields
+            ) && matches!(parser.peek().kind, TokenKind::Colon | TokenKind::Equal))
+    }
+
+    pub(super) fn allows_newline_separator(self) -> bool {
+        matches!(self, Self::NamedVariantFields)
     }
 }

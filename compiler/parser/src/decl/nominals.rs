@@ -1,6 +1,7 @@
 use super::*;
 
 mod constructors;
+mod fields;
 mod members;
 mod prefix;
 mod release;
@@ -39,46 +40,8 @@ impl Parser {
         let name = self.expect_ident("struct name")?;
         let type_params = self.parse_type_params()?;
         let (fields, mut end) = if matches!(self.peek().kind, TokenKind::LParen) {
-            self.bump();
-            let mut fields = Vec::new();
-            let mut vararg_span = None;
-            if !matches!(self.peek().kind, TokenKind::RParen) {
-                loop {
-                    let doc_start = self.pos;
-                    let annotations = self.parse_annotations()?;
-                    let modifier_span = self.parse_vararg_modifier(&mut vararg_span)?;
-                    if matches!(self.peek().kind, TokenKind::Var) {
-                        return Err(Diagnostic::at(
-                            self.peek().span,
-                            "`var` struct fields are not supported (value types are immutable)",
-                        ));
-                    }
-                    let val = self.expect("`val`", |k| matches!(k, TokenKind::Val))?;
-                    let field_name = self.expect_ident("field name")?;
-                    self.expect("`:`", |k| matches!(k, TokenKind::Colon))?;
-                    let ty = self.parse_type_ref()?;
-                    let (syntax, end) = self.parse_parameter_syntax(modifier_span, ty.span.end)?;
-                    let documented = FieldDecl {
-                        annotations,
-                        span: Span::new(
-                            modifier_span.map_or(val.span.start, |span| span.start),
-                            end,
-                        ),
-                        name: field_name,
-                        ty,
-                        syntax,
-                    };
-                    self.attach_documentation(doc_start, documented.span);
-                    fields.push(documented);
-                    if matches!(self.peek().kind, TokenKind::Comma) {
-                        self.bump();
-                    } else {
-                        break;
-                    }
-                }
-            }
-            let close = self.expect("`)`", |k| matches!(k, TokenKind::RParen))?;
-            (StructRepresentationDecl::Declared(fields), close.span.end)
+            let (fields, end) = self.parse_struct_fields()?;
+            (StructRepresentationDecl::Declared(fields), end)
         } else {
             (StructRepresentationDecl::Omitted, name.span.end)
         };
