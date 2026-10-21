@@ -28,7 +28,15 @@ impl Lowerer {
             self.report_missing_generated_methods();
             return;
         }
-        let bodies = generator.generate(&mut FrontendQueries { lowerer: self });
+        // The same COW snapshot mechanism already isolates overload probes.
+        // A query-only type application must not become a source use in the
+        // compiled program, including after a rejected type query.
+        let mut view = self.clone();
+        view.in_semantic_query = true;
+        let bodies = generator.generate(&mut FrontendQueries { lowerer: &mut view });
+        self.query_source_function_identities = view.query_source_function_identities;
+        self.property_identity_records = view.property_identity_records;
+        self.field_identity_builder = view.field_identity_builder;
         match bodies {
             Ok(bodies) => {
                 for generated in bodies {

@@ -3,12 +3,18 @@ mod names;
 
 impl Lowerer {
     pub(crate) fn resolve_type_ref(&mut self, ty_ref: &ast::TypeRef) -> Option<TypeId> {
+        if self.in_semantic_query {
+            self.validate_query_type_annotations(ty_ref);
+        }
         let recording = self.begin_type_annotations(ty_ref);
         let ty = self.resolve_type_ref_shape(ty_ref);
         if recording {
             self.end_type_annotations(ty_ref, ty);
         }
         let ty = ty?;
+        if self.in_semantic_query {
+            return Some(ty);
+        }
         self.document_type_use(ty_ref, ty);
         if matches!(
             self.types[ty],

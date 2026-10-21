@@ -25,6 +25,7 @@ impl FrontendQueries<'_> {
             }
         };
         let previous_file = std::mem::replace(&mut self.lowerer.current_file, file);
+        let previous_query = std::mem::replace(&mut self.lowerer.in_semantic_query, true);
         let previous_owner = std::mem::replace(&mut self.lowerer.current_owner, owner);
         let previous_parameters =
             std::mem::replace(&mut self.lowerer.type_params_in_scope, parameters);
@@ -42,6 +43,7 @@ impl FrontendQueries<'_> {
             self.lowerer.local_function_scopes = functions;
         }
         self.lowerer.current_file = previous_file;
+        self.lowerer.in_semantic_query = previous_query;
         self.lowerer.current_owner = previous_owner;
         self.lowerer.type_params_in_scope = previous_parameters;
         value

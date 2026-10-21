@@ -100,7 +100,7 @@ fn missing_method_keeps_one_signature_and_all_real_requirements() {
             queries.type_signature(context, ty).unwrap(),
             scoop_identity::SignatureTypeKey::Binder { depth: 0, index: 0 }
         );
-        assert_eq!(queries.describe_type(context, ty).name, "T");
+        assert_eq!(queries.describe_type(context, ty).unwrap().name, "T");
         queried_identity = Some((function, queries.method_identity(function).unwrap()));
         Ok(vec![generated(queries, function, "{ return value }")])
     });

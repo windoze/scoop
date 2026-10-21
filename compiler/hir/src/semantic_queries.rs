@@ -13,6 +13,8 @@ mod annotations;
 pub use annotations::*;
 mod bodies;
 pub use bodies::*;
+mod types;
+pub use types::*;
 
 /// A context already established by ordinary declaration binding.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -47,7 +49,7 @@ pub struct SemanticFunctionSignature {
 #[derive(Clone, Debug)]
 pub struct SemanticTypeDescription {
     pub ty: TypeId,
-    pub kind: Type,
+    pub structure: SemanticTypeStructure,
     pub name: String,
     pub parents: Vec<TypeId>,
 }
@@ -84,7 +86,11 @@ pub trait SemanticQueries {
         context: SemanticContext,
         ty: TypeId,
     ) -> Result<SignatureTypeKey, Diagnostic>;
-    fn describe_type(&mut self, context: SemanticContext, ty: TypeId) -> SemanticTypeDescription;
+    fn describe_type(
+        &mut self,
+        context: SemanticContext,
+        ty: TypeId,
+    ) -> Result<SemanticTypeDescription, StaticShapeUnboundParameter>;
     fn type_relation(
         &mut self,
         context: SemanticContext,

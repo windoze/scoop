@@ -3,10 +3,13 @@
 use scoop_hir as hir;
 use scoop_identity::{CallableTemplateOrigin, ConeCoordinate};
 
-use super::m23_ordinary_core_only::support::{parsed_ordinary_text, trusted_core};
+use super::m23_ordinary_core_only::support::trusted_core;
 use super::m23_ordinary_dependencies::support::{alias_expansions, project_dependency_text};
 use crate::semantic_queries::FrontendQueries;
 use hir::{SemanticBodyAvailability as Availability, SemanticQueries};
+
+mod support;
+mod types;
 
 fn body_reference(declaration: CallableTemplateOrigin) -> hir::SemanticCallable {
     use hir::DefaultCallableDeclarationV1 as Body;
@@ -153,40 +156,11 @@ fn inherited_default_query_preserves_the_dependency_definition_scope() {
             Ok(Vec::new())
         }
     }
-    let mut core = trusted_core();
-    let coordinate = ConeCoordinate::new("test", "default-query-provider", "1.0.0").unwrap();
-    let (foundation, interface) = project_dependency_text(
-        &core,
-        &coordinate,
-        "public annotation class Mark\npublic interface Picker<T> { public fun choose(first: T, second: T = first): T }",
-        &[],
-    );
-    let aliases = alias_expansions(interface.type_aliases());
-    let imported = core.import_dependency_foundation(&coordinate, &foundation, 184);
-    let sources = parsed_ordinary_text(
-        "class Choice<T> : Picker<T> { @Mark public override fun choose(first: T, second: T): T = second }",
-    );
-    let world = hir::ImportedSemanticWorld::from_dependencies(
-        sources.cone(),
-        vec![
-            core.provider(),
-            hir::ImportedProviderInput {
-                foundation: &imported,
-                interface: &interface,
-                alias_expansions: &aliases,
-            },
-        ],
-        vec![],
-    )
-    .unwrap();
-    let core_inputs = core.foundation.import_core_inputs(&core.interface).unwrap();
-    let input = crate::CurrentConeSources::try_new(&sources, core_inputs, &world).unwrap();
     let mut inspection = InspectDefault(false);
-    crate::lower_current_cone_with_generator(
-        scoop_identity::RequestedConeKind::Library,
-        &input,
+    support::with_provider(
+        "public annotation class Mark\npublic interface Picker<T> { public fun choose(first: T, second: T = first): T }",
+        "class Choice<T> : Picker<T> { @Mark public override fun choose(first: T, second: T): T = second }",
         &mut inspection,
-    )
-    .unwrap();
+    );
     assert!(inspection.0);
 }

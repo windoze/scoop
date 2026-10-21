@@ -7,6 +7,7 @@ use scoop_identity::SignatureTypeKey;
 
 mod context;
 mod declarations;
+mod types;
 
 pub(crate) struct FrontendQueries<'a> {
     pub(crate) lowerer: &'a mut Lowerer,
@@ -162,13 +163,8 @@ impl hir::SemanticQueries for FrontendQueries<'_> {
         &mut self,
         context: hir::SemanticContext,
         ty: hir::TypeId,
-    ) -> hir::SemanticTypeDescription {
-        self.in_context(context, |lowerer| hir::SemanticTypeDescription {
-            ty,
-            kind: lowerer.types[ty].clone(),
-            name: lowerer.type_name(ty),
-            parents: lowerer.direct_nominal_supertypes(ty),
-        })
+    ) -> Result<hir::SemanticTypeDescription, hir::StaticShapeUnboundParameter> {
+        self.in_context(context, |lowerer| lowerer.describe_semantic_type(ty))
     }
 
     fn type_relation(
@@ -201,7 +197,9 @@ impl hir::SemanticQueries for FrontendQueries<'_> {
     ) -> Result<hir::TypeId, Vec<Diagnostic>> {
         self.in_context(context, |lowerer| {
             let before = lowerer.diagnostics.len();
-            let result = lowerer.resolve_type_ref(syntax);
+            let result = lowerer
+                .resolve_type_ref(syntax)
+                .filter(|ty| lowerer.check_query_type_representation(*ty, syntax.span));
             let mut diagnostics = lowerer.diagnostics.split_off(before);
             let sources = lowerer.diagnostic_source_identities();
             for diagnostic in &mut diagnostics {

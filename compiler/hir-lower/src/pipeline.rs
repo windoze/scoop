@@ -427,6 +427,7 @@ impl Lowerer {
             smart_casts: Default::default(),
             current_file: 0,
             generated_source_file: None,
+            in_semantic_query: false,
             intrinsic_sources: Shared::default(),
             test_dependencies: Default::default(),
             source_names: std::collections::BTreeMap::new(),

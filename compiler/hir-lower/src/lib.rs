@@ -906,6 +906,8 @@ pub(crate) struct Lowerer {
     pub(crate) current_file: usize,
     /// Text provenance may differ from the method's lexical input file.
     pub(crate) generated_source_file: Option<usize>,
+    /// Read-only queries may intern types but do not request executable uses.
+    pub(crate) in_semantic_query: bool,
     intrinsic_sources: Shared<Vec<SourceProvider>>,
     test_dependencies: std::collections::BTreeSet<scoop_identity::ConeIdentity>,
     source_names: std::collections::BTreeMap<scoop_identity::ConeIdentity, String>,
