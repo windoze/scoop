@@ -1,0 +1,2 @@
+package dev.m33
+public fun answer(): Int = 42

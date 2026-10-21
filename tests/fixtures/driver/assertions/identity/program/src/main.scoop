@@ -1,0 +1,28 @@
+package dev.m43
+import scoop.test.*
+
+class Box(val value: Int)
+
+fun verify(condition: Boolean) {
+    if (!condition) throw Exception(Some("identity assertion contract"))
+}
+
+fun capture(block: () -> Unit): AssertionFailure {
+    try { block() } catch (error: AssertionFailure) { return error }
+    throw Exception(Some("expected assertion failure"))
+}
+
+fun main() {
+    val left = Box(1)
+    val right = Box(1)
+    assertSame(left, left)
+    assertNotSame(left, right)
+    val different = capture { assertSame(left, right) }
+    val identical = capture { assertNotSame(left, left) }
+    verify(different.kind == "assertSame" && identical.kind == "assertNotSame")
+    verify(when (different.expected) { case AssertionValue.Unavailable -> true; else -> false })
+    verify(when (different.actual) { case AssertionValue.Unavailable -> true; else -> false })
+    val erased: Any = left
+    assertSame<Any>(left, erased)
+    println("identity assertions passed")
+}

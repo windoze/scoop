@@ -1,4 +1,0 @@
-package example
-
-/// API selected for x86_64-unknown-linux-gnu.
-public fun selectedPlatform(): Int = 2

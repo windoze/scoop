@@ -1,0 +1,10 @@
+package scoop.json.tests.consumer.container_encoding_artifacts.p2
+
+import scoop.test.*
+
+import scoop.json.tests.consumer.container_encoding_artifacts.p1.shared
+
+public fun nested(): Array<Option<Int>> = shared()
+public fun independent(): Any = Array<Option<Int>>(2L) { index ->
+    if (index == 0L) { None } else { Some(1) }
+}

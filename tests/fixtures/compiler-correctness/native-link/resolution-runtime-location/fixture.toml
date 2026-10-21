@@ -1,0 +1,109 @@
+schema = 1
+name = "native-link-resolution-runtime-location"
+inputs = ["cone", "../../../language/native-link/direct/root.scoop", "../../../language/native-link/direct/native.c"]
+tools = ["scoop", "scoopc", "cc"]
+# This fixture exercises Mach-O dylib, dyld namespace, or framework behavior.
+targets = ["aarch64-apple-darwin"]
+tags = ["native-link", "program-link", "compiler-correctness"]
+[[steps]]
+name = "prepare"
+files = [{"copy" = {"from" = "${fixture}/cone", "to" = "${work}/sources/paths"}}, {"copy" = {"from" = "${fixture}/../../../language/native-link/direct/root.scoop", "to" = "${work}/sources/paths/src/main.scoop"}}, {"mkdir" = {"path" = "${work}/native"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "prepare_compile_m23_math"
+files = [{"copy" = {"from" = "${fixture}/../../../language/native-link/direct/native.c", "to" = "${work}/sources/native/build-m23_math.c"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "compile_m23_math"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/build-m23_math.c", "-o", "${work}/objects/build-m23_math.o"]
+exit = 0
+stdout = ""
+stderr = ""
+[[steps]]
+name = "dylib_m23_math"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-dynamiclib", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "${work}/objects/build-m23_math.o", "-install_name", "@rpath/libm23_math.dylib", "-current_version", "2.0", "-compatibility_version", "1.0", "-Wl,-headerpad_max_install_names", "-o", "${work}/native/libm23_math.dylib"]
+exit = 0
+stdout = ""
+stderr = ""
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${work}/sources/paths", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_link_inputs_isolate"
+files = [
+  {"copy" = {"from" = "${build.result.root.path}", "to" = "${work}/artifacts/root.slib"}},
+  {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/0.slib"}},
+]
+checks = []
+
+[[steps]]
+name = "link"
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native", "--dump-plan", "--cache-dir", "${cache}"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"actual" = "${link.result.link_plan}", "snapshot" = "link.plan", "normalize" = ["paths", "native-digests", "native-link-plan"]}]
+
+[[steps]]
+name = "run_original"
+argv = ["${link.result.output}"]
+exit = 0
+stdout = "42\n"
+stderr = ""
+
+[[steps]]
+name = "copy_provider"
+files = [{"copy" = {"from" = "${work}/native/libm23_math.dylib", "to" = "${work}/moved/native/libm23_math.dylib"}}]
+checks = []
+
+[[steps]]
+name = "relocated"
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", "--target", "${target}", "--message-format", "json", "-o", "${work}/moved/program", "--library-path", "${work}/moved/native", "--dump-plan", "--cache-dir", "${cache}"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"actual" = "${relocated.result.link_plan}", "not_equals" = "${link.result.link_plan}"}, {"actual" = "${relocated.result.link_plan}", "contains" = "moved/native"}, {"actual" = "${relocated.result.link_plan_fingerprint}", "not_equals" = "${link.result.link_plan_fingerprint}"}, {"actual" = "${relocated.result.link_plan}", "snapshot" = "relocated.plan", "normalize" = ["paths", "native-digests", "native-link-plan"]}]
+
+[[steps]]
+name = "run_relocated"
+argv = ["${relocated.result.output}"]
+exit = 0
+stdout = "42\n"
+stderr = ""
+
+[[steps]]
+name = "change_install_name"
+argv = ["/usr/bin/install_name_tool", "-id", "${work}/moved/native/libm23_math.dylib", "${work}/moved/native/libm23_math.dylib"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "renamed"
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", "--target", "${target}", "--message-format", "json", "-o", "${work}/moved/program", "--library-path", "${work}/moved/native", "--dump-plan", "--cache-dir", "${cache}"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"actual" = "${renamed.result.link_plan}", "not_equals" = "${relocated.result.link_plan}"}, {"actual" = "${renamed.result.link_plan}", "not_contains" = "rpath "}, {"actual" = "${renamed.result.link_plan_fingerprint}", "not_equals" = "${relocated.result.link_plan_fingerprint}"}]
+
+[[steps]]
+name = "run_renamed"
+argv = ["${renamed.result.output}"]
+exit = 0
+stdout = "42\n"
+stderr = ""

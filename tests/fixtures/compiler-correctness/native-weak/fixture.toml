@@ -1,0 +1,22 @@
+schema = 1
+name = "native-weak"
+inputs = ["absent", "present", "native"]
+tools = ["scoop", "scoopc"]
+targets = ["x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["native", "elf", "ffi", "link", "compiler-correctness"]
+variants = [{"name" = "absent-release", "vars" = {"cone" = "absent", "mode" = ["--release"]}}, {"name" = "present-release", "vars" = {"cone" = "present", "mode" = ["--release"]}}]
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${fixture}/${cone}", {each = "${mode}"}, {each = "${link_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "native weak references follow the target linker\n"
+stderr = ""

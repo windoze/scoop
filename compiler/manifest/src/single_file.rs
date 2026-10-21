@@ -6,6 +6,9 @@ use scoop_identity::SourceIdentity;
 
 use crate::{DiscoveredSource, SelectedSource, SourceDisplayLocator};
 
+mod header;
+pub use header::{SingleFileDependency, SingleFileHeaderError, parse_single_file_dependencies};
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SingleFileLocator {
     display_path: PathBuf,
@@ -61,6 +64,8 @@ pub enum SingleFileInputIoOperation {
     Canonicalize,
     Inspect,
     Read,
+    Write,
+    Lock,
 }
 
 impl fmt::Display for SingleFileInputIoOperation {
@@ -69,6 +74,8 @@ impl fmt::Display for SingleFileInputIoOperation {
             Self::Canonicalize => "canonicalize",
             Self::Inspect => "inspect",
             Self::Read => "read",
+            Self::Write => "write",
+            Self::Lock => "lock",
         })
     }
 }
@@ -84,7 +91,11 @@ impl SingleFileInputError {
         Self { path, kind }
     }
 
-    fn io(operation: SingleFileInputIoOperation, path: PathBuf, source: std::io::Error) -> Self {
+    pub fn io(
+        operation: SingleFileInputIoOperation,
+        path: PathBuf,
+        source: std::io::Error,
+    ) -> Self {
         Self::new(path, SingleFileInputErrorKind::Io { operation, source })
     }
 
@@ -95,6 +106,17 @@ impl SingleFileInputError {
     pub fn kind(&self) -> &SingleFileInputErrorKind {
         &self.kind
     }
+
+    pub fn header(path: PathBuf, error: SingleFileHeaderError) -> Self {
+        Self::new(path, SingleFileInputErrorKind::Header(error))
+    }
+
+    pub fn span(&self) -> Option<std::ops::Range<usize>> {
+        match &self.kind {
+            SingleFileInputErrorKind::Header(error) => Some(error.span.clone()),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -102,6 +124,7 @@ pub enum SingleFileInputErrorKind {
     InvalidExtension,
     NotRegularFile,
     InvalidUtf8,
+    Header(SingleFileHeaderError),
 
     Io {
         operation: SingleFileInputIoOperation,
@@ -126,6 +149,11 @@ impl fmt::Display for SingleFileInputError {
             SingleFileInputErrorKind::InvalidUtf8 => {
                 formatter.write_str("source file is not valid UTF-8")
             }
+            SingleFileInputErrorKind::Header(error) => write!(
+                formatter,
+                "{}..{}: {error}",
+                error.span.start, error.span.end
+            ),
             SingleFileInputErrorKind::Io { operation, source } => {
                 write!(formatter, "cannot {operation}: {source}")
             }

@@ -1,8 +1,8 @@
-package scoop.tls.testnative
+package scoop.tests.scoop.tls.testnative
 
 import scoop.crypto.PrivateKey
 import scoop.crypto.native.*
-import scoop.crypto.testdata.*
+import scoop.tests.scoop.crypto.testdata.*
 import scoop.crypto.x509.Certificate
 
 // Keep platform-policy tests current without weakening the TLS validity rules.

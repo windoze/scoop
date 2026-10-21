@@ -1,3 +1,0 @@
-import releasegeneric.Owner
-
-public typealias BadOwner = Owner<String>

@@ -204,7 +204,10 @@ pub enum EdgeOrigin {
     InjectedTrustedCore {
         dependent: ConeIdentity,
     },
-    SyntheticSingleFileCore,
+    SingleFile {
+        source: PathBuf,
+        span: Option<Range<usize>>,
+    },
 }
 
 impl Ord for EdgeOrigin {
@@ -248,7 +251,20 @@ impl Ord for EdgeOrigin {
                         dependent: right_dependent,
                     },
                 ) => left_dependent.cmp(right_dependent),
-                (Self::SyntheticSingleFileCore, Self::SyntheticSingleFileCore) => Ordering::Equal,
+                (
+                    Self::SingleFile {
+                        source: left,
+                        span: a,
+                    },
+                    Self::SingleFile {
+                        source: right,
+                        span: b,
+                    },
+                ) => left.cmp(right).then_with(|| {
+                    a.as_ref()
+                        .map(|span| (span.start, span.end))
+                        .cmp(&b.as_ref().map(|span| (span.start, span.end)))
+                }),
                 _ => Ordering::Equal,
             })
     }
@@ -265,7 +281,7 @@ const fn edge_origin_rank(origin: &EdgeOrigin) -> u8 {
         EdgeOrigin::ManifestDeclaration { .. } => 0,
         EdgeOrigin::ArtifactDependencyRecord { .. } => 1,
         EdgeOrigin::InjectedTrustedCore { .. } => 2,
-        EdgeOrigin::SyntheticSingleFileCore => 3,
+        EdgeOrigin::SingleFile { .. } => 3,
     }
 }
 
@@ -320,12 +336,14 @@ pub(crate) fn compare_coordinates(left: &ConeCoordinate, right: &ConeCoordinate)
 #[derive(Debug)]
 pub enum LoadBuildRootError {
     RootManifest(ManifestRootError),
+    SingleFile(scoop_manifest::SingleFileInputError),
 }
 
 impl fmt::Display for LoadBuildRootError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::RootManifest(error) => write!(formatter, "invalid build root: {error}"),
+            Self::SingleFile(error) => error.fmt(formatter),
         }
     }
 }
@@ -334,6 +352,7 @@ impl std::error::Error for LoadBuildRootError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::RootManifest(error) => Some(error),
+            Self::SingleFile(error) => Some(error),
         }
     }
 }

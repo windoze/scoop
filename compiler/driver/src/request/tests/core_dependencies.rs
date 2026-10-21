@@ -5,7 +5,9 @@ fn core_request_retains_direct_and_support_inputs_for_common_preflight() {
     let directory = TempDirectory::new();
     std::fs::write(
         directory.0.join("Cone.toml"),
-        include_str!("../../../../../tests/fixtures/core-library/dependencies/core/Cone.toml"),
+        include_str!(
+            "../../../../../tests/fixtures/language/core-library/dependencies/core/Cone.toml"
+        ),
     )
     .unwrap();
     let direct = directory.0.join("helper.slib");

@@ -7,7 +7,7 @@ use scoop_identity::{
 #[test]
 fn shared_callable_selection_includes_support_bodies_and_abstract_overrides() {
     let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/m23-core-layout-exports");
+        .join("../../tests/fixtures/language/core-layout-exports");
     for (case, count) in [("standalone", 3), ("combined", 15)] {
         let source =
             std::fs::read_to_string(directory.join(format!("shared-callables-{case}.scoop")))

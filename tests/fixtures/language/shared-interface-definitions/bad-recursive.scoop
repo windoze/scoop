@@ -1,0 +1,4 @@
+package dev.example
+import dev.example.upstream.interfaceDefinitions.*
+public fun wrong(value: Swap<Int, Unit>, other: Swap<Unit, Int>): Swap<Int, Unit> =
+    value.same(other)

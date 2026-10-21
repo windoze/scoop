@@ -1,3 +1,0 @@
-import dependency.protected_source.*
-
-public class Child: Surface() { public fun readAll(): Int = stored + computed + virtualValue }

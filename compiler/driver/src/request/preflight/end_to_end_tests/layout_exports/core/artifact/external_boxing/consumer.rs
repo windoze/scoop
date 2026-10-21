@@ -230,7 +230,7 @@ pub(super) fn check_ir(
 }
 
 pub(super) fn snapshot(module: &Module, references: bool) {
-    let directory = crate::workspace_root().join("tests/fixtures/m23-external-boxing");
+    let directory = crate::workspace_root().join("tests/fixtures/language/external-boxing");
     let name = if references { "combined" } else { "standalone" };
     let path = directory.join(format!("{name}.lir.snap"));
     let actual = scoop_lir::dump(module);

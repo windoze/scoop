@@ -1,0 +1,5 @@
+package dev.example.consumer.options
+
+import dev.example.dependency.options.IntPacket
+
+public fun result(): Any = IntPacket.Item("wrong")

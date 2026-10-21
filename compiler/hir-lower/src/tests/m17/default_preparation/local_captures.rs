@@ -5,14 +5,14 @@ mod validation;
 
 const COMBINATIONS: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../tests/fixtures/m23-type-source-defaults/nested-capture-combinations.scoop"
+    "/../../tests/fixtures/language/type-source-defaults/nested-capture-combinations.scoop"
 ));
 
 #[test]
 fn default_local_captures_keep_source_values_and_body_abi() {
     let output = lower_source(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../tests/fixtures/m23-type-source-defaults/nested-local-captures.scoop"
+        "/../../tests/fixtures/language/type-source-defaults/nested-local-captures.scoop"
     )))
     .unwrap();
     identities::check_parameter_aliases(&output, "localCall", 1);
@@ -41,7 +41,7 @@ fn default_local_captures_combine_generics_local_defaults_and_repeated_closures(
 fn repeated_defaults_reuse_anonymous_bodies_and_separate_reference_creations() {
     let output = lower_source(include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../tests/fixtures/m23-type-source-defaults/repeated-default-closures.scoop"
+        "/../../tests/fixtures/language/type-source-defaults/repeated-default-closures.scoop"
     )))
     .unwrap();
     let module = &output.local;

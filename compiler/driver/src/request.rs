@@ -203,7 +203,6 @@ pub enum SingleConeBuildRequestError {
     },
     CurrentDirectory(std::io::Error),
     InvalidCurrentCoreCombination,
-    SingleFileHasDependencies,
     TestRequiresManifest,
     DocumentationRequiresProductionManifest,
     DocumentationMachineDump,
@@ -233,9 +232,7 @@ impl fmt::Display for SingleConeBuildRequestError {
             }
             Self::InvalidCurrentCoreCombination => formatter
                 .write_str("current Cone input and trusted core input are not a permitted pair"),
-            Self::SingleFileHasDependencies => {
-                formatter.write_str("single-file input cannot carry direct or support artifacts")
-            }
+
             Self::TestRequiresManifest => {
                 formatter.write_str("test compilation requires a manifest Cone")
             }
@@ -317,13 +314,7 @@ fn validate_request_shape(
         (
             CurrentConeInput::SingleFile { .. },
             TrustedCoreInput::Artifact(_) | TrustedCoreInput::DependenciesOrDefault { .. },
-        ) => {
-            if dependencies.is_empty() {
-                Ok(())
-            } else {
-                Err(SingleConeBuildRequestError::SingleFileHasDependencies)
-            }
-        }
+        ) => Ok(()),
         _ => Err(SingleConeBuildRequestError::InvalidCurrentCoreCombination),
     }?;
     if let Some(output) = output.artifact() {

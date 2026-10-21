@@ -1,0 +1,4 @@
+package test
+import test.dependency.generics.select
+
+public fun selected(): Int = select((1, true))

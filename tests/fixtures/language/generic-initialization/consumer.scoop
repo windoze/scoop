@@ -1,0 +1,5 @@
+package dev.example.consumer.initialization
+
+import dev.example.templates.initialization.result
+
+public fun answer(): Int = result()

@@ -1,0 +1,3 @@
+package dev.m37.second
+import dev.m37.first.Root
+class Child : Root()

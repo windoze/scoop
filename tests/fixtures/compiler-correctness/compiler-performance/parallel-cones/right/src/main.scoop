@@ -1,0 +1,3 @@
+package dev.performance.performance.parallel.right
+import dev.performance.performance.parallel.base.retain
+public fun right(): Int = retain(22)

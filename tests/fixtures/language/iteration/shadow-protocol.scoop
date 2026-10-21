@@ -1,0 +1,6 @@
+package dev.example
+import dev.example.upstream.iteration.*
+
+class Iterator<T>
+class Source { public operator fun iterator(): Iterator<Int> = Iterator<Int>() }
+public fun invalid() { for (value in Source()) {} }

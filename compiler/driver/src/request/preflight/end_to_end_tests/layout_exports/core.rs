@@ -109,7 +109,7 @@ fn property_initialization_uses_close_source_mir_lir_and_both_artifact_views() {
 
 fn check_core_layout_exports(names: &[&str]) {
     let target = resolved_target().expect("core layout exports require a host target");
-    let fixtures = crate::workspace_root().join("tests/fixtures/m23-core-layout-exports");
+    let fixtures = crate::workspace_root().join("tests/fixtures/language/core-layout-exports");
     for &name in names {
         let directory = tempfile::tempdir().unwrap();
         copy_trusted_core_sources(directory.path());

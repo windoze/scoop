@@ -1,0 +1,11 @@
+#!/path/to/scoop run
+//! dep: scoop:scoop.json:0.1.0
+import scoop.uuid.Uuid
+import scoop.json.Json
+
+fun main(args: Array<String>) {
+    println(Uuid(0uL, 0uL))
+    println(Json.encodeToString<Int>(42))
+    var index = 1L
+    while (index < args.size) { println(args[index]); index += 1L }
+}

@@ -5,7 +5,7 @@ use scoop_ast::{
 use scoop_identity::{ConeIdentity, NormalizedSourcePath, SourceIdentity};
 
 pub(super) fn core_sources() -> CurrentConeParsedSources {
-    let fixtures = crate::workspace_root().join("tests/fixtures/core-library");
+    let fixtures = crate::workspace_root().join("tests/fixtures/language/core-library");
     let additional = ["dependency-calls", "dependency-locals"].map(|name| {
         (
             format!("src/user-{name}.scoop"),

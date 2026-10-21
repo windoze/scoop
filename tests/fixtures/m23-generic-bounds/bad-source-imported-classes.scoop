@@ -1,3 +1,0 @@
-import templates.bounds.*
-
-public fun <T> result(value: T): Int where T : PlainBase, T : Base<Int> = 0

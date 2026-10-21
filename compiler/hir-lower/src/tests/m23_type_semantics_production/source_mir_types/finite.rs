@@ -3,7 +3,7 @@ use super::*;
 #[test]
 fn finite_boxes_export_direct_interfaces_while_machine_dispatch_keeps_the_diamond() {
     let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/m23-mir-boxing-production");
+        .join("../../tests/fixtures/language/mir-boxing-production");
     let source = std::fs::read_to_string(directory.join("combined.scoop")).unwrap();
     with_production(&source, |_, input, _, graph, sources| {
         let finite =

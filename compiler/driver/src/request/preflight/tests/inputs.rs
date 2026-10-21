@@ -77,6 +77,7 @@ fn empty_core_dependencies_run_the_shared_closure() {
             ConeIdentity::CORE,
             target.lir_target_selection(),
             CompilationPurpose::Production,
+            &[],
         )
         .unwrap();
     assert!(validated.is_empty());
@@ -87,9 +88,9 @@ fn empty_core_dependencies_run_the_shared_closure() {
     assert_eq!(world.provider_count(), 0);
 
     assert!(matches!(
-        loaded.validate_inner(None, ConeIdentity::SINGLE_FILE, target.lir_target_selection(), CompilationPurpose::Production),
+        loaded.validate_inner(None, ConeIdentity::SINGLE_FILE, target.lir_target_selection(), CompilationPurpose::Production, &scoop_manifest::parse_single_file_dependencies("").unwrap()),
         Err(error) if matches!(error.as_ref(), ExplicitDependencyValidationError::ManifestDirectSet { declared, actual }
-            if declared == &[ConeCoordinate::reserved_core()] && actual.is_empty()),
+            if declared.len() == 2 && actual.is_empty()),
     ));
 }
 
@@ -108,7 +109,7 @@ fn core_dependency_inputs_use_the_shared_artifact_summary_validation() {
     )
     .unwrap();
     assert!(matches!(
-        loaded.validate_inner(None, ConeIdentity::CORE, target.lir_target_selection(), CompilationPurpose::Production),
+        loaded.validate_inner(None, ConeIdentity::CORE, target.lir_target_selection(), CompilationPurpose::Production, &[]),
         Err(error) if matches!(error.as_ref(), ExplicitDependencyValidationError::Summary { input, .. }
             if input.path() == path),
     ));
@@ -117,8 +118,8 @@ fn core_dependency_inputs_use_the_shared_artifact_summary_validation() {
 #[test]
 fn manifest_sources_parse_in_canonical_identity_order() {
     let directory = manifest_cone();
-    std::fs::write(directory.path().join("src/z.scoop"), "package z\n").unwrap();
-    std::fs::write(directory.path().join("src/a.scoop"), "package a\n").unwrap();
+    std::fs::write(directory.path().join("src/z.scoop"), "package test.z\n").unwrap();
+    std::fs::write(directory.path().join("src/a.scoop"), "package test.a\n").unwrap();
     let current = load_current_input(CurrentConeInput::Manifest {
         root: ManifestRootLocator::cone_directory(directory.path()),
     })
@@ -155,10 +156,10 @@ fn single_file_parse_uses_the_reserved_source_identity() {
     })
     .unwrap();
 
-    let LoadedCurrentConeInput::SingleFile { source } = &current else {
+    let LoadedCurrentConeInput::SingleFile { input, .. } = &current else {
         panic!("test constructs a single-file input")
     };
-    let parsed = parse_single_file_current(source).unwrap();
+    let parsed = parse_single_discovered_source(input).unwrap();
 
     assert_eq!(parsed.cone(), scoop_identity::ConeIdentity::SINGLE_FILE);
     assert_eq!(

@@ -1,8 +1,0 @@
-import bridge.*
-fun main() {
-    val value = source()
-    println(forwarded(value, 7))
-    println(forwarded(value, "receiver"))
-    println(withDefault(value))
-    println(withDefault("other"))
-}

@@ -1,0 +1,65 @@
+package scoop.asyncio.tests.consumer.tcp_observation
+
+import scoop.test.*
+import scoop.asyncio.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.*
+import scoop.platform.system.OsString
+import scoop.test.*
+import scoop.time.Duration
+
+internal fun tcpTraceConnection(mode: String, host: String) {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { scope ->
+        val ip = if (host == "::1") IpAddress.IPV6_LOOPBACK else IpAddress.IPV4_LOOPBACK
+        val listener = loop.listenTcp(SocketAddress(ip, 0))
+        val port = listener.localAddress.port
+        val state = TcpTraceState()
+        val success = mode == "success" || mode == "off"
+        val serving: Job? = if (!success) None else Some(scope.launch suspend {
+            listener.accept().useAsync suspend { stream ->
+                NativeByteBuffer.allocate(1L).use suspend { buffer -> assertEquals(0L, stream.readInto(buffer, 1L)) }
+                state.closed.signal()
+            }
+        })
+        if (!success) listener.close()
+        val running = scope.launch suspend {
+            val caller = currentJobOrNone()!!
+            val callback: (TcpConnectEvent) -> Unit = { event ->
+                assertEquals("connection", tcpTraceMarker())
+                state.events.add(event)
+                if (mode == "cancel" && event.phase == TcpConnectPhase.Connect && event.kind == TcpConnectEventKind.Started) caller.cancel()
+                if (mode == "secondary" && event.phase == TcpConnectPhase.Connect && event.kind == TcpConnectEventKind.Finished) throw state.failure
+            }
+            val options = TcpConnectOptions(resolutionDelay = Duration.ZERO, attemptDelay = Duration.ZERO,
+                resolveTimeout = if (mode == "resolve-zero") Some(Duration.ZERO) else None,
+                connectTimeout = if (mode == "connect-zero") Some(Duration.ZERO) else None,
+                onEvent = if (mode == "off") None else Some(callback))
+            context(TcpTraceMarker("connection")) {
+                if (success) {
+                    loop.connectTcp(OsString.fromString(host), port, options).useAsync suspend { stream ->
+                        assertEquals(port, stream.peerAddress.port)
+                    }
+                    state.closed.await()
+                } else state.observed = Some(tcpTraceFailure suspend { loop.connectTcp(OsString.fromString(host), port, options); Unit })
+            }
+        }
+        try {
+            running.join(); serving?.join()
+            if (mode == "off") assertEquals(0L, state.events.size)
+            else {
+                tcpTraceCounts(state, TcpConnectPhase.Resolve, 2L)
+                tcpTraceCounts(state, TcpConnectPhase.Connect, if (mode == "resolve-zero") 0L else 2L)
+            }
+            if (mode == "failure" || mode == "resolve-zero") assertTrue(state.observed!! is TcpConnectException)
+            if (mode == "connect-zero") assertTrue(state.observed!! is TcpConnectTimeoutException)
+            if (mode == "cancel") assertTrue(state.observed!! is CancellationException)
+            if (mode == "secondary") {
+                val error = state.observed!! as ResourceUseException
+                assertTrue(error.primaryFailure is TcpConnectException)
+                assertSame(state.failure, error.cleanupFailure)
+            }
+            ensureActive()
+        } finally { listener.close() }
+    }
+}

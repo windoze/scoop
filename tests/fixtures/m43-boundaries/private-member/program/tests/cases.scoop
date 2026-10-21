@@ -1,1 +1,0 @@
-fun check(): Int = Value().hidden()

@@ -1,3 +1,0 @@
-@Extern(lib = "additional", name = "abs")
-private fun absolute(value: Int): Int
-fun main() {}

@@ -1,0 +1,35 @@
+schema = 1
+name = "client-retries"
+inputs = ["consumer", "peer.py", "http1_peer.py", "http2_peer.py"]
+support = ["../client-trailers/wire.py", "../../../../sysroot/src/scoop.crypto/test-certificates/src/root.scoop"]
+tools = ["scoop", "scoopc", "python"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["http", "client", "retry", "asyncio", "prebuilt", "libraries"]
+variants = [{"name" = "release", "vars" = {"mode" = ["--release"]}}]
+[[steps]]
+name = "source"
+files = [
+    {copy = {from = "${fixture}/consumer", to = "${work}/consumer"}},
+    {copy = {from = "${fixture}/peer.py", to = "${work}/peer.py"}},
+    {copy = {from = "${fixture}/http1_peer.py", to = "${work}/http1_peer.py"}},
+    {copy = {from = "${fixture}/http2_peer.py", to = "${work}/http2_peer.py"}},
+    {copy = {from = "${repo}/tests/fixtures/libraries/client-trailers/wire.py", to = "${work}/wire.py"}},
+    {copy = {from = "${repo}/sysroot/src/scoop.crypto/test-certificates/src/root.scoop", to = "${work}/consumer/src/root.scoop"}},
+]
+
+[[steps]]
+name = "build"
+timeout = 900
+argv = ["${scoop}", "build", "${work}/consumer", {each = "${mode}"}, {each = "${link_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "run"
+argv = ["${python}", "${work}/peer.py", "${build.result.output}"]
+exit = 0
+stdout = "independent HTTP retries replay refusal redirects and total deadline passed\n"
+stderr = ""

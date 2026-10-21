@@ -183,7 +183,7 @@ fn foreign_owner() -> scoop_identity::StrongCallableDefinitionOwner {
 }
 
 #[test]
-fn complete_registration_surface_preserves_the_new_reference_sums() {
+fn registration_surface_serializes_only_retained_production_fields() {
     let fixture = Fixture::new(Options {
         first_type_has_itable: true,
         ..Options::default()
@@ -208,14 +208,14 @@ fn complete_registration_surface_preserves_the_new_reference_sums() {
     )
     .unwrap();
     let bytes = encode(&surface).unwrap();
-    assert_eq!(bytes[0], 0xa8);
+    assert_eq!(bytes[0], 0xa3);
     let decoded: crate::DecodedStrongRegistrationProductionSurfaceV2 =
         decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
     let shared: crate::DecodedStrongRegistrationProductionSurfaceV1 =
         decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&shared).unwrap(), bytes);
-    for field_count in [0xa7, 0xa9] {
+    for field_count in [0xa2, 0xa4, 0xa8] {
         let mut malformed = bytes.clone();
         malformed[0] = field_count;
         assert!(

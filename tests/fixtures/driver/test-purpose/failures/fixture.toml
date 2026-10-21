@@ -1,0 +1,97 @@
+schema = 1
+name = "test-purpose-failures"
+inputs = ["program", "bootstrap.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["test-purpose", "entry", "lifecycle", "driver"]
+variants = [{"name" = "release", "vars" = {"profile" = "release"}}]
+[[steps]]
+name = "bootstrap"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/bootstrap.scoop", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/bootstrap", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "production"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${fixture}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/production", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "library"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${sysroot}/src/scoop.test", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/library", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "compile"
+argv = ["${scoopc}", "build", {each = "${compile_args}"}, "${fixture}/program", "--test", "--profile", "${profile}", "--direct-slib", "${library.result.root.path}", {each = "${library.result.dependencies}", field = "path", prefix = "--direct-slib"}, "--out-slib", "${work}/tests.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "link"
+argv = ["${scoop}", "link", "--message-format", "json", {each = "${link_args}"}, "--root-slib", "${work}/tests.slib", "--dependency-slib", "${library.result.root.path}", {each = "${library.result.dependencies}", field = "path", prefix = "--dependency-slib"}, "--runtime-objects", "${bootstrap.result.runtime_index}", "-o", "${work}/tests"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "run"
+argv = ["${work}/tests"]
+exit = 1
+stdout = "init 1\ninit 2\nbefore 2\nafter 2\ninit 3\nbefore 3\nbody 3\nafter 3\ninit 4\nbefore 4\nbody 4\nafter 4\ninit 5\nbefore 5\nbody 5\nafter 5\n"
+stderr = ""
+
+[[steps]]
+name = "copy-for-test-command"
+files = [{copy = {from = "${fixture}/program", to = "${work}/program"}}]
+
+[[steps]]
+name = "umbrella"
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${work}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/production", "--message-format", "json", "--no-run"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+ {actual = "${umbrella.result.output}", equals = "${work}/production/${target}/${profile}/tests/generated-failures"},
+ {actual = "${umbrella.result.root.path}", not_equals = "${production.result.root.path}"},
+]
+
+[[steps]]
+name = "umbrella-run"
+argv = ["${scoop}", "test", {each = "${link_args}"}, "${work}/program", "--profile", "${profile}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/production", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "test-stderr"
+diagnostics = []
+checks = [
+    {actual = "${umbrella-run.test_result.counts.failed}", equals = 4},
+    {actual = "${umbrella-run.test_result.counts.passed}", equals = 1},
+    {actual = "${umbrella-run.test_result.containers.0.cases.0.failures.0.phase}", equals = "initialization"},
+    {actual = "${umbrella-run.test_result.containers.0.cases.1.failures.0.phase}", equals = "before-test"},
+    {actual = "${umbrella-run.test_result.containers.0.cases.2.failures.0.phase}", equals = "body"},
+    {actual = "${umbrella-run.test_result.containers.0.cases.3.failures.0.phase}", equals = "after-test"},
+    {actual = "${umbrella-run.test_result.containers.0.cases.2.failures.1.phase}", equals = "after-test"},
+    {actual = "${umbrella-run.test_result.containers.0.cases.2.failures.0.message}", equals = "body"},
+    {actual = "${umbrella-run.test_result.containers.0.cases.2.failures.1.message}", equals = "cleanup"},
+    {actual = "${umbrella-run.test_result.containers.0.cases.2.output.stdout.text}", equals = "init 3\nbefore 3\nbody 3\nafter 3\n"},
+    {actual = "${umbrella-run.test_result.status}", equals = "failed"},
+    {actual = "${umbrella-run.test_result.complete}", equals = true},
+    {actual = "${umbrella-run.result.observations.child_invocations.length}", equals = 0},
+]

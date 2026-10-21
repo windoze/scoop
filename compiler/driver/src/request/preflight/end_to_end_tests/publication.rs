@@ -1,7 +1,8 @@
 use super::*;
 
-const WARNING_SOURCE: &str =
-    include_str!("../../../../../../tests/fixtures/core-library/publication-warning.scoop");
+const WARNING_SOURCE: &str = include_str!(
+    "../../../../../../tests/fixtures/language/core-library/publication-warning.scoop"
+);
 
 #[test]
 fn publication_failure_retains_current_warnings_for_core_and_ordinary_libraries() {
@@ -65,8 +66,16 @@ fn assert_publication_warning(request: SingleConeBuildRequest, output: &Path, te
     let file = parsed
         .sources()
         .iter()
-        .position(|source| source.text().text() == WARNING_SOURCE)
+        .position(|source| source.text().text().ends_with(WARNING_SOURCE))
         .unwrap();
+    let source_text = parsed
+        .sources()
+        .iter()
+        .nth(file)
+        .unwrap()
+        .text()
+        .text()
+        .to_owned();
     std::fs::create_dir(output).unwrap();
     let error = parsed
         .build_and_publish(&temporary.join("staging"))
@@ -78,7 +87,7 @@ fn assert_publication_warning(request: SingleConeBuildRequest, output: &Path, te
     let warnings = error.warnings().unwrap();
     assert_eq!(warnings.diagnostics().len(), 1);
     let warning = &warnings.diagnostics()[0];
-    let start = WARNING_SOURCE.find("Raedy ->").unwrap();
+    let start = source_text.find("Raedy ->").unwrap();
     assert_eq!(warning.file, file);
     assert_eq!(
         warning.span,
@@ -92,7 +101,16 @@ fn assert_publication_warning(request: SingleConeBuildRequest, output: &Path, te
         warning.message,
         "`Raedy` is a catch-all binding because `Signal` has no variant named `Raedy`; qualify an intended variant as `E.V`, or use `_` or an intentional binding name for a catch-all"
     );
-    assert!(warnings.render_human().contains(":8:10: warning:"));
+    let line = source_text[..start]
+        .bytes()
+        .filter(|byte| *byte == b'\n')
+        .count()
+        + 1;
+    assert!(
+        warnings
+            .render_human()
+            .contains(&format!(":{line}:10: warning:"))
+    );
     assert!(output.is_dir());
     assert_eq!(std::fs::read_dir(output).unwrap().count(), 0);
 }

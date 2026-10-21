@@ -132,10 +132,10 @@ pub(crate) fn inputs() -> SemanticInputs {
 }
 
 #[test]
-fn complete_registration_production_uses_the_closed_eight_field_shape() {
+fn registration_production_uses_the_closed_three_field_shape() {
     let inputs = inputs();
     let encoded = scoop_wire::encode(&inputs.registration_production).unwrap();
-    assert_eq!(encoded[0], 0xa8);
+    assert_eq!(encoded[0], 0xa3);
     let decoded =
         scoop_wire::decode_canonical::<DecodedStrongRegistrationProductionSurfaceV1>(&encoded)
             .unwrap();

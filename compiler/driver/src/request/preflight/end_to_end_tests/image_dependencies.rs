@@ -5,7 +5,7 @@ fn published_image_preserves_all_direct_dependencies_in_both_views() {
     let target = resolved_target().expect("image dependency publication requires a target");
     let sysroot = tempfile::tempdir().unwrap();
     let core = bootstrap_core(sysroot.path(), &target);
-    let fixtures = crate::workspace_root().join("tests/fixtures/m23-image-dependencies");
+    let fixtures = crate::workspace_root().join("tests/fixtures/language/image-dependencies");
     let mut artifacts = vec![core];
     let mut coordinates = Vec::new();
     for name in ["provider", "unused"] {

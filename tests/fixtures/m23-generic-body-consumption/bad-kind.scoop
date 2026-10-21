@@ -1,5 +1,0 @@
-import dependency.generics.valueOnly
-
-class ReferenceValue()
-
-public fun invalid(): ReferenceValue = valueOnly(ReferenceValue())

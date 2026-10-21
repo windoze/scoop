@@ -1,0 +1,2 @@
+package dev.example
+private fun unrelated(): Boolean = true

@@ -1,0 +1,55 @@
+package scoop.json.tests.consumer.baseline_responses
+
+import scoop.test.*
+struct StateEvent(val sequence_number: Long, val response: ResponseBody) {
+    companion object : ValueEncoder<StateEvent>, ValueDecoder<StateEvent> {}
+}
+struct ItemEvent(val sequence_number: Long, val output_index: Long, val item: ResponseItem) {
+    companion object : ValueEncoder<ItemEvent>, ValueDecoder<ItemEvent> {}
+}
+struct PartEvent(
+    val sequence_number: Long,
+    val item_id: String,
+    val output_index: Long,
+    val content_index: Long,
+    val part: ResponsePart
+) {
+    companion object : ValueEncoder<PartEvent>, ValueDecoder<PartEvent> {}
+}
+struct TextDeltaEvent(
+    val sequence_number: Long,
+    val item_id: String,
+    val output_index: Long,
+    val content_index: Long,
+    val delta: String
+) {
+    companion object : ValueEncoder<TextDeltaEvent>, ValueDecoder<TextDeltaEvent> {}
+}
+struct TextDoneEvent(
+    val sequence_number: Long,
+    val item_id: String,
+    val output_index: Long,
+    val content_index: Long,
+    val text: String
+) {
+    companion object : ValueEncoder<TextDoneEvent>, ValueDecoder<TextDoneEvent> {}
+}
+struct ArgumentsDeltaEvent(val sequence_number: Long, val item_id: String, val output_index: Long, val delta: String) {
+    companion object : ValueEncoder<ArgumentsDeltaEvent>, ValueDecoder<ArgumentsDeltaEvent> {}
+}
+struct ArgumentsDoneEvent(
+    val sequence_number: Long,
+    val item_id: String,
+    val output_index: Long,
+    val arguments: String
+) {
+    companion object : ValueEncoder<ArgumentsDoneEvent>, ValueDecoder<ArgumentsDoneEvent> {}
+}
+struct ResponseErrorEvent(
+    val sequence_number: Long,
+    val message: String,
+    val code: String? = None,
+    val param: String? = None
+) {
+    companion object : ValueEncoder<ResponseErrorEvent>, ValueDecoder<ResponseErrorEvent> {}
+}

@@ -1,0 +1,5 @@
+package dev.example.consumer.globals
+import dev.example.templates.globals.delegated
+
+public fun <T> exercise(value: T): Int = delegated<T>(value)
+public fun result(): Int = exercise<Int>(0)

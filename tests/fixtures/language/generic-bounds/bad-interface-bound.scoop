@@ -1,0 +1,4 @@
+package dev.example
+import dev.example.templates.bounds.readBound
+
+public fun result(): Int = readBound(42)

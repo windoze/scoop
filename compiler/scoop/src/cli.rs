@@ -7,6 +7,7 @@ mod args;
 mod commands;
 mod doc;
 mod native;
+mod new;
 mod presentation;
 mod run;
 mod test_run;
@@ -16,7 +17,7 @@ use args::{Cli, MessageFormat};
 use presentation::Reporter;
 
 pub(super) fn main() -> ExitCode {
-    let arguments = std::env::args_os().collect::<Vec<_>>();
+    let arguments = args::with_single_file_arguments(std::env::args_os().collect());
     let cli = match Cli::try_parse_from(&arguments) {
         Ok(cli) => cli,
         Err(error) => {
@@ -53,7 +54,7 @@ pub(super) fn main() -> ExitCode {
         ));
         return ExitCode::FAILURE;
     }
-    match commands::execute(cli.command, &reporter) {
+    match commands::execute(cli.command, cli.enable_gc_stress, &reporter) {
         Ok(None) => {
             scoop_process::finish_interruption();
             ExitCode::SUCCESS

@@ -1,4 +1,4 @@
-package asyncio.consumer
+package scoop.tests.asyncio.consumer
 
 import scoop.asyncio.*
 import scoop.platform.memory.NativeByteBuffer

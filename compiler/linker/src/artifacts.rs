@@ -14,6 +14,7 @@ pub struct ArtifactLinkRequest {
     pub root_slib: PathBuf,
     pub dependency_slibs: Vec<PathBuf>,
     pub runtime_index: Option<PathBuf>,
+    pub enable_gc_stress: bool,
     pub target: String,
     pub c_toolchain: scoop_toolchain::CToolchainOptions,
     pub final_link: scoop_toolchain::FinalLinkOptions,
@@ -46,7 +47,11 @@ impl ArtifactLinkRequest {
                 let sysroot =
                     scoop_toolchain::configured_sysroot_root(self.final_link.sysroot.clone())
                         .map_err(error)?;
-                scoop_toolchain::default_runtime_index(&sysroot, target.lir_target())
+                scoop_toolchain::default_runtime_index(
+                    &sysroot,
+                    target.lir_target(),
+                    self.enable_gc_stress,
+                )
             }
         };
         let runtime = RuntimeObjectSet::read_index(
@@ -54,6 +59,7 @@ impl ArtifactLinkRequest {
             profile.target(),
             profile.startup_toolchain().profile(),
         )?;
+        runtime.require_gc_stress(self.enable_gc_stress)?;
         link_program(
             &closure,
             &runtime,

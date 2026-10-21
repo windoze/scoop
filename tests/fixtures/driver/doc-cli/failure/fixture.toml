@@ -1,0 +1,57 @@
+schema = 1
+name = "doc-cli-failure"
+root = "cone/Cone.toml"
+inputs = ["cone"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["documentation", "negative", "publication", "driver"]
+
+[[steps]]
+name = "prepare"
+files = [{copy = {from = "${fixture}/cone", to = "${work}/cone"}}]
+
+[[steps]]
+name = "warning"
+argv = ["${scoop}", "doc", "${work}/cone", {"each" = "${compile_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--output-dir", "${work}/site", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "warning.json"}
+
+[[steps]]
+name = "save"
+files = [
+  {copy = {from = "${work}/site/index.html", to = "${work}/previous.html"}},
+  {copy = {from = "${work}/site/.scoop-doc.json", to = "${work}/previous.json"}},
+]
+
+[[steps]]
+name = "denied"
+argv = ["${scoop}", "doc", "${work}/cone", {"each" = "${compile_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--output-dir", "${work}/site", "--deny-doc-warnings", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "denied.json"}
+checks = [
+  {file = "${work}/site/index.html", same_as = "${work}/previous.html"},
+  {file = "${work}/site/.scoop-doc.json", same_as = "${work}/previous.json"},
+]
+
+[[steps]]
+name = "body_error"
+files = [{replace = {path = "${work}/cone/src/api.scoop", old = "= 42", new = "= \"wrong\""}}]
+
+[[steps]]
+name = "invalid"
+argv = ["${scoop}", "doc", "${work}/cone", {"each" = "${compile_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--output-dir", "${work}/site", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "body.json"}
+checks = [
+  {file = "${work}/site/index.html", same_as = "${work}/previous.html"},
+  {file = "${work}/site/.scoop-doc.json", same_as = "${work}/previous.json"},
+]

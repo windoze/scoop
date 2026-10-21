@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency constructor `Some` positional variants do not accept named arguments",
+    "notes": [],
+    "origin": {
+      "cone": "04cd3881771eabbb2e173fc409cf4f9525cc8aece297bb50139780d4ab2de498",
+      "end": 82,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 66
+    },
+    "severity": "error"
+  }
+]

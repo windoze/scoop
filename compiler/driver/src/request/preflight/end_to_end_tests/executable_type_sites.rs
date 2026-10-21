@@ -5,7 +5,7 @@ use scoop_hir::{ExternalHirReferenceRoleV1, HirExpressionTypeRoleV1};
 fn published_type_occurrences_retain_imported_evaluation_and_definition_sites() {
     let target = resolved_target().expect("type occurrence artifacts require a host target");
     let sysroot = tempfile::tempdir().unwrap();
-    let fixtures = crate::workspace_root().join("tests/fixtures/m23-executable-type-sites");
+    let fixtures = crate::workspace_root().join("tests/fixtures/language/executable-type-sites");
     let source =
         |name: &str| std::fs::read_to_string(fixtures.join(format!("{name}.scoop"))).unwrap();
     let core = bootstrap_core(sysroot.path(), &target);

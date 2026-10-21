@@ -1,0 +1,34 @@
+package scoop.http.client.tests.consumer.client_sse_lifetime
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.*
+import scoop.http.client.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.tls.TlsTrustSource
+
+internal class SseGate {
+    private var ready: Boolean = false
+    private var waiter: Continuation<Unit>? = None
+    fun signal() { ready = true; val saved = waiter; waiter = None; saved?.resume(Unit) }
+    suspend fun await() { suspendCoroutine<Unit> { next -> if (ready) next.resume(Unit) else waiter = Some(next) } }
+}
+internal class SseFailure { var value: Throwable? = None }
+internal class SseMarker(val value: String)
+context(marker: SseMarker)
+internal fun sseMarker(): String = marker.value
+internal fun <T> ssePresent(value: T?): Boolean = when (value) { case Some(_) -> true; case None -> false }
+internal fun sseField(name: String, value: String): HttpField = HttpField(name.toByteArray(), value.toByteArray())
+internal fun sseConfig(trust: TrustStore, h2: Boolean = false, cache: HttpCacheOptions? = None,
+    jar: CookieJar? = None): HttpClientConfig =
+    HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)),
+        cleartext = if (h2) HttpCleartextProtocol.Http2PriorKnowledge else HttpCleartextProtocol.Http1,
+        retries = HttpRetryOptions(maxRetries = 0L), pool = HttpConnectionPoolOptions(maxConnectionsPerOrigin = 1L),
+        cache = cache, cookieJar = jar)
+internal suspend fun sseWrite(sink: AsyncByteSink, text: String) {
+    val bytes = text.toByteArray()
+    NativeByteBuffer.allocate(bytes.size).use suspend { buffer -> buffer.writeBytes(bytes); sink.writeFully(buffer) }
+}
+internal suspend fun sseFailure(block: suspend () -> Unit): Throwable {
+    try { block() } catch (error: Throwable) { return error }
+    throw IllegalStateException(Some("expected an SSE failure"))
+}

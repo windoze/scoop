@@ -1,4 +1,0 @@
-@Extern(name = "consume_nullable_handle")
-fun consumeNullableHandle(value: GcHandle<Any>?)
-
-fun main() {}

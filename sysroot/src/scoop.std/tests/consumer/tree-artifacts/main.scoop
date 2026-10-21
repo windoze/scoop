@@ -1,0 +1,24 @@
+package scoop.std.tests.consumer.tree_artifacts
+
+import scoop.test.*
+import scoop.collections.*
+
+private fun exerciseConsumer() {
+    val source = sortedMapOf<Int, String>((2, "two"), (1, "one"), (3, "three"))
+    val snapshot = source.copyOfRange(1, 3)
+    source.clear()
+    var index = 0L
+    for ((key, value) in snapshot) {
+        assertEquals([1, 2][index], key)
+        index += 1L
+    }
+    assertEquals(2L, index)
+    assertTrue(snapshot.floorEntry(2)!!.value == "two")
+    assertTrue(!(snapshot is MutableSortedMap<Int, String>))
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun behavior() { exerciseConsumer() }
+}

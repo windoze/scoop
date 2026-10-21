@@ -1,0 +1,3 @@
+package dev.cli.example
+
+public fun answer(): Int = 42

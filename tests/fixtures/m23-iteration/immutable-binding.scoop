@@ -1,5 +1,0 @@
-import upstream.iteration.*
-
-public fun invalid(values: Array<Int>) {
-    for (value in values) { value = 0 }
-}

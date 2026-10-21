@@ -1,0 +1,11 @@
+package test
+import test.support.*
+
+class Done : Continuation<Int> {
+    public override fun resume(value: Int) { println(value) }
+    public override fun resumeWithException(error: Throwable) { throw error }
+}
+
+fun main() {
+    startCoroutine<Int>(suspend { direct(after(Counter(), 42)) }, Done())
+}

@@ -1,0 +1,4 @@
+package dev.example.consumer.valuelayouts
+import dev.example.upstream.valuelayouts.Wrapper
+
+public struct Recursive(val value: Wrapper<Recursive>)

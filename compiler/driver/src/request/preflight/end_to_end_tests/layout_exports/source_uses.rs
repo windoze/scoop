@@ -8,7 +8,7 @@ fn actual_hir_type_uses_drive_mir_dependency_projection() {
     let sysroot = tempfile::tempdir().unwrap();
     let core = bootstrap_core(sysroot.path(), &target);
     let bytes = std::fs::read(core.artifact().path()).unwrap();
-    let fixtures = crate::workspace_root().join("tests/fixtures/m23-materialized-type-uses");
+    let fixtures = crate::workspace_root().join("tests/fixtures/language/materialized-type-uses");
     for (name, expected) in [
         // Deferred has a finite coroutine start and an initializer returning Unit.
         // Ordinary values do not materialize any implicit encoding bodies.
@@ -16,7 +16,9 @@ fn actual_hir_type_uses_drive_mir_dependency_projection() {
         ("combined", vec!["Any", "Boolean", "String", "Unit"]),
         ("initialization", vec!["Boolean", "String", "Unit"]),
     ] {
-        let source = std::fs::read_to_string(fixtures.join(format!("{name}.scoop"))).unwrap();
+        let source = std::fs::read_to_string(fixtures.join(format!("{name}.scoop")))
+            .unwrap()
+            .replacen("package test\n", "package dev.example\n", 1);
         support::with_inspection(
             sysroot.path(),
             &target,

@@ -1,5 +1,0 @@
-public class Store {
-    public var visible: Int
-        get() = 1
-        protected set(value) {}
-}

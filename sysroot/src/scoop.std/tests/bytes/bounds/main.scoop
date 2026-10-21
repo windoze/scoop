@@ -1,0 +1,53 @@
+package scoop.std.tests.bytes.bounds
+
+import scoop.test.*
+import scoop.bytes.*
+
+fun check(ok: Boolean, location: SourceLocation = currentSourceLocation()) {
+    assertTrue(ok, location = location)
+}
+fun rejected(reader: ByteArrayReader, negativeCount: Boolean, action: () -> Unit) {
+    val before = reader.position
+    var failed = false
+    try { action() }
+    catch (error: IllegalArgumentException) { check(negativeCount); failed = true }
+    catch (error: IndexOutOfBoundsException) { check(!negativeCount); failed = true }
+    check(failed && reader.position == before)
+}
+private fun exercise() {
+    val reader = ByteArrayReader(Array<Byte>(9L) { index -> index.toByte() })
+    reader.seek(2L)
+    rejected(reader, false) { reader.seek(-1L) }
+    rejected(reader, false) { reader.seek(10L) }
+    rejected(reader, true) { reader.skip(-1L) }
+    rejected(reader, true) { reader.readBytes(-1L) }
+    rejected(reader, false) { reader.skip(Long.MAX_VALUE) }
+    rejected(reader, false) { reader.readBytes(Long.MAX_VALUE) }
+    rejected(reader, false) { reader.readInt64(ByteOrder.BigEndian) }
+    rejected(reader, false) { reader.readUInt64(ByteOrder.LittleEndian) }
+    rejected(reader, false) { reader.readDouble(ByteOrder.BigEndian) }
+    reader.seek(6L)
+    rejected(reader, false) { reader.readInt32(ByteOrder.LittleEndian) }
+    rejected(reader, false) { reader.readUInt32(ByteOrder.BigEndian) }
+    rejected(reader, false) { reader.readFloat(ByteOrder.LittleEndian) }
+    reader.seek(8L)
+    rejected(reader, false) { reader.readInt16(ByteOrder.BigEndian) }
+    rejected(reader, false) { reader.readUInt16(ByteOrder.LittleEndian) }
+    check(reader.readUInt8() == 8u.toUByte())
+    rejected(reader, false) { reader.readInt8() }
+    rejected(reader, false) { reader.readUInt8() }
+    check(reader.readBytes(0L).size == 0L)
+    reader.skip(0L)
+    reader.seek(9L)
+    check(reader.remaining == 0L)
+    val empty = ByteArrayReader(Array<Byte>(0L) { _ -> 0.toByte() })
+    check(empty.size == 0L && empty.readBytes(0L).size == 0L)
+    rejected(empty, false) { empty.readInt8() }
+
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

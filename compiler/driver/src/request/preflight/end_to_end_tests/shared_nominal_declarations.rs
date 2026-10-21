@@ -12,7 +12,7 @@ fn formal_publication_preserves_private_storage_and_nested_declaration_support()
     let core_bytes = std::fs::read(core.artifact().path()).unwrap();
     for (case, public_count, support_count) in [("standalone", 1, 1), ("published", 2, 4)] {
         let source = std::fs::read_to_string(crate::workspace_root().join(format!(
-            "tests/fixtures/m23-shared-nominal-declarations/{case}.scoop"
+            "tests/fixtures/language/shared-nominal-declarations/{case}.scoop"
         )))
         .unwrap();
         let root = sysroot.path().join(case);

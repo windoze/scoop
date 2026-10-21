@@ -1,0 +1,57 @@
+package scoop.std.tests.datetime.calendar
+
+import scoop.test.*
+import scoop.datetime.*
+import scoop.collections.*
+
+fun check(ok: Boolean, location: SourceLocation = currentSourceLocation()) {
+    assertTrue(ok, location = location)
+}
+fun invalid(block: () -> Unit) {
+    var failed = false
+    try { block() } catch (error: IllegalArgumentException) { failed = true }
+    check(failed)
+}
+fun verify(year: Int, month: Int, day: Int, epoch: Long, ordinal: Int, weekday: Int) {
+    val date = LocalDate(year, month, day)
+    check(date.toEpochDays() == epoch && LocalDate.fromEpochDays(epoch) == date)
+    check(date.dayOfYear == ordinal && date.dayOfWeek.isoDayNumber == weekday)
+    check(date.month == Month.fromNumber(month) && date.yearMonth.atDay(day) == date)
+    check(LocalDate.parse(date.toString()) == date)
+}
+private fun exercise() {
+    vectors()
+    check(LocalDate(1970, Month.January, 1).toEpochDays() == 0L)
+    check(LocalDate(0, 2, 29).dayOfYear == 60 && YearMonth(-400, 2).isLeapYear)
+    check(!YearMonth(1900, 2).isLeapYear && YearMonth(2000, Month.February).lengthOfMonth == 29)
+    check(YearMonth(2023, 2).lengthOfMonth == 28 && YearMonth(2024, 4).lengthOfMonth == 30)
+    check(Month.January < Month.December && Month.December.toString() == "December")
+    check(DayOfWeek.Monday < DayOfWeek.Sunday && DayOfWeek.Thursday.toString() == "Thursday")
+    val dates = hashMapOf((LocalDate(2024, 2, 29), 7))
+    check(dates[LocalDate(2024, Month.February, 29)] == Some(7))
+    val sorted = sortedSetOf(LocalDate(1, 1, 1), LocalDate(0, 12, 31), LocalDate(-1, 1, 1))
+    val cursor = sorted.iterator()
+    check(cursor.next() == Some(LocalDate(-1, 1, 1)))
+    check(cursor.next() == Some(LocalDate(0, 12, 31)))
+    check(cursor.next() == Some(LocalDate(1, 1, 1)) && cursor.next() == None)
+    check(hashMapOf((YearMonth(2024, 2), 9))[YearMonth(2024, Month.February)] == Some(9))
+    invalid { LocalDate(1900, 2, 29) }; invalid { LocalDate(2024, 0, 1) }
+    invalid { LocalDate(2024, 13, 1) }; invalid { LocalDate(2024, 1, 0) }
+    invalid { LocalDate(2024, 4, 31) }; invalid { LocalDate(1000000000, 1, 1) }
+    invalid { LocalDate(-1000000000, 1, 1) }; invalid { YearMonth(2024, 0) }
+    invalid { YearMonth(2024, 13) }; invalid { YearMonth(Int.MIN_VALUE, 1) }
+    invalid { YearMonth(Int.MAX_VALUE, 12) }; invalid { YearMonth(2023, 2).atDay(29) }
+    invalid { Month.fromNumber(0) }; invalid { Month.fromNumber(13) }
+    invalid { DayOfWeek.fromIsoDayNumber(0) }; invalid { DayOfWeek.fromIsoDayNumber(8) }
+    invalid { LocalDate.fromEpochDays(Long.MIN_VALUE) }
+    invalid { LocalDate.fromEpochDays(Long.MAX_VALUE) }
+    invalid { LocalDate.fromEpochDays(LocalDate.MIN.toEpochDays() - 1L) }
+    invalid { LocalDate.fromEpochDays(LocalDate.MAX.toEpochDays() + 1L) }
+
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

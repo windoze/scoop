@@ -1,0 +1,94 @@
+schema = 1
+name = "native-link-formats-pointers"
+inputs = ["cone", "../../../language/native-link/final/root.scoop", "../../../language/native-link/final/native.c"]
+tools = ["scoop", "scoopc", "cc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["native-link", "program-link", "compiler-correctness"]
+[[steps]]
+name = "prepare"
+files = [{"copy" = {"from" = "${fixture}/cone", "to" = "${work}/sources/final"}}, {"copy" = {"from" = "${fixture}/../../../language/native-link/final/root.scoop", "to" = "${work}/sources/final/src/main.scoop"}}, {"mkdir" = {"path" = "${work}/native"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "prepare_compile_m23_final"
+files = [{"copy" = {"from" = "${fixture}/../../../language/native-link/final/native.c", "to" = "${work}/sources/native/m23_final.c"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "compile_m23_final"
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "-O0", "${work}/sources/native/m23_final.c", "-o", "${work}/objects/m23_final.o"]
+exit = 0
+stdout = ""
+stderr = ""
+[[steps]]
+name = "install_m23_final"
+files = [{"copy" = {"from" = "${work}/objects/m23_final.o", "to" = "${work}/native/m23_final.o"}}]
+checks = []
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/final", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_link_inputs_isolate"
+files = [
+  {"copy" = {"from" = "${build.result.root.path}", "to" = "${work}/artifacts/root.slib"}},
+  {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/0.slib"}},
+]
+checks = []
+
+[[steps]]
+name = "unoptimized"
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", {"each" = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native", "--dump-plan", "--cache-dir", "${cache}"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"actual" = "${unoptimized.result.link_plan}", "snapshot" = "unoptimized.${target}.plan", "normalize" = ["paths", "native-digests", "native-link-plan"]}]
+
+[[steps]]
+name = "run_unoptimized"
+argv = ["${unoptimized.result.output}"]
+exit = 0
+stdout = "42\n"
+stderr = ""
+
+[[steps]]
+name = "prepare_compile_optimized_debug"
+files = [{"copy" = {"from" = "${fixture}/../../../language/native-link/final/native.c", "to" = "${work}/sources/native/m23_final.c"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "compile_optimized_debug"
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "-O2", "-g", "${work}/sources/native/m23_final.c", "-o", "${work}/objects/m23_final.o"]
+exit = 0
+stdout = ""
+stderr = ""
+[[steps]]
+name = "install_compile_optimized_debug"
+files = [{"copy" = {"from" = "${work}/objects/m23_final.o", "to" = "${work}/native/m23_final.o"}}]
+checks = []
+
+[[steps]]
+name = "optimized_debug"
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", {"each" = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native", "--dump-plan", "--cache-dir", "${cache}"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"actual" = "${optimized_debug.result.link_plan_fingerprint}", "not_equals" = "${unoptimized.result.link_plan_fingerprint}"}]
+
+[[steps]]
+name = "run_optimized"
+argv = ["${optimized_debug.result.output}"]
+exit = 0
+stdout = "42\n"
+stderr = ""

@@ -1,0 +1,9 @@
+package dev.example
+import dev.example.dependency.classes.Counter
+import dev.example.dependency.classes.Readable
+import dev.example.dependency.classes.ReadChoice
+
+public fun primary(): Counter {
+    val value: Readable = ReadChoice.Ready
+    return Counter(value.answer())
+}

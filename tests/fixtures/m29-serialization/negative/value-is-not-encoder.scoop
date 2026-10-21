@@ -1,2 +1,0 @@
-fun accept(codec: ValueEncoder<Long>) { println("unreachable") }
-fun main() { accept(7L) }

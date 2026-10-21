@@ -1,5 +1,0 @@
-import dependency.classes.Counter
-import dependency.classes.Recursive
-
-public fun preserve(value: Recursive): Recursive = value
-public fun primary(): Counter = Counter(21)

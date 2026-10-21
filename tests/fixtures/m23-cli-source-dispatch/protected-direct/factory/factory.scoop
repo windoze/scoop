@@ -1,1 +1,0 @@
-public fun vault(): Vault = Vault()

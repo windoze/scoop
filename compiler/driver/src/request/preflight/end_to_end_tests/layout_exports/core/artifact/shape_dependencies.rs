@@ -43,7 +43,7 @@ pub(super) fn check(
     let sysroot = tempfile::tempdir().unwrap();
     let installed = bootstrap_core(sysroot.path(), target);
     let bytes = std::fs::read(installed.artifact().path()).unwrap();
-    let fixtures = crate::workspace_root().join("tests/fixtures/m23-shape-dependency-graph");
+    let fixtures = crate::workspace_root().join("tests/fixtures/language/shape-dependency-graph");
     for (name, names) in [
         ("standalone", &["Int"][..]),
         ("combined", &["Int", "String", "Unit"][..]),

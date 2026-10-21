@@ -1,3 +1,0 @@
-import dependency.nativecalls.apply
-
-public fun result(): Int = apply({ value: String -> 42 })

@@ -1,0 +1,28 @@
+package scoop.json.tests.consumer.baseline_messages
+
+import scoop.test.*
+import scoop.json.*
+import scoop.collections.*
+
+fun check(value: Boolean) {
+    if (!value) { throw IllegalStateException(Some("API baseline assertion failed")) }
+}
+fun reject(path: String, body: () -> Unit) {
+    try { body() }
+    catch (error: DecodingException) {
+        if (error.path != path) { println("expected " + path + ", received " + error.path) }
+        check(error.path == path)
+        return
+    }
+    println("expected decoding failure at " + path)
+    throw IllegalStateException(Some("expected API decoding error"))
+}
+fun member(names: Array<String>, name: String): Boolean {
+    for (candidate in names) { if (candidate == name) { return true } }
+    return false
+}
+fun <T> writeObject(values: LinkedHashMap<String, T>, encoder: Encoder, codec: ValueEncoder<T>) {
+    val fields = encoder.keyed()
+    for (entry in values) { codec.encode(entry.value, fields.field(entry.key)) }
+    fields.end()
+}

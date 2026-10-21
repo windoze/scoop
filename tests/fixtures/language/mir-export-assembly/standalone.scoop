@@ -1,0 +1,5 @@
+package test
+public struct Token() {}
+public fun pass(value: Token): Token = value
+public fun same(left: Token, right: Token): Boolean = left == right
+public fun ready(): Boolean = true

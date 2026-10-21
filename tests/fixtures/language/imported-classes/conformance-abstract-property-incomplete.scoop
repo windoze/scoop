@@ -1,0 +1,7 @@
+package dev.example
+import dev.example.dependency.classes.MutableValue
+
+public abstract class LocalBase public constructor(): MutableValue {
+    public abstract override var value: Long
+}
+public class LocalReader public constructor(): LocalBase() {}

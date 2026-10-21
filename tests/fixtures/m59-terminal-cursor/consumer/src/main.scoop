@@ -1,9 +1,0 @@
-import scoop.platform.io.standardOutput
-import scoop.terminal.*
-import scoop.terminal.cursor.*
-
-fun main() {
-    standardOutput.execute(Hide, MoveTo(0L, 0L), MoveToColumn(65535L),
-        MoveToRow(2L), MoveUp(0L), MoveDown(2L), MoveLeft(3L), MoveRight(4L),
-        MoveToNextLine(1L), MoveToPreviousLine(1L), SetCursorStyle.SteadyBar, Show)
-}

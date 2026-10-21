@@ -1,0 +1,209 @@
+schema = 1
+name = "native-link-direct-contracts"
+inputs = ["cone", "../../../language/native-link/direct/root.scoop", "../../../language/native-link/direct/native.c", "native-sources/input_data.c", "native-sources/input_missing.c", "native-sources/input_constructor.c", "native-sources/input_common.c", "native-sources/input_target.c"]
+tools = ["scoop", "scoopc", "cc"]
+# The wrong-architecture case compiles x86_64 Mach-O and checks Darwin object diagnostics.
+targets = ["aarch64-apple-darwin"]
+tags = ["native-link", "program-link", "compiler-correctness"]
+[[steps]]
+name = "prepare"
+files = [{"copy" = {"from" = "${fixture}/cone", "to" = "${work}/sources/direct"}}, {"copy" = {"from" = "${fixture}/../../../language/native-link/direct/root.scoop", "to" = "${work}/sources/direct/src/main.scoop"}}, {"mkdir" = {"path" = "${work}/native"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "prepare_compile_m23_math"
+files = [{"copy" = {"from" = "${fixture}/../../../language/native-link/direct/native.c", "to" = "${work}/sources/native/m23_math.c"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "compile_m23_math"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/m23_math.c", "-o", "${work}/objects/m23_math.o"]
+exit = 0
+stdout = ""
+stderr = ""
+[[steps]]
+name = "install_m23_math"
+files = [{"copy" = {"from" = "${work}/objects/m23_math.o", "to" = "${work}/native/m23_math.o"}}]
+checks = []
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${work}/sources/direct", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_link_inputs_isolate"
+files = [
+  {"copy" = {"from" = "${build.result.root.path}", "to" = "${work}/artifacts/root.slib"}},
+  {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/0.slib"}},
+]
+checks = []
+
+[[steps]]
+name = "prepare_input_data"
+files = [{"copy" = {"from" = "${fixture}/native-sources/input_data.c", "to" = "${work}/sources/native/m23_math.c"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "input_data"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/m23_math.c", "-o", "${work}/objects/m23_math.o"]
+exit = 0
+stdout = ""
+stderr = ""
+[[steps]]
+name = "install_input_data"
+files = [{"copy" = {"from" = "${work}/objects/m23_math.o", "to" = "${work}/native/m23_math.o"}}]
+checks = []
+
+[[steps]]
+name = "previous_reject_data"
+files = [{"write" = {"path" = "${work}/program", "data" = "previous executable"}}]
+checks = []
+
+[[steps]]
+name = "reject_data"
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native", "--cache-dir", "${cache}"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "reject_data.json"}
+checks = [{"file" = "${work}/program", "equals" = "previous executable"}]
+
+[[steps]]
+name = "prepare_input_missing"
+files = [{"copy" = {"from" = "${fixture}/native-sources/input_missing.c", "to" = "${work}/sources/native/m23_math.c"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "input_missing"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/m23_math.c", "-o", "${work}/objects/m23_math.o"]
+exit = 0
+stdout = ""
+stderr = ""
+[[steps]]
+name = "install_input_missing"
+files = [{"copy" = {"from" = "${work}/objects/m23_math.o", "to" = "${work}/native/m23_math.o"}}]
+checks = []
+
+[[steps]]
+name = "previous_reject_missing"
+files = [{"write" = {"path" = "${work}/program", "data" = "previous executable"}}]
+checks = []
+
+[[steps]]
+name = "reject_missing"
+diagnostics_normalize = ["native-digests"]
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native", "--cache-dir", "${cache}"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "reject_missing.json"}
+checks = [{"file" = "${work}/program", "equals" = "previous executable"}]
+
+[[steps]]
+name = "prepare_input_constructor"
+files = [{"copy" = {"from" = "${fixture}/native-sources/input_constructor.c", "to" = "${work}/sources/native/m23_math.c"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "input_constructor"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/m23_math.c", "-o", "${work}/objects/m23_math.o"]
+exit = 0
+stdout = ""
+stderr = ""
+[[steps]]
+name = "install_input_constructor"
+files = [{"copy" = {"from" = "${work}/objects/m23_math.o", "to" = "${work}/native/m23_math.o"}}]
+checks = []
+
+[[steps]]
+name = "previous_link_constructor"
+files = [{"write" = {"path" = "${work}/program", "data" = "previous executable"}}]
+checks = []
+
+[[steps]]
+name = "link_constructor"
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native", "--cache-dir", "${cache}"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"actual" = "${link_constructor.result.kind}", "equals" = "link"}]
+
+[[steps]]
+name = "run_constructor"
+argv = ["${work}/program"]
+exit = 0
+stdout = "43\n"
+stderr = ""
+
+[[steps]]
+name = "prepare_input_common"
+files = [{"copy" = {"from" = "${fixture}/native-sources/input_common.c", "to" = "${work}/sources/native/m23_math.c"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "input_common"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "-fcommon", "${work}/sources/native/m23_math.c", "-o", "${work}/objects/m23_math.o"]
+exit = 0
+stdout = ""
+stderr = ""
+[[steps]]
+name = "install_input_common"
+files = [{"copy" = {"from" = "${work}/objects/m23_math.o", "to" = "${work}/native/m23_math.o"}}]
+checks = []
+
+[[steps]]
+name = "previous_reject_common"
+files = [{"write" = {"path" = "${work}/program", "data" = "previous executable"}}]
+checks = []
+
+[[steps]]
+name = "reject_common"
+diagnostics_normalize = ["native-digests"]
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native", "--cache-dir", "${cache}"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "reject_common.json"}
+checks = [{"file" = "${work}/program", "equals" = "previous executable"}]
+
+[[steps]]
+name = "prepare_input_target"
+files = [{"copy" = {"from" = "${fixture}/native-sources/input_target.c", "to" = "${work}/sources/native/m23_math.c"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "input_target"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "-target", "x86_64-apple-macos", "${work}/sources/native/m23_math.c", "-o", "${work}/objects/m23_math.o"]
+exit = 0
+stdout = ""
+stderr = ""
+[[steps]]
+name = "install_input_target"
+files = [{"copy" = {"from" = "${work}/objects/m23_math.o", "to" = "${work}/native/m23_math.o"}}]
+checks = []
+
+[[steps]]
+name = "previous_reject_target"
+files = [{"write" = {"path" = "${work}/program", "data" = "previous executable"}}]
+checks = []
+
+[[steps]]
+name = "reject_target"
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native", "--cache-dir", "${cache}"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "reject_target.json"}
+checks = [{"file" = "${work}/program", "equals" = "previous executable"}]

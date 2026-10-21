@@ -1,4 +1,0 @@
-package consumer.nominalConditions
-import upstream.nominalConditions.*
-
-public fun wrong(value: PointerView<Managed>): Unit = Unit

@@ -1,0 +1,5 @@
+package test.m52.m52.vendor
+@Extern(name = "m52_answer")
+fun answer(): Int
+public fun value(): Int { @Unsafe { return answer() } }
+public fun <T> identity(value: T): T = value

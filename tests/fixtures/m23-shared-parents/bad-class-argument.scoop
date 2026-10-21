@@ -1,3 +1,0 @@
-import dependency.parents.Base
-
-public class Bad public constructor(): Base<String>(42)

@@ -1,3 +1,0 @@
-package helper
-
-public fun helperAnswer(): Int = 40

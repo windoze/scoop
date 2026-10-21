@@ -1,0 +1,3 @@
+package dev.example
+import dev.example.dependency.inference.applyTo
+public fun result(): Int { val value = applyTo({ item -> false }, 42); return 42 }

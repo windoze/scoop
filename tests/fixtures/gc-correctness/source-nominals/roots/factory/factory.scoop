@@ -1,0 +1,3 @@
+package test
+public fun host(): Host = Host()
+public fun derived(): Derived = Derived()

@@ -2,12 +2,12 @@ package scoop.tls
 
 import scoop.crypto.native.certificateHandle
 import scoop.crypto.PrivateKey
-import scoop.crypto.testdata.serverKeyPem
+import scoop.tests.scoop.crypto.testdata.serverKeyPem
 import scoop.crypto.x509.Certificate
 import scoop.platform.memory.NativeByteBuffer
 import scoop.test.*
 import scoop.tls.native.*
-import scoop.tls.testnative.systemCertificatePem
+import scoop.tests.scoop.tls.testnative.systemCertificatePem
 
 internal fun systemServerContext(options: TlsOptions = TlsOptions(), leaf: String = systemCertificatePem()): TlsServerContext =
     Certificate.fromPem(leaf).use { certificate ->

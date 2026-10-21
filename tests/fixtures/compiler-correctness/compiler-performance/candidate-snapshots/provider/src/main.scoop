@@ -1,0 +1,10 @@
+package dev.performance.performance.snapshots
+
+public class Counter<T> public constructor(public val value: T) {
+    public fun <R> map(transform: (T) -> R): Counter<R> = Counter(transform(value))
+}
+
+public fun <T> invokeRepeated(value: T, action: (T) -> T): T {
+    fun step(item: T): T = action(item)
+    return step(step(value))
+}

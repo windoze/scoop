@@ -1,3 +1,0 @@
-open class Base()
-class Derived() : Base()
-fun main() { val values: List<Base> = ArrayList<Derived>() }

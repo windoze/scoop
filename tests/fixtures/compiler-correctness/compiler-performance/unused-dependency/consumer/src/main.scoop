@@ -1,0 +1,6 @@
+package dev.performance
+import dev.performance.performance.dependency.answer
+
+fun main() {
+    println(answer())
+}

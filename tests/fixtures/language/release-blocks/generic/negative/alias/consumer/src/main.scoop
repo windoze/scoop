@@ -1,0 +1,4 @@
+package test
+import test.releasegeneric.Owner
+
+public typealias BadOwner = Owner<String>

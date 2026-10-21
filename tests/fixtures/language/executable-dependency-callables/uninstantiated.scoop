@@ -1,0 +1,5 @@
+package dev.example.consumer
+
+import dev.example.dependency.api.run
+
+public fun <T> dormant(value: T): Boolean = run()

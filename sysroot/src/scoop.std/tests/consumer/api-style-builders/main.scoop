@@ -1,0 +1,36 @@
+package scoop.std.tests.consumer.api_style_builders
+
+import scoop.test.*
+import scoop.bytes.ByteArrayBuilder
+
+private fun check(value: Boolean) { if (!value) throw IllegalStateException() }
+private fun <T : ToString> render(value: T): String = value.toString()
+
+private fun exerciseConsumer() {
+    val builder = StringBuilder()
+    check(builder.append(value = "a").append(value = 42) === builder)
+    val snapshot = builder.toString()
+    builder.append(builder)
+    check(snapshot == "a42" && render(builder) == "a42a42")
+    val view: ToString = builder
+    check(view.toString() == "a42a42")
+    val writer = StringWriter()
+    val output: TextWriter = writer
+    output.write(snapshot)
+    output.write("雪")
+    check(render(writer) == "a42雪")
+    check(f"writer=${writer}" == "writer=a42雪")
+    val bytes = ByteArrayBuilder()
+    check(bytes.append(value = 65.toByte()).append(value = writer.toString().toByteArray()) === bytes)
+    val first = bytes.toByteArray()
+    bytes.append(66.toByte())
+    check(String.fromUtf8(first) == "Aa42雪")
+    check(String.fromUtf8(bytes.toByteArray()) == "Aa42雪B")
+
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun behavior() { exerciseConsumer() }
+}

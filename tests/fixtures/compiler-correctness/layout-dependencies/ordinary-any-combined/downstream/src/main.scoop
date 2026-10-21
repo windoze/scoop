@@ -1,0 +1,3 @@
+package dev.example
+import test.*
+public fun read(): Any = outside()

@@ -1,0 +1,16 @@
+schema = 1
+name = "negative-combinations"
+root = "combinations.scoop"
+inputs = ["combinations.scoop"]
+tools = ["scoop"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["generics", "constraints", "language"]
+
+[[steps]]
+name = "run"
+argv = ["${scoop}", "run", "--release", {"each" = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--message-format", "json"]
+exit = 0
+stdout = "absent\nchild\nvalue\nchild\nmethod\nlocal\n"
+stderr = ""
+json = "stderr"
+diagnostics = []

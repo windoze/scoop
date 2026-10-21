@@ -1,0 +1,11 @@
+package dev.example
+import dev.example.dependency.classes.Counter
+import dev.example.dependency.classes.Token
+import dev.example.dependency.classes.WideValue
+import dev.example.dependency.classes.DefaultWide
+
+public struct LocalWide(): DefaultWide {
+    public override fun value(marker: Token, input: Counter): WideValue =
+        super<DefaultWide>.value(input = input, marker = marker)
+}
+public fun primary(): Counter = Counter(LocalWide().value(Token(), Counter(10)).first + 1)

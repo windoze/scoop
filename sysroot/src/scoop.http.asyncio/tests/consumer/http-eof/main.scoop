@@ -1,0 +1,87 @@
+package scoop.http.asyncio.tests.consumer.http_eof
+
+import scoop.test.*
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.test.*
+
+private fun exerciseConsumer() {
+    try {
+        eofHttp1()
+        eofHttp2()
+        eofAsync(false)
+        eofAsync(true)
+    } catch (error: AssertionFailure) {
+    assertEquals("HTTP unexpected EOF classification and preserved protocol failures passed", (error.kind + " " + (error.message ?: "failure") + " at " + error.location.line.toString()).toString())
+        throw error
+    }
+
+}
+
+private fun eofHttp1() {
+    for (wire in ["HTTP/1.1 200 O", "HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\nab",
+        "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n2\r\nab\r\n"]) {
+        Http1Decoder.client().use { decoder ->
+            decoder.expectResponse("GET".toByteArray())
+            eofFeed1(decoder, wire)
+            val error = assertFailsWith<HttpException> { decoder.endInput() }
+            assertTrue(error.isUnexpectedEof)
+            assertEquals(HttpFailureScope.Connection, error.scope)
+            assertTrue(error.code != 0)
+        }
+    }
+    Http1Decoder.client().use { decoder ->
+        decoder.expectResponse("GET".toByteArray())
+        val first = assertFailsWith<HttpException> { eofFeed1(decoder, "HTTP/1.1 200 OK\r\nContent-Length: nope\r\n\r\n") }
+        assertFalse(first.isUnexpectedEof)
+        val last = assertFailsWith<HttpException> { decoder.endInput() }
+        assertFalse(last.isUnexpectedEof)
+        assertEquals(first.code, last.code)
+    }
+    Http1Decoder.client().use { decoder ->
+        decoder.expectResponse("GET".toByteArray())
+        eofFeed1(decoder, "HTTP/1.1 200 OK\r\nConnection: close\r\n\r\nbody")
+        decoder.endInput()
+        var completed = false
+        while (true) {
+            val event = decoder.nextEvent() ?: break
+            when (event) { case End(_) -> completed = true; else -> {} }
+        }
+        assertTrue(completed)
+    }
+}
+
+private fun eofFeed1(decoder: Http1Decoder, text: String) {
+    NativeByteBuffer.allocate(1L).use { buffer ->
+        for (byte in text.toByteArray()) {
+            buffer.clear(); buffer.writeBytes([byte])
+            assertEquals(1L, decoder.receive(buffer))
+            while (when (decoder.nextEvent()) { case Some(_) -> true; case None -> false }) {}
+        }
+    }
+}
+
+private fun eofHttp2() {
+    Http2Session.client().use { client ->
+        val error = assertFailsWith<HttpException> { client.endInput() }
+        assertTrue(error.isUnexpectedEof)
+        assertEquals(HttpFailureScope.Connection, error.scope)
+    }
+    Http2Session.server().use { server ->
+        val first = NativeByteBuffer.allocate(24L).use { buffer ->
+            buffer.writeBytes("invalid client preface!!".toByteArray())
+            assertFailsWith<HttpException> { server.receive(buffer); Unit }
+        }
+        assertFalse(first.isUnexpectedEof)
+        val last = assertFailsWith<HttpException> { server.endInput() }
+        assertFalse(last.isUnexpectedEof)
+        assertEquals(first.code, last.code)
+    }
+    assertFalse(HttpException("custom", HttpProtocol.Http2, HttpFailureScope.Operation, 0, "custom", -507, "user error").isUnexpectedEof)
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun behavior() { exerciseConsumer() }
+}

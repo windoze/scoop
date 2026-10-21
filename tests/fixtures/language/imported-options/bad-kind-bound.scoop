@@ -1,0 +1,10 @@
+package dev.example.consumer.options
+
+import dev.example.dependency.options.ValuePacket
+
+private class Cell()
+
+public fun result(): Int {
+    val packet = ValuePacket.Value(Cell())
+    return 0
+}

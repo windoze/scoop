@@ -1,0 +1,21 @@
+package test.core.tests.consumer.text_writer_combined.p1
+
+import scoop.test.*
+
+public fun <W : TextWriter> writeParts(writer: W, parts: Array<String>): Unit {
+    for (part in parts) {
+        gcCollect()
+        writer.write(part)
+    }
+}
+
+public fun deferred(writer: TextWriter, text: String): () -> Unit = {
+    gcCollect()
+    writer.write(text)
+}
+
+public fun joined(parts: Array<String>): String {
+    val writer = StringWriter()
+    writeParts(writer, parts)
+    return writer.toString()
+}

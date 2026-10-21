@@ -4,7 +4,7 @@ use scoop_hir as hir;
 
 const SOURCE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../tests/fixtures/m23-imported-core-const/operators.scoop"
+    "/../../tests/fixtures/language/imported-core-const/operators.scoop"
 ));
 
 pub(super) fn with_input<R>(source: &str, run: impl FnOnce(&CurrentConeSources<'_, '_>) -> R) -> R {

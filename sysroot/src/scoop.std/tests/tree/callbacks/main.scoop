@@ -1,0 +1,61 @@
+package scoop.std.tests.tree.callbacks
+
+import scoop.test.*
+import scoop.collections.*
+import scoop.comparisons.*
+
+class Key(val rank: Int, val label: String)
+class Hook { var action: () -> Unit = {} }
+
+fun check(value: Boolean, label: String, location: SourceLocation = currentSourceLocation()) {
+    assertTrue(value, Some(label), location = location)
+}
+
+private fun exercise() {
+    val hook = Hook()
+    val comparator = comparatorOf<Key> { left, right -> hook.action(); left.rank.compareTo(right.rank) }
+    val map = TreeMap<Key, Int?>(comparator)
+    val original = Key(1, "original")
+    map[original] = None
+    check(map.put(Key(1, "equivalent"), Some(2)) == Some(None), "comparator equivalence")
+    check(map.keys.iterator().next()!! === original, "original key")
+    hook.action = { throw Exception(Some("comparison failed")) }
+    var caught = false
+    try { map.put(Key(2, "failure"), Some(3)) } catch (error: Exception) { caught = true }
+    check(caught && map.size == 1L, "comparison exception")
+    hook.action = { hook.action = {}; map[original] = Some(7) }
+    caught = false
+    try { map.put(Key(2, "outer"), Some(3)) } catch (error: ConcurrentModificationException) { caught = true }
+    check(caught && map.size == 1L && map[original] == Some(Some(7)), "reentrant replacement")
+    hook.action = { hook.action = {}; map.clear() }
+    caught = false
+    try { map.remove(original) } catch (error: ConcurrentModificationException) { caught = true }
+    check(caught && map.isEmpty(), "reentrant clear")
+    val set: MutableSet<Key> = TreeSet<Key>(comparator)
+    set.add(original)
+    set.add(Key(2, "two"))
+    check(set.retainAll(listOf<Key>(Key(1, "input"))) && set.size == 1L, "retain comparator equivalence")
+    check(set.iterator().next()!! === original, "retain original object")
+    val extreme = comparatorOf<Int> { left, right ->
+        if (left < right) -9223372036854775807L - 1L else if (left == right) 0L else 1L
+    }
+    val ordered = sortedSetOf<Int>(extreme, 3, 1, 2)
+    check(ordered.firstOrNone() == Some(1) && ordered.lower(3) == Some(2), "extreme compare result")
+    val full = TreeMap<Int, Int>(comparatorOf<Int> { left, right -> hook.action(); left.compareTo(right) })
+    var index = 0
+    while (index < 15) { full[index] = index; index += 1 }
+    val iterator = full.iterator()
+    hook.action = { throw Exception(Some("full node comparison")) }
+    caught = false
+    try { full[15] = 15 } catch (error: Exception) { caught = true }
+    hook.action = {}
+    check(caught && full.size == 15L && iterator.next()!!.key == 0, "split waits for comparison")
+    check(!full.containsKey(15), "failed insert absent")
+
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

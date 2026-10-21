@@ -1,0 +1,48 @@
+package scoop.json.tests.consumer.derived_decoding_constructors
+
+import scoop.test.*
+import scoop.json.Json
+
+private fun check(value: Boolean, code: Int, location: SourceLocation = currentSourceLocation()) {
+    assertTrue(value, location = location)
+}
+
+public struct Required(vararg val values: Int) {
+    public companion object : ValueDecoder<Required>
+}
+public struct Defaulted(val seed: Int, vararg val values: Int = [seed]) {
+    public companion object : ValueDecoder<Defaulted>
+}
+public class Row public constructor(vararg val values: Int = [7]) {
+    public val total: Long get() = values.size
+    public companion object : ValueDecoder<Row>
+}
+public enum Batches {
+    Items(vararg val values: Int = [9]),
+    Omitted(@Serialize(ignore = true) vararg val values: Int = [10])
+    public companion object : ValueDecoder<Batches>
+}
+
+private fun exerciseConsumer() {
+    check(Json.decodeFromString("{\"values\":[1,2]}", Required.Companion).values.size == 2L, 1)
+    check(Json.decodeFromString("{\"values\":[]}", Required.Companion).values.size == 0L, 2)
+    try { Json.decodeFromString("{}", Required.Companion); check(false, 3) }
+    catch (error: DecodingException) { check(error.path == "/values", 4) }
+    val a = Json.decodeFromString("{\"seed\":3}", Defaulted.Companion)
+    check(a.values.size == 1L && a.values[0L] == 3, 5)
+    val b = Json.decodeFromString("{\"values\":[4,5],\"seed\":3}", Defaulted.Companion)
+    check(b.values.size == 2L && b.values[1L] == 5, 6)
+    check(Json.decodeFromString("{}", Row.Companion).total == 1L, 7)
+    check(Json.decodeFromString("{\"values\":[1,2]}", Row.Companion).total == 2L, 8)
+    val items = Json.decodeFromString("{\"Items\":{}}", Batches.Companion)
+    check(when (items) { case Batches.Items(values) -> values[0L] == 9; else -> false }, 9)
+    val omitted = Json.decodeFromString("{\"Omitted\":{\"values\":[1]}}", Batches.Companion)
+    check(when (omitted) { case Batches.Omitted(values) -> values[0L] == 10; else -> false }, 10)
+
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun behavior() { exerciseConsumer() }
+}

@@ -1,3 +1,0 @@
-import scoop.test.*
-
-class Cases { @Test fun check() {} }

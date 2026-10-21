@@ -1,0 +1,41 @@
+schema = 1
+name = "platform-system"
+inputs = ["consumer", "probe.c", "launcher.c"]
+tools = ["scoop", "scoopc", "cc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["platform", "environment", "random", "time", "language"]
+variants = [{"name" = "release", "vars" = {"profile" = "release"}}]
+[[steps]]
+name = "prepare"
+files = [
+    {copy = {from = "${sysroot}/src/scoop.platform", to = "${work}/platform"}},
+    {copy = {from = "${fixture}/probe.c", to = "${work}/platform/native/probe.c"}},
+    {replace = {path = "${work}/platform/native/random.c", old = "#define _GNU_SOURCE 1", new = "#define _GNU_SOURCE 1\n#define getentropy m45_getentropy\n#define getrandom m45_getrandom"}},
+    {replace = {path = "${work}/platform/native/time.c", old = "#define _GNU_SOURCE 1", new = "#define _GNU_SOURCE 1\n#define clock_gettime m45_clock_gettime\n#define nanosleep m45_nanosleep"}},
+    {replace = {path = "${work}/platform/native/environment.c", old = "#define _GNU_SOURCE 1", new = "#define _GNU_SOURCE 1\n#define getpwuid_r m45_getpwuid_r"}},
+    {replace = {path = "${work}/platform/Cone.toml", old = "path = \"native/random.c\"", new = "path = \"native/random.c\"\n\n[[native.sources]]\npath = \"native/probe.c\""}},
+    {copy = {from = "${fixture}/consumer", to = "${work}/consumer"}},
+]
+
+[[steps]]
+name = "launcher"
+argv = ["${cc}", {each = "${cc_args}"}, "-std=c11", "-Wall", "-Wextra", "-Werror", "${fixture}/launcher.c", "-o", "${work}/launcher"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/consumer", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--profile", "${profile}", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "run"
+argv = ["${work}/launcher", "${build.result.output}"]
+exit = 0
+stdout = "raw environment, partial entropy and sleep GC passed\n"
+stderr = ""

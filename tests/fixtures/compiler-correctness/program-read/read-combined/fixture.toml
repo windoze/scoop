@@ -1,0 +1,48 @@
+schema = 1
+name = "program-read-read-combined"
+inputs = ["../../../language/program-link/read-combined.scoop", "program"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["program-read", "manifest", "compiler-correctness"]
+[[steps]]
+name = "core"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${sysroot}/src/scoop.core", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_program"
+files = [
+  {"copy" = {"from" = "${fixture}/program", "to" = "${work}/sources/program"}},
+  {"copy" = {"from" = "${fixture}/../../../language/program-link/read-combined.scoop", "to" = "${work}/sources/program/src/main.scoop"}},
+]
+checks = []
+
+[[steps]]
+name = "prepare_assertions"
+files = [
+  {"replace" = {"path" = "${work}/sources/program/src/main.scoop", "old" = "    val result = sample.size()", "new" = "    val result = sample.size()\n    if (result != 42) { throw IllegalStateException() }"}},
+]
+checks = []
+
+[[steps]]
+name = "verified"
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/program", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--message-format", "json", "-o", "${work}/verified-program", "--runtime-root", "${runtime}", "--cone-path", "${work}/artifacts"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"actual" = "${verified.result.dependencies.length}", "equals" = 1}]
+
+[[steps]]
+name = "run"
+argv = ["${verified.result.output}"]
+exit = 0
+stdout = ""
+stderr = ""
+checks = []

@@ -1,0 +1,4 @@
+package dev.example
+fun main() {
+    onlySignature(42)
+}

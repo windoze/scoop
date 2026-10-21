@@ -1,0 +1,7 @@
+package dev.example
+import dev.example.dependency.pointers.typeAddress
+
+private struct Managed(val value: String)
+
+@Unsafe
+public fun bad(pointer: Ptr<Int>): ULong = typeAddress<Managed>(pointer)

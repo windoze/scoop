@@ -1,5 +1,0 @@
-import dependency.selection.Ambiguous
-
-public fun result(): Unit {
-    Ambiguous(42, 42)
-}

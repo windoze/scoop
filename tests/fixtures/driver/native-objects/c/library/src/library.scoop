@@ -1,0 +1,4 @@
+package test.m48.m48.objects
+@Extern(name = "m48_answer")
+fun answer(): Int
+public fun value(): Int { @Unsafe { return answer() + 1 } }

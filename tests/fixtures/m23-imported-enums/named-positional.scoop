@@ -1,3 +1,0 @@
-import dependency.enums.Choice
-import dependency.enums.Token
-fun invalid(): Choice = Choice.Pair(1, Token(), 2)

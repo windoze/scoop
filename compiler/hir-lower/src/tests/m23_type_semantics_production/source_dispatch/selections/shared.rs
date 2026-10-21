@@ -5,7 +5,7 @@ mod wire;
 
 const GENERIC: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../tests/fixtures/m23-type-source-dispatch/shared-selections.scoop"
+    "/../../tests/fixtures/language/type-source-dispatch/shared-selections.scoop"
 ));
 
 #[test]

@@ -1,7 +1,7 @@
 package scoop.tls
 
 import scoop.crypto.PrivateKey
-import scoop.crypto.testdata.*
+import scoop.tests.scoop.crypto.testdata.*
 import scoop.crypto.x509.*
 import scoop.platform.memory.NativeByteBuffer
 import scoop.tls.native.*

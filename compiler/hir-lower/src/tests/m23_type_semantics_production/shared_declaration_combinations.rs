@@ -6,7 +6,7 @@ mod core_extensions;
 #[test]
 fn complete_shared_declarations_cover_nested_members_parameters_and_storage() {
     let fixtures = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/m23-type-source-nominals");
+        .join("../../tests/fixtures/language/type-source-nominals");
     for case in [
         "declarations",
         "nested",
@@ -27,7 +27,7 @@ fn complete_shared_declarations_cover_nested_members_parameters_and_storage() {
 #[test]
 fn complete_shared_declarations_cover_protected_members_and_dispatch_signatures() {
     let fixtures = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/m23-type-source-dispatch");
+        .join("../../tests/fixtures/language/type-source-dispatch");
     for case in [
         "callables",
         "parameter-protocols",

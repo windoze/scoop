@@ -1,0 +1,8 @@
+package dev.m45.inference
+public interface Carrier { public fun read(): Int }
+public class Resource public constructor(public val value: Int) : Carrier {
+    public override fun read(): Int = value
+}
+public fun <T : Carrier, R> T.scope(block: (T) -> R): R = block(this)
+public suspend fun <T : Carrier, R> T.scope(block: suspend (T) -> R): R = block(this)
+public fun <T> keep(value: T): T = value

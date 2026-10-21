@@ -1,9 +1,0 @@
-open class Base {
-    companion object : ValueEncoder<Base> {
-        public override fun encode(value: Base, encoder: Encoder) { encoder.singleValue().writeNull() }
-    }
-}
-class Child : Base()
-fun codec(): ValueEncoder<Child> = Base.Companion
-
-fun main() {}

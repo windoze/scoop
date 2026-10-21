@@ -1,7 +1,0 @@
-package consumer.constructorbodies
-
-private class Lambda<T>(value: T) {
-    val read: () -> T = { return value }
-}
-
-public fun result(): Int = Lambda<Int>(42).read()

@@ -1,0 +1,4 @@
+//! dep: dev.facade:facade:1.0.0
+import dev.facade.answer
+import scoop.uuid.Uuid
+fun main() { println(answer()); println(Uuid(0uL, 0uL)) }

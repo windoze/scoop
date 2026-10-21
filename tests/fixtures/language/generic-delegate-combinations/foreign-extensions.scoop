@@ -1,0 +1,21 @@
+package dev.example.consumer.delegates
+
+import dev.example.templates.delegateCombinations.Receiver
+import dev.example.templates.delegateCombinations.Trace
+import dev.example.templates.delegateCombinations.Payload
+import dev.example.templates.delegateCombinations.ExtensionSeed
+import dev.example.templates.delegateCombinations.provideDelegate as prepare
+import dev.example.templates.delegateCombinations.getValue as read
+import dev.example.templates.delegateCombinations.setValue as write
+
+private var <T> Receiver<T>.foreign: Int by ExtensionSeed()
+
+public fun <T> exercise(value: T): Int {
+    Trace.order = 0
+    Receiver<T>(value).foreign = 42
+    if (Trace.order != 45) { return 1 }
+    Payload(0)
+    val answer = Receiver<T>(value).foreign
+    return if (Trace.order == 456) { answer } else { 2 }
+}
+public fun result(): Int = exercise<Int>(1)

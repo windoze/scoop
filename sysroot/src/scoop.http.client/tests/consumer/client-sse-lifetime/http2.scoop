@@ -1,0 +1,72 @@
+package scoop.http.client.tests.consumer.client_sse_lifetime
+
+import scoop.test.*
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp2Connection
+import scoop.http.client.*
+import scoop.platform.net.*
+import scoop.test.*
+import scoop.time.Duration
+import scoop.url.Url
+
+internal fun sseHttp2(trust: TrustStore, total: Boolean) {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { scope ->
+        loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).useAsync suspend { listener ->
+            val finish = SseGate()
+            val serving = scope.launch suspend {
+                AsyncHttp2Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                    for (index in 0L..<(if (total) 2L else 3L)) {
+                        val request = connection.acceptRequest()!!
+                        val ids = request.head.fields.findAll("Last-Event-ID".toByteArray())
+                        if (index == 0L) assertEquals(0L, ids.size)
+                        else assertEquals(if (index == 1L) "one" else "two", String.fromUtf8(ids[0L].value))
+                        request.stream.readAllBytes(0L)
+                        if (index == 2L) request.stream.sendResponse(HttpResponseHead(HttpVersion.Http2, 204U), true)
+                        else {
+                            val text = if (index == 0L) "id: one\ndata: a\n\n" else "id: two\ndata: b\n\n"
+                            request.stream.sendResponse(HttpResponseHead(HttpVersion.Http2, 200U,
+                                fields = [sseField("Content-Type", "text/event-stream"), sseField("Content-Length", text.toByteArray().size.toString())]), false)
+                            sseWrite(request.stream, text)
+                            request.stream.finish()
+                        }
+                    }
+                    finish.await()
+                }
+            }
+            try {
+                withHttpClient(sseConfig(trust, true)) suspend { client ->
+                    val url = Url.parse("http://127.0.0.1:" + listener.localAddress.port.toString() + "/")
+                    val limit = Duration.seconds(10L)
+                    val request = HttpRequest.get(url, options = HttpCallOptions(timeouts = if (total) Some(HttpTimeoutOptions(total = Some(limit))) else None))
+                    val reconnect = HttpSseReconnectOptions(Duration.ZERO, Duration.ZERO, Some(3L), suspend { event ->
+                        if (total) loop.sleep(Duration.seconds(if (event.number == 1L) 6L else 60L))
+                        Unit
+                    })
+                    client.withSse(request, HttpSseOptions(reconnect = Some(reconnect))) suspend { source ->
+                        assertEquals(HttpVersion.Http2, source.head.version)
+                        assertEquals("a", source.next()!!.data)
+                        assertEquals("b", source.next()!!.data)
+                        if (total) {
+                            val error = sseFailure suspend { source.next(); Unit }
+                            assertTrue(error is HttpTimeoutException)
+                            val timeout = error as HttpTimeoutException
+                            assertEquals(HttpTimeoutPhase.Total, timeout.phase)
+                            assertTrue(timeout.elapsed >= limit)
+                            assertEquals(34L, timeout.responseBodyBytes)
+                            assertEquals(34L, timeout.encodedResponseBodyBytes)
+                        } else {
+                            assertFalse(ssePresent(source.next()))
+                            assertEquals(204U, source.head.status)
+                            assertEquals(2L, source.reconnectCount)
+                        }
+                        assertTrue(source.isClosed)
+                    }
+                }
+            } finally { finish.signal() }
+            serving.join()
+        }
+    }
+}

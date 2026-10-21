@@ -1,0 +1,3 @@
+package test.helper
+
+public fun helperAnswer(): Int = 40

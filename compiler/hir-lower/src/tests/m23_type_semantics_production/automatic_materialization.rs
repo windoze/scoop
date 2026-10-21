@@ -7,7 +7,7 @@ mod initialization;
 fn fixture(case: &str) -> String {
     std::fs::read_to_string(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
-            "../../tests/fixtures/m23-source-only-nominals/{case}.scoop"
+            "../../tests/fixtures/language/source-only-nominals/{case}.scoop"
         )),
     )
     .unwrap()

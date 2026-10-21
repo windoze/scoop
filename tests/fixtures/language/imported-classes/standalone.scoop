@@ -1,0 +1,4 @@
+package dev.example
+import dev.example.dependency.classes.Counter
+
+public fun primary(): Counter = Counter(21)

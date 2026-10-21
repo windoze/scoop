@@ -1,0 +1,5 @@
+package dev.example
+public fun check(): Long {
+    val reader: LocalReader = localReader()
+    return reader.parent() + reader.child() + 3
+}

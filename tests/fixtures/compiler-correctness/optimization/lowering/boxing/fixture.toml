@@ -1,0 +1,16 @@
+schema = 1
+name = "local-boxing"
+root = "program.scoop"
+inputs = ["program.scoop"]
+tools = ["scoop"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["optimization", "boxing", "escape", "compiler-correctness"]
+variants = [{"name" = "debug", "vars" = {"profile" = "debug"}}, {"name" = "release", "vars" = {"profile" = "release"}}]
+[[steps]]
+name = "run"
+argv = ["${scoop}", "run", {each = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--profile", "${profile}", "--message-format", "json"]
+exit = 0
+stdout = "local boxes preserve copies, casts, aliases and loop instances\n"
+stderr = ""
+json = "stderr"
+diagnostics = []

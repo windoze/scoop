@@ -1,0 +1,122 @@
+package scoop.tests
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.http.client.*
+import scoop.time.Duration
+
+internal fun bearerCancellation(trust: TrustStore, mode: String, cleanup: String) {
+    withBearerRuntime suspend { _, scope, listener ->
+        val url = bearerUrl(listener)
+        val entered = BearerGate()
+        val cancelled = BearerGate()
+        val release = BearerGate()
+        val cleaning = BearerGate()
+        val finish = BearerGate()
+        val cleaned = AtomicBoolean(false)
+        val loads = AtomicLong(0L)
+        val expectedCleanup = Throwable()
+        val provider = HttpAuthenticator.bearer(url.httpOrigin()) suspend { _ ->
+            if (loads.fetchAdd(1L) == 0L) {
+                val registration = currentJobOrNone()!!.invokeOnCancellation { _ -> cancelled.signal() }
+                try {
+                    entered.signal(); release.await()
+                    HttpBearerTokens("discarded")
+                } finally {
+                    cleaning.signal(); finish.await()
+                    cleaned.store(true); registration.dispose()
+                    when (cleanup) {
+                        case "plain" -> throw expectedCleanup
+                        case "wrapped" -> throw ResourceUseException(CancellationException(), expectedCleanup)
+                        else -> Unit
+                    }
+                }
+            } else {
+                bearerCheck(cleaned.load(), "next token load began before old cleanup completed")
+                HttpBearerTokens("new")
+            }
+        }
+        val serving = if (mode == "client") None else Some(scope.launch suspend {
+            AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                val request = connection.receiveRequest()!!
+                bearerCheck(bearerToken(request.head) == Some("new"))
+                request.body.readAllBytes(0L); bearerRespond(connection, 200U, "done")
+            }
+        })
+        val client = HttpClient.open(scope, bearerConfig(trust, HttpAuthenticationOptions([provider])))
+        val failure = BearerFailureHolder()
+        val closeFailure = BearerFailureHolder()
+        val executing = scope.launch suspend {
+            try {
+                val options = HttpCallOptions(timeouts = if (mode == "total")
+                    Some(HttpTimeoutOptions(total = Some(Duration.seconds(15L)))) else None)
+                client.execute(HttpRequest.get(url, options = options)).close()
+            } catch (error: Throwable) { failure.value = Some(error) }
+        }
+        entered.await()
+        val closing = if (mode == "client") Some(scope.launch suspend {
+            try { client.close() } catch (error: Throwable) { closeFailure.value = Some(error) }
+        }) else None
+        if (mode == "caller") executing.cancel()
+        if (mode == "clear") client.clearAuthenticationCache(provider)
+        try {
+            cancelled.await()
+            bearerCheck(!executing.isCompleted && !cleaned.load())
+            release.signal(); cleaning.await()
+            val next = if (mode == "client") None else Some(scope.async<Unit> suspend { bearerDone(client, HttpRequest.get(url)) })
+            bearerCheck(loads.load() == 1L && !executing.isCompleted)
+            if (bearerPresent(next)) bearerCheck(!next!!.isCompleted)
+            if (bearerPresent(closing)) bearerCheck(!closing!!.isCompleted)
+            finish.signal(); executing.join(); next?.await(); closing?.join()
+            val error = failure.value!!
+            if (cleanup != "none") {
+                bearerCheck(error is ResourceUseException, "Bearer cleanup failure was discarded")
+                if (error is ResourceUseException) bearerCheck(error.cleanupFailure === expectedCleanup)
+            }
+            val primary = if (error is ResourceUseException) error.primaryFailure else error
+            when (mode) {
+                case "client" -> bearerCheck(primary is HttpClientClosedException)
+                case "total" -> {
+                    bearerCheck(primary is HttpTimeoutException)
+                    if (primary is HttpTimeoutException) bearerCheck(primary.phase == HttpTimeoutPhase.Total)
+                }
+                else -> bearerCheck(primary is CancellationException)
+            }
+            if (mode == "client" && cleanup != "none") bearerCheck(closeFailure.value!! === expectedCleanup)
+            else bearerCheck(!bearerPresent(closeFailure.value))
+        } finally { release.signal(); finish.signal(); client.close() }
+        serving?.join()
+    }
+}
+
+internal fun bearerClearInsideCallback(trust: TrustStore) {
+    withBearerRuntime suspend { _, scope, listener ->
+        val url = bearerUrl(listener)
+        val holder = BearerCacheHolder()
+        val loads = AtomicLong(0L)
+        val provider = HttpAuthenticator.bearer(url.httpOrigin()) suspend { _ ->
+            if (loads.fetchAdd(1L) == 0L) holder.client!!.clearAuthenticationCache(holder.provider!!)
+            HttpBearerTokens("loaded")
+        }
+        holder.provider = Some(provider)
+        val serving = scope.launch suspend {
+            AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                val request = connection.receiveRequest()!!
+                bearerCheck(bearerToken(request.head) == Some("loaded"))
+                request.body.readAllBytes(0L); bearerRespond(connection, 200U, "done")
+            }
+        }
+        withHttpClient(bearerConfig(trust, HttpAuthenticationOptions([provider]))) suspend { client ->
+            holder.client = Some(client)
+            bearerFailure<CancellationException> suspend { client.execute(HttpRequest.get(url)).close() }
+            bearerDone(client, HttpRequest.get(url))
+            bearerCheck(loads.load() == 2L)
+        }
+        serving.join()
+    }
+}
+
+private class BearerCacheHolder {
+    var client: HttpClient? = None
+    var provider: HttpAuthenticator? = None
+}

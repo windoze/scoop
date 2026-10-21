@@ -1,0 +1,5 @@
+package dev.example.image.consumer
+
+import dev.example.image.provider.answer
+
+public fun result(): Int = answer()

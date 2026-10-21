@@ -1,3 +1,0 @@
-public fun integerOwner(): GenericOwner<Int> = GenericOwner<Int>()
-public fun stringOwner(): GenericOwner<String> = GenericOwner<String>()
-public fun fileHolder(): FileHolder = FileHolder()

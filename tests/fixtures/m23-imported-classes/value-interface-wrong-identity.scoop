@@ -1,4 +1,0 @@
-import dependency.classes.StructReader
-import dependency.classes.OtherReadable
-
-public fun rejected(value: StructReader): OtherReadable = value

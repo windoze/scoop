@@ -1,0 +1,48 @@
+schema = 1
+name = "type-foundations-slot-combinations"
+inputs = ["../../../language/imported-classes/support/stage3_test.scoop", "slot-combinations", "../../../language/shared-type-foundations/slot-combinations.scoop", "type-foundation-slot-combinations-consumer"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["type-foundations", "slot-combinations", "compiler-correctness"]
+[[steps]]
+name = "core"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${test_core}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_slot-combinations"
+files = [
+  {"copy" = {"from" = "${fixture}/slot-combinations", "to" = "${work}/sources/slot-combinations"}},
+  {"copy" = {"from" = "${fixture}/../../../language/shared-type-foundations/slot-combinations.scoop", "to" = "${work}/sources/slot-combinations/src/main.scoop"}},
+]
+
+[[steps]]
+name = "provider"
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/slot-combinations", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/slot-combinations/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_type-foundation-slot-combinations-consumer"
+files = [
+  {"copy" = {"from" = "${fixture}/type-foundation-slot-combinations-consumer", "to" = "${work}/sources/type-foundation-slot-combinations-consumer"}},
+]
+
+[[steps]]
+name = "consumer"
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/type-foundation-slot-combinations-consumer", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/type-foundation-slot-combinations-consumer/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []

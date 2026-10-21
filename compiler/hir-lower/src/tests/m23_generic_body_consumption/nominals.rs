@@ -3,7 +3,7 @@ use super::*;
 #[test]
 fn source_and_dependency_enum_instances_share_payload_and_gc_substitution() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/m23-shared-enums");
+        .join("../../tests/fixtures/language/shared-enums");
     with_provider_consumer(
         &std::fs::read_to_string(root.join("provider.scoop")).unwrap(),
         &std::fs::read_to_string(root.join("instances.scoop")).unwrap(),
@@ -68,7 +68,7 @@ fn source_and_dependency_enum_instances_share_payload_and_gc_substitution() {
 #[test]
 fn enum_definitions_retain_recursive_payload_and_interface_environments() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/m23-shared-enum-definitions");
+        .join("../../tests/fixtures/language/shared-enum-definitions");
     for case in ["standalone", "combined"] {
         with_provider_consumer(
             &std::fs::read_to_string(root.join("provider.scoop")).unwrap(),
@@ -98,7 +98,7 @@ fn enum_definitions_retain_recursive_payload_and_interface_environments() {
 fn fixture(name: &str) -> String {
     std::fs::read_to_string(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tests/fixtures/m23-generic-nominal-consumption")
+            .join("../../tests/fixtures/language/generic-nominal-consumption")
             .join(format!("{name}.scoop")),
     )
     .unwrap()

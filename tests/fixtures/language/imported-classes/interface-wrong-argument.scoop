@@ -1,0 +1,5 @@
+package dev.example
+import dev.example.dependency.classes.Token
+import dev.example.dependency.classes.Readable
+
+public fun invalid(value: Readable): Long = value.answer(Token())

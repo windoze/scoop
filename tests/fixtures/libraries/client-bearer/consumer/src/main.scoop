@@ -1,0 +1,43 @@
+package scoop.tests
+import scoop.tests.scoop.crypto.testdata.rootPem
+import scoop.crypto.x509.TrustStore
+import scoop.platform.concurrent.Thread
+import scoop.url.Url
+
+private fun exercise(args: Array<String>, first: Long, trust: TrustStore) {
+    when (args[1L]) {
+        case "cache" -> bearerCache(trust)
+        case "refresh" -> bearerRefresh(trust, false)
+        case "same" -> bearerRefresh(trust, true)
+        case "shared" -> bearerSharedCancellation(trust, args[2L] == "total")
+        case "cancel" -> bearerCancellation(trust, args[2L], args[3L])
+        case "self" -> bearerClearInsideCallback(trust)
+        case "policy" -> bearerPolicies(trust, args[2L])
+        case "credentials" -> bearerCredentialFailures(trust, args[2L])
+        case "http2" -> bearerHttp2(trust)
+        case "challenge" -> bearerChallenge(Url.parse(args[first]), trust)
+        case "redirect" -> bearerRedirect(Url.parse(args[first]), Url.parse(args[first + 1L]), trust)
+        else -> throw IllegalArgumentException(Some("unknown Bearer fixture mode"))
+    }
+}
+
+private fun reportFailure(error: Throwable) {
+    if (error is Exception) println(error.message ?: "no exception message")
+    if (error is ResourceUseException) {
+        println("primary:"); reportFailure(error.primaryFailure)
+        println("cleanup:"); reportFailure(error.cleanupFailure)
+    }
+}
+
+fun main(args: Array<String>) {
+    try {
+        bearerCheck(args.size >= 2L)
+        TrustStore.fromPem(rootPem()).use { trust ->
+            Thread.start { exercise(args, 2L, trust) }.use { thread ->
+                exercise(args, 4L, trust)
+                thread.join()
+            }
+        }
+        println("client Bearer " + args[1L])
+    } catch (error: Throwable) { reportFailure(error); throw error }
+}

@@ -1,3 +1,0 @@
-import dependency.classes.AbstractCounter
-
-public fun invalid(): AbstractCounter = AbstractCounter(21)

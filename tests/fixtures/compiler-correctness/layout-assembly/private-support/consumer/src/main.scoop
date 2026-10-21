@@ -1,0 +1,2 @@
+package dev.example
+public fun consume(value: Exposed): Token = value.echo(keep(Token()))

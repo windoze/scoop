@@ -1,1 +1,0 @@
-public fun consume(value: dependency.paths.IntBox<Int>): Int = 42

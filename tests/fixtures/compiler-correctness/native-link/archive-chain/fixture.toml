@@ -1,0 +1,105 @@
+schema = 1
+name = "native-link-archive-chain"
+inputs = ["cone", "../../../language/native-link/archive/root.scoop", "../../../language/native-link/archive/entry.c", "../../../language/native-link/archive/end.c", "../../../language/native-link/archive/unused.c", "../../../language/native-link/archive/middle.c"]
+tools = ["scoop", "scoopc", "cc", "ar"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["native-link", "program-link", "compiler-correctness"]
+[[steps]]
+name = "prepare"
+files = [{"copy" = {"from" = "${fixture}/cone", "to" = "${work}/sources/archive"}}, {"copy" = {"from" = "${fixture}/../../../language/native-link/archive/root.scoop", "to" = "${work}/sources/archive/src/main.scoop"}}, {"mkdir" = {"path" = "${work}/native"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "prepare_compile_entry"
+files = [{"copy" = {"from" = "${fixture}/../../../language/native-link/archive/entry.c", "to" = "${work}/sources/native/entry.c"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "compile_entry"
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/entry.c", "-o", "${work}/objects/entry.o"]
+exit = 0
+stdout = ""
+stderr = ""
+[[steps]]
+name = "prepare_compile_end"
+files = [{"copy" = {"from" = "${fixture}/../../../language/native-link/archive/end.c", "to" = "${work}/sources/native/end.c"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "compile_end"
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/end.c", "-o", "${work}/objects/end.o"]
+exit = 0
+stdout = ""
+stderr = ""
+[[steps]]
+name = "prepare_compile_unused"
+files = [{"copy" = {"from" = "${fixture}/../../../language/native-link/archive/unused.c", "to" = "${work}/sources/native/unused.c"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "compile_unused"
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/unused.c", "-o", "${work}/objects/unused.o"]
+exit = 0
+stdout = ""
+stderr = ""
+[[steps]]
+name = "prepare_compile_middle"
+files = [{"copy" = {"from" = "${fixture}/../../../language/native-link/archive/middle.c", "to" = "${work}/sources/native/middle.c"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "compile_middle"
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/middle.c", "-o", "${work}/objects/middle.o"]
+exit = 0
+stdout = ""
+stderr = ""
+[[steps]]
+name = "archive_m23_chain"
+argv = ["${ar}", "qcS", "${work}/native/libm23_chain.a", "${work}/objects/entry.o", "${work}/objects/end.o", "${work}/objects/unused.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"ZERO_AR_DATE" = "1"}
+
+[[steps]]
+name = "archive_m23_tail"
+argv = ["${ar}", "qcS", "${work}/native/libm23_tail.a", "${work}/objects/middle.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"ZERO_AR_DATE" = "1"}
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/archive", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_link_inputs_isolate"
+files = [
+  {"copy" = {"from" = "${build.result.root.path}", "to" = "${work}/artifacts/root.slib"}},
+  {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/0.slib"}},
+]
+checks = []
+
+[[steps]]
+name = "link"
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", {"each" = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--library-path", "${work}/native", "--dump-plan", "--cache-dir", "${cache}"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"actual" = "${link.result.link_plan}", "snapshot" = "link.${target}.plan", "normalize" = ["paths", "native-digests", "native-link-plan"]}]
+
+[[steps]]
+name = "run_linked"
+argv = ["${link.result.output}"]
+exit = 0
+stdout = "42\n7\n"
+stderr = ""

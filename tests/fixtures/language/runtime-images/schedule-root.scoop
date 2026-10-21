@@ -1,0 +1,7 @@
+package dev.example
+import dev.example.schedule.join.*
+
+@Extern(lib = "m23_runtime_images", name = "m23_trace")
+private fun trace(value: Long)
+
+fun main() { @Unsafe { trace(joined + 10L) } }

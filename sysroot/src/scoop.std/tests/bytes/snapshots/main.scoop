@@ -1,0 +1,57 @@
+package scoop.std.tests.bytes.snapshots
+
+import scoop.test.*
+import scoop.bytes.*
+
+fun check(ok: Boolean, location: SourceLocation = currentSourceLocation()) {
+    assertTrue(ok, location = location)
+}
+class Source public constructor(private val builder: ByteArrayBuilder, private val fail: Boolean) : List<Byte> {
+    public override val size: Long get() = 3L
+    public override operator fun get(index: Long): Byte {
+        if (fail && index == 1L) throw IllegalArgumentException(Some("source getter"))
+        return builder.toByteArray()[index]
+    }
+    public override operator fun iterator(): Iterator<Byte> = builder.toByteArray().iterator()
+}
+class Huge : List<Byte> {
+    public override val size: Long get() = Long.MAX_VALUE
+    public override operator fun get(index: Long): Byte { throw IllegalStateException() }
+    public override operator fun iterator(): Iterator<Byte> { throw IllegalStateException() }
+}
+private fun exercise() {
+    val builder = ByteArrayBuilder()
+    builder.append(1.toByte()); builder.append(2.toByte()); builder.append(3.toByte())
+    val first = builder.toByteArray()
+    val mutable = builder.toMutableByteArray()
+    mutable[0L] = 99.toByte()
+    check(builder.toByteArray()[0L] == 1.toByte() && first[0L] == 1.toByte())
+    builder.append(Source(builder, false))
+    check(builder.size == 6L && builder.toByteArray()[3L] == 1.toByte() && first.size == 3L)
+    var failed = false
+    try { builder.append(Source(builder, true)) } catch (error: IllegalArgumentException) { failed = true }
+    check(failed && builder.size == 6L && builder.toByteArray()[5L] == 3.toByte())
+    val reader = ByteArrayReader(mutable)
+    mutable[0L] = 0.toByte()
+    check(reader.readInt8() == 99.toByte())
+    val slice = reader.readBytes(2L)
+    reader.seek(0L)
+    builder.clear()
+    check(builder.size == 0L && first.size == 3L && first[2L] == 3.toByte() && slice[0L] == 2.toByte())
+    builder.append(first)
+    builder.append(Array<Byte>(0L) { _ -> 0.toByte() })
+    check(builder.size == 3L && reader.readInt8() == 99.toByte())
+    var constructorFailed = false
+    try { val unused = ByteArrayReader(Source(builder, true)) } catch (error: IllegalArgumentException) { constructorFailed = true }
+    check(constructorFailed)
+    var overflow = false
+    try { builder.append(Huge()) } catch (error: ArithmeticException) { overflow = true }
+    check(overflow && builder.size == 3L)
+
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

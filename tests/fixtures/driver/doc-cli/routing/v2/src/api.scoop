@@ -1,0 +1,6 @@
+package dev.m60.api
+
+/** Version two API. */
+public class Versioned {
+    public fun versionTwo(): Int = 2
+}

@@ -60,6 +60,11 @@ impl Inputs {
             .runtime_c_flags()
             .into_iter()
             .chain(request.optimization.c_flags().iter().copied())
+            .chain([if request.enable_gc_stress {
+                "-DSCOOP_ENABLE_GC_STRESS=1"
+            } else {
+                "-DSCOOP_ENABLE_GC_STRESS=0"
+            }])
             .chain([
                 "-funwind-tables",
                 "-fasynchronous-unwind-tables",

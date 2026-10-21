@@ -1,3 +1,0 @@
-import LocalChoice
-
-public fun check(): Long = LocalChoice().answer() + primary().twice() - 21

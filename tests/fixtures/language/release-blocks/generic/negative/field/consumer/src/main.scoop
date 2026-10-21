@@ -1,0 +1,4 @@
+package test
+import test.releasegeneric.Owner
+
+public class Holder(val nested: Owner<String>) {}

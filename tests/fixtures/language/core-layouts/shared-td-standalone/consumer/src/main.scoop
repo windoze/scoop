@@ -1,0 +1,7 @@
+package dev.example
+fun main() {
+    val value: Any = SharedTdObject
+    if (value !is SharedTdBase || value is SharedTdChild) throw IllegalStateException()
+    val base = value as SharedTdBase
+    if (base.token() != SharedTdEmpty()) throw IllegalStateException()
+}

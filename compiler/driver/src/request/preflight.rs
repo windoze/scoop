@@ -27,6 +27,9 @@ mod end_to_end_tests;
 mod loading;
 mod machine;
 mod observation;
+mod packages;
+#[cfg(test)]
+mod single_file_tests;
 pub use machine::{CurrentConeLirStageError, CurrentConeMirStageError};
 mod production;
 mod validated;
@@ -81,8 +84,14 @@ impl<'input> ValidatedExplicitDependencyInputSet<'input> {
 
 #[derive(Debug)]
 pub enum LoadedCurrentConeInput {
-    Manifest { manifest: Box<LoadedConeManifest> },
-    SingleFile { source: SingleFileLocator },
+    Manifest {
+        manifest: Box<LoadedConeManifest>,
+    },
+    SingleFile {
+        source: SingleFileLocator,
+        input: Box<DiscoveredSource>,
+        dependencies: Vec<scoop_manifest::SingleFileDependency>,
+    },
 }
 
 #[derive(Debug)]
@@ -161,8 +170,8 @@ impl SingleConeBuildRequest {
     }
 
     /// Loads the current manifest, every explicit dependency artifact, and
-    /// trusted core bytes. Current source discovery and parsing remain
-    /// deliberately unavailable at this stage.
+    /// trusted core bytes. A single file is read once for its dependency header
+    /// and retained for parsing; manifest source discovery remains deferred.
     pub fn load_preflight(self) -> Result<LoadedSingleConeBuildRequest, SingleConePreflightError> {
         self.load_preflight_inner()
     }
@@ -243,7 +252,20 @@ fn load_current_input(
             })
             .map_err(|source| SingleConePreflightError::Manifest(Box::new(source))),
         CurrentConeInput::SingleFile { source } => {
-            Ok(LoadedCurrentConeInput::SingleFile { source })
+            let input = load_single_file_source(&source)
+                .map_err(|error| SingleConePreflightError::SingleFile(Box::new(error)))?;
+            let dependencies = scoop_manifest::parse_single_file_dependencies(input.source_text())
+                .map_err(|error| {
+                    SingleConePreflightError::SingleFile(Box::new(SingleFileInputError::header(
+                        source.display_path().to_owned(),
+                        error,
+                    )))
+                })?;
+            Ok(LoadedCurrentConeInput::SingleFile {
+                source,
+                input: Box::new(input),
+                dependencies,
+            })
         }
     }
 }
@@ -289,9 +311,12 @@ fn parse_manifest_current(
         }
     }
     .map_err(|source| CurrentConeSourceStageError::Discovery(Box::new(source)))?;
-    parse_discovered_sources(&sources)
+    let parsed = parse_discovered_sources(&sources)?;
+    packages::validate(manifest, &parsed)?;
+    Ok(parsed)
 }
 
+#[cfg(test)]
 fn parse_single_file_current(
     source: &SingleFileLocator,
 ) -> Result<CurrentConeParsedSources, CurrentConeSourceStageError> {
@@ -331,6 +356,7 @@ pub enum CurrentConeSourceStageError {
     SingleFile(Box<SingleFileInputError>),
 
     Parser(Box<ParseCurrentConeError>),
+    Package(Box<CurrentConeDiagnosticSet>),
 }
 
 impl fmt::Display for CurrentConeSourceStageError {
@@ -340,6 +366,7 @@ impl fmt::Display for CurrentConeSourceStageError {
             Self::SingleFile(source) => source.fmt(formatter),
 
             Self::Parser(source) => source.fmt(formatter),
+            Self::Package(diagnostics) => formatter.write_str(&diagnostics.render_human()),
         }
     }
 }
@@ -350,6 +377,7 @@ impl std::error::Error for CurrentConeSourceStageError {
             Self::Discovery(source) => Some(source.as_ref()),
             Self::SingleFile(source) => Some(source.as_ref()),
             Self::Parser(source) => Some(source.as_ref()),
+            Self::Package(_) => None,
         }
     }
 }
@@ -357,6 +385,7 @@ impl std::error::Error for CurrentConeSourceStageError {
 #[derive(Debug)]
 pub enum SingleConePreflightError {
     Manifest(Box<ManifestRootError>),
+    SingleFile(Box<SingleFileInputError>),
     ExplicitDependencyLoad(Box<ExplicitDependencyLoadError>),
     Dependencies(Box<ExplicitDependencyValidationError>),
     DefaultCoreSlot(Box<crate::TrustedCoreSlotError>),
@@ -367,6 +396,7 @@ impl fmt::Display for SingleConePreflightError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Manifest(source) => source.fmt(formatter),
+            Self::SingleFile(source) => source.fmt(formatter),
             Self::ExplicitDependencyLoad(source) => source.fmt(formatter),
             Self::Dependencies(source) => source.fmt(formatter),
             Self::DefaultCoreSlot(source) => source.fmt(formatter),
@@ -379,6 +409,7 @@ impl std::error::Error for SingleConePreflightError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Manifest(source) => Some(source.as_ref()),
+            Self::SingleFile(source) => Some(source.as_ref()),
             Self::ExplicitDependencyLoad(source) => Some(source.as_ref()),
             Self::Dependencies(source) => Some(source.as_ref()),
             Self::DefaultCoreSlot(source) => Some(source.as_ref()),

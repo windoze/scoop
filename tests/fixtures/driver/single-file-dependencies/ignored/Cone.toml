@@ -1,0 +1,8 @@
+schema = 1
+[cone]
+group = "dev.ignored"
+name = "ignored"
+version = "1.0.0"
+kind = "executable"
+[test-dependencies]
+"scoop:scoop.test" = "0.1.0"

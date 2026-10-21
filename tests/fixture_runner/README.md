@@ -1,21 +1,28 @@
 # Scoop fixture schema 1
 
 运行 `python3 tests/run_fixtures.py --all` 完整验收。开发时可用
-`--suite tests/fixtures/m23-cli` 或 `--filter 'cli-*'`；`--list` 使用同一发现与校验。
+`--suite tests/fixtures/driver/cli` 或 `--filter 'cli-*'`；`--list` 使用同一发现与校验。
 所有被扫描的 `.scoop` 必须归属于声明的 `inputs` 或 `support`，支持文件不单独计为通过。
 缺少工具、期望文件、未知字段、嵌套类型错误、重复载体与前向步骤引用均报配置／环境错误。
-Python 3.11+ 只用标准库；格式化／lint 使用 `tests/requirements-dev.txt` 固定的 Ruff。
+Python 3.11+ 只用标准库；Python peer 和辅助进程统一使用 `${python}`（本次 runner 的解释器），避免 PATH 中另一个旧版本。格式化／lint 使用 `tests/requirements-dev.txt` 固定的 Ruff。
 默认最多并行运行四个用例，可用 `--jobs N` 调整，`--jobs 1` 顺序运行。
 大型 HTTP 客户端集成用例及 WebSocket 生命周期用例的编译步骤显式使用 900 秒时限，以覆盖较慢宿主上的完整编译；运行、诊断和缓存断言仍按各用例原有规则执行。
 正式 CLI 验证使用按 [准备脚本说明](../../scripts/README.md) 事先准备的开发 sysroot；
-设置 `SCOOP_SYSROOT="$PWD/sysroot"` 后再运行。runner 保留源码与工具，并复制正常资源布局，
-不自动调用 sysroot 准备、LLVM 构建或打包脚本。
+`${sysroot}` 依次采用 `--sysroot`、`SCOOP_SYSROOT`、仓库 `sysroot`，直接读取已准备的资源，
+不复制完整 sysroot，也不自动调用准备、LLVM 构建或打包脚本。
+`${cache}` 依次采用 `--cache-dir`、`SCOOP_CACHE_DIR`、仓库 `target/fixture-cache`，
+跨用例及不同 `--work-dir` 复用；清理本次 work 不清理该缓存。
 Linux amd64 默认选择 glibc；用 `--target x86_64-unknown-linux-musl` 运行 musl 用例，
 fixture 的 Scoop 命令通过 `${target}` 传递该选择。`${cc}` 默认分别为 GCC / musl-gcc，
 可用 `--cc` 覆盖；Linux 不提供 Darwin 的 `${sdk}` / `${deployment}`。
 共有 fixture 使用 `{each = "${compile_args}"}` 给 `scoopc build` 传目标参数，
 使用 `{each = "${link_args}"}` 给 `scoop build/run/link` 或 `scoop-link` 传目标及最终链接参数。
-Linux 的链接参数包含仓库 `sysroot/lib/<target>/unwind`，供普通程序链接使用。
+普通功能 fixture 和内置 Cone 测试显式使用 release：Scoop 命令传 `--release`，
+低层 `scoopc build` 传 `--profile release`。不公开 profile 参数的 `scoop doc` 按原文档/HIR 合同覆盖。不把普通用例分别在 debug/release 跑两遍。
+编译器正确性专测按实际 IR、优化、跨产物合同保留所需 profile；产品默认 profile
+的专测保留省略选项的调用，Scoop 产品的默认值仍为 debug。分类与例外见
+[测试模式说明](../../docs/minor-fixes/TEST-MODES.md)。
+Linux 的链接参数包含所选 `${sysroot}/lib/<target>/unwind`，供普通程序链接使用。
 显式 `--cc` 也传给 Linux Scoop 工具；用例保留其实际源码、sysroot 和工具。
 需要固定自定义 `--cc` 的工具链诊断专测直接传 `--target ${target}`，不展开包含环境 `--cc` 的公共参数数组。
 native companion 用 `{each = "${cc_args}"}` 传平台编译参数：Darwin 为实际 target、
@@ -52,7 +59,7 @@ tags = ["cli"]
 
 [[steps]]
 name = "build"
-argv = ["${scoop}", "build", "${root}", "--sysroot", "${sysroot}",
+argv = ["${scoop}", "build", "--release", "${root}", "--sysroot", "${sysroot}",
         "--cache-dir", "${cache}", "--target-dir", "${work}/target",
         "--message-format", "json"]
 exit = 0
@@ -71,9 +78,10 @@ stderr = ""
 ```
 
 顶层还可声明 `support`、`vars`、`variants`；每个变体只有 `name`、`vars`、`env`。
-未写 variants 时运行 `normal`。变体按顺序执行，各有独立 `${work}`，共享本次私有
-`${cache}` 与 `${sysroot}`。GC 正确性专测可用 `env = { SCOOP_GC_STRESS_MOVE = "1" }`，只影响该变体。
-普通预编译库功能用例使用批次共享的 `${cache}`，复用相同依赖的构建与链接准备。
+未写 variants 时运行 `normal`。变体按顺序执行，各有独立 `${work}`，共享
+`${cache}` 与 `${sysroot}`。GC 正确性专测先给 `scoop build/run/test/link` 或 `scoop-link` 传 `--enable-gc-stress` 编入支持，再用 `env = { SCOOP_GC_STRESS_MOVE = "1" }` 开启对应变体；未编入支持时环境变量无效。
+普通用例直接使用预编译系统库和共享 `${cache}`；仅实际验证源码构建、发布或缓存行为时，
+才为相关输入保留构建步骤或私有缓存。库 API 行为用 `scoop.test` 验证，不重复冷/热构建。
 多 Cone 提交真实 `Cone.toml`，按普通 `copy` 步骤布置，runner 不合成入口或 manifest。
 native companion 显式作为 input，并用普通 argv 步骤调用 `${cc}`、`${ar}`，指定
 `{each = "${cc_args}"}` 和输出；随后传 `--library-path`。
@@ -121,7 +129,9 @@ AST/HIR/MIR/LIR 的 typed IR 测试同样可承担结构职责；不要求每个
 
 每个进程必须声明 `exit` 或 `signal`（如 `"SIGABRT"`）之一，以及完整 stdout/stderr。
 stdin 默认空；cwd 默认 `${work}`；env 继承调用者并应用显式键；timeout 默认 300 秒，以容纳 Linux 上完整的 core 冷构建。
-`SCOOP_GC_STRESS_MOVE` 与其他环境变量一样继承，变体或步骤仍可显式覆盖；只在验证 GC 正确性的定向用例中显式开启，不用于普通功能测试或全量验收。
+每个变体开始时去掉调用者环境中的 `SCOOP_GC_STRESS_MOVE` 和 `SCOOP_GC_STRESS_MINOR`，
+再应用变体和步骤的显式设置；其他环境变量继续继承。GC 正确性专测显式编入支持并
+设置所需环境变量。普通功能用例不启用 stress，也不保留重复的 moving/minor 运行。
 字节期望和 stdin 可写文本、`{hex = "..."}` 或 `{file = "expected.stdout"}`。
 stdout/stderr 也可显式声明 `{snapshot = "symbols.${target}.txt"}`，沿用 snapshot
 更新规则；正常验收仍比较完整原始字节。仅用于小而受控的结构或工具输出专测；普通功能用例不保存完整符号表。
@@ -192,3 +202,5 @@ wait 之前只有后台进程的 `.pid` 可引用；result／stdout 等要等完
 
 报告单列用例、变体、进程和 golden 数量，不将支持文件或目标不适用项计作通过。
 `--work-dir` 或失败时保留 report 与工作区，`--keep` 也可用于审阅成功运行。
+
+内置 Cone 的测试入口使用仓库 `sysroot/src` 中的当前源码；`--sysroot` 只选择预编译系统库与 native 资源。把 sysroot 指向独立的已准备目录时，不会误跑该目录中的旧版测试源码。

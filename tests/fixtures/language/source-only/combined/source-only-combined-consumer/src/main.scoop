@@ -1,0 +1,4 @@
+package dev.example
+public fun pass(value: DeferredRoot): DeferredRoot = value
+public fun passValue(value: ReadyEmpty): ReadyEmpty = value
+public fun <T> passTemplate(value: DeferredGeneric<T>): DeferredGeneric<T> = value

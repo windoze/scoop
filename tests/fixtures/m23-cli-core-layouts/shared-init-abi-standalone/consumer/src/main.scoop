@@ -1,3 +1,0 @@
-fun main() {
-    if (sharedInitRead() != "initialized" || sharedInitEager != "initialized") throw IllegalStateException()
-}

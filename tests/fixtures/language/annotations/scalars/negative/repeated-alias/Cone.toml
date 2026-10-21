@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "demo"
+name = "m29-annotation-repeated-alias"
+version = "0.1.0"
+kind = "executable"
+
+[[sources]]
+path = "main.scoop"

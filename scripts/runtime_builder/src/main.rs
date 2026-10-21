@@ -9,6 +9,8 @@ use scoop_toolchain::{CToolchainOptions, ResolvedTargetProfile};
 #[derive(Parser)]
 struct Arguments {
     #[arg(long)]
+    enable_gc_stress: bool,
+    #[arg(long)]
     target: String,
     #[arg(long)]
     runtime_root: PathBuf,
@@ -37,6 +39,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         vendor_root: &args.vendor_root,
         cache_root: &args.cache_dir,
         optimization: RuntimeOptimization::Optimized,
+        enable_gc_stress: args.enable_gc_stress,
         unwind_prefix: args.unwind_prefix.as_deref(),
     })?;
     let root = output

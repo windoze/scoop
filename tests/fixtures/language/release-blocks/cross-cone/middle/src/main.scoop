@@ -1,0 +1,5 @@
+package test.releasemiddle
+
+import test.releaseblocks.Owner
+
+public fun makeOwner(value: Int): Owner = Owner(value)

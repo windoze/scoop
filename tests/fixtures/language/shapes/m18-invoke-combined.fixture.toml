@@ -1,0 +1,24 @@
+schema = 1
+name = "shared-shapes-m18-invoke-combined"
+inputs = ["../invoke/combined.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["shared-shapes", "language"]
+variants = [{"name" = "release"}]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${fixture}/../invoke/combined.scoop", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "invoke-default\ninvoke-default\ninvoke-suspended\ninvoke-success\ncaptured-payload-success!\ninvoke-failure\ninvoke-caught\n"
+stderr = ""

@@ -1,0 +1,24 @@
+package test.core.tests.consumer.string_builder_cross_cone.p0
+
+import scoop.test.*
+import test.core.tests.consumer.string_builder_cross_cone.p1.*
+
+class Display(val value: String) : ToString {
+    public override fun toString(): String = value
+}
+private fun exerciseConsumer() {
+    val builder = create("A")
+    val first = builder.toString()
+    builder.append('雪').append(42)
+    gcCollect()
+    if (first != "A" || builder.toString() != "A雪42" || surround(42) != "<42>" ||
+        surround(Display("value"), '!') != "<value!" || character() != "雪" ||
+        StringBuilder().append('雪').toString() != character()) { fail(Some("cross-cone")) }
+    assertEquals("42", (42).toString())
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun behavior() { exerciseConsumer() }
+}

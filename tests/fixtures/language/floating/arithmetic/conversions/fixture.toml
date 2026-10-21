@@ -1,0 +1,23 @@
+schema = 1
+name = "floating-conversions"
+root = "program.scoop"
+inputs = ["program.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["floating", "language"]
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "127 -128 -12 0\n127 32767 2147483647 9223372036854775807\n-128 -32768 -2147483648 -9223372036854775808\n255 65535 4294967295 18446744073709551615\n0 0 0 0\n0 0 0 0\n255 255 65535 4294967295\n18446744073709551615 9223372036854775807\n127 32767 2147483647 9223372036854775807\n-128 -32768 -2147483648 -9223372036854775808\n255 65535 4294967295 18446744073709551615\n0 0 0 0\n0 0 0 0\n-128.0 -32768.0 -2.1474836e9 -9.223372e18\n255.0 65535.0 4.2949673e9 1.8446744e19\n-128.0 -32768.0 -2.147483648e9 -9.223372036854776e18\n255.0 65535.0 4.294967295e9 1.8446744073709552e19\n0.10000000149011612 0.1 -0.0 -0.0\n-0.0 -0.0 Infinity\n"
+stderr = ""

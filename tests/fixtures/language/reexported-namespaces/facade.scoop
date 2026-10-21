@@ -1,0 +1,4 @@
+package dev.example.facade.nesting
+
+public import dev.example.origin.nesting.Outer
+public import dev.example.origin.nesting.Choice

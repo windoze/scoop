@@ -1,0 +1,20 @@
+package dev.example.consumer.nominals
+
+import dev.example.dependency.nominals.pack
+import dev.example.dependency.nominals.unpack
+import dev.example.dependency.nominals.relay
+import dev.example.dependency.nominals.nested
+
+struct Marker()
+struct Wide(val left: Int, val marker: Marker, val right: Number)
+class Number(val value: Int)
+
+private fun <T> localRelay(value: T): T = unpack(relay(pack(value)), value)
+
+public fun result(): Int {
+    val fallback = Wide(0, Marker(), Number(0))
+    val value = unpack(unpack(nested(Wide(20, Marker(), Number(21))), pack(fallback)), fallback)
+    val number = localRelay(Number(1))
+    val empty = localRelay(Marker())
+    return value.left + value.right.value + number.value
+}

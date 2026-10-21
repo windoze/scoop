@@ -10,14 +10,14 @@ fn derived_equality_is_available_while_source_defaults_are_prepared() {
         (
             include_str!(concat!(
                 env!("CARGO_MANIFEST_DIR"),
-                "/../../tests/fixtures/m23-type-source-defaults/derived-default-order.scoop"
+                "/../../tests/fixtures/language/type-source-defaults/derived-default-order.scoop"
             )),
             &["structDefault", "enumDefault"][..],
         ),
         (
             include_str!(concat!(
                 env!("CARGO_MANIFEST_DIR"),
-                "/../../tests/fixtures/m23-type-source-defaults/derived-default-combinations.scoop"
+                "/../../tests/fixtures/language/type-source-defaults/derived-default-combinations.scoop"
             )),
             &["nested", "enumNested", "closure"][..],
         ),

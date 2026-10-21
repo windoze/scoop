@@ -1,0 +1,77 @@
+package scoop.http.asyncio.tests.consumer.http2_async_consumer
+
+import scoop.test.*
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.net.*
+
+private fun check(value: Boolean) { if (!value) throw IllegalStateException() }
+
+private fun request(method: String): HttpRequestHead = HttpRequestHead(HttpVersion.Http2, method.toByteArray(),
+    HttpRequestTarget.Http2("http".toByteArray(), "localhost".toByteArray(), "/".toByteArray()))
+
+private suspend fun serve(connection: AsyncHttp2Connection) {
+    val first = connection.acceptRequest()!!
+    val second = connection.acceptRequest()!!
+    check(first.stream.id == 1 && second.stream.id == 3)
+    second.stream.sendResponse(HttpResponseHead(HttpVersion.Http2, 204U))
+    NativeByteBuffer.allocate(8192L).use suspend { buffer ->
+        var received = 0L
+        while (true) {
+            buffer.clear()
+            val count = first.stream.readInto(buffer, buffer.writableBytes)
+            if (count == 0L) break
+            val bytes = buffer.readBytes(count)
+            var index = 0L
+            while (index < count) { check(bytes[index] == 42.toByte()); index += 1L }
+            received += count
+        }
+        check(received == 70000L)
+        first.stream.sendResponse(HttpResponseHead(HttpVersion.Http2, 200U), false)
+        buffer.clear(); buffer.writeBytes("42".toByteArray())
+        first.stream.writeFully(buffer)
+        first.stream.finish([HttpField("x-done".toByteArray(), "yes".toByteArray())])
+    }
+}
+
+private fun exerciseConsumer() {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { scope ->
+        val listener = loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0))
+        try {
+            val serving = scope.launch suspend {
+                val server = AsyncHttp2Connection.takeOwnershipAsServer(listener.accept(), scope)
+                try { serve(server) } finally { server.close() }
+            }
+            val client = AsyncHttp2Connection.takeOwnershipAsClient(loop.connectTcp(listener.localAddress), scope)
+            try {
+                val first = client.openRequest(request("POST"), false)
+                val second = client.openRequest(request("GET"))
+                NativeByteBuffer.allocate(70000L).use suspend { output ->
+                    output.writeBytes(Array<Byte>(70000L) { _ -> 42.toByte() })
+                    first.writeFully(output); first.finish()
+                    check(output.readPosition == 70000L)
+                }
+                check(second.receiveResponse().status == 204U)
+                check(first.receiveResponse().status == 200U)
+                NativeByteBuffer.allocate(3L).use suspend { input ->
+                    first.readFully(input, 2L)
+                    check(String.fromUtf8(input.readBytes(2L)) == "42")
+                    check(first.readInto(input, 1L) == 0L)
+                    gcCollect()
+                    check(first.trailers!!.size == 1L)
+                }
+                serving.join()
+            } finally { client.close() }
+        } finally { listener.close() }
+    }
+    assertEquals("42", (42).toString())
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun behavior() { exerciseConsumer() }
+}

@@ -1,0 +1,7 @@
+#!/ignored/interpreter run
+//! dep: not-a-coordinate
+package dev.example
+
+fun main() {
+    println("manifest shebang")
+}

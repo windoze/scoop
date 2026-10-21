@@ -1,0 +1,6 @@
+package dev.m37.bridge
+
+public import dev.m37.singletonrefs.*
+
+public fun <T> relay(value: T): Box<T> = makeFromTemplate(value)
+public fun bound(): (Int) -> Box<Int> = IntFactory::make

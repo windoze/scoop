@@ -1,5 +1,0 @@
-import dependency.classes.*
-
-public fun invalid(value: ValueCells) {
-    value.reference = Other(21)
-}

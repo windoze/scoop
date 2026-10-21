@@ -134,7 +134,7 @@ fn shared_type_uses_preserve_each_current_derived_and_do_not_claim_transitive_ed
         })
         .collect::<String>();
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/m23-shared-type-uses/inheritance.snap");
+        .join("../../tests/fixtures/language/shared-type-uses/inheritance.snap");
     if std::env::var_os("SCOOP_UPDATE_SHARED_TYPE_USES").is_some() {
         std::fs::write(&path, &snapshot).unwrap();
     }

@@ -1,0 +1,9 @@
+package dev.example.consumer.enums
+
+import dev.example.dependency.enums.Choice
+import dev.example.dependency.enums.make
+import dev.example.dependency.enums.empty
+import dev.example.dependency.enums.sum
+
+@NoGC public fun relay(value: Choice): Choice = value
+@NoGC public fun test(): Long = sum(relay(make(17, -29))) + sum(relay(make(53, 42))) + sum(relay(empty()))

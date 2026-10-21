@@ -1,3 +1,0 @@
-import templates.adapters.*
-
-public fun broken(): () -> Ptr<Int> = { 42 }

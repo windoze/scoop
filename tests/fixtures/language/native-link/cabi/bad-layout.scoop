@@ -1,0 +1,7 @@
+package dev.programlink
+struct Payload(val value: Int)
+
+@Extern(lib = "m23_cabi", name = "m23_invalid")
+fun invalid(value: Payload): Int
+
+fun main() {}

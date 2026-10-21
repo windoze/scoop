@@ -1,0 +1,6 @@
+package dev.example
+import dev.example.upstream.interfaceDefinitions.*
+private class Missing: Swap<Int, Unit> {
+    public override val first: Unit
+        get() = Unit
+}

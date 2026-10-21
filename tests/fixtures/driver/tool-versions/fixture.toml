@@ -1,0 +1,13 @@
+schema = 1
+name = "tool-versions"
+inputs = ["check.py"]
+tools = ["scoop", "scoopc", "scoop-link", "python"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["cli", "version", "driver"]
+
+[[steps]]
+name = "versions"
+argv = ["${python}", "${fixture}/check.py", "${scoop}", "${scoopc}", "${scoop-link}"]
+exit = 0
+stdout = "matching versions\n"
+stderr = ""

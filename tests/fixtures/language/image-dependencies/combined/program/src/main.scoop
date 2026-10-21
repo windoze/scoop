@@ -1,0 +1,6 @@
+package test
+import dev.example.image.consumer.result
+
+fun main() {
+    if (result() != 42) { throw IllegalStateException() }
+}

@@ -1,0 +1,4 @@
+package test.m52
+import scoop.prepared.*
+
+fun main(): Int = identity(answer())

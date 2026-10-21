@@ -1,0 +1,9 @@
+package scoop.json.tests.consumer.serialize_artifacts.p1
+
+import scoop.test.*
+import scoop.json.tests.consumer.serialize_artifacts.p2.*
+import Serialize as Wire
+
+public fun <T> encoder(element: ValueEncoder<T>): ValueEncoder<Box<T>> = BoxEncoder<T>(element)
+public fun <T> decoder(element: ValueDecoder<T>): ValueDecoder<Box<T>> = BoxDecoder<T>(element)
+public object Concrete : ValueEncoder<Box<String?>>, ValueDecoder<Box<String?>>

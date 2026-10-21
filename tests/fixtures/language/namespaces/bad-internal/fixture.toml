@@ -1,0 +1,86 @@
+schema = 1
+name = "namespace-bad-internal"
+inputs = ["../../imported-classes/support/stage3_test.scoop", "origin", "../../reexported-namespaces/provider.scoop", "first", "../../reexported-namespaces/facade.scoop", "second", "../../reexported-namespaces/facade.scoop", "consumer", "../../reexported-namespaces/bad-internal.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["namespaces", "negative", "language"]
+
+[[steps]]
+name = "core"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${test_core}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_origin"
+files = [
+  {"copy" = {"from" = "${fixture}/origin", "to" = "${work}/sources/origin"}},
+  {"copy" = {"from" = "${fixture}/../../reexported-namespaces/provider.scoop", "to" = "${work}/sources/origin/src/main.scoop"}},
+]
+
+[[steps]]
+name = "origin"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sources/origin", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-origin", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/namespace-origin/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_first"
+files = [
+  {"copy" = {"from" = "${fixture}/first", "to" = "${work}/sources/first"}},
+  {"copy" = {"from" = "${fixture}/../../reexported-namespaces/facade.scoop", "to" = "${work}/sources/first/src/main.scoop"}},
+]
+
+[[steps]]
+name = "first"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sources/first", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-first", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/namespace-first/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_second"
+files = [
+  {"copy" = {"from" = "${fixture}/second", "to" = "${work}/sources/second"}},
+  {"copy" = {"from" = "${fixture}/../../reexported-namespaces/facade.scoop", "to" = "${work}/sources/second/src/main.scoop"}},
+]
+
+[[steps]]
+name = "second"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sources/second", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-second", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/namespace-second/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_consumer"
+files = [
+  {"copy" = {"from" = "${fixture}/consumer", "to" = "${work}/sources/consumer"}},
+  {"copy" = {"from" = "${fixture}/../../reexported-namespaces/bad-internal.scoop", "to" = "${work}/sources/consumer/src/main.scoop"}},
+]
+
+[[steps]]
+name = "consumer"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sources/consumer", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/bad-internal/0.1.0/cone.slib"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "diagnostics.json"}
+checks = [
+  {"file" = "${work}/artifacts/dev.example/bad-internal/0.1.0/cone.slib", "exists" = false},
+]

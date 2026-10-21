@@ -1,0 +1,4 @@
+package dev.example
+import dev.example.dependency.constructors.Other
+import dev.example.dependency.constructors.tupleIdentity
+@NoGC fun invalid(): Long = tupleIdentity((1, Other(), 5))._1

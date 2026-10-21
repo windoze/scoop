@@ -1,0 +1,6 @@
+package dev.equality
+import dev.equality.equality.origin.Flag
+
+@NoGC
+fun same(left: Flag, right: Flag): Boolean = left == right
+fun main() {}

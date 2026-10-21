@@ -68,6 +68,16 @@ pub fn target_library_root(sysroot: &Path, target: scoop_lir::LirTargetProfile) 
         .join(target.contract().canonical_triple())
 }
 
-pub fn default_runtime_index(sysroot: &Path, target: scoop_lir::LirTargetProfile) -> PathBuf {
-    target_library_root(sysroot, target).join("runtime/index.cbor")
+pub fn default_runtime_index(
+    sysroot: &Path,
+    target: scoop_lir::LirTargetProfile,
+    enable_gc_stress: bool,
+) -> PathBuf {
+    target_library_root(sysroot, target)
+        .join(if enable_gc_stress {
+            "runtime-stress"
+        } else {
+            "runtime"
+        })
+        .join("index.cbor")
 }

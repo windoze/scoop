@@ -3,11 +3,11 @@ use scoop_identity::{NominalDeclarationOwner, SignatureTypeKey};
 
 const SHAPES: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../tests/fixtures/m23-intrinsic-source-shapes/declarations.scoop"
+    "/../../tests/fixtures/language/intrinsic-source-shapes/declarations.scoop"
 ));
 const CONSUMERS: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../tests/fixtures/m23-intrinsic-source-shapes/consumers.scoop"
+    "/../../tests/fixtures/language/intrinsic-source-shapes/consumers.scoop"
 ));
 
 #[test]

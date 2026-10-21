@@ -1,0 +1,6 @@
+package dev.example
+import dev.example.dependency.classes.MutableValue
+public class Wrong public constructor(): MutableValue {
+    public override val value: Long
+        get() = 21
+}

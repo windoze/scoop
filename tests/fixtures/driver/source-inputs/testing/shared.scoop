@@ -1,0 +1,2 @@
+package test.m48
+fun sharedValue(): Int = 48

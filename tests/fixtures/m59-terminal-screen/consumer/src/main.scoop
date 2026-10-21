@@ -1,9 +1,0 @@
-import scoop.platform.io.standardOutput
-import scoop.terminal.*
-import scoop.terminal.screen.*
-
-fun main() {
-    standardOutput.execute(BeginSynchronizedUpdate, DisableLineWrap, Clear(ClearType.All),
-        Clear(ClearType.Purge), ScrollUp(0L), ScrollDown(3L), SetSize(80L, 24L),
-        SetTitle("Scoop"), EnableLineWrap, EndSynchronizedUpdate)
-}

@@ -62,7 +62,7 @@ retire_small_object(ScoopGcBlockMeta *block, size_t word, bool marked, bool stre
     if (!marked) {
         release_dead_object(object);
     }
-    if (stress) {
+    if (SCOOP_ENABLE_GC_STRESS && stress) {
         memset(object, GC_POISON_BYTE, size);
     }
     bit_clear(block->starts, word);
@@ -112,15 +112,18 @@ static bool finish_small_block(ScoopGcBlockMeta *block, bool stress) {
     block->live_bytes = 0;
     block->movable_live_bytes = 0;
     if (!any_live) {
+#if SCOOP_ENABLE_GC_STRESS
         if (stress) {
             scoop_heap_quarantine_block(block);
-        } else {
+        } else
+#endif
+        {
             scoop_heap_release_block(block);
         }
         return false;
     }
     block->state = any_pinned ? SCOOP_BLOCK_PINNED_PARTIAL : SCOOP_BLOCK_MUTATOR;
-    if (stress) {
+    if (SCOOP_ENABLE_GC_STRESS && stress) {
         return true;
     }
     record_free_runs(block, block->line_occupied);
@@ -128,6 +131,7 @@ static bool finish_small_block(ScoopGcBlockMeta *block, bool stress) {
 }
 
 static bool finish_large_block(ScoopGcBlockMeta *block, bool stress) {
+    (void)stress;
     bool moved = block->state == SCOOP_BLOCK_EVACUATION_SOURCE && !block->large_pinned;
     if (moved && block->large_marked && block->large_forwarding == NULL) {
         heap_fatal("marked large source object has no forwarding address");
@@ -137,10 +141,13 @@ static bool finish_large_block(ScoopGcBlockMeta *block, bool stress) {
         if (!block->large_marked) {
             release_dead_object((char *)block_base(block) + GC_LINE_SIZE);
         }
+#if SCOOP_ENABLE_GC_STRESS
         if (stress) {
             memset((char *)block_base(block) + GC_LINE_SIZE, GC_POISON_BYTE, block->exact_size);
             scoop_heap_quarantine_block(block);
-        } else {
+        } else
+#endif
+        {
             scoop_heap_release_block(block);
         }
         return false;

@@ -1,3 +1,0 @@
-import scoop.test.*
-
-@Test struct Cases()

@@ -1,0 +1,4 @@
+package dev.m29
+import dev.m29.metadata.Detail
+@Detail public struct Value()
+fun main() {}

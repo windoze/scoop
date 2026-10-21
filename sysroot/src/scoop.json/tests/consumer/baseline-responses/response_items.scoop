@@ -1,0 +1,114 @@
+package scoop.json.tests.consumer.baseline_responses
+
+import scoop.test.*
+import scoop.json.*
+
+enum ResponseItem {
+    Easy(EasyMessage), Input(InputMessage), Message(OutputMessage), Reasoning(ReasoningItem), Function(FunctionItem), Result(FunctionResult), FileSearch(FileSearchItem), WebSearch(WebSearchItem), Computer(ComputerItem), Screenshot(ComputerResult), Image(ImageItem), Code(CodeItem), MCP(MCPItem), MCPTools(MCPToolsItem), MCPApproval(MCPApprovalItem), MCPDecision(MCPDecisionItem), Compaction(CompactionItem), Unknown(JsonValue)
+    companion object : ValueEncoder<ResponseItem>, ValueDecoder<ResponseItem> {
+        public override fun encode(value: ResponseItem, encoder: Encoder) {
+            when (value) {
+                case ResponseItem.Easy(payload) -> { EasyMessage.Companion.encode(payload, encoder); return }
+                else -> {}
+            }
+            val fields = encoder.keyed()
+            when (value) {
+                case ResponseItem.Easy(payload) -> EasyMessage.Companion.encode(payload, encoder)
+                case ResponseItem.Input(payload) -> {
+                    String.encode("message", fields.field("type"))
+                    InputMessage.Companion.encode(payload, encoder)
+                }
+                case ResponseItem.Message(payload) -> {
+                    String.encode("message", fields.field("type"))
+                    OutputMessage.Companion.encode(payload, encoder)
+                }
+                case ResponseItem.Reasoning(payload) -> {
+                    String.encode("reasoning", fields.field("type"))
+                    ReasoningItem.Companion.encode(payload, encoder)
+                }
+                case ResponseItem.Function(payload) -> {
+                    String.encode("function_call", fields.field("type"))
+                    FunctionItem.Companion.encode(payload, encoder)
+                }
+                case ResponseItem.Result(payload) -> {
+                    String.encode("function_call_output", fields.field("type"))
+                    FunctionResult.Companion.encode(payload, encoder)
+                }
+                case ResponseItem.FileSearch(payload) -> {
+                    String.encode("file_search_call", fields.field("type"))
+                    FileSearchItem.Companion.encode(payload, encoder)
+                }
+                case ResponseItem.WebSearch(payload) -> {
+                    String.encode("web_search_call", fields.field("type"))
+                    WebSearchItem.Companion.encode(payload, encoder)
+                }
+                case ResponseItem.Computer(payload) -> {
+                    String.encode("computer_call", fields.field("type"))
+                    ComputerItem.Companion.encode(payload, encoder)
+                }
+                case ResponseItem.Screenshot(payload) -> {
+                    String.encode("computer_call_output", fields.field("type"))
+                    ComputerResult.Companion.encode(payload, encoder)
+                }
+                case ResponseItem.Image(payload) -> {
+                    String.encode("image_generation_call", fields.field("type"))
+                    ImageItem.Companion.encode(payload, encoder)
+                }
+                case ResponseItem.Code(payload) -> {
+                    String.encode("code_interpreter_call", fields.field("type"))
+                    CodeItem.Companion.encode(payload, encoder)
+                }
+                case ResponseItem.MCP(payload) -> {
+                    String.encode("mcp_call", fields.field("type"))
+                    MCPItem.Companion.encode(payload, encoder)
+                }
+                case ResponseItem.MCPTools(payload) -> {
+                    String.encode("mcp_list_tools", fields.field("type"))
+                    MCPToolsItem.Companion.encode(payload, encoder)
+                }
+                case ResponseItem.MCPApproval(payload) -> {
+                    String.encode("mcp_approval_request", fields.field("type"))
+                    MCPApprovalItem.Companion.encode(payload, encoder)
+                }
+                case ResponseItem.MCPDecision(payload) -> {
+                    String.encode("mcp_approval_response", fields.field("type"))
+                    MCPDecisionItem.Companion.encode(payload, encoder)
+                }
+                case ResponseItem.Compaction(payload) -> {
+                    String.encode("compaction", fields.field("type"))
+                    CompactionItem.Companion.encode(payload, encoder)
+                }
+                case ResponseItem.Unknown(raw) -> JsonValue.Companion.encode(raw, encoder)
+            }
+            fields.end()
+        }
+        public override fun decode(decoder: Decoder): ResponseItem {
+            val fields = decoder.keyed()
+            if (when (fields.optional("type")) { case None -> true; else -> false }) {
+                return ResponseItem.Easy(EasyMessage.Companion.decode(decoder))
+            }
+            return when (String.decode(fields.required("type"))) {
+                case "message" -> {
+                    if (when (fields.optional("id")) { case None -> true; else -> false }) {
+                        ResponseItem.Input(InputMessage.Companion.decode(decoder))
+                    } else { ResponseItem.Message(OutputMessage.Companion.decode(decoder)) }
+                }
+                case "reasoning" -> ResponseItem.Reasoning(ReasoningItem.Companion.decode(decoder))
+                case "function_call" -> ResponseItem.Function(FunctionItem.Companion.decode(decoder))
+                case "function_call_output" -> ResponseItem.Result(FunctionResult.Companion.decode(decoder))
+                case "file_search_call" -> ResponseItem.FileSearch(FileSearchItem.Companion.decode(decoder))
+                case "web_search_call" -> ResponseItem.WebSearch(WebSearchItem.Companion.decode(decoder))
+                case "computer_call" -> ResponseItem.Computer(ComputerItem.Companion.decode(decoder))
+                case "computer_call_output" -> ResponseItem.Screenshot(ComputerResult.Companion.decode(decoder))
+                case "image_generation_call" -> ResponseItem.Image(ImageItem.Companion.decode(decoder))
+                case "code_interpreter_call" -> ResponseItem.Code(CodeItem.Companion.decode(decoder))
+                case "mcp_call" -> ResponseItem.MCP(MCPItem.Companion.decode(decoder))
+                case "mcp_list_tools" -> ResponseItem.MCPTools(MCPToolsItem.Companion.decode(decoder))
+                case "mcp_approval_request" -> ResponseItem.MCPApproval(MCPApprovalItem.Companion.decode(decoder))
+                case "mcp_approval_response" -> ResponseItem.MCPDecision(MCPDecisionItem.Companion.decode(decoder))
+                case "compaction" -> ResponseItem.Compaction(CompactionItem.Companion.decode(decoder))
+                else -> ResponseItem.Unknown(JsonValue.Companion.decode(decoder))
+            }
+        }
+    }
+}

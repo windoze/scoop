@@ -1,3 +1,0 @@
-package bridge
-public import provider.*
-public fun <T> forwarded(value: Any, seed: T): Int = inspect(value, seed)

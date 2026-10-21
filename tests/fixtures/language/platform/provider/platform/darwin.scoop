@@ -1,0 +1,4 @@
+package dev.m33.fixture.platform
+
+// O_WRONLY | O_CREAT | O_TRUNC in the Darwin SDK.
+internal fun outputFlags(): Int = 0x0601

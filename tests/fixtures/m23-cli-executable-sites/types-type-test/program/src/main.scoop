@@ -1,3 +1,0 @@
-fun main() {
-    if (!inspect("text") || inspect(1) || dormant()) { throw IllegalStateException() }
-}

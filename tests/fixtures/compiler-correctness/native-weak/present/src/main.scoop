@@ -1,0 +1,10 @@
+package scoop.tests
+@Extern(lib = "", name = "m54_optional_value")
+private fun optionalValue(): Int
+
+fun main() {
+    @Unsafe { if (optionalValue() != 42) throw IllegalStateException() }
+    gcCollect()
+    @Unsafe { if (optionalValue() != 42) throw IllegalStateException() }
+    println("native weak references follow the target linker")
+}

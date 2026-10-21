@@ -1,0 +1,60 @@
+package scoop.json.tests.consumer.baseline_chat
+
+import scoop.test.*
+struct TextPart(val text: String) {
+    companion object : ValueEncoder<TextPart>, ValueDecoder<TextPart> {}
+}
+struct RefusalPart(val refusal: String) {
+    companion object : ValueEncoder<RefusalPart>, ValueDecoder<RefusalPart> {}
+}
+struct ChatImage(val image_url: ImageURL) {
+    companion object : ValueEncoder<ChatImage>, ValueDecoder<ChatImage> {}
+}
+struct ImageURL(val url: String, val detail: String? = None) {
+    companion object : ValueEncoder<ImageURL>, ValueDecoder<ImageURL> {}
+}
+struct ChatAudio(val input_audio: InputAudio) {
+    companion object : ValueEncoder<ChatAudio>, ValueDecoder<ChatAudio> {}
+}
+struct InputAudio(val data: String, val format: String) {
+    companion object : ValueEncoder<InputAudio>, ValueDecoder<InputAudio> {}
+}
+struct ChatFile(val file: FileData) {
+    companion object : ValueEncoder<ChatFile>, ValueDecoder<ChatFile> {}
+}
+struct FileData(val file_id: String? = None, val file_data: String? = None, val filename: String? = None) {
+    companion object : ValueEncoder<FileData>, ValueDecoder<FileData> {}
+}
+struct ChatTextMessage(val content: ChatContent, val name: String? = None) {
+    companion object : ValueEncoder<ChatTextMessage>, ValueDecoder<ChatTextMessage> {}
+}
+struct ChatAssistant(
+    val content: ChatContent? = None,
+    val refusal: String? = None,
+    val tool_calls: Array<ChatCall>? = None,
+    val function_call: FunctionCall? = None,
+    val audio: AudioOutput? = None
+) {
+    companion object : ValueEncoder<ChatAssistant>, ValueDecoder<ChatAssistant> {}
+}
+struct AudioOutput(val id: String, val data: String, val expires_at: Long, val transcript: String) {
+    companion object : ValueEncoder<AudioOutput>, ValueDecoder<AudioOutput> {}
+}
+struct ChatToolMessage(val tool_call_id: String, val content: ChatContent) {
+    companion object : ValueEncoder<ChatToolMessage>, ValueDecoder<ChatToolMessage> {}
+}
+struct ChatFunctionMessage(val name: String, @Serialize(required = true) val content: String?) {
+    companion object : ValueEncoder<ChatFunctionMessage>, ValueDecoder<ChatFunctionMessage> {}
+}
+struct FunctionCall(val name: String, val arguments: String) {
+    companion object : ValueEncoder<FunctionCall>, ValueDecoder<FunctionCall> {}
+}
+struct ChatFunctionCall(val id: String, val function: FunctionCall) {
+    companion object : ValueEncoder<ChatFunctionCall>, ValueDecoder<ChatFunctionCall> {}
+}
+struct ChatCustomCall(val id: String, val custom: CustomCall) {
+    companion object : ValueEncoder<ChatCustomCall>, ValueDecoder<ChatCustomCall> {}
+}
+struct CustomCall(val name: String, val input: String) {
+    companion object : ValueEncoder<CustomCall>, ValueDecoder<CustomCall> {}
+}

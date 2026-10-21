@@ -90,10 +90,17 @@ fn convert<'a>(
 
 impl CurrentConeDiagnosticSet {
     pub fn structured(&self) -> Result<Vec<StructuredDiagnosticV1>, DiagnosticMappingError> {
+        self.structured_with_code("SCOOPC_HIR_ERROR")
+    }
+
+    fn structured_with_code(
+        &self,
+        code: &str,
+    ) -> Result<Vec<StructuredDiagnosticV1>, DiagnosticMappingError> {
         self.diagnostics
             .iter()
             .map(|diagnostic| {
-                convert(diagnostic, "SCOOPC_HIR_ERROR", |index| {
+                convert(diagnostic, code, |index| {
                     self.sources.get(index).map(|source| &source.identity)
                 })
             })
@@ -107,6 +114,9 @@ impl SingleConeProductionError {
     ) -> Result<Vec<StructuredDiagnosticV1>, DiagnosticMappingError> {
         use crate::CurrentConeSourceStageError;
         let mut diagnostics = match self {
+            Self::Sources(CurrentConeSourceStageError::Package(diagnostics)) => {
+                diagnostics.structured_with_code("SCOOPC_PACKAGE_ERROR")?
+            }
             Self::Sources(CurrentConeSourceStageError::Parser(error)) => match error.as_ref() {
                 scoop_parser::ParseCurrentConeError::Diagnostics(diagnostics) => diagnostics
                     .iter()
@@ -159,6 +169,21 @@ fn tool_error(
         )
         .map_err(mapping)?,
         None => match error {
+            SingleConeProductionError::Preflight(crate::SingleConePreflightError::SingleFile(
+                error,
+            )) => {
+                let path =
+                    scoop_protocol::HostPathCarrier::from_path(error.path()).map_err(mapping)?;
+                if let Some(span) = error.span() {
+                    DiagnosticOriginV1::HostPathSpan {
+                        path,
+                        span: ProtocolByteSpan::new(span.start as u64, span.end as u64)
+                            .map_err(mapping)?,
+                    }
+                } else {
+                    DiagnosticOriginV1::HostPath { path }
+                }
+            }
             SingleConeProductionError::Sources(crate::CurrentConeSourceStageError::Discovery(
                 error,
             )) => DiagnosticOriginV1::HostPath {

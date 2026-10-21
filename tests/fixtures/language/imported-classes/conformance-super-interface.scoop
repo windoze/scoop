@@ -1,0 +1,12 @@
+package dev.example
+import dev.example.dependency.classes.Counter
+import dev.example.dependency.classes.FirstChoice
+
+public interface LocalDefault: FirstChoice {
+    public override fun choose(): Long = super<FirstChoice>.choose() + 1
+}
+public struct LocalChoice(): LocalDefault
+public fun primary(): Counter {
+    val choice: LocalDefault = LocalChoice()
+    return Counter(choice.choose())
+}

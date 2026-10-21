@@ -1,0 +1,7 @@
+package dev.example.downstream.enums
+
+import dev.example.consumer.enums.test
+import dev.example.consumer.enums.defaultScore
+import dev.example.dependency.enums.make
+
+@NoGC public fun check(): Long = test() + defaultScore(make(5, -5))

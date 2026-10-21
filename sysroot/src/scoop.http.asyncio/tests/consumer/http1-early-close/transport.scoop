@@ -1,0 +1,35 @@
+package scoop.http.asyncio.tests.consumer.http1_early_close
+
+import scoop.test.*
+import scoop.asyncio.*
+import scoop.bytes.ByteArrayBuilder
+import scoop.platform.memory.NativeByteBuffer
+
+internal fun checkEarlyClose(value: Boolean, detail: String) {
+    if (!value) throw IllegalStateException(Some(detail))
+}
+
+internal class EarlyCloseTransport(wire: String) : AsyncByteStream, AsyncCloseable {
+    private val input: Array<Byte> = wire.toByteArray()
+    private var position: Long = 0L
+    val output: ByteArrayBuilder = ByteArrayBuilder()
+    var closes: Long = 0L
+    var writeFailure: Throwable? = None
+
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long {
+        if (closes != 0L) throw IoClosedException()
+        val amount = if (count < input.size - position) count else input.size - position
+        buffer.writeBytes(input, position, amount); position += amount
+        return amount
+    }
+    public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long {
+        if (closes != 0L) throw IoClosedException()
+        output.append(buffer.readBytes(count))
+        return count
+    }
+    public override suspend fun flush() {
+        if (closes != 0L) throw IoClosedException()
+        when (writeFailure) { case Some(error) -> throw error; case None -> {} }
+    }
+    public override suspend fun close() { closes += 1L }
+}

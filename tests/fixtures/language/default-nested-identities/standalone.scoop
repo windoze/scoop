@@ -1,0 +1,2 @@
+package dev.example
+public fun <T> readerNested(seed: T, value: () -> T = { seed }): () -> T = value

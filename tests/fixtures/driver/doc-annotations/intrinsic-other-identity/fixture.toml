@@ -1,0 +1,23 @@
+schema = 1
+name = "doc-annotations-intrinsic-other-identity"
+inputs = ["other.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["doc-annotations", "intrinsic", "negative", "driver"]
+
+[[steps]]
+name = "prepare"
+files = [
+  {copy = {from = "${sysroot}/src/scoop.core", to = "${work}/core"}},
+  {copy = {from = "${fixture}/other.scoop", to = "${work}/core/src/other.scoop"}},
+  {replace = {path = "${work}/core/src/integer_int.scoop", old = "@Intrinsic(\"core_int\")", new = "@other.DocAlias(\"integer\") @Intrinsic(\"core_int\")"}},
+]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/core", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "diagnostics.json"}

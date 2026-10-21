@@ -1,0 +1,9 @@
+package dev.example.consumer.members
+
+import dev.example.templates.members.*
+
+public fun result(): Int {
+    val cell = PropertyItem<Int>(42)
+    cell.extensionRestricted = 1
+    return cell.value
+}

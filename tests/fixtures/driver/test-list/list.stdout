@@ -1,0 +1,6 @@
+list-tests
+  dev.m43.Cases (tests/a.scoop:4:1)
+    检查::名字 (tests/a.scoop:8:5)
+  dev.m43.Cases (tests/z.scoop:4:1)
+    other (tests/z.scoop:8:5)
+2 containers, 2 tests, 0 ignored

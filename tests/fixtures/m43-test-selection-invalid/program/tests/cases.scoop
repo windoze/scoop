@@ -1,6 +1,0 @@
-import scoop.test.Test
-
-@Test class Cases {
-    @Test fun valid() {}
-    @Test fun invalid(value: Int) {}
-}

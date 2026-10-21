@@ -6,7 +6,7 @@ fn formal_publication_preserves_accessor_source_forms_in_both_artifact_views() {
     let sysroot = tempfile::tempdir().unwrap();
     let core = bootstrap_core(sysroot.path(), &target);
     let core_bytes = std::fs::read(core.artifact().path()).unwrap();
-    let fixtures = crate::workspace_root().join("tests/fixtures/m23-core-layout-exports");
+    let fixtures = crate::workspace_root().join("tests/fixtures/language/core-layout-exports");
     for (case, expected) in [
         ("standalone", [0, 0, 2, 0, 3]),
         ("combined", [2, 1, 8, 2, 9]),

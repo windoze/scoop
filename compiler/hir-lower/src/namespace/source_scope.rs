@@ -19,7 +19,11 @@ impl TopLevelNamespaces {
         assert_eq!(source_cones.len(), files.len());
         for ((cone, role), file) in source_cones.into_iter().zip(files) {
             let namespace = if cone == current_cone {
-                let package = self.intern_package(&file.package);
+                let package = if cone == scoop_identity::ConeIdentity::SINGLE_FILE {
+                    Self::root_package()
+                } else {
+                    self.intern_package(&file.package)
+                };
                 self.current.entry(package).or_default();
                 if role == scoop_identity::SourceRole::Production {
                     let mut ancestor = Some(package);

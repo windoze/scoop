@@ -2,14 +2,14 @@ use super::*;
 
 const ARRAY_PROVIDER: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../tests/fixtures/m23-generic-arrays/provider.scoop"
+    "/../../tests/fixtures/language/generic-arrays/provider.scoop"
 ));
 
 #[test]
 fn imported_arrays_and_varargs_materialize_complete_core_applications() {
     let source = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../tests/fixtures/m23-generic-arrays/basic.scoop"
+        "/../../tests/fixtures/language/generic-arrays/basic.scoop"
     ));
     with_provider_consumer(ARRAY_PROVIDER, source, |output, _, _, _, _| {
         let local = output.output().local.module();

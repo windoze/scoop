@@ -1,0 +1,5 @@
+package dev.example.downstream.initialization
+
+import dev.example.consumer.initialization.answer
+
+public fun check(): Int = answer()

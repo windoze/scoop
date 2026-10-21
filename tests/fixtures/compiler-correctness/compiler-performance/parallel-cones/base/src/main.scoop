@@ -1,0 +1,2 @@
+package dev.performance.performance.parallel.base
+public fun <T> retain(value: T): T = value

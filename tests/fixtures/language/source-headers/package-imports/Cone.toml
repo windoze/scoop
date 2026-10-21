@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "demo.app"
+name = "m23-source-headers-package-imports"
+version = "0.1.0"
+kind = "executable"
+
+[[sources]]
+path = "main.scoop"

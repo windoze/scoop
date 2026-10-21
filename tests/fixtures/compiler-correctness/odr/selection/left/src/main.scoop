@@ -1,0 +1,9 @@
+package dev.m31.odr.selected.left
+
+import dev.m31.odr.selected.templates.*
+
+public fun fromLeft(value: Item): Int = context(value) {
+    val box = Box<Item>(current<Item>())
+    gcCollect()
+    keep<Item>(box.value).number
+}

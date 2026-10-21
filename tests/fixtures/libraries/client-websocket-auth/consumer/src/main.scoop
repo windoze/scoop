@@ -1,0 +1,75 @@
+package scoop.tests
+import scoop.asyncio.*
+import scoop.tests.scoop.crypto.testdata.rootPem
+import scoop.crypto.x509.TrustStore
+import scoop.http.*
+import scoop.http.client.*
+import scoop.test.*
+import scoop.text.*
+import scoop.time.Duration
+import scoop.tls.TlsTrustSource
+import scoop.url.Url
+
+fun main(args: Array<String>) {
+    try { runAuthWs(args[1L], args[2L].toInt()) }
+    catch (error: Exception) { eprintln(error.message ?: "authenticated WebSocket fixture failed"); throw error }
+    println("authenticated client WebSocket case passed: " + args[1L])
+}
+
+private fun runAuthWs(mode: String, port: Int) {
+    val proxy = mode.startsWith("proxy-") || mode == "secure-proxy-digest"
+    val proxyUrl = Url.parse((if (mode == "secure-proxy-digest") "https" else "http") + "://127.0.0.1:" + port.toString())
+    val target = Url.parse(if (proxy) "http://destination.invalid:9876/resource?q=%2f"
+        else "http://127.0.0.1:" + port.toString() + "/resource?q=%2f")
+    val websocket = target.toBuilder().setScheme(Some("ws")).build()
+    TrustStore.fromPem(rootPem()).use { trust ->
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            val probe = WsAuthProbe(loop, mode, target, if (proxy) Some(proxyUrl) else None)
+            val provider = probe.provider(if (proxy) proxyUrl else target)
+            val authentication = HttpAuthenticationOptions([provider])
+            val tls = HttpClientTlsConfig(TlsTrustSource.Store(trust))
+            val route = if (proxy) HttpProxySelector.fixed(HttpProxy.Http(HttpProxyEndpoint(proxyUrl, tls,
+                authentication = authentication))) else HttpProxySelector.direct()
+            val config = HttpClientConfig(tls = tls, proxy = route,
+                authentication = if (proxy) HttpAuthenticationOptions() else authentication,
+                retries = HttpRetryOptions(maxRetries = 2L, initialDelay = Duration.ZERO, maxDelay = Duration.ZERO),
+                pool = HttpConnectionPoolOptions(maxConnections = 1L, maxConnectionsPerOrigin = 1L),
+                timeouts = HttpTimeoutOptions(poolAcquire = Some(Duration.seconds(5L))))
+            val client = HttpClient.open(scope, config)
+            try {
+                context(WsAuthContext("application")) {
+                    val request = HttpWebSocketRequest(websocket, options = HttpCallOptions(onInformational = suspend { head ->
+                        assertEquals("application", wsAuthContext()); assertEquals(103U, head.status)
+                        probe.information.fetchAdd(1L); Unit
+                    }))
+                    if (mode == "bad-proof" || mode == "callback") {
+                        val error = wsClientFailure suspend { client.openWebSocket(request); Unit }
+                        if (mode == "callback") assertSame(probe.callbackFailure, error)
+                        else {
+                            assertTrue(error is HttpAuthenticationException)
+                            assertEquals(HttpAuthenticationFailure.InvalidResponse, (error as HttpAuthenticationException).reason)
+                        }
+                    } else client.withWebSocket(request) suspend { result ->
+                        when (result) {
+                            case Opened(session) -> {
+                                assertEquals("application", wsAuthContext())
+                                assertEquals(if (proxy) 0L else 1L, session.authenticationCount)
+                                assertEquals(if (proxy) 1L else 0L, session.proxyAuthenticationCount)
+                                assertEquals(0L, session.retryCount)
+                                assertEquals("authenticated", session.receive()!!.readText())
+                                session.shutdownGracefully()
+                            }
+                            case Rejected(_, error) -> throw error
+                        }
+                    }
+                }
+                assertEquals(1L, probe.loads.load())
+                assertEquals(if (mode == "refresh") 1L else 0L, probe.refreshes.load())
+                assertEquals(if (mode == "callback") 1L else 2L, probe.information.load())
+            } finally { client.close() }
+            assertTrue(client.isClosed)
+            assertFalse(scope.job.isCancelled)
+        }
+    }
+}

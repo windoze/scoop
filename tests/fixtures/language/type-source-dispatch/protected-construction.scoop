@@ -1,0 +1,4 @@
+package test
+public open class Factory protected constructor()
+public class Produced public constructor() : Factory()
+public object Singleton : Factory()

@@ -1,0 +1,4 @@
+package dev.example
+import dev.example.dependency.classes.OtherReadable
+
+public fun rejected(value: Long): OtherReadable = value

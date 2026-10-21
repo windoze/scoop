@@ -1,0 +1,13 @@
+package dev.example
+import dev.example.consumer.bounds.result
+import dev.example.consumer.bounds.exercise
+
+private class Later(public val value: Int)
+
+public fun check(): Int {
+    val first = Later(result())
+    val answer = exercise<Later>(first)
+    val allocated = Later(0)
+    if (first.value != 42 || allocated.value != 0) { return 1 }
+    return answer
+}

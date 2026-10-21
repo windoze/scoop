@@ -1,2 +1,0 @@
-public fun callableSeed(): Int = 5
-public fun <T> callableDefault(value: Int = callableSeed()): Int = value

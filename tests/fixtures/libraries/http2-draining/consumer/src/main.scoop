@@ -1,0 +1,93 @@
+package scoop.tests
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.platform.concurrent.Thread
+import scoop.platform.net.*
+import scoop.text.toInt
+
+private fun check(value: Boolean) {
+    if (!value) throw IllegalStateException(Some("HTTP/2 draining check failed"))
+}
+
+private class Signal {
+    private var ready: Boolean = false
+    private var waiter: Continuation<Unit>? = None
+    fun signal() { ready = true; val saved = waiter; waiter = None; saved?.resume(Unit) }
+    suspend fun await() {
+        suspendCoroutine<Unit> { continuation ->
+            if (ready) continuation.resume(Unit) else waiter = Some(continuation)
+        }
+    }
+}
+
+private class Notices {
+    var connection: AsyncHttp2Connection? = None
+    val goAway: Signal = Signal()
+    var refused: Boolean = false
+    fun receive(notice: Http2Notice) {
+        when (notice) {
+            case GoAway(last, code, _, local) -> {
+                check(!local && last == 1 && code == 0U)
+                check(connection!!.isDraining)
+                goAway.signal()
+            }
+            case StreamFailure(id, error) -> {
+                check(id == 3 && connection!!.isDraining)
+                if (error is HttpException) check(error.code == 7 && error.streamId == id)
+                else check(false)
+                refused = true
+            }
+            else -> {}
+        }
+    }
+}
+
+private fun request(method: String = "GET"): HttpRequestHead = HttpRequestHead(HttpVersion.Http2,
+    method.toByteArray(), HttpRequestTarget.Http2("http".toByteArray(), "localhost".toByteArray(), "/".toByteArray()))
+
+private fun exercise(mode: String, address: SocketAddress) {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { scope ->
+        val notices = Notices()
+        val connection = AsyncHttp2Connection.takeOwnershipAsClient(loop.connectTcp(address), scope,
+            onEvent = { notice -> notices.receive(notice) })
+        notices.connection = Some(connection)
+        try {
+            check(!connection.isDraining)
+            val accepted = connection.openRequest(request())
+            if (mode == "refused") {
+                var second: AsyncHttp2Stream? = None
+                try {
+                    val stream = connection.openRequest(request("POST"))
+                    second = Some(stream)
+                    stream.receiveResponse()
+                    check(false)
+                } catch (error: HttpException) {
+                    check(error.protocol == HttpProtocol.Http2 && error.scope == HttpFailureScope.Stream)
+                    check(error.streamId == 3 && error.code == 7)
+                } finally {
+                    when (second) { case Some(stream) -> stream.close(); case None -> {} }
+                }
+            }
+            notices.goAway.await()
+            check(connection.isDraining && !connection.isClosed)
+            check(notices.refused == (mode == "refused"))
+            try { connection.openRequest(request()); check(false) }
+            catch (_: Http2ConnectionDrainingException) { check(!connection.isClosed) }
+            check(accepted.receiveResponse().status == 200U)
+            check(String.fromUtf8(accepted.readAllBytes(4L)) == "kept")
+            accepted.close()
+            check(!scope.job.isCancelled)
+        } finally { connection.close() }
+    }
+}
+
+fun main(args: Array<String>) {
+    check(args.size == 3L)
+    val mode = args[1L]
+    check(mode == "kept" || mode == "refused")
+    val address = SocketAddress(IpAddress.IPV4_LOOPBACK, args[2L].toInt())
+    Thread.start { exercise(mode, address) }.use { thread -> exercise(mode, address); thread.join() }
+    println("HTTP/2 draining " + mode)
+}

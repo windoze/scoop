@@ -1,3 +1,0 @@
-import dependency.members.*
-
-public class Child: Surface() { public fun readAll(): Int = execute() + identity(3) + read() }

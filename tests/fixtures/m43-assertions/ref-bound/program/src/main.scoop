@@ -1,5 +1,0 @@
-import scoop.test.assertSame
-
-fun main() {
-    assertSame(1, 1)
-}

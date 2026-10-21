@@ -1,0 +1,24 @@
+schema = 1
+name = "source-locations-legacy-defaults-coroutines"
+inputs = ["../defaults/source-locations.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["source-locations", "defaults", "coroutines", "language"]
+variants = [{"name" = "release"}]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${fixture}/../defaults/source-locations.scoop", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "direct\ntrue\n43\n18\nmain\n\ndefault\ntrue\n45\n30\nmain\n\nexplicit\ntrue\n43\n18\nmain\n\nforwarded\ntrue\n47\n32\nmain\n\ngeneric-body\ntrue\n18\n49\ngenericBody\n\nmember-body\ntrue\n21\n48\nbodyLocation\nReporter\nmember-default\ntrue\n52\n37\nmain\n\nsuspend-body\ntrue\n29\n63\nrun\nLocationTask\n"
+stderr = ""

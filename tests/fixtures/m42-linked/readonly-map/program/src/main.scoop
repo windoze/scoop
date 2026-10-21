@@ -1,6 +1,0 @@
-import scoop.collections.*
-
-fun main() {
-    val values = mapOf<Int, String>((1, "one"))
-    values[1] = "changed"
-}

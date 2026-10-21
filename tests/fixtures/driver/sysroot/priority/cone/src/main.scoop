@@ -1,0 +1,6 @@
+package dev.m33
+import scoop.platformlib.*
+fun main() {
+    val retained = keep("sysroot " + "library")
+    println(retained + " " + answer().toString())
+}

@@ -1,2 +1,0 @@
-package bridge.right
-public import api.Versioned as RightVersion

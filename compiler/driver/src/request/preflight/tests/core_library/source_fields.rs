@@ -6,13 +6,13 @@ pub(super) fn write_source(root: &Path) {
         (
             "standalone",
             include_str!(
-                "../../../../../../../tests/fixtures/m23-reference-source-fields/standalone.scoop"
+                "../../../../../../../tests/fixtures/language/reference-source-fields/standalone.scoop"
             ),
         ),
         (
             "combined",
             include_str!(
-                "../../../../../../../tests/fixtures/m23-reference-source-fields/combined.scoop"
+                "../../../../../../../tests/fixtures/language/reference-source-fields/combined.scoop"
             ),
         ),
     ] {

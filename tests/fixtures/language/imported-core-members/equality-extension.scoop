@@ -1,0 +1,3 @@
+package test
+fun Int.equals(other: Long): Boolean = true
+fun bad(left: Int, right: Long): Boolean = left == right

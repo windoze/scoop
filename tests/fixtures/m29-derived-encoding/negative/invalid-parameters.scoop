@@ -1,6 +1,0 @@
-struct Item(val value: Any) {
-    companion object : ValueEncoder<Item> {
-        public override fun encode(encoder: Encoder) {}
-    }
-}
-fun main() {}

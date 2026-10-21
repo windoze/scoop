@@ -1,0 +1,7 @@
+package dev.example
+import dev.example.templates.constructors.Pair
+
+public fun bad(): Int {
+    val value = Pair<Int, Int>(1, 2)
+    return 0
+}

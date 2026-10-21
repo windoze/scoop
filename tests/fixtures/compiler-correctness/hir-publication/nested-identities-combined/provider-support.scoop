@@ -1,0 +1,2 @@
+package dev.example
+public fun nestedHost(): NestedBinderHost<Int> = NestedBinderHost<Int>()

@@ -1,0 +1,11 @@
+package dev.example
+@Extern(lib = "m23_constructor_abi", name = "m23_constructor_abi_check")
+fun verifyAbi(): Int
+
+fun main() {
+    @Unsafe {
+        if (verifyAbi() != 0) {
+            throw IllegalStateException()
+        }
+    }
+}

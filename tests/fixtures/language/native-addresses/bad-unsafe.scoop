@@ -1,0 +1,4 @@
+package dev.example
+import dev.example.dependency.nativeAddresses.sink
+
+public fun rejected(): FunPtr<(Ptr<Long>) -> Unit> = ::sink

@@ -1,0 +1,17 @@
+package dev.m37
+import dev.m37.bridge.*
+fun describe(value: Outcome<Int>): Int = when (value) {
+    is Success<Int> -> value.value
+    is Failure<Int> -> value.code
+}
+fun main() {
+    println(describe(make(42)))
+    println(describe(Failure<Int>(7)))
+    println(forwarded(Success("x")))
+    println(forwarded(Failure<String>(2)))
+    println(defaultClassify())
+    when (state(true)) {
+        is Ready -> println(0)
+        else -> println(42)
+    }
+}

@@ -9,6 +9,7 @@
 
 #include "scoop_rt.h"
 #include "../platform/platform.h"
+#include "stress.h"
 
 #define GC_BLOCK_SIZE ((size_t)32768)
 #define GC_LINE_SIZE ((size_t)128)
@@ -122,8 +123,10 @@ typedef struct ScoopGcHeapState {
     uint64_t nursery_objects_at_collection;
     _Atomic(uint64_t) last_moved_objects;
     bool ready;
+#if SCOOP_ENABLE_GC_STRESS
     bool stress_move;
     bool stress_minor;
+#endif
     bool full_only;
     bool print_metrics;
     bool collection_active;
@@ -150,7 +153,11 @@ extern ScoopGcHeapState scoop_gc_heap_state;
 #define collection_threshold (scoop_gc_heap_state.collection_threshold)
 #define active_block_heads (scoop_gc_heap_state.active_block_heads)
 #define last_moved_objects (scoop_gc_heap_state.last_moved_objects)
+#if SCOOP_ENABLE_GC_STRESS
 #define stress_move (scoop_gc_heap_state.stress_move)
+#else
+#define stress_move false
+#endif
 #define collection_active (scoop_gc_heap_state.collection_active)
 #define evacuation_block (scoop_gc_heap_state.evacuation_block)
 #define evacuation_cursor (scoop_gc_heap_state.evacuation_cursor)

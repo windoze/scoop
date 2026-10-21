@@ -1,0 +1,9 @@
+package dev.example
+import dev.example.upstream.interfaces.Values
+
+private interface Wrong: Values<Int, Unit> {
+    public override val first: String
+        get() = "wrong"
+}
+
+public fun result(): Int = 0

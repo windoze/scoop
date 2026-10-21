@@ -1,0 +1,102 @@
+schema = 1
+name = "imported-class-interface-values"
+inputs = ["../support/stage3_test.scoop", "../core-provider.scoop", "../core-cast-direct.scoop", "../core-arithmetic-direct.scoop", "../provider.scoop", "class-provider", "classes-interface-values", "../interface-values.scoop", "class-downstream-interface-values", "../downstream.scoop", "../support/main.scoop", "../support/gc.c", "runtime-fixture"]
+tools = ["scoop", "scoopc", "cc", "ar"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["imported-classes", "core-rebuild", "language"]
+[[steps]]
+name = "rebuilt_core"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${class_core}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-rebuilt_core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "read_provider"
+await_file = "${fixture}/../provider.scoop"
+
+[[steps]]
+name = "prepare_class-provider"
+files = [{"copy" = {"from" = "${fixture}/class-provider", "to" = "${work}/sources/class-provider"}}, {"write" = {"path" = "${work}/sources/class-provider/src/main.scoop", "data" = "${read_provider.bytes}"}}]
+
+[[steps]]
+name = "provider"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sources/class-provider", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/class-provider/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "prepare_classes-interface-values"
+files = [{"copy" = {"from" = "${fixture}/classes-interface-values", "to" = "${work}/sources/classes-interface-values"}}, {"copy" = {"from" = "${fixture}/../interface-values.scoop", "to" = "${work}/sources/classes-interface-values/src/main.scoop"}}]
+
+[[steps]]
+name = "consumer"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sources/classes-interface-values", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/classes-interface-values/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "prepare_class-downstream-interface-values"
+files = [{"copy" = {"from" = "${fixture}/class-downstream-interface-values", "to" = "${work}/sources/class-downstream-interface-values"}}, {"copy" = {"from" = "${fixture}/../downstream.scoop", "to" = "${work}/sources/class-downstream-interface-values/src/main.scoop"}}]
+
+[[steps]]
+name = "downstream"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sources/class-downstream-interface-values", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-downstream", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/class-downstream-interface-values/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "read_main"
+await_file = "${fixture}/../support/main.scoop"
+
+[[steps]]
+name = "prepare_runtime-fixture"
+files = [{"copy" = {"from" = "${fixture}/runtime-fixture", "to" = "${work}/sources/runtime-fixture"}}, {"write" = {"path" = "${work}/sources/runtime-fixture/src/main.scoop", "data" = "${read_main.bytes}"}}]
+
+[[steps]]
+name = "prepare_native"
+files = [{"mkdir" = {"path" = "${work}/native"}}, {"copy" = {"from" = "${fixture}/../support/gc.c", "to" = "${work}/sources/gc.c"}}]
+
+[[steps]]
+name = "compile_gc"
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-I", "${runtime}/include", "-c", "${work}/sources/gc.c", "-o", "${work}/native/gc.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive_gc"
+argv = ["${ar}", "qcS", "${work}/native/libm23_class_gc.a", "${work}/native/gc.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"ZERO_AR_DATE" = "1"}
+
+[[steps]]
+name = "program"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sources/runtime-fixture", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/built-program", "--runtime-root", "${runtime}", "--library-path", "${work}/native"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "run"
+argv = ["${program.result.output}"]
+exit = 0
+stdout = ""
+stderr = ""

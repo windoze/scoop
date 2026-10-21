@@ -1,3 +1,0 @@
-import LocalDefaults
-
-public fun check(): Long = LocalDefaults().answer() + primary().twice() - 21

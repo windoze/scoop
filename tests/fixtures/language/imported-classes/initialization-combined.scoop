@@ -1,0 +1,18 @@
+package dev.example
+import dev.example.dependency.classes.Counter
+import dev.example.dependency.classes.Readable
+import dev.example.dependency.classes.StructReader
+import dev.example.dependency.classes.Token
+
+private object Saved {
+    val marker: Token = Token()
+    val reader: Readable = StructReader(20)
+    val value: Counter = Counter(reader.answer())
+}
+
+public fun primary(): Counter {
+    val first = Saved.value
+    val allocated = Counter(Saved.reader.answer())
+    val second = Saved.value
+    return if (first === second && allocated.twice() == 42) { first } else { Counter(0) }
+}

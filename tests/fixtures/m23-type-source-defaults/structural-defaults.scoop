@@ -1,2 +1,0 @@
-public fun unitDefault(left: Unit, right: Unit, equal: Boolean = left == right): Boolean = equal
-public fun tupleDefault(left: (Unit, Unit), right: (Unit, Unit), equal: Boolean = left == right): Boolean = equal

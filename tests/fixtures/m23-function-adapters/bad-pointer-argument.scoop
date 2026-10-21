@@ -1,3 +1,0 @@
-import templates.adapters.*
-
-public fun broken(source: (Ptr<Int>) -> Int): (Ptr<Long>) -> Any = source

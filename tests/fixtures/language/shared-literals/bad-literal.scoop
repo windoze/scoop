@@ -1,0 +1,7 @@
+package dev.example
+import dev.example.upstream.literals.Tagged
+
+public fun bad(value: Tagged<Int>): Int = when (value) {
+    case Tagged("true", _, amount) -> amount
+    else -> 0
+}

@@ -1,0 +1,6 @@
+package dev.example
+import dev.example.upstream.arrays.pack
+public fun result(): Array<Int> {
+    val asFunction: (Array<Int>) -> Array<Int> = ::pack
+    return asFunction(20, 22)
+}

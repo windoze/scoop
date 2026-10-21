@@ -1,0 +1,5 @@
+package dev.example
+import dev.example.dependency.classes.UnsafeReader
+public interface LocalReader: UnsafeReader {
+    public override fun read(): Long = 20
+}

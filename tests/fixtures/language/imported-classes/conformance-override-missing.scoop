@@ -1,0 +1,5 @@
+package dev.example
+import dev.example.dependency.classes.Readable
+public class Missing public constructor(): Readable {
+    public fun read(): Long = 21
+}

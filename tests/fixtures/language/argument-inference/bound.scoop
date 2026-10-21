@@ -1,0 +1,4 @@
+package dev.example
+import dev.example.dependency.inference.valueSeed
+private class Reference(public val number: Int)
+public fun result(): Int { val value = valueSeed([], Reference(42)); return 42 }

@@ -1,0 +1,106 @@
+package dev.m45
+import scoop.platform.memory.NativeByteBuffer
+import scoop.platform.system.*
+
+@GCLeaf @Extern(name = "m45_positive") private fun positive(): Long
+@GCLeaf @Extern(name = "m45_negative") private fun negative(): Long
+@GCLeaf @Extern(name = "m45_notifications") private fun notifications(): Int
+@GCLeaf @Extern(name = "m45_fail_next") private fun failNext()
+@GCLeaf @Extern(name = "m45_free_count") private fun freeCount(): Int
+@GCLeaf @Extern(name = "m45_no_memory") private fun noMemory(): Int
+
+private fun verify(value: Boolean) {
+    if (!value) throw IllegalStateException(Some("native buffer lifecycle assertion failed"))
+}
+
+private fun allocationFailure() {
+    @Unsafe {
+        failNext()
+        try {
+            NativeByteBuffer.allocate(8L)
+            throw IllegalStateException(Some("expected allocation failure"))
+        } catch (failure: PlatformException) {
+            verify(failure.kind == PlatformErrorKind.NoMemory)
+            verify(failure.nativeError!!.code == noMemory())
+        }
+        verify(notifications() == 0)
+        verify(freeCount() == 0)
+    }
+}
+
+private fun explicitLifetime() {
+    val owner = NativeByteBuffer.allocate(8L)
+    @Unsafe {
+        verify(positive() == 8L && negative() == 0L && notifications() == 1)
+        owner.writeByte(17.toByte())
+        val address = owner.withReadableBytes { pointer, _ -> @Unsafe { return@withReadableBytes pointer!!.toULong() } }
+        failNext()
+        try {
+            owner.ensureWritable(8L)
+            throw IllegalStateException(Some("expected growth failure"))
+        } catch (failure: PlatformException) {
+            verify(failure.kind == PlatformErrorKind.NoMemory)
+            verify(failure.nativeError!!.code == noMemory())
+        }
+        verify(owner.capacity == 8L && owner.readPosition == 0L && owner.writePosition == 1L)
+        verify(owner.withReadableBytes { pointer, _ -> @Unsafe { return@withReadableBytes pointer!!.toULong() } } == address)
+        verify(owner.getByte(0L) == 17.toByte())
+        verify(positive() == 8L && notifications() == 1)
+        owner.ensureWritable(8L)
+        verify(positive() == owner.capacity && notifications() == 2)
+        owner.withWritableBytes { pointer, available ->
+            verify(available == owner.capacity - 1L)
+            @Unsafe {
+                pointer!!.store(23.toByte())
+                gcCollect()
+                verify(negative() == 0L && freeCount() == 0)
+                pointer!!.store(1L, 31.toByte())
+            }
+            2L
+        }
+        val expected = owner.capacity
+        owner.skip(1L)
+        owner.compact()
+        verify(owner.readByte() == 23.toByte() && owner.readByte() == 31.toByte())
+        owner.clear()
+        owner.ensureWritable(0L)
+        verify(notifications() == 2)
+        owner.dispose()
+        owner.close()
+        gcCollect()
+        verify(negative() == -expected && notifications() == 3 && freeCount() == 1)
+        verify(owner.isClosed)
+    }
+}
+
+// The caller holds only the borrowed pointer, never a separate owner reference.
+private fun borrowedTemporary() {
+    @Unsafe {
+        NativeByteBuffer.allocate(12L).withWritableBytes { pointer, size ->
+            verify(size == 12L)
+            @Unsafe {
+                pointer!!.store(41.toByte())
+                gcCollect()
+                verify(freeCount() == 1)
+                verify(pointer!!.load() == 41.toByte())
+            }
+            1L
+        }
+    }
+}
+
+fun main() {
+    NativeByteBuffer.allocate().dispose()
+    allocationFailure()
+    explicitLifetime()
+    gcCollect()
+    borrowedTemporary()
+    gcCollect()
+    gcCollect()
+    @Unsafe {
+        verify(positive() + negative() == 0L)
+        verify(notifications() == 5)
+        verify(freeCount() == 2)
+    }
+    println("native buffer ownership, rollback and pressure passed")
+}

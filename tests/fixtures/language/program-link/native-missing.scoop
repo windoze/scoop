@@ -1,0 +1,4 @@
+package dev.programlink
+@Extern(name = "m23_missing_native")
+private fun missing(): Int
+fun main() {}

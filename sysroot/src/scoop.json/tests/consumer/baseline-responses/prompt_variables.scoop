@@ -1,0 +1,42 @@
+package scoop.json.tests.consumer.baseline_responses
+
+import scoop.test.*
+import scoop.collections.*
+
+enum PromptValue {
+    Text(String), Image(ResponseImage), File(ResponseFile)
+    companion object : ValueEncoder<PromptValue>, ValueDecoder<PromptValue> {
+        public override fun encode(value: PromptValue, encoder: Encoder) {
+            when (value) {
+                case PromptValue.Text(text) -> String.encode(text, encoder)
+                case PromptValue.Image(payload) -> {
+                    val fields = encoder.keyed()
+                    String.encode("input_image", fields.field("type"))
+                    ResponseImage.Companion.encode(payload, encoder)
+                }
+                case PromptValue.File(payload) -> {
+                    val fields = encoder.keyed()
+                    String.encode("input_file", fields.field("type"))
+                    ResponseFile.Companion.encode(payload, encoder)
+                }
+            }
+        }
+        public override fun decode(decoder: Decoder): PromptValue {
+            var text: String? = None
+            try { text = Some(String.decode(decoder)) } catch (error: DecodingException) { text = None }
+            if (text != None) { return PromptValue.Text(text!!) }
+            val fields = decoder.keyed()
+            return when (String.decode(fields.required("type"))) {
+                case "input_image" -> PromptValue.Image(ResponseImage.Companion.decode(decoder))
+                case "input_file" -> PromptValue.File(ResponseFile.Companion.decode(decoder))
+                else -> throw DecodingException(fields.required("type").path, "invalid prompt variable")
+            }
+        }
+    }
+}
+class PromptVariables(val values: LinkedHashMap<String, PromptValue>) {
+    companion object : ValueEncoder<PromptVariables>, ValueDecoder<PromptVariables> {
+        public override fun encode(value: PromptVariables, encoder: Encoder) { writeObject(value.values, encoder, PromptValue.Companion) }
+        public override fun decode(decoder: Decoder): PromptVariables = PromptVariables(readObject(decoder, PromptValue.Companion))
+    }
+}

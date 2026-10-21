@@ -1,1 +1,0 @@
-fun main() { val value: Any = 42; StringBuilder().append(value) }

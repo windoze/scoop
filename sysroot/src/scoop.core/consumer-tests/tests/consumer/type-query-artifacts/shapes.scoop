@@ -1,0 +1,44 @@
+package test.core.tests.consumer.type_query_artifacts.p1
+
+import scoop.test.*
+
+public enum Level : Int16 { Low = -3, High = 9 }
+public enum Flag : Int8 { Active = 5 }
+public annotation class Detail(val text: String, val level: Level = Level.High, val flag: Flag = Flag.Active)
+@Repeatable
+public annotation class Doc(
+    val detail: Detail,
+    val levels: Array<Level> = [],
+    val notes: Array<Detail> = [Detail("nested")],
+    val single: Float = -0.0f,
+    val double: Double = -0.0
+)
+@Repeatable @Target([AnnotationTarget.Type])
+public annotation class Use(val text: String)
+
+@Doc(Detail("first")) @Doc(Detail("second"), [Level.Low])
+public struct Parcel<T>(@Doc(Detail("field")) val value: @Use("root") Array<@Use("argument") T>) {
+    public companion object Factory {
+        public val version: Int = 1
+    }
+}
+
+public interface Parent<T> { public val item: T }
+public interface View<T> : @Use("parent") Parent<T> { public val label: String }
+public open class Base public constructor() { public open val inherited: Int get() = 3 }
+public class Slot<T> public constructor(private val value: T) {
+    public operator fun getValue(thisRef: Row<T>): T = value
+}
+public struct Token(val text: String)
+public class Row<T> public constructor(seed: Int, public val value: T) : @Use("base") Base() {
+    public override val inherited: Int get() { throw IllegalStateException(Some("description must not read")) }
+    private val cached: String = "cache"
+    public val copy: T by Slot<T>(value)
+    private val token: Token get() { throw IllegalStateException() }
+    public constructor(value: T) : this(3, value) {}
+    public constructor(value: T, token: Token) : this(4, value) {}
+}
+
+public fun <T> describe(): TypeInfo<T> = typeInfo<T>()
+public fun describeParcel(): TypeInfo<Parcel<Long>> = describe<Parcel<Long>>()
+public fun describeRow(): TypeInfo<Row<String>> = describe<Row<String>>()

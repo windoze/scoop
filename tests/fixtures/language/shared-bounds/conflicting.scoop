@@ -1,0 +1,4 @@
+package dev.example
+import dev.example.upstream.sharedbounds.*
+
+public fun result(): Int = readBound<Int, Holder<String>>(Holder<String>("wrong"))

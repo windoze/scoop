@@ -1,0 +1,6 @@
+package dev.example
+import dev.example.upstream.iteration.*
+
+public fun invalid(values: Array<(Int, Int)>) {
+    for ((first, second, third) in values) {}
+}

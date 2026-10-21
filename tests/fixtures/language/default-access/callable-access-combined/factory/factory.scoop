@@ -1,0 +1,4 @@
+package dev.example
+public fun <T> callableHost(): CallableHost<T> = CallableHost<T>()
+public fun <T> callableCell(seed: T): CallableCell<T> = CallableCell<T>(seed)
+public fun <T> callableBase(): CallableBase<T> = CallableBase<T>()

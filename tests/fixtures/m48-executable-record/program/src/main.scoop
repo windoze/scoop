@@ -1,2 +1,0 @@
-import m48.executable.value
-fun main(): Int = value() + 2

@@ -1,0 +1,38 @@
+package test.core.tests.strings.custom_list
+
+import scoop.test.*
+class Characters : List<Char> {
+    var trace: String = ""
+    var fail: Boolean = false
+    public override val size: Long get() { trace = trace + "S"; return 3L }
+    public override operator fun get(index: Long): Char {
+        trace = trace + index.toString()
+        if (fail && index == 1L) { throw IllegalStateException() }
+        gcCollect()
+        return when (index) { case 0L -> 'A'; case 1L -> '雪'; else -> '🚀' }
+    }
+    public override operator fun iterator(): Iterator<Char> = ['A', '雪', '🚀'].iterator()
+}
+fun <T : Iterable<Char>> scalarSum(value: T): Long {
+    var result = 0L
+    for (character in value) { result = result + character.code.toLong() }
+    return result
+}
+private fun exercise() {
+    val source = Characters()
+    val value = String.fromChars(source)
+    if (source.trace != "S012" || value != "A雪🚀" || scalarSum(value) != 167339L) {
+        fail(Some("source"))
+    }
+    source.trace = ""
+    source.fail = true
+    var failed = false
+    try { String.fromChars(source) } catch (e: IllegalStateException) { failed = true }
+    if (!failed || source.trace != "S01") { fail(Some("exception")) }
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

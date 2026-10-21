@@ -1,0 +1,4 @@
+package dev.example
+import dev.example.dependency.inference.referenceOnly
+import dev.example.dependency.inference.identity
+public fun result(): Int { val value = referenceOnly(::identity); return 42 }

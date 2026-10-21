@@ -1,0 +1,15 @@
+package dev.example
+import test.dependency.api.runtimeValue
+
+// Keep a StorageBridge for physical C bridge corruption checks.
+@Extern(name = "scoop_test_identity", captureErrno = true)
+fun nativeIdentity(value: Int): (Int, Int)
+
+public val localValue: Int = runtimeValue
+public fun outside(): Int = runtimeValue
+public fun nativeCall(value: Int): Int {
+    @Unsafe {
+        val (result, _) = nativeIdentity(value)
+        return result
+    }
+}

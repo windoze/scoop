@@ -1,0 +1,7 @@
+package dev.example
+import dev.example.templates.delegateCombinations.Receiver
+
+class Wrong<T>() {
+    fun getValue(thisRef: Receiver<T>): Int = 42
+}
+val <T> Receiver<T>.wrong: Int by Wrong<T>()

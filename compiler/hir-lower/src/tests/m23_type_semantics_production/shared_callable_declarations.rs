@@ -6,11 +6,11 @@ use source_dispatch::with_hir_source;
 
 const STANDALONE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../tests/fixtures/m23-shared-callable-declarations/standalone.scoop"
+    "/../../tests/fixtures/language/shared-callable-declarations/standalone.scoop"
 ));
 const COMBINED: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../tests/fixtures/m23-shared-callable-declarations/combined.scoop"
+    "/../../tests/fixtures/language/shared-callable-declarations/combined.scoop"
 ));
 
 #[test]

@@ -1,0 +1,6 @@
+package dev.example
+import dev.example.dependency.nativecalls.chooseExtension
+
+private fun Int.chooseExtension(): Int = this
+
+public fun result(): Int = 42.chooseExtension()

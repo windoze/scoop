@@ -1,0 +1,4 @@
+package dev.example
+import dev.example.dependency.classes.InternalConstructor
+
+public fun invalid(): InternalConstructor = InternalConstructor(21)

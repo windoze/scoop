@@ -1,2 +1,0 @@
-/// See [MissingSymbol].
-public fun value(): Int = 42

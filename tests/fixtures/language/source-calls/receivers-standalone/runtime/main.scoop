@@ -1,0 +1,10 @@
+package test
+import test.receiver.consumer.standalone
+
+fun verifyCalls(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    verifyCalls(standalone() == 7)
+    verifyCalls(standalone() == 7)
+}

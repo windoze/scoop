@@ -1,0 +1,4 @@
+package dev.m33.nativebridge
+import dev.m33.nativeapi.*
+public fun relayCall(value: Int): (Int, Int) = call(value)
+public fun <T> relayKeep(value: T): T = keep(value)

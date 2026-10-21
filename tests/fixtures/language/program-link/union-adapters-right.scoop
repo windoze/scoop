@@ -1,0 +1,7 @@
+package dev.programlink.sibling.right
+
+import dev.programlink.dependency.union.*
+
+public fun action(): (Payload) -> Any = second(Other(22))
+public fun sameType(): Any = Marker<Int>(22)
+public fun otherType(): Any = Marker<Long>(22L)

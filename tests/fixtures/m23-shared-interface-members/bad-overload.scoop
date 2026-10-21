@@ -1,3 +1,0 @@
-import dependency.readers.NumberReader
-
-public fun result(): Int = NumberReader().read(true)

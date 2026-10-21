@@ -5,7 +5,7 @@ use scoop_hir as hir;
 fn imported_core_members_normalize_through_shared_source_candidates() {
     let source = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../tests/fixtures/m23-imported-core-members/methods.scoop"
+        "/../../tests/fixtures/language/imported-core-members/methods.scoop"
     ));
     constants::with_input(source, |input| {
         let output = lower_current_cone(scoop_identity::RequestedConeKind::Library, input)
@@ -24,7 +24,7 @@ fn imported_core_members_normalize_through_shared_source_candidates() {
 fn fixture(name: &str) -> String {
     std::fs::read_to_string(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tests/fixtures/m23-imported-core-members")
+            .join("../../tests/fixtures/language/imported-core-members")
             .join(name),
     )
     .unwrap()

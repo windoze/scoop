@@ -1,0 +1,94 @@
+package scoop.json.tests.consumer.baseline_cone
+
+import scoop.test.*
+fun minimalText(): String = """{"schema":1,"cone":{"group":"dev.example","name":"wire-demo","version":"0.1.0","kind":"library"}}"""
+
+fun fullText(): String = """
+{
+  "schema": 1,
+  "cone": {
+    "group": "dev.example",
+    "name": "wire-demo",
+    "version": "0.1.0",
+    "kind": "library"
+  },
+  "dependencies": {
+    "org.foo:bar": {
+      "version": "1.2.3",
+      "path": "../bar"
+    },
+    "org.acme:util": {
+      "version": "2.0.0",
+      "artifact": "../artifacts/util.slib"
+    },
+    "org.other:log": "3.1.0"
+  },
+  "sources": [
+    {
+      "path": "src/common"
+    },
+    {
+      "path": "src/linux",
+      "when": {
+        "os": "linux",
+        "arch": [
+          "aarch64",
+          "x86_64"
+        ]
+      }
+    }
+  ],
+  "test": {
+    "sources": [
+      {
+        "path": "tests/common"
+      }
+    ]
+  },
+  "test-dependencies": {
+    "scoop:scoop.test": "0.1.0"
+  },
+  "native": {
+    "sources": [
+      {
+        "path": "native/common.c"
+      },
+      {
+        "path": "native/linux.c",
+        "when": {
+          "os": "linux",
+          "env": [
+            "gnu",
+            "musl"
+          ]
+        }
+      }
+    ],
+    "include": [
+      "native/include"
+    ],
+    "c_flags": [
+      "-DDEBUG=1",
+      "-I",
+      "native/include"
+    ],
+    "cxx_flags": [
+      "-std=c++20"
+    ],
+    "cxx": true,
+    "libraries": [
+      {
+        "name": "z",
+        "kind": "default"
+      },
+      {
+        "name": "Security",
+        "kind": "framework",
+        "when": {
+          "os": "darwin"
+        }
+      }
+    ]
+  }
+}
+"""

@@ -1,0 +1,2 @@
+package dev.example
+public fun bad(value: Int): Ptr<Int> = addressOf(value)

@@ -18,16 +18,14 @@ impl Lexer<'_> {
                     self.pos += 1;
                     self.newline_before = true;
                 }
+                Some('#') if self.pos == 0 && self.source.starts_with("#!") => {
+                    self.skip_line_comment();
+                }
                 Some('/') if self.source[self.pos + 1..].starts_with('/') => {
                     let start = self.pos;
                     let rest = &self.source[start..];
                     let is_doc = rest.starts_with("///") && !rest.starts_with("////");
-                    while let Some(c) = self.peek_char() {
-                        if c == '\n' {
-                            break;
-                        }
-                        self.pos += c.len_utf8();
-                    }
+                    self.skip_line_comment();
                     if is_doc {
                         self.save_doc(start, before_token, DocCommentKind::Line);
                     }
@@ -43,6 +41,15 @@ impl Lexer<'_> {
                 }
                 _ => return Ok(()),
             }
+        }
+    }
+
+    fn skip_line_comment(&mut self) {
+        while let Some(c) = self.peek_char() {
+            if c == '\n' {
+                break;
+            }
+            self.pos += c.len_utf8();
         }
     }
 

@@ -1,7 +1,7 @@
 package scoop.http.client
 
 import scoop.asyncio.*
-import scoop.crypto.testdata.*
+import scoop.tests.scoop.crypto.testdata.*
 import scoop.crypto.x509.TrustStore
 import scoop.http.*
 import scoop.http.asyncio.*

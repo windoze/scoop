@@ -1,0 +1,12 @@
+package test
+fun verifyDomain(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+class ConsumerChild : Base() {}
+
+fun main() {
+    val first = ConsumerChild()
+    val second = ConsumerChild()
+    val base: Base = first
+    verifyDomain(first !== second)
+    verifyDomain(base === first)
+}

@@ -1,6 +1,0 @@
-import dependency.classes.Counter
-
-public fun primary(): Counter {
-    val value: Boolean = false
-    return Counter(rebuiltBooleanDefault() + value.score() - 21)
-}

@@ -1,0 +1,4 @@
+package dev.example
+import dev.example.dependency.classes.AbstractParent
+
+public class Derived public constructor(): AbstractParent()

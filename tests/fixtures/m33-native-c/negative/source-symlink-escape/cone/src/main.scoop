@@ -1,3 +1,0 @@
-@Extern(name = "outside")
-fun nativeValue(): Int
-fun main(): Int { @Unsafe { return nativeValue() } }

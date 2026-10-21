@@ -1,0 +1,6 @@
+package test
+import test.consumer.cache.check
+
+fun main() {
+    println(check())
+}

@@ -1,0 +1,55 @@
+package scoop.json.tests.encoding.composition
+
+import scoop.test.*
+import scoop.json.Json
+
+struct Identity(val id: Long) {
+    companion object : ValueEncoder<Identity>, ValueDecoder<Identity> {}
+}
+
+struct Details(val text: String) {
+    companion object : ValueEncoder<Details>, ValueDecoder<Details> {}
+}
+
+struct Flattened<T>(val identity: Identity, val details: T)
+
+class FlattenEncoder<T>(val details: ValueEncoder<T>) : ValueEncoder<Flattened<T>> {
+    public override fun encode(value: Flattened<T>, encoder: Encoder) {
+        String.encode("message", encoder.keyed().field("type"))
+        Identity.Companion.encode(value.identity, encoder)
+        details.encode(value.details, encoder)
+        Boolean.encode(true, encoder.keyed().field("done"))
+        encoder.keyed().end()
+    }
+}
+
+object FlattenDecoder : ValueDecoder<Flattened<Details>> {
+    public override fun decode(decoder: Decoder): Flattened<Details> {
+        check(String.decode(decoder.keyed().required("type")) == "message")
+        val identity = Identity.Companion.decode(decoder)
+        val details = Details.Companion.decode(decoder)
+        check(Boolean.decode(decoder.keyed().required("done")))
+        return Flattened(identity, details)
+    }
+}
+
+private fun exercise() {
+    val value = Flattened(Identity(7L), Details("payload"))
+    val codec = FlattenEncoder<Details>(Details.Companion)
+    val text = Json.encodeToString(value, codec)
+    check(text == "{\"type\":\"message\",\"id\":7,\"text\":\"payload\",\"done\":true}")
+    val decoded = Json.decodeFromString(text, FlattenDecoder)
+    check(decoded.identity == value.identity && decoded.details == value.details)
+    val collision = ValueEncoderFunction<Unit>({ value, encoder ->
+        Identity.Companion.encode(Identity(1L), encoder)
+        Identity.Companion.encode(Identity(2L), encoder)
+    })
+    reject("/id", "duplicate object key") { Json.encodeToString(Unit, collision) }
+
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

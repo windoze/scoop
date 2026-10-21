@@ -1,0 +1,6 @@
+package test
+public open class Parent public constructor() {
+    public fun read(value: Int): Int = value
+}
+public class Child public constructor() : Parent() {}
+public fun inherited(child: Child, value: Int = child.read(2)): Int = value

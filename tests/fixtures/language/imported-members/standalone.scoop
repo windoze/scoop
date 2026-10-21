@@ -1,0 +1,26 @@
+package dev.example.consumer.members
+
+import dev.example.dependency.members.Token
+import dev.example.dependency.members.Wide
+import dev.example.dependency.members.Nested
+
+import dev.example.dependency.members.defaultField
+import dev.example.dependency.members.defaultMember
+import dev.example.dependency.members.defaultProperty
+import dev.example.dependency.members.defaultMarker
+
+@NoGC public fun keepToken(value: Token): Token = value.sameToken(value)
+@NoGC public fun keepWide(value: Wide): Wide = value.copyWide(value)
+@NoGC public fun total(value: Wide): Long = value.total(7)
+@NoGC public fun fieldSum(value: Wide): Long = value.first + value.second + value.third + 7
+@NoGC public fun computedTotal(value: Wide): Long = value.calculated + 7
+@NoGC public fun first(value: Wide): Long = value.first
+@NoGC public fun marker(value: Nested): Token = value.marker
+@NoGC public fun nestedFirst(value: Nested): Long = value.value.first
+
+@NoGC public fun fromField(value: Wide): Long = defaultField(value)
+@NoGC public fun fromMember(value: Wide): Long = defaultMember(value)
+@NoGC public fun fromProperty(value: Wide): Long = defaultProperty(value)
+@NoGC public fun fromMarker(value: Nested): Token = defaultMarker(value)
+
+@NoGC public fun republished(value: Wide, selected: Long = value.first): Long = selected

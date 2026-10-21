@@ -1,0 +1,3 @@
+package dev.example
+public struct AccessToken()
+public fun accessToken(value: AccessToken = AccessToken()): AccessToken = value

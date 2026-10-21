@@ -1,0 +1,68 @@
+package scoop.http.asyncio.tests.consumer.sse_async
+
+import scoop.test.*
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.platform.memory.NativeByteBuffer
+
+private fun exerciseConsumer() {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { scope ->
+        runHttp1(loop, scope)
+        runHttp2(loop, scope)
+    }
+
+}
+
+fun check(value: Boolean) { if (!value) throw IllegalStateException() }
+fun eventHead(version: HttpVersion): HttpResponseHead =
+    HttpResponseHead(version, 200U, fields = [HttpMediaType("text", "event-stream").toHttpField()])
+
+suspend fun writeEvents(sink: AsyncByteSink) {
+    val bytes = "\u{FEFF}retry:9\nid:1\ndata:一\r\ndata:two\r\n\r\nid:\ndata:tail\n\ndata:unfinished\n".toByteArray()
+    NativeByteBuffer.allocate(3L).use suspend { buffer ->
+        var offset = 0L
+        while (offset < bytes.size) {
+            buffer.clear()
+            val count = if (bytes.size - offset > 3L) 3L else bytes.size - offset
+            buffer.writeBytes(bytes, offset, count)
+            sink.writeFully(buffer)
+            offset += count
+        }
+    }
+}
+
+suspend fun readEvents(source: SseSource) {
+    val first = source.next()!!
+    check(first.event == "message" && first.data == "一\ntwo" && first.id == Some("1") && first.lastEventId == "1")
+    gcCollect()
+    val second = source.next()!!
+    check(second.data == "tail" && second.id == Some("") && second.lastEventId == "")
+    check(when (source.next()) { case None -> true; case Some(_) -> false })
+    check(source.isFinished && source.lastEventId == "" && source.retryMilliseconds == Some(9L))
+}
+
+suspend fun checkEmpty(source: AsyncByteSource) {
+    NativeByteBuffer.allocate(1L).use suspend { buffer -> check(source.readInto(buffer, 1L) == 0L) }
+}
+
+class Gate {
+    private var open: Boolean = false
+    private val waiters: ArrayList<Continuation<Unit>> = ArrayList<Continuation<Unit>>()
+    fun signal() {
+        open = true
+        val ready = waiters.toArray()
+        waiters.clear()
+        for (waiter in ready) waiter.resume(Unit)
+    }
+    suspend fun await() {
+        suspendCoroutine<Unit> { next -> if (open) next.resume(Unit) else waiters.add(next) }
+    }
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun behavior() { exerciseConsumer() }
+}

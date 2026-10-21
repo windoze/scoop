@@ -8,7 +8,7 @@ use source_inventory::identity_closure;
 fn shared_template_preserves_generic_inherited_binder_substitution_in_bytes() {
     let source = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../tests/fixtures/m23-type-source-defaults/inherited-generics.scoop"
+        "/../../tests/fixtures/language/type-source-defaults/inherited-generics.scoop"
     ));
     with_hir_source(source, |output, _| {
         let templates =
@@ -41,7 +41,7 @@ fn shared_template_preserves_generic_inherited_binder_substitution_in_bytes() {
 fn public_template_bytes_preserve_provider_receivers_and_binder_mappings() {
     let source = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../tests/fixtures/m23-type-source-defaults/public-provider-receivers.scoop"
+        "/../../tests/fixtures/language/type-source-defaults/public-provider-receivers.scoop"
     ));
     with_hir_source(source, |output, _| {
         let templates =

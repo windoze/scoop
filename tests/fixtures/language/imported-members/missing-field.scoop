@@ -1,0 +1,3 @@
+package dev.example.consumer.members
+import dev.example.dependency.members.Wide
+public fun wrong(value: Wide): Long = value.missing

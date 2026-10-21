@@ -1,0 +1,10 @@
+package test
+import dev.example.*
+fun verifyProjection(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    verifyProjection(read() == "standalone")
+    verifyProjection(message == "standalone")
+    gcCollect()
+    verifyProjection(read() == "standalone")
+}

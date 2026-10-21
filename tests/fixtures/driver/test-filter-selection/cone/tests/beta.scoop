@@ -1,0 +1,17 @@
+package dev.selection.beta
+
+import dev.selection.value
+import scoop.test.*
+
+@Test
+private class FilterTests {
+    @Test
+    fun `selected behavior`() { assertEquals(42, value()) }
+
+    @Test
+    fun `another behavior`() { assertEquals(42, value()) }
+
+    @Test
+    fun `third behavior`() { assertEquals(42, value()) }
+
+}

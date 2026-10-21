@@ -1,0 +1,11 @@
+package dev.example
+fun main() {
+    val empty = SharedAbiEmpty()
+    val packet = SharedAbiPacket(7.toUByte(), 42)
+    val value: SharedAbiSource = SharedAbiValue(packet)
+    val holder: SharedAbiSource = SharedAbiHolder(packet)
+    if (value.packet(empty, empty).payload != 42L) throw IllegalStateException()
+    if (holder.packet(empty, empty).marker != 7.toUByte()) throw IllegalStateException()
+    val wide = SharedAbiAccess.pass(SharedAbiWide(packet, 99), empty, empty)
+    if (wide.packet.payload != 42L || wide.value != 99L) throw IllegalStateException()
+}

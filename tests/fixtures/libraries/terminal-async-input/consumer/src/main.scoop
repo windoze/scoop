@@ -1,0 +1,70 @@
+package test
+import scoop.asyncio.*
+import scoop.platform.io.standardOutput
+import scoop.terminal.*
+import scoop.terminal.asyncio.*
+import scoop.terminal.event.*
+import scoop.terminal.screen.SetTitle
+import scoop.time.Duration
+
+fun main() {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { scope ->
+        AsyncTerminalSession.open(loop, Duration.milliseconds(250L)).useAsync suspend { session ->
+            session.withRawMode suspend {
+                prefix(loop, scope, session)
+                progress(loop, scope, session)
+                events(session)
+                check(session.isRawMode(), "outer raw scope")
+                session.withRawMode suspend { check(session.isRawMode(), "inner raw scope") }
+                check(session.isRawMode(), "nested raw ownership")
+            }
+            check(!session.isRawMode(), "raw scope restoration")
+            try { session.withRawMode<Unit> suspend { throw IllegalArgumentException() } }
+            catch (_: IllegalArgumentException) {}
+            check(!session.isRawMode(), "exception restores raw mode")
+            stage(session, "async-restored")
+            expect(session, Event.Key(KeyEvent(KeyCode.Enter)))
+            cancellation(loop, scope, session)
+        }
+    }
+    val end: EventLoop = LibuvEventLoop()
+    end.run suspend { _ ->
+        AsyncTerminalSession.open(end).useAsync suspend { session ->
+            stage(session, "async-eof")
+            var disconnected = false
+            try { session.read() } catch (_: TerminalDisconnectedException) { disconnected = true }
+            check(disconnected, "async EOF")
+            disconnected = false
+            try { session.poll(Duration.ZERO) } catch (_: TerminalDisconnectedException) { disconnected = true }
+            check(disconnected, "async stable EOF")
+        }
+    }
+    escapedSession()
+    standardOutput.execute(SetTitle("async-finished"))
+}
+
+suspend fun prefix(loop: EventLoop, scope: CoroutineScope, session: AsyncTerminalSession) {
+    stage(session, "async-prefix")
+    check(!session.poll(Duration.milliseconds(20L)), "UTF8 prefix remains incomplete")
+    val pending = scope.launch suspend { session.read() }
+    loop.sleep(Duration.nanoseconds(1L))
+    pending.cancel()
+    pending.join()
+    stage(session, "async-tail")
+    expect(session, key('é'))
+    stage(session, "async-pair")
+    check(session.poll(Duration.seconds(1L)), "ready event")
+    val cancelled = scope.launch suspend {
+        currentJobOrNone()!!.cancel()
+        try { session.read(); check(false, "cancelled Job consumed queued event") }
+        catch (_: CancellationException) {}
+    }
+    cancelled.join()
+    check(session.poll(Duration.ZERO), "repeated poll retains event")
+    expect(session, key('a'))
+    expect(session, key('b'))
+    stage(session, "async-escape")
+    check(!session.poll(Duration.milliseconds(1L)), "Escape has independent delay")
+    expect(session, Event.Key(KeyEvent(KeyCode.Esc)))
+}

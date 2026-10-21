@@ -1,0 +1,8 @@
+package dev.m32.roots.facade
+
+public import dev.m32.roots.provider.*
+
+public fun adapted(): () -> Int = failure()
+public fun never(): Bottom = relay<Bottom>(failure())
+public fun defaulted(): Int = demand<Int>()
+public fun blank(): Array<Bottom> = empty()

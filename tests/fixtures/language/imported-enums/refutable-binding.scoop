@@ -1,0 +1,3 @@
+package dev.example.consumer.enums
+import dev.example.dependency.enums.Choice
+@NoGC public fun rejected(value: Choice): Long { val Pair { left, .. } = value; return left }

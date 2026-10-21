@@ -5,7 +5,7 @@ fn ordinary_bridge_selects_real_dependency_function_and_getter_calls() {
     let target = resolved_target().expect("ordinary bridges require a supported host target");
     let directory = tempfile::tempdir().unwrap();
     copy_trusted_core_sources(directory.path());
-    let fixtures = crate::workspace_root().join("tests/fixtures/m23-core-layout-exports");
+    let fixtures = crate::workspace_root().join("tests/fixtures/language/core-layout-exports");
     std::fs::copy(
         fixtures.join("shared-ordinary-standalone.scoop"),
         directory

@@ -1,0 +1,13 @@
+package dev.example
+import dev.example.dependency.classes.Counter
+import dev.example.dependency.classes.throwValue
+
+public fun primary(): Counter {
+    var code: Long = 0
+    try {
+        throwValue(RebuiltFailure(21))
+    } catch (error: RebuiltFailure) {
+        code = error.code
+    }
+    return Counter(code)
+}

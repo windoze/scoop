@@ -1,0 +1,25 @@
+package scoop.json.tests.consumer.baseline_messages
+
+import scoop.test.*
+import scoop.json.*
+import scoop.collections.*
+
+struct ExtendedMessage(val message: MessageBody, val extra: LinkedHashMap<String, JsonValue>)
+object ExtendedCodec : ValueEncoder<ExtendedMessage>, ValueDecoder<ExtendedMessage> {
+    public override fun encode(value: ExtendedMessage, encoder: Encoder) {
+        MessageBody.Companion.encode(value.message, encoder)
+        writeObject(value.extra, encoder, JsonValue.Companion)
+    }
+    public override fun decode(decoder: Decoder): ExtendedMessage {
+        val value = MessageBody.Companion.decode(decoder)
+        val fields = decoder.keyed()
+        val extra = LinkedHashMap<String, JsonValue>()
+        for (name in fields.keys) {
+            if (!member(["id", "type", "role", "model", "content", "stop_reason", "stop_sequence", "usage", "container", "diagnostics"], name)) {
+                extra.put(name, JsonValue.Companion.decode(fields.required(name)))
+            }
+        }
+        fields.end()
+        return ExtendedMessage(value, extra)
+    }
+}

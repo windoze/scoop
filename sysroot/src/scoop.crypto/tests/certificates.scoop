@@ -2,7 +2,7 @@ package scoop.crypto
 
 import scoop.Result
 import scoop.crypto.x509.*
-import scoop.crypto.testdata.*
+import scoop.tests.scoop.crypto.testdata.*
 import scoop.test.*
 import scoop.text.*
 import scoop.time.Instant

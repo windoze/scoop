@@ -1,0 +1,16 @@
+package dev.m37.provider
+public class Outer<T> public constructor(public val value: T) {
+    public inner open class Base public constructor(public val stored: T = value) {
+        public fun first(): T = value
+    }
+    public inner class Inner<U> public constructor(public val other: U) : Base() {
+        public constructor(other: U, marker: Int) : this(other) {}
+        public fun captured(): () -> T = { value }
+    }
+    public fun <U> make(other: U): Inner<U> = Inner(other)
+}
+public class Plain public constructor(public val number: Int) {
+    public inner class Inner public constructor(public val delta: Int = number) {
+        public fun total(): Int = number + delta
+    }
+}

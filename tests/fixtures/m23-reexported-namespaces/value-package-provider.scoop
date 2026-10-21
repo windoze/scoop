@@ -1,3 +1,0 @@
-package facade.nesting.Outer
-
-public fun marker(): Int = 1

@@ -1,0 +1,3 @@
+package dev.example
+import dev.example.dependency.enums.Flag
+fun invalid(): Flag = Flag.On()

@@ -1,0 +1,13 @@
+package dev.example
+import dev.example.dependency.classes.Counter
+import dev.example.dependency.classes.throwValue
+
+public fun primary(): Counter {
+    val code: Long = try {
+        throwValue(RebuiltFailure(21))
+        0
+    } catch (error: RebuiltFailure) {
+        error.code
+    }
+    return Counter(code)
+}

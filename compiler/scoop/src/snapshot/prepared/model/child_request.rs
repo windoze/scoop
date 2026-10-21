@@ -124,16 +124,14 @@ impl PreparedBuildGraph {
             }
             Some(PreparedGraphNode::SingleFile(node)) => {
                 let projection = self.source_projection(identity)?;
-                if !projection.direct().is_empty() || !projection.support().is_empty() {
-                    return Err(ChildRequestPlanError::SingleFileDependencyProjection);
-                }
                 let core = completed_core_input(&completed)?;
+                let (direct, support) = dependency_paths(identity, projection, &completed)?;
                 (
                     CurrentConeRequestV1::SingleFile {
                         source: path_carrier(&node.input_path)?,
                     },
-                    Vec::new(),
-                    Vec::new(),
+                    direct,
+                    support,
                     core,
                     node.output_path.clone(),
                 )
@@ -290,7 +288,6 @@ pub enum ChildRequestPlanError {
     CurrentAlreadyCompleted(ConeIdentity),
     DuplicateCompletedNode(ConeIdentity),
     MissingTrustedCore,
-    SingleFileDependencyProjection,
     MissingDependency {
         current: ConeIdentity,
         dependency: ConeIdentity,
@@ -332,8 +329,6 @@ impl fmt::Display for ChildRequestPlanError {
             Self::MissingTrustedCore => {
                 formatter.write_str("ordinary compiler child requires completed trusted core")
             }
-            Self::SingleFileDependencyProjection => formatter
-                .write_str("single-file child dependency projection must be exactly core-only"),
             Self::MissingDependency {
                 current,
                 dependency,

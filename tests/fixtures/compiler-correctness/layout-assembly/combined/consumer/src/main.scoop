@@ -1,0 +1,2 @@
+package dev.example
+public fun consume(): Boolean = same(Choice.Full(Pair()), Choice.Full(Pair()))

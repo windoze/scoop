@@ -1,0 +1,3 @@
+package test.m51
+@Extern(name = "m51_target_header_answer") private fun answer(): Int
+fun main() { @Unsafe { println(answer()) } }

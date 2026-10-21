@@ -1,0 +1,4 @@
+package dev.example
+import dev.example.facade.nesting.Outer.SecretCompanion
+
+public fun check(): Int = 42

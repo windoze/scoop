@@ -1,2 +1,0 @@
-package bridge.left
-public import api.Versioned as LeftVersion

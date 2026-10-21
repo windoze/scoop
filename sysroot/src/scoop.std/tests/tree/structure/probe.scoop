@@ -1,0 +1,123 @@
+package scoop.collections
+
+import scoop.test.assertTrue
+
+private fun verify(value: Boolean) {
+    assertTrue(value, Some("B-tree invariant"))
+}
+
+private fun validateNode(
+    node: BTreeNode<Int, Int>, parent: BTreeNode<Int, Int>?, position: Long, lower: Int, upper: Int,
+    visited: MutableList<BTreeNode<Int, Int>>
+): (Int, Long) {
+    for (previous in visited) verify(previous !== node)
+    visited.add(node)
+    verify(node.parent == parent && node.parentIndex == position)
+    verify(node.count > 0L && node.count <= 15L && (parent == None || node.count >= 7L))
+    var previous = lower
+    var index = 0L
+    while (index < node.count) {
+        val entry = node.entry(index)
+        verify(entry.key > previous && entry.key < upper && entry.key == entry.value)
+        previous = entry.key
+        index += 1L
+    }
+    index = node.count + 1L
+    while (index < 17L) { verify(node.child(index) == None); index += 1L }
+    if (node.leaf) {
+        index = 0L
+        while (index <= node.count) { verify(node.child(index) == None); index += 1L }
+        return (1, node.count)
+    }
+    var depth = 0
+    var entries = node.count
+    index = 0L
+    while (index <= node.count) {
+        val child = node.child(index)
+        verify(child != None)
+        val low = if (index == 0L) lower else node.entry(index - 1L).key
+        val high = if (index == node.count) upper else node.entry(index).key
+        val (childDepth, childEntries) = validateNode(child!!, Some(node), index, low, high, visited)
+        verify(depth == 0 || depth == childDepth)
+        depth = childDepth
+        entries += childEntries
+        index += 1L
+    }
+    return (depth + 1, entries)
+}
+
+private fun validate(tree: BTree<Int, Int>) {
+    val visited = ArrayList<BTreeNode<Int, Int>>()
+    if (tree.root == None) verify(tree.size == 0L) else {
+        val (depth, entries) = validateNode(tree.root!!, None, 0L, -1, 256, visited)
+        verify(entries == tree.size)
+        if (tree.size == 256L) verify(depth >= 3 && visited.size < 48L)
+    }
+    var current = TreePosition<Int, Int>(tree.first(tree.root), 0L)
+    var previous = -1
+    var count = 0L
+    while (current.node != None) {
+        val entry = current.node!!.entry(current.index)
+        verify(entry.key > previous && entry.value == entry.key)
+        previous = entry.key
+        current = tree.successor(current.node!!, current.index)
+        count += 1L
+        verify(count <= tree.size)
+    }
+    verify(count == tree.size)
+}
+
+private fun insert(tree: BTree<Int, Int>, key: Int) {
+    var current = tree.root
+    var leaf: BTreeNode<Int, Int>? = None
+    var index = 0L
+    while (current != None) {
+        val node = current!!
+        index = 0L
+        while (index < node.count && key > node.entry(index).key) index += 1L
+        verify(index == node.count || key != node.entry(index).key)
+        leaf = current
+        current = node.child(index)
+    }
+    tree.insert(key, key, leaf, index)
+    validate(tree)
+}
+
+private fun remove(tree: BTree<Int, Int>, key: Int) {
+    var current = tree.root
+    while (current != None) {
+        val node = current!!
+        var index = 0L
+        while (index < node.count && key > node.entry(index).key) index += 1L
+        if (index < node.count && key == node.entry(index).key) {
+            verify(tree.remove(node, index) == key)
+            validate(tree)
+            return
+        }
+        current = node.child(index)
+    }
+    verify(false)
+}
+
+public fun verifyBTreeStructure() {
+    var round = 0
+    while (round < 3) {
+        val tree = BTree<Int, Int>()
+        var index = 0
+        while (index < 256) {
+            val key = if (round == 0) index else if (round == 1) 255 - index else (index * 137) % 256
+            insert(tree, key)
+            index += 1
+        }
+        index = 0
+        while (index < 256) {
+            val key = if (round == 0) (index * 137) % 256 else if (round == 1) index else 255 - index
+            remove(tree, key)
+            index += 1
+        }
+        verify(tree.root == None && tree.size == 0L)
+        insert(tree, 42)
+        remove(tree, 42)
+        round += 1
+    }
+}

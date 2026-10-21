@@ -1,0 +1,35 @@
+package scoop.tests
+import scoop.asyncio.*
+import scoop.tests.scoop.crypto.testdata.rootPem
+import scoop.crypto.x509.TrustStore
+import scoop.platform.concurrent.Thread
+import scoop.platform.memory.NativeByteBuffer
+import scoop.url.Url
+
+internal fun responseCheck(value: Boolean) {
+    if (!value) throw IllegalStateException(Some("client response integration check failed"))
+}
+
+internal suspend fun writeResponseBytes(output: AsyncByteSink, bytes: List<Byte>) {
+    NativeByteBuffer.allocate(bytes.size).use suspend { buffer ->
+        buffer.writeBytes(bytes)
+        output.writeFully(buffer)
+    }
+}
+
+private fun exercise(args: Array<String>, trust: TrustStore) {
+    if (args[1L] == "h2") exerciseResponseHttp2(trust)
+    else exerciseResponseHttp1(args[1L], Url.parse(args[2L]), trust)
+}
+
+fun main(args: Array<String>) {
+    responseCheck(args.size >= 2L)
+    responseCheck(args.size == (if (args[1L] == "h2") 2L else 3L))
+    TrustStore.fromPem(rootPem()).use { trust ->
+        Thread.start { exercise(args, trust) }.use { thread ->
+            exercise(args, trust)
+            thread.join()
+        }
+    }
+    println("response " + args[1L])
+}

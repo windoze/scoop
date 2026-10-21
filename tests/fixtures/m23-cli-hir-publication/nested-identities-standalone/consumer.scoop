@@ -1,3 +1,0 @@
-public fun check(): Int {
-    return readerNested<Int>(42)()
-}

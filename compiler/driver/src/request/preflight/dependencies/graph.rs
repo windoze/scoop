@@ -40,6 +40,7 @@ pub(super) fn validate_manifest_direct_set(
     current: ConeIdentity,
     nodes: &BTreeMap<ConeIdentity, ValidatedDependencyNode<'_>>,
     purpose: scoop_protocol::CompilationPurpose,
+    single_file: &[scoop_manifest::SingleFileDependency],
 ) -> DependencyValidationResult<()> {
     let mut declared = BTreeMap::new();
     for coordinate in manifest
@@ -60,6 +61,7 @@ pub(super) fn validate_manifest_direct_set(
         })
         .into_iter()
         .flatten()
+        .chain(single_file.iter().map(|dependency| dependency.coordinate()))
     {
         let identity = coordinate.identity().map_err(|source| {
             Box::new(ExplicitDependencyValidationError::ManifestIdentity {

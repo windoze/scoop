@@ -1,0 +1,109 @@
+package scoop.json.tests.consumer.baseline_responses
+
+import scoop.test.*
+enum ResponseTool {
+    Function(FunctionSpec), FileSearch(FileSearchTool), WebSearch(WebSearchTool), Computer(ComputerTool), Code(CodeTool), Image(ImageTool), MCP(MCPConfig)
+    companion object : ValueEncoder<ResponseTool>, ValueDecoder<ResponseTool> {
+        public override fun encode(value: ResponseTool, encoder: Encoder) {
+            val fields = encoder.keyed()
+            when (value) {
+                case ResponseTool.Function(payload) -> {
+                    String.encode("function", fields.field("type"))
+                    FunctionSpec.Companion.encode(payload, encoder)
+                }
+                case ResponseTool.FileSearch(payload) -> {
+                    String.encode("file_search", fields.field("type"))
+                    FileSearchTool.Companion.encode(payload, encoder)
+                }
+                case ResponseTool.WebSearch(payload) -> {
+                    String.encode("web_search", fields.field("type"))
+                    WebSearchTool.Companion.encode(payload, encoder)
+                }
+                case ResponseTool.Computer(payload) -> {
+                    String.encode("computer_use_preview", fields.field("type"))
+                    ComputerTool.Companion.encode(payload, encoder)
+                }
+                case ResponseTool.Code(payload) -> {
+                    String.encode("code_interpreter", fields.field("type"))
+                    CodeTool.Companion.encode(payload, encoder)
+                }
+                case ResponseTool.Image(payload) -> {
+                    String.encode("image_generation", fields.field("type"))
+                    ImageTool.Companion.encode(payload, encoder)
+                }
+                case ResponseTool.MCP(payload) -> {
+                    String.encode("mcp", fields.field("type"))
+                    MCPConfig.Companion.encode(payload, encoder)
+                }
+            }
+            fields.end()
+        }
+        public override fun decode(decoder: Decoder): ResponseTool {
+            val fields = decoder.keyed()
+            return when (String.decode(fields.required("type"))) {
+                case "function" -> ResponseTool.Function(FunctionSpec.Companion.decode(decoder))
+                case "file_search" -> ResponseTool.FileSearch(FileSearchTool.Companion.decode(decoder))
+                case "web_search" -> ResponseTool.WebSearch(WebSearchTool.Companion.decode(decoder))
+                case "computer_use_preview" -> ResponseTool.Computer(ComputerTool.Companion.decode(decoder))
+                case "code_interpreter" -> ResponseTool.Code(CodeTool.Companion.decode(decoder))
+                case "image_generation" -> ResponseTool.Image(ImageTool.Companion.decode(decoder))
+                case "mcp" -> ResponseTool.MCP(MCPConfig.Companion.decode(decoder))
+                else -> throw DecodingException(fields.required("type").path, "unknown ResponseTool branch")
+            }
+        }
+    }
+}
+enum ResponseNamedTool {
+    Function(NamedFunction), Web, Code
+    companion object : ValueEncoder<ResponseNamedTool>, ValueDecoder<ResponseNamedTool> {
+        public override fun encode(value: ResponseNamedTool, encoder: Encoder) {
+            val fields = encoder.keyed()
+            when (value) {
+                case ResponseNamedTool.Function(payload) -> {
+                    String.encode("function", fields.field("type"))
+                    NamedFunction.Companion.encode(payload, encoder)
+                }
+                case ResponseNamedTool.Web -> {
+                    String.encode("web_search", fields.field("type"))
+                }
+                case ResponseNamedTool.Code -> {
+                    String.encode("code_interpreter", fields.field("type"))
+                }
+            }
+            fields.end()
+        }
+        public override fun decode(decoder: Decoder): ResponseNamedTool {
+            val fields = decoder.keyed()
+            return when (String.decode(fields.required("type"))) {
+                case "function" -> ResponseNamedTool.Function(NamedFunction.Companion.decode(decoder))
+                case "web_search" -> ResponseNamedTool.Web
+                case "code_interpreter" -> ResponseNamedTool.Code
+                else -> throw DecodingException(fields.required("type").path, "unknown ResponseNamedTool branch")
+            }
+        }
+    }
+}
+struct NamedChoice(val tool: ResponseNamedTool) {
+    companion object : ValueEncoder<NamedChoice>, ValueDecoder<NamedChoice> {
+        public override fun encode(value: NamedChoice, encoder: Encoder) { ResponseNamedTool.Companion.encode(value.tool, encoder) }
+        public override fun decode(decoder: Decoder): NamedChoice = NamedChoice(ResponseNamedTool.Companion.decode(decoder))
+    }
+}
+enum ResponseChoice {
+    Text(String), Named(NamedChoice)
+    companion object : ValueEncoder<ResponseChoice>, ValueDecoder<ResponseChoice> {
+        public override fun encode(value: ResponseChoice, encoder: Encoder) {
+            when (value) {
+                case ResponseChoice.Text(text) -> String.encode(text, encoder)
+                case ResponseChoice.Named(payload) -> NamedChoice.Companion.encode(payload, encoder)
+            }
+        }
+        public override fun decode(decoder: Decoder): ResponseChoice {
+            var text: String? = None
+            try { text = Some(String.decode(decoder)) }
+            catch (error: DecodingException) { text = None }
+            if (text != None) { return ResponseChoice.Text(text!!) }
+            return ResponseChoice.Named(NamedChoice.Companion.decode(decoder))
+        }
+    }
+}

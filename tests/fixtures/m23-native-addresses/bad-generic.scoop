@@ -1,3 +1,0 @@
-import dependency.nativeAddresses.generic
-
-public fun rejected(): FunPtr<(Long) -> Long> = ::generic

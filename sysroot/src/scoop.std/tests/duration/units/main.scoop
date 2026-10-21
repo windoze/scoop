@@ -1,0 +1,44 @@
+package scoop.std.tests.duration.units
+
+import scoop.test.*
+import scoop.time.*
+
+fun check(ok: Boolean, location: SourceLocation = currentSourceLocation()) {
+    assertTrue(ok, location = location)
+}
+fun overflow(block: () -> Long) {
+    var failed = false
+    try { block() } catch (error: ArithmeticException) { failed = true }
+    check(failed)
+}
+private fun exercise() {
+    val negative = Duration.seconds(-86462L, 999999999L)
+    check(negative.inWholeSeconds == -86461L && negative.inWholeMinutes == -1441L)
+    check(negative.inWholeHours == -24L && negative.inWholeDays == -1L)
+    check((-1).nanoseconds().inWholeSeconds == 0L && (-1).nanoseconds().inWholeMicroseconds == 0L)
+    check((-999).microseconds().inWholeMilliseconds == 0L)
+    check((-1001).microseconds().inWholeMilliseconds == -1L)
+    check(Duration.nanoseconds(Long.MIN_VALUE).inWholeNanoseconds == Long.MIN_VALUE)
+    check(Duration.nanoseconds(Long.MAX_VALUE).inWholeNanoseconds == Long.MAX_VALUE)
+    check(Duration.microseconds(Long.MIN_VALUE).inWholeMicroseconds == Long.MIN_VALUE)
+    check(Duration.microseconds(Long.MAX_VALUE).inWholeMicroseconds == Long.MAX_VALUE)
+    check(Duration.milliseconds(Long.MIN_VALUE).inWholeMilliseconds == Long.MIN_VALUE)
+    check(Duration.milliseconds(Long.MAX_VALUE).inWholeMilliseconds == Long.MAX_VALUE)
+    check((Duration.microseconds(Long.MIN_VALUE) - 999.nanoseconds()).inWholeMicroseconds == Long.MIN_VALUE)
+    check((Duration.microseconds(Long.MAX_VALUE) + 999.nanoseconds()).inWholeMicroseconds == Long.MAX_VALUE)
+    check((Duration.milliseconds(Long.MIN_VALUE) - 999999.nanoseconds()).inWholeMilliseconds == Long.MIN_VALUE)
+    check(Duration.seconds(Long.MIN_VALUE).inWholeSeconds == Long.MIN_VALUE)
+    overflow { (Duration.nanoseconds(Long.MIN_VALUE) - 1.nanoseconds()).inWholeNanoseconds }
+    overflow { (Duration.nanoseconds(Long.MAX_VALUE) + 1.nanoseconds()).inWholeNanoseconds }
+    overflow { (Duration.microseconds(Long.MIN_VALUE) - 1000.nanoseconds()).inWholeMicroseconds }
+    overflow { (Duration.milliseconds(Long.MAX_VALUE) + 1000000.nanoseconds()).inWholeMilliseconds }
+    overflow { Duration.seconds(Long.MAX_VALUE).inWholeNanoseconds }
+    overflow { Duration.seconds(Long.MIN_VALUE).inWholeMilliseconds }
+
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

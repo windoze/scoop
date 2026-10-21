@@ -1,0 +1,16 @@
+package dev.example
+import dev.example.dependency.classes.Counter
+import dev.example.dependency.classes.MutableValue
+
+public abstract class LocalBase public constructor(): MutableValue {
+    public abstract override var value: Long
+}
+public class LocalReader public constructor(): LocalBase() {
+    public override var value: Long = 20
+}
+public fun localReader(): LocalBase = LocalReader()
+public fun primary(): Counter {
+    val reader = localReader()
+    reader.value = 21
+    return Counter(reader.value)
+}

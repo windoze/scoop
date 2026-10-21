@@ -1,4 +1,0 @@
-import test.api.Check
-
-@Check
-class Cases

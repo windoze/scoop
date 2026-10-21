@@ -1,0 +1,3 @@
+package test
+fun initial(): Boolean = true
+val ready: Boolean = initial()

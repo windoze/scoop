@@ -1,4 +1,0 @@
-import dependency.classes.Counter
-import dependency.classes.Token
-
-public fun primary(): Counter = Counter(Token())

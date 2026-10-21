@@ -1,3 +1,0 @@
-struct Record(val value: Int)
-object Inspector : ValueInspector<Record> { override fun inspect(value: Record): String = "invalid" }
-fun main() {}

@@ -1,0 +1,42 @@
+package scoop.std.tests.text.float_long
+
+import scoop.test.*
+import scoop.text.*
+
+fun check(value: Boolean, label: String, location: SourceLocation = currentSourceLocation()) {
+    assertTrue(value, Some(label), location = location)
+}
+
+private fun exercise() {
+    val zeros = "0".repeat(2048L)
+    val huge = "9".repeat(2048L)
+    check(("0" + zeros + "1").toFloat() == 1f, "leading zeros")
+    check(("1" + zeros + "e-2048").toDouble() == 1.0, "integer exponent cancellation")
+    check(("0." + zeros + "1e2049").toFloat() == 1f, "fraction exponent cancellation")
+    check(("1e" + huge).toDoubleOrNone() == None, "huge positive exponent")
+    check(("1e18446744073709551615").toFloatOrNone() == None, "ULong exponent maximum")
+    check(("1e18446744073709551616").toDoubleOrNone() == None, "exponent saturation")
+    check(1.0 / ("-1e-" + huge).toDouble() == Double.NEGATIVE_INFINITY, "huge negative exponent")
+    check(1f / ("-0e" + huge).toFloat() == Float.NEGATIVE_INFINITY, "zero with huge exponent")
+    check(("1e" + huge + "x").toFloatOrNone() == None, "overflow validates tail")
+    check(("0e-" + huge + "x").toDoubleOrNone() == None, "zero validates tail")
+    check(("1e" + zeros + "1").toFloat() == 10f, "leading exponent zeros")
+    val floatMidpoint = "1.000000059604644775390625"
+    val doubleMidpoint = "1.00000000000000011102230246251565404236316680908203125"
+    check((floatMidpoint + zeros).toFloat() == 1f, "Float exact tie with zero tail")
+    check((floatMidpoint + zeros + "1").toFloat() == 1.00000011920928955078125f, "Float sticky tail")
+    check(("-" + floatMidpoint + zeros + "1").toFloat() == -1.00000011920928955078125f, "negative Float sticky tail")
+    check((doubleMidpoint + zeros).toDouble() == 1.0, "Double exact tie with zero tail")
+    check((doubleMidpoint + zeros + "1").toDouble() == 1.0000000000000002220446049250313080847263336181640625, "Double sticky tail")
+    check(("1." + "9".repeat(2048L)).toDouble() == 2.0, "long significand carry")
+    check(("1." + zeros + "1").toDouble() == 1.0, "sticky away from midpoint")
+    check("1.000000059604644775390625000001".toDouble().toFloat() == 1f, "double rounding witness")
+    check("1.000000059604644775390625000001".toFloat() == 1.00000011920928955078125f, "direct Float rounding")
+
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

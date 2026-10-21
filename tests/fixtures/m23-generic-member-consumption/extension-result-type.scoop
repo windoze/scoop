@@ -1,5 +1,0 @@
-package consumer.members
-
-import templates.members.*
-
-public fun result(): String = Box<Int>(42).extensionValue

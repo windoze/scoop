@@ -31,8 +31,6 @@ pub fn normalize_direct_build_request(
         ));
     }
     let dependencies = explicit_dependencies(direct, support)?;
-    validate_dependency_shape_before_toolchain(&current, &dependencies)
-        .map_err(BuildRequestNormalizationError::Request)?;
     let output =
         SlibOutputDestination::new(output).map_err(BuildRequestNormalizationError::Request)?;
     let triple = match options.target.as_deref() {
@@ -212,19 +210,6 @@ fn protocol_output(
             documentation: documentation(doc)?,
         },
     })
-}
-
-fn validate_dependency_shape_before_toolchain(
-    current: &CurrentConeInput,
-    dependencies: &ExplicitDependencyInputs,
-) -> Result<(), SingleConeBuildRequestError> {
-    match current {
-        CurrentConeInput::Manifest { .. } => Ok(()),
-        CurrentConeInput::SingleFile { .. } if dependencies.is_empty() => Ok(()),
-        CurrentConeInput::SingleFile { .. } => {
-            Err(SingleConeBuildRequestError::SingleFileHasDependencies)
-        }
-    }
 }
 
 fn explicit_dependencies(

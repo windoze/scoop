@@ -1,0 +1,6 @@
+package dev.example
+import dev.example.upstream.iteration.*
+
+@NoGC public fun invalid(values: Array<Int>) {
+    for (value in values) {}
+}

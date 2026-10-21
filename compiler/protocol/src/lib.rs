@@ -35,7 +35,7 @@ pub use response::{
 };
 
 /// Version selected by the unique `scoopc` machine transport entrypoint.
-pub const PROTOCOL_VERSION: u32 = 12;
+pub const PROTOCOL_VERSION: u32 = 13;
 
 pub(crate) const MAX_EMITTED_DUMPS: usize = 4;
 
@@ -51,7 +51,6 @@ pub enum ProtocolValidationError {
     HostPath(HostPathError),
 
     InvalidCurrentCoreCombination,
-    SingleFileHasDependencies,
     TestRequiresManifest,
     DocumentationRequiresProductionManifest,
     DocumentationObservation,
@@ -106,9 +105,6 @@ impl std::fmt::Display for ProtocolValidationError {
 
             Self::InvalidCurrentCoreCombination => formatter
                 .write_str("current Cone input and trusted core request are not a permitted pair"),
-            Self::SingleFileHasDependencies => {
-                formatter.write_str("single-file input cannot carry dependency artifacts")
-            }
             Self::TestRequiresManifest => {
                 formatter.write_str("test compilation requires a manifest Cone")
             }

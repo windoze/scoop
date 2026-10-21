@@ -1,7 +1,8 @@
 use super::*;
 use crate::{DocumentationOutputDestination, SingleConeOutput};
 
-const SOURCE: &str = "/// 文档 [Missing].\r\n\
+const SOURCE: &str = "package test\r\n\
+                      /// 文档 [Missing].\r\n\
                       @DocAlias(\"result\")\r\n\
                       public fun answer(): Long = 42\r\n";
 
@@ -119,7 +120,7 @@ fn documentation_pipeline_checks_bodies_and_shares_hir_with_artifact_production(
 
     std::fs::write(
         root.join("src/main.scoop"),
-        "/// Valid prose.\npublic fun answer(): Long = missingBodyValue\n",
+        "package test\n/// Valid prose.\npublic fun answer(): Long = missingBodyValue\n",
     )
     .unwrap();
     let error = make_request().compile(false).unwrap_err();

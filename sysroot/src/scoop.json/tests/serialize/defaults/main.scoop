@@ -1,0 +1,44 @@
+package scoop.json.tests.serialize.defaults
+
+import scoop.test.*
+import scoop.json.Json
+
+class Counter(var calls: Long)
+val counter = Counter(0L)
+fun makeDefault(): String? { counter.calls += 1L; return None }
+typealias MaybeText = String?
+
+struct Defaults(
+    val plain: String?,
+    val direct: String? = None,
+    val qualified: String? = (Option<String>.None),
+    val alias: MaybeText = MaybeText.None,
+    val nonempty: String? = Some("guest"),
+    val effect: String? = makeDefault(),
+    val previous: String? = nonempty,
+    val limit: Long = 20L
+) {
+    companion object : ValueEncoder<Defaults>, ValueDecoder<Defaults> {}
+}
+
+private fun exercise() {
+    val value = Defaults(None, nonempty = None, effect = None, previous = None)
+    val text = Json.encodeToString(value, Defaults.Companion)
+    check(text == "{\"nonempty\":null,\"effect\":null,\"previous\":null,\"limit\":20}")
+    check(counter.calls == 0L)
+    check(Json.decodeFromString(text, Defaults.Companion) == value)
+    check(counter.calls == 0L)
+    val missing = Json.decodeFromString("{}", Defaults.Companion)
+    check(missing.plain == None && missing.direct == None && missing.alias == None)
+    check(missing.nonempty == Some("guest") && missing.previous == Some("guest"))
+    check(counter.calls == 1L)
+    reject("/limit") { Json.decodeFromString("{\"limit\":null}", Defaults.Companion) }
+    check(counter.calls == 1L)
+
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

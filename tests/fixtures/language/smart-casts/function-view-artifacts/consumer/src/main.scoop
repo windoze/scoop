@@ -1,0 +1,9 @@
+package dev.m37
+import dev.m37.bridge.*
+fun main() {
+    val value = source()
+    println(forwarded(value, 7))
+    println(forwarded(value, "receiver"))
+    println(withDefault(value))
+    println(withDefault("other"))
+}

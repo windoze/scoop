@@ -1,0 +1,22 @@
+package dev.example.consumer.globals
+
+private class Cell(public val number: Int)
+private enum State<T> { Empty, Item(T) }
+private var stored: State<Cell> = Empty
+public fun <T> exercise(value: T): Int {
+    stored = Item(Cell(42))
+    val saved = stored
+    stored = Empty
+    val allocated = Cell(0)
+    if (allocated.number != 0) { return 1 }
+    val cleared = when (stored) {
+        case Empty -> true
+        case Item(cell) -> false
+    }
+    if (!cleared) { return 2 }
+    return when (saved) {
+        case Item(cell) -> cell.number
+        case Empty -> 3
+    }
+}
+public fun result(): Int = exercise<Int>(0)

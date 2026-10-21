@@ -1,0 +1,3 @@
+package dev.m33
+import scoop.platformlib.*
+fun main() { println(answer()) }

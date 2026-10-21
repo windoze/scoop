@@ -1,0 +1,3 @@
+package dev.example
+import dev.example.dependency.constructors.Packet
+@NoGC fun invalid(): Packet = Packet<Long>(1, 2, 3)

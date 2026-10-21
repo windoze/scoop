@@ -1,0 +1,5 @@
+package dev.m43
+import scoop.test.AfterTest
+
+@AfterTest
+fun cleanup() {}

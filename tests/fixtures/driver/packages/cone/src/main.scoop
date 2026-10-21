@@ -1,0 +1,3 @@
+package dev.example
+import dev.example.http.answer
+fun main() { println(answer()) }

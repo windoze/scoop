@@ -1,3 +1,0 @@
-interface ValueInspector<T> { fun inspect(value: T): ValueView }
-struct Record(val value: Int) { companion object : ValueInspector<Record> }
-fun main() {}

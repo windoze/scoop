@@ -1,0 +1,14 @@
+package dev.example.consumer.nominals
+
+import dev.example.dependency.nominals.Parcel
+import dev.example.dependency.nominals.pack
+import dev.example.dependency.nominals.unpack
+import dev.example.dependency.nominals.relay
+
+class Number(val value: Int)
+
+public fun result(): Int {
+    val first: Parcel<Number> = relay(pack(Number(41)))
+    val second = pack(Number(1))
+    return unpack(first, Number(0)).value + unpack(second, Number(0)).value
+}

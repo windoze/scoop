@@ -1,0 +1,4 @@
+package dev.example.consumer.nominalConditions
+import dev.example.upstream.nominalConditions.*
+
+public fun wrong(value: Wrapped<String>): Unit = Unit

@@ -1,0 +1,13 @@
+schema = 1
+[cone]
+group = "test.m52"
+name = "parent-source"
+version = "1.0.0"
+kind = "executable"
+[native]
+include = ["../vendor"]
+[[native.sources]]
+path = "../vendor/answer.c"
+[[native.sources]]
+path = "../../unselected.cc"
+when = {os = []}

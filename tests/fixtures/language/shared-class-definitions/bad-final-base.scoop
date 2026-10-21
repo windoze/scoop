@@ -1,0 +1,4 @@
+package dev.example
+import dev.example.upstream.classDefinitions.*
+
+public class Invalid(): Link<Int>(42)

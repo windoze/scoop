@@ -1,0 +1,30 @@
+schema = 1
+name = "copy-update-suspend-moving-gc"
+root = "../../language/copy-update/suspend-moving-gc.scoop"
+inputs = ["../../language/copy-update/suspend-moving-gc.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["single-file", "run", "moving-gc", "gc-correctness"]
+[[variants]]
+name = "normal"
+
+[[variants]]
+name = "moving"
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "--enable-gc-stress", "build", {"each" = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "first-suspended\npair-left-alive\npair-right-alive\npair-replacement-alive\npair-right-alive\nsecond-suspended\nevent-kept-alive\nevent-replacement-alive\n42\n"
+stderr = ""

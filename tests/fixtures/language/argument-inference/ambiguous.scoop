@@ -1,0 +1,4 @@
+package dev.example
+import dev.example.dependency.inference.conflict
+import dev.example.dependency.inference.identity
+public fun result(): Int { val value = conflict(::identity, [], 42, 42); return 42 }

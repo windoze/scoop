@@ -48,11 +48,11 @@ mod wire_equivalence;
 
 const PROVIDER: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../tests/fixtures/m23-generic-body-consumption/provider.scoop"
+    "/../../tests/fixtures/language/generic-body-consumption/provider.scoop"
 ));
 const CONSUMER: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../tests/fixtures/m23-generic-body-consumption/consumer.scoop"
+    "/../../tests/fixtures/language/generic-body-consumption/consumer.scoop"
 ));
 
 fn lower_consumer(source: &str) -> Result<hir::DependencyHirOutput, Vec<crate::Diagnostic>> {
@@ -179,7 +179,7 @@ fn imported_generic_bodies_infer_and_materialize_provider_templates() {
 fn imported_generic_overloads_compare_declarations_in_one_type_arena() {
     let source = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../tests/fixtures/m23-generic-body-consumption/overload.scoop"
+        "/../../tests/fixtures/language/generic-body-consumption/overload.scoop"
     ));
     let output = lower_consumer(source).expect("tuple input selects the tuple declaration");
     let export = output.output().export.module();

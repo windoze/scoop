@@ -1,0 +1,10 @@
+package dev.example.consumer.constructorbodies
+
+private class Returning<T>(value: T) {
+    init { return }
+}
+
+public fun result(): Int {
+    val bad = Returning<Int>(42)
+    return 42
+}

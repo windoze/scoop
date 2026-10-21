@@ -78,7 +78,12 @@ libunwind archive. Linux builds keep separate glibc and musl unwind prefixes.
 Programs do not expose EH control-flow entries through the public C FFI
 header or link `libc++abi`; one provider supplies the Level-I unwind ABI.
 
-`SCOOP_GC_STRESS_MOVE=1` enables the M15 runtime-only relocation test mode:
+Build with `scoop --enable-gc-stress` to include runtime stress support. Without
+that build option, stress code and environment reads are omitted, so the stress
+environment variables have no effect. With support included, `0` or an unset
+variable leaves its mode disabled.
+
+`SCOOP_GC_STRESS_MOVE=1` enables the runtime-only relocation test mode:
 every mutator-visible allocation first performs a full moving collection,
 old copies are poisoned, and empty source blocks are permanently protected.
 

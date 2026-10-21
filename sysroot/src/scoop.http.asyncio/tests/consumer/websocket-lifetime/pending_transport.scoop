@@ -1,0 +1,47 @@
+package scoop.http.asyncio.tests.consumer.websocket_lifetime
+
+import scoop.test.*
+import scoop.asyncio.*
+import scoop.platform.memory.*
+
+internal class WsPendingTransfer(val input: Boolean) {
+    var buffer: NativeByteBuffer? = None
+    var job: Job? = None
+    var running: Boolean = false
+    private var borrow: NativeByteBorrow? = None
+    private var continuation: Continuation<Long>? = None
+    suspend fun transfer(buffer: NativeByteBuffer, count: Long): Long {
+        wsCheck(!running, "overlapping native transfer")
+        running = true; this.buffer = Some(buffer)
+        val current = currentJobOrNone()!!
+        job = Some(current)
+        @Unsafe { borrow = Some(if (input) buffer.borrowWritable(count) else buffer.borrowReadable(count)) }
+        try {
+            val amount = suspendCoroutine<Long> { next -> continuation = Some(next) }
+            current.ensureActive()
+            return amount
+        } finally { running = false }
+    }
+    fun complete() {
+        val lease = borrow!!
+        val next = continuation!!
+        borrow = None; continuation = None
+        @Unsafe {
+            if (input) lease.pointer()!!.store(0L, 42.toByte())
+            lease.complete(1L)
+        }
+        next.resume(1L)
+    }
+}
+internal class WsPendingTransport : AsyncByteStream, AsyncCloseable {
+    val input: WsPendingTransfer = WsPendingTransfer(true)
+    val output: WsPendingTransfer = WsPendingTransfer(false)
+    var closes: Int = 0
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long = input.transfer(buffer, count)
+    public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long = output.transfer(buffer, count)
+    public override suspend fun flush() {}
+    public override suspend fun close() {
+        wsCheck(!input.running && !output.running, "transport closed during a native borrow")
+        closes += 1
+    }
+}

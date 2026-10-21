@@ -1,0 +1,58 @@
+package test.core.tests.lists.iteration
+
+import scoop.test.*
+class CountingList(private val data: MutableArray<Int>) : List<Int> {
+    var sizeReads: Int = 0
+    var getReads: Long = 0L
+    var fail: Boolean = false
+    public override val size: Long get() { sizeReads = sizeReads + 1; return data.size }
+    public override operator fun get(index: Long): Int {
+        getReads = getReads * 10L + index + 1L
+        if (fail && index == 1L) { throw IllegalStateException() }
+        return data[index]
+    }
+    public override operator fun iterator(): Iterator<Int> = data.iterator()
+}
+
+private fun exercise() {
+    val values = ArrayList<Int>(1L)
+    values.add(1)
+    val iterator = values.iterator()
+    if (iterator.next()!! != 1) { fail(Some("first")) }
+    values.add(2)
+    values.add(3)
+    values[1L] = 42
+    if (iterator.next()!! != 42) { fail(Some("latest-backing")) }
+    values.add(0L, 0)
+    if (iterator.next()!! != 42) { fail(Some("insert-visible")) }
+    values.removeAt(0L)
+    if (iterator.next() != None) { fail(Some("remove-visible")) }
+    values.add(4)
+    if (iterator.next() != None) { fail(Some("exhausted")) }
+    val cleared = values.iterator()
+    values.clear()
+    if (cleared.next() != None) { fail(Some("cleared")) }
+    values.add(5)
+    if (cleared.next() != None) { fail(Some("clear-exhausted")) }
+    val data: MutableArray<Int> = [10, 20, 30]
+    val observed = CountingList(data)
+    val snapshot = observed.toArray()
+    if (observed.sizeReads != 1 || observed.getReads != 123L || snapshot[2L] != 30) {
+        fail(Some("snapshot-order"))
+    }
+    observed.fail = true
+    observed.getReads = 0L
+    var caught = false
+    try { observed.toMutableArray() } catch (e: IllegalStateException) { caught = true }
+    if (!caught || observed.getReads != 12L) { fail(Some("snapshot-throw")) }
+    val arrayIterator = data.iterator()
+    if (arrayIterator.next()!! != 10) { fail(Some("array-first")) }
+    data[1L] = 42
+    if (arrayIterator.next()!! != 42) { fail(Some("array-alias")) }
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

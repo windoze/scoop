@@ -1,5 +1,0 @@
-import dependency.classes.Valued
-public struct Wrong(): Valued {
-    public override val value: Int
-        get() = 21
-}

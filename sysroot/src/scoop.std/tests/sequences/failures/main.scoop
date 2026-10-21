@@ -1,0 +1,43 @@
+package scoop.std.tests.sequences.failures
+
+import scoop.test.*
+import scoop.sequences.*
+import scoop.comparisons.comparatorOf
+
+class State { var calls: Int = 0 }
+fun fail(state: State): Nothing { state.calls += 1; throw Exception(Some("callback")) }
+fun <T> verify(source: Sequence<T>, state: State) {
+    val iterator = source.iterator()
+    if (state.calls != 0) throw Exception(Some("eager callback"))
+    var caught = false
+    try { iterator.next() } catch (error: Exception) { caught = error.message == Some("callback") }
+    if (!caught || state.calls != 1) throw Exception(Some("first failure"))
+    caught = false
+    try { iterator.next() } catch (error: IllegalStateException) { caught = true }
+    if (!caught || state.calls != 1) throw Exception(Some("repeated failure"))
+}
+private fun exercise() {
+    val a = State()
+    verify<Int>(sequenceOf<Int>(1).map<Int, Int> { _ -> fail(a) }, a)
+    val b = State()
+    verify<Int>(sequenceOf<Int>(1).filter { _ -> fail(b) }, b)
+    val c = State()
+    verify<Int>(sequenceOf<Int>(1).flatMap<Int, Int> { _ -> generateSequence<Int> { fail(c) } }, c)
+    val d = State()
+    verify<(Int, Int)>(sequenceOf<Int>(1).zip<Int, Int>(generateSequence<Int> { fail(d) }), d)
+    val e = State()
+    verify<Int>(sequenceOf<Int>(1).distinctBy<Int, Int> { _ -> fail(e) }, e)
+    val f = State()
+    verify<List<Int>>(generateSequence<Int> { fail(f) }.windowed(2L), f)
+    val g = State()
+    verify<Int>(sequenceOf<Int>(2, 1).sortedWith(comparatorOf<Int> { _, _ -> fail(g) }), g)
+    val h = State()
+    verify<Int>(sequenceOf<Int>(2, 1).sortedBy<Int, Int> { _ -> fail(h) }, h)
+
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

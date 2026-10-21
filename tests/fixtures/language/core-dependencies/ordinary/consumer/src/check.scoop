@@ -1,0 +1,9 @@
+package test
+import test.dependency.api.invocationCount
+
+public fun checkCoreDependencyCalls(): Int {
+    userCoreDependency()
+    userCoreCombined(true)
+    userCoreCombined(false)
+    return invocationCount()
+}

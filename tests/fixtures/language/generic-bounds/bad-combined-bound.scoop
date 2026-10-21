@@ -1,0 +1,4 @@
+package dev.example
+import dev.example.templates.bounds.*
+
+public fun result(): Int = combined(GenericValue<Int>(1, 42))

@@ -1,0 +1,2 @@
+package dev.example
+public fun result(): Int { val pointer = Ptr<Int>(1uL); return 42 }

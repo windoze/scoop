@@ -1,3 +1,0 @@
-import dependency.generics.conflict
-
-public fun ambiguous(): Int = conflict(1, 2)

@@ -106,10 +106,26 @@ fn formal_pipeline_is_byte_reproducible_for_every_stage3_input_form() {
             "fun answer(): Long = 42\n",
         );
     }
-    std::fs::write(first_root.join("src/z.scoop"), "fun last(): Long = 2\n").unwrap();
-    std::fs::write(first_root.join("src/a.scoop"), "fun first(): Long = 1\n").unwrap();
-    std::fs::write(second_root.join("src/a.scoop"), "fun first(): Long = 1\n").unwrap();
-    std::fs::write(second_root.join("src/z.scoop"), "fun last(): Long = 2\n").unwrap();
+    std::fs::write(
+        first_root.join("src/z.scoop"),
+        "package dev.example\nfun last(): Long = 2\n",
+    )
+    .unwrap();
+    std::fs::write(
+        first_root.join("src/a.scoop"),
+        "package dev.example\nfun first(): Long = 1\n",
+    )
+    .unwrap();
+    std::fs::write(
+        second_root.join("src/a.scoop"),
+        "package dev.example\nfun first(): Long = 1\n",
+    )
+    .unwrap();
+    std::fs::write(
+        second_root.join("src/z.scoop"),
+        "package dev.example\nfun last(): Long = 2\n",
+    )
+    .unwrap();
 
     let first = build_manifest(
         &first_sysroot,

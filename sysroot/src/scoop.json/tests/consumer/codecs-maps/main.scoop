@@ -1,0 +1,47 @@
+package scoop.json.tests.consumer.codecs_maps
+
+import scoop.test.*
+import scoop.collections.*
+import scoop.comparisons.*
+import scoop.json.Json
+
+struct Key(val number: Int)
+fun check(ok: Boolean, location: SourceLocation = currentSourceLocation()) {
+    assertTrue(ok, location = location)
+}
+private fun exerciseConsumer() {
+    val hash = hashMapOf((2, "b"), (1, "a"))
+    val hashEncoder = HashMap<Int, String>.encoder(Int.Companion, String.Companion)
+    val hashDecoder = HashMap<Int, String>.decoder(Int.Companion, String.Companion)
+    val hashCopy = Json.decodeFromString(Json.encodeToString(hash, hashEncoder), hashDecoder)
+    check(hashCopy.size == 2L && hashCopy[1] == Some("a") && hashCopy[2] == Some("b"))
+    hashCopy.put(3, "c")
+    check(hash.size == 2L && Json.decodeFromString("[]", hashDecoder).size == 0L)
+    val linked = linkedMapOf((2, "b"), (1, "a"))
+    val linkedEncoder = LinkedHashMap<Int, String>.encoder(Int.Companion, String.Companion)
+    val linkedDecoder = LinkedHashMap<Int, String>.decoder(Int.Companion, String.Companion)
+    check(Json.encodeToString(linked, linkedEncoder) == "[[2,\"b\"],[1,\"a\"]]")
+    val linkedCopy = Json.decodeFromString("[[2,\"b\"],[1,\"a\"]]", linkedDecoder)
+    check(linkedCopy.keys.toList()[0L] == 2 && linkedCopy.keys.toList()[1L] == 1)
+    check(Json.encodeToString(linkedCopy, linkedEncoder) == Json.encodeToString(linked, linkedEncoder))
+    val order = comparatorOf<Key> { a, b -> b.number.compareTo(a.number) }
+    val keyEncoder = ValueEncoderFunction<Key> { key, encoder -> Int.encode(key.number, encoder) }
+    val keyDecoder = ValueDecoderFunction<Key> { decoder -> Key(Int.decode(decoder)) }
+    val treeDecoder = TreeMap<Key, String>.decoder(keyDecoder, String.Companion, order)
+    val treeEncoder = TreeMap<Key, String>.encoder(keyEncoder, String.Companion)
+    val tree = Json.decodeFromString("[[1,\"a\"],[3,\"c\"],[2,\"b\"]]", treeDecoder)
+    check(tree.comparator === order && tree[Key(2)] == Some("b"))
+    check(Json.encodeToString(tree, treeEncoder) == "[[3,\"c\"],[2,\"b\"],[1,\"a\"]]")
+    val nested = HashMap<Int, Int?>()
+    nested.put(1, None); nested.put(2, Some(4))
+    val nestedCopy = Json.decodeFromString(Json.encodeToString(nested, HashMap<Int, Int?>.encoder(Int.Companion, Option<Int>.encoder(Int.Companion))),
+        HashMap<Int, Int?>.decoder(Int.Companion, Option<Int>.decoder(Int.Companion)))
+    check(nestedCopy[1] == Some(None) && nestedCopy[2] == Some(Some(4)) && nestedCopy[3] == None)
+
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun behavior() { exerciseConsumer() }
+}

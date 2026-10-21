@@ -1,0 +1,7 @@
+package dev.programlink.programlink.basic
+
+import dev.programlink.programlink.library.answer
+
+fun main() {
+    println(answer() + 2)
+}

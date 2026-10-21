@@ -1,0 +1,61 @@
+package scoop.tests
+internal fun uncaughtScopeFailureStillPropagates() {
+    val failure = Throwable()
+    val state = BoundaryState()
+    val pause = BoundaryPause()
+    val result = BoundaryResult()
+    startCoroutine<Unit>(suspend {
+        coroutineScope suspend { outer ->
+            state.root = Some(outer.job)
+            outer.launch suspend {
+                try { pause.await() }
+                catch (_: CancellationException) { state.siblingCancelled = true }
+            }
+            outer.launch suspend { coroutineScope<Unit> suspend { _ -> throw failure } }
+        }
+    }, result)
+    result.finish(Some(failure))
+    boundaryCheck(state.root!!.isCancelled && state.siblingCancelled, "uncaught failure did not cancel siblings")
+}
+
+internal fun callerCancellationWaitsForScopedCleanup() {
+    val cleanupFailure = Throwable()
+    val state = BoundaryState()
+    val body = BoundaryPause()
+    val child = BoundaryPause()
+    val cleanup = BoundaryGate()
+    val result = BoundaryResult()
+    startCoroutine<Unit>(suspend {
+        coroutineScope suspend { outer ->
+            state.root = Some(outer.job)
+            coroutineScope suspend { inner ->
+                inner.launch suspend {
+                    try { child.await() }
+                    finally {
+                        state.cleaning = true; cleanup.await(); state.cleaned = true
+                        throw cleanupFailure
+                    }
+                }
+                body.await()
+            }
+        }
+    }, result)
+    state.root!!.cancel(); state.root!!.cancel()
+    boundaryCheck(state.cleaning && !state.cleaned && !result.done, "caller cancellation skipped scoped cleanup")
+    cleanup.signal()
+    result.finish(Some(cleanupFailure))
+    boundaryCheck(state.cleaned, "cleanup did not finish")
+}
+
+internal fun caughtAsyncAwaitStillFailsItsScope() {
+    val failure = Throwable()
+    val result = BoundaryResult()
+    startCoroutine<Unit>(suspend {
+        coroutineScope suspend { scope ->
+            val failed = scope.async<Unit> suspend { throw failure }
+            try { failed.await() } catch (_: Throwable) {}
+            boundaryCheck(scope.job.isCancelled, "async failure no longer cancels its own scope")
+        }
+    }, result)
+    result.finish(Some(failure))
+}

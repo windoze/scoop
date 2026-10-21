@@ -1,0 +1,26 @@
+package test.core.tests.consumer.characters_cross_cone.p0
+
+import scoop.test.*
+import test.core.tests.consumer.characters_cross_cone.p1.*
+
+const val localSnow: Char = snow
+fun matched(value: Char): Int = when (value) {
+    case snow -> 42
+    case _ -> 0
+}
+private fun exerciseConsumer() {
+    val pair = mark("value")
+    val symbols = ArrayList<Char>()
+    symbols.add(localSnow)
+    gcCollect()
+    if (pair._2 != '🚀' || !scalarOrder || matched(symbols[0L]) != 42 ||
+        classify((Some(localSnow), "value")) != 42 || defaultPattern() != 42 ||
+        characterText(pair._2) != "🚀") { fail(Some("cross-cone")) }
+    assertEquals("42", (42).toString())
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun behavior() { exerciseConsumer() }
+}

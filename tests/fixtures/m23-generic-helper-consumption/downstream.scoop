@@ -1,3 +1,0 @@
-import consumer.helpers.retained
-
-public fun check(): Int = retained()

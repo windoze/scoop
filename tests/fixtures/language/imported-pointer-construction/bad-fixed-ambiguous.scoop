@@ -1,0 +1,4 @@
+package dev.example
+import dev.example.dependency.construction.IntPointer as Make
+import dev.example.dependency.construction.safely as Make
+public fun result(): Int { @Unsafe { val pointer: Ptr<Int> = Make(1uL) }; return 42 }

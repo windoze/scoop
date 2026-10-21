@@ -1,0 +1,4 @@
+package test
+public struct Pair(val first: Int, val second: Int)
+public fun keep(value: Int): Int = value
+public fun finish() {}

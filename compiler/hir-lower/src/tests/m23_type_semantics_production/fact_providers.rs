@@ -4,11 +4,11 @@ use source_dispatch::with_hir_source;
 
 const STANDALONE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../tests/fixtures/m23-fact-providers/standalone.scoop"
+    "/../../tests/fixtures/language/fact-providers/standalone.scoop"
 ));
 const COMBINED: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../tests/fixtures/m23-fact-providers/combined.scoop"
+    "/../../tests/fixtures/language/fact-providers/combined.scoop"
 ));
 
 #[test]

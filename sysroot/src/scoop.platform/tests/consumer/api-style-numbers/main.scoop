@@ -1,0 +1,66 @@
+package scoop.platform.tests.consumer.api_style_numbers
+
+import scoop.test.*
+import scoop.bytes.*
+import scoop.text.*
+import scoop.platform.memory.NativeByteBuffer
+
+private fun check(value: Boolean) { if (!value) throw IllegalStateException() }
+
+private fun exerciseConsumer() {
+    val byte: Byte = 257.toByte()
+    val short: Short = 65537.toShort()
+    val integer: Int = 4294967297L.toInt()
+    val long: Long = (-1).toLong()
+    val unsignedByte: UByte = (-1).toUByte()
+    val unsignedShort: UShort = (-1).toUShort()
+    val unsignedInt: UInt = (-1).toUInt()
+    val unsignedLong: ULong = (-1).toULong()
+    check(byte == 1 && short == 1 && integer == 1 && long == -1L)
+    check(unsignedByte == UByte.MAX_VALUE && unsignedShort == UShort.MAX_VALUE)
+    check(unsignedInt == UInt.MAX_VALUE && unsignedLong == ULong.MAX_VALUE)
+    check("127".toByte() == 127.toByte() && "32767".toShort() == 32767.toShort())
+    check("2147483647".toInt() == Int.MAX_VALUE && "9223372036854775807".toLong() == Long.MAX_VALUE)
+    check("255".toUByte() == unsignedByte && "65535".toUShort() == unsignedShort)
+    check("4294967295".toUInt() == unsignedInt && "18446744073709551615".toULong() == unsignedLong)
+    check("128".toByteOrNone() == None && "-1".toUByteOrNone() == None)
+    check(12.9.toInt() == 12 && (-12.9).toLong() == -12L)
+    check(255.9.toUByte() == 255.toUByte() && (-3.9f).toShort() == (-3).toShort())
+
+    val builder = ByteArrayBuilder()
+    builder.writeInt8(byte)
+    builder.writeUInt8(unsignedByte)
+    builder.writeInt16(short, ByteOrder.BigEndian)
+    builder.writeUInt16(unsignedShort, ByteOrder.LittleEndian)
+    builder.writeInt32(integer, ByteOrder.BigEndian)
+    builder.writeUInt32(unsignedInt, ByteOrder.LittleEndian)
+    builder.writeInt64(long, ByteOrder.BigEndian)
+    builder.writeUInt64(unsignedLong, ByteOrder.LittleEndian)
+    val bytes = builder.toByteArray()
+    NativeByteBuffer.allocate(bytes.size).use { buffer ->
+        buffer.writeBytes(bytes)
+        check(buffer.readInt8() == byte && buffer.readUInt8() == unsignedByte)
+        check(buffer.readInt16(ByteOrder.BigEndian) == short)
+        check(buffer.readUInt16(ByteOrder.LittleEndian) == unsignedShort)
+        check(buffer.readInt32(ByteOrder.BigEndian) == integer)
+        check(buffer.readUInt32(ByteOrder.LittleEndian) == unsignedInt)
+        check(buffer.readInt64(ByteOrder.BigEndian) == long)
+        check(buffer.readUInt64(ByteOrder.LittleEndian) == unsignedLong)
+        check(buffer.readableBytes == 0L)
+    }
+    val reader = ByteArrayReader(bytes)
+    check(reader.readInt8() == byte && reader.readUInt8() == unsignedByte)
+    check(reader.readInt16(ByteOrder.BigEndian) == short)
+    check(reader.readUInt16(ByteOrder.LittleEndian) == unsignedShort)
+    check(reader.readInt32(ByteOrder.BigEndian) == integer)
+    check(reader.readUInt32(ByteOrder.LittleEndian) == unsignedInt)
+    check(reader.readInt64(ByteOrder.BigEndian) == long)
+    check(reader.readUInt64(ByteOrder.LittleEndian) == unsignedLong && reader.remaining == 0L)
+
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun behavior() { exerciseConsumer() }
+}

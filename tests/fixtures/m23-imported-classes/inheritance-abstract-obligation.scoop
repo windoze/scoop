@@ -1,3 +1,0 @@
-import dependency.classes.AbstractParent
-
-public class Derived public constructor(): AbstractParent()

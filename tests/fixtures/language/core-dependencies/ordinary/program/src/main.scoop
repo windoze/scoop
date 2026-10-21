@@ -1,0 +1,6 @@
+package test
+import test.checkCoreDependencyCalls
+
+fun main() {
+    if (checkCoreDependencyCalls() != 3) { throw IllegalStateException() }
+}

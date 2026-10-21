@@ -1,3 +1,0 @@
-import templates.delegateCombinations.Receiver
-
-val <T> Receiver<T>.wrong: Int by this

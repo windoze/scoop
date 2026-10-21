@@ -1,0 +1,13 @@
+package dev.example.consumer.nesting
+
+import dev.example.facade.nesting.Outer.Tools.add
+import dev.example.facade.nesting.Outer.Tools.base
+import dev.example.facade.nesting.Outer.Tools.keep
+
+public fun <T> exercise(value: T, read: (T) -> Int): Int {
+    val copy = keep<T>(value)
+    return if (read(copy) == 42) { add(base) } else { 0 }
+}
+
+private fun readInt(value: Int): Int = value
+public fun result(): Int = exercise<Int>(42, ::readInt)

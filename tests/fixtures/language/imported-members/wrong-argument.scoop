@@ -1,0 +1,5 @@
+package dev.example.consumer.members
+
+import dev.example.dependency.members.Wide
+
+public fun rejected(value: Wide): Long = value.total(true)

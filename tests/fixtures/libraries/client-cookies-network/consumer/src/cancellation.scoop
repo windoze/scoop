@@ -1,0 +1,80 @@
+package scoop.tests
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.http.client.*
+import scoop.test.*
+import scoop.time.Duration
+
+internal fun cookieCancellation(trust: TrustStore, saving: Boolean, mode: String, cleanupError: Boolean) {
+    withCookieRuntime suspend { _, scope, listener, url ->
+        val entered = CookieGate()
+        val cancelled = CookieGate()
+        val release = CookieGate()
+        val cleaning = CookieGate()
+        val finish = CookieGate()
+        val cleaned = AtomicBoolean(false)
+        val failed = CookieFailure()
+        val closed = CookieFailure()
+        val cleanup = Throwable()
+        val callback: suspend () -> Unit = suspend {
+            assertEquals("cancel-cookie", cookieMarker())
+            val registration = currentJobOrNone()!!.invokeOnCancellation { _ -> cancelled.signal() }
+            try { entered.signal(); release.await() }
+            finally {
+                cleaning.signal(); finish.await()
+                cleaned.store(true); registration.dispose()
+                if (cleanupError) throw ResourceUseException(CancellationException(), cleanup)
+            }
+        }
+        val jar = CookieCallbacks(loading = suspend { _ -> if (!saving) callback() },
+            saving = suspend { _, _ -> if (saving) callback() })
+        val serving = if (saving) Some(scope.launch suspend {
+            AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                val request = connection.receiveRequest()!!
+                request.body.close()
+                cookieRespond(connection, text = "")
+            }
+        }) else None
+        val client = HttpClient.open(scope, cookieNetworkConfig(trust, Some(jar)))
+        val executing = scope.launch suspend {
+            try {
+                context(CookieMarker("cancel-cookie")) {
+                    val options = HttpCallOptions(timeouts = if (mode == "total") Some(HttpTimeoutOptions(total = Some(Duration.seconds(15L)))) else None)
+                    client.execute(HttpRequest.get(url, options = options)).close()
+                }
+            } catch (error: Throwable) { failed.value = Some(error) }
+        }
+        entered.await()
+        val closing = if (mode == "client") Some(scope.launch suspend {
+            try { client.close() } catch (error: Throwable) { closed.value = Some(error) }
+        }) else None
+        if (mode == "caller") executing.cancel()
+        try {
+            cancelled.await()
+            assertFalse(executing.isCompleted || cleaned.load())
+            release.signal(); cleaning.await()
+            assertFalse(executing.isCompleted || cleaned.load())
+            if (cookieNetworkPresent(closing)) assertFalse(closing!!.isCompleted)
+            finish.signal(); executing.join(); closing?.join()
+            assertTrue(cleaned.load())
+            val failure = failed.value!!
+            if (cleanupError) {
+                assertTrue(failure is ResourceUseException)
+                if (failure is ResourceUseException) assertSame(cleanup, failure.cleanupFailure)
+            }
+            val primary = if (failure is ResourceUseException) failure.primaryFailure else failure
+            when (mode) {
+                case "caller" -> assertTrue(primary is CancellationException)
+                case "client" -> assertTrue(primary is HttpClientClosedException)
+                else -> {
+                    assertTrue(primary is HttpTimeoutException)
+                    if (primary is HttpTimeoutException) assertEquals(HttpTimeoutPhase.Total, primary.phase)
+                }
+            }
+            if (mode == "client" && cleanupError) assertSame(cleanup, closed.value!!)
+            else assertFalse(cookieNetworkPresent(closed.value))
+        } finally { release.signal(); finish.signal(); client.close() }
+        serving?.join()
+    }
+}

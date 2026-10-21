@@ -1,0 +1,61 @@
+package scoop.tests
+import scoop.asyncio.*
+import scoop.collections.emptyList
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.http.client.*
+import scoop.platform.net.*
+import scoop.url.Url
+
+internal fun <T> digestPresent(value: T?): Boolean = when (value) { case Some(_) -> true; case None -> false }
+
+internal fun withDigestRuntime(block: suspend (EventLoop, CoroutineScope, AsyncTcpListener) -> Unit) {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { scope ->
+        loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).useAsync suspend { listener ->
+            block(loop, scope, listener)
+            digestCheck(!scope.job.isCancelled)
+        }
+    }
+}
+
+internal fun digestUrl(listener: AsyncTcpListener): Url =
+    Url.parse("http://127.0.0.1:" + listener.localAddress.port.toString() + "/private/start")
+
+internal fun digestField(name: String, value: String): HttpField = HttpField(name.toByteArray(), value.toByteArray())
+
+internal suspend fun digestRespond(connection: AsyncHttp1Connection, status: UInt, text: String = "",
+    extra: List<HttpField> = emptyList<HttpField>()) {
+    val fields = ArrayList<HttpField>()
+    fields.add(digestField("Connection", "close"))
+    for (field in extra) fields.add(field)
+    connection.sendResponse(HttpResponseHead(HttpVersion.Http11, status, fields = fields),
+        Http1BodyFraming.Length(text.toByteArray().size)).useAsync suspend { output ->
+            if (text.length != 0L) digestWrite(output, text)
+            output.finish()
+        }
+}
+
+internal suspend fun digestChallengeOnce(listener: AsyncTcpListener, scope: CoroutineScope, integrity: Boolean = false) {
+    AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+        val request = connection.receiveRequest()!!
+        digestCheck(request.head.fields.findAll("Authorization".toByteArray()).size == 0L)
+        digestRespond(connection, 401U, extra = [digestField("WWW-Authenticate",
+            "Digest realm=\"private\", nonce=\"nonce\", algorithm=SHA-256, qop=\"" + (if (integrity) "auth-int" else "auth") + "\"")])
+    }
+}
+
+internal class DigestGate {
+    private var ready: Boolean = false
+    private val waiters: ArrayList<Continuation<Unit>> = ArrayList<Continuation<Unit>>()
+    fun signal() {
+        ready = true
+        val saved = waiters.toArray(); waiters.clear()
+        for (waiter in saved) waiter.resume(Unit)
+    }
+    suspend fun await() {
+        suspendCoroutine<Unit> { next -> if (ready) next.resume(Unit) else waiters.add(next) }
+    }
+}
+
+internal class DigestFailureHolder { var value: Throwable? = None }

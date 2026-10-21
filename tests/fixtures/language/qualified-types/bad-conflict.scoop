@@ -1,0 +1,3 @@
+package dev.example.dependency.paths
+private struct Point(val number: Int)
+public fun consume(value: dev.example.dependency.paths.Point): Int = 42

@@ -1,0 +1,95 @@
+package scoop.http.tests.consumer.http_location
+
+import scoop.test.*
+import scoop.http.*
+import scoop.platform.concurrent.Thread
+import scoop.platform.memory.NativeByteBuffer
+import scoop.url.Url
+
+private fun check(fields: List<HttpField>, expected: String) {
+    val location = HttpLocation.parseFields(fields)!!
+    gcCollect()
+    if (location.resolve(Url.parse("https://example.test/a/b#saved")).toString() != expected)
+        throw IllegalStateException()
+    if (HttpLocation.parse(location.toByteArray()).reference != location.reference) throw IllegalStateException()
+}
+
+private fun http1() {
+    val wire = "HTTP/1.1 302 Found\r\nLocation: ../go,a?x=1,2\r\nContent-Length: 0\r\n\r\n".toByteArray()
+    val responses = Http1Decoder.client().use { decoder ->
+        decoder.expectResponse("GET".toByteArray())
+        val count = NativeByteBuffer.allocate(1L).use { input ->
+            var received = 0
+            for (byte in wire) {
+                input.clear(); input.writeByte(byte)
+                if (decoder.receive(input) != 1L) throw IllegalStateException()
+                while (true) {
+                    val next = decoder.nextEvent()
+                    when (next) { case None -> break; case Some(_) -> {} }
+                    when (next!!) {
+                        case Response(head) -> { check(head.fields, "https://example.test/go,a?x=1,2#saved"); received += 1 }
+                        else -> {}
+                    }
+                }
+            }
+            received
+        }
+        decoder.endInput()
+        count
+    }
+    if (responses != 1) throw IllegalStateException()
+}
+
+private fun transfer(from: Http2Session, to: Http2Session) {
+    NativeByteBuffer.allocate(7L).use { input ->
+        while (true) {
+            input.clear()
+            val count = from.takeOutput(input)
+            if (count == 0L) break
+            if (to.receive(input) != count) throw IllegalStateException()
+        }
+    }
+}
+
+private fun http2() {
+    val responses = Http2Session.client().use { client ->
+        Http2Session.server().use { server ->
+            val id = client.submitRequest(HttpRequestHead(HttpVersion.Http2, "GET".toByteArray(),
+                HttpRequestTarget.Http2("https".toByteArray(), "example.test".toByteArray(), "/a/b".toByteArray())))
+            transfer(client, server)
+            while (true) { when (server.nextEvent()) { case None -> break; else -> {} } }
+            server.submitResponse(id, HttpResponseHead(HttpVersion.Http2, 307U, fields =
+                [HttpLocation(Url.parse("//other.test/go#")).toHttpField()]))
+            transfer(server, client)
+            var responses = 0
+            while (true) {
+                val next = client.nextEvent()
+                when (next) { case None -> break; case Some(_) -> {} }
+                when (next!!) {
+                    case Response(_, head) -> { check(head.fields, "https://other.test/go#"); responses += 1 }
+                    else -> {}
+                }
+            }
+            responses
+        }
+    }
+    if (responses != 1) throw IllegalStateException()
+}
+
+private fun exercise() {
+    http1(); http2()
+    when (HttpLocation.parseOrNone("/路径")) { case None -> {}; else -> throw IllegalStateException() }
+    val constructed = HttpLocation(Url.parse("https://example.test/路径"))
+    if (HttpLocation.parse(constructed.toByteArray()).reference != constructed.reference) throw IllegalStateException()
+}
+
+private fun exerciseConsumer() {
+    Thread.start { exercise() }.use { thread -> exercise(); thread.join() }
+
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun behavior() { exerciseConsumer() }
+}

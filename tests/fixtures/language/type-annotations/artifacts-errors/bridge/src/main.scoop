@@ -1,0 +1,2 @@
+package dev.m37.annotated.bridge
+public import dev.m37.annotated.provider.*

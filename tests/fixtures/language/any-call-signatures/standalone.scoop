@@ -1,0 +1,9 @@
+package dev.example
+import test.dependency.api.runtimeValue
+import test.dependency.api.relayAny
+
+public val localValue: Int = runtimeValue
+public fun outside(value: Any): Any {
+    val initial = runtimeValue
+    return relayAny(value)
+}

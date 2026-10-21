@@ -1,0 +1,2 @@
+package test
+public fun internalFactory(): Factory = Factory(3L)

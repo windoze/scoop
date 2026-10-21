@@ -1,0 +1,171 @@
+schema = 1
+name = "doc-cli-routing"
+root = "first/Cone.toml"
+inputs = ["v1", "v2", "left", "right", "first", "second", "check.py"]
+tools = ["scoop", "scoopc", "python"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["documentation", "multi-root", "versions", "publication", "driver"]
+
+[[steps]]
+name = "prepare"
+files = [
+  {copy = {from = "${fixture}/v1", to = "${work}/v1"}},
+  {copy = {from = "${fixture}/v2", to = "${work}/v2"}},
+  {copy = {from = "${fixture}/left", to = "${work}/left"}},
+  {copy = {from = "${fixture}/right", to = "${work}/right"}},
+  {copy = {from = "${fixture}/first", to = "${work}/first"}},
+  {copy = {from = "${fixture}/second", to = "${work}/second"}},
+  {copy = {from = "${fixture}/v1", to = "${work}/conflicting"}},
+  {replace = {path = "${work}/conflicting/src/api.scoop", old = "Version one API.", new = "Incompatible source input."}},
+]
+
+[[steps]]
+name = "cold"
+argv = ["${scoop}", "doc", "${work}/first", "${work}/second", {"each" = "${compile_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--output-dir", "${work}/site", "--deny-doc-warnings", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${cold.result.cones.length}", equals = 6},
+  {actual = "${cold.result.observations.child_invocations.length}", equals = 6},
+]
+
+[[steps]]
+name = "inspect_cold"
+argv = ["${python}", "${fixture}/check.py", "${work}/site"]
+exit = 0
+stdout = "Versions, diamond reexports and local links verified.\n"
+stderr = ""
+
+[[steps]]
+name = "revise"
+files = [{replace = {path = "${work}/first/src/api.scoop", old = "from the same declaration.", new = "after concurrent publication."}}]
+
+[[steps]]
+name = "forward"
+argv = ["${scoop}", "doc", "${work}/first", "${work}/second", {"each" = "${compile_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--output-dir", "${work}/site", "--deny-doc-warnings", "--message-format", "json"]
+background = true
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "reverse"
+argv = ["${scoop}", "doc", "${work}/second", "${work}/first", {"each" = "${compile_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--output-dir", "${work}/site", "--deny-doc-warnings", "--message-format", "json"]
+background = true
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "wait_forward"
+wait = "forward"
+checks = [{actual = "${forward.result.cones.length}", equals = 6}]
+
+[[steps]]
+name = "wait_reverse"
+wait = "reverse"
+checks = [{actual = "${reverse.result.cones.length}", equals = 6}]
+
+[[steps]]
+name = "warm"
+argv = ["${scoop}", "doc", "${work}/first", "${work}/second", {"each" = "${compile_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--output-dir", "${work}/site", "--deny-doc-warnings", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${warm.result.cones.length}", equals = 6},
+  {actual = "${warm.result.observations.child_invocations}", equals = []},
+  {actual = "${warm.result.rendered}", equals = false},
+  {file = "${work}/site/assets/index.js", contains = "after concurrent publication"},
+]
+
+[[steps]]
+name = "inspect_final"
+argv = ["${python}", "${fixture}/check.py", "${work}/site"]
+exit = 0
+stdout = "Versions, diamond reexports and local links verified.\n"
+stderr = ""
+
+[[steps]]
+name = "save"
+files = [
+  {copy = {from = "${work}/site/index.html", to = "${work}/previous.html"}},
+  {copy = {from = "${work}/site/assets/index.js", to = "${work}/previous.js"}},
+]
+
+[[steps]]
+name = "conflict"
+argv = ["${scoop}", "doc", "${work}/first", "${work}/second", "${work}/conflicting", {"each" = "${compile_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--output-dir", "${work}/site", "--deny-doc-warnings", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "conflict.json"}
+checks = [
+  {file = "${work}/site/index.html", same_as = "${work}/previous.html"},
+  {file = "${work}/site/assets/index.js", same_as = "${work}/previous.js"},
+]
+
+[[steps]]
+name = "missing_resource"
+files = [{write = {path = "${work}/first/README.md", data = "[Guide](guide.txt)\n"}}]
+
+[[steps]]
+name = "resource_denied"
+argv = ["${scoop}", "doc", "${work}/first", "${work}/second", {"each" = "${compile_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--output-dir", "${work}/site", "--deny-doc-warnings", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "resource.json"}
+checks = [
+  {file = "${work}/site/index.html", same_as = "${work}/previous.html"},
+  {file = "${work}/site/assets/index.js", same_as = "${work}/previous.js"},
+]
+
+[[steps]]
+name = "add_resource"
+files = [{write = {path = "${work}/first/guide.txt", data = "Guide revision one.\n"}}]
+
+[[steps]]
+name = "resource_available"
+argv = ["${scoop}", "doc", "${work}/first", "${work}/second", {"each" = "${compile_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--output-dir", "${work}/site", "--deny-doc-warnings", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${resource_available.result.observations.child_invocations}", equals = []}]
+
+[[steps]]
+name = "update_resource"
+files = [{replace = {path = "${work}/first/guide.txt", old = "revision one", new = "revision two"}}]
+
+[[steps]]
+name = "resource_updated"
+argv = ["${scoop}", "doc", "${work}/first", "${work}/second", {"each" = "${compile_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--output-dir", "${work}/site", "--deny-doc-warnings", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${resource_updated.result.observations.child_invocations}", equals = []},
+  {actual = "${resource_updated.result.observations.rendered_files.length}", equals = 1},
+]
+
+[[steps]]
+name = "inspect_resources"
+argv = ["${python}", "${fixture}/check.py", "${work}/site", "resources"]
+exit = 0
+stdout = "Versions, diamond reexports and local links verified.\n"
+stderr = ""

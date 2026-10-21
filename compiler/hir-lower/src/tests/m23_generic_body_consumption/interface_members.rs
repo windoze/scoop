@@ -10,6 +10,6 @@ fn interface_member_selection_is_independent_of_declaration_storage() {
 
 fn fixture(name: &str) -> String {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/m23-shared-interface-members");
+        .join("../../tests/fixtures/language/shared-interface-members");
     std::fs::read_to_string(root.join(format!("{name}.scoop"))).unwrap()
 }

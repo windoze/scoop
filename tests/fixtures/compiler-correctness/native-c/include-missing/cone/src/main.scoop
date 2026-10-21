@@ -1,0 +1,7 @@
+package dev.m33
+@Extern(name = "native_answer")
+fun nativeAnswer(): Int
+
+fun main() {
+    @Unsafe { println(nativeAnswer()) }
+}

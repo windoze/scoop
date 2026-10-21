@@ -1,0 +1,55 @@
+package dev.m43
+import scoop.test.*
+
+@Extern(name = "report_prepare", abi = "c")
+private fun prepare(): Int
+@Extern(name = "report_body", abi = "c")
+private fun nativeBody()
+
+private fun initializeTarget(): Int {
+    @Unsafe {
+        val mode = prepare()
+        if (mode == 4) { throw IllegalStateException(Some("startup failure")) }
+        return mode
+    }
+}
+private val mode: Int = initializeTarget()
+
+@Test
+private class Cases {
+    init { println("init") }
+    @BeforeTest
+    private fun before() { println("before") }
+    @AfterTest
+    private fun after() { println("after") }
+    @Test
+    fun first() {
+        println("body")
+        @Unsafe { nativeBody() }
+        if (mode == 5) { assertEquals(42, 7, Some("雪\n\"failure\"")) }
+        if (mode == 7) { assertEquals(RenderValue(1), RenderValue(2)) }
+        if (mode == 8) { throw BrokenDescription() }
+        if (mode == 9) {
+            @Unsafe {
+                val token = foreignCallback<(Ptr<Unit>) -> Unit>(
+                    {}, 0, ForeignCallbackMode.Reusable
+                )
+            }
+        }
+        assertEquals(42, answer())
+    }
+    @Test
+    fun second() { println("second") }
+}
+
+private class RenderValue(val id: Int) : Equals<RenderValue>, ToString {
+    public override operator fun equals(other: RenderValue): Boolean = id == other.id
+    public override fun toString(): String {
+        gcCollect()
+        throw Exception(Some("render failed"))
+    }
+}
+
+private class BrokenDescription : Throwable(), ToString {
+    public override fun toString(): String { throw Exception(Some("description failed")) }
+}

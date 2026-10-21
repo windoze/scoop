@@ -4,7 +4,7 @@ use super::*;
 fn open_default_equality_keeps_source_applications_and_exact_executable_bindings() {
     let source = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../tests/fixtures/m23-type-source-defaults/derived-generic-defaults.scoop"
+        "/../../tests/fixtures/language/type-source-defaults/derived-generic-defaults.scoop"
     ));
     with_source(source, |output, mir| {
         assert!(!mir.functions.is_empty());

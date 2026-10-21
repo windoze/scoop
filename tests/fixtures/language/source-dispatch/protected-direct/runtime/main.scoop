@@ -1,0 +1,7 @@
+package test
+fun verifyDispatch(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    verifyDispatch(vault().observe(17L) == 17L)
+}

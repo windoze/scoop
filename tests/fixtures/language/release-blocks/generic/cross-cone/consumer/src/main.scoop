@@ -1,0 +1,26 @@
+package test
+import test.releaseleft.makeLeft
+import test.releaseleft.makeGeneric
+import test.releaseleft.observeLeft
+import test.releaseleft.recordBefore
+import test.releaseright.makeRight
+import test.releaseright.makeLong
+import test.releaseright.observeRight
+
+@Extern(lib = "m24_release", name = "m24_release_count")
+private fun count(): Int
+
+private fun allocate() {
+    val left = makeLeft()
+    val right = makeRight()
+    val other = makeLong()
+    val local = makeGeneric(recordBefore(2), 5)
+    println(observeLeft(left) + observeRight(right))
+}
+
+fun main() {
+    allocate()
+    gcCollect()
+    gcCollect()
+    @Unsafe { println(count()) }
+}

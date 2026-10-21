@@ -1,6 +1,0 @@
-import dependency.classes.Counter
-
-public fun primary(): Counter {
-    val value: String = "downstream"
-    return Counter(rebuiltStringDefault() + value.score() - 21)
-}

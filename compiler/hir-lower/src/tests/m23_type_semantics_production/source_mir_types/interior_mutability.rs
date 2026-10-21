@@ -4,7 +4,7 @@ use scoop_identity::{ExactTypeKey, PersistentExactTypeId, SourceDeclarationKey};
 #[test]
 fn shared_struct_policy_matches_source_attributes_and_actual_mir_representation() {
     let fixtures = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/m23-shared-interior-mutability");
+        .join("../../tests/fixtures/language/shared-interior-mutability");
     for case in ["standalone", "combined"] {
         let source = std::fs::read_to_string(fixtures.join(format!("{case}.scoop"))).unwrap();
         with_production(&source, |output, _, hir_types, graph, mir| {

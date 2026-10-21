@@ -1,0 +1,93 @@
+package scoop.tests
+import scoop.platform.concurrent.Thread
+
+private class Item(val text: String)
+private class Failure : Exception(None)
+
+private fun check(value: Boolean) {
+    if (!value) throw IllegalStateException(Some("coroutine unwind liveness check failed"))
+}
+
+private class Gate : SuspendRegistration<Unit> {
+    var waiter: Continuation<Unit>? = None
+    public override fun register(continuation: Continuation<Unit>) { waiter = Some(continuation) }
+    suspend fun wait() { suspendCoroutine(this) }
+    fun complete(error: Throwable?) {
+        val continuation = waiter!!
+        waiter = None
+        when (error) {
+            case Some(failure) -> continuation.resumeWithException(failure)
+            case None -> continuation.resume(Unit)
+        }
+    }
+}
+
+private class Completion : Continuation<Unit> {
+    var done: Boolean = false
+    var failure: Throwable? = None
+    public override fun resume(value: Unit) { done = true }
+    public override fun resumeWithException(exception: Throwable) { done = true; failure = Some(exception) }
+}
+
+private class Observed { var item: Item? = None }
+
+private fun mayThrow(error: Throwable?) {
+    when (error) { case Some(failure) -> throw failure; case None -> {} }
+}
+
+private suspend fun callCleanup(gate: Gate, old: Item, next: Item, observed: Observed) {
+    var item = old
+    try { gate.wait(); item = next }
+    finally { observed.item = Some(item) }
+}
+
+private suspend fun registrationCleanup(gate: Gate, old: Item, next: Item, observed: Observed) {
+    var item = old
+    try { suspendCoroutine(gate); item = next }
+    finally { observed.item = Some(item) }
+}
+
+private suspend fun laterCleanup(gate: Gate, old: Item, next: Item, observed: Observed, error: Throwable?) {
+    var item = old
+    gate.wait()
+    try { mayThrow(error); item = next }
+    finally { observed.item = Some(item) }
+}
+
+private suspend fun <T> replace(gate: Gate, old: T, next: T, observe: (T) -> Unit) {
+    var value = old
+    try { gate.wait(); value = next }
+    finally { observe(value) }
+}
+
+private fun exercise() {
+    for (mode in 0..3) for (fails in [false, true]) {
+        val gate = Gate(); val completion = Completion(); val observed = Observed()
+        val before = Item("before " + mode.toString()); val after = Item("after " + mode.toString())
+        val failure: Throwable? = if (fails) Some(Failure()) else None
+        startCoroutine<Unit>(suspend {
+            when (mode) {
+                case 0 -> callCleanup(gate, before, after, observed)
+                case 1 -> registrationCleanup(gate, before, after, observed)
+                case 2 -> laterCleanup(gate, before, after, observed, failure)
+                else -> replace<Item>(gate, before, after) { item -> observed.item = Some(item) }
+            }
+        }, completion)
+        check(!completion.done)
+        gcCollect()
+        gate.complete(if (mode == 2) None else failure)
+        gcCollect()
+        check(completion.done)
+        when (completion.failure) {
+            case Some(error) -> check(fails && error === failure!!)
+            case None -> check(!fails)
+        }
+        check(observed.item!! === (if (fails) before else after))
+        check(observed.item!!.text == (if (fails) "before " else "after ") + mode.toString())
+    }
+}
+
+fun main() {
+    Thread.start { exercise() }.use { thread -> exercise(); thread.join() }
+    println("coroutine unwind preserves overwritten cleanup values")
+}

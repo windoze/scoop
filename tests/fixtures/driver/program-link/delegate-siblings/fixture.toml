@@ -1,0 +1,57 @@
+schema = 1
+name = "program-link-delegate-siblings"
+inputs = ["provider", "../../../language/program-link/delegate-provider.scoop", "left", "../../../language/program-link/delegate-left.scoop", "right", "../../../language/program-link/delegate-right.scoop", "root", "../../../language/program-link/delegate-consumer.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["program-link", "multi-cone", "driver"]
+variants = [{"name" = "release"}]
+
+[[steps]]
+name = "prepare"
+files = [{"copy" = {"from" = "${fixture}/provider", "to" = "${work}/sources/provider"}}, {"copy" = {"from" = "${fixture}/../../../language/program-link/delegate-provider.scoop", "to" = "${work}/sources/provider/src/main.scoop"}}, {"copy" = {"from" = "${fixture}/left", "to" = "${work}/sources/left"}}, {"copy" = {"from" = "${fixture}/../../../language/program-link/delegate-left.scoop", "to" = "${work}/sources/left/src/main.scoop"}}, {"copy" = {"from" = "${fixture}/right", "to" = "${work}/sources/right"}}, {"copy" = {"from" = "${fixture}/../../../language/program-link/delegate-right.scoop", "to" = "${work}/sources/right/src/main.scoop"}}, {"copy" = {"from" = "${fixture}/root", "to" = "${work}/sources/root"}}, {"copy" = {"from" = "${fixture}/../../../language/program-link/delegate-consumer.scoop", "to" = "${work}/sources/root/src/main.scoop"}}]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sources/root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${build.result.dependencies.length}", "equals" = 4},
+]
+
+[[steps]]
+name = "run_built"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "42\n"
+stderr = ""
+
+[[steps]]
+name = "prepare_link_inputs_isolate"
+files = [
+  {"copy" = {"from" = "${build.result.root.path}", "to" = "${work}/artifacts/root.slib"}},
+  {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/0.slib"}},
+  {"copy" = {"from" = "${build.result.dependencies.1.path}", "to" = "${work}/artifacts/1.slib"}},
+  {"copy" = {"from" = "${build.result.dependencies.2.path}", "to" = "${work}/artifacts/2.slib"}},
+  {"copy" = {"from" = "${build.result.dependencies.3.path}", "to" = "${work}/artifacts/3.slib"}},
+]
+
+[[steps]]
+name = "link"
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/3.slib", "--dependency-slib", "${work}/artifacts/2.slib", "--dependency-slib", "${work}/artifacts/1.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", {"each" = "${link_args}"}, "-o", "${work}/artifacts/program", "--message-format", "json", "--dump-plan", "--cache-dir", "${cache}"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${build.result.link_plan_fingerprint}"}]
+
+[[steps]]
+name = "run_linked"
+argv = ["${link.result.output}"]
+exit = 0
+stdout = "42\n"
+stderr = ""

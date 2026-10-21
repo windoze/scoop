@@ -1,0 +1,6 @@
+package dev.example
+fun main() {
+    if (40 + 2 != 42) {
+        throw IllegalStateException()
+    }
+}

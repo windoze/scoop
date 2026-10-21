@@ -1,0 +1,37 @@
+package scoop.http.client.tests.consumer.client_websocket_lifetime
+
+import scoop.test.*
+import scoop.tests.scoop.crypto.testdata.rootPem
+import scoop.crypto.x509.TrustStore
+import scoop.test.AssertionFailure
+
+private fun exerciseConsumer() {
+    TrustStore.fromPem(rootPem()).use { trust ->
+        runClientWsCase("validation") { clientWsValidation(trust) }
+        for (mode in ["caller", "client", "total"]) runClientWsCase("opening-" + mode) { clientWsOpening(trust, mode) }
+        for (mode in ["caller", "client", "session"]) runClientWsCase("reading-" + mode) { clientWsReading(trust, mode) }
+        runClientWsCase("idle-deadline") { clientWsIdle(trust) }
+        runClientWsCase("rejected-deadline") { clientWsRejectedDeadline(trust) }
+        for (child in [false, true]) {
+            for (mode in ["caller", "client", "session", "peer"])
+                runClientWsCase("source-" + mode + "-" + child.toString()) { clientWsSourceStop(trust, mode, child, true) }
+            runClientWsCase("clean-source-" + child.toString()) { clientWsSourceStop(trust, "client", child, false) }
+            runClientWsCase("self-wait-" + child.toString()) { clientWsSelfWait(trust, child) }
+        }
+    }
+
+}
+
+private fun runClientWsCase(name: String, block: () -> Unit) {
+    try { block() }
+    catch (error: AssertionFailure) {
+        eprintln(name + " " + error.kind + " " + (error.message ?: "failure") + " at " + error.location.file + ":" + error.location.line.toString())
+        throw error
+    } catch (error: Throwable) { eprintln("failed client WebSocket case: " + name); throw error }
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun behavior() { exerciseConsumer() }
+}

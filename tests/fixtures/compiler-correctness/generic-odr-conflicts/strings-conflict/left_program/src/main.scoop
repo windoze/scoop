@@ -1,0 +1,5 @@
+package test
+import dev.example.*
+fun main() {
+    if (result() != "left value") { throw IllegalStateException() }
+}

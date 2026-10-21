@@ -1,0 +1,4 @@
+package dev.example
+import dev.example.dependency.conflict.text
+
+public fun result(): String = text<Int>()

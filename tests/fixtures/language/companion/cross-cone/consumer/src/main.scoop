@@ -1,0 +1,30 @@
+package dev.m55.companion
+import dev.m55.companion.m55.facade.*
+struct Local(val value: Int) {
+    public companion object : Code<Local> {
+        public override fun code(value: Local): String = "local"
+    }
+}
+struct LocalBox<U>(val value: U) {
+    public companion object : Code<LocalBox<U>> {
+        public override fun code(value: LocalBox<U>): String = "local-box"
+    }
+}
+typealias RemoteAlias = Remote
+fun main() {
+    val value = Remote(1)
+    println(probe(value))
+    println(starts())
+    println(encode(value))
+    println(forward(value))
+    println(project(value) === RemoteAlias.Factory)
+    println(starts())
+    println(encode(Box(1)))
+    println(encode(Box("s")))
+    println(starts())
+    println(encode(Local(1)))
+    println(encode(LocalBox(1)))
+    println(Relay(1).render(Local(2)))
+    val reference: (Remote) -> String = ::forward
+    println(reference(value))
+}

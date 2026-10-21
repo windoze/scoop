@@ -1,0 +1,15 @@
+package dev.example.consumer.union
+
+import dev.example.dependency.union.*
+import dev.example.sibling.left.action as leftAction
+import dev.example.sibling.right.action as rightAction
+import dev.example.sibling.left.sameType as leftType
+import dev.example.sibling.right.sameType as rightType
+
+public fun check(): Int {
+    val left = leftAction()(Payload(0)) as Payload
+    val right = rightAction()(Payload(0)) as Other
+    if ((leftType() as Readable).read() != 42) { return 1 }
+    if ((rightType() as Readable).read() != 42) { return 2 }
+    return left.number + right.number
+}

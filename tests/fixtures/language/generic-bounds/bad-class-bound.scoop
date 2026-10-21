@@ -1,0 +1,7 @@
+package dev.example
+import dev.example.templates.bounds.*
+
+private class Other {}
+
+public fun result(): Int = classBound(Value(42))
+public fun wrongBase(): Int = classBound(Other())

@@ -1,0 +1,9 @@
+package dev.example
+import Array as Make
+import dev.example.dependency.arrayconstruction.genericCopy as Make
+
+public fun result(): Int {
+    val source: MutableArray<Int> = [42]
+    val copied = Make(source)
+    return 42
+}

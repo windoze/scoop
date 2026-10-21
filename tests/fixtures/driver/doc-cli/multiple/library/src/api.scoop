@@ -1,0 +1,4 @@
+package dev.m60.shared
+
+/// The shared answer.
+public fun answer(): Int = 42

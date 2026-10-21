@@ -1,0 +1,23 @@
+schema = 1
+name = "jumps-cleanup"
+root = "program.scoop"
+inputs = ["program.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["jumps", "eh", "language"]
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "100\n12\nreturn-finally\n1\nreturn-finally\n10\ncaught\nthrow-finally\n2\nthrow-finally\n11\n4\n5\n6\nif-caught\nwhen-caught\n7\n8\n9\n12\narm-caught\n"
+stderr = ""

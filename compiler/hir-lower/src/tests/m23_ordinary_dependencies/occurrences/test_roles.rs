@@ -13,9 +13,9 @@ fn m43_production_reexport_remains_usable_when_origin_is_a_test_dependency() {
         .identity()
         .unwrap();
     for prefix in [
-        "package facade.api",
-        "import facade.api.run",
-        "import facade.api.*",
+        "package test.facade.api",
+        "import test.facade.api.run",
+        "import test.facade.api.*",
     ] {
         with_test_dependencies(
             &format!("{prefix}\npublic fun production(): Boolean = run()"),

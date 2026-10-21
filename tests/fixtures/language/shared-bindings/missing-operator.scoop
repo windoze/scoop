@@ -1,0 +1,6 @@
+package dev.example
+import dev.example.upstream.bindings.NotOperator
+public fun check(): Int {
+    val (value,) = NotOperator<Int>(42)
+    return value
+}

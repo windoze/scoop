@@ -1,0 +1,134 @@
+package dev.m45
+import scoop.collections.*
+import scoop.platform.env.*
+import scoop.platform.fs.*
+import scoop.platform.io.*
+import scoop.platform.process.*
+import scoop.platform.system.*
+
+@Extern(name = "m45_process_callback") private fun setCallback(function: FunPtr<(Ptr<Unit>) -> Int>, context: Ptr<Unit>)
+@Extern(name = "m45_process_clear_callback") private fun clearCallback()
+@GCLeaf @Extern(name = "m45_process_fail") private fun failNativeStep(flags: Int)
+@GCLeaf @Extern(name = "m45_process_descriptors") private fun descriptors(): Int
+@GCLeaf @Extern(name = "m45_process_waits") private fun waits(): Int
+@GCLeaf @Extern(name = "m45_process_signals") private fun signals(): Int
+@Extern(name = "m45_process_exited") private fun waitExited()
+@Extern(name = "m45_process_reaped") private fun verifyReaped()
+@Extern(name = "m45_process_stopped") private fun waitStopped()
+@Extern(name = "m45_process_cleanup_stopped") private fun cleanupStopped()
+@Extern(name = "m45_process_cleanup_signaled") private fun cleanupSignaled()
+@Extern(name = "m45_process_signal_setup") private fun signalSetup()
+@Extern(name = "m45_process_signal_restore") private fun signalRestore()
+
+private fun verify(value: Boolean) { if (!value) throw IllegalStateException(Some("process ownership assertion failed")) }
+private fun os(value: String): OsString = OsString.fromString(value)
+private fun fails(body: () -> Unit): PlatformException {
+    try { body() } catch (error: PlatformException) { return error }
+    throw IllegalStateException(Some("expected native failure"))
+}
+private fun command(path: Path, mode: String): Command = Command(path, [os(mode)],
+    stdin = Stdio.Pipe, stdout = Stdio.Pipe, stderr = Stdio.Pipe)
+private fun exited(status: ExitStatus) {
+    verify(when (status) { case ExitStatus.Exited(code) -> code == 0; case ExitStatus.Signaled(_) -> false })
+}
+
+private fun nativeArguments(path: Path) {
+    val raw = OsString.fromByteArray(Array<Byte>(1L) { -1.toByte() })
+    val environment = mapOf((os("RAW"), OsString.fromByteArray(Array<Byte>(1L) { -2.toByte() })), (os("EMPTY"), os("")))
+    @Unsafe { signalSetup() }
+    try {
+        Command(path, [os("check"), os(""), os("a ' b"), raw, currentDirectory().toOsString()],
+            environment, stdin = Stdio.Null, stdout = Stdio.Pipe, stderr = Stdio.Pipe).spawn().use { child ->
+            val output = child.communicate()
+            exited(output.status)
+            verify(OsString.fromByteArray(output.stdout).decodeUtf8() == "checked\n" && output.stderr.size == 0L)
+        }
+    } finally { @Unsafe { signalRestore() } }
+}
+
+private fun rollback(path: Path) {
+    for (flags in [1, 2, 4]) {
+        @Unsafe { failNativeStep(flags) }
+        fails { command(path, "exit").spawn() }
+        gcCollect()
+        @Unsafe { verify(descriptors() == 0) }
+    }
+    val child = command(path, "exit").spawn()
+    @Unsafe { failNativeStep(8) }
+    val failure = fails { child.dispose() }
+    verify(failure.kind == PlatformErrorKind.Interrupted && child.isClosed)
+    child.dispose()
+    @Unsafe { verify(descriptors() == 0); failNativeStep(16) }
+    exited(command(path, "exit").spawn().wait())
+    gcCollect()
+    @Unsafe { verify(descriptors() == 0) }
+}
+
+private fun observationLost(path: Path) {
+    @Unsafe { failNativeStep(256) }
+    val child = command(path, "exit").spawn()
+    fails { child.wait() }
+    @Unsafe {
+        val beforeWaits = waits()
+        val beforeSignals = signals()
+        child.kill()
+        child.terminate()
+        fails { child.wait() }
+        fails { child.dispose() }
+        verify(waits() == beforeWaits && signals() == beforeSignals && descriptors() == 0)
+    }
+}
+
+private fun dropExited(path: Path) {
+    val child = command(path, "exit").spawn()
+    @Unsafe { waitExited() }
+    verify(!child.isClosed)
+}
+private fun dropStopped(path: Path) {
+    val child = command(path, "stop").spawn()
+    @Unsafe { waitStopped() }
+    verify(!child.isClosed)
+}
+private fun releaseHooks(path: Path) {
+    dropExited(path)
+    gcCollect()
+    @Unsafe { verifyReaped(); verify(descriptors() == 0) }
+    dropStopped(path)
+    gcCollect()
+    @Unsafe { cleanupStopped(); verify(descriptors() == 0) }
+}
+
+private fun temporarySignal(path: Path) { command(path, "exit").spawn().kill() }
+
+private fun communication(path: Path) {
+    val bytes = Array<Byte>(131072L) { (it % 251L).toByte() }
+    command(path, "echo").spawn().use { child ->
+        @Unsafe { failNativeStep(32 + 64 + 128) }
+        val output = child.communicate(Some(bytes))
+        exited(output.status)
+        verify(output.stdout.size == bytes.size && output.stderr.size == bytes.size)
+        for (index in 0L..<bytes.size) verify(output.stdout[index] == bytes[index] && output.stderr[index] == bytes[index])
+    }
+    @Unsafe { verify(descriptors() == 0) }
+}
+
+fun main() {
+    val helper = Path.fromOsString(arguments()[1L])
+    @Unsafe {
+        val callback = foreignCallback<(Ptr<Unit>) -> Int>({ gcCollect(); 0 }, 0, ForeignCallbackMode.Reusable)
+        setCallback(callback.function, callback.context)
+        try {
+            nativeArguments(helper)
+            rollback(helper)
+            observationLost(helper)
+            releaseHooks(helper)
+            temporarySignal(helper)
+            gcCollect()
+            cleanupSignaled()
+            verify(descriptors() == 0)
+            communication(helper)
+            verify(when (foreignCallbackFailure(callback)) { case None -> true; case Some(_) -> false })
+        } finally { clearCallback(); releaseForeignCallback(callback) }
+    }
+    println("process rollback, ownership and native communication passed")
+}

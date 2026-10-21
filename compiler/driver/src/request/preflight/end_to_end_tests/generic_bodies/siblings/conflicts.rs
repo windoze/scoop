@@ -6,7 +6,7 @@ fn actual_duplicate_generic_members_accept_different_optimization() {
     let sysroot = tempfile::tempdir().unwrap();
     let core = bootstrap_core(sysroot.path(), &target);
     let core_bytes = std::fs::read(core.artifact().path()).unwrap();
-    let fixtures = crate::workspace_root().join("tests/fixtures/m23-generic-odr-siblings");
+    let fixtures = crate::workspace_root().join("tests/fixtures/language/generic-odr-siblings");
     let coordinate = ConeCoordinate::new("dev.example", "odr-provider", "0.1.0").unwrap();
     let provider_root = sysroot.path().join("provider");
     write_manifest_cone(

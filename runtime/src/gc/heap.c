@@ -59,10 +59,12 @@ void scoop_gc_heap_init(void) {
     if (scoop_gc_heap_state.ready) {
         heap_fatal("heap initialized more than once");
     }
+#if SCOOP_ENABLE_GC_STRESS
     const char *stress = getenv("SCOOP_GC_STRESS_MOVE");
     stress_move = stress != NULL && strcmp(stress, "1") == 0;
     const char *minor = getenv("SCOOP_GC_STRESS_MINOR");
     scoop_gc_heap_state.stress_minor = minor != NULL && strcmp(minor, "1") == 0;
+#endif
     const char *full = getenv("SCOOP_GC_FULL_ONLY");
     scoop_gc_heap_state.full_only = full != NULL && strcmp(full, "1") == 0;
     const char *metrics = getenv("SCOOP_GC_STATS");
@@ -76,10 +78,12 @@ void require_heap(void) {
     }
 }
 
+#if SCOOP_ENABLE_GC_STRESS
 bool scoop_gc_stress_move_enabled(void) {
     require_heap();
     return stress_move;
 }
+#endif
 
 ScoopGcBlockMeta *scoop_heap_first_block(void) {
     ScoopGcRegion *region = scoop_gc_heap_state.regions;

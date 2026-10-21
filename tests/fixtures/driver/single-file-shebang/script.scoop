@@ -1,0 +1,6 @@
+#!/path/to/scoop run
+//! Ordinary comment, not documentation.
+fun main(args: Array<String>) {
+    println(args[1])
+    println(args[2])
+}

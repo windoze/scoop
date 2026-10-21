@@ -1,0 +1,44 @@
+package scoop.json.tests.serialize.codecs
+
+import scoop.test.*
+import scoop.json.Json
+
+class Counter(var encoded: String, var decoded: String)
+class Custom(val counter: Counter) : ValueEncoder<String?>, ValueDecoder<String?> {
+    public override fun encode(value: String?, encoder: Encoder) {
+        counter.encoded += encoder.path
+        String.encode(value ?: "absent", encoder)
+    }
+    public override fun decode(decoder: Decoder): String? {
+        counter.decoded += decoder.path
+        val value = String.decode(decoder)
+        return if (value == "absent") None else Some(value)
+    }
+}
+
+struct Record(
+    val omit: String?,
+    @Serialize(emitNull = true) val keep: String?,
+    @Serialize(required = true) val must: String?
+)
+class Codec(val writer: ValueEncoder<String?>, val reader: ValueDecoder<String?>)
+    : ValueEncoder<Record>, ValueDecoder<Record>
+
+private fun exercise() {
+    val counter = Counter("", "")
+    val custom = Custom(counter)
+    val codec = Codec(custom, custom)
+    val value = Record(None, None, None)
+    check(Json.encodeToString(value, codec) == "{\"keep\":\"absent\",\"must\":\"absent\"}")
+    check(counter.encoded == "/keep/must")
+    check(Json.decodeFromString("{\"keep\":\"absent\",\"must\":\"absent\"}", codec) == value)
+    check(counter.decoded == "/keep/must")
+    reject("/keep") { Json.decodeFromString("{\"keep\":null,\"must\":\"absent\"}", codec) }
+
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

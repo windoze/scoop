@@ -1,0 +1,14 @@
+package scoop.json.tests.consumer.baseline_chat
+
+import scoop.test.*
+private fun exerciseConsumer(args: Array<String>) {
+    chatBaseline(args.size != 0L)
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun run() {
+        exerciseConsumer(["consumer"])
+    }
+}

@@ -117,18 +117,22 @@ impl LoadedSingleConeBuildRequest {
                 self.target.selection().target().id(),
                 self.purpose,
             ),
-            LoadedCurrentConeInput::SingleFile { source } => parse_single_file_current(source),
+            LoadedCurrentConeInput::SingleFile { input, .. } => {
+                parse_single_discovered_source(input)
+            }
         }
     }
 
     pub(super) fn validate_inner(
         &self,
     ) -> Result<ValidatedSingleConeBuildRequest<'_>, SingleConeDependencyValidationError> {
-        let (manifest, current_identity) = match &self.current {
+        let (manifest, current_identity, single_file) = match &self.current {
             LoadedCurrentConeInput::Manifest { manifest } => {
-                (Some(manifest.as_ref()), manifest.identity())
+                (Some(manifest.as_ref()), manifest.identity(), &[][..])
             }
-            LoadedCurrentConeInput::SingleFile { .. } => (None, ConeIdentity::SINGLE_FILE),
+            LoadedCurrentConeInput::SingleFile { dependencies, .. } => {
+                (None, ConeIdentity::SINGLE_FILE, dependencies.as_slice())
+            }
         };
         let dependencies = self
             .dependencies
@@ -137,6 +141,7 @@ impl LoadedSingleConeBuildRequest {
                 current_identity,
                 self.target.selection(),
                 self.purpose,
+                single_file,
             )
             .map_err(SingleConeDependencyValidationError::ExplicitDependencies)?;
         let protocols = if current_identity == ConeIdentity::CORE {
@@ -156,7 +161,7 @@ impl LoadedSingleConeBuildRequest {
             LoadedCurrentConeInput::Manifest { manifest } => {
                 ValidatedCurrentConeInput::Manifest { manifest }
             }
-            LoadedCurrentConeInput::SingleFile { source } => {
+            LoadedCurrentConeInput::SingleFile { source, .. } => {
                 ValidatedCurrentConeInput::SingleFile { source }
             }
         };

@@ -1,0 +1,69 @@
+package scoop.json.tests.consumer.derived_encoding_records
+
+import scoop.test.*
+import scoop.json.Json
+
+fun check(value: Boolean, location: SourceLocation = currentSourceLocation()) {
+    assertTrue(value, location = location)
+}
+
+object Defaults { var calls: Int = 0 }
+public fun nextValue(): Int { Defaults.calls += 1; return 7 }
+
+public struct Empty() { public companion object : ValueEncoder<Empty> }
+public struct Box<T>(val value: T) {
+    public companion object {
+        public fun encoder(element: ValueEncoder<T>): ValueEncoder<Box<T>> = BoxEncoder<T>(element)
+    }
+}
+public class BoxEncoder<T>(private val element: ValueEncoder<T>) : ValueEncoder<Box<T>>
+public struct Record<T>(
+    @Serialize(rename = "v/~") val value: T,
+    @Serialize(ignore = true) val ignored: (Int) -> Int
+) {
+    public companion object {
+        public fun encoder(element: ValueEncoder<T>): ValueEncoder<Record<T>> = RecordEncoder<T>(element)
+    }
+}
+public struct RecordEncoder<T>(val element: ValueEncoder<T>) : ValueEncoder<Record<T>>
+public struct WithDefaults(val first: Int = nextValue(), val second: Int = first + 1) {
+    public companion object : ValueEncoder<WithDefaults>
+}
+
+public class Row public constructor(private val id: Int, public val name: String) {
+    public val computed: String get() = name
+    @Serialize(rename = "counter") public var count: Long = 2L
+    @Serialize(ignore = true) private val cache: (Int) -> Int = { value -> value + 1 }
+    public companion object : ValueEncoder<Row>
+}
+
+fun <T> nested(value: T, element: ValueEncoder<T>): String =
+    Json.encodeToString(Box<T>(value), Box<T>.Companion.encoder(element))
+
+private fun exerciseConsumer() {
+    check(Json.encodeToString(Empty(), Empty.Companion) == "{}")
+    val integerBox = Box<Int>.Companion.encoder(Int.Companion)
+    check(Json.encodeToString(Box<Int>(3), integerBox) == "{\"value\":3}")
+    check(nested(Box<String>("text"), Box<String>.Companion.encoder(String.Companion)) == "{\"value\":{\"value\":\"text\"}}")
+    val value = Record<Box<Int>>(Box<Int>(4), { item -> item + 1 })
+    val codec = Record<Box<Int>>.Companion.encoder(integerBox)
+    check(Json.encodeToString(value, codec) == "{\"v/~\":{\"value\":4}}")
+    val erased: Any = value
+    check(!(erased is ValueEncoder<Record<Box<Int>>>))
+    check(Json.encodeToString(WithDefaults(7, 8), WithDefaults.Companion) == "{\"first\":7,\"second\":8}")
+    check(Defaults.calls == 0)
+    val defaults = WithDefaults()
+    check(Defaults.calls == 1)
+    check(Json.encodeToString(defaults, WithDefaults.Companion) == "{\"first\":7,\"second\":8}")
+    check(Defaults.calls == 1)
+    val row = Row(9, "nine")
+    row.count = 3L
+    check(Json.encodeToString(row, Row.Companion) == "{\"id\":9,\"name\":\"nine\",\"counter\":3}")
+
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun behavior() { exerciseConsumer() }
+}

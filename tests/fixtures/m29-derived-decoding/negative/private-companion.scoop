@@ -1,7 +1,0 @@
-public struct Element(val value: Int) {
-    private companion object : ValueDecoder<Element>
-}
-public struct Item(val value: Element)
-public object Reader : ValueDecoder<Item>
-
-fun main() {}

@@ -1,0 +1,3 @@
+package dev.example
+import dev.example.upstream.arrays.pack
+public fun result() { val empty = pack() }

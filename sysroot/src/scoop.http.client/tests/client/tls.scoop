@@ -3,7 +3,7 @@ package scoop.http.client
 import scoop.asyncio.*
 import scoop.collections.emptyList
 import scoop.crypto.PrivateKey
-import scoop.crypto.testdata.*
+import scoop.tests.scoop.crypto.testdata.*
 import scoop.crypto.x509.*
 import scoop.http.*
 import scoop.http.asyncio.*

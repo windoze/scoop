@@ -4,7 +4,7 @@ use super::*;
 fn generic_storage_retains_private_source_dependencies_and_shape_roots() {
     for name in ["private-storage", "private-storage-combined"] {
         let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tests/fixtures/m23-source-mir-types");
+            .join("../../tests/fixtures/language/source-mir-types");
         let source = std::fs::read_to_string(directory.join(format!("{name}.scoop"))).unwrap();
         with_production(&source, |output, input, hir_types, graph, sources| {
             let section = public_interface(output);

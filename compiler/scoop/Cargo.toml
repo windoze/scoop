@@ -4,6 +4,8 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+scoop-ast.workspace = true
+scoop-parser.workspace = true
 scoop-target-data.workspace = true
 scoop-process.workspace = true
 scoop-identity.workspace = true

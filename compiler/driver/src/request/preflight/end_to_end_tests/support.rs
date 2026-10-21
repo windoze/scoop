@@ -80,9 +80,21 @@ pub(super) fn build_ordinary(
     let core_slot =
         crate::trusted_core::resolve_trusted_core_slot_at(sysroot, target.lir_target_selection())
             .unwrap();
+    let direct = if matches!(&current, CurrentConeInput::SingleFile { .. }) {
+        vec![
+            HostArtifactLocator::new(super::super::single_file_tests::standard_library(
+                target,
+                core_slot.artifact(),
+                sysroot,
+            ))
+            .unwrap(),
+        ]
+    } else {
+        Vec::new()
+    };
     SingleConeBuildRequest::new(
         current,
-        ExplicitDependencyInputs::new(Vec::new(), Vec::new()),
+        ExplicitDependencyInputs::new(direct, Vec::new()),
         TrustedCoreInput::Artifact(HostArtifactLocator::new(core_slot.artifact()).unwrap()),
         target.clone(),
         SlibOutputDestination::new(output).unwrap(),
@@ -174,6 +186,11 @@ pub(super) fn write_manifest_cone(root: &Path, group: &str, name: &str, kind: &s
         ),
     )
     .unwrap();
+    let source = if source.trim_start().starts_with("package ") {
+        source.to_owned()
+    } else {
+        format!("package {group}\n{source}")
+    };
     std::fs::write(root.join("src/main.scoop"), source).unwrap();
 }
 

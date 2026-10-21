@@ -1,0 +1,55 @@
+schema = 1
+name = "program-link-coroutine-function-values"
+inputs = ["coroutines", "../../../language/program-link/coroutine-provider.scoop", "function-values", "../../../language/program-link/coroutine-function-values.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["program-link", "multi-cone", "driver"]
+variants = [{"name" = "release"}]
+
+[[steps]]
+name = "prepare"
+files = [{"copy" = {"from" = "${fixture}/coroutines", "to" = "${work}/sources/coroutines"}}, {"copy" = {"from" = "${fixture}/../../../language/program-link/coroutine-provider.scoop", "to" = "${work}/sources/coroutines/src/main.scoop"}}, {"copy" = {"from" = "${fixture}/function-values", "to" = "${work}/sources/function-values"}}, {"copy" = {"from" = "${fixture}/../../../language/program-link/coroutine-function-values.scoop", "to" = "${work}/sources/function-values/src/main.scoop"}}]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sources/function-values", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${build.result.dependencies.length}", "equals" = 2},
+]
+
+[[steps]]
+name = "run_built"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "42\n"
+stderr = ""
+
+[[steps]]
+name = "prepare_link_inputs_isolate"
+files = [
+  {"copy" = {"from" = "${build.result.root.path}", "to" = "${work}/artifacts/root.slib"}},
+  {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/0.slib"}},
+  {"copy" = {"from" = "${build.result.dependencies.1.path}", "to" = "${work}/artifacts/1.slib"}},
+]
+
+[[steps]]
+name = "link"
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/1.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", {"each" = "${link_args}"}, "-o", "${work}/artifacts/program", "--message-format", "json", "--dump-plan", "--cache-dir", "${cache}"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${build.result.link_plan_fingerprint}"}]
+
+[[steps]]
+name = "run_linked"
+argv = ["${link.result.output}"]
+exit = 0
+stdout = "42\n"
+stderr = ""

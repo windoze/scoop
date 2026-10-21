@@ -1,0 +1,35 @@
+package scoop.http.asyncio.tests.consumer.http_proxy
+
+import scoop.test.*
+import scoop.asyncio.*
+import scoop.bytes.ByteArrayBuilder
+import scoop.platform.memory.NativeByteBuffer
+import scoop.text.endsWith
+
+private suspend fun requestHead(source: AsyncByteSource): String {
+    val bytes = ByteArrayBuilder()
+    return NativeByteBuffer.allocate(512L).use suspend { buffer ->
+        while (bytes.size < 512L) {
+            buffer.clear()
+            val count = source.readInto(buffer, 512L)
+            check(count > 0L)
+            bytes.append(buffer.readBytes(count))
+            val text = String.fromUtf8(bytes.toByteArray())
+            if (text.endsWith("\r\n\r\n")) return@use text
+            check(bytes.size < 512L)
+        }
+        throw IllegalStateException()
+    }
+}
+
+suspend fun serveProxy(peer: AsyncByteStream) {
+    check(requestHead(peer) == "GET http://xn--bcher-kva.example:8080/a%2Fb?q=a+b HTTP/1.1\r\nHost: xn--bcher-kva.example:8080\r\n\r\n")
+    sendText(peer, "HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\nbody")
+    val authority = "[0000:0000:0000:0000:0000:0000:0000:0001]:443"
+    check(requestHead(peer) == "CONNECT " + authority + " HTTP/1.1\r\nHost: " + authority + "\r\n\r\n")
+    sendText(peer, "HTTP/1.1 407 Proxy Authentication Required\r\nProxy-Authenticate: Bearer\r\nContent-Length: 4\r\n\r\ndeny")
+    check(requestHead(peer) == "CONNECT " + authority + " HTTP/1.1\r\nProxy-Authorization: Bearer test\r\nHost: " + authority + "\r\n\r\n")
+    sendText(peer, "HTTP/1.1 201 Connected\r\nContent-Length: 100\r\n\r\nearly")
+    check(readText(peer, 4L) == "ping")
+    sendText(peer, "pong")
+}

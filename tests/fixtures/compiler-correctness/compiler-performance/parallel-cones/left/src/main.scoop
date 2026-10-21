@@ -1,0 +1,3 @@
+package dev.performance.performance.parallel.left
+import dev.performance.performance.parallel.base.retain
+public fun left(): Int = retain(20)

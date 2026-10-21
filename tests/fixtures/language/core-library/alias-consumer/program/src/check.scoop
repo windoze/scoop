@@ -1,0 +1,12 @@
+package dev.example
+import test.LocalCoreNumber
+import test.identity
+import test.pair
+import test.namedResult
+
+fun main() {
+    val value: LocalCoreNumber = identity(41)
+    if (value != 41 || pair((41, true)) != (41, true) || namedResult() != 12) {
+        throw IllegalStateException()
+    }
+}

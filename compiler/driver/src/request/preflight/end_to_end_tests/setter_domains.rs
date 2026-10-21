@@ -8,7 +8,7 @@ fn ordinary_artifact_reader_checks_setter_domains_in_restricted_and_generic_owne
     let sysroot = tempfile::tempdir().unwrap();
     let core = bootstrap_core(sysroot.path(), &target);
     let core_bytes = std::fs::read(core.artifact().path()).unwrap();
-    let directory = crate::workspace_root().join("tests/fixtures/m23-setter-domains");
+    let directory = crate::workspace_root().join("tests/fixtures/language/setter-domains");
     let source = std::fs::read_to_string(directory.join("combined.scoop")).unwrap();
     let root = sysroot.path().join("setter-domains");
     write_manifest_cone(&root, "dev.example", "setter-domains", "library", &source);

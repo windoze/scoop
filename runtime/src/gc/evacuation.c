@@ -49,6 +49,7 @@ bool scoop_gc_object_was_scanned_locked(const void *object) {
                                                  : bit_test(block->scanned, word_index);
 }
 
+#if SCOOP_ENABLE_GC_STRESS
 void scoop_gc_heap_verify_stress_moved_locked(void) {
     if (!collection_active || !stress_move) {
         heap_fatal("stress relocation verified outside a stress collection");
@@ -79,6 +80,7 @@ void scoop_gc_heap_verify_stress_moved_locked(void) {
         }
     }
 }
+#endif
 
 void scoop_gc_visit_current_objects_locked(ScoopGcHeapObjectVisitor visitor, void *context) {
     if (visitor == NULL || !collection_active) {

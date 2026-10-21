@@ -1,0 +1,43 @@
+package scoop.http.asyncio.tests.consumer.websocket_lifetime
+
+import scoop.test.*
+private fun exerciseConsumer() {
+    wsCase("local source close") { wsSourceClose() }
+    for (mode in ["close", "caller", "owner"]) {
+        for (child in [false, true]) for (cleanup in [false, true]) {
+            val selected = mode
+            val nested = child
+            val failing = cleanup
+            wsCase(selected + "/child=" + nested.toString() + "/cleanup=" + failing.toString()) {
+                wsSourceStop(selected, nested, failing)
+            }
+        }
+    }
+    for (child in [false, true]) {
+        val nested = child
+        wsCase("self wait/child=" + nested.toString()) { wsSelfWait(nested) }
+    }
+    for (cleanup in [false, true]) {
+        val failing = cleanup
+        wsCase("observers/cleanup=" + failing.toString()) { wsObservers(failing) }
+    }
+    for (caller in [false, true]) {
+        val cancelling = caller
+        wsCase("borrow completion/caller=" + cancelling.toString()) { wsBorrowCompletion(cancelling) }
+        wsCase("source failure/cleanup=" + cancelling.toString()) { wsSourceFailure(cancelling) }
+    }
+    wsCase("EOF observers") { wsEofObserver() }
+    wsCase("peer close with source") { wsPeerClose() }
+
+}
+
+private fun wsCase(name: String, block: () -> Unit) {
+    try { block() }
+    catch (error: Throwable) { println("failed WebSocket lifetime case: " + name); throw error }
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun behavior() { exerciseConsumer() }
+}

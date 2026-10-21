@@ -97,7 +97,7 @@ def publish_files(source, destination, files, record):
     print(f"Prepared {destination}", flush=True)
 
 
-def runtime(args, work, environment, native):
+def runtime(args, work, environment, native, enable_gc_stress=False):
     command = [
         "cargo",
         "run",
@@ -119,15 +119,17 @@ def runtime(args, work, environment, native):
         str(args.cache_dir),
         *native,
     ]
+    if enable_gc_stress:
+        command.append("--enable-gc-stress")
     result = subprocess.run(command, env=environment, check=True, stdout=subprocess.PIPE)
     output = json.loads(result.stdout)
     source = Path(os.fsdecode(bytes(output["root"])))
     files = [Path(os.fsdecode(bytes(path))) for path in output["files"]]
     publish_files(
         source,
-        args.sysroot / "lib" / args.target / "runtime",
+        args.sysroot / "lib" / args.target / ("runtime-stress" if enable_gc_stress else "runtime"),
         files,
-        work / "runtime.json",
+        work / ("runtime-stress.json" if enable_gc_stress else "runtime.json"),
     )
 
 
@@ -198,6 +200,7 @@ def main():
             check=True,
         )
     runtime(args, work, environment, native)
+    runtime(args, work, environment, native, enable_gc_stress=True)
     print(f"Prepared {len(order)} Cones and runtime for {args.target}")
 
 

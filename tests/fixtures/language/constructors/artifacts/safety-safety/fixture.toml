@@ -1,0 +1,67 @@
+schema = 1
+name = "constructor-safety-safety"
+root = "../../../constructor-safety/safety.scoop"
+inputs = ["../../../constructor-safety/safety.scoop", "provider", "consumer"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["constructors", "constructor-safety", "source-and-artifact", "language"]
+
+[[steps]]
+name = "single"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-single", "--message-format", "json", "-o", "${work}/single", "--runtime-root", "${runtime}"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "single_run"
+argv = ["${work}/single"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "prepare_provider"
+files = [
+  {"copy" = {"from" = "${single.result.dependencies.0.path}", "to" = "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"}},
+  {"copy" = {"from" = "${fixture}/provider", "to" = "${work}/sources/provider"}},
+  {"concat" = {"path" = "${work}/sources/provider/src/main.scoop", "parts" = ["package dev.example\n", {"file" = "../../../constructor-safety/safety.scoop"}]}},
+]
+
+[[steps]]
+name = "provider"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sources/provider", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/constructor-safety-safety/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${provider.result.dependencies.length}", "equals" = 1},
+]
+
+[[steps]]
+name = "prepare_consumer"
+files = [
+  {"copy" = {"from" = "${fixture}/consumer", "to" = "${work}/sources/consumer"}},
+]
+
+[[steps]]
+name = "consumer"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/sources/consumer", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/built", "--runtime-root", "${runtime}"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"actual" = "${consumer.result.dependencies.length}", "equals" = 2}]
+
+[[steps]]
+name = "run"
+argv = ["${consumer.result.output}"]
+exit = 0
+stdout = ""
+stderr = ""

@@ -1,0 +1,4 @@
+package dev.example
+import dev.example.callbacks.callback
+
+fun main() { callback(*[40]) }

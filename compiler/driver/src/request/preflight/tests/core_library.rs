@@ -6,8 +6,9 @@ mod metadata;
 mod source_fields;
 
 const EXTENSION: &str =
-    include_str!("../../../../../../tests/fixtures/core-library/extension.scoop");
-const CONSUMER: &str = include_str!("../../../../../../tests/fixtures/core-library/consumer.scoop");
+    include_str!("../../../../../../tests/fixtures/language/core-library/extension.scoop");
+const CONSUMER: &str =
+    include_str!("../../../../../../tests/fixtures/language/core-library/consumer.scoop");
 
 #[test]
 fn edited_core_library_builds_from_a_manifest_and_is_consumed_from_any_output_path() {
@@ -20,27 +21,31 @@ fn edited_core_library_builds_from_a_manifest_and_is_consumed_from_any_output_pa
     std::fs::write(source.join("src/user_extension.scoop"), EXTENSION).unwrap();
     std::fs::write(
         source.join("src/user_metadata.scoop"),
-        include_str!("../../../../../../tests/fixtures/core-library/metadata.scoop"),
+        include_str!("../../../../../../tests/fixtures/language/core-library/metadata.scoop"),
     )
     .unwrap();
     std::fs::write(
         source.join("src/user_abi.scoop"),
-        include_str!("../../../../../../tests/fixtures/core-library/abi.scoop"),
+        include_str!("../../../../../../tests/fixtures/language/core-library/abi.scoop"),
     )
     .unwrap();
     std::fs::write(
         source.join("src/user_aliases.scoop"),
-        include_str!("../../../../../../tests/fixtures/core-library/type-aliases.scoop"),
+        include_str!("../../../../../../tests/fixtures/language/core-library/type-aliases.scoop"),
     )
     .unwrap();
     std::fs::write(
         source.join("src/user_integer_defaults.scoop"),
-        include_str!("../../../../../../tests/fixtures/core-library/integer-defaults.scoop"),
+        include_str!(
+            "../../../../../../tests/fixtures/language/core-library/integer-defaults.scoop"
+        ),
     )
     .unwrap();
     std::fs::write(
         source.join("src/user_default_data_flow.scoop"),
-        include_str!("../../../../../../tests/fixtures/core-library/default-data-flow.scoop"),
+        include_str!(
+            "../../../../../../tests/fixtures/language/core-library/default-data-flow.scoop"
+        ),
     )
     .unwrap();
     let artifact = workspace.path().join("user-library.slib");
@@ -57,8 +62,13 @@ fn edited_core_library_builds_from_a_manifest_and_is_consumed_from_any_output_pa
     assert_core_views_share_the_dependency_closure(&target, &consumer_source, &artifact);
     assert_non_core_artifact_is_rejected(&target, &consumer_artifact);
     assert_eq!(
-        first_consumer.artifact().summary().direct_dependencies(),
-        &[first_dependency]
+        first_consumer
+            .artifact()
+            .summary()
+            .direct_dependencies()
+            .iter()
+            .find(|dependency| dependency.identity() == ConeIdentity::CORE),
+        Some(&first_dependency)
     );
 
     // Rebuilding modified library source uses the same coordinate and ordinary
@@ -76,8 +86,13 @@ fn edited_core_library_builds_from_a_manifest_and_is_consumed_from_any_output_pa
     let second_dependency = second.artifact().summary().dependency_record();
     let second_consumer = build_consumer(&target, &consumer_source, &consumer_artifact, &artifact);
     assert_eq!(
-        second_consumer.artifact().summary().direct_dependencies(),
-        &[second_dependency]
+        second_consumer
+            .artifact()
+            .summary()
+            .direct_dependencies()
+            .iter()
+            .find(|dependency| dependency.identity() == ConeIdentity::CORE),
+        Some(&second_dependency)
     );
     assert_ne!(
         first_consumer.artifact().summary().artifact_fingerprint(),
@@ -109,7 +124,17 @@ fn assert_core_views_share_the_dependency_closure(
         CurrentConeInput::SingleFile {
             source: SingleFileLocator::from_path(source).unwrap(),
         },
-        ExplicitDependencyInputs::new(Vec::new(), Vec::new()),
+        ExplicitDependencyInputs::new(
+            vec![
+                HostArtifactLocator::new(super::super::single_file_tests::standard_library(
+                    target,
+                    core,
+                    source.parent().unwrap(),
+                ))
+                .unwrap(),
+            ],
+            Vec::new(),
+        ),
         TrustedCoreInput::Artifact(HostArtifactLocator::new(core).unwrap()),
         target.clone(),
         SlibOutputDestination::new(source.with_extension("shared-views.slib")).unwrap(),
@@ -251,7 +276,17 @@ fn build_consumer(
         CurrentConeInput::SingleFile {
             source: SingleFileLocator::from_path(source).unwrap(),
         },
-        ExplicitDependencyInputs::new(Vec::new(), Vec::new()),
+        ExplicitDependencyInputs::new(
+            vec![
+                HostArtifactLocator::new(super::super::single_file_tests::standard_library(
+                    target,
+                    core,
+                    source.parent().unwrap(),
+                ))
+                .unwrap(),
+            ],
+            Vec::new(),
+        ),
         TrustedCoreInput::Artifact(HostArtifactLocator::new(core).unwrap()),
         target.clone(),
         SlibOutputDestination::new(output).unwrap(),

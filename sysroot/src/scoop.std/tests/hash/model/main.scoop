@@ -1,0 +1,58 @@
+package scoop.std.tests.hash.model
+
+import scoop.test.*
+import scoop.collections.*
+
+struct Empty() : Equals<Empty>, Hash {
+    public override operator fun equals(other: Empty): Boolean = true
+    public override fun hash(): Long = 0L
+}
+
+fun check(value: Boolean, label: String, location: SourceLocation = currentSourceLocation()) {
+    assertTrue(value, Some(label), location = location)
+}
+
+fun <K, V> lookup(source: Map<K, V>, key: K): V? = source[key]
+
+private fun exercise() {
+    val map = HashMap<Int, Int?>()
+    val model = MutableArray<Int??>(37L) { _ -> None }
+    var step = 0
+    while (step < 600) {
+        val key = (step * 17) % 37
+        val slot = key.toLong()
+        if (step % 5 == 0) {
+            check(map.remove(key) == model[slot], "model remove")
+            model[slot] = None
+        } else {
+            val value: Int? = if (step % 7 == 0) None else Some(step)
+            check(map.put(key, value) == model[slot], "model put")
+            model[slot] = Some(value)
+        }
+        var count = 0L
+        var cursor = 0L
+        while (cursor < 37L) {
+            check(lookup<Int, Int?>(map, cursor.toInt()) == model[cursor], "model get")
+            if (model[cursor] != None) count += 1L
+            cursor += 1L
+        }
+        check(map.size == count, "model size")
+        step += 1
+    }
+    val sparse = HashMap<Int, String>()
+    step = 0
+    while (step < 120) {
+        sparse[step] = "value"
+        check(sparse.remove(step) == Some("value") && sparse.size == 0L, "tombstone cleanup")
+        step += 1
+    }
+    val units = HashSet<Empty>()
+    check(units.add(Empty()) && !units.add(Empty()) && units.size == 1L, "zero sized keys")
+
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

@@ -44,7 +44,7 @@ pub(super) fn snapshot(name: &str, selected: &CanonicalSelectedExternalTypeUsesV
         })
         .collect::<String>();
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
-        "../../tests/fixtures/m23-shared-type-uses/{name}.snap"
+        "../../tests/fixtures/language/shared-type-uses/{name}.snap"
     ));
     if std::env::var_os("SCOOP_UPDATE_SHARED_TYPE_USES").is_some() {
         std::fs::write(&path, &text).unwrap();

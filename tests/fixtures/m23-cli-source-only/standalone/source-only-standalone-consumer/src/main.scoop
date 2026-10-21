@@ -1,2 +1,0 @@
-public fun pass(value: ReadyValue): ReadyValue = value
-public fun <T> passTemplate(value: DeferredGeneric<T>): DeferredGeneric<T> = value

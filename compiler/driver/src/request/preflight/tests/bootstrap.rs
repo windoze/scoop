@@ -446,11 +446,16 @@ fn parsed_bootstrap_request_publishes_one_two_view_core_artifact() {
     )
     .unwrap();
     let ordinary_artifact_path = sysroot.path().join("ordinary.slib");
+    let std = super::super::single_file_tests::standard_library(
+        &target,
+        core_slot.artifact(),
+        sysroot.path(),
+    );
     let ordinary_request = SingleConeBuildRequest::new(
         CurrentConeInput::SingleFile {
             source: SingleFileLocator::from_path(&ordinary_source).unwrap(),
         },
-        ExplicitDependencyInputs::new(Vec::new(), Vec::new()),
+        ExplicitDependencyInputs::new(vec![HostArtifactLocator::new(std).unwrap()], Vec::new()),
         TrustedCoreInput::Artifact(HostArtifactLocator::new(core_slot.artifact()).unwrap()),
         target,
         SlibOutputDestination::new(&ordinary_artifact_path).unwrap(),

@@ -1,0 +1,2 @@
+package dev.example
+public fun consume(value: dev.example.dependency.paths.Outer.Unknown): Int = 42

@@ -1,2 +1,0 @@
-@Extern(name = "m51_native_probe") private fun probe(): Int
-fun main() { @Unsafe { println(probe()) } }

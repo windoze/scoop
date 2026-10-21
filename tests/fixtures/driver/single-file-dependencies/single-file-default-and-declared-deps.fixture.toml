@@ -1,0 +1,136 @@
+schema = 1
+name = "single-file-default-and-declared-deps"
+inputs = ["default.scoop", "extra.scoop", "direct.scoop", "ignored"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["driver", "single-file", "dependencies", "cache", "link"]
+
+[vars]
+options = ["--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--release"]
+
+[[steps]]
+name = "copy_default"
+files = [{"copy" = {"from" = "${fixture}/default.scoop", "to" = "${work}/script.scoop"}}]
+
+[[steps]]
+name = "defaults"
+argv = ["${scoop}", "run", "${work}/script.scoop", {"each" = "${link_args}"}, {"each" = "${options}"}, "Ada", "--release"]
+exit = 0
+stdout = "00000000-0000-0000-0000-000000000000\nAda\n--release\n"
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"actual" = "${defaults.result.dependencies.length}", "equals" = 2}]
+
+[[steps]]
+name = "warm"
+argv = ["${scoop}", "run", "${work}/script.scoop", {"each" = "${link_args}"}, {"each" = "${options}"}, "Ada", "--release"]
+exit = 0
+stdout = "00000000-0000-0000-0000-000000000000\nAda\n--release\n"
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"actual" = "${warm.result.dependencies.length}", "equals" = 2}, {"actual" = "${warm.result.observations.child_invocations.length}", "equals" = 0}]
+
+[[steps]]
+name = "body"
+files = [{"replace" = {"path" = "${work}/script.scoop", "old" = "0uL, 0uL", "new" = "0uL, 1uL"}}]
+
+[[steps]]
+name = "changed_body"
+argv = ["${scoop}", "run", "${work}/script.scoop", {"each" = "${link_args}"}, {"each" = "${options}"}, "Ada", "--release"]
+exit = 0
+stdout = "00000000-0000-0000-0000-000000000001\nAda\n--release\n"
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"actual" = "${changed_body.result.dependencies.length}", "equals" = 2}, {"actual" = "${changed_body.result.observations.child_invocations.length}", "equals" = 1}]
+
+[[steps]]
+name = "copy_extra"
+files = [{"copy" = {"from" = "${fixture}/extra.scoop", "to" = "${work}/script.scoop"}}]
+
+[[steps]]
+name = "extra"
+argv = ["${scoop}", "run", "${work}/script.scoop", {"each" = "${link_args}"}, {"each" = "${options}"}, "Ada", "--release"]
+exit = 0
+stdout = "00000000-0000-0000-0000-000000000000\n42\nAda\n--release\n"
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "warning.json"}
+checks = [{"actual" = "${extra.result.dependencies.length}", "equals" = 3}]
+
+[[steps]]
+name = "extra_warm"
+argv = ["${scoop}", "run", "${work}/script.scoop", {"each" = "${link_args}"}, {"each" = "${options}"}, "Ada", "--release"]
+exit = 0
+stdout = "00000000-0000-0000-0000-000000000000\n42\nAda\n--release\n"
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "warning.json"}
+checks = [{"actual" = "${extra_warm.result.dependencies.length}", "equals" = 3}, {"actual" = "${extra_warm.result.observations.child_invocations.length}", "equals" = 0}]
+
+[[steps]]
+name = "direct"
+argv = ["${scoopc}", "build", "${fixture}/direct.scoop", {"each" = "${compile_args}"}, "--profile", "release", "--sysroot", "${sysroot}", {"each" = "${extra.result.dependencies}", "field" = "path", "prefix" = "--direct-slib"}, "--out-slib", "${work}/direct.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "link"
+argv = ["${scoop}", "link", {"each" = "${link_args}"}, "--root-slib", "${work}/direct.slib", {"each" = "${extra.result.dependencies}", "field" = "path", "prefix" = "--dependency-slib"}, "--runtime-objects", "${extra.result.runtime_index}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--message-format", "json", "-o", "${work}/linked"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "linked"
+argv = ["${work}/linked", "Ada", "--release"]
+exit = 0
+stdout = "00000000-0000-0000-0000-000000000000\n42\nAda\n--release\n"
+stderr = ""
+
+[[steps]]
+name = "remove_dep"
+files = [{"copy" = {"from" = "${fixture}/default.scoop", "to" = "${work}/script.scoop"}}]
+
+[[steps]]
+name = "removed"
+argv = ["${scoop}", "run", "${work}/script.scoop", {"each" = "${link_args}"}, {"each" = "${options}"}, "Ada", "--release"]
+exit = 0
+stdout = "00000000-0000-0000-0000-000000000000\nAda\n--release\n"
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"actual" = "${removed.result.dependencies.length}", "equals" = 2}, {"actual" = "${removed.result.root.artifact_fingerprint}", "equals" = "${defaults.result.root.artifact_fingerprint}"}]
+
+[[steps]]
+name = "manifest"
+argv = ["${scoop}", "run", "${fixture}/ignored", {"each" = "${link_args}"}, {"each" = "${options}"}]
+exit = 0
+stdout = "42\n"
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "tests"
+argv = ["${scoop}", "test", "${fixture}/ignored", {"each" = "${link_args}"}, {"each" = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "test-stderr"
+diagnostics = []
+checks = [{"actual" = "${tests.test_result.counts.passed}", "equals" = 1}]
+
+[[steps]]
+name = "docs"
+argv = ["${scoop}", "doc", "${fixture}/ignored", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--output-dir", "${work}/docs", "--no-deps", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []

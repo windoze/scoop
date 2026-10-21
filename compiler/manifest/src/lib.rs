@@ -40,8 +40,9 @@ pub use semantic::{
     ParsedConeManifest, TestManifestConfig, parse_cone_manifest,
 };
 pub use single_file::{
-    SingleFileInputError, SingleFileInputErrorKind, SingleFileInputIoOperation, SingleFileLocator,
-    load_single_file_source, select_single_file_source,
+    SingleFileDependency, SingleFileHeaderError, SingleFileInputError, SingleFileInputErrorKind,
+    SingleFileInputIoOperation, SingleFileLocator, load_single_file_source,
+    parse_single_file_dependencies, select_single_file_source,
 };
 
 pub use file_snapshot::{ImmutableInputSnapshot, SnapshotFileError, SnapshotIoOperation};

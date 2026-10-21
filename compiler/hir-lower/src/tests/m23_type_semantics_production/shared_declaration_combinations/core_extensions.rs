@@ -5,8 +5,8 @@ use scoop_identity::SignatureTypeKey;
 fn modified_core_preserves_generic_vararg_source_signatures() {
     let fixtures = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures");
     for (directory, expected) in [
-        ("m23-type-source-nominals", 6),
-        ("m23-type-source-dispatch", 4),
+        ("language/type-source-nominals", 6),
+        ("language/type-source-dispatch", 4),
     ] {
         let source =
             std::fs::read_to_string(fixtures.join(directory).join("parameter-varargs.scoop"))
@@ -48,7 +48,7 @@ fn modified_core_preserves_generic_vararg_source_signatures() {
 fn modified_core_closes_object_enum_and_compound_storage_declarations() {
     let source = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../tests/fixtures/m23-type-source-nominals/storage-roots.scoop"
+        "/../../tests/fixtures/language/type-source-nominals/storage-roots.scoop"
     ));
     // Ptr, FunPtr, and Option are local declarations in this source test.
     let module =

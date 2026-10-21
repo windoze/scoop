@@ -1,4 +1,0 @@
-interface ValueEncoder<T> { public fun encode(value: T, encoder: Encoder) }
-struct Item(val value: Int) { companion object : ValueEncoder<Item> }
-
-fun main() {}

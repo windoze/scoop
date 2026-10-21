@@ -3,7 +3,7 @@ use super::*;
 fn fixture(name: &str) -> String {
     std::fs::read_to_string(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tests/fixtures/m23-shared-bound-properties")
+            .join("../../tests/fixtures/language/shared-bound-properties")
             .join(format!("{name}.scoop")),
     )
     .unwrap()

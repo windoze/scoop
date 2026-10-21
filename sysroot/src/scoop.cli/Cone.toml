@@ -8,3 +8,7 @@ kind = "library"
 
 [dependencies]
 "scoop:scoop.core" = "0.1.0"
+
+[test-dependencies]
+"scoop:scoop.json" = "0.1.0"
+"scoop:scoop.test" = "0.1.0"

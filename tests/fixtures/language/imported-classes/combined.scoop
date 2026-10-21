@@ -1,0 +1,12 @@
+package dev.example
+import dev.example.dependency.classes.Counter
+import dev.example.dependency.classes.Holder
+import dev.example.dependency.classes.Token
+import dev.example.dependency.classes.makeCounter
+import dev.example.dependency.classes.identity
+
+public fun primary(): Counter {
+    val holder = Holder(makeCounter(21), Token())
+    makeCounter(0)
+    return identity(holder.read())
+}

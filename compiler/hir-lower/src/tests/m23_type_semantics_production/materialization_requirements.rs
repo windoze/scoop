@@ -10,11 +10,11 @@ mod validation;
 
 const STANDALONE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../tests/fixtures/m23-nominal-requirements/standalone.scoop"
+    "/../../tests/fixtures/language/nominal-requirements/standalone.scoop"
 ));
 const COMBINED: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../tests/fixtures/m23-nominal-requirements/combined.scoop"
+    "/../../tests/fixtures/language/nominal-requirements/combined.scoop"
 ));
 
 #[test]

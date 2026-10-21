@@ -1,0 +1,26 @@
+package dev.performance
+import dev.performance.performance.snapshots.Counter
+import dev.performance.performance.snapshots.invokeRepeated
+
+var calls: Int = 0
+
+fun pick(value: Int): Int = value
+fun pick(first: Int, second: Int, third: Int): Int = first + second + third
+fun pick(value: String, action: (String) -> String): String = action(value)
+fun pick(value: Int, action: (Int) -> Int): Int = action(value)
+
+fun main() {
+    val counter = Counter(39).map { value -> value + 1 }
+    val result = pick(counter.value) { value ->
+        fun finish(delta: Int): Int = value + delta
+        calls = calls + 1
+        finish(2)
+    }
+    val repeated = invokeRepeated(10) { value ->
+        calls = calls + 1
+        value + 1
+    }
+    println(result)
+    println(repeated)
+    println(calls)
+}

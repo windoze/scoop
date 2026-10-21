@@ -1,0 +1,4 @@
+package test
+public object Argument : Constraint {}
+public fun vault(): Container.Vault = Container.Vault()
+public fun another(): Another = Another()

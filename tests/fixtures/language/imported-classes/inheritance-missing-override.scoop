@@ -1,0 +1,6 @@
+package dev.example
+import dev.example.dependency.classes.Parent
+
+public class Derived public constructor(): Parent() {
+    public fun read(): Long = 21
+}

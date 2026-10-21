@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "application"
+name = "m60-doc-annotations-same-name"
+version = "0.1.0"
+kind = "executable"
+
+[[sources]]
+path = "main.scoop"

@@ -4,7 +4,7 @@ use super::*;
 fn repeated_open_equality_keeps_each_comparison_context() {
     let source = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../tests/fixtures/m42-regressions/derived-equality-origins/provider/src/main.scoop"
+        "/../../tests/fixtures/regressions/equality/derived-equality-origins/provider/src/main.scoop"
     ));
     with_hir_source(source, |output, _| {
         let interface = public_interface(output);

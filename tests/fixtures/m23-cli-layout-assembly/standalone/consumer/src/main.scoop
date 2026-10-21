@@ -1,1 +1,0 @@
-public fun consume(): Boolean = same(pass(Token()), Token())

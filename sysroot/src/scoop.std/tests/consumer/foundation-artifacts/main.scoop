@@ -1,0 +1,21 @@
+package scoop.std.tests.consumer.foundation_artifacts
+
+import scoop.test.*
+import scoop.collections.*
+import scoop.comparisons.*
+
+private fun exerciseConsumer() {
+    val values = mutableListOf<String>("b", "a")
+    val snapshot = values.toList()
+    values.clear()
+    val order = naturalOrder<String>().reversed()
+    assertEquals("2", (snapshot.size).toString())
+    assertTrue(order.compare(snapshot[0L], snapshot[1L]) < 0L)
+    assertFalse(snapshot is MutableList<String>)
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun behavior() { exerciseConsumer() }
+}

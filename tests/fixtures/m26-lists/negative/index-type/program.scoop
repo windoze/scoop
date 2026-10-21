@@ -1,1 +1,0 @@
-fun main() { val values = ArrayList<Int>(); val index: Int = 0; val value = values[index] }

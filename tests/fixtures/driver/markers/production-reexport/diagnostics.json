@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`@Test` is only allowed in test sources",
+    "notes": [],
+    "origin": {
+      "cone": "36475cb8a206c2ab74a0485a1462d54fe856bed0ae3789e993847dc8d19e31e5",
+      "end": 53,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 47
+    },
+    "severity": "error"
+  }
+]

@@ -1,0 +1,47 @@
+package scoop.std.tests.results.option
+
+import scoop.test.*
+import scoop.*
+
+class State { var calls: Int = 0 }
+fun check(value: Boolean, label: String, location: SourceLocation = currentSourceLocation()) {
+    assertTrue(value, Some(label), location = location)
+}
+
+private fun exercise() {
+    val none: Int? = None
+    val some: Int? = Some(4)
+    check(some.map<Int, String> { value -> value.toString() } == Some("4"), "map")
+    check(none.map<Int, String> { _ -> throw Exception(Some("unexpected map")) } == None, "empty map")
+    check(some.flatMap<Int, Int> { value -> Some(value + 1) } == Some(5), "flatMap")
+    check(some.flatMap<Int, Int> { _ -> None } == None, "flatMap None result")
+    check(none.flatMap<Int, Int> { _ -> throw Exception(Some("unexpected flatMap")) } == None, "empty flatMap")
+    check(some.filter { value -> value == 4 } == some && some.filter { _ -> false } == None, "filter")
+    check(none.filter { _ -> throw Exception(Some("unexpected filter")) } == None, "empty filter")
+    check(some.fold<Int, String>({ value -> value.toString() }) { throw Exception(Some("unexpected empty")) } == "4", "some fold")
+    check(none.fold<Int, String>({ _ -> throw Exception(Some("unexpected value")) }) { "empty" } == "empty", "none fold")
+    val state = State()
+    check(some.getOrElse { throw Exception(Some("unexpected fallback")) } == 4, "getOrElse some")
+    check(none.getOrElse { state.calls += 1; 7 } == 7 && state.calls == 1, "getOrElse None once")
+    check(some.orElse { throw Exception(Some("unexpected alternative")) } == Some(4), "orElse some")
+    check(none.orElse { state.calls += 1; Some(8) } == Some(8) && state.calls == 2, "orElse None once")
+    check(none.orElse { None } == None, "orElse missing alternative")
+    val nested: Int?? = Some(None)
+    check(nested.map<Int?, Int?> { value -> value } == Some(None), "nested map")
+    check(nested.getOrElse { throw Exception(Some("inner None fallback")) } == None, "nested default")
+    check(nested.orElse { throw Exception(Some("inner None alternative")) } == Some(None), "nested alternative")
+    val result = nested.toResult<Int?, String> { throw Exception(Some("inner None error")) }
+    check(result.isSuccess && result.toOption() == Some(None), "nested result round trip")
+    check(none.toResult<Int, String> { state.calls += 1; "empty" }.errorOrNone() == Some("empty") && state.calls == 3, "error producer once")
+    val marker = Exception(Some("callback"))
+    var caught = false
+    try { some.map<Int, Int> { _ -> throw marker } } catch (error: Exception) { caught = error.message == Some("callback") }
+    check(caught, "Option callback propagates")
+
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

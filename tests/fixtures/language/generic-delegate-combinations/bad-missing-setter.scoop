@@ -1,0 +1,5 @@
+package dev.example
+import dev.example.templates.delegateCombinations.Receiver
+import dev.example.templates.delegateCombinations.ZeroSlot
+
+var <T> Receiver<T>.wrong: Int by ZeroSlot<T>()

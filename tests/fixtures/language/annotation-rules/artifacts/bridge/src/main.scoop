@@ -1,0 +1,4 @@
+package dev.m37.annotated.bridge
+public import dev.m37.annotated.provider.*
+@Mark("bridge") public struct Bridge(@param:Mark("argument") val text: String)
+@Mark("forwarding function") @Mark("bridge repeat") public fun <T> forwarded(@Mark("forwarding parameter") value: T): T = keep(value)

@@ -1,0 +1,4 @@
+package dev.m33
+@Extern(name = "m33_unused")
+fun nativeValue(): Int
+fun main(): Int { @Unsafe { return nativeValue() } }

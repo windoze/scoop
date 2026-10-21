@@ -325,7 +325,7 @@ fn inapplicable_user_layer_falls_through_to_core() {
 }
 
 /// The layering is relative to the call site's file
-/// (tests/fixtures/m7-overload/overload-core.scoop): the user's
+/// (tests/fixtures/language/overload/overload-core.scoop): the user's
 /// `write(Int)` shadows core's `write` overloads for calls from the
 /// user file, but the core library's own bodies still resolve their
 /// internal calls against the core layer.

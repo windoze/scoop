@@ -1,4 +1,0 @@
-package consumer.valuelayouts
-import upstream.valuelayouts.Indirect
-
-public enum Recursive { Value(Indirect<Recursive>) }

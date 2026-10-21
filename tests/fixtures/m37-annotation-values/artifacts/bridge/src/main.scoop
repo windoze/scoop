@@ -1,5 +1,0 @@
-package annotated.bridge
-public import annotated.provider.*
-@Mark(detail = Name("bridge"))
-public struct Bridge(val text: String)
-public fun <T> forwarded(value: T): T = keep(value)

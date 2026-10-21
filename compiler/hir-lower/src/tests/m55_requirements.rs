@@ -155,7 +155,7 @@ fn m55_requirement_nominal_members_precede_structural_requirements() {
 #[test]
 fn m55_requirement_default_plans_keep_closures_and_selected_generic_calls() {
     check(include_str!(
-        "../../../../tests/fixtures/m55-requirements/default-plans.scoop"
+        "../../../../tests/fixtures/language/requirements/default-plans.scoop"
     ))
     .unwrap();
 }
@@ -164,10 +164,10 @@ fn m55_requirement_default_plans_keep_closures_and_selected_generic_calls() {
 fn m55_imported_default_closures_keep_original_requirement_binders() {
     super::m23_generic_body_consumption::with_provider_consumer(
         include_str!(
-            "../../../../tests/fixtures/m55-requirements/cross-cone/provider/src/api.scoop"
+            "../../../../tests/fixtures/language/requirements/cross-cone/provider/src/api.scoop"
         ),
         r#"
-        import m55.requirements.*
+        import dev.m55.requirements.m55.requirements.*
         private struct Local(val value: Int) { public fun read(): Int = value }
         private struct Pure(val value: Int) { @NoGC public fun read(): Int = value }
         fun main() {
@@ -189,7 +189,7 @@ fn m55_imported_default_closures_keep_original_requirement_binders() {
 #[test]
 fn m55_requirement_combinations_keep_references_and_capture_free_local_constructors() {
     check(include_str!(
-        "../../../../tests/fixtures/m55-requirements/combinations.scoop"
+        "../../../../tests/fixtures/language/requirements/combinations.scoop"
     ))
     .unwrap();
 }

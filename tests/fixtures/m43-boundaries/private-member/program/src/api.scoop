@@ -1,1 +1,0 @@
-class Value { private fun hidden(): Int = 42 }

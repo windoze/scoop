@@ -21,6 +21,7 @@ impl LoadedExplicitDependencyInputs {
         current_identity: ConeIdentity,
         target: scoop_lir::ValidatedLirTargetSelection,
         purpose: scoop_protocol::CompilationPurpose,
+        single_file: &[scoop_manifest::SingleFileDependency],
     ) -> DependencyValidationResult<ValidatedExplicitDependencyInputSet<'input>> {
         let mut nodes = BTreeMap::<ConeIdentity, ValidatedDependencyNode<'input>>::new();
         let mut group_names = BTreeMap::<(String, String), (String, ConeIdentity)>::new();
@@ -85,7 +86,7 @@ impl LoadedExplicitDependencyInputs {
             );
         }
 
-        validate_manifest_direct_set(manifest, current_identity, &nodes, purpose)?;
+        validate_manifest_direct_set(manifest, current_identity, &nodes, purpose, single_file)?;
         validate_dependency_records(current_identity, &nodes)?;
         validate_acyclic(&nodes)?;
         validate_support_closure(&nodes)?;

@@ -1,0 +1,83 @@
+package scoop.tests
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.*
+import scoop.http.asyncio.AsyncHttp1Connection
+import scoop.http.client.*
+import scoop.platform.memory.NativeByteBuffer
+
+private class BasicSource(val holding: Boolean, val failure: Throwable?) : AsyncByteSource, AsyncCloseable {
+    val cleaning: BasicGate = BasicGate()
+    val release: BasicGate = BasicGate()
+    var closed: Boolean = false
+    private var consumed: Boolean = false
+    public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long {
+        if (consumed || count == 0L) return 0L
+        basicCheck(count >= 4L, "source read count " + count.toString())
+        buffer.writeBytes("sent".toByteArray()); consumed = true
+        return 4L
+    }
+    public override suspend fun close() {
+        cleaning.signal()
+        if (holding) release.await()
+        closed = true
+        if (basicPresent(failure)) throw failure!!
+    }
+}
+
+internal fun basicSourceCleanup(trust: TrustStore, fail: Boolean) {
+    withBasicRuntime suspend { _, scope, listener ->
+        val url = basicUrl(listener)
+        val cleanup = IllegalStateException(Some("source cleanup"))
+        val first = BasicSource(true, if (fail) Some<Throwable>(cleanup) else None)
+        val next = BasicSource(false, None)
+        val created = AtomicLong(0L)
+        val callbacks = AtomicLong(0L)
+        val challenged = BasicGate()
+        val provider = HttpAuthenticator.basic(url.httpOrigin()) suspend { _ ->
+            basicCheck(first.closed, "credentials ran before source close completed")
+            callbacks.fetchAdd(1L)
+            HttpPasswordCredentials("user", "password")
+        }
+        val body = RequestBody.fromSourceFactory(Some(4L)) suspend {
+            if (created.fetchAdd(1L) == 0L) first else next
+        }
+        val serving = scope.launch suspend {
+            AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                basicCheck(String.fromUtf8(connection.receiveRequest()!!.body.readAllBytes(4L)) == "sent")
+                basicRespond(connection, 401U, extra = [basicField("WWW-Authenticate", "Basic realm=\"private\"")])
+                challenged.signal()
+            }
+            if (!fail) AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                basicCheck(String.fromUtf8(connection.receiveRequest()!!.body.readAllBytes(4L)) == "sent")
+                basicRespond(connection, 200U, "done")
+            }
+        }
+        withHttpClient(basicConfig(trust, HttpAuthenticationOptions([provider]))) suspend { client ->
+            val failure = BasicFailureHolder()
+            val executing = scope.launch suspend {
+                try {
+                    client.withResponse(HttpRequest.post(url, body)) suspend { response ->
+                        basicCheck(response.authenticationCount == 1L && response.body.text(4L) == "done")
+                    }
+                } catch (error: Throwable) { failure.value = Some(error) }
+            }
+            try {
+                first.cleaning.await(); challenged.await()
+                basicCheck(callbacks.load() == 0L, "credentials started during held source close")
+                basicCheck(created.load() == 1L, "another source was opened during held source close")
+                basicCheck(!executing.isCompleted, "execute returned during held source close")
+                first.release.signal()
+                executing.join()
+                if (fail) basicCheck(failure.value!! === cleanup && callbacks.load() == 0L)
+                else {
+                    if (basicPresent(failure.value)) throw failure.value!!
+                    basicCheck(created.load() == 2L, "source factory count " + created.load().toString())
+                    basicCheck(next.closed, "second source is still open")
+                    basicCheck(callbacks.load() == 1L, "credentials callback count " + callbacks.load().toString())
+                }
+            } finally { first.release.signal() }
+        }
+        serving.join()
+    }
+}

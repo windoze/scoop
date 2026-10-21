@@ -1,0 +1,13 @@
+package dev.m41
+import dev.m41.relayed.*
+fun check(ok: Boolean) { if (!ok) { throw IllegalStateException() } }
+fun main() {
+    check(twice(40) == 42 && twice(Counter(40)).value == 42)
+    check(square(7L) == 49L && square(1.5) == 2.25)
+    check(less(Counter(1), Counter(2)) && less("abc", "abd"))
+    var view: Increment<Counter> = Counter(40)
+    check((view++ as Counter).value == 40 && (view as Counter).value == 41)
+    val comparison: Compare<Counter> = Counter(1)
+    check(comparison < Counter(2))
+    println("operator artifacts")
+}

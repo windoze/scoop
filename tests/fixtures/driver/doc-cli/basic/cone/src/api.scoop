@@ -1,0 +1,11 @@
+package dev.m60.example
+
+/// Doubles a value. See [twice].
+/// @param value The input value.
+@DocAlias("doubler")
+public fun twice(value: Int): Int = value * 2
+
+private fun secret(): Int = 3
+
+@DocHidden
+public fun concealed(): Int = 4

@@ -1,0 +1,4 @@
+package test
+@InteriorMutable
+public struct Cell(val value: Int)
+public struct Plain(val value: Int)

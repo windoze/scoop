@@ -1,0 +1,5 @@
+package dev.example
+@NoGC public fun answer(): Long {
+    val value: Long = 9
+    return value.score()
+}

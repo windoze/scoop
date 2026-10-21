@@ -1,0 +1,34 @@
+package test.core.tests.string_builder.snapshot
+
+import scoop.test.*
+class Value(var number: Int) : ToString {
+    var calls: Int = 0
+    public override fun toString(): String {
+        calls = calls + 1
+        gcCollect()
+        return number.toString()
+    }
+}
+private fun exercise() {
+    val builder = StringBuilder()
+    val value = Value(10)
+    builder.append(value)
+    value.number = 11
+    val asInterface: ToString = value
+    builder.append(asInterface)
+    value.number = 99
+    if (value.calls != 2 || builder.toString() != "1011") { fail(Some("immediate")) }
+    val result = builder.toString()
+    builder.toString()
+    builder.append(true).append(255.toUByte())
+    gcCollect()
+    if (value.calls != 2 || result != "1011" || builder.toString() != "1011true255") {
+        fail(Some("stable"))
+    }
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

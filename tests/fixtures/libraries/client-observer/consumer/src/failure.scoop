@@ -1,0 +1,68 @@
+package scoop.tests
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.*
+import scoop.http.client.*
+import scoop.platform.io.UnexpectedEofException
+import scoop.test.*
+import scoop.tls.TlsTrustSource
+import scoop.url.Url
+
+internal fun observedFailure(trust: TrustStore, url: Url, body: Boolean) {
+    val log = ObservationLog()
+    LibuvEventLoop().run suspend { _ ->
+        withHttpClient(observationConfig(trust, log)) suspend { client ->
+            val failure = observationFailure suspend {
+                client.withResponse(HttpRequest.get(url)) suspend { response -> response.body.bytes(32L); Unit }
+            }
+            assertTrue(failure is HttpException || failure is UnexpectedEofException)
+            val completed = log.ofKind(HttpCallEventKind.Completed)
+            assertEquals(1L, completed.size)
+            assertSame(failure, completed[0L].failure!!)
+            val metrics = completed[0L].metrics
+            assertTrue(observationPresent(metrics.firstResponseByteAt))
+            assertEquals(body, observationPresent(metrics.responseHeadersAt))
+            assertEquals(if (body) 3L else 0L, metrics.encodedResponseBodyBytes)
+            assertEquals(if (body) 3L else 0L, metrics.responseBodyBytes)
+            checkObservationPhases(metrics)
+            ensureActive()
+        }
+    }
+}
+
+internal class ObservationTcpState { var calls: Long = 0L }
+
+internal fun observedTcpCallback(trust: TrustStore, url: Url) {
+    val log = ObservationLog()
+    val state = ObservationTcpState()
+    val failure = UnexpectedEofException()
+    val callback: (TcpConnectEvent) -> Unit = { _ ->
+        state.calls += 1L
+        if (state.calls == 1L) throw failure
+    }
+    LibuvEventLoop().run suspend { _ ->
+        val config = HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)), observer = Some(log.observer()),
+            tcpConnect = TcpConnectOptions(onEvent = Some(callback)), retries = HttpRetryOptions(maxRetries = 2L))
+        withHttpClient(config) suspend { client ->
+            assertSame(failure, observationFailure suspend { client.execute(HttpRequest.get(url)); Unit })
+            assertEquals(1L, state.calls)
+            assertEquals(1L, log.ofKind(HttpCallEventKind.AttemptStarted).size)
+            val completed = log.ofKind(HttpCallEventKind.Completed)[0L]
+            assertSame(failure, completed.failure!!)
+            assertTrue(observationPresent(completed.metrics.resolve))
+            assertFalse(observationPresent(completed.metrics.connect))
+            observationGet(client, url.resolve("/probe"), "probe")
+        }
+    }
+    assertEquals(5L, state.calls)
+}
+
+internal fun observedDns(trust: TrustStore, url: Url) {
+    val log = ObservationLog()
+    LibuvEventLoop().run suspend { _ ->
+        withHttpClient(observationConfig(trust, log)) suspend { client -> observationGet(client, url, "probe") }
+    }
+    val metrics = log.ofKind(HttpCallEventKind.Completed)[0L].metrics
+    assertTrue(observationPresent(metrics.resolve) && observationPresent(metrics.connect))
+    checkObservationPhases(metrics)
+}

@@ -1,0 +1,22 @@
+schema = 1
+name = "runtime-cards-moving"
+root = "cards-moving.scoop"
+inputs = ["cards-moving.scoop"]
+tools = ["scoop"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["gc", "barriers", "optimization", "gc-correctness"]
+variants = [
+  {name = "debug", vars = {profile = "debug"}},
+  {name = "release", vars = {profile = "release"}},
+  {name = "moving", vars = {profile = "release"}, env = {SCOOP_GC_STRESS_MOVE = "1"}},
+  {name = "minor", vars = {profile = "release"}, env = {SCOOP_GC_STRESS_MINOR = "1"}},
+]
+
+[[steps]]
+name = "run"
+argv = ["${scoop}", "--enable-gc-stress", "run", {"each" = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--profile", "${profile}", "--message-format", "json"]
+exit = 0
+stdout = "cross-card fields, atomic publication and moving roots preserved\n"
+stderr = ""
+json = "stderr"
+diagnostics = []

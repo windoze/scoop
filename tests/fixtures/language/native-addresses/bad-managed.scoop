@@ -1,0 +1,4 @@
+package dev.example
+import dev.example.dependency.nativeAddresses.managed
+
+public fun rejected(): FunPtr<(Long) -> Long> = ::managed

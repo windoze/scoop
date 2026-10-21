@@ -1,0 +1,7 @@
+package dev.example
+import dev.example.templates.coroutines.*
+
+public fun result(): Int {
+    val task: SuspendTask<BaseResult> = DerivedTask()
+    return 42
+}

@@ -1,0 +1,4 @@
+package dev.example
+import dev.example.templates.members.Overloads
+
+fun bad(): Int = Overloads<String>().conflict("owner", 1, 2)

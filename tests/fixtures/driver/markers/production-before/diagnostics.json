@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`@BeforeTest` is only allowed in test sources",
+    "notes": [],
+    "origin": {
+      "cone": "7b1fd1d9328bdc06d858c2163b208bdc8de508039a84c34b9f0f12b391103549",
+      "end": 57,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 46
+    },
+    "severity": "error"
+  }
+]

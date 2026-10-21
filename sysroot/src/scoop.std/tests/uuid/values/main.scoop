@@ -1,0 +1,45 @@
+package scoop.std.tests.uuid.values
+
+import scoop.test.*
+import scoop.uuid.Uuid
+import scoop.collections.*
+
+fun check(ok: Boolean, location: SourceLocation = currentSourceLocation()) {
+    assertTrue(ok, location = location)
+}
+private fun exercise() {
+    val value = Uuid(0x0011223344556677uL, 0x8899aabbccddeeffuL)
+    check(value.toString() == "00112233-4455-6677-8899-aabbccddeeff")
+    check(value.toHexDashString() == value.toString())
+    check(value.toHexString() == "00112233445566778899aabbccddeeff")
+    val bytes = value.toByteArray()
+    var index = 0L
+    while (index < 16L) { check(bytes[index].toUByte().toLong() == index * 17L); index += 1L }
+    check(Uuid.fromByteArray(bytes) == value)
+    val source = MutableArray<Byte>(16L) { i -> (i * 17L).toByte() }
+    val snapshot = Uuid.fromByteArray(source)
+    source[0L] = 127
+    check(snapshot == value && snapshot.hash() == value.hash())
+    val longs = value.toLongs()
+    check(longs._1 == 0x0011223344556677L && longs._2.toULong() == 0x8899aabbccddeeffuL)
+    check(Uuid.fromLongs(longs._1, longs._2) == value)
+    check(Uuid.fromLongs(-1L, -1L) == Uuid.MAX && Uuid.fromLongs(0L, 0L) == Uuid.NIL)
+    check(Uuid.NIL.toString() == "00000000-0000-0000-0000-000000000000")
+    check(Uuid.MAX.toHexString() == "ffffffffffffffffffffffffffffffff")
+    check(Uuid(0uL, ULong.MAX_VALUE) < Uuid(1uL, 0uL))
+    check(Uuid(0uL, 0x7fffffffffffffffuL) < Uuid(0uL, 0x8000000000000000uL))
+    check(Uuid(0x7fffffffffffffffuL, ULong.MAX_VALUE) < Uuid(0x8000000000000000uL, 0uL))
+    val map = hashMapOf<Uuid, String>((value, "value"), (Uuid.NIL, "nil"), (Uuid.MAX, "max"))
+    check(map[Uuid.parse(value.toString())] == Some("value") && map.size == 3L)
+    val sorted = sortedSetOf<Uuid>(Uuid.MAX, value, Uuid.NIL, snapshot)
+    val iterator = sorted.iterator()
+    check(iterator.next() == Some(Uuid.NIL) && iterator.next() == Some(value))
+    check(iterator.next() == Some(Uuid.MAX) && iterator.next() == None)
+
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

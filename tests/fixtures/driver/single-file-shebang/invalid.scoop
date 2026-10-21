@@ -1,0 +1,2 @@
+#!scoop run
+fun main() { val = 1 }

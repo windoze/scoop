@@ -1,0 +1,4 @@
+package dev.example
+import dev.example.dependency.classes.FirstChoice
+import dev.example.dependency.classes.SecondChoice
+public class Ambiguous public constructor(): FirstChoice, SecondChoice

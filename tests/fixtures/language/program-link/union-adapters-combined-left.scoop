@@ -1,0 +1,7 @@
+package dev.programlink.sibling.left
+
+import dev.programlink.dependency.union.*
+
+public fun action(): (Payload) -> Any = first(guarded(Payload(20), true))
+public fun dynamic(): Any = first(guarded(Payload(20), false))
+public fun sameType(): Any = Marker<Int>(20)

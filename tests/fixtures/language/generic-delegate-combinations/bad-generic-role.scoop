@@ -1,0 +1,6 @@
+package dev.example
+import dev.example.templates.delegateCombinations.Receiver
+
+class Wrong<T>() {
+    operator fun <U> getValue(thisRef: Receiver<T>): Int = 42
+}

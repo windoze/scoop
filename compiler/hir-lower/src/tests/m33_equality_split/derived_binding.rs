@@ -4,7 +4,7 @@ use super::*;
 fn generic_derived_equality_retains_the_bound_field_target() {
     let output = lower_user_output(
         scoop_parser::parse(include_str!(
-            "../../../../../tests/fixtures/evaluation-order/derived-binding/program.scoop"
+            "../../../../../tests/fixtures/compiler-correctness/evaluation-order/derived-binding/program.scoop"
         ))
         .unwrap(),
     )

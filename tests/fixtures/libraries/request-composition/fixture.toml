@@ -1,0 +1,31 @@
+schema = 1
+name = "request-composition"
+inputs = ["consumer", "payload.txt", "verify.py"]
+tools = ["scoop", "scoopc", "python"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["http", "client", "multipart", "compression", "asyncio", "files", "prebuilt", "libraries"]
+variants = [{"name" = "release", "vars" = {"mode" = ["--release"]}}]
+[[steps]]
+name = "build"
+timeout = 900
+argv = ["${scoop}", "build", "${fixture}/consumer", {each = "${mode}"}, {each = "${link_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}", "${fixture}/payload.txt", "${work}/first.gz", "${work}/second.gz"]
+timeout = 300
+exit = 0
+stdout = "multipart and compression bodies share replayable streams across HTTP versions\n"
+stderr = ""
+
+[[steps]]
+name = "verify"
+argv = ["${python}", "${fixture}/verify.py", "${work}/first.gz", "${work}/second.gz", "${fixture}/payload.txt"]
+exit = 0
+stdout = "Python gzip zlib and MIME verify both generated bodies\n"
+stderr = ""

@@ -1,0 +1,40 @@
+package scoop.http.asyncio.tests.consumer.websocket_deflate
+
+import scoop.test.*
+import scoop.asyncio.*
+import scoop.collections.emptyList
+import scoop.crypto.*
+import scoop.crypto.x509.*
+import scoop.tests.scoop.crypto.testdata.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.tls.*
+import scoop.tls.asyncio.*
+
+suspend fun wsTransport(raw: AsyncTcpStream, profile: WsProfile, server: Boolean): HttpTransport {
+    if (!profile.secure) return HttpTransport.takeOwnershipWithPrefix(raw, emptyList<Byte>())
+    try {
+        val stream = if (server) serverContext().use suspend { context -> AsyncTlsStream.takeOwnershipAsServer(raw, context) }
+            else clientContext().use suspend { context -> AsyncTlsStream.takeOwnershipAsClient(raw, context, TlsPeerName.Dns("localhost")) }
+        try {
+            val alpn: List<Byte>? = when (stream.connectionInfo.alpn) {
+                case Some(value) -> Some(value)
+                case None -> None
+            }
+            check(selectHttpAlpn(alpn, [HttpProtocol.Http1]) == HttpProtocol.Http1)
+            return HttpTransport.takeOwnershipWithPrefix(stream, emptyList<Byte>())
+        } catch (error: Throwable) { stream.close(); throw error }
+    } catch (error: Throwable) { raw.close(); throw error }
+}
+
+private fun clientContext(): TlsClientContext = Certificate.fromPem(rootPem()).use { root ->
+    TrustStore.fromCertificates([root]).use { store -> TlsClientContext(store, TlsOptions(alpn = ["http/1.1".toByteArray()])) }
+}
+
+private fun serverContext(): TlsServerContext = Certificate.fromPem(serverPem()).use { leaf ->
+    Certificate.fromPem(intermediatePem()).use { intermediate ->
+        PrivateKey.fromPem(serverKeyPem()).use { key ->
+            TlsServerContext([leaf, intermediate], key, TlsOptions(alpn = ["http/1.1".toByteArray()]))
+        }
+    }
+}

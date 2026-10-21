@@ -1,0 +1,2 @@
+package dev.m43
+class Value { private fun hidden(): Int = 42 }

@@ -1,9 +1,0 @@
-package bridge
-public import provider.*
-public class Via<T> public constructor(delegate: Source<T>) : Source<T> by delegate
-public class FromBase<T> public constructor(delegate: Source<T>) : Base<T>(), Source<T> by delegate
-public class Child<T> public constructor(delegate: Source<T>) : Wrapped<T>(delegate) {
-    public override fun echo(value: T): T = get()
-}
-public object Shared : Number by Default
-public class Mixed public constructor(delegate: Number) : GetterBase(), Number by delegate

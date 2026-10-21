@@ -1,0 +1,44 @@
+package scoop.json.tests.values.values
+
+import scoop.test.*
+import scoop.json.*
+
+struct Data(val id: Long, val text: String? = None) {
+    companion object : ValueEncoder<Data>, ValueDecoder<Data> {}
+}
+struct Envelope(val data: JsonValue, val extra: JsonValue?) {
+    companion object : ValueEncoder<Envelope>, ValueDecoder<Envelope> {}
+}
+class Saved(var encoder: Encoder?)
+
+private fun exercise() {
+    val data = Data(7L, Some("中文🙂"))
+    val saved = Json.encodeToValue(data, Data.Companion)
+    check(Json.decodeFromValue(saved, Data.Companion) == data)
+    val record = Envelope(saved, None)
+    val text = Json.encodeToString(record, Envelope.Companion)
+    check(text == "{\"data\":{\"id\":7,\"text\":\"中文🙂\"}}")
+    val copy = Json.decodeFromString(text, Envelope.Companion)
+    check(Json.decodeFromValue(copy.data, Data.Companion) == data && when (copy.extra) { case None -> true; else -> false })
+    val input = " { \"empty\":{}, \"array\":[null,true,false,[],{\"text\":\"\\u0061\\n\\\"\\\\\"}], \"json\":\"{\\\"x\\\":1}\" } "
+    val canonical = "{\"empty\":{},\"array\":[null,true,false,[],{\"text\":\"a\\n\\\"\\\\\"}],\"json\":\"{\\\"x\\\":1}\"}"
+    check(Json.encodeToString(Json.decodeFromString(input, JsonValue.Companion), JsonValue.Companion) == canonical)
+    val holder = Saved(None)
+    val writer = ValueEncoderFunction<Long>({ value, encoder ->
+        holder.encoder = Some(encoder)
+        Long.encode(value, encoder.keyed().field("id"))
+        encoder.keyed().end()
+    })
+    val immutable = Json.encodeToValue(8L, writer)
+    gcCollect()
+    rejectEncode("") { holder.encoder!!.keyed().field("late") }
+    check(Json.decodeFromValue(immutable, Data.Companion).id == 8L)
+    rejectDecode("/id") { Json.decodeFromValue(Json.decodeFromString("{\"id\":false}", JsonValue.Companion), Data.Companion) }
+
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

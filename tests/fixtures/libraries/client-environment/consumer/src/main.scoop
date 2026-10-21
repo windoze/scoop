@@ -1,0 +1,40 @@
+package scoop.tests
+import scoop.asyncio.*
+import scoop.tests.scoop.crypto.testdata.rootPem
+import scoop.crypto.x509.TrustStore
+import scoop.http.client.*
+import scoop.test.*
+import scoop.text.*
+import scoop.tls.TlsTrustSource
+import scoop.url.Url
+
+fun main(args: Array<String>) {
+    val mode = args[1L]
+    if (mode == "invalid-utf8") {
+        val error = assertFailsWith<CharacterCodingException> { HttpProxySelector.fromEnvironment() }
+        assertEquals(0L, error.byteOffset)
+    } else {
+        TrustStore.fromPem(rootPem()).use { trust ->
+            val tls = HttpClientTlsConfig(TlsTrustSource.Store(trust))
+            val selector = if (mode == "default") HttpClientConfig().proxy else HttpProxySelector.fromEnvironment(tls = tls)
+            val rewriting = mode.startsWith("redirect-override-")
+            val options = if (mode == "override" || rewriting) HttpCallOptions(proxy = Some(HttpProxySelector.direct())) else HttpCallOptions()
+            val config = HttpClientConfig(tls = tls, proxy = selector, retries = HttpRetryOptions(maxRetries = 0L),
+                timeouts = HttpTimeoutOptions(resolve = None, connect = None, tlsHandshake = None, proxyHandshake = None))
+            LibuvEventLoop().run suspend { _ ->
+                withHttpClient(config) suspend { client ->
+                    val request = if (rewriting) HttpRequest.post(Url.parse(args[2L]), RequestBody.Empty, options = options)
+                        else HttpRequest.get(Url.parse(args[2L]), options = options)
+                    client.withResponse(request) suspend { response ->
+                        assertEquals(200U, response.status)
+                        assertEquals("environment", response.body.text(32L))
+                        assertEquals(0L, response.authenticationCount)
+                        assertEquals(0L, response.proxyAuthenticationCount)
+                        assertEquals(if (mode == "redirect" || rewriting) 1L else 0L, response.redirectHistory.size)
+                    }
+                }
+            }
+        }
+    }
+    println("environment proxy " + mode)
+}

@@ -1,0 +1,9 @@
+package dev.example
+import test.named
+import test.shifted
+
+fun main() {
+    if (named != 12 || shifted != 12) {
+        throw IllegalStateException()
+    }
+}

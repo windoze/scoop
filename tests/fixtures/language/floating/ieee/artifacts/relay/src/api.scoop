@@ -1,0 +1,10 @@
+package dev.m41.relayed
+import dev.m41.numeric.*
+import dev.m41.numeric.ieee as providerIeee
+public import dev.m41.numeric.bitValues
+public import dev.m41.numeric.bitPatterns
+public typealias Pair = dev.m41.numeric.Pair
+public typealias Sample = dev.m41.numeric.Sample
+public fun <T> compare(a: T, b: T): Boolean where T : Equals<T>, T : Compare<T> = consistent(a, b)
+public fun ieee(a: Float, b: Float): IeeeComparison = providerIeee(a, b)
+public fun constants(): Boolean = sameNaN && nanOrder == 1L

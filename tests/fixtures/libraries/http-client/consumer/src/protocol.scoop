@@ -1,0 +1,67 @@
+package fixture
+import scoop.asyncio.*
+import scoop.crypto.PrivateKey
+import fixture.scoop.crypto.testdata.*
+import scoop.crypto.x509.Certificate
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.tls.*
+import scoop.tls.asyncio.AsyncTlsStream
+
+private fun serverContext(): TlsServerContext = Certificate.fromPem(serverPem()).use { leaf ->
+    Certificate.fromPem(intermediatePem()).use { intermediate ->
+        PrivateKey.fromPem(serverKeyPem()).use { key ->
+            TlsServerContext([leaf, intermediate], key, TlsOptions(alpn = ["h2".toByteArray(), "http/1.1".toByteArray()]))
+        }
+    }
+}
+
+private suspend fun writeClientReply(destination: AsyncByteSink) {
+    val bytes = "accepted 中文".toByteArray()
+    NativeByteBuffer.allocate(bytes.size).use suspend { buffer -> buffer.writeBytes(bytes); destination.writeFully(buffer) }
+}
+
+suspend fun serveClientConsumer(listener: AsyncTcpListener, scope: CoroutineScope, version: HttpVersion, secure: Boolean, done: ClientGate) {
+    val raw = listener.accept()
+    if (secure) {
+        serverContext().use suspend { context ->
+            val tls = AsyncTlsStream.takeOwnershipAsServer(raw, context)
+            check(String.fromUtf8(tls.connectionInfo.alpn!!) == "h2")
+            serveClientTransport(tls, scope, version, done)
+        }
+    } else serveClientTransport(raw, scope, version, done)
+}
+
+private suspend fun <T> serveClientTransport(transport: T, scope: CoroutineScope, version: HttpVersion, done: ClientGate)
+    where T : AsyncByteStream, T : AsyncCloseable {
+    val responseFields = [HttpField("Trailer".toByteArray(), "X-Final".toByteArray())]
+    val trailers = [HttpField("X-Final".toByteArray(), "complete".toByteArray())]
+    if (version == HttpVersion.Http11) {
+        AsyncHttp1Connection.takeOwnershipAsServer(transport, scope).useAsync suspend { connection ->
+            val incoming = connection.receiveRequest()!!
+            check(String.fromUtf8(incoming.head.method) == "POST")
+            check(when (incoming.head.target) { case Http1(bytes) -> String.fromUtf8(bytes) == "/send?q=one&q=two"; else -> false })
+            connection.sendResponse(HttpResponseHead(HttpVersion.Http11, 103U)).finish()
+            check(String.fromUtf8(incoming.body.readAllBytes(100L)) == "file body 中文\n")
+            connection.sendResponse(HttpResponseHead(HttpVersion.Http11, 201U, fields = responseFields), Http1BodyFraming.Chunked).useAsync suspend { output ->
+                writeClientReply(output)
+                output.finish(trailers)
+            }
+            done.await()
+        }
+    } else {
+        AsyncHttp2Connection.takeOwnershipAsServer(transport, scope,
+            settings = Http2Settings(initialWindowSize = 7U)).useAsync suspend { connection ->
+            val incoming = connection.acceptRequest()!!
+            check(String.fromUtf8(incoming.head.method) == "POST")
+            check(when (incoming.head.target) { case Http2(scheme, _, path) -> String.fromUtf8(scheme) == "https" && String.fromUtf8(path) == "/send?q=one&q=two"; else -> false })
+            incoming.stream.sendResponse(HttpResponseHead(HttpVersion.Http2, 103U), false)
+            check(String.fromUtf8(incoming.stream.readAllBytes(100L)) == "file body 中文\n")
+            incoming.stream.sendResponse(HttpResponseHead(HttpVersion.Http2, 201U, fields = responseFields), false)
+            writeClientReply(incoming.stream)
+            incoming.stream.finish(trailers)
+            done.await()
+        }
+    }
+}

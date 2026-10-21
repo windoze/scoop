@@ -1,1 +1,0 @@
-fun main() { val value: List<Char> = "text" }

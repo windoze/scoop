@@ -1,0 +1,7 @@
+package dev.m41.relayed
+import dev.m41.counters.*
+public import dev.m41.counters.Counter
+
+public fun <T : Increment<T>> twice(value: T): T = next(next(value))
+public fun <T : Mul<T, T>> square(value: T): T = product(value, value)
+public fun <T : Compare<T>> less(left: T, right: T): Boolean = left < right

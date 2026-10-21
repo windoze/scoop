@@ -1,0 +1,6 @@
+package dev.example
+import dev.example.templates.members.Chooser
+
+class Invalid: Chooser<Int> {
+    public override fun choose(value: String): String = value
+}

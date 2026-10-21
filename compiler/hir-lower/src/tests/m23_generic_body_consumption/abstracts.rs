@@ -91,7 +91,7 @@ fn dependency_abstract_slots_compose_with_generic_overrides_and_references() {
 fn fixture(name: &str) -> String {
     std::fs::read_to_string(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tests/fixtures/m23-shared-abstract")
+            .join("../../tests/fixtures/language/shared-abstract")
             .join(format!("{name}.scoop")),
     )
     .unwrap()

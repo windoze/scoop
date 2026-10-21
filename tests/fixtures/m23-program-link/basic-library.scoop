@@ -1,7 +1,0 @@
-package programlink.library
-
-public fun answer(): Int = 40
-
-public fun main() {
-    println(99)
-}

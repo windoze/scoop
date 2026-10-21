@@ -1,0 +1,7 @@
+package dev.example
+import dev.example.templates.references.*
+
+public fun rejected(): Int {
+    val reference: () -> String = ::answer
+    return 0
+}

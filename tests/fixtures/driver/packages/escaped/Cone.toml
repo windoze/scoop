@@ -1,0 +1,6 @@
+schema = 1
+[cone]
+group = "dev.my-team"
+name = "escaped"
+version = "0.1.0"
+kind = "executable"

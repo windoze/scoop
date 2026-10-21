@@ -1,0 +1,7 @@
+package dev.example
+import dev.example.templates.members.*
+
+public class Sibling<T> public constructor(value: T): ProtectedBox<T>(value)
+public class Derived<T> public constructor(value: T): ProtectedBox<T>(value) {
+    public fun invalid(peer: Sibling<T>): T = peer.secret()
+}

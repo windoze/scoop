@@ -1,6 +1,0 @@
-@Extern(lib = "m50_cxx", name = "native_answer")
-fun answer(value: Int): Int
-
-fun main() {
-    @Unsafe { println(answer(21)) }
-}

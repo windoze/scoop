@@ -25,9 +25,18 @@ pub(super) struct DependencyFunctionFixture {
 
 impl DependencyFunctionFixture {
     pub(super) fn new(provider: &str, name: &str, result: SignatureTypeKey) -> Self {
+        Self::in_package(provider, name, result, &["dependency", "api"])
+    }
+
+    pub(super) fn in_package(
+        provider: &str,
+        name: &str,
+        result: SignatureTypeKey,
+        package: &[&str],
+    ) -> Self {
         let coordinate = ConeCoordinate::new("test", provider, "1.0.0").unwrap();
         let origin = coordinate.identity().unwrap();
-        let package = package_path(&["dependency", "api"]);
+        let package = package_path(package);
         let key = SourceDeclarationKey::function(
             SourceDeclarationSite::new(
                 origin,

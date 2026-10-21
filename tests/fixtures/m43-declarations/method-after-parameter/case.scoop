@@ -1,5 +1,0 @@
-import scoop.test.*
-
-@Test class Cases {
-    @AfterTest fun cleanup(value: Int) {}
-}

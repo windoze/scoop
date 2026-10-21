@@ -1,0 +1,4 @@
+package dev.example
+import Ptr as Make
+import dev.example.dependency.construction.shifted as Make
+public fun result(): Int { @Unsafe { val pointer = Make<Int>(1uL) }; return 42 }

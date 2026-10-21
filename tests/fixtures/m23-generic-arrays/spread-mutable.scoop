@@ -1,2 +1,0 @@
-import upstream.arrays.pack
-public fun result(values: MutableArray<Int>): Array<Int> = pack<Int>(*values)

@@ -1,0 +1,5 @@
+package test
+import dev.example.*
+fun main() {
+    if (result() != "next value") { throw IllegalStateException() }
+}

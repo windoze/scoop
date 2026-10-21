@@ -432,11 +432,13 @@ dependencies = [
  "fs4",
  "pulldown-cmark",
  "rustix",
+ "scoop-ast",
  "scoop-doc",
  "scoop-identity",
  "scoop-linker",
  "scoop-lir",
  "scoop-manifest",
+ "scoop-parser",
  "scoop-process",
  "scoop-protocol",
  "scoop-slib",
@@ -536,6 +538,15 @@ dependencies = [
  "la-arena",
  "scoop-identity",
  "scoop-wire",
+]
+
+[[package]]
+name = "scoop-parser"
+version = "0.0.0"
+dependencies = [
+ "scoop-ast",
+ "scoop-identity",
+ "unicode-ident",
 ]
 
 [[package]]

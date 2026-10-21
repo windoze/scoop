@@ -1,0 +1,47 @@
+package scoop.std.tests.algorithms.join
+
+import scoop.test.*
+import scoop.collections.*
+
+class State { var reads: Long = 0L; var transforms: Long = 0L; var opened: Long = 0L }
+class Source(private val state: State) : Iterable<Int>, Iterator<Int> {
+    public override operator fun iterator(): Iterator<Int> { state.opened += 1L; return this }
+    public override fun next(): Int? {
+        state.reads += 1L
+        if (state.reads > 3L) throw Exception(Some("excess join read"))
+        return Some(state.reads.toInt())
+    }
+}
+class Value(val text: String)
+fun check(value: Boolean, label: String, location: SourceLocation = currentSourceLocation()) {
+    assertTrue(value, Some(label), location = location)
+}
+
+private fun exercise() {
+    check(listOf<Int>(1, 2, 3).joinToString() == "1, 2, 3", "default join")
+    check(emptyList<Int>().joinToString(prefix = "[", postfix = "]") == "[]", "empty join")
+    val state = State()
+    val result = Source(state).joinToString<Int>("|", "[", "]", 2L, "more") { value ->
+        state.transforms += 1L
+        value.toString()
+    }
+    check(result == "[1|2|more]" && state.reads == 3L && state.transforms == 2L && state.opened == 1L, "limited join")
+    check(listOf<Int>(1, 2).joinToString(limit = 2L) == "1, 2", "exact limit")
+    check(listOf<Int>(1).joinToString(limit = 0L) == "...", "zero limit")
+    check(listOf<Value>(Value("λ"), Value("雪")).joinToString<Value>(separator = "/") { value -> value.text } == "λ/雪", "explicit transform")
+    val untouched = State()
+    var caught = false
+    try { Source(untouched).joinToString(limit = -2L) } catch (error: IllegalArgumentException) { caught = true }
+    check(caught && untouched.opened == 0L, "invalid limit before input")
+    caught = false
+    try { listOf<Int>(1).joinToString<Int> { _ -> throw Exception(Some("transform")) } }
+    catch (error: Exception) { caught = true }
+    check(caught, "callback propagation")
+
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

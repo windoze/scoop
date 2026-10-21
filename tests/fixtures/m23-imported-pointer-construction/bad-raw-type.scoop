@@ -1,1 +1,0 @@
-public fun result(): Int { @Unsafe { val raw: UInt = 1u; val pointer = Ptr<Int>(raw) }; return 42 }

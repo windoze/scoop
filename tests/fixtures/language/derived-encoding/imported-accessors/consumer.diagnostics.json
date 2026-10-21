@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "stored property `value` has a custom accessor or delegate; provide an explicit encode implementation or mark it Serialize(ignore = true)",
+    "notes": [],
+    "origin": {
+      "cone": "6b5ad4a123bf57882ae35ee6ccd12133eb6d66c4a02c022eb149afa16625dd5b",
+      "end": 121,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 80
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "stored property `value` has a custom accessor or delegate; provide an explicit encode implementation or mark it Serialize(ignore = true)",
+    "notes": [],
+    "origin": {
+      "cone": "6b5ad4a123bf57882ae35ee6ccd12133eb6d66c4a02c022eb149afa16625dd5b",
+      "end": 163,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 122
+    },
+    "severity": "error"
+  }
+]

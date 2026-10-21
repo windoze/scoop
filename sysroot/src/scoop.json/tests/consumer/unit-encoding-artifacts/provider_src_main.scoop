@@ -1,0 +1,18 @@
+package scoop.json.tests.consumer.unit_encoding_artifacts.p2
+
+import scoop.test.*
+
+public struct Box<T>(val value: T) {
+    public companion object {
+        public fun encoder(element: ValueEncoder<T>): ValueEncoder<Box<T>> = BoxEncoder<T>(element)
+    }
+}
+private class BoxEncoder<T>(private val element: ValueEncoder<T>) : ValueEncoder<Box<T>>
+public fun unitFromProvider(): Any = Unit
+public fun <T> erase(value: T): Any = value
+public fun <T> expose(codec: ValueEncoder<T>): ValueEncoder<T> = codec
+public fun <T> makeBox(value: T): Box<T> = Box<T>(value)
+public fun unitEncoder(): (Unit, Encoder) -> Unit {
+    val codec = UnitEncoder
+    return codec::encode
+}

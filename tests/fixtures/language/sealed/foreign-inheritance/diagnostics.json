@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "a direct subtype of sealed `State` must be a named non-local declaration in the same origin Cone and package",
+    "notes": [],
+    "origin": {
+      "cone": "b628d73c0e833be22c75a45a8187c7469fbe81d50dddc220c4d6b5eac2d2458e",
+      "end": 70,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 65
+    },
+    "severity": "error"
+  }
+]

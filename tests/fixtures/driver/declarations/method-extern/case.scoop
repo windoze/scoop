@@ -1,0 +1,6 @@
+package dev.m43
+import scoop.test.*
+
+@Test class Cases {
+    @Test @Extern(name = "external_test", abi = "c") fun check()
+}

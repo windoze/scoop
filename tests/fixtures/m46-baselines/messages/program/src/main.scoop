@@ -1,4 +1,0 @@
-fun main(args: Array<String>) {
-    messagesBaseline(args.size != 0L)
-    println("messages-ok")
-}

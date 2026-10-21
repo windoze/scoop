@@ -1,0 +1,127 @@
+schema = 1
+name = "native-link-contract-effect"
+inputs = ["cone", "../../../language/native-link/contracts/root.scoop", "../../../language/native-link/contracts/scoop.scoop", "../../../language/native-link/contracts/nogc.scoop", "left", "right", "also-left", "native-sources/compile_m23_contract.c"]
+tools = ["scoop", "scoopc", "cc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["native-link", "program-link", "compiler-correctness"]
+[[steps]]
+name = "prepare"
+files = [{"copy" = {"from" = "${fixture}/cone", "to" = "${work}/sources/contracts"}}, {"copy" = {"from" = "${fixture}/../../../language/native-link/contracts/root.scoop", "to" = "${work}/sources/contracts/src/main.scoop"}}, {"mkdir" = {"path" = "${work}/native"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "left_body"
+await_file = "${fixture}/../../../language/native-link/contracts/scoop.scoop"
+
+[[steps]]
+name = "right_body"
+await_file = "${fixture}/../../../language/native-link/contracts/nogc.scoop"
+
+[[steps]]
+name = "prepare_left"
+files = [{"copy" = {"from" = "${fixture}/left", "to" = "${work}/sources/left"}}, {"write" = {"path" = "${work}/sources/left/src/main.scoop", "data" = "package dev.programlink.nativelink.contracts.left\n\n${left_body.bytes}"}}]
+checks = []
+
+[[steps]]
+name = "prepare_right"
+files = [{"copy" = {"from" = "${fixture}/right", "to" = "${work}/sources/right"}}, {"write" = {"path" = "${work}/sources/right/src/main.scoop", "data" = "package dev.programlink.nativelink.contracts.right\n\n${left_body.bytes}"}}]
+checks = []
+
+[[steps]]
+name = "prepare_also-left"
+files = [{"copy" = {"from" = "${fixture}/also-left", "to" = "${work}/sources/also-left"}}, {"write" = {"path" = "${work}/sources/also-left/src/main.scoop", "data" = "package dev.programlink.nativelink.contracts.alsoleft\n\n${left_body.bytes}"}}]
+checks = []
+
+[[steps]]
+name = "declare_dependencies"
+files = [{"copy" = {"from" = "${fixture}/cone/Cone.toml", "to" = "${work}/sources/contracts/Cone.toml"}}]
+checks = []
+
+[[steps]]
+name = "prepare_compile_m23_contract"
+files = [{"copy" = {"from" = "${fixture}/native-sources/compile_m23_contract.c", "to" = "${work}/sources/native/m23_contract.c"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "compile_m23_contract"
+argv = ["${cc}", {each = "${cc_args}"}, "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/m23_contract.c", "-o", "${work}/objects/m23_contract.o"]
+exit = 0
+stdout = ""
+stderr = ""
+[[steps]]
+name = "install_m23_contract"
+files = [{"copy" = {"from" = "${work}/objects/m23_contract.o", "to" = "${work}/native/m23_contract.o"}}]
+checks = []
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", {"each" = "${link_args}"}, "${work}/sources/contracts", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "dependency_names"
+checks = [{"actual" = "${build.result.dependencies.1.coordinate.name}", "equals" = "also-left"}, {"actual" = "${build.result.dependencies.2.coordinate.name}", "equals" = "left"}, {"actual" = "${build.result.dependencies.3.coordinate.name}", "equals" = "right"}]
+
+[[steps]]
+name = "control"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "conflicting_declaration"
+files = [{"write" = {"path" = "${work}/sources/right/src/main.scoop", "data" = "package dev.programlink.nativelink.contracts.right\n\n${right_body.bytes}"}}]
+checks = []
+
+[[steps]]
+name = "rebuild_right"
+argv = ["${scoop}", "build", {each = "${link_args}"}, "${work}/sources/right", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/right-target", "--message-format", "json", "-o", "${work}/right.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "recompile"
+argv = ["${scoopc}", "build", "${work}/sources/contracts", {each = "${compile_args}"}, "--sysroot", "${sysroot}", "--direct-slib", "${build.result.dependencies.0.path}", "--direct-slib", "${build.result.dependencies.1.path}", "--direct-slib", "${build.result.dependencies.2.path}", "--direct-slib", "${rebuild_right.result.output}", "--out-slib", "${work}/replacement.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "prepare_link_inputs_isolate"
+files = [
+  {"copy" = {"from" = "${work}/replacement.slib", "to" = "${work}/artifacts/root.slib"}},
+  {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/0.slib"}},
+  {"copy" = {"from" = "${build.result.dependencies.1.path}", "to" = "${work}/artifacts/1.slib"}},
+  {"copy" = {"from" = "${build.result.dependencies.2.path}", "to" = "${work}/artifacts/2.slib"}},
+  {"copy" = {"from" = "${build.result.dependencies.3.path}", "to" = "${work}/artifacts/3.slib"}},
+]
+checks = []
+
+[[steps]]
+name = "updated_dependency"
+files = [{"remove" = {"path" = "${work}/artifacts/3.slib"}}, {"copy" = {"from" = "${rebuild_right.result.output}", "to" = "${work}/artifacts/3.slib"}}]
+checks = []
+
+[[steps]]
+name = "previous_reject_conflict"
+files = [{"write" = {"path" = "${work}/program", "data" = "previous executable"}}]
+checks = []
+
+[[steps]]
+name = "reject_conflict"
+argv = ["${scoop}", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--dependency-slib", "${work}/artifacts/1.slib", "--dependency-slib", "${work}/artifacts/2.slib", "--dependency-slib", "${work}/artifacts/3.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${sysroot}", {"each" = "${link_args}"}, "--message-format", "json", "-o", "${work}/program", "--cache-dir", "${cache}"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "reject_conflict.json"}
+checks = [{"file" = "${work}/program", "equals" = "previous executable"}]

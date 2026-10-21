@@ -1,5 +1,0 @@
-import dependency.classes.*
-
-public fun invalid(value: RestrictedValues) {
-    value.privateValue = 21
-}

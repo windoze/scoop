@@ -5,13 +5,13 @@ mod positions;
 
 const STANDALONE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../tests/fixtures/m23-generic-initialization/standalone.scoop"
+    "/../../tests/fixtures/language/generic-initialization/standalone.scoop"
 ));
 
 #[test]
 fn generic_initializations_preserve_source_execution_and_roundtrip_shared_nodes() {
     let fixtures = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/m23-generic-initialization");
+        .join("../../tests/fixtures/language/generic-initialization");
     for case in ["standalone", "combined"] {
         let source = std::fs::read_to_string(fixtures.join(format!("{case}.scoop"))).unwrap();
         with_hir_source(&source, |output, core| {

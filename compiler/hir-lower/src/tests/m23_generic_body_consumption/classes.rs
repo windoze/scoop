@@ -3,7 +3,7 @@ use super::*;
 fn fixture(name: &str) -> String {
     std::fs::read_to_string(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tests/fixtures/m23-shared-classes")
+            .join("../../tests/fixtures/language/shared-classes")
             .join(format!("{name}.scoop")),
     )
     .unwrap()
@@ -88,7 +88,7 @@ fn source_and_dependency_class_instances_share_fields_bases_and_interfaces() {
 #[test]
 fn class_definitions_keep_recursive_fields_in_their_original_binder_domain() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/m23-shared-class-definitions");
+        .join("../../tests/fixtures/language/shared-class-definitions");
     let provider = std::fs::read_to_string(root.join("provider.scoop")).unwrap();
     for case in ["standalone", "combined"] {
         let source = std::fs::read_to_string(root.join(format!("{case}.scoop"))).unwrap();

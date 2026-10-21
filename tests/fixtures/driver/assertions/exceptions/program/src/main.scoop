@@ -1,0 +1,40 @@
+package dev.m43
+import scoop.test.*
+
+class Token
+open class ParentFailure(val code: Int, val token: Token) : Throwable()
+class ChildFailure(code: Int, token: Token) : ParentFailure(code, token)
+class Calls { var count: Int = 0; var cleaned: Int = 0 }
+
+fun verify(condition: Boolean) {
+    if (!condition) throw Exception(Some("exception assertion contract"))
+}
+
+fun main() {
+    val calls = Calls()
+    val token = Token()
+    val original = ChildFailure(42, token)
+    val caught = assertFailsWith<ParentFailure> {
+        try { calls.count += 1; throw original }
+        finally { calls.cleaned += 1 }
+    }
+    verify(caught is ChildFailure && caught.code == 42 && caught.token === token)
+    verify(calls.count == 1 && calls.cleaned == 1)
+    val missing = assertFailsWith<AssertionFailure> {
+        assertFailsWith<Throwable> { calls.count += 1 }
+    }
+    verify(missing.kind == "assertFailsWith")
+    verify(when (missing.cause) { case None -> true; else -> false })
+    val mismatch = assertFailsWith<AssertionFailure> {
+        assertFailsWith<IllegalStateException>(Some("wrong type")) { throw original }
+    }
+    verify(mismatch.message == Some("wrong type"))
+    verify(when (mismatch.cause) {
+        case Some(error) -> error is ParentFailure && error.code == 42 && error.token === token
+        case None -> false
+    })
+    val supplied = AssertionFailure("supplied", None, currentSourceLocation())
+    verify(assertFailsWith<AssertionFailure> { throw supplied }.kind == "supplied")
+    verify(calls.count == 2)
+    println("exception assertions passed")
+}

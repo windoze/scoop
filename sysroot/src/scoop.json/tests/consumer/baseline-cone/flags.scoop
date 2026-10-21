@@ -1,0 +1,42 @@
+package scoop.json.tests.consumer.baseline_cone
+
+import scoop.test.*
+import scoop.text.*
+
+fun checkFlags(values: Array<String>, decoder: Decoder) {
+    val sequence = decoder.unkeyed()
+    var index = 0L
+    while (index < values.size) {
+        val flag = values[index]
+        val child = sequence.element()
+        requireValid(flag.length > 1L && flag.startsWith('-'), child, "expected a compiler option")
+        for (character in flag) { requireValid(character != '\u0000', child, "invalid option") }
+        requireValid(!managedFlag(flag), child, "driver-managed option")
+        var include: String? = None
+        for (prefix in ["-I", "-iquote", "-isystem", "-idirafter", "-include", "-imacros"]) {
+            if (flag.startsWith(prefix)) { include = Some(prefix) }
+        }
+        if (include != None) {
+            var path = flag.substring(include!!.length)
+            if (path == "") {
+                index += 1L
+                requireValid(index < values.size, child, "missing include path")
+                path = values[index]
+                requireValid(relativePath(path), sequence.element(), "invalid include path")
+            } else { requireValid(relativePath(path), child, "invalid include path") }
+        } else if (flag == "-D" || flag == "-U") {
+            index += 1L
+            requireValid(index < values.size, child, "missing macro value")
+            requireValid(values[index].length != 0L, sequence.element(), "empty macro value")
+        }
+        index += 1L
+    }
+    sequence.end()
+}
+fun managedFlag(value: String): Boolean {
+    if (member(["-c", "-S", "-E", "-fsyntax-only", "-include-pch", "-include-pth", "-emit-llvm", "-Xclang", "-Xpreprocessor", "-Xassembler", "-shared", "-static", "-r", "-arch", "-m32", "-m64", "-mx32", "-M", "-MM", "-MD", "-MMD", "-MP", "-MG"], value)) { return true }
+    for (prefix in ["-o", "--output", "-x", "-target", "--target", "-isysroot", "--sysroot", "-MF", "-MT", "-MQ", "-MJ", "-B", "-fplugin", "-specs", "--specs", "-wrapper", "-Wl,", "-Xlinker", "-l", "-L", "-stdlib", "--gcc-toolchain", "-gcc-toolchain", "-resource-dir", "-fuse-ld", "-flto", "-fmodule", "-fpch", "-fpreprocessed", "-fdirectives-only", "-frewrite-includes", "-save-temps", "-ftime-trace", "-serialize-diagnostics", "-fprofile", "-Wp,", "-Wa,"]) {
+        if (value.startsWith(prefix)) { return true }
+    }
+    return false
+}

@@ -1,5 +1,0 @@
-import scoop.collections.listOf
-
-fun main() {
-    val values: List<Any> = listOf<Int>(1)
-}

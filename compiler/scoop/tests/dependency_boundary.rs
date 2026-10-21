@@ -39,12 +39,13 @@ struct DependencyKind {
 }
 
 #[test]
-fn orchestration_cannot_reach_compiler_implementation_crates() {
+fn orchestration_cannot_reach_lowering_or_codegen_implementation_crates() {
     let metadata = workspace_metadata();
     let reachable = normal_dependency_names(&metadata, "scoop");
+    // The CLI binary uses the parser only to validate synthetic package headers
+    // for `new`; source compilation still belongs to the paired compiler.
     let forbidden = HashSet::from([
         "scoopc",
-        "scoop-parser",
         "scoop-hir-lower",
         "scoop-mir-lower",
         "scoop-lir-lower",

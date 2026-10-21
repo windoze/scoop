@@ -17,7 +17,7 @@ fn fixture(name: &str) -> String {
 
 fn fixture_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/m23-dependency-call-occurrences")
+        .join("../../tests/fixtures/language/dependency-call-occurrences")
 }
 
 #[test]

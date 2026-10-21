@@ -1,0 +1,3 @@
+package dev.m43
+import scoop.test.Test
+fun answer(): Int = 42

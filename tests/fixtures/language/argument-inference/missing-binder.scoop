@@ -1,0 +1,3 @@
+package dev.example
+import dev.example.dependency.inference.unused
+public fun result(): Int { val value = unused([], 42); return 42 }

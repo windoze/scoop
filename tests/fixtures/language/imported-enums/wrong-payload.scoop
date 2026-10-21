@@ -1,0 +1,6 @@
+package dev.example.consumer.enums
+
+import dev.example.dependency.enums.Choice
+import dev.example.dependency.enums.sum
+
+@NoGC public fun rejected(value: (Long, Long)): Long = sum(value)

@@ -1,0 +1,24 @@
+schema = 1
+name = "shared-shapes-m10-pending-transfer-chain"
+inputs = ["../coroutines/pending-transfer-chain.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["shared-shapes", "language"]
+variants = [{"name" = "release"}]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${fixture}/../coroutines/pending-transfer-chain.scoop", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "return-inner-suspended\nreturn-inner-caught\nreturn-inner-error\nreturn-outer-suspended\nreturn-done\nreturn-node\nthrow-inner-suspended\nthrow-inner-caught\nthrow-inner-error\nthrow-outer-suspended\nouter-caught\nouter-payload\nthrow-done\nouter-payload\n"
+stderr = ""

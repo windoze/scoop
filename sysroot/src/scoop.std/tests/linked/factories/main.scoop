@@ -1,0 +1,56 @@
+package scoop.std.tests.linked.factories
+
+import scoop.test.*
+import scoop.collections.*
+
+fun check(value: Boolean, label: String, location: SourceLocation = currentSourceLocation()) {
+    assertTrue(value, Some(label), location = location)
+}
+
+fun sequence(values: Iterable<Int>, expected: List<Int>): Boolean {
+    var index = 0L
+    for (value in values) {
+        if (index >= expected.size || value != expected[index]) return false
+        index += 1L
+    }
+    return index == expected.size
+}
+
+private fun exercise() {
+    val empty: Set<Int> = emptySet()
+    val emptyMapping: Map<Int, String> = emptyMap()
+    check(empty.isEmpty() && emptyMapping.isEmpty(), "inferred empty factories")
+    val set = setOf<Int>(3, 1, 3, 2)
+    check(sequence(set, listOf<Int>(3, 1, 2)) && !(set is MutableSet<Int>), "set snapshot")
+    val mutable = mutableSetOf<Int>(4, 5)
+    val copied = mutable.toSet()
+    mutable.remove(4)
+    check(sequence(copied, listOf<Int>(4, 5)) && !(copied is MutableSet<Int>), "independent set")
+    val mutableCopy = copied.toMutableSet()
+    mutableCopy.add(6)
+    check(copied.size == 2L && mutableCopy.size == 3L, "mutable set copy")
+    val entries = listOf<(Int, String)>((3, "first"), (1, "middle"), (3, "last"))
+    val map = entries.toMap()
+    check(sequence(map.keys, listOf<Int>(3, 1)) && map[3] == Some("last"), "tuple conversion")
+    check(!(map is MutableMap<Int, String>), "map snapshot")
+    val mutableMap = map.toMutableMap()
+    val snapshot = mutableMap.toMap()
+    mutableMap[3] = "changed"
+    mutableMap[2] = "added"
+    check(snapshot[3] == Some("last") && snapshot.size == 2L, "independent map")
+    val factory = mapOf<Int, String>((2, "a"), (1, "b"), (2, "c"))
+    check(factory[2] == Some("c") && sequence(factory.keys, listOf<Int>(2, 1)), "map factory")
+    val fromTuples = entries.toMutableMap()
+    fromTuples[9] = "new"
+    check(fromTuples.size == 3L && entries.size == 3L, "mutable tuple conversion")
+    check(sequence(listOf<Int>(3, 1, 3, 2) union listOf<Int>(1, 4, 5), listOf<Int>(3, 1, 2, 4, 5)), "union")
+    check(sequence(listOf<Int>(3, 1, 3, 2) intersect listOf<Int>(2, 3), listOf<Int>(3, 2)), "intersect")
+    check(sequence(listOf<Int>(3, 1, 3, 2) subtract listOf<Int>(2, 3), listOf<Int>(1)), "subtract")
+
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

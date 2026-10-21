@@ -1,0 +1,132 @@
+schema = 1
+name = "gc-stress-opt-in"
+root = "program.scoop"
+inputs = ["program.scoop", "native.c"]
+tools = ["scoop", "scoopc", "scoop-link", "cc", "ar"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["runtime", "gc", "gc-stress", "driver", "cache", "gc-correctness"]
+
+[[steps]]
+name = "native"
+argv = ["${cc}", {each = "${cc_args}"}, "-std=c11", "-Wall", "-Wextra", "-Werror", "-I", "${runtime}/include", "-c", "${fixture}/native.c", "-o", "${work}/native.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive"
+argv = ["${ar}", "rcs", "${work}/libgc_stress_probe.a", "${work}/native.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "ordinary"
+argv = ["${scoop}", "build", "${root}", {each = "${link_args}"}, "--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--library-path", "${work}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "-o", "${work}/ordinary", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+    {file = "${ordinary.result.output}", not_contains = "SCOOP_GC_STRESS_MOVE"},
+    {file = "${ordinary.result.output}", not_contains = "SCOOP_GC_STRESS_MINOR"},
+]
+
+[[steps]]
+name = "ordinary_0"
+argv = ["${ordinary.result.output}"]
+exit = 0
+stdout = "3\nfalse\n"
+stderr = ""
+env = {SCOOP_GC_STRESS_MOVE = "0", SCOOP_GC_STRESS_MINOR = "0"}
+
+[[steps]]
+name = "ordinary_1"
+argv = ["${ordinary.result.output}"]
+exit = 0
+stdout = "3\nfalse\n"
+stderr = ""
+env = {SCOOP_GC_STRESS_MOVE = "1", SCOOP_GC_STRESS_MINOR = "1"}
+
+[[steps]]
+name = "stress"
+argv = ["${scoop}", "--enable-gc-stress", "build", "${root}", {each = "${link_args}"}, "--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--library-path", "${work}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "-o", "${work}/stress", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+    {file = "${stress.result.output}", contains = "SCOOP_GC_STRESS_MOVE"},
+    {file = "${stress.result.output}", contains = "SCOOP_GC_STRESS_MINOR"},
+    {actual = "${stress.result.root.artifact_fingerprint}", equals = "${ordinary.result.root.artifact_fingerprint}"},
+    {actual = "${stress.result.observations.child_invocations.length}", equals = 0},
+    {actual = "${stress.result.link_plan_fingerprint}", not_equals = "${ordinary.result.link_plan_fingerprint}"},
+]
+
+[[steps]]
+name = "stress_0"
+argv = ["${stress.result.output}"]
+exit = 0
+stdout = "3\nfalse\n"
+stderr = ""
+env = {SCOOP_GC_STRESS_MOVE = "0", SCOOP_GC_STRESS_MINOR = "0"}
+
+[[steps]]
+name = "stress_1"
+argv = ["${stress.result.output}"]
+exit = 0
+stdout = "3\ntrue\n"
+stderr = ""
+env = {SCOOP_GC_STRESS_MOVE = "1", SCOOP_GC_STRESS_MINOR = "1"}
+
+[[steps]]
+name = "ordinary_again"
+argv = ["${scoop}", "build", "${root}", {each = "${link_args}"}, "--release", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--library-path", "${work}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "-o", "${work}/ordinary_again", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+    {file = "${ordinary_again.result.output}", not_contains = "SCOOP_GC_STRESS_MOVE"},
+    {file = "${ordinary_again.result.output}", not_contains = "SCOOP_GC_STRESS_MINOR"},
+    {actual = "${ordinary_again.result.root.artifact_fingerprint}", equals = "${ordinary.result.root.artifact_fingerprint}"},
+    {actual = "${ordinary_again.result.observations.child_invocations.length}", equals = 0},
+    {actual = "${ordinary_again.result.link_plan_fingerprint}", equals = "${ordinary.result.link_plan_fingerprint}"},
+]
+
+[[steps]]
+name = "link-stress"
+argv = ["${scoop}", "--enable-gc-stress", "link", "--root-slib", "${ordinary.result.root.path}", {each = "${ordinary.result.dependencies}", field = "path", prefix = "--dependency-slib"}, {each = "${link_args}"}, "--sysroot", "${sysroot}", "--library-path", "${work}", "--cache-dir", "${cache}", "-o", "${work}/linked", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${link-stress.result.link_plan_fingerprint}", equals = "${stress.result.link_plan_fingerprint}"}]
+
+[[steps]]
+name = "run-linked"
+argv = ["${link-stress.result.output}"]
+exit = 0
+stdout = "3\ntrue\n"
+stderr = ""
+env = {SCOOP_GC_STRESS_MOVE = "1", SCOOP_GC_STRESS_MINOR = "1"}
+
+[[steps]]
+name = "reject-missing-support"
+argv = ["${scoop-link}", "--enable-gc-stress", "--root-slib", "${ordinary.result.root.path}", {each = "${ordinary.result.dependencies}", field = "path", prefix = "--dep-slib"}, {each = "${link_args}"}, "--sysroot", "${sysroot}", "--runtime-objects", "${ordinary.result.runtime_index}", "--library-path", "${work}", "--cache-dir", "${cache}", "-o", "${work}/rejected"]
+exit = 1
+stdout = ""
+stderr = "scoop-link: runtime GC stress support is false, but --enable-gc-stress is true\n"
+checks = [{file = "${work}/rejected", exists = false}]
+
+[[steps]]
+name = "reject-unrequested-support"
+argv = ["${scoop-link}", "--root-slib", "${ordinary.result.root.path}", {each = "${ordinary.result.dependencies}", field = "path", prefix = "--dep-slib"}, {each = "${link_args}"}, "--sysroot", "${sysroot}", "--runtime-objects", "${stress.result.runtime_index}", "--library-path", "${work}", "--cache-dir", "${cache}", "-o", "${work}/rejected"]
+exit = 1
+stdout = ""
+stderr = "scoop-link: runtime GC stress support is true, but --enable-gc-stress is false\n"
+checks = [{file = "${work}/rejected", exists = false}]

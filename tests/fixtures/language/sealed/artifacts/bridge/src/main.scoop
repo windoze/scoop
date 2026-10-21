@@ -1,0 +1,4 @@
+package dev.m37.bridge
+public import dev.m37.provider.*
+public typealias Outcome<T> = Result<T>
+public fun <T> forwarded(value: Outcome<T>): Int = classify(value)

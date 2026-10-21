@@ -1,7 +1,0 @@
-import downstream.enums.check
-
-fun main() {
-    if (check() != 83) {
-        throw IllegalStateException()
-    }
-}

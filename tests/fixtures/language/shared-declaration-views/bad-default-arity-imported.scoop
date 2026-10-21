@@ -1,0 +1,9 @@
+package dev.example.consumer.declarationviews
+
+import dev.example.upstream.declarationviews.*
+
+public fun invalid(): Int {
+    val box = Box<Int>(42, Counter())
+    val read: () -> Int = box::read
+    return 0
+}

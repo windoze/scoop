@@ -1,5 +1,0 @@
-public struct Flag(val enabled: Boolean)
-
-public fun identity(value: Flag): Flag = value
-
-private fun text(value: String): String = value

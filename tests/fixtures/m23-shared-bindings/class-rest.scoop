@@ -1,5 +1,0 @@
-import upstream.bindings.Pieces
-public fun check(): Int {
-    val (value, ..) = Pieces<Int>(42, 0)
-    return value
-}

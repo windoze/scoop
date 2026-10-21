@@ -7,7 +7,7 @@ type Compile<'closure, 'input> = scoop_slib::DirectCrossConeSemanticProvider<'cl
 
 fn fixture(name: &str) -> String {
     std::fs::read_to_string(crate::workspace_root().join(format!(
-        "tests/fixtures/m23-shared-lir-selection/{name}.scoop"
+        "tests/fixtures/language/shared-lir-selection/{name}.scoop"
     )))
     .unwrap()
 }

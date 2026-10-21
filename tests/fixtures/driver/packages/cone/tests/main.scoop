@@ -1,0 +1,4 @@
+package dev.example.tests
+import scoop.test.*
+import dev.example.http.answer as actualAnswer
+@Test class PackageTests { @Test fun answer() { assertEquals(7, actualAnswer()) } }

@@ -1,0 +1,157 @@
+schema = 1
+name = "artifact-summary"
+inputs = ["provider", "consumer", "state.py"]
+tools = ["scoop", "scoopc", "python"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["cache", "prebuilt", "multi-cone", "driver"]
+
+[vars]
+options = ["--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--runtime-root", "${runtime}", "--target-dir", "${work}/target", "--message-format", "json"]
+
+[[steps]]
+name = "prepare"
+files = [{copy = {from = "${fixture}/provider", to = "${work}/provider"}}, {copy = {from = "${fixture}/consumer", to = "${work}/consumer"}}]
+
+[[steps]]
+name = "provider"
+argv = ["${scoop}", "build", "--release", "${work}/provider", {"each" = "${link_args}"}, {"each" = "${options}"}, "-o", "${work}/provider.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${provider.result.observations.child_invocations.length}", equals = 1}]
+
+[[steps]]
+name = "cold"
+argv = ["${scoop}", "build", "--release", "${work}/consumer", {"each" = "${link_args}"}, {"each" = "${options}"}, "-o", "${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${cold.result.observations.child_invocations.length}", equals = 1}]
+
+[[steps]]
+name = "run_initial"
+argv = ["${work}/program"]
+exit = 48
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "save_first"
+argv = ["${python}", "${fixture}/state.py", "save", "${work}/cache", "${work}/records.json", "2"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "warm"
+argv = ["${scoop}", "build", "--release", "${work}/consumer", {"each" = "${link_args}"}, {"each" = "${options}"}, "-o", "${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${warm.result.observations.child_invocations.length}", equals = 0}]
+
+[[steps]]
+name = "same_first"
+argv = ["${python}", "${fixture}/state.py", "same", "${work}/cache", "${work}/records.json", "2"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "touch_actual_artifact"
+files = [{touch = {path = "${work}/provider.slib"}}]
+
+[[steps]]
+name = "touched"
+argv = ["${scoop}", "build", "--release", "${work}/consumer", {"each" = "${link_args}"}, {"each" = "${options}"}, "-o", "${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${touched.result.observations.child_invocations.length}", equals = 0}]
+
+[[steps]]
+name = "save_touched"
+argv = ["${python}", "${fixture}/state.py", "save", "${work}/cache", "${work}/records.json", "3"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "warm_touched"
+argv = ["${scoop}", "build", "--release", "${work}/consumer", {"each" = "${link_args}"}, {"each" = "${options}"}, "-o", "${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${warm_touched.result.observations.child_invocations.length}", equals = 0}]
+
+[[steps]]
+name = "same_touched"
+argv = ["${python}", "${fixture}/state.py", "same", "${work}/cache", "${work}/records.json", "3"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "change_provider_source"
+files = [{replace = {path = "${work}/provider/src/value.scoop", old = "= 48", new = "= 49"}}]
+
+[[steps]]
+name = "republish"
+argv = ["${scoop}", "build", "--release", "${work}/provider", {"each" = "${link_args}"}, {"each" = "${options}"}, "-o", "${work}/provider.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${republish.result.observations.child_invocations.length}", equals = 1}]
+
+[[steps]]
+name = "changed"
+argv = ["${scoop}", "build", "--release", "${work}/consumer", {"each" = "${link_args}"}, {"each" = "${options}"}, "-o", "${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${changed.result.observations.child_invocations.length}", equals = 1}]
+
+[[steps]]
+name = "run_changed"
+argv = ["${work}/program"]
+exit = 49
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "save_changed"
+argv = ["${python}", "${fixture}/state.py", "save", "${work}/cache", "${work}/records.json", "4"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "warm_changed"
+argv = ["${scoop}", "build", "--release", "${work}/consumer", {"each" = "${link_args}"}, {"each" = "${options}"}, "-o", "${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${warm_changed.result.observations.child_invocations.length}", equals = 0}]
+
+[[steps]]
+name = "same_changed"
+argv = ["${python}", "${fixture}/state.py", "same", "${work}/cache", "${work}/records.json", "4"]
+exit = 0
+stdout = ""
+stderr = ""

@@ -1,0 +1,9 @@
+package test.m52
+@Extern(name = "m52_installed_value")
+fun installedValue(): Int
+
+fun <T> identity(value: T): T = value
+
+fun main(): Int {
+    @Unsafe { return identity(installedValue()) }
+}

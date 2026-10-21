@@ -1,0 +1,4 @@
+package dev.example.consumer.methods
+import dev.example.upstream.methods.*
+
+@NoGC public fun <T, R: Reader<T>> bad(reader: R): T = reader.read()

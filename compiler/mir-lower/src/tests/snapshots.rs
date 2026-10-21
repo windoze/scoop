@@ -2,7 +2,7 @@ use super::*;
 
 pub(super) fn check_mir_snapshot(name: &str, module: &mir::Module, functions: &[&str]) {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/mir-stage")
+        .join("../../tests/fixtures/compiler-correctness/mir/unit-snapshots")
         .join(format!("{name}.mir.snap"));
     let mut actual = String::new();
     let mut selected = false;

@@ -1,0 +1,65 @@
+package scoop.std.tests.algorithms.transforms
+
+import scoop.test.*
+import scoop.collections.*
+
+class State { var calls: Long = 0L }
+fun check(value: Boolean, label: String, location: SourceLocation = currentSourceLocation()) {
+    assertTrue(value, Some(label), location = location)
+}
+
+private fun exercise() {
+    val values = listOf<Int>(1, 2, 3, 4)
+    check(values.map<Int, Int> { value -> value * 2 }.joinToString() == "2, 4, 6, 8", "map")
+    check(values.mapIndexed<Int, Long> { index, value -> index + value.toLong() }.joinToString() == "1, 3, 5, 7", "map indexed")
+    val options = values.mapNotNone<Int, Int?> { value -> if (value == 1) Some(None) else if (value == 2) Some(Some(2)) else None }
+    check(options.size == 2L && options[0L] == None && options[1L] == Some(2), "nested mapNotNone")
+    check(listOf<Int?>(Some(1), None, Some(2)).filterNotNone().joinToString() == "1, 2", "filterNotNone")
+    check(values.filter<Int> { value -> value % 2 == 0 }.joinToString() == "2, 4", "filter")
+    check(values.filterNot<Int> { value -> value % 2 == 0 }.joinToString() == "1, 3", "filterNot")
+    val doubled = values.flatMap<Int, Int> { value -> listOf<Int>(value, -value) }
+    check(doubled.joinToString() == "1, -1, 2, -2, 3, -3, 4, -4", "flatMap")
+    val nested = listOf<Iterable<Int>>(listOf<Int>(1, 2), emptyList<Int>(), listOf<Int>(3))
+    check(nested.flatten<Int>().joinToString() == "1, 2, 3", "flatten")
+    val (yes, no) = values.partition<Int> { value -> value < 3 }
+    check(yes.joinToString() == "1, 2" && no.joinToString() == "3, 4", "partition")
+    check(!(yes is MutableList<Int>) && !(doubled is MutableList<Int>), "readonly results")
+
+    val list = mutableListOf<Int>(1, 2)
+    check(list.mapTo<Int, Int>(list) { value -> value + 10 } === list, "mapTo destination")
+    check(list.joinToString() == "1, 2, 11, 12", "mapTo alias")
+    val set = linkedSetOf<Int>(1)
+    check(values.filterTo<Int>(set) { value -> value % 2 == 0 } === set, "filterTo set")
+    check(set.toList().joinToString() == "1, 2, 4", "filterTo order")
+    val copies = mutableListOf<Int>()
+    values.toCollection<Int>(copies)
+    values.filterTo<Int>(copies) { value -> value == 1 }
+    check(copies.joinToString() == "1, 2, 3, 4, 1", "list destinations")
+    val unique = linkedSetOf<Int>()
+    values.toCollection<Int>(unique)
+    values.mapTo<Int, Int>(unique) { value -> value * 2 }
+    check(unique.toList().joinToString() == "1, 2, 3, 4, 6, 8", "set destinations")
+    val alias = mutableListOf<Int>(1, 2)
+    listOf<Int>(0).flatMapTo<Int, Int>(alias) { _ -> alias }
+    check(alias.joinToString() == "1, 2, 1, 2", "inner alias snapshot")
+    listOf<Int>(0).flatMapTo<Int, Int>(unique) { _ -> listOf<Int>(8, 9) }
+    check(unique.toList().last() == 9, "flatMapTo set")
+    val state = State()
+    val partial = mutableListOf<Int>()
+    var caught = false
+    try {
+        values.mapTo<Int, Int>(partial) { value ->
+            state.calls += 1L
+            if (value == 3) throw Exception(Some("callback"))
+            value
+        }
+    } catch (error: Exception) { caught = true }
+    check(caught && state.calls == 3L && partial.joinToString() == "1, 2", "callback prefix")
+
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

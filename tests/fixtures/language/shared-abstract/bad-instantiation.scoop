@@ -1,0 +1,4 @@
+package dev.example
+import dev.example.dependency.abstracts.BaseReader
+
+public fun result(): Int = BaseReader<Int>().read()

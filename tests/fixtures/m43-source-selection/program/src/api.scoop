@@ -1,7 +1,0 @@
-annotation class Test
-@Test struct Ordinary(val value: Int)
-
-fun choose(value: Any): Int = 7
-fun production(): Int = choose(1)
-fun defaulted(value: Int = choose(1)): Int = value
-fun <T> generic(value: T): Int = choose(1)

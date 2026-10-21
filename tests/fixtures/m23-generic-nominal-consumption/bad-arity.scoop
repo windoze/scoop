@@ -1,3 +1,0 @@
-import dependency.nominals.Parcel
-
-public fun invalid(value: Parcel<Int, Long>): Int = 0

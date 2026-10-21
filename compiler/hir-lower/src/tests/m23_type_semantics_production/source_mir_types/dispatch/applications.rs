@@ -11,7 +11,7 @@ use scoop_mir::{
 #[test]
 fn concrete_generic_dispatch_keeps_direct_parents_and_actual_odr_bodies() {
     let fixtures = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/m23-generic-initialization");
+        .join("../../tests/fixtures/language/generic-initialization");
     for case in ["dispatch", "dispatch-combined"] {
         let source = std::fs::read_to_string(fixtures.join(format!("{case}.scoop"))).unwrap();
         with_dispatch(&source, |output, input, _, types, authority, schemas| {

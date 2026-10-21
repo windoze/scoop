@@ -1,0 +1,9 @@
+package dev.example
+import dev.example.dependency.classes.Counter
+import dev.example.dependency.classes.FirstChoice
+
+public class LocalChoice public constructor(): FirstChoice {
+    public override fun choose(): Long = 1000
+    public fun answer(value: Long = super<FirstChoice>.choose() + 1): Long = value
+}
+public fun primary(): Counter = Counter(LocalChoice().answer())

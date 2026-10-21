@@ -4,7 +4,7 @@ use super::*;
 fn captured_default_references_match_the_exported_body() {
     let source = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../tests/fixtures/m23-cli-default-captures/closure-references/provider/src/main.scoop"
+        "/../../tests/fixtures/language/default-captures/closure-references/provider/src/main.scoop"
     ));
     source_dispatch::with_hir_source(source, |output, _| {
         let templates =

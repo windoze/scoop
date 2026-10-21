@@ -30,6 +30,10 @@ def arguments(argv):
     parser.add_argument("--list", action="store_true")
     parser.add_argument("--update-snapshots", action="store_true")
     parser.add_argument("--work-dir", type=Path)
+    parser.add_argument("--cache-dir", type=Path, help="shared Cone cache, independent of work-dir")
+    parser.add_argument(
+        "--sysroot", type=Path, help="prepared system libraries and native resources"
+    )
     parser.add_argument("--keep", action="store_true")
     parser.add_argument("--jobs", type=int, default=min(4, os.cpu_count() or 1))
     parser.add_argument("--scoop", type=Path)
@@ -72,11 +76,15 @@ def environment(repo, work, fixtures, args):
     target = args.target or (supported[0] if supported else None)
     if target not in supported:
         raise EnvironmentError(f"target {target!r} cannot execute on fixture host {host}")
+    cache = Path(
+        args.cache_dir or os.environ.get("SCOOP_CACHE_DIR") or repo / "target/fixture-cache"
+    ).resolve()
+    sysroot = Path(args.sysroot or os.environ.get("SCOOP_SYSROOT") or repo / "sysroot").resolve()
     common = {
         "repo": str(repo),
         "runtime": str(repo / "runtime"),
-        "cache": str(work / "cache"),
-        "sysroot": str(work / "sysroot"),
+        "cache": str(cache),
+        "sysroot": str(sysroot),
         "test_core": str(work / "test-core"),
         "class_core": str(work / "class-core"),
         "target": target,
@@ -96,7 +104,7 @@ def environment(repo, work, fixtures, args):
         common["compile_args"] += ["--cc", str(args.cc.resolve())]
     common["link_args"] = list(common["compile_args"])
     if target != "aarch64-apple-darwin":
-        common["link_args"] += ["--unwind-prefix", str(repo / "sysroot/lib" / target / "unwind")]
+        common["link_args"] += ["--unwind-prefix", str(sysroot / "lib" / target / "unwind")]
     applicable = [
         fixture
         for fixture in fixtures
@@ -170,14 +178,11 @@ def environment(repo, work, fixtures, args):
         if "deployment" not in common:
             common["deployment"] = darwin_deployment(repo)
         common["llvm_target"] = "aarch64-apple-macosx" + common["deployment"]
-    if not (work / "sysroot").exists():
-        # Materialize this run's resource copy when development outputs use symlinks.
-        shutil.copytree(repo / "sysroot", work / "sysroot")
     if any("${test_core}" in json.dumps(fixture.data) for fixture in applicable):
-        prepare_test_core(repo, work)
+        prepare_test_core(repo, work, sysroot)
     if any("${class_core}" in json.dumps(fixture.data) for fixture in applicable):
-        prepare_class_core(repo, work)
-    (work / "cache").mkdir(exist_ok=True)
+        prepare_class_core(repo, work, sysroot)
+    cache.mkdir(parents=True, exist_ok=True)
     return common
 
 

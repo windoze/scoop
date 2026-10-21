@@ -1,0 +1,6 @@
+package dev.example
+import dev.example.templates.members.ReadOnlyProperty
+
+fun bad(item: ReadOnlyProperty<Int>) {
+    item.value = 42
+}

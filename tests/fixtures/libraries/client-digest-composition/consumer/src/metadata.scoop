@@ -1,0 +1,40 @@
+package scoop.tests
+import scoop.asyncio.*
+import scoop.crypto.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.client.*
+import scoop.platform.memory.NativeByteBuffer
+import scoop.url.Url
+
+internal fun digestMetadata(url: Url, trust: TrustStore) {
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { _ ->
+        val starts = AtomicLong(0L)
+        val provider = HttpAuthenticator.digest(url.httpOrigin()) suspend { _ -> HttpPasswordCredentials("Mufasa", "Circle of Life") }
+        val original = RequestBody.fromProducer(Some(7L)) suspend { output -> starts.fetchAdd(1L); digestWrite(output, "payload") }
+        val actual = digest(DigestAlgorithm.Sha256, "payload".toByteArray())
+        val supplied = MutableArray<Byte>(actual.size) { actual[it] }
+        val body = original.withDigest(HttpDigestAlgorithm.Md5, Array<Byte>(16L) { 0.toByte() })
+            .withDigest(HttpDigestAlgorithm.Sha256, Array<Byte>(32L) { 0.toByte() })
+            .withDigest(HttpDigestAlgorithm.Sha256Sess, supplied)
+        supplied[0L] = (supplied[0L].toInt() xor 1).toByte()
+        var rejected = false
+        try { original.withDigest(HttpDigestAlgorithm.Md5, actual) }
+        catch (_: IllegalArgumentException) { rejected = true }
+        digestCheck(rejected && !body.isReplayable)
+        withHttpClient(digestConfig(trust, provider)) suspend { client ->
+            client.withResponse(HttpRequest.post(url, body, options = HttpCallOptions(expectContinue = true))) suspend { response ->
+                digestCheck(response.body.text(4L) == "done")
+            }
+        }
+        digestFailure<RequestBodyConsumedException> suspend { original.writeTo(DigestUnusedSink()); Unit }
+        digestCheck(starts.load() == 1L)
+    }
+}
+
+private class DigestUnusedSink : AsyncByteSink {
+    public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long {
+        throw IllegalStateException(Some("a consumed alias invoked its sink"))
+    }
+    public override suspend fun flush() { throw IllegalStateException() }
+}

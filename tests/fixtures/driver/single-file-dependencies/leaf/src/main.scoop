@@ -1,0 +1,4 @@
+package dev.leaf
+@Extern(name = "single_dep_value")
+private fun nativeValue(): Int
+public fun answer(): Int { @Unsafe { return nativeValue() } }

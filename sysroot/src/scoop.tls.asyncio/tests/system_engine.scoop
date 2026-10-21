@@ -4,15 +4,15 @@ import scoop.asyncio.*
 import scoop.asyncio.native.NativeWork
 import scoop.crypto.native.certificateHandle
 import scoop.crypto.PrivateKey
-import scoop.crypto.testdata.rootPem
-import scoop.crypto.testdata.serverKeyPem
+import scoop.tests.scoop.crypto.testdata.rootPem
+import scoop.tests.scoop.crypto.testdata.serverKeyPem
 import scoop.crypto.x509.Certificate
 import scoop.platform.memory.NativeByteBuffer
 import scoop.test.*
 import scoop.tls.*
 import scoop.tls.native.TlsEngine
 import scoop.tls.native.TlsStepKind
-import scoop.tls.testnative.systemCertificatePem
+import scoop.tests.scoop.tls.testnative.systemCertificatePem
 
 internal fun systemServerContext(options: TlsOptions): TlsServerContext =
     Certificate.fromPem(systemCertificatePem()).use { certificate ->

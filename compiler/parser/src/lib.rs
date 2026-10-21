@@ -95,6 +95,8 @@ mod tests_m60_docs;
 mod tests_m8;
 #[cfg(test)]
 mod tests_m9;
+#[cfg(test)]
+mod tests_shebang;
 mod ty;
 
 pub use source_input::{

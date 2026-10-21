@@ -5,7 +5,7 @@ use scoop_wire::{decode_canonical, encode};
 #[test]
 fn shared_accessor_forms_preserve_actual_source_bodies_storage_constants_and_slots() {
     let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/m23-core-layout-exports");
+        .join("../../tests/fixtures/language/core-layout-exports");
     for (case, expected) in [
         ("standalone", [0, 0, 2, 0, 3]),
         ("combined", [2, 1, 8, 2, 9]),

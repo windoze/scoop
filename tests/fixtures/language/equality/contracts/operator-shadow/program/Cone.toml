@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "shadow"
+name = "m33-equality-operator-shadow"
+version = "0.1.0"
+kind = "executable"
+
+[[sources]]
+path = "main.scoop"

@@ -1,5 +1,0 @@
-package consumer.initialization
-
-import templates.initialization.result
-
-public fun answer(): Int = result()

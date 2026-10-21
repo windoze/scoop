@@ -1,3 +1,0 @@
-import performance.parallel.left.left
-import performance.parallel.right.right
-fun main() { println(left() + right()) }

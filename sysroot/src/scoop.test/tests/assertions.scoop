@@ -1,0 +1,67 @@
+package scoop.test.tests
+
+import scoop.test.*
+
+private class Value(val number: Int)
+private class BrokenText : ToString {
+    public override fun toString(): String { throw IllegalStateException() }
+}
+
+@Test
+private class AssertionTests {
+    @Test
+    fun `boolean and equality assertions report their operands`() {
+        assertTrue(true)
+        assertFalse(false)
+        assertEquals(42, 42)
+        assertNotEquals(41, 42)
+        val error = assertFailsWith<AssertionFailure> { assertEquals(1, 2, Some("numbers")) }
+        assertEquals("assertEquals", error.kind)
+        assertEquals(Some("numbers"), error.message)
+        assertEquals("1", when (error.expected) {
+            case AssertionValue.Text(value) -> value
+            else -> fail()
+        })
+        assertEquals("2", when (error.actual) {
+            case AssertionValue.Text(value) -> value
+            else -> fail()
+        })
+        assertFailsWith<AssertionFailure> { assertTrue(false) }
+        assertFailsWith<AssertionFailure> { assertFalse(true) }
+        assertFailsWith<AssertionFailure> { assertNotEquals(42, 42) }
+    }
+
+    @Test
+    fun `identity assertions distinguish objects from equal fields`() {
+        val first = Value(7)
+        val second = Value(7)
+        assertSame(first, first)
+        assertNotSame(first, second)
+        assertFailsWith<AssertionFailure> { assertSame(first, second) }
+        assertFailsWith<AssertionFailure> { assertNotSame(first, first) }
+    }
+
+    @Test
+    fun `exception assertions retain the original cause`() {
+        val cause = IllegalArgumentException()
+        assertSame(cause, assertFailsWith<IllegalArgumentException> { throw cause })
+        val error = assertFailsWith<AssertionFailure> {
+            assertFailsWith<IllegalStateException> { throw cause }
+        }
+        assertSame(cause, error.cause!!)
+        assertFailsWith<AssertionFailure> { assertFailsWith<IllegalArgumentException> {} }
+        assertEquals("fail", assertFailsWith<AssertionFailure> { fail() }.kind)
+    }
+
+    @Test
+    fun `rendering failure does not replace assertion failure`() {
+        val error = assertFailsWith<AssertionFailure> {
+            assertSame(BrokenText(), BrokenText())
+        }
+        assertEquals("assertSame", error.kind)
+        assertTrue(when (error.expected) {
+            case AssertionValue.RenderingFailed(_) -> true
+            else -> false
+        })
+    }
+}

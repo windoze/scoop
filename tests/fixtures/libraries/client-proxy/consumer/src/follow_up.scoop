@@ -1,0 +1,34 @@
+package scoop.tests
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.*
+import scoop.http.client.*
+import scoop.url.Url
+
+internal fun proxyFollowUp(mode: String, first: Url, second: Url, target: Url, trust: TrustStore) {
+    val left = HttpProxy.Http(HttpProxyEndpoint(first, proxyTls(trust), Some(proxyCredentials())))
+    val right = HttpProxy.Http(HttpProxyEndpoint(second, proxyTls(trust), Some(proxyCredentials("cHJveHk6b3RoZXI="))))
+    val selections = AtomicLong(0L)
+    val selector = HttpProxySelector(suspend { request ->
+        val number = selections.fetchAdd(1L)
+        val redirected = mode == "redirect" && number == 1L
+        proxyCheck(number <= 1L)
+        proxyCheck(request.fields.findAll("Authorization".toByteArray()).size == (if (redirected) 0L else 1L))
+        proxyCheck(request.fields.findAll("Cookie".toByteArray()).size == (if (redirected) 0L else 1L))
+        if (redirected) proxyCheck(request.url.httpOrigin() != target.httpOrigin() && request.url.encodedPath == "/redirected")
+        else proxyCheck(request.url.httpOrigin() == target.httpOrigin())
+        if (number == 0L) left else right
+    })
+    val loop: EventLoop = LibuvEventLoop()
+    loop.run suspend { _ ->
+        withHttpClient(proxyConfig(trust, selector, mode,
+            retries = HttpRetryOptions(maxRetries = if (mode == "retry") 1L else 0L))) suspend { client ->
+            client.withResponse(HttpRequest.get(target, proxyFields())) suspend { response ->
+                proxyCheck(response.status == 200U && response.body.text(2L) == "ok")
+                proxyCheck(response.redirectHistory.size == (if (mode == "redirect") 1L else 0L))
+                proxyCheck(response.retryCount == (if (mode == "retry") 1L else 0L))
+            }
+        }
+    }
+    proxyCheck(selections.load() == 2L)
+}

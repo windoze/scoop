@@ -1,0 +1,8 @@
+package dev.example
+import dev.example.templates.delegateCombinations.Receiver
+
+fun <T> defaultReceiver(): Receiver<T> { throw IllegalStateException() }
+
+class Wrong<T>() {
+    operator fun getValue(thisRef: Receiver<T> = defaultReceiver<T>()): Int = 42
+}

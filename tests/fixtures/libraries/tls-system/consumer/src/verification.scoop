@@ -1,0 +1,41 @@
+package scoop.tests
+import scoop.asyncio.EventLoop
+import scoop.asyncio.native.NativeWork
+import scoop.crypto.native.certificateHandle
+import scoop.tests.scoop.crypto.testdata.rootPem
+import scoop.crypto.x509.Certificate
+import scoop.tls.native.*
+
+fun verifyHere(engine: TlsEngine) {
+    Certificate.fromPem(rootPem()).use { root ->
+        @Unsafe {
+            val work = engine.takeVerification()
+            try {
+                check(verifyIsolated(work, certificateHandle(root)) == 1)
+                engine.completeVerification(work)
+            } finally { freeVerification(work) }
+        }
+    }
+}
+
+suspend fun verifyOnWorker(loop: EventLoop, engine: TlsEngine) {
+    val work = Certificate.fromPem(rootPem()).use { root ->
+        @Unsafe {
+            val pointer = newIsolated(engine.takeVerification(), certificateHandle(root))
+            return@use NativeWork.takeOwnership(pointer, isolatedExecutor(), isolatedReleaser())
+        }
+    }
+    work.use suspend { owned ->
+        gcCollect()
+        @Unsafe {
+            loop.runNativeWork(owned)
+            owned.withResult<Unit> { pointer -> @Unsafe { engine.completeVerification(isolatedResult(pointer)) } }
+        }
+    }
+}
+
+@Extern(name = "scoop_test_tls_isolated_verify") private fun verifyIsolated(work: Ptr<Unit>, root: ULong): Int
+@Extern(name = "scoop_test_tls_isolated_work_new") private fun newIsolated(work: Ptr<Unit>, root: ULong): Ptr<Unit>
+@Extern(name = "scoop_test_tls_isolated_work_result") private fun isolatedResult(work: Ptr<Unit>): Ptr<Unit>
+@Extern(name = "scoop_test_tls_isolated_work_executor") private fun isolatedExecutor(): FunPtr<(Ptr<Unit>) -> Unit>
+@Extern(name = "scoop_test_tls_isolated_work_releaser") private fun isolatedReleaser(): FunPtr<(Ptr<Unit>) -> Unit>

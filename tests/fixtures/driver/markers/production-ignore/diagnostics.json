@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`@Ignore` is only allowed in test sources",
+    "notes": [],
+    "origin": {
+      "cone": "8acb65d7577e878e19face49f36a6fa345268309afa6db5c08ee4ad3892d60a2",
+      "end": 58,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 42
+    },
+    "severity": "error"
+  }
+]

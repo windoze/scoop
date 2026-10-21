@@ -68,15 +68,19 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
                 CurrentConeProductionError::before_hir(CurrentConeProductionFailure::Hir(e))
             })?;
         let hir = self.lower_hir(requested, protocols, &world).map_err(|e| {
-            CurrentConeProductionError::before_hir(CurrentConeProductionFailure::Hir(e))
+            let warnings = CurrentConeDiagnosticSet::try_new(
+                packages::single_file_warnings(&self.sources),
+                &self.sources,
+            )
+            .expect("single-file warnings reference their parsed source");
+            CurrentConeProductionError::after_hir(CurrentConeProductionFailure::Hir(e), warnings)
         })?;
+        let mut source_warnings = packages::single_file_warnings(&self.sources);
+        source_warnings.extend(hir.hir.output().warnings.clone());
         let warnings =
-            CurrentConeDiagnosticSet::try_new(hir.hir.output().warnings.clone(), &self.sources)
-                .map_err(|e| {
-                    CurrentConeProductionError::before_hir(CurrentConeProductionFailure::Warnings(
-                        e,
-                    ))
-                })?;
+            CurrentConeDiagnosticSet::try_new(source_warnings, &self.sources).map_err(|e| {
+                CurrentConeProductionError::before_hir(CurrentConeProductionFailure::Warnings(e))
+            })?;
         dump.extend(capture_stage_dump(emit, StageDumpKind::Hir, || {
             format!(
                 "== Export ==\n{}== Static Shapes ==\n{}== LocalConcrete ==\n{}== CrossCone ==\n{}",

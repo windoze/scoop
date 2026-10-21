@@ -1,0 +1,6 @@
+package dev.programlink
+fun main() {
+    @Unsafe {
+        foreignCallback<(String, Ptr<Unit>) -> Int>({ value: String -> 0 }, 1L, ForeignCallbackMode.OneShot)
+    }
+}

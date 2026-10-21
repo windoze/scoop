@@ -1,0 +1,23 @@
+schema = 1
+name = "declarations-method-extern"
+inputs = ["../program", "case.scoop"]
+tools = ["scoop"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["test-declarations", "negative", "driver"]
+
+[[steps]]
+name = "prepare"
+files = [
+    {copy = {from = "${fixture}/../program", to = "${work}/program"}},
+    {copy = {from = "${fixture}/case.scoop", to = "${work}/program/tests/case.scoop"}},
+]
+
+[[steps]]
+name = "reject"
+argv = ["${scoop}", "test", "--release", {"each" = "${link_args}"}, "${work}/program", "--no-run", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/outputs", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "diagnostics.json"}
+checks = [{file = "${work}/outputs/${target}/release/tests/declaration-negative", exists = false}]

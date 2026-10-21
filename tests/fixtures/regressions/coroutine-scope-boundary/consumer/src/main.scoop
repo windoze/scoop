@@ -1,0 +1,9 @@
+package scoop.tests
+fun main() {
+    caughtBodyFailure()
+    caughtChildFailureWaitsForCleanup()
+    uncaughtScopeFailureStillPropagates()
+    callerCancellationWaitsForScopedCleanup()
+    caughtAsyncAwaitStillFailsItsScope()
+    println("scoped failures return after cleanup without cancelling their caller")
+}

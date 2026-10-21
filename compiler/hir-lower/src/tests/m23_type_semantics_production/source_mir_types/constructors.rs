@@ -9,7 +9,7 @@ mod rejections;
 fn actual_constructor_bindings_preserve_value_and_class_signatures() {
     for name in ["standalone", "combined"] {
         let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tests/fixtures/m23-mir-constructor-production");
+            .join("../../tests/fixtures/language/mir-constructor-production");
         let source = std::fs::read_to_string(directory.join(format!("{name}.scoop"))).unwrap();
         let bytes = with_production(&source, |output, input, _hir, graph, types| {
             let unit = dependencies::unit(input, graph);
@@ -29,7 +29,7 @@ fn actual_constructor_bindings_preserve_value_and_class_signatures() {
             encode(&bindings).unwrap()
         });
         with_production(
-            &format!("private class Unrelated() {{}}\n{source}"),
+            &prepend_declarations(&source, "private class Unrelated() {}\n"),
             |output, input, _hir, graph, types| {
                 let unit = dependencies::unit(input, graph);
                 let index = MirTypeBridgeTypeIndexV1::try_new(&[types, &unit]).unwrap();

@@ -3,21 +3,22 @@ fn atomic_methods_normalize_through_source_generics_and_reference_types() {
     let source = [
         include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../tests/fixtures/m33-atomics/operations/src/main.scoop"
+            "/../../tests/fixtures/language/atomics/operations/src/main.scoop"
         )),
         include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../tests/fixtures/m33-atomics/operations/src/scalars.scoop"
+            "/../../tests/fixtures/language/atomics/operations/src/scalars.scoop"
         )),
         include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../tests/fixtures/m33-atomics/operations/src/references.scoop"
+            "/../../tests/fixtures/language/atomics/operations/src/references.scoop"
         )),
         include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../tests/fixtures/m33-atomics/operations/src/evaluation.scoop"
+            "/../../tests/fixtures/language/atomics/operations/src/evaluation.scoop"
         )),
     ]
+    .map(|source| source.strip_prefix("package dev.m33\n").unwrap())
     .join("\n");
     let output = super::super::core::bootstrap_sysroot(&source).unwrap();
     let module = scoop_mir_lower::lower(&output.local).unwrap();

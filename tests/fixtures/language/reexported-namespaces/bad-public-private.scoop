@@ -1,0 +1,4 @@
+package dev.example
+public import dev.example.facade.nesting.Outer.Hidden
+
+public fun check(): Int = 42

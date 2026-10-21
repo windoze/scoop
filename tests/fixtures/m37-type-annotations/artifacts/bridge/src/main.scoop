@@ -1,4 +1,0 @@
-package annotated.bridge
-public import annotated.provider.*
-public typealias Pair<A, B> = @Mark("bridge root") Flipped<@Mark("bridge A") A, @Mark("bridge B") B>
-public fun <T> holder(value: @Mark("bridge parameter") T): @Mark("bridge result") Holder<@Mark("bridge argument") T> = Holder(keep(value))

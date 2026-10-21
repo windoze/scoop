@@ -1,0 +1,10 @@
+package dev.m43
+import scoop.test.*
+
+@Test
+private class Cases {
+    @BeforeTest
+    fun before() { println("hook must not run") }
+    @Test
+    fun other() { fail(Some("body must not run")) }
+}

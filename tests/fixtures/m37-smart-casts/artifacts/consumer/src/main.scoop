@@ -1,6 +1,0 @@
-import bridge.*
-fun main() {
-    println(forwarded("artifact")); println(forwarded(42))
-    println(loop("loop")); println(loop(42))
-    println(withDefault("default")); println(withDefault(42))
-}

@@ -1,2 +1,0 @@
-package m48.summary
-public const val VALUE: Int = 48

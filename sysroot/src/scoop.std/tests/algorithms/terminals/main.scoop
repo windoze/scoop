@@ -1,0 +1,89 @@
+package scoop.std.tests.algorithms.terminals
+
+import scoop.test.*
+import scoop.collections.*
+
+class State { var calls: Long = 0L }
+class Once(private val values: List<Int>, private val allowed: Long) : Iterable<Int> {
+    var opened: Long = 0L
+    var calls: Long = 0L
+    public override operator fun iterator(): Iterator<Int> {
+        opened += 1L
+        if (opened > 1L) throw Exception(Some("second iterator"))
+        return Reading(this, values, allowed)
+    }
+}
+class Reading(private val owner: Once, private val values: List<Int>, private val allowed: Long) : Iterator<Int> {
+    private var index: Long = 0L
+    public override fun next(): Int? {
+        owner.calls += 1L
+        if (owner.calls > allowed) throw Exception(Some("excess read"))
+        if (index == values.size) return None
+        val value = values[index]
+        index += 1L
+        return Some(value)
+    }
+}
+fun check(value: Boolean, label: String, location: SourceLocation = currentSourceLocation()) {
+    assertTrue(value, Some(label), location = location)
+}
+
+private fun exercise() {
+    val values = listOf<Int>(1, 2, 3)
+    check(Once(values, 2L).any<Int> { value -> value == 2 }, "any short circuit")
+    check(!Once(values, 2L).all<Int> { value -> value < 2 }, "all short circuit")
+    check(!Once(values, 2L).none<Int> { value -> value == 2 }, "none short circuit")
+    check(Once(values, 1L).any() && !Once(values, 1L).none(), "unconditional any none")
+    check(Once(values, 2L).find<Int> { value -> value == 2 } == Some(2), "find")
+    check(Once(values, 1L).first() == 1 && Once(values, 2L).first<Int> { value -> value > 1 } == 2, "first")
+    check(Once(values, 4L).last() == 3 && values.last<Int> { value -> value < 3 } == 2, "last")
+    check(values.firstOrNone<Int> { value -> value > 8 } == None && emptyList<Int>().lastOrNone() == None, "missing")
+    check(listOf<Int?>(None).firstOrNone() == Some(None) && listOf<Int?>(None).singleOrNone() == Some(None), "outer option")
+    check(Once(values, 2L).singleOrNone() == None && values.single<Int> { value -> value == 2 } == 2, "single")
+    check(values.singleOrNone<Int> { value -> value == 8 } == None, "single no match")
+    var caught = false
+    try { Once(values, 2L).single() } catch (error: IllegalArgumentException) { caught = true }
+    check(caught, "single many")
+    caught = false
+    try { emptyList<Int>().single() } catch (error: NoSuchElementException) { caught = true }
+    check(caught, "single empty")
+    caught = false
+    try { emptyList<Int>().first() } catch (error: NoSuchElementException) { caught = true }
+    check(caught, "first empty")
+    caught = false
+    try { emptyList<Int>().last() } catch (error: NoSuchElementException) { caught = true }
+    check(caught, "last empty")
+    val negative = Once(values, 0L)
+    check(negative.elementAtOrNone(-1L) == None && negative.opened == 0L, "negative index")
+    check(Once(values, 2L).elementAt(1L) == 2 && values.elementAtOrNone(4L) == None, "elementAt")
+    caught = false
+    try { values.elementAt(-1L) } catch (error: IndexOutOfBoundsException) { caught = true }
+    check(caught && values.indexOf(2) == 1L && values.indexOf(8) == -1L && values.contains(3), "indexed lookup")
+    check(Once(values, 4L).count() == 3L && values.count<Int> { value -> value < 3 } == 2L, "count")
+    check(Once(values, 4L).fold<Int, String>("x") { total, value -> total + value.toString() } == "x123", "fold")
+    check(Once(values, 4L).reduce<Int> { total, value -> total + value } == 6, "reduce")
+    check(listOf<Int?>(None).reduceOrNone<Int?> { a, _ -> a } == Some(None), "reduce nested option")
+    check(emptyList<Int>().reduceOrNone<Int> { a, b -> a + b } == None, "reduce empty option")
+    caught = false
+    try { emptyList<Int>().reduce<Int> { a, b -> a + b } } catch (error: NoSuchElementException) { caught = true }
+    check(caught, "reduce empty")
+    val state = State()
+    values.forEach<Int> { value -> state.calls += value.toLong() }
+    values.forEachIndexed<Int> { index, value -> state.calls += index + value.toLong() }
+    check(values.onEach<Int> { _ -> state.calls += 1L } === values && state.calls == 18L, "actions")
+    val zero = Once(values, 0L)
+    check(zero.take(0L).isEmpty() && zero.opened == 0L, "take zero")
+    check(Once(values, 2L).take(2L).joinToString() == "1, 2", "take bound")
+    check(Once(values, 4L).drop(2L).joinToString() == "3", "drop")
+    check(Once(values, 2L).takeWhile<Int> { value -> value < 2 }.joinToString() == "1", "takeWhile")
+    state.calls = 0L
+    check(values.dropWhile<Int> { value -> state.calls += 1L; value < 2 }.joinToString() == "2, 3" && state.calls == 2L, "dropWhile")
+    check(Once(values, 4L).reversed().joinToString() == "3, 2, 1", "reversed")
+
+}
+
+@Test
+private class ApiTests {
+    @Test
+    fun behavior() { exercise() }
+}

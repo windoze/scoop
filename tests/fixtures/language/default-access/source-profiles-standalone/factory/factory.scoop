@@ -1,0 +1,4 @@
+package test
+public fun defaultPlain(): Plain = Plain()
+public fun <T> defaultGeneric(): Generic<T> = Generic<T>()
+public fun defaultGenericStatic(): Generic.Static = Generic.Static()

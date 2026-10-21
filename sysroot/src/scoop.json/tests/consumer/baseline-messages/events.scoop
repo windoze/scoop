@@ -1,0 +1,91 @@
+package scoop.json.tests.consumer.baseline_messages
+
+import scoop.test.*
+import scoop.json.*
+
+enum MessageEvent {
+    Start(MessageStart), Delta(MessageDelta), Stop, BlockStart(BlockStart), BlockDelta(BlockDelta), BlockStop(BlockStop), Ping, Error(ErrorEvent), Unknown(JsonValue)
+    companion object : ValueEncoder<MessageEvent>, ValueDecoder<MessageEvent> {
+        public override fun encode(value: MessageEvent, encoder: Encoder) {
+            val fields = encoder.keyed()
+            when (value) {
+                case MessageEvent.Start(payload) -> {
+                    String.encode("message_start", fields.field("type"))
+                    MessageStart.Companion.encode(payload, encoder)
+                }
+                case MessageEvent.Delta(payload) -> {
+                    String.encode("message_delta", fields.field("type"))
+                    MessageDelta.Companion.encode(payload, encoder)
+                }
+                case MessageEvent.Stop -> {
+                    String.encode("message_stop", fields.field("type"))
+                }
+                case MessageEvent.BlockStart(payload) -> {
+                    String.encode("content_block_start", fields.field("type"))
+                    BlockStart.Companion.encode(payload, encoder)
+                }
+                case MessageEvent.BlockDelta(payload) -> {
+                    String.encode("content_block_delta", fields.field("type"))
+                    BlockDelta.Companion.encode(payload, encoder)
+                }
+                case MessageEvent.BlockStop(payload) -> {
+                    String.encode("content_block_stop", fields.field("type"))
+                    BlockStop.Companion.encode(payload, encoder)
+                }
+                case MessageEvent.Ping -> {
+                    String.encode("ping", fields.field("type"))
+                }
+                case MessageEvent.Error(payload) -> {
+                    String.encode("error", fields.field("type"))
+                    ErrorEvent.Companion.encode(payload, encoder)
+                }
+                case MessageEvent.Unknown(raw) -> JsonValue.Companion.encode(raw, encoder)
+            }
+            fields.end()
+        }
+        public override fun decode(decoder: Decoder): MessageEvent {
+            val fields = decoder.keyed()
+            return when (String.decode(fields.required("type"))) {
+                case "message_start" -> MessageEvent.Start(MessageStart.Companion.decode(decoder))
+                case "message_delta" -> MessageEvent.Delta(MessageDelta.Companion.decode(decoder))
+                case "message_stop" -> MessageEvent.Stop
+                case "content_block_start" -> MessageEvent.BlockStart(BlockStart.Companion.decode(decoder))
+                case "content_block_delta" -> MessageEvent.BlockDelta(BlockDelta.Companion.decode(decoder))
+                case "content_block_stop" -> MessageEvent.BlockStop(BlockStop.Companion.decode(decoder))
+                case "ping" -> MessageEvent.Ping
+                case "error" -> MessageEvent.Error(ErrorEvent.Companion.decode(decoder))
+                else -> MessageEvent.Unknown(JsonValue.Companion.decode(decoder))
+            }
+        }
+    }
+}
+struct MessageStart(val message: MessageBody) {
+    companion object : ValueEncoder<MessageStart>, ValueDecoder<MessageStart> {}
+}
+struct MessageDelta(val delta: StopDelta, val usage: UsageDelta) {
+    companion object : ValueEncoder<MessageDelta>, ValueDecoder<MessageDelta> {}
+}
+struct StopDelta(
+    @Serialize(required = true) val stop_reason: String?,
+    @Serialize(required = true) val stop_sequence: String?
+) {
+    companion object : ValueEncoder<StopDelta>, ValueDecoder<StopDelta> {}
+}
+struct UsageDelta(val output_tokens: Long, val input_tokens: Long? = None) {
+    companion object : ValueEncoder<UsageDelta>, ValueDecoder<UsageDelta> {}
+}
+struct BlockStart(val index: Long, val content_block: Block) {
+    companion object : ValueEncoder<BlockStart>, ValueDecoder<BlockStart> {}
+}
+struct BlockDelta(val index: Long, val delta: Delta) {
+    companion object : ValueEncoder<BlockDelta>, ValueDecoder<BlockDelta> {}
+}
+struct BlockStop(val index: Long) {
+    companion object : ValueEncoder<BlockStop>, ValueDecoder<BlockStop> {}
+}
+struct ErrorEvent(val error: MessageError) {
+    companion object : ValueEncoder<ErrorEvent>, ValueDecoder<ErrorEvent> {}
+}
+struct MessageError(val type: String, val message: String) {
+    companion object : ValueEncoder<MessageError>, ValueDecoder<MessageError> {}
+}

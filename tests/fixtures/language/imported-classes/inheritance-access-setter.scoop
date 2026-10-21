@@ -1,0 +1,6 @@
+package dev.example
+import dev.example.dependency.classes.AccessParent
+
+public fun write(value: AccessParent) {
+    value.guarded = 21
+}

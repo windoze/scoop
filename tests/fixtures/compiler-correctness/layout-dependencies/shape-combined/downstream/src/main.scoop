@@ -1,0 +1,2 @@
+package dev.example
+public fun read(): Boolean = expandedDefaults() && testString(literalString()) && smartInteger(boxInteger(7)) == 7

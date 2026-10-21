@@ -1,0 +1,4 @@
+package dev.example
+import dev.example.upstream.sharedbounds.unfilled
+
+public fun result(): Int = unfilled()

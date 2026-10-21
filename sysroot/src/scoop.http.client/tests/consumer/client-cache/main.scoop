@@ -1,0 +1,43 @@
+package scoop.http.client.tests.consumer.client_cache
+
+import scoop.test.*
+import scoop.platform.fs.*
+import scoop.asyncio.*
+import scoop.http.client.*
+import scoop.platform.concurrent.Thread
+import scoop.platform.fs.Path
+import scoop.test.*
+
+private fun cacheConcurrent(cache: MemoryHttpCache, prefix: String) {
+    LibuvEventLoop().run suspend { _ ->
+        for (index in 0L..<24L) {
+            val request = cacheRequest("/" + prefix + index.toString())
+            cacheStore(cache, request, prefix)
+            assertEquals(Some(prefix), cacheRead(cache, request))
+        }
+    }
+}
+
+private fun exerciseConsumer(args: Array<String>) {
+    val directory = Path.fromString(args[1L])
+    LibuvEventLoop().run suspend { _ ->
+        cacheMemoryRules()
+        cacheVaryRules()
+        cacheDiskRules(directory.resolve(Path.fromString("storage")))
+        cacheDiskCancellation(directory.resolve(Path.fromString("cancel")))
+    }
+    val cache = MemoryHttpCache()
+    val worker = Thread.start { cacheConcurrent(cache, "other") }
+    try { cacheConcurrent(cache, "main") } finally { worker.join() }
+    assertEquals(48L, cache.entryCount)
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun run() {
+        val directory = createTempDirectory(prefix = "scoop-consumer-")
+        try { exerciseConsumer(["consumer", directory.decodeUtf8()]) }
+        finally { directory.deleteRecursively() }
+    }
+}

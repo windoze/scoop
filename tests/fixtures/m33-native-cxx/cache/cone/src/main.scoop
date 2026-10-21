@@ -1,3 +1,0 @@
-@Extern(name = "m33_cached")
-fun cached(): Int
-fun main(): Int { @Unsafe { return cached() } }

@@ -1,3 +1,0 @@
-@Extern(name = "m33_unused")
-fun nativeValue(): Int
-fun main(): Int { @Unsafe { return nativeValue() } }

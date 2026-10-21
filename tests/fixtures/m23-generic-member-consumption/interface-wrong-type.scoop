@@ -1,5 +1,0 @@
-import templates.members.Chooser
-
-class Invalid: Chooser<Int> {
-    public override fun choose(value: String): String = value
-}

@@ -1,0 +1,19 @@
+package test.core.tests.consumer.characters_shadow
+
+import scoop.test.*
+class Char(val number: Int)
+
+private fun exerciseConsumer() {
+    val character = '雪'
+    val ordinary = Char(42)
+    if (character.code != 38634 || character.toString() != "雪" || ordinary.number != 42) {
+        fail(Some("shadow"))
+    }
+    assertEquals("42", (42).toString())
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun behavior() { exerciseConsumer() }
+}

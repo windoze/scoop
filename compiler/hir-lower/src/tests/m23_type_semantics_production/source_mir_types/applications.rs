@@ -5,7 +5,7 @@ use scoop_mir::{MirTypeBridgeAuthority, MirTypeBridgeTypeIndexV1, MirTypeBridgeT
 fn actual_generic_type_exports_preserve_payloads_fields_and_original_owners() {
     for name in ["generic-values", "generic-combined"] {
         let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tests/fixtures/m23-source-mir-types");
+            .join("../../tests/fixtures/language/source-mir-types");
         let source = std::fs::read_to_string(directory.join(format!("{name}.scoop"))).unwrap();
         with_production(&source, |output, input, hir, graph, sources| {
             let types = scoop_mir_lower::lower_type_exports(

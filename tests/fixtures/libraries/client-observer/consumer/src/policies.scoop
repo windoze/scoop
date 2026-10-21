@@ -1,0 +1,79 @@
+package scoop.tests
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.*
+import scoop.http.client.*
+import scoop.test.*
+import scoop.time.Duration
+import scoop.tls.TlsTrustSource
+import scoop.url.Url
+
+internal fun observedFollowUp(trust: TrustStore, url: Url) {
+    val log = ObservationLog()
+    val provider = HttpAuthenticator.basic(url.httpOrigin()) suspend { _ -> HttpPasswordCredentials("user", "secret") }
+    LibuvEventLoop().run suspend { _ ->
+        val config = HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)), observer = Some(log.observer()),
+            authentication = HttpAuthenticationOptions([provider]),
+            retries = HttpRetryOptions(maxRetries = 1L, statuses = [503U], initialDelay = Duration.ZERO, maxDelay = Duration.ZERO))
+        withHttpClient(config) suspend { client ->
+            client.withResponse(HttpRequest(url, "POST", body = RequestBody.fromText("payload"))) suspend { response ->
+                assertEquals("done", response.body.text(4L))
+                assertEquals(4L, response.metrics!!.number)
+                assertEquals(1L, response.redirectHistory.size)
+                assertEquals(1L, response.retryCount); assertEquals(1L, response.authenticationCount)
+            }
+        }
+    }
+    val starts = log.ofKind(HttpCallEventKind.AttemptStarted)
+    val completed = log.ofKind(HttpCallEventKind.Completed)
+    assertEquals(4L, starts.size); assertEquals(4L, completed.size)
+    val reasons = [HttpAttemptReason.Initial, HttpAttemptReason.Redirect, HttpAttemptReason.Retry, HttpAttemptReason.Authentication]
+    val statuses = [303U, 503U, 401U, 200U]
+    for (index in 0L..<4L) {
+        assertSame(starts[0L].call, starts[index].call)
+        assertSame(starts[0L].call, completed[index].call)
+        assertEquals(index + 1L, starts[index].metrics.number)
+        assertEquals(reasons[index], starts[index].metrics.reason)
+        assertEquals(reasons[index], completed[index].metrics.reason)
+        assertEquals(Some(statuses[index]), completed[index].metrics.status)
+        assertEquals(7L, completed[index].metrics.requestBodyBytes)
+        assertEquals(if (index == 0L) "POST" else "GET", completed[index].metrics.method)
+        assertFalse(observationPresent(completed[index].failure))
+        checkObservationPhases(completed[index].metrics)
+    }
+    assertEquals(4L, completed[3L].metrics.responseBodyBytes)
+}
+
+internal fun observedCache(trust: TrustStore, url: Url) {
+    val log = ObservationLog()
+    LibuvEventLoop().run suspend { _ ->
+        val config = HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)), observer = Some(log.observer()),
+            cache = Some(HttpCacheOptions(MemoryHttpCache())))
+        withHttpClient(config) suspend { client ->
+            for (index in 0..<4) {
+                val options = HttpCallOptions(cacheMode = if (index == 2) HttpCacheMode.Reload else if (index == 3)
+                    HttpCacheMode.OnlyIfCached else HttpCacheMode.Default)
+                client.withResponse(HttpRequest.get(if (index == 3) url.resolve("/missing") else url, options = options)) suspend { response ->
+                    assertEquals(if (index == 3) "" else "cached", response.body.text(64L))
+                    assertEquals(if (index == 3) 504U else 200U, response.status)
+                    assertEquals(Some(if (index == 2) 304U else response.status), response.metrics!!.status)
+                }
+            }
+        }
+    }
+    val completed = log.ofKind(HttpCallEventKind.Completed)
+    assertEquals(4L, completed.size)
+    assertEquals(2L, log.ofKind(HttpCallEventKind.ConnectionAcquired).size)
+    assertEquals(2L, log.ofKind(HttpCallEventKind.RequestHeaders).size)
+    val statuses = [HttpCacheStatus.Network, HttpCacheStatus.Hit, HttpCacheStatus.Revalidated, HttpCacheStatus.Unsatisfied]
+    for (index in 0L..<4L) {
+        val metrics = completed[index].metrics
+        assertEquals(statuses[index], metrics.cacheStatus)
+        assertEquals(1L, metrics.number)
+        assertEquals(if (index == 3L) 0L else 6L, metrics.responseBodyBytes)
+        if (index == 1L || index == 3L) {
+            assertFalse(observationPresent(metrics.queue) || observationPresent(metrics.version) || observationPresent(metrics.firstResponseByteAt))
+            assertFalse(observationPresent(metrics.requestHeadersAt) || observationPresent(metrics.connectionReused))
+        }
+    }
+}

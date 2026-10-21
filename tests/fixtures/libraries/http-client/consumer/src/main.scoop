@@ -1,0 +1,80 @@
+package fixture
+import scoop.asyncio.*
+import fixture.scoop.crypto.testdata.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.*
+import scoop.http.client.*
+import scoop.platform.concurrent.Thread
+import scoop.platform.fs.Path
+import scoop.platform.net.*
+import scoop.tls.*
+import scoop.url.Url
+
+fun check(value: Boolean) { if (!value) throw IllegalStateException(Some("HTTP client integration check failed")) }
+
+class ClientGate {
+    private var opened: Boolean = false
+    private var waiter: Continuation<Unit>? = None
+    fun signal() { opened = true; val saved = waiter; waiter = None; saved?.resume(Unit) }
+    suspend fun await() {
+        suspendCoroutine<Unit> { continuation -> if (opened) continuation.resume(Unit) else waiter = Some(continuation) }
+    }
+}
+
+class ClientBinding(val name: String)
+context(binding: ClientBinding)
+fun clientBinding(): String = binding.name
+
+private fun exercise(path: Path, version: HttpVersion, secure: Boolean) {
+    TrustStore.fromPem(rootPem()).use { trust ->
+        val loop: EventLoop = LibuvEventLoop()
+        loop.run suspend { scope ->
+            loop.listenTcp(SocketAddress(IpAddress.IPV4_LOOPBACK, 0)).useAsync suspend { listener ->
+                val done = ClientGate()
+                val serving = scope.launch suspend { serveClientConsumer(listener, scope, version, secure, done) }
+                val config = HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)))
+                val client = context(ClientBinding("owner")) { HttpClient.open(scope, config) }
+                try {
+                    val url = Url.parse((if (secure) "https://localhost:" else "http://127.0.0.1:") +
+                        listener.localAddress.port.toString() + "/send?q=one&q=two#local")
+                    val events = ArrayList<UInt>()
+                    val body = RequestBody.fromSourceFactory(contentType = Some(HttpMediaType("text", "plain"))) suspend {
+                        check(clientBinding() == "request")
+                        loop.openFile(path)
+                    }
+                    val options = HttpCallOptions(onInformational = suspend { head ->
+                        check(clientBinding() == "request")
+                        events.add(head.status)
+                    })
+                    context(ClientBinding("request")) {
+                        client.withResponse(HttpRequest.post(url, body, options = options)) suspend { response ->
+                            check(response.requireSuccess() === response)
+                            check(response.version == version && response.status == 201U)
+                            check(response.wireContentLength == None)
+                            check(String.fromUtf8(response.body.readAllBytes(100L)) == "accepted 中文")
+                            check(response.body.isComplete && response.trailers!!.size == 1L)
+                            check(String.fromUtf8(response.trailers!![0L].value) == "complete")
+                        }
+                    }
+                    check(events.size == 1L && events[0L] == 103U)
+                    check(!scope.job.isCancelled)
+                } finally { client.close(); done.signal() }
+                serving.join()
+                check(client.isClosed)
+            }
+        }
+    }
+}
+
+fun main(args: Array<String>) {
+    if (args.size == 3L && args[1L] == "external") {
+        runExternalClient(Url.parse(args[2L]))
+        return
+    }
+    check(args.size == 2L)
+    val path = Path.fromString(args[1L])
+    Thread.start { exercise(path, HttpVersion.Http11, false) }.use { first ->
+        Thread.start { exercise(path, HttpVersion.Http2, true) }.use { second -> first.join(); second.join() }
+    }
+    println("HTTP client streams files and responses through HTTP1 and ALPN HTTP2 with structured cleanup")
+}

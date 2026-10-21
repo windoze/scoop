@@ -1,0 +1,36 @@
+package scoop.tests
+import scoop.asyncio.*
+import scoop.collections.emptyList
+import scoop.crypto.x509.TrustStore
+import scoop.http.*
+import scoop.http.client.*
+import scoop.test.*
+import scoop.time.Duration
+import scoop.url.Url
+
+internal fun extensionAttemptValidation(trust: TrustStore, url: Url, fields: Boolean) {
+    val names = ["Host", "Content-Length", "Transfer-Encoding", "Connection", "Upgrade", "Expect", "Trailer",
+        "Proxy-Authorization", "Accept-Encoding", "X-Existing", "Content-Type", "Content-Encoding"]
+    LibuvEventLoop().run suspend { _ ->
+        for (index in 0L..<(if (fields) names.size + 2L else 1L)) {
+            val state = ExtensionState()
+            val callback: suspend (HttpAttempt) -> List<HttpField> = suspend { attempt ->
+                state.attempts += 1L
+                currentEventLoop().sleep(Duration.milliseconds(1L))
+                if (!fields) throw state.failure
+                assertEquals("/start", attempt.request.url.httpRequestTarget())
+                if (index == names.size) [extensionField("X-New", "one"), extensionField("x-new", "two")]
+                else if (index == names.size + 1L) [extensionField("X-New", "line\r\nbreak")]
+                else [extensionField(names[index], "invalid")]
+            }
+            withHttpClient(extensionConfig(trust, callback = Some(callback))) suspend { client ->
+                val request = HttpRequest.post(url, RequestBody.fromText("data").compressed(), [extensionField("X-Existing", "old")])
+                val error = extensionFailure suspend { client.execute(request); Unit }
+                if (!fields) assertSame(state.failure, error)
+                else assertTrue(error is IllegalArgumentException || error is HttpException)
+                assertEquals(1L, state.attempts)
+            }
+        }
+        withHttpClient(extensionConfig(trust)) suspend { client -> extensionGet(client, url.resolve("/probe"), "probe") }
+    }
+}

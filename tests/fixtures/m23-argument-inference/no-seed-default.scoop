@@ -1,2 +1,0 @@
-import dependency.inference.defaulted
-public fun result(): Int { val value = defaulted(); return 42 }

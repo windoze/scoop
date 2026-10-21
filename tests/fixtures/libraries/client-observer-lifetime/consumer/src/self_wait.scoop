@@ -1,0 +1,50 @@
+package scoop.tests
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.http.client.*
+import scoop.test.*
+import scoop.tls.TlsTrustSource
+
+private suspend fun observerSelfAwait(owner: ObserverOwner, response: Boolean) {
+    val failure = observerFailure suspend {
+        if (response) owner.response!!.close() else owner.client!!.close()
+    }
+    assertTrue(failure is IllegalStateException)
+}
+
+internal fun observerSelfWait(trust: TrustStore, where: HttpCallEventKind, child: Boolean, response: Boolean) {
+    withObserverRuntime suspend { _, scope, listener, url ->
+        val owner = ObserverOwner()
+        val attempts = AtomicLong(0L)
+        val done = ObserverGate()
+        val serving = scope.launch suspend {
+            AsyncHttp1Connection.takeOwnershipAsServer(listener.accept(), scope).useAsync suspend { connection ->
+                val request = connection.receiveRequest()!!
+                request.body.readAllBytes(1L)
+                connection.sendResponse(HttpResponseHead(HttpVersion.Http11, 200U), Http1BodyFraming.Length(4L)).useAsync suspend { output ->
+                    observerWrite(output, "body"); output.finish()
+                }
+                done.await()
+            }
+        }
+        val observer = HttpObserver(suspend { event ->
+            if (event.kind == where) {
+                attempts.fetchAdd(1L)
+                if (child) coroutineScope<Unit> suspend { children -> children.launch suspend { observerSelfAwait(owner, response) }; Unit }
+                else observerSelfAwait(owner, response)
+            }
+        })
+        val client = HttpClient.open(scope, HttpClientConfig(tls = HttpClientTlsConfig(TlsTrustSource.Store(trust)), observer = Some(observer)))
+        owner.client = Some(client)
+        try {
+            val request = if (where == HttpCallEventKind.RequestProgress) HttpRequest(url, "POST", body = RequestBody.fromText("x")) else HttpRequest.get(url)
+            val result = client.execute(request)
+            owner.response = Some(result)
+            result.useAsync suspend { active -> assertEquals("body", active.body.text(4L)) }
+            assertEquals(1L, attempts.load())
+            ensureActive()
+        } finally { done.signal(); client.close(); serving.join() }
+    }
+}

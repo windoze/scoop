@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "function `check` must have a body",
+    "notes": [],
+    "origin": {
+      "cone": "a17e2e471e5f964540ffba80e904b816ed7abaaa25546981b8e89aec5d52eacd",
+      "end": 76,
+      "kind": "source",
+      "path": "tests/case.scoop",
+      "start": 71
+    },
+    "severity": "error"
+  }
+]

@@ -36,6 +36,8 @@ def execute(fixture, common, work, update=False, interrupted=None):
             context |= expand(fixture.data.get("vars", {}), context)
             context |= expand(variant.get("vars", {}), context)
             environment = dict(os.environ)
+            for key in ("SCOOP_GC_STRESS_MOVE", "SCOOP_GC_STRESS_MINOR"):
+                environment.pop(key, None)
             environment |= expand(variant.get("env", {}), context)
             execute_variant(fixture, context, environment, update, result, interrupted)
             variants[variant["name"]] = context

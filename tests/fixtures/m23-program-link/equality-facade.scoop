@@ -1,3 +1,0 @@
-package facadeEquality
-
-public import exactEquality.*

@@ -1,0 +1,19 @@
+schema = 1
+name = "pressure-noop"
+inputs = ["probe.c"]
+tools = ["cc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["runtime", "language"]
+[[steps]]
+name = "build"
+argv = ["${cc}", {each = "${cc_args}"}, "-std=c11", "-Wall", "-Wextra", "-Werror", "-pthread", "-I", "${runtime}/include", "${fixture}/probe.c", "${runtime}/src/gc/pressure.c", "${runtime}/src/gc_binding/pressure.c", "-o", "${work}/probe"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "run"
+argv = ["${work}/probe"]
+exit = 0
+stdout = ""
+stderr = ""

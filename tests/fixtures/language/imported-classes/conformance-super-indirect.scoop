@@ -1,0 +1,7 @@
+package dev.example
+import dev.example.dependency.classes.ChildReader
+import dev.example.dependency.classes.ParentReader
+
+public class LocalReader public constructor(): ChildReader {
+    public fun answer(): Long = super<ParentReader>.parent()
+}

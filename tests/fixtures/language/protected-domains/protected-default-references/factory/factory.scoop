@@ -1,0 +1,3 @@
+package test
+public fun defaultChild(): DefaultChild = DefaultChild()
+public fun defaultMulti(): DefaultMulti = DefaultMulti()

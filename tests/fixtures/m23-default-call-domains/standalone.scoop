@@ -1,3 +1,0 @@
-public interface DomainSeed<T> {
-    public fun choose(seed: T, value: T = seed): T
-}

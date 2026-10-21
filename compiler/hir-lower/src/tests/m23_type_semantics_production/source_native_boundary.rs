@@ -7,7 +7,7 @@ fn native_boundary_producer_uses_shared_core_metadata_for_a_narrow_integer() {
     source_dispatch::with_hir_source(
         include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../tests/fixtures/m23-native-boundary/single.scoop"
+            "/../../tests/fixtures/language/native-boundary/single.scoop"
         )),
         |output, core| {
             let protocols = core.foundation.import_core_inputs(&core.interface).unwrap();
@@ -34,7 +34,7 @@ fn native_boundary_producer_closes_local_struct_enum_and_all_imported_primitives
     source_dispatch::with_hir_source(
         include_str!(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../tests/fixtures/m23-native-boundary/combined.scoop"
+            "/../../tests/fixtures/language/native-boundary/combined.scoop"
         )),
         |output, core| {
             let protocols = core.foundation.import_core_inputs(&core.interface).unwrap();

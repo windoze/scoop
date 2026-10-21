@@ -1,0 +1,4 @@
+package dev.example
+import dev.example.templates.delegateCombinations.Receiver
+
+val <T> Receiver<T>.wrong: Int by this

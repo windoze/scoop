@@ -1,0 +1,4 @@
+package dev.example
+import dev.example.templates.members.Reader
+
+class Missing: Reader<Int>

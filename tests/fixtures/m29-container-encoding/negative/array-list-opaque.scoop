@@ -1,3 +1,0 @@
-struct Opaque()
-fun send(value: ArrayList<Opaque>, encoder: Encoder) { value.encode(encoder) }
-fun main() {}

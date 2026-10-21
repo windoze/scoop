@@ -1,8 +1,8 @@
-package tls.consumer
+package scoop.tests.tls.consumer
 
 import scoop.crypto.*
 import scoop.crypto.x509.*
-import scoop.crypto.testdata.*
+import scoop.tests.scoop.crypto.testdata.*
 import scoop.tls.*
 
 /**

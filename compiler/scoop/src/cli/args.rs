@@ -5,8 +5,13 @@ use super::doc::DocArgs;
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use scoop::BuildProfile;
 
+mod forwarding;
+pub(super) use forwarding::with_single_file_arguments;
+
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_forwarding;
 
 #[derive(Parser)]
 #[command(
@@ -15,15 +20,23 @@ mod tests;
     about = "Build, test, run, and link Scoop programs"
 )]
 pub(super) struct Cli {
+    /// Include runtime GC stress support, controlled by environment variables at run time.
+    #[arg(long, global = true)]
+    pub enable_gc_stress: bool,
     #[command(subcommand)]
     pub command: Command,
 }
 
 #[derive(Subcommand)]
 pub(super) enum Command {
+    /// Create a new Cone with a fixed executable or library template.
+    New(super::new::NewArgs),
     /// Build a library or executable from a Cone or one source file.
     Build(BuildArgs),
     /// Build an executable and run it with the caller's environment and stdio.
+    #[command(
+        after_help = "For a .scoop file, the first program positional argument starts forwarding. Use -- before a first program option, such as --help. All later arguments are forwarded unchanged."
+    )]
     Run(RunArgs),
     /// Build and run the current manifest Cone’s tests.
     Test(TestArgs),
@@ -208,6 +221,7 @@ impl From<LinkMode> for scoop_toolchain::LinkMode {
 impl Command {
     pub fn message_format(&self) -> MessageFormat {
         match self {
+            Self::New(_) => MessageFormat::Human,
             Self::Build(args) => args.options.message_format,
             Self::Run(args) => args.options.message_format,
             Self::Test(args) => args.options.message_format,

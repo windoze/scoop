@@ -1,4 +1,0 @@
-import dependency.classes.Counter
-import dependency.classes.defaultValueReader
-
-public fun primary(): Counter = Counter(defaultValueReader().answer())

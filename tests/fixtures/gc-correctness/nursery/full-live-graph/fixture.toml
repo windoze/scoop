@@ -1,0 +1,21 @@
+schema = 1
+name = "full-live-graph"
+root = "program.scoop"
+inputs = ["program.scoop"]
+tools = ["scoop"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["gc", "full", "array", "gc-correctness"]
+variants = [
+  {name = "debug", vars = {profile = "debug"}, env = {SCOOP_GC_WORKERS = "1"}},
+  {name = "release", vars = {profile = "release"}, env = {SCOOP_GC_WORKERS = "1"}},
+  {name = "parallel", vars = {profile = "release"}, env = {SCOOP_GC_WORKERS = "4"}},
+]
+
+[[steps]]
+name = "run"
+argv = ["${scoop}", "--enable-gc-stress", "run", {"each" = "${link_args}"}, "${root}", "--sysroot", "${sysroot}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--profile", "${profile}", "--message-format", "json"]
+exit = 0
+stdout = "dense and sparse full collections preserve live array graphs\n"
+stderr = ""
+json = "stderr"
+diagnostics = []

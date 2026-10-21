@@ -1,0 +1,2 @@
+package test
+public fun <T> leaf(): Leaf<T> = Leaf<T>()

@@ -1,0 +1,25 @@
+package dev.m55.companion.m55.companion
+public interface Code<T> { public fun code(value: T): String }
+private var counter: Int = 0
+private fun start(): Int { counter += 1; return counter }
+public fun starts(): Int = counter
+public struct Remote(val value: Int) {
+    public companion object Factory : Code<Remote> {
+        public val marker: Int = start()
+        public override fun code(value: Remote): String = "remote"
+    }
+}
+public struct Box<T>(val value: T) {
+    public companion object : Code<Box<T>> {
+        public val marker: Int = start()
+        public override fun code(value: Box<T>): String = "box"
+    }
+}
+public fun <T> probe(value: T): String where T.Companion : ref = "present"
+public fun <T> encode(value: T, codec: T.Companion = T.Companion): String
+    where T.Companion : Code<T> = codec.code(value)
+public fun <T> forward(value: T): String where T.Companion : Code<T> = encode(value)
+public fun <T> project(value: T): T.Companion where T.Companion : ref = T.Companion
+public class Relay<U> public constructor(private val seed: U) {
+    public fun <T> render(value: T): String where T.Companion : Code<T> = T.code(value)
+}

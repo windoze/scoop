@@ -1,0 +1,72 @@
+package scoop.http.asyncio.tests.consumer.multipart_sink
+
+import scoop.test.*
+import scoop.asyncio.*
+import scoop.http.*
+import scoop.http.asyncio.*
+import scoop.platform.fs.Path
+import scoop.platform.memory.NativeByteBuffer
+
+fun boundary(): MultipartBoundary = MultipartBoundary("upload:54")
+fun fileBytes(): Array<Byte> = "文件内容\n".toByteArray()
+
+suspend fun writeBytes(sink: AsyncByteSink, bytes: Array<Byte>) {
+    NativeByteBuffer.allocate(bytes.size).use suspend { buffer -> buffer.writeBytes(bytes); sink.writeFully(buffer) }
+}
+
+suspend fun readBytes(source: AsyncByteSource): Array<Byte> {
+    val bytes = ArrayList<Byte>()
+    NativeByteBuffer.allocate(7L).use suspend { buffer ->
+        while (true) {
+            buffer.clear()
+            val count = source.readInto(buffer, 7L)
+            if (count == 0L) break
+            for (byte in buffer.readBytes(count)) bytes.add(byte)
+        }
+    }
+    return bytes.toArray()
+}
+
+suspend fun writeFileParts(loop: EventLoop, sink: MultipartSink, path: Path) {
+    val first = sink.beginPart(MultipartPartHead.formData("file", Some("文.txt"),
+        Some(HttpMediaType("text", "plain")), Some(fileBytes().size)))
+    loop.openFile(path).useAsync suspend { input -> check(input.copyTo(first, 5L) == fileBytes().size) }
+    first.finish(); first.close()
+    val second = sink.beginPart(MultipartPartHead.formData("empty", bodyLength = Some(0L)))
+    second.finish()
+    val third = sink.beginPart(MultipartPartHead())
+    writeBytes(third, "tail".toByteArray())
+    third.finish(); sink.finish()
+}
+
+suspend fun readFileParts(source: MultipartSource) {
+    val first = source.nextPart()!!
+    val disposition = HttpContentDisposition.parse(first.head.fields[0L].value)
+    check(String.fromUtf8(disposition.parameter("filename")!!.value) == "文.txt")
+    check(String.fromUtf8(readBytes(first.body)) == "文件内容\n")
+    check(first.head.bodyLength == None)
+    check(source.nextPart()!!.body.discard(0L) == 0L)
+    val last = source.nextPart()!!
+    check(String.fromUtf8(readBytes(last.body)) == "tail")
+    gcCollect()
+    check(when (source.nextPart()) { case None -> true; case Some(_) -> false })
+    check(source.isFinished)
+}
+
+suspend fun writeSingle(stream: AsyncHttp2Stream) {
+    MultipartSink(stream, boundary(), 7L).useAsync suspend { sink ->
+        val part = sink.beginPart(MultipartPartHead(bodyLength = Some(4L)))
+        writeBytes(part, "kept".toByteArray())
+        part.finish(); sink.finish()
+    }
+    stream.finish([HttpField("x-upload".toByteArray(), "h2".toByteArray())])
+}
+
+suspend fun readSingle(stream: AsyncHttp2Stream) {
+    MultipartSource(stream, boundary(), MultipartLimits(dataChunkBytes = 5L), 7L).useAsync suspend { source ->
+        val part = source.nextPart()!!
+        check(String.fromUtf8(readBytes(part.body)) == "kept")
+        check(when (source.nextPart()) { case None -> true; case Some(_) -> false })
+        check(String.fromUtf8(stream.trailers!![0L].value) == "h2")
+    }
+}

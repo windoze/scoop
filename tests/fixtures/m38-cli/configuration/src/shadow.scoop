@@ -1,4 +1,0 @@
-package shadow
-public struct Option<T>(val value: T)
-@Target([AnnotationTarget.Field])
-public annotation class Serialize(val ignore: Boolean = true)

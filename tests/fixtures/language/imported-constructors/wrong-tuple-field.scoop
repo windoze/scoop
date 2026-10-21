@@ -1,0 +1,7 @@
+package dev.example.consumer.constructors
+
+import dev.example.dependency.constructors.TupleBox
+import dev.example.dependency.constructors.Token
+import dev.example.dependency.constructors.Other
+
+public fun wrong(): TupleBox = TupleBox((Token(), (1, 2, 3), Other()))

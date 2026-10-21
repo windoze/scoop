@@ -1,4 +1,0 @@
-public fun result(): Int {
-    val copied = Array<Int>()
-    return 42
-}

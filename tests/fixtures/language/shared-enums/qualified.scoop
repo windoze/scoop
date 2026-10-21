@@ -1,0 +1,30 @@
+package dev.example.consumer.enums
+import dev.example.upstream.enums.*
+import dev.example.upstream.enums.Choice as Selected
+
+public enum Local<T> { Item(T) }
+public struct Envelope<T>(val payload: T)
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val selected = when (pack<T>(seed)) {
+        case Choice.Empty -> seed
+        case Selected.Item(payload) -> payload
+        case dev.example.upstream.enums.Choice.Named { payload, .. } -> payload
+        case Choice.Defaults { payload, .. } -> payload
+    }
+    val wrapped = Local.Item(Envelope<T>(selected))
+    return when (wrapped) {
+        case dev.example.consumer.enums.Local.Item(dev.example.consumer.enums.Envelope(payload)) -> read(payload)
+    }
+}
+
+public fun result(): Int {
+    val selected: IntChoice = Selected.Named(payload = 40, amount = 2)
+    val number = when (selected) {
+        case dev.example.upstream.enums.IntChoice.Empty -> 0
+        case IntChoice.Item(payload) -> payload
+        case dev.example.upstream.enums.IntChoice.Named { amount, payload } -> payload + amount
+        case IntChoice.Defaults { payload, amount } -> payload + amount
+    }
+    return exercise<Int>(number, { value -> value })
+}

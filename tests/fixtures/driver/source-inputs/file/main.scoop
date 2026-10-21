@@ -1,0 +1,2 @@
+package test.m48
+fun main() { println(48) }

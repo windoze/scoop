@@ -1,6 +1,0 @@
-package api
-
-/** Version one API. */
-public class Versioned {
-    public fun versionOne(): Int = 1
-}

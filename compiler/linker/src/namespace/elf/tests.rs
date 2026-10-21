@@ -65,7 +65,7 @@ fn real_elf_flat_namespace_rejects_incompatible_explicit_library_bindings() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path();
     let fixtures = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/m23-native-link/dynamic");
+        .join("../../tests/fixtures/language/native-link/dynamic");
     let mut libraries = BTreeMap::new();
     let mut ids = Vec::new();
     for name in ["a", "b"] {

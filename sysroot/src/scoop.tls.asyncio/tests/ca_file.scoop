@@ -2,7 +2,7 @@ package scoop.tls.asyncio
 
 import scoop.asyncio.*
 import scoop.crypto.CryptoException
-import scoop.crypto.testdata.*
+import scoop.tests.scoop.crypto.testdata.*
 import scoop.platform.fs.*
 import scoop.platform.system.*
 import scoop.test.*

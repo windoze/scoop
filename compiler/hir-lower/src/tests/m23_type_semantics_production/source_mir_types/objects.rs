@@ -8,7 +8,7 @@ mod rejections;
 fn actual_object_values_and_initialization_callables_share_source_identities() {
     for name in ["standalone", "combined"] {
         let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tests/fixtures/m23-mir-object-production");
+            .join("../../tests/fixtures/language/mir-object-production");
         let source = std::fs::read_to_string(directory.join(format!("{name}.scoop"))).unwrap();
         let bytes = with_production(&source, |output, input, hir, graph, _| {
             let types = scoop_mir_lower::lower_type_exports(
@@ -41,7 +41,7 @@ fn actual_object_values_and_initialization_callables_share_source_identities() {
             )
         });
         with_production(
-            &format!("private object Unrelated {{}}\n{source}"),
+            &prepend_declarations(&source, "private object Unrelated {}\n"),
             |output, input, hir, graph, _| {
                 let types = scoop_mir_lower::lower_type_exports(
                     output.output().local.module(),

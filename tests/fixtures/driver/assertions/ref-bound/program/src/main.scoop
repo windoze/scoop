@@ -1,0 +1,6 @@
+package dev.m43
+import scoop.test.assertSame
+
+fun main() {
+    assertSame(1, 1)
+}

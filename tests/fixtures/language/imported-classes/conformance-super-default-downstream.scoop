@@ -1,0 +1,4 @@
+package dev.example
+import dev.example.LocalChoice
+
+public fun check(): Long = LocalChoice().answer() + primary().twice() - 21

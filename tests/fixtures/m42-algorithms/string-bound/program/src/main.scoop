@@ -1,4 +1,0 @@
-import scoop.collections.*
-
-class Item
-fun main() { listOf<Item>(Item()).joinToString() }

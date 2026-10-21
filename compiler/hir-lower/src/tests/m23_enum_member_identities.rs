@@ -115,7 +115,7 @@ fn project(source: &str) -> Vec<ProjectedEnum> {
 fn enum_members_preserve_source_identity_through_concrete_hir_and_mir() {
     for fixture in ["plain", "combined"] {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tests/fixtures/m23-enum-member-identities");
+            .join("../../tests/fixtures/language/enum-member-identities");
         let source = std::fs::read_to_string(root.join(format!("{fixture}.scoop"))).unwrap();
         let projected = project(&source);
         assert_eq!(

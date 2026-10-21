@@ -1,0 +1,3 @@
+package dev.m37.bridge
+public import dev.m37.localreturns.*
+public fun <T> forwarded(value: T): T = choose(value)

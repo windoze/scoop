@@ -1,0 +1,7 @@
+package dev.m33
+@Extern(name = "native_initialized")
+fun nativeInitialized(): Int
+
+fun main() {
+    @Unsafe { println(nativeInitialized()) }
+}

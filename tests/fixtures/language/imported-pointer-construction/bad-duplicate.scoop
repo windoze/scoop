@@ -1,0 +1,2 @@
+package dev.example
+public fun result(): Int { @Unsafe { val pointer = Ptr<Int>(1uL, raw = 2uL) }; return 42 }

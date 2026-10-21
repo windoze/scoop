@@ -1,0 +1,41 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`@Intrinsic` is not allowed on this function target",
+    "notes": [],
+    "origin": {
+      "cone": "a17e2e471e5f964540ffba80e904b816ed7abaaa25546981b8e89aec5d52eacd",
+      "end": 94,
+      "kind": "source",
+      "path": "tests/case.scoop",
+      "start": 67
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "function `check` must have a body",
+    "notes": [],
+    "origin": {
+      "cone": "a17e2e471e5f964540ffba80e904b816ed7abaaa25546981b8e89aec5d52eacd",
+      "end": 104,
+      "kind": "source",
+      "path": "tests/case.scoop",
+      "start": 99
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`@Intrinsic` only permits ordinary core documentation annotations",
+    "notes": [],
+    "origin": {
+      "cone": "a17e2e471e5f964540ffba80e904b816ed7abaaa25546981b8e89aec5d52eacd",
+      "end": 66,
+      "kind": "source",
+      "path": "tests/case.scoop",
+      "start": 61
+    },
+    "severity": "error"
+  }
+]

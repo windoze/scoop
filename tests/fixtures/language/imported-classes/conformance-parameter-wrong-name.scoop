@@ -1,0 +1,8 @@
+package dev.example
+import dev.example.dependency.classes.*
+
+public class LocalDefaults public constructor(): ParameterSource {
+    public override fun base(): Long = 20
+    public override fun answer(renamed: Long): Long = renamed
+}
+public fun primary(): Counter = Counter(LocalDefaults().answer(value = 21))

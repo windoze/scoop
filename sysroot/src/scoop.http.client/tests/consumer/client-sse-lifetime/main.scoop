@@ -1,0 +1,39 @@
+package scoop.http.client.tests.consumer.client_sse_lifetime
+
+import scoop.test.*
+import scoop.tests.scoop.crypto.testdata.rootPem
+import scoop.crypto.x509.TrustStore
+import scoop.test.AssertionFailure
+
+private fun exerciseConsumer() {
+    TrustStore.fromPem(rootPem()).use { trust ->
+        runSseCase("validation") { sseValidation(trust) }
+        for (mode in ["close", "client", "total"]) runSseCase("idle-" + mode) { sseIdle(trust, mode) }
+        for (opening in [false, true]) for (mode in ["caller", "client", "close"]) {
+            if (opening && mode == "close") continue
+            runSseCase("active-" + mode + "-" + opening.toString()) { sseActive(trust, mode, opening) }
+        }
+        for (child in [false, true]) for (mode in ["caller", "client", "close"])
+            runSseCase("callback-" + mode + "-" + child.toString()) { sseCallbackCancellation(trust, mode, child, true) }
+        runSseCase("callback-clean") { sseCallbackCancellation(trust, "caller", false, false) }
+        runSseCase("callback-total") { sseCallbackCancellation(trust, "total", true, true) }
+        runSseCase("read-idle") { sseActive(trust, "read-idle", false) }
+        runSseCase("duplex-upload") { sseDuplexUpload(trust) }
+        for (total in [false, true]) runSseCase("http2-" + total.toString()) { sseHttp2(trust, total) }
+    }
+
+}
+
+private fun runSseCase(name: String, block: () -> Unit) {
+    try { block() }
+    catch (error: AssertionFailure) {
+    assertEquals("client SSE validation idle and active cancellation cleanup shared deadlines and HTTP2 passed", (name + " " + error.kind + " " + (error.message ?: "failure") + " at " + error.location.line.toString()).toString())
+        throw error
+    } catch (error: Throwable) { println("failed SSE case: " + name); throw error }
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun behavior() { exerciseConsumer() }
+}

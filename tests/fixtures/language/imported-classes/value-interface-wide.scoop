@@ -1,0 +1,10 @@
+package dev.example
+import dev.example.dependency.classes.Counter
+import dev.example.dependency.classes.Readable
+import dev.example.dependency.classes.WideReader
+
+public fun primary(): Counter {
+    val value: Readable = WideReader(10, 10, 1)
+    val copy = value as WideReader
+    return Counter(value.read() + copy.third - 1)
+}

@@ -1,0 +1,3 @@
+package test.facade.api
+
+public import test.dependency.api.run

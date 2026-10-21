@@ -1,3 +1,0 @@
-package bridge
-public import doloops.*
-public fun <T> forwarded(value: T): T = choose(value)

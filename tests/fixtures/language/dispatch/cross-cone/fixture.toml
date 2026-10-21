@@ -1,0 +1,52 @@
+schema = 1
+name = "dispatch-cross-cone-generic-applications"
+inputs = ["provider", "facade", "consumer", "bad-application.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["dispatch", "generics", "default-method", "default-argument", "reexport", "closure", "language"]
+variants = [{"name" = "release"}]
+
+[[steps]]
+name = "prepare"
+files = [
+  {copy = {from = "${fixture}/provider", to = "${work}/source/provider"}},
+  {copy = {from = "${fixture}/facade", to = "${work}/source/facade"}},
+  {copy = {from = "${fixture}/consumer", to = "${work}/source/consumer"}},
+]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/source/consumer", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = {file = "expected.stdout"}
+stderr = ""
+
+[[steps]]
+name = "replace_consumer"
+files = [{copy = {from = "${fixture}/bad-application.scoop", to = "${work}/source/consumer/src/main.scoop"}}]
+
+[[steps]]
+name = "invalid"
+argv = ["${scoop}", "build", "--release", {"each" = "${link_args}"}, "${work}/source/consumer", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "bad-application.diagnostics.json"}
+
+[[steps]]
+name = "run_link"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = {file = "expected.stdout"}
+stderr = ""

@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "native definition ${symbol_prefix}scoop_rt_run_program has incompatible function/data/TLS/mutability: NativeSymbolDefinition { kind: Function, read_only: true, binding: Strong }; origins: dev.programlink:native-kind-conflict:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([103, 42, 69, 183, 102, 120, 134, 80, 52, 124, 119, 9, 248, 42, 175, 241, 75, 194, 201, 145, 91, 140, 249, 231, 204, 72, 127, 167, 164, 64, 189, 135])])",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

@@ -1,0 +1,6 @@
+package dev.example
+import dev.example.templates.members.AbstractReader
+
+class Invalid: AbstractReader<Int>() {
+    public override fun get(): Int = super.get()
+}

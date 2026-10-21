@@ -1,4 +1,0 @@
-import templates.bounds.*
-
-@NoGC
-public fun result(): Int = defaultRead(Value(42))

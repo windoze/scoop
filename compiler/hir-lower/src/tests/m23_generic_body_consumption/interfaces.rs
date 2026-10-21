@@ -3,7 +3,7 @@ use super::*;
 fn fixture(name: &str) -> String {
     std::fs::read_to_string(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tests/fixtures/m23-shared-interfaces")
+            .join("../../tests/fixtures/language/shared-interfaces")
             .join(format!("{name}.scoop")),
     )
     .unwrap()
@@ -12,7 +12,7 @@ fn fixture(name: &str) -> String {
 #[test]
 fn interface_definitions_keep_recursive_slots_in_the_original_binder_domain() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/m23-shared-interface-definitions");
+        .join("../../tests/fixtures/language/shared-interface-definitions");
     let provider = std::fs::read_to_string(root.join("provider.scoop")).unwrap();
     for case in ["standalone", "combined"] {
         eprintln!("interface definition case: {case}");

@@ -164,7 +164,7 @@ fn native_producer_closes_mixed_direct_and_support_signature_dependencies() {
             dump.concat(),
             include_str!(concat!(
                 env!("CARGO_MANIFEST_DIR"),
-                "/../../tests/fixtures/m23-native-boundary/shared-closure.snap"
+                "/../../tests/fixtures/language/native-boundary/shared-closure.snap"
             ))
         );
         let mut pending = PendingIdentityValidation::new();

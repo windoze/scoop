@@ -1,0 +1,42 @@
+package scoop.tests
+import scoop.asyncio.*
+import scoop.crypto.x509.TrustStore
+import scoop.http.client.*
+import scoop.test.*
+import scoop.url.Url
+
+internal fun extensionOwnership(trust: TrustStore, url: Url, mode: String) {
+    val state = ExtensionState()
+    val interceptor = HttpInterceptor(suspend { chain ->
+        state.calls += 1L
+        if (chain.request.url.httpRequestTarget() != "/start") return@HttpInterceptor chain.proceed()
+        state.chain = Some(chain)
+        if (mode == "short") return@HttpInterceptor HttpCallResult.Response(state.client!!.execute(HttpRequest.get(url.resolve("/short"))))
+        if (mode == "owner") return@HttpInterceptor HttpCallResult.Response(state.other!!.execute(HttpRequest.get(url.resolve("/other"))))
+        val result = chain.proceed()
+        if (mode == "throw") throw state.failure
+        if (mode == "replace") return@HttpInterceptor HttpCallResult.Response(state.client!!.execute(HttpRequest.get(url.resolve("/replacement"))))
+        if (mode == "kind") return@HttpInterceptor when (result) {
+            case Response(response) -> HttpCallResult.WebSocket(HttpWebSocketResult.Rejected(response, state.failure))
+            case WebSocket(_) -> throw IllegalStateException()
+        }
+        assertEquals("once", mode)
+        assertTrue(extensionFailure suspend { chain.proceed(); Unit } is IllegalStateException)
+        result
+    })
+    LibuvEventLoop().run suspend { scope ->
+        val client = HttpClient.open(scope, extensionConfig(trust, [interceptor]))
+        val other = HttpClient.open(scope, extensionConfig(trust))
+        state.client = Some(client); state.other = Some(other)
+        try {
+            if (mode == "throw" || mode == "owner" || mode == "kind") {
+                val error = extensionFailure suspend { client.execute(HttpRequest.get(url)); Unit }
+                if (mode == "throw") assertSame(state.failure, error)
+                else assertTrue(error is IllegalStateException)
+            } else extensionGet(client, url, if (mode == "short") "short" else if (mode == "replace") "replacement" else "once")
+            assertTrue(extensionFailure suspend { state.chain!!.proceed(); Unit } is IllegalStateException)
+            extensionGet(other, url.resolve("/probe"), "probe")
+            assertEquals(if (mode == "short" || mode == "replace") 2L else 1L, state.calls)
+        } finally { client.close(); other.close() }
+    }
+}

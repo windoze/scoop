@@ -1,0 +1,3 @@
+package dev.programlink.facadeEquality
+
+public import dev.programlink.exactEquality.*

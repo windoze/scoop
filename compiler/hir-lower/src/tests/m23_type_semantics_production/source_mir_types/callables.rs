@@ -10,7 +10,7 @@ mod rejections;
 fn actual_source_callables_cover_functions_members_accessors_and_traps() {
     for name in ["standalone", "combined"] {
         let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tests/fixtures/m23-mir-callable-production");
+            .join("../../tests/fixtures/language/mir-callable-production");
         let source = std::fs::read_to_string(directory.join(format!("{name}.scoop"))).unwrap();
         let bytes = with_production(&source, |output, input, hir, graph, _| {
             let unit = dependencies::unit(input, graph);
@@ -33,7 +33,10 @@ fn actual_source_callables_cover_functions_members_accessors_and_traps() {
             encode(&bindings).unwrap()
         });
         with_production(
-            &format!("private fun unrelated(value: Token): Token = value\n{source}"),
+            &prepend_declarations(
+                &source,
+                "private fun unrelated(value: Token): Token = value\n",
+            ),
             |output, input, hir, graph, _| {
                 let unit = dependencies::unit(input, graph);
                 let actual = complete_type_exports(output, input, hir, graph);
@@ -87,7 +90,7 @@ fn actual_source_callables_reject_missing_inputs() {
 fn closed_generic_no_gc_signatures_use_actual_application_type_exports() {
     let source = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../tests/fixtures/m23-mir-callable-production/generic-storage.scoop"
+        "/../../tests/fixtures/language/mir-callable-production/generic-storage.scoop"
     ));
     with_production(source, |output, input, hir, graph, _| {
         use scoop_mir::{MirGcKindV1, MirTypeBridgeTypeLookupV1};

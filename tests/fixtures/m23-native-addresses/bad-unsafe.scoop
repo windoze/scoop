@@ -1,3 +1,0 @@
-import dependency.nativeAddresses.sink
-
-public fun rejected(): FunPtr<(Ptr<Long>) -> Unit> = ::sink

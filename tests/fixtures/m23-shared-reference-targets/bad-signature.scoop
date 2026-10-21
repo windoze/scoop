@@ -1,7 +1,0 @@
-package consumer.references
-import upstream.references.*
-
-public fun result(): Int {
-    val copy: (Int) -> String = ::identity
-    return 42
-}

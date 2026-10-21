@@ -1,0 +1,3 @@
+package test.core
+
+public fun publicCoreValue(): String = "core consumer"

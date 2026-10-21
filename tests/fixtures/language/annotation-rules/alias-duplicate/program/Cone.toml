@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "demo"
+name = "m37-annotation-rules-alias-duplicate"
+version = "0.1.0"
+kind = "executable"
+
+[[sources]]
+path = "main.scoop"

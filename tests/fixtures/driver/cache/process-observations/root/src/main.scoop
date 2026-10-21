@@ -1,0 +1,5 @@
+package test.consumer
+
+import test.dependency.api.value
+
+public fun run(): Int = value()

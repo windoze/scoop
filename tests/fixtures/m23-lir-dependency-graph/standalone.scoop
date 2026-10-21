@@ -1,3 +1,0 @@
-public fun identity(value: Boolean): Boolean = value
-
-private fun <T> dormant(value: String): String = value

@@ -1,4 +1,0 @@
-public fun check(): Int {
-    if (sourceContainer().run() != 15) { return 1 }
-    return 42
-}

@@ -6,11 +6,11 @@ mod rejection;
 
 const STANDALONE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../tests/fixtures/m23-reference-source-fields/standalone.scoop"
+    "/../../tests/fixtures/language/reference-source-fields/standalone.scoop"
 ));
 const COMBINED: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../../tests/fixtures/m23-reference-source-fields/combined.scoop"
+    "/../../tests/fixtures/language/reference-source-fields/combined.scoop"
 ));
 
 #[test]
@@ -106,6 +106,9 @@ fn reference_source_field_bytes_ignore_unrelated_arena_allocation() {
     };
     assert_eq!(
         project(STANDALONE),
-        project(&format!("private class Unrelated {{}}\n{STANDALONE}"))
+        project(&prepend_declarations(
+            STANDALONE,
+            "private class Unrelated {}\n"
+        ))
     );
 }

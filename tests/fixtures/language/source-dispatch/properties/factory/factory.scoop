@@ -1,0 +1,3 @@
+package test
+public fun store(): Store = Store()
+public fun child(): Child = Child()

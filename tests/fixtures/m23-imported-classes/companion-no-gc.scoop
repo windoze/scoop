@@ -1,5 +1,0 @@
-import dependency.classes.Counter
-import dependency.classes.CompanionHost
-
-@NoGC
-public fun primary(): Counter = CompanionHost.Factory.value

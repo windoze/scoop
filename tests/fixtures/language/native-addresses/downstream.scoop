@@ -1,0 +1,9 @@
+package dev.example
+import dev.example.consumer.nativeAddresses.result
+import dev.example.consumer.nativeAddresses.exercise
+
+private class Later(public val number: Long)
+public fun check(): Long {
+    val value = Later(result())
+    return if (value.number == 42) { exercise<Later>(value) } else { 1 }
+}

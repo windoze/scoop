@@ -1,5 +1,0 @@
-import consumer.*
-
-fun main() {
-    if (!dormant()) { throw IllegalStateException() }
-}

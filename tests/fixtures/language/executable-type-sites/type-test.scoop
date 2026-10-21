@@ -1,0 +1,3 @@
+package test
+public fun inspect(value: Any): Boolean = value is String
+public fun dormant(value: UInt16 = 1u): Boolean = false

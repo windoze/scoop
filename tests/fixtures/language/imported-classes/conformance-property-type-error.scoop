@@ -1,0 +1,6 @@
+package dev.example
+import dev.example.dependency.classes.Valued
+public struct Wrong(): Valued {
+    public override val value: Int
+        get() = 21
+}

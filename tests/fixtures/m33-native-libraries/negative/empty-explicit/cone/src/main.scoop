@@ -1,3 +1,0 @@
-@Extern(name = "cos", lib = "m")
-fun cosine(value: Double): Double
-fun main() { @Unsafe { cosine(0.0) } }

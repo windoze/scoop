@@ -1,0 +1,10 @@
+package dev.m37
+import dev.m37.annotated.bridge.*
+import dev.m37.annotated.bridge.Mark as Label
+@Label("consumer alias") typealias Number = Count
+@Label("consumer function") @Mark("alias repeat") fun value(@Label("consumer parameter") item: Number): Number = item
+fun main() {
+    println(value(Item(42).view))
+    println(forwarded(Bridge("bridge")).text)
+    println(keep("local"))
+}

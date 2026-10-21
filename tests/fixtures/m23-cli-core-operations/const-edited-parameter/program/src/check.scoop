@@ -1,8 +1,0 @@
-import named
-import shifted
-
-fun main() {
-    if (named != 12 || shifted != 12) {
-        throw IllegalStateException()
-    }
-}

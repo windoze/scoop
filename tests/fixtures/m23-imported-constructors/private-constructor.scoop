@@ -1,3 +1,0 @@
-import dependency.constructors.Token
-import dependency.constructors.Wide
-@NoGC public fun rejected(): Wide = Wide(Token())

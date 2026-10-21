@@ -1,0 +1,65 @@
+package scoop.http.tests.consumer.http1_consumer
+
+import scoop.test.*
+import scoop.bytes.ByteArrayBuilder
+import scoop.http.*
+import scoop.platform.memory.NativeByteBuffer
+
+class Retained<T>(val value: T)
+
+private fun exerciseConsumer() {
+    val target = HttpRequestTarget.Http1("/raw%2fpath".toByteArray())
+    val output = ByteArrayBuilder()
+    Http1Encoder(HttpRole.Client).use { encoder ->
+        try {
+            encoder.beginRequest(HttpRequestHead(HttpVersion.Http11, "BAD METHOD".toByteArray(), target))
+            throw IllegalStateException(Some("invalid method was accepted"))
+        } catch (error: IllegalArgumentException) {}
+        val field = HttpField("X-Value".toByteArray(), [255.toByte()], true)
+        output.append(encoder.beginRequest(HttpRequestHead(HttpVersion.Http11, "POST".toByteArray(), target, [field]), Http1BodyFraming.Chunked))
+        NativeByteBuffer.allocate(2L).use { body ->
+            body.writeBytes("42".toByteArray())
+            output.append(encoder.writeBody(body))
+        }
+        output.append(encoder.finish([HttpField("X-End".toByteArray(), "yes".toByteArray())]))
+    }
+    val body = ByteArrayBuilder()
+    var completed = false
+    val decoder = Http1Decoder.server()
+    try {
+        val bytes = output.toByteArray()
+        val input = NativeByteBuffer.allocate(bytes.size)
+        try {
+            input.writeBytes(bytes)
+            while (input.readableBytes != 0L) {
+                decoder.receive(input, 1L)
+                var draining = true
+                while (draining) {
+                    val next = decoder.nextEvent()
+                    when (next) {
+                        case None -> draining = false
+                        case Some(_) -> when (next!!) {
+                            case Request(head) -> {
+                                val retained = Retained(head.fields[0L])
+                                gcCollect()
+                                if (retained.value.value[0L] != 255.toByte()) throw IllegalStateException()
+                            }
+                            case Data(value) -> body.append(value)
+                            case End(_) -> completed = true
+                            else -> {}
+                        }
+                    }
+                }
+            }
+            decoder.endInput()
+        } finally { input.close() }
+    } finally { decoder.close() }
+    if (!completed || String.fromUtf8(body.toByteArray()) != "42") throw IllegalStateException()
+    assertEquals("42", (String.fromUtf8(body.toByteArray())).toString())
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun behavior() { exerciseConsumer() }
+}

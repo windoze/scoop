@@ -1,0 +1,14 @@
+package dev.example.downstream.members
+
+import dev.example.dependency.members.Token
+import dev.example.dependency.members.Wide
+import dev.example.consumer.members.keepToken
+import dev.example.consumer.members.keepWide
+import dev.example.consumer.members.total
+import dev.example.consumer.members.republished
+
+@NoGC public fun token(value: Token): Token = keepToken(value).sameToken()
+@NoGC public fun wide(value: Wide): Wide = keepWide(value).copyWide()
+@NoGC public fun sum(value: Wide): Long = total(value)
+
+@NoGC public fun fromRepublished(value: Wide): Long = republished(value)

@@ -1,0 +1,3 @@
+package dev.example.facade.nesting.Outer
+
+public fun marker(): Int = 1

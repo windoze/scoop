@@ -1,3 +1,0 @@
-package functionstorage
-
-public val callback: () -> Int = { 42 }

@@ -1,7 +1,0 @@
-import documentation.Omit
-import documentation.Keyword
-import documentation.Item
-import documentation.increment
-@Keyword("client") @Keyword("consumer") struct Client(val item: Item)
-@Omit fun hidden(): Int = 41
-fun main() { println(increment(Client(Item(hidden())).item.value)) }

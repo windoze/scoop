@@ -1,0 +1,3 @@
+package dev.example.facade.api
+
+public import dev.example.dependency.api.run

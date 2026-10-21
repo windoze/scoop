@@ -1,4 +1,0 @@
-import dependency.classes.Counter
-import dependency.classes.UnusedOuter
-
-public fun primary(): Counter = UnusedOuter.Nested.value

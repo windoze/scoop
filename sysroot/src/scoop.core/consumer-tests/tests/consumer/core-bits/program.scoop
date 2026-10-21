@@ -1,0 +1,56 @@
+package test.core.tests.consumer.core_bits
+
+import scoop.test.*
+fun check(ok: Boolean, location: SourceLocation = currentSourceLocation()) {
+    assertTrue(ok, location = location)
+}
+
+@NoGC fun floatPattern(value: Float): UInt = value.toBits().toUInt()
+@NoGC fun doublePattern(value: Double): ULong = value.toBits().toULong()
+fun roundFloat(bits: UInt): UInt = floatPattern(Float.fromBits(bits.toInt()))
+fun roundDouble(bits: ULong): ULong = doublePattern(Double.fromBits(bits.toLong()))
+
+private fun exerciseConsumer() {
+    check(Float.fromBits(0x3f800000) == 1f && Float.fromBits(1) == Float.MIN_VALUE)
+    check(Float.fromBits(0x00800000) == Float.MIN_NORMAL && Float.fromBits(0x7f7fffff) == Float.MAX_VALUE)
+    check(Float.fromBits(0x7f800000) == Float.POSITIVE_INFINITY)
+    check(Double.fromBits(0x3ff0000000000000L) == 1.0 && Double.fromBits(1L) == Double.MIN_VALUE)
+    check(Double.fromBits(0x0010000000000000L) == Double.MIN_NORMAL && Double.fromBits(0x7fefffffffffffffL) == Double.MAX_VALUE)
+    check(Double.fromBits(0x7ff0000000000000L) == Double.POSITIVE_INFINITY)
+    check(Float.NaN.toBits() == 0x7fc00000 && Double.NaN.toBits() == 0x7ff8000000000000L)
+    check((-0f).toBits() == Int.MIN_VALUE && (-0.0).toBits() == Long.MIN_VALUE)
+    check(1f / Float.fromBits(Int.MIN_VALUE) == Float.NEGATIVE_INFINITY)
+    check(1.0 / Double.fromBits(Long.MIN_VALUE) == Double.NEGATIVE_INFINITY)
+    val single = Array<UInt>(10L) { index -> when (index) {
+        case 0L -> 0u; case 1L -> 0x80000000u; case 2L -> 0x7f800001u
+        case 3L -> 0xff800001u; case 4L -> 0x7fc01234u; case 5L -> 0xffc01234u
+        case 6L -> 0xffffffffu; case 7L -> 0x7f800000u; case 8L -> 0xff800000u; case _ -> 0x12345678u
+    } }
+    val wide = Array<ULong>(10L) { index -> when (index) {
+        case 0L -> 0uL; case 1L -> 0x8000000000000000uL; case 2L -> 0x7ff0000000000001uL
+        case 3L -> 0xfff0000000000001uL; case 4L -> 0x7ff80123456789abuL; case 5L -> 0xfff80123456789abuL
+        case 6L -> 0xffffffffffffffffuL; case 7L -> 0x7ff0000000000000uL; case 8L -> 0xfff0000000000000uL; case _ -> 0x123456789abcdef0uL
+    } }
+    for (bits in single) check(roundFloat(bits) == bits)
+    for (bits in wide) check(roundDouble(bits) == bits)
+    var bits = 42uL
+    var count = 0L
+    while (count < 1024L) {
+        bits = bits * 6364136223846793005uL + 1uL
+        check(roundFloat(bits.toUInt()) == bits.toUInt() && roundDouble(bits) == bits)
+        count += 1L
+    }
+    val fromFloat: (Int) -> Float = Float.Companion::fromBits
+    val fromDouble: (Long) -> Double = Double.Companion::fromBits
+    check(fromFloat(0x3f800000).toBits() == 0x3f800000 && fromDouble(0x3ff0000000000000L).toBits() == 0x3ff0000000000000L)
+    val pair = (Float.fromBits(0x7f800123), Double.fromBits(0x7ff0000000000123L))
+    val copy = Array<(Float, Double)>(2L) { _ -> pair }
+    check(copy[1L]._1.toBits() == 0x7f800123 && copy[1L]._2.toBits() == 0x7ff0000000000123L)
+
+}
+
+@Test
+private class ConsumerTests {
+    @Test
+    fun behavior() { exerciseConsumer() }
+}

@@ -1,4 +1,0 @@
-import consumer.run
-fun main() {
-    println(run())
-}

@@ -1,0 +1,8 @@
+package dev.example
+import dev.example.upstream.enums.Choice
+
+public fun reject(value: Choice<Int>): Int = when (value) {
+    case Empty -> 0
+    case Item(payload) -> payload
+    case Named { payload, amount } -> payload + amount
+}
