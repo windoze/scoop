@@ -58,3 +58,13 @@
 补验修正了可执行函数引用 provider 漏入机器依赖选择的问题，使用链接 fingerprint 检查源码变化，并让未使用依赖 fixture 使用公共默认超时。对应的 64 个用例、65 个变体通过。全量还暴露了 HTTP/2 连接关闭等待期被连接池重新借用的竞态；新增 isClosing 快照后，9 个 HTTP / client 用例、18 个变体、22 项 HTTP/2 库测试、16 项连接池库测试及 200 次 EOF 时序扫描全部通过，保留真实重连、GOAWAY、取消和失败分类断言。
 
 GC stress 仅抽样 `compiler-performance-function-data` 和 `m44-moving-references`，各含 debug / release，共 2 个用例、4 个变体，全部通过。其他验收移除 GC stress 环境设置，保留原有输入、变体和行为断言。原始日志、逐次报告与空间故障记录均保存在仓库外。
+
+## nuc12 复验
+
+2026-10-21，在 `nuc12` 的新目录 `~/repos/scoop-compiler-perf-20261021-x12utshd` 复验，使用 Intel Core i7-12700H、Linux x86_64、LLVM 22.1.2。格式化、workspace clippy、52 项 Python fixture 规则测试、完整 Rust workspace 5066 项测试及 terminal host 测试均通过。GNU 和 musl 的原生依赖、runtime 及各 19 个预编译库均已显式准备。
+
+GNU 正式 CLI 全量发现并选择 4516 个用例，4469 通过、14 失败、33 不适用。两项 C++ 工具链诊断 fixture 重复传入 `--cc`，修正后在显式与默认 C 编译器配置下均通过。另 12 项触发 300 秒构建超时，期间观测到明显的整机 I/O 等待压力；随后使用独立工作目录和缓存，以原有超时、输入和断言串行补验，12 个用例、24 个变体全部通过。合并有效覆盖为 4483 个适用用例、5276 个变体、70 个 stage / plan golden；原始全量报告保留首次失败事实。
+
+musl 定向复验 47 个用例、57 个变体全部通过，覆盖全部 12 个性能用例，以及源码函数引用、链接输入变化、HTTP/2、连接池和 SSE 组合。GNU 目标另有 22 项 HTTP/2 库测试、16 项连接池库测试全部通过。GNU 全量使用 4 路 fixture 并发，超时补验使用 1 路，musl 定向复验使用 2 路；远端结果用于功能复验，不作为上述本机性能收益的对照测量。
+
+GC stress 在 GNU、musl 上各抽样 `compiler-performance-function-data` 和 `m44-moving-references` 的 debug / release，共各 2 个用例、4 个变体，全部通过。原始日志、逐次报告和合并覆盖摘要均保存在仓库外。
