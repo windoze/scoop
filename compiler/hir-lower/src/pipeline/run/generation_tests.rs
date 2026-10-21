@@ -1,6 +1,8 @@
 use super::*;
 use hir::{MethodBodyGenerator, SemanticContext, SemanticQueries};
 
+mod queries;
+
 struct Generator<F>(F);
 
 impl<F> MethodBodyGenerator for Generator<F>

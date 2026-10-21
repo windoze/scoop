@@ -9,6 +9,10 @@ use scoop_identity::{ConeIdentity, SignatureTypeKey, SourceIdentity};
 
 mod generation;
 pub use generation::*;
+mod annotations;
+pub use annotations::*;
+mod bodies;
+pub use bodies::*;
 
 /// A context already established by ordinary declaration binding.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -59,6 +63,17 @@ pub trait SemanticQueries {
     fn current_cone(&self) -> ConeIdentity;
     fn pending_methods(&self) -> Vec<PendingMethod>;
     fn annotations(&self) -> &SourceAnnotations;
+    fn annotation_declaration(
+        &self,
+        annotation: scoop_identity::PersistentAnnotationId,
+    ) -> Option<SemanticAnnotationDeclaration<'_>>;
+    fn describe_annotations(&self, target: SemanticAnnotationTarget) -> SemanticAnnotations<'_>;
+    fn body(
+        &self,
+        callable: SemanticCallable,
+    ) -> Option<SemanticBodyAvailability<SemanticBody<'_>>>;
+    fn default_source(&self, source: ExportDefaultSourceId) -> SemanticDefaultSource<'_>;
+    fn source_location(&self, origin: DefinitionOrigin) -> SemanticSourceLocation;
     fn signature(&self, function: FunctionId) -> SemanticFunctionSignature;
     fn method_identity(
         &mut self,

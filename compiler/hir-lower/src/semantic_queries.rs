@@ -6,6 +6,7 @@ use scoop_hir as hir;
 use scoop_identity::SignatureTypeKey;
 
 mod context;
+mod declarations;
 
 pub(crate) struct FrontendQueries<'a> {
     pub(crate) lowerer: &'a mut Lowerer,
@@ -27,6 +28,53 @@ impl hir::SemanticQueries for FrontendQueries<'_> {
 
     fn annotations(&self) -> &hir::SourceAnnotations {
         &self.lowerer.annotation_metadata
+    }
+
+    fn annotation_declaration(
+        &self,
+        annotation: scoop_identity::PersistentAnnotationId,
+    ) -> Option<hir::SemanticAnnotationDeclaration<'_>> {
+        self.query_annotation_declaration(annotation)
+    }
+
+    fn describe_annotations(
+        &self,
+        target: hir::SemanticAnnotationTarget,
+    ) -> hir::SemanticAnnotations<'_> {
+        self.query_annotations(target)
+    }
+
+    fn body(
+        &self,
+        callable: hir::SemanticCallable,
+    ) -> Option<hir::SemanticBodyAvailability<hir::SemanticBody<'_>>> {
+        self.query_body(callable)
+    }
+
+    fn default_source(&self, source: hir::ExportDefaultSourceId) -> hir::SemanticDefaultSource<'_> {
+        let value = &self.lowerer.export_default_sources[source];
+        hir::SemanticDefaultSource {
+            source,
+            definition: match value {
+                hir::ExportDefaultSource::Declared { expression, .. } => {
+                    hir::SemanticDefaultDefinition::Current {
+                        expression: *expression,
+                        template: &self.lowerer.export_default_exprs[*expression],
+                    }
+                }
+                hir::ExportDefaultSource::Imported { template, .. } => {
+                    hir::SemanticDefaultDefinition::Imported(template)
+                }
+            },
+            type_arguments: value.type_arguments(),
+        }
+    }
+
+    fn source_location(&self, origin: hir::DefinitionOrigin) -> hir::SemanticSourceLocation {
+        hir::SemanticSourceLocation {
+            source: self.lowerer.source_identity(origin.file as usize).clone(),
+            span: origin.span,
+        }
     }
 
     fn signature(&self, function: hir::FunctionId) -> hir::SemanticFunctionSignature {
@@ -55,8 +103,12 @@ impl hir::SemanticQueries for FrontendQueries<'_> {
             modifiers: signature.modifiers,
             attributes: signature.attributes,
             origin: hir::SemanticSourceLocation {
-                source: lowerer.intrinsic_sources[lowerer.function_files[&function]]
-                    .identity
+                source: lowerer
+                    .source_identity(
+                        lowerer
+                            .function_definition_file(function)
+                            .expect("source callable signatures retain their definition file"),
+                    )
                     .clone(),
                 span: lowerer.functions[function].span,
             },

@@ -121,6 +121,7 @@ mod m60_documentation;
 mod m7;
 mod m8;
 mod m9;
+mod semantic_queries;
 
 use super::*;
 use ast::{
