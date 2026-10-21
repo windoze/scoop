@@ -169,5 +169,3 @@ argv = ["${python}", "${fixture}/check.py", "${work}/site", "resources"]
 exit = 0
 stdout = "Versions, diamond reexports and local links verified.\n"
 stderr = ""
-
-

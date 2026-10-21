@@ -7,4 +7,3 @@ kind = "executable"
 
 [dependencies]
 "dev.m60:versioned-docs" = {version = "2.0.0", path = "../v2"}
-

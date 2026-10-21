@@ -8,4 +8,3 @@ kind = "executable"
 [dependencies]
 "dev.m60:left-docs" = {version = "1.0.0", path = "../left"}
 "dev.m60:right-docs" = {version = "1.0.0", path = "../right"}
-

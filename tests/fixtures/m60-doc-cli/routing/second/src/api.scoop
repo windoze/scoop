@@ -3,4 +3,3 @@ import api.Versioned
 /** Uses the selected [Versioned]. */
 fun secondHelper(value: Versioned): Versioned = value
 fun main() {}
-

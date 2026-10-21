@@ -4,4 +4,3 @@ package api
 public class Versioned {
     public fun versionTwo(): Int = 2
 }
-
