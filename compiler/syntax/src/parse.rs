@@ -1,6 +1,6 @@
 use scoop_source::{Diagnostic, DiagnosticSeverity};
 
-use crate::{GreenNode, SyntaxKind, SyntaxNode};
+use crate::{DeclarationSyntax, GreenNode, SyntaxKind, SyntaxNode};
 
 /// An expected syntax item, separate from the human diagnostic message.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -26,6 +26,7 @@ pub struct Parse<T> {
     green: GreenNode,
     diagnostics: Vec<Diagnostic>,
     missing: Vec<MissingSyntax>,
+    declarations: Vec<DeclarationSyntax>,
     ast: Option<T>,
 }
 
@@ -34,6 +35,7 @@ impl<T> Parse<T> {
         green: GreenNode,
         diagnostics: Vec<Diagnostic>,
         missing: Vec<MissingSyntax>,
+        declarations: Vec<DeclarationSyntax>,
         ast: Option<T>,
     ) -> Self {
         let ast = if diagnostics
@@ -48,6 +50,7 @@ impl<T> Parse<T> {
             green,
             diagnostics,
             missing,
+            declarations,
             ast,
         }
     }
@@ -66,6 +69,10 @@ impl<T> Parse<T> {
 
     pub fn ast(&self) -> Option<&T> {
         self.ast.as_ref()
+    }
+
+    pub fn declarations(&self) -> &[DeclarationSyntax] {
+        &self.declarations
     }
 
     pub fn into_ast(self) -> Result<T, Vec<Diagnostic>> {

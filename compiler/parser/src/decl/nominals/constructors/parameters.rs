@@ -53,6 +53,7 @@ impl Parser {
             ));
         }
         let parameter_name = self.expect_ident("primary constructor parameter name")?;
+        self.record_declaration_name(&parameter_name);
         self.expect("`:`", |k| matches!(k, TokenKind::Colon))?;
         let ty = self.parse_type_ref()?;
         let (syntax, end) = self.parse_parameter_syntax(modifier_span, ty.span.end)?;
@@ -109,6 +110,7 @@ impl Parser {
             ));
         }
         let name = self.expect_ident("constructor parameter name")?;
+        self.record_declaration_name(&name);
         self.expect("`:`", |kind| matches!(kind, TokenKind::Colon))?;
         let ty = self.parse_type_ref()?;
         let (syntax, end) = self.parse_parameter_syntax(modifier_span, ty.span.end)?;

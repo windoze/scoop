@@ -132,6 +132,7 @@ impl Parser {
         visibility: VisibilitySyntax,
     ) -> Result<SecondaryConstructorDecl, Diagnostic> {
         let keyword = self.bump();
+        self.record_syntax_name("constructor", keyword.span);
         if matches!(self.peek().kind, TokenKind::Less) {
             return Err(Diagnostic::at(
                 self.peek().span,

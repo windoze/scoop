@@ -108,6 +108,7 @@ impl Parser {
             Some(name) => name,
             None => self.expect_ident("property name")?,
         };
+        self.record_declaration_name(&name);
         let ty = if matches!(self.peek().kind, TokenKind::Colon) {
             self.bump();
             Some(self.parse_type_ref()?)

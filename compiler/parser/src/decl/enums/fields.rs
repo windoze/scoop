@@ -75,6 +75,7 @@ impl Parser {
         }
         let val = self.expect("`val`", |kind| matches!(kind, TokenKind::Val))?;
         let name = self.expect_ident("field name")?;
+        self.record_declaration_name(&name);
         self.expect("`:`", |kind| matches!(kind, TokenKind::Colon))?;
         let ty = self.parse_type_ref()?;
         let (syntax, end) = self.parse_parameter_syntax(modifier_span, ty.span.end)?;
@@ -110,6 +111,7 @@ impl Parser {
         let doc_start = self.pos;
         let annotations = self.parse_annotations()?;
         let name = self.expect_ident("field name")?;
+        self.record_declaration_name(&name);
         self.expect("`:`", |kind| matches!(kind, TokenKind::Colon))?;
         let ty = self.parse_type_ref()?;
         if matches!(self.peek().kind, TokenKind::Equal) {

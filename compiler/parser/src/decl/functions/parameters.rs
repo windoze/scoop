@@ -25,6 +25,7 @@ impl Parser {
         let annotations = self.parse_annotations()?;
         let modifier_span = self.parse_vararg_modifier(vararg_span)?;
         let name = self.expect_ident("parameter name")?;
+        self.record_declaration_name(&name);
         self.expect("`:`", |kind| matches!(kind, TokenKind::Colon))?;
         let ty = self.parse_type_ref()?;
         let (syntax, end) = self.parse_parameter_syntax(modifier_span, ty.span.end)?;

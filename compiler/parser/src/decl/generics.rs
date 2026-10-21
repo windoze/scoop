@@ -54,6 +54,7 @@ impl Parser {
             ));
         }
         let name = self.expect_ident("type parameter name")?;
+        self.record_declaration_name(&name);
         let inline_bound = if matches!(self.peek().kind, TokenKind::Colon) {
             self.bump();
             Some(self.parse_type_bound()?)

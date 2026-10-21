@@ -189,6 +189,11 @@ impl SyntaxKind {
             self,
             Self::FunctionDecl
                 | Self::PropertyDecl
+                | Self::FieldDecl
+                | Self::Parameter
+                | Self::TypeParameter
+                | Self::Variant
+                | Self::SecondaryConstructor
                 | Self::StructDecl
                 | Self::ClassDecl
                 | Self::EnumDecl

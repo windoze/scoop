@@ -38,6 +38,7 @@ impl Parser {
     ) -> Result<StructDecl, Diagnostic> {
         let keyword = self.expect("`struct`", |k| matches!(k, TokenKind::Struct))?;
         let name = self.expect_ident("struct name")?;
+        self.record_declaration_name(&name);
         let type_params = self.parse_type_params()?;
         let (fields, mut end) = if matches!(self.peek().kind, TokenKind::LParen) {
             let (fields, end) = self.parse_struct_fields()?;
@@ -104,6 +105,7 @@ impl Parser {
     ) -> Result<ClassDecl, Diagnostic> {
         let keyword = self.expect("`class`", |k| matches!(k, TokenKind::Class))?;
         let name = self.expect_ident("class name")?;
+        self.record_declaration_name(&name);
         let type_params = self.parse_type_params()?;
         let mut end = name.span.end;
         let constructor = self.parse_primary_constructor()?;
@@ -168,6 +170,7 @@ impl Parser {
     ) -> Result<InterfaceDecl, Diagnostic> {
         let keyword = self.expect("`interface`", |k| matches!(k, TokenKind::Interface))?;
         let name = self.expect_ident("interface name")?;
+        self.record_declaration_name(&name);
         let type_params = self.parse_type_params()?;
         let mut end = name.span.end;
         let supertypes = self.parse_supertypes(&mut end)?;
@@ -306,6 +309,7 @@ impl Parser {
             |kind| matches!(kind, TokenKind::Ident(text) if text == "object"),
         )?;
         let name = self.expect_ident("object name")?;
+        self.record_declaration_name(&name);
         if matches!(self.peek().kind, TokenKind::Less | TokenKind::LParen) {
             return Err(Diagnostic::at(
                 self.peek().span,
@@ -375,6 +379,10 @@ impl Parser {
                 span: companion.span,
             }
         };
+        match &name {
+            CompanionNameSyntax::Named(name) => self.record_declaration_name(name),
+            CompanionNameSyntax::Default { span } => self.record_syntax_name("Companion", *span),
+        }
         if matches!(self.peek().kind, TokenKind::Less | TokenKind::LParen) {
             return Err(Diagnostic::at(
                 self.peek().span,

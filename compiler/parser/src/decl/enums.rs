@@ -25,6 +25,7 @@ impl Parser {
     ) -> Result<EnumDecl, Diagnostic> {
         let keyword = self.expect("`enum`", |k| matches!(k, TokenKind::Enum))?;
         let name = self.expect_ident("enum name")?;
+        self.record_declaration_name(&name);
         let type_params = self.parse_type_params()?;
         let mut end = name.span.end;
         let interfaces = interfaces_only(self.parse_supertypes(&mut end)?)?;
@@ -256,6 +257,7 @@ impl Parser {
         annotations: Vec<Annotation>,
     ) -> Result<VariantDecl, Diagnostic> {
         let name = self.expect_ident("variant name")?;
+        self.record_declaration_name(&name);
         let start = name.span.start;
         let (kind, end) = match self.peek().kind {
             TokenKind::Equal => {

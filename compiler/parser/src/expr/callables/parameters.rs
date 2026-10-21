@@ -17,6 +17,7 @@ impl Parser {
         let annotations = self.parse_annotations()?;
         self.skip_parameter_compatibility_modifiers();
         let name = self.expect_ident("parameter name")?;
+        self.record_declaration_name(&name);
         self.expect("`:`", |kind| matches!(kind, TokenKind::Colon))?;
         let ty = self.parse_type_ref()?;
         Ok(Param {

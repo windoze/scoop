@@ -150,6 +150,7 @@ impl Parser {
             Some(name) => name,
             None => self.expect_ident("function name")?,
         };
+        self.record_declaration_name(&name);
         let (params, params_end) = self.parse_function_parameters()?;
         let return_ty = if matches!(self.peek().kind, TokenKind::Colon) {
             self.bump();

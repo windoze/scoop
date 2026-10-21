@@ -95,7 +95,7 @@ impl Parser {
         diagnostics.dedup_by(|next, previous| {
             next == previous || next.span == Some(eof) && previous.span == Some(eof)
         });
-        let (green, missing) = self.syntax.build(source, &self.lexemes, root);
-        Parse::new(green, diagnostics, missing, result.ok())
+        let (green, missing, declarations) = self.syntax.build(source, &self.lexemes, root);
+        Parse::new(green, diagnostics, missing, declarations, result.ok())
     }
 }

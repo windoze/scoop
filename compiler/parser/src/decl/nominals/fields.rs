@@ -32,6 +32,7 @@ impl Parser {
         }
         let val = self.expect("`val`", |k| matches!(k, TokenKind::Val))?;
         let field_name = self.expect_ident("field name")?;
+        self.record_declaration_name(&field_name);
         self.expect("`:`", |k| matches!(k, TokenKind::Colon))?;
         let ty = self.parse_type_ref()?;
         let (syntax, end) = self.parse_parameter_syntax(modifier_span, ty.span.end)?;

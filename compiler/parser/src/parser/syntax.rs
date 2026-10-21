@@ -1,5 +1,8 @@
-use scoop_ast::Diagnostic;
-use scoop_syntax::{ExpectedSyntax, GreenNode, GreenNodeBuilder, MissingSyntax, SyntaxKind};
+use scoop_ast::{Diagnostic, Ident, Span};
+use scoop_syntax::{
+    DeclarationIndex, DeclarationName, DeclarationSyntax, ExpectedSyntax, GreenNode,
+    GreenNodeBuilder, MissingSyntax, SyntaxKind,
+};
 
 use crate::lexer::{Lexeme, TokenKind};
 
@@ -34,6 +37,7 @@ enum Event {
     Start { offset: u32, kind: SyntaxKind },
     Finish { offset: u32 },
     Missing(MissingSyntax),
+    DeclarationName(DeclarationName),
 }
 
 #[derive(Debug, Default)]
@@ -55,30 +59,59 @@ impl SyntaxEvents {
         source: &str,
         lexemes: &[Lexeme],
         root: SyntaxKind,
-    ) -> (GreenNode, Vec<MissingSyntax>) {
+    ) -> (GreenNode, Vec<MissingSyntax>, Vec<DeclarationSyntax>) {
         let mut builder = GreenNodeBuilder::new();
         let mut cursor = 0;
         let mut missing = Vec::new();
+        let mut declarations: Vec<DeclarationSyntax> = Vec::new();
+        let mut owners: Vec<Option<DeclarationIndex>> = Vec::new();
         builder.start_node(root.into());
         for event in self.events {
+            if let Event::DeclarationName(name) = event {
+                if let Some(index) = owners.iter().rev().flatten().next() {
+                    declarations[index.0].name = Some(name);
+                }
+                continue;
+            }
             let offset = match &event {
                 Event::Start { offset, .. } | Event::Finish { offset } => *offset,
                 Event::Missing(item) => item.offset,
+                Event::DeclarationName(_) => unreachable!("handled above"),
             };
             emit_before(&mut builder, source, lexemes, &mut cursor, offset);
             match event {
-                Event::Start { kind, .. } => builder.start_node(kind.into()),
-                Event::Finish { .. } => builder.finish_node(),
+                Event::Start { kind, offset } => {
+                    let index = kind.is_declaration().then(|| {
+                        let index = DeclarationIndex(declarations.len());
+                        declarations.push(DeclarationSyntax {
+                            parent: owners.iter().rev().flatten().next().copied(),
+                            kind,
+                            span: Span::new(offset, offset),
+                            name: None,
+                        });
+                        index
+                    });
+                    owners.push(index);
+                    builder.start_node(kind.into());
+                }
+                Event::Finish { offset } => {
+                    if let Some(index) = owners.pop().flatten() {
+                        let declaration = &mut declarations[index.0];
+                        declaration.span.end = offset.max(declaration.span.start);
+                    }
+                    builder.finish_node();
+                }
                 Event::Missing(item) => {
                     builder.start_node(SyntaxKind::Missing.into());
                     builder.finish_node();
                     missing.push(item);
                 }
+                Event::DeclarationName(_) => unreachable!("handled above"),
             }
         }
         emit_before(&mut builder, source, lexemes, &mut cursor, u32::MAX);
         builder.finish_node();
-        (builder.finish(), missing)
+        (builder.finish(), missing, declarations)
     }
 }
 
@@ -109,6 +142,19 @@ fn emit_before(
 }
 
 impl Parser {
+    pub(crate) fn record_declaration_name(&mut self, name: &Ident) {
+        self.record_syntax_name(&name.text, name.span);
+    }
+
+    pub(crate) fn record_syntax_name(&mut self, text: &str, span: Span) {
+        self.syntax
+            .events
+            .push(Event::DeclarationName(DeclarationName {
+                text: text.to_owned(),
+                span,
+            }));
+    }
+
     pub(crate) fn with_node<T>(
         &mut self,
         kind: SyntaxKind,

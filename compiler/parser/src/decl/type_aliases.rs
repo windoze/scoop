@@ -41,6 +41,7 @@ impl Parser {
             |kind| matches!(kind, TokenKind::Ident(text) if text == "typealias"),
         )?;
         let name = self.expect_ident("typealias name")?;
+        self.record_declaration_name(&name);
         let type_params = self.parse_type_params()?;
         let where_clause = self.parse_where_clause()?;
         self.expect("`=` in typealias declaration", |kind| {

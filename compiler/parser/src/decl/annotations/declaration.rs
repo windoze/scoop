@@ -21,6 +21,7 @@ impl Parser {
             matches!(kind, TokenKind::Class)
         })?;
         let name = self.expect_ident("annotation class name")?;
+        self.record_declaration_name(&name);
         let mut end = name.span.end;
         let mut parameters = Vec::new();
         if matches!(self.peek().kind, TokenKind::Less) {
@@ -70,6 +71,7 @@ impl Parser {
             .span
             .start;
         let name = self.expect_ident("annotation parameter name")?;
+        self.record_declaration_name(&name);
         self.expect("`:`", |kind| matches!(kind, TokenKind::Colon))?;
         let ty = self.parse_type_ref()?;
         let (default, end) = if matches!(self.peek().kind, TokenKind::Equal) {
