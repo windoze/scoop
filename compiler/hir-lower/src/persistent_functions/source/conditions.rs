@@ -1,7 +1,7 @@
 use super::*;
 use scoop_identity::{SignatureConditionKey as Condition, SignatureTypeKey};
 
-impl FunctionIdentityBuilder<'_> {
+impl SourceIdentityBuilder<'_, '_> {
     pub(super) fn function_conditions(
         &self,
         function: hir::FunctionId,

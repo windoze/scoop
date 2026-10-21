@@ -30,6 +30,7 @@
 - 声明语法视图：原 grammar 记录声明实际名称、范围和本次解析内的父子索引；扩展声明使用既有消歧结果，错误签名／正文仍保留已取得的名称，缺失名称保持为空。没有增加名称推测或第二套 grammar。格式化、全 workspace Clippy 以及 9 项声明／原文语法专项测试通过。
 - parser 正式 CLI：使用字段恢复批次构建的 release 配套命令，显式准备 19 个系统 Cone 与正常／stress runtime；37 个代表用例、38 个变体、55 次进程调用通过，无普通功能快照。覆盖模式、注解／文档、lambda 推断和尾随调用的运行与预期诊断。同步 runtime 辅助程序的独立 Cargo.lock，补入共同源码／语法依赖；准备脚本的 `--locked` 构建通过。
 - 首个 LSP：新增不依赖 LLVM 的 `scoop-lsp` 与 `scoop-analysis` 输入宿主。基于 lsp-server 0.10／lsp-types 0.97 和 url 2.5.8，提供真实 stdio 生命周期、UTF-8／16／32 文档同步、语法诊断、分层／平面大纲、折叠与选择范围。SourceId／revision 与客户端 URI／version 分离，未变化文本和语法直接复用；输入按通知原子更新，关闭后读取磁盘，打开 buffer 优先。传输与分析 worker 分离，取消请求收到响应，旧快照与诊断不覆盖新版本。格式化、全 workspace Clippy、2 项输入快照测试和 9 项真实进程测试通过；使用方式见 `compiler/lsp/README.md`。语义功能仍按 D／E 实施。
+- 源码 callable 身份构造：从最终 HIR 封装中提取原有声明、owner、binder 与约束的共同构造，保留局部函数和生成模板的原身份规则，为固定查询接入提供实际复用边界。格式化、全 workspace Clippy 及 2 项既有持久身份精确测试通过；固定查询和 generator 流程仍待接入。
 
 ## 环境与验证策略
 
