@@ -10,7 +10,7 @@ use super::{
 use crate::{CompatibilityRecord, MemberPurposeSet, SlibMember, SlibMemberId, SlibMemberRecord};
 
 const MANIFEST_MAGIC: &[u8; 9] = b"SCOOPSLIB";
-const INITIAL_SCHEMA: u64 = 1;
+const CURRENT_SCHEMA: u64 = 2;
 const ARTIFACT_FINGERPRINT_DOMAIN: &[u8] = b"scoop-artifact-v1";
 const MAX_PRODUCER_BYTES: usize = 255;
 
@@ -711,9 +711,9 @@ impl ArtifactManifestInput<'_> {
         encoder.field(1)?;
         encoder.bytes(MANIFEST_MAGIC)?;
         encoder.field(2)?;
-        encoder.unsigned(INITIAL_SCHEMA)?;
+        encoder.unsigned(CURRENT_SCHEMA)?;
         encoder.field(3)?;
-        encoder.unsigned(INITIAL_SCHEMA)?;
+        encoder.unsigned(CURRENT_SCHEMA)?;
         encoder.field(4)?;
         self.producer.encode(encoder)?;
         encoder.field(5)?;

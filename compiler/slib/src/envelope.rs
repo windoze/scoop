@@ -39,7 +39,7 @@ impl CanonicalSlibArchive {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum SlibWriteError {
     DirectoryLengthMismatch {
         declared: usize,
@@ -148,7 +148,7 @@ impl<'input> DecodedSlibEnvelope<'input> {
         self.target_selection
     }
 
-    pub(crate) fn member(&self, id: SlibMemberId) -> Result<Option<&'input [u8]>, SlibReadError> {
+    pub(crate) fn member(&self, id: SlibMemberId) -> Result<Option<&[u8]>, SlibReadError> {
         match &self.source {
             EnvelopeSource::Memory { archive, .. } => {
                 archive.member(id).map_err(SlibReadError::Container)

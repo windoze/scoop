@@ -107,24 +107,3 @@ fn require_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Resu
         ))
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn rejects_the_obsolete_seven_field_registration_surface() {
-        let error =
-            scoop_wire::decode_canonical::<DecodedStrongRegistrationProductionSurfaceV1>(&[
-                0xa7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            ])
-            .unwrap_err();
-        assert!(matches!(
-            error.kind(),
-            scoop_wire::WireErrorKind::InvalidLength {
-                expected: 8,
-                actual: 7
-            }
-        ));
-    }
-}

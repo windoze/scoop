@@ -151,11 +151,14 @@ pub struct DefinedLinkSymbolOwnerV1 {
 
 impl WireEncode for DefinedLinkSymbolOwnerV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(3)?;
+        let boundary = matches!(self.owner, LinkDefinitionOwnerV1::VerifierBoundary { .. });
+        encoder.map(if boundary { 2 } else { 3 })?;
         encoder.field(1)?;
         self.member.encode(encoder)?;
-        encoder.field(2)?;
-        encoder.bytes(&self.symbol)?;
+        if !boundary {
+            encoder.field(2)?;
+            encoder.bytes(&self.symbol)?;
+        }
         encoder.field(3)?;
         self.owner.encode(encoder)
     }
@@ -397,37 +400,100 @@ impl WireDecode for DecodedLinkDefinitionOwnerV1 {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-struct DecodedDefinedLinkSymbolOwnerV1 {
-    member: DecodedMemberId,
-    symbol: Vec<u8>,
-    owner: DecodedLinkDefinitionOwnerV1,
+enum DecodedDefinedLinkSymbolOwnerV1 {
+    Named {
+        member: DecodedMemberId,
+        symbol: Vec<u8>,
+        owner: DecodedLinkDefinitionOwnerV1,
+    },
+    Boundary {
+        member: DecodedMemberId,
+        atom: DecodedPersistentId<ObjectDefinitionAtomId>,
+        boundary: VerifiedBoundaryRoleV1,
+    },
 }
 
 impl WireEncode for DecodedDefinedLinkSymbolOwnerV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(3)?;
-        encoder.field(1)?;
-        self.member.encode(encoder)?;
-        encoder.field(2)?;
-        encoder.bytes(&self.symbol)?;
-        encoder.field(3)?;
-        self.owner.encode(encoder)
+        match self {
+            Self::Named {
+                member,
+                symbol,
+                owner,
+            } => {
+                encoder.map(3)?;
+                encoder.field(1)?;
+                member.encode(encoder)?;
+                encoder.field(2)?;
+                encoder.bytes(symbol)?;
+                encoder.field(3)?;
+                owner.encode(encoder)
+            }
+            Self::Boundary {
+                member,
+                atom,
+                boundary,
+            } => {
+                encoder.map(2)?;
+                encoder.field(1)?;
+                member.encode(encoder)?;
+                encoder.field(3)?;
+                DecodedLinkDefinitionOwnerV1::VerifierBoundary {
+                    atom: *atom,
+                    boundary: *boundary,
+                }
+                .encode(encoder)
+            }
+        }
     }
 }
 
 impl WireDecode for DecodedDefinedLinkSymbolOwnerV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(3)?;
-        Ok(Self {
-            member: decoder.field(1, DecodedMemberId::decode)?,
-            symbol: decoder.field(2, Decoder::owned_bytes)?,
-            owner: decoder.field(3, DecodedLinkDefinitionOwnerV1::decode)?,
-        })
+        let fields = decoder.map()?;
+        match fields {
+            2 => {
+                let member = decoder.field(1, DecodedMemberId::decode)?;
+                let owner = decoder.field(3, DecodedLinkDefinitionOwnerV1::decode)?;
+                match owner {
+                    DecodedLinkDefinitionOwnerV1::VerifierBoundary { atom, boundary } => {
+                        Ok(Self::Boundary {
+                            member,
+                            atom,
+                            boundary,
+                        })
+                    }
+                    _ => Err(wire_error(
+                        decoder,
+                        WireErrorKind::MissingField { field: 2 },
+                    )),
+                }
+            }
+            3 => {
+                let member = decoder.field(1, DecodedMemberId::decode)?;
+                let symbol = decoder.field(2, Decoder::owned_bytes)?;
+                let owner = decoder.field(3, DecodedLinkDefinitionOwnerV1::decode)?;
+                if matches!(owner, DecodedLinkDefinitionOwnerV1::VerifierBoundary { .. }) {
+                    return Err(wire_error(decoder, WireErrorKind::ExtraField { field: 2 }));
+                }
+                Ok(Self::Named {
+                    member,
+                    symbol,
+                    owner,
+                })
+            }
+            actual => Err(wire_error(
+                decoder,
+                WireErrorKind::InvalidLength {
+                    expected: 3,
+                    actual,
+                },
+            )),
+        }
     }
 }
 
-/// Untrusted wire projection. It can only be promoted by comparing it with
-/// the set rebuilt from verified object definitions.
+/// Saved definitions with symbolic boundary names reconstructed for the target.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DecodedCanonicalDefinedLinkSymbolOwnerSetV1 {
     owners: Vec<DecodedDefinedLinkSymbolOwnerV1>,

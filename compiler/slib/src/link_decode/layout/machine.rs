@@ -19,10 +19,10 @@ pub(crate) struct DecodedMachineLinkSections<'a> {
 
 impl<'a> ValidatedGraphArtifact<'a> {
     pub(crate) fn decode_machine_link_sections(
-        mut self,
+        self,
     ) -> Result<DecodedMachineLinkSections<'a>, SingleConeLinkSectionDecodeError> {
         let profile = require_strong_profile(&self, ArtifactCapabilityProfile::CROSS_CONE_GENERIC)?;
-        let production_manifest = decode_production_manifest(&mut self, profile)?;
+        let production_manifest = decode_production_manifest(&self, profile)?;
         let hir_id = metadata_member_id(&self, MetadataLocation::Hir)?;
         let mir_id = metadata_member_id(&self, MetadataLocation::Mir)?;
         let lir_id = metadata_member_id(&self, MetadataLocation::Lir)?;

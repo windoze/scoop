@@ -24,7 +24,7 @@ use super::{
 use crate::{DecodedSlibMemberRecord, SlibMemberRecordValidationError};
 
 const MANIFEST_MAGIC: &[u8; 9] = b"SCOOPSLIB";
-const INITIAL_SCHEMA: u32 = 1;
+const CURRENT_SCHEMA: u32 = 2;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DecodedBootstrapManifest {
@@ -331,7 +331,7 @@ fn require_initial_schema(
     kind: SchemaKind,
     actual: u32,
 ) -> Result<(), BootstrapManifestValidationError> {
-    if actual == INITIAL_SCHEMA {
+    if actual == CURRENT_SCHEMA {
         Ok(())
     } else {
         Err(BootstrapManifestValidationError::UnsupportedSchema { kind, actual })

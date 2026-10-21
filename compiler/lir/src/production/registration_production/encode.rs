@@ -11,16 +11,10 @@ impl<D: crate::StrongDescriptorReference, C: Clone + WireEncode, I: WireEncode> 
     for StrongRegistrationProductionSurface<D, C, I>
 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(8)?;
+        encoder.map(3)?;
         encode_field(encoder, 1, &self.identities)?;
-        encode_array_field(encoder, 2, self.safepoints.registrations())?;
-        encode_array_field(encoder, 3, self.callables.registrations())?;
-        encode_array_field(encoder, 4, self.types.registrations())?;
-        encode_array_field(encoder, 5, self.immortal_objects.registrations())?;
         encode_array_field(encoder, 6, self.static_storages.registrations())?;
-        encode_array_field(encoder, 7, self.initialization_units.registrations())?;
-        encoder.field(8)?;
-        encode_callable_runtime_scans(encoder, self.callables.runtime_scans())
+        encode_array_field(encoder, 7, self.initialization_units.registrations())
     }
 }
 
@@ -53,31 +47,6 @@ impl WireEncode for StrongCallableRegistrationPlanV1 {
         encode_field(encoder, 9, &self.body_definition_node())?;
         Ok(())
     }
-}
-
-fn encode_callable_runtime_scans(
-    encoder: &mut Encoder,
-    plans: &StrongCallableRuntimeScanPlanSetV1,
-) -> Result<(), scoop_wire::cbor::EncodeError> {
-    encoder.array(plans.callables().len() as u64)?;
-    for callable in plans.callables() {
-        encoder.map(3)?;
-        encode_field(encoder, 1, &callable.body())?;
-        encoder.field(2)?;
-        encoder.array(callable.atoms().len() as u64)?;
-        for atom in callable.atoms() {
-            encoder.map(2)?;
-            encode_field(encoder, 1, &atom.atom())?;
-            encoder.field(2)?;
-            encode_ref_scan(encoder, atom.scan())?;
-        }
-        encoder.field(3)?;
-        encoder.array(callable.context_keys().len() as u64)?;
-        for cell in callable.context_keys() {
-            cell.key.encode(encoder)?;
-        }
-    }
-    Ok(())
 }
 
 impl WireEncode for StrongImmortalObjectRegistrationPlanV1 {

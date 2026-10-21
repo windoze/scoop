@@ -34,7 +34,7 @@ fn require_strong_profile(
 }
 
 fn decode_production_manifest(
-    graph: &mut ValidatedGraphArtifact<'_>,
+    graph: &ValidatedGraphArtifact<'_>,
     profile: ArtifactCapabilityProfile,
 ) -> Result<DecodedSingleConeProductionManifestV1, SingleConeLinkSectionDecodeError> {
     let manifest = graph.envelope.manifest();
@@ -77,7 +77,7 @@ fn metadata_member_id(
 }
 
 fn member_payload<'input>(
-    graph: &ValidatedGraphArtifact<'input>,
+    graph: &'input ValidatedGraphArtifact<'_>,
     location: MetadataLocation,
     member: SlibMemberId,
 ) -> Result<&'input [u8], SingleConeLinkSectionDecodeError> {

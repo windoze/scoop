@@ -8,6 +8,8 @@ pub use member::*;
 
 mod archive;
 pub use archive::*;
+mod compression;
+pub use compression::CompressionError;
 
 mod profile;
 pub use profile::*;

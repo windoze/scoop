@@ -20,9 +20,11 @@ impl ArtifactDefinitionData {
         identities: &mut ValidatedIdentityGraph,
         target: scoop_lir::ValidatedLirTargetSelection,
     ) -> Result<Self, String> {
-        let defined = link
-            .link_identity_closure_wire()
-            .read_defined_symbols(manifest.cone().identity(), identities)?;
+        let defined = link.link_identity_closure_wire().read_defined_symbols(
+            manifest.cone().identity(),
+            identities,
+            target.target().contract().native_symbol_normalization(),
+        )?;
         let odr = link
             .production_manifest_wire()
             .read_odr_members(identities)

@@ -108,15 +108,14 @@ fn bootstrap_writer_is_reproducible_and_rejects_directory_mismatch() {
 fn envelope_reports_invalid_manifest_headers() {
     let members = members();
     let manifest = manifest(&members);
-    let archive = CanonicalSlibArchive::write_bootstrap(&manifest, members).unwrap();
-
-    let mut bad_manifest = archive.as_bytes().to_vec();
+    let mut bad_manifest = encode(&manifest).unwrap();
     let magic = bad_manifest
         .windows(b"SCOOPSLIB".len())
         .position(|window| window == b"SCOOPSLIB")
         .unwrap();
     bad_manifest[magic] = b'X';
-    let error = DecodedSlibEnvelope::open(&bad_manifest, selection())
+    let archive = CanonicalSlibArchive::write(&bad_manifest, members).unwrap();
+    let error = DecodedSlibEnvelope::open(archive.as_bytes(), selection())
         .expect_err("corrupted manifest magic must fail");
     assert!(matches!(
         &error,

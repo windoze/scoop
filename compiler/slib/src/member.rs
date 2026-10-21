@@ -180,6 +180,16 @@ pub enum SlibMemberRole {
 }
 
 impl SlibMemberRole {
+    pub(crate) const fn is_compressed(&self) -> bool {
+        matches!(
+            self,
+            Self::HirMetadata
+                | Self::MirMetadata
+                | Self::LirMetadata
+                | Self::DiagnosticAttachment { .. }
+        )
+    }
+
     pub const fn purpose_set(&self) -> MemberPurposeSet {
         match self {
             Self::HirMetadata | Self::MirMetadata => MemberPurposeSet::COMPILE,
@@ -258,6 +268,11 @@ impl SlibMember {
         role: SlibMemberRole,
         payload: Vec<u8>,
     ) -> Result<Self, SlibMemberRecordError> {
+        let payload = if role.is_compressed() {
+            crate::compression::compress(&payload).map_err(SlibMemberRecordError::Compression)?
+        } else {
+            payload
+        };
         let record = SlibMemberRecord::new(cone, stable_key, role, &payload)?;
         Ok(Self { record, payload })
     }
@@ -384,6 +399,7 @@ pub enum SlibMemberRecordError {
     CapabilityMismatch,
     LengthOverflow,
     Hash(HashError),
+    Compression(crate::CompressionError),
 }
 
 impl fmt::Display for SlibMemberRecordError {
@@ -397,6 +413,7 @@ impl fmt::Display for SlibMemberRecordError {
             }
             Self::LengthOverflow => formatter.write_str("member payload length does not fit u64"),
             Self::Hash(error) => error.fmt(formatter),
+            Self::Compression(error) => error.fmt(formatter),
         }
     }
 }

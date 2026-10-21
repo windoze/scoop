@@ -33,6 +33,8 @@ impl DecodedLinkIdentityClosureSectionV1 {
     }
 
     pub(crate) fn symbol_uses(&self) -> impl Iterator<Item = (SlibMemberId, &[u8])> {
-        self.undefined_symbols.symbol_uses()
+        self.symbol_uses
+            .iter()
+            .map(|site| (site.member, site.symbol.as_slice()))
     }
 }

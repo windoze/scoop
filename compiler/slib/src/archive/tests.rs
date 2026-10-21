@@ -62,20 +62,6 @@ fn validate_archive<'input>(
 }
 
 #[test]
-fn archive_has_one_fixed_empty_directory_vector() {
-    let archive = CanonicalSlibArchive::write(b"x", Vec::new()).unwrap();
-    assert_eq!(
-        archive.as_bytes(),
-        [
-            b"!<arch>\n".as_slice(),
-            b"manifest.cbor/  0           0     0     100644  1         `\n".as_slice(),
-            b"x\n".as_slice(),
-        ]
-        .concat()
-    );
-}
-
-#[test]
 fn archive_sorts_members_by_typed_id_and_derives_physical_names() {
     let first_input = diagnostic_member(b"z", b"second").unwrap();
     let second_input = diagnostic_member(b"a", b"first").unwrap();
@@ -90,7 +76,7 @@ fn archive_sorts_members_by_typed_id_and_derives_physical_names() {
     let archive = CanonicalSlibArchive::write(b"m", vec![first_input, second_input]).unwrap();
     assert_eq!(archive, reverse_archive);
     let bytes = archive.as_bytes();
-    let first_header = 8 + 60 + 1 + 1;
+    let first_header = open_archive(bytes).unwrap().next_header;
     assert_eq!(&bytes[first_header..first_header + 16], b"m00000000/      ");
     let first_payload = first_header + 60;
     assert_eq!(
@@ -154,13 +140,13 @@ fn reader_validates_manifest_directory_and_member_ranges() {
         records.iter().map(SlibMemberRecord::id).collect::<Vec<_>>()
     );
     let payload = |id| decoded.member(id).unwrap().unwrap();
-    assert_eq!(payload(first.record().id()), first.payload());
-    assert_eq!(payload(second.record().id()), second.payload());
+    assert_eq!(payload(first.record().id()), b"one");
+    assert_eq!(payload(second.record().id()), b"two!");
 }
 
 #[test]
 fn reader_rejects_noncanonical_container_bytes() {
-    let archive = CanonicalSlibArchive::write(b"x", Vec::new()).unwrap();
+    let archive = CanonicalSlibArchive::write(b"xy", Vec::new()).unwrap();
 
     let mut bad_magic = archive.as_bytes().to_vec();
     bad_magic[0] = b'?';

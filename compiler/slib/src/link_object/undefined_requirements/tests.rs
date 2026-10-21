@@ -1,6 +1,6 @@
 use scoop_identity::{ConeIdentity, NativeLibraryBinding};
 use scoop_lir::{CanonicalLirFoundation, ConeLirFoundation, GeneratedBridgePlanSetV1};
-use scoop_wire::{decode_canonical, encode};
+use scoop_wire::encode;
 
 use super::super::current_cone_requirements::tests::primary_bridge_requirement;
 use super::super::native_requirements::tests::{contract_record, native_surface};
@@ -19,7 +19,6 @@ use crate::{
 #[test]
 fn finalizes_runtime_and_eh_requirements_with_a_fixed_wire_vector() {
     let runtime = final_from_external(classify(b"_scoop_rt_allocation_context"));
-    assert_projection_round_trip(&runtime);
     assert_eq!(runtime.requirements().len(), 1);
     assert!(matches!(
         runtime.requirements()[0].requirement(),
@@ -31,29 +30,10 @@ fn finalizes_runtime_and_eh_requirements_with_a_fixed_wire_vector() {
     );
 
     let eh = final_from_external(classify(b"__Unwind_Resume"));
-    assert_projection_round_trip(&eh);
     assert!(matches!(
         eh.requirements()[0].requirement(),
         FinalUndefinedSymbolRequirementV1::TargetEhSupport { .. }
     ));
-}
-
-#[test]
-fn odr_requirement_uses_a_new_tag_and_keeps_service_tags_retired() {
-    let mut bytes = vec![0xa2, 0x00, 0x09, 0x01, 0x58, 0x20];
-    bytes.extend_from_slice(&[0x5a; 32]);
-    let decoded = decode_canonical::<DecodedFinalUndefinedSymbolRequirementV1>(&bytes).unwrap();
-    assert!(matches!(
-        decoded,
-        DecodedFinalUndefinedSymbolRequirementV1::OdrMember { .. }
-    ));
-    assert_eq!(encode(&decoded).unwrap(), bytes);
-    for tag in [2, 7, 8] {
-        assert!(matches!(
-            decode_canonical::<DecodedFinalUndefinedSymbolRequirementV1>(&[0xa1, 0, tag]),
-            Err(error) if matches!(error.kind(), scoop_wire::WireErrorKind::UnknownTag { tag: actual } if *actual == u64::from(tag))
-        ));
-    }
 }
 
 #[test]
@@ -65,17 +45,12 @@ fn native_requirement_records_the_symbol_bytes_with_a_new_tag() {
     let mut expected = vec![0xa2, 0, 10, 1, 0x47];
     expected.extend_from_slice(&symbol);
     assert_eq!(encode(&requirement).unwrap(), expected);
-    assert_eq!(
-        decode_canonical::<DecodedFinalUndefinedSymbolRequirementV1>(&expected).unwrap(),
-        DecodedFinalUndefinedSymbolRequirementV1::Native { symbol },
-    );
 }
 
 #[test]
 fn finalizes_ordinary_native_symbols_without_source_contracts() {
     for symbol in [b"_memcmp".as_slice(), b"_toolchain_helper", b"_native_\xff"] {
         let final_set = final_from_external(classify(symbol));
-        assert_projection_round_trip(&final_set);
         assert_eq!(final_set.requirements().len(), 1);
         assert_eq!(final_set.requirements()[0].use_site().symbol(), symbol);
         assert_eq!(
@@ -116,7 +91,6 @@ fn finalizes_current_cone_and_generated_bridge_requirements() {
         current,
         classify_without_source_externals(strong),
     );
-    assert_projection_round_trip(&final_set);
     assert!(matches!(
         final_set.requirements()[0].requirement(),
         FinalUndefinedSymbolRequirementV1::IntraConeStrong { .. }
@@ -128,7 +102,6 @@ fn finalizes_current_cone_and_generated_bridge_requirements() {
         current,
         classify_without_source_externals(strong),
     );
-    assert_projection_round_trip(&final_set);
     assert_eq!(
         final_set.requirements()[0].requirement(),
         FinalUndefinedSymbolRequirementV1::GeneratedBridge { unit }
@@ -210,7 +183,6 @@ fn finalizes_source_external_requirements() {
         verify_runtime_and_eh_requirements_v1(source, scoop_target_data::DARWIN_AARCH64_LLVM_22_1)
             .unwrap();
     let final_set = finalize_undefined_symbol_requirements_v1(current, external);
-    assert_projection_round_trip(&final_set);
     assert!(matches!(
         final_set.requirements()[0].requirement(),
         FinalUndefinedSymbolRequirementV1::SourceExtern {
@@ -218,24 +190,6 @@ fn finalizes_source_external_requirements() {
             ..
         }
     ));
-}
-
-#[test]
-fn decoded_requirement_sum_rejects_unknown_and_incomplete_variants() {
-    for bytes in [
-        vec![0xa1, 0x00, 0x18, 0xff],
-        vec![0xa1, 0x00, 0x01],
-        vec![0xa2, 0x00, 0x05, 0x01, 0x58, 0x1f],
-    ] {
-        assert!(decode_canonical::<DecodedFinalUndefinedSymbolRequirementV1>(&bytes).is_err());
-    }
-}
-
-fn assert_projection_round_trip(expected: &CanonicalUndefinedSymbolRequirementSetV1) {
-    let bytes = encode(expected).unwrap();
-    let decoded =
-        decode_canonical::<DecodedCanonicalUndefinedSymbolRequirementSetV1>(&bytes).unwrap();
-    assert_eq!(encode(&decoded).unwrap(), bytes);
 }
 
 fn final_from_external(

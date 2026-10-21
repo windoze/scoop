@@ -3,7 +3,9 @@ use std::io::{self, Read};
 use scoop_lir::ValidatedLirTargetSelection;
 
 use super::{ArtifactManifestSummaryError as Error, ArtifactManifestSummaryV1};
-use crate::archive::{GLOBAL_MAGIC, HEADER_LENGTH, read_member_header};
+use crate::archive::{
+    GLOBAL_MAGIC, HEADER_LENGTH, MANIFEST_NAME, decompress_member, read_member_header,
+};
 use crate::{ArchiveMemberOrdinal, ArchiveReadError, DecodedBootstrapManifest, SlibReadError};
 
 /// Reads only the archive header and manifest, leaving all member payloads unread.
@@ -29,7 +31,7 @@ pub(crate) fn read_manifest(
     }
     let mut header = [0; HEADER_LENGTH as usize];
     reader.read_exact(&mut header).map_err(SlibReadError::Io)?;
-    let length = read_member_header(&header, b"manifest.cbor", ArchiveMemberOrdinal::Manifest)
+    let length = read_member_header(&header, MANIFEST_NAME, ArchiveMemberOrdinal::Manifest)
         .map_err(SlibReadError::Container)?;
     let mut bytes = Vec::new();
     reader
@@ -42,6 +44,8 @@ pub(crate) fn read_manifest(
             "incomplete slib manifest",
         )));
     }
+    let bytes = decompress_member(&bytes, ArchiveMemberOrdinal::Manifest)
+        .map_err(SlibReadError::Container)?;
     let decoded: DecodedBootstrapManifest =
         scoop_wire::decode_canonical(&bytes).map_err(SlibReadError::CanonicalWire)?;
     let manifest = decoded
@@ -62,8 +66,15 @@ mod tests {
     #[test]
     fn summary_reads_only_the_manifest_of_a_complete_artifact() {
         let bytes = crate::link_decode::complete_strong_artifact_for_test();
-        let manifest = crate::ManifestArchive::open(&bytes).unwrap();
-        let end = GLOBAL_MAGIC.len() + HEADER_LENGTH as usize + manifest.manifest().len();
+        let start = GLOBAL_MAGIC.len();
+        let header_end = start + HEADER_LENGTH as usize;
+        let length = read_member_header(
+            &bytes[start..header_end],
+            MANIFEST_NAME,
+            ArchiveMemberOrdinal::Manifest,
+        )
+        .unwrap();
+        let end = header_end + length;
         let mut reader = io::Cursor::new(bytes.as_slice());
         let summary = read_artifact_manifest_summary_from_reader(
             &mut reader,

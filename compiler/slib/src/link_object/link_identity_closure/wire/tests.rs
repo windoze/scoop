@@ -52,7 +52,7 @@ fn closure() -> LinkIdentityClosureSectionV1 {
             units: CanonicalScoopLirObjectUnitSetV1::new(vec![definition_id]).unwrap(),
         }],
         defined_symbols,
-        undefined_symbols,
+        symbol_uses: super::super::symbol_uses(&undefined_symbols),
     }
 }
 
