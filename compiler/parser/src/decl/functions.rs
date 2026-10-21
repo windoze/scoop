@@ -1,5 +1,7 @@
 use super::*;
 
+mod parameters;
+
 impl Parser {
     /// Parse the modifiers accepted syntactically on top-level and local
     /// functions. Target/signature legality of `operator` belongs to HIR.
@@ -148,38 +150,7 @@ impl Parser {
             Some(name) => name,
             None => self.expect_ident("function name")?,
         };
-        self.expect("`(`", |k| matches!(k, TokenKind::LParen))?;
-        let mut params = Vec::new();
-        let mut vararg_span = None;
-        if !matches!(self.peek().kind, TokenKind::RParen) {
-            loop {
-                let doc_start = self.pos;
-                let annotations = self.parse_annotations()?;
-                let modifier_span = self.parse_vararg_modifier(&mut vararg_span)?;
-                let param_name = self.expect_ident("parameter name")?;
-                self.expect("`:`", |k| matches!(k, TokenKind::Colon))?;
-                let ty = self.parse_type_ref()?;
-                let (syntax, end) = self.parse_parameter_syntax(modifier_span, ty.span.end)?;
-                let documented = Param {
-                    annotations,
-                    span: Span::new(
-                        modifier_span.map_or(param_name.span.start, |span| span.start),
-                        end,
-                    ),
-                    name: param_name,
-                    ty,
-                    syntax,
-                };
-                self.attach_documentation(doc_start, documented.span);
-                params.push(documented);
-                if matches!(self.peek().kind, TokenKind::Comma) {
-                    self.bump();
-                } else {
-                    break;
-                }
-            }
-        }
-        let params_close = self.expect("`)`", |k| matches!(k, TokenKind::RParen))?;
+        let (params, params_end) = self.parse_function_parameters()?;
         let return_ty = if matches!(self.peek().kind, TokenKind::Colon) {
             self.bump();
             Some(self.parse_type_ref()?)
@@ -191,7 +162,7 @@ impl Parser {
             .as_ref()
             .map(|clause| clause.span.end)
             .or_else(|| return_ty.as_ref().map(|ty| ty.span.end))
-            .unwrap_or(params_close.span.end);
+            .unwrap_or(params_end);
         let (body, end) = match self.peek().kind {
             TokenKind::LBrace | TokenKind::Equal
                 if modifiers.method_modifier.map(|modifier| modifier.kind)

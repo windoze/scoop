@@ -91,6 +91,10 @@ impl Parser {
                 .span
                 .map_or((u32::MAX, u32::MAX), |span| (span.start, span.end))
         });
+        let eof = self.tokens.last().expect("the lexer emits EOF").span;
+        diagnostics.dedup_by(|next, previous| {
+            next == previous || next.span == Some(eof) && previous.span == Some(eof)
+        });
         let (green, missing) = self.syntax.build(source, &self.lexemes, root);
         Parse::new(green, diagnostics, missing, result.ok())
     }

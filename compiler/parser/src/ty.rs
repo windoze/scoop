@@ -233,13 +233,17 @@ impl Parser {
             return Ok((Vec::new(), end));
         }
         self.bump();
-        let mut arguments = vec![self.parse_nominal_type_argument()?];
-        while matches!(self.peek().kind, TokenKind::Comma) {
-            self.bump();
-            arguments.push(self.parse_nominal_type_argument()?);
+        let diagnostic_start = self.diagnostics.len();
+        let arguments = self.parse_delimited_items(
+            crate::parser::ListKind::TypeArguments,
+            Self::parse_nominal_type_argument,
+        );
+        // An erroneous type must not become a successful speculative type
+        // argument. Its siblings remain in the CST for editor consumers.
+        match self.diagnostics.get(diagnostic_start) {
+            Some(diagnostic) => Err(diagnostic.clone()),
+            None => Ok(arguments),
         }
-        let close = self.expect("`>`", |k| matches!(k, TokenKind::Greater))?;
-        Ok((arguments, close.span.end))
     }
 
     fn parse_nominal_type_argument(&mut self) -> Result<TypeRef, Diagnostic> {

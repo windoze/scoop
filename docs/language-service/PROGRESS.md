@@ -22,6 +22,7 @@
 - 本机验证：`cargo fmt --all`、全 workspace／all-targets Clippy（拒绝 warnings）通过；source／AST／parser 的 548 项测试及 driver 诊断报告的 4 项定向测试通过。覆盖 Unicode、换行、EOF、无效字符边界、文本共享以及既有诊断显示兼容。LLVM 明确使用 Homebrew 22.1.8。
 - 严格片段入口：公开函数体和类型解析，复用文件解析的词法、诊断整理及原有 grammar；函数体要求外层大括号，两个入口均拒绝尾随实际 token 和内部恢复错误，原文位置直接保留。文件入口及输入整理按职责拆为 parser 子模块。格式化、全 workspace Clippy、原有 524 项 parser 测试及 7 项片段专项测试通过。
 - 原文 CST：使用 rowan 0.17.0，在同一 lexer 保留 trivia，在原有 grammar 记录节点及零宽预期项；文件、函数体和类型的可恢复入口均保留错误文本，严格入口仅取无错误的 AST 投影。所有语法试探改用共同检查点，回退节点、诊断、文档附着和局部 callable 编号。全 workspace Clippy 及 parser／syntax／doc 的 563 项测试通过，包括逐字符删除／插入、嵌套插值、未终止 token、EOF 和实际 grammar 的检查点回退；局部恢复后续批次仍在实施。
+- 首批列表恢复：函数参数、调用实参、类型参数及类型实参使用各自分隔符／follow 恢复，保留坏项后的同级节点和已知函数体。缺失逗号与结束符记录明确 kind；类型试探只接受无错误类型，普通比较与泛型消歧保持。原有尾随逗号、空项和 variance 错误继续拒绝，EOF 级联与传播的重复诊断合并。格式化、全 workspace Clippy 和 parser 的 546 项测试通过。
 
 ## 环境与验证策略
 

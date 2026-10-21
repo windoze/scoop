@@ -270,7 +270,11 @@ impl Parser {
                 scoop_ast::CallTypeArgument::Infer { span: token.span }
             } else {
                 let ty = match self.parse_type_ref() {
-                    Ok(ty) => ty,
+                    Ok(ty) if saw_infer || !self.has_errors_since(start) => ty,
+                    Ok(_) => {
+                        self.restore(start);
+                        return Ok(Vec::new());
+                    }
                     Err(error)
                         if saw_infer
                             || error.message
@@ -326,19 +330,10 @@ impl Parser {
 
     fn parse_args_inner(&mut self) -> Result<(Vec<CallArgument>, u32), Diagnostic> {
         self.expect("`(`", |k| matches!(k, TokenKind::LParen))?;
-        let mut args = Vec::new();
-        if !matches!(self.peek().kind, TokenKind::RParen) {
-            loop {
-                args.push(self.parse_call_argument()?);
-                if matches!(self.peek().kind, TokenKind::Comma) {
-                    self.bump();
-                } else {
-                    break;
-                }
-            }
-        }
-        let close = self.expect("`)`", |k| matches!(k, TokenKind::RParen))?;
-        Ok((args, close.span.end))
+        Ok(self.parse_delimited_items(
+            crate::parser::ListKind::CallArguments,
+            Self::parse_call_argument,
+        ))
     }
 
     fn parse_call_argument(&mut self) -> Result<CallArgument, Diagnostic> {

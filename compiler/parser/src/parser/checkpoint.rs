@@ -45,6 +45,10 @@ impl Parser {
         self.supertype_expression_nesting = checkpoint.supertype_expression_nesting;
     }
 
+    pub(crate) fn has_errors_since(&self, checkpoint: Checkpoint) -> bool {
+        self.diagnostics.len() != checkpoint.diagnostics
+    }
+
     pub(crate) fn attach_documentation(&mut self, start_token: usize, target: Span) {
         let start = self
             .documentation

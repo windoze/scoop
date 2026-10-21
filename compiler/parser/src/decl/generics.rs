@@ -14,56 +14,61 @@ impl Parser {
     }
 
     fn parse_type_params_inner(&mut self) -> Result<Vec<TypeParamDecl>, Diagnostic> {
-        let mut type_params = Vec::new();
         if !matches!(self.peek().kind, TokenKind::Less) {
-            return Ok(type_params);
+            return Ok(Vec::new());
         }
         self.bump();
-        loop {
-            let doc_start = self.pos;
-            while matches!(&self.peek().kind, TokenKind::Ident(text) if text == "reified")
-                && matches!(
-                    self.tokens[self.pos + 1].kind,
-                    TokenKind::Ident(_) | TokenKind::EscapedIdent(_) | TokenKind::In
-                )
-            {
-                self.bump();
-            }
-            if matches!(self.peek().kind, TokenKind::In)
-                || matches!(&self.peek().kind, TokenKind::Ident(text) if text == "out")
-            {
-                let token = self.bump();
-                return Err(Diagnostic::at(
-                    token.span,
-                    "nominal type parameters are invariant; declaration-site `in`/`out` is not supported",
-                ));
-            }
-            let name = self.expect_ident("type parameter name")?;
-            let inline_bound = if matches!(self.peek().kind, TokenKind::Colon) {
-                self.bump();
-                Some(self.parse_type_bound()?)
-            } else {
-                None
-            };
-            let end = self.tokens[self.pos.saturating_sub(1)]
-                .span
-                .end
-                .max(name.span.end);
-            let documented = TypeParamDecl {
-                span: Span::new(name.span.start, end),
-                name,
-                inline_bound,
-            };
-            self.attach_documentation(doc_start, documented.span);
-            type_params.push(documented);
-            if matches!(self.peek().kind, TokenKind::Comma) {
-                self.bump();
-            } else {
-                break;
-            }
+        let (parameters, _) = self.parse_delimited_items(
+            crate::parser::ListKind::TypeParameters,
+            Self::parse_type_parameter,
+        );
+        Ok(parameters)
+    }
+
+    fn parse_type_parameter(&mut self) -> Result<TypeParamDecl, Diagnostic> {
+        self.with_node(
+            scoop_syntax::SyntaxKind::TypeParameter,
+            Self::parse_type_parameter_inner,
+        )
+    }
+
+    fn parse_type_parameter_inner(&mut self) -> Result<TypeParamDecl, Diagnostic> {
+        let doc_start = self.pos;
+        while matches!(&self.peek().kind, TokenKind::Ident(text) if text == "reified")
+            && matches!(
+                self.tokens[self.pos + 1].kind,
+                TokenKind::Ident(_) | TokenKind::EscapedIdent(_) | TokenKind::In
+            )
+        {
+            self.bump();
         }
-        self.expect("`>`", |k| matches!(k, TokenKind::Greater))?;
-        Ok(type_params)
+        if matches!(self.peek().kind, TokenKind::In)
+            || matches!(&self.peek().kind, TokenKind::Ident(text) if text == "out")
+        {
+            let token = self.bump();
+            return Err(Diagnostic::at(
+                token.span,
+                "nominal type parameters are invariant; declaration-site `in`/`out` is not supported",
+            ));
+        }
+        let name = self.expect_ident("type parameter name")?;
+        let inline_bound = if matches!(self.peek().kind, TokenKind::Colon) {
+            self.bump();
+            Some(self.parse_type_bound()?)
+        } else {
+            None
+        };
+        let end = self.tokens[self.pos.saturating_sub(1)]
+            .span
+            .end
+            .max(name.span.end);
+        let documented = TypeParamDecl {
+            span: Span::new(name.span.start, end),
+            name,
+            inline_bound,
+        };
+        self.attach_documentation(doc_start, documented.span);
+        Ok(documented)
     }
 
     pub(super) fn parse_type_bound(&mut self) -> Result<TypeBound, Diagnostic> {

@@ -15,7 +15,7 @@ impl Parser {
         let ordinary = matches!(self.peek().kind, TokenKind::LParen);
         let receiver = self.parse_type_atom_with_suffix().is_ok()
             && matches!(self.peek().kind, TokenKind::Dot | TokenKind::QuestionDot);
-        let anonymous = if receiver {
+        let anonymous = if receiver && !self.has_errors_since(saved) {
             matches!(self.tokens[self.pos + 1].kind, TokenKind::LParen)
         } else {
             ordinary

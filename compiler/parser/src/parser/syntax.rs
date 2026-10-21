@@ -138,6 +138,14 @@ impl Parser {
         expected: ExpectedSyntax,
         what: &str,
     ) -> Result<T, Diagnostic> {
+        Err(self.missing_diagnostic(expected, what))
+    }
+
+    pub(super) fn missing_diagnostic(
+        &mut self,
+        expected: ExpectedSyntax,
+        what: &str,
+    ) -> Diagnostic {
         let token = self.peek();
         let diagnostic = Diagnostic::at(
             token.span,
@@ -147,6 +155,6 @@ impl Parser {
             offset: token.span.start,
             expected,
         }));
-        Err(diagnostic)
+        diagnostic
     }
 }

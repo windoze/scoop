@@ -16,7 +16,9 @@ impl Parser {
             self.restore(saved);
             return Ok(None);
         };
-        if !matches!(self.peek().kind, TokenKind::Dot | TokenKind::DoubleColon) {
+        if self.has_errors_since(saved)
+            || !matches!(self.peek().kind, TokenKind::Dot | TokenKind::DoubleColon)
+        {
             self.restore(saved);
             return Ok(None);
         }
