@@ -1,6 +1,6 @@
 # M47 设计：HIR 查询与接口实现生成器
 
-状态：设计完成，待实施。日期：2026-10-15。调研基线：`e548b9ebe`。M46 正在其他任务中实施；本文以 [M46 主设计](../milestone46/DESIGN.md)和 [Serialize／Option 合同](../milestone46/SERIALIZE.md)及其完成后的实现为迁移基线，不实施或重新安排 M46。
+状态：设计完成，待实施。初稿：2026-10-15；公共基础修订：2026-10-21。原调研基线：`e548b9ebe`；本次公共基础核对基线：`4de3ae9e8`。M46 已完成；本文以 [M46 主设计](../milestone46/DESIGN.md)、[Serialize／Option 合同](../milestone46/SERIALIZE.md)及其完成后的实现为迁移基线，不实施或重新安排 M46。
 
 依据：[语言规范](../specs/SCOOP-SPEC.md) 8.5、9.4～9.6、11.13，[编译器与产物规范](../specs/SCOOP-IMPL-SPEC.md) 2.1、2.2、2.7、2.11、2.17，以及[路线图](../ROADMAP.md)。本文规定功能边界、编译编排、试点迁移和验收；[同步协议与语义查询](PROTOCOL.md)规定进程交互、HIR 查询与方法体源码片段。本次只修改设计；各批实施前先同步相应 spec。
 
@@ -10,6 +10,8 @@ M47 只新增两个基础能力：
 
 1. 通用的 HIR 查询接口，向 generator 提供现有类型、成员、注解、默认值和正文等语义信息，供后续 LSP 复用。编译器内部有实际需要时也可重构为调用同一接口，查询实现复用已有语义规则。
 2. generator 的同步交互流程。driver 启动宿主可执行程序，建立 stdin／stdout 双向管道；generator 逐次查询 HIR，最后一次返回 `MethodId -> 方法体源码文本`。driver 使用现有 parser 得到普通 AST，再交回正常 HIR lowering。
+
+源码、片段解析、语义上下文及查询与[可恢复语法／LSP 公共基础](../language-service/DESIGN.md)对齐。M47 消费其中的固定编译视图和严格片段入口；可恢复 CST、编辑态分析与 LSP 服务按公共基础设计分批交付，不成为本期的额外前置。
 
 encoder／decoder 是这两个能力的落地试点：把 M46 更新后的合成策略迁入独立的 `scoop-codec-generator`，使 `Serialize` 完全按普通 annotation class 绑定和保存。试点中的字段策略、codec 选择和源码组织归 generator；不能为迁移预先扩展 AST、名称绑定、类型系统或默认值语义。实际缺口的处理见 4.1 和 5.2。
 
@@ -152,13 +154,16 @@ driver 保留收到的原始文本作为本次编译的诊断源码，普通错�
 
 共享层面向现有实体、类型和已绑定语义，返回结构化数据。generator、后续 LSP 和有实际需要的编译器内部代码使用同一查询契约；进程消息、MethodId 到上下文的映射、编辑器位置转换留在各自适配层。查询核心不依赖 generator 生命周期，也不返回 LSP 的 hover／CompletionItem。
 
+公共基础将输入文本／坐标、可恢复语法与共享语义分开。M47 从已确定的方法取得普通语义上下文；LSP 由当前源码版本的语法及绑定记录取得上下文。源码关联、局部语义事实和分析失效属于公共分析能力，LSP 只负责其协议和功能投影。M47 的固定视图不要求携带编辑器 URI、文档 version 或请求取消状态；成功 HIR 的要求不因共用查询而放宽。
+
 已有 `scoop-hir::static_type_shape`、静态注解／构造描述和 `ImportedSemanticWorld` 是数据访问的基础。类型关系、成员访问与类型实参替换直接复用 hir-lower 的原有规则；必要时整理现有代码供查询与内部调用共同使用，不复制类型系统或全面重写前端。
 
 | 所在模块 | 本期责任 |
 | --- | --- |
+| `scoop-source` 公共源码数据 | 复用原始文本、byte range、诊断及坐标转换；普通源码与生成片段使用同一定位基础，片段到方法的关联仍由 driver 保存 |
 | `scoop-hir` 的查询契约与现有视图 | 现有 typed 引用、签名、声明／应用类型、成员、注解、default 和正文的只读描述 |
 | `scoop-hir-lower` 的查询适配 | 将当前构建上下文与依赖视图接到公共接口，复用已有语义规则；按原方法上下文 lower 普通函数体 AST |
-| `scoop-parser`／`scoop-ast` | 使用原语法和 AST；必要时包装现有函数体／类型片段解析入口，不增加绑定引用或生成专用节点 |
+| `scoop-parser`／`scoop-ast` | 共用文件／函数体／类型的正式语法入口与严格 AST 适配；存在词法或语法错误时不向 lowerer 交付残缺 AST，不增加绑定引用或生成专用节点 |
 | 新 `scoop-generator-protocol` | JSON-RPC 消息、同步分帧和客户端封装；结果仅包含目标 MethodId 与源码文本，不传输出 AST schema |
 | `scoopc` driver | 读取普通配置、启动进程、转发查询、接收源码、调用 parser 并交回正文，复用已有诊断与构建输入记录 |
 | 新 `scoop-codec-generator` | 使用查询数据解释 Serialize、选择 codec、生成普通 encode／decode 源码片段 |
@@ -167,11 +172,13 @@ driver 保留收到的原始文本作为本次编译的诊断源码，普通错�
 
 只读查询不改变声明或已完成的语义决定。现有类型应用和依赖投影可缓存复用，不为查询深拷贝全部 HIR。尚无正文、正文未发布等情况通过查询结果表达，不把半成品类型或空正文装入成功 HIR。
 
+M47 沿用协议中的四类正文可用状态。编辑态缺失语法、失败推断、未分析与依赖不可用由公共分析结果另外表达，不冒充 PendingGeneration 或 NotPublished，也不要求 M47 v1 预先暴露全部 IDE 查询。每个查询返回的已知类型和正文仍须完整。
+
 ### 4.1 只补实际接入缺口
 
 | 现有接入点 | 必要整理 |
 | --- | --- |
-| parser 公开完整文件解析，内部已有 `parse_block`／`parse_type_ref` | 包装通用片段入口，完整消费输入；只接收文本，不查询 HIR，不扩展语法或 AST |
+| parser 公开完整文件解析，内部已有 `parse_block`／`parse_type_ref` | 包装通用片段入口，完整消费输入；只接收文本，不查询 HIR。可恢复语法基础接入后仍用相同严格适配，不因生成片段扩展语言或 AST 绑定能力 |
 | 当前 codec 有专用的正文合成接入点 | 整理为对既有 interface 缺失方法的通用补齐回调，复用签名、继承选择和正文检查 |
 | 类型、成员、注解和 default 数据分布在已有视图中 | 向公共查询接口提供所需事实；缺少投影字段时补该字段，不重新建一份并行语义状态 |
 
@@ -286,11 +293,11 @@ GenerateWith 与 Serialize 都按普通 annotation metadata 保存在各自实�
 
 ## 8. 实施分批与规范同步
 
-通用查询和 generator 交互可以独立推进；codec 迁移以 M46 完成后的实现为基线。M47 不要求先交付 M38 TypeInfo、LSP、M45 的 Scoop 进程 API 或其他尚无实际必要的前置；Rust driver 使用已有宿主进程能力。
+通用查询和 generator 交互可以独立推进；codec 迁移以 M46 完成后的实现为基线。先对齐公共源码、片段入口及固定语义查询，其余可恢复语法与 LSP 批次独立推进；不要求先交付完整 LSP、局部重解析或增量数据库。Rust driver 使用已有宿主进程能力。
 
 | 批次 | 交付 | 同批验证 |
 | --- | --- | --- |
-| M47-1 | 同步 spec；整理通用 HIR 查询接口和已有实现，声明普通 GenerateWith，复用字符串数组参数与既有方法签名 | 普通数组注解绑定、显式继承、多接口任务合并、任务去重与冲突诊断；查询结果与原有语义一致 |
+| M47-1 | 同步 spec；对齐公共源码／上下文，整理固定视图的通用 HIR 查询及已有实现，声明普通 GenerateWith，复用字符串数组参数与既有方法签名 | 普通数组注解绑定、显式继承、多接口任务合并、任务去重与冲突诊断；查询结果与原有语义一致，不依赖生成会话的数据模型 |
 | M47-2 | 同步协议、driver 查询循环、CLI 注册；返回源码文本，复用 parser 及正常正文 lowering，完成通用功能闭环 | 用户 interface 全部／部分生成；真实子进程查询后提交源码；语法与类型诊断定位到片段；错误 ID、EOF、失败退出与宿主／target 分离 |
 | M47-3 | 用 M46 encoder／decoder 做迁移试点；核对 5.2 的实际缺口并作必要修补，策略外移且 Serialize 只走普通注解绑定 | M46 合成回归、普通注解／跨 Cone 读取、default 定义处绑定与求值顺序；生成源码可检查，不依赖新增 AST 语义引用或隐式 fallback |
 | M47-4 | 工具分发／core bootstrap、实际工具输入缓存、泛型与 `.slib` 消费；清理只为旧合成存在的数据 | core 构建、工具变更失效、缓存命中不重跑、下游复用已有方法不调用上游 generator、三目标必要组合验收 |
@@ -302,7 +309,7 @@ GenerateWith 与 Serialize 都按普通 annotation metadata 保存在各自实�
 | 语言规范 9.4 | GenerateWith 的普通 annotation class 声明、`String`／`Array<String>` 参数、target 与 Repeatable；复用已有字符串数组支持，不扩展 annotation 语法或值域；Serialize 的普通检查边界 |
 | 语言规范 9.5、11.13 | 实现类型显式选择 interface application 与 generator；迁移原隐式 codec 请求，保持 M46 编解码规则，说明策略诊断按实际生成方向发生 |
 | 语言规范 9.6 | 静态描述通过工具查询用于 interface body 生成，仍无运行期反射或任意源码宏 |
-| 实现规范 2.1、2.2、2.11 | 普通源码片段的解析与原方法上下文、必要的正文补齐接入、完整 HIR 和 typed identity；保持既有 AST 与语义规则 |
+| 实现规范 2.1、2.2、2.11、2.20 | 公共源码／查询与严格片段适配、原方法上下文、必要的正文补齐接入、完整 HIR 和 typed identity；编辑态恢复结果不进入成功 HIR |
 | 实现规范 2.7 | 宿主 generator 配置、同步进程编排、缓存输入与失败诊断 |
 | 实现规范 2.17 | 共享语义查询、codec 策略外移、普通注解与普通产物消费 |
 | 运行时／标准基础库规范 | 核对交叉引用与 M46 行为保持；不增加 runtime ABI 或重做普通 codec／JSON 实现 |

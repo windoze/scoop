@@ -54,7 +54,7 @@ stage 只通过对应 IR/metadata 交换数据，不调用上游 stage 的实现
 
 AST 保留原始源码顺序、byte span、显式类型实参、位置／命名／spread／尾随 lambda 实参，以及独立的声明、表达式、模式和控制转移结构。文件至多有一个开头 package，其后为 import，再后为声明。qualified path 为非空 identifier sequence；package、静态 owner 与实体的分界由名称解析决定。
 
-AST 不包含依赖 locator 解析、构建顺序、已推断类型或实体身份猜测。语法恢复产生 Error；任何解析失败阻止成功 HIR 输出。
+AST 不包含依赖 locator 解析、构建顺序、已推断类型或实体身份猜测。词法与语法恢复收集 Error 级诊断；任何解析失败阻止成功 HIR 输出。面向编辑态的可恢复语法结果与成功编译 AST 分开，公共基础的目标合同见 2.20；保留错误语法不表示该程序可以进入后续编译阶段。
 
 语言规范 9.7 的文档片段由同一 lexer 保留，包含原始文本、种类和准确 byte span，不另扫源码。parser 在实际声明语法入口建立附着关系；SourceFile 的文档表以对应 AST 节点的完整精确 span 记录关联，无目标的片段显式保存为未附着。此键只服务本文件 AST 语法关联，不能作为语言实体身份；HIR 将实际 AST 节点关联到其 typed 声明，不按名称、最近距离或 span 包含关系猜测目标。文档保留不改变 token 换行事实、语句边界或普通编译诊断。
 
@@ -79,6 +79,8 @@ parser 中仅有存在性与位置的修饰符使用可选 span；带取值的�
 when 的 AST 明确区分无 subject、表达式 subject 与 val subject 声明；声明保存完整 binding pattern、可选完整类型及初始化表达式。arm 区分普通条件序列、case 模式与后备条件，保留 guard 和各条件位置。return/throw 可处于表达式位置；调用保留尾随实参来源及分组边界；annotation 数组保留每个元素的位置。
 
 ### 2.2 HIR
+
+M47 与语言服务共享既有语义查询的数据和实现。编辑态查询可以返回明确的不可用原因，但不能向成功 ExportHir／LocalConcreteHir 写入缺失类型或正文；查询与完整编译输出的边界见 2.20。
 
 文档请求仍完成正常声明、函数体、默认值、泛型、效果与可见性检查，再返回附加的源码 API 视图。视图通过现有 typed 声明及实际参数／binder 关联原 AST 节点，保留原声明作用域、源码签名片段与已完成的推断类型；不以 LocalConcrete 实例或机器符号恢复 API。主构造 val／var 的直接文档属于实际字段／property，构造参数是独立目标。getter／setter、variant payload、context 参数与类型参数沿真实 owner 和语义位置关联；内部 helper 不成为源码 API。
 
@@ -940,6 +942,8 @@ target/backend/C toolchain 的 typed identity 保留既有 canonical 编码及�
 
 type、function type、generic declaration、完整 application、concrete function、runtime/extern target、dispatch slot、layout、TD、property/accessor/storage、initialization、callback 与 safepoint 使用不同 ID 类型。stage-local ID 不持久化，跨 stage 关系显式映射；同形结构与相同整数值不建立身份。
 
+语言服务的文本版本、分析 revision 和语法节点定位只标识进程内的一份输入或查询位置，不替代上述实体身份，不进入 `.slib`、ODR 或 runtime ABI。语法未完成、尚不能建立持久声明身份时，查询保留语法位置与不可用状态，不能按名称或 span 伪造语义实体。
+
 persistent keys 保留原 ConeIdentity、typed owner chain、kind 和该声明种类所需的规范化签名；不含正文、arena ordinal、host 路径或 link symbol。透明 alias 不建立新的 exact type，完整 generic arguments 和 structural type constituents 参与 exact identity。
 
 泛型函数的重复签名与持久化声明 key 包含语言规范 3.2.2 的规范化条件集合。正向 bound 与 kind 继续保持原互斥表示，负向接口条件独立保存完整类型和诊断来源。HIR lowering 在普通推断完成后执行三态负向查询；MSC 使用相同规则并保留源声明的条件事实。IR／meta 只表达数据与 typed 引用，不重新实现语言条件判定。
@@ -1218,3 +1222,23 @@ ODR 只比较 key 与 shared ABI，按实际需要选择物理 member。body 的
 OptimizationMode 在 machine request field 9 中编码 Debug=1、Release=2；生产端 Code 输入继续保存模式，production section 不再复制该值；compile cache domain 为 `scoop-cone-compile-cache-v2`，mode 位于 field 13。generated-C flag 的 SelectedOptimization tag 为 15，tag 6 保留不用。
 
 digest kinds 4、8、9，digest owner tags 4、11、9，保留不用；全部 runtime digest patch role 与 patch intent 退役。registration 公共 identity 只含 linkage、semantic ID、ODR group/member；body、layout、descriptor、scan 与 normalized-stackmap fingerprints 仍用于所选实现自身的内容、引用及 GC 合同，不作为不同优化正文必须相等的条件。
+
+### 2.20 可恢复语法与语言服务公共基础（设计合同，待实施）
+
+本节规定 M47 与后续 LSP 的共同基础，不表示现有入口已经支持编辑态分析。调研、模块分工、分批交付和验收见[公共基础设计](../language-service/DESIGN.md)；M47 的同步生成流程仍由[其主设计](../milestone47/DESIGN.md)及[协议](../milestone47/PROTOCOL.md)规定。合法源码的语言语义、成功 HIR 的完备性、产物和 runtime 合同保持。
+
+**源码与位置。** 同一文本版本提供不可变 UTF-8 源码、byte range 和可复用的行索引。普通文件继续沿用 SourceIdentity；编辑 buffer 和生成正文的本地定位由输入宿主维护，不使用显示路径、LSP URI、文档版本或请求编号构造语言实体身份。语义查询只消费显式传入的源码和依赖视图，不进行源码发现、磁盘读取或工具启动。LSP 在边界协商位置编码并转换为 byte offset；其零基行列、UTF-16 默认值及换行定义不能直接套用 CLI 的显示列或持久 SourcePointRecord。
+
+**语法。** 同一 lexer／parser 支持完整文件、普通函数体和完整类型三个实际入口。可恢复结果总有相应的根节点和结构化诊断；保留全部原始 token、空白、注释及非法文本。多余文本保存在错误节点中，缺失语法以不占源码字节的显式缺失项表示；恢复不得伪造标识符、类型或正文。各入口消费全部输入，片段外剩余文本同样产生错误。编译适配只在没有词法／语法错误时投影完整 AST，driver 再交给正常 HIR lowering；generator 的片段不享有放宽规则。语法树及其遍历不依赖 HIR、LSP、LLVM 或项目图。
+
+**语义与查询。** 共享查询契约使用既有 typed 声明、application、binder、局部实体与源码位置，返回类型、成员、注解、默认值、正文和绑定事实。契约及只读结果属于 IR 数据通道；查询实现在前端复用正常的名称、类型、访问、重载和 effect 规则。M47 从待填方法取得上下文，LSP 从当前文本版本的语法位置取得上下文；协议消息和 UI 数据不进入公共契约。
+
+错误源码中的声明、作用域和表达式事实按实际依赖分别可用或不可用。依赖缺失语法、失败推断或尚未完成分析的结果必须说明原因；不能用 Any、Nothing、空正文、空候选集合或上一版的成功事实表示当前未知。尚未完成的声明仍影响名称遮蔽与候选完整性，不能简单删除后声称决议成功。每个已知类型／正文都保持完整；恢复状态只属于分析结果，不成为普通 HIR 类型或下游输入。只有正常编译完成必要检查和正文补齐后才发布成功 HIR。
+
+源码位置到语义实体的关联由本次正常绑定产生，并保留实际语法目标与 typed 引用；不能从名称、机器符号或最近的 span 猜测。该关联供导航、诊断与重构读取，不接受 generator 提交的绑定旁表，也不改变新正文的普通名称解析。文档事实复用 2.1、2.2 与语言规范 9.7 的既有解析、附着和绑定结果。
+
+**更新与执行。** 一次分析读取固定的源码版本、选中 Cone／target／Production 或 Test 配置及依赖视图。编辑器的未保存文本优先于该文档的磁盘内容；LSP 同一 didChange 中的修改依次作用于前一修改后的文本。宿主在输入变化时更新相应结果，未变化的文本、语法和已完成查询直接复用；首版允许变化文件完整重解析和受影响 Cone 的保守语义失效，不要求先实现局部重解析或通用增量数据库。
+
+LSP 负责协议生命周期、文档版本与取消请求的映射；共享分析负责一致的读取视图、计算中的合作式取消和结果所用 revision。发布诊断、编辑或解析延迟结果前核对相应输入版本，不能将旧范围应用于新文本；取消的请求仍按 LSP 返回响应。M47 使用本次编译的固定视图与串行同步查询，不引入文档通知或编辑器调度。声明与签名查询不启动 generator，读取待生成正文返回 PendingGeneration。
+
+进程内分析复用和 2.7、2.8 的构建缓存分别按各自实际输入更新，不增加缓存内容复核、源码镜像、来源认证或通用资源计费。语言服务只读取所需的依赖语义 metadata，不为查询进入 MIR／LIR、机器具体化、LLVM 或 native 链接准备。
