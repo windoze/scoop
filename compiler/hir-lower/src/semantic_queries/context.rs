@@ -1,5 +1,26 @@
 use super::*;
 
+pub(super) fn imported_location(
+    origin: &scoop_identity::DefinitionOrigin,
+) -> Result<hir::SemanticSourceLocation, Diagnostic> {
+    let span = origin.span();
+    let invalid = |_| {
+        let mut diagnostic = Diagnostic::at(
+            Span::new(0, 0),
+            "queried dependency source range exceeds the supported byte range",
+        );
+        diagnostic.source = Some(Box::new(origin.source().clone()));
+        diagnostic
+    };
+    Ok(hir::SemanticSourceLocation {
+        source: origin.source().clone(),
+        span: Span::new(
+            u32::try_from(span.start_byte()).map_err(invalid)?,
+            u32::try_from(span.end_byte()).map_err(invalid)?,
+        ),
+    })
+}
+
 impl FrontendQueries<'_> {
     pub(super) fn in_context<T>(
         &mut self,

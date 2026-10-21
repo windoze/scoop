@@ -29,7 +29,10 @@ pub use initializations::ImportedNominalInitialization;
 pub use intrinsics::ImportedIntrinsicCallable;
 pub use members::*;
 pub use model::*;
-pub use nominals::{ImportedNominalDeclaration, ImportedNominalFieldSource};
+pub use nominals::{
+    ImportedEnumVariantFieldSource, ImportedEnumVariantSource, ImportedNominalDeclaration,
+    ImportedNominalFieldSource,
+};
 
 use catalog::DependencyCatalog;
 

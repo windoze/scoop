@@ -1,7 +1,11 @@
 use super::*;
 use hir::SemanticTypeStructure as Shape;
 
-fn resolve(queries: &mut dyn SemanticQueries, context: SemanticContext, text: &str) -> hir::TypeId {
+pub(super) fn resolve(
+    queries: &mut dyn SemanticQueries,
+    context: SemanticContext,
+    text: &str,
+) -> hir::TypeId {
     queries
         .resolve_type(context, &scoop_parser::parse_type(text).unwrap())
         .unwrap()

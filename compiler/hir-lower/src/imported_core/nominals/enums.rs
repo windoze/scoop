@@ -102,7 +102,7 @@ impl Lowerer {
         let variants = shape
             .variants()
             .iter()
-            .zip(&declaration.variant_names)
+            .zip(&declaration.variant_sources)
             .map(|(variant, names)| {
                 let fields = variant
                     .fields()
@@ -110,7 +110,7 @@ impl Lowerer {
                     .zip(&names.fields)
                     .map(|(field, name)| {
                         Ok(hir::Field {
-                            name: name.clone(),
+                            name: name.name.clone(),
                             ty: self.imported_signature_type_with_bindings(
                                 field.value_type(),
                                 &bindings,

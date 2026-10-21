@@ -15,6 +15,8 @@ mod bodies;
 pub use bodies::*;
 mod types;
 pub use types::*;
+mod fields;
+pub use fields::*;
 
 /// A context already established by ordinary declaration binding.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -91,6 +93,11 @@ pub trait SemanticQueries {
         context: SemanticContext,
         ty: TypeId,
     ) -> Result<SemanticTypeDescription, StaticShapeUnboundParameter>;
+    fn nominal_fields(
+        &mut self,
+        context: SemanticContext,
+        ty: TypeId,
+    ) -> Result<Option<SemanticNominalFields>, Diagnostic>;
     fn type_relation(
         &mut self,
         context: SemanticContext,

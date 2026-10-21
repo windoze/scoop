@@ -6,7 +6,9 @@ use scoop_hir as hir;
 use scoop_identity::SignatureTypeKey;
 
 mod context;
+use context::imported_location;
 mod declarations;
+mod fields;
 mod types;
 
 pub(crate) struct FrontendQueries<'a> {
@@ -165,6 +167,14 @@ impl hir::SemanticQueries for FrontendQueries<'_> {
         ty: hir::TypeId,
     ) -> Result<hir::SemanticTypeDescription, hir::StaticShapeUnboundParameter> {
         self.in_context(context, |lowerer| lowerer.describe_semantic_type(ty))
+    }
+
+    fn nominal_fields(
+        &mut self,
+        context: hir::SemanticContext,
+        ty: hir::TypeId,
+    ) -> Result<Option<hir::SemanticNominalFields>, Diagnostic> {
+        self.in_context(context, |lowerer| lowerer.query_nominal_fields(ty))
     }
 
     fn type_relation(
