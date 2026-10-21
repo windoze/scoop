@@ -1,0 +1,35 @@
+context(logger: Logger, _: Service)
+suspend fun process(value: Any, values: Array<(Int, Int)>): Int {
+    context(logger) {
+        logger.write("ready")
+    }
+    val cast = value as? String
+    val number = cast?.length ?: return 0
+    outer@ for ((x, y) in values) {
+        if (x < 0) continue@outer
+        if (x == y) break@outer
+        while (ready()) {
+            try {
+                step()
+            } catch (error: Exception) {
+                throw error
+            } finally {
+                finish()
+            }
+        }
+    }
+    do {
+        val current = read()
+    } while (current > 0)
+    return if (number > 0) 1 else if (number == 0) 0 else -1
+}
+
+fun callbacks() {
+    val transform = local@ { (x, y): (Int, Int) ->
+        if (x == y) return@local 0
+        x + y
+    }
+    consume(1, *[2, 3], last = 4) done@ { value -> println(value) }
+    consume() suspend { wait() }
+    val reference = ::process
+}

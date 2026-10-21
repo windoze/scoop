@@ -1,0 +1,25 @@
+{
+  "name": "scoop-tooling",
+  "private": true,
+  "workspaces": [
+    "tree-sitter-scoop",
+    "vscode-scoop"
+  ],
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "scripts": {
+    "format": "biome format --write .",
+    "lint": "biome check . && tsc --noEmit -p vscode-scoop",
+    "generate": "npm run generate -w tree-sitter-scoop",
+    "build": "npm run build -w tree-sitter-scoop && npm run build -w scoop-language-support",
+    "test": "npm run test -w tree-sitter-scoop && npm run test -w scoop-language-support",
+    "test:vscode": "npm run test:vscode -w scoop-language-support",
+    "package": "npm run package -w scoop-language-support"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.2",
+    "tree-sitter-cli": "0.27.1",
+    "typescript": "6.0.2"
+  }
+}

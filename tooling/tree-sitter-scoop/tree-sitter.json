@@ -1,0 +1,21 @@
+{
+  "grammars": [
+    {
+      "name": "scoop",
+      "camelcase": "Scoop",
+      "scope": "source.scoop",
+      "path": ".",
+      "file-types": ["scoop"],
+      "highlights": "queries/highlights.scm",
+      "folds": "queries/folds.scm",
+      "indents": "queries/indents.scm"
+    }
+  ],
+  "metadata": {
+    "version": "0.1.0",
+    "license": "UNLICENSED",
+    "description": "Scoop language grammar",
+    "authors": [{ "name": "Scoop contributors" }]
+  },
+  "bindings": { "c": true }
+}

@@ -1,0 +1,39 @@
+@Target([AnnotationTarget.Class, AnnotationTarget.Type])
+annotation class Label(val name: String = "value")
+
+interface Printable {
+    fun render(): String
+}
+
+sealed class Base(val id: Int)
+class Counter private constructor(override val id: Int) : Base(id), Printable {
+    private var count: Int = 0
+        @NoGC get() = field
+        private set(value) { field = value }
+
+    init { count = id }
+    constructor() : this(0) { count = 1 }
+    override fun render(): String = count.toString()
+    release { @Unsafe { closeNative() } }
+
+    companion object Factory {
+        fun create(): Counter = Counter()
+    }
+    inner class Child(val value: Int)
+    typealias Identifier = Int
+}
+
+struct Point(val x: Int, val y: Int = 0) : Printable {
+    constructor() : this(0, 0)
+    override fun render() = f"(${x}, ${y})"
+    val total: Int
+        get() = x + y
+}
+
+object Registry : Printable {
+    override fun render() = "registry"
+}
+
+val adapter = object : Printable {
+    override fun render() = "anonymous"
+}

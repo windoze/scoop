@@ -1,0 +1,186 @@
+==================
+Plain and nested interpolated strings
+==================
+val plain = "${text} // literal"
+val nested = f"outer ${f"inner ${1}"}"
+---
+
+(source_file
+  (property_declaration
+    (identifier)
+    (string_literal
+      (string_content)))
+  (property_declaration
+    (identifier)
+    (interpolated_string
+      (fstring_content)
+      (interpolation
+        (interpolated_string
+          (fstring_content)
+          (interpolation
+            (integer_literal)))))))
+
+==================
+Pattern and guard
+==================
+fun unwrap(x: Option<Int>) = when (x) {
+    case Some(value) if value > 0 -> value
+    else -> 0
+}
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameters
+      (parameter
+        (identifier)
+        (user_type
+          (type_identifier)
+          (type_arguments
+            (user_type
+              (type_identifier))))))
+    (expression_body
+      (when_expression
+        (identifier)
+        (when_body
+          (when_entry
+            (variant_pattern
+              (qualified_identifier
+                (identifier))
+              (tuple_pattern
+                (identifier
+                  (_identifier))))
+            (when_guard
+              (binary_expression
+                (identifier
+                  (_identifier))
+                (integer_literal)))
+            (identifier
+              (_identifier)))
+          (when_entry
+            (integer_literal)))))))
+
+==================
+Scope expression and ordinary member call
+==================
+fun scopes() {
+    context(logger) { log() }
+    service.context(logger) { log() }
+}
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameters)
+    (block
+      (context_expression
+        (identifier)
+        (block
+          (call_expression
+            (identifier)
+            (arguments))))
+      (call_expression
+        (navigation_expression
+          (identifier)
+          (identifier
+            (_identifier)))
+        (arguments
+          (argument
+            (identifier)))
+        (trailing_lambda
+          (lambda_literal
+            (call_expression
+              (identifier)
+              (arguments))))))))
+
+==================
+Generic companion access and copy expression
+==================
+val empty = MaybeUninit<Int>.uninit()
+val moved = point.{x: 3}
+---
+
+(source_file
+  (property_declaration
+    (identifier)
+    (call_expression
+      (navigation_expression
+        (user_type
+          (type_identifier)
+          (type_arguments
+            (user_type
+              (type_identifier))))
+        (identifier))
+      (arguments)))
+  (property_declaration
+    (identifier)
+    (copy_expression
+      (identifier)
+      (field_updates
+        (field_update
+          (identifier)
+          (integer_literal))))))
+
+==================
+Control bodies and explicit separators
+==================
+fun run() {
+    if (ready()) return; finish()
+    if (ready()) start(); else stop()
+}
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameters)
+    (block
+      (if_expression
+        (call_expression
+          (identifier)
+          (arguments))
+        (return_expression))
+      (call_expression
+        (identifier)
+        (arguments))
+      (if_expression
+        (call_expression
+          (identifier)
+          (arguments))
+        (call_expression
+          (identifier)
+          (arguments))
+        (call_expression
+          (identifier)
+          (arguments))))))
+
+==================
+Contextual and escaped identifiers
+==================
+fun `read text`(context: String) {
+    val 雪 = context
+    consume(雪)
+}
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameters
+      (parameter
+        (identifier
+          (_identifier))
+        (user_type
+          (type_identifier))))
+    (block
+      (property_declaration
+        (identifier)
+        (identifier
+          (_identifier)))
+      (call_expression
+        (identifier)
+        (arguments
+          (argument
+            (identifier)))))))

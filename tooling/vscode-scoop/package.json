@@ -1,0 +1,150 @@
+{
+  "name": "scoop-language-support",
+  "displayName": "Scoop Language Support",
+  "description": "Tree-sitter highlighting, folding and indentation for Scoop",
+  "version": "0.1.0",
+  "publisher": "scoop",
+  "private": true,
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/windoze/scoop.git",
+    "directory": "tooling/vscode-scoop"
+  },
+  "license": "UNLICENSED",
+  "engines": {
+    "vscode": "^1.100.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "keywords": [
+    "scoop",
+    "tree-sitter",
+    "syntax",
+    "highlighting"
+  ],
+  "main": "./dist/extension.cjs",
+  "activationEvents": [
+    "onLanguage:scoop"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": true
+    }
+  },
+  "contributes": {
+    "languages": [
+      {
+        "id": "scoop",
+        "aliases": [
+          "Scoop",
+          "scoop"
+        ],
+        "extensions": [
+          ".scoop"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "configurationDefaults": {
+      "[scoop]": {
+        "editor.semanticHighlighting.enabled": true,
+        "editor.formatOnType": true
+      }
+    },
+    "semanticTokenScopes": [
+      {
+        "language": "scoop",
+        "scopes": {
+          "namespace": [
+            "entity.name.namespace.scoop"
+          ],
+          "type": [
+            "entity.name.type.scoop"
+          ],
+          "class": [
+            "entity.name.type.class.scoop"
+          ],
+          "interface": [
+            "entity.name.type.interface.scoop"
+          ],
+          "struct": [
+            "entity.name.type.struct.scoop"
+          ],
+          "enum": [
+            "entity.name.type.enum.scoop"
+          ],
+          "enumMember": [
+            "constant.other.enum.scoop"
+          ],
+          "typeParameter": [
+            "entity.name.type.parameter.scoop"
+          ],
+          "function": [
+            "entity.name.function.scoop"
+          ],
+          "method": [
+            "entity.name.function.member.scoop"
+          ],
+          "parameter": [
+            "variable.parameter.scoop"
+          ],
+          "property": [
+            "variable.other.property.scoop"
+          ],
+          "variable": [
+            "variable.other.readwrite.scoop"
+          ],
+          "variable.readonly": [
+            "variable.other.constant.scoop"
+          ],
+          "variable.defaultLibrary": [
+            "variable.language.scoop"
+          ],
+          "decorator": [
+            "entity.name.function.decorator.scoop"
+          ],
+          "keyword": [
+            "keyword.control.scoop"
+          ],
+          "modifier": [
+            "storage.modifier.scoop"
+          ],
+          "operator": [
+            "keyword.operator.scoop"
+          ],
+          "string": [
+            "string.quoted.double.scoop"
+          ],
+          "number": [
+            "constant.numeric.scoop"
+          ],
+          "comment": [
+            "comment.scoop"
+          ],
+          "comment.documentation": [
+            "comment.block.documentation.scoop"
+          ]
+        }
+      }
+    ]
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "vscode:prepublish": "npm run build -w tree-sitter-scoop && npm run build",
+    "test": "node --experimental-strip-types --test test/*.test.ts",
+    "test:vscode": "node scripts/test-vscode.mjs",
+    "package": "vsce package --no-dependencies --skip-license"
+  },
+  "dependencies": {
+    "web-tree-sitter": "0.27.1"
+  },
+  "devDependencies": {
+    "@types/node": "22.18.0",
+    "@types/vscode": "1.100.0",
+    "@vscode/test-electron": "3.1.0",
+    "@vscode/vsce": "4.0.0",
+    "esbuild": "0.28.2"
+  }
+}

@@ -1,0 +1,38 @@
+enum Event<T> {
+    Empty,
+    Item(T),
+    Pair(T, String),
+    Named { value: T, label: String },
+    Defaulted(val value: T, val label: String = "item")
+    fun ready(): Boolean = true
+}
+
+enum Status : Int { Ready = 1, Done = 2 }
+
+fun patterns(event: Event<Int>, point: Point) {
+    val (x, .., y) = (1, 2, 3)
+    val Point { x: renamed, y } = point
+    val (first, { x, y: second }) = (1, point)
+    val changed = point.{ x: x + 1, y: 4 }
+    when (val subject = event) {
+        case Empty -> println("empty")
+        case Item(-1) -> println("negative")
+        case Item(value) if value > 0 -> println(value)
+        case Pair(_, "label") -> println("pair")
+        case Named { value: 0, .. } -> println("zero")
+        case Defaulted { value, label } -> { println(value); println(label) }
+        else -> println("other")
+    }
+    when (point) {
+        case (0, _) -> println("axis")
+        case Point { x, y } if x == y -> println("diagonal")
+        else -> println("point")
+    }
+    when (x) {
+        0, 1, -> println("small")
+        in 2..<10 -> println("range")
+        -10 -> println("negative")
+        else if x > 10 -> println("large")
+        else -> println("other")
+    }
+}

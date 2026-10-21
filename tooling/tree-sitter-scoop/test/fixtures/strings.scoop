@@ -1,0 +1,23 @@
+val plain = "literal $name and ${notAnExpression}, // /* text */"
+val raw = """raw $name ${literal}
+  quotes " and "" are content
+backslashes \n stay literal
+"""
+val escaped = "\t\b\n\r\'\"\\\$\u0041\u{1F600}"
+val character = '😀'
+val unicode = '\u{96EA}'
+val formatted = f"value ${if (true) "yes" else "no"}, ${call({ x -> x + 1 })}"
+val nested = f"outer ${f"inner ${42}"}"
+val multiline = f"""value ${when (1) {
+    1 -> "one"
+    else -> "other"
+}}
+text ${/* not a string terminator */ "}"}
+end"""
+val rawNested = f"""${f"""inner ${1 + 2}"""}"""
+
+// A normal line comment.
+//// This is not documentation.
+/** Documentation with a "quote" and ${text}. */
+fun documented() {}
+/*** Ordinary block comment. */
