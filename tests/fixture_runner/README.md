@@ -6,6 +6,7 @@
 缺少工具、期望文件、未知字段、嵌套类型错误、重复载体与前向步骤引用均报配置／环境错误。
 Python 3.11+ 只用标准库；格式化／lint 使用 `tests/requirements-dev.txt` 固定的 Ruff。
 默认最多并行运行四个用例，可用 `--jobs N` 调整，`--jobs 1` 顺序运行。
+大型 HTTP 客户端集成用例的编译步骤显式使用 900 秒时限，以覆盖较慢宿主上的 release 编译；运行、诊断和缓存断言仍按各用例原有规则执行。
 正式 CLI 验证使用按 [准备脚本说明](../../scripts/README.md) 事先准备的开发 sysroot；
 设置 `SCOOP_SYSROOT="$PWD/sysroot"` 后再运行。runner 保留源码与工具，并复制正常资源布局，
 不自动调用 sysroot 准备、LLVM 构建或打包脚本。
