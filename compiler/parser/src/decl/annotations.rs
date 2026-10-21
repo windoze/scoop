@@ -6,6 +6,12 @@ mod values;
 impl Parser {
     /// Preserve source annotations; target and constant checks belong to HIR.
     pub(crate) fn parse_annotations(&mut self) -> Result<Vec<Annotation>, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::AnnotationList, |parser| {
+            parser.parse_annotations_inner()
+        })
+    }
+
+    fn parse_annotations_inner(&mut self) -> Result<Vec<Annotation>, Diagnostic> {
         let mut annotations = Vec::new();
         while matches!(self.peek().kind, TokenKind::At) {
             let at = self.bump();

@@ -25,6 +25,16 @@ impl Parser {
         annotations: Vec<Annotation>,
         visibility: VisibilitySyntax,
     ) -> Result<StructDecl, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::StructDecl, |parser| {
+            parser.parse_struct_inner(annotations, visibility)
+        })
+    }
+
+    fn parse_struct_inner(
+        &mut self,
+        annotations: Vec<Annotation>,
+        visibility: VisibilitySyntax,
+    ) -> Result<StructDecl, Diagnostic> {
         let keyword = self.expect("`struct`", |k| matches!(k, TokenKind::Struct))?;
         let name = self.expect_ident("struct name")?;
         let type_params = self.parse_type_params()?;
@@ -116,6 +126,19 @@ impl Parser {
         inner_span: Option<Span>,
         modifier_span: Option<Span>,
     ) -> Result<ClassDecl, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::ClassDecl, |parser| {
+            parser.parse_class_inner(annotations, visibility, modifier, inner_span, modifier_span)
+        })
+    }
+
+    fn parse_class_inner(
+        &mut self,
+        annotations: Vec<Annotation>,
+        visibility: VisibilitySyntax,
+        modifier: ClassModifier,
+        inner_span: Option<Span>,
+        modifier_span: Option<Span>,
+    ) -> Result<ClassDecl, Diagnostic> {
         let keyword = self.expect("`class`", |k| matches!(k, TokenKind::Class))?;
         let name = self.expect_ident("class name")?;
         let type_params = self.parse_type_params()?;
@@ -169,6 +192,17 @@ impl Parser {
         visibility: VisibilitySyntax,
         sealed_span: Option<Span>,
     ) -> Result<InterfaceDecl, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::InterfaceDecl, |parser| {
+            parser.parse_interface_inner(annotations, visibility, sealed_span)
+        })
+    }
+
+    fn parse_interface_inner(
+        &mut self,
+        annotations: Vec<Annotation>,
+        visibility: VisibilitySyntax,
+        sealed_span: Option<Span>,
+    ) -> Result<InterfaceDecl, Diagnostic> {
         let keyword = self.expect("`interface`", |k| matches!(k, TokenKind::Interface))?;
         let name = self.expect_ident("interface name")?;
         let type_params = self.parse_type_params()?;
@@ -201,6 +235,12 @@ impl Parser {
     }
 
     fn parse_interface_body(&mut self) -> Result<ParsedInterfaceBody, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::InterfaceBody, |parser| {
+            parser.parse_interface_body_inner()
+        })
+    }
+
+    fn parse_interface_body_inner(&mut self) -> Result<ParsedInterfaceBody, Diagnostic> {
         self.expect("`{`", |kind| matches!(kind, TokenKind::LBrace))?;
         let body_depth = self.brace_depth();
         let mut methods = Vec::new();
@@ -288,6 +328,16 @@ impl Parser {
         annotations: Vec<Annotation>,
         visibility: VisibilitySyntax,
     ) -> Result<ObjectDecl, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::ObjectDecl, |parser| {
+            parser.parse_object_inner(annotations, visibility)
+        })
+    }
+
+    fn parse_object_inner(
+        &mut self,
+        annotations: Vec<Annotation>,
+        visibility: VisibilitySyntax,
+    ) -> Result<ObjectDecl, Diagnostic> {
         let keyword = self.expect(
             "`object`",
             |kind| matches!(kind, TokenKind::Ident(text) if text == "object"),
@@ -333,6 +383,16 @@ impl Parser {
     }
 
     pub(super) fn parse_companion_object(
+        &mut self,
+        annotations: Vec<Annotation>,
+        visibility: VisibilitySyntax,
+    ) -> Result<CompanionObjectDecl, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::CompanionDecl, |parser| {
+            parser.parse_companion_object_inner(annotations, visibility)
+        })
+    }
+
+    fn parse_companion_object_inner(
         &mut self,
         annotations: Vec<Annotation>,
         visibility: VisibilitySyntax,

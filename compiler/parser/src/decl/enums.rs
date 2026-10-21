@@ -11,6 +11,16 @@ impl Parser {
         annotations: Vec<Annotation>,
         visibility: VisibilitySyntax,
     ) -> Result<EnumDecl, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::EnumDecl, |parser| {
+            parser.parse_enum_inner(annotations, visibility)
+        })
+    }
+
+    fn parse_enum_inner(
+        &mut self,
+        annotations: Vec<Annotation>,
+        visibility: VisibilitySyntax,
+    ) -> Result<EnumDecl, Diagnostic> {
         let keyword = self.expect("`enum`", |k| matches!(k, TokenKind::Enum))?;
         let name = self.expect_ident("enum name")?;
         let type_params = self.parse_type_params()?;
@@ -234,6 +244,15 @@ impl Parser {
     /// `Name(val f: T = ..., ...)` (constructor-style named fields with
     /// optional constant defaults).
     fn parse_variant(&mut self, annotations: Vec<Annotation>) -> Result<VariantDecl, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::Variant, |parser| {
+            parser.parse_variant_inner(annotations)
+        })
+    }
+
+    fn parse_variant_inner(
+        &mut self,
+        annotations: Vec<Annotation>,
+    ) -> Result<VariantDecl, Diagnostic> {
         let name = self.expect_ident("variant name")?;
         let start = name.span.start;
         let (kind, end) = match self.peek().kind {

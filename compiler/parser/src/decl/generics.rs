@@ -8,6 +8,12 @@ impl Parser {
     /// invariant, so declaration-site variance is rejected at the grammar
     /// boundary and never enters the AST.
     pub(super) fn parse_type_params(&mut self) -> Result<Vec<TypeParamDecl>, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::TypeParameterList, |parser| {
+            parser.parse_type_params_inner()
+        })
+    }
+
+    fn parse_type_params_inner(&mut self) -> Result<Vec<TypeParamDecl>, Diagnostic> {
         let mut type_params = Vec::new();
         if !matches!(self.peek().kind, TokenKind::Less) {
             return Ok(type_params);
@@ -79,6 +85,12 @@ impl Parser {
     }
 
     pub(super) fn parse_where_clause(&mut self) -> Result<Option<WhereClause>, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::WhereClause, |parser| {
+            parser.parse_where_clause_inner()
+        })
+    }
+
+    fn parse_where_clause_inner(&mut self) -> Result<Option<WhereClause>, Diagnostic> {
         let TokenKind::Ident(keyword) = &self.peek().kind else {
             return Ok(None);
         };
@@ -113,6 +125,12 @@ impl Parser {
     }
 
     fn parse_type_constraint(&mut self) -> Result<TypeConstraint, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::TypeConstraint, |parser| {
+            parser.parse_type_constraint_inner()
+        })
+    }
+
+    fn parse_type_constraint_inner(&mut self) -> Result<TypeConstraint, Diagnostic> {
         let parameter = self.expect_ident("type parameter name in `where` constraint")?;
         let start = parameter.span.start;
         let subject = if matches!(self.peek().kind, TokenKind::Dot) {

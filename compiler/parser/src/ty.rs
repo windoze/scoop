@@ -11,6 +11,12 @@ impl Parser {
     /// Parenthesized disambiguation mirrors expressions (spec section
     /// 4.3): `(T)` is just `T` in parentheses, `(T,)` a 1-tuple type.
     pub(crate) fn parse_type_ref(&mut self) -> Result<TypeRef, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::Type, |parser| {
+            parser.parse_type_ref_inner()
+        })
+    }
+
+    fn parse_type_ref_inner(&mut self) -> Result<TypeRef, Diagnostic> {
         let start = self.peek().span.start;
         let annotations = self.parse_annotations()?;
         let is_suspend = matches!(self.peek().kind, TokenKind::Suspend);
@@ -211,6 +217,15 @@ impl Parser {
     }
 
     pub(crate) fn parse_nominal_arguments(
+        &mut self,
+        end: u32,
+    ) -> Result<(Vec<TypeRef>, u32), Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::TypeArgumentList, |parser| {
+            parser.parse_nominal_arguments_inner(end)
+        })
+    }
+
+    fn parse_nominal_arguments_inner(
         &mut self,
         end: u32,
     ) -> Result<(Vec<TypeRef>, u32), Diagnostic> {

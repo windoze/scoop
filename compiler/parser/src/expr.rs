@@ -80,6 +80,12 @@ fn tuple_index(text: &str) -> Option<u32> {
 
 impl Parser {
     pub(crate) fn parse_expr(&mut self) -> Result<Expr, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::Expression, |parser| {
+            parser.parse_expr_inner()
+        })
+    }
+
+    fn parse_expr_inner(&mut self) -> Result<Expr, Diagnostic> {
         self.parse_binary(0)
     }
 

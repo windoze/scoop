@@ -12,8 +12,10 @@ use scoop_ast::{Diagnostic, Ident, Span};
 
 use crate::lexer::{Token, TokenKind};
 
+mod checkpoint;
 mod entry;
 mod file;
+mod syntax;
 
 pub(crate) use entry::{parse_function_body, parse_type};
 pub(crate) use file::parse_file;
@@ -73,6 +75,9 @@ pub(crate) struct Parser {
     pub(crate) pos: usize,
     pub(crate) diagnostics: Vec<Diagnostic>,
     lexical_diagnostics: Vec<Diagnostic>,
+    lexemes: Vec<crate::lexer::Lexeme>,
+    syntax: syntax::SyntaxEvents,
+    attachment_undo: Vec<(usize, scoop_ast::DocCommentTarget)>,
     pub(crate) next_lambda_id: u32,
     pub(crate) next_anonymous_function_id: u32,
     pub(crate) next_callable_reference_id: u32,
@@ -294,6 +299,12 @@ impl Parser {
     /// top-level item. Unlike declaration recovery, header grammar does not
     /// require a newline boundary, so any balanced top-level starter is safe.
     fn synchronize_header_item(&mut self, item_start: usize) {
+        self.with_node(scoop_syntax::SyntaxKind::Error, |parser| {
+            parser.synchronize_header_item_inner(item_start)
+        })
+    }
+
+    fn synchronize_header_item_inner(&mut self, item_start: usize) {
         let mut balance = DelimiterBalance::default();
         for token in &self.tokens[item_start..self.pos] {
             balance.observe(&token.kind);
@@ -312,6 +323,12 @@ impl Parser {
     /// crossed before synchronization, so errors in a body do not turn each
     /// remaining statement into a top-level diagnostic.
     fn synchronize_top_level(&mut self, item_start: usize) {
+        self.with_node(scoop_syntax::SyntaxKind::Error, |parser| {
+            parser.synchronize_top_level_inner(item_start)
+        })
+    }
+
+    fn synchronize_top_level_inner(&mut self, item_start: usize) {
         while !self.at_eof() {
             if self.pos > item_start
                 && self.brace_depth() == 0
@@ -328,6 +345,12 @@ impl Parser {
     /// the brace closing the current body. `item_start` prevents a token that
     /// itself failed at the beginning of an item from being retried forever.
     pub(crate) fn synchronize_body_item(&mut self, target_depth: usize, item_start: usize) {
+        self.with_node(scoop_syntax::SyntaxKind::Error, |parser| {
+            parser.synchronize_body_item_inner(target_depth, item_start)
+        })
+    }
+
+    fn synchronize_body_item_inner(&mut self, target_depth: usize, item_start: usize) {
         while !self.at_eof() {
             let depth = self.brace_depth();
             if depth < target_depth
@@ -346,12 +369,15 @@ impl Parser {
     }
 
     /// Builds "expected <what>, found <token>" at the current token.
-    pub(crate) fn unexpected<T>(&self, what: &str) -> Result<T, Diagnostic> {
-        let token = self.peek();
-        Err(Diagnostic::at(
-            token.span,
-            format!("expected {what}, found {}", token.describe()),
-        ))
+    pub(crate) fn unexpected<T>(&mut self, what: &str) -> Result<T, Diagnostic> {
+        use scoop_syntax::ExpectedSyntax;
+        let expected = match what {
+            "type" => ExpectedSyntax::Type,
+            "expression" => ExpectedSyntax::Expression,
+            "pattern" => ExpectedSyntax::Pattern,
+            _ => ExpectedSyntax::Description(what.to_owned()),
+        };
+        self.missing(expected, what)
     }
 
     pub(crate) fn expect(
@@ -362,11 +388,20 @@ impl Parser {
         if pred(&self.peek().kind) {
             Ok(self.bump())
         } else {
-            self.unexpected(what)
+            let expected = syntax::expected_token(&pred)
+                .map(scoop_syntax::ExpectedSyntax::Token)
+                .unwrap_or_else(|| scoop_syntax::ExpectedSyntax::Description(what.to_owned()));
+            self.missing(expected, what)
         }
     }
 
     pub(crate) fn expect_ident(&mut self, what: &str) -> Result<Ident, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::Name, |parser| {
+            parser.expect_ident_inner(what)
+        })
+    }
+
+    fn expect_ident_inner(&mut self, what: &str) -> Result<Ident, Diagnostic> {
         let token = self.peek().clone();
         match token.kind {
             TokenKind::Ident(text) | TokenKind::EscapedIdent(text) => {
@@ -376,7 +411,7 @@ impl Parser {
                     span: token.span,
                 })
             }
-            _ => self.unexpected(what),
+            _ => self.missing(scoop_syntax::ExpectedSyntax::Name, what),
         }
     }
 }

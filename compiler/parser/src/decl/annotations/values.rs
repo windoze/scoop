@@ -18,7 +18,7 @@ impl Parser {
             self.peek().kind,
             TokenKind::Ident(_) | TokenKind::EscapedIdent(_)
         ) {
-            let saved = self.pos;
+            let saved = self.checkpoint();
             let name = self.parse_annotation_path("annotation name")?;
             if matches!(self.peek().kind, TokenKind::LParen) {
                 let (args, end) = self.parse_annotation_arguments(name.span.end)?;
@@ -33,7 +33,7 @@ impl Parser {
                     end,
                 ));
             }
-            self.pos = saved;
+            self.restore(saved);
             let reference = self.parse_postfix()?;
             if !is_constant_path(&reference) {
                 return Err(Diagnostic::at(
@@ -84,6 +84,12 @@ impl Parser {
     }
 
     fn parse_annotation_array(&mut self) -> Result<(AnnotationLiteral, u32), Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::AnnotationArray, |parser| {
+            parser.parse_annotation_array_inner()
+        })
+    }
+
+    fn parse_annotation_array_inner(&mut self) -> Result<(AnnotationLiteral, u32), Diagnostic> {
         self.bump();
         let mut elements = Vec::new();
         while !matches!(self.peek().kind, TokenKind::RBracket) {

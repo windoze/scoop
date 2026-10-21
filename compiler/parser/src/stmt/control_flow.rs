@@ -23,6 +23,12 @@ impl Parser {
     }
 
     fn parse_if_node(&mut self) -> Result<If, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::IfExpr, |parser| {
+            parser.parse_if_node_inner()
+        })
+    }
+
+    fn parse_if_node_inner(&mut self) -> Result<If, Diagnostic> {
         let keyword = self.bump(); // `if`
         self.expect("`(`", |k| matches!(k, TokenKind::LParen))?;
         let cond = self.parse_expr()?;
@@ -68,6 +74,12 @@ impl Parser {
 
     /// `while (<cond>) body` — the condition is always parenthesized.
     pub(super) fn parse_while(&mut self) -> Result<Statement, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::WhileStmt, |parser| {
+            parser.parse_while_inner()
+        })
+    }
+
+    fn parse_while_inner(&mut self) -> Result<Statement, Diagnostic> {
         let keyword = self.bump(); // `while`
         self.expect("`(`", |k| matches!(k, TokenKind::LParen))?;
         let cond = self.parse_expr()?;
@@ -114,6 +126,12 @@ impl Parser {
     /// `for (<pattern> in <iterable>) body`. Pattern syntax is deliberately
     /// shared with `val`/lambda/`when`; irrefutability is a later typed check.
     pub(super) fn parse_for(&mut self) -> Result<Statement, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::ForStmt, |parser| {
+            parser.parse_for_inner()
+        })
+    }
+
+    fn parse_for_inner(&mut self) -> Result<Statement, Diagnostic> {
         let keyword = self.bump(); // `for`
         self.expect("`(`", |kind| matches!(kind, TokenKind::LParen))?;
         let pattern = self.parse_pattern()?;
@@ -153,6 +171,12 @@ impl Parser {
     }
 
     fn parse_try_node(&mut self) -> Result<Try, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::TryExpr, |parser| {
+            parser.parse_try_node_inner()
+        })
+    }
+
+    fn parse_try_node_inner(&mut self) -> Result<Try, Diagnostic> {
         let keyword = self.bump(); // `try`
         let body = self.parse_block()?;
         let mut end = body.span.end;

@@ -31,6 +31,12 @@ pub(crate) fn pattern_span(pattern: &Pattern) -> Span {
 
 impl Parser {
     pub(crate) fn parse_pattern(&mut self) -> Result<Pattern, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::Pattern, |parser| {
+            parser.parse_pattern_inner()
+        })
+    }
+
+    fn parse_pattern_inner(&mut self) -> Result<Pattern, Diagnostic> {
         let token = self.peek().clone();
         match token.kind {
             TokenKind::Minus => self.parse_negated_numeric_literal_pattern(token),

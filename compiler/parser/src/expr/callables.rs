@@ -7,7 +7,7 @@ use crate::parser::Parser;
 
 impl Parser {
     pub(crate) fn starts_anonymous_function(&mut self) -> bool {
-        let saved = self.pos;
+        let saved = self.checkpoint();
         if matches!(self.peek().kind, TokenKind::Suspend) {
             self.bump();
         }
@@ -20,7 +20,7 @@ impl Parser {
         } else {
             ordinary
         };
-        self.pos = saved;
+        self.restore(saved);
         anonymous
     }
 
@@ -47,15 +47,25 @@ impl Parser {
         is_suspend: bool,
         expression_start: Option<u32>,
     ) -> Result<Expr, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::AnonymousFunctionExpr, |parser| {
+            parser.parse_anonymous_function_inner(is_suspend, expression_start)
+        })
+    }
+
+    fn parse_anonymous_function_inner(
+        &mut self,
+        is_suspend: bool,
+        expression_start: Option<u32>,
+    ) -> Result<Expr, Diagnostic> {
         let keyword = self.expect("`fun`", |kind| matches!(kind, TokenKind::Fun))?;
-        let receiver_start = self.pos;
+        let receiver_start = self.checkpoint();
         let receiver_annotations = self.parse_annotations()?;
         let receiver = match self.parse_type_atom_with_suffix() {
             Ok(receiver) if matches!(self.peek().kind, TokenKind::Dot | TokenKind::QuestionDot) => {
                 Some(self.parse_receiver_separator(receiver))
             }
             _ => {
-                self.pos = receiver_start;
+                self.restore(receiver_start);
                 None
             }
         }
@@ -115,9 +125,18 @@ impl Parser {
         is_suspend: bool,
         expression_start: Option<u32>,
     ) -> Result<Expr, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::LambdaExpr, |parser| {
+            parser.parse_lambda_inner(is_suspend, expression_start)
+        })
+    }
+
+    fn parse_lambda_inner(
+        &mut self,
+        is_suspend: bool,
+        expression_start: Option<u32>,
+    ) -> Result<Expr, Diagnostic> {
         let open = self.expect("`{`", |kind| matches!(kind, TokenKind::LBrace))?;
-        let header_start = self.pos;
-        let diagnostics_start = self.diagnostics.len();
+        let header_start = self.checkpoint();
         let parameters = if matches!(self.peek().kind, TokenKind::Arrow) {
             self.bump();
             Some(Vec::new())
@@ -126,8 +145,7 @@ impl Parser {
             match parsed {
                 Some(parameters) => Some(parameters),
                 None => {
-                    self.pos = header_start;
-                    self.diagnostics.truncate(diagnostics_start);
+                    self.restore(header_start);
                     None
                 }
             }
@@ -145,7 +163,6 @@ impl Parser {
     }
 
     fn try_parse_lambda_parameters(&mut self) -> Option<Vec<LambdaParam>> {
-        let start = self.pos;
         let mut parameters = Vec::new();
         loop {
             let annotations = self.parse_annotations().ok()?;
@@ -173,7 +190,6 @@ impl Parser {
                 self.bump();
                 return Some(parameters);
             }
-            self.pos = start;
             return None;
         }
     }

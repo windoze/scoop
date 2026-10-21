@@ -13,6 +13,12 @@ mod when;
 
 impl Parser {
     pub(crate) fn parse_block(&mut self) -> Result<Block, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::Block, |parser| {
+            parser.parse_block_inner()
+        })
+    }
+
+    fn parse_block_inner(&mut self) -> Result<Block, Diagnostic> {
         let open = self.expect("`{`", |k| matches!(k, TokenKind::LBrace))?;
         self.parse_block_after_open(open)
     }
@@ -72,6 +78,12 @@ impl Parser {
     }
 
     fn parse_statement(&mut self) -> Result<Statement, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::Statement, |parser| {
+            parser.parse_documented_statement()
+        })
+    }
+
+    fn parse_documented_statement(&mut self) -> Result<Statement, Diagnostic> {
         let start = self.pos;
         let statement = self.parse_statement_inner()?;
         if matches!(

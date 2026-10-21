@@ -1,0 +1,152 @@
+use scoop_ast::Diagnostic;
+use scoop_syntax::{ExpectedSyntax, GreenNode, GreenNodeBuilder, MissingSyntax, SyntaxKind};
+
+use crate::lexer::{Lexeme, TokenKind};
+
+use super::Parser;
+
+pub(super) fn expected_token(predicate: &impl Fn(&TokenKind) -> bool) -> Option<SyntaxKind> {
+    const PUNCTUATION: &[TokenKind] = &[
+        TokenKind::LParen,
+        TokenKind::RParen,
+        TokenKind::LBrace,
+        TokenKind::RBrace,
+        TokenKind::LBracket,
+        TokenKind::RBracket,
+        TokenKind::Comma,
+        TokenKind::Semicolon,
+        TokenKind::Colon,
+        TokenKind::DoubleColon,
+        TokenKind::At,
+        TokenKind::Dot,
+        TokenKind::Arrow,
+        TokenKind::Equal,
+        TokenKind::Less,
+        TokenKind::Greater,
+    ];
+    let mut matches = PUNCTUATION.iter().filter(|kind| predicate(kind));
+    let first = matches.next()?.syntax_kind();
+    matches.next().is_none().then_some(first)
+}
+
+#[derive(Debug)]
+enum Event {
+    Start { offset: u32, kind: SyntaxKind },
+    Finish { offset: u32 },
+    Missing(MissingSyntax),
+}
+
+#[derive(Debug, Default)]
+pub(super) struct SyntaxEvents {
+    events: Vec<Event>,
+}
+
+impl SyntaxEvents {
+    pub(super) fn len(&self) -> usize {
+        self.events.len()
+    }
+
+    pub(super) fn truncate(&mut self, length: usize) {
+        self.events.truncate(length);
+    }
+
+    pub(super) fn build(
+        self,
+        source: &str,
+        lexemes: &[Lexeme],
+        root: SyntaxKind,
+    ) -> (GreenNode, Vec<MissingSyntax>) {
+        let mut builder = GreenNodeBuilder::new();
+        let mut cursor = 0;
+        let mut missing = Vec::new();
+        builder.start_node(root.into());
+        for event in self.events {
+            let offset = match &event {
+                Event::Start { offset, .. } | Event::Finish { offset } => *offset,
+                Event::Missing(item) => item.offset,
+            };
+            emit_before(&mut builder, source, lexemes, &mut cursor, offset);
+            match event {
+                Event::Start { kind, .. } => builder.start_node(kind.into()),
+                Event::Finish { .. } => builder.finish_node(),
+                Event::Missing(item) => {
+                    builder.start_node(SyntaxKind::Missing.into());
+                    builder.finish_node();
+                    missing.push(item);
+                }
+            }
+        }
+        emit_before(&mut builder, source, lexemes, &mut cursor, u32::MAX);
+        builder.finish_node();
+        (builder.finish(), missing)
+    }
+}
+
+fn emit_before(
+    builder: &mut GreenNodeBuilder<'_>,
+    source: &str,
+    lexemes: &[Lexeme],
+    cursor: &mut usize,
+    offset: u32,
+) {
+    while let Some(lexeme) = lexemes.get(*cursor) {
+        if lexeme.span.start >= offset {
+            break;
+        }
+        let error = lexeme.kind == SyntaxKind::InvalidToken;
+        if error {
+            builder.start_node(SyntaxKind::Error.into());
+        }
+        builder.token(
+            lexeme.kind.into(),
+            &source[lexeme.span.start as usize..lexeme.span.end as usize],
+        );
+        if error {
+            builder.finish_node();
+        }
+        *cursor += 1;
+    }
+}
+
+impl Parser {
+    pub(crate) fn with_node<T>(
+        &mut self,
+        kind: SyntaxKind,
+        production: impl FnOnce(&mut Self) -> T,
+    ) -> T {
+        let start_position = self.pos;
+        let start_event = self.syntax.events.len();
+        self.syntax.events.push(Event::Start {
+            offset: self.peek().span.start,
+            kind,
+        });
+        let result = production(self);
+        if self.pos == start_position && self.syntax.events.len() == start_event + 1 {
+            self.syntax.events.truncate(start_event);
+            return result;
+        }
+        let offset = self
+            .pos
+            .checked_sub(1)
+            .map_or(0, |index| self.tokens[index].span.end);
+        self.syntax.events.push(Event::Finish { offset });
+        result
+    }
+
+    pub(super) fn missing<T>(
+        &mut self,
+        expected: ExpectedSyntax,
+        what: &str,
+    ) -> Result<T, Diagnostic> {
+        let token = self.peek();
+        let diagnostic = Diagnostic::at(
+            token.span,
+            format!("expected {what}, found {}", token.describe()),
+        );
+        self.syntax.events.push(Event::Missing(MissingSyntax {
+            offset: token.span.start,
+            expected,
+        }));
+        Err(diagnostic)
+    }
+}

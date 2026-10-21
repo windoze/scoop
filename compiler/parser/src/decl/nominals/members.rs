@@ -4,6 +4,12 @@ impl Parser {
     pub(in crate::decl) fn parse_class_body(
         &mut self,
     ) -> Result<(Vec<ClassMember>, u32), Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::ClassBody, |parser| {
+            parser.parse_class_body_inner()
+        })
+    }
+
+    fn parse_class_body_inner(&mut self) -> Result<(Vec<ClassMember>, u32), Diagnostic> {
         self.bump(); // `{`
         let body_depth = self.brace_depth();
         let mut members = Vec::new();
@@ -55,6 +61,12 @@ impl Parser {
     }
 
     fn parse_class_member(&mut self) -> Result<ClassMember, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::Member, |parser| {
+            parser.parse_class_member_inner()
+        })
+    }
+
+    fn parse_class_member_inner(&mut self) -> Result<ClassMember, Diagnostic> {
         let prefix = self.parse_member_prefix()?;
         match &self.peek().kind {
             TokenKind::Val | TokenKind::Var => self
@@ -272,6 +284,12 @@ impl Parser {
     }
 
     pub(super) fn parse_struct_body(&mut self) -> Result<(Vec<StructMember>, u32), Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::StructBody, |parser| {
+            parser.parse_struct_body_inner()
+        })
+    }
+
+    fn parse_struct_body_inner(&mut self) -> Result<(Vec<StructMember>, u32), Diagnostic> {
         self.bump(); // `{`
         let body_depth = self.brace_depth();
         let mut members = Vec::new();

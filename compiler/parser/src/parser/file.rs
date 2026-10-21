@@ -1,8 +1,10 @@
 use scoop_ast::{Diagnostic, DiagnosticNote, PackageSyntax, SourceFile};
+use scoop_source::SourceLengthError;
+use scoop_syntax::{Parse, SyntaxKind};
 
 use super::{HeaderState, Parser, TopLevelItemKind};
 
-pub(crate) fn parse_file(source: &str) -> Result<SourceFile, Vec<Diagnostic>> {
+pub(crate) fn parse_file(source: &str) -> Result<Parse<SourceFile>, SourceLengthError> {
     let (mut parser, span) = Parser::from_source(source)?;
     let mut package = PackageSyntax::RootPackage;
     let mut imports = Vec::new();
@@ -116,5 +118,5 @@ pub(crate) fn parse_file(source: &str) -> Result<SourceFile, Vec<Diagnostic>> {
             .collect(),
         span,
     };
-    parser.finish(Ok(file))
+    Ok(parser.finish(source, SyntaxKind::SourceFile, Ok(file)))
 }

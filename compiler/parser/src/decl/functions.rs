@@ -97,9 +97,21 @@ impl Parser {
         modifiers: Modifiers,
         context: FunctionContext,
     ) -> Result<FunctionDecl, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::FunctionDecl, |parser| {
+            parser.parse_function_inner(annotations, visibility, modifiers, context)
+        })
+    }
+
+    fn parse_function_inner(
+        &mut self,
+        annotations: Vec<Annotation>,
+        visibility: VisibilitySyntax,
+        modifiers: Modifiers,
+        context: FunctionContext,
+    ) -> Result<FunctionDecl, Diagnostic> {
         let fun = self.expect("`fun`", |k| matches!(k, TokenKind::Fun))?;
         let type_params = self.parse_type_params()?;
-        let receiver_start = self.pos;
+        let receiver_start = self.checkpoint();
         let receiver_annotations = self.parse_annotations()?;
         let mut parsed_name = None;
         let receiver_ty = match self.parse_type_ref() {
@@ -113,13 +125,13 @@ impl Parser {
                         Some(receiver)
                     }
                     Err(_) => {
-                        self.pos = receiver_start;
+                        self.restore(receiver_start);
                         None
                     }
                 }
             }
             _ => {
-                self.pos = receiver_start;
+                self.restore(receiver_start);
                 None
             }
         }

@@ -9,7 +9,7 @@ use scoop_ast::{
 };
 use scoop_identity::{ConeIdentity, SourceIdentity, SourceRole};
 
-use crate::parser::parse_file;
+use crate::parse as parse_file;
 
 /// One source selected by the caller with an already validated semantic
 /// identity. Display paths are deliberately absent from this stable input.

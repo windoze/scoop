@@ -1,10 +1,12 @@
-use scoop_ast::{Block, Diagnostic, DiagnosticSeverity, Span, TypeRef};
+use scoop_ast::{Block, Diagnostic, Span, TypeRef};
+use scoop_source::SourceLengthError;
+use scoop_syntax::{Parse, SyntaxKind};
 
 use crate::lexer::{Lexed, lex};
 
 use super::Parser;
 
-pub(crate) fn parse_function_body(source: &str) -> Result<Block, Vec<Diagnostic>> {
+pub(crate) fn parse_function_body(source: &str) -> Result<Parse<Block>, SourceLengthError> {
     let (mut parser, _) = Parser::from_source(source)?;
     let body = parser.parse_block().and_then(|body| {
         if parser.at_eof() {
@@ -13,10 +15,10 @@ pub(crate) fn parse_function_body(source: &str) -> Result<Block, Vec<Diagnostic>
             parser.unexpected("end of function body")
         }
     });
-    parser.finish(body)
+    Ok(parser.finish(source, SyntaxKind::FunctionBody, body))
 }
 
-pub(crate) fn parse_type(source: &str) -> Result<TypeRef, Vec<Diagnostic>> {
+pub(crate) fn parse_type(source: &str) -> Result<Parse<TypeRef>, SourceLengthError> {
     let (mut parser, _) = Parser::from_source(source)?;
     let ty = parser.parse_type_ref().and_then(|ty| {
         if parser.at_eof() {
@@ -25,22 +27,17 @@ pub(crate) fn parse_type(source: &str) -> Result<TypeRef, Vec<Diagnostic>> {
             parser.unexpected("end of type")
         }
     });
-    parser.finish(ty)
+    Ok(parser.finish(source, SyntaxKind::TypeFragment, ty))
 }
 
 impl Parser {
-    pub(super) fn from_source(source: &str) -> Result<(Self, Span), Vec<Diagnostic>> {
-        let span = scoop_source::source_span(source.len()).map_err(|error| {
-            vec![Diagnostic::without_span(
-                DiagnosticSeverity::Error,
-                0,
-                error.to_string(),
-            )]
-        })?;
+    pub(super) fn from_source(source: &str) -> Result<(Self, Span), SourceLengthError> {
+        let span = scoop_source::source_span(source.len())?;
         let Lexed {
             tokens,
             diagnostics: lexical_diagnostics,
             documentation,
+            lexemes,
         } = lex(source);
         Ok((
             Self {
@@ -55,14 +52,29 @@ impl Parser {
                 next_anonymous_function_id: 0,
                 next_callable_reference_id: 0,
                 documentation,
+                lexemes,
+                syntax: super::syntax::SyntaxEvents::default(),
+                attachment_undo: Vec::new(),
             },
             span,
         ))
     }
 
-    pub(super) fn finish<T>(mut self, result: Result<T, Diagnostic>) -> Result<T, Vec<Diagnostic>> {
+    pub(super) fn finish<T>(
+        mut self,
+        source: &str,
+        root: SyntaxKind,
+        result: Result<T, Diagnostic>,
+    ) -> Parse<T> {
         if let Err(diagnostic) = &result {
             self.diagnostics.push(diagnostic.clone());
+        }
+        if !self.at_eof() {
+            self.with_node(SyntaxKind::Error, |parser| {
+                while !parser.at_eof() {
+                    parser.bump();
+                }
+            });
         }
         let mut diagnostics = std::mem::take(&mut self.lexical_diagnostics);
         let syntax_diagnostics = self
@@ -79,9 +91,7 @@ impl Parser {
                 .span
                 .map_or((u32::MAX, u32::MAX), |span| (span.start, span.end))
         });
-        match result {
-            Ok(value) if diagnostics.is_empty() => Ok(value),
-            _ => Err(diagnostics),
-        }
+        let (green, missing) = self.syntax.build(source, &self.lexemes, root);
+        Parse::new(green, diagnostics, missing, result.ok())
     }
 }

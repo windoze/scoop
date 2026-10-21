@@ -2,7 +2,13 @@ use super::*;
 
 impl Parser {
     pub(super) fn parse_primary_constructor(&mut self) -> Result<ClassConstructorDecl, Diagnostic> {
-        let constructor_doc_start = self.pos;
+        self.with_node(scoop_syntax::SyntaxKind::PrimaryConstructor, |parser| {
+            parser.parse_primary_constructor_inner()
+        })
+    }
+
+    fn parse_primary_constructor_inner(&mut self) -> Result<ClassConstructorDecl, Diagnostic> {
+        let constructor_doc_start = self.checkpoint();
         let starts_new_line = self.peek().newline_before;
         let mut constructor_annotations = Vec::new();
         let mut constructor_visibility = VisibilitySyntax::Omitted;
@@ -35,7 +41,7 @@ impl Parser {
             && starts_new_line
             && !matches!(self.peek().kind, TokenKind::LParen)
         {
-            self.pos = constructor_doc_start;
+            self.restore(constructor_doc_start);
             return Ok(ClassConstructorDecl::Omitted);
         }
         if (!constructor_annotations.is_empty()
@@ -142,7 +148,10 @@ impl Parser {
                 )
                 .min()
                 .unwrap_or(open.span.start);
-            self.attach_documentation(constructor_doc_start, Span::new(constructor_start, end));
+            self.attach_documentation(
+                constructor_doc_start.position,
+                Span::new(constructor_start, end),
+            );
             ClassConstructorDecl::Declared(PrimaryConstructorDecl {
                 annotations: constructor_annotations,
                 visibility: constructor_visibility,
@@ -156,6 +165,12 @@ impl Parser {
     }
 
     pub(super) fn parse_init_block(&mut self) -> Result<InitBlockDecl, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::InitBlock, |parser| {
+            parser.parse_init_block_inner()
+        })
+    }
+
+    fn parse_init_block_inner(&mut self) -> Result<InitBlockDecl, Diagnostic> {
         let keyword = self.bump();
         if !matches!(self.peek().kind, TokenKind::LBrace) {
             return Err(Diagnostic::at(
@@ -171,6 +186,16 @@ impl Parser {
     }
 
     pub(super) fn parse_secondary_constructor(
+        &mut self,
+        annotations: Vec<Annotation>,
+        visibility: VisibilitySyntax,
+    ) -> Result<SecondaryConstructorDecl, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::SecondaryConstructor, |parser| {
+            parser.parse_secondary_constructor_inner(annotations, visibility)
+        })
+    }
+
+    fn parse_secondary_constructor_inner(
         &mut self,
         annotations: Vec<Annotation>,
         visibility: VisibilitySyntax,

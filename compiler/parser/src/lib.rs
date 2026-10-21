@@ -7,7 +7,6 @@
 //! the source and AST data channels.
 
 mod decl;
-mod documentation;
 mod expr;
 mod header;
 mod lexer;
@@ -119,7 +118,7 @@ pub use source_input::{
 /// assert_eq!(main.name.text, "main");
 /// ```
 pub fn parse(source: &str) -> Result<scoop_ast::SourceFile, Vec<scoop_ast::Diagnostic>> {
-    parser::parse_file(source)
+    strict(parse_recovering(source))
 }
 
 /// Parses exactly one ordinary function body, including its outer braces.
@@ -128,7 +127,7 @@ pub fn parse(source: &str) -> Result<scoop_ast::SourceFile, Vec<scoop_ast::Diagn
 /// fragment. Errors inside the body and input remaining outside it prevent a
 /// successful AST, just as they do for a complete source file.
 pub fn parse_function_body(source: &str) -> Result<scoop_ast::Block, Vec<scoop_ast::Diagnostic>> {
-    parser::parse_function_body(source)
+    strict(parse_function_body_recovering(source))
 }
 
 /// Parses exactly one complete type using the ordinary type grammar.
@@ -136,5 +135,41 @@ pub fn parse_function_body(source: &str) -> Result<scoop_ast::Block, Vec<scoop_a
 /// This only parses syntax: names and constraints are resolved by HIR lowering
 /// in the caller's semantic context. Leading and trailing trivia are accepted.
 pub fn parse_type(source: &str) -> Result<scoop_ast::TypeRef, Vec<scoop_ast::Diagnostic>> {
+    strict(parse_type_recovering(source))
+}
+
+/// Parses a file while retaining concrete syntax, including erroneous input.
+/// Only an unrepresentable input length prevents a syntax result.
+pub fn parse_recovering(
+    source: &str,
+) -> Result<scoop_syntax::Parse<scoop_ast::SourceFile>, scoop_source::SourceLengthError> {
+    parser::parse_file(source)
+}
+
+/// Retains concrete syntax and diagnostics for a function body fragment.
+pub fn parse_function_body_recovering(
+    source: &str,
+) -> Result<scoop_syntax::Parse<scoop_ast::Block>, scoop_source::SourceLengthError> {
+    parser::parse_function_body(source)
+}
+
+/// Retains concrete syntax and diagnostics for a type fragment.
+pub fn parse_type_recovering(
+    source: &str,
+) -> Result<scoop_syntax::Parse<scoop_ast::TypeRef>, scoop_source::SourceLengthError> {
     parser::parse_type(source)
+}
+
+fn strict<T>(
+    result: Result<scoop_syntax::Parse<T>, scoop_source::SourceLengthError>,
+) -> Result<T, Vec<scoop_ast::Diagnostic>> {
+    result
+        .map_err(|error| {
+            vec![scoop_ast::Diagnostic::without_span(
+                scoop_ast::DiagnosticSeverity::Error,
+                0,
+                error.to_string(),
+            )]
+        })?
+        .into_ast()
 }

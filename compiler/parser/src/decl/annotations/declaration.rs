@@ -6,6 +6,15 @@ impl Parser {
         &mut self,
         prefix: MemberPrefix,
     ) -> Result<AnnotationClassDecl, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::AnnotationClassDecl, |parser| {
+            parser.parse_annotation_class_inner(prefix)
+        })
+    }
+
+    fn parse_annotation_class_inner(
+        &mut self,
+        prefix: MemberPrefix,
+    ) -> Result<AnnotationClassDecl, Diagnostic> {
         self.require_unmodified_nominal_prefix(&prefix, "annotation class")?;
         let start = self.bump().span.start;
         self.expect("`class` after `annotation`", |kind| {

@@ -6,6 +6,15 @@ impl Parser {
         &mut self,
         prefix: MemberPrefix,
     ) -> Result<TypeAliasDecl, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::TypeAliasDecl, |parser| {
+            parser.parse_type_alias_inner(prefix)
+        })
+    }
+
+    fn parse_type_alias_inner(
+        &mut self,
+        prefix: MemberPrefix,
+    ) -> Result<TypeAliasDecl, Diagnostic> {
         let modifier_span = prefix
             .const_span
             .into_iter()

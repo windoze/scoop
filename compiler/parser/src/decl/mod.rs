@@ -120,6 +120,12 @@ impl Parser {
     }
 
     pub(crate) fn parse_decl(&mut self) -> Result<Decl, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::Declaration, |parser| {
+            parser.parse_decl_inner()
+        })
+    }
+
+    fn parse_decl_inner(&mut self) -> Result<Decl, Diagnostic> {
         let prefix = self.parse_top_level_prefix()?;
         match &self.peek().kind {
             TokenKind::Fun => {

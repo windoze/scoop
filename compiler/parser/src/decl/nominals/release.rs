@@ -2,6 +2,12 @@ use super::*;
 
 impl Parser {
     pub(super) fn parse_release_block(&mut self) -> Result<ReleaseBlock, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::ReleaseBlock, |parser| {
+            parser.parse_release_block_inner()
+        })
+    }
+
+    fn parse_release_block_inner(&mut self) -> Result<ReleaseBlock, Diagnostic> {
         let keyword = self.bump();
         if !matches!(self.peek().kind, TokenKind::LBrace) {
             return Err(Diagnostic::at(

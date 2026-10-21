@@ -2,6 +2,12 @@ use super::*;
 
 impl Parser {
     pub(super) fn parse_atom(&mut self) -> Result<Expr, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::Atom, |parser| {
+            parser.parse_atom_inner()
+        })
+    }
+
+    fn parse_atom_inner(&mut self) -> Result<Expr, Diagnostic> {
         if self.starts_callable_label() {
             return self.parse_labeled_callable();
         }
@@ -201,6 +207,12 @@ impl Parser {
     /// `[e1, e2, ...]` — an array literal (spec 10.2). The empty `[]`
     /// parses too; HIR rejects it when there is no expected type.
     fn parse_array_literal(&mut self) -> Result<Expr, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::ArrayExpr, |parser| {
+            parser.parse_array_literal_inner()
+        })
+    }
+
+    fn parse_array_literal_inner(&mut self) -> Result<Expr, Diagnostic> {
         let open = self.bump(); // `[`
         let mut elements = Vec::new();
         if !matches!(self.peek().kind, TokenKind::RBracket) {
@@ -247,7 +259,7 @@ impl Parser {
         if !matches!(self.peek().kind, TokenKind::Less) {
             return Ok(Vec::new());
         }
-        let start = self.pos;
+        let start = self.checkpoint();
         self.bump();
         let mut type_args = Vec::new();
         let mut saw_infer = false;
@@ -267,7 +279,7 @@ impl Parser {
                         return Err(error);
                     }
                     Err(_) => {
-                        self.pos = start;
+                        self.restore(start);
                         return Ok(Vec::new());
                     }
                 };
@@ -284,7 +296,7 @@ impl Parser {
             if saw_infer {
                 return self.unexpected("`>` after call type argument list");
             }
-            self.pos = start;
+            self.restore(start);
             return Ok(Vec::new());
         }
         self.bump();
@@ -293,11 +305,11 @@ impl Parser {
         {
             if saw_infer {
                 return Err(Diagnostic::at(
-                    self.tokens[start].span,
+                    self.tokens[start.position].span,
                     "`_` is only allowed in a type argument list immediately followed by a call",
                 ));
             }
-            self.pos = start;
+            self.restore(start);
             return Ok(Vec::new());
         }
         Ok(type_args)
@@ -307,6 +319,12 @@ impl Parser {
     /// method calls, and base-class constructor delegation. Returns the
     /// arguments and the closing paren's end offset.
     pub(crate) fn parse_args(&mut self) -> Result<(Vec<CallArgument>, u32), Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::ArgumentList, |parser| {
+            parser.parse_args_inner()
+        })
+    }
+
+    fn parse_args_inner(&mut self) -> Result<(Vec<CallArgument>, u32), Diagnostic> {
         self.expect("`(`", |k| matches!(k, TokenKind::LParen))?;
         let mut args = Vec::new();
         if !matches!(self.peek().kind, TokenKind::RParen) {
@@ -324,6 +342,12 @@ impl Parser {
     }
 
     fn parse_call_argument(&mut self) -> Result<CallArgument, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::Argument, |parser| {
+            parser.parse_call_argument_inner()
+        })
+    }
+
+    fn parse_call_argument_inner(&mut self) -> Result<CallArgument, Diagnostic> {
         let start = self.peek().span.start;
         let name = if let TokenKind::Ident(_) | TokenKind::EscapedIdent(_) = &self.peek().kind
             && matches!(
@@ -354,6 +378,12 @@ impl Parser {
     /// literal, `(e)` is just `e` (no node), `(e,)` a 1-tuple, and
     /// `(e1, e2, ...)` a tuple literal.
     fn parse_paren_expr(&mut self) -> Result<Expr, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::ParenExpr, |parser| {
+            parser.parse_paren_expr_inner()
+        })
+    }
+
+    fn parse_paren_expr_inner(&mut self) -> Result<Expr, Diagnostic> {
         let open = self.bump(); // `(`
         if matches!(self.peek().kind, TokenKind::RParen) {
             let close = self.bump();

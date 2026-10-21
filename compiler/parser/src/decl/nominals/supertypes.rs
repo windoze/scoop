@@ -6,6 +6,12 @@ impl Parser {
         &mut self,
         end: &mut u32,
     ) -> Result<Vec<SupertypeSpec>, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::SupertypeList, |parser| {
+            parser.parse_supertypes_inner(end)
+        })
+    }
+
+    fn parse_supertypes_inner(&mut self, end: &mut u32) -> Result<Vec<SupertypeSpec>, Diagnostic> {
         let mut supertypes = Vec::new();
         if !matches!(self.peek().kind, TokenKind::Colon) {
             return Ok(supertypes);

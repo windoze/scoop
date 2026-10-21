@@ -22,6 +22,12 @@ impl Parser {
     }
 
     fn parse_when_node(&mut self) -> Result<When, Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::WhenExpr, |parser| {
+            parser.parse_when_node_inner()
+        })
+    }
+
+    fn parse_when_node_inner(&mut self) -> Result<When, Diagnostic> {
         let keyword = self.bump();
         let subject = self.parse_when_subject()?;
         let has_subject = !matches!(subject, WhenSubject::Absent);

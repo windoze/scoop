@@ -5,6 +5,14 @@ impl Parser {
     pub(super) fn parse_context_parameters(
         &mut self,
     ) -> Result<(Vec<ContextParameter>, Span), Diagnostic> {
+        self.with_node(scoop_syntax::SyntaxKind::ContextParameters, |parser| {
+            parser.parse_context_parameters_inner()
+        })
+    }
+
+    fn parse_context_parameters_inner(
+        &mut self,
+    ) -> Result<(Vec<ContextParameter>, Span), Diagnostic> {
         let keyword = self.bump();
         self.expect("`(` after `context`", |kind| {
             matches!(kind, TokenKind::LParen)

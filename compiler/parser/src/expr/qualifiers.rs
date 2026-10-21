@@ -11,13 +11,13 @@ impl Parser {
         let Some(mut ty) = qualifier_type(receiver) else {
             return Ok(None);
         };
-        let saved = self.pos;
+        let saved = self.checkpoint();
         let Ok((arguments, end)) = self.parse_nominal_arguments(ty.span.end) else {
-            self.pos = saved;
+            self.restore(saved);
             return Ok(None);
         };
         if !matches!(self.peek().kind, TokenKind::Dot | TokenKind::DoubleColon) {
-            self.pos = saved;
+            self.restore(saved);
             return Ok(None);
         }
         ty.kind = match ty.kind {
@@ -36,7 +36,7 @@ impl Parser {
                 arguments,
             },
             _ => {
-                self.pos = saved;
+                self.restore(saved);
                 return Ok(None);
             }
         };
