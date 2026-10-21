@@ -1,0 +1,13 @@
+node_modules/
+**/dist/
+**/out/
+**/*.vsix
+**/*.wasm
+**/*.dylib
+**/*.so
+**/*.dll
+.vscode-test/
+tree-sitter-scoop/src/parser.c
+tree-sitter-scoop/src/grammar.json
+tree-sitter-scoop/src/node-types.json
+tree-sitter-scoop/src/tree_sitter/

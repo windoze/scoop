@@ -1,0 +1,23 @@
+{
+  "name": "tree-sitter-scoop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Tree-sitter grammar and editor queries for Scoop",
+  "license": "UNLICENSED",
+  "files": [
+    "grammar.js",
+    "grammar",
+    "src",
+    "queries",
+    "tree-sitter.json",
+    "README.md"
+  ],
+  "scripts": {
+    "generate": "tree-sitter generate",
+    "build": "tree-sitter generate && tree-sitter build --wasm",
+    "test": "tree-sitter test && node --test test/*.test.mjs"
+  },
+  "devDependencies": {
+    "web-tree-sitter": "0.27.1"
+  }
+}

@@ -1,0 +1,21 @@
+package demo.`odd.part`
+import scoop.core.Option.*
+public import demo.values.Item as Entry
+
+/// Unicode and contextual identifiers are ordinary names.
+fun `check input`(雪: Int, context: String): Int {
+    val café = 雪
+    val `when` = café
+    val open = context
+    val inner = open.length
+    return `when` + inner.toInt()
+}
+
+fun context(value: Int): Int = value
+fun requires(value: Int): Int = value
+fun names() {
+    val case = context(2)
+    val reified = requires(case)
+    val `a.b` = reified
+    println(`a.b`)
+}

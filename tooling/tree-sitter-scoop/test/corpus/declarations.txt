@@ -1,0 +1,141 @@
+==================
+Typed function and property
+==================
+fun identity(x: Int): Int { return x }
+val answer = identity(42)
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameters
+      (parameter
+        (identifier)
+        (user_type
+          (type_identifier))))
+    (user_type
+      (type_identifier))
+    (block
+      (return_expression
+        (identifier))))
+  (property_declaration
+    (identifier)
+    (call_expression
+      (identifier)
+      (arguments
+        (argument
+          (integer_literal))))))
+
+==================
+Generic extension with constraints
+==================
+fun <T> Array<T>.head(): T where T: ref = this[0]
+---
+
+(source_file
+  (function_declaration
+    (type_parameters
+      (type_parameter
+        (identifier)))
+    (user_type
+      (type_identifier)
+      (type_arguments
+        (user_type
+          (type_identifier))))
+    (identifier)
+    (parameters)
+    (user_type
+      (type_identifier))
+    (where_clause
+      (type_constraint
+        (qualified_identifier
+          (identifier))
+        (user_type
+          (type_identifier
+            (_identifier)))))
+    (expression_body
+      (index_expression
+        (this_expression)
+        (integer_literal)))))
+
+==================
+Computed property with annotated getter
+==================
+val Int.code: Int
+    @NoGC get() = this
+val after = 1
+---
+
+(source_file
+  (property_declaration
+    (user_type
+      (type_identifier))
+    (identifier)
+    (user_type
+      (type_identifier))
+    (accessor
+      (modifiers
+        (annotation
+          (qualified_identifier
+            (identifier))))
+      (expression_body
+        (this_expression))))
+  (property_declaration
+    (identifier)
+    (integer_literal)))
+
+==================
+Type forms and receiver function
+==================
+typealias Callback = suspend String.(Int, String?) -> (Int,)
+---
+
+(source_file
+  (type_alias
+    (identifier)
+    (function_type
+      (user_type
+        (type_identifier))
+      (function_type_parameters
+        (user_type
+          (type_identifier))
+        (nullable_type
+          (user_type
+            (type_identifier))))
+      (tuple_type
+        (user_type
+          (type_identifier))))))
+
+==================
+Multiline interface list
+==================
+struct Value :
+    Add<Value, Value>,
+    Hash {
+    fun hash(): Int = 0
+}
+---
+
+(source_file
+  (struct_declaration
+    (identifier)
+    (delegation_specifiers
+      (delegation_specifier
+        (user_type
+          (type_identifier)
+          (type_arguments
+            (user_type
+              (type_identifier))
+            (user_type
+              (type_identifier)))))
+      (delegation_specifier
+        (user_type
+          (type_identifier))))
+    (class_body
+      (function_declaration
+        (identifier)
+        (parameters)
+        (user_type
+          (type_identifier))
+        (expression_body
+          (integer_literal))))))

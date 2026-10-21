@@ -1,0 +1,19 @@
+val decimal = 1_234
+val binary = 0b1010_0011u
+val hex = 0XCAFE_BABEuL
+val signed = -9_223_372_036_854_775_808L
+val fraction = .25f
+val exponent = 1.25e-3
+val float = 12F
+val interval = 1..10
+val exclusive = 0..<10
+
+fun operators(a: Int?, b: Int): Int {
+    var x = (a ?: 0) + b * 2
+    x += 1
+    --x
+    x++
+    val flag = x < b || x >= b && x != 0
+    val bits = x shl 2L xor 1
+    return x
+}

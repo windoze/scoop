@@ -1,0 +1,28 @@
+typealias Transform<T> = T.(Int) -> T
+typealias Nested = Map<String, Array<(Int, String)>>
+typealias Annotated = @Label("root") Array<@Label("element") String?>
+
+inline fun <reified T : !Debug> convert(value: T): T where T : value = value
+
+fun <T> inspect(value: T): String where T.Companion : Printer<T>, requires(x: T) {
+    x.render(): String
+    @NoGC T.Companion.format<String>(value = text: String): String
+    T(size: Int)
+} {
+    return value.render()
+}
+
+fun <T> Array<T>.first(): T = this[0]
+val <T> Array<T>.head: T
+    get() = first()
+fun @Label("receiver") Int?.orZero(): Int = this ?: 0
+
+fun generics() {
+    val value = convert<Int>(3)
+    val inferred = pair<Int, _>(value, "s")
+    val nested = Box<Array<Int>>([1, 2])
+    val factory = MaybeUninit<Array<Int>>.uninit()
+    val callable = Box<Int>::read
+    val typed: suspend String.(Int) -> String = suspend fun String.(x: Int): String { return this }
+    println(nested)
+}
