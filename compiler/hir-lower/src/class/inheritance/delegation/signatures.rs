@@ -4,7 +4,7 @@ use crate::{FnParamCalling, FnVarargOmission};
 use hir::ImportedCallableSource;
 
 impl Lowerer {
-    pub(super) fn interface_forwarder_signature(
+    pub(in crate::class) fn interface_forwarder_signature(
         &mut self,
         member: &InterfaceMemberInstance,
         span: ast::Span,

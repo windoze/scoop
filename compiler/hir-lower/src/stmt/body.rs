@@ -117,6 +117,49 @@ impl Lowerer {
         self.with_function_body(id, &name, generate)
     }
 
+    pub(crate) fn lower_generated_body(
+        &mut self,
+        id: FunctionId,
+        block: &ast::Block,
+        source_file: usize,
+    ) -> hir::Body {
+        let name = self.source_function_declarations[&id].name.clone();
+        self.with_function_body(id, &name, |lowerer| {
+            let previous_source = lowerer.generated_source_file.replace(source_file);
+            let previous_context = lowerer.current_source_context;
+            lowerer.set_source_context(hir::SourceContextSubject::Function(id));
+            let statements = lowerer.lower_function_block(id, &name, block);
+            lowerer.generated_source_file = previous_source;
+            lowerer.current_source_context = previous_context;
+            statements
+        })
+    }
+
+    fn lower_function_block(
+        &mut self,
+        id: FunctionId,
+        name: &str,
+        block: &ast::Block,
+    ) -> Vec<hir::Statement> {
+        let returns_unit = self.types_equal(self.signatures[&id].return_ty, self.unit);
+        let diagnostics_before = self.diagnostics.len();
+        let statements = self.lower_block(block);
+        // A non-Unit block must return on every reachable path. Earlier
+        // errors already explain incomplete statement lowering.
+        if !returns_unit
+            && self.diagnostics.len() == diagnostics_before
+            && self
+                .statements_control_outcomes(&statements)
+                .can_fall_through()
+        {
+            self.error(
+                block.span,
+                format!("non-Unit function `{name}` may complete without returning a value"),
+            );
+        }
+        statements
+    }
+
     fn lower_body_input(
         &mut self,
         id: FunctionId,
@@ -124,32 +167,8 @@ impl Lowerer {
         input: &ast::FunctionBody,
     ) -> Vec<hir::Statement> {
         let return_ty = self.signatures[&id].return_ty;
-        let returns_unit = self.types_equal(return_ty, self.unit);
         match input {
-            ast::FunctionBody::Block(block) => {
-                let diagnostics_before = self.diagnostics.len();
-                let statements = self.lower_block(block);
-                // A non-Unit block body must not fall through on any
-                // reachable path. The analysis is compositional over
-                // sequential statements and structured control flow;
-                // skipped when lowering already diagnosed the body,
-                // because missing statements are commonly fallout of
-                // an earlier error.
-                if !returns_unit
-                    && self.diagnostics.len() == diagnostics_before
-                    && self
-                        .statements_control_outcomes(&statements)
-                        .can_fall_through()
-                {
-                    self.error(
-                        block.span,
-                        format!(
-                            "non-Unit function `{name}` may complete without returning a value"
-                        ),
-                    );
-                }
-                statements
-            }
+            ast::FunctionBody::Block(block) => self.lower_function_block(id, name, block),
             // `fun f(...) [: T] = expr` is a single `return expr`.
             ast::FunctionBody::Expr(expr) => {
                 let mut statements = Vec::new();

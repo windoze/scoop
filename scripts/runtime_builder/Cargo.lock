@@ -562,6 +562,7 @@ dependencies = [
  "la-arena",
  "scoop-ast",
  "scoop-identity",
+ "scoop-source",
  "scoop-wire",
 ]
 

@@ -50,7 +50,7 @@ impl Lowerer {
         });
         self.register_method_parameters(function, parameters, Vec::new());
         self.function_owner.insert(function, owner);
-        self.function_files.insert(function, self.current_file);
+        self.record_function_file(function, self.current_file);
         self.signatures.insert(function, signature);
         match owner {
             Owner::Struct(id) => self.structs[id].methods.push(function),

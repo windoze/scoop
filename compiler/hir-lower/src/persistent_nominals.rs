@@ -60,7 +60,9 @@ impl Lowerer {
     ) -> Result<SourceDeclarationKey, PersistentNominalIdentityErrorDetail> {
         use PersistentNominalIdentityErrorDetail as Error;
 
-        let source = self.visibility_file(input.file);
+        let source = self
+            .source_identity(self.generated_source_file.unwrap_or(input.file))
+            .clone();
         let package = match self.top_level_namespaces.source_namespace(input.file) {
             TopLevelLookupLayer::CorePrelude => PackagePath::root(),
             TopLevelLookupLayer::CurrentPackage(package) => {

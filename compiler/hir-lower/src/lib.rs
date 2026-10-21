@@ -112,6 +112,7 @@ mod documentation;
 mod effects;
 mod expr;
 mod ffi;
+mod generation;
 mod generic_entities;
 mod globals;
 mod graph;
@@ -152,6 +153,7 @@ mod pipeline;
 mod properties;
 mod release;
 mod scope;
+mod semantic_queries;
 mod shared;
 mod signatures;
 mod snapshot_arena;
@@ -165,7 +167,10 @@ mod user_annotations;
 mod visibility;
 
 pub use current_input::*;
-pub use current_lowering::{lower_current_cone, lower_current_tests};
+pub use current_lowering::{
+    lower_current_cone, lower_current_cone_with_generator, lower_current_tests,
+    lower_current_tests_with_generator,
+};
 pub use output_kind::select_cone_output_kind;
 
 use std::collections::{HashMap, HashSet};
@@ -667,6 +672,8 @@ pub(crate) struct Lowerer {
     /// Typed source-declaration provenance. Display names cannot substitute
     /// for this relation because member and lifted-local names are decorated.
     pub(crate) source_function_declarations: Shared<HashMap<FunctionId, SourceFunctionDeclaration>>,
+    pub(crate) query_source_function_identities:
+        HashMap<FunctionId, hir::HirSourceFunctionIdentity>,
     /// Complete source relation for every validated intrinsic kind. Duplicate
     /// declarations are diagnosed at insertion; core contract validation reads
     /// this map directly and never scans functions or compares names.
@@ -739,6 +746,7 @@ pub(crate) struct Lowerer {
     derived_encoding_methods: Vec<(FunctionId, hir::SourceNominalId)>,
     derived_decoding_methods: Vec<(FunctionId, hir::SourceNominalId)>,
     derived_inspection_methods: Vec<(FunctionId, hir::SourceNominalId)>,
+    generation: generation::PendingGeneration,
     interface_delegates: HashMap<ClassId, Vec<class::InterfaceDelegateSource>>,
     interface_forwarders: HashMap<FunctionId, class::InterfaceForwarder>,
     invalid_override_methods: HashSet<FunctionId>,
@@ -896,6 +904,8 @@ pub(crate) struct Lowerer {
     pub(crate) smart_casts: expr::SmartCastFacts,
     /// Index of the file currently being processed (diagnostics).
     pub(crate) current_file: usize,
+    /// Text provenance may differ from the method's lexical input file.
+    pub(crate) generated_source_file: Option<usize>,
     intrinsic_sources: Shared<Vec<SourceProvider>>,
     test_dependencies: std::collections::BTreeSet<scoop_identity::ConeIdentity>,
     source_names: std::collections::BTreeMap<scoop_identity::ConeIdentity, String>,

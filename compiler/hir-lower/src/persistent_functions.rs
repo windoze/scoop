@@ -19,6 +19,24 @@ mod topology;
 #[cfg(test)]
 mod tests;
 
+pub(crate) fn direct_source_identity(
+    lowerer: &Lowerer,
+    function: hir::FunctionId,
+    core_types: hir::HirCoreTypeIdentityAuthority<'_>,
+) -> Result<hir::HirSourceFunctionIdentity, PersistentFunctionIdentityError> {
+    let nominals = lowerer
+        .nominal_identities
+        .as_ref()
+        .expect("source callable identities follow nominal declarations");
+    let type_mapper = SignatureTypeMapper::new(lowerer, nominals, core_types);
+    source::SourceIdentityBuilder {
+        lowerer,
+        nominals,
+        type_mapper: &type_mapper,
+    }
+    .direct_identity(function, &lowerer.source_function_declarations[&function])
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn build(
     lowerer: &Lowerer,
@@ -204,6 +222,9 @@ impl FunctionIdentityBuilder<'_> {
         function: hir::FunctionId,
         source_declaration: &SourceFunctionDeclaration,
     ) -> Result<hir::HirSourceFunctionIdentity, PersistentFunctionIdentityError> {
+        if let Some(identity) = self.lowerer.query_source_function_identities.get(&function) {
+            return Ok(identity.clone());
+        }
         let Some(local) = self
             .lowerer
             .local_function_by_function
@@ -222,9 +243,10 @@ impl FunctionIdentityBuilder<'_> {
         if signature.owner_type_param_count > signature.type_params.len() {
             return Err(self.failure(function, Detail::InvalidBinderInheritance));
         }
-        let source = self
-            .source_builder()
-            .source(function, self.lowerer.function_files[&function])?;
+        let source = self.lowerer.source_contexts
+            [self.lowerer.local_functions[local].origin.context]
+            .source()
+            .clone();
         let context = {
             let local = &self.lowerer.local_functions[local];
             let context = self.context_for_site(

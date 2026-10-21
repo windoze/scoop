@@ -1,5 +1,8 @@
 use super::*;
 
+#[cfg(test)]
+mod generation_tests;
+
 impl Lowerer {
     #[cfg(test)]
     pub(crate) fn run_defined(
@@ -9,7 +12,7 @@ impl Lowerer {
         let dependencies = hir::ImportedDependencySelectionPlan::empty(self.current_cone());
         let (module, warnings, _) = self
             .with_imported_dependencies(dependencies)
-            .run(files, None)?;
+            .run(files, None, None)?;
         Ok((module, warnings))
     }
 
@@ -17,15 +20,18 @@ impl Lowerer {
         self,
         files: &[ast::SourceFile],
         world: &hir::ImportedSemanticWorld<'_>,
+        generator: Option<&mut dyn hir::MethodBodyGenerator>,
     ) -> Result<(hir::Module, Vec<Diagnostic>, LoweringCompletion), Vec<Diagnostic>> {
-        self.run(files, Some(world))
+        self.run(files, Some(world), generator)
     }
 
     fn run(
         mut self,
         files: &[ast::SourceFile],
         world: Option<&hir::ImportedSemanticWorld<'_>>,
+        generator: Option<&mut dyn hir::MethodBodyGenerator>,
     ) -> Result<(hir::Module, Vec<Diagnostic>, LoweringCompletion), Vec<Diagnostic>> {
+        self.generation.enabled = generator.is_some();
         if files.is_empty() {
             return Err(vec![Diagnostic::without_span(
                 ast::DiagnosticSeverity::Error,
@@ -567,6 +573,9 @@ impl Lowerer {
         self.lower_property_accessor_bodies();
         self.lower_release_blocks(&pending_classes, &pending_objects);
         self.finish_type_annotations();
+        if let Some(generator) = generator {
+            self.generate_method_bodies(generator);
+        }
         if self.diagnostics.is_empty() {
             self.discover_tests();
         }

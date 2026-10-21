@@ -104,7 +104,7 @@ impl Lowerer {
             file_index,
             decl.visibility,
         );
-        self.interface_files.insert(id, file_index);
+        self.record_nominal_file(Owner::Interface(id), file_index);
         self.interface_methods.insert(id, Vec::new());
         for method in &decl.methods {
             self.declare_method(method, Owner::Interface(id), pending_methods, file_index);

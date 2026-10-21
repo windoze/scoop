@@ -242,7 +242,7 @@ impl Lowerer {
             file_index,
             decl.visibility,
         );
-        self.class_files.insert(id, file_index);
+        self.record_nominal_file(Owner::Class(id), file_index);
         self.classes[id].access.inheritance =
             hir::InheritanceDomain(if modifier == hir::ClassModifier::Final {
                 hir::AccessDomain::empty()

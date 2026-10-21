@@ -8,4 +8,5 @@ imbl.workspace = true
 la-arena.workspace = true
 scoop-ast.workspace = true
 scoop-identity.workspace = true
+scoop-source.workspace = true
 scoop-wire.workspace = true

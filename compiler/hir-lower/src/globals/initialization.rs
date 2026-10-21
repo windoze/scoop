@@ -28,7 +28,7 @@ impl Lowerer {
                 kind,
                 method: None,
             });
-            this.function_files.insert(function, file);
+            this.record_function_file(function, file);
             this.signatures.insert(
                 function,
                 FnSig {

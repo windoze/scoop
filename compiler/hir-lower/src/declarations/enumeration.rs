@@ -106,7 +106,7 @@ impl Lowerer {
             .collect();
         let ty = self.enum_application(id, type_args);
         assert_eq!(self.types[ty], Type::Enum(self_application));
-        self.enum_files.insert(id, file_index);
+        self.record_nominal_file(Owner::Enum(id), file_index);
         if is_core && owner.is_none() && decl.name.text == "Option" {
             self.option_candidates
                 .push((id, file_index, decl.span, decl.type_params.len()));

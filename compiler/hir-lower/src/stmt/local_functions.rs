@@ -98,7 +98,7 @@ impl Lowerer {
                 name: decl.name.text.clone(),
             },
         );
-        self.function_files.insert(function, self.current_file);
+        self.record_function_file(function, self.current_file);
         self.signatures.insert(
             function,
             FnSig {

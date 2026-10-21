@@ -253,7 +253,7 @@ impl Lowerer {
             if !type_params.is_empty() {
                 self.register_generic(function, type_params.clone());
             }
-            self.function_files.insert(function, self.current_file);
+            self.record_function_file(function, self.current_file);
             for (index, parameter) in source_parameters.iter().enumerate() {
                 if let Some(ty) = parameter.and_then(|parameter| parameter.ty.as_ref()) {
                     self.annotate_type_site(

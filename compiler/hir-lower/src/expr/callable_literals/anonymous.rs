@@ -222,7 +222,7 @@ impl Lowerer {
             if !type_params.is_empty() {
                 self.register_generic(function, type_params.clone());
             }
-            self.function_files.insert(function, self.current_file);
+            self.record_function_file(function, self.current_file);
             self.annotate_callable_types(
                 hir::SourceAnnotationCallable::Function(function),
                 source_receiver,

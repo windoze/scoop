@@ -9,6 +9,7 @@ mod encoding;
 mod imported;
 mod inspection;
 mod interfaces;
+pub(super) use interfaces::InterfaceMemberInstance;
 mod order;
 mod overrides;
 mod properties;

@@ -158,7 +158,7 @@ impl Lowerer {
             file_index,
             decl.visibility,
         );
-        self.struct_files.insert(id, file_index);
+        self.record_nominal_file(Owner::Struct(id), file_index);
         if let hir::StructRepresentation::Intrinsic(intrinsic) = self.structs[id].representation {
             self.register_intrinsic_type(intrinsic, IntrinsicTypeOwner::Struct(id), decl.span);
         }

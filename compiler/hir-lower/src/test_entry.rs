@@ -88,7 +88,7 @@ impl Lowerer {
             method: None,
         });
         self.test_compilation.as_mut().unwrap().entry = Some(entry);
-        self.function_files.insert(entry, file);
+        self.record_function_file(entry, file);
         self.signatures.insert(
             entry,
             FnSig {

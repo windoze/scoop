@@ -205,7 +205,7 @@ impl Lowerer {
             assert!(self.companion_by_host.insert(host, relation).is_none());
         }
 
-        self.object_files.insert(object, file);
+        self.record_nominal_file(Owner::Object(object), file);
         let display_name = self.singleton_initialization_display_name(object);
         let published_root = self
             .singleton_published_roots
@@ -271,7 +271,7 @@ impl Lowerer {
             }
         }
         self.object_by_backing_class.insert(backing_class, object);
-        self.class_files.insert(backing_class, file);
+        self.record_nominal_file(Owner::Class(backing_class), file);
         for method in source.members().iter().filter_map(|member| match member {
             ast::ClassMember::Function(function) => Some(function),
             _ => None,

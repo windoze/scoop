@@ -105,7 +105,7 @@ impl Lowerer {
             self.register_intrinsic_function(id, intrinsic, decl.span);
         }
         self.function_owner.insert(id, owner);
-        self.function_files.insert(id, file_index);
+        self.record_function_file(id, file_index);
         match owner {
             Owner::Class(owner) => self.classes[owner].methods.push(id),
             Owner::Interface(owner) => {
@@ -211,7 +211,7 @@ impl Lowerer {
             id,
             decl.receiver_ty.is_some(),
         );
-        self.function_files.insert(id, file_index);
+        self.record_function_file(id, file_index);
         pending.push((id, decl, file_index));
     }
 

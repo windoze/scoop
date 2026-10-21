@@ -13,27 +13,55 @@ pub fn lower_current_cone(
     requested: scoop_identity::RequestedConeKind,
     input: &CurrentConeSources<'_, '_>,
 ) -> Result<hir::DependencyHirOutput, Vec<Diagnostic>> {
-    lower_current_mode(requested, input, false)
+    lower_current_mode(requested, input, false, None)
+}
+
+/// Lowers current sources, asking the driver to fill missing interface bodies.
+pub fn lower_current_cone_with_generator(
+    requested: scoop_identity::RequestedConeKind,
+    input: &CurrentConeSources<'_, '_>,
+    generator: &mut dyn hir::MethodBodyGenerator,
+) -> Result<hir::DependencyHirOutput, Vec<Diagnostic>> {
+    lower_current_mode(requested, input, false, Some(generator))
 }
 
 /// Builds the current Cone's tests with a generated executable entry.
 pub fn lower_current_tests(
     input: &CurrentConeSources<'_, '_>,
 ) -> Result<hir::DependencyHirOutput, Vec<Diagnostic>> {
-    lower_current_mode(scoop_identity::RequestedConeKind::Executable, input, true)
+    lower_current_mode(
+        scoop_identity::RequestedConeKind::Executable,
+        input,
+        true,
+        None,
+    )
+}
+
+/// Uses the same generation step while compiling the current Cone's tests.
+pub fn lower_current_tests_with_generator(
+    input: &CurrentConeSources<'_, '_>,
+    generator: &mut dyn hir::MethodBodyGenerator,
+) -> Result<hir::DependencyHirOutput, Vec<Diagnostic>> {
+    lower_current_mode(
+        scoop_identity::RequestedConeKind::Executable,
+        input,
+        true,
+        Some(generator),
+    )
 }
 
 fn lower_current_mode(
     requested: scoop_identity::RequestedConeKind,
     input: &CurrentConeSources<'_, '_>,
     tests: bool,
+    generator: Option<&mut dyn hir::MethodBodyGenerator>,
 ) -> Result<hir::DependencyHirOutput, Vec<Diagnostic>> {
     let current_sources = input
         .sources()
         .iter()
         .map(|source| source.text().identity().clone())
         .collect::<Vec<_>>();
-    lower_current_cone_inner(requested, input, tests).map_err(|mut diagnostics| {
+    lower_current_cone_inner(requested, input, tests, generator).map_err(|mut diagnostics| {
         for diagnostic in &mut diagnostics {
             diagnostic.resolve_sources(&current_sources);
         }
@@ -45,6 +73,7 @@ fn lower_current_cone_inner(
     requested: scoop_identity::RequestedConeKind,
     input: &CurrentConeSources<'_, '_>,
     tests: bool,
+    generator: Option<&mut dyn hir::MethodBodyGenerator>,
 ) -> Result<hir::DependencyHirOutput, Vec<Diagnostic>> {
     let (files, mut sources) = materialize_current_sources(input.sources());
     for source in &mut sources {
@@ -74,7 +103,8 @@ fn lower_current_cone_inner(
         CoreProtocolInput::CurrentDeclarations => lowerer,
         CoreProtocolInput::Imported(core) => lowerer.with_imported_core(core),
     };
-    let (module, mut warnings, completion) = lowerer.run_with_dependencies(&files, world)?;
+    let (module, mut warnings, completion) =
+        lowerer.run_with_dependencies(&files, world, generator)?;
     let output_kind = if tests {
         crate::test_entry::output_kind(&module)?
     } else {

@@ -333,7 +333,7 @@ impl Lowerer {
     pub(crate) fn definition_origin(&self, span: ast::Span) -> hir::DefinitionOrigin {
         hir::DefinitionOrigin {
             provider: self.current_intrinsic_provider(),
-            file: u32::try_from(self.current_file).expect("source file index exceeds u32"),
+            file: u32::try_from(self.current_text_file()).expect("source file index exceeds u32"),
             span,
             context: self.source_context_for_current_file(),
         }

@@ -37,15 +37,18 @@ fn declaration(
             PersistentTypeAliasIdentityErrorDetail::UnknownSourceFile(alias.origin.file),
         )
     })?;
-    if file >= lowerer.intrinsic_sources.len() {
+    if file >= lowerer.intrinsic_sources.len() + lowerer.imported_source_files.len() {
         return Err(failure(
             0,
             alias,
             PersistentTypeAliasIdentityErrorDetail::UnknownSourceFile(alias.origin.file),
         ));
     }
-    let source = lowerer.visibility_file(file);
-    let package = match lowerer.top_level_namespaces.source_namespace(file) {
+    let source = lowerer.source_identity(file).clone();
+    let package = match lowerer
+        .top_level_namespaces
+        .source_namespace(lowerer.lexical_source_file(file))
+    {
         TopLevelLookupLayer::CorePrelude => PackagePath::root(),
         TopLevelLookupLayer::CurrentPackage(package) => {
             let segments = lowerer

@@ -128,7 +128,7 @@ impl Lowerer {
         });
         self.register_method_parameters(function, owner_parameters.clone(), Vec::new());
         self.function_owner.insert(function, owner);
-        self.function_files.insert(function, file);
+        self.record_function_file(function, file);
         self.signatures.insert(
             function,
             FnSig {
@@ -211,7 +211,7 @@ impl Lowerer {
                 dispatch: hir::MethodDispatch::Direct,
             }),
         });
-        self.function_files.insert(function, self.current_file);
+        self.record_function_file(function, self.current_file);
         self.signatures.insert(
             function,
             FnSig {

@@ -143,7 +143,7 @@ impl Lowerer {
         } else {
             self.top_level.push(function);
         }
-        self.function_files.insert(function, self.current_file);
+        self.record_function_file(function, self.current_file);
         if let Some(hir::PropertyBacking::TopLevelGlobal {
             initialization: hir::TopLevelInitialization::Runtime(unit),
             ..

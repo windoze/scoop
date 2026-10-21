@@ -4,7 +4,7 @@ use std::collections::HashSet;
 
 mod integral;
 mod members;
-pub(super) use members::{InterfaceMemberInstance, InterfaceSignature};
+pub(in crate::class) use members::{InterfaceMemberInstance, InterfaceSignature};
 
 enum InterfaceDefaultSelection {
     Default(InterfaceMemberInstance),
@@ -147,6 +147,7 @@ impl Lowerer {
                 };
                 if let Some(candidate) = &implemented {
                     self.defer_conformance_result(candidate, &member, span);
+                    self.record_generated_requirement(candidate.function, owner, &member);
                 } else if let Some(method) = &imported_implementation
                     && member.signature.result_pending
                 {
@@ -259,6 +260,15 @@ impl Lowerer {
                                         &member,
                                         &all_interfaces,
                                         &candidates,
+                                    )
+                                })
+                                .or_else(|| {
+                                    self.declare_generated_interface_method(
+                                        owner,
+                                        &member,
+                                        &candidates,
+                                        span,
+                                        host,
                                     )
                                 })
                             {

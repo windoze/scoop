@@ -43,6 +43,14 @@ impl Lowerer {
             self.current_file = self.function_files[&function];
             self.register_function_parameter_interface(function);
         }
+        let pending = self.generation.methods.keys().copied().collect::<Vec<_>>();
+        for function in pending {
+            if (function.into_raw().into_u32() as usize) < start {
+                continue;
+            }
+            self.current_file = self.function_files[&function];
+            self.register_function_parameter_interface(function);
+        }
     }
 
     pub(crate) fn register_export_parameter_interfaces(
