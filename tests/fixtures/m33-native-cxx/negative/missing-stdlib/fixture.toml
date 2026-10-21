@@ -21,7 +21,7 @@ files = [
 
 [[steps]]
 name = "reject"
-argv = ["${scoop}", "build", "--cc", "${work}/toolchain/gcc", {each = "${link_args}"}, "${work}/cone", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+argv = ["${scoop}", "build", "--target", "${target}", "--cc", "${work}/toolchain/gcc", "${work}/cone", "--sysroot", "${sysroot}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
 exit = 1
 stdout = ""
 stderr = ""
