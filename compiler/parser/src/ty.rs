@@ -123,24 +123,19 @@ impl Parser {
     /// `suspend` has already been consumed when `is_suspend` is true.
     fn parse_paren_type(&mut self, is_suspend: bool, start: u32) -> Result<TypeRef, Diagnostic> {
         self.expect("`(`", |k| matches!(k, TokenKind::LParen))?;
-        let mut elements = Vec::new();
-        let mut had_comma = false;
-        if !matches!(self.peek().kind, TokenKind::RParen) {
-            elements.push(self.parse_type_ref()?);
-            while matches!(self.peek().kind, TokenKind::Comma) {
-                had_comma = true;
-                self.bump();
-                if matches!(self.peek().kind, TokenKind::RParen) {
-                    break;
-                }
-                elements.push(self.parse_type_ref()?);
-            }
-        }
-        let close = self.expect("`)`", |k| matches!(k, TokenKind::RParen))?;
+        let diagnostic_start = self.diagnostics.len();
+        let parsed =
+            self.parse_delimited_items(crate::parser::ListKind::TypeElements, Self::parse_type_ref);
+        let mut elements = parsed.items;
+        let had_comma = parsed.had_comma;
+        let close_end = parsed.end;
 
         if matches!(self.peek().kind, TokenKind::Arrow) {
             self.bump();
             let return_type = self.parse_type_ref()?;
+            if let Some(diagnostic) = self.diagnostics.get(diagnostic_start) {
+                return Err(diagnostic.clone());
+            }
             return Ok(TypeRef {
                 annotations: Vec::new(),
                 span: Span::new(start, return_type.span.end),
@@ -153,6 +148,9 @@ impl Parser {
             });
         }
 
+        if let Some(diagnostic) = self.diagnostics.get(diagnostic_start) {
+            return Err(diagnostic.clone());
+        }
         if is_suspend {
             return Err(Diagnostic::at(
                 self.peek().span,
@@ -166,7 +164,7 @@ impl Parser {
             return Ok(TypeRef {
                 annotations: Vec::new(),
                 kind: TypeRefKind::Unit,
-                span: Span::new(start, close.span.end),
+                span: Span::new(start, close_end),
             });
         }
         if elements.len() == 1 && !had_comma {
@@ -174,13 +172,13 @@ impl Parser {
             return Ok(TypeRef {
                 annotations: first.annotations,
                 kind: first.kind,
-                span: Span::new(start, close.span.end),
+                span: Span::new(start, close_end),
             });
         }
         Ok(TypeRef {
             annotations: Vec::new(),
             kind: TypeRefKind::Tuple(elements),
-            span: Span::new(start, close.span.end),
+            span: Span::new(start, close_end),
         })
     }
 
@@ -234,10 +232,12 @@ impl Parser {
         }
         self.bump();
         let diagnostic_start = self.diagnostics.len();
-        let arguments = self.parse_delimited_items(
-            crate::parser::ListKind::TypeArguments,
-            Self::parse_nominal_type_argument,
-        );
+        let arguments = self
+            .parse_delimited_items(
+                crate::parser::ListKind::TypeArguments,
+                Self::parse_nominal_type_argument,
+            )
+            .into_parts();
         // An erroneous type must not become a successful speculative type
         // argument. Its siblings remain in the CST for editor consumers.
         match self.diagnostics.get(diagnostic_start) {

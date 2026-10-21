@@ -11,6 +11,12 @@ impl Parser {
     pub(in crate::decl) fn parse_annotation_value(
         &mut self,
     ) -> Result<(AnnotationLiteral, u32), Diagnostic> {
+        if matches!(
+            self.peek().kind,
+            TokenKind::Comma | TokenKind::RParen | TokenKind::RBracket | TokenKind::Eof
+        ) {
+            return self.unexpected("annotation value");
+        }
         if matches!(self.peek().kind, TokenKind::LBracket) {
             return self.parse_annotation_array();
         }
@@ -91,26 +97,20 @@ impl Parser {
 
     fn parse_annotation_array_inner(&mut self) -> Result<(AnnotationLiteral, u32), Diagnostic> {
         self.bump();
-        let mut elements = Vec::new();
-        while !matches!(self.peek().kind, TokenKind::RBracket) {
-            let start = self.peek().span.start;
-            let (value, end) = self.parse_annotation_value()?;
-            elements.push(scoop_ast::AnnotationArrayElement {
-                value,
-                span: scoop_ast::Span { start, end },
+        let diagnostic_start = self.diagnostics.len();
+        let elements =
+            self.parse_delimited_items(crate::parser::ListKind::AnnotationElements, |parser| {
+                let start = parser.peek().span.start;
+                let (value, end) = parser.parse_annotation_value()?;
+                Ok(scoop_ast::AnnotationArrayElement {
+                    value,
+                    span: scoop_ast::Span::new(start, end),
+                })
             });
-            if !matches!(self.peek().kind, TokenKind::Comma) {
-                break;
-            }
-            self.bump();
+        if let Some(diagnostic) = self.diagnostics.get(diagnostic_start) {
+            return Err(diagnostic.clone());
         }
-        let end = self
-            .expect("`]` after annotation array", |kind| {
-                matches!(kind, TokenKind::RBracket)
-            })?
-            .span
-            .end;
-        Ok((AnnotationLiteral::Array(elements), end))
+        Ok((AnnotationLiteral::Array(elements.items), elements.end))
     }
 }
 

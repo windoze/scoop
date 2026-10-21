@@ -18,10 +18,12 @@ impl Parser {
             return Ok(Vec::new());
         }
         self.bump();
-        let (parameters, _) = self.parse_delimited_items(
-            crate::parser::ListKind::TypeParameters,
-            Self::parse_type_parameter,
-        );
+        let (parameters, _) = self
+            .parse_delimited_items(
+                crate::parser::ListKind::TypeParameters,
+                Self::parse_type_parameter,
+            )
+            .into_parts();
         Ok(parameters)
     }
 

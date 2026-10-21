@@ -1,5 +1,7 @@
 use super::*;
 
+mod parameters;
+
 impl Parser {
     pub(super) fn parse_primary_constructor(&mut self) -> Result<ClassConstructorDecl, Diagnostic> {
         self.with_node(scoop_syntax::SyntaxKind::PrimaryConstructor, |parser| {
@@ -60,79 +62,8 @@ impl Parser {
             ));
         }
         let constructor = if matches!(self.peek().kind, TokenKind::LParen) {
-            let open = self.bump();
-            let mut parameters = Vec::new();
-            let mut vararg_span = None;
-            if !matches!(self.peek().kind, TokenKind::RParen) {
-                loop {
-                    let doc_start = self.pos;
-                    let annotations = self.parse_annotations()?;
-                    let modifier_span = self.parse_vararg_modifier(&mut vararg_span)?;
-                    let member_visibility = self.parse_visibility()?;
-                    let override_span = if matches!(&self.peek().kind, TokenKind::Ident(text) if text == "override")
-                    {
-                        Some(self.bump().span)
-                    } else {
-                        None
-                    };
-                    let first = self.peek().clone();
-                    let property = match first.kind {
-                        TokenKind::Val => {
-                            self.pos += 1;
-                            PrimaryParameterProperty::Val
-                        }
-                        TokenKind::Var => {
-                            self.pos += 1;
-                            PrimaryParameterProperty::Var
-                        }
-                        _ => PrimaryParameterProperty::Plain,
-                    };
-                    if !property.is_property()
-                        && (!matches!(member_visibility, VisibilitySyntax::Omitted)
-                            || override_span.is_some())
-                    {
-                        return Err(Diagnostic::at(
-                            first.span,
-                            "primary constructor member visibility and `override` require `val` or `var`",
-                        ));
-                    }
-                    let parameter_name = self.expect_ident("primary constructor parameter name")?;
-                    self.expect("`:`", |k| matches!(k, TokenKind::Colon))?;
-                    let ty = self.parse_type_ref()?;
-                    let (syntax, end) = self.parse_parameter_syntax(modifier_span, ty.span.end)?;
-                    let documented = PrimaryClassParameter {
-                        annotations,
-                        property,
-                        member_visibility: property.is_property().then_some(member_visibility),
-                        is_override: override_span.is_some(),
-                        span: Span::new(
-                            modifier_span
-                                .map(|span| span.start)
-                                .or(match member_visibility {
-                                    VisibilitySyntax::Explicit { span, .. } => Some(span.start),
-                                    VisibilitySyntax::Omitted => None,
-                                })
-                                .or_else(|| override_span.map(|span| span.start))
-                                .unwrap_or(first.span.start),
-                            end,
-                        ),
-                        name: parameter_name,
-                        ty,
-                        syntax,
-                    };
-                    self.attach_documentation(doc_start, documented.span);
-                    parameters.push(documented);
-                    if matches!(self.peek().kind, TokenKind::Comma) {
-                        self.bump();
-                    } else {
-                        break;
-                    }
-                }
-            }
-            let end = self
-                .expect("`)`", |k| matches!(k, TokenKind::RParen))?
-                .span
-                .end;
+            let (parameters, parameter_span) = self.parse_primary_parameters()?;
+            let end = parameter_span.end;
             let constructor_start = constructor_annotations
                 .first()
                 .map(|annotation| annotation.span.start)
@@ -147,7 +78,7 @@ impl Parser {
                         .map(|keyword| keyword.span.start),
                 )
                 .min()
-                .unwrap_or(open.span.start);
+                .unwrap_or(parameter_span.start);
             self.attach_documentation(
                 constructor_doc_start.position,
                 Span::new(constructor_start, end),
@@ -207,46 +138,7 @@ impl Parser {
                 "secondary constructors cannot declare type parameters",
             ));
         }
-        self.expect("`(` after `constructor`", |kind| {
-            matches!(kind, TokenKind::LParen)
-        })?;
-        let mut params = Vec::new();
-        let mut vararg_span = None;
-        if !matches!(self.peek().kind, TokenKind::RParen) {
-            loop {
-                let doc_start = self.pos;
-                let annotations = self.parse_annotations()?;
-                let modifier_span = self.parse_vararg_modifier(&mut vararg_span)?;
-                if matches!(self.peek().kind, TokenKind::Val | TokenKind::Var) {
-                    return Err(Diagnostic::at(
-                        self.peek().span,
-                        "secondary constructor parameters cannot declare `val` or `var` properties",
-                    ));
-                }
-                let name = self.expect_ident("constructor parameter name")?;
-                self.expect("`:`", |kind| matches!(kind, TokenKind::Colon))?;
-                let ty = self.parse_type_ref()?;
-                let (syntax, end) = self.parse_parameter_syntax(modifier_span, ty.span.end)?;
-                let documented = Param {
-                    annotations,
-                    span: Span::new(
-                        modifier_span.map_or(name.span.start, |span| span.start),
-                        end,
-                    ),
-                    name,
-                    ty,
-                    syntax,
-                };
-                self.attach_documentation(doc_start, documented.span);
-                params.push(documented);
-                if matches!(self.peek().kind, TokenKind::Comma) {
-                    self.bump();
-                } else {
-                    break;
-                }
-            }
-        }
-        self.expect("`)`", |kind| matches!(kind, TokenKind::RParen))?;
+        let params = self.parse_secondary_parameters()?;
         let delegation = if matches!(self.peek().kind, TokenKind::Colon) {
             self.bump();
             Some(self.parse_constructor_delegation()?)

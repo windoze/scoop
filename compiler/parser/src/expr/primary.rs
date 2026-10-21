@@ -214,21 +214,15 @@ impl Parser {
 
     fn parse_array_literal_inner(&mut self) -> Result<Expr, Diagnostic> {
         let open = self.bump(); // `[`
-        let mut elements = Vec::new();
-        if !matches!(self.peek().kind, TokenKind::RBracket) {
-            loop {
-                elements.push(self.parse_expr()?);
-                if matches!(self.peek().kind, TokenKind::Comma) {
-                    self.bump();
-                } else {
-                    break;
-                }
-            }
+        let diagnostic_start = self.diagnostics.len();
+        let elements =
+            self.parse_delimited_items(crate::parser::ListKind::ArrayElements, Self::parse_expr);
+        if let Some(diagnostic) = self.diagnostics.get(diagnostic_start) {
+            return Err(diagnostic.clone());
         }
-        let close = self.expect("`]`", |k| matches!(k, TokenKind::RBracket))?;
         Ok(Expr::ArrayLiteral {
-            elements,
-            span: Span::new(open.span.start, close.span.end),
+            elements: elements.items,
+            span: Span::new(open.span.start, elements.end),
         })
     }
 
@@ -330,10 +324,12 @@ impl Parser {
 
     fn parse_args_inner(&mut self) -> Result<(Vec<CallArgument>, u32), Diagnostic> {
         self.expect("`(`", |k| matches!(k, TokenKind::LParen))?;
-        Ok(self.parse_delimited_items(
-            crate::parser::ListKind::CallArguments,
-            Self::parse_call_argument,
-        ))
+        Ok(self
+            .parse_delimited_items(
+                crate::parser::ListKind::CallArguments,
+                Self::parse_call_argument,
+            )
+            .into_parts())
     }
 
     fn parse_call_argument(&mut self) -> Result<CallArgument, Diagnostic> {
@@ -379,30 +375,23 @@ impl Parser {
     }
 
     fn parse_paren_expr_inner(&mut self) -> Result<Expr, Diagnostic> {
-        let open = self.bump(); // `(`
-        if matches!(self.peek().kind, TokenKind::RParen) {
-            let close = self.bump();
-            return Ok(Expr::UnitLiteral {
-                span: Span::new(open.span.start, close.span.end),
-            });
+        let open = self.bump();
+        let diagnostic_start = self.diagnostics.len();
+        let mut elements =
+            self.parse_delimited_items(crate::parser::ListKind::ParenExpressions, Self::parse_expr);
+        if let Some(diagnostic) = self.diagnostics.get(diagnostic_start) {
+            return Err(diagnostic.clone());
         }
-        let first = self.parse_expr()?;
-        if !matches!(self.peek().kind, TokenKind::Comma) {
-            self.expect("`)`", |k| matches!(k, TokenKind::RParen))?;
-            return Ok(first);
+        let span = Span::new(open.span.start, elements.end);
+        if elements.items.is_empty() {
+            Ok(Expr::UnitLiteral { span })
+        } else if elements.items.len() == 1 && !elements.had_comma {
+            Ok(elements.items.pop().expect("one parenthesized expression"))
+        } else {
+            Ok(Expr::TupleLiteral {
+                elements: elements.items,
+                span,
+            })
         }
-        let mut elements = vec![first];
-        while matches!(self.peek().kind, TokenKind::Comma) {
-            self.bump();
-            if matches!(self.peek().kind, TokenKind::RParen) {
-                break; // trailing comma: `(e,)` / `(e1, e2,)`
-            }
-            elements.push(self.parse_expr()?);
-        }
-        let close = self.expect("`)`", |k| matches!(k, TokenKind::RParen))?;
-        Ok(Expr::TupleLiteral {
-            elements,
-            span: Span::new(open.span.start, close.span.end),
-        })
     }
 }

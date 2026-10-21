@@ -5,6 +5,8 @@ use scoop_ast::{Diagnostic, Expr, LambdaParam, Param, Span};
 use crate::lexer::TokenKind;
 use crate::parser::Parser;
 
+mod parameters;
+
 impl Parser {
     pub(crate) fn starts_anonymous_function(&mut self) -> bool {
         let saved = self.checkpoint();
@@ -70,30 +72,7 @@ impl Parser {
             }
         }
         .map(|receiver| receiver.with_annotations(receiver_annotations));
-        self.expect("`(`", |kind| matches!(kind, TokenKind::LParen))?;
-        let mut params = Vec::new();
-        if !matches!(self.peek().kind, TokenKind::RParen) {
-            loop {
-                let annotations = self.parse_annotations()?;
-                self.skip_parameter_compatibility_modifiers();
-                let name = self.expect_ident("parameter name")?;
-                self.expect("`:`", |kind| matches!(kind, TokenKind::Colon))?;
-                let ty = self.parse_type_ref()?;
-                params.push(Param {
-                    annotations,
-                    span: Span::new(name.span.start, ty.span.end),
-                    name,
-                    ty,
-                    syntax: scoop_ast::ParameterSyntax::Required,
-                });
-                if matches!(self.peek().kind, TokenKind::Comma) {
-                    self.bump();
-                } else {
-                    break;
-                }
-            }
-        }
-        self.expect("`)`", |kind| matches!(kind, TokenKind::RParen))?;
+        let params = self.parse_anonymous_parameters()?;
         let return_ty = if matches!(self.peek().kind, TokenKind::Colon) {
             self.bump();
             Some(self.parse_type_ref()?)

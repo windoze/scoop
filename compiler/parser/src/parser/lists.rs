@@ -5,138 +5,18 @@ use crate::lexer::TokenKind;
 
 use super::{DelimiterBalance, Parser};
 
-#[derive(Debug, Clone, Copy)]
-pub(crate) enum ListKind {
-    FunctionParameters,
-    CallArguments,
-    TypeArguments,
-    TypeParameters,
+mod kind;
+pub(crate) use kind::ListKind;
+
+pub(crate) struct DelimitedItems<T> {
+    pub(crate) items: Vec<T>,
+    pub(crate) end: u32,
+    pub(crate) had_comma: bool,
 }
 
-impl ListKind {
-    fn close(self) -> TokenKind {
-        match self {
-            Self::FunctionParameters | Self::CallArguments => TokenKind::RParen,
-            Self::TypeArguments | Self::TypeParameters => TokenKind::Greater,
-        }
-    }
-
-    fn close_label(self) -> &'static str {
-        match self {
-            Self::FunctionParameters | Self::CallArguments => "`)`",
-            Self::TypeArguments | Self::TypeParameters => "`>`",
-        }
-    }
-
-    fn is_type_list(self) -> bool {
-        matches!(self, Self::TypeArguments | Self::TypeParameters)
-    }
-
-    fn starts_item(self, parser: &Parser) -> bool {
-        let token = &parser.peek().kind;
-        if matches!(token, TokenKind::Ident(_) | TokenKind::EscapedIdent(_)) {
-            return true;
-        }
-        match self {
-            Self::FunctionParameters => matches!(token, TokenKind::At | TokenKind::Vararg),
-            Self::TypeParameters => matches!(token, TokenKind::In),
-            Self::TypeArguments => matches!(
-                token,
-                TokenKind::At
-                    | TokenKind::LParen
-                    | TokenKind::Suspend
-                    | TokenKind::In
-                    | TokenKind::Star
-            ),
-            Self::CallArguments => matches!(
-                token,
-                TokenKind::Str(_)
-                    | TokenKind::Char(_)
-                    | TokenKind::Int(_)
-                    | TokenKind::Float(_)
-                    | TokenKind::FStringStart
-                    | TokenKind::LParen
-                    | TokenKind::LBracket
-                    | TokenKind::LBrace
-                    | TokenKind::This
-                    | TokenKind::True
-                    | TokenKind::False
-                    | TokenKind::Fun
-                    | TokenKind::Suspend
-                    | TokenKind::If
-                    | TokenKind::When
-                    | TokenKind::Return
-                    | TokenKind::Break
-                    | TokenKind::Continue
-                    | TokenKind::Plus
-                    | TokenKind::Minus
-                    | TokenKind::Bang
-                    | TokenKind::Star
-                    | TokenKind::DoubleColon
-            ),
-        }
-    }
-
-    fn at_follow(self, parser: &Parser) -> bool {
-        let token = &parser.peek().kind;
-        if matches!(
-            token,
-            TokenKind::Eof | TokenKind::RBrace | TokenKind::Semicolon
-        ) {
-            return true;
-        }
-        match self {
-            Self::FunctionParameters => {
-                matches!(
-                    token,
-                    TokenKind::LBrace
-                        | TokenKind::Equal
-                        | TokenKind::Colon
-                        | TokenKind::Fun
-                        | TokenKind::Class
-                        | TokenKind::Struct
-                        | TokenKind::Interface
-                ) || matches!(token, TokenKind::Ident(name) if name == "where")
-            }
-            Self::CallArguments => matches!(
-                token,
-                TokenKind::RBracket
-                    | TokenKind::Val
-                    | TokenKind::Var
-                    | TokenKind::Class
-                    | TokenKind::Struct
-                    | TokenKind::Interface
-            ),
-            Self::TypeArguments => matches!(
-                token,
-                TokenKind::RParen
-                    | TokenKind::RBracket
-                    | TokenKind::Colon
-                    | TokenKind::Equal
-                    | TokenKind::Arrow
-                    | TokenKind::LBrace
-            ),
-            Self::TypeParameters => {
-                matches!(
-                    token,
-                    TokenKind::LParen
-                        | TokenKind::RParen
-                        | TokenKind::Colon
-                        | TokenKind::Equal
-                        | TokenKind::LBrace
-                ) || matches!(token, TokenKind::Ident(_) | TokenKind::EscapedIdent(_))
-                    && matches!(
-                        parser.tokens.get(parser.pos + 1).map(|token| &token.kind),
-                        Some(TokenKind::LParen)
-                    )
-            }
-        }
-    }
-
-    fn at_recovery_follow(self, parser: &Parser) -> bool {
-        self.at_follow(parser)
-            && !(matches!(self, Self::FunctionParameters)
-                && matches!(parser.peek().kind, TokenKind::Colon | TokenKind::Equal))
+impl<T> DelimitedItems<T> {
+    pub(crate) fn into_parts(self) -> (Vec<T>, u32) {
+        (self.items, self.end)
     }
 }
 
@@ -147,10 +27,11 @@ impl Parser {
         &mut self,
         kind: ListKind,
         mut item: impl FnMut(&mut Self) -> Result<T, Diagnostic>,
-    ) -> (Vec<T>, u32) {
+    ) -> DelimitedItems<T> {
         let close = kind.close();
         let mut items = Vec::new();
-        let mut required = kind.is_type_list();
+        let mut required = kind.requires_item();
+        let mut had_comma = false;
         loop {
             if !required && (self.peek().kind == close || kind.at_recovery_follow(self)) {
                 break;
@@ -165,6 +46,10 @@ impl Parser {
             }
             if matches!(self.peek().kind, TokenKind::Comma) {
                 self.bump();
+                had_comma = true;
+                if kind.allows_trailing_comma() && self.peek().kind == close {
+                    break;
+                }
                 required = true;
                 continue;
             }
@@ -191,6 +76,10 @@ impl Parser {
             self.synchronize_list_item(kind, self.pos);
             if matches!(self.peek().kind, TokenKind::Comma) {
                 self.bump();
+                had_comma = true;
+                if kind.allows_trailing_comma() && self.peek().kind == close {
+                    break;
+                }
                 required = true;
                 continue;
             }
@@ -206,7 +95,11 @@ impl Parser {
             self.diagnostics.push(diagnostic);
             self.peek().span.start
         };
-        (items, end)
+        DelimitedItems {
+            items,
+            end,
+            had_comma,
+        }
     }
 
     fn synchronize_list_item(&mut self, kind: ListKind, start: usize) {
@@ -219,7 +112,7 @@ impl Parser {
             }
             while !parser.at_eof() {
                 if balance.is_balanced()
-                    && (!kind.is_type_list() || angles == 0)
+                    && (!kind.tracks_angles() || angles == 0)
                     && (matches!(parser.peek().kind, TokenKind::Comma)
                         || parser.peek().kind == kind.close()
                         || kind.at_recovery_follow(parser)

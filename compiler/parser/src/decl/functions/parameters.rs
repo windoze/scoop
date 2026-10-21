@@ -7,13 +7,13 @@ impl Parser {
         self.with_node(SyntaxKind::ParameterList, |parser| {
             parser.expect("`(`", |kind| matches!(kind, TokenKind::LParen))?;
             let mut vararg_span = None;
-            Ok(
-                parser.parse_delimited_items(ListKind::FunctionParameters, |parser| {
+            Ok(parser
+                .parse_delimited_items(ListKind::FunctionParameters, |parser| {
                     parser.with_node(SyntaxKind::Parameter, |parser| {
                         parser.parse_function_parameter(&mut vararg_span)
                     })
-                }),
-            )
+                })
+                .into_parts())
         })
     }
 

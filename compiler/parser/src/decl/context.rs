@@ -23,38 +23,45 @@ impl Parser {
                 "a context parameter list cannot be empty",
             ));
         }
-        let mut parameters = Vec::new();
-        loop {
-            let doc_start = self.pos;
-            let name = self.expect_ident("context parameter name or `_`")?;
-            self.expect(
-                "`:` after context parameter name (modifiers are not allowed)",
-                |kind| matches!(kind, TokenKind::Colon),
-            )?;
-            let ty = self.parse_type_ref()?;
-            let span = Span::new(name.span.start, ty.span.end);
-            let label = if name.text == "_" {
-                ContextParameterLabel::Unnamed(name.span)
-            } else {
-                ContextParameterLabel::Named(name)
-            };
-            self.attach_documentation(doc_start, span);
-            parameters.push(ContextParameter { label, ty, span });
-            if matches!(self.peek().kind, TokenKind::Equal) {
-                return Err(Diagnostic::at(
-                    self.peek().span,
-                    "context parameters cannot have defaults",
-                ));
-            }
-            if !matches!(self.peek().kind, TokenKind::Comma) {
-                break;
-            }
-            self.bump();
+        let parameters = self.parse_delimited_items(
+            crate::parser::ListKind::FunctionParameters,
+            Self::parse_context_parameter,
+        );
+        Ok((
+            parameters.items,
+            Span::new(keyword.span.start, parameters.end),
+        ))
+    }
+
+    fn parse_context_parameter(&mut self) -> Result<ContextParameter, Diagnostic> {
+        self.with_node(
+            scoop_syntax::SyntaxKind::Parameter,
+            Self::parse_context_parameter_inner,
+        )
+    }
+
+    fn parse_context_parameter_inner(&mut self) -> Result<ContextParameter, Diagnostic> {
+        let doc_start = self.pos;
+        let name = self.expect_ident("context parameter name or `_`")?;
+        self.expect(
+            "`:` after context parameter name (modifiers are not allowed)",
+            |kind| matches!(kind, TokenKind::Colon),
+        )?;
+        let ty = self.parse_type_ref()?;
+        let span = Span::new(name.span.start, ty.span.end);
+        let label = if name.text == "_" {
+            ContextParameterLabel::Unnamed(name.span)
+        } else {
+            ContextParameterLabel::Named(name)
+        };
+        self.attach_documentation(doc_start, span);
+        if matches!(self.peek().kind, TokenKind::Equal) {
+            return Err(Diagnostic::at(
+                self.peek().span,
+                "context parameters cannot have defaults",
+            ));
         }
-        let close = self.expect("`)` after context parameters", |kind| {
-            matches!(kind, TokenKind::RParen)
-        })?;
-        Ok((parameters, Span::new(keyword.span.start, close.span.end)))
+        Ok(ContextParameter { label, ty, span })
     }
 
     pub(crate) fn parse_context_local_function(&mut self) -> Result<FunctionDecl, Diagnostic> {
