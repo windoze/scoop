@@ -4,9 +4,59 @@ import scoop.crypto.*
 import scoop.crypto.native.*
 import scoop.text.split
 
-public enum JwsAlgorithm { HS256, RS256, PS256, ES256, EdDSA }
-public enum JwsSigningKey { Mac(SecretKey), Signature(PrivateKey) }
-public enum JwsVerificationKey { Mac(SecretKey), Signature(PublicKey) }
+/**
+ * The explicitly selected compact JWS algorithm. Header validation requires the token's alg to
+ * match this selection.
+ */
+public enum JwsAlgorithm {
+    /**
+     * HMAC-SHA-256 with a symmetric key.
+     */
+    HS256,
+    /**
+     * RSA PKCS#1 v1.5 with SHA-256.
+     */
+    RS256,
+    /**
+     * RSA-PSS with SHA-256.
+     */
+    PS256,
+    /**
+     * P-256 ECDSA with SHA-256 and JWS raw signature encoding.
+     */
+    ES256,
+    /**
+     * Ed25519 signing for compact JWS.
+     */
+    EdDSA }
+/**
+ * Selects symmetric MAC or asymmetric private-key signing without transferring key ownership.
+ */
+public enum JwsSigningKey {
+    /**
+     * A borrowed symmetric key for HS256.
+     */
+    Mac(SecretKey),
+    /**
+     * A borrowed private key matching the selected asymmetric scheme.
+     */
+    Signature(PrivateKey) }
+/**
+ * Selects symmetric MAC or asymmetric public-key verification without transferring ownership.
+ */
+public enum JwsVerificationKey {
+    /**
+     * A borrowed symmetric key for HS256 verification.
+     */
+    Mac(SecretKey),
+    /**
+     * A borrowed public key matching the selected asymmetric scheme.
+     */
+    Signature(PublicKey) }
+/**
+ * The protected header, payload bytes, and optional key identifier after cryptographic
+ * verification. Payload claims such as expiry or audience are not interpreted.
+ */
 public struct VerifiedJws(val protectedHeader: String, val payload: Array<Byte>, val keyId: String?)
 
 internal fun algorithmName(algorithm: JwsAlgorithm): String = when (algorithm) {
@@ -30,6 +80,10 @@ private fun requireMac(algorithm: JwsAlgorithm, key: SecretKey) {
     if (key.size < 32L) throw IllegalArgumentException(Some("HS256 key must contain at least 32 bytes"))
 }
 
+/**
+ * Validates the protected header and produces the three base64url compact-JWS segments. HS256
+ * needs at least 32 key bytes; ES256 uses the JWS fixed-width signature encoding.
+ */
 public fun signCompact(protectedHeader: String, payload: List<Byte>, algorithm: JwsAlgorithm, key: JwsSigningKey): String {
     parseHeader(protectedHeader, algorithm)
     val input = urlEncoding.encode(protectedHeader.toByteArray()) + "." + urlEncoding.encode(payload)
@@ -48,6 +102,11 @@ public fun signCompact(protectedHeader: String, payload: List<Byte>, algorithm: 
 }
 
 // Verifies the signature and returns the header and payload; a mismatch returns None.
+/**
+ * Validates compact syntax and the explicitly selected algorithm, then verifies the signature. A
+ * signature mismatch returns None; malformed headers or encodings throw JwsException. Application
+ * payload claims remain the caller's responsibility.
+ */
 public fun verifyCompactOrNone(token: String, algorithm: JwsAlgorithm, key: JwsVerificationKey): VerifiedJws? {
     val parts = token.split('.')
     if (parts.size != 3L) throw JwsException("compact JWS must contain three segments")

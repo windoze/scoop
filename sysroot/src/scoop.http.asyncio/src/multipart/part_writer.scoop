@@ -4,14 +4,39 @@ import scoop.asyncio.*
 import scoop.http.MultipartPartHead
 import scoop.platform.memory.NativeByteBuffer
 
-public class MultipartPartWriter internal constructor(private val writer: MultipartWriter, public val head: MultipartPartHead)
+/**
+ * The active multipart output part. Finish writes its boundary; flush does not end the part.
+ */
+public class MultipartPartWriter internal constructor(private val writer: MultipartWriter,
+    /**
+     * The header selected when this part began.
+     */
+    public val head: MultipartPartHead)
     : AsyncByteSink, AsyncCloseable {
     internal var complete: Boolean = false
     internal var closed: Boolean = false
+    /**
+     * Whether this body or message reached its successful boundary.
+     */
     public val isComplete: Boolean get() = complete
+    /**
+     * Whether this body or message has been closed.
+     */
     public val isClosed: Boolean get() = closed || writer.io.isClosed
+    /**
+     * Writes body bytes into the active part.
+     */
     public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long = writer.write(this, buffer, count)
+    /**
+     * Flushes part output without writing the end boundary.
+     */
     public override suspend fun flush() { writer.flush(Some(this)) }
+    /**
+     * Completes this part so the next part or final multipart boundary can be written.
+     */
     public suspend fun finish() { writer.finishPart(this) }
+    /**
+     * Closes the part writer; incomplete output is not silently marked complete.
+     */
     public override suspend fun close() { writer.closePart(this) }
 }

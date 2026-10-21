@@ -1,5 +1,9 @@
 package scoop.collections
 
+/**
+ * Copies the comparator-bounded range into an independent read-only ordered collection. Bounds
+ * default to lower-inclusive and upper-exclusive; reversed bounds throw.
+ */
 public fun <K, V> SortedMap<K, V>.copyOfRange(
     fromKey: K, toKey: K, fromInclusive: Boolean = true, toInclusive: Boolean = false
 ): SortedMap<K, V> {
@@ -16,6 +20,10 @@ public fun <K, V> SortedMap<K, V>.copyOfRange(
     return SortedMapSnapshot<K, V>(result)
 }
 
+/**
+ * Copies the comparator-bounded range into an independent read-only ordered collection. Bounds
+ * default to lower-inclusive and upper-exclusive; reversed bounds throw.
+ */
 public fun <T> SortedSet<T>.copyOfRange(
     fromElement: T, toElement: T, fromInclusive: Boolean = true, toInclusive: Boolean = false
 ): SortedSet<T> {

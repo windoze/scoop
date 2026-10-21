@@ -7,39 +7,117 @@ import scoop.http.*
 import scoop.http.asyncio.*
 import scoop.url.Url
 
+/**
+ * An owned HTTP/1.1 WebSocket session with handshake history and streaming messages. Successful
+ * upgrade ends the handshake total deadline; session lifecycle is explicit.
+ */
 public class HttpWebSocketSession internal constructor(internal val state: ClientWebSocketState, private val call: ClientCall,
+    /**
+     * The final response or accepted handshake head.
+     */
     public val head: HttpResponseHead, negotiation: WebSocketNegotiation) : AsyncCloseable {
+    /**
+     * The final URL after redirects.
+     */
     public val url: Url = clientWebSocketUrl(call.request.url)
+    /**
+     * Completed redirect steps in order.
+     */
     public val redirectHistory: Array<HttpRedirect> = Array<HttpRedirect>(call.sequence.history.size) { index ->
         val previous = call.sequence.history[index]
         HttpRedirect(clientWebSocketUrl(previous.url), previous.method, previous.head,
             clientWebSocketUrl(previous.nextUrl), previous.nextMethod)
     }
+    /**
+     * The number of retries before this result.
+     */
     public val retryCount: Long = call.sequence.retryCount
+    /**
+     * The number of origin authentication retries before this result.
+     */
     public val authenticationCount: Long = call.sequence.authenticationCount
+    /**
+     * The number of proxy authentication retries before this result.
+     */
     public val proxyAuthenticationCount: Long = call.sequence.proxyAuthenticationCount
+    /**
+     * The latest optional attempt-metrics snapshot.
+     */
     public val metrics: HttpAttemptMetrics? get() = clientMetrics(call)
+    /**
+     * The selected subprotocol, or None.
+     */
     public val protocol: String? = negotiation.protocol
+    /**
+     * Effective permessage-deflate settings, or None.
+     */
     public val deflate: WebSocketDeflateNegotiation? = negotiation.deflate
+    /**
+     * Whether the underlying session is closed.
+     */
     public val isClosed: Boolean get() = state.session.isClosed
+    /**
+     * The received close status and reason, when present.
+     */
     public val peerClose: WebSocketClose? get() = state.session.peerClose
+    /**
+     * The locally sent close status and reason, when present.
+     */
     public val sentClose: WebSocketClose? get() = state.session.sentClose
+    /**
+     * The session's terminal failure, if any.
+     */
     public val failure: Throwable? get() = state.session.failure
 
+    /**
+     * Begins one outgoing text or binary message and returns a writer that must be finished or
+     * closed. Compression is used only when negotiated.
+     */
     public suspend fun beginMessage(type: WebSocketMessageType, compress: Boolean = true): WebSocketMessageWriter =
         state.session.beginMessage(type, compress)
+    /**
+     * Returns the next owned incoming message, or None after normal session end; finish or close a
+     * message before reading the next.
+     */
     public suspend fun receive(): WebSocketMessage? = state.session.receive()
+    /**
+     * Sends one complete UTF-8 text message, with compression when enabled and negotiated.
+     */
     public suspend fun sendText(text: String, compress: Boolean = true) { state.session.sendText(text, compress) }
+    /**
+     * Sends one complete binary message, with compression when enabled and negotiated.
+     */
     public suspend fun sendBinary(bytes: List<Byte>, compress: Boolean = true) { state.session.sendBinary(bytes, compress) }
+    /**
+     * Streams one message from the borrowed source; cancellation waits for source work and
+     * required cleanup.
+     */
     public suspend fun send(type: WebSocketMessageType, source: AsyncByteSource, compress: Boolean = true) {
         val active = ClientWebSocketSource(state.client)
         try { context(active) { state.session.send(type, source, compress) } }
         finally { state.client.lock.withLock { active.running = false } }
     }
+    /**
+     * Sends a ping control frame with a payload of at most 125 bytes.
+     */
     public suspend fun ping(payload: List<Byte> = emptyList<Byte>()) { state.session.ping(payload) }
+    /**
+     * Sends a pong control frame with a payload of at most 125 bytes.
+     */
     public suspend fun pong(payload: List<Byte> = emptyList<Byte>()) { state.session.pong(payload) }
+    /**
+     * Sends Close and waits for the peer reply under the session's close timeout, returning the
+     * peer close value.
+     */
     public suspend fun shutdownGracefully(value: WebSocketClose = WebSocketClose(Some(1000U))): WebSocketClose =
         state.session.shutdownGracefully(value)
+    /**
+     * Waits for session termination and reports its failure according to session rules.
+     */
     public suspend fun awaitClosed() { state.session.awaitClosed() }
+    /**
+     * Closes the local session and awaits cleanup; use shutdownGracefully for an explicit
+     * close-handshake wait.
+     */
     public override suspend fun close() { state.session.close() }
 }

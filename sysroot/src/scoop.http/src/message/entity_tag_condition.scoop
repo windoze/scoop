@@ -2,11 +2,28 @@ package scoop.http
 
 import scoop.bytes.ByteArrayBuilder
 
+/**
+ * A conditional entity-tag list or wildcard for If-Match and If-None-Match.
+ */
 public class HttpEntityTagCondition private constructor(
-    public val isWildcard: Boolean, public val tags: Array<HttpEntityTag>, public val originalValue: Array<Byte>?
+    /**
+     * Whether this condition matches any current representation.
+     */
+    public val isWildcard: Boolean,
+        /**
+         * The explicitly listed tags when the condition is not a wildcard.
+         */
+        public val tags: Array<HttpEntityTag>,
+        /**
+         * The original parsed field-value bytes, or None for a programmatically constructed value.
+         */
+        public val originalValue: Array<Byte>?
 ) {
     public constructor(tags: List<HttpEntityTag>) : this(false, tags.toArray(), None) {}
 
+    /**
+     * Serializes the structured value into HTTP field-value bytes.
+     */
     public fun toByteArray(): Array<Byte> {
         if (isWildcard) return "*".toByteArray()
         val output = ByteArrayBuilder()
@@ -18,12 +35,27 @@ public class HttpEntityTagCondition private constructor(
         }
         return output.toByteArray()
     }
+    /**
+     * Builds an If-Match request field.
+     */
     public fun toIfMatchField(): HttpField = HttpField("If-Match".toByteArray(), toByteArray())
+    /**
+     * Builds an If-None-Match request field.
+     */
     public fun toIfNoneMatchField(): HttpField = HttpField("If-None-Match".toByteArray(), toByteArray())
 
+    /**
+     * Construction and parsing of this structured HTTP field.
+     */
     public companion object {
+        /**
+         * Constructs the wildcard condition.
+         */
         public fun wildcard(): HttpEntityTagCondition = HttpEntityTagCondition(true, [], None)
 
+        /**
+         * Parses the complete field value, throwing HttpFieldParseException for malformed syntax.
+         */
         public fun parse(value: List<Byte>, fieldName: String = "If-None-Match"): HttpEntityTagCondition {
             val reader = HttpFieldReader(fieldName, value)
             reader.skipOws()
@@ -42,12 +74,23 @@ public class HttpEntityTagCondition private constructor(
             }
             return HttpEntityTagCondition(false, tags.toArray(), Some(reader.bytes))
         }
+        /**
+         * Parses the complete field value, throwing HttpFieldParseException for malformed syntax.
+         */
         public fun parse(value: String, fieldName: String = "If-None-Match"): HttpEntityTagCondition =
             parse(value.toByteArray(), fieldName)
+        /**
+         * Parses the complete value, returning None for HttpFieldParseException while propagating
+         * unrelated failures.
+         */
         public fun parseOrNone(value: List<Byte>, fieldName: String = "If-None-Match"): HttpEntityTagCondition? {
             try { return Some(parse(value, fieldName)) }
             catch (_: HttpFieldParseException) { return None }
         }
+        /**
+         * Parses the complete value, returning None for HttpFieldParseException while propagating
+         * unrelated failures.
+         */
         public fun parseOrNone(value: String, fieldName: String = "If-None-Match"): HttpEntityTagCondition? =
             parseOrNone(value.toByteArray(), fieldName)
     }

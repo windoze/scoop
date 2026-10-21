@@ -2,6 +2,10 @@ package scoop.test.execution
 
 // Full argv starts with the program path, then the command's selection marker.
 // A directly launched test executable defaults to its non-ignored cases.
+/**
+ * Interprets the generated runner's case selection arguments and ignored-case policy for one
+ * stable case index.
+ */
 public fun isTestSelected(
     arguments: Array<String>, caseIndex: String, ignored: Boolean
 ): Boolean {

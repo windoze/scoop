@@ -1,3 +1,6 @@
+/**
+ * A structured child job carrying one eventual result or failure.
+ */
 public class Deferred<T> internal constructor(parent: Job?, propagatesFailure: Boolean = true) : Job(parent, propagatesFailure) {
     private var result: MaybeUninit<T> = MaybeUninit<T>.uninit()
 
@@ -13,26 +16,48 @@ public class Deferred<T> internal constructor(parent: Job?, propagatesFailure: B
         }
     }
 
+    /**
+     * Waits for completion and returns the result, or rethrows its failure.
+     */
     public suspend fun await(): T {
         join()
         return getCompleted()
     }
 }
 
-public class CoroutineScope internal constructor(public val job: Job) {
+/**
+ * Launches child computations associated with one parent job.
+ */
+public class CoroutineScope internal constructor(
+    /**
+     * The parent used for children launched through this scope.
+     */
+    public val job: Job) {
+    /**
+     * Starts a child returning Unit and returns its job for cancellation or joining.
+     */
     public fun launch(block: suspend () -> Unit): Job = async(block)
 
+    /**
+     * Starts a child that produces a result and returns a deferred handle.
+     */
     public fun <T> async(block: suspend () -> T): Deferred<T> = startStructuredTask(Some(job), block)
 }
 
 context(job: Job)
 private fun boundCoroutineJob(): Job = job
 
+/**
+ * Returns the job installed for the currently running coroutine, or None outside a job context.
+ */
 public fun currentJobOrNone(): Job? {
     try { return Some(boundCoroutineJob()) }
     catch (_: MissingContextException) { return None }
 }
 
+/**
+ * Checks cancellation of the current job. With no current job, this operation does nothing.
+ */
 public fun ensureActive() {
     when (currentJobOrNone()) {
         case Some(job) -> job.ensureActive()
@@ -58,9 +83,16 @@ private class StructuredCompletion<T>(val task: Deferred<T>) : Continuation<T> {
     public override fun resumeWithException(exception: Throwable) { task.finishBody(Some(exception)) }
 }
 
+/**
+ * Runs a block in a child scope and waits for its children before returning the block's result.
+ */
 public suspend fun <T> coroutineScope(block: suspend (CoroutineScope) -> T): T =
     runCoroutineScope(currentJobOrNone(), block)
 
+/**
+ * Runs a structured scope detached from parent cancellation. The scope still owns a job whose own
+ * cancellation and child completion rules apply.
+ */
 public suspend fun <T> nonCancellableScope(block: suspend (CoroutineScope) -> T): T =
     runCoroutineScope(None, block)
 

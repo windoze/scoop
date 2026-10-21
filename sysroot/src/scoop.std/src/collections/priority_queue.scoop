@@ -2,10 +2,21 @@ package scoop.collections
 
 import scoop.comparisons.Comparator
 
-public class PriorityQueue<T> public constructor(public val comparator: Comparator<T>) : Collection<T> {
+/**
+ * A binary min-heap ordered by its comparator. Removal returns the smallest element; iteration
+ * exposes heap order, not sorted order. Structural changes invalidate iterators.
+ */
+public class PriorityQueue<T> public constructor(
+    /**
+     * The comparator used for ordering and, for ordered maps/sets, equivalence.
+     */
+    public val comparator: Comparator<T>) : Collection<T> {
     private var storage: ElementBuffer<T> = ElementBuffer<T>(8L)
     private var elementCount: Long = 0L
     private val structure: ModificationCounter = ModificationCounter()
+    /**
+     * The number of queued elements, including duplicates.
+     */
     public override val size: Long get() = elementCount
 
     internal fun elementAt(index: Long): T = storage.read(index)
@@ -24,6 +35,9 @@ public class PriorityQueue<T> public constructor(public val comparator: Comparat
         storage = replacement
     }
 
+    /**
+     * Inserts an element while preserving the heap ordering.
+     */
     public fun add(element: T) {
         val stamp = structure.snapshot()
         var destination = elementCount
@@ -44,14 +58,26 @@ public class PriorityQueue<T> public constructor(public val comparator: Comparat
         structure.advance()
     }
 
+    /**
+     * Returns the smallest element without removal; an empty queue throws NoSuchElementException.
+     */
     public fun peek(): T {
         if (elementCount == 0L) throw NoSuchElementException("empty priority queue")
         return storage.read(0L)
     }
 
+    /**
+     * Returns the smallest element without removal, or None when empty.
+     */
     public fun peekOrNone(): T? = if (elementCount == 0L) None else Some(storage.read(0L))
+    /**
+     * Removes the smallest element, or returns None when empty.
+     */
     public fun removeFirstOrNone(): T? = if (elementCount == 0L) None else Some(removeFirst())
 
+    /**
+     * Removes the smallest element; an empty queue throws NoSuchElementException.
+     */
     public fun removeFirst(): T {
         if (elementCount == 0L) throw NoSuchElementException("empty priority queue")
         val result = storage.read(0L)
@@ -85,6 +111,9 @@ public class PriorityQueue<T> public constructor(public val comparator: Comparat
         return result
     }
 
+    /**
+     * Removes all elements.
+     */
     public fun clear() {
         if (elementCount == 0L) return
         var index = 0L
@@ -93,11 +122,25 @@ public class PriorityQueue<T> public constructor(public val comparator: Comparat
         structure.advance()
     }
 
+    /**
+     * Iterates in heap storage order, which is not sorted; structural changes invalidate the
+     * iterator.
+     */
     public override operator fun iterator(): Iterator<T> = HeapIterator<T>(this, structure)
 
+    /**
+     * Serialization factories using explicit element or key/value codecs.
+     */
     public companion object {
+        /**
+         * Encodes entries or elements in iteration order using the supplied component codecs.
+         */
         public fun encoder(element: ValueEncoder<T>): ValueEncoder<PriorityQueue<T>> =
             ValueEncoderFunction<PriorityQueue<T>> { values, encoder -> encodeElements(values, element, encoder) }
+        /**
+         * Decodes entries or elements into a new collection using the supplied component codecs
+         * and comparator where required.
+         */
         public fun decoder(element: ValueDecoder<T>, comparator: Comparator<T>): ValueDecoder<PriorityQueue<T>> = ValueDecoderFunction<PriorityQueue<T>> { decoder ->
             val result = PriorityQueue<T>(comparator)
             decodeElements(decoder, element) { value -> result.add(value) }

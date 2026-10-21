@@ -6,10 +6,24 @@ import scoop.crypto.x509.*
 import scoop.platform.fs.*
 import scoop.tls.native.*
 
+/**
+ * Reusable client configuration containing trust roots, protocol options, and an optional client
+ * identity. Close the context when no more sessions will be created.
+ *
+ * System trust loading is synchronous here. Event-loop code can use
+ * `scoop.tls.asyncio.openTlsClientContext` to offload that work.
+ */
 public class TlsClientContext private constructor(private val state: ContextState) : Closeable {
+    /**
+     * Factories for client contexts backed by external trust data.
+     */
     public companion object {
         internal fun takeOwnership(handle: ULong): TlsClientContext = TlsClientContext(ContextState(handle))
 
+        /**
+         * Reads a PEM CA file synchronously and builds a client context from its trust store. The
+         * returned context owns its native state and must be closed.
+         */
         public fun fromCaFile(path: Path, options: TlsOptions = TlsOptions(), identity: TlsIdentity? = None): TlsClientContext =
             TrustStore.fromPem(path.readText()).use { store -> TlsClientContext(store, options, identity) }
     }
@@ -28,9 +42,18 @@ public class TlsClientContext private constructor(private val state: ContextStat
             } }
         }
     }
+    /**
+     * Releases the context's native reference. New sessions cannot be created afterward; repeated
+     * closes are allowed.
+     */
     public override fun close() { state.dispose() }
 }
 
+/**
+ * Reusable server configuration built from a certificate chain, matching private key, and protocol
+ * options. The first certificate is the server leaf certificate. Close the context when no more
+ * sessions will be created.
+ */
 public class TlsServerContext private constructor(private val state: ContextState) : Closeable {
     public constructor(certificates: List<Certificate>, privateKey: PrivateKey, options: TlsOptions = TlsOptions())
         : this(serverState(certificates, privateKey, options)) {}
@@ -38,6 +61,9 @@ public class TlsServerContext private constructor(private val state: ContextStat
     internal fun newSession(): ULong = state.withHandle { handle ->
         @Unsafe { return@withHandle tlsValue(sessionNew(handle, 1, 0, None, 0L), "create server TLS session") }
     }
+    /**
+     * Releases the context's native reference and prevents creation of further sessions.
+     */
     public override fun close() { state.dispose() }
 }
 

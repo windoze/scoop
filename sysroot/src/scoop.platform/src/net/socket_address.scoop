@@ -2,14 +2,41 @@ package scoop.platform.net
 
 import scoop.text.*
 
-public class SocketAddress public constructor(public val address: IpAddress, public val port: Int) : Equals<SocketAddress>, Hash, ToString {
+/**
+ * An immutable numeric IP endpoint with a validated network port.
+ */
+public class SocketAddress public constructor(
+    /**
+     * The endpoint's numeric IP address.
+     */
+    public val address: IpAddress,
+    /**
+     * The endpoint port; zero can request an ephemeral local port when binding.
+     */
+    public val port: Int) : Equals<SocketAddress>, Hash, ToString {
     init { requirePort(port) }
+    /**
+     * Compares the complete normalized address identity, including its relevant family, scope,
+     * prefix, or port.
+     */
     public override operator fun equals(other: SocketAddress): Boolean = address == other.address && port == other.port
+    /**
+     * Hashes the same address identity used by equality.
+     */
     public override fun hash(): Long = address.hash() * 31L + port.toLong()
+    /**
+     * Returns numeric address notation without performing name resolution.
+     */
     public override fun toString(): String =
         (if (address.family == AddressFamily.Ipv6) "[" + address.toString() + "]" else address.toString()) + ":" + port.toString()
 
+    /**
+     * Parses numeric endpoint text without DNS lookup.
+     */
     public companion object {
+        /**
+         * Parses address and port, including bracketed IPv6 endpoint syntax.
+         */
         public fun parse(text: String): SocketAddress {
             val bracketed = text.startsWith("[")
             val separator = if (bracketed) text.lastIndexOf("]:") else text.lastIndexOf(':')

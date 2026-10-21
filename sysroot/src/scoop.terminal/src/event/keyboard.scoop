@@ -2,8 +2,26 @@ package scoop.terminal.event
 
 import scoop.terminal.Command
 
+/**
+ * A keyboard-protocol capability that can be requested from supporting terminals.
+ */
 public enum KeyboardEnhancement {
-    DisambiguateEscapeCodes, ReportEventTypes, ReportAlternateKeys, ReportAllKeysAsEscapeCodes
+    /**
+     * Requests unambiguous escape-encoded key reporting.
+     */
+    DisambiguateEscapeCodes,
+        /**
+         * Requests press, repeat, and release event distinctions.
+         */
+        ReportEventTypes,
+        /**
+         * Requests alternate-key information in enhanced reports.
+         */
+        ReportAlternateKeys,
+        /**
+         * Requests escape-code reporting for all keys.
+         */
+        ReportAllKeysAsEscapeCodes
 
     internal val mask: UInt get() = when (this) {
         case DisambiguateEscapeCodes -> 1u; case ReportEventTypes -> 2u
@@ -11,21 +29,50 @@ public enum KeyboardEnhancement {
     }
 }
 
+/**
+ * An immutable bit set of requested or reported keyboard enhancements.
+ */
 public struct KeyboardEnhancementFlags(val bits: UInt = 0u) {
+    /**
+     * Whether no bits are set.
+     */
     public val isEmpty: Boolean get() = bits == 0u
+    /**
+     * Tests whether the selected flag is present.
+     */
     public fun has(flag: KeyboardEnhancement): Boolean = (bits and flag.mask) != 0u
+    /**
+     * Returns a copy with the selected flag included.
+     */
     public fun with(flag: KeyboardEnhancement): KeyboardEnhancementFlags = KeyboardEnhancementFlags(bits or flag.mask)
+    /**
+     * Returns a copy with the selected flag removed.
+     */
     public fun without(flag: KeyboardEnhancement): KeyboardEnhancementFlags =
         KeyboardEnhancementFlags(bits and flag.mask.inv())
 }
 
+/**
+ * Pushes the selected enhanced-keyboard flags onto the terminal's protocol stack.
+ */
 public struct PushKeyboardEnhancementFlags(val flags: KeyboardEnhancementFlags) : Command {
+    /**
+     * Writes this command's ANSI representation to the supplied writer without flushing it.
+     * Parameter validation happens before or during serialization.
+     */
     public override fun writeAnsi(writer: TextWriter) {
         if ((flags.bits and 15u.inv()) != 0u) throw IllegalArgumentException(Some("unknown keyboard enhancement flag"))
         writer.write("\u001b[>" + flags.bits.toString() + "u")
     }
 }
 
+/**
+ * Restores the previous enhanced-keyboard flags from the terminal's stack.
+ */
 public object PopKeyboardEnhancementFlags : Command {
+    /**
+     * Writes this command's ANSI representation to the supplied writer without flushing it.
+     * Parameter validation happens before or during serialization.
+     */
     public override fun writeAnsi(writer: TextWriter) { writer.write("\u001b[<1u") }
 }

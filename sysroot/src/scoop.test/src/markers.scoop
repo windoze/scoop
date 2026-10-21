@@ -1,13 +1,28 @@
 package scoop.test
 
+/**
+ * Marks a test function or a class containing test cases for test-purpose compilation.
+ * Production compilation does not generate the test runner.
+ */
 @Target([AnnotationTarget.Class, AnnotationTarget.Function])
 public annotation class Test
 
+/**
+ * Marks the setup action run before a test body. A setup failure skips the body but still
+ * permits the after-test action.
+ */
 @Target([AnnotationTarget.Function])
 public annotation class BeforeTest
 
+/**
+ * Marks cleanup run after setup and body processing, including when either fails. Cleanup
+ * failures are retained separately from the primary failure.
+ */
 @Target([AnnotationTarget.Function])
 public annotation class AfterTest
 
+/**
+ * Marks a test case as ignored by default and records the reason shown by test reporting.
+ */
 @Target([AnnotationTarget.Function])
 public annotation class Ignore(val reason: String)

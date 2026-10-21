@@ -30,7 +30,7 @@ fn retains_unrounded_decimal_suffix_and_span() {
 #[test]
 fn rejects_malformed_fractions_exponents_and_suffixes() {
     for source in ["1.0e", "1e+", "1e_2", "1.0_", "1__0.0", "1.0d", ".5ff"] {
-        let (_, diagnostics) = lex(source);
+        let crate::lexer::Lexed { diagnostics, .. } = lex(source);
         assert!(!diagnostics.is_empty(), "expected rejection for {source}");
     }
 }
@@ -38,7 +38,11 @@ fn rejects_malformed_fractions_exponents_and_suffixes() {
 #[test]
 fn keeps_integer_ranges_radices_and_member_access_separate() {
     for source in ["1..2", "1..<2", "1.toString()", "0xff", "0b101"] {
-        let (tokens, diagnostics) = lex(source);
+        let crate::lexer::Lexed {
+            tokens,
+            diagnostics,
+            ..
+        } = lex(source);
         assert!(diagnostics.is_empty(), "{source}: {diagnostics:?}");
         assert!(matches!(tokens[0].kind, TokenKind::Int(_)));
         assert!(

@@ -8,18 +8,45 @@ internal class WebSocketWritingFrame(val head: WebSocketFrameHead, val mask: Arr
     var written: Long = 0L
 }
 
-public class WebSocketFrameEncoder public constructor(public val role: HttpRole, compressionEnabled: Boolean = false) : Closeable {
+/**
+ * A serial in-memory frame encoder with explicit begin/write/finish. Client frames receive fresh
+ * masking keys; it does not perform compression or transport I/O.
+ */
+public class WebSocketFrameEncoder public constructor(
+    /**
+     * The endpoint role determining incoming/outgoing masking requirements.
+     */
+    public val role: HttpRole, compressionEnabled: Boolean = false) : Closeable {
     private val sequence: WebSocketSequence = WebSocketSequence(compressionEnabled, Long.MAX_VALUE)
     private val busy: AtomicBoolean = AtomicBoolean(false)
     private var frame: WebSocketWritingFrame? = None
     private var closed: Boolean = false
     private var error: Throwable? = None
+    /**
+     * Whether local frame state has been closed.
+     */
     public val isClosed: Boolean get() = closed
+    /**
+     * Whether a frame still requires payload bytes and finishFrame.
+     */
     public val isFrameOpen: Boolean get() = when (frame) { case Some(_) -> true; case None -> false }
+    /**
+     * Whether a fragmented data message is in progress.
+     */
     public val isMessageOpen: Boolean get() = sequence.isMessageOpen
+    /**
+     * Whether a close frame has been processed.
+     */
     public val hasCloseFrame: Boolean get() = sequence.hasCloseFrame
+    /**
+     * The retained framing or message failure.
+     */
     public val failure: Throwable? get() = error
 
+    /**
+     * Validates sequencing and returns the frame header, including a fresh client masking key when
+     * required.
+     */
     public fun beginFrame(head: WebSocketFrameHead): Array<Byte> = withUse {
         requireOpen()
         if (isFrameOpen) throw IllegalStateException(Some("WebSocket frame is still open"))
@@ -31,6 +58,10 @@ public class WebSocketFrameEncoder public constructor(public val role: HttpRole,
         encoded.bytes
     }
 
+    /**
+     * Consumes payload bytes and returns their masked or unmasked wire form, preserving mask
+     * position across chunks.
+     */
     public fun writePayload(buffer: NativeByteBuffer, count: Long = buffer.readableBytes): Array<Byte> = withUse {
         requireOpen()
         val active = activeFrame()
@@ -49,6 +80,10 @@ public class WebSocketFrameEncoder public constructor(public val role: HttpRole,
         } catch (failure: Throwable) { fail(failure) }
     }
 
+    /**
+     * Requires exactly the declared payload length and validates control/message completion; emits
+     * no additional bytes.
+     */
     public fun finishFrame() {
         withUse {
             requireOpen()
@@ -65,6 +100,9 @@ public class WebSocketFrameEncoder public constructor(public val role: HttpRole,
         }
     }
 
+    /**
+     * Releases local state; it does not send a Close frame or close a transport.
+     */
     public override fun close() { withUse { if (!closed) { closed = true; frame = None; sequence.close() }; Unit } }
 
     private fun activeFrame(): WebSocketWritingFrame = when (frame) {

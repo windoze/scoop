@@ -2,6 +2,9 @@ package scoop.crypto.testdata
 
 // Fixed OpenSSL 3.6.5 CLI test input; dates and extensions are intentional.
 
+/**
+ * Returns a deliberately expired fixture certificate for validity rejection tests.
+ */
 public fun expiredPem(): String =
     "-----BEGIN CERTIFICATE-----\n" +
     "MIIByjCCAXCgAwIBAgICEAMwCgYIKoZIzj0EAwIwITEfMB0GA1UEAwwWU2Nvb3Ag\n" +

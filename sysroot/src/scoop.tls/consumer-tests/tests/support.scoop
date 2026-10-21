@@ -5,12 +5,19 @@ import scoop.crypto.x509.*
 import scoop.crypto.testdata.*
 import scoop.tls.*
 
+/**
+ * Creates a client context retaining an explicit fixture trust root after temporary inputs
+ * close.
+ */
 internal fun consumerClientContext(): TlsClientContext {
     return Certificate.fromPem(rootPem()).use { root ->
         TrustStore.fromCertificates([root]).use { store -> TlsClientContext(store) }
     }
 }
 
+/**
+ * Creates a server context retaining the fixture chain and key after temporary inputs close.
+ */
 internal fun consumerServerContext(): TlsServerContext {
     return Certificate.fromPem(serverPem()).use { leaf -> Certificate.fromPem(intermediatePem()).use { intermediate ->
         PrivateKey.fromPem(serverKeyPem()).use { key -> TlsServerContext([leaf, intermediate], key) }

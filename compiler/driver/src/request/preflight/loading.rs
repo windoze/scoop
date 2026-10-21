@@ -23,7 +23,7 @@ impl SingleConeBuildRequest {
         let mut loaded = LoadedExplicitDependencyInputs::load(
             dependencies.direct(),
             dependencies.support(),
-            target.lir_target_selection(),
+            target.selection(),
         )
         .map_err(|source| SingleConePreflightError::ExplicitDependencyLoad(Box::new(source)))?;
         if let TrustedCoreInput::DependenciesOrDefault { sysroot } = trusted_core
@@ -31,23 +31,25 @@ impl SingleConeBuildRequest {
                 .contains_explicit_core()
                 .map_err(SingleConePreflightError::Dependencies)?
         {
-            let slot = crate::trusted_core::resolve_trusted_core_slot_at(
-                &sysroot,
-                target.lir_target_selection(),
-            )
-            .map_err(|source| SingleConePreflightError::DefaultCoreSlot(Box::new(source)))?;
+            let slot =
+                crate::trusted_core::resolve_trusted_core_slot_at(&sysroot, target.selection())
+                    .map_err(|source| {
+                        SingleConePreflightError::DefaultCoreSlot(Box::new(source))
+                    })?;
             let input = crate::HostArtifactLocator::new(slot.artifact())
                 .map_err(|source| SingleConePreflightError::Request(Box::new(source)))?;
-            super::super::output::validate_output_inputs(
-                [(
-                    crate::OutputAliasRole::TrustedCoreArtifact,
-                    input.as_path().to_owned(),
-                )],
-                &output,
-            )
-            .map_err(|source| SingleConePreflightError::Request(Box::new(source)))?;
+            if let Some(output) = output.artifact() {
+                super::super::output::validate_output_inputs(
+                    [(
+                        crate::OutputAliasRole::TrustedCoreArtifact,
+                        input.as_path().to_owned(),
+                    )],
+                    output,
+                )
+                .map_err(|source| SingleConePreflightError::Request(Box::new(source)))?;
+            }
             loaded
-                .append_direct(&input, target.lir_target_selection())
+                .append_direct(&input, target.selection())
                 .map_err(|source| {
                     SingleConePreflightError::ExplicitDependencyLoad(Box::new(source))
                 })?;

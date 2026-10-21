@@ -1,21 +1,52 @@
 package scoop.platform.system
 
+/**
+ * An immutable snapshot of operating-system bytes. It can represent names that are not valid
+ * UTF-8; decoding policy is explicit.
+ */
 public class OsString private constructor(private val bytes: Array<Byte>) : Equals<OsString>, Hash {
+    /**
+     * Returns an independent copy of the stored native bytes.
+     */
     public fun toByteArray(): Array<Byte> = Array<Byte>(bytes.size) { index -> bytes[index] }
 
+    /**
+     * Decodes the stored bytes as strict UTF-8, rejecting malformed encoding.
+     */
     public fun decodeUtf8(): String =
         String.fromUtf8(bytes)
 
+    /**
+     * Decodes stored bytes with replacement for malformed UTF-8.
+     */
     public fun decodeUtf8Lossy(): String =
         String.fromUtf8Lossy(bytes)
 
+    /**
+     * Returns a lossy UTF-8 presentation suitable for displaying native names.
+     */
     public fun display(): String = decodeUtf8Lossy()
 
+    /**
+     * Compares the exact stored byte sequences.
+     */
     public override operator fun equals(other: OsString): Boolean = byteContentsEqual(bytes, other.bytes)
+    /**
+     * Hashes the stored bytes consistently with equality.
+     */
     public override fun hash(): Long = byteContentsHash(bytes)
 
+    /**
+     * Creates independent native-byte values from text or existing native bytes.
+     */
     public companion object {
+        /**
+         * Copies the UTF-8 encoding of the supplied text.
+         */
         public fun fromString(value: String): OsString = fromByteArray(value.toByteArray())
+        /**
+         * Copies arbitrary native bytes without requiring UTF-8.
+         */
         public fun fromByteArray(value: List<Byte>): OsString =
             OsString(Array<Byte>(value.size) { index -> value[index] })
     }

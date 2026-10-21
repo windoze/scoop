@@ -3,12 +3,54 @@ package scoop.http.client
 import scoop.http.HttpResponseHead
 import scoop.url.Url
 
-public enum HttpAuthenticationFailure { InvalidChallenge, InvalidCredentials, InvalidResponse, BodyNotReplayable, Rejected, LimitExceeded }
+/**
+ * The reason authentication could not complete.
+ */
+public enum HttpAuthenticationFailure {
+    /**
+     * The peer challenge is malformed or incompatible with the provider.
+     */
+    InvalidChallenge,
+    /**
+     * The supplied credentials cannot be encoded or used for the selected scheme.
+     */
+    InvalidCredentials,
+    /**
+     * The peer authentication response failed validation.
+     */
+    InvalidResponse,
+    /**
+     * Authentication requires another attempt with a body that cannot be replayed.
+     */
+    BodyNotReplayable,
+    /**
+     * The peer rejected the attempted authentication.
+     */
+    Rejected,
+    /**
+     * The authentication attempt limit was reached.
+     */
+    LimitExceeded }
 
+/**
+ * Authentication failed, retaining its reason, URL, response head, and optional underlying cause.
+ */
 public class HttpAuthenticationException public constructor(
+    /**
+     * The authentication failure category.
+     */
     public val reason: HttpAuthenticationFailure,
+    /**
+     * The request URL whose authentication failed.
+     */
     public val url: Url,
+    /**
+     * The peer response head associated with failure.
+     */
     public val head: HttpResponseHead? = None,
+    /**
+     * The underlying failure, when present.
+     */
     public val cause: Throwable? = None
 ) : Exception(Some(authenticationFailureText(reason)))
 

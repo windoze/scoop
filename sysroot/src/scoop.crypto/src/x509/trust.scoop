@@ -4,17 +4,50 @@ import scoop.Result
 import scoop.crypto.native.*
 import scoop.time.Instant
 
-public enum CertificatePurpose { ServerAuth, ClientAuth, Any }
+/**
+ * The intended certificate usage checked during chain validation.
+ */
+public enum CertificatePurpose {
+    /**
+     * Require suitability for a TLS server.
+     */
+    ServerAuth,
+    /**
+     * Require suitability for a TLS client.
+     */
+    ClientAuth,
+    /**
+     * Apply chain validation without a server/client usage restriction.
+     */
+    Any }
+/**
+ * A normal chain-validation rejection, including backend code, failing chain depth, and
+ * explanatory text.
+ */
 public struct CertificateValidationFailure(val code: Long, val depth: Int, val detail: String)
 
+/**
+ * An owned set of explicit trust anchors. It does not implicitly load host operating-system trust
+ * settings.
+ */
 public class TrustStore private constructor(private var handle: ULong) : Closeable {
+    /**
+     * Creates a trust store from explicit certificate anchors.
+     */
     public companion object {
+        /**
+         * Parses PEM anchors into a new trust store and closes temporary certificate handles.
+         */
         public fun fromPem(text: String): TrustStore {
             val certificates = parseCertificatesPem(text)
             try { return fromCertificates(certificates) }
             finally { for (certificate in certificates) certificate.close() }
         }
 
+        /**
+         * Creates a store retaining the supplied anchors independently; the caller keeps ownership
+         * of its certificate handles.
+         */
         public fun fromCertificates(anchors: List<Certificate>): TrustStore {
             @Unsafe {
                 val store = TrustStore(cryptoValue(storeNew(), "create trust store"))
@@ -31,6 +64,11 @@ public class TrustStore private constructor(private var handle: ULong) : Closeab
         return handle
     }
 
+    /**
+     * Validates a certificate at the supplied time for the requested purpose, with optional
+     * intermediates and expected peer identity. Ordinary rejection returns a failure Result;
+     * native-operation failure throws.
+     */
     public fun verify(certificate: Certificate, at: Instant, purpose: CertificatePurpose,
         intermediates: List<Certificate> = ArrayList<Certificate>(),
         identity: PeerIdentity? = None): Result<Unit, CertificateValidationFailure> {
@@ -58,6 +96,9 @@ public class TrustStore private constructor(private var handle: ULong) : Closeab
         }
     }
 
+    /**
+     * Releases the native trust store; repeated closes are harmless.
+     */
     public override fun close() {
         val owned = handle
         handle = 0UL

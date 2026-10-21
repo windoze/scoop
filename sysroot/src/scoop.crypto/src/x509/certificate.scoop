@@ -4,18 +4,70 @@ import scoop.crypto.PublicKey
 import scoop.crypto.native.*
 import scoop.time.Instant
 
-public enum SubjectAlternativeName { Dns(String), Ip(Array<Byte>) }
-public enum PeerIdentity { Dns(String), Ip(Array<Byte>) }
+/**
+ * A DNS or raw IP identity declared by an X.509 certificate.
+ */
+public enum SubjectAlternativeName {
+    /**
+     * A certificate DNS alternative name.
+     */
+    Dns(String),
+    /**
+     * A certificate IP alternative name represented by address bytes.
+     */
+    Ip(Array<Byte>) }
+/**
+ * The expected peer name or address used during certificate validation.
+ */
+public enum PeerIdentity {
+    /**
+     * The expected DNS peer name.
+     */
+    Dns(String),
+    /**
+     * The expected four- or sixteen-byte IP address.
+     */
+    Ip(Array<Byte>) }
 
+/**
+ * An owned parsed X.509 certificate. Reading or exporting it does not establish trust; use
+ * TrustStore.verify for chain, time, purpose, and optional peer identity checks.
+ */
 public class Certificate internal constructor(private var handle: ULong) : Closeable {
+    /**
+     * The backend's textual representation of the subject name.
+     */
     public val subject: String get() = textField(0)
+    /**
+     * The backend's textual representation of the issuer name.
+     */
     public val issuer: String get() = textField(1)
+    /**
+     * The certificate's serial number as text.
+     */
     public val serialNumber: String get() = textField(2)
+    /**
+     * The beginning of the certificate's validity interval.
+     */
     public val notBefore: Instant get() = timeField(0)
+    /**
+     * The end of the certificate's validity interval.
+     */
     public val notAfter: Instant get() = timeField(1)
 
+    /**
+     * Parses certificate data into owned native handles.
+     */
     public companion object {
+        /**
+         * Parses PEM input into a new owned Certificate; malformed input reports a cryptographic
+         * backend failure.
+         */
         public fun fromPem(pem: String): Certificate = importCertificate(pem.toByteArray(), true)
+        /**
+         * Parses DER input into a new owned Certificate; malformed input reports a cryptographic
+         * backend failure.
+         */
         public fun fromDer(der: List<Byte>): Certificate = importCertificate(der, false)
 
         private fun importCertificate(input: List<Byte>, pem: Boolean): Certificate {
@@ -39,14 +91,30 @@ public class Certificate internal constructor(private var handle: ULong) : Close
         @Unsafe { return Instant.fromEpochSeconds(cryptoValue(certificateTime(nativeHandle(), field), "certificate time").toLong()) }
     }
 
+    /**
+     * Exports the live Certificate as DER data in an independent managed value.
+     */
     public fun toDer(): Array<Byte> { @Unsafe { return cryptoBytes(certificateExport(nativeHandle(), 0), "export certificate") } }
+    /**
+     * Exports the live Certificate as PEM data in an independent managed value.
+     */
     public fun toPem(): String { @Unsafe { return String.fromUtf8Unchecked(cryptoBytes(certificateExport(nativeHandle(), 1), "export certificate")) } }
+    /**
+     * Returns an independently owned public key extracted from this certificate.
+     */
     public fun publicKey(): PublicKey { @Unsafe { return PublicKey(cryptoValue(certificateKey(nativeHandle()), "certificate public key")) } }
 
+    /**
+     * Checks only this certificate's signature against the supplied issuer key. It does not
+     * validate a trust chain, validity time, purpose, or peer identity.
+     */
     public fun verifySignature(issuer: PublicKey): Boolean {
         @Unsafe { return cryptoValue(certificateSignature(nativeHandle(), publicKeyHandle(issuer)), "certificate signature") == 1UL }
     }
 
+    /**
+     * Returns the certificate's DNS and IP subject alternative names.
+     */
     public fun subjectAlternativeNames(): Array<SubjectAlternativeName> {
         @Unsafe {
             val names = cryptoValue(certificateNames(nativeHandle()), "certificate names")
@@ -70,6 +138,10 @@ public class Certificate internal constructor(private var handle: ULong) : Close
         }
     }
 
+    /**
+     * Releases the native Certificate handle. Repeated closes are harmless; other operations after
+     * close fail.
+     */
     public override fun close() {
         val owned = handle
         handle = 0UL

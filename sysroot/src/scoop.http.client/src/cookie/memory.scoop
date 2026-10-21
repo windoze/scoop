@@ -6,12 +6,28 @@ import scoop.platform.time.SystemClock
 import scoop.time.Clock
 import scoop.time.Instant
 
+/**
+ * A bounded in-memory cookie jar with public-suffix, expiry, secure-overlay, and optional SameSite
+ * handling. The default does not enforce browser-style SameSite context.
+ */
 public class MemoryCookieJar public constructor(
+    /**
+     * Whether load/save use the explicit cookie context for SameSite rules.
+     */
     public val enforceSameSite: Boolean = false,
     private val suffixes: PublicSuffixList = PublicSuffixList.bundled(),
     private val clock: Clock = SystemClock,
+    /**
+     * Maximum stored cookies across all domains.
+     */
     public val maxCookies: Long = 3000L,
+    /**
+     * Maximum stored cookies for one domain scope.
+     */
     public val maxCookiesPerDomain: Long = 180L,
+    /**
+     * Maximum persistent lifetime applied when accepting cookies.
+     */
     public val maxLifetimeSeconds: Long = 34560000L
 ) : CookieJar {
     private val lock: ClientLock = ClientLock()
@@ -21,6 +37,9 @@ public class MemoryCookieJar public constructor(
             throw IllegalArgumentException(Some("invalid cookie jar limits"))
     }
 
+    /**
+     * Selects cookie pairs for the request URL and available request context.
+     */
     public override suspend fun load(request: HttpRequest): HttpCookieHeader {
         val now = clock.now()
         val (sameSite, navigation) = if (enforceSameSite) clientCookieContext(request, suffixes) else (false, false)
@@ -42,6 +61,9 @@ public class MemoryCookieJar public constructor(
         return HttpCookieHeader(pairs)
     }
 
+    /**
+     * Processes each response Set-Cookie field for the request URL.
+     */
     public override suspend fun save(request: HttpRequest, response: HttpResponseHead) {
         val now = clock.now()
         val (sameSite, navigation) = if (enforceSameSite) clientCookieContext(request, suffixes) else (false, false)
@@ -66,6 +88,9 @@ public class MemoryCookieJar public constructor(
         }
     }
 
+    /**
+     * Returns unexpired stored cookies as a snapshot.
+     */
     public fun snapshot(): Array<HttpCookie> {
         val now = clock.now()
         return lock.withLock {
@@ -74,6 +99,9 @@ public class MemoryCookieJar public constructor(
         }
     }
 
+    /**
+     * Removes the matching cookie key and reports whether one existed.
+     */
     public fun remove(cookie: HttpCookie): Boolean = lock.withLock {
         for (index in 0L..<entries.size) if (sameClientCookieKey(entries[index].cookie, cookie)) {
             entries.removeAt(index)
@@ -82,7 +110,13 @@ public class MemoryCookieJar public constructor(
         false
     }
 
+    /**
+     * Removes all stored cookies.
+     */
     public fun clear() { lock.withLock { entries.clear() } }
+    /**
+     * Removes cookies without an absolute expiry, retaining persistent cookies.
+     */
     public fun clearSession() { lock.withLock {
         var index = entries.size
         while (index > 0L) { index -= 1L; if (!clientPresent(entries[index].cookie.expiresAt)) entries.removeAt(index) }

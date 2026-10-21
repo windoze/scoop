@@ -1,5 +1,9 @@
 package scoop.test
 
+/**
+ * Throws [AssertionFailure] unless the condition is true. The default location records the
+ * assertion call site.
+ */
 public fun assertTrue(
     condition: Boolean,
     message: String? = None,
@@ -10,6 +14,10 @@ public fun assertTrue(
     }
 }
 
+/**
+ * Throws [AssertionFailure] unless the condition is false. The default location records the
+ * assertion call site.
+ */
 public fun assertFalse(
     condition: Boolean,
     message: String? = None,

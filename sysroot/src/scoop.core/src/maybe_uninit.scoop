@@ -1,12 +1,30 @@
+/**
+ * Storage for a value whose initialization is managed explicitly. An uninitialized wrapper is
+ * valid storage, but reading its payload requires the unsafe caller to establish full
+ * initialization.
+ */
 @Intrinsic("core_maybe_uninit")
 public struct MaybeUninit<T> {
+    /**
+     * Reads the payload. The unsafe caller must guarantee it contains a fully initialized valid
+     * value of T.
+     */
     @NoGC @Unsafe @Intrinsic("maybe_uninit_assume_init")
     public fun assumeInit(): T
 
+    /**
+     * Creates either uninitialized storage or storage containing a valid value.
+     */
     public companion object {
+        /**
+         * Creates zeroed wrapper storage without asserting that a valid T exists.
+         */
         @NoGC @Intrinsic("maybe_uninit_zero")
         public fun uninit(): MaybeUninit<T>
 
+        /**
+         * Creates storage whose payload is the supplied initialized value.
+         */
         @NoGC @Intrinsic("maybe_uninit_initialized")
         public fun initialized(value: T): MaybeUninit<T>
     }

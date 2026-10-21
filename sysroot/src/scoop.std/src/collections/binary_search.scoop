@@ -3,6 +3,10 @@ package scoop.collections
 import scoop.comparisons.Comparator
 import scoop.comparisons.naturalOrder
 
+/**
+ * Searches a range sorted by the same ordering. The range is fromIndex inclusive to toIndex
+ * exclusive; absence returns -(insertionIndex + 1).
+ */
 public fun <T> List<T>.binarySearch(
     element: T, comparator: Comparator<T>, fromIndex: Long = 0L, toIndex: Long = this.size
 ): Long {
@@ -19,6 +23,10 @@ public fun <T> List<T>.binarySearch(
     return -low - 1L
 }
 
+/**
+ * Searches a range sorted by the same ordering. The range is fromIndex inclusive to toIndex
+ * exclusive; absence returns -(insertionIndex + 1).
+ */
 public fun <T : Compare<T>> List<T>.binarySearch(
     element: T, fromIndex: Long = 0L, toIndex: Long = this.size
 ): Long = binarySearch<T>(element, naturalOrder<T>(), fromIndex, toIndex)

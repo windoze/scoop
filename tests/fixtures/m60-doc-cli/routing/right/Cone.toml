@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.m60"
+name = "right-docs"
+version = "1.0.0"
+kind = "library"
+
+[dependencies]
+"dev.m60:versioned-docs" = {version = "1.0.0", path = "../v1"}

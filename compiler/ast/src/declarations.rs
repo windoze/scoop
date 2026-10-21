@@ -15,6 +15,7 @@ pub struct SourceFile {
     pub package: PackageSyntax,
     pub imports: Vec<ImportSyntax>,
     pub declarations: Vec<Decl>,
+    pub documentation: Vec<crate::DocComment>,
     pub span: Span,
 }
 
@@ -29,6 +30,22 @@ pub enum Decl {
     Class(ClassDecl),
     Interface(InterfaceDecl),
     Object(ObjectDecl),
+}
+
+impl Decl {
+    pub fn span(&self) -> Span {
+        match self {
+            Self::Global(node) => node.span,
+            Self::Function(node) => node.span,
+            Self::TypeAlias(node) => node.span,
+            Self::AnnotationClass(node) => node.span,
+            Self::Struct(node) => node.span,
+            Self::Enum(node) => node.span,
+            Self::Class(node) => node.span,
+            Self::Interface(node) => node.span,
+            Self::Object(node) => node.span,
+        }
+    }
 }
 
 /// A transparent alias, expanded in its declaration-site type scope.

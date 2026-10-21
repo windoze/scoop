@@ -42,6 +42,7 @@ def decode_streams(stdout, stderr, mode):
                 "library",
                 "executable",
                 "link",
+                "documentation",
             }
             if mode == "test-stderr":
                 kinds |= {"test-report", "test-list"}

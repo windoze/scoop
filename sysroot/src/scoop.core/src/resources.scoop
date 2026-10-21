@@ -1,17 +1,46 @@
+/**
+ * A resource with explicit cleanup. Whether repeated disposal is accepted is specified by each
+ * implementation.
+ */
 public interface Disposable {
+    /**
+     * Releases the resource according to the implementation's ownership contract.
+     */
     public fun dispose()
 }
 
+/**
+ * A disposable resource whose cleanup operation is named close.
+ */
 public interface Closeable : Disposable {
+    /**
+     * Closes the resource according to its ownership contract.
+     */
     public fun close()
+    /**
+     * Delegates disposal to close.
+     */
     public override fun dispose() { close() }
 }
 
+/**
+ * Preserves both failures when a resource body and its cleanup throw.
+ */
 public class ResourceUseException public constructor(
+    /**
+     * The exception thrown by the resource body.
+     */
     public val primaryFailure: Throwable,
+    /**
+     * The exception thrown while disposing the resource after the body failed.
+     */
     public val cleanupFailure: Throwable
 ) : Exception(Some("resource body and cleanup both failed"))
 
+/**
+ * Runs the block and always disposes the receiver on exit, including exceptional exit. If both
+ * body and cleanup fail, throws ResourceUseException containing both failures.
+ */
 public fun <T : Disposable, R> T.use(block: (T) -> R): R {
     val result = try {
         block(this)
@@ -27,6 +56,10 @@ public fun <T : Disposable, R> T.use(block: (T) -> R): R {
     return result
 }
 
+/**
+ * Runs the block and always disposes the receiver on exit, including exceptional exit. If both
+ * body and cleanup fail, throws ResourceUseException containing both failures.
+ */
 public suspend fun <T : Disposable, R> T.use(block: suspend (T) -> R): R {
     val result = try {
         block(this)

@@ -1,8 +1,15 @@
 package scoop.bytes
 
+/**
+ * A growable in-memory byte accumulator. Byte-array conversions return independent copies; clear
+ * resets the logical size for reuse.
+ */
 public class ByteArrayBuilder public constructor() {
     private var storage: MutableArray<Byte> = MutableArray<Byte>(0L) { _ -> 0.toByte() }
     private var count: Long = 0L
+    /**
+     * The number of accumulated bytes.
+     */
     public val size: Long get() = count
 
     private fun reserve(extra: Long) {
@@ -17,6 +24,9 @@ public class ByteArrayBuilder public constructor() {
         storage = MutableArray<Byte>(capacity) { index -> if (index < length) old[index] else 0.toByte() }
     }
 
+    /**
+     * Appends the supplied byte or byte sequence and returns this builder.
+     */
     public fun append(value: Byte): ByteArrayBuilder {
         reserve(1L)
         storage[count] = value
@@ -24,6 +34,9 @@ public class ByteArrayBuilder public constructor() {
         return this
     }
 
+    /**
+     * Appends the supplied byte or byte sequence and returns this builder.
+     */
     public fun append(value: List<Byte>): ByteArrayBuilder {
         val length = value.size
         if (length > Long.MAX_VALUE - count) throw ArithmeticException()
@@ -35,13 +48,22 @@ public class ByteArrayBuilder public constructor() {
         return this
     }
 
+    /**
+     * Removes all accumulated bytes while retaining reusable storage.
+     */
     public fun clear() {
         var index = 0L
         while (index < count) { storage[index] = 0.toByte(); index += 1L }
         count = 0L
     }
 
+    /**
+     * Copies the accumulated bytes into a read-only array.
+     */
     public fun toByteArray(): Array<Byte> = Array<Byte>(count) { index -> storage[index] }
+    /**
+     * Copies the accumulated bytes into an independent mutable array.
+     */
     public fun toMutableByteArray(): MutableArray<Byte> = MutableArray<Byte>(count) { index -> storage[index] }
 
     private fun write(value: ULong, width: Long, order: ByteOrder) {
@@ -55,14 +77,44 @@ public class ByteArrayBuilder public constructor() {
         count += width
     }
 
+    /**
+     * Appends one Int8 value as one byte.
+     */
     public fun writeInt8(value: Int8) { append(value) }
+    /**
+     * Appends one UInt8 value as one byte.
+     */
     public fun writeUInt8(value: UInt8) { append(value.toByte()) }
+    /**
+     * Appends one Int16 value in the selected byte order.
+     */
     public fun writeInt16(value: Int16, order: ByteOrder) { write(value.toULong(), 2L, order) }
+    /**
+     * Appends one UInt16 value in the selected byte order.
+     */
     public fun writeUInt16(value: UInt16, order: ByteOrder) { write(value.toULong(), 2L, order) }
+    /**
+     * Appends one Int32 value in the selected byte order.
+     */
     public fun writeInt32(value: Int32, order: ByteOrder) { write(value.toULong(), 4L, order) }
+    /**
+     * Appends one UInt32 value in the selected byte order.
+     */
     public fun writeUInt32(value: UInt32, order: ByteOrder) { write(value.toULong(), 4L, order) }
+    /**
+     * Appends one Int64 value in the selected byte order.
+     */
     public fun writeInt64(value: Int64, order: ByteOrder) { write(value.toULong(), 8L, order) }
+    /**
+     * Appends one UInt64 value in the selected byte order.
+     */
     public fun writeUInt64(value: UInt64, order: ByteOrder) { write(value, 8L, order) }
+    /**
+     * Appends the IEEE 754 bit representation of a Float value in the selected byte order.
+     */
     public fun writeFloat(value: Float, order: ByteOrder) { writeInt32(value.toBits(), order) }
+    /**
+     * Appends the IEEE 754 bit representation of a Double value in the selected byte order.
+     */
     public fun writeDouble(value: Double, order: ByteOrder) { writeInt64(value.toBits(), order) }
 }

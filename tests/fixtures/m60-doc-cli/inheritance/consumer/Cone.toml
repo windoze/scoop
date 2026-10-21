@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.m60"
+name = "inheritance-consumer"
+version = "0.1.0"
+kind = "library"
+
+[dependencies]
+"dev.m60:inheritance-provider" = {version = "0.1.0", path = "../provider"}

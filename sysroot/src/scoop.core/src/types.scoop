@@ -1,43 +1,114 @@
+/**
+ * The operator protocol for same-domain value equality. Implementations used with Hash must assign
+ * equal values equal hashes.
+ */
 public interface Equals<T> {
+    /**
+     * Returns whether this value and the operand are equal under the implementing type's contract.
+     */
     public operator fun equals(other: T): Boolean
 }
 
+/**
+ * Provides a human-readable textual representation without prescribing a serialization format.
+ */
 public interface ToString {
+    /**
+     * Returns the value's textual representation.
+     */
     public fun toString(): String
 }
 
+/**
+ * Provides a Long hash consistent with the type's value equality; it is not a cryptographic
+ * digest.
+ */
 public interface Hash {
+    /**
+     * Returns the value's hash. Equal values must produce equal hashes.
+     */
     public fun hash(): Long
 }
 
+/**
+ * A transparent alias for [Int8] with the same representation and operations.
+ */
 public typealias Byte = Int8
+/**
+ * A transparent alias for [Int16] with the same representation and operations.
+ */
 public typealias Short = Int16
+/**
+ * A transparent alias for [Int] with the same representation and operations.
+ */
 public typealias Int32 = Int
+/**
+ * A transparent alias for [Long] with the same representation and operations.
+ */
 public typealias Int64 = Long
+/**
+ * A transparent alias for [UInt8] with the same representation and operations.
+ */
 public typealias UByte = UInt8
+/**
+ * A transparent alias for [UInt16] with the same representation and operations.
+ */
 public typealias UShort = UInt16
+/**
+ * A transparent alias for [UInt] with the same representation and operations.
+ */
 public typealias UInt32 = UInt
+/**
+ * A transparent alias for [ULong] with the same representation and operations.
+ */
 public typealias UInt64 = ULong
 
+/**
+ * The two logical values true and false, with Boolean negation and scalar codec support.
+ */
 @Intrinsic("core_boolean")
 public struct Boolean : Not<Boolean>, Equals<Boolean>, ToString, Hash {
+    /**
+     * Compares the two logical values.
+     */
     public override operator fun equals(other: Boolean): Boolean = coreBooleanEquals(this, other)
 
 
+    /**
+     * Returns false for true and true for false.
+     */
     @Intrinsic("boolean_not")
     public override operator fun not(): Boolean
 
+    /**
+     * Returns `true` or `false`.
+     */
     public override fun toString(): String = coreBooleanToString(this)
 
+    /**
+     * Returns a hash consistent with Boolean equality.
+     */
     public override fun hash(): Long = coreBooleanHash(this)
 
+    /**
+     * Inspection and serialization operations for this value type.
+     */
     public companion object : ValueEncoder<Boolean>, ValueDecoder<Boolean>, ValueInspector<Boolean> {
+        /**
+         * Exposes the value as a typed scalar observation.
+         */
         public override fun inspect(value: Boolean): ValueView =
             ValueObservation(typeInfo<Boolean>().type, None, { ValueShape.Scalar(ScalarValue.Boolean(value)) })
 
+        /**
+         * Writes the scalar value through the corresponding single-value encoding operation.
+         */
         public override fun encode(value: Boolean, encoder: Encoder): Unit =
             encoder.singleValue().writeBoolean(value)
 
+        /**
+         * Reads the scalar through the corresponding decoding operation.
+         */
         public override fun decode(decoder: Decoder): Boolean =
             decoder.singleValue().readBoolean()
     }

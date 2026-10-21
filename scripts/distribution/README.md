@@ -17,6 +17,10 @@ scoop build my-cone --target x86_64-unknown-linux-musl
 
 最后一条命令用于 GNU 宿主包，并要求 musl 开发环境。非 core 库仍须在 `Cone.toml` 声明普通依赖；包中存在某个库不会自动导入它。`src` 保留库源码，`vendor` 保留相关 native 输入。显式 source／artifact 依赖和 `--sysroot` 可选用另一组兼容资源；`--runtime-root` 明确请求从另行提供的 runtime 源码构建。
 
+用浏览器打开安装根的 `docs/index.html`，选择应用所用目标，即可浏览所有内置库的 API、说明和源码。页面之间使用相对链接，搜索及资源随包提供，无需联网或启动服务器。Darwin 包提供 Darwin 文档，Linux 包分别提供 GNU 与 musl 文档；源码直接嵌入 HTML，移动完整安装目录后仍可阅读。
+
+自己的 Cone 可用 `scoop doc my-cone` 生成离线文档；多个 Cone 可同时作为参数传入。`--no-deps` 只展示显式选择的根，`--deny-doc-warnings` 将文档 warning 作为生成失败处理。只有预编译产物的依赖仍可参与类型检查；没有可用源码文本时不生成源码展示部分，`.slib` 不包含完整源码。
+
 使用统一 HTTP client 时，在应用的 `Cone.toml` 中声明：
 
 ```toml

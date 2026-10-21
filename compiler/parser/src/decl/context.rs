@@ -17,6 +17,7 @@ impl Parser {
         }
         let mut parameters = Vec::new();
         loop {
+            let doc_start = self.pos;
             let name = self.expect_ident("context parameter name or `_`")?;
             self.expect(
                 "`:` after context parameter name (modifiers are not allowed)",
@@ -29,6 +30,7 @@ impl Parser {
             } else {
                 ContextParameterLabel::Named(name)
             };
+            self.attach_documentation(doc_start, span);
             parameters.push(ContextParameter { label, ty, span });
             if matches!(self.peek().kind, TokenKind::Equal) {
                 return Err(Diagnostic::at(

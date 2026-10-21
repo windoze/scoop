@@ -2,15 +2,46 @@ package scoop.http.client
 
 import scoop.time.Duration
 
+/**
+ * Optional nonnegative deadlines for the total call and individual waits. None disables that
+ * bound; total includes upload, response body, and cleanup.
+ */
 public class HttpTimeoutOptions public constructor(
+    /**
+     * Optional timeout for the entire call through body and cleanup; None disables this bound.
+     */
     public val total: Duration? = None,
+    /**
+     * Optional timeout for waiting for pool capacity; None disables this bound.
+     */
     public val poolAcquire: Duration? = None,
+    /**
+     * Optional timeout for waiting for final response headers; None disables this bound.
+     */
     public val responseHeaders: Duration? = None,
+    /**
+     * Optional timeout for resolving an address; None disables this bound.
+     */
     public val resolve: Duration? = Some(Duration.seconds(30L)),
+    /**
+     * Optional timeout for establishing TCP; None disables this bound.
+     */
     public val connect: Duration? = Some(Duration.seconds(30L)),
+    /**
+     * Optional timeout for performing a TLS handshake; None disables this bound.
+     */
     public val tlsHandshake: Duration? = Some(Duration.seconds(30L)),
+    /**
+     * Optional timeout for waiting without incoming progress; None disables this bound.
+     */
     public val readIdle: Duration? = None,
+    /**
+     * Optional timeout for waiting without outgoing progress; None disables this bound.
+     */
     public val writeIdle: Duration? = None,
+    /**
+     * Optional timeout for performing CONNECT or SOCKS5 negotiation; None disables this bound.
+     */
     public val proxyHandshake: Duration? = Some(Duration.seconds(30L))
 ) {
     init {
@@ -21,15 +52,79 @@ public class HttpTimeoutOptions public constructor(
     }
 }
 
-public enum HttpTimeoutPhase { Total, PoolAcquire, ResponseHeaders, Resolve, Connect, TlsHandshake, ReadIdle, WriteIdle, ProxyHandshake }
+/**
+ * The call phase whose configured deadline expired.
+ */
+public enum HttpTimeoutPhase {
+    /**
+     * The deadline expired while the entire call through body and cleanup.
+     */
+    Total,
+    /**
+     * The deadline expired while waiting for pool capacity.
+     */
+    PoolAcquire,
+    /**
+     * The deadline expired while waiting for final response headers.
+     */
+    ResponseHeaders,
+    /**
+     * The deadline expired while resolving an address.
+     */
+    Resolve,
+    /**
+     * The deadline expired while establishing TCP.
+     */
+    Connect,
+    /**
+     * The deadline expired while performing a TLS handshake.
+     */
+    TlsHandshake,
+    /**
+     * The deadline expired while waiting without incoming progress.
+     */
+    ReadIdle,
+    /**
+     * The deadline expired while waiting without outgoing progress.
+     */
+    WriteIdle,
+    /**
+     * The deadline expired while performing CONNECT or SOCKS5 negotiation.
+     */
+    ProxyHandshake }
 
+/**
+ * An expired deadline with configured limit, elapsed time, byte progress, and optional underlying
+ * cause.
+ */
 public class HttpTimeoutException internal constructor(
+    /**
+     * The phase whose deadline expired.
+     */
     public val phase: HttpTimeoutPhase,
+    /**
+     * The configured deadline duration.
+     */
     public val limit: Duration,
+    /**
+     * The measured duration for that deadline.
+     */
     public val elapsed: Duration,
+    /**
+     * Request body bytes transferred before timeout.
+     */
     public val requestBodyBytes: Long,
+    /**
+     * Response bytes received before content decoding.
+     */
     public val encodedResponseBodyBytes: Long,
+    /**
+     * Response bytes delivered after content decoding.
+     */
     public val responseBodyBytes: Long,
+    /**
+     * The underlying failure associated with the timeout, if any.
+     */
     public val cause: Throwable? = None
 ) : Exception(Some("HTTP " + httpTimeoutPhaseName(phase) + " timeout"))
 

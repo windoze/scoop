@@ -50,7 +50,7 @@ pub use paths::{
     target_library_root,
 };
 pub use registry::host_target_triple;
-pub use registry::{CToolchainOptions, ResolvedTargetProfile};
+pub use registry::{CToolchainOptions, ResolvedTargetProfile, select_target};
 pub use runtime::ValidatedRuntimeBuildProfile;
 pub use system_provider::{
     LIBSYSTEM_INSTALL_NAME, NativeExport, PreviousExport, SystemExportKind, SystemProvider,

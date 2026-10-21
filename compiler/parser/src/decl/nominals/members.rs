@@ -18,6 +18,12 @@ impl Parser {
             let parsed = self.parse_class_member();
             match parsed {
                 Ok(member) => {
+                    if !matches!(
+                        member,
+                        ClassMember::InitBlock(_) | ClassMember::ReleaseBlock(_)
+                    ) {
+                        self.attach_documentation(start, member.span());
+                    }
                     if matches!(member, ClassMember::Companion(_))
                         && members
                             .iter()
@@ -327,6 +333,7 @@ impl Parser {
             });
             match parsed {
                 Ok(member) => {
+                    self.attach_documentation(start, member.span());
                     if matches!(member, StructMember::Companion(_))
                         && members
                             .iter()

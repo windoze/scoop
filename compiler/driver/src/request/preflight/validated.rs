@@ -68,11 +68,15 @@ impl<'input> ValidatedSingleConeBuildRequest<'input> {
         &self.dependencies
     }
 
-    pub const fn target(&self) -> &scoop_toolchain::ResolvedTargetProfile {
-        &self.request.target
+    pub fn target(&self) -> &scoop_toolchain::ResolvedTargetProfile {
+        self.request.target.production()
     }
 
-    pub const fn output(&self) -> &SlibOutputDestination {
+    pub fn target_selection(&self) -> scoop_lir::ValidatedLirTargetSelection {
+        self.request.target.selection()
+    }
+
+    pub const fn output(&self) -> &super::super::SingleConeOutput {
         &self.request.output
     }
 
@@ -108,9 +112,11 @@ impl LoadedSingleConeBuildRequest {
         &self,
     ) -> Result<CurrentConeParsedSources, CurrentConeSourceStageError> {
         match &self.current {
-            LoadedCurrentConeInput::Manifest { manifest } => {
-                parse_manifest_current(manifest, self.target.id(), self.purpose)
-            }
+            LoadedCurrentConeInput::Manifest { manifest } => parse_manifest_current(
+                manifest,
+                self.target.selection().target().id(),
+                self.purpose,
+            ),
             LoadedCurrentConeInput::SingleFile { source } => parse_single_file_current(source),
         }
     }
@@ -126,7 +132,12 @@ impl LoadedSingleConeBuildRequest {
         };
         let dependencies = self
             .dependencies
-            .validate_inner(manifest, current_identity, &self.target, self.purpose)
+            .validate_inner(
+                manifest,
+                current_identity,
+                self.target.selection(),
+                self.purpose,
+            )
             .map_err(SingleConeDependencyValidationError::ExplicitDependencies)?;
         let protocols = if current_identity == ConeIdentity::CORE {
             ValidatedCompilerProtocols::CurrentDeclarations

@@ -1,43 +1,127 @@
+/**
+ * A format-independent encoding strategy for T, usable explicitly or through a type companion.
+ */
 public interface ValueEncoder<T> {
+    /**
+     * Writes one value using the supplied format backend.
+     */
     public fun encode(value: T, encoder: Encoder): Unit
 }
 
+/**
+ * A format backend positioned at one value. Select a keyed record, unkeyed sequence, or single
+ * scalar container according to the value's representation.
+ */
 public interface Encoder {
+    /**
+     * The backend-defined diagnostic path of the current value.
+     */
     public val path: String
+    /**
+     * Selects the named-field record container at this value.
+     */
     public fun keyed(): KeyedEncodingContainer
+    /**
+     * Selects the ordered sequence container at this value.
+     */
     public fun unkeyed(): UnkeyedEncodingContainer
+    /**
+     * Selects the scalar or null container at this value.
+     */
     public fun singleValue(): SingleValueEncodingContainer
 }
 
+/**
+ * A named-field record container. Finish the record with end after processing its fields.
+ */
 public interface KeyedEncodingContainer {
+    /**
+     * Opens the child encoder for the named field.
+     */
     public fun field(name: String): Encoder
+    /**
+     * Completes the container and permits the backend to check its final structure.
+     */
     public fun end(): Unit
 }
 
+/**
+ * An ordered sequence container. Finish the sequence with end after processing its elements.
+ */
 public interface UnkeyedEncodingContainer {
+    /**
+     * Opens the encoder for the next sequence element.
+     */
     public fun element(): Encoder
+    /**
+     * Completes the container and permits the backend to check its final structure.
+     */
     public fun end(): Unit
 }
 
+/**
+ * The format backend's scalar and explicit-null operations. Supported representations and
+ * conversion errors belong to the backend.
+ */
 public interface SingleValueEncodingContainer {
+    /**
+     * Writes one Boolean scalar using the backend's representation rules.
+     */
     public fun writeBoolean(value: Boolean): Unit
+    /**
+     * Writes one Long scalar using the backend's representation rules.
+     */
     public fun writeLong(value: Long): Unit
+    /**
+     * Writes one ULong scalar using the backend's representation rules.
+     */
     public fun writeULong(value: ULong): Unit
+    /**
+     * Writes one Float scalar using the backend's representation rules.
+     */
     public fun writeFloat(value: Float): Unit
+    /**
+     * Writes one Double scalar using the backend's representation rules.
+     */
     public fun writeDouble(value: Double): Unit
+    /**
+     * Writes one String scalar using the backend's representation rules.
+     */
     public fun writeString(value: String): Unit
+    /**
+     * Writes an explicit null.
+     */
     public fun writeNull(): Unit
 }
 
-public class EncodingException public constructor(public val path: String, message: String)
+/**
+ * Reports a encoding failure with the backend's path to the affected value.
+ */
+public class EncodingException public constructor(
+    /**
+     * The backend-defined path of the value that failed.
+     */
+    public val path: String, message: String)
     : Exception(Some(message))
 
+/**
+ * Adapts an ordinary function to the value encoding protocol.
+ */
 public class ValueEncoderFunction<T> public constructor(private val body: (T, Encoder) -> Unit)
     : ValueEncoder<T> {
+    /**
+     * Invokes the wrapped encoding function.
+     */
     public override fun encode(value: T, encoder: Encoder): Unit = body(value, encoder)
 }
 
+/**
+ * Represents the zero-sized Unit value as an explicit null scalar.
+ */
 public object UnitEncoder : ValueEncoder<Unit> {
+    /**
+     * Uses the backend's explicit null operation for Unit.
+     */
     public override fun encode(value: Unit, encoder: Encoder): Unit =
         encoder.singleValue().writeNull()
 }

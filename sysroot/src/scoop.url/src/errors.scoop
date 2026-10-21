@@ -1,15 +1,82 @@
 package scoop.url
 
-public enum UrlComponent { Reference, Scheme, Authority, UserInfo, Host, Port, Path, Query, Fragment, PercentEncoding }
+/**
+ * The component responsible for a URL parsing or construction failure.
+ */
+public enum UrlComponent {
+    /**
+     * The failure concerns the complete reference or its overall structure.
+     */
+    Reference,
+    /**
+     * The failure concerns the scheme prefix.
+     */
+    Scheme,
+    /**
+     * The failure concerns the complete authority.
+     */
+    Authority,
+    /**
+     * The failure concerns the authority's user information.
+     */
+    UserInfo,
+    /**
+     * The failure concerns the DNS or IP host.
+     */
+    Host,
+    /**
+     * The failure concerns the explicit network port.
+     */
+    Port,
+    /**
+     * The failure concerns the path component.
+     */
+    Path,
+    /**
+     * The failure concerns the query component.
+     */
+    Query,
+    /**
+     * The failure concerns the fragment component.
+     */
+    Fragment,
+    /**
+     * The failure concerns a malformed percent escape or decoded component.
+     */
+    PercentEncoding }
 
+/**
+ * A format failure with its component, optional original UTF-8 byte offset, detail, and optional
+ * IDNA cause.
+ */
 public class UrlParseException public constructor(
+    /**
+     * The component whose syntax or value is invalid.
+     */
     public val component: UrlComponent,
+    /**
+     * The zero-based original UTF-8 byte position when available; None when the failure has no
+     * original input position.
+     */
     public val offset: Long?,
+    /**
+     * A human-readable explanation of the invalid component.
+     */
     public val detail: String,
+    /**
+     * An underlying validation failure, such as an IDNA error, when available.
+     */
     public val cause: Throwable? = None
 ) : Exception(Some(detail))
 
-public class UrlBackendException internal constructor(public val code: Int, detail: String) : Exception(Some(detail))
+/**
+ * An allocation or parser-backend failure, separate from an ordinary invalid URL.
+ */
+public class UrlBackendException internal constructor(
+    /**
+     * The backend error code associated with the failed operation.
+     */
+    public val code: Int, detail: String) : Exception(Some(detail))
 
 internal fun urlError(component: UrlComponent, detail: String, offset: Long? = None): Nothing =
     throw UrlParseException(component, offset, detail)

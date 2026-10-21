@@ -3,19 +3,43 @@ package scoop.url
 import scoop.idna.*
 import scoop.text.*
 
+/**
+ * A validated network host represented as a DNS A-label name or exact IP address bytes.
+ */
 public enum UrlHost : Equals<UrlHost>, Hash, ToString {
-    Dns(val name: String), Ipv4(val bytes: Array<Byte>), Ipv6(val bytes: Array<Byte>)
+    /**
+     * A DNS name normalized for network-origin comparison.
+     */
+    Dns(val name: String),
+        /**
+         * Exactly four network-order address bytes.
+         */
+        Ipv4(val bytes: Array<Byte>),
+        /**
+         * Exactly sixteen network-order address bytes; zone identifiers are outside this URL
+         * profile.
+         */
+        Ipv6(val bytes: Array<Byte>)
 
+    /**
+     * Compares normalized DNS names or exact same-family address bytes.
+     */
     public override operator fun equals(other: UrlHost): Boolean = when (this) {
         case Dns(name) -> when (other) { case Dns(right) -> name == right; else -> false }
         case Ipv4(bytes) -> when (other) { case Ipv4(right) -> urlBytesEqual(bytes, right); else -> false }
         case Ipv6(bytes) -> when (other) { case Ipv6(right) -> urlBytesEqual(bytes, right); else -> false }
     }
+    /**
+     * Hashes the same normalized host identity used by equality.
+     */
     public override fun hash(): Long = when (this) {
         case Dns(name) -> name.hash()
         case Ipv4(bytes) -> hashUrlBytes(bytes, 4L)
         case Ipv6(bytes) -> hashUrlBytes(bytes, 6L)
     }
+    /**
+     * Serializes the DNS name or IP literal for use in a URI authority.
+     */
     public override fun toString(): String = when (this) {
         case Dns(name) -> name
         case Ipv4(bytes) -> formatUrlIp(bytes, false)

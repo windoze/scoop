@@ -1,8 +1,11 @@
 use std::fmt;
 use std::path::{Path, PathBuf};
 
+mod documentation;
 mod normalization;
 mod output;
+mod target;
+pub use documentation::{DocumentationOutputDestination, SingleConeOutput};
 pub use normalization::{
     DirectBuildOptions, normalize_direct_build_request, normalize_protocol_build_request,
 };
@@ -13,7 +16,8 @@ pub use output::{OutputAliasRole, OutputIsolationErrorKind, SlibOutputDestinatio
 pub use preflight::*;
 pub use report::{
     CurrentConeDiagnosticSet, CurrentConeDiagnosticSetError, DiagnosticMappingError,
-    EmittedStageDump, SingleConeCompilation, SingleConeProductionSuccess, StageObservation,
+    EmittedStageDump, PublishedDocumentation, SingleConeCompilation,
+    SingleConeDocumentationSuccess, SingleConeProductionSuccess, StageObservation,
 };
 
 use scoop_codegen::CodegenError;
@@ -95,8 +99,8 @@ pub struct SingleConeBuildRequest {
     current: CurrentConeInput,
     dependencies: ExplicitDependencyInputs,
     trusted_core: TrustedCoreInput,
-    target: ResolvedTargetProfile,
-    output: SlibOutputDestination,
+    target: target::SelectedTarget,
+    output: SingleConeOutput,
     diagnostics: DiagnosticOutputPolicy,
     emit: StageDumpPolicy,
     optimization: scoop_lir::OptimizationMode,
@@ -117,11 +121,33 @@ impl SingleConeBuildRequest {
         dependencies: ExplicitDependencyInputs,
         trusted_core: TrustedCoreInput,
         target: ResolvedTargetProfile,
-        output: SlibOutputDestination,
+        output: impl Into<SingleConeOutput>,
+        diagnostics: DiagnosticOutputPolicy,
+        emit: StageDumpPolicy,
+    ) -> Result<Self, SingleConeBuildRequestError> {
+        Self::new_selected(
+            current,
+            dependencies,
+            trusted_core,
+            target::SelectedTarget::Production(Box::new(target)),
+            output.into(),
+            diagnostics,
+            emit,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn new_selected(
+        current: CurrentConeInput,
+        dependencies: ExplicitDependencyInputs,
+        trusted_core: TrustedCoreInput,
+        target: target::SelectedTarget,
+        output: SingleConeOutput,
         diagnostics: DiagnosticOutputPolicy,
         emit: StageDumpPolicy,
     ) -> Result<Self, SingleConeBuildRequestError> {
         validate_request_shape(&current, &dependencies, &trusted_core, &output)?;
+        output.validate(&current, CompilationPurpose::Production, emit)?;
         Ok(Self {
             current,
             dependencies,
@@ -151,6 +177,7 @@ impl SingleConeBuildRequest {
             return Err(SingleConeBuildRequestError::TestRequiresManifest);
         }
         self.purpose = purpose;
+        self.output.validate(&self.current, purpose, self.emit)?;
         Ok(self)
     }
 
@@ -178,6 +205,11 @@ pub enum SingleConeBuildRequestError {
     InvalidCurrentCoreCombination,
     SingleFileHasDependencies,
     TestRequiresManifest,
+    DocumentationRequiresProductionManifest,
+    DocumentationMachineDump,
+    InvalidDocumentationOutput {
+        path: PathBuf,
+    },
     OutputIsolation {
         path: PathBuf,
         kind: OutputIsolationErrorKind,
@@ -207,6 +239,17 @@ impl fmt::Display for SingleConeBuildRequestError {
             Self::TestRequiresManifest => {
                 formatter.write_str("test compilation requires a manifest Cone")
             }
+            Self::DocumentationRequiresProductionManifest => {
+                formatter.write_str("documentation requires a Production manifest Cone")
+            }
+            Self::DocumentationMachineDump => {
+                formatter.write_str("documentation-only output cannot emit MIR or LIR")
+            }
+            Self::InvalidDocumentationOutput { path } => write!(
+                formatter,
+                "documentation input output must use the exact .json extension: {}",
+                path.display()
+            ),
             Self::OutputIsolation { path, kind } => {
                 write!(formatter, "invalid .slib output {}: {kind}", path.display())
             }
@@ -267,7 +310,7 @@ fn validate_request_shape(
     current: &CurrentConeInput,
     dependencies: &ExplicitDependencyInputs,
     trusted_core: &TrustedCoreInput,
-    output: &SlibOutputDestination,
+    output: &SingleConeOutput,
 ) -> Result<(), SingleConeBuildRequestError> {
     match (current, trusted_core) {
         (CurrentConeInput::Manifest { .. }, _) => Ok(()),
@@ -283,7 +326,10 @@ fn validate_request_shape(
         }
         _ => Err(SingleConeBuildRequestError::InvalidCurrentCoreCombination),
     }?;
-    validate_output_isolation(current, dependencies, trusted_core, output)
+    if let Some(output) = output.artifact() {
+        validate_output_isolation(current, dependencies, trusted_core, output)?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]

@@ -12,6 +12,10 @@ private fun execute(action: TestAction, phase: TestPhase): TestFailure? {
     }
 }
 
+/**
+ * Initializes and runs one test, capturing initialization, setup, body, and cleanup failures in
+ * [TestResult]. Cleanup still runs after setup failure, while the body is skipped.
+ */
 public fun runTestCase(
     location: SourceLocation = currentSourceLocation(),
     initialize: () -> TestActions

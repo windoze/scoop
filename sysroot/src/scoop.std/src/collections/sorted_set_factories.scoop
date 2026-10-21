@@ -7,19 +7,31 @@ internal class SortedSetSnapshot<T> internal constructor(
     private val elements: SortedSet<T>
 ) : SortedSet<T> by elements
 
+/**
+ * Creates an ordered set using the supplied or natural comparator.
+ */
 public fun <T> sortedSetOf(comparator: Comparator<T>, vararg elements: T): TreeSet<T> {
     val result = TreeSet<T>(comparator)
     for (element in elements) result.add(element)
     return result
 }
 
+/**
+ * Creates an ordered set using the supplied or natural comparator.
+ */
 public fun <T : Compare<T>> sortedSetOf(vararg elements: T): TreeSet<T> =
     sortedSetOf<T>(naturalOrder<T>(), *elements)
 
+/**
+ * Copies elements into a read-only ordered set using the selected ordering.
+ */
 public fun <T> Iterable<T>.toSortedSet(comparator: Comparator<T>): SortedSet<T> {
     val result = TreeSet<T>(comparator)
     for (element in this) result.add(element)
     return SortedSetSnapshot<T>(result)
 }
 
+/**
+ * Copies elements into a read-only ordered set using the selected ordering.
+ */
 public fun <T : Compare<T>> Iterable<T>.toSortedSet(): SortedSet<T> = toSortedSet<T>(naturalOrder<T>())

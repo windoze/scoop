@@ -5,10 +5,20 @@ import scoop.platform.memory.NativeByteBuffer
 import scoop.platform.net.*
 import scoop.test.*
 
+/**
+ * Carries a reference-valued result across the published generic event-loop API.
+ */
 private class PacketValue(val value: Int)
 
+/**
+ * Exercises the precompiled asyncio API from a separate consumer Cone.
+ */
 @Test
 private class AsyncioConsumerTest {
+    /**
+     * Checks generic loop results, scoped UDP ownership, native-buffer progress, and GC across
+     * a real loopback datagram.
+     */
     @Test
     fun `production artifacts expose generic results resource use and native IO`() {
         val loop: EventLoop = LibuvEventLoop()

@@ -2,7 +2,23 @@ package scoop.crypto
 
 import scoop.crypto.native.*
 
-public enum AeadAlgorithm { Aes128Gcm, Aes256Gcm }
+/**
+ * The supported AES-GCM key sizes. Both variants require a 12-byte nonce and produce a 16-byte
+ * authentication tag.
+ */
+public enum AeadAlgorithm {
+    /**
+     * AES-GCM with a 16-byte key.
+     */
+    Aes128Gcm,
+    /**
+     * AES-GCM with a 32-byte key.
+     */
+    Aes256Gcm }
+/**
+ * Ciphertext and its separate 16-byte GCM authentication tag; the nonce and associated data are
+ * supplied separately.
+ */
 public struct AeadCiphertext(val ciphertext: Array<Byte>, val tag: Array<Byte>)
 
 private fun aeadCode(algorithm: AeadAlgorithm, key: SecretKey, nonce: List<Byte>): Int {
@@ -12,6 +28,11 @@ private fun aeadCode(algorithm: AeadAlgorithm, key: SecretKey, nonce: List<Byte>
     return if (algorithm == AeadAlgorithm.Aes128Gcm) 0 else 1
 }
 
+/**
+ * Encrypts and authenticates plaintext and associated data with AES-GCM. The caller must use a
+ * fresh nonce for each encryption under the same key. Key size and 12-byte nonce length are
+ * checked.
+ */
 public fun encrypt(algorithm: AeadAlgorithm, key: SecretKey, nonce: List<Byte>, plaintext: List<Byte>, aad: List<Byte> = Array<Byte>(0L) { _ -> 0.toByte() }): AeadCiphertext {
     val code = aeadCode(algorithm, key, nonce)
     val bytes = transform(code, true, key, nonce, aad, plaintext, Array<Byte>(0L) { _ -> 0.toByte() })!!
@@ -21,6 +42,10 @@ public fun encrypt(algorithm: AeadAlgorithm, key: SecretKey, nonce: List<Byte>, 
 }
 
 // Authenticates and decrypts; only an authentication mismatch returns None.
+/**
+ * Authenticates before returning plaintext. Only authentication mismatch returns None; invalid
+ * sizes and backend failures throw.
+ */
 public fun decryptOrNone(algorithm: AeadAlgorithm, key: SecretKey, nonce: List<Byte>, encrypted: AeadCiphertext, aad: List<Byte> = Array<Byte>(0L) { _ -> 0.toByte() }): Array<Byte>? {
     val code = aeadCode(algorithm, key, nonce)
     if (encrypted.tag.size != 16L) throw IllegalArgumentException(Some("AES-GCM tag must contain 16 bytes"))

@@ -3,6 +3,33 @@ use hir::ImportedCallableSource;
 use scoop_identity::SignatureTypeKey;
 
 impl Lowerer {
+    /// Query the implicit source member without selecting a concrete equality
+    /// application or requiring its conditional field obligations to hold.
+    pub(crate) fn imported_derived_equality_declaration(
+        &mut self,
+        ty: hir::TypeId,
+    ) -> Result<Option<hir::SourceNominalId>, String> {
+        let Some((declaration, _)) = self.dependency_nominal_application(ty) else {
+            return Ok(None);
+        };
+        let owner = declaration.owner();
+        let declared_value = match self.types[ty] {
+            Type::Struct(_) => matches!(
+                self.loaded_struct_definitions[&owner]
+                    .definition
+                    .representation,
+                hir::StructRepresentation::Declared(_)
+            ),
+            Type::Enum(_) => self.loaded_enum_definitions[&owner]
+                .definition
+                .representation
+                .integer_kind()
+                .is_none(),
+            _ => false,
+        };
+        Ok((declared_value && !self.has_imported_same_type_equals(ty)?).then_some(owner))
+    }
+
     pub(super) fn imported_equality_candidate(
         &mut self,
         ty: hir::TypeId,

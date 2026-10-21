@@ -1,5 +1,8 @@
 package scoop.text
 
+/**
+ * Text could not be parsed as the requested numeric or strict Boolean value.
+ */
 public class NumberFormatException public constructor(message: String) : Exception(Some(message))
 
 internal fun requireTextRadix(radix: Int) {
@@ -19,10 +22,16 @@ internal fun <T> requireParsedNumber(value: T?): T = when (value) {
     case None -> throw NumberFormatException("invalid number")
 }
 
+/**
+ * Accepts exactly lowercase true or false; all other text returns None.
+ */
 public fun String.toBooleanStrictOrNone(): Boolean? {
     if (this == "true") return Some(true)
     if (this == "false") return Some(false)
     return None
 }
 
+/**
+ * Accepts exactly lowercase true or false; other text throws NumberFormatException.
+ */
 public fun String.toBooleanStrict(): Boolean = requireParsedNumber<Boolean>(toBooleanStrictOrNone())

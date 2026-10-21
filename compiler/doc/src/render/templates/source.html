@@ -1,0 +1,4 @@
+<p class="source-caption">Selected production source · {{ path }}</p>
+<div class="source-code">
+{% for line in lines %}<div id="L{{ loop.index }}" class="source-line"><a href="#L{{ loop.index }}" aria-label="Line {{ loop.index }}">{{ loop.index }}</a><code>{{ line }}</code></div>{% endfor %}
+</div>

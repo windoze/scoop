@@ -2,20 +2,69 @@ package scoop.url
 
 import scoop.collections.emptyList
 
+/**
+ * An immutable URI/IRI reference. Parsing accepts relative references and non-HTTP schemes without
+ * network I/O. Equality and ordering use normalized ASCII serialization; parsing follows a strict
+ * profile without browser-style recovery.
+ */
 public class Url internal constructor(
-    public val scheme: String?, public val authority: UrlAuthority?,
-    public val encodedPath: String, public val encodedQuery: String?, public val encodedFragment: String?,
+    /**
+     * The normalized scheme, or None for a relative reference.
+     */
+    public val scheme: String?,
+        /**
+         * The parsed authority when the reference contains one.
+         */
+        public val authority: UrlAuthority?,
+    /**
+     * The percent-encoded path, retaining reserved characters as structural data.
+     */
+    public val encodedPath: String,
+        /**
+         * The encoded query without the leading question mark; None differs from an empty query.
+         */
+        public val encodedQuery: String?,
+        /**
+         * The encoded fragment without the leading hash; None differs from an empty fragment.
+         */
+        public val encodedFragment: String?,
     private val serialized: String
 ) : Equals<Url>, Compare<Url>, Hash, ToString {
+    /**
+     * Returns the normalized ASCII URI serialization.
+     */
     public override fun toString(): String = serialized
+    /**
+     * Compares normalized ASCII serializations.
+     */
     public override operator fun equals(other: Url): Boolean = serialized == other.serialized
+    /**
+     * Orders normalized ASCII serializations lexicographically.
+     */
     public override operator fun compareTo(other: Url): Long = serialized.compareTo(other.serialized)
+    /**
+     * Hashes the same normalized serialization used by equality.
+     */
     public override fun hash(): Long = serialized.hash()
 
+    /**
+     * Resolves a relative reference against this URL using URI reference-resolution rules.
+     */
     public fun resolve(reference: String): Url = resolve(Url.parse(reference))
+    /**
+     * Resolves a relative reference against this URL using URI reference-resolution rules.
+     */
     public fun resolve(reference: Url): Url = resolveNativeUrl(this, reference)
+    /**
+     * Creates a mutable component builder initialized from this immutable URL.
+     */
     public fun toBuilder(): UrlBuilder = UrlBuilder.from(this)
 
+    /**
+     * Validates an HTTP or HTTPS network target and computes its normalized host and effective
+     * port. Invalid DNS names, compatibility numeric addresses, port zero, and IPvFuture are
+     * rejected.
+     */
     public fun httpOrigin(): UrlOrigin {
         if (!isNetworkScheme(scheme)) urlError(UrlComponent.Scheme, "HTTP target requires http, https, ws or wss")
         if (authority == None) urlError(UrlComponent.Authority, "HTTP target requires an authority")
@@ -25,19 +74,33 @@ public class Url internal constructor(
         return UrlOrigin(scheme!!, value.networkHost(), port)
     }
 
+    /**
+     * Returns origin-form path and query, excluding user information and fragment.
+     */
     public fun httpRequestTarget(): String {
         httpOrigin()
         return (if (encodedPath.length == 0L) "/" else encodedPath) +
             (if (encodedQuery == None) "" else "?" + encodedQuery!!)
     }
 
+    /**
+     * Returns the absolute HTTP request target for a proxy, excluding user information and
+     * fragment.
+     */
     public fun httpAbsoluteTarget(): String {
         val target = httpRequestTarget()
         return scheme!! + "://" + authority!!.render(false, false) + target
     }
 
+    /**
+     * Parses the encoded query as ordered parameters, with ordinary URI plus semantics.
+     */
     public fun queryParameters(): UrlQuery = UrlQuery.parse(if (encodedQuery == None) "" else encodedQuery!!)
 
+    /**
+     * Returns a display-oriented IRI, retaining escapes for reserved characters such as encoded
+     * slashes.
+     */
     public fun toIriString(): String {
         val output = StringBuilder()
         if (scheme != None) output.append(scheme!!).append(":")
@@ -48,6 +111,9 @@ public class Url internal constructor(
         return output.toString()
     }
 
+    /**
+     * Removes user information and masks values of the specified query names for presentation.
+     */
     public fun redacted(queryNames: List<String> = emptyList<String>()): String {
         val builder = toBuilder().setEncodedUserInfo(None)
         if (encodedQuery != None && queryNames.size > 0L) {
@@ -63,12 +129,25 @@ public class Url internal constructor(
         return builder.build().toString()
     }
 
+    /**
+     * Strict URI/IRI parsing and parser-backend version information.
+     */
     public companion object {
+        /**
+         * Parses a complete URI/IRI reference. Relative input stays relative; no scheme is
+         * guessed.
+         */
         public fun parse(text: String): Url = parseNativeUrl(prepareIri(text))
+        /**
+         * Returns None only for an ordinary URL format failure. Backend failures still propagate.
+         */
         public fun parseOrNone(text: String): Url? {
             try { return Some(parse(text)) }
             catch (_: UrlParseException) { return None }
         }
+        /**
+         * The version reported by the linked URI parser backend.
+         */
         public val backendVersion: String get() { @Unsafe { return String.fromCString(urlVersion()) } }
     }
 }

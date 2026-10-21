@@ -3,15 +3,36 @@ package scoop.http.client
 import scoop.http.*
 import scoop.url.Url
 
+/**
+ * A suspend interceptor around a logical call. It may invoke the chain once while active and is
+ * responsible for returning a compatible owned result.
+ */
 public class HttpInterceptor public constructor(internal val intercept: suspend (HttpCallChain) -> HttpCallResult)
 
+/**
+ * The current logical request and one-shot continuation into later interceptors or transport.
+ */
 public class HttpCallChain internal constructor(internal val invocation: ClientInvocation,
-    internal val next: Long, public val request: HttpRequest) {
+    internal val next: Long,
+        /**
+         * The current request passed to this interceptor.
+         */
+        public val request: HttpRequest) {
+    /**
+     * The caller-supplied fields, before client-managed framing and authority.
+     */
     public val suppliedFields: Array<HttpField> = request.suppliedFields.toArray()
+    /**
+     * Upgrade options when this chain belongs to a WebSocket handshake.
+     */
     public val webSocketOptions: HttpWebSocketOptions? = invocation.sequence.webSocket
     internal var active: Boolean = true
     internal var proceeded: Boolean = false
 
+    /**
+     * Invokes the remainder of the chain once while active, optionally replacing URL, method,
+     * fields, and body. WebSocket chains require a replayable empty GET.
+     */
     public suspend fun proceed(url: Url = request.url, method: String = request.method,
         fields: List<HttpField> = suppliedFields, body: RequestBody = request.body): HttpCallResult {
         invocation.client.lock.withLock {

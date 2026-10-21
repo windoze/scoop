@@ -1595,6 +1595,10 @@ core 提供普通的 `annotation class Target(val allowed: Array<AnnotationTarge
 
 `@Repeatable` 允许同一实际目标上多次应用该 annotation class，保留源码顺序、相同参数值及各次来源；未标时重复应用在后一处报错。导入别名和 re-export 不改变 annotation identity，不能绕过重复检查。不同实际 use-site 独立检查，不复制或继承应用，也不生成 container annotation。两个核心元注解的固定语义只按真实 core 声明身份识别；同名用户声明没有特殊作用。前向声明使用最终绑定的规则，不因声明顺序改变结果。规则与静态参数只在定义处绑定一次，跨库使用已保存的规则。
 
+core 还提供普通公开文档注解 `annotation class DocHidden` 和 `@Repeatable annotation class DocAlias(val name: String)`。两者的 Target 均限于 Class、AnnotationClass、EnumVariant、Field、Property、Function、Constructor、TypeAlias；DocHidden 不可重复。它们使用普通静态参数与 use-site 规则，不用于普通参数、receiver、类型使用或独立 accessor。
+
+DocHidden 从生成的 API 页面、成员目录和搜索中省略目标及其包含的文档条目，私有文档模式和 re-export 不覆盖显式隐藏。DocAlias 为实际呈现的目标增加搜索关键词；它不增加源码名称或 import binding。隐藏字段／property 不删除构造器参数或其他可见签名中的类型文字。两者均按实际 core annotation identity 识别，导入 alias／re-export 保持语义，用户同名声明没有特殊作用；不改变语言可见性、继承、类型、调用效果或 ABI。普通编译仍完整检查隐藏声明；源码页不因 API 隐藏而删改源码。
+
 类型使用位置可以写注解前缀，包含字段/property/参数/结果、显式局部类型、父类型与 bound、alias 目标及类型实参；完整类型使用树中的泛型实参、tuple 元素、函数 receiver/参数/结果和指针 pointee 分别保留各自位置。类型使用只接受 Type 类别，不接受 use-site 选择或第 13 章不适用于类型位置的核心效果注解。局部变量的显式类型可以带注解，变量本体仍不是声明注解目标。
 
 前缀属于紧随其后的完整类型：`@A T?` 标在 Option 根，`(@A T)?` 标在其元素 T；`@F() R.(P) -> Q` 标在函数类型根，`(@R R).(@P P) -> @Q Q` 分别标在 receiver、参数和结果。声明 receiver 同样区分 `fun @A T?.f()` / `val @A T?.p` 的 Option 根与 `fun (@A T)?.f()` / `val (@A T)?.p` 的元素 T。单元素括号不增加类型节点或丢弃内部注解；零参数注解在后续类型以括号开始时可以显式写 `@A()`，避免与注解参数括号混淆。限定名本身不产生另一个运行期类型节点；完整 inner application 的外层/自身类型实参按原 binder 顺序保留，限定符的类型使用不能把其根注解复制给另一个名义类型。
@@ -1698,6 +1702,33 @@ struct 的字段、enum 的 variant/payload、class 本 owner 的 storage/proper
 注解参数的 defaultValue 是 M37 已检查的静态数据，与普通 constructor default 不同。repeatable 应用保持原顺序；`findAnnotations(items, key)` 只按实际 key 筛选当前列表，不沿 owner/base/accessor 自动继承注解。注解声明仍不是普通可实例化类型。
 
 ---
+
+### 9.7 文档注释
+
+文档注释有块形式 `/** ... */` 和行形式 `/// ...`。`/***` 开头的块、`////` 开头的行及 `//!` 均为普通注释；`/**/` 是空文档块。块注释继续使用非嵌套词法规则，在第一个 `*/` 结束。字符串、字符及字符串插值的文本部分不识别注释；插值中的表达式遵守普通词法规则。未终止块注释是词法错误。
+
+文档采用前置附着：在声明语法位置中，属于紧随其后的完整声明及其 annotations、modifiers。空白、空行和普通注释可位于文档片段之间或文档与声明之间。不得越过 package、import、另一完整声明、语句或当前列表／块结束边界；表达式和类型内部的片段不得漂移到后续声明。
+
+文档可附着于类型、函数、property、typealias、annotation class、enum variant、字段、完整源码参数、构造器及 accessor。主构造 val／var 参数前的文档属于实际字段／property，其构造参数关联仍按原语言规则保留；getter／setter 的文档属于实际 accessor。局部具名声明可以保留文档，但文档工具不因此扩大其名称可见性或把它导出为非局部 API。init／release 块、局部变量和普通表达式不作为声明文档目标。
+
+同一目标的片段按源码顺序保存；相邻 `///` 行可组成同一段，分开的片段以空段落连接。保留原始文本及 UTF-8 byte span，去前缀、块注释装饰性 `*`、公共缩进与 CRLF 归一化不得丢失诊断到原文本的位置映射。没有附着目标的片段保留为文档专有诊断输入；普通编译仍将其视为注释，不因此失败或产生文档 warning。
+
+正文采用 Markdown。首个普通段落为摘要；围栏、缩进代码块及行内代码中的 tag 和方括号不参与文档语义。以下 tag 在普通正文行首识别，后续正文属于该 tag，直到下一个 tag：
+
+| Tag | 含义 |
+| --- | --- |
+| `@param name` | 当前 callable、构造器或 variant 的源码值参数，或当前声明的类型参数 |
+| `@property name` | 当前类型实际声明的字段或 logical property |
+| `@constructor` | 当前类型的主构造器 |
+| `@receiver` | 实际扩展 receiver |
+| `@return` | callable 或 getter 的结果说明 |
+| `@throws Type` | 实际可见异常类型的说明，不引入 checked exception |
+| `@see target` | 符号引用或显式普通 URL |
+| `@since text` | 版本说明，不参与依赖选择 |
+
+名称可使用语言的反引号标识符；限定符在反引号外以点分段。直接附着说明优先于 owner 上描述同一目标的 tag；重复说明给出文档 warning。`@param` 和 `@property` 分别绑定实际目标，不按同名互相补全。未知 tag、缺失必要参数、目标不存在或不适用，以及重复的单值说明均给出文档 warning。
+
+正文中的 `[Type]`、`[Type.member]` 和 `[label][Type]` 可引用符号；整个文档中的显式 Markdown 引用定义优先，普通 URL 和图片保持 Markdown 含义。符号在声明原定义处的词法、import 和依赖环境中解析；同一可见 overload 集引用函数组，其他歧义或不存在的名称给出文档 warning。目标因未生成文档、可见性或 DocHidden 而没有页面时保留文字，不产生失效链接。普通编译不执行文档语义；文档 warning 的输出与升级策略见实现规范 2.7。
 
 ## 10. 数组
 
@@ -2973,6 +3004,7 @@ internal fun coreLongHash(value: Long): Long
 - 11.15 的 `core_maybe_uninit` 登记为单参数 intrinsic struct；`maybe_uninit_zero`、`maybe_uninit_initialized` 是相应 companion 的静态操作，`maybe_uninit_assume_init` 是 wrapper 实例操作，后者必须带 `@Unsafe`。它们保留 wrapper 与 payload 的完整类型，不凭相同布局抹除初始化契约；不允许其他 annotation 组合绕过既有 NoGC／unsafe 检查。
 
 - 除非有单独说明，`@Intrinsic` 不能与其他任何注解共存。integer registry中除`div`/`rem`外的纯scalar operation与conversion是一个封闭例外：其声明必须同时带`@NoGC`；`div`/`rem`不得带。 Char code/相等/比较和 core 内部 unchecked code-point 构造均为 NoGC scalar operation，其中 unchecked 构造还必须标注 `@Unsafe`；公开 `Int.toChar` 在普通 core body 中先检查范围再调用。13.10列出的pointer intrinsic继续按该节例外组合`@NoGC`/`@Unsafe`。
+- §9.4 的真实 core DocHidden／DocAlias 是文档例外，可以与 intrinsic 类型及函数共存，包括通过普通 import alias／re-export 使用。此例外不改变登记项要求的 NoGC／Unsafe 等效果组合；同名用户注解及其他普通注解仍不允许。先解析普通注解的 typed identity 再判断该例外，不能按短名或注解总数量判断。
 - `name` 必须是编译器内置intrinsic登记表中的已知标识；未知`name`、错误annotation target、与登记shape/signature不符或同一intrinsic kind存在多个provider都是编译错误（用户不能声明自定义intrinsic）。阶段契约见编译器与产物规范 2.10。
 
 ### 13.2 `@NoGC`

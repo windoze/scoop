@@ -6,20 +6,63 @@ import scoop.time.Instant
 import scoop.text.indexOf
 import scoop.text.substring
 
-public class OffsetDateTime public constructor(public val dateTime: LocalDateTime, public val offset: UtcOffset)
+/**
+ * A local date-time paired with a fixed UTC offset. Equality compares both components, so equal
+ * instants can have unequal offset date-times.
+ */
+public class OffsetDateTime public constructor(
+    /**
+     * The local date and time component.
+     */
+    public val dateTime: LocalDateTime,
+    /**
+     * The fixed offset used to interpret the local component.
+     */
+    public val offset: UtcOffset)
     : Equals<OffsetDateTime>, Hash, ToString {
+    /**
+     * Converts the local component and offset into an absolute instant.
+     */
     public fun toInstant(): Instant = dateTime.toInstant(offset)
+    /**
+     * Changes the offset and adjusts local fields to preserve the absolute instant.
+     */
     public fun withOffsetSameInstant(offset: UtcOffset): OffsetDateTime = OffsetDateTime(toInstant().toLocalDateTime(offset), offset)
+    /**
+     * Changes the offset while retaining local fields, changing the represented instant.
+     */
     public fun withOffsetSameLocal(offset: UtcOffset): OffsetDateTime = OffsetDateTime(dateTime, offset)
+    /**
+     * Compares the stored value components for equality.
+     */
     public override operator fun equals(other: OffsetDateTime): Boolean = dateTime == other.dateTime && offset == other.offset
+    /**
+     * Computes a hash consistent with component equality.
+     */
     public override fun hash(): Long = dateTime.hash() * 31L + offset.hash()
+    /**
+     * Formats this value as ISO local date-time followed by a UTC offset.
+     */
     public override fun toString(): String = dateTime.toString() + offset.toString()
 
+    /**
+     * Value construction and serialization helpers.
+     */
     public companion object : ValueEncoder<OffsetDateTime>, ValueDecoder<OffsetDateTime> {
+        /**
+         * Encodes the value as its canonical text representation.
+         */
         public override fun encode(value: OffsetDateTime, encoder: Encoder) { encoder.singleValue().writeString(value.toString()) }
+        /**
+         * Reads a string value and validates it using this type's parser.
+         */
         public override fun decode(decoder: Decoder): OffsetDateTime =
             decodeTextValue<OffsetDateTime>(decoder, { text -> parseOrNone(text) }, "offset date-time")
 
+        /**
+         * Parses ISO local date-time followed by a UTC offset, returning None for malformed or
+         * out-of-range input.
+         */
         public fun parseOrNone(text: String): OffsetDateTime? {
             val split = text.indexOf('T')
             if (split < 0L) return None
@@ -32,6 +75,10 @@ public class OffsetDateTime public constructor(public val dateTime: LocalDateTim
             if (local == None || offset == None) return None
             return Some(OffsetDateTime(local!!, offset!!))
         }
+        /**
+         * Parses ISO local date-time followed by a UTC offset or throws IllegalArgumentException
+         * for invalid input.
+         */
         public fun parse(text: String): OffsetDateTime = when (parseOrNone(text)) {
             case Some(value) -> value
             case None -> throw IllegalArgumentException(Some("invalid offset date-time"))

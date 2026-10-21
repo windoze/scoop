@@ -2,6 +2,9 @@ package scoop.crypto.testdata
 
 // Fixed OpenSSL 3.6.5 CLI test input; dates and extensions are intentional.
 
+/**
+ * Returns the fixed intermediate CA certificate linking fixture leaves to the test root.
+ */
 public fun intermediatePem(): String =
     "-----BEGIN CERTIFICATE-----\n" +
     "MIIBlTCCATugAwIBAgICEAEwCgYIKoZIzj0EAwIwHjEcMBoGA1UEAwwTU2Nvb3Ag\n" +

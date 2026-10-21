@@ -1,3 +1,8 @@
+/**
+ * IEEE 754 binary32 floating-point values, including infinities, signed zero, and NaNs. Default
+ * equality treats all NaNs as equal and both zeros as equal; [ieeeCompare] provides unordered IEEE
+ * comparison. Arithmetic uses round-to-nearest, ties-to-even.
+ */
 @Intrinsic("core_float")
 public struct Float :
     Add<Float, Float>,
@@ -10,75 +15,163 @@ public struct Float :
     Increment<Float>,
     Decrement<Float>,
     Equals<Float>, Compare<Float>, ToString {
+    /**
+     * Representation constants, raw-bit construction, and scalar codec operations.
+     */
     public companion object : ValueEncoder<Float>, ValueDecoder<Float>, ValueInspector<Float> {
+        /**
+         * Exposes the floating-point value through scalar inspection.
+         */
         public override fun inspect(value: Float): ValueView =
             ValueObservation(typeInfo<Float>().type, None, { ValueShape.Scalar(ScalarValue.Float(value)) })
 
+        /**
+         * Writes the value through the encoder's matching floating-point scalar operation.
+         */
         public override fun encode(value: Float, encoder: Encoder): Unit =
             encoder.singleValue().writeFloat(value)
 
+        /**
+         * Reads the value through the decoder's matching floating-point scalar operation.
+         */
         public override fun decode(decoder: Decoder): Float =
             decoder.singleValue().readFloat()
 
+        /**
+         * A not-a-number value. Use isNaN to classify NaNs.
+         */
         public const val NaN: Float = 0f / 0f
+        /**
+         * The positive unbounded floating-point value.
+         */
         public const val POSITIVE_INFINITY: Float = 1f / 0f
+        /**
+         * The negative unbounded floating-point value.
+         */
         public const val NEGATIVE_INFINITY: Float = -POSITIVE_INFINITY
+        /**
+         * The largest finite positive value.
+         */
         public const val MAX_VALUE: Float = 3.4028234663852886e38f
+        /**
+         * The smallest positive subnormal value, not the most negative value.
+         */
         public const val MIN_VALUE: Float = 1.401298464324817e-45f
+        /**
+         * The smallest positive normal value.
+         */
         public const val MIN_NORMAL: Float = 1.1754943508222875e-38f
 
+        /**
+         * Constructs a value from its exact representation bits, including any NaN payload or
+         * signed zero.
+         */
         public fun fromBits(bits: Int): Float {
             @Unsafe { return addressOf(bits).cast<Float>().load() }
         }
     }
 
+    /**
+     * Returns the raw representation bits, preserving signed zeros and NaN payloads.
+     */
     @NoGC
     public fun toBits(): Int {
         @Unsafe { return addressOf(this).cast<Int>().load() }
     }
 
+    /**
+     * Returns the same floating-point representation, preserving signed zero and NaN bits.
+     */
     @NoGC @Intrinsic("float_unary_plus")
     public override operator fun unaryPlus(): Float
 
+    /**
+     * Flips the sign bit, including for zero and NaN.
+     */
     @NoGC @Intrinsic("float_unary_minus")
     public override operator fun unaryMinus(): Float
 
+    /**
+     * Adds one at the receiver's floating-point precision.
+     */
     @NoGC @Intrinsic("float_inc")
     public override operator fun inc(): Float
 
+    /**
+     * Subtracts one at the receiver's floating-point precision.
+     */
     @NoGC @Intrinsic("float_dec")
     public override operator fun dec(): Float
 
+    /**
+     * Adds at the receiver's precision using IEEE rounding and non-finite results.
+     */
     @NoGC @Intrinsic("float_plus")
     public override operator fun plus(other: Float): Float
 
+    /**
+     * Subtracts at the receiver's precision using IEEE rounding and non-finite results.
+     */
     @NoGC @Intrinsic("float_minus")
     public override operator fun minus(other: Float): Float
 
+    /**
+     * Multiplies at the receiver's precision using IEEE rounding and non-finite results.
+     */
     @NoGC @Intrinsic("float_times")
     public override operator fun times(other: Float): Float
 
+    /**
+     * Performs IEEE division; zero divisors produce infinity or NaN rather than an integer
+     * arithmetic exception.
+     */
     @NoGC @Intrinsic("float_div")
     public override operator fun div(other: Float): Float
 
+    /**
+     * Computes the remainder using a quotient truncated toward zero. Invalid operations produce
+     * NaN.
+     */
     @NoGC @Intrinsic("float_rem")
     public override operator fun rem(other: Float): Float
 
+    /**
+     * Compares numerical values, treating all NaNs as one equal class and both signed zeros as
+     * equal.
+     */
     @NoGC @Intrinsic("float_equals")
     public override operator fun equals(other: Float): Boolean
 
+    /**
+     * Tests whether the value has any NaN representation. Default self-inequality is not a NaN
+     * test.
+     */
     @NoGC @Intrinsic("float_is_nan")
     public fun isNaN(): Boolean
 
+    /**
+     * Returns true for positive or negative infinity.
+     */
     @NoGC @Intrinsic("float_is_infinite")
     public fun isInfinite(): Boolean
 
+    /**
+     * Returns true for finite values, including subnormal values and both zeros.
+     */
     @NoGC @Intrinsic("float_is_finite")
     public fun isFinite(): Boolean
 
+    /**
+     * Returns -1, 0, or 1 in numerical order, with all NaNs equal and after positive infinity;
+     * signed zeros compare equally.
+     */
     @NoGC @Intrinsic("float_compare_to")
     public override operator fun compareTo(other: Float): Long
 
+    /**
+     * Returns [IeeeComparison.Unordered] if either operand is NaN; otherwise compares numerical
+     * values with both zeros equal.
+     */
     @NoGC
     public fun ieeeCompare(other: Float): IeeeComparison {
         if (isNaN() || other.isNaN()) return IeeeComparison.Unordered
@@ -88,39 +181,80 @@ public struct Float :
         return IeeeComparison.Equal
     }
 
+    /**
+     * Truncates toward zero and saturates to the 8-bit signed range. NaN becomes zero.
+     */
     @NoGC @Intrinsic("float_to_int8")
     public fun toByte(): Byte
 
+    /**
+     * Truncates toward zero and saturates to the 16-bit signed range. NaN becomes zero.
+     */
     @NoGC @Intrinsic("float_to_int16")
     public fun toShort(): Short
 
+    /**
+     * Truncates toward zero and saturates to the 32-bit signed range. NaN becomes zero.
+     */
     @NoGC @Intrinsic("float_to_int")
     public fun toInt(): Int
 
+    /**
+     * Truncates toward zero and saturates to the 64-bit signed range. NaN becomes zero.
+     */
     @NoGC @Intrinsic("float_to_long")
     public fun toLong(): Long
 
+    /**
+     * Truncates toward zero and saturates to the 8-bit unsigned range. NaN becomes zero.
+     */
     @NoGC @Intrinsic("float_to_uint8")
     public fun toUByte(): UByte
 
+    /**
+     * Truncates toward zero and saturates to the 16-bit unsigned range. NaN becomes zero.
+     */
     @NoGC @Intrinsic("float_to_uint16")
     public fun toUShort(): UShort
 
+    /**
+     * Truncates toward zero and saturates to the 32-bit unsigned range. NaN becomes zero.
+     */
     @NoGC @Intrinsic("float_to_uint")
     public fun toUInt(): UInt
 
+    /**
+     * Truncates toward zero and saturates to the 64-bit unsigned range. NaN becomes zero.
+     */
     @NoGC @Intrinsic("float_to_ulong")
     public fun toULong(): ULong
 
+    /**
+     * Converts to binary32 with nearest-even rounding. Overflow may produce infinity; a zero keeps
+     * its sign.
+     */
     @NoGC @Intrinsic("float_to_float")
     public fun toFloat(): Float
 
+    /**
+     * Converts to binary64. Every finite Float value is represented exactly; a zero keeps its
+     * sign.
+     */
     @NoGC @Intrinsic("float_to_double")
     public fun toDouble(): Double
 
+    /**
+     * Returns a locale-independent shortest round-tripping decimal representation, or the
+     * corresponding NaN/infinity spelling.
+     */
     public override fun toString(): String = coreFloatToString(this)
 }
 
+/**
+ * IEEE 754 binary64 floating-point values, including infinities, signed zero, and NaNs. Default
+ * equality treats all NaNs as equal and both zeros as equal; [ieeeCompare] provides unordered IEEE
+ * comparison. Arithmetic uses round-to-nearest, ties-to-even.
+ */
 @Intrinsic("core_double")
 public struct Double :
     Add<Double, Double>,
@@ -133,75 +267,163 @@ public struct Double :
     Increment<Double>,
     Decrement<Double>,
     Equals<Double>, Compare<Double>, ToString {
+    /**
+     * Representation constants, raw-bit construction, and scalar codec operations.
+     */
     public companion object : ValueEncoder<Double>, ValueDecoder<Double>, ValueInspector<Double> {
+        /**
+         * Exposes the floating-point value through scalar inspection.
+         */
         public override fun inspect(value: Double): ValueView =
             ValueObservation(typeInfo<Double>().type, None, { ValueShape.Scalar(ScalarValue.Double(value)) })
 
+        /**
+         * Writes the value through the encoder's matching floating-point scalar operation.
+         */
         public override fun encode(value: Double, encoder: Encoder): Unit =
             encoder.singleValue().writeDouble(value)
 
+        /**
+         * Reads the value through the decoder's matching floating-point scalar operation.
+         */
         public override fun decode(decoder: Decoder): Double =
             decoder.singleValue().readDouble()
 
+        /**
+         * A not-a-number value. Use isNaN to classify NaNs.
+         */
         public const val NaN: Double = 0.0 / 0.0
+        /**
+         * The positive unbounded floating-point value.
+         */
         public const val POSITIVE_INFINITY: Double = 1.0 / 0.0
+        /**
+         * The negative unbounded floating-point value.
+         */
         public const val NEGATIVE_INFINITY: Double = -POSITIVE_INFINITY
+        /**
+         * The largest finite positive value.
+         */
         public const val MAX_VALUE: Double = 1.7976931348623157e308
+        /**
+         * The smallest positive subnormal value, not the most negative value.
+         */
         public const val MIN_VALUE: Double = 4.9406564584124654e-324
+        /**
+         * The smallest positive normal value.
+         */
         public const val MIN_NORMAL: Double = 2.2250738585072014e-308
 
+        /**
+         * Constructs a value from its exact representation bits, including any NaN payload or
+         * signed zero.
+         */
         public fun fromBits(bits: Long): Double {
             @Unsafe { return addressOf(bits).cast<Double>().load() }
         }
     }
 
+    /**
+     * Returns the raw representation bits, preserving signed zeros and NaN payloads.
+     */
     @NoGC
     public fun toBits(): Long {
         @Unsafe { return addressOf(this).cast<Long>().load() }
     }
 
+    /**
+     * Returns the same floating-point representation, preserving signed zero and NaN bits.
+     */
     @NoGC @Intrinsic("double_unary_plus")
     public override operator fun unaryPlus(): Double
 
+    /**
+     * Flips the sign bit, including for zero and NaN.
+     */
     @NoGC @Intrinsic("double_unary_minus")
     public override operator fun unaryMinus(): Double
 
+    /**
+     * Adds one at the receiver's floating-point precision.
+     */
     @NoGC @Intrinsic("double_inc")
     public override operator fun inc(): Double
 
+    /**
+     * Subtracts one at the receiver's floating-point precision.
+     */
     @NoGC @Intrinsic("double_dec")
     public override operator fun dec(): Double
 
+    /**
+     * Adds at the receiver's precision using IEEE rounding and non-finite results.
+     */
     @NoGC @Intrinsic("double_plus")
     public override operator fun plus(other: Double): Double
 
+    /**
+     * Subtracts at the receiver's precision using IEEE rounding and non-finite results.
+     */
     @NoGC @Intrinsic("double_minus")
     public override operator fun minus(other: Double): Double
 
+    /**
+     * Multiplies at the receiver's precision using IEEE rounding and non-finite results.
+     */
     @NoGC @Intrinsic("double_times")
     public override operator fun times(other: Double): Double
 
+    /**
+     * Performs IEEE division; zero divisors produce infinity or NaN rather than an integer
+     * arithmetic exception.
+     */
     @NoGC @Intrinsic("double_div")
     public override operator fun div(other: Double): Double
 
+    /**
+     * Computes the remainder using a quotient truncated toward zero. Invalid operations produce
+     * NaN.
+     */
     @NoGC @Intrinsic("double_rem")
     public override operator fun rem(other: Double): Double
 
+    /**
+     * Compares numerical values, treating all NaNs as one equal class and both signed zeros as
+     * equal.
+     */
     @NoGC @Intrinsic("double_equals")
     public override operator fun equals(other: Double): Boolean
 
+    /**
+     * Tests whether the value has any NaN representation. Default self-inequality is not a NaN
+     * test.
+     */
     @NoGC @Intrinsic("double_is_nan")
     public fun isNaN(): Boolean
 
+    /**
+     * Returns true for positive or negative infinity.
+     */
     @NoGC @Intrinsic("double_is_infinite")
     public fun isInfinite(): Boolean
 
+    /**
+     * Returns true for finite values, including subnormal values and both zeros.
+     */
     @NoGC @Intrinsic("double_is_finite")
     public fun isFinite(): Boolean
 
+    /**
+     * Returns -1, 0, or 1 in numerical order, with all NaNs equal and after positive infinity;
+     * signed zeros compare equally.
+     */
     @NoGC @Intrinsic("double_compare_to")
     public override operator fun compareTo(other: Double): Long
 
+    /**
+     * Returns [IeeeComparison.Unordered] if either operand is NaN; otherwise compares numerical
+     * values with both zeros equal.
+     */
     @NoGC
     public fun ieeeCompare(other: Double): IeeeComparison {
         if (isNaN() || other.isNaN()) return IeeeComparison.Unordered
@@ -211,40 +433,82 @@ public struct Double :
         return IeeeComparison.Equal
     }
 
+    /**
+     * Truncates toward zero and saturates to the 8-bit signed range. NaN becomes zero.
+     */
     @NoGC @Intrinsic("double_to_int8")
     public fun toByte(): Byte
 
+    /**
+     * Truncates toward zero and saturates to the 16-bit signed range. NaN becomes zero.
+     */
     @NoGC @Intrinsic("double_to_int16")
     public fun toShort(): Short
 
+    /**
+     * Truncates toward zero and saturates to the 32-bit signed range. NaN becomes zero.
+     */
     @NoGC @Intrinsic("double_to_int")
     public fun toInt(): Int
 
+    /**
+     * Truncates toward zero and saturates to the 64-bit signed range. NaN becomes zero.
+     */
     @NoGC @Intrinsic("double_to_long")
     public fun toLong(): Long
 
+    /**
+     * Truncates toward zero and saturates to the 8-bit unsigned range. NaN becomes zero.
+     */
     @NoGC @Intrinsic("double_to_uint8")
     public fun toUByte(): UByte
 
+    /**
+     * Truncates toward zero and saturates to the 16-bit unsigned range. NaN becomes zero.
+     */
     @NoGC @Intrinsic("double_to_uint16")
     public fun toUShort(): UShort
 
+    /**
+     * Truncates toward zero and saturates to the 32-bit unsigned range. NaN becomes zero.
+     */
     @NoGC @Intrinsic("double_to_uint")
     public fun toUInt(): UInt
 
+    /**
+     * Truncates toward zero and saturates to the 64-bit unsigned range. NaN becomes zero.
+     */
     @NoGC @Intrinsic("double_to_ulong")
     public fun toULong(): ULong
 
+    /**
+     * Converts to binary32 with nearest-even rounding. Overflow may produce infinity; a zero keeps
+     * its sign.
+     */
     @NoGC @Intrinsic("double_to_float")
     public fun toFloat(): Float
 
+    /**
+     * Converts to binary64. Every finite Float value is represented exactly; a zero keeps its
+     * sign.
+     */
     @NoGC @Intrinsic("double_to_double")
     public fun toDouble(): Double
 
+    /**
+     * Returns a locale-independent shortest round-tripping decimal representation, or the
+     * corresponding NaN/infinity spelling.
+     */
     public override fun toString(): String = coreDoubleToString(this)
 }
 
+/**
+ * A transparent alias for [Float] with the same representation and operations.
+ */
 public typealias Float32 = Float
+/**
+ * A transparent alias for [Double] with the same representation and operations.
+ */
 public typealias Float64 = Double
 
 @Extern(name = "scoop_rt_float_to_string", abi = "scoop")

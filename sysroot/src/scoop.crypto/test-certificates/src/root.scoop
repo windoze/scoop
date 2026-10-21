@@ -2,6 +2,9 @@ package scoop.crypto.testdata
 
 // Fixed OpenSSL 3.6.5 CLI test input; dates and extensions are intentional.
 
+/**
+ * Returns the fixed PEM root CA used by deterministic certificate and TLS tests.
+ */
 public fun rootPem(): String =
     "-----BEGIN CERTIFICATE-----\n" +
     "MIIBkTCCATigAwIBAgICEAAwCgYIKoZIzj0EAwIwHjEcMBoGA1UEAwwTU2Nvb3Ag\n" +
@@ -15,6 +18,10 @@ public fun rootPem(): String =
     "yclPZDx5oQ6Hy6cYjE3VwHq11c4c\n" +
     "-----END CERTIFICATE-----\n"
 
+/**
+ * Returns the public test fixture private key for the root CA. This key is test data and must
+ * not be used as a production identity.
+ */
 public fun rootKeyPem(): String =
     "-----BEGIN PRIVATE KEY-----\n" +
     "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgrMuj90htS5ZyNmJv\n" +

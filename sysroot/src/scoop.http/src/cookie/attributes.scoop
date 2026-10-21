@@ -2,7 +2,26 @@ package scoop.http
 
 import scoop.time.Instant
 
-public enum HttpCookieSameSite { Default, Strict, Lax, None }
+/**
+ * SameSite policy associated with a cookie.
+ */
+public enum HttpCookieSameSite {
+    /**
+     * Uses the library's Lax behavior when no recognized SameSite value is supplied.
+     */
+    Default,
+    /**
+     * Allows only same-site requests.
+     */
+    Strict,
+    /**
+     * Allows same-site requests or safe top-level navigations.
+     */
+    Lax,
+    /**
+     * Allows cross-site use, requiring Secure when the cookie is resolved.
+     */
+    None }
 
 internal class CookieAttributes(
     val expires: Instant?, val maxAge: Long?, val domain: Array<Byte>?, val path: Array<Byte>?,

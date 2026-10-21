@@ -17,6 +17,10 @@ internal fun http2SettingsPayload(settings: Http2Settings): Array<Byte> {
     return output.toByteArray()
 }
 
+/**
+ * Adds h2c Upgrade and unpadded HTTP2-Settings fields to a regular HTTP/1.1 request; conflicting
+ * fields and CONNECT are rejected.
+ */
 public fun prepareHttp2Upgrade(request: HttpRequestHead, settings: Http2Settings = Http2Settings()): HttpRequestHead {
     val ordinary = when (request.target) { case Http1(_) -> true; else -> false }
     if (request.version != HttpVersion.Http11 || !ordinary || httpBytesEqual(request.method, "CONNECT".toByteArray()))
@@ -40,6 +44,9 @@ private fun hasH2c(fields: List<HttpField>): Boolean {
     return false
 }
 
+/**
+ * Validates h2c request negotiation fields and decodes the unique HTTP2-Settings payload.
+ */
 public fun readHttp2UpgradeSettings(request: HttpRequestHead): Array<Byte> {
     if (request.version != HttpVersion.Http11 || !hasH2c(request.fields) ||
         !httpHasToken(request.fields, "connection", "upgrade") || !httpHasToken(request.fields, "connection", "http2-settings"))
@@ -59,6 +66,10 @@ public fun readHttp2UpgradeSettings(request: HttpRequestHead): Array<Byte> {
     }
 }
 
+/**
+ * Returns false for a non-101 response; validates a 101 response as a genuine HTTP/1.1 h2c
+ * acceptance or throws.
+ */
 public fun http2UpgradeAccepted(response: HttpResponseHead): Boolean {
     if (response.version == HttpVersion.Http2) throw HttpNegotiationException("read h2c response", "expected an HTTP/1 response")
     if (response.status != 101U) return false
@@ -67,6 +78,9 @@ public fun http2UpgradeAccepted(response: HttpResponseHead): Boolean {
     return true
 }
 
+/**
+ * Constructs the HTTP/1.1 101 response accepting h2c.
+ */
 public fun http2UpgradeResponse(): HttpResponseHead = HttpResponseHead(HttpVersion.Http11, 101U,
     Some("Switching Protocols".toByteArray()), [HttpField("Connection".toByteArray(), "Upgrade".toByteArray()),
         HttpField("Upgrade".toByteArray(), "h2c".toByteArray())])

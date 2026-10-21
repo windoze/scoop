@@ -2,32 +2,82 @@ package scoop.compression
 
 import scoop.platform.memory.NativeByteBuffer
 
+/**
+ * A stateful incremental encoder using caller-owned input and output buffers. Drain flush/finish
+ * until their operation completes; close releases native state without completing a stream.
+ */
 public class CompressionEncoder public constructor(
     options: CompressionOptions = CompressionOptions.Zstd(ZstdOptions())
 ) : Closeable {
     private val codec: CompressionCodec = createCompressionEncoder(options)
+    /**
+     * The explicitly selected compressed wire format.
+     */
     public val format: CompressionFormat get() = codec.format
+    /**
+     * The actual cumulative byte counts accepted and produced by this codec.
+     */
     public val totals: CompressionTotals get() = codec.totals
+    /**
+     * The recorded terminal failure, or None before failure.
+     */
     public val failure: Throwable? get() = codec.failure
 
+    /**
+     * Consumes at most count readable input bytes and appends encoded bytes to output, advancing
+     * both cursors by the returned counts.
+     */
     public fun process(input: NativeByteBuffer, output: NativeByteBuffer, count: Long = input.readableBytes): CompressionStep =
         codec.step(Some(input), count, output, output.writableBytes, 0)
+    /**
+     * Produces a format synchronization point without ending input; drain output before resuming
+     * input.
+     */
     public fun flush(output: NativeByteBuffer): CompressionStep = codec.step(None, 0L, output, output.writableBytes, 1)
+    /**
+     * Ends input and drains final format bytes. Continue with output space until Finished.
+     */
     public fun finish(output: NativeByteBuffer): CompressionStep = codec.step(None, 0L, output, output.writableBytes, 2)
+    /**
+     * Releases native codec state. Closing does not finish incomplete stream or message data.
+     */
     public override fun close() { codec.close() }
 }
 
+/**
+ * A stateful incremental decoder for one explicitly selected format. It validates framing and
+ * configured limits while advancing caller-owned buffers.
+ */
 public class CompressionDecoder public constructor(options: DecompressionOptions = DecompressionOptions()) : Closeable {
     private val codec: CompressionCodec = createCompressionDecoder(options)
+    /**
+     * The explicitly selected compressed wire format.
+     */
     public val format: CompressionFormat get() = codec.format
+    /**
+     * The actual cumulative byte counts accepted and produced by this codec.
+     */
     public val totals: CompressionTotals get() = codec.totals
+    /**
+     * The recorded terminal failure, or None before failure.
+     */
     public val failure: Throwable? get() = codec.failure
 
+    /**
+     * Consumes at most count bytes and produces decoded output. Set endInput when no further input
+     * will arrive so truncation can be diagnosed.
+     */
     public fun process(input: NativeByteBuffer, output: NativeByteBuffer, count: Long = input.readableBytes,
         endInput: Boolean = false): CompressionStep = codec.step(Some(input), count, output, output.writableBytes, if (endInput) 2 else 0)
+    /**
+     * Releases native codec state. Closing does not finish incomplete stream or message data.
+     */
     public override fun close() { codec.close() }
 }
 
+/**
+ * Returns the linked backend version for the requested wire format.
+ */
 public fun compressionBackendVersion(format: CompressionFormat): String {
     @Unsafe { return String.fromCString(compressionVersion(compressionFormatCode(format))) }
 }

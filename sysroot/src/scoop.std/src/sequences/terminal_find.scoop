@@ -2,53 +2,117 @@ package scoop.sequences
 
 import scoop.collections.*
 
+/**
+ * Consumes this sequence. Returns the first eligible element in iteration order, applying the
+ * predicate when supplied; absence throws NoSuchElementException.
+ */
 public fun <T> Sequence<T>.first(): T =
     terminalInput<T>().first<T>()
 
+/**
+ * Consumes this sequence. Returns the first eligible element in iteration order, applying the
+ * predicate when supplied; absence throws NoSuchElementException.
+ */
 public fun <T> Sequence<T>.first(predicate: (T) -> Boolean): T =
     terminalInput<T>().first<T>(predicate)
 
+/**
+ * Consumes this sequence. Returns the first eligible element in iteration order, applying the
+ * predicate when supplied, or None.
+ */
 public fun <T> Sequence<T>.firstOrNone(): T? =
     terminalInput<T>().firstOrNone<T>()
 
+/**
+ * Consumes this sequence. Returns the first eligible element in iteration order, applying the
+ * predicate when supplied, or None.
+ */
 public fun <T> Sequence<T>.firstOrNone(predicate: (T) -> Boolean): T? =
     terminalInput<T>().firstOrNone<T>(predicate)
 
+/**
+ * Consumes this sequence. Returns the last eligible element after traversal, applying the
+ * predicate when supplied; absence throws NoSuchElementException.
+ */
 public fun <T> Sequence<T>.last(): T =
     terminalInput<T>().last<T>()
 
+/**
+ * Consumes this sequence. Returns the last eligible element after traversal, applying the
+ * predicate when supplied; absence throws NoSuchElementException.
+ */
 public fun <T> Sequence<T>.last(predicate: (T) -> Boolean): T =
     terminalInput<T>().last<T>(predicate)
 
+/**
+ * Consumes this sequence. Returns the last eligible element after traversal, applying the
+ * predicate when supplied, or None.
+ */
 public fun <T> Sequence<T>.lastOrNone(): T? =
     terminalInput<T>().lastOrNone<T>()
 
+/**
+ * Consumes this sequence. Returns the last eligible element after traversal, applying the
+ * predicate when supplied, or None.
+ */
 public fun <T> Sequence<T>.lastOrNone(predicate: (T) -> Boolean): T? =
     terminalInput<T>().lastOrNone<T>(predicate)
 
+/**
+ * Consumes this sequence. Requires exactly one eligible element. No match throws
+ * NoSuchElementException; multiple matches throw IllegalArgumentException.
+ */
 public fun <T> Sequence<T>.single(): T =
     terminalInput<T>().single<T>()
 
+/**
+ * Consumes this sequence. Requires exactly one eligible element. No match throws
+ * NoSuchElementException; multiple matches throw IllegalArgumentException.
+ */
 public fun <T> Sequence<T>.single(predicate: (T) -> Boolean): T =
     terminalInput<T>().single<T>(predicate)
 
+/**
+ * Consumes this sequence. Returns the sole eligible element, or None for zero or multiple matches.
+ */
 public fun <T> Sequence<T>.singleOrNone(): T? =
     terminalInput<T>().singleOrNone<T>()
 
+/**
+ * Consumes this sequence. Returns the sole eligible element, or None for zero or multiple matches.
+ */
 public fun <T> Sequence<T>.singleOrNone(predicate: (T) -> Boolean): T? =
     terminalInput<T>().singleOrNone<T>(predicate)
 
+/**
+ * Consumes this sequence. Returns the first element satisfying the predicate, or None.
+ */
 public fun <T> Sequence<T>.find(predicate: (T) -> Boolean): T? =
     terminalInput<T>().find<T>(predicate)
 
+/**
+ * Consumes this sequence. Returns the element at a zero-based iteration index; an out-of-range
+ * index throws IndexOutOfBoundsException.
+ */
 public fun <T> Sequence<T>.elementAt(index: Long): T =
     terminalInput<T>().elementAt<T>(index)
 
+/**
+ * Consumes this sequence. Returns the element at a zero-based iteration index, or None for a
+ * negative or out-of-range index.
+ */
 public fun <T> Sequence<T>.elementAtOrNone(index: Long): T? =
     terminalInput<T>().elementAtOrNone<T>(index)
 
+/**
+ * Consumes this sequence. Returns the first equal element's zero-based iteration index, or -1 if
+ * absent.
+ */
 public fun <T : Equals<T>> Sequence<T>.indexOf(element: T): Long =
     terminalInput<T>().indexOf<T>(element)
 
+/**
+ * Consumes this sequence. Stops at the first equal element and reports whether one exists.
+ */
 public operator fun <T : Equals<T>> Sequence<T>.contains(element: T): Boolean =
     terminalInput<T>().contains<T>(element)

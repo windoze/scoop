@@ -2,9 +2,19 @@ package scoop.http
 
 import scoop.bytes.ByteArrayBuilder
 
-public class HttpCookieHeader private constructor(public val pairs: Array<HttpCookiePair>) {
+/**
+ * An ordered sequence of cookie name/value pairs for the Cookie field.
+ */
+public class HttpCookieHeader private constructor(
+    /**
+     * Cookie pairs in their original order.
+     */
+    public val pairs: Array<HttpCookiePair>) {
     public constructor(pairs: List<HttpCookiePair>) : this(pairs.toArray()) {}
 
+    /**
+     * Serializes the structured value into HTTP field-value bytes.
+     */
     public fun toByteArray(): Array<Byte> {
         val output = ByteArrayBuilder()
         var first = true
@@ -15,9 +25,18 @@ public class HttpCookieHeader private constructor(public val pairs: Array<HttpCo
         }
         return output.toByteArray()
     }
+    /**
+     * Builds a Cookie field with never-index enabled.
+     */
     public fun toHttpField(): HttpField = HttpField("Cookie".toByteArray(), toByteArray(), neverIndex = true)
 
+    /**
+     * Construction and parsing of this structured HTTP field.
+     */
     public companion object {
+        /**
+         * Parses the complete field value, throwing HttpFieldParseException for malformed syntax.
+         */
         public fun parse(value: List<Byte>): HttpCookieHeader {
             val reader = cookieFieldReader("Cookie", value)
             val pairs = ArrayList<HttpCookiePair>()
@@ -28,12 +47,26 @@ public class HttpCookieHeader private constructor(public val pairs: Array<HttpCo
             }
             return HttpCookieHeader(pairs.toArray())
         }
+        /**
+         * Parses the complete field value, throwing HttpFieldParseException for malformed syntax.
+         */
         public fun parse(value: String): HttpCookieHeader = parse(value.toByteArray())
+        /**
+         * Parses the complete value, returning None for HttpFieldParseException while propagating
+         * unrelated failures.
+         */
         public fun parseOrNone(value: List<Byte>): HttpCookieHeader? {
             try { return Some(parse(value)) }
             catch (_: HttpFieldParseException) { return None }
         }
+        /**
+         * Parses the complete value, returning None for HttpFieldParseException while propagating
+         * unrelated failures.
+         */
         public fun parseOrNone(value: String): HttpCookieHeader? = parseOrNone(value.toByteArray())
+        /**
+         * Combines Cookie fields as ordered pairs without losing duplicates.
+         */
         public fun parseFields(fields: List<HttpField>): HttpCookieHeader {
             val pairs = ArrayList<HttpCookiePair>()
             for (field in fields.findAll("cookie".toByteArray())) for (pair in parse(field.value).pairs) pairs.add(pair)

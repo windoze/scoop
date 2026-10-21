@@ -1,18 +1,45 @@
 package scoop.time
 
+/**
+ * A source of relative time marks whose readings can be compared only within that same source.
+ */
 public interface TimeSource {
+    /**
+     * Captures a current reading together with this source identity.
+     */
     public fun markNow(): TimeMark
 }
 
+/**
+ * A relative reading tied to a specific TimeSource instance. Ordering and subtraction between
+ * marks from different sources throw.
+ */
 public struct TimeMark(val source: TimeSource, val reading: Duration)
     : Equals<TimeMark>, Compare<TimeMark>, Add<Duration, TimeMark>, Sub<Duration, TimeMark> {
+    /**
+     * Compares both source identity and relative reading.
+     */
     public override operator fun equals(other: TimeMark): Boolean = source === other.source && reading == other.reading
+    /**
+     * Orders readings from the same source; different source instances throw.
+     */
     public override operator fun compareTo(other: TimeMark): Long {
         checkSource(other)
         return reading.compareTo(other.reading)
     }
+    /**
+     * Returns a mark shifted by the duration while retaining its source.
+     */
     public override operator fun plus(other: Duration): TimeMark = TimeMark(source, reading + other)
+    /**
+     * Shifts by a duration, or subtracts a mark from the same source to obtain an elapsed
+     * duration.
+     */
     public override operator fun minus(other: Duration): TimeMark = TimeMark(source, reading - other)
+    /**
+     * Shifts by a duration, or subtracts a mark from the same source to obtain an elapsed
+     * duration.
+     */
     public operator fun minus(other: TimeMark): Duration {
         checkSource(other)
         return reading - other.reading

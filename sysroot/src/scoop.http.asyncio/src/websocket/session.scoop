@@ -4,24 +4,59 @@ import scoop.asyncio.*
 import scoop.collections.emptyList
 import scoop.http.*
 
+/**
+ * A structured WebSocket session over an already-upgraded transport. Background tasks handle
+ * control frames and bounded message backpressure; serialize message operations in each direction.
+ */
 public class AsyncWebSocketSession internal constructor(private val state: WsState) : AsyncCloseable {
+    /**
+     * Starts a session while transferring an established transport into a supplied coroutine
+     * scope.
+     */
     public companion object {
+        /**
+         * Takes an already-upgraded transport with its role and actual compression negotiation.
+         * Invalid initial options leave ownership with the caller; failures after takeover clean
+         * up the transport.
+         */
         public suspend fun <T> takeOwnership(transport: T, scope: CoroutineScope, role: HttpRole,
             options: WebSocketSessionOptions = WebSocketSessionOptions(),
             deflate: WebSocketDeflateNegotiation? = None): AsyncWebSocketSession
             where T : AsyncByteStream, T : AsyncCloseable = adoptWs(transport, transport, scope, role, options, deflate)
     }
 
+    /**
+     * The local client/server role controlling masking and negotiated settings.
+     */
     public val role: HttpRole get() = state.role
+    /**
+     * The actual permessage-deflate negotiation, if compression was negotiated.
+     */
     public val deflate: WebSocketDeflateNegotiation? get() = when (state.deflate) {
         case Some(value) -> Some(value.negotiated)
         case None -> None
     }
+    /**
+     * Whether owned session cleanup has completed.
+     */
     public val isClosed: Boolean get() = state.lock.withLock { state.closed }
+    /**
+     * The received peer close frame, when available.
+     */
     public val peerClose: WebSocketClose? get() = state.lock.withLock { state.peerClose }
+    /**
+     * The close frame sent by this session, when available.
+     */
     public val sentClose: WebSocketClose? get() = state.lock.withLock { state.sentClose }
+    /**
+     * The retained terminal session failure, or None when closure has no recorded failure.
+     */
     public val failure: Throwable? get() = state.lock.withLock { state.failure }
 
+    /**
+     * Begins one streamed outgoing message. Compression can be disabled for this message even when
+     * negotiated; finish the returned writer before another message.
+     */
     public suspend fun beginMessage(type: WebSocketMessageType, compress: Boolean = true): WebSocketMessageWriter =
         wsOperation<WsOutgoing, WebSocketMessageWriter>(state, false, { beginWsMessage(state, type, compress) }, suspend { message ->
             val job = httpJob(state.loop, true)
@@ -30,20 +65,50 @@ public class AsyncWebSocketSession internal constructor(private val state: WsSta
             WebSocketMessageWriter(state, message)
         })
 
+    /**
+     * Waits for the next message or returns None at normal session end. Complete the current
+     * message before requesting another.
+     */
     public suspend fun receive(): WebSocketMessage? = receiveWsMessage(state)
+    /**
+     * Sends one complete UTF-8 text message with optional negotiated compression.
+     */
     public suspend fun sendText(text: String, compress: Boolean = true) {
         sendWsBytes(state, WebSocketMessageType.Text, text.toByteArray(), compress)
     }
+    /**
+     * Sends one complete binary message with optional negotiated compression.
+     */
     public suspend fun sendBinary(bytes: List<Byte>, compress: Boolean = true) {
         sendWsBytes(state, WebSocketMessageType.Binary, bytes.toArray(), compress)
     }
+    /**
+     * Streams one complete message from a borrowed source; the source is not closed by this call.
+     */
     public suspend fun send(type: WebSocketMessageType, source: AsyncByteSource, compress: Boolean = true) {
         sendWsSource(state, type, source, compress)
     }
+    /**
+     * Sends a Ping and waits for its matching Pong.
+     */
     public suspend fun ping(payload: List<Byte> = emptyList<Byte>()) { sendWsControl(state, true, payload) }
+    /**
+     * Sends an unsolicited Pong without waiting for a reply.
+     */
     public suspend fun pong(payload: List<Byte> = emptyList<Byte>()) { sendWsControl(state, false, payload) }
+    /**
+     * Sends Close and waits for peer Close, transport flush, and cleanup within the configured
+     * deadline.
+     */
     public suspend fun shutdownGracefully(value: WebSocketClose = WebSocketClose(Some(1000U))): WebSocketClose =
         shutdownWs(state, value)
+    /**
+     * Waits for session cleanup to complete.
+     */
     public suspend fun awaitClosed() { observeWsClosed(state) }
+    /**
+     * Performs local closure, cancelling owned I/O and waiting for native borrows and cleanup.
+     * Repeated close is supported, including cleanup from an already-cancelled caller.
+     */
     public override suspend fun close() { closeWs(state) }
 }

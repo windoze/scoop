@@ -14,6 +14,7 @@ import tempfile
 import tomllib
 from pathlib import Path
 
+import package_documentation
 import package_licenses
 import package_native
 from build_llvm import HOSTS, VERSION
@@ -331,10 +332,14 @@ def main():
         [args.host] if args.host.endswith("darwin") else [args.host, "x86_64-unknown-linux-musl"]
     )
     prepare_targets(args, targets, binaries, environment)
+    documentation = package_documentation.generate(
+        ROOT / "sysroot", targets, binaries, args.work_dir, environment
+    )
     args.output_dir.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="assemble-", dir=args.work_dir) as temporary:
         root = Path(temporary) / f"scoop-{args.version}-{args.host}"
         assemble(root, targets, binaries, args, release)
+        package_documentation.install(root / "docs", documentation)
         sources = Path(temporary) / f"scoop-{args.version}-llvm-sources"
         vendor = sources / "vendor/llvm-project" / VERSION
         shutil.copytree(

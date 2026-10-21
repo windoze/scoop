@@ -1,17 +1,43 @@
 package scoop.http
 
+/**
+ * Positive local limits on total header bytes, one field's bytes, and field count. These are
+ * enforced independently of peer-advertised settings.
+ */
 public struct HttpHeaderLimits(
     val maxBytes: Long = 65536L,
     val maxFieldBytes: Long = 16384L,
     val maxFields: Long = 100L
 )
 
+/**
+ * Local HTTP/1 header and start-line byte limits; all limits must be positive.
+ */
 public struct Http1Limits(
     val headers: HttpHeaderLimits = HttpHeaderLimits(),
     val maxStartLineBytes: Long = 8192L
 )
 
-public enum Http1AfterClose { Reject, Discard, ParseNextMessage }
+/**
+ * Controls handling of additional input after a message declared that the connection closes.
+ */
+public enum Http1AfterClose {
+    /**
+     * Rejects additional message bytes after a closing message.
+     */
+    Reject,
+    /**
+     * Discards additional input after a closing message.
+     */
+    Discard,
+    /**
+     * Allows parsing another message after a closing message as an explicit compatibility choice.
+     */
+    ParseNextMessage }
+/**
+ * Explicit llhttp receive-compatibility options. They do not relax outgoing validation or extend
+ * the server parser's known-method set; defaults preserve strict framing.
+ */
 public struct Http1ReceiveOptions(
     val legacyHeaderValues: Boolean = false,
     val lenientChunkedLength: Boolean = false,

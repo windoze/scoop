@@ -2,11 +2,36 @@ package scoop.terminal.protocol
 
 import scoop.terminal.event.KeyboardEnhancementFlags
 
-public enum QueryKind { Cursor, Primary, Secondary, Keyboard }
+/**
+ * The terminal reply family awaited by a query matcher.
+ */
+public enum QueryKind {
+    /**
+     * A cursor-position report.
+     */
+    Cursor,
+    /**
+     * Primary device attributes.
+     */
+    Primary,
+    /**
+     * Secondary device attributes.
+     */
+    Secondary,
+    /**
+     * Enhanced-keyboard flags, synchronized with a primary-attributes reply.
+     */
+    Keyboard }
 
+/**
+ * Matches a specific terminal query while retaining intermediate keyboard capability state.
+ */
 public class QueryReply public constructor(private val kind: QueryKind) {
     private var keyboard: KeyboardEnhancementFlags? = None
 
+    /**
+     * The ANSI request sequence to send for this query.
+     */
     public val command: String get() = when (kind) {
         case Cursor -> "\u001b[6n"
         case Primary -> "\u001b[c"
@@ -14,6 +39,10 @@ public class QueryReply public constructor(private val kind: QueryKind) {
         case Keyboard -> "\u001b[?u\u001b[c"
     }
 
+    /**
+     * Consumes a candidate reply and returns Some only when this query has a complete matching
+     * result.
+     */
     public fun accept(item: InputItem): InputItem? = when (item) {
         case InputItem.CursorPosition(_, _) -> if (kind == QueryKind.Cursor) Some(item) else None
         case InputItem.KeyboardFlags(flags) -> {

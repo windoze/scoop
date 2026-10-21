@@ -21,9 +21,15 @@ internal fun <T> decodeSetInto(decoder: Decoder, element: ValueDecoder<T>, resul
     elements.end()
 }
 
+/**
+ * Creates a list encoder using the supplied element codec.
+ */
 public fun <T> listEncoder(element: ValueEncoder<T>): ValueEncoder<List<T>> =
     ValueEncoderFunction<List<T>> { values, encoder -> encodeList(values, element, encoder) }
 
+/**
+ * Creates a list decoder using the supplied element codec.
+ */
 public fun <T> listDecoder(element: ValueDecoder<T>): ValueDecoder<List<T>> = ValueDecoderFunction<List<T>> { decoder ->
     val result = ArrayList<T>()
     decodeElements(decoder, element) { value -> result.add(value) }

@@ -4,14 +4,39 @@ import scoop.platform.fs.File
 import scoop.platform.io.*
 import scoop.platform.memory.NativeByteBuffer
 
+/**
+ * An owned blocking TCP connection. Input and output can be half-closed separately; close releases
+ * the entire connection.
+ */
 public class TcpStream internal constructor(private val file: File) : ByteSource, ByteSink, Closeable {
+    /**
+     * Whether this owned resource has been closed.
+     */
     public val isClosed: Boolean get() = file.isClosed
+    /**
+     * Queries the local endpoint of this connection.
+     */
     public fun localAddress(): SocketAddress = file.socketAddress(false)
+    /**
+     * Queries the remote endpoint of this connection.
+     */
     public fun peerAddress(): SocketAddress = file.socketAddress(true)
+    /**
+     * Queries the TCP_NODELAY setting.
+     */
     public fun noDelay(): Boolean = option(true, false, false)
+    /**
+     * Queries whether TCP keepalive is enabled.
+     */
     public fun keepAlive(): Boolean = option(false, false, false)
 
+    /**
+     * Creates owned blocking TCP connections to resolved endpoints.
+     */
     public companion object {
+        /**
+         * Connects to the specified numeric endpoint or reports a platform failure.
+         */
         public fun connect(address: SocketAddress): TcpStream {
             val file = File.newOwner()
             val stream = TcpStream(file)
@@ -24,7 +49,15 @@ public class TcpStream internal constructor(private val file: File) : ByteSource
         }
     }
 
+    /**
+     * Reads into the selected writable region, returning actual bytes and permitting short reads.
+     * Zero for a positive request denotes EOF.
+     */
     public override fun readInto(buffer: NativeByteBuffer, count: Long): Long = file.readInto(buffer, count)
+    /**
+     * Consumes the selected readable region, returning the actual accepted byte count and
+     * permitting short writes.
+     */
     public override fun writeFrom(buffer: NativeByteBuffer, count: Long): Long = file.withDescriptor { descriptor ->
         requireTransfer(count, buffer.readableBytes)
         if (count == 0L) return@withDescriptor 0L
@@ -41,7 +74,13 @@ public class TcpStream internal constructor(private val file: File) : ByteSource
         }
     }
 
+    /**
+     * Enables or disables TCP_NODELAY.
+     */
     public fun setNoDelay(value: Boolean) { option(true, true, value) }
+    /**
+     * Enables or disables operating-system TCP keepalive.
+     */
     public fun setKeepAlive(value: Boolean) { option(false, true, value) }
     private fun option(noDelay: Boolean, set: Boolean, value: Boolean): Boolean = file.withDescriptor { descriptor ->
         @Unsafe {
@@ -51,7 +90,13 @@ public class TcpStream internal constructor(private val file: File) : ByteSource
         }
     }
 
+    /**
+     * Shuts down the connection's input direction.
+     */
     public fun shutdownInput() { shutdown(false) }
+    /**
+     * Shuts down output while preserving the input direction.
+     */
     public fun shutdownOutput() { shutdown(true) }
     private fun shutdown(output: Boolean) {
         file.withDescriptor { descriptor ->
@@ -61,15 +106,36 @@ public class TcpStream internal constructor(private val file: File) : ByteSource
             }
         }
     }
+    /**
+     * Checks the unbuffered connection state; it does not wait for peer acknowledgement.
+     */
     public override fun flush() { file.flush() }
+    /**
+     * Closes the owned native descriptor; subsequent I/O through this owner is invalid.
+     */
     public override fun close() { file.close() }
 }
 
+/**
+ * An owned blocking TCP listener; accepted streams have independent ownership.
+ */
 public class TcpListener private constructor(private val file: File) : Closeable {
+    /**
+     * Queries the actual bound address, including any ephemeral port.
+     */
     public fun localAddress(): SocketAddress = file.socketAddress(false)
+    /**
+     * Whether this owned resource has been closed.
+     */
     public val isClosed: Boolean get() = file.isClosed
 
+    /**
+     * Binds TCP listening sockets with explicit backlog and reuse policy.
+     */
     public companion object {
+        /**
+         * Binds and listens on the selected address with the requested backlog.
+         */
         public fun bind(address: SocketAddress, backlog: Int = 128, reuseAddress: Boolean = false): TcpListener {
             if (backlog <= 0) throw IllegalArgumentException(Some("backlog must be positive"))
             val file = File.newOwner()
@@ -83,6 +149,9 @@ public class TcpListener private constructor(private val file: File) : Closeable
         }
     }
 
+    /**
+     * Blocks until a connection is accepted, returning an owned stream.
+     */
     public fun accept(): TcpStream = file.withDescriptor { listener ->
         val accepted = File.newOwner()
         val stream = TcpStream(accepted)
@@ -93,6 +162,9 @@ public class TcpListener private constructor(private val file: File) : Closeable
         }
         stream
     }
+    /**
+     * Closes the owned native descriptor; subsequent I/O through this owner is invalid.
+     */
     public override fun close() { file.close() }
 }
 

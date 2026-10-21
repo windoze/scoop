@@ -5,20 +5,81 @@ import scoop.http.HttpResponseHead
 import scoop.platform.fs.Path
 import scoop.url.Url
 
+/**
+ * Download publication, buffering, and progress policy. Completion atomically installs the
+ * destination; failures retain the prior destination.
+ */
 public class HttpDownloadOptions public constructor(
+    /**
+     * Whether atomic publication may replace an existing destination.
+     */
     public val replaceExisting: Boolean = false,
+    /**
+     * Whether file contents are synchronized before the final commit.
+     */
     public val syncOnCommit: Boolean = false,
+    /**
+     * The positive byte-buffer size used while streaming to disk.
+     */
     public val bufferSize: Long = 8192L,
+    /**
+     * Suspend callback for written-byte progress; it participates in cancellation and failure
+     * cleanup.
+     */
     public val onProgress: suspend (HttpDownloadProgress) -> Unit = suspend { _ -> }
 ) {
     init { if (bufferSize <= 0L) throw IllegalArgumentException(Some("download buffer size must be positive")) }
 }
 
+/**
+ * A download progress snapshot with current written bytes, known total, and any reused prefix.
+ */
 public class HttpDownloadProgress internal constructor(
-    public val url: Url, public val bytesWritten: Long, public val totalBytes: Long?, public val resumedBytes: Long = 0L
+    /**
+     * The final response URL.
+     */
+    public val url: Url,
+        /**
+         * Total bytes present in the download so far, including any reused prefix.
+         */
+        public val bytesWritten: Long,
+        /**
+         * The expected complete size when known.
+         */
+        public val totalBytes: Long?,
+        /**
+         * Bytes retained from a previously validated partial file.
+         */
+        public val resumedBytes: Long = 0L
 )
 
+/**
+ * A completed download with committed path, final response metadata, total bytes, and
+ * reused-prefix count.
+ */
 public class HttpDownloadResult internal constructor(
-    public val path: Path, public val url: Url, public val head: HttpResponseHead,
-    public val trailers: Array<HttpField>, public val byteCount: Long, public val resumedBytes: Long = 0L
+    /**
+     * The committed destination path.
+     */
+    public val path: Path,
+        /**
+         * The final response URL.
+         */
+        public val url: Url,
+        /**
+         * The successful final response head.
+         */
+        public val head: HttpResponseHead,
+    /**
+     * Complete response trailers after body consumption.
+     */
+    public val trailers: Array<HttpField>,
+        /**
+         * The complete committed file byte count.
+         */
+        public val byteCount: Long,
+        /**
+         * Bytes reused from the previous partial download.
+         */
+        public val resumedBytes: Long = 0L
 )

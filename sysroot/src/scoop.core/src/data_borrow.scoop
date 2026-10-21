@@ -12,14 +12,26 @@ internal fun <T : value, R> _withMutableArrayDataPointer(array: MutableArray<T>,
 @Intrinsic("string_with_utf8_bytes")
 internal fun <R> _withStringUtf8Bytes(value: String, block: (Ptr<UInt8>, Long) -> R): R
 
+/**
+ * Borrows contiguous array element storage for the callback, passing its pointer and element
+ * count. The pointer is valid only during the callback and must not escape.
+ */
 @Unsafe
 public fun <T : value, R> Array<T>.withDataPointer(block: (Ptr<T>, Long) -> R): R =
     _withArrayDataPointer<T, R>(this, block)
 
+/**
+ * Borrows contiguous array element storage for the callback, passing its pointer and element
+ * count. The pointer is valid only during the callback and must not escape.
+ */
 @Unsafe
 public fun <T : value, R> MutableArray<T>.withDataPointer(block: (Ptr<T>, Long) -> R): R =
     _withMutableArrayDataPointer<T, R>(this, block)
 
+/**
+ * Borrows the string's UTF-8 bytes for the callback, without a terminating NUL. The pointer is
+ * valid only during the callback.
+ */
 @Unsafe
 public fun <R> String.withUtf8Bytes(block: (Ptr<UInt8>, Long) -> R): R =
     _withStringUtf8Bytes<R>(this, block)

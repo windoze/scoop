@@ -23,6 +23,7 @@ impl Parser {
         if matches!(self.peek().kind, TokenKind::LParen) {
             self.bump();
             while !matches!(self.peek().kind, TokenKind::RParen) {
+                let doc_start = self.pos;
                 self.skip_parameter_compatibility_modifiers();
                 let start = self
                     .expect("`val` annotation parameter", |kind| {
@@ -40,12 +41,14 @@ impl Parser {
                 } else {
                     (None, ty.span.end)
                 };
-                parameters.push(AnnotationParameterDecl {
+                let documented = AnnotationParameterDecl {
                     name,
                     ty,
                     default,
                     span: Span::new(start, end),
-                });
+                };
+                self.attach_documentation(doc_start, documented.span);
+                parameters.push(documented);
                 if !matches!(self.peek().kind, TokenKind::Comma) {
                     break;
                 }

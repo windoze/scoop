@@ -46,6 +46,10 @@ private fun unsignedInteger(fields: KeyedDecodingContainer, name: String): Array
     return value
 }
 
+/**
+ * Imports a supported public JSON Web Key as an owned PublicKey. The caller must close the
+ * returned key.
+ */
 public fun importJwk(json: String): PublicKey {
     val parameters = decodeJson(json, JwkDecoder)
     @Unsafe { return parameters.first.withDataPointer { first, firstSize ->

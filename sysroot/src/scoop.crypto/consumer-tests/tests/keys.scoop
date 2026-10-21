@@ -3,8 +3,14 @@ package crypto.consumer
 import scoop.crypto.*
 import scoop.test.*
 
+/**
+ * Checks independently owned keys consumed from production crypto artifacts.
+ */
 @Test
 private class PublicKeyConsumerTests {
+    /**
+     * Verifies that an exported public key survives private-key close and a PEM round trip.
+     */
     @Test
     fun `public key remains valid after private key closes across Cone boundaries`() {
         val signer = PrivateKey.generateEd25519()

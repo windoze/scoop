@@ -2,10 +2,27 @@ package scoop.platform.net
 
 import scoop.text.*
 
-public class IpNetwork public constructor(address: IpAddress, public val prefixLength: Int) : Equals<IpNetwork>, Hash, ToString {
+/**
+ * An IP prefix whose stored network address has host bits cleared. Membership requires a
+ * compatible address family and matching prefix.
+ */
+public class IpNetwork public constructor(address: IpAddress,
+    /**
+     * The number of leading address bits belonging to the network prefix.
+     */
+    public val prefixLength: Int) : Equals<IpNetwork>, Hash, ToString {
+    /**
+     * The normalized network address with host bits cleared.
+     */
     public val address: IpAddress = networkAddress(address, prefixLength)
+    /**
+     * The network's address family.
+     */
     public val family: AddressFamily get() = address.family
 
+    /**
+     * Tests whether a compatible candidate shares this network prefix.
+     */
     public fun contains(candidate: IpAddress): Boolean {
         if (candidate.family != family) return false
         val expected = address.toByteArray()
@@ -17,11 +34,27 @@ public class IpNetwork public constructor(address: IpAddress, public val prefixL
         return true
     }
 
+    /**
+     * Compares the complete normalized address identity, including its relevant family, scope,
+     * prefix, or port.
+     */
     public override operator fun equals(other: IpNetwork): Boolean = prefixLength == other.prefixLength && address == other.address
+    /**
+     * Hashes the same address identity used by equality.
+     */
     public override fun hash(): Long = address.hash() * 31L + prefixLength.hash()
+    /**
+     * Returns numeric address notation without performing name resolution.
+     */
     public override fun toString(): String = address.toString() + "/" + prefixLength.toString()
 
+    /**
+     * Parses numeric CIDR network notation.
+     */
     public companion object {
+        /**
+         * Parses an IP address and prefix length, validating the family-specific range.
+         */
         public fun parse(text: String): IpNetwork {
             val separator = text.indexOf('/')
             if (separator <= 0L) throw IllegalArgumentException(Some("CIDR requires an IP address and prefix length"))

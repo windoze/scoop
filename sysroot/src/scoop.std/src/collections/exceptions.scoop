@@ -1,5 +1,12 @@
 package scoop.collections
 
+/**
+ * An element was required from an empty collection or an unsuccessful lookup.
+ */
 public class NoSuchElementException public constructor(message: String) : Exception(Some(message))
 
+/**
+ * A collection changed structurally during iteration, or was modified from a lookup/comparison
+ * callback.
+ */
 public class ConcurrentModificationException public constructor(message: String) : Exception(Some(message))

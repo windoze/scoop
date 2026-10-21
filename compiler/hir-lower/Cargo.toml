@@ -13,6 +13,7 @@ scoop-identity.workspace = true
 scoop-wire.workspace = true
 
 [dev-dependencies]
+scoop-doc.workspace = true
 scoop-parser.workspace = true
 scoop-mir.workspace = true
 scoop-mir-lower.workspace = true

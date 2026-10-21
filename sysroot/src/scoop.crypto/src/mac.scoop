@@ -2,10 +2,23 @@ package scoop.crypto
 
 import scoop.crypto.native.*
 
+/**
+ * Owned native storage for symmetric key bytes. Close it after use; exporting creates a separate
+ * managed byte copy.
+ */
 public class SecretKey private constructor(private var handle: ULong) : Closeable {
+    /**
+     * The key length in bytes; access after close fails.
+     */
     public val size: Long get() { @Unsafe { return bytesSize(nativeHandle()) } }
 
+    /**
+     * Imports key material into independently owned native storage.
+     */
     public companion object {
+        /**
+         * Copies the supplied key bytes into a new owned SecretKey.
+         */
         public fun fromBytes(data: List<Byte>): SecretKey {
             val bytes = data.toArray()
             @Unsafe { return bytes.withDataPointer { pointer, count ->
@@ -19,8 +32,15 @@ public class SecretKey private constructor(private var handle: ULong) : Closeabl
         return handle
     }
 
+    /**
+     * Returns a managed copy of the key material. Closing the key does not erase this separate
+     * copy.
+     */
     public fun exportBytes(): Array<Byte> { @Unsafe { return cryptoBytes(secretExport(nativeHandle()), "export secret key") } }
 
+    /**
+     * Releases native key storage; repeated closes are harmless.
+     */
     public override fun close() {
         val owned = handle
         handle = 0UL
@@ -28,6 +48,9 @@ public class SecretKey private constructor(private var handle: ULong) : Closeabl
     }
 }
 
+/**
+ * Computes HMAC with SHA-256, SHA-384, or SHA-512. Other digest selections are rejected.
+ */
 public fun hmac(algorithm: DigestAlgorithm, key: SecretKey, data: List<Byte>): Array<Byte> {
     if (algorithm != DigestAlgorithm.Sha256 && algorithm != DigestAlgorithm.Sha384 && algorithm != DigestAlgorithm.Sha512)
         throw IllegalArgumentException(Some("HMAC requires SHA-256, SHA-384, or SHA-512"))
@@ -38,6 +61,10 @@ public fun hmac(algorithm: DigestAlgorithm, key: SecretKey, data: List<Byte>): A
     } }
 }
 
+/**
+ * Computes the expected MAC and compares equal-length bytes using the native constant-time
+ * comparison. A length mismatch returns false.
+ */
 public fun verifyHmac(algorithm: DigestAlgorithm, key: SecretKey, data: List<Byte>, expected: List<Byte>): Boolean {
     val actual = hmac(algorithm, key, data)
     val other = expected.toArray()

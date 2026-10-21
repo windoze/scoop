@@ -2,11 +2,30 @@ package scoop.http.client
 
 import scoop.time.Duration
 
+/**
+ * Positive connection/HTTP2 stream capacities plus idle and optional maximum connection lifetimes.
+ */
 public class HttpConnectionPoolOptions public constructor(
+    /**
+     * Maximum connections pooled or being established for one origin.
+     */
     public val maxConnectionsPerOrigin: Long = 8L,
+    /**
+     * Maximum connections across the client.
+     */
     public val maxConnections: Long = 64L,
+    /**
+     * Local concurrent-stream cap per HTTP/2 connection, also constrained by peer settings.
+     */
     public val maxStreamsPerHttp2: Long = 100L,
+    /**
+     * How long an unused connection remains reusable.
+     */
     public val idleTimeout: Duration = Duration.seconds(60L),
+    /**
+     * Optional maximum connection age before retirement; existing active work follows normal
+     * draining rules.
+     */
     public val maxLifetime: Duration? = None
 ) {
     init {

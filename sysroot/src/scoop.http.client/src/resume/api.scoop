@@ -3,16 +3,76 @@ package scoop.http.client
 import scoop.http.HttpResponseHead
 import scoop.platform.fs.Path
 
-public enum HttpResumeMismatch { Restart, Fail }
+/**
+ * The response to incompatible or unusable partial-download metadata.
+ */
+public enum HttpResumeMismatch {
+    /**
+     * Restarts from a fresh representation when safe continuation cannot be established.
+     */
+    Restart,
+    /**
+     * Reports the mismatch instead of restarting.
+     */
+    Fail }
+/**
+ * The condition preventing safe byte-range continuation.
+ */
 public enum HttpResumeFailureReason {
-    MissingMetadata, InvalidMetadata, UnreliableValidator, RequestChanged,
-    RepresentationChanged, InvalidRange, IncompleteRange, UnexpectedStatus
+    /**
+     * The partial file has no usable companion metadata.
+     */
+    MissingMetadata,
+        /**
+         * Saved resume metadata is malformed or exceeds its limits.
+         */
+        InvalidMetadata,
+        /**
+         * The saved response has no reliable validator for continuation.
+         */
+        UnreliableValidator,
+        /**
+         * The current request no longer matches the saved download identity.
+         */
+        RequestChanged,
+    /**
+     * The server representation or validator differs from the saved one.
+     */
+    RepresentationChanged,
+        /**
+         * The response range does not agree with the requested continuation.
+         */
+        InvalidRange,
+        /**
+         * The response ended before the promised range was complete.
+         */
+        IncompleteRange,
+        /**
+         * The response status cannot complete the selected resume operation.
+         */
+        UnexpectedStatus
 }
 
+/**
+ * Explicit partial-file and metadata paths, mismatch policy, and metadata size bound. The two
+ * paths must differ.
+ */
 public class HttpResumeOptions public constructor(
+    /**
+     * The explicit path retaining incomplete representation bytes.
+     */
     public val partialFile: Path,
+    /**
+     * The distinct path retaining validation metadata.
+     */
     public val metadataFile: Path,
+    /**
+     * Whether unusable resume state causes restart or failure.
+     */
     public val mismatch: HttpResumeMismatch = HttpResumeMismatch.Restart,
+    /**
+     * The positive limit on resume metadata input bytes.
+     */
     public val maxMetadataBytes: Long = 65536L
 ) {
     init {
@@ -22,7 +82,24 @@ public class HttpResumeOptions public constructor(
     }
 }
 
+/**
+ * A continuation failure with a precise category, explanation, and optional response/cause.
+ */
 public class HttpResumeException public constructor(
-    public val reason: HttpResumeFailureReason, public val detail: String,
-    public val head: HttpResponseHead? = None, public val cause: Throwable? = None
+    /**
+     * The continuation failure category.
+     */
+    public val reason: HttpResumeFailureReason,
+        /**
+         * The mismatch explanation.
+         */
+        public val detail: String,
+    /**
+     * The response head involved, when available.
+     */
+    public val head: HttpResponseHead? = None,
+        /**
+         * The underlying I/O or validation failure, when available.
+         */
+        public val cause: Throwable? = None
 ) : Exception(Some(detail))

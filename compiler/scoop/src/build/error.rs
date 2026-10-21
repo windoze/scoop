@@ -75,7 +75,7 @@ impl BuildFailure {
         )
     }
 
-    pub(super) fn root(error: LoadBuildRootError) -> Box<Self> {
+    pub(crate) fn root(error: LoadBuildRootError) -> Box<Self> {
         let LoadBuildRootError::RootManifest(manifest) = &error;
         let location = manifest_location(manifest);
         let mut failure = Self::classified(error);
@@ -83,7 +83,7 @@ impl BuildFailure {
         failure
     }
 
-    pub(super) fn discovery(error: BuildGraphDiscoveryError) -> Box<Self> {
+    pub(crate) fn discovery(error: BuildGraphDiscoveryError) -> Box<Self> {
         let location = match &error {
             BuildGraphDiscoveryError::Locator(error) => locator_location(error),
             _ => BuildFailureLocation::None,
@@ -93,10 +93,11 @@ impl BuildFailure {
         failure
     }
 
-    pub(super) fn preparation(error: PrepareBuildGraphError) -> Box<Self> {
+    pub(crate) fn preparation(error: PrepareBuildGraphError) -> Box<Self> {
         let path: Option<&Path> = match &error {
             PrepareBuildGraphError::SourceDiscovery(error) => Some(error.path()),
             PrepareBuildGraphError::SingleFile(error) => Some(error.path()),
+            PrepareBuildGraphError::Manifest(error) => Some(error.path()),
             _ => None,
         };
         let path = path.map(Path::to_owned);

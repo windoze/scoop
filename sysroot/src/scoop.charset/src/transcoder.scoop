@@ -2,8 +2,22 @@ package scoop.charset
 
 import scoop.platform.memory.NativeByteBuffer
 
+/**
+ * A stateful native converter between two encodings. Close it after use, including after a
+ * conversion failure.
+ *
+ * Calls must not overlap. Once final input is accepted, no further nonempty input may be supplied;
+ * continue draining output until [CharsetState.Finished].
+ */
 public class CharsetTranscoder public constructor(
-    public val source: Charset, public val destination: Charset,
+    /**
+     * The encoding of bytes read from the input buffer.
+     */
+    public val source: Charset,
+        /**
+         * The encoding of bytes appended to the output buffer.
+         */
+        public val destination: Charset,
     options: CharsetTranscodeOptions = CharsetTranscodeOptions()
 ) : Closeable {
     private var handle: ULong = createCharset(source, destination, options)
@@ -12,6 +26,15 @@ public class CharsetTranscoder public constructor(
     private var failed: Boolean = false
     private val busy: AtomicBoolean = AtomicBoolean(false)
 
+    /**
+     * Converts readable input into writable output and advances both buffers by the returned byte
+     * counts. Set `endInput` for the final input; repeat calls as requested by [CharsetStep.state]
+     * until finished.
+     *
+     * @throws IllegalStateException The converter is closed, failed, already in use, or receives
+     * input after completion.
+     * @throws CharsetException Conversion violates the selected text or BOM policy.
+     */
     public fun process(input: NativeByteBuffer, output: NativeByteBuffer, endInput: Boolean = false): CharsetStep {
         enter()
         try {
@@ -40,6 +63,10 @@ public class CharsetTranscoder public constructor(
         if (!busy.compareAndSet(false, true)) throw IllegalStateException(Some("transcoder is already in use"))
     }
 
+    /**
+     * Releases the native conversion state. Repeated closes are allowed, but a close must not
+     * overlap a conversion call.
+     */
     public override fun close() {
         enter()
         try {

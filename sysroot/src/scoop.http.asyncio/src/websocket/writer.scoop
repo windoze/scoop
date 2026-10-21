@@ -4,13 +4,32 @@ import scoop.asyncio.*
 import scoop.http.*
 import scoop.platform.memory.NativeByteBuffer
 
+/**
+ * The active outgoing message. Short writes respect configured frame size; finish emits FIN after
+ * any compression boundary completes.
+ */
 public class WebSocketMessageWriter internal constructor(private val state: WsState, private val message: WsOutgoing)
     : AsyncByteSink, AsyncCloseable {
+    /**
+     * The Text or Binary message category.
+     */
     public val type: WebSocketMessageType get() = message.type
+    /**
+     * Whether this particular message uses negotiated compression.
+     */
     public val isCompressed: Boolean get() = message.isCompressed
+    /**
+     * Whether this body or message reached its successful boundary.
+     */
     public val isComplete: Boolean get() = state.lock.withLock { message.life.complete }
+    /**
+     * Whether this body or message has been closed.
+     */
     public val isClosed: Boolean get() = state.lock.withLock { message.life.closed }
 
+    /**
+     * Accepts up to count readable bytes with bounded frame-sized progress.
+     */
     public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long =
         wsOperation<Unit, Long>(state, false, {
             checkWsWriter(state, message, false)
@@ -19,6 +38,10 @@ public class WebSocketMessageWriter internal constructor(private val state: WsSt
             if (count == 0L) 0L else writeWsMessage(state, message, buffer, count)
         })
 
+    /**
+     * Flushes accepted bytes, including a compression synchronization point when active, without
+     * emitting FIN.
+     */
     public override suspend fun flush() {
         wsOperation<Unit, Unit>(state, false, { checkWsWriter(state, message, true) }, suspend { _ ->
             if (!state.lock.withLock { message.life.complete }) {
@@ -29,6 +52,9 @@ public class WebSocketMessageWriter internal constructor(private val state: WsSt
         })
     }
 
+    /**
+     * Completes compression if selected and ends the message with FIN.
+     */
     public suspend fun finish() {
         wsOperation<Unit, Unit>(state, false, { checkWsWriter(state, message, true) }, suspend { _ ->
             if (!state.lock.withLock { message.life.complete }) finishWsMessage(state, message)
@@ -36,6 +62,9 @@ public class WebSocketMessageWriter internal constructor(private val state: WsSt
         })
     }
 
+    /**
+     * Closes the writer. Abandoning an unfinished message aborts its session.
+     */
     public override suspend fun close() { closeWsLife(state, message.life) }
 }
 

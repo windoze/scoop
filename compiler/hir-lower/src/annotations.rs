@@ -201,7 +201,7 @@ impl Lowerer {
                 ),
             }
         }
-        if intrinsic.is_some() && decl.annotations.len() != 1 {
+        if intrinsic.is_some() && seen.iter().any(|name| name != "Intrinsic") {
             self.error(
                 decl.span,
                 "`@Intrinsic` cannot be combined with other annotations on a type".to_string(),
@@ -250,12 +250,6 @@ impl Lowerer {
                     format!("unsupported annotation `@{name}` in milestone M14"),
                 );
             }
-        }
-        if intrinsic.is_some() && decl.annotations.len() != 1 {
-            self.error(
-                decl.span,
-                "`@Intrinsic` cannot be combined with other annotations on a type".to_string(),
-            );
         }
         CheckedClassAnnotations { intrinsic }
     }

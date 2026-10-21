@@ -2,16 +2,41 @@ package scoop.http
 
 import scoop.platform.memory.NativeByteBuffer
 
-public class MultipartDecoder public constructor(public val boundary: MultipartBoundary, limits: MultipartLimits = MultipartLimits()) : Closeable {
+/**
+ * An incremental multipart parser with bounded headers, parts, and body events. Drain an event
+ * before feeding more input; calls on one instance must not overlap.
+ */
+public class MultipartDecoder public constructor(
+    /**
+     * The validated delimiter boundary used by this codec.
+     */
+    public val boundary: MultipartBoundary, limits: MultipartLimits = MultipartLimits()) : Closeable {
     private val guard: MultipartGuard = MultipartGuard()
     private val state: MultipartState = MultipartState(boundary, limits)
     private var closed: Boolean = false
     private var parseFailure: Throwable? = None
+    /**
+     * Whether local parser state has been closed.
+     */
     public val isClosed: Boolean get() = closed
+    /**
+     * Whether the closing multipart boundary has been recognized.
+     */
     public val isComplete: Boolean get() = state.complete
+    /**
+     * Whether the codec has completed its terminal operation and, for a decoder, drained pending
+     * events.
+     */
     public val isFinished: Boolean get() = state.ended && !state.hasPending
+    /**
+     * The retained parse failure, if the decoder has failed.
+     */
     public val failure: Throwable? get() = parseFailure
 
+    /**
+     * Consumes a prefix of the readable buffer and advances by the returned count. A pending event
+     * can stop progress; drain events before supplying more bytes.
+     */
     public fun receive(buffer: NativeByteBuffer, count: Long = buffer.readableBytes): Long = guard.withUse {
         requireOpen()
         if (state.ended) throw IllegalStateException(Some("multipart input has ended"))
@@ -37,11 +62,17 @@ public class MultipartDecoder public constructor(public val boundary: MultipartB
         }
     }
 
+    /**
+     * Removes the next parsed event, or returns None when no event is ready.
+     */
     public fun nextEvent(): MultipartEvent? = guard.withUse {
         requireOpen()
         try { state.take() }
         catch (error: Throwable) { failed(error); throw error }
     }
+    /**
+     * Reports EOF, validates completion, and rejects a truncated multipart message.
+     */
     public fun endInput() {
         guard.withUse {
             requireOpen()
@@ -50,6 +81,9 @@ public class MultipartDecoder public constructor(public val boundary: MultipartB
         }
     }
 
+    /**
+     * Releases local state without emitting bytes or finishing an incomplete message.
+     */
     public override fun close() { guard.withUse { closed = true; state.discard(); Unit } }
     private fun failed(error: Throwable) { parseFailure = Some(error); state.discard() }
     private fun requireOpen() {

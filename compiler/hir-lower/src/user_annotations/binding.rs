@@ -17,6 +17,9 @@ impl Lowerer {
         annotations: &[ast::Annotation],
         check_rules: bool,
     ) {
+        let intrinsic = annotations.iter().any(|annotation| {
+            annotation.use_site.is_none() && annotation.name.single_text() == Some("Intrinsic")
+        });
         for annotation in annotations {
             let Some(target) = self.annotation_use_site(target, annotation) else {
                 continue;
@@ -32,6 +35,16 @@ impl Lowerer {
             let Some(id) = self.resolve_user_annotation(annotation) else {
                 continue;
             };
+            if intrinsic
+                && self.core_source_annotation("DocHidden") != Some(id)
+                && self.core_source_annotation("DocAlias") != Some(id)
+            {
+                self.error(
+                    annotation.span,
+                    "`@Intrinsic` only permits ordinary core documentation annotations".into(),
+                );
+                continue;
+            }
             let repeated = self
                 .annotation_metadata
                 .targets

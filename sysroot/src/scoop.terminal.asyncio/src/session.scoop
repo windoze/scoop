@@ -7,14 +7,29 @@ import scoop.terminal.event.Event
 import scoop.terminal.protocol.InputParser
 import scoop.time.Duration
 
+/**
+ * An event-loop-bound terminal session combining parsed input, terminal queries, raw-mode control,
+ * and asynchronous output. Operations require an active job on the owning loop; close the session
+ * after use.
+ */
 public class AsyncTerminalSession private constructor(internal val tty: AsyncTty,
     private val loop: EventLoop, parser: InputParser) : AsyncByteSink, AsyncCloseable {
     internal val gate: SessionGate = SessionGate()
     internal val raw: AtomicBoolean = AtomicBoolean(false)
     internal val input: SessionInput = SessionInput(SessionReader(tty, parser, raw))
+    /**
+     * Whether the underlying asynchronous terminal handle is closed.
+     */
     public val isClosed: Boolean get() = tty.isClosed
 
+    /**
+     * Opens a session over the event loop's terminal handle.
+     */
     public companion object {
+        /**
+         * Opens the terminal on the supplied loop. `escapeDelay` controls how long an incomplete
+         * escape sequence may wait before being treated as input.
+         */
         public suspend fun open(loop: EventLoop,
             escapeDelay: Duration = Duration.milliseconds(50L)): AsyncTerminalSession {
             val parser = InputParser(escapeDelay)
@@ -46,28 +61,59 @@ public class AsyncTerminalSession private constructor(internal val tty: AsyncTty
         finally { gate.release(reading, writing) }
     }
 
+    /**
+     * Waits for the next parsed keyboard, mouse, paste, focus, or resize event.
+     */
     public suspend fun read(): Event = withAccess(true, false) suspend { input.read() }
+    /**
+     * Waits up to a nonnegative timeout for a parsed input event without consuming the event. A
+     * zero timeout checks current availability.
+     */
     public suspend fun poll(timeout: Duration): Boolean {
         if (timeout < Duration.ZERO) throw IllegalArgumentException(Some("negative terminal poll timeout"))
         return withAccess(true, false) suspend { input.poll(Some(timeout)) }
     }
 
+    /**
+     * Reads the terminal dimensions, including pixel dimensions when the host supplies them.
+     */
     public suspend fun size(): TerminalSize = withAccess(true, true) suspend {
         val value = tty.size()
         TerminalSize(value.columns, value.rows, value.widthPixels, value.heightPixels)
     }
+    /**
+     * Reads the actual terminal mode and refreshes the session's tracked raw-mode state.
+     */
     public suspend fun isRawMode(): Boolean = withAccess(true, true, false) suspend {
         val value = tty.isRawMode()
         raw.store(value)
         value
     }
+    /**
+     * Enables raw terminal input while reserving session input and output access.
+     */
     public suspend fun enableRawMode() { withAccess(true, true) suspend { changeRaw(true) } }
+    /**
+     * Restores non-raw terminal input. Cleanup can call this even when the active job is
+     * cancelling.
+     */
     public suspend fun disableRawMode() { withAccess(true, true, false) suspend { changeRaw(false) } }
 
+    /**
+     * Writes readable buffer bytes through the terminal handle and advances the buffer by actual
+     * progress.
+     */
     public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long =
         withAccess(false, true) suspend { tty.writeFrom(buffer, count) }
+    /**
+     * Waits for buffered terminal output to be flushed.
+     */
     public override suspend fun flush() { withAccess(false, true) suspend { tty.flush() } }
 
+    /**
+     * Closes the terminal handle and waits for active session operations to leave their access
+     * scopes. Repeated closes after cleanup return immediately.
+     */
     public override suspend fun close() {
         if (tty.isClosed && gate.isIdle) return
         if (!tty.isClosed) requireJob(false)

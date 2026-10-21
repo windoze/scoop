@@ -5,27 +5,62 @@ internal fun <T> requireCollectionElement(value: T?): T = when (value) {
     case None -> throw NoSuchElementException("no matching element")
 }
 
+/**
+ * Returns the first eligible element in iteration order, applying the predicate when supplied, or
+ * None.
+ */
 public fun <T> Iterable<T>.firstOrNone(): T? = iterator().next()
+/**
+ * Returns the first eligible element in iteration order, applying the predicate when supplied;
+ * absence throws NoSuchElementException.
+ */
 public fun <T> Iterable<T>.first(): T = requireCollectionElement<T>(firstOrNone<T>())
 
+/**
+ * Returns the first eligible element in iteration order, applying the predicate when supplied, or
+ * None.
+ */
 public fun <T> Iterable<T>.firstOrNone(predicate: (T) -> Boolean): T? {
     for (element in this) { if (predicate(element)) return Some(element) }
     return None
 }
 
+/**
+ * Returns the first eligible element in iteration order, applying the predicate when supplied;
+ * absence throws NoSuchElementException.
+ */
 public fun <T> Iterable<T>.first(predicate: (T) -> Boolean): T =
     requireCollectionElement<T>(firstOrNone<T>(predicate))
 
+/**
+ * Returns the first element satisfying the predicate, or None.
+ */
 public fun <T> Iterable<T>.find(predicate: (T) -> Boolean): T? = firstOrNone<T>(predicate)
 
+/**
+ * Returns the last eligible element after traversal, applying the predicate when supplied, or
+ * None.
+ */
 public fun <T> Iterable<T>.lastOrNone(predicate: (T) -> Boolean): T? {
     var result: T? = None
     for (element in this) { if (predicate(element)) result = Some(element) }
     return result
 }
 
+/**
+ * Returns the last eligible element after traversal, applying the predicate when supplied, or
+ * None.
+ */
 public fun <T> Iterable<T>.lastOrNone(): T? = lastOrNone<T> { _ -> true }
+/**
+ * Returns the last eligible element after traversal, applying the predicate when supplied; absence
+ * throws NoSuchElementException.
+ */
 public fun <T> Iterable<T>.last(): T = requireCollectionElement<T>(lastOrNone<T>())
+/**
+ * Returns the last eligible element after traversal, applying the predicate when supplied; absence
+ * throws NoSuchElementException.
+ */
 public fun <T> Iterable<T>.last(predicate: (T) -> Boolean): T =
     requireCollectionElement<T>(lastOrNone<T>(predicate))
 
@@ -45,12 +80,30 @@ private fun <T> Iterable<T>.singleResult(predicate: (T) -> Boolean, rejectMany: 
     return result
 }
 
+/**
+ * Returns the sole eligible element, or None for zero or multiple matches.
+ */
 public fun <T> Iterable<T>.singleOrNone(predicate: (T) -> Boolean): T? = singleResult<T>(predicate, false)
+/**
+ * Returns the sole eligible element, or None for zero or multiple matches.
+ */
 public fun <T> Iterable<T>.singleOrNone(): T? = singleOrNone<T> { _ -> true }
+/**
+ * Requires exactly one eligible element. No match throws NoSuchElementException; multiple matches
+ * throw IllegalArgumentException.
+ */
 public fun <T> Iterable<T>.single(predicate: (T) -> Boolean): T =
     requireCollectionElement<T>(singleResult<T>(predicate, true))
+/**
+ * Requires exactly one eligible element. No match throws NoSuchElementException; multiple matches
+ * throw IllegalArgumentException.
+ */
 public fun <T> Iterable<T>.single(): T = single<T> { _ -> true }
 
+/**
+ * Returns the element at a zero-based iteration index, or None for a negative or out-of-range
+ * index.
+ */
 public fun <T> Iterable<T>.elementAtOrNone(index: Long): T? {
     if (index < 0L) return None
     var remaining = index
@@ -61,11 +114,18 @@ public fun <T> Iterable<T>.elementAtOrNone(index: Long): T? {
     return None
 }
 
+/**
+ * Returns the element at a zero-based iteration index; an out-of-range index throws
+ * IndexOutOfBoundsException.
+ */
 public fun <T> Iterable<T>.elementAt(index: Long): T = when (elementAtOrNone<T>(index)) {
     case Some(element) -> element
     case None -> throw IndexOutOfBoundsException()
 }
 
+/**
+ * Returns the first equal element's zero-based iteration index, or -1 if absent.
+ */
 public fun <T : Equals<T>> Iterable<T>.indexOf(element: T): Long {
     var index = 0L
     for (value in this) {
@@ -75,6 +135,9 @@ public fun <T : Equals<T>> Iterable<T>.indexOf(element: T): Long {
     return -1L
 }
 
+/**
+ * Stops at the first equal element and reports whether one exists.
+ */
 public operator fun <T : Equals<T>> Iterable<T>.contains(element: T): Boolean {
     for (value in this) { if (value == element) return true }
     return false

@@ -2,11 +2,19 @@ package scoop.sequences
 
 import scoop.collections.joinToString
 
+/**
+ * Consumes this sequence. Joins rendered elements with separator, prefix, and postfix. A
+ * nonnegative limit bounds rendered elements and appends truncated text when more remain.
+ */
 public fun <T> Sequence<T>.joinToString(
     separator: String = ", ", prefix: String = "", postfix: String = "",
     limit: Long = -1L, truncated: String = "...", transform: (T) -> String
 ): String = terminalInput<T>().joinToString<T>(separator, prefix, postfix, limit, truncated, transform)
 
+/**
+ * Consumes this sequence. Joins rendered elements with separator, prefix, and postfix. A
+ * nonnegative limit bounds rendered elements and appends truncated text when more remain.
+ */
 public fun <T : ToString> Sequence<T>.joinToString(
     separator: String = ", ", prefix: String = "", postfix: String = "", limit: Long = -1L, truncated: String = "..."
 ): String = terminalInput<T>().joinToString<T>(separator, prefix, postfix, limit, truncated)

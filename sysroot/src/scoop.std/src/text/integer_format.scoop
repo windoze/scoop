@@ -21,11 +21,43 @@ private fun formatSignedInteger(value: Long, radix: Int): String {
     return formatInteger(magnitude, negative, radix)
 }
 
+/**
+ * Formats this integer in radix 2..36 using lowercase digits and a leading minus for negative
+ * signed values.
+ */
 public fun Int8.toString(radix: Int): String = formatSignedInteger(toLong(), radix)
+/**
+ * Formats this integer in radix 2..36 using lowercase digits and a leading minus for negative
+ * signed values.
+ */
 public fun Int16.toString(radix: Int): String = formatSignedInteger(toLong(), radix)
+/**
+ * Formats this integer in radix 2..36 using lowercase digits and a leading minus for negative
+ * signed values.
+ */
 public fun Int.toString(radix: Int): String = formatSignedInteger(toLong(), radix)
+/**
+ * Formats this integer in radix 2..36 using lowercase digits and a leading minus for negative
+ * signed values.
+ */
 public fun Long.toString(radix: Int): String = formatSignedInteger(this, radix)
+/**
+ * Formats this integer in radix 2..36 using lowercase digits and a leading minus for negative
+ * signed values.
+ */
 public fun UInt8.toString(radix: Int): String = formatInteger(toULong(), false, radix)
+/**
+ * Formats this integer in radix 2..36 using lowercase digits and a leading minus for negative
+ * signed values.
+ */
 public fun UInt16.toString(radix: Int): String = formatInteger(toULong(), false, radix)
+/**
+ * Formats this integer in radix 2..36 using lowercase digits and a leading minus for negative
+ * signed values.
+ */
 public fun UInt.toString(radix: Int): String = formatInteger(toULong(), false, radix)
+/**
+ * Formats this integer in radix 2..36 using lowercase digits and a leading minus for negative
+ * signed values.
+ */
 public fun ULong.toString(radix: Int): String = formatInteger(this, false, radix)

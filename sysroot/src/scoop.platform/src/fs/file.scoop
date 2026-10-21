@@ -6,23 +6,47 @@ import scoop.platform.native.decodeFileMetadata
 import scoop.platform.memory.NativeByteBuffer
 import scoop.platform.system.OsString
 
+/**
+ * Explicit file access and creation flags. Creation permissions are subject to the process umask;
+ * incompatible options are rejected.
+ */
 public struct OpenOptions(
     val read: Boolean = true, val write: Boolean = false, val append: Boolean = false,
     val create: Boolean = false, val createNew: Boolean = false, val truncate: Boolean = false,
     val mode: Int = 0x1b6
 )
 
+/**
+ * An owned native file descriptor with byte I/O, positioning, metadata, and explicit durability
+ * operations. Close it after use.
+ */
 public class File private constructor(private val context: OsString?) : ByteSource, ByteSink, Closeable {
     private var descriptor: Int = -1
     private val active: AtomicLong = AtomicLong(0L)
+    /**
+     * Whether this owned resource has been closed.
+     */
     public val isClosed: Boolean get() = descriptor < 0
+    /**
+     * Queries the current file offset in bytes.
+     */
     public fun position(): Long = seekNative(0L, true)
+    /**
+     * Queries the current file length in bytes.
+     */
     public fun size(): Long = metadata().size
 
+    /**
+     * Opens owned file descriptors with explicit access and creation policy.
+     */
     public companion object {
         // Pipe/spawn callers allocate all managed owners before acquiring native descriptors.
         internal fun newOwner(): File = File(None)
 
+        /**
+         * Opens the path using the supplied options; failures retain platform error details and
+         * path context.
+         */
         public fun open(path: Path, options: OpenOptions = OpenOptions()): File {
             val flags = fileOpenFlags(options)
             val file = File(Some(path.toOsString()))
@@ -60,14 +84,30 @@ public class File private constructor(private val context: OsString?) : ByteSour
         if (descriptor < 0) throw IllegalStateException(Some("file is closed"))
     }
 
+    /**
+     * Duplicates the native descriptor into a separately owned File. Descriptor duplication shares
+     * the underlying open-file offset.
+     */
     public fun duplicate(): File = withDescriptor { fd -> File.duplicateDescriptor(fd, context) }
 
+    /**
+     * Reads into the selected writable region, returning actual bytes and permitting short reads.
+     * Zero for a positive request denotes EOF.
+     */
     public override fun readInto(buffer: NativeByteBuffer, count: Long): Long =
         withDescriptor { fd -> readDescriptor(fd, buffer, count, context) }
 
+    /**
+     * Consumes the selected readable region, returning the actual accepted byte count and
+     * permitting short writes.
+     */
     public override fun writeFrom(buffer: NativeByteBuffer, count: Long): Long =
         withDescriptor { fd -> writeDescriptor(fd, buffer, count, context) }
 
+    /**
+     * Reads into the selected writable region, returning actual bytes and permitting short reads.
+     * Zero for a positive request denotes EOF.
+     */
     public fun readInto(array: MutableArray<Byte>, offset: Long = 0L, count: Long = array.size - offset): Long {
         return withDescriptor { fd ->
             requireArrayTransfer(array.size, offset, count)
@@ -83,6 +123,10 @@ public class File private constructor(private val context: OsString?) : ByteSour
         }
     }
 
+    /**
+     * Consumes the selected readable region, returning the actual accepted byte count and
+     * permitting short writes.
+     */
     public fun writeFrom(array: List<Byte>, offset: Long = 0L, count: Long = array.size - offset): Long {
         return withDescriptor { fd ->
             requireArrayTransfer(array.size, offset, count)
@@ -104,6 +148,9 @@ public class File private constructor(private val context: OsString?) : ByteSour
         return written
     }
 
+    /**
+     * Sets the file offset to a nonnegative absolute byte position.
+     */
     public fun seek(position: Long) {
         requireOpen()
         if (position < 0L) throw IllegalArgumentException(Some("negative file position"))
@@ -117,6 +164,9 @@ public class File private constructor(private val context: OsString?) : ByteSour
         }
     }
 
+    /**
+     * Changes file length using a nonnegative byte size; requires suitable write access.
+     */
     public fun truncate(size: Long) {
         withDescriptor { fd ->
             if (size < 0L) throw IllegalArgumentException(Some("negative file size"))
@@ -127,7 +177,13 @@ public class File private constructor(private val context: OsString?) : ByteSour
         }
     }
 
+    /**
+     * Requests persistence of data and metadata required to retrieve the data.
+     */
     public fun syncData() { sync(true) }
+    /**
+     * Requests persistence of data and full file metadata.
+     */
     public fun syncAll() { sync(false) }
     private fun sync(dataOnly: Boolean) {
         withDescriptor { fd ->
@@ -138,6 +194,9 @@ public class File private constructor(private val context: OsString?) : ByteSour
         }
     }
 
+    /**
+     * Returns metadata for this open descriptor.
+     */
     public fun metadata(): FileMetadata = withDescriptor { fd ->
         @Unsafe {
             val (data, error) = nativeMetadata(fd, None, true)
@@ -145,8 +204,15 @@ public class File private constructor(private val context: OsString?) : ByteSour
         }
     }
 
+    /**
+     * Checks that the descriptor is open. File writes are unbuffered here; use syncData or syncAll
+     * for durability.
+     */
     public override fun flush() { requireOpen() }
 
+    /**
+     * Closes the owned native descriptor; subsequent I/O through this owner is invalid.
+     */
     public override fun close() {
         if (descriptor < 0) return
         if (active.load(MemoryOrder.Relaxed) != 0L) throw IllegalStateException(Some("file operation is active"))

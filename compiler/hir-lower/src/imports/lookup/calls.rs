@@ -73,7 +73,10 @@ impl ImportLookupLayer {
 }
 
 impl Lowerer {
-    fn current_named_call_target(&self, binding: CurrentUnitBindingId) -> NamedCallTarget {
+    pub(crate) fn current_named_call_target(
+        &self,
+        binding: CurrentUnitBindingId,
+    ) -> NamedCallTarget {
         match self.imports.binding(binding).target {
             CurrentUnitTarget::Function(id) => NamedCallTarget::Function(id),
             CurrentUnitTarget::Property(_)

@@ -1,5 +1,9 @@
 package scoop.collections
 
+/**
+ * A mutable hash map whose iteration follows insertion order. Replacing an existing value retains
+ * its position; removing and reinserting moves it to the end.
+ */
 public class LinkedHashMap<K, V> public constructor() : MutableMap<K, V>
     where K : Equals<K>, K : Hash {
     private val positions: HashMap<K, Long> = HashMap<K, Long>()
@@ -7,9 +11,21 @@ public class LinkedHashMap<K, V> public constructor() : MutableMap<K, V>
     private val changes: ModificationCounter = ModificationCounter()
     private val structure: ModificationCounter = ModificationCounter()
 
+    /**
+     * The number of key-value associations.
+     */
     public override val size: Long get() = positions.size
+    /**
+     * A read-only view of the map's current keys.
+     */
     public override val keys: Set<K> get() = MapKeys<K, V>(this)
+    /**
+     * A read-only view of current values, retaining duplicates.
+     */
     public override val values: Collection<V> get() = MapValues<K, V>(this)
+    /**
+     * A read-only view of current key-value entries.
+     */
     public override val entries: Collection<Map.Entry<K, V>> get() = MapEntries<K, V>(this)
 
     private fun locate(key: K): HashLocation {
@@ -19,13 +35,22 @@ public class LinkedHashMap<K, V> public constructor() : MutableMap<K, V>
         return location
     }
 
+    /**
+     * Returns the value associated with the key, or None when absent.
+     */
     public override operator fun get(key: K): V? {
         val location = locate(key)
         return if (location.index < 0L) None else Some(storage.read(positions.valueAt(location.index)).value)
     }
 
+    /**
+     * Tests whether the key has an association.
+     */
     public override fun containsKey(key: K): Boolean = locate(key).index >= 0L
 
+    /**
+     * Associates the value with the key and returns the previous value, or None for a new key.
+     */
     public override fun put(key: K, value: V): V? = putEntry(key, value, true)
 
     internal fun putIfAbsent(key: K, value: V): V? = putEntry(key, value, false)
@@ -48,6 +73,9 @@ public class LinkedHashMap<K, V> public constructor() : MutableMap<K, V>
         return None
     }
 
+    /**
+     * Removes the key and returns its former value, or None if absent.
+     */
     public override fun remove(key: K): V? {
         val location = locate(key)
         if (location.index < 0L) return None
@@ -58,6 +86,9 @@ public class LinkedHashMap<K, V> public constructor() : MutableMap<K, V>
         return Some(value)
     }
 
+    /**
+     * Removes every association.
+     */
     public override fun clear() {
         if (size == 0L) return
         positions.clear()
@@ -66,12 +97,25 @@ public class LinkedHashMap<K, V> public constructor() : MutableMap<K, V>
         structure.advance()
     }
 
+    /**
+     * Iterates key-value entries in this map's order; structural changes invalidate the iterator.
+     */
     public override operator fun iterator(): Iterator<Map.Entry<K, V>> =
         LinkedIterator<K, V>(storage, structure)
 
+    /**
+     * Serialization factories using explicit element or key/value codecs.
+     */
     public companion object {
+        /**
+         * Encodes entries or elements in iteration order using the supplied component codecs.
+         */
         public fun encoder(key: ValueEncoder<K>, value: ValueEncoder<V>): ValueEncoder<LinkedHashMap<K, V>> =
             ValueEncoderFunction<LinkedHashMap<K, V>> { values, encoder -> encodeMap(values, key, value, encoder) }
+        /**
+         * Decodes entries or elements into a new collection using the supplied component codecs
+         * and comparator where required.
+         */
         public fun decoder(key: ValueDecoder<K>, value: ValueDecoder<V>): ValueDecoder<LinkedHashMap<K, V>> =
             ValueDecoderFunction<LinkedHashMap<K, V>> { decoder ->
                 val result = LinkedHashMap<K, V>()

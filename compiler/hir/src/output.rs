@@ -254,6 +254,7 @@ impl crate::Output {
             local,
             native_boundary_types,
             warnings,
+            documentation: None,
         })
     }
 

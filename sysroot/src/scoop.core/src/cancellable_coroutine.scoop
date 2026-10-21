@@ -1,3 +1,6 @@
+/**
+ * Arbitrates result delivery and cancellation so only one terminal outcome wins.
+ */
 public class CancellableContinuation<T> internal constructor(continuation: Continuation<T>) {
     private val lock: CoroutineLock = CoroutineLock()
     private var continuation: Continuation<T>? = Some(continuation)
@@ -34,6 +37,9 @@ public class CancellableContinuation<T> internal constructor(continuation: Conti
         for (listener in listeners.take()) listener.dispose()
     }
 
+    /**
+     * Offers a result and returns false when another completion or cancellation already won.
+     */
     public fun tryResume(value: T): Boolean {
         when (take(None)) {
             case None -> return false
@@ -45,6 +51,9 @@ public class CancellableContinuation<T> internal constructor(continuation: Conti
         }
     }
 
+    /**
+     * Offers an exception and returns false when the continuation has already been claimed.
+     */
     public fun tryResumeWithException(exception: Throwable): Boolean {
         when (take(None)) {
             case None -> return false
@@ -66,6 +75,10 @@ public class CancellableContinuation<T> internal constructor(continuation: Conti
         }
     }
 
+    /**
+     * Registers cancellation cleanup and returns a disposable registration. An already-cancelled
+     * continuation invokes the handler immediately.
+     */
     public fun invokeOnCancellation(handler: (CancellationException) -> Unit): Disposable {
         val listener = lock.withLock {
             val entry = listeners.add { handler(cancellation!!) }
@@ -78,6 +91,10 @@ public class CancellableContinuation<T> internal constructor(continuation: Conti
     }
 }
 
+/**
+ * Registers a suspension tied to the current job when one exists. Cancellation competes with
+ * result delivery through the supplied continuation.
+ */
 public suspend fun <T> suspendCancellableCoroutine(registration: (CancellableContinuation<T>) -> Unit): T =
     suspendCoroutine<T> { raw ->
         val continuation = CancellableContinuation<T>(raw)

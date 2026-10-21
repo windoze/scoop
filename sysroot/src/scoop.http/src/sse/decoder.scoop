@@ -3,6 +3,10 @@ package scoop.http
 import scoop.platform.memory.NativeByteBuffer
 import scoop.text.indexOf
 
+/**
+ * An incremental UTF-8 event-stream parser with bounded line and event data. It tracks event IDs
+ * and retry hints but performs no reconnection or network I/O.
+ */
 public class SseDecoder public constructor(limits: SseLimits = SseLimits(), initialLastEventId: String = "") : Closeable {
     private val state: SseState = SseState(limits, initialLastEventId)
     private val busy: AtomicBoolean = AtomicBoolean(false)
@@ -14,12 +18,31 @@ public class SseDecoder public constructor(limits: SseLimits = SseLimits(), init
             throw IllegalArgumentException(Some("invalid initial SSE event ID"))
     }
 
+    /**
+     * Whether local parser state has been closed.
+     */
     public val isClosed: Boolean get() = closed
+    /**
+     * Whether EOF has been reported and all pending complete events have been removed.
+     */
     public val isFinished: Boolean get() = state.ended && !state.hasPending
+    /**
+     * The current persistent event ID, including updates from ID-only events.
+     */
     public val lastEventId: String get() = state.lastEventId
+    /**
+     * The latest valid nonnegative retry hint, in milliseconds.
+     */
     public val retryMilliseconds: Long? get() = state.retryMilliseconds
+    /**
+     * The retained parse failure, if the decoder has failed.
+     */
     public val failure: Throwable? get() = parseFailure
 
+    /**
+     * Consumes a prefix of the readable buffer and advances by the returned count. A pending event
+     * can stop progress; drain events before supplying more bytes.
+     */
     public fun receive(buffer: NativeByteBuffer, count: Long = buffer.readableBytes): Long = withUse {
         requireOpen()
         if (state.ended) throw IllegalStateException(Some("SSE input has ended"))
@@ -45,6 +68,9 @@ public class SseDecoder public constructor(limits: SseLimits = SseLimits(), init
         }
     }
 
+    /**
+     * Removes the next parsed event, or returns None when no event is ready.
+     */
     public fun nextEvent(): SseEvent? = withUse {
         requireOpen()
         val result = state.pending
@@ -52,6 +78,9 @@ public class SseDecoder public constructor(limits: SseLimits = SseLimits(), init
         result
     }
 
+    /**
+     * Reports EOF and discards an unterminated event; a blank line is required for dispatch.
+     */
     public fun endInput() {
         withUse {
             requireOpen()
@@ -60,6 +89,9 @@ public class SseDecoder public constructor(limits: SseLimits = SseLimits(), init
         }
     }
 
+    /**
+     * Closes the parser and discards incomplete and queued data without network I/O.
+     */
     public override fun close() {
         withUse {
             if (!closed) {

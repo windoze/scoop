@@ -4,9 +4,27 @@ import scoop.platform.fs.File
 import scoop.platform.io.*
 import scoop.platform.system.*
 
-public enum ExitStatus { Exited(val code: Int), Signaled(val signal: Int) }
+/**
+ * Distinguishes normal process exit from signal termination.
+ */
+public enum ExitStatus {
+    /**
+     * The process exited with this status code.
+     */
+    Exited(val code: Int),
+    /**
+     * The process terminated because of this native signal.
+     */
+    Signaled(val signal: Int) }
+/**
+ * Collected stdout, stderr, and final status from process communication.
+ */
 public struct ProcessOutput(val stdout: Array<Byte>, val stderr: Array<Byte>, val status: ExitStatus)
 
+/**
+ * An owned child process and any untaken pipe endpoints. Close closes retained pipes and waits for
+ * termination; it does not automatically kill a running process.
+ */
 public class ChildProcess internal constructor(inputPipe: Boolean, outputPipe: Boolean, errorPipe: Boolean) : Closeable {
     private var process: Int = -1
     private var result: ExitStatus? = None
@@ -17,9 +35,21 @@ public class ChildProcess internal constructor(inputPipe: Boolean, outputPipe: B
     private var input: PipeSink? = if (inputPipe) Some(PipeSink(File.newOwner())) else None
     private var output: PipeSource? = if (outputPipe) Some(PipeSource(File.newOwner())) else None
     private var error: PipeSource? = if (errorPipe) Some(PipeSource(File.newOwner())) else None
+    /**
+     * A borrowed view of the child's input pipe, or None when it is not available.
+     */
     public val stdin: ByteSink? get() = input?.borrowed()
+    /**
+     * A borrowed view of the child's output pipe, or None when it is not available.
+     */
     public val stdout: ByteSource? get() = output?.borrowed()
+    /**
+     * A borrowed view of the child's error pipe, or None when it is not available.
+     */
     public val stderr: ByteSource? get() = error?.borrowed()
+    /**
+     * Whether this owned resource has been closed.
+     */
     public val isClosed: Boolean get() = closed
 
     internal fun adopt(descriptors: MutableArray<Int>) {
@@ -29,11 +59,29 @@ public class ChildProcess internal constructor(inputPipe: Boolean, outputPipe: B
         error?.file?.adoptDescriptor(descriptors[3L])
     }
 
+    /**
+     * Transfers ownership of the child's input pipe to the caller and removes it from automatic
+     * child cleanup.
+     */
     public fun takeStdin(): PipeSink? { val taken = input; input = None; return taken }
+    /**
+     * Transfers ownership of the child's output pipe to the caller and removes it from automatic
+     * child cleanup.
+     */
     public fun takeStdout(): PipeSource? { val taken = output; output = None; return taken }
+    /**
+     * Transfers ownership of the child's error pipe to the caller and removes it from automatic
+     * child cleanup.
+     */
     public fun takeStderr(): PipeSource? { val taken = error; error = None; return taken }
 
+    /**
+     * Waits for termination and returns the final status.
+     */
     public fun wait(): ExitStatus = observe(false)!!
+    /**
+     * Returns a final status if available, or None while the child is still running.
+     */
     public fun tryWait(): ExitStatus? = observe(true)
 
     private fun <R> withProcess(block: (Int) -> R): R {
@@ -63,7 +111,13 @@ public class ChildProcess internal constructor(inputPipe: Boolean, outputPipe: B
         return result
     }
 
+    /**
+     * Requests ordinary process termination.
+     */
     public fun terminate() { signal(false) }
+    /**
+     * Requests forced process termination.
+     */
     public fun kill() { signal(true) }
     private fun signal(force: Boolean) {
         if (process < 0) return
@@ -75,6 +129,10 @@ public class ChildProcess internal constructor(inputPipe: Boolean, outputPipe: B
         }
     }
 
+    /**
+     * Feeds optional input while draining stdout and stderr, then waits and returns their
+     * collected bytes and status.
+     */
     public fun communicate(input: List<Byte>? = None): ProcessOutput {
         if (closed) throw IllegalStateException(Some("process is closed"))
         when (input) {
@@ -104,6 +162,10 @@ public class ChildProcess internal constructor(inputPipe: Boolean, outputPipe: B
         }
     }
 
+    /**
+     * Closes retained pipe endpoints and waits for the child, preserving cleanup failures. Taken
+     * endpoints remain the caller's responsibility.
+     */
     public override fun close() {
         if (closed) return
         if (active.load(MemoryOrder.Relaxed) != 0L) throw IllegalStateException(Some("process operation is active"))

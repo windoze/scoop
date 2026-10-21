@@ -18,13 +18,26 @@ internal class ArrayListInspector<T>(private val element: ValueInspector<T>) : V
         inspectSequence(typeInfo<ArrayList<T>>().type, value, element)
 }
 
+/**
+ * Observes list elements lazily using an explicit element inspector.
+ */
 public class ListInspector<T> public constructor(private val element: ValueInspector<T>) : ValueInspector<List<T>> {
+    /**
+     * Creates an indexed sequence view of the supplied list.
+     */
     public override fun inspect(value: List<T>): ValueView =
         inspectSequence(typeInfo<List<T>>().type, value, element)
 }
 
+/**
+ * Observes a mutable list through an explicit element inspector; it does not freeze or copy the
+ * list.
+ */
 public class MutableListInspector<T> public constructor(private val element: ValueInspector<T>)
     : ValueInspector<MutableList<T>> {
+    /**
+     * Creates a lazy sequence view; later element reads can observe mutations.
+     */
     public override fun inspect(value: MutableList<T>): ValueView =
         inspectSequence(typeInfo<MutableList<T>>().type, value, element)
 }

@@ -2,6 +2,10 @@ package scoop.terminal.asyncio
 
 import scoop.asyncio.*
 
+/**
+ * Runs a suspending block in raw mode and restores the previous non-raw state on exit when this
+ * scope changed it. Already-raw sessions retain their mode.
+ */
 public suspend fun <R> AsyncTerminalSession.withRawMode(block: suspend () -> R): R {
     val scope = RawModeScope(this, false)
     withAccess(true, true) suspend { scope.enter() }

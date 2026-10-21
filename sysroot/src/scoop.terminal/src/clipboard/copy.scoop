@@ -3,17 +3,31 @@ package scoop.terminal.clipboard
 import scoop.io.encoding.Base64
 import scoop.terminal.Command
 
+/**
+ * Emits an OSC 52 clipboard-copy command with base64-encoded content and selected destinations.
+ * The terminal decides whether clipboard access is supported.
+ */
 public struct CopyToClipboard(
     val content: Array<Byte>,
     val destination: ClipboardSelection = ClipboardSelection.clipboard
 ) : Command {
+    /**
+     * Writes this command's ANSI representation to the supplied writer without flushing it.
+     * Parameter validation happens before or during serialization.
+     */
     public override fun writeAnsi(writer: TextWriter) {
         val selected = destination.toString()
         val encoded = Base64.Default.encode(content)
         writer.write("\u001b]52;" + selected + ";" + encoded + "\u001b\\")
     }
 
+    /**
+     * Convenience construction of clipboard commands from Unicode text.
+     */
     public companion object {
+        /**
+         * Encodes text as UTF-8 for an OSC 52 clipboard-copy command.
+         */
         public fun fromText(text: String,
             destination: ClipboardSelection = ClipboardSelection.clipboard): CopyToClipboard =
             CopyToClipboard(text.toByteArray(), destination)

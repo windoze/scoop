@@ -4,22 +4,55 @@ import scoop.asyncio.*
 import scoop.http.*
 import scoop.platform.memory.NativeByteBuffer
 
+/**
+ * A single-pass event-stream reader over a borrowed source by default. It tracks last-event ID and
+ * retry fields but does not open or reconnect network transports.
+ */
 public class SseSource private constructor(private val reader: SseReader) : AsyncCloseable {
     public constructor(source: AsyncByteSource, limits: SseLimits = SseLimits(), initialLastEventId: String = "", bufferSize: Long = 8192L)
         : this(createSseReader(source, None, limits, initialLastEventId, bufferSize)) {}
 
+    /**
+     * Factories that transfer underlying endpoint cleanup responsibility.
+     */
     public companion object {
+        /**
+         * Creates the adapter and assumes cleanup responsibility for the supplied asynchronous
+         * endpoint.
+         */
         public fun <T> takeOwnership(source: T, limits: SseLimits = SseLimits(), initialLastEventId: String = "", bufferSize: Long = 8192L): SseSource
             where T : AsyncByteSource, T : AsyncCloseable =
             SseSource(createSseReader(source, Some<AsyncCloseable>(source), limits, initialLastEventId, bufferSize))
     }
 
+    /**
+     * Whether the complete protocol boundary or input end has been reached.
+     */
     public val isFinished: Boolean get() = reader.decoder.isFinished
+    /**
+     * Whether adapter cleanup has completed.
+     */
     public val isClosed: Boolean get() = reader.io.isClosed
+    /**
+     * The current event-stream last-event ID, including updates with no dispatched event.
+     */
     public val lastEventId: String get() = reader.decoder.lastEventId
+    /**
+     * The most recent valid server retry interval in milliseconds, if supplied.
+     */
     public val retryMilliseconds: Long? get() = reader.decoder.retryMilliseconds
+    /**
+     * The retained terminal exception, or None before failure.
+     */
     public val failure: Throwable? get() = reader.io.failure
+    /**
+     * Reads until an event is available or input ends, updating stream ID and retry state.
+     */
     public suspend fun next(): SseEvent? = reader.next()
+    /**
+     * Closes parser/writer state and an endpoint whose ownership was transferred; borrowed
+     * endpoints retain their own cleanup responsibility.
+     */
     public override suspend fun close() { reader.io.close() }
 }
 

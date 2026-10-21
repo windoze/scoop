@@ -2,6 +2,9 @@ package scoop.http
 
 import scoop.text.lowercaseAscii
 
+/**
+ * Tests parsed Expect fields for the 100-continue expectation.
+ */
 public fun httpExpectsContinue(fields: List<HttpField>): Boolean {
     var found = false
     for (field in fields.findAll("Expect".toByteArray())) {

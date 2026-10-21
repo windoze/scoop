@@ -3,10 +3,31 @@ package scoop.http.asyncio
 import scoop.http.*
 import scoop.time.Duration
 
+/**
+ * Incoming frame limits, bounded read/write buffers, graceful-close deadline, and
+ * decompressed-message limit for a WebSocket session.
+ */
 public class WebSocketSessionOptions public constructor(
+    /**
+     * Limits applied to incoming wire frames and messages.
+     */
     public val incomingLimits: WebSocketFrameLimits = WebSocketFrameLimits(),
-    public val inputBufferBytes: Long = 8192L, public val outgoingFrameBytes: Long = 8192L,
+    /**
+     * The positive transport input buffer capacity.
+     */
+    public val inputBufferBytes: Long = 8192L,
+        /**
+         * The positive maximum payload chunk used for streamed output frames.
+         */
+        public val outgoingFrameBytes: Long = 8192L,
+    /**
+     * The deadline used by graceful close negotiation.
+     */
     public val closeTimeout: Duration = Duration.seconds(5L),
+    /**
+     * The separate limit on decoded message size; by default it follows the incoming wire-message
+     * limit.
+     */
     public val maxDecompressedMessageBytes: Long = incomingLimits.maxMessageBytes
 ) {
     init {
@@ -17,9 +38,45 @@ public class WebSocketSessionOptions public constructor(
     }
 }
 
-public enum WebSocketFailureKind { Closed, UnexpectedEof, InterruptedMessage, CloseTimeout }
+/**
+ * Session-lifecycle failures distinct from low-level frame validation errors.
+ */
+public enum WebSocketFailureKind {
+    /**
+     * The operation requires an open session or message.
+     */
+    Closed,
+    /**
+     * The transport ended without the expected WebSocket closure.
+     */
+    UnexpectedEof,
+    /**
+     * A message was abandoned before its boundary completed.
+     */
+    InterruptedMessage,
+    /**
+     * The peer did not complete the close handshake before its deadline.
+     */
+    CloseTimeout }
 
+/**
+ * A session failure with portable kind, explanatory text, optional peer close, and original cause.
+ */
 public class WebSocketSessionException public constructor(
-    public val kind: WebSocketFailureKind, public val detail: String,
-    public val peerClose: WebSocketClose? = None, public val cause: Throwable? = None
+    /**
+     * The session-lifecycle failure category.
+     */
+    public val kind: WebSocketFailureKind,
+        /**
+         * The reason the operation failed.
+         */
+        public val detail: String,
+    /**
+     * The peer's close frame when one was received.
+     */
+    public val peerClose: WebSocketClose? = None,
+        /**
+         * The underlying I/O, protocol, or callback exception when available.
+         */
+        public val cause: Throwable? = None
 ) : Exception(Some("WebSocket session: " + detail))

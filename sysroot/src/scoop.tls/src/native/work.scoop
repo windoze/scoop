@@ -11,6 +11,10 @@ internal fun workPointer(result: NativeTlsWork, operation: String): Ptr<Unit> {
     return result.pointer!!
 }
 
+/**
+ * Allocates owned work for loading system trust roots. Run it, take the resulting context on
+ * success, and free the work record on every exit.
+ */
 @Unsafe
 public fun prepareSystemContext(options: TlsOptions, identity: TlsIdentity?): Ptr<Unit> {
     val handle = clientHandle(0UL, options, identity)
@@ -27,6 +31,10 @@ internal fun takeSystemContextHandle(work: Ptr<Unit>): ULong {
     return systemContextTake(work)
 }
 
+/**
+ * Takes the client context from completed system-trust work, reporting any recorded failure. The
+ * work record must still be released afterward.
+ */
 @Unsafe
 public fun takeSystemContext(work: Ptr<Unit>): TlsClientContext =
     TlsClientContext.takeOwnership(takeSystemContextHandle(work))
@@ -34,14 +42,40 @@ public fun takeSystemContext(work: Ptr<Unit>): TlsClientContext =
 @Extern(name = "scoop_tls_system_context_new") private fun systemContextNew(context: ULong): NativeTlsWork
 @Extern(name = "scoop_tls_system_context_result") private fun systemContextResult(work: Ptr<Unit>): NativeTlsStep
 @Extern(name = "scoop_tls_system_context_take") private fun systemContextTake(work: Ptr<Unit>): ULong
+/**
+ * Runs prepared system-trust loading work synchronously. The work pointer must remain valid until
+ * execution finishes.
+ */
 @Extern(name = "scoop_tls_system_context_run") public fun runSystemContext(work: Ptr<Unit>)
+/**
+ * Releases an owned system-trust work record and any result not already taken. Call once after its
+ * execution has stopped.
+ */
 @Extern(name = "scoop_tls_system_context_free") public fun freeSystemContext(work: Ptr<Unit>)
+/**
+ * Returns the native worker entry point for prepared system-trust work.
+ */
 @Extern(name = "scoop_tls_system_context_executor") public fun systemContextExecutor(): FunPtr<(Ptr<Unit>) -> Unit>
+/**
+ * Returns the native cleanup entry point for owned system-trust work.
+ */
 @Extern(name = "scoop_tls_system_context_releaser") public fun systemContextReleaser(): FunPtr<(Ptr<Unit>) -> Unit>
 
 @Extern(name = "scoop_tls_verification_take") internal fun takeVerification(handle: ULong): NativeTlsWork
 @Extern(name = "scoop_tls_verification_complete") internal fun completeVerification(handle: ULong, work: Ptr<Unit>): CryptoResult
+/**
+ * Runs an owned TLS certificate-verification work record synchronously.
+ */
 @Extern(name = "scoop_tls_verification_run") public fun runVerification(work: Ptr<Unit>)
+/**
+ * Releases a verification work record after execution and result delivery have finished.
+ */
 @Extern(name = "scoop_tls_verification_free") public fun freeVerification(work: Ptr<Unit>)
+/**
+ * Returns the native worker entry point for TLS certificate verification.
+ */
 @Extern(name = "scoop_tls_verification_executor") public fun verificationExecutor(): FunPtr<(Ptr<Unit>) -> Unit>
+/**
+ * Returns the native cleanup entry point for owned TLS verification work.
+ */
 @Extern(name = "scoop_tls_verification_releaser") public fun verificationReleaser(): FunPtr<(Ptr<Unit>) -> Unit>

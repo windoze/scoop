@@ -3,7 +3,13 @@ package scoop.asyncio
 import scoop.platform.fs.*
 import scoop.platform.system.OsString
 
+/**
+ * An owned asynchronous directory cursor. Close it even when iteration ends early.
+ */
 public interface AsyncDirectoryEntries : AsyncCloseable {
+    /**
+     * Returns the next directory entry, or None when the cursor is exhausted.
+     */
     public suspend fun next(): DirectoryEntry?
 }
 

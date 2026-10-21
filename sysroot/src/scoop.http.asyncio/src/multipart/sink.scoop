@@ -4,22 +4,56 @@ import scoop.asyncio.*
 import scoop.http.*
 import scoop.platform.memory.NativeByteBuffer
 
+/**
+ * A sequential multipart writer over a borrowed sink by default. Finish each part and then the
+ * whole multipart message explicitly.
+ */
 public class MultipartSink private constructor(private val writer: MultipartWriter) : AsyncCloseable {
     public constructor(sink: AsyncByteSink, boundary: MultipartBoundary, bufferSize: Long = 8192L)
         : this(createMultipartWriter(sink, None, boundary, bufferSize)) {}
 
+    /**
+     * Factories that transfer underlying endpoint cleanup responsibility.
+     */
     public companion object {
+        /**
+         * Creates the adapter and assumes cleanup responsibility for the supplied asynchronous
+         * endpoint.
+         */
         public fun <T> takeOwnership(sink: T, boundary: MultipartBoundary, bufferSize: Long = 8192L): MultipartSink
             where T : AsyncByteSink, T : AsyncCloseable =
             MultipartSink(createMultipartWriter(sink, Some<AsyncCloseable>(sink), boundary, bufferSize))
     }
 
+    /**
+     * Whether adapter cleanup has completed.
+     */
     public val isClosed: Boolean get() = writer.io.isClosed
+    /**
+     * Whether the complete protocol boundary or input end has been reached.
+     */
     public val isFinished: Boolean get() = writer.finished
+    /**
+     * The retained terminal exception, or None before failure.
+     */
     public val failure: Throwable? get() = writer.io.failure
+    /**
+     * Writes the next part header and returns its body writer; the previous part must already be
+     * finished.
+     */
     public suspend fun beginPart(head: MultipartPartHead): MultipartPartWriter = writer.beginPart(head)
+    /**
+     * Drains pending multipart output without completing a part or the message.
+     */
     public suspend fun flush() { writer.flush(None) }
+    /**
+     * Writes the final multipart boundary and drains output.
+     */
     public suspend fun finish() { writer.finish() }
+    /**
+     * Closes parser/writer state and an endpoint whose ownership was transferred; borrowed
+     * endpoints retain their own cleanup responsibility.
+     */
     public override suspend fun close() { writer.io.close() }
 }
 

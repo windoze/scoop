@@ -1,14 +1,140 @@
 package scoop.terminal.event
 
+/**
+ * A logical key, Unicode scalar, function key, media key, or separately reported modifier key.
+ * Physical-key information depends on the active terminal protocol.
+ */
 public enum KeyCode {
-    Backspace, Enter, Left, Right, Up, Down, Home, End, PageUp, PageDown,
-    Tab, BackTab, Delete, Insert, F(val number: Int), Char(val character: Char),
-    Null, Esc, CapsLock, ScrollLock, NumLock, PrintScreen, Pause, Menu, KeypadBegin,
-    Media(val code: MediaKeyCode), Modifier(val code: ModifierKeyCode)
+    /**
+     * The Backspace logical key reported by the terminal.
+     */
+    Backspace,
+        /**
+         * The Enter logical key reported by the terminal.
+         */
+        Enter,
+        /**
+         * The Left logical key reported by the terminal.
+         */
+        Left,
+        /**
+         * The Right logical key reported by the terminal.
+         */
+        Right,
+        /**
+         * The Up logical key reported by the terminal.
+         */
+        Up,
+        /**
+         * The Down logical key reported by the terminal.
+         */
+        Down,
+        /**
+         * The Home logical key reported by the terminal.
+         */
+        Home,
+        /**
+         * The End logical key reported by the terminal.
+         */
+        End,
+        /**
+         * The PageUp logical key reported by the terminal.
+         */
+        PageUp,
+        /**
+         * The PageDown logical key reported by the terminal.
+         */
+        PageDown,
+    /**
+     * The Tab logical key reported by the terminal.
+     */
+    Tab,
+        /**
+         * The backward-tab key report.
+         */
+        BackTab,
+        /**
+         * The Delete logical key reported by the terminal.
+         */
+        Delete,
+        /**
+         * The Insert logical key reported by the terminal.
+         */
+        Insert,
+        /**
+         * A numbered function key.
+         */
+        F(val number: Int),
+        /**
+         * One Unicode scalar delivered as a character key.
+         */
+        Char(val character: Char),
+    /**
+     * A NUL key code.
+     */
+    Null,
+        /**
+         * The Escape key, after any ambiguity delay.
+         */
+        Esc,
+        /**
+         * The CapsLock logical key reported by the terminal.
+         */
+        CapsLock,
+        /**
+         * The ScrollLock logical key reported by the terminal.
+         */
+        ScrollLock,
+        /**
+         * The NumLock logical key reported by the terminal.
+         */
+        NumLock,
+        /**
+         * The PrintScreen logical key reported by the terminal.
+         */
+        PrintScreen,
+        /**
+         * The Pause logical key reported by the terminal.
+         */
+        Pause,
+        /**
+         * The Menu logical key reported by the terminal.
+         */
+        Menu,
+        /**
+         * The keypad center/begin key.
+         */
+        KeypadBegin,
+    /**
+     * A media-control key.
+     */
+    Media(val code: MediaKeyCode),
+        /**
+         * An independently reported modifier key.
+         */
+        Modifier(val code: ModifierKeyCode)
 }
 
-public enum KeyEventKind { Press, Repeat, Release }
+/**
+ * Distinguishes initial key press, auto-repeat, and release when the protocol reports them.
+ */
+public enum KeyEventKind {
+    /**
+     * The initial press of a key.
+     */
+    Press,
+    /**
+     * An auto-repeat event for a held key.
+     */
+    Repeat,
+    /**
+     * The release of a key.
+     */
+    Release }
 
+/**
+ * A logical key together with modifiers, press/repeat/release kind, and lock/keypad state.
+ */
 public struct KeyEvent(
     val code: KeyCode,
     val modifiers: KeyModifiers = KeyModifiers(),
@@ -16,13 +142,123 @@ public struct KeyEvent(
     val state: KeyEventState = KeyEventState()
 )
 
+/**
+ * Media playback, track, recording, and volume controls reported as distinct keys.
+ */
 public enum MediaKeyCode {
-    Play, Pause, PlayPause, Reverse, Stop, FastForward, Rewind,
-    TrackNext, TrackPrevious, Record, LowerVolume, RaiseVolume, MuteVolume
+    /**
+     * The Play media control.
+     */
+    Play,
+        /**
+         * The Pause media control.
+         */
+        Pause,
+        /**
+         * A combined playback-toggle control.
+         */
+        PlayPause,
+        /**
+         * The Reverse media control.
+         */
+        Reverse,
+        /**
+         * The Stop media control.
+         */
+        Stop,
+        /**
+         * The FastForward media control.
+         */
+        FastForward,
+        /**
+         * The Rewind media control.
+         */
+        Rewind,
+    /**
+     * Advance to the next media track.
+     */
+    TrackNext,
+        /**
+         * Return to the previous media track.
+         */
+        TrackPrevious,
+        /**
+         * The Record media control.
+         */
+        Record,
+        /**
+         * Decrease media volume.
+         */
+        LowerVolume,
+        /**
+         * Increase media volume.
+         */
+        RaiseVolume,
+        /**
+         * Toggle or request muted media volume.
+         */
+        MuteVolume
 }
 
+/**
+ * Left/right modifier keys and ISO level-shift keys reported independently by enhanced keyboard
+ * protocols.
+ */
 public enum ModifierKeyCode {
-    LeftShift, LeftControl, LeftAlt, LeftSuper, LeftHyper, LeftMeta,
-    RightShift, RightControl, RightAlt, RightSuper, RightHyper, RightMeta,
-    IsoLevel3Shift, IsoLevel5Shift
+    /**
+     * The left Shift key reported independently of other keys.
+     */
+    LeftShift,
+        /**
+         * The left Control key reported independently of other keys.
+         */
+        LeftControl,
+        /**
+         * The left Alt key reported independently of other keys.
+         */
+        LeftAlt,
+        /**
+         * The left Super key reported independently of other keys.
+         */
+        LeftSuper,
+        /**
+         * The left Hyper key reported independently of other keys.
+         */
+        LeftHyper,
+        /**
+         * The left Meta key reported independently of other keys.
+         */
+        LeftMeta,
+    /**
+     * The right Shift key reported independently of other keys.
+     */
+    RightShift,
+        /**
+         * The right Control key reported independently of other keys.
+         */
+        RightControl,
+        /**
+         * The right Alt key reported independently of other keys.
+         */
+        RightAlt,
+        /**
+         * The right Super key reported independently of other keys.
+         */
+        RightSuper,
+        /**
+         * The right Hyper key reported independently of other keys.
+         */
+        RightHyper,
+        /**
+         * The right Meta key reported independently of other keys.
+         */
+        RightMeta,
+    /**
+     * The ISO level-three shift key.
+     */
+    IsoLevel3Shift,
+        /**
+         * The ISO level-five shift key.
+         */
+        IsoLevel5Shift
 }

@@ -24,6 +24,9 @@ internal fun clientJob(loop: EventLoop, active: Boolean): Job {
 internal fun clientCombined(primary: Throwable?, cleanup: Throwable): Throwable =
     when (primary) { case Some(error) -> ResourceUseException(error, cleanup); case None -> cleanup }
 
+/**
+ * An operation attempted to use a closing or closed client.
+ */
 public class HttpClientClosedException public constructor() : Exception(Some("HTTP client is closed"))
 
 internal fun clientBytesEqual(first: List<Byte>, second: List<Byte>): Boolean {

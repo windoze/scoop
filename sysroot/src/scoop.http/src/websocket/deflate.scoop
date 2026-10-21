@@ -1,19 +1,45 @@
 package scoop.http
 
+/**
+ * Validated permessage-deflate response parameters. Absence of a window parameter preserves the
+ * protocol default.
+ */
 public class WebSocketDeflate public constructor(
+    /**
+     * Whether the server must reset compression history between messages.
+     */
     public val serverNoContextTakeover: Boolean = false,
+    /**
+     * Whether the client must reset compression history between messages.
+     */
     public val clientNoContextTakeover: Boolean = false,
     serverMaxWindowBits: Int? = None, clientMaxWindowBits: Int? = None
 ) {
+    /**
+     * The optional advertised maximum server window size in bits.
+     */
     public val serverMaxWindowBits: Int? = checkedWebSocketWindow(serverMaxWindowBits)
+    /**
+     * The client window parameter, retaining omitted or valueless offer forms where applicable.
+     */
     public val clientMaxWindowBits: Int? = checkedWebSocketWindow(clientMaxWindowBits)
+    /**
+     * Serializes these parameters as a permessage-deflate extension.
+     */
     public fun toExtension(): WebSocketExtension = webSocketDeflateExtension(serverNoContextTakeover,
         clientNoContextTakeover, serverMaxWindowBits, when (clientMaxWindowBits) {
             case Some(bits) -> WebSocketWindowBits.Limit(bits)
             case None -> WebSocketWindowBits.Absent
         })
 
+    /**
+     * Parsing of permessage-deflate extension parameters.
+     */
     public companion object {
+        /**
+         * Parses a response extension, rejecting invalid names, duplicate parameters, and
+         * valueless response window limits.
+         */
         public fun parse(extension: WebSocketExtension): WebSocketDeflate {
             val data = readWebSocketDeflate(extension, false)
             val client: Int? = when (data.clientMaxWindowBits) {
@@ -26,12 +52,34 @@ public class WebSocketDeflate public constructor(
     }
 }
 
+/**
+ * The accepted offer and response together with effective compression settings for each direction.
+ */
 public class WebSocketDeflateNegotiation internal constructor(
-    public val offer: WebSocketDeflateOffer, public val response: WebSocketDeflate
+    /**
+     * The offer that accepted the negotiated response.
+     */
+    public val offer: WebSocketDeflateOffer,
+        /**
+         * The selected response parameters.
+         */
+        public val response: WebSocketDeflate
 ) {
+    /**
+     * Whether the server must reset compression history between messages.
+     */
     public val serverNoContextTakeover: Boolean get() = response.serverNoContextTakeover
+    /**
+     * Whether the client must reset compression history between messages.
+     */
     public val clientNoContextTakeover: Boolean get() = response.clientNoContextTakeover || offer.clientNoContextTakeover
+    /**
+     * The effective server compression window size, defaulting to 15 bits.
+     */
     public val serverWindowBits: Int get() = response.serverMaxWindowBits ?: 15
+    /**
+     * The effective client compression window size after combining offer and response.
+     */
     public val clientWindowBits: Int get() = response.clientMaxWindowBits ?: when (offer.clientMaxWindowBits) {
         case Limit(bits) -> bits
         case Absent -> 15

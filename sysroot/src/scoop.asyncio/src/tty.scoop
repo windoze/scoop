@@ -3,15 +3,60 @@ package scoop.asyncio
 import scoop.platform.memory.NativeByteBuffer
 import scoop.time.Duration
 
+/**
+ * Terminal dimensions in character cells and optional platform-reported pixel dimensions.
+ */
 public struct TtySize(val columns: Long, val rows: Long, val widthPixels: Long, val heightPixels: Long)
-public enum TtyRead { Bytes(val count: Long), Resize(val columns: Long, val rows: Long), End, TimedOut }
+/**
+ * The outcome of a terminal read: bytes, resize notification, end of input, or timeout.
+ */
+public enum TtyRead {
+    /**
+     * The returned count of bytes appended to the input buffer.
+     */
+    Bytes(val count: Long),
+    /**
+     * A new terminal size in columns and rows.
+     */
+    Resize(val columns: Long, val rows: Long),
+    /**
+     * Terminal input has ended.
+     */
+    End,
+    /**
+     * No input or resize was delivered before the requested timeout.
+     */
+    TimedOut }
 
+/**
+ * An owned asynchronous terminal handle with byte output, input/resize events, and raw-mode
+ * control.
+ */
 public interface AsyncTty : AsyncByteSink, AsyncCloseable {
+    /**
+     * Whether terminal cleanup has completed.
+     */
     public val isClosed: Boolean
+    /**
+     * Waits for input, resize, EOF, or an optional timeout, appending bytes to the writable buffer
+     * region.
+     */
     public suspend fun receive(buffer: NativeByteBuffer, count: Long, timeout: Duration? = None): TtyRead
+    /**
+     * Queries current terminal cell and pixel dimensions.
+     */
     public suspend fun size(): TtySize
+    /**
+     * Reports whether raw input mode is active for this terminal.
+     */
     public suspend fun isRawMode(): Boolean
+    /**
+     * Enables raw terminal input under the handle's mode-ownership rules.
+     */
     public suspend fun enableRawMode()
+    /**
+     * Restores the terminal mode saved when raw input was enabled.
+     */
     public suspend fun disableRawMode()
 }
 

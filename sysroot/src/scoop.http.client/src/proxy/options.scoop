@@ -8,38 +8,112 @@ import scoop.http.HttpResponseHead
 import scoop.url.Url
 import scoop.url.UrlHost
 
-public enum HttpProxy { Direct, Http(HttpProxyEndpoint), Socks5(HttpSocks5Endpoint) }
+/**
+ * The selected route for a request: direct, HTTP proxy, or SOCKS5.
+ */
+public enum HttpProxy {
+    /**
+     * Connects directly to the origin.
+     */
+    Direct,
+    /**
+     * Uses the supplied HTTP or HTTPS proxy endpoint.
+     */
+    Http(HttpProxyEndpoint),
+    /**
+     * Uses the supplied SOCKS5 endpoint and resolution policy.
+     */
+    Socks5(HttpSocks5Endpoint) }
 
+/**
+ * A suspendable per-request proxy choice. Environment variables are consulted only through an
+ * explicit environment selector.
+ */
 public class HttpProxySelector public constructor(internal val select: suspend (HttpRequest) -> HttpProxy) {
+    /**
+     * Explicit direct, fixed, and environment-derived selectors.
+     */
     public companion object {
+        /**
+         * Creates a selector that always connects directly.
+         */
         public fun direct(): HttpProxySelector = fixed(HttpProxy.Direct)
+        /**
+         * Snapshots the supplied or current environment proxy variables and bypass rules; HTTPS
+         * proxy TLS uses the supplied configuration.
+         */
         public fun fromEnvironment(tls: HttpClientTlsConfig = HttpClientTlsConfig()): HttpProxySelector =
             clientEnvironmentProxy(currentClientProxyEnvironment(), tls)
+        /**
+         * Snapshots the supplied or current environment proxy variables and bypass rules; HTTPS
+         * proxy TLS uses the supplied configuration.
+         */
         public fun fromEnvironment(variables: Map<String, String>, tls: HttpClientTlsConfig = HttpClientTlsConfig()): HttpProxySelector =
             clientEnvironmentProxy(variables, tls)
+        /**
+         * Creates a selector that always returns the supplied route.
+         */
         public fun fixed(proxy: HttpProxy): HttpProxySelector = HttpProxySelector(suspend { _ -> proxy })
     }
 }
 
+/**
+ * An HTTP/HTTPS proxy authority with independent TLS and authentication configuration. URL
+ * userinfo, query, and fragment are rejected.
+ */
 public class HttpProxyEndpoint public constructor(
+    /**
+     * The validated http or https proxy authority.
+     */
     public val url: Url,
+    /**
+     * TLS settings for an HTTPS proxy connection, independent of origin TLS.
+     */
     public val tls: HttpClientTlsConfig = HttpClientTlsConfig(),
+    /**
+     * Optional preconstructed proxy credentials.
+     */
     public val authorization: HttpCredentials? = None,
+    /**
+     * Proxy authentication providers and retry policy, independent of origin authentication.
+     */
     public val authentication: HttpAuthenticationOptions = HttpAuthenticationOptions()
 ) {
     internal val address: ClientProxyAddress = clientProxyAddress(url, false)
 }
 
+/**
+ * A SOCKS5 authority with explicit optional credentials and local/proxy DNS resolution.
+ */
 public class HttpSocks5Endpoint public constructor(
+    /**
+     * The validated socks5 proxy authority.
+     */
     public val url: Url,
+    /**
+     * Optional SOCKS5 username/password credentials.
+     */
     public val credentials: Socks5Credentials? = None,
+    /**
+     * Whether target DNS is resolved locally or by the proxy.
+     */
     public val resolution: Socks5Resolution = Socks5Resolution.Proxy
 ) {
     internal val address: ClientProxyAddress = clientProxyAddress(url, true)
 }
 
+/**
+ * An HTTP proxy rejected CONNECT with a non-success response head.
+ */
 public class HttpProxyConnectException internal constructor(
-    public val proxyUrl: Url, public val responseHead: HttpResponseHead
+    /**
+     * The proxy endpoint that rejected CONNECT.
+     */
+    public val proxyUrl: Url,
+        /**
+         * The proxy's rejection response head.
+         */
+        public val responseHead: HttpResponseHead
 ) : Exception(Some("HTTP proxy rejected CONNECT with status " + responseHead.status.toString()))
 
 internal class ClientProxyAddress(val host: UrlHost, val port: Int, val secure: Boolean)

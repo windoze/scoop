@@ -6,11 +6,31 @@ import scoop.comparisons.Comparator
 import scoop.comparisons.naturalOrder
 import scoop.comparisons.reverseOrder
 
+/**
+ * Evaluation is deferred until iteration. Creates a lazy sequence that materializes a stable
+ * sorted copy using the supplied comparator. Each traversal materializes the complete input before
+ * yielding results.
+ */
 public fun <T> Sequence<T>.sortedWith(comparator: Comparator<T>): Sequence<T> =
     FactorySequence<T> { terminalInput<T>().sortedWith<T>(comparator).iterator() }
 
+/**
+ * Evaluation is deferred until iteration. Creates a lazy sequence that materializes a stable copy
+ * in natural ascending order. Each traversal materializes the complete input before yielding
+ * results.
+ */
 public fun <T : Compare<T>> Sequence<T>.sorted(): Sequence<T> = sortedWith<T>(naturalOrder<T>())
+/**
+ * Evaluation is deferred until iteration. Creates a lazy sequence that materializes a stable copy
+ * in natural descending order. Each traversal materializes the complete input before yielding
+ * results.
+ */
 public fun <T : Compare<T>> Sequence<T>.sortedDescending(): Sequence<T> = sortedWith<T>(reverseOrder<T>())
 
+/**
+ * Evaluation is deferred until iteration. Creates a lazy sequence that materializes a stable copy
+ * ordered by the selector's natural key order. Each traversal materializes the complete input
+ * before yielding results.
+ */
 public fun <T, K : Compare<K>> Sequence<T>.sortedBy(selector: (T) -> K): Sequence<T> =
     FactorySequence<T> { terminalInput<T>().sortedBy<T, K>(selector).iterator() }

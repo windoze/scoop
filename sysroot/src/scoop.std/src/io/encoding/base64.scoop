@@ -1,16 +1,61 @@
 package scoop.io.encoding
 
-public class Base64 private constructor(private val urlSafe: Boolean, public val paddingOption: Base64.PaddingOption) {
-    public enum PaddingOption { Required, Absent, Optional }
+/**
+ * A strict Base64 codec with standard or URL-safe alphabet and an explicit padding policy.
+ * Decoding rejects invalid alphabet, padding, and nonzero unused tail bits.
+ */
+public class Base64 private constructor(private val urlSafe: Boolean,
+    /**
+     * The padding rule used for encoding and decoding.
+     */
+    public val paddingOption: Base64.PaddingOption) {
+    /**
+     * Controls whether trailing equals signs are emitted and accepted.
+     */
+    public enum PaddingOption {
+        /**
+         * Emit padding and require it when a final partial group needs it.
+         */
+        Required,
+        /**
+         * Omit padding and reject padded input.
+         */
+        Absent,
+        /**
+         * Emit padding, while accepting valid input with or without padding.
+         */
+        Optional }
 
+    /**
+     * Preconfigured standard and URL-safe codecs.
+     */
     public companion object {
+        /**
+         * The standard +/ alphabet with required padding.
+         */
         public val Default: Base64 = Base64(false, PaddingOption.Required)
+        /**
+         * The URL-safe -_ alphabet with required padding.
+         */
         public val UrlSafe: Base64 = Base64(true, PaddingOption.Required)
     }
 
+    /**
+     * Returns a codec with the same alphabet and the selected padding policy.
+     */
     public fun withPadding(option: PaddingOption): Base64 = Base64(urlSafe, option)
+    /**
+     * Encodes bytes using this alphabet and padding policy, without line breaks.
+     */
     public fun encode(source: List<Byte>): String = encodeBase64(source, urlSafe, paddingOption)
+    /**
+     * Decodes valid text or returns None when alphabet, length, padding, or unused bits are
+     * invalid.
+     */
     public fun decodeOrNone(source: String): Array<Byte>? = decodeBase64(source, urlSafe, paddingOption)
+    /**
+     * Decodes text or throws IllegalArgumentException for invalid Base64.
+     */
     public fun decode(source: String): Array<Byte> = when (decodeOrNone(source)) {
         case Some(value) -> value
         case None -> throw IllegalArgumentException(Some("invalid Base64"))

@@ -13,7 +13,11 @@ use scoop_ast::{Diagnostic, DiagnosticNote, Ident, PackageSyntax, SourceFile, Sp
 use crate::lexer::{Token, TokenKind, lex};
 
 pub(crate) fn parse_file(source: &str) -> Result<SourceFile, Vec<Diagnostic>> {
-    let (tokens, lexical_diagnostics) = lex(source);
+    let crate::lexer::Lexed {
+        tokens,
+        diagnostics: lexical_diagnostics,
+        documentation,
+    } = lex(source);
     let mut parser = Parser {
         expression_nesting: Parser::expression_nesting(&tokens),
         arm_body_nesting: None,
@@ -24,6 +28,7 @@ pub(crate) fn parse_file(source: &str) -> Result<SourceFile, Vec<Diagnostic>> {
         next_lambda_id: 0,
         next_anonymous_function_id: 0,
         next_callable_reference_id: 0,
+        documentation,
     };
     let mut package = PackageSyntax::RootPackage;
     let mut imports = Vec::new();
@@ -115,7 +120,10 @@ pub(crate) fn parse_file(source: &str) -> Result<SourceFile, Vec<Diagnostic>> {
             TopLevelItemKind::Declaration => {
                 header_state.advance_to(HeaderState::InDeclarations);
                 match parser.parse_decl() {
-                    Ok(decl) => declarations.push(decl),
+                    Ok(decl) => {
+                        parser.attach_documentation(start, decl.span());
+                        declarations.push(decl);
+                    }
                     Err(diagnostic) => {
                         parser.diagnostics.push(diagnostic);
                         parser.synchronize_top_level(start);
@@ -128,6 +136,10 @@ pub(crate) fn parse_file(source: &str) -> Result<SourceFile, Vec<Diagnostic>> {
         package,
         imports,
         declarations,
+        documentation: std::mem::take(&mut parser.documentation)
+            .into_iter()
+            .map(|doc| doc.comment)
+            .collect(),
         span: Span::new(0, source.len() as u32),
     };
     let mut diagnostics = lexical_diagnostics;
@@ -199,6 +211,7 @@ impl DelimiterBalance {
 }
 
 pub(crate) struct Parser {
+    pub(crate) documentation: Vec<crate::lexer::LexicalDocComment>,
     pub(crate) tokens: Vec<Token>,
     pub(crate) expression_nesting: Vec<usize>,
     pub(crate) arm_body_nesting: Option<usize>,

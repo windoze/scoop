@@ -1,16 +1,67 @@
 package scoop.http
 
-public class SseLimits public constructor(public val maxLineBytes: Long = 65536L, public val maxEventBytes: Long = 1048576L) {
+/**
+ * Nonnegative byte limits for an SSE line and accumulated event data.
+ */
+public class SseLimits public constructor(
+    /**
+     * The maximum byte length of a single event-stream line.
+     */
+    public val maxLineBytes: Long = 65536L,
+    /**
+     * The maximum accumulated event-data byte count.
+     */
+    public val maxEventBytes: Long = 1048576L) {
     init {
         if (maxLineBytes < 0L || maxEventBytes < 0L) throw IllegalArgumentException(Some("negative SSE limit"))
     }
 }
 
-public enum SseLimitKind { LineBytes, EventBytes }
+/**
+ * The SSE input limit that was exceeded.
+ */
+public enum SseLimitKind {
+    /**
+     * A single input line exceeded its byte limit.
+     */
+    LineBytes,
+    /**
+     * Accumulated event data exceeded its byte limit.
+     */
+    EventBytes }
 
-public class SseLimitException public constructor(public val kind: SseLimitKind, public val limit: Long)
+/**
+ * SSE input exceeded the named configured byte limit.
+ */
+public class SseLimitException public constructor(
+    /**
+     * The configured limit category that was exceeded.
+     */
+    public val kind: SseLimitKind,
+    /**
+     * The configured maximum for that category.
+     */
+    public val limit: Long)
     : Exception(Some("SSE " + (if (kind == SseLimitKind.LineBytes) "line" else "event data") + " exceeds " + limit.toString() + " bytes"))
 
+/**
+ * One dispatched server-sent event, including its type, joined data lines, and event-ID state.
+ */
 public class SseEvent internal constructor(
-    public val event: String, public val data: String, public val id: String?, public val lastEventId: String
+    /**
+     * The dispatched event type, defaulting to message.
+     */
+    public val event: String,
+        /**
+         * Data lines joined with newline separators.
+         */
+        public val data: String,
+        /**
+         * The ID explicitly set in this event, if any.
+         */
+        public val id: String?,
+        /**
+         * The persistent last-event ID when this event was dispatched.
+         */
+        public val lastEventId: String
 )

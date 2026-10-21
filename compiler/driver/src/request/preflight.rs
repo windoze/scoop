@@ -11,10 +11,12 @@ use scoop_manifest::{
 use scoop_parser::{CurrentConeSourceInput, ParseCurrentConeError, parse_current_cone};
 use scoop_toolchain::load_cone_manifest;
 
+#[cfg(test)]
+use super::SlibOutputDestination;
 use super::{
     CompilationPurpose, CurrentConeDiagnosticSet, CurrentConeInput, DiagnosticOutputPolicy,
     EmittedStageDump, SingleConeBuildRequest, SingleConeCompilation, SingleConeProductionSuccess,
-    SlibOutputDestination, StageDumpKind, StageDumpPolicy, StageObservation, TrustedCoreInput,
+    StageDumpKind, StageDumpPolicy, StageObservation, TrustedCoreInput,
 };
 
 mod current_hir;
@@ -33,7 +35,9 @@ pub use dependencies::{
     ExplicitDependencyArtifactInput, ExplicitDependencyLoadError, ExplicitDependencyLoadOperation,
     ExplicitDependencyRole, ExplicitDependencyValidationError,
 };
-pub use production::{CurrentConeProductionError, CurrentConeProductionFailure};
+pub use production::{
+    CurrentConeProductionError, CurrentConeProductionFailure, DocumentationProductionError,
+};
 pub use validated::{
     SingleConeDependencyValidationError, ValidatedCompilerProtocols, ValidatedCurrentConeInput,
     ValidatedSingleConeBuildRequest,
@@ -85,8 +89,8 @@ pub enum LoadedCurrentConeInput {
 pub struct LoadedSingleConeBuildRequest {
     current: LoadedCurrentConeInput,
     dependencies: LoadedExplicitDependencyInputs,
-    target: scoop_toolchain::ResolvedTargetProfile,
-    output: SlibOutputDestination,
+    target: super::target::SelectedTarget,
+    output: super::SingleConeOutput,
     diagnostics: DiagnosticOutputPolicy,
     emit: StageDumpPolicy,
     optimization: scoop_lir::OptimizationMode,
@@ -100,9 +104,12 @@ impl SingleConeBuildRequest {
     pub fn build_and_publish(
         self,
     ) -> Result<SingleConeProductionSuccess, SingleConeProductionError> {
+        if self.output.artifact().is_none() {
+            return Err(SingleConeProductionError::ArtifactOutputRequired);
+        }
         match self.compile(false)? {
             SingleConeCompilation::Published(result) => Ok(*result),
-            SingleConeCompilation::Observed(_) => {
+            SingleConeCompilation::Observed(_) | SingleConeCompilation::Documented(_) => {
                 unreachable!("production has no observation stop")
             }
         }
@@ -112,6 +119,9 @@ impl SingleConeBuildRequest {
         self,
         observation_only: bool,
     ) -> Result<SingleConeCompilation, SingleConeProductionError> {
+        if observation_only && self.output.documentation().is_some() {
+            return Err(SingleConeProductionError::DocumentationObservation);
+        }
         let stop_after = if observation_only {
             let StageDumpPolicy::Stages(stages) = self.emit else {
                 return Err(SingleConeProductionError::ObservationRequiresStages);
@@ -125,7 +135,7 @@ impl SingleConeBuildRequest {
         }
         let temporary_parent = self
             .output
-            .as_path()
+            .primary_path()
             .parent()
             .expect("an absolute output path always has a parent");
         let temporary = tempfile::Builder::new()
@@ -172,6 +182,8 @@ fn capture_stage_dump(
 
 #[derive(Debug)]
 pub enum SingleConeProductionError {
+    ArtifactOutputRequired,
+    DocumentationObservation,
     ObservationRequiresStages,
     TemporaryWorkspace(std::io::Error),
     Preflight(SingleConePreflightError),
@@ -183,6 +195,12 @@ pub enum SingleConeProductionError {
 impl fmt::Display for SingleConeProductionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::ArtifactOutputRequired => formatter.write_str(
+                "artifact production requires an artifact output; use compile for documentation",
+            ),
+            Self::DocumentationObservation => {
+                formatter.write_str("documentation cannot be combined with observation-only")
+            }
             Self::ObservationRequiresStages => {
                 formatter.write_str("stage observation requires at least one dump")
             }
@@ -203,7 +221,9 @@ impl fmt::Display for SingleConeProductionError {
 impl std::error::Error for SingleConeProductionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         Some(match self {
-            Self::ObservationRequiresStages => return None,
+            Self::ArtifactOutputRequired
+            | Self::DocumentationObservation
+            | Self::ObservationRequiresStages => return None,
             Self::TemporaryWorkspace(source) => source,
             Self::Preflight(source) => source,
             Self::Validation(source) => source,
@@ -246,7 +266,9 @@ impl SingleConeProductionError {
     pub fn warnings(&self) -> Option<&CurrentConeDiagnosticSet> {
         match self {
             Self::Production(error) => error.warnings(),
-            Self::ObservationRequiresStages
+            Self::ArtifactOutputRequired
+            | Self::DocumentationObservation
+            | Self::ObservationRequiresStages
             | Self::TemporaryWorkspace(_)
             | Self::Preflight(_)
             | Self::Validation(_)

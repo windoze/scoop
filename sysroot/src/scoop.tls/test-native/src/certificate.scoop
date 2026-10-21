@@ -6,6 +6,10 @@ import scoop.crypto.testdata.*
 import scoop.crypto.x509.Certificate
 
 // Keep platform-policy tests current without weakening the TLS validity rules.
+/**
+ * Reissues the fixture leaf against the current clock for platform trust tests. The expired
+ * option deliberately creates an expired certificate without weakening verification.
+ */
 public fun systemCertificatePem(template: String = serverPem(), expired: Boolean = false): String =
     Certificate.fromPem(template).use { leaf ->
         Certificate.fromPem(rootPem()).use { root ->

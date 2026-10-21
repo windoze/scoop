@@ -4,9 +4,43 @@ import scoop.terminal.Command
 import scoop.terminal.requireTerminalParameter
 import scoop.terminal.writeCsiParameter
 
-public enum ClearType { All, Purge, FromCursorDown, FromCursorUp, CurrentLine, UntilNewLine }
+/**
+ * The screen or line region selected for an ANSI erase command.
+ */
+public enum ClearType {
+    /**
+     * Erase the visible screen.
+     */
+    All,
+    /**
+     * Erase the terminal scrollback buffer.
+     */
+    Purge,
+    /**
+     * Erase from the cursor to the end of the screen.
+     */
+    FromCursorDown,
+    /**
+     * Erase from the beginning of the screen through the cursor.
+     */
+    FromCursorUp,
+    /**
+     * Erase the complete current line.
+     */
+    CurrentLine,
+    /**
+     * Erase from the cursor to the end of its line.
+     */
+    UntilNewLine }
 
+/**
+ * Erases the selected region without moving the cursor.
+ */
 public struct Clear(val type: ClearType) : Command {
+    /**
+     * Writes this command's ANSI representation to the supplied writer without flushing it.
+     * Parameter validation happens before or during serialization.
+     */
     public override fun writeAnsi(writer: TextWriter) {
         val suffix = when (type) {
             case ClearType.All -> "2J"
@@ -20,19 +54,40 @@ public struct Clear(val type: ClearType) : Command {
     }
 }
 
+/**
+ * Scrolls the screen upward by the requested line count; zero emits no command.
+ */
 public struct ScrollUp(val count: Long) : Command {
+    /**
+     * Writes this command's ANSI representation to the supplied writer without flushing it.
+     * Parameter validation happens before or during serialization.
+     */
     public override fun writeAnsi(writer: TextWriter) {
         if (count != 0L) writeCsiParameter(writer, count, "S")
     }
 }
 
+/**
+ * Scrolls the screen downward by the requested line count; zero emits no command.
+ */
 public struct ScrollDown(val count: Long) : Command {
+    /**
+     * Writes this command's ANSI representation to the supplied writer without flushing it.
+     * Parameter validation happens before or during serialization.
+     */
     public override fun writeAnsi(writer: TextWriter) {
         if (count != 0L) writeCsiParameter(writer, count, "T")
     }
 }
 
+/**
+ * Requests terminal dimensions in character cells. Both dimensions must be in 1..65535.
+ */
 public struct SetSize(val columns: Long, val rows: Long) : Command {
+    /**
+     * Writes this command's ANSI representation to the supplied writer without flushing it.
+     * Parameter validation happens before or during serialization.
+     */
     public override fun writeAnsi(writer: TextWriter) {
         requireTerminalParameter(columns, 1L)
         requireTerminalParameter(rows, 1L)
@@ -40,7 +95,14 @@ public struct SetSize(val columns: Long, val rows: Long) : Command {
     }
 }
 
+/**
+ * Sets the terminal title. Control characters are rejected before serialization.
+ */
 public struct SetTitle(val title: String) : Command {
+    /**
+     * Writes this command's ANSI representation to the supplied writer without flushing it.
+     * Parameter validation happens before or during serialization.
+     */
     public override fun writeAnsi(writer: TextWriter) {
         for (character in title) {
             if (character.code < 32 || (character.code >= 127 && character.code <= 159)) {

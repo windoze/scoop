@@ -7,40 +7,125 @@ import scoop.time.Instant
 import scoop.text.indexOf
 import scoop.text.substring
 
-public class LocalDateTime public constructor(public val date: LocalDate, public val time: LocalTime)
+/**
+ * An immutable local date and time without a time zone. Conversion to an Instant requires an
+ * explicit UTC offset.
+ */
+public class LocalDateTime public constructor(
+    /**
+     * The calendar-date component.
+     */
+    public val date: LocalDate,
+    /**
+     * The local-time component.
+     */
+    public val time: LocalTime)
     : Equals<LocalDateTime>, Compare<LocalDateTime>, Hash, ToString, Add<Duration, LocalDateTime>, Sub<Duration, LocalDateTime> {
     public constructor(year: Int, monthNumber: Int, dayOfMonth: Int, hour: Int, minute: Int, second: Int = 0, nanosecond: Int = 0)
         : this(LocalDate(year, monthNumber, dayOfMonth), LocalTime(hour, minute, second, nanosecond)) {}
+    /**
+     * The proleptic Gregorian year, including year zero.
+     */
     public val year: Int get() = date.year
+    /**
+     * The one-based month number in 1..12.
+     */
     public val monthNumber: Int get() = date.monthNumber
+    /**
+     * The one-based day within the validated month.
+     */
     public val dayOfMonth: Int get() = date.dayOfMonth
+    /**
+     * The hour of day in 0..23.
+     */
     public val hour: Int get() = time.hour
+    /**
+     * The minute within the hour in 0..59.
+     */
     public val minute: Int get() = time.minute
+    /**
+     * The second within the minute in 0..59.
+     */
     public val second: Int get() = time.second
+    /**
+     * The fractional nanosecond within the second in 0..999999999.
+     */
     public val nanosecond: Int get() = time.nanosecond
+    /**
+     * Adds the supplied elapsed or calendar amount. Calendar components are applied before time
+     * components; fixed-duration overflow carries into the date.
+     */
     public override operator fun plus(other: Duration): LocalDateTime = shifted(other, false)
+    /**
+     * Subtracts the supplied elapsed or calendar amount. Calendar components are applied before
+     * time components; fixed-duration overflow carries into the date.
+     */
     public override operator fun minus(other: Duration): LocalDateTime = shifted(other, true)
     private fun shifted(amount: Duration, subtract: Boolean): LocalDateTime {
         val parts = shiftedTimeOfDay(time, amount, subtract)
         return LocalDateTime(date.plusDays(parts._1), LocalTime.fromNanosecondOfDay(parts._2))
     }
+    /**
+     * Adds the supplied elapsed or calendar amount. Calendar components are applied before time
+     * components; fixed-duration overflow carries into the date.
+     */
     public operator fun plus(other: DatePeriod): LocalDateTime = LocalDateTime(date + other, time)
+    /**
+     * Subtracts the supplied elapsed or calendar amount. Calendar components are applied before
+     * time components; fixed-duration overflow carries into the date.
+     */
     public operator fun minus(other: DatePeriod): LocalDateTime = LocalDateTime(date - other, time)
+    /**
+     * Adds the supplied elapsed or calendar amount. Calendar components are applied before time
+     * components; fixed-duration overflow carries into the date.
+     */
     public operator fun plus(other: DateTimePeriod): LocalDateTime = (this + other.date) + other.time
+    /**
+     * Subtracts the supplied elapsed or calendar amount. Calendar components are applied before
+     * time components; fixed-duration overflow carries into the date.
+     */
     public operator fun minus(other: DateTimePeriod): LocalDateTime = (this - other.date) - other.time
+    /**
+     * Interprets this local date-time at the explicitly supplied fixed UTC offset.
+     */
     public fun toInstant(offset: UtcOffset): Instant =
         Instant.fromComponents(localEpochSeconds(this) - offset.totalSeconds.toLong(), nanosecond)
+    /**
+     * Compares the stored value components for equality.
+     */
     public override operator fun equals(other: LocalDateTime): Boolean = date == other.date && time == other.time
+    /**
+     * Orders values by their chronological or numeric value; only the result sign is significant.
+     */
     public override operator fun compareTo(other: LocalDateTime): Long =
         if (date != other.date) date.compareTo(other.date) else time.compareTo(other.time)
+    /**
+     * Computes a hash consistent with component equality.
+     */
     public override fun hash(): Long = date.hash() * 31L + time.hash()
+    /**
+     * Formats this value as ISO local date-time with a T separator.
+     */
     public override fun toString(): String = date.toString() + "T" + time.toString()
 
+    /**
+     * Value construction and serialization helpers.
+     */
     public companion object : ValueEncoder<LocalDateTime>, ValueDecoder<LocalDateTime> {
+        /**
+         * Encodes the value as its canonical text representation.
+         */
         public override fun encode(value: LocalDateTime, encoder: Encoder) { encoder.singleValue().writeString(value.toString()) }
+        /**
+         * Reads a string value and validates it using this type's parser.
+         */
         public override fun decode(decoder: Decoder): LocalDateTime =
             decodeTextValue<LocalDateTime>(decoder, { text -> parseOrNone(text) }, "local date-time")
 
+        /**
+         * Parses ISO local date-time with a T separator, returning None for malformed or
+         * out-of-range input.
+         */
         public fun parseOrNone(text: String): LocalDateTime? {
             val split = text.indexOf('T')
             if (split < 0L) return None
@@ -49,6 +134,10 @@ public class LocalDateTime public constructor(public val date: LocalDate, public
             if (date == None || time == None) return None
             return Some(LocalDateTime(date!!, time!!))
         }
+        /**
+         * Parses ISO local date-time with a T separator or throws IllegalArgumentException for
+         * invalid input.
+         */
         public fun parse(text: String): LocalDateTime = when (parseOrNone(text)) {
             case Some(value) -> value
             case None -> throw IllegalArgumentException(Some("invalid local date-time"))

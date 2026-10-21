@@ -2,18 +2,43 @@ package scoop.http
 
 import scoop.platform.memory.NativeByteBuffer
 
-public class Http2Session private constructor(private var handle: ULong, public val role: HttpRole) : Closeable {
+/**
+ * An owned in-memory HTTP/2 session. Serialize calls, drain events and output, and acknowledge
+ * received DATA only after consumption. It owns no network transport.
+ */
+public class Http2Session private constructor(private var handle: ULong,
+    /**
+     * The fixed client/server role of this codec.
+     */
+    public val role: HttpRole) : Closeable {
+    /**
+     * Factories for explicitly owned client/server codec instances.
+     */
     public companion object {
+        /**
+         * Creates a client codec with the selected receive options and local limits.
+         */
         public fun client(options: Http2ReceiveOptions = Http2ReceiveOptions(), limits: Http2Limits = Http2Limits(),
             settings: Http2Settings = Http2Settings()): Http2Session = create(HttpRole.Client, options, limits, settings)
 
+        /**
+         * Creates a server codec with the selected receive options and local limits.
+         */
         public fun server(options: Http2ReceiveOptions = Http2ReceiveOptions(), limits: Http2Limits = Http2Limits(),
             settings: Http2Settings = Http2Settings()): Http2Session = create(HttpRole.Server, options, limits, settings)
 
+        /**
+         * Creates a client session after an accepted h2c upgrade, using exactly the SETTINGS sent
+         * in the request. Stream 1 represents that completed HTTP/1 request.
+         */
         public fun upgradedClient(requestMethod: List<Byte>, settings: Http2Settings = Http2Settings(),
             options: Http2ReceiveOptions = Http2ReceiveOptions(), limits: Http2Limits = Http2Limits()): Http2Session =
             upgrade(HttpRole.Client, requestMethod, http2SettingsPayload(settings), options, limits, settings)
 
+        /**
+         * Creates a server session after the complete HTTP/1 upgrade request body, applying the
+         * decoded peer SETTINGS payload.
+         */
         public fun upgradedServer(requestMethod: List<Byte>, settingsPayload: List<Byte>,
             options: Http2ReceiveOptions = Http2ReceiveOptions(), limits: Http2Limits = Http2Limits(),
             settings: Http2Settings = Http2Settings()): Http2Session =
@@ -42,11 +67,26 @@ public class Http2Session private constructor(private var handle: ULong, public 
         }
     }
 
+    /**
+     * Whether its state has been released.
+     */
     public val isClosed: Boolean get() = handle == 0UL
+    /**
+     * Whether the session currently expects further peer input.
+     */
     public val wantsRead: Boolean get() { @Unsafe { return http2Wants(nativeHandle(), 0) != 0 } }
+    /**
+     * Whether the backend currently has output work to drive.
+     */
     public val wantsWrite: Boolean get() { @Unsafe { return http2Wants(nativeHandle(), 1) != 0 } }
+    /**
+     * The currently buffered output byte count.
+     */
     public val bufferedOutputBytes: Long get() { @Unsafe { return http2Buffered(nativeHandle()) } }
 
+    /**
+     * Tests whether the specified positive stream ID still has queued output.
+     */
     public fun hasPendingOutput(streamId: Int): Boolean {
         if (streamId <= 0) throw IllegalArgumentException(Some("invalid HTTP/2 stream ID"))
         @Unsafe { return http2Pending(nativeHandle(), streamId) != 0 }
@@ -70,9 +110,16 @@ public class Http2Session private constructor(private var handle: ULong, public 
         }
     }
 
+    /**
+     * Consumes up to count readable input bytes, advancing the buffer by the returned count. Drain
+     * queued events after feeding input.
+     */
     public fun receive(buffer: NativeByteBuffer, count: Long = buffer.readableBytes): Long =
         receiveBytes(nativeHandle(), buffer, count, false)
 
+    /**
+     * Consumes input and returns total and per-stream input progress for this call.
+     */
     public fun receiveWithProgress(buffer: NativeByteBuffer, count: Long = buffer.readableBytes): Http2ReceiveResult {
         val owned = nativeHandle()
         val received = receiveBytes(owned, buffer, count, true)
@@ -93,9 +140,15 @@ public class Http2Session private constructor(private var handle: ULong, public 
         }
     }
 
+    /**
+     * Copies up to count outgoing bytes into the writable buffer and advances its writer position.
+     */
     public fun takeOutput(buffer: NativeByteBuffer, count: Long = buffer.writableBytes): Long =
         takeOutputChunk(buffer, count).count
 
+    /**
+     * Copies an output chunk and returns its byte count, stream ID, and category.
+     */
     public fun takeOutputChunk(buffer: NativeByteBuffer, count: Long = buffer.writableBytes): Http2OutputChunk {
         val owned = nativeHandle()
         if (count < 0L || count > buffer.writableBytes) throw IllegalArgumentException(Some("invalid HTTP/2 output capacity"))
@@ -116,6 +169,10 @@ public class Http2Session private constructor(private var handle: ULong, public 
         }
     }
 
+    /**
+     * Queues a request and returns its new stream ID. Set endStream=false before writing a body or
+     * trailers.
+     */
     public fun submitRequest(head: HttpRequestHead, endStream: Boolean = true): Int {
         val owned = nativeHandle()
         val fields = http2RequestFields(head)
@@ -128,6 +185,9 @@ public class Http2Session private constructor(private var handle: ULong, public 
         } finally { fields.close() }
     }
 
+    /**
+     * Queues response headers for a stream; set endStream=false when body or trailers follow.
+     */
     public fun submitResponse(streamId: Int, head: HttpResponseHead, endStream: Boolean = true) {
         val owned = nativeHandle()
         val fields = http2ResponseFields(head)
@@ -136,6 +196,10 @@ public class Http2Session private constructor(private var handle: ULong, public 
         finally { fields.close() }
     }
 
+    /**
+     * Queues body bytes and advances by the accepted count. Short writes or zero require draining
+     * output and/or receiving window updates.
+     */
     public fun writeBody(streamId: Int, buffer: NativeByteBuffer, count: Long = buffer.readableBytes): Long {
         val owned = nativeHandle()
         if (count < 0L || count > buffer.readableBytes) throw IllegalArgumentException(Some("invalid HTTP/2 body count"))
@@ -149,6 +213,10 @@ public class Http2Session private constructor(private var handle: ULong, public 
         }
     }
 
+    /**
+     * Ends this stream's outgoing body, optionally with trailers; queued bytes still need to be
+     * drained.
+     */
     public fun finish(streamId: Int, trailers: List<HttpField> = ArrayList<HttpField>()) {
         val owned = nativeHandle()
         val fields = Http2Fields()
@@ -158,15 +226,26 @@ public class Http2Session private constructor(private var handle: ULong, public 
         } finally { fields.close() }
     }
 
+    /**
+     * Acknowledges DATA bytes actually read or discarded by the application so flow-control credit
+     * can be returned.
+     */
     public fun consume(streamId: Int, count: Long) {
         @Unsafe { check(http2Consume(nativeHandle(), streamId, count), "consume HTTP/2 body", streamId) }
     }
 
+    /**
+     * Queues RST_STREAM and abandons the stream's unconsumed body; the default code is CANCEL.
+     */
     public fun reset(streamId: Int, code: UInt = 8U) {
         if (streamId <= 0) throw IllegalArgumentException(Some("invalid HTTP/2 stream ID"))
         @Unsafe { check(http2Reset(nativeHandle(), streamId, code), "reset HTTP/2 stream", streamId) }
     }
 
+    /**
+     * Queues GOAWAY with optional debug bytes and last accepted stream ID; output still needs to
+     * be drained.
+     */
     public fun goAway(code: UInt = 0U, debugData: List<Byte> = ArrayList<Byte>(), lastStreamId: Int? = None) {
         val owned = nativeHandle()
         val last = lastStreamId ?: -1
@@ -179,8 +258,14 @@ public class Http2Session private constructor(private var handle: ULong, public 
         }
     }
 
+    /**
+     * Reports transport EOF and validates whether the protocol input ended cleanly.
+     */
     public fun endInput() { @Unsafe { check(http2End(nativeHandle()), "finish HTTP/2 input", 0, HttpFailureScope.Connection) } }
 
+    /**
+     * Removes the next queued event, or returns None when none is ready.
+     */
     public fun nextEvent(): Http2Event? {
         @Unsafe {
             val event = http2Next(nativeHandle())
@@ -190,6 +275,9 @@ public class Http2Session private constructor(private var handle: ULong, public 
         }
     }
 
+    /**
+     * Releases codec state without sending, finishing, or closing a transport.
+     */
     public override fun close() {
         val owned = handle
         handle = 0UL

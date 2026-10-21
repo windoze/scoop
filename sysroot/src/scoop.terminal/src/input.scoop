@@ -1,4 +1,7 @@
 package scoop.terminal
 
+/**
+ * Terminal input ended before another user event could be returned.
+ */
 public class TerminalDisconnectedException public constructor() :
     Exception(Some("terminal input disconnected"))

@@ -3,7 +3,14 @@ package scoop.crypto.jws
 import scoop.json.Json
 import scoop.io.encoding.Base64
 
-public class JwsException public constructor(public val detail: String) : Exception(Some(detail))
+/**
+ * Reports invalid or unsupported compact-JWS header or encoding structure.
+ */
+public class JwsException public constructor(
+    /**
+     * The rejected structure or unsupported header condition.
+     */
+    public val detail: String) : Exception(Some(detail))
 
 internal val urlEncoding: Base64 = Base64.UrlSafe.withPadding(Base64.PaddingOption.Absent)
 internal struct ProtectedHeader(val algorithm: String, val keyId: String?)

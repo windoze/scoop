@@ -329,6 +329,7 @@ impl Lowerer {
             annotation_metadata: hir::SourceAnnotations::default(),
             test_containers: Vec::new(),
             test_compilation: None,
+            documentation: None,
             type_annotations: Default::default(),
             annotation_resolution: HashMap::new(),
             defined_intrinsic_type_core: None,

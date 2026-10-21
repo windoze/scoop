@@ -2,34 +2,109 @@ package scoop.terminal.cursor
 
 import scoop.terminal.Command
 
+/**
+ * Saves the current cursor position using the terminal's saved-position slot.
+ */
 public object SavePosition : Command {
+    /**
+     * Writes this command's ANSI representation to the supplied writer without flushing it.
+     * Parameter validation happens before or during serialization.
+     */
     public override fun writeAnsi(writer: TextWriter) { writer.write("\u001b7") }
 }
 
+/**
+ * Restores the cursor from the terminal's saved-position slot.
+ */
 public object RestorePosition : Command {
+    /**
+     * Writes this command's ANSI representation to the supplied writer without flushing it.
+     * Parameter validation happens before or during serialization.
+     */
     public override fun writeAnsi(writer: TextWriter) { writer.write("\u001b8") }
 }
 
+/**
+ * Requests that the terminal hide its cursor.
+ */
 public object Hide : Command {
+    /**
+     * Writes this command's ANSI representation to the supplied writer without flushing it.
+     * Parameter validation happens before or during serialization.
+     */
     public override fun writeAnsi(writer: TextWriter) { writer.write("\u001b[?25l") }
 }
 
+/**
+ * Requests that the terminal show its cursor.
+ */
 public object Show : Command {
+    /**
+     * Writes this command's ANSI representation to the supplied writer without flushing it.
+     * Parameter validation happens before or during serialization.
+     */
     public override fun writeAnsi(writer: TextWriter) { writer.write("\u001b[?25h") }
 }
 
+/**
+ * Enables cursor blinking where supported by the terminal.
+ */
 public object EnableBlinking : Command {
+    /**
+     * Writes this command's ANSI representation to the supplied writer without flushing it.
+     * Parameter validation happens before or during serialization.
+     */
     public override fun writeAnsi(writer: TextWriter) { writer.write("\u001b[?12h") }
 }
 
+/**
+ * Disables cursor blinking where supported by the terminal.
+ */
 public object DisableBlinking : Command {
+    /**
+     * Writes this command's ANSI representation to the supplied writer without flushing it.
+     * Parameter validation happens before or during serialization.
+     */
     public override fun writeAnsi(writer: TextWriter) { writer.write("\u001b[?12l") }
 }
 
+/**
+ * Selects the terminal cursor shape and blinking policy.
+ */
 public enum SetCursorStyle : Command {
-    DefaultUserShape, BlinkingBlock, SteadyBlock, BlinkingUnderScore,
-    SteadyUnderScore, BlinkingBar, SteadyBar
+    /**
+     * Restores the user's default cursor shape.
+     */
+    DefaultUserShape,
+        /**
+         * Selects a blinking block cursor.
+         */
+        BlinkingBlock,
+        /**
+         * Selects a non-blinking block cursor.
+         */
+        SteadyBlock,
+        /**
+         * Selects a blinking underscore cursor.
+         */
+        BlinkingUnderScore,
+    /**
+     * Selects a non-blinking underscore cursor.
+     */
+    SteadyUnderScore,
+        /**
+         * Selects a blinking vertical-bar cursor.
+         */
+        BlinkingBar,
+        /**
+         * Selects a non-blinking vertical-bar cursor.
+         */
+        SteadyBar
 
+    /**
+     * Writes this command's ANSI representation to the supplied writer without flushing it.
+     * Parameter validation happens before or during serialization.
+     */
     public override fun writeAnsi(writer: TextWriter) {
         val code = when (this) {
             case DefaultUserShape -> "0"

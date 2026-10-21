@@ -8,14 +8,21 @@ use crate::{
 #[test]
 fn unicode_identifiers_keep_utf8_spans_and_codepoints() {
     let source = "变量 e\u{301} é";
-    let (tokens, errors) = lex(source);
+    let crate::lexer::Lexed {
+        tokens,
+        diagnostics: errors,
+        ..
+    } = lex(source);
     assert!(errors.is_empty());
     assert_eq!(tokens[0].kind, TokenKind::Ident("变量".into()));
     assert_eq!(tokens[0].span, Span::new(0, 6));
     assert_ne!(tokens[1].kind, tokens[2].kind);
     ok("fun <类型> 身份(输入: 类型): 类型 = 输入");
     ok("fun main() { val 名称 = 1; println(f\"${名称}\") }");
-    let (_, errors) = lex("f\"$名称\"");
+    let crate::lexer::Lexed {
+        diagnostics: errors,
+        ..
+    } = lex("f\"$名称\"");
     assert_eq!(
         errors[0].message,
         "`$名称` interpolation requires braces; use `${名称}`"
@@ -76,7 +83,10 @@ fn malformed_names_produce_lexical_diagnostics() {
         ),
         ("\u{301}bad", "unexpected character"),
     ] {
-        let (_, errors) = lex(source);
+        let crate::lexer::Lexed {
+            diagnostics: errors,
+            ..
+        } = lex(source);
         assert!(
             errors.iter().any(|error| error.message.contains(message)),
             "{source:?}: {errors:?}"

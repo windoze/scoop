@@ -6,6 +6,7 @@
 mod annotations;
 mod context;
 mod declarations;
+mod documentation;
 mod dump;
 mod expressions;
 mod floating;
@@ -21,6 +22,7 @@ mod types;
 pub use annotations::*;
 pub use context::*;
 pub use declarations::*;
+pub use documentation::*;
 pub use dump::{dump, dump_pattern};
 pub use expressions::*;
 pub use headers::*;

@@ -8,11 +8,27 @@ internal fun isTextWhitespace(value: Char): Boolean {
         (code >= 0x2000 && code <= 0x200A) || code == 0x2028 || code == 0x2029 || code == 0x202F || code == 0x205F || code == 0x3000
 }
 
+/**
+ * Returns whether every scalar satisfies the predicate, or Unicode White_Space when no predicate
+ * is supplied. Empty text is blank.
+ */
 public fun String.isBlank(predicate: (Char) -> Boolean): Boolean {
     for (value in this) { if (!predicate(value)) return false }
     return true
 }
 
+/**
+ * Returns whether at least one scalar fails the predicate, or is not Unicode White_Space when no
+ * predicate is supplied.
+ */
 public fun String.isNotBlank(predicate: (Char) -> Boolean): Boolean = !isBlank(predicate)
+/**
+ * Returns whether every scalar satisfies the predicate, or Unicode White_Space when no predicate
+ * is supplied. Empty text is blank.
+ */
 public fun String.isBlank(): Boolean = isBlank(::isTextWhitespace)
+/**
+ * Returns whether at least one scalar fails the predicate, or is not Unicode White_Space when no
+ * predicate is supplied.
+ */
 public fun String.isNotBlank(): Boolean = !isBlank()

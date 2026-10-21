@@ -5,9 +5,19 @@ import scoop.platform.system.OsString
 import scoop.platform.system.byteContentsEqual
 import scoop.platform.system.byteContentsHash
 
+/**
+ * An immutable native byte path with no embedded NUL. Lexical operations do not access the
+ * filesystem or resolve symbolic links; equality compares stored bytes.
+ */
 public class Path private constructor(private val bytes: Array<Byte>) : Equals<Path>, Hash {
+    /**
+     * Whether the stored path begins at the filesystem root.
+     */
     public val isAbsolute: Boolean get() = bytes.size > 0L && bytes[0L] == 47
 
+    /**
+     * The last non-separator component, or None for a root, empty path, dot, or dot-dot component.
+     */
     public val fileName: OsString? get() {
         val end = endWithoutSeparators()
         if (end == 0L) return None
@@ -17,6 +27,9 @@ public class Path private constructor(private val bytes: Array<Byte>) : Equals<P
         return Some(name)
     }
 
+    /**
+     * The lexical parent when one exists; this does not query the filesystem.
+     */
     public val parent: Path? get() {
         val end = endWithoutSeparators()
         if (end == 0L) return None
@@ -38,6 +51,9 @@ public class Path private constructor(private val bytes: Array<Byte>) : Equals<P
         return start
     }
 
+    /**
+     * Returns nonempty slash-separated components as byte strings.
+     */
     public fun components(): Array<OsString> {
         val parts = ArrayList<OsString>()
         var cursor = 0L
@@ -50,6 +66,9 @@ public class Path private constructor(private val bytes: Array<Byte>) : Equals<P
         return parts.toArray()
     }
 
+    /**
+     * Joins a relative child to this path; an absolute child replaces the base.
+     */
     public fun resolve(child: Path): Path {
         if (child.isAbsolute || bytes.size == 0L) return child
         if (child.bytes.size == 0L) return this
@@ -60,6 +79,10 @@ public class Path private constructor(private val bytes: Array<Byte>) : Equals<P
         return Path(result.toByteArray())
     }
 
+    /**
+     * Removes redundant separators and dot components and folds lexical dot-dot pairs. It does not
+     * follow links or guarantee equivalence through symbolic links.
+     */
     public fun normalizeLexically(): Path {
         val absolute = isAbsolute
         val dot = OsString.fromString(".")
@@ -83,15 +106,42 @@ public class Path private constructor(private val bytes: Array<Byte>) : Equals<P
         return Path(result.toByteArray())
     }
 
+    /**
+     * Copies the stored path bytes into an operating-system string.
+     */
     public fun toOsString(): OsString = OsString.fromByteArray(bytes)
+    /**
+     * Decodes the stored bytes as strict UTF-8, rejecting malformed encoding.
+     */
     public fun decodeUtf8(): String = toOsString().decodeUtf8()
+    /**
+     * Decodes stored bytes with replacement for malformed UTF-8.
+     */
     public fun decodeUtf8Lossy(): String = toOsString().decodeUtf8Lossy()
+    /**
+     * Returns a lossy UTF-8 presentation suitable for displaying native names.
+     */
     public fun display(): String = decodeUtf8Lossy()
+    /**
+     * Compares the exact stored byte sequences.
+     */
     public override operator fun equals(other: Path): Boolean = byteContentsEqual(bytes, other.bytes)
+    /**
+     * Hashes the stored bytes consistently with equality.
+     */
     public override fun hash(): Long = byteContentsHash(bytes)
 
+    /**
+     * Creates independent native-byte values from text or existing native bytes.
+     */
     public companion object {
+        /**
+         * Encodes a Unicode path as UTF-8 and rejects embedded NUL.
+         */
         public fun fromString(value: String): Path = fromOsString(OsString.fromString(value))
+        /**
+         * Copies a native path after rejecting embedded NUL bytes.
+         */
         public fun fromOsString(value: OsString): Path {
             val bytes = value.toByteArray()
             for (byte in bytes) {

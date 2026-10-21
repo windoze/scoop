@@ -50,7 +50,21 @@ private fun String.replaceText(oldValue: String, newValue: String, firstOnly: Bo
     return output.build()
 }
 
+/**
+ * Replaces all nonoverlapping literal matches; this operation does not interpret a regular
+ * expression.
+ */
 public fun String.replace(oldValue: String, newValue: String): String = replaceText(oldValue, newValue, false)
+/**
+ * Replaces the first literal match, leaving later matches unchanged.
+ */
 public fun String.replaceFirst(oldValue: String, newValue: String): String = replaceText(oldValue, newValue, true)
+/**
+ * Replaces all nonoverlapping literal matches; this operation does not interpret a regular
+ * expression.
+ */
 public fun String.replace(oldValue: Char, newValue: Char): String = replace(oldValue.toString(), newValue.toString())
+/**
+ * Replaces the first literal match, leaving later matches unchanged.
+ */
 public fun String.replaceFirst(oldValue: Char, newValue: Char): String = replaceFirst(oldValue.toString(), newValue.toString())

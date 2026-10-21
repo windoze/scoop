@@ -4,7 +4,14 @@ import scoop.platform.env.temporaryDirectory
 import scoop.platform.fs.*
 import scoop.platform.native.temporaryPathPattern
 
+/**
+ * A newly created temporary path paired with its open asynchronous file. Closing the handle does
+ * not delete the path.
+ */
 public struct TemporaryFile(val path: Path, val file: AsyncFile) : AsyncCloseable {
+    /**
+     * Closes the file handle while leaving the temporary path in the filesystem.
+     */
     public override suspend fun close() { file.close() }
 }
 

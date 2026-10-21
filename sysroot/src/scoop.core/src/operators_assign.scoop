@@ -1,19 +1,59 @@
+/**
+ * The generic operator contract used for `a += b`. Operand and result types are chosen by the
+ * implementation.
+ */
 public interface AddAssign<Rhs> {
+    /**
+     * Implements `a += b` for this receiver; domain restrictions and failure behavior belong to
+     * the implementing type.
+     */
     public operator fun plusAssign(other: Rhs): Unit
 }
 
+/**
+ * The generic operator contract used for `a -= b`. Operand and result types are chosen by the
+ * implementation.
+ */
 public interface SubAssign<Rhs> {
+    /**
+     * Implements `a -= b` for this receiver; domain restrictions and failure behavior belong to
+     * the implementing type.
+     */
     public operator fun minusAssign(other: Rhs): Unit
 }
 
+/**
+ * The generic operator contract used for `a *= b`. Operand and result types are chosen by the
+ * implementation.
+ */
 public interface MulAssign<Rhs> {
+    /**
+     * Implements `a *= b` for this receiver; domain restrictions and failure behavior belong to
+     * the implementing type.
+     */
     public operator fun timesAssign(other: Rhs): Unit
 }
 
+/**
+ * The generic operator contract used for `a /= b`. Operand and result types are chosen by the
+ * implementation.
+ */
 public interface DivAssign<Rhs> {
+    /**
+     * Implements `a /= b` for this receiver; domain restrictions and failure behavior belong to
+     * the implementing type.
+     */
     public operator fun divAssign(other: Rhs): Unit
 }
 
+/**
+ * The generic operator contract used for `a %= b`. Operand and result types are chosen by the
+ * implementation.
+ */
 public interface RemAssign<Rhs> {
+    /**
+     * Implements `a %= b` for this receiver; domain restrictions and failure behavior belong to
+     * the implementing type.
+     */
     public operator fun remAssign(other: Rhs): Unit
 }

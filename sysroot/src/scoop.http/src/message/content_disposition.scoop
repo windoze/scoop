@@ -4,20 +4,63 @@ import scoop.charset.Charset
 import scoop.collections.emptyList
 import scoop.text.lowercaseAscii
 
+/**
+ * The selected filename text/language and any failure decoding filename*, retained when falling
+ * back to filename.
+ */
 public class HttpFilename internal constructor(
-    public val text: String?, public val language: String?, public val extendedFailure: HttpFieldParseException?
+    /**
+     * The selected decoded filename, or None when unavailable.
+     */
+    public val text: String?,
+        /**
+         * The language tag from a valid extended filename.
+         */
+        public val language: String?,
+        /**
+         * The filename* decoding error retained when fallback was needed.
+         */
+        public val extendedFailure: HttpFieldParseException?
 )
 
+/**
+ * A disposition token with unique parameters. Filename interpretation is explicit and does not
+ * sanitize a filesystem path.
+ */
 public class HttpContentDisposition private constructor(
-    public val disposition: String, public val parameters: Array<HttpParameter>, public val originalValue: Array<Byte>?
+    /**
+     * The normalized disposition token.
+     */
+    public val disposition: String,
+        /**
+         * The parsed named parameters in their stored order.
+         */
+        public val parameters: Array<HttpParameter>,
+        /**
+         * The original parsed field-value bytes, or None for a programmatically constructed value.
+         */
+        public val originalValue: Array<Byte>?
 ) {
     public constructor(disposition: String, parameters: List<HttpParameter> = emptyList<HttpParameter>())
         : this(httpNormalizedToken(disposition), uniqueHttpParameters(parameters), None) {}
 
+    /**
+     * Looks up a named parameter using ASCII case folding, returning None when absent.
+     */
     public fun parameter(name: String): HttpParameter? = findHttpParameter(parameters, name)
+    /**
+     * Serializes the structured value into HTTP field-value bytes.
+     */
     public fun toByteArray(): Array<Byte> = encodeHttpParameters(disposition, parameters)
+    /**
+     * Builds the corresponding named HTTP field from the structured value.
+     */
     public fun toHttpField(): HttpField = HttpField("Content-Disposition".toByteArray(), toByteArray())
 
+    /**
+     * Prefers decoded filename*, falling back to ISO-8859-1 filename and retaining any
+     * extended-value error. The result is not a sanitized filesystem path.
+     */
     public fun filename(allowIso88591: Boolean = false): HttpFilename {
         var failure: HttpFieldParseException? = None
         when (parameter("filename*")) {
@@ -36,7 +79,13 @@ public class HttpContentDisposition private constructor(
         return HttpFilename(text, None, failure)
     }
 
+    /**
+     * Construction and parsing of this structured HTTP field.
+     */
     public companion object {
+        /**
+         * Parses the complete field value, throwing HttpFieldParseException for malformed syntax.
+         */
         public fun parse(value: List<Byte>): HttpContentDisposition {
             val reader = HttpFieldReader("Content-Disposition", value)
             reader.skipOws()
@@ -44,11 +93,22 @@ public class HttpContentDisposition private constructor(
             val parameters = reader.parameters(allowBws = true)
             return HttpContentDisposition(disposition, parameters, Some(reader.bytes))
         }
+        /**
+         * Parses the complete field value, throwing HttpFieldParseException for malformed syntax.
+         */
         public fun parse(value: String): HttpContentDisposition = parse(value.toByteArray())
+        /**
+         * Parses the complete value, returning None for HttpFieldParseException while propagating
+         * unrelated failures.
+         */
         public fun parseOrNone(value: List<Byte>): HttpContentDisposition? {
             try { return Some(parse(value)) }
             catch (_: HttpFieldParseException) { return None }
         }
+        /**
+         * Parses the complete value, returning None for HttpFieldParseException while propagating
+         * unrelated failures.
+         */
         public fun parseOrNone(value: String): HttpContentDisposition? = parseOrNone(value.toByteArray())
     }
 }

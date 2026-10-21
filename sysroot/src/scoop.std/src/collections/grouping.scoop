@@ -1,5 +1,8 @@
 package scoop.collections
 
+/**
+ * Appends values into the destination's per-key mutable lists and returns that destination.
+ */
 public fun <T, K, V> Iterable<T>.groupByTo(
     destination: MutableMap<K, MutableList<V>>, keySelector: (T) -> K, valueTransform: (T) -> V
 ): MutableMap<K, MutableList<V>> {
@@ -19,10 +22,16 @@ public fun <T, K, V> Iterable<T>.groupByTo(
     return destination
 }
 
+/**
+ * Appends values into the destination's per-key mutable lists and returns that destination.
+ */
 public fun <T, K> Iterable<T>.groupByTo(
     destination: MutableMap<K, MutableList<T>>, keySelector: (T) -> K
 ): MutableMap<K, MutableList<T>> = groupByTo<T, K, T>(destination, keySelector) { value -> value }
 
+/**
+ * Groups values into lists by the selected key, retaining encounter order within each group.
+ */
 public fun <T, K, V> Iterable<T>.groupBy(keySelector: (T) -> K, valueTransform: (T) -> V): Map<K, List<V>>
     where K : Equals<K>, K : Hash {
     val groups = LinkedHashMap<K, MutableList<V>>()
@@ -32,9 +41,16 @@ public fun <T, K, V> Iterable<T>.groupBy(keySelector: (T) -> K, valueTransform: 
     return MapSnapshot<K, List<V>>(result)
 }
 
+/**
+ * Groups values into lists by the selected key, retaining encounter order within each group.
+ */
 public fun <T, K> Iterable<T>.groupBy(keySelector: (T) -> K): Map<K, List<T>>
     where K : Equals<K>, K : Hash = groupBy<T, K, T>(keySelector) { value -> value }
 
+/**
+ * Builds a map from transformed key-value pairs; later values replace earlier values for equal
+ * keys.
+ */
 public fun <T, K, V> Iterable<T>.associate(transform: (T) -> (K, V)): Map<K, V>
     where K : Equals<K>, K : Hash {
     val result = LinkedHashMap<K, V>()
@@ -45,15 +61,29 @@ public fun <T, K, V> Iterable<T>.associate(transform: (T) -> (K, V)): Map<K, V>
     return MapSnapshot<K, V>(result)
 }
 
+/**
+ * Builds a map using selected keys and optional value transformation; the last value for each key
+ * wins.
+ */
 public fun <T, K, V> Iterable<T>.associateBy(keySelector: (T) -> K, valueTransform: (T) -> V): Map<K, V>
     where K : Equals<K>, K : Hash = associate<T, K, V> { element -> (keySelector(element), valueTransform(element)) }
 
+/**
+ * Builds a map using selected keys and optional value transformation; the last value for each key
+ * wins.
+ */
 public fun <T, K> Iterable<T>.associateBy(keySelector: (T) -> K): Map<K, T>
     where K : Equals<K>, K : Hash = associateBy<T, K, T>(keySelector) { value -> value }
 
+/**
+ * Associates each element with its selected value; later equal elements replace the stored value.
+ */
 public fun <T, V> Iterable<T>.associateWith(valueSelector: (T) -> V): Map<T, V>
     where T : Equals<T>, T : Hash = associate<T, T, V> { value -> (value, valueSelector(value)) }
 
+/**
+ * Retains the first element for each selected key in a new list, preserving encounter order.
+ */
 public fun <T, K> Iterable<T>.distinctBy(selector: (T) -> K): List<T>
     where K : Equals<K>, K : Hash {
     val seen = LinkedHashSet<K>()
@@ -62,5 +92,8 @@ public fun <T, K> Iterable<T>.distinctBy(selector: (T) -> K): List<T>
     return ListSnapshot<T>(result.toArray())
 }
 
+/**
+ * Retains the first occurrence of each equal element in a new list.
+ */
 public fun <T> Iterable<T>.distinct(): List<T> where T : Equals<T>, T : Hash =
     distinctBy<T, T> { value -> value }

@@ -43,6 +43,18 @@ impl PreparedBuildGraph {
         request_id: RequestCorrelationId,
         wait_for_lock: bool,
     ) -> Result<PreparedSourceExecution, OrdinarySourceExecutionError> {
+        self.prepare_source_output(identity, completed, key, request_id, wait_for_lock, None)
+    }
+
+    pub(super) fn prepare_source_output(
+        &self,
+        identity: ConeIdentity,
+        completed: &[&CompletedNode],
+        key: ConeCompileCacheKeyV1,
+        request_id: RequestCorrelationId,
+        wait_for_lock: bool,
+        documentation: Option<&std::path::Path>,
+    ) -> Result<PreparedSourceExecution, OrdinarySourceExecutionError> {
         use OrdinarySourceExecutionError as Error;
         if !matches!(
             self.nodes.get(&identity),
@@ -105,13 +117,18 @@ impl PreparedBuildGraph {
         } else {
             PendingOperation::Build
         };
-        let invocation = self
-            .child_invocation_plan(identity, request_id, completed)
-            .and_then(|plan| match &operation {
-                PendingOperation::Build => Ok(plan),
-                PendingOperation::Observe { missing, .. } => plan.observe(*missing),
-            })
-            .map_err(Error::RequestPlan)?;
+        let invocation = match &operation {
+            PendingOperation::Build => match documentation {
+                Some(path) => {
+                    self.child_documentation_plan(identity, request_id, completed, path, true)
+                }
+                None => self.child_invocation_plan(identity, request_id, completed),
+            },
+            PendingOperation::Observe { missing, .. } => self
+                .child_invocation_plan(identity, request_id, completed)
+                .and_then(|plan| plan.observe(*missing)),
+        }
+        .map_err(Error::RequestPlan)?;
         Ok(PreparedSourceExecution::Pending(Box::new(
             PendingSourceExecution {
                 identity,
@@ -174,7 +191,10 @@ impl PreparedBuildGraph {
                             &lock,
                             invocation.output_path(),
                             CompileBuildRecordV1 {
-                                summary: success.summary().clone(),
+                                summary: success
+                                    .summary()
+                                    .ok_or(Error::UnexpectedResponse)?
+                                    .clone(),
                                 warnings: success.warnings().to_vec(),
                             },
                         )

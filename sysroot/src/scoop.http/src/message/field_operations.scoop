@@ -1,15 +1,30 @@
 package scoop.http
 
+/**
+ * Returns whether all supplied bytes or scalars form a nonempty HTTP token.
+ */
 public fun isHttpToken(value: List<Byte>): Boolean = httpToken(value)
+/**
+ * Returns whether all supplied bytes or scalars form a nonempty HTTP token.
+ */
 public fun isHttpToken(value: String): Boolean = httpToken(value.toByteArray())
 
+/**
+ * Compares this field's name using ASCII case folding.
+ */
 public fun HttpField.hasName(name: List<Byte>): Boolean = httpAsciiEqual(this.name, name)
 
+/**
+ * Validates this field's name token and permitted value bytes, throwing on invalid syntax.
+ */
 public fun HttpField.validate() {
     if (!httpToken(name)) throw IllegalArgumentException(Some("invalid ordinary HTTP field name"))
     requireHttpValue(value)
 }
 
+/**
+ * Parses the selected fields as comma-separated HTTP tokens in field order.
+ */
 public fun parseHttpTokenFields(fields: List<HttpField>, name: String): Array<String> {
     if (!isHttpToken(name)) throw IllegalArgumentException(Some("invalid HTTP field name"))
     val result = ArrayList<String>()
@@ -19,6 +34,10 @@ public fun parseHttpTokenFields(fields: List<HttpField>, name: String): Array<St
     return result.toArray()
 }
 
+/**
+ * Parses Content-Length fields, rejecting malformed, overflowing, or conflicting values; absent
+ * fields return None.
+ */
 public fun parseHttpContentLength(fields: List<HttpField>): Long? {
     var length: Long? = None
     for (field in fields.findAll("Content-Length".toByteArray())) {

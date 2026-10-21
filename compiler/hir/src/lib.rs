@@ -45,7 +45,12 @@ pub struct Output {
     /// Non-fatal source diagnostics produced while constructing this output.
     /// They are not part of either HIR graph or serialized metadata.
     pub warnings: Vec<Diagnostic>,
+    /// Present only for a documentation request, after ordinary HIR succeeds.
+    pub documentation: Option<ConeDocumentation>,
 }
+
+mod documentation;
+pub use documentation::*;
 
 mod output;
 pub use output::*;

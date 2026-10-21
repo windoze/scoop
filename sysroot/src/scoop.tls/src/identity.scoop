@@ -7,15 +7,30 @@ import scoop.crypto.native.*
 import scoop.crypto.x509.*
 import scoop.tls.native.*
 
+/**
+ * A retained certificate chain and matching private key for TLS authentication. Construction
+ * requires a nonempty chain with the leaf first; the supplied certificate and key wrappers retain
+ * their own ownership. Close this identity after use.
+ */
 public class TlsIdentity private constructor(retained: RetainedTlsIdentity) : Closeable {
     private var handle: ULong = retained.handle
     private val held: AtomicBoolean = AtomicBoolean(false)
+    /**
+     * SHA-256 digest of the first certificate's DER encoding.
+     */
     public val leafCertificateSha256: Array<Byte> = retained.leafCertificateSha256
 
     public constructor(certificates: List<Certificate>, privateKey: PrivateKey)
         : this(retainIdentity(certificates, privateKey)) {}
 
+    /**
+     * Factories for reading a TLS certificate chain and private key together.
+     */
     public companion object {
+        /**
+         * Parses a PEM certificate chain and private key into one retained identity, releasing
+         * temporary certificate and key wrappers even on failure.
+         */
         public fun fromPem(certificates: String, privateKey: String): TlsIdentity {
             val chain = parseCertificatesPem(certificates)
             try { return PrivateKey.fromPem(privateKey).use { key -> TlsIdentity(chain, key) } }
@@ -29,6 +44,9 @@ public class TlsIdentity private constructor(retained: RetainedTlsIdentity) : Cl
         finally { held.store(false, MemoryOrder.Release) }
     }
 
+    /**
+     * Whether this identity has released its retained native state.
+     */
     public val isClosed: Boolean get() = locked { handle == 0UL }
 
     internal fun configure(context: ULong) {
@@ -39,6 +57,9 @@ public class TlsIdentity private constructor(retained: RetainedTlsIdentity) : Cl
         }
     }
 
+    /**
+     * Releases the retained certificate chain and key. Repeated closes are allowed.
+     */
     public override fun close() {
         locked {
             val owned = handle

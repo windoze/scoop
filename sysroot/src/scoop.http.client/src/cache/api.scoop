@@ -11,41 +11,149 @@ import scoop.time.Clock
 import scoop.time.Instant
 import scoop.url.Url
 
-public enum HttpCacheMode { Default, Bypass, Reload, OnlyIfCached }
-public enum HttpCacheStatus { Network, Hit, Revalidated, Unsatisfied }
+/**
+ * Selects per-call use of configured private response caching.
+ */
+public enum HttpCacheMode {
+    /**
+     * Uses ordinary freshness, validation, and storage rules.
+     */
+    Default,
+    /**
+     * Bypasses cache use for this call.
+     */
+    Bypass,
+    /**
+     * Requires network refresh rather than serving an ordinary cached hit.
+     */
+    Reload,
+    /**
+     * Requires a usable cached response without making a network request.
+     */
+    OnlyIfCached }
+/**
+ * Where the response came from in the cache workflow.
+ */
+public enum HttpCacheStatus {
+    /**
+     * The response was obtained from the network.
+     */
+    Network,
+    /**
+     * A cached representation satisfied the request.
+     */
+    Hit,
+    /**
+     * A cached representation was validated with the origin.
+     */
+    Revalidated,
+    /**
+     * Only-if-cached could not provide a usable representation.
+     */
+    Unsatisfied }
 
+/**
+ * Explicit cache storage, identity partition, and clock used for freshness calculations.
+ */
 public class HttpCacheOptions public constructor(
+    /**
+     * The cache storage implementation.
+     */
     public val storage: HttpCache,
+    /**
+     * An explicit isolation partition; None selects the client's default partition.
+     */
     public val partition: String? = None,
+    /**
+     * The wall clock used for response age and freshness.
+     */
     public val clock: Clock = SystemClock
 )
 
+/**
+ * The cache partition, normalized URL, and request identity used to separate representations.
+ */
 public class HttpCacheKey public constructor(
-    public val partition: String, public val url: String, public val identity: String
+    /**
+     * The cache isolation partition.
+     */
+    public val partition: String,
+        /**
+         * The normalized request URL used as the storage key.
+         */
+        public val url: String,
+        /**
+         * The request identity component separating authenticated variants.
+         */
+        public val identity: String
 ) : Equals<HttpCacheKey>, Hash {
+    /**
+     * Compares partition, URL, and identity exactly.
+     */
     public override operator fun equals(other: HttpCacheKey): Boolean =
         partition == other.partition && url == other.url && identity == other.identity
+    /**
+     * Hashes all three components consistently with equality.
+     */
     public override fun hash(): Long = (partition.hash() * 31L + url.hash()) * 31L + identity.hash()
 }
 
-public class HttpCacheRequest public constructor(public val key: HttpCacheKey, fields: List<HttpField>) {
+/**
+ * A cache key and copied request fields used for Vary matching.
+ */
+public class HttpCacheRequest public constructor(
+    /**
+     * The request's storage identity.
+     */
+    public val key: HttpCacheKey, fields: List<HttpField>) {
+    /**
+     * A snapshot of request fields for Vary matching.
+     */
     public val fields: Array<HttpField> = fields.toArray()
     internal val fingerprints: Map<String, String> = clientCacheFingerprints(this.fields)
     internal fun fieldFingerprint(name: String): String = fingerprints[name] ?: clientEmptyCacheFingerprint
 }
 
-public class HttpCacheVary public constructor(name: String, public val fingerprint: String) {
+/**
+ * One normalized Vary field name and its request-field fingerprint; wildcard names are rejected.
+ */
+public class HttpCacheVary public constructor(name: String,
+    /**
+     * The normalized request-field fingerprint for this variant.
+     */
+    public val fingerprint: String) {
+    /**
+     * The normalized field name, excluding wildcard.
+     */
     public val name: String = HttpVary([name]).names[0L]
     init { if (this.name == "*") throw IllegalArgumentException(Some("wildcard Vary cannot identify a reusable cache entry")) }
 }
 
+/**
+ * Stored response metadata, request/response times, and sorted unique Vary fingerprints.
+ */
 public class HttpCacheRecord public constructor(
+    /**
+     * The stored representation identity.
+     */
     public val key: HttpCacheKey,
+    /**
+     * The stored response head.
+     */
     public val head: HttpResponseHead,
+    /**
+     * The wall-clock instant when the request was sent.
+     */
     public val sentAt: Instant,
+    /**
+     * The wall-clock instant when the response was received.
+     */
     public val receivedAt: Instant,
     vary: List<HttpCacheVary> = emptyList<HttpCacheVary>()
 ) {
+    /**
+     * Sorted unique Vary names with their request fingerprints.
+     */
     public val vary: Array<HttpCacheVary> = vary.sortedBy<HttpCacheVary, String> { field -> field.name }.toArray()
     internal val parsedDate: Instant? = clientCacheDate(head.fields, "Date", receivedAt)
     internal val responseDate: Instant = parsedDate ?: receivedAt
@@ -53,13 +161,23 @@ public class HttpCacheRecord public constructor(
         for (index in 1L..<this.vary.size) if (this.vary[index - 1L].name == this.vary[index].name)
             throw IllegalArgumentException(Some("duplicate cache Vary field"))
     }
+    /**
+     * Tests key equality and every stored Vary fingerprint against a cache request.
+     */
     public fun matches(request: HttpCacheRequest): Boolean {
         if (key != request.key) return false
         for (field in vary) if (field.fingerprint != request.fieldFingerprint(field.name)) return false
         return true
     }
 
+    /**
+     * Construction of normalized metadata from actual responses.
+     */
     public companion object {
+        /**
+         * Builds stored metadata and Vary fingerprints from a request/response pair, rejecting
+         * wildcard Vary.
+         */
         public fun fromResponse(request: HttpCacheRequest, head: HttpResponseHead, sentAt: Instant, receivedAt: Instant): HttpCacheRecord {
             val names = HttpVary.parseFields(head.fields).names.sorted()
             val vary = ArrayList<HttpCacheVary>()
@@ -75,20 +193,59 @@ public class HttpCacheRecord public constructor(
     }
 }
 
+/**
+ * An owned stable cached representation. Close the snapshot after consuming its body so storage
+ * can release retained resources.
+ */
 public interface HttpCacheSnapshot : AsyncCloseable {
+    /**
+     * Metadata belonging to this stable representation snapshot.
+     */
     public val record: HttpCacheRecord
+    /**
+     * The snapshot's forward-only body source.
+     */
     public val body: AsyncByteSource
+    /**
+     * The exact stored body byte count.
+     */
     public val bodyLength: Long
+    /**
+     * The completed stored trailers.
+     */
     public val trailers: Array<HttpField>
 }
 
+/**
+ * A tentative cache-body sink. Commit publishes the complete body and trailers; closing without
+ * commit abandons the write.
+ */
 public interface HttpCacheWriter : AsyncByteSink, AsyncCloseable {
+    /**
+     * Publishes the complete body and trailers after successful writing; callers still close the
+     * writer.
+     */
     public suspend fun commit(trailers: List<HttpField>)
 }
 
+/**
+ * Suspendable private-response storage with explicit lookup, tentative writes, and URL
+ * invalidation.
+ */
 public interface HttpCache {
+    /**
+     * Returns an owned matching representation snapshot, or None. The caller closes a returned
+     * snapshot.
+     */
     public suspend fun lookup(request: HttpCacheRequest): HttpCacheSnapshot?
+    /**
+     * Starts a tentative body write or returns None when storage declines it; only commit
+     * publishes the entry.
+     */
     public suspend fun begin(record: HttpCacheRecord): HttpCacheWriter?
+    /**
+     * Invalidates all identities and Vary variants for the selected partition and URL.
+     */
     public suspend fun invalidate(partition: String, url: String)
 }
 

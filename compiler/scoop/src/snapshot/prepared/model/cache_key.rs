@@ -97,12 +97,12 @@ impl PreparedBuildGraph {
             .backend()
             .fingerprint()
             .map_err(CompileCacheKeyError::Hash)?;
-        let c_bridge_toolchain = self
+        let target = self
             .context
             .target
-            .c_bridge_toolchain()
-            .profile()
-            .fingerprint();
+            .production(self.context.cache_root.as_path())
+            .map_err(CompileCacheKeyError::Toolchain)?;
+        let c_bridge_toolchain = target.c_bridge_toolchain().profile().fingerprint();
         Ok(ConeCompileCacheInputV1::new(
             cone,
             current_semantic,
@@ -115,7 +115,7 @@ impl PreparedBuildGraph {
             lir_target,
             backend,
             c_bridge_toolchain,
-            self.context.target.native_tool_inputs(),
+            target.native_tool_inputs(),
         )
         .with_optimization(self.context.optimization)
         .with_purpose(self.compilation_purpose(identity)))
@@ -178,6 +178,9 @@ fn manifest_cache_inputs(
     ),
     CompileCacheKeyError,
 > {
+    let super::SourceNativeInput::Artifact(native) = &snapshot.native else {
+        return Err(CompileCacheKeyError::NativeNotPrepared);
+    };
     let cone = ConeRecord::new(
         snapshot.coordinate.clone(),
         match requested_kind {
@@ -204,7 +207,7 @@ fn manifest_cache_inputs(
                 .map(crate::cache::TestCompileConfiguration::new),
             dependencies,
             sources: snapshot.manifest_semantic.sources().clone(),
-            native: Box::new(snapshot.native.key()),
+            native: Box::new(native.key()),
         },
         source_inputs(snapshot.sources()),
     ))
@@ -234,6 +237,8 @@ fn completed_map<'a>(
 
 #[derive(Debug)]
 pub enum CompileCacheKeyError {
+    NativeNotPrepared,
+    Toolchain(scoop_toolchain::ToolchainError),
     UnknownNode(ConeIdentity),
     PrebuiltNode(ConeIdentity),
     DuplicateSource(scoop_identity::SourceIdentity),
@@ -256,6 +261,10 @@ pub enum CompileCacheKeyError {
 impl fmt::Display for CompileCacheKeyError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::NativeNotPrepared => {
+                formatter.write_str("documentation-only source has no native production inputs")
+            }
+            Self::Toolchain(error) => error.fmt(formatter),
             Self::UnknownNode(identity) => write!(formatter, "unknown build node {identity}"),
             Self::PrebuiltNode(identity) => write!(
                 formatter,
@@ -305,6 +314,7 @@ impl std::error::Error for CompileCacheKeyError {
             Self::DependencyPlan { source, .. } => Some(source),
             Self::ConeRecord(error) => Some(error),
             Self::Hash(error) => Some(error),
+            Self::Toolchain(error) => Some(error),
             _ => None,
         }
     }

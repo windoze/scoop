@@ -76,6 +76,7 @@ stdout = ""
 stderr = ""
 json = "stderr"
 diagnostics = []
+# A changed function body can preserve the plan's symbol topology; its content fingerprint changes.
 checks = [{"actual" = "${changed_link.result.link_plan_fingerprint}", "equals" = "${changed.result.link_plan_fingerprint}"}, {"actual" = "${changed_link.result.link_plan_fingerprint}", "not_equals" = "${link.result.link_plan_fingerprint}"}]
 
 [[steps]]

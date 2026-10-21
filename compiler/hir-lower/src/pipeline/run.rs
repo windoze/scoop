@@ -644,7 +644,8 @@ impl Lowerer {
             CoreLoweringAuthority::Imported(authority) => hir::CoreProtocols::Imported(authority),
         };
         let sources = self.diagnostic_source_identities();
-        self.finish(current_cone, warnings, core_protocols)
+        let documentation = self.finish_documentation(world);
+        self.finish(current_cone, warnings, core_protocols, documentation)
             .map_err(|mut diagnostics| {
                 for diagnostic in &mut diagnostics {
                     diagnostic.resolve_sources(&sources);

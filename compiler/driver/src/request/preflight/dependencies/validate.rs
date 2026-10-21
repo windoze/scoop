@@ -3,7 +3,6 @@ use std::collections::BTreeMap;
 use scoop_identity::ConeIdentity;
 use scoop_manifest::LoadedConeManifest;
 use scoop_slib::CompileDependencyClosure;
-use scoop_toolchain::ResolvedTargetProfile;
 
 use super::graph::{
     ValidatedDependencyNode, dependency_first_order, validate_acyclic, validate_artifact_shape,
@@ -20,7 +19,7 @@ impl LoadedExplicitDependencyInputs {
         &'input self,
         manifest: Option<&LoadedConeManifest>,
         current_identity: ConeIdentity,
-        target: &ResolvedTargetProfile,
+        target: scoop_lir::ValidatedLirTargetSelection,
         purpose: scoop_protocol::CompilationPurpose,
     ) -> DependencyValidationResult<ValidatedExplicitDependencyInputSet<'input>> {
         let mut nodes = BTreeMap::<ConeIdentity, ValidatedDependencyNode<'input>>::new();
@@ -108,7 +107,7 @@ impl LoadedExplicitDependencyInputs {
             .collect();
         let closure = CompileDependencyClosure::read_hir(
             current_identity,
-            target.lir_target_selection(),
+            target,
             direct.clone(),
             dependency_first,
         )

@@ -1,28 +1,60 @@
+/**
+ * One Unicode scalar value. Surrogates are excluded; a Char is neither a UTF-8 byte nor a grapheme
+ * cluster.
+ */
 @Intrinsic("core_char")
 public struct Char : Compare<Char>, Equals<Char>, ToString, Hash {
     @NoGC @Intrinsic("char_code")
     private fun codeValue(): Int
 
+    /**
+     * The Unicode scalar number as an Int.
+     */
     public val code: Int
         @NoGC get() = codeValue()
 
+    /**
+     * Compares Unicode scalar numbers.
+     */
     @NoGC @Intrinsic("char_equals")
     public override operator fun equals(other: Char): Boolean
 
 
+    /**
+     * Orders characters by Unicode scalar number.
+     */
     @NoGC @Intrinsic("char_compare_to")
     public override operator fun compareTo(other: Char): Long
 
+    /**
+     * Encodes this one scalar as a UTF-8 string.
+     */
     public override fun toString(): String = coreCharToString(this)
+    /**
+     * Returns the Unicode scalar number as a Long.
+     */
     public override fun hash(): Long = code.toLong()
 
+    /**
+     * Inspection and serialization operations for this value type.
+     */
     public companion object : ValueEncoder<Char>, ValueDecoder<Char>, ValueInspector<Char> {
+        /**
+         * Exposes the value as a typed scalar observation.
+         */
         public override fun inspect(value: Char): ValueView =
             ValueObservation(typeInfo<Char>().type, None, { ValueShape.Scalar(ScalarValue.Char(value)) })
 
+        /**
+         * Writes the scalar value through the corresponding single-value encoding operation.
+         */
         public override fun encode(value: Char, encoder: Encoder): Unit =
             encoder.singleValue().writeString(value.toString())
 
+        /**
+         * Reads the scalar through the corresponding decoding operation. A character requires
+         * exactly one Unicode scalar.
+         */
         public override fun decode(decoder: Decoder): Char {
             val text = decoder.singleValue().readString()
             if (text.length != 1L) {
@@ -33,6 +65,10 @@ public struct Char : Compare<Char>, Equals<Char>, ToString, Hash {
     }
 }
 
+/**
+ * Converts an Int Unicode scalar number to Char. Negative values, surrogate numbers, and values
+ * above U+10FFFF throw [IllegalArgumentException].
+ */
 public fun Int.toChar(): Char {
     if (this < 0 || this > 1114111 || (this >= 55296 && this <= 57343)) {
         throw IllegalArgumentException()

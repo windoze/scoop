@@ -1,26 +1,58 @@
 package scoop.http
 
+/**
+ * A Content-Range value with an optional satisfied interval and optional complete representation
+ * length.
+ */
 public class HttpContentRange private constructor(
-    public val range: HttpResolvedRange?, public val completeLength: Long?,
+    /**
+     * The satisfied inclusive byte interval, or None for an unsatisfied range.
+     */
+    public val range: HttpResolvedRange?,
+        /**
+         * The complete representation length when known.
+         */
+        public val completeLength: Long?,
+    /**
+     * The original parsed field-value bytes, or None for a programmatically constructed value.
+     */
     public val originalValue: Array<Byte>?
 ) : ToString {
     public constructor(range: HttpResolvedRange, completeLength: Long? = None)
         : this(Some(range), checkedContentLength(range, completeLength), None) {}
 
+    /**
+     * Formats the structured value as HTTP field text.
+     */
     public override fun toString(): String {
         val part = when (range) { case Some(value) -> value.toString(); case None -> "*" }
         val length = when (completeLength) { case Some(value) -> value.toString(); case None -> "*" }
         return "bytes " + part + "/" + length
     }
+    /**
+     * Serializes the structured value into HTTP field-value bytes.
+     */
     public fun toByteArray(): Array<Byte> = toString().toByteArray()
+    /**
+     * Builds the corresponding named HTTP field from the structured value.
+     */
     public fun toHttpField(): HttpField = HttpField("Content-Range".toByteArray(), toByteArray())
 
+    /**
+     * Construction and parsing of this structured HTTP field.
+     */
     public companion object {
+        /**
+         * Constructs an unsatisfied bytes range with the known complete length.
+         */
         public fun unsatisfied(completeLength: Long): HttpContentRange {
             if (completeLength < 0L) throw IllegalArgumentException(Some("negative representation length"))
             return HttpContentRange(None, Some(completeLength), None)
         }
 
+        /**
+         * Parses the complete field value, throwing HttpFieldParseException for malformed syntax.
+         */
         public fun parse(value: List<Byte>): HttpContentRange {
             val reader = HttpFieldReader("Content-Range", value)
             readBytesUnit(reader)
@@ -53,11 +85,22 @@ public class HttpContentRange private constructor(
             if (!reader.ended) reader.fail("unexpected text after Content-Range")
             return HttpContentRange(range, length, Some(reader.bytes))
         }
+        /**
+         * Parses the complete field value, throwing HttpFieldParseException for malformed syntax.
+         */
         public fun parse(value: String): HttpContentRange = parse(value.toByteArray())
+        /**
+         * Parses the complete value, returning None for HttpFieldParseException while propagating
+         * unrelated failures.
+         */
         public fun parseOrNone(value: List<Byte>): HttpContentRange? {
             try { return Some(parse(value)) }
             catch (_: HttpFieldParseException) { return None }
         }
+        /**
+         * Parses the complete value, returning None for HttpFieldParseException while propagating
+         * unrelated failures.
+         */
         public fun parseOrNone(value: String): HttpContentRange? = parseOrNone(value.toByteArray())
     }
 }

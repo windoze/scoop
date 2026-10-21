@@ -1,14 +1,35 @@
 package scoop.url
 
+/**
+ * A parsed authority preserving encoded user information, host, and an explicitly supplied port.
+ */
 public class UrlAuthority internal constructor(
+    /**
+     * Encoded user information, excluding the trailing at sign.
+     */
     public val encodedUserInfo: String?,
+    /**
+     * The serialized host component, including brackets for an IP literal when applicable.
+     */
     public val encodedHost: String,
+    /**
+     * The explicit port, or None when omitted.
+     */
     public val port: Int?,
     internal val hostKind: Int,
     internal val resolution: HostResolution
 ) : Equals<UrlAuthority>, Hash, ToString {
+    /**
+     * Serializes this authority without the leading double slash.
+     */
     public override fun toString(): String = render(true, false)
+    /**
+     * Compares the authority's serialized representation.
+     */
     public override operator fun equals(other: UrlAuthority): Boolean = toString() == other.toString()
+    /**
+     * Hashes the serialized representation used by equality.
+     */
     public override fun hash(): Long = toString().hash()
 
     internal fun render(userInfo: Boolean, iri: Boolean): String {
@@ -29,6 +50,9 @@ public class UrlAuthority internal constructor(
         return output.toString()
     }
 
+    /**
+     * Validates and returns the DNS or IP network-host representation.
+     */
     public fun networkHost(): UrlHost = when (resolution) {
         case HostResolution.Dns(name) -> UrlHost.Dns(stripRootDot(name.ascii))
         case HostResolution.Ipv4(bytes) -> UrlHost.Ipv4(bytes)
@@ -38,13 +62,39 @@ public class UrlAuthority internal constructor(
     }
 }
 
+/**
+ * An HTTP origin identified by normalized scheme, DNS name or IP bytes, and effective port.
+ */
 public class UrlOrigin internal constructor(
-    public val scheme: String, public val host: UrlHost, public val port: Int
+    /**
+     * The normalized HTTP or HTTPS scheme.
+     */
+    public val scheme: String,
+        /**
+         * The normalized DNS or IP host used for origin equality.
+         */
+        public val host: UrlHost,
+        /**
+         * The effective network port, including the scheme default when omitted.
+         */
+        public val port: Int
 ) : Equals<UrlOrigin>, Hash, ToString {
+    /**
+     * Compares scheme, normalized host, and effective port.
+     */
     public override operator fun equals(other: UrlOrigin): Boolean = scheme == other.scheme && host == other.host && port == other.port
+    /**
+     * Hashes the same scheme, host, and port used by equality.
+     */
     public override fun hash(): Long = (scheme.hash() * 31L + host.hash()) * 31L + port.hash()
+    /**
+     * Serializes the host and port, omitting the scheme default unless explicitly requested.
+     */
     public fun authority(includeDefaultPort: Boolean = false): String =
         host.authorityText() + (if (includeDefaultPort || port != defaultUrlPort(scheme)) ":" + port.toString() else "")
+    /**
+     * Serializes the scheme and normalized origin authority.
+     */
     public override fun toString(): String = scheme + "://" + authority()
 }
 

@@ -6,12 +6,20 @@ import scoop.terminal.event.*
 import scoop.terminal.protocol.*
 import scoop.time.Duration
 
+/**
+ * Queries the cursor position while preserving unrelated input events. Temporarily enables raw
+ * mode when needed and waits up to the supplied timeout.
+ */
 public suspend fun AsyncTerminalSession.cursorPosition(timeout: Duration = Duration.seconds(1L)): CursorPosition =
     when (query(QueryKind.Cursor, timeout)) {
         case InputItem.CursorPosition(column, row) -> CursorPosition(column, row)
         case _ -> throw IllegalStateException(Some("unexpected cursor query result"))
     }
 
+/**
+ * Queries primary or secondary device attributes and returns the terminal's numeric parameters.
+ * Unrelated input remains available to normal reads.
+ */
 public suspend fun AsyncTerminalSession.deviceAttributes(kind: DeviceAttributeKind = DeviceAttributeKind.Primary,
     timeout: Duration = Duration.seconds(1L)): Array<Long> =
     when (query(if (kind == DeviceAttributeKind.Primary) QueryKind.Primary else QueryKind.Secondary, timeout)) {
@@ -19,6 +27,10 @@ public suspend fun AsyncTerminalSession.deviceAttributes(kind: DeviceAttributeKi
         case _ -> throw IllegalStateException(Some("unexpected device attributes result"))
     }
 
+/**
+ * Queries active keyboard-enhancement flags. Returns None when the terminal responds through the
+ * unsupported-protocol fallback.
+ */
 public suspend fun AsyncTerminalSession.keyboardEnhancementFlags(
     timeout: Duration = Duration.seconds(1L)): KeyboardEnhancementFlags? = when (query(QueryKind.Keyboard, timeout)) {
     case InputItem.KeyboardFlags(flags) -> Some(flags)
@@ -26,6 +38,10 @@ public suspend fun AsyncTerminalSession.keyboardEnhancementFlags(
     case _ -> throw IllegalStateException(Some("unexpected keyboard query result"))
 }
 
+/**
+ * Queries whether the terminal advertises keyboard-enhancement support, using the same timeout and
+ * input preservation as [keyboardEnhancementFlags].
+ */
 public suspend fun AsyncTerminalSession.supportsKeyboardEnhancement(timeout: Duration = Duration.seconds(1L)): Boolean =
     keyboardEnhancementFlags(timeout) != None
 

@@ -1,7 +1,14 @@
+/**
+ * A lock-protected cell for any value type, including values containing managed references.
+ * Operations copy the whole value under the cell lock.
+ */
 public class Atomic<T : value> public constructor(initial: T) {
     private val lock: AtomicBoolean = AtomicBoolean(false)
     private var value: T = initial
 
+    /**
+     * Copies the stored value while holding the cell lock.
+     */
     public fun load(): T {
         var spins = 0
         while (!lock.compareAndSet(false, true, MemoryOrder.Acquire, MemoryOrder.Relaxed)) {
@@ -16,6 +23,9 @@ public class Atomic<T : value> public constructor(initial: T) {
         return result
     }
 
+    /**
+     * Replaces the whole value while holding the cell lock.
+     */
     public fun store(value: T) {
         var spins = 0
         while (!lock.compareAndSet(false, true, MemoryOrder.Acquire, MemoryOrder.Relaxed)) {
@@ -29,6 +39,9 @@ public class Atomic<T : value> public constructor(initial: T) {
         lock.store(false, MemoryOrder.Release)
     }
 
+    /**
+     * Replaces the value under one lock acquisition and returns the previous value.
+     */
     public fun exchange(value: T): T {
         var spins = 0
         while (!lock.compareAndSet(false, true, MemoryOrder.Acquire, MemoryOrder.Relaxed)) {

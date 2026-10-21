@@ -1,18 +1,60 @@
 package scoop.http
 
-public enum HttpByteRange { FromTo(Long, Long), From(Long), Suffix(Long) }
+/**
+ * A closed interval, open-ended interval, or suffix byte-count request.
+ */
+public enum HttpByteRange {
+    /**
+     * Requests first through last byte offsets, both inclusive.
+     */
+    FromTo(Long, Long),
+    /**
+     * Requests the first offset through the representation end.
+     */
+    From(Long),
+    /**
+     * Requests the final count bytes of the representation.
+     */
+    Suffix(Long) }
 
-public class HttpResolvedRange public constructor(public val first: Long, public val last: Long) : ToString {
+/**
+ * A validated nonnegative inclusive byte interval whose length fits Long.
+ */
+public class HttpResolvedRange public constructor(
+    /**
+     * The inclusive first byte offset.
+     */
+    public val first: Long,
+    /**
+     * The inclusive final byte offset.
+     */
+    public val last: Long) : ToString {
     init {
         if (first < 0L || last < first || last - first == Long.MAX_VALUE)
             throw IllegalArgumentException(Some("invalid or unrepresentable byte interval"))
     }
+    /**
+     * The exact number of bytes, last - first + 1.
+     */
     public val length: Long get() = last - first + 1L
+    /**
+     * Formats the inclusive first-last interval.
+     */
     public override fun toString(): String = first.toString() + "-" + last.toString()
 }
 
+/**
+ * The satisfiable resolved byte intervals and whether any requested range can be served.
+ */
 public class HttpRangeResolution internal constructor(
-    public val ranges: Array<HttpResolvedRange>, public val isSatisfiable: Boolean
+    /**
+     * The resolved satisfiable intervals.
+     */
+    public val ranges: Array<HttpResolvedRange>,
+        /**
+         * Whether at least one requested interval can be served.
+         */
+        public val isSatisfiable: Boolean
 )
 
 internal fun checkedHttpRanges(ranges: List<HttpByteRange>): Array<HttpByteRange> {

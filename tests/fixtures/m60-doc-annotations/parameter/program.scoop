@@ -1,0 +1,2 @@
+fun f(@DocHidden value: Int) {}
+fun main() {}

@@ -1,18 +1,55 @@
 package scoop.http
 
-public enum WebSocketWindowBits { Absent, Any, Limit(Int) }
+/**
+ * The client_max_window_bits offer form: omitted, valueless permission, or an explicit limit.
+ */
+public enum WebSocketWindowBits {
+    /**
+     * The offer omits client_max_window_bits.
+     */
+    Absent,
+    /**
+     * The offer permits selection without supplying its own numeric limit.
+     */
+    Any,
+    /**
+     * The offer supplies a window-bit limit in 8..15.
+     */
+    Limit(Int) }
 
+/**
+ * One validated permessage-deflate offer, preserving omitted versus valueless client window
+ * parameters.
+ */
 public class WebSocketDeflateOffer public constructor(
+    /**
+     * Whether the server must reset compression history between messages.
+     */
     public val serverNoContextTakeover: Boolean = false,
+    /**
+     * Whether the client must reset compression history between messages.
+     */
     public val clientNoContextTakeover: Boolean = false,
     serverMaxWindowBits: Int? = None, clientMaxWindowBits: WebSocketWindowBits = WebSocketWindowBits.Absent
 ) {
+    /**
+     * The optional advertised maximum server window size in bits.
+     */
     public val serverMaxWindowBits: Int? = checkedWebSocketWindow(serverMaxWindowBits)
+    /**
+     * The client window parameter, retaining omitted or valueless offer forms where applicable.
+     */
     public val clientMaxWindowBits: WebSocketWindowBits = checkedWebSocketWindowOffer(clientMaxWindowBits)
 
+    /**
+     * Serializes these parameters as a permessage-deflate extension.
+     */
     public fun toExtension(): WebSocketExtension = webSocketDeflateExtension(serverNoContextTakeover,
         clientNoContextTakeover, serverMaxWindowBits, clientMaxWindowBits)
 
+    /**
+     * Tests whether a selected response satisfies this offer's parameter constraints.
+     */
     public fun accepts(parameters: WebSocketDeflate): Boolean {
         if (serverNoContextTakeover && !parameters.serverNoContextTakeover) return false
         if (serverMaxWindowBits != None &&
@@ -24,7 +61,14 @@ public class WebSocketDeflateOffer public constructor(
         }
     }
 
+    /**
+     * Parsing of permessage-deflate extension parameters.
+     */
     public companion object {
+        /**
+         * Parses a permessage-deflate offer, returning None for another extension or invalid offer
+         * parameters.
+         */
         public fun parseOrNone(extension: WebSocketExtension): WebSocketDeflateOffer? {
             if (extension.name != "permessage-deflate") return None
             try {

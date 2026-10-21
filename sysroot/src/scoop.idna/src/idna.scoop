@@ -1,23 +1,83 @@
 package scoop.idna
 
-public class IdnaName internal constructor(public val ascii: String, public val unicode: String)
+/**
+ * The validated ASCII and Unicode forms of one internationalized domain name, produced by
+ * [Idna.parse].
+ */
+public class IdnaName internal constructor(
+    /**
+     * The validated ASCII form suitable for protocol host names.
+     */
+    public val ascii: String,
+    /**
+     * The validated Unicode form suitable for presentation.
+     */
+    public val unicode: String)
 
+/**
+ * Internationalized domain-name conversion with label, normalization, contextual, and
+ * bidirectional checks. Domain operations accept a complete name; label operations accept exactly
+ * one label.
+ */
 public object Idna {
+    /**
+     * The version reported by the linked IDNA backend.
+     */
     public val backendVersion: String get() { @Unsafe { return String.fromCString(idnaVersion()) } }
+    /**
+     * The Unicode data version used by the supported IDNA profile.
+     */
     public val unicodeVersion: String get() = "15.1.0"
 
+    /**
+     * Validates a domain name and returns both its ASCII and Unicode representations.
+     *
+     * @throws IdnaException The input fails IDNA validation or the backend operation fails.
+     */
     public fun parse(domain: String): IdnaName = parseIdna(domain)
 
+    /**
+     * Validates and converts a complete domain name to its ASCII representation. Invalid input
+     * throws [IdnaException].
+     */
     public fun toAscii(domain: String): String = convertIdna(domain, 0, "IDNA to ASCII")
+    /**
+     * Validates and converts a complete domain name to its Unicode representation. Invalid input
+     * throws [IdnaException].
+     */
     public fun toUnicode(domain: String): String = convertIdna(domain, 1, "IDNA to Unicode")
+    /**
+     * Validates and converts one label to ASCII; input containing a domain separator is rejected.
+     */
     public fun labelToAscii(label: String): String = convertIdna(label, 2, "IDNA label to ASCII")
+    /**
+     * Validates and converts one label to Unicode; input containing a domain separator is
+     * rejected.
+     */
     public fun labelToUnicode(label: String): String = convertIdna(label, 3, "IDNA label to Unicode")
+    /**
+     * Returns the ASCII name, or None for an IDNA input-validation failure. Backend failures still
+     * throw [IdnaException].
+     */
     public fun toAsciiOrNone(domain: String): String? = tryIdna(domain, 0, "IDNA to ASCII")
+    /**
+     * Returns the Unicode name, or None for an IDNA input-validation failure. Backend failures
+     * still throw [IdnaException].
+     */
     public fun toUnicodeOrNone(domain: String): String? = tryIdna(domain, 1, "IDNA to Unicode")
 }
 
+/**
+ * Raw Punycode conversion without domain-name validation. Use [Idna] when processing a host name.
+ */
 public object Punycode {
+    /**
+     * Encodes Unicode text as a Punycode payload without adding the `xn--` label prefix.
+     */
     public fun encode(text: String): String = convertIdna(text, 4, "Punycode encode")
+    /**
+     * Decodes a Punycode payload without a label prefix. Invalid payloads throw [IdnaException].
+     */
     public fun decode(text: String): String = convertIdna(text, 5, "Punycode decode")
 }
 

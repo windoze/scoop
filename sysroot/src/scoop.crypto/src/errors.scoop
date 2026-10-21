@@ -1,7 +1,19 @@
 package scoop.crypto
 
+/**
+ * Reports a native cryptographic operation failure, retaining its code and diagnostic detail.
+ */
 public class CryptoException public constructor(
+    /**
+     * The operation being performed when the backend failed.
+     */
     public val operation: String,
+    /**
+     * The native backend's error code.
+     */
     public val code: ULong,
+    /**
+     * The backend's human-readable diagnostic text.
+     */
     public val detail: String
 ) : Exception(Some(operation + ": " + detail))

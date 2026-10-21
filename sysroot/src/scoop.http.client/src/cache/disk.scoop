@@ -6,12 +6,34 @@ import scoop.platform.fs.Path
 import scoop.text.startsWith
 import scoop.text.endsWith
 
+/**
+ * A bounded disk cache with atomic entry publication and owned read snapshots. Open it on the
+ * active event loop; pending writes do not appear as completed entries.
+ */
 public class DiskHttpCache private constructor(
+    /**
+     * The cache entry directory.
+     */
     public val directory: Path,
+    /**
+     * Maximum total accounted storage bytes.
+     */
     public val maxBytes: Long,
+    /**
+     * Maximum body bytes accepted for one entry.
+     */
     public val maxEntryBytes: Long,
+    /**
+     * Maximum committed entry count.
+     */
     public val maxEntries: Long,
+    /**
+     * Maximum metadata bytes accepted for an entry.
+     */
     public val maxMetadataBytes: Long,
+    /**
+     * Whether completed entry data is synchronized before publication.
+     */
     public val syncOnCommit: Boolean
 ) : HttpCache {
     private val lock: ClientLock = ClientLock()
@@ -22,10 +44,23 @@ public class DiskHttpCache private constructor(
         if (maxBytes <= 0L || maxEntryBytes <= 0L || maxEntries <= 0L || maxMetadataBytes <= 0L)
             throw IllegalArgumentException(Some("HTTP cache limits must be positive"))
     }
+    /**
+     * Current accounted committed storage bytes.
+     */
     public val sizeBytes: Long get() = lock.withLock { used }
+    /**
+     * Current committed entry count.
+     */
     public val entryCount: Long get() = lock.withLock { entries.size }
 
+    /**
+     * Opens and loads a disk-cache directory.
+     */
     public companion object {
+        /**
+         * Creates the directory, loads valid completed entries, and removes abandoned pending or
+         * unusable cache files under the configured limits.
+         */
         public suspend fun open(directory: Path, maxBytes: Long = 268435456L, maxEntryBytes: Long = 67108864L,
             maxEntries: Long = 1024L, maxMetadataBytes: Long = 1048576L, syncOnCommit: Boolean = false): DiskHttpCache {
             val cache = DiskHttpCache(directory, maxBytes, maxEntryBytes, maxEntries, maxMetadataBytes, syncOnCommit)
@@ -51,6 +86,10 @@ public class DiskHttpCache private constructor(
         }
     }
 
+    /**
+     * Returns an owned matching representation snapshot, or None. The caller closes a returned
+     * snapshot.
+     */
     public override suspend fun lookup(request: HttpCacheRequest): HttpCacheSnapshot? {
         val selected: ClientDiskCacheEntry? = lock.withLock {
             var index = entries.size
@@ -72,6 +111,10 @@ public class DiskHttpCache private constructor(
         }
     }
 
+    /**
+     * Starts a tentative body write or returns None when storage declines it; only commit
+     * publishes the entry.
+     */
     public override suspend fun begin(record: HttpCacheRecord): HttpCacheWriter? {
         val limit = if (maxEntryBytes < maxBytes) maxEntryBytes else maxBytes
         val length = parseHttpContentLength(record.head.fields)
@@ -81,6 +124,9 @@ public class DiskHttpCache private constructor(
         return Some<HttpCacheWriter>(writer)
     }
 
+    /**
+     * Invalidates all identities and Vary variants for the selected partition and URL.
+     */
     public override suspend fun invalidate(partition: String, url: String) {
         val retired = lock.withLock {
             val paths = ArrayList<Path>()
@@ -97,6 +143,9 @@ public class DiskHttpCache private constructor(
         deleteClientCacheFiles(retired)
     }
 
+    /**
+     * Invalidates all entries and prevents existing tentative writes from publishing.
+     */
     public suspend fun clear() {
         val retired = lock.withLock {
             val paths = ArrayList<Path>()

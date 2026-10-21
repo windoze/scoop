@@ -3,9 +3,21 @@ package scoop.http.client
 import scoop.http.HttpResponseHead
 import scoop.url.Url
 
+/**
+ * Redirect enablement, maximum hops, and explicit permission for HTTPS-to-HTTP downgrade.
+ */
 public class HttpRedirectOptions public constructor(
+    /**
+     * Whether eligible redirect responses are followed.
+     */
     public val enabled: Boolean = true,
+    /**
+     * The maximum number of redirect hops; must be nonnegative.
+     */
     public val maxRedirects: Long = 10L,
+    /**
+     * Whether a secure request may follow a redirect to unencrypted HTTP.
+     */
     public val allowHttpsToHttp: Boolean = false
 ) {
     init {
@@ -13,16 +25,86 @@ public class HttpRedirectOptions public constructor(
     }
 }
 
+/**
+ * One completed redirect step with original request, response, and selected next URL/method.
+ */
 public class HttpRedirect internal constructor(
-    public val url: Url, public val method: String, public val head: HttpResponseHead,
-    public val nextUrl: Url, public val nextMethod: String
+    /**
+     * The URL that returned the redirect.
+     */
+    public val url: Url,
+        /**
+         * The method used for the redirecting request.
+         */
+        public val method: String,
+        /**
+         * The redirect response head.
+         */
+        public val head: HttpResponseHead,
+    /**
+     * The resolved URL selected for the next request.
+     */
+    public val nextUrl: Url,
+        /**
+         * The method selected after redirect rewriting rules.
+         */
+        public val nextMethod: String
 )
 
-public enum HttpRedirectFailure { InvalidLocation, UnsupportedScheme, HttpsDowngrade, LimitExceeded, Loop, BodyNotReplayable }
+/**
+ * The reason a redirect cannot be followed.
+ */
+public enum HttpRedirectFailure {
+    /**
+     * Location is malformed or ambiguous.
+     */
+    InvalidLocation,
+    /**
+     * The target is not a supported HTTP scheme.
+     */
+    UnsupportedScheme,
+    /**
+     * An HTTPS-to-HTTP redirect is forbidden by policy.
+     */
+    HttpsDowngrade,
+    /**
+     * The configured redirect count was exceeded.
+     */
+    LimitExceeded,
+    /**
+     * The request sequence revisited a redirect target.
+     */
+    Loop,
+    /**
+     * The selected redirected method requires a body that cannot be replayed.
+     */
+    BodyNotReplayable }
 
+/**
+ * A rejected redirect, retaining the source response, destination when known, and underlying
+ * cause.
+ */
 public class HttpRedirectException internal constructor(
-    public val reason: HttpRedirectFailure, public val url: Url, public val head: HttpResponseHead,
-    public val destination: Url? = None, public val cause: Throwable? = None
+    /**
+     * The redirect failure category.
+     */
+    public val reason: HttpRedirectFailure,
+        /**
+         * The URL that returned the rejected redirect.
+         */
+        public val url: Url,
+        /**
+         * The redirect response head.
+         */
+        public val head: HttpResponseHead,
+    /**
+     * The resolved destination when it could be determined.
+     */
+    public val destination: Url? = None,
+        /**
+         * The underlying failure, if any.
+         */
+        public val cause: Throwable? = None
 ) : Exception(Some(redirectFailureMessage(reason)))
 
 private fun redirectFailureMessage(reason: HttpRedirectFailure): String = when (reason) {

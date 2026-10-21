@@ -5,7 +5,13 @@ import scoop.platform.io.requireTransfer
 import scoop.platform.memory.NativeByteBuffer
 import scoop.random.Random
 
+/**
+ * A random source backed by the operating system, independent of deterministic seeded generators.
+ */
 public object SystemRandom : Random {
+    /**
+     * Returns the requested number of random bits from the operating-system source.
+     */
     public override fun nextBits(bitCount: Int): Int {
         if (bitCount < 0 || bitCount > 32) throw IllegalArgumentException(Some("invalid random bit count"))
         if (bitCount == 0) return 0
@@ -15,6 +21,10 @@ public object SystemRandom : Random {
         return (result shr (32L - bitCount.toLong())).toInt()
     }
 
+    /**
+     * Returns new random bytes or fills the specified mutable-array range, depending on the
+     * overload.
+     */
     public override fun nextBytes(size: Long): Array<Byte> {
         if (size < 0L) throw IllegalArgumentException(Some("negative byte count"))
         val array = MutableArray<Byte>(size) { 0.toByte() }
@@ -22,6 +32,10 @@ public object SystemRandom : Random {
         return array.toArray()
     }
 
+    /**
+     * Returns new random bytes or fills the specified mutable-array range, depending on the
+     * overload.
+     */
     public override fun nextBytes(array: MutableArray<Byte>, fromIndex: Long, toIndex: Long): MutableArray<Byte> {
         if (fromIndex < 0L || toIndex < 0L || fromIndex > array.size || toIndex > array.size) throw IndexOutOfBoundsException()
         if (fromIndex > toIndex) throw IllegalArgumentException(Some("reversed byte range"))
@@ -37,6 +51,9 @@ public object SystemRandom : Random {
         return array
     }
 
+    /**
+     * Appends count operating-system random bytes to the buffer's writable region.
+     */
     public fun fill(buffer: NativeByteBuffer, count: Long = buffer.writableBytes): Long {
         requireTransfer(count, buffer.writableBytes)
         var remaining = count

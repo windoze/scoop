@@ -4,17 +4,45 @@ import scoop.collections.emptyList
 import scoop.http.isHttpToken
 import scoop.time.Duration
 
+/**
+ * Bounded retry eligibility and cancellable backoff. Both method semantics and body replayability
+ * must permit another attempt.
+ */
 public class HttpRetryOptions public constructor(
+    /**
+     * Maximum retries after the initial attempt.
+     */
     public val maxRetries: Long = 2L,
+    /**
+     * Whether eligible connection failures may trigger retry.
+     */
     public val connectionFailures: Boolean = true,
     methods: List<String> = ["GET", "HEAD", "PUT", "DELETE", "OPTIONS", "TRACE"],
     statuses: List<UInt> = emptyList<UInt>(),
+    /**
+     * The initial backoff delay.
+     */
     public val initialDelay: Duration = Duration.milliseconds(100L),
+    /**
+     * The maximum selected backoff delay.
+     */
     public val maxDelay: Duration = Duration.seconds(30L),
+    /**
+     * Whether retry delays are randomized within the backoff policy.
+     */
     public val jitter: Boolean = true,
+    /**
+     * Whether a valid Retry-After response participates in delay selection.
+     */
     public val respectRetryAfter: Boolean = true
 ) {
+    /**
+     * Case-sensitive methods eligible for configured retries.
+     */
     public val methods: Array<String> = methods.toArray()
+    /**
+     * Response statuses explicitly eligible for retry.
+     */
     public val statuses: Array<UInt> = statuses.toArray()
     init {
         if (maxRetries < 0L) throw IllegalArgumentException(Some("negative HTTP retry count"))

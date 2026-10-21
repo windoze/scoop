@@ -95,6 +95,14 @@ class ProcessTests(unittest.TestCase):
             process.cleanup()
             self.assertEqual(process.child.returncode, -signal.SIGKILL)
 
+    def test_documentation_result_ends_the_structured_prefix(self):
+        tool = {"schema": 1, "kind": "documentation", "output": "site/index.html"}
+        stderr = (json.dumps(tool) + "\n").encode()
+        result = decode_streams(b"", stderr, "stderr")
+        self.assertEqual(result["result"], tool)
+        self.assertEqual(result["stderr"], b"")
+        self.assertEqual(result["diagnostics"], [])
+
     def test_test_report_preserves_build_result_and_captured_json_bytes(self):
         build = {"schema": 1, "kind": "executable", "output": "program"}
         report = {

@@ -1,0 +1,16 @@
+{% if intro %}<div class="prose">{{ intro | safe }}</div>{% endif %}
+{% for section in sections %}
+<section class="listing">
+  <h2>{{ section.title }}</h2>
+  <ul>
+    {% for link in section.links %}
+    <li>
+      {% if link.kind %}<span class="kind">{{ link.kind }}</span>{% endif %}
+      {% if link.href %}<a href="{{ link.href }}">{{ link.text }}</a>
+      {% else %}<span class="unavailable" title="No generated documentation for this target">{{ link.text }}</span><small> — documentation unavailable</small>{% endif %}
+      {% if link.summary %}<p>{{ link.summary }}</p>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endfor %}

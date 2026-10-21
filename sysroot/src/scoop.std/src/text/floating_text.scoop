@@ -1,5 +1,9 @@
 package scoop.text
 
+/**
+ * Parses a decimal Float or the exact NaN/Infinity spellings. Malformed input or finite overflow
+ * returns None.
+ */
 public fun String.toFloatOrNone(): Float? {
     if (this == "NaN") return Some(Float.NaN)
     if (this == "Infinity" || this == "+Infinity") return Some(Float.POSITIVE_INFINITY)
@@ -17,6 +21,10 @@ public fun String.toFloatOrNone(): Float? {
     return Some(if (rounded.negative) -value else value)
 }
 
+/**
+ * Parses a decimal Double or the exact NaN/Infinity spellings. Malformed input or finite overflow
+ * returns None.
+ */
 public fun String.toDoubleOrNone(): Double? {
     if (this == "NaN") return Some(Double.NaN)
     if (this == "Infinity" || this == "+Infinity") return Some(Double.POSITIVE_INFINITY)
@@ -34,5 +42,13 @@ public fun String.toDoubleOrNone(): Double? {
     return Some(if (rounded.negative) -value else value)
 }
 
+/**
+ * Parses a decimal Float or the exact NaN/Infinity spellings; invalid input throws
+ * NumberFormatException.
+ */
 public fun String.toFloat(): Float = requireParsedNumber<Float>(toFloatOrNone())
+/**
+ * Parses a decimal Double or the exact NaN/Infinity spellings; invalid input throws
+ * NumberFormatException.
+ */
 public fun String.toDouble(): Double = requireParsedNumber<Double>(toDoubleOrNone())

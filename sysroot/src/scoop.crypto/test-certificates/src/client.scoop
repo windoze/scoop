@@ -2,6 +2,10 @@ package scoop.crypto.testdata
 
 // Fixed OpenSSL 3.6.5 CLI test input; dates and extensions are intentional.
 
+/**
+ * Returns the fixed client-authentication certificate used to check certificate purpose and
+ * client identity.
+ */
 public fun clientPem(): String =
     "-----BEGIN CERTIFICATE-----\n" +
     "MIIBsjCCAVigAwIBAgICEAQwCgYIKoZIzj0EAwIwITEfMB0GA1UEAwwWU2Nvb3Ag\n" +

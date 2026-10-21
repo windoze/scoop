@@ -2,8 +2,17 @@ package scoop.asyncio
 
 import scoop.platform.net.SocketAddress
 
+/**
+ * An owned TCP listening socket associated with one event loop.
+ */
 public interface AsyncTcpListener : AsyncCloseable {
+    /**
+     * The actual bound address, including a kernel-selected ephemeral port.
+     */
     public val localAddress: SocketAddress
+    /**
+     * Suspends until a connection is accepted and returns a separately owned TCP stream.
+     */
     public suspend fun accept(): AsyncTcpStream
 }
 

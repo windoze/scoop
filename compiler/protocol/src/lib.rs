@@ -25,16 +25,17 @@ pub use framing::{
 };
 pub use path::{DecodedHostPathCarrier, HostPathCarrier, HostPathEncoding, HostPathError};
 pub use request::{
-    CurrentConeRequestV1, DiagnosticOutputPolicyV1, ScoopcBuildRequestV1, ScoopcRequestEnvelopeV1,
-    TargetSelectionRequestV1, TrustedCoreRequestV1,
+    CurrentConeRequestV1, DiagnosticOutputPolicyV1, ScoopcBuildRequestV1, ScoopcOutputRequestV1,
+    ScoopcRequestEnvelopeV1, TargetSelectionRequestV1, TrustedCoreRequestV1,
 };
 pub use response::{
     EmittedDumpDescriptorV1, EmittedDumpDestinationV1, ProtocolConeIdentity, RequestCorrelationId,
-    ScoopcObservationV1, ScoopcResponseEnvelopeV1, ScoopcSuccessV1,
+    ScoopcDocumentationOutputV1, ScoopcObservationV1, ScoopcProductV1, ScoopcResponseEnvelopeV1,
+    ScoopcSuccessV1,
 };
 
 /// Version selected by the unique `scoopc` machine transport entrypoint.
-pub const PROTOCOL_VERSION: u32 = 11;
+pub const PROTOCOL_VERSION: u32 = 12;
 
 pub(crate) const MAX_EMITTED_DUMPS: usize = 4;
 
@@ -52,6 +53,9 @@ pub enum ProtocolValidationError {
     InvalidCurrentCoreCombination,
     SingleFileHasDependencies,
     TestRequiresManifest,
+    DocumentationRequiresProductionManifest,
+    DocumentationObservation,
+    DocumentationMachineDump,
     InvalidTargetTriple,
 
     TooManyEmittedDumps(usize),
@@ -90,6 +94,15 @@ impl std::fmt::Display for ProtocolValidationError {
                 write!(formatter, "{field} must contain 32 bytes, found {actual}")
             }
             Self::HostPath(error) => error.fmt(formatter),
+            Self::DocumentationRequiresProductionManifest => {
+                formatter.write_str("documentation requires a Production manifest Cone")
+            }
+            Self::DocumentationObservation => {
+                formatter.write_str("documentation cannot be combined with observation-only")
+            }
+            Self::DocumentationMachineDump => {
+                formatter.write_str("documentation-only output cannot emit MIR or LIR")
+            }
 
             Self::InvalidCurrentCoreCombination => formatter
                 .write_str("current Cone input and trusted core request are not a permitted pair"),

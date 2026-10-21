@@ -5,19 +5,47 @@ import scoop.http.*
 import scoop.platform.memory.NativeByteBuffer
 import scoop.time.TimeMark
 
+/**
+ * One multiplexed HTTP/2 exchange. Serialize operations within each direction; different streams
+ * can progress independently. Reading returns flow-control credit as data is consumed.
+ */
 public class AsyncHttp2Stream internal constructor(internal val state: H2State, internal val stream: H2Stream)
     : AsyncByteStream, AsyncCloseable {
+    /**
+     * The protocol stream identifier.
+     */
     public val id: Int get() = stream.id
+    /**
+     * The first response-byte time when timing collection is enabled.
+     */
     public val firstResponseByteAt: TimeMark? get() = state.lock.withLock { stream.firstResponseByteAt }
+    /**
+     * The retained stream failure, if one occurred.
+     */
     public val failure: Throwable? get() = state.lock.withLock { stream.failure }
+    /**
+     * Whether the input ended and all queued body bytes were consumed.
+     */
     public val isReadComplete: Boolean get() = state.lock.withLock { stream.inputEnded && stream.data.size == 0L }
+    /**
+     * Whether output END_STREAM was submitted.
+     */
     public val isWriteComplete: Boolean get() = state.lock.withLock { stream.sendEnded }
+    /**
+     * Complete input trailers after the input ended and all queued body bytes were consumed.
+     */
     public val trailers: Array<HttpField>? get() = state.lock.withLock {
         if (stream.inputEnded && stream.data.size == 0L) stream.trailers else None
     }
 
+    /**
+     * Receives the next response head for this client stream.
+     */
     public suspend fun receiveResponse(): HttpResponseHead = receiveH2Response(state, stream)
 
+    /**
+     * Sends a server response head, optionally closing the output direction immediately.
+     */
     public suspend fun sendResponse(head: HttpResponseHead, endStream: Boolean = true) {
         h2BodyRequest(state, stream, H2BodyKind.Flush, None, 0L) {
             state.session.submitResponse(stream.id, head, endStream)
@@ -25,14 +53,27 @@ public class AsyncHttp2Stream internal constructor(internal val state: H2State, 
         }
     }
 
+    /**
+     * Reads this stream's body and returns flow-control credit for bytes actually consumed.
+     */
     public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long =
         h2BodyRequest(state, stream, H2BodyKind.Read, Some(buffer), count, { })
 
+    /**
+     * Writes body bytes subject to peer flow-control windows and bounded pending output.
+     */
     public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long =
         h2BodyRequest(state, stream, H2BodyKind.Write, Some(buffer), count, { })
 
+    /**
+     * Waits for accepted stream output to be written, including window availability, and completes
+     * the underlying transport flush.
+     */
     public override suspend fun flush() { h2BodyRequest(state, stream, H2BodyKind.Flush, None, 0L, { }) }
 
+    /**
+     * Submits optional trailers and ends this stream's output direction.
+     */
     public suspend fun finish(trailers: List<HttpField> = ArrayList<HttpField>()) {
         h2BodyRequest(state, stream, H2BodyKind.Flush, None, 0L) {
             state.session.finish(stream.id, trailers)
@@ -40,5 +81,8 @@ public class AsyncHttp2Stream internal constructor(internal val state: H2State, 
         }
     }
 
+    /**
+     * Resets or cleans up this stream without cancelling transport I/O shared by other streams.
+     */
     public override suspend fun close() { closeH2Stream(state, stream) }
 }

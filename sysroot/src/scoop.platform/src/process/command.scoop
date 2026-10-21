@@ -8,19 +8,67 @@ import scoop.platform.fs.*
 import scoop.platform.io.*
 import scoop.platform.system.*
 
-public enum Stdio { Inherit, Null, Pipe, Redirect(val file: File) }
+/**
+ * The standard-stream routing chosen when spawning a child process.
+ */
+public enum Stdio {
+    /**
+     * Inherit the parent's corresponding standard stream.
+     */
+    Inherit,
+    /**
+     * Connect the stream to the platform null device.
+     */
+    Null,
+    /**
+     * Create a pipe exposed through ChildProcess.
+     */
+    Pipe,
+    /**
+     * Redirect through the supplied open file descriptor.
+     */
+    Redirect(val file: File) }
 
+/**
+ * A process launch description with copied argument/environment data, an explicit working
+ * directory, and standard-stream routing. Arguments are passed directly without shell
+ * interpretation.
+ */
 public class Command public constructor(
+    /**
+     * The executable path selected for spawning.
+     */
     public val executable: Path,
     arguments: Array<OsString> = [],
     environment: Map<OsString, OsString> = currentEnvironment(),
+    /**
+     * The child's initial working directory.
+     */
     public val workingDirectory: Path = currentDirectory(),
+    /**
+     * The child standard-input routing.
+     */
     public val stdin: Stdio = Stdio.Inherit,
+    /**
+     * The child standard-output routing.
+     */
     public val stdout: Stdio = Stdio.Inherit,
+    /**
+     * The child standard-error routing when not merged.
+     */
     public val stderr: Stdio = Stdio.Inherit,
+    /**
+     * Whether stderr is redirected to the child's selected stdout.
+     */
     public val mergeError: Boolean = false
 ) {
+    /**
+     * The independent argument snapshot passed to the child.
+     */
     public val arguments: Array<OsString> = Array<OsString>(arguments.size) { arguments[it] }
+    /**
+     * The environment snapshot supplied to the child.
+     */
     public val environment: Map<OsString, OsString> = environment.toMap()
 
     init {
@@ -33,6 +81,9 @@ public class Command public constructor(
     }
 
     // Starts the process; PATH lookup is opt-in.
+    /**
+     * Starts an owned child process. PATH lookup occurs only when searchPath is requested.
+     */
     public fun spawn(searchPath: Boolean = false): ChildProcess = start(searchPath)
 
     private fun start(search: Boolean): ChildProcess {

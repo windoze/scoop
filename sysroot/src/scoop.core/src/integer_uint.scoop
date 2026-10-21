@@ -1,3 +1,8 @@
+/**
+ * A 32-bit unsigned integer. Arithmetic wraps modulo 2^32; division by zero throws
+ * [ArithmeticException]. Conversions are explicit and preserve the language's fixed-width rules on
+ * every target.
+ */
 @Intrinsic("core_uint")
 public struct UInt :
     Add<UInt, UInt>,
@@ -13,137 +18,264 @@ public struct UInt :
     RangeTo<UInt, UIntRange>,
     RangeUntil<UInt, UIntRange>,
     Equals<UInt>, ToString, Hash {
+    /**
+     * Rounds the integer directly to IEEE binary32 using round-to-nearest, ties-to-even.
+     */
     @NoGC @Intrinsic("uint_to_float")
     public fun toFloat(): Float
 
+    /**
+     * Rounds the integer directly to IEEE binary64 using round-to-nearest, ties-to-even.
+     */
     @NoGC @Intrinsic("uint_to_double")
     public fun toDouble(): Double
 
+    /**
+     * Compares the mathematical values of two integers of the same type.
+     */
     @NoGC
     @Intrinsic("uint_equals")
     public override operator fun equals(other: UInt): Boolean
 
 
+    /**
+     * Returns the unchanged integer value.
+     */
     @NoGC
     @Intrinsic("uint_unary_plus")
     public override operator fun unaryPlus(): UInt
 
+    /**
+     * Returns the additive inverse modulo 2^32, including at the representation boundary.
+     */
     @NoGC
     @Intrinsic("uint_unary_minus")
     public override operator fun unaryMinus(): UInt
 
+    /**
+     * Returns the value plus one, wrapping modulo 2^32.
+     */
     @NoGC
     @Intrinsic("uint_inc")
     public override operator fun inc(): UInt
 
+    /**
+     * Returns the value minus one, wrapping modulo 2^32.
+     */
     @NoGC
     @Intrinsic("uint_dec")
     public override operator fun dec(): UInt
 
+    /**
+     * Returns the sum modulo 2^32; overflow does not throw.
+     */
     @NoGC
     @Intrinsic("uint_add")
     public override operator fun plus(other: UInt): UInt
 
+    /**
+     * Returns the difference modulo 2^32; overflow does not throw.
+     */
     @NoGC
     @Intrinsic("uint_sub")
     public override operator fun minus(other: UInt): UInt
 
+    /**
+     * Returns the product modulo 2^32; overflow does not throw.
+     */
     @NoGC
     @Intrinsic("uint_mul")
     public override operator fun times(other: UInt): UInt
 
+    /**
+     * Returns the quotient truncated toward zero. A zero divisor throws [ArithmeticException].
+     */
     @Intrinsic("uint_div")
     public override operator fun div(other: UInt): UInt
 
+    /**
+     * Returns the remainder associated with division truncated toward zero. A zero divisor throws
+     * [ArithmeticException].
+     */
     @Intrinsic("uint_rem")
     public override operator fun rem(other: UInt): UInt
 
+    /**
+     * Returns -1, 0, or 1 using unsigned mathematical ordering.
+     */
     @NoGC
     @Intrinsic("uint_compare_to")
     public override operator fun compareTo(other: UInt): Long
 
+    /**
+     * Returns the bitwise intersection of the 32-bit operands.
+     */
     @NoGC
     @Intrinsic("uint_and")
     public infix fun and(other: UInt): UInt
 
+    /**
+     * Returns the bitwise union of the 32-bit operands.
+     */
     @NoGC
     @Intrinsic("uint_or")
     public infix fun or(other: UInt): UInt
 
+    /**
+     * Sets each result bit where the corresponding 32-bit operand bits differ.
+     */
     @NoGC
     @Intrinsic("uint_xor")
     public infix fun xor(other: UInt): UInt
 
+    /**
+     * Flips all 32 bits of the representation.
+     */
     @NoGC
     @Intrinsic("uint_inv")
     public fun inv(): UInt
 
+    /**
+     * Shifts left using the low 5 bits of the Long count; shifted-out bits are discarded.
+     */
     @NoGC
     @Intrinsic("uint_shl")
     public infix fun shl(count: Long): UInt
 
+    /**
+     * Shifts right using the low 5 bits of the Long count, filling with zero bits.
+     */
     @NoGC
     @Intrinsic("uint_shr")
     public infix fun shr(count: Long): UInt
 
+    /**
+     * Converts modulo 2^8 and interprets the result as a 8-bit signed integer. The conversion
+     * always succeeds.
+     */
     @NoGC
     @Intrinsic("uint_to_int8")
     public fun toByte(): Byte
 
+    /**
+     * Converts modulo 2^16 and interprets the result as a 16-bit signed integer. The conversion
+     * always succeeds.
+     */
     @NoGC
     @Intrinsic("uint_to_int16")
     public fun toShort(): Short
 
+    /**
+     * Converts modulo 2^32 and interprets the result as a 32-bit signed integer. The conversion
+     * always succeeds.
+     */
     @NoGC
     @Intrinsic("uint_to_int")
     public fun toInt(): Int
 
+    /**
+     * Converts modulo 2^64 and interprets the result as a 64-bit signed integer. The conversion
+     * always succeeds.
+     */
     @NoGC
     @Intrinsic("uint_to_long")
     public fun toLong(): Long
 
+    /**
+     * Converts modulo 2^8 and interprets the result as a 8-bit unsigned integer. The conversion
+     * always succeeds.
+     */
     @NoGC
     @Intrinsic("uint_to_uint8")
     public fun toUByte(): UByte
 
+    /**
+     * Converts modulo 2^16 and interprets the result as a 16-bit unsigned integer. The conversion
+     * always succeeds.
+     */
     @NoGC
     @Intrinsic("uint_to_uint16")
     public fun toUShort(): UShort
 
+    /**
+     * Converts modulo 2^32 and interprets the result as a 32-bit unsigned integer. The conversion
+     * always succeeds.
+     */
     @NoGC
     @Intrinsic("uint_to_uint")
     public fun toUInt(): UInt
 
+    /**
+     * Converts modulo 2^64 and interprets the result as a 64-bit unsigned integer. The conversion
+     * always succeeds.
+     */
     @NoGC
     @Intrinsic("uint_to_ulong")
     public fun toULong(): ULong
 
+    /**
+     * Creates an ascending range including both this value and the endpoint.
+     */
     public override operator fun rangeTo(endpoint: UInt): UIntRange =
         UIntRange(this, endpoint, 1u, false, true)
 
+    /**
+     * Creates an ascending range including this value and excluding the endpoint.
+     */
     public override operator fun rangeUntil(endpoint: UInt): UIntRange =
         UIntRange(this, endpoint, 1u, false, false)
 
+    /**
+     * Creates an ascending range with an exclusive endpoint.
+     */
     public infix fun until(endpoint: UInt): UIntRange =
         UIntRange(this, endpoint, 1u, false, false)
 
+    /**
+     * Creates a descending range including both endpoints.
+     */
     public infix fun downTo(endpoint: UInt): UIntRange =
         UIntRange(this, endpoint, 1u, true, true)
 
+    /**
+     * Returns the locale-independent decimal representation of this integer.
+     */
     public override fun toString(): String = coreULongToString(this.toULong())
 
+    /**
+     * Returns a hash consistent with same-type integer equality.
+     */
     public override fun hash(): Long = coreULongHash(this.toULong())
 
+    /**
+     * Fixed representation bounds and the scalar encoding, decoding, and inspection protocols.
+     */
     public companion object : ValueEncoder<UInt>, ValueDecoder<UInt>, ValueInspector<UInt> {
+        /**
+         * Exposes the integer as a scalar value observation without reference identity.
+         */
         public override fun inspect(value: UInt): ValueView =
             ValueObservation(typeInfo<UInt>().type, None, { ValueShape.Scalar(ScalarValue.Unsigned(value.toULong())) })
 
+        /**
+         * The smallest representable 32-bit unsigned integer.
+         */
         public const val MIN_VALUE: UInt = 0u
+        /**
+         * The largest representable 32-bit unsigned integer.
+         */
         public const val MAX_VALUE: UInt = 4294967295u
 
+        /**
+         * Writes the integer through the encoder's single-value container.
+         */
         public override fun encode(value: UInt, encoder: Encoder): Unit =
             encoder.singleValue().writeULong(value.toULong())
 
+        /**
+         * Decodes an integer and rejects values outside the 32-bit unsigned range with
+         * [DecodingException].
+         */
         public override fun decode(decoder: Decoder): UInt =
             decodeUnsigned(decoder, 4294967295UL).toUInt()
     }

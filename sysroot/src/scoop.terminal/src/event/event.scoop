@@ -1,20 +1,103 @@
 package scoop.terminal.event
 
+/**
+ * A user-facing keyboard, mouse, focus, bracketed-paste, or terminal-resize event.
+ */
 public enum Event {
-    Key(val event: KeyEvent), Mouse(val event: MouseEvent),
-    FocusGained, FocusLost, Paste(val text: String), Resize(val columns: Long, val rows: Long)
+    /**
+     * A decoded key event with modifiers, event kind, and additional state.
+     */
+    Key(val event: KeyEvent),
+        /**
+         * A decoded mouse event with position and modifiers.
+         */
+        Mouse(val event: MouseEvent),
+    /**
+     * The terminal reported gaining focus.
+     */
+    FocusGained,
+        /**
+         * The terminal reported losing focus.
+         */
+        FocusLost,
+        /**
+         * Text received between bracketed-paste boundaries.
+         */
+        Paste(val text: String),
+        /**
+         * New terminal dimensions in character columns and rows.
+         */
+        Resize(val columns: Long, val rows: Long)
 }
 
-public enum MouseButton { Left, Right, Middle }
+/**
+ * The mouse button associated with a button or drag event.
+ */
+public enum MouseButton {
+    /**
+     * The left mouse button.
+     */
+    Left,
+    /**
+     * The right mouse button.
+     */
+    Right,
+    /**
+     * The middle mouse button.
+     */
+    Middle }
 
+/**
+ * Button transitions, drag/motion, and wheel directions reported by the terminal mouse protocol.
+ */
 public enum MouseEventKind {
-    Down(val button: MouseButton), Up(val button: MouseButton), Drag(val button: MouseButton),
-    Moved, ScrollUp, ScrollDown, ScrollLeft, ScrollRight
+    /**
+     * A button was pressed.
+     */
+    Down(val button: MouseButton),
+        /**
+         * A button was released.
+         */
+        Up(val button: MouseButton),
+        /**
+         * The pointer moved while the specified button was held.
+         */
+        Drag(val button: MouseButton),
+    /**
+     * The pointer moved with no reported drag.
+     */
+    Moved,
+        /**
+         * The wheel scrolled upward.
+         */
+        ScrollUp,
+        /**
+         * The wheel scrolled downward.
+         */
+        ScrollDown,
+        /**
+         * The wheel scrolled left.
+         */
+        ScrollLeft,
+        /**
+         * The wheel scrolled right.
+         */
+        ScrollRight
 }
 
+/**
+ * A mouse event with zero-based cell coordinates and active key modifiers.
+ */
 public struct MouseEvent(
     val kind: MouseEventKind, val column: Long, val row: Long,
     val modifiers: KeyModifiers = KeyModifiers()
 )
 
-public class TerminalInputException public constructor(public val detail: String) : Exception(Some(detail))
+/**
+ * Reports malformed terminal input that cannot be delivered as an ordinary event.
+ */
+public class TerminalInputException public constructor(
+    /**
+     * The malformed-input explanation.
+     */
+    public val detail: String) : Exception(Some(detail))

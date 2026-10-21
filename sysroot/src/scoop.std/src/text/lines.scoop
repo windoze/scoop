@@ -36,5 +36,12 @@ private class LineIterator(private val source: Iterator<Char>) : Iterator<String
     }
 }
 
+/**
+ * Lazily splits on LF, CR, or CRLF, omitting line separators and retaining a final empty line
+ * after a trailing separator.
+ */
 public fun String.lineSequence(): Sequence<String> = FactorySequence<String> { LineIterator(iterator()) }
+/**
+ * Returns lines split on LF, CR, or CRLF, retaining a final empty line after a trailing separator.
+ */
 public fun String.lines(): List<String> = lineSequence().toList()

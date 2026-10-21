@@ -4,7 +4,15 @@ import scoop.terminal.Command
 import scoop.terminal.requireTerminalParameter
 import scoop.terminal.writeCsiParameter
 
+/**
+ * Moves to a zero-based column and row. Both coordinates must be in 0..65535; ANSI output converts
+ * them to one-based positions.
+ */
 public struct MoveTo(val column: Long, val row: Long) : Command {
+    /**
+     * Writes this command's ANSI representation to the supplied writer without flushing it.
+     * Parameter validation happens before or during serialization.
+     */
     public override fun writeAnsi(writer: TextWriter) {
         requireTerminalParameter(column)
         requireTerminalParameter(row)
@@ -12,40 +20,102 @@ public struct MoveTo(val column: Long, val row: Long) : Command {
     }
 }
 
+/**
+ * Moves to a zero-based column in 0..65535 while retaining the row.
+ */
 public struct MoveToColumn(val column: Long) : Command {
+    /**
+     * Writes this command's ANSI representation to the supplied writer without flushing it.
+     * Parameter validation happens before or during serialization.
+     */
     public override fun writeAnsi(writer: TextWriter) {
         requireTerminalParameter(column)
         writer.write("\u001b[" + (column + 1L).toString() + "G")
     }
 }
 
+/**
+ * Moves to a zero-based row in 0..65535 while retaining the column.
+ */
 public struct MoveToRow(val row: Long) : Command {
+    /**
+     * Writes this command's ANSI representation to the supplied writer without flushing it.
+     * Parameter validation happens before or during serialization.
+     */
     public override fun writeAnsi(writer: TextWriter) {
         requireTerminalParameter(row)
         writer.write("\u001b[" + (row + 1L).toString() + "d")
     }
 }
 
+/**
+ * Moves the cursor up by the supplied count. The ANSI parameter must be in 0..65535; the terminal
+ * interprets zero according to its command rules.
+ */
 public struct MoveUp(val count: Long) : Command {
+    /**
+     * Writes this command's ANSI representation to the supplied writer without flushing it.
+     * Parameter validation happens before or during serialization.
+     */
     public override fun writeAnsi(writer: TextWriter) { writeCsiParameter(writer, count, "A") }
 }
 
+/**
+ * Moves the cursor down by the supplied count. The ANSI parameter must be in 0..65535; the
+ * terminal interprets zero according to its command rules.
+ */
 public struct MoveDown(val count: Long) : Command {
+    /**
+     * Writes this command's ANSI representation to the supplied writer without flushing it.
+     * Parameter validation happens before or during serialization.
+     */
     public override fun writeAnsi(writer: TextWriter) { writeCsiParameter(writer, count, "B") }
 }
 
+/**
+ * Moves the cursor right by the supplied count. The ANSI parameter must be in 0..65535; the
+ * terminal interprets zero according to its command rules.
+ */
 public struct MoveRight(val count: Long) : Command {
+    /**
+     * Writes this command's ANSI representation to the supplied writer without flushing it.
+     * Parameter validation happens before or during serialization.
+     */
     public override fun writeAnsi(writer: TextWriter) { writeCsiParameter(writer, count, "C") }
 }
 
+/**
+ * Moves the cursor left by the supplied count. The ANSI parameter must be in 0..65535; the
+ * terminal interprets zero according to its command rules.
+ */
 public struct MoveLeft(val count: Long) : Command {
+    /**
+     * Writes this command's ANSI representation to the supplied writer without flushing it.
+     * Parameter validation happens before or during serialization.
+     */
     public override fun writeAnsi(writer: TextWriter) { writeCsiParameter(writer, count, "D") }
 }
 
+/**
+ * Moves the cursor to the start of following lines by the supplied count. The ANSI parameter must
+ * be in 0..65535; the terminal interprets zero according to its command rules.
+ */
 public struct MoveToNextLine(val count: Long) : Command {
+    /**
+     * Writes this command's ANSI representation to the supplied writer without flushing it.
+     * Parameter validation happens before or during serialization.
+     */
     public override fun writeAnsi(writer: TextWriter) { writeCsiParameter(writer, count, "E") }
 }
 
+/**
+ * Moves the cursor to the start of preceding lines by the supplied count. The ANSI parameter must
+ * be in 0..65535; the terminal interprets zero according to its command rules.
+ */
 public struct MoveToPreviousLine(val count: Long) : Command {
+    /**
+     * Writes this command's ANSI representation to the supplied writer without flushing it.
+     * Parameter validation happens before or during serialization.
+     */
     public override fun writeAnsi(writer: TextWriter) { writeCsiParameter(writer, count, "F") }
 }

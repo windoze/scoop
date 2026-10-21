@@ -237,7 +237,9 @@ impl Parser {
                             "a getter cannot declare visibility separately from its property",
                         ));
                     }
-                    accessors.getter = Some(self.parse_getter(annotations)?);
+                    let getter = self.parse_getter(annotations)?;
+                    self.attach_documentation(checkpoint, getter.span);
+                    accessors.getter = Some(getter);
                 }
                 "set" => {
                     if accessors.setter.is_some() {
@@ -249,7 +251,9 @@ impl Parser {
                         }
                         VisibilitySyntax::Omitted => SetterVisibilitySyntax::Inherited,
                     };
-                    accessors.setter = Some(self.parse_setter(annotations, visibility)?);
+                    let setter = self.parse_setter(annotations, visibility)?;
+                    self.attach_documentation(checkpoint, setter.span);
+                    accessors.setter = Some(setter);
                 }
                 _ => {
                     self.pos = checkpoint;
@@ -288,8 +292,11 @@ impl Parser {
                 span: Span::new(open.span.end, open.span.end),
             }
         } else {
+            let doc_start = self.pos;
             self.skip_parameter_compatibility_modifiers();
-            SetterParameterSyntax::Named(self.expect_ident("setter parameter name")?)
+            let name = self.expect_ident("setter parameter name")?;
+            self.attach_documentation(doc_start, name.span);
+            SetterParameterSyntax::Named(name)
         };
         let close = self.expect("`)` after setter parameter", |kind| {
             matches!(kind, TokenKind::RParen)

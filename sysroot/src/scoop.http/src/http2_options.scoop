@@ -1,11 +1,30 @@
 package scoop.http
 
-public enum Http2InvalidRegularField { Ignore, RejectStream }
+/**
+ * Policy for an invalid received regular field; pseudo-field validation remains protocol-defined.
+ */
+public enum Http2InvalidRegularField {
+    /**
+     * Reports and ignores the invalid regular field.
+     */
+    Ignore,
+    /**
+     * Rejects the stream carrying the invalid regular field.
+     */
+    RejectStream }
+/**
+ * Receive-only compatibility for field-edge whitespace and invalid regular fields; outgoing fields
+ * remain strictly validated.
+ */
 public struct Http2ReceiveOptions(
     val allowFieldValueEdgeWhitespace: Boolean = false,
     val invalidRegularField: Http2InvalidRegularField = Http2InvalidRegularField.Ignore
 )
 
+/**
+ * Positive local header, continuation, outgoing-header, and buffered-body limits. These are
+ * distinct from advertised HTTP/2 SETTINGS.
+ */
 public struct Http2Limits(
     val headers: HttpHeaderLimits = HttpHeaderLimits(),
     val maxContinuations: Long = 8L,
@@ -13,6 +32,10 @@ public struct Http2Limits(
     val maxPendingBodyBytes: Long = 65536L
 )
 
+/**
+ * Values advertised to the peer for header tables, concurrent streams, stream windows, frame size,
+ * and header-list size. Clients disable server push.
+ */
 public struct Http2Settings(
     val headerTableSize: UInt = 4096U,
     val maxConcurrentStreams: UInt = 100U,
@@ -21,6 +44,9 @@ public struct Http2Settings(
     val maxHeaderListSize: UInt = 65536U
 )
 
+/**
+ * One numeric HTTP/2 setting identifier and unsigned value.
+ */
 public struct Http2Setting(val id: UShort, val value: UInt)
 
 @CLayout internal struct NativeHttp2Config(

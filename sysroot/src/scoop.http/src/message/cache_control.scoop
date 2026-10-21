@@ -3,28 +3,51 @@ package scoop.http
 import scoop.bytes.ByteArrayBuilder
 import scoop.text.lowercaseAscii
 
+/**
+ * Ordered Cache-Control directives, including duplicates and original field values. Interpretation
+ * is explicit; single rejects duplicated directives.
+ */
 public class HttpCacheControl private constructor(
-    public val directives: Array<HttpCacheDirective>, public val originalValues: Array<Array<Byte>>
+    /**
+     * All directives in field order, retaining duplicates.
+     */
+    public val directives: Array<HttpCacheDirective>,
+        /**
+         * The original field-value byte sequences, preserving field order.
+         */
+        public val originalValues: Array<Array<Byte>>
 ) {
     public constructor(directives: List<HttpCacheDirective>) : this(directives.toArray(), []) {}
 
+    /**
+     * Returns every directive with the normalized name in original order.
+     */
     public fun findAll(name: String): Array<HttpCacheDirective> {
         val normalized = httpNormalizedToken(name)
         val result = ArrayList<HttpCacheDirective>()
         for (directive in directives) if (directive.name == normalized) result.add(directive)
         return result.toArray()
     }
+    /**
+     * Tests whether a named directive exists.
+     */
     public fun contains(name: String): Boolean {
         val normalized = httpNormalizedToken(name)
         for (directive in directives) if (directive.name == normalized) return true
         return false
     }
+    /**
+     * Returns the sole named directive or None; duplicates throw HttpFieldParseException.
+     */
     public fun single(name: String): HttpCacheDirective? {
         val found = findAll(name)
         if (found.size > 1L) throw HttpFieldParseException("Cache-Control", found[1L].nameOffset, "duplicate cache directive " + name)
         return if (found.size == 0L) None else Some(found[0L])
     }
 
+    /**
+     * Serializes the structured value into HTTP field-value bytes.
+     */
     public fun toByteArray(): Array<Byte> {
         val output = ByteArrayBuilder()
         var first = true
@@ -35,9 +58,18 @@ public class HttpCacheControl private constructor(
         }
         return output.toByteArray()
     }
+    /**
+     * Builds the corresponding named HTTP field from the structured value.
+     */
     public fun toHttpField(): HttpField = HttpField("Cache-Control".toByteArray(), toByteArray())
 
+    /**
+     * Construction and parsing of this structured HTTP field.
+     */
     public companion object {
+        /**
+         * Parses the complete field value, throwing HttpFieldParseException for malformed syntax.
+         */
         public fun parse(value: List<Byte>): HttpCacheControl {
             val reader = HttpFieldReader("Cache-Control", value)
             val result = ArrayList<HttpCacheDirective>()
@@ -62,13 +94,27 @@ public class HttpCacheControl private constructor(
             }
             return HttpCacheControl(result.toArray(), [reader.bytes])
         }
+        /**
+         * Parses the complete field value, throwing HttpFieldParseException for malformed syntax.
+         */
         public fun parse(value: String): HttpCacheControl = parse(value.toByteArray())
+        /**
+         * Parses the complete value, returning None for HttpFieldParseException while propagating
+         * unrelated failures.
+         */
         public fun parseOrNone(value: List<Byte>): HttpCacheControl? {
             try { return Some(parse(value)) }
             catch (_: HttpFieldParseException) { return None }
         }
+        /**
+         * Parses the complete value, returning None for HttpFieldParseException while propagating
+         * unrelated failures.
+         */
         public fun parseOrNone(value: String): HttpCacheControl? = parseOrNone(value.toByteArray())
 
+        /**
+         * Combines all Cache-Control fields in order, retaining their original values.
+         */
         public fun parseFields(fields: List<HttpField>): HttpCacheControl {
             val directives = ArrayList<HttpCacheDirective>()
             val originals = ArrayList<Array<Byte>>()

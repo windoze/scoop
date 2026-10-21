@@ -3,6 +3,10 @@ package scoop.compression.asyncio
 import scoop.asyncio.*
 import scoop.compression.*
 
+/**
+ * Copies a byte source through an encoder into the destination, finishes it, and returns actual
+ * byte totals. The source and destination remain borrowed.
+ */
 public suspend fun AsyncByteSource.compressTo(destination: AsyncByteSink,
     options: CompressionOptions = CompressionOptions.Zstd(ZstdOptions()), bufferSize: Long = 8192L): CompressionTotals {
     return AsyncCompressionSource(this, options, bufferSize).useAsync suspend { source ->
@@ -11,6 +15,10 @@ public suspend fun AsyncByteSource.compressTo(destination: AsyncByteSink,
     }
 }
 
+/**
+ * Copies and validates a complete compressed stream into the destination, returning actual byte
+ * totals. The source and destination remain borrowed.
+ */
 public suspend fun AsyncByteSource.decompressTo(destination: AsyncByteSink,
     options: DecompressionOptions = DecompressionOptions(), bufferSize: Long = 8192L): CompressionTotals {
     return AsyncDecompressionSource(this, options, bufferSize).useAsync suspend { source ->

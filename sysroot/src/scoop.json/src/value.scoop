@@ -1,7 +1,18 @@
 package scoop.json
 
+/**
+ * An opaque JSON value tree for carrying a nested value without knowing its application type. Its
+ * codec requires a JSON encoder or decoder and preserves JSON number tokens.
+ */
 public class JsonValue internal constructor(internal val node: JsonNode) {
+    /**
+     * The codec for embedding an opaque [JsonValue] in a JSON document.
+     */
     public companion object : ValueEncoder<JsonValue>, ValueDecoder<JsonValue> {
+        /**
+         * Copies the stored JSON tree into a JSON encoder. Other encoder implementations produce
+         * [EncodingException].
+         */
         public override fun encode(value: JsonValue, encoder: Encoder) {
             if (encoder !is JsonEncoder) {
                 throw EncodingException(encoder.path, "JsonValue requires a JSON encoder")
@@ -9,6 +20,10 @@ public class JsonValue internal constructor(internal val node: JsonNode) {
             encodeJsonNode(value.node, encoder)
         }
 
+        /**
+         * Retains the current subtree of a JSON decoder. Other decoder implementations produce
+         * [DecodingException].
+         */
         public override fun decode(decoder: Decoder): JsonValue {
             if (decoder !is JsonDecoder) {
                 throw DecodingException(decoder.path, "JsonValue requires a JSON decoder")

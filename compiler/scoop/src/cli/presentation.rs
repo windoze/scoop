@@ -14,6 +14,28 @@ mod test_report;
 pub(super) struct Reporter(pub MessageFormat);
 
 impl Reporter {
+    pub fn documented(&self, outcome: &scoop::DocumentOutcome) -> io::Result<()> {
+        self.diagnostics(&outcome.warnings, &outcome.sources)?;
+        match self.0 {
+            MessageFormat::Human => writeln!(
+                io::stderr().lock(),
+                "documented {}",
+                outcome.output.display()
+            ),
+            MessageFormat::Json => write_json(&json!({
+                "schema": 1, "kind": "documentation", "output": path_value(&outcome.output),
+                "rendered": outcome.rendered,
+                "cones": outcome.cones.iter().map(|cone| json!({
+                    "identity": cone.identity.to_string(), "output": path_value(&cone.output),
+                })).collect::<Vec<_>>(),
+                "observations": {
+                    "child_invocations": outcome.compiled.iter().map(ToString::to_string).collect::<Vec<_>>(),
+                    "rendered_files": outcome.rendered_files.iter().map(|path| path_value(path)).collect::<Vec<_>>(),
+                },
+            })),
+        }
+    }
+
     pub fn failure(&self, failure: &BuildFailure) -> io::Result<()> {
         self.diagnostics(&failure.warnings, &failure.sources)?;
         if !failure.diagnostics.is_empty() {

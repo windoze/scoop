@@ -5,8 +5,23 @@ import scoop.http.*
 import scoop.http.asyncio.WebSocketSessionOptions
 import scoop.url.Url
 
-public class HttpWebSocketRequest public constructor(public val url: Url,
-    fields: List<HttpField> = emptyList<HttpField>(), public val options: HttpCallOptions = HttpCallOptions()) {
+/**
+ * A ws/wss upgrade request without URL fragment or request body. Handshake-specific fields are
+ * managed by the client.
+ */
+public class HttpWebSocketRequest public constructor(
+    /**
+     * The validated ws or wss URL without a fragment.
+     */
+    public val url: Url,
+    fields: List<HttpField> = emptyList<HttpField>(),
+        /**
+         * HTTP call policy used during the handshake.
+         */
+        public val options: HttpCallOptions = HttpCallOptions()) {
+    /**
+     * Copied caller fields for the upgrade request.
+     */
     public val fields: Array<HttpField> = fields.toArray()
     internal val httpUrl: Url = clientWebSocketHttpUrl(url)
     init {
@@ -21,10 +36,23 @@ public class HttpWebSocketRequest public constructor(public val url: Url,
     }
 }
 
+/**
+ * Offered subprotocols, permessage-deflate offers, and the asynchronous session's buffering/close
+ * policy.
+ */
 public class HttpWebSocketOptions public constructor(protocols: List<String> = emptyList<String>(),
     deflateOffers: List<WebSocketDeflateOffer> = emptyList<WebSocketDeflateOffer>(),
+    /**
+     * Post-upgrade streaming, limits, and close policy.
+     */
     public val session: WebSocketSessionOptions = WebSocketSessionOptions()) {
+    /**
+     * Subprotocol tokens offered in order.
+     */
     public val protocols: Array<String> = protocols.toArray()
+    /**
+     * Explicit permessage-deflate offers.
+     */
     public val deflateOffers: Array<WebSocketDeflateOffer> = deflateOffers.toArray()
 }
 

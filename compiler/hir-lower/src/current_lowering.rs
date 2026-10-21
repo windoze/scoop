@@ -64,6 +64,9 @@ fn lower_current_cone_inner(
         .with_imported_dependencies(dependency_selection);
     lowerer.source_names = input.source_names().clone();
     lowerer.test_dependencies = input.test_dependencies().clone();
+    lowerer.documentation = input
+        .documentation()
+        .map(|sources| crate::documentation::DocumentationContext::new(sources).into());
     if tests {
         lowerer.test_compilation = Some(crate::test_entry::TestCompilation::new(world));
     }
@@ -86,7 +89,7 @@ fn lower_current_cone_inner(
     for warning in &mut warnings {
         warning.resolve_sources(&sources);
     }
-    let output = finish_output(module, output_kind, warnings, world, Some(&selected)).map_err(
+    let mut output = finish_output(module, output_kind, warnings, world, Some(&selected)).map_err(
         |mut diagnostics| {
             for diagnostic in &mut diagnostics {
                 diagnostic.resolve_sources(&sources);
@@ -94,6 +97,7 @@ fn lower_current_cone_inner(
             diagnostics
         },
     )?;
+    output.documentation = completion.documentation;
     hir::DependencyHirOutput::try_new(output, selected, completion.binding_witness_uses).map_err(
         |error| {
             vec![Diagnostic::at(

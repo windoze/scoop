@@ -1,0 +1,42 @@
+schema = 1
+name = "m60-doc-cli-inheritance"
+root = "consumer/Cone.toml"
+inputs = ["provider", "consumer", "check.py"]
+tools = ["scoop", "scoopc", "python"]
+targets = ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl"]
+tags = ["m60", "documentation", "inheritance", "generics"]
+
+[[variants]]
+name = "all"
+vars = {options = [], cones = 2}
+
+[[variants]]
+name = "no_deps"
+vars = {options = ["--no-deps"], cones = 1}
+
+[[steps]]
+name = "prepare"
+files = [
+  {copy = {from = "${fixture}/provider", to = "${work}/provider"}},
+  {copy = {from = "${fixture}/consumer", to = "${work}/consumer"}},
+]
+
+[[steps]]
+name = "doc"
+argv = ["${scoop}", "doc", "${work}/consumer", {each = "${options}"}, {each = "${compile_args}"}, "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--output-dir", "${work}/site", "--deny-doc-warnings", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${doc.result.cones.length}", equals = "${cones}"},
+  {actual = "${doc.result.observations.child_invocations.length}", equals = 2},
+]
+
+[[steps]]
+name = "inspect"
+argv = ["${python}", "${fixture}/check.py", "${work}/site", "${variant}"]
+exit = 0
+stdout = "Inheritance, signatures, source text and local links verified.\n"
+stderr = ""

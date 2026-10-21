@@ -5,7 +5,20 @@ import scoop.collections.random
 import scoop.collections.randomOrNone
 import scoop.collections.shuffled
 
+/**
+ * Consumes this sequence. Selects one element using the supplied random source; empty input throws
+ * NoSuchElementException.
+ */
 public fun <T> Sequence<T>.random(random: Random): T = terminalInput<T>().random<T>(random)
+/**
+ * Consumes this sequence. Selects one element using the supplied random source, or returns None
+ * for empty input.
+ */
 public fun <T> Sequence<T>.randomOrNone(random: Random): T? = terminalInput<T>().randomOrNone<T>(random)
+/**
+ * Evaluation is deferred until iteration. Copies the elements into a randomly permuted traversal
+ * using the supplied random source. Each traversal materializes the complete input before yielding
+ * results.
+ */
 public fun <T> Sequence<T>.shuffled(random: Random): Sequence<T> =
     FactorySequence<T> { terminalInput<T>().shuffled<T>(random).iterator() }

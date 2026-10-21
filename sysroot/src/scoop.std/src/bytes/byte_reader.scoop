@@ -1,10 +1,23 @@
 package scoop.bytes
 
+/**
+ * A cursor over the supplied byte list, with explicit byte order for multibyte values. Reads
+ * require enough remaining bytes and advance the cursor.
+ */
 public class ByteArrayReader public constructor(input: List<Byte>) {
     private val bytes: Array<Byte> = Array<Byte>(input.size) { index -> input[index] }
     private var cursor: Long = 0L
+    /**
+     * The total number of bytes in the input.
+     */
     public val size: Long get() = bytes.size
+    /**
+     * The current zero-based byte cursor.
+     */
     public val position: Long get() = cursor
+    /**
+     * The number of bytes available from the cursor to the end.
+     */
     public val remaining: Long get() = bytes.size - cursor
 
     private fun requireAvailable(count: Long) {
@@ -12,16 +25,26 @@ public class ByteArrayReader public constructor(input: List<Byte>) {
         if (count > remaining) throw IndexOutOfBoundsException()
     }
 
+    /**
+     * Moves to an absolute byte position between zero and the input size, inclusive.
+     */
     public fun seek(position: Long) {
         if (position < 0L || position > bytes.size) throw IndexOutOfBoundsException()
         cursor = position
     }
 
+    /**
+     * Advances by a nonnegative count within the remaining input.
+     */
     public fun skip(count: Long) {
         requireAvailable(count)
         cursor += count
     }
 
+    /**
+     * Copies the requested nonnegative number of bytes and advances the cursor; insufficient input
+     * throws.
+     */
     public fun readBytes(count: Long): Array<Byte> {
         requireAvailable(count)
         val start = cursor
@@ -43,14 +66,52 @@ public class ByteArrayReader public constructor(input: List<Byte>) {
         return result
     }
 
+    /**
+     * Reads and advances past one Int8 value as one byte. Insufficient remaining input throws.
+     */
     public fun readInt8(): Int8 = read(1L, ByteOrder.BigEndian).toByte()
+    /**
+     * Reads and advances past one UInt8 value as one byte. Insufficient remaining input throws.
+     */
     public fun readUInt8(): UInt8 = read(1L, ByteOrder.BigEndian).toUByte()
+    /**
+     * Reads and advances past one Int16 value in the selected byte order. Insufficient remaining
+     * input throws.
+     */
     public fun readInt16(order: ByteOrder): Int16 = read(2L, order).toShort()
+    /**
+     * Reads and advances past one UInt16 value in the selected byte order. Insufficient remaining
+     * input throws.
+     */
     public fun readUInt16(order: ByteOrder): UInt16 = read(2L, order).toUShort()
+    /**
+     * Reads and advances past one Int32 value in the selected byte order. Insufficient remaining
+     * input throws.
+     */
     public fun readInt32(order: ByteOrder): Int32 = read(4L, order).toInt()
+    /**
+     * Reads and advances past one UInt32 value in the selected byte order. Insufficient remaining
+     * input throws.
+     */
     public fun readUInt32(order: ByteOrder): UInt32 = read(4L, order).toUInt()
+    /**
+     * Reads and advances past one Int64 value in the selected byte order. Insufficient remaining
+     * input throws.
+     */
     public fun readInt64(order: ByteOrder): Int64 = read(8L, order).toLong()
+    /**
+     * Reads and advances past one UInt64 value in the selected byte order. Insufficient remaining
+     * input throws.
+     */
     public fun readUInt64(order: ByteOrder): UInt64 = read(8L, order)
+    /**
+     * Reads and advances past the IEEE 754 bit representation of a Float value in the selected
+     * byte order. Insufficient remaining input throws.
+     */
     public fun readFloat(order: ByteOrder): Float = Float.fromBits(readInt32(order))
+    /**
+     * Reads and advances past the IEEE 754 bit representation of a Double value in the selected
+     * byte order. Insufficient remaining input throws.
+     */
     public fun readDouble(order: ByteOrder): Double = Double.fromBits(readInt64(order))
 }

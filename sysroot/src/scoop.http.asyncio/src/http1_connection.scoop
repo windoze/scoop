@@ -6,45 +6,123 @@ import scoop.platform.memory.NativeByteBuffer
 import scoop.time.Duration
 import scoop.time.TimeMark
 
-public class Http1IncomingRequest internal constructor(public val head: HttpRequestHead, public val body: AsyncHttp1Body)
-public class Http1IncomingResponse internal constructor(public val head: HttpResponseHead, public val body: AsyncHttp1Body,
+/**
+ * A received request head paired with its single-pass asynchronous body.
+ */
+public class Http1IncomingRequest internal constructor(
+    /**
+     * The received protocol head, preserving the original ordered fields.
+     */
+    public val head: HttpRequestHead,
+    /**
+     * The single-pass input body associated with this head.
+     */
+    public val body: AsyncHttp1Body)
+/**
+ * A received response head, single-pass body, and optional captured first-byte timestamp.
+ */
+public class Http1IncomingResponse internal constructor(
+    /**
+     * The received protocol head, preserving the original ordered fields.
+     */
+    public val head: HttpResponseHead,
+    /**
+     * The single-pass input body associated with this head.
+     */
+    public val body: AsyncHttp1Body,
+    /**
+     * The first received response-byte time when timing collection is enabled.
+     */
     public val firstByteAt: TimeMark?)
 
+/**
+ * An HTTP/1 client or server over an already-established asynchronous transport. It owns transport
+ * cleanup and serializes each direction. Complete each message body before reusing that direction
+ * or transferring an upgraded transport.
+ */
 public class AsyncHttp1Connection internal constructor(internal val state: H1State) : AsyncCloseable {
+    /**
+     * Factories that transfer an established transport to structured protocol tasks.
+     */
     public companion object {
+        /**
+         * Takes an already-established transport as an HTTP client. The supplied scope owns
+         * connection tasks; TCP connection and TLS handshake must already be complete.
+         */
         public suspend fun <T> takeOwnershipAsClient(transport: T, scope: CoroutineScope,
             options: Http1ReceiveOptions = Http1ReceiveOptions(), limits: Http1Limits = Http1Limits(),
             ioTimeouts: HttpIoTimeoutOptions = HttpIoTimeoutOptions(), captureTimings: Boolean = false): AsyncHttp1Connection
             where T : AsyncByteStream, T : AsyncCloseable = adoptH1(transport, transport, scope, HttpRole.Client, options, limits, ioTimeouts, captureTimings)
 
+        /**
+         * Takes an already-established transport as an HTTP server. The supplied scope owns
+         * connection tasks; TCP connection and TLS handshake must already be complete.
+         */
         public suspend fun <T> takeOwnershipAsServer(transport: T, scope: CoroutineScope,
             options: Http1ReceiveOptions = Http1ReceiveOptions(), limits: Http1Limits = Http1Limits(),
             ioTimeouts: HttpIoTimeoutOptions = HttpIoTimeoutOptions()): AsyncHttp1Connection
             where T : AsyncByteStream, T : AsyncCloseable = adoptH1(transport, transport, scope, HttpRole.Server, options, limits, ioTimeouts)
     }
 
+    /**
+     * The local HTTP client or server role.
+     */
     public val role: HttpRole get() = state.encoder.role
+    /**
+     * The default I/O idle deadlines used by this connection.
+     */
     public val ioTimeouts: HttpIoTimeoutOptions get() = state.ioTimeouts
+    /**
+     * Whether connection cleanup has completed.
+     */
     public val isClosed: Boolean get() = state.lock.withLock { state.closed }
+    /**
+     * The captured first-byte time of the pending response, when timing collection is enabled and
+     * input has arrived.
+     */
     public val pendingResponseFirstByteAt: TimeMark? get() = state.lock.withLock {
         if (state.captureTimings) state.responseStarts!!.firstOrNone() else None
     }
+    /**
+     * Whether both message directions and protocol state currently allow another exchange on this
+     * connection.
+     */
     public val isReusable: Boolean get() = state.lock.withLock {
         !state.closing && !state.inputEnded && !state.closeAfterOutput && !state.readBusy && !state.writeBusy &&
             !present(state.incoming) && !present(state.outgoing) && state.clientPending == 0L &&
             state.requests.size == 0L && !state.encoder.mustClose && !state.encoder.isSwitched && !state.decoder.isSwitched
     }
+    /**
+     * Begins a client request with explicit body framing and returns its writer. Finish the writer
+     * even for an empty body.
+     */
     public suspend fun sendRequest(head: HttpRequestHead, body: Http1BodyFraming = Http1BodyFraming.Empty,
         writeIdle: Duration? = ioTimeouts.writeIdle): AsyncHttp1Writer = sendH1Request(state, head, body, writeIdle)
+    /**
+     * Begins a server response with explicit body framing and returns its writer.
+     */
     public suspend fun sendResponse(head: HttpResponseHead, body: Http1BodyFraming = Http1BodyFraming.Empty,
         writeIdle: Duration? = ioTimeouts.writeIdle): AsyncHttp1Writer = sendH1Response(state, head, body, writeIdle)
+    /**
+     * Receives the next request head and body, or None at clean connection EOF.
+     */
     public suspend fun receiveRequest(readIdle: Duration? = ioTimeouts.readIdle): Http1IncomingRequest? = receiveH1Request(state, readIdle)
+    /**
+     * Receives a response associated with the previously submitted request context.
+     */
     public suspend fun receiveResponse(readIdle: Duration? = ioTimeouts.readIdle): Http1IncomingResponse {
         val response = receiveH1Response(state, readIdle)
         closeAfterH1Input(state, response.body.body)
         return response
     }
+    /**
+     * Transfers ownership after a completed protocol-switch boundary, preserving all already-read
+     * suffix bytes.
+     */
     public suspend fun takeTransport(): HttpTransport = handoffH1(state)
+    /**
+     * Closes the connection and waits for owned transport I/O and cleanup.
+     */
     public override suspend fun close() { closeH1(state) }
 }
 

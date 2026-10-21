@@ -141,13 +141,14 @@ impl Parser {
         let mut vararg_span = None;
         if !matches!(self.peek().kind, TokenKind::RParen) {
             loop {
+                let doc_start = self.pos;
                 let annotations = self.parse_annotations()?;
                 let modifier_span = self.parse_vararg_modifier(&mut vararg_span)?;
                 let param_name = self.expect_ident("parameter name")?;
                 self.expect("`:`", |k| matches!(k, TokenKind::Colon))?;
                 let ty = self.parse_type_ref()?;
                 let (syntax, end) = self.parse_parameter_syntax(modifier_span, ty.span.end)?;
-                params.push(Param {
+                let documented = Param {
                     annotations,
                     span: Span::new(
                         modifier_span.map_or(param_name.span.start, |span| span.start),
@@ -156,7 +157,9 @@ impl Parser {
                     name: param_name,
                     ty,
                     syntax,
-                });
+                };
+                self.attach_documentation(doc_start, documented.span);
+                params.push(documented);
                 if matches!(self.peek().kind, TokenKind::Comma) {
                     self.bump();
                 } else {

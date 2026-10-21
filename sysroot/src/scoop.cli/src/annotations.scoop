@@ -1,17 +1,28 @@
 package scoop.cli
 
+/**
+ * Describes a named value option on a field or property. Help-related text only affects
+ * presentation; decoding defaults remain the codec's responsibility.
+ */
 @Target([AnnotationTarget.Field, AnnotationTarget.Property])
 public annotation class CliOption(
     val names: Array<String> = [], val help: String = "",
     val valueName: String = "", val defaultText: String = ""
 )
 
+/**
+ * Describes positive and optional negative spellings for a Boolean field or property. Flags
+ * consume no separate value token.
+ */
 @Target([AnnotationTarget.Field, AnnotationTarget.Property])
 public annotation class CliFlag(
     val names: Array<String> = [], val negativeNames: Array<String> = [],
     val help: String = "", val defaultText: String = ""
 )
 
+/**
+ * Assigns a field or property a zero-based positional argument index and its help presentation.
+ */
 @Target([AnnotationTarget.Field, AnnotationTarget.Property])
 public annotation class CliArgument(
     val position: Long, val help: String = "", val valueName: String = "", val defaultText: String = ""

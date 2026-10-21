@@ -2,44 +2,95 @@ package scoop.sequences
 
 import scoop.collections.*
 
+/**
+ * Consumes this sequence. Runs the action for each element in iteration order.
+ */
 public fun <T> Sequence<T>.forEach(action: (T) -> Unit): Unit =
     terminalInput<T>().forEach<T>(action)
 
+/**
+ * Consumes this sequence. Runs the action with each element and its zero-based Long index.
+ */
 public fun <T> Sequence<T>.forEachIndexed(action: (Long, T) -> Unit): Unit =
     terminalInput<T>().forEachIndexed<T>(action)
 
+/**
+ * Consumes this sequence. Accumulates left to right from the supplied initial value, which is
+ * returned for empty input.
+ */
 public fun <T, R> Sequence<T>.fold(initial: R, operation: (R, T) -> R): R =
     terminalInput<T>().fold<T, R>(initial, operation)
 
+/**
+ * Consumes this sequence. Accumulates left to right from the first element; empty input throws
+ * NoSuchElementException.
+ */
 public fun <T> Sequence<T>.reduce(operation: (T, T) -> T): T =
     terminalInput<T>().reduce<T>(operation)
 
+/**
+ * Consumes this sequence. Accumulates left to right from the first element, or returns None for
+ * empty input.
+ */
 public fun <T> Sequence<T>.reduceOrNone(operation: (T, T) -> T): T? =
     terminalInput<T>().reduceOrNone<T>(operation)
 
+/**
+ * Consumes this sequence. Returns whether every element satisfies the predicate; true for empty
+ * input.
+ */
 public fun <T> Sequence<T>.all(predicate: (T) -> Boolean): Boolean =
     terminalInput<T>().all<T>(predicate)
 
+/**
+ * Consumes this sequence. Returns two lists: matching elements first and nonmatching elements
+ * second, each retaining source order.
+ */
 public fun <T> Sequence<T>.partition(predicate: (T) -> Boolean): (List<T>, List<T>) =
     terminalInput<T>().partition<T>(predicate)
 
+/**
+ * Consumes this sequence. Returns an independent list in reverse iteration order.
+ */
 public fun <T> Sequence<T>.reversed(): List<T> =
     terminalInput<T>().reversed<T>()
 
+/**
+ * Consumes this sequence. Counts eligible elements, applying the predicate when supplied.
+ */
 public fun <T> Sequence<T>.count(): Long =
     terminalInput<T>().count<T>()
 
+/**
+ * Consumes this sequence. Counts eligible elements, applying the predicate when supplied.
+ */
 public fun <T> Sequence<T>.count(predicate: (T) -> Boolean): Long =
     terminalInput<T>().count<T>(predicate)
 
+/**
+ * Consumes this sequence. Returns whether any eligible element exists, applying the predicate when
+ * supplied and stopping at the first match.
+ */
 public fun <T> Sequence<T>.any(): Boolean =
     terminalInput<T>().any<T>()
 
+/**
+ * Consumes this sequence. Returns whether any eligible element exists, applying the predicate when
+ * supplied and stopping at the first match.
+ */
 public fun <T> Sequence<T>.any(predicate: (T) -> Boolean): Boolean =
     terminalInput<T>().any<T>(predicate)
 
+/**
+ * Consumes this sequence. Returns whether no eligible element exists, applying the predicate when
+ * supplied and stopping at the first match.
+ */
 public fun <T> Sequence<T>.none(): Boolean =
     terminalInput<T>().none<T>()
 
+/**
+ * Consumes this sequence. Returns whether no eligible element exists, applying the predicate when
+ * supplied and stopping at the first match.
+ */
 public fun <T> Sequence<T>.none(predicate: (T) -> Boolean): Boolean =
     terminalInput<T>().none<T>(predicate)

@@ -2,6 +2,9 @@ package scoop.text
 
 import scoop.bytes.ByteArrayBuilder
 
+/**
+ * Encodes each byte as two hexadecimal digits, using the selected letter case.
+ */
 public fun List<Byte>.toHexString(uppercase: Boolean = false): String {
     val length = size
     val chars = MutableArray<Char>(checkedTextProduct(length, 2L)) { _ -> '0' }
@@ -33,11 +36,17 @@ private fun parseHex(text: String): HexResult {
     return HexResult.Bytes(output.toByteArray())
 }
 
+/**
+ * Decodes an even-length hexadecimal string; malformed input throws IllegalArgumentException.
+ */
 public fun String.hexToByteArray(): Array<Byte> = when (parseHex(this)) {
     case HexResult.Bytes(value) -> value
     case HexResult.Invalid(index) -> throw IllegalArgumentException(Some("invalid hex at index " + index.toString()))
 }
 
+/**
+ * Decodes an even-length hexadecimal string, returning None for invalid digits or odd length.
+ */
 public fun String.hexToByteArrayOrNone(): Array<Byte>? = when (parseHex(this)) {
     case HexResult.Bytes(value) -> Some(value)
     case HexResult.Invalid(_) -> None

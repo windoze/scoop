@@ -3,11 +3,22 @@ package scoop.http.asyncio
 import scoop.asyncio.*
 import scoop.platform.memory.NativeByteBuffer
 
+/**
+ * Owns a transport plus a preserved input prefix, allowing protocol handoff without losing bytes
+ * read past the previous protocol boundary.
+ */
 public class HttpTransport internal constructor(
     private val stream: AsyncByteStream, private val owner: AsyncCloseable,
     private val loop: EventLoop, private var prefix: Array<Byte>
 ) : AsyncByteStream, AsyncCloseable {
+    /**
+     * Ownership-transfer construction with already-read prefix bytes.
+     */
     public companion object {
+        /**
+         * Takes transport ownership and copies prefix bytes to be delivered before new transport
+         * reads.
+         */
         public fun <T> takeOwnershipWithPrefix(transport: T, prefix: List<Byte>): HttpTransport
             where T : AsyncByteStream, T : AsyncCloseable {
             val loop = currentEventLoop()
@@ -24,6 +35,9 @@ public class HttpTransport internal constructor(
     private var closed: Boolean = false
     private val closeWaiters: ArrayList<Continuation<Unit>> = ArrayList<Continuation<Unit>>()
 
+    /**
+     * Reads preserved prefix bytes first, then reads from the underlying transport.
+     */
     public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long {
         httpJob(loop, true)
         val copied = lock.withLock {
@@ -41,18 +55,27 @@ public class HttpTransport internal constructor(
         return if (copied >= 0L) copied else stream.readInto(buffer, count)
     }
 
+    /**
+     * Writes readable bytes to the owned transport.
+     */
     public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long {
         httpJob(loop, true)
         lock.withLock { if (closing) throw IoClosedException(); httpCount(count, buffer.readableBytes) }
         return if (count == 0L) 0L else stream.writeFrom(buffer, count)
     }
 
+    /**
+     * Flushes the underlying transport.
+     */
     public override suspend fun flush() {
         httpJob(loop, true)
         lock.withLock { if (closing) throw IoClosedException(); Unit }
         stream.flush()
     }
 
+    /**
+     * Closes the owned transport after active I/O cleanup.
+     */
     public override suspend fun close() {
         if (lock.withLock { closed }) return
         val job = httpJob(loop, false)

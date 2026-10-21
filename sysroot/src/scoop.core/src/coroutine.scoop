@@ -2,40 +2,92 @@
 // State machines, frames, and continuation adapters are compiler-generated;
 // these declarations provide the source-level typed boundary.
 
+/**
+ * Receives exactly one terminal value or exception from a coroutine. It does not itself provide
+ * scheduling or structured cancellation.
+ */
 public interface Continuation<T> {
+    /**
+     * Completes the suspended computation with a value. A continuation must not be completed
+     * twice.
+     */
     public fun resume(value: T)
+    /**
+     * Completes the suspended computation exceptionally. A continuation must not be completed
+     * twice.
+     */
     public fun resumeWithException(exception: Throwable)
 }
 
+/**
+ * An object-based suspending computation accepted by the coroutine start intrinsic.
+ */
 public interface SuspendTask<T> {
+    /**
+     * Runs the computation and produces its eventual result.
+     */
     public suspend fun run(): T
 }
 
+/**
+ * Registers completion of an externally driven suspension.
+ */
 public interface SuspendRegistration<T> {
+    /**
+     * Receives the continuation to complete when the external operation finishes.
+     */
     public fun register(continuation: Continuation<T>)
 }
 
+/**
+ * Adapts a suspending function value to the object-based coroutine task protocol.
+ */
 public struct FunctionSuspendTask<T>(val task: suspend () -> T) : SuspendTask<T> {
+    /**
+     * Invokes the wrapped suspending function.
+     */
     public final override suspend fun run(): T = task.invoke()
 }
 
+/**
+ * Adapts a continuation-registration function to the object-based suspension protocol.
+ */
 public struct FunctionSuspendRegistration<T>(
     val registration: (Continuation<T>) -> Unit
 ) : SuspendRegistration<T> {
+    /**
+     * Passes the continuation to the wrapped registration function.
+     */
     public final override fun register(continuation: Continuation<T>) {
         registration.invoke(continuation)
     }
 }
 
+/**
+ * Starts a suspending computation and delivers its eventual value or exception to `completion`.
+ * This primitive does not create an event loop or a structured child job.
+ */
 @Intrinsic("coroutine_start")
 public fun <T> startCoroutine(task: SuspendTask<T>, completion: Continuation<T>)
 
+/**
+ * Suspends until the supplied registration completes its continuation. Use the cancellable form
+ * when registration must follow the current job.
+ */
 @Intrinsic("coroutine_suspend")
 public suspend fun <T> suspendCoroutine(registration: SuspendRegistration<T>): T
 
+/**
+ * Starts a suspending computation and delivers its eventual value or exception to `completion`.
+ * This primitive does not create an event loop or a structured child job.
+ */
 public fun <T> startCoroutine(task: suspend () -> T, completion: Continuation<T>) {
     startCoroutine(FunctionSuspendTask(task), completion)
 }
 
+/**
+ * Suspends until the supplied registration completes its continuation. Use the cancellable form
+ * when registration must follow the current job.
+ */
 public suspend fun <T> suspendCoroutine(registration: (Continuation<T>) -> Unit): T =
     suspendCoroutine(FunctionSuspendRegistration(registration))

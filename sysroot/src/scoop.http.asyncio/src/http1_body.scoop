@@ -5,11 +5,25 @@ import scoop.http.*
 import scoop.platform.io.UnexpectedEofException
 import scoop.platform.memory.NativeByteBuffer
 
+/**
+ * The single-pass body of an incoming HTTP/1 message. Completing it establishes framing completion
+ * and makes trailers available; abandoning it can prevent connection reuse.
+ */
 public class AsyncHttp1Body internal constructor(private val state: H1State, internal val body: H1Input)
     : AsyncByteSource, AsyncCloseable {
+    /**
+     * Whether the incoming message body has been fully consumed.
+     */
     public val isComplete: Boolean get() = state.lock.withLock { body.life.completed }
+    /**
+     * The complete trailer collection after body completion, or None before completion.
+     */
     public val trailers: Array<HttpField>? get() = state.lock.withLock { body.trailers }
 
+    /**
+     * Reads available body bytes into the writable region. A positive-size read returns zero at
+     * the completed body boundary.
+     */
     public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long {
         httpJob(state.loop, true)
         val completed = state.lock.withLock {
@@ -31,6 +45,10 @@ public class AsyncHttp1Body internal constructor(private val state: H1State, int
         return progress
     }
 
+    /**
+     * Closes the body; abandoning an incomplete body closes the HTTP/1 connection instead of
+     * silently consuming arbitrary input.
+     */
     public override suspend fun close() {
         httpJob(state.loop, false)
         val incomplete = state.lock.withLock {

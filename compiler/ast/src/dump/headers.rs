@@ -86,6 +86,7 @@ mod tests {
     #[test]
     fn dump_makes_the_root_package_explicit() {
         let file = SourceFile {
+            documentation: Vec::new(),
             package: PackageSyntax::RootPackage,
             imports: Vec::new(),
             declarations: Vec::new(),
@@ -98,6 +99,7 @@ mod tests {
     #[test]
     fn dump_preserves_header_variants_exposure_and_alias() {
         let file = SourceFile {
+            documentation: Vec::new(),
             package: PackageSyntax::QualifiedPackage {
                 package_keyword_span: Span::new(0, 7),
                 path: qualified(

@@ -4,8 +4,16 @@ import scoop.crypto.*
 import scoop.test.*
 import scoop.text.*
 
+/**
+ * Exercises public crypto values, default arguments, and generic resource helpers across Cone
+ * boundaries.
+ */
 @Test
 private class CryptoConsumerTests {
+    /**
+     * Compares streaming and one-shot SHA-256, then round-trips AES-GCM and verifies HMAC
+     * using owned secret keys.
+     */
     @Test
     fun `production crypto API uses public types default arguments and generic resources`() {
         val data = "external consumer".toByteArray()

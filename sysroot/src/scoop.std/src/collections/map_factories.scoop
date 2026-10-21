@@ -4,6 +4,9 @@ internal class MapSnapshot<K, V> internal constructor(
     private val elements: Map<K, V>
 ) : Map<K, V> by elements
 
+/**
+ * Creates an insertion-ordered map; replacing an equal key retains its first position.
+ */
 public fun <K, V> linkedMapOf(vararg entries: (K, V)): LinkedHashMap<K, V>
     where K : Equals<K>, K : Hash {
     val result = LinkedHashMap<K, V>()
@@ -11,14 +14,26 @@ public fun <K, V> linkedMapOf(vararg entries: (K, V)): LinkedHashMap<K, V>
     return result
 }
 
+/**
+ * Creates a mutable insertion-ordered map from pairs; the last value for each key wins.
+ */
 public fun <K, V> mutableMapOf(vararg entries: (K, V)): MutableMap<K, V>
     where K : Equals<K>, K : Hash = linkedMapOf<K, V>(*entries)
 
+/**
+ * Creates a read-only insertion-ordered map from pairs; the last value for each key wins.
+ */
 public fun <K, V> mapOf(vararg entries: (K, V)): Map<K, V>
     where K : Equals<K>, K : Hash = MapSnapshot<K, V>(linkedMapOf<K, V>(*entries))
 
+/**
+ * Returns an empty read-only map.
+ */
 public fun <K, V> emptyMap(): Map<K, V> where K : Equals<K>, K : Hash = mapOf<K, V>()
 
+/**
+ * Copies associations into a new mutable map; later values for equal keys win.
+ */
 public fun <K, V> Iterable<(K, V)>.toMutableMap(): MutableMap<K, V>
     where K : Equals<K>, K : Hash {
     val result = LinkedHashMap<K, V>()
@@ -26,14 +41,23 @@ public fun <K, V> Iterable<(K, V)>.toMutableMap(): MutableMap<K, V>
     return result
 }
 
+/**
+ * Copies associations into a read-only map; later values for equal keys win.
+ */
 public fun <K, V> Iterable<(K, V)>.toMap(): Map<K, V> where K : Equals<K>, K : Hash =
     MapSnapshot<K, V>(toMutableMap())
 
+/**
+ * Copies associations into a new mutable map; later values for equal keys win.
+ */
 public fun <K, V> Map<K, V>.toMutableMap(): MutableMap<K, V> where K : Equals<K>, K : Hash {
     val result = LinkedHashMap<K, V>()
     for ((key, value) in this) result.put(key, value)
     return result
 }
 
+/**
+ * Copies associations into a read-only map; later values for equal keys win.
+ */
 public fun <K, V> Map<K, V>.toMap(): Map<K, V> where K : Equals<K>, K : Hash =
     MapSnapshot<K, V>(toMutableMap())

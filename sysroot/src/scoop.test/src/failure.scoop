@@ -1,17 +1,51 @@
 package scoop.test
 
+/**
+ * The outcome of rendering an assertion operand for a failure report.
+ */
 public enum AssertionValue {
+    /**
+     * The operand has no available textual representation.
+     */
     Unavailable,
+    /**
+     * The operand's successfully rendered text.
+     */
     Text(String),
+    /**
+     * Rendering itself threw an exception, retained here without replacing the assertion failure.
+     */
     RenderingFailed(Throwable)
 }
 
+/**
+ * Structured assertion failure information used by the test runner. Operand-rendering failures are
+ * retained in [AssertionValue] so they do not hide the original comparison failure.
+ */
 public class AssertionFailure public constructor(
+    /**
+     * The assertion operation that failed.
+     */
     public val kind: String,
+    /**
+     * Additional caller-supplied context, when provided.
+     */
     public val message: String?,
+    /**
+     * The source location attributed to the assertion failure.
+     */
     public val location: SourceLocation,
+    /**
+     * The expected operand's rendering result.
+     */
     public val expected: AssertionValue = AssertionValue.Unavailable,
+    /**
+     * The actual operand's rendering result.
+     */
     public val actual: AssertionValue = AssertionValue.Unavailable,
+    /**
+     * An underlying exception, such as the unexpected exception from assertFailsWith.
+     */
     public val cause: Throwable? = None
 ) : Throwable()
 
@@ -39,6 +73,9 @@ internal fun comparisonFailure(
     )
 }
 
+/**
+ * Always throws [AssertionFailure] with the optional message and caller location.
+ */
 public fun fail(
     message: String? = None,
     location: SourceLocation = currentSourceLocation()

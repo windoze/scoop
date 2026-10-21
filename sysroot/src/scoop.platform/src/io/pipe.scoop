@@ -3,17 +3,46 @@ package scoop.platform.io
 import scoop.platform.fs.File
 import scoop.platform.memory.NativeByteBuffer
 
+/**
+ * The owned read side of a native pipe.
+ */
 public class PipeSource internal constructor(internal val file: File) : ByteSource, Closeable {
+    /**
+     * Whether this owned resource has been closed.
+     */
     public val isClosed: Boolean get() = file.isClosed
+    /**
+     * Reads into the selected writable region, returning actual bytes and permitting short reads.
+     * Zero for a positive request denotes EOF.
+     */
     public override fun readInto(buffer: NativeByteBuffer, count: Long): Long = file.readInto(buffer, count)
+    /**
+     * Closes the owned native descriptor; subsequent I/O through this owner is invalid.
+     */
     public override fun close() { file.close() }
     internal fun borrowed(): ByteSource = BorrowedSource(file)
 }
 
+/**
+ * The owned write side of a native pipe.
+ */
 public class PipeSink internal constructor(internal val file: File) : ByteSink, Closeable {
+    /**
+     * Whether this owned resource has been closed.
+     */
     public val isClosed: Boolean get() = file.isClosed
+    /**
+     * Consumes the selected readable region, returning the actual accepted byte count and
+     * permitting short writes.
+     */
     public override fun writeFrom(buffer: NativeByteBuffer, count: Long): Long = file.writeFrom(buffer, count)
+    /**
+     * Checks the unbuffered pipe endpoint state; it does not wait for the reader to consume bytes.
+     */
     public override fun flush() { file.flush() }
+    /**
+     * Closes the owned native descriptor; subsequent I/O through this owner is invalid.
+     */
     public override fun close() { file.close() }
     internal fun borrowed(): ByteSink = BorrowedSink(file)
 }
@@ -26,8 +55,25 @@ private class BorrowedSink(private val file: File) : ByteSink {
     public override fun flush() { file.flush() }
 }
 
-public class Pipe private constructor(public val source: PipeSource, public val sink: PipeSink) {
+/**
+ * A native pipe with independently owned read and write endpoints.
+ */
+public class Pipe private constructor(
+    /**
+     * The read endpoint, which the caller must close.
+     */
+    public val source: PipeSource,
+    /**
+     * The write endpoint, which the caller must close.
+     */
+    public val sink: PipeSink) {
+    /**
+     * Creates native pipes with separate endpoint ownership.
+     */
     public companion object {
+        /**
+         * Creates a pipe and returns both owned endpoints.
+         */
         public fun open(): Pipe {
             val pipe = Pipe(PipeSource(File.newOwner()), PipeSink(File.newOwner()))
             val descriptors = MutableArray<Int>(2L) { -1 }

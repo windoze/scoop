@@ -1,3 +1,6 @@
+/**
+ * The caller's source file, one-based line and column, and enclosing function and type names.
+ */
 public struct SourceLocation(
     val file: String,
     val line: Long,
@@ -6,5 +9,7 @@ public struct SourceLocation(
     val typeName: String
 )
 
+/** Returns the source location of this call. */
+@DocAlias("source position")
 @Intrinsic("current_source_location")
 public fun currentSourceLocation(): SourceLocation

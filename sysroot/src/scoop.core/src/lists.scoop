@@ -1,24 +1,63 @@
+/**
+ * A finite iterable collection with a Long element count.
+ */
 public interface Collection<T> : Iterable<T> {
+    /**
+     * The number of elements currently in the collection.
+     */
     public val size: Long
 }
 
+/**
+ * An ordered collection with zero-based Long indexing.
+ */
 public interface List<T> : Collection<T>, IndexGet<Long, T> {
+    /**
+     * Returns the element at a zero-based index; an index outside the list bounds is invalid.
+     */
     public override operator fun get(index: Long): T
 }
 
+/**
+ * An ordered collection supporting element replacement, insertion, removal, and clearing.
+ */
 public interface MutableList<T> : List<T>, IndexSet<Long, T> {
+    /**
+     * Replaces the element at an existing zero-based index without changing the size.
+     */
     public override operator fun set(index: Long, value: T): Unit
+    /**
+     * Appends an element, or inserts it at the supplied position and shifts later elements.
+     */
     public fun add(value: T): Unit
+    /**
+     * Appends an element, or inserts it at the supplied position and shifts later elements.
+     */
     public fun add(index: Long, value: T): Unit
+    /**
+     * Removes and returns the element at the supplied index, shifting later elements toward the
+     * beginning.
+     */
     public fun removeAt(index: Long): T
+    /**
+     * Removes every element from the list.
+     */
     public fun clear(): Unit
 }
 
+/**
+ * Copies the list in index order into an independent immutable array. Elements are shallow-copied;
+ * this is not a concurrent snapshot.
+ */
 public fun <T> List<T>.toArray(): Array<T> {
     val count = size
     return Array<T>(count) { index -> this[index] }
 }
 
+/**
+ * Copies the list in index order into an independent mutable array. Later container mutations are
+ * independent.
+ */
 public fun <T> List<T>.toMutableArray(): MutableArray<T> {
     val count = size
     return MutableArray<T>(count) { index -> this[index] }

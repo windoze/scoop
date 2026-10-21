@@ -1,5 +1,12 @@
+/**
+ * The terminal exception used for cooperative job cancellation.
+ */
 public class CancellationException public constructor() : Exception(Some("task was cancelled"))
 
+/**
+ * Tracks a coroutine and its structured children. Completion waits for children; cancellation
+ * requests propagate to children and registered handlers.
+ */
 public open class Job internal constructor(parent: Job?, private val propagatesFailure: Boolean = true) {
     private val lock: CoroutineLock = CoroutineLock()
     private var parent: Job? = parent
@@ -12,9 +19,18 @@ public open class Job internal constructor(parent: Job?, private val propagatesF
     private var cancellation: CancellationException? = None
     private var failure: Throwable? = None
 
+    /**
+     * Whether the job and its children have reached a terminal state.
+     */
     public val isCompleted: Boolean get() = lock.withLock { completed }
+    /**
+     * Whether cancellation has been requested for this job.
+     */
     public val isCancelled: Boolean get() = lock.withLock { !coroutineAbsent(cancellation) }
 
+    /**
+     * Throws the job's cancellation exception when cancellation has been requested.
+     */
     public fun ensureActive() {
         val reason = lock.withLock { cancellation }
         when (reason) {
@@ -23,8 +39,16 @@ public open class Job internal constructor(parent: Job?, private val propagatesF
         }
     }
 
+    /**
+     * Requests cancellation of this job and its children. Repeated requests preserve the existing
+     * cancellation outcome.
+     */
     public fun cancel() { requestCancellation(None) }
 
+    /**
+     * Registers a cancellation handler and returns a disposable registration; an already-cancelled
+     * job invokes it immediately.
+     */
     public fun invokeOnCancellation(handler: (CancellationException) -> Unit): Disposable {
         val (listener, callNow, tracked) = lock.withLock {
             if (!coroutineAbsent(cancellation)) {
@@ -174,6 +198,10 @@ public open class Job internal constructor(parent: Job?, private val propagatesF
         }
     }
 
+    /**
+     * Suspends until this job completes, including its children. Joining does not retrieve a
+     * deferred result.
+     */
     public suspend fun join() {
         suspendCancellableCoroutine<Unit> { continuation ->
             val listener = onCompletion { continuation.tryResume(Unit) }

@@ -2,15 +2,36 @@ package scoop.terminal.style
 
 import scoop.terminal.Command
 
+/**
+ * Sets the foreground color subject to the library color-output policy.
+ */
 public struct SetForegroundColor(val color: Color) : Command {
+    /**
+     * Writes this command's ANSI representation to the supplied writer without flushing it.
+     * Parameter validation happens before or during serialization.
+     */
     public override fun writeAnsi(writer: TextWriter) { writeColor(writer, Colored.ForegroundColor(color)) }
 }
 
+/**
+ * Sets the background color subject to the library color-output policy.
+ */
 public struct SetBackgroundColor(val color: Color) : Command {
+    /**
+     * Writes this command's ANSI representation to the supplied writer without flushing it.
+     * Parameter validation happens before or during serialization.
+     */
     public override fun writeAnsi(writer: TextWriter) { writeColor(writer, Colored.BackgroundColor(color)) }
 }
 
+/**
+ * Sets the underline color subject to the library color-output policy.
+ */
 public struct SetUnderlineColor(val color: Color) : Command {
+    /**
+     * Writes this command's ANSI representation to the supplied writer without flushing it.
+     * Parameter validation happens before or during serialization.
+     */
     public override fun writeAnsi(writer: TextWriter) { writeColor(writer, Colored.UnderlineColor(color)) }
 }
 
@@ -19,7 +40,14 @@ private fun writeColor(writer: TextWriter, color: Colored) {
     if (isColorOutputEnabled()) writer.write("\u001b[" + parameters + "m")
 }
 
+/**
+ * Sets the present foreground/background selections, preserving absent channels.
+ */
 public struct SetColors(val colors: Colors) : Command {
+    /**
+     * Writes this command's ANSI representation to the supplied writer without flushing it.
+     * Parameter validation happens before or during serialization.
+     */
     public override fun writeAnsi(writer: TextWriter) {
         val foreground = when (colors.foreground) {
             case Some(color) -> Colored.ForegroundColor(color).toAnsiString()
@@ -36,6 +64,13 @@ public struct SetColors(val colors: Colors) : Command {
     }
 }
 
+/**
+ * Emits the full SGR reset, restoring rendition defaults.
+ */
 public object ResetColor : Command {
+    /**
+     * Writes this command's ANSI representation to the supplied writer without flushing it.
+     * Parameter validation happens before or during serialization.
+     */
     public override fun writeAnsi(writer: TextWriter) { writer.write("\u001b[0m") }
 }

@@ -119,11 +119,7 @@ pub fn type_name(module: &Module, ty: TypeId) -> String {
     type_name_with_params(module, ty, &[])
 }
 
-pub(crate) fn type_name_with_params(
-    module: &Module,
-    ty: TypeId,
-    params: &[TypeParamDecl],
-) -> String {
+pub fn type_name_with_params(module: &Module, ty: TypeId, params: &[TypeParamDecl]) -> String {
     match &module.types[ty] {
         Type::Unit => "Unit".to_string(),
         Type::Integer(kind) => kind.canonical_name().to_string(),

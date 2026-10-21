@@ -6,6 +6,7 @@
 缺少工具、期望文件、未知字段、嵌套类型错误、重复载体与前向步骤引用均报配置／环境错误。
 Python 3.11+ 只用标准库；格式化／lint 使用 `tests/requirements-dev.txt` 固定的 Ruff。
 默认最多并行运行四个用例，可用 `--jobs N` 调整，`--jobs 1` 顺序运行。
+大型 HTTP 客户端集成用例及 WebSocket 生命周期用例的编译步骤显式使用 900 秒时限，以覆盖较慢宿主上的完整编译；运行、诊断和缓存断言仍按各用例原有规则执行。
 正式 CLI 验证使用按 [准备脚本说明](../../scripts/README.md) 事先准备的开发 sysroot；
 设置 `SCOOP_SYSROOT="$PWD/sysroot"` 后再运行。runner 保留源码与工具，并复制正常资源布局，
 不自动调用 sysroot 准备、LLVM 构建或打包脚本。
@@ -125,6 +126,7 @@ stdin 默认空；cwd 默认 `${work}`；env 继承调用者并应用显式键�
 stdout/stderr 也可显式声明 `{snapshot = "symbols.${target}.txt"}`，沿用 snapshot
 更新规则；正常验收仍比较完整原始字节。仅用于小而受控的结构或工具输出专测；普通功能用例不保存完整符号表。
 `json = "stderr"` 解析 Scoop schema 1 前缀，遇到成功结果即停止，后续字节归程序。
+`scoop doc` 返回 `documentation` 结果，包含站点入口、各 Cone 入口、渲染更新状态和实际编译调用。
 这种模式必须声明完整 `diagnostics` 数组或 JSON 期望文件；仅剥离 display，不改变
 canonical source、span、code、message 或 notes。stdout/stderr 仍严格比较剩余原始字节。
 `json = "stdout"` 用于普通工具的逐行 JSON，保留原 stdout。步骤结果还包含

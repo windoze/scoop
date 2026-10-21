@@ -3,9 +3,16 @@ package scoop.platform.concurrent
 import scoop.platform.io.checkNativeStatus
 import scoop.platform.io.failNative
 
+/**
+ * An owned native mutex. Pair lock/unlock on the owning thread or use withLock; dispose only when
+ * no operation or held lock remains.
+ */
 public class Mutex : Disposable {
     private var native: Ptr<Unit>? = None
     private val active: AtomicLong = AtomicLong(0L)
+    /**
+     * Whether the native mutex has been released.
+     */
     public val isDisposed: Boolean get() = native == None
 
     public constructor() {
@@ -23,6 +30,9 @@ public class Mutex : Disposable {
         finally { active.fetchSub(1L, MemoryOrder.Relaxed) }
     }
 
+    /**
+     * Blocks until this thread acquires the mutex.
+     */
     public fun lock() {
         withNative { pointer ->
             @Unsafe {
@@ -32,6 +42,9 @@ public class Mutex : Disposable {
         }
     }
 
+    /**
+     * Attempts acquisition without blocking and returns whether this thread acquired the mutex.
+     */
     public fun tryLock(): Boolean = withNative { pointer ->
         @Unsafe {
             val (status, error) = nativeMutexLock(pointer, true)
@@ -40,6 +53,9 @@ public class Mutex : Disposable {
         }
     }
 
+    /**
+     * Releases the mutex held by this thread.
+     */
     public fun unlock() {
         withNative { pointer ->
             @Unsafe {
@@ -49,12 +65,18 @@ public class Mutex : Disposable {
         }
     }
 
+    /**
+     * Runs the block under the mutex and unlocks on both normal and exceptional exit.
+     */
     public fun <T> withLock(block: () -> T): T {
         lock()
         try { return block() }
         finally { unlock() }
     }
 
+    /**
+     * Destroys the native mutex when it is no longer in use.
+     */
     public override fun dispose() {
         if (native == None) return
         if (active.load(MemoryOrder.Relaxed) != 0L) throw IllegalStateException(Some("mutex operation is active"))

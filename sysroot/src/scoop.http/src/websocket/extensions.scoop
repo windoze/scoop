@@ -2,19 +2,43 @@ package scoop.http
 
 import scoop.collections.emptyList
 
+/**
+ * A normalized WebSocket extension parameter with an optional value and quoted-string source flag.
+ */
 public class WebSocketExtensionParameter public constructor(
     name: String, value: String? = None, quoted: Boolean = false
 ) {
+    /**
+     * The normalized extension parameter name.
+     */
     public val name: String = webSocketToken(name)
+    /**
+     * The optional decoded parameter value.
+     */
     public val value: String? = when (value) { case Some(text) -> Some(webSocketToken(text)); case None -> None }
+    /**
+     * Whether the source parameter used quoted-string syntax.
+     */
     public val wasQuoted: Boolean = quoted
 }
 
+/**
+ * An extension token and its ordered parameters from Sec-WebSocket-Extensions.
+ */
 public class WebSocketExtension public constructor(name: String,
     parameters: List<WebSocketExtensionParameter> = emptyList<WebSocketExtensionParameter>()) {
+    /**
+     * The normalized extension token.
+     */
     public val name: String = webSocketToken(name)
+    /**
+     * Parameters in their stored order.
+     */
     public val parameters: Array<WebSocketExtensionParameter> = parameters.toArray()
 
+    /**
+     * Serializes this extension and its parameters as field-value bytes.
+     */
     public fun toByteArray(): Array<Byte> {
         val output = StringBuilder().append(name)
         for (parameter in parameters) {
@@ -32,15 +56,36 @@ public class WebSocketExtension public constructor(name: String,
         return output.toString().toByteArray()
     }
 
+    /**
+     * Builds a Sec-WebSocket-Extensions field.
+     */
     public fun toHttpField(): HttpField = HttpField("Sec-WebSocket-Extensions".toByteArray(), toByteArray())
 
+    /**
+     * Parsing extension lists from values or fields.
+     */
     public companion object {
+        /**
+         * Parses the complete extension list, rejecting malformed syntax.
+         */
         public fun parse(value: List<Byte>): Array<WebSocketExtension> = readWebSocketExtensions(value)
+        /**
+         * Parses the complete extension list, rejecting malformed syntax.
+         */
         public fun parse(value: String): Array<WebSocketExtension> = parse(value.toByteArray())
+        /**
+         * Parses the extension list or returns None for a field parse error.
+         */
         public fun parseOrNone(value: List<Byte>): Array<WebSocketExtension>? {
             try { return Some(parse(value)) } catch (_: HttpFieldParseException) { return None }
         }
+        /**
+         * Parses the extension list or returns None for a field parse error.
+         */
         public fun parseOrNone(value: String): Array<WebSocketExtension>? = parseOrNone(value.toByteArray())
+        /**
+         * Parses all Sec-WebSocket-Extensions fields in order.
+         */
         public fun parseFields(fields: List<HttpField>): Array<WebSocketExtension> {
             val result = ArrayList<WebSocketExtension>()
             for (field in fields.findAll("Sec-WebSocket-Extensions".toByteArray()))

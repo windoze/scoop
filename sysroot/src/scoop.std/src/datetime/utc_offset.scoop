@@ -2,11 +2,31 @@ package scoop.datetime
 
 import scoop.decodeTextValue
 
-public class UtcOffset private constructor(public val totalSeconds: Int)
+/**
+ * A fixed signed offset from UTC, at one-second resolution and within 18 hours in either
+ * direction. This is not a time-zone rule database.
+ */
+public class UtcOffset private constructor(
+    /**
+     * Signed seconds east of UTC.
+     */
+    public val totalSeconds: Int)
     : Equals<UtcOffset>, Compare<UtcOffset>, Hash, ToString {
+    /**
+     * Compares the stored value components for equality.
+     */
     public override operator fun equals(other: UtcOffset): Boolean = totalSeconds == other.totalSeconds
+    /**
+     * Orders values by their chronological or numeric value; only the result sign is significant.
+     */
     public override operator fun compareTo(other: UtcOffset): Long = totalSeconds.compareTo(other.totalSeconds)
+    /**
+     * Computes a hash consistent with component equality.
+     */
     public override fun hash(): Long = totalSeconds.hash()
+    /**
+     * Formats this value as Z or a signed HH:MM offset with optional seconds.
+     */
     public override fun toString(): String {
         if (totalSeconds == 0) return "Z"
         val magnitude = if (totalSeconds < 0) -totalSeconds else totalSeconds
@@ -14,16 +34,34 @@ public class UtcOffset private constructor(public val totalSeconds: Int)
             calendarTwoDigits(magnitude / 60 % 60)
         return if (magnitude % 60 == 0) base else base + ":" + calendarTwoDigits(magnitude % 60)
     }
+    /**
+     * Value construction and serialization helpers.
+     */
     public companion object : ValueEncoder<UtcOffset>, ValueDecoder<UtcOffset> {
+        /**
+         * Encodes the value as its canonical text representation.
+         */
         public override fun encode(value: UtcOffset, encoder: Encoder) { encoder.singleValue().writeString(value.toString()) }
+        /**
+         * Reads a string value and validates it using this type's parser.
+         */
         public override fun decode(decoder: Decoder): UtcOffset =
             decodeTextValue<UtcOffset>(decoder, { text -> parseOrNone(text) }, "UTC offset")
 
+        /**
+         * The zero UTC offset.
+         */
         public val ZERO: UtcOffset = UtcOffset(0)
+        /**
+         * Constructs a fixed offset in -64800..64800 seconds.
+         */
         public fun fromTotalSeconds(value: Int): UtcOffset {
             if (value < -64800 || value > 64800) throw IllegalArgumentException(Some("offset exceeds 18 hours"))
             return UtcOffset(value)
         }
+        /**
+         * Combines offset components of consistent sign, rejecting totals beyond 18 hours.
+         */
         public fun fromHoursMinutesSeconds(hours: Int = 0, minutes: Int = 0, seconds: Int = 0): UtcOffset {
             if (hours < -18 || hours > 18 || minutes < -59 || minutes > 59 || seconds < -59 || seconds > 59 ||
                 ((hours < 0 || minutes < 0 || seconds < 0) && (hours > 0 || minutes > 0 || seconds > 0))) {
@@ -31,6 +69,10 @@ public class UtcOffset private constructor(public val totalSeconds: Int)
             }
             return fromTotalSeconds(hours * 3600 + minutes * 60 + seconds)
         }
+        /**
+         * Parses Z or a signed HH:MM offset with optional seconds, returning None for malformed or
+         * out-of-range input.
+         */
         public fun parseOrNone(text: String): UtcOffset? {
             if (text == "Z") return Some(ZERO)
             val chars = text.toCharArray()
@@ -47,6 +89,10 @@ public class UtcOffset private constructor(public val totalSeconds: Int)
             if (total > 64800) return None
             return Some(UtcOffset(if (chars[0L] == '-') -total else total))
         }
+        /**
+         * Parses Z or a signed HH:MM offset with optional seconds or throws
+         * IllegalArgumentException for invalid input.
+         */
         public fun parse(text: String): UtcOffset = when (parseOrNone(text)) {
             case Some(value) -> value
             case None -> throw IllegalArgumentException(Some("invalid UTC offset"))

@@ -49,7 +49,7 @@ python3 scripts/prepare_sysroot.py \
 
 ## 手工生成工具包
 
-`package_toolchain.py` 构建三个 release 宿主命令、准备该宿主支持的目标资源，并生成工具包与 LLVM 源码包。默认工作位置为 `tmp/package/<host>`，归档位于 `tmp/dist`；用 `--work-dir`、`--output-dir` 可选择外置盘目录。脚本不自动运行测试。
+`package_toolchain.py` 构建三个 release 宿主命令、准备该宿主支持的目标资源，为全部内置库生成 API 文档，再生成工具包与 LLVM 源码包。默认工作位置为 `tmp/package/<host>`，归档位于 `tmp/dist`；用 `--work-dir`、`--output-dir` 可选择外置盘目录。脚本不自动运行测试。
 
 ```sh
 python3 scripts/package_toolchain.py --jobs 6
@@ -62,5 +62,9 @@ musl 的 C 开发环境也需要 Linux UAPI 头。Debian／Ubuntu 的 `musl-gcc`
 LLVM 源码与归档默认取 vendor 的固定版本位置，也可传入 `--llvm-source` 和 `--llvm-archive`。已经用 `build_llvm.py` 准备的宿主 LLVM 可通过 `--llvm-prefix` 复用；省略时脚本在自己的工作目录构建。`--version` 和 `--revision` 可显式设置发行标识，默认采用配置版本与当前 Git revision，存在未提交修改时标注 `+modified`。
 
 脚本读取宿主命令的实际动态依赖，将所需非系统库复制到 `libexec/llvm/lib`，设置相对加载路径。目标资源和许可说明按实际组件收集；归档在完整写入后才替换同名文件。安装方法、系统开发环境要求及升级说明随包放在 `share/scoop`。
+
+文档使用本次配套 `scoop`／`scoopc`，显式选择 `sysroot/src/*/Cone.toml` 的全部生产库，以 `--no-deps --deny-doc-warnings` 为每个发行目标生成共同站点。嵌套测试／辅助 Cone 不进入发行清单。工作目录下的 `documentation/<target>`、`doc-target` 和普通 `cache` 保留更新结果；重复打包复用未变化的文档，随后复制到组装目录。站点更新记录只保留在工作目录，不放入发行包。所有目标的文档成功后才开始归档，文档失败保留上一次完整归档。
+
+安装根的 `docs/index.html` 提供目标选择，具体站点位于 `docs/<canonical-target-triple>/`。Darwin 包包含 Darwin 站点；Linux 包包含 GNU／musl 两个站点。源码原文嵌入 HTML，搜索和资源均在本地；`.slib` 不保存完整源码。手工验收时检查解压后的目标及库清单、跨库链接、源码页、离线搜索与重复生成的复用情况；详细范围见 [M60 设计](../docs/milestone60/DESIGN.md)。
 
 手工验证发布包时，将归档解压到新的目录，可使用带空格路径；保留源码、原工具和原产物。运行三个命令的版本查询，检查实际加载的私有 LLVM，再用空缓存完成含 native／泛型／GC 的应用、crypto／TLS、普通库测试和两个 link 入口，重复构建检查复用。Linux 还应覆盖 GNU 与 musl 的既有链接模式。常规 fixture 使用已准备的开发 sysroot，不执行打包或解压步骤。具体结果记录在 [M52 实施记录](../docs/milestone52/PROGRESS.md)。

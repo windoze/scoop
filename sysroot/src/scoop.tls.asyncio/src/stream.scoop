@@ -5,9 +5,23 @@ import scoop.platform.memory.NativeByteBuffer
 import scoop.tls.*
 import scoop.tls.native.TlsEngine
 
+/**
+ * A TLS stream integrated with the current event loop and structured cancellation. The stream owns
+ * its transport after adoption and exposes plaintext through [AsyncByteStream].
+ *
+ * [close] waits for local cleanup. Use [shutdownGracefully] to exchange TLS close notifications.
+ */
 public class AsyncTlsStream internal constructor(private val state: TlsConnection) : AsyncByteStream, AsyncCloseable {
+    /**
+     * Adopts a duplex asynchronous transport and completes its TLS handshake.
+     */
     public companion object {
         // Completes the handshake; ownership transfers when its request is registered.
+        /**
+         * Completes a client handshake for the expected peer on the current event loop and job.
+         * Transport ownership transfers when the handshake request is registered; subsequent
+         * failure or cancellation cleans it up.
+         */
         public suspend fun <T> takeOwnershipAsClient(transport: T, context: TlsClientContext, peer: TlsPeerName): AsyncTlsStream
             where T : AsyncByteStream, T : AsyncCloseable {
             val loop = currentEventLoop()
@@ -16,6 +30,11 @@ public class AsyncTlsStream internal constructor(private val state: TlsConnectio
         }
 
         // Completes the handshake; ownership transfers when its request is registered.
+        /**
+         * Completes a server handshake on the current event loop and job. Transport ownership
+         * transfers when the handshake request is registered; subsequent failure or cancellation
+         * cleans it up.
+         */
         public suspend fun <T> takeOwnershipAsServer(transport: T, context: TlsServerContext): AsyncTlsStream
             where T : AsyncByteStream, T : AsyncCloseable {
             val loop = currentEventLoop()
@@ -24,16 +43,41 @@ public class AsyncTlsStream internal constructor(private val state: TlsConnectio
         }
     }
 
+    /**
+     * Whether the connection has finished local cleanup.
+     */
     public val isClosed: Boolean get() = state.lock.withLock { state.closed }
+    /**
+     * The negotiated TLS version and ALPN; access fails with [IoClosedException] once closing
+     * begins.
+     */
     public val connectionInfo: TlsConnectionInfo get() = state.lock.withLock {
         if (state.closing) throw IoClosedException()
         state.engine.connectionInfo
     }
 
+    /**
+     * Suspends until plaintext can be read into the requested writable buffer region. The returned
+     * count records actual progress.
+     */
     public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long = request(state, RequestKind.Read, Some(buffer), count)
+    /**
+     * Suspends while writing a prefix of readable plaintext and advances the buffer by actual
+     * progress. Repeat to send the entire input.
+     */
     public override suspend fun writeFrom(buffer: NativeByteBuffer, count: Long): Long = request(state, RequestKind.Write, Some(buffer), count)
+    /**
+     * Suspends until pending ciphertext has been drained and the underlying stream flushed.
+     */
     public override suspend fun flush() { request(state, RequestKind.Flush, None, 0L) }
+    /**
+     * Exchanges TLS close notifications and then closes the owned connection, suspending while
+     * protocol I/O is required.
+     */
     public suspend fun shutdownGracefully() { request(state, RequestKind.Shutdown, None, 0L) }
     // Waits for local cleanup; use shutdownGracefully for the TLS close handshake.
+    /**
+     * Waits for local transport and engine cleanup without performing a TLS close handshake.
+     */
     public override suspend fun close() { closeConnection(state) }
 }

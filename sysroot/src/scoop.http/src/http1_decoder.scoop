@@ -2,18 +2,66 @@ package scoop.http
 
 import scoop.platform.memory.NativeByteBuffer
 
+/**
+ * One decoded HTTP/1 event. A message head is followed by body/trailer events and End; Switch
+ * marks transfer to another protocol.
+ */
 public enum Http1Event {
-    Request(HttpRequestHead), Response(HttpResponseHead), Data(Array<Byte>),
-    Trailers(Array<HttpField>), End(Boolean), Switch
+    /**
+     * A complete incoming request head.
+     */
+    Request(HttpRequestHead),
+        /**
+         * An incoming response head, including informational responses.
+         */
+        Response(HttpResponseHead),
+        /**
+         * An owned body-byte chunk.
+         */
+        Data(Array<Byte>),
+    /**
+     * Ordered trailer fields after the body.
+     */
+    Trailers(Array<HttpField>),
+        /**
+         * The current message ended; the Boolean indicates that the connection must close.
+         */
+        End(Boolean),
+        /**
+         * The decoder reached a protocol-switch boundary and leaves the unread suffix in the input
+         * buffer.
+         */
+        Switch
 }
 
+/**
+ * Input bytes consumed and messages started in this call, including partial start lines and
+ * informational responses; zero input yields two zero counts.
+ */
 public struct Http1ReceiveResult(val count: Long, val startedMessages: Long)
 
-public class Http1Decoder private constructor(private var handle: ULong, public val role: HttpRole) : Closeable {
+/**
+ * An incremental in-memory HTTP/1 decoder. Register client request methods in order, feed bytes,
+ * and drain events; serialize operations on one instance and close it explicitly.
+ */
+public class Http1Decoder private constructor(private var handle: ULong,
+    /**
+     * The fixed client/server role of this codec.
+     */
+    public val role: HttpRole) : Closeable {
+    /**
+     * Factories for explicitly owned client/server codec instances.
+     */
     public companion object {
+        /**
+         * Creates a client codec with the selected receive options and local limits.
+         */
         public fun client(options: Http1ReceiveOptions = Http1ReceiveOptions(), limits: Http1Limits = Http1Limits()): Http1Decoder =
             create(HttpRole.Client, options, limits)
 
+        /**
+         * Creates a server codec with the selected receive options and local limits.
+         */
         public fun server(options: Http1ReceiveOptions = Http1ReceiveOptions(), limits: Http1Limits = Http1Limits()): Http1Decoder =
             create(HttpRole.Server, options, limits)
 
@@ -28,7 +76,13 @@ public class Http1Decoder private constructor(private var handle: ULong, public 
         }
     }
 
+    /**
+     * Whether its state has been released.
+     */
     public val isClosed: Boolean get() = handle == 0UL
+    /**
+     * Whether parsing stopped at a protocol-switch boundary.
+     */
     public val isSwitched: Boolean get() { @Unsafe { return http1Switched(nativeHandle()) != 0 } }
 
     private fun nativeHandle(): ULong {
@@ -41,6 +95,10 @@ public class Http1Decoder private constructor(private var handle: ULong, public 
             "llhttp 9.4.3", code, String.fromCString(http1Error(nativeHandle())), http1IsUnexpectedEof(code) != 0)
     }
 
+    /**
+     * Queues the exact request method before client response parsing, enabling HEAD and CONNECT
+     * response semantics.
+     */
     public fun expectResponse(method: List<Byte>) {
         val owned = nativeHandle()
         val bytes = method.toArray()
@@ -53,6 +111,10 @@ public class Http1Decoder private constructor(private var handle: ULong, public 
         }
     }
 
+    /**
+     * Consumes up to count readable input bytes, advancing the buffer by the returned count. Drain
+     * queued events after feeding input.
+     */
     public fun receive(buffer: NativeByteBuffer, count: Long = buffer.readableBytes): Long {
         val owned = nativeHandle()
         if (count < 0L || count > buffer.readableBytes) throw IllegalArgumentException(Some("invalid HTTP input count"))
@@ -67,16 +129,28 @@ public class Http1Decoder private constructor(private var handle: ULong, public 
         }
     }
 
+    /**
+     * Reports transport EOF and validates whether the protocol input ended cleanly.
+     */
     public fun endInput() { @Unsafe { check(http1End(nativeHandle()), "finish HTTP/1 input") } }
 
+    /**
+     * Consumes input and also reports how many messages started during this call.
+     */
     public fun receiveWithProgress(buffer: NativeByteBuffer, count: Long = buffer.readableBytes): Http1ReceiveResult {
         val consumed = receive(buffer, count)
         if (count == 0L) return Http1ReceiveResult(0L, 0L)
         @Unsafe { return Http1ReceiveResult(consumed, http1StartedMessages(nativeHandle())) }
     }
 
+    /**
+     * Resumes HTTP/1 parsing after the server declines a candidate upgrade.
+     */
     public fun resumeHttp1() { @Unsafe { check(http1Resume(nativeHandle()), "decline HTTP/1 upgrade", HttpFailureScope.Operation) } }
 
+    /**
+     * Removes the next queued event, or returns None when none is ready.
+     */
     public fun nextEvent(): Http1Event? {
         @Unsafe {
             val event = http1Next(nativeHandle())
@@ -98,6 +172,9 @@ public class Http1Decoder private constructor(private var handle: ULong, public 
         }
     }
 
+    /**
+     * Releases codec state without sending, finishing, or closing a transport.
+     */
     public override fun close() {
         val owned = handle
         handle = 0UL

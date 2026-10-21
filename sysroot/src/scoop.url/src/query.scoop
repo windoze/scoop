@@ -3,19 +3,48 @@ package scoop.url
 import scoop.text.*
 import scoop.collections.emptyList
 
+/**
+ * An independent byte snapshot of one query name and optional value. No value and an empty value
+ * remain distinct.
+ */
 public class UrlQueryParameter public constructor(name: List<Byte>, value: List<Byte>?) {
+    /**
+     * The copied raw bytes of the parameter name.
+     */
     public val nameBytes: Array<Byte> = name.toArray()
+    /**
+     * The copied raw value bytes, or None for a parameter with no equals/value component.
+     */
     public val valueBytes: Array<Byte>? = when (value) { case None -> None; case Some(bytes) -> Some(bytes.toArray()) }
+    /**
+     * Decodes the parameter name as strict UTF-8.
+     */
     public val name: String get() = urlUtf8(nameBytes, UrlComponent.Query)
+    /**
+     * Decodes a present value as strict UTF-8, retaining None for an absent value.
+     */
     public val value: String? get() = when (valueBytes) { case None -> None; case Some(bytes) -> Some(urlUtf8(bytes, UrlComponent.Query)) }
 }
 
+/**
+ * An immutable ordered query parameter collection preserving duplicates, absent values, and empty values.
+ * Text access requires valid UTF-8.
+ */
 public class UrlQuery public constructor(entries: List<UrlQueryParameter> = emptyList<UrlQueryParameter>()) : ToString {
+    /**
+     * An independent ordered snapshot of the query entries.
+     */
     public val entries: Array<UrlQueryParameter> = entries.toArray()
 
+    /**
+     * Returns a new query with a UTF-8 name and optional value appended, preserving earlier duplicates.
+     */
     public fun add(name: String, value: String? = None): UrlQuery =
         addBytes(name.toByteArray(), if (value == None) None else Some<List<Byte>>(value!!.toByteArray()))
 
+    /**
+     * Returns a new query with arbitrary name/value bytes appended, without requiring UTF-8.
+     */
     public fun addBytes(name: List<Byte>, value: List<Byte>? = None): UrlQuery {
         val next = ArrayList<UrlQueryParameter>()
         for (entry in entries) next.add(entry)
@@ -23,6 +52,9 @@ public class UrlQuery public constructor(entries: List<UrlQueryParameter> = empt
         return UrlQuery(next)
     }
 
+    /**
+     * Returns a new query without matching UTF-8 names, preserving other entries' order.
+     */
     public fun remove(name: String): UrlQuery {
         val bytes = name.toByteArray()
         val next = ArrayList<UrlQueryParameter>()
@@ -30,8 +62,14 @@ public class UrlQuery public constructor(entries: List<UrlQueryParameter> = empt
         return UrlQuery(next)
     }
 
+    /**
+     * Returns a new query with matching names removed and the replacement appended at the end.
+     */
     public fun set(name: String, value: String? = None): UrlQuery = remove(name).add(name, value)
 
+    /**
+     * Returns all matching values in order, preserving absent and empty values.
+     */
     public fun getAll(name: String): List<String?> {
         val bytes = name.toByteArray()
         val result = ArrayList<String?>()
@@ -39,6 +77,9 @@ public class UrlQuery public constructor(entries: List<UrlQueryParameter> = empt
         return result.toArray()
     }
 
+    /**
+     * Serializes with ordinary URI query escaping, where plus is not a space abbreviation.
+     */
     public override fun toString(): String = render(false)
 
     internal fun render(form: Boolean): String {
@@ -53,13 +94,29 @@ public class UrlQuery public constructor(entries: List<UrlQueryParameter> = empt
         return output.toString()
     }
 
+    /**
+     * Construction from an encoded query component.
+     */
     public companion object {
+        /**
+         * Parses an encoded query while preserving duplicate keys, ordering, absent values, and
+         * empty values.
+         */
         public fun parse(encodedQuery: String): UrlQuery = parseQuery(encodedQuery, false)
     }
 }
 
+/**
+ * The application/x-www-form-urlencoded codec, with plus representing a space.
+ */
 public object FormUrlEncoded {
+    /**
+     * Encodes parameters using form escaping and plus for spaces.
+     */
     public fun encode(parameters: UrlQuery): String = parameters.render(true)
+    /**
+     * Parses form data, decoding plus to space and retaining ordered duplicate entries.
+     */
     public fun parse(text: String): UrlQuery = parseQuery(text, true)
 }
 

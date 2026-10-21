@@ -1,7 +1,18 @@
 package scoop.asyncio
 
-public interface AsyncCloseable { public suspend fun close() }
+/**
+ * A resource whose cleanup may suspend until active native operations and borrows have finished.
+ */
+public interface AsyncCloseable {
+    /**
+     * Closes the resource under its implementation's cleanup and repeat-call contract.
+     */
+    public suspend fun close() }
 
+/**
+ * Runs the block and always awaits resource close. If the body and cleanup both fail,
+ * ResourceUseException retains both errors.
+ */
 public suspend fun <R : AsyncCloseable, T> R.useAsync(block: suspend (R) -> T): T {
     val result = try { block(this) }
     catch (primary: Throwable) {

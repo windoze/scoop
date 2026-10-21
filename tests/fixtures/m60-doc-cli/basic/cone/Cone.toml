@@ -1,0 +1,14 @@
+schema = 1
+
+sources = [
+  {path = "src"},
+  {path = "platform/darwin", when = {os = "darwin"}},
+  {path = "platform/gnu", when = {env = "gnu"}},
+  {path = "platform/musl", when = {env = "musl"}},
+]
+
+[cone]
+group = "dev.m60"
+name = "doc-basic"
+version = "0.1.0"
+kind = "library"

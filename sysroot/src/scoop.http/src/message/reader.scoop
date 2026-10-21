@@ -4,8 +4,26 @@ import scoop.bytes.ByteArrayBuilder
 import scoop.collections.HashSet
 import scoop.text.lowercaseAscii
 
+/**
+ * A structured-field syntax or interpretation error, retaining the field name and zero-based
+ * source byte offset.
+ */
 public class HttpFieldParseException public constructor(
-    public val field: String, public val byteOffset: Long, public val detail: String,
+    /**
+     * The HTTP field whose interpretation failed.
+     */
+    public val field: String,
+        /**
+         * The zero-based byte offset in the field input.
+         */
+        public val byteOffset: Long,
+        /**
+         * The parse or negotiation failure explanation.
+         */
+        public val detail: String,
+    /**
+     * The underlying failure when available.
+     */
     public val cause: Throwable? = None
 ) : Exception(Some(field + " at byte " + byteOffset.toString() + ": " + detail))
 

@@ -5,8 +5,19 @@ import scoop.platform.fs.Path
 import scoop.tls.*
 import scoop.tls.asyncio.openTlsClientContext
 
+/**
+ * A reusable structured HTTP/1 and HTTP/2 client bound to one event loop and owner scope. Close it
+ * before leaving that scope; responses and streaming sessions have explicit lifetimes.
+ */
 public class HttpClient internal constructor(internal val state: ClientState) : AsyncCloseable {
+    /**
+     * Factories for clients owned by a caller-provided coroutine scope.
+     */
     public companion object {
+        /**
+         * Creates a client on the current event loop and binds background work to scope; close it
+         * before the scope body exits.
+         */
         public suspend fun open(scope: CoroutineScope, config: HttpClientConfig = HttpClientConfig()): HttpClient {
             val loop = currentEventLoop()
             val caller = clientJob(loop, true)
@@ -38,26 +49,71 @@ public class HttpClient internal constructor(internal val state: ClientState) : 
         }
     }
 
+    /**
+     * Whether client shutdown has completed.
+     */
     public val isClosed: Boolean get() = state.lock.withLock { state.closed }
+    /**
+     * Waits for final response headers and returns an owned response, including non-2xx statuses.
+     * The call remains active through body and cleanup.
+     */
     public suspend fun execute(request: HttpRequest): HttpResponse = executeClientRequest(state, request)
+    /**
+     * Runs the block with a response and closes it on every exit; do not retain the response
+     * beyond the block.
+     */
     public suspend fun <T> withResponse(request: HttpRequest, block: suspend (HttpResponse) -> T): T =
         execute(request).useAsync(block)
+    /**
+     * Streams a successful response into a temporary file and atomically commits it to the
+     * explicit destination on completion.
+     */
     public suspend fun download(request: HttpRequest, destination: Path, options: HttpDownloadOptions = HttpDownloadOptions()): HttpDownloadResult =
         runClientDownload(state, request, destination, options)
+    /**
+     * Resumes an explicitly identified partial file using validation metadata, committing the
+     * final destination only after a complete response.
+     */
     public suspend fun resumeDownload(request: HttpRequest, destination: Path, resume: HttpResumeOptions,
         options: HttpDownloadOptions = HttpDownloadOptions()): HttpDownloadResult =
         runClientDownload(state, request, destination, options, Some(resume))
+    /**
+     * Opens an owned SSE source with explicit buffering and optional reconnection policy.
+     */
     public suspend fun openSse(request: HttpRequest, options: HttpSseOptions = HttpSseOptions()): HttpEventSource =
         openClientSse(state, request, options)
+    /**
+     * Runs a block with an SSE source and closes it on every exit.
+     */
     public suspend fun <T> withSse(request: HttpRequest, options: HttpSseOptions = HttpSseOptions(),
         block: suspend (HttpEventSource) -> T): T = openSse(request, options).useAsync(block)
+    /**
+     * Performs an HTTP/1.1 upgrade and returns an owned session or a consumable rejection
+     * response.
+     */
     public suspend fun openWebSocket(request: HttpWebSocketRequest, options: HttpWebSocketOptions = HttpWebSocketOptions()): HttpWebSocketResult =
         openClientWebSocket(state, request, options)
+    /**
+     * Runs a block with the upgrade result and closes the session or rejection response on every
+     * exit.
+     */
     public suspend fun <T> withWebSocket(request: HttpWebSocketRequest, options: HttpWebSocketOptions = HttpWebSocketOptions(),
         block: suspend (HttpWebSocketResult) -> T): T = openWebSocket(request, options).useAsync(block)
+    /**
+     * Clears cached authentication state for this provider, so subsequent calls reload credentials
+     * or tokens.
+     */
     public fun clearAuthenticationCache(authenticator: HttpAuthenticator) { clearClientAuthenticationCache(state, authenticator) }
+    /**
+     * Cancels and awaits active calls, sessions, connections, and cleanup; closing from work that
+     * would await itself is rejected.
+     */
     public override suspend fun close() { closeClient(state) }
 }
 
+/**
+ * Creates a scoped client, runs the block, and closes it on every exit while awaiting active calls
+ * and cleanup.
+ */
 public suspend fun <T> withHttpClient(config: HttpClientConfig = HttpClientConfig(), block: suspend (HttpClient) -> T): T =
     coroutineScope suspend { scope -> HttpClient.open(scope, config).useAsync(block) }

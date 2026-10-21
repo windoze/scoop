@@ -5,13 +5,32 @@ import scoop.http.HttpResponseHead
 import scoop.url.Url
 import scoop.url.UrlOrigin
 
+/**
+ * Suspendable request-cookie selection and response-cookie storage. Implementations define
+ * persistence and context policy.
+ */
 public interface CookieJar {
+    /**
+     * Selects cookie pairs for the request URL and available request context.
+     */
     public suspend fun load(request: HttpRequest): HttpCookieHeader
+    /**
+     * Processes each response Set-Cookie field for the request URL.
+     */
     public suspend fun save(request: HttpRequest, response: HttpResponseHead)
 }
 
+/**
+ * The initiating site and top-level-navigation context used when a cookie jar enforces SameSite.
+ */
 public class HttpCookieContext public constructor(
+    /**
+     * The initiating site URL used for schemeful SameSite comparison, when known.
+     */
     public val site: Url? = None,
+    /**
+     * Whether this request is a top-level navigation.
+     */
     public val isTopLevelNavigation: Boolean = false
 ) {
     internal val origin: UrlOrigin? = if (clientPresent(site)) Some(site!!.httpOrigin()) else None

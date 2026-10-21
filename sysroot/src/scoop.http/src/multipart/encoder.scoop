@@ -3,16 +3,37 @@ package scoop.http
 import scoop.bytes.ByteArrayBuilder
 import scoop.platform.memory.NativeByteBuffer
 
-public class MultipartEncoder public constructor(public val boundary: MultipartBoundary) : Closeable {
+/**
+ * An in-memory multipart writer with explicit beginPart, body, endPart, and final finish. It
+ * performs no transport I/O and close does not emit a closing boundary.
+ */
+public class MultipartEncoder public constructor(
+    /**
+     * The validated delimiter boundary used by this codec.
+     */
+    public val boundary: MultipartBoundary) : Closeable {
     private val guard: MultipartGuard = MultipartGuard()
     private var part: MultipartPartHead? = None
     private var written: Long = 0L
     private var closed: Boolean = false
     private var finished: Boolean = false
+    /**
+     * Whether this codec has been closed.
+     */
     public val isClosed: Boolean get() = closed
+    /**
+     * Whether the codec has completed its terminal operation and, for a decoder, drained pending
+     * events.
+     */
     public val isFinished: Boolean get() = finished
+    /**
+     * Whether a part is waiting for endPart.
+     */
     public val isPartOpen: Boolean get() = when (part) { case Some(_) -> true; case None -> false }
 
+    /**
+     * Emits the boundary and validated part headers; the previous part must already be ended.
+     */
     public fun beginPart(head: MultipartPartHead): Array<Byte> = guard.withUse {
         requireOpen()
         if (isPartOpen) throw IllegalStateException(Some("multipart part is still open"))
@@ -23,6 +44,9 @@ public class MultipartEncoder public constructor(public val boundary: MultipartB
         output
     }
 
+    /**
+     * Consumes and returns part-body bytes, rejecting writes beyond a declared body length.
+     */
     public fun writeBody(buffer: NativeByteBuffer, count: Long = buffer.readableBytes): Array<Byte> = guard.withUse {
         requireOpen()
         val head = part ?: throw IllegalStateException(Some("multipart part is not open"))
@@ -36,6 +60,9 @@ public class MultipartEncoder public constructor(public val boundary: MultipartB
         bytes
     }
 
+    /**
+     * Emits the part terminator after checking its declared body length is complete.
+     */
     public fun endPart(): Array<Byte> = guard.withUse {
         requireOpen()
         val head = part ?: throw IllegalStateException(Some("multipart part is not open"))
@@ -46,6 +73,9 @@ public class MultipartEncoder public constructor(public val boundary: MultipartB
         output
     }
 
+    /**
+     * Emits the final closing boundary; no part may remain open.
+     */
     public fun finish(): Array<Byte> = guard.withUse {
         requireOpen()
         if (isPartOpen) throw IllegalStateException(Some("multipart part is still open"))
@@ -54,6 +84,9 @@ public class MultipartEncoder public constructor(public val boundary: MultipartB
         output
     }
 
+    /**
+     * Releases local state without emitting bytes or finishing an incomplete message.
+     */
     public override fun close() {
         guard.withUse { closed = true; part = None; Unit }
     }
@@ -62,7 +95,14 @@ public class MultipartEncoder public constructor(public val boundary: MultipartB
         if (closed || finished) throw IllegalStateException(Some("multipart encoder is closed or finished"))
     }
 
+    /**
+     * Helpers for determining total encoded multipart length.
+     */
     public companion object {
+        /**
+         * Computes exact framing plus body length with checked overflow, or None if any part
+         * length is unknown.
+         */
         public fun contentLength(boundary: MultipartBoundary, parts: List<MultipartPartHead>): Long? {
             var total = boundary.bytes.size + 6L
             var known = true

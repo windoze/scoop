@@ -4,21 +4,46 @@ import scoop.platform.io.*
 import scoop.platform.memory.*
 import scoop.tls.native.TlsEngine
 
+/**
+ * A synchronous TLS byte stream that owns its transport and native TLS state. Construction
+ * completes the handshake. Operations must not overlap.
+ *
+ * [close] releases local resources; [shutdownGracefully] exchanges TLS close notifications before
+ * closing the transport. A failed I/O operation closes owned resources.
+ */
 public class TlsStream internal constructor(private val pump: SyncPump, private val owner: Closeable)
     : ByteSource, ByteSink, Closeable {
+    /**
+     * Factories that complete a TLS handshake over an existing duplex transport.
+     */
     public companion object {
         // Completes the handshake; ownership transfers after session creation, before buffer allocation.
+        /**
+         * Creates a client session and completes its handshake, verifying the supplied peer
+         * identity. Transport ownership transfers after session creation and before buffer
+         * allocation; later failure closes the transport.
+         */
         public fun <T> takeOwnershipAsClient(transport: T, context: TlsClientContext, peer: TlsPeerName): TlsStream
             where T : ByteSource, T : ByteSink, T : Closeable = adoptSync(TlsEngine.client(context, peer), transport)
 
         // Completes the handshake; ownership transfers after session creation, before buffer allocation.
+        /**
+         * Creates a server session and completes its handshake. Transport ownership transfers
+         * after session creation and before buffer allocation; later failure closes the transport.
+         */
         public fun <T> takeOwnershipAsServer(transport: T, context: TlsServerContext): TlsStream
             where T : ByteSource, T : ByteSink, T : Closeable = adoptSync(TlsEngine.server(context), transport)
     }
 
     private var closed: Boolean = false
     private var active: Boolean = false
+    /**
+     * Whether local transport, engine, and buffer cleanup has begun.
+     */
     public val isClosed: Boolean get() = closed
+    /**
+     * The negotiated version and ALPN. Reading this property requires an open, idle stream.
+     */
     public val connectionInfo: TlsConnectionInfo get() { requireIdle(); return pump.engine.connectionInfo }
 
     private fun requireIdle() {
@@ -34,7 +59,15 @@ public class TlsStream internal constructor(private val pump: SyncPump, private 
         finally { active = false }
     }
 
+    /**
+     * Reads decrypted bytes into writable buffer space and advances the buffer by the returned
+     * count. A zero count request performs no transfer.
+     */
     public override fun readInto(buffer: NativeByteBuffer, count: Long): Long = transfer(buffer, count, true)
+    /**
+     * Writes readable plaintext and advances the buffer by the accepted count. A call may accept
+     * only a prefix, at most 16,384 bytes.
+     */
     public override fun writeFrom(buffer: NativeByteBuffer, count: Long): Long = transfer(buffer, count, false)
 
     private fun transfer(buffer: NativeByteBuffer, count: Long, read: Boolean): Long {
@@ -53,6 +86,9 @@ public class TlsStream internal constructor(private val pump: SyncPump, private 
         }
     }
 
+    /**
+     * Drains pending TLS ciphertext and flushes the underlying byte sink.
+     */
     public override fun flush() {
         requireIdle()
         active = true
@@ -61,6 +97,10 @@ public class TlsStream internal constructor(private val pump: SyncPump, private 
         finally { active = false }
     }
 
+    /**
+     * Completes the TLS close handshake, then closes the owned transport and local state. Use this
+     * when the peer must receive an orderly TLS shutdown.
+     */
     public fun shutdownGracefully() {
         requireIdle()
         active = true
@@ -88,6 +128,10 @@ public class TlsStream internal constructor(private val pump: SyncPump, private 
     }
 
     // Releases local resources; use shutdownGracefully for the TLS close handshake.
+    /**
+     * Closes the owned transport and releases local state without performing a TLS close
+     * handshake. It rejects an overlapping stream operation.
+     */
     public override fun close() {
         if (active) throw IllegalStateException(Some("TLS stream operation is active"))
         closeOwned()

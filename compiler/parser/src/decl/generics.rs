@@ -14,6 +14,7 @@ impl Parser {
         }
         self.bump();
         loop {
+            let doc_start = self.pos;
             while matches!(&self.peek().kind, TokenKind::Ident(text) if text == "reified")
                 && matches!(
                     self.tokens[self.pos + 1].kind,
@@ -42,11 +43,13 @@ impl Parser {
                 .span
                 .end
                 .max(name.span.end);
-            type_params.push(TypeParamDecl {
+            let documented = TypeParamDecl {
                 span: Span::new(name.span.start, end),
                 name,
                 inline_bound,
-            });
+            };
+            self.attach_documentation(doc_start, documented.span);
+            type_params.push(documented);
             if matches!(self.peek().kind, TokenKind::Comma) {
                 self.bump();
             } else {

@@ -2,6 +2,10 @@ package scoop.text
 
 import scoop.collections.toList
 
+/**
+ * Splits on a nonempty literal delimiter, retaining empty fields. Zero limit is unbounded; a
+ * positive limit leaves the unsplit remainder in the last field.
+ */
 public fun String.split(delimiter: String, limit: Long = 0L): List<String> {
     if (limit < 0L || delimiter.byteLength == 0L) throw IllegalArgumentException(Some("invalid split delimiter or limit"))
     val chars = toCharArray()
@@ -23,4 +27,8 @@ public fun String.split(delimiter: String, limit: Long = 0L): List<String> {
     return result.toList()
 }
 
+/**
+ * Splits on a nonempty literal delimiter, retaining empty fields. Zero limit is unbounded; a
+ * positive limit leaves the unsplit remainder in the last field.
+ */
 public fun String.split(delimiter: Char, limit: Long = 0L): List<String> = split(delimiter.toString(), limit)

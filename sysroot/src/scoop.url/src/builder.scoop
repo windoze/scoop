@@ -2,6 +2,10 @@ package scoop.url
 
 import scoop.text.*
 
+/**
+ * Builds a URL from components. Ordinary setters accept raw text; encoded setters accept
+ * already-escaped components. Build validates the assembled reference.
+ */
 public class UrlBuilder public constructor() {
     private var scheme: String? = None
     private var host: String? = None
@@ -12,19 +16,31 @@ public class UrlBuilder public constructor() {
     private var fragment: String? = None
     private val reusable: ArrayList<UrlAuthority> = ArrayList<UrlAuthority>()
 
+    /**
+     * Sets or clears the scheme; the result must be valid for the assembled reference.
+     */
     public fun setScheme(value: String?): UrlBuilder {
         scheme = if (value == None) None else Some(canonicalEncoded(value!!, UrlComponent.Scheme).lowercaseAscii())
         return this
     }
+    /**
+     * Sets a raw Unicode host using the URL host and IDNA rules.
+     */
     public fun setHost(value: String): UrlBuilder {
         val encoded = encodeUrlBytes(value.toByteArray(), false, "[]:")
         host = Some(if (encoded.contains(':') && !encoded.startsWith('[')) "[" + encoded + "]" else encoded)
         return this
     }
+    /**
+     * Sets an already-encoded host, or clears the host component.
+     */
     public fun setEncodedHost(value: String?): UrlBuilder {
         host = encodedOptional(value, UrlComponent.Host)
         return this
     }
+    /**
+     * Replaces or clears the complete encoded authority.
+     */
     public fun setEncodedAuthority(value: String?): UrlBuilder {
         if (value == None) { host = None; userInfo = None; port = None; return this }
         val parsed = Url.parse("//" + value!!)
@@ -34,26 +50,49 @@ public class UrlBuilder public constructor() {
         copyAuthority(parsed.authority!!)
         return this
     }
+    /**
+     * Sets raw user information, percent-encoding data delimiters as needed.
+     */
     public fun setUserInfo(value: String?): UrlBuilder =
         setEncodedUserInfo(if (value == None) None else Some(PercentEncoding.encode(value!!)))
+    /**
+     * Sets or clears already-encoded user information.
+     */
     public fun setEncodedUserInfo(value: String?): UrlBuilder {
         userInfo = encodedOptional(value, UrlComponent.UserInfo)
         return this
     }
+    /**
+     * Sets or clears the explicit port.
+     */
     public fun setPort(value: Int?): UrlBuilder {
         if (value != None && (value!! < 0 || value!! > 65535)) urlError(UrlComponent.Port, "port must be in 0..65535")
         port = value
         return this
     }
+    /**
+     * Replaces the path from raw text, preserving path separators as structure.
+     */
     public fun setPath(value: String): UrlBuilder = setEncodedPath(encodeUrlBytes(value.toByteArray(), false, "/!$&'()*+,;=:@"))
+    /**
+     * Replaces the already-encoded path without treating encoded reserved characters as
+     * separators.
+     */
     public fun setEncodedPath(value: String): UrlBuilder {
         path = canonicalEncoded(value, UrlComponent.Path)
         return this
     }
+    /**
+     * Appends one raw path segment. Slashes and a segment equal to dot or dot-dot are encoded as
+     * data.
+     */
     public fun appendPathSegment(value: String): UrlBuilder {
         val encoded = if (value == ".") "%2E" else if (value == "..") "%2E%2E" else PercentEncoding.encode(value)
         return appendEncodedPathSegment(encoded)
     }
+    /**
+     * Appends one encoded segment; literal structural separators are rejected.
+     */
     public fun appendEncodedPathSegment(value: String): UrlBuilder {
         val segment = canonicalEncoded(value, UrlComponent.Path)
         if (segment.contains('/') || segment.contains('?') || segment.contains('#')) {
@@ -63,20 +102,38 @@ public class UrlBuilder public constructor() {
         path += segment
         return this
     }
+    /**
+     * Sets raw query text, or clears the query. This does not parse it as name/value pairs.
+     */
     public fun setQuery(value: String?): UrlBuilder =
         setEncodedQuery(if (value == None) None else Some(PercentEncoding.encode(value!!)))
+    /**
+     * Sets or clears the whole encoded query without requiring name/value pair syntax.
+     */
     public fun setEncodedQuery(value: String?): UrlBuilder {
         query = encodedOptional(value, UrlComponent.Query)
         return this
     }
+    /**
+     * Replaces the query using ordinary URI parameter serialization.
+     */
     public fun setQueryParameters(value: UrlQuery): UrlBuilder = setEncodedQuery(Some(value.toString()))
+    /**
+     * Sets or clears a raw fragment, encoding it as needed.
+     */
     public fun setFragment(value: String?): UrlBuilder =
         setEncodedFragment(if (value == None) None else Some(PercentEncoding.encode(value!!)))
+    /**
+     * Sets or clears an already-encoded fragment.
+     */
     public fun setEncodedFragment(value: String?): UrlBuilder {
         fragment = encodedOptional(value, UrlComponent.Fragment)
         return this
     }
 
+    /**
+     * Validates and snapshots the current components as an immutable Url.
+     */
     public fun build(): Url {
         @Unsafe {
             val result = urlEmpty()

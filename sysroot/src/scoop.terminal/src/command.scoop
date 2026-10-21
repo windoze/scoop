@@ -3,31 +3,58 @@ package scoop.terminal
 import scoop.platform.io.ByteSink
 import scoop.platform.io.Utf8Writer
 
+/**
+ * A terminal command that writes its ANSI representation to a text destination. Serialization
+ * alone does not flush output or query terminal capabilities.
+ */
 public interface Command {
+    /**
+     * Writes this command's ANSI representation to the supplied writer without flushing it.
+     * Parameter validation happens before or during serialization.
+     */
     public fun writeAnsi(writer: TextWriter)
 }
 
+/**
+ * Serializes this command into an in-memory string without terminal I/O.
+ */
 public fun Command.toAnsiString(): String {
     val writer = StringWriter()
     writeAnsi(writer)
     return writer.toString()
 }
 
+/**
+ * Writes the commands in order without flushing the destination.
+ */
 public fun TextWriter.queue(vararg commands: Command) {
     for (command in commands) command.writeAnsi(this)
 }
 
+/**
+ * Writes the commands in order without flushing the destination.
+ */
 public fun ByteSink.queue(vararg commands: Command) {
     val writer = Utf8Writer(this)
     for (command in commands) command.writeAnsi(writer)
 }
 
+/**
+ * Writes the commands in order, then flushes the byte sink.
+ */
 public fun ByteSink.execute(vararg commands: Command) {
     queue(*commands)
     flush()
 }
 
+/**
+ * Writes the content's ToString result as supplied, without escaping terminal control sequences.
+ */
 public struct Print<T : ToString>(val content: T) : Command {
+    /**
+     * Writes this command's ANSI representation to the supplied writer without flushing it.
+     * Parameter validation happens before or during serialization.
+     */
     public override fun writeAnsi(writer: TextWriter) { writer.write(content.toString()) }
 }
 

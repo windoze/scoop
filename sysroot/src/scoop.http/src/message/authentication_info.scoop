@@ -2,32 +2,71 @@ package scoop.http
 
 import scoop.bytes.ByteArrayBuilder
 
-public class HttpAuthenticationInfo private constructor(public val parameters: Array<HttpParameter>) {
+/**
+ * Authentication response parameters, such as Digest response-authentication information.
+ */
+public class HttpAuthenticationInfo private constructor(
+    /**
+     * The parsed named parameters in their stored order.
+     */
+    public val parameters: Array<HttpParameter>) {
     public constructor(parameters: List<HttpParameter>) : this(uniqueHttpParameters(parameters)) {}
 
+    /**
+     * Looks up a named parameter using ASCII case folding, returning None when absent.
+     */
     public fun parameter(name: String): HttpParameter? = findHttpParameter(parameters, name)
+    /**
+     * Serializes the structured value into HTTP field-value bytes.
+     */
     public fun toByteArray(): Array<Byte> {
         val output = ByteArrayBuilder()
         appendHttpAuthParameters(output, parameters)
         return output.toByteArray()
     }
+    /**
+     * Builds an Authentication-Info response field.
+     */
     public fun toAuthenticationInfoField(): HttpField = HttpField("Authentication-Info".toByteArray(), toByteArray())
+    /**
+     * Builds a Proxy-Authentication-Info response field.
+     */
     public fun toProxyAuthenticationInfoField(): HttpField = HttpField("Proxy-Authentication-Info".toByteArray(), toByteArray())
 
+    /**
+     * Construction and parsing of this structured HTTP field.
+     */
     public companion object {
+        /**
+         * Parses the complete field value, throwing HttpFieldParseException for malformed syntax.
+         */
         public fun parse(value: List<Byte>, fieldName: String = "Authentication-Info"): HttpAuthenticationInfo {
             val reader = HttpFieldReader(fieldName, value)
             reader.skipOws()
             return HttpAuthenticationInfo(readHttpAuthParameters(reader, false))
         }
+        /**
+         * Parses the complete field value, throwing HttpFieldParseException for malformed syntax.
+         */
         public fun parse(value: String, fieldName: String = "Authentication-Info"): HttpAuthenticationInfo =
             parse(value.toByteArray(), fieldName)
+        /**
+         * Parses the complete value, returning None for HttpFieldParseException while propagating
+         * unrelated failures.
+         */
         public fun parseOrNone(value: List<Byte>, fieldName: String = "Authentication-Info"): HttpAuthenticationInfo? {
             try { return Some(parse(value, fieldName)) }
             catch (_: HttpFieldParseException) { return None }
         }
+        /**
+         * Parses the complete value, returning None for HttpFieldParseException while propagating
+         * unrelated failures.
+         */
         public fun parseOrNone(value: String, fieldName: String = "Authentication-Info"): HttpAuthenticationInfo? =
             parseOrNone(value.toByteArray(), fieldName)
+        /**
+         * Parses selected authentication-information fields, validating the combined parameters.
+         */
         public fun parseFields(fields: List<HttpField>, fieldName: String = "Authentication-Info"): HttpAuthenticationInfo =
             parse(combinedHttpAuthFields(fields, fieldName), fieldName)
     }

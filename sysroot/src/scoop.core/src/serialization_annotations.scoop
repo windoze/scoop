@@ -1,3 +1,7 @@
+/**
+ * Controls derived serialization: rename chooses the external field name, required distinguishes
+ * absence, emitNull preserves absent optionals as null, and ignore excludes a member.
+ */
 @Target([AnnotationTarget.Field, AnnotationTarget.Property, AnnotationTarget.EnumVariant])
 public annotation class Serialize(
     val rename: String = "",
@@ -6,20 +10,65 @@ public annotation class Serialize(
     val ignore: Boolean = false
 )
 
+/**
+ * The declaration and type-use positions supported by annotation target restrictions.
+ */
 public enum AnnotationTarget: Int {
+    /**
+     * Allows the annotation on nominal class, struct, enum, interface, or object declarations.
+     */
     Class = 1,
+    /**
+     * Allows the annotation on annotation declarations.
+     */
     AnnotationClass = 2,
+    /**
+     * Allows the annotation on an individual enum variant.
+     */
     EnumVariant = 3,
+    /**
+     * Allows the annotation on stored value fields.
+     */
     Field = 4,
+    /**
+     * Allows the annotation on a property declaration.
+     */
     Property = 5,
+    /**
+     * Allows the annotation on function declarations.
+     */
     Function = 6,
+    /**
+     * Allows the annotation on constructor declarations.
+     */
     Constructor = 7,
+    /**
+     * Allows the annotation on value parameter declarations.
+     */
     ValueParameter = 8,
+    /**
+     * Allows the annotation on a property getter.
+     */
     PropertyGetter = 9,
+    /**
+     * Allows the annotation on a property setter.
+     */
     PropertySetter = 10,
+    /**
+     * Allows the annotation on type alias declarations.
+     */
     TypeAlias = 11,
+    /**
+     * Allows the annotation on an individual use of a type in a signature.
+     */
     Type = 12
 }
 
+/**
+ * Restricts the declaration or type-use positions where an annotation may be applied.
+ */
 public annotation class Target(val allowed: Array<AnnotationTarget>)
+/**
+ * Allows multiple applications of the annotated annotation type at one target.
+ */
 public annotation class Repeatable

@@ -2,6 +2,10 @@ package scoop.crypto.x509
 
 import scoop.crypto.native.*
 
+/**
+ * Parses a PEM certificate bundle into independently owned certificates. Close every returned
+ * certificate after use.
+ */
 public fun parseCertificatesPem(text: String): Array<Certificate> {
     val bytes = text.toByteArray()
     @Unsafe {

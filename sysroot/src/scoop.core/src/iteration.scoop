@@ -1,8 +1,20 @@
+/**
+ * A one-way cursor whose [next] operation returns Some(value) or None at the end.
+ */
 public interface Iterator<T> {
+    /**
+     * Returns the next value or None when iteration is exhausted.
+     */
     public fun next(): Option<T>
 }
 
+/**
+ * A value that supplies an [Iterator] for the for-loop protocol.
+ */
 public interface Iterable<T> {
+    /**
+     * Creates the cursor used to traverse this value.
+     */
     public operator fun iterator(): Iterator<T>
 }
 

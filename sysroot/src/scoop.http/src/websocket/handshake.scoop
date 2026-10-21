@@ -5,26 +5,84 @@ import scoop.crypto.*
 import scoop.io.encoding.Base64
 import scoop.url.Url
 
-public class WebSocketHandshakeException public constructor(public val detail: String, public val field: String? = None)
+/**
+ * A malformed or incompatible WebSocket upgrade handshake, optionally identifying the affected
+ * field.
+ */
+public class WebSocketHandshakeException public constructor(
+    /**
+     * The protocol failure explanation.
+     */
+    public val detail: String,
+    /**
+     * The handshake field involved, when known.
+     */
+    public val field: String? = None)
     : Exception(Some("WebSocket handshake: " + detail))
 
+/**
+ * The accepted optional subprotocol and permessage-deflate parameters.
+ */
 public class WebSocketNegotiation internal constructor(
-    public val protocol: String?, public val deflate: WebSocketDeflateNegotiation?
+    /**
+     * The selected offered subprotocol, or None.
+     */
+    public val protocol: String?,
+        /**
+         * Effective permessage-deflate negotiation, or None when disabled.
+         */
+        public val deflate: WebSocketDeflateNegotiation?
 )
 
+/**
+ * A validated HTTP/1 WebSocket upgrade request, nonce key, offered subprotocols, and extensions.
+ * Response validation remains tied to this exact request.
+ */
 public class WebSocketHandshake internal constructor(
-    public val request: HttpRequestHead, public val key: String,
-    public val protocols: Array<String>, public val extensions: Array<WebSocketExtension>
+    /**
+     * The validated upgrade request head.
+     */
+    public val request: HttpRequestHead,
+        /**
+         * The validated base64 client nonce used to verify Sec-WebSocket-Accept.
+         */
+        public val key: String,
+    /**
+     * The offered subprotocol tokens in request order.
+     */
+    public val protocols: Array<String>,
+        /**
+         * The parsed offered extensions.
+         */
+        public val extensions: Array<WebSocketExtension>
 ) {
+    /**
+     * Validates a server response against this request and returns selected protocol/compression
+     * parameters.
+     */
     public fun accept(response: HttpResponseHead): WebSocketNegotiation = acceptWebSocketResponse(this, response)
+    /**
+     * Constructs a valid 101 response using a compatible offered subprotocol and compression
+     * selection.
+     */
     public fun response(protocol: String? = None, deflate: WebSocketDeflate? = None,
         fields: List<HttpField> = emptyList<HttpField>()): HttpResponseHead = webSocketResponse(this, protocol, deflate, fields)
 
+    /**
+     * Creation and validation of HTTP/1 WebSocket upgrade requests.
+     */
     public companion object {
+        /**
+         * Creates a WebSocket request with a fresh random key, offered protocols/extensions, and
+         * optional proxy absolute-form target.
+         */
         public fun create(url: Url, protocols: List<String> = emptyList<String>(),
             deflateOffers: List<WebSocketDeflateOffer> = emptyList<WebSocketDeflateOffer>(),
             fields: List<HttpField> = emptyList<HttpField>(), absoluteForm: Boolean = false): WebSocketHandshake =
             createWebSocketHandshake(url, protocols, deflateOffers, fields, absoluteForm)
+        /**
+         * Validates an incoming WebSocket upgrade request and records its nonce and offers.
+         */
         public fun parse(request: HttpRequestHead): WebSocketHandshake = parseWebSocketHandshake(request)
     }
 }

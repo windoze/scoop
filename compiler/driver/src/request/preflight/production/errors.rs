@@ -2,6 +2,7 @@ use std::fmt;
 
 #[derive(Debug)]
 pub enum CurrentConeProductionFailure {
+    ArtifactOutputRequired,
     Dependencies(Box<crate::ExplicitDependencyValidationError>),
     ObjectOutput(scoop_toolchain::ToolchainError),
     Native(scoop_toolchain::ToolchainError),
@@ -13,11 +14,15 @@ pub enum CurrentConeProductionFailure {
     Cone(scoop_slib::ConeRecordError),
     Layout(Box<super::LayoutProductionError>),
     Publication(scoop_slib::CrossConeArtifactPublishError),
+    Documentation(super::DocumentationProductionError),
 }
 
 impl fmt::Display for CurrentConeProductionFailure {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::ArtifactOutputRequired => {
+                formatter.write_str("artifact production requires an artifact output")
+            }
             Self::Dependencies(source) => source.fmt(formatter),
             Self::ObjectOutput(source) => source.fmt(formatter),
             Self::Native(source) => source.fmt(formatter),
@@ -29,6 +34,7 @@ impl fmt::Display for CurrentConeProductionFailure {
             Self::Cone(source) => source.fmt(formatter),
             Self::Layout(source) => source.fmt(formatter),
             Self::Publication(source) => source.fmt(formatter),
+            Self::Documentation(source) => source.fmt(formatter),
         }
     }
 }
@@ -36,6 +42,7 @@ impl fmt::Display for CurrentConeProductionFailure {
 impl std::error::Error for CurrentConeProductionFailure {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         Some(match self {
+            Self::ArtifactOutputRequired => return None,
             Self::Dependencies(source) => source.as_ref(),
             Self::ObjectOutput(source) => source,
             Self::Native(source) => source,
@@ -47,6 +54,7 @@ impl std::error::Error for CurrentConeProductionFailure {
             Self::Cone(source) => source,
             Self::Layout(source) => source.as_ref(),
             Self::Publication(source) => source,
+            Self::Documentation(source) => source,
         })
     }
 }

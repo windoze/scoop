@@ -1,7 +1,33 @@
 package scoop.terminal.event
 
+/**
+ * A modifier active while a key or mouse event was generated.
+ */
 public enum KeyModifier {
-    Shift, Alt, Control, Super, Hyper, Meta
+    /**
+     * The Shift modifier was active for this event.
+     */
+    Shift,
+        /**
+         * The Alt modifier was active for this event.
+         */
+        Alt,
+        /**
+         * The Control modifier was active for this event.
+         */
+        Control,
+        /**
+         * The Super modifier was active for this event.
+         */
+        Super,
+        /**
+         * The Hyper modifier was active for this event.
+         */
+        Hyper,
+        /**
+         * The Meta modifier was active for this event.
+         */
+        Meta
 
     internal val mask: UInt get() = when (this) {
         case Shift -> 1u; case Alt -> 2u; case Control -> 4u
@@ -9,24 +35,68 @@ public enum KeyModifier {
     }
 }
 
+/**
+ * An immutable bit set of active key modifiers.
+ */
 public struct KeyModifiers(val bits: UInt = 0u) {
+    /**
+     * Whether no bits are set.
+     */
     public val isEmpty: Boolean get() = bits == 0u
+    /**
+     * Tests whether the selected flag is present.
+     */
     public fun has(modifier: KeyModifier): Boolean = (bits and modifier.mask) != 0u
+    /**
+     * Returns a copy with the selected flag included.
+     */
     public fun with(modifier: KeyModifier): KeyModifiers = KeyModifiers(bits or modifier.mask)
+    /**
+     * Returns a copy with the selected flag removed.
+     */
     public fun without(modifier: KeyModifier): KeyModifiers = KeyModifiers(bits and modifier.mask.inv())
 }
 
+/**
+ * Additional lock and keypad state reported by an enhanced keyboard protocol.
+ */
 public enum KeyState {
-    Keypad, CapsLock, NumLock
+    /**
+     * The key came from the numeric keypad.
+     */
+    Keypad,
+        /**
+         * Caps Lock was active.
+         */
+        CapsLock,
+        /**
+         * Num Lock was active.
+         */
+        NumLock
 
     internal val mask: UInt get() = when (this) {
         case Keypad -> 1u; case CapsLock -> 2u; case NumLock -> 4u
     }
 }
 
+/**
+ * An immutable bit set of additional lock/keypad state.
+ */
 public struct KeyEventState(val bits: UInt = 0u) {
+    /**
+     * Whether no bits are set.
+     */
     public val isEmpty: Boolean get() = bits == 0u
+    /**
+     * Tests whether the selected flag is present.
+     */
     public fun has(state: KeyState): Boolean = (bits and state.mask) != 0u
+    /**
+     * Returns a copy with the selected flag included.
+     */
     public fun with(state: KeyState): KeyEventState = KeyEventState(bits or state.mask)
+    /**
+     * Returns a copy with the selected flag removed.
+     */
     public fun without(state: KeyState): KeyEventState = KeyEventState(bits and state.mask.inv())
 }

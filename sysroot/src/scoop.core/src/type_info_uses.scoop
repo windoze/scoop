@@ -1,16 +1,43 @@
+/**
+ * A concrete type at one signature position, retaining annotations and nested type-use children.
+ */
 public struct TypeUseInfo(
     val type: TypeRef,
     val annotations: Array<AnnotationInfo>,
     val children: Array<TypeUseChild>
 )
 
+/**
+ * One nested type use and the role it occupies within its parent.
+ */
 public struct TypeUseChild(val role: TypeUseRole, val value: TypeUseInfo)
 
+/**
+ * The position of a nested type inside a generic, tuple, function, or pointer type use.
+ */
 public enum TypeUseRole {
+    /**
+     * A zero-based generic argument position.
+     */
     Argument(Long),
+    /**
+     * A zero-based tuple element position.
+     */
     TupleElement(Long),
+    /**
+     * The function receiver type.
+     */
     Receiver,
+    /**
+     * A zero-based function parameter position.
+     */
     Parameter(Long),
+    /**
+     * The function result type.
+     */
     Result,
+    /**
+     * The native data pointer's pointee type.
+     */
     Pointee
 }

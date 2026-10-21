@@ -8,6 +8,17 @@ use scoop_identity::CanonicalIdentifier;
 mod targets;
 use std::fmt;
 
+impl AnnotationTargetV1 {
+    /// Project a checked source target through the complete persistent
+    /// identity relations shared by annotations and documentation.
+    pub fn from_source(
+        export: &ExportHir,
+        target: crate::SourceAnnotationTarget,
+    ) -> Result<Self, AnnotationProductionError> {
+        targets::project(export, target)
+    }
+}
+
 impl CanonicalAnnotationsV1 {
     pub fn from_export_hir(
         export: &ExportHir,

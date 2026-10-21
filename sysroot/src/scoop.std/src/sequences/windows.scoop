@@ -34,9 +34,18 @@ private class WindowingIterator<T>(
     }
 }
 
+/**
+ * Evaluation is deferred until iteration. Produces copied windows at the requested step. Size and
+ * step must be positive; incomplete trailing windows are included only when partialWindows is
+ * true.
+ */
 public fun <T> Sequence<T>.windowed(size: Long, step: Long = 1L, partialWindows: Boolean = false): Sequence<List<T>> {
     if (size <= 0L || step <= 0L) throw IllegalArgumentException(Some("non-positive window size or step"))
     return FactorySequence<List<T>> { WindowingIterator<T>(iterator(), size, step, partialWindows) }
 }
 
+/**
+ * Evaluation is deferred until iteration. Partitions input into copied, nonoverlapping chunks of
+ * positive size; the final chunk may be shorter.
+ */
 public fun <T> Sequence<T>.chunked(size: Long): Sequence<List<T>> = windowed<T>(size, size, true)

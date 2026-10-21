@@ -2,21 +2,53 @@ package scoop.charset
 
 import scoop.text.*
 
-public class Charset private constructor(public val name: String) : Equals<Charset>, Hash, ToString {
+/**
+ * A supported character encoding identified by its canonical name. Equality and hashing use that
+ * name. Whole-value conversions are convenient for bounded input; [CharsetTranscoder] preserves
+ * conversion state across buffers.
+ */
+public class Charset private constructor(
+    /**
+     * The canonical encoding name after resolving accepted aliases.
+     */
+    public val name: String) : Equals<Charset>, Hash, ToString {
+    /**
+     * Compares canonical encoding names, so accepted aliases identify the same charset.
+     */
     public override operator fun equals(other: Charset): Boolean = name == other.name
+    /**
+     * Hashes the canonical encoding name consistently with charset equality.
+     */
     public override fun hash(): Long = name.hash()
+    /**
+     * Returns the canonical encoding name.
+     */
     public override fun toString(): String = name
 
+    /**
+     * Decodes bytes using the selected BOM and byte-order policy. Malformed input throws
+     * [CharsetException].
+     */
     public fun decode(data: List<Byte>, options: CharsetDecodeOptions = CharsetDecodeOptions()): String =
         String.fromUtf8(transcodeCharset(data, this, Charset.Utf8, CharsetTranscodeOptions(decode = options)))
 
+    /**
+     * Decodes bytes while replacing malformed input; BOM and byte-order options still apply.
+     */
     public fun decodeLossy(data: List<Byte>, options: CharsetDecodeOptions = CharsetDecodeOptions()): String =
         String.fromUtf8(transcodeCharset(data, this, Charset.Utf8,
             CharsetTranscodeOptions(decode = options, malformedInput = CharsetErrorAction.Replace)))
 
+    /**
+     * Encodes Unicode text. Characters that cannot be represented in this encoding throw
+     * [CharsetException].
+     */
     public fun encode(text: String, options: CharsetEncodeOptions = CharsetEncodeOptions()): Array<Byte> =
         encodeText(text, options, CharsetErrorAction.Strict)
 
+    /**
+     * Encodes Unicode text while replacing characters that cannot be represented in this encoding.
+     */
     public fun encodeLossy(text: String, options: CharsetEncodeOptions = CharsetEncodeOptions()): Array<Byte> =
         encodeText(text, options, CharsetErrorAction.Replace)
 
@@ -24,29 +56,90 @@ public class Charset private constructor(public val name: String) : Equals<Chars
         transcodeCharset(text.toByteArray(), Charset.Utf8, this, CharsetTranscodeOptions(
             decode = CharsetDecodeOptions(bom = CharsetBomPolicy.Preserve), encode = options, unmappableOutput = action))
 
+    /**
+     * Canonical named encodings, alias lookup, and backend information.
+     */
     public companion object {
+        /**
+         * Resolves a supported encoding name or alias to its canonical charset. Unsupported names
+         * throw [UnsupportedCharsetException].
+         */
         public fun forName(name: String): Charset = Charset(canonicalCharset(name))
+        /**
+         * Resolves a supported name or alias, returning None for an unsupported encoding.
+         */
         public fun forNameOrNone(name: String): Charset? {
             try { return Some(forName(name)) }
             catch (_: UnsupportedCharsetException) { return None }
         }
+        /**
+         * Unicode UTF-8 encoding.
+         */
         public val Utf8: Charset = Charset(canonicalCharset("UTF-8"))
+        /**
+         * The seven-bit US-ASCII encoding.
+         */
         public val Ascii: Charset = Charset(canonicalCharset("US-ASCII"))
+        /**
+         * ISO-8859-1 Latin-1 encoding.
+         */
         public val Iso8859_1: Charset = Charset(canonicalCharset("ISO-8859-1"))
+        /**
+         * Windows-1252 Western European encoding.
+         */
         public val Windows1252: Charset = Charset(canonicalCharset("Windows-1252"))
+        /**
+         * UTF-16 encoding whose byte order is selected by the conversion options and BOM.
+         */
         public val Utf16: Charset = Charset(canonicalCharset("UTF-16"))
+        /**
+         * UTF-16 with little-endian code units.
+         */
         public val Utf16LE: Charset = Charset(canonicalCharset("UTF-16LE"))
+        /**
+         * UTF-16 with big-endian code units.
+         */
         public val Utf16BE: Charset = Charset(canonicalCharset("UTF-16BE"))
+        /**
+         * UTF-32 encoding whose byte order is selected by the conversion options and BOM.
+         */
         public val Utf32: Charset = Charset(canonicalCharset("UTF-32"))
+        /**
+         * UTF-32 with little-endian code units.
+         */
         public val Utf32LE: Charset = Charset(canonicalCharset("UTF-32LE"))
+        /**
+         * UTF-32 with big-endian code units.
+         */
         public val Utf32BE: Charset = Charset(canonicalCharset("UTF-32BE"))
+        /**
+         * The GB18030 Chinese encoding.
+         */
         public val Gb18030: Charset = Charset(canonicalCharset("GB18030"))
+        /**
+         * The GBK Chinese encoding.
+         */
         public val Gbk: Charset = Charset(canonicalCharset("GBK"))
+        /**
+         * The Big5 Traditional Chinese encoding.
+         */
         public val Big5: Charset = Charset(canonicalCharset("Big5"))
+        /**
+         * The Shift_JIS Japanese encoding.
+         */
         public val ShiftJis: Charset = Charset(canonicalCharset("Shift_JIS"))
+        /**
+         * The EUC-JP Japanese encoding.
+         */
         public val EucJp: Charset = Charset(canonicalCharset("EUC-JP"))
+        /**
+         * The stateful ISO-2022-JP Japanese encoding.
+         */
         public val Iso2022Jp: Charset = Charset(canonicalCharset("ISO-2022-JP"))
 
+        /**
+         * Returns the encoding names advertised by the linked conversion backend.
+         */
         public val availableNames: Array<String> get() {
             val names = ArrayList<String>()
             @Unsafe {
@@ -56,6 +149,9 @@ public class Charset private constructor(public val name: String) : Equals<Chars
             }
             return names.toArray()
         }
+        /**
+         * The version reported by the linked character-conversion backend.
+         */
         public val backendVersion: String get() {
             @Unsafe {
                 val version = charsetVersion()

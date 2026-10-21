@@ -18,8 +18,16 @@ private class PollSequenceIterator<T>(private val produce: () -> T?) : Iterator<
     public override fun next(): T? = produce()
 }
 
+/**
+ * Generates values until the producer returns None. The producer-only overload is one-shot; the
+ * seed overload starts a fresh traversal from its seed.
+ */
 public fun <T> generateSequence(seed: T, next: (T) -> T?): Sequence<T> =
     FactorySequence<T> { SeedSequenceIterator<T>(seed, next) }
 
+/**
+ * Generates values until the producer returns None. The producer-only overload is one-shot; the
+ * seed overload starts a fresh traversal from its seed.
+ */
 public fun <T> generateSequence(next: () -> T?): Sequence<T> =
     OnceSequence<T> { PollSequenceIterator<T>(next) }

@@ -7,6 +7,7 @@ use scoop_identity::{BindingNamespace, CanonicalIdentifier};
 use super::*;
 use crate::Lowerer;
 
+mod documentation;
 mod groups;
 
 pub(super) enum SelectorResult {

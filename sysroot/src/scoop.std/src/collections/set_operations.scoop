@@ -1,5 +1,8 @@
 package scoop.collections
 
+/**
+ * Returns a set containing members from either input.
+ */
 public infix fun <T> Iterable<T>.union(other: Iterable<T>): Set<T> where T : Equals<T>, T : Hash {
     val result = LinkedHashSet<T>()
     for (element in this) result.add(element)
@@ -18,8 +21,14 @@ private fun <T> selectSet(source: Iterable<T>, other: Iterable<T>, retain: Boole
     return SetSnapshot<T>(result)
 }
 
+/**
+ * Returns a set containing members present in both inputs.
+ */
 public infix fun <T> Iterable<T>.intersect(other: Iterable<T>): Set<T> where T : Equals<T>, T : Hash =
     selectSet<T>(this, other, true)
 
+/**
+ * Returns a set containing members of this input absent from the other input.
+ */
 public infix fun <T> Iterable<T>.subtract(other: Iterable<T>): Set<T> where T : Equals<T>, T : Hash =
     selectSet<T>(this, other, false)

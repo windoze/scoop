@@ -2,11 +2,123 @@ package scoop.terminal.style
 
 import scoop.terminal.Command
 
+/**
+ * An SGR rendition attribute or its corresponding reset instruction. Terminal support varies by
+ * attribute.
+ */
 public enum Attribute {
-    Reset, Bold, Dim, Italic, Underlined, DoubleUnderlined, Undercurled,
-    Underdotted, Underdashed, SlowBlink, RapidBlink, Reverse, Hidden, CrossedOut,
-    Fraktur, NoBold, NormalIntensity, NoItalic, NoUnderline, NoBlink, NoReverse,
-    NoHidden, NotCrossedOut, Framed, Encircled, OverLined, NotFramedOrEncircled, NotOverLined
+    /**
+     * Reset all rendition attributes.
+     */
+    Reset,
+        /**
+         * Enable bold or increased intensity.
+         */
+        Bold,
+        /**
+         * Enable decreased intensity.
+         */
+        Dim,
+        /**
+         * Enable italic presentation.
+         */
+        Italic,
+        /**
+         * Enable a single underline.
+         */
+        Underlined,
+        /**
+         * Enable a double underline.
+         */
+        DoubleUnderlined,
+        /**
+         * Enable a curled underline.
+         */
+        Undercurled,
+    /**
+     * Enable a dotted underline.
+     */
+    Underdotted,
+        /**
+         * Enable a dashed underline.
+         */
+        Underdashed,
+        /**
+         * Enable slow blinking.
+         */
+        SlowBlink,
+        /**
+         * Enable rapid blinking.
+         */
+        RapidBlink,
+        /**
+         * Swap foreground and background rendition.
+         */
+        Reverse,
+        /**
+         * Conceal displayed text.
+         */
+        Hidden,
+        /**
+         * Strike through text.
+         */
+        CrossedOut,
+    /**
+     * Select Fraktur-style presentation.
+     */
+    Fraktur,
+        /**
+         * Disable bold presentation.
+         */
+        NoBold,
+        /**
+         * Restore ordinary intensity, clearing bold/dim.
+         */
+        NormalIntensity,
+        /**
+         * Disable italic presentation.
+         */
+        NoItalic,
+        /**
+         * Disable underlining.
+         */
+        NoUnderline,
+        /**
+         * Disable blinking.
+         */
+        NoBlink,
+        /**
+         * Disable reversed presentation.
+         */
+        NoReverse,
+    /**
+     * Reveal concealed text.
+     */
+    NoHidden,
+        /**
+         * Disable strike-through.
+         */
+        NotCrossedOut,
+        /**
+         * Frame the text.
+         */
+        Framed,
+        /**
+         * Encircle the text.
+         */
+        Encircled,
+        /**
+         * Enable an overline.
+         */
+        OverLined,
+        /**
+         * Disable framing and encircling.
+         */
+        NotFramedOrEncircled,
+        /**
+         * Disable overlining.
+         */
+        NotOverLined
 
     internal val index: Int get() = when (this) {
         case Reset -> 0; case Bold -> 1; case Dim -> 2; case Italic -> 3
@@ -19,6 +131,9 @@ public enum Attribute {
         case NotFramedOrEncircled -> 26; case NotOverLined -> 27
     }
 
+    /**
+     * Returns the SGR parameter text without CSI prefix or final m.
+     */
     public fun sgr(): String = when (this) {
         case Reset -> "0"; case Bold -> "1"; case Dim -> "2"; case Italic -> "3"
         case Underlined -> "4"; case DoubleUnderlined -> "4:2"; case Undercurled -> "4:3"
@@ -40,19 +155,51 @@ internal val allAttributes: Array<Attribute> = [
     Attribute.Encircled, Attribute.OverLined, Attribute.NotFramedOrEncircled, Attribute.NotOverLined
 ]
 
+/**
+ * An immutable set of SGR attributes.
+ */
 public struct Attributes(val bits: UInt = 0u) {
+    /**
+     * Whether no bits are set.
+     */
     public val isEmpty: Boolean get() = bits == 0u
+    /**
+     * Tests whether the selected flag is present.
+     */
     public fun has(attribute: Attribute): Boolean = (bits and (1u shl attribute.index.toLong())) != 0u
+    /**
+     * Returns a copy with the selected flag included.
+     */
     public fun with(attribute: Attribute): Attributes = Attributes(bits or (1u shl attribute.index.toLong()))
+    /**
+     * Returns a copy with the selected flag removed.
+     */
     public fun without(attribute: Attribute): Attributes = Attributes(bits and (1u shl attribute.index.toLong()).inv())
+    /**
+     * Returns a copy with the selected attribute's bit toggled.
+     */
     public fun toggled(attribute: Attribute): Attributes = Attributes(bits xor (1u shl attribute.index.toLong()))
 }
 
+/**
+ * Emits one SGR attribute command.
+ */
 public struct SetAttribute(val attribute: Attribute) : Command {
+    /**
+     * Writes this command's ANSI representation to the supplied writer without flushing it.
+     * Parameter validation happens before or during serialization.
+     */
     public override fun writeAnsi(writer: TextWriter) { writer.write("\u001b[" + attribute.sgr() + "m") }
 }
 
+/**
+ * Emits the selected SGR attributes in the library's fixed order.
+ */
 public struct SetAttributes(val attributes: Attributes) : Command {
+    /**
+     * Writes this command's ANSI representation to the supplied writer without flushing it.
+     * Parameter validation happens before or during serialization.
+     */
     public override fun writeAnsi(writer: TextWriter) {
         if ((attributes.bits and 0xf0000000u) != 0u) {
             throw IllegalArgumentException(Some("unknown terminal attribute bits"))

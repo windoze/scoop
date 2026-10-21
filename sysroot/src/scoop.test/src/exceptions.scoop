@@ -1,5 +1,10 @@
 package scoop.test
 
+/**
+ * Runs the block and returns the thrown exception if it has the requested type. Normal return or
+ * another exception type produces [AssertionFailure]; a mismatched exception is retained as its
+ * cause.
+ */
 public fun <E : Throwable> assertFailsWith(
     message: String? = None,
     location: SourceLocation = currentSourceLocation(),

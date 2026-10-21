@@ -4,24 +4,70 @@ import scoop.decodeTextValue
 
 import scoop.datetime.*
 
+/**
+ * A source of absolute instants. Implementations define accuracy and whether readings can move
+ * backward.
+ */
 public interface Clock {
+    /**
+     * Reads the current absolute instant from this clock.
+     */
     public fun now(): Instant
 }
 
-public class Instant private constructor(public val epochSeconds: Long, public val nanosecondsOfSecond: Int)
+/**
+ * An absolute point on the Unix timeline at nanosecond precision. The supported range corresponds
+ * to LocalDate.MIN through LocalDate.MAX in UTC.
+ */
+public class Instant private constructor(
+    /**
+     * Whole seconds since 1970-01-01T00:00:00Z, rounded toward negative infinity.
+     */
+    public val epochSeconds: Long,
+    /**
+     * The nonnegative fractional nanoseconds within the epoch second.
+     */
+    public val nanosecondsOfSecond: Int)
     : Equals<Instant>, Compare<Instant>, Hash, ToString, Add<Duration, Instant>, Sub<Duration, Instant> {
+    /**
+     * Compares the stored value components for equality.
+     */
     public override operator fun equals(other: Instant): Boolean =
         epochSeconds == other.epochSeconds && nanosecondsOfSecond == other.nanosecondsOfSecond
+    /**
+     * Orders values by their chronological or numeric value; only the result sign is significant.
+     */
     public override operator fun compareTo(other: Instant): Long =
         if (epochSeconds != other.epochSeconds) epochSeconds.compareTo(other.epochSeconds)
         else nanosecondsOfSecond.compareTo(other.nanosecondsOfSecond)
+    /**
+     * Computes a hash consistent with component equality.
+     */
     public override fun hash(): Long = epochSeconds.hash() * 31L + nanosecondsOfSecond.hash()
+    /**
+     * Advances by an elapsed duration, rejecting results outside the supported range.
+     */
     public override operator fun plus(other: Duration): Instant = Instant.fromDuration(asDuration() + other)
+    /**
+     * Subtracts an elapsed duration, or returns the signed elapsed duration from another instant
+     * to this one.
+     */
     public override operator fun minus(other: Duration): Instant = Instant.fromDuration(asDuration() - other)
+    /**
+     * Subtracts an elapsed duration, or returns the signed elapsed duration from another instant
+     * to this one.
+     */
     public operator fun minus(other: Instant): Duration =
         Duration.seconds(epochSeconds - other.epochSeconds, nanosecondsOfSecond.toLong() - other.nanosecondsOfSecond.toLong())
     private fun asDuration(): Duration = Duration.seconds(epochSeconds, nanosecondsOfSecond.toLong())
+    /**
+     * Returns epoch milliseconds rounded toward negative infinity; overflow throws
+     * ArithmeticException.
+     */
     public fun toEpochMilliseconds(): Long = instantMilliseconds(epochSeconds, nanosecondsOfSecond)
+    /**
+     * Converts to local calendar fields at the supplied fixed UTC offset; unsupported dates throw.
+     */
     public fun toLocalDateTime(offset: UtcOffset): LocalDateTime {
         val seconds = epochSeconds + offset.totalSeconds.toLong()
         val day = calendarFloorDiv(seconds, 86400L)
@@ -29,15 +75,37 @@ public class Instant private constructor(public val epochSeconds: Long, public v
         val nanos = (seconds - day * 86400L) * 1000000000L + nanosecondsOfSecond.toLong()
         return LocalDateTime(LocalDate.fromEpochDays(day), LocalTime.fromNanosecondOfDay(nanos))
     }
+    /**
+     * Formats this instant in UTC with a trailing Z.
+     */
     public override fun toString(): String = toLocalDateTime(UtcOffset.ZERO).toString() + "Z"
 
+    /**
+     * Value construction and serialization helpers.
+     */
     public companion object : ValueEncoder<Instant>, ValueDecoder<Instant> {
+        /**
+         * Encodes the value as its canonical text representation.
+         */
         public override fun encode(value: Instant, encoder: Encoder) { encoder.singleValue().writeString(value.toString()) }
+        /**
+         * Reads a string value and validates it using this type's parser.
+         */
         public override fun decode(decoder: Decoder): Instant =
             decodeTextValue<Instant>(decoder, { text -> parseOrNone(text) }, "instant")
 
+        /**
+         * The earliest or smallest supported value.
+         */
         public val MIN: Instant = Instant(LocalDate.MIN.toEpochDays() * 86400L, 0)
+        /**
+         * The latest or largest supported value.
+         */
         public val MAX: Instant = Instant(LocalDate.MAX.toEpochDays() * 86400L + 86399L, 999999999)
+        /**
+         * Combines epoch seconds and a signed nanosecond adjustment, normalizing and validating
+         * the supported range.
+         */
         public fun fromEpochSeconds(seconds: Long, nanosecondAdjustment: Long = 0L): Instant {
             val extra = calendarFloorDiv(nanosecondAdjustment, 1000000000L)
             if (seconds < MIN.epochSeconds - extra || seconds > MAX.epochSeconds - extra) {
@@ -46,12 +114,19 @@ public class Instant private constructor(public val epochSeconds: Long, public v
             val remainder = nanosecondAdjustment % 1000000000L
             return Instant(seconds + extra, (remainder + (if (remainder < 0L) 1000000000L else 0L)).toInt())
         }
+        /**
+         * Constructs an instant from signed milliseconds since the Unix epoch.
+         */
         public fun fromEpochMilliseconds(value: Long): Instant = fromEpochSeconds(value / 1000L, (value % 1000L) * 1000000L)
         internal fun fromComponents(seconds: Long, nanos: Int): Instant {
             if (seconds < MIN.epochSeconds || seconds > MAX.epochSeconds) throw ArithmeticException()
             return Instant(seconds, nanos)
         }
         internal fun fromDuration(value: Duration): Instant = fromComponents(value.floorSeconds, value.nanosecondsOfSecond)
+        /**
+         * Parses ISO date-time with an explicit offset, returning None for malformed or
+         * out-of-range input.
+         */
         public fun parseOrNone(text: String): Instant? = when (OffsetDateTime.parseOrNone(text)) {
             case Some(value) -> {
                 val seconds = localEpochSeconds(value.dateTime) - value.offset.totalSeconds.toLong()
@@ -60,6 +135,10 @@ public class Instant private constructor(public val epochSeconds: Long, public v
             }
             case None -> None
         }
+        /**
+         * Parses ISO date-time with an explicit offset or throws IllegalArgumentException for
+         * invalid input.
+         */
         public fun parse(text: String): Instant = when (parseOrNone(text)) {
             case Some(value) -> value
             case None -> throw IllegalArgumentException(Some("invalid instant"))

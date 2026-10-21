@@ -5,13 +5,86 @@ import scoop.flatMap
 import scoop.time.Instant
 import scoop.url.*
 
-public enum HttpCookieRejection { EmptyPair, InvalidDomain, DomainMismatch, PublicSuffix, InsecureTransport, SameSiteWithoutSecure, InvalidPrefix }
+/**
+ * Why a parsed Set-Cookie cannot be accepted for its response URL.
+ */
+public enum HttpCookieRejection {
+    /**
+     * Both cookie name and value are empty.
+     */
+    EmptyPair,
+    /**
+     * The Domain attribute is not an acceptable host.
+     */
+    InvalidDomain,
+    /**
+     * The response host does not domain-match the cookie domain.
+     */
+    DomainMismatch,
+    /**
+     * The Domain attribute attempts to cover an unacceptable public suffix.
+     */
+    PublicSuffix,
+    /**
+     * A Secure cookie arrived over a nonsecure scheme.
+     */
+    InsecureTransport,
+    /**
+     * SameSite=None was supplied without Secure.
+     */
+    SameSiteWithoutSecure,
+    /**
+     * The __Secure- or __Host- cookie prefix requirements were not met.
+     */
+    InvalidPrefix }
 
+/**
+ * A resolved cookie with host/path scope, expiry, and flags. URL matching and SameSite decisions
+ * are separate operations.
+ */
 public class HttpCookie internal constructor(
-    public val pair: HttpCookiePair, public val host: UrlHost, public val hostOnly: Boolean, public val path: Array<Byte>,
-    public val expiresAt: Instant?, public val secure: Boolean, public val httpOnly: Boolean, public val sameSite: HttpCookieSameSite
+    /**
+     * The cookie name/value pair.
+     */
+    public val pair: HttpCookiePair,
+        /**
+         * The resolved host or domain scope.
+         */
+        public val host: UrlHost,
+        /**
+         * Whether only the exact host matches, rather than its subdomains.
+         */
+        public val hostOnly: Boolean,
+        /**
+         * The cookie path bytes.
+         */
+        public val path: Array<Byte>,
+    /**
+     * The resolved absolute expiry, or None for a session cookie.
+     */
+    public val expiresAt: Instant?,
+        /**
+         * Whether transmission requires a secure scheme.
+         */
+        public val secure: Boolean,
+        /**
+         * Whether the cookie is marked inaccessible to non-HTTP scripting APIs.
+         */
+        public val httpOnly: Boolean,
+        /**
+         * The interpreted SameSite policy.
+         */
+        public val sameSite: HttpCookieSameSite
 ) {
+    /**
+     * Tests expiry against the supplied current instant; session cookies do not expire by this
+     * check.
+     */
     public fun isExpired(now: Instant): Boolean = when (expiresAt) { case None -> false; case Some(date) -> date <= now }
+    /**
+     * Checks expiry, secure scheme, host/domain, and path for the URL; apply SameSite policy
+     * separately.
+     */
     public fun matches(url: Url, now: Instant): Boolean {
         if (isExpired(now)) return false
         val origin = url.httpOrigin()
@@ -21,12 +94,19 @@ public class HttpCookie internal constructor(
         val encodedPath = if (url.encodedPath.length == 0L) "/" else url.encodedPath
         return HttpCookieRules.pathMatches(encodedPath.toByteArray(), path)
     }
+    /**
+     * Evaluates SameSite using explicit same-site, top-level-navigation, and safe-method context.
+     */
     public fun allowsSameSite(isSameSiteRequest: Boolean, isTopLevelNavigation: Boolean, isSafeMethod: Boolean): Boolean = when (sameSite) {
         case HttpCookieSameSite.None -> true
         case HttpCookieSameSite.Strict -> isSameSiteRequest
         case HttpCookieSameSite.Lax -> isSameSiteRequest || (isTopLevelNavigation && isSafeMethod)
         case HttpCookieSameSite.Default -> isSameSiteRequest || (isTopLevelNavigation && isSafeMethod)
     }
+    /**
+     * Tests whether this cookie's SameSite policy permits setting it in the supplied request
+     * context.
+     */
     public fun allowsSetting(isSameSiteRequest: Boolean, isTopLevelNavigation: Boolean): Boolean =
         sameSite == HttpCookieSameSite.None || isSameSiteRequest || isTopLevelNavigation
 }

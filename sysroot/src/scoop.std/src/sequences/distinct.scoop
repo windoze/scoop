@@ -16,8 +16,16 @@ private class DistinctSequenceIterator<T, K>(private val source: Iterator<T>, pr
     }
 }
 
+/**
+ * Evaluation is deferred until iteration. Retains the first element for each selected key in a
+ * lazy sequence, preserving encounter order.
+ */
 public fun <T, K> Sequence<T>.distinctBy(selector: (T) -> K): Sequence<T> where K : Equals<K>, K : Hash =
     FactorySequence<T> { DistinctSequenceIterator<T, K>(iterator(), selector) }
 
+/**
+ * Evaluation is deferred until iteration. Retains the first occurrence of each equal element in a
+ * lazy sequence.
+ */
 public fun <T> Sequence<T>.distinct(): Sequence<T> where T : Equals<T>, T : Hash =
     distinctBy<T, T> { value -> value }

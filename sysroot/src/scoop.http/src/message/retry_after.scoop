@@ -3,20 +3,45 @@ package scoop.http
 import scoop.time.Duration
 import scoop.time.Instant
 
+/**
+ * A retry delay expressed as an absolute HTTP date or nonnegative delta seconds.
+ */
 public enum HttpRetryAfter : ToString {
-    DelaySeconds(Long), At(Instant)
+    /**
+     * Wait the supplied nonnegative whole seconds.
+     */
+    DelaySeconds(Long),
+        /**
+         * Wait until the supplied absolute instant.
+         */
+        At(Instant)
 
+    /**
+     * Computes the nonnegative wait from the supplied current time.
+     */
     public fun delayFrom(now: Instant): Duration = when (this) {
         case DelaySeconds(value) -> Duration.seconds(retrySeconds(value))
         case At(value) -> if (value <= now) Duration.ZERO else value - now
     }
+    /**
+     * Formats the structured value as HTTP field text.
+     */
     public override fun toString(): String = when (this) {
         case DelaySeconds(value) -> retrySeconds(value).toString()
         case At(value) -> HttpDate.format(value)
     }
+    /**
+     * Builds the corresponding named HTTP field from the structured value.
+     */
     public fun toHttpField(): HttpField = HttpField("Retry-After".toByteArray(), toString().toByteArray())
 
+    /**
+     * Construction and parsing of this structured HTTP field.
+     */
     public companion object {
+        /**
+         * Parses the complete field value, throwing HttpFieldParseException for malformed syntax.
+         */
         public fun parse(value: List<Byte>, reference: Instant, caseInsensitive: Boolean = false): HttpRetryAfter {
             val reader = HttpFieldReader("Retry-After", value)
             reader.skipOws()
@@ -26,12 +51,23 @@ public enum HttpRetryAfter : ToString {
             if (!reader.ended) reader.fail("unexpected text after Retry-After seconds")
             return DelaySeconds(number)
         }
+        /**
+         * Parses the complete field value, throwing HttpFieldParseException for malformed syntax.
+         */
         public fun parse(value: String, reference: Instant, caseInsensitive: Boolean = false): HttpRetryAfter =
             parse(value.toByteArray(), reference, caseInsensitive)
+        /**
+         * Parses the complete value, returning None for HttpFieldParseException while propagating
+         * unrelated failures.
+         */
         public fun parseOrNone(value: List<Byte>, reference: Instant, caseInsensitive: Boolean = false): HttpRetryAfter? {
             try { return Some(parse(value, reference, caseInsensitive)) }
             catch (_: HttpFieldParseException) { return None }
         }
+        /**
+         * Parses the complete value, returning None for HttpFieldParseException while propagating
+         * unrelated failures.
+         */
         public fun parseOrNone(value: String, reference: Instant, caseInsensitive: Boolean = false): HttpRetryAfter? =
             parseOrNone(value.toByteArray(), reference, caseInsensitive)
     }

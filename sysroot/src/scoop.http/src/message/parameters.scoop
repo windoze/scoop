@@ -5,16 +5,41 @@ import scoop.collections.HashSet
 import scoop.text.*
 import scoop.url.PercentEncoding
 
+/**
+ * A normalized parameter name, decoded value bytes, and whether quoted-string syntax was used.
+ */
 public class HttpParameter internal constructor(
-    public val name: String, public val value: Array<Byte>, public val wasQuoted: Boolean,
+    /**
+     * The normalized parameter name, including any extended-value asterisk.
+     */
+    public val name: String,
+        /**
+         * Parameter bytes after quoted-string unescaping.
+         */
+        public val value: Array<Byte>,
+        /**
+         * Whether the source used quoted-string syntax.
+         */
+        public val wasQuoted: Boolean,
     internal val valueOffset: Long, internal val sourceField: String
 ) {
     public constructor(name: String, value: List<Byte>, quoted: Boolean = false)
         : this(httpNormalizedToken(name), checkedHttpParameter(value), quoted, 0L, "HTTP parameter") {}
 
+    /**
+     * Decodes charset/language/percent-encoded extended syntax. UTF-8 is supported; ISO-8859-1
+     * requires explicit compatibility.
+     */
     public fun decodeExtended(allowIso88591: Boolean = false): HttpExtendedValue = decodeHttpExtended(this, allowIso88591)
 
+    /**
+     * Factories for encoded extended parameters.
+     */
     public companion object {
+        /**
+         * Encodes Unicode text as a UTF-8 extended parameter, adding the trailing asterisk to the
+         * supplied base name.
+         */
         public fun extended(name: String, text: String, language: String = ""): HttpParameter {
             if (name.length == 0L) throw IllegalArgumentException(Some("empty extended parameter name"))
             for (byte in name.toByteArray()) if (!httpAttributeByte(byte.toUByte().toInt()))

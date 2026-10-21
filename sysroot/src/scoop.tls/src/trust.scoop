@@ -2,4 +2,15 @@ package scoop.tls
 
 import scoop.crypto.x509.TrustStore
 
-public enum TlsTrustSource { System, Store(TrustStore) }
+/**
+ * The certificate trust roots used when creating a client context.
+ */
+public enum TlsTrustSource {
+    /**
+     * Loads the host system's trusted certificate roots.
+     */
+    System,
+    /**
+     * Uses the supplied certificate trust store.
+     */
+    Store(TrustStore) }

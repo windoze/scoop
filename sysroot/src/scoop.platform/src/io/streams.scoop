@@ -4,21 +4,55 @@ import scoop.bytes.ByteArrayBuilder
 import scoop.platform.memory.NativeByteBuffer
 import scoop.platform.memory.nativeMemoryMove
 
+/**
+ * A synchronous byte source supporting short reads. Zero for a positive-size request denotes EOF.
+ */
 public interface ByteSource {
+    /**
+     * Reads into the selected writable region, returning actual bytes and permitting short reads.
+     * Zero for a positive request denotes EOF.
+     */
     public fun readInto(buffer: NativeByteBuffer, count: Long): Long
 }
 
+/**
+ * A synchronous byte sink supporting short writes and explicit flushing.
+ */
 public interface ByteSink {
+    /**
+     * Consumes the selected readable region, returning the actual accepted byte count and
+     * permitting short writes.
+     */
     public fun writeFrom(buffer: NativeByteBuffer, count: Long): Long
+    /**
+     * Flushes pending output according to the sink's buffering contract.
+     */
     public fun flush()
 }
 
+/**
+ * An exact-size read reached EOF before the requested byte count.
+ */
 public class UnexpectedEofException public constructor() : Exception(Some("unexpected end of input"))
+/**
+ * An exact-size write could not make progress.
+ */
 public class WriteZeroException public constructor() : Exception(Some("output made no progress"))
 
+/**
+ * Reads into the selected writable buffer or array region, returning the actual byte count and
+ * allowing short reads.
+ */
 public fun ByteSource.readInto(buffer: NativeByteBuffer): Long = readInto(buffer, buffer.writableBytes)
+/**
+ * Writes the selected readable buffer or array region, returning the accepted byte count and
+ * allowing short writes.
+ */
 public fun ByteSink.writeFrom(buffer: NativeByteBuffer): Long = writeFrom(buffer, buffer.readableBytes)
 
+/**
+ * Reads exactly the requested count or throws UnexpectedEofException on premature EOF.
+ */
 public fun ByteSource.readFully(buffer: NativeByteBuffer, count: Long = buffer.writableBytes) {
     requireTransfer(count, buffer.writableBytes)
     var remaining = count
@@ -30,6 +64,9 @@ public fun ByteSource.readFully(buffer: NativeByteBuffer, count: Long = buffer.w
     }
 }
 
+/**
+ * Writes exactly the requested count or throws WriteZeroException when the sink makes no progress.
+ */
 public fun ByteSink.writeFully(buffer: NativeByteBuffer, count: Long = buffer.readableBytes) {
     requireTransfer(count, buffer.readableBytes)
     var remaining = count
@@ -41,6 +78,10 @@ public fun ByteSink.writeFully(buffer: NativeByteBuffer, count: Long = buffer.re
     }
 }
 
+/**
+ * Copies input to a destination and returns actual bytes transferred. Byte-source copies borrow
+ * both endpoints; path copies own their temporary handles and honor replaceExisting.
+ */
 public fun ByteSource.copyTo(destination: ByteSink, bufferSize: Long = 8192L): Long {
     return newIoBuffer(bufferSize).use { buffer ->
         var total = 0L
@@ -57,6 +98,10 @@ public fun ByteSource.copyTo(destination: ByteSink, bufferSize: Long = 8192L): L
     }
 }
 
+/**
+ * Collects all remaining input into an independent byte array. Path overloads open and close their
+ * own file handle.
+ */
 public fun ByteSource.readAllBytes(): Array<Byte> {
     val result = ByteArrayBuilder()
     NativeByteBuffer.allocate(8192L).use { buffer ->
@@ -71,6 +116,10 @@ public fun ByteSource.readAllBytes(): Array<Byte> {
     return result.toByteArray()
 }
 
+/**
+ * Reads into the selected writable buffer or array region, returning the actual byte count and
+ * allowing short reads.
+ */
 public fun ByteSource.readInto(array: MutableArray<Byte>, offset: Long = 0L, count: Long = array.size - offset): Long {
     requireArrayTransfer(array.size, offset, count)
     if (count == 0L) return 0L
@@ -82,6 +131,10 @@ public fun ByteSource.readInto(array: MutableArray<Byte>, offset: Long = 0L, cou
     }
 }
 
+/**
+ * Writes the selected readable buffer or array region, returning the accepted byte count and
+ * allowing short writes.
+ */
 public fun ByteSink.writeFrom(array: List<Byte>, offset: Long = 0L, count: Long = array.size - offset): Long {
     requireArrayTransfer(array.size, offset, count)
     if (count == 0L) return 0L
@@ -94,6 +147,10 @@ public fun ByteSink.writeFrom(array: List<Byte>, offset: Long = 0L, count: Long 
     }
 }
 
+/**
+ * Writes all supplied bytes. Path overloads create/open and close their own file handle, with
+ * explicit append selection.
+ */
 public fun ByteSink.writeAllBytes(bytes: List<Byte>) {
     NativeByteBuffer.allocate(bytes.size).use { buffer -> buffer.writeBytes(bytes); writeFully(buffer) }
 }

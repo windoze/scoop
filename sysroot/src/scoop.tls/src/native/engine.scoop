@@ -4,12 +4,56 @@ import scoop.crypto.native.cryptoBytes
 import scoop.platform.memory.*
 import scoop.tls.*
 
-public enum TlsStepKind { Done, WantRead, WantWrite, Closed, WantVerification }
+/**
+ * The next action required by the transport-independent [TlsEngine].
+ */
+public enum TlsStepKind {
+    /**
+     * The requested operation completed or transferred plaintext bytes.
+     */
+    Done,
+    /**
+     * Feed additional ciphertext before retrying the operation.
+     */
+    WantRead,
+    /**
+     * Drain pending ciphertext before retrying the operation.
+     */
+    WantWrite,
+    /**
+     * The peer completed the TLS close protocol.
+     */
+    Closed,
+    /**
+     * Run and complete the pending certificate-verification work before retrying.
+     */
+    WantVerification }
+/**
+ * The result of one engine step.
+ *
+ * @property kind The action needed to continue the TLS protocol.
+ * @property count The plaintext byte count transferred by the step.
+ */
 public struct TlsStep(val kind: TlsStepKind, val count: Long)
 
+/**
+ * A transport-independent TLS state machine with explicit ciphertext input and output. The caller
+ * drives handshake, transfer, verification, and shutdown steps and serializes access to the
+ * engine. Close it to release the native session.
+ */
 public class TlsEngine private constructor(private var handle: ULong) : Closeable {
+    /**
+     * Creates native TLS sessions without owning a network transport.
+     */
     public companion object {
+        /**
+         * Creates a client engine configured to verify the supplied DNS name or IP address. The
+         * caller must drive the handshake.
+         */
         public fun client(context: TlsClientContext, peer: TlsPeerName): TlsEngine = TlsEngine(context.newSession(peer))
+        /**
+         * Creates a server engine from a server context. The caller must drive the handshake.
+         */
         public fun server(context: TlsServerContext): TlsEngine = TlsEngine(context.newSession())
     }
 
@@ -18,8 +62,18 @@ public class TlsEngine private constructor(private var handle: ULong) : Closeabl
         return handle
     }
 
+    /**
+     * The number of additional ciphertext bytes the engine can currently accept.
+     */
     public val inputCapacity: Long get() { @Unsafe { return inputCapacity(nativeHandle()) } }
+    /**
+     * The ciphertext byte count available for draining to the transport.
+     */
     public val pendingOutput: Long get() { @Unsafe { return pendingOutput(nativeHandle()) } }
+    /**
+     * The negotiated version and ALPN after handshake completion; querying too early throws
+     * [IllegalStateException].
+     */
     public val connectionInfo: TlsConnectionInfo get() {
         @Unsafe {
             val owned = nativeHandle()
@@ -33,16 +87,36 @@ public class TlsEngine private constructor(private var handle: ULong) : Closeabl
         }
     }
 
+    /**
+     * Advances the handshake once and reports whether to feed input, drain output, or perform
+     * certificate verification.
+     */
     public fun handshake(): TlsStep { @Unsafe { return checkedStep(sessionStep(nativeHandle(), 0, None, 0L), "TLS handshake") } }
+    /**
+     * Advances the TLS close handshake once. The caller continues driving the indicated transport
+     * or verification work.
+     */
     public fun shutdown(): TlsStep { @Unsafe { return checkedStep(sessionStep(nativeHandle(), 3, None, 0L), "TLS shutdown") } }
 
+    /**
+     * Takes the pending native verification work. Run it, complete it on this engine, and release
+     * it exactly once; keep the pointer valid throughout those operations.
+     */
     @Unsafe public fun takeVerification(): Ptr<Unit> =
         workPointer(takeVerification(nativeHandle()), "take TLS verification")
 
+    /**
+     * Applies the result of completed verification work to this engine. The caller still owns and
+     * must release the work record.
+     */
     @Unsafe public fun completeVerification(work: Ptr<Unit>) {
         tlsValue(completeVerification(nativeHandle(), work), "complete TLS verification")
     }
 
+    /**
+     * Runs pending certificate verification synchronously, applies its result, and releases the
+     * native work record even on failure.
+     */
     public fun verify() {
         @Unsafe {
             val work = takeVerification()
@@ -51,17 +125,29 @@ public class TlsEngine private constructor(private var handle: ULong) : Closeabl
         }
     }
 
+    /**
+     * Attempts to decrypt into a nonempty writable native borrow. The caller keeps the borrow
+     * alive and completes it with the actual transferred count.
+     */
     @Unsafe public fun read(borrow: NativeByteBorrow): TlsStep {
         if (borrow.length == 0L) throw IllegalArgumentException(Some("TLS engine read requires a nonempty buffer"))
         return checkedStep(sessionStep(nativeHandle(), 1, borrow.pointer(), borrow.length), "TLS read")
     }
 
+    /**
+     * Attempts to encrypt a nonempty readable native borrow, accepting at most 16,384 bytes. The
+     * caller keeps the borrow alive and accounts for the returned count.
+     */
     @Unsafe public fun write(borrow: NativeByteBorrow): TlsStep {
         if (borrow.length == 0L) throw IllegalArgumentException(Some("TLS engine write requires a nonempty buffer"))
         val count = if (borrow.length > 16384L) 16384L else borrow.length
         return checkedStep(sessionStep(nativeHandle(), 2, borrow.pointer(), count), "TLS write")
     }
 
+    /**
+     * Consumes up to the requested readable ciphertext bytes, limited by engine capacity, and
+     * advances the input buffer by the accepted count.
+     */
     public fun receiveCiphertext(buffer: NativeByteBuffer, requested: Long = buffer.readableBytes): Long {
         if (requested < 0L || requested > buffer.readableBytes) throw IllegalArgumentException(Some("invalid TLS ciphertext count"))
         val capacity = inputCapacity
@@ -76,6 +162,10 @@ public class TlsEngine private constructor(private var handle: ULong) : Closeabl
         }
     }
 
+    /**
+     * Appends up to the requested pending ciphertext bytes to writable buffer space and returns
+     * the amount drained.
+     */
     public fun takeCiphertext(buffer: NativeByteBuffer, requested: Long = buffer.writableBytes): Long {
         if (requested < 0L || requested > buffer.writableBytes) throw IllegalArgumentException(Some("invalid TLS ciphertext count"))
         val pending = pendingOutput
@@ -86,7 +176,14 @@ public class TlsEngine private constructor(private var handle: ULong) : Closeabl
         } }
     }
 
+    /**
+     * Marks the ciphertext transport as ended so subsequent steps can distinguish an orderly TLS
+     * close from truncation.
+     */
     public fun endInput() { @Unsafe { endInput(nativeHandle()) } }
+    /**
+     * Releases the native session without driving a network shutdown. Repeated closes are allowed.
+     */
     public override fun close() {
         val owned = handle
         handle = 0UL

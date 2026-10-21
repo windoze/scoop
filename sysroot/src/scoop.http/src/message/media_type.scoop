@@ -3,18 +3,50 @@ package scoop.http
 import scoop.collections.emptyList
 import scoop.text.lowercaseAscii
 
+/**
+ * A normalized media type/subtype with unique named parameters and optional original field bytes.
+ */
 public class HttpMediaType private constructor(
-    public val type: String, public val subtype: String, public val parameters: Array<HttpParameter>,
+    /**
+     * The normalized top-level media type token.
+     */
+    public val type: String,
+        /**
+         * The normalized media subtype token.
+         */
+        public val subtype: String,
+        /**
+         * The parsed named parameters in their stored order.
+         */
+        public val parameters: Array<HttpParameter>,
+    /**
+     * The original parsed field-value bytes, or None for a programmatically constructed value.
+     */
     public val originalValue: Array<Byte>?
 ) {
     public constructor(type: String, subtype: String, parameters: List<HttpParameter> = emptyList<HttpParameter>())
         : this(httpNormalizedToken(type), httpNormalizedToken(subtype), uniqueHttpParameters(parameters), None) {}
 
+    /**
+     * Looks up a named parameter using ASCII case folding, returning None when absent.
+     */
     public fun parameter(name: String): HttpParameter? = findHttpParameter(parameters, name)
+    /**
+     * Serializes the structured value into HTTP field-value bytes.
+     */
     public fun toByteArray(): Array<Byte> = encodeHttpParameters(type + "/" + subtype, parameters)
+    /**
+     * Builds the corresponding named HTTP field from the structured value.
+     */
     public fun toHttpField(): HttpField = HttpField("Content-Type".toByteArray(), toByteArray())
 
+    /**
+     * Construction and parsing of this structured HTTP field.
+     */
     public companion object {
+        /**
+         * Reads the Content-Type field, returning None when absent and rejecting duplicates.
+         */
         public fun parseFields(fields: List<HttpField>): HttpMediaType? {
             val values = fields.findAll("Content-Type".toByteArray())
             if (values.size == 0L) return None
@@ -22,6 +54,9 @@ public class HttpMediaType private constructor(
             return Some(parse(values[0L].value))
         }
 
+        /**
+         * Parses the complete field value, throwing HttpFieldParseException for malformed syntax.
+         */
         public fun parse(value: List<Byte>): HttpMediaType {
             val reader = HttpFieldReader("Content-Type", value)
             reader.skipOws()
@@ -31,11 +66,22 @@ public class HttpMediaType private constructor(
             val parameters = reader.parameters(allowEmpty = true)
             return HttpMediaType(type, subtype, parameters, Some(reader.bytes))
         }
+        /**
+         * Parses the complete field value, throwing HttpFieldParseException for malformed syntax.
+         */
         public fun parse(value: String): HttpMediaType = parse(value.toByteArray())
+        /**
+         * Parses the complete value, returning None for HttpFieldParseException while propagating
+         * unrelated failures.
+         */
         public fun parseOrNone(value: List<Byte>): HttpMediaType? {
             try { return Some(parse(value)) }
             catch (_: HttpFieldParseException) { return None }
         }
+        /**
+         * Parses the complete value, returning None for HttpFieldParseException while propagating
+         * unrelated failures.
+         */
         public fun parseOrNone(value: String): HttpMediaType? = parseOrNone(value.toByteArray())
     }
 }

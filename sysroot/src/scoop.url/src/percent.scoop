@@ -3,10 +3,29 @@ package scoop.url
 import scoop.bytes.ByteArrayBuilder
 import scoop.text.contains
 
+/**
+ * URI percent encoding for arbitrary bytes and UTF-8 text. A plus sign is ordinary data here; form
+ * encoding has a separate codec.
+ */
 public object PercentEncoding {
+    /**
+     * Percent-encodes arbitrary bytes, or the UTF-8 encoding of text, leaving only unreserved URI
+     * characters literal.
+     */
     public fun encode(bytes: List<Byte>): String = encodeUrlBytes(bytes, false, "")
+    /**
+     * Percent-encodes arbitrary bytes, or the UTF-8 encoding of text, leaving only unreserved URI
+     * characters literal.
+     */
     public fun encode(text: String): String = encode(text.toByteArray())
+    /**
+     * Decodes percent escapes into arbitrary bytes. Malformed escapes are rejected; plus is not
+     * converted to space.
+     */
     public fun decode(text: String): Array<Byte> = decodeUrlBytes(text, false)
+    /**
+     * Decodes percent escapes and validates the result as UTF-8 text.
+     */
     public fun decodeUtf8(text: String): String = urlUtf8(decode(text), UrlComponent.PercentEncoding)
 }
 

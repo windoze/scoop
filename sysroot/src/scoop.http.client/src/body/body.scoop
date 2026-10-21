@@ -12,24 +12,56 @@ import scoop.http.MultipartBoundary
 import scoop.platform.fs.Path
 import scoop.url.UrlQuery
 
+/**
+ * A request-body plan with explicit metadata and replayability. One-shot sources cannot be retried
+ * after consumption; factories reopen state without implicit whole-body buffering.
+ */
 public class RequestBody internal constructor(
-    contentLength: Long?, public val contentType: HttpMediaType?, private val plan: RequestBodyPlan,
+    contentLength: Long?,
+        /**
+         * The body's media type, if supplied.
+         */
+        public val contentType: HttpMediaType?, private val plan: RequestBodyPlan,
     contentEncodings: List<String> = emptyList<String>(),
     internal val trailerDeclaration: HttpTrailerDeclaration = HttpTrailerDeclaration(emptyList<String>()),
     internal val entityDigests: Array<ClientEntityDigest> = []
 ) {
+    /**
+     * The declared outgoing representation length, or None when unknown.
+     */
     public val contentLength: Long? = checkedBodyLength(contentLength)
+    /**
+     * Content codings applied to the outgoing body, in application order.
+     */
     public val contentEncodings: Array<String> = contentEncodings.toArray()
+    /**
+     * The declared names that the producer may return as trailers.
+     */
     public val trailerNames: Array<String> get() = trailerDeclaration.names
+    /**
+     * Whether the plan can create a fresh body traversal for another attempt.
+     */
     public val isReplayable: Boolean get() = plan.isReplayable
 
+    /**
+     * Wraps this plan in streaming compression, preserving its replayability and updating coding
+     * metadata.
+     */
     public fun compressed(options: CompressionOptions = CompressionOptions.Gzip(GzipOptions())): RequestBody =
         compressedRequestBody(this, options)
 
+    /**
+     * Adds an explicit entity digest for the selected authentication algorithm; the caller
+     * supplies bytes matching the actual body.
+     */
     public fun withDigest(algorithm: HttpDigestAlgorithm, bytes: List<Byte>): RequestBody =
         RequestBody(contentLength, contentType, plan, contentEncodings, trailerDeclaration,
             replaceClientEntityDigest(entityDigests, algorithm, bytes))
 
+    /**
+     * Writes the body to a borrowed sink and verifies declared length; bodies declaring trailers
+     * require writeWithTrailersTo.
+     */
     public suspend fun writeTo(destination: AsyncByteSink, bufferSize: Long = 8192L): Long {
         ensureActive()
         if (trailerNames.size != 0L)
@@ -37,6 +69,10 @@ public class RequestBody internal constructor(
         return writeWithTrailersTo(destination, bufferSize).transferredBytes
     }
 
+    /**
+     * Writes and length-checks the body, then returns transferred bytes and validated declared
+     * trailers.
+     */
     public suspend fun writeWithTrailersTo(destination: AsyncByteSink, bufferSize: Long = 8192L): RequestBodyWriteResult {
         ensureActive()
         if (bufferSize <= 0L) throw IllegalArgumentException(Some("request body buffer size must be positive"))
@@ -49,25 +85,49 @@ public class RequestBody internal constructor(
         } finally { sink.end() }
     }
 
+    /**
+     * Factories for buffered, streaming, and replayable body plans.
+     */
     public companion object {
+        /**
+         * A replayable zero-byte body without a media type.
+         */
         public val Empty: RequestBody = RequestBody(Some(0L), None, RequestBytes(Array<Byte>(0L) { _ -> 0.toByte() }))
 
+        /**
+         * Copies bytes into a replayable body with known length.
+         */
         public fun fromByteArray(bytes: List<Byte>, contentType: HttpMediaType? = None): RequestBody {
             val snapshot = bytes.toArray()
             return RequestBody(Some(snapshot.size), contentType, RequestBytes(snapshot))
         }
 
+        /**
+         * Encodes text using the selected charset into a replayable body with text metadata.
+         */
         public fun fromText(text: String, charset: Charset = Charset.Utf8): RequestBody =
             textRequestBody(text, charset)
 
+        /**
+         * Encodes JSON into a replayable body under the explicit byte limit.
+         */
         public fun <T> fromJson(value: T, codec: ValueEncoder<T>, maxBytes: Long): RequestBody =
             jsonRequestBody(value, codec, maxBytes)
 
+        /**
+         * Encodes form parameters as application/x-www-form-urlencoded.
+         */
         public fun fromForm(parameters: UrlQuery): RequestBody = formRequestBody(parameters)
 
+        /**
+         * Combines part plans with multipart framing; replayability depends on all parts.
+         */
         public fun fromMultipart(parts: List<RequestBodyPart>, boundary: MultipartBoundary = MultipartBoundary.generate(),
             subtype: String = "form-data"): RequestBody = multipartRequestBody(parts, boundary, subtype)
 
+        /**
+         * Borrows a one-shot asynchronous source without taking close ownership.
+         */
         public fun fromSource(source: AsyncByteSource, contentLength: Long? = None,
             contentType: HttpMediaType? = None): RequestBody =
             RequestBody(contentLength, contentType, RequestBodyOnce(suspend { destination, bufferSize ->
@@ -75,6 +135,9 @@ public class RequestBody internal constructor(
                 emptyList<HttpField>()
             }))
 
+        /**
+         * Creates and closes a fresh owned source for each body attempt, enabling replay.
+         */
         public fun <T> fromSourceFactory(contentLength: Long? = None, contentType: HttpMediaType? = None,
             factory: suspend () -> T): RequestBody where T : AsyncByteSource, T : AsyncCloseable =
             RequestBody(contentLength, contentType, RequestBodyFactory(suspend {
@@ -84,9 +147,15 @@ public class RequestBody internal constructor(
                 }
             }))
 
+        /**
+         * Reopens the path for each attempt; it does not snapshot changing file contents.
+         */
         public fun fromFile(path: Path, contentLength: Long? = None, contentType: HttpMediaType? = None): RequestBody =
             fromSourceFactory(contentLength, contentType, suspend { currentEventLoop().openFile(path) })
 
+        /**
+         * Creates a one-shot producer that writes to a borrowed sink.
+         */
         public fun fromProducer(contentLength: Long? = None, contentType: HttpMediaType? = None,
             producer: suspend (AsyncByteSink) -> Unit): RequestBody =
             RequestBody(contentLength, contentType, RequestBodyOnce(suspend { destination, _ ->
@@ -94,6 +163,9 @@ public class RequestBody internal constructor(
                 emptyList<HttpField>()
             }))
 
+        /**
+         * Creates a fresh producer for each attempt, enabling replay.
+         */
         public fun fromProducerFactory(contentLength: Long? = None, contentType: HttpMediaType? = None,
             factory: suspend () -> suspend (AsyncByteSink) -> Unit): RequestBody =
             RequestBody(contentLength, contentType, RequestBodyFactory(suspend {
@@ -101,11 +173,17 @@ public class RequestBody internal constructor(
                 suspend { destination, _ -> producer(destination); emptyList<HttpField>() }
             }))
 
+        /**
+         * Creates a one-shot producer returning trailers from the declared name set.
+         */
         public fun fromProducerWithTrailers(trailerNames: List<String>, contentLength: Long? = None,
             contentType: HttpMediaType? = None, producer: suspend (AsyncByteSink) -> List<HttpField>): RequestBody =
             RequestBody(contentLength, contentType, RequestBodyOnce(suspend { destination, _ -> producer(destination) }),
                 trailerDeclaration = HttpTrailerDeclaration(trailerNames))
 
+        /**
+         * Creates a fresh trailer-producing callback for each attempt, enabling replay.
+         */
         public fun fromProducerWithTrailersFactory(trailerNames: List<String>, contentLength: Long? = None,
             contentType: HttpMediaType? = None, factory: suspend () -> suspend (AsyncByteSink) -> List<HttpField>): RequestBody =
             RequestBody(contentLength, contentType, RequestBodyFactory(suspend {
@@ -115,7 +193,18 @@ public class RequestBody internal constructor(
     }
 }
 
-public class RequestBodyWriteResult internal constructor(public val transferredBytes: Long, public val trailers: Array<HttpField>)
+/**
+ * The actual body bytes transferred and trailers produced after successful body completion.
+ */
+public class RequestBodyWriteResult internal constructor(
+    /**
+     * The actual outgoing body bytes accepted by the sink.
+     */
+    public val transferredBytes: Long,
+    /**
+     * Validated trailers produced after the body.
+     */
+    public val trailers: Array<HttpField>)
 
 private fun checkedBodyLength(length: Long?): Long? {
     if (length != None && length!! < 0L) throw IllegalArgumentException(Some("negative request body length"))

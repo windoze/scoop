@@ -2,10 +2,23 @@ package scoop.compression
 
 import scoop.platform.memory.NativeByteBuffer
 
+/**
+ * Owned native dictionary bytes for zstd. Construction copies the supplied bytes; close the
+ * dictionary after it is no longer needed for codec construction.
+ */
 public class CompressionDictionary private constructor(private val buffer: NativeByteBuffer) : Closeable {
+    /**
+     * The dictionary byte count.
+     */
     public val size: Long get() = buffer.readableBytes
 
+    /**
+     * Creates owned dictionary storage from application bytes.
+     */
     public companion object {
+        /**
+         * Copies dictionary bytes into independently owned native storage.
+         */
         public fun fromByteArray(data: List<Byte>): CompressionDictionary {
             if (data.size == 0L) throw IllegalArgumentException(Some("compression dictionary cannot be empty"))
             val buffer = NativeByteBuffer.allocate(data.size)
@@ -16,5 +29,8 @@ public class CompressionDictionary private constructor(private val buffer: Nativ
 
     @Unsafe internal fun <T> withBytes(block: (Ptr<Byte>?, Long) -> T): T = buffer.withReadableBytes(block)
 
+    /**
+     * Releases owned dictionary storage.
+     */
     public override fun close() { buffer.close() }
 }

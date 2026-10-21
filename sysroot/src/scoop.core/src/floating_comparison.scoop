@@ -1,6 +1,21 @@
+/**
+ * The result of an IEEE numerical comparison, including an explicit unordered result for NaN.
+ */
 public enum IeeeComparison {
+    /**
+     * The left operand is numerically smaller.
+     */
     Less,
+    /**
+     * The operands are numerically equal, including opposite signed zeros.
+     */
     Equal,
+    /**
+     * The left operand is numerically larger.
+     */
     Greater,
+    /**
+     * At least one operand is NaN; no ordered comparison holds.
+     */
     Unordered
 }

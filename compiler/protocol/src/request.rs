@@ -5,11 +5,16 @@ use crate::dump::DecodedStageDumpPolicyV1;
 use crate::path::DecodedHostPathCarrier;
 use crate::{HostPathCarrier, PROTOCOL_VERSION, ProtocolValidationError, RequestCorrelationId};
 
+mod output;
 mod target;
+use output::DecodedOutputRequest;
+pub use output::ScoopcOutputRequestV1;
 use target::DecodedTargetSelectionRequestV1;
 pub use target::TargetSelectionRequestV1;
 
 use crate::OptimizationMode;
+mod documentation;
+use documentation::validate_documentation;
 
 const REQUEST_MAGIC: &[u8; 8] = b"SCOOPREQ";
 
@@ -104,7 +109,7 @@ pub struct ScoopcBuildRequestV1 {
     support_slibs: Vec<HostPathCarrier>,
     trusted_core: TrustedCoreRequestV1,
     target: TargetSelectionRequestV1,
-    out_slib: HostPathCarrier,
+    output: ScoopcOutputRequestV1,
     diagnostics: DiagnosticOutputPolicyV1,
     emit: StageDumpPolicyV1,
     optimization: OptimizationMode,
@@ -120,18 +125,25 @@ impl ScoopcBuildRequestV1 {
         support_slibs: Vec<HostPathCarrier>,
         trusted_core: TrustedCoreRequestV1,
         target: TargetSelectionRequestV1,
-        out_slib: HostPathCarrier,
+        output: impl Into<ScoopcOutputRequestV1>,
         diagnostics: DiagnosticOutputPolicyV1,
         emit: StageDumpPolicyV1,
     ) -> Result<Self, ProtocolValidationError> {
         validate_build_shape(&current, &direct_slibs, &support_slibs, &trusted_core)?;
+        let output = output.into();
+        validate_documentation(
+            &current,
+            crate::CompilationPurpose::Production,
+            &output,
+            &emit,
+        )?;
         Ok(Self {
             current,
             direct_slibs,
             support_slibs,
             trusted_core,
             target,
-            out_slib,
+            output,
             diagnostics,
             emit,
             optimization: OptimizationMode::Debug,
@@ -155,6 +167,7 @@ impl ScoopcBuildRequestV1 {
             return Err(ProtocolValidationError::TestRequiresManifest);
         }
         self.purpose = purpose;
+        validate_documentation(&self.current, purpose, &self.output, &self.emit)?;
         Ok(self)
     }
 
@@ -196,8 +209,8 @@ impl ScoopcBuildRequestV1 {
         &self.target
     }
 
-    pub fn out_slib(&self) -> &HostPathCarrier {
-        &self.out_slib
+    pub fn output(&self) -> &ScoopcOutputRequestV1 {
+        &self.output
     }
 
     pub const fn diagnostics(&self) -> DiagnosticOutputPolicyV1 {
@@ -223,7 +236,7 @@ impl WireEncode for ScoopcBuildRequestV1 {
         encoder.field(5)?;
         self.target.encode(encoder)?;
         encoder.field(6)?;
-        self.out_slib.encode(encoder)?;
+        self.output.encode(encoder)?;
         encoder.field(7)?;
         self.diagnostics.encode(encoder)?;
         encoder.field(8)?;
@@ -254,6 +267,9 @@ impl ScoopcRequestEnvelopeV1 {
     }
 
     pub fn observe(mut self, stages: crate::StageDumpSet) -> Result<Self, ProtocolValidationError> {
+        if self.build.output.documentation().is_some() {
+            return Err(ProtocolValidationError::DocumentationObservation);
+        }
         let StageDumpPolicyV1::Files {
             stages: requested, ..
         } = &mut self.build.emit

@@ -1,0 +1,34 @@
+{%- macro type_token(token) -%}
+{% if token.href %}<a href="{{ token.href }}">{{ token.text }}</a>{% elif token.unavailable %}<span title="No generated documentation for this type">{{ token.text }}</span>{% else %}{{ token.text }}{% endif %}
+{%- endmacro -%}
+{% macro declaration(entry) %}
+<article id="{{ entry.anchor }}" class="declaration">
+  {% if entry.group_anchor %}<span id="{{ entry.group_anchor }}" class="group-anchor"></span>{% endif %}
+  <div class="declaration-heading">
+    <h2><span class="kind">{{ entry.kind }}</span> {{ entry.name }}</h2>
+    {% if entry.source %}<a class="source-link" href="{{ entry.source.href }}">{{ entry.source.text }}</a>{% endif %}
+  </div>
+  <div class="badges"><span>{{ entry.visibility }}</span>{% if entry.synthesized %}<span>compiler-derived</span>{% endif %}</div>
+  <pre class="signature"><code>{% for token in entry.signature %}{{ type_token(token) }}{% endfor %}</code></pre>
+  {% if entry.relations %}<ul class="relations">{% for link in entry.relations %}<li><span class="kind">{{ link.kind }}</span> {% if link.href %}<a href="{{ link.href }}"><code>{{ link.text }}</code></a>{% else %}<code>{{ link.text }}</code> <small>(no generated documentation)</small>{% endif %}{% if link.summary %}<small> · {{ link.summary }}</small>{% endif %}</li>{% endfor %}</ul>{% endif %}
+  {% if entry.receiver %}<p>Extension receiver: <code>{{ type_token(entry.receiver) }}</code></p>{% endif %}
+  {% if entry.equality_requirements is not none %}
+  <p class="availability">This derived operation is available when each field or payload type supports same-type equality.{% if entry.equality_requirements %} Required types: {% for component in entry.equality_requirements %}<code>{{ type_token(component) }}</code>{% if not loop.last %}, {% endif %}{% endfor %}.{% endif %}</p>
+  {% endif %}
+  {% if entry.property %}
+  <p class="capabilities">
+    <span{% if entry.property.getter.anchor %} id="{{ entry.property.getter.anchor }}"{% endif %}>get: {{ entry.property.getter.visibility }}</span>
+    {% if entry.property.setter %}<span{% if entry.property.setter.anchor %} id="{{ entry.property.setter.anchor }}"{% endif %}>set: {{ entry.property.setter.visibility }}</span>{% else %}<span>read-only</span>{% endif %}
+  </p>
+  {% endif %}
+  {% if entry.comment %}<div class="prose">{{ entry.comment | safe }}</div>{% endif %}
+  {% if entry.tags %}<dl class="tags">{% for tag in entry.tags %}
+    <dt>@{{ tag.kind }}{% if tag.label %} {% if tag.href %}<a href="{{ tag.href }}">{{ tag.label }}</a>{% else %}{{ tag.label }}{% endif %}{% endif %}</dt>
+    <dd class="prose">{{ tag.body | safe }}</dd>
+  {% endfor %}</dl>{% endif %}
+  {% if entry.related %}<ul class="related">{% for link in entry.related %}<li><span class="kind">{{ link.kind }}</span> <a href="{{ link.href }}">{{ link.text }}</a></li>{% endfor %}</ul>{% endif %}
+  {% if entry.extensions %}<section class="listing"><h3>Extensions</h3><ul>{% for link in entry.extensions %}<li><a href="{{ link.href }}"><code>{{ link.text }}</code></a><small> · {{ link.summary }}</small></li>{% endfor %}</ul></section>{% endif %}
+  {% for child in entry.children %}{{ declaration(child) }}{% endfor %}
+</article>
+{% endmacro %}
+{% for entry in items %}{{ declaration(entry) }}{% endfor %}

@@ -4,38 +4,90 @@ import scoop.asyncio.*
 import scoop.compression.*
 import scoop.platform.memory.NativeByteBuffer
 
+/**
+ * A suspending compression source adapter with bounded buffering. The ordinary constructor borrows
+ * its endpoint; takeOwnership also assumes endpoint close responsibility. I/O waits suspend; codec
+ * computation remains local. Cancellation cleanup waits for active operations. Reading to EOF
+ * completes format validation; early close does not.
+ */
 public class AsyncCompressionSource private constructor(private val stream: AsyncCompressionSourceImpl) : AsyncByteSource, AsyncCloseable {
     public constructor(source: AsyncByteSource, options: CompressionOptions = CompressionOptions.Zstd(ZstdOptions()),
         bufferSize: Long = 8192L) : this(AsyncCompressionSourceImpl(source, currentEventLoop(),
             compressionIoResources(createCompressionEncoder(options), bufferSize, true), None)) {}
 
+    /**
+     * Factories that explicitly transfer endpoint cleanup responsibility.
+     */
     public companion object {
+        /**
+         * Creates an adapter that closes the supplied endpoint during its own cleanup.
+         */
         public fun <T> takeOwnership(source: T, options: CompressionOptions = CompressionOptions.Zstd(ZstdOptions()),
             bufferSize: Long = 8192L): AsyncCompressionSource where T : AsyncByteSource, T : AsyncCloseable =
             AsyncCompressionSource(AsyncCompressionSourceImpl(source, currentEventLoop(),
                 compressionIoResources(createCompressionEncoder(options), bufferSize, true), Some(source)))
     }
 
+    /**
+     * The actual input accepted and output delivered so far.
+     */
     public val totals: CompressionTotals get() = stream.totals
+    /**
+     * The retained terminal failure, or None before failure.
+     */
     public val failure: Throwable? get() = stream.failure
+    /**
+     * Produces up to count transformed bytes into the writable buffer region. EOF completes the
+     * format; short reads are permitted.
+     */
     public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long = stream.readInto(buffer, count)
+    /**
+     * Releases codec state and closes an endpoint whose ownership was transferred. It does not
+     * force incomplete data to finish.
+     */
     public override suspend fun close() { stream.close() }
 }
 
+/**
+ * A suspending decompression source adapter with bounded buffering. The ordinary constructor
+ * borrows its endpoint; takeOwnership also assumes endpoint close responsibility. I/O waits
+ * suspend; codec computation remains local. Cancellation cleanup waits for active operations.
+ * Reading to EOF completes format validation; early close does not.
+ */
 public class AsyncDecompressionSource private constructor(private val stream: AsyncCompressionSourceImpl) : AsyncByteSource, AsyncCloseable {
     public constructor(source: AsyncByteSource, options: DecompressionOptions = DecompressionOptions(),
         bufferSize: Long = 8192L) : this(AsyncCompressionSourceImpl(source, currentEventLoop(),
             compressionIoResources(createCompressionDecoder(options), bufferSize, false), None)) {}
 
+    /**
+     * Factories that explicitly transfer endpoint cleanup responsibility.
+     */
     public companion object {
+        /**
+         * Creates an adapter that closes the supplied endpoint during its own cleanup.
+         */
         public fun <T> takeOwnership(source: T, options: DecompressionOptions = DecompressionOptions(),
             bufferSize: Long = 8192L): AsyncDecompressionSource where T : AsyncByteSource, T : AsyncCloseable =
             AsyncDecompressionSource(AsyncCompressionSourceImpl(source, currentEventLoop(),
                 compressionIoResources(createCompressionDecoder(options), bufferSize, false), Some(source)))
     }
 
+    /**
+     * The actual input accepted and output delivered so far.
+     */
     public val totals: CompressionTotals get() = stream.totals
+    /**
+     * The retained terminal failure, or None before failure.
+     */
     public val failure: Throwable? get() = stream.failure
+    /**
+     * Produces up to count transformed bytes into the writable buffer region. EOF completes the
+     * format; short reads are permitted.
+     */
     public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long = stream.readInto(buffer, count)
+    /**
+     * Releases codec state and closes an endpoint whose ownership was transferred. It does not
+     * force incomplete data to finish.
+     */
     public override suspend fun close() { stream.close() }
 }

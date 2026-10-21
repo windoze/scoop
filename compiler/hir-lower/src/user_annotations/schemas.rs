@@ -117,6 +117,7 @@ impl Lowerer {
         }
         let complete = parameters.len() == input.declaration.parameters.len();
         if complete {
+            self.document_annotation(id);
             let rules = self.initial_annotation_rules(id);
             self.annotation_metadata
                 .declarations

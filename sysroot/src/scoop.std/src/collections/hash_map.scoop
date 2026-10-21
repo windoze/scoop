@@ -2,6 +2,10 @@ package scoop.collections
 
 internal struct HashLocation(val index: Long, val hash: Long)
 
+/**
+ * A mutable hash table using key equality and hash codes. Keys must retain consistent equality and
+ * hashes while stored; iteration order is unspecified.
+ */
 public class HashMap<K, V> public constructor() : MutableMap<K, V>
     where K : Equals<K>, K : Hash {
     private var storage: HashStorage<K, V> = HashStorage<K, V>(8L)
@@ -10,9 +14,21 @@ public class HashMap<K, V> public constructor() : MutableMap<K, V>
     private val changes: ModificationCounter = ModificationCounter()
     private val structure: ModificationCounter = ModificationCounter()
 
+    /**
+     * The number of key-value associations.
+     */
     public override val size: Long get() = elementCount
+    /**
+     * A read-only view of the map's current keys.
+     */
     public override val keys: Set<K> get() = MapKeys<K, V>(this)
+    /**
+     * A read-only view of current values, retaining duplicates.
+     */
     public override val values: Collection<V> get() = MapValues<K, V>(this)
+    /**
+     * A read-only view of current key-value entries.
+     */
     public override val entries: Collection<Map.Entry<K, V>> get() = MapEntries<K, V>(this)
 
     internal fun locate(key: K): HashLocation {
@@ -34,11 +50,17 @@ public class HashMap<K, V> public constructor() : MutableMap<K, V>
         return HashLocation(-1L, hash)
     }
 
+    /**
+     * Returns the value associated with the key, or None when absent.
+     */
     public override operator fun get(key: K): V? {
         val location = locate(key)
         return if (location.index < 0L) None else Some(storage.read(location.index).value)
     }
 
+    /**
+     * Tests whether the key has an association.
+     */
     public override fun containsKey(key: K): Boolean = locate(key).index >= 0L
 
     private fun ensureRoom() {
@@ -51,6 +73,9 @@ public class HashMap<K, V> public constructor() : MutableMap<K, V>
         occupied = elementCount
     }
 
+    /**
+     * Associates the value with the key and returns the previous value, or None for a new key.
+     */
     public override fun put(key: K, value: V): V? = putEntry(key, value, true)
 
     internal fun putIfAbsent(key: K, value: V): V? = putEntry(key, value, false)
@@ -80,6 +105,9 @@ public class HashMap<K, V> public constructor() : MutableMap<K, V>
         structure.advance()
     }
 
+    /**
+     * Removes the key and returns its former value, or None if absent.
+     */
     public override fun remove(key: K): V? {
         val location = locate(key)
         if (location.index < 0L) return None
@@ -97,6 +125,9 @@ public class HashMap<K, V> public constructor() : MutableMap<K, V>
         return value
     }
 
+    /**
+     * Removes every association.
+     */
     public override fun clear() {
         if (elementCount == 0L) return
         storage.cleared()
@@ -106,14 +137,27 @@ public class HashMap<K, V> public constructor() : MutableMap<K, V>
         structure.advance()
     }
 
+    /**
+     * Iterates key-value entries in this map's order; structural changes invalidate the iterator.
+     */
     public override operator fun iterator(): Iterator<Map.Entry<K, V>> =
         HashIterator<K, V>(this, structure)
 
     internal val table: HashStorage<K, V> get() = storage
 
+    /**
+     * Serialization factories using explicit element or key/value codecs.
+     */
     public companion object {
+        /**
+         * Encodes entries or elements in iteration order using the supplied component codecs.
+         */
         public fun encoder(key: ValueEncoder<K>, value: ValueEncoder<V>): ValueEncoder<HashMap<K, V>> =
             ValueEncoderFunction<HashMap<K, V>> { values, encoder -> encodeMap(values, key, value, encoder) }
+        /**
+         * Decodes entries or elements into a new collection using the supplied component codecs
+         * and comparator where required.
+         */
         public fun decoder(key: ValueDecoder<K>, value: ValueDecoder<V>): ValueDecoder<HashMap<K, V>> =
             ValueDecoderFunction<HashMap<K, V>> { decoder ->
                 val result = HashMap<K, V>()

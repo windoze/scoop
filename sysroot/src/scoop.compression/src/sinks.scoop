@@ -3,42 +3,106 @@ package scoop.compression
 import scoop.platform.io.ByteSink
 import scoop.platform.memory.NativeByteBuffer
 
+/**
+ * A synchronous compression sink adapter with bounded buffering. The ordinary constructor borrows
+ * its endpoint; takeOwnership also assumes endpoint close responsibility. Call finish for
+ * successful completion; close alone does not finish the format.
+ */
 public class CompressionSink private constructor(private val stream: SyncCompressionSink) : ByteSink, Closeable {
     public constructor(sink: ByteSink, options: CompressionOptions = CompressionOptions.Zstd(ZstdOptions()),
         bufferSize: Long = 8192L) : this(SyncCompressionSink(sink,
             compressionIoResources(createCompressionEncoder(options), bufferSize, true), None)) {}
 
+    /**
+     * Factories that explicitly transfer endpoint cleanup responsibility.
+     */
     public companion object {
+        /**
+         * Creates an adapter that closes the supplied endpoint during its own cleanup.
+         */
         public fun <T> takeOwnership(sink: T, options: CompressionOptions = CompressionOptions.Zstd(ZstdOptions()),
             bufferSize: Long = 8192L): CompressionSink where T : ByteSink, T : Closeable =
             CompressionSink(SyncCompressionSink(sink,
                 compressionIoResources(createCompressionEncoder(options), bufferSize, true), Some(sink)))
     }
 
+    /**
+     * The actual input accepted and output delivered so far.
+     */
     public val totals: CompressionTotals get() = stream.totals
+    /**
+     * The retained terminal failure, or None before failure.
+     */
     public val failure: Throwable? get() = stream.failure
+    /**
+     * Consumes up to count readable bytes from the input buffer while passing transformed output
+     * downstream.
+     */
     public override fun writeFrom(buffer: NativeByteBuffer, count: Long): Long = stream.writeFrom(buffer, count)
+    /**
+     * Drains a synchronization point and downstream output without ending input.
+     */
     public override fun flush() { stream.flush() }
+    /**
+     * Completes the stream and drains final output; decoding also validates that input ended at a
+     * complete format boundary.
+     */
     public fun finish() { stream.finish() }
+    /**
+     * Releases codec state and closes an endpoint whose ownership was transferred. It does not
+     * force incomplete data to finish.
+     */
     public override fun close() { stream.close() }
 }
 
+/**
+ * A synchronous decompression sink adapter with bounded buffering. The ordinary constructor
+ * borrows its endpoint; takeOwnership also assumes endpoint close responsibility. Call finish for
+ * successful completion; close alone does not finish the format.
+ */
 public class DecompressionSink private constructor(private val stream: SyncCompressionSink) : ByteSink, Closeable {
     public constructor(sink: ByteSink, options: DecompressionOptions = DecompressionOptions(),
         bufferSize: Long = 8192L) : this(SyncCompressionSink(sink,
             compressionIoResources(createCompressionDecoder(options), bufferSize, false), None)) {}
 
+    /**
+     * Factories that explicitly transfer endpoint cleanup responsibility.
+     */
     public companion object {
+        /**
+         * Creates an adapter that closes the supplied endpoint during its own cleanup.
+         */
         public fun <T> takeOwnership(sink: T, options: DecompressionOptions = DecompressionOptions(),
             bufferSize: Long = 8192L): DecompressionSink where T : ByteSink, T : Closeable =
             DecompressionSink(SyncCompressionSink(sink,
                 compressionIoResources(createCompressionDecoder(options), bufferSize, false), Some(sink)))
     }
 
+    /**
+     * The actual input accepted and output delivered so far.
+     */
     public val totals: CompressionTotals get() = stream.totals
+    /**
+     * The retained terminal failure, or None before failure.
+     */
     public val failure: Throwable? get() = stream.failure
+    /**
+     * Consumes up to count readable bytes from the input buffer while passing transformed output
+     * downstream.
+     */
     public override fun writeFrom(buffer: NativeByteBuffer, count: Long): Long = stream.writeFrom(buffer, count)
+    /**
+     * Drains a synchronization point and downstream output without ending input.
+     */
     public override fun flush() { stream.flush() }
+    /**
+     * Completes the stream and drains final output; decoding also validates that input ended at a
+     * complete format boundary.
+     */
     public fun finish() { stream.finish() }
+    /**
+     * Releases codec state and closes an endpoint whose ownership was transferred. It does not
+     * force incomplete data to finish.
+     */
     public override fun close() { stream.close() }
 }

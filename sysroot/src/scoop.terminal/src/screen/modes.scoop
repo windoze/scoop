@@ -2,26 +2,68 @@ package scoop.terminal.screen
 
 import scoop.terminal.Command
 
+/**
+ * Enables automatic wrapping at the terminal's right margin.
+ */
 public object EnableLineWrap : Command {
+    /**
+     * Writes this command's ANSI representation to the supplied writer without flushing it.
+     * Parameter validation happens before or during serialization.
+     */
     public override fun writeAnsi(writer: TextWriter) { writer.write("\u001b[?7h") }
 }
 
+/**
+ * Disables automatic line wrapping.
+ */
 public object DisableLineWrap : Command {
+    /**
+     * Writes this command's ANSI representation to the supplied writer without flushing it.
+     * Parameter validation happens before or during serialization.
+     */
     public override fun writeAnsi(writer: TextWriter) { writer.write("\u001b[?7l") }
 }
 
+/**
+ * Switches to the terminal's alternate screen buffer.
+ */
 public object EnterAlternateScreen : Command {
+    /**
+     * Writes this command's ANSI representation to the supplied writer without flushing it.
+     * Parameter validation happens before or during serialization.
+     */
     public override fun writeAnsi(writer: TextWriter) { writer.write("\u001b[?1049h") }
 }
 
+/**
+ * Returns from the alternate screen to the normal screen buffer.
+ */
 public object LeaveAlternateScreen : Command {
+    /**
+     * Writes this command's ANSI representation to the supplied writer without flushing it.
+     * Parameter validation happens before or during serialization.
+     */
     public override fun writeAnsi(writer: TextWriter) { writer.write("\u001b[?1049l") }
 }
 
+/**
+ * Begins a synchronized terminal presentation update where supported.
+ */
 public object BeginSynchronizedUpdate : Command {
+    /**
+     * Writes this command's ANSI representation to the supplied writer without flushing it.
+     * Parameter validation happens before or during serialization.
+     */
     public override fun writeAnsi(writer: TextWriter) { writer.write("\u001b[?2026h") }
 }
 
+/**
+ * Ends a synchronized presentation update.
+ */
 public object EndSynchronizedUpdate : Command {
+    /**
+     * Writes this command's ANSI representation to the supplied writer without flushing it.
+     * Parameter validation happens before or during serialization.
+     */
     public override fun writeAnsi(writer: TextWriter) { writer.write("\u001b[?2026l") }
 }

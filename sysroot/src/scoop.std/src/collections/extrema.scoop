@@ -4,6 +4,9 @@ import scoop.comparisons.Comparator
 import scoop.comparisons.naturalOrder
 import scoop.comparisons.reversed
 
+/**
+ * Traverses the input for its least element under the comparator, returning None when empty.
+ */
 public fun <T> Iterable<T>.minWithOrNone(comparator: Comparator<T>): T? {
     var result: T? = None
     for (element in this) {
@@ -15,6 +18,15 @@ public fun <T> Iterable<T>.minWithOrNone(comparator: Comparator<T>): T? {
     return result
 }
 
+/**
+ * Traverses the input for its greatest element under the comparator, returning None when empty.
+ */
 public fun <T> Iterable<T>.maxWithOrNone(comparator: Comparator<T>): T? = minWithOrNone<T>(comparator.reversed())
+/**
+ * Traverses the input for its least element in natural order, returning None when empty.
+ */
 public fun <T : Compare<T>> Iterable<T>.minOrNone(): T? = minWithOrNone<T>(naturalOrder<T>())
+/**
+ * Traverses the input for its greatest element in natural order, returning None when empty.
+ */
 public fun <T : Compare<T>> Iterable<T>.maxOrNone(): T? = maxWithOrNone<T>(naturalOrder<T>())

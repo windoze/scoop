@@ -6,23 +6,51 @@ import scoop.http.*
 import scoop.json.Json
 import scoop.platform.memory.NativeByteBuffer
 
+/**
+ * A single forward-only response-body cursor with optional content decoding. Reads must not
+ * overlap; buffering helpers require an explicit byte limit.
+ */
 public class HttpResponseBody internal constructor(private val input: ClientResponseInput, private val fields: Array<HttpField>)
     : AsyncByteSource, AsyncCloseable {
     private val busy: AtomicBoolean = AtomicBoolean(false)
+    /**
+     * Whether the complete body and finalization have succeeded.
+     */
     public val isComplete: Boolean get() = input.isComplete
+    /**
+     * The length of the delivered representation when known; automatic decoding can make this
+     * unknown.
+     */
     public val contentLength: Long? get() = input.plan.contentLength
 
+    /**
+     * Reads up to count bytes into the writable buffer; positive-count zero indicates EOF. Only
+     * one reader may be active.
+     */
     public override suspend fun readInto(buffer: NativeByteBuffer, count: Long): Long =
         withReader(suspend { source -> source.readInto(buffer, count) })
 
+    /**
+     * Buffers the remaining body under an explicit byte limit; the body is not rewound.
+     */
     public suspend fun readAllBytes(maxBytes: Long): Array<Byte> =
         withReader(suspend { source -> source.readAllBytes(maxBytes) })
 
+    /**
+     * Buffers the remaining body under an explicit byte limit.
+     */
     public suspend fun bytes(maxBytes: Long): Array<Byte> = readAllBytes(maxBytes)
 
+    /**
+     * Streams the remaining body into the borrowed sink using a positive buffer size.
+     */
     public suspend fun copyTo(destination: AsyncByteSink, bufferSize: Long = 8192L): Long =
         withReader(suspend { source -> source.copyTo(destination, bufferSize) })
 
+    /**
+     * Buffers under maxBytes and decodes using the explicit charset, Content-Type charset, or
+     * UTF-8 fallback. Malformed input is strict unless replacement is requested.
+     */
     public suspend fun text(maxBytes: Long, charset: Charset? = None, options: CharsetDecodeOptions = CharsetDecodeOptions(),
         malformedInput: CharsetErrorAction = CharsetErrorAction.Strict): String {
         val selected = charset ?: responseTextCharset(fields)
@@ -33,6 +61,9 @@ public class HttpResponseBody internal constructor(private val input: ClientResp
         }
     }
 
+    /**
+     * Buffers under maxBytes, strictly decodes UTF-8, and uses the supplied JSON value decoder.
+     */
     public suspend fun <T> json(codec: ValueDecoder<T>, maxBytes: Long): T =
         Json.decodeFromString(Charset.Utf8.decode(readAllBytes(maxBytes)), codec)
 
@@ -45,6 +76,9 @@ public class HttpResponseBody internal constructor(private val input: ClientResp
         finally { listener.dispose(); busy.store(false) }
     }
 
+    /**
+     * Ends body consumption and awaits upload, stream, and call cleanup.
+     */
     public override suspend fun close() { input.close() }
 }
 

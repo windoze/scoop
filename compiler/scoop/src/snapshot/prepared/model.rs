@@ -30,7 +30,13 @@ pub struct ManifestSourceInput {
     pub(super) test_config: Option<scoop_manifest::TestManifestConfig>,
     pub(super) manifest_locator: PathBuf,
     pub(super) sources: SelectedManifestSources,
-    pub(super) native: scoop_toolchain::PreparedNativeObjects,
+    pub(super) native: SourceNativeInput,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) enum SourceNativeInput {
+    Documentation,
+    Artifact(scoop_toolchain::PreparedNativeObjects),
 }
 
 impl ManifestSourceInput {

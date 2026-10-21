@@ -7,6 +7,7 @@ use crate::PairedCompilerError;
 
 #[derive(Debug)]
 pub enum PrepareBuildGraphError {
+    Manifest(scoop_manifest::ManifestRootError),
     PairedCompiler(PairedCompilerError),
     Staging(StagingError),
     SourceDiscovery(SourceDiscoveryError),
@@ -17,6 +18,7 @@ pub enum PrepareBuildGraphError {
 impl fmt::Display for PrepareBuildGraphError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Manifest(error) => error.fmt(formatter),
             Self::Native(error) => error.fmt(formatter),
             Self::PairedCompiler(error) => error.fmt(formatter),
             Self::Staging(error) => error.fmt(formatter),
@@ -33,6 +35,7 @@ impl fmt::Display for PrepareBuildGraphError {
 impl std::error::Error for PrepareBuildGraphError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            Self::Manifest(error) => Some(error),
             Self::Native(error) => Some(error),
             Self::PairedCompiler(error) => Some(error),
             Self::Staging(error) => Some(error),

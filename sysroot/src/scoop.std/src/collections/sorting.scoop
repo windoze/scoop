@@ -42,24 +42,42 @@ private fun <T> sortedCollectionElements(input: Iterable<T>, comparator: Compara
     return source
 }
 
+/**
+ * Returns a stable sorted copy using the supplied comparator.
+ */
 public fun <T> Iterable<T>.sortedWith(comparator: Comparator<T>): List<T> =
     ListSnapshot<T>(sortedCollectionElements<T>(this, comparator).toArray())
 
+/**
+ * Returns a stable copy in natural ascending order.
+ */
 public fun <T : Compare<T>> Iterable<T>.sorted(): List<T> = sortedWith<T>(naturalOrder<T>())
+/**
+ * Returns a stable copy in natural descending order.
+ */
 public fun <T : Compare<T>> Iterable<T>.sortedDescending(): List<T> = sortedWith<T>(reverseOrder<T>())
 
 private struct CollectionSortKey<T, K>(val value: T, val key: K)
 
+/**
+ * Returns a stable copy ordered by the selector's natural key order.
+ */
 public fun <T, K : Compare<K>> Iterable<T>.sortedBy(selector: (T) -> K): List<T> {
     val decorated = map<T, CollectionSortKey<T, K>> { value -> CollectionSortKey<T, K>(value, selector(value)) }
     val order = comparatorOf<CollectionSortKey<T, K>> { left, right -> left.key.compareTo(right.key) }
     return decorated.sortedWith(order).map<CollectionSortKey<T, K>, T> { entry -> entry.value }
 }
 
+/**
+ * Stably sorts this mutable list in place using the supplied comparator.
+ */
 public fun <T> MutableList<T>.sortWith(comparator: Comparator<T>) {
     val sorted = sortedCollectionElements<T>(this, comparator)
     var index = 0L
     for (element in sorted) { this[index] = element; index += 1L }
 }
 
+/**
+ * Stably sorts this mutable list in place in natural ascending order.
+ */
 public fun <T : Compare<T>> MutableList<T>.sort() { sortWith<T>(naturalOrder<T>()) }

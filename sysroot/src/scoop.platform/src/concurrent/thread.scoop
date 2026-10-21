@@ -3,15 +3,30 @@ package scoop.platform.concurrent
 import scoop.platform.io.checkNativeStatus
 import scoop.platform.io.failNative
 
+/**
+ * A native thread identity suitable for equality and hashing within this process.
+ */
 public struct ThreadId(val value: ULong) : Equals<ThreadId>, Hash {
+    /**
+     * Compares native thread identity values.
+     */
     public override operator fun equals(other: ThreadId): Boolean = value == other.value
+    /**
+     * Hashes the native thread identity.
+     */
     public override fun hash(): Long = value.hash()
 }
 
+/**
+ * Returns the identity of the calling native thread.
+ */
 public fun currentThreadId(): ThreadId {
     @Unsafe { return ThreadId(nativeCurrentThreadId()) }
 }
 
+/**
+ * Offers the current thread's execution opportunity to the operating-system scheduler.
+ */
 public fun yield() {
     @Unsafe {
         val (status, error) = nativeYield()
@@ -30,11 +45,24 @@ private class ThreadCompletion {
     }
 }
 
+/**
+ * An owned native thread running a managed non-suspending function. Join or dispose to observe
+ * completion and any captured exception.
+ */
 public class Thread private constructor(private val completion: ThreadCompletion) : Disposable {
     private var native: Ptr<Unit>? = None
+    /**
+     * Whether the function has completed, including exceptional completion.
+     */
     public val isFinished: Boolean get() = completion.finished.load(MemoryOrder.Acquire)
 
+    /**
+     * Starts managed work on a new native thread.
+     */
     public companion object {
+        /**
+         * Starts the function on a GC-attached native thread and returns an owned join handle.
+         */
         public fun start(block: () -> Unit): Thread {
             val completion = ThreadCompletion()
             val thread = Thread(completion)
@@ -53,6 +81,10 @@ public class Thread private constructor(private val completion: ThreadCompletion
         }
     }
 
+    /**
+     * Waits for native termination and rethrows a captured function exception. Subsequent joins
+     * retain the same completion outcome.
+     */
     public fun join() {
         when (native) {
             case Some(pointer) -> @Unsafe {
@@ -68,6 +100,9 @@ public class Thread private constructor(private val completion: ThreadCompletion
         }
     }
 
+    /**
+     * Joins an outstanding thread and releases its native join handle.
+     */
     public override fun dispose() { if (native != None) join() }
 
     release {

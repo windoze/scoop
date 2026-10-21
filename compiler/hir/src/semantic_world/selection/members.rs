@@ -143,6 +143,25 @@ impl ImportedCallableSource for ImportedCallableDeclaration {
 }
 
 impl ImportedDependencySelectionPlan {
+    /// Names for declaration browsing; effective membership still uses the
+    /// receiver-aware lookup that applies visibility and dispatch selections.
+    pub fn nominal_member_names(&self, owner: SourceNominalId) -> Vec<(String, bool)> {
+        let methods = self.catalog.callables.values().filter_map(|entry| {
+            let CallableCatalogName::Function(name) = &entry.name else {
+                return None;
+            };
+            (entry.interface.owner() == PublicDeclarationOwnerV1::Nominal(owner))
+                .then(|| (name.as_str().to_owned(), false))
+        });
+        let properties = self
+            .catalog
+            .properties
+            .values()
+            .filter(|entry| entry.interface.owner() == PublicDeclarationOwnerV1::Nominal(owner))
+            .map(|entry| (entry.name.as_str().to_owned(), true));
+        methods.chain(properties).collect()
+    }
+
     pub fn callable_source_interface(
         &self,
         declaration: scoop_identity::CallableTemplateOrigin,

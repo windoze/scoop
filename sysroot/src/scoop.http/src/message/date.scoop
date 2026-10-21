@@ -3,17 +3,35 @@ package scoop.http
 import scoop.datetime.UtcOffset
 import scoop.time.Instant
 
+/**
+ * HTTP-date parsing and canonical IMF-fixdate formatting in GMT.
+ */
 public object HttpDate {
+    /**
+     * Formats the instant as canonical IMF-fixdate in GMT.
+     */
     public fun format(value: Instant): String = httpDateText(value, 1900, "HTTP date")
 
+    /**
+     * Parses a date or throws HttpFieldParseException when the input is invalid.
+     */
     public fun parse(value: List<Byte>, reference: Instant, caseInsensitive: Boolean = false): Instant =
         parseHttpDate(HttpFieldReader("HTTP-date", value), reference, caseInsensitive)
+    /**
+     * Parses a date or throws HttpFieldParseException when the input is invalid.
+     */
     public fun parse(value: String, reference: Instant, caseInsensitive: Boolean = false): Instant =
         parse(value.toByteArray(), reference, caseInsensitive)
+    /**
+     * Parses a date, returning None for invalid syntax or date values.
+     */
     public fun parseOrNone(value: List<Byte>, reference: Instant, caseInsensitive: Boolean = false): Instant? {
         try { return Some(parse(value, reference, caseInsensitive)) }
         catch (_: HttpFieldParseException) { return None }
     }
+    /**
+     * Parses a date, returning None for invalid syntax or date values.
+     */
     public fun parseOrNone(value: String, reference: Instant, caseInsensitive: Boolean = false): Instant? =
         parseOrNone(value.toByteArray(), reference, caseInsensitive)
 }
