@@ -10,19 +10,7 @@ impl Lowerer {
         parameters: &[hir::TypeParamDecl],
         substitutions: &[(hir::TypeParamId, hir::TypeId)],
     ) -> Result<Vec<hir::SemanticPropertyDescription>, Diagnostic> {
-        let bindings = parameters
-            .iter()
-            .enumerate()
-            .map(|(index, parameter)| {
-                (
-                    SignatureTypeKey::Binder {
-                        depth: 0,
-                        index: u32::try_from(index).expect("declaration arity fits u32"),
-                    },
-                    self.intern_type(hir::Type::Param(parameter.id)),
-                )
-            })
-            .collect::<crate::imported_core::ImportedTypeBindings>();
+        let bindings = self.query_signature_bindings(parameters.len(), parameters);
         let mut properties = Vec::new();
         for member in owner.interface.declaration_details().members().values() {
             let hir::NestedSourceMemberRefV1::Property(identity) = *member else {
@@ -46,14 +34,8 @@ impl Lowerer {
                     .property_definition_origin(property)
                     .expect("a property retains its definition origin"),
             )?;
-            let declaration_type = self
-                .imported_signature_type_with_bindings(declaration.value_type(), &bindings)
-                .map_err(|_| {
-                    Diagnostic::at(
-                        Span::new(0, 0),
-                        "cannot resolve the queried dependency property type",
-                    )
-                })?;
+            let value_type =
+                self.query_published_type_use(declaration.value_type(), &bindings, substitutions)?;
             let getter = self.query_imported_accessor(
                 receiver,
                 owner,
@@ -67,7 +49,7 @@ impl Lowerer {
             properties.push(hir::SemanticPropertyDescription {
                 identity,
                 name,
-                value_type: self.query_type_use(declaration_type, substitutions),
+                value_type,
                 visibility: declaration.declared_visibility(),
                 lookup_domain: self
                     .imported_member_access_domain(owner, declaration.declared_visibility()),

@@ -19,6 +19,10 @@ mod fields;
 pub use fields::*;
 mod properties;
 pub use properties::*;
+mod parameters;
+pub use parameters::*;
+mod constructors;
+pub use constructors::*;
 
 /// A context already established by ordinary declaration binding.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -79,6 +83,10 @@ pub trait SemanticQueries {
         callable: SemanticCallable,
     ) -> Option<SemanticBodyAvailability<SemanticBody<'_>>>;
     fn default_source(&self, source: ExportDefaultSourceId) -> SemanticDefaultSource<'_>;
+    fn default_definition(
+        &self,
+        source: SemanticDefaultReference,
+    ) -> Option<SemanticDefaultDefinition<'_>>;
     fn source_location(&self, origin: DefinitionOrigin) -> SemanticSourceLocation;
     fn signature(&self, function: FunctionId) -> SemanticFunctionSignature;
     fn method_identity(
@@ -105,6 +113,11 @@ pub trait SemanticQueries {
         context: SemanticContext,
         ty: TypeId,
     ) -> Result<Option<Vec<SemanticPropertyDescription>>, Diagnostic>;
+    fn nominal_constructors(
+        &mut self,
+        context: SemanticContext,
+        ty: TypeId,
+    ) -> Result<Option<Vec<SemanticConstructorDescription>>, Diagnostic>;
     fn type_relation(
         &mut self,
         context: SemanticContext,

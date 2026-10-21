@@ -7,8 +7,10 @@ use scoop_identity::SignatureTypeKey;
 
 mod context;
 use context::imported_location;
+mod constructors;
 mod declarations;
 mod fields;
+mod parameters;
 mod properties;
 mod types;
 
@@ -71,6 +73,23 @@ impl hir::SemanticQueries for FrontendQueries<'_> {
                 }
             },
             type_arguments: value.type_arguments(),
+        }
+    }
+
+    fn default_definition(
+        &self,
+        source: hir::SemanticDefaultReference,
+    ) -> Option<hir::SemanticDefaultDefinition<'_>> {
+        match source {
+            hir::SemanticDefaultReference::Current(source) => {
+                Some(self.default_source(source).definition)
+            }
+            hir::SemanticDefaultReference::Imported(key) => self
+                .lowerer
+                .dependencies
+                .as_ref()?
+                .default_template(key)
+                .map(hir::SemanticDefaultDefinition::Imported),
         }
     }
 
@@ -186,6 +205,14 @@ impl hir::SemanticQueries for FrontendQueries<'_> {
         self.in_context(context, |lowerer| lowerer.query_nominal_properties(ty))
     }
 
+    fn nominal_constructors(
+        &mut self,
+        context: hir::SemanticContext,
+        ty: hir::TypeId,
+    ) -> Result<Option<Vec<hir::SemanticConstructorDescription>>, Diagnostic> {
+        self.in_context(context, |lowerer| lowerer.query_nominal_constructors(ty))
+    }
+
     fn type_relation(
         &mut self,
         context: hir::SemanticContext,
@@ -234,10 +261,15 @@ impl hir::SemanticQueries for FrontendQueries<'_> {
 
 impl FrontendQueries<'_> {
     fn core_types(&self) -> hir::HirCoreTypeIdentityAuthority<'_> {
-        match &self.lowerer.core {
+        self.lowerer.query_core_types()
+    }
+}
+
+impl Lowerer {
+    fn query_core_types(&self) -> hir::HirCoreTypeIdentityAuthority<'_> {
+        match &self.core {
             CoreLoweringAuthority::Defined => hir::HirCoreTypeIdentityAuthority::Defined(
-                self.lowerer
-                    .defined_intrinsic_type_core
+                self.defined_intrinsic_type_core
                     .as_ref()
                     .expect("fixed queries follow core protocol resolution"),
             ),

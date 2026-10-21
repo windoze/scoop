@@ -92,6 +92,10 @@ impl ConstructorIdentityBuilder<'_> {
     ) -> Result<hir::HirConstructorIdentities, PersistentConstructorIdentityError> {
         let mut structs = Vec::with_capacity(self.lowerer.struct_constructors.len());
         for (id, constructor) in self.lowerer.struct_constructors.iter() {
+            if let Some(record) = self.lowerer.struct_constructor_identity_records.get(&id) {
+                structs.push(record.clone());
+                continue;
+            }
             let owner = self.nominals[constructor.owner].source().ok_or_else(|| {
                 self.struct_failure(id, PersistentConstructorIdentityErrorDetail::GeneratedOwner)
             })?;
@@ -153,6 +157,11 @@ impl ConstructorIdentityBuilder<'_> {
         let index = local_index(id);
         if let Some(identity) = &self.class_identities[index] {
             return Ok(identity.clone());
+        }
+        if let Some(record) = self.lowerer.class_constructor_identity_records.get(&id) {
+            let identity = hir::HirClassConstructorIdentity::Source(record.clone());
+            self.class_identities[index] = Some(identity.clone());
+            return Ok(identity);
         }
         if std::mem::replace(&mut self.visiting[index], true) {
             return Err(

@@ -172,7 +172,11 @@ impl Lowerer {
         }
     }
 
-    fn query_member_location(&self, owner: Owner, span: Span) -> hir::SemanticSourceLocation {
+    pub(super) fn query_member_location(
+        &self,
+        owner: Owner,
+        span: Span,
+    ) -> hir::SemanticSourceLocation {
         let file = self
             .nominal_definition_file(owner)
             .expect("source members retain their definition file");

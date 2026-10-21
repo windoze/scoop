@@ -36,6 +36,8 @@ impl Lowerer {
         let bodies = generator.generate(&mut FrontendQueries { lowerer: &mut view });
         self.query_source_function_identities = view.query_source_function_identities;
         self.property_identity_records = view.property_identity_records;
+        self.struct_constructor_identity_records = view.struct_constructor_identity_records;
+        self.class_constructor_identity_records = view.class_constructor_identity_records;
         self.getter_identity_records = view.getter_identity_records;
         self.setter_identity_records = view.setter_identity_records;
         self.field_identity_builder = view.field_identity_builder;

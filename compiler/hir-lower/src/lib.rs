@@ -560,6 +560,10 @@ pub(crate) struct Lowerer {
     pub(crate) local_types_by_source: HashMap<(usize, u32), Owner>,
     pub(crate) local_type_capture_scope: Option<local_types::CaptureScope>,
     pub(crate) property_identity_records: HashMap<hir::PropertyId, hir::HirPropertyIdentity>,
+    pub(crate) struct_constructor_identity_records:
+        HashMap<hir::StructConstructorId, hir::HirSourceConstructorIdentity>,
+    pub(crate) class_constructor_identity_records:
+        HashMap<hir::ClassConstructorId, hir::HirSourceConstructorIdentity>,
     pub(crate) getter_identity_records:
         HashMap<hir::PropertyGetterId, hir::HirPropertyAccessorIdentity>,
     pub(crate) setter_identity_records:

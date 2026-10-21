@@ -143,6 +143,17 @@ impl ImportedCallableSource for ImportedCallableDeclaration {
 }
 
 impl ImportedDependencySelectionPlan {
+    pub fn default_template(
+        &self,
+        key: ExportDefaultTemplateKeyV1,
+    ) -> Option<&ExportDefaultTemplateV1> {
+        self.catalog
+            .callables
+            .get(&key.owner())?
+            .default_templates
+            .get(&key)
+    }
+
     /// Names for declaration browsing; effective membership still uses the
     /// receiver-aware lookup that applies visibility and dispatch selections.
     pub fn nominal_member_names(&self, owner: SourceNominalId) -> Vec<(String, bool)> {

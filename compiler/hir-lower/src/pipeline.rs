@@ -225,6 +225,8 @@ impl Lowerer {
             local_types_by_source: HashMap::new(),
             local_type_capture_scope: None,
             property_identity_records: HashMap::new(),
+            struct_constructor_identity_records: HashMap::new(),
+            class_constructor_identity_records: HashMap::new(),
             getter_identity_records: HashMap::new(),
             setter_identity_records: HashMap::new(),
             field_identity_builder: hir::HirFieldIdentityBuilder::default(),
