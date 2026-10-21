@@ -12,18 +12,43 @@ use crate::{Lowerer, namespace::TopLevelLookupLayer};
 pub(crate) fn build(
     lowerer: &Lowerer,
 ) -> Result<hir::HirTypeAliasIdentities, PersistentTypeAliasIdentityError> {
-    let declarations = lowerer
+    let identities = lowerer
         .type_aliases
         .iter()
-        .map(|(_, alias)| declaration(lowerer, alias))
+        .map(|(id, _)| {
+            lowerer
+                .query_alias_identities
+                .get(&id)
+                .cloned()
+                .map(Ok)
+                .unwrap_or_else(|| record(lowerer, id))
+        })
         .collect::<Result<Vec<_>, _>>()?;
-    hir::HirTypeAliasIdentities::from_declarations(&lowerer.type_aliases, declarations).map_err(
-        |error| PersistentTypeAliasIdentityError {
+    hir::HirTypeAliasIdentities::checked(&lowerer.type_aliases, identities).map_err(|error| {
+        PersistentTypeAliasIdentityError {
             file: 0,
             span: Span { start: 0, end: 0 },
-            detail: PersistentTypeAliasIdentityErrorDetail::InvalidIdentity(error),
-        },
-    )
+            detail: PersistentTypeAliasIdentityErrorDetail::InvalidIdentity(
+                hir::HirTypeAliasIdentityError::Table(error),
+            ),
+        }
+    })
+}
+
+pub(crate) fn record(
+    lowerer: &Lowerer,
+    id: hir::ExportTypeAliasId,
+) -> Result<hir::HirTypeAliasIdentity, PersistentTypeAliasIdentityError> {
+    let alias = &lowerer.type_aliases[id];
+    scoop_identity::CborIdentityRecord::from_key(declaration(lowerer, alias)?).map_err(|error| {
+        failure(
+            alias.origin.file as usize,
+            alias,
+            PersistentTypeAliasIdentityErrorDetail::InvalidIdentity(
+                hir::HirTypeAliasIdentityError::Identity(error),
+            ),
+        )
+    })
 }
 
 fn declaration(

@@ -7,8 +7,10 @@ use std::collections::{BTreeMap, HashMap};
 
 mod bindings;
 mod collect;
+mod exports;
 pub(crate) mod lookup;
 mod packages;
+pub(crate) use exports::ExportLookupTarget;
 mod reexports;
 mod resolve;
 mod selector;

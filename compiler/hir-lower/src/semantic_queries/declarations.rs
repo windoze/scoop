@@ -3,7 +3,7 @@
 use super::*;
 use hir::ImportedCallableSource;
 
-impl FrontendQueries<'_> {
+impl FrontendQueries<'_, '_> {
     pub(super) fn query_annotation_declaration(
         &self,
         annotation: scoop_identity::PersistentAnnotationId,

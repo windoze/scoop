@@ -9,6 +9,7 @@ use crate::semantic_queries::FrontendQueries;
 use hir::{SemanticBodyAvailability as Availability, SemanticQueries};
 
 mod constructors;
+mod exports;
 mod fields;
 mod methods;
 mod properties;
@@ -57,6 +58,7 @@ fn shared_queries_distinguish_published_missing_and_bodyless_dependency_function
     let mut lowerer = crate::Lowerer::new().with_imported_dependencies(selection.clone());
     let queries = FrontendQueries {
         lowerer: &mut lowerer,
+        world: Some(&world),
     };
     for interface in interface.callable_interfaces().all_declarations() {
         let reference = interface.declaration();
@@ -111,6 +113,7 @@ fn shared_queries_distinguish_published_missing_and_bodyless_dependency_function
     let mut no_dependencies = no_dependencies;
     let missing = FrontendQueries {
         lowerer: &mut no_dependencies,
+        world: None,
     };
     let reference = interface
         .callable_interfaces()

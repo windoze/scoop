@@ -574,7 +574,7 @@ impl Lowerer {
         self.lower_release_blocks(&pending_classes, &pending_objects);
         self.finish_type_annotations();
         if let Some(generator) = generator {
-            self.generate_method_bodies(generator);
+            self.generate_method_bodies(generator, world);
         }
         if self.diagnostics.is_empty() {
             self.discover_tests();

@@ -116,12 +116,20 @@ impl TopLevelNamespaces {
         file: usize,
         path: &[ast::Ident],
     ) -> (PackageId, usize) {
+        self.longest_package_prefix_names(file, path.iter().map(|segment| segment.text.as_str()))
+    }
+
+    pub(crate) fn longest_package_prefix_names<'a>(
+        &self,
+        file: usize,
+        path: impl Iterator<Item = &'a str>,
+    ) -> (PackageId, usize) {
         let mut package = Self::root_package();
         let mut length = 0;
         for segment in path {
             let Some(child) = self
                 .package_children
-                .get(&(package, segment.text.clone()))
+                .get(&(package, segment.to_owned()))
                 .copied()
             else {
                 break;

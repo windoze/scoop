@@ -9,19 +9,34 @@ mod context;
 use context::imported_location;
 mod constructors;
 mod declarations;
+mod exports;
 mod fields;
 mod methods;
 mod parameters;
 mod properties;
 mod types;
 
-pub(crate) struct FrontendQueries<'a> {
+pub(crate) struct FrontendQueries<'a, 'input> {
     pub(crate) lowerer: &'a mut Lowerer,
+    pub(crate) world: Option<&'a hir::ImportedSemanticWorld<'input>>,
 }
 
-impl hir::SemanticQueries for FrontendQueries<'_> {
+impl hir::SemanticQueries for FrontendQueries<'_, '_> {
     fn current_cone(&self) -> scoop_identity::ConeIdentity {
         self.lowerer.current_cone()
+    }
+
+    fn lookup_export(
+        &mut self,
+        context: hir::SemanticContext,
+        provider: scoop_identity::ConeIdentity,
+        path: &[scoop_identity::CanonicalIdentifier],
+        namespace: scoop_identity::BindingNamespace,
+    ) -> Result<Vec<scoop_identity::BindableEntity>, Diagnostic> {
+        let world = self.world;
+        self.in_context(context, |lowerer| {
+            lowerer.query_export(world, provider, path, namespace)
+        })
     }
 
     fn pending_methods(&self) -> Vec<hir::PendingMethod> {
@@ -252,14 +267,14 @@ impl hir::SemanticQueries for FrontendQueries<'_> {
     }
 }
 
-impl FrontendQueries<'_> {
+impl FrontendQueries<'_, '_> {
     fn core_types(&self) -> hir::HirCoreTypeIdentityAuthority<'_> {
         self.lowerer.query_core_types()
     }
 }
 
 impl Lowerer {
-    fn query_core_types(&self) -> hir::HirCoreTypeIdentityAuthority<'_> {
+    pub(crate) fn query_core_types(&self) -> hir::HirCoreTypeIdentityAuthority<'_> {
         match &self.core {
             CoreLoweringAuthority::Defined => hir::HirCoreTypeIdentityAuthority::Defined(
                 self.defined_intrinsic_type_core

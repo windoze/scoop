@@ -21,7 +21,7 @@ pub(super) fn imported_location(
     })
 }
 
-impl FrontendQueries<'_> {
+impl FrontendQueries<'_, '_> {
     pub(super) fn in_context<T>(
         &mut self,
         context: hir::SemanticContext,

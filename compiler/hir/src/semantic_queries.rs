@@ -73,6 +73,13 @@ pub enum SemanticTypeRelation {
 /// Operations compute existing semantic facts; they never generate a body.
 pub trait SemanticQueries {
     fn current_cone(&self) -> ConeIdentity;
+    fn lookup_export(
+        &mut self,
+        context: SemanticContext,
+        provider: ConeIdentity,
+        path: &[scoop_identity::CanonicalIdentifier],
+        namespace: scoop_identity::BindingNamespace,
+    ) -> Result<Vec<scoop_identity::BindableEntity>, Diagnostic>;
     fn pending_methods(&self) -> Vec<PendingMethod>;
     fn annotations(&self) -> &SourceAnnotations;
     fn annotation_declaration(

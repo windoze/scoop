@@ -23,7 +23,11 @@ pub(crate) struct PendingGenerationMethod {
 }
 
 impl Lowerer {
-    pub(crate) fn generate_method_bodies(&mut self, generator: &mut dyn hir::MethodBodyGenerator) {
+    pub(crate) fn generate_method_bodies(
+        &mut self,
+        generator: &mut dyn hir::MethodBodyGenerator,
+        world: Option<&hir::ImportedSemanticWorld<'_>>,
+    ) {
         if !self.diagnostics.is_empty() {
             self.report_missing_generated_methods();
             return;
@@ -33,8 +37,12 @@ impl Lowerer {
         // compiled program, including after a rejected type query.
         let mut view = self.clone();
         view.in_semantic_query = true;
-        let bodies = generator.generate(&mut FrontendQueries { lowerer: &mut view });
+        let bodies = generator.generate(&mut FrontendQueries {
+            lowerer: &mut view,
+            world,
+        });
         self.query_source_function_identities = view.query_source_function_identities;
+        self.query_alias_identities = view.query_alias_identities;
         self.property_identity_records = view.property_identity_records;
         self.struct_constructor_identity_records = view.struct_constructor_identity_records;
         self.class_constructor_identity_records = view.class_constructor_identity_records;
