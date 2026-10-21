@@ -58,25 +58,17 @@ impl ImportedDependencySelectionPlan {
         &self,
         owner: SourceNominalId,
     ) -> impl Iterator<Item = &scoop_identity::SignatureTypeKey> {
-        let owner = crate::PublicDeclarationOwnerV1::Nominal(owner);
-        self.catalog
-            .properties
-            .values()
-            .filter(move |property| property.interface.owner() == owner)
-            .map(|property| property.interface.value_type())
+        let members = self.catalog.indexes.nominals.get(&owner);
+        members
+            .into_iter()
+            .flat_map(|members| &members.properties)
+            .map(|property| self.catalog.properties[property].interface.value_type())
             .chain(
-                self.catalog
-                    .callables
-                    .values()
-                    .filter(move |callable| {
-                        callable.interface.owner() == owner
-                            && matches!(
-                                callable.interface.declaration(),
-                                scoop_identity::CallableTemplateOrigin::Constructor(_)
-                            )
-                    })
-                    .flat_map(|callable| {
-                        callable
+                members
+                    .into_iter()
+                    .flat_map(|members| &members.constructors)
+                    .flat_map(|declaration| {
+                        self.catalog.callables[declaration]
                             .interface
                             .parameters()
                             .parameters()

@@ -57,9 +57,12 @@ impl Lowerer {
             }
             match self.materialize_imported_callable_body(&template) {
                 Ok(body) => {
-                    let target = self.imported_generic_templates.templates[index]
-                        .as_mut()
-                        .expect("body completion follows signature completion");
+                    drop(template);
+                    let target = Rc::make_mut(
+                        self.imported_generic_templates.templates[index]
+                            .as_mut()
+                            .expect("body completion follows signature completion"),
+                    );
                     target.locals = body.locals;
                     target.statements = Some(body.statements);
                 }

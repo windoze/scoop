@@ -2,10 +2,7 @@ use scoop_identity::{CallableTemplateOrigin, CanonicalIdentifier, DeclarationNam
 
 use super::{ImportedDependencySelectionPlan, ImportedDependencySelectionPlanBuildError};
 use crate::semantic_world::ImportedProvider;
-use crate::{
-    CallableDeclarationRecordV1, CallableImplementationV1, CallableSourceInterfaceV1,
-    IntrinsicFunctionKind,
-};
+use crate::{CallableDeclarationRecordV1, CallableSourceInterfaceV1, IntrinsicFunctionKind};
 
 #[derive(Clone, Debug)]
 pub(super) enum CallableCatalogName {
@@ -96,15 +93,11 @@ impl ImportedDependencySelectionPlan {
         kind: IntrinsicFunctionKind,
         gc_effect: GcEffect,
     ) -> Option<ImportedIntrinsicCallable<'_>> {
-        let mut matches = self.catalog.callables.values().filter(|entry| {
-            let effects = entry.interface.effects();
-            effects.implementation() == CallableImplementationV1::Intrinsic(kind)
-                && effects.gc_effect() == gc_effect
-        });
-        let entry = matches.next()?;
-        if matches.next().is_some() {
+        let declarations = self.catalog.indexes.intrinsics.get(&(kind, gc_effect))?;
+        let [declaration] = declarations.as_slice() else {
             return None;
-        }
+        };
+        let entry = &self.catalog.callables[declaration];
         let CallableCatalogName::Function(name) = &entry.name else {
             return None;
         };

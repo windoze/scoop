@@ -146,6 +146,10 @@ fn tool_error(
         | SingleConeProductionError::Preflight(crate::SingleConePreflightError::Dependencies(
             error,
         )) => Some(error),
+        SingleConeProductionError::Production(error) => match error.cause() {
+            CurrentConeProductionFailure::Dependencies(error) => Some(error),
+            _ => None,
+        },
         _ => None,
     };
     let origin = match dependency.and_then(|error| error.artifact_location()) {

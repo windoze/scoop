@@ -16,13 +16,17 @@ pub(super) fn assemble(
     request: &ValidatedSingleConeBuildRequest<'_>,
     cone: slib::ConeRecord,
     temporary_parent: &Path,
-    selected: mir::SelectedExternalMirSet,
+    machine_dependencies: slib::ValidatedCrossConeArtifactClosure,
     dump: &mut Vec<EmittedStageDump>,
     stop_after: Option<StageDumpKind>,
 ) -> Result<ControlFlow<(), slib::AssembledCrossConeLayoutArtifactV1>, CurrentConeProductionFailure>
 {
-    let closure = request.dependencies().semantic();
+    let closure = machine_dependencies.semantic();
     let dependencies = closure.layout_dependencies().collect::<Vec<_>>();
+    let selected = closure
+        .project_dependency_callables_to_mir(&hir.hir)
+        .map_err(CurrentConeMirStageError::DependencyProjection)
+        .map_err(CurrentConeProductionFailure::Mir)?;
     let mir = hir
         .machine_input()
         .lower_selected_mir(
@@ -45,10 +49,15 @@ pub(super) fn assemble(
         .project_dependency_callables_to_lir(mir.strong.selected_callables())
         .map_err(CurrentConeLirStageError::DependencyProjection)
         .map_err(CurrentConeProductionFailure::Lir)?;
-    let (identities, coordinates) =
-        protocols::type_identities(&hir, &mir, closure, cone.coordinate())
-            .map_err(CurrentConeLirStageError::Identity)
-            .map_err(CurrentConeProductionFailure::Lir)?;
+    let (identities, coordinates) = protocols::type_identities(
+        &hir,
+        &mir,
+        closure,
+        request.dependencies().semantic(),
+        cone.coordinate(),
+    )
+    .map_err(CurrentConeLirStageError::Identity)
+    .map_err(CurrentConeProductionFailure::Lir)?;
     let foundation = hir.foundation;
     let source = scoop_hir_lower::produce_cross_cone_type_semantics(
         &hir.hir,
@@ -58,14 +67,10 @@ pub(super) fn assemble(
             foundation: &foundation,
             public: &hir.cross_cone_section,
         },
-        &dependencies
-            .iter()
-            .map(|dependency| hir::SharedTypeMetadataV1 {
-                provider: dependency.identity(),
-                identities: dependency.identity_graph(),
-                foundation: dependency.hir_foundation(),
-                public: dependency.hir_interface(),
-            })
+        &request
+            .dependencies()
+            .semantic()
+            .hir_metadata()
             .collect::<Vec<_>>(),
     )
     .map_err(Error::HirTypes)?;
@@ -264,9 +269,7 @@ pub(super) fn assemble(
         &mir.public,
         &lir_public,
     );
-    let owners = request
-        .dependencies()
-        .closure
+    let owners = machine_dependencies
         .dependency_symbol_owners()
         .cloned()
         .collect::<Vec<_>>();

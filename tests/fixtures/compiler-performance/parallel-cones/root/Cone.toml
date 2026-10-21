@@ -1,0 +1,12 @@
+schema = 1
+[cone]
+group = "dev.performance"
+name = "parallel-root"
+version = "0.1.0"
+kind = "executable"
+[dependencies."dev.performance:parallel-left"]
+version = "0.1.0"
+path = "../left"
+[dependencies."dev.performance:parallel-right"]
+version = "0.1.0"
+path = "../right"

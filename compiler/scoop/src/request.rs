@@ -188,6 +188,7 @@ pub struct BuildGraphRequest {
     diagnostics: DiagnosticsPolicy,
     optimization: scoop_lir::OptimizationMode,
     purpose: CompilationPurpose,
+    jobs: std::num::NonZeroUsize,
 }
 
 pub(crate) struct BuildGraphRequestParts {
@@ -200,6 +201,7 @@ pub(crate) struct BuildGraphRequestParts {
     pub(crate) diagnostics: DiagnosticsPolicy,
     pub(crate) optimization: scoop_lir::OptimizationMode,
     pub(crate) purpose: CompilationPurpose,
+    pub(crate) jobs: std::num::NonZeroUsize,
 }
 
 impl BuildGraphRequest {
@@ -228,11 +230,17 @@ impl BuildGraphRequest {
             diagnostics,
             optimization: scoop_lir::OptimizationMode::Debug,
             purpose: CompilationPurpose::Production,
+            jobs: std::thread::available_parallelism().unwrap_or(std::num::NonZeroUsize::MIN),
         })
     }
 
     pub fn with_optimization(mut self, mode: scoop_lir::OptimizationMode) -> Self {
         self.optimization = mode;
+        self
+    }
+
+    pub fn with_jobs(mut self, jobs: std::num::NonZeroUsize) -> Self {
+        self.jobs = jobs;
         self
     }
 
@@ -286,6 +294,7 @@ impl BuildGraphRequest {
             diagnostics: self.diagnostics,
             optimization: self.optimization,
             purpose: self.purpose,
+            jobs: self.jobs,
         }
     }
 }

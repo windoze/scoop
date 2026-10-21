@@ -17,7 +17,7 @@ pub(crate) fn build(
             &lowerer.classes,
             &lowerer.objects,
             &lowerer.class_fields,
-            &lowerer.properties,
+            lowerer.properties.as_arena(),
             &lowerer.delegate_storages,
             nominal_identities,
             property_identities,
@@ -179,7 +179,7 @@ impl Lowerer {
                 field,
                 &self.class_fields[field],
                 &self.objects,
-                &self.properties,
+                self.properties.as_arena(),
                 &self.delegate_storages,
                 self.nominal_identities
                     .as_ref()

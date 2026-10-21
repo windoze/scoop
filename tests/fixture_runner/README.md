@@ -16,6 +16,7 @@ fixture 的 Scoop 命令通过 `${target}` 传递该选择。`${cc}` 默认分�
 使用 `{each = "${link_args}"}` 给 `scoop build/run/link` 或 `scoop-link` 传目标及最终链接参数。
 Linux 的链接参数包含仓库 `sysroot/lib/<target>/unwind`，供普通程序链接使用。
 显式 `--cc` 也传给 Linux Scoop 工具；用例保留其实际源码、sysroot 和工具。
+需要固定自定义 `--cc` 的工具链诊断专测直接传 `--target ${target}`，不展开包含环境 `--cc` 的公共参数数组。
 native companion 用 `{each = "${cc_args}"}` 传平台编译参数：Darwin 为实际 target、
 SDK 和 deployment，Linux 为 PIC/pthread；源码自己的标准、优化和告警参数保留。
 Darwin deployment 采用 `MACOSX_DEPLOYMENT_TARGET` 或 `scripts/release.toml` 的明确基线，

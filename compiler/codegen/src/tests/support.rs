@@ -1251,27 +1251,27 @@ pub(super) fn try_strong_shape_ir_of(module: &Module) -> Result<String, CodegenE
         .meta
         .type_descriptors
         .iter()
-        .map(|(_, descriptor)| {
+        .map(|(id, descriptor)| {
             let global = llvm.add_global(descriptor_type, None, descriptor.identity.symbol());
             global.set_linkage(inkwell::module::Linkage::External);
             global.set_constant(true);
-            global
+            (id, global)
         })
-        .collect::<Vec<_>>();
+        .collect::<BTreeMap<_, _>>();
     let external_type_globals = module
         .meta
         .external_type_descriptors
         .iter()
-        .map(|(_, descriptor)| {
+        .map(|(id, descriptor)| {
             let global = llvm.add_global(
                 descriptor_type,
                 None,
                 descriptor.expected_symbol().symbol().as_str(),
             );
             global.set_linkage(inkwell::module::Linkage::External);
-            global
+            (id, global)
         })
-        .collect::<Vec<_>>();
+        .collect::<BTreeMap<_, _>>();
     let placeholder_function_type = context.void_type().fn_type(&[], false);
     for function in &module.functions {
         let function = llvm.add_function(function.symbol(), placeholder_function_type, None);

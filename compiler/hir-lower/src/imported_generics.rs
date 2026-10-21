@@ -16,8 +16,10 @@ mod release;
 
 use std::collections::BTreeMap;
 use std::ops::{Deref, Index};
+use std::rc::Rc;
 
 use hir::ImportedCallableSource;
+use imbl::{OrdMap, Vector};
 use la_arena::{Arena, Idx, RawIdx};
 use scoop_hir as hir;
 use scoop_identity::CallableTemplateOrigin;
@@ -27,14 +29,14 @@ use crate::imported_core::ImportedTypeBindings;
 
 #[derive(Clone, Default)]
 pub(crate) struct ImportedGenericTemplates {
-    templates: Vec<Option<PreparedImportedGeneric>>,
-    by_declaration: BTreeMap<CallableTemplateOrigin, hir::ImportedGenericCallableTemplateId>,
-    local_functions: BTreeMap<CallableTemplateOrigin, ImportedLocalFunctionSource>,
-    closures: BTreeMap<
+    templates: Vector<Option<Rc<PreparedImportedGeneric>>>,
+    by_declaration: OrdMap<CallableTemplateOrigin, hir::ImportedGenericCallableTemplateId>,
+    local_functions: OrdMap<CallableTemplateOrigin, ImportedLocalFunctionSource>,
+    closures: OrdMap<
         scoop_identity::PersistentGeneratedCallableId,
         hir::ImportedGenericCallableTemplateId,
     >,
-    delegates: BTreeMap<
+    delegates: OrdMap<
         scoop_identity::PersistentExtensionPropertyId,
         hir::ImportedGenericDelegateTemplateId,
     >,
@@ -136,8 +138,9 @@ impl ImportedGenericTemplates {
         self.templates
             .into_iter()
             .map(|template| {
-                let template =
-                    template.expect("successful lowering completed every dependency signature");
+                let template = Rc::unwrap_or_clone(
+                    template.expect("successful lowering completed every dependency signature"),
+                );
                 let provider = template.origin.provider;
                 hir::ImportedGenericCallableTemplate {
                     signature: template.signature,
@@ -252,7 +255,7 @@ impl Lowerer {
             u32::try_from(self.imported_generic_templates.templates.len())
                 .expect("dependency template arena fits u32"),
         ));
-        self.imported_generic_templates.templates.push(None);
+        self.imported_generic_templates.templates.push_back(None);
         self.imported_generic_templates
             .by_declaration
             .insert(key, id);
@@ -267,7 +270,7 @@ impl Lowerer {
             self.prepare_imported_generic(declaration, origin)?
         };
         self.imported_generic_templates.templates[id.into_raw().into_u32() as usize] =
-            Some(prepared);
+            Some(Rc::new(prepared));
         Ok(id)
     }
 
@@ -293,7 +296,7 @@ impl Lowerer {
         ));
         self.imported_generic_templates
             .templates
-            .push(Some(prepared));
+            .push_back(Some(Rc::new(prepared)));
         id
     }
 }

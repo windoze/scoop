@@ -121,6 +121,16 @@ impl CompileCacheStoreV1 {
         key: ConeCompileCacheKeyV1,
         mode: CompileCacheLockModeV1,
     ) -> Result<CompileCacheKeyLockV1, CompileCacheStoreError> {
+        self.acquire_available(key, mode, true)
+            .map(|lock| lock.expect("blocking acquisition returns a lock or an error"))
+    }
+
+    pub(crate) fn acquire_available(
+        &self,
+        key: ConeCompileCacheKeyV1,
+        mode: CompileCacheLockModeV1,
+        wait: bool,
+    ) -> Result<Option<CompileCacheKeyLockV1>, CompileCacheStoreError> {
         let directory = self.namespace.join(".locks");
         std::fs::create_dir_all(&directory).map_err(|source| {
             CompileCacheStoreError::io(CacheIoOperation::CreateDirectory, &directory, source)
@@ -128,18 +138,36 @@ impl CompileCacheStoreV1 {
         let path = directory.join(format!("{key}.lock"));
         let file = open_build_lock(&path)
             .map_err(|source| CompileCacheStoreError::io(CacheIoOperation::Open, &path, source))?;
-        match mode {
-            CompileCacheLockModeV1::Shared => FileExt::lock_shared(&file),
-            CompileCacheLockModeV1::Exclusive => FileExt::lock(&file),
+        if wait {
+            match mode {
+                CompileCacheLockModeV1::Shared => FileExt::lock_shared(&file),
+                CompileCacheLockModeV1::Exclusive => FileExt::lock(&file),
+            }
+            .map_err(|source| CompileCacheStoreError::io(CacheIoOperation::Lock, &path, source))?;
+        } else {
+            let acquired = match mode {
+                CompileCacheLockModeV1::Shared => FileExt::try_lock_shared(&file),
+                CompileCacheLockModeV1::Exclusive => FileExt::try_lock(&file),
+            };
+            match acquired {
+                Ok(()) => {}
+                Err(fs4::TryLockError::WouldBlock) => return Ok(None),
+                Err(fs4::TryLockError::Error(source)) => {
+                    return Err(CompileCacheStoreError::io(
+                        CacheIoOperation::Lock,
+                        &path,
+                        source,
+                    ));
+                }
+            }
         }
-        .map_err(|source| CompileCacheStoreError::io(CacheIoOperation::Lock, &path, source))?;
-        Ok(CompileCacheKeyLockV1 {
+        Ok(Some(CompileCacheKeyLockV1 {
             namespace: self.namespace.clone(),
             key,
             mode,
             file,
             path,
-        })
+        }))
     }
 
     fn check_lock(

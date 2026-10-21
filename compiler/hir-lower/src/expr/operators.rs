@@ -241,8 +241,6 @@ impl Lowerer {
         // while retaining source evaluation order in the two operand sinks.
         let lhs_is_integer_literal = crate::expr::integer_literal_default_kind(lhs).is_some();
         let rhs_is_integer_literal = crate::expr::integer_literal_default_kind(rhs).is_some();
-        let lhs_requires_expected = self.expr_requires_expected_type(lhs);
-        let rhs_requires_expected = self.expr_requires_expected_type(rhs);
         let direct_integer_kind = crate::expr::common_integer_literal_kind(&[lhs, rhs]);
         let (lhs, rhs) = if let Some(kind) = direct_integer_kind {
             let expected = self.integer_type(kind);
@@ -262,45 +260,61 @@ impl Lowerer {
             };
             let lhs = self.lower_expr(lhs, sink, lhs_expected)?;
             (lhs, rhs)
-        } else if lhs_requires_expected && !rhs_requires_expected {
-            let mut probe = self.clone();
-            let mut probe_sink = Vec::new();
-            let Some(rhs_probe) = probe.lower_expr(rhs, &mut probe_sink, None) else {
-                if probe.diagnostics.len() > self.diagnostics.len() {
-                    self.commit_layer_diagnostics(probe);
+        } else {
+            let mut operands = [None, None];
+            let mut failures = [None, None];
+            for (index, source) in [lhs, rhs].into_iter().enumerate() {
+                operands[index] = self.probe_contextual_value(
+                    self.expr_context_requirement(source),
+                    None,
+                    &mut failures[index],
+                    |this, expected| {
+                        let mut setup = Vec::new();
+                        this.lower_expr(source, &mut setup, expected)
+                            .map(|value| (value, setup))
+                    },
+                )?;
+            }
+            if operands[0].is_none() {
+                let hint = operands[1].as_ref().map(|(value, _)| value.ty);
+                let mut setup = Vec::new();
+                let value =
+                    self.finish_contextual_value(hint, &mut failures[0], |this, expected| {
+                        this.lower_expr(lhs, &mut setup, expected)
+                    })?;
+                operands[0] = Some((value, setup));
+            }
+            let (lhs, lhs_setup) = operands[0].take().expect("the left operand is complete");
+            if operands[1].is_none() {
+                let hint = if rhs_is_integer_literal {
+                    match self.types[lhs.ty] {
+                        Type::Integer(kind)
+                            if crate::expr::integer_literal_accepts_kind(rhs, kind) =>
+                        {
+                            Some(lhs.ty)
+                        }
+                        _ => None,
+                    }
                 } else {
-                    self.error(
-                        rhs.span(),
-                        "cannot determine equality operand type".to_string(),
-                    );
-                }
-                return None;
-            };
-            *self = probe;
-            let lhs = self.lower_expr(lhs, sink, Some(rhs_probe.ty))?;
-            let lhs = if probe_sink.is_empty() {
+                    Some(lhs.ty)
+                };
+                let mut setup = Vec::new();
+                let value =
+                    self.finish_contextual_value(hint, &mut failures[1], |this, expected| {
+                        this.lower_expr(rhs, &mut setup, expected)
+                    })?;
+                operands[1] = Some((value, setup));
+            }
+            let (rhs, rhs_setup) = operands[1].take().expect("the right operand is complete");
+            sink.extend(lhs_setup);
+            let lhs = if rhs_setup.is_empty() {
                 lhs
             } else {
                 let span = lhs.span;
                 self.materialize_temporary("$equality.lhs".into(), lhs, span, sink)
             };
-            sink.extend(probe_sink);
-            (lhs, rhs_probe)
-        } else {
-            let lhs = self.lower_expr(lhs, sink, None)?;
-            let rhs_hint = if rhs_is_integer_literal {
-                match self.types[lhs.ty] {
-                    Type::Integer(kind) if crate::expr::integer_literal_accepts_kind(rhs, kind) => {
-                        Some(lhs.ty)
-                    }
-                    _ => None,
-                }
-            } else if rhs_requires_expected {
-                Some(lhs.ty)
-            } else {
-                None
-            };
-            self.lower_ordered_rhs(lhs, rhs, sink, rhs_hint, "$equality.lhs")?
+            sink.extend(rhs_setup);
+            (lhs, rhs)
         };
         self.lower_equality_operator(negate, lhs, rhs, symbol, span, sink)
     }

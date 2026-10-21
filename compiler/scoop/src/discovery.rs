@@ -39,6 +39,7 @@ pub(crate) struct BuildContext {
     pub(crate) diagnostics: DiagnosticsPolicy,
     pub(crate) optimization: scoop_lir::OptimizationMode,
     pub(crate) purpose: scoop_protocol::CompilationPurpose,
+    pub(crate) jobs: std::num::NonZeroUsize,
 }
 
 #[derive(Debug)]

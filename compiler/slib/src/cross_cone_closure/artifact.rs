@@ -152,6 +152,13 @@ pub fn validate_cross_cone_artifact_closure<'input>(
 ) -> Result<ValidatedCrossConeArtifactClosure, CrossConeArtifactClosureValidationError> {
     let complete = crate::read_cross_cone_layout_artifact_closure(input)
         .map_err(|error| CrossConeArtifactClosureValidationError::Layout(Box::new(error)))?;
+    commit_artifact_data(complete, session)
+}
+
+pub(crate) fn commit_artifact_data(
+    complete: crate::CrossConeLayoutArtifactData,
+    session: &mut SemanticIdentitySession,
+) -> Result<ValidatedCrossConeArtifactClosure, CrossConeArtifactClosureValidationError> {
     let (current, target, direct, records, odr_definitions) = complete.into_parts();
     let mut artifacts = Vec::with_capacity(records.len());
     let mut links = Vec::with_capacity(records.len());

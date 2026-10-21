@@ -36,6 +36,9 @@ pub use compile_decode::*;
 mod compile_sections;
 pub use compile_sections::CompileSectionDecodeError;
 
+mod compile_dependencies;
+pub use compile_dependencies::*;
+
 mod link_decode;
 pub use link_decode::*;
 

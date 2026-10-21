@@ -3,43 +3,50 @@
 use super::super::*;
 
 impl Lowerer {
-    /// Expressions whose type cannot be synthesized without context. Calls
-    /// to generic constructors are contextual only when their own
-    /// context-independent arguments cannot bind every constructor variable;
-    /// this lets nested calls perform their own fixed-point inference.
-    pub(crate) fn expr_requires_expected_type(&self, expr: &ast::Expr) -> bool {
+    /// Classify syntax without lowering calls. An unresolved expression can
+    /// be synthesized once by its consumer and the successful result reused.
+    pub(crate) fn expr_context_requirement(
+        &self,
+        expr: &ast::Expr,
+    ) -> ExpressionContextRequirement {
+        use ExpressionContextRequirement::{Independent, Required};
         if crate::expr::float_literal_default_kind(expr) == Some(hir::FloatKind::F64) {
-            return true;
+            return Required;
         }
         match expr {
-            ast::Expr::IntLiteral(_) => true,
+            ast::Expr::IntLiteral(_) => Required,
             ast::Expr::Unary { op, operand, .. }
                 if matches!(op, ast::UnOp::Plus | ast::UnOp::Neg)
                     && matches!(&**operand, ast::Expr::IntLiteral(_)) =>
             {
-                true
+                Required
             }
-            ast::Expr::Var(name) => self.bare_value_requires_expected(name),
-            ast::Expr::FieldAccess(access) => {
+            ast::Expr::Var(name) => {
+                ExpressionContextRequirement::from_required(self.bare_value_requires_expected(name))
+            }
+            ast::Expr::FieldAccess(access) => ExpressionContextRequirement::from_required(
                 self.unit_variant_from_field(access).is_some()
-                    || self.imported_unit_variant_requires_expected(access)
-            }
-            ast::Expr::CopyUpdate { base, .. } => self.expr_requires_expected_type(base),
+                    || self.imported_unit_variant_requires_expected(access),
+            ),
+            ast::Expr::CopyUpdate { base, .. } => self.expr_context_requirement(base),
             ast::Expr::TupleLiteral { elements, .. } => {
-                elements.is_empty()
-                    || elements
+                if elements.is_empty() {
+                    Required
+                } else {
+                    elements
                         .iter()
-                        .any(|element| self.expr_requires_expected_type(element))
+                        .map(|element| self.expr_context_requirement(element))
+                        .fold(Independent, ExpressionContextRequirement::or)
+                }
             }
             // The surrounding type also chooses between Array and
             // MutableArray, even when every element is independently typed.
-            ast::Expr::ArrayLiteral { .. } => true,
-            ast::Expr::Call(call) => {
-                self.constructor_requires_expected(None, &call.callee, &call.args)
-                    || self.bare_call_requires_contextual_lookup(call)
-            }
+            ast::Expr::ArrayLiteral { .. } => Required,
+            ast::Expr::Call(call) => self
+                .constructor_context_requirement(None, &call.callee, &call.args)
+                .or(self.bare_call_context_requirement(call)),
             ast::Expr::StructInit { name, args, .. } => {
-                self.constructor_requires_expected(None, name, args)
+                self.constructor_context_requirement(None, name, args)
             }
             ast::Expr::MethodCall {
                 receiver,
@@ -48,8 +55,11 @@ impl Lowerer {
                 args,
                 ..
             } => {
-                type_args.is_empty()
-                    && self.qualified_variant_requires_expected(receiver, name, args)
+                if type_args.is_empty() {
+                    self.qualified_variant_context_requirement(receiver, name, args)
+                } else {
+                    Independent
+                }
             }
             // A lambda with an explicit, fully typed parameter header can
             // synthesize its own function type and therefore participate in
@@ -59,14 +69,14 @@ impl Lowerer {
             ast::Expr::Lambda {
                 parameters: Some(parameters),
                 ..
-            } if parameters.iter().all(|parameter| parameter.ty.is_some()) => false,
+            } if parameters.iter().all(|parameter| parameter.ty.is_some()) => Independent,
             ast::Expr::Lambda { .. }
             | ast::Expr::AnonymousFunction { .. }
-            | ast::Expr::CallableReference { .. } => true,
+            | ast::Expr::CallableReference { .. } => Required,
             // Structured expressions perform their own branch-level fixed
             // point and therefore do not need to be postponed as a whole.
-            ast::Expr::If(_) | ast::Expr::When(_) | ast::Expr::Try(_) => false,
-            _ => false,
+            ast::Expr::If(_) | ast::Expr::When(_) | ast::Expr::Try(_) => Independent,
+            _ => Independent,
         }
     }
 
@@ -100,15 +110,16 @@ impl Lowerer {
         }
     }
 
-    fn bare_call_requires_contextual_lookup(&self, call: &ast::CallExpr) -> bool {
+    fn bare_call_context_requirement(&self, call: &ast::CallExpr) -> ExpressionContextRequirement {
+        use ExpressionContextRequirement::{Independent, Unresolved};
         if call.callee.text.contains('.') {
-            return false;
+            return Independent;
         }
         if let Some(local) = self.scopes.lookup(&call.callee.text) {
             let mut probe = self.clone();
             let ty = self.locals[local].ty;
             if probe.type_exposes_invoke(ty, false) || matches!(self.types[ty], Type::FunPtr(_)) {
-                return false;
+                return Independent;
             }
         }
         if let Some(capture) = self.available_capture(&call.callee.text) {
@@ -116,12 +127,10 @@ impl Lowerer {
             if probe.type_exposes_invoke(capture.ty, false)
                 || matches!(self.types[capture.ty], Type::FunPtr(_))
             {
-                return false;
+                return Independent;
             }
         }
-        let mut probe = self.clone();
-        let mut sink = Vec::new();
-        probe.lower_call(call, &mut sink, None).is_none()
+        Unresolved
     }
 
     /// Whether a contextual expression can nevertheless synthesize a
@@ -129,11 +138,11 @@ impl Lowerer {
     /// evidence. Numeric literals use their suffix and default format;
     /// aggregate constructors may use such literals transitively.
     ///
-    /// This is deliberately separate from `expr_requires_expected_type`:
+    /// This is deliberately separate from `expr_context_requirement`:
     /// overload candidates must still probe `Some(1)` against their own
     /// `Option<Int8>` / `Option<Int16>` parameter types before any default is
     /// committed.
-    pub(crate) fn expr_can_provide_default_seed(&self, expr: &ast::Expr) -> bool {
+    pub(crate) fn expr_may_provide_default_seed(&self, expr: &ast::Expr) -> bool {
         if crate::expr::float_literal_default_kind(expr).is_some() {
             return true;
         }
@@ -148,25 +157,27 @@ impl Lowerer {
             ast::Expr::TupleLiteral { elements, .. } => {
                 !elements.is_empty()
                     && elements.iter().all(|element| {
-                        !self.expr_requires_expected_type(element)
-                            || self.expr_can_provide_default_seed(element)
+                        self.expr_context_requirement(element)
+                            != ExpressionContextRequirement::Required
+                            || self.expr_may_provide_default_seed(element)
                     })
             }
             ast::Expr::ArrayLiteral { elements, .. } => {
                 !elements.is_empty()
                     && elements.iter().all(|element| {
-                        !self.expr_requires_expected_type(element)
-                            || self.expr_can_provide_default_seed(element)
+                        self.expr_context_requirement(element)
+                            != ExpressionContextRequirement::Required
+                            || self.expr_may_provide_default_seed(element)
                     })
             }
             ast::Expr::Call(call) if !call.type_args.is_empty() => false,
             ast::Expr::Call(call) => {
-                self.constructor_can_provide_default_seed(None, &call.callee, &call.args)
+                self.constructor_may_provide_default_seed(None, &call.callee, &call.args)
             }
             ast::Expr::StructInit { name, args, .. } => {
-                self.constructor_can_provide_default_seed(None, name, args)
+                self.constructor_may_provide_default_seed(None, name, args)
             }
-            ast::Expr::CopyUpdate { base, .. } => self.expr_can_provide_default_seed(base),
+            ast::Expr::CopyUpdate { base, .. } => self.expr_may_provide_default_seed(base),
             ast::Expr::MethodCall {
                 receiver,
                 name,
@@ -182,13 +193,13 @@ impl Lowerer {
                 {
                     return false;
                 }
-                self.constructor_can_provide_default_seed(Some(&enum_name.text), name, args)
+                self.constructor_may_provide_default_seed(Some(&enum_name.text), name, args)
             }
             _ => false,
         }
     }
 
-    fn constructor_can_provide_default_seed(
+    fn constructor_may_provide_default_seed(
         &self,
         qualifier: Option<&str>,
         name: &ast::Ident,
@@ -204,8 +215,9 @@ impl Lowerer {
         }
         let mut bound = vec![false; type_param_count];
         for (arg, field) in args.iter().zip(fields) {
-            if !self.expr_requires_expected_type(&arg.expression)
-                || self.expr_can_provide_default_seed(&arg.expression)
+            if self.expr_context_requirement(&arg.expression)
+                != ExpressionContextRequirement::Required
+                || self.expr_may_provide_default_seed(&arg.expression)
             {
                 self.mark_type_params(field, &mut bound);
             }
@@ -213,12 +225,13 @@ impl Lowerer {
         bound.into_iter().all(|bound| bound)
     }
 
-    pub(in crate::expr) fn constructor_requires_expected(
+    fn constructor_context_requirement(
         &self,
         qualifier: Option<&str>,
         name: &ast::Ident,
         args: &[ast::CallArgument],
-    ) -> bool {
+    ) -> ExpressionContextRequirement {
+        use ExpressionContextRequirement::{Independent, Required, Unresolved};
         let type_name = qualifier.unwrap_or(&name.text);
         // A non-generic alias already fixes the complete target application.
         // Invalid/inaccessible aliases are also lowered immediately so their
@@ -226,55 +239,68 @@ impl Lowerer {
         if self.lexical_nested_nominal_target(type_name).is_none()
             && self.source_type_alias_named(type_name).is_some()
         {
-            return false;
+            return Independent;
         }
         if qualifier.is_none()
             && let Some((class, _)) = self.top_level_class_named(&name.text)
             && self.array_class_kind(class).is_some()
         {
             let [source] = args else {
-                return false;
+                return Independent;
             };
-            return self.expr_requires_expected_type(&source.expression);
+            return self.expr_context_requirement(&source.expression);
         }
         let Some((type_param_count, fields)) =
             self.constructor_inference_shape(qualifier, &name.text)
         else {
-            return false;
+            return Independent;
         };
         if type_param_count == 0 {
-            return false;
+            return Independent;
         }
         let mut bound = vec![false; type_param_count];
+        let mut possible = vec![false; type_param_count];
         for (arg, field) in args.iter().zip(fields) {
-            if !self.expr_requires_expected_type(&arg.expression) {
-                self.mark_type_params(field, &mut bound);
+            match self.expr_context_requirement(&arg.expression) {
+                Independent => self.mark_type_params(field, &mut bound),
+                Unresolved => self.mark_type_params(field, &mut possible),
+                Required => continue,
             }
         }
-        bound.iter().any(|bound| !bound)
+        if bound
+            .iter()
+            .zip(possible)
+            .any(|(bound, possible)| !bound && !possible)
+        {
+            Required
+        } else if bound.iter().any(|bound| !bound) {
+            Unresolved
+        } else {
+            Independent
+        }
     }
 
-    pub(in crate::expr) fn qualified_variant_requires_expected(
+    fn qualified_variant_context_requirement(
         &self,
         receiver: &ast::Expr,
         name: &ast::Ident,
         args: &[ast::CallArgument],
-    ) -> bool {
+    ) -> ExpressionContextRequirement {
         let ast::Expr::Var(enum_name) = receiver else {
-            return false;
+            return ExpressionContextRequirement::Independent;
         };
         if self.scopes.lookup(&enum_name.text).is_some() || self.host_has_property(&enum_name.text)
         {
-            return false;
+            return ExpressionContextRequirement::Independent;
         }
         if self
             .lexical_nested_nominal_target(&enum_name.text)
             .is_none()
             && self.source_type_alias_named(&enum_name.text).is_some()
         {
-            return false;
+            return ExpressionContextRequirement::Independent;
         }
-        self.constructor_requires_expected(Some(&enum_name.text), name, args)
+        self.constructor_context_requirement(Some(&enum_name.text), name, args)
     }
 
     /// Generic constructor parameter count and field templates, without

@@ -1,0 +1,3 @@
+package performance.dependency
+
+public fun answer(): Int = 42

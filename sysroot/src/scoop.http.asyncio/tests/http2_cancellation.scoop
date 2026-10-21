@@ -83,6 +83,8 @@ private class AsyncHttp2CancellationTests {
                     }
                     buffer.clear()
                     owner.cancel(); a.closeStarted.await()
+                    assertTrue(client.isClosing)
+                    assertFalse(client.isClosed)
                     val first = scope.launch suspend { client.close() }
                     val second = scope.launch suspend { client.close() }
                     assertFalse(returned.load() || first.isCompleted || second.isCompleted)

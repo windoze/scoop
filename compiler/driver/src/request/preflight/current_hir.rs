@@ -14,6 +14,22 @@ pub(super) struct CurrentConeHirArtifacts {
 }
 
 impl CurrentConeHirArtifacts {
+    pub fn machine_dependency_providers(
+        &self,
+    ) -> impl Iterator<Item = scoop_identity::ConeIdentity> + '_ {
+        let current = self.hir.output().export.cone;
+        self.cross_cone_section
+            .external_references()
+            .records()
+            .iter()
+            .map(scoop_hir::ExternalHirReferenceV1::origin)
+            .chain(self.hir.executable_dependency_providers())
+            .chain(
+                (current != scoop_identity::ConeIdentity::CORE)
+                    .then_some(scoop_identity::ConeIdentity::CORE),
+            )
+    }
+
     pub fn lower(
         requested: scoop_identity::RequestedConeKind,
         sources: &scoop_ast::CurrentConeParsedSources,

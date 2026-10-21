@@ -110,7 +110,7 @@ impl PropertyIdentityBuilder<'_> {
             })
             .collect::<Result<Vec<_>, _>>()?;
         hir::HirPropertyIdentities::checked(
-            &self.lowerer.properties,
+            self.lowerer.properties.as_arena(),
             identities,
             &self.lowerer.extension_properties,
         )

@@ -16,6 +16,7 @@ mod bodies;
 mod catalog;
 mod diagnostics;
 mod error;
+mod indexes;
 mod initializations;
 mod intrinsics;
 mod members;
@@ -40,9 +41,9 @@ use catalog::DependencyCatalog;
 #[derive(Clone, Debug)]
 pub struct ImportedDependencySelectionPlan {
     catalog: Arc<DependencyCatalog>,
-    callables: BTreeMap<CallableTemplateOrigin, SelectedImportedDependencyCallable>,
-    constants: BTreeMap<PersistentPropertyId, SelectedImportedDependencyConstant>,
-    type_aliases: BTreeMap<PersistentTypeAliasId, SelectedImportedDependencyTypeAlias>,
+    callables: imbl::OrdMap<CallableTemplateOrigin, SelectedImportedDependencyCallable>,
+    constants: imbl::OrdMap<PersistentPropertyId, SelectedImportedDependencyConstant>,
+    type_aliases: imbl::OrdMap<PersistentTypeAliasId, SelectedImportedDependencyTypeAlias>,
 }
 
 impl ImportedDependencySelectionPlan {
@@ -52,11 +53,10 @@ impl ImportedDependencySelectionPlan {
         kind: crate::IntrinsicFunctionKind,
         gc_effect: scoop_identity::GcEffect,
     ) -> bool {
-        self.catalog.callables.values().any(|entry| {
-            let effects = entry.interface.effects();
-            effects.implementation() == crate::CallableImplementationV1::Intrinsic(kind)
-                && effects.gc_effect() == gc_effect
-        })
+        self.catalog
+            .indexes
+            .intrinsics
+            .contains_key(&(kind, gc_effect))
     }
 
     /// Starts an empty selection set for a request without imported declarations.
@@ -69,6 +69,7 @@ impl ImportedDependencySelectionPlan {
                 nominal_visibilities: BTreeMap::new(),
                 consumer,
                 callables: BTreeMap::new(),
+                indexes: Default::default(),
                 bodies: BTreeMap::new(),
                 generated_callables: BTreeMap::new(),
                 callback_registrations: BTreeMap::new(),
@@ -81,9 +82,9 @@ impl ImportedDependencySelectionPlan {
                 annotated_targets: BTreeMap::new(),
                 annotated_types: BTreeMap::new(),
             }),
-            callables: BTreeMap::new(),
-            constants: BTreeMap::new(),
-            type_aliases: BTreeMap::new(),
+            callables: Default::default(),
+            constants: Default::default(),
+            type_aliases: Default::default(),
         }
     }
 
@@ -114,13 +115,7 @@ impl ImportedDependencySelectionPlan {
         )?;
         Ok(ImportedDependencyCallableCandidate {
             binding: binding.clone(),
-            provider: entry.provider,
-            interface: entry.interface.clone(),
-            source: entry.source.clone(),
-            capability: entry.capability.clone(),
-            default_templates: entry.default_templates.clone(),
-            definition_sources: Arc::clone(&entry.definition_sources),
-            callable_body: entry.callable_body.clone(),
+            entry: Arc::clone(entry),
         })
     }
 
@@ -171,7 +166,7 @@ impl ImportedDependencySelectionPlan {
         &mut self,
         candidate: ImportedDependencyCallableCandidate,
     ) -> Result<ImportedDependencyCallableRef, ImportedDependencySelectionError> {
-        self.select_callable_declaration(candidate.interface.declaration())
+        self.select_callable_declaration(candidate.interface().declaration())
     }
 
     pub fn select_declared_callable(
@@ -295,9 +290,9 @@ impl ImportedDependencySelectionPlan {
     pub fn finish(self) -> SelectedImportedDependencySet {
         SelectedImportedDependencySet {
             consumer: self.catalog.consumer,
-            callables: self.callables,
-            constants: self.constants,
-            type_aliases: self.type_aliases,
+            callables: self.callables.into_iter().collect(),
+            constants: self.constants.into_iter().collect(),
+            type_aliases: self.type_aliases.into_iter().collect(),
         }
     }
 

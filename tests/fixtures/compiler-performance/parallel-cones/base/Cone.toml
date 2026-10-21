@@ -1,0 +1,6 @@
+schema = 1
+[cone]
+group = "dev.performance"
+name = "parallel-base"
+version = "0.1.0"
+kind = "library"

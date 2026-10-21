@@ -50,13 +50,14 @@ impl Lowerer {
         statements
     }
 
-    /// Whether the trailing value of a block intrinsically needs an
-    /// expected type (`None`, an empty array, ...). Structured expressions
-    /// run their own branch inference and are therefore not deferred here.
-    pub(super) fn value_block_requires_expected(&self, block: &ast::Block) -> bool {
+    /// Classify the trailing syntax without evaluating it outside its scope.
+    pub(super) fn value_block_context_requirement(
+        &self,
+        block: &ast::Block,
+    ) -> ExpressionContextRequirement {
         match block.statements.last().map(|statement| &statement.kind) {
-            Some(ast::StatementKind::Expr(expr)) => self.expr_requires_expected_type(expr),
-            _ => false,
+            Some(ast::StatementKind::Expr(expr)) => self.expr_context_requirement(expr),
+            _ => ExpressionContextRequirement::Independent,
         }
     }
 
@@ -257,22 +258,28 @@ impl Lowerer {
             (Default::default(), Default::default())
         };
 
-        let defer_then = expected.is_none() && self.value_block_requires_expected(&if_.then_block);
-        let defer_else = expected.is_none() && self.value_block_requires_expected(else_block);
-        let mut then_value = if defer_then {
-            None
-        } else {
-            Some(self.with_smart_casts(then_narrowings.clone(), |this| {
-                this.lower_value_block(&if_.then_block, expected)
-            })?)
-        };
-        let mut else_value = if defer_else {
-            None
-        } else {
-            Some(self.with_smart_casts(else_narrowings.clone(), |this| {
-                this.lower_value_block(else_block, expected)
-            })?)
-        };
+        let mut then_failure = None;
+        let mut else_failure = None;
+        let mut then_value = self.probe_contextual_value(
+            self.value_block_context_requirement(&if_.then_block),
+            expected,
+            &mut then_failure,
+            |this, expected| {
+                this.with_smart_casts(then_narrowings.clone(), |this| {
+                    this.lower_value_block(&if_.then_block, expected)
+                })
+            },
+        )?;
+        let mut else_value = self.probe_contextual_value(
+            self.value_block_context_requirement(else_block),
+            expected,
+            &mut else_failure,
+            |this, expected| {
+                this.with_smart_casts(else_narrowings.clone(), |this| {
+                    this.lower_value_block(else_block, expected)
+                })
+            },
+        )?;
         let has_hint = then_value
             .as_ref()
             .is_some_and(|block| block.value.as_ref().is_some())
@@ -280,34 +287,69 @@ impl Lowerer {
                 .as_ref()
                 .is_some_and(|block| block.value.as_ref().is_some());
         if !has_hint {
-            let then_rank = then_value
-                .is_none()
+            let then_rank = (then_value.is_none() && then_failure.is_none())
                 .then(|| self.value_block_default_seed_rank(&if_.then_block))
                 .flatten();
-            let else_rank = else_value
-                .is_none()
+            let else_rank = (else_value.is_none() && else_failure.is_none())
                 .then(|| self.value_block_default_seed_rank(else_block))
                 .flatten();
-            if then_rank.is_some() && then_rank >= else_rank {
-                then_value = Some(self.with_smart_casts(then_narrowings.clone(), |this| {
-                    this.lower_value_block(&if_.then_block, None)
-                })?);
-            } else if else_rank.is_some() {
-                else_value = Some(self.with_smart_casts(else_narrowings.clone(), |this| {
-                    this.lower_value_block(else_block, None)
-                })?);
+            let mut seeds = then_rank
+                .map(|rank| (rank, true))
+                .into_iter()
+                .chain(else_rank.map(|rank| (rank, false)))
+                .collect::<Vec<_>>();
+            seeds.sort_by_key(|seed| std::cmp::Reverse(*seed));
+            for (_, is_then) in seeds {
+                let (value, failure, block, facts) = if is_then {
+                    (
+                        &mut then_value,
+                        &mut then_failure,
+                        &if_.then_block,
+                        &then_narrowings,
+                    )
+                } else {
+                    (
+                        &mut else_value,
+                        &mut else_failure,
+                        else_block,
+                        &else_narrowings,
+                    )
+                };
+                *value = self.probe_contextual_value(
+                    ExpressionContextRequirement::Unresolved,
+                    None,
+                    failure,
+                    |this, expected| {
+                        this.with_smart_casts(facts.clone(), |this| {
+                            this.lower_value_block(block, expected)
+                        })
+                    },
+                )?;
+                if value.is_some() {
+                    break;
+                }
             }
         }
         let hint = self.value_block_hint(then_value.iter().chain(else_value.iter()));
         if then_value.is_none() {
-            then_value = Some(self.with_smart_casts(then_narrowings, |this| {
-                this.lower_value_block(&if_.then_block, hint)
-            })?);
+            then_value =
+                Some(
+                    self.finish_contextual_value(hint, &mut then_failure, |this, expected| {
+                        this.with_smart_casts(then_narrowings, |this| {
+                            this.lower_value_block(&if_.then_block, expected)
+                        })
+                    })?,
+                );
         }
         if else_value.is_none() {
-            else_value = Some(self.with_smart_casts(else_narrowings, |this| {
-                this.lower_value_block(else_block, hint)
-            })?);
+            else_value =
+                Some(
+                    self.finish_contextual_value(hint, &mut else_failure, |this, expected| {
+                        this.with_smart_casts(else_narrowings, |this| {
+                            this.lower_value_block(else_block, expected)
+                        })
+                    })?,
+                );
         }
         let mut then_value = then_value.expect("both branches were lowered");
         let mut else_value = else_value.expect("both branches were lowered");

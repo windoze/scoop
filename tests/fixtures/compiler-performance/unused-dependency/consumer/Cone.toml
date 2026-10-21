@@ -1,0 +1,11 @@
+schema = 1
+
+[cone]
+group = "dev.performance"
+name = "unused-consumer"
+version = "0.1.0"
+kind = "executable"
+
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"dev.performance:unused-input" = "0.1.0"

@@ -222,7 +222,13 @@ fn initialization_values_follow_typed_unit_ids_in_lir_arena_order() {
         initialization_unit_globals_from_pairs(&module, [(second_id, second), (first_id, first)])
             .expect("typed coordinator ids cover the LIR arena");
 
-    assert_eq!(mapped, [first, second]);
+    assert_eq!(
+        mapped,
+        BTreeMap::from([
+            (scoop_lir::InitializationUnitId::from_raw(0.into()), first),
+            (scoop_lir::InitializationUnitId::from_raw(1.into()), second),
+        ])
+    );
 }
 
 #[test]

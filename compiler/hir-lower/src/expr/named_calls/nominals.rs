@@ -56,6 +56,18 @@ impl Lowerer {
         let mut intrinsics = Vec::new();
         let mut imported = Vec::new();
         for binding in targets {
+            if !matches!(
+                binding.target,
+                NamedCallTarget::Type(_)
+                    | NamedCallTarget::Value(ValueTarget::Object(_) | ValueTarget::Variant(_))
+                    | NamedCallTarget::ImportedDependency(
+                        hir::ImportedTarget::TypeAlias(_)
+                            | hir::ImportedTarget::GenericType(_)
+                            | hir::ImportedTarget::Type(_)
+                    )
+            ) {
+                continue;
+            }
             let mut preparation = self.clone();
             match preparation.named_nominal_plans(binding, call, expected) {
                 Ok(PreparedNominalPlans::Nominal(mut prepared, intrinsic)) => {

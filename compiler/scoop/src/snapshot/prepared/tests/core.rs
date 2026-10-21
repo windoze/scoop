@@ -9,14 +9,14 @@ fn core_child_failure_never_publishes_a_cache_entry() {
     write_core(&sysroot);
     write_manifest(&root, "root", "");
     write_fake_compiler(&workspace.join("bin/scoopc"));
-    let mut prepared = prepare(&root, workspace).unwrap();
+    let prepared = prepare(&root, workspace).unwrap();
     let key = prepared.compile_cache_key(ConeIdentity::CORE, &[]).unwrap();
     let store = CompileCacheStoreV1::new(&ArtifactCacheRoot::new(workspace.join("cache")).unwrap());
     assert!(matches!(
         prepared.execute_ordinary_source(
             ConeIdentity::CORE,
             &[],
-            &mut FailureRunner,
+            &FailureRunner,
             RequestCorrelationId::from_array([31; 16]),
         ),
         Err(OrdinarySourceExecutionError::ChildFailure(diagnostics))
@@ -26,7 +26,7 @@ fn core_child_failure_never_publishes_a_cache_entry() {
 }
 
 #[test]
-fn serial_scheduler_stops_before_dependent_after_core_failure() {
+fn scheduler_stops_before_dependent_after_core_failure() {
     let temp = tempfile::tempdir().unwrap();
     let workspace = temp.path();
     let sysroot = workspace.join("sysroot");
@@ -39,16 +39,16 @@ fn serial_scheduler_stops_before_dependent_after_core_failure() {
         .source_input_path(ConeIdentity::CORE)
         .unwrap()
         .to_path_buf();
-    let mut runner = RecordingFailureRunner::default();
+    let runner = RecordingFailureRunner::default();
 
-    let error = prepared.execute_with_runner(&mut runner).unwrap_err();
+    let error = prepared.execute_with_runner(&runner).unwrap_err();
     assert!(matches!(
         error.cause(),
         BuildGraphExecutionError::Ordinary(ConeIdentity::CORE, source)
             if matches!(source.as_ref(), OrdinarySourceExecutionError::ChildFailure(_))
     ));
     assert_eq!(
-        runner.current,
+        runner.current.into_inner().unwrap(),
         vec![CurrentConeRequestV1::ManifestRoot {
             root: scoop_protocol::HostPathCarrier::from_path(&core_root).unwrap()
         }]

@@ -11,6 +11,7 @@ use super::constraints::{
 use super::solver::{ConcreteInferenceArguments, PartialInferenceArguments};
 use crate::Lowerer;
 use crate::declaration_inference::DeclarationResult;
+use crate::expr::ExpressionContextRequirement;
 
 mod expressions;
 pub(crate) use expressions::{ArgumentExpression, ArgumentExpressionFailure};
@@ -110,6 +111,7 @@ impl Lowerer {
         let mut sinks = (0..expressions.len())
             .map(|_| Vec::new())
             .collect::<Vec<_>>();
+        let mut independent_failures = (0..expressions.len()).map(|_| None).collect::<Vec<_>>();
         let initial = self
             .solve_constraints_partially(session, environment)
             .map_err(|failure| {
@@ -121,9 +123,7 @@ impl Lowerer {
         let initial_hints = hint_bindings(parameters, &initial);
         let mut previous = Some(initial);
         for (index, expression) in expressions.iter().enumerate() {
-            if forced_hint.is_some_and(|(source, _)| source == index)
-                || expression.requires_context(self)
-            {
+            if forced_hint.is_some_and(|(source, _)| source == index) {
                 continue;
             }
             let expected = expression.expectation(self, patterns[index].ty, &initial_hints);
@@ -133,7 +133,32 @@ impl Lowerer {
             ) {
                 continue;
             }
-            match expression.lower(self, index, expected, false) {
+            if expected.is_none() {
+                let requirement = expression.context_requirement(self);
+                if requirement == ExpressionContextRequirement::Required {
+                    continue;
+                }
+                if requirement == ExpressionContextRequirement::Unresolved {
+                    let expressions::ArgumentAttempt { mut state, result } =
+                        expression.try_synthesize(self, index);
+                    match result {
+                        Ok((value, sink)) => {
+                            std::mem::swap(self, &mut state);
+                            patterns[index].constrain(session, index, value.ty);
+                            previous = None;
+                            values[index] = Some(value);
+                            sinks[index] = sink;
+                        }
+                        Err(failure) => {
+                            independent_failures[index] = Some((state, failure));
+                        }
+                    }
+                    continue;
+                }
+            }
+            let contextual = expected.is_some()
+                && expression.context_requirement(self) == ExpressionContextRequirement::Required;
+            match expression.lower(self, index, expected, contextual) {
                 Ok((value, sink)) => {
                     patterns[index].constrain(session, index, value.ty);
                     previous = None;
@@ -188,6 +213,7 @@ impl Lowerer {
                         patterns[index].constrain(session, index, value.ty);
                         values[index] = Some(value);
                         sinks[index] = sink;
+                        independent_failures[index] = None;
                         progress = true;
                     }
                     Err(failure) => {
@@ -227,7 +253,13 @@ impl Lowerer {
             seeds.sort_by_key(|&index| std::cmp::Reverse(expressions[index].seed_rank(self)));
             for index in seeds {
                 let expressions::ArgumentAttempt { mut state, result } =
-                    expressions[index].try_default(self, index);
+                    match independent_failures[index].take() {
+                        Some((state, failure)) => expressions::ArgumentAttempt {
+                            state,
+                            result: Err(failure),
+                        },
+                        None => expressions[index].try_synthesize(self, index),
+                    };
                 match result {
                     Ok((value, sink)) => {
                         std::mem::swap(self, &mut state);

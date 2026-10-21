@@ -84,8 +84,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         storage_ty.dump()
                     )));
                 }
-                let llvm_global =
-                    self.globals[arena_index(*global)].expect("storage globals are emitted");
+                let llvm_global = self.globals[global];
                 let ty = basic_ty(
                     context,
                     self.structs,
@@ -119,8 +118,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         storage_ty.dump()
                     )));
                 }
-                let llvm_global =
-                    self.globals[arena_index(*global)].expect("storage globals are emitted");
+                let llvm_global = self.globals[global];
                 builder
                     .build_store(llvm_global.as_pointer_value(), self.value(*value)?)
                     .map_err(|error| CodegenError(format!("global store: {error}")))?;
@@ -148,8 +146,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         ty.dump()
                     )));
                 }
-                let llvm_global =
-                    self.globals[arena_index(*global)].expect("storage globals are emitted");
+                let llvm_global = self.globals[global];
                 self.temps
                     .insert(*out, llvm_global.as_pointer_value().into());
             }

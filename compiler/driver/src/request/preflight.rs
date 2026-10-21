@@ -1,9 +1,8 @@
 use std::fmt;
 use std::path::Path;
-use std::rc::Rc;
 
 use scoop_ast::{CurrentConeParsedSources, NonEmptyVec};
-use scoop_identity::{ConeCoordinate, ConeIdentity, SemanticIdentitySession, TargetProfileId};
+use scoop_identity::{ConeCoordinate, ConeIdentity, TargetProfileId};
 use scoop_manifest::{
     DiscoveredManifestSources, DiscoveredSource, LoadedConeManifest, ManifestRootError,
     SingleFileInputError, SingleFileLocator, SourceDiscoveryError, discover_manifest_sources,
@@ -40,32 +39,35 @@ pub use validated::{
     ValidatedSingleConeBuildRequest,
 };
 
-/// Complete dependency artifacts and their shared semantic identity session.
-pub struct ValidatedExplicitDependencyInputSet {
-    closure: Rc<scoop_slib::ValidatedCrossConeArtifactClosure>,
+/// Source declarations and file inputs for the complete visibility graph.
+pub struct ValidatedExplicitDependencyInputSet<'input> {
+    closure: scoop_slib::CompileDependencyClosure<'input>,
     direct_dependencies: Vec<scoop_slib::DependencyRecord>,
-    _semantic_session: SemanticIdentitySession,
+    inputs: std::collections::BTreeMap<ConeIdentity, ExplicitDependencyArtifactInput>,
+    order: Vec<ConeIdentity>,
 }
 
-impl ValidatedExplicitDependencyInputSet {
+impl<'input> ValidatedExplicitDependencyInputSet<'input> {
     pub fn is_empty(&self) -> bool {
-        self.closure.artifact_count() == 0
+        self.closure.provider_count() == 0
     }
 
     pub(crate) fn new(
-        closure: Rc<scoop_slib::ValidatedCrossConeArtifactClosure>,
+        closure: scoop_slib::CompileDependencyClosure<'input>,
         direct_dependencies: Vec<scoop_slib::DependencyRecord>,
-        semantic_session: SemanticIdentitySession,
+        inputs: std::collections::BTreeMap<ConeIdentity, ExplicitDependencyArtifactInput>,
+        order: Vec<ConeIdentity>,
     ) -> Self {
         Self {
             closure,
             direct_dependencies,
-            _semantic_session: semantic_session,
+            inputs,
+            order,
         }
     }
 
-    pub(crate) fn semantic(&self) -> &scoop_slib::ValidatedCrossConeSemanticClosure {
-        self.closure.semantic()
+    pub(crate) fn semantic(&self) -> &scoop_slib::CompileDependencyClosure<'input> {
+        &self.closure
     }
 
     pub(crate) fn direct_dependencies(&self) -> &[scoop_slib::DependencyRecord] {
@@ -133,12 +135,16 @@ impl SingleConeBuildRequest {
         let loaded = self
             .load_preflight()
             .map_err(SingleConeProductionError::Preflight)?;
+        let sources = loaded
+            .parse_sources()
+            .map_err(SingleConeProductionError::Sources)?;
         let validated = loaded
             .validate()
             .map_err(SingleConeProductionError::Validation)?;
-        let parsed = validated
-            .parse_current_sources()
-            .map_err(SingleConeProductionError::Sources)?;
+        let parsed = ParsedSingleConeBuildRequest {
+            request: &validated,
+            sources,
+        };
         parsed
             .compile(temporary.path(), stop_after)
             .map_err(|source| SingleConeProductionError::Production(Box::new(source)))

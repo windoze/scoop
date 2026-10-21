@@ -41,11 +41,8 @@ impl ImportedDependencySelectionPlan {
         &self,
         accessor: scoop_identity::PersistentPropertyAccessorId,
     ) -> Option<&crate::PropertyDeclarationRecordV1> {
-        self.catalog.properties.values().find_map(|property| {
-            let capability = property.interface.accessors();
-            (capability.getter() == accessor || capability.setter() == Some(accessor))
-                .then_some(&property.interface)
-        })
+        let property = self.catalog.indexes.accessors.get(&accessor)?;
+        Some(&self.catalog.properties[property].interface)
     }
 
     pub fn property_candidate(

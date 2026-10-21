@@ -1,9 +1,8 @@
 use std::collections::BTreeMap;
-use std::rc::Rc;
 
-use scoop_identity::{ConeIdentity, SemanticIdentitySession};
+use scoop_identity::ConeIdentity;
 use scoop_manifest::LoadedConeManifest;
-use scoop_slib::{CrossConeArtifactClosureInput, validate_cross_cone_artifact_closure};
+use scoop_slib::CompileDependencyClosure;
 use scoop_toolchain::ResolvedTargetProfile;
 
 use super::graph::{
@@ -23,7 +22,7 @@ impl LoadedExplicitDependencyInputs {
         current_identity: ConeIdentity,
         target: &ResolvedTargetProfile,
         purpose: scoop_protocol::CompilationPurpose,
-    ) -> DependencyValidationResult<ValidatedExplicitDependencyInputSet> {
+    ) -> DependencyValidationResult<ValidatedExplicitDependencyInputSet<'input>> {
         let mut nodes = BTreeMap::<ConeIdentity, ValidatedDependencyNode<'input>>::new();
         let mut group_names = BTreeMap::<(String, String), (String, ConeIdentity)>::new();
         if let Some(manifest) = manifest {
@@ -103,31 +102,38 @@ impl LoadedExplicitDependencyInputs {
             .map(|identity| nodes[identity].artifact)
             .collect::<Vec<_>>();
 
-        let mut semantic_session = SemanticIdentitySession::new();
-        let closure = validate_cross_cone_artifact_closure(
-            CrossConeArtifactClosureInput::file_dependencies(
-                current_identity,
-                target.lir_target_selection(),
-                direct.clone(),
-                dependency_first,
-            ),
-            &mut semantic_session,
-        )
-        .map_err(|source| super::diagnostic::closure_error(source, &nodes, &dependency_order))?;
-
-        let direct_dependencies = direct
-            .into_iter()
-            .map(|identity| {
-                closure
-                    .publication(identity)
-                    .expect("validated direct dependency belongs to the closure")
-                    .dependency_record()
-            })
+        let inputs = nodes
+            .iter()
+            .map(|(identity, node)| (*identity, node.input.clone()))
             .collect();
+        let closure = CompileDependencyClosure::read_hir(
+            current_identity,
+            target.lir_target_selection(),
+            direct.clone(),
+            dependency_first,
+        )
+        .map_err(|source| super::diagnostic::closure_error(source, &inputs, &dependency_order))?;
+        let direct_dependencies = direct
+            .iter()
+            .map(|identity| nodes[identity].summary.dependency_record())
+            .collect();
+
         Ok(ValidatedExplicitDependencyInputSet::new(
-            Rc::new(closure),
+            closure,
             direct_dependencies,
-            semantic_session,
+            inputs,
+            dependency_order,
         ))
+    }
+}
+
+impl ValidatedExplicitDependencyInputSet<'_> {
+    pub(crate) fn read_machine_dependencies(
+        &self,
+        roots: impl IntoIterator<Item = ConeIdentity>,
+    ) -> DependencyValidationResult<scoop_slib::ValidatedCrossConeArtifactClosure> {
+        self.closure
+            .read_machine_dependencies(roots)
+            .map_err(|source| super::diagnostic::closure_error(source, &self.inputs, &self.order))
     }
 }

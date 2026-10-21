@@ -147,20 +147,18 @@ impl Lowerer {
             resolved.push((catch, ty, local));
         }
 
-        let defer_body = expected.is_none() && self.value_block_requires_expected(&try_.body);
-        let catch_deferred: Vec<_> = resolved
-            .iter()
-            .map(|(catch, _, _)| {
-                expected.is_none() && self.value_block_requires_expected(&catch.body)
-            })
-            .collect();
-        let mut body = if defer_body {
-            None
-        } else {
-            Some(self.with_smart_casts(incoming.clone(), |this| {
-                this.lower_value_block(&try_.body, expected)
-            })?)
-        };
+        let mut body_failure = None;
+        let mut catch_failures = (0..resolved.len()).map(|_| None).collect::<Vec<_>>();
+        let mut body = self.probe_contextual_value(
+            self.value_block_context_requirement(&try_.body),
+            expected,
+            &mut body_failure,
+            |this, expected| {
+                this.with_smart_casts(incoming.clone(), |this| {
+                    this.lower_value_block(&try_.body, expected)
+                })
+            },
+        )?;
         let catch_facts = if let Some(body) = &body {
             self.catch_smart_cast_facts(incoming.clone(), &body.statements, body.value.as_ref())
         } else {
@@ -172,11 +170,16 @@ impl Lowerer {
         };
         let mut catches: Vec<Option<ValueCatch>> = (0..resolved.len()).map(|_| None).collect();
         for (index, &(catch, ty, local)) in resolved.iter().enumerate() {
-            if !catch_deferred[index] {
-                catches[index] = Some(self.with_smart_casts(catch_facts.clone(), |this| {
-                    this.lower_value_catch(catch, ty, local, expected)
-                })?);
-            }
+            catches[index] = self.probe_contextual_value(
+                self.value_block_context_requirement(&catch.body),
+                expected,
+                &mut catch_failures[index],
+                |this, expected| {
+                    this.with_smart_casts(catch_facts.clone(), |this| {
+                        this.lower_value_catch(catch, ty, local, expected)
+                    })
+                },
+            )?;
         }
         let has_hint = body
             .as_ref()
@@ -187,29 +190,50 @@ impl Lowerer {
                     .is_some_and(|catch| catch.body.value.as_ref().is_some())
             });
         if !has_hint {
-            let body_rank = body
-                .is_none()
+            let body_rank = (body.is_none() && body_failure.is_none())
                 .then(|| self.value_block_default_seed_rank(&try_.body))
                 .flatten();
-            let catch_seed = resolved
+            let mut seeds = resolved
                 .iter()
                 .enumerate()
-                .filter(|(index, _)| catches[*index].is_none() && catch_deferred[*index])
-                .filter_map(|(index, &(catch, ty, local))| {
+                .filter(|(index, _)| catches[*index].is_none() && catch_failures[*index].is_none())
+                .filter_map(|(index, &(catch, _, _))| {
                     self.value_block_default_seed_rank(&catch.body)
-                        .map(|rank| (rank, index, catch, ty, local))
+                        .map(|rank| (rank, Some(index)))
                 })
-                .max_by_key(|(rank, _, _, _, _)| *rank);
-            if body_rank.is_some()
-                && body_rank >= catch_seed.as_ref().map(|(rank, _, _, _, _)| *rank)
-            {
-                body = Some(self.with_smart_casts(incoming.clone(), |this| {
-                    this.lower_value_block(&try_.body, None)
-                })?);
-            } else if let Some((_, index, catch, ty, local)) = catch_seed {
-                catches[index] = Some(self.with_smart_casts(catch_facts.clone(), |this| {
-                    this.lower_value_catch(catch, ty, local, None)
-                })?);
+                .collect::<Vec<_>>();
+            seeds.extend(body_rank.map(|rank| (rank, None)));
+            seeds.sort_by_key(|(rank, index)| std::cmp::Reverse((*rank, index.is_none(), *index)));
+            for (_, index) in seeds {
+                let ready = if let Some(index) = index {
+                    let (catch, ty, local) = resolved[index];
+                    catches[index] = self.probe_contextual_value(
+                        ExpressionContextRequirement::Unresolved,
+                        None,
+                        &mut catch_failures[index],
+                        |this, expected| {
+                            this.with_smart_casts(catch_facts.clone(), |this| {
+                                this.lower_value_catch(catch, ty, local, expected)
+                            })
+                        },
+                    )?;
+                    catches[index].is_some()
+                } else {
+                    body = self.probe_contextual_value(
+                        ExpressionContextRequirement::Unresolved,
+                        None,
+                        &mut body_failure,
+                        |this, expected| {
+                            this.with_smart_casts(incoming.clone(), |this| {
+                                this.lower_value_block(&try_.body, expected)
+                            })
+                        },
+                    )?;
+                    body.is_some()
+                };
+                if ready {
+                    break;
+                }
             }
         }
         let mut hint_types = Vec::new();
@@ -226,15 +250,26 @@ impl Lowerer {
         }));
         let hint = (!hint_types.is_empty()).then(|| self.least_upper_bound(&hint_types));
         if body.is_none() {
-            body = Some(self.with_smart_casts(incoming.clone(), |this| {
-                this.lower_value_block(&try_.body, hint)
-            })?);
+            body =
+                Some(
+                    self.finish_contextual_value(hint, &mut body_failure, |this, expected| {
+                        this.with_smart_casts(incoming.clone(), |this| {
+                            this.lower_value_block(&try_.body, expected)
+                        })
+                    })?,
+                );
         }
         for (index, &(catch, ty, local)) in resolved.iter().enumerate() {
             if catches[index].is_none() {
-                catches[index] = Some(self.with_smart_casts(catch_facts.clone(), |this| {
-                    this.lower_value_catch(catch, ty, local, hint)
-                })?);
+                catches[index] = Some(self.finish_contextual_value(
+                    hint,
+                    &mut catch_failures[index],
+                    |this, expected| {
+                        this.with_smart_casts(catch_facts.clone(), |this| {
+                            this.lower_value_catch(catch, ty, local, expected)
+                        })
+                    },
+                )?);
             }
         }
         let mut body = body.expect("the try body was lowered");

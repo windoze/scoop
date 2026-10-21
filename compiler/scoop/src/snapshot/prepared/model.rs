@@ -194,6 +194,16 @@ impl PreparedBuildGraph {
         self.edges.len()
     }
 
+    pub(crate) fn dependency_edges(
+        &self,
+    ) -> impl Iterator<Item = (ConeIdentity, ConeIdentity)> + '_ {
+        self.edges.keys().copied()
+    }
+
+    pub(crate) fn jobs(&self) -> std::num::NonZeroUsize {
+        self.context.jobs
+    }
+
     pub fn dependency_first(&self) -> &[ConeIdentity] {
         &self.dependency_first
     }
@@ -334,7 +344,7 @@ impl PreparedBuildGraph {
 
     /// Matches prebuilt manifest data against the completed dependencies.
     pub(crate) fn complete_prebuilt_node(
-        &mut self,
+        &self,
         identity: ConeIdentity,
         completed: &[&CompletedNode],
     ) -> Result<CompletedNode, PrebuiltCompletionError> {

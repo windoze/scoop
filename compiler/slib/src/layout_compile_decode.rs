@@ -115,19 +115,19 @@ pub struct ResolvedCrossConeLayoutHirSections<'input> {
 
 /// Resolved HIR payloads and saved core protocol records for downstream queries.
 pub struct HirProductionValidatedCrossConeLayoutSections<'input> {
-    graph: ValidatedGraphArtifact<'input>,
-    view: DecodedLayoutView,
-    identities: ValidatedIdentityGraph,
-    foundations: CanonicalFoundationSet,
-    hir_core_production: CoreBootstrapInterfaceSectionV1,
-    hir_interface: CrossConeHirInterfaceSectionV1,
-    hir_type_semantics: CrossConeTypeSemanticsSectionV1,
-    mir_core_production: DecodedCoreBootstrapBridgeSectionV1,
-    mir_cross_cone_bridge: DecodedCrossConeMirBridgeSectionV1,
-    mir_type_bridge: DecodedCrossConeMirTypeBridgeSectionV1,
-    lir_strong_production: DecodedConeProductionSectionV2,
-    lir_cross_cone_bridge: DecodedCrossConeLirBridgeSectionV1,
-    lir_layout_abi: DecodedCrossConeLayoutAbiSectionV1,
+    pub(crate) graph: ValidatedGraphArtifact<'input>,
+    pub(crate) view: DecodedLayoutView,
+    pub(crate) identities: ValidatedIdentityGraph,
+    pub(crate) foundations: CanonicalFoundationSet,
+    pub(crate) hir_core_production: std::rc::Rc<CoreBootstrapInterfaceSectionV1>,
+    pub(crate) hir_interface: std::rc::Rc<CrossConeHirInterfaceSectionV1>,
+    pub(crate) hir_type_semantics: std::rc::Rc<CrossConeTypeSemanticsSectionV1>,
+    pub(crate) mir_core_production: DecodedCoreBootstrapBridgeSectionV1,
+    pub(crate) mir_cross_cone_bridge: DecodedCrossConeMirBridgeSectionV1,
+    pub(crate) mir_type_bridge: DecodedCrossConeMirTypeBridgeSectionV1,
+    pub(crate) lir_strong_production: DecodedConeProductionSectionV2,
+    pub(crate) lir_cross_cone_bridge: DecodedCrossConeLirBridgeSectionV1,
+    pub(crate) lir_layout_abi: DecodedCrossConeLayoutAbiSectionV1,
 }
 
 #[cfg(test)]

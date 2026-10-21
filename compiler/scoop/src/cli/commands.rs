@@ -155,7 +155,7 @@ fn build_request(
         scoop_toolchain::configured_sysroot_root(args.sysroot).map_err(config)?,
     )?;
     let (c_toolchain, final_link) = args.native.resolve(&cwd, &sysroot)?;
-    let graph = scoop::BuildGraphRequest::new(
+    let mut graph = scoop::BuildGraphRequest::new(
         root,
         paths(&cwd, args.cone_path)?
             .into_iter()
@@ -169,6 +169,9 @@ fn build_request(
         DiagnosticsPolicy::Structured,
     )
     .map_err(BuildFailure::classified)?;
+    if let Some(jobs) = args.jobs {
+        graph = graph.with_jobs(jobs);
+    }
     let runtime = match (args.runtime_objects, args.runtime_root) {
         (Some(index), _) => RuntimeInput::ObjectIndex(absolute(&cwd, index)?),
         (_, Some(root)) => RuntimeInput::SourceRoot(absolute(&cwd, root)?),

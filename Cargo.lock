@@ -567,6 +567,7 @@ dependencies = [
 name = "scoop-hir"
 version = "0.0.0"
 dependencies = [
+ "imbl",
  "la-arena",
  "scoop-ast",
  "scoop-identity",

@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn dependency_preflight_validates_artifacts_and_closure_before_source_discovery() {
+fn dependency_preflight_reports_artifact_and_graph_errors_with_available_source() {
     let target = resolved_target().expect("artifact integration tests require a host target");
     let sysroot = tempfile::tempdir().unwrap();
     let core = bootstrap_core(sysroot.path(), &target);
@@ -45,7 +45,7 @@ fn dependency_preflight_validates_artifacts_and_closure_before_source_discovery(
     let malformed = sysroot.path().join("artifacts/malformed.slib");
     std::fs::write(&malformed, b"not a slib").unwrap();
     let current = sysroot.path().join("current-malformed");
-    write_dependency_manifest(
+    write_consumer_manifest(
         &current,
         "stage3.current-malformed",
         &[&dependency_coordinate],
@@ -69,10 +69,10 @@ fn dependency_preflight_validates_artifacts_and_closure_before_source_discovery(
             ExplicitDependencyValidationError::Summary { .. }
         )
     ));
-    assert!(!current.join("src").exists());
+    assert!(current.join("src/main.scoop").exists());
 
     let current = sysroot.path().join("current-missing-direct");
-    write_dependency_manifest(
+    write_consumer_manifest(
         &current,
         "stage3.current-missing-direct",
         &[&dependency_coordinate],
@@ -96,10 +96,10 @@ fn dependency_preflight_validates_artifacts_and_closure_before_source_discovery(
             ExplicitDependencyValidationError::ManifestDirectSet { .. }
         )
     ));
-    assert!(!current.join("src").exists());
+    assert!(current.join("src/main.scoop").exists());
 
     let current = sysroot.path().join("current-duplicate");
-    write_dependency_manifest(
+    write_consumer_manifest(
         &current,
         "stage3.current-duplicate",
         &[&dependency_coordinate],
@@ -126,10 +126,10 @@ fn dependency_preflight_validates_artifacts_and_closure_before_source_discovery(
             }
         )
     ));
-    assert!(!current.join("src").exists());
+    assert!(current.join("src/main.scoop").exists());
 
     let current = sysroot.path().join("current-extra-support");
-    write_dependency_manifest(&current, "stage3.current-extra-support", &[]);
+    write_consumer_manifest(&current, "stage3.current-extra-support", &[]);
     let error = build_manifest_request(
         sysroot.path(),
         &target,
@@ -149,10 +149,10 @@ fn dependency_preflight_validates_artifacts_and_closure_before_source_discovery(
             ExplicitDependencyValidationError::SupportClosure { .. }
         )
     ));
-    assert!(!current.join("src").exists());
+    assert!(current.join("src/main.scoop").exists());
 
     let current = sysroot.path().join("current-core-explicit");
-    write_dependency_manifest(&current, "stage3.current-core-explicit", &[]);
+    write_consumer_manifest(&current, "stage3.current-core-explicit", &[]);
     let error = build_manifest_request(
         sysroot.path(),
         &target,
@@ -175,7 +175,7 @@ fn dependency_preflight_validates_artifacts_and_closure_before_source_discovery(
         ),
         "{error:?}"
     );
-    assert!(!current.join("src").exists());
+    assert!(current.join("src/main.scoop").exists());
 
     let executable_root = sysroot.path().join("dependency-executable");
     write_manifest_cone(
@@ -194,7 +194,7 @@ fn dependency_preflight_validates_artifacts_and_closure_before_source_discovery(
     let executable_coordinate =
         ConeCoordinate::new("dev.example", "stage3.dependency-executable", "0.1.0").unwrap();
     let current = sysroot.path().join("current-executable-dependency");
-    write_dependency_manifest(
+    write_consumer_manifest(
         &current,
         "stage3.current-executable-dependency",
         &[&executable_coordinate],
@@ -224,5 +224,11 @@ fn dependency_preflight_validates_artifacts_and_closure_before_source_discovery(
             }
         )
     ));
-    assert!(!current.join("src").exists());
+    assert!(current.join("src/main.scoop").exists());
+}
+
+fn write_consumer_manifest(root: &Path, name: &str, dependencies: &[&ConeCoordinate]) {
+    write_dependency_manifest(root, name, dependencies);
+    std::fs::create_dir_all(root.join("src")).unwrap();
+    std::fs::write(root.join("src/main.scoop"), "fun answer(): Int = 42\n").unwrap();
 }

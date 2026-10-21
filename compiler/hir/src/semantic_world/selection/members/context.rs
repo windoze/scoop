@@ -6,14 +6,12 @@ impl ImportedDependencySelectionPlan {
         owner: SourceNominalId,
     ) -> Result<Vec<ImportedCallableDeclaration>, ImportedDependencyCandidateError> {
         self.catalog
-            .callables
-            .values()
-            .filter(|entry| {
-                entry.interface.owner() == PublicDeclarationOwnerV1::Nominal(owner)
-                    && !entry.interface.context_parameters().is_empty()
-                    && entry.interface.type_parameters().len_u32() == 0
-            })
-            .map(|entry| self.callable_declaration(entry.interface.declaration()))
+            .indexes
+            .nominals
+            .get(&owner)
+            .into_iter()
+            .flat_map(|members| &members.contextual)
+            .map(|&declaration| self.callable_declaration(declaration))
             .collect()
     }
 }

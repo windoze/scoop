@@ -16,9 +16,16 @@ pub(super) struct ApplicableCandidate {
 
 pub(super) struct CandidateProbeFailure {
     pub(super) candidate: usize,
-    pub(super) state: Box<Lowerer>,
+    // Shape failures have no speculative state or newly allocated entities.
+    state: Option<Box<Lowerer>>,
     pub(super) arguments: Vec<Option<hir::Expr>>,
     pub(super) kind: CandidateProbeFailureKind,
+}
+
+impl CandidateProbeFailure {
+    pub(super) fn state<'a>(&'a self, original: &'a Lowerer) -> &'a Lowerer {
+        self.state.as_deref().unwrap_or(original)
+    }
 }
 
 pub(super) enum CandidateProbeFailureKind {
@@ -52,7 +59,6 @@ impl Lowerer {
         arguments: &OverloadArguments<'_>,
         expected_result: Option<TypeId>,
     ) -> Result<ApplicableCandidate, Box<CandidateProbeFailure>> {
-        let mut state = self.clone();
         let shape = if !candidate.explicit_arity_match {
             Some(CandidateShapeFailure::TypeArgumentArity {
                 expected: candidate.own_type_param_count,
@@ -69,7 +75,7 @@ impl Lowerer {
         if let Some(shape) = shape {
             return Err(Box::new(CandidateProbeFailure {
                 candidate: candidate_index,
-                state: Box::new(state),
+                state: None,
                 arguments: Vec::new(),
                 kind: CandidateProbeFailureKind::Shape(shape),
             }));
@@ -78,6 +84,7 @@ impl Lowerer {
             .argument_map
             .as_ref()
             .expect("only shape-applicable candidates are probed");
+        let mut state = self.clone();
         let intrinsic_argument_expected = match arguments {
             OverloadArguments::Source(expressions) => {
                 let diagnostics_before = state.diagnostics.len();
@@ -97,7 +104,7 @@ impl Lowerer {
                         let span = diagnostic_span(&state, diagnostics_before, candidate.call_span);
                         return Err(Box::new(CandidateProbeFailure {
                             candidate: candidate_index,
-                            state: Box::new(state),
+                            state: Some(Box::new(state)),
                             arguments: receiver.cloned().map(Some).into_iter().collect(),
                             kind: CandidateProbeFailureKind::Declaration { span, reason },
                         }));
@@ -166,7 +173,7 @@ impl Lowerer {
                 };
                 return Err(Box::new(CandidateProbeFailure {
                     candidate: candidate_index,
-                    state: Box::new(state),
+                    state: Some(Box::new(state)),
                     arguments: receiver
                         .cloned()
                         .map(Some)

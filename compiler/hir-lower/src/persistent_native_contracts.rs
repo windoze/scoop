@@ -15,7 +15,7 @@ pub(crate) fn build(
         functions: lowerer.functions.as_arena(),
         extern_functions: &lowerer.extern_functions,
         globals: &lowerer.globals,
-        properties: &lowerer.properties,
+        properties: lowerer.properties.as_arena(),
         function_identities,
         property_identities,
         type_inputs: identity_inputs(lowerer, nominal_identities, core_types),

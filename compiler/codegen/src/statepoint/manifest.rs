@@ -88,21 +88,20 @@ impl ExpectedSafepoints {
         }
     }
 
-    pub(crate) fn for_function(&self, symbol: &str) -> Result<Self, CodegenError> {
-        if !self.functions.contains_key(symbol) {
-            return Err(CodegenError(format!(
-                "cannot select safepoints for unknown LIR function `{symbol}`"
-            )));
-        }
-        Ok(Self {
-            sites: self
+    pub(crate) fn into_functions(self) -> BTreeMap<String, Self> {
+        let mut selected: BTreeMap<_, _> = self
+            .functions
+            .keys()
+            .map(|symbol| (symbol.clone(), self.without_body_sites()))
+            .collect();
+        for (id, site) in self.sites {
+            selected
+                .get_mut(&site.function)
+                .expect("manifest sites belong to collected callable bodies")
                 .sites
-                .iter()
-                .filter(|(_, site)| site.function == symbol)
-                .map(|(id, site)| (*id, site.clone()))
-                .collect(),
-            functions: self.functions.clone(),
-        })
+                .insert(id, site);
+        }
+        selected
     }
 }
 

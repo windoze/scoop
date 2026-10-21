@@ -1,24 +1,48 @@
-use super::model::{PreparedBuildGraph, PreparedGraphNode};
+use super::model::{PreparedBuildGraph, PreparedGraphNode, child_request::ChildInvocationPlanV1};
 use crate::{
     ArtifactClosureValidationError, BuildArtifact, ChildRequestPlanError, ChildTransportError,
-    CompileBuildRecordV1, CompileCacheEntryV1, CompileCacheKeyError, CompileCacheLookupV1,
-    CompileCacheStoreError, CompileCacheStoreV1, CompletedNode, CompletedNodeOrigin,
-    SingleConeCompilerRunner,
+    CompileBuildRecordV1, CompileCacheEntryV1, CompileCacheKeyError, CompileCacheKeyLockV1,
+    CompileCacheLookupV1, CompileCacheStoreError, CompileCacheStoreV1, CompletedNode,
+    CompletedNodeOrigin, ConeCompileCacheKeyV1,
 };
 use scoop_identity::ConeIdentity;
-use scoop_protocol::{RequestCorrelationId, ScoopcResponseEnvelopeV1, StructuredDiagnosticV1};
+use scoop_protocol::{
+    RequestCorrelationId, ScoopcResponseEnvelopeV1, StageDumpSet, StructuredDiagnosticV1,
+};
 use std::collections::BTreeMap;
 use std::fmt;
 
+pub(crate) enum PreparedSourceExecution {
+    Complete(Box<CompletedNode>),
+    Pending(Box<PendingSourceExecution>),
+    WaitingForLock,
+}
+
+pub(crate) struct PendingSourceExecution {
+    identity: ConeIdentity,
+    pub(crate) invocation: ChildInvocationPlanV1,
+    lock: CompileCacheKeyLockV1,
+    operation: PendingOperation,
+}
+
+enum PendingOperation {
+    Build,
+    Observe {
+        entry: Box<CompileCacheEntryV1>,
+        missing: StageDumpSet,
+    },
+}
+
 impl PreparedBuildGraph {
-    /// Reuse compiled output and complete only missing observations under the key lock.
-    pub(crate) fn execute_ordinary_source(
-        &mut self,
+    /// Check reuse before preparing child work, retaining the key lock until completion.
+    pub(crate) fn prepare_ordinary_source(
+        &self,
         identity: ConeIdentity,
         completed: &[&CompletedNode],
-        runner: &mut impl SingleConeCompilerRunner,
+        key: ConeCompileCacheKeyV1,
         request_id: RequestCorrelationId,
-    ) -> Result<(CompletedNode, bool), OrdinarySourceExecutionError> {
+        wait_for_lock: bool,
+    ) -> Result<PreparedSourceExecution, OrdinarySourceExecutionError> {
         use OrdinarySourceExecutionError as Error;
         if !matches!(
             self.nodes.get(&identity),
@@ -26,13 +50,15 @@ impl PreparedBuildGraph {
         ) {
             return Err(Error::NotOrdinarySource(identity));
         }
-        let key = self
-            .compile_cache_key(identity, completed)
-            .map_err(|source| Error::CacheKey(Box::new(source)))?;
         let store = CompileCacheStoreV1::new(&self.context.cache_root);
         let dumps = store.entry_path(key).join("dumps");
         {
-            let lock = store.acquire_shared(key).map_err(Error::CacheStore)?;
+            let Some(lock) = store
+                .acquire_available(key, crate::CompileCacheLockModeV1::Shared, wait_for_lock)
+                .map_err(Error::CacheStore)?
+            else {
+                return Ok(PreparedSourceExecution::WaitingForLock);
+            };
             if let CompileCacheLookupV1::Hit(entry) =
                 store.lookup(&lock).map_err(Error::CacheStore)?
                 && self
@@ -48,94 +74,160 @@ impl PreparedBuildGraph {
                         CompletedNodeOrigin::CacheHit,
                         &dumps,
                     )
-                    .map(|node| (node, false));
+                    .map(Box::new)
+                    .map(PreparedSourceExecution::Complete);
             }
         }
-        let lock = store.acquire_exclusive(key).map_err(Error::CacheStore)?;
+        let Some(lock) = store
+            .acquire_available(key, crate::CompileCacheLockModeV1::Exclusive, wait_for_lock)
+            .map_err(Error::CacheStore)?
+        else {
+            return Ok(PreparedSourceExecution::WaitingForLock);
+        };
         let cached = store.lookup(&lock).map_err(Error::CacheStore)?;
-        if let CompileCacheLookupV1::Hit(entry) = cached {
+        let operation = if let CompileCacheLookupV1::Hit(entry) = cached {
             let missing = self
                 .missing_dumps(identity, &dumps)
                 .map_err(Error::Observation)?;
-            if let Some(missing) = missing {
-                let invocation = self
-                    .child_invocation_plan(identity, request_id, completed)
-                    .and_then(|plan| plan.observe(missing))
-                    .map_err(Error::RequestPlan)?;
-                match runner
-                    .invoke(&self.compiler, invocation.request(), invocation.io())
-                    .map_err(Error::ChildTransport)?
-                {
-                    ScoopcResponseEnvelopeV1::Observed { result, .. } => self
-                        .store_dumps(
-                            identity,
-                            Some(missing),
-                            result.emitted_dump_descriptors(),
-                            &dumps,
-                        )
-                        .map_err(Error::Observation)?,
-                    ScoopcResponseEnvelopeV1::Failure { diagnostics, .. } => {
-                        return Err(Error::ChildFailure(diagnostics));
-                    }
-                    ScoopcResponseEnvelopeV1::Success { .. } => {
-                        return Err(Error::UnexpectedResponse);
-                    }
-                }
+            let Some(missing) = missing else {
+                return self
+                    .finish_result(
+                        identity,
+                        *entry,
+                        completed,
+                        CompletedNodeOrigin::CacheHit,
+                        &dumps,
+                    )
+                    .map(Box::new)
+                    .map(PreparedSourceExecution::Complete);
+            };
+            PendingOperation::Observe { entry, missing }
+        } else {
+            PendingOperation::Build
+        };
+        let invocation = self
+            .child_invocation_plan(identity, request_id, completed)
+            .and_then(|plan| match &operation {
+                PendingOperation::Build => Ok(plan),
+                PendingOperation::Observe { missing, .. } => plan.observe(*missing),
+            })
+            .map_err(Error::RequestPlan)?;
+        Ok(PreparedSourceExecution::Pending(Box::new(
+            PendingSourceExecution {
+                identity,
+                invocation,
+                lock,
+                operation,
+            },
+        )))
+    }
+
+    pub(crate) fn finish_ordinary_source(
+        &self,
+        pending: PendingSourceExecution,
+        completed: &[&CompletedNode],
+        response: Result<ScoopcResponseEnvelopeV1, ChildTransportError>,
+    ) -> Result<CompletedNode, OrdinarySourceExecutionError> {
+        use OrdinarySourceExecutionError as Error;
+        let PendingSourceExecution {
+            identity,
+            invocation,
+            lock,
+            operation,
+        } = pending;
+        let store = CompileCacheStoreV1::new(&self.context.cache_root);
+        let dumps = store.entry_path(lock.key()).join("dumps");
+        match (operation, response.map_err(Error::ChildTransport)?) {
+            (_, ScoopcResponseEnvelopeV1::Failure { diagnostics, .. }) => {
+                Err(Error::ChildFailure(diagnostics))
             }
-            return self
-                .finish_result(
+            (
+                PendingOperation::Observe { entry, missing },
+                ScoopcResponseEnvelopeV1::Observed { result, .. },
+            ) => {
+                self.store_dumps(
+                    identity,
+                    Some(missing),
+                    result.emitted_dump_descriptors(),
+                    &dumps,
+                )
+                .map_err(Error::Observation)?;
+                self.finish_result(
                     identity,
                     *entry,
                     completed,
                     CompletedNodeOrigin::CacheHit,
                     &dumps,
                 )
-                .map(|node| (node, missing.is_some()));
+            }
+            (
+                PendingOperation::Build,
+                ScoopcResponseEnvelopeV1::Success {
+                    result: success, ..
+                },
+            ) => {
+                let result = (|| {
+                    self.store_dumps(identity, None, success.emitted_dump_descriptors(), &dumps)
+                        .map_err(Error::Observation)?;
+                    let entry = store
+                        .publish(
+                            &lock,
+                            invocation.output_path(),
+                            CompileBuildRecordV1 {
+                                summary: success.summary().clone(),
+                                warnings: success.warnings().to_vec(),
+                            },
+                        )
+                        .map_err(Error::CacheStore)?;
+                    self.finish_result(
+                        identity,
+                        entry,
+                        completed,
+                        CompletedNodeOrigin::Compiled,
+                        &dumps,
+                    )
+                })();
+                result.map_err(|source| {
+                    if success.warnings().is_empty() {
+                        source
+                    } else {
+                        Error::ProducedOutput {
+                            source: Box::new(source),
+                            warnings: success.warnings().to_vec(),
+                        }
+                    }
+                })
+            }
+            _ => Err(Error::UnexpectedResponse),
         }
-        let invocation = self
-            .child_invocation_plan(identity, request_id, completed)
-            .map_err(Error::RequestPlan)?;
-        let success = match runner
-            .invoke(&self.compiler, invocation.request(), invocation.io())
-            .map_err(Error::ChildTransport)?
-        {
-            ScoopcResponseEnvelopeV1::Success { result, .. } => result,
-            ScoopcResponseEnvelopeV1::Failure { diagnostics, .. } => {
-                return Err(Error::ChildFailure(diagnostics));
+    }
+
+    #[cfg(test)]
+    pub(crate) fn execute_ordinary_source(
+        &self,
+        identity: ConeIdentity,
+        completed: &[&CompletedNode],
+        runner: &impl crate::SingleConeCompilerRunner,
+        request_id: RequestCorrelationId,
+    ) -> Result<(CompletedNode, bool), OrdinarySourceExecutionError> {
+        let key = self
+            .compile_cache_key(identity, completed)
+            .map_err(|source| OrdinarySourceExecutionError::CacheKey(Box::new(source)))?;
+        match self.prepare_ordinary_source(identity, completed, key, request_id, true)? {
+            PreparedSourceExecution::WaitingForLock => {
+                unreachable!("blocking acquisition completes")
             }
-            ScoopcResponseEnvelopeV1::Observed { .. } => return Err(Error::UnexpectedResponse),
-        };
-        let result = (|| {
-            self.store_dumps(identity, None, success.emitted_dump_descriptors(), &dumps)
-                .map_err(Error::Observation)?;
-            let entry = store
-                .publish(
-                    &lock,
-                    invocation.output_path(),
-                    CompileBuildRecordV1 {
-                        summary: success.summary().clone(),
-                        warnings: success.warnings().to_vec(),
-                    },
-                )
-                .map_err(Error::CacheStore)?;
-            self.finish_result(
-                identity,
-                entry,
-                completed,
-                CompletedNodeOrigin::Compiled,
-                &dumps,
-            )
-        })();
-        result.map(|node| (node, true)).map_err(|source| {
-            if success.warnings().is_empty() {
-                source
-            } else {
-                Error::ProducedOutput {
-                    source: Box::new(source),
-                    warnings: success.warnings().to_vec(),
-                }
+            PreparedSourceExecution::Complete(node) => Ok((*node, false)),
+            PreparedSourceExecution::Pending(pending) => {
+                let response = runner.invoke(
+                    &self.compiler,
+                    pending.invocation.request(),
+                    pending.invocation.io(),
+                );
+                self.finish_ordinary_source(*pending, completed, response)
+                    .map(|node| (node, true))
             }
-        })
+        }
     }
 
     fn finish_result(

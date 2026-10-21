@@ -1,0 +1,24 @@
+var trace: Int = 0
+
+fun mark(value: Int): Int {
+    trace = trace * 10 + value
+    return value
+}
+
+fun <T> same(value: T): T = value
+fun <T> choose(first: T, second: T): T = first
+fun <T> empty(): Array<T> = []
+fun <T> firstOr(values: Array<T>, seed: T): T = if (values.size == 0L) { seed } else { values[0L] }
+fun <T> apply(action: (T) -> T, seed: T): T = action(seed)
+enum Pick<T> { Keep(val value: T) }
+
+fun main() {
+    val choice = choose(Pick.Keep(10), Keep(same(mark(2))))
+    val inferred = firstOr(empty(), same(same(same(mark(3)))))
+    val callback = apply({ value -> same(same(value)) }, mark(4))
+    val chosen = when (choice) { case Keep(value) -> value }
+    println(chosen + inferred + callback)
+    println(trace)
+    val values: Array<Pick<Int>> = [Keep(same(5)), Pick.Keep(6)]
+    println(when (values[0L]) { case Keep(value) -> value })
+}

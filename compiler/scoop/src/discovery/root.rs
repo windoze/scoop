@@ -26,6 +26,7 @@ impl BuildGraphRequest {
             diagnostics,
             optimization,
             purpose,
+            jobs,
         } = self.into_parts();
 
         let root = match root.into_kind() {
@@ -47,6 +48,7 @@ impl BuildGraphRequest {
                 diagnostics,
                 optimization,
                 purpose,
+                jobs,
             },
         })
     }

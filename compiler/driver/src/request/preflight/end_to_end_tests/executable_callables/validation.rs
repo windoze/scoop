@@ -17,6 +17,11 @@ pub(super) fn check_machine_input(request: SingleConeBuildRequest, selected_coun
         Default::default(),
     )
     .unwrap();
+    let machine_dependencies = request
+        .dependencies()
+        .read_machine_dependencies(hir.machine_dependency_providers())
+        .unwrap();
+    let closure = machine_dependencies.semantic();
     let projected = closure
         .project_dependency_callables_to_mir(&hir.hir)
         .unwrap();

@@ -16,6 +16,31 @@ use super::super::{
 use super::DecodedCrossConeLayoutLinkSections;
 
 impl<'input> ValidatedGraphArtifact<'input> {
+    pub(crate) fn decode_layout_link_only_sections(
+        &mut self,
+        lir: &crate::DecodedMetadataEnvelope<'_>,
+    ) -> Result<super::DecodedCrossConeLayoutLinkOnlySections, SingleConeLinkSectionDecodeError>
+    {
+        let profile = ArtifactCapabilityProfile::CROSS_CONE_GENERIC;
+        let production_manifest = decode_production_manifest(self, profile)?;
+        profile
+            .validate_link_metadata_inventory(MetadataLocation::Lir, lir.sections())
+            .map_err(SingleConeLinkSectionDecodeError::Inventory)?;
+        Ok(super::DecodedCrossConeLayoutLinkOnlySections {
+            production_manifest,
+            link_identity_closure: decode_required(
+                lir,
+                MetadataLocation::Lir,
+                lir_link_identity_closure_capability(),
+            )?,
+            link_support: decode_required(
+                lir,
+                MetadataLocation::Lir,
+                crate::lir_link_support_capability(),
+            )?,
+        })
+    }
+
     /// Decodes the complete metadata inventory needed by later M23-6 Link
     /// validation without promoting any decoded field to semantic authority.
     pub fn decode_cross_cone_layout_link_sections(

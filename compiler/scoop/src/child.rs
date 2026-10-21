@@ -50,9 +50,9 @@ impl ChildIoPlan {
     }
 }
 
-pub(crate) trait SingleConeCompilerRunner {
+pub(crate) trait SingleConeCompilerRunner: Sync {
     fn invoke(
-        &mut self,
+        &self,
         tool: &ResolvedPairedScoopc,
         request: &ScoopcRequestEnvelopeV1,
         io: &ChildIoPlan,
@@ -61,7 +61,7 @@ pub(crate) trait SingleConeCompilerRunner {
 
 impl SingleConeCompilerRunner for ProductionSingleConeCompilerRunner {
     fn invoke(
-        &mut self,
+        &self,
         tool: &ResolvedPairedScoopc,
         request: &ScoopcRequestEnvelopeV1,
         io: &ChildIoPlan,
@@ -196,6 +196,8 @@ pub enum ChildResponseKind {
 
 #[derive(Debug)]
 pub enum ChildTransportError {
+    WorkerSpawn(std::io::Error),
+    WorkerPanicked,
     Request(ProtocolWriteError),
     TemporaryDirectory(std::io::Error),
     MissingExecutableParent {
@@ -233,6 +235,10 @@ pub enum ChildTransportError {
 impl fmt::Display for ChildTransportError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::WorkerSpawn(source) => {
+                write!(formatter, "cannot start compiler worker: {source}")
+            }
+            Self::WorkerPanicked => formatter.write_str("compiler worker panicked"),
             Self::Request(source) => write!(formatter, "cannot encode child request: {source}"),
             Self::TemporaryDirectory(source) => write!(
                 formatter,
@@ -289,6 +295,7 @@ impl std::error::Error for ChildTransportError {
         match self {
             Self::Request(source) => Some(source),
             Self::Spawn { source, .. }
+            | Self::WorkerSpawn(source)
             | Self::TemporaryDirectory(source)
             | Self::WriteRequest(source)
             | Self::Wait(source)
@@ -297,6 +304,7 @@ impl std::error::Error for ChildTransportError {
             Self::MissingExecutableParent { .. }
             | Self::MissingPipe(_)
             | Self::ReaderPanicked(_)
+            | Self::WorkerPanicked
             | Self::RequestIdMismatch { .. }
             | Self::UnexpectedStderr(_)
             | Self::Signal

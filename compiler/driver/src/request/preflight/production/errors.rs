@@ -2,6 +2,7 @@ use std::fmt;
 
 #[derive(Debug)]
 pub enum CurrentConeProductionFailure {
+    Dependencies(Box<crate::ExplicitDependencyValidationError>),
     ObjectOutput(scoop_toolchain::ToolchainError),
     Native(scoop_toolchain::ToolchainError),
     Hir(super::CurrentConeHirStageError),
@@ -17,6 +18,7 @@ pub enum CurrentConeProductionFailure {
 impl fmt::Display for CurrentConeProductionFailure {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Dependencies(source) => source.fmt(formatter),
             Self::ObjectOutput(source) => source.fmt(formatter),
             Self::Native(source) => source.fmt(formatter),
             Self::Hir(source) => source.fmt(formatter),
@@ -34,6 +36,7 @@ impl fmt::Display for CurrentConeProductionFailure {
 impl std::error::Error for CurrentConeProductionFailure {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         Some(match self {
+            Self::Dependencies(source) => source.as_ref(),
             Self::ObjectOutput(source) => source,
             Self::Native(source) => source,
             Self::Hir(source) => source,

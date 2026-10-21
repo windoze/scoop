@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.performance"
+name = "parallel-left"
+version = "0.1.0"
+kind = "library"
+[dependencies."dev.performance:parallel-base"]
+version = "0.1.0"
+path = "../base"
