@@ -13,17 +13,21 @@ pub(crate) enum ListKind {
     AnnotationArguments,
     AnnotationElements,
     LambdaParameters,
+    PatternElements,
+    NamedPatternElements,
 }
 
 impl ListKind {
     pub(super) fn close(self) -> TokenKind {
         match self {
             Self::LambdaParameters => TokenKind::Arrow,
+            Self::NamedPatternElements => TokenKind::RBrace,
             Self::FunctionParameters
             | Self::CallArguments
             | Self::TypeElements
             | Self::ParenExpressions
-            | Self::AnnotationArguments => TokenKind::RParen,
+            | Self::AnnotationArguments
+            | Self::PatternElements => TokenKind::RParen,
             Self::ArrayElements | Self::AnnotationElements => TokenKind::RBracket,
             Self::TypeArguments | Self::TypeParameters => TokenKind::Greater,
         }
@@ -32,11 +36,13 @@ impl ListKind {
     pub(super) fn close_label(self) -> &'static str {
         match self {
             Self::LambdaParameters => "`->`",
+            Self::NamedPatternElements => "`}`",
             Self::FunctionParameters
             | Self::CallArguments
             | Self::TypeElements
             | Self::ParenExpressions
-            | Self::AnnotationArguments => "`)`",
+            | Self::AnnotationArguments
+            | Self::PatternElements => "`)`",
             Self::ArrayElements | Self::AnnotationElements => "`]`",
             Self::TypeArguments | Self::TypeParameters => "`>`",
         }
@@ -63,6 +69,8 @@ impl ListKind {
                 | Self::ParenExpressions
                 | Self::AnnotationArguments
                 | Self::AnnotationElements
+                | Self::PatternElements
+                | Self::NamedPatternElements
         )
     }
 
@@ -72,6 +80,19 @@ impl ListKind {
             return true;
         }
         match self {
+            Self::NamedPatternElements => matches!(token, TokenKind::DotDot),
+            Self::PatternElements => matches!(
+                token,
+                TokenKind::DotDot
+                    | TokenKind::LParen
+                    | TokenKind::Minus
+                    | TokenKind::Int(_)
+                    | TokenKind::Float(_)
+                    | TokenKind::Str(_)
+                    | TokenKind::Char(_)
+                    | TokenKind::True
+                    | TokenKind::False
+            ),
             Self::LambdaParameters => matches!(
                 token,
                 TokenKind::At
@@ -139,6 +160,9 @@ impl ListKind {
             return true;
         }
         match self {
+            Self::PatternElements | Self::NamedPatternElements => {
+                matches!(token, TokenKind::Arrow | TokenKind::If | TokenKind::Equal)
+            }
             Self::LambdaParameters => matches!(
                 token,
                 TokenKind::Val | TokenKind::Var | TokenKind::Return | TokenKind::Fun

@@ -144,6 +144,7 @@ syntax_kinds! {
     Statement,
     Type,
     Pattern,
+    PatternList,
     Expression,
     Atom,
     ArgumentList,
