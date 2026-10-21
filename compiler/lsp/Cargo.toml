@@ -1,0 +1,17 @@
+[package]
+name = "scoop-lsp"
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+scoop-analysis.workspace = true
+scoop-source.workspace = true
+scoop-syntax.workspace = true
+lsp-server.workspace = true
+lsp-types.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+url.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

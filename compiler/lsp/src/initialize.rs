@@ -1,0 +1,87 @@
+use lsp_types::{
+    InitializeParams, InitializeResult, OneOf, PositionEncodingKind, SaveOptions,
+    ServerCapabilities, ServerInfo, TextDocumentSyncCapability, TextDocumentSyncKind,
+    TextDocumentSyncOptions, TextDocumentSyncSaveOptions,
+};
+use scoop_source::PositionEncoding;
+
+#[derive(Clone, Copy)]
+pub(crate) struct Settings {
+    pub encoding: PositionEncoding,
+    pub hierarchical_symbols: bool,
+    pub line_folding_only: bool,
+    pub folding_limit: Option<u32>,
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Self {
+            encoding: PositionEncoding::Utf16,
+            hierarchical_symbols: false,
+            line_folding_only: false,
+            folding_limit: None,
+        }
+    }
+}
+
+pub(crate) fn initialize(params: InitializeParams) -> (Settings, InitializeResult) {
+    let encoding = params
+        .capabilities
+        .general
+        .as_ref()
+        .and_then(|general| general.position_encodings.as_ref())
+        .and_then(|encodings| {
+            encodings
+                .iter()
+                .find_map(|encoding| match encoding.as_str() {
+                    "utf-8" => Some(PositionEncoding::Utf8),
+                    "utf-16" => Some(PositionEncoding::Utf16),
+                    "utf-32" => Some(PositionEncoding::Utf32),
+                    _ => None,
+                })
+        })
+        .unwrap_or(PositionEncoding::Utf16);
+    let documents = params.capabilities.text_document.as_ref();
+    let folding = documents.and_then(|documents| documents.folding_range.as_ref());
+    let settings = Settings {
+        encoding,
+        hierarchical_symbols: documents
+            .and_then(|documents| documents.document_symbol.as_ref())
+            .and_then(|symbols| symbols.hierarchical_document_symbol_support)
+            .unwrap_or(false),
+        line_folding_only: folding
+            .and_then(|folding| folding.line_folding_only)
+            .unwrap_or(false),
+        folding_limit: folding.and_then(|folding| folding.range_limit),
+    };
+    let result = InitializeResult {
+        capabilities: ServerCapabilities {
+            position_encoding: Some(match encoding {
+                PositionEncoding::Utf8 => PositionEncodingKind::UTF8,
+                PositionEncoding::Utf16 => PositionEncodingKind::UTF16,
+                PositionEncoding::Utf32 => PositionEncodingKind::UTF32,
+            }),
+            text_document_sync: Some(TextDocumentSyncCapability::Options(
+                TextDocumentSyncOptions {
+                    open_close: Some(true),
+                    change: Some(TextDocumentSyncKind::INCREMENTAL),
+                    save: Some(TextDocumentSyncSaveOptions::SaveOptions(SaveOptions {
+                        include_text: Some(false),
+                    })),
+                    ..TextDocumentSyncOptions::default()
+                },
+            )),
+            document_symbol_provider: Some(OneOf::Left(true)),
+            folding_range_provider: Some(lsp_types::FoldingRangeProviderCapability::Simple(true)),
+            selection_range_provider: Some(lsp_types::SelectionRangeProviderCapability::Simple(
+                true,
+            )),
+            ..ServerCapabilities::default()
+        },
+        server_info: Some(ServerInfo {
+            name: "scoop-lsp".to_owned(),
+            version: Some(env!("CARGO_PKG_VERSION").to_owned()),
+        }),
+    };
+    (settings, result)
+}

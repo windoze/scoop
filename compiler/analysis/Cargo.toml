@@ -1,0 +1,10 @@
+[package]
+name = "scoop-analysis"
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+scoop-source.workspace = true
+scoop-syntax.workspace = true
+scoop-ast.workspace = true
+scoop-parser.workspace = true
