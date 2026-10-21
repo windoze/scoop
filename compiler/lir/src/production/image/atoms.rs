@@ -72,16 +72,6 @@ impl WireEncode for ConeImageSupportAtomsV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encode_image_support_atoms(
             encoder,
-            &self.coordinate_group,
-            &self.coordinate_name,
-            &self.coordinate_version,
-            &self.dependencies,
-            &self.static_storages,
-            &self.immortal_objects,
-            &self.initialization_units,
-            &self.type_registrations,
-            &self.safepoints,
-            &self.callables,
             &self.array_bounds_message,
             &self.array_size_overflow_message,
         )
@@ -90,16 +80,6 @@ impl WireEncode for ConeImageSupportAtomsV1 {
 
 #[derive(Debug)]
 pub(super) struct DecodedConeImageSupportAtomsV1 {
-    coordinate_group: DecodedPersistentId<ObjectDefinitionAtomId>,
-    coordinate_name: DecodedPersistentId<ObjectDefinitionAtomId>,
-    coordinate_version: DecodedPersistentId<ObjectDefinitionAtomId>,
-    dependencies: DecodedPersistentId<ObjectDefinitionAtomId>,
-    static_storages: DecodedPersistentId<ObjectDefinitionAtomId>,
-    immortal_objects: DecodedPersistentId<ObjectDefinitionAtomId>,
-    initialization_units: DecodedPersistentId<ObjectDefinitionAtomId>,
-    type_registrations: DecodedPersistentId<ObjectDefinitionAtomId>,
-    safepoints: DecodedPersistentId<ObjectDefinitionAtomId>,
-    callables: DecodedPersistentId<ObjectDefinitionAtomId>,
     array_bounds_message: DecodedPersistentId<ObjectDefinitionAtomId>,
     array_size_overflow_message: DecodedPersistentId<ObjectDefinitionAtomId>,
 }
@@ -126,16 +106,6 @@ impl WireEncode for DecodedConeImageSupportAtomsV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encode_image_support_atoms(
             encoder,
-            &self.coordinate_group,
-            &self.coordinate_name,
-            &self.coordinate_version,
-            &self.dependencies,
-            &self.static_storages,
-            &self.immortal_objects,
-            &self.initialization_units,
-            &self.type_registrations,
-            &self.safepoints,
-            &self.callables,
             &self.array_bounds_message,
             &self.array_size_overflow_message,
         )
@@ -144,18 +114,8 @@ impl WireEncode for DecodedConeImageSupportAtomsV1 {
 
 impl WireDecode for DecodedConeImageSupportAtomsV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(12)?;
+        decoder.expect_map(2)?;
         Ok(Self {
-            coordinate_group: decoder.field(1, DecodedPersistentId::decode)?,
-            coordinate_name: decoder.field(2, DecodedPersistentId::decode)?,
-            coordinate_version: decoder.field(3, DecodedPersistentId::decode)?,
-            dependencies: decoder.field(4, DecodedPersistentId::decode)?,
-            static_storages: decoder.field(5, DecodedPersistentId::decode)?,
-            immortal_objects: decoder.field(6, DecodedPersistentId::decode)?,
-            initialization_units: decoder.field(7, DecodedPersistentId::decode)?,
-            type_registrations: decoder.field(8, DecodedPersistentId::decode)?,
-            safepoints: decoder.field(9, DecodedPersistentId::decode)?,
-            callables: decoder.field(10, DecodedPersistentId::decode)?,
             array_bounds_message: decoder.field(11, DecodedPersistentId::decode)?,
             array_size_overflow_message: decoder.field(12, DecodedPersistentId::decode)?,
         })
@@ -284,39 +244,14 @@ fn image_support_key(
     )
 }
 
-#[allow(clippy::too_many_arguments)]
-fn encode_image_support_atoms<A: WireEncode>(
+fn encode_image_support_atoms(
     encoder: &mut Encoder,
-    coordinate_group: &A,
-    coordinate_name: &A,
-    coordinate_version: &A,
-    dependencies: &A,
-    static_storages: &A,
-    immortal_objects: &A,
-    initialization_units: &A,
-    type_registrations: &A,
-    safepoints: &A,
-    callables: &A,
-    array_bounds_message: &A,
-    array_size_overflow_message: &A,
+    array_bounds_message: &impl WireEncode,
+    array_size_overflow_message: &impl WireEncode,
 ) -> Result<(), scoop_wire::cbor::EncodeError> {
-    encoder.map(12)?;
-    for (field, value) in [
-        (1, coordinate_group),
-        (2, coordinate_name),
-        (3, coordinate_version),
-        (4, dependencies),
-        (5, static_storages),
-        (6, immortal_objects),
-        (7, initialization_units),
-        (8, type_registrations),
-        (9, safepoints),
-        (10, callables),
-        (11, array_bounds_message),
-        (12, array_size_overflow_message),
-    ] {
-        encoder.field(field)?;
-        value.encode(encoder)?;
-    }
-    Ok(())
+    encoder.map(2)?;
+    encoder.field(11)?;
+    array_bounds_message.encode(encoder)?;
+    encoder.field(12)?;
+    array_size_overflow_message.encode(encoder)
 }

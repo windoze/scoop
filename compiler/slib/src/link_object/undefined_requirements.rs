@@ -15,9 +15,6 @@ use scoop_identity::{
 use scoop_lir::{RuntimeSymbolContractId, TargetEhRequirementId, ValidatedLirTargetSelection};
 
 mod wire;
-pub use wire::DecodedCanonicalUndefinedSymbolRequirementSetV1;
-#[cfg(test)]
-use wire::DecodedFinalUndefinedSymbolRequirementV1;
 
 mod partitions;
 pub use partitions::*;

@@ -83,7 +83,7 @@ fn read_machine<'input>(
     artifacts: &[HirProductionValidatedCrossConeLayoutSections<'input>],
     direct: &[usize],
 ) -> Result<HirProductionValidatedCrossConeLayoutSections<'input>, Error> {
-    let mut graph = provider.graph.clone();
+    let graph = provider.graph.clone();
     let profile = crate::ArtifactCapabilityProfile::CROSS_CONE_GENERIC;
     let mir_location = crate::MetadataLocation::Mir;
     let lir_location = crate::MetadataLocation::Lir;

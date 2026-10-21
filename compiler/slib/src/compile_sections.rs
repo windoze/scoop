@@ -44,7 +44,7 @@ impl<'input> DecodedCompileMetadataEnvelopes<'input> {
 }
 
 pub(crate) fn decode_compile_metadata_envelopes<'input>(
-    graph: &mut ValidatedGraphArtifact<'input>,
+    graph: &'input mut ValidatedGraphArtifact<'_>,
     profile: ArtifactCapabilityProfile,
 ) -> Result<DecodedCompileMetadataEnvelopes<'input>, CompileSectionDecodeError> {
     validate_compile_profile(graph, profile)?;
@@ -75,7 +75,7 @@ pub(crate) fn validate_compile_profile(
 }
 
 pub(crate) fn decode_compile_stage<'input>(
-    graph: &ValidatedGraphArtifact<'input>,
+    graph: &'input ValidatedGraphArtifact<'_>,
     profile: ArtifactCapabilityProfile,
     location: MetadataLocation,
 ) -> Result<DecodedMetadataEnvelope<'input>, CompileSectionDecodeError> {
@@ -153,7 +153,7 @@ fn metadata_member_id(
 }
 
 fn member_payload<'input>(
-    graph: &ValidatedGraphArtifact<'input>,
+    graph: &'input ValidatedGraphArtifact<'_>,
     location: MetadataLocation,
     member: SlibMemberId,
 ) -> Result<&'input [u8], CompileSectionDecodeError> {

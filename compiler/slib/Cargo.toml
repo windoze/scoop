@@ -12,6 +12,7 @@ scoop-lir.workspace = true
 scoop-mir.workspace = true
 scoop-wire.workspace = true
 tempfile.workspace = true
+zstd = { version = "0.14.3", default-features = false }
 
 [dev-dependencies]
 la-arena.workspace = true

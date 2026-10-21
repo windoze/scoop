@@ -236,7 +236,9 @@ impl SlibDiagnostic for ArchiveReadError {
             Self::TruncatedHeader { member } | Self::TruncatedPayload { member } => {
                 archive_member_diagnostic(SlibErrorCode::ContainerTruncated, *member)
             }
-            Self::NonCanonicalHeader { member } | Self::InvalidPadding { member } => {
+            Self::NonCanonicalHeader { member }
+            | Self::InvalidPadding { member }
+            | Self::Compression { member, .. } => {
                 archive_member_diagnostic(SlibErrorCode::ContainerNonCanonical, *member)
             }
             Self::InvalidSize { member } | Self::MemberLengthMismatch { member, .. } => {

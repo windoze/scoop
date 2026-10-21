@@ -17,7 +17,7 @@ use super::DecodedCrossConeLayoutLinkSections;
 
 impl<'input> ValidatedGraphArtifact<'input> {
     pub(crate) fn decode_layout_link_only_sections(
-        &mut self,
+        &self,
         lir: &crate::DecodedMetadataEnvelope<'_>,
     ) -> Result<super::DecodedCrossConeLayoutLinkOnlySections, SingleConeLinkSectionDecodeError>
     {
@@ -44,14 +44,14 @@ impl<'input> ValidatedGraphArtifact<'input> {
     /// Decodes the complete metadata inventory needed by later M23-6 Link
     /// validation without promoting any decoded field to semantic authority.
     pub fn decode_cross_cone_layout_link_sections(
-        mut self,
+        self,
     ) -> Result<DecodedCrossConeLayoutLinkSections<'input>, CrossConeLayoutLinkSectionDecodeError>
     {
         let profile = require_strong_profile(&self, ArtifactCapabilityProfile::CROSS_CONE_GENERIC)?;
         profile
             .validate_compile_manifest_inventory(self.envelope.manifest().sections())
             .map_err(SingleConeLinkSectionDecodeError::Inventory)?;
-        let production_manifest = decode_production_manifest(&mut self, profile)?;
+        let production_manifest = decode_production_manifest(&self, profile)?;
 
         let hir_member = metadata_member_id(&self, MetadataLocation::Hir)?;
         let mir_member = metadata_member_id(&self, MetadataLocation::Mir)?;

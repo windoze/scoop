@@ -59,7 +59,11 @@ impl ProgramLinkData {
         selection: lir::ValidatedLirTargetSelection,
     ) -> Result<Self, String> {
         let wire = link.link_identity_closure_wire();
-        let defined = wire.read_defined_symbols(manifest.cone().identity(), identities)?;
+        let defined = wire.read_defined_symbols(
+            manifest.cone().identity(),
+            identities,
+            selection.target().contract().native_symbol_normalization(),
+        )?;
         let odr = link
             .production_manifest_wire()
             .read_odr_members(identities)

@@ -67,7 +67,7 @@ impl WireEncode for LinkObjectMaterializationV1 {
 pub struct LinkIdentityClosureSectionV1 {
     materializations: Vec<LinkObjectMaterializationV1>,
     defined_symbols: CanonicalDefinedLinkSymbolOwnerSetV1,
-    undefined_symbols: CanonicalUndefinedSymbolRequirementSetV1,
+    symbol_uses: Vec<SymbolUse>,
 }
 
 impl LinkIdentityClosureSectionV1 {
@@ -77,10 +77,6 @@ impl LinkIdentityClosureSectionV1 {
 
     pub const fn defined_symbols(&self) -> &CanonicalDefinedLinkSymbolOwnerSetV1 {
         &self.defined_symbols
-    }
-
-    pub const fn undefined_symbols(&self) -> &CanonicalUndefinedSymbolRequirementSetV1 {
-        &self.undefined_symbols
     }
 
     pub fn from_verified_code(code: &CodeFingerprintDataV1) -> Self {
@@ -112,7 +108,7 @@ impl LinkIdentityClosureSectionV1 {
         Self {
             materializations: materializations(builtins.member_plan()),
             defined_symbols: defined_symbols.clone(),
-            undefined_symbols: undefined_symbols.clone(),
+            symbol_uses: symbol_uses(undefined_symbols),
         }
     }
 }
@@ -125,8 +121,41 @@ impl WireEncode for LinkIdentityClosureSectionV1 {
         encoder.field(4)?;
         self.defined_symbols.encode(encoder)?;
         encoder.field(5)?;
-        self.undefined_symbols.encode(encoder)
+        encode_array(encoder, &self.symbol_uses)
     }
+}
+
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+struct SymbolUse {
+    member: SlibMemberId,
+    symbol: Vec<u8>,
+}
+
+impl WireEncode for SymbolUse {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(2)?;
+        encoder.field(1)?;
+        self.member.encode(encoder)?;
+        encoder.field(2)?;
+        encoder.bytes(&self.symbol)
+    }
+}
+
+fn symbol_uses(requirements: &CanonicalUndefinedSymbolRequirementSetV1) -> Vec<SymbolUse> {
+    let mut uses = requirements
+        .requirements()
+        .iter()
+        .map(|requirement| {
+            let site = requirement.use_site();
+            SymbolUse {
+                member: site.source_member(),
+                symbol: site.symbol().to_vec(),
+            }
+        })
+        .collect::<Vec<_>>();
+    uses.sort_unstable();
+    uses.dedup();
+    uses
 }
 
 fn materializations(plan: &PlannedLinkObjectMemberSetV1) -> Vec<LinkObjectMaterializationV1> {

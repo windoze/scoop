@@ -6,10 +6,8 @@ use scoop_identity::{ConeCoordinate, ConeIdentity, SourceDeclarationKey, Validat
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
 use crate::{
-    ConeLirFoundation, DecodedConeImagePlanV1, DecodedDigestFinalizationPlanV1,
-    DecodedEntryProductionPlanV1, DecodedGeneratedBridgePlanSetV1,
-    DecodedObjectDefinitionPlanSurfaceV1, DecodedObjectSymbolSurfaceV1,
-    DecodedParamFreeShapeSupportPlanSetV1, DecodedStrongRegistrationProductionSurfaceV1,
+    ConeLirFoundation, DecodedConeImagePlanV1, DecodedEntryProductionPlanV1,
+    DecodedObjectSymbolSurfaceV1, DecodedStrongRegistrationProductionSurfaceV1,
     DigestFinalizationPlanV1, DigestPlanError, EntryProductionPlanBuildError,
     EntryProductionPlanV1, EntryProductionSourceV1, GeneratedBridgePlanBuildError,
     GeneratedBridgePlanSetV1, ObjectDefinitionPlanBuildError, ObjectDefinitionPlanSurfaceV1,
@@ -204,27 +202,15 @@ impl<D: crate::StrongDescriptorReference, C: Clone + WireEncode, I: WireEncode> 
     for ConeProductionSection<D, C, I>
 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(10)?;
+        encoder.map(4)?;
         encoder.field(2)?;
         self.canonical_definitions.encode(encoder)?;
-        encoder.field(3)?;
-        self.object_definition_plans.encode(encoder)?;
-        encoder.field(4)?;
-        self.digest_finalization_plan.encode(encoder)?;
         encoder.field(5)?;
         self.registration_production.encode(encoder)?;
         encoder.field(6)?;
         self.image_plan.encode(encoder)?;
         encoder.field(7)?;
-        self.entry_plan.encode(encoder)?;
-        encoder.field(8)?;
-        self.shape_support_plan.encode(encoder)?;
-        encoder.field(9)?;
-        self.generated_bridge_plan.encode(encoder)?;
-        encoder.field(13)?;
-        self.canonical_callables.encode(encoder)?;
-        encoder.field(14)?;
-        self.canonical_shapes.encode(encoder)
+        self.entry_plan.encode(encoder)
     }
 }
 

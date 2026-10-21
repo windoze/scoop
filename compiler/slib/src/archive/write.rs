@@ -1,7 +1,7 @@
 use super::*;
 
 /// The unique normal SysV/GNU archive byte stream admitted by the `.slib`
-/// container schema. Semantic validity of `manifest.cbor` is established by
+/// container schema. Semantic validity of the manifest is established by
 /// the manifest layer, not by this physical writer.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CanonicalSlibArchive {
@@ -11,6 +11,8 @@ pub struct CanonicalSlibArchive {
 
 impl CanonicalSlibArchive {
     pub fn write(manifest: &[u8], mut members: Vec<SlibMember>) -> Result<Self, ArchiveWriteError> {
+        let manifest =
+            crate::compression::compress(manifest).map_err(ArchiveWriteError::Compression)?;
         let manifest_length =
             u64::try_from(manifest.len()).map_err(|_| ArchiveWriteError::LengthOverflow)?;
 
@@ -48,7 +50,7 @@ impl CanonicalSlibArchive {
             .try_reserve_exact(capacity)
             .map_err(|_| ArchiveWriteError::Allocation)?;
         output.extend_from_slice(GLOBAL_MAGIC);
-        write_member(&mut output, b"manifest.cbor", manifest)?;
+        write_member(&mut output, MANIFEST_NAME, &manifest)?;
         let mut objects = Vec::new();
         for (ordinal, member) in members.into_iter().enumerate() {
             let name = member_name(ordinal).ok_or(ArchiveWriteError::HeaderFieldOverflow)?;
@@ -86,7 +88,7 @@ impl CanonicalSlibArchive {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ArchiveWriteError {
     LengthOverflow,
 
@@ -94,6 +96,7 @@ pub enum ArchiveWriteError {
 
     HeaderFieldOverflow,
     Allocation,
+    Compression(crate::CompressionError),
 }
 
 impl fmt::Display for ArchiveWriteError {
@@ -107,6 +110,7 @@ impl fmt::Display for ArchiveWriteError {
                 formatter.write_str("archive header field exceeds its fixed width")
             }
             Self::Allocation => formatter.write_str("failed to allocate canonical archive bytes"),
+            Self::Compression(error) => error.fmt(formatter),
         }
     }
 }

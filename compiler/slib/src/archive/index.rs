@@ -7,6 +7,7 @@ pub(crate) struct MemberPosition {
     pub(crate) ordinal: u32,
     pub(crate) header: u64,
     pub(crate) length: u64,
+    pub(crate) compressed: bool,
 }
 
 impl MemberPosition {
@@ -48,6 +49,7 @@ pub(crate) fn member_positions(
                 ordinal: u32::try_from(index).map_err(|_| ArchiveReadError::LengthOverflow)?,
                 header: cursor,
                 length: record.byte_length(),
+                compressed: record.role().is_compressed(),
             },
         ));
         cursor = cursor

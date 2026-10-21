@@ -5,11 +5,11 @@ pub use scoop_identity::{
     ObjectDefinitionPlanId, ObjectDefinitionPlanKey, PersistentSymbolKey,
 };
 use scoop_identity::{
-    ConeIdentity, DecodedConeCoordinate, DecodedPersistentId, DecodedPersistentSymbolRequest,
-    DefinitionAtomRole, LinkageClass, ObjectDefinitionAtomId, PersistentCallableBodyId,
-    PersistentExactTypeId, PersistentImmortalObjectId, PersistentInitializationUnitId,
-    PersistentSafepointSiteId, PersistentStaticStorageId, PersistentSymbolError,
-    PersistentSymbolRequest, StrongDefinitionEntity, StrongDefinitionRole,
+    ConeIdentity, DecodedPersistentId, DecodedPersistentSymbolRequest, DefinitionAtomRole,
+    LinkageClass, ObjectDefinitionAtomId, PersistentCallableBodyId, PersistentExactTypeId,
+    PersistentImmortalObjectId, PersistentInitializationUnitId, PersistentSafepointSiteId,
+    PersistentStaticStorageId, PersistentSymbolError, PersistentSymbolRequest,
+    StrongDefinitionEntity, StrongDefinitionRole,
 };
 use scoop_wire::{
     Decoder, Encoder, HashError, RuntimeEncode, RuntimeEncodeError, RuntimeEncoder, WireDecode,
@@ -58,32 +58,6 @@ impl RuntimeEncode for ConeRecordV1 {
         encoder.byte_span(self.coordinate.name().as_bytes())?;
         encoder.byte_span(self.coordinate.version().as_bytes())?;
         encoder.fixed(self.identity.as_array())
-    }
-}
-
-#[derive(Debug)]
-struct DecodedConeRecordV1 {
-    coordinate: DecodedConeCoordinate,
-    identity: DecodedPersistentId<ConeIdentity>,
-}
-
-impl WireEncode for DecodedConeRecordV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(2)?;
-        encoder.field(1)?;
-        self.coordinate.encode(encoder)?;
-        encoder.field(2)?;
-        self.identity.encode(encoder)
-    }
-}
-
-impl WireDecode for DecodedConeRecordV1 {
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(2)?;
-        Ok(Self {
-            coordinate: decoder.field(1, DecodedConeCoordinate::decode)?,
-            identity: decoder.field(2, DecodedPersistentId::decode)?,
-        })
     }
 }
 
@@ -145,44 +119,6 @@ impl WireEncode for ConeRegistrationTablesV1 {
             &self.safepoints,
             &self.callables,
         )
-    }
-}
-
-#[derive(Debug)]
-struct DecodedConeRegistrationTablesV1 {
-    static_storages: Vec<DecodedPersistentId<PersistentStaticStorageId>>,
-    immortal_objects: Vec<DecodedPersistentId<PersistentImmortalObjectId>>,
-    initialization_units: Vec<DecodedPersistentId<PersistentInitializationUnitId>>,
-    type_registrations: Vec<DecodedPersistentId<PersistentExactTypeId>>,
-    safepoints: Vec<DecodedPersistentId<PersistentSafepointSiteId>>,
-    callables: Vec<DecodedPersistentId<PersistentCallableBodyId>>,
-}
-
-impl WireEncode for DecodedConeRegistrationTablesV1 {
-    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encode_registration_tables(
-            encoder,
-            &self.static_storages,
-            &self.immortal_objects,
-            &self.initialization_units,
-            &self.type_registrations,
-            &self.safepoints,
-            &self.callables,
-        )
-    }
-}
-
-impl WireDecode for DecodedConeRegistrationTablesV1 {
-    fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(6)?;
-        Ok(Self {
-            static_storages: decode_ids(decoder, 1)?,
-            immortal_objects: decode_ids(decoder, 2)?,
-            initialization_units: decode_ids(decoder, 3)?,
-            type_registrations: decode_ids(decoder, 4)?,
-            safepoints: decode_ids(decoder, 5)?,
-            callables: decode_ids(decoder, 6)?,
-        })
     }
 }
 
@@ -262,15 +198,6 @@ fn encode_array<T: WireEncode>(
         value.encode(encoder)?;
     }
     Ok(())
-}
-
-fn decode_ids<I: scoop_identity::PersistentId>(
-    decoder: &mut Decoder<'_>,
-    field: u32,
-) -> Result<Vec<DecodedPersistentId<I>>, WireError> {
-    decoder.field(field, |decoder| {
-        decoder.decode_array(|decoder, _| DecodedPersistentId::decode(decoder))
-    })
 }
 
 mod atoms;

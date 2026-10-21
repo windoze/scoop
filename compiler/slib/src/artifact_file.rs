@@ -114,6 +114,12 @@ impl ArtifactFile {
                 }));
             }
         }
+        let bytes = if position.compressed {
+            crate::archive::decompress_member(&bytes, position.ordinal())
+                .map_err(SlibReadError::Container)?
+        } else {
+            bytes
+        };
         Ok(Some(cached.get_or_init(|| bytes)))
     }
 }

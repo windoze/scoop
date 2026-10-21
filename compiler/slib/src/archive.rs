@@ -8,6 +8,7 @@ use crate::{SlibMember, SlibMemberId, SlibMemberRecord};
 
 pub(crate) const GLOBAL_MAGIC: &[u8; 8] = b"!<arch>\n";
 pub(crate) const HEADER_LENGTH: u64 = 60;
+pub(crate) const MANIFEST_NAME: &[u8] = b"manifest.zst";
 
 mod index;
 pub(crate) use index::{MemberPosition, member_positions};
@@ -61,6 +62,10 @@ pub enum ArchiveReadError {
     },
     LengthOverflow,
     Allocation(WireError),
+    Compression {
+        member: ArchiveMemberOrdinal,
+        source: crate::CompressionError,
+    },
 }
 
 impl fmt::Display for ArchiveReadError {
@@ -101,6 +106,7 @@ impl fmt::Display for ArchiveReadError {
             ),
             Self::LengthOverflow => formatter.write_str("archive length arithmetic overflowed"),
             Self::Allocation(error) => error.fmt(formatter),
+            Self::Compression { member, source } => write!(formatter, "{member}: {source}"),
         }
     }
 }
@@ -111,7 +117,7 @@ impl std::error::Error for ArchiveReadError {}
 #[derive(Debug, Eq, PartialEq)]
 pub struct ManifestArchive<'input> {
     input: &'input [u8],
-    manifest: Range<usize>,
+    manifest: Vec<u8>,
     next_header: usize,
 }
 
@@ -123,7 +129,8 @@ impl<'input> ManifestArchive<'input> {
 
         let ordinal = ArchiveMemberOrdinal::Manifest;
         let (manifest, next_header) =
-            read_member(input, GLOBAL_MAGIC.len(), b"manifest.cbor", ordinal)?;
+            read_member(input, GLOBAL_MAGIC.len(), MANIFEST_NAME, ordinal)?;
+        let manifest = decompress_member(&input[manifest], ordinal)?;
 
         Ok(Self {
             input,
@@ -132,8 +139,8 @@ impl<'input> ManifestArchive<'input> {
         })
     }
 
-    pub fn manifest(&self) -> &'input [u8] {
-        &self.input[self.manifest.clone()]
+    pub fn manifest(&self) -> &[u8] {
+        &self.manifest
     }
 
     pub fn validate_directory(
@@ -152,27 +159,30 @@ impl<'input> ManifestArchive<'input> {
     }
 }
 
-/// Archive member ranges indexed by the manifest directory.
+/// Lazily decoded archive members indexed by the manifest directory.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DecodedArchive<'input> {
     input: &'input [u8],
-    manifest: Range<usize>,
-    members: Vec<(SlibMemberId, MemberPosition, OnceCell<Range<usize>>)>,
+    manifest: Vec<u8>,
+    members: Vec<(SlibMemberId, MemberPosition, OnceCell<MemberPayload>)>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum MemberPayload {
+    Stored(Range<usize>),
+    Decoded(Vec<u8>),
 }
 
 impl<'input> DecodedArchive<'input> {
-    pub fn manifest(&self) -> &'input [u8] {
-        &self.input[self.manifest.clone()]
+    pub fn manifest(&self) -> &[u8] {
+        &self.manifest
     }
 
     pub fn member_ids(&self) -> impl ExactSizeIterator<Item = SlibMemberId> + '_ {
         self.members.iter().map(|(id, _, _)| *id)
     }
 
-    pub(crate) fn member(
-        &self,
-        id: SlibMemberId,
-    ) -> Result<Option<&'input [u8]>, ArchiveReadError> {
+    pub(crate) fn member(&self, id: SlibMemberId) -> Result<Option<&[u8]>, ArchiveReadError> {
         let Ok(index) = self
             .members
             .binary_search_by_key(&id, |(member, _, _)| *member)
@@ -180,15 +190,35 @@ impl<'input> DecodedArchive<'input> {
             return Ok(None);
         };
         let (_, position, cached) = &self.members[index];
-        if let Some(range) = cached.get() {
-            return Ok(Some(&self.input[range.clone()]));
+        if let Some(bytes) = cached.get() {
+            return Ok(Some(self.payload_bytes(bytes)));
         }
         let header =
             usize::try_from(position.header).map_err(|_| ArchiveReadError::LengthOverflow)?;
         let (range, _) = read_member(self.input, header, &position.name()?, position.ordinal())?;
         position.check_length(range.len())?;
-        Ok(Some(&self.input[cached.get_or_init(|| range).clone()]))
+        let bytes = if position.compressed {
+            MemberPayload::Decoded(decompress_member(&self.input[range], position.ordinal())?)
+        } else {
+            MemberPayload::Stored(range)
+        };
+        Ok(Some(self.payload_bytes(cached.get_or_init(|| bytes))))
     }
+
+    fn payload_bytes<'reader>(&'reader self, payload: &'reader MemberPayload) -> &'reader [u8] {
+        match payload {
+            MemberPayload::Stored(range) => &self.input[range.clone()],
+            MemberPayload::Decoded(bytes) => bytes,
+        }
+    }
+}
+
+pub(crate) fn decompress_member(
+    bytes: &[u8],
+    member: ArchiveMemberOrdinal,
+) -> Result<Vec<u8>, ArchiveReadError> {
+    crate::compression::decompress(bytes)
+        .map_err(|source| ArchiveReadError::Compression { member, source })
 }
 
 fn read_member(

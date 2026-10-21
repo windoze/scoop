@@ -3,7 +3,7 @@ use crate::link_data::link_error;
 use crate::*;
 use scoop_identity::{ObjectDefinitionPlanOwner, ValidatedIdentityGraph};
 
-impl<T> DecodedStrongRegistrationProductionSurface<T> {
+impl DecodedStrongRegistrationProductionSurface {
     pub(crate) fn read_compile(
         self,
         foundation: &ConeLirFoundation,
