@@ -17,6 +17,8 @@ mod types;
 pub use types::*;
 mod fields;
 pub use fields::*;
+mod properties;
+pub use properties::*;
 
 /// A context already established by ordinary declaration binding.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -98,6 +100,11 @@ pub trait SemanticQueries {
         context: SemanticContext,
         ty: TypeId,
     ) -> Result<Option<SemanticNominalFields>, Diagnostic>;
+    fn nominal_properties(
+        &mut self,
+        context: SemanticContext,
+        ty: TypeId,
+    ) -> Result<Option<Vec<SemanticPropertyDescription>>, Diagnostic>;
     fn type_relation(
         &mut self,
         context: SemanticContext,

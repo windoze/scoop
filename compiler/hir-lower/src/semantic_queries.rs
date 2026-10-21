@@ -9,6 +9,7 @@ mod context;
 use context::imported_location;
 mod declarations;
 mod fields;
+mod properties;
 mod types;
 
 pub(crate) struct FrontendQueries<'a> {
@@ -175,6 +176,14 @@ impl hir::SemanticQueries for FrontendQueries<'_> {
         ty: hir::TypeId,
     ) -> Result<Option<hir::SemanticNominalFields>, Diagnostic> {
         self.in_context(context, |lowerer| lowerer.query_nominal_fields(ty))
+    }
+
+    fn nominal_properties(
+        &mut self,
+        context: hir::SemanticContext,
+        ty: hir::TypeId,
+    ) -> Result<Option<Vec<hir::SemanticPropertyDescription>>, Diagnostic> {
+        self.in_context(context, |lowerer| lowerer.query_nominal_properties(ty))
     }
 
     fn type_relation(

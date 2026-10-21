@@ -1,6 +1,19 @@
 use super::*;
 
 impl Lowerer {
+    pub(crate) fn imported_member_access_domain(
+        &self,
+        owner: &hir::ImportedNominalDeclaration,
+        visibility: hir::DeclaredVisibilityV1,
+    ) -> hir::AccessDomain {
+        self.imported_nominal_access_domain(owner)
+            .intersect(&self.imported_declaration_domain(
+                visibility,
+                Some(owner.owner()),
+                owner.identity.declaration().origin(),
+            ))
+    }
+
     pub(crate) fn imported_nominal_access_domain(
         &self,
         declaration: &hir::ImportedNominalDeclaration,

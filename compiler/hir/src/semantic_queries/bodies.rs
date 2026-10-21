@@ -6,6 +6,8 @@ use crate::*;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SemanticCallable {
     Current(FunctionId),
+    CurrentGetter(PropertyGetterId),
+    CurrentSetter(PropertySetterId),
     Imported(DefaultCallableDeclarationV1),
 }
 

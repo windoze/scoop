@@ -2,6 +2,7 @@ use super::*;
 use hir::{SemanticBody as Body, SemanticBodyAvailability as Availability, SemanticCallable};
 
 mod fields;
+mod properties;
 mod types;
 
 fn marked_functions(queries: &dyn SemanticQueries) -> Vec<hir::FunctionId> {

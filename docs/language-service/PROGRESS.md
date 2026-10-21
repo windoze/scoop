@@ -35,6 +35,7 @@
 - 正文与声明读取：共享查询借用当前普通 HIR、共享依赖已发布正文，并区分 Available／PendingGeneration／NotPublished／NoBody 与未知引用。定义侧默认值保留原模板、binder、前参引用和继承实参；注解按真实目标与声明 ID 读取，数组元素来源及定义位置直接复用。格式化、全 workspace Clippy、5 项当前／依赖查询专项、8 项生成回归和 3 项相关查询回归通过。应用后的默认值／成员视图及 JSON 逻辑投影仍待后续接入，不把定义侧读取视为完整协议交付。
 - 完整类型查询：描述结构类型、实际名义声明、原 binder／bound、父类型和 companion 应用；查询在前端已有的写时复制视图中运行，新增类型应用不污染程序使用记录或初始化请求。类型片段沿原注解和类型规则检查，包括 alias 内嵌的非法 NoGC 实例；失败查询不影响原程序。格式化、全 workspace Clippy 和 52 项类型查询／生成／companion／NoGC 定向测试通过。字段、成员、应用后的默认值和外部协议继续实施。
 - 存储与 variant 查询：返回原字段／variant 身份、声明顺序、定义侧与应用后的类型、注解目标和精确源码来源；class backing／delegate 关联保留真实 property 身份，基类与计算 property 不混入直接字段。依赖加载保留既有 foundation 中的成员来源，不改产物格式。格式化、全 workspace Clippy 和 64 项 HIR／前端定向测试通过，覆盖新查询、原静态描述、生成回归与持久成员身份。logical property／访问器、构造器和方法的完整描述仍待接入。
+- logical property／访问器：读取实际 property 与 getter／setter 身份、override、定义侧与应用类型、注解和来源；访问结论使用原前端规则，保留 private setter 及 protected receiver 限制。访问器正文复用四态可用性，查询取得的源码访问器身份由最终封装复用。格式化、全 workspace Clippy 和 42 项查询／可见性／身份／生成定向测试通过。构造器、完整方法描述、应用后的默认值、导出查找与外部 generator 闭环继续实施。
 
 ## 环境与验证策略
 

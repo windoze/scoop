@@ -67,8 +67,34 @@ impl FrontendQueries<'_> {
                     | hir::FunctionKind::DerivedEquality => Availability::NoBody,
                 })
             }
+            hir::SemanticCallable::CurrentGetter(getter) => {
+                self.query_accessor_body(self.lowerer.property_getters[getter].implementation)
+            }
+            hir::SemanticCallable::CurrentSetter(setter) => {
+                self.query_accessor_body(self.lowerer.property_setters[setter].implementation)
+            }
             hir::SemanticCallable::Imported(callable) => {
                 let dependencies = self.lowerer.dependencies.as_ref()?;
+                if let hir::DefaultCallableDeclarationV1::PropertyAccessor(accessor) = callable {
+                    let property = dependencies.property_for_accessor(accessor)?;
+                    let source = property.accessors().getter_source();
+                    let source = if source.accessor() == accessor {
+                        source
+                    } else {
+                        property
+                            .accessors()
+                            .setter_source()
+                            .expect("a catalog accessor belongs to its property's capability")
+                    };
+                    if matches!(
+                        source.implementation(),
+                        hir::PropertyAccessorImplementationV1::Storage
+                            | hir::PropertyAccessorImplementationV1::Constant
+                            | hir::PropertyAccessorImplementationV1::AbstractSlot
+                    ) {
+                        return Some(Availability::NoBody);
+                    }
+                }
                 if let Some(body) = dependencies.callable_body(callable) {
                     return Some(Availability::Available(hir::SemanticBody::Imported(body)));
                 }
@@ -95,6 +121,23 @@ impl FrontendQueries<'_> {
                         Availability::NotPublished
                     },
                 )
+            }
+        }
+    }
+
+    fn query_accessor_body(
+        &self,
+        implementation: hir::PropertyAccessorImplementation,
+    ) -> Option<hir::SemanticBodyAvailability<hir::SemanticBody<'_>>> {
+        match implementation {
+            hir::PropertyAccessorImplementation::Body(function)
+            | hir::PropertyAccessorImplementation::StorageBody(function) => {
+                self.query_body(hir::SemanticCallable::Current(function))
+            }
+            hir::PropertyAccessorImplementation::Storage
+            | hir::PropertyAccessorImplementation::Constant
+            | hir::PropertyAccessorImplementation::AbstractSlot(_) => {
+                Some(hir::SemanticBodyAvailability::NoBody)
             }
         }
     }

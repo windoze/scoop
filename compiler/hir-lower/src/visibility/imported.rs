@@ -71,13 +71,8 @@ impl Lowerer {
             .as_ref()
             .and_then(|dependencies| dependencies.nominal_declaration(owner))
             .expect("dependency slots retain their nominal declarations");
-        let domain = self.imported_nominal_access_domain(owner).intersect(
-            &self.imported_declaration_domain(
-                root.interface().declared_visibility(),
-                Some(owner.interface.declaration()),
-                owner.identity.declaration().origin(),
-            ),
-        );
+        let domain =
+            self.imported_member_access_domain(owner, root.interface().declared_visibility());
         Some(hir::SlotContractDomain(domain))
     }
 
