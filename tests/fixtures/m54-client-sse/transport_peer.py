@@ -63,6 +63,8 @@ def exercise_transport(binary, mode, context, timeout):
                             assert exact(signal, 2) == b"go"
                             if mode == "refused":
                                 listener.close()
+                            if mode == "pool-eof":
+                                raw.shutdown(socket.SHUT_WR)
                             signal.sendall(b"x")
                         if mode == "refused":
                             continue
@@ -70,7 +72,8 @@ def exercise_transport(binary, mode, context, timeout):
                             connection.sendall(encoded(3, 0, 1, struct.pack("!I", 1)))
                             closed(connection, True)
                         else:
-                            raw.shutdown(socket.SHUT_WR)
+                            if mode != "pool-eof":
+                                raw.shutdown(socket.SHUT_WR)
                             with contextlib.suppress(ConnectionResetError):
                                 while raw.recv(4096):
                                     pass
