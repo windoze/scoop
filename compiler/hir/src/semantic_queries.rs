@@ -23,6 +23,8 @@ mod parameters;
 pub use parameters::*;
 mod constructors;
 pub use constructors::*;
+mod methods;
+pub use methods::*;
 
 /// A context already established by ordinary declaration binding.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -118,6 +120,11 @@ pub trait SemanticQueries {
         context: SemanticContext,
         ty: TypeId,
     ) -> Result<Option<Vec<SemanticConstructorDescription>>, Diagnostic>;
+    fn nominal_methods(
+        &mut self,
+        context: SemanticContext,
+        ty: TypeId,
+    ) -> Result<Option<Vec<SemanticMethodDescription>>, Diagnostic>;
     fn type_relation(
         &mut self,
         context: SemanticContext,

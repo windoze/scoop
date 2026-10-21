@@ -308,6 +308,7 @@ impl Lowerer {
             functions: SnapshotArena::default(),
             source_function_declarations: Shared::default(),
             query_source_function_identities: HashMap::new(),
+            query_imported_method_parameters: HashMap::new(),
             intrinsic_functions: HashMap::new(),
             intrinsic_type_owners: HashMap::new(),
             imported_intrinsic_types: std::collections::BTreeMap::new(),

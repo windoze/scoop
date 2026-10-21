@@ -10,6 +10,7 @@ use hir::{SemanticBodyAvailability as Availability, SemanticQueries};
 
 mod constructors;
 mod fields;
+mod methods;
 mod properties;
 mod support;
 mod types;

@@ -37,6 +37,7 @@
 - 存储与 variant 查询：返回原字段／variant 身份、声明顺序、定义侧与应用后的类型、注解目标和精确源码来源；class backing／delegate 关联保留真实 property 身份，基类与计算 property 不混入直接字段。依赖加载保留既有 foundation 中的成员来源，不改产物格式。格式化、全 workspace Clippy 和 64 项 HIR／前端定向测试通过，覆盖新查询、原静态描述、生成回归与持久成员身份。logical property／访问器、构造器和方法的完整描述仍待接入。
 - logical property／访问器：读取实际 property 与 getter／setter 身份、override、定义侧与应用类型、注解和来源；访问结论使用原前端规则，保留 private setter 及 protected receiver 限制。访问器正文复用四态可用性，查询取得的源码访问器身份由最终封装复用。格式化、全 workspace Clippy 和 42 项查询／可见性／身份／生成定向测试通过。构造器、完整方法描述、应用后的默认值、导出查找与外部 generator 闭环继续实施。
 - 构造器与完整参数：描述源码 primary／secondary／variant 构造器，排除内部零参适配器；参数保留 callable 与源码位置、声明／应用类型、required／default／vararg 四种调用规则及实际字段／property 关联。默认值保持原定义，并计算本次应用的 binder 实参；源码构造器身份复用到最终封装。格式化、全 workspace Clippy 和 44 项查询／构造器身份／静态描述／生成定向测试通过。完整方法描述、默认值与正文的逻辑投影、导出查找和实际 generator 进程仍待完成。
+- 完整方法描述：普通声明方法保留 receiver、context／值参数、结果、effect、正文引用、原身份及访问域；方法自身的泛型 bound 同时提供定义与 owner 应用视图，沿原调用解析补全并替换参数。依赖方法在同一查询视图内复用实际 owner binder 和一次准备的自身 binder；原生类型也使用实际 core 方法。格式化、全 workspace Clippy 和 49 项查询／生成／调用解析定向测试通过，包括原参数身份、default 实参、接口默认／抽象状态和最终身份复用。导出查找、逻辑正文投影、实际 generator 和 D／E 继续实施。
 
 ## 环境与验证策略
 

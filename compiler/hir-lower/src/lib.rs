@@ -682,6 +682,8 @@ pub(crate) struct Lowerer {
     pub(crate) source_function_declarations: Shared<HashMap<FunctionId, SourceFunctionDeclaration>>,
     pub(crate) query_source_function_identities:
         HashMap<FunctionId, hir::HirSourceFunctionIdentity>,
+    pub(crate) query_imported_method_parameters:
+        HashMap<scoop_identity::CallableTemplateOrigin, Vec<hir::TypeParamDecl>>,
     /// Complete source relation for every validated intrinsic kind. Duplicate
     /// declarations are diagnosed at insertion; core contract validation reads
     /// this map directly and never scans functions or compares names.

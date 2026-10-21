@@ -10,6 +10,7 @@ use context::imported_location;
 mod constructors;
 mod declarations;
 mod fields;
+mod methods;
 mod parameters;
 mod properties;
 mod types;
@@ -142,23 +143,7 @@ impl hir::SemanticQueries for FrontendQueries<'_> {
         &mut self,
         function: hir::FunctionId,
     ) -> Result<hir::HirSourceFunctionIdentity, Diagnostic> {
-        if let Some(identity) = self.lowerer.query_source_function_identities.get(&function) {
-            return Ok(identity.clone());
-        }
-        let identity = crate::persistent_functions::direct_source_identity(
-            self.lowerer,
-            function,
-            self.core_types(),
-        )
-        .map_err(|error| {
-            let mut diagnostic = Diagnostic::at(error.span(), error.to_string());
-            diagnostic.file = error.file();
-            diagnostic
-        })?;
-        self.lowerer
-            .query_source_function_identities
-            .insert(function, identity.clone());
-        Ok(identity)
+        self.lowerer.query_function_identity(function)
     }
 
     fn type_signature(
@@ -211,6 +196,14 @@ impl hir::SemanticQueries for FrontendQueries<'_> {
         ty: hir::TypeId,
     ) -> Result<Option<Vec<hir::SemanticConstructorDescription>>, Diagnostic> {
         self.in_context(context, |lowerer| lowerer.query_nominal_constructors(ty))
+    }
+
+    fn nominal_methods(
+        &mut self,
+        context: hir::SemanticContext,
+        ty: hir::TypeId,
+    ) -> Result<Option<Vec<hir::SemanticMethodDescription>>, Diagnostic> {
+        self.in_context(context, |lowerer| lowerer.query_nominal_methods(ty))
     }
 
     fn type_relation(

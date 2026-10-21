@@ -3,6 +3,7 @@ use hir::{SemanticBody as Body, SemanticBodyAvailability as Availability, Semant
 
 mod constructors;
 mod fields;
+mod methods;
 mod properties;
 mod types;
 
