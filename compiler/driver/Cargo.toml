@@ -19,6 +19,7 @@ scoop-ast.workspace = true
 scoop-codegen.workspace = true
 scoop-hir-lower.workspace = true
 scoop-identity.workspace = true
+scoop-source.workspace = true
 scoop-hir.workspace = true
 scoop-lir-lower.workspace = true
 scoop-lir.workspace = true

@@ -1,4 +1,5 @@
 use scoop_identity::SourceIdentity;
+use scoop_source::SourceText;
 use std::fmt;
 
 mod documentation;
@@ -35,7 +36,7 @@ impl EmittedStageDump {
 struct CurrentConeDiagnosticSource {
     identity: SourceIdentity,
     display_locator: String,
-    source_text: Option<String>,
+    source_text: Option<SourceText>,
 }
 
 /// Diagnostics inseparably paired with the exact current-Cone sources whose
@@ -56,7 +57,7 @@ impl CurrentConeDiagnosticSet {
             .map(|source| CurrentConeDiagnosticSource {
                 identity: source.text().identity().clone(),
                 display_locator: source.diagnostic().display_locator().display().to_string(),
-                source_text: Some(source.text().text().to_owned()),
+                source_text: Some(source.text().source_text().clone()),
             })
             .collect::<Vec<_>>();
         for diagnostic in &mut diagnostics {
@@ -108,7 +109,9 @@ impl CurrentConeDiagnosticSet {
             .flat_map(|diagnostic| {
                 let primary_source = &self.sources[diagnostic.file];
                 let primary = match &primary_source.source_text {
-                    Some(text) => diagnostic.render(&primary_source.display_locator, text),
+                    Some(text) => {
+                        diagnostic.render_with_source(&primary_source.display_locator, text)
+                    }
                     None => {
                         let severity = match diagnostic.severity {
                             scoop_ast::DiagnosticSeverity::Error => "error",
@@ -125,7 +128,7 @@ impl CurrentConeDiagnosticSet {
                 std::iter::once(primary).chain(diagnostic.notes.iter().map(|note| {
                     let note_source = &self.sources[note.file];
                     match &note_source.source_text {
-                        Some(text) => note.render(&note_source.display_locator, text),
+                        Some(text) => note.render_with_source(&note_source.display_locator, text),
                         None => {
                             render_without_text(note_source, Some(note.span), "note", &note.message)
                         }

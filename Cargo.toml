@@ -4,6 +4,7 @@ members = [
     "compiler/wire",
     "compiler/process",
     "compiler/identity",
+    "compiler/source",
     "compiler/manifest",
     "compiler/protocol",
     "compiler/toolchain",
@@ -62,6 +63,7 @@ minijinja = { version = "3.0.1", features = ["serde"] }
 scoop-wire = { path = "compiler/wire" }
 scoop-process = { path = "compiler/process" }
 scoop-identity = { path = "compiler/identity" }
+scoop-source = { path = "compiler/source" }
 scoop-manifest = { path = "compiler/manifest" }
 scoop-protocol = { path = "compiler/protocol" }
 scoop-toolchain = { path = "compiler/toolchain" }

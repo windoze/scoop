@@ -1,17 +1,5 @@
+use crate::{SourceText, Span};
 use scoop_identity::SourceIdentity;
-
-/// Byte-offset range into a source file.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Span {
-    pub start: u32,
-    pub end: u32,
-}
-
-impl Span {
-    pub fn new(start: u32, end: u32) -> Self {
-        Span { start, end }
-    }
-}
 
 /// Severity of one compiler diagnostic.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -138,9 +126,22 @@ impl Diagnostic {
 
     /// Render as `<file>:<line>:<col>: <severity>: <message>`.
     pub fn render(&self, file_name: &str, source: &str) -> String {
+        self.render_position(file_name, |offset| line_col(source, offset))
+    }
+
+    /// Reuse the index shared by all diagnostics for this immutable source.
+    pub fn render_with_source(&self, file_name: &str, source: &SourceText) -> String {
+        self.render_position(file_name, |offset| source.diagnostic_position(offset))
+    }
+
+    fn render_position(
+        &self,
+        file_name: &str,
+        position: impl FnOnce(u32) -> (usize, usize),
+    ) -> String {
         match self.span {
             Some(span) => {
-                let (line, col) = line_col(source, span.start);
+                let (line, col) = position(span.start);
                 format!(
                     "{file_name}:{line}:{col}: {}: {}",
                     self.severity.label(),
@@ -165,6 +166,11 @@ impl DiagnosticNote {
     /// Render as `<file>:<line>:<col>: note: <message>`.
     pub fn render(&self, file_name: &str, source: &str) -> String {
         let (line, col) = line_col(source, self.span.start);
+        format!("{file_name}:{line}:{col}: note: {}", self.message)
+    }
+
+    pub fn render_with_source(&self, file_name: &str, source: &SourceText) -> String {
+        let (line, col) = source.diagnostic_position(self.span.start);
         format!("{file_name}:{line}:{col}: note: {}", self.message)
     }
 }

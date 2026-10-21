@@ -13,6 +13,13 @@ use scoop_ast::{Diagnostic, DiagnosticNote, Ident, PackageSyntax, SourceFile, Sp
 use crate::lexer::{Token, TokenKind, lex};
 
 pub(crate) fn parse_file(source: &str) -> Result<SourceFile, Vec<Diagnostic>> {
+    let span = scoop_source::source_span(source.len()).map_err(|error| {
+        vec![Diagnostic::without_span(
+            scoop_ast::DiagnosticSeverity::Error,
+            0,
+            error.to_string(),
+        )]
+    })?;
     let crate::lexer::Lexed {
         tokens,
         diagnostics: lexical_diagnostics,
@@ -140,7 +147,7 @@ pub(crate) fn parse_file(source: &str) -> Result<SourceFile, Vec<Diagnostic>> {
             .into_iter()
             .map(|doc| doc.comment)
             .collect(),
-        span: Span::new(0, source.len() as u32),
+        span,
     };
     let mut diagnostics = lexical_diagnostics;
     let syntax_diagnostics = parser

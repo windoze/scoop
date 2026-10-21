@@ -85,7 +85,7 @@ fn unavailable_dependency_text_renders_bytes_without_invented_line_numbers() {
             super::super::CurrentConeDiagnosticSource {
                 identity: source(19, "src/main.scoop"),
                 display_locator: "src/main.scoop".to_owned(),
-                source_text: Some("value".to_owned()),
+                source_text: Some("value".to_owned().into()),
             },
             super::super::CurrentConeDiagnosticSource {
                 display_locator: format!("{}/{}", identity.cone(), identity.logical_path()),

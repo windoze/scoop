@@ -1,6 +1,6 @@
 # 可恢复语法、M47 与 LSP 的公共基础
 
-状态：调研与设计完成，待实施。日期：2026-10-21。仓库基线：`4de3ae9e8`。外部资料、依赖候选与功能清单见[调研](INVESTIGATION.md)；阶段目标合同见[实现规范 2.20](../specs/SCOOP-IMPL-SPEC.md#220-可恢复语法与语言服务公共基础设计合同待实施)。本次交付设计文档，不声称 parser、M47 或 LSP 已实现下述能力。
+状态：实施中。设计日期：2026-10-21；实施起始：2026-10-22，基线 `033dd9e1d`。原调研基线：`4de3ae9e8`。外部资料、依赖候选与功能清单见[调研](INVESTIGATION.md)；阶段目标合同见[实现规范 2.20](../specs/SCOOP-IMPL-SPEC.md#220-可恢复语法与语言服务公共基础设计合同待实施)。各项实际交付、验证与剩余范围见[实施记录](PROGRESS.md)，未闭合的批次不视为已经实现。
 
 依据：[语言规范](../specs/SCOOP-SPEC.md)的语法、名称、类型与文档规则，[实现规范](../specs/SCOOP-IMPL-SPEC.md)2.1、2.2、2.7、2.11、2.20，[M47 设计](../milestone47/DESIGN.md)及[同步查询协议](../milestone47/PROTOCOL.md)。运行时继续遵守[运行时规范](../specs/SCOOP-RUNTIME-SPEC.md)，本设计没有 runtime 变更。
 
@@ -261,7 +261,7 @@ semanticTokens、inlayHint、格式化、call／type hierarchy 等按[需求表]
 | 导航与编辑 | 局部遮蔽、同名跨 Cone、alias／re-export、property／accessor、构造参数、泛型实例、依赖无源码；rename 不漏掉必须修改的引用或误改同名符号 |
 | 生命周期与并发 | 分段 stdio、连续帧、initialize／shutdown／exit、分析中编辑和取消、旧诊断晚到、空诊断清除、resolve 时版本变化；取消请求均有响应 |
 
-普通功能 fixture 验证诊断、查询的必要事实和实际编译运行。只为少量恢复／投影案例保存小型语法树或 typed 断言，不给每个语言 fixture 添加整棵 CST／HIR 快照；LSP 用真实 stdio 测试，不为测试另建语义后端。
+编译器内部数据和查询使用 Rust 测试；普通 Scoop 库行为放入所属 Cone 的 scoop.test 测试。编译失败／诊断、产物／链接、CLI 和外部进程控制使用相应 fixture，普通 fixture 仅用 release 并共享预编译 sysroot 与 Cone cache。只为少量恢复／投影案例保存小型语法树或 typed 断言，不给每个语言 fixture 添加整棵 CST／HIR 快照；LSP 用真实 stdio 测试，不为测试另建语义后端。
 
 修改代码后按 AGENTS.md 先格式化和 lint，再运行相应 Rust／fixture runner／正式 CLI 验收。仅语法与语言服务改动不要求 GC stress；真正影响产物、ABI 或生成正文时再补对应组合。原始日志与性能记录放仓库外。
 
