@@ -72,8 +72,12 @@ impl FrontendQueries<'_, '_> {
 
     pub(super) fn signature_binders(
         &self,
-        context: hir::SemanticContext,
+        context: hir::SemanticTypeContext<'_>,
     ) -> Vec<hir::HirSignatureBinder> {
+        let context = match context {
+            hir::SemanticTypeContext::Lexical(context) => context,
+            hir::SemanticTypeContext::Declaration(binders) => return binders.signature_binders(),
+        };
         let (parameters, owner_count) = match context {
             hir::SemanticContext::Function(function) => {
                 let signature = &self.lowerer.signatures[&function];
@@ -90,20 +94,29 @@ impl FrontendQueries<'_, '_> {
                 (parameters, count)
             }
         };
-        let has_own = parameters.len() > owner_count;
-        parameters
-            .iter()
-            .enumerate()
-            .map(|(index, parameter)| hir::HirSignatureBinder {
-                parameter: parameter.id,
-                depth: u32::from(has_own && index < owner_count),
-                index: u32::try_from(if index < owner_count {
-                    index
-                } else {
-                    index - owner_count
-                })
-                .expect("declaration parameter counts fit the identity schema"),
-            })
-            .collect()
+        let (owner, callable) = parameters.split_at(owner_count);
+        hir::SemanticDeclarationBinders {
+            owner: owner.to_vec(),
+            callable: callable.to_vec(),
+        }
+        .signature_binders()
+    }
+
+    pub(super) fn in_type_context<T>(
+        &mut self,
+        context: hir::SemanticTypeContext<'_>,
+        operation: impl FnOnce(&mut Lowerer) -> T,
+    ) -> T {
+        match context {
+            hir::SemanticTypeContext::Lexical(context) => self.in_context(context, operation),
+            hir::SemanticTypeContext::Declaration(binders) => {
+                let parameters = binders.parameters().cloned().collect();
+                let previous =
+                    std::mem::replace(&mut self.lowerer.type_params_in_scope, parameters);
+                let value = operation(self.lowerer);
+                self.lowerer.type_params_in_scope = previous;
+                value
+            }
+        }
     }
 }

@@ -183,6 +183,8 @@ appliedType:     当前 owner application 替换后的完整类型
 
 例如 `Box<T>.value: T` 应返回原 binder T 与当前实际类型；`Box<T>.value: T?` 则在原类型中已包含真实 Option 声明。generator 由第一组事实决定 M46 的缺省／省略资格，由第二组事实选择完整字段 codec。编译器不提供 `isSerializable`、`shouldOmitNone` 或 `isOptionForSerialization`。
 
+适配器投影 declarationType 与原 bound 时使用该声明的实际 binder 上下文，投影 appliedType 时使用应用所处的上下文。名义宿主与方法自身的参数保持签名中的层级；查询方法中同名的类型参数不能替代原声明参数。此处只描述已有绑定，不改变生成方法的词法访问权限。
+
 logical property 与 backing field 保留各自的实际 target，不能丢失 use-site 或复制为两个参与字段。构造参数映射、storage／computed／delegated 区分、enum 的命名／位置 payload 和基类关系都沿静态描述返回，generator 决定哪些形状属于本次策略。
 
 访问元数据不授予源码访问能力。返回的 private 信息可供诊断和结构判断，生成正文若真正访问它，仍执行当前方法上下文的普通字段／property／constructor 访问检查。

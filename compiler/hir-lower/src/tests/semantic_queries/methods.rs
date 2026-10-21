@@ -54,6 +54,31 @@ fn dependency_method_queries_keep_stable_binders_and_apply_owner_bounds() {
                 ["copy", "accept", "read", "hidden"]
             );
             let own = &methods[1].type_parameters[0];
+            let binders = methods[1].declaration_binders();
+            let result = methods[1].result.declaration;
+            assert!(queries.describe_type(context.into(), result).is_err());
+            let hir::SemanticTypeStructure::Parameter(parameter) = queries
+                .describe_type((&binders).into(), result)
+                .unwrap()
+                .structure
+            else {
+                panic!("original dependency method binder")
+            };
+            assert_eq!(parameter.id, own.declaration.id);
+            assert_eq!(
+                queries.type_signature((&binders).into(), result).unwrap(),
+                scoop_identity::SignatureTypeKey::Binder { depth: 0, index: 0 }
+            );
+            let bound = own.declaration.nominal_bounds_in_source_order()[0].ty();
+            let scoop_identity::SignatureTypeKey::NominalApplication { arguments, .. } =
+                queries.type_signature((&binders).into(), bound).unwrap()
+            else {
+                panic!("original dependency owner binder")
+            };
+            assert_eq!(
+                arguments.as_slice(),
+                [scoop_identity::SignatureTypeKey::Binder { depth: 1, index: 0 }]
+            );
             assert_eq!(own.applied.nominal_bounds_in_source_order()[0].ty(), view);
             assert_ne!(
                 own.declaration.nominal_bounds_in_source_order()[0].ty(),

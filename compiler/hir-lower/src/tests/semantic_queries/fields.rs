@@ -46,7 +46,7 @@ fn dependency_storage_queries_retain_actual_origins_and_generic_substitution() {
                 .unwrap();
             let field = &shape.fields[0];
             let hir::SemanticTypeStructure::Nominal(nominal) = queries
-                .describe_type(context, parameters[0])
+                .describe_type(context.into(), parameters[0])
                 .unwrap()
                 .structure
             else {

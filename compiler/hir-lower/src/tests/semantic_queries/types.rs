@@ -27,7 +27,7 @@ fn dependency_type_description_does_not_request_companion_initialization() {
                 panic!("Box parameter")
             };
             let Shape::Nominal(nominal) = queries
-                .describe_type(context, value_type)
+                .describe_type(context.into(), value_type)
                 .unwrap()
                 .structure
             else {
@@ -42,8 +42,10 @@ fn dependency_type_description_does_not_request_companion_initialization() {
                 )
                 .unwrap();
             assert_eq!(resolved, companion);
-            let Shape::Nominal(companion) =
-                queries.describe_type(context, companion).unwrap().structure
+            let Shape::Nominal(companion) = queries
+                .describe_type(context.into(), companion)
+                .unwrap()
+                .structure
             else {
                 panic!("dependency companion")
             };
@@ -51,8 +53,10 @@ fn dependency_type_description_does_not_request_companion_initialization() {
             assert_eq!(companion.arguments, nominal.arguments);
             assert_ne!(companion.declaration, nominal.declaration);
             let integer = nominal.arguments[0];
-            let Shape::Nominal(integer) =
-                queries.describe_type(context, integer).unwrap().structure
+            let Shape::Nominal(integer) = queries
+                .describe_type(context.into(), integer)
+                .unwrap()
+                .structure
             else {
                 panic!("the primitive retains its actual core identity")
             };

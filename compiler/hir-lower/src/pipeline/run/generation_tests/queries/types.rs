@@ -1,6 +1,8 @@
 use super::*;
 use hir::SemanticTypeStructure as Shape;
 
+mod declaration_binders;
+
 pub(super) fn resolve(
     queries: &mut dyn SemanticQueries,
     context: SemanticContext,
@@ -19,14 +21,17 @@ fn descriptions_keep_complete_structural_types_and_actual_generic_declarations()
         let integer = resolve(queries, context, "Int");
         let boolean = resolve(queries, context, "Boolean");
         let tuple = resolve(queries, context, "(Int, Boolean)");
-        let Shape::Tuple(elements) = queries.describe_type(context, tuple).unwrap().structure
+        let Shape::Tuple(elements) = queries
+            .describe_type(context.into(), tuple)
+            .unwrap()
+            .structure
         else {
             panic!("tuple components")
         };
         assert_eq!(elements, [integer, boolean]);
         let function_type = resolve(queries, context, "(Int) -> Boolean");
         let Shape::Function(function_type) = queries
-            .describe_type(context, function_type)
+            .describe_type(context.into(), function_type)
             .unwrap()
             .structure
         else {
@@ -36,12 +41,14 @@ fn descriptions_keep_complete_structural_types_and_actual_generic_declarations()
         assert_eq!(function_type.return_type, boolean);
         let pointer = resolve(queries, context, "Ptr<Int>");
         assert!(
-            matches!(queries.describe_type(context, pointer).unwrap().structure,
+            matches!(queries.describe_type(context.into(), pointer).unwrap().structure,
             Shape::Pointer(pointee) if pointee == integer)
         );
         let pointer = resolve(queries, context, "FunPtr<(Int) -> Boolean>");
-        let Shape::NativeFunctionPointer(function_type) =
-            queries.describe_type(context, pointer).unwrap().structure
+        let Shape::NativeFunctionPointer(function_type) = queries
+            .describe_type(context.into(), pointer)
+            .unwrap()
+            .structure
         else {
             panic!("native function pointer signature")
         };
@@ -50,7 +57,10 @@ fn descriptions_keep_complete_structural_types_and_actual_generic_declarations()
         let aliased = resolve(queries, context, "Wrapped<Int>");
         let direct = resolve(queries, context, "Box<Int>");
         assert_eq!(aliased, direct);
-        let Shape::Nominal(nominal) = queries.describe_type(context, aliased).unwrap().structure
+        let Shape::Nominal(nominal) = queries
+            .describe_type(context.into(), aliased)
+            .unwrap()
+            .structure
         else {
             panic!("nominal declaration and arguments")
         };
@@ -62,8 +72,10 @@ fn descriptions_keep_complete_structural_types_and_actual_generic_declarations()
         assert_eq!(nominal.arguments, [integer]);
         assert_eq!(nominal.parameters[0].name, "T");
         let parameter = resolve(queries, context, "T");
-        let Shape::Parameter(parameter) =
-            queries.describe_type(context, parameter).unwrap().structure
+        let Shape::Parameter(parameter) = queries
+            .describe_type(context.into(), parameter)
+            .unwrap()
+            .structure
         else {
             panic!("original binder declaration")
         };
@@ -84,8 +96,8 @@ fn type_parameters_cannot_be_reinterpreted_in_an_unrelated_context() {
         let first = SemanticContext::Function(functions[0]);
         let second = SemanticContext::Function(functions[1]);
         let ty = resolve(queries, first, "T");
-        assert!(queries.describe_type(first, ty).is_ok());
-        assert!(queries.describe_type(second, ty).is_err());
+        assert!(queries.describe_type(first.into(), ty).is_ok());
+        assert!(queries.describe_type(second.into(), ty).is_err());
         Ok(Vec::new())
     });
     compile("annotation class Mark\n@Mark fun <T> first(value: T) {}\n@Mark fun <T> second(value: T) {}", &mut driver).unwrap();
@@ -96,14 +108,14 @@ fn type_queries_apply_real_parent_and_companion_relations() {
     let mut driver = Generator(|queries: &mut dyn SemanticQueries| {
         let context = SemanticContext::Function(marked_functions(queries)[0]);
         let ty = resolve(queries, context, "Box<Int>");
-        let description = queries.describe_type(context, ty).unwrap();
+        let description = queries.describe_type(context.into(), ty).unwrap();
         let parent = resolve(queries, context, "View<Int>");
         assert!(description.parents.contains(&parent));
         let Shape::Nominal(nominal) = description.structure else {
             panic!("Box")
         };
         let companion = queries
-            .describe_type(context, nominal.companion.unwrap())
+            .describe_type(context.into(), nominal.companion.unwrap())
             .unwrap();
         let Shape::Nominal(companion) = companion.structure else {
             panic!("companion")
@@ -139,7 +151,7 @@ fn failed_type_queries_validate_annotations_and_do_not_add_program_uses() {
             .unwrap_err();
         assert!(!errors.is_empty());
         let valid = resolve(queries, context, "Storage<Int>");
-        assert!(queries.describe_type(context, valid).is_ok());
+        assert!(queries.describe_type(context.into(), valid).is_ok());
         assert_eq!(queries.annotations().type_uses.len(), count);
         Ok(Vec::new())
     });

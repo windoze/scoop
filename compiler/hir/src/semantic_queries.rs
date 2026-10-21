@@ -25,6 +25,8 @@ mod constructors;
 pub use constructors::*;
 mod methods;
 pub use methods::*;
+mod type_context;
+pub use type_context::*;
 
 /// A context already established by ordinary declaration binding.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -104,12 +106,12 @@ pub trait SemanticQueries {
     ) -> Result<HirSourceFunctionIdentity, Diagnostic>;
     fn type_signature(
         &self,
-        context: SemanticContext,
+        context: SemanticTypeContext<'_>,
         ty: TypeId,
     ) -> Result<SignatureTypeKey, Diagnostic>;
     fn describe_type(
         &mut self,
-        context: SemanticContext,
+        context: SemanticTypeContext<'_>,
         ty: TypeId,
     ) -> Result<SemanticTypeDescription, StaticShapeUnboundParameter>;
     fn nominal_fields(

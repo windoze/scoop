@@ -163,7 +163,7 @@ impl hir::SemanticQueries for FrontendQueries<'_, '_> {
 
     fn type_signature(
         &self,
-        context: hir::SemanticContext,
+        context: hir::SemanticTypeContext<'_>,
         ty: hir::TypeId,
     ) -> Result<SignatureTypeKey, Diagnostic> {
         let mapper = crate::persistent_types::SignatureTypeMapper::new(
@@ -183,10 +183,10 @@ impl hir::SemanticQueries for FrontendQueries<'_, '_> {
 
     fn describe_type(
         &mut self,
-        context: hir::SemanticContext,
+        context: hir::SemanticTypeContext<'_>,
         ty: hir::TypeId,
     ) -> Result<hir::SemanticTypeDescription, hir::StaticShapeUnboundParameter> {
-        self.in_context(context, |lowerer| lowerer.describe_semantic_type(ty))
+        self.in_type_context(context, |lowerer| lowerer.describe_semantic_type(ty))
     }
 
     fn nominal_fields(
